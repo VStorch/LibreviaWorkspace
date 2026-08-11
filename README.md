@@ -5,12 +5,13 @@ Formatos-alvo: **DOCX, XLSX, PDF**.
 
 > Nome provisório. Ver `docs/00-plano-tecnico.md` §8, item 7.
 
-**Estado atual: Fase 2 concluída** — fundação, ciclo completo de arquivos e **editor de
-documentos** com formatação de texto, títulos, listas, recuo, espaçamento, alinhamento,
-tabelas, imagens, links, quebra de página, localizar/substituir e configuração de página
-(A4/Carta, retrato/paisagem, margens).
+**Estado atual: Fase 3 concluída** — fundação, ciclo completo de arquivos, **editor de
+documentos** (formatação, títulos, listas, recuo, espaçamento, alinhamento, tabelas,
+imagens, links, quebra de página, localizar/substituir) e **exportação para PDF e
+impressão**, com cabeçalho, rodapé, numeração, margens e orientação.
 
-Próxima etapa: Fase 3 — exportação para PDF e impressão.
+Próxima etapa: Fase 4 — importação e exportação de DOCX. É a fase mais arriscada do
+projeto; ver §6.1 do plano.
 
 ## Formatos
 
@@ -18,8 +19,23 @@ Próxima etapa: Fase 3 — exportação para PDF e impressão.
 | -------- | ------------ |
 | `.sdoc`  | formato interno: documento completo, com formatação — sem perda |
 | `.txt`   | apenas texto; salvar nele descarta formatação, e o aplicativo avisa antes |
+| `.pdf`   | saída apenas (exportação e impressão) |
 
 DOCX chega na Fase 4 e XLSX na Fase 7.
+
+## PDF e impressão
+
+Não há biblioteca de PDF: quem gera é o próprio Chromium, pelo `printToPDF`. É o mesmo
+motor que desenha o editor, então o PDF sai igual à tela — e o texto continua selecionável,
+com as fontes embutidas.
+
+O estilo do conteúdo mora em `services/document/content-styles.ts` e é **a mesma folha**
+usada pelo editor e pelo HTML de impressão. Duas folhas divergiriam com o tempo, e o PDF
+deixaria de bater com a tela.
+
+Cuidado ao mexer em margens: `printToPDF()` recebe **polegadas** e `webContents.print()`
+recebe **pixels CSS**. As duas conversões vivem juntas em `services/pdf/page-setup.ts`,
+com teste comparando uma com a outra.
 O plano completo, com arquitetura, avaliação de bibliotecas, licenças, riscos e as 9 fases,
 está em [`docs/00-plano-tecnico.md`](docs/00-plano-tecnico.md).
 

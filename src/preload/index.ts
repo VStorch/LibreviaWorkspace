@@ -25,6 +25,11 @@ const api: AppApi = {
   image: {
     pick: (payload) => ipcRenderer.invoke(IpcChannel.ImagePick, payload),
   },
+  print: {
+    exportPdf: (payload) => ipcRenderer.invoke(IpcChannel.PrintExportPdf, payload),
+    dialog: (payload) => ipcRenderer.invoke(IpcChannel.PrintDialog, payload),
+    preview: (payload) => ipcRenderer.invoke(IpcChannel.PrintPreview, payload),
+  },
   dialog: {
     confirmDiscard: (payload) => ipcRenderer.invoke(IpcChannel.DialogConfirmDiscard, payload),
     confirmPlainText: (payload) => ipcRenderer.invoke(IpcChannel.DialogConfirmPlainText, payload),

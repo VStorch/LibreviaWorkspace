@@ -4,7 +4,7 @@ import { IpcChannel } from '@shared/ipc-channels.js'
 import type { LoadedFile } from '@shared/types.js'
 import { ensureSupportedExtension, fileNameFromPath, kindFromPath } from '@services/file/formats.js'
 import { showOpenFileDialog, showSaveFileDialog } from '../dialogs.js'
-import { writeTextFileAtomic } from '../fs/atomic-write.js'
+import { writeFileAtomic } from '../fs/atomic-write.js'
 import { assertPathAuthorized, assertReadableFile, authorizePath } from '../fs/paths.js'
 import { clearRecentFiles, isRemembered, listRecentFiles, rememberRecentFile } from '../fs/recent.js'
 import { readTextFile } from '../fs/read-text.js'
@@ -57,7 +57,7 @@ export function registerFileHandlers(): void {
 
   handle(IpcChannel.FileSave, async (payload) => {
     const path = assertPathAuthorized(payload.path)
-    await writeTextFileAtomic(path, payload.content)
+    await writeFileAtomic(path, payload.content)
 
     rememberRecentFile(path)
     void refreshMenu()

@@ -41,6 +41,11 @@ export interface AppApi {
   readonly image: {
     pick: Call<typeof IpcChannel.ImagePick>
   }
+  readonly print: {
+    exportPdf: Call<typeof IpcChannel.PrintExportPdf>
+    dialog: Call<typeof IpcChannel.PrintDialog>
+    preview: Call<typeof IpcChannel.PrintPreview>
+  }
   readonly dialog: {
     confirmDiscard: Call<typeof IpcChannel.DialogConfirmDiscard>
     confirmPlainText: Call<typeof IpcChannel.DialogConfirmPlainText>

@@ -6,7 +6,7 @@ import { fromFileSystemError } from '@shared/errors.js'
 const FSYNC_UNSUPPORTED = new Set(['EINVAL', 'ENOTSUP', 'EPERM', 'EBADF', 'EISDIR'])
 
 /**
- * Grava um arquivo de texto sem janela de perda.
+ * Grava um arquivo sem janela de perda — texto ou binário.
  *
  * A sequência importa, e cada passo existe por um motivo:
  *
@@ -23,7 +23,7 @@ const FSYNC_UNSUPPORTED = new Set(['EINVAL', 'ENOTSUP', 'EPERM', 'EBADF', 'EISDI
  * Se qualquer passo falhar, o temporário é removido e o arquivo original
  * continua exatamente como estava.
  */
-export async function writeTextFileAtomic(targetPath: string, content: string): Promise<void> {
+export async function writeFileAtomic(targetPath: string, data: string | Uint8Array): Promise<void> {
   const directory = dirname(targetPath)
   const temporaryPath = join(directory, `.${crypto.randomUUID()}.tmp`)
 
@@ -33,7 +33,7 @@ export async function writeTextFileAtomic(targetPath: string, content: string): 
 
     // 'wx' falha se o temporário já existir — evita colidir com outra instância.
     handle = await open(temporaryPath, 'wx', existingMode ?? 0o666)
-    await handle.writeFile(content, 'utf8')
+    await (typeof data === 'string' ? handle.writeFile(data, 'utf8') : handle.writeFile(data))
     await syncIfSupported(handle)
     await handle.close()
     handle = undefined

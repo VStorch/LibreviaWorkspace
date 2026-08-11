@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { IpcChannel, INVOCABLE_IPC_CHANNELS, type InvocableIpcChannel } from './ipc-channels.js'
+import { pageSetupSchema } from './schemas.js'
 import type { SerializedError } from './errors.js'
 
 /**
@@ -38,6 +39,12 @@ const recentFileSchema = z.object({
 })
 
 const emptyRequest = z.object({})
+
+/** O HTML vem do editor; a configuração de página, do documento. */
+const printRequestSchema = z.object({
+  html: z.string().max(MAX_TEXT_LENGTH),
+  page: pageSetupSchema,
+})
 
 /** Diálogo cancelado não é erro: é um desfecho previsto. */
 const openResultSchema = z.discriminatedUnion('canceled', [
@@ -89,6 +96,19 @@ export const ipcContracts = {
         name: z.string(),
       }),
     ]),
+  },
+  [IpcChannel.PrintExportPdf]: {
+    request: printRequestSchema.extend({ suggestedName: z.string().min(1).max(255) }),
+    response: saveResultSchema,
+  },
+  [IpcChannel.PrintDialog]: {
+    request: printRequestSchema,
+    // `false` significa que o usuário cancelou — cancelar não é erro.
+    response: z.object({ printed: z.boolean() }),
+  },
+  [IpcChannel.PrintPreview]: {
+    request: printRequestSchema.extend({ title: z.string().max(255) }),
+    response: z.object({ opened: z.literal(true) }),
   },
   [IpcChannel.DialogConfirmDiscard]: {
     request: z.object({ fileName: z.string().min(1).max(255) }),

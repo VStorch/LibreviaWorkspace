@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { EditorContent, useEditor } from '@tiptap/react'
+import { DOCUMENT_CONTENT_CSS, EDITOR_ONLY_CSS } from '@services/document/content-styles.js'
 import { mmToPx, pageDimensionsMm } from '@services/document/model.js'
 import type { DocumentNode } from '@services/document/model.js'
 import { useWorkspace } from '../state/workspace.js'
@@ -52,10 +53,13 @@ export function DocumentEditor(): React.JSX.Element {
     },
   })
 
-  // Salvar precisa do conteúdo atual, que só o editor conhece.
+  // Salvar e imprimir precisam do conteúdo atual, que só o editor conhece.
   useEffect(() => {
     if (editor === null) return undefined
-    registerDocumentSource(() => editor.getJSON() as DocumentNode)
+    registerDocumentSource({
+      readDoc: () => editor.getJSON() as DocumentNode,
+      readHtml: () => editor.getHTML(),
+    })
     return () => registerDocumentSource(null)
   }, [editor, registerDocumentSource])
 
@@ -75,6 +79,11 @@ export function DocumentEditor(): React.JSX.Element {
 
   return (
     <div className="editor-shell">
+      {/* O estilo do conteúdo vem do mesmo módulo que o HTML de impressão usa.
+          Duas folhas de estilo divergiriam com o tempo, e o PDF deixaria de
+          sair igual à tela — o risco registrado no §6.3 do plano. */}
+      <style>{DOCUMENT_CONTENT_CSS + EDITOR_ONLY_CSS}</style>
+
       <DocumentToolbar
         editor={editor}
         onOpenFind={() => setFindOpen(true)}

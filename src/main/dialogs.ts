@@ -60,6 +60,19 @@ export async function confirmDiscardChanges(window: BrowserWindow, fileName: str
   return DiscardChoice.Cancel
 }
 
+export async function showPdfSaveDialog(
+  window: BrowserWindow,
+  suggestedName: string,
+): Promise<string | null> {
+  const result = await dialog.showSaveDialog(window, {
+    title: 'Exportar para PDF',
+    defaultPath: suggestedName,
+    filters: [{ name: 'PDF', extensions: ['pdf'] }],
+    properties: ['createDirectory', 'showOverwriteConfirmation'],
+  })
+  return result.canceled ? null : (result.filePath ?? null)
+}
+
 export async function showImagePickerDialog(window: BrowserWindow): Promise<string | null> {
   const result = await dialog.showOpenDialog(window, {
     title: 'Inserir imagem',

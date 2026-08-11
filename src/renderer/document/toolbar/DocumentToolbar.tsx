@@ -51,6 +51,7 @@ export function DocumentToolbar({
 }: DocumentToolbarProps): React.JSX.Element {
   const [linkDialogOpen, setLinkDialogOpen] = useState(false)
   const showError = useWorkspace((state) => state.showError)
+  const printPreview = useWorkspace((state) => state.printPreview)
 
   // Reavalia só o que a barra desenha, a cada transação do editor.
   const active = useEditorState({
@@ -264,6 +265,9 @@ export function DocumentToolbar({
 
       <ToolbarButton icon="search" label="Localizar e substituir" shortcut="Ctrl+F" onClick={onOpenFind} />
       <ToolbarButton icon="page-setup" label="Configuração de página" onClick={onOpenPageSetup} />
+      {/* Como o editor não pagina ao vivo (§6.3 do plano), a prévia é o que
+          responde "onde as páginas quebram" — e por isso fica à mão. */}
+      <ToolbarButton icon="print-preview" label="Visualizar impressão" onClick={() => void printPreview()} />
 
       {linkDialogOpen && <LinkDialog editor={editor} onClose={() => setLinkDialogOpen(false)} />}
     </div>

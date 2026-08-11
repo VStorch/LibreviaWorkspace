@@ -25,6 +25,7 @@ export type IconName =
   | 'page-break'
   | 'search'
   | 'page-setup'
+  | 'print-preview'
 
 const PATHS: Record<IconName, React.ReactNode> = {
   bold: <path d="M7 5h5.5a3.5 3.5 0 0 1 0 7H7zm0 7h6.5a3.5 3.5 0 0 1 0 7H7z" />,
@@ -49,6 +50,7 @@ const PATHS: Record<IconName, React.ReactNode> = {
   'page-break': <path d="M6 4h12M6 20h12M3 12h4M10 12h4M17 12h4M8 7l4-3 4 3M8 17l4 3 4-3" />,
   search: <path d="M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM16 16l4 4" />,
   'page-setup': <path d="M5 3h9l5 5v13H5zM14 3v5h5M8 13h8M8 17h5" />,
+  'print-preview': <path d="M7 9V4h10v5M7 18H5v-6h14v6h-2M8 15h8v6H8z" />,
 }
 
 export function Icon({ name }: { readonly name: IconName }): React.JSX.Element {

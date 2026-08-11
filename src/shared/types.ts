@@ -32,6 +32,9 @@ export const MenuCommand = {
   SaveAs: 'save-as',
   CloseFile: 'close-file',
   FindReplace: 'find-replace',
+  ExportPdf: 'export-pdf',
+  Print: 'print',
+  PrintPreview: 'print-preview',
   PageSetup: 'page-setup',
   InsertPageBreak: 'insert-page-break',
   /** Emitido quando o usuário escolhe "Salvar" no aviso de saída. */

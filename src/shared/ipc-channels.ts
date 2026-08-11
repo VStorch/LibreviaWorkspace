@@ -25,6 +25,13 @@ export const IpcChannel = {
   /** Escolhe uma imagem no disco e devolve como data URI já validado. */
   ImagePick: 'image:pick',
 
+  /** Gera o PDF e grava no destino escolhido pelo usuário. */
+  PrintExportPdf: 'print:export-pdf',
+  /** Abre o diálogo de impressão do sistema. */
+  PrintDialog: 'print:dialog',
+  /** Gera o PDF e abre numa janela de visualização. */
+  PrintPreview: 'print:preview',
+
   /** Aviso nativo de alterações não salvas, reutilizado pelo renderer. */
   DialogConfirmDiscard: 'dialog:confirm-discard',
   /** Aviso de que salvar em .txt descarta a formatação. */
@@ -50,6 +57,9 @@ export const INVOCABLE_IPC_CHANNELS = [
   IpcChannel.RecentList,
   IpcChannel.RecentClear,
   IpcChannel.ImagePick,
+  IpcChannel.PrintExportPdf,
+  IpcChannel.PrintDialog,
+  IpcChannel.PrintPreview,
   IpcChannel.DialogConfirmDiscard,
   IpcChannel.DialogConfirmPlainText,
   IpcChannel.WindowSetState,

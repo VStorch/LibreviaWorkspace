@@ -1,13 +1,7 @@
 import { z } from 'zod'
 import { AppError, ErrorCode } from '@shared/errors.js'
-import {
-  DEFAULT_PAGE_SETUP,
-  PageOrientation,
-  PageSize,
-  isValidMargins,
-  type DocumentModel,
-  type DocumentNode,
-} from './model.js'
+import { pageSetupSchema } from '@shared/schemas.js'
+import { DEFAULT_PAGE_SETUP, isValidMargins, type DocumentModel, type DocumentNode } from './model.js'
 
 /**
  * Formato interno `.sdoc`.
@@ -22,19 +16,6 @@ import {
  */
 export const SDOC_FORMAT = 'sdoc'
 export const SDOC_VERSION = 1
-
-const marginsSchema = z.object({
-  top: z.number(),
-  right: z.number(),
-  bottom: z.number(),
-  left: z.number(),
-})
-
-const pageSetupSchema = z.object({
-  size: z.enum([PageSize.A4, PageSize.Letter]),
-  orientation: z.enum([PageOrientation.Portrait, PageOrientation.Landscape]),
-  margins: marginsSchema,
-})
 
 /** O conteúdo é validado só na forma; a estrutura fina é do ProseMirror. */
 const documentNodeSchema: z.ZodType<DocumentNode> = z.looseObject({

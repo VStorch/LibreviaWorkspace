@@ -13,7 +13,9 @@ const richDocument: DocumentModel = {
   page: {
     size: PageSize.Letter,
     orientation: PageOrientation.Landscape,
-    margins: { top: 10, right: 15, bottom: 10, left: 15 },
+    margins: { top: 15, right: 15, bottom: 15, left: 15 },
+    header: 'Relatório interno',
+    footer: 'Página {n} de {total}',
   },
   doc: {
     type: 'doc',
@@ -47,7 +49,28 @@ describe('ida e volta do formato interno', () => {
     const restored = parseDocument(serializeDocument(richDocument))
     expect(restored.page.size).toBe(PageSize.Letter)
     expect(restored.page.orientation).toBe(PageOrientation.Landscape)
-    expect(restored.page.margins).toEqual({ top: 10, right: 15, bottom: 10, left: 15 })
+    expect(restored.page.margins).toEqual({ top: 15, right: 15, bottom: 15, left: 15 })
+  })
+
+  it('preserva cabeçalho e rodapé', () => {
+    const restored = parseDocument(serializeDocument(richDocument))
+    expect(restored.page.header).toBe('Relatório interno')
+    expect(restored.page.footer).toBe('Página {n} de {total}')
+  })
+
+  it('abre documento gravado antes de existirem cabeçalho e rodapé', () => {
+    // Compatibilidade com os arquivos da Fase 2: acrescentar campo opcional
+    // não pode invalidar o que já está em disco.
+    const anterior = JSON.stringify({
+      format: 'sdoc',
+      version: SDOC_VERSION,
+      page: { size: 'A4', orientation: 'portrait', margins: { top: 25, right: 25, bottom: 25, left: 25 } },
+      doc: { type: 'doc', content: [{ type: 'paragraph' }] },
+    })
+
+    const restored = parseDocument(anterior)
+    expect(restored.page.header).toBe('')
+    expect(restored.page.footer).toBe('')
   })
 
   it('preserva um documento vazio', () => {

@@ -31,6 +31,13 @@ export interface PageSetup {
   readonly size: PageSize
   readonly orientation: PageOrientation
   readonly margins: Margins
+  /**
+   * Cabeçalho e rodapé em texto simples. Aceitam `{n}` para o número da
+   * página e `{total}` para o total — a substituição acontece na hora de
+   * gerar o PDF, que é quando o número de páginas passa a existir.
+   */
+  readonly header: string
+  readonly footer: string
 }
 
 /**
@@ -64,6 +71,8 @@ export const DEFAULT_PAGE_SETUP: PageSetup = {
   size: PageSize.A4,
   orientation: PageOrientation.Portrait,
   margins: { top: 25, right: 25, bottom: 25, left: 25 },
+  header: '',
+  footer: '',
 }
 
 export const EMPTY_DOCUMENT: DocumentNode = {

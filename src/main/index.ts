@@ -1,6 +1,7 @@
 import { app, BrowserWindow, session } from 'electron'
 import { APP_NAME } from '@shared/constants.js'
 import { registerFileHandlers } from './ipc/file.js'
+import { registerPrintHandlers } from './ipc/print.js'
 import { registerWindowHandlers } from './ipc/window.js'
 import { refreshMenu } from './menu.js'
 import { applySessionPolicy } from './security.js'
@@ -27,6 +28,7 @@ if (!app.requestSingleInstanceLock()) {
     applySessionPolicy(session.defaultSession, devServerUrl() === null ? 'production' : 'development')
 
     registerFileHandlers()
+    registerPrintHandlers()
     registerWindowHandlers()
     await refreshMenu()
 

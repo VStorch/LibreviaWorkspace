@@ -9,6 +9,7 @@ import {
   type Margins,
   type PageSetup,
 } from '@services/document/model.js'
+import { MIN_MARGIN_FOR_HEADER_MM, marginFitsHeaderOrFooter } from '@services/pdf/page-setup.js'
 import { useWorkspace } from '../state/workspace.js'
 
 const MARGIN_FIELDS: readonly { readonly key: keyof Margins; readonly label: string }[] = [
@@ -25,6 +26,11 @@ export function PageSetupPanel({ onClose }: { readonly onClose: () => void }): R
 
   const valid = isValidMargins(draft)
   const { width, height } = pageDimensionsMm(draft)
+
+  const usesHeaderOrFooter = draft.header.trim().length > 0 || draft.footer.trim().length > 0
+  const needsRoomWarning =
+    usesHeaderOrFooter &&
+    (!marginFitsHeaderOrFooter(draft.margins.top) || !marginFitsHeaderOrFooter(draft.margins.bottom))
 
   function apply(): void {
     if (!valid) return
@@ -80,6 +86,45 @@ export function PageSetupPanel({ onClose }: { readonly onClose: () => void }): R
             </label>
           ))}
         </div>
+      </fieldset>
+
+      <fieldset className="popover__fieldset">
+        <legend>Cabeçalho e rodapé</legend>
+
+        <label className="popover__field">
+          <span>Cabeçalho</span>
+          <input
+            type="text"
+            value={draft.header}
+            placeholder="deixe vazio para não usar"
+            maxLength={500}
+            onChange={(event) => setDraft({ ...draft, header: event.target.value })}
+          />
+        </label>
+
+        <label className="popover__field">
+          <span>Rodapé</span>
+          <input
+            type="text"
+            value={draft.footer}
+            placeholder="ex.: Página {n} de {total}"
+            maxLength={500}
+            onChange={(event) => setDraft({ ...draft, footer: event.target.value })}
+          />
+        </label>
+
+        <p className="popover__hint">
+          Use <code>{'{n}'}</code> para o número da página e <code>{'{total}'}</code> para o total.
+        </p>
+
+        {/* O Chromium desenha cabeçalho e rodapé dentro da margem e recorta o
+            excedente: com margem apertada eles somem sem explicação. */}
+        {needsRoomWarning && (
+          <p className="popover__error">
+            A margem é pequena demais para caber o cabeçalho ou o rodapé — use pelo menos{' '}
+            {MIN_MARGIN_FOR_HEADER_MM} mm em cima e embaixo, senão eles não aparecem no PDF.
+          </p>
+        )}
       </fieldset>
 
       <p className={valid ? 'popover__hint' : 'popover__error'}>

@@ -37,6 +37,15 @@ async function runMenuCommand(command: MenuCommand, path: string | undefined): P
       return
     }
 
+    case MenuCommand.ExportPdf:
+      await workspace.exportPdf()
+      return
+    case MenuCommand.Print:
+      await workspace.print()
+      return
+    case MenuCommand.PrintPreview:
+      return workspace.printPreview()
+
     // Comandos que pertencem ao editor: o App não tem referência a ele.
     case MenuCommand.FindReplace:
       return emitEditorCommand('find-replace')

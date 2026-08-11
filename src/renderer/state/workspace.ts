@@ -10,6 +10,7 @@ import {
   type PageSetup,
 } from '@services/document/model.js'
 import { documentToPlainText, hasRichFormatting, plainTextToDocument } from '@services/document/plain-text.js'
+import { buildPrintHtml } from '@services/document/print-html.js'
 import { parseDocument, serializeDocument } from '@services/document/serialize.js'
 import { defaultFileName, isPlainTextPath } from '@services/file/formats.js'
 
@@ -37,8 +38,13 @@ interface WorkspaceState {
   error: SerializedError | null
   busy: boolean
 
-  /** O editor se registra aqui para que salvar consiga ler o conteúdo atual. */
-  registerDocumentSource: (read: (() => DocumentNode) | null) => void
+  /**
+   * O editor se registra aqui para que salvar e imprimir consigam ler o
+   * conteúdo atual. O HTML vem do próprio editor, e não de uma segunda
+   * renderização a partir do modelo — é o que garante que o PDF saia igual
+   * ao que está na tela.
+   */
+  registerDocumentSource: (source: DocumentSource | null) => void
   markDirty: () => void
   setStats: (stats: { characters: number; words: number }) => void
   setPage: (page: PageSetup) => void
@@ -53,6 +59,15 @@ interface WorkspaceState {
   saveAs: () => Promise<boolean>
   closeFile: () => Promise<void>
   clearRecents: () => Promise<void>
+
+  exportPdf: () => Promise<boolean>
+  print: () => Promise<boolean>
+  printPreview: () => Promise<void>
+}
+
+export interface DocumentSource {
+  readonly readDoc: () => DocumentNode
+  readonly readHtml: () => string
 }
 
 function toSerialized(cause: unknown): SerializedError {
@@ -61,7 +76,7 @@ function toSerialized(cause: unknown): SerializedError {
 }
 
 export const useWorkspace = create<WorkspaceState>((set, get) => {
-  let readLiveDoc: (() => DocumentNode) | null = null
+  let documentSource: DocumentSource | null = null
 
   /** Executa uma chamada de IPC e transforma a falha em erro exibível. */
   async function call<T>(operation: () => Promise<IpcResult<T>>): Promise<T | null> {
@@ -84,7 +99,7 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
   /** Modelo com o conteúdo que está na tela neste instante. */
   function currentModel(): DocumentModel {
     const state = get()
-    return { page: state.page, doc: readLiveDoc?.() ?? state.initialDoc }
+    return { page: state.page, doc: documentSource?.readDoc() ?? state.initialDoc }
   }
 
   /**
@@ -149,8 +164,8 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
     error: null,
     busy: false,
 
-    registerDocumentSource: (read) => {
-      readLiveDoc = read
+    registerDocumentSource: (source) => {
+      documentSource = source
     },
     markDirty: () => {
       if (!get().isDirty) set({ isDirty: true })
@@ -276,5 +291,41 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
       const data = await call(() => window.api.recent.clear({}))
       if (data !== null) set({ recents: data.files })
     },
+
+    exportPdf: async () => {
+      const request = buildPrintRequest()
+      if (request === null) return false
+
+      const data = await call(() =>
+        window.api.print.exportPdf({ ...request, suggestedName: get().file?.name ?? 'documento' }),
+      )
+      return data !== null && !data.canceled
+    },
+
+    print: async () => {
+      const request = buildPrintRequest()
+      if (request === null) return false
+
+      const data = await call(() => window.api.print.dialog(request))
+      return data !== null && data.printed
+    },
+
+    printPreview: async () => {
+      const request = buildPrintRequest()
+      if (request === null) return
+
+      await call(() => window.api.print.preview({ ...request, title: get().file?.name ?? 'Documento' }))
+    },
+  }
+
+  /** Reúne o que o processo main precisa para renderizar: HTML e página. */
+  function buildPrintRequest(): { html: string; page: PageSetup } | null {
+    const state = get()
+    if (documentSource === null) return null
+
+    return {
+      html: buildPrintHtml(documentSource.readHtml(), state.file?.name ?? 'Documento'),
+      page: state.page,
+    }
   }
 })

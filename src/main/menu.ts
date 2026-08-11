@@ -105,6 +105,9 @@ async function buildTemplate(): Promise<MenuItemConstructorOptions[]> {
         },
         { type: 'separator' },
         { label: 'Configuração de página…', click: () => dispatch(MenuCommand.PageSetup) },
+        { label: 'Visualizar impressão', click: () => dispatch(MenuCommand.PrintPreview) },
+        { label: 'Exportar para PDF…', click: () => dispatch(MenuCommand.ExportPdf) },
+        { label: 'Imprimir…', accelerator: 'CmdOrCtrl+P', click: () => dispatch(MenuCommand.Print) },
         { type: 'separator' },
         {
           label: 'Fechar arquivo',
