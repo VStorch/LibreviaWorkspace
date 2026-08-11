@@ -1,0 +1,88 @@
+import { BrowserWindow, type IpcMainInvokeEvent } from 'electron'
+import { AppError, ErrorCode } from '@shared/errors.js'
+import { IpcChannel } from '@shared/ipc-channels.js'
+import type { LoadedFile } from '@shared/types.js'
+import { ensureSupportedExtension, fileNameFromPath, kindFromPath } from '@services/file/formats.js'
+import { showOpenFileDialog, showSaveFileDialog } from '../dialogs.js'
+import { writeTextFileAtomic } from '../fs/atomic-write.js'
+import { assertPathAuthorized, assertReadableFile, authorizePath } from '../fs/paths.js'
+import { clearRecentFiles, isRemembered, listRecentFiles, rememberRecentFile } from '../fs/recent.js'
+import { readTextFile } from '../fs/read-text.js'
+import { refreshMenu } from '../menu.js'
+import { handle } from './registry.js'
+
+function windowOf(event: IpcMainInvokeEvent): BrowserWindow {
+  const window = BrowserWindow.fromWebContents(event.sender)
+  if (window === null) {
+    throw new AppError(ErrorCode.Internal, 'A janela do aplicativo não está disponível.')
+  }
+  return window
+}
+
+/** Valida, lê e passa a considerar o caminho autorizado para gravação. */
+async function loadFile(path: string): Promise<LoadedFile> {
+  await assertReadableFile(path)
+  const content = await readTextFile(path)
+  const authorized = authorizePath(path)
+
+  rememberRecentFile(authorized)
+  void refreshMenu()
+
+  return {
+    path: authorized,
+    name: fileNameFromPath(authorized),
+    kind: kindFromPath(authorized),
+    content,
+  }
+}
+
+export function registerFileHandlers(): void {
+  handle(IpcChannel.FileOpen, async (_payload, event) => {
+    const path = await showOpenFileDialog(windowOf(event))
+    if (path === null) return { canceled: true as const }
+    return { canceled: false as const, file: await loadFile(path) }
+  })
+
+  handle(IpcChannel.FileOpenRecent, async (payload) => {
+    // O renderer não escolhe caminhos: só pode reabrir o que já está na lista
+    // de recentes, que por sua vez só é alimentada por escolha do usuário.
+    if (!isRemembered(payload.path)) {
+      throw new AppError(
+        ErrorCode.PathNotAuthorized,
+        'Este arquivo não está mais na lista de recentes. Abra-o novamente pelo menu Arquivo.',
+      )
+    }
+    return { file: await loadFile(payload.path) }
+  })
+
+  handle(IpcChannel.FileSave, async (payload) => {
+    const path = assertPathAuthorized(payload.path)
+    await writeTextFileAtomic(path, payload.content)
+
+    rememberRecentFile(path)
+    void refreshMenu()
+
+    return { path, name: fileNameFromPath(path) }
+  })
+
+  handle(IpcChannel.FileSaveAs, async (payload, event) => {
+    const chosen = await showSaveFileDialog(windowOf(event), payload.suggestedName)
+    if (chosen === null) return { canceled: true as const }
+
+    const path = authorizePath(ensureSupportedExtension(chosen))
+    await writeTextFileAtomic(path, payload.content)
+
+    rememberRecentFile(path)
+    void refreshMenu()
+
+    return { canceled: false as const, path, name: fileNameFromPath(path) }
+  })
+
+  handle(IpcChannel.RecentList, async () => ({ files: [...(await listRecentFiles())] }))
+
+  handle(IpcChannel.RecentClear, async () => {
+    clearRecentFiles()
+    await refreshMenu()
+    return { files: [] }
+  })
+}

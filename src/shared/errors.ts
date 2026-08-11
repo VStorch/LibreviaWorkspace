@@ -10,6 +10,16 @@ export const ErrorCode = {
   InvalidRequest: 'INVALID_REQUEST',
   UnknownChannel: 'UNKNOWN_CHANNEL',
   Internal: 'INTERNAL',
+
+  FileNotFound: 'FILE_NOT_FOUND',
+  NotAFile: 'NOT_A_FILE',
+  FileTooLarge: 'FILE_TOO_LARGE',
+  PermissionDenied: 'PERMISSION_DENIED',
+  UnsupportedFormat: 'UNSUPPORTED_FORMAT',
+  PathNotAuthorized: 'PATH_NOT_AUTHORIZED',
+  ReadFailed: 'READ_FAILED',
+  WriteFailed: 'WRITE_FAILED',
+  NotTextFile: 'NOT_TEXT_FILE',
 } as const
 
 export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode]
@@ -46,5 +56,61 @@ export function toSerializedError(cause: unknown): SerializedError {
   return {
     code: ErrorCode.Internal,
     message: 'Ocorreu um erro inesperado. A operação não foi concluída.',
+  }
+}
+
+/**
+ * Traduz o `errno` do sistema de arquivos numa frase que o usuário entenda.
+ *
+ * Sem isto, uma pasta de rede fora do ar produz "EBUSY" na tela — que não diz
+ * nada a quem só quer saber se pode continuar trabalhando.
+ */
+export function fromFileSystemError(cause: unknown, operation: 'leitura' | 'escrita'): AppError {
+  const code = typeof cause === 'object' && cause !== null ? (cause as { code?: string }).code : undefined
+
+  switch (code) {
+    case 'ENOENT':
+      return new AppError(
+        ErrorCode.FileNotFound,
+        'O arquivo não foi encontrado. Ele pode ter sido movido ou excluído.',
+      )
+    case 'EACCES':
+    case 'EPERM':
+      return new AppError(
+        ErrorCode.PermissionDenied,
+        'Você não tem permissão para acessar este arquivo. Verifique com quem administra a pasta.',
+      )
+    case 'EISDIR':
+      return new AppError(ErrorCode.NotAFile, 'O caminho indicado é uma pasta, não um arquivo.')
+    case 'EROFS':
+      return new AppError(
+        ErrorCode.WriteFailed,
+        'Este local é somente leitura. Salve o arquivo em outra pasta.',
+      )
+    case 'ENOSPC':
+      return new AppError(ErrorCode.WriteFailed, 'Não há espaço em disco para salvar o arquivo.')
+    case 'EBUSY':
+      return new AppError(
+        ErrorCode.WriteFailed,
+        'O arquivo está em uso por outro programa. Feche-o e tente novamente.',
+      )
+    // Típicos de pasta de rede que caiu no meio da operação.
+    case 'ENETDOWN':
+    case 'ENETUNREACH':
+    case 'EHOSTDOWN':
+    case 'EHOSTUNREACH':
+    case 'ESTALE':
+    case 'ETIMEDOUT':
+      return new AppError(
+        operation === 'leitura' ? ErrorCode.ReadFailed : ErrorCode.WriteFailed,
+        'A pasta de rede não respondeu. Verifique a conexão e tente novamente.',
+      )
+    default:
+      return new AppError(
+        operation === 'leitura' ? ErrorCode.ReadFailed : ErrorCode.WriteFailed,
+        operation === 'leitura'
+          ? 'Não foi possível ler o arquivo.'
+          : 'Não foi possível salvar o arquivo. O conteúdo original foi preservado.',
+      )
   }
 }

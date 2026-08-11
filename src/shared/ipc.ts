@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { IpcChannel } from './ipc-channels.js'
+import { IpcChannel, INVOCABLE_IPC_CHANNELS, type InvocableIpcChannel } from './ipc-channels.js'
 import type { SerializedError } from './errors.js'
 
 /**
@@ -12,32 +12,91 @@ import type { SerializedError } from './errors.js'
  * linguagem sem tocar no resto do aplicativo.
  */
 
-export const appPingRequestSchema = z.object({
-  message: z.string().min(1).max(200),
+/** Teto de conteúdo em memória na Fase 1 (texto simples). */
+export const MAX_TEXT_LENGTH = 20_000_000
+
+const documentKindSchema = z.enum(['document', 'spreadsheet'])
+
+const loadedFileSchema = z.object({
+  path: z.string(),
+  name: z.string(),
+  kind: documentKindSchema,
+  content: z.string(),
 })
 
-export const appPingResponseSchema = z.object({
-  echo: z.string(),
-  receivedAt: z.number().int(),
-  versions: z.object({
-    app: z.string(),
-    electron: z.string(),
-    chrome: z.string(),
-    node: z.string(),
-  }),
+const recentFileSchema = z.object({
+  path: z.string(),
+  name: z.string(),
+  kind: documentKindSchema,
+  openedAt: z.number().int(),
 })
+
+const emptyRequest = z.object({})
+
+/** Diálogo cancelado não é erro: é um desfecho previsto. */
+const openResultSchema = z.discriminatedUnion('canceled', [
+  z.object({ canceled: z.literal(true) }),
+  z.object({ canceled: z.literal(false), file: loadedFileSchema }),
+])
+
+const saveResultSchema = z.discriminatedUnion('canceled', [
+  z.object({ canceled: z.literal(true) }),
+  z.object({ canceled: z.literal(false), path: z.string(), name: z.string() }),
+])
 
 export const ipcContracts = {
-  [IpcChannel.AppPing]: {
-    request: appPingRequestSchema,
-    response: appPingResponseSchema,
+  [IpcChannel.FileOpen]: {
+    request: emptyRequest,
+    response: openResultSchema,
+  },
+  [IpcChannel.FileOpenRecent]: {
+    request: z.object({ path: z.string().min(1) }),
+    response: z.object({ file: loadedFileSchema }),
+  },
+  [IpcChannel.FileSave]: {
+    request: z.object({
+      path: z.string().min(1),
+      content: z.string().max(MAX_TEXT_LENGTH),
+    }),
+    response: z.object({ path: z.string(), name: z.string() }),
+  },
+  [IpcChannel.FileSaveAs]: {
+    request: z.object({
+      suggestedName: z.string().min(1).max(255),
+      kind: documentKindSchema,
+      content: z.string().max(MAX_TEXT_LENGTH),
+    }),
+    response: saveResultSchema,
+  },
+  [IpcChannel.RecentList]: {
+    request: emptyRequest,
+    response: z.object({ files: z.array(recentFileSchema) }),
+  },
+  [IpcChannel.RecentClear]: {
+    request: emptyRequest,
+    response: z.object({ files: z.array(recentFileSchema) }),
+  },
+  [IpcChannel.DialogConfirmDiscard]: {
+    request: z.object({ fileName: z.string().min(1).max(255) }),
+    response: z.object({ choice: z.enum(['save', 'discard', 'cancel']) }),
+  },
+  [IpcChannel.WindowSetState]: {
+    request: z.object({
+      title: z.string().max(300),
+      isDirty: z.boolean(),
+    }),
+    response: z.object({ applied: z.literal(true) }),
+  },
+  [IpcChannel.WindowClose]: {
+    request: emptyRequest,
+    response: z.object({ closing: z.literal(true) }),
   },
 } as const
 
 export type IpcContracts = typeof ipcContracts
 
-export type IpcRequest<C extends IpcChannel> = z.infer<IpcContracts[C]['request']>
-export type IpcResponse<C extends IpcChannel> = z.infer<IpcContracts[C]['response']>
+export type IpcRequest<C extends InvocableIpcChannel> = z.infer<IpcContracts[C]['request']>
+export type IpcResponse<C extends InvocableIpcChannel> = z.infer<IpcContracts[C]['response']>
 
 /**
  * Envelope de resultado. Handlers nunca propagam exceções pelo IPC: toda
@@ -45,3 +104,5 @@ export type IpcResponse<C extends IpcChannel> = z.infer<IpcContracts[C]['respons
  */
 export type IpcResult<T> =
   { readonly ok: true; readonly data: T } | { readonly ok: false; readonly error: SerializedError }
+
+export { INVOCABLE_IPC_CHANNELS }

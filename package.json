@@ -24,6 +24,7 @@
     "verify": "npm run typecheck && npm run lint && npm run test && npm run licenses:check"
   },
   "dependencies": {
+    "electron-store": "^11.0.2",
     "zod": "^4.4.3",
     "zustand": "^5.0.14"
   },

@@ -1,5 +1,5 @@
 import { ipcMain, type IpcMainInvokeEvent } from 'electron'
-import type { IpcChannel } from '@shared/ipc-channels.js'
+import type { InvocableIpcChannel } from '@shared/ipc-channels.js'
 import { ipcContracts, type IpcRequest, type IpcResponse, type IpcResult } from '@shared/ipc.js'
 import { AppError, ErrorCode, toSerializedError } from '@shared/errors.js'
 
@@ -11,7 +11,7 @@ import { AppError, ErrorCode, toSerializedError } from '@shared/errors.js'
  * comprometido por um documento malicioso, não deve conseguir pedir uma
  * operação que o contrato não preveja.
  */
-export function handle<C extends IpcChannel>(
+export function handle<C extends InvocableIpcChannel>(
   channel: C,
   handler: (payload: IpcRequest<C>, event: IpcMainInvokeEvent) => Promise<IpcResponse<C>> | IpcResponse<C>,
 ): void {

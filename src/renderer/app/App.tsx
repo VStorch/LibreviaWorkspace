@@ -1,82 +1,88 @@
-import { useEffect, useState } from 'react'
-import { runSecurityProbes, type ProbeResult } from './security-probe.js'
+import { useEffect } from 'react'
+import { MenuCommand } from '@shared/types.js'
+import { buildWindowTitle } from '@services/file/formats.js'
+import { ErrorBanner } from '../components/ErrorBanner.js'
+import { StatusBar } from '../components/StatusBar.js'
+import { EditorPage } from '../pages/EditorPage.js'
+import { HomePage } from '../pages/HomePage.js'
+import { isDirty, useWorkspace } from '../state/workspace.js'
 
-interface PingState {
-  readonly status: 'carregando' | 'ok' | 'erro'
-  readonly detail: string
-  readonly versions?: Record<string, string>
+/** Traduz um comando do menu nativo na ação correspondente do workspace. */
+async function runMenuCommand(command: MenuCommand, path: string | undefined): Promise<void> {
+  const workspace = useWorkspace.getState()
+
+  switch (command) {
+    case MenuCommand.NewDocument:
+      return workspace.newDocument()
+    case MenuCommand.Open:
+      return workspace.openViaDialog()
+    case MenuCommand.OpenRecent:
+      if (path !== undefined) await workspace.openRecent(path)
+      return
+    case MenuCommand.ClearRecent:
+      return workspace.clearRecents()
+    case MenuCommand.Save:
+      await workspace.save()
+      return
+    case MenuCommand.SaveAs:
+      await workspace.saveAs()
+      return
+    case MenuCommand.CloseFile:
+      return workspace.closeFile()
+    case MenuCommand.SaveAndExit: {
+      // O usuário escolheu "Salvar" no aviso de saída: só fechamos se a
+      // gravação der certo, senão a janela sumiria levando o trabalho junto.
+      if (await workspace.save()) await window.api.window.close({})
+      return
+    }
+    case MenuCommand.NewSpreadsheet:
+      // Chega na Fase 5; o item de menu está desabilitado até lá.
+      return
+  }
 }
 
 export function App(): React.JSX.Element {
-  const [probes, setProbes] = useState<readonly ProbeResult[]>([])
-  const [ping, setPing] = useState<PingState>({ status: 'carregando', detail: 'chamando o processo main…' })
+  const hasFile = useWorkspace((state) => state.file !== null)
 
   useEffect(() => {
-    setProbes(runSecurityProbes())
-
-    void window.api.app
-      .ping({ message: 'fase 0' })
-      .then((result) => {
-        setPing(
-          result.ok
-            ? {
-                status: 'ok',
-                detail: `resposta “${result.data.echo}” recebida do processo main`,
-                versions: result.data.versions,
-              }
-            : { status: 'erro', detail: result.error.message },
-        )
-      })
-      .catch(() => {
-        setPing({ status: 'erro', detail: 'A ponte IPC não respondeu.' })
-      })
+    void useWorkspace.getState().refreshRecents()
   }, [])
 
-  const allProbesPassed = probes.length > 0 && probes.every((probe) => probe.passed)
+  useEffect(
+    () =>
+      window.api.menu.onCommand(({ command, path }) => {
+        void runMenuCommand(command, path)
+      }),
+    [],
+  )
+
+  useEffect(() => {
+    // O título e o marcador de "não salvo" vivem no main. Só enviamos quando
+    // algum dos dois muda de fato — não a cada tecla digitada.
+    let lastTitle = ''
+    let lastDirty: boolean | null = null
+
+    const sync = (): void => {
+      const state = useWorkspace.getState()
+      const title = state.file?.name ?? 'Sem título'
+      const dirty = isDirty(state)
+      if (title === lastTitle && dirty === lastDirty) return
+
+      lastTitle = title
+      lastDirty = dirty
+      void window.api.window.setState({ title, isDirty: dirty })
+      document.title = buildWindowTitle(state.file?.name ?? null, dirty, 'Librevia')
+    }
+
+    sync()
+    return useWorkspace.subscribe(sync)
+  }, [])
 
   return (
-    <main className="shell">
-      <header className="shell__header">
-        <h1>Librevia</h1>
-        <p className="shell__subtitle">Fase 0 — fundação. Nome provisório.</p>
-      </header>
-
-      <section className="card">
-        <h2>Isolamento do renderer</h2>
-        <p className="card__lead">
-          {allProbesPassed
-            ? 'O renderer não alcança o Node.js.'
-            : 'Verificação pendente ou falhando — ver detalhes abaixo.'}
-        </p>
-        <ul className="checks">
-          {probes.map((probe) => (
-            <li key={probe.label} className={probe.passed ? 'checks__item--ok' : 'checks__item--fail'}>
-              <span className="checks__mark">{probe.passed ? '✓' : '✕'}</span>
-              <code>{probe.label}</code>
-              <span className="checks__note">{probe.expectation}</span>
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      <section className="card">
-        <h2>Ponte IPC</h2>
-        <p className={`card__lead card__lead--${ping.status}`}>{ping.detail}</p>
-        {ping.versions !== undefined && (
-          <dl className="versions">
-            {Object.entries(ping.versions).map(([name, value]) => (
-              <div key={name} className="versions__row">
-                <dt>{name}</dt>
-                <dd>{value}</dd>
-              </div>
-            ))}
-          </dl>
-        )}
-      </section>
-
-      <footer className="shell__footer">
-        Próxima etapa: Fase 1 — menu nativo, tela inicial e sistema de arquivos.
-      </footer>
-    </main>
+    <div className="app">
+      <ErrorBanner />
+      <div className="app__body">{hasFile ? <EditorPage /> : <HomePage />}</div>
+      {hasFile && <StatusBar />}
+    </div>
   )
 }

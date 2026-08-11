@@ -5,7 +5,9 @@ Formatos-alvo: **DOCX, XLSX, PDF**.
 
 > Nome provisório. Ver `docs/00-plano-tecnico.md` §8, item 7.
 
-**Estado atual: Fase 0 concluída** — fundação, isolamento e portões de qualidade.
+**Estado atual: Fase 1 concluída** — fundação, isolamento, portões de qualidade e o ciclo
+completo de arquivos (criar, abrir, salvar, salvar como, fechar, recentes, aviso de alterações
+não salvas). O editor ainda é uma área de texto simples: o editor rico é a Fase 2.
 O plano completo, com arquitetura, avaliação de bibliotecas, licenças, riscos e as 9 fases,
 está em [`docs/00-plano-tecnico.md`](docs/00-plano-tecnico.md).
 
@@ -41,6 +43,18 @@ de propósito, e não é efeito colateral de mexer no preload.
 | `src/renderer/`  | interface React: editor de documentos, planilha, páginas                |
 | `src/services/`  | lógica pura: modelos, DOCX/XLSX, fórmulas, PDF                          |
 | `src/shared/`    | contratos de IPC, tipos e erros usados pelas três camadas               |
+
+### O renderer não escolhe caminhos de arquivo
+
+Duas travas no processo main, que valem mesmo se o renderer for comprometido por um
+documento malicioso:
+
+- **Gravação** (`file:save`) só aceita caminhos autorizados na sessão — isto é, abertos ou
+  escolhidos pelo próprio usuário num diálogo nativo.
+- **Leitura por atalho** (`file:open-recent`) só aceita caminhos que já estejam na lista de
+  recentes.
+
+Qualquer outro caminho é recusado com `PATH_NOT_AUTHORIZED`, sem chegar ao disco.
 
 ### Duas regras que o linter faz cumprir
 

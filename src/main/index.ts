@@ -1,6 +1,8 @@
 import { app, BrowserWindow, session } from 'electron'
 import { APP_NAME } from '@shared/constants.js'
-import { registerAppHandlers } from './ipc/app.js'
+import { registerFileHandlers } from './ipc/file.js'
+import { registerWindowHandlers } from './ipc/window.js'
+import { refreshMenu } from './menu.js'
 import { applySessionPolicy } from './security.js'
 import { createMainWindow, devServerUrl } from './window.js'
 
@@ -21,9 +23,13 @@ if (!app.requestSingleInstanceLock()) {
     existing.focus()
   })
 
-  void app.whenReady().then(() => {
+  void app.whenReady().then(async () => {
     applySessionPolicy(session.defaultSession, devServerUrl() === null ? 'production' : 'development')
-    registerAppHandlers()
+
+    registerFileHandlers()
+    registerWindowHandlers()
+    await refreshMenu()
+
     createMainWindow()
 
     app.on('activate', () => {

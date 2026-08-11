@@ -1,6 +1,6 @@
-import { contextBridge, ipcRenderer } from 'electron'
+import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
 import { IpcChannel } from '@shared/ipc-channels.js'
-import type { AppApi } from '@shared/api.js'
+import type { AppApi, MenuCommandPayload } from '@shared/api.js'
 
 /**
  * Ponte entre renderer e main.
@@ -12,8 +12,33 @@ import type { AppApi } from '@shared/api.js'
  *  - sem lógica de negócio — este é um encaminhador, não uma camada.
  */
 const api: AppApi = {
-  app: {
-    ping: (payload) => ipcRenderer.invoke(IpcChannel.AppPing, payload),
+  file: {
+    open: (payload) => ipcRenderer.invoke(IpcChannel.FileOpen, payload),
+    openRecent: (payload) => ipcRenderer.invoke(IpcChannel.FileOpenRecent, payload),
+    save: (payload) => ipcRenderer.invoke(IpcChannel.FileSave, payload),
+    saveAs: (payload) => ipcRenderer.invoke(IpcChannel.FileSaveAs, payload),
+  },
+  recent: {
+    list: (payload) => ipcRenderer.invoke(IpcChannel.RecentList, payload),
+    clear: (payload) => ipcRenderer.invoke(IpcChannel.RecentClear, payload),
+  },
+  dialog: {
+    confirmDiscard: (payload) => ipcRenderer.invoke(IpcChannel.DialogConfirmDiscard, payload),
+  },
+  window: {
+    setState: (payload) => ipcRenderer.invoke(IpcChannel.WindowSetState, payload),
+    close: (payload) => ipcRenderer.invoke(IpcChannel.WindowClose, payload),
+  },
+  menu: {
+    onCommand: (listener) => {
+      // O `IpcRendererEvent` carrega referências ao sistema de mensagens e não
+      // pode vazar para o renderer: só a payload atravessa.
+      const wrapped = (_event: IpcRendererEvent, payload: MenuCommandPayload): void => listener(payload)
+      ipcRenderer.on(IpcChannel.MenuCommand, wrapped)
+      return () => {
+        ipcRenderer.removeListener(IpcChannel.MenuCommand, wrapped)
+      }
+    },
   },
 }
 
