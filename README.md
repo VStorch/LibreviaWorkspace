@@ -5,9 +5,21 @@ Formatos-alvo: **DOCX, XLSX, PDF**.
 
 > Nome provisório. Ver `docs/00-plano-tecnico.md` §8, item 7.
 
-**Estado atual: Fase 1 concluída** — fundação, isolamento, portões de qualidade e o ciclo
-completo de arquivos (criar, abrir, salvar, salvar como, fechar, recentes, aviso de alterações
-não salvas). O editor ainda é uma área de texto simples: o editor rico é a Fase 2.
+**Estado atual: Fase 2 concluída** — fundação, ciclo completo de arquivos e **editor de
+documentos** com formatação de texto, títulos, listas, recuo, espaçamento, alinhamento,
+tabelas, imagens, links, quebra de página, localizar/substituir e configuração de página
+(A4/Carta, retrato/paisagem, margens).
+
+Próxima etapa: Fase 3 — exportação para PDF e impressão.
+
+## Formatos
+
+| Extensão | O que guarda |
+| -------- | ------------ |
+| `.sdoc`  | formato interno: documento completo, com formatação — sem perda |
+| `.txt`   | apenas texto; salvar nele descarta formatação, e o aplicativo avisa antes |
+
+DOCX chega na Fase 4 e XLSX na Fase 7.
 O plano completo, com arquitetura, avaliação de bibliotecas, licenças, riscos e as 9 fases,
 está em [`docs/00-plano-tecnico.md`](docs/00-plano-tecnico.md).
 

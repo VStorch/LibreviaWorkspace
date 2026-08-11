@@ -16,14 +16,18 @@ const api: AppApi = {
     open: (payload) => ipcRenderer.invoke(IpcChannel.FileOpen, payload),
     openRecent: (payload) => ipcRenderer.invoke(IpcChannel.FileOpenRecent, payload),
     save: (payload) => ipcRenderer.invoke(IpcChannel.FileSave, payload),
-    saveAs: (payload) => ipcRenderer.invoke(IpcChannel.FileSaveAs, payload),
+    chooseSavePath: (payload) => ipcRenderer.invoke(IpcChannel.FileChooseSavePath, payload),
   },
   recent: {
     list: (payload) => ipcRenderer.invoke(IpcChannel.RecentList, payload),
     clear: (payload) => ipcRenderer.invoke(IpcChannel.RecentClear, payload),
   },
+  image: {
+    pick: (payload) => ipcRenderer.invoke(IpcChannel.ImagePick, payload),
+  },
   dialog: {
     confirmDiscard: (payload) => ipcRenderer.invoke(IpcChannel.DialogConfirmDiscard, payload),
+    confirmPlainText: (payload) => ipcRenderer.invoke(IpcChannel.DialogConfirmPlainText, payload),
   },
   window: {
     setState: (payload) => ipcRenderer.invoke(IpcChannel.WindowSetState, payload),

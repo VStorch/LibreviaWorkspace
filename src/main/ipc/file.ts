@@ -65,16 +65,14 @@ export function registerFileHandlers(): void {
     return { path, name: fileNameFromPath(path) }
   })
 
-  handle(IpcChannel.FileSaveAs, async (payload, event) => {
+  handle(IpcChannel.FileChooseSavePath, async (payload, event) => {
     const chosen = await showSaveFileDialog(windowOf(event), payload.suggestedName)
     if (chosen === null) return { canceled: true as const }
 
+    // Só autoriza o destino. A gravação é uma chamada separada, para que o
+    // renderer possa avisar sobre perda de formatação antes de escrever —
+    // e para que cancelar esse aviso não deixe um arquivo pela metade.
     const path = authorizePath(ensureSupportedExtension(chosen))
-    await writeTextFileAtomic(path, payload.content)
-
-    rememberRecentFile(path)
-    void refreshMenu()
-
     return { canceled: false as const, path, name: fileNameFromPath(path) }
   })
 

@@ -12,14 +12,23 @@ export const IpcChannel = {
   FileOpenRecent: 'file:open-recent',
   /** Grava sobre um caminho já autorizado nesta sessão. */
   FileSave: 'file:save',
-  /** Abre o diálogo "salvar como" e grava no destino escolhido. */
-  FileSaveAs: 'file:save-as',
+  /**
+   * Abre o diálogo "salvar como" e apenas **autoriza** o destino escolhido,
+   * sem gravar. Separar escolha de gravação é o que permite avisar sobre perda
+   * de formatação antes de qualquer byte tocar o disco.
+   */
+  FileChooseSavePath: 'file:choose-save-path',
 
   RecentList: 'recent:list',
   RecentClear: 'recent:clear',
 
+  /** Escolhe uma imagem no disco e devolve como data URI já validado. */
+  ImagePick: 'image:pick',
+
   /** Aviso nativo de alterações não salvas, reutilizado pelo renderer. */
   DialogConfirmDiscard: 'dialog:confirm-discard',
+  /** Aviso de que salvar em .txt descarta a formatação. */
+  DialogConfirmPlainText: 'dialog:confirm-plain-text',
 
   /** Informa ao main o título e o estado de alterações não salvas. */
   WindowSetState: 'window:set-state',
@@ -37,10 +46,12 @@ export const INVOCABLE_IPC_CHANNELS = [
   IpcChannel.FileOpen,
   IpcChannel.FileOpenRecent,
   IpcChannel.FileSave,
-  IpcChannel.FileSaveAs,
+  IpcChannel.FileChooseSavePath,
   IpcChannel.RecentList,
   IpcChannel.RecentClear,
+  IpcChannel.ImagePick,
   IpcChannel.DialogConfirmDiscard,
+  IpcChannel.DialogConfirmPlainText,
   IpcChannel.WindowSetState,
   IpcChannel.WindowClose,
 ] as const

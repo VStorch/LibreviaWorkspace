@@ -104,6 +104,8 @@ async function buildTemplate(): Promise<MenuItemConstructorOptions[]> {
           click: () => dispatch(MenuCommand.SaveAs),
         },
         { type: 'separator' },
+        { label: 'Configuração de página…', click: () => dispatch(MenuCommand.PageSetup) },
+        { type: 'separator' },
         {
           label: 'Fechar arquivo',
           accelerator: 'CmdOrCtrl+W',
@@ -122,6 +124,22 @@ async function buildTemplate(): Promise<MenuItemConstructorOptions[]> {
         { role: 'copy', label: 'Copiar' },
         { role: 'paste', label: 'Colar' },
         { role: 'selectAll', label: 'Selecionar tudo' },
+        { type: 'separator' },
+        {
+          label: 'Localizar e substituir…',
+          accelerator: 'CmdOrCtrl+F',
+          click: () => dispatch(MenuCommand.FindReplace),
+        },
+      ],
+    },
+    {
+      label: 'Inserir',
+      submenu: [
+        {
+          label: 'Quebra de página',
+          accelerator: 'CmdOrCtrl+Enter',
+          click: () => dispatch(MenuCommand.InsertPageBreak),
+        },
       ],
     },
     { label: 'Exibir', submenu: viewSubmenu },

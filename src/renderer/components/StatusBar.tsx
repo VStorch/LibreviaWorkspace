@@ -1,9 +1,9 @@
-import { isDirty, useWorkspace } from '../state/workspace.js'
+import { pageDimensionsMm } from '@services/document/model.js'
+import { useWorkspace } from '../state/workspace.js'
 
 export function StatusBar(): React.JSX.Element {
   const state = useWorkspace()
-  const dirty = isDirty(state)
-  const characters = state.content.length
+  const { width, height } = pageDimensionsMm(state.page)
 
   return (
     <footer className="statusbar">
@@ -14,13 +14,20 @@ export function StatusBar(): React.JSX.Element {
       <span className="statusbar__spacer" />
 
       <span className="statusbar__metric">
-        {characters.toLocaleString('pt-BR')} {characters === 1 ? 'caractere' : 'caracteres'}
+        {state.page.size} {width} × {height} mm
+      </span>
+      <span className="statusbar__metric">
+        {state.stats.words.toLocaleString('pt-BR')} {state.stats.words === 1 ? 'palavra' : 'palavras'}
+      </span>
+      <span className="statusbar__metric">
+        {state.stats.characters.toLocaleString('pt-BR')}{' '}
+        {state.stats.characters === 1 ? 'caractere' : 'caracteres'}
       </span>
 
       {/* Indicador de alterações não salvas: repete o marcador do título da
           janela, para que o estado seja legível sem sair do conteúdo. */}
-      <span className={dirty ? 'statusbar__state statusbar__state--dirty' : 'statusbar__state'}>
-        {state.busy ? 'Trabalhando…' : dirty ? '• Não salvo' : 'Salvo'}
+      <span className={state.isDirty ? 'statusbar__state statusbar__state--dirty' : 'statusbar__state'}>
+        {state.busy ? 'Trabalhando…' : state.isDirty ? '• Não salvo' : 'Salvo'}
       </span>
     </footer>
   )

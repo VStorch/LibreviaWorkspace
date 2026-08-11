@@ -226,32 +226,6 @@ button {
   text-align: left;
 }
 
-/* ---------- editor ---------- */
-
-.editor {
-  height: 100%;
-  display: flex;
-  padding: 24px;
-}
-
-.editor__area {
-  flex: 1;
-  resize: none;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface);
-  padding: 24px 28px;
-  font-family: ui-monospace, 'Cascadia Code', Menlo, monospace;
-  font-size: 14px;
-  line-height: 1.65;
-  color: inherit;
-}
-
-.editor__area:focus {
-  outline: 2px solid var(--accent);
-  outline-offset: -1px;
-}
-
 /* ---------- barra de status ---------- */
 
 .statusbar {
@@ -281,4 +255,403 @@ button {
 .statusbar__state--dirty {
   color: var(--accent);
   font-weight: 600;
+}
+
+/* ---------- editor de documentos ---------- */
+
+.editor-shell {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: #e9ebee;
+}
+
+.editor-scroll {
+  flex: 1;
+  overflow: auto;
+  padding: 28px 24px 60px;
+  display: flex;
+  justify-content: center;
+}
+
+/*
+  Moldura de página: largura e margens em milímetros, do jeito que saem na
+  impressão. A rolagem é contínua — o editor não pagina ao vivo (§6.3 do
+  plano); a paginação real acontece na exportação para PDF.
+*/
+.page {
+  background: var(--surface);
+  box-shadow:
+    0 1px 3px rgb(0 0 0 / 12%),
+    0 8px 24px rgb(0 0 0 / 8%);
+  min-height: 200px;
+  flex-shrink: 0;
+}
+
+.page__content {
+  outline: none;
+  font-family: 'Liberation Serif', Georgia, serif;
+  font-size: 12pt;
+  line-height: 1.5;
+  color: #111;
+}
+
+.page__content > * + * {
+  margin-top: 0.6em;
+}
+
+.page__content h1 {
+  font-size: 22pt;
+  font-weight: 600;
+  margin-top: 1em;
+}
+.page__content h2 {
+  font-size: 17pt;
+  font-weight: 600;
+  margin-top: 1em;
+}
+.page__content h3 {
+  font-size: 14pt;
+  font-weight: 600;
+  margin-top: 1em;
+}
+.page__content h4 {
+  font-size: 12pt;
+  font-weight: 700;
+  margin-top: 1em;
+}
+
+.page__content ul,
+.page__content ol {
+  padding-left: 1.6em;
+}
+
+.page__content li > p {
+  margin: 0;
+}
+
+.page__content a {
+  color: #14538f;
+  text-decoration: underline;
+}
+
+.page__content img {
+  max-width: 100%;
+  height: auto;
+}
+
+.page__content blockquote {
+  border-left: 3px solid var(--border-strong);
+  padding-left: 1em;
+  color: #444;
+}
+
+.page__content table {
+  border-collapse: collapse;
+  width: 100%;
+  table-layout: fixed;
+  margin: 0.8em 0;
+}
+
+.page__content th,
+.page__content td {
+  border: 1px solid #9aa3ad;
+  padding: 4px 8px;
+  vertical-align: top;
+  position: relative;
+}
+
+.page__content th {
+  background: #f0f2f4;
+  font-weight: 600;
+  text-align: left;
+}
+
+.page__content .selectedCell::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgb(31 95 169 / 12%);
+  pointer-events: none;
+}
+
+.page__content .column-resize-handle {
+  position: absolute;
+  right: -2px;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--accent);
+  cursor: col-resize;
+}
+
+/* Quebra de página manual: na Fase 3 isto vira break-after no CSS de impressão. */
+.page__content .page-break {
+  border: none;
+  border-top: 2px dashed var(--border-strong);
+  margin: 1.4em 0;
+  position: relative;
+  height: 0;
+}
+
+.page__content .page-break::after {
+  content: 'Quebra de página';
+  position: absolute;
+  top: -0.75em;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--surface);
+  padding: 0 8px;
+  font-family: system-ui, sans-serif;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.page__content .ProseMirror-selectednode {
+  outline: 2px solid var(--accent);
+}
+
+/* Destaques de "localizar" */
+.search-hit {
+  background: #ffe9a8;
+}
+
+.search-hit--current {
+  background: #ffb938;
+}
+
+/* ---------- barra de ferramentas ---------- */
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 10px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.tbtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: none;
+  cursor: pointer;
+  color: var(--text);
+}
+
+.tbtn:hover:not(:disabled) {
+  background: #eef1f4;
+}
+
+.tbtn--active {
+  background: #e2ecf8;
+  border-color: #b9d3ee;
+  color: var(--accent);
+}
+
+.tbtn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.tselect {
+  height: 30px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  padding: 0 6px;
+  font-size: 13px;
+  color: inherit;
+}
+
+.tcolor {
+  display: inline-flex;
+  align-items: center;
+  height: 30px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.tcolor__input {
+  width: 28px;
+  height: 28px;
+  border: none;
+  padding: 2px;
+  background: none;
+  cursor: pointer;
+}
+
+.tcolor__clear {
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 11px;
+  color: var(--muted);
+  padding: 0 5px;
+  align-self: stretch;
+}
+
+.tcolor__clear:hover {
+  background: #eef1f4;
+}
+
+.tsep {
+  width: 1px;
+  height: 22px;
+  background: var(--border);
+  margin: 0 6px;
+}
+
+/* ---------- barra de localizar ---------- */
+
+.findbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  background: #fbfcfd;
+  border-bottom: 1px solid var(--border);
+}
+
+.findbar__input {
+  height: 28px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0 8px;
+  font: inherit;
+  min-width: 150px;
+}
+
+.findbar__count {
+  font-size: 12px;
+  color: var(--muted);
+  min-width: 70px;
+}
+
+.findbar__count--empty {
+  color: var(--danger-text);
+}
+
+.findbar__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* ---------- painéis ---------- */
+
+.popover {
+  position: absolute;
+  z-index: 20;
+  top: 96px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 30px rgb(0 0 0 / 16%);
+  padding: 16px;
+  min-width: 320px;
+}
+
+.popover--wide {
+  min-width: 460px;
+}
+
+.popover__row {
+  display: flex;
+  gap: 12px;
+}
+
+.popover__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  font-size: 13px;
+}
+
+.popover__field--narrow {
+  max-width: 90px;
+}
+
+.popover__field input,
+.popover__field select {
+  height: 30px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0 8px;
+  font: inherit;
+}
+
+.popover__fieldset {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin: 14px 0 10px;
+}
+
+.popover__fieldset legend {
+  font-size: 12px;
+  color: var(--muted);
+  padding: 0 4px;
+}
+
+.popover__hint {
+  font-size: 12px;
+  color: var(--muted);
+  margin: 0 0 12px;
+}
+
+.popover__error {
+  font-size: 12px;
+  color: var(--danger-text);
+  margin: 8px 0 12px;
+}
+
+.popover__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.popover__spacer {
+  flex: 1;
+}
+
+.btn {
+  height: 30px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.btn:hover:not(:disabled) {
+  border-color: var(--border-strong);
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.btn--primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
 }

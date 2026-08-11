@@ -31,6 +31,9 @@ export const MenuCommand = {
   Save: 'save',
   SaveAs: 'save-as',
   CloseFile: 'close-file',
+  FindReplace: 'find-replace',
+  PageSetup: 'page-setup',
+  InsertPageBreak: 'insert-page-break',
   /** Emitido quando o usuário escolhe "Salvar" no aviso de saída. */
   SaveAndExit: 'save-and-exit',
 } as const
@@ -45,3 +48,14 @@ export const DiscardChoice = {
 } as const
 
 export type DiscardChoice = (typeof DiscardChoice)[keyof typeof DiscardChoice]
+
+/** Resposta ao aviso de que `.txt` não guarda formatação. */
+export const PlainTextChoice = {
+  /** Salvar assim mesmo, aceitando a perda de formatação. */
+  KeepPlain: 'keep-plain',
+  /** Salvar como documento, preservando tudo. */
+  SaveAsDocument: 'save-as-document',
+  Cancel: 'cancel',
+} as const
+
+export type PlainTextChoice = (typeof PlainTextChoice)[keyof typeof PlainTextChoice]

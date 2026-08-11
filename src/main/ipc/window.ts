@@ -1,7 +1,9 @@
 import { BrowserWindow, type IpcMainInvokeEvent } from 'electron'
 import { AppError, ErrorCode } from '@shared/errors.js'
 import { IpcChannel } from '@shared/ipc-channels.js'
-import { confirmDiscardChanges } from '../dialogs.js'
+import { fileNameFromPath } from '@services/file/formats.js'
+import { confirmDiscardChanges, confirmPlainTextSave, showImagePickerDialog } from '../dialogs.js'
+import { readImageAsDataUrl } from '../fs/read-image.js'
 import { closeWithoutGuard, updateWindowState } from '../window.js'
 import { handle } from './registry.js'
 
@@ -19,6 +21,23 @@ export function registerWindowHandlers(): void {
   handle(IpcChannel.DialogConfirmDiscard, async (payload, event) => ({
     choice: await confirmDiscardChanges(windowOf(event), payload.fileName),
   }))
+
+  handle(IpcChannel.DialogConfirmPlainText, async (payload, event) => ({
+    choice: await confirmPlainTextSave(windowOf(event), payload.fileName),
+  }))
+
+  handle(IpcChannel.ImagePick, async (_payload, event) => {
+    const path = await showImagePickerDialog(windowOf(event))
+    if (path === null) return { canceled: true as const }
+
+    // A validação por assinatura de bytes acontece aqui, no processo main:
+    // o renderer só recebe um data URI de formato já confirmado.
+    return {
+      canceled: false as const,
+      dataUrl: await readImageAsDataUrl(path),
+      name: fileNameFromPath(path),
+    }
+  })
 
   handle(IpcChannel.WindowSetState, (payload, event) => {
     updateWindowState(windowOf(event), payload.title, payload.isDirty)

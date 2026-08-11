@@ -8,8 +8,21 @@ import { DocumentKind } from '@shared/types.js'
  * o mesmo caminho pode vir de um diálogo nativo ou de uma pasta de rede.
  */
 
-/** Formatos que a Fase 1 sabe abrir e salvar. DOCX chega na Fase 4; XLSX na 7. */
-export const SUPPORTED_EXTENSIONS = ['.txt'] as const
+/**
+ * Formatos que o aplicativo sabe abrir e salvar hoje. DOCX chega na Fase 4;
+ * XLSX na 7.
+ *
+ * `.sdoc` é o formato interno: guarda o documento inteiro, com formatação.
+ * `.txt` continua de primeira classe, mas só carrega texto — salvar nele
+ * descarta formatação, e por isso o aplicativo avisa antes.
+ */
+export const DOCUMENT_EXTENSION = '.sdoc'
+export const PLAIN_TEXT_EXTENSION = '.txt'
+export const SUPPORTED_EXTENSIONS = [DOCUMENT_EXTENSION, PLAIN_TEXT_EXTENSION] as const
+
+export function isPlainTextPath(path: string): boolean {
+  return extensionOf(path) === PLAIN_TEXT_EXTENSION
+}
 
 export function extensionOf(path: string): string {
   const name = fileNameFromPath(path)
@@ -42,11 +55,13 @@ export function kindFromPath(path: string): DocumentKind {
  * extensão certa.
  */
 export function ensureSupportedExtension(path: string): string {
-  return isSupportedExtension(path) ? path : `${path}.txt`
+  return isSupportedExtension(path) ? path : `${path}${DOCUMENT_EXTENSION}`
 }
 
 export function defaultFileName(kind: DocumentKind): string {
-  return kind === DocumentKind.Spreadsheet ? 'Planilha sem título.txt' : 'Documento sem título.txt'
+  return kind === DocumentKind.Spreadsheet
+    ? `Planilha sem título${DOCUMENT_EXTENSION}`
+    : `Documento sem título${DOCUMENT_EXTENSION}`
 }
 
 /**

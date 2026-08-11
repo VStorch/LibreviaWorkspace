@@ -12,8 +12,14 @@ import type { SerializedError } from './errors.js'
  * linguagem sem tocar no resto do aplicativo.
  */
 
-/** Teto de conteúdo em memória na Fase 1 (texto simples). */
-export const MAX_TEXT_LENGTH = 20_000_000
+/**
+ * Teto de conteúdo em memória.
+ *
+ * Um `.sdoc` carrega imagens embutidas como data URI, então é bem maior que um
+ * `.txt` equivalente. O limite existe para que um arquivo absurdo não trave a
+ * interface, não para restringir uso legítimo.
+ */
+export const MAX_TEXT_LENGTH = 50_000_000
 
 const documentKindSchema = z.enum(['document', 'spreadsheet'])
 
@@ -60,12 +66,8 @@ export const ipcContracts = {
     }),
     response: z.object({ path: z.string(), name: z.string() }),
   },
-  [IpcChannel.FileSaveAs]: {
-    request: z.object({
-      suggestedName: z.string().min(1).max(255),
-      kind: documentKindSchema,
-      content: z.string().max(MAX_TEXT_LENGTH),
-    }),
+  [IpcChannel.FileChooseSavePath]: {
+    request: z.object({ suggestedName: z.string().min(1).max(255) }),
     response: saveResultSchema,
   },
   [IpcChannel.RecentList]: {
@@ -76,9 +78,25 @@ export const ipcContracts = {
     request: emptyRequest,
     response: z.object({ files: z.array(recentFileSchema) }),
   },
+  [IpcChannel.ImagePick]: {
+    request: emptyRequest,
+    response: z.discriminatedUnion('canceled', [
+      z.object({ canceled: z.literal(true) }),
+      z.object({
+        canceled: z.literal(false),
+        // Data URI já validado por assinatura de bytes no processo main.
+        dataUrl: z.string(),
+        name: z.string(),
+      }),
+    ]),
+  },
   [IpcChannel.DialogConfirmDiscard]: {
     request: z.object({ fileName: z.string().min(1).max(255) }),
     response: z.object({ choice: z.enum(['save', 'discard', 'cancel']) }),
+  },
+  [IpcChannel.DialogConfirmPlainText]: {
+    request: z.object({ fileName: z.string().min(1).max(255) }),
+    response: z.object({ choice: z.enum(['keep-plain', 'save-as-document', 'cancel']) }),
   },
   [IpcChannel.WindowSetState]: {
     request: z.object({

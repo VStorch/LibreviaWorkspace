@@ -1,9 +1,15 @@
 import { dialog, type BrowserWindow } from 'electron'
-import { DiscardChoice } from '@shared/types.js'
-import { SUPPORTED_EXTENSIONS } from '@services/file/formats.js'
+import { DiscardChoice, PlainTextChoice } from '@shared/types.js'
+import { DOCUMENT_EXTENSION, PLAIN_TEXT_EXTENSION } from '@services/file/formats.js'
 
 const FILTERS = [
-  { name: 'Arquivos de texto', extensions: SUPPORTED_EXTENSIONS.map((ext) => ext.replace('.', '')) },
+  { name: 'Documentos', extensions: [DOCUMENT_EXTENSION.replace('.', '')] },
+  { name: 'Texto simples', extensions: [PLAIN_TEXT_EXTENSION.replace('.', '')] },
+  { name: 'Todos os arquivos', extensions: ['*'] },
+]
+
+const IMAGE_FILTERS = [
+  { name: 'Imagens', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp'] },
   { name: 'Todos os arquivos', extensions: ['*'] },
 ]
 
@@ -52,6 +58,44 @@ export async function confirmDiscardChanges(window: BrowserWindow, fileName: str
   if (response === 0) return DiscardChoice.Save
   if (response === 1) return DiscardChoice.Discard
   return DiscardChoice.Cancel
+}
+
+export async function showImagePickerDialog(window: BrowserWindow): Promise<string | null> {
+  const result = await dialog.showOpenDialog(window, {
+    title: 'Inserir imagem',
+    properties: ['openFile'],
+    filters: IMAGE_FILTERS,
+  })
+  return result.canceled ? null : (result.filePaths[0] ?? null)
+}
+
+/**
+ * Aviso de que `.txt` não guarda formatação.
+ *
+ * A alternativa — salvar em silêncio e descartar negrito, títulos, tabelas e
+ * imagens — é exatamente o tipo de perda que o plano se compromete a evitar
+ * (§6.1). Por isso o padrão oferecido é salvar como documento.
+ */
+export async function confirmPlainTextSave(
+  window: BrowserWindow,
+  fileName: string,
+): Promise<PlainTextChoice> {
+  const { response } = await dialog.showMessageBox(window, {
+    type: 'warning',
+    title: 'Formatação será perdida',
+    message: `“${fileName}” é um arquivo de texto simples.`,
+    detail:
+      'Texto simples não guarda negrito, títulos, listas, tabelas nem imagens. ' +
+      'Salvar como documento preserva tudo.',
+    buttons: ['Salvar como documento', 'Salvar como texto simples', 'Cancelar'],
+    defaultId: 0,
+    cancelId: 2,
+    noLink: true,
+  })
+
+  if (response === 0) return PlainTextChoice.SaveAsDocument
+  if (response === 1) return PlainTextChoice.KeepPlain
+  return PlainTextChoice.Cancel
 }
 
 export function showAboutDialog(window: BrowserWindow, appName: string, version: string): void {

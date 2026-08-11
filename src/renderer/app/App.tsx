@@ -3,11 +3,12 @@ import { MenuCommand } from '@shared/types.js'
 import { buildWindowTitle } from '@services/file/formats.js'
 import { ErrorBanner } from '../components/ErrorBanner.js'
 import { StatusBar } from '../components/StatusBar.js'
-import { EditorPage } from '../pages/EditorPage.js'
+import { DocumentEditor } from '../document/DocumentEditor.js'
+import { emitEditorCommand } from '../document/editor-commands.js'
 import { HomePage } from '../pages/HomePage.js'
-import { isDirty, useWorkspace } from '../state/workspace.js'
+import { useWorkspace } from '../state/workspace.js'
 
-/** Traduz um comando do menu nativo na ação correspondente do workspace. */
+/** Traduz um comando do menu nativo na ação correspondente. */
 async function runMenuCommand(command: MenuCommand, path: string | undefined): Promise<void> {
   const workspace = useWorkspace.getState()
 
@@ -35,6 +36,15 @@ async function runMenuCommand(command: MenuCommand, path: string | undefined): P
       if (await workspace.save()) await window.api.window.close({})
       return
     }
+
+    // Comandos que pertencem ao editor: o App não tem referência a ele.
+    case MenuCommand.FindReplace:
+      return emitEditorCommand('find-replace')
+    case MenuCommand.PageSetup:
+      return emitEditorCommand('page-setup')
+    case MenuCommand.InsertPageBreak:
+      return emitEditorCommand('insert-page-break')
+
     case MenuCommand.NewSpreadsheet:
       // Chega na Fase 5; o item de menu está desabilitado até lá.
       return
@@ -43,6 +53,9 @@ async function runMenuCommand(command: MenuCommand, path: string | undefined): P
 
 export function App(): React.JSX.Element {
   const hasFile = useWorkspace((state) => state.file !== null)
+  // Recarrega o editor por completo a cada documento aberto, em vez de tentar
+  // sincronizar conteúdo — elimina estado residual entre um arquivo e outro.
+  const generation = useWorkspace((state) => state.generation)
 
   useEffect(() => {
     void useWorkspace.getState().refreshRecents()
@@ -65,13 +78,12 @@ export function App(): React.JSX.Element {
     const sync = (): void => {
       const state = useWorkspace.getState()
       const title = state.file?.name ?? 'Sem título'
-      const dirty = isDirty(state)
-      if (title === lastTitle && dirty === lastDirty) return
+      if (title === lastTitle && state.isDirty === lastDirty) return
 
       lastTitle = title
-      lastDirty = dirty
-      void window.api.window.setState({ title, isDirty: dirty })
-      document.title = buildWindowTitle(state.file?.name ?? null, dirty, 'Librevia')
+      lastDirty = state.isDirty
+      void window.api.window.setState({ title, isDirty: state.isDirty })
+      document.title = buildWindowTitle(state.file?.name ?? null, state.isDirty, 'Librevia')
     }
 
     sync()
@@ -81,7 +93,7 @@ export function App(): React.JSX.Element {
   return (
     <div className="app">
       <ErrorBanner />
-      <div className="app__body">{hasFile ? <EditorPage /> : <HomePage />}</div>
+      <div className="app__body">{hasFile ? <DocumentEditor key={generation} /> : <HomePage />}</div>
       {hasFile && <StatusBar />}
     </div>
   )

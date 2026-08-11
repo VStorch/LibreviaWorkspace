@@ -32,14 +32,18 @@ export interface AppApi {
     open: Call<typeof IpcChannel.FileOpen>
     openRecent: Call<typeof IpcChannel.FileOpenRecent>
     save: Call<typeof IpcChannel.FileSave>
-    saveAs: Call<typeof IpcChannel.FileSaveAs>
+    chooseSavePath: Call<typeof IpcChannel.FileChooseSavePath>
   }
   readonly recent: {
     list: Call<typeof IpcChannel.RecentList>
     clear: Call<typeof IpcChannel.RecentClear>
   }
+  readonly image: {
+    pick: Call<typeof IpcChannel.ImagePick>
+  }
   readonly dialog: {
     confirmDiscard: Call<typeof IpcChannel.DialogConfirmDiscard>
+    confirmPlainText: Call<typeof IpcChannel.DialogConfirmPlainText>
   }
   readonly window: {
     setState: Call<typeof IpcChannel.WindowSetState>
