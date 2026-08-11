@@ -1,0 +1,8 @@
+node_modules/
+out/
+dist/
+release/
+*.csv
+
+# O plano técnico é escrito à mão, com tabelas alinhadas de propósito.
+*.md

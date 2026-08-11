@@ -1,0 +1,146 @@
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --border: #dfe3e8;
+  --text: #1c2024;
+  --muted: #6b7280;
+  --ok: #16794a;
+  --fail: #b42318;
+  --radius: 10px;
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.shell {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 48px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.shell__header h1 {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.shell__subtitle {
+  margin: 4px 0 0;
+  color: var(--muted);
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+}
+
+.card h2 {
+  margin: 0 0 6px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.card__lead {
+  margin: 0 0 12px;
+  color: var(--muted);
+}
+
+.card__lead--ok {
+  color: var(--ok);
+}
+
+.card__lead--erro {
+  color: var(--fail);
+}
+
+.checks {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.checks li {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.checks__mark {
+  width: 14px;
+  font-weight: 700;
+}
+
+.checks__item--ok .checks__mark {
+  color: var(--ok);
+}
+
+.checks__item--fail .checks__mark {
+  color: var(--fail);
+}
+
+.checks code {
+  font-family: ui-monospace, 'Cascadia Code', Menlo, monospace;
+  font-size: 13px;
+}
+
+.checks__note {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.versions {
+  margin: 0;
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 16px;
+}
+
+.versions__row {
+  display: contents;
+}
+
+.versions dt {
+  color: var(--muted);
+}
+
+.versions dd {
+  margin: 0;
+  font-family: ui-monospace, 'Cascadia Code', Menlo, monospace;
+  font-size: 13px;
+}
+
+.shell__footer {
+  color: var(--muted);
+  font-size: 13px;
+}

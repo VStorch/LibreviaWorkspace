@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci
+
+      - name: Formatação
+        run: npm run format:check
+
+      - name: Tipos
+        run: npm run typecheck
+
+      - name: Lint (inclui as fronteiras de arquitetura)
+        run: npm run lint
+
+      - name: Testes
+        run: npm test
+
+      # Portão de licenças: o build falha se qualquer dependência transitiva
+      # trouxer licença fora da allowlist. Ver docs/00-plano-tecnico.md §4.4.
+      - name: Licenças
+        run: npm run licenses:check

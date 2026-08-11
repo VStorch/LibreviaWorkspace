@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Librevia</title>
+    <!--
+      A CSP não é declarada aqui de propósito: ela é injetada como cabeçalho
+      pelo processo main (src/main/security.ts). Duas declarações se somariam
+      pela interseção mais restritiva, o que torna o efeito real difícil de
+      prever. Uma fonte de verdade só.
+    -->
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="./main.tsx"></script>
+  </body>
+</html>

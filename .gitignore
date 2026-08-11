@@ -1,0 +1,9 @@
+node_modules/
+out/
+dist/
+release/
+*.log
+.vite/
+.DS_Store
+THIRD-PARTY-NOTICES.csv
+tsconfig.*.tsbuildinfo
