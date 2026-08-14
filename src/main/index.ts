@@ -5,6 +5,7 @@ import { registerPrintHandlers } from './ipc/print.js'
 import { registerWindowHandlers } from './ipc/window.js'
 import { refreshMenu } from './menu.js'
 import { applySessionPolicy } from './security.js'
+import { checkSidecarHealth, disposeSidecar } from './sidecar/index.js'
 import { createMainWindow, devServerUrl } from './window.js'
 
 // Sandbox para todo renderer, inclusive os que vierem depois (janela oculta de
@@ -34,6 +35,10 @@ if (!app.requestSingleInstanceLock()) {
 
     createMainWindow()
 
+    // Depois da janela: o aplicativo não espera pelo serviço de formatos para
+    // aparecer na tela.
+    void checkSidecarHealth()
+
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createMainWindow()
     })
@@ -42,4 +47,8 @@ if (!app.requestSingleInstanceLock()) {
   app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') app.quit()
   })
+
+  // `will-quit` e não `window-all-closed`: no macOS o app segue vivo sem janela,
+  // e matar o sidecar ali deixaria o próximo documento sem serviço.
+  app.on('will-quit', disposeSidecar)
 }

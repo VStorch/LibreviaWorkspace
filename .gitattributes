@@ -1,0 +1,14 @@
+# Windows entrou como plataforma-alvo (§8.1 do plano) e o repositório passou a
+# ser conferido lá também. Sem isto, o checkout no Windows converteria tudo para
+# CRLF e o `prettier --check` reprovaria o repositório inteiro por fim de linha.
+* text=auto eol=lf
+
+# Binários: nunca converter.
+*.png binary
+*.jpg binary
+*.ico binary
+*.pdf binary
+*.docx binary
+*.xlsx binary
+*.ttf binary
+*.otf binary

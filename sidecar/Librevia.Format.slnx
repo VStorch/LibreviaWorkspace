@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Librevia.Format/Librevia.Format.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Librevia.Format.Tests/Librevia.Format.Tests.csproj" />
+  </Folder>
+</Solution>

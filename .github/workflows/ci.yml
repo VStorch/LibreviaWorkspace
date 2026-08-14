@@ -6,8 +6,15 @@ on:
   pull_request:
 
 jobs:
+  # Linux e Windows são as duas plataformas-alvo (§8.1 do plano). O sidecar .NET
+  # sobe um processo filho e resolve caminhos de arquivo — duas coisas que se
+  # comportam diferente nos dois sistemas, e que só um runner de verdade pega.
   verify:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
 
@@ -15,6 +22,10 @@ jobs:
         with:
           node-version: '22'
           cache: npm
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
 
       - run: npm ci
 
@@ -27,10 +38,49 @@ jobs:
       - name: Lint (inclui as fronteiras de arquitetura)
         run: npm run lint
 
+      - name: Testes do sidecar (.NET)
+        run: npm run sidecar:test
+
+      # Precisa vir antes dos testes: o teste de ponta a ponta conversa com o
+      # binário publicado de verdade, que é o único que prova que os dois lados
+      # do protocolo concordam.
+      - name: Publicar sidecar
+        run: npm run sidecar:build
+
       - name: Testes
         run: npm test
 
       # Portão de licenças: o build falha se qualquer dependência transitiva
       # trouxer licença fora da allowlist. Ver docs/00-plano-tecnico.md §4.4.
-      - name: Licenças
+      - name: Licenças (npm)
         run: npm run licenses:check
+
+      - name: Licenças (NuGet)
+        run: npm run sidecar:licenses
+
+  # O instalador precisa dos dois binários, e quem publica é uma máquina só.
+  # Este job prova que a publicação cruzada funciona antes da Fase 8 depender
+  # disso.
+  publicacao-cruzada:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - run: npm ci
+
+      - name: Publicar para linux-x64 e win-x64
+        run: npm run sidecar:build:all
+
+      - name: Conferir que os dois binários saíram
+        run: |
+          test -x resources/sidecar/linux-x64/Librevia.Format
+          test -f resources/sidecar/win-x64/Librevia.Format.exe

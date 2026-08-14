@@ -7,7 +7,7 @@ import tseslint from 'typescript-eslint'
  * electron nem react" — vira erro de build em vez de recomendação em documento.
  */
 export default tseslint.config(
-  { ignores: ['out/**', 'dist/**', 'node_modules/**', '*.csv'] },
+  { ignores: ['out/**', 'dist/**', 'node_modules/**', 'sidecar/**', 'resources/**', '*.csv'] },
 
   js.configs.recommended,
   ...tseslint.configs.recommended,
@@ -81,7 +81,25 @@ export default tseslint.config(
   },
 
   {
+    // O processo main não tem outro canal de diagnóstico: o que ele registra na
+    // subida é o que sobra para investigar "abre errado só naquela máquina".
+    files: ['src/main/**/*.ts'],
+    rules: { 'no-console': ['warn', { allow: ['info', 'warn', 'error'] }] },
+  },
+
+  {
     files: ['**/*.test.ts', '**/*.test.tsx'],
     rules: { 'no-restricted-imports': 'off' },
+  },
+
+  {
+    // Scripts de build: rodam no Node direto, fora do bundle, e falam com o
+    // usuário pelo terminal — `console` ali é a interface, não um resto de
+    // depuração esquecido.
+    files: ['scripts/**/*.mjs'],
+    languageOptions: {
+      globals: { process: 'readonly', console: 'readonly' },
+    },
+    rules: { 'no-console': 'off' },
   },
 )

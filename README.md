@@ -10,8 +10,10 @@ documentos** (formatação, títulos, listas, recuo, espaçamento, alinhamento, 
 imagens, links, quebra de página, localizar/substituir) e **exportação para PDF e
 impressão**, com cabeçalho, rodapé, numeração, margens e orientação.
 
-Próxima etapa: Fase 4 — importação e exportação de DOCX. É a fase mais arriscada do
-projeto; ver §6.1 do plano.
+A **Fase 3.5** também está concluída: o sidecar .NET sobe, responde e morre
+limpo — ainda sem nenhum recurso de formato.
+
+Próxima etapa: Fase 4 — DOCX, a mais arriscada do projeto; ver §6.1 do plano.
 
 ## Formatos
 
@@ -21,7 +23,35 @@ projeto; ver §6.1 do plano.
 | `.txt`   | apenas texto; salvar nele descarta formatação, e o aplicativo avisa antes |
 | `.pdf`   | saída apenas (exportação e impressão) |
 
-DOCX chega na Fase 4 e XLSX na Fase 7.
+DOCX chega na Fase 4 e XLSX na Fase 7. ODT não está no escopo — não existe
+biblioteca madura em nenhum ecossistema; ver §4.5 do plano. Documentos `.docx`
+funcionam vindos tanto do Word quanto do LibreOffice.
+
+## Por que há .NET num projeto Electron
+
+Um editor normal preserva o que você não editou. Regenerar o pacote OOXML do zero
+a cada salvamento apaga em silêncio comentários, revisões, notas e formas — tudo
+que o importador não entendeu. A saída é **edição cirúrgica**: manter o pacote
+original e reescrever só as partes tocadas. Isso exige um DOM tipado completo do
+OOXML, e o `DocumentFormat.OpenXml` (MIT, da Microsoft) é o único maduro. Daí o
+sidecar em `sidecar/`.
+
+Ele é um **serviço de formato**, não uma segunda aplicação: bytes entram por
+stdio, JSON sai. Sem rede, sem porta, sem permissão de escrita — quem grava
+continua sendo o processo main, com a autorização de caminho e a gravação atômica
+já existentes. Interface, edição e estado ficam todos no Electron.
+
+O protocolo é um quadro binário — `[tamanho do JSON][tamanho do binário][JSON][binário]` —
+e não uma linha de texto. Um DOCX é um ZIP, cheio de `0x0a` e `0x00`: qualquer
+protocolo delimitado por linha se despedaçaria nele. Os dois lados vivem em
+`src/main/sidecar/protocol.ts` e `sidecar/src/Librevia.Format/Protocol/Frame.cs`,
+e **precisam mudar juntos** — quem garante isso é `sidecar-real.test.ts`, que
+conversa com o executável publicado em vez de com uma imitação.
+
+Se o sidecar morrer, o documento aberto não morre junto: a operação em curso
+falha com uma frase compreensível e o próximo pedido sobe um processo novo. E ele
+encerra ao perder o stdin, então nem um `SIGKILL` no aplicativo deixa processo
+órfão para trás.
 
 ## PDF e impressão
 
@@ -42,16 +72,21 @@ está em [`docs/00-plano-tecnico.md`](docs/00-plano-tecnico.md).
 ## Requisitos
 
 - Node.js 22 ou superior
+- .NET SDK 10 (para o sidecar — ver abaixo)
 
 ## Comandos
 
 ```bash
-npm install      # única etapa que precisa de rede
-npm run dev      # aplicativo em modo desenvolvimento, com HMR
-npm run build    # verificação de tipos + build de produção em out/
-npm run verify   # tipos + lint + testes + licenças (o mesmo que o CI roda)
-npm test         # testes unitários
+npm install            # rede: dependências npm
+npm run sidecar:build  # rede na primeira vez: pacotes NuGet
+npm run dev            # aplicativo em modo desenvolvimento, com HMR
+npm run build          # verificação de tipos + build de produção em out/
+npm run verify         # tipos + lint + testes (TS e .NET) + licenças — o mesmo que o CI roda
+npm test               # testes unitários
 ```
+
+O `npm run verify` publica o sidecar antes de rodar os testes, porque o teste de
+ponta a ponta conversa com o binário de verdade.
 
 ## Arquitetura em uma tela
 

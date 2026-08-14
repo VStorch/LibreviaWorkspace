@@ -20,6 +20,13 @@ export const ErrorCode = {
   ReadFailed: 'READ_FAILED',
   WriteFailed: 'WRITE_FAILED',
   NotTextFile: 'NOT_TEXT_FILE',
+
+  /** O serviço de formatos não pôde ser iniciado — instalação incompleta. */
+  SidecarUnavailable: 'SIDECAR_UNAVAILABLE',
+  /** Demorou além do limite. O documento aberto continua intacto. */
+  SidecarTimeout: 'SIDECAR_TIMEOUT',
+  /** Morreu no meio da operação, ou respondeu algo que não entendemos. */
+  SidecarFailed: 'SIDECAR_FAILED',
 } as const
 
 export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode]

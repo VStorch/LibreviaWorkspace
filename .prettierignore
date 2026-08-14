@@ -4,5 +4,9 @@ dist/
 release/
 *.csv
 
+# O sidecar .NET tem formatador próprio (`dotnet format`).
+sidecar/
+resources/sidecar/
+
 # O plano técnico é escrito à mão, com tabelas alinhadas de propósito.
 *.md

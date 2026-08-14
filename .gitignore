@@ -7,3 +7,9 @@ release/
 .DS_Store
 THIRD-PARTY-NOTICES.csv
 tsconfig.*.tsbuildinfo
+
+# Sidecar .NET: fontes entram, artefatos não. O binário publicado tem 82 MB e é
+# regenerado por `npm run sidecar:build`.
+sidecar/**/bin/
+sidecar/**/obj/
+resources/sidecar/

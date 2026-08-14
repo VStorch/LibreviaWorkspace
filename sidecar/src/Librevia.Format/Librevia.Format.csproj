@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <AssemblyName>Librevia.Format</AssemblyName>
+    <RootNamespace>Librevia.Format</RootNamespace>
+
+    <!-- Avisos são erros: o sidecar roda sem ninguém olhando o console dele. -->
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+
+    <!-- Nunca falamos com a rede, e não queremos telemetria saindo da máquina. -->
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <UseSystemResourceKeys>true</UseSystemResourceKeys>
+
+    <!-- Alvos decididos em §8.1 do plano. -->
+    <RuntimeIdentifiers>linux-x64;win-x64</RuntimeIdentifiers>
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <!-- Trimming desligado de propósito: OpenXml e ClosedXML usam reflexão, e
+         um trim agressivo quebraria a leitura de partes só em tempo de execução,
+         que é o pior momento possível para descobrir. Tamanho é problema da
+         Fase 8; corretude é problema de agora. -->
+    <PublishTrimmed>false</PublishTrimmed>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="ClosedXML" Version="0.105.1" />
+    <PackageReference Include="DocumentFormat.OpenXml" Version="3.5.1" />
+  </ItemGroup>
+
+</Project>
