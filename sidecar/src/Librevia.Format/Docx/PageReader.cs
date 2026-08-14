@@ -1,0 +1,105 @@
+using System.Text.Json.Serialization;
+using DocumentFormat.OpenXml.Packaging;
+using DocumentFormat.OpenXml.Wordprocessing;
+
+namespace Librevia.Format.Docx;
+
+public sealed record PageSetupDto(
+    [property: JsonPropertyName("size")] string Size,
+    [property: JsonPropertyName("orientation")] string Orientation,
+    [property: JsonPropertyName("margins")] MarginsDto Margins,
+    [property: JsonPropertyName("header")] string Header,
+    [property: JsonPropertyName("footer")] string Footer);
+
+public sealed record MarginsDto(
+    [property: JsonPropertyName("top")] double Top,
+    [property: JsonPropertyName("right")] double Right,
+    [property: JsonPropertyName("bottom")] double Bottom,
+    [property: JsonPropertyName("left")] double Left);
+
+/// <summary>
+/// `w:sectPr` → configuração de página.
+/// </summary>
+public static class PageReader
+{
+    private const double TwipsPerMillimeter = 1440 / 25.4;
+
+    /// <summary>Tolerância ao comparar seções: 1 twip é 0,018 mm.</summary>
+    private const int GeometryTolerance = 2;
+
+    public static PageSetupDto Read(Body body, MainDocumentPart part, Inventory inventory)
+    {
+        var sections = body.Descendants<SectionProperties>().ToList();
+        if (sections.Count == 0) return Default();
+
+        // Seções consecutivas com a mesma geometria são artefato do
+        // LibreOffice, não intenção do autor: o documento de 15 páginas do
+        // corpus tem sete, todas idênticas. Só há perda quando divergem.
+        // Ver docs/01-corpus-docx.md, Descoberta 5.
+        if (sections.Count > 1 && !AllShareGeometry(sections))
+        {
+            inventory.NoteLoss("seções com tamanho ou margem diferentes (o documento usará a primeira)");
+        }
+
+        var section = sections[0];
+        var size = section.GetFirstChild<DocumentFormat.OpenXml.Wordprocessing.PageSize>();
+        var margin = section.GetFirstChild<PageMargin>();
+
+        var landscape = size?.Orient is not null && size.Orient.Value == PageOrientationValues.Landscape;
+        var widthTwips = (double?)size?.Width?.Value ?? 11906;
+        var heightTwips = (double?)size?.Height?.Value ?? 16838;
+
+        return new PageSetupDto(
+            Size: NearestSize(widthTwips, heightTwips, landscape),
+            Orientation: landscape ? "landscape" : "portrait",
+            Margins: new MarginsDto(
+                Top: Millimeters(margin?.Top?.Value, 1440),
+                Right: Millimeters((int?)margin?.Right?.Value, 1440),
+                Bottom: Millimeters(margin?.Bottom?.Value, 1440),
+                Left: Millimeters((int?)margin?.Left?.Value, 1440)),
+            Header: HeaderReader.Read(section, part, inventory),
+            Footer: HeaderReader.ReadFooter(section, part, inventory));
+    }
+
+    private static bool AllShareGeometry(List<SectionProperties> sections)
+    {
+        static (int W, int H, int T, int R, int B, int L) Geometry(SectionProperties section)
+        {
+            var size = section.GetFirstChild<DocumentFormat.OpenXml.Wordprocessing.PageSize>();
+            var margin = section.GetFirstChild<PageMargin>();
+            return (
+                (int?)size?.Width?.Value ?? 0,
+                (int?)size?.Height?.Value ?? 0,
+                margin?.Top?.Value ?? 0,
+                (int?)margin?.Right?.Value ?? 0,
+                margin?.Bottom?.Value ?? 0,
+                (int?)margin?.Left?.Value ?? 0);
+        }
+
+        var first = Geometry(sections[0]);
+        return sections.Skip(1).Select(Geometry).All(other =>
+            Math.Abs(other.W - first.W) <= GeometryTolerance &&
+            Math.Abs(other.H - first.H) <= GeometryTolerance &&
+            Math.Abs(other.T - first.T) <= GeometryTolerance &&
+            Math.Abs(other.R - first.R) <= GeometryTolerance &&
+            Math.Abs(other.B - first.B) <= GeometryTolerance &&
+            Math.Abs(other.L - first.L) <= GeometryTolerance);
+    }
+
+    private static double Millimeters(int? twips, int fallback) =>
+        Math.Round((twips ?? fallback) / TwipsPerMillimeter, 1);
+
+    /// <summary>
+    /// O modelo só conhece A4 e Carta. Um tamanho fora disso vira o mais
+    /// próximo — preferível a recusar o documento por causa do papel.
+    /// </summary>
+    private static string NearestSize(double widthTwips, double heightTwips, bool landscape)
+    {
+        var shortSide = landscape ? heightTwips : widthTwips;
+        // A4 tem 11906 twips de largura; Carta tem 12240.
+        return Math.Abs(shortSide - 11906) <= Math.Abs(shortSide - 12240) ? "A4" : "Letter";
+    }
+
+    private static PageSetupDto Default() => new(
+        "A4", "portrait", new MarginsDto(25, 25, 25, 25), string.Empty, string.Empty);
+}

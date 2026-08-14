@@ -22,6 +22,18 @@ public sealed class Server(Stream input, Stream output)
             // Existe para provar, de ponta a ponta, que binário grande atravessa
             // inteiro. Não toca em disco e não guarda estado.
             ["diagnostics.echo"] = static (_, binary, _) => Task.FromResult(new Reply(null, binary)),
+            ["docx.open"] = static (_, binary, _) =>
+                Task.FromResult(Reply.Of(Docx.DocxReader.Read(binary.ToArray()))),
+            // O binário são os bytes originais que o main guardou na abertura;
+            // o modelo vem nos parâmetros. O sidecar não guarda nada entre um
+            // pedido e outro — ver docs/02-docx-cirurgico.md.
+            ["docx.save"] = static (request, binary, _) =>
+            {
+                var model = request.Params.Deserialize<Docx.DocumentModelDto>(JsonOptions.Default)
+                            ?? throw new Docx.DocxException("O documento a gravar chegou vazio.");
+                var (bytes, result) = Docx.DocxWriter.Write(binary.ToArray(), model);
+                return Task.FromResult(new Reply(result, bytes));
+            },
         };
 
     public sealed record Reply(object? Result, ReadOnlyMemory<byte> Binary)
@@ -81,6 +93,14 @@ public sealed class Server(Stream input, Stream output)
 
             var reply = await handler(request, frame.Binary, cancellation).ConfigureAwait(false);
             await RespondOkAsync(request.Id, reply, cancellation).ConfigureAwait(false);
+        }
+        catch (Docx.DocxException problem)
+        {
+            // Já traz frase pronta para o usuário — não vira "erro inesperado".
+            await RespondErrorAsync(
+                request?.Id ?? 0,
+                new ErrorPayload("DOCX_INVALID", problem.Message),
+                cancellation).ConfigureAwait(false);
         }
         catch (Exception problem) when (problem is not OperationCanceledException)
         {

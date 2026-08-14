@@ -88,6 +88,18 @@ button {
   background: rgb(0 0 0 / 8%);
 }
 
+/* Aviso de inventário: informa, não alarma. Cor de erro aqui faria o usuário
+   achar que o documento não abriu — e ele abriu. */
+.banner--notice {
+  background: #fff8e1;
+  border-bottom-color: #e0c56a;
+  color: #5c4708;
+}
+
+.banner--notice strong + strong {
+  margin-top: 6px;
+}
+
 /* ---------- tela inicial ---------- */
 
 .home {

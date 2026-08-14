@@ -14,6 +14,7 @@ import {
   TextStyle,
 } from '@tiptap/extension-text-style'
 import { Indent } from './extensions/indent.js'
+import { Caps, SmallCaps } from './extensions/letter-case.js'
 import { PageBreak } from './extensions/page-break.js'
 import { SearchReplace, type SearchStatus } from './extensions/search-replace.js'
 
@@ -66,6 +67,9 @@ export function buildEditorExtensions(onSearchStatusChange: (status: SearchStatu
     CharacterCount,
 
     Indent,
+    // Vieram do corpus real: `w:caps` e `w:smallCaps` aparecem 45 vezes.
+    Caps,
+    SmallCaps,
     PageBreak,
     SearchReplace.configure({ onStatusChange: onSearchStatusChange }),
   ]

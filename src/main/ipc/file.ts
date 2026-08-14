@@ -2,8 +2,15 @@ import { BrowserWindow, type IpcMainInvokeEvent } from 'electron'
 import { AppError, ErrorCode } from '@shared/errors.js'
 import { IpcChannel } from '@shared/ipc-channels.js'
 import type { LoadedFile } from '@shared/types.js'
-import { ensureSupportedExtension, fileNameFromPath, kindFromPath } from '@services/file/formats.js'
+import {
+  ensureSupportedExtension,
+  fileNameFromPath,
+  isWordPath,
+  kindFromPath,
+} from '@services/file/formats.js'
 import { showOpenFileDialog, showSaveFileDialog } from '../dialogs.js'
+import { forgetOpenedDocx, openDocx, saveDocx } from '../docx/index.js'
+import { sidecar } from '../sidecar/index.js'
 import { writeFileAtomic } from '../fs/atomic-write.js'
 import { assertPathAuthorized, assertReadableFile, authorizePath } from '../fs/paths.js'
 import { clearRecentFiles, isRemembered, listRecentFiles, rememberRecentFile } from '../fs/recent.js'
@@ -22,18 +29,27 @@ function windowOf(event: IpcMainInvokeEvent): BrowserWindow {
 /** Valida, lê e passa a considerar o caminho autorizado para gravação. */
 async function loadFile(path: string): Promise<LoadedFile> {
   await assertReadableFile(path)
-  const content = await readTextFile(path)
-  const authorized = authorizePath(path)
 
+  // O DOCX vira formato interno aqui, e não no renderer: assim o renderer
+  // segue com um caminho só e nunca vê OOXML.
+  const loaded = isWordPath(path)
+    ? await openDocx(sidecar(), path)
+    : { content: await readTextFile(path), inventory: undefined }
+
+  if (!isWordPath(path)) forgetOpenedDocx()
+
+  const authorized = authorizePath(path)
   rememberRecentFile(authorized)
   void refreshMenu()
 
-  return {
+  const file: LoadedFile = {
     path: authorized,
     name: fileNameFromPath(authorized),
     kind: kindFromPath(authorized),
-    content,
+    content: loaded.content,
   }
+
+  return loaded.inventory === undefined ? file : { ...file, inventory: loaded.inventory }
 }
 
 export function registerFileHandlers(): void {
@@ -57,12 +73,17 @@ export function registerFileHandlers(): void {
 
   handle(IpcChannel.FileSave, async (payload) => {
     const path = assertPathAuthorized(payload.path)
-    await writeFileAtomic(path, payload.content)
+
+    // Gravar `.docx` não escreve o que o renderer mandou: manda o modelo ao
+    // sidecar, que reescreve só os blocos tocados sobre o pacote original.
+    const saved = isWordPath(path) ? await saveDocx(sidecar(), payload.content) : null
+    await writeFileAtomic(path, saved?.bytes ?? payload.content)
 
     rememberRecentFile(path)
     void refreshMenu()
 
-    return { path, name: fileNameFromPath(path) }
+    const result = { path, name: fileNameFromPath(path) }
+    return saved === null ? result : { ...result, inventory: saved.inventory }
   })
 
   handle(IpcChannel.FileChooseSavePath, async (payload, event) => {

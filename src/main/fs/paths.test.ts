@@ -70,10 +70,19 @@ describe('assertReadableFile', () => {
   })
 
   it('recusa extensão ainda não suportada', async () => {
-    const path = join(directory, 'contrato.docx')
+    // `.xlsx` chega na Fase 7. Até lá, recusar é melhor que abrir uma planilha
+    // no editor de texto e mostrar lixo.
+    const path = join(directory, 'planilha.xlsx')
     await writeFile(path, 'x')
 
     await expect(assertReadableFile(path)).rejects.toMatchObject({ code: 'UNSUPPORTED_FORMAT' })
+  })
+
+  it('aceita .docx desde a Fase 4', async () => {
+    const path = join(directory, 'contrato.docx')
+    await writeFile(path, 'x')
+
+    await expect(assertReadableFile(path)).resolves.toBeUndefined()
   })
 
   it('recusa uma pasta', async () => {

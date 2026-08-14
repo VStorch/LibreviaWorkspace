@@ -10,22 +10,44 @@ documentos** (formatação, títulos, listas, recuo, espaçamento, alinhamento, 
 imagens, links, quebra de página, localizar/substituir) e **exportação para PDF e
 impressão**, com cabeçalho, rodapé, numeração, margens e orientação.
 
-A **Fase 3.5** também está concluída: o sidecar .NET sobe, responde e morre
-limpo — ainda sem nenhum recurso de formato.
-
-Próxima etapa: Fase 4 — DOCX, a mais arriscada do projeto; ver §6.1 do plano.
+A **Fase 3.5** entregou o sidecar .NET, e o **núcleo da Fase 4** já abre e grava
+`.docx` com edição cirúrgica.
 
 ## Formatos
 
 | Extensão | O que guarda |
 | -------- | ------------ |
 | `.sdoc`  | formato interno: documento completo, com formatação — sem perda |
+| `.docx`  | Word; abre e grava preservando o que não foi editado |
 | `.txt`   | apenas texto; salvar nele descarta formatação, e o aplicativo avisa antes |
 | `.pdf`   | saída apenas (exportação e impressão) |
 
-DOCX chega na Fase 4 e XLSX na Fase 7. ODT não está no escopo — não existe
-biblioteca madura em nenhum ecossistema; ver §4.5 do plano. Documentos `.docx`
-funcionam vindos tanto do Word quanto do LibreOffice.
+XLSX chega na Fase 7. ODT não está no escopo — não existe biblioteca madura em
+nenhum ecossistema; ver §4.5 do plano. Documentos `.docx` funcionam vindos tanto
+do Word quanto do LibreOffice.
+
+## Editar um `.docx` não custa o que você não editou
+
+Regenerar o pacote OOXML a cada salvamento apaga em silêncio comentários,
+revisões, notas e formas — tudo que o importador não entendeu. Aqui a gravação é
+**cirúrgica**: cada bloco que você não tocou volta para o arquivo exatamente como
+estava, e só os editados são gerados de novo.
+
+Medido num documento real de 105 blocos: salvar sem editar reescreve **zero**
+blocos; editar um parágrafo reescreve **um**. Do pacote inteiro, só
+`word/document.xml` muda — as outras 25 partes saem idênticas byte a byte.
+
+A fidelidade não vem de entender o OOXML. Vem de **não mexer** no que não foi
+editado. O desenho está em [`docs/02-docx-cirurgico.md`](docs/02-docx-cirurgico.md).
+
+Duas coisas que o aplicativo distingue e a maioria mistura:
+
+- **perda** — some ao salvar (você editou o parágrafo que ancorava um comentário);
+- **invisibilidade** — continua no arquivo, mas o editor não mostra (revisões,
+  notas de rodapé, o logotipo do cabeçalho).
+
+São avisos diferentes porque são problemas diferentes. Um alerta genérico é um
+alerta que o usuário aprende a ignorar.
 
 ## Por que há .NET num projeto Electron
 

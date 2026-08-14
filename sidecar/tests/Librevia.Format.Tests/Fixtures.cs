@@ -1,0 +1,275 @@
+using DocumentFormat.OpenXml;
+using DocumentFormat.OpenXml.Packaging;
+using DocumentFormat.OpenXml.Wordprocessing;
+
+namespace Librevia.Format.Tests;
+
+/// <summary>
+/// Documentos de teste construídos em código, não versionados como binário.
+/// </summary>
+/// <remarks>
+/// O corpus real da empresa tem marca de cliente, capturas de sistemas internos
+/// e o rótulo "RELATÓRIO INTERNO" — não entra no repositório
+/// (docs/01-corpus-docx.md). Estes fixtures reproduzem as **estruturas**
+/// catalogadas lá com conteúdo inventado.
+///
+/// Construir em código em vez de guardar `.docx` tem uma vantagem que não é
+/// óbvia: o que o fixture contém fica legível na revisão. Um binário no git é
+/// uma caixa preta que ninguém confere.
+/// </remarks>
+public static class Fixtures
+{
+    /// <summary>Documento simples com três parágrafos.</summary>
+    public static byte[] Simple() => Build((body, _) =>
+    {
+        body.AppendChild(Paragraph("Primeiro parágrafo.", style: "Heading1"));
+        body.AppendChild(Paragraph("Segundo parágrafo, com texto comum."));
+        body.AppendChild(Paragraph("Terceiro parágrafo."));
+    });
+
+    /// <summary>
+    /// Documento com um comentário ancorado no **segundo** parágrafo.
+    /// </summary>
+    public static byte[] WithComment() => Build((body, part) =>
+    {
+        var comments = part.AddNewPart<WordprocessingCommentsPart>();
+        comments.Comments = new Comments(
+            new Comment(new Paragraph(new Run(new Text("Revisar esta frase."))))
+            {
+                Id = "1",
+                Author = "Revisor",
+                Date = System.Xml.XmlConvert.ToDateTime(
+                    "2026-01-01T00:00:00Z", System.Xml.XmlDateTimeSerializationMode.Utc),
+            });
+
+        body.AppendChild(Paragraph("Parágrafo sem comentário."));
+
+        var commented = Paragraph("Parágrafo comentado.");
+        commented.PrependChild(new CommentRangeStart { Id = "1" });
+        commented.AppendChild(new CommentRangeEnd { Id = "1" });
+        commented.AppendChild(new Run(new CommentReference { Id = "1" }));
+        body.AppendChild(commented);
+
+        body.AppendChild(Paragraph("Outro parágrafo sem comentário."));
+    });
+
+    /// <summary>Documento com controle de alterações no segundo parágrafo.</summary>
+    public static byte[] WithTrackedChanges() => Build((body, _) =>
+    {
+        body.AppendChild(Paragraph("Parágrafo intocado."));
+
+        var revised = new Paragraph();
+        revised.AppendChild(new Run(new Text("Texto original ") { Space = SpaceProcessingModeValues.Preserve }));
+        revised.AppendChild(new InsertedRun(
+            new Run(new Text("e um acréscimo") { Space = SpaceProcessingModeValues.Preserve }))
+        {
+            Id = "10",
+            Author = "Revisor",
+        });
+        revised.AppendChild(new DeletedRun(
+            new Run(new DeletedText(" trecho removido") { Space = SpaceProcessingModeValues.Preserve }))
+        {
+            Id = "11",
+            Author = "Revisor",
+        });
+        body.AppendChild(revised);
+
+        body.AppendChild(Paragraph("Outro parágrafo intocado."));
+    });
+
+    /// <summary>
+    /// Imagem ancorada e centralizada, do jeito que o LibreOffice grava.
+    /// Ver docs/01-corpus-docx.md, Descoberta 3.
+    /// </summary>
+    public static byte[] WithAnchoredImage() => Build((body, part) =>
+    {
+        var image = part.AddImagePart(ImagePartType.Png);
+        using (var stream = new MemoryStream(TinyPng()))
+        {
+            image.FeedData(stream);
+        }
+
+        body.AppendChild(Paragraph("Antes da imagem."));
+        body.AppendChild(new Paragraph(new Run(AnchoredDrawing(part.GetIdOfPart(image)))));
+        body.AppendChild(Paragraph("Depois da imagem."));
+    });
+
+    /// <summary>
+    /// Sete seções `continuous` com geometria idêntica — o artefato do
+    /// LibreOffice descrito na Descoberta 5 do corpus.
+    /// </summary>
+    public static byte[] WithIdenticalSections() => Build((body, _) =>
+    {
+        for (var i = 1; i <= 6; i++)
+        {
+            var paragraph = Paragraph($"Trecho {i}.");
+            // Mesma geometria da seção final que `Build` acrescenta — é isto
+            // que caracteriza o artefato: sete seções dizendo a mesma coisa.
+            paragraph.ParagraphProperties = new ParagraphProperties(
+                new SectionProperties(
+                    new SectionType { Val = SectionMarkValues.Continuous },
+                    new PageSize { Width = 11906U, Height = 16838U },
+                    new PageMargin { Top = 1440, Bottom = 1440, Left = 1440U, Right = 1440U }));
+            body.AppendChild(paragraph);
+        }
+
+        body.AppendChild(Paragraph("Fim."));
+    });
+
+    /// <summary>
+    /// Duas seções que **divergem** de verdade: a primeira em paisagem.
+    /// Aqui o autor quis duas configurações, e o nosso modelo de uma só perde.
+    /// </summary>
+    public static byte[] WithDivergentSections() => Build((body, _) =>
+    {
+        var paragraph = Paragraph("Trecho em paisagem.");
+        paragraph.ParagraphProperties = new ParagraphProperties(
+            new SectionProperties(
+                new SectionType { Val = SectionMarkValues.NextPage },
+                new PageSize { Width = 16838U, Height = 11906U, Orient = PageOrientationValues.Landscape },
+                new PageMargin { Top = 720, Bottom = 720, Left = 720U, Right = 720U }));
+        body.AppendChild(paragraph);
+
+        body.AppendChild(Paragraph("Trecho em retrato."));
+    });
+
+    /// <summary>Versalete e maiúsculas — 45 ocorrências no corpus.</summary>
+    public static byte[] WithSmallCaps() => Build((body, _) =>
+    {
+        var paragraph = new Paragraph();
+        paragraph.AppendChild(new Run(new RunProperties(new SmallCaps()), new Text("versalete")));
+        paragraph.AppendChild(new Run(new RunProperties(new Caps()), new Text("maiúsculas")));
+        body.AppendChild(paragraph);
+    });
+
+    public static byte[] WithTable() => Build((body, _) =>
+    {
+        body.AppendChild(Paragraph("Antes da tabela."));
+
+        var table = new Table(new TableProperties(new TableBorders(
+            new TopBorder { Val = BorderValues.Single, Size = 4 },
+            new BottomBorder { Val = BorderValues.Single, Size = 4 })));
+
+        foreach (var row in new[] { new[] { "A1", "B1" }, new[] { "A2", "B2" } })
+        {
+            var tableRow = new TableRow();
+            foreach (var cell in row)
+            {
+                tableRow.AppendChild(new TableCell(Paragraph(cell)));
+            }
+
+            table.AppendChild(tableRow);
+        }
+
+        body.AppendChild(table);
+        body.AppendChild(Paragraph("Depois da tabela."));
+    });
+
+    /// <summary>Lista com marcador, com a numeração declarada de verdade.</summary>
+    public static byte[] WithBulletList() => Build((body, part) =>
+    {
+        var numbering = part.AddNewPart<NumberingDefinitionsPart>();
+        numbering.Numbering = new Numbering(
+            new AbstractNum(new Level(new NumberingFormat { Val = NumberFormatValues.Bullet })
+            {
+                LevelIndex = 0,
+            })
+            { AbstractNumberId = 1 },
+            new NumberingInstance(new AbstractNumId { Val = 1 }) { NumberID = 1 });
+
+        body.AppendChild(Paragraph("Introdução."));
+
+        foreach (var item in new[] { "Primeiro item", "Segundo item" })
+        {
+            var paragraph = Paragraph(item);
+            paragraph.ParagraphProperties = new ParagraphProperties(
+                new NumberingProperties(
+                    new NumberingLevelReference { Val = 0 },
+                    new NumberingId { Val = 1 }));
+            body.AppendChild(paragraph);
+        }
+
+        body.AppendChild(Paragraph("Conclusão."));
+    });
+
+    // --- construção ---------------------------------------------------------
+
+    private static Paragraph Paragraph(string text, string? style = null)
+    {
+        var paragraph = new Paragraph();
+        if (style is not null)
+        {
+            paragraph.ParagraphProperties = new ParagraphProperties(new ParagraphStyleId { Val = style });
+        }
+
+        paragraph.AppendChild(new Run(new Text(text) { Space = SpaceProcessingModeValues.Preserve }));
+        return paragraph;
+    }
+
+    private static byte[] Build(Action<Body, MainDocumentPart> fill)
+    {
+        using var buffer = new MemoryStream();
+        using (var document = WordprocessingDocument.Create(buffer, WordprocessingDocumentType.Document))
+        {
+            var part = document.AddMainDocumentPart();
+            var body = new Body();
+
+            fill(body, part);
+
+            body.AppendChild(new SectionProperties(
+                new PageSize { Width = 11906U, Height = 16838U },
+                new PageMargin { Top = 1440, Bottom = 1440, Left = 1440U, Right = 1440U }));
+
+            part.Document = new Document(body);
+            part.Document.Save();
+        }
+
+        return buffer.ToArray();
+    }
+
+    private static OpenXmlElement AnchoredDrawing(string relationshipId)
+    {
+        const string Wp = "http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing";
+        var xml = $"""
+            <wp:anchor xmlns:wp="{Wp}"
+                       xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"
+                       xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"
+                       xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+                       distT="0" distB="0" distL="0" distR="0" simplePos="0" relativeHeight="2"
+                       behindDoc="0" locked="0" layoutInCell="0" allowOverlap="1">
+              <wp:simplePos x="0" y="0"/>
+              <wp:positionH relativeFrom="column"><wp:align>center</wp:align></wp:positionH>
+              <wp:positionV relativeFrom="paragraph"><wp:posOffset>635</wp:posOffset></wp:positionV>
+              <wp:extent cx="5274000" cy="2637000"/>
+              <wp:wrapSquare wrapText="bothSides"/>
+              <wp:docPr id="1" name="Imagem 1"/>
+              <a:graphic>
+                <a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">
+                  <pic:pic>
+                    <pic:nvPicPr>
+                      <pic:cNvPr id="1" name="Imagem 1"/>
+                      <pic:cNvPicPr/>
+                    </pic:nvPicPr>
+                    <pic:blipFill>
+                      <a:blip r:embed="{relationshipId}"/>
+                      <a:stretch><a:fillRect/></a:stretch>
+                    </pic:blipFill>
+                    <pic:spPr>
+                      <a:xfrm><a:off x="0" y="0"/><a:ext cx="5274000" cy="2637000"/></a:xfrm>
+                      <a:prstGeom prst="rect"><a:avLst/></a:prstGeom>
+                    </pic:spPr>
+                  </pic:pic>
+                </a:graphicData>
+              </a:graphic>
+            </wp:anchor>
+            """;
+
+        var drawing = new DocumentFormat.OpenXml.Wordprocessing.Drawing();
+        drawing.InnerXml = xml;
+        return drawing;
+    }
+
+    /// <summary>PNG 1×1 transparente, o menor válido.</summary>
+    private static byte[] TinyPng() => Convert.FromBase64String(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==");
+}

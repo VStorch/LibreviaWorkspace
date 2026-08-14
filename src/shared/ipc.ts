@@ -24,11 +24,18 @@ export const MAX_TEXT_LENGTH = 50_000_000
 
 const documentKindSchema = z.enum(['document', 'spreadsheet'])
 
+/** Ver `LossInventory` em types.ts: invisível e perdido não são a mesma coisa. */
+const inventorySchema = z.object({
+  invisible: z.array(z.string().max(300)).max(50),
+  lost: z.array(z.string().max(300)).max(50),
+})
+
 const loadedFileSchema = z.object({
   path: z.string(),
   name: z.string(),
   kind: documentKindSchema,
   content: z.string(),
+  inventory: inventorySchema.optional(),
 })
 
 const recentFileSchema = z.object({
@@ -71,7 +78,11 @@ export const ipcContracts = {
       path: z.string().min(1),
       content: z.string().max(MAX_TEXT_LENGTH),
     }),
-    response: z.object({ path: z.string(), name: z.string() }),
+    response: z.object({
+      path: z.string(),
+      name: z.string(),
+      inventory: inventorySchema.optional(),
+    }),
   },
   [IpcChannel.FileChooseSavePath]: {
     request: z.object({ suggestedName: z.string().min(1).max(255) }),

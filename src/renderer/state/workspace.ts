@@ -1,7 +1,13 @@
 import { create } from 'zustand'
 import { AppError, type SerializedError } from '@shared/errors.js'
 import type { IpcResult } from '@shared/ipc.js'
-import { DiscardChoice, DocumentKind, PlainTextChoice, type RecentFile } from '@shared/types.js'
+import {
+  DiscardChoice,
+  DocumentKind,
+  PlainTextChoice,
+  type LossInventory,
+  type RecentFile,
+} from '@shared/types.js'
 import {
   DEFAULT_PAGE_SETUP,
   createEmptyDocument,
@@ -36,6 +42,12 @@ interface WorkspaceState {
   stats: { characters: number; words: number }
   recents: readonly RecentFile[]
   error: SerializedError | null
+  /**
+   * O que o documento aberto tem e o editor não dá conta. Fica separado do
+   * `error` porque não é falha: o arquivo abriu, e isto é informação sobre o
+   * que você vai e o que você não vai ver.
+   */
+  notice: LossInventory | null
   busy: boolean
 
   /**
@@ -49,6 +61,7 @@ interface WorkspaceState {
   setStats: (stats: { characters: number; words: number }) => void
   setPage: (page: PageSetup) => void
   dismissError: () => void
+  dismissNotice: () => void
   showError: (error: SerializedError) => void
   refreshRecents: () => Promise<void>
 
@@ -141,17 +154,32 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
     return parseDocument(content)
   }
 
-  async function openPath(load1: () => Promise<{ path: string; name: string; content: string } | null>) {
+  async function openPath(
+    load1: () => Promise<{
+      path: string
+      name: string
+      content: string
+      // `| undefined` explícito por causa de `exactOptionalPropertyTypes`: o
+      // contrato de IPC declara a propriedade como podendo vir indefinida.
+      inventory?: LossInventory | undefined
+    } | null>,
+  ) {
     const file = await load1()
     if (file === null) return
 
     try {
       load({ path: file.path, name: file.name, kind: DocumentKind.Document }, decode(file.path, file.content))
+      // O aviso só aparece quando há o que avisar: um alerta que abre em todo
+      // arquivo é um alerta que o usuário fecha sem ler.
+      set({ notice: hasSomethingToSay(file.inventory) ? file.inventory! : null })
     } catch (cause) {
       set({ error: toSerialized(cause) })
     }
     await get().refreshRecents()
   }
+
+  const hasSomethingToSay = (inventory: LossInventory | undefined): boolean =>
+    inventory !== undefined && (inventory.invisible.length > 0 || inventory.lost.length > 0)
 
   return {
     file: null,
@@ -162,6 +190,7 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
     stats: { characters: 0, words: 0 },
     recents: [],
     error: null,
+    notice: null,
     busy: false,
 
     registerDocumentSource: (source) => {
@@ -176,6 +205,7 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
     },
     setPage: (page) => set({ page, isDirty: true }),
     dismissError: () => set({ error: null }),
+    dismissNotice: () => set({ notice: null }),
     showError: (error) => set({ error }),
 
     refreshRecents: async () => {

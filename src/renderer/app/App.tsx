@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { MenuCommand } from '@shared/types.js'
 import { buildWindowTitle } from '@services/file/formats.js'
 import { ErrorBanner } from '../components/ErrorBanner.js'
+import { InventoryBanner } from '../components/InventoryBanner.js'
 import { StatusBar } from '../components/StatusBar.js'
 import { DocumentEditor } from '../document/DocumentEditor.js'
 import { emitEditorCommand } from '../document/editor-commands.js'
@@ -102,6 +103,7 @@ export function App(): React.JSX.Element {
   return (
     <div className="app">
       <ErrorBanner />
+      <InventoryBanner />
       <div className="app__body">{hasFile ? <DocumentEditor key={generation} /> : <HomePage />}</div>
       {hasFile && <StatusBar />}
     </div>

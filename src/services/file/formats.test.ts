@@ -32,11 +32,13 @@ describe('extensionOf', () => {
 })
 
 describe('isSupportedExtension', () => {
-  it('aceita .txt na Fase 1', () => {
-    expect(isSupportedExtension('/a/b.txt')).toBe(true)
+  it.each(['/a/b.txt', '/a/b.sdoc', '/a/b.docx', '/a/b.DOCX'])('aceita %s', (path) => {
+    expect(isSupportedExtension(path)).toBe(true)
   })
 
-  it.each(['/a/b.docx', '/a/b.exe', '/a/b.sh', '/a/b'])('recusa %s por enquanto', (path) => {
+  it.each(['/a/b.exe', '/a/b.sh', '/a/b', '/a/b.xlsx'])('recusa %s', (path) => {
+    // `.xlsx` só na Fase 7 — abrir uma planilha no editor de texto não
+    // produziria nada útil.
     expect(isSupportedExtension(path)).toBe(false)
   })
 })

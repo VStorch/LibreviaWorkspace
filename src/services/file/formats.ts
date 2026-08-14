@@ -18,10 +18,15 @@ import { DocumentKind } from '@shared/types.js'
  */
 export const DOCUMENT_EXTENSION = '.sdoc'
 export const PLAIN_TEXT_EXTENSION = '.txt'
-export const SUPPORTED_EXTENSIONS = [DOCUMENT_EXTENSION, PLAIN_TEXT_EXTENSION] as const
+export const WORD_EXTENSION = '.docx'
+export const SUPPORTED_EXTENSIONS = [DOCUMENT_EXTENSION, WORD_EXTENSION, PLAIN_TEXT_EXTENSION] as const
 
 export function isPlainTextPath(path: string): boolean {
   return extensionOf(path) === PLAIN_TEXT_EXTENSION
+}
+
+export function isWordPath(path: string): boolean {
+  return extensionOf(path) === WORD_EXTENSION
 }
 
 export function extensionOf(path: string): string {

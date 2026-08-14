@@ -29,8 +29,13 @@ export const FRAME_HEADER_BYTES = 8
  * Tetos de sanidade. Não são política de produto: existem para que um sidecar
  * corrompido — ou trocado por outra coisa — não consiga nos fazer alocar
  * gigabytes anunciando um quadro absurdo.
+ *
+ * O teto do JSON é generoso porque o modelo de um DOCX carrega as imagens como
+ * data URI: um arquivo de 6,6 MB cheio de capturas de tela vira ~9 MB de JSON,
+ * e o limite de 20 MB por arquivo (`MAX_FILE_BYTES`) chega perto de 30 MB
+ * depois do base64.
  */
-export const MAX_JSON_BYTES = 8 * 1024 * 1024
+export const MAX_JSON_BYTES = 64 * 1024 * 1024
 export const MAX_BINARY_BYTES = 64 * 1024 * 1024
 
 export interface Frame {
@@ -130,13 +135,18 @@ function concat(left: Uint8Array, right: Uint8Array): Uint8Array {
 // --- Mensagens -------------------------------------------------------------
 
 /**
- * Métodos disponíveis. A Fase 3.5 entrega só a fundação: `health` prova que o
- * processo sobe e responde, `diagnostics.echo` prova que o binário atravessa
- * inteiro. Os métodos de formato entram na Fase 4.
+ * Métodos disponíveis.
+ *
+ * `health` prova que o processo sobe; `diagnostics.echo` prova que o binário
+ * atravessa inteiro. Os dois de DOCX são sem estado: `docx.save` recebe os
+ * bytes originais no lugar de um identificador de sessão, para que a morte do
+ * sidecar não custe a gravação cirúrgica.
  */
 export const SidecarMethod = {
   Health: 'health',
   Echo: 'diagnostics.echo',
+  DocxOpen: 'docx.open',
+  DocxSave: 'docx.save',
 } as const
 
 export type SidecarMethod = (typeof SidecarMethod)[keyof typeof SidecarMethod]

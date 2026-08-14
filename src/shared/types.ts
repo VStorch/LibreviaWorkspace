@@ -6,12 +6,39 @@ export const DocumentKind = {
 
 export type DocumentKind = (typeof DocumentKind)[keyof typeof DocumentKind]
 
-/** Um arquivo carregado do disco. Na Fase 1 o conteúdo é texto simples. */
+/**
+ * O que o documento tem e o aplicativo não dá conta — em duas categorias que
+ * **não** são o mesmo problema (ver docs/02-docx-cirurgico.md).
+ *
+ * `invisible`: continua no arquivo depois de salvar, mas não aparece na tela.
+ * `lost`: some de verdade ao salvar.
+ *
+ * Misturar os dois produz um aviso genérico que o usuário aprende a ignorar, e
+ * aí ele deixa de proteger de qualquer coisa.
+ */
+export interface LossInventory {
+  // Coleções mutáveis, como em `DocumentNode`: este tipo precisa ser atribuível
+  // ao que o zod infere no contrato de IPC, e um array `readonly` não é
+  // atribuível a um comum. As propriedades continuam `readonly`.
+  readonly invisible: string[]
+  readonly lost: string[]
+}
+
+/**
+ * Um arquivo carregado do disco.
+ *
+ * `content` é sempre texto: `.txt` vem cru e `.sdoc` vem como JSON. Um `.docx`
+ * chega aqui **já convertido** para o formato interno pelo processo main, de
+ * modo que o renderer segue com um caminho só. Os bytes originais ficam no
+ * main, que é quem precisa deles para gravar cirurgicamente.
+ */
 export interface LoadedFile {
   readonly path: string
   readonly name: string
   readonly kind: DocumentKind
   readonly content: string
+  /** Presente só quando o arquivo veio de um formato do Office. */
+  readonly inventory?: LossInventory
 }
 
 export interface RecentFile {

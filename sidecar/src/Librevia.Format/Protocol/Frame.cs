@@ -25,7 +25,11 @@ public readonly record struct Frame(ReadOnlyMemory<byte> Json, ReadOnlyMemory<by
     /// Tetos de sanidade, espelhando os do lado TypeScript. Protegem contra um
     /// cabeçalho mentiroso nos fazer alocar gigabytes.
     /// </summary>
-    public const int MaxJsonBytes = 8 * 1024 * 1024;
+    /// <remarks>
+    /// O teto do JSON é generoso porque o modelo de um DOCX carrega as imagens
+    /// como data URI, e base64 infla o arquivo em um terço.
+    /// </remarks>
+    public const int MaxJsonBytes = 64 * 1024 * 1024;
     public const int MaxBinaryBytes = 64 * 1024 * 1024;
 }
 
