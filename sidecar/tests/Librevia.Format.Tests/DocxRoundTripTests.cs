@@ -298,6 +298,33 @@ public class DocxRoundTripTests
     }
 
     [Fact]
+    public void PutsTheFontOnTheBlockAndNotOnlyOnTheRuns()
+    {
+        // A altura da linha nasce da fonte **do elemento**, não do texto dentro
+        // dele. Sem a fonte no bloco, um parágrafo de 10 pt continuava ocupando
+        // os 12 pt que a folha do editor declara — e um título de 10 pt virava
+        // uma barra alta demais, porque o editor desenha títulos em 22 pt.
+        var model = Open(Fixtures.WithStyles());
+        var banner = FirstOfType(model, "paragraph");
+
+        Assert.Equal("10pt", banner.Attrs!["fontSize"]!.GetValue<string>());
+        Assert.Equal("Arial", banner.Attrs["fontFamily"]!.GetValue<string>());
+    }
+
+    [Fact]
+    public void ReadsKeepWithNext()
+    {
+        // Diz que o bloco não fica sozinho no pé da página. A marca de fim de
+        // página e a folha de impressão usam o mesmo sinal — se divergissem, a
+        // marca cairia num lugar e o PDF quebraria noutro.
+        var model = Open(Fixtures.WithKeepNext());
+        var kept = BlockContaining(model, "Rótulo");
+
+        Assert.True(kept.Attrs!["keepNext"]!.GetValue<bool>());
+        Assert.False(BlockContaining(model, "Solto").Attrs?.ContainsKey("keepNext") ?? false);
+    }
+
+    [Fact]
     public void SurvivesAStyleThatInheritsFromItself()
     {
         // Documento é dado não confiável: uma cadeia circular não pode travar.

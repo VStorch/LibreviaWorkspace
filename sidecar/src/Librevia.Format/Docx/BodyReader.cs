@@ -180,8 +180,38 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory)
         if (TwipsToPt(spacing?.After?.Value) is { } after) node.With("spaceAfter", after);
         if (LineHeightOf(spacing) is { } lineHeight) node.With("lineHeight", lineHeight);
 
+        // A fonte **do bloco**, e não só a dos runs. A altura da linha nasce da
+        // fonte do próprio elemento: sem isto, um parágrafo de 10 pt dentro de
+        // um bloco que o CSS declara com 12 pt continua ocupando 12 pt de
+        // altura — e um `Heading1` de 10 pt vira uma barra alta demais, porque
+        // o editor desenha títulos em 22 pt.
+        if (FontOf(inheritedRun) is { } font) node.With("fontFamily", font);
+        if (FontSizeOf(inheritedRun) is { } size) node.With("fontSize", size);
+
+        // "Manter com o próximo": o parágrafo não fica sozinho no pé da página.
+        // É o que faz um rótulo descer junto com a imagem que ele apresenta —
+        // e sem ler isto a quebra estimada cai um bloco depois da real.
+        if (RunReader.IsOn(effective.KeepNext)) node.With("keepNext", true);
+
         node.Content = content.Count == 0 ? null : content;
         return node;
+    }
+
+    private static string? FontOf(RunProperties properties)
+    {
+        var font = properties.RunFonts?.Ascii?.Value ?? properties.RunFonts?.HighAnsi?.Value;
+        return string.IsNullOrWhiteSpace(font) ? null : font;
+    }
+
+    /// <summary>`w:sz` vem em meios-pontos: 20 significa 10 pt.</summary>
+    private static string? FontSizeOf(RunProperties properties)
+    {
+        var value = properties.FontSize?.Val?.Value;
+        if (!double.TryParse(value, out var halfPoints) || halfPoints <= 0) return null;
+        var points = halfPoints / 2;
+        return points == Math.Floor(points)
+            ? $"{(int)points}pt"
+            : points.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture) + "pt";
     }
 
     /// <summary>Fundo do parágrafo, quando é cor de verdade.</summary>

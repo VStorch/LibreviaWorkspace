@@ -33,24 +33,48 @@ export function usePageBreaks(
         return
       }
 
+      const blocks = Array.from(element.children) as HTMLElement[]
       const found: number[] = []
-      let pageEnd = pageHeight
+      let pageStart = 0
+      let index = 0
 
-      for (const block of Array.from(element.children)) {
-        const node = block as HTMLElement
+      while (index < blocks.length && found.length < 500) {
+        const node = blocks[index]!
         const bottom = node.offsetTop + node.offsetHeight
+
+        if (bottom - pageStart <= pageHeight) {
+          index += 1
+          continue
+        }
 
         // Quebra antes do bloco que estouraria a página — a mesma decisão que
         // o navegador toma ao imprimir, e o motivo de a linha não cortar texto.
-        while (bottom > pageEnd) {
-          const at = node.offsetTop > pageEnd - pageHeight ? node.offsetTop : pageEnd
-          found.push(at)
-          pageEnd = at + pageHeight
+        let breakAt = node.offsetTop
 
-          // Bloco mais alto que uma página inteira (uma captura de tela grande):
-          // não há onde quebrar, então segue.
-          if (found.length > 500) break
+        // Um título sozinho no pé da página desce junto com o que ele
+        // apresenta. É a regra `break-after: avoid` que a exportação aplica; sem
+        // ela, a marca cai um bloco depois de onde o PDF vai quebrar.
+        // Sobe enquanto o bloco anterior pedir para ficar com o seguinte.
+        let candidate = index
+        while (candidate > 0) {
+          const previous = blocks[candidate - 1]
+          if (previous === undefined || !keepsWithNext(previous)) break
+          if (previous.offsetTop <= pageStart) break
+          candidate -= 1
+          breakAt = previous.offsetTop
         }
+
+        if (breakAt <= pageStart) {
+          // Bloco mais alto que uma página inteira — uma captura de tela grande.
+          // Não há onde quebrar sem cortá-lo, então ele transborda.
+          pageStart = bottom
+          index += 1
+          continue
+        }
+
+        found.push(breakAt)
+        pageStart = breakAt
+        // `index` não avança: o mesmo bloco é reavaliado na página nova.
       }
 
       setOffsets(found)
@@ -66,6 +90,15 @@ export function usePageBreaks(
 
   return offsets
 }
+
+/**
+ * O bloco pede para não ficar sozinho no pé da página.
+ *
+ * Vem de `w:keepNext` do documento; títulos entram por padrão, porque a folha
+ * de impressão já lhes aplica `break-after: avoid`.
+ */
+const keepsWithNext = (element: HTMLElement): boolean =>
+  element.hasAttribute('data-keep-next') || /^H[1-6]$/.test(element.tagName)
 
 export function PageGuides({ offsets, topOffsetPx }: { offsets: number[]; topOffsetPx: number }) {
   if (offsets.length === 0) return null

@@ -65,6 +65,35 @@ export const BlockFormat = Extension.create<BlockFormatOptions>({
             },
           },
 
+          /**
+           * A fonte do próprio bloco.
+           *
+           * Não é redundante com a marca do texto: **a altura da linha nasce da
+           * fonte do elemento**, não do que está escrito dentro dele. Um
+           * parágrafo de 10 pt num bloco que o CSS declara com 12 pt continua
+           * ocupando 12 pt de altura, e um título de 10 pt vira uma barra alta
+           * demais porque o editor desenha títulos grandes.
+           */
+          fontFamily: {
+            default: null,
+            parseHTML: (element) => element.style.fontFamily || null,
+            renderHTML: (attributes) => {
+              const family = attributes['fontFamily']
+              return typeof family === 'string' && family.length > 0
+                ? { style: `font-family: ${family}` }
+                : {}
+            },
+          },
+
+          fontSize: {
+            default: null,
+            parseHTML: (element) => element.style.fontSize || null,
+            renderHTML: (attributes) => {
+              const size = attributes['fontSize']
+              return typeof size === 'string' && size.length > 0 ? { style: `font-size: ${size}` } : {}
+            },
+          },
+
           lineHeight: {
             default: null,
             parseHTML: (element) => element.style.lineHeight || null,
@@ -72,6 +101,17 @@ export const BlockFormat = Extension.create<BlockFormatOptions>({
               const factor = Number(attributes['lineHeight'])
               return Number.isFinite(factor) && factor > 0 ? { style: `line-height: ${factor}` } : {}
             },
+          },
+
+          /**
+           * "Manter com o próximo" do Word (`w:keepNext`). Não muda a
+           * aparência: diz que este bloco não pode ficar sozinho no pé da
+           * página, e é o que a marca de fim de página e a exportação usam.
+           */
+          keepNext: {
+            default: null,
+            parseHTML: (element) => element.hasAttribute('data-keep-next') || null,
+            renderHTML: (attributes) => (attributes['keepNext'] === true ? { 'data-keep-next': '' } : {}),
           },
 
           /**

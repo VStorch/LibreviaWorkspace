@@ -187,6 +187,16 @@ public static class Fixtures
         body.AppendChild(marked);
     });
 
+    /// <summary>Um parágrafo que pede para ficar com o seguinte, outro que não.</summary>
+    public static byte[] WithKeepNext() => Build((body, _) =>
+    {
+        var kept = Paragraph("Rótulo da imagem:");
+        kept.ParagraphProperties = new ParagraphProperties(new KeepNext());
+        body.AppendChild(kept);
+
+        body.AppendChild(Paragraph("Solto no meio do texto."));
+    });
+
     /// <summary>Estilo que herda de si mesmo — não pode travar o leitor.</summary>
     public static byte[] WithCircularStyle() => Build((body, part) =>
     {

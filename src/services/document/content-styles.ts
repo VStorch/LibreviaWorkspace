@@ -131,7 +131,11 @@ export const PRINT_ONLY_CSS = `
 .page__content h1,
 .page__content h2,
 .page__content h3,
-.page__content h4 { break-after: avoid; }
+.page__content h4,
+/* w:keepNext do documento: o bloco não fica sozinho no pé da página. É a
+   mesma regra que as marcas de fim de página usam na tela — se divergissem, a
+   marca cairia num lugar e o PDF quebraria noutro. */
+.page__content [data-keep-next] { break-after: avoid; }
 
 .page__content tr,
 .page__content img { break-inside: avoid; }
