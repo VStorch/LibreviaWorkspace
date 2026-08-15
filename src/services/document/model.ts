@@ -27,17 +27,60 @@ export interface Margins {
   readonly left: number
 }
 
+/** Um pedaço de cabeçalho vindo do documento: texto, imagem ou campo. */
+export interface BandPiece {
+  readonly kind: 'text' | 'image' | 'pageNumber' | 'totalPages'
+  // `| undefined` explícito por causa de `exactOptionalPropertyTypes`: este
+  // tipo precisa ser atribuível ao que o zod infere no schema compartilhado.
+  readonly text?: string | undefined
+  readonly src?: string | undefined
+  readonly width?: number | undefined
+  readonly height?: number | undefined
+  readonly bold: boolean
+  readonly italic: boolean
+  readonly color?: string | undefined
+  readonly fontSize?: string | undefined
+}
+
+/**
+ * Cabeçalho ou rodapé preservado de um documento do Word.
+ *
+ * Três colunas e um filete opcional. É **somente leitura**: o que volta para o
+ * arquivo é a parte OOXML original, intacta — isto aqui existe só para
+ * desenhar na tela e no PDF. Ver docs/02-docx-cirurgico.md.
+ */
+export interface Band {
+  readonly left: BandPiece[]
+  readonly center: BandPiece[]
+  readonly right: BandPiece[]
+  readonly rule: boolean
+}
+
 export interface PageSetup {
   readonly size: PageSize
   readonly orientation: PageOrientation
   readonly margins: Margins
   /**
-   * Cabeçalho e rodapé em texto simples. Aceitam `{n}` para o número da
-   * página e `{total}` para o total — a substituição acontece na hora de
-   * gerar o PDF, que é quando o número de páginas passa a existir.
+   * Cabeçalho e rodapé em texto simples, digitados pelo usuário. Aceitam `{n}`
+   * para o número da página e `{total}` para o total — a substituição acontece
+   * na hora de gerar o PDF, que é quando o número de páginas passa a existir.
    */
   readonly header: string
   readonly footer: string
+  /**
+   * O cabeçalho real do documento importado, quando existe. **Manda na
+   * exibição**: um `.docx` corporativo traz logotipo e numeração que o campo
+   * de texto acima não representaria.
+   */
+  readonly headerBand: Band | null
+  readonly footerBand: Band | null
+}
+
+/** Há algo a desenhar nesta faixa? */
+export function hasBandContent(band: Band | null): band is Band {
+  return (
+    band !== null && (band.left.length > 0 || band.center.length > 0 || band.right.length > 0 || band.rule)
+  )
 }
 
 /**
@@ -73,6 +116,8 @@ export const DEFAULT_PAGE_SETUP: PageSetup = {
   margins: { top: 25, right: 25, bottom: 25, left: 25 },
   header: '',
   footer: '',
+  headerBand: null,
+  footerBand: null,
 }
 
 export const EMPTY_DOCUMENT: DocumentNode = {

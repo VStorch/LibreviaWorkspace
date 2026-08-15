@@ -225,6 +225,87 @@ public class DocxRoundTripTests
         Assert.Equal(25.4, page.Margins.Top, 1);
     }
 
+    // --- estilos ------------------------------------------------------------
+
+    private static Node FirstOfType(DocumentModelDto model, string type) =>
+        Walk(model.Doc).First(n => n.Type == type);
+
+    private static List<Mark> MarksOf(Node node) =>
+        Walk(node).Where(n => n.Type == "text").SelectMany(n => n.Marks ?? []).ToList();
+
+    /// <summary>
+    /// O primeiro bloco que contém o texto dado.
+    /// </summary>
+    /// <remarks>
+    /// Filtra por tipo de bloco de propósito: `Walk` inclui a raiz, e sem o
+    /// filtro o `doc` inteiro casaria com qualquer busca — o teste passaria a
+    /// medir o documento todo em vez do parágrafo.
+    /// </remarks>
+    private static Node BlockContaining(DocumentModelDto model, string needle) =>
+        Walk(model.Doc)
+            .Where(n => n.Type is "paragraph" or "heading")
+            .First(n => Walk(n).Any(c => c.Text?.Contains(needle, StringComparison.Ordinal) == true));
+
+    [Fact]
+    public void ResolvesFormattingThatLivesOnlyInTheStyle()
+    {
+        // O caso que doeu na tela: `Heading1` no corpus real não é um título
+        // grande, é uma barra vermelha com texto branco. Nada disso está no
+        // parágrafo — ler só a formatação direta perdia tudo.
+        var model = Open(Fixtures.WithStyles());
+        var banner = FirstOfType(model, "paragraph");
+
+        Assert.Equal("#943634", banner.Attrs!["background"]!.GetValue<string>());
+        Assert.Equal("center", banner.Attrs["textAlign"]!.GetValue<string>());
+
+        var style = MarksOf(banner).Single(m => m.Type == "textStyle");
+        Assert.Equal("#ffffff", style.Attrs!["color"]!.GetValue<string>());
+        Assert.Equal("Arial", style.Attrs["fontFamily"]!.GetValue<string>());
+        Assert.Equal("10pt", style.Attrs["fontSize"]!.GetValue<string>());
+        Assert.Contains(MarksOf(banner), m => m.Type == "bold");
+    }
+
+    [Fact]
+    public void FollowsTheBasedOnChain()
+    {
+        // `Corpo` herda a fonte de `Base` e só acrescenta o alinhamento.
+        var model = Open(Fixtures.WithStyles());
+        var body = BlockContaining(model, "Texto do corpo");
+
+        Assert.Equal("justify", body.Attrs!["textAlign"]!.GetValue<string>());
+        Assert.Equal("Arial", MarksOf(body).Single(m => m.Type == "textStyle").Attrs!["fontFamily"]!.GetValue<string>());
+    }
+
+    [Fact]
+    public void DirectFormattingBeatsTheStyle()
+    {
+        var model = Open(Fixtures.WithStyles());
+        var overridden = BlockContaining(model, "à direita");
+
+        Assert.Equal("right", overridden.Attrs!["textAlign"]!.GetValue<string>());
+    }
+
+    [Fact]
+    public void ParagraphMarkFormattingDoesNotReachTheRuns()
+    {
+        // `w:rPr` dentro de `w:pPr` formata a marca de parágrafo — o "¶" — e
+        // não o texto. Aplicá-la aos runs punha negrito em parágrafos inteiros
+        // que no Word aparecem normais.
+        var model = Open(Fixtures.WithStyles());
+        var paragraph = BlockContaining(model, "negrito");
+
+        Assert.DoesNotContain(MarksOf(paragraph), m => m.Type == "bold");
+    }
+
+    [Fact]
+    public void SurvivesAStyleThatInheritsFromItself()
+    {
+        // Documento é dado não confiável: uma cadeia circular não pode travar.
+        var model = Open(Fixtures.WithCircularStyle());
+
+        Assert.Contains("Texto.", TextOf(model), StringComparison.Ordinal);
+    }
+
     // --- inventário ---------------------------------------------------------
 
     [Fact]

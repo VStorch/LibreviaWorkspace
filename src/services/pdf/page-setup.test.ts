@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { DEFAULT_PAGE_SETUP, PageOrientation, PageSize, type PageSetup } from '@services/document/model.js'
 import {
   MIN_MARGIN_FOR_HEADER_MM,
+  buildBandTemplate,
   buildHeaderFooterTemplate,
   buildNativePrintOptions,
   buildPrintOptions,
@@ -130,6 +131,70 @@ describe('buildHeaderFooterTemplate', () => {
   it('devolve um elemento vazio quando não há texto', () => {
     expect(buildHeaderFooterTemplate('')).toBe('<span></span>')
     expect(buildHeaderFooterTemplate('   ')).toBe('<span></span>')
+  })
+})
+
+describe('faixa preservada do documento', () => {
+  const band = {
+    left: [{ kind: 'pageNumber' as const, bold: false, italic: false }],
+    center: [
+      { kind: 'text' as const, text: 'RELATÓRIO INTERNO', bold: true, italic: false, fontSize: '20pt' },
+    ],
+    right: [
+      {
+        kind: 'image' as const,
+        src: 'data:image/png;base64,AAAA',
+        width: 182,
+        height: 40,
+        bold: false,
+        italic: false,
+      },
+    ],
+    rule: true,
+  }
+
+  it('manda na exibição quando existe, ignorando o texto digitado', () => {
+    // O cabeçalho do arquivo tem logotipo e numeração; o campo de texto não
+    // representaria nada disso.
+    const options = buildPrintOptions(withPage({ header: 'texto qualquer', headerBand: band }))
+
+    expect(options.headerTemplate).toContain('RELATÓRIO INTERNO')
+    expect(options.headerTemplate).not.toContain('texto qualquer')
+  })
+
+  it('embute a imagem, porque o template não busca recurso externo', () => {
+    // Logotipo por URL simplesmente não apareceria no PDF.
+    expect(buildBandTemplate(band)).toContain('src="data:image/png;base64,AAAA"')
+  })
+
+  it('mantém os marcadores que o Chromium substitui', () => {
+    expect(buildBandTemplate(band)).toContain('<span class="pageNumber"></span>')
+  })
+
+  it('desenha o filete quando o documento tem', () => {
+    expect(buildBandTemplate(band)).toMatch(/border-bottom:\s*1px solid/)
+    expect(buildBandTemplate({ ...band, rule: false })).not.toMatch(/border-bottom/)
+  })
+
+  it('liga cabeçalho e rodapé mesmo sem texto digitado', () => {
+    expect(buildPrintOptions(withPage({ header: '', headerBand: band })).displayHeaderFooter).toBe(true)
+  })
+
+  it('ignora faixa vazia e volta para o texto digitado', () => {
+    const empty = { left: [], center: [], right: [], rule: false }
+    const options = buildPrintOptions(withPage({ header: 'Relatório', headerBand: empty }))
+
+    expect(options.headerTemplate).toContain('Relatório')
+  })
+
+  it('escapa marcação vinda do documento', () => {
+    const hostile = {
+      ...band,
+      center: [{ kind: 'text' as const, text: '<script>alert(1)</script>', bold: false, italic: false }],
+    }
+
+    expect(buildBandTemplate(hostile)).not.toContain('<script>')
+    expect(buildBandTemplate(hostile)).toContain('&lt;script&gt;')
   })
 })
 

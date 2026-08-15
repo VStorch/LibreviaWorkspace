@@ -1,11 +1,13 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { EditorContent, useEditor } from '@tiptap/react'
 import { DOCUMENT_CONTENT_CSS, EDITOR_ONLY_CSS } from '@services/document/content-styles.js'
-import { mmToPx, pageDimensionsMm } from '@services/document/model.js'
+import { hasBandContent, mmToPx, pageDimensionsMm } from '@services/document/model.js'
 import type { DocumentNode } from '@services/document/model.js'
 import { useWorkspace } from '../state/workspace.js'
 import { DocumentToolbar } from './toolbar/DocumentToolbar.js'
 import { FindReplacePanel } from './FindReplacePanel.js'
+import { PageBand } from './PageBand.js'
+import { PageGuides, usePageBreaks } from './PageGuides.js'
 import { PageSetupPanel } from './PageSetupPanel.js'
 import { buildEditorExtensions } from './editor-extensions.js'
 import { onEditorCommand } from './editor-commands.js'
@@ -25,6 +27,10 @@ export function DocumentEditor(): React.JSX.Element {
   const markDirty = useWorkspace((state) => state.markDirty)
   const setStats = useWorkspace((state) => state.setStats)
   const registerDocumentSource = useWorkspace((state) => state.registerDocumentSource)
+  const setEstimatedPages = useWorkspace((state) => state.setEstimatedPages)
+
+  const pageRef = useRef<HTMLDivElement>(null)
+  const [contentRevision, setContentRevision] = useState(0)
 
   const [searchStatus, setSearchStatus] = useState<SearchStatus>({ total: 0, current: 0 })
   const [findOpen, setFindOpen] = useState(false)
@@ -37,6 +43,7 @@ export function DocumentEditor(): React.JSX.Element {
     content: initialDoc,
     onUpdate: ({ editor: current }) => {
       markDirty()
+      setContentRevision((value) => value + 1)
       setStats({
         characters: current.storage['characterCount'].characters(),
         words: current.storage['characterCount'].words(),
@@ -73,9 +80,16 @@ export function DocumentEditor(): React.JSX.Element {
     [editor],
   )
 
+  const pageBreaks = usePageBreaks(pageRef, page, contentRevision)
+
+  useEffect(() => setEstimatedPages(pageBreaks.length + 1), [pageBreaks, setEstimatedPages])
+
   if (editor === null) return <div className="editor-shell" />
 
   const { width } = pageDimensionsMm(page)
+  // Metade da margem: a faixa do cabeçalho é mais larga que a coluna de texto,
+  // como no documento original.
+  const bandInset = mmToPx(Math.min(page.margins.left, page.margins.right) / 2)
 
   return (
     <div className="editor-shell">
@@ -98,6 +112,7 @@ export function DocumentEditor(): React.JSX.Element {
 
       <div className="editor-scroll">
         <div
+          ref={pageRef}
           className="page"
           style={{
             width: `${mmToPx(width)}px`,
@@ -107,7 +122,19 @@ export function DocumentEditor(): React.JSX.Element {
             paddingLeft: `${mmToPx(page.margins.left)}px`,
           }}
         >
+          <PageGuides offsets={pageBreaks} topOffsetPx={mmToPx(page.margins.top)} />
+
+          {/* As faixas moram dentro da margem, como no papel: por isso são
+              posicionadas em relação à folha e não empurram o texto. */}
+          {hasBandContent(page.headerBand) && (
+            <PageBand band={page.headerBand} kind="header" pageNumber={1} insetPx={bandInset} />
+          )}
+
           <EditorContent editor={editor} />
+
+          {hasBandContent(page.footerBand) && (
+            <PageBand band={page.footerBand} kind="footer" pageNumber={1} insetPx={bandInset} />
+          )}
         </div>
       </div>
     </div>

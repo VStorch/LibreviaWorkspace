@@ -284,6 +284,12 @@ button {
   padding: 28px 24px 60px;
   display: flex;
   justify-content: center;
+  /*
+    Sem isto o `stretch` padrão do flex dá à folha a altura do contêiner, e o
+    texto que passa disso escorre para fora do branco — a página fica cortada
+    no meio do documento. Com `flex-start`, a altura vem do conteúdo.
+  */
+  align-items: flex-start;
 }
 
 /*
@@ -298,6 +304,100 @@ button {
     0 8px 24px rgb(0 0 0 / 8%);
   min-height: 200px;
   flex-shrink: 0;
+  /* Âncora das faixas de cabeçalho e rodapé, que moram na margem. */
+  position: relative;
+}
+
+/*
+  Cabeçalho e rodapé vindos do documento.
+
+  Ficam dentro da margem, como no papel — por isso são absolutos e não empurram
+  o texto. Não recebem clique: a faixa é uma representação do que está no
+  arquivo, e o cursor pertence ao texto. Ver docs/02-docx-cirurgico.md.
+*/
+.band {
+  position: absolute;
+  /*
+    Grade, e não três colunas iguais: laterais do tamanho do conteúdo e o
+    centro ficando com o resto. Com colunas iguais, um título grande quebraria
+    em duas linhas dentro do seu terço — e no papel ele cabe numa linha só.
+  */
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+  pointer-events: none;
+  user-select: none;
+  font-size: 10pt;
+  line-height: 1.2;
+}
+
+.band--header {
+  top: 4mm;
+}
+
+.band--footer {
+  bottom: 4mm;
+}
+
+.band--ruled.band--header {
+  padding-bottom: 3px;
+  border-bottom: 1px solid #999;
+}
+
+.band--ruled.band--footer {
+  padding-top: 3px;
+  border-top: 1px solid #999;
+}
+
+.band__cell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.band__cell--center {
+  justify-content: center;
+  text-align: center;
+}
+
+.band__cell--right {
+  justify-content: flex-end;
+}
+
+.band__image {
+  max-width: 100%;
+  object-fit: contain;
+}
+
+/*
+  Marca de fim de página.
+
+  Tracejada e discreta de propósito: é uma **estimativa**. O editor não pagina
+  ao vivo (§6.3 do plano) e a paginação de verdade só acontece na exportação,
+  onde entram regras de viúvas e órfãs que não existem aqui. Uma linha sólida
+  sugeriria uma exatidão que ela não tem.
+*/
+.page-guide {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 1px dashed #c2c6cc;
+  pointer-events: none;
+  user-select: none;
+}
+
+.page-guide__label {
+  position: absolute;
+  right: 6px;
+  top: 3px;
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  color: #9aa0a6;
+  background: var(--surface);
+  padding: 0 4px;
 }
 
 /* Destaques de "localizar" */

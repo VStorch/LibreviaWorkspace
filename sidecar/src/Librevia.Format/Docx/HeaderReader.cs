@@ -1,169 +1,334 @@
-using System.Text;
+using System.Globalization;
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
+using Drawing = DocumentFormat.OpenXml.Drawing;
+using WordDrawing = DocumentFormat.OpenXml.Drawing.Wordprocessing;
 
 namespace Librevia.Format.Docx;
 
 /// <summary>
-/// Cabeçalho e rodapé → texto para exibir.
+/// Cabeçalho e rodapé → faixa de três colunas, para desenhar na tela e no PDF.
 /// </summary>
 /// <remarks>
-/// Extração **de mão única**, e é isso que a torna barata. O que vai para o
-/// arquivo é a parte OOXML original, copiada intacta (decisão do Vinícius em
-/// 2026-08-14 — ver docs/01-corpus-docx.md, Descoberta 4). Daqui sai só o que a
-/// tela e o PDF precisam mostrar, então um erro aqui é cosmético.
+/// O conteúdo raramente está em parágrafos simples. No corpus real ele vive
+/// dentro de um **grupo de formas**: uma imagem de logotipo, uma caixa de texto
+/// com o campo `PAGE`, outra com o título e duas formas de decoração. Cada peça
+/// tem posição própria dentro do grupo.
 ///
-/// O modelo guarda cabeçalho como uma linha de texto com `{n}` e `{total}`.
-/// Logo, tudo que o cabeçalho tiver de imagem e posicionamento não aparece —
-/// invisibilidade, não perda.
+/// Reproduzir posicionamento absoluto seria caro e frágil. Em vez disso,
+/// olhamos **onde cada peça cai na largura** e a jogamos no terço
+/// correspondente. O resultado bate com o original nos casos que importam,
+/// porque cabeçalho corporativo é quase sempre exatamente isto: algo à
+/// esquerda, algo no meio, o logotipo à direita.
 /// </remarks>
 public static class HeaderReader
 {
-    public static string Read(SectionProperties section, MainDocumentPart part, Inventory inventory) =>
-        ReadReferenced(
-            section.Elements<HeaderReference>().Select(reference => reference.Id?.Value),
-            part,
-            inventory,
-            "cabeçalho");
+    /// <summary>Forma sem texto, larga e baixa: é filete, não caixa.</summary>
+    private const double RuleAspectRatio = 20;
 
-    public static string ReadFooter(SectionProperties section, MainDocumentPart part, Inventory inventory) =>
-        ReadReferenced(
-            section.Elements<FooterReference>().Select(reference => reference.Id?.Value),
-            part,
-            inventory,
-            "rodapé");
+    public static BandDto Read(SectionProperties section, MainDocumentPart part, Inventory inventory) =>
+        ReadReferenced(section.Elements<HeaderReference>().Select(r => r.Id?.Value), part, inventory);
 
-    private static string ReadReferenced(
+    public static BandDto ReadFooter(SectionProperties section, MainDocumentPart part, Inventory inventory) =>
+        ReadReferenced(section.Elements<FooterReference>().Select(r => r.Id?.Value), part, inventory);
+
+    private static BandDto ReadReferenced(
         IEnumerable<string?> relationshipIds,
         MainDocumentPart part,
-        Inventory inventory,
-        string what)
+        Inventory inventory)
     {
         foreach (var id in relationshipIds)
         {
             if (string.IsNullOrEmpty(id)) continue;
 
-            var root = part.GetPartById(id) switch
+            OpenXmlPartRootElement? root;
+            OpenXmlPart? owner;
+
+            switch (part.GetPartById(id))
             {
-                HeaderPart header => (OpenXmlPartRootElement?)header.Header,
-                FooterPart footer => footer.Footer,
-                _ => null,
-            };
+                case HeaderPart header:
+                    root = header.Header;
+                    owner = header;
+                    break;
+                case FooterPart footer:
+                    root = footer.Footer;
+                    owner = footer;
+                    break;
+                default:
+                    continue;
+            }
 
-            if (root is null) continue;
+            if (root is null || owner is null) continue;
 
-            var text = Flatten(root, inventory);
-            // A primeira página costuma ter cabeçalho vazio; o que interessa é
-            // o primeiro que tenha conteúdo.
-            if (text.Length > 0) return text;
+            var band = Build(root, owner, inventory);
+            // A primeira página costuma ter cabeçalho vazio; vale o primeiro
+            // que tenha conteúdo.
+            if (!band.IsEmpty) return band;
         }
 
-        return string.Empty;
+        return BandDto.Empty();
     }
 
-    private static string Flatten(OpenXmlPartRootElement root, Inventory inventory)
+    private static BandDto Build(OpenXmlPartRootElement root, OpenXmlPart owner, Inventory inventory)
     {
-        var builder = new StringBuilder();
-        Walk(root, builder, inventory, new FieldState());
-        return Collapse(builder.ToString());
+        var columns = new List<PieceDto>[3];
+        for (var i = 0; i < 3; i++) columns[i] = [];
+
+        var rule = false;
+
+        foreach (var paragraph in root.Descendants<Paragraph>())
+        {
+            // Parágrafos de dentro de caixa de texto são tratados junto com a
+            // forma que os contém, para herdar a posição dela.
+            if (paragraph.Ancestors<TextBoxContent>().Any()) continue;
+
+            if (HasBottomBorder(paragraph)) rule = true;
+
+            var pieces = ReadRuns(paragraph, inventory);
+            if (pieces.Count > 0) columns[ColumnOf(paragraph)].AddRange(pieces);
+        }
+
+        foreach (var drawing in root.Descendants<DocumentFormat.OpenXml.Wordprocessing.Drawing>())
+        {
+            // O fallback VML repete o mesmo conteúdo; percorrer os dois
+            // duplicaria o cabeçalho inteiro.
+            if (drawing.Ancestors<AlternateContentFallback>().Any()) continue;
+
+            ReadDrawing(drawing, owner, columns, ref rule, inventory);
+        }
+
+        return new BandDto(columns[0], columns[1], columns[2], rule);
     }
 
-    /// <summary>Onde estamos dentro de um campo `PAGE`.</summary>
-    /// <remarks>
-    /// Um campo do OOXML tem três marcos: `begin`, `separate` e `end`. Entre
-    /// `separate` e `end` está o **último valor calculado**, que o Word deixou
-    /// em cache. Se copiarmos esse texto junto com o nosso `{n}`, o cabeçalho
-    /// vira "{n}5" — o marcador e o número da página em que o arquivo foi salvo.
-    /// </remarks>
+    private static void ReadDrawing(
+        OpenXmlElement drawing,
+        OpenXmlPart owner,
+        List<PieceDto>[] columns,
+        ref bool rule,
+        Inventory inventory)
+    {
+        var totalWidth = (double?)drawing.Descendants<WordDrawing.Extent>().FirstOrDefault()?.Cx?.Value;
+        if (totalWidth is null or <= 0) totalWidth = 1;
+
+        // Coordenadas das peças dentro do grupo, quando há grupo.
+        var groupExtent = drawing.Descendants<Drawing.ChildExtents>().FirstOrDefault();
+        var span = (double?)groupExtent?.Cx?.Value ?? totalWidth.Value;
+        var origin = (double?)drawing.Descendants<Drawing.ChildOffset>().FirstOrDefault()?.X?.Value ?? 0;
+
+        foreach (var shape in drawing.Descendants<DocumentFormat.OpenXml.Office2010.Word.DrawingShape.WordprocessingShape>())
+        {
+            var (offset, width, height) = GeometryOf(shape.Descendants<Drawing.Transform2D>().FirstOrDefault());
+            var pieces = shape.Descendants<TextBoxContent>()
+                .SelectMany(box => box.Descendants<Paragraph>())
+                .SelectMany(paragraph => ReadRuns(paragraph, inventory))
+                .ToList();
+
+            if (pieces.Count == 0)
+            {
+                // Forma vazia, larga e baixa é o filete sob o cabeçalho.
+                if (height > 0 && width / height >= RuleAspectRatio) rule = true;
+                continue;
+            }
+
+            columns[ColumnFor(offset, width, origin, span)].AddRange(pieces);
+        }
+
+        foreach (var picture in drawing.Descendants<Drawing.Pictures.Picture>())
+        {
+            var relationshipId = picture.Descendants<Drawing.Blip>().FirstOrDefault()?.Embed?.Value;
+            if (string.IsNullOrEmpty(relationshipId)) continue;
+            if (owner.GetPartById(relationshipId) is not ImagePart image) continue;
+
+            var (offset, width, height) = GeometryOf(picture.Descendants<Drawing.Transform2D>().FirstOrDefault());
+            if (width <= 0) width = totalWidth.Value;
+
+            using var stream = image.GetStream();
+            using var buffer = new MemoryStream();
+            stream.CopyTo(buffer);
+
+            columns[ColumnFor(offset, width, origin, span)].Add(PieceDto.Image(
+                $"data:{image.ContentType};base64,{Convert.ToBase64String(buffer.ToArray())}",
+                Pixels(width),
+                Pixels(height > 0 ? height : width / 4)));
+        }
+    }
+
+    private static (double Offset, double Width, double Height) GeometryOf(Drawing.Transform2D? transform) =>
+        (
+            (double?)transform?.Offset?.X?.Value ?? 0,
+            (double?)transform?.Extents?.Cx?.Value ?? 0,
+            (double?)transform?.Extents?.Cy?.Value ?? 0);
+
+    /// <summary>EMU → pixels CSS: 914400 por polegada, 96 px por polegada.</summary>
+    private static int Pixels(double emu) => (int)Math.Round(emu * 96 / 914400);
+
+    /// <summary>
+    /// Em que terço da largura o centro da peça cai.
+    /// </summary>
+    private static int ColumnFor(double offset, double width, double origin, double span)
+    {
+        if (span <= 0) return 0;
+        var center = (offset - origin + width / 2) / span;
+        return center < 1.0 / 3 ? 0 : center < 2.0 / 3 ? 1 : 2;
+    }
+
+    private static int ColumnOf(Paragraph paragraph)
+    {
+        var value = paragraph.ParagraphProperties?.Justification?.Val;
+        if (value is null) return 0;
+        if (value == JustificationValues.Center) return 1;
+        if (value == JustificationValues.Right) return 2;
+        return 0;
+    }
+
+    private static bool HasBottomBorder(Paragraph paragraph)
+    {
+        var border = paragraph.ParagraphProperties?.ParagraphBorders?.BottomBorder;
+        return border?.Val is not null && border.Val.Value != BorderValues.None;
+    }
+
+    // --- runs ---------------------------------------------------------------
+
+    /// <summary>
+    /// Onde estamos dentro de um campo. Entre `separate` e `end` está o último
+    /// valor calculado, em cache: copiá-lo junto com o nosso marcador faria o
+    /// cabeçalho virar "{n}5" — o marcador mais o número da página em que o
+    /// arquivo foi salvo pela última vez.
+    /// </summary>
     private sealed class FieldState
     {
-        public int Depth;
         public bool InCachedResult;
     }
 
-    private static void Walk(OpenXmlElement parent, StringBuilder builder, Inventory inventory, FieldState field)
+    private static List<PieceDto> ReadRuns(Paragraph paragraph, Inventory inventory)
+    {
+        var pieces = new List<PieceDto>();
+        var field = new FieldState();
+        Collect(paragraph, pieces, field, inventory);
+
+        // Junta textos vizinhos de mesmo estilo: o Word pica uma frase em vários
+        // runs, e sem isto cada pedaço viraria um elemento solto.
+        var merged = new List<PieceDto>();
+        foreach (var piece in pieces)
+        {
+            var previous = merged.Count > 0 ? merged[^1] : null;
+            if (piece.Kind == PieceDto.KindText && previous is { Kind: PieceDto.KindText } &&
+                previous.Bold == piece.Bold && previous.Italic == piece.Italic &&
+                previous.Color == piece.Color && previous.FontSize == piece.FontSize)
+            {
+                merged[^1] = previous with { Text = previous.Text + piece.Text };
+                continue;
+            }
+
+            merged.Add(piece);
+        }
+
+        return merged
+            .Where(piece => piece.Kind != PieceDto.KindText || !string.IsNullOrWhiteSpace(piece.Text))
+            .ToList();
+    }
+
+    private static void Collect(
+        OpenXmlElement parent,
+        List<PieceDto> pieces,
+        FieldState field,
+        Inventory inventory)
     {
         foreach (var element in parent.ChildElements)
         {
             switch (element)
             {
-                // Um desenho moderno vem embrulhado junto com um fallback VML
-                // do mesmo conteúdo. Percorrer os dois duplicaria o cabeçalho
-                // inteiro; ficamos com a primeira alternativa.
-                case AlternateContent alternate:
-                {
-                    var branch = (OpenXmlElement?)alternate.GetFirstChild<AlternateContentChoice>()
-                                 ?? alternate.GetFirstChild<AlternateContentFallback>();
-                    if (branch is not null) Walk(branch, builder, inventory, field);
+                // Desenhos têm passe próprio, que sabe a posição de cada peça.
+                // Descer neles aqui traria o mesmo conteúdo uma segunda vez,
+                // sem posição — e ele acabaria todo na coluna da esquerda.
+                case DocumentFormat.OpenXml.Wordprocessing.Drawing:
+                case Picture:
+                case AlternateContent:
                     break;
-                }
 
                 case FieldChar marker:
-                    switch (marker.FieldCharType?.Value)
+                    if (marker.FieldCharType?.Value is { } type)
                     {
-                        case { } type when type == FieldCharValues.Begin:
-                            field.Depth++;
-                            break;
-                        case { } type when type == FieldCharValues.Separate:
-                            field.InCachedResult = true;
-                            break;
-                        case { } type when type == FieldCharValues.End:
-                            field.Depth = Math.Max(0, field.Depth - 1);
-                            field.InCachedResult = false;
-                            break;
+                        if (type == FieldCharValues.Separate) field.InCachedResult = true;
+                        else if (type == FieldCharValues.End) field.InCachedResult = false;
                     }
 
                     break;
 
                 case FieldCode code:
-                    if (code.Text.Contains("NUMPAGES", StringComparison.Ordinal)) builder.Append("{total}");
-                    else if (code.Text.Contains("PAGE", StringComparison.Ordinal)) builder.Append("{n}");
+                    if (code.Text.Contains("NUMPAGES", StringComparison.Ordinal))
+                    {
+                        pieces.Add(new PieceDto(PieceDto.KindTotalPages));
+                    }
+                    else if (code.Text.Contains("PAGE", StringComparison.Ordinal))
+                    {
+                        pieces.Add(new PieceDto(PieceDto.KindPageNumber));
+                    }
+                    else
+                    {
+                        inventory.NoteInvisible("campos calculados no cabeçalho");
+                    }
+
                     break;
 
-                case Text text:
-                    if (!field.InCachedResult) builder.Append(text.Text);
-                    break;
-
-                case TabChar:
-                    builder.Append(' ');
-                    break;
-
-                case DocumentFormat.OpenXml.Wordprocessing.Drawing:
-                case Picture:
-                    inventory.NoteInvisible("imagens no cabeçalho (o logotipo continua no arquivo)");
-                    Walk(element, builder, inventory, field);
+                case Run run:
+                    Collect(run, pieces, field, StyleOf(run.RunProperties), inventory);
                     break;
 
                 default:
-                    Walk(element, builder, inventory, field);
+                    Collect(element, pieces, field, inventory);
                     break;
             }
         }
     }
 
-    /// <summary>
-    /// O texto sai picado em runs. Colapsar espaço junta as partes; se o
-    /// resultado for a mesma frase duas vezes — cabeçalho par e ímpar com o
-    /// mesmo conteúdo — fica só uma.
-    /// </summary>
-    private static string Collapse(string raw)
+    private static void Collect(
+        Run run,
+        List<PieceDto> pieces,
+        FieldState field,
+        PieceDto style,
+        Inventory inventory)
     {
-        var parts = raw.Split((char[])[' ', '\t', '\n', '\r'], StringSplitOptions.RemoveEmptyEntries);
-        var joined = string.Join(' ', parts).Trim();
-
-        if (joined.Length == 0) return string.Empty;
-
-        if (joined.Length % 2 == 1)
+        foreach (var element in run.ChildElements)
         {
-            var half = joined.Length / 2;
-            if (joined[half] == ' ' &&
-                string.Equals(joined[..half], joined[(half + 1)..], StringComparison.Ordinal))
+            switch (element)
             {
-                return joined[..half];
+                case Text text when !field.InCachedResult:
+                    pieces.Add(style with { Text = text.Text });
+                    break;
+
+                case TabChar when !field.InCachedResult:
+                    pieces.Add(style with { Text = " " });
+                    break;
+
+                case FieldChar or FieldCode:
+                    Collect(run, pieces, field, inventory);
+                    return;
+
+                case RunProperties:
+                case Text:
+                case TabChar:
+                    break;
             }
         }
-
-        return joined;
     }
+
+    private static PieceDto StyleOf(RunProperties? properties) => new(
+        PieceDto.KindText,
+        Bold: RunReader.IsOn(properties?.Bold),
+        Italic: RunReader.IsOn(properties?.Italic),
+        Color: ColorOf(properties?.Color?.Val?.Value),
+        FontSize: SizeOf(properties?.FontSize?.Val?.Value));
+
+    private static string? ColorOf(string? value) =>
+        string.IsNullOrWhiteSpace(value) || value.Equals("auto", StringComparison.OrdinalIgnoreCase)
+            ? null
+            : "#" + value.TrimStart('#').ToLowerInvariant();
+
+    /// <summary>`w:sz` vem em meios-pontos: 40 significa 20 pt.</summary>
+    private static string? SizeOf(string? halfPoints) =>
+        double.TryParse(halfPoints, NumberStyles.Float, CultureInfo.InvariantCulture, out var value)
+            ? (value / 2).ToString("0.#", CultureInfo.InvariantCulture) + "pt"
+            : null;
 }

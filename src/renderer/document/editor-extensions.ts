@@ -13,6 +13,7 @@ import {
   LineHeight,
   TextStyle,
 } from '@tiptap/extension-text-style'
+import { BlockFormat } from './extensions/block-format.js'
 import { Indent } from './extensions/indent.js'
 import { Caps, SmallCaps } from './extensions/letter-case.js'
 import { PageBreak } from './extensions/page-break.js'
@@ -67,6 +68,9 @@ export function buildEditorExtensions(onSearchStatusChange: (status: SearchStatu
     CharacterCount,
 
     Indent,
+    // Fundo, espaçamento e entrelinha do parágrafo — no OOXML são
+    // propriedades do bloco, e é o que faz `Heading1` virar barra colorida.
+    BlockFormat,
     // Vieram do corpus real: `w:caps` e `w:smallCaps` aparecem 45 vezes.
     Caps,
     SmallCaps,

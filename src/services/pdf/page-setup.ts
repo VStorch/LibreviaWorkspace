@@ -1,4 +1,11 @@
-import { PageOrientation, PageSize, type PageSetup } from '@services/document/model.js'
+import {
+  PageOrientation,
+  PageSize,
+  hasBandContent,
+  type Band,
+  type BandPiece,
+  type PageSetup,
+} from '@services/document/model.js'
 
 /**
  * Tradução da configuração de página para as opções do `printToPDF`.
@@ -79,6 +86,62 @@ export function buildHeaderFooterTemplate(text: string): string {
   )
 }
 
+/**
+ * Faixa preservada do documento → HTML do template do Chromium.
+ *
+ * A imagem entra como `data:` URI. O template do `printToPDF` roda num
+ * contexto isolado que **não busca recurso externo nenhum** — logotipo por URL
+ * simplesmente não apareceria. Embutido, aparece.
+ *
+ * A escala é reduzida de propósito: o Chromium renderiza o template com uma
+ * escala própria, e um logotipo no tamanho declarado sai maior no papel do que
+ * na tela.
+ */
+export function buildBandTemplate(band: Band): string {
+  const cell = (pieces: readonly BandPiece[], align: string): string =>
+    `<div style="display:flex;align-items:center;gap:6px;justify-content:${align};white-space:nowrap;min-width:0">` +
+    pieces.map(pieceToHtml).join('') +
+    '</div>'
+
+  const rule = band.rule ? 'border-bottom:1px solid #999;padding-bottom:2px;' : ''
+
+  return (
+    '<div style="font-family: Carlito, Calibri, sans-serif; font-size: 8pt; color: #222; ' +
+    `width: 100%; padding: 0 8mm; box-sizing: border-box; display: grid; ` +
+    `grid-template-columns: auto 1fr auto; align-items: center; gap: 8px; ${rule}">` +
+    cell(band.left, 'flex-start') +
+    cell(band.center, 'center') +
+    cell(band.right, 'flex-end') +
+    '</div>'
+  )
+}
+
+function pieceToHtml(piece: BandPiece): string {
+  if (piece.kind === 'image') {
+    if (piece.src === undefined) return ''
+    const width = piece.width === undefined ? '' : `width:${Math.round(piece.width * 0.75)}px;`
+    return `<img src="${escapeHtml(piece.src)}" style="${width}object-fit:contain" />`
+  }
+
+  if (piece.kind === 'pageNumber') return '<span class="pageNumber"></span>'
+  if (piece.kind === 'totalPages') return '<span class="totalPages"></span>'
+
+  const style =
+    (piece.bold ? 'font-weight:700;' : '') +
+    (piece.italic ? 'font-style:italic;' : '') +
+    (piece.color === undefined ? '' : `color:${escapeHtml(piece.color)};`) +
+    // O tamanho declarado no documento é para a página inteira; no template do
+    // Chromium ele sai desproporcional, então entra reduzido.
+    (piece.fontSize === undefined ? '' : `font-size:${scaleFontSize(piece.fontSize)};`)
+
+  return `<span style="${style}">${escapeHtml(piece.text ?? '')}</span>`
+}
+
+function scaleFontSize(fontSize: string): string {
+  const value = Number.parseFloat(fontSize)
+  return Number.isFinite(value) ? `${(value * 0.6).toFixed(1)}pt` : fontSize
+}
+
 /** Opções do diálogo nativo de impressão. */
 export interface NativePrintOptions {
   readonly pageSize: 'A4' | 'Letter'
@@ -115,8 +178,14 @@ export function mmToPixels(mm: number): number {
 }
 
 export function buildPrintOptions(page: PageSetup): PdfPrintOptions {
-  const hasHeader = page.header.trim().length > 0
-  const hasFooter = page.footer.trim().length > 0
+  // A faixa preservada do documento manda: quando ela existe, é o cabeçalho
+  // real do arquivo, com logotipo e numeração. O texto digitado só vale para
+  // documentos criados aqui.
+  const headerBand = hasBandContent(page.headerBand) ? page.headerBand : null
+  const footerBand = hasBandContent(page.footerBand) ? page.footerBand : null
+
+  const hasHeader = headerBand !== null || page.header.trim().length > 0
+  const hasFooter = footerBand !== null || page.footer.trim().length > 0
 
   return {
     pageSize: page.size === PageSize.Letter ? 'Letter' : 'A4',
@@ -130,8 +199,10 @@ export function buildPrintOptions(page: PageSetup): PdfPrintOptions {
     // Sem isto, destaque de texto e fundo de cabeçalho de tabela somem do PDF.
     printBackground: true,
     displayHeaderFooter: hasHeader || hasFooter,
-    headerTemplate: buildHeaderFooterTemplate(page.header),
-    footerTemplate: buildHeaderFooterTemplate(page.footer),
+    headerTemplate:
+      headerBand === null ? buildHeaderFooterTemplate(page.header) : buildBandTemplate(headerBand),
+    footerTemplate:
+      footerBand === null ? buildHeaderFooterTemplate(page.footer) : buildBandTemplate(footerBand),
     // As margens e o tamanho vêm daqui, não do CSS: é uma fonte só.
     preferCSSPageSize: false,
     scale: 1,

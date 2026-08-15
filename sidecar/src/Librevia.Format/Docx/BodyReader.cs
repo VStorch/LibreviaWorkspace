@@ -26,6 +26,7 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory)
     private const int TwipsPerIndentLevel = 720;
 
     private readonly NumberingReader _numbering = new(part);
+    private readonly StyleResolver _styles = new(part);
     private int _nextId = 1;
 
     /// <summary>
@@ -137,8 +138,14 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory)
 
     private Node ReadParagraph(Paragraph paragraph)
     {
-        var properties = paragraph.ParagraphProperties;
-        var content = ReadInline(paragraph);
+        var direct = paragraph.ParagraphProperties;
+
+        // Formatação efetiva: padrões do documento, estilo e formatação direta.
+        // Ler só a direta é o que fazia um documento cheio de estilos abrir
+        // praticamente sem formatação.
+        var (effective, inheritedRun) = _styles.Resolve(direct);
+
+        var content = ReadInline(paragraph, inheritedRun);
 
         // Uma quebra de página sozinha no parágrafo é o nó `pageBreak`, não um
         // parágrafo vazio com uma quebra dentro.
@@ -147,18 +154,70 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory)
             return content[0];
         }
 
-        var node = HeadingLevelOf(properties) is { } level
+        var node = HeadingLevelOf(direct) is { } level
             ? Node.Of("heading").With("level", level)
             : Node.Of("paragraph");
 
-        var alignment = AlignmentOf(properties);
+        // O identificador do estilo viaja junto para que a gravação de um
+        // parágrafo editado continue apontando o estilo original.
+        if (direct?.ParagraphStyleId?.Val?.Value is { Length: > 0 } styleId)
+        {
+            node.With("styleId", styleId);
+        }
+
+        var alignment = AlignmentOf(effective);
         if (alignment is not null) node.With("textAlign", alignment);
 
-        var indent = IndentOf(properties);
+        var indent = IndentOf(effective);
         if (indent > 0) node.With("indent", indent);
+
+        // O fundo do parágrafo é o que transforma `Heading1` numa barra
+        // colorida neste corpus — sem ele o título vira texto solto.
+        if (ShadingOf(effective) is { } background) node.With("background", background);
+
+        var spacing = effective.SpacingBetweenLines;
+        if (TwipsToPt(spacing?.Before?.Value) is { } before) node.With("spaceBefore", before);
+        if (TwipsToPt(spacing?.After?.Value) is { } after) node.With("spaceAfter", after);
+        if (LineHeightOf(spacing) is { } lineHeight) node.With("lineHeight", lineHeight);
 
         node.Content = content.Count == 0 ? null : content;
         return node;
+    }
+
+    /// <summary>Fundo do parágrafo, quando é cor de verdade.</summary>
+    private static string? ShadingOf(ParagraphProperties properties)
+    {
+        var fill = properties.Shading?.Fill?.Value;
+        if (string.IsNullOrWhiteSpace(fill)) return null;
+        if (fill.Equals("auto", StringComparison.OrdinalIgnoreCase)) return null;
+        // "FFFFFF" explícito é branco de verdade; só "auto" significa "sem cor".
+        return "#" + fill.TrimStart('#').ToLowerInvariant();
+    }
+
+    /// <summary>
+    /// Espaçamento em twips → pontos, que é a unidade da interface.
+    /// </summary>
+    /// <remarks>
+    /// Zero **explícito** é preservado, e não tratado como ausente: "sem espaço
+    /// antes" é uma instrução do documento. Descartá-lo deixaria a margem
+    /// padrão do editor reaparecer, e o texto sairia mais arejado que no Word.
+    /// </remarks>
+    private static double? TwipsToPt(string? twips) =>
+        int.TryParse(twips, out var value) && value >= 0 ? Math.Round(value / 20.0, 1) : null;
+
+    /// <summary>
+    /// Entrelinha. `w:line` com regra `auto` vem em 240-avos: 271 significa
+    /// 1,13 vez a altura da linha.
+    /// </summary>
+    private static double? LineHeightOf(SpacingBetweenLines? spacing)
+    {
+        if (spacing?.Line?.Value is not { } line || !int.TryParse(line, out var value) || value <= 0) return null;
+
+        var rule = spacing.LineRule?.Value;
+        if (rule is not null && rule != LineSpacingRuleValues.Auto) return null;
+
+        var factor = Math.Round(value / 240.0, 2);
+        return factor is > 0.5 and < 4 ? factor : null;
     }
 
     /// <summary>
@@ -208,7 +267,10 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory)
 
     // --- conteúdo em linha --------------------------------------------------
 
-    private List<Node> ReadInline(OpenXmlElement container, string? hyperlink = null)
+    private List<Node> ReadInline(
+        OpenXmlElement container,
+        RunProperties inherited,
+        string? hyperlink = null)
     {
         var nodes = new List<Node>();
 
@@ -217,11 +279,11 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory)
             switch (element)
             {
                 case Run run:
-                    nodes.AddRange(ReadRun(run, hyperlink));
+                    nodes.AddRange(ReadRun(run, inherited, hyperlink));
                     break;
 
                 case Hyperlink link:
-                    nodes.AddRange(ReadInline(link, HyperlinkTargetOf(link) ?? hyperlink));
+                    nodes.AddRange(ReadInline(link, inherited, HyperlinkTargetOf(link) ?? hyperlink));
                     break;
 
                 case ParagraphProperties:
@@ -239,7 +301,7 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory)
 
                 case InsertedRun inserted:
                     inventory.NoteInvisible("controle de alterações");
-                    nodes.AddRange(ReadInline(inserted, hyperlink));
+                    nodes.AddRange(ReadInline(inserted, inherited, hyperlink));
                     break;
 
                 case DeletedRun:
@@ -256,9 +318,9 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory)
         return nodes;
     }
 
-    private IEnumerable<Node> ReadRun(Run run, string? hyperlink)
+    private IEnumerable<Node> ReadRun(Run run, RunProperties inherited, string? hyperlink)
     {
-        var marks = RunReader.MarksOf(run.RunProperties, hyperlink);
+        var marks = RunReader.MarksOf(_styles.ResolveRun(inherited, run.RunProperties), hyperlink);
 
         foreach (var element in run.ChildElements)
         {

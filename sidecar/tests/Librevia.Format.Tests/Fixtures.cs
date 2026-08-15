@@ -133,6 +133,73 @@ public static class Fixtures
         body.AppendChild(Paragraph("Trecho em retrato."));
     });
 
+    /// <summary>
+    /// Documento cuja formatação mora nos **estilos**, como o corpus real.
+    /// </summary>
+    /// <remarks>
+    /// `Faixa` reproduz o `Heading1` do corpus: fundo vermelho, texto branco,
+    /// Arial 10 pt, centralizado. Nada disso está no parágrafo.
+    /// `Corpo` herda de `Base` para exercitar a cadeia de `basedOn`.
+    /// </remarks>
+    public static byte[] WithStyles() => Build((body, part) =>
+    {
+        var styles = part.AddNewPart<StyleDefinitionsPart>();
+        styles.Styles = new Styles(
+            new DocDefaults(
+                new RunPropertiesDefault(new RunPropertiesBaseStyle(
+                    new RunFonts { Ascii = "Calibri" },
+                    new FontSize { Val = "22" }))),
+
+            new Style(
+                new StyleName { Val = "Faixa" },
+                new StyleParagraphProperties(
+                    new Shading { Val = ShadingPatternValues.Clear, Fill = "943634" },
+                    new Justification { Val = JustificationValues.Center }),
+                new StyleRunProperties(
+                    new RunFonts { Ascii = "Arial" },
+                    new Bold(),
+                    new Color { Val = "FFFFFF" },
+                    new FontSize { Val = "20" }))
+            { Type = StyleValues.Paragraph, StyleId = "Faixa" },
+
+            new Style(
+                new StyleName { Val = "Base" },
+                new StyleRunProperties(new RunFonts { Ascii = "Arial" }, new FontSize { Val = "20" }))
+            { Type = StyleValues.Paragraph, StyleId = "Base" },
+
+            new Style(
+                new StyleName { Val = "Corpo" },
+                new BasedOn { Val = "Base" },
+                new StyleParagraphProperties(new Justification { Val = JustificationValues.Both }))
+            { Type = StyleValues.Paragraph, StyleId = "Corpo" });
+
+        body.AppendChild(Paragraph("Informações Gerais", style: "Faixa"));
+        body.AppendChild(Paragraph("Texto do corpo.", style: "Corpo"));
+
+        // Formatação direta tem de vencer o estilo.
+        var overridden = Paragraph("Alinhado à direita.", style: "Corpo");
+        overridden.ParagraphProperties!.AppendChild(new Justification { Val = JustificationValues.Right });
+        body.AppendChild(overridden);
+
+        // `w:rPr` dentro de `w:pPr` formata a marca de parágrafo, não os runs.
+        var marked = Paragraph("Não deve ficar em negrito.", style: "Corpo");
+        marked.ParagraphProperties!.AppendChild(new ParagraphMarkRunProperties(new Bold()));
+        body.AppendChild(marked);
+    });
+
+    /// <summary>Estilo que herda de si mesmo — não pode travar o leitor.</summary>
+    public static byte[] WithCircularStyle() => Build((body, part) =>
+    {
+        var styles = part.AddNewPart<StyleDefinitionsPart>();
+        styles.Styles = new Styles(
+            new Style(new StyleName { Val = "A" }, new BasedOn { Val = "B" })
+            { Type = StyleValues.Paragraph, StyleId = "A" },
+            new Style(new StyleName { Val = "B" }, new BasedOn { Val = "A" })
+            { Type = StyleValues.Paragraph, StyleId = "B" });
+
+        body.AppendChild(Paragraph("Texto.", style: "A"));
+    });
+
     /// <summary>Versalete e maiúsculas — 45 ocorrências no corpus.</summary>
     public static byte[] WithSmallCaps() => Build((body, _) =>
     {

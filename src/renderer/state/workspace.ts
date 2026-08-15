@@ -40,6 +40,12 @@ interface WorkspaceState {
   isDirty: boolean
   /** Contagens exibidas na barra de status; alimentadas pelo editor. */
   stats: { characters: number; words: number }
+  /**
+   * Páginas estimadas, medidas na tela pelo editor. É **estimativa**: a
+   * paginação de verdade só acontece na exportação, com regras de viúvas e
+   * órfãs que o editor não aplica. Por isso a barra mostra "≈".
+   */
+  estimatedPages: number
   recents: readonly RecentFile[]
   error: SerializedError | null
   /**
@@ -59,6 +65,7 @@ interface WorkspaceState {
   registerDocumentSource: (source: DocumentSource | null) => void
   markDirty: () => void
   setStats: (stats: { characters: number; words: number }) => void
+  setEstimatedPages: (pages: number) => void
   setPage: (page: PageSetup) => void
   dismissError: () => void
   dismissNotice: () => void
@@ -188,6 +195,7 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
     generation: 0,
     isDirty: false,
     stats: { characters: 0, words: 0 },
+    estimatedPages: 1,
     recents: [],
     error: null,
     notice: null,
@@ -202,6 +210,9 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
     setStats: (stats) => {
       const current = get().stats
       if (current.characters !== stats.characters || current.words !== stats.words) set({ stats })
+    },
+    setEstimatedPages: (pages) => {
+      if (get().estimatedPages !== pages) set({ estimatedPages: pages })
     },
     setPage: (page) => set({ page, isDirty: true }),
     dismissError: () => set({ error: null }),

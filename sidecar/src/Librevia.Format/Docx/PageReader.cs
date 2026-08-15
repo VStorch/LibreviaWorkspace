@@ -8,8 +8,8 @@ public sealed record PageSetupDto(
     [property: JsonPropertyName("size")] string Size,
     [property: JsonPropertyName("orientation")] string Orientation,
     [property: JsonPropertyName("margins")] MarginsDto Margins,
-    [property: JsonPropertyName("header")] string Header,
-    [property: JsonPropertyName("footer")] string Footer);
+    [property: JsonPropertyName("headerBand")] BandDto? Header,
+    [property: JsonPropertyName("footerBand")] BandDto? Footer);
 
 public sealed record MarginsDto(
     [property: JsonPropertyName("top")] double Top,
@@ -57,8 +57,8 @@ public static class PageReader
                 Right: Millimeters((int?)margin?.Right?.Value, 1440),
                 Bottom: Millimeters(margin?.Bottom?.Value, 1440),
                 Left: Millimeters((int?)margin?.Left?.Value, 1440)),
-            Header: HeaderReader.Read(section, part, inventory),
-            Footer: HeaderReader.ReadFooter(section, part, inventory));
+            Header: NullIfEmpty(HeaderReader.Read(section, part, inventory)),
+            Footer: NullIfEmpty(HeaderReader.ReadFooter(section, part, inventory)));
     }
 
     private static bool AllShareGeometry(List<SectionProperties> sections)
@@ -86,6 +86,9 @@ public static class PageReader
             Math.Abs(other.L - first.L) <= GeometryTolerance);
     }
 
+    /// <summary>Faixa vazia vira ausência: o modelo distingue "não tem" de "tem e está vazia".</summary>
+    private static BandDto? NullIfEmpty(BandDto band) => band.IsEmpty ? null : band;
+
     private static double Millimeters(int? twips, int fallback) =>
         Math.Round((twips ?? fallback) / TwipsPerMillimeter, 1);
 
@@ -101,5 +104,5 @@ public static class PageReader
     }
 
     private static PageSetupDto Default() => new(
-        "A4", "portrait", new MarginsDto(25, 25, 25, 25), string.Empty, string.Empty);
+        "A4", "portrait", new MarginsDto(25, 25, 25, 25), null, null);
 }

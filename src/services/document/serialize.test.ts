@@ -16,6 +16,8 @@ const richDocument: DocumentModel = {
     margins: { top: 15, right: 15, bottom: 15, left: 15 },
     header: 'Relatório interno',
     footer: 'Página {n} de {total}',
+    headerBand: null,
+    footerBand: null,
   },
   doc: {
     type: 'doc',
