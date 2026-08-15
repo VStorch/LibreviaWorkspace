@@ -28,6 +28,8 @@
     "verify": "npm run typecheck && npm run lint && npm run sidecar:test && npm run sidecar:build && npm run test && npm run licenses:check && npm run sidecar:licenses"
   },
   "dependencies": {
+    "@revolist/react-datagrid": "^4.25.2",
+    "@revolist/revogrid": "^4.25.2",
     "@tiptap/core": "^3.30.0",
     "@tiptap/extension-color": "^3.30.0",
     "@tiptap/extension-font-family": "^3.30.0",

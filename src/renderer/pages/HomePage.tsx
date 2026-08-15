@@ -31,7 +31,7 @@ function RecentItem({ file }: { readonly file: RecentFile }): React.JSX.Element 
 }
 
 export function HomePage(): React.JSX.Element {
-  const { recents, newDocument, openViaDialog, clearRecents } = useWorkspace()
+  const { recents, newDocument, newSpreadsheet, openViaDialog, clearRecents } = useWorkspace()
 
   return (
     <div className="home">
@@ -46,9 +46,9 @@ export function HomePage(): React.JSX.Element {
           <span className="tile__hint">Ctrl+N</span>
         </button>
 
-        <button type="button" className="tile" disabled title="Disponível na Fase 5">
+        <button type="button" className="tile" onClick={() => void newSpreadsheet()}>
           <span className="tile__title">Nova planilha</span>
-          <span className="tile__hint">em breve</span>
+          <span className="tile__hint">Ctrl+Shift+N</span>
         </button>
 
         <button type="button" className="tile" onClick={() => void openViaDialog()}>

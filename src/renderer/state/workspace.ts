@@ -18,6 +18,7 @@ import {
 import { documentToPlainText, hasRichFormatting, plainTextToDocument } from '@services/document/plain-text.js'
 import { buildPrintHtml } from '@services/document/print-html.js'
 import { parseDocument, serializeDocument } from '@services/document/serialize.js'
+import { createEmptyWorkbook, type Sheet, type WorkbookModel } from '@services/spreadsheet/model.js'
 import { defaultFileName, isPlainTextPath } from '@services/file/formats.js'
 
 interface OpenFile {
@@ -35,6 +36,13 @@ interface WorkspaceState {
    * conteúdo ao vivo mora no editor, e só é lido na hora de salvar.
    */
   initialDoc: DocumentNode
+  /**
+   * A planilha aberta, quando o que está em edição é uma planilha.
+   *
+   * Fica ao lado do documento em vez de substituí-lo porque o aplicativo edita
+   * um arquivo por vez: qual dos dois está preenchido é o que diz o tipo.
+   */
+  workbook: WorkbookModel | null
   /** Muda a cada novo/abrir; o editor é remontado, evitando estado residual. */
   generation: number
   isDirty: boolean
@@ -73,6 +81,8 @@ interface WorkspaceState {
   refreshRecents: () => Promise<void>
 
   newDocument: () => Promise<void>
+  newSpreadsheet: () => Promise<void>
+  updateSheet: (sheet: Sheet) => void
   openViaDialog: () => Promise<void>
   openRecent: (path: string) => Promise<void>
   save: () => Promise<boolean>
@@ -176,6 +186,7 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
 
     try {
       load({ path: file.path, name: file.name, kind: DocumentKind.Document }, decode(file.path, file.content))
+      set({ workbook: null })
       // O aviso só aparece quando há o que avisar: um alerta que abre em todo
       // arquivo é um alerta que o usuário fecha sem ler.
       set({ notice: hasSomethingToSay(file.inventory) ? file.inventory! : null })
@@ -192,6 +203,7 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
     file: null,
     page: DEFAULT_PAGE_SETUP,
     initialDoc: createEmptyDocument().doc,
+    workbook: null,
     generation: 0,
     isDirty: false,
     stats: { characters: 0, words: 0 },
@@ -228,6 +240,29 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
       if (!(await ensureChangesHandled())) return
       const empty = createEmptyDocument()
       load({ path: null, name: defaultFileName(DocumentKind.Document), kind: DocumentKind.Document }, empty)
+      set({ workbook: null })
+    },
+
+    newSpreadsheet: async () => {
+      if (!(await ensureChangesHandled())) return
+      load(
+        {
+          path: null,
+          name: defaultFileName(DocumentKind.Spreadsheet),
+          kind: DocumentKind.Spreadsheet,
+        },
+        createEmptyDocument(),
+      )
+      set({ workbook: createEmptyWorkbook() })
+    },
+
+    updateSheet: (sheet) => {
+      const { workbook } = get()
+      if (workbook === null) return
+
+      const sheets = [...workbook.sheets]
+      sheets[workbook.activeSheet] = sheet
+      set({ workbook: { ...workbook, sheets }, isDirty: true })
     },
 
     openViaDialog: async () => {

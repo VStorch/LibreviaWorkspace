@@ -7,6 +7,7 @@ import { StatusBar } from '../components/StatusBar.js'
 import { DocumentEditor } from '../document/DocumentEditor.js'
 import { emitEditorCommand } from '../document/editor-commands.js'
 import { HomePage } from '../pages/HomePage.js'
+import { SpreadsheetEditor } from '../spreadsheet/SpreadsheetEditor.js'
 import { useWorkspace } from '../state/workspace.js'
 
 /** Traduz um comando do menu nativo na ação correspondente. */
@@ -66,6 +67,8 @@ export function App(): React.JSX.Element {
   // Recarrega o editor por completo a cada documento aberto, em vez de tentar
   // sincronizar conteúdo — elimina estado residual entre um arquivo e outro.
   const generation = useWorkspace((state) => state.generation)
+  const workbook = useWorkspace((state) => state.workbook)
+  const updateSheet = useWorkspace((state) => state.updateSheet)
 
   useEffect(() => {
     void useWorkspace.getState().refreshRecents()
@@ -104,7 +107,19 @@ export function App(): React.JSX.Element {
     <div className="app">
       <ErrorBanner />
       <InventoryBanner />
-      <div className="app__body">{hasFile ? <DocumentEditor key={generation} /> : <HomePage />}</div>
+      <div className="app__body">
+        {workbook !== null ? (
+          <SpreadsheetEditor
+            key={generation}
+            sheet={workbook.sheets[workbook.activeSheet]!}
+            onChange={updateSheet}
+          />
+        ) : hasFile ? (
+          <DocumentEditor key={generation} />
+        ) : (
+          <HomePage />
+        )}
+      </div>
       {hasFile && <StatusBar />}
     </div>
   )

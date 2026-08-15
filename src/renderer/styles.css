@@ -642,3 +642,17 @@ button {
   border-color: var(--accent);
   color: #fff;
 }
+
+/* ---------- editor de planilhas ---------- */
+
+.sheet {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+}
+
+.sheet revo-grid {
+  flex: 1;
+  min-height: 0;
+}
