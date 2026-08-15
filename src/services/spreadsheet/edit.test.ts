@@ -171,4 +171,34 @@ describe('linhas e colunas', () => {
     expect(shifted.cells['A1']).toBeUndefined()
     expect(getCell(shifted, 1, 3)?.value).toBe('longe')
   })
+
+  it('cresce e encolhe a planilha junto', () => {
+    // Sem isso, inserir empurraria a última linha para fora da área visível: o
+    // dado sumiria da tela e continuaria no arquivo.
+    const sheet = filled()
+
+    expect(insertRows(sheet, 0, 3).rowCount).toBe(sheet.rowCount + 3)
+    expect(deleteRows(sheet, 0, 3).rowCount).toBe(sheet.rowCount - 3)
+    expect(insertColumns(sheet, 0).columnCount).toBe(sheet.columnCount + 1)
+    expect(deleteColumns(sheet, 0).columnCount).toBe(sheet.columnCount - 1)
+  })
+
+  it('não exclui além do fim da planilha', () => {
+    const sheet = { ...createSheet('S'), rowCount: 10, columnCount: 4 }
+
+    expect(deleteRows(sheet, 8, 500).rowCount).toBe(8)
+    expect(deleteColumns(sheet, 3, 500).columnCount).toBe(3)
+    // Fora do fim não há o que excluir: a planilha volta intacta.
+    expect(deleteRows(sheet, 10, 1)).toBe(sheet)
+  })
+
+  it('leva o congelamento junto quando a operação cai dentro dele', () => {
+    const sheet = { ...createSheet('S'), frozenRows: 2, frozenColumns: 2 }
+
+    expect(insertRows(sheet, 0).frozenRows).toBe(3)
+    expect(deleteRows(sheet, 0).frozenRows).toBe(1)
+    expect(insertColumns(sheet, 0).frozenColumns).toBe(3)
+    // Abaixo da faixa congelada, o congelamento não se move.
+    expect(insertRows(sheet, 2).frozenRows).toBe(2)
+  })
 })

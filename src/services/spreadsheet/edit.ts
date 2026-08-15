@@ -106,23 +106,27 @@ export function clearContents(sheet: Sheet, range: Range): Sheet {
 /**
  * Insere linhas antes da posição indicada, deslocando o que vem depois.
  *
- * Percorre de baixo para cima ao mover: começar de cima sobrescreveria as
- * células ainda não movidas.
+ * A planilha **cresce** junto: sem isso, o conteúdo da última linha sairia da
+ * área visível a cada inserção e continuaria no arquivo, invisível. Dado que
+ * some da tela mas fica no arquivo é pior que dado apagado, porque ninguém
+ * percebe.
  */
 export function insertRows(sheet: Sheet, at: number, count = 1): Sheet {
-  return shiftRows(sheet, at, count)
+  return count <= 0 ? sheet : shiftRows(sheet, at, count)
 }
 
 export function deleteRows(sheet: Sheet, at: number, count = 1): Sheet {
-  return shiftRows(sheet, at, -count)
+  const removable = Math.min(count, sheet.rowCount - at)
+  return removable <= 0 ? sheet : shiftRows(sheet, at, -removable)
 }
 
 export function insertColumns(sheet: Sheet, at: number, count = 1): Sheet {
-  return shiftColumns(sheet, at, count)
+  return count <= 0 ? sheet : shiftColumns(sheet, at, count)
 }
 
 export function deleteColumns(sheet: Sheet, at: number, count = 1): Sheet {
-  return shiftColumns(sheet, at, -count)
+  const removable = Math.min(count, sheet.columnCount - at)
+  return removable <= 0 ? sheet : shiftColumns(sheet, at, -removable)
 }
 
 function shiftRows(sheet: Sheet, at: number, delta: number): Sheet {
@@ -143,7 +147,13 @@ function shiftRows(sheet: Sheet, at: number, delta: number): Sheet {
     cells[cellRef(position.row + delta, position.column)] = cell
   }
 
-  return { ...sheet, cells, rowHeights: shiftDimensions(sheet.rowHeights, at, delta) }
+  return {
+    ...sheet,
+    cells,
+    rowHeights: shiftDimensions(sheet.rowHeights, at, delta),
+    rowCount: Math.max(1, sheet.rowCount + delta),
+    frozenRows: shiftFrozen(sheet.frozenRows, at, delta),
+  }
 }
 
 function shiftColumns(sheet: Sheet, at: number, delta: number): Sheet {
@@ -163,7 +173,23 @@ function shiftColumns(sheet: Sheet, at: number, delta: number): Sheet {
     cells[cellRef(position.row, position.column + delta)] = cell
   }
 
-  return { ...sheet, cells, columnWidths: shiftDimensions(sheet.columnWidths, at, delta) }
+  return {
+    ...sheet,
+    cells,
+    columnWidths: shiftDimensions(sheet.columnWidths, at, delta),
+    columnCount: Math.max(1, sheet.columnCount + delta),
+    frozenColumns: shiftFrozen(sheet.frozenColumns, at, delta),
+  }
+}
+
+/**
+ * A faixa congelada acompanha a operação quando ela acontece **dentro** dela.
+ *
+ * Inserir acima da linha congelada sem mexer aqui deslocaria o conteúdo e
+ * deixaria o congelamento apontando para outra linha.
+ */
+function shiftFrozen(frozen: number, at: number, delta: number): number {
+  return at < frozen ? Math.max(at, frozen + delta) : frozen
 }
 
 function shiftDimensions(sizes: Record<number, number>, at: number, delta: number): Record<number, number> {

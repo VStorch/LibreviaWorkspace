@@ -12,7 +12,7 @@ Formatos-alvo: **DOCX, XLSX, PDF**.
 | Documentos | formatação, títulos, listas, recuo, espaçamento, alinhamento, tabelas, imagens, links, quebra de página, localizar/substituir |
 | PDF e impressão | cabeçalho, rodapé, numeração, margens e orientação |
 | DOCX | abre e grava com **edição cirúrgica** — ver abaixo |
-| Planilhas | grade de 10 mil linhas, seleção de intervalo, alça de preenchimento, área de transferência, abas, formatação e congelamento |
+| Planilhas | grade de 10 mil linhas, seleção de intervalo, alça de preenchimento, área de transferência, abas, formatação, congelamento e inserir/excluir linhas e colunas |
 
 Em aberto: motor de fórmulas, XLSX, mesclagem de células e o instalador.
 

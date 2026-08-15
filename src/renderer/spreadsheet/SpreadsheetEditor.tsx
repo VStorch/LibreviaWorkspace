@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { RevoGrid, type ColumnRegular } from '@revolist/react-datagrid'
 import type {
   AfterEditEvent,
@@ -15,8 +15,9 @@ import {
   type Cell,
   type Sheet,
 } from '@services/spreadsheet/model.js'
-import { normalizeRange, singleCell, type Range } from '@services/spreadsheet/edit.js'
+import { normalizeRange, singleCell, toggleStyle, type Range } from '@services/spreadsheet/edit.js'
 import { SpreadsheetToolbar } from './SpreadsheetToolbar.js'
+import { SheetContextMenu, type MenuPosition } from './SheetContextMenu.js'
 
 /**
  * Editor de planilhas.
@@ -34,6 +35,31 @@ import { SpreadsheetToolbar } from './SpreadsheetToolbar.js'
 
 /** Uma linha como o grid espera: colunas indexadas por `c0`, `c1`… */
 type GridRow = Record<string, string>
+
+const SHORTCUTS: Record<string, 'bold' | 'italic' | 'underline' | undefined> = {
+  b: 'bold',
+  i: 'italic',
+  u: 'underline',
+}
+
+/**
+ * Índice que o grid deixa no DOM da célula clicada.
+ *
+ * O grid é um web component: a posição não vem no evento do React, e ler o
+ * atributo é o contrato público dele para descobrir onde o clique caiu.
+ */
+function attributeOf(element: Element | null, name: string): number | null {
+  const owner = element?.closest(`[${name}]`)
+  const value = owner?.getAttribute(name)
+  if (value === null || value === undefined) return null
+
+  const index = Number.parseInt(value, 10)
+  return Number.isInteger(index) ? index : null
+}
+
+function contains(range: Range, row: number, column: number): boolean {
+  return row >= range.fromRow && row <= range.toRow && column >= range.fromColumn && column <= range.toColumn
+}
 
 /** Estilo do modelo → CSS embutido na célula desenhada. */
 function cellStyleOf(sheet: Sheet, row: number, column: number): Record<string, string> {
@@ -70,6 +96,10 @@ export function SpreadsheetEditor({
   // A seleção mora aqui, e não no grid, porque é a barra de ferramentas que
   // precisa dela — e ela sobrevive à troca de foco entre grade e botões.
   const [range, setRange] = useState<Range>(() => singleCell(0, 0))
+  const selection = useRef(range)
+  selection.current = range
+
+  const [menu, setMenu] = useState<MenuPosition | null>(null)
 
   const columns = useMemo<ColumnRegular[]>(
     () =>
@@ -181,9 +211,67 @@ export function SpreadsheetEditor({
     setRange(normalizeRange({ fromRow: area.y, fromColumn: area.x, toRow: area.y1, toColumn: area.x1 }))
   }, [])
 
+  /**
+   * Botão direito: o menu age sobre a seleção quando o clique cai **dentro**
+   * dela, e sobre a célula clicada quando cai fora — a regra do Excel. Clicar
+   * fora e mesmo assim operar sobre a seleção antiga excluiria a linha errada.
+   */
+  const handleContextMenu = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+    event.preventDefault()
+
+    // `composedPath()[0]` e não `event.target`: o grid é um web component, e se
+    // um dia ele passar a usar shadow DOM o alvo chegaria aqui já reescrito
+    // como o elemento hospedeiro, sem posição nenhuma.
+    const deepest = event.nativeEvent.composedPath()[0]
+    const target = deepest instanceof Element ? deepest : null
+    const row = attributeOf(target, 'data-rgrow')
+    const column = attributeOf(target, 'data-rgcol')
+
+    // Cabeçalho de coluna e área vazia não trazem posição: aí vale a seleção.
+    if (row !== null && column !== null && !contains(selection.current, row, column)) {
+      setRange(singleCell(row, column))
+    }
+
+    setMenu({ x: event.clientX, y: event.clientY })
+  }, [])
+
+  const closeMenu = useCallback(() => setMenu(null), [])
+
+  /**
+   * Ctrl+B, Ctrl+I e Ctrl+U.
+   *
+   * No documento é o TipTap que trata; aqui não há editor de texto, então o
+   * atalho é nosso. Fica no `document` porque o foco vive dentro do grid, que
+   * é um web component — o evento nem sempre sobe até um `onKeyDown` do React.
+   */
+  useEffect(() => {
+    const shortcut = (event: KeyboardEvent): void => {
+      if (!(event.ctrlKey || event.metaKey) || event.altKey) return
+
+      const key = SHORTCUTS[event.key.toLowerCase()]
+      if (key === undefined) return
+
+      event.preventDefault()
+      onChange(toggleStyle(current.current, selection.current, key))
+    }
+
+    document.addEventListener('keydown', shortcut)
+    return () => document.removeEventListener('keydown', shortcut)
+  }, [onChange])
+
   return (
-    <div className="sheet">
+    <div className="sheet" onContextMenu={handleContextMenu}>
       <SpreadsheetToolbar sheet={sheet} range={range} onChange={onChange} />
+
+      {menu !== null && (
+        <SheetContextMenu
+          sheet={sheet}
+          range={range}
+          position={menu}
+          onChange={onChange}
+          onClose={closeMenu}
+        />
+      )}
 
       <RevoGrid
         columns={columns}
