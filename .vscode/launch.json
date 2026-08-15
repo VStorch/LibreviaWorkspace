@@ -1,0 +1,45 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      // F5 daqui: sobe o Vite, compila main e preload e abre o aplicativo,
+      // com ponto de parada funcionando no processo main.
+      "name": "Executar o aplicativo",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "runtimeExecutable": "${workspaceFolder}/node_modules/.bin/electron-vite",
+      "windows": {
+        "runtimeExecutable": "${workspaceFolder}/node_modules/.bin/electron-vite.cmd"
+      },
+      "runtimeArgs": ["--sourcemap"],
+      "args": ["dev"],
+      // Terminal integrado, e não console de depuração: é onde aparecem o
+      // endereço do Vite e as linhas do sidecar.
+      "console": "integratedTerminal",
+      "autoAttachChildProcesses": true
+    },
+    {
+      "name": "Depurar os testes",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "runtimeExecutable": "${workspaceFolder}/node_modules/.bin/vitest",
+      "args": ["run", "${relativeFile}"],
+      "console": "integratedTerminal"
+    },
+    {
+      // Os testes que conversam com o corpus real; sem a variável, são pulados.
+      "name": "Depurar os testes com o corpus real",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "runtimeExecutable": "${workspaceFolder}/node_modules/.bin/vitest",
+      "args": ["run", "src/main/docx"],
+      "env": {
+        "LIBREVIA_CORPUS_DIR": "${env:HOME}/Documentos/Documentos"
+      },
+      "console": "integratedTerminal"
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Publicar o sidecar (.NET)",
+      "detail": "Necessário antes de abrir .docx — o binário não é versionado.",
+      "type": "npm",
+      "script": "sidecar:build",
+      "problemMatcher": [],
+      "group": "build"
+    },
+    {
+      "label": "Verificar tudo",
+      "detail": "Tipos, lint, testes (TS e .NET) e licenças — o mesmo que o CI roda.",
+      "type": "npm",
+      "script": "verify",
+      "problemMatcher": ["$tsc"],
+      "group": { "kind": "test", "isDefault": true }
+    },
+    {
+      "label": "Testes",
+      "type": "npm",
+      "script": "test",
+      "problemMatcher": [],
+      "group": "test"
+    },
+    {
+      "label": "Compilar para produção",
+      "type": "npm",
+      "script": "build",
+      "problemMatcher": ["$tsc"],
+      "group": { "kind": "build", "isDefault": true }
+    }
+  ]
+}
