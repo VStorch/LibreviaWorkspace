@@ -716,6 +716,91 @@ button {
   background: var(--surface);
 }
 
+.sheet-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 10px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.sheet-toolbar__ref {
+  min-width: 8ch;
+  padding: 4px 8px;
+  margin-right: 4px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.sheet-toolbar__sep {
+  width: 1px;
+  height: 20px;
+  margin: 0 6px;
+  background: var(--border);
+}
+
+.sheet-toolbar__button {
+  min-width: 30px;
+  padding: 4px 7px;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.sheet-toolbar__button:hover:not(:disabled) {
+  background: var(--bg);
+  border-color: var(--border);
+}
+
+.sheet-toolbar__button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.sheet-toolbar__button--active {
+  background: #e7f0fa;
+  border-color: #b8d4ef;
+}
+
+.sheet-toolbar__color {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 4px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.sheet-toolbar__color:hover {
+  background: var(--bg);
+}
+
+.sheet-toolbar__color input {
+  width: 22px;
+  height: 20px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: none;
+  cursor: pointer;
+}
+
+.sheet-toolbar__select {
+  font: inherit;
+  font-size: 13px;
+  padding: 3px 6px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+}
+
 .sheet revo-grid {
   flex: 1;
   min-height: 0;

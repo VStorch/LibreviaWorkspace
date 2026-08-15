@@ -1,16 +1,22 @@
-import { useCallback, useMemo, useRef } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { RevoGrid, type ColumnRegular } from '@revolist/react-datagrid'
-import type { AfterEditEvent, RevoGridCustomEvent } from '@revolist/revogrid'
+import type {
+  AfterEditEvent,
+  ChangedRange,
+  FocusAfterRenderEvent,
+  RevoGridCustomEvent,
+} from '@revolist/revogrid'
 import { formatCell, parseInput } from '@services/spreadsheet/format.js'
 import {
   DEFAULT_COLUMN_WIDTH,
-  cellRef,
   columnName,
   getCell,
   setCell,
   type Cell,
   type Sheet,
 } from '@services/spreadsheet/model.js'
+import { normalizeRange, singleCell, type Range } from '@services/spreadsheet/edit.js'
+import { SpreadsheetToolbar } from './SpreadsheetToolbar.js'
 
 /**
  * Editor de planilhas.
@@ -29,6 +35,26 @@ import {
 /** Uma linha como o grid espera: colunas indexadas por `c0`, `c1`… */
 type GridRow = Record<string, string>
 
+/** Estilo do modelo → CSS embutido na célula desenhada. */
+function cellStyleOf(sheet: Sheet, row: number, column: number): Record<string, string> {
+  const style = getCell(sheet, row, column)?.style
+  if (style === undefined) return {}
+
+  const css: Record<string, string> = {}
+  if (style.bold === true) css['fontWeight'] = '700'
+  if (style.italic === true) css['fontStyle'] = 'italic'
+  if (style.underline === true) css['textDecoration'] = 'underline'
+  if (style.color !== undefined) css['color'] = style.color
+  if (style.background !== undefined) css['backgroundColor'] = style.background
+  if (style.align !== undefined) css['textAlign'] = style.align
+
+  for (const side of style.borders ?? []) {
+    css[`border${side[0]!.toUpperCase()}${side.slice(1)}`] = '1px solid #555'
+  }
+
+  return css
+}
+
 export function SpreadsheetEditor({
   sheet,
   onChange,
@@ -41,6 +67,10 @@ export function SpreadsheetEditor({
   const current = useRef(sheet)
   current.current = sheet
 
+  // A seleção mora aqui, e não no grid, porque é a barra de ferramentas que
+  // precisa dela — e ela sobrevive à troca de foco entre grade e botões.
+  const [range, setRange] = useState<Range>(() => singleCell(0, 0))
+
   const columns = useMemo<ColumnRegular[]>(
     () =>
       Array.from({ length: sheet.columnCount }, (_, index) => {
@@ -49,11 +79,19 @@ export function SpreadsheetEditor({
           name: columnName(index),
           size: sheet.columnWidths[index] ?? DEFAULT_COLUMN_WIDTH,
           resizable: true,
+          // A aparência é aplicada por célula, na hora de desenhar. O estilo
+          // vive no modelo, não no DOM: é o que faz a formatação sobreviver ao
+          // salvamento e à rolagem, que descarta e recria as células.
+          cellProperties: ({ rowIndex }) => ({
+            style: cellStyleOf(current.current, rowIndex, index),
+          }),
         }
         if (index < sheet.frozenColumns) column.pin = 'colPinStart'
         return column
       }),
-    [sheet.columnCount, sheet.columnWidths, sheet.frozenColumns],
+    // `sheet` inteiro: mudar formatação precisa redesenhar, e o estilo é lido
+    // de `current` no momento do desenho.
+    [sheet],
   )
 
   /**
@@ -130,8 +168,23 @@ export function SpreadsheetEditor({
     [onChange],
   )
 
+  const handleFocus = useCallback((event: RevoGridCustomEvent<FocusAfterRenderEvent>) => {
+    const { rowIndex, colIndex } = event.detail
+    if (Number.isInteger(rowIndex) && Number.isInteger(colIndex)) {
+      setRange(singleCell(rowIndex, colIndex))
+    }
+  }, [])
+
+  const handleRange = useCallback((event: RevoGridCustomEvent<ChangedRange>) => {
+    const area = event.detail.newRange
+    if (area === null) return
+    setRange(normalizeRange({ fromRow: area.y, fromColumn: area.x, toRow: area.y1, toColumn: area.x1 }))
+  }, [])
+
   return (
     <div className="sheet">
+      <SpreadsheetToolbar sheet={sheet} range={range} onChange={onChange} />
+
       <RevoGrid
         columns={columns}
         source={source}
@@ -147,11 +200,9 @@ export function SpreadsheetEditor({
         }))}
         onAfteredit={handleEdit}
         onAftercolumnresize={handleResize}
+        onAfterfocus={handleFocus}
+        onBeforerange={handleRange}
       />
-
-      <div className="sheet__ref" aria-live="polite">
-        {cellRef(0, 0)}
-      </div>
     </div>
   )
 }
