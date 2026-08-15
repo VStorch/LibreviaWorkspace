@@ -85,7 +85,12 @@ export const ipcContracts = {
     }),
   },
   [IpcChannel.FileChooseSavePath]: {
-    request: z.object({ suggestedName: z.string().min(1).max(255) }),
+    // O tipo viaja junto porque decide a extensão padrão: uma planilha gravada
+    // como `.sdoc` abriria como documento vazio na próxima vez.
+    request: z.object({
+      suggestedName: z.string().min(1).max(255),
+      kind: documentKindSchema.default('document'),
+    }),
     response: saveResultSchema,
   },
   [IpcChannel.RecentList]: {

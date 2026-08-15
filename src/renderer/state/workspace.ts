@@ -18,8 +18,14 @@ import {
 import { documentToPlainText, hasRichFormatting, plainTextToDocument } from '@services/document/plain-text.js'
 import { buildPrintHtml } from '@services/document/print-html.js'
 import { parseDocument, serializeDocument } from '@services/document/serialize.js'
-import { createEmptyWorkbook, type Sheet, type WorkbookModel } from '@services/spreadsheet/model.js'
-import { defaultFileName, isPlainTextPath } from '@services/file/formats.js'
+import {
+  createEmptyWorkbook,
+  createSheet,
+  type Sheet,
+  type WorkbookModel,
+} from '@services/spreadsheet/model.js'
+import { parseWorkbook, serializeWorkbook } from '@services/spreadsheet/serialize.js'
+import { defaultFileName, isPlainTextPath, isSpreadsheetPath } from '@services/file/formats.js'
 
 interface OpenFile {
   /** `null` enquanto o arquivo nunca foi gravado. */
@@ -83,6 +89,10 @@ interface WorkspaceState {
   newDocument: () => Promise<void>
   newSpreadsheet: () => Promise<void>
   updateSheet: (sheet: Sheet) => void
+  selectSheet: (index: number) => void
+  addSheet: () => void
+  renameSheet: (index: number, name: string) => void
+  removeSheet: (index: number) => void
   openViaDialog: () => Promise<void>
   openRecent: (path: string) => Promise<void>
   save: () => Promise<boolean>
@@ -185,6 +195,14 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
     if (file === null) return
 
     try {
+      if (isSpreadsheetPath(file.path)) {
+        const workbook = parseWorkbook(file.content)
+        load({ path: file.path, name: file.name, kind: DocumentKind.Spreadsheet }, createEmptyDocument())
+        set({ workbook, notice: null })
+        await get().refreshRecents()
+        return
+      }
+
       load({ path: file.path, name: file.name, kind: DocumentKind.Document }, decode(file.path, file.content))
       set({ workbook: null })
       // O aviso só aparece quando há o que avisar: um alerta que abre em todo
@@ -194,6 +212,14 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
       set({ error: toSerialized(cause) })
     }
     await get().refreshRecents()
+  }
+
+  /** "Planilha2", "Planilha3"… pulando os nomes já usados. */
+  const nextSheetName = (workbook: WorkbookModel): string => {
+    const used = new Set(workbook.sheets.map((sheet) => sheet.name))
+    let index = workbook.sheets.length + 1
+    while (used.has(`Planilha${index}`)) index += 1
+    return `Planilha${index}`
   }
 
   const hasSomethingToSay = (inventory: LossInventory | undefined): boolean =>
@@ -265,6 +291,50 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
       set({ workbook: { ...workbook, sheets }, isDirty: true })
     },
 
+    selectSheet: (index) => {
+      const { workbook } = get()
+      if (workbook === null || index < 0 || index >= workbook.sheets.length) return
+      // Trocar de aba não suja o arquivo: é navegação, não edição.
+      set({ workbook: { ...workbook, activeSheet: index } })
+    },
+
+    addSheet: () => {
+      const { workbook } = get()
+      if (workbook === null) return
+
+      const sheets = [...workbook.sheets, createSheet(nextSheetName(workbook))]
+      set({ workbook: { sheets, activeSheet: sheets.length - 1 }, isDirty: true })
+    },
+
+    renameSheet: (index, name) => {
+      const { workbook } = get()
+      if (workbook === null) return
+
+      const trimmed = name.trim()
+      const sheet = workbook.sheets[index]
+      if (sheet === undefined || trimmed.length === 0) return
+
+      // Nome repetido quebraria a referência entre abas que o motor de fórmulas
+      // da Fase 6 vai precisar — melhor recusar agora, em silêncio, do que
+      // aceitar e falhar depois.
+      const taken = workbook.sheets.some((other, at) => at !== index && other.name === trimmed)
+      if (taken) return
+
+      const sheets = [...workbook.sheets]
+      sheets[index] = { ...sheet, name: trimmed }
+      set({ workbook: { ...workbook, sheets }, isDirty: true })
+    },
+
+    removeSheet: (index) => {
+      const { workbook } = get()
+      // Uma pasta sem planilha nenhuma não é estado válido do modelo.
+      if (workbook === null || workbook.sheets.length <= 1) return
+
+      const sheets = workbook.sheets.filter((_, at) => at !== index)
+      const activeSheet = Math.min(workbook.activeSheet, sheets.length - 1)
+      set({ workbook: { sheets, activeSheet }, isDirty: true })
+    },
+
     openViaDialog: async () => {
       if (!(await ensureChangesHandled())) return
       await openPath(async () => {
@@ -291,6 +361,23 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
       if (state.file === null) return false
       // Arquivo que nunca foi gravado não tem destino: vira "salvar como".
       if (state.file.path === null) return get().saveAs()
+
+      // Planilha não passa pelo caminho de texto: não tem formatação a
+      // perder para `.txt`, e o conteúdo é outro.
+      const { workbook } = state
+      if (workbook !== null) {
+        const saved = await call(() =>
+          window.api.file.save({
+            path: state.file?.path ?? '',
+            content: serializeWorkbook(workbook),
+          }),
+        )
+        if (saved === null) return false
+
+        set({ isDirty: false, file: { ...state.file, name: saved.name } })
+        await get().refreshRecents()
+        return true
+      }
 
       const model = currentModel()
       let content: string
@@ -325,21 +412,27 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
       const model = currentModel()
       const chosen = await call(() =>
         window.api.file.chooseSavePath({
-          suggestedName: state.file?.name ?? defaultFileName(DocumentKind.Document),
+          suggestedName: state.file?.name ?? defaultFileName(state.file?.kind ?? DocumentKind.Document),
+          kind: state.file?.kind ?? DocumentKind.Document,
         }),
       )
       if (chosen === null || chosen.canceled) return false
 
       // O aviso vem antes da gravação: se o usuário desistir aqui, nenhum byte
       // foi escrito e o destino continua como estava.
-      if (isPlainTextPath(chosen.path) && hasRichFormatting(model.doc)) {
+      if (state.workbook === null && isPlainTextPath(chosen.path) && hasRichFormatting(model.doc)) {
         const answer = await call(() => window.api.dialog.confirmPlainText({ fileName: chosen.name }))
         if (answer === null || answer.choice === PlainTextChoice.Cancel) return false
         // Quis preservar a formatação: escolhe outro destino.
         if (answer.choice === PlainTextChoice.SaveAsDocument) return get().saveAs()
       }
 
-      const content = isPlainTextPath(chosen.path) ? documentToPlainText(model.doc) : serializeDocument(model)
+      const content =
+        state.workbook !== null
+          ? serializeWorkbook(state.workbook)
+          : isPlainTextPath(chosen.path)
+            ? documentToPlainText(model.doc)
+            : serializeDocument(model)
 
       const data = await call(() => window.api.file.save({ path: chosen.path, content }))
       if (data === null) return false

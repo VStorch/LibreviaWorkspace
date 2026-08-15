@@ -89,8 +89,7 @@ async function buildTemplate(): Promise<MenuItemConstructorOptions[]> {
         },
         {
           label: 'Nova planilha',
-          // Habilitado na Fase 5, quando existir editor de planilhas.
-          enabled: false,
+          accelerator: 'CmdOrCtrl+Shift+N',
           click: () => dispatch(MenuCommand.NewSpreadsheet),
         },
         { type: 'separator' },

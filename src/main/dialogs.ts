@@ -1,16 +1,22 @@
 import { dialog, type BrowserWindow } from 'electron'
 import { DiscardChoice, PlainTextChoice } from '@shared/types.js'
-import { DOCUMENT_EXTENSION, PLAIN_TEXT_EXTENSION, WORD_EXTENSION } from '@services/file/formats.js'
+import {
+  DOCUMENT_EXTENSION,
+  PLAIN_TEXT_EXTENSION,
+  SPREADSHEET_EXTENSION,
+  WORD_EXTENSION,
+} from '@services/file/formats.js'
 
 const bare = (extension: string) => extension.replace('.', '')
 
 const FILTERS = [
   {
-    name: 'Todos os documentos',
-    extensions: [DOCUMENT_EXTENSION, WORD_EXTENSION, PLAIN_TEXT_EXTENSION].map(bare),
+    name: 'Todos os arquivos suportados',
+    extensions: [DOCUMENT_EXTENSION, SPREADSHEET_EXTENSION, WORD_EXTENSION, PLAIN_TEXT_EXTENSION].map(bare),
   },
   { name: 'Documentos do Word', extensions: [bare(WORD_EXTENSION)] },
   { name: 'Documentos', extensions: [bare(DOCUMENT_EXTENSION)] },
+  { name: 'Planilhas', extensions: [bare(SPREADSHEET_EXTENSION)] },
   { name: 'Texto simples', extensions: [bare(PLAIN_TEXT_EXTENSION)] },
   { name: 'Todos os arquivos', extensions: ['*'] },
 ]

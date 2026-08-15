@@ -17,9 +17,15 @@ import { DocumentKind } from '@shared/types.js'
  * descarta formatação, e por isso o aplicativo avisa antes.
  */
 export const DOCUMENT_EXTENSION = '.sdoc'
+export const SPREADSHEET_EXTENSION = '.ssheet'
 export const PLAIN_TEXT_EXTENSION = '.txt'
 export const WORD_EXTENSION = '.docx'
-export const SUPPORTED_EXTENSIONS = [DOCUMENT_EXTENSION, WORD_EXTENSION, PLAIN_TEXT_EXTENSION] as const
+export const SUPPORTED_EXTENSIONS = [
+  DOCUMENT_EXTENSION,
+  SPREADSHEET_EXTENSION,
+  WORD_EXTENSION,
+  PLAIN_TEXT_EXTENSION,
+] as const
 
 export function isPlainTextPath(path: string): boolean {
   return extensionOf(path) === PLAIN_TEXT_EXTENSION
@@ -27,6 +33,10 @@ export function isPlainTextPath(path: string): boolean {
 
 export function isWordPath(path: string): boolean {
   return extensionOf(path) === WORD_EXTENSION
+}
+
+export function isSpreadsheetPath(path: string): boolean {
+  return extensionOf(path) === SPREADSHEET_EXTENSION
 }
 
 export function extensionOf(path: string): string {
@@ -46,9 +56,12 @@ export function isSupportedExtension(path: string): boolean {
 }
 
 export function kindFromPath(path: string): DocumentKind {
-  // Enquanto só há texto simples, tudo abre como documento. A Fase 7 passa a
-  // distinguir .xlsx aqui.
-  return extensionOf(path) === '.xlsx' ? DocumentKind.Spreadsheet : DocumentKind.Document
+  // `.xlsx` ainda não abre (Fase 7), mas já classifica: é o que faz o ícone e o
+  // editor certos aparecerem no dia em que abrir.
+  const extension = extensionOf(path)
+  return extension === SPREADSHEET_EXTENSION || extension === '.xlsx'
+    ? DocumentKind.Spreadsheet
+    : DocumentKind.Document
 }
 
 /**
@@ -59,13 +72,17 @@ export function kindFromPath(path: string): DocumentKind {
  * `.docx` produziria um arquivo que o Word recusa a abrir — pior que anexar a
  * extensão certa.
  */
-export function ensureSupportedExtension(path: string): string {
-  return isSupportedExtension(path) ? path : `${path}${DOCUMENT_EXTENSION}`
+export function ensureSupportedExtension(path: string, kind: DocumentKind = DocumentKind.Document): string {
+  if (isSupportedExtension(path)) return path
+  // A extensão padrão depende do que está sendo salvo: uma planilha gravada
+  // como `.sdoc` abriria como documento vazio na próxima vez.
+  const fallback = kind === DocumentKind.Spreadsheet ? SPREADSHEET_EXTENSION : DOCUMENT_EXTENSION
+  return `${path}${fallback}`
 }
 
 export function defaultFileName(kind: DocumentKind): string {
   return kind === DocumentKind.Spreadsheet
-    ? `Planilha sem título${DOCUMENT_EXTENSION}`
+    ? `Planilha sem título${SPREADSHEET_EXTENSION}`
     : `Documento sem título${DOCUMENT_EXTENSION}`
 }
 

@@ -7,6 +7,7 @@ import { StatusBar } from '../components/StatusBar.js'
 import { DocumentEditor } from '../document/DocumentEditor.js'
 import { emitEditorCommand } from '../document/editor-commands.js'
 import { HomePage } from '../pages/HomePage.js'
+import { SheetTabs } from '../spreadsheet/SheetTabs.js'
 import { SpreadsheetEditor } from '../spreadsheet/SpreadsheetEditor.js'
 import { useWorkspace } from '../state/workspace.js'
 
@@ -57,8 +58,7 @@ async function runMenuCommand(command: MenuCommand, path: string | undefined): P
       return emitEditorCommand('insert-page-break')
 
     case MenuCommand.NewSpreadsheet:
-      // Chega na Fase 5; o item de menu está desabilitado até lá.
-      return
+      return useWorkspace.getState().newSpreadsheet()
   }
 }
 
@@ -69,6 +69,12 @@ export function App(): React.JSX.Element {
   const generation = useWorkspace((state) => state.generation)
   const workbook = useWorkspace((state) => state.workbook)
   const updateSheet = useWorkspace((state) => state.updateSheet)
+  // Uma ação por seletor: devolver um objeto novo a cada chamada faria o
+  // zustand ver estado diferente toda renderização, e o React entraria em laço.
+  const selectSheet = useWorkspace((state) => state.selectSheet)
+  const addSheet = useWorkspace((state) => state.addSheet)
+  const renameSheet = useWorkspace((state) => state.renameSheet)
+  const removeSheet = useWorkspace((state) => state.removeSheet)
 
   useEffect(() => {
     void useWorkspace.getState().refreshRecents()
@@ -109,11 +115,20 @@ export function App(): React.JSX.Element {
       <InventoryBanner />
       <div className="app__body">
         {workbook !== null ? (
-          <SpreadsheetEditor
-            key={generation}
-            sheet={workbook.sheets[workbook.activeSheet]!}
-            onChange={updateSheet}
-          />
+          <div className="workbook">
+            <SpreadsheetEditor
+              key={`${generation}-${workbook.activeSheet}`}
+              sheet={workbook.sheets[workbook.activeSheet]!}
+              onChange={updateSheet}
+            />
+            <SheetTabs
+              workbook={workbook}
+              onSelect={selectSheet}
+              onAdd={addSheet}
+              onRename={renameSheet}
+              onRemove={removeSheet}
+            />
+          </div>
         ) : hasFile ? (
           <DocumentEditor key={generation} />
         ) : (

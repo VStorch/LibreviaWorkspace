@@ -93,7 +93,7 @@ export function registerFileHandlers(): void {
     // Só autoriza o destino. A gravação é uma chamada separada, para que o
     // renderer possa avisar sobre perda de formatação antes de escrever —
     // e para que cancelar esse aviso não deixe um arquivo pela metade.
-    const path = authorizePath(ensureSupportedExtension(chosen))
+    const path = authorizePath(ensureSupportedExtension(chosen, payload.kind))
     return { canceled: false as const, path, name: fileNameFromPath(path) }
   })
 

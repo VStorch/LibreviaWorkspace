@@ -32,17 +32,25 @@ export const BorderSide = {
 } as const
 export type BorderSide = (typeof BorderSide)[keyof typeof BorderSide]
 
+/**
+ * Aparência de uma célula.
+ *
+ * Os opcionais trazem `| undefined` explícito porque este tipo precisa ser
+ * atribuível ao que o zod infere em `serialize.ts` — sob
+ * `exactOptionalPropertyTypes`, propriedade ausente e propriedade indefinida
+ * não são a mesma coisa. Mesma acomodação de `LossInventory` e `BandPiece`.
+ */
 export interface CellStyle {
-  readonly bold?: boolean
-  readonly italic?: boolean
-  readonly underline?: boolean
-  readonly color?: string
-  readonly background?: string
-  readonly align?: HorizontalAlign
-  readonly format?: CellFormat
+  readonly bold?: boolean | undefined
+  readonly italic?: boolean | undefined
+  readonly underline?: boolean | undefined
+  readonly color?: string | undefined
+  readonly background?: string | undefined
+  readonly align?: HorizontalAlign | undefined
+  readonly format?: CellFormat | undefined
   /** Casas decimais para número, moeda e percentual. */
-  readonly decimals?: number
-  readonly borders?: readonly BorderSide[]
+  readonly decimals?: number | undefined
+  readonly borders?: readonly BorderSide[] | undefined
 }
 
 /** O dado cru de uma célula, sem aparência. */
@@ -57,9 +65,9 @@ export type CellValue = string | number | boolean
  * também guarda.
  */
 export interface Cell {
-  readonly value?: CellValue
-  readonly formula?: string
-  readonly style?: CellStyle
+  readonly value?: CellValue | undefined
+  readonly formula?: string | undefined
+  readonly style?: CellStyle | undefined
 }
 
 /**
