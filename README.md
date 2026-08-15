@@ -3,28 +3,33 @@
 Suíte de documentos e planilhas para desktop. Offline, sem dependência de serviços externos.
 Formatos-alvo: **DOCX, XLSX, PDF**.
 
-> Nome provisório. Ver `docs/00-plano-tecnico.md` §8, item 7.
+> Nome provisório.
 
-**Estado atual: Fase 3 concluída** — fundação, ciclo completo de arquivos, **editor de
-documentos** (formatação, títulos, listas, recuo, espaçamento, alinhamento, tabelas,
-imagens, links, quebra de página, localizar/substituir) e **exportação para PDF e
-impressão**, com cabeçalho, rodapé, numeração, margens e orientação.
+**Estado atual: editor de documentos e planilhas funcionando.**
 
-A **Fase 3.5** entregou o sidecar .NET, e o **núcleo da Fase 4** já abre e grava
-`.docx` com edição cirúrgica.
+| Entregue | |
+| --- | --- |
+| Documentos | formatação, títulos, listas, recuo, espaçamento, alinhamento, tabelas, imagens, links, quebra de página, localizar/substituir |
+| PDF e impressão | cabeçalho, rodapé, numeração, margens e orientação |
+| DOCX | abre e grava com **edição cirúrgica** — ver abaixo |
+| Planilhas | grade de 10 mil linhas, seleção de intervalo, alça de preenchimento, área de transferência, abas, formatação e congelamento |
+
+Em aberto: motor de fórmulas, XLSX, mesclagem de células e o instalador.
 
 ## Formatos
 
 | Extensão | O que guarda |
 | -------- | ------------ |
-| `.sdoc`  | formato interno: documento completo, com formatação — sem perda |
-| `.docx`  | Word; abre e grava preservando o que não foi editado |
-| `.txt`   | apenas texto; salvar nele descarta formatação, e o aplicativo avisa antes |
-| `.pdf`   | saída apenas (exportação e impressão) |
+| `.sdoc`   | formato interno do documento: completo, com formatação — sem perda |
+| `.ssheet` | formato interno da planilha: valores, fórmulas e formatação — sem perda |
+| `.docx`   | Word; abre e grava preservando o que não foi editado |
+| `.txt`    | apenas texto; salvar nele descarta formatação, e o aplicativo avisa antes |
+| `.pdf`    | saída apenas (exportação e impressão) |
 
-XLSX chega na Fase 7. ODT não está no escopo — não existe biblioteca madura em
-nenhum ecossistema; ver §4.5 do plano. Documentos `.docx` funcionam vindos tanto
-do Word quanto do LibreOffice.
+XLSX ainda não abre. **ODT está fora do escopo**: não existe biblioteca madura e
+de licença permissiva em nenhum ecossistema — no .NET tudo que presta é
+comercial, e no npm a opção viável tem seis meses de vida e um mantenedor.
+Documentos `.docx` funcionam vindos tanto do Word quanto do LibreOffice.
 
 ## Editar um `.docx` não custa o que você não editou
 
@@ -38,7 +43,8 @@ blocos; editar um parágrafo reescreve **um**. Do pacote inteiro, só
 `word/document.xml` muda — as outras 25 partes saem idênticas byte a byte.
 
 A fidelidade não vem de entender o OOXML. Vem de **não mexer** no que não foi
-editado. O desenho está em [`docs/02-docx-cirurgico.md`](docs/02-docx-cirurgico.md).
+editado. O mecanismo: cada bloco ganha um id na abertura, e a gravação só
+sintetiza aquele cuja impressão digital mudou.
 
 Duas coisas que o aplicativo distingue e a maioria mistura:
 
@@ -88,8 +94,6 @@ deixaria de bater com a tela.
 Cuidado ao mexer em margens: `printToPDF()` recebe **polegadas** e `webContents.print()`
 recebe **pixels CSS**. As duas conversões vivem juntas em `services/pdf/page-setup.ts`,
 com teste comparando uma com a outra.
-O plano completo, com arquitetura, avaliação de bibliotecas, licenças, riscos e as 9 fases,
-está em [`docs/00-plano-tecnico.md`](docs/00-plano-tecnico.md).
 
 ## Requisitos
 
@@ -159,4 +163,7 @@ O `npm run verify` reprova o código se:
 - alguma dependência trouxer licença fora da allowlist (MIT, BSD, Apache-2.0, ISC e afins).
 
 O portão de licenças existe porque o aplicativo é de uso corporativo: uma dependência
-GPL/AGPL entrando sem querer é um problema jurídico, não técnico. Ver §4.4 do plano.
+GPL/AGPL entrando sem querer é um problema jurídico, não técnico. Ele cobre os dois
+ecossistemas — npm e NuGet — e **reprova pacote que não declara licença SPDX**, e não
+só o que declara uma proibida: foi assim que a Six Labors trocou Apache-2.0 por licença
+própria numa dependência transitiva do ClosedXML.
