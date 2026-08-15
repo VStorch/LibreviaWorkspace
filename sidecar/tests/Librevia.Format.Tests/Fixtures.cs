@@ -8,8 +8,8 @@ namespace Librevia.Format.Tests;
 /// Documentos de teste construídos em código, não versionados como binário.
 /// </summary>
 /// <remarks>
-/// O corpus real da empresa tem marca de cliente, capturas de sistemas internos
-/// e o rótulo "RELATÓRIO INTERNO" — não entra no repositório
+/// O corpus real da empresa tem marca de cliente e capturas de sistemas
+/// internos — não entra no repositório
 /// (docs/01-corpus-docx.md). Estes fixtures reproduzem as **estruturas**
 /// catalogadas lá com conteúdo inventado.
 ///
