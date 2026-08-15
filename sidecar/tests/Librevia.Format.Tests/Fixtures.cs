@@ -197,6 +197,31 @@ public static class Fixtures
         body.AppendChild(Paragraph("Solto no meio do texto."));
     });
 
+    /// <summary>
+    /// O idioma do corpus: alinhado à esquerda, mas centralizado por tabulação.
+    /// </summary>
+    /// <remarks>
+    /// O autor põe `w:jc` em `left`, define uma parada de tabulação
+    /// centralizada no meio da coluna e usa `Tab` para chegar até ela.
+    /// </remarks>
+    public static byte[] WithTabCentering() => Build((body, _) =>
+    {
+        var centered = new Paragraph();
+        centered.ParagraphProperties = new ParagraphProperties(
+            new Tabs(new TabStop { Val = TabStopValues.Center, Position = 4153 }),
+            new Justification { Val = JustificationValues.Left });
+        centered.AppendChild(new Run(new TabChar(), new TabChar(), new Text("Centralizado por tabulação")));
+        body.AppendChild(centered);
+
+        // Tabulação no meio da linha não é posicionamento de parágrafo.
+        var inline = new Paragraph();
+        inline.ParagraphProperties = new ParagraphProperties(
+            new Tabs(new TabStop { Val = TabStopValues.Center, Position = 4153 }),
+            new Justification { Val = JustificationValues.Left });
+        inline.AppendChild(new Run(new Text("Esquerda"), new TabChar(), new Text("Meio")));
+        body.AppendChild(inline);
+    });
+
     /// <summary>Estilo que herda de si mesmo — não pode travar o leitor.</summary>
     public static byte[] WithCircularStyle() => Build((body, part) =>
     {

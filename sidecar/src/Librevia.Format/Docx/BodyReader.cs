@@ -166,6 +166,20 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory)
         }
 
         var alignment = AlignmentOf(effective);
+
+        // Tabulações no começo da linha são um posicionador, não texto: o autor
+        // alinha à esquerda e usa `Tab` para cair numa parada centralizada. Ver
+        // TabAlignmentOf.
+        var viaTabs = TabAlignmentOf(effective, content);
+        if (viaTabs is not null)
+        {
+            alignment = viaTabs;
+            while (content.Count > 0 && content[0].Type == "text" && content[0].Text == "\t")
+            {
+                content.RemoveAt(0);
+            }
+        }
+
         if (alignment is not null) node.With("textAlign", alignment);
 
         var indent = IndentOf(effective);
@@ -274,6 +288,33 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory)
             }
         }
 
+        return null;
+    }
+
+    /// <summary>
+    /// Alinhamento que o autor obteve com tabulações, e não com `w:jc`.
+    /// </summary>
+    /// <remarks>
+    /// No corpus real, o primeiro título de cada documento vem assim: `w:jc` em
+    /// `left`, três tabulações e uma **parada de tabulação centralizada** no
+    /// meio da coluna. No Word o texto é centralizado naquela parada; no HTML a
+    /// tabulação vira espaço em branco que colapsa, e o título encosta à
+    /// esquerda enquanto os títulos vizinhos — que usam `w:jc` de verdade —
+    /// aparecem centralizados.
+    ///
+    /// Reproduzir paradas de tabulação em HTML exigiria medir texto e posicionar
+    /// à mão. Esta é a aproximação honesta: **só** dispara quando a linha
+    /// *começa* com tabulação, então "esquerda [tab] centro" continua intacto.
+    /// </remarks>
+    private static string? TabAlignmentOf(ParagraphProperties properties, List<Node> content)
+    {
+        if (content.Count == 0 || content[0].Type != "text" || content[0].Text != "\t") return null;
+
+        var stops = properties.Tabs?.Elements<TabStop>().ToList();
+        if (stops is null || stops.Count == 0) return null;
+
+        if (stops.Any(stop => stop.Val is not null && stop.Val.Value == TabStopValues.Center)) return "center";
+        if (stops.Any(stop => stop.Val is not null && stop.Val.Value == TabStopValues.Right)) return "right";
         return null;
     }
 

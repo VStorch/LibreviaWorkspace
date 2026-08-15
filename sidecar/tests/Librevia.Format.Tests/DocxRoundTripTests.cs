@@ -325,6 +325,35 @@ public class DocxRoundTripTests
     }
 
     [Fact]
+    public void TreatsLeadingTabsAsCentering()
+    {
+        // No corpus, o primeiro título de cada documento vem alinhado à
+        // esquerda com tabulações até uma parada centralizada. No Word ele
+        // aparece no meio; no HTML a tabulação colapsa e o título encostava à
+        // esquerda, destoando dos títulos vizinhos.
+        var model = Open(Fixtures.WithTabCentering());
+        var centered = BlockContaining(model, "Centralizado por tabulação");
+
+        Assert.Equal("center", centered.Attrs!["textAlign"]!.GetValue<string>());
+
+        // As tabulações saem **deste** parágrafo: viraram posicionamento, não
+        // conteúdo. A do outro parágrafo, no meio da linha, continua lá.
+        var text = string.Concat(Walk(centered).Where(n => n.Type == "text").Select(n => n.Text));
+        Assert.Equal("Centralizado por tabulação", text);
+    }
+
+    [Fact]
+    public void LeavesTabsInTheMiddleOfALineAlone()
+    {
+        // A regra só vale para tabulação no começo da linha. "Esquerda [tab]
+        // meio" é outra coisa, e centralizar o parágrafo inteiro o quebraria.
+        var model = Open(Fixtures.WithTabCentering());
+        var inline = BlockContaining(model, "Esquerda");
+
+        Assert.NotEqual("center", inline.Attrs?["textAlign"]?.GetValue<string>());
+    }
+
+    [Fact]
     public void SurvivesAStyleThatInheritsFromItself()
     {
         // Documento é dado não confiável: uma cadeia circular não pode travar.
