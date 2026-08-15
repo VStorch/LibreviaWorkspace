@@ -5,13 +5,7 @@ import {
   type CellStyle,
   type Sheet,
 } from '@services/spreadsheet/model.js'
-import {
-  applyBorders,
-  applyStyle,
-  describeRange,
-  toggleStyle,
-  type Range,
-} from '@services/spreadsheet/edit.js'
+import { applyBorders, applyStyle, toggleStyle, type Range } from '@services/spreadsheet/edit.js'
 
 /**
  * Barra de ferramentas da planilha.
@@ -39,12 +33,8 @@ export function SpreadsheetToolbar({
 
   return (
     <div className="sheet-toolbar" role="toolbar" aria-label="Formatação da planilha">
-      <span className="sheet-toolbar__ref" title="Seleção atual">
-        {describeRange(range)}
-      </span>
-
-      <span className="sheet-toolbar__sep" />
-
+      {/* A referência da seleção mora na barra de fórmulas, logo abaixo, que é
+          onde o Excel a põe — repeti-la aqui seria ruído. */}
       <Toggle label="N" title="Negrito (Ctrl+B)" active={style.bold === true} onClick={toggle('bold')} bold />
       <Toggle
         label="I"

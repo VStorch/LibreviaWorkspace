@@ -69,6 +69,7 @@ export function App(): React.JSX.Element {
   const generation = useWorkspace((state) => state.generation)
   const workbook = useWorkspace((state) => state.workbook)
   const updateSheet = useWorkspace((state) => state.updateSheet)
+  const changeStructure = useWorkspace((state) => state.changeStructure)
   // Uma ação por seletor: devolver um objeto novo a cada chamada faria o
   // zustand ver estado diferente toda renderização, e o React entraria em laço.
   const selectSheet = useWorkspace((state) => state.selectSheet)
@@ -120,6 +121,7 @@ export function App(): React.JSX.Element {
               key={`${generation}-${workbook.activeSheet}`}
               sheet={workbook.sheets[workbook.activeSheet]!}
               onChange={updateSheet}
+              onStructure={changeStructure}
             />
             <SheetTabs
               workbook={workbook}

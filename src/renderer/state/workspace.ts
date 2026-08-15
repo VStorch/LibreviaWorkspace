@@ -25,6 +25,12 @@ import {
   type WorkbookModel,
 } from '@services/spreadsheet/model.js'
 import { parseWorkbook, serializeWorkbook } from '@services/spreadsheet/serialize.js'
+import { recalculate } from '@services/spreadsheet/formula/recalc.js'
+import {
+  applyStructuralChange,
+  renameSheet as renameSheetIn,
+  type StructuralChange,
+} from '@services/spreadsheet/structure.js'
 import { defaultFileName, isPlainTextPath, isSpreadsheetPath } from '@services/file/formats.js'
 
 interface OpenFile {
@@ -89,6 +95,7 @@ interface WorkspaceState {
   newDocument: () => Promise<void>
   newSpreadsheet: () => Promise<void>
   updateSheet: (sheet: Sheet) => void
+  changeStructure: (change: StructuralChange) => void
   selectSheet: (index: number) => void
   addSheet: () => void
   renameSheet: (index: number, name: string) => void
@@ -196,7 +203,9 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
 
     try {
       if (isSpreadsheetPath(file.path)) {
-        const workbook = parseWorkbook(file.content)
+        // Recalcula ao abrir: o arquivo guarda o valor de quando foi salvo, e
+        // uma fórmula com HOJE() ou editada à mão estaria desatualizada.
+        const workbook = recalculate(parseWorkbook(file.content))
         load({ path: file.path, name: file.name, kind: DocumentKind.Spreadsheet }, createEmptyDocument())
         set({ workbook, notice: null })
         await get().refreshRecents()
@@ -282,13 +291,30 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
       set({ workbook: createEmptyWorkbook() })
     },
 
+    /**
+     * Toda mudança de célula passa por aqui, e por isso o recálculo mora aqui.
+     *
+     * Um só ponto de recálculo é o que garante que nenhum caminho de edição
+     * deixe um valor velho na tela: quem esquecer de recalcular teria uma
+     * planilha que só mostra o resultado certo na próxima vez que for tocada.
+     */
     updateSheet: (sheet) => {
       const { workbook } = get()
       if (workbook === null) return
 
       const sheets = [...workbook.sheets]
       sheets[workbook.activeSheet] = sheet
-      set({ workbook: { ...workbook, sheets }, isDirty: true })
+      set({ workbook: recalculate({ ...workbook, sheets }), isDirty: true })
+    },
+
+    changeStructure: (change: StructuralChange) => {
+      const { workbook } = get()
+      if (workbook === null) return
+
+      const changed = applyStructuralChange(workbook, workbook.activeSheet, change)
+      if (changed === workbook) return
+
+      set({ workbook: recalculate(changed), isDirty: true })
     },
 
     selectSheet: (index) => {
@@ -320,9 +346,9 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
       const taken = workbook.sheets.some((other, at) => at !== index && other.name === trimmed)
       if (taken) return
 
-      const sheets = [...workbook.sheets]
-      sheets[index] = { ...sheet, name: trimmed }
-      set({ workbook: { ...workbook, sheets }, isDirty: true })
+      // Renomear reescreve as fórmulas que citam a aba: sem isso o gesto, que o
+      // usuário considera cosmético, viraria #REF! em toda planilha que a usa.
+      set({ workbook: recalculate(renameSheetIn(workbook, index, trimmed)), isDirty: true })
     },
 
     removeSheet: (index) => {

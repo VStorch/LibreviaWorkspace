@@ -13,8 +13,9 @@ Formatos-alvo: **DOCX, XLSX, PDF**.
 | PDF e impressão | cabeçalho, rodapé, numeração, margens e orientação |
 | DOCX | abre e grava com **edição cirúrgica** — ver abaixo |
 | Planilhas | grade de 10 mil linhas, seleção de intervalo, alça de preenchimento, área de transferência, abas, formatação, congelamento e inserir/excluir linhas e colunas |
+| Fórmulas | 37 funções, referências entre abas, barra de fórmulas — ver abaixo |
 
-Em aberto: motor de fórmulas, XLSX, mesclagem de células e o instalador.
+Em aberto: XLSX, mesclagem de células e o instalador.
 
 ## Formatos
 
@@ -54,6 +55,38 @@ Duas coisas que o aplicativo distingue e a maioria mistura:
 
 São avisos diferentes porque são problemas diferentes. Um alerta genérico é um
 alerta que o usuário aprende a ignorar.
+
+## Fórmulas escrevem-se em português
+
+`=SOMA(1,5;2)` soma um e meio com dois. **Vírgula é decimal e ponto e vírgula
+separa argumentos** — as duas regras do Excel em português, e elas andam juntas:
+com a vírgula ocupada pelo decimal, ela não pode separar nada. Aceitar os dois
+papéis tornaria `SOMA(1,5)` ambíguo, e a ambiguidade cairia sempre em cima de
+quem digitou um número decimal. Quem escreve `SOMA(A1,B1)` recebe a frase
+dizendo qual é o separador, e não um erro genérico.
+
+Os nomes respondem nos dois idiomas: `SOMA` e `SUM` são a mesma função, assim
+como `SE`/`IF` e `PROCV`/`VLOOKUP`.
+
+Erro de fórmula é **valor**, não exceção: `=A1/0` produz `#DIV/0!`, que se
+propaga por quem depende dela — como no Excel, e ao contrário de derrubar o
+recálculo da planilha inteira. A exceção é `#CIRC!`, que o Excel não tem: lá uma
+referência circular mostra zero e abre um aviso, deixando um número inventado no
+meio da planilha.
+
+Comportamentos do Excel reproduzidos **de propósito**, cada um com o motivo
+escrito onde ele está: `=-2^2` vale 4; `="a"="A"` é verdadeiro mas `=1="1"` é
+falso; texto dentro de um intervalo é ignorado por `SOMA` mas convertido quando
+passado direto; `PROCV` procura aproximado por padrão. O critério é sempre o
+mesmo: o mesmo arquivo precisa dar o mesmo número nos dois programas.
+
+Inserir uma linha reescreve as referências, inclusive as de outras abas — sem
+isso `SOMA(A1:A3)` continuaria somando onde os dados não estão mais. Renomear
+uma aba conserta as fórmulas que a citam, em vez de transformá-las em `#REF!`.
+
+Ainda não há: matrizes dinâmicas, referências de coluna inteira (`A:A`),
+intervalos nomeados, e copiar uma fórmula pela alça de preenchimento leva o
+**valor**, não a fórmula deslocada.
 
 ## Por que há .NET num projeto Electron
 

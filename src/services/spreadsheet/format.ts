@@ -52,8 +52,15 @@ export function formatCell(cell: Cell | undefined): string {
 
     default:
       // "Geral" não inventa separador de milhar: o usuário digitou 1000 e
-      // espera ver 1000, não 1.000.
-      return String(value)
+      // espera ver 1000, não 1.000. Mas a vírgula decimal não é invenção — é
+      // como se escreve número aqui, e o resultado de uma média cai quase
+      // sempre neste caso.
+      //
+      // Só vale para número de verdade: uma matrícula "0012" guardada como
+      // texto perderia o zero à esquerda se passasse por conversão numérica.
+      return typeof value === 'number'
+        ? value.toLocaleString(LOCALE, { maximumFractionDigits: 10, useGrouping: false })
+        : String(value)
   }
 }
 

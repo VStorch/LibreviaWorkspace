@@ -726,15 +726,67 @@ button {
   border-bottom: 1px solid var(--border);
 }
 
-.sheet-toolbar__ref {
-  min-width: 8ch;
+.formula-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.formula-bar__ref {
+  min-width: 9ch;
   padding: 4px 8px;
-  margin-right: 4px;
   border: 1px solid var(--border);
   border-radius: 6px;
   font-size: 12px;
   color: var(--muted);
+  text-align: center;
   white-space: nowrap;
+}
+
+.formula-bar__fx {
+  color: var(--muted);
+  font-style: italic;
+  font-size: 13px;
+}
+
+.formula-bar__input {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-size: 13px;
+  font-family: ui-monospace, 'Cascadia Mono', Menlo, Consolas, monospace;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+}
+
+.formula-bar__input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.formula-bar__input--bad {
+  border-color: #c0392b;
+  background: #fdf3f2;
+}
+
+.formula-bar__problem {
+  color: #c0392b;
+  font-size: 12px;
+  max-width: 45%;
+}
+
+.formula-bar__value {
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+  max-width: 20ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .sheet-toolbar__sep {

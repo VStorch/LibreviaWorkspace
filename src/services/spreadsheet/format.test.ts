@@ -13,6 +13,19 @@ describe('formatCell', () => {
     expect(formatCell({ value: 1000 })).toBe('1000')
   })
 
+  it('usa vírgula decimal no formato geral', () => {
+    // O resultado de uma média cai quase sempre aqui: mostrar 147.43 num
+    // aplicativo brasileiro é o mesmo tipo de erro que mostrar a data ao
+    // contrário.
+    expect(formatCell({ value: 884.6 })).toBe('884,6')
+    expect(formatCell({ value: 147.43333333333334 })).toBe('147,4333333333')
+  })
+
+  it('mas não converte texto que parece número, mesmo no geral', () => {
+    // Uma matrícula "0012" perderia o zero à esquerda se passasse por conversão.
+    expect(formatCell({ value: '0012' })).toBe('0012')
+  })
+
   it('formata moeda em reais', () => {
     expect(formatCell({ value: 1234.5, style: { format: CellFormat.Currency } })).toMatch(/R\$\s?1\.234,50/)
   })

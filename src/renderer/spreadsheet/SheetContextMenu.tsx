@@ -1,13 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { Sheet } from '@services/spreadsheet/model.js'
-import {
-  clearContents,
-  deleteColumns,
-  deleteRows,
-  insertColumns,
-  insertRows,
-  type Range,
-} from '@services/spreadsheet/edit.js'
+import { clearContents, type Range } from '@services/spreadsheet/edit.js'
+import type { StructuralChange } from '@services/spreadsheet/structure.js'
 
 /**
  * Menu de contexto da planilha.
@@ -34,12 +28,14 @@ export function SheetContextMenu({
   range,
   position,
   onChange,
+  onStructure,
   onClose,
 }: {
   sheet: Sheet
   range: Range
   position: MenuPosition
   onChange: (sheet: Sheet) => void
+  onStructure: (change: StructuralChange) => void
   onClose: () => void
 }): React.JSX.Element {
   const menu = useRef<HTMLDivElement>(null)
@@ -87,6 +83,11 @@ export function SheetContextMenu({
     onClose()
   }
 
+  const structural = (change: StructuralChange) => () => {
+    onStructure(change)
+    onClose()
+  }
+
   return (
     <div
       ref={menu}
@@ -95,25 +96,25 @@ export function SheetContextMenu({
       aria-label="Ações da planilha"
       style={{ left: placement.x, top: placement.y }}
     >
-      <Item onClick={run((s) => insertRows(s, range.fromRow, rows))}>
+      <Item onClick={structural({ kind: 'insertRows', at: range.fromRow, count: rows })}>
         Inserir {plural(rows, 'linha', 'linhas')} acima
       </Item>
-      <Item onClick={run((s) => insertRows(s, range.toRow + 1, rows))}>
+      <Item onClick={structural({ kind: 'insertRows', at: range.toRow + 1, count: rows })}>
         Inserir {plural(rows, 'linha', 'linhas')} abaixo
       </Item>
-      <Item onClick={run((s) => deleteRows(s, range.fromRow, rows))}>
+      <Item onClick={structural({ kind: 'deleteRows', at: range.fromRow, count: rows })}>
         Excluir {plural(rows, 'linha', 'linhas')}
       </Item>
 
       <hr className="sheet-menu__sep" />
 
-      <Item onClick={run((s) => insertColumns(s, range.fromColumn, columns))}>
+      <Item onClick={structural({ kind: 'insertColumns', at: range.fromColumn, count: columns })}>
         Inserir {plural(columns, 'coluna', 'colunas')} à esquerda
       </Item>
-      <Item onClick={run((s) => insertColumns(s, range.toColumn + 1, columns))}>
+      <Item onClick={structural({ kind: 'insertColumns', at: range.toColumn + 1, count: columns })}>
         Inserir {plural(columns, 'coluna', 'colunas')} à direita
       </Item>
-      <Item onClick={run((s) => deleteColumns(s, range.fromColumn, columns))}>
+      <Item onClick={structural({ kind: 'deleteColumns', at: range.fromColumn, count: columns })}>
         Excluir {plural(columns, 'coluna', 'colunas')}
       </Item>
 

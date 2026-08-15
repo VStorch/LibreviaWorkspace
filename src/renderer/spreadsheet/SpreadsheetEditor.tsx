@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { RevoGrid, type ColumnRegular } from '@revolist/react-datagrid'
 import type {
   AfterEditEvent,
+  BeforeSaveDataDetails,
   ChangedRange,
   FocusAfterRenderEvent,
   RevoGridCustomEvent,
@@ -13,9 +14,12 @@ import {
   getCell,
   setCell,
   type Cell,
+  type CellStyle,
   type Sheet,
 } from '@services/spreadsheet/model.js'
 import { normalizeRange, singleCell, toggleStyle, type Range } from '@services/spreadsheet/edit.js'
+import type { StructuralChange } from '@services/spreadsheet/structure.js'
+import { FormulaBar } from './FormulaBar.js'
 import { SpreadsheetToolbar } from './SpreadsheetToolbar.js'
 import { SheetContextMenu, type MenuPosition } from './SheetContextMenu.js'
 
@@ -84,9 +88,16 @@ function cellStyleOf(sheet: Sheet, row: number, column: number): Record<string, 
 export function SpreadsheetEditor({
   sheet,
   onChange,
+  onStructure,
 }: {
   sheet: Sheet
   onChange: (sheet: Sheet) => void
+  /**
+   * Inserir e excluir linha ou coluna é operação da **pasta**, não da planilha:
+   * uma linha inserida aqui muda o significado de `=Dados!A5` escrita em outra
+   * aba. Por isso ela sobe até o estado em vez de virar uma nova `Sheet`.
+   */
+  onStructure: (change: StructuralChange) => void
 }): React.JSX.Element {
   // O modelo mais recente, para o handler de edição não capturar um estado
   // velho entre renderizações.
@@ -142,23 +153,39 @@ export function SpreadsheetEditor({
   }, [sheet])
 
   /** Aplica um texto digitado ou colado a uma posição. */
-  const write = useCallback((sheet: Sheet, row: number, prop: string, raw: unknown): Sheet => {
-    const column = Number.parseInt(prop.slice(1), 10)
-    if (!Number.isInteger(column)) return sheet
-
+  const write = useCallback((sheet: Sheet, row: number, column: number, raw: unknown): Sheet => {
+    const text = typeof raw === 'string' ? raw : String(raw ?? '')
     const previous = getCell(sheet, row, column)
-    const parsed = parseInput(typeof raw === 'string' ? raw : String(raw ?? ''))
 
     // O formato reconhecido na digitação não apaga o que o usuário escolheu à
     // mão: quem já pintou a célula de moeda não quer perder isso ao redigitar.
-    const cell: Cell = { value: parsed.value }
-    const style = previous?.style ?? parsed.style
     // Atribuição condicional por causa de `exactOptionalPropertyTypes`: a
     // propriedade ausente não é o mesmo que a propriedade indefinida.
-    const withStyle: Cell = style === undefined ? cell : { ...cell, style }
+    const keepStyle = (cell: Cell, fallback?: Partial<CellStyle>): Cell => {
+      const style = previous?.style ?? fallback
+      return style === undefined ? cell : { ...cell, style }
+    }
 
-    return setCell(sheet, row, column, withStyle)
+    // O `=` inicial é o que distingue fórmula de texto, e é a única marca que
+    // existe: o resto do conteúdo de uma fórmula é texto comum.
+    if (text.startsWith('=')) {
+      // O valor fica indefinido de propósito; o recálculo o preenche logo em
+      // seguida, e é ele quem sabe a ordem certa de calcular.
+      return setCell(sheet, row, column, keepStyle({ formula: text }))
+    }
+
+    const parsed = parseInput(text)
+    return setCell(sheet, row, column, keepStyle({ value: parsed.value }, parsed.style))
   }, [])
+
+  /** Escreve pelo nome da coluna que o grid usa (`c0`, `c1`…). */
+  const writeAt = useCallback(
+    (sheet: Sheet, row: number, prop: string, raw: unknown): Sheet => {
+      const column = Number.parseInt(prop.slice(1), 10)
+      return Number.isInteger(column) ? write(sheet, row, column, raw) : sheet
+    },
+    [write],
+  )
 
   /**
    * O evento cobre **dois** casos: uma célula editada e um intervalo colado. O
@@ -175,17 +202,34 @@ export function SpreadsheetEditor({
       if ('newRange' in detail) {
         for (const [row, values] of Object.entries(detail.data)) {
           for (const [prop, value] of Object.entries(values as Record<string, unknown>)) {
-            updated = write(updated, Number(row), prop, value)
+            updated = writeAt(updated, Number(row), prop, value)
           }
         }
       } else {
-        updated = write(updated, detail.rowIndex, String(detail.prop), detail.val)
+        updated = writeAt(updated, detail.rowIndex, String(detail.prop), detail.val)
       }
 
       onChange(updated)
     },
-    [onChange, write],
+    [onChange, writeAt],
   )
+
+  /**
+   * Abrir a célula para edição mostra a **fórmula**, e não o resultado.
+   *
+   * A grade exibe o valor calculado, que é o certo para ler. Mas entrar na
+   * célula com F2 e sair sem querer gravaria esse número por cima da fórmula —
+   * uma perda silenciosa a cada toque acidental. O grid usa `detail.val` como
+   * conteúdo inicial do editor, então é ele que precisa ser trocado.
+   */
+  const handleEditStart = useCallback((event: RevoGridCustomEvent<BeforeSaveDataDetails>) => {
+    const detail = event.detail
+    const column = Number.parseInt(String(detail.prop).slice(1), 10)
+    if (!Number.isInteger(column)) return
+
+    const formula = getCell(current.current, detail.rowIndex, column)?.formula
+    if (formula !== undefined) detail.val = formula
+  }, [])
 
   const handleResize = useCallback(
     (event: CustomEvent<Record<number, ColumnRegular>>) => {
@@ -248,6 +292,10 @@ export function SpreadsheetEditor({
     const shortcut = (event: KeyboardEvent): void => {
       if (!(event.ctrlKey || event.metaKey) || event.altKey) return
 
+      // Digitando na barra de fórmulas ou no editor da célula, o atalho é do
+      // campo de texto: formatar a célula por baixo seria o oposto do esperado.
+      if (event.target instanceof HTMLElement && event.target.closest('input, textarea') !== null) return
+
       const key = SHORTCUTS[event.key.toLowerCase()]
       if (key === undefined) return
 
@@ -263,12 +311,19 @@ export function SpreadsheetEditor({
     <div className="sheet" onContextMenu={handleContextMenu}>
       <SpreadsheetToolbar sheet={sheet} range={range} onChange={onChange} />
 
+      <FormulaBar
+        sheet={sheet}
+        range={range}
+        onCommit={(text) => onChange(write(current.current, range.fromRow, range.fromColumn, text))}
+      />
+
       {menu !== null && (
         <SheetContextMenu
           sheet={sheet}
           range={range}
           position={menu}
           onChange={onChange}
+          onStructure={onStructure}
           onClose={closeMenu}
         />
       )}
@@ -287,6 +342,7 @@ export function SpreadsheetEditor({
           size: 24,
         }))}
         onAfteredit={handleEdit}
+        onBeforeeditstart={handleEditStart}
         onAftercolumnresize={handleResize}
         onAfterfocus={handleFocus}
         onBeforerange={handleRange}
