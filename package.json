@@ -2,6 +2,12 @@
   "name": "librevia",
   "version": "0.0.0",
   "description": "Suíte de documentos e planilhas para desktop — offline, DOCX/XLSX/PDF",
+  "homepage": "https://librevia.internal",
+  "desktopName": "librevia.desktop",
+  "author": {
+    "name": "Librevia",
+    "email": "librevia@librevia.internal"
+  },
   "private": true,
   "type": "module",
   "main": "./out/main/index.js",
@@ -27,7 +33,11 @@
     "licenses:report": "license-checker-rseidelsohn --production --excludePrivatePackages --csv --out THIRD-PARTY-NOTICES.csv",
     "verify": "npm run typecheck && npm run lint && npm run sidecar:test && npm run sidecar:build && npm run test && npm run licenses:check && npm run sidecar:licenses",
     "test:e2e": "playwright test",
-    "e2e": "npm run build && npm run sidecar:build && playwright test"
+    "e2e": "npm run build && npm run sidecar:build && playwright test",
+    "icon": "node scripts/icon.mjs",
+    "notices": "node scripts/notices.mjs",
+    "dist": "npm run build && npm run sidecar:build && npm run notices && electron-builder --linux",
+    "dist:win": "npm run build && npm run sidecar:build && npm run notices && electron-builder --win"
   },
   "dependencies": {
     "@revolist/react-datagrid": "^4.25.2",

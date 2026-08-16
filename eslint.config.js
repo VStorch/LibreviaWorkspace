@@ -98,7 +98,7 @@ export default tseslint.config(
     // depuração esquecido.
     files: ['scripts/**/*.mjs'],
     languageOptions: {
-      globals: { process: 'readonly', console: 'readonly' },
+      globals: { process: 'readonly', console: 'readonly', Buffer: 'readonly' },
     },
     rules: { 'no-console': 'off' },
   },

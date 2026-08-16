@@ -21,3 +21,6 @@ docs/
 # Playwright: relatórios e vestígios de execução.
 test-results/
 playwright-report/
+
+# Instaladores gerados por `npm run dist`.
+release/

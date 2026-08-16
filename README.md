@@ -166,10 +166,59 @@ npm run dev            # aplicativo em modo desenvolvimento, com HMR
 npm run build          # verificação de tipos + build de produção em out/
 npm run verify         # tipos + lint + testes (TS e .NET) + licenças — o mesmo que o CI roda
 npm test               # testes unitários
+npm run e2e            # build + testes de ponta a ponta no aplicativo montado
+npm run dist           # instaladores AppImage e .deb em release/
+npm run dist:win       # instalador NSIS (rodando no Windows)
 ```
 
 O `npm run verify` publica o sidecar antes de rodar os testes, porque o teste de
 ponta a ponta conversa com o binário de verdade.
+
+## Recuperação: o rascunho não é uma segunda cópia do arquivo
+
+De oito em oito segundos, o que está na tela é gravado num rascunho — **nunca por
+cima do seu arquivo**. Gravar sozinho no arquivo transformaria "não salvei" em
+"salvei sem querer", e desfazer isso exigiria o `.bak`, que existe para outro
+problema. A decisão de escrever no arquivo continua sendo só sua.
+
+Depois de uma queda, o aplicativo oferece o rascunho de volta numa faixa com duas
+ações. Enquanto ela estiver na tela o autosave **não escreve**: sem isso, ignorar
+o aviso e começar a digitar apagaria em segundos justamente o trabalho que ele
+existe para devolver.
+
+Recuperar reata o que morreu junto com o processo — a autorização de gravação e
+os bytes originais do pacote OOXML. Sem os segundos, salvar por cima do `.docx`
+recuperado seria recusado, e você ficaria com o trabalho na tela sem poder
+gravá-lo onde ele estava.
+
+## Empacotamento
+
+`npm run dist` gera AppImage e `.deb`; `npm run dist:win` gera o instalador NSIS.
+O sidecar fica **fora** do asar — executável dentro de arquivo compactado não
+roda — e cada plataforma leva só o seu binário.
+
+Duas coisas são provisórias e devem ser trocadas antes de distribuir de verdade:
+o ícone (`build/icon.png`, gerado por `npm run icon`) e os endereços `.internal`
+do mantenedor do `.deb` e do `homepage`. O TLD `.internal` é reservado para uso
+interno — é honesto por construção, e melhor que inventar um domínio público que
+não existe.
+
+`npm run notices` gera o `THIRD-PARTY-NOTICES.md` que viaja no instalador. Ele
+cobre três conjuntos, e não um: as dependências npm de produção, o Electron
+inteiro (com Chromium e Node.js) e os pacotes NuGet do sidecar, que é publicado
+self-contained e leva o runtime do .NET junto. O portão `licenses:check` olha só
+o primeiro — deixar os outros dois de fora daria a impressão de conformidade sem
+a conformidade.
+
+Os testes de ponta a ponta rodam também contra o **pacote montado**:
+
+```bash
+npm run dist
+LIBREVIA_E2E_BINARY=release/linux-unpacked/librevia npm run test:e2e
+```
+
+É a diferença entre "os testes passam" e "o instalador funciona": dentro do
+pacote, caminhos de recurso, asar e o binário do sidecar ficam em outro lugar.
 
 ## Arquitetura em uma tela
 

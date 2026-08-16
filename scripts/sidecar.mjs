@@ -11,26 +11,12 @@
  */
 
 import { spawnSync } from 'node:child_process'
-import { readFileSync, existsSync, readdirSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { ALLOWED_LICENSES, collectNuGetLicenses, nugetAssetsExist } from './nuget-licenses.mjs'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const project = join(root, 'sidecar', 'src', 'Librevia.Format')
-const assetsPath = join(project, 'obj', 'project.assets.json')
-
-/** Mesma allowlist do lado npm — ver §4.4 do plano. */
-const ALLOWED_LICENSES = new Set([
-  'MIT',
-  'MIT-0',
-  'ISC',
-  '0BSD',
-  'BSD-2-Clause',
-  'BSD-3-Clause',
-  'Apache-2.0',
-  'CC0-1.0',
-  'Unlicense',
-])
 
 const RUNTIME_IDENTIFIERS = ['linux-x64', 'win-x64']
 
@@ -85,68 +71,36 @@ function build(all) {
  * este portão existe para fechar.
  */
 function licenses() {
-  if (!existsSync(assetsPath)) {
-    fail('project.assets.json ausente — rode `dotnet restore sidecar/Librevia.Format.sln` antes')
+  if (!nugetAssetsExist()) {
+    fail('project.assets.json ausente — rode `dotnet restore sidecar/Librevia.Format.slnx` antes')
   }
 
-  const assets = JSON.parse(readFileSync(assetsPath, 'utf8'))
-  const packageFolders = Object.keys(assets.packageFolders ?? {})
-  if (packageFolders.length === 0) fail('nenhuma pasta de pacotes NuGet no project.assets.json')
-
-  const resolved = new Set()
-  for (const target of Object.values(assets.targets ?? {})) {
-    for (const [key, entry] of Object.entries(target)) {
-      if (entry.type === 'package') resolved.add(key)
-    }
-  }
-
+  const packages = collectNuGetLicenses()
   const problems = []
   const report = []
 
-  for (const key of [...resolved].sort()) {
-    const [name, version] = key.split('/')
-    const nuspec = findNuspec(packageFolders, name, version)
-
-    if (nuspec === null) {
-      problems.push(`${key}: pacote não encontrado no cache local`)
+  for (const { name, version, license, found } of packages) {
+    if (!found) {
+      problems.push(`${name}/${version}: pacote não encontrado no cache local`)
       continue
     }
 
-    const license = licenseOf(nuspec)
-    report.push(`  ${key.padEnd(46)} ${license ?? '(não declarada)'}`)
+    report.push(`  ${`${name}/${version}`.padEnd(46)} ${license ?? '(não declarada)'}`)
 
     if (license === null) {
-      problems.push(`${key}: não declara expressão de licença SPDX`)
+      problems.push(`${name}/${version}: não declara expressão de licença SPDX`)
     } else if (!ALLOWED_LICENSES.has(license)) {
-      problems.push(`${key}: licença "${license}" fora da allowlist`)
+      problems.push(`${name}/${version}: licença "${license}" fora da allowlist`)
     }
   }
 
-  console.log(`\nLicenças NuGet (${resolved.size} pacotes):`)
+  console.log(`\nLicenças NuGet (${packages.length} pacotes):`)
   console.log(report.join('\n'))
 
   if (problems.length > 0) {
     fail(`licenças reprovadas:\n  - ${problems.join('\n  - ')}`)
   }
   console.log('\n✓ todas dentro da allowlist\n')
-}
-
-function findNuspec(packageFolders, name, version) {
-  for (const folder of packageFolders) {
-    // O cache do NuGet usa nomes em minúsculas.
-    const directory = join(folder, name.toLowerCase(), version.toLowerCase())
-    if (!existsSync(directory)) continue
-
-    const file = readdirSync(directory).find((entry) => entry.toLowerCase().endsWith('.nuspec'))
-    if (file !== undefined) return join(directory, file)
-  }
-  return null
-}
-
-function licenseOf(nuspecPath) {
-  const xml = readFileSync(nuspecPath, 'utf8')
-  const expression = /<license\s+type="expression"\s*>([^<]+)<\/license>/i.exec(xml)
-  return expression?.[1]?.trim() ?? null
 }
 
 const [command, ...flags] = process.argv.slice(2)

@@ -1,0 +1,82 @@
+appId: com.librevia.suite
+productName: Librevia
+copyright: Uso interno
+
+directories:
+  output: release
+  buildResources: build
+
+# Só o que o aplicativo precisa para rodar. O código-fonte, os testes e o
+# projeto .NET ficam de fora: eles não são executados no destino, e cada
+# megabyte a mais é um megabyte que o instalador carrega por nada.
+files:
+  - out/**
+  - package.json
+  - '!**/*.map'
+
+# O sidecar não entra no asar: ele é um executável, e um executável dentro de
+# um arquivo compactado não pode ser lançado. Cada plataforma leva só o seu
+# binário — os 82 MB do outro não serviriam para nada no destino.
+#
+# O destino é `resources/sidecar/<rid>` **dentro** de `resources/`, porque é ali
+# que `sidecarPathIn` procura a partir de `process.resourcesPath`.
+linux:
+  category: Office
+  synopsis: Suíte de documentos e planilhas, offline
+  # Sem isto o ambiente gráfico não liga a janela aberta ao ícone da barra de
+  # tarefas, e o aplicativo aparece como uma entrada genérica sem nome. O nome
+  # do arquivo `.desktop` vem do `package.json`, que é onde o builder o procura.
+  syncDesktopName: true
+  target:
+    - AppImage
+    - deb
+  extraResources:
+    - from: resources/sidecar/linux-x64
+      to: resources/sidecar/linux-x64
+      filter: ['!*.pdb']
+    - THIRD-PARTY-NOTICES.md
+  # Extensões que o aplicativo abre, para o gerenciador de arquivos oferecê-lo.
+  mimeTypes:
+    - application/vnd.openxmlformats-officedocument.wordprocessingml.document
+    - application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+    - text/plain
+
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  extraResources:
+    - from: resources/sidecar/win-x64
+      to: resources/sidecar/win-x64
+      filter: ['!*.pdb']
+    - THIRD-PARTY-NOTICES.md
+
+nsis:
+  # Instalação por usuário: em máquina corporativa nem todo mundo tem
+  # administrador, e exigir elevação transformaria "instalar" em "abrir chamado".
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+
+deb:
+  # Endereço `.internal` de propósito: é o TLD reservado para uso interno, e
+  # dizer isso é mais honesto que inventar um domínio público que não existe.
+  # Troque pelo endereço da empresa antes de distribuir de verdade.
+  maintainer: Librevia <librevia@librevia.internal>
+  # `libnotify` e companhia são as dependências habituais de um Electron em
+  # Debian/Ubuntu; sem elas o pacote instala e o aplicativo não abre.
+  depends:
+    - libgtk-3-0
+    - libnotify4
+    - libnss3
+    - libxss1
+    - libxtst6
+    - xdg-utils
+    - libatspi2.0-0
+    - libsecret-1-0
+
+# Nada de assinatura por enquanto: não há certificado, e assinar com um
+# autoassinado dá mais aviso do que garantia.
+publish: null

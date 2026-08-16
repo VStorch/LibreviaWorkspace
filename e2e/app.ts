@@ -28,13 +28,24 @@ export interface Session {
   crash: () => Promise<void>
 }
 
+/**
+ * O executável empacotado, quando se quer testar o que de fato é distribuído.
+ *
+ * Sem a variável, os testes rodam sobre `out/` com o Electron de
+ * desenvolvimento. Com ela — `LIBREVIA_E2E_BINARY=release/linux-unpacked/librevia`
+ * — a mesma suíte roda contra o aplicativo instalado, que é onde caminhos de
+ * recurso, asar e o binário do sidecar têm outra localização. É a diferença
+ * entre "os testes passam" e "o instalador funciona".
+ */
+const packaged = process.env['LIBREVIA_E2E_BINARY']
+
 export async function launch(options: { userData?: string } = {}): Promise<Session> {
   const userData = options.userData ?? (await mkdtemp(join(tmpdir(), 'librevia-e2e-')))
 
   const app = await electron.launch({
-    args: [resolve('out/main/index.js'), `--user-data-dir=${userData}`],
-    // `CI` liga o modo sem interface do runner; o aplicativo não muda de
-    // comportamento por causa dele, mas o Electron precisa de um display.
+    ...(packaged === undefined || packaged === ''
+      ? { args: [resolve('out/main/index.js'), `--user-data-dir=${userData}`] }
+      : { executablePath: resolve(packaged), args: [`--user-data-dir=${userData}`] }),
     env: { ...process.env, NODE_ENV: 'production' },
   })
 

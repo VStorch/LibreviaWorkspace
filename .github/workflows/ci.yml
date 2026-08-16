@@ -58,6 +58,60 @@ jobs:
       - name: Licenças (NuGet)
         run: npm run sidecar:licenses
 
+  # Os testes de ponta a ponta rodam contra o aplicativo **empacotado**, e não
+  # contra `out/`: é a única forma de provar que caminhos de recurso, asar e o
+  # binário do sidecar continuam onde o código espera depois de empacotar. Job
+  # separado porque empacotar leva minutos, e o `verify` precisa ser rápido.
+  instalador:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - run: npm ci
+
+      - name: Empacotar (Linux)
+        if: runner.os == 'Linux'
+        run: npm run dist
+
+      - name: Empacotar (Windows)
+        if: runner.os == 'Windows'
+        run: npm run dist:win
+
+      # Sem display não sobe janela nenhuma; o `xvfb-run` dá um ao runner.
+      - name: Ponta a ponta sobre o pacote (Linux)
+        if: runner.os == 'Linux'
+        run: xvfb-run --auto-servernum npm run test:e2e
+        env:
+          LIBREVIA_E2E_BINARY: release/linux-unpacked/librevia
+
+      - name: Ponta a ponta sobre o pacote (Windows)
+        if: runner.os == 'Windows'
+        run: npm run test:e2e
+        env:
+          LIBREVIA_E2E_BINARY: release/win-unpacked/Librevia.exe
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: instalador-${{ runner.os }}
+          path: |
+            release/*.AppImage
+            release/*.deb
+            release/*.exe
+          if-no-files-found: error
+
   # O instalador precisa dos dois binários, e quem publica é uma máquina só.
   # Este job prova que a publicação cruzada funciona antes da Fase 8 depender
   # disso.
