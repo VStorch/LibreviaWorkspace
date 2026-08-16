@@ -96,6 +96,18 @@ export function fromFileSystemError(cause: unknown, operation: 'leitura' | 'escr
       )
     case 'ENOSPC':
       return new AppError(ErrorCode.WriteFailed, 'Não há espaço em disco para salvar o arquivo.')
+    case 'EDQUOT':
+      // Diferente de disco cheio, e a diferença muda o que a pessoa faz: aqui o
+      // disco tem espaço, mas a cota dela na pasta de rede acabou.
+      return new AppError(
+        ErrorCode.WriteFailed,
+        'Sua cota de espaço nesta pasta de rede acabou. Libere espaço ou salve em outro lugar.',
+      )
+    case 'ENAMETOOLONG':
+      return new AppError(
+        ErrorCode.WriteFailed,
+        'O nome do arquivo, junto com o caminho da pasta, ficou longo demais. Use um nome mais curto.',
+      )
     case 'EBUSY':
       return new AppError(
         ErrorCode.WriteFailed,

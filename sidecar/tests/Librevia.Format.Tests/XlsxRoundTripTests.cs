@@ -215,6 +215,29 @@ public class XlsxSurgicalTests
     }
 
     [Fact]
+    public void PreservaFiltroMesclagemFormatoCondicionalEValidacao()
+    {
+        // A decisão de projeto é preservar sem oferecer interface. Ela só vale
+        // como promessa se sobreviver a uma **edição**: preservar num arquivo
+        // que ninguém tocou não prova nada.
+        var original = XlsxFixtures.WithUnmodeledFeatures();
+        var model = XlsxFixtures.Model(original);
+        XlsxFixtures.Sheet(model, "Dados").Cells["B2"].Value = 1500d;
+
+        var (bytes, _) = XlsxWriter.Write(original, model);
+
+        using var stream = new MemoryStream(bytes, writable: false);
+        using var book = new XLWorkbook(stream);
+        var sheet = book.Worksheet("Dados");
+
+        Assert.True(sheet.AutoFilter.IsEnabled);
+        Assert.Contains(sheet.MergedRanges, range => range.RangeAddress.ToStringRelative() == "D1:F1");
+        Assert.NotEmpty(sheet.ConditionalFormats);
+        Assert.NotEmpty(sheet.DataValidations);
+        Assert.Equal(1500d, sheet.Cell("B2").GetDouble());
+    }
+
+    [Fact]
     public void ValorEditadoChegaNoArquivo()
     {
         var original = XlsxFixtures.Sales();

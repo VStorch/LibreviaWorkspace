@@ -562,7 +562,21 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
       if (!result.ok) {
         // Uma vez só: insistir a cada oito segundos encheria a tela, e falhar em
         // silêncio deixaria o usuário confiando numa proteção que não existe.
-        set({ autosaveBroken: true, error: result.error })
+        //
+        // A frase é reescrita porque a original fala do arquivo do usuário
+        // ("o conteúdo original foi preservado"), e aqui nenhum arquivo dele foi
+        // tocado. O que quebrou foi a rede de proteção, e é isso que precisa ser
+        // dito — junto com o que fazer a respeito.
+        set({
+          autosaveBroken: true,
+          error: {
+            code: result.error.code,
+            message:
+              'A gravação automática de segurança parou de funcionar. Seu arquivo não foi alterado, ' +
+              'mas salve o trabalho manualmente: uma queda agora custaria o que não foi salvo.',
+            detail: result.error.message,
+          },
+        })
       }
     },
 

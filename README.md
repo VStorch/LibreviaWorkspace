@@ -5,17 +5,23 @@ Formatos-alvo: **DOCX, XLSX, PDF**.
 
 > Nome provisório.
 
-**Estado atual: editor de documentos e planilhas funcionando.**
+**Estado atual: suíte completa, com instalador para Linux e Windows.**
+
+Manual para quem usa o aplicativo: [MANUAL.md](MANUAL.md).
 
 | Entregue | |
 | --- | --- |
 | Documentos | formatação, títulos, listas, recuo, espaçamento, alinhamento, tabelas, imagens, links, quebra de página, localizar/substituir |
 | PDF e impressão | cabeçalho, rodapé, numeração, margens e orientação |
 | DOCX | abre e grava com **edição cirúrgica** — ver abaixo |
+| XLSX | abre e grava com a mesma cirurgia, traduzindo as fórmulas na fronteira |
 | Planilhas | grade de 10 mil linhas, seleção de intervalo, alça de preenchimento, área de transferência, abas, formatação, congelamento e inserir/excluir linhas e colunas |
 | Fórmulas | 37 funções, referências entre abas, barra de fórmulas — ver abaixo |
+| Recuperação | rascunho de oito em oito segundos, oferecido de volta depois de uma queda |
+| Distribuição | AppImage, `.deb` e instalador NSIS, com os avisos de terceiros |
 
-Em aberto: XLSX, mesclagem de células e o instalador.
+Em aberto: mesclagem de células, interface para filtros de planilha (os que vêm
+do arquivo são preservados) e criar `.docx` do zero.
 
 ## Formatos
 

@@ -60,6 +60,38 @@ public static class XlsxFixtures
         return stream.ToArray();
     }
 
+    /// <summary>
+    /// Planilha com o que o modelo do aplicativo **não** representa: filtro,
+    /// mesclagem, formatação condicional e validação de dados.
+    /// </summary>
+    /// <remarks>
+    /// A decisão de projeto é preservar sem oferecer interface: uma tela de
+    /// filtro é trabalho de sobra, e perder o filtro de quem já tem um é dano
+    /// certo. Este fixture é o que transforma essa decisão em promessa
+    /// verificável.
+    /// </remarks>
+    public static byte[] WithUnmodeledFeatures()
+    {
+        using var book = new XLWorkbook();
+        var sheet = book.Worksheets.Add("Dados");
+
+        sheet.Cell("A1").Value = "Setor";
+        sheet.Cell("B1").Value = "Gasto";
+        sheet.Cell("A2").Value = "Compras";
+        sheet.Cell("B2").Value = 1200;
+        sheet.Cell("A3").Value = "TI";
+        sheet.Cell("B3").Value = 8400;
+
+        sheet.Range("A1:B3").SetAutoFilter();
+        sheet.Range("D1:F1").Merge();
+        sheet.Range("B2:B3").AddConditionalFormat().WhenGreaterThan(5000).Fill.SetBackgroundColor(XLColor.Red);
+        sheet.Range("A2:A3").CreateDataValidation().List("\"Compras,TI\"");
+
+        using var stream = new MemoryStream();
+        book.SaveAs(stream);
+        return stream.ToArray();
+    }
+
     /// <summary>Planilha com células mescladas, para o inventário ter o que dizer.</summary>
     public static byte[] WithMerge()
     {
