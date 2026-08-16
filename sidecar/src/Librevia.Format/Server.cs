@@ -34,6 +34,19 @@ public sealed class Server(Stream input, Stream output)
                 var (bytes, result) = Docx.DocxWriter.Write(binary.ToArray(), model);
                 return Task.FromResult(new Reply(result, bytes));
             },
+            ["xlsx.open"] = static (_, binary, _) =>
+                Task.FromResult(Reply.Of(Xlsx.XlsxReader.Read(binary.ToArray()))),
+            // Mesmo contrato do docx.save: os bytes originais entram pelo
+            // binário e o modelo pelos parâmetros. Binário vazio quer dizer
+            // planilha nova, sem original para preservar.
+            ["xlsx.save"] = static (request, binary, _) =>
+            {
+                var model = request.Params.Deserialize<Xlsx.WorkbookDto>(JsonOptions.Default)
+                            ?? throw new Xlsx.XlsxException("A planilha a gravar chegou vazia.");
+                var original = binary.IsEmpty ? null : binary.ToArray();
+                var (bytes, result) = Xlsx.XlsxWriter.Write(original, model);
+                return Task.FromResult(new Reply(result, bytes));
+            },
         };
 
     public sealed record Reply(object? Result, ReadOnlyMemory<byte> Binary)
@@ -100,6 +113,13 @@ public sealed class Server(Stream input, Stream output)
             await RespondErrorAsync(
                 request?.Id ?? 0,
                 new ErrorPayload("DOCX_INVALID", problem.Message),
+                cancellation).ConfigureAwait(false);
+        }
+        catch (Xlsx.XlsxException problem)
+        {
+            await RespondErrorAsync(
+                request?.Id ?? 0,
+                new ErrorPayload("XLSX_INVALID", problem.Message),
                 cancellation).ConfigureAwait(false);
         }
         catch (Exception problem) when (problem is not OperationCanceledException)
