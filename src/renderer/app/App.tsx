@@ -3,6 +3,7 @@ import { MenuCommand } from '@shared/types.js'
 import { buildWindowTitle } from '@services/file/formats.js'
 import { ErrorBanner } from '../components/ErrorBanner.js'
 import { InventoryBanner } from '../components/InventoryBanner.js'
+import { RecoveryBanner } from '../components/RecoveryBanner.js'
 import { StatusBar } from '../components/StatusBar.js'
 import { DocumentEditor } from '../document/DocumentEditor.js'
 import { emitEditorCommand } from '../document/editor-commands.js'
@@ -10,6 +11,14 @@ import { HomePage } from '../pages/HomePage.js'
 import { SheetTabs } from '../spreadsheet/SheetTabs.js'
 import { SpreadsheetEditor } from '../spreadsheet/SpreadsheetEditor.js'
 import { useWorkspace } from '../state/workspace.js'
+
+/**
+ * De quanto em quanto tempo o rascunho é regravado.
+ *
+ * Oito segundos é o teto de trabalho que uma queda pode custar. Menos que isso
+ * começaria a pesar em documento grande, onde cada gravação serializa tudo.
+ */
+const AUTOSAVE_INTERVAL_MS = 8_000
 
 /** Traduz um comando do menu nativo na ação correspondente. */
 async function runMenuCommand(command: MenuCommand, path: string | undefined): Promise<void> {
@@ -79,6 +88,17 @@ export function App(): React.JSX.Element {
 
   useEffect(() => {
     void useWorkspace.getState().refreshRecents()
+    void useWorkspace.getState().checkRecovery()
+  }, [])
+
+  useEffect(() => {
+    // Por relógio, e não por tecla: o autosave serializa o documento inteiro, e
+    // fazer isso a cada caractere digitado travaria a digitação num arquivo
+    // grande. O intervalo é o teto de trabalho que uma queda pode custar.
+    const timer = setInterval(() => {
+      void useWorkspace.getState().autosave()
+    }, AUTOSAVE_INTERVAL_MS)
+    return () => clearInterval(timer)
   }, [])
 
   useEffect(
@@ -113,6 +133,7 @@ export function App(): React.JSX.Element {
   return (
     <div className="app">
       <ErrorBanner />
+      <RecoveryBanner />
       <InventoryBanner />
       <div className="app__body">
         {workbook !== null ? (

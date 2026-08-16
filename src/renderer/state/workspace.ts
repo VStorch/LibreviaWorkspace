@@ -5,6 +5,7 @@ import {
   DiscardChoice,
   DocumentKind,
   PlainTextChoice,
+  type DraftSummary,
   type LossInventory,
   type RecentFile,
 } from '@shared/types.js'
@@ -74,6 +75,22 @@ interface WorkspaceState {
    * que você vai e o que você não vai ver.
    */
   notice: LossInventory | null
+  /**
+   * Rascunho de uma sessão que não terminou bem, esperando decisão.
+   *
+   * Enquanto ele está aqui o autosave não escreve: gravar por cima do rascunho
+   * antes de o usuário decidir apagaria justamente o trabalho que ele existe
+   * para devolver.
+   */
+  pendingDraft: DraftSummary | null
+  /**
+   * O autosave falhou e parou de tentar.
+   *
+   * Insistir a cada oito segundos numa gravação que não vai dar certo encheria a
+   * tela de avisos; ficar tentando em silêncio deixaria o usuário confiando numa
+   * rede de proteção que não existe mais.
+   */
+  autosaveBroken: boolean
   busy: boolean
 
   /**
@@ -106,6 +123,12 @@ interface WorkspaceState {
   saveAs: () => Promise<boolean>
   closeFile: () => Promise<void>
   clearRecents: () => Promise<void>
+
+  /** Guarda o que está na tela como rascunho. Chamado por relógio, não por tecla. */
+  autosave: () => Promise<void>
+  checkRecovery: () => Promise<void>
+  recoverDraft: () => Promise<void>
+  dismissDraft: () => Promise<void>
 
   exportPdf: () => Promise<boolean>
   print: () => Promise<boolean>
@@ -149,6 +172,25 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
     return { page: state.page, doc: documentSource?.readDoc() ?? state.initialDoc }
   }
 
+  /** O que está na tela, no formato interno — o mesmo que o rascunho guarda. */
+  function currentContent(): string {
+    const { workbook } = get()
+    return workbook === null ? serializeDocument(currentModel()) : serializeWorkbook(workbook)
+  }
+
+  /**
+   * Apaga o rascunho porque ele deixou de valer.
+   *
+   * Vale depois de gravar (o disco passou a ter a versão boa) e ao trocar de
+   * arquivo (o rascunho é de outro trabalho). Falha aqui é engolida de
+   * propósito: sobrar um rascunho velho custa um aviso a mais na próxima
+   * abertura, e derrubar a gravação por causa disso custaria o arquivo.
+   */
+  async function forgetDraft(): Promise<void> {
+    set({ autosaveBroken: false })
+    await window.api.recovery.discard({}).catch(() => undefined)
+  }
+
   /**
    * Portão de proteção contra perda de trabalho.
    *
@@ -170,6 +212,11 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
   }
 
   function load(file: OpenFile, model: DocumentModel): void {
+    // O rascunho é de outro trabalho a partir de agora. Vale inclusive para a
+    // recuperação: o conteúdo já está na tela e marcado como não salvo, então o
+    // relógio do autosave o grava de novo em segundos.
+    void forgetDraft()
+
     set((state) => ({
       file,
       page: model.page,
@@ -248,6 +295,8 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
     recents: [],
     error: null,
     notice: null,
+    pendingDraft: null,
+    autosaveBroken: false,
     busy: false,
 
     registerDocumentSource: (source) => {
@@ -403,6 +452,7 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
         if (saved === null) return false
 
         set({ isDirty: false, file: { ...state.file, name: saved.name } })
+        await forgetDraft()
         await get().refreshRecents()
         return true
       }
@@ -429,6 +479,7 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
       if (data === null) return false
 
       set({ isDirty: false, file: { ...state.file, name: data.name } })
+      await forgetDraft()
       await get().refreshRecents()
       return true
     },
@@ -466,6 +517,7 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
       if (data === null) return false
 
       set({ file: { path: chosen.path, name: data.name, kind: state.file.kind }, isDirty: false })
+      await forgetDraft()
       await get().refreshRecents()
       return true
     },
@@ -481,12 +533,74 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
         isDirty: false,
         error: null,
       }))
+      await forgetDraft()
       await get().refreshRecents()
     },
 
     clearRecents: async () => {
       const data = await call(() => window.api.recent.clear({}))
       if (data !== null) set({ recents: data.files })
+    },
+
+    autosave: async () => {
+      const state = get()
+      // Sem arquivo aberto não há o que guardar; sem alteração, o rascunho já
+      // está em dia. E enquanto houver rascunho esperando decisão, escrever
+      // apagaria o trabalho que ele existe para devolver.
+      if (state.file === null || !state.isDirty) return
+      if (state.pendingDraft !== null || state.autosaveBroken) return
+
+      // Fora do `call`: o autosave não pode piscar o indicador de ocupado nem
+      // roubar a vez de uma operação que o usuário pediu.
+      const result = await window.api.file.autosave({
+        path: state.file.path,
+        name: state.file.name,
+        kind: state.file.kind,
+        content: currentContent(),
+      })
+
+      if (!result.ok) {
+        // Uma vez só: insistir a cada oito segundos encheria a tela, e falhar em
+        // silêncio deixaria o usuário confiando numa proteção que não existe.
+        set({ autosaveBroken: true, error: result.error })
+      }
+    },
+
+    checkRecovery: async () => {
+      const result = await window.api.recovery.peek({})
+      if (result.ok && result.data.draft !== null) set({ pendingDraft: result.data.draft })
+    },
+
+    recoverDraft: async () => {
+      const data = await call(() => window.api.recovery.restore({}))
+      set({ pendingDraft: null })
+      if (data === null || data.draft === null) return
+
+      const { draft } = data
+      try {
+        if (draft.kind === DocumentKind.Spreadsheet) {
+          const workbook = recalculate(parseWorkbook(draft.content))
+          load({ path: draft.path, name: draft.name, kind: DocumentKind.Spreadsheet }, createEmptyDocument())
+          set({ workbook, notice: null })
+        } else {
+          load(
+            { path: draft.path, name: draft.name, kind: DocumentKind.Document },
+            parseDocument(draft.content),
+          )
+          set({ workbook: null, notice: null })
+        }
+
+        // Recuperado é, por definição, diferente do que está no disco: marcar
+        // como salvo faria o usuário fechar a janela e perder tudo de novo.
+        set({ isDirty: true })
+      } catch (cause) {
+        set({ error: toSerialized(cause) })
+      }
+    },
+
+    dismissDraft: async () => {
+      set({ pendingDraft: null })
+      await window.api.recovery.discard({})
     },
 
     exportPdf: async () => {

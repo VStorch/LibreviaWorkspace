@@ -33,6 +33,12 @@ export interface AppApi {
     openRecent: Call<typeof IpcChannel.FileOpenRecent>
     save: Call<typeof IpcChannel.FileSave>
     chooseSavePath: Call<typeof IpcChannel.FileChooseSavePath>
+    autosave: Call<typeof IpcChannel.FileAutosave>
+  }
+  readonly recovery: {
+    peek: Call<typeof IpcChannel.RecoveryPeek>
+    restore: Call<typeof IpcChannel.RecoveryRestore>
+    discard: Call<typeof IpcChannel.RecoveryDiscard>
   }
   readonly recent: {
     list: Call<typeof IpcChannel.RecentList>

@@ -17,6 +17,12 @@ const api: AppApi = {
     openRecent: (payload) => ipcRenderer.invoke(IpcChannel.FileOpenRecent, payload),
     save: (payload) => ipcRenderer.invoke(IpcChannel.FileSave, payload),
     chooseSavePath: (payload) => ipcRenderer.invoke(IpcChannel.FileChooseSavePath, payload),
+    autosave: (payload) => ipcRenderer.invoke(IpcChannel.FileAutosave, payload),
+  },
+  recovery: {
+    peek: (payload) => ipcRenderer.invoke(IpcChannel.RecoveryPeek, payload),
+    restore: (payload) => ipcRenderer.invoke(IpcChannel.RecoveryRestore, payload),
+    discard: (payload) => ipcRenderer.invoke(IpcChannel.RecoveryDiscard, payload),
   },
   recent: {
     list: (payload) => ipcRenderer.invoke(IpcChannel.RecentList, payload),

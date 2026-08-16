@@ -43,6 +43,24 @@ export function forgetOpenedDocx(): void {
   openedOriginal = null
 }
 
+/**
+ * Reata o vínculo com o pacote original depois de uma recuperação.
+ *
+ * Depois de uma queda, o modelo volta do rascunho mas os bytes originais não —
+ * eles moravam na memória do processo que morreu. Sem relê-los, salvar por cima
+ * do `.docx` recuperado seria recusado, e o usuário ficaria com o trabalho na
+ * tela sem poder gravá-lo onde ele estava.
+ */
+export async function adoptDocxOriginal(path: string): Promise<boolean> {
+  try {
+    openedOriginal = { path, bytes: await readFile(path) }
+    return true
+  } catch {
+    openedOriginal = null
+    return false
+  }
+}
+
 export interface OpenedDocx {
   /** O modelo já no envelope `.sdoc`, para o renderer seguir por um caminho só. */
   readonly content: string

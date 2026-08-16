@@ -100,6 +100,46 @@ button {
   margin-top: 6px;
 }
 
+/* Recuperação: azul de informação, não vermelho de erro. Nada quebrou — há
+   trabalho de volta, e a faixa existe para oferecê-lo. */
+.banner--recovery {
+  background: #e8f1fb;
+  border-bottom-color: #9dbfe4;
+  color: #16395c;
+}
+
+.banner__actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.banner__action {
+  padding: 6px 14px;
+  border-radius: 6px;
+  border: 1px solid #16395c;
+  background: #16395c;
+  color: #fff;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.banner__action:hover {
+  filter: brightness(1.15);
+}
+
+/* Descartar apaga trabalho: não pode competir em peso visual com recuperar. */
+.banner__action--quiet {
+  background: none;
+  color: inherit;
+  border-color: transparent;
+}
+
+.banner__action--quiet:hover {
+  background: rgb(0 0 0 / 8%);
+  filter: none;
+}
+
 /* ---------- tela inicial ---------- */
 
 .home {

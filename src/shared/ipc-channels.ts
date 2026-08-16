@@ -19,6 +19,20 @@ export const IpcChannel = {
    */
   FileChooseSavePath: 'file:choose-save-path',
 
+  /**
+   * Guarda o que está na tela como rascunho de recuperação.
+   *
+   * Não grava no arquivo do usuário: escrever por cima dele sozinho
+   * transformaria "não salvei" em "salvei sem querer".
+   */
+  FileAutosave: 'file:autosave',
+
+  /** Há rascunho de uma sessão que não terminou bem? Só os dados do aviso. */
+  RecoveryPeek: 'recovery:peek',
+  /** Devolve o conteúdo do rascunho e reata o vínculo com o arquivo original. */
+  RecoveryRestore: 'recovery:restore',
+  RecoveryDiscard: 'recovery:discard',
+
   RecentList: 'recent:list',
   RecentClear: 'recent:clear',
 
@@ -54,6 +68,10 @@ export const INVOCABLE_IPC_CHANNELS = [
   IpcChannel.FileOpenRecent,
   IpcChannel.FileSave,
   IpcChannel.FileChooseSavePath,
+  IpcChannel.FileAutosave,
+  IpcChannel.RecoveryPeek,
+  IpcChannel.RecoveryRestore,
+  IpcChannel.RecoveryDiscard,
   IpcChannel.RecentList,
   IpcChannel.RecentClear,
   IpcChannel.ImagePick,

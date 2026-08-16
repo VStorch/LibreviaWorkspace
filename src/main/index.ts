@@ -2,7 +2,9 @@ import { app, BrowserWindow, session } from 'electron'
 import { APP_NAME } from '@shared/constants.js'
 import { registerFileHandlers } from './ipc/file.js'
 import { registerPrintHandlers } from './ipc/print.js'
+import { registerRecoveryHandlers } from './ipc/recovery.js'
 import { registerWindowHandlers } from './ipc/window.js'
+import { useRecoveryFolder } from './fs/recovery.js'
 import { refreshMenu } from './menu.js'
 import { applySessionPolicy } from './security.js'
 import { checkSidecarHealth, disposeSidecar } from './sidecar/index.js'
@@ -28,8 +30,13 @@ if (!app.requestSingleInstanceLock()) {
   void app.whenReady().then(async () => {
     applySessionPolicy(session.defaultSession, devServerUrl() === null ? 'production' : 'development')
 
+    // A pasta chega por parâmetro para que o módulo de recuperação não dependa
+    // do Electron — é o que permite testá-lo sem subir um aplicativo inteiro.
+    useRecoveryFolder(app.getPath('userData'))
+
     registerFileHandlers()
     registerPrintHandlers()
+    registerRecoveryHandlers()
     registerWindowHandlers()
     await refreshMenu()
 

@@ -52,6 +52,17 @@ export function forgetOpenedXlsx(): void {
   openedOriginal = null
 }
 
+/** Reata o vínculo com o pacote original depois de uma recuperação. Ver o DOCX. */
+export async function adoptXlsxOriginal(path: string): Promise<boolean> {
+  try {
+    openedOriginal = { path, bytes: await readFile(path) }
+    return true
+  } catch {
+    openedOriginal = null
+    return false
+  }
+}
+
 export interface OpenedXlsx {
   /** O modelo já no envelope `.ssheet`, para o renderer seguir por um caminho só. */
   readonly content: string

@@ -41,6 +41,20 @@ export interface LoadedFile {
   readonly inventory?: LossInventory
 }
 
+/**
+ * O rascunho de recuperação, sem o conteúdo.
+ *
+ * O aviso precisa dizer de que arquivo veio e de quando é; carregar junto o
+ * conteúdo — que pode ter dezenas de megabytes com imagens embutidas — só para
+ * decidir se mostra um aviso seria desperdício.
+ */
+export interface DraftSummary {
+  readonly path: string | null
+  readonly name: string
+  readonly kind: DocumentKind
+  readonly savedAt: number
+}
+
 export interface RecentFile {
   readonly path: string
   readonly name: string

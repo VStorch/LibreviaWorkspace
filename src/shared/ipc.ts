@@ -45,6 +45,14 @@ const recentFileSchema = z.object({
   openedAt: z.number().int(),
 })
 
+/** O aviso de recuperação mostra de que arquivo veio e de quando é. */
+const draftSummarySchema = z.object({
+  path: z.string().nullable(),
+  name: z.string(),
+  kind: documentKindSchema,
+  savedAt: z.number().int(),
+})
+
 const emptyRequest = z.object({})
 
 /** O HTML vem do editor; a configuração de página, do documento. */
@@ -92,6 +100,31 @@ export const ipcContracts = {
       kind: documentKindSchema.default('document'),
     }),
     response: saveResultSchema,
+  },
+  [IpcChannel.FileAutosave]: {
+    // `path` nulo é trabalho que nunca foi gravado — o caso em que a
+    // recuperação vale mais, porque não há arquivo nenhum a que voltar.
+    request: z.object({
+      path: z.string().nullable(),
+      name: z.string().min(1).max(255),
+      kind: documentKindSchema,
+      content: z.string().max(MAX_TEXT_LENGTH),
+    }),
+    response: z.object({ savedAt: z.number().int() }),
+  },
+  [IpcChannel.RecoveryPeek]: {
+    request: emptyRequest,
+    response: z.object({ draft: draftSummarySchema.nullable() }),
+  },
+  [IpcChannel.RecoveryRestore]: {
+    request: emptyRequest,
+    response: z.object({
+      draft: draftSummarySchema.extend({ content: z.string().max(MAX_TEXT_LENGTH) }).nullable(),
+    }),
+  },
+  [IpcChannel.RecoveryDiscard]: {
+    request: emptyRequest,
+    response: z.object({ discarded: z.literal(true) }),
   },
   [IpcChannel.RecentList]: {
     request: emptyRequest,

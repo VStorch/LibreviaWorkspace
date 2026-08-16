@@ -22,8 +22,17 @@ const FSYNC_UNSUPPORTED = new Set(['EINVAL', 'ENOTSUP', 'EPERM', 'EBADF', 'EISDI
  *
  * Se qualquer passo falhar, o temporário é removido e o arquivo original
  * continua exatamente como estava.
+ *
+ * O passo 3 pode ser dispensado (`backup: false`) para arquivos que o próprio
+ * aplicativo reescreve o tempo todo, como o rascunho de recuperação: guardar a
+ * versão anterior de cada gravação de oito em oito segundos dobraria a escrita
+ * sem proteger nada que já não estivesse protegido pela troca atômica.
  */
-export async function writeFileAtomic(targetPath: string, data: string | Uint8Array): Promise<void> {
+export async function writeFileAtomic(
+  targetPath: string,
+  data: string | Uint8Array,
+  options: { backup?: boolean } = {},
+): Promise<void> {
   const directory = dirname(targetPath)
   const temporaryPath = join(directory, `.${crypto.randomUUID()}.tmp`)
 
@@ -38,7 +47,7 @@ export async function writeFileAtomic(targetPath: string, data: string | Uint8Ar
     await handle.close()
     handle = undefined
 
-    if (existingMode !== null) {
+    if (existingMode !== null && options.backup !== false) {
       await copyFile(targetPath, `${targetPath}.bak`)
     }
 

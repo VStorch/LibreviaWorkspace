@@ -17,3 +17,7 @@ resources/sidecar/
 # Documentos de trabalho: registro de decisões enquanto o projeto anda. As
 # decisões passam a viver no README; estes ficam só no disco.
 docs/
+
+# Playwright: relatórios e vestígios de execução.
+test-results/
+playwright-report/
