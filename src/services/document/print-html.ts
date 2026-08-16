@@ -10,8 +10,13 @@ import { DOCUMENT_CONTENT_CSS, PRINT_ONLY_CSS } from './content-styles.js'
  * Não há margem nem largura fixada aqui: quem define tamanho de página e
  * margens é o `printToPDF` (ver @services/pdf/page-setup.ts). Duplicar isso no
  * CSS produziria margem dobrada.
+ *
+ * `extraCss` existe para a planilha, que imprime uma tabela gerada a partir do
+ * modelo e precisa das regras dela. O invólucro continua um só: tamanho de
+ * página, margens, cabeçalho e rodapé são os mesmos nos dois casos, e duplicar
+ * este arquivo faria os dois divergirem na primeira correção.
  */
-export function buildPrintHtml(bodyHtml: string, title: string): string {
+export function buildPrintHtml(bodyHtml: string, title: string, extraCss = ''): string {
   return `<!doctype html>
 <html lang="pt-BR">
 <head>
@@ -22,6 +27,7 @@ html, body { margin: 0; padding: 0; }
 body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 ${DOCUMENT_CONTENT_CSS}
 ${PRINT_ONLY_CSS}
+${extraCss}
 </style>
 </head>
 <body><div class="page__content">${bodyHtml}</div></body>

@@ -12,7 +12,7 @@ Manual para quem usa o aplicativo: [MANUAL.md](MANUAL.md).
 | Entregue | |
 | --- | --- |
 | Documentos | formatação, títulos, listas, recuo, espaçamento, alinhamento, tabelas, imagens, links, quebra de página, localizar/substituir |
-| PDF e impressão | cabeçalho, rodapé, numeração, margens e orientação |
+| PDF e impressão | documentos e planilhas, com cabeçalho, rodapé, numeração, margens e orientação |
 | DOCX | abre e grava com **edição cirúrgica** — ver abaixo |
 | XLSX | abre e grava com a mesma cirurgia, traduzindo as fórmulas na fronteira |
 | Planilhas | grade de 10 mil linhas, seleção de intervalo, alça de preenchimento, área de transferência, abas, formatação, congelamento e inserir/excluir linhas e colunas |

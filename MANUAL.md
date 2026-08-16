@@ -40,7 +40,7 @@ Nada aqui precisa de internet. O aplicativo não acessa a rede em momento nenhum
 | `.sdoc`   | documento do Librevia — guarda tudo, sem perda nenhuma          |
 | `.ssheet` | planilha do Librevia — idem                                     |
 | `.txt`    | texto puro; salvar nele descarta formatação, e o app avisa antes |
-| `.pdf`    | só saída: exportar e imprimir                                   |
+| `.pdf`    | só saída: exportar e imprimir, tanto documento quanto planilha   |
 
 `.odt` e `.ods` **não** abrem. Se você recebe arquivos assim, peça para quem
 enviou salvar como `.docx` ou `.xlsx` — o LibreOffice faz isso pelo menu
@@ -160,6 +160,10 @@ e filtros continuam no arquivo depois de você corrigir uma vírgula.
   editáveis aqui.
 - **Filtros de planilha** são preservados, mas não há tela para criá-los ou
   alterá-los.
+- **Ao imprimir uma planilha**, sai a aba ativa inteira, ajustada à largura da
+  página; as linhas congeladas viram cabeçalho e se repetem em cada folha. Se as
+  colunas ficarem apertadas, ponha a página em paisagem pelo menu Arquivo →
+  Configuração de página.
 - **Arquivos acima de 20 MB** não abrem.
 - **A paginação na tela é estimativa** (o `≈` na barra de status). A paginação
   exata é a da exportação para PDF.

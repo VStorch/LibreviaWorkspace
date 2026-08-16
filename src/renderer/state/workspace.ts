@@ -26,6 +26,7 @@ import {
   type WorkbookModel,
 } from '@services/spreadsheet/model.js'
 import { parseWorkbook, serializeWorkbook } from '@services/spreadsheet/serialize.js'
+import { SHEET_PRINT_CSS, buildSheetHtml } from '@services/spreadsheet/print-html.js'
 import { recalculate } from '@services/spreadsheet/formula/recalc.js'
 import {
   applyStructuralChange,
@@ -619,7 +620,7 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
 
     exportPdf: async () => {
       const request = buildPrintRequest()
-      if (request === null) return false
+      if (request === null) return refuseToPrint()
 
       const data = await call(() =>
         window.api.print.exportPdf({ ...request, suggestedName: get().file?.name ?? 'documento' }),
@@ -629,7 +630,7 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
 
     print: async () => {
       const request = buildPrintRequest()
-      if (request === null) return false
+      if (request === null) return refuseToPrint()
 
       const data = await call(() => window.api.print.dialog(request))
       return data !== null && data.printed
@@ -637,20 +638,56 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
 
     printPreview: async () => {
       const request = buildPrintRequest()
-      if (request === null) return
+      if (request === null) {
+        refuseToPrint()
+        return
+      }
 
       await call(() => window.api.print.preview({ ...request, title: get().file?.name ?? 'Documento' }))
     },
   }
 
-  /** Reúne o que o processo main precisa para renderizar: HTML e página. */
+  /**
+   * Não há o que imprimir.
+   *
+   * Devolver `false` em silêncio era o defeito: o usuário clicava em "Exportar
+   * para PDF" e nada acontecia — nem papel, nem aviso, nem pista. Um menu que
+   * não faz nada é pior que um menu ausente.
+   */
+  function refuseToPrint(): false {
+    set({
+      error: {
+        code: 'INTERNAL',
+        message: 'Não há nada aberto para imprimir. Abra ou crie um documento ou uma planilha primeiro.',
+      },
+    })
+    return false
+  }
+
+  /**
+   * O que vai para o PDF e para a impressora.
+   *
+   * O documento entrega o HTML do próprio editor — o que sai no papel é
+   * literalmente o que estava na tela. A planilha **não pode** fazer o mesmo: a
+   * grade só desenha as células visíveis, então imprimir o DOM dela renderizaria
+   * a janela, e não a planilha. Por isso a planilha é gerada a partir do modelo,
+   * com as mesmas funções de formatação que a tela usa.
+   */
   function buildPrintRequest(): { html: string; page: PageSetup } | null {
     const state = get()
-    if (documentSource === null) return null
+    const name = state.file?.name ?? 'Documento'
 
-    return {
-      html: buildPrintHtml(documentSource.readHtml(), state.file?.name ?? 'Documento'),
-      page: state.page,
+    const { workbook } = state
+    if (workbook !== null) {
+      const sheet = workbook.sheets[workbook.activeSheet]
+      if (sheet === undefined) return null
+      return {
+        html: buildPrintHtml(buildSheetHtml(sheet), name, SHEET_PRINT_CSS),
+        page: state.page,
+      }
     }
+
+    if (documentSource === null) return null
+    return { html: buildPrintHtml(documentSource.readHtml(), name), page: state.page }
   }
 })
