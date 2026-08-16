@@ -110,6 +110,22 @@ aviso na abertura diz quais funções são essas.
 
 ---
 
+## Alguns arquivos abrem travados — e como destravar
+
+Documento com **comentário, controle de alterações, nota de rodapé ou campo
+calculado** abre somente para leitura, com uma faixa laranja no topo dizendo
+exatamente o que ele tem.
+
+O motivo é concreto: a gravação preserva tudo isso **desde que você não edite o
+trecho que os ancora**. Quem só precisa ler não corre risco nenhum. Quem precisa
+editar clica em **Editar mesmo assim** e segue — sabendo qual é o risco.
+
+Não é cadeado, é padrão: um clique libera. E arquivo comum abre editável, porque
+travar tudo ensinaria você a clicar sem ler — e aí a proteção deixaria de
+proteger.
+
+---
+
 ## Os avisos: leia, eles são diferentes entre si
 
 O aplicativo distingue duas coisas que a maioria dos programas mistura:

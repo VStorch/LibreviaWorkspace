@@ -22,6 +22,15 @@ export interface LossInventory {
   // atribuível a um comum. As propriedades continuam `readonly`.
   readonly invisible: string[]
   readonly lost: string[]
+  /**
+   * Subconjunto de `invisible`: o que some se o bloco que o ancora for editado.
+   *
+   * Comentário, revisão, nota e campo calculado entram aqui; posicionamento de
+   * imagem e decoração, não. A diferença decide se o arquivo abre em somente
+   * leitura — travar a edição por perda de aparência travaria o uso do dia a
+   * dia, e o usuário aprenderia a liberar sem ler.
+   */
+  readonly structural: string[]
 }
 
 /**

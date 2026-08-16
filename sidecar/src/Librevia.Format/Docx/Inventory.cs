@@ -3,8 +3,8 @@ using System.Text.Json.Serialization;
 namespace Librevia.Format.Docx;
 
 /// <summary>
-/// O que o documento tem e nós não damos conta — separado em duas categorias
-/// que **não** são o mesmo problema.
+/// O que o documento tem e nós não damos conta — separado em categorias que
+/// **não** são o mesmo problema.
 /// </summary>
 /// <remarks>
 /// <b>Invisibilidade</b>: continua no arquivo depois de salvar, mas não aparece
@@ -14,13 +14,43 @@ namespace Librevia.Format.Docx;
 /// cirúrgica torna esta lista curta — só entra o que estava dentro de um bloco
 /// que o usuário editou.
 ///
-/// Misturar os dois produz um aviso genérico que o usuário aprende a ignorar em
-/// duas semanas, e aí ele deixa de proteger de qualquer coisa.
+/// <b>Estrutural</b>: um subconjunto da invisibilidade. São os recursos que
+/// somem se — e só se — o usuário editar justamente o bloco que os ancora.
+/// Comentário, revisão e nota de rodapé caem aqui; posicionamento de imagem e
+/// decoração, não. A diferença decide se o documento abre em somente leitura,
+/// que é a proteção mais forte contra perda de dados.
+///
+/// Misturar as categorias produz um aviso genérico que o usuário aprende a
+/// ignorar em duas semanas, e aí ele deixa de proteger de qualquer coisa.
 /// </remarks>
 public sealed class Inventory
 {
+    /// <summary>
+    /// Rótulos cujo desaparecimento é perda de conteúdo, não de aparência.
+    /// </summary>
+    /// <remarks>
+    /// Constantes, e não literais espalhados pelos leitores, porque a
+    /// classificação é feita **por rótulo**: uma frase mudada num leitor
+    /// deixaria de casar com esta lista e o documento passaria a abrir editável
+    /// sem que ninguém percebesse. Sendo constantes, o compilador não deixa.
+    /// </remarks>
+    public const string Comments = "comentários";
+    public const string TrackedChanges = "controle de alterações";
+    public const string Footnotes = "notas de rodapé";
+    public const string Endnotes = "notas de fim";
+    public const string Fields = "campos calculados (como sumário e número de página)";
+    public const string HeaderFields = "campos calculados no cabeçalho";
+    public const string Shapes = "formas e caixas de texto";
+    public const string ContentControls = "controles de conteúdo";
+
+    private static readonly HashSet<string> StructuralLabels = new(StringComparer.Ordinal)
+    {
+        Comments, TrackedChanges, Footnotes, Endnotes, Fields, HeaderFields, Shapes, ContentControls,
+    };
+
     private readonly SortedSet<string> _invisible = new(StringComparer.Ordinal);
     private readonly SortedSet<string> _lost = new(StringComparer.Ordinal);
+    private readonly SortedSet<string> _structural = new(StringComparer.Ordinal);
 
     [JsonPropertyName("invisible")]
     public IReadOnlyCollection<string> Invisible => _invisible;
@@ -28,8 +58,16 @@ public sealed class Inventory
     [JsonPropertyName("lost")]
     public IReadOnlyCollection<string> Lost => _lost;
 
+    /// <summary>Subconjunto de <see cref="Invisible"/>: o que se perde se o bloco for editado.</summary>
+    [JsonPropertyName("structural")]
+    public IReadOnlyCollection<string> Structural => _structural;
+
     /// <summary>Registra uma frase já escrita para o usuário.</summary>
-    public void NoteInvisible(string message) => _invisible.Add(message);
+    public void NoteInvisible(string message)
+    {
+        _invisible.Add(message);
+        if (StructuralLabels.Contains(message)) _structural.Add(message);
+    }
 
     public void NoteLoss(string message) => _lost.Add(message);
 
@@ -46,7 +84,7 @@ public sealed class Inventory
     public void NoteInvisibleElement(string elementName)
     {
         var label = Describe(elementName);
-        if (label is not null) _invisible.Add(label);
+        if (label is not null) NoteInvisible(label);
     }
 
     /// <summary>
@@ -66,15 +104,18 @@ public sealed class Inventory
         "proofErr" or "lastRenderedPageBreak" or "bookmarkStart" or "bookmarkEnd" => null,
         "sectPr" or "tabs" or "spacing" or "ind" or "jc" or "widowControl" => null,
 
-        "commentRangeStart" or "commentRangeEnd" or "comentário" => "comentários",
-        "ins" or "del" or "controle de alterações" => "controle de alterações",
-        "footnoteReference" => "notas de rodapé",
-        "endnoteReference" => "notas de fim",
-        "fldChar" or "fldSimple" or "instrText" or "campo calculado" => "campos calculados (como sumário e número de página)",
-        "pict" or "object" or "AlternateContent" => "formas e caixas de texto",
+        "commentRangeStart" or "commentRangeEnd" or "comentário" => Comments,
+        "ins" or "del" or "controle de alterações" => TrackedChanges,
+        "footnoteReference" => Footnotes,
+        "endnoteReference" => Endnotes,
+        "fldChar" or "fldSimple" or "instrText" or "campo calculado" => Fields,
+        "pict" or "object" or "AlternateContent" => Shapes,
+        // Desenho e marcação inteligente aparecem, respectivamente, como imagem
+        // e como texto comum: o conteúdo continua na tela, então não são
+        // estruturais.
         "drawing" => "desenhos",
         "smartTag" => "marcações inteligentes",
-        "sdt" or "sdtBlock" => "controles de conteúdo",
+        "sdt" or "sdtBlock" => ContentControls,
 
         _ => what.Length > 0 && char.IsLower(what[0]) ? null : what,
     };

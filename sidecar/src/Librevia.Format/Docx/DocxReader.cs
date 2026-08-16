@@ -90,26 +90,26 @@ public static class DocxReader
     {
         if (part.WordprocessingCommentsPart?.Comments?.Any() == true)
         {
-            inventory.NoteInvisible("comentários");
+            inventory.NoteInvisible(Inventory.Comments);
         }
 
         if (part.FootnotesPart?.Footnotes?.Elements<Footnote>()
                 .Any(note => note.Type?.Value is null || note.Type.Value == FootnoteEndnoteValues.Normal) == true)
         {
-            inventory.NoteInvisible("notas de rodapé");
+            inventory.NoteInvisible(Inventory.Footnotes);
         }
 
         if (part.EndnotesPart?.Endnotes?.Elements<Endnote>()
                 .Any(note => note.Type?.Value is null || note.Type.Value == FootnoteEndnoteValues.Normal) == true)
         {
-            inventory.NoteInvisible("notas de fim");
+            inventory.NoteInvisible(Inventory.Endnotes);
         }
 
         var document = part.Document;
         if (document is not null &&
             (document.Descendants<InsertedRun>().Any() || document.Descendants<DeletedRun>().Any()))
         {
-            inventory.NoteInvisible("controle de alterações");
+            inventory.NoteInvisible(Inventory.TrackedChanges);
         }
     }
 }

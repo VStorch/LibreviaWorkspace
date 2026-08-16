@@ -85,6 +85,15 @@ interface WorkspaceState {
    */
   pendingDraft: DraftSummary | null
   /**
+   * O arquivo abriu travado contra edição.
+   *
+   * Ligado sozinho quando o inventário traz perda **estrutural** — comentário,
+   * revisão, nota, campo calculado. Não é um cadeado: é um padrão, e o usuário
+   * libera num clique. Travar por perda de aparência travaria o uso do dia a
+   * dia, e aí ele aprenderia a liberar sem ler.
+   */
+  readOnly: boolean
+  /**
    * O autosave falhou e parou de tentar.
    *
    * Insistir a cada oito segundos numa gravação que não vai dar certo encheria a
@@ -130,6 +139,8 @@ interface WorkspaceState {
   checkRecovery: () => Promise<void>
   recoverDraft: () => Promise<void>
   dismissDraft: () => Promise<void>
+  /** Libera a edição de um arquivo aberto em somente leitura. */
+  allowEditing: () => void
 
   exportPdf: () => Promise<boolean>
   print: () => Promise<boolean>
@@ -218,6 +229,10 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
     // relógio do autosave o grava de novo em segundos.
     void forgetDraft()
 
+    // Cada arquivo decide o seu: quem libera a edição de um documento com
+    // comentários não está liberando o próximo.
+    set({ readOnly: false })
+
     set((state) => ({
       file,
       page: model.page,
@@ -257,16 +272,23 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
         // uma fórmula com HOJE() ou editada à mão estaria desatualizada.
         const workbook = recalculate(parseWorkbook(file.content))
         load({ path: file.path, name: file.name, kind: DocumentKind.Spreadsheet }, createEmptyDocument())
-        set({ workbook, notice: hasSomethingToSay(file.inventory) ? file.inventory! : null })
+        set({
+          workbook,
+          notice: hasSomethingToSay(file.inventory) ? file.inventory! : null,
+          readOnly: isStructural(file.inventory),
+        })
         await get().refreshRecents()
         return
       }
 
       load({ path: file.path, name: file.name, kind: DocumentKind.Document }, decode(file.path, file.content))
-      set({ workbook: null })
       // O aviso só aparece quando há o que avisar: um alerta que abre em todo
       // arquivo é um alerta que o usuário fecha sem ler.
-      set({ notice: hasSomethingToSay(file.inventory) ? file.inventory! : null })
+      set({
+        workbook: null,
+        notice: hasSomethingToSay(file.inventory) ? file.inventory! : null,
+        readOnly: isStructural(file.inventory),
+      })
     } catch (cause) {
       set({ error: toSerialized(cause) })
     }
@@ -284,6 +306,16 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
   const hasSomethingToSay = (inventory: LossInventory | undefined): boolean =>
     inventory !== undefined && (inventory.invisible.length > 0 || inventory.lost.length > 0)
 
+  /**
+   * Há recurso que some se o bloco que o ancora for editado?
+   *
+   * É o que decide o somente leitura. Perda de aparência — posicionamento de
+   * imagem, decoração — não entra: quase todo documento do corpus tem alguma, e
+   * travar por causa disso travaria o uso normal sem motivo.
+   */
+  const isStructural = (inventory: LossInventory | undefined): boolean =>
+    inventory !== undefined && inventory.structural.length > 0
+
   return {
     file: null,
     page: DEFAULT_PAGE_SETUP,
@@ -297,6 +329,7 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
     error: null,
     notice: null,
     pendingDraft: null,
+    readOnly: false,
     autosaveBroken: false,
     busy: false,
 
@@ -617,6 +650,8 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
       set({ pendingDraft: null })
       await window.api.recovery.discard({})
     },
+
+    allowEditing: () => set({ readOnly: false }),
 
     exportPdf: async () => {
       const request = buildPrintRequest()

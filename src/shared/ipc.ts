@@ -28,6 +28,7 @@ const documentKindSchema = z.enum(['document', 'spreadsheet'])
 const inventorySchema = z.object({
   invisible: z.array(z.string().max(300)).max(50),
   lost: z.array(z.string().max(300)).max(50),
+  structural: z.array(z.string().max(300)).max(50).default([]),
 })
 
 const loadedFileSchema = z.object({

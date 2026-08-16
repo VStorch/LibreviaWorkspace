@@ -90,6 +90,7 @@ export function SpreadsheetEditor({
   sheet,
   onChange,
   onStructure,
+  readOnly = false,
 }: {
   sheet: Sheet
   onChange: (sheet: Sheet) => void
@@ -99,6 +100,8 @@ export function SpreadsheetEditor({
    * aba. Por isso ela sobe até o estado em vez de virar uma nova `Sheet`.
    */
   onStructure: (change: StructuralChange) => void
+  /** Trava a edição sem esconder nada: ler e rolar continuam funcionando. */
+  readOnly?: boolean
 }): React.JSX.Element {
   // O modelo mais recente, para o handler de edição não capturar um estado
   // velho entre renderizações.
@@ -112,6 +115,28 @@ export function SpreadsheetEditor({
   selection.current = range
 
   const [menu, setMenu] = useState<MenuPosition | null>(null)
+
+  /**
+   * Portão único do somente leitura.
+   *
+   * A grade tem `readonly`, mas ela não é a única porta: barra de fórmulas,
+   * barra de ferramentas, menu de contexto e os atalhos de formatação também
+   * escrevem. Passar tudo por aqui é o que garante que nenhuma delas escape —
+   * uma trava que depende de lembrar de sete lugares não é uma trava.
+   */
+  const applyChange = useCallback(
+    (next: Sheet) => {
+      if (!readOnly) onChange(next)
+    },
+    [onChange, readOnly],
+  )
+
+  const applyStructure = useCallback(
+    (change: StructuralChange) => {
+      if (!readOnly) onStructure(change)
+    },
+    [onStructure, readOnly],
+  )
 
   const columns = useMemo<ColumnRegular[]>(
     () =>
@@ -210,9 +235,9 @@ export function SpreadsheetEditor({
         updated = writeAt(updated, detail.rowIndex, String(detail.prop), detail.val)
       }
 
-      onChange(updated)
+      applyChange(updated)
     },
-    [onChange, writeAt],
+    [applyChange, writeAt],
   )
 
   /**
@@ -238,9 +263,9 @@ export function SpreadsheetEditor({
       for (const [index, column] of Object.entries(event.detail)) {
         if (column.size !== undefined) widths[Number(index)] = column.size
       }
-      onChange({ ...current.current, columnWidths: widths })
+      applyChange({ ...current.current, columnWidths: widths })
     },
-    [onChange],
+    [applyChange],
   )
 
   const handleFocus = useCallback((event: RevoGridCustomEvent<FocusAfterRenderEvent>) => {
@@ -271,7 +296,7 @@ export function SpreadsheetEditor({
       if (oldRange === null || newRange === null) return
 
       event.preventDefault()
-      onChange(
+      applyChange(
         fillRange(
           current.current,
           { fromRow: oldRange.y, fromColumn: oldRange.x, toRow: oldRange.y1, toColumn: oldRange.x1 },
@@ -279,7 +304,7 @@ export function SpreadsheetEditor({
         ),
       )
     },
-    [onChange],
+    [applyChange],
   )
 
   /**
@@ -327,21 +352,21 @@ export function SpreadsheetEditor({
       if (key === undefined) return
 
       event.preventDefault()
-      onChange(toggleStyle(current.current, selection.current, key))
+      applyChange(toggleStyle(current.current, selection.current, key))
     }
 
     document.addEventListener('keydown', shortcut)
     return () => document.removeEventListener('keydown', shortcut)
-  }, [onChange])
+  }, [applyChange])
 
   return (
     <div className="sheet" onContextMenu={handleContextMenu}>
-      <SpreadsheetToolbar sheet={sheet} range={range} onChange={onChange} />
+      <SpreadsheetToolbar sheet={sheet} range={range} onChange={applyChange} />
 
       <FormulaBar
         sheet={sheet}
         range={range}
-        onCommit={(text) => onChange(write(current.current, range.fromRow, range.fromColumn, text))}
+        onCommit={(text) => applyChange(write(current.current, range.fromRow, range.fromColumn, text))}
       />
 
       {menu !== null && (
@@ -350,7 +375,7 @@ export function SpreadsheetEditor({
           range={range}
           position={menu}
           onChange={onChange}
-          onStructure={onStructure}
+          onStructure={applyStructure}
           onClose={closeMenu}
         />
       )}
@@ -361,6 +386,7 @@ export function SpreadsheetEditor({
         theme="compact"
         resize={true}
         range={true}
+        readonly={readOnly}
         rowHeaders={true}
         useClipboard={true}
         rowDefinitions={Array.from({ length: sheet.frozenRows }, (_, index) => ({

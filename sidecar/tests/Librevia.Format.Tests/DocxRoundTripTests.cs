@@ -385,6 +385,43 @@ public class DocxRoundTripTests
         Assert.Empty(result.Inventory.Lost);
     }
 
+    [Fact]
+    public void ComentarioEControleDeAlteracoesSaoEstruturais()
+    {
+        // É esta lista que decide se o documento abre em somente leitura. Ela é
+        // subconjunto da invisibilidade: o recurso continua no arquivo, e só
+        // some se o usuário editar justamente o bloco que o ancora.
+        var comentado = DocxReader.Read(Fixtures.WithComment()).Inventory;
+        var revisado = DocxReader.Read(Fixtures.WithTrackedChanges()).Inventory;
+
+        Assert.Contains(Inventory.Comments, comentado.Structural);
+        Assert.Contains(Inventory.TrackedChanges, revisado.Structural);
+        // Subconjunto, não lista paralela: tudo que é estrutural também é
+        // invisível, senão o aviso de tela deixaria de mencioná-lo.
+        Assert.All(comentado.Structural, item => Assert.Contains(item, comentado.Invisible));
+    }
+
+    [Fact]
+    public void DocumentoComumNaoAbreEmSomenteLeitura()
+    {
+        // Somente leitura por padrão em documento normal travaria o uso do dia
+        // a dia — e o usuário aprenderia a clicar "editar mesmo assim" sem ler.
+        var result = DocxReader.Read(Fixtures.Simple());
+
+        Assert.Empty(result.Inventory.Structural);
+    }
+
+    [Fact]
+    public void ImagemAncoradaNaoEEstrutural()
+    {
+        // Perda de **aparência**, não de conteúdo: a imagem aparece na tela e
+        // volta para o arquivo. Travar a edição por causa dela seria o mesmo
+        // que travar por nada, já que quase todo documento do corpus tem uma.
+        var result = DocxReader.Read(Fixtures.WithAnchoredImage());
+
+        Assert.Empty(result.Inventory.Structural);
+    }
+
     // --- arquivos problemáticos ---------------------------------------------
 
     [Theory]

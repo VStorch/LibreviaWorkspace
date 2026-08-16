@@ -100,6 +100,19 @@ button {
   margin-top: 6px;
 }
 
+/* Somente leitura: âmbar de atenção, não vermelho de erro. Nada quebrou — o
+   arquivo abriu, e a faixa explica por que a edição está travada. */
+.banner--readonly {
+  background: #fff4e5;
+  border-bottom-color: #e0b46a;
+  color: #5c3d08;
+}
+
+.banner--readonly .banner__action {
+  background: #5c3d08;
+  border-color: #5c3d08;
+}
+
 /* Recuperação: azul de informação, não vermelho de erro. Nada quebrou — há
    trabalho de volta, e a faixa existe para oferecê-lo. */
 .banner--recovery {

@@ -367,17 +367,17 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory)
                 // editor não os mostra. Invisibilidade, não perda.
                 case CommentRangeStart:
                 case CommentRangeEnd:
-                    inventory.NoteInvisible("comentários");
+                    inventory.NoteInvisible(Inventory.Comments);
                     break;
 
                 case InsertedRun inserted:
-                    inventory.NoteInvisible("controle de alterações");
+                    inventory.NoteInvisible(Inventory.TrackedChanges);
                     nodes.AddRange(ReadInline(inserted, inherited, hyperlink));
                     break;
 
                 case DeletedRun:
                     // Texto marcado como excluído não deve aparecer na tela.
-                    inventory.NoteInvisible("controle de alterações");
+                    inventory.NoteInvisible(Inventory.TrackedChanges);
                     break;
 
                 default:
@@ -433,7 +433,7 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory)
                 case FieldCode:
                     // `PAGE` e afins: o valor só existe na paginação. O texto
                     // que o Word deixou em cache vem no run seguinte.
-                    inventory.NoteInvisible("campos calculados (como sumário e número de página)");
+                    inventory.NoteInvisible(Inventory.Fields);
                     break;
 
                 default:

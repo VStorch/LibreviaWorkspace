@@ -267,7 +267,7 @@ public static class HeaderReader
                     }
                     else
                     {
-                        inventory.NoteInvisible("campos calculados no cabeçalho");
+                        inventory.NoteInvisible(Inventory.HeaderFields);
                     }
 
                     break;

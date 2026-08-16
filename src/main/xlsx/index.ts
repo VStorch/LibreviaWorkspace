@@ -31,6 +31,7 @@ import { SidecarMethod } from '../sidecar/protocol.js'
 const inventorySchema = z.object({
   invisible: z.array(z.string()).default([]),
   lost: z.array(z.string()).default([]),
+  structural: z.array(z.string()).default([]),
 })
 
 const openResultSchema = z.object({
@@ -143,7 +144,7 @@ export async function saveXlsx(client: SidecarClient, ssheetContent: string): Pr
     `[xlsx] escritas ${parsed.data.cellsWritten}, limpas ${parsed.data.cellsCleared}, preservadas ${parsed.data.cellsPreserved}`,
   )
 
-  return { bytes: reply.binary, inventory: { invisible: [], lost: [] } }
+  return { bytes: reply.binary, inventory: { invisible: [], lost: [], structural: [] } }
 }
 
 /** O modelo que veio do sidecar, conferido pelo mesmo esquema do `.ssheet`. */

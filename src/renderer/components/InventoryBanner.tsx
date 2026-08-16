@@ -13,9 +13,20 @@ import { useWorkspace } from '../state/workspace.js'
  */
 export function InventoryBanner(): React.JSX.Element | null {
   const notice = useWorkspace((state) => state.notice)
+  const readOnly = useWorkspace((state) => state.readOnly)
   const dismiss = useWorkspace((state) => state.dismissNotice)
 
   if (notice === null) return null
+
+  // Enquanto a faixa de somente leitura está na tela, ela já nomeia o que é
+  // estrutural. Repetir aqui empilharia dois avisos dizendo a mesma coisa, e
+  // dois avisos iguais valem menos que um. Ao liberar a edição a lista volta
+  // inteira — que é justamente quando ela passa a importar.
+  const invisible = readOnly
+    ? notice.invisible.filter((item) => !notice.structural.includes(item))
+    : notice.invisible
+
+  if (invisible.length === 0 && notice.lost.length === 0) return null
 
   return (
     <div className="banner banner--notice" role="status">
@@ -26,14 +37,14 @@ export function InventoryBanner(): React.JSX.Element | null {
             <span className="banner__detail">{notice.lost.join('; ')}</span>
           </>
         )}
-        {notice.invisible.length > 0 && (
+        {invisible.length > 0 && (
           <>
             <strong>
               {notice.lost.length > 0
                 ? 'E isto continua no arquivo, mas não aparece aqui:'
                 : 'Este documento tem recursos que continuam no arquivo, mas não aparecem aqui:'}
             </strong>
-            <span className="banner__detail">{notice.invisible.join('; ')}</span>
+            <span className="banner__detail">{invisible.join('; ')}</span>
           </>
         )}
       </div>

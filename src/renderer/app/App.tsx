@@ -3,6 +3,7 @@ import { MenuCommand } from '@shared/types.js'
 import { buildWindowTitle } from '@services/file/formats.js'
 import { ErrorBanner } from '../components/ErrorBanner.js'
 import { InventoryBanner } from '../components/InventoryBanner.js'
+import { ReadOnlyBanner } from '../components/ReadOnlyBanner.js'
 import { RecoveryBanner } from '../components/RecoveryBanner.js'
 import { StatusBar } from '../components/StatusBar.js'
 import { DocumentEditor } from '../document/DocumentEditor.js'
@@ -85,6 +86,7 @@ export function App(): React.JSX.Element {
   const addSheet = useWorkspace((state) => state.addSheet)
   const renameSheet = useWorkspace((state) => state.renameSheet)
   const removeSheet = useWorkspace((state) => state.removeSheet)
+  const readOnly = useWorkspace((state) => state.readOnly)
 
   useEffect(() => {
     void useWorkspace.getState().refreshRecents()
@@ -134,6 +136,7 @@ export function App(): React.JSX.Element {
     <div className="app">
       <ErrorBanner />
       <RecoveryBanner />
+      <ReadOnlyBanner />
       <InventoryBanner />
       <div className="app__body">
         {workbook !== null ? (
@@ -143,6 +146,7 @@ export function App(): React.JSX.Element {
               sheet={workbook.sheets[workbook.activeSheet]!}
               onChange={updateSheet}
               onStructure={changeStructure}
+              readOnly={readOnly}
             />
             <SheetTabs
               workbook={workbook}

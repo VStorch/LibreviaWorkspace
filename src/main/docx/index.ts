@@ -17,6 +17,7 @@ import { SidecarMethod } from '../sidecar/protocol.js'
 const inventorySchema = z.object({
   invisible: z.array(z.string()).default([]),
   lost: z.array(z.string()).default([]),
+  structural: z.array(z.string()).default([]),
 })
 
 const openResultSchema = z.object({

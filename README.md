@@ -18,6 +18,7 @@ Manual para quem usa o aplicativo: [MANUAL.md](MANUAL.md).
 | Planilhas | grade de 10 mil linhas, seleção de intervalo, alça de preenchimento, área de transferência, abas, formatação, congelamento e inserir/excluir linhas e colunas |
 | Fórmulas | 37 funções, referências entre abas, barra de fórmulas — ver abaixo |
 | Recuperação | rascunho de oito em oito segundos, oferecido de volta depois de uma queda |
+| Somente leitura | graduado: trava só quando o arquivo tem o que se perde ao editar |
 | Distribuição | AppImage, `.deb` e instalador NSIS, com os avisos de terceiros |
 
 Em aberto: mesclagem de células, interface para filtros de planilha (os que vêm
@@ -62,6 +63,19 @@ Duas coisas que o aplicativo distingue e a maioria mistura:
 
 São avisos diferentes porque são problemas diferentes. Um alerta genérico é um
 alerta que o usuário aprende a ignorar.
+
+E há uma terceira categoria, que é um **subconjunto da invisibilidade**: o que
+some se — e só se — o usuário editar justamente o bloco que o ancora. Comentário,
+revisão, nota e campo calculado entram; posicionamento de imagem e decoração,
+não. É ela que decide o **somente leitura**, que é padrão e não cadeado: a faixa
+diz o que está em jogo e um clique libera. Travar por perda de aparência travaria
+o uso do dia a dia — quase todo documento do corpus tem uma imagem ancorada — e o
+usuário aprenderia a liberar sem ler.
+
+A classificação mora em `Inventory.cs`, e os rótulos são **constantes** usadas
+pelos leitores: uma frase mudada num deles deixaria de casar com a lista e o
+documento passaria a abrir editável sem que ninguém percebesse. Sendo constantes,
+o compilador não deixa.
 
 ## Fórmulas escrevem-se em português
 

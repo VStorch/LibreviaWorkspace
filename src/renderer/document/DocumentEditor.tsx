@@ -28,6 +28,7 @@ export function DocumentEditor(): React.JSX.Element {
   const setStats = useWorkspace((state) => state.setStats)
   const registerDocumentSource = useWorkspace((state) => state.registerDocumentSource)
   const setEstimatedPages = useWorkspace((state) => state.setEstimatedPages)
+  const readOnly = useWorkspace((state) => state.readOnly)
 
   const pageRef = useRef<HTMLDivElement>(null)
   const [contentRevision, setContentRevision] = useState(0)
@@ -59,6 +60,22 @@ export function DocumentEditor(): React.JSX.Element {
       attributes: { class: 'page__content', spellcheck: 'false' },
     },
   })
+
+  /**
+   * Somente leitura ligado e desligado no editor já montado.
+   *
+   * Passar `editable` na criação não bastaria: liberar a edição pelo aviso
+   * acontece **depois**, e recriar o editor ali perderia a posição do cursor e
+   * o histórico de desfazer.
+   *
+   * O segundo argumento é o que importa: `setEditable` emite um update por
+   * padrão, e o update marca o documento como alterado. Sem ele, todo arquivo
+   * aberto aparecia como "não salvo" antes de o usuário tocar em nada — e o
+   * aviso de descarte apareceria ao fechar um documento que ninguém editou.
+   */
+  useEffect(() => {
+    editor?.setEditable(!readOnly, false)
+  }, [editor, readOnly])
 
   // Salvar e imprimir precisam do conteúdo atual, que só o editor conhece.
   useEffect(() => {
