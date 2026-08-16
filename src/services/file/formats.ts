@@ -9,21 +9,23 @@ import { DocumentKind } from '@shared/types.js'
  */
 
 /**
- * Formatos que o aplicativo sabe abrir e salvar hoje. DOCX chega na Fase 4;
- * XLSX na 7.
+ * Formatos que o aplicativo sabe abrir e salvar.
  *
- * `.sdoc` é o formato interno: guarda o documento inteiro, com formatação.
- * `.txt` continua de primeira classe, mas só carrega texto — salvar nele
- * descarta formatação, e por isso o aplicativo avisa antes.
+ * `.sdoc` e `.ssheet` são os formatos internos: guardam o modelo inteiro, sem
+ * perda nenhuma. `.docx` e `.xlsx` são os do Office, gravados por cima do
+ * arquivo original. `.txt` continua de primeira classe, mas só carrega texto —
+ * salvar nele descarta formatação, e por isso o aplicativo avisa antes.
  */
 export const DOCUMENT_EXTENSION = '.sdoc'
 export const SPREADSHEET_EXTENSION = '.ssheet'
 export const PLAIN_TEXT_EXTENSION = '.txt'
 export const WORD_EXTENSION = '.docx'
+export const EXCEL_EXTENSION = '.xlsx'
 export const SUPPORTED_EXTENSIONS = [
   DOCUMENT_EXTENSION,
   SPREADSHEET_EXTENSION,
   WORD_EXTENSION,
+  EXCEL_EXTENSION,
   PLAIN_TEXT_EXTENSION,
 ] as const
 
@@ -37,6 +39,10 @@ export function isWordPath(path: string): boolean {
 
 export function isSpreadsheetPath(path: string): boolean {
   return extensionOf(path) === SPREADSHEET_EXTENSION
+}
+
+export function isExcelPath(path: string): boolean {
+  return extensionOf(path) === EXCEL_EXTENSION
 }
 
 export function extensionOf(path: string): string {
@@ -56,10 +62,8 @@ export function isSupportedExtension(path: string): boolean {
 }
 
 export function kindFromPath(path: string): DocumentKind {
-  // `.xlsx` ainda não abre (Fase 7), mas já classifica: é o que faz o ícone e o
-  // editor certos aparecerem no dia em que abrir.
   const extension = extensionOf(path)
-  return extension === SPREADSHEET_EXTENSION || extension === '.xlsx'
+  return extension === SPREADSHEET_EXTENSION || extension === EXCEL_EXTENSION
     ? DocumentKind.Spreadsheet
     : DocumentKind.Document
 }

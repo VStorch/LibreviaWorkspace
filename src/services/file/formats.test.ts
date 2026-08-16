@@ -32,13 +32,16 @@ describe('extensionOf', () => {
 })
 
 describe('isSupportedExtension', () => {
-  it.each(['/a/b.txt', '/a/b.sdoc', '/a/b.docx', '/a/b.DOCX'])('aceita %s', (path) => {
-    expect(isSupportedExtension(path)).toBe(true)
-  })
+  it.each(['/a/b.txt', '/a/b.sdoc', '/a/b.ssheet', '/a/b.docx', '/a/b.DOCX', '/a/b.xlsx', '/a/b.XLSX'])(
+    'aceita %s',
+    (path) => {
+      expect(isSupportedExtension(path)).toBe(true)
+    },
+  )
 
-  it.each(['/a/b.exe', '/a/b.sh', '/a/b', '/a/b.xlsx'])('recusa %s', (path) => {
-    // `.xlsx` só na Fase 7 — abrir uma planilha no editor de texto não
-    // produziria nada útil.
+  it.each(['/a/b.exe', '/a/b.sh', '/a/b', '/a/b.xls', '/a/b.ods'])('recusa %s', (path) => {
+    // `.xls` e `.ods` são formatos diferentes, não variações: abrir um deles
+    // como se fosse `.xlsx` daria erro de arquivo corrompido.
     expect(isSupportedExtension(path)).toBe(false)
   })
 })

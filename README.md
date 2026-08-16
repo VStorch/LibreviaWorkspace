@@ -24,13 +24,14 @@ Em aberto: XLSX, mesclagem de células e o instalador.
 | `.sdoc`   | formato interno do documento: completo, com formatação — sem perda |
 | `.ssheet` | formato interno da planilha: valores, fórmulas e formatação — sem perda |
 | `.docx`   | Word; abre e grava preservando o que não foi editado |
+| `.xlsx`   | Excel; abre e grava preservando o que não foi editado |
 | `.txt`    | apenas texto; salvar nele descarta formatação, e o aplicativo avisa antes |
 | `.pdf`    | saída apenas (exportação e impressão) |
 
-XLSX ainda não abre. **ODT está fora do escopo**: não existe biblioteca madura e
-de licença permissiva em nenhum ecossistema — no .NET tudo que presta é
-comercial, e no npm a opção viável tem seis meses de vida e um mantenedor.
-Documentos `.docx` funcionam vindos tanto do Word quanto do LibreOffice.
+**ODT e ODS estão fora do escopo**: não existe biblioteca madura e de licença
+permissiva em nenhum ecossistema — no .NET tudo que presta é comercial, e no npm
+a opção viável tem seis meses de vida e um mantenedor. Arquivos `.docx` e `.xlsx`
+funcionam vindos tanto do Office quanto do LibreOffice.
 
 ## Editar um `.docx` não custa o que você não editou
 
@@ -87,6 +88,29 @@ uma aba conserta as fórmulas que a citam, em vez de transformá-las em `#REF!`.
 Ainda não há: matrizes dinâmicas, referências de coluna inteira (`A:A`),
 intervalos nomeados, e copiar uma fórmula pela alça de preenchimento leva o
 **valor**, não a fórmula deslocada.
+
+## O `.xlsx` guarda outro idioma, e a fronteira traduz
+
+O arquivo diz `SUM(A1,B1)`; a tela diz `SOMA(A1;B1)`. A tradução acontece num
+lugar só — a fronteira entre o processo main e o serviço de formato — e é feita
+**caractere a caractere**, não reconstruindo a fórmula a partir da árvore.
+
+O motivo é medido, não estético. A gravação é cirúrgica também aqui: ela relê o
+arquivo original, compara célula a célula e só toca no que mudou. Reconstruir a
+fórmula normalizaria espaços e maiúsculas, toda célula pareceria diferente, e
+abrir e salvar sem editar reescreveria a planilha inteira — apagando fonte,
+alinhamento vertical, recuo e bordas diagonais, tudo que o modelo não representa.
+
+Medido numa planilha do LibreOffice: abrir e salvar sem editar escreve **zero**
+células e preserva 18; mudar uma quantidade escreve **quatro** — a célula digitada
+e as três fórmulas que dependiam dela. O arquivo volta ao LibreOffice com os
+valores recalculados e a formatação de moeda intacta.
+
+A diferença para o DOCX vem de uma medição, não de uma suposição: a biblioteca de
+planilha **preserva as partes do pacote que não modela** — uma parte de XML
+injetada à mão sobrevive à ida e volta, e gráficos e tabelas dinâmicas
+sobrevivem pelo mesmo mecanismo. O que ela regenera é a planilha em si. Então
+aqui o risco não é o pacote: é a célula.
 
 ## Por que há .NET num projeto Electron
 

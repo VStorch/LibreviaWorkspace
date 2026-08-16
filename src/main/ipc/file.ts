@@ -5,11 +5,13 @@ import type { LoadedFile } from '@shared/types.js'
 import {
   ensureSupportedExtension,
   fileNameFromPath,
+  isExcelPath,
   isWordPath,
   kindFromPath,
 } from '@services/file/formats.js'
 import { showOpenFileDialog, showSaveFileDialog } from '../dialogs.js'
 import { forgetOpenedDocx, openDocx, saveDocx } from '../docx/index.js'
+import { forgetOpenedXlsx, openXlsx, saveXlsx } from '../xlsx/index.js'
 import { sidecar } from '../sidecar/index.js'
 import { writeFileAtomic } from '../fs/atomic-write.js'
 import { assertPathAuthorized, assertReadableFile, authorizePath } from '../fs/paths.js'
@@ -30,13 +32,19 @@ function windowOf(event: IpcMainInvokeEvent): BrowserWindow {
 async function loadFile(path: string): Promise<LoadedFile> {
   await assertReadableFile(path)
 
-  // O DOCX vira formato interno aqui, e não no renderer: assim o renderer
+  // DOCX e XLSX viram formato interno aqui, e não no renderer: assim o renderer
   // segue com um caminho só e nunca vê OOXML.
   const loaded = isWordPath(path)
     ? await openDocx(sidecar(), path)
-    : { content: await readTextFile(path), inventory: undefined }
+    : isExcelPath(path)
+      ? await openXlsx(sidecar(), path)
+      : { content: await readTextFile(path), inventory: undefined }
 
+  // Os bytes originais guardados valem para **um** arquivo. Abrir outro sem
+  // esquecer os anteriores faria a próxima gravação escrever por cima do
+  // pacote errado.
   if (!isWordPath(path)) forgetOpenedDocx()
+  if (!isExcelPath(path)) forgetOpenedXlsx()
 
   const authorized = authorizePath(path)
   rememberRecentFile(authorized)
@@ -74,9 +82,14 @@ export function registerFileHandlers(): void {
   handle(IpcChannel.FileSave, async (payload) => {
     const path = assertPathAuthorized(payload.path)
 
-    // Gravar `.docx` não escreve o que o renderer mandou: manda o modelo ao
-    // sidecar, que reescreve só os blocos tocados sobre o pacote original.
-    const saved = isWordPath(path) ? await saveDocx(sidecar(), payload.content) : null
+    // Gravar `.docx` e `.xlsx` não escreve o que o renderer mandou: manda o
+    // modelo ao sidecar, que reescreve só o que foi tocado sobre o pacote
+    // original.
+    const saved = isWordPath(path)
+      ? await saveDocx(sidecar(), payload.content)
+      : isExcelPath(path)
+        ? await saveXlsx(sidecar(), payload.content)
+        : null
     await writeFileAtomic(path, saved?.bytes ?? payload.content)
 
     rememberRecentFile(path)

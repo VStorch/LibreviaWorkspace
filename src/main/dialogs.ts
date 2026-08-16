@@ -2,19 +2,19 @@ import { dialog, type BrowserWindow } from 'electron'
 import { DiscardChoice, PlainTextChoice } from '@shared/types.js'
 import {
   DOCUMENT_EXTENSION,
+  EXCEL_EXTENSION,
   PLAIN_TEXT_EXTENSION,
   SPREADSHEET_EXTENSION,
+  SUPPORTED_EXTENSIONS,
   WORD_EXTENSION,
 } from '@services/file/formats.js'
 
 const bare = (extension: string) => extension.replace('.', '')
 
 const FILTERS = [
-  {
-    name: 'Todos os arquivos suportados',
-    extensions: [DOCUMENT_EXTENSION, SPREADSHEET_EXTENSION, WORD_EXTENSION, PLAIN_TEXT_EXTENSION].map(bare),
-  },
+  { name: 'Todos os arquivos suportados', extensions: SUPPORTED_EXTENSIONS.map(bare) },
   { name: 'Documentos do Word', extensions: [bare(WORD_EXTENSION)] },
+  { name: 'Planilhas do Excel', extensions: [bare(EXCEL_EXTENSION)] },
   { name: 'Documentos', extensions: [bare(DOCUMENT_EXTENSION)] },
   { name: 'Planilhas', extensions: [bare(SPREADSHEET_EXTENSION)] },
   { name: 'Texto simples', extensions: [bare(PLAIN_TEXT_EXTENSION)] },
@@ -129,7 +129,7 @@ export function showAboutDialog(window: BrowserWindow, appName: string, version:
     type: 'info',
     title: `Sobre o ${appName}`,
     message: appName,
-    detail: `Versão ${version}\n\nSuíte de documentos e planilhas, offline.\nEm desenvolvimento — Fase 1 de 8.`,
+    detail: `Versão ${version}\n\nSuíte de documentos e planilhas, offline.\nEm desenvolvimento — Fase 7 de 8.`,
     buttons: ['Fechar'],
     noLink: true,
   })

@@ -58,7 +58,7 @@ export async function assertReadableFile(path: string): Promise<void> {
   if (!isSupportedExtension(path)) {
     throw new AppError(
       ErrorCode.UnsupportedFormat,
-      'Este tipo de arquivo ainda não é suportado. Por enquanto o aplicativo abre arquivos .txt.',
+      'Este tipo de arquivo não é suportado. O aplicativo abre .sdoc, .ssheet, .docx, .xlsx e .txt.',
     )
   }
 

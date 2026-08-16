@@ -147,6 +147,8 @@ export const SidecarMethod = {
   Echo: 'diagnostics.echo',
   DocxOpen: 'docx.open',
   DocxSave: 'docx.save',
+  XlsxOpen: 'xlsx.open',
+  XlsxSave: 'xlsx.save',
 } as const
 
 export type SidecarMethod = (typeof SidecarMethod)[keyof typeof SidecarMethod]

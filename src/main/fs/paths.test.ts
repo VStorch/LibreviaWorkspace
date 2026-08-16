@@ -69,13 +69,21 @@ describe('assertReadableFile', () => {
     })
   })
 
-  it('recusa extensão ainda não suportada', async () => {
-    // `.xlsx` chega na Fase 7. Até lá, recusar é melhor que abrir uma planilha
-    // no editor de texto e mostrar lixo.
-    const path = join(directory, 'planilha.xlsx')
+  it('recusa extensão que o aplicativo não abre', async () => {
+    // `.ods` é outro formato, não uma variação: abri-lo como `.xlsx` daria erro
+    // de arquivo corrompido, que manda o usuário procurar o problema no lugar
+    // errado.
+    const path = join(directory, 'planilha.ods')
     await writeFile(path, 'x')
 
     await expect(assertReadableFile(path)).rejects.toMatchObject({ code: 'UNSUPPORTED_FORMAT' })
+  })
+
+  it('aceita .xlsx desde a Fase 7', async () => {
+    const path = join(directory, 'vendas.xlsx')
+    await writeFile(path, 'x')
+
+    await expect(assertReadableFile(path)).resolves.toBeUndefined()
   })
 
   it('aceita .docx desde a Fase 4', async () => {

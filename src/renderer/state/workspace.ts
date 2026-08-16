@@ -31,7 +31,7 @@ import {
   renameSheet as renameSheetIn,
   type StructuralChange,
 } from '@services/spreadsheet/structure.js'
-import { defaultFileName, isPlainTextPath, isSpreadsheetPath } from '@services/file/formats.js'
+import { defaultFileName, isPlainTextPath, kindFromPath } from '@services/file/formats.js'
 
 interface OpenFile {
   /** `null` enquanto o arquivo nunca foi gravado. */
@@ -202,12 +202,14 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
     if (file === null) return
 
     try {
-      if (isSpreadsheetPath(file.path)) {
+      // `.xlsx` chega aqui já convertido pelo processo main, no mesmo envelope
+      // do `.ssheet` — por isso a extensão decide o editor, e não o conteúdo.
+      if (kindFromPath(file.path) === DocumentKind.Spreadsheet) {
         // Recalcula ao abrir: o arquivo guarda o valor de quando foi salvo, e
         // uma fórmula com HOJE() ou editada à mão estaria desatualizada.
         const workbook = recalculate(parseWorkbook(file.content))
         load({ path: file.path, name: file.name, kind: DocumentKind.Spreadsheet }, createEmptyDocument())
-        set({ workbook, notice: null })
+        set({ workbook, notice: hasSomethingToSay(file.inventory) ? file.inventory! : null })
         await get().refreshRecents()
         return
       }
