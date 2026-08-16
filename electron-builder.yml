@@ -16,7 +16,7 @@ files:
 
 # O sidecar não entra no asar: ele é um executável, e um executável dentro de
 # um arquivo compactado não pode ser lançado. Cada plataforma leva só o seu
-# binário — os 82 MB do outro não serviriam para nada no destino.
+# binário — os 126 MB do outro não serviriam para nada no destino.
 #
 # O destino é `resources/sidecar/<rid>` **dentro** de `resources/`, porque é ali
 # que `sidecarPathIn` procura a partir de `process.resourcesPath`.

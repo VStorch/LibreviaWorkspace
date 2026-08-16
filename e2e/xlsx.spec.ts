@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdtemp, rm, stat } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, test, type Page } from '@playwright/test'
@@ -45,6 +45,10 @@ test.describe('planilha em .xlsx', () => {
 
     await menu(session, 'save-as')
     await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
+    // Conferido no disco, e não só na tela: se a gravação ainda estivesse em
+    // curso, o "fechar" logo abaixo abriria o aviso de descarte e o teste
+    // falharia três passos adiante, num lugar que não explica nada.
+    await expect.poll(() => exists(target), { timeout: 30_000 }).toBe(true)
 
     // Fechar e reabrir de verdade: recarregar o modelo da memória não provaria
     // que o arquivo em disco tem o que precisa ter.
@@ -91,6 +95,13 @@ async function write(window: Page, row: number, column: number, text: string): P
   const input = window.locator('.formula-bar__input')
   await input.fill(text)
   await input.press('Enter')
+}
+
+async function exists(path: string): Promise<boolean> {
+  return stat(path).then(
+    () => true,
+    () => false,
+  )
 }
 
 function reference(row: number, column: number): string {

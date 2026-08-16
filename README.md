@@ -197,6 +197,34 @@ os bytes originais do pacote OOXML. Sem os segundos, salvar por cima do `.docx`
 recuperado seria recusado, e você ficaria com o trabalho na tela sem poder
 gravá-lo onde ele estava.
 
+## Desempenho, medido
+
+Planilha de 20 mil linhas e **120 mil células**, com 20 mil fórmulas, gerada pelo
+LibreOffice. Abrir de ponta a ponta no aplicativo: **≈ 3,5 s**, assim repartidos:
+
+| Etapa | Tempo |
+| --- | --- |
+| serviço de formatos (ClosedXML lendo o pacote) | 1,9 s na primeira vez, 0,9 s depois |
+| `parseWorkbook` (validação zod de 120 mil células) | 245 ms |
+| `recalculate` (20 mil fórmulas) | 279 ms |
+| serializar o modelo (7,4 MB de JSON) | 50 ms |
+
+Duas decisões saíram daí:
+
+**Compilação antecipada (ReadyToRun) no sidecar, ligada.** Sem ela a primeira
+abertura custa 3,8 s; com ela, 1,9 s. No regime permanente ela perde ~100 ms,
+porque o código pré-compilado é menos otimizado que o que o JIT produz depois de
+aquecer — mas a primeira abertura é a que o usuário sente como travamento, e a
+diferença no regime permanente ninguém percebe. Custa 41 MB por plataforma.
+
+**Cache de formato numérico.** Uma planilha grande tem meia dúzia de máscaras e
+centenas de milhares de células; interpretar a máscara passou a acontecer uma vez
+por máscara distinta. O que sobra dos 300 ms daquele trecho não é nosso: é o
+ClosedXML materializando `cell.Style` célula a célula.
+
+O autosave, que serializa o documento inteiro a cada oito segundos, custa **4 ms**
+num documento de 6 mil parágrafos — não aparece.
+
 ## Empacotamento
 
 `npm run dist` gera AppImage e `.deb`; `npm run dist:win` gera o instalador NSIS.

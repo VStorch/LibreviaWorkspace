@@ -27,6 +27,20 @@
          que é o pior momento possível para descobrir. Tamanho é problema da
          Fase 8; corretude é problema de agora. -->
     <PublishTrimmed>false</PublishTrimmed>
+    <!-- Compilação antecipada, ligada por medição e não por hábito. Numa
+         planilha de 120 mil células, abrindo três vezes seguidas no mesmo
+         processo:
+
+           sem R2R:  3821 ms → 1188 ms → 779 ms   (85 MB)
+           com R2R:  1925 ms → 1604 ms → 894 ms  (126 MB)
+
+         Ou seja: R2R corta a **primeira** abertura pela metade e perde ~100 ms
+         no regime permanente, porque o código pré-compilado é menos otimizado
+         que o que o JIT produz depois de aquecer. A primeira é a que o usuário
+         sente como travamento; a diferença no regime permanente ninguém
+         percebe. Os 41 MB a mais por plataforma são o preço, e numa
+         distribuição interna por rede local eles cabem. -->
+    <PublishReadyToRun>true</PublishReadyToRun>
   </PropertyGroup>
 
   <ItemGroup>

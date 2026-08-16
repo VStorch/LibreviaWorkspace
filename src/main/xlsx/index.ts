@@ -77,7 +77,13 @@ export async function openXlsx(client: SidecarClient, path: string): Promise<Ope
     throw fromFileSystemError(cause, 'leitura')
   }
 
+  // Cronometrado porque "demorou para abrir" é a reclamação mais difícil de
+  // diagnosticar depois: sem os dois números, não dá para saber se o tempo foi
+  // do serviço de formatos ou da conversão deste lado.
+  const startedAt = Date.now()
   const reply = await client.request(SidecarMethod.XlsxOpen, {}, new Uint8Array(bytes))
+  const readAt = Date.now()
+
   const parsed = openResultSchema.safeParse(reply.result)
   if (!parsed.success) {
     throw new AppError(
@@ -89,6 +95,11 @@ export async function openXlsx(client: SidecarClient, path: string): Promise<Ope
 
   const model = translate(toModel(parsed.data.workbook), fromXlsxFormula)
   openedOriginal = { path, bytes }
+
+  const cells = model.sheets.reduce((total, sheet) => total + Object.keys(sheet.cells).length, 0)
+  console.info(
+    `[xlsx] abertas ${cells} células — serviço ${readAt - startedAt} ms, conversão ${Date.now() - readAt} ms`,
+  )
 
   return {
     content: serializeWorkbook(model),

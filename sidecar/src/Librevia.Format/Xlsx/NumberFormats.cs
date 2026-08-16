@@ -16,13 +16,46 @@ namespace Librevia.Format.Xlsx;
 /// </remarks>
 public static class NumberFormats
 {
+    /// <summary>
+    /// Resultado por máscara, para não reinterpretar a mesma coisa 120 mil vezes.
+    /// </summary>
+    /// <remarks>
+    /// Uma planilha grande tem centenas de milhares de células e **meia dúzia**
+    /// de máscaras: elas vêm de uma tabela compartilhada no arquivo. Com o
+    /// cache, interpretar a máscara acontece uma vez por máscara distinta em vez
+    /// de uma vez por célula — 120 mil chamadas custam 13 ms medidos.
+    ///
+    /// O que sobra não é nosso: numa planilha de 120 mil células, ler
+    /// `cell.Style` custa cerca de 300 ms, e isso é o ClosedXML materializando o
+    /// estilo célula a célula.
+    ///
+    /// O teto existe para o caso patológico do arquivo com uma máscara por
+    /// célula: passado ele, o cache para de crescer e o cálculo volta a ser
+    /// feito, que é lento mas limitado. Sem teto, seria memória sem limite.
+    ///
+    /// Dicionário simples porque o serviço atende um pedido por vez, por
+    /// desenho — ver o laço em `Server.cs`.
+    /// </remarks>
+    private static readonly Dictionary<(string Code, int Id), (string? Format, int? Decimals)> Known = [];
+
+    private const int MaxKnownFormats = 4096;
+
     /// <summary>Máscara → (formato do aplicativo, casas decimais).</summary>
     public static (string? Format, int? Decimals) Read(IXLNumberFormat format)
     {
-        var code = format.Format;
+        var key = (format.Format ?? string.Empty, format.NumberFormatId);
+        if (Known.TryGetValue(key, out var known)) return known;
+
+        var computed = Interpret(key.Item1, key.Item2);
+        if (Known.Count < MaxKnownFormats) Known[key] = computed;
+        return computed;
+    }
+
+    private static (string? Format, int? Decimals) Interpret(string code, int numberFormatId)
+    {
         if (string.IsNullOrWhiteSpace(code))
         {
-            return FromBuiltin(format.NumberFormatId);
+            return FromBuiltin(numberFormatId);
         }
 
         // "General" escrito por extenso é formato nenhum — e precisa sair antes
@@ -34,7 +67,10 @@ public static class NumberFormats
             return (null, null);
         }
 
-        return (KindOf(code), DecimalsOf(code));
+        // A limpeza de literais é feita **uma vez** e passada adiante: quando
+        // cada lado a refazia, ela era o dobro do trabalho da interpretação.
+        var mask = WithoutLiterals(code);
+        return (KindOf(code, mask), DecimalsOf(mask));
     }
 
     /// <summary>O nome do formato geral, como o Excel e o LibreOffice o escrevem.</summary>
@@ -71,10 +107,8 @@ public static class NumberFormats
         _ => (null, null),
     };
 
-    private static string? KindOf(string code)
+    private static string? KindOf(string code, string mask)
     {
-        var mask = WithoutLiterals(code);
-
         // Data antes de número: `dd/mm/aaaa` também tem dígitos na máscara.
         if (mask.Contains('y') || mask.Contains('a') || mask.Contains('d') || mask.Contains('M'))
         {
@@ -97,10 +131,8 @@ public static class NumberFormats
     /// Conta os zeros depois do separador decimal. A máscara do formato usa
     /// sempre ponto para decimal, independente do idioma do arquivo.
     /// </remarks>
-    private static int? DecimalsOf(string code)
+    private static int? DecimalsOf(string mask)
     {
-        var mask = WithoutLiterals(code);
-
         // Uma máscara pode ter seção para positivo, negativo e zero. A primeira
         // é a que manda no que se vê quase sempre.
         var first = mask.Split(';')[0];
