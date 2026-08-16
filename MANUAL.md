@@ -67,6 +67,10 @@ Na planilha, `Ctrl+B`, `Ctrl+I` e `Ctrl+U` valem para as células selecionadas.
 Clicar com o botão direito numa célula abre o menu de inserir e remover linhas e
 colunas.
 
+Arrastar o quadradinho do canto inferior direito da seleção preenche as células
+seguintes. Se a célula de origem tiver uma fórmula, ela é **deslocada**: `=B2*C2`
+arrastada para baixo vira `=B3*C3`. Referência com `$` não se mexe.
+
 ---
 
 ## Planilha: as fórmulas são em português
@@ -98,8 +102,7 @@ estrangeira não precisa traduzir na mão.
 
 ### Ainda não existe
 
-Matrizes dinâmicas, referências de coluna inteira (`A:A`), intervalos nomeados, e
-a alça de preenchimento copia o **valor**, não a fórmula deslocada.
+Matrizes dinâmicas, referências de coluna inteira (`A:A`) e intervalos nomeados.
 
 Uma fórmula que use alguma função fora da lista mostra `#NOME?` na célula — mas
 **continua no arquivo**, intacta, e o Excel volta a calculá-la normalmente. O

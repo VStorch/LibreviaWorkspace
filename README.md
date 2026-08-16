@@ -91,9 +91,13 @@ Inserir uma linha reescreve as referências, inclusive as de outras abas — sem
 isso `SOMA(A1:A3)` continuaria somando onde os dados não estão mais. Renomear
 uma aba conserta as fórmulas que a citam, em vez de transformá-las em `#REF!`.
 
-Ainda não há: matrizes dinâmicas, referências de coluna inteira (`A:A`),
-intervalos nomeados, e copiar uma fórmula pela alça de preenchimento leva o
-**valor**, não a fórmula deslocada.
+Arrastar a alça de preenchimento leva a **fórmula deslocada**, não o resultado:
+`=B2*C2` arrastada para baixo vira `=B3*C3`, e a referência com `$` fica onde
+está. Copiar o valor calculado daria a coluna inteira repetindo o número da
+primeira linha — e o erro só apareceria no fechamento do mês.
+
+Ainda não há: matrizes dinâmicas, referências de coluna inteira (`A:A`) e
+intervalos nomeados.
 
 ## O `.xlsx` guarda outro idioma, e a fronteira traduz
 

@@ -18,6 +18,7 @@ import {
   type Sheet,
 } from '@services/spreadsheet/model.js'
 import { normalizeRange, singleCell, toggleStyle, type Range } from '@services/spreadsheet/edit.js'
+import { fillRange } from '@services/spreadsheet/fill.js'
 import type { StructuralChange } from '@services/spreadsheet/structure.js'
 import { FormulaBar } from './FormulaBar.js'
 import { SpreadsheetToolbar } from './SpreadsheetToolbar.js'
@@ -256,6 +257,32 @@ export function SpreadsheetEditor({
   }, [])
 
   /**
+   * Alça de preenchimento.
+   *
+   * O grid preencheria copiando o **texto exibido**, que para uma fórmula é o
+   * resultado já calculado — arrastar `=B2*C2` para baixo repetiria o número da
+   * primeira linha, e o erro só apareceria no fechamento do mês. Por isso o
+   * comportamento padrão é cancelado e o preenchimento é feito sobre o modelo,
+   * onde a fórmula existe e pode ser deslocada.
+   */
+  const handleAutofill = useCallback(
+    (event: RevoGridCustomEvent<ChangedRange>) => {
+      const { oldRange, newRange } = event.detail
+      if (oldRange === null || newRange === null) return
+
+      event.preventDefault()
+      onChange(
+        fillRange(
+          current.current,
+          { fromRow: oldRange.y, fromColumn: oldRange.x, toRow: oldRange.y1, toColumn: oldRange.x1 },
+          { fromRow: newRange.y, fromColumn: newRange.x, toRow: newRange.y1, toColumn: newRange.x1 },
+        ),
+      )
+    },
+    [onChange],
+  )
+
+  /**
    * Botão direito: o menu age sobre a seleção quando o clique cai **dentro**
    * dela, e sobre a célula clicada quando cai fora — a regra do Excel. Clicar
    * fora e mesmo assim operar sobre a seleção antiga excluiria a linha errada.
@@ -346,6 +373,7 @@ export function SpreadsheetEditor({
         onAftercolumnresize={handleResize}
         onAfterfocus={handleFocus}
         onBeforerange={handleRange}
+        onBeforeautofill={handleAutofill}
       />
     </div>
   )
