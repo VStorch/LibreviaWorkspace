@@ -1,5 +1,6 @@
 import { APP_NAME } from '@shared/constants.js'
 import type { RecentFile } from '@shared/types.js'
+import { Icon, type IconName } from '../components/Icon.js'
 import { useWorkspace } from '../state/workspace.js'
 
 function formatWhen(timestamp: number): string {
@@ -30,6 +31,28 @@ function RecentItem({ file }: { readonly file: RecentFile }): React.JSX.Element 
   )
 }
 
+function Tile({
+  icon,
+  title,
+  hint,
+  onClick,
+}: {
+  readonly icon: IconName
+  readonly title: string
+  readonly hint: string
+  readonly onClick: () => void
+}): React.JSX.Element {
+  return (
+    <button type="button" className="tile" onClick={onClick}>
+      <span className="tile__icon">
+        <Icon name={icon} />
+      </span>
+      <span className="tile__title">{title}</span>
+      <span className="tile__hint">{hint}</span>
+    </button>
+  )
+}
+
 export function HomePage(): React.JSX.Element {
   const { recents, newDocument, newSpreadsheet, openViaDialog, clearRecents } = useWorkspace()
 
@@ -41,20 +64,14 @@ export function HomePage(): React.JSX.Element {
       </header>
 
       <div className="home__actions">
-        <button type="button" className="tile" onClick={() => void newDocument()}>
-          <span className="tile__title">Novo documento</span>
-          <span className="tile__hint">Ctrl+N</span>
-        </button>
-
-        <button type="button" className="tile" onClick={() => void newSpreadsheet()}>
-          <span className="tile__title">Nova planilha</span>
-          <span className="tile__hint">Ctrl+Shift+N</span>
-        </button>
-
-        <button type="button" className="tile" onClick={() => void openViaDialog()}>
-          <span className="tile__title">Abrir arquivo</span>
-          <span className="tile__hint">Ctrl+O</span>
-        </button>
+        <Tile icon="file-document" title="Novo documento" hint="Ctrl+N" onClick={() => void newDocument()} />
+        <Tile
+          icon="file-spreadsheet"
+          title="Nova planilha"
+          hint="Ctrl+Shift+N"
+          onClick={() => void newSpreadsheet()}
+        />
+        <Tile icon="folder-open" title="Abrir arquivo" hint="Ctrl+O" onClick={() => void openViaDialog()} />
       </div>
 
       <section className="home__recents">

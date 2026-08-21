@@ -3,6 +3,7 @@ import { useEditorState, type Editor } from '@tiptap/react'
 import {
   ColorControl,
   ToolbarButton,
+  ToolbarGroup,
   ToolbarSelect,
   ToolbarSeparator,
 } from '../../components/ToolbarControls.js'
@@ -100,174 +101,192 @@ export function DocumentToolbar({
 
   return (
     <div className="toolbar" role="toolbar" aria-label="Formatação do documento">
-      <ToolbarSelect
-        label="Estilo"
-        value={active.heading === '' ? 'paragraph' : active.heading}
-        options={BLOCK_STYLES}
-        onChange={applyBlockStyle}
-        width={128}
-      />
+      <ToolbarGroup label="Estilos e fonte">
+        <ToolbarSelect
+          label="Estilo"
+          value={active.heading === '' ? 'paragraph' : active.heading}
+          options={BLOCK_STYLES}
+          onChange={applyBlockStyle}
+          width={128}
+        />
 
-      <ToolbarSelect
-        label="Fonte"
-        value={active.fontFamily}
-        options={FONT_FAMILIES}
-        onChange={(value) =>
-          value === '' ? chain().unsetFontFamily().run() : chain().setFontFamily(value).run()
-        }
-        width={150}
-      />
+        <ToolbarSelect
+          label="Fonte"
+          value={active.fontFamily}
+          options={FONT_FAMILIES}
+          onChange={(value) =>
+            value === '' ? chain().unsetFontFamily().run() : chain().setFontFamily(value).run()
+          }
+          width={150}
+        />
 
-      <ToolbarSelect
-        label="Tamanho"
-        value={active.fontSize}
-        options={[{ value: '', label: '—' }, ...FONT_SIZES.map((size) => ({ value: size, label: size }))]}
-        onChange={(value) =>
-          value === '' ? chain().unsetFontSize().run() : chain().setFontSize(`${value}pt`).run()
-        }
-        width={68}
-      />
-
-      <ToolbarSeparator />
-
-      <ToolbarButton
-        icon="bold"
-        label="Negrito"
-        shortcut="Ctrl+B"
-        active={active.bold}
-        onClick={() => chain().toggleBold().run()}
-      />
-      <ToolbarButton
-        icon="italic"
-        label="Itálico"
-        shortcut="Ctrl+I"
-        active={active.italic}
-        onClick={() => chain().toggleItalic().run()}
-      />
-      <ToolbarButton
-        icon="underline"
-        label="Sublinhado"
-        shortcut="Ctrl+U"
-        active={active.underline}
-        onClick={() => chain().toggleUnderline().run()}
-      />
-      <ToolbarButton
-        icon="strike"
-        label="Tachado"
-        active={active.strike}
-        onClick={() => chain().toggleStrike().run()}
-      />
-
-      <ColorControl
-        label="Cor do texto"
-        value={active.color}
-        onChange={(value) => chain().setColor(value).run()}
-        onClear={() => chain().unsetColor().run()}
-      />
-      <ColorControl
-        label="Destaque"
-        value={active.highlight}
-        onChange={(value) => chain().setHighlight({ color: value }).run()}
-        onClear={() => chain().unsetHighlight().run()}
-      />
+        <ToolbarSelect
+          label="Tamanho"
+          value={active.fontSize}
+          options={[{ value: '', label: '—' }, ...FONT_SIZES.map((size) => ({ value: size, label: size }))]}
+          onChange={(value) =>
+            value === '' ? chain().unsetFontSize().run() : chain().setFontSize(`${value}pt`).run()
+          }
+          width={68}
+        />
+      </ToolbarGroup>
 
       <ToolbarSeparator />
 
-      <ToolbarButton
-        icon="align-left"
-        label="Alinhar à esquerda"
-        active={active.alignLeft}
-        onClick={() => chain().setTextAlign('left').run()}
-      />
-      <ToolbarButton
-        icon="align-center"
-        label="Centralizar"
-        active={active.alignCenter}
-        onClick={() => chain().setTextAlign('center').run()}
-      />
-      <ToolbarButton
-        icon="align-right"
-        label="Alinhar à direita"
-        active={active.alignRight}
-        onClick={() => chain().setTextAlign('right').run()}
-      />
-      <ToolbarButton
-        icon="align-justify"
-        label="Justificar"
-        active={active.alignJustify}
-        onClick={() => chain().setTextAlign('justify').run()}
-      />
+      <ToolbarGroup label="Formatação do texto">
+        <ToolbarButton
+          icon="bold"
+          label="Negrito"
+          shortcut="Ctrl+B"
+          active={active.bold}
+          onClick={() => chain().toggleBold().run()}
+        />
+        <ToolbarButton
+          icon="italic"
+          label="Itálico"
+          shortcut="Ctrl+I"
+          active={active.italic}
+          onClick={() => chain().toggleItalic().run()}
+        />
+        <ToolbarButton
+          icon="underline"
+          label="Sublinhado"
+          shortcut="Ctrl+U"
+          active={active.underline}
+          onClick={() => chain().toggleUnderline().run()}
+        />
+        <ToolbarButton
+          icon="strike"
+          label="Tachado"
+          active={active.strike}
+          onClick={() => chain().toggleStrike().run()}
+        />
 
-      <ToolbarSelect
-        label="Espaçamento entre linhas"
-        value={active.lineHeight}
-        options={LINE_HEIGHTS}
-        onChange={(value) =>
-          value === '' ? chain().unsetLineHeight().run() : chain().setLineHeight(value).run()
-        }
-        width={100}
-      />
-
-      <ToolbarSeparator />
-
-      <ToolbarButton
-        icon="bullet-list"
-        label="Lista com marcadores"
-        active={active.bulletList}
-        onClick={() => chain().toggleBulletList().run()}
-      />
-      <ToolbarButton
-        icon="ordered-list"
-        label="Lista numerada"
-        active={active.orderedList}
-        onClick={() => chain().toggleOrderedList().run()}
-      />
-      <ToolbarButton
-        icon="outdent"
-        label="Diminuir recuo"
-        shortcut="Ctrl+["
-        onClick={() => chain().outdent().run()}
-      />
-      <ToolbarButton
-        icon="indent"
-        label="Aumentar recuo"
-        shortcut="Ctrl+]"
-        onClick={() => chain().indent().run()}
-      />
+        <ColorControl
+          icon="text-color"
+          label="Cor do texto"
+          value={active.color}
+          onChange={(value) => chain().setColor(value).run()}
+          onClear={() => chain().unsetColor().run()}
+        />
+        <ColorControl
+          icon="fill-color"
+          label="Destaque"
+          value={active.highlight}
+          onChange={(value) => chain().setHighlight({ color: value }).run()}
+          onClear={() => chain().unsetHighlight().run()}
+        />
+      </ToolbarGroup>
 
       <ToolbarSeparator />
 
-      <ToolbarButton
-        icon="table"
-        label={active.inTable ? 'Remover tabela' : 'Inserir tabela'}
-        active={active.inTable}
-        onClick={() =>
-          active.inTable
-            ? chain().deleteTable().run()
-            : chain().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()
-        }
-      />
-      <ToolbarButton icon="image" label="Inserir imagem" onClick={() => void insertImage()} />
-      <ToolbarButton
-        icon="link"
-        label="Inserir link"
-        active={active.link}
-        onClick={() => setLinkDialogOpen(true)}
-      />
-      <ToolbarButton
-        icon="page-break"
-        label="Quebra de página"
-        shortcut="Ctrl+Enter"
-        onClick={() => chain().setPageBreak().run()}
-      />
+      <ToolbarGroup label="Parágrafo">
+        <ToolbarButton
+          icon="align-left"
+          label="Alinhar à esquerda"
+          active={active.alignLeft}
+          onClick={() => chain().setTextAlign('left').run()}
+        />
+        <ToolbarButton
+          icon="align-center"
+          label="Centralizar"
+          active={active.alignCenter}
+          onClick={() => chain().setTextAlign('center').run()}
+        />
+        <ToolbarButton
+          icon="align-right"
+          label="Alinhar à direita"
+          active={active.alignRight}
+          onClick={() => chain().setTextAlign('right').run()}
+        />
+        <ToolbarButton
+          icon="align-justify"
+          label="Justificar"
+          active={active.alignJustify}
+          onClick={() => chain().setTextAlign('justify').run()}
+        />
+
+        <ToolbarSelect
+          label="Espaçamento entre linhas"
+          value={active.lineHeight}
+          options={LINE_HEIGHTS}
+          onChange={(value) =>
+            value === '' ? chain().unsetLineHeight().run() : chain().setLineHeight(value).run()
+          }
+          width={100}
+        />
+      </ToolbarGroup>
 
       <ToolbarSeparator />
 
-      <ToolbarButton icon="search" label="Localizar e substituir" shortcut="Ctrl+F" onClick={onOpenFind} />
-      <ToolbarButton icon="page-setup" label="Configuração de página" onClick={onOpenPageSetup} />
-      {/* Como o editor não pagina ao vivo (§6.3 do plano), a prévia é o que
+      <ToolbarGroup label="Listas e recuo">
+        <ToolbarButton
+          icon="bullet-list"
+          label="Lista com marcadores"
+          active={active.bulletList}
+          onClick={() => chain().toggleBulletList().run()}
+        />
+        <ToolbarButton
+          icon="ordered-list"
+          label="Lista numerada"
+          active={active.orderedList}
+          onClick={() => chain().toggleOrderedList().run()}
+        />
+        <ToolbarButton
+          icon="outdent"
+          label="Diminuir recuo"
+          shortcut="Ctrl+["
+          onClick={() => chain().outdent().run()}
+        />
+        <ToolbarButton
+          icon="indent"
+          label="Aumentar recuo"
+          shortcut="Ctrl+]"
+          onClick={() => chain().indent().run()}
+        />
+      </ToolbarGroup>
+
+      <ToolbarSeparator />
+
+      <ToolbarGroup label="Inserir">
+        <ToolbarButton
+          icon="table"
+          label={active.inTable ? 'Remover tabela' : 'Inserir tabela'}
+          active={active.inTable}
+          onClick={() =>
+            active.inTable
+              ? chain().deleteTable().run()
+              : chain().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()
+          }
+        />
+        <ToolbarButton icon="image" label="Inserir imagem" onClick={() => void insertImage()} />
+        <ToolbarButton
+          icon="link"
+          label="Inserir link"
+          active={active.link}
+          onClick={() => setLinkDialogOpen(true)}
+        />
+        <ToolbarButton
+          icon="page-break"
+          label="Quebra de página"
+          shortcut="Ctrl+Enter"
+          onClick={() => chain().setPageBreak().run()}
+        />
+      </ToolbarGroup>
+
+      <ToolbarSeparator />
+
+      <ToolbarGroup label="Página">
+        <ToolbarButton icon="search" label="Localizar e substituir" shortcut="Ctrl+F" onClick={onOpenFind} />
+        <ToolbarButton icon="page-setup" label="Configuração de página" onClick={onOpenPageSetup} />
+        {/* Como o editor não pagina ao vivo (§6.3 do plano), a prévia é o que
           responde "onde as páginas quebram" — e por isso fica à mão. */}
-      <ToolbarButton icon="print-preview" label="Visualizar impressão" onClick={() => void printPreview()} />
+        <ToolbarButton
+          icon="print-preview"
+          label="Visualizar impressão"
+          onClick={() => void printPreview()}
+        />
+      </ToolbarGroup>
 
       {linkDialogOpen && <LinkDialog editor={editor} onClose={() => setLinkDialogOpen(false)} />}
     </div>

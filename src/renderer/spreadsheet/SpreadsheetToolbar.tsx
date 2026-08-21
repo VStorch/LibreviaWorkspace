@@ -6,6 +6,24 @@ import {
   type Sheet,
 } from '@services/spreadsheet/model.js'
 import { applyBorders, applyStyle, toggleStyle, type Range } from '@services/spreadsheet/edit.js'
+import {
+  ColorControl,
+  ToolbarButton,
+  ToolbarGroup,
+  ToolbarSelect,
+  ToolbarSeparator,
+} from '../components/ToolbarControls.js'
+
+const NUMBER_FORMATS = [
+  { value: CellFormat.General, label: 'Geral' },
+  { value: CellFormat.Number, label: 'Número' },
+  { value: CellFormat.Currency, label: 'Moeda' },
+  { value: CellFormat.Percent, label: 'Percentual' },
+  { value: CellFormat.Date, label: 'Data' },
+  { value: CellFormat.Text, label: 'Texto' },
+] as const
+
+const ALL_SIDES: readonly BorderSide[] = ['top', 'right', 'bottom', 'left']
 
 /**
  * Barra de ferramentas da planilha.
@@ -16,6 +34,9 @@ import { applyBorders, applyStyle, toggleStyle, type Range } from '@services/spr
  * Os botões mostram o estado da seleção — negrito fica marcado quando *toda* a
  * seleção está em negrito, que é a mesma regra que o clique aplica. Um botão
  * que acende com a seleção mista mentiria sobre o que o próximo clique faz.
+ *
+ * Usa os mesmos controles da barra do documento: numa suíte, negrito precisa
+ * ser o mesmo botão nos dois editores.
  */
 export function SpreadsheetToolbar({
   sheet,
@@ -32,184 +53,125 @@ export function SpreadsheetToolbar({
   const set = (change: Partial<CellStyle>) => () => onChange(applyStyle(sheet, range, change))
 
   return (
-    <div className="sheet-toolbar" role="toolbar" aria-label="Formatação da planilha">
+    <div className="toolbar" role="toolbar" aria-label="Formatação da planilha">
       {/* A referência da seleção mora na barra de fórmulas, logo abaixo, que é
           onde o Excel a põe — repeti-la aqui seria ruído. */}
-      <Toggle label="N" title="Negrito (Ctrl+B)" active={style.bold === true} onClick={toggle('bold')} bold />
-      <Toggle
-        label="I"
-        title="Itálico (Ctrl+I)"
-        active={style.italic === true}
-        onClick={toggle('italic')}
-        italic
-      />
-      <Toggle
-        label="S"
-        title="Sublinhado (Ctrl+U)"
-        active={style.underline === true}
-        onClick={toggle('underline')}
-        underline
-      />
-
-      <span className="sheet-toolbar__sep" />
-
-      <label className="sheet-toolbar__color" title="Cor do texto">
-        <span aria-hidden="true">A</span>
-        <input
-          type="color"
+      <ToolbarGroup label="Formatação do texto">
+        <ToolbarButton
+          icon="bold"
+          label="Negrito"
+          shortcut="Ctrl+B"
+          active={style.bold === true}
+          onClick={toggle('bold')}
+        />
+        <ToolbarButton
+          icon="italic"
+          label="Itálico"
+          shortcut="Ctrl+I"
+          active={style.italic === true}
+          onClick={toggle('italic')}
+        />
+        <ToolbarButton
+          icon="underline"
+          label="Sublinhado"
+          shortcut="Ctrl+U"
+          active={style.underline === true}
+          onClick={toggle('underline')}
+        />
+        <ColorControl
+          icon="text-color"
+          label="Cor do texto"
           value={style.color ?? '#000000'}
-          onChange={(event) => onChange(applyStyle(sheet, range, { color: event.target.value }))}
+          onChange={(value) => onChange(applyStyle(sheet, range, { color: value }))}
+          onClear={() => onChange(applyStyle(sheet, range, { color: undefined }))}
         />
-      </label>
-      <label className="sheet-toolbar__color" title="Cor de fundo">
-        <span aria-hidden="true">▧</span>
-        <input
-          type="color"
+        <ColorControl
+          icon="fill-color"
+          label="Cor de fundo"
           value={style.background ?? '#ffffff'}
-          onChange={(event) => onChange(applyStyle(sheet, range, { background: event.target.value }))}
+          onChange={(value) => onChange(applyStyle(sheet, range, { background: value }))}
+          onClear={() => onChange(applyStyle(sheet, range, { background: undefined }))}
         />
-      </label>
-      <button
-        type="button"
-        className="sheet-toolbar__button"
-        title="Remover cores"
-        onClick={set({ color: undefined, background: undefined })}
-      >
-        ⌫
-      </button>
+      </ToolbarGroup>
 
-      <span className="sheet-toolbar__sep" />
+      <ToolbarSeparator />
 
-      <Toggle
-        label="⇤"
-        title="Alinhar à esquerda"
-        active={style.align === 'left'}
-        onClick={set({ align: 'left' })}
-      />
-      <Toggle
-        label="↔"
-        title="Centralizar"
-        active={style.align === 'center'}
-        onClick={set({ align: 'center' })}
-      />
-      <Toggle
-        label="⇥"
-        title="Alinhar à direita"
-        active={style.align === 'right'}
-        onClick={set({ align: 'right' })}
-      />
+      <ToolbarGroup label="Alinhamento">
+        <ToolbarButton
+          icon="align-left"
+          label="Alinhar à esquerda"
+          active={style.align === 'left'}
+          onClick={set({ align: 'left' })}
+        />
+        <ToolbarButton
+          icon="align-center"
+          label="Centralizar"
+          active={style.align === 'center'}
+          onClick={set({ align: 'center' })}
+        />
+        <ToolbarButton
+          icon="align-right"
+          label="Alinhar à direita"
+          active={style.align === 'right'}
+          onClick={set({ align: 'right' })}
+        />
+      </ToolbarGroup>
 
-      <span className="sheet-toolbar__sep" />
+      <ToolbarSeparator />
 
-      <select
-        className="sheet-toolbar__select"
-        title="Formato do número"
-        value={style.format ?? CellFormat.General}
-        onChange={(event) => onChange(applyStyle(sheet, range, { format: event.target.value as CellFormat }))}
-      >
-        <option value={CellFormat.General}>Geral</option>
-        <option value={CellFormat.Number}>Número</option>
-        <option value={CellFormat.Currency}>Moeda</option>
-        <option value={CellFormat.Percent}>Percentual</option>
-        <option value={CellFormat.Date}>Data</option>
-        <option value={CellFormat.Text}>Texto</option>
-      </select>
+      <ToolbarGroup label="Número">
+        <ToolbarSelect
+          label="Formato do número"
+          value={style.format ?? CellFormat.General}
+          options={NUMBER_FORMATS}
+          onChange={(value) => onChange(applyStyle(sheet, range, { format: value }))}
+          width={124}
+        />
+        <ToolbarButton
+          icon="decimal-less"
+          label="Menos casas decimais"
+          onClick={set({ decimals: Math.max(0, (style.decimals ?? 2) - 1) })}
+        />
+        <ToolbarButton
+          icon="decimal-more"
+          label="Mais casas decimais"
+          onClick={set({ decimals: Math.min(10, (style.decimals ?? 0) + 1) })}
+        />
+      </ToolbarGroup>
 
-      <button
-        type="button"
-        className="sheet-toolbar__button"
-        title="Menos casas decimais"
-        onClick={set({ decimals: Math.max(0, (style.decimals ?? 2) - 1) })}
-      >
-        ,0←
-      </button>
-      <button
-        type="button"
-        className="sheet-toolbar__button"
-        title="Mais casas decimais"
-        onClick={set({ decimals: Math.min(10, (style.decimals ?? 0) + 1) })}
-      >
-        ,00→
-      </button>
+      <ToolbarSeparator />
 
-      <span className="sheet-toolbar__sep" />
+      <ToolbarGroup label="Bordas">
+        <ToolbarButton
+          icon="borders-all"
+          label="Bordas em volta"
+          onClick={() => onChange(applyBorders(sheet, range, ALL_SIDES))}
+        />
+        <ToolbarButton
+          icon="borders-none"
+          label="Sem bordas"
+          onClick={() => onChange(applyBorders(sheet, range, []))}
+        />
+      </ToolbarGroup>
 
-      <button
-        type="button"
-        className="sheet-toolbar__button"
-        title="Bordas em volta"
-        onClick={() => onChange(applyBorders(sheet, range, ALL_SIDES))}
-      >
-        ▣
-      </button>
-      <button
-        type="button"
-        className="sheet-toolbar__button"
-        title="Sem bordas"
-        onClick={() => onChange(applyBorders(sheet, range, []))}
-      >
-        ▢
-      </button>
+      <ToolbarSeparator />
 
-      <span className="sheet-toolbar__sep" />
-
-      {/* Congelar usa a seleção como referência: tudo acima e à esquerda dela
-          fica preso, que é como o Excel e o Google Sheets fazem. */}
-      <button
-        type="button"
-        className="sheet-toolbar__button"
-        title="Congelar até a seleção"
-        onClick={() => onChange({ ...sheet, frozenRows: range.fromRow, frozenColumns: range.fromColumn })}
-      >
-        ❄
-      </button>
-      <button
-        type="button"
-        className="sheet-toolbar__button"
-        title="Descongelar"
-        onClick={() => onChange({ ...sheet, frozenRows: 0, frozenColumns: 0 })}
-        disabled={sheet.frozenRows === 0 && sheet.frozenColumns === 0}
-      >
-        ☀
-      </button>
+      <ToolbarGroup label="Painéis">
+        {/* Congelar usa a seleção como referência: tudo acima e à esquerda dela
+            fica preso, que é como o Excel e o Google Sheets fazem. */}
+        <ToolbarButton
+          icon="freeze"
+          label="Congelar até a seleção"
+          onClick={() => onChange({ ...sheet, frozenRows: range.fromRow, frozenColumns: range.fromColumn })}
+        />
+        <ToolbarButton
+          icon="unfreeze"
+          label="Descongelar"
+          disabled={sheet.frozenRows === 0 && sheet.frozenColumns === 0}
+          onClick={() => onChange({ ...sheet, frozenRows: 0, frozenColumns: 0 })}
+        />
+      </ToolbarGroup>
     </div>
-  )
-}
-
-const ALL_SIDES: readonly BorderSide[] = ['top', 'right', 'bottom', 'left']
-
-function Toggle({
-  label,
-  title,
-  active,
-  onClick,
-  bold,
-  italic,
-  underline,
-}: {
-  label: string
-  title: string
-  active: boolean
-  onClick: () => void
-  bold?: boolean
-  italic?: boolean
-  underline?: boolean
-}): React.JSX.Element {
-  return (
-    <button
-      type="button"
-      className={active ? 'sheet-toolbar__button sheet-toolbar__button--active' : 'sheet-toolbar__button'}
-      title={title}
-      aria-pressed={active}
-      onClick={onClick}
-      style={{
-        fontWeight: bold === true ? 700 : undefined,
-        fontStyle: italic === true ? 'italic' : undefined,
-        textDecoration: underline === true ? 'underline' : undefined,
-      }}
-    >
-      {label}
-    </button>
   )
 }
 

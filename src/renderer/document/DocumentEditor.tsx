@@ -103,7 +103,7 @@ export function DocumentEditor(): React.JSX.Element {
 
   if (editor === null) return <div className="editor-shell" />
 
-  const { width } = pageDimensionsMm(page)
+  const { width, height } = pageDimensionsMm(page)
   // Metade da margem: a faixa do cabeçalho é mais larga que a coluna de texto,
   // como no documento original.
   const bandInset = mmToPx(Math.min(page.margins.left, page.margins.right) / 2)
@@ -133,6 +133,11 @@ export function DocumentEditor(): React.JSX.Element {
           className="page"
           style={{
             width: `${mmToPx(width)}px`,
+            // Uma folha vazia tem a altura de uma folha, não a do texto que já
+            // existe nela. Sem isto o documento novo abre como uma tira baixa,
+            // e a noção de papel — que é o que o Writer, o Word e o Docs dão —
+            // se perde. Continua sendo moldura: quem pagina é a exportação.
+            minHeight: `${mmToPx(height)}px`,
             paddingTop: `${mmToPx(page.margins.top)}px`,
             paddingRight: `${mmToPx(page.margins.right)}px`,
             paddingBottom: `${mmToPx(page.margins.bottom)}px`,

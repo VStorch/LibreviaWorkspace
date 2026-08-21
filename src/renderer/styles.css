@@ -1,15 +1,53 @@
+/*
+  Aparência da interface.
+
+  Tudo o que é cor, sombra ou canto arredondado sai daqui de cima. Antes havia
+  dois azuis de "botão ligado" — um na barra do documento, outro na da planilha
+  — e uns vinte tons escritos à mão espalhados pelo arquivo; a mesma coisa
+  parecia duas coisas dependendo do editor aberto.
+
+  A linguagem é a das suítes conhecidas: barras claras separadas por fios de um
+  pixel, papel branco sobre fundo cinza, e ênfase só onde há estado a mostrar.
+*/
+
 :root {
-  --bg: #f6f7f9;
+  /* Neutros */
+  --bg: #f5f6f8;
   --surface: #ffffff;
-  --border: #dfe3e8;
+  /* Fundo em que o papel e a grade repousam: mais escuro que o resto da casca. */
+  --sunken: #eceef1;
+  --border: #e2e5ea;
   --border-strong: #c7ced6;
-  --text: #1c2024;
+  --hover: #eef1f4;
+  --text: #1b1f24;
   --muted: #6b7280;
+
+  /* Ênfase */
   --accent: #1f5fa9;
+  --accent-soft: #e6eefa;
+  --accent-line: #b9d3ee;
+
+  /* Estados. Vermelho é erro; âmbar pede atenção; azul apenas informa. */
   --danger-bg: #fdecea;
   --danger-border: #f3c2bd;
   --danger-text: #91231a;
+  --notice-bg: #fff8e6;
+  --notice-border: #e6cf87;
+  --notice-text: #5c4708;
+  --warn-bg: #fff3e3;
+  --warn-border: #e3b979;
+  --warn-text: #5c3d08;
+  --info-bg: #e9f1fb;
+  --info-border: #a9c7e8;
+  --info-text: #16395c;
+
+  /* Forma */
   --radius: 10px;
+  --radius-sm: 6px;
+  --shadow-sm: 0 1px 2px rgb(16 24 40 / 6%);
+  --shadow-md: 0 4px 12px rgb(16 24 40 / 10%);
+  --shadow-lg: 0 12px 32px rgb(16 24 40 / 16%);
+
   color-scheme: light;
 }
 
@@ -42,6 +80,22 @@ button {
   color: inherit;
 }
 
+/*
+  Um único anel de foco para o programa inteiro.
+
+  `:focus-visible`, e não `:focus`: quem clica com o mouse não quer ver anel
+  nenhum; quem chega pelo teclado precisa saber onde está.
+*/
+:where(button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  border-radius: var(--radius-sm);
+}
+
+.icon {
+  display: block;
+}
+
 .app {
   height: 100%;
   display: flex;
@@ -53,16 +107,17 @@ button {
   min-height: 0;
 }
 
-/* ---------- faixa de erro ---------- */
+/* ---------- faixas ---------- */
 
 .banner {
   display: flex;
   align-items: flex-start;
   gap: 12px;
-  padding: 10px 14px;
+  padding: 9px 14px;
   background: var(--danger-bg);
   border-bottom: 1px solid var(--danger-border);
   color: var(--danger-text);
+  font-size: 13px;
 }
 
 .banner__text {
@@ -72,7 +127,6 @@ button {
 }
 
 .banner__detail {
-  font-size: 13px;
   opacity: 0.85;
 }
 
@@ -81,7 +135,8 @@ button {
   border: none;
   cursor: pointer;
   padding: 2px 6px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
+  line-height: 1;
 }
 
 .banner__close:hover {
@@ -91,9 +146,9 @@ button {
 /* Aviso de inventário: informa, não alarma. Cor de erro aqui faria o usuário
    achar que o documento não abriu — e ele abriu. */
 .banner--notice {
-  background: #fff8e1;
-  border-bottom-color: #e0c56a;
-  color: #5c4708;
+  background: var(--notice-bg);
+  border-bottom-color: var(--notice-border);
+  color: var(--notice-text);
 }
 
 .banner--notice strong + strong {
@@ -103,22 +158,22 @@ button {
 /* Somente leitura: âmbar de atenção, não vermelho de erro. Nada quebrou — o
    arquivo abriu, e a faixa explica por que a edição está travada. */
 .banner--readonly {
-  background: #fff4e5;
-  border-bottom-color: #e0b46a;
-  color: #5c3d08;
+  background: var(--warn-bg);
+  border-bottom-color: var(--warn-border);
+  color: var(--warn-text);
 }
 
 .banner--readonly .banner__action {
-  background: #5c3d08;
-  border-color: #5c3d08;
+  background: var(--warn-text);
+  border-color: var(--warn-text);
 }
 
 /* Recuperação: azul de informação, não vermelho de erro. Nada quebrou — há
    trabalho de volta, e a faixa existe para oferecê-lo. */
 .banner--recovery {
-  background: #e8f1fb;
-  border-bottom-color: #9dbfe4;
-  color: #16395c;
+  background: var(--info-bg);
+  border-bottom-color: var(--info-border);
+  color: var(--info-text);
 }
 
 .banner__actions {
@@ -128,13 +183,14 @@ button {
 }
 
 .banner__action {
-  padding: 6px 14px;
-  border-radius: 6px;
-  border: 1px solid #16395c;
-  background: #16395c;
+  padding: 5px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--info-text);
+  background: var(--info-text);
   color: #fff;
   cursor: pointer;
   font-size: 13px;
+  white-space: nowrap;
 }
 
 .banner__action:hover {
@@ -156,20 +212,20 @@ button {
 /* ---------- tela inicial ---------- */
 
 .home {
-  max-width: 760px;
+  max-width: 780px;
   margin: 0 auto;
-  padding: 56px 24px;
+  padding: 64px 24px;
 }
 
 .home__header h1 {
   margin: 0;
-  font-size: 28px;
+  font-size: 30px;
   font-weight: 600;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.02em;
 }
 
 .home__subtitle {
-  margin: 4px 0 0;
+  margin: 6px 0 0;
   color: var(--muted);
 }
 
@@ -177,29 +233,51 @@ button {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
   gap: 12px;
-  margin: 28px 0 36px;
+  margin: 32px 0 40px;
 }
 
 .tile {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 4px;
-  padding: 18px;
+  gap: 2px;
+  padding: 16px 18px 18px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
   cursor: pointer;
   text-align: left;
+  transition:
+    border-color 0.12s ease,
+    box-shadow 0.12s ease,
+    transform 0.12s ease;
 }
 
 .tile:hover:not(:disabled) {
   border-color: var(--border-strong);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
 }
 
 .tile:disabled {
   opacity: 0.55;
   cursor: default;
+  box-shadow: none;
+}
+
+/* O ícone diz num relance o que o botão cria — é o que a tela inicial do
+   Writer e a do Google Drive fazem, e o que faltava aqui. */
+.tile__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  margin-bottom: 10px;
+  border-radius: 8px;
+  background: var(--accent-soft);
+  color: var(--accent);
 }
 
 .tile__title {
@@ -219,8 +297,11 @@ button {
 
 .home__recents-head h2 {
   margin: 0;
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
 }
 
 .link {
@@ -246,7 +327,7 @@ button {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
 }
 
 .recent {
@@ -254,17 +335,21 @@ button {
   display: grid;
   grid-template-columns: 1fr auto;
   gap: 0 16px;
-  padding: 10px 12px;
+  padding: 9px 12px;
   background: none;
   border: 1px solid transparent;
   border-radius: 8px;
   cursor: pointer;
   text-align: left;
+  transition:
+    background-color 0.12s ease,
+    border-color 0.12s ease;
 }
 
 .recent:hover {
   background: var(--surface);
   border-color: var(--border);
+  box-shadow: var(--shadow-sm);
 }
 
 .recent__name {
@@ -297,7 +382,7 @@ button {
   display: flex;
   align-items: center;
   gap: 16px;
-  padding: 6px 14px;
+  padding: 5px 14px;
   border-top: 1px solid var(--border);
   background: var(--surface);
   font-size: 12px;
@@ -328,7 +413,7 @@ button {
   height: 100%;
   display: flex;
   flex-direction: column;
-  background: #e9ebee;
+  background: var(--sunken);
 }
 
 .editor-scroll {
@@ -353,9 +438,9 @@ button {
 .page {
   background: var(--surface);
   box-shadow:
-    0 1px 3px rgb(0 0 0 / 12%),
-    0 8px 24px rgb(0 0 0 / 8%);
-  min-height: 200px;
+    0 1px 2px rgb(16 24 40 / 8%),
+    0 10px 28px rgb(16 24 40 / 7%);
+  /* A altura mínima vem de DocumentEditor, em milímetros: é a da folha. */
   flex-shrink: 0;
   /* Âncora das faixas de cabeçalho e rodapé, que moram na margem. */
   position: relative;
@@ -395,12 +480,12 @@ button {
 
 .band--ruled.band--header {
   padding-bottom: 3px;
-  border-bottom: 1px solid #999;
+  border-bottom: 1px solid var(--border-strong);
 }
 
 .band--ruled.band--footer {
   padding-top: 3px;
-  border-top: 1px solid #999;
+  border-top: 1px solid var(--border-strong);
 }
 
 .band__cell {
@@ -437,7 +522,7 @@ button {
   position: absolute;
   left: 0;
   right: 0;
-  border-top: 1px dashed #c2c6cc;
+  border-top: 1px dashed var(--border-strong);
   pointer-events: none;
   user-select: none;
 }
@@ -448,7 +533,7 @@ button {
   top: 3px;
   font-size: 10px;
   letter-spacing: 0.02em;
-  color: #9aa0a6;
+  color: var(--muted);
   background: var(--surface);
   padding: 0 4px;
 }
@@ -464,14 +549,29 @@ button {
 
 /* ---------- barra de ferramentas ---------- */
 
+/*
+  A mesma barra serve ao documento e à planilha.
+
+  `row-gap` maior que `column-gap` porque a barra quebra em janela estreita: as
+  linhas precisam se distinguir, os botões vizinhos não.
+*/
 .toolbar {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 2px;
+  column-gap: 2px;
+  row-gap: 4px;
   padding: 6px 10px;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
+}
+
+/* O grupo não se parte: ou cabe inteiro na linha, ou desce inteiro. */
+.tgroup {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 2px;
 }
 
 .tbtn {
@@ -481,19 +581,22 @@ button {
   width: 30px;
   height: 30px;
   border: 1px solid transparent;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: none;
   cursor: pointer;
   color: var(--text);
+  transition:
+    background-color 0.12s ease,
+    border-color 0.12s ease;
 }
 
 .tbtn:hover:not(:disabled) {
-  background: #eef1f4;
+  background: var(--hover);
 }
 
 .tbtn--active {
-  background: #e2ecf8;
-  border-color: #b9d3ee;
+  background: var(--accent-soft);
+  border-color: var(--accent-line);
   color: var(--accent);
 }
 
@@ -505,28 +608,73 @@ button {
 .tselect {
   height: 30px;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: var(--surface);
   padding: 0 6px;
   font-size: 13px;
   color: inherit;
 }
 
+.tselect:hover {
+  border-color: var(--border-strong);
+}
+
+/*
+  Escolher cor.
+
+  O seletor nativo do sistema fica invisível por cima do ícone: ele abre o
+  diálogo de cores, mas sua aparência é de outro programa. O que se vê é o
+  ícone do que recebe a cor com a cor atual embaixo, como no Word e no Docs.
+*/
 .tcolor {
   display: inline-flex;
   align-items: center;
   height: 30px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  overflow: hidden;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+}
+
+.tcolor:hover {
+  background: var(--hover);
+  border-color: var(--border);
+}
+
+.tcolor__pick {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.tcolor__pick:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.tcolor__bar {
+  width: 16px;
+  height: 4px;
+  border-radius: 1px;
+  /* Sem isto, branco sobre branco vira um vazio: a barra some justamente
+     quando a cor escolhida é a do fundo. */
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 15%);
 }
 
 .tcolor__input {
-  width: 28px;
-  height: 28px;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0;
   border: none;
-  padding: 2px;
   background: none;
+  opacity: 0;
   cursor: pointer;
 }
 
@@ -534,19 +682,21 @@ button {
   border: none;
   background: none;
   cursor: pointer;
-  font-size: 11px;
+  font-size: 10px;
   color: var(--muted);
-  padding: 0 5px;
+  padding: 0 4px;
   align-self: stretch;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
 }
 
 .tcolor__clear:hover {
-  background: #eef1f4;
+  color: var(--text);
+  background: rgb(0 0 0 / 6%);
 }
 
 .tsep {
   width: 1px;
-  height: 22px;
+  height: 20px;
   background: var(--border);
   margin: 0 6px;
 }
@@ -558,17 +708,18 @@ button {
   align-items: center;
   gap: 6px;
   padding: 8px 10px;
-  background: #fbfcfd;
+  background: var(--bg);
   border-bottom: 1px solid var(--border);
 }
 
 .findbar__input {
   height: 28px;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   padding: 0 8px;
   font: inherit;
   min-width: 150px;
+  background: var(--surface);
 }
 
 .findbar__count {
@@ -600,7 +751,7 @@ button {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  box-shadow: 0 8px 30px rgb(0 0 0 / 16%);
+  box-shadow: var(--shadow-lg);
   padding: 16px;
   min-width: 320px;
 }
@@ -630,7 +781,7 @@ button {
 .popover__field select {
   height: 30px;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   padding: 0 8px;
   font: inherit;
 }
@@ -675,14 +826,18 @@ button {
   height: 30px;
   padding: 0 12px;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: var(--surface);
   cursor: pointer;
   font-size: 13px;
+  transition:
+    background-color 0.12s ease,
+    border-color 0.12s ease;
 }
 
 .btn:hover:not(:disabled) {
   border-color: var(--border-strong);
+  background: var(--hover);
 }
 
 .btn:disabled {
@@ -696,6 +851,11 @@ button {
   color: #fff;
 }
 
+.btn--primary:hover:not(:disabled) {
+  background: var(--accent);
+  filter: brightness(1.1);
+}
+
 /* ---------- editor de planilhas ---------- */
 
 .workbook {
@@ -704,12 +864,19 @@ button {
   flex-direction: column;
 }
 
+/*
+  Abas no rodapé, como em toda planilha.
+
+  A tira fica no cinza do fundo e a aba ativa é a folha branca por cima dela,
+  com um fio de cor na borda que encosta na grade — assim se lê qual está
+  aberta sem precisar de negrito.
+*/
 .tabs {
   display: flex;
   align-items: stretch;
   gap: 2px;
   padding: 4px 8px;
-  background: var(--surface);
+  background: var(--bg);
   border-top: 1px solid var(--border);
   overflow-x: auto;
 }
@@ -718,13 +885,20 @@ button {
   display: flex;
   align-items: center;
   border: 1px solid transparent;
-  border-radius: 6px 6px 0 0;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
   padding: 0 2px 0 8px;
+  color: var(--muted);
+}
+
+.tab:hover {
+  color: var(--text);
 }
 
 .tab--active {
-  background: var(--bg);
+  background: var(--surface);
   border-color: var(--border);
+  box-shadow: inset 0 2px 0 var(--accent);
+  color: var(--text);
   font-weight: 600;
 }
 
@@ -760,6 +934,12 @@ button {
 .tabs__add {
   color: var(--muted);
   font-size: 16px;
+  border-radius: var(--radius-sm);
+}
+
+.tabs__add:hover {
+  background: var(--hover);
+  color: var(--text);
 }
 
 .sheet {
@@ -769,16 +949,13 @@ button {
   background: var(--surface);
 }
 
-.sheet-toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 2px;
-  padding: 6px 10px;
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
-}
+/*
+  Barra de fórmulas.
 
+  Caixa de nome à esquerda, o ƒx e o campo ocupando o resto — a mesma ordem do
+  Excel, do Calc e do Sheets. Quem já usou qualquer um deles não precisa
+  procurar.
+*/
 .formula-bar {
   display: flex;
   align-items: center;
@@ -792,7 +969,8 @@ button {
   min-width: 9ch;
   padding: 4px 8px;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
+  background: var(--bg);
   font-size: 12px;
   color: var(--muted);
   text-align: center;
@@ -813,22 +991,28 @@ button {
   font-family: ui-monospace, 'Cascadia Mono', Menlo, Consolas, monospace;
   padding: 4px 8px;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: var(--surface);
 }
 
 .formula-bar__input:focus {
   outline: none;
   border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft);
 }
 
 .formula-bar__input--bad {
-  border-color: #c0392b;
-  background: #fdf3f2;
+  border-color: var(--danger-text);
+  background: var(--danger-bg);
+}
+
+.formula-bar__input--bad:focus {
+  border-color: var(--danger-text);
+  box-shadow: 0 0 0 2px var(--danger-bg);
 }
 
 .formula-bar__problem {
-  color: #c0392b;
+  color: var(--danger-text);
   font-size: 12px;
   max-width: 45%;
 }
@@ -840,70 +1024,6 @@ button {
   max-width: 20ch;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.sheet-toolbar__sep {
-  width: 1px;
-  height: 20px;
-  margin: 0 6px;
-  background: var(--border);
-}
-
-.sheet-toolbar__button {
-  min-width: 30px;
-  padding: 4px 7px;
-  background: none;
-  border: 1px solid transparent;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 13px;
-}
-
-.sheet-toolbar__button:hover:not(:disabled) {
-  background: var(--bg);
-  border-color: var(--border);
-}
-
-.sheet-toolbar__button:disabled {
-  opacity: 0.4;
-  cursor: default;
-}
-
-.sheet-toolbar__button--active {
-  background: #e7f0fa;
-  border-color: #b8d4ef;
-}
-
-.sheet-toolbar__color {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  padding: 2px 4px;
-  border-radius: 6px;
-  cursor: pointer;
-}
-
-.sheet-toolbar__color:hover {
-  background: var(--bg);
-}
-
-.sheet-toolbar__color input {
-  width: 22px;
-  height: 20px;
-  padding: 0;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  background: none;
-  cursor: pointer;
-}
-
-.sheet-toolbar__select {
-  font: inherit;
-  font-size: 13px;
-  padding: 3px 6px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--surface);
 }
 
 .sheet revo-grid {
@@ -921,7 +1041,7 @@ button {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 8px;
-  box-shadow: 0 6px 20px rgb(0 0 0 / 18%);
+  box-shadow: var(--shadow-lg);
 }
 
 .sheet-menu__item {
@@ -937,7 +1057,8 @@ button {
 }
 
 .sheet-menu__item:hover {
-  background: var(--bg);
+  background: var(--accent-soft);
+  color: var(--accent);
 }
 
 .sheet-menu__sep {
