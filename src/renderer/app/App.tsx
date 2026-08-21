@@ -132,8 +132,10 @@ export function App(): React.JSX.Element {
     return useWorkspace.subscribe(sync)
   }, [])
 
+  // A casca inteira muda de cor conforme o que está aberto — azul de
+  // documento, verde de planilha. Ver o comentário de `--accent` no CSS.
   return (
-    <div className="app">
+    <div className={workbook === null ? 'app' : 'app app--spreadsheet'}>
       <ErrorBanner />
       <RecoveryBanner />
       <ReadOnlyBanner />

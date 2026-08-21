@@ -22,10 +22,28 @@
   --text: #1b1f24;
   --muted: #6b7280;
 
-  /* Ênfase */
-  --accent: #1f5fa9;
-  --accent-soft: #e6eefa;
-  --accent-line: #b9d3ee;
+  /*
+    Ênfase, uma por editor.
+
+    Documento é azul e planilha é verde porque essa dupla é a mesma em toda
+    parte — Word e Excel, Writer e Calc, Docs e Sheets. Não é enfeite: é como
+    a pessoa sabe onde está antes de ler qualquer coisa na tela, e vale mais
+    que qualquer marca nossa nos mesmos pixels.
+
+    `--accent` é o azul por padrão e a casca inteira troca junto pela classe
+    do `.app`, para que barra, aba, foco e seleção nunca discordem entre si.
+  */
+  --accent: var(--accent-document);
+  --accent-soft: var(--accent-document-soft);
+  --accent-line: var(--accent-document-line);
+
+  --accent-document: #1f5fa9;
+  --accent-document-soft: #e6eefa;
+  --accent-document-line: #b9d3ee;
+
+  --accent-spreadsheet: #1a7a4c;
+  --accent-spreadsheet-soft: #e3f1e9;
+  --accent-spreadsheet-line: #b0d9c3;
 
   /* Estados. Vermelho é erro; âmbar pede atenção; azul apenas informa. */
   --danger-bg: #fdecea;
@@ -92,6 +110,42 @@ button {
   border-radius: var(--radius-sm);
 }
 
+/*
+  Barras de rolagem finas.
+
+  A do sistema é larga e cinza-chumbo: numa planilha ela vira o elemento mais
+  escuro da tela e disputa atenção com os próprios dados. A borda transparente
+  com `background-clip` é o que dá a folga em volta do polegar sem encolher a
+  área de clique.
+*/
+::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border: 3px solid transparent;
+  border-radius: 8px;
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--muted);
+  background-clip: content-box;
+}
+
+/* Seleção na cor do editor aberto — e clara o bastante para o texto continuar
+   preto por cima dela. */
+::selection {
+  background: color-mix(in srgb, var(--accent) 24%, #fff);
+}
+
 .icon {
   display: block;
 }
@@ -100,6 +154,12 @@ button {
   height: 100%;
   display: flex;
   flex-direction: column;
+}
+
+.app--spreadsheet {
+  --accent: var(--accent-spreadsheet);
+  --accent-soft: var(--accent-spreadsheet-soft);
+  --accent-line: var(--accent-spreadsheet-line);
 }
 
 .app__body {
@@ -217,6 +277,12 @@ button {
   padding: 64px 24px;
 }
 
+.home__brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .home__header h1 {
   margin: 0;
   font-size: 30px;
@@ -267,7 +333,8 @@ button {
 }
 
 /* O ícone diz num relance o que o botão cria — é o que a tela inicial do
-   Writer e a do Google Drive fazem, e o que faltava aqui. */
+   Writer e a do Google Drive fazem, e o que faltava aqui. Cada um na cor do
+   editor que abre, a mesma que a casca vai vestir depois do clique. */
 .tile__icon {
   display: flex;
   align-items: center;
@@ -276,8 +343,24 @@ button {
   height: 34px;
   margin-bottom: 10px;
   border-radius: 8px;
-  background: var(--accent-soft);
-  color: var(--accent);
+}
+
+.tile__icon--document {
+  background: var(--accent-document-soft);
+  color: var(--accent-document);
+}
+
+.tile__icon--spreadsheet {
+  background: var(--accent-spreadsheet-soft);
+  color: var(--accent-spreadsheet);
+}
+
+/* Abrir não escolhe tipo: o arquivo é que decide, e a cor só se resolve
+   depois. */
+.tile__icon--neutral {
+  background: var(--bg);
+  color: var(--muted);
+  box-shadow: inset 0 0 0 1px var(--border);
 }
 
 .tile__title {
@@ -387,6 +470,9 @@ button {
   background: var(--surface);
   font-size: 12px;
   color: var(--muted);
+  /* Contagem de palavras muda a cada tecla: com dígitos de larguras
+     diferentes, o número inteiro treme a cada digitação. */
+  font-variant-numeric: tabular-nums;
 }
 
 .statusbar__file {
@@ -1026,9 +1112,45 @@ button {
   text-overflow: ellipsis;
 }
 
+/*
+  A grade na paleta do programa.
+
+  O revogrid vem com azul e cinzas próprios, que não são os daqui — sem isto a
+  planilha parece um componente de terceiros embutido numa janela, que é
+  exatamente o que ela é, e não deveria parecer.
+*/
 .sheet revo-grid {
   flex: 1;
   min-height: 0;
+
+  --rg-theme-font-family: inherit;
+  --rg-theme-font-size: 13px;
+  --rg-theme-text: var(--text);
+  --rg-theme-background: var(--surface);
+  --rg-theme-cell-border: var(--border);
+  --rg-theme-header-border: var(--border);
+  --rg-theme-header-bg: var(--bg);
+  --rg-theme-header-color: var(--muted);
+  --rg-theme-header-hover-bg: var(--hover);
+  --rg-theme-header-focused-bg: var(--accent-soft);
+  --rg-theme-row-headers-bg: var(--bg);
+  --rg-theme-row-headers-color: var(--muted);
+  --rg-theme-row-hover: var(--hover);
+  --rg-theme-focused-bg: var(--surface);
+  --rg-theme-primary: var(--accent);
+  --rg-theme-primary-transparent: color-mix(in srgb, var(--accent) 10%, transparent);
+  --rg-theme-selection-border: var(--accent);
+  --rg-theme-selection-bg: color-mix(in srgb, var(--accent) 10%, transparent);
+  --rg-theme-temporary-range-border: var(--accent);
+  --rg-theme-temporary-selection-border: var(--accent);
+  --rg-theme-range-handle-bg: var(--accent);
+  --rg-theme-shadow: var(--shadow-md);
+}
+
+/* Coluna de números alinhada: o mesmo motivo da barra de status, multiplicado
+   por uma tela inteira de células. */
+.sheet revo-grid .rgCell {
+  font-variant-numeric: tabular-nums;
 }
 
 .sheet-menu {
