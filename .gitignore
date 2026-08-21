@@ -5,6 +5,11 @@ release/
 *.log
 .vite/
 .DS_Store
+# Avisos de terceiros: saída de `npm run notices` e de `licenses:report`. O
+# `npm run dist` regenera o `.md` antes de chamar o electron-builder, então a
+# cópia versionada nunca era a que ia no instalador — só envelhecia junto com o
+# `package-lock.json` sem ninguém perceber.
+THIRD-PARTY-NOTICES.md
 THIRD-PARTY-NOTICES.csv
 tsconfig.*.tsbuildinfo
 

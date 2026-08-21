@@ -262,6 +262,11 @@ self-contained e leva o runtime do .NET junto. O portão `licenses:check` olha s
 o primeiro — deixar os outros dois de fora daria a impressão de conformidade sem
 a conformidade.
 
+O arquivo não é versionado: o `npm run dist` chama `npm run notices` logo depois
+de publicar o sidecar, de modo que os avisos do instalador são sempre os das
+dependências daquele momento. Uma cópia no repositório só envelheceria junto com
+o `package-lock.json`, sem nada avisando.
+
 Os testes de ponta a ponta rodam também contra o **pacote montado**:
 
 ```bash
