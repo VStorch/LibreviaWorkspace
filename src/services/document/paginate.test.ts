@@ -6,7 +6,7 @@ import { paginate, type MeasuredBlock } from './paginate.js'
  */
 function stack(
   heights: readonly number[],
-  marks: { pageBreak?: number[]; keepNext?: number[] } = {},
+  marks: { pageBreak?: number[]; breakAfter?: number[]; keepNext?: number[] } = {},
 ): MeasuredBlock[] {
   let top = 0
   return heights.map((height, index) => {
@@ -14,6 +14,7 @@ function stack(
       top,
       height,
       isPageBreak: marks.pageBreak?.includes(index) ?? false,
+      breakAfter: marks.breakAfter?.includes(index) ?? false,
       keepWithNext: marks.keepNext?.includes(index) ?? false,
     }
     top += height
@@ -74,6 +75,19 @@ describe('paginação', () => {
     // vazia no fim.
     const blocos = stack([100, 3000])
     expect(paginate(blocos, 1000)).toEqual([100])
+  })
+
+  it('a quebra que o parágrafo carrega termina a folha depois dele', () => {
+    // `w:br w:type="page"` dentro de um `w:r`: o Word grava assim quando a
+    // quebra encerra o parágrafo. Vira propriedade do bloco, porque um nó de
+    // bloco em posição de linha é inválido no editor.
+    const blocos = stack([100, 100, 100], { breakAfter: [1] })
+    expect(paginate(blocos, 1000)).toEqual([200])
+  })
+
+  it('quebra carregada pelo último bloco não cria folha em branco', () => {
+    const blocos = stack([100, 100], { breakAfter: [1] })
+    expect(paginate(blocos, 1000)).toEqual([])
   })
 
   it('altura de página inválida não quebra nada', () => {

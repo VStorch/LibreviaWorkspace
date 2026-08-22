@@ -108,6 +108,20 @@ export const BlockFormat = Extension.create<BlockFormatOptions>({
            * aparência: diz que este bloco não pode ficar sozinho no pé da
            * página, e é o que a marca de fim de página e a exportação usam.
            */
+          /**
+           * A folha termina depois deste bloco.
+           *
+           * Vem de um `w:br w:type="page"` que o Word gravou **dentro** do
+           * parágrafo. Emiti-lo como nó ali dentro poria um bloco em posição de
+           * linha — inválido no schema, e o serializador o desalojaria ao
+           * atravessar HTML, desalinhando os índices entre tela e papel.
+           */
+          breakAfter: {
+            default: null,
+            parseHTML: (element) => (element.hasAttribute('data-break-after') ? true : null),
+            renderHTML: (attributes) => (attributes['breakAfter'] === true ? { 'data-break-after': '' } : {}),
+          },
+
           keepNext: {
             default: null,
             parseHTML: (element) => element.hasAttribute('data-keep-next') || null,

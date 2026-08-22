@@ -105,6 +105,15 @@ public sealed class ParagraphWriter(MainDocumentPart part, Inventory inventory)
             foreach (var element in WriteInline(child)) paragraph.AppendChild(element);
         }
 
+        // A quebra volta para onde estava: no fim do parágrafo, dentro de um
+        // `w:r`. O leitor a transformou em propriedade do bloco para não pôr um
+        // nó de bloco em posição de linha; aqui ela desfaz o caminho. Sem isto,
+        // editar o parágrafo que carrega a quebra a apagaria em silêncio.
+        if (AttrBool(node, "breakAfter"))
+        {
+            paragraph.AppendChild(new Run(new Break { Type = BreakValues.Page }));
+        }
+
         return paragraph;
     }
 
@@ -375,6 +384,12 @@ public sealed class ParagraphWriter(MainDocumentPart part, Inventory inventory)
     }
 
     // --- leitura de atributos ----------------------------------------------
+
+    private static bool AttrBool(Node node, string name) =>
+        node.Attrs is not null
+        && node.Attrs.TryGetValue(name, out var value)
+        && value is not null
+        && value.GetValueKind() == System.Text.Json.JsonValueKind.True;
 
     private static string? AttrString(Node node, string name) =>
         node.Attrs is not null && node.Attrs.TryGetValue(name, out var value) && value is not null

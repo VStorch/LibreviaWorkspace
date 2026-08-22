@@ -95,6 +95,22 @@ public static class Fixtures
     });
 
     /// <summary>
+    /// Quebra de página **dentro** do parágrafo, no fim de um `w:r`.
+    /// </summary>
+    /// <remarks>
+    /// É como o Word grava "daqui para frente é outra página" sem fechar o
+    /// parágrafo. Distinta da quebra que ocupa um parágrafo só dela.
+    /// </remarks>
+    public static byte[] WithBreakInsideParagraph() => Build((body, _) =>
+    {
+        var comQuebra = new Paragraph();
+        comQuebra.AppendChild(new Run(new Text("Fim da primeira página.")));
+        comQuebra.AppendChild(new Run(new Break { Type = BreakValues.Page }));
+        body.AppendChild(comQuebra);
+        body.AppendChild(Paragraph("Começo da segunda."));
+    });
+
+    /// <summary>
     /// Três cabeçalhos declarados, com o `first` **antes** do `default` no XML.
     /// </summary>
     /// <remarks>

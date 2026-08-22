@@ -439,6 +439,38 @@ public class DocxRoundTripTests
         Assert.Empty(result.Inventory.Structural);
     }
 
+    // --- quebra de página ---------------------------------------------------
+
+    [Fact]
+    public void QuebraDentroDoParagrafoViraPropriedadeDoBloco()
+    {
+        // Emiti-la como nó ali dentro poria um bloco em posição de linha, que o
+        // editor não aceita — e, serializado, um `<div>` dentro de `<p>` faz o
+        // analisador de HTML desalojar o `div`: 15 blocos viram 17 elementos, os
+        // índices deixam de casar e o papel corta noutro lugar que a tela.
+        var model = Open(Fixtures.WithBreakInsideParagraph());
+
+        var blocos = model.Doc.Content!;
+        Assert.DoesNotContain(Walk(model.Doc), n => n.Type == "pageBreak");
+        Assert.True(blocos[0].Attrs!["breakAfter"]!.GetValue<bool>());
+    }
+
+    [Fact]
+    public void AQuebraDoParagrafoVoltaAoArquivoAoEditar()
+    {
+        // O parágrafo intocado volta pelo XML original e a quebra vem junto. O
+        // caso que precisa de gravador é o editado: sem escrever a quebra de
+        // volta, ela sumiria em silêncio.
+        var bytes = Fixtures.WithBreakInsideParagraph();
+        var model = Clone(Open(bytes));
+        Assert.True(EditFirstTextContaining(model, "Fim da", "Outro texto."));
+
+        var reaberto = Open(Save(bytes, model).Bytes);
+
+        Assert.Contains("Outro texto.", TextOf(reaberto), StringComparison.Ordinal);
+        Assert.True(reaberto.Doc.Content![0].Attrs!["breakAfter"]!.GetValue<bool>());
+    }
+
     // --- cabeçalho por página -----------------------------------------------
 
     [Fact]

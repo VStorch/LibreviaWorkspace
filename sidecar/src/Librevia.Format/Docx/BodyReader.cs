@@ -166,9 +166,27 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory)
             return content[0];
         }
 
+        // Quebra **no meio** de um parágrafo: `w:br w:type="page"` dentro de um
+        // `w:r`, que é como o Word grava "a partir daqui é outra página" sem
+        // fechar o parágrafo.
+        //
+        // Emiti-la ali dentro punha um nó de bloco em posição de linha — inválido
+        // no editor, e caro de um jeito difícil de rastrear: serializado, um
+        // `<div>` dentro de `<p>` faz o analisador de HTML fechar o parágrafo e
+        // desalojar o `div`, e um documento de 15 blocos vira 17 elementos. Os
+        // índices deixam de casar e o papel corta em lugar diferente da tela.
+        //
+        // Vira uma propriedade do bloco: a folha termina **depois** deste
+        // parágrafo. É aproximação quando ainda há texto depois da quebra dentro
+        // do mesmo parágrafo — esse texto desce junto em vez de abrir a página —
+        // e é exato no caso comum, que é a quebra encerrando o parágrafo.
+        var breakAfter = content.RemoveAll(child => child.Type == "pageBreak") > 0;
+
         var node = HeadingLevelOf(direct) is { } level
             ? Node.Of("heading").With("level", level)
             : Node.Of("paragraph");
+
+        if (breakAfter) node.With("breakAfter", true);
 
         // O identificador do estilo viaja junto para que a gravação de um
         // parágrafo editado continue apontando o estilo original.

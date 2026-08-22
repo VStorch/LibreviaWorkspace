@@ -79,11 +79,12 @@ export function usePagination(editor: Editor | null, page: PageSetup, revision: 
 
         blocks.push(
           node === null
-            ? { top: 0, height: 0, isPageBreak: false, keepWithNext: false }
+            ? { top: 0, height: 0, isPageBreak: false, breakAfter: false, keepWithNext: false }
             : {
                 top: node.offsetTop - accumulated,
                 height: node.offsetHeight,
                 isPageBreak: node.hasAttribute('data-page-break'),
+                breakAfter: node.hasAttribute('data-break-after'),
                 keepWithNext: node.hasAttribute('data-keep-next') || /^H[1-6]$/.test(node.tagName),
               },
         )

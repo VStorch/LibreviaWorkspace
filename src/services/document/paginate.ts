@@ -20,6 +20,13 @@ export interface MeasuredBlock {
   readonly height: number
   /** É o nó `pageBreak` — a quebra que a pessoa pediu com Ctrl+Enter. */
   readonly isPageBreak: boolean
+  /**
+   * A folha termina **depois** deste bloco.
+   *
+   * É a quebra que o Word gravou dentro do parágrafo. Diferente de
+   * `isPageBreak`, que é um bloco só dela.
+   */
+  readonly breakAfter: boolean
   /** `w:keepNext`: não pode ficar sozinho no pé da página. */
   readonly keepWithNext: boolean
 }
@@ -67,6 +74,13 @@ export function paginate(blocks: readonly MeasuredBlock[], pageHeight: number): 
     const bottom = block.top + block.height
     if (bottom - pageStart <= pageHeight) {
       index += 1
+      // A quebra que o parágrafo carrega vale depois dele — e não vale se não
+      // houver mais nada, senão o documento fecha com uma folha em branco.
+      if (block.breakAfter && index < blocks.length) {
+        breaks.push(bottom)
+        pageStart = bottom
+      }
+
       continue
     }
 
