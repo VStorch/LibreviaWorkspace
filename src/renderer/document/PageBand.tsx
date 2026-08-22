@@ -15,12 +15,15 @@ export function PageBand({
   band,
   kind,
   pageNumber,
+  totalPages,
   insetPx,
 }: {
   band: Band
   kind: 'header' | 'footer'
-  /** O editor não pagina ao vivo (§6.3), então mostra sempre a primeira. */
+  /** Em qual folha esta faixa está sendo desenhada. */
   pageNumber: number
+  /** Quantas folhas o documento tem agora. */
+  totalPages: number
   /**
    * Recuo lateral da faixa. Cabeçalho corporativo costuma ser **mais largo que
    * a coluna de texto** — no corpus real, 177 mm contra 146,5 mm — então usar
@@ -35,15 +38,19 @@ export function PageBand({
       style={{ left: `${insetPx}px`, right: `${insetPx}px` }}
       aria-hidden="true"
     >
-      <div className="band__cell band__cell--left">{band.left.map(renderPiece(pageNumber))}</div>
-      <div className="band__cell band__cell--center">{band.center.map(renderPiece(pageNumber))}</div>
-      <div className="band__cell band__cell--right">{band.right.map(renderPiece(pageNumber))}</div>
+      <div className="band__cell band__cell--left">{band.left.map(renderPiece(pageNumber, totalPages))}</div>
+      <div className="band__cell band__cell--center">
+        {band.center.map(renderPiece(pageNumber, totalPages))}
+      </div>
+      <div className="band__cell band__cell--right">
+        {band.right.map(renderPiece(pageNumber, totalPages))}
+      </div>
     </div>
   )
 }
 
 const renderPiece =
-  (pageNumber: number) =>
+  (pageNumber: number, totalPages: number) =>
   (piece: BandPiece, index: number): React.JSX.Element => {
     if (piece.kind === 'image') {
       return (
@@ -58,11 +65,15 @@ const renderPiece =
       )
     }
 
-    // O total de páginas só existe depois de paginar, o que acontece na
-    // exportação. Na tela, mostrar um marcador é mais honesto que um número
-    // inventado.
+    // O total existia só depois de exportar, e a faixa mostrava um marcador no
+    // lugar dele. Agora a tela pagina, então o número é o de verdade — e é ele
+    // que a pessoa confere antes de imprimir.
     const text =
-      piece.kind === 'pageNumber' ? String(pageNumber) : piece.kind === 'totalPages' ? '…' : piece.text
+      piece.kind === 'pageNumber'
+        ? String(pageNumber)
+        : piece.kind === 'totalPages'
+          ? String(totalPages)
+          : piece.text
 
     return (
       <span

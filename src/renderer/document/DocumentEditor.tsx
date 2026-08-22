@@ -7,19 +7,25 @@ import { useWorkspace } from '../state/workspace.js'
 import { DocumentToolbar } from './toolbar/DocumentToolbar.js'
 import { FindReplacePanel } from './FindReplacePanel.js'
 import { PageBand } from './PageBand.js'
-import { PageGuides, usePageBreaks } from './PageGuides.js'
+import { usePagination } from './usePagination.js'
 import { PageSetupPanel } from './PageSetupPanel.js'
 import { buildEditorExtensions } from './editor-extensions.js'
+import { isPaginationOnly } from './extensions/pagination.js'
 import { onEditorCommand } from './editor-commands.js'
 import type { SearchStatus } from './extensions/search-replace.js'
 
 /**
  * Editor de documentos.
  *
- * A moldura de página é visual: largura e margens em milímetros, rolagem
- * contínua. O editor não pagina ao vivo — essa decisão está registrada em
- * docs/00-plano-tecnico.md §6.3, e a paginação real acontece na exportação
- * para PDF, na Fase 3.
+ * Pagina ao vivo: o texto é um fluxo só, e as folhas são desenhadas atrás dele
+ * nas posições que a medição produz. Quem empurra cada bloco para a folha certa
+ * é uma decoração de margem — ver `extensions/pagination.ts`, que explica por
+ * que não é um espaçador de verdade.
+ *
+ * Cabeçalho e rodapé se repetem em cada folha, com o número da página. São
+ * desenhados fora do `contenteditable`, na mesma camada das folhas: no papel
+ * eles moram dentro da margem, e ali não empurram o texto nem entram na
+ * seleção.
  */
 export function DocumentEditor(): React.JSX.Element {
   const initialDoc = useWorkspace((state) => state.initialDoc)
@@ -42,7 +48,12 @@ export function DocumentEditor(): React.JSX.Element {
   const editor = useEditor({
     extensions: buildEditorExtensions(handleSearchStatus),
     content: initialDoc,
-    onUpdate: ({ editor: current }) => {
+    onUpdate: ({ editor: current, transaction }) => {
+      // A paginação também chega como transação. Tratá-la como edição sujaria o
+      // documento sem ninguém digitar, e a medição que ela dispara pediria
+      // outra medição — o laço fecharia aqui.
+      if (isPaginationOnly(transaction)) return
+
       markDirty()
       setContentRevision((value) => value + 1)
       setStats({
@@ -97,9 +108,9 @@ export function DocumentEditor(): React.JSX.Element {
     [editor],
   )
 
-  const pageBreaks = usePageBreaks(pageRef, page, contentRevision)
+  const layout = usePagination(editor, page, contentRevision)
 
-  useEffect(() => setEstimatedPages(pageBreaks.length + 1), [pageBreaks, setEstimatedPages])
+  useEffect(() => setEstimatedPages(layout.pages), [layout.pages, setEstimatedPages])
 
   if (editor === null) return <div className="editor-shell" />
 
@@ -130,33 +141,62 @@ export function DocumentEditor(): React.JSX.Element {
       <div className="editor-scroll">
         <div
           ref={pageRef}
-          className="page"
-          style={{
-            width: `${mmToPx(width)}px`,
-            // Uma folha vazia tem a altura de uma folha, não a do texto que já
-            // existe nela. Sem isto o documento novo abre como uma tira baixa,
-            // e a noção de papel — que é o que o Writer, o Word e o Docs dão —
-            // se perde. Continua sendo moldura: quem pagina é a exportação.
-            minHeight: `${mmToPx(height)}px`,
-            paddingTop: `${mmToPx(page.margins.top)}px`,
-            paddingRight: `${mmToPx(page.margins.right)}px`,
-            paddingBottom: `${mmToPx(page.margins.bottom)}px`,
-            paddingLeft: `${mmToPx(page.margins.left)}px`,
-          }}
+          className="pages"
+          style={{ width: `${mmToPx(width)}px`, height: `${layout.stackHeightPx}px` }}
         >
-          <PageGuides offsets={pageBreaks} topOffsetPx={mmToPx(page.margins.top)} />
+          {/* As folhas: papel desenhado atrás do texto. Ficam fora do
+              `contenteditable` de propósito — dentro dele, cada folha seria um
+              nó que a pessoa conseguiria selecionar e apagar. */}
+          {layout.sheetTops.map((top, index) => (
+            <div
+              key={top}
+              className="paper"
+              style={{ top: `${top}px`, height: `${mmToPx(height)}px` }}
+              aria-hidden="true"
+            >
+              <span className="paper__number">{index + 1}</span>
+            </div>
+          ))}
 
-          {/* As faixas moram dentro da margem, como no papel: por isso são
-              posicionadas em relação à folha e não empurram o texto. */}
-          {hasBandContent(page.headerBand) && (
-            <PageBand band={page.headerBand} kind="header" pageNumber={1} insetPx={bandInset} />
-          )}
+          {/* Uma faixa por folha, com o número real. No papel elas moram dentro
+              da margem, e é por isso que não empurram o texto. */}
+          {layout.sheetTops.map((top, index) => (
+            <div
+              key={`banda-${top}`}
+              className="paper-bands"
+              style={{ top: `${top}px`, height: `${mmToPx(height)}px` }}
+            >
+              {hasBandContent(page.headerBand) && (
+                <PageBand
+                  band={page.headerBand}
+                  kind="header"
+                  pageNumber={index + 1}
+                  totalPages={layout.pages}
+                  insetPx={bandInset}
+                />
+              )}
+              {hasBandContent(page.footerBand) && (
+                <PageBand
+                  band={page.footerBand}
+                  kind="footer"
+                  pageNumber={index + 1}
+                  totalPages={layout.pages}
+                  insetPx={bandInset}
+                />
+              )}
+            </div>
+          ))}
 
-          <EditorContent editor={editor} />
-
-          {hasBandContent(page.footerBand) && (
-            <PageBand band={page.footerBand} kind="footer" pageNumber={1} insetPx={bandInset} />
-          )}
+          <div
+            className="pages__column"
+            style={{
+              paddingTop: `${mmToPx(page.margins.top)}px`,
+              paddingRight: `${mmToPx(page.margins.right)}px`,
+              paddingLeft: `${mmToPx(page.margins.left)}px`,
+            }}
+          >
+            <EditorContent editor={editor} />
+          </div>
         </div>
       </div>
     </div>

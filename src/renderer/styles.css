@@ -517,18 +517,62 @@ button {
 }
 
 /*
-  Moldura de página: largura e margens em milímetros, do jeito que saem na
-  impressão. A rolagem é contínua — o editor não pagina ao vivo (§6.3 do
-  plano); a paginação real acontece na exportação para PDF.
+  A pilha de folhas.
+
+  Sem fundo próprio: é só o sistema de coordenadas. As folhas brancas, as faixas
+  e o texto são três camadas empilhadas aqui dentro, todas na mesma origem — é
+  isso que permite ao texto correr como um fluxo só enquanto o papel atrás dele
+  parece descontínuo.
 */
-.page {
+.pages {
+  position: relative;
+  flex-shrink: 0;
+}
+
+/*
+  Uma folha. Papel desenhado **atrás** do texto, e não em volta dele.
+
+  Envolver o texto exigiria parti-lo em N elementos, e aí a seleção, o
+  copiar-colar e o `Ctrl+A` teriam de saber que a página existe. Desenhando
+  atrás, a página é aparência: some do documento e não some da tela.
+*/
+.paper {
+  position: absolute;
+  left: 0;
+  right: 0;
   background: var(--surface);
   box-shadow:
     0 1px 2px rgb(16 24 40 / 8%),
     0 10px 28px rgb(16 24 40 / 7%);
-  /* A altura mínima vem de DocumentEditor, em milímetros: é a da folha. */
-  flex-shrink: 0;
-  /* Âncora das faixas de cabeçalho e rodapé, que moram na margem. */
+  pointer-events: none;
+}
+
+/* O número no canto da folha, como o Writer mostra na régua lateral. */
+.paper__number {
+  position: absolute;
+  right: -34px;
+  top: 6px;
+  font-size: 11px;
+  color: var(--muted);
+  user-select: none;
+}
+
+/* Camada das faixas de uma folha: mesma caixa da folha, sem o papel. */
+.paper-bands {
+  position: absolute;
+  left: 0;
+  right: 0;
+  pointer-events: none;
+}
+
+/*
+  A coluna de texto, sobre as folhas.
+
+  Só as margens laterais e a superior entram como recuo: a inferior de cada
+  folha nasce do vão que a paginação empurra, e somá-la aqui a contaria duas
+  vezes.
+*/
+.pages__column {
   position: relative;
 }
 
@@ -594,34 +638,6 @@ button {
 .band__image {
   max-width: 100%;
   object-fit: contain;
-}
-
-/*
-  Marca de fim de página.
-
-  Tracejada e discreta de propósito: é uma **estimativa**. O editor não pagina
-  ao vivo (§6.3 do plano) e a paginação de verdade só acontece na exportação,
-  onde entram regras de viúvas e órfãs que não existem aqui. Uma linha sólida
-  sugeriria uma exatidão que ela não tem.
-*/
-.page-guide {
-  position: absolute;
-  left: 0;
-  right: 0;
-  border-top: 1px dashed var(--border-strong);
-  pointer-events: none;
-  user-select: none;
-}
-
-.page-guide__label {
-  position: absolute;
-  right: 6px;
-  top: 3px;
-  font-size: 10px;
-  letter-spacing: 0.02em;
-  color: var(--muted);
-  background: var(--surface);
-  padding: 0 4px;
 }
 
 /* Destaques de "localizar" */

@@ -22,10 +22,11 @@ export function StatusBar(): React.JSX.Element {
           <span className="statusbar__metric">
             {state.page.size} {width} × {height} mm
           </span>
-          {/* "≈" porque é medida na tela, não paginação de verdade: essa só
-              acontece na exportação. Ver PageGuides.tsx. */}
-          <span className="statusbar__metric" title="Estimativa — a paginação exata é a da exportação">
-            ≈ {state.estimatedPages} {state.estimatedPages === 1 ? 'página' : 'páginas'}
+          {/* Sem "≈": a tela agora pagina de verdade, e o número é o mesmo
+              que a pessoa vê nas folhas. Prometer aproximação quando a conta
+              está certa ensina a desconfiar de um número bom. */}
+          <span className="statusbar__metric">
+            {state.estimatedPages} {state.estimatedPages === 1 ? 'página' : 'páginas'}
           </span>
           <span className="statusbar__metric">
             {state.stats.words.toLocaleString('pt-BR')} {state.stats.words === 1 ? 'palavra' : 'palavras'}

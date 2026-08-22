@@ -18,6 +18,7 @@ import { BlockIdentity } from './extensions/block-identity.js'
 import { Indent } from './extensions/indent.js'
 import { Caps, SmallCaps } from './extensions/letter-case.js'
 import { PageBreak } from './extensions/page-break.js'
+import { Pagination } from './extensions/pagination.js'
 import { SearchReplace, type SearchStatus } from './extensions/search-replace.js'
 
 /**
@@ -79,6 +80,10 @@ export function buildEditorExtensions(onSearchStatusChange: (status: SearchStatu
     Caps,
     SmallCaps,
     PageBreak,
+    // Guarda os vãos entre as folhas. Quem os calcula é `usePagination`; aqui
+    // fica só o lugar onde eles vivem, para acompanharem a edição sem que o
+    // documento saiba que existem.
+    Pagination,
     SearchReplace.configure({ onStatusChange: onSearchStatusChange }),
   ]
 }
