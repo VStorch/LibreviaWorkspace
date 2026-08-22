@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { EditorContent, useEditor, type Editor } from '@tiptap/react'
 import { DOCUMENT_CONTENT_CSS, EDITOR_ONLY_CSS } from '@services/document/content-styles.js'
 import { bandForPage, hasBandContent, mmToPx, pageDimensionsMm } from '@services/document/model.js'
@@ -7,9 +7,12 @@ import { useWorkspace } from '../state/workspace.js'
 import { DocumentToolbar } from './toolbar/DocumentToolbar.js'
 import { FindReplacePanel } from './FindReplacePanel.js'
 import { PageBand } from './PageBand.js'
-import { usePagination } from './usePagination.js'
-import type { PrintPage } from '@services/document/print-pages.js'
-import { DOMSerializer, Fragment, type Node as ProseMirrorNode } from '@tiptap/pm/model'
+import { usePagination, type PageLayout } from './usePagination.js'
+import { FloatingLayer, type PlacedFloat } from './FloatingLayer.js'
+import { floatsOf, type FloatingObject } from '@services/document/floating.js'
+import { pxToMm } from '@services/document/model.js'
+import type { PrintFloat, PrintPage } from '@services/document/print-pages.js'
+import { DOMSerializer, Fragment, Node as ProseMirrorNode } from '@tiptap/pm/model'
 import { PageSetupPanel } from './PageSetupPanel.js'
 import { buildEditorExtensions } from './editor-extensions.js'
 import { isPaginationOnly } from './extensions/pagination.js'
@@ -96,7 +99,7 @@ export function DocumentEditor(): React.JSX.Element {
     registerDocumentSource({
       readDoc: () => editor.getJSON() as DocumentNode,
       readHtml: () => editor.getHTML(),
-      readPages: () => splitIntoPages(editor, layoutRef.current.pageStarts),
+      readPages: () => splitIntoPages(editor, layoutRef.current),
     })
     return () => registerDocumentSource(null)
   }, [editor, registerDocumentSource])
@@ -112,6 +115,30 @@ export function DocumentEditor(): React.JSX.Element {
   )
 
   const layout = usePagination(editor, page, contentRevision)
+
+  // Os objetos ancorados de cada folha. Recalculados junto com a paginação
+  // porque a posição de um deles depende de em que folha o parágrafo âncora
+  // caiu — e isso muda a cada linha digitada.
+  const floatsByPage = useMemo(() => {
+    const pages: PlacedFloat[][] = Array.from({ length: layout.pages }, () => [])
+    if (editor === null) return pages
+
+    let index = 0
+    editor.state.doc.forEach((node) => {
+      const anchor = layout.anchors[index]
+      index += 1
+      if (anchor === undefined) return
+
+      const sheet = pages[anchor.pageIndex]
+      if (sheet === undefined) return
+
+      for (const object of floatsOf(node.attrs)) {
+        sheet.push({ object, anchorTopMm: pxToMm(anchor.topPx) })
+      }
+    })
+
+    return pages
+  }, [editor, layout, contentRevision])
 
   // O recorte em páginas é lido no momento de imprimir, e não no da renderização
   // — daí a `ref`: registrar `readPages` a cada mudança de layout recriaria a
@@ -175,6 +202,7 @@ export function DocumentEditor(): React.JSX.Element {
               className="paper-bands"
               style={{ top: `${top}px`, height: `${mmToPx(height)}px` }}
             >
+              <FloatingLayer objects={floatsByPage[index] ?? []} page={page} schema={editor.schema} behind />
               {(['header', 'footer'] as const).map((kind) => {
                 // A capa manda sobre a paridade, e a paridade sobre o padrão —
                 // a ordem do Word. Documento sem primeira página distinta cai no
@@ -191,6 +219,13 @@ export function DocumentEditor(): React.JSX.Element {
                   />
                 ) : null
               })}
+
+              <FloatingLayer
+                objects={floatsByPage[index] ?? []}
+                page={page}
+                schema={editor.schema}
+                behind={false}
+              />
             </div>
           ))}
 
@@ -223,13 +258,13 @@ export function DocumentEditor(): React.JSX.Element {
  *
  * Serializando o nó, o recorte cai sempre onde o paginador o pôs.
  */
-function splitIntoPages(editor: Editor, pageStarts: readonly number[]): PrintPage[] {
+function splitIntoPages(editor: Editor, layout: PageLayout): PrintPage[] {
   const serializer = DOMSerializer.fromSchema(editor.schema)
 
   const blocks: ProseMirrorNode[] = []
   editor.state.doc.forEach((node: ProseMirrorNode) => blocks.push(node))
 
-  const cortes = [0, ...pageStarts, blocks.length]
+  const cortes = [0, ...layout.pageStarts, blocks.length]
   const pages: PrintPage[] = []
 
   for (let i = 0; i < cortes.length - 1; i++) {
@@ -239,8 +274,41 @@ function splitIntoPages(editor: Editor, pageStarts: readonly number[]): PrintPag
 
     const holder = document.createElement('div')
     holder.appendChild(serializer.serializeFragment(Fragment.fromArray(blocks.slice(inicio, fim))))
-    pages.push({ number: pages.length + 1, html: holder.innerHTML })
+
+    // Os objetos ancorados desta folha, com a caixa de texto já serializada: o
+    // desenho do papel não conhece o schema do ProseMirror, e quem o conhece é
+    // aqui.
+    const floats: PrintFloat[] = []
+    for (let b = inicio; b < fim; b++) {
+      const anchor = layout.anchors[b]
+      const block = blocks[b]
+      if (anchor === undefined || block === undefined) continue
+
+      for (const object of floatsOf(block.attrs)) {
+        floats.push({
+          object,
+          anchorTopMm: pxToMm(anchor.topPx),
+          ...(object.kind === 'text' ? { contentHtml: serializeFloatText(object, editor) } : {}),
+        })
+      }
+    }
+
+    pages.push({ number: pages.length + 1, html: holder.innerHTML, floats })
   }
 
   return pages
+}
+
+/** O conteúdo de uma caixa de texto, em HTML, pelo serializador do editor. */
+function serializeFloatText(object: FloatingObject, editor: Editor): string {
+  try {
+    const nodes = (object.content ?? []).map((node) => ProseMirrorNode.fromJSON(editor.schema, node))
+    const holder = document.createElement('div')
+    holder.appendChild(DOMSerializer.fromSchema(editor.schema).serializeFragment(Fragment.fromArray(nodes)))
+    return holder.innerHTML
+  } catch {
+    // Caixa que o schema não reconhece sai vazia em vez de derrubar a
+    // exportação inteira.
+    return ''
+  }
 }

@@ -6,6 +6,7 @@ import {
   type BandPiece,
   type PageSetup,
 } from './model.js'
+import { placeFloating, type FloatingObject } from './floating.js'
 
 /**
  * O papel montado a partir das mesmas páginas que a tela desenha.
@@ -34,6 +35,22 @@ export interface PrintPage {
   readonly number: number
   /** Os blocos daquela folha, no HTML que o editor produziu. */
   readonly html: string
+  /** Os objetos ancorados que caem nesta folha. */
+  readonly floats: readonly PrintFloat[]
+}
+
+/**
+ * Um objeto ancorado, pronto para a conta de posição.
+ *
+ * O conteúdo da caixa de texto vem em HTML já serializado: quem tem o schema do
+ * ProseMirror é o editor, e este módulo desenha o papel sem saber que ele
+ * existe. A posição, essa é calculada aqui — pela mesma função que a tela usa,
+ * que é o que garante que os dois desenhem no mesmo lugar.
+ */
+export interface PrintFloat {
+  readonly object: FloatingObject
+  readonly anchorTopMm: number
+  readonly contentHtml?: string | undefined
 }
 
 /**
@@ -64,7 +81,13 @@ export function buildPagedCss(page: PageSetup): string {
 /* Sem isto o Chromium fecha o documento com uma folha em branco. */
 .paper-page:last-child { break-after: auto; }
 
-.paper-page__body { height: 100%; box-sizing: border-box; }
+.paper-page__body { height: 100%; box-sizing: border-box; position: relative; z-index: 1; }
+
+.paper-floats { position: absolute; inset: 0; }
+.paper-floats--behind { z-index: 0; }
+.paper-floats--front { z-index: 2; }
+.paper-float { position: absolute; object-fit: contain; }
+.paper-float--text > * { margin: 0; }
 
 .paper-page__band {
   position: absolute;
@@ -105,13 +128,39 @@ function renderPage(sheet: PrintPage, page: PageSetup, total: number, inset: num
     sheet.html +
     '</div>'
 
+  // A ordem no HTML é a ordem de empilhamento, junto com o `z-index`: o que fica
+  // atrás vem antes, o texto no meio, o que fica na frente por último. É a
+  // distinção que o `behindDoc` do OOXML faz para decoração de capa.
   return (
     '<div class="paper-page">' +
+    renderFloats(sheet.floats, page, true) +
     (hasBandContent(header) ? renderBand(header, 'header', sheet.number, total, inset) : '') +
     body +
     (hasBandContent(footer) ? renderBand(footer, 'footer', sheet.number, total, inset) : '') +
+    renderFloats(sheet.floats, page, false) +
     '</div>'
   )
+}
+
+function renderFloats(floats: readonly PrintFloat[], page: PageSetup, behind: boolean): string {
+  const visible = floats.filter((item) => item.object.behind === behind)
+  if (visible.length === 0) return ''
+
+  const boxes = visible.map((item) => {
+    const box = placeFloating(item.object, page, item.anchorTopMm)
+    const style =
+      `left:${box.leftMm}mm;top:${box.topMm}mm;` +
+      `width:${box.widthMm}mm;height:${box.heightMm}mm;` +
+      // Em torno do centro, como o Word gira: a caixa é posicionada sem girar e
+      // o giro acontece depois.
+      (box.rotation === 0 ? '' : `transform:rotate(${box.rotation}deg);`)
+
+    return item.object.kind === 'image'
+      ? `<img class="paper-float" alt="" style="${style}" src="${escapeHtml(item.object.src ?? '')}" />`
+      : `<div class="paper-float paper-float--text page__content" style="${style}">${item.contentHtml ?? ''}</div>`
+  })
+
+  return `<div class="paper-floats paper-floats--${behind ? 'behind' : 'front'}">${boxes.join('')}</div>`
 }
 
 function renderBand(

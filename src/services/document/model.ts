@@ -187,6 +187,11 @@ export function mmToPx(mm: number): number {
   return (mm * 96) / 25.4
 }
 
+/** O caminho de volta, para o que foi medido na tela e vai ser posto em mm. */
+export function pxToMm(px: number): number {
+  return (px * 25.4) / 96
+}
+
 /**
  * Margem válida é a que deixa espaço útil.
  *

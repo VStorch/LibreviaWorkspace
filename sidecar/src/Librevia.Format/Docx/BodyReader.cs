@@ -1,3 +1,4 @@
+using System.Text.Json;
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
@@ -39,6 +40,17 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory)
     /// atravessar essa fronteira.
     /// </remarks>
     private bool _paragraphHasContent;
+
+    /// <summary>
+    /// Objetos ancorados encontrados no parágrafo que está sendo lido.
+    /// </summary>
+    /// <remarks>
+    /// São descobertos no meio da leitura de linha, mas pertencem ao **bloco**:
+    /// não ocupam lugar no fluxo, e a posição deles é dada em relação à página,
+    /// à margem ou ao próprio parágrafo. Acumulam aqui e são anexados ao nó do
+    /// parágrafo no fim, que é onde quem desenha vai procurá-los.
+    /// </remarks>
+    private readonly List<FloatDto> _paragraphFloats = [];
 
     /// <summary>
     /// Percorre o corpo produzindo a árvore do editor e, em paralelo, a lista
@@ -157,13 +169,19 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory)
         var (effective, inheritedRun) = _styles.Resolve(direct);
 
         _paragraphHasContent = false;
+        _paragraphFloats.Clear();
         var content = ReadInline(paragraph, inheritedRun);
 
         // Uma quebra de página sozinha no parágrafo é o nó `pageBreak`, não um
         // parágrafo vazio com uma quebra dentro.
+        //
+        // Os objetos ancorados vão junto: depois que a imagem da capa saiu do
+        // fluxo, o parágrafo que a continha ficou com a quebra e mais nada — e
+        // sem esta linha a marca vertical desaparecia do documento por cair
+        // justamente no atalho.
         if (content.Count == 1 && content[0].Type == "pageBreak")
         {
-            return content[0];
+            return WithFloats(content[0]);
         }
 
         // Quebra **no meio** de um parágrafo: `w:br w:type="page"` dentro de um
@@ -187,6 +205,8 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory)
             : Node.Of("paragraph");
 
         if (breakAfter) node.With("breakAfter", true);
+
+        WithFloats(node);
 
         // O identificador do estilo viaja junto para que a gravação de um
         // parágrafo editado continue apontando o estilo original.
@@ -364,6 +384,17 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory)
         return "left";
     }
 
+    /// <summary>Anexa ao bloco os objetos ancorados que o parágrafo trouxe.</summary>
+    private Node WithFloats(Node node)
+    {
+        if (_paragraphFloats.Count > 0)
+        {
+            node.With("floats", JsonSerializer.SerializeToNode(_paragraphFloats, DocxJson.Options));
+        }
+
+        return node;
+    }
+
     private static int IndentOf(ParagraphProperties? properties)
     {
         var left = properties?.Indentation?.Left?.Value;
@@ -519,38 +550,97 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory)
     /// </remarks>
     private IEnumerable<Node> ReadShape(OpenXmlElement shape)
     {
+        // Ancorado é objeto **fora do fluxo**: no Word ele não empurra o texto,
+        // mora numa posição da folha e pode até ficar atrás dela. Lê-lo como
+        // bloco no meio do texto punha a marca vertical da capa como uma faixa
+        // deitada de página inteira, empurrando tudo para baixo — e a contagem
+        // de páginas ia junto.
+        //
+        // Sai do fluxo e vira propriedade do parágrafo âncora. O que continua
+        // aqui é o objeto **no fluxo** (`wp:inline`), que é imagem no meio da
+        // linha e deve mesmo ocupar lugar.
+        if (AnchorReader.AnchorOf(shape) is { } anchor)
+        {
+            foreach (var floating in DescribeAnchored(shape, anchor)) _paragraphFloats.Add(floating);
+            yield break;
+        }
+
         if (ReadImage(shape) is { } image)
         {
             _paragraphHasContent = true;
             yield return image;
         }
 
+        // Caixa de texto sem âncora é rara e não tem posição própria: o texto
+        // dela entra na linha, que é onde estaria de qualquer modo.
+        foreach (var node in ReadTextBoxesInline(shape)) yield return node;
+    }
+
+    /// <summary>
+    /// O que um desenho ancorado carrega: uma imagem, uma caixa de texto, ou nada.
+    /// </summary>
+    private IEnumerable<FloatDto> DescribeAnchored(
+        OpenXmlElement shape,
+        Drawing.Wordprocessing.Anchor anchor)
+    {
+        if (ImageSourceOf(shape) is { } src)
+        {
+            yield return AnchorReader.Describe(anchor, "image", src, null);
+            yield break;
+        }
+
+        foreach (var box in OutermostTextBoxes(shape))
+        {
+            inventory.NoteInvisible(Inventory.Shapes);
+
+            var content = new List<Node>();
+            foreach (var paragraph in box.Descendants<Paragraph>())
+            {
+                if (paragraph.Ancestors<TextBoxContent>().First() != box) continue;
+                content.Add(ReadParagraphOf(paragraph));
+            }
+
+            if (content.Count > 0) yield return AnchorReader.Describe(anchor, "text", null, content);
+        }
+    }
+
+    /// <summary>
+    /// Um parágrafo de dentro de uma caixa, com a formatação dele resolvida.
+    /// </summary>
+    /// <remarks>
+    /// A caixa é um fluxo de texto próprio, então os parágrafos dela são
+    /// parágrafos de verdade — e não linhas emendadas, como eram quando o texto
+    /// era despejado na linha do parágrafo âncora.
+    /// </remarks>
+    private Node ReadParagraphOf(Paragraph paragraph)
+    {
+        var (effective, inheritedRun) = _styles.Resolve(paragraph.ParagraphProperties);
+
+        var node = Node.Of("paragraph");
+        if (AlignmentOf(effective) is { } alignment) node.With("textAlign", alignment);
+
+        var content = ReadInline(paragraph, inheritedRun);
+        if (content.Count > 0) node.Content = content;
+        return node;
+    }
+
+    /// <summary>Caixas de texto sem âncora: o conteúdo entra na linha.</summary>
+    private IEnumerable<Node> ReadTextBoxesInline(OpenXmlElement shape)
+    {
         foreach (var box in OutermostTextBoxes(shape))
         {
             inventory.NoteInvisible(Inventory.Shapes);
 
             foreach (var paragraph in box.Descendants<Paragraph>())
             {
-                // Uma caixa aninhada é lida pela recursão de `ReadInline`, ao
-                // encontrar o desenho de dentro. Descer nela aqui também
-                // duplicaria o texto.
                 if (paragraph.Ancestors<TextBoxContent>().First() != box) continue;
 
                 var (_, inheritedRun) = _styles.Resolve(paragraph.ParagraphProperties);
-
-                // A resposta é lida **antes**: ler o conteúdo da caixa marca o
-                // parágrafo como escrito, e perguntar depois faria toda caixa
-                // achar que alguém escreveu antes dela — inclusive a primeira.
                 var afterSomething = _paragraphHasContent;
 
                 var inline = ReadInline(paragraph, inheritedRun);
                 if (inline.Count == 0) continue;
 
-                // Um parágrafo de verdade não cabe dentro de outro parágrafo,
-                // que é onde a âncora está: cada parágrafo da caixa vira uma
-                // linha. Sem isto, a capa do modelo de manual — duas caixas
-                // ancoradas no mesmo parágrafo — abria com "TítuloSubtitulo"
-                // emendado numa linha só.
                 if (afterSomething) yield return Node.Of("hardBreak");
                 _paragraphHasContent = true;
 
@@ -593,7 +683,12 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory)
     /// Tratá-la como flutuante produziria layout pior, não melhor. Ver
     /// docs/01-corpus-docx.md, Descoberta 3.
     /// </remarks>
-    private Node? ReadImage(OpenXmlElement drawing)
+    /// <summary>Os bytes da imagem como data URI, ou `null` se não houver.</summary>
+    /// <remarks>
+    /// Separado de <see cref="ReadImage"/> porque o objeto ancorado precisa dos
+    /// bytes sem o nó: ele não vira bloco no fluxo, vira posição na folha.
+    /// </remarks>
+    private string? ImageSourceOf(OpenXmlElement drawing)
     {
         var blip = drawing.Descendants<Drawing.Blip>().FirstOrDefault();
         var relationshipId = blip?.Embed?.Value;
@@ -609,8 +704,14 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory)
         using var buffer = new MemoryStream();
         stream.CopyTo(buffer);
 
-        var node = Node.Of("image")
-            .With("src", $"data:{image.ContentType};base64,{Convert.ToBase64String(buffer.ToArray())}");
+        return $"data:{image.ContentType};base64,{Convert.ToBase64String(buffer.ToArray())}";
+    }
+
+    private Node? ReadImage(OpenXmlElement drawing)
+    {
+        if (ImageSourceOf(drawing) is not { } src) return null;
+
+        var node = Node.Of("image").With("src", src);
 
         var extent = drawing.Descendants<Drawing.Wordprocessing.Extent>().FirstOrDefault();
         if (extent?.Cx is not null)

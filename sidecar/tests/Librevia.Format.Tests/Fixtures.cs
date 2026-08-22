@@ -482,6 +482,48 @@ public static class Fixtures
         return new AlternateContent(xml);
     }
 
+    /// <summary>Imagem **no fluxo** (`wp:inline`): ocupa lugar na linha.</summary>
+    public static byte[] WithInlineImage() => Build((body, part) =>
+    {
+        var image = part.AddImagePart(ImagePartType.Png);
+        using (var stream = new MemoryStream(TinyPng()))
+        {
+            image.FeedData(stream);
+        }
+
+        body.AppendChild(new Paragraph(new Run(InlineDrawing(part.GetIdOfPart(image)))));
+    });
+
+    private static OpenXmlElement InlineDrawing(string relationshipId)
+    {
+        var xml = $"""
+            <wp:inline xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"
+                       xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"
+                       xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"
+                       xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+                       distT="0" distB="0" distL="0" distR="0">
+              <wp:extent cx="5274000" cy="2637000"/>
+              <wp:docPr id="1" name="Imagem 1"/>
+              <a:graphic>
+                <a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">
+                  <pic:pic>
+                    <pic:nvPicPr><pic:cNvPr id="1" name="Imagem 1"/><pic:cNvPicPr/></pic:nvPicPr>
+                    <pic:blipFill><a:blip r:embed="{relationshipId}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill>
+                    <pic:spPr>
+                      <a:xfrm><a:off x="0" y="0"/><a:ext cx="5274000" cy="2637000"/></a:xfrm>
+                      <a:prstGeom prst="rect"><a:avLst/></a:prstGeom>
+                    </pic:spPr>
+                  </pic:pic>
+                </a:graphicData>
+              </a:graphic>
+            </wp:inline>
+            """;
+
+        var drawing = new DocumentFormat.OpenXml.Wordprocessing.Drawing();
+        drawing.InnerXml = xml;
+        return drawing;
+    }
+
     private static OpenXmlElement AnchoredDrawing(
         string relationshipId,
         long cx = 5274000,

@@ -557,6 +557,36 @@ button {
   user-select: none;
 }
 
+/*
+  Objetos ancorados: imagem ou caixa que não estão no fluxo do texto.
+
+  Duas camadas porque o OOXML distingue: `behindDoc` é decoração de capa e marca
+  d'água, que ficam **debaixo** do texto; o resto fica por cima. Nenhuma recebe
+  clique — o cursor pertence ao texto, e o editor não sabe recriar estes objetos.
+*/
+.paper-floats {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.paper-floats--behind {
+  z-index: 0;
+}
+.paper-floats--front {
+  z-index: 2;
+}
+
+.paper-float {
+  position: absolute;
+  object-fit: contain;
+}
+
+/* A caixa é um fluxo de texto próprio, com a tipografia do documento. */
+.paper-float--text > * {
+  margin: 0;
+}
+
 /* Camada das faixas de uma folha: mesma caixa da folha, sem o papel. */
 .paper-bands {
   position: absolute;
@@ -574,6 +604,8 @@ button {
 */
 .pages__column {
   position: relative;
+  /* Acima da camada `behind` e abaixo da `front`: é a ordem que o OOXML pede. */
+  z-index: 1;
 }
 
 /*

@@ -21,6 +21,19 @@ export interface PageLayout {
    * lista de blocos nestes pontos dá as folhas prontas, sem ninguém repaginar.
    */
   readonly pageStarts: readonly number[]
+  /**
+   * Em que folha cada bloco caiu, e a que altura dentro dela.
+   *
+   * É o que falta para desenhar um objeto ancorado: a posição dele vem em
+   * relação ao parágrafo âncora, e o parágrafo só tem posição depois de paginar.
+   */
+  readonly anchors: readonly BlockAnchor[]
+}
+
+export interface BlockAnchor {
+  readonly pageIndex: number
+  /** Topo do bloco dentro da folha, em pixels, já incluída a margem superior. */
+  readonly topPx: number
 }
 
 /**
@@ -39,6 +52,7 @@ export function usePagination(editor: Editor | null, page: PageSetup, revision: 
     stackHeightPx: 0,
     sheetTops: [0],
     pageStarts: [],
+    anchors: [],
   })
 
   /**
@@ -140,6 +154,7 @@ export function usePagination(editor: Editor | null, page: PageSetup, revision: 
         stackHeightPx: pages * pageHeightPx + (pages - 1) * SHEET_GUTTER_PX,
         sheetTops: Array.from({ length: pages }, (_, i) => i * (pageHeightPx + SHEET_GUTTER_PX)),
         pageStarts: [...gaps.keys()].sort((a, b) => a - b),
+        anchors: anchorsFor(blocks, breaks, marginTopPx),
       })
     }
 
@@ -178,4 +193,27 @@ function sameGaps(left: ReadonlyMap<number, number>, right: ReadonlyMap<number, 
     if (Math.abs((right.get(index) ?? Number.NaN) - gap) > 1) return false
   }
   return true
+}
+
+/**
+ * Em que folha cada bloco caiu, e a que altura dentro dela.
+ *
+ * Em coordenadas de fluxo os cortes são fronteiras crescentes, então uma
+ * varredura só resolve — os blocos já vêm em ordem.
+ */
+function anchorsFor(
+  blocks: readonly MeasuredBlock[],
+  breaks: readonly number[],
+  marginTopPx: number,
+): BlockAnchor[] {
+  const anchors: BlockAnchor[] = []
+  let page = 0
+
+  for (const block of blocks) {
+    while (page < breaks.length && block.top >= breaks[page]!) page += 1
+    const start = page === 0 ? 0 : breaks[page - 1]!
+    anchors.push({ pageIndex: page, topPx: marginTopPx + (block.top - start) })
+  }
+
+  return anchors
 }

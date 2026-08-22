@@ -1,7 +1,8 @@
 import { Extension } from '@tiptap/core'
 
 /**
- * A identidade que o bloco traz do arquivo — e que precisa voltar inteira.
+ * O que o bloco traz do arquivo e o editor não interpreta — identidade e
+ * objetos ancorados.
  *
  * O leitor do sidecar carimba um `oid` em cada bloco de primeiro nível
  * (`BodyReader.NewBlock`), e a gravação usa esse `oid` para decidir o que
@@ -54,6 +55,28 @@ export const BlockIdentity = Extension.create<BlockIdentityOptions>({
               const oid = attributes['oid']
               return typeof oid === 'string' && oid.length > 0 ? { 'data-oid': oid } : {}
             },
+          },
+
+          /**
+           * Objetos ancorados neste bloco: imagem ou caixa de texto que não
+           * estão no fluxo.
+           *
+           * Dado opaco, como o `oid` — nada aqui os interpreta, e é por isso que
+           * precisam ser declarados: o ProseMirror descarta atributo fora do
+           * schema, e a capa perderia a marca e as caixas ao atravessar o
+           * editor, inclusive ao salvar.
+           *
+           * Declarado nos mesmos nós que o `oid`, e não só em parágrafo e
+           * título: quando um parágrafo tem só a imagem e uma quebra de página,
+           * ele vira o nó `pageBreak` — e os objetos dele iam junto.
+           *
+           * Não vai para o HTML: é dado, não aparência. Quem desenha lê do
+           * modelo e põe numa camada própria, fora do texto editável.
+           */
+          floats: {
+            default: null,
+            parseHTML: () => null,
+            renderHTML: () => ({}),
           },
         },
       },

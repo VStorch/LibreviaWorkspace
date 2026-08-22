@@ -155,15 +155,34 @@ public class DocxRoundTripTests
     }
 
     [Fact]
-    public void ReadsAnchoredImageAsABlock()
+    public void ImagemAncoradaSaiDoFluxo()
     {
-        // Toda imagem do corpus é âncora centralizada com a largura do texto —
-        // o jeito do LibreOffice dizer "imagem no próprio parágrafo".
+        // No Word um objeto ancorado não empurra o texto: mora numa posição da
+        // folha. Lido como bloco, a marca vertical de 28,6 cm da capa entrava
+        // como faixa deitada de página inteira e empurrava tudo para baixo — a
+        // contagem de páginas ia junto.
         var model = Open(Fixtures.WithAnchoredImage());
 
-        var image = Walk(model.Doc).SingleOrDefault(n => n.Type == "image");
-        Assert.NotNull(image);
-        Assert.StartsWith("data:image/png;base64,", image!.Attrs!["src"]!.GetValue<string>(), StringComparison.Ordinal);
+        Assert.DoesNotContain(Walk(model.Doc), n => n.Type == "image");
+
+        var floats = FloatsOf(model.Doc.Content![1]);
+        var image = Assert.Single(floats);
+        Assert.Equal("image", image.GetProperty("kind").GetString());
+        Assert.StartsWith(
+            "data:image/png;base64,",
+            image.GetProperty("src").GetString()!,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ImagemNoFluxoContinuaSendoBloco()
+    {
+        // O contrapeso: `wp:inline` é imagem no meio da linha, e deve mesmo
+        // ocupar lugar. Tirar as duas do fluxo esvaziaria o documento.
+        var model = Open(Fixtures.WithInlineImage());
+
+        var image = Assert.Single(Walk(model.Doc).Where(n => n.Type == "image"));
+        Assert.Equal(554, image.Attrs!["width"]!.GetValue<int>());
     }
 
     [Fact]
@@ -235,6 +254,31 @@ public class DocxRoundTripTests
         using var stream = package.GetEntry("word/document.xml")!.Open();
         using var reader = new StreamReader(stream);
         return reader.ReadToEnd();
+    }
+
+    /// <summary>Os objetos ancorados de um bloco.</summary>
+    private static List<JsonElement> FloatsOf(Node node)
+    {
+        if (node.Attrs is null || !node.Attrs.TryGetValue("floats", out var value) || value is null)
+        {
+            return [];
+        }
+
+        return [.. JsonDocument.Parse(value.ToJsonString()).RootElement.EnumerateArray()];
+    }
+
+    /// <summary>Todo o texto de dentro de uma caixa.</summary>
+    private static string TextOfFloat(JsonElement item) =>
+        item.TryGetProperty("content", out var content) && content.ValueKind == JsonValueKind.Array
+            ? string.Concat(content.EnumerateArray().Select(TextOfJson))
+            : string.Empty;
+
+    private static string TextOfJson(JsonElement node)
+    {
+        if (node.TryGetProperty("text", out var text)) return text.GetString() ?? string.Empty;
+        return node.TryGetProperty("content", out var children) && children.ValueKind == JsonValueKind.Array
+            ? string.Concat(children.EnumerateArray().Select(TextOfJson))
+            : string.Empty;
     }
 
     /// <summary>Todo o texto de uma faixa, nas três colunas.</summary>
@@ -611,50 +655,28 @@ public class DocxRoundTripTests
     // --- formas e caixas de texto -------------------------------------------
 
     [Fact]
-    public void TextoDeCaixaDeTextoApareceNaTela()
+    public void CaixaDeTextoViraObjetoComOTextoDentro()
     {
-        // Uma caixa de texto é conteúdo. Antes, ela ia inteira para o
-        // inventário e sumia da tela: um modelo de manual cujo título mora numa
-        // caixa abria sem título, e o aviso dizia "formas e caixas de texto" —
-        // o nome do recurso, não o nome do que faltou.
-        var model = Open(Fixtures.WithTextBoxes());
+        // Uma caixa é um fluxo de texto próprio, posicionado na folha. Antes ela
+        // ia inteira para o inventário e sumia da tela; depois passou a ter o
+        // texto despejado na linha da âncora, o que mostrava o conteúdo mas
+        // emendava título e subtítulo numa frase só.
+        var floats = FloatsOf(Open(Fixtures.WithTextBoxes()).Doc.Content![0]);
 
-        Assert.Contains("Título do manual", TextOf(model), StringComparison.Ordinal);
-        Assert.Contains("Subtítulo do manual", TextOf(model), StringComparison.Ordinal);
+        Assert.Equal(2, floats.Count);
+        Assert.All(floats, item => Assert.Equal("text", item.GetProperty("kind").GetString()));
+        Assert.Contains(floats, item => TextOfFloat(item) == "Título do manual");
+        Assert.Contains(floats, item => TextOfFloat(item) == "Subtítulo do manual");
     }
 
     [Fact]
     public void CaixaDeTextoNaoEntraDuasVezes()
     {
         // O Word grava a mesma caixa em DrawingML e no VML de reserva. Ler os
-        // dois ramos escreveria cada título duas vezes, e um documento com dez
-        // caixas abriria com vinte.
-        var texto = TextOf(Open(Fixtures.WithTextBoxes()));
+        // dois ramos criaria dois objetos no mesmo lugar, um sobre o outro.
+        var floats = FloatsOf(Open(Fixtures.WithTextBoxes()).Doc.Content![0]);
 
-        var ocorrencias = texto.Split("Título do manual").Length - 1;
-        Assert.Equal(1, ocorrencias);
-    }
-
-    [Fact]
-    public void CaixasDoMesmoParagrafoNaoEmendamNaMesmaLinha()
-    {
-        // Título e subtítulo estão em caixas distintas ancoradas no mesmo
-        // parágrafo. Sem uma quebra entre elas, a capa abria com
-        // "Título do manualSubtítulo do manual" numa linha só.
-        var model = Open(Fixtures.WithTextBoxes());
-
-        // A ordem dos nós, e não o texto concatenado: `TextOf` ignora as
-        // quebras, então uma capa emendada e uma capa correta produzem a mesma
-        // frase e o teste passaria dos dois jeitos.
-        var linha = Walk(model.Doc)
-            .Where(n => n.Type is "text" or "hardBreak")
-            .Select(n => n.Type == "hardBreak" ? "\n" : n.Text)
-            .ToList();
-
-        var titulo = linha.FindIndex(t => t == "Título do manual");
-        var subtitulo = linha.FindIndex(t => t == "Subtítulo do manual");
-        Assert.InRange(titulo, 0, subtitulo - 1);
-        Assert.Contains("\n", linha.GetRange(titulo + 1, subtitulo - titulo - 1));
+        Assert.Single(floats.Where(item => TextOfFloat(item) == "Título do manual"));
     }
 
     [Fact]
@@ -670,28 +692,28 @@ public class DocxRoundTripTests
     }
 
     [Fact]
-    public void ImagemGiradaUmQuartoDeVoltaEntraDePe()
+    public void OGiroViajaEmGrausSemMexerNasMedidas()
     {
-        // `wp:extent` mede a imagem deitada. Numa marca vertical de 28,58 cm
-        // por 8,01 cm, usar `cx` punha 1080 px de largura numa coluna de 734:
-        // a imagem tomava a página inteira e empurrava o resto para baixo.
-        // De pé, o que ocupa a largura são os 8,01 cm — 303 px.
+        // O Word posiciona a caixa sem girar e depois a gira em torno do centro
+        // — o mesmo que `transform: rotate()`. Trocar largura por altura aqui
+        // deslocaria o objeto por metade da diferença entre as duas.
         var model = Open(Fixtures.WithRotatedImage());
 
-        var image = Walk(model.Doc).Single(n => n.Type == "image");
-        Assert.Equal(303, image.Attrs!["width"]!.GetValue<int>());
+        var image = Assert.Single(FloatsOf(model.Doc.Content![0]));
+        Assert.Equal(270, image.GetProperty("rotation").GetDouble());
+        Assert.Equal(285.76, image.GetProperty("widthMm").GetDouble(), 2);
+        Assert.Equal(80.14, image.GetProperty("heightMm").GetDouble(), 2);
     }
 
     [Fact]
-    public void ImagemSemGiroMantemALargura()
+    public void AAncoraViajaComOrigemEDeslocamento()
     {
-        // O contrapeso do teste acima: sem giro, quem manda continua sendo
-        // `cx`. Trocar largura por altura em toda imagem estreitaria o corpus
-        // inteiro.
-        var model = Open(Fixtures.WithAnchoredImage());
+        // Não são resolvidos aqui: a origem vertical mais comum é o parágrafo, e
+        // parágrafo só tem posição depois de paginar. Quem desenha faz a conta.
+        var image = Assert.Single(FloatsOf(Open(Fixtures.WithRotatedImage()).Doc.Content![0]));
 
-        var image = Walk(model.Doc).Single(n => n.Type == "image");
-        Assert.Equal(554, image.Attrs!["width"]!.GetValue<int>());
+        Assert.Equal("column", image.GetProperty("hFrom").GetString());
+        Assert.Equal("paragraph", image.GetProperty("vFrom").GetString());
     }
 
     // --- arquivos problemáticos ---------------------------------------------
