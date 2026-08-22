@@ -9,10 +9,16 @@
  * Por isso não usa variáveis CSS do aplicativo: precisa ser autossuficiente
  * dentro de um documento HTML isolado.
  */
+import { DOCUMENT_FONT_CSS } from './fonts.js'
+
 export const DOCUMENT_CONTENT_CSS = `
+${DOCUMENT_FONT_CSS}
+
 .page__content {
   outline: none;
-  font-family: 'Liberation Serif', Georgia, serif;
+  /* Pelo nome do documento: a regra @font-face acima resolve para a
+     empacotada. Crase nenhuma aqui dentro: isto mora num template literal. */
+  font-family: 'Times New Roman', 'Liberation Serif', Georgia, serif;
   font-size: 12pt;
   line-height: 1.5;
   color: #111111;

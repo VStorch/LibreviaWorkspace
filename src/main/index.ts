@@ -6,6 +6,7 @@ import { registerRecoveryHandlers } from './ipc/recovery.js'
 import { registerWindowHandlers } from './ipc/window.js'
 import { useRecoveryFolder } from './fs/recovery.js'
 import { refreshMenu } from './menu.js'
+import { registerFontScheme, serveFonts } from './fonts.js'
 import { applySessionPolicy } from './security.js'
 import { checkSidecarHealth, disposeSidecar } from './sidecar/index.js'
 import { createMainWindow, devServerUrl } from './window.js'
@@ -14,6 +15,10 @@ import { createMainWindow, devServerUrl } from './window.js'
 // impressão, por exemplo). Precisa vir antes de `app.whenReady()`.
 app.enableSandbox()
 app.setName(APP_NAME)
+
+// Também antes do `whenReady`: um esquema só ganha privilégio se for declarado
+// enquanto o Chromium ainda está montando a lista.
+registerFontScheme()
 
 // Uma instância só: duas instâncias editando o mesmo arquivo é caminho certo
 // para perda de dados.
@@ -29,6 +34,7 @@ if (!app.requestSingleInstanceLock()) {
 
   void app.whenReady().then(async () => {
     applySessionPolicy(session.defaultSession, devServerUrl() === null ? 'production' : 'development')
+    serveFonts()
 
     // A pasta chega por parâmetro para que o módulo de recuperação não dependa
     // do Electron — é o que permite testá-lo sem subir um aplicativo inteiro.

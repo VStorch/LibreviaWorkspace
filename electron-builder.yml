@@ -14,6 +14,11 @@ files:
   - package.json
   - '!**/*.map'
 
+# As fontes vão junto do sidecar, e pelo mesmo motivo de estarem fora do asar:
+# o Chromium as carrega por URL, e uma URL não alcança arquivo dentro de um
+# pacote compactado. São 7,2 MB e não são enfeite — sem elas a quebra de linha
+# muda e o documento pagina diferente na máquina de quem instala.
+#
 # O sidecar não entra no asar: ele é um executável, e um executável dentro de
 # um arquivo compactado não pode ser lançado. Cada plataforma leva só o seu
 # binário — os 126 MB do outro não serviriam para nada no destino.
@@ -34,6 +39,8 @@ linux:
     - from: resources/sidecar/linux-x64
       to: resources/sidecar/linux-x64
       filter: ['!*.pdb']
+    - from: resources/fonts
+      to: resources/fonts
     - THIRD-PARTY-NOTICES.md
   # Extensões que o aplicativo abre, para o gerenciador de arquivos oferecê-lo.
   mimeTypes:
@@ -49,6 +56,8 @@ win:
     - from: resources/sidecar/win-x64
       to: resources/sidecar/win-x64
       filter: ['!*.pdb']
+    - from: resources/fonts
+      to: resources/fonts
     - THIRD-PARTY-NOTICES.md
 
 nsis:

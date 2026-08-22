@@ -43,7 +43,9 @@ export function buildContentSecurityPolicy(mode: AppMode): string {
           'script-src': "'self' 'unsafe-inline'",
           'style-src': "'self' 'unsafe-inline'",
           'img-src': "'self' data: blob:",
-          'font-src': "'self' data:",
+          // `librevia-font:` serve as fontes metricamente compatíveis que viajam
+          // no instalador. Ver src/main/fonts.ts.
+          'font-src': "'self' data: librevia-font:",
           'connect-src': "'self' ws://localhost:* http://localhost:*",
         }
       : {
@@ -51,7 +53,9 @@ export function buildContentSecurityPolicy(mode: AppMode): string {
           'script-src': "'self'",
           'style-src': "'self' 'unsafe-inline'",
           'img-src': "'self' data: blob:",
-          'font-src': "'self' data:",
+          // `librevia-font:` serve as fontes metricamente compatíveis que viajam
+          // no instalador. Ver src/main/fonts.ts.
+          'font-src': "'self' data: librevia-font:",
           // O aplicativo é offline: nenhuma requisição de rede é legítima.
           'connect-src': "'none'",
         }

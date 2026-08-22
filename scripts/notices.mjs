@@ -46,6 +46,23 @@ function electronRuntime() {
   return manifest.version
 }
 
+/**
+ * As fontes empacotadas.
+ *
+ * Escritas à mão, e não lidas de `resources/fonts/`: o que interessa ao aviso é
+ * a **família** e quem a assina, não os vinte arquivos de variante. A conferência
+ * de que os arquivos existem é do teste `src/services/document/fonts.test.ts`.
+ */
+function bundledFonts() {
+  return [
+    ['Carlito (substitui Calibri)', 'OFL-1.1', 'https://github.com/googlefonts/carlito'],
+    ['Caladea (substitui Cambria)', 'OFL-1.1', 'https://github.com/huertatipografica/Caladea'],
+    ['Liberation Sans (substitui Arial)', 'OFL-1.1', 'https://github.com/liberationfonts'],
+    ['Liberation Serif (substitui Times New Roman)', 'OFL-1.1', 'https://github.com/liberationfonts'],
+    ['Liberation Mono (substitui Courier New)', 'OFL-1.1', 'https://github.com/liberationfonts'],
+  ]
+}
+
 function table(rows, columns) {
   const header = `| ${columns.join(' | ')} |`
   const divider = `| ${columns.map(() => '---').join(' | ')} |`
@@ -87,6 +104,14 @@ function build() {
       npm.map(({ name, version, license, repository }) => [`${name} ${version}`, license, repository ?? '—']),
       ['Pacote', 'Licença', 'Origem'],
     ),
+    '',
+    '## Fontes',
+    '',
+    'O instalador leva cinco famílias metricamente compatíveis com as fontes que os',
+    'documentos pedem. Sem elas o sistema substitui por conta própria, a métrica',
+    'muda e o documento pagina diferente — ver `src/services/document/fonts.ts`.',
+    '',
+    table(bundledFonts(), ['Família', 'Licença', 'Origem']),
     '',
   ]
 
