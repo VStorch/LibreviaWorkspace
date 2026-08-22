@@ -30,6 +30,17 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory)
     private int _nextId = 1;
 
     /// <summary>
+    /// Já saiu conteúdo no parágrafo que está sendo lido?
+    /// </summary>
+    /// <remarks>
+    /// Existe por uma razão só: decidir se uma caixa de texto abre linha nova.
+    /// As caixas de um mesmo parágrafo estão em `w:r` diferentes, então nenhuma
+    /// delas consegue ver o que a anterior escreveu — e a resposta precisa
+    /// atravessar essa fronteira.
+    /// </remarks>
+    private bool _paragraphHasContent;
+
+    /// <summary>
     /// Percorre o corpo produzindo a árvore do editor e, em paralelo, a lista
     /// plana de blocos com identidade.
     /// </summary>
@@ -145,6 +156,7 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory)
         // praticamente sem formatação.
         var (effective, inheritedRun) = _styles.Resolve(direct);
 
+        _paragraphHasContent = false;
         var content = ReadInline(paragraph, inheritedRun);
 
         // Uma quebra de página sozinha no parágrafo é o nó `pageBreak`, não um
@@ -182,8 +194,13 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory)
 
         if (alignment is not null) node.With("textAlign", alignment);
 
-        var indent = IndentOf(effective);
-        if (indent > 0) node.With("indent", indent);
+        // Sempre escrito, inclusive zero. O editor declara `indent` com padrão
+        // `0` e devolve o atributo em todo parágrafo; omiti-lo aqui fazia os dois
+        // lados descreverem o mesmo bloco de formas diferentes, e a comparação
+        // que decide o que preservar na gravação dizia "mudou" em bloco que
+        // ninguém tocou. É o único atributo do schema cujo padrão não é nulo —
+        // os demais a normalização de `Fingerprint` já reconcilia.
+        node.With("indent", IndentOf(effective));
 
         // O fundo do parágrafo é o que transforma `Heading1` numa barra
         // colorida neste corpus — sem ele o título vira texto solto.
@@ -400,6 +417,7 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory)
                 case Text text:
                     if (text.Text.Length > 0)
                     {
+                        _paragraphHasContent = true;
                         yield return new Node { Type = "text", Text = text.Text, Marks = marks };
                     }
 
@@ -416,13 +434,28 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory)
                     break;
 
                 case DocumentFormat.OpenXml.Wordprocessing.Drawing:
-                    if (ReadImage(element) is { } image) yield return image;
+                    foreach (var node in ReadShape(element)) yield return node;
                     break;
 
                 case Picture picture:
                     // VML antigo. No corpus só aparece nos cabeçalhos, mas um
                     // documento do Word 2003 traz imagens assim no corpo.
-                    if (ReadImage(picture) is { } legacy) yield return legacy;
+                    foreach (var node in ReadShape(picture)) yield return node;
+                    break;
+
+                case AlternateContent alternate:
+                    // Word grava a mesma forma duas vezes: `mc:Choice` em
+                    // DrawingML e `mc:Fallback` no VML que o Word 2007 entendia.
+                    // São o mesmo conteúdo, então lê-se um ramo só — ler os dois
+                    // faria cada caixa de texto aparecer em dobro na tela.
+                    inventory.NoteInvisible(Inventory.Shapes);
+                    var branch = (OpenXmlElement?)alternate.GetFirstChild<AlternateContentChoice>()
+                                 ?? alternate.GetFirstChild<AlternateContentFallback>();
+                    if (branch is not null)
+                    {
+                        foreach (var node in ReadShape(branch)) yield return node;
+                    }
+
                     break;
 
                 case RunProperties:
@@ -440,6 +473,94 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory)
                     inventory.NoteInvisibleElement(element.LocalName);
                     break;
             }
+        }
+    }
+
+    // --- formas e caixas de texto -------------------------------------------
+
+    /// <summary>
+    /// Forma → o que dela cabe numa linha de texto: a imagem e o que estiver
+    /// escrito dentro dela.
+    /// </summary>
+    /// <remarks>
+    /// Uma caixa de texto é conteúdo, não decoração. Antes daqui ela era
+    /// registrada no inventário e descartada, e um documento cujo título mora
+    /// dentro de uma caixa — a capa do modelo de manual é assim — abria sem
+    /// título nenhum. O aviso dizia "formas e caixas de texto", que descreve o
+    /// que aconteceu sem dizer o que sumiu.
+    ///
+    /// O texto entra na linha onde a forma está ancorada, e não na posição da
+    /// página em que o Word a desenha: não há layout flutuante aqui, e a
+    /// escolha é entre o texto no lugar aproximado ou o texto em lugar nenhum.
+    /// A âncora é a melhor aproximação que existe sem paginar.
+    ///
+    /// O inventário continua marcando a forma — a moldura, a posição e o
+    /// preenchimento realmente não aparecem, e a gravação cirúrgica ainda perde
+    /// a forma inteira se o parágrafo âncora for editado. É isso que mantém o
+    /// documento em somente leitura.
+    /// </remarks>
+    private IEnumerable<Node> ReadShape(OpenXmlElement shape)
+    {
+        if (ReadImage(shape) is { } image)
+        {
+            _paragraphHasContent = true;
+            yield return image;
+        }
+
+        foreach (var box in OutermostTextBoxes(shape))
+        {
+            inventory.NoteInvisible(Inventory.Shapes);
+
+            foreach (var paragraph in box.Descendants<Paragraph>())
+            {
+                // Uma caixa aninhada é lida pela recursão de `ReadInline`, ao
+                // encontrar o desenho de dentro. Descer nela aqui também
+                // duplicaria o texto.
+                if (paragraph.Ancestors<TextBoxContent>().First() != box) continue;
+
+                var (_, inheritedRun) = _styles.Resolve(paragraph.ParagraphProperties);
+
+                // A resposta é lida **antes**: ler o conteúdo da caixa marca o
+                // parágrafo como escrito, e perguntar depois faria toda caixa
+                // achar que alguém escreveu antes dela — inclusive a primeira.
+                var afterSomething = _paragraphHasContent;
+
+                var inline = ReadInline(paragraph, inheritedRun);
+                if (inline.Count == 0) continue;
+
+                // Um parágrafo de verdade não cabe dentro de outro parágrafo,
+                // que é onde a âncora está: cada parágrafo da caixa vira uma
+                // linha. Sem isto, a capa do modelo de manual — duas caixas
+                // ancoradas no mesmo parágrafo — abria com "TítuloSubtitulo"
+                // emendado numa linha só.
+                if (afterSomething) yield return Node.Of("hardBreak");
+                _paragraphHasContent = true;
+
+                foreach (var node in inline) yield return node;
+            }
+        }
+    }
+
+    /// <summary>
+    /// As caixas de texto mais externas de <paramref name="root"/>.
+    /// </summary>
+    /// <remarks>
+    /// Para na primeira caixa de cada ramo em vez de usar
+    /// <c>Descendants</c>: uma caixa dentro de outra é alcançada pela recursão
+    /// de <see cref="ReadInline"/>, e as duas rotas juntas escreveriam o texto
+    /// de dentro duas vezes.
+    /// </remarks>
+    private static IEnumerable<TextBoxContent> OutermostTextBoxes(OpenXmlElement root)
+    {
+        foreach (var child in root.ChildElements)
+        {
+            if (child is TextBoxContent box)
+            {
+                yield return box;
+                continue;
+            }
+
+            foreach (var nested in OutermostTextBoxes(child)) yield return nested;
         }
     }
 
@@ -476,11 +597,43 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory)
         var extent = drawing.Descendants<Drawing.Wordprocessing.Extent>().FirstOrDefault();
         if (extent?.Cx is not null)
         {
+            var across = extent.Cx.Value;
+
+            // `wp:extent` mede a imagem antes de girar. Num quarto de volta o
+            // que ocupa a largura da página é a altura dela, e usar `cx` põe na
+            // linha uma imagem deitada com a medida do lado comprido: a marca
+            // vertical de 28,58 cm da capa do modelo de manual chegava como
+            // 1080 px de largura numa coluna de 734 px, tomava a página inteira
+            // e empurrava o resto para baixo.
+            if (extent.Cy?.Value is { } down && down > 0 && IsQuarterTurned(drawing))
+            {
+                across = down;
+            }
+
             // EMU → pixels CSS: 914400 EMU por polegada, 96 px por polegada.
-            node.With("width", (int)Math.Round(extent.Cx.Value * 96.0 / 914400));
+            node.With("width", (int)Math.Round(across * 96.0 / 914400));
         }
 
         return node;
+    }
+
+    /// <summary>
+    /// A imagem está girada perto de um quarto de volta, para um lado ou para
+    /// o outro?
+    /// </summary>
+    /// <remarks>
+    /// `a:rot` vem em 60000 avos de grau e pode ser negativo. Só o quarto de
+    /// volta interessa aqui, porque é o único ângulo em que largura e altura
+    /// trocam de papel; um giro pequeno mantém a medida aproximadamente igual e
+    /// não vale a conta do retângulo envolvente.
+    /// </remarks>
+    private static bool IsQuarterTurned(OpenXmlElement drawing)
+    {
+        var rotation = drawing.Descendants<Drawing.Transform2D>().FirstOrDefault()?.Rotation?.Value;
+        if (rotation is null) return false;
+
+        var degrees = ((rotation.Value / 60000.0) % 360 + 360) % 360;
+        return degrees is (> 45 and < 135) or (> 225 and < 315);
     }
 
     private string? HyperlinkTargetOf(Hyperlink link)

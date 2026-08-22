@@ -1,7 +1,8 @@
 import { useWorkspace } from '../state/workspace.js'
 
 /**
- * O que o documento tem e o editor não mostra — ou não vai preservar.
+ * O que o documento tem e o editor não reproduz por inteiro — ou não vai
+ * preservar.
  *
  * Faixa, e não modal, pela mesma razão do `ErrorBanner`: o arquivo abriu e o
  * usuário pode trabalhar. Um modal aqui treinaria a mão a clicar "OK" sem ler,
@@ -41,8 +42,8 @@ export function InventoryBanner(): React.JSX.Element | null {
           <>
             <strong>
               {notice.lost.length > 0
-                ? 'E isto continua no arquivo, mas não aparece aqui:'
-                : 'Este documento tem recursos que continuam no arquivo, mas não aparecem aqui:'}
+                ? 'E isto continua no arquivo, mas não aparece por inteiro aqui:'
+                : 'Este documento tem recursos que continuam no arquivo, mas não aparecem por inteiro aqui:'}
             </strong>
             <span className="banner__detail">{invisible.join('; ')}</span>
           </>

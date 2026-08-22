@@ -14,6 +14,7 @@ import {
   TextStyle,
 } from '@tiptap/extension-text-style'
 import { BlockFormat } from './extensions/block-format.js'
+import { BlockIdentity } from './extensions/block-identity.js'
 import { Indent } from './extensions/indent.js'
 import { Caps, SmallCaps } from './extensions/letter-case.js'
 import { PageBreak } from './extensions/page-break.js'
@@ -71,6 +72,9 @@ export function buildEditorExtensions(onSearchStatusChange: (status: SearchStatu
     // Fundo, espaçamento e entrelinha do parágrafo — no OOXML são
     // propriedades do bloco, e é o que faz `Heading1` virar barra colorida.
     BlockFormat,
+    // A identidade que o bloco traz do `.docx`. Sem ela a gravação cirúrgica
+    // deixa de reconhecer o que não mudou e regenera o documento inteiro.
+    BlockIdentity,
     // Vieram do corpus real: `w:caps` e `w:smallCaps` aparecem 45 vezes.
     Caps,
     SmallCaps,

@@ -11,6 +11,11 @@ import { useWorkspace } from '../state/workspace.js'
  * Por isso é padrão e não cadeado, e por isso a lista do que está em jogo
  * aparece junto do botão: um aviso que não diz o que se perde é um aviso que se
  * fecha sem ler.
+ *
+ * "Não reproduz por inteiro", e não "não mostra": desde que o leitor passou a
+ * trazer o texto de dentro das caixas, dizer que elas não aparecem seria falso
+ * na metade dos casos — o texto aparece, a moldura e a posição não. Um aviso
+ * que o usuário consegue desmentir olhando a tela é pior que nenhum.
  */
 export function ReadOnlyBanner(): React.JSX.Element | null {
   const readOnly = useWorkspace((state) => state.readOnly)
@@ -27,8 +32,8 @@ export function ReadOnlyBanner(): React.JSX.Element | null {
         <strong>Aberto somente para leitura.</strong>
         <span className="banner__detail">
           {reasons.length > 0
-            ? `Este arquivo tem ${reasons.join(', ')} — que o editor não mostra. Tudo isso volta intacto ao salvar, menos o que estiver no trecho que você editar.`
-            : 'Este arquivo tem recursos que o editor não mostra e que podem se perder ao editar.'}
+            ? `Este arquivo tem ${reasons.join(', ')} — que o editor não reproduz por inteiro. Tudo isso volta intacto ao salvar, menos o que estiver no trecho que você editar.`
+            : 'Este arquivo tem recursos que o editor não reproduz por inteiro e que podem se perder ao editar.'}
         </span>
       </div>
       <div className="banner__actions">

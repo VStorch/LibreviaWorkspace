@@ -95,6 +95,45 @@ public static class Fixtures
     });
 
     /// <summary>
+    /// Duas caixas de texto ancoradas no **mesmo** parágrafo, como o Word grava
+    /// a capa de um modelo de manual: título e subtítulo em caixas separadas.
+    /// </summary>
+    /// <remarks>
+    /// Cada caixa vem duas vezes no arquivo — `mc:Choice` em DrawingML e
+    /// `mc:Fallback` no VML antigo, com o mesmo texto dentro. É essa duplicação
+    /// que faz o leitor precisar escolher um ramo: percorrer os dois escreveria
+    /// cada título duas vezes na tela.
+    /// </remarks>
+    public static byte[] WithTextBoxes() => Build((body, _) =>
+    {
+        var cover = new Paragraph();
+        cover.AppendChild(new Run(TextBoxShape("Título do manual")));
+        cover.AppendChild(new Run(TextBoxShape("Subtítulo do manual")));
+        body.AppendChild(cover);
+        body.AppendChild(Paragraph("Primeiro parágrafo do corpo."));
+    });
+
+    /// <summary>
+    /// Imagem ancorada girada um quarto de volta — a marca vertical que corre
+    /// pela lateral da capa.
+    /// </summary>
+    /// <remarks>
+    /// `wp:extent` mede a imagem deitada: 28,58 cm de comprido por 8,01 cm de
+    /// altura. Girada, o que ocupa a largura da página são os 8,01 cm.
+    /// </remarks>
+    public static byte[] WithRotatedImage() => Build((body, part) =>
+    {
+        var image = part.AddImagePart(ImagePartType.Png);
+        using (var stream = new MemoryStream(TinyPng()))
+        {
+            image.FeedData(stream);
+        }
+
+        body.AppendChild(new Paragraph(new Run(
+            AnchoredDrawing(part.GetIdOfPart(image), cx: 10287325, cy: 2885145, rotation: 16200000))));
+    });
+
+    /// <summary>
     /// Sete seções `continuous` com geometria idêntica — o artefato do
     /// LibreOffice descrito na Descoberta 5 do corpus.
     /// </summary>
@@ -329,7 +368,72 @@ public static class Fixtures
         return buffer.ToArray();
     }
 
-    private static OpenXmlElement AnchoredDrawing(string relationshipId)
+    /// <summary>
+    /// Uma caixa de texto do jeito que o Word grava: o mesmo texto em
+    /// DrawingML e no VML de reserva.
+    /// </summary>
+    private static OpenXmlElement TextBoxShape(string text)
+    {
+        var xml = $"""
+            <mc:AlternateContent xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+                                 xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+              <mc:Choice Requires="wps">
+                <w:drawing xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"
+                           xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"
+                           xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape">
+                  <wp:anchor distT="0" distB="0" distL="0" distR="0" simplePos="0" relativeHeight="3"
+                             behindDoc="0" locked="0" layoutInCell="1" allowOverlap="1">
+                    <wp:simplePos x="0" y="0"/>
+                    <wp:positionH relativeFrom="column"><wp:posOffset>0</wp:posOffset></wp:positionH>
+                    <wp:positionV relativeFrom="paragraph"><wp:posOffset>0</wp:posOffset></wp:positionV>
+                    <wp:extent cx="3800475" cy="2019300"/>
+                    <wp:wrapNone/>
+                    <wp:docPr id="7" name="Caixa de Texto"/>
+                    <a:graphic>
+                      <a:graphicData uri="http://schemas.microsoft.com/office/word/2010/wordprocessingShape">
+                        <wps:wsp>
+                          <wps:cNvSpPr txBox="1"/>
+                          <wps:spPr>
+                            <a:xfrm><a:off x="0" y="0"/><a:ext cx="3800475" cy="2019300"/></a:xfrm>
+                            <a:prstGeom prst="rect"><a:avLst/></a:prstGeom>
+                          </wps:spPr>
+                          <wps:txbx>
+                            <w:txbxContent>
+                              <w:p><w:r><w:t>{text}</w:t></w:r></w:p>
+                            </w:txbxContent>
+                          </wps:txbx>
+                          <wps:bodyPr rot="0" vert="horz" wrap="square"/>
+                        </wps:wsp>
+                      </a:graphicData>
+                    </a:graphic>
+                  </wp:anchor>
+                </w:drawing>
+              </mc:Choice>
+              <mc:Fallback>
+                <w:pict xmlns:v="urn:schemas-microsoft-com:vml">
+                  <v:shape id="Caixa_{Guid.NewGuid():N}" type="#_x0000_t202"
+                           style="position:absolute;width:299.25pt;height:159pt">
+                    <v:textbox>
+                      <w:txbxContent>
+                        <w:p><w:r><w:t>{text}</w:t></w:r></w:p>
+                      </w:txbxContent>
+                    </v:textbox>
+                  </v:shape>
+                </w:pict>
+              </mc:Fallback>
+            </mc:AlternateContent>
+            """;
+
+        // Construído a partir do XML completo: `InnerXml` receberia só os
+        // ramos e perderia o elemento que os envolve.
+        return new AlternateContent(xml);
+    }
+
+    private static OpenXmlElement AnchoredDrawing(
+        string relationshipId,
+        long cx = 5274000,
+        long cy = 2637000,
+        int rotation = 0)
     {
         const string Wp = "http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing";
         var xml = $"""
@@ -342,7 +446,7 @@ public static class Fixtures
               <wp:simplePos x="0" y="0"/>
               <wp:positionH relativeFrom="column"><wp:align>center</wp:align></wp:positionH>
               <wp:positionV relativeFrom="paragraph"><wp:posOffset>635</wp:posOffset></wp:positionV>
-              <wp:extent cx="5274000" cy="2637000"/>
+              <wp:extent cx="{cx}" cy="{cy}"/>
               <wp:wrapSquare wrapText="bothSides"/>
               <wp:docPr id="1" name="Imagem 1"/>
               <a:graphic>
@@ -357,7 +461,7 @@ public static class Fixtures
                       <a:stretch><a:fillRect/></a:stretch>
                     </pic:blipFill>
                     <pic:spPr>
-                      <a:xfrm><a:off x="0" y="0"/><a:ext cx="5274000" cy="2637000"/></a:xfrm>
+                      <a:xfrm rot="{rotation}"><a:off x="0" y="0"/><a:ext cx="{cx}" cy="{cy}"/></a:xfrm>
                       <a:prstGeom prst="rect"><a:avLst/></a:prstGeom>
                     </pic:spPr>
                   </pic:pic>

@@ -422,6 +422,186 @@ public class DocxRoundTripTests
         Assert.Empty(result.Inventory.Structural);
     }
 
+    // --- impressão digital --------------------------------------------------
+
+    // O leitor e o editor descrevem o mesmo bloco de formas diferentes. Cada
+    // teste abaixo fixa uma dessas diferenças como "não é edição" — sem isso a
+    // gravação cirúrgica regenera o documento inteiro achando que o usuário
+    // mexeu em tudo. Medido: `modelo-de-manual.docx` aberto e salvo sem
+    // edição nenhuma preservava 2 dos 15 blocos.
+
+    [Fact]
+    public void AtributoNuloEAusenteSaoAMesmaCoisa()
+    {
+        // O ProseMirror materializa todo atributo do schema, inclusive os que o
+        // documento não menciona, e devolve `null` neles.
+        var doLeitor = Node.Of("paragraph").With("fontSize", "12pt");
+        var doEditor = Node.Of("paragraph").With("fontSize", "12pt").With("styleId", null);
+
+        Assert.Equal(doLeitor.Fingerprint(), doEditor.Fingerprint());
+    }
+
+    [Fact]
+    public void AOrdemDasChavesNaoContaComoEdicao()
+    {
+        // `JsonObject` guarda a ordem de inserção, e os dois lados montam os
+        // atributos em ordens diferentes. Sozinha, esta diferença reprovava
+        // todos os blocos — foi a última a aparecer e a que escondia as outras.
+        var doLeitor = Node.Of("paragraph").With("lineHeight", 1.16).With("fontSize", "12pt");
+        var doEditor = Node.Of("paragraph").With("fontSize", "12pt").With("lineHeight", 1.16);
+
+        Assert.Equal(doLeitor.Fingerprint(), doEditor.Fingerprint());
+    }
+
+    [Fact]
+    public void AOrdemDasMarcasNaoContaComoEdicao()
+    {
+        // Negrito antes ou depois da cor é a mesma formatação; o ProseMirror
+        // ordena as marcas pela posição delas no schema.
+        var doLeitor = new Node { Type = "text", Text = "Acme", Marks = [Mark.Of("bold"), Mark.Of("textStyle", "color", "#404040")] };
+        var doEditor = new Node { Type = "text", Text = "Acme", Marks = [Mark.Of("textStyle", "color", "#404040"), Mark.Of("bold")] };
+
+        Assert.Equal(doLeitor.Fingerprint(), doEditor.Fingerprint());
+    }
+
+    [Fact]
+    public void TextoVizinhoComAsMesmasMarcasEUmTextoSo()
+    {
+        // O leitor emite um nó por `w:r`: "Acme® Software" chega partido
+        // quando o `®` tem `rPr` próprio, ainda que igual ao do vizinho.
+        var doLeitor = Node.Of(
+            "paragraph",
+            new Node { Type = "text", Text = "Acme" },
+            new Node { Type = "text", Text = "® Software" });
+        var doEditor = Node.Of("paragraph", new Node { Type = "text", Text = "Acme® Software" });
+
+        Assert.Equal(doLeitor.Fingerprint(), doEditor.Fingerprint());
+    }
+
+    [Fact]
+    public void TextoVizinhoComMarcasDiferentesNaoSeFunde()
+    {
+        // O contrapeso: fundir sem olhar as marcas apagaria a diferença entre
+        // "Acme" em negrito e "® Software" sem negrito, e a comparação
+        // deixaria de perceber uma edição de formatação de verdade.
+        var negrito = Node.Of(
+            "paragraph",
+            new Node { Type = "text", Text = "Acme", Marks = [Mark.Of("bold")] },
+            new Node { Type = "text", Text = "® Software" });
+        var liso = Node.Of("paragraph", new Node { Type = "text", Text = "Acme® Software" });
+
+        Assert.NotEqual(negrito.Fingerprint(), liso.Fingerprint());
+    }
+
+    [Fact]
+    public void EdicaoDeVerdadeContinuaSendoVista()
+    {
+        // Toda normalização acima afrouxa a comparação. Se afrouxar demais, a
+        // gravação preserva o XML antigo de um bloco que o usuário mudou — que
+        // é perda de dados, e pior que regenerar.
+        var antes = Node.Of("paragraph", new Node { Type = "text", Text = "Sumário" });
+        var depois = Node.Of("paragraph", new Node { Type = "text", Text = "Sumario" });
+
+        Assert.NotEqual(antes.Fingerprint(), depois.Fingerprint());
+    }
+
+    [Fact]
+    public void OidNaoEntraNaComparacao()
+    {
+        // Identidade não é conteúdo: dois blocos iguais em posições diferentes
+        // do documento têm `oid` diferente e o mesmo texto.
+        var primeiro = Node.Of("paragraph", new Node { Type = "text", Text = "Texto" }).With("oid", "b1");
+        var segundo = Node.Of("paragraph", new Node { Type = "text", Text = "Texto" }).With("oid", "b9");
+
+        Assert.Equal(primeiro.Fingerprint(), segundo.Fingerprint());
+    }
+
+    // --- formas e caixas de texto -------------------------------------------
+
+    [Fact]
+    public void TextoDeCaixaDeTextoApareceNaTela()
+    {
+        // Uma caixa de texto é conteúdo. Antes, ela ia inteira para o
+        // inventário e sumia da tela: um modelo de manual cujo título mora numa
+        // caixa abria sem título, e o aviso dizia "formas e caixas de texto" —
+        // o nome do recurso, não o nome do que faltou.
+        var model = Open(Fixtures.WithTextBoxes());
+
+        Assert.Contains("Título do manual", TextOf(model), StringComparison.Ordinal);
+        Assert.Contains("Subtítulo do manual", TextOf(model), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void CaixaDeTextoNaoEntraDuasVezes()
+    {
+        // O Word grava a mesma caixa em DrawingML e no VML de reserva. Ler os
+        // dois ramos escreveria cada título duas vezes, e um documento com dez
+        // caixas abriria com vinte.
+        var texto = TextOf(Open(Fixtures.WithTextBoxes()));
+
+        var ocorrencias = texto.Split("Título do manual").Length - 1;
+        Assert.Equal(1, ocorrencias);
+    }
+
+    [Fact]
+    public void CaixasDoMesmoParagrafoNaoEmendamNaMesmaLinha()
+    {
+        // Título e subtítulo estão em caixas distintas ancoradas no mesmo
+        // parágrafo. Sem uma quebra entre elas, a capa abria com
+        // "Título do manualSubtítulo do manual" numa linha só.
+        var model = Open(Fixtures.WithTextBoxes());
+
+        // A ordem dos nós, e não o texto concatenado: `TextOf` ignora as
+        // quebras, então uma capa emendada e uma capa correta produzem a mesma
+        // frase e o teste passaria dos dois jeitos.
+        var linha = Walk(model.Doc)
+            .Where(n => n.Type is "text" or "hardBreak")
+            .Select(n => n.Type == "hardBreak" ? "\n" : n.Text)
+            .ToList();
+
+        var titulo = linha.FindIndex(t => t == "Título do manual");
+        var subtitulo = linha.FindIndex(t => t == "Subtítulo do manual");
+        Assert.InRange(titulo, 0, subtitulo - 1);
+        Assert.Contains("\n", linha.GetRange(titulo + 1, subtitulo - titulo - 1));
+    }
+
+    [Fact]
+    public void CaixaDeTextoContinuaSendoEstrutural()
+    {
+        // Mostrar o texto não devolve a forma: a moldura e a posição continuam
+        // invisíveis, e a gravação cirúrgica ainda perde a caixa inteira se o
+        // parágrafo âncora for editado. É o que mantém o documento travado em
+        // somente leitura, e ler o texto não pode afrouxar isso.
+        var result = DocxReader.Read(Fixtures.WithTextBoxes());
+
+        Assert.Contains(Inventory.Shapes, result.Inventory.Structural);
+    }
+
+    [Fact]
+    public void ImagemGiradaUmQuartoDeVoltaEntraDePe()
+    {
+        // `wp:extent` mede a imagem deitada. Numa marca vertical de 28,58 cm
+        // por 8,01 cm, usar `cx` punha 1080 px de largura numa coluna de 734:
+        // a imagem tomava a página inteira e empurrava o resto para baixo.
+        // De pé, o que ocupa a largura são os 8,01 cm — 303 px.
+        var model = Open(Fixtures.WithRotatedImage());
+
+        var image = Walk(model.Doc).Single(n => n.Type == "image");
+        Assert.Equal(303, image.Attrs!["width"]!.GetValue<int>());
+    }
+
+    [Fact]
+    public void ImagemSemGiroMantemALargura()
+    {
+        // O contrapeso do teste acima: sem giro, quem manda continua sendo
+        // `cx`. Trocar largura por altura em toda imagem estreitaria o corpus
+        // inteiro.
+        var model = Open(Fixtures.WithAnchoredImage());
+
+        var image = Walk(model.Doc).Single(n => n.Type == "image");
+        Assert.Equal(554, image.Attrs!["width"]!.GetValue<int>());
+    }
+
     // --- arquivos problemáticos ---------------------------------------------
 
     [Theory]

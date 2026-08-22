@@ -32,6 +32,10 @@ const DOCUMENT_RELS = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 </Relationships>`
 
 const W = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'
+const MC = 'http://schemas.openxmlformats.org/markup-compatibility/2006'
+const WP = 'http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing'
+const A = 'http://schemas.openxmlformats.org/drawingml/2006/main'
+const WPS = 'http://schemas.microsoft.com/office/word/2010/wordprocessingShape'
 
 function paragraph(text: string): string {
   return `<w:p><w:r><w:t xml:space="preserve">${text}</w:t></w:r></w:p>`
@@ -44,8 +48,10 @@ const COMMENTED_PARAGRAPH =
   `<w:commentRangeEnd w:id="1"/><w:r><w:commentReference w:id="1"/></w:r></w:p>`
 
 function documentXml(body: string): string {
+  // Os namespaces de desenho entram sempre: declarar só quando o corpo os usa
+  // faria cada fixture novo redescobrir por que o pacote não abre.
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<w:document xmlns:w="${W}"><w:body>${body}<w:sectPr/></w:body></w:document>`
+<w:document xmlns:w="${W}" xmlns:mc="${MC}" xmlns:wp="${WP}" xmlns:a="${A}" xmlns:wps="${WPS}" mc:Ignorable="wps"><w:body>${body}<w:sectPr/></w:body></w:document>`
 }
 
 const COMMENTS_XML = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -64,6 +70,34 @@ export async function docxWithComment(): Promise<Buffer> {
       documentXml(paragraph('Ata da reunião de terça.') + COMMENTED_PARAGRAPH + paragraph('Fim.')),
     ],
     ['word/comments.xml', COMMENTS_XML],
+  ])
+}
+
+/**
+ * Documento com uma caixa de texto ancorada.
+ *
+ * É o que a regeneração destrói: o editor mostra o texto de dentro, mas não
+ * sabe redesenhar a forma, então um bloco reescrito volta para o arquivo sem
+ * ela. Serve de sentinela para a gravação cirúrgica — se a caixa sobreviveu, o
+ * XML original do bloco foi preservado.
+ */
+export async function docxWithTextBox(): Promise<Buffer> {
+  const caixa =
+    `<w:p><w:r><mc:AlternateContent><mc:Choice Requires="wps">` +
+    `<w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0">` +
+    `<wp:extent cx="2000000" cy="1000000"/><wp:docPr id="1" name="Caixa"/>` +
+    `<a:graphic><a:graphicData uri="http://schemas.microsoft.com/office/word/2010/wordprocessingShape">` +
+    `<wps:wsp><wps:cNvSpPr txBox="1"/><wps:spPr/>` +
+    `<wps:txbx><w:txbxContent><w:p><w:r><w:t>Título na caixa</w:t></w:r></w:p></w:txbxContent></wps:txbx>` +
+    `<wps:bodyPr/></wps:wsp></a:graphicData></a:graphic>` +
+    `</wp:inline></w:drawing></mc:Choice>` +
+    `<mc:Fallback><w:p><w:r><w:t>Título na caixa</w:t></w:r></w:p></mc:Fallback>` +
+    `</mc:AlternateContent></w:r></w:p>`
+
+  return zip([
+    ['[Content_Types].xml', CONTENT_TYPES.replace(/<Override PartName="\/word\/comments[^>]+>/, '')],
+    ['_rels/.rels', ROOT_RELS],
+    ['word/document.xml', documentXml(caixa + paragraph('Primeiro parágrafo do corpo.'))],
   ])
 }
 
