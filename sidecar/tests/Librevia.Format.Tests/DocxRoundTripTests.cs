@@ -484,31 +484,44 @@ public class DocxRoundTripTests
     }
 
     [Fact]
-    public void OLogotipoDoCabecalhoRespeitaAPosicaoDaAncora()
+    public void DesenhoAncoradoNoCabecalhoNaoEspremeEmTresColunas()
     {
-        // 4563177 EMU são 126,8 mm do começo da coluna; com 37 mm de largura, o
-        // centro cai em 145,3 de 150 — o terço da direita, que é onde o Word e o
-        // LibreOffice o desenham.
-        //
-        // A heurística antiga olhava o `a:off` de dentro do desenho, que num
-        // desenho de peça única é sempre zero: a conta dava exatamente meio, e
-        // todo logotipo caía no centro qualquer que fosse a posição real.
+        // A faixa é uma grade de três colunas, e é o bastante para texto. Um
+        // desenho ancorado traz posição de verdade e pode vir girado: a marca
+        // lateral do corpus é uma faixa de 28,6 mm **em pé**, que não entra numa
+        // banda de 10 mm de altura — espremida ali, era desenhada deitada e no
+        // terço errado.
         var page = DocxReader.Read(Fixtures.WithAnchoredHeaderLogo(4563177)).Model.Page;
 
-        Assert.Empty(page.Header!.Center);
-        Assert.Single(page.Header.Right);
+        Assert.Empty(page.Header!.Left);
+        Assert.Empty(page.Header.Center);
+        Assert.Empty(page.Header.Right);
+
+        var logo = Assert.Single(page.Header.Floats!);
+        Assert.Equal("column", logo.HorizontalFrom);
+        Assert.Equal(126.75, logo.HorizontalOffsetMm!.Value, 2);
     }
 
     [Fact]
-    public void OLogotipoAEsquerdaContinuaAEsquerda()
+    public void ODeslocamentoNegativoDoCabecalhoSobreviveComSinal()
     {
-        // O contrapeso: um deslocamento negativo põe a peça fora da coluna, pela
-        // esquerda — é como a marca vertical da lateral é ancorada. Lido sem
-        // sinal, ela iria para a direita.
+        // É como uma marca sai para fora da coluna pela esquerda. Lida sem
+        // sinal, ela atravessaria para o outro lado da página.
         var page = DocxReader.Read(Fixtures.WithAnchoredHeaderLogo(-1123950)).Model.Page;
 
-        Assert.Single(page.Header!.Left);
-        Assert.Empty(page.Header.Right);
+        var marca = Assert.Single(page.Header!.Floats!);
+        Assert.Equal(-31.22, marca.HorizontalOffsetMm!.Value, 2);
+    }
+
+    [Fact]
+    public void ADistanciaDaFaixaAteABordaEhLida()
+    {
+        // É a origem vertical das âncoras de dentro da faixa: elas se dizem
+        // relativas ao parágrafo, e o parágrafo do cabeçalho começa aqui. Sem
+        // esta medida não há de onde contar.
+        var page = DocxReader.Read(Fixtures.WithAnchoredHeaderLogo(0)).Model.Page;
+
+        Assert.Equal(12.5, page.HeaderDistanceMm, 1);
     }
 
     // --- quebra de página ---------------------------------------------------

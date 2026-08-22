@@ -30,11 +30,35 @@ export const bandPieceSchema = z.object({
  * arquivo é a parte OOXML original, preservada intacta pela gravação
  * cirúrgica. Ver docs/02-docx-cirurgico.md.
  */
+/**
+ * Objeto ancorado dentro da faixa.
+ *
+ * Aberto de propósito: a geometria vem do arquivo e quem a interpreta é
+ * `services/document/floating.ts`. Validar campo a campo aqui obrigaria a
+ * duplicar essa interpretação no esquema.
+ */
+const bandFloatSchema = z.object({
+  kind: z.enum(['image', 'text']),
+  src: z.string().optional(),
+  widthMm: z.number(),
+  heightMm: z.number(),
+  rotation: z.number(),
+  hFrom: z.string(),
+  hOffsetMm: z.number().optional(),
+  hAlign: z.string().optional(),
+  vFrom: z.string(),
+  vOffsetMm: z.number().optional(),
+  vAlign: z.string().optional(),
+  behind: z.boolean(),
+  wrap: z.string(),
+})
+
 export const bandSchema = z.object({
   left: z.array(bandPieceSchema).max(20).default([]),
   center: z.array(bandPieceSchema).max(20).default([]),
   right: z.array(bandPieceSchema).max(20).default([]),
   rule: z.boolean().default(false),
+  floats: z.array(bandFloatSchema).max(20).default([]),
 })
 
 export const pageSetupSchema = z.object({
@@ -61,4 +85,12 @@ export const pageSetupSchema = z.object({
   firstFooterBand: bandSchema.nullable().default(null),
   evenHeaderBand: bandSchema.nullable().default(null),
   evenFooterBand: bandSchema.nullable().default(null),
+  /**
+   * Distância da faixa à borda do papel, em milímetros.
+   *
+   * Origem vertical das âncoras de dentro do cabeçalho: elas se dizem relativas
+   * ao parágrafo, e o parágrafo do cabeçalho começa aqui.
+   */
+  headerDistanceMm: z.number().default(12.5),
+  footerDistanceMm: z.number().default(12.5),
 })

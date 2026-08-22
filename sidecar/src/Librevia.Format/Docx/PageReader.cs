@@ -15,7 +15,17 @@ public sealed record PageSetupDto(
     [property: JsonPropertyName("firstHeaderBand")] BandDto? FirstHeader = null,
     [property: JsonPropertyName("firstFooterBand")] BandDto? FirstFooter = null,
     [property: JsonPropertyName("evenHeaderBand")] BandDto? EvenHeader = null,
-    [property: JsonPropertyName("evenFooterBand")] BandDto? EvenFooter = null);
+    [property: JsonPropertyName("evenFooterBand")] BandDto? EvenFooter = null,
+    /// <summary>
+    /// Distância da faixa à borda do papel (`w:pgMar/@header` e `@footer`).
+    /// </summary>
+    /// <remarks>
+    /// É a origem vertical das âncoras de dentro do cabeçalho: elas se dizem
+    /// relativas ao "parágrafo", e o parágrafo do cabeçalho começa justamente
+    /// aqui. Sem esta medida, um objeto ancorado na faixa não tem de onde contar.
+    /// </remarks>
+    [property: JsonPropertyName("headerDistanceMm")] double HeaderDistanceMm = 12.5,
+    [property: JsonPropertyName("footerDistanceMm")] double FooterDistanceMm = 12.5);
 
 public sealed record MarginsDto(
     [property: JsonPropertyName("top")] double Top,
@@ -89,7 +99,9 @@ public static class PageReader
                 : null,
             EvenFooter: UsesEvenAndOdd(part)
                 ? NullIfEmpty(HeaderReader.ReadFooter(section, part, inventory, HeaderFooterValues.Even, contentWidthEmus))
-                : null);
+                : null,
+            HeaderDistanceMm: Millimeters((int?)margin?.Header?.Value, 708),
+            FooterDistanceMm: Millimeters((int?)margin?.Footer?.Value, 708));
     }
 
     /// <summary>`w:titlePg`: a primeira página tem cabeçalho próprio.</summary>

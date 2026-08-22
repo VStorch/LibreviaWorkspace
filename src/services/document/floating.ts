@@ -1,4 +1,4 @@
-import { pageDimensionsMm, type DocumentNode, type PageSetup } from './model.js'
+import { bandForPage, pageDimensionsMm, type DocumentNode, type PageSetup } from './model.js'
 
 /**
  * Um objeto que não está no fluxo do texto.
@@ -126,4 +126,35 @@ function referenceH(
 export function floatsOf(attrs: Record<string, unknown> | null | undefined): FloatingObject[] {
   const raw = attrs?.['floats']
   return Array.isArray(raw) ? (raw as FloatingObject[]) : []
+}
+
+/** Um objeto e a altura de onde contar a âncora vertical dele. */
+export interface AnchoredFloat {
+  readonly object: FloatingObject
+  readonly anchorTopMm: number
+}
+
+/**
+ * Os objetos ancorados das faixas de uma folha.
+ *
+ * Repetem em toda folha, porque a faixa repete — e por isso não pertencem a
+ * bloco nenhum. A âncora vertical deles se diz relativa ao "parágrafo", e o
+ * parágrafo de uma faixa começa na distância que `w:pgMar` declara da borda do
+ * papel: no alto para o cabeçalho, contada de baixo para o rodapé.
+ *
+ * Mora aqui, e não em quem desenha, porque a tela e o papel precisam do mesmo
+ * número — é a razão de a conta de posição ser uma só.
+ */
+export function bandFloatsOf(page: PageSetup, pageNumber: number): AnchoredFloat[] {
+  const height = pageDimensionsMm(page).height
+  const header = bandForPage(page, pageNumber, 'header')
+  const footer = bandForPage(page, pageNumber, 'footer')
+
+  return [
+    ...(header?.floats ?? []).map((object) => ({ object, anchorTopMm: page.headerDistanceMm })),
+    ...(footer?.floats ?? []).map((object) => ({
+      object,
+      anchorTopMm: height - page.footerDistanceMm,
+    })),
+  ]
 }

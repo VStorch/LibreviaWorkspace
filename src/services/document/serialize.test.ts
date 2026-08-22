@@ -22,6 +22,8 @@ const richDocument: DocumentModel = {
     firstFooterBand: null,
     evenHeaderBand: null,
     evenFooterBand: null,
+    headerDistanceMm: 12.5,
+    footerDistanceMm: 12.5,
   },
   doc: {
     type: 'doc',

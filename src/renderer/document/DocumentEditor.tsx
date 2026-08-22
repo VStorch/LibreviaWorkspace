@@ -9,7 +9,7 @@ import { FindReplacePanel } from './FindReplacePanel.js'
 import { PageBand } from './PageBand.js'
 import { usePagination, type PageLayout } from './usePagination.js'
 import { FloatingLayer, type PlacedFloat } from './FloatingLayer.js'
-import { floatsOf, type FloatingObject } from '@services/document/floating.js'
+import { bandFloatsOf, floatsOf, type FloatingObject } from '@services/document/floating.js'
 import { pxToMm } from '@services/document/model.js'
 import type { PrintFloat, PrintPage } from '@services/document/print-pages.js'
 import { DOMSerializer, Fragment, Node as ProseMirrorNode } from '@tiptap/pm/model'
@@ -202,7 +202,14 @@ export function DocumentEditor(): React.JSX.Element {
               className="paper-bands"
               style={{ top: `${top}px`, height: `${mmToPx(height)}px` }}
             >
-              <FloatingLayer objects={floatsByPage[index] ?? []} page={page} schema={editor.schema} behind />
+              {/* Os objetos da faixa entram junto: repetem em toda folha,
+                  porque a faixa repete. */}
+              <FloatingLayer
+                objects={[...(floatsByPage[index] ?? []), ...bandFloatsOf(page, index + 1)]}
+                page={page}
+                schema={editor.schema}
+                behind
+              />
               {(['header', 'footer'] as const).map((kind) => {
                 // A capa manda sobre a paridade, e a paridade sobre o padrão —
                 // a ordem do Word. Documento sem primeira página distinta cai no
@@ -221,7 +228,7 @@ export function DocumentEditor(): React.JSX.Element {
               })}
 
               <FloatingLayer
-                objects={floatsByPage[index] ?? []}
+                objects={[...(floatsByPage[index] ?? []), ...bandFloatsOf(page, index + 1)]}
                 page={page}
                 schema={editor.schema}
                 behind={false}

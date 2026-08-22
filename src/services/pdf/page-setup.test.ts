@@ -151,6 +151,7 @@ describe('faixa preservada do documento', () => {
       },
     ],
     rule: true,
+    floats: [],
   }
 
   it('manda na exibição quando existe, ignorando o texto digitado', () => {
@@ -181,7 +182,7 @@ describe('faixa preservada do documento', () => {
   })
 
   it('ignora faixa vazia e volta para o texto digitado', () => {
-    const empty = { left: [], center: [], right: [], rule: false }
+    const empty = { left: [], center: [], right: [], rule: false, floats: [] }
     const options = buildPrintOptions(withPage({ header: 'Relatório', headerBand: empty }))
 
     expect(options.headerTemplate).toContain('Relatório')

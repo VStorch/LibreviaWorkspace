@@ -77,6 +77,34 @@ test.describe('objetos ancorados', () => {
     expect(ordem!.atras).toBeLessThan(ordem!.texto)
   })
 
+  test('as marcas do cabeçalho e do rodapé giram como no arquivo', async () => {
+    // São desenhos ancorados dentro da faixa, girados um quarto de volta. Presos
+    // à grade de três colunas eles saíam deitados — uma faixa de 28,6 mm em pé
+    // não cabe numa banda de 10 mm de altura.
+    const giradas = await session.window.evaluate(
+      () =>
+        Array.from(document.querySelectorAll('.paper-float'))
+          .map((node) => getComputedStyle(node as HTMLElement).transform)
+          .filter((transform) => transform !== 'none').length,
+    )
+
+    // A marca do corpo, a do cabeçalho e a do rodapé — em cada folha.
+    expect(giradas).toBeGreaterThanOrEqual(3)
+  })
+
+  test('as marcas da faixa repetem em toda folha', async () => {
+    // A faixa repete, e o que está ancorado dentro dela repete junto. Por isso
+    // não pertencem a bloco nenhum: pertencem à página.
+    const porFolha = await session.window.evaluate(() =>
+      Array.from(document.querySelectorAll('.paper-bands')).map(
+        (banda) => banda.querySelectorAll('.paper-float').length,
+      ),
+    )
+
+    expect(porFolha.length).toBeGreaterThan(1)
+    expect(Math.min(...porFolha)).toBeGreaterThanOrEqual(3)
+  })
+
   test('os objetos não ocupam lugar no fluxo do texto', async () => {
     // A prova de que saíram do fluxo: o parágrafo que ancora a marca de 286 mm
     // continua sendo um bloco de altura de linha.

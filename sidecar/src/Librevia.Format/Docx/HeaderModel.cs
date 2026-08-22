@@ -13,20 +13,30 @@ namespace Librevia.Format.Docx;
 ///
 /// O modelo é uma **faixa de três colunas com filete opcional** — esquerda,
 /// centro, direita — que é como o Word sempre pensou cabeçalho e como quase todo
-/// cabeçalho corporativo é montado. No corpus real, o número da página fica na
-/// esquerda, o título no centro e o logotipo na direita; reproduzir isso não
-/// exige posicionamento absoluto.
+/// cabeçalho corporativo é montado. É o bastante para o texto.
+///
+/// O que **não** cabe em três colunas é o desenho ancorado: ele traz posição de
+/// verdade e pode vir girado, e a marca lateral do corpus é uma faixa de 28,6 mm
+/// em pé — não entra numa banda de 10 mm de altura. Esses saem em `Floats`, com
+/// a mesma descrição dos objetos ancorados do corpo, e são desenhados pela mesma
+/// conta de posição.
 /// </remarks>
 public sealed record BandDto(
     [property: JsonPropertyName("left")] List<PieceDto> Left,
     [property: JsonPropertyName("center")] List<PieceDto> Center,
     [property: JsonPropertyName("right")] List<PieceDto> Right,
-    [property: JsonPropertyName("rule")] bool Rule)
+    [property: JsonPropertyName("rule")] bool Rule,
+    [property: JsonPropertyName("floats")] List<FloatDto>? Floats = null)
 {
-    public static BandDto Empty() => new([], [], [], false);
+    public static BandDto Empty() => new([], [], [], false, []);
 
     [JsonIgnore]
-    public bool IsEmpty => Left.Count == 0 && Center.Count == 0 && Right.Count == 0 && !Rule;
+    public bool IsEmpty =>
+        Left.Count == 0
+        && Center.Count == 0
+        && Right.Count == 0
+        && !Rule
+        && (Floats is null || Floats.Count == 0);
 }
 
 /// <summary>Um pedaço do cabeçalho: texto, imagem ou número de página.</summary>

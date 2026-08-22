@@ -116,6 +116,7 @@ public static class HeaderReader
         var columns = new List<PieceDto>[3];
         for (var i = 0; i < 3; i++) columns[i] = [];
 
+        var floats = new List<FloatDto>();
         var rule = false;
 
         foreach (var paragraph in root.Descendants<Paragraph>())
@@ -136,10 +137,44 @@ public static class HeaderReader
             // duplicaria o cabeçalho inteiro.
             if (drawing.Ancestors<AlternateContentFallback>().Any()) continue;
 
+            // Desenho ancorado tem posição de verdade e pode vir girado: sai
+            // como objeto, e não como peça de uma das três colunas. Sem isto, a
+            // marca lateral do corpus — 28,6 mm em pé — era achatada numa faixa
+            // de 10 mm e desenhada deitada.
+            if (AnchorReader.AnchorOf(drawing) is { } anchor)
+            {
+                foreach (var item in ReadAnchoredDrawing(drawing, owner, anchor)) floats.Add(item);
+                continue;
+            }
+
             ReadDrawing(drawing, owner, columns, ref rule, inventory, contentWidthEmus);
         }
 
-        return new BandDto(columns[0], columns[1], columns[2], rule);
+        return new BandDto(columns[0], columns[1], columns[2], rule, floats);
+    }
+
+    /// <summary>Imagens de um desenho ancorado, com a geometria da âncora.</summary>
+    private static IEnumerable<FloatDto> ReadAnchoredDrawing(
+        OpenXmlElement drawing,
+        OpenXmlPart owner,
+        WordDrawing.Anchor anchor)
+    {
+        foreach (var picture in drawing.Descendants<Drawing.Pictures.Picture>())
+        {
+            var relationshipId = picture.Descendants<Drawing.Blip>().FirstOrDefault()?.Embed?.Value;
+            if (string.IsNullOrEmpty(relationshipId)) continue;
+            if (owner.GetPartById(relationshipId) is not ImagePart image) continue;
+
+            using var stream = image.GetStream();
+            using var buffer = new MemoryStream();
+            stream.CopyTo(buffer);
+
+            yield return AnchorReader.Describe(
+                anchor,
+                "image",
+                $"data:{image.ContentType};base64,{Convert.ToBase64String(buffer.ToArray())}",
+                null);
+        }
     }
 
     private static void ReadDrawing(

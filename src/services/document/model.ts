@@ -1,3 +1,4 @@
+import type { FloatingObject } from './floating.js'
 /**
  * Modelo canônico do documento.
  *
@@ -54,6 +55,14 @@ export interface Band {
   readonly center: BandPiece[]
   readonly right: BandPiece[]
   readonly rule: boolean
+  /**
+   * Objetos ancorados da faixa.
+   *
+   * O que não cabe em três colunas: desenho com posição de verdade, que pode vir
+   * girado. A marca lateral do corpus é uma faixa de 28,6 mm **em pé** — não
+   * entra numa banda de 10 mm de altura, e achatá-la ali a desenhava deitada.
+   */
+  readonly floats: FloatingObject[]
 }
 
 export interface PageSetup {
@@ -86,6 +95,14 @@ export interface PageSetup {
   readonly firstFooterBand: Band | null
   readonly evenHeaderBand: Band | null
   readonly evenFooterBand: Band | null
+  /**
+   * Distância da faixa à borda do papel, em milímetros (`w:pgMar/@header`).
+   *
+   * É a origem vertical das âncoras de dentro do cabeçalho: elas se dizem
+   * relativas ao parágrafo, e o parágrafo do cabeçalho começa aqui.
+   */
+  readonly headerDistanceMm: number
+  readonly footerDistanceMm: number
 }
 
 /**
@@ -152,6 +169,8 @@ export const DEFAULT_PAGE_SETUP: PageSetup = {
   firstFooterBand: null,
   evenHeaderBand: null,
   evenFooterBand: null,
+  headerDistanceMm: 12.5,
+  footerDistanceMm: 12.5,
 }
 
 export const EMPTY_DOCUMENT: DocumentNode = {
