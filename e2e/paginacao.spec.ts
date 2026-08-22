@@ -1,5 +1,8 @@
+import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
-import { launch, menu, type Session } from './app.js'
+import { launch, menu, stubDialogs, type Session } from './app.js'
 
 /**
  * O editor pagina ao vivo.
@@ -16,13 +19,16 @@ import { launch, menu, type Session } from './app.js'
  */
 test.describe('paginação ao vivo', () => {
   let session: Session
+  let pasta: string
 
   test.beforeEach(async () => {
+    pasta = await mkdtemp(join(tmpdir(), 'librevia-paginacao-'))
     session = await launch()
   })
 
   test.afterEach(async () => {
     await session.close()
+    await rm(pasta, { recursive: true, force: true })
   })
 
   test('documento novo tem uma folha só', async () => {
@@ -72,4 +78,44 @@ test.describe('paginação ao vivo', () => {
     // toda faixa recebia `pageNumber={1}` fixo.
     await expect(session.window.locator('.paper__number')).toHaveText(['1', '2'])
   })
+
+  test('o papel sai com as mesmas folhas que a tela mostra', async () => {
+    // Havia dois paginadores que precisavam concordar: o nosso, na tela, e o do
+    // Chromium, na exportação. Concordar por coincidência é o que este teste
+    // recusa — agora o papel é montado a partir das folhas da tela, e o número
+    // não pode divergir.
+    const destino = join(pasta, 'saida.pdf')
+    await stubDialogs(session.app, { save: destino, messageBox: 1 })
+
+    await menu(session, 'new-document')
+    await session.window.locator('.ProseMirror').click()
+    await session.window.keyboard.type('Primeira folha.')
+    await menu(session, 'insert-page-break')
+    await session.window.keyboard.type('Segunda folha.')
+    await menu(session, 'insert-page-break')
+    await session.window.keyboard.type('Terceira folha.')
+
+    const naTela = await session.window.locator('.paper').count()
+    expect(naTela).toBe(3)
+
+    await menu(session, 'export-pdf')
+    await expect.poll(async () => contarPaginas(destino), { timeout: 30000 }).toBe(naTela)
+  })
 })
+
+/**
+ * Páginas de um PDF, contando os objetos `/Type /Page`.
+ *
+ * Sem biblioteca: o dado está no arquivo em texto claro, e trazer um leitor de
+ * PDF inteiro para contar páginas seria desproporcional. `[^s]` no fim separa
+ * `/Page` de `/Pages`, que é o nó da árvore e apareceria uma vez a mais.
+ */
+async function contarPaginas(caminho: string): Promise<number> {
+  try {
+    const bytes = await readFile(caminho)
+    return (bytes.toString('latin1').match(/\/Type\s*\/Page[^s]/g) ?? []).length
+  } catch {
+    // Arquivo ainda não escrito: o `poll` tenta de novo.
+    return 0
+  }
+}

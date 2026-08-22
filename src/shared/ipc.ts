@@ -60,6 +60,14 @@ const emptyRequest = z.object({})
 const printRequestSchema = z.object({
   html: z.string().max(MAX_TEXT_LENGTH),
   page: pageSetupSchema,
+  /**
+   * O HTML já vem dividido em folhas do tamanho do papel.
+   *
+   * Quando verdadeiro, o `printToPDF` não recebe margem nem faixa: quem as
+   * desenha é a própria página. A planilha continua no caminho antigo, em que o
+   * Chromium pagina uma tabela contínua.
+   */
+  paged: z.boolean().default(false),
 })
 
 /** Diálogo cancelado não é erro: é um desfecho previsto. */

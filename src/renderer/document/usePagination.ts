@@ -14,6 +14,13 @@ export interface PageLayout {
   readonly stackHeightPx: number
   /** Topo de cada folha, em pixels, dentro da pilha. */
   readonly sheetTops: readonly number[]
+  /**
+   * Índice do bloco que abre cada folha a partir da segunda.
+   *
+   * É o que permite ao papel sair das mesmas páginas que a tela: recortar a
+   * lista de blocos nestes pontos dá as folhas prontas, sem ninguém repaginar.
+   */
+  readonly pageStarts: readonly number[]
 }
 
 /**
@@ -27,7 +34,12 @@ export interface PageLayout {
  * passada empurraria os blocos um pouco mais e a paginação nunca assentaria.
  */
 export function usePagination(editor: Editor | null, page: PageSetup, revision: number): PageLayout {
-  const [layout, setLayout] = useState<PageLayout>({ pages: 1, stackHeightPx: 0, sheetTops: [0] })
+  const [layout, setLayout] = useState<PageLayout>({
+    pages: 1,
+    stackHeightPx: 0,
+    sheetTops: [0],
+    pageStarts: [],
+  })
 
   /**
    * Vãos que já estão aplicados no DOM.
@@ -43,24 +55,38 @@ export function usePagination(editor: Editor | null, page: PageSetup, revision: 
   useEffect(() => {
     if (editor === null) return undefined
 
-    const element = editor.view.dom as HTMLElement
+    const element = editor.view.dom as HTMLElement // alvo do observador de tamanho
     const pageHeightPx = mmToPx(pageDimensionsMm(page).height)
     const contentHeightPx = mmToPx(contentHeightMm(page))
     const marginTopPx = mmToPx(page.margins.top)
     const marginBottomPx = mmToPx(page.margins.bottom)
 
     const measure = (): void => {
-      const children = Array.from(element.children) as HTMLElement[]
-
+      // Percorrido pelo **documento**, e não pelos filhos do DOM: os dois não
+      // são o mesmo sistema de índices. Um documento do corpus tem 15 elementos
+      // na tela e 17 nós no topo do modelo, e a diferença é silenciosa — a
+      // decoração cairia num bloco e o recorte do papel noutro, cada um errando
+      // por uma quantidade diferente. `nodeDOM` liga um ao outro.
       let accumulated = 0
-      const blocks: MeasuredBlock[] = children.map((node, index) => {
+      const blocks: MeasuredBlock[] = []
+      let index = 0
+
+      editor.state.doc.forEach((_node, offset) => {
+        const dom = editor.view.nodeDOM(offset)
+        const node = dom instanceof HTMLElement ? dom : null
         accumulated += applied.current.get(index) ?? 0
-        return {
-          top: node.offsetTop - accumulated,
-          height: node.offsetHeight,
-          isPageBreak: node.hasAttribute('data-page-break'),
-          keepWithNext: node.hasAttribute('data-keep-next') || /^H[1-6]$/.test(node.tagName),
-        }
+        index += 1
+
+        blocks.push(
+          node === null
+            ? { top: 0, height: 0, isPageBreak: false, keepWithNext: false }
+            : {
+                top: node.offsetTop - accumulated,
+                height: node.offsetHeight,
+                isPageBreak: node.hasAttribute('data-page-break'),
+                keepWithNext: node.hasAttribute('data-keep-next') || /^H[1-6]$/.test(node.tagName),
+              },
+        )
       })
 
       const breaks = paginate(blocks, contentHeightPx)
@@ -68,20 +94,43 @@ export function usePagination(editor: Editor | null, page: PageSetup, revision: 
       // Vão = o que sobrou da folha + as duas margens + o espaço entre papéis.
       // É essa soma que faz o bloco cair exatamente no topo da coluna de texto
       // da folha seguinte.
+      // Dois números por bloco, e não um: o **empurrão** e a **margem escrita**.
+      //
+      // O estilo da decoração é acrescentado ao do nó, e em CSS a última
+      // declaração ganha — então a margem do vão não se soma à margem natural
+      // do bloco, ela a substitui. Escrever só o empurrão faria o bloco subir o
+      // tanto da margem que ele já tinha, e a conta de fluxo, que desconta o
+      // empurrão, passaria a errar por essa diferença. Num título com 18 pt de
+      // espaço antes, isso bastava para o corte cair um bloco adiante — a tela
+      // mostrava o título abrindo a folha e o papel o deixava no fim da
+      // anterior.
+      //
+      // A margem natural é observável mesmo depois de decorada: as coordenadas
+      // de fluxo já removem o empurrão, então a distância entre o fim de um
+      // bloco e o começo do seguinte é a margem que o documento pede.
       const gaps = new Map<number, number>()
+      const written = new Map<number, number>()
       let previous = 0
+
       for (const at of breaks) {
         const index = blocks.findIndex((block) => block.top >= at)
         if (index <= 0) continue
 
+        const block = blocks[index]!
+        const before = blocks[index - 1]!
+        const natural = Math.max(block.top - (before.top + before.height), 0)
+
         const remaining = Math.max(contentHeightPx - (at - previous), 0)
-        gaps.set(index, remaining + marginBottomPx + SHEET_GUTTER_PX + marginTopPx)
+        const shift = remaining + marginBottomPx + SHEET_GUTTER_PX + marginTopPx
+
+        gaps.set(index, shift)
+        written.set(index, shift + natural)
         previous = at
       }
 
       if (!sameGaps(applied.current, gaps)) {
         applied.current = gaps
-        applyPageGaps(editor.view, gaps)
+        applyPageGaps(editor.view, written)
       }
 
       const pages = breaks.length + 1
@@ -89,6 +138,7 @@ export function usePagination(editor: Editor | null, page: PageSetup, revision: 
         pages,
         stackHeightPx: pages * pageHeightPx + (pages - 1) * SHEET_GUTTER_PX,
         sheetTops: Array.from({ length: pages }, (_, i) => i * (pageHeightPx + SHEET_GUTTER_PX)),
+        pageStarts: [...gaps.keys()].sort((a, b) => a - b),
       })
     }
 

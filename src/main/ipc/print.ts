@@ -29,7 +29,7 @@ export function registerPrintHandlers(): void {
     const chosen = await showPdfSaveDialog(windowOf(event), toPdfName(payload.suggestedName))
     if (chosen === null) return { canceled: true as const }
 
-    const pdf = await renderPdf(payload.html, payload.page)
+    const pdf = await renderPdf(payload.html, payload.page, payload.paged)
     const path = authorizePath(chosen)
     await writeFileAtomic(path, pdf)
 
@@ -41,7 +41,7 @@ export function registerPrintHandlers(): void {
   }))
 
   handle(IpcChannel.PrintPreview, async (payload, event) => {
-    const pdf = await renderPdf(payload.html, payload.page)
+    const pdf = await renderPdf(payload.html, payload.page, payload.paged)
     await openPdfPreview(windowOf(event), pdf, payload.title)
     return { opened: true as const }
   })

@@ -16,7 +16,19 @@ import { DOCUMENT_CONTENT_CSS, PRINT_ONLY_CSS } from './content-styles.js'
  * página, margens, cabeçalho e rodapé são os mesmos nos dois casos, e duplicar
  * este arquivo faria os dois divergirem na primeira correção.
  */
-export function buildPrintHtml(bodyHtml: string, title: string, extraCss = ''): string {
+export function buildPrintHtml(
+  bodyHtml: string,
+  title: string,
+  extraCss = '',
+  /**
+   * Envolver o corpo em `.page__content`.
+   *
+   * A planilha e o documento em folha única precisam do invólucro, que é onde
+   * mora a tipografia. O documento paginado **não**: cada folha traz o seu, e um
+   * segundo por fora aplicaria recuo e entrelinha duas vezes.
+   */
+  wrapInContent = true,
+): string {
   return `<!doctype html>
 <html lang="pt-BR">
 <head>
@@ -30,7 +42,7 @@ ${PRINT_ONLY_CSS}
 ${extraCss}
 </style>
 </head>
-<body><div class="page__content">${bodyHtml}</div></body>
+<body>${wrapInContent ? `<div class="page__content">${bodyHtml}</div>` : bodyHtml}</body>
 </html>`
 }
 

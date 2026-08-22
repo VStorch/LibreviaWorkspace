@@ -177,7 +177,35 @@ export function mmToPixels(mm: number): number {
   return (mm / MM_PER_INCH) * 96
 }
 
-export function buildPrintOptions(page: PageSetup): PdfPrintOptions {
+/**
+ * @param paged
+ * O HTML já vem dividido em folhas do tamanho do papel (documento paginado).
+ * Nesse caso o Chromium não decide nada: margem zero, tamanho vindo do `@page`
+ * do próprio HTML e faixa nenhuma, porque quem desenha cabeçalho e rodapé é a
+ * página. Pedir margem aqui **e** na caixa da página a contaria duas vezes, e
+ * deixar `displayHeaderFooter` ligado poria a faixa do Chromium por cima da
+ * nossa.
+ *
+ * A planilha continua no caminho antigo: ela imprime uma tabela contínua, e não
+ * há folha recortada antes de chegar aqui.
+ */
+export function buildPrintOptions(page: PageSetup, paged = false): PdfPrintOptions {
+  if (paged) {
+    return {
+      pageSize: page.size === PageSize.Letter ? 'Letter' : 'A4',
+      landscape: page.orientation === PageOrientation.Landscape,
+      margins: { top: 0, bottom: 0, left: 0, right: 0 },
+      printBackground: true,
+      displayHeaderFooter: false,
+      headerTemplate: '',
+      footerTemplate: '',
+      // Quem manda no tamanho é o `@page` que veio no HTML — o mesmo papel que
+      // a tela desenhou.
+      preferCSSPageSize: true,
+      scale: 1,
+    }
+  }
+
   // A faixa preservada do documento manda: quando ela existe, é o cabeçalho
   // real do arquivo, com logotipo e numeração. O texto digitado só vale para
   // documentos criados aqui.

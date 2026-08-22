@@ -51,8 +51,8 @@ async function withRenderWindow<T>(html: string, run: (contents: WebContents) =>
   }
 }
 
-export async function renderPdf(html: string, page: PageSetup): Promise<Buffer> {
-  return withRenderWindow(html, async (contents) => contents.printToPDF(buildPrintOptions(page)))
+export async function renderPdf(html: string, page: PageSetup, paged = false): Promise<Buffer> {
+  return withRenderWindow(html, async (contents) => contents.printToPDF(buildPrintOptions(page, paged)))
 }
 
 /**

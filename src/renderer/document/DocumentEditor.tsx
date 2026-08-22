@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { EditorContent, useEditor } from '@tiptap/react'
+import { EditorContent, useEditor, type Editor } from '@tiptap/react'
 import { DOCUMENT_CONTENT_CSS, EDITOR_ONLY_CSS } from '@services/document/content-styles.js'
 import { bandForPage, hasBandContent, mmToPx, pageDimensionsMm } from '@services/document/model.js'
 import type { DocumentNode } from '@services/document/model.js'
@@ -8,6 +8,8 @@ import { DocumentToolbar } from './toolbar/DocumentToolbar.js'
 import { FindReplacePanel } from './FindReplacePanel.js'
 import { PageBand } from './PageBand.js'
 import { usePagination } from './usePagination.js'
+import type { PrintPage } from '@services/document/print-pages.js'
+import { DOMSerializer, Fragment, type Node as ProseMirrorNode } from '@tiptap/pm/model'
 import { PageSetupPanel } from './PageSetupPanel.js'
 import { buildEditorExtensions } from './editor-extensions.js'
 import { isPaginationOnly } from './extensions/pagination.js'
@@ -94,6 +96,7 @@ export function DocumentEditor(): React.JSX.Element {
     registerDocumentSource({
       readDoc: () => editor.getJSON() as DocumentNode,
       readHtml: () => editor.getHTML(),
+      readPages: () => splitIntoPages(editor, layoutRef.current.pageStarts),
     })
     return () => registerDocumentSource(null)
   }, [editor, registerDocumentSource])
@@ -109,6 +112,12 @@ export function DocumentEditor(): React.JSX.Element {
   )
 
   const layout = usePagination(editor, page, contentRevision)
+
+  // O recorte em páginas é lido no momento de imprimir, e não no da renderização
+  // — daí a `ref`: registrar `readPages` a cada mudança de layout recriaria a
+  // fonte do documento dezenas de vezes por segundo enquanto se digita.
+  const layoutRef = useRef(layout)
+  layoutRef.current = layout
 
   useEffect(() => setEstimatedPages(layout.pages), [layout.pages, setEstimatedPages])
 
@@ -199,4 +208,39 @@ export function DocumentEditor(): React.JSX.Element {
       </div>
     </div>
   )
+}
+
+/**
+ * O documento recortado nas folhas que a tela mostra.
+ *
+ * Serializa **direto dos nós**, e não a partir de `getHTML()`. A diferença não
+ * é de gosto: o leitor emite a quebra de página dentro do parágrafo quando o
+ * Word a gravou assim (`w:br w:type="page"` no meio de um `w:r`), e um `<div>`
+ * dentro de `<p>` faz o analisador de HTML fechar o parágrafo e desalojar o
+ * `div`. Um documento de 15 nós virava 17 elementos, os índices deixavam de
+ * casar, e o papel cortava em lugar diferente do da tela — que é exatamente o
+ * defeito que este trabalho existe para acabar.
+ *
+ * Serializando o nó, o recorte cai sempre onde o paginador o pôs.
+ */
+function splitIntoPages(editor: Editor, pageStarts: readonly number[]): PrintPage[] {
+  const serializer = DOMSerializer.fromSchema(editor.schema)
+
+  const blocks: ProseMirrorNode[] = []
+  editor.state.doc.forEach((node: ProseMirrorNode) => blocks.push(node))
+
+  const cortes = [0, ...pageStarts, blocks.length]
+  const pages: PrintPage[] = []
+
+  for (let i = 0; i < cortes.length - 1; i++) {
+    const inicio = cortes[i]!
+    const fim = cortes[i + 1]!
+    if (fim <= inicio && pages.length > 0) continue
+
+    const holder = document.createElement('div')
+    holder.appendChild(serializer.serializeFragment(Fragment.fromArray(blocks.slice(inicio, fim))))
+    pages.push({ number: pages.length + 1, html: holder.innerHTML })
+  }
+
+  return pages
 }

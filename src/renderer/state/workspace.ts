@@ -18,6 +18,7 @@ import {
 } from '@services/document/model.js'
 import { documentToPlainText, hasRichFormatting, plainTextToDocument } from '@services/document/plain-text.js'
 import { buildPrintHtml } from '@services/document/print-html.js'
+import { buildPagedBody, buildPagedCss, type PrintPage } from '@services/document/print-pages.js'
 import { parseDocument, serializeDocument } from '@services/document/serialize.js'
 import {
   createEmptyWorkbook,
@@ -150,6 +151,14 @@ interface WorkspaceState {
 export interface DocumentSource {
   readonly readDoc: () => DocumentNode
   readonly readHtml: () => string
+  /**
+   * O documento recortado nas páginas que a tela está mostrando.
+   *
+   * O papel sai daqui, e não de uma segunda paginação: era a divergência que o
+   * §6.3 do plano registrava como risco residual — dois paginadores, um em
+   * JavaScript e outro no Chromium, sem nada forçando a sincronia.
+   */
+  readonly readPages: () => readonly PrintPage[]
 }
 
 function toSerialized(cause: unknown): SerializedError {
@@ -708,7 +717,7 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
    * a janela, e não a planilha. Por isso a planilha é gerada a partir do modelo,
    * com as mesmas funções de formatação que a tela usa.
    */
-  function buildPrintRequest(): { html: string; page: PageSetup } | null {
+  function buildPrintRequest(): { html: string; page: PageSetup; paged: boolean } | null {
     const state = get()
     const name = state.file?.name ?? 'Documento'
 
@@ -719,10 +728,21 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
       return {
         html: buildPrintHtml(buildSheetHtml(sheet), name, SHEET_PRINT_CSS),
         page: state.page,
+        // A grade continua sendo uma tabela contínua que o Chromium reparte:
+        // não há folha para recortar antes de imprimir.
+        paged: false,
       }
     }
 
     if (documentSource === null) return null
-    return { html: buildPrintHtml(documentSource.readHtml(), name), page: state.page }
+
+    const pages = documentSource.readPages()
+    return {
+      html: buildPrintHtml(buildPagedBody(pages, state.page), name, buildPagedCss(state.page), false),
+      page: state.page,
+      // Diz ao processo main para não deixar o Chromium paginar nem desenhar
+      // faixa: as folhas já vêm prontas no HTML.
+      paged: true,
+    }
   }
 })
