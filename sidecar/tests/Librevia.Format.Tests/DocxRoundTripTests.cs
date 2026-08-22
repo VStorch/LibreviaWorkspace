@@ -227,6 +227,23 @@ public class DocxRoundTripTests
 
     // --- estilos ------------------------------------------------------------
 
+    /// <summary>`word/document.xml` de dentro do pacote.</summary>
+    private static string MainDocumentXml(byte[] bytes)
+    {
+        using var buffer = new MemoryStream(bytes, writable: false);
+        using var package = new System.IO.Compression.ZipArchive(buffer);
+        using var stream = package.GetEntry("word/document.xml")!.Open();
+        using var reader = new StreamReader(stream);
+        return reader.ReadToEnd();
+    }
+
+    /// <summary>Todo o texto de uma faixa, nas três colunas.</summary>
+    private static string TextOfBand(BandDto? band) =>
+        band is null
+            ? string.Empty
+            : string.Concat(
+                band.Left.Concat(band.Center).Concat(band.Right).Select(piece => piece.Text ?? string.Empty));
+
     private static Node FirstOfType(DocumentModelDto model, string type) =>
         Walk(model.Doc).First(n => n.Type == type);
 
@@ -420,6 +437,49 @@ public class DocxRoundTripTests
         var result = DocxReader.Read(Fixtures.WithAnchoredImage());
 
         Assert.Empty(result.Inventory.Structural);
+    }
+
+    // --- cabeçalho por página -----------------------------------------------
+
+    [Fact]
+    public void OCabecalhoPadraoNaoDependeDaOrdemDeGravacao()
+    {
+        // O `w:type` era ignorado: percorria-se as referências na ordem do XML e
+        // ficava a primeira não vazia. Neste fixture o `first` vem antes, então
+        // o cabeçalho da capa apareceria no documento inteiro — e qual apareceria
+        // dependia de como o Word gravou, não do que o documento diz.
+        var bytes = Fixtures.WithFirstPageHeader(titlePage: true);
+
+        // A armadilha, afirmada aqui para não depender de quem lê o fixture: a
+        // referência `first` vem **antes** da `default` no XML, e não está
+        // vazia. Pela ordem, "Capa" ganharia.
+        var xml = MainDocumentXml(bytes);
+        Assert.InRange(
+            xml.IndexOf("w:type=\"first\"", StringComparison.Ordinal),
+            0,
+            xml.IndexOf("w:type=\"default\"", StringComparison.Ordinal));
+
+        Assert.Equal("Miolo", TextOfBand(DocxReader.Read(bytes).Model.Page.Header));
+    }
+
+    [Fact]
+    public void PrimeiraPaginaComCabecalhoProprioEhLida()
+    {
+        var page = DocxReader.Read(Fixtures.WithFirstPageHeader(titlePage: true)).Model.Page;
+
+        Assert.Equal("Capa", TextOfBand(page.FirstHeader));
+    }
+
+    [Fact]
+    public void SemTitlePgOCabecalhoDaCapaNaoEhUsado()
+    {
+        // O Word guarda a parte `first` mesmo com o interruptor desligado —
+        // quatro dos seis documentos do corpus são assim. Usá-la sem conferir
+        // poria a capa em todas as páginas.
+        var page = DocxReader.Read(Fixtures.WithFirstPageHeader(titlePage: false)).Model.Page;
+
+        Assert.Null(page.FirstHeader);
+        Assert.Equal("Miolo", TextOfBand(page.Header));
     }
 
     // --- impressão digital --------------------------------------------------

@@ -74,6 +74,36 @@ export interface PageSetup {
    */
   readonly headerBand: Band | null
   readonly footerBand: Band | null
+  /**
+   * Faixas de primeira página e de páginas pares.
+   *
+   * Só existem quando o documento **liga** os interruptores correspondentes
+   * (`w:titlePg`, `w:evenAndOddHeaders`). O Word guarda as partes mesmo com eles
+   * desligados, e usá-las sem conferir poria o cabeçalho da capa em todas as
+   * páginas — ver `PageReader.HasTitlePage`.
+   */
+  readonly firstHeaderBand: Band | null
+  readonly firstFooterBand: Band | null
+  readonly evenHeaderBand: Band | null
+  readonly evenFooterBand: Band | null
+}
+
+/**
+ * Qual faixa desenhar nesta página.
+ *
+ * A ordem é a do Word: a capa manda sobre a paridade, e a paridade sobre o
+ * padrão. Faixa ausente cai no padrão, e não em nada — um documento que declara
+ * primeira página distinta mas deixa a faixa vazia quer a folha limpa, e é o
+ * `hasBandContent` de quem desenha que decide isso.
+ */
+export function bandForPage(page: PageSetup, pageNumber: number, kind: 'header' | 'footer'): Band | null {
+  const first = kind === 'header' ? page.firstHeaderBand : page.firstFooterBand
+  const even = kind === 'header' ? page.evenHeaderBand : page.evenFooterBand
+  const fallback = kind === 'header' ? page.headerBand : page.footerBand
+
+  if (pageNumber === 1 && first !== null) return first
+  if (pageNumber % 2 === 0 && even !== null) return even
+  return fallback
 }
 
 /** Há algo a desenhar nesta faixa? */
@@ -118,6 +148,10 @@ export const DEFAULT_PAGE_SETUP: PageSetup = {
   footer: '',
   headerBand: null,
   footerBand: null,
+  firstHeaderBand: null,
+  firstFooterBand: null,
+  evenHeaderBand: null,
+  evenFooterBand: null,
 }
 
 export const EMPTY_DOCUMENT: DocumentNode = {

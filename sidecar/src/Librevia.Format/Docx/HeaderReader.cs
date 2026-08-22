@@ -27,11 +27,43 @@ public static class HeaderReader
     /// <summary>Forma sem texto, larga e baixa: é filete, não caixa.</summary>
     private const double RuleAspectRatio = 20;
 
-    public static BandDto Read(SectionProperties section, MainDocumentPart part, Inventory inventory) =>
-        ReadReferenced(section.Elements<HeaderReference>().Select(r => r.Id?.Value), part, inventory);
+    /// <summary>
+    /// O cabeçalho de um dos três papéis que a seção declara.
+    /// </summary>
+    /// <remarks>
+    /// O `w:type` era ignorado: percorria-se as referências na ordem em que
+    /// estavam no XML e ficava a primeira não vazia. Qual cabeçalho aparecia
+    /// dependia, portanto, da ordem de gravação — um documento com capa podia
+    /// exibir o cabeçalho da capa em todas as páginas. No corpus real, quatro de
+    /// seis documentos declaram `first`, `even` e `default`, então o acaso
+    /// decidia na maioria dos casos.
+    /// </remarks>
+    public static BandDto Read(
+        SectionProperties section,
+        MainDocumentPart part,
+        Inventory inventory,
+        HeaderFooterValues type) =>
+        ReadReferenced(
+            section.Elements<HeaderReference>().Where(r => Matches(r.Type, type)).Select(r => r.Id?.Value),
+            part,
+            inventory);
 
-    public static BandDto ReadFooter(SectionProperties section, MainDocumentPart part, Inventory inventory) =>
-        ReadReferenced(section.Elements<FooterReference>().Select(r => r.Id?.Value), part, inventory);
+    public static BandDto ReadFooter(
+        SectionProperties section,
+        MainDocumentPart part,
+        Inventory inventory,
+        HeaderFooterValues type) =>
+        ReadReferenced(
+            section.Elements<FooterReference>().Where(r => Matches(r.Type, type)).Select(r => r.Id?.Value),
+            part,
+            inventory);
+
+    /// <summary>
+    /// Referência sem `w:type` é `default` — é o que a especificação diz, e é o
+    /// que documento antigo grava.
+    /// </summary>
+    private static bool Matches(EnumValue<HeaderFooterValues>? declared, HeaderFooterValues wanted) =>
+        (declared?.Value ?? HeaderFooterValues.Default) == wanted;
 
     private static BandDto ReadReferenced(
         IEnumerable<string?> relationshipIds,
@@ -62,8 +94,8 @@ public static class HeaderReader
             if (root is null || owner is null) continue;
 
             var band = Build(root, owner, inventory);
-            // A primeira página costuma ter cabeçalho vazio; vale o primeiro
-            // que tenha conteúdo.
+            // Dentro de um mesmo tipo raramente há mais de uma referência; se
+            // houver, vale a que tem conteúdo.
             if (!band.IsEmpty) return band;
         }
 

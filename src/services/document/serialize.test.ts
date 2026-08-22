@@ -18,6 +18,10 @@ const richDocument: DocumentModel = {
     footer: 'Página {n} de {total}',
     headerBand: null,
     footerBand: null,
+    firstHeaderBand: null,
+    firstFooterBand: null,
+    evenHeaderBand: null,
+    evenFooterBand: null,
   },
   doc: {
     type: 'doc',

@@ -9,7 +9,13 @@ public sealed record PageSetupDto(
     [property: JsonPropertyName("orientation")] string Orientation,
     [property: JsonPropertyName("margins")] MarginsDto Margins,
     [property: JsonPropertyName("headerBand")] BandDto? Header,
-    [property: JsonPropertyName("footerBand")] BandDto? Footer);
+    [property: JsonPropertyName("footerBand")] BandDto? Footer,
+    // Campos novos, e não uma troca de forma do par acima: um `.sdoc` gravado
+    // antes daqui não os tem, e como são opcionais continua abrindo.
+    [property: JsonPropertyName("firstHeaderBand")] BandDto? FirstHeader = null,
+    [property: JsonPropertyName("firstFooterBand")] BandDto? FirstFooter = null,
+    [property: JsonPropertyName("evenHeaderBand")] BandDto? EvenHeader = null,
+    [property: JsonPropertyName("evenFooterBand")] BandDto? EvenFooter = null);
 
 public sealed record MarginsDto(
     [property: JsonPropertyName("top")] double Top,
@@ -57,8 +63,47 @@ public static class PageReader
                 Right: Millimeters((int?)margin?.Right?.Value, 1440),
                 Bottom: Millimeters(margin?.Bottom?.Value, 1440),
                 Left: Millimeters((int?)margin?.Left?.Value, 1440)),
-            Header: NullIfEmpty(HeaderReader.Read(section, part, inventory)),
-            Footer: NullIfEmpty(HeaderReader.ReadFooter(section, part, inventory)));
+            Header: NullIfEmpty(HeaderReader.Read(section, part, inventory, HeaderFooterValues.Default)),
+            Footer: NullIfEmpty(HeaderReader.ReadFooter(section, part, inventory, HeaderFooterValues.Default)),
+            // Os dois interruptores decidem se as referências valem. O Word
+            // guarda o `first` mesmo com `w:titlePg` desligado — usá-lo sem
+            // conferir poria a capa em todas as páginas.
+            FirstHeader: HasTitlePage(section)
+                ? NullIfEmpty(HeaderReader.Read(section, part, inventory, HeaderFooterValues.First))
+                : null,
+            FirstFooter: HasTitlePage(section)
+                ? NullIfEmpty(HeaderReader.ReadFooter(section, part, inventory, HeaderFooterValues.First))
+                : null,
+            EvenHeader: UsesEvenAndOdd(part)
+                ? NullIfEmpty(HeaderReader.Read(section, part, inventory, HeaderFooterValues.Even))
+                : null,
+            EvenFooter: UsesEvenAndOdd(part)
+                ? NullIfEmpty(HeaderReader.ReadFooter(section, part, inventory, HeaderFooterValues.Even))
+                : null);
+    }
+
+    /// <summary>`w:titlePg`: a primeira página tem cabeçalho próprio.</summary>
+    /// <remarks>
+    /// Elemento presente sem `w:val` significa ligado — é a convenção dos
+    /// interruptores do OOXML, e lê-lo como desligado é o erro clássico.
+    /// </remarks>
+    private static bool HasTitlePage(SectionProperties section)
+    {
+        var flag = section.GetFirstChild<TitlePage>();
+        return flag is not null && (flag.Val?.Value ?? true);
+    }
+
+    /// <summary>
+    /// `w:evenAndOddHeaders`: páginas pares têm cabeçalho próprio.
+    /// </summary>
+    /// <remarks>
+    /// Mora em `settings.xml`, e não na seção: no Word é escolha do documento
+    /// inteiro, não de um trecho dele.
+    /// </remarks>
+    private static bool UsesEvenAndOdd(MainDocumentPart part)
+    {
+        var flag = part.DocumentSettingsPart?.Settings?.GetFirstChild<EvenAndOddHeaders>();
+        return flag is not null && (flag.Val?.Value ?? true);
     }
 
     private static bool AllShareGeometry(List<SectionProperties> sections)

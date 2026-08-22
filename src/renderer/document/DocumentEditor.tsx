@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { EditorContent, useEditor } from '@tiptap/react'
 import { DOCUMENT_CONTENT_CSS, EDITOR_ONLY_CSS } from '@services/document/content-styles.js'
-import { hasBandContent, mmToPx, pageDimensionsMm } from '@services/document/model.js'
+import { bandForPage, hasBandContent, mmToPx, pageDimensionsMm } from '@services/document/model.js'
 import type { DocumentNode } from '@services/document/model.js'
 import { useWorkspace } from '../state/workspace.js'
 import { DocumentToolbar } from './toolbar/DocumentToolbar.js'
@@ -166,24 +166,22 @@ export function DocumentEditor(): React.JSX.Element {
               className="paper-bands"
               style={{ top: `${top}px`, height: `${mmToPx(height)}px` }}
             >
-              {hasBandContent(page.headerBand) && (
-                <PageBand
-                  band={page.headerBand}
-                  kind="header"
-                  pageNumber={index + 1}
-                  totalPages={layout.pages}
-                  insetPx={bandInset}
-                />
-              )}
-              {hasBandContent(page.footerBand) && (
-                <PageBand
-                  band={page.footerBand}
-                  kind="footer"
-                  pageNumber={index + 1}
-                  totalPages={layout.pages}
-                  insetPx={bandInset}
-                />
-              )}
+              {(['header', 'footer'] as const).map((kind) => {
+                // A capa manda sobre a paridade, e a paridade sobre o padrão —
+                // a ordem do Word. Documento sem primeira página distinta cai no
+                // padrão, e nada muda para ele.
+                const band = bandForPage(page, index + 1, kind)
+                return hasBandContent(band) ? (
+                  <PageBand
+                    key={kind}
+                    band={band}
+                    kind={kind}
+                    pageNumber={index + 1}
+                    totalPages={layout.pages}
+                    insetPx={bandInset}
+                  />
+                ) : null
+              })}
             </div>
           ))}
 

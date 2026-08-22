@@ -55,4 +55,10 @@ export const pageSetupSchema = z.object({
   // usuário digitou num documento criado aqui.
   headerBand: bandSchema.nullable().default(null),
   footerBand: bandSchema.nullable().default(null),
+  // Primeira página e páginas pares, quando o documento pede. Opcionais pelo
+  // mesmo motivo dos anteriores: `.sdoc` gravado antes daqui não os tem.
+  firstHeaderBand: bandSchema.nullable().default(null),
+  firstFooterBand: bandSchema.nullable().default(null),
+  evenHeaderBand: bandSchema.nullable().default(null),
+  evenFooterBand: bandSchema.nullable().default(null),
 })

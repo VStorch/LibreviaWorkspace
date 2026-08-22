@@ -95,6 +95,33 @@ public static class Fixtures
     });
 
     /// <summary>
+    /// Três cabeçalhos declarados, com o `first` **antes** do `default` no XML.
+    /// </summary>
+    /// <remarks>
+    /// A ordem é escolhida para enganar: o leitor antigo percorria as
+    /// referências na ordem de gravação e ficava com a primeira não vazia, então
+    /// o cabeçalho da capa apareceria em todas as páginas. Qual aparecia
+    /// dependia de como o Word gravou, e não do que o documento diz.
+    /// </remarks>
+    public static byte[] WithFirstPageHeader(bool titlePage) => Build(
+        (body, _) => body.AppendChild(Paragraph("Corpo do documento.")),
+        (section, part) =>
+        {
+            if (titlePage) section.AppendChild(new TitlePage());
+            section.AppendChild(new HeaderReference { Type = HeaderFooterValues.First, Id = Header(part, "Capa") });
+            section.AppendChild(new HeaderReference { Type = HeaderFooterValues.Default, Id = Header(part, "Miolo") });
+        });
+
+    /// <summary>Um cabeçalho novo com uma linha de texto; devolve o `r:id`.</summary>
+    private static string Header(MainDocumentPart part, string text)
+    {
+        var header = part.AddNewPart<HeaderPart>();
+        header.Header = new Header(new Paragraph(new Run(new Text(text))));
+        header.Header.Save();
+        return part.GetIdOfPart(header);
+    }
+
+    /// <summary>
     /// Duas caixas de texto ancoradas no **mesmo** parágrafo, como o Word grava
     /// a capa de um modelo de manual: título e subtítulo em caixas separadas.
     /// </summary>
@@ -347,7 +374,15 @@ public static class Fixtures
         return paragraph;
     }
 
-    private static byte[] Build(Action<Body, MainDocumentPart> fill)
+    private static byte[] Build(Action<Body, MainDocumentPart> fill) => Build(fill, null);
+
+    /// <param name="decorate">
+    /// Recebe o `w:sectPr` já montado, para o fixture acrescentar referências de
+    /// cabeçalho ou interruptores de seção.
+    /// </param>
+    private static byte[] Build(
+        Action<Body, MainDocumentPart> fill,
+        Action<SectionProperties, MainDocumentPart>? decorate)
     {
         using var buffer = new MemoryStream();
         using (var document = WordprocessingDocument.Create(buffer, WordprocessingDocumentType.Document))
@@ -357,9 +392,11 @@ public static class Fixtures
 
             fill(body, part);
 
-            body.AppendChild(new SectionProperties(
+            var section = new SectionProperties(
                 new PageSize { Width = 11906U, Height = 16838U },
-                new PageMargin { Top = 1440, Bottom = 1440, Left = 1440U, Right = 1440U }));
+                new PageMargin { Top = 1440, Bottom = 1440, Left = 1440U, Right = 1440U });
+            decorate?.Invoke(section, part);
+            body.AppendChild(section);
 
             part.Document = new Document(body);
             part.Document.Save();
