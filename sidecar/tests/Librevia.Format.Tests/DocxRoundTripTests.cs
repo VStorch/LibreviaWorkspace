@@ -483,6 +483,34 @@ public class DocxRoundTripTests
         Assert.Empty(result.Inventory.Structural);
     }
 
+    [Fact]
+    public void OLogotipoDoCabecalhoRespeitaAPosicaoDaAncora()
+    {
+        // 4563177 EMU são 126,8 mm do começo da coluna; com 37 mm de largura, o
+        // centro cai em 145,3 de 150 — o terço da direita, que é onde o Word e o
+        // LibreOffice o desenham.
+        //
+        // A heurística antiga olhava o `a:off` de dentro do desenho, que num
+        // desenho de peça única é sempre zero: a conta dava exatamente meio, e
+        // todo logotipo caía no centro qualquer que fosse a posição real.
+        var page = DocxReader.Read(Fixtures.WithAnchoredHeaderLogo(4563177)).Model.Page;
+
+        Assert.Empty(page.Header!.Center);
+        Assert.Single(page.Header.Right);
+    }
+
+    [Fact]
+    public void OLogotipoAEsquerdaContinuaAEsquerda()
+    {
+        // O contrapeso: um deslocamento negativo põe a peça fora da coluna, pela
+        // esquerda — é como a marca vertical da lateral é ancorada. Lido sem
+        // sinal, ela iria para a direita.
+        var page = DocxReader.Read(Fixtures.WithAnchoredHeaderLogo(-1123950)).Model.Page;
+
+        Assert.Single(page.Header!.Left);
+        Assert.Empty(page.Header.Right);
+    }
+
     // --- quebra de página ---------------------------------------------------
 
     [Fact]

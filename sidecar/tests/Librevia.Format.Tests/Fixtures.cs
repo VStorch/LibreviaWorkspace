@@ -95,6 +95,63 @@ public static class Fixtures
     });
 
     /// <summary>
+    /// Cabeçalho com um logotipo ancorado à direita da coluna de texto.
+    /// </summary>
+    /// <remarks>
+    /// A posição mora na âncora, e o `a:off` de dentro do desenho é zero —
+    /// que é o caso de todo desenho de peça única, e a razão de a heurística
+    /// antiga mandar o logotipo para o centro.
+    /// </remarks>
+    public static byte[] WithAnchoredHeaderLogo(long horizontalOffsetEmus) => Build(
+        (body, _) => body.AppendChild(Paragraph("Corpo.")),
+        (section, part) =>
+        {
+            var header = part.AddNewPart<HeaderPart>();
+            var image = header.AddImagePart(ImagePartType.Png);
+            using (var stream = new MemoryStream(TinyPng()))
+            {
+                image.FeedData(stream);
+            }
+
+            var drawing = new DocumentFormat.OpenXml.Wordprocessing.Drawing();
+            drawing.InnerXml = $"""
+                <wp:anchor xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"
+                           xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"
+                           xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"
+                           xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+                           distT="0" distB="0" distL="0" distR="0" simplePos="0" relativeHeight="2"
+                           behindDoc="1" locked="0" layoutInCell="0" allowOverlap="1">
+                  <wp:simplePos x="0" y="0"/>
+                  <wp:positionH relativeFrom="column"><wp:posOffset>{horizontalOffsetEmus}</wp:posOffset></wp:positionH>
+                  <wp:positionV relativeFrom="paragraph"><wp:posOffset>0</wp:posOffset></wp:positionV>
+                  <wp:extent cx="1332865" cy="314325"/>
+                  <wp:wrapNone/>
+                  <wp:docPr id="9" name="Logotipo"/>
+                  <a:graphic>
+                    <a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">
+                      <pic:pic>
+                        <pic:nvPicPr><pic:cNvPr id="9" name="Logotipo"/><pic:cNvPicPr/></pic:nvPicPr>
+                        <pic:blipFill><a:blip r:embed="{header.GetIdOfPart(image)}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill>
+                        <pic:spPr>
+                          <a:xfrm><a:off x="0" y="0"/><a:ext cx="1332865" cy="314325"/></a:xfrm>
+                          <a:prstGeom prst="rect"><a:avLst/></a:prstGeom>
+                        </pic:spPr>
+                      </pic:pic>
+                    </a:graphicData>
+                  </a:graphic>
+                </wp:anchor>
+                """;
+
+            header.Header = new Header(new Paragraph(new Run(drawing)));
+            header.Header.Save();
+            section.AppendChild(new HeaderReference
+            {
+                Type = HeaderFooterValues.Default,
+                Id = part.GetIdOfPart(header),
+            });
+        });
+
+    /// <summary>
     /// Quebra de página **dentro** do parágrafo, no fim de um `w:r`.
     /// </summary>
     /// <remarks>

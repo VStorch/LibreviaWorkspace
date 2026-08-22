@@ -42,21 +42,25 @@ public static class HeaderReader
         SectionProperties section,
         MainDocumentPart part,
         Inventory inventory,
-        HeaderFooterValues type) =>
+        HeaderFooterValues type,
+        double contentWidthEmus) =>
         ReadReferenced(
             section.Elements<HeaderReference>().Where(r => Matches(r.Type, type)).Select(r => r.Id?.Value),
             part,
-            inventory);
+            inventory,
+            contentWidthEmus);
 
     public static BandDto ReadFooter(
         SectionProperties section,
         MainDocumentPart part,
         Inventory inventory,
-        HeaderFooterValues type) =>
+        HeaderFooterValues type,
+        double contentWidthEmus) =>
         ReadReferenced(
             section.Elements<FooterReference>().Where(r => Matches(r.Type, type)).Select(r => r.Id?.Value),
             part,
-            inventory);
+            inventory,
+            contentWidthEmus);
 
     /// <summary>
     /// Referência sem `w:type` é `default` — é o que a especificação diz, e é o
@@ -68,7 +72,8 @@ public static class HeaderReader
     private static BandDto ReadReferenced(
         IEnumerable<string?> relationshipIds,
         MainDocumentPart part,
-        Inventory inventory)
+        Inventory inventory,
+        double contentWidthEmus)
     {
         foreach (var id in relationshipIds)
         {
@@ -93,7 +98,7 @@ public static class HeaderReader
 
             if (root is null || owner is null) continue;
 
-            var band = Build(root, owner, inventory);
+            var band = Build(root, owner, inventory, contentWidthEmus);
             // Dentro de um mesmo tipo raramente há mais de uma referência; se
             // houver, vale a que tem conteúdo.
             if (!band.IsEmpty) return band;
@@ -102,7 +107,11 @@ public static class HeaderReader
         return BandDto.Empty();
     }
 
-    private static BandDto Build(OpenXmlPartRootElement root, OpenXmlPart owner, Inventory inventory)
+    private static BandDto Build(
+        OpenXmlPartRootElement root,
+        OpenXmlPart owner,
+        Inventory inventory,
+        double contentWidthEmus)
     {
         var columns = new List<PieceDto>[3];
         for (var i = 0; i < 3; i++) columns[i] = [];
@@ -127,7 +136,7 @@ public static class HeaderReader
             // duplicaria o cabeçalho inteiro.
             if (drawing.Ancestors<AlternateContentFallback>().Any()) continue;
 
-            ReadDrawing(drawing, owner, columns, ref rule, inventory);
+            ReadDrawing(drawing, owner, columns, ref rule, inventory, contentWidthEmus);
         }
 
         return new BandDto(columns[0], columns[1], columns[2], rule);
@@ -138,8 +147,21 @@ public static class HeaderReader
         OpenXmlPart owner,
         List<PieceDto>[] columns,
         ref bool rule,
-        Inventory inventory)
+        Inventory inventory,
+        double contentWidthEmus)
     {
+        // A posição real na página vem da **âncora**, quando existe. Sem ela, a
+        // única coordenada disponível é o `a:off` de dentro do desenho, que num
+        // desenho de peça única é sempre zero — e o logotipo do cabeçalho, que
+        // no arquivo está a 126,6 mm do começo da coluna, caía no terço do meio
+        // por essa conta, quando o Word e o LibreOffice o desenham à direita.
+        var anchor = drawing.Descendants<WordDrawing.Anchor>().FirstOrDefault();
+        var horizontal = anchor?.GetFirstChild<WordDrawing.HorizontalPosition>();
+        var anchorOffset = long.TryParse(horizontal?.PositionOffset?.Text, out var emus)
+            ? (double?)emus
+            : null;
+        var anchorAlign = horizontal?.HorizontalAlignment?.Text;
+
         var totalWidth = (double?)drawing.Descendants<WordDrawing.Extent>().FirstOrDefault()?.Cx?.Value;
         if (totalWidth is null or <= 0) totalWidth = 1;
 
@@ -163,7 +185,8 @@ public static class HeaderReader
                 continue;
             }
 
-            columns[ColumnFor(offset, width, origin, span)].AddRange(pieces);
+            columns[ColumnFor(offset, width, origin, span, anchorOffset, anchorAlign, contentWidthEmus)]
+                .AddRange(pieces);
         }
 
         foreach (var picture in drawing.Descendants<Drawing.Pictures.Picture>())
@@ -179,7 +202,8 @@ public static class HeaderReader
             using var buffer = new MemoryStream();
             stream.CopyTo(buffer);
 
-            columns[ColumnFor(offset, width, origin, span)].Add(PieceDto.Image(
+            columns[ColumnFor(offset, width, origin, span, anchorOffset, anchorAlign, contentWidthEmus)]
+                .Add(PieceDto.Image(
                 $"data:{image.ContentType};base64,{Convert.ToBase64String(buffer.ToArray())}",
                 Pixels(width),
                 Pixels(height > 0 ? height : width / 4)));
@@ -198,12 +222,43 @@ public static class HeaderReader
     /// <summary>
     /// Em que terço da largura o centro da peça cai.
     /// </summary>
-    private static int ColumnFor(double offset, double width, double origin, double span)
+    private static int ColumnFor(
+        double offset,
+        double width,
+        double origin,
+        double span,
+        double? anchorOffset,
+        string? anchorAlign,
+        double contentWidthEmus)
     {
+        // Alinhamento declarado não precisa de conta nenhuma: o arquivo já diz
+        // em que terço a peça está.
+        if (anchorAlign is not null)
+        {
+            return anchorAlign switch
+            {
+                "center" => 1,
+                "right" or "outside" => 2,
+                _ => 0,
+            };
+        }
+
+        if (anchorOffset is not null && contentWidthEmus > 0)
+        {
+            // A coordenada de dentro do desenho entra como está. Num desenho de
+            // peça única — o caso do logotipo — ela é zero, e a âncora responde
+            // sozinha. Num grupo ela está no espaço do grupo e não em EMU da
+            // página, o que torna a soma uma aproximação: erra dentro do próprio
+            // grupo, nunca sobre em que terço da página o grupo está.
+            return ThirdOf((anchorOffset.Value + offset - origin + width / 2) / contentWidthEmus);
+        }
+
         if (span <= 0) return 0;
-        var center = (offset - origin + width / 2) / span;
-        return center < 1.0 / 3 ? 0 : center < 2.0 / 3 ? 1 : 2;
+        return ThirdOf((offset - origin + width / 2) / span);
     }
+
+    private static int ThirdOf(double fraction) =>
+        fraction < 1.0 / 3 ? 0 : fraction < 2.0 / 3 ? 1 : 2;
 
     private static int ColumnOf(Paragraph paragraph)
     {

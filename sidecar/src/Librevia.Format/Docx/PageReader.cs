@@ -30,6 +30,9 @@ public static class PageReader
 {
     private const double TwipsPerMillimeter = 1440 / 25.4;
 
+    /// <summary>1 twip = 1/1440 polegada; 1 polegada = 914400 EMU.</summary>
+    private const double EmusPerTwip = 914400.0 / 1440;
+
     /// <summary>Tolerância ao comparar seções: 1 twip é 0,018 mm.</summary>
     private const int GeometryTolerance = 2;
 
@@ -55,6 +58,13 @@ public static class PageReader
         var widthTwips = (double?)size?.Width?.Value ?? 11906;
         var heightTwips = (double?)size?.Height?.Value ?? 16838;
 
+        // A faixa decide em que terço cada peça cai comparando a posição dela
+        // com a largura da coluna de texto. Sem esta medida, o logotipo do
+        // cabeçalho — que no arquivo tem posição de verdade — caía no centro.
+        var contentWidthEmus = Math.Max(
+            (widthTwips - (margin?.Left?.Value ?? 1440) - (margin?.Right?.Value ?? 1440)) * EmusPerTwip,
+            1);
+
         return new PageSetupDto(
             Size: NearestSize(widthTwips, heightTwips, landscape),
             Orientation: landscape ? "landscape" : "portrait",
@@ -63,22 +73,22 @@ public static class PageReader
                 Right: Millimeters((int?)margin?.Right?.Value, 1440),
                 Bottom: Millimeters(margin?.Bottom?.Value, 1440),
                 Left: Millimeters((int?)margin?.Left?.Value, 1440)),
-            Header: NullIfEmpty(HeaderReader.Read(section, part, inventory, HeaderFooterValues.Default)),
-            Footer: NullIfEmpty(HeaderReader.ReadFooter(section, part, inventory, HeaderFooterValues.Default)),
+            Header: NullIfEmpty(HeaderReader.Read(section, part, inventory, HeaderFooterValues.Default, contentWidthEmus)),
+            Footer: NullIfEmpty(HeaderReader.ReadFooter(section, part, inventory, HeaderFooterValues.Default, contentWidthEmus)),
             // Os dois interruptores decidem se as referências valem. O Word
             // guarda o `first` mesmo com `w:titlePg` desligado — usá-lo sem
             // conferir poria a capa em todas as páginas.
             FirstHeader: HasTitlePage(section)
-                ? NullIfEmpty(HeaderReader.Read(section, part, inventory, HeaderFooterValues.First))
+                ? NullIfEmpty(HeaderReader.Read(section, part, inventory, HeaderFooterValues.First, contentWidthEmus))
                 : null,
             FirstFooter: HasTitlePage(section)
-                ? NullIfEmpty(HeaderReader.ReadFooter(section, part, inventory, HeaderFooterValues.First))
+                ? NullIfEmpty(HeaderReader.ReadFooter(section, part, inventory, HeaderFooterValues.First, contentWidthEmus))
                 : null,
             EvenHeader: UsesEvenAndOdd(part)
-                ? NullIfEmpty(HeaderReader.Read(section, part, inventory, HeaderFooterValues.Even))
+                ? NullIfEmpty(HeaderReader.Read(section, part, inventory, HeaderFooterValues.Even, contentWidthEmus))
                 : null,
             EvenFooter: UsesEvenAndOdd(part)
-                ? NullIfEmpty(HeaderReader.ReadFooter(section, part, inventory, HeaderFooterValues.Even))
+                ? NullIfEmpty(HeaderReader.ReadFooter(section, part, inventory, HeaderFooterValues.Even, contentWidthEmus))
                 : null);
     }
 
