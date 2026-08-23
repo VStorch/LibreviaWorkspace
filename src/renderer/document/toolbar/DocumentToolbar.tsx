@@ -71,7 +71,11 @@ export function DocumentToolbar({
       link: current.isActive('link'),
       inTable: current.isActive('table'),
       heading: current.isActive('heading') ? String(current.getAttributes('heading')['level'] ?? '') : '',
-      fontFamily: String(current.getAttributes('textStyle')['fontFamily'] ?? ''),
+      // Só o nome da fonte: o que vem do documento é uma pilha de CSS, com a
+      // substituta genérica atrás, e é o nome que a lista aqui conhece.
+      fontFamily: String(current.getAttributes('textStyle')['fontFamily'] ?? '')
+        .split(',')[0]!
+        .trim(),
       fontSize: String(current.getAttributes('textStyle')['fontSize'] ?? '').replace('pt', ''),
       lineHeight: String(current.getAttributes('textStyle')['lineHeight'] ?? ''),
       color: String(current.getAttributes('textStyle')['color'] ?? '#000000'),

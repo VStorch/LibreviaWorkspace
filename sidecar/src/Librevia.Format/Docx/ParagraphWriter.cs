@@ -223,7 +223,11 @@ public sealed class ParagraphWriter(MainDocumentPart part, Inventory inventory)
 
         if (MarkString(mark, "fontFamily") is { } font)
         {
-            properties.RunFonts = new RunFonts { Ascii = font, HighAnsi = font };
+            // Só a primeira da pilha volta para o arquivo. O que sai do leitor é
+            // uma pilha de CSS — a fonte pedida e a substituta genérica — e o
+            // `w:rFonts` guarda o nome de uma fonte, não uma pilha.
+            var first = font.Split(',')[0].Trim().Trim('\'', '"');
+            if (first.Length > 0) properties.RunFonts = new RunFonts { Ascii = first, HighAnsi = first };
         }
 
         if (MarkString(mark, "fontSize") is { } size)

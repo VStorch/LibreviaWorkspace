@@ -28,6 +28,7 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory)
 
     private readonly NumberingReader _numbering = new(part);
     private readonly StyleResolver _styles = new(part);
+    private readonly FontTable _fonts = new(part);
     private int _nextId = 1;
 
     /// <summary>
@@ -306,10 +307,10 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory)
         return node;
     }
 
-    private static string? FontOf(RunProperties properties)
+    private string? FontOf(RunProperties properties)
     {
         var font = properties.RunFonts?.Ascii?.Value ?? properties.RunFonts?.HighAnsi?.Value;
-        return string.IsNullOrWhiteSpace(font) ? null : font;
+        return string.IsNullOrWhiteSpace(font) ? null : _fonts.Stack(font);
     }
 
     /// <summary>`w:sz` vem em meios-pontos: 20 significa 10 pt.</summary>
@@ -515,7 +516,7 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory)
 
     private IEnumerable<Node> ReadRun(Run run, RunProperties inherited, string? hyperlink)
     {
-        var marks = RunReader.MarksOf(_styles.ResolveRun(inherited, run.RunProperties), hyperlink);
+        var marks = RunReader.MarksOf(_styles.ResolveRun(inherited, run.RunProperties), hyperlink, _fonts);
 
         foreach (var element in run.ChildElements)
         {

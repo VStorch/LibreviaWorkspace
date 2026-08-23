@@ -19,7 +19,7 @@ public static class RunReader
     public static bool IsOn(OnOffType? toggle) =>
         toggle is not null && (toggle.Val is null || toggle.Val.Value);
 
-    public static List<Mark>? MarksOf(RunProperties? properties, string? hyperlink)
+    public static List<Mark>? MarksOf(RunProperties? properties, string? hyperlink, FontTable? fonts = null)
     {
         var marks = new List<Mark>();
 
@@ -50,7 +50,7 @@ public static class RunReader
                 marks.Add(Mark.Of("highlight", "color", highlight));
             }
 
-            var style = TextStyleOf(properties);
+            var style = TextStyleOf(properties, fonts);
             if (style is not null)
             {
                 marks.Add(style);
@@ -60,7 +60,7 @@ public static class RunReader
         return marks.Count == 0 ? null : marks;
     }
 
-    private static Mark? TextStyleOf(RunProperties properties)
+    private static Mark? TextStyleOf(RunProperties properties, FontTable? fonts)
     {
         var attributes = new Dictionary<string, System.Text.Json.Nodes.JsonNode?>();
 
@@ -74,8 +74,11 @@ public static class RunReader
             attributes["fontSize"] = FormatPoints(halfPoints / 2);
         }
 
+        // Com a substituta genérica atrás: a fonte que o documento pede pode não
+        // existir na máquina de quem abre, e sem dizer de que tipo ela é o
+        // navegador cai na serifa do fim da pilha. Ver FontTable.
         var font = properties.RunFonts?.Ascii?.Value ?? properties.RunFonts?.HighAnsi?.Value;
-        if (!string.IsNullOrWhiteSpace(font)) attributes["fontFamily"] = font;
+        if (!string.IsNullOrWhiteSpace(font)) attributes["fontFamily"] = fonts?.Stack(font) ?? font;
 
         return attributes.Count == 0 ? null : new Mark { Type = "textStyle", Attrs = attributes };
     }

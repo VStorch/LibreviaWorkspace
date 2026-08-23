@@ -469,6 +469,41 @@ public class DocxRoundTripTests
     }
 
     [Fact]
+    public void AFonteAusenteCaiNaSubstitutaDoTipoCerto()
+    {
+        // O documento nomeia fontes que a máquina de quem abre pode não ter. Sem
+        // dizer de que tipo elas são, o navegador cai na próxima da pilha, e a
+        // pilha do editor termina em serifa: a capa do modelo de manual, que
+        // pede Segoe UI, saía com o título em Times enquanto o LibreOffice o
+        // desenha sem serifa. `word/fontTable.xml` é quem diz o tipo.
+        var model = Open(Fixtures.WithMissingFont());
+
+        var titulo = MarksOf(BlockContaining(model, "Título da capa")).Single(m => m.Type == "textStyle");
+        Assert.Equal("Segoe UI, sans-serif", titulo.Attrs!["fontFamily"]!.GetValue<string>());
+
+        // Fonte que a tabela não declara não ganha pilha inventada.
+        var outro = MarksOf(BlockContaining(model, "Sem tipo")).Single(m => m.Type == "textStyle");
+        Assert.Equal("Fonte Fantasma", outro.Attrs!["fontFamily"]!.GetValue<string>());
+    }
+
+    [Fact]
+    public void SoONomeDaFonteVoltaParaOArquivo()
+    {
+        // `w:rFonts` guarda o nome de uma fonte, não uma pilha de CSS. Escrever
+        // a pilha inteira gravaria uma fonte chamada "Segoe UI, sans-serif".
+        var original = Fixtures.WithMissingFont();
+        var model = Clone(Open(original));
+
+        var paragraph = Walk(model.Doc).First(n => n.Type == "paragraph");
+        paragraph.Attrs!.Remove("oid");
+
+        var (bytes, _) = Save(original, model);
+        var titulo = MarksOf(BlockContaining(Open(bytes), "Título da capa")).Single(m => m.Type == "textStyle");
+
+        Assert.Equal("Segoe UI, sans-serif", titulo.Attrs!["fontFamily"]!.GetValue<string>());
+    }
+
+    [Fact]
     public void ReadsKeepWithNext()
     {
         // Diz que o bloco não fica sozinho no pé da página. A marca de fim de

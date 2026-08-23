@@ -281,6 +281,37 @@ public static class Fixtures
             new Paragraph(new Run(new Text(text) { Space = SpaceProcessingModeValues.Preserve })));
     }
 
+    /// <summary>
+    /// Documento que pede uma fonte que a máquina pode não ter.
+    /// </summary>
+    /// <remarks>
+    /// `word/fontTable.xml` diz de que tipo cada fonte é. Sem consultá-lo, uma
+    /// fonte ausente cai na próxima da pilha do editor, que termina em serifa —
+    /// e a capa do modelo de manual, que pede Segoe UI, saía com o título em
+    /// Times enquanto o LibreOffice o desenha sem serifa.
+    /// </remarks>
+    public static byte[] WithMissingFont() => Build((body, part) =>
+    {
+        var table = part.AddNewPart<FontTablePart>();
+        table.Fonts = new Fonts(
+            new Font(new FontFamily { Val = FontFamilyValues.Swiss }) { Name = "Segoe UI" },
+            new Font(new FontFamily { Val = FontFamilyValues.Modern }) { Name = "Consolas" });
+        table.Fonts.Save();
+
+        var paragraph = new Paragraph();
+        paragraph.AppendChild(new Run(
+            new RunProperties(new RunFonts { Ascii = "Segoe UI", HighAnsi = "Segoe UI" }),
+            new Text("Título da capa") { Space = SpaceProcessingModeValues.Preserve }));
+        body.AppendChild(paragraph);
+
+        // Fonte que a tabela não declara: nada a inventar, sai como está.
+        var outro = new Paragraph();
+        outro.AppendChild(new Run(
+            new RunProperties(new RunFonts { Ascii = "Fonte Fantasma", HighAnsi = "Fonte Fantasma" }),
+            new Text("Sem tipo declarado") { Space = SpaceProcessingModeValues.Preserve }));
+        body.AppendChild(outro);
+    });
+
     /// <summary>Um cabeçalho novo com uma linha de texto; devolve o `r:id`.</summary>
     private static string Header(MainDocumentPart part, string text)
     {
