@@ -101,6 +101,59 @@ export async function docxWithTextBox(): Promise<Buffer> {
   ])
 }
 
+/**
+ * Um PNG quadrado de 4 × 4, do tamanho de um comentário.
+ *
+ * Quadrado de propósito: o documento que o usa pede uma caixa de 400 × 100, e é
+ * a divergência entre a proporção do arquivo e a que o documento pede que o
+ * teste observa.
+ */
+const SQUARE_PNG = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAIAAAAmkwkpAAAADklEQVR4nGNwQAIMxHEAOEMMAfoZu1cAAAAASUVORK5CYII=',
+  'base64',
+)
+
+const IMAGE_CONTENT_TYPES = CONTENT_TYPES.replace(
+  '<Default Extension="xml"',
+  '<Default Extension="png" ContentType="image/png"/><Default Extension="xml"',
+).replace(/<Override PartName="\/word\/comments[^>]+>/, '')
+
+const IMAGE_RELS = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+<Relationship Id="rId9" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/quadrado.png"/>
+</Relationships>`
+
+/**
+ * Documento com uma imagem esticada no fluxo do texto.
+ *
+ * O `.docx` diz em `wp:extent` de que tamanho a imagem é **na página**, e esse
+ * tamanho não precisa ter a proporção do arquivo: quem arrasta um canto sem
+ * travar a proporção estica a imagem, e o Word desenha esticado. Aqui um PNG
+ * quadrado é declarado como 400 × 100 px — 3810000 × 952500 EMU.
+ */
+export async function docxWithStretchedImage(): Promise<Buffer> {
+  const R = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships'
+  const PIC = 'http://schemas.openxmlformats.org/drawingml/2006/picture'
+  const imagem =
+    `<w:p><w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0">` +
+    `<wp:extent cx="3810000" cy="952500"/><wp:docPr id="1" name="Quadrado"/>` +
+    `<a:graphic><a:graphicData uri="${PIC}"><pic:pic xmlns:pic="${PIC}">` +
+    `<pic:nvPicPr><pic:cNvPr id="1" name="Quadrado"/><pic:cNvPicPr/></pic:nvPicPr>` +
+    `<pic:blipFill><a:blip xmlns:r="${R}" r:embed="rId9"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill>` +
+    `<pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="3810000" cy="952500"/></a:xfrm>` +
+    `<a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr>` +
+    `</pic:pic></a:graphicData></a:graphic>` +
+    `</wp:inline></w:drawing></w:r></w:p>`
+
+  return zip([
+    ['[Content_Types].xml', IMAGE_CONTENT_TYPES],
+    ['_rels/.rels', ROOT_RELS],
+    ['word/_rels/document.xml.rels', IMAGE_RELS],
+    ['word/media/quadrado.png', SQUARE_PNG],
+    ['word/document.xml', documentXml(imagem + paragraph('Legenda da imagem.'))],
+  ])
+}
+
 /** Documento sem nada que o editor não mostre. */
 export async function docxWithoutExtras(): Promise<Buffer> {
   return zip([
@@ -125,14 +178,14 @@ function crc32(data: Buffer): number {
   return (c ^ 0xffffffff) >>> 0
 }
 
-function zip(entries: Array<[string, string]>): Buffer {
+function zip(entries: Array<[string, string | Buffer]>): Buffer {
   const locals: Buffer[] = []
   const central: Buffer[] = []
   let offset = 0
 
   for (const [name, text] of entries) {
     const filename = Buffer.from(name, 'utf8')
-    const data = Buffer.from(text, 'utf8')
+    const data = typeof text === 'string' ? Buffer.from(text, 'utf8') : text
     const checksum = crc32(data)
 
     const local = Buffer.alloc(30)

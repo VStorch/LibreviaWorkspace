@@ -183,6 +183,30 @@ public class DocxRoundTripTests
 
         var image = Assert.Single(Walk(model.Doc).Where(n => n.Type == "image"));
         Assert.Equal(554, image.Attrs!["width"]!.GetValue<int>());
+
+        // A altura junto com a largura. Sem ela o navegador reserva zero até os
+        // bytes decodificarem — e a paginação mede a folha uma vez, antes disso.
+        Assert.Equal(277, image.Attrs["height"]!.GetValue<int>());
+    }
+
+    [Fact]
+    public void ImagemReescritaMantemOTamanhoQueTinha()
+    {
+        // O parágrafo da imagem foi editado, então ele é regravado do modelo em
+        // vez de copiado. Enquanto a altura não chegava, o escritor chutava três
+        // quartos da largura: a imagem voltava para o arquivo com outra forma,
+        // sem ninguém ter tocado nela.
+        var original = Fixtures.WithInlineImage();
+        var model = Clone(Open(original));
+
+        var paragraph = Walk(model.Doc).First(n => n.Type == "paragraph");
+        paragraph.Attrs!.Remove("oid");
+
+        var (bytes, _) = Save(original, model);
+        var image = Assert.Single(Walk(Open(bytes).Doc).Where(n => n.Type == "image"));
+
+        Assert.Equal(554, image.Attrs!["width"]!.GetValue<int>());
+        Assert.Equal(277, image.Attrs["height"]!.GetValue<int>());
     }
 
     [Fact]

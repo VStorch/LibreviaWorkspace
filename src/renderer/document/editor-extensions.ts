@@ -1,7 +1,6 @@
 import type { Extensions } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
 import Highlight from '@tiptap/extension-highlight'
-import Image from '@tiptap/extension-image'
 import TextAlign from '@tiptap/extension-text-align'
 import { TableKit } from '@tiptap/extension-table'
 import { CharacterCount } from '@tiptap/extensions'
@@ -14,6 +13,7 @@ import {
   TextStyle,
 } from '@tiptap/extension-text-style'
 import { BlockFormat } from './extensions/block-format.js'
+import { DocumentImage } from './extensions/document-image.js'
 import { BlockIdentity } from './extensions/block-identity.js'
 import { Indent } from './extensions/indent.js'
 import { Caps, SmallCaps } from './extensions/letter-case.js'
@@ -55,7 +55,7 @@ export function buildEditorExtensions(onSearchStatusChange: (status: SearchStatu
     Highlight.configure({ multicolor: true }),
     TextAlign.configure({ types: ['heading', 'paragraph'] }),
 
-    Image.configure({
+    DocumentImage.configure({
       inline: false,
       // Imagens entram como data URI, validadas no processo main antes de
       // chegarem aqui. SVG é recusado lá: é vetor de script.

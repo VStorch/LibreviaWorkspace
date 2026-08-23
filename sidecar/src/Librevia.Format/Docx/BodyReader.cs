@@ -745,23 +745,27 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory)
         var node = Node.Of("image").With("src", src);
 
         var extent = drawing.Descendants<Drawing.Wordprocessing.Extent>().FirstOrDefault();
-        if (extent?.Cx is not null)
+        if (extent?.Cx?.Value is { } wide && extent.Cy?.Value is { } tall && wide > 0 && tall > 0)
         {
-            var across = extent.Cx.Value;
-
             // `wp:extent` mede a imagem antes de girar. Num quarto de volta o
             // que ocupa a largura da página é a altura dela, e usar `cx` põe na
             // linha uma imagem deitada com a medida do lado comprido: a marca
             // vertical de 28,58 cm da capa do modelo de manual chegava como
             // 1080 px de largura numa coluna de 734 px, tomava a página inteira
             // e empurrava o resto para baixo.
-            if (extent.Cy?.Value is { } down && down > 0 && IsQuarterTurned(drawing))
-            {
-                across = down;
-            }
+            var (across, down) = IsQuarterTurned(drawing) ? (tall, wide) : (wide, tall);
 
+            // As duas medidas, e não só a largura. A altura faltando tinha três
+            // consequências, todas silenciosas: o navegador reservava zero até a
+            // imagem decodificar, e a paginação media a folha sem ela; a
+            // proporção passava a ser a do arquivo, e não a que o documento
+            // pede, então imagem esticada de propósito voltava ao natural; e na
+            // gravação o escritor chutava três quartos da largura, o que dava
+            // outro tamanho ao que ninguém tinha tocado.
+            //
             // EMU → pixels CSS: 914400 EMU por polegada, 96 px por polegada.
             node.With("width", (int)Math.Round(across * 96.0 / 914400));
+            node.With("height", (int)Math.Round(down * 96.0 / 914400));
         }
 
         return node;
