@@ -154,6 +154,65 @@ export async function docxWithStretchedImage(): Promise<Buffer> {
   ])
 }
 
+/**
+ * Documento cujo cabeçalho é uma grade, como o cabeçalho corporativo do corpus.
+ *
+ * Duas linhas e três colunas, com a primeira coluna mesclada pelas duas linhas.
+ * É a estrutura que, achatada em esquerda-centro-direita, virava uma fileira de
+ * palavras por cima da primeira linha do texto.
+ */
+export async function docxWithHeaderGrid(): Promise<Buffer> {
+  const borda =
+    `<w:tblBorders><w:top w:val="single" w:sz="4"/><w:left w:val="single" w:sz="4"/>` +
+    `<w:bottom w:val="single" w:sz="4"/><w:right w:val="single" w:sz="4"/>` +
+    `<w:insideH w:val="single" w:sz="4"/><w:insideV w:val="single" w:sz="4"/></w:tblBorders>`
+
+  const celula = (texto: string, largura: string, extra = ''): string =>
+    `<w:tc><w:tcPr><w:tcW w:w="${largura}" w:type="dxa"/>${extra}</w:tcPr>` +
+    `<w:p><w:r><w:t xml:space="preserve">${texto}</w:t></w:r></w:p></w:tc>`
+
+  const grade =
+    `<w:tbl><w:tblPr><w:tblW w:w="10000" w:type="dxa"/>${borda}</w:tblPr>` +
+    `<w:tblGrid><w:gridCol w:w="2000"/><w:gridCol w:w="8000"/></w:tblGrid>` +
+    `<w:tr>${celula('Selo', '2000', '<w:vMerge w:val="restart"/>')}${celula('Chamado 10001', '8000')}</w:tr>` +
+    `<w:tr>${celula('', '2000', '<w:vMerge/>')}${celula('Título do documento', '8000')}</w:tr>` +
+    `</w:tbl>`
+
+  const header = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:hdr xmlns:w="${W}">${grade}<w:p/></w:hdr>`
+
+  const rels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+<Relationship Id="rId5" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/header" Target="header1.xml"/>
+</Relationships>`
+
+  const R = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships'
+  const corpo =
+    paragraph('Primeira linha do corpo.') +
+    `<w:sectPr><w:headerReference xmlns:r="${R}" w:type="default" r:id="rId5"/>` +
+    `<w:pgSz w:w="11906" w:h="16838"/>` +
+    `<w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440" w:header="708" w:footer="708"/>` +
+    `</w:sectPr>`
+
+  return zip([
+    [
+      '[Content_Types].xml',
+      CONTENT_TYPES.replace(
+        '<Override PartName="/word/document.xml"',
+        '<Override PartName="/word/header1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"/><Override PartName="/word/document.xml"',
+      ).replace(/<Override PartName="\/word\/comments[^>]+>/, ''),
+    ],
+    ['_rels/.rels', ROOT_RELS],
+    ['word/_rels/document.xml.rels', rels],
+    ['word/header1.xml', header],
+    // O `w:sectPr` deste documento é o do fixture, não o vazio do molde.
+    [
+      'word/document.xml',
+      documentXml('').replace('<w:sectPr/>', '').replace('</w:body>', `${corpo}</w:body>`),
+    ],
+  ])
+}
+
 /** Documento sem nada que o editor não mostre. */
 export async function docxWithoutExtras(): Promise<Buffer> {
   return zip([

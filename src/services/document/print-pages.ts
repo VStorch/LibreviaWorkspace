@@ -3,6 +3,7 @@ import {
   hasBandContent,
   pageDimensionsMm,
   type Band,
+  type BandCell,
   type BandPiece,
   type PageSetup,
 } from './model.js'
@@ -106,6 +107,17 @@ export function buildPagedCss(page: PageSetup): string {
 .paper-page__cell { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .paper-page__cell--center { justify-content: center; }
 .paper-page__cell--right { justify-content: flex-end; }
+
+/* A grade atravessa os três terços: ela é a moldura do cabeçalho, não uma peça
+   a ser distribuída entre eles. */
+.paper-page__grid {
+  grid-column: 1 / -1;
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+.paper-page__grid td { padding: 1px 4px; vertical-align: middle; overflow-wrap: break-word; }
+.paper-page__grid img { max-width: 100%; height: auto; }
 `
 }
 
@@ -185,10 +197,53 @@ function renderBand(
   return (
     `<div class="paper-page__band paper-page__band--${kind}${band.rule ? ' paper-page__band--ruled' : ''}" ` +
     `style="left:${inset}mm;right:${inset}mm">` +
+    renderGrid(band, pageNumber, total) +
     cell(band.left, 'left') +
     cell(band.center, 'center') +
     cell(band.right, 'right') +
     '</div>'
+  )
+}
+
+/**
+ * A grade do cabeçalho no papel.
+ *
+ * A mesma tabela que a tela desenha, a partir das mesmas células já resolvidas:
+ * larguras, mesclagem e bordas vêm prontas do leitor, e nenhum dos dois refaz a
+ * conta por conta própria — que é como tela e papel divergem.
+ */
+function renderGrid(band: Band, pageNumber: number, total: number): string {
+  if (band.rows.length === 0) return ''
+
+  const rows = band.rows
+    .map((row) => {
+      const cells = row.cells
+        .map((cell) => {
+          const span = cell.span === 1 ? '' : ` colspan="${cell.span}"`
+          const down = cell.rowSpan === 1 ? '' : ` rowspan="${cell.rowSpan}"`
+          const pieces = cell.pieces.map((piece) => renderPiece(piece, pageNumber, total)).join('')
+          return `<td${span}${down} style="${cellStyle(cell)}">${pieces}</td>`
+        })
+        .join('')
+      return `<tr>${cells}</tr>`
+    })
+    .join('')
+
+  return `<table class="paper-page__grid"><tbody>${rows}</tbody></table>`
+}
+
+function cellStyle(cell: BandCell): string {
+  const line = '1px solid currentcolor'
+  const side = (initial: string, name: string): string =>
+    cell.borders.includes(initial) ? `border-${name}:${line};` : ''
+
+  return (
+    (cell.width > 0 ? `width:${(cell.width * 100).toFixed(2)}%;` : '') +
+    (cell.align === undefined ? '' : `text-align:${escapeHtml(cell.align)};`) +
+    side('t', 'top') +
+    side('l', 'left') +
+    side('b', 'bottom') +
+    side('r', 'right')
   )
 }
 

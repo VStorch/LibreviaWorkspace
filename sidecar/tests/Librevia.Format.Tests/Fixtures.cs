@@ -185,6 +185,102 @@ public static class Fixtures
             section.AppendChild(new HeaderReference { Type = HeaderFooterValues.Default, Id = Header(part, "Miolo") });
         });
 
+    /// <summary>
+    /// Cabeçalho em grade, como o cabeçalho corporativo do corpus.
+    /// </summary>
+    /// <remarks>
+    /// Quatro colunas de grade e três linhas. O logotipo mora na primeira
+    /// coluna, mesclada verticalmente pelas três; à direita, duas colunas da
+    /// grade viram uma só por `w:gridSpan`. É a estrutura que, achatada em
+    /// esquerda-centro-direita, virava uma fileira de palavras por cima da
+    /// primeira linha do texto.
+    /// </remarks>
+    public static byte[] WithHeaderGrid() => Build(
+        (body, _) => body.AppendChild(Paragraph("Corpo do documento.")),
+        (section, part) =>
+        {
+            var header = part.AddNewPart<HeaderPart>();
+            var image = header.AddImagePart(ImagePartType.Png);
+            using (var stream = new MemoryStream(TinyPng()))
+            {
+                image.FeedData(stream);
+            }
+
+            var borders = new TableBorders(
+                new TopBorder { Val = BorderValues.Single, Size = 4 },
+                new LeftBorder { Val = BorderValues.Single, Size = 4 },
+                new BottomBorder { Val = BorderValues.Single, Size = 4 },
+                new RightBorder { Val = BorderValues.Single, Size = 4 },
+                new InsideHorizontalBorder { Val = BorderValues.Single, Size = 4 },
+                new InsideVerticalBorder { Val = BorderValues.Single, Size = 4 });
+
+            var table = new Table(
+                new TableProperties(new TableWidth { Width = "10000", Type = TableWidthUnitValues.Dxa }, borders),
+                new TableGrid(
+                    new GridColumn { Width = "2000" },
+                    new GridColumn { Width = "6000" },
+                    new GridColumn { Width = "1000" },
+                    new GridColumn { Width = "1000" }));
+
+            table.AppendChild(new TableRow(
+                LogoCell(header.GetIdOfPart(image), MergedCellValues.Restart),
+                TextCell("Chamado 10001", "6000"),
+                TextCell("Data de revisão", "2000", span: 2)));
+
+            table.AppendChild(new TableRow(
+                LogoCell(null, MergedCellValues.Continue),
+                TextCell("Título do documento", "6000"),
+                TextCell("30/07/2026", "2000", span: 2)));
+
+            // A linha em que a borda de baixo é apagada na célula: é assim que
+            // duas linhas do arquivo viram uma moldura só na tela.
+            var sem = TextCell("Página", "1000");
+            sem.TableCellProperties!.AppendChild(
+                new TableCellBorders(new BottomBorder { Val = BorderValues.Nil }));
+
+            table.AppendChild(new TableRow(
+                LogoCell(null, MergedCellValues.Continue),
+                TextCell("Rodapé do cabeçalho", "6000"),
+                sem,
+                TextCell("Revisão", "1000")));
+
+            header.Header = new Header(table, new Paragraph());
+            header.Header.Save();
+            section.AppendChild(new HeaderReference
+            {
+                Type = HeaderFooterValues.Default,
+                Id = part.GetIdOfPart(header),
+            });
+        });
+
+    private static TableCell LogoCell(string? relationshipId, MergedCellValues merge)
+    {
+        var properties = new TableCellProperties(
+            new TableCellWidth { Width = "2000", Type = TableWidthUnitValues.Dxa },
+            new VerticalMerge { Val = merge });
+
+        var paragraph = new Paragraph(new ParagraphProperties(
+            new Justification { Val = JustificationValues.Center }));
+
+        if (relationshipId is not null)
+        {
+            paragraph.AppendChild(new Run(InlineDrawing(relationshipId)));
+        }
+
+        return new TableCell(properties, paragraph);
+    }
+
+    private static TableCell TextCell(string text, string width, int span = 1)
+    {
+        var properties = new TableCellProperties(
+            new TableCellWidth { Width = width, Type = TableWidthUnitValues.Dxa });
+        if (span > 1) properties.AppendChild(new GridSpan { Val = span });
+
+        return new TableCell(
+            properties,
+            new Paragraph(new Run(new Text(text) { Space = SpaceProcessingModeValues.Preserve })));
+    }
+
     /// <summary>Um cabeçalho novo com uma linha de texto; devolve o `r:id`.</summary>
     private static string Header(MainDocumentPart part, string text)
     {

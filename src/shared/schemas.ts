@@ -53,12 +53,32 @@ const bandFloatSchema = z.object({
   wrap: z.string(),
 })
 
+/**
+ * Uma célula da grade do cabeçalho.
+ *
+ * `borders` são as iniciais dos lados que têm risco — `t`, `l`, `b`, `r` — já
+ * resolvidos pelo leitor: no OOXML cada lado vem por três caminhos, e refazer
+ * essa conta em dois desenhistas é como tela e papel divergem.
+ */
+const bandCellSchema = z.object({
+  pieces: z.array(bandPieceSchema).max(40).default([]),
+  width: z.number().min(0).max(1).default(0),
+  span: z.number().int().min(1).max(32).default(1),
+  rowSpan: z.number().int().min(1).max(32).default(1),
+  align: z.string().max(16).optional(),
+  borders: z.string().max(4).default(''),
+})
+
 export const bandSchema = z.object({
   left: z.array(bandPieceSchema).max(20).default([]),
   center: z.array(bandPieceSchema).max(20).default([]),
   right: z.array(bandPieceSchema).max(20).default([]),
   rule: z.boolean().default(false),
   floats: z.array(bandFloatSchema).max(20).default([]),
+  rows: z
+    .array(z.object({ cells: z.array(bandCellSchema).max(32).default([]) }))
+    .max(32)
+    .default([]),
 })
 
 export const pageSetupSchema = z.object({

@@ -26,9 +26,10 @@ public sealed record BandDto(
     [property: JsonPropertyName("center")] List<PieceDto> Center,
     [property: JsonPropertyName("right")] List<PieceDto> Right,
     [property: JsonPropertyName("rule")] bool Rule,
-    [property: JsonPropertyName("floats")] List<FloatDto>? Floats = null)
+    [property: JsonPropertyName("floats")] List<FloatDto>? Floats = null,
+    [property: JsonPropertyName("rows")] List<BandRowDto>? Rows = null)
 {
-    public static BandDto Empty() => new([], [], [], false, []);
+    public static BandDto Empty() => new([], [], [], false, [], []);
 
     [JsonIgnore]
     public bool IsEmpty =>
@@ -36,8 +37,37 @@ public sealed record BandDto(
         && Center.Count == 0
         && Right.Count == 0
         && !Rule
-        && (Floats is null || Floats.Count == 0);
+        && (Floats is null || Floats.Count == 0)
+        && (Rows is null || Rows.Count == 0);
 }
+
+/// <summary>Uma linha da grade do cabeçalho.</summary>
+public sealed record BandRowDto(
+    [property: JsonPropertyName("cells")] List<BandCellDto> Cells);
+
+/// <summary>
+/// Uma célula da grade: o que está escrito nela e o retângulo que ela ocupa.
+/// </summary>
+/// <remarks>
+/// A grade é a outra metade do cabeçalho corporativo, e a que não cabia em três
+/// colunas. No corpus real ela traz o logotipo numa célula mesclada por quatro
+/// linhas, o título ao lado e a numeração à direita — e achatada em esquerda,
+/// centro e direita virava uma sopa de palavras por cima do texto.
+///
+/// As bordas vêm como as iniciais dos lados que existem — `t`, `l`, `b`, `r`.
+/// Não é economia de bytes: é que o OOXML resolve cada lado por três caminhos
+/// (a borda da célula, a da tabela, a interna), e o resultado dessa conta é um
+/// sim ou não por lado. Guardar a conta feita evita refazê-la em dois
+/// desenhistas diferentes, que é como tela e papel divergem.
+/// </remarks>
+public sealed record BandCellDto(
+    [property: JsonPropertyName("pieces")] List<PieceDto> Pieces,
+    /// <summary>Fração da largura da grade, de 0 a 1.</summary>
+    [property: JsonPropertyName("width")] double Width,
+    [property: JsonPropertyName("span")] int Span,
+    [property: JsonPropertyName("rowSpan")] int RowSpan,
+    [property: JsonPropertyName("align")] string? Align,
+    [property: JsonPropertyName("borders")] string Borders);
 
 /// <summary>Um pedaço do cabeçalho: texto, imagem ou número de página.</summary>
 public sealed record PieceDto(

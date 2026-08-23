@@ -1,4 +1,4 @@
-import type { Band, BandPiece } from '@services/document/model.js'
+import type { Band, BandCell, BandPiece } from '@services/document/model.js'
 
 /**
  * Cabeçalho ou rodapé do documento importado, desenhado na margem.
@@ -38,6 +38,9 @@ export function PageBand({
       style={{ left: `${insetPx}px`, right: `${insetPx}px` }}
       aria-hidden="true"
     >
+      {band.rows.length === 0 ? null : (
+        <BandGrid band={band} pageNumber={pageNumber} totalPages={totalPages} />
+      )}
       <div className="band__cell band__cell--left">{band.left.map(renderPiece(pageNumber, totalPages))}</div>
       <div className="band__cell band__cell--center">
         {band.center.map(renderPiece(pageNumber, totalPages))}
@@ -47,6 +50,61 @@ export function PageBand({
       </div>
     </div>
   )
+}
+
+/**
+ * A grade do cabeçalho, quando ele é uma tabela.
+ *
+ * Uma tabela de verdade, e não três colunas: no corpus real o logotipo mora
+ * numa célula mesclada por quatro linhas, com o título ao lado e a numeração à
+ * direita. Espalhado pelos terços, o mesmo cabeçalho virava uma fileira de
+ * palavras que transbordava sobre a primeira linha do texto.
+ *
+ * As bordas vêm resolvidas do leitor, lado a lado: no OOXML cada uma delas sai
+ * de três lugares — a célula, a moldura da tabela, a linha interna — e refazer
+ * essa conta aqui e outra vez no papel é como os dois divergem.
+ */
+function BandGrid({
+  band,
+  pageNumber,
+  totalPages,
+}: {
+  band: Band
+  pageNumber: number
+  totalPages: number
+}): React.JSX.Element {
+  return (
+    <table className="band__grid">
+      <tbody>
+        {band.rows.map((row, index) => (
+          <tr key={index}>
+            {row.cells.map((cell, at) => (
+              <td
+                key={at}
+                colSpan={cell.span === 1 ? undefined : cell.span}
+                rowSpan={cell.rowSpan === 1 ? undefined : cell.rowSpan}
+                style={cellStyle(cell)}
+              >
+                {cell.pieces.map(renderPiece(pageNumber, totalPages))}
+              </td>
+            ))}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  )
+}
+
+function cellStyle(cell: BandCell): React.CSSProperties {
+  const line = '1px solid currentcolor'
+  return {
+    ...(cell.width > 0 ? { width: `${(cell.width * 100).toFixed(2)}%` } : {}),
+    ...(cell.align === undefined ? {} : { textAlign: cell.align as React.CSSProperties['textAlign'] }),
+    borderTop: cell.borders.includes('t') ? line : undefined,
+    borderLeft: cell.borders.includes('l') ? line : undefined,
+    borderBottom: cell.borders.includes('b') ? line : undefined,
+    borderRight: cell.borders.includes('r') ? line : undefined,
+  }
 }
 
 const renderPiece =

@@ -63,6 +63,32 @@ export interface Band {
    * entra numa banda de 10 mm de altura, e achatá-la ali a desenhava deitada.
    */
   readonly floats: FloatingObject[]
+  /**
+   * A grade, quando o cabeçalho é uma tabela.
+   *
+   * A outra metade do cabeçalho corporativo, e a que não cabe em três colunas:
+   * logotipo numa célula mesclada por quatro linhas, título ao lado, numeração
+   * à direita. Espalhada por esquerda, centro e direita ela virava uma sopa de
+   * palavras que ainda por cima transbordava sobre o texto.
+   */
+  readonly rows: BandRow[]
+}
+
+/** Uma linha da grade do cabeçalho. */
+export interface BandRow {
+  readonly cells: BandCell[]
+}
+
+/** Uma célula da grade: o que está escrito nela e o retângulo que ela ocupa. */
+export interface BandCell {
+  readonly pieces: BandPiece[]
+  /** Fração da largura da grade, de 0 a 1. */
+  readonly width: number
+  readonly span: number
+  readonly rowSpan: number
+  readonly align?: string | undefined
+  /** Iniciais dos lados com risco: `t`, `l`, `b`, `r`. */
+  readonly borders: string
 }
 
 export interface PageSetup {
@@ -126,7 +152,12 @@ export function bandForPage(page: PageSetup, pageNumber: number, kind: 'header' 
 /** Há algo a desenhar nesta faixa? */
 export function hasBandContent(band: Band | null): band is Band {
   return (
-    band !== null && (band.left.length > 0 || band.center.length > 0 || band.right.length > 0 || band.rule)
+    band !== null &&
+    (band.left.length > 0 ||
+      band.center.length > 0 ||
+      band.right.length > 0 ||
+      band.rows.length > 0 ||
+      band.rule)
   )
 }
 

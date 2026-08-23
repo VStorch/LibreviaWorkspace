@@ -595,6 +595,60 @@ public class DocxRoundTripTests
     }
 
     [Fact]
+    public void CabecalhoEmGradeSaiComoGrade()
+    {
+        // Três colunas bastam para texto e não bastam para isto: o cabeçalho
+        // corporativo do corpus é uma tabela com o logotipo mesclado por três
+        // linhas, o título ao lado e a numeração à direita. Achatado nos terços,
+        // virava uma fileira de palavras por cima da primeira linha do texto.
+        var page = DocxReader.Read(Fixtures.WithHeaderGrid()).Model.Page;
+        var rows = page.Header!.Rows!;
+
+        Assert.Equal(3, rows.Count);
+        Assert.Equal(
+            ["Chamado 10001", "Data de revisão", "Título do documento", "30/07/2026",
+             "Rodapé do cabeçalho", "Página", "Revisão"],
+            rows.SelectMany(row => row.Cells)
+                .SelectMany(cell => cell.Pieces)
+                .Where(piece => piece.Kind == PieceDto.KindText)
+                .Select(piece => piece.Text));
+    }
+
+    [Fact]
+    public void ACelulaMescladaCresceEmVezDeDeixarBuracos()
+    {
+        // No OOXML a mesclagem vertical não é altura: a célula de cima diz
+        // `restart` e as de baixo aparecem como células vazias. Desenhadas como
+        // células de verdade, elas abririam uma faixa em branco por linha
+        // debaixo do logotipo.
+        var rows = DocxReader.Read(Fixtures.WithHeaderGrid()).Model.Page.Header!.Rows!;
+
+        Assert.Equal(3, rows[0].Cells[0].RowSpan);
+        Assert.Equal("image", rows[0].Cells[0].Pieces[0].Kind);
+
+        // E as linhas de baixo não têm mais a célula do logotipo.
+        Assert.Equal(2, rows[1].Cells.Count);
+        Assert.Equal(3, rows[2].Cells.Count);
+    }
+
+    [Fact]
+    public void AGradeTrazLarguraJuntoEBordaResolvida()
+    {
+        // A largura é fração da grade, e não twips: quem desenha não sabe quanto
+        // vale um twip na folha. A borda vem resolvida porque no OOXML cada lado
+        // sai de três lugares — a célula, a moldura, a linha interna — e refazer
+        // essa conta na tela e outra vez no papel é como os dois divergem.
+        var rows = DocxReader.Read(Fixtures.WithHeaderGrid()).Model.Page.Header!.Rows!;
+
+        Assert.Equal(0.2, rows[0].Cells[0].Width, 3);
+        Assert.Equal(2, rows[0].Cells[2].Span);
+
+        Assert.Contains("b", rows[0].Cells[1].Borders, StringComparison.Ordinal);
+        // `w:nil` na célula apaga o risco que a tabela pediu.
+        Assert.DoesNotContain("b", rows[2].Cells[1].Borders, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ADistanciaDaFaixaAteABordaEhLida()
     {
         // É a origem vertical das âncoras de dentro da faixa: elas se dizem

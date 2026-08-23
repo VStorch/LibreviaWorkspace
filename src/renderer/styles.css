@@ -667,6 +667,28 @@ button {
   justify-content: flex-end;
 }
 
+/*
+  A grade do cabeçalho ocupa a faixa inteira, atravessando os três terços: ela
+  é a moldura do cabeçalho, e não uma peça a ser distribuída entre eles.
+*/
+.band__grid {
+  grid-column: 1 / -1;
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.band__grid td {
+  padding: 1px 4px;
+  vertical-align: middle;
+  overflow-wrap: break-word;
+}
+
+.band__grid img {
+  max-width: 100%;
+  height: auto;
+}
+
 .band__image {
   max-width: 100%;
   object-fit: contain;
