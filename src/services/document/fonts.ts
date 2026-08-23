@@ -32,7 +32,7 @@ const SCHEME = 'librevia-font://fonts'
 interface Substitute {
   /** Nome que o documento usa. */
   readonly declared: string
-  /** Nome real da fonte instalada, quando existir na máquina. */
+  /** Famílias instaladas que servem, quando existirem na máquina. */
   readonly local: readonly string[]
   /** Prefixo dos arquivos empacotados. */
   readonly file: string
@@ -51,19 +51,38 @@ const SUBSTITUTES: readonly Substitute[] = [
   { declared: 'Courier New', local: ['Courier New', 'Liberation Mono'], file: 'LiberationMono' },
 ]
 
-const FACES: readonly { suffix: string; weight: number; style: string }[] = [
-  { suffix: 'Regular', weight: 400, style: 'normal' },
-  { suffix: 'Bold', weight: 700, style: 'normal' },
-  { suffix: 'Italic', weight: 400, style: 'italic' },
-  { suffix: 'BoldItalic', weight: 700, style: 'italic' },
+const FACES: readonly { suffix: string; weight: number; style: string; words: string }[] = [
+  { suffix: 'Regular', weight: 400, style: 'normal', words: '' },
+  { suffix: 'Bold', weight: 700, style: 'normal', words: 'Bold' },
+  { suffix: 'Italic', weight: 400, style: 'italic', words: 'Italic' },
+  { suffix: 'BoldItalic', weight: 700, style: 'italic', words: 'Bold Italic' },
 ]
+
+/**
+ * Os nomes pelos quais o sistema conhece **este corte** da família.
+ *
+ * `local()` casa por nome de fonte, e não de família: `local('Liberation Sans')`
+ * dentro de uma regra de negrito acha a Liberation Sans **normal** e a serve
+ * como se fosse negrito. Numa máquina com as Liberation instaladas — todo Linux
+ * de escritório — era isso que apagava o negrito e o itálico de todo documento
+ * importado: o PDF saía sem nenhum corte gordo embutido.
+ *
+ * Duas formas por família, porque as duas aparecem: o nome cheio, com as
+ * palavras do corte separadas por espaço, e o nome PostScript, colado e com
+ * hífen.
+ */
+function localNames(family: string, words: string): string[] {
+  if (words === '') return [family]
+  return [`${family} ${words}`, `${family.replaceAll(' ', '')}-${words.replaceAll(' ', '')}`]
+}
 
 /**
  * `@font-face` para as cinco famílias, quatro variantes cada.
  *
  * `local()` antes de `url()` de propósito: numa máquina que tem a fonte
  * original, usá-la é mais fiel do que a substituta — e ainda evita carregar
- * arquivo que não precisa.
+ * arquivo que não precisa. Mas o nome tem de ser o **do corte**, não o da
+ * família: ver `localNames`.
  *
  * `font-display: block` porque a medida depende da fonte. Com o padrão `auto` o
  * Chromium desenha com a fonte de reserva enquanto carrega, o documento é
@@ -71,16 +90,18 @@ const FACES: readonly { suffix: string; weight: number; style: string }[] = [
  * depois — a tela pisca e o número muda na frente de quem está lendo.
  */
 export const DOCUMENT_FONT_CSS = SUBSTITUTES.flatMap((substitute) =>
-  FACES.map(
-    ({ suffix, weight, style }) => `@font-face {
+  FACES.map(({ suffix, weight, style, words }) => {
+    const locals = substitute.local.flatMap((family) => localNames(family, words))
+
+    return `@font-face {
   font-family: '${substitute.declared}';
   font-weight: ${weight};
   font-style: ${style};
   font-display: block;
-  src: ${substitute.local.map((name) => `local('${name}')`).join(', ')},
+  src: ${locals.map((name) => `local('${name}')`).join(', ')},
        url('${SCHEME}/${substitute.file}-${suffix}.ttf') format('truetype');
-}`,
-  ),
+}`
+  }),
 ).join('\n')
 
 /** Os arquivos que precisam existir em `resources/fonts/`. */

@@ -18,6 +18,20 @@ describe('regras @font-face', () => {
     expect(primeiraRegra.indexOf('local(')).toBeLessThan(primeiraRegra.indexOf('url('))
   })
 
+  it('o local() de cada corte nomeia o corte, e não a família', () => {
+    // `local()` casa por nome de fonte, não de família: `local('Liberation
+    // Sans')` dentro da regra de negrito acha a normal e a serve como se fosse
+    // negrito. Numa máquina com as Liberation instaladas — todo Linux de
+    // escritório — era isso que apagava o negrito de todo documento importado.
+    const negrito = DOCUMENT_FONT_CSS.split('@font-face').find(
+      (regra) => regra.includes("font-family: 'Arial'") && regra.includes('font-weight: 700'),
+    )
+
+    expect(negrito).toContain("local('Liberation Sans Bold')")
+    expect(negrito).toContain("local('LiberationSans-Bold')")
+    expect(negrito).not.toContain("local('Liberation Sans')")
+  })
+
   it('não usa crase, que encerraria o template literal do CSS', () => {
     // `DOCUMENT_CONTENT_CSS` interpola isto dentro de um template literal. Uma
     // crase aqui não quebra este arquivo — quebra a compilação de outro, com

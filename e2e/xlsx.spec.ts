@@ -85,8 +85,16 @@ async function gridReady(window: Page): Promise<void> {
 }
 
 async function select(window: Page, row: number, column: number): Promise<void> {
-  await cell(window, row, column).click()
-  await expect(window.locator('.formula-bar__ref')).toHaveText(reference(row, column))
+  // O clique repete até a seleção mover. A grade se redesenha depois de abrir o
+  // arquivo, e um clique só, disparado no meio disso, cai numa célula que já
+  // saiu do lugar — a seleção ficava em A1 e o teste reprovava três passos
+  // adiante, num lugar que não explica nada.
+  await expect(async () => {
+    await cell(window, row, column).click()
+    await expect(window.locator('.formula-bar__ref')).toHaveText(reference(row, column), {
+      timeout: 1000,
+    })
+  }).toPass({ timeout: 15_000 })
 }
 
 /** Seleciona a célula e escreve nela pela barra de fórmulas. */
