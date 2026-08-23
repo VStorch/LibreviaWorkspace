@@ -106,27 +106,24 @@ export const EDITOR_ONLY_CSS = `
   cursor: col-resize;
 }
 
+/*
+  A quebra de página não desenha nada.
+
+  Ela era uma linha tracejada escrita "QUEBRA DE PÁGINA" — a marca fazia sentido
+  quando a tela era uma tira contínua e a quebra não tinha efeito nenhum de se
+  ver. Agora a folha termina ali de verdade, e é isso que o Word e o LibreOffice
+  mostram na vista de impressão: nada. Na capa do modelo de manual a marca ainda
+  caía no meio do desenho, porque o título e o subtítulo moram em caixas
+  posicionadas e o fluxo ali é quase vazio.
+
+  Altura zero, sem margem: ela também não pode ocupar lugar na folha. Continua
+  selecionável — o contorno de nó selecionado a mostra — e continua sendo o que
+  se apaga com Backspace no começo da folha seguinte, como no Word.
+*/
 .page__content .page-break {
   border: none;
-  border-top: 2px dashed #c7ced6;
-  margin: 1.4em 0;
-  position: relative;
+  margin: 0;
   height: 0;
-}
-
-.page__content .page-break::after {
-  content: 'Quebra de página';
-  position: absolute;
-  top: -0.75em;
-  left: 50%;
-  transform: translateX(-50%);
-  background: #ffffff;
-  padding: 0 8px;
-  font-family: system-ui, sans-serif;
-  font-size: 10px;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: #6b7280;
 }
 
 .page__content .ProseMirror-selectednode { outline: 2px solid #1f5fa9; }
@@ -146,8 +143,6 @@ export const PRINT_ONLY_CSS = `
   height: 0;
   margin: 0;
 }
-
-.page__content [data-page-break]::after { content: none; }
 
 .page__content h1,
 .page__content h2,

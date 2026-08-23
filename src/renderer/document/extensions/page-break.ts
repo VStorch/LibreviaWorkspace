@@ -4,9 +4,13 @@ import { Node, mergeAttributes } from '@tiptap/core'
  * Quebra de página manual.
  *
  * O editor pagina ao vivo, então a quebra é visível pelo que ela faz: a folha
- * termina ali. A linha tracejada continua desenhada porque a quebra **pedida à
- * mão** precisa se distinguir da que o texto provocou sozinho — é ela que a
- * pessoa pode apagar, e sem marca não haveria onde pôr o cursor.
+ * termina ali, e é só isso que o Word e o LibreOffice mostram na vista de
+ * impressão. A linha tracejada escrita "QUEBRA DE PÁGINA" fazia sentido quando
+ * a tela era uma tira contínua e a quebra não tinha efeito nenhum de se ver;
+ * hoje ela é ruído, e na capa do modelo de manual caía no meio do desenho.
+ *
+ * O nó continua existindo, selecionável e apagável — com Backspace no começo da
+ * folha seguinte, como no Word.
  *
  * Na exportação vira `break-after: page` no CSS de impressão, e no DOCX vira
  * `<w:br w:type="page"/>`.
