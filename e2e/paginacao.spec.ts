@@ -95,8 +95,13 @@ test.describe('paginação ao vivo', () => {
     await menu(session, 'insert-page-break')
     await session.window.keyboard.type('Terceira folha.')
 
-    const naTela = await session.window.locator('.paper').count()
-    expect(naTela).toBe(3)
+    // Esperar as folhas, e não contá-las de uma vez: a paginação assenta num
+    // quadro depois da última tecla, e `count()` não repete a pergunta. Era
+    // esta linha que reprovava sob carga — a terceira folha ainda não existia —
+    // e passava sozinha, onde a máquina tem folga de sobra.
+    const folhas = session.window.locator('.paper')
+    await expect(folhas).toHaveCount(3)
+    const naTela = await folhas.count()
 
     await menu(session, 'export-pdf')
     await expect.poll(async () => contarPaginas(destino), { timeout: 30000 }).toBe(naTela)
