@@ -23,6 +23,16 @@ export interface FloatingObject {
   readonly vAlign?: string | undefined
   readonly behind: boolean
   readonly wrap: string
+  /**
+   * Deslocamento da peça dentro do desenho, somado depois de resolver a âncora.
+   *
+   * Vem de um grupo de formas: a âncora diz onde o grupo está, e cada peça tem
+   * a coordenada dela dentro dele. Somar depois é o que faz a conta funcionar
+   * tanto com deslocamento quanto com alinhamento declarado — no segundo caso
+   * quem resolve a origem é esta função, e não o arquivo.
+   */
+  readonly dxMm?: number | undefined
+  readonly dyMm?: number | undefined
 }
 
 /** A caixa já resolvida, em milímetros da borda da folha. */
@@ -87,8 +97,8 @@ export function placeFloating(object: FloatingObject, page: PageSetup, anchorTop
   })()
 
   return {
-    leftMm,
-    topMm,
+    leftMm: leftMm + (object.dxMm ?? 0),
+    topMm: topMm + (object.dyMm ?? 0),
     widthMm: object.widthMm,
     heightMm: object.heightMm,
     rotation: object.rotation,
@@ -151,10 +161,35 @@ export function bandFloatsOf(page: PageSetup, pageNumber: number): AnchoredFloat
   const footer = bandForPage(page, pageNumber, 'footer')
 
   return [
-    ...(header?.floats ?? []).map((object) => ({ object, anchorTopMm: page.headerDistanceMm })),
+    ...(header?.floats ?? []).map((object) => ({
+      object: numbered(object, pageNumber),
+      anchorTopMm: page.headerDistanceMm,
+    })),
     ...(footer?.floats ?? []).map((object) => ({
-      object,
+      object: numbered(object, pageNumber),
       anchorTopMm: height - page.footerDistanceMm,
     })),
   ]
+}
+
+/**
+ * Troca os marcadores de numeração pelo número desta folha.
+ *
+ * A caixa de texto do cabeçalho costuma trazer o campo `PAGE` do Word, e o
+ * leitor o entrega como `{n}` — o mesmo marcador que o cabeçalho digitado à mão
+ * já usa. Sem esta troca a folha sairia com as chaves escritas nela.
+ */
+function numbered(object: FloatingObject, pageNumber: number): FloatingObject {
+  if (object.kind !== 'text' || object.content === undefined) return object
+  return { ...object, content: object.content.map((node) => replaceMarkers(node, pageNumber)) }
+}
+
+function replaceMarkers(node: DocumentNode, pageNumber: number): DocumentNode {
+  return {
+    ...node,
+    ...(typeof node.text === 'string' ? { text: node.text.replaceAll('{n}', String(pageNumber)) } : {}),
+    ...(Array.isArray(node.content)
+      ? { content: node.content.map((child) => replaceMarkers(child, pageNumber)) }
+      : {}),
+  }
 }

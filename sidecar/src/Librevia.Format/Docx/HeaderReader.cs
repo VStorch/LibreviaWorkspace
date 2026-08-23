@@ -150,7 +150,7 @@ public static class HeaderReader
             // de 10 mm e desenhada deitada.
             if (AnchorReader.AnchorOf(drawing) is { } anchor)
             {
-                foreach (var item in ReadAnchoredDrawing(drawing, owner, anchor)) floats.Add(item);
+                foreach (var item in ReadAnchoredDrawing(drawing, owner, anchor, inventory)) floats.Add(item);
                 continue;
             }
 
@@ -359,28 +359,101 @@ public static class HeaderReader
             Pixels(height > 0 ? height : width / 4));
     }
 
-    /// <summary>Imagens de um desenho ancorado, com a geometria da âncora.</summary>
+    /// <summary>
+    /// As peças de um desenho ancorado, cada uma na caixa dela.
+    /// </summary>
+    /// <remarks>
+    /// Um cabeçalho corporativo costuma ser um **grupo de formas**: o logotipo,
+    /// a caixa do título, a do número da página. Antes daqui todas recebiam a
+    /// caixa do grupo inteiro — o logotipo de 48 × 10,5 mm era esticado para os
+    /// 177 × 17 mm da faixa toda — e as caixas de texto não saíam, porque só as
+    /// imagens eram procuradas: o título do documento sumia do cabeçalho.
+    /// </remarks>
     private static IEnumerable<FloatDto> ReadAnchoredDrawing(
         OpenXmlElement drawing,
         OpenXmlPart owner,
-        WordDrawing.Anchor anchor)
+        WordDrawing.Anchor anchor,
+        Inventory inventory)
     {
+        foreach (var piece in AnchorReader.PiecesOf(anchor))
+        {
+            if (piece.Shape is Drawing.Pictures.Picture picture)
+            {
+                if (ImageSourceOf(picture, owner) is { } src)
+                {
+                    yield return AnchorReader.Describe(anchor, "image", src, null, piece);
+                }
+
+                continue;
+            }
+
+            var content = new List<Node>();
+            foreach (var box in piece.Shape.Descendants<TextBoxContent>())
+            {
+                foreach (var paragraph in box.Descendants<Paragraph>())
+                {
+                    var pieces = ReadRuns(paragraph, inventory);
+                    if (pieces.Count == 0) continue;
+
+                    var node = Node.Of("paragraph");
+                    node.Content = pieces.Select(NodeOf).ToList();
+                    content.Add(node);
+                }
+            }
+
+            if (content.Count > 0) yield return AnchorReader.Describe(anchor, "text", null, content, piece);
+        }
+
+        // Uma peça sem `a:xfrm` não tem caixa própria: o desenho é ela sozinha.
+        if (AnchorReader.PiecesOf(anchor).Count > 0) yield break;
+
         foreach (var picture in drawing.Descendants<Drawing.Pictures.Picture>())
         {
-            var relationshipId = picture.Descendants<Drawing.Blip>().FirstOrDefault()?.Embed?.Value;
-            if (string.IsNullOrEmpty(relationshipId)) continue;
-            if (owner.GetPartById(relationshipId) is not ImagePart image) continue;
-
-            using var stream = image.GetStream();
-            using var buffer = new MemoryStream();
-            stream.CopyTo(buffer);
-
-            yield return AnchorReader.Describe(
-                anchor,
-                "image",
-                $"data:{image.ContentType};base64,{Convert.ToBase64String(buffer.ToArray())}",
-                null);
+            if (ImageSourceOf(picture, owner) is { } src)
+            {
+                yield return AnchorReader.Describe(anchor, "image", src, null);
+            }
         }
+    }
+
+    /// <summary>Um pedaço de faixa vira nó de texto, para a caixa desenhá-lo.</summary>
+    private static Node NodeOf(PieceDto piece)
+    {
+        var text = piece.Kind switch
+        {
+            PieceDto.KindPageNumber => "{n}",
+            PieceDto.KindTotalPages => "{total}",
+            _ => piece.Text ?? string.Empty,
+        };
+
+        var marks = new List<Mark>();
+        if (piece.Bold) marks.Add(Mark.Of("bold"));
+        if (piece.Italic) marks.Add(Mark.Of("italic"));
+
+        var attributes = new Dictionary<string, System.Text.Json.Nodes.JsonNode?>();
+        if (piece.Color is not null) attributes["color"] = piece.Color;
+        if (piece.FontSize is not null) attributes["fontSize"] = piece.FontSize;
+        if (attributes.Count > 0) marks.Add(new Mark { Type = "textStyle", Attrs = attributes });
+
+        return new Node
+        {
+            Type = "text",
+            Text = text,
+            Marks = marks.Count == 0 ? null : marks,
+        };
+    }
+
+    private static string? ImageSourceOf(OpenXmlElement picture, OpenXmlPart owner)
+    {
+        var relationshipId = picture.Descendants<Drawing.Blip>().FirstOrDefault()?.Embed?.Value;
+        if (string.IsNullOrEmpty(relationshipId)) return null;
+        if (owner.GetPartById(relationshipId) is not ImagePart image) return null;
+
+        using var stream = image.GetStream();
+        using var buffer = new MemoryStream();
+        stream.CopyTo(buffer);
+
+        return $"data:{image.ContentType};base64,{Convert.ToBase64String(buffer.ToArray())}";
     }
 
     private static void ReadDrawing(

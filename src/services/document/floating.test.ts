@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { placeFloating, type FloatingObject } from './floating.js'
+import { bandFloatsOf, placeFloating, type FloatingObject } from './floating.js'
 import { DEFAULT_PAGE_SETUP, PageSize, type PageSetup } from './model.js'
 
 /** A4 retrato com 30 mm nas laterais: a geometria da capa do corpus. */
@@ -83,6 +83,17 @@ describe('posição de objeto ancorado', () => {
     expect(box.rotation).toBe(270)
   })
 
+  it('a peça de um grupo soma o deslocamento dela depois de resolver a âncora', () => {
+    // Um cabeçalho corporativo é um grupo de formas: a âncora diz onde o grupo
+    // está, e cada peça tem a coordenada dela dentro dele. Somar depois é o que
+    // faz a conta valer também quando a âncora traz alinhamento em vez de
+    // deslocamento — aí quem resolve a origem é esta função, e não o arquivo.
+    const box = placeFloating(object({ hFrom: 'page', hOffsetMm: 31.75, dxMm: 129, dyMm: 6.9 }), page, 0)
+
+    expect(box.leftMm).toBeCloseTo(160.75, 2)
+    expect(box.topMm).toBeCloseTo(6.9, 2)
+  })
+
   it('a marca da capa cai na lateral esquerda, e não sobre o texto', () => {
     // O caso completo do corpus, com os números do arquivo. Depois de girada em
     // torno do centro, uma caixa de 285,76 × 80,14 mm posta em −96,65 mm ocupa
@@ -104,5 +115,40 @@ describe('posição de objeto ancorado', () => {
 
     expect(esquerdaGirada).toBeCloseTo(6.2, 1)
     expect(esquerdaGirada + box.heightMm).toBeLessThan(page.margins.left + 60)
+  })
+})
+
+describe('objetos ancorados das faixas', () => {
+  const box: FloatingObject = {
+    kind: 'text',
+    widthMm: 84.8,
+    heightMm: 9.1,
+    rotation: 0,
+    hFrom: 'page',
+    hOffsetMm: 31.75,
+    vFrom: 'page',
+    vOffsetMm: 2.7,
+    behind: false,
+    wrap: 'square',
+    content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Folha {n}' }] }],
+  }
+
+  const withBand: PageSetup = {
+    ...page,
+    headerBand: { left: [], center: [], right: [], rule: false, rows: [], floats: [box] },
+  }
+
+  it('a caixa do cabeçalho recebe o número da folha em que está', () => {
+    // O campo `PAGE` do Word chega como `{n}` — o mesmo marcador do cabeçalho
+    // digitado à mão. Sem a troca, a folha sairia com as chaves escritas nela.
+    const terceira = bandFloatsOf(withBand, 3)[0]!
+    const texto = terceira.object.content![0]!.content![0]!.text
+
+    expect(texto).toBe('Folha 3')
+  })
+
+  it('a substituição não altera o objeto original', () => {
+    bandFloatsOf(withBand, 3)
+    expect(box.content![0]!.content![0]!.text).toBe('Folha {n}')
   })
 })

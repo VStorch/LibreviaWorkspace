@@ -717,6 +717,34 @@ public class DocxRoundTripTests
     }
 
     [Fact]
+    public void OGrupoDoCabecalhoSaiPecaPorPeca()
+    {
+        // A âncora diz onde o grupo está; `a:chOff`/`a:chExt` dizem em que régua
+        // as coordenadas de dentro foram escritas. Sem desembrulhar, cada peça
+        // recebia a caixa do grupo inteiro — o logotipo de 48 mm era esticado
+        // para os 177 mm da faixa toda — e as caixas de texto não saíam de lugar
+        // nenhum, porque só se procurava imagem: o título do documento sumia.
+        var page = DocxReader.Read(Fixtures.WithHeaderGroup()).Model.Page;
+        var floats = page.Header!.Floats!;
+
+        Assert.Equal(2, floats.Count);
+
+        var logo = floats.Single(item => item.Kind == "image");
+        Assert.Equal(48, logo.WidthMm, 1);
+        Assert.Equal(10.5, logo.HeightMm, 1);
+        Assert.Equal(129, logo.DxMm, 1);
+        Assert.Equal(0, logo.DyMm, 1);
+
+        var titulo = floats.Single(item => item.Kind == "text");
+        Assert.Equal(84.8, titulo.WidthMm, 1);
+        Assert.Equal(41.7, titulo.DxMm, 1);
+        Assert.Equal(6.9, titulo.DyMm, 1);
+        Assert.Equal(
+            "EVIDÊNCIAS DO ROTEIRO",
+            titulo.Content!.Single().Content!.Single().Text);
+    }
+
+    [Fact]
     public void ADistanciaDaFaixaAteABordaEhLida()
     {
         // É a origem vertical das âncoras de dentro da faixa: elas se dizem

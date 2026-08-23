@@ -29,7 +29,23 @@ public sealed record FloatDto(
     [property: JsonPropertyName("vAlign")] string? VerticalAlign,
     /// <summary>Atrás do texto: decoração de capa, marca d'água.</summary>
     [property: JsonPropertyName("behind")] bool Behind,
-    [property: JsonPropertyName("wrap")] string Wrap);
+    [property: JsonPropertyName("wrap")] string Wrap,
+    /// <summary>
+    /// Deslocamento da peça dentro do desenho, somado depois de resolver a
+    /// âncora. Vem de um grupo de formas: a âncora posiciona o grupo, e cada
+    /// peça tem a sua coordenada dentro dele.
+    /// </summary>
+    [property: JsonPropertyName("dxMm")] double DxMm = 0,
+    [property: JsonPropertyName("dyMm")] double DyMm = 0);
+
+/// <summary>Uma peça de dentro de um desenho, na régua da página.</summary>
+public sealed record AnchoredPiece(
+    OpenXmlElement Shape,
+    double DxEmus,
+    double DyEmus,
+    double WidthEmus,
+    double HeightEmus,
+    double Rotation);
 
 /// <summary>
 /// `wp:anchor` → onde o objeto cai na folha.
@@ -119,7 +135,8 @@ public static class AnchorReader
         Anchor.Anchor anchor,
         string kind,
         string? src,
-        List<Node>? content)
+        List<Node>? content,
+        AnchoredPiece? piece = null)
     {
         var extent = anchor.Descendants<Anchor.Extent>().FirstOrDefault();
         var horizontal = anchor.GetFirstChild<Anchor.HorizontalPosition>();
@@ -129,9 +146,9 @@ public static class AnchorReader
             Kind: kind,
             Src: src,
             Content: content,
-            WidthMm: Millimeters(extent?.Cx?.Value),
-            HeightMm: Millimeters(extent?.Cy?.Value),
-            Rotation: RotationOf(anchor),
+            WidthMm: piece is null ? Millimeters(extent?.Cx?.Value) : Round(piece.WidthEmus),
+            HeightMm: piece is null ? Millimeters(extent?.Cy?.Value) : Round(piece.HeightEmus),
+            Rotation: piece?.Rotation ?? RotationOf(anchor),
             HorizontalFrom: horizontal?.RelativeFrom?.ToString() ?? "column",
             HorizontalOffsetMm: OffsetMillimeters(horizontal?.PositionOffset?.Text),
             HorizontalAlign: horizontal?.HorizontalAlignment?.Text,
@@ -139,8 +156,78 @@ public static class AnchorReader
             VerticalOffsetMm: OffsetMillimeters(vertical?.PositionOffset?.Text),
             VerticalAlign: vertical?.VerticalAlignment?.Text,
             Behind: anchor.BehindDoc?.Value ?? false,
-            Wrap: WrapOf(anchor));
+            Wrap: WrapOf(anchor),
+            DxMm: piece is null ? 0 : Round(piece.DxEmus),
+            DyMm: piece is null ? 0 : Round(piece.DyEmus));
     }
+
+    /// <summary>
+    /// As peças de dentro de um desenho ancorado, cada uma na sua caixa.
+    /// </summary>
+    /// <remarks>
+    /// Um cabeçalho corporativo costuma ser **um grupo de formas**: o logotipo,
+    /// a caixa do título, a do número da página e um par de filetes, cada um com
+    /// coordenada própria dentro do grupo. A âncora diz onde o grupo está e que
+    /// tamanho ele tem; `a:chOff` e `a:chExt` dizem em que régua as coordenadas
+    /// de dentro foram escritas.
+    ///
+    /// Sem desembrulhar, cada peça recebia a caixa do grupo inteiro: o logotipo
+    /// de 48 × 10,5 mm era esticado para os 177 × 17 mm da faixa toda, e as
+    /// caixas de texto — o título do documento entre elas — não saíam de lugar
+    /// nenhum, porque quem lia só procurava imagens.
+    ///
+    /// Desenho de peça única cai aqui também, e sai com deslocamento zero: o
+    /// `a:off` dele é a origem, e a conta dá a caixa da própria âncora.
+    /// </remarks>
+    public static List<AnchoredPiece> PiecesOf(Anchor.Anchor anchor)
+    {
+        var extent = anchor.Descendants<Anchor.Extent>().FirstOrDefault();
+        // `a:xfrm` de grupo é outro elemento: só ele carrega `a:chOff`/`a:chExt`,
+        // que é a régua em que as coordenadas de dentro foram escritas.
+        var group = anchor.Descendants<Drawing.TransformGroup>().FirstOrDefault();
+
+        var (scaleX, scaleY) = (1.0, 1.0);
+        var (originX, originY) = (0.0, 0.0);
+
+        if (group?.ChildExtents is { } child)
+        {
+            originX = group.ChildOffset?.X?.Value ?? 0;
+            originY = group.ChildOffset?.Y?.Value ?? 0;
+            if (child.Cx?.Value is > 0 && extent?.Cx?.Value is { } across)
+            {
+                scaleX = across / (double)child.Cx.Value;
+            }
+
+            if (child.Cy?.Value is > 0 && extent?.Cy?.Value is { } down)
+            {
+                scaleY = down / (double)child.Cy.Value;
+            }
+        }
+
+        var pieces = new List<AnchoredPiece>();
+        foreach (var shape in Shapes(anchor))
+        {
+            var transform = shape.Descendants<Drawing.Transform2D>().FirstOrDefault();
+            if (transform?.Extents is not { } size) continue;
+
+            pieces.Add(new AnchoredPiece(
+                shape,
+                ((transform.Offset?.X?.Value ?? 0) - originX) * scaleX,
+                ((transform.Offset?.Y?.Value ?? 0) - originY) * scaleY,
+                (size.Cx?.Value ?? 0) * scaleX,
+                (size.Cy?.Value ?? 0) * scaleY,
+                DegreesOf(transform.Rotation?.Value)));
+        }
+
+        return pieces;
+    }
+
+    /// <summary>Imagens e caixas de texto, na ordem em que o arquivo as traz.</summary>
+    private static IEnumerable<OpenXmlElement> Shapes(Anchor.Anchor anchor) =>
+        anchor.Descendants<OpenXmlElement>()
+            .Where(element =>
+                element is Drawing.Pictures.Picture
+                    or DocumentFormat.OpenXml.Office2010.Word.DrawingShape.WordprocessingShape);
 
     /// <summary>
     /// Como o texto se comporta em volta.
@@ -161,14 +248,18 @@ public static class AnchorReader
         return "none";
     }
 
-    private static double RotationOf(OpenXmlElement drawing)
+    private static double RotationOf(OpenXmlElement drawing) =>
+        DegreesOf(drawing.Descendants<Drawing.Transform2D>().FirstOrDefault()?.Rotation?.Value);
+
+    private static double DegreesOf(int? rotation)
     {
-        var rotation = drawing.Descendants<Drawing.Transform2D>().FirstOrDefault()?.Rotation?.Value;
         if (rotation is null) return 0;
 
         var degrees = (rotation.Value / RotationUnitsPerDegree % 360 + 360) % 360;
         return Math.Round(degrees, 2);
     }
+
+    private static double Round(double emus) => Math.Round(emus / EmusPerMillimeter, 2);
 
     private static double Millimeters(long? emus) =>
         emus is null ? 0 : Math.Round(emus.Value / EmusPerMillimeter, 2);

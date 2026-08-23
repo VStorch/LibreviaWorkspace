@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import type { DocumentNode } from '@services/document/model.js'
 
 /**
  * Schemas usados em mais de um lugar.
@@ -31,6 +32,20 @@ export const bandPieceSchema = z.object({
  * cirúrgica. Ver docs/02-docx-cirurgico.md.
  */
 /**
+ * Um nó do documento, do jeito que o editor o entende.
+ *
+ * Conferido só até "é um nó", de propósito. Quem de fato valida é o serializador
+ * do ProseMirror, que constrói a partir do schema do editor e **só emite o que
+ * ele conhece** — é essa a barreira que impede um documento de mandar marcação
+ * para dentro da página. Repetir a lista de tipos de nó aqui a duplicaria num
+ * lugar onde ela não pode ser conferida contra o editor, e a cópia mais velha
+ * das duas passaria a mandar.
+ */
+const documentNodeSchema = z.custom<DocumentNode>(
+  (value) => typeof value === 'object' && value !== null && typeof (value as DocumentNode).type === 'string',
+)
+
+/**
  * Objeto ancorado dentro da faixa.
  *
  * Aberto de propósito: a geometria vem do arquivo e quem a interpreta é
@@ -40,6 +55,15 @@ export const bandPieceSchema = z.object({
 const bandFloatSchema = z.object({
   kind: z.enum(['image', 'text']),
   src: z.string().optional(),
+  /**
+   * O texto de uma caixa, em nós do documento.
+   *
+   * Aberto como o resto deste esquema, e pela mesma razão: quem o interpreta é
+   * o serializador do editor, que só emite o que o schema dele conhece. Sem
+   * declarar o campo, o zod o **descartava em silêncio** — e a caixa do título
+   * do cabeçalho aparecia na folha com o tamanho certo e vazia por dentro.
+   */
+  content: z.array(documentNodeSchema).max(200).optional(),
   widthMm: z.number(),
   heightMm: z.number(),
   rotation: z.number(),
@@ -51,6 +75,8 @@ const bandFloatSchema = z.object({
   vAlign: z.string().optional(),
   behind: z.boolean(),
   wrap: z.string(),
+  dxMm: z.number().optional(),
+  dyMm: z.number().optional(),
 })
 
 /**

@@ -108,10 +108,13 @@ export function DocumentEditor(): React.JSX.Element {
     registerDocumentSource({
       readDoc: () => editor.getJSON() as DocumentNode,
       readHtml: () => editor.getHTML(),
-      readPages: () => ({ pages: splitIntoPages(editor, layoutRef.current), bands: bandsRef.current }),
+      readPages: () => ({
+        pages: splitIntoPages(editor, layoutRef.current, page),
+        bands: bandsRef.current,
+      }),
     })
     return () => registerDocumentSource(null)
-  }, [editor, registerDocumentSource])
+  }, [editor, page, registerDocumentSource])
 
   useEffect(
     () =>
@@ -329,7 +332,7 @@ function useBandHeights(page: PageSetup, revision: number): BandHeights {
  *
  * Serializando o nó, o recorte cai sempre onde o paginador o pôs.
  */
-function splitIntoPages(editor: Editor, layout: PageLayout): PrintPage[] {
+function splitIntoPages(editor: Editor, layout: PageLayout, page: PageSetup): PrintPage[] {
   const serializer = DOMSerializer.fromSchema(editor.schema)
 
   const blocks: ProseMirrorNode[] = []
@@ -362,6 +365,15 @@ function splitIntoPages(editor: Editor, layout: PageLayout): PrintPage[] {
           ...(object.kind === 'text' ? { contentHtml: serializeFloatText(object, editor) } : {}),
         })
       }
+    }
+
+    // As caixas de texto das faixas também precisam do HTML: quem tem o schema
+    // do ProseMirror é o editor, e o desenhista do papel não o conhece.
+    for (const item of bandFloatsOf(page, pages.length + 1)) {
+      floats.push({
+        ...item,
+        ...(item.object.kind === 'text' ? { contentHtml: serializeFloatText(item.object, editor) } : {}),
+      })
     }
 
     pages.push({ number: pages.length + 1, html: holder.innerHTML, floats })

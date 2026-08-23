@@ -314,6 +314,88 @@ public static class Fixtures
         body.AppendChild(outro);
     });
 
+    /// <summary>
+    /// Cabeçalho que é um **grupo de formas**: logotipo e caixa de título.
+    /// </summary>
+    /// <remarks>
+    /// O idioma do cabeçalho corporativo. A âncora diz onde o grupo está e que
+    /// tamanho ele tem; `a:chOff`/`a:chExt` dizem em que régua as coordenadas de
+    /// dentro foram escritas. Sem desembrulhar, cada peça recebia a caixa do
+    /// grupo inteiro — o logotipo era esticado para a faixa toda — e as caixas
+    /// de texto não saíam de lugar nenhum, porque só se procurava imagem.
+    /// </remarks>
+    public static byte[] WithHeaderGroup() => Build(
+        (body, _) => body.AppendChild(Paragraph("Corpo do documento.")),
+        (section, part) =>
+        {
+            var header = part.AddNewPart<HeaderPart>();
+            var image = header.AddImagePart(ImagePartType.Png);
+            using (var stream = new MemoryStream(TinyPng()))
+            {
+                image.FeedData(stream);
+            }
+
+            var drawing = new DocumentFormat.OpenXml.Wordprocessing.Drawing();
+            drawing.InnerXml = $"""
+                <wp:anchor xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"
+                           xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"
+                           xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"
+                           xmlns:wpg="http://schemas.microsoft.com/office/word/2010/wordprocessingGroup"
+                           xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape"
+                           xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+                           xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+                           distT="0" distB="0" distL="0" distR="0" simplePos="0" relativeHeight="2"
+                           behindDoc="0" locked="0" layoutInCell="0" allowOverlap="1">
+                  <wp:simplePos x="0" y="0"/>
+                  <wp:positionH relativeFrom="page"><wp:posOffset>1143000</wp:posOffset></wp:positionH>
+                  <wp:positionV relativeFrom="page"><wp:posOffset>0</wp:posOffset></wp:positionV>
+                  <wp:extent cx="6371640" cy="604440"/>
+                  <wp:wrapSquare wrapText="bothSides"/>
+                  <wp:docPr id="9" name="Group 1"/>
+                  <a:graphic>
+                    <a:graphicData uri="http://schemas.microsoft.com/office/word/2010/wordprocessingGroup">
+                      <wpg:wgp>
+                        <wpg:grpSpPr>
+                          <a:xfrm>
+                            <a:off x="0" y="0"/><a:ext cx="6371640" cy="604440"/>
+                            <a:chOff x="0" y="0"/><a:chExt cx="6371640" cy="604440"/>
+                          </a:xfrm>
+                        </wpg:grpSpPr>
+                        <pic:pic>
+                          <pic:nvPicPr><pic:cNvPr id="1" name="Logotipo"/><pic:cNvPicPr/></pic:nvPicPr>
+                          <pic:blipFill><a:blip r:embed="{header.GetIdOfPart(image)}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill>
+                          <pic:spPr>
+                            <a:xfrm><a:off x="4644000" y="0"/><a:ext cx="1727640" cy="378000"/></a:xfrm>
+                            <a:prstGeom prst="rect"><a:avLst/></a:prstGeom>
+                          </pic:spPr>
+                        </pic:pic>
+                        <wps:wsp>
+                          <wps:cNvSpPr txBox="1"/>
+                          <wps:spPr>
+                            <a:xfrm><a:off x="1500000" y="248400"/><a:ext cx="3052800" cy="327600"/></a:xfrm>
+                          </wps:spPr>
+                          <wps:txbx>
+                            <w:txbxContent>
+                              <w:p><w:r><w:rPr><w:b/></w:rPr><w:t>EVIDÊNCIAS DO ROTEIRO</w:t></w:r></w:p>
+                            </w:txbxContent>
+                          </wps:txbx>
+                          <wps:bodyPr/>
+                        </wps:wsp>
+                      </wpg:wgp>
+                    </a:graphicData>
+                  </a:graphic>
+                </wp:anchor>
+                """;
+
+            header.Header = new Header(new Paragraph(new Run(drawing)));
+            header.Header.Save();
+            section.AppendChild(new HeaderReference
+            {
+                Type = HeaderFooterValues.Default,
+                Id = part.GetIdOfPart(header),
+            });
+        });
+
     /// <summary>Um cabeçalho novo com uma linha de texto; devolve o `r:id`.</summary>
     private static string Header(MainDocumentPart part, string text)
     {

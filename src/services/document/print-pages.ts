@@ -9,7 +9,7 @@ import {
   type BandPiece,
   type PageSetup,
 } from './model.js'
-import { bandFloatsOf, placeFloating, type FloatingObject } from './floating.js'
+import { placeFloating, type FloatingObject } from './floating.js'
 
 /**
  * O papel montado a partir das mesmas páginas que a tela desenha.
@@ -166,12 +166,9 @@ function renderPage(
   // A ordem no HTML é a ordem de empilhamento, junto com o `z-index`: o que fica
   // atrás vem antes, o texto no meio, o que fica na frente por último. É a
   // distinção que o `behindDoc` do OOXML faz para decoração de capa.
-  // Os objetos das faixas entram junto: repetem em toda folha, porque a faixa
-  // repete, e vêm pela mesma conta de posição que a tela usa.
-  const floats = [
-    ...sheet.floats,
-    ...bandFloatsOf(page, sheet.number).map((item) => ({ ...item, contentHtml: undefined })),
-  ]
+  // Os objetos das faixas já vêm dentro de `sheet.floats`, com o texto das
+  // caixas serializado: quem conhece o schema do ProseMirror é o editor.
+  const floats = sheet.floats
 
   return (
     '<div class="paper-page">' +
