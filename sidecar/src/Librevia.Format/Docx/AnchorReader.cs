@@ -52,9 +52,68 @@ public static class AnchorReader
     /// <summary>60000 avos de grau é a unidade de `a:rot`.</summary>
     private const double RotationUnitsPerDegree = 60000;
 
+    /// <summary>Meio centímetro de folga: posição de verdade está longe disso.</summary>
+    private const double FlowToleranceMm = 2;
+
     /// <summary>O desenho é ancorado, e não uma imagem no meio da linha?</summary>
     public static Anchor.Anchor? AnchorOf(OpenXmlElement drawing) =>
         drawing.Descendants<Anchor.Anchor>().FirstOrDefault();
+
+    /// <summary>
+    /// O objeto ancorado está onde o fluxo o poria de qualquer jeito?
+    /// </summary>
+    /// <remarks>
+    /// `wp:anchor` não quer dizer "fora do fluxo". É assim que o LibreOffice
+    /// grava **imagem no próprio parágrafo**: ancorada ao parágrafo, sem
+    /// deslocamento vertical, centralizada na coluna e com a largura dela. Um
+    /// documento de trinta capturas de tela é feito só disso.
+    ///
+    /// Tratar essas como posição na folha é o pior dos dois mundos: elas deixam
+    /// de ocupar altura, o texto se fecha por cima, o documento encolhe de doze
+    /// folhas para quatro e as imagens acabam empilhadas umas sobre as outras.
+    ///
+    /// A pergunta que separa os dois casos não é o modo de contorno sozinho, é
+    /// **onde o objeto está**: quem não anda com o parágrafo, quem se afasta
+    /// dele, quem fica atrás do texto ou quem deixa o texto passar por baixo
+    /// (`wrapNone`) tem posição de verdade. O resto está no lugar em que o
+    /// fluxo já o poria, e é como bloco que ele é desenhado certo.
+    /// </remarks>
+    public static bool FlowsWithText(Anchor.Anchor anchor)
+    {
+        if (anchor.BehindDoc?.Value == true) return false;
+        if (WrapOf(anchor) == "none") return false;
+
+        var vertical = anchor.GetFirstChild<Anchor.VerticalPosition>();
+        var from = vertical?.RelativeFrom?.Value;
+        if (from is not null &&
+            from != Anchor.VerticalRelativePositionValues.Paragraph &&
+            from != Anchor.VerticalRelativePositionValues.Line)
+        {
+            return false;
+        }
+
+        // "No alto da página", "no meio da margem": alinhamento vertical é
+        // posição declarada, e não segue o parágrafo.
+        if (vertical?.VerticalAlignment is not null) return false;
+        if (Math.Abs(OffsetMillimeters(vertical?.PositionOffset?.Text) ?? 0) > FlowToleranceMm) return false;
+
+        var horizontal = anchor.GetFirstChild<Anchor.HorizontalPosition>();
+
+        // Alinhado na coluna é onde o parágrafo já o poria — inclusive
+        // centralizado, que é como a imagem de largura inteira é gravada.
+        if (horizontal?.HorizontalAlignment is not null) return true;
+
+        var side = horizontal?.RelativeFrom?.Value;
+        if (side is not null &&
+            side != Anchor.HorizontalRelativePositionValues.Column &&
+            side != Anchor.HorizontalRelativePositionValues.Margin &&
+            side != Anchor.HorizontalRelativePositionValues.Character)
+        {
+            return false;
+        }
+
+        return Math.Abs(OffsetMillimeters(horizontal?.PositionOffset?.Text) ?? 0) <= FlowToleranceMm;
+    }
 
     public static FloatDto Describe(
         Anchor.Anchor anchor,
@@ -92,7 +151,7 @@ public static class AnchorReader
     /// contornar — dizer o modo mesmo assim deixa a diferença registrada no
     /// modelo, em vez de perdida no leitor.
     /// </remarks>
-    private static string WrapOf(Anchor.Anchor anchor)
+    internal static string WrapOf(Anchor.Anchor anchor)
     {
         if (anchor.GetFirstChild<Anchor.WrapNone>() is not null) return "none";
         if (anchor.GetFirstChild<Anchor.WrapSquare>() is not null) return "square";

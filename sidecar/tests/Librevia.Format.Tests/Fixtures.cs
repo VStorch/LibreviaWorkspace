@@ -90,7 +90,9 @@ public static class Fixtures
         }
 
         body.AppendChild(Paragraph("Antes da imagem."));
-        body.AppendChild(new Paragraph(new Run(AnchoredDrawing(part.GetIdOfPart(image)))));
+        // Com posição de verdade: fora da coluna, e o texto passa por baixo.
+        body.AppendChild(new Paragraph(new Run(
+            AnchoredDrawing(part.GetIdOfPart(image), placed: true))));
         body.AppendChild(Paragraph("Depois da imagem."));
     });
 
@@ -357,7 +359,35 @@ public static class Fixtures
         }
 
         body.AppendChild(new Paragraph(new Run(
-            AnchoredDrawing(part.GetIdOfPart(image), cx: 10287325, cy: 2885145, rotation: 16200000))));
+            AnchoredDrawing(
+                part.GetIdOfPart(image),
+                cx: 10287325,
+                cy: 2885145,
+                rotation: 16200000,
+                placed: true))));
+    });
+
+    /// <summary>
+    /// Imagem ancorada que o LibreOffice grava no lugar do próprio parágrafo.
+    /// </summary>
+    /// <remarks>
+    /// `wp:anchor` sem deslocamento, centralizada na coluna e com a largura
+    /// dela. É como um documento de capturas de tela é escrito inteiro — e
+    /// tratá-la como posição na folha fazia trinta imagens deixarem de ocupar
+    /// altura, o texto se fechar por cima delas e um documento de doze folhas
+    /// virar quatro.
+    /// </remarks>
+    public static byte[] WithAnchoredImageInTheFlow() => Build((body, part) =>
+    {
+        var image = part.AddImagePart(ImagePartType.Png);
+        using (var stream = new MemoryStream(TinyPng()))
+        {
+            image.FeedData(stream);
+        }
+
+        body.AppendChild(Paragraph("Antes da captura."));
+        body.AppendChild(new Paragraph(new Run(AnchoredDrawing(part.GetIdOfPart(image)))));
+        body.AppendChild(Paragraph("Depois da captura."));
     });
 
     /// <summary>
@@ -758,12 +788,30 @@ public static class Fixtures
         return drawing;
     }
 
+    /// <param name="placed">
+    /// Fora do fluxo, com posição de verdade: a marca da capa, que sai para a
+    /// margem e deixa o texto passar por baixo. Com `false`, a forma que o
+    /// LibreOffice usa para "imagem no próprio parágrafo" — ancorada, mas no
+    /// lugar em que o fluxo já a poria.
+    /// </param>
     private static OpenXmlElement AnchoredDrawing(
         string relationshipId,
         long cx = 5274000,
         long cy = 2637000,
-        int rotation = 0)
+        int rotation = 0,
+        bool placed = false)
     {
+        var position = placed
+            ? """
+                  <wp:positionH relativeFrom="column"><wp:posOffset>-4559425</wp:posOffset></wp:positionH>
+                  <wp:positionV relativeFrom="paragraph"><wp:posOffset>2095009</wp:posOffset></wp:positionV>
+              """
+            : """
+                  <wp:positionH relativeFrom="column"><wp:align>center</wp:align></wp:positionH>
+                  <wp:positionV relativeFrom="paragraph"><wp:posOffset>635</wp:posOffset></wp:positionV>
+              """;
+        var wrap = placed ? "<wp:wrapNone/>" : """<wp:wrapSquare wrapText="bothSides"/>""";
+
         const string Wp = "http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing";
         var xml = $"""
             <wp:anchor xmlns:wp="{Wp}"
@@ -773,10 +821,9 @@ public static class Fixtures
                        distT="0" distB="0" distL="0" distR="0" simplePos="0" relativeHeight="2"
                        behindDoc="0" locked="0" layoutInCell="0" allowOverlap="1">
               <wp:simplePos x="0" y="0"/>
-              <wp:positionH relativeFrom="column"><wp:align>center</wp:align></wp:positionH>
-              <wp:positionV relativeFrom="paragraph"><wp:posOffset>635</wp:posOffset></wp:positionV>
+            {position}
               <wp:extent cx="{cx}" cy="{cy}"/>
-              <wp:wrapSquare wrapText="bothSides"/>
+              {wrap}
               <wp:docPr id="1" name="Imagem 1"/>
               <a:graphic>
                 <a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">

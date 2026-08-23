@@ -175,6 +175,24 @@ public class DocxRoundTripTests
     }
 
     [Fact]
+    public void AncoradaOndeOFluxoAPoriaContinuaNoFluxo()
+    {
+        // `wp:anchor` não quer dizer "fora do fluxo". É assim que o LibreOffice
+        // grava imagem no próprio parágrafo: ancorada, sem deslocamento,
+        // centralizada na coluna. Tirá-la do fluxo fazia trinta capturas de tela
+        // deixarem de ocupar altura — o texto se fechava por cima delas, o
+        // documento encolhia de doze folhas para quatro e as imagens acabavam
+        // empilhadas umas sobre as outras.
+        var model = Open(Fixtures.WithAnchoredImageInTheFlow());
+
+        var image = Assert.Single(Walk(model.Doc).Where(n => n.Type == "image"));
+        Assert.Equal(554, image.Attrs!["width"]!.GetValue<int>());
+
+        // E não sobrou nenhuma cópia como objeto posicionado.
+        Assert.All(model.Doc.Content!, block => Assert.Empty(FloatsOf(block)));
+    }
+
+    [Fact]
     public void ImagemNoFluxoContinuaSendoBloco()
     {
         // O contrapeso: `wp:inline` é imagem no meio da linha, e deve mesmo

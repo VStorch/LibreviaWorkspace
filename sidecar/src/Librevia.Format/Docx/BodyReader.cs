@@ -618,7 +618,13 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory)
         // Sai do fluxo e vira propriedade do parágrafo âncora. O que continua
         // aqui é o objeto **no fluxo** (`wp:inline`), que é imagem no meio da
         // linha e deve mesmo ocupar lugar.
-        if (AnchorReader.AnchorOf(shape) is { } anchor)
+        //
+        // Nem todo ancorado tem posição de verdade. É assim que o LibreOffice
+        // grava "imagem no próprio parágrafo": ancorada ao parágrafo, sem
+        // deslocamento, centralizada na coluna. Tirar essas do fluxo encolheu um
+        // documento de trinta capturas de doze folhas para quatro, com as
+        // imagens empilhadas umas sobre as outras. Ver AnchorReader.FlowsWithText.
+        if (AnchorReader.AnchorOf(shape) is { } anchor && !AnchorReader.FlowsWithText(anchor))
         {
             foreach (var floating in DescribeAnchored(shape, anchor)) _paragraphFloats.Add(floating);
             yield break;
@@ -737,10 +743,11 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory)
     /// Imagem → nó com data URI.
     /// </summary>
     /// <remarks>
-    /// Toda imagem do corpus é `wp:anchor` centralizada com largura igual à do
-    /// texto — o jeito do LibreOffice gravar "imagem no próprio parágrafo".
-    /// Tratá-la como flutuante produziria layout pior, não melhor. Ver
-    /// docs/01-corpus-docx.md, Descoberta 3.
+    /// Vale para a imagem no meio da linha (`wp:inline`) e também para a
+    /// ancorada que está onde o fluxo já a poria — o jeito do LibreOffice
+    /// gravar "imagem no próprio parágrafo". Quem separa as duas é
+    /// <see cref="AnchorReader.FlowsWithText"/>. Ver docs/01-corpus-docx.md,
+    /// Descoberta 3.
     /// </remarks>
     /// <summary>Os bytes da imagem como data URI, ou `null` se não houver.</summary>
     /// <remarks>
