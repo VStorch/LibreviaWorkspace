@@ -40,8 +40,8 @@ test.describe('cabeçalho em grade', () => {
   test('a tabela do cabeçalho é desenhada como tabela', async () => {
     const grade = session.window.locator('.band--header .band__grid').first()
     await expect(grade).toBeVisible()
-    await expect(grade.locator('tr')).toHaveCount(2)
-    await expect(grade.locator('td')).toHaveCount(3)
+    await expect(grade.locator('tr')).toHaveCount(4)
+    await expect(grade.locator('td')).toHaveCount(5)
   })
 
   test('a célula mesclada cresce em vez de deixar a linha vazia', async () => {
@@ -49,7 +49,25 @@ test.describe('cabeçalho em grade', () => {
     // `restart` e a de baixo aparece como célula vazia. Desenhada como célula de
     // verdade, ela abriria uma faixa em branco debaixo do logotipo.
     const selo = session.window.locator('.band--header .band__grid td', { hasText: 'Selo' }).first()
-    await expect(selo).toHaveAttribute('rowspan', '2')
+    await expect(selo).toHaveAttribute('rowspan', '4')
+  })
+
+  test('o corpo desce para debaixo do cabeçalho, sem se encontrar com ele', async () => {
+    // A margem de cima é um piso, não uma posição: quando o cabeçalho é mais
+    // alto que ela, o Word e o LibreOffice descem o corpo. Sem isso a primeira
+    // linha do texto era escrita por cima da última do cabeçalho.
+    const medidas = await session.window.evaluate(() => {
+      const banda = document.querySelector('.band--header') as HTMLElement | null
+      const primeira = document.querySelector('.page__content > *') as HTMLElement | null
+      if (banda === null || primeira === null) return null
+      return {
+        fimDaFaixa: banda.getBoundingClientRect().bottom,
+        inicio: primeira.getBoundingClientRect().top,
+      }
+    })
+
+    expect(medidas).not.toBeNull()
+    expect(medidas!.inicio).toBeGreaterThanOrEqual(medidas!.fimDaFaixa)
   })
 
   test('a grade ocupa a faixa inteira, e não um dos terços', async () => {

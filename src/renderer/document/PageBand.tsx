@@ -17,6 +17,7 @@ export function PageBand({
   pageNumber,
   totalPages,
   insetPx,
+  offsetPx,
 }: {
   band: Band
   kind: 'header' | 'footer'
@@ -31,11 +32,25 @@ export function PageBand({
    * reproduz a proporção do original sem precisar de número mágico.
    */
   insetPx: number
+  /**
+   * Distância da faixa até a borda do papel, que o arquivo declara em
+   * `w:pgMar/@header` e `@footer`.
+   *
+   * Era um valor fixo de 4 mm no CSS. Enquanto o cabeçalho só precisava caber
+   * na margem, a diferença era invisível; agora que a altura dele empurra o
+   * corpo para baixo, desenhar num lugar e contar de outro faria a conta e o
+   * desenho discordarem — e o corpo desceria demais ou de menos.
+   */
+  offsetPx: number
 }): React.JSX.Element {
   return (
     <div
       className={`band band--${kind}${band.rule ? ' band--ruled' : ''}`}
-      style={{ left: `${insetPx}px`, right: `${insetPx}px` }}
+      style={{
+        left: `${insetPx}px`,
+        right: `${insetPx}px`,
+        [kind === 'header' ? 'top' : 'bottom']: `${offsetPx}px`,
+      }}
       aria-hidden="true"
     >
       {band.rows.length === 0 ? null : (

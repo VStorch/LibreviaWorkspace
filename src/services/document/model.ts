@@ -227,9 +227,40 @@ export function contentWidthMm(page: PageSetup): number {
   return width - page.margins.left - page.margins.right
 }
 
-export function contentHeightMm(page: PageSetup): number {
+export function contentHeightMm(page: PageSetup, bands: BandHeights = NO_BANDS): number {
   const { height } = pageDimensionsMm(page)
-  return height - page.margins.top - page.margins.bottom
+  const inset = contentInsetsMm(page, bands)
+  return height - inset.top - inset.bottom
+}
+
+/**
+ * Altura desenhada de cada faixa, medida na folha.
+ *
+ * É a única parte desta conta que nenhum arquivo diz: um cabeçalho de três
+ * linhas ocupa o que a fonte e a quebra derem, e isso só existe depois de
+ * desenhar.
+ */
+export interface BandHeights {
+  readonly headerMm: number
+  readonly footerMm: number
+}
+
+export const NO_BANDS: BandHeights = { headerMm: 0, footerMm: 0 }
+
+/**
+ * Onde a coluna de texto começa e termina na folha.
+ *
+ * A margem é um piso, não uma posição. Quando o cabeçalho é mais alto do que a
+ * distância dele até a borda mais a margem de cima — e o cabeçalho corporativo
+ * em grade quase sempre é — o Word e o LibreOffice **descem o corpo** até
+ * debaixo dele. Sem isso a primeira linha do texto era escrita por cima da
+ * última do cabeçalho, e o mesmo encontro acontecia no pé com o rodapé.
+ */
+export function contentInsetsMm(page: PageSetup, bands: BandHeights): { top: number; bottom: number } {
+  return {
+    top: Math.max(page.margins.top, page.headerDistanceMm + bands.headerMm),
+    bottom: Math.max(page.margins.bottom, page.footerDistanceMm + bands.footerMm),
+  }
 }
 
 /** Conversão CSS: 1 polegada = 96 px = 25,4 mm. */

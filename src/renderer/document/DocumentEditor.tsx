@@ -1,7 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { EditorContent, useEditor, type Editor } from '@tiptap/react'
 import { DOCUMENT_CONTENT_CSS, EDITOR_ONLY_CSS } from '@services/document/content-styles.js'
-import { bandForPage, hasBandContent, mmToPx, pageDimensionsMm } from '@services/document/model.js'
+import {
+  bandForPage,
+  contentInsetsMm,
+  hasBandContent,
+  mmToPx,
+  pageDimensionsMm,
+  pxToMm as toMm,
+  type BandHeights,
+  type PageSetup,
+} from '@services/document/model.js'
 import type { DocumentNode } from '@services/document/model.js'
 import { useWorkspace } from '../state/workspace.js'
 import { DocumentToolbar } from './toolbar/DocumentToolbar.js'
@@ -99,7 +108,7 @@ export function DocumentEditor(): React.JSX.Element {
     registerDocumentSource({
       readDoc: () => editor.getJSON() as DocumentNode,
       readHtml: () => editor.getHTML(),
-      readPages: () => splitIntoPages(editor, layoutRef.current),
+      readPages: () => ({ pages: splitIntoPages(editor, layoutRef.current), bands: bandsRef.current }),
     })
     return () => registerDocumentSource(null)
   }, [editor, registerDocumentSource])
@@ -114,7 +123,9 @@ export function DocumentEditor(): React.JSX.Element {
     [editor],
   )
 
-  const layout = usePagination(editor, page, contentRevision)
+  const bands = useBandHeights(page, contentRevision)
+  const layout = usePagination(editor, page, contentRevision, bands)
+  const insets = contentInsetsMm(page, bands)
 
   // Os objetos ancorados de cada folha. Recalculados junto com a paginação
   // porque a posição de um deles depende de em que folha o parágrafo âncora
@@ -145,6 +156,12 @@ export function DocumentEditor(): React.JSX.Element {
   // fonte do documento dezenas de vezes por segundo enquanto se digita.
   const layoutRef = useRef(layout)
   layoutRef.current = layout
+
+  // O papel precisa das mesmas medidas de faixa que a tela usou, e pela mesma
+  // razão da `ref` acima: elas mudam durante a digitação e quem as lê é a
+  // impressão, no momento em que ela acontece.
+  const bandsRef = useRef(bands)
+  bandsRef.current = bands
 
   useEffect(() => setEstimatedPages(layout.pages), [layout.pages, setEstimatedPages])
 
@@ -223,6 +240,7 @@ export function DocumentEditor(): React.JSX.Element {
                     pageNumber={index + 1}
                     totalPages={layout.pages}
                     insetPx={bandInset}
+                    offsetPx={mmToPx(kind === 'header' ? page.headerDistanceMm : page.footerDistanceMm)}
                   />
                 ) : null
               })}
@@ -239,7 +257,9 @@ export function DocumentEditor(): React.JSX.Element {
           <div
             className="pages__column"
             style={{
-              paddingTop: `${mmToPx(page.margins.top)}px`,
+              // A margem de cima é um piso: um cabeçalho mais alto que ela
+              // desce o corpo até debaixo dele, como no Word.
+              paddingTop: `${mmToPx(insets.top)}px`,
               paddingRight: `${mmToPx(page.margins.right)}px`,
               paddingLeft: `${mmToPx(page.margins.left)}px`,
             }}
@@ -250,6 +270,50 @@ export function DocumentEditor(): React.JSX.Element {
       </div>
     </div>
   )
+}
+
+/**
+ * A altura desenhada do cabeçalho e do rodapé.
+ *
+ * É a única parte da conta de margem que nenhum arquivo diz: um cabeçalho em
+ * grade ocupa o que a fonte e a quebra derem, e isso só existe depois de
+ * desenhar. Medido na primeira folha — as outras repetem a mesma faixa — e
+ * arredondado a um décimo de milímetro, porque a medida do navegador oscila
+ * sozinha e cada oscilação repaginaria o documento inteiro.
+ *
+ * Não há laço: a altura da faixa não depende de onde o texto caiu.
+ */
+function useBandHeights(page: PageSetup, revision: number): BandHeights {
+  const [bands, setBands] = useState<BandHeights>({ headerMm: 0, footerMm: 0 })
+
+  useEffect(() => {
+    const measure = (): void => {
+      const sheet = document.querySelector('.paper-bands')
+      const heightOf = (kind: string): number => {
+        const band = sheet?.querySelector(`.band--${kind}`)
+        return band === null || band === undefined
+          ? 0
+          : Math.round(toMm((band as HTMLElement).offsetHeight) * 10) / 10
+      }
+
+      const next = { headerMm: heightOf('header'), footerMm: heightOf('footer') }
+      setBands((current) =>
+        current.headerMm === next.headerMm && current.footerMm === next.footerMm ? current : next,
+      )
+    }
+
+    measure()
+
+    const sheet = document.querySelector('.paper-bands')
+    if (sheet === null) return undefined
+
+    const observer = new ResizeObserver(measure)
+    observer.observe(sheet)
+    for (const band of sheet.querySelectorAll('.band')) observer.observe(band)
+    return () => observer.disconnect()
+  }, [page, revision])
+
+  return bands
 }
 
 /**

@@ -210,6 +210,21 @@ public class DocxRoundTripTests
     }
 
     [Fact]
+    public void AListaHerdaOEspacamentoDosParagrafosDela()
+    {
+        // No arquivo a lista não existe como bloco: são parágrafos numerados,
+        // cada um com o seu espaçamento. Na árvore do editor ela é um elemento
+        // de verdade, e elemento sem espaçamento declarado recebe o do editor —
+        // o mesmo que o parágrafo importado já não recebe. Num documento com
+        // seis listas isso somava quinze milímetros de ar que o Word não tem.
+        var model = Open(Fixtures.WithBulletList());
+        var list = Walk(model.Doc).First(n => n.Type == "bulletList");
+
+        Assert.Equal(0, list.Attrs!["spaceBefore"]!.GetValue<double>());
+        Assert.Equal(0, list.Attrs["spaceAfter"]!.GetValue<double>());
+    }
+
+    [Fact]
     public void ReadsSmallCapsAndCaps()
     {
         var model = Open(Fixtures.WithSmallCaps());

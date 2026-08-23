@@ -625,20 +625,17 @@ button {
   display: grid;
   grid-template-columns: auto 1fr auto;
   align-items: center;
-  gap: 12px;
+  /* Só entre as colunas. `gap` também separaria a grade dos três terços, e como
+     a altura da faixa passa a empurrar o corpo, esse espaço viraria margem. */
+  column-gap: 12px;
   pointer-events: none;
   user-select: none;
   font-size: 10pt;
   line-height: 1.2;
 }
 
-.band--header {
-  top: 4mm;
-}
-
-.band--footer {
-  bottom: 4mm;
-}
+/* `top` e `bottom` vêm do documento, em linha: é `w:pgMar/@header` e `@footer`,
+   e é de lá que a conta de margem parte. */
 
 .band--ruled.band--header {
   padding-bottom: 3px;
@@ -679,7 +676,8 @@ button {
 }
 
 .band__grid td {
-  padding: 1px 4px;
+  /* Como o Word: nada em cima e embaixo, 1,9 mm nos lados (`w:tblCellMar`). */
+  padding: 0 1.9mm;
   vertical-align: middle;
   overflow-wrap: break-word;
 }

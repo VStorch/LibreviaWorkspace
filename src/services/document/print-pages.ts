@@ -1,9 +1,11 @@
 import {
   bandForPage,
+  contentInsetsMm,
   hasBandContent,
   pageDimensionsMm,
   type Band,
   type BandCell,
+  type BandHeights,
   type BandPiece,
   type PageSetup,
 } from './model.js'
@@ -95,13 +97,14 @@ export function buildPagedCss(page: PageSetup): string {
   display: grid;
   grid-template-columns: auto 1fr auto;
   align-items: center;
-  gap: 8px;
+  /* Só entre as colunas: ver a mesma regra em styles.css. */
+  column-gap: 8px;
   font-size: 9pt;
   color: #222222;
 }
 
-.paper-page__band--header { top: 4mm; }
-.paper-page__band--footer { bottom: 4mm; }
+/* Topo e base vêm em linha, do que o documento declara. Crase nenhuma
+   aqui dentro: isto mora num template literal. */
 .paper-page__band--ruled { border-bottom: 1px solid #999999; padding-bottom: 2px; }
 .paper-page__band img { object-fit: contain; }
 .paper-page__cell { display: flex; align-items: center; gap: 6px; min-width: 0; }
@@ -116,27 +119,47 @@ export function buildPagedCss(page: PageSetup): string {
   border-collapse: collapse;
   table-layout: fixed;
 }
-.paper-page__grid td { padding: 1px 4px; vertical-align: middle; overflow-wrap: break-word; }
+.paper-page__grid td { padding: 0 1.9mm; vertical-align: middle; overflow-wrap: break-word; }
 .paper-page__grid img { max-width: 100%; height: auto; }
 `
 }
 
+/**
+ * O documento já recortado em folhas, com o que a tela mediu.
+ *
+ * As alturas das faixas viajam junto porque o papel precisa da **mesma** conta
+ * de margem que a tela fez: um cabeçalho mais alto que a margem de cima desce o
+ * corpo, e se os dois medissem por conta própria a folha da tela e a do papel
+ * começariam em alturas diferentes.
+ */
+export interface PagedDocument {
+  readonly pages: readonly PrintPage[]
+  readonly bands: BandHeights
+}
+
 /** As folhas, uma caixa cada. */
-export function buildPagedBody(pages: readonly PrintPage[], page: PageSetup): string {
-  const total = pages.length
+export function buildPagedBody(paged: PagedDocument, page: PageSetup): string {
+  const total = paged.pages.length
   // Mesma proporção da tela: a faixa do cabeçalho corporativo é mais larga que
   // a coluna de texto, e usar a margem do texto encolheria o logotipo.
   const inset = Math.min(page.margins.left, page.margins.right) / 2
+  const insets = contentInsetsMm(page, paged.bands)
 
-  return pages.map((sheet) => renderPage(sheet, page, total, inset)).join('\n')
+  return paged.pages.map((sheet) => renderPage(sheet, page, total, inset, insets)).join('\n')
 }
 
-function renderPage(sheet: PrintPage, page: PageSetup, total: number, inset: number): string {
+function renderPage(
+  sheet: PrintPage,
+  page: PageSetup,
+  total: number,
+  inset: number,
+  insets: { top: number; bottom: number },
+): string {
   const header = bandForPage(page, sheet.number, 'header')
   const footer = bandForPage(page, sheet.number, 'footer')
 
   const body =
-    `<div class="page__content paper-page__body" style="padding:${page.margins.top}mm ${page.margins.right}mm ${page.margins.bottom}mm ${page.margins.left}mm">` +
+    `<div class="page__content paper-page__body" style="padding:${insets.top}mm ${page.margins.right}mm ${insets.bottom}mm ${page.margins.left}mm">` +
     sheet.html +
     '</div>'
 
@@ -153,9 +176,13 @@ function renderPage(sheet: PrintPage, page: PageSetup, total: number, inset: num
   return (
     '<div class="paper-page">' +
     renderFloats(floats, page, true) +
-    (hasBandContent(header) ? renderBand(header, 'header', sheet.number, total, inset) : '') +
+    (hasBandContent(header)
+      ? renderBand(header, 'header', sheet.number, total, inset, page.headerDistanceMm)
+      : '') +
     body +
-    (hasBandContent(footer) ? renderBand(footer, 'footer', sheet.number, total, inset) : '') +
+    (hasBandContent(footer)
+      ? renderBand(footer, 'footer', sheet.number, total, inset, page.footerDistanceMm)
+      : '') +
     renderFloats(floats, page, false) +
     '</div>'
   )
@@ -188,6 +215,7 @@ function renderBand(
   pageNumber: number,
   total: number,
   inset: number,
+  offset: number,
 ): string {
   const cell = (pieces: readonly BandPiece[], place: string): string =>
     `<div class="paper-page__cell paper-page__cell--${place}">` +
@@ -196,7 +224,7 @@ function renderBand(
 
   return (
     `<div class="paper-page__band paper-page__band--${kind}${band.rule ? ' paper-page__band--ruled' : ''}" ` +
-    `style="left:${inset}mm;right:${inset}mm">` +
+    `style="left:${inset}mm;right:${inset}mm;${kind === 'header' ? 'top' : 'bottom'}:${offset}mm">` +
     renderGrid(band, pageNumber, total) +
     cell(band.left, 'left') +
     cell(band.center, 'center') +

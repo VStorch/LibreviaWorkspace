@@ -176,6 +176,10 @@ export async function docxWithHeaderGrid(): Promise<Buffer> {
     `<w:tblGrid><w:gridCol w:w="2000"/><w:gridCol w:w="8000"/></w:tblGrid>` +
     `<w:tr>${celula('Selo', '2000', '<w:vMerge w:val="restart"/>')}${celula('Chamado 10001', '8000')}</w:tr>` +
     `<w:tr>${celula('', '2000', '<w:vMerge/>')}${celula('Título do documento', '8000')}</w:tr>` +
+    // Quatro linhas de propósito: assim a grade fica mais alta que a margem de
+    // cima, que é a situação em que o corpo tem de descer para debaixo dela.
+    `<w:tr>${celula('', '2000', '<w:vMerge/>')}${celula('Terceira linha do cabeçalho', '8000')}</w:tr>` +
+    `<w:tr>${celula('', '2000', '<w:vMerge/>')}${celula('Quarta linha do cabeçalho', '8000')}</w:tr>` +
     `</w:tbl>`
 
   const header = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>

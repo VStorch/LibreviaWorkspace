@@ -28,7 +28,10 @@ export const BlockFormat = Extension.create<BlockFormatOptions>({
   name: 'blockFormat',
 
   addOptions() {
-    return { types: ['paragraph', 'heading'] }
+    // A lista entra junto: no arquivo ela não existe como bloco — são
+    // parágrafos numerados —, mas na árvore do editor é um elemento de verdade,
+    // e sem espaçamento declarado ele recebe o do editor.
+    return { types: ['paragraph', 'heading', 'bulletList', 'orderedList'] }
   },
 
   addGlobalAttributes() {

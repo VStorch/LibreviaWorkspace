@@ -1,7 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Editor } from '@tiptap/react'
 import { paginate, type MeasuredBlock } from '@services/document/paginate.js'
-import { contentHeightMm, mmToPx, pageDimensionsMm, type PageSetup } from '@services/document/model.js'
+import {
+  contentHeightMm,
+  contentInsetsMm,
+  mmToPx,
+  NO_BANDS,
+  pageDimensionsMm,
+  type BandHeights,
+  type PageSetup,
+} from '@services/document/model.js'
 import { applyPageGaps } from './extensions/pagination.js'
 
 /** Espaço entre uma folha e a seguinte, como numa pilha de papel. */
@@ -46,7 +54,12 @@ export interface BlockAnchor {
  * aplicar o resultado não muda a entrada da próxima medida. Sem isso, cada
  * passada empurraria os blocos um pouco mais e a paginação nunca assentaria.
  */
-export function usePagination(editor: Editor | null, page: PageSetup, revision: number): PageLayout {
+export function usePagination(
+  editor: Editor | null,
+  page: PageSetup,
+  revision: number,
+  bands: BandHeights = NO_BANDS,
+): PageLayout {
   const [layout, setLayout] = useState<PageLayout>({
     pages: 1,
     stackHeightPx: 0,
@@ -71,9 +84,12 @@ export function usePagination(editor: Editor | null, page: PageSetup, revision: 
 
     const element = editor.view.dom as HTMLElement // alvo do observador de tamanho
     const pageHeightPx = mmToPx(pageDimensionsMm(page).height)
-    const contentHeightPx = mmToPx(contentHeightMm(page))
-    const marginTopPx = mmToPx(page.margins.top)
-    const marginBottomPx = mmToPx(page.margins.bottom)
+    const contentHeightPx = mmToPx(contentHeightMm(page, bands))
+    // A margem é um piso: um cabeçalho mais alto que ela empurra o corpo para
+    // baixo, e é essa a altura de onde a folha seguinte recomeça.
+    const insets = contentInsetsMm(page, bands)
+    const marginTopPx = mmToPx(insets.top)
+    const marginBottomPx = mmToPx(insets.bottom)
 
     const measure = (): void => {
       // Percorrido pelo **documento**, e não pelos filhos do DOM: os dois não
@@ -179,7 +195,7 @@ export function usePagination(editor: Editor | null, page: PageSetup, revision: 
       observer.disconnect()
       if (scheduled !== 0) cancelAnimationFrame(scheduled)
     }
-  }, [editor, page, revision])
+  }, [editor, page, revision, bands.headerMm, bands.footerMm])
 
   return layout
 }

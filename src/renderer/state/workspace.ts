@@ -18,7 +18,7 @@ import {
 } from '@services/document/model.js'
 import { documentToPlainText, hasRichFormatting, plainTextToDocument } from '@services/document/plain-text.js'
 import { buildPrintHtml } from '@services/document/print-html.js'
-import { buildPagedBody, buildPagedCss, type PrintPage } from '@services/document/print-pages.js'
+import { buildPagedBody, buildPagedCss, type PagedDocument } from '@services/document/print-pages.js'
 import { parseDocument, serializeDocument } from '@services/document/serialize.js'
 import {
   createEmptyWorkbook,
@@ -158,7 +158,7 @@ export interface DocumentSource {
    * §6.3 do plano registrava como risco residual — dois paginadores, um em
    * JavaScript e outro no Chromium, sem nada forçando a sincronia.
    */
-  readonly readPages: () => readonly PrintPage[]
+  readonly readPages: () => PagedDocument
 }
 
 function toSerialized(cause: unknown): SerializedError {

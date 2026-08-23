@@ -121,6 +121,7 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory)
                     var item = Node.Of("listItem");
                     item.Content = [node];
                     openLists[^1].List.Content!.Add(item);
+                    CarrySpacing(openLists[^1].List, node);
                     blocks.Add(NewBlock(element, item));
                     break;
                 }
@@ -148,6 +149,32 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory)
         if (content.Count == 0) content.Add(Node.Of("paragraph"));
 
         return (content, blocks);
+    }
+
+    /// <summary>
+    /// A lista herda o espaçamento dos parágrafos das pontas.
+    /// </summary>
+    /// <remarks>
+    /// No arquivo a lista não existe como bloco: o que existe são parágrafos com
+    /// numeração, cada um com o seu espaçamento. Na árvore do editor a lista é
+    /// um elemento de verdade, e um elemento sem espaçamento declarado recebe o
+    /// do editor — o mesmo `0.6em` que o parágrafo importado já não recebe. Num
+    /// documento com seis listas isso somava quinze milímetros de ar que o Word
+    /// não tem, o bastante para empurrar a última imagem para uma folha nova.
+    ///
+    /// Antes do primeiro item vale o espaço de antes dele; depois do último,
+    /// o de depois — que é o que o Word desenha.
+    /// </remarks>
+    private static void CarrySpacing(Node list, Node paragraph)
+    {
+        if (paragraph.Attrs is not { } attrs) return;
+
+        if (list.Attrs?.ContainsKey("spaceBefore") != true && attrs.TryGetValue("spaceBefore", out var before))
+        {
+            list.With("spaceBefore", before?.DeepClone());
+        }
+
+        if (attrs.TryGetValue("spaceAfter", out var after)) list.With("spaceAfter", after?.DeepClone());
     }
 
     private Block NewBlock(OpenXmlElement source, Node extracted)
