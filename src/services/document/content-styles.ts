@@ -26,6 +26,21 @@ ${DOCUMENT_FONT_CSS}
 
 .page__content > * + * { margin-top: 0.6em; }
 
+/*
+  O parágrafo vazio também ocupa uma linha.
+
+  No editor ele já ocupa: o ProseMirror põe um <br> invisível dentro para dar
+  onde pôr o cursor. No papel não há cursor, o serializador emite <p></p> e um
+  bloco sem conteúdo tem altura zero. As folhas eram recortadas pela medida da
+  tela e impressas sem essas linhas, então o papel subia o texto todo e a
+  primeira linha ia parar debaixo do cabeçalho. Este pedaço vazio de linha
+  devolve a altura sem devolver tinta.
+*/
+.page__content :is(p, h1, h2, h3, h4, h5, h6, li):empty::before {
+  content: '';
+  display: inline-block;
+}
+
 .page__content h1 { font-size: 22pt; font-weight: 600; margin-top: 1em; }
 .page__content h2 { font-size: 17pt; font-weight: 600; margin-top: 1em; }
 .page__content h3 { font-size: 14pt; font-weight: 600; margin-top: 1em; }

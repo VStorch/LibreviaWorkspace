@@ -326,6 +326,56 @@ public static class Fixtures
         body.AppendChild(marked);
     });
 
+    /// <summary>
+    /// A medida da linha: estilo padrão, marca de parágrafo e entrelinha travada.
+    /// </summary>
+    /// <remarks>
+    /// Três coisas que o corpus real faz em todo parágrafo e o leitor ignorava:
+    ///
+    /// - o texto do corpo não declara `w:pStyle` e mora no estilo marcado
+    ///   `w:default="1"`, que é onde estão a fonte e o corpo dele;
+    /// - a fonte da linha vem da **marca de parágrafo** (`w:pPr/w:rPr`), que é
+    ///   com o que o Word mede a linha e dá altura ao parágrafo vazio;
+    /// - quem não diz nada sobre entrelinha está pedindo o espaçamento simples,
+    ///   e não o padrão de quem abre o arquivo.
+    /// </remarks>
+    public static byte[] WithLineMetrics() => Build((body, part) =>
+    {
+        var styles = part.AddNewPart<StyleDefinitionsPart>();
+        styles.Styles = new Styles(
+            new DocDefaults(
+                new RunPropertiesDefault(new RunPropertiesBaseStyle(
+                    new RunFonts { Ascii = "Times New Roman" }))),
+
+            new Style(
+                new StyleName { Val = "Normal" },
+                new StyleRunProperties(new FontSize { Val = "24" }))
+            { Type = StyleValues.Paragraph, StyleId = "Normal", Default = true });
+
+        // Sem `w:pStyle`: só o estilo padrão diz que isto é 12 pt.
+        body.AppendChild(Paragraph("Herda o estilo padrão."));
+
+        // A marca de parágrafo manda na altura da linha, e diverge do estilo.
+        var marked = Paragraph("Verdana de dez pontos.");
+        marked.ParagraphProperties = new ParagraphProperties(
+            new ParagraphMarkRunProperties(
+                new RunFonts { Ascii = "Verdana" },
+                new FontSize { Val = "20" }));
+        body.AppendChild(marked);
+
+        // Entrelinha travada em 9 pt — `exact` voltava nula e virava a do editor.
+        var exact = Paragraph("Entrelinha travada.");
+        exact.ParagraphProperties = new ParagraphProperties(
+            new SpacingBetweenLines { Line = "180", LineRule = LineSpacingRuleValues.Exact });
+        body.AppendChild(exact);
+
+        // Uma vez e meia, que é o outro valor que aparece na prática.
+        var loose = Paragraph("Entrelinha de uma vez e meia.");
+        loose.ParagraphProperties = new ParagraphProperties(
+            new SpacingBetweenLines { Line = "360", LineRule = LineSpacingRuleValues.Auto });
+        body.AppendChild(loose);
+    });
+
     /// <summary>Um parágrafo que pede para ficar com o seguinte, outro que não.</summary>
     public static byte[] WithKeepNext() => Build((body, _) =>
     {

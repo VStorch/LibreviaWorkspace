@@ -373,6 +373,63 @@ public class DocxRoundTripTests
     }
 
     [Fact]
+    public void ParagraphWithoutAStyleStillGetsTheDefaultOne()
+    {
+        // O estilo marcado `w:default="1"` vale para quem não declara
+        // `w:pStyle`. Sem consultá-lo, o texto do corpo de um documento inteiro
+        // chegava só com os `docDefaults` — quer dizer, quase sem formatação.
+        var model = Open(Fixtures.WithLineMetrics());
+        var first = BlockContaining(model, "estilo padrão");
+
+        Assert.Equal("12pt", first.Attrs!["fontSize"]!.GetValue<string>());
+    }
+
+    [Fact]
+    public void TheParagraphMarkGivesTheBlockItsFont()
+    {
+        // A marca de parágrafo continua fora dos runs — pô-la ali punha negrito
+        // em parágrafo que não tem. Mas é com ela que o Word mede a linha, e o
+        // bloco precisa dela: um parágrafo vazio de Verdana 10 pt ocupava os
+        // 12 pt do padrão do editor, meia linha a mais, em cada parágrafo.
+        var model = Open(Fixtures.WithLineMetrics());
+        var marked = BlockContaining(model, "Verdana");
+
+        Assert.Equal("Verdana", marked.Attrs!["fontFamily"]!.GetValue<string>());
+        Assert.Equal("10pt", marked.Attrs["fontSize"]!.GetValue<string>());
+
+        // E continua fora dos runs: o texto segue com a fonte do estilo.
+        var run = MarksOf(marked).Single(m => m.Type == "textStyle");
+        Assert.Equal("Times New Roman", run.Attrs!["fontFamily"]!.GetValue<string>());
+    }
+
+    [Fact]
+    public void SilenceAboutSpacingMeansSingleAndZero()
+    {
+        // Arquivo calado não está pedindo o padrão de quem o abre: está dizendo
+        // zero de espaço e espaçamento simples. Enquanto os atributos ficavam
+        // ausentes, o `margin-top` e o `line-height` que o editor traz para o
+        // documento em branco reapareciam em cada parágrafo importado — mais de
+        // uma página de ar num documento de meia centena de parágrafos.
+        var model = Open(Fixtures.WithLineMetrics());
+        var first = BlockContaining(model, "estilo padrão");
+
+        Assert.Equal("normal", first.Attrs!["lineHeight"]!.GetValue<string>());
+        Assert.Equal(0, first.Attrs["spaceBefore"]!.GetValue<double>());
+        Assert.Equal(0, first.Attrs["spaceAfter"]!.GetValue<double>());
+    }
+
+    [Fact]
+    public void ReadsLineSpacingThatIsLockedInPoints()
+    {
+        // `exact` e `atLeast` dizem a altura em twips. As duas voltavam nulas, e
+        // um parágrafo com entrelinha travada era desenhado com a do editor.
+        var model = Open(Fixtures.WithLineMetrics());
+
+        Assert.Equal("9pt", BlockContaining(model, "travada").Attrs!["lineHeight"]!.GetValue<string>());
+        Assert.Equal("1.5", BlockContaining(model, "uma vez e meia").Attrs!["lineHeight"]!.GetValue<string>());
+    }
+
+    [Fact]
     public void ReadsKeepWithNext()
     {
         // Diz que o bloco não fica sozinho no pé da página. A marca de fim de

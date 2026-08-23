@@ -244,18 +244,31 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory)
         // colorida neste corpus — sem ele o título vira texto solto.
         if (ShadingOf(effective) is { } background) node.With("background", background);
 
+        // Espaçamento e entrelinha são **sempre** escritos, como o recuo e pela
+        // mesma razão: silêncio no arquivo não significa "use o seu padrão",
+        // significa zero. Enquanto ficavam ausentes, o `margin-top: 0.6em` e o
+        // `line-height: 1.5` do editor — que existem para o documento em branco
+        // — reapareciam em cada parágrafo importado. Num documento de 48
+        // parágrafos isso somava mais de uma página de ar que o Word não tem, e
+        // era o que fazia a imagem seguinte descer para a folha de baixo.
         var spacing = effective.SpacingBetweenLines;
-        if (TwipsToPt(spacing?.Before?.Value) is { } before) node.With("spaceBefore", before);
-        if (TwipsToPt(spacing?.After?.Value) is { } after) node.With("spaceAfter", after);
-        if (LineHeightOf(spacing) is { } lineHeight) node.With("lineHeight", lineHeight);
+        node.With("spaceBefore", TwipsToPt(spacing?.Before?.Value) ?? 0);
+        node.With("spaceAfter", TwipsToPt(spacing?.After?.Value) ?? 0);
+        node.With("lineHeight", LineHeightOf(spacing));
 
         // A fonte **do bloco**, e não só a dos runs. A altura da linha nasce da
         // fonte do próprio elemento: sem isto, um parágrafo de 10 pt dentro de
         // um bloco que o CSS declara com 12 pt continua ocupando 12 pt de
         // altura — e um `Heading1` de 10 pt vira uma barra alta demais, porque
         // o editor desenha títulos em 22 pt.
-        if (FontOf(inheritedRun) is { } font) node.With("fontFamily", font);
-        if (FontSizeOf(inheritedRun) is { } size) node.With("fontSize", size);
+        //
+        // Vem da **marca de parágrafo** (`w:pPr/w:rPr`), e não do estilo só: é
+        // ela que o Word usa para medir a linha e para dar altura ao parágrafo
+        // vazio. Sem ela, um parágrafo vazio de Verdana 10 pt ocupava os 12 pt
+        // do padrão do editor — meia linha a mais, vinte vezes no documento.
+        var mark = _styles.ResolveMark(inheritedRun, direct);
+        if (FontOf(mark) is { } font) node.With("fontFamily", font);
+        if (FontSizeOf(mark) is { } size) node.With("fontSize", size);
 
         // "Manter com o próximo": o parágrafo não fica sozinho no pé da página.
         // É o que faz um rótulo descer junto com a imagem que ele apresenta —
@@ -305,18 +318,36 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory)
         int.TryParse(twips, out var value) && value >= 0 ? Math.Round(value / 20.0, 1) : null;
 
     /// <summary>
-    /// Entrelinha. `w:line` com regra `auto` vem em 240-avos: 271 significa
-    /// 1,13 vez a altura da linha.
+    /// Entrelinha, já em CSS. `w:line` com regra `auto` vem em 240-avos: 271
+    /// significa 1,13 vez a altura natural da linha.
     /// </summary>
-    private static double? LineHeightOf(SpacingBetweenLines? spacing)
+    /// <remarks>
+    /// Sai texto, e não número, porque o caso mais comum — e o que o silêncio
+    /// no arquivo significa — é o espaçamento **simples** do Word, que é a
+    /// altura que a própria fonte pede. Em CSS isso se chama `normal`, e
+    /// nenhum fator o imita: 1,5 arejava cada linha em meia altura e 1,15
+    /// acertaria numa fonte e erraria na seguinte.
+    ///
+    /// `exact` e `atLeast` dizem a altura em twips, e viram pontos. Antes daqui
+    /// as duas voltavam nulas, e um parágrafo com entrelinha travada em 9 pt
+    /// era desenhado com a do editor.
+    /// </remarks>
+    private static string LineHeightOf(SpacingBetweenLines? spacing)
     {
-        if (spacing?.Line?.Value is not { } line || !int.TryParse(line, out var value) || value <= 0) return null;
+        if (spacing?.Line?.Value is not { } line || !int.TryParse(line, out var value) || value <= 0)
+        {
+            return "normal";
+        }
 
         var rule = spacing.LineRule?.Value;
-        if (rule is not null && rule != LineSpacingRuleValues.Auto) return null;
+        if (rule is not null && rule != LineSpacingRuleValues.Auto)
+        {
+            return Math.Round(value / 20.0, 1).ToString("0.#", System.Globalization.CultureInfo.InvariantCulture) + "pt";
+        }
 
         var factor = Math.Round(value / 240.0, 2);
-        return factor is > 0.5 and < 4 ? factor : null;
+        if (factor is <= 0.5 or >= 4 || factor == 1) return "normal";
+        return factor.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
     }
 
     /// <summary>

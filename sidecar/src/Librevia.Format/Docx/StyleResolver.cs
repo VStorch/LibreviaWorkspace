@@ -26,6 +26,16 @@ public sealed class StyleResolver
     private readonly Dictionary<string, Style> _byId;
     private readonly ParagraphPropertiesBaseStyle? _defaultParagraph;
     private readonly RunPropertiesBaseStyle? _defaultRun;
+
+    /// <summary>
+    /// O estilo marcado `w:default="1"`, que vale para o parágrafo sem `w:pStyle`.
+    /// </summary>
+    /// <remarks>
+    /// Sem consultá-lo, um parágrafo sem estilo declarado ficava só com os
+    /// `docDefaults` — e num documento onde o corpo do texto mora todo no
+    /// estilo `Normal`, isso é abrir o arquivo sem a formatação dele.
+    /// </remarks>
+    private readonly string? _defaultParagraphStyleId;
     private readonly Dictionary<string, (ParagraphProperties P, RunProperties R)> _cache = new(StringComparer.Ordinal);
 
     public StyleResolver(MainDocumentPart part)
@@ -39,6 +49,11 @@ public sealed class StyleResolver
 
         _defaultParagraph = styles?.DocDefaults?.ParagraphPropertiesDefault?.ParagraphPropertiesBaseStyle;
         _defaultRun = styles?.DocDefaults?.RunPropertiesDefault?.RunPropertiesBaseStyle;
+
+        _defaultParagraphStyleId = _byId.Values
+            .FirstOrDefault(style =>
+                style.Type?.Value == StyleValues.Paragraph && style.Default?.Value == true)
+            ?.StyleId?.Value;
     }
 
     /// <summary>Propriedades efetivas do parágrafo e dos seus runs.</summary>
@@ -66,6 +81,22 @@ public sealed class StyleResolver
         return merged;
     }
 
+    /// <summary>
+    /// A formatação da **marca de parágrafo**: o estilo com `w:pPr/w:rPr` por cima.
+    /// </summary>
+    /// <remarks>
+    /// Continua fora dos runs — pô-la ali põe negrito em parágrafo que não tem.
+    /// Mas ela não é decoração invisível: é a fonte com que o Word mede a linha
+    /// e dá altura ao parágrafo vazio, e é isso que <see cref="BodyReader"/>
+    /// leva para o bloco.
+    /// </remarks>
+    public RunProperties ResolveMark(RunProperties inherited, ParagraphProperties? direct)
+    {
+        var merged = (RunProperties)inherited.CloneNode(true);
+        if (direct?.ParagraphMarkRunProperties is { } mark) Overlay(merged, mark);
+        return merged;
+    }
+
     private (ParagraphProperties, RunProperties) FromStyle(string? styleId)
     {
         var key = styleId ?? string.Empty;
@@ -80,7 +111,7 @@ public sealed class StyleResolver
 
         // Do ancestral mais distante para o mais próximo, para que o mais
         // próximo tenha a última palavra.
-        foreach (var style in ChainOf(styleId))
+        foreach (var style in ChainOf(styleId ?? _defaultParagraphStyleId))
         {
             if (style.StyleParagraphProperties is not null) Overlay(paragraph, style.StyleParagraphProperties);
             if (style.StyleRunProperties is not null) Overlay(run, style.StyleRunProperties);

@@ -94,12 +94,24 @@ export const BlockFormat = Extension.create<BlockFormatOptions>({
             },
           },
 
+          /**
+           * A entrelinha, já como o CSS a escreve.
+           *
+           * Texto, e não número: o espaçamento simples do Word — o que o
+           * arquivo quer dizer quando não diz nada — é a altura que a própria
+           * fonte pede, e em CSS isso se chama `normal`. Nenhum fator o imita,
+           * e enquanto o padrão do editor valia para o documento importado cada
+           * linha saía meia altura mais arejada do que no Word.
+           */
           lineHeight: {
             default: null,
             parseHTML: (element) => element.style.lineHeight || null,
             renderHTML: (attributes) => {
-              const factor = Number(attributes['lineHeight'])
-              return Number.isFinite(factor) && factor > 0 ? { style: `line-height: ${factor}` } : {}
+              const value = attributes['lineHeight']
+              if (typeof value === 'number') {
+                return Number.isFinite(value) && value > 0 ? { style: `line-height: ${value}` } : {}
+              }
+              return typeof value === 'string' && value.length > 0 ? { style: `line-height: ${value}` } : {}
             },
           },
 
