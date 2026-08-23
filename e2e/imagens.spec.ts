@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
 import { launch, menu, stubDialogs, type Session } from './app.js'
-import { docxWithStretchedImage } from './fixtures.js'
+import { docxWithAnchoredScreenshot, docxWithStretchedImage } from './fixtures.js'
 
 /**
  * A imagem sai do tamanho que o documento pediu.
@@ -53,5 +53,37 @@ test.describe('imagens do documento', () => {
     expect(caixa.natural).toBe(true)
     expect(caixa.largura / caixa.altura).toBeCloseTo(4, 1)
     expect(caixa.largura).toBeCloseTo(400, 0)
+  })
+
+  test('a imagem ancorada no lugar do parágrafo ocupa altura no texto', async () => {
+    // `wp:anchor` não quer dizer "fora do fluxo": é assim que o LibreOffice
+    // grava captura de tela — ancorada ao parágrafo, sem deslocamento,
+    // centralizada na coluna. Tratada como posição na folha, ela deixava de
+    // ocupar altura: o texto se fechava por cima dela, e um documento de trinta
+    // capturas encolhia de quinze folhas para quatro.
+    const origem = join(pasta, 'captura.docx')
+    await writeFile(origem, await docxWithAnchoredScreenshot())
+    await stubDialogs(session.app, { open: origem, messageBox: 1 })
+
+    await menu(session, 'open')
+    const imagem = session.window.locator('.page__content img[src^="data:"]')
+    await expect(imagem).toBeVisible()
+
+    const medidas = await session.window.evaluate(() => {
+      const img = document.querySelector('.page__content img[src^="data:"]') as HTMLImageElement
+      const depois = Array.from(document.querySelectorAll('.page__content > *')).find((node) =>
+        (node.textContent ?? '').startsWith('Depois'),
+      ) as HTMLElement | null
+
+      return {
+        flutuantes: document.querySelectorAll('.paper-float').length,
+        fim: img.getBoundingClientRect().bottom,
+        seguinte: depois?.getBoundingClientRect().top ?? 0,
+      }
+    })
+
+    // Nenhuma cópia posicionada, e o parágrafo seguinte começa depois dela.
+    expect(medidas.flutuantes).toBe(0)
+    expect(medidas.seguinte).toBeGreaterThanOrEqual(medidas.fim - 1)
   })
 })

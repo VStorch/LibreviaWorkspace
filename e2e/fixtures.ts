@@ -217,6 +217,42 @@ export async function docxWithHeaderGrid(): Promise<Buffer> {
   ])
 }
 
+/**
+ * Documento com uma imagem **ancorada** no lugar do próprio parágrafo.
+ *
+ * É como o LibreOffice grava captura de tela: `wp:anchor` sem deslocamento
+ * vertical, centralizada na coluna. Tratá-la como posição na folha fazia a
+ * imagem deixar de ocupar altura — o texto se fechava por cima dela, e um
+ * documento de trinta capturas encolhia de quinze folhas para quatro.
+ */
+export async function docxWithAnchoredScreenshot(): Promise<Buffer> {
+  const R = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships'
+  const PIC = 'http://schemas.openxmlformats.org/drawingml/2006/picture'
+  const imagem =
+    `<w:p><w:r><w:drawing><wp:anchor distT="0" distB="0" distL="0" distR="0" simplePos="0" ` +
+    `relativeHeight="2" behindDoc="0" locked="0" layoutInCell="0" allowOverlap="1">` +
+    `<wp:simplePos x="0" y="0"/>` +
+    `<wp:positionH relativeFrom="column"><wp:align>center</wp:align></wp:positionH>` +
+    `<wp:positionV relativeFrom="paragraph"><wp:posOffset>635</wp:posOffset></wp:positionV>` +
+    `<wp:extent cx="3810000" cy="952500"/><wp:wrapSquare wrapText="bothSides"/>` +
+    `<wp:docPr id="1" name="Captura"/>` +
+    `<a:graphic><a:graphicData uri="${PIC}"><pic:pic xmlns:pic="${PIC}">` +
+    `<pic:nvPicPr><pic:cNvPr id="1" name="Captura"/><pic:cNvPicPr/></pic:nvPicPr>` +
+    `<pic:blipFill><a:blip xmlns:r="${R}" r:embed="rId9"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill>` +
+    `<pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="3810000" cy="952500"/></a:xfrm>` +
+    `<a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr>` +
+    `</pic:pic></a:graphicData></a:graphic>` +
+    `</wp:anchor></w:drawing></w:r></w:p>`
+
+  return zip([
+    ['[Content_Types].xml', IMAGE_CONTENT_TYPES],
+    ['_rels/.rels', ROOT_RELS],
+    ['word/_rels/document.xml.rels', IMAGE_RELS],
+    ['word/media/quadrado.png', SQUARE_PNG],
+    ['word/document.xml', documentXml(paragraph('Antes da captura.') + imagem + paragraph('Depois.'))],
+  ])
+}
+
 /** Documento sem nada que o editor não mostre. */
 export async function docxWithoutExtras(): Promise<Buffer> {
   return zip([
