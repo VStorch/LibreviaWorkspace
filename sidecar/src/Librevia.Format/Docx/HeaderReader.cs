@@ -697,6 +697,13 @@ public static class HeaderReader
         for (var at = 0; at < traced.Count; at++)
         {
             var piece = traced[at].Piece;
+
+            // Peça em branco não é desenhada. O descarte é aqui, e não na
+            // travessia, porque o endereço é a posição na travessia: se ele
+            // dependesse do conteúdo, apagar uma peça deslocaria as seguintes e
+            // a próxima gravação escreveria na peça errada.
+            if (piece.Kind == PieceDto.KindText && string.IsNullOrWhiteSpace(piece.Text)) continue;
+
             pieces.Add(naming is null || traced[at].Source.Count == 0
                 ? piece
                 : piece with { Pid = naming.Of(paragraph, at) });
@@ -738,10 +745,7 @@ public static class HeaderReader
             merged.Add(traced);
         }
 
-        return merged
-            .Where(traced => traced.Piece.Kind != PieceDto.KindText
-                             || !string.IsNullOrWhiteSpace(traced.Piece.Text))
-            .ToList();
+        return merged;
     }
 
     private static void Collect(

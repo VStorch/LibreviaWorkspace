@@ -56,10 +56,15 @@ public static class DocxWriter
         body.AppendChild(section is null ? new SectionProperties() : section);
         ApplyPageSetup(body.Elements<SectionProperties>().Last(), model.Page);
 
+        // O texto digitado no cabeçalho e no rodapé, peça por peça. Só as
+        // partes que de fato mudaram entram na lista de graváveis: o resto
+        // continua saindo do arquivo original, byte a byte.
+        var bands = BandWriter.Apply(part, model.Page, inventory);
+
         part.Document!.Save();
         document.Dispose();
 
-        return (RestoreUntouchedParts(original, buffer.ToArray()),
+        return (RestoreUntouchedParts(original, buffer.ToArray(), bands),
             new SaveResult(inventory, preserved, rewritten));
     }
 
@@ -67,6 +72,12 @@ public static class DocxWriter
     /// Partes que a gravação tem o direito de alterar. Todo o resto volta a ser
     /// exatamente o que era.
     /// </summary>
+    /// <remarks>
+    /// Fixa porque não depende do documento. A parte de cabeçalho ou rodapé em
+    /// que se digitou entra por fora, uma a uma: qual delas é depende do que a
+    /// pessoa tocou, e liberar todas de antemão devolveria a reserialização do
+    /// SDK a um cabeçalho que ninguém abriu.
+    /// </remarks>
     private static readonly HashSet<string> Writable = new(StringComparer.Ordinal)
     {
         "word/document.xml",
@@ -89,7 +100,7 @@ public static class DocxWriter
     /// escapa em silêncio. Impor a invariante aqui é mais seguro do que confiar
     /// em ninguém nunca materializar um DOM sem querer.
     /// </remarks>
-    private static byte[] RestoreUntouchedParts(byte[] original, byte[] produced)
+    private static byte[] RestoreUntouchedParts(byte[] original, byte[] produced, HashSet<string> edited)
     {
         using var originalArchive = new ZipArchive(new MemoryStream(original), ZipArchiveMode.Read);
         var pristine = originalArchive.Entries.ToDictionary(
@@ -111,6 +122,7 @@ public static class DocxWriter
             foreach (var entry in source.Entries)
             {
                 var keepOriginal = !Writable.Contains(entry.FullName) &&
+                                   !edited.Contains(entry.FullName) &&
                                    pristine.ContainsKey(entry.FullName);
 
                 using var target = output.CreateEntry(entry.FullName, CompressionLevel.Optimal).Open();

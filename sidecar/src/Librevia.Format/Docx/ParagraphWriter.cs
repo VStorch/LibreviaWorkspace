@@ -153,38 +153,7 @@ public sealed class ParagraphWriter(MainDocumentPart part, Inventory inventory)
 
         foreach (var alternate in paragraph.Descendants<AlternateContent>().ToList())
         {
-            MirrorFallback(alternate);
-        }
-    }
-
-    /// <summary>
-    /// O ramo de reserva repete o texto do ramo que vale.
-    /// </summary>
-    /// <remarks>
-    /// O Word grava a mesma caixa duas vezes, em DrawingML e no VML antigo.
-    /// Escrever só numa deixaria o arquivo dizendo duas coisas, e qual delas
-    /// aparece depende de quem abre.
-    ///
-    /// Só o texto: a forma do VML fica como está, porque é ela que dá a moldura
-    /// para quem lê o ramo antigo.
-    /// </remarks>
-    private static void MirrorFallback(AlternateContent alternate)
-    {
-        var choice = alternate.GetFirstChild<AlternateContentChoice>();
-        var fallback = alternate.GetFirstChild<AlternateContentFallback>();
-        if (choice is null || fallback is null) return;
-
-        var source = TextBoxNav.Outermost(choice).ToList();
-        var mirror = TextBoxNav.Outermost(fallback).ToList();
-        if (source.Count != mirror.Count) return;
-
-        for (var index = 0; index < source.Count; index++)
-        {
-            mirror[index].RemoveAllChildren();
-            foreach (var child in source[index].ChildElements)
-            {
-                mirror[index].AppendChild(child.CloneNode(true));
-            }
+            TextBoxNav.MirrorFallback(alternate);
         }
     }
 

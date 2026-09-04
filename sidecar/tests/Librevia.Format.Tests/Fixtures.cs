@@ -176,29 +176,30 @@ public static class Fixtures
     /// Endereço, autoria e data, um por parágrafo. Emendados numa linha só, os
     /// três viravam uma frase que atravessava a folha.
     /// </remarks>
-    public static byte[] WithFooterOfThreeLines() => Build((body, part) =>
-    {
-        var footer = part.AddNewPart<FooterPart>();
-        var content = new Footer();
-
-        foreach (var text in new[] { "www.exemplo.com.br", "Documento V01 - Desenvolvido por: Fulano", "Mês/ANO" })
+    public static byte[] WithFooterOfThreeLines() => Build(
+        (body, _) => body.AppendChild(Paragraph("Corpo do documento.")),
+        (section, part) =>
         {
-            var paragraph = new Paragraph(new ParagraphProperties(
-                new Justification { Val = JustificationValues.Center }));
-            paragraph.AppendChild(new Run(new Text(text)));
-            content.AppendChild(paragraph);
-        }
+            var footer = part.AddNewPart<FooterPart>();
+            var content = new Footer();
 
-        footer.Footer = content;
-        footer.Footer.Save();
+            foreach (var text in new[] { "www.exemplo.com.br", "Documento V01 - Desenvolvido por: Fulano", "Mês/ANO" })
+            {
+                var paragraph = new Paragraph(new ParagraphProperties(
+                    new Justification { Val = JustificationValues.Center }));
+                paragraph.AppendChild(new Run(new Text(text)));
+                content.AppendChild(paragraph);
+            }
 
-        var section = body.AppendChild(new SectionProperties());
-        section.AppendChild(new FooterReference
-        {
-            Type = HeaderFooterValues.Default,
-            Id = part.GetIdOfPart(footer),
+            footer.Footer = content;
+            footer.Footer.Save();
+
+            section.AppendChild(new FooterReference
+            {
+                Type = HeaderFooterValues.Default,
+                Id = part.GetIdOfPart(footer),
+            });
         });
-    });
 
     /// <summary>
     /// Rodapé com número de página: texto, tabulação e o campo `PAGE`.
@@ -209,29 +210,30 @@ public static class Fixtures
     /// espaço na tela mas continua sendo `w:tab` no arquivo, e o campo é
     /// calculado a cada abertura.
     /// </remarks>
-    public static byte[] WithFooterOfPageNumber() => Build((body, part) =>
-    {
-        var footer = part.AddNewPart<FooterPart>();
-        var paragraph = new Paragraph();
-
-        paragraph.AppendChild(new Run(new Text("Página ") { Space = SpaceProcessingModeValues.Preserve }));
-        paragraph.AppendChild(new Run(new TabChar()));
-        paragraph.AppendChild(new Run(new FieldChar { FieldCharType = FieldCharValues.Begin }));
-        paragraph.AppendChild(new Run(new FieldCode(" PAGE ")));
-        paragraph.AppendChild(new Run(new FieldChar { FieldCharType = FieldCharValues.Separate }));
-        paragraph.AppendChild(new Run(new Text("7")));
-        paragraph.AppendChild(new Run(new FieldChar { FieldCharType = FieldCharValues.End }));
-
-        footer.Footer = new Footer(paragraph);
-        footer.Footer.Save();
-
-        var section = body.AppendChild(new SectionProperties());
-        section.AppendChild(new FooterReference
+    public static byte[] WithFooterOfPageNumber() => Build(
+        (body, _) => body.AppendChild(Paragraph("Corpo do documento.")),
+        (section, part) =>
         {
-            Type = HeaderFooterValues.Default,
-            Id = part.GetIdOfPart(footer),
+            var footer = part.AddNewPart<FooterPart>();
+            var paragraph = new Paragraph();
+
+            paragraph.AppendChild(new Run(new Text("Página ") { Space = SpaceProcessingModeValues.Preserve }));
+            paragraph.AppendChild(new Run(new TabChar()));
+            paragraph.AppendChild(new Run(new FieldChar { FieldCharType = FieldCharValues.Begin }));
+            paragraph.AppendChild(new Run(new FieldCode(" PAGE ")));
+            paragraph.AppendChild(new Run(new FieldChar { FieldCharType = FieldCharValues.Separate }));
+            paragraph.AppendChild(new Run(new Text("7")));
+            paragraph.AppendChild(new Run(new FieldChar { FieldCharType = FieldCharValues.End }));
+
+            footer.Footer = new Footer(paragraph);
+            footer.Footer.Save();
+
+            section.AppendChild(new FooterReference
+            {
+                Type = HeaderFooterValues.Default,
+                Id = part.GetIdOfPart(footer),
+            });
         });
-    });
 
     /// <summary>
     /// Quebra de página **sozinha** num parágrafo, sem mais nada.

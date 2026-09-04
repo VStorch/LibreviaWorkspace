@@ -1175,6 +1175,61 @@ public class DocxRoundTripTests
     }
 
     [Fact]
+    public void OTextoDigitadoNoRodapeVoltaParaOArquivo()
+    {
+        // A faixa era desenho, não edição, e o que voltava para o arquivo era
+        // sempre a parte original. Agora o que se digita nela volta — mas só o
+        // `w:t` da peça editada, e nada mais.
+        var original = Fixtures.WithFooterOfThreeLines();
+        var model = Clone(Open(original));
+
+        var footer = model.Page.Footer!;
+        footer.Center[1] = footer.Center[1] with { Text = "Documento V02 - Desenvolvido por: Sicrano" };
+
+        var reopened = Open(Save(original, model).Bytes).Page.Footer!;
+
+        Assert.Equal("www.exemplo.com.br", reopened.Center[0].Text);
+        Assert.Equal("Documento V02 - Desenvolvido por: Sicrano", reopened.Center[1].Text);
+        Assert.Equal("Mês/ANO", reopened.Center[2].Text);
+    }
+
+    [Fact]
+    public void RodapeNaoEditadoNaoEReescrito()
+    {
+        // A aposta da gravação cirúrgica, um andar acima: parte que ninguém
+        // tocou volta byte a byte. Sem isto, abrir e salvar reserializaria
+        // `word/footer1.xml` inteiro — e o SDK reescreve tudo o que materializa,
+        // mesmo sem alteração nenhuma.
+        var original = Fixtures.WithFooterOfThreeLines();
+        var model = Clone(Open(original));
+
+        Assert.Equal(
+            PartsOf(original)["word/footer1.xml"],
+            PartsOf(Save(original, model).Bytes)["word/footer1.xml"]);
+    }
+
+    [Fact]
+    public void OCampoDoRodapeSobreviveAEdicaoDaLinha()
+    {
+        // O número de página não tem `w:t` onde escrever, e por isso não tem
+        // endereço. O texto ao lado dele tem — mas fundido com a tabulação
+        // perdeu o rastro, e nesse caso a gravação não escreve nada: melhor a
+        // linha inteira não ser editável do que o campo virar um número fixo.
+        var original = Fixtures.WithFooterOfPageNumber();
+        var model = Clone(Open(original));
+
+        var footer = model.Page.Footer!;
+        footer.Left[0] = footer.Left[0] with { Text = "Folha " };
+
+        var saved = Save(original, model).Bytes;
+
+        Assert.Equal(PartsOf(original)["word/footer1.xml"], PartsOf(saved)["word/footer1.xml"]);
+        Assert.Contains(
+            Open(saved).Page.Footer!.Left,
+            piece => piece.Kind == PieceDto.KindPageNumber);
+    }
+
+    [Fact]
     public void OParagrafoQueAncoraEQuebraContinuaParagrafo()
     {
         // Um parágrafo sem texto, só com a marca da capa e a quebra, virava o nó

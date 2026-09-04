@@ -72,6 +72,41 @@ internal static class TextBoxNav
         }
     }
 
+    /// <summary>
+    /// O ramo de reserva repete o texto do ramo que vale.
+    /// </summary>
+    /// <remarks>
+    /// O Word grava a mesma caixa duas vezes, em DrawingML e no VML antigo.
+    /// Escrever só numa deixaria o arquivo dizendo duas coisas, e qual delas
+    /// aparece depende de quem abre.
+    ///
+    /// Só o texto: a forma do VML fica como está, porque é ela que dá a moldura
+    /// para quem lê o ramo antigo.
+    ///
+    /// Mora aqui porque são dois os escritores que precisam dela — o do corpo e
+    /// o da faixa — e porque o espelho tem de seguir a mesma travessia que
+    /// escolheu o ramo que vale.
+    /// </remarks>
+    internal static void MirrorFallback(AlternateContent alternate)
+    {
+        var choice = alternate.GetFirstChild<AlternateContentChoice>();
+        var fallback = alternate.GetFirstChild<AlternateContentFallback>();
+        if (choice is null || fallback is null) return;
+
+        var source = Outermost(choice).ToList();
+        var mirror = Outermost(fallback).ToList();
+        if (source.Count != mirror.Count) return;
+
+        for (var index = 0; index < source.Count; index++)
+        {
+            mirror[index].RemoveAllChildren();
+            foreach (var child in source[index].ChildElements)
+            {
+                mirror[index].AppendChild(child.CloneNode(true));
+            }
+        }
+    }
+
     /// <summary>Os parágrafos que são da caixa, e não de uma caixa de dentro.</summary>
     internal static IEnumerable<Paragraph> ParagraphsOf(TextBoxContent box) =>
         box.Descendants<Paragraph>().Where(p => p.Ancestors<TextBoxContent>().First() == box);
