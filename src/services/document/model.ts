@@ -41,6 +41,30 @@ export interface BandPiece {
   readonly italic: boolean
   readonly color?: string | undefined
   readonly fontSize?: string | undefined
+  /**
+   * A peça abre linha nova.
+   *
+   * Cabeçalho e rodapé são feitos de parágrafos, e um parágrafo é uma linha.
+   * Sem isto o rodapé de três linhas do modelo de manual saía como uma frase
+   * só, emendada na largura da folha.
+   */
+  readonly line?: boolean | undefined
+}
+
+/**
+ * As peças agrupadas em linhas, quebrando onde o arquivo abre parágrafo.
+ *
+ * Compartilhada entre a tela e o papel de propósito: dois agrupamentos
+ * parecidos escritos em dois arquivos é como os dois desenhos divergem.
+ */
+export function linesOf(pieces: readonly BandPiece[]): BandPiece[][] {
+  const lines: BandPiece[][] = []
+  for (const piece of pieces) {
+    if (piece.line === true || lines.length === 0) lines.push([])
+    lines[lines.length - 1]!.push(piece)
+  }
+
+  return lines
 }
 
 /**

@@ -170,6 +170,37 @@ public static class Fixtures
     });
 
     /// <summary>
+    /// Rodapé de três parágrafos centralizados, como o do modelo de manual.
+    /// </summary>
+    /// <remarks>
+    /// Endereço, autoria e data, um por parágrafo. Emendados numa linha só, os
+    /// três viravam uma frase que atravessava a folha.
+    /// </remarks>
+    public static byte[] WithFooterOfThreeLines() => Build((body, part) =>
+    {
+        var footer = part.AddNewPart<FooterPart>();
+        var content = new Footer();
+
+        foreach (var text in new[] { "www.exemplo.com.br", "Documento V01 - Desenvolvido por: Fulano", "Mês/ANO" })
+        {
+            var paragraph = new Paragraph(new ParagraphProperties(
+                new Justification { Val = JustificationValues.Center }));
+            paragraph.AppendChild(new Run(new Text(text)));
+            content.AppendChild(paragraph);
+        }
+
+        footer.Footer = content;
+        footer.Footer.Save();
+
+        var section = body.AppendChild(new SectionProperties());
+        section.AppendChild(new FooterReference
+        {
+            Type = HeaderFooterValues.Default,
+            Id = part.GetIdOfPart(footer),
+        });
+    });
+
+    /// <summary>
     /// Quebra de página **sozinha** num parágrafo, sem mais nada.
     /// </summary>
     public static byte[] WithLonePageBreak() => Build((body, _) =>

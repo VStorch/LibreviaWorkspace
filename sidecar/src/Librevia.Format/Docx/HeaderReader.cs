@@ -134,7 +134,10 @@ public static class HeaderReader
             if (HasBottomBorder(paragraph)) rule = true;
 
             var pieces = ReadRuns(paragraph, inventory);
-            if (pieces.Count > 0) columns[ColumnOf(paragraph)].AddRange(pieces);
+            if (pieces.Count == 0) continue;
+
+            var column = columns[ColumnOf(paragraph)];
+            column.AddRange(OpeningALine(pieces, column.Count > 0));
         }
 
         foreach (var drawing in root.Descendants<DocumentFormat.OpenXml.Wordprocessing.Drawing>())
@@ -328,10 +331,26 @@ public static class HeaderReader
                 if (ImagePieceOf(picture, owner) is { } image) pieces.Add(image);
             }
 
-            pieces.AddRange(ReadRuns(paragraph, inventory));
+            var run = ReadRuns(paragraph, inventory);
+            if (run.Count > 0) pieces.AddRange(OpeningALine(run, pieces.Count > 0));
         }
 
         return pieces;
+    }
+
+    /// <summary>
+    /// As peças de um parágrafo, com a primeira marcada como início de linha.
+    /// </summary>
+    /// <remarks>
+    /// Só quando já há alguma coisa antes: a primeira linha da coluna não abre
+    /// linha, ela já está numa.
+    /// </remarks>
+    private static IEnumerable<PieceDto> OpeningALine(List<PieceDto> pieces, bool after)
+    {
+        for (var index = 0; index < pieces.Count; index++)
+        {
+            yield return index == 0 && after ? pieces[index] with { Line = true } : pieces[index];
+        }
     }
 
     /// <summary>Uma imagem de dentro da grade, no tamanho que o arquivo pede.</summary>

@@ -2,6 +2,7 @@ import {
   bandForPage,
   contentInsetsMm,
   hasBandContent,
+  linesOf,
   pageDimensionsMm,
   type Band,
   type BandCell,
@@ -107,9 +108,12 @@ export function buildPagedCss(page: PageSetup): string {
    aqui dentro: isto mora num template literal. */
 .paper-page__band--ruled { border-bottom: 1px solid #999999; padding-bottom: 2px; }
 .paper-page__band img { object-fit: contain; }
-.paper-page__cell { display: flex; align-items: center; gap: 6px; min-width: 0; }
-.paper-page__cell--center { justify-content: center; }
-.paper-page__cell--right { justify-content: flex-end; }
+/* Mesma regra de styles.css: o br ocupa a largura toda para quebrar a linha
+   dentro do flex, que é como cada paragrafo do arquivo vira uma linha. */
+.paper-page__cell { display: flex; flex-direction: column; justify-content: center; min-width: 0; }
+.paper-page__line { display: flex; align-items: center; gap: 6px; }
+.paper-page__cell--center { align-items: center; }
+.paper-page__cell--right { align-items: flex-end; }
 
 /* A grade atravessa os três terços: ela é a moldura do cabeçalho, não uma peça
    a ser distribuída entre eles. */
@@ -214,10 +218,18 @@ function renderBand(
   inset: number,
   offset: number,
 ): string {
+  const lines = (pieces: readonly BandPiece[]): string =>
+    linesOf(pieces)
+      .map(
+        (line) =>
+          '<div class="paper-page__line">' +
+          line.map((piece) => renderPiece(piece, pageNumber, total)).join('') +
+          '</div>',
+      )
+      .join('')
+
   const cell = (pieces: readonly BandPiece[], place: string): string =>
-    `<div class="paper-page__cell paper-page__cell--${place}">` +
-    pieces.map((piece) => renderPiece(piece, pageNumber, total)).join('') +
-    '</div>'
+    `<div class="paper-page__cell paper-page__cell--${place}">` + lines(pieces) + '</div>'
 
   return (
     `<div class="paper-page__band paper-page__band--${kind}${band.rule ? ' paper-page__band--ruled' : ''}" ` +
@@ -246,7 +258,14 @@ function renderGrid(band: Band, pageNumber: number, total: number): string {
         .map((cell) => {
           const span = cell.span === 1 ? '' : ` colspan="${cell.span}"`
           const down = cell.rowSpan === 1 ? '' : ` rowspan="${cell.rowSpan}"`
-          const pieces = cell.pieces.map((piece) => renderPiece(piece, pageNumber, total)).join('')
+          const pieces = linesOf(cell.pieces)
+            .map(
+              (line) =>
+                '<div class="paper-page__line">' +
+                line.map((piece) => renderPiece(piece, pageNumber, total)).join('') +
+                '</div>',
+            )
+            .join('')
           return `<td${span}${down} style="${cellStyle(cell)}">${pieces}</td>`
         })
         .join('')

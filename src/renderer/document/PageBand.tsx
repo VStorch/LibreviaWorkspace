@@ -1,4 +1,4 @@
-import type { Band, BandCell, BandPiece } from '@services/document/model.js'
+import { linesOf, type Band, type BandCell, type BandPiece } from '@services/document/model.js'
 
 /**
  * Cabeçalho ou rodapé do documento importado, desenhado na margem.
@@ -56,13 +56,9 @@ export function PageBand({
       {band.rows.length === 0 ? null : (
         <BandGrid band={band} pageNumber={pageNumber} totalPages={totalPages} />
       )}
-      <div className="band__cell band__cell--left">{band.left.map(renderPiece(pageNumber, totalPages))}</div>
-      <div className="band__cell band__cell--center">
-        {band.center.map(renderPiece(pageNumber, totalPages))}
-      </div>
-      <div className="band__cell band__cell--right">
-        {band.right.map(renderPiece(pageNumber, totalPages))}
-      </div>
+      <BandCellPieces pieces={band.left} place="left" pageNumber={pageNumber} totalPages={totalPages} />
+      <BandCellPieces pieces={band.center} place="center" pageNumber={pageNumber} totalPages={totalPages} />
+      <BandCellPieces pieces={band.right} place="right" pageNumber={pageNumber} totalPages={totalPages} />
     </div>
   )
 }
@@ -100,7 +96,11 @@ function BandGrid({
                 rowSpan={cell.rowSpan === 1 ? undefined : cell.rowSpan}
                 style={cellStyle(cell)}
               >
-                {cell.pieces.map(renderPiece(pageNumber, totalPages))}
+                {linesOf(cell.pieces).map((line, row) => (
+                  <div key={row} className="band__line">
+                    {line.map(renderPiece(pageNumber, totalPages))}
+                  </div>
+                ))}
               </td>
             ))}
           </tr>
@@ -162,6 +162,36 @@ const renderPiece =
       </span>
     )
   }
+
+/**
+ * Um terço da faixa, com as peças agrupadas em linhas.
+ *
+ * Cada parágrafo do arquivo é uma linha, e por isso são elementos de verdade e
+ * não um `<br>`: dentro de um contêiner flex o `br` não gera caixa nenhuma, e o
+ * rodapé de três linhas do modelo de manual continuava saindo como uma frase
+ * só, emendada na largura da folha.
+ */
+function BandCellPieces({
+  pieces,
+  place,
+  pageNumber,
+  totalPages,
+}: {
+  pieces: readonly BandPiece[]
+  place: 'left' | 'center' | 'right'
+  pageNumber: number
+  totalPages: number
+}): React.JSX.Element {
+  return (
+    <div className={`band__cell band__cell--${place}`}>
+      {linesOf(pieces).map((line, index) => (
+        <div key={index} className="band__line">
+          {line.map(renderPiece(pageNumber, totalPages))}
+        </div>
+      ))}
+    </div>
+  )
+}
 
 function sizeOf(piece: BandPiece): React.CSSProperties {
   return piece.width === undefined

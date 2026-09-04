@@ -79,7 +79,17 @@ public sealed record PieceDto(
     [property: JsonPropertyName("bold")] bool Bold = false,
     [property: JsonPropertyName("italic")] bool Italic = false,
     [property: JsonPropertyName("color")] string? Color = null,
-    [property: JsonPropertyName("fontSize")] string? FontSize = null)
+    [property: JsonPropertyName("fontSize")] string? FontSize = null,
+    /// <summary>
+    /// A peça abre linha nova.
+    /// </summary>
+    /// <remarks>
+    /// Cabeçalho e rodapé são feitos de parágrafos, e um parágrafo é uma linha.
+    /// Sem esta marca, o rodapé de três linhas do modelo de manual — endereço,
+    /// autoria e data — saía como uma frase só, emendada na largura da folha,
+    /// enquanto o LibreOffice mostrava as três empilhadas.
+    /// </remarks>
+    [property: JsonPropertyName("line")] bool Line = false)
 {
     public const string KindText = "text";
     public const string KindImage = "image";

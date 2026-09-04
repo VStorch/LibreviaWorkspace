@@ -1039,6 +1039,22 @@ public class DocxRoundTripTests
     }
 
     [Fact]
+    public void CadaParagrafoDoRodapeAbreUmaLinha()
+    {
+        // Cabeçalho e rodapé são feitos de parágrafos, e um parágrafo é uma
+        // linha. Sem a marca, o rodapé de três linhas do modelo de manual — o
+        // endereço, a autoria e a data — saía como uma frase só, emendada na
+        // largura da folha, enquanto o LibreOffice mostrava as três empilhadas.
+        var page = Open(Fixtures.WithFooterOfThreeLines()).Page;
+
+        var pieces = page.Footer!.Center;
+        Assert.Equal(3, pieces.Count);
+        Assert.False(pieces[0].Line);
+        Assert.True(pieces[1].Line);
+        Assert.True(pieces[2].Line);
+    }
+
+    [Fact]
     public void OParagrafoQueAncoraEQuebraContinuaParagrafo()
     {
         // Um parágrafo sem texto, só com a marca da capa e a quebra, virava o nó

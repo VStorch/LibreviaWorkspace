@@ -667,21 +667,33 @@ button {
   border-top: 1px solid var(--border-strong);
 }
 
+/*
+  O terço empilha as linhas; a linha põe as peças lado a lado. Cada parágrafo do
+  arquivo é uma linha, e por isso são elementos de verdade: dentro de um
+  contêiner flex um `br` não gera caixa nenhuma, e o rodapé de três linhas saía
+  como uma frase só.
+*/
 .band__cell {
   display: flex;
-  align-items: center;
-  gap: 6px;
+  flex-direction: column;
+  justify-content: center;
   min-width: 0;
   white-space: nowrap;
 }
 
+.band__line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .band__cell--center {
-  justify-content: center;
+  align-items: center;
   text-align: center;
 }
 
 .band__cell--right {
-  justify-content: flex-end;
+  align-items: flex-end;
 }
 
 /*
