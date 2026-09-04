@@ -37,6 +37,14 @@ export interface FloatingObject {
    */
   readonly dxMm?: number | undefined
   readonly dyMm?: number | undefined
+  /**
+   * Onde a caixa deste objeto mora no arquivo, quando ela é editável.
+   *
+   * Só objetos de faixa o trazem: os do corpo voltam pelo bloco que os ancora.
+   * A caixa é regenerada por inteiro quando o texto muda — digitar abre e fecha
+   * parágrafos, e endereçar parágrafo a parágrafo quebraria no primeiro Enter.
+   */
+  readonly bid?: string | undefined
 }
 
 /** A caixa já resolvida, em milímetros da borda da folha. */
@@ -185,7 +193,16 @@ export function bandFloatsOf(page: PageSetup, pageNumber: number): AnchoredFloat
  */
 function numbered(object: FloatingObject, pageNumber: number): FloatingObject {
   if (object.kind !== 'text' || object.content === undefined) return object
-  return { ...object, content: object.content.map((node) => replaceMarkers(node, pageNumber)) }
+
+  const content = object.content.map((node) => replaceMarkers(node, pageNumber))
+
+  // A caixa que traz numeração deixa de ser editável, e é por isso que a troca
+  // acontece aqui: o que está na tela é o número desta folha, e devolvê-lo ao
+  // arquivo trocaria o campo `PAGE` por um número fixo — o cabeçalho passaria a
+  // dizer "3" em todas as folhas, e só se notaria na quarta.
+  const marked = JSON.stringify(content) !== JSON.stringify(object.content)
+
+  return { ...object, content, ...(marked ? { bid: undefined } : {}) }
 }
 
 function replaceMarkers(node: DocumentNode, pageNumber: number): DocumentNode {

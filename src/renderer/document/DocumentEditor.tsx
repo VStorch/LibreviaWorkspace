@@ -4,6 +4,7 @@ import { DOCUMENT_CONTENT_CSS, EDITOR_ONLY_CSS } from '@services/document/conten
 import {
   bandForPage,
   contentInsetsMm,
+  editBandFloat,
   editBandPiece,
   hasBandContent,
   mmToPx,
@@ -209,6 +210,23 @@ export function DocumentEditor(): React.JSX.Element {
     [readOnly, setPage],
   )
 
+  /**
+   * O texto digitado numa caixa da faixa volta para a configuração.
+   *
+   * A caixa vem inteira, e não parágrafo a parágrafo: digitar dentro dela abre
+   * e fecha parágrafos, e um endereço por parágrafo quebraria no primeiro Enter.
+   */
+  const editBandBox = useCallback(
+    (bid: string, content: DocumentNode[]) => {
+      if (readOnly) return
+
+      const current = useWorkspace.getState().page
+      const updated = editBandFloat(current, bid, content)
+      if (updated !== current) setPage(updated)
+    },
+    [readOnly, setPage],
+  )
+
   // O recorte em páginas é lido no momento de imprimir, e não no da renderização
   // — daí a `ref`: registrar `readPages` a cada mudança de layout recriaria a
   // fonte do documento dezenas de vezes por segundo enquanto se digita.
@@ -277,14 +295,12 @@ export function DocumentEditor(): React.JSX.Element {
               className="paper-bands"
               style={{ top: `${top}px`, height: `${mmToPx(height)}px` }}
             >
-              {/* Os objetos da faixa entram junto: repetem em toda folha,
-                  porque a faixa repete. */}
               <FloatingLayer
-                objects={[...(floatsByPage[index] ?? []), ...bandFloatsOf(page, index + 1)]}
+                objects={floatsByPage[index] ?? []}
                 page={page}
                 schema={editor.schema}
                 behind
-                onEdit={editFloat}
+                {...(readOnly ? {} : { onEdit: editFloat })}
               />
               {(['header', 'footer'] as const).map((kind) => {
                 // A capa manda sobre a paridade, e a paridade sobre o padrão —
@@ -305,12 +321,29 @@ export function DocumentEditor(): React.JSX.Element {
                 ) : null
               })}
 
+              {/* Os objetos da faixa vêm por último e numa camada própria: a
+                  faixa repete em toda folha, mora na margem e não disputa
+                  espaço com o corpo. É a mesma razão pela qual a faixa fica
+                  acima da coluna de texto — o retângulo da coluna cobre a
+                  margem inteira e apanhava o clique destinado à caixa. */}
+              {(['behind', 'front'] as const).map((where) => (
+                <FloatingLayer
+                  key={where}
+                  objects={bandFloatsOf(page, index + 1)}
+                  page={page}
+                  schema={editor.schema}
+                  behind={where === 'behind'}
+                  variant="band"
+                  {...(readOnly ? {} : { onEditBand: editBandBox })}
+                />
+              ))}
+
               <FloatingLayer
-                objects={[...(floatsByPage[index] ?? []), ...bandFloatsOf(page, index + 1)]}
+                objects={floatsByPage[index] ?? []}
                 page={page}
                 schema={editor.schema}
                 behind={false}
-                onEdit={editFloat}
+                {...(readOnly ? {} : { onEdit: editFloat })}
               />
             </div>
           ))}

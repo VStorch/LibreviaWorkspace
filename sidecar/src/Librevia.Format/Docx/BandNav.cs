@@ -70,6 +70,57 @@ internal static class BandNav
     /// </remarks>
     internal static string PathOf(OpenXmlPart part) => part.Uri.OriginalString.TrimStart('/');
 
+    /// <summary>
+    /// As caixas de texto da parte, na ordem que dá o endereço.
+    /// </summary>
+    /// <remarks>
+    /// O cabeçalho corporativo do corpus não é feito de parágrafos: é um grupo
+    /// de formas, e o título mora dentro de uma caixa. Ela não cabe na conta de
+    /// peças — a caixa inteira é regenerada quando o texto muda, porque digitar
+    /// pode abrir e fechar parágrafos dentro dela.
+    ///
+    /// Caixa dentro de caixa fica de fora: o conteúdo da de dentro já vai junto
+    /// com o da de fora, e contá-la duas vezes desalinharia os endereços.
+    /// </remarks>
+    internal static List<TextBoxContent> BoxesOf(OpenXmlElement root) =>
+        root.Descendants<TextBoxContent>()
+            .Where(box => !box.Ancestors<AlternateContentFallback>().Any())
+            .Where(box => !box.Ancestors<TextBoxContent>().Any())
+            .ToList();
+
+    /// <summary>O endereço de cada caixa, para o leitor carimbar os objetos.</summary>
+    internal static Dictionary<TextBoxContent, int> BoxIndexOf(OpenXmlElement root)
+    {
+        var index = new Dictionary<TextBoxContent, int>(
+            (IEqualityComparer<TextBoxContent>)ReferenceEqualityComparer.Instance);
+
+        var boxes = BoxesOf(root);
+        for (var at = 0; at < boxes.Count; at++) index[boxes[at]] = at;
+        return index;
+    }
+
+    /// <summary>
+    /// O endereço de uma caixa: a relação e a caixa dentro dela.
+    /// </summary>
+    /// <remarks>
+    /// Separador diferente do endereço de peça de propósito: são duas coisas
+    /// que não se substituem, e confundi-las escreveria um parágrafo inteiro
+    /// dentro de um `w:t`.
+    /// </remarks>
+    internal static string BoxAddress(string relationshipId, int box) => $"{relationshipId}#{box}";
+
+    /// <summary>Desmonta o endereço de uma caixa.</summary>
+    internal static (string RelationshipId, int Box)? ParseBox(string? address)
+    {
+        if (string.IsNullOrEmpty(address)) return null;
+
+        var parts = address.Split('#');
+        if (parts.Length != 2 || parts[0].Length == 0) return null;
+        if (!int.TryParse(parts[1], out var box) || box < 0) return null;
+
+        return (parts[0], box);
+    }
+
     /// <summary>O endereço de uma peça: a relação, o parágrafo e a peça nele.</summary>
     internal static string Address(string relationshipId, int paragraph, int piece) =>
         $"{relationshipId}:{paragraph}:{piece}";

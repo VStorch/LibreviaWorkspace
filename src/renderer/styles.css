@@ -577,6 +577,18 @@ button {
   z-index: 2;
 }
 
+/*
+  Os objetos da faixa, acima da coluna de texto. A coluna é um retângulo que
+  cobre a folha inteira, margens incluídas, e apanhava o clique destinado à
+  caixa do cabeçalho — que mora na margem, onde o corpo não entra.
+*/
+.paper-floats--band-behind {
+  z-index: 2;
+}
+.paper-floats--band-front {
+  z-index: 3;
+}
+
 .paper-float {
   position: absolute;
   object-fit: contain;

@@ -297,6 +297,85 @@ export async function docxWithAnchoredTextBox(): Promise<Buffer> {
 }
 
 /**
+ * Cabeçalho num grupo de formas, como o corpus real o traz.
+ *
+ * Quatro dos seis documentos do corpus não têm o cabeçalho em parágrafos: têm
+ * um grupo de formas ancorado, com o título dentro de uma caixa e o campo do
+ * número da página dentro de outra. É a maioria dos casos, e é o caso em que a
+ * caixa vem inteira — digitar dentro dela abre e fecha parágrafos, e endereçar
+ * parágrafo a parágrafo quebraria no primeiro Enter.
+ */
+export async function docxWithHeaderTextBox(): Promise<Buffer> {
+  const R = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships'
+  const WPG = 'http://schemas.microsoft.com/office/word/2010/wordprocessingGroup'
+
+  const forma = (x: string, largura: string, dentro: string): string =>
+    `<wps:wsp><wps:cNvSpPr txBox="1"/>` +
+    `<wps:spPr><a:xfrm><a:off x="${x}" y="0"/><a:ext cx="${largura}" cy="327600"/></a:xfrm>` +
+    `<a:prstGeom prst="rect"><a:avLst/></a:prstGeom></wps:spPr>` +
+    `<wps:txbx><w:txbxContent>${dentro}</w:txbxContent></wps:txbx>` +
+    `<wps:bodyPr/></wps:wsp>`
+
+  // A caixa da numeração traz o campo `PAGE`, que o leitor entrega como `{n}`.
+  // Ela não é editável: escrever o marcador de volta trocaria o campo por um
+  // número fixo, e o cabeçalho passaria a dizer a mesma folha em todas.
+  const numero =
+    `<w:p><w:r><w:fldChar w:fldCharType="begin"/></w:r>` +
+    `<w:r><w:instrText xml:space="preserve"> PAGE </w:instrText></w:r>` +
+    `<w:r><w:fldChar w:fldCharType="separate"/></w:r>` +
+    `<w:r><w:t>1</w:t></w:r>` +
+    `<w:r><w:fldChar w:fldCharType="end"/></w:r></w:p>`
+
+  const grupo =
+    `<w:p><w:r><w:drawing><wp:anchor distT="0" distB="0" distL="0" distR="0" simplePos="0" ` +
+    `relativeHeight="2" behindDoc="0" locked="0" layoutInCell="0" allowOverlap="1">` +
+    `<wp:simplePos x="0" y="0"/>` +
+    `<wp:positionH relativeFrom="page"><wp:posOffset>900000</wp:posOffset></wp:positionH>` +
+    `<wp:positionV relativeFrom="paragraph"><wp:posOffset>0</wp:posOffset></wp:positionV>` +
+    `<wp:extent cx="6371640" cy="604440"/><wp:wrapNone/>` +
+    `<wp:docPr id="9" name="Grupo do cabeçalho"/>` +
+    `<a:graphic><a:graphicData uri="${WPG}"><wpg:wgp xmlns:wpg="${WPG}">` +
+    `<wpg:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="6371640" cy="604440"/>` +
+    `<a:chOff x="0" y="0"/><a:chExt cx="6371640" cy="604440"/></a:xfrm></wpg:grpSpPr>` +
+    forma('0', '900000', numero) +
+    forma('1500000', '3052800', `<w:p><w:r><w:t>EVIDÊNCIAS DO ROTEIRO</w:t></w:r></w:p>`) +
+    `</wpg:wgp></a:graphicData></a:graphic>` +
+    `</wp:anchor></w:drawing></w:r></w:p>`
+
+  const header = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:hdr xmlns:w="${W}" xmlns:mc="${MC}" xmlns:wp="${WP}" xmlns:a="${A}" xmlns:wps="${WPS}" mc:Ignorable="wps">${grupo}</w:hdr>`
+
+  const rels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+<Relationship Id="rId5" Type="${R}/header" Target="header1.xml"/>
+</Relationships>`
+
+  const corpo =
+    paragraph('Primeira linha do corpo.') +
+    `<w:sectPr><w:headerReference xmlns:r="${R}" w:type="default" r:id="rId5"/>` +
+    `<w:pgSz w:w="11906" w:h="16838"/>` +
+    `<w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440" w:header="708" w:footer="708"/>` +
+    `</w:sectPr>`
+
+  return zip([
+    [
+      '[Content_Types].xml',
+      CONTENT_TYPES.replace(
+        '<Override PartName="/word/document.xml"',
+        '<Override PartName="/word/header1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"/><Override PartName="/word/document.xml"',
+      ).replace(/<Override PartName="\/word\/comments[^>]+>/, ''),
+    ],
+    ['_rels/.rels', ROOT_RELS],
+    ['word/_rels/document.xml.rels', rels],
+    ['word/header1.xml', header],
+    [
+      'word/document.xml',
+      documentXml('').replace('<w:sectPr/>', '').replace('</w:body>', `${corpo}</w:body>`),
+    ],
+  ])
+}
+
+/**
  * Dois parágrafos que pedem espaço nos dois lados da junta.
  *
  * O Word e o LibreOffice **somam** o espaço depois de um com o espaço antes do

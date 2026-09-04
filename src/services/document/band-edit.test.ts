@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_PAGE_SETUP, editBandPiece, type Band, type BandPiece, type PageSetup } from './model.js'
+import {
+  DEFAULT_PAGE_SETUP,
+  editBandFloat,
+  editBandPiece,
+  type Band,
+  type BandPiece,
+  type PageSetup,
+} from './model.js'
+import type { FloatingObject } from './floating.js'
 
 /**
  * O texto digitado na faixa entra na configuração de página.
@@ -64,5 +72,60 @@ describe('editBandPiece', () => {
     const page = setup({ headerBand: band(piece('5')) })
 
     expect(editBandPiece(page, 'rId5:0:0', 'Outro')).toBe(page)
+  })
+})
+
+/**
+ * O texto de uma caixa da faixa entra na configuração de página.
+ *
+ * O cabeçalho corporativo não é feito de parágrafos soltos: é um grupo de
+ * formas, e o título mora dentro de uma caixa. Ela vem inteira porque digitar
+ * dentro dela abre e fecha parágrafos.
+ */
+describe('editBandFloat', () => {
+  const caixa = (bid: string | undefined, text: string): FloatingObject => ({
+    kind: 'text',
+    content: [{ type: 'paragraph', content: [{ type: 'text', text }] }],
+    widthMm: 80,
+    heightMm: 10,
+    rotation: 0,
+    hFrom: 'page',
+    vFrom: 'paragraph',
+    behind: false,
+    wrap: 'none',
+    ...(bid === undefined ? {} : { bid }),
+  })
+
+  const setup = (floats: FloatingObject[]): PageSetup => ({
+    ...DEFAULT_PAGE_SETUP,
+    headerBand: { left: [], center: [], right: [], rule: false, floats, rows: [] },
+  })
+
+  const texto = (page: PageSetup, at: number): unknown =>
+    page.headerBand?.floats[at]?.content?.[0]?.content?.[0]?.text
+
+  it('troca o conteúdo da caixa daquele endereço', () => {
+    const page = setup([caixa('rId13#0', 'EVIDÊNCIAS DO ROTEIRO'), caixa('rId13#1', 'Outra caixa')])
+    const novo = [{ type: 'paragraph', content: [{ type: 'text', text: 'EVIDÊNCIAS DE HOMOLOGAÇÃO' }] }]
+
+    const updated = editBandFloat(page, 'rId13#0', novo)
+    expect(texto(updated, 0)).toBe('EVIDÊNCIAS DE HOMOLOGAÇÃO')
+    expect(texto(updated, 1)).toBe('Outra caixa')
+  })
+
+  it('não escreve em caixa sem endereço', () => {
+    // A caixa que traz numeração perde o endereço ao ter o marcador trocado: o
+    // que está na tela é o número desta folha, e devolvê-lo trocaria o campo
+    // `PAGE` por um número fixo.
+    const page = setup([caixa(undefined, '3')])
+
+    expect(editBandFloat(page, 'rId13#0', [])).toBe(page)
+  })
+
+  it('devolve a mesma configuração quando o texto não mudou', () => {
+    const page = setup([caixa('rId13#0', 'Igual')])
+    const mesmo = [{ type: 'paragraph', content: [{ type: 'text', text: 'Igual' }] }]
+
+    expect(editBandFloat(page, 'rId13#0', mesmo)).toBe(page)
   })
 })

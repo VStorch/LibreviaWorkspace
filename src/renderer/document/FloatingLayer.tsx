@@ -31,13 +31,32 @@ export function FloatingLayer({
   page,
   schema,
   behind,
+  variant = 'body',
   onEdit,
+  onEditBand,
 }: {
   objects: readonly PlacedFloat[]
   page: PageSetup
   schema: Schema
   behind: boolean
+  /**
+   * De que camada esta é: a do corpo ou a da faixa.
+   *
+   * A da faixa fica **acima da coluna de texto**. Não é preferência de desenho:
+   * a coluna é um retângulo que cobre a folha inteira, margens incluídas, e
+   * apanhava o clique destinado à caixa do cabeçalho. Como a faixa mora na
+   * margem e o corpo não entra ali, subi-la não esconde nada.
+   */
+  variant?: 'body' | 'band' 
   onEdit?: ((source: FloatSource, content: DocumentNode[]) => void) | undefined
+  /**
+   * O texto de uma caixa da faixa mudou.
+   *
+   * Caminho próprio porque a faixa não mora no documento do editor: ela é a
+   * parte OOXML preservada, e vive na configuração de página. O objeto do corpo
+   * volta pelo bloco que o ancora; o da faixa, pelo endereço da caixa.
+   */
+  onEditBand?: ((bid: string, content: DocumentNode[]) => void) | undefined
 }): React.JSX.Element | null {
   const visible = objects.filter((item) => item.object.behind === behind)
   if (visible.length === 0) return null
@@ -45,15 +64,24 @@ export function FloatingLayer({
   // `aria-hidden` só enquanto nada ali dentro é editável: esconder do leitor de
   // tela um campo em que se digita seria pior do que a duplicação que ele
   // evitava.
-  const editable = onEdit !== undefined && visible.some((item) => item.source !== undefined)
+  const editable =
+    (onEdit !== undefined && visible.some((item) => item.source !== undefined)) ||
+    (onEditBand !== undefined && visible.some((item) => item.object.bid !== undefined))
 
   return (
     <div
-      className={`paper-floats paper-floats--${behind ? 'behind' : 'front'}`}
+      className={`paper-floats paper-floats--${variant === 'band' ? 'band-' : ''}${behind ? 'behind' : 'front'}`}
       {...(editable ? {} : { 'aria-hidden': true as const })}
     >
       {visible.map((item, index) => (
-        <Floating key={index} placed={item} page={page} schema={schema} onEdit={onEdit} />
+        <Floating
+          key={index}
+          placed={item}
+          page={page}
+          schema={schema}
+          onEdit={onEdit}
+          onEditBand={onEditBand}
+        />
       ))}
     </div>
   )
@@ -80,11 +108,13 @@ function Floating({
   page,
   schema,
   onEdit,
+  onEditBand,
 }: {
   placed: PlacedFloat
   page: PageSetup
   schema: Schema
   onEdit?: ((source: FloatSource, content: DocumentNode[]) => void) | undefined
+  onEditBand?: ((bid: string, content: DocumentNode[]) => void) | undefined
 }): React.JSX.Element {
   const box = placeFloating(placed.object, page, placed.anchorTopMm)
 
@@ -108,15 +138,25 @@ function Floating({
     return <div className="paper-float paper-float--rule" style={style} />
   }
 
+  // Duas origens, um só caminho de volta: o objeto do corpo volta pelo bloco que
+  // o ancora, o da faixa pelo endereço da caixa. A caixa que traz numeração
+  // perdeu o endereço na hora de trocar o marcador, e por isso não é editável.
   const source = placed.source
+  const bid = placed.object.bid
+
+  const commit =
+    onEdit !== undefined && source !== undefined
+      ? (content: DocumentNode[]): void => onEdit(source, content)
+      : onEditBand !== undefined && bid !== undefined
+        ? (content: DocumentNode[]): void => onEditBand(bid, content)
+        : undefined
+
   return (
     <FloatingText
       style={style}
       content={placed.object.content ?? []}
       schema={schema}
-      {...(onEdit !== undefined && source !== undefined
-        ? { onEdit: (content: DocumentNode[]) => onEdit(source, content) }
-        : {})}
+      {...(commit === undefined ? {} : { onEdit: commit })}
     />
   )
 }

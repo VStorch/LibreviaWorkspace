@@ -43,21 +43,133 @@ internal static class BandWriter
             foreach (var piece in PiecesOf(band)) Remember(wanted, piece);
         }
 
-        if (wanted.Count == 0) return touched;
+        // O mesmo, um nível acima: o cabeçalho corporativo não é feito de
+        // parágrafos soltos, e o título dele mora dentro de uma caixa.
+        var boxes = new Dictionary<string, List<Node>>(StringComparer.Ordinal);
+        foreach (var band in BandsOf(page))
+        {
+            foreach (var float_ in band.Floats ?? [])
+            {
+                if (float_.BoxId is null || float_.Kind != "text") continue;
+                boxes[float_.BoxId] = float_.Content ?? [];
+            }
+        }
+
+        if (wanted.Count == 0 && boxes.Count == 0) return touched;
 
         var fonts = new FontTable(part);
+        var relationships = wanted.Keys.Select(Relationship)
+            .Concat(boxes.Keys.Select(BoxRelationship))
+            .Where(id => id.Length > 0)
+            .Distinct(StringComparer.Ordinal);
 
-        foreach (var group in wanted.GroupBy(entry => Relationship(entry.Key), StringComparer.Ordinal))
+        foreach (var relationship in relationships)
         {
-            if (BandNav.PartOf(part, group.Key) is not { } target) continue;
+            if (BandNav.PartOf(part, relationship) is not { } target) continue;
+
             // A mesma tabela de fontes do leitor, e não outra: é ela que decide
             // se dois runs vizinhos são a mesma peça, e uma fusão diferente aqui
             // daria outra numeração de peças — o texto iria para a peça errada.
-            if (ApplyTo(target.Root, group, inventory, fonts)) touched.Add(BandNav.PathOf(target.Owner));
+            var changed = ApplyTo(
+                target.Root,
+                wanted.Where(entry => Relationship(entry.Key) == relationship),
+                inventory,
+                fonts);
+
+            changed |= ApplyBoxes(
+                target.Root,
+                boxes.Where(entry => BoxRelationship(entry.Key) == relationship),
+                part,
+                inventory,
+                fonts);
+
+            if (!changed) continue;
+
+            target.Root.Save();
+            touched.Add(BandNav.PathOf(target.Owner));
         }
 
         return touched;
     }
+
+    /// <summary>
+    /// Regenera as caixas cujo texto mudou, e só essas.
+    /// </summary>
+    /// <remarks>
+    /// A caixa vem inteira porque digitar dentro dela abre e fecha parágrafos:
+    /// um endereço por parágrafo quebraria no primeiro Enter. Caixa cujo texto
+    /// não mudou não é tocada — o XML dela segue como estava, com a moldura, o
+    /// preenchimento e o giro que este escritor não sabe reproduzir.
+    /// </remarks>
+    private static bool ApplyBoxes(
+        OpenXmlPartRootElement root,
+        IEnumerable<KeyValuePair<string, List<Node>>> wanted,
+        MainDocumentPart part,
+        Inventory inventory,
+        FontTable fonts)
+    {
+        var boxes = BandNav.BoxesOf(root);
+        var writer = new ParagraphWriter(part, inventory);
+        var touched = false;
+
+        foreach (var (address, content) in wanted.Select(entry => (entry.Key, entry.Value)))
+        {
+            if (BandNav.ParseBox(address) is not { } at) continue;
+            if (at.Box >= boxes.Count) continue;
+
+            var box = boxes[at.Box];
+
+            // Contra o texto que a tela mostra, e não contra o do arquivo: o
+            // campo `PAGE` sai do leitor como `{n}`, e comparar com o XML diria
+            // que a caixa mudou sempre — a gravação trocaria o campo por um
+            // `{n}` literal, que foi o que o cabeçalho do corpus passou a
+            // mostrar no lugar do número da página.
+            if (HeaderReader.BoxTextOf(box, inventory, fonts) == PlainTextOf(content)) continue;
+
+            // Caixa com campo dentro não é reescrita nem quando o texto mudou:
+            // regenerá-la apagaria o campo, e um cabeçalho que deixa de contar
+            // páginas é pior do que um título que não se pôde corrigir.
+            if (HasField(box))
+            {
+                inventory.NoteLoss("texto de uma caixa de cabeçalho com campo calculado");
+                continue;
+            }
+
+            box.RemoveAllChildren();
+            foreach (var block in content)
+            {
+                foreach (var element in writer.Write(block)) box.AppendChild(element);
+            }
+
+            // `w:txbxContent` vazio invalida o documento para o Word.
+            if (!box.HasChildren) box.AppendChild(new Paragraph());
+            touched = true;
+        }
+
+        if (touched) Mirror(root);
+        return touched;
+    }
+
+    private static bool HasField(TextBoxContent box) =>
+        box.Descendants<FieldChar>().Any()
+        || box.Descendants<FieldCode>().Any()
+        || box.Descendants<SimpleField>().Any();
+
+    /// <summary>O texto de um conteúdo de caixa, na mesma forma que o do arquivo.</summary>
+    private static string PlainTextOf(List<Node> content) =>
+        string.Join("\n", content.Select(node => string.Concat(Texts(node))));
+
+    private static IEnumerable<string> Texts(Node node)
+    {
+        if (node.Text is { } text) yield return text;
+        foreach (var child in node.Content ?? [])
+        {
+            foreach (var value in Texts(child)) yield return value;
+        }
+    }
+
+    private static string BoxRelationship(string address) =>
+        BandNav.ParseBox(address) is { } parsed ? parsed.RelationshipId : string.Empty;
 
     private static IEnumerable<BandDto> BandsOf(PageSetupDto page)
     {
@@ -132,16 +244,23 @@ internal static class BandWriter
 
         if (!touched) return false;
 
-        // O ramo de reserva repete a mesma caixa em VML. Escrever só no que
-        // vale deixaria o arquivo dizendo duas coisas, e qual delas aparece
-        // depende de quem abre.
+        Mirror(root);
+        return true;
+    }
+
+    /// <summary>
+    /// O ramo de reserva repete a mesma caixa em VML.
+    /// </summary>
+    /// <remarks>
+    /// Escrever só no ramo que vale deixaria o arquivo dizendo duas coisas, e
+    /// qual delas aparece depende de quem abre.
+    /// </remarks>
+    private static void Mirror(OpenXmlPartRootElement root)
+    {
         foreach (var alternate in root.Descendants<AlternateContent>().ToList())
         {
             TextBoxNav.MirrorFallback(alternate);
         }
-
-        root.Save();
-        return true;
     }
 
     /// <summary>

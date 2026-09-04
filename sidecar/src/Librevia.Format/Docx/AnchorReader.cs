@@ -36,7 +36,17 @@ public sealed record FloatDto(
     /// peça tem a sua coordenada dentro dele.
     /// </summary>
     [property: JsonPropertyName("dxMm")] double DxMm = 0,
-    [property: JsonPropertyName("dyMm")] double DyMm = 0);
+    [property: JsonPropertyName("dyMm")] double DyMm = 0,
+    /// <summary>
+    /// Onde a caixa deste objeto mora, quando ela é editável.
+    /// </summary>
+    /// <remarks>
+    /// Só objetos de faixa o trazem: os do corpo voltam pelo parágrafo que os
+    /// ancora, que já tem o `oid`. A caixa é regenerada por inteiro quando o
+    /// texto muda — digitar abre e fecha parágrafos dentro dela, e endereçar
+    /// parágrafo a parágrafo quebraria na primeira tecla Enter.
+    /// </remarks>
+    [property: JsonPropertyName("bid")] string? BoxId = null);
 
 /// <summary>Uma peça de dentro de um desenho, na régua da página.</summary>
 public sealed record AnchoredPiece(

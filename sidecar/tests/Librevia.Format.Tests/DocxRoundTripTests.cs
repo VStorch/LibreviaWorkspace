@@ -1230,6 +1230,42 @@ public class DocxRoundTripTests
     }
 
     [Fact]
+    public void OTextoDigitadoNaCaixaDoCabecalhoVoltaParaOArquivo()
+    {
+        // O cabeçalho corporativo do corpus não é feito de parágrafos soltos: é
+        // um grupo de formas, e o título mora dentro de uma caixa. Sem esta
+        // volta, quatro dos seis documentos do corpus teriam um cabeçalho que se
+        // vê e não se edita.
+        var original = Fixtures.WithHeaderGroup();
+        var model = Clone(Open(original));
+
+        var caixa = Assert.Single(model.Page.Header!.Floats!, item => item.Kind == "text");
+        Assert.NotNull(caixa.BoxId);
+
+        caixa.Content![0].Content![0].Text = "EVIDÊNCIAS DE HOMOLOGAÇÃO";
+
+        var reopened = Open(Save(original, model).Bytes).Page.Header!;
+        var voltou = Assert.Single(reopened.Floats!, item => item.Kind == "text");
+
+        Assert.Equal("EVIDÊNCIAS DE HOMOLOGAÇÃO", voltou.Content![0].Content![0].Text);
+
+        // O grupo segue inteiro: o logotipo e o filete não são coisas que este
+        // escritor saiba gerar de novo.
+        Assert.Contains(reopened.Floats!, item => item.Kind == "image");
+        Assert.Contains(reopened.Floats!, item => item.Kind == "rule");
+    }
+
+    [Fact]
+    public void CaixaDoCabecalhoNaoEditadaNaoEReescrita()
+    {
+        var original = Fixtures.WithHeaderGroup();
+
+        Assert.Equal(
+            PartsOf(original)["word/header1.xml"],
+            PartsOf(Save(original, Clone(Open(original))).Bytes)["word/header1.xml"]);
+    }
+
+    [Fact]
     public void OParagrafoQueAncoraEQuebraContinuaParagrafo()
     {
         // Um parágrafo sem texto, só com a marca da capa e a quebra, virava o nó

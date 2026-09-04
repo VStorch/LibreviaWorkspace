@@ -230,6 +230,43 @@ export function editBandPiece(page: PageSetup, pid: string, text: string): PageS
   return changed ? updated : page
 }
 
+/**
+ * O conteúdo de uma caixa da faixa, trocado onde quer que ela esteja.
+ *
+ * O cabeçalho corporativo não é feito de parágrafos soltos: é um grupo de
+ * formas, e o título mora dentro de uma caixa. Ela vem inteira, porque digitar
+ * dentro dela abre e fecha parágrafos — endereçar parágrafo a parágrafo
+ * quebraria no primeiro Enter.
+ */
+export function editBandFloat(page: PageSetup, bid: string, content: DocumentNode[]): PageSetup {
+  let changed = false
+
+  const inBand = (band: Band | null): Band | null => {
+    if (band === null) return null
+
+    const floats = band.floats.map((object) => {
+      if (object.bid !== bid) return object
+      if (JSON.stringify(object.content ?? []) === JSON.stringify(content)) return object
+      changed = true
+      return { ...object, content }
+    })
+
+    return { ...band, floats }
+  }
+
+  const updated: PageSetup = {
+    ...page,
+    headerBand: inBand(page.headerBand),
+    footerBand: inBand(page.footerBand),
+    firstHeaderBand: inBand(page.firstHeaderBand),
+    firstFooterBand: inBand(page.firstFooterBand),
+    evenHeaderBand: inBand(page.evenHeaderBand),
+    evenFooterBand: inBand(page.evenFooterBand),
+  }
+
+  return changed ? updated : page
+}
+
 /** Há algo a desenhar nesta faixa? */
 export function hasBandContent(band: Band | null): band is Band {
   return (

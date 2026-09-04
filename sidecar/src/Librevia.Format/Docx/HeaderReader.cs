@@ -119,6 +119,11 @@ public static class HeaderReader
         // carrega para a gravação saber em que `w:t` escrever o texto digitado.
         var naming = new Naming(relationshipId, BandNav.IndexOf(root));
 
+        // O mesmo endereçamento um nível acima, para as caixas: o cabeçalho
+        // corporativo do corpus não é feito de parágrafos soltos, é um grupo de
+        // formas com o título dentro de uma caixa.
+        var boxes = new Boxing(relationshipId, BandNav.BoxIndexOf(root));
+
         var columns = new List<PieceDto>[3];
         for (var i = 0; i < 3; i++) columns[i] = [];
 
@@ -159,7 +164,10 @@ public static class HeaderReader
             // de 10 mm e desenhada deitada.
             if (AnchorReader.AnchorOf(drawing) is { } anchor)
             {
-                foreach (var item in ReadAnchoredDrawing(drawing, owner, anchor, inventory, fonts)) floats.Add(item);
+                foreach (var item in ReadAnchoredDrawing(drawing, owner, anchor, inventory, fonts, boxes))
+                {
+                    floats.Add(item);
+                }
                 continue;
             }
 
@@ -403,7 +411,8 @@ public static class HeaderReader
         OpenXmlPart owner,
         WordDrawing.Anchor anchor,
         Inventory inventory,
-        FontTable fonts)
+        FontTable fonts,
+        Boxing boxes)
     {
         foreach (var piece in AnchorReader.PiecesOf(anchor))
         {
@@ -418,7 +427,9 @@ public static class HeaderReader
             }
 
             var content = new List<Node>();
-            foreach (var box in piece.Shape.Descendants<TextBoxContent>())
+            var inside = BandNav.BoxesOf(piece.Shape);
+
+            foreach (var box in inside)
             {
                 foreach (var paragraph in box.Descendants<Paragraph>())
                 {
@@ -433,7 +444,16 @@ public static class HeaderReader
 
             if (content.Count > 0)
             {
-                yield return AnchorReader.Describe(anchor, "text", null, content, piece);
+                // Só a forma de uma caixa só é editável. Com duas, o conteúdo
+                // sai emendado numa lista e não haveria como saber em qual
+                // delas o texto digitado deveria voltar — e um texto trocado de
+                // caixa é pior do que um texto que não se pode editar.
+                var address = inside.Count == 1 ? boxes.Of(inside[0]) : null;
+
+                yield return AnchorReader.Describe(anchor, "text", null, content, piece) with
+                {
+                    BoxId = address,
+                };
                 continue;
             }
 
@@ -456,15 +476,36 @@ public static class HeaderReader
         }
     }
 
+    /// <summary>
+    /// O texto de uma caixa **como a tela o mostra**, para comparar com o que voltou.
+    /// </summary>
+    /// <remarks>
+    /// Não é o texto do XML. O campo `PAGE` sai daqui como `{n}`, e é esse o
+    /// texto que o modelo carrega — comparar com o do arquivo diria que a caixa
+    /// mudou toda vez, e a gravação trocaria o campo por um `{n}` literal. Era
+    /// exatamente o que o cabeçalho do corpus passou a mostrar: uma chave e um
+    /// ene no lugar do número da página.
+    /// </remarks>
+    internal static string BoxTextOf(TextBoxContent box, Inventory inventory, FontTable fonts) =>
+        string.Join(
+            "\n",
+            box.Descendants<Paragraph>()
+                .Select(paragraph => ReadRuns(paragraph, inventory, fonts))
+                .Where(pieces => pieces.Count > 0)
+                .Select(pieces => string.Concat(pieces.Select(TextOf))));
+
+    /// <summary>O texto de uma peça, com o campo já como marcador.</summary>
+    private static string TextOf(PieceDto piece) => piece.Kind switch
+    {
+        PieceDto.KindPageNumber => "{n}",
+        PieceDto.KindTotalPages => "{total}",
+        _ => piece.Text ?? string.Empty,
+    };
+
     /// <summary>Um pedaço de faixa vira nó de texto, para a caixa desenhá-lo.</summary>
     private static Node NodeOf(PieceDto piece)
     {
-        var text = piece.Kind switch
-        {
-            PieceDto.KindPageNumber => "{n}",
-            PieceDto.KindTotalPages => "{total}",
-            _ => piece.Text ?? string.Empty,
-        };
+        var text = TextOf(piece);
 
         var marks = new List<Mark>();
         if (piece.Bold) marks.Add(Mark.Of("bold"));
@@ -683,6 +724,13 @@ public static class HeaderReader
     {
         public string? Of(Paragraph paragraph, int piece) =>
             Index.TryGetValue(paragraph, out var at) ? BandNav.Address(RelationshipId, at, piece) : null;
+    }
+
+    /// <summary>O mesmo, para as caixas de texto da parte.</summary>
+    internal sealed record Boxing(string RelationshipId, Dictionary<TextBoxContent, int> Index)
+    {
+        public string? Of(TextBoxContent box) =>
+            Index.TryGetValue(box, out var at) ? BandNav.BoxAddress(RelationshipId, at) : null;
     }
 
     private static List<PieceDto> ReadRuns(

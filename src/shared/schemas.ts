@@ -76,6 +76,8 @@ const bandFloatSchema = z.object({
    * do cabeçalho aparecia na folha com o tamanho certo e vazia por dentro.
    */
   content: z.array(documentNodeSchema).max(200).optional(),
+  /** Onde a caixa mora no arquivo, quando o texto dela é editável. */
+  bid: z.string().max(120).optional(),
   widthMm: z.number(),
   heightMm: z.number(),
   rotation: z.number(),
