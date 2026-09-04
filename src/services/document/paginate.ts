@@ -32,6 +32,33 @@ export interface MeasuredBlock {
 }
 
 /**
+ * A legenda desce junto com a captura que ela apresenta.
+ *
+ * Medido nos dois sistemas, nos quatro documentos de evidências do corpus: onde
+ * a captura não cabe no que resta da folha, o LibreOffice leva para a folha
+ * seguinte **também o parágrafo de cima** — a linha que anuncia a captura. Nós
+ * a deixávamos sozinha no pé, e a partir dali as duas paginações cortavam em
+ * lugares diferentes até o fim do documento.
+ *
+ * É a mesma regra de `w:keepNext`, aplicada a um par que o arquivo não declara
+ * como par: a captura ancorada mora num parágrafo próprio e vazio, e quem a
+ * apresenta é o parágrafo anterior.
+ *
+ * Não vale entre duas capturas seguidas: aí não há legenda, e prendê-las uma na
+ * outra faria duas imagens grandes mudarem de folha juntas sem razão.
+ */
+export function keepingCaptions(
+  blocks: readonly MeasuredBlock[],
+  captura: readonly boolean[],
+): MeasuredBlock[] {
+  return blocks.map((block, at) =>
+    captura[at] === true || captura[at + 1] !== true || block.keepWithNext
+      ? block
+      : { ...block, keepWithNext: true },
+  )
+}
+
+/**
  * Teto de páginas.
  *
  * Um documento não tem quinhentas páginas por acidente, mas uma altura de

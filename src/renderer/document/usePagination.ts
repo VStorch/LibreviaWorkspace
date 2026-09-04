@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Editor } from '@tiptap/react'
-import { paginate, type MeasuredBlock } from '@services/document/paginate.js'
+import { keepingCaptions, paginate, type MeasuredBlock } from '@services/document/paginate.js'
 import {
   contentHeightMm,
   contentInsetsMm,
@@ -99,6 +99,7 @@ export function usePagination(
       // por uma quantidade diferente. `nodeDOM` liga um ao outro.
       let accumulated = 0
       const blocks: MeasuredBlock[] = []
+      const captura: boolean[] = []
       let index = 0
 
       editor.state.doc.forEach((_node, offset) => {
@@ -107,6 +108,7 @@ export function usePagination(
         accumulated += applied.current.get(index) ?? 0
         index += 1
 
+        captura.push(node !== null && isLoneScreenshot(node))
         blocks.push(
           node === null
             ? { top: 0, height: 0, isPageBreak: false, breakAfter: false, keepWithNext: false }
@@ -120,7 +122,7 @@ export function usePagination(
         )
       })
 
-      const breaks = paginate(blocks, contentHeightPx)
+      const breaks = paginate(keepingCaptions(blocks, captura), contentHeightPx)
 
       // Vão = o que sobrou da folha + as duas margens + o espaço entre papéis.
       // É essa soma que faz o bloco cair exatamente no topo da coluna de texto
@@ -198,6 +200,17 @@ export function usePagination(
   }, [editor, page, revision, bands.headerMm, bands.footerMm])
 
   return layout
+}
+
+/**
+ * O bloco é **só** uma captura ancorada.
+ *
+ * O parágrafo que a carrega não tem mais nada dentro: no arquivo ele existe
+ * apenas para ancorar o desenho.
+ */
+function isLoneScreenshot(node: HTMLElement): boolean {
+  const image = node.querySelector('img[data-anchored]')
+  return image !== null && (node.textContent ?? '').trim().length === 0
 }
 
 function sameGaps(left: ReadonlyMap<number, number>, right: ReadonlyMap<number, number>): boolean {
