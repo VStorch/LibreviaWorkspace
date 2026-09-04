@@ -121,6 +121,32 @@ ${DOCUMENT_FONT_CSS}
 .page__content img[data-anchored] ~ br,
 .page__content img[data-anchored] ~ img.ProseMirror-separator { display: none !important; }
 
+/*
+  Mas o parágrafo dela tem uma linha, e a linha ocupa lugar.
+
+  No Word a captura ancorada é um quadro que flutua: o parágrafo continua sendo
+  um parágrafo, com a linha vazia dele, e o quadro empurra o que vem depois. Com
+  a captura ocupando a largura da coluna inteira, não sobra onde a linha caber ao
+  lado, e ela vai para baixo.
+
+  Medido no LibreOffice, no documento de evidências do corpus: entre duas
+  capturas encostadas uma na outra ele deixa 12 pt, que é exatamente a entrelinha
+  do parágrafo. Nós as encostávamos, e o erro se somava a cada captura — num
+  documento de trinta, folhas inteiras de diferença.
+
+  Isto foi medido antes e concluído ao contrário: a linha parecia sobrar. A
+  medida estava certa e a base, errada — a entrelinha saía 1,15 vez curta e a
+  captura 2% estreita, e os dois erros escondiam este. Com eles corrigidos, três
+  dos quatro documentos de evidências passam a cortar nas mesmas folhas.
+
+  Crase nenhuma aqui dentro: isto mora num template literal.
+*/
+.page__content p:has(> img[data-anchored])::after {
+  content: '';
+  display: block;
+  height: 1lh;
+}
+
 .page__content blockquote {
   border-left: 3px solid #c7ced6;
   padding-left: 1em;

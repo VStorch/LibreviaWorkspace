@@ -91,12 +91,15 @@ test.describe('imagens do documento', () => {
     expect(medidas.seguinte).toBeGreaterThanOrEqual(medidas.fim - 1)
   })
 
-  test('o parágrafo da captura ocupa a altura dela, sem a descida da fonte', async () => {
-    // Inline a imagem repousa sobre a linha de base e sobra por baixo a descida
-    // da fonte, que o Word não cobra: medido no LibreOffice, o parágrafo de uma
-    // captura ocupa exatamente a altura da captura. Com a descida, um documento
-    // de trinta capturas fecha uma folha depois — e as folhas passam a cortar
-    // noutro lugar que o LibreOffice.
+  test('o parágrafo da captura ocupa a altura dela mais uma linha', async () => {
+    // Duas coisas de uma vez. A imagem é bloco e não palavra: inline ela
+    // repousaria sobre a linha de base e sobraria por baixo a descida da fonte,
+    // que o Word não cobra. E o parágrafo dela tem uma linha vazia, que o Word
+    // cobra: a captura ancorada é um quadro que flutua, e com ela ocupando a
+    // coluna inteira a linha não cabe ao lado e vai para baixo.
+    //
+    // Medido no LibreOffice: entre duas capturas encostadas ele deixa
+    // exatamente uma entrelinha.
     const origem = join(pasta, 'altura.docx')
     await writeFile(origem, await docxWithAnchoredScreenshot())
     await stubDialogs(session.app, { open: origem, messageBox: 1 })
@@ -105,13 +108,17 @@ test.describe('imagens do documento', () => {
     const imagem = session.window.locator('.page__content img[src^="data:"]')
     await expect(imagem).toBeVisible()
 
-    const sobra = await session.window.evaluate(() => {
+    const medidas = await session.window.evaluate(() => {
       const img = document.querySelector('.page__content img[src^="data:"]') as HTMLImageElement
       const bloco = img.parentElement as HTMLElement
-      return bloco.getBoundingClientRect().height - img.getBoundingClientRect().height
+      return {
+        sobra: bloco.getBoundingClientRect().height - img.getBoundingClientRect().height,
+        entrelinha: Number.parseFloat(getComputedStyle(bloco).lineHeight),
+      }
     })
 
-    expect(sobra).toBeCloseTo(0, 0)
+    // Uma linha, e não a descida da fonte: a sobra é a entrelinha do parágrafo.
+    expect(medidas.sobra).toBeCloseTo(medidas.entrelinha, 0)
   })
 
   test('a captura ocupa a coluna mesmo dentro de um parágrafo recuado', async () => {
