@@ -65,6 +65,37 @@ ${DOCUMENT_FONT_CSS}
 
 .page__content img { max-width: 100%; height: auto; }
 
+/*
+  A imagem ancorada ao parágrafo é um bloco, e não uma palavra.
+
+  Inline ela repousa sobre a linha de base e sobra por baixo a descida da
+  fonte, que o Word não cobra: medido no LibreOffice, o parágrafo de uma
+  captura ocupa a altura da captura. Com a descida, um documento de trinta
+  capturas fecha uma folha depois — e as folhas passam a cortar em outro lugar.
+
+  Medido no corpus: com esta regra o documento de evidências corta nas mesmas
+  nove primeiras folhas que o LibreOffice, contra quatro sem ela.
+
+  Pelo atributo, e não pela posição: o ProseMirror põe uma imagem vazia de
+  serviço ao lado da de verdade para dar onde pôr o cursor, e com ela nenhuma
+  imagem é filha única. A regra por posição valia no papel e não valia na tela,
+  que é justamente como as duas divergem.
+
+  Crase nenhuma aqui dentro: isto mora num template literal.
+*/
+.page__content img[data-anchored] { display: block; }
+
+/*
+  E a quebra de serviço do editor não abre linha depois dela.
+
+  O ProseMirror põe um BR no fim do bloco para dar onde pôr o cursor. Com a
+  imagem em bloco, esse BR cai numa linha própria e cobra a altura dela — na
+  tela, que é quem pagina, e não no papel, que não tem BR nenhum. Eram 18 px
+  por captura de diferença entre o que a tela mede e o que o papel imprime.
+*/
+.page__content img[data-anchored] ~ br,
+.page__content img[data-anchored] ~ img.ProseMirror-separator { display: none !important; }
+
 .page__content blockquote {
   border-left: 3px solid #c7ced6;
   padding-left: 1em;

@@ -20,6 +20,28 @@ import { mergeAttributes } from '@tiptap/core'
  * quando `max-width` encolhe a imagem para caber na coluna.
  */
 export const DocumentImage = Image.extend({
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+
+      /**
+       * A imagem está ancorada ao parágrafo, e não solta no meio da frase.
+       *
+       * Muda a altura do bloco, e ela conta na paginação: o parágrafo que
+       * **ancora** uma imagem ocupa a linha dele além da imagem, e o que a traz
+       * no meio da frase ocupa só a imagem. Medido no LibreOffice: 11,55 pt
+       * entre duas capturas seguidas num documento de evidências, que é
+       * exatamente uma linha de Arial 10 pt.
+       */
+      anchored: {
+        default: null,
+        parseHTML: (element: HTMLElement) => (element.hasAttribute('data-anchored') ? true : null),
+        renderHTML: (attributes: Record<string, unknown>) =>
+          attributes['anchored'] === true ? { 'data-anchored': '' } : {},
+      },
+    }
+  },
+
   renderHTML({ HTMLAttributes }) {
     const width = Number(HTMLAttributes['width'])
     const height = Number(HTMLAttributes['height'])

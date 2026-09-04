@@ -808,6 +808,15 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory)
 
         var node = Node.Of("image").With("src", src);
 
+        // Ancorada ao parágrafo, ainda que no lugar em que o fluxo já a poria.
+        //
+        // A diferença é de altura, e ela conta: o parágrafo que **ancora** uma
+        // imagem ocupa a linha dele além da imagem, e o que a traz no meio da
+        // frase ocupa só a imagem. Medido no LibreOffice: 11,55 pt entre duas
+        // capturas seguidas de um documento de evidências, que é exatamente uma
+        // linha de Arial 10 pt.
+        if (AnchorReader.AnchorOf(drawing) is not null) node.With("anchored", true);
+
         var extent = drawing.Descendants<Drawing.Wordprocessing.Extent>().FirstOrDefault();
         if (extent?.Cx?.Value is { } wide && extent.Cy?.Value is { } tall && wide > 0 && tall > 0)
         {

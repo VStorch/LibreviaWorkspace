@@ -86,4 +86,27 @@ test.describe('imagens do documento', () => {
     expect(medidas.flutuantes).toBe(0)
     expect(medidas.seguinte).toBeGreaterThanOrEqual(medidas.fim - 1)
   })
+
+  test('o parágrafo da captura ocupa a altura dela, sem a descida da fonte', async () => {
+    // Inline a imagem repousa sobre a linha de base e sobra por baixo a descida
+    // da fonte, que o Word não cobra: medido no LibreOffice, o parágrafo de uma
+    // captura ocupa exatamente a altura da captura. Com a descida, um documento
+    // de trinta capturas fecha uma folha depois — e as folhas passam a cortar
+    // noutro lugar que o LibreOffice.
+    const origem = join(pasta, 'altura.docx')
+    await writeFile(origem, await docxWithAnchoredScreenshot())
+    await stubDialogs(session.app, { open: origem, messageBox: 1 })
+
+    await menu(session, 'open')
+    const imagem = session.window.locator('.page__content img[src^="data:"]')
+    await expect(imagem).toBeVisible()
+
+    const sobra = await session.window.evaluate(() => {
+      const img = document.querySelector('.page__content img[src^="data:"]') as HTMLImageElement
+      const bloco = img.parentElement as HTMLElement
+      return bloco.getBoundingClientRect().height - img.getBoundingClientRect().height
+    })
+
+    expect(sobra).toBeCloseTo(0, 0)
+  })
 })
