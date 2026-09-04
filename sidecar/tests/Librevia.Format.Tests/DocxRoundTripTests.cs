@@ -1266,6 +1266,23 @@ public class DocxRoundTripTests
     }
 
     [Fact]
+    public void OEspacoDeclaradoNaoApagaAEntrelinhaDoEstilo()
+    {
+        // No OOXML os atributos de `w:spacing` são propriedades independentes:
+        // um parágrafo que declara só `w:after` não está dizendo que a
+        // entrelinha do estilo dele não vale. Substituindo o elemento inteiro,
+        // ela sumia — e no documento de evidências do corpus, onde cada
+        // parágrafo redeclara apenas o espaço, toda linha saía 1,15 vez mais
+        // curta do que no LibreOffice. A diferença ia se somando até a folha
+        // cortar noutro lugar.
+        var blocks = Open(Fixtures.WithStyleSpacingAndDirectMargins()).Doc.Content!;
+
+        // 276/240 em Arial de 10 pt: 1,15 × a altura natural da fonte.
+        Assert.Equal("1.3224", blocks[0].Attrs!["lineHeight"]!.GetValue<string>());
+        Assert.Equal(0d, blocks[0].Attrs!["spaceAfter"]!.GetValue<double>());
+    }
+
+    [Fact]
     public void OParagrafoQueAncoraEQuebraContinuaParagrafo()
     {
         // Um parágrafo sem texto, só com a marca da capa e a quebra, virava o nó

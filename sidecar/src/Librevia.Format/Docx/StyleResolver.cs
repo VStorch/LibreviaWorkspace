@@ -140,6 +140,34 @@ public sealed class StyleResolver
     }
 
     /// <summary>
+    /// Elementos cujos atributos são propriedades **independentes**.
+    /// </summary>
+    /// <remarks>
+    /// A regra geral do OOXML é substituir a propriedade inteira, e é o que
+    /// vale para a maioria: um `w:b` sem `w:val` quer dizer negrito, e mesclar
+    /// atributos com um `w:b w:val="false"` herdado o manteria desligado.
+    ///
+    /// Estes quatro são a exceção, e não uma exceção pequena. `w:spacing` traz
+    /// o espaço antes, o depois e a entrelinha no mesmo elemento: um parágrafo
+    /// que declara só `w:after="0"` **não** está dizendo que a entrelinha do
+    /// estilo dele não vale. Substituir o elemento inteiro a apagava, e o
+    /// documento de evidências do corpus é feito disso — o estilo `BodyText`
+    /// pede entrelinha 276 e cada parágrafo redeclara apenas o espaço. Cada
+    /// linha saía 1,15 vez mais curta do que no LibreOffice, e a diferença ia
+    /// se somando até a folha cortar noutro lugar.
+    ///
+    /// Pela mesma razão `w:ind` (esquerda, direita, primeira linha, pendente),
+    /// `w:rFonts` (a fonte latina, a complexa, a asiática) e `w:lang`.
+    /// </remarks>
+    private static readonly HashSet<string> AttributeByAttribute = new(StringComparer.Ordinal)
+    {
+        "spacing",
+        "ind",
+        "rFonts",
+        "lang",
+    };
+
+    /// <summary>
     /// Copia as propriedades de <paramref name="source"/> por cima de
     /// <paramref name="target"/>, substituindo as de mesmo nome.
     /// </summary>
@@ -157,6 +185,12 @@ public sealed class StyleResolver
             var existing = target.ChildElements
                 .FirstOrDefault(child => child.LocalName == incoming.LocalName &&
                                          child.NamespaceUri == incoming.NamespaceUri);
+
+            if (existing is not null && AttributeByAttribute.Contains(incoming.LocalName))
+            {
+                foreach (var attribute in incoming.GetAttributes()) existing.SetAttribute(attribute);
+                continue;
+            }
 
             if (existing is not null) target.RemoveChild(existing);
             target.AppendChild(incoming.CloneNode(true));

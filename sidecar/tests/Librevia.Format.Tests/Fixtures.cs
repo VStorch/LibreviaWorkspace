@@ -745,6 +745,46 @@ public static class Fixtures
     });
 
     /// <summary>Um parágrafo que pede para ficar com o seguinte, outro que não.</summary>
+    /// <summary>
+    /// Estilo com entrelinha e recuo; parágrafo que redeclara **só o espaço**.
+    /// </summary>
+    /// <remarks>
+    /// A forma exata do documento de evidências do corpus, e a que expôs o
+    /// defeito: o estilo `BodyText` pede entrelinha 276 e recuo, e cada
+    /// parágrafo redeclara apenas `w:before` e `w:after`. Substituindo o
+    /// `w:spacing` inteiro, a entrelinha do estilo sumia — e cada linha saía
+    /// 1,15 vez mais curta do que no LibreOffice.
+    /// </remarks>
+    public static byte[] WithStyleSpacingAndDirectMargins() => Build((body, part) =>
+    {
+        var styles = part.AddNewPart<StyleDefinitionsPart>();
+        styles.Styles = new Styles(
+            new Style(
+                new StyleName { Val = "Normal" },
+                new StyleParagraphProperties(
+                    new SpacingBetweenLines
+                    {
+                        Line = "276",
+                        LineRule = LineSpacingRuleValues.Auto,
+                        Before = "0",
+                        After = "140",
+                    },
+                    new Indentation { Left = "720", Right = "60", Hanging = "360" }),
+                new StyleRunProperties(new RunFonts { Ascii = "Arial" }, new FontSize { Val = "20" }))
+            { Type = StyleValues.Paragraph, StyleId = "Normal", Default = true });
+
+        // Só o espaço; a entrelinha e o recuo continuam sendo os do estilo.
+        var paragraph = Paragraph("Herda a entrelinha e o recuo do estilo.");
+        paragraph.ParagraphProperties = new ParagraphProperties(
+            new SpacingBetweenLines { Before = "0", After = "0" });
+        body.AppendChild(paragraph);
+
+        // Este troca o recuo da esquerda e mantém o resto.
+        var moved = Paragraph("Troca só o recuo da esquerda.");
+        moved.ParagraphProperties = new ParagraphProperties(new Indentation { Left = "1440" });
+        body.AppendChild(moved);
+    });
+
     public static byte[] WithKeepNext() => Build((body, _) =>
     {
         var kept = Paragraph("Rótulo da imagem:");
