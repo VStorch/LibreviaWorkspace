@@ -4,6 +4,7 @@ import { DOCUMENT_CONTENT_CSS, EDITOR_ONLY_CSS } from '@services/document/conten
 import {
   bandForPage,
   contentInsetsMm,
+  editBandPiece,
   hasBandContent,
   mmToPx,
   pageDimensionsMm,
@@ -49,6 +50,7 @@ export function DocumentEditor(): React.JSX.Element {
   const registerDocumentSource = useWorkspace((state) => state.registerDocumentSource)
   const setEstimatedPages = useWorkspace((state) => state.setEstimatedPages)
   const readOnly = useWorkspace((state) => state.readOnly)
+  const setPage = useWorkspace((state) => state.setPage)
 
   const pageRef = useRef<HTMLDivElement>(null)
   const [contentRevision, setContentRevision] = useState(0)
@@ -185,6 +187,28 @@ export function DocumentEditor(): React.JSX.Element {
     [editor, readOnly],
   )
 
+  /**
+   * O texto digitado no cabeçalho ou no rodapé volta para a configuração.
+   *
+   * A faixa não mora no documento do editor — ela é a parte OOXML preservada, e
+   * vive em `page`. Por isso a volta é `setPage` e não uma transação: o
+   * histórico do editor não tem o que desfazer aqui, e o gravador lê a
+   * configuração pelo mesmo caminho de sempre.
+   */
+  const editBand = useCallback(
+    (pid: string, text: string) => {
+      if (readOnly) return
+
+      // A configuração vem da loja e não da renderização: várias peças podem
+      // sair do foco em sequência, e uma leitura presa no fechamento apagaria
+      // a edição anterior a cada uma delas.
+      const current = useWorkspace.getState().page
+      const updated = editBandPiece(current, pid, text)
+      if (updated !== current) setPage(updated)
+    },
+    [readOnly, setPage],
+  )
+
   // O recorte em páginas é lido no momento de imprimir, e não no da renderização
   // — daí a `ref`: registrar `readPages` a cada mudança de layout recriaria a
   // fonte do documento dezenas de vezes por segundo enquanto se digita.
@@ -276,6 +300,7 @@ export function DocumentEditor(): React.JSX.Element {
                     totalPages={layout.pages}
                     insetPx={bandInset}
                     offsetPx={mmToPx(kind === 'header' ? page.headerDistanceMm : page.footerDistanceMm)}
+                    {...(readOnly ? {} : { onEdit: editBand })}
                   />
                 ) : null
               })}

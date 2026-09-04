@@ -25,15 +25,23 @@ export const bandPieceSchema = z.object({
   fontFamily: z.string().max(200).optional(),
   /** A peça abre linha nova: no arquivo ela começa outro parágrafo. */
   line: z.boolean().optional(),
+  /**
+   * Onde a peça mora no arquivo: a relação, o parágrafo e a peça nele.
+   *
+   * Sem declarar o campo, o zod o **descartava em silêncio** — e o texto
+   * digitado no cabeçalho voltaria para a tela e não para o `.docx`.
+   */
+  pid: z.string().max(120).optional(),
 })
 
 /**
  * Cabeçalho ou rodapé vindo de um documento do Word.
  *
  * Três colunas e um filete — o modelo que o Word sempre usou, e que cobre
- * quase todo cabeçalho corporativo. É **somente leitura**: o que vai para o
- * arquivo é a parte OOXML original, preservada intacta pela gravação
- * cirúrgica. Ver docs/02-docx-cirurgico.md.
+ * quase todo cabeçalho corporativo.
+ *
+ * O texto das peças que têm endereço é editável; todo o resto da parte OOXML
+ * volta intacto para o arquivo. Ver docs/02-docx-cirurgico.md.
  */
 /**
  * Um nó do documento, do jeito que o editor o entende.

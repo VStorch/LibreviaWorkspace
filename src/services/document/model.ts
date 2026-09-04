@@ -51,6 +51,15 @@ export interface BandPiece {
    * só, emendada na largura da folha.
    */
   readonly line?: boolean | undefined
+  /**
+   * Onde esta peça mora no arquivo: a relação, o parágrafo e a peça nele.
+   *
+   * É o que torna a faixa editável sem deixar de ser cirúrgica — a gravação
+   * escreve no `w:t` desta peça e não olha para o resto do cabeçalho, que ela
+   * não saberia gerar de novo. Peça sem endereço não é editável: número de
+   * página, imagem e tabulação não têm texto próprio no arquivo onde escrever.
+   */
+  readonly pid?: string | undefined
 }
 
 /**
@@ -72,9 +81,9 @@ export function linesOf(pieces: readonly BandPiece[]): BandPiece[][] {
 /**
  * Cabeçalho ou rodapé preservado de um documento do Word.
  *
- * Três colunas e um filete opcional. É **somente leitura**: o que volta para o
- * arquivo é a parte OOXML original, intacta — isto aqui existe só para
- * desenhar na tela e no PDF. Ver docs/02-docx-cirurgico.md.
+ * Três colunas e um filete opcional. O texto das peças que trazem endereço é
+ * editável, e volta para o `w:t` de onde veio; todo o resto da parte OOXML
+ * volta intacto. Ver docs/02-docx-cirurgico.md.
  */
 export interface Band {
   readonly left: BandPiece[]
@@ -173,6 +182,52 @@ export function bandForPage(page: PageSetup, pageNumber: number, kind: 'header' 
   if (pageNumber === 1 && first !== null) return first
   if (pageNumber % 2 === 0 && even !== null) return even
   return fallback
+}
+
+/**
+ * O texto de uma peça da faixa, trocado onde quer que ela esteja.
+ *
+ * O mesmo cabeçalho é desenhado em todas as folhas, mas no arquivo ele é um só:
+ * o endereço é único, e trocá-lo aqui atualiza todas as folhas de uma vez — que
+ * é como o Word se comporta quando se edita um cabeçalho.
+ *
+ * Devolve a mesma configuração quando não há o que trocar, para não sujar o
+ * documento por um clique que não mudou nada.
+ */
+export function editBandPiece(page: PageSetup, pid: string, text: string): PageSetup {
+  let changed = false
+
+  const inPieces = (pieces: BandPiece[]): BandPiece[] =>
+    pieces.map((piece) => {
+      if (piece.pid !== pid || piece.text === text) return piece
+      changed = true
+      return { ...piece, text }
+    })
+
+  const inBand = (band: Band | null): Band | null =>
+    band === null
+      ? null
+      : {
+          ...band,
+          left: inPieces(band.left),
+          center: inPieces(band.center),
+          right: inPieces(band.right),
+          rows: band.rows.map((row) => ({
+            cells: row.cells.map((cell) => ({ ...cell, pieces: inPieces(cell.pieces) })),
+          })),
+        }
+
+  const updated: PageSetup = {
+    ...page,
+    headerBand: inBand(page.headerBand),
+    footerBand: inBand(page.footerBand),
+    firstHeaderBand: inBand(page.firstHeaderBand),
+    firstFooterBand: inBand(page.firstFooterBand),
+    evenHeaderBand: inBand(page.evenHeaderBand),
+    evenFooterBand: inBand(page.evenFooterBand),
+  }
+
+  return changed ? updated : page
 }
 
 /** Há algo a desenhar nesta faixa? */

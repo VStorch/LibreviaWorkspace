@@ -394,3 +394,35 @@ function zip(entries: Array<[string, string | Buffer]>): Buffer {
 
   return Buffer.concat([...locals, directory, end])
 }
+
+/**
+ * O conteúdo de uma parte de dentro de um `.docx`, sem descompactar em disco.
+ *
+ * O `.docx` que o aplicativo grava tem as entradas comprimidas; o que estes
+ * fixtures produzem, não. O leitor cobre os dois porque é o mesmo teste que
+ * escreve um e lê o outro.
+ */
+export async function entryOf(path: string, name: string): Promise<string> {
+  const { readFile } = await import('node:fs/promises')
+  const { promisify } = await import('node:util')
+  const { inflateRaw } = await import('node:zlib')
+  const inflate = promisify(inflateRaw)
+  const zip = await readFile(path)
+
+  for (let i = 0; i + 30 <= zip.length; i++) {
+    if (zip.readUInt32LE(i) !== 0x04034b50) continue
+
+    const metodo = zip.readUInt16LE(i + 8)
+    const comprimido = zip.readUInt32LE(i + 18)
+    const original = zip.readUInt32LE(i + 22)
+    const tamanhoNome = zip.readUInt16LE(i + 26)
+    const extra = zip.readUInt16LE(i + 28)
+    if (zip.subarray(i + 30, i + 30 + tamanhoNome).toString('utf8') !== name) continue
+
+    const fim = i + 30 + tamanhoNome + extra + (comprimido > 0 ? comprimido : original)
+    const dados = zip.subarray(i + 30 + tamanhoNome + extra, fim)
+    return (metodo === 0 ? dados : await inflate(dados)).toString('utf8')
+  }
+
+  throw new Error(`${name} não encontrado em ${path}`)
+}
