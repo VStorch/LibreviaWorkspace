@@ -98,7 +98,22 @@ public sealed record PieceDto(
     /// autoria e data — saía como uma frase só, emendada na largura da folha,
     /// enquanto o LibreOffice mostrava as três empilhadas.
     /// </remarks>
-    [property: JsonPropertyName("line")] bool Line = false)
+    [property: JsonPropertyName("line")] bool Line = false,
+    /// <summary>
+    /// Onde esta peça mora no arquivo: a relação, o parágrafo e a peça nele.
+    /// </summary>
+    /// <remarks>
+    /// É o que torna a faixa editável sem deixar de ser cirúrgica. O modelo da
+    /// faixa é uma projeção com perda — tabulação vira espaço, campo vira
+    /// marcador, run vizinho de mesmo estilo se funde — então comparar o texto
+    /// inteiro para decidir o que mudou erraria. Com o endereço, a gravação
+    /// escreve **só no `w:t` daquela peça** e não olha para o resto.
+    ///
+    /// Peça sem endereço não é editável, e é de propósito: número de página,
+    /// imagem e texto em cache de campo não têm `w:t` próprio onde escrever, e
+    /// digitar por cima deles apagaria o campo.
+    /// </remarks>
+    [property: JsonPropertyName("pid")] string? Pid = null)
 {
     public const string KindText = "text";
     public const string KindImage = "image";

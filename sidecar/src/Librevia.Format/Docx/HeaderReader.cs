@@ -98,7 +98,7 @@ public static class HeaderReader
 
             if (root is null || owner is null) continue;
 
-            var band = Build(root, owner, inventory, contentWidthEmus, new FontTable(part));
+            var band = Build(root, owner, inventory, contentWidthEmus, new FontTable(part), id);
             // Dentro de um mesmo tipo raramente há mais de uma referência; se
             // houver, vale a que tem conteúdo.
             if (!band.IsEmpty) return band;
@@ -112,8 +112,13 @@ public static class HeaderReader
         OpenXmlPart owner,
         Inventory inventory,
         double contentWidthEmus,
-        FontTable fonts)
+        FontTable fonts,
+        string relationshipId)
     {
+        // O endereço de cada parágrafo, calculado uma vez: é ele que a peça
+        // carrega para a gravação saber em que `w:t` escrever o texto digitado.
+        var naming = new Naming(relationshipId, BandNav.IndexOf(root));
+
         var columns = new List<PieceDto>[3];
         for (var i = 0; i < 3; i++) columns[i] = [];
 
@@ -123,7 +128,7 @@ public static class HeaderReader
         // A grade primeiro: o que está dentro dela tem posição própria, e os dois
         // passes abaixo — os que espalham peças pelos três terços — não podem
         // vê-la duas vezes.
-        var rows = ReadGrid(root, owner, inventory, fonts);
+        var rows = ReadGrid(root, owner, inventory, fonts, naming);
 
         foreach (var paragraph in root.Descendants<Paragraph>())
         {
@@ -134,7 +139,7 @@ public static class HeaderReader
 
             if (HasBottomBorder(paragraph)) rule = true;
 
-            var pieces = ReadRuns(paragraph, inventory, fonts);
+            var pieces = ReadRuns(paragraph, inventory, fonts, naming);
             if (pieces.Count == 0) continue;
 
             var column = columns[ColumnOf(paragraph)];
@@ -158,7 +163,7 @@ public static class HeaderReader
                 continue;
             }
 
-            ReadDrawing(drawing, owner, columns, ref rule, inventory, contentWidthEmus, fonts);
+            ReadDrawing(drawing, owner, columns, ref rule, inventory, contentWidthEmus, fonts, naming);
         }
 
         return new BandDto(columns[0], columns[1], columns[2], rule, floats, rows);
@@ -180,7 +185,8 @@ public static class HeaderReader
         OpenXmlPartRootElement root,
         OpenXmlPart owner,
         Inventory inventory,
-        FontTable fonts)
+        FontTable fonts,
+        Naming naming)
     {
         var rows = new List<BandRowDto>();
 
@@ -223,7 +229,7 @@ public static class HeaderReader
 
                     var width = TwipsOf(properties?.TableCellWidth) / total;
                     var built_ = new BandCellDto(
-                        ReadCellPieces(cell, owner, inventory, fonts),
+                        ReadCellPieces(cell, owner, inventory, fonts, naming),
                         Math.Round(width, 4),
                         span,
                         1,
@@ -323,7 +329,8 @@ public static class HeaderReader
         TableCell cell,
         OpenXmlPart owner,
         Inventory inventory,
-        FontTable fonts)
+        FontTable fonts,
+        Naming naming)
     {
         var pieces = new List<PieceDto>();
 
@@ -334,7 +341,7 @@ public static class HeaderReader
                 if (ImagePieceOf(picture, owner) is { } image) pieces.Add(image);
             }
 
-            var run = ReadRuns(paragraph, inventory, fonts);
+            var run = ReadRuns(paragraph, inventory, fonts, naming);
             if (run.Count > 0) pieces.AddRange(OpeningALine(run, pieces.Count > 0));
         }
 
@@ -514,7 +521,8 @@ public static class HeaderReader
         ref bool rule,
         Inventory inventory,
         double contentWidthEmus,
-        FontTable fonts)
+        FontTable fonts,
+        Naming naming)
     {
         // A posição real na página vem da **âncora**, quando existe. Sem ela, a
         // única coordenada disponível é o `a:off` de dentro do desenho, que num
@@ -541,7 +549,7 @@ public static class HeaderReader
             var (offset, width, height) = GeometryOf(shape.Descendants<Drawing.Transform2D>().FirstOrDefault());
             var pieces = shape.Descendants<TextBoxContent>()
                 .SelectMany(box => box.Descendants<Paragraph>())
-                .SelectMany(paragraph => ReadRuns(paragraph, inventory, fonts))
+                .SelectMany(paragraph => ReadRuns(paragraph, inventory, fonts, naming))
                 .ToList();
 
             if (pieces.Count == 0)
@@ -654,38 +662,91 @@ public static class HeaderReader
         public bool InCachedResult;
     }
 
-    private static List<PieceDto> ReadRuns(Paragraph paragraph, Inventory inventory, FontTable fonts)
+    /// <summary>
+    /// Uma peça da faixa e os `w:t` que a produziram.
+    /// </summary>
+    /// <remarks>
+    /// O rastro é o caminho de volta da edição. Sem ele, escrever o texto
+    /// digitado obrigaria a refazer na gravação a fusão de runs vizinhos que o
+    /// leitor já fez — e a segunda conta discordaria da primeira no primeiro
+    /// cabeçalho com metade da frase em negrito.
+    ///
+    /// Peça sem rastro não tem onde receber texto: número de página, imagem e
+    /// tabulação não têm `w:t` próprio, e é por isso que elas não são editáveis.
+    /// </remarks>
+    internal sealed record TracedPiece(PieceDto Piece, List<Text> Source);
+
+    /// <summary>
+    /// De onde vêm as peças desta parte, para a edição achar o caminho de volta.
+    /// </summary>
+    internal sealed record Naming(string RelationshipId, Dictionary<Paragraph, int> Index)
     {
-        var pieces = new List<PieceDto>();
+        public string? Of(Paragraph paragraph, int piece) =>
+            Index.TryGetValue(paragraph, out var at) ? BandNav.Address(RelationshipId, at, piece) : null;
+    }
+
+    private static List<PieceDto> ReadRuns(
+        Paragraph paragraph,
+        Inventory inventory,
+        FontTable fonts,
+        Naming? naming = null)
+    {
+        var traced = TracedRuns(paragraph, inventory, fonts);
+        var pieces = new List<PieceDto>(traced.Count);
+
+        for (var at = 0; at < traced.Count; at++)
+        {
+            var piece = traced[at].Piece;
+            pieces.Add(naming is null || traced[at].Source.Count == 0
+                ? piece
+                : piece with { Pid = naming.Of(paragraph, at) });
+        }
+
+        return pieces;
+    }
+
+    internal static List<TracedPiece> TracedRuns(Paragraph paragraph, Inventory inventory, FontTable fonts)
+    {
+        var pieces = new List<TracedPiece>();
         var field = new FieldState();
         Collect(paragraph, pieces, field, inventory, fonts);
 
         // Junta textos vizinhos de mesmo estilo: o Word pica uma frase em vários
         // runs, e sem isto cada pedaço viraria um elemento solto.
-        var merged = new List<PieceDto>();
-        foreach (var piece in pieces)
+        var merged = new List<TracedPiece>();
+        foreach (var traced in pieces)
         {
-            var previous = merged.Count > 0 ? merged[^1] : null;
+            var piece = traced.Piece;
+            var previous = merged.Count > 0 ? merged[^1].Piece : null;
             if (piece.Kind == PieceDto.KindText && previous is { Kind: PieceDto.KindText } &&
                 previous.Bold == piece.Bold && previous.Italic == piece.Italic &&
                 previous.Color == piece.Color && previous.FontSize == piece.FontSize &&
                 previous.FontFamily == piece.FontFamily)
             {
-                merged[^1] = previous with { Text = previous.Text + piece.Text };
+                // Fusão com peça sem rastro apaga o rastro das duas. A tabulação
+                // vira um espaço na tela mas continua sendo `w:tab` no arquivo:
+                // escrever o texto fundido no `w:t` vizinho deixaria a tabulação
+                // onde estava e o espaço dela também, duas vezes.
+                var source = merged[^1].Source.Count == 0 || traced.Source.Count == 0
+                    ? new List<Text>()
+                    : [.. merged[^1].Source, .. traced.Source];
+
+                merged[^1] = new TracedPiece(previous with { Text = previous.Text + piece.Text }, source);
                 continue;
             }
 
-            merged.Add(piece);
+            merged.Add(traced);
         }
 
         return merged
-            .Where(piece => piece.Kind != PieceDto.KindText || !string.IsNullOrWhiteSpace(piece.Text))
+            .Where(traced => traced.Piece.Kind != PieceDto.KindText
+                             || !string.IsNullOrWhiteSpace(traced.Piece.Text))
             .ToList();
     }
 
     private static void Collect(
         OpenXmlElement parent,
-        List<PieceDto> pieces,
+        List<TracedPiece> pieces,
         FieldState field,
         Inventory inventory,
         FontTable fonts)
@@ -714,11 +775,11 @@ public static class HeaderReader
                 case FieldCode code:
                     if (code.Text.Contains("NUMPAGES", StringComparison.Ordinal))
                     {
-                        pieces.Add(new PieceDto(PieceDto.KindTotalPages));
+                        pieces.Add(new TracedPiece(new PieceDto(PieceDto.KindTotalPages), []));
                     }
                     else if (code.Text.Contains("PAGE", StringComparison.Ordinal))
                     {
-                        pieces.Add(new PieceDto(PieceDto.KindPageNumber));
+                        pieces.Add(new TracedPiece(new PieceDto(PieceDto.KindPageNumber), []));
                     }
                     else
                     {
@@ -740,7 +801,7 @@ public static class HeaderReader
 
     private static void Collect(
         Run run,
-        List<PieceDto> pieces,
+        List<TracedPiece> pieces,
         FieldState field,
         PieceDto style,
         Inventory inventory,
@@ -751,11 +812,11 @@ public static class HeaderReader
             switch (element)
             {
                 case Text text when !field.InCachedResult:
-                    pieces.Add(style with { Text = text.Text });
+                    pieces.Add(new TracedPiece(style with { Text = text.Text }, [text]));
                     break;
 
                 case TabChar when !field.InCachedResult:
-                    pieces.Add(style with { Text = " " });
+                    pieces.Add(new TracedPiece(style with { Text = " " }, []));
                     break;
 
                 case FieldChar or FieldCode:

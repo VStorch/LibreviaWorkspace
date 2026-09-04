@@ -1141,6 +1141,40 @@ public class DocxRoundTripTests
     }
 
     [Fact]
+    public void CadaPecaDaFaixaSabeDeOndeVeio()
+    {
+        // O endereço é o que torna a faixa editável sem deixar de ser
+        // cirúrgica: a gravação escreve no `w:t` daquela peça e não olha para o
+        // resto do cabeçalho, que ela não saberia gerar de novo.
+        var pieces = Open(Fixtures.WithFooterOfThreeLines()).Page.Footer!.Center;
+
+        Assert.Equal(3, pieces.Count);
+        Assert.Equal(3, pieces.Select(piece => piece.Pid).Distinct().Count());
+
+        // Um parágrafo por linha, na ordem em que estão no arquivo.
+        foreach (var (piece, at) in pieces.Select((piece, at) => (piece, at)))
+        {
+            Assert.EndsWith($":{at}:0", piece.Pid);
+        }
+    }
+
+    [Fact]
+    public void PecaSemTextoProprioNaoRecebeEndereco()
+    {
+        // Número de página e tabulação aparecem na faixa mas não têm `w:t` onde
+        // escrever. Dar endereço a elas faria a digitação apagar o campo — o
+        // rodapé passaria a dizer um número fixo, e só se notaria na página 2.
+        var pieces = Open(Fixtures.WithFooterOfPageNumber()).Page.Footer!.Left;
+
+        var text = Assert.Single(pieces, piece => piece.Kind == PieceDto.KindText);
+        Assert.Equal("Página  ", text.Text);
+        Assert.Null(text.Pid);
+
+        var number = Assert.Single(pieces, piece => piece.Kind == PieceDto.KindPageNumber);
+        Assert.Null(number.Pid);
+    }
+
+    [Fact]
     public void OParagrafoQueAncoraEQuebraContinuaParagrafo()
     {
         // Um parágrafo sem texto, só com a marca da capa e a quebra, virava o nó

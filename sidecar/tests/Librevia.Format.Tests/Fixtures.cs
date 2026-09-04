@@ -201,6 +201,39 @@ public static class Fixtures
     });
 
     /// <summary>
+    /// Rodapé com número de página: texto, tabulação e o campo `PAGE`.
+    /// </summary>
+    /// <remarks>
+    /// As três coisas que a faixa mostra e que não são a mesma coisa por
+    /// dentro. Só a primeira tem `w:t` onde escrever; a tabulação vira um
+    /// espaço na tela mas continua sendo `w:tab` no arquivo, e o campo é
+    /// calculado a cada abertura.
+    /// </remarks>
+    public static byte[] WithFooterOfPageNumber() => Build((body, part) =>
+    {
+        var footer = part.AddNewPart<FooterPart>();
+        var paragraph = new Paragraph();
+
+        paragraph.AppendChild(new Run(new Text("Página ") { Space = SpaceProcessingModeValues.Preserve }));
+        paragraph.AppendChild(new Run(new TabChar()));
+        paragraph.AppendChild(new Run(new FieldChar { FieldCharType = FieldCharValues.Begin }));
+        paragraph.AppendChild(new Run(new FieldCode(" PAGE ")));
+        paragraph.AppendChild(new Run(new FieldChar { FieldCharType = FieldCharValues.Separate }));
+        paragraph.AppendChild(new Run(new Text("7")));
+        paragraph.AppendChild(new Run(new FieldChar { FieldCharType = FieldCharValues.End }));
+
+        footer.Footer = new Footer(paragraph);
+        footer.Footer.Save();
+
+        var section = body.AppendChild(new SectionProperties());
+        section.AppendChild(new FooterReference
+        {
+            Type = HeaderFooterValues.Default,
+            Id = part.GetIdOfPart(footer),
+        });
+    });
+
+    /// <summary>
     /// Quebra de página **sozinha** num parágrafo, sem mais nada.
     /// </summary>
     public static byte[] WithLonePageBreak() => Build((body, _) =>
