@@ -24,7 +24,6 @@ public sealed record Block(string Oid, OpenXmlElement Source, Node Extracted);
 public sealed class BodyReader(MainDocumentPart part, Inventory inventory)
 {
     /// <summary>Passo de recuo do Word: meia polegada.</summary>
-    private const int TwipsPerIndentLevel = 720;
 
     private readonly NumberingReader _numbering = new(part);
     private readonly StyleResolver _styles = new(part);
@@ -273,13 +272,32 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory)
 
         if (alignment is not null) node.With("textAlign", alignment);
 
-        // Sempre escrito, inclusive zero. O editor declara `indent` com padrão
-        // `0` e devolve o atributo em todo parágrafo; omiti-lo aqui fazia os dois
+        // Zero, sempre. O nível é do editor — `Ctrl+]` trabalha em passos, e um
+        // passo vale 2,5em, que a 10 pt são 25 pt e não os 36 pt que 720 twips
+        // pedem. O recuo do arquivo vem logo abaixo, na medida em que ele o
+        // declara; escrever os dois somava um recuo que ninguém pediu.
+        //
+        // Continua sendo escrito porque o editor declara `indent` com padrão 0 e
+        // devolve o atributo em todo parágrafo: omiti-lo aqui fazia os dois
         // lados descreverem o mesmo bloco de formas diferentes, e a comparação
         // que decide o que preservar na gravação dizia "mudou" em bloco que
-        // ninguém tocou. É o único atributo do schema cujo padrão não é nulo —
-        // os demais a normalização de `Fingerprint` já reconcilia.
-        node.With("indent", IndentOf(effective));
+        // ninguém tocou.
+        node.With("indent", 0);
+
+        // O recuo **em milímetros**, que é como o arquivo o declara. Enquanto
+        // era só o nível, todo parágrafo recuado saía 30% mais estreito do que
+        // no LibreOffice, e a captura dentro dele encolhia junto: era o que
+        // deixava a legenda caber na folha em que o LibreOffice já não a punha.
+        Measure(node, "indentMm", effective.Indentation?.Left?.Value);
+        Measure(node, "indentRightMm", effective.Indentation?.Right?.Value);
+
+        // A primeira linha, que anda para os dois lados: `w:firstLine` a empurra
+        // e `w:hanging` a puxa. É o mesmo `text-indent` do CSS, e é o que faz o
+        // parágrafo pendurado ter a primeira linha fora do recuo das demais.
+        var firstLine = TwipsToMm(effective.Indentation?.FirstLine?.Value);
+        var hanging = TwipsToMm(effective.Indentation?.Hanging?.Value);
+        if (firstLine is > 0) node.With("firstLineMm", firstLine.Value);
+        else if (hanging is > 0) node.With("firstLineMm", -hanging.Value);
 
         // O fundo do parágrafo é o que transforma `Heading1` numa barra
         // colorida neste corpus — sem ele o título vira texto solto.
@@ -502,12 +520,15 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory)
         return node;
     }
 
-    private static int IndentOf(ParagraphProperties? properties)
+    /// <summary>Escreve a medida no nó quando ela existe e não é zero.</summary>
+    private static void Measure(Node node, string name, string? twips)
     {
-        var left = properties?.Indentation?.Left?.Value;
-        if (left is null || !int.TryParse(left, out var twips) || twips <= 0) return 0;
-        return Math.Min(twips / TwipsPerIndentLevel, 10);
+        if (TwipsToMm(twips) is { } value and > 0) node.With(name, value);
     }
+
+    /// <summary>1 twip = 1/1440 de polegada.</summary>
+    private static double? TwipsToMm(string? twips) =>
+        int.TryParse(twips, out var value) ? Math.Round(value * 25.4 / 1440, 2) : null;
 
     // --- conteúdo em linha --------------------------------------------------
 

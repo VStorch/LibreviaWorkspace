@@ -87,8 +87,53 @@ export const BlockFormat = Extension.create<BlockFormatOptions>({
             parseHTML: (element) => element.getAttribute('data-indent-mm'),
             renderHTML: (attributes) => {
               const value = Number(attributes['indentMm'])
+              // A medida sai duas vezes: como recuo de verdade e como variável.
+              // A imagem ancorada não é texto — no Word ela se posiciona pela
+              // coluna, e não pelo recuo do parágrafo —, e é pela variável que
+              // ela desconta o recuo de volta.
               return Number.isFinite(value) && value > 0
-                ? { 'data-indent-mm': String(value), style: `padding-left: ${value}mm` }
+                ? {
+                    'data-indent-mm': String(value),
+                    style: `padding-left: ${value}mm; --recuo: ${value}mm`,
+                  }
+                : {}
+            },
+          },
+
+          /**
+           * Recuo da direita, em milímetros.
+           *
+           * `w:ind/@right`. Estreita a coluna do parágrafo, e por isso muda
+           * onde a linha quebra — não é decoração.
+           */
+          indentRightMm: {
+            default: null,
+            parseHTML: (element) => element.getAttribute('data-indent-right-mm'),
+            renderHTML: (attributes) => {
+              const value = Number(attributes['indentRightMm'])
+              return Number.isFinite(value) && value > 0
+                ? {
+                    'data-indent-right-mm': String(value),
+                    style: `padding-right: ${value}mm; --recuo-direita: ${value}mm`,
+                  }
+                : {}
+            },
+          },
+
+          /**
+           * Onde a primeira linha começa, em milímetros, a contar do recuo.
+           *
+           * Positivo é `w:firstLine` e negativo é `w:hanging` — o Word os grava
+           * como dois atributos, mas eles são a mesma medida com o sinal
+           * trocado, e é assim que o CSS a entende.
+           */
+          firstLineMm: {
+            default: null,
+            parseHTML: (element) => element.getAttribute('data-first-line-mm'),
+            renderHTML: (attributes) => {
+              const value = Number(attributes['firstLineMm'])
+              return Number.isFinite(value) && value !== 0
+                ? { 'data-first-line-mm': String(value), style: `text-indent: ${value}mm` }
                 : {}
             },
           },

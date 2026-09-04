@@ -66,24 +66,6 @@ ${DOCUMENT_FONT_CSS}
 .page__content img { max-width: 100%; height: auto; }
 
 /*
-  A imagem ancorada ao parágrafo é um bloco, e não uma palavra.
-
-  Inline ela repousa sobre a linha de base e sobra por baixo a descida da
-  fonte, que o Word não cobra: medido no LibreOffice, o parágrafo de uma
-  captura ocupa a altura da captura. Com a descida, um documento de trinta
-  capturas fecha uma folha depois — e as folhas passam a cortar em outro lugar.
-
-  Medido no corpus: com esta regra o documento de evidências corta nas mesmas
-  nove primeiras folhas que o LibreOffice, contra quatro sem ela.
-
-  Pelo atributo, e não pela posição: o ProseMirror põe uma imagem vazia de
-  serviço ao lado da de verdade para dar onde pôr o cursor, e com ela nenhuma
-  imagem é filha única. A regra por posição valia no papel e não valia na tela,
-  que é justamente como as duas divergem.
-
-  Crase nenhuma aqui dentro: isto mora num template literal.
-*/
-/*
   A marca da lista é a que o documento declara, à distância que ele pede.
 
   O CSS escolheria a bolinha e a encostaria no texto; o documento diz o
@@ -100,7 +82,33 @@ ${DOCUMENT_FONT_CSS}
   margin-left: calc(-1 * var(--pendente, 1em));
 }
 
-.page__content img[data-anchored] { display: block; }
+/*
+  A imagem ancorada ao parágrafo é um bloco, e não uma palavra.
+
+  Inline ela repousa sobre a linha de base e sobra por baixo a descida da
+  fonte, que o Word não cobra: medido no LibreOffice, o parágrafo de uma
+  captura ocupa a altura da captura. Com a descida, um documento de trinta
+  capturas fecha uma folha depois — e as folhas passam a cortar em outro lugar.
+
+  Pelo atributo, e não pela posição: o ProseMirror põe uma imagem vazia de
+  serviço ao lado da de verdade para dar onde pôr o cursor, e com ela nenhuma
+  imagem é filha única. A regra por posição valia no papel e não valia na tela,
+  que é justamente como as duas divergem.
+
+  E ela ocupa a coluna, não a caixa do parágrafo: no Word a ancorada não é
+  texto, posiciona-se pela coluna, e o recuo do parágrafo que a carrega não a
+  estreita. Sem descontar o recuo, uma captura de 140 mm dentro de um parágrafo
+  recuado 12,7 mm era espremida — e como a altura segue a largura, encurtava
+  junto, e a legenda seguinte passava a caber numa folha em que o LibreOffice já
+  não a punha.
+
+  Crase nenhuma aqui dentro: isto mora num template literal.
+*/
+.page__content img[data-anchored] {
+  display: block;
+  margin-left: calc(-1 * var(--recuo, 0mm));
+  max-width: calc(100% + var(--recuo, 0mm) + var(--recuo-direita, 0mm));
+}
 
 /*
   E a quebra de serviço do editor não abre linha depois dela.

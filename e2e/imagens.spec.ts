@@ -6,7 +6,11 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
 import { launch, menu, stubDialogs, type Session } from './app.js'
-import { docxWithAnchoredScreenshot, docxWithStretchedImage } from './fixtures.js'
+import {
+  docxWithAnchoredScreenshot,
+  docxWithIndentedScreenshot,
+  docxWithStretchedImage,
+} from './fixtures.js'
 
 /**
  * A imagem sai do tamanho que o documento pediu.
@@ -108,5 +112,38 @@ test.describe('imagens do documento', () => {
     })
 
     expect(sobra).toBeCloseTo(0, 0)
+  })
+
+  test('a captura ocupa a coluna mesmo dentro de um parágrafo recuado', async () => {
+    // O recuo do Word é uma medida, e a captura ancorada não é texto: no Word
+    // ela se posiciona pela coluna. Espremida pelo recuo, ela encolhia também
+    // em altura — e a legenda seguinte passava a caber numa folha em que o
+    // LibreOffice já não a punha.
+    const origem = join(pasta, 'recuo.docx')
+    await writeFile(origem, await docxWithIndentedScreenshot())
+    await stubDialogs(session.app, { open: origem, messageBox: 1 })
+
+    await menu(session, 'open')
+    const imagem = session.window.locator('.page__content img[src^="data:"]')
+    await expect(imagem).toBeVisible()
+
+    const medidas = await session.window.evaluate(() => {
+      const img = document.querySelector('.page__content img[src^="data:"]') as HTMLImageElement
+      const legenda = document.querySelector('.page__content p') as HTMLElement
+      return {
+        imagem: img.getBoundingClientRect().width,
+        pedida: Number(img.getAttribute('width')),
+        // O recuo é preenchimento e não margem: a caixa do parágrafo continua
+        // sendo a coluna, e é por dentro dela que o texto anda.
+        recuoDaLegenda: Number.parseFloat(getComputedStyle(legenda).paddingLeft),
+      }
+    })
+
+    // 3810000 EMU são 400 px: a largura que o arquivo pede, e não a caixa do
+    // parágrafo recuado.
+    expect(medidas.imagem).toBeCloseTo(medidas.pedida, 0)
+
+    // E o recuo continua existindo para o texto: meia polegada são 48 px.
+    expect(medidas.recuoDaLegenda).toBeCloseTo(48, 0)
   })
 })

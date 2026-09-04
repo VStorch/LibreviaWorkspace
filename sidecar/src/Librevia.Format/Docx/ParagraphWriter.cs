@@ -220,12 +220,28 @@ public sealed class ParagraphWriter(MainDocumentPart part, Inventory inventory)
             };
         }
 
-        if (AttrInt(node, "indent") is { } indent && indent > 0)
+        // A medida do arquivo primeiro, e o nível do editor por cima: são as
+        // duas origens do recuo, e o nível existe porque `Ctrl+]` trabalha em
+        // passos. Somá-los é o que faz recuar um parágrafo importado acrescentar
+        // um passo ao recuo que ele já tinha, em vez de apagá-lo.
+        var left = (MmToTwips(AttrDouble(node, "indentMm")) ?? 0)
+                   + ((AttrInt(node, "indent") ?? 0) * TwipsPerIndentLevel);
+        var right = MmToTwips(AttrDouble(node, "indentRightMm")) ?? 0;
+        var firstLine = MmToTwips(AttrDouble(node, "firstLineMm")) ?? 0;
+
+        if (left > 0 || right > 0 || firstLine != 0)
         {
-            properties.Indentation = new Indentation
-            {
-                Left = (indent * TwipsPerIndentLevel).ToString(CultureInfo.InvariantCulture),
-            };
+            var indentation = new Indentation();
+            if (left > 0) indentation.Left = left.ToString(CultureInfo.InvariantCulture);
+            if (right > 0) indentation.Right = right.ToString(CultureInfo.InvariantCulture);
+
+            // Um só atributo, com o sinal decidindo qual: o Word grava
+            // `w:firstLine` e `w:hanging` como dois, e declarar os dois deixaria
+            // o arquivo dizendo duas coisas sobre a mesma linha.
+            if (firstLine > 0) indentation.FirstLine = firstLine.ToString(CultureInfo.InvariantCulture);
+            else if (firstLine < 0) indentation.Hanging = (-firstLine).ToString(CultureInfo.InvariantCulture);
+
+            properties.Indentation = indentation;
         }
 
         if (list is not null)
@@ -536,6 +552,16 @@ public sealed class ParagraphWriter(MainDocumentPart part, Inventory inventory)
         node.Attrs is not null && node.Attrs.TryGetValue(name, out var value) && value is not null
             ? value.GetValueKind() == System.Text.Json.JsonValueKind.String ? value.GetValue<string>() : null
             : null;
+
+    /// <summary>1 twip = 1/1440 de polegada.</summary>
+    private static int? MmToTwips(double? mm) =>
+        mm is null ? null : (int)Math.Round(mm.Value * 1440 / 25.4);
+
+    private static double? AttrDouble(Node node, string name)
+    {
+        if (node.Attrs is null || !node.Attrs.TryGetValue(name, out var value) || value is null) return null;
+        return value.GetValueKind() == System.Text.Json.JsonValueKind.Number ? value.GetValue<double>() : null;
+    }
 
     private static int? AttrInt(Node node, string name)
     {

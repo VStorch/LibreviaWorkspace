@@ -254,6 +254,51 @@ export async function docxWithAnchoredScreenshot(): Promise<Buffer> {
 }
 
 /**
+ * A mesma captura, dentro de um parágrafo **recuado**.
+ *
+ * O recuo do Word é uma medida — `w:ind/@left` —, e a captura ancorada não é
+ * texto: no Word ela se posiciona pela coluna, e o recuo do parágrafo que a
+ * carrega não a estreita. Enquanto ela era espremida, a altura encolhia junto,
+ * e a legenda seguinte passava a caber numa folha em que o LibreOffice já não a
+ * punha.
+ */
+export async function docxWithIndentedScreenshot(): Promise<Buffer> {
+  const R = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships'
+  const PIC = 'http://schemas.openxmlformats.org/drawingml/2006/picture'
+
+  // 3810000 EMU são 100,6 mm: cabem na coluna de 146,5 mm, mas não na caixa do
+  // parágrafo recuado meia polegada se o recuo a estreitar.
+  const imagem =
+    `<w:p><w:pPr><w:ind w:left="720"/></w:pPr>` +
+    `<w:r><w:drawing><wp:anchor distT="0" distB="0" distL="0" distR="0" simplePos="0" ` +
+    `relativeHeight="2" behindDoc="0" locked="0" layoutInCell="0" allowOverlap="1">` +
+    `<wp:simplePos x="0" y="0"/>` +
+    `<wp:positionH relativeFrom="column"><wp:align>center</wp:align></wp:positionH>` +
+    `<wp:positionV relativeFrom="paragraph"><wp:posOffset>635</wp:posOffset></wp:positionV>` +
+    `<wp:extent cx="3810000" cy="952500"/><wp:wrapSquare wrapText="bothSides"/>` +
+    `<wp:docPr id="1" name="Captura"/>` +
+    `<a:graphic><a:graphicData uri="${PIC}"><pic:pic xmlns:pic="${PIC}">` +
+    `<pic:nvPicPr><pic:cNvPr id="1" name="Captura"/><pic:cNvPicPr/></pic:nvPicPr>` +
+    `<pic:blipFill><a:blip xmlns:r="${R}" r:embed="rId9"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill>` +
+    `<pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="3810000" cy="952500"/></a:xfrm>` +
+    `<a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr>` +
+    `</pic:pic></a:graphicData></a:graphic>` +
+    `</wp:anchor></w:drawing></w:r></w:p>`
+
+  const recuado =
+    `<w:p><w:pPr><w:ind w:left="720"/></w:pPr>` +
+    `<w:r><w:t xml:space="preserve">Legenda recuada meia polegada.</w:t></w:r></w:p>`
+
+  return zip([
+    ['[Content_Types].xml', IMAGE_CONTENT_TYPES],
+    ['_rels/.rels', ROOT_RELS],
+    ['word/_rels/document.xml.rels', IMAGE_RELS],
+    ['word/media/quadrado.png', SQUARE_PNG],
+    ['word/document.xml', documentXml(recuado + imagem)],
+  ])
+}
+
+/**
  * Capa como a do modelo de manual: o título mora numa caixa **posicionada**.
  *
  * `wp:anchor` com deslocamento de verdade e `wrapNone` — o texto não está no

@@ -1283,6 +1283,42 @@ public class DocxRoundTripTests
     }
 
     [Fact]
+    public void ORecuoDoParagrafoEAMedidaQueODocumentoPede()
+    {
+        // O nível do editor vale 2,5em — a 10 pt são 25 pt, e não os 36 pt que
+        // 720 twips pedem. Enquanto era só o nível, o parágrafo recuado saía
+        // 30% mais estreito do que no LibreOffice, e a captura dentro dele
+        // encolhia junto.
+        var blocks = Open(Fixtures.WithStyleSpacingAndDirectMargins()).Doc.Content!;
+
+        // 720 twips = meia polegada = 12,7 mm; o recuo pendente vem com o sinal
+        // trocado, porque é `text-indent` negativo.
+        Assert.Equal(12.7, blocks[0].Attrs!["indentMm"]!.GetValue<double>());
+        Assert.Equal(1.06, blocks[0].Attrs!["indentRightMm"]!.GetValue<double>());
+        Assert.Equal(-6.35, blocks[0].Attrs!["firstLineMm"]!.GetValue<double>());
+        Assert.Equal(0, blocks[0].Attrs!["indent"]!.GetValue<int>());
+
+        // Trocar o recuo da esquerda não apaga o pendente que veio do estilo.
+        Assert.Equal(25.4, blocks[1].Attrs!["indentMm"]!.GetValue<double>());
+        Assert.Equal(-6.35, blocks[1].Attrs!["firstLineMm"]!.GetValue<double>());
+    }
+
+    [Fact]
+    public void ORecuoVoltaParaOArquivoNaMedidaEmQueVeio()
+    {
+        var original = Fixtures.WithStyleSpacingAndDirectMargins();
+        var model = Clone(Open(original));
+
+        // Um bloco editado é reescrito do zero: é aí que a medida tem de
+        // sobreviver, e não no que a gravação cirúrgica preserva intacto.
+        model.Doc.Content![0].Content![0].Text = "Outro texto no mesmo recuo.";
+
+        var reopened = Open(Save(original, model).Bytes).Doc.Content![0];
+        Assert.Equal(12.7, reopened.Attrs!["indentMm"]!.GetValue<double>());
+        Assert.Equal(-6.35, reopened.Attrs!["firstLineMm"]!.GetValue<double>());
+    }
+
+    [Fact]
     public void OParagrafoQueAncoraEQuebraContinuaParagrafo()
     {
         // Um parágrafo sem texto, só com a marca da capa e a quebra, virava o nó
