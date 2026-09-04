@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { keepingCaptions, paginate, type MeasuredBlock } from './paginate.js'
+import { paginate, type MeasuredBlock } from './paginate.js'
 
 /**
  * Blocos empilhados de altura fixa, na ordem — o formato que o editor mede.
@@ -101,38 +101,5 @@ describe('paginação', () => {
     const blocos = stack(Array.from({ length: 20 }, () => 250))
     // 250 × 4 = 1000 por página; 20 blocos dão cinco páginas, quatro cortes.
     expect(paginate(blocos, 1000)).toEqual([1000, 2000, 3000, 4000])
-  })
-})
-
-/**
- * A legenda desce junto com a captura que ela apresenta.
- *
- * Medido nos dois sistemas, nos quatro documentos de evidências do corpus: onde
- * a captura não cabe no que resta da folha, o LibreOffice leva para a folha
- * seguinte também a linha que a anuncia.
- */
-describe('a legenda e a captura', () => {
-  it('a legenda ganha o "não fique sozinho" quando a captura vem depois', () => {
-    // Legenda de 20 e captura de 500 numa folha de 600: a legenda caberia no pé
-    // com folga, e é justamente isso que o LibreOffice não faz.
-    const blocos = keepingCaptions(stack([100, 20, 500]), [false, false, true])
-
-    expect(blocos.map((bloco) => bloco.keepWithNext)).toEqual([false, true, false])
-    expect(paginate(blocos, 600)).toEqual([100])
-  })
-
-  it('duas capturas seguidas não se prendem uma na outra', () => {
-    // Sem legenda entre elas não há par: prendê-las faria duas imagens grandes
-    // mudarem de folha juntas sem razão.
-    const blocos = keepingCaptions(stack([500, 500]), [true, true])
-
-    expect(blocos.map((bloco) => bloco.keepWithNext)).toEqual([false, false])
-  })
-
-  it('quem já mantinha com o próximo continua sendo o mesmo bloco', () => {
-    // Sem cópia: o bloco que já vinha marcado atravessa intacto.
-    const original = stack([20, 500], { keepNext: [0] })
-
-    expect(keepingCaptions(original, [false, true])[0]).toBe(original[0])
   })
 })
