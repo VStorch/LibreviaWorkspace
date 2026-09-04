@@ -16,6 +16,16 @@ ${DOCUMENT_FONT_CSS}
 
 .page__content {
   outline: none;
+  /*
+    Coluna de caixas flexíveis, e não fluxo comum, por uma razão só: **as
+    margens não podem se juntar**. O CSS funde a margem de baixo de um bloco com
+    a de cima do seguinte e fica com a maior; o Word e o LibreOffice somam as
+    duas. Num documento em que cada parágrafo pede 14 pt depois e o seguinte
+    14 pt antes, a diferença é meia linha por junta — e ela se acumula até a
+    folha cortar noutro lugar.
+  */
+  display: flex;
+  flex-direction: column;
   /* Pelo nome do documento: a regra @font-face acima resolve para a
      empacotada. Crase nenhuma aqui dentro: isto mora num template literal. */
   font-family: 'Times New Roman', 'Liberation Serif', Georgia, serif;

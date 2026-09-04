@@ -296,6 +296,33 @@ export async function docxWithAnchoredTextBox(): Promise<Buffer> {
   ])
 }
 
+/**
+ * Dois parágrafos que pedem espaço nos dois lados da junta.
+ *
+ * O Word e o LibreOffice **somam** o espaço depois de um com o espaço antes do
+ * seguinte; o CSS funde as duas margens e fica com a maior. Meia linha por
+ * junta, e ela se acumula até a folha cortar noutro lugar.
+ */
+export async function docxWithSpacingOnBothSides(): Promise<Buffer> {
+  const espacado = (antes: number, depois: number, texto: string): string =>
+    `<w:p><w:pPr><w:spacing w:lineRule="auto" w:line="240" ` +
+    `w:before="${antes}" w:after="${depois}"/></w:pPr>` +
+    `<w:r><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/><w:sz w:val="20"/></w:rPr>` +
+    `<w:t xml:space="preserve">${texto}</w:t></w:r></w:p>`
+
+  return zip([
+    ['[Content_Types].xml', CONTENT_TYPES.replace(/<Override PartName="\/word\/comments[^>]+>/, '')],
+    ['_rels/.rels', ROOT_RELS],
+    [
+      'word/document.xml',
+      documentXml(
+        // 283 twips são 14,15 pt de cada lado da junta.
+        espacado(0, 283, 'Antes da junta.') + espacado(283, 0, 'Depois da junta.'),
+      ),
+    ],
+  ])
+}
+
 /** Documento sem nada que o editor não mostre. */
 export async function docxWithoutExtras(): Promise<Buffer> {
   return zip([
