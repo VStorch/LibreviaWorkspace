@@ -287,7 +287,10 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory)
         var spacing = effective.SpacingBetweenLines;
         node.With("spaceBefore", TwipsToPt(spacing?.Before?.Value) ?? 0);
         node.With("spaceAfter", TwipsToPt(spacing?.After?.Value) ?? 0);
-        node.With("lineHeight", LineHeightOf(spacing));
+        // A entrelinha depende da fonte com que a linha é medida, e é a marca
+        // do parágrafo que a diz — a mesma que dá altura ao parágrafo vazio.
+        var markFont = _styles.ResolveMark(inheritedRun, direct).RunFonts?.Ascii?.Value;
+        node.With("lineHeight", LineHeightOf(spacing, LineMetrics.Of(markFont)));
 
         // A fonte **do bloco**, e não só a dos runs. A altura da linha nasce da
         // fonte do próprio elemento: sem isto, um parágrafo de 10 pt dentro de
@@ -355,33 +358,65 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory)
     /// significa 1,13 vez a altura natural da linha.
     /// </summary>
     /// <remarks>
-    /// Sai texto, e não número, porque o caso mais comum — e o que o silêncio
-    /// no arquivo significa — é o espaçamento **simples** do Word, que é a
-    /// altura que a própria fonte pede. Em CSS isso se chama `normal`, e
-    /// nenhum fator o imita: 1,5 arejava cada linha em meia altura e 1,15
-    /// acertaria numa fonte e erraria na seguinte.
+    /// **Vez a altura natural**, e não vez o tamanho da fonte: é a diferença
+    /// entre 12,98 pt e 11,3 pt numa linha de Arial 10 pt, e é o que fazia um
+    /// documento caber em menos folhas aqui do que no LibreOffice.
+    ///
+    /// Por isso sai número sempre que se sabe qual arquivo de fonte o navegador
+    /// vai usar, inclusive no espaçamento simples — que seria `normal` em CSS,
+    /// mas cujo cálculo o Chromium arredonda para pixel inteiro: 15 px onde o
+    /// LibreOffice usa 15,33. São 2 % por linha, o bastante para um documento
+    /// de quinze folhas fechar em dezesseis.
+    ///
+    /// Quando a fonte não é uma das que o instalador leva, a substituta depende
+    /// da máquina e não há altura honesta a declarar: fica `normal`, e quem
+    /// mede é o navegador.
     ///
     /// `exact` e `atLeast` dizem a altura em twips, e viram pontos. Antes daqui
     /// as duas voltavam nulas, e um parágrafo com entrelinha travada em 9 pt
     /// era desenhado com a do editor.
     /// </remarks>
-    private static string LineHeightOf(SpacingBetweenLines? spacing)
+    private static string LineHeightOf(SpacingBetweenLines? spacing, double? natural)
     {
-        if (spacing?.Line?.Value is not { } line || !int.TryParse(line, out var value) || value <= 0)
+        var rule = spacing?.LineRule?.Value;
+        var declared = spacing?.Line?.Value;
+
+        if (declared is not null && int.TryParse(declared, out var value) && value > 0)
         {
-            return "normal";
+            if (rule is not null && rule != LineSpacingRuleValues.Auto)
+            {
+                return Math.Round(value / 20.0, 1)
+                    .ToString("0.#", System.Globalization.CultureInfo.InvariantCulture) + "pt";
+            }
+
+            var factor = Math.Round(value / 240.0, 2);
+
+            // Fora dessa faixa é lixo do arquivo, e não pedido de espaçamento.
+            if (factor is > 0.5 and < 4) return Multiple(factor, natural);
         }
 
-        var rule = spacing.LineRule?.Value;
-        if (rule is not null && rule != LineSpacingRuleValues.Auto)
-        {
-            return Math.Round(value / 20.0, 1).ToString("0.#", System.Globalization.CultureInfo.InvariantCulture) + "pt";
-        }
-
-        var factor = Math.Round(value / 240.0, 2);
-        if (factor is <= 0.5 or >= 4 || factor == 1) return "normal";
-        return factor.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+        return Multiple(1, natural);
     }
+
+    /// <summary>
+    /// O múltiplo já resolvido na altura da fonte.
+    /// </summary>
+    /// <remarks>
+    /// Fonte que o instalador não leva cai numa substituta que depende da
+    /// máquina. Sem múltiplo declarado, quem mede melhor é o navegador, e o
+    /// leitor sai da frente com `normal`. Com múltiplo declarado não dá para
+    /// sair da frente — aplicá-lo sobre o tamanho da fonte erra por 15 % —, e
+    /// então vale o palpite de 1,15: é a altura de quase toda fonte latina, e a
+    /// das substitutas que o LibreOffice escolhe.
+    /// </remarks>
+    private static string Multiple(double factor, double? natural)
+    {
+        if (natural is not null) return Text(Math.Round(factor * natural.Value, 4));
+        return factor == 1 ? "normal" : Text(Math.Round(factor * 1.1499, 4));
+    }
+
+    private static string Text(double value) =>
+        value.ToString("0.####", System.Globalization.CultureInfo.InvariantCulture);
 
     /// <summary>
     /// Nível do título a partir do estilo do parágrafo.

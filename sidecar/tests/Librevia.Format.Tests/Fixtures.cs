@@ -683,6 +683,21 @@ public static class Fixtures
         loose.ParagraphProperties = new ParagraphProperties(
             new SpacingBetweenLines { Line = "360", LineRule = LineSpacingRuleValues.Auto });
         body.AppendChild(loose);
+
+        // 271/240 em Arial: o múltiplo mais comum do corpus, na fonte mais
+        // comum dele.
+        var multiple = Paragraph("Arial e um pouco mais de linha.");
+        multiple.ParagraphProperties = new ParagraphProperties(
+            new ParagraphMarkRunProperties(new RunFonts { Ascii = "Arial" }),
+            new SpacingBetweenLines { Line = "271", LineRule = LineSpacingRuleValues.Auto });
+        body.AppendChild(multiple);
+
+        // Fonte que o instalador não leva: a substituta depende da máquina.
+        var unknown = Paragraph("Numa fonte que ninguém tem.");
+        unknown.ParagraphProperties = new ParagraphProperties(
+            new ParagraphMarkRunProperties(new RunFonts { Ascii = "Fonte Fantasma" }),
+            new SpacingBetweenLines { Line = "271", LineRule = LineSpacingRuleValues.Auto });
+        body.AppendChild(unknown);
     });
 
     /// <summary>Um parágrafo que pede para ficar com o seguinte, outro que não.</summary>

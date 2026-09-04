@@ -471,7 +471,12 @@ public class DocxRoundTripTests
         var model = Open(Fixtures.WithLineMetrics());
         var first = BlockContaining(model, "estilo padrão");
 
-        Assert.Equal("normal", first.Attrs!["lineHeight"]!.GetValue<string>());
+        // Espaçamento simples sai como número, e não como `normal`: é a altura
+        // natural da fonte do editor. O Chromium arredonda o `normal` dele para
+        // pixel inteiro — 15 px onde o LibreOffice usa 15,33 —, e são 2 % por
+        // linha, o bastante para um documento de quinze folhas fechar em
+        // dezesseis.
+        Assert.Equal("1.1499", first.Attrs!["lineHeight"]!.GetValue<string>());
         Assert.Equal(0, first.Attrs["spaceBefore"]!.GetValue<double>());
         Assert.Equal(0, first.Attrs["spaceAfter"]!.GetValue<double>());
     }
@@ -484,7 +489,36 @@ public class DocxRoundTripTests
         var model = Open(Fixtures.WithLineMetrics());
 
         Assert.Equal("9pt", BlockContaining(model, "travada").Attrs!["lineHeight"]!.GetValue<string>());
-        Assert.Equal("1.5", BlockContaining(model, "uma vez e meia").Attrs!["lineHeight"]!.GetValue<string>());
+
+        // O múltiplo do OOXML é sobre a altura **natural** da fonte, e não sobre
+        // o tamanho dela: uma vez e meia de Liberation Serif são 1,7248 em, e
+        // não 1,5. É o que o Word e o LibreOffice calculam.
+        Assert.Equal("1.7248", BlockContaining(model, "uma vez e meia").Attrs!["lineHeight"]!.GetValue<string>());
+    }
+
+    [Fact]
+    public void OMultiploDaEntrelinhaEVezAAlturaDaFonte()
+    {
+        // A conta do Word: "1,13 linha" não é 1,13 vez o tamanho da fonte, é
+        // 1,13 vez o que a fonte pede para uma linha simples. Em Arial isso são
+        // 1,1499 em, e a diferença — 13 % por linha — é o que fazia o documento
+        // caber em menos folhas aqui do que no LibreOffice.
+        var model = Open(Fixtures.WithLineMetrics());
+
+        Assert.Equal("1.2994", BlockContaining(model, "Arial e um pouco mais").Attrs!["lineHeight"]!.GetValue<string>());
+    }
+
+    [Fact]
+    public void FonteQueNaoVaiNoInstaladorAindaRespeitaOMultiplo()
+    {
+        // A substituta depende da máquina de quem abre. Sem múltiplo declarado o
+        // leitor sai da frente e deixa o navegador medir; com múltiplo não dá
+        // para sair — aplicá-lo sobre o tamanho da fonte erra por 15 % —, e
+        // vale o palpite de 1,15, que é a altura de quase toda fonte latina.
+        var model = Open(Fixtures.WithLineMetrics());
+
+        Assert.Equal("1.2994", BlockContaining(model, "fonte que ninguém tem").Attrs!["lineHeight"]!.GetValue<string>());
+        Assert.Equal("normal", BlockContaining(model, "Verdana de dez").Attrs!["lineHeight"]!.GetValue<string>());
     }
 
     [Fact]
