@@ -3,6 +3,7 @@ using System.Text.Json.Serialization;
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
+using WordDrawing = DocumentFormat.OpenXml.Drawing.Wordprocessing;
 
 namespace Librevia.Format.Docx;
 
@@ -163,13 +164,15 @@ public static class DocxWriter
                 continue;
             }
 
-            foreach (var element in writer.Write(slot.Content, slot.List)) elements.Add(element);
+            // O XML original do bloco editado ainda serve para o que este
+            // escritor não sabe gerar: os objetos ancorados seguem para o
+            // parágrafo reescrito em vez de sumirem com ele.
+            var source = oid is not null && index.TryGetValue(oid, out var edited) ? edited.Source : null;
+
+            foreach (var element in writer.Write(slot.Content, slot.List, source)) elements.Add(element);
             rewritten++;
 
-            if (oid is not null && index.TryGetValue(oid, out var edited))
-            {
-                NoteWhatWasInside(edited.Source, inventory);
-            }
+            if (source is not null) NoteWhatWasInside(source, inventory);
         }
 
         if (elements.Count == 0) elements.Add(new Paragraph());
@@ -306,7 +309,13 @@ public static class DocxWriter
             inventory.NoteLoss("campo calculado num parágrafo que você editou");
         }
 
-        if (original.Descendants<Picture>().Any() || original.Descendants<AlternateContent>().Any())
+        // Objeto ancorado não entra mais aqui: ele é copiado do original para o
+        // parágrafo reescrito. Sobra o que continua sem volta — o VML antigo
+        // (`w:pict`) e o desenho preso a um run que também traz texto, que
+        // copiado traria a frase junto.
+        if (original.Descendants<Picture>().Any() ||
+            original.Elements<Run>().Any(run =>
+                run.Descendants<WordDrawing.Anchor>().Any() && !ParagraphWriter.IsAnchoredOnly(run)))
         {
             inventory.NoteLoss("forma ou caixa de texto num parágrafo que você editou");
         }

@@ -40,12 +40,22 @@ public sealed class Inventory
     public const string Endnotes = "notas de fim";
     public const string Fields = "campos calculados (como sumário e número de página)";
     public const string HeaderFields = "campos calculados no cabeçalho";
-    public const string Shapes = "formas e caixas de texto";
+    /// <summary>
+    /// A **moldura** da forma, e não o conteúdo dela.
+    /// </summary>
+    /// <remarks>
+    /// O texto de dentro e a posição são desenhados; o que não é reproduzido é
+    /// a borda, o preenchimento e o efeito. Por isso este rótulo saiu da lista
+    /// estrutural: desde que os objetos ancorados passaram a ser copiados do
+    /// XML original para o parágrafo reescrito, editar o parágrafo não os apaga
+    /// mais — e travar o documento inteiro deixou de proteger de coisa alguma.
+    /// </remarks>
+    public const string Shapes = "moldura e preenchimento de formas";
     public const string ContentControls = "controles de conteúdo";
 
     private static readonly HashSet<string> StructuralLabels = new(StringComparer.Ordinal)
     {
-        Comments, TrackedChanges, Footnotes, Endnotes, Fields, HeaderFields, Shapes, ContentControls,
+        Comments, TrackedChanges, Footnotes, Endnotes, Fields, HeaderFields, ContentControls,
     };
 
     private readonly SortedSet<string> _invisible = new(StringComparer.Ordinal);

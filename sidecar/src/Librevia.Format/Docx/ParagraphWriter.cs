@@ -20,14 +20,24 @@ public sealed class ParagraphWriter(MainDocumentPart part, Inventory inventory)
 {
     private const int TwipsPerIndentLevel = 720;
 
-    public IEnumerable<OpenXmlElement> Write(Node node, ListContext? list = null)
+    /// <param name="original">
+    /// O parágrafo como estava no arquivo, quando existe.
+    /// </param>
+    public IEnumerable<OpenXmlElement> Write(
+        Node node,
+        ListContext? list = null,
+        OpenXmlElement? original = null)
     {
         switch (node.Type)
         {
             case "paragraph":
             case "heading":
-                yield return WriteParagraph(node, list);
+            {
+                var paragraph = WriteParagraph(node, list);
+                CarryAnchored(paragraph, original);
+                yield return paragraph;
                 break;
+            }
 
             case "pageBreak":
                 yield return new Paragraph(new Run(new Break { Type = BreakValues.Page }));
@@ -58,6 +68,43 @@ public sealed class ParagraphWriter(MainDocumentPart part, Inventory inventory)
 
     /// <summary>Numeração herdada do documento, para itens de lista.</summary>
     public sealed record ListContext(int NumberingId, int Level);
+
+    /// <summary>
+    /// Os objetos ancorados do parágrafo original seguem no parágrafo reescrito.
+    /// </summary>
+    /// <remarks>
+    /// A capa do modelo de manual é uma forma só: título e subtítulo moram em
+    /// caixas de texto ancoradas, e a marca lateral é uma imagem posicionada.
+    /// Nada disso este escritor sabe gerar do zero — o que ele tem é o XML
+    /// original, e copiá-lo é o mesmo remédio que a gravação cirúrgica usa para
+    /// o bloco inteiro, aplicado a um pedaço dele.
+    ///
+    /// Sem isto, editar o parágrafo que ancora uma forma a apagava, e era esse
+    /// risco que mantinha o documento inteiro em somente leitura.
+    ///
+    /// Só o `w:r` que **é** o desenho: um run que também traga texto seria
+    /// copiado com o texto junto, e a frase apareceria duas vezes. Esse caso
+    /// continua entrando no inventário como perda.
+    /// </remarks>
+    private static void CarryAnchored(Paragraph paragraph, OpenXmlElement? original)
+    {
+        if (original is null) return;
+
+        foreach (var run in original.Elements<Run>())
+        {
+            if (!IsAnchoredOnly(run)) continue;
+            paragraph.AppendChild(run.CloneNode(true));
+        }
+    }
+
+    /// <summary>O run carrega um objeto ancorado e mais nada que se escreva.</summary>
+    /// <remarks>
+    /// Pelos filhos diretos, e não por `Descendants`: o texto de dentro de uma
+    /// caixa também é `w:t`, e procurá-lo em profundidade rejeitava justamente
+    /// os runs que existem para ser copiados.
+    /// </remarks>
+    internal static bool IsAnchoredOnly(Run run) =>
+        run.Descendants<WordDrawing.Anchor>().Any() && !run.Elements<Text>().Any();
 
     private Paragraph WriteParagraph(Node node, ListContext? list)
     {

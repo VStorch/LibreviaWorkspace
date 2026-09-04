@@ -952,15 +952,43 @@ public class DocxRoundTripTests
     }
 
     [Fact]
-    public void CaixaDeTextoContinuaSendoEstrutural()
+    public void CaixaDeTextoSobreviveAEdicaoDoParagrafoAncora()
     {
-        // Mostrar o texto não devolve a forma: a moldura e a posição continuam
-        // invisíveis, e a gravação cirúrgica ainda perde a caixa inteira se o
-        // parágrafo âncora for editado. É o que mantém o documento travado em
-        // somente leitura, e ler o texto não pode afrouxar isso.
+        // O escritor não sabe gerar uma forma do zero. O que ele tem é o XML
+        // original do bloco, e copiar dele os objetos ancorados é o mesmo
+        // remédio da gravação cirúrgica aplicado a um pedaço do parágrafo.
+        // Sem isto, editar a capa do modelo de manual apagava o título e o
+        // subtítulo, que moram em caixas de texto.
+        var original = Fixtures.WithTextBoxes();
+        var model = Clone(Open(original));
+
+        // Digitar no parágrafo, e não apagar o `oid`: é assim que a edição
+        // chega de verdade. O `oid` é justamente o fio que leva de volta ao XML
+        // original — sem ele o bloco é novo, e não há de onde copiar a forma.
+        var paragraph = Walk(model.Doc).First(n => n.Type == "paragraph");
+        paragraph.Content = [new Node { Type = "text", Text = "Capa" }];
+
+        var (bytes, _) = Save(original, model);
+        var floats = FloatsOf(Open(bytes).Doc.Content![0]);
+
+        Assert.Contains(floats, item => TextOfFloat(item) == "Título do manual");
+        Assert.Contains(floats, item => TextOfFloat(item) == "Subtítulo do manual");
+    }
+
+    [Fact]
+    public void CaixaDeTextoNaoTravaMaisODocumento()
+    {
+        // A trava existia porque editar o parágrafo âncora apagava a forma.
+        // Agora ela é copiada, e travar o documento inteiro deixou de proteger
+        // de coisa alguma — a capa passa a ser editável, que é o que se espera
+        // de um editor de texto.
+        //
+        // O aviso continua, e é honesto: a moldura e o preenchimento não são
+        // reproduzidos. O que mudou é que ele não é mais motivo de cadeado.
         var result = DocxReader.Read(Fixtures.WithTextBoxes());
 
-        Assert.Contains(Inventory.Shapes, result.Inventory.Structural);
+        Assert.Contains(Inventory.Shapes, result.Inventory.Invisible);
+        Assert.DoesNotContain(Inventory.Shapes, result.Inventory.Structural);
     }
 
     [Fact]
