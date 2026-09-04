@@ -50,6 +50,66 @@ export const BlockFormat = Extension.create<BlockFormatOptions>({
             },
           },
 
+          /**
+           * A marca da lista, como o documento a declara.
+           *
+           * Sem ela o CSS escolhe a bolinha, e o documento pede um quadrado —
+           * `w:lvlText` guarda o caractere, e ele costuma vir da área de uso
+           * privado do Unicode, que é como o Word grava os glifos das fontes
+           * Symbol e Wingdings. Quem os traduz é o leitor.
+           */
+          marker: {
+            default: null,
+            parseHTML: (element) => element.getAttribute('data-marker'),
+            renderHTML: (attributes) => {
+              const value = attributes['marker']
+              if (typeof value !== 'string' || value.length === 0) return {}
+              // Como custom property, e não `list-style-type`: o marcador é
+              // desenhado por um `::before` do item, que é o único jeito de
+              // controlar a distância dele até o texto — o recuo pendente do
+              // Word. Aspas simples porque o valor entra numa string de CSS, e
+              // uma aspa dentro dele a fecharia.
+              return {
+                'data-marker': value,
+                style: `--marca: '${value.replace(/['\\]/g, '\\$&')}'`,
+              }
+            },
+          },
+
+          /**
+           * Onde o texto do item começa, em milímetros.
+           *
+           * `w:ind/@left` do nível. Sem ele o item sai colado na margem, e não
+           * no recuo que o documento pede.
+           */
+          indentMm: {
+            default: null,
+            parseHTML: (element) => element.getAttribute('data-indent-mm'),
+            renderHTML: (attributes) => {
+              const value = Number(attributes['indentMm'])
+              return Number.isFinite(value) && value > 0
+                ? { 'data-indent-mm': String(value), style: `padding-left: ${value}mm` }
+                : {}
+            },
+          },
+
+          /**
+           * Quanto o marcador fica antes do texto do item.
+           *
+           * `w:ind/@hanging` do nível — o recuo pendente do Word. Sem ele a
+           * marca sai encostada na primeira letra.
+           */
+          hangingMm: {
+            default: null,
+            parseHTML: (element) => element.getAttribute('data-hanging-mm'),
+            renderHTML: (attributes) => {
+              const value = Number(attributes['hangingMm'])
+              return Number.isFinite(value) && value > 0
+                ? { 'data-hanging-mm': String(value), style: `--pendente: ${value}mm` }
+                : {}
+            },
+          },
+
           spaceBefore: {
             default: null,
             parseHTML: (element) => element.style.marginTop || null,

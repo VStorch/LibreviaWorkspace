@@ -1073,6 +1073,25 @@ public class DocxRoundTripTests
     }
 
     [Fact]
+    public void AListaTrazAMarcaEOsRecuosQueODocumentoPede()
+    {
+        // O CSS escolheria a bolinha e a encostaria no texto. O documento diz o
+        // caractere e as duas distâncias — onde o texto começa e quanto o
+        // marcador fica antes dele —, e é isso que faz o item sair no lugar em
+        // que o LibreOffice o desenha.
+        //
+        // O caractere vem da área de uso privado do Unicode, que é como o Word
+        // grava os glifos de Symbol e de Wingdings. Servido como está, aparece
+        // a caixinha de caractere ausente.
+        var model = Open(Fixtures.WithBulletList());
+        var lista = model.Doc.Content!.Single(node => node.Type == "bulletList");
+
+        Assert.Equal("▪", lista.Attrs!["marker"]!.GetValue<string>());
+        Assert.Equal(12.7, lista.Attrs["indentMm"]!.GetValue<double>(), 1);
+        Assert.Equal(6.35, lista.Attrs["hangingMm"]!.GetValue<double>(), 2);
+    }
+
+    [Fact]
     public void CadaParagrafoDoRodapeAbreUmaLinha()
     {
         // Cabeçalho e rodapé são feitos de parágrafos, e um parágrafo é uma

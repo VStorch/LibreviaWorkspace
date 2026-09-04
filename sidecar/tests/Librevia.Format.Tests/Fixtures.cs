@@ -784,12 +784,19 @@ public static class Fixtures
     public static byte[] WithBulletList() => Build((body, part) =>
     {
         var numbering = part.AddNewPart<NumberingDefinitionsPart>();
+
+        // A marca do Word vem da área de uso privado do Unicode — é assim que
+        // ele grava os glifos de Symbol e Wingdings. Aqui, o quadrado.
+        var level = new Level(
+            new NumberingFormat { Val = NumberFormatValues.Bullet },
+            new LevelText { Val = "\uF0A7" },
+            new PreviousParagraphProperties(new Indentation { Left = "720", Hanging = "360" }))
+        {
+            LevelIndex = 0,
+        };
+
         numbering.Numbering = new Numbering(
-            new AbstractNum(new Level(new NumberingFormat { Val = NumberFormatValues.Bullet })
-            {
-                LevelIndex = 0,
-            })
-            { AbstractNumberId = 1 },
+            new AbstractNum(level) { AbstractNumberId = 1 },
             new NumberingInstance(new AbstractNumId { Val = 1 }) { NumberID = 1 });
 
         body.AppendChild(Paragraph("Introdução."));

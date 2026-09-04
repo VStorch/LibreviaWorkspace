@@ -91,7 +91,7 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory)
                         break;
                     }
 
-                    var (kind, level) = (list.Value.Kind, list.Value.Level);
+                    var (kind, level) = (list.Kind, list.Level);
                     while (openLists.Count > 0 && openLists[^1].Level > level)
                     {
                         openLists.RemoveAt(openLists.Count - 1);
@@ -101,6 +101,14 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory)
                     {
                         var listNode = Node.Of(kind);
                         listNode.Content = [];
+
+                        // A marca e o recuo são do nível, e não do parágrafo: é
+                        // a lista que os desenha. Sem eles a bolinha do CSS
+                        // aparece no lugar do quadrado que o documento pede, e
+                        // o item sai colado na margem.
+                        if (list.Marker is { } marker) listNode.With("marker", marker);
+                        if (list.IndentMm is { } indent) listNode.With("indentMm", indent);
+                        if (list.HangingMm is { } hanging) listNode.With("hangingMm", hanging);
 
                         if (openLists.Count > 0 && openLists[^1].Level < level)
                         {

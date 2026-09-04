@@ -83,6 +83,23 @@ ${DOCUMENT_FONT_CSS}
 
   Crase nenhuma aqui dentro: isto mora num template literal.
 */
+/*
+  A marca da lista é a que o documento declara, à distância que ele pede.
+
+  O CSS escolheria a bolinha e a encostaria no texto; o documento diz o
+  caractere em w:lvlText e a distância em w:ind/@hanging. Desenhada por um
+  pseudo-elemento porque o marcador nativo não se posiciona — e é justamente a
+  distância que faz o recuo pendente do Word.
+*/
+.page__content ul[data-marker] { list-style: none; }
+
+.page__content ul[data-marker] > li > :first-child::before {
+  content: var(--marca);
+  display: inline-block;
+  width: var(--pendente, 1em);
+  margin-left: calc(-1 * var(--pendente, 1em));
+}
+
 .page__content img[data-anchored] { display: block; }
 
 /*
