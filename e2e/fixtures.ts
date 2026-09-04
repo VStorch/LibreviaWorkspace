@@ -253,6 +253,49 @@ export async function docxWithAnchoredScreenshot(): Promise<Buffer> {
   ])
 }
 
+/**
+ * Capa como a do modelo de manual: o título mora numa caixa **posicionada**.
+ *
+ * `wp:anchor` com deslocamento de verdade e `wrapNone` — o texto não está no
+ * fluxo, está numa posição da folha. É o caso em que a pessoa olha a capa,
+ * quer trocar o título e não tem onde clicar, porque a caixa é desenhada fora
+ * do `contenteditable`.
+ */
+export async function docxWithAnchoredTextBox(): Promise<Buffer> {
+  const WPS = 'http://schemas.microsoft.com/office/word/2010/wordprocessingShape'
+  const caixa =
+    `<w:p><w:r><mc:AlternateContent><mc:Choice Requires="wps">` +
+    `<w:drawing><wp:anchor distT="0" distB="0" distL="0" distR="0" simplePos="0" ` +
+    `relativeHeight="3" behindDoc="0" locked="0" layoutInCell="1" allowOverlap="1">` +
+    `<wp:simplePos x="0" y="0"/>` +
+    `<wp:positionH relativeFrom="margin"><wp:posOffset>2160000</wp:posOffset></wp:positionH>` +
+    `<wp:positionV relativeFrom="paragraph"><wp:posOffset>360000</wp:posOffset></wp:positionV>` +
+    `<wp:extent cx="3800475" cy="2019300"/><wp:wrapNone/>` +
+    `<wp:docPr id="7" name="Caixa de Texto"/>` +
+    `<a:graphic><a:graphicData uri="${WPS}">` +
+    `<wps:wsp><wps:cNvSpPr txBox="1"/>` +
+    `<wps:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="3800475" cy="2019300"/></a:xfrm>` +
+    `<a:prstGeom prst="rect"><a:avLst/></a:prstGeom></wps:spPr>` +
+    `<wps:txbx><w:txbxContent><w:p><w:r><w:t>Título da capa</w:t></w:r></w:p></w:txbxContent></wps:txbx>` +
+    `<wps:bodyPr rot="0" vert="horz" wrap="square"/></wps:wsp>` +
+    `</a:graphicData></a:graphic>` +
+    `</wp:anchor></w:drawing></mc:Choice>` +
+    // O ramo de reserva é o VML antigo, como o Word grava: a mesma caixa
+    // escrita duas vezes. Salvar só uma deixaria o arquivo dizendo duas
+    // coisas, e qual delas aparece dependeria de quem abre.
+    `<mc:Fallback><w:pict xmlns:v="urn:schemas-microsoft-com:vml">` +
+    `<v:shape id="Caixa" type="#_x0000_t202" style="position:absolute;width:299pt;height:159pt">` +
+    `<v:textbox><w:txbxContent><w:p><w:r><w:t>Título da capa</w:t></w:r></w:p></w:txbxContent></v:textbox>` +
+    `</v:shape></w:pict></mc:Fallback>` +
+    `</mc:AlternateContent></w:r></w:p>`
+
+  return zip([
+    ['[Content_Types].xml', CONTENT_TYPES.replace(/<Override PartName="\/word\/comments[^>]+>/, '')],
+    ['_rels/.rels', ROOT_RELS],
+    ['word/document.xml', documentXml(caixa + paragraph('Primeiro parágrafo do corpo.'))],
+  ])
+}
+
 /** Documento sem nada que o editor não mostre. */
 export async function docxWithoutExtras(): Promise<Buffer> {
   return zip([

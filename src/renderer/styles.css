@@ -587,6 +587,26 @@ button {
   margin: 0;
 }
 
+/* A camada não recebe clique; a caixa em que se digita, sim. Sem isto o cursor
+   nunca chegaria ao título da capa, que não está no fluxo. */
+.paper-float--edit {
+  pointer-events: auto;
+  cursor: text;
+  outline: none;
+}
+
+/* A moldura só aparece quando se aponta ou se escreve: no papel ela não existe,
+   e desenhá-la o tempo todo mostraria uma caixa que o documento não tem. */
+.paper-float--edit:hover {
+  outline: 1px dashed var(--border-strong);
+  outline-offset: 2px;
+}
+
+.paper-float--edit:focus {
+  outline: 1px solid var(--accent);
+  outline-offset: 2px;
+}
+
 /* Camada das faixas de uma folha: mesma caixa da folha, sem o papel. */
 .paper-bands {
   position: absolute;

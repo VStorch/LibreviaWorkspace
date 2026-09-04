@@ -1,4 +1,6 @@
 using System.Globalization;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
@@ -34,7 +36,7 @@ public sealed class ParagraphWriter(MainDocumentPart part, Inventory inventory)
             case "heading":
             {
                 var paragraph = WriteParagraph(node, list);
-                CarryAnchored(paragraph, original);
+                CarryAnchored(paragraph, node, original);
                 yield return paragraph;
                 break;
             }
@@ -86,7 +88,7 @@ public sealed class ParagraphWriter(MainDocumentPart part, Inventory inventory)
     /// copiado com o texto junto, e a frase apareceria duas vezes. Esse caso
     /// continua entrando no inventário como perda.
     /// </remarks>
-    private static void CarryAnchored(Paragraph paragraph, OpenXmlElement? original)
+    private void CarryAnchored(Paragraph paragraph, Node node, OpenXmlElement? original)
     {
         if (original is null) return;
 
@@ -95,7 +97,126 @@ public sealed class ParagraphWriter(MainDocumentPart part, Inventory inventory)
             if (!IsAnchoredOnly(run)) continue;
             paragraph.AppendChild(run.CloneNode(true));
         }
+
+        ApplyBoxText(paragraph, node);
     }
+
+    /// <summary>
+    /// O que a pessoa digitou dentro de uma caixa volta para o `w:txbxContent`.
+    /// </summary>
+    /// <remarks>
+    /// A capa do modelo de manual é feita disto: título e subtítulo moram em
+    /// caixas, e sem esta volta a caixa seria editável na tela e voltaria com o
+    /// texto antigo no arquivo — pior do que não deixar editar.
+    ///
+    /// Caixa cujo texto não mudou **não é tocada**: o XML dela segue como
+    /// estava, com a moldura, o preenchimento e a formatação que este escritor
+    /// não sabe reproduzir. É a mesma aposta da gravação cirúrgica, um nível
+    /// abaixo.
+    ///
+    /// Se a contagem não bater — um desenho que não pôde ser copiado, uma caixa
+    /// que o leitor viu e o escritor não — nada é escrito: acertar a caixa
+    /// errada poria o subtítulo dentro do título, e um texto perdido é menos
+    /// grave do que um texto trocado de lugar.
+    /// </remarks>
+    private void ApplyBoxText(Paragraph paragraph, Node node)
+    {
+        var wanted = BoxContentsOf(node);
+        if (wanted.Count == 0) return;
+
+        var boxes = TextBoxNav.AnchoredBoxesOf(paragraph).ToList();
+        if (boxes.Count != wanted.Count)
+        {
+            inventory.NoteLoss("texto de caixa num parágrafo que você editou");
+            return;
+        }
+
+        var touched = false;
+        for (var index = 0; index < boxes.Count; index++)
+        {
+            var box = boxes[index];
+            var content = wanted[index];
+            if (TextBoxNav.TextOf(box) == PlainTextOf(content)) continue;
+
+            box.RemoveAllChildren();
+            foreach (var block in content)
+            {
+                foreach (var element in Write(block)) box.AppendChild(element);
+            }
+
+            // `w:txbxContent` vazio invalida o documento para o Word.
+            if (!box.HasChildren) box.AppendChild(new Paragraph());
+            touched = true;
+        }
+
+        if (!touched) return;
+
+        foreach (var alternate in paragraph.Descendants<AlternateContent>().ToList())
+        {
+            MirrorFallback(alternate);
+        }
+    }
+
+    /// <summary>
+    /// O ramo de reserva repete o texto do ramo que vale.
+    /// </summary>
+    /// <remarks>
+    /// O Word grava a mesma caixa duas vezes, em DrawingML e no VML antigo.
+    /// Escrever só numa deixaria o arquivo dizendo duas coisas, e qual delas
+    /// aparece depende de quem abre.
+    ///
+    /// Só o texto: a forma do VML fica como está, porque é ela que dá a moldura
+    /// para quem lê o ramo antigo.
+    /// </remarks>
+    private static void MirrorFallback(AlternateContent alternate)
+    {
+        var choice = alternate.GetFirstChild<AlternateContentChoice>();
+        var fallback = alternate.GetFirstChild<AlternateContentFallback>();
+        if (choice is null || fallback is null) return;
+
+        var source = TextBoxNav.Outermost(choice).ToList();
+        var mirror = TextBoxNav.Outermost(fallback).ToList();
+        if (source.Count != mirror.Count) return;
+
+        for (var index = 0; index < source.Count; index++)
+        {
+            mirror[index].RemoveAllChildren();
+            foreach (var child in source[index].ChildElements)
+            {
+                mirror[index].AppendChild(child.CloneNode(true));
+            }
+        }
+    }
+
+    /// <summary>O conteúdo das caixas de texto do bloco, na ordem do modelo.</summary>
+    private static List<List<Node>> BoxContentsOf(Node node)
+    {
+        var contents = new List<List<Node>>();
+        if (node.Attrs is null ||
+            !node.Attrs.TryGetValue("floats", out var value) ||
+            value is not JsonArray floats)
+        {
+            return contents;
+        }
+
+        foreach (var item in floats)
+        {
+            if (item is not JsonObject float_) continue;
+            if (float_["kind"]?.GetValue<string>() != "text") continue;
+
+            var content = float_["content"].Deserialize<List<Node>>(DocxJson.Options);
+            contents.Add(content ?? []);
+        }
+
+        return contents;
+    }
+
+    /// <summary>O texto de um conteúdo de caixa, na mesma forma que o do arquivo.</summary>
+    private static string PlainTextOf(List<Node> content) =>
+        string.Join("\n", content.Select(TextOfNode));
+
+    private static string TextOfNode(Node node) =>
+        node.Text ?? string.Concat((node.Content ?? []).Select(TextOfNode));
 
     /// <summary>O run carrega um objeto ancorado e mais nada que se escreva.</summary>
     /// <remarks>

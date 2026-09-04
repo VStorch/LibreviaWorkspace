@@ -170,6 +170,16 @@ public static class Fixtures
     });
 
     /// <summary>
+    /// Quebra de página **sozinha** num parágrafo, sem mais nada.
+    /// </summary>
+    public static byte[] WithLonePageBreak() => Build((body, _) =>
+    {
+        body.AppendChild(Paragraph("Primeira página."));
+        body.AppendChild(new Paragraph(new Run(new Break { Type = BreakValues.Page })));
+        body.AppendChild(Paragraph("Segunda página."));
+    });
+
+    /// <summary>
     /// Três cabeçalhos declarados, com o `first` **antes** do `default` no XML.
     /// </summary>
     /// <remarks>
@@ -447,6 +457,35 @@ public static class Fixtures
                 cy: 2885145,
                 rotation: 16200000,
                 placed: true))));
+    });
+
+    /// <summary>
+    /// A marca da capa e a quebra de página no mesmo parágrafo.
+    /// </summary>
+    /// <remarks>
+    /// É como o modelo de manual encerra a capa: um parágrafo que não tem texto
+    /// nenhum, só o desenho posicionado e o `w:br` que abre a folha seguinte.
+    /// </remarks>
+    public static byte[] WithBreakOnAnchorParagraph() => Build((body, part) =>
+    {
+        var image = part.AddImagePart(ImagePartType.Png);
+        using (var stream = new MemoryStream(TinyPng()))
+        {
+            image.FeedData(stream);
+        }
+
+        var paragraph = new Paragraph();
+        paragraph.AppendChild(new Run(
+            AnchoredDrawing(
+                part.GetIdOfPart(image),
+                cx: 10287325,
+                cy: 2885145,
+                rotation: 16200000,
+                placed: true)));
+        paragraph.AppendChild(new Run(new Break { Type = BreakValues.Page }));
+
+        body.AppendChild(paragraph);
+        body.AppendChild(Paragraph("Depois da capa."));
     });
 
     /// <summary>

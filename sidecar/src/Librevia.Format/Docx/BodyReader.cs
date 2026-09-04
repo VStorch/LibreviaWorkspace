@@ -203,13 +203,18 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory)
         // Uma quebra de página sozinha no parágrafo é o nó `pageBreak`, não um
         // parágrafo vazio com uma quebra dentro.
         //
-        // Os objetos ancorados vão junto: depois que a imagem da capa saiu do
-        // fluxo, o parágrafo que a continha ficou com a quebra e mais nada — e
-        // sem esta linha a marca vertical desaparecia do documento por cair
-        // justamente no atalho.
-        if (content.Count == 1 && content[0].Type == "pageBreak")
+        // **Menos** quando o parágrafo ancora alguma coisa. O nó de quebra mora
+        // no vão entre duas folhas, e um objeto ancorado nele cai na folha de
+        // baixo; o parágrafo do arquivo está na de cima, antes da quebra. Foi
+        // assim que a marca vertical da capa do modelo de manual apareceu no
+        // topo da segunda folha em vez de correr pela lateral da primeira,
+        // enquanto o LibreOffice a desenhava na capa.
+        //
+        // Preservado o parágrafo, a quebra vira propriedade dele — o mesmo
+        // caminho da quebra no meio do texto, logo abaixo.
+        if (content.Count == 1 && content[0].Type == "pageBreak" && _paragraphFloats.Count == 0)
         {
-            return WithFloats(content[0]);
+            return content[0];
         }
 
         // Quebra **no meio** de um parágrafo: `w:br w:type="page"` dentro de um
@@ -723,19 +728,8 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory)
     /// de <see cref="ReadInline"/>, e as duas rotas juntas escreveriam o texto
     /// de dentro duas vezes.
     /// </remarks>
-    private static IEnumerable<TextBoxContent> OutermostTextBoxes(OpenXmlElement root)
-    {
-        foreach (var child in root.ChildElements)
-        {
-            if (child is TextBoxContent box)
-            {
-                yield return box;
-                continue;
-            }
-
-            foreach (var nested in OutermostTextBoxes(child)) yield return nested;
-        }
-    }
+    private static IEnumerable<TextBoxContent> OutermostTextBoxes(OpenXmlElement root) =>
+        TextBoxNav.Outermost(root);
 
     // --- imagens ------------------------------------------------------------
 

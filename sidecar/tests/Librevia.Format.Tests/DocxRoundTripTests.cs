@@ -1,5 +1,6 @@
 using System.IO.Compression;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Librevia.Format.Docx;
 
 namespace Librevia.Format.Tests;
@@ -976,6 +977,52 @@ public class DocxRoundTripTests
     }
 
     [Fact]
+    public void TextoDigitadoNaCaixaVoltaParaOArquivo()
+    {
+        // A capa do modelo de manual é feita de caixas: o título e o subtítulo
+        // não estão no fluxo. Deixar a caixa editável na tela sem esta volta
+        // seria pior do que não deixar editar — o texto novo sumiria ao salvar.
+        var original = Fixtures.WithTextBoxes();
+        var model = Clone(Open(original));
+
+        var capa = model.Doc.Content![0];
+        var floats = FloatsOf(capa);
+        var editado = JsonNode.Parse(floats[0].GetRawText())!.AsObject();
+        editado["content"]![0]!["content"]![0]!["text"] = "Título trocado";
+        capa.Attrs!["floats"] = new JsonArray(editado, JsonNode.Parse(floats[1].GetRawText()));
+
+        var (bytes, _) = Save(original, model);
+        var depois = FloatsOf(Open(bytes).Doc.Content![0]);
+
+        Assert.Contains(depois, item => TextOfFloat(item) == "Título trocado");
+        Assert.Contains(depois, item => TextOfFloat(item) == "Subtítulo do manual");
+        Assert.DoesNotContain(depois, item => TextOfFloat(item) == "Título do manual");
+
+        // O ramo de reserva vai junto. O Word grava a mesma caixa duas vezes, e
+        // escrever só a que este leitor consulta deixaria o arquivo dizendo
+        // duas coisas — qual delas aparece dependeria de quem abre.
+        Assert.DoesNotContain("Título do manual", MainDocumentXml(bytes), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void CaixaNaoEditadaNaoEReescrita()
+    {
+        // O remédio da gravação cirúrgica, um nível abaixo: a caixa em que
+        // ninguém tocou segue com o XML que tinha — moldura, preenchimento e
+        // formatação que este escritor não sabe reproduzir.
+        var original = Fixtures.WithTextBoxes();
+        var model = Clone(Open(original));
+
+        var capa = model.Doc.Content![0];
+        capa.Content = [new Node { Type = "text", Text = "Capa" }];
+
+        var xml = MainDocumentXml(Save(original, model).Bytes);
+
+        Assert.Contains("<wps:bodyPr", xml, StringComparison.Ordinal);
+        Assert.Contains("Subtítulo do manual", xml, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void CaixaDeTextoNaoTravaMaisODocumento()
     {
         // A trava existia porque editar o parágrafo âncora apagava a forma.
@@ -989,6 +1036,32 @@ public class DocxRoundTripTests
 
         Assert.Contains(Inventory.Shapes, result.Inventory.Invisible);
         Assert.DoesNotContain(Inventory.Shapes, result.Inventory.Structural);
+    }
+
+    [Fact]
+    public void OParagrafoQueAncoraEQuebraContinuaParagrafo()
+    {
+        // Um parágrafo sem texto, só com a marca da capa e a quebra, virava o nó
+        // `pageBreak`. O nó de quebra mora no vão entre duas folhas, e o objeto
+        // ancorado nele caía na folha de baixo: a marca vertical da capa
+        // aparecia no topo da segunda folha, enquanto o LibreOffice a desenhava
+        // na primeira, correndo pela lateral.
+        var model = Open(Fixtures.WithBreakOnAnchorParagraph());
+
+        var capa = model.Doc.Content![0];
+        Assert.Equal("paragraph", capa.Type);
+        Assert.True(capa.Attrs!["breakAfter"]!.GetValue<bool>());
+        Assert.Single(FloatsOf(capa));
+    }
+
+    [Fact]
+    public void QuebraSozinhaContinuaSendoNoDeQuebra()
+    {
+        // Sem nada ancorado nele, o parágrafo que só tem a quebra segue virando
+        // o nó de quebra: ali ele não tem o que segurar na folha de cima.
+        var model = Open(Fixtures.WithLonePageBreak());
+
+        Assert.Contains(model.Doc.Content!, node => node.Type == "pageBreak");
     }
 
     [Fact]

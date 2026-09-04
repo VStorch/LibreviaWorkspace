@@ -17,7 +17,7 @@ import { DocumentToolbar } from './toolbar/DocumentToolbar.js'
 import { FindReplacePanel } from './FindReplacePanel.js'
 import { PageBand } from './PageBand.js'
 import { usePagination, type PageLayout } from './usePagination.js'
-import { FloatingLayer, type PlacedFloat } from './FloatingLayer.js'
+import { FloatingLayer, type FloatSource, type PlacedFloat } from './FloatingLayer.js'
 import { bandFloatsOf, floatsOf, type FloatingObject } from '@services/document/floating.js'
 import { pxToMm } from '@services/document/model.js'
 import type { PrintFloat, PrintPage } from '@services/document/print-pages.js'
@@ -138,7 +138,7 @@ export function DocumentEditor(): React.JSX.Element {
     if (editor === null) return pages
 
     let index = 0
-    editor.state.doc.forEach((node) => {
+    editor.state.doc.forEach((node, pos) => {
       const anchor = layout.anchors[index]
       index += 1
       if (anchor === undefined) return
@@ -146,13 +146,44 @@ export function DocumentEditor(): React.JSX.Element {
       const sheet = pages[anchor.pageIndex]
       if (sheet === undefined) return
 
+      let slot = 0
       for (const object of floatsOf(node.attrs)) {
-        sheet.push({ object, anchorTopMm: pxToMm(anchor.topPx) })
+        // A posição do bloco viaja junto: é por ela que o texto digitado dentro
+        // da caixa acha o caminho de volta ao atributo de onde saiu.
+        sheet.push({ object, anchorTopMm: pxToMm(anchor.topPx), source: { pos, index: slot } })
+        slot += 1
       }
     })
 
     return pages
   }, [editor, layout, contentRevision])
+
+  /**
+   * O texto digitado dentro de uma caixa volta para o atributo do bloco.
+   *
+   * Uma transação comum, e não um caminho paralelo: assim a edição entra no
+   * histórico, marca o documento como alterado e chega ao gravador pelo mesmo
+   * `getJSON()` de todo o resto.
+   */
+  const editFloat = useCallback(
+    (source: FloatSource, content: DocumentNode[]) => {
+      if (editor === null || readOnly) return
+
+      const node = editor.state.doc.nodeAt(source.pos)
+      if (node === null) return
+
+      const floats = node.attrs['floats']
+      if (!Array.isArray(floats)) return
+
+      const object = floats[source.index] as { content?: unknown } | undefined
+      if (object === undefined) return
+      if (JSON.stringify(object.content ?? []) === JSON.stringify(content)) return
+
+      const updated = floats.map((item, index) => (index === source.index ? { ...object, content } : item))
+      editor.view.dispatch(editor.state.tr.setNodeAttribute(source.pos, 'floats', updated))
+    },
+    [editor, readOnly],
+  )
 
   // O recorte em páginas é lido no momento de imprimir, e não no da renderização
   // — daí a `ref`: registrar `readPages` a cada mudança de layout recriaria a
@@ -229,6 +260,7 @@ export function DocumentEditor(): React.JSX.Element {
                 page={page}
                 schema={editor.schema}
                 behind
+                onEdit={editFloat}
               />
               {(['header', 'footer'] as const).map((kind) => {
                 // A capa manda sobre a paridade, e a paridade sobre o padrão —
@@ -253,6 +285,7 @@ export function DocumentEditor(): React.JSX.Element {
                 page={page}
                 schema={editor.schema}
                 behind={false}
+                onEdit={editFloat}
               />
             </div>
           ))}

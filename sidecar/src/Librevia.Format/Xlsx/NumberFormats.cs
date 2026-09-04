@@ -33,10 +33,14 @@ public static class NumberFormats
     /// célula: passado ele, o cache para de crescer e o cálculo volta a ser
     /// feito, que é lento mas limitado. Sem teto, seria memória sem limite.
     ///
-    /// Dicionário simples porque o serviço atende um pedido por vez, por
-    /// desenho — ver o laço em `Server.cs`.
+    /// Concorrente porque o cache é estático e o processo não é o único a
+    /// chamá-lo: o serviço atende um pedido por vez, mas a bateria de testes
+    /// roda em paralelo, e um `Dictionary` comum lido enquanto outro o escreve
+    /// levanta exceção lá dentro. Eram falhas que apareciam e sumiam, e o custo
+    /// de nunca mais precisar investigá-las é uma palavra.
     /// </remarks>
-    private static readonly Dictionary<(string Code, int Id), (string? Format, int? Decimals)> Known = [];
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<
+        (string Code, int Id), (string? Format, int? Decimals)> Known = new();
 
     private const int MaxKnownFormats = 4096;
 

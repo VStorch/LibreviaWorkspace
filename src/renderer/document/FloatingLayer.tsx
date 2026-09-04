@@ -1,5 +1,11 @@
 import { useEffect, useRef } from 'react'
-import { DOMSerializer, Fragment, Node as ProseMirrorNode, type Schema } from '@tiptap/pm/model'
+import {
+  DOMParser as ProseMirrorParser,
+  DOMSerializer,
+  Fragment,
+  Node as ProseMirrorNode,
+  type Schema,
+} from '@tiptap/pm/model'
 import { mmToPx, type DocumentNode, type PageSetup } from '@services/document/model.js'
 import { placeFloating, type FloatingObject } from '@services/document/floating.js'
 
@@ -15,44 +21,70 @@ import { placeFloating, type FloatingObject } from '@services/document/floating.
  *
  * Duas camadas, e não uma: `behindDoc` do OOXML é decoração de capa e marca
  * d'água, que precisam ficar **debaixo** do texto. O resto fica por cima.
+ *
+ * Fora do fluxo não quer dizer fora do alcance: a caixa de texto é editável no
+ * lugar em que está. A capa do modelo de manual é feita disso — título e
+ * subtítulo não estão no fluxo, e sem isto não haveria como escrevê-los.
  */
 export function FloatingLayer({
   objects,
   page,
   schema,
   behind,
+  onEdit,
 }: {
   objects: readonly PlacedFloat[]
   page: PageSetup
   schema: Schema
   behind: boolean
+  onEdit?: ((source: FloatSource, content: DocumentNode[]) => void) | undefined
 }): React.JSX.Element | null {
   const visible = objects.filter((item) => item.object.behind === behind)
   if (visible.length === 0) return null
 
+  // `aria-hidden` só enquanto nada ali dentro é editável: esconder do leitor de
+  // tela um campo em que se digita seria pior do que a duplicação que ele
+  // evitava.
+  const editable = onEdit !== undefined && visible.some((item) => item.source !== undefined)
+
   return (
-    <div className={`paper-floats paper-floats--${behind ? 'behind' : 'front'}`} aria-hidden="true">
+    <div
+      className={`paper-floats paper-floats--${behind ? 'behind' : 'front'}`}
+      {...(editable ? {} : { 'aria-hidden': true as const })}
+    >
       {visible.map((item, index) => (
-        <Floating key={index} placed={item} page={page} schema={schema} />
+        <Floating key={index} placed={item} page={page} schema={schema} onEdit={onEdit} />
       ))}
     </div>
   )
+}
+
+/** De onde o objeto saiu, para o texto digitado saber onde voltar. */
+export interface FloatSource {
+  /** Posição do bloco âncora no documento. */
+  readonly pos: number
+  /** Índice do objeto na lista do bloco. */
+  readonly index: number
 }
 
 /** Um objeto e a altura do parágrafo que o ancora, dentro da folha. */
 export interface PlacedFloat {
   readonly object: FloatingObject
   readonly anchorTopMm: number
+  /** Ausente no objeto de faixa: cabeçalho e rodapé não se editam por aqui. */
+  readonly source?: FloatSource | undefined
 }
 
 function Floating({
   placed,
   page,
   schema,
+  onEdit,
 }: {
   placed: PlacedFloat
   page: PageSetup
   schema: Schema
+  onEdit?: ((source: FloatSource, content: DocumentNode[]) => void) | undefined
 }): React.JSX.Element {
   const box = placeFloating(placed.object, page, placed.anchorTopMm)
 
@@ -70,7 +102,17 @@ function Floating({
     return <img className="paper-float" style={style} src={placed.object.src} alt="" draggable={false} />
   }
 
-  return <FloatingText style={style} content={placed.object.content ?? []} schema={schema} />
+  const source = placed.source
+  return (
+    <FloatingText
+      style={style}
+      content={placed.object.content ?? []}
+      schema={schema}
+      {...(onEdit !== undefined && source !== undefined
+        ? { onEdit: (content: DocumentNode[]) => onEdit(source, content) }
+        : {})}
+    />
+  )
 }
 
 /**
@@ -85,16 +127,22 @@ function FloatingText({
   style,
   content,
   schema,
+  onEdit,
 }: {
   style: React.CSSProperties
   content: readonly DocumentNode[]
   schema: Schema
+  onEdit?: ((content: DocumentNode[]) => void) | undefined
 }): React.JSX.Element {
   const host = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const element = host.current
     if (element === null) return
+
+    // Redesenhar por baixo de quem está digitando levaria o cursor embora a
+    // cada tecla: enquanto a caixa tem o foco, quem manda no DOM é o navegador.
+    if (element.contains(document.activeElement)) return
 
     element.replaceChildren()
     try {
@@ -108,5 +156,29 @@ function FloatingText({
     }
   }, [content, schema])
 
-  return <div ref={host} className="paper-float paper-float--text page__content" style={style} />
+  // O texto sai no `blur`, e não a cada tecla: a alteração do atributo redesenha
+  // a folha inteira, e redesenhar debaixo do cursor o perderia.
+  const commit = (): void => {
+    const element = host.current
+    if (element === null || onEdit === undefined) return
+
+    try {
+      const parsed = ProseMirrorParser.fromSchema(schema).parse(element)
+      const blocks = (parsed.toJSON() as { content?: DocumentNode[] }).content ?? []
+      onEdit(blocks)
+    } catch {
+      // Caixa que o schema não reconhece não derruba a página — e, sobretudo,
+      // não sobrescreve o que estava lá com um conteúdo vazio.
+    }
+  }
+
+  return (
+    <div
+      ref={host}
+      className={`paper-float paper-float--text page__content${onEdit === undefined ? '' : ' paper-float--edit'}`}
+      style={style}
+      {...(onEdit === undefined ? {} : { contentEditable: true, suppressContentEditableWarning: true })}
+      onBlur={onEdit === undefined ? undefined : commit}
+    />
+  )
 }
