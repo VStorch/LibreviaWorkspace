@@ -337,6 +337,22 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory)
         // e sem ler isto a quebra estimada cai um bloco depois da real.
         if (RunReader.IsOn(effective.KeepNext)) node.With("keepNext", true);
 
+        // O parágrafo que só carrega a marca de seção não é uma linha de texto.
+        //
+        // No OOXML a seção termina num `w:sectPr` guardado dentro do `w:pPr` de
+        // um parágrafo vazio: o parágrafo **é** a marca. O LibreOffice não lhe
+        // dá altura nenhuma, e é ele quem grava documentos assim — o de
+        // evidências do corpus tem sete seções, todas com a mesma geometria, e
+        // seis marcas espalhadas pelo meio do texto. Cada uma valia uma linha
+        // aqui, e o texto ia descendo folha após folha.
+        //
+        // A marca continua no modelo, e não é descartada: é ela que a gravação
+        // devolve ao arquivo, e sem ela as seções do documento sumiriam.
+        if (direct?.SectionProperties is not null && content.Count == 0)
+        {
+            node.With("sectionMark", true);
+        }
+
         node.Content = content.Count == 0 ? null : content;
         return node;
     }

@@ -1319,6 +1319,27 @@ public class DocxRoundTripTests
     }
 
     [Fact]
+    public void AMarcaDeSecaoNaoEUmaLinhaDeTexto()
+    {
+        // No OOXML a seção termina num `w:sectPr` guardado dentro do `w:pPr` de
+        // um parágrafo vazio: o parágrafo **é** a marca. O LibreOffice não lhe
+        // dá altura nenhuma, e é ele quem grava documentos assim — o de
+        // evidências do corpus tem seis marcas no meio do texto, e cada uma
+        // valia uma linha aqui.
+        var original = Fixtures.WithSectionMarkInTheMiddle();
+        var model = Clone(Open(original));
+
+        var mark = model.Doc.Content![1];
+        Assert.True(mark.Attrs!["sectionMark"]!.GetValue<bool>());
+
+        // E continua no arquivo: é ela que carrega a seção, e sem ela as seções
+        // do documento sumiriam.
+        var saved = Save(original, model);
+        Assert.Equal(3, saved.Result.PreservedBlocks);
+        Assert.True(Open(saved.Bytes).Doc.Content![1].Attrs!["sectionMark"]!.GetValue<bool>());
+    }
+
+    [Fact]
     public void OParagrafoQueAncoraEQuebraContinuaParagrafo()
     {
         // Um parágrafo sem texto, só com a marca da capa e a quebra, virava o nó

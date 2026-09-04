@@ -785,6 +785,28 @@ public static class Fixtures
         body.AppendChild(moved);
     });
 
+    /// <summary>
+    /// Marca de seção no meio do texto, como o LibreOffice a grava.
+    /// </summary>
+    /// <remarks>
+    /// A seção termina num `w:sectPr` guardado dentro do `w:pPr` de um
+    /// parágrafo vazio: o parágrafo **é** a marca. O documento de evidências do
+    /// corpus tem sete seções de mesma geometria e seis marcas espalhadas pelo
+    /// meio do texto.
+    /// </remarks>
+    public static byte[] WithSectionMarkInTheMiddle() => Build((body, _) =>
+    {
+        body.AppendChild(Paragraph("Antes da marca."));
+
+        var mark = new Paragraph();
+        mark.ParagraphProperties = new ParagraphProperties(
+            new SectionProperties(
+                new DocumentFormat.OpenXml.Wordprocessing.PageSize { Width = 11906U, Height = 16838U }));
+        body.AppendChild(mark);
+
+        body.AppendChild(Paragraph("Depois da marca."));
+    });
+
     public static byte[] WithKeepNext() => Build((body, _) =>
     {
         var kept = Paragraph("Rótulo da imagem:");

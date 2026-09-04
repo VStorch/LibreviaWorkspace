@@ -155,6 +155,22 @@ export const BlockFormat = Extension.create<BlockFormatOptions>({
             },
           },
 
+          /**
+           * O parágrafo é só a marca de uma seção.
+           *
+           * No OOXML a seção termina num `w:sectPr` guardado dentro do `w:pPr`
+           * de um parágrafo vazio: o parágrafo **é** a marca, e o LibreOffice
+           * não lhe dá altura nenhuma. Sem isto cada marca valia uma linha, e o
+           * documento de evidências do corpus tem seis delas espalhadas pelo
+           * meio do texto.
+           */
+          sectionMark: {
+            default: null,
+            parseHTML: (element) => element.hasAttribute('data-section-mark') || null,
+            renderHTML: (attributes) =>
+              attributes['sectionMark'] === true ? { 'data-section-mark': '' } : {},
+          },
+
           spaceBefore: {
             default: null,
             parseHTML: (element) => element.style.marginTop || null,

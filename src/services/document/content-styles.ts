@@ -147,6 +147,25 @@ ${DOCUMENT_FONT_CSS}
   height: 1lh;
 }
 
+/*
+  A marca de seção não ocupa linha.
+
+  No OOXML a seção termina num w:sectPr guardado dentro do w:pPr de um parágrafo
+  vazio: o parágrafo é a marca, e não uma linha de texto. O LibreOffice, que é
+  quem grava documentos assim, não lhe dá altura — o documento de evidências do
+  corpus tem sete seções de mesma geometria e seis marcas no meio do texto, e
+  cada uma valia uma linha aqui.
+
+  Continua no documento, e não some: é ela que a gravação devolve ao arquivo.
+*/
+.page__content p[data-section-mark] {
+  height: 0;
+  margin: 0;
+  overflow: hidden;
+}
+
+.page__content p[data-section-mark]::before { content: none; }
+
 .page__content blockquote {
   border-left: 3px solid #c7ced6;
   padding-left: 1em;
