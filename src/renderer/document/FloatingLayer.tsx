@@ -102,6 +102,12 @@ function Floating({
     return <img className="paper-float" style={style} src={placed.object.src} alt="" draggable={false} />
   }
 
+  // O filete: uma forma rasa e larga, com contorno e sem conteúdo. É assim que
+  // o cabeçalho corporativo desenha a linha que corre sob ele.
+  if (placed.object.kind === 'rule') {
+    return <div className="paper-float paper-float--rule" style={style} />
+  }
+
   const source = placed.source
   return (
     <FloatingText

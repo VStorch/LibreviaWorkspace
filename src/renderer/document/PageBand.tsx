@@ -156,6 +156,7 @@ const renderPiece =
           fontStyle: piece.italic ? 'italic' : undefined,
           color: piece.color,
           fontSize: piece.fontSize,
+          fontFamily: piece.fontFamily,
         }}
       >
         {text}

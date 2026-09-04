@@ -81,6 +81,15 @@ public sealed record PieceDto(
     [property: JsonPropertyName("color")] string? Color = null,
     [property: JsonPropertyName("fontSize")] string? FontSize = null,
     /// <summary>
+    /// A fonte, já como pilha de CSS.
+    /// </summary>
+    /// <remarks>
+    /// Sem ela o cabeçalho herda a fonte do editor: o título do documento de
+    /// evidências pede Calibri e saía em Times, com serifa, enquanto o
+    /// LibreOffice o desenha sem — a primeira coisa que se vê ao abrir.
+    /// </remarks>
+    [property: JsonPropertyName("fontFamily")] string? FontFamily = null,
+    /// <summary>
     /// A peça abre linha nova.
     /// </summary>
     /// <remarks>

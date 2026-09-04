@@ -41,6 +41,8 @@ export interface BandPiece {
   readonly italic: boolean
   readonly color?: string | undefined
   readonly fontSize?: string | undefined
+  /** Pilha de CSS, como o leitor a resolveu. */
+  readonly fontFamily?: string | undefined
   /**
    * A peça abre linha nova.
    *

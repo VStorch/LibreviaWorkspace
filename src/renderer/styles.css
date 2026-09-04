@@ -582,6 +582,11 @@ button {
   object-fit: contain;
 }
 
+/* O filete do cabeçalho: a forma tem altura zero, e o que se vê é o contorno. */
+.paper-float--rule {
+  border-top: 1px solid #000000;
+}
+
 /* A caixa é um fluxo de texto próprio, com a tipografia do documento. */
 .paper-float--text > * {
   margin: 0;

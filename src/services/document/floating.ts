@@ -8,7 +8,11 @@ import { bandForPage, pageDimensionsMm, type DocumentNode, type PageSetup } from
  * vez só na origem deixaria um dos dois arredondando de volta.
  */
 export interface FloatingObject {
-  readonly kind: 'image' | 'text'
+  /**
+   * `rule` é o filete: uma forma rasa e larga, com contorno e sem conteúdo, que
+   * é como o cabeçalho corporativo desenha a linha sob si.
+   */
+  readonly kind: 'image' | 'text' | 'rule'
   readonly src?: string | undefined
   readonly content?: DocumentNode[] | undefined
   readonly widthMm: number

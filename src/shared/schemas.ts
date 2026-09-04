@@ -21,6 +21,8 @@ export const bandPieceSchema = z.object({
   italic: z.boolean().default(false),
   color: z.string().max(32).optional(),
   fontSize: z.string().max(16).optional(),
+  /** Pilha de CSS, como o leitor a resolveu. */
+  fontFamily: z.string().max(200).optional(),
   /** A peça abre linha nova: no arquivo ela começa outro parágrafo. */
   line: z.boolean().optional(),
 })
@@ -55,7 +57,7 @@ const documentNodeSchema = z.custom<DocumentNode>(
  * duplicar essa interpretação no esquema.
  */
 const bandFloatSchema = z.object({
-  kind: z.enum(['image', 'text']),
+  kind: z.enum(['image', 'text', 'rule']),
   src: z.string().optional(),
   /**
    * O texto de uma caixa, em nós do documento.

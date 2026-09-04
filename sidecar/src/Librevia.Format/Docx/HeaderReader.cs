@@ -98,7 +98,7 @@ public static class HeaderReader
 
             if (root is null || owner is null) continue;
 
-            var band = Build(root, owner, inventory, contentWidthEmus);
+            var band = Build(root, owner, inventory, contentWidthEmus, new FontTable(part));
             // Dentro de um mesmo tipo raramente há mais de uma referência; se
             // houver, vale a que tem conteúdo.
             if (!band.IsEmpty) return band;
@@ -111,7 +111,8 @@ public static class HeaderReader
         OpenXmlPartRootElement root,
         OpenXmlPart owner,
         Inventory inventory,
-        double contentWidthEmus)
+        double contentWidthEmus,
+        FontTable fonts)
     {
         var columns = new List<PieceDto>[3];
         for (var i = 0; i < 3; i++) columns[i] = [];
@@ -122,7 +123,7 @@ public static class HeaderReader
         // A grade primeiro: o que está dentro dela tem posição própria, e os dois
         // passes abaixo — os que espalham peças pelos três terços — não podem
         // vê-la duas vezes.
-        var rows = ReadGrid(root, owner, inventory);
+        var rows = ReadGrid(root, owner, inventory, fonts);
 
         foreach (var paragraph in root.Descendants<Paragraph>())
         {
@@ -133,7 +134,7 @@ public static class HeaderReader
 
             if (HasBottomBorder(paragraph)) rule = true;
 
-            var pieces = ReadRuns(paragraph, inventory);
+            var pieces = ReadRuns(paragraph, inventory, fonts);
             if (pieces.Count == 0) continue;
 
             var column = columns[ColumnOf(paragraph)];
@@ -153,11 +154,11 @@ public static class HeaderReader
             // de 10 mm e desenhada deitada.
             if (AnchorReader.AnchorOf(drawing) is { } anchor)
             {
-                foreach (var item in ReadAnchoredDrawing(drawing, owner, anchor, inventory)) floats.Add(item);
+                foreach (var item in ReadAnchoredDrawing(drawing, owner, anchor, inventory, fonts)) floats.Add(item);
                 continue;
             }
 
-            ReadDrawing(drawing, owner, columns, ref rule, inventory, contentWidthEmus);
+            ReadDrawing(drawing, owner, columns, ref rule, inventory, contentWidthEmus, fonts);
         }
 
         return new BandDto(columns[0], columns[1], columns[2], rule, floats, rows);
@@ -178,7 +179,8 @@ public static class HeaderReader
     private static List<BandRowDto> ReadGrid(
         OpenXmlPartRootElement root,
         OpenXmlPart owner,
-        Inventory inventory)
+        Inventory inventory,
+        FontTable fonts)
     {
         var rows = new List<BandRowDto>();
 
@@ -221,7 +223,7 @@ public static class HeaderReader
 
                     var width = TwipsOf(properties?.TableCellWidth) / total;
                     var built_ = new BandCellDto(
-                        ReadCellPieces(cell, owner, inventory),
+                        ReadCellPieces(cell, owner, inventory, fonts),
                         Math.Round(width, 4),
                         span,
                         1,
@@ -320,7 +322,8 @@ public static class HeaderReader
     private static List<PieceDto> ReadCellPieces(
         TableCell cell,
         OpenXmlPart owner,
-        Inventory inventory)
+        Inventory inventory,
+        FontTable fonts)
     {
         var pieces = new List<PieceDto>();
 
@@ -331,7 +334,7 @@ public static class HeaderReader
                 if (ImagePieceOf(picture, owner) is { } image) pieces.Add(image);
             }
 
-            var run = ReadRuns(paragraph, inventory);
+            var run = ReadRuns(paragraph, inventory, fonts);
             if (run.Count > 0) pieces.AddRange(OpeningALine(run, pieces.Count > 0));
         }
 
@@ -392,7 +395,8 @@ public static class HeaderReader
         OpenXmlElement drawing,
         OpenXmlPart owner,
         WordDrawing.Anchor anchor,
-        Inventory inventory)
+        Inventory inventory,
+        FontTable fonts)
     {
         foreach (var piece in AnchorReader.PiecesOf(anchor))
         {
@@ -411,7 +415,7 @@ public static class HeaderReader
             {
                 foreach (var paragraph in box.Descendants<Paragraph>())
                 {
-                    var pieces = ReadRuns(paragraph, inventory);
+                    var pieces = ReadRuns(paragraph, inventory, fonts);
                     if (pieces.Count == 0) continue;
 
                     var node = Node.Of("paragraph");
@@ -420,7 +424,17 @@ public static class HeaderReader
                 }
             }
 
-            if (content.Count > 0) yield return AnchorReader.Describe(anchor, "text", null, content, piece);
+            if (content.Count > 0)
+            {
+                yield return AnchorReader.Describe(anchor, "text", null, content, piece);
+                continue;
+            }
+
+            // Forma sem conteúdo, larga, rasa e com contorno: é o filete que
+            // corre sob o cabeçalho. No arquivo ele é um par de formas de
+            // altura zero dentro do mesmo grupo do logotipo, e é a única coisa
+            // que o LibreOffice desenha ali e nós não.
+            if (IsRule(piece)) yield return AnchorReader.Describe(anchor, "rule", null, null, piece);
         }
 
         // Uma peça sem `a:xfrm` não tem caixa própria: o desenho é ela sozinha.
@@ -452,6 +466,7 @@ public static class HeaderReader
         var attributes = new Dictionary<string, System.Text.Json.Nodes.JsonNode?>();
         if (piece.Color is not null) attributes["color"] = piece.Color;
         if (piece.FontSize is not null) attributes["fontSize"] = piece.FontSize;
+        if (piece.FontFamily is not null) attributes["fontFamily"] = piece.FontFamily;
         if (attributes.Count > 0) marks.Add(new Mark { Type = "textStyle", Attrs = attributes });
 
         return new Node
@@ -460,6 +475,23 @@ public static class HeaderReader
             Text = text,
             Marks = marks.Count == 0 ? null : marks,
         };
+    }
+
+    /// <summary>
+    /// A peça é um filete: larga, rasa e com contorno declarado.
+    /// </summary>
+    /// <remarks>
+    /// A altura zero é o que a distingue de uma caixa vazia: um retângulo de
+    /// verdade tem os dois lados. O contorno tem de existir — forma sem traço é
+    /// espaço reservado, e desenhá-la poria uma linha onde não há nenhuma.
+    /// </remarks>
+    private static bool IsRule(AnchoredPiece piece)
+    {
+        if (piece.WidthEmus <= 0) return false;
+        if (piece.HeightEmus > 0 && piece.WidthEmus / piece.HeightEmus < RuleAspectRatio) return false;
+
+        var outline = piece.Shape.Descendants<Drawing.Outline>().FirstOrDefault();
+        return outline is not null && (outline.Width?.Value ?? 0) > 0;
     }
 
     private static string? ImageSourceOf(OpenXmlElement picture, OpenXmlPart owner)
@@ -481,7 +513,8 @@ public static class HeaderReader
         List<PieceDto>[] columns,
         ref bool rule,
         Inventory inventory,
-        double contentWidthEmus)
+        double contentWidthEmus,
+        FontTable fonts)
     {
         // A posição real na página vem da **âncora**, quando existe. Sem ela, a
         // única coordenada disponível é o `a:off` de dentro do desenho, que num
@@ -508,7 +541,7 @@ public static class HeaderReader
             var (offset, width, height) = GeometryOf(shape.Descendants<Drawing.Transform2D>().FirstOrDefault());
             var pieces = shape.Descendants<TextBoxContent>()
                 .SelectMany(box => box.Descendants<Paragraph>())
-                .SelectMany(paragraph => ReadRuns(paragraph, inventory))
+                .SelectMany(paragraph => ReadRuns(paragraph, inventory, fonts))
                 .ToList();
 
             if (pieces.Count == 0)
@@ -621,11 +654,11 @@ public static class HeaderReader
         public bool InCachedResult;
     }
 
-    private static List<PieceDto> ReadRuns(Paragraph paragraph, Inventory inventory)
+    private static List<PieceDto> ReadRuns(Paragraph paragraph, Inventory inventory, FontTable fonts)
     {
         var pieces = new List<PieceDto>();
         var field = new FieldState();
-        Collect(paragraph, pieces, field, inventory);
+        Collect(paragraph, pieces, field, inventory, fonts);
 
         // Junta textos vizinhos de mesmo estilo: o Word pica uma frase em vários
         // runs, e sem isto cada pedaço viraria um elemento solto.
@@ -635,7 +668,8 @@ public static class HeaderReader
             var previous = merged.Count > 0 ? merged[^1] : null;
             if (piece.Kind == PieceDto.KindText && previous is { Kind: PieceDto.KindText } &&
                 previous.Bold == piece.Bold && previous.Italic == piece.Italic &&
-                previous.Color == piece.Color && previous.FontSize == piece.FontSize)
+                previous.Color == piece.Color && previous.FontSize == piece.FontSize &&
+                previous.FontFamily == piece.FontFamily)
             {
                 merged[^1] = previous with { Text = previous.Text + piece.Text };
                 continue;
@@ -653,7 +687,8 @@ public static class HeaderReader
         OpenXmlElement parent,
         List<PieceDto> pieces,
         FieldState field,
-        Inventory inventory)
+        Inventory inventory,
+        FontTable fonts)
     {
         foreach (var element in parent.ChildElements)
         {
@@ -693,11 +728,11 @@ public static class HeaderReader
                     break;
 
                 case Run run:
-                    Collect(run, pieces, field, StyleOf(run.RunProperties), inventory);
+                    Collect(run, pieces, field, StyleOf(run.RunProperties, fonts), inventory, fonts);
                     break;
 
                 default:
-                    Collect(element, pieces, field, inventory);
+                    Collect(element, pieces, field, inventory, fonts);
                     break;
             }
         }
@@ -708,7 +743,8 @@ public static class HeaderReader
         List<PieceDto> pieces,
         FieldState field,
         PieceDto style,
-        Inventory inventory)
+        Inventory inventory,
+        FontTable fonts)
     {
         foreach (var element in run.ChildElements)
         {
@@ -723,7 +759,7 @@ public static class HeaderReader
                     break;
 
                 case FieldChar or FieldCode:
-                    Collect(run, pieces, field, inventory);
+                    Collect(run, pieces, field, inventory, fonts);
                     return;
 
                 case RunProperties:
@@ -734,12 +770,28 @@ public static class HeaderReader
         }
     }
 
-    private static PieceDto StyleOf(RunProperties? properties) => new(
+    private static PieceDto StyleOf(RunProperties? properties, FontTable fonts) => new(
         PieceDto.KindText,
         Bold: RunReader.IsOn(properties?.Bold),
         Italic: RunReader.IsOn(properties?.Italic),
         Color: ColorOf(properties?.Color?.Val?.Value),
-        FontSize: SizeOf(properties?.FontSize?.Val?.Value));
+        FontSize: SizeOf(properties?.FontSize?.Val?.Value),
+        FontFamily: FamilyOf(properties, fonts));
+
+    /// <summary>
+    /// A fonte da peça, já como pilha de CSS.
+    /// </summary>
+    /// <remarks>
+    /// Sem ela o cabeçalho herdava a fonte do editor: o título do documento de
+    /// evidências pede Calibri e saía em Times, com serifa, enquanto o
+    /// LibreOffice o desenha sem — a primeira coisa que se vê ao abrir o
+    /// arquivo.
+    /// </remarks>
+    private static string? FamilyOf(RunProperties? properties, FontTable fonts)
+    {
+        var font = properties?.RunFonts?.Ascii?.Value ?? properties?.RunFonts?.HighAnsi?.Value;
+        return string.IsNullOrWhiteSpace(font) ? null : fonts.Stack(font);
+    }
 
     private static string? ColorOf(string? value) =>
         string.IsNullOrWhiteSpace(value) || value.Equals("auto", StringComparison.OrdinalIgnoreCase)

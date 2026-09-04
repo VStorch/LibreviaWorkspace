@@ -417,9 +417,18 @@ public static class Fixtures
                           </wps:spPr>
                           <wps:txbx>
                             <w:txbxContent>
-                              <w:p><w:r><w:rPr><w:b/></w:rPr><w:t>EVIDÊNCIAS DO ROTEIRO</w:t></w:r></w:p>
+                              <w:p><w:r><w:rPr><w:b/><w:rFonts w:ascii="Calibri" w:hAnsi="Calibri"/></w:rPr>
+                                <w:t>EVIDÊNCIAS DO ROTEIRO</w:t></w:r></w:p>
                             </w:txbxContent>
                           </wps:txbx>
+                          <wps:bodyPr/>
+                        </wps:wsp>
+                        <wps:wsp>
+                          <wps:cNvSpPr/>
+                          <wps:spPr>
+                            <a:xfrm><a:off x="0" y="580000"/><a:ext cx="6371640" cy="0"/></a:xfrm>
+                            <a:ln w="6480"><a:solidFill><a:srgbClr val="000000"/></a:solidFill></a:ln>
+                          </wps:spPr>
                           <wps:bodyPr/>
                         </wps:wsp>
                       </wpg:wgp>

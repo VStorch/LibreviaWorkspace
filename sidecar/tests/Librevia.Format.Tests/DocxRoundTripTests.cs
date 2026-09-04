@@ -762,7 +762,8 @@ public class DocxRoundTripTests
         var page = DocxReader.Read(Fixtures.WithHeaderGroup()).Model.Page;
         var floats = page.Header!.Floats!;
 
-        Assert.Equal(2, floats.Count);
+        // Três peças: o logotipo, a caixa do título e o filete de baixo.
+        Assert.Equal(3, floats.Count);
 
         var logo = floats.Single(item => item.Kind == "image");
         Assert.Equal(48, logo.WidthMm, 1);
@@ -1070,6 +1071,38 @@ public class DocxRoundTripTests
 
         Assert.Contains(Inventory.Shapes, result.Inventory.Invisible);
         Assert.DoesNotContain(Inventory.Shapes, result.Inventory.Structural);
+    }
+
+    [Fact]
+    public void OCabecalhoTrazAFonteQueODocumentoPede()
+    {
+        // Sem ela o cabeçalho herda a fonte do editor: o título do documento de
+        // evidências pede Calibri e saía em Times, com serifa, enquanto o
+        // LibreOffice o desenha sem — a primeira coisa que se vê ao abrir.
+        var floats = Open(Fixtures.WithHeaderGroup()).Page.Header!.Floats;
+        var titulo = floats.Single(item => item.Kind == "text");
+
+        var marca = titulo.Content!.Single().Content!.Single().Marks!
+            .Single(m => m.Type == "textStyle");
+
+        // Sem pilha porque o fixture não declara a família em `fontTable.xml`;
+        // o nome basta, e a regra `@font-face` do editor o serve com a fonte
+        // metricamente compatível que o instalador leva.
+        Assert.Equal("Calibri", marca.Attrs!["fontFamily"]!.GetValue<string>());
+    }
+
+    [Fact]
+    public void OFileteDoCabecalhoEDesenhado()
+    {
+        // No arquivo ele é uma forma de altura zero com contorno, dentro do
+        // mesmo grupo do logotipo — nem imagem nem caixa de texto, e por isso
+        // era descartado. É a linha que corre sob o cabeçalho, e a única coisa
+        // que o LibreOffice desenhava ali e nós não.
+        var floats = Open(Fixtures.WithHeaderGroup()).Page.Header!.Floats;
+
+        var filete = Assert.Single(floats.Where(item => item.Kind == "rule"));
+        Assert.True(filete.WidthMm > 100);
+        Assert.Equal(0, filete.HeightMm);
     }
 
     [Fact]

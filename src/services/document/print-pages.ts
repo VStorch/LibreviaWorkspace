@@ -108,6 +108,8 @@ export function buildPagedCss(page: PageSetup): string {
    aqui dentro: isto mora num template literal. */
 .paper-page__band--ruled { border-bottom: 1px solid #999999; padding-bottom: 2px; }
 .paper-page__band img { object-fit: contain; }
+/* O filete do cabeçalho: a forma tem altura zero, e o que se ve e o contorno. */
+.paper-float--rule { border-top: 1px solid #000000; }
 /* Mesma regra de styles.css: o br ocupa a largura toda para quebrar a linha
    dentro do flex, que é como cada paragrafo do arquivo vira uma linha. */
 .paper-page__cell { display: flex; flex-direction: column; justify-content: center; min-width: 0; }
@@ -202,9 +204,17 @@ function renderFloats(floats: readonly PrintFloat[], page: PageSetup, behind: bo
       // o giro acontece depois.
       (box.rotation === 0 ? '' : `transform:rotate(${box.rotation}deg);`)
 
-    return item.object.kind === 'image'
-      ? `<img class="paper-float" alt="" style="${style}" src="${escapeHtml(item.object.src ?? '')}" />`
-      : `<div class="paper-float paper-float--text page__content" style="${style}">${item.contentHtml ?? ''}</div>`
+    if (item.object.kind === 'image') {
+      return `<img class="paper-float" alt="" style="${style}" src="${escapeHtml(item.object.src ?? '')}" />`
+    }
+
+    // O filete: forma rasa e larga, com contorno e sem conteúdo — a linha que
+    // corre sob o cabeçalho corporativo.
+    if (item.object.kind === 'rule') {
+      return `<div class="paper-float paper-float--rule" style="${style}"></div>`
+    }
+
+    return `<div class="paper-float paper-float--text page__content" style="${style}">${item.contentHtml ?? ''}</div>`
   })
 
   return `<div class="paper-floats paper-floats--${behind ? 'behind' : 'front'}">${boxes.join('')}</div>`
@@ -311,7 +321,8 @@ function renderPiece(piece: BandPiece, pageNumber: number, total: number): strin
     (piece.bold ? 'font-weight:700;' : '') +
     (piece.italic ? 'font-style:italic;' : '') +
     (piece.color === undefined ? '' : `color:${escapeHtml(piece.color)};`) +
-    (piece.fontSize === undefined ? '' : `font-size:${escapeHtml(piece.fontSize)};`)
+    (piece.fontSize === undefined ? '' : `font-size:${escapeHtml(piece.fontSize)};`) +
+    (piece.fontFamily === undefined ? '' : `font-family:${escapeHtml(piece.fontFamily)};`)
 
   return `<span style="${style}">${escapeHtml(text)}</span>`
 }
