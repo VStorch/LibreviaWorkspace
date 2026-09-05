@@ -78,6 +78,11 @@ const bandFloatSchema = z.object({
   content: z.array(documentNodeSchema).max(200).optional(),
   /** Onde a caixa mora no arquivo, quando o texto dela é editável. */
   bid: z.string().max(120).optional(),
+  /** Moldura e preenchimento, quando o leitor soube reproduzi-los. */
+  fill: z.string().max(32).optional(),
+  line: z.string().max(32).optional(),
+  lineWidthPt: z.number().min(0).max(200).optional(),
+  dash: z.boolean().optional(),
   widthMm: z.number(),
   heightMm: z.number(),
   rotation: z.number(),

@@ -510,6 +510,46 @@ public static class Fixtures
     });
 
     /// <summary>
+    /// Três caixas, três decorações: nenhuma, uma que se desenha, uma que não.
+    /// </summary>
+    /// <remarks>
+    /// O aviso "moldura e preenchimento de formas" saía em toda caixa de texto,
+    /// tivesse ela decoração ou não. Nos quatro documentos de evidências do
+    /// corpus as caixas declaram `a:noFill` e linha de espessura zero: não há
+    /// moldura nenhuma, e o aviso apontava para uma perda que não existia.
+    /// </remarks>
+    public static byte[] WithDecoratedTextBoxes() => Build((body, _) =>
+    {
+        // Sem moldura, como as caixas do cabeçalho do corpus.
+        body.AppendChild(new Paragraph(new Run(TextBoxShape(
+            "Sem moldura",
+            """<a:noFill/><a:ln w="0"><a:noFill/></a:ln>"""))));
+
+        // Preenchimento e traço sólidos: o que o CSS desenha.
+        body.AppendChild(new Paragraph(new Run(TextBoxShape(
+            "Com moldura",
+            """
+            <a:solidFill><a:srgbClr val="FFFFFF"/></a:solidFill>
+            <a:ln w="12700"><a:solidFill><a:srgbClr val="1F5FA9"/></a:solidFill></a:ln>
+            """))));
+
+        body.AppendChild(Paragraph("Corpo do documento."));
+    });
+
+    /// <summary>Caixa com preenchimento em gradiente, que não sabemos desenhar.</summary>
+    public static byte[] WithGradientTextBox() => Build((body, _) =>
+    {
+        body.AppendChild(new Paragraph(new Run(TextBoxShape(
+            "Com gradiente",
+            """
+            <a:gradFill><a:gsLst><a:gs pos="0"><a:srgbClr val="FFFFFF"/></a:gs></a:gsLst></a:gradFill>
+            <a:ln w="0"><a:noFill/></a:ln>
+            """))));
+
+        body.AppendChild(Paragraph("Corpo do documento."));
+    });
+
+    /// <summary>
     /// Imagem ancorada girada um quarto de volta — a marca vertical que corre
     /// pela lateral da capa.
     /// </summary>
@@ -969,7 +1009,7 @@ public static class Fixtures
     /// Uma caixa de texto do jeito que o Word grava: o mesmo texto em
     /// DrawingML e no VML de reserva.
     /// </summary>
-    private static OpenXmlElement TextBoxShape(string text)
+    private static OpenXmlElement TextBoxShape(string text, string decoration = "")
     {
         var xml = $"""
             <mc:AlternateContent xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -993,6 +1033,7 @@ public static class Fixtures
                           <wps:spPr>
                             <a:xfrm><a:off x="0" y="0"/><a:ext cx="3800475" cy="2019300"/></a:xfrm>
                             <a:prstGeom prst="rect"><a:avLst/></a:prstGeom>
+                            {decoration}
                           </wps:spPr>
                           <wps:txbx>
                             <w:txbxContent>

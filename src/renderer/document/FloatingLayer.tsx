@@ -7,7 +7,7 @@ import {
   type Schema,
 } from '@tiptap/pm/model'
 import { mmToPx, type DocumentNode, type PageSetup } from '@services/document/model.js'
-import { placeFloating, type FloatingObject } from '@services/document/floating.js'
+import { frameOf, placeFloating, type FloatingObject } from '@services/document/floating.js'
 
 /**
  * Os objetos ancorados de uma folha.
@@ -126,6 +126,9 @@ function Floating({
     // Em torno do centro, que é como o Word gira: a caixa é posicionada sem
     // girar e o giro acontece depois.
     ...(box.rotation === 0 ? {} : { transform: `rotate(${box.rotation}deg)` }),
+    // A moldura e o preenchimento que o documento declara. Vêm por último para
+    // não disputarem com a posição, que é o que este objeto tem de essencial.
+    ...frameOf(placed.object),
   }
 
   if (placed.object.kind === 'image') {

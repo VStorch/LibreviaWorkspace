@@ -325,6 +325,12 @@ public class DocxRoundTripTests
         return [.. JsonDocument.Parse(value.ToJsonString()).RootElement.EnumerateArray()];
     }
 
+    /// <summary>Uma propriedade de texto do objeto, ou nulo quando ausente.</summary>
+    private static string? TextOf(JsonElement item, string name) =>
+        item.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String
+            ? value.GetString()
+            : null;
+
     /// <summary>Todo o texto de dentro de uma caixa.</summary>
     private static string TextOfFloat(JsonElement item) =>
         item.TryGetProperty("content", out var content) && content.ValueKind == JsonValueKind.Array
@@ -1065,12 +1071,48 @@ public class DocxRoundTripTests
         // de coisa alguma — a capa passa a ser editável, que é o que se espera
         // de um editor de texto.
         //
-        // O aviso continua, e é honesto: a moldura e o preenchimento não são
-        // reproduzidos. O que mudou é que ele não é mais motivo de cadeado.
+        // O aviso continua, e é honesto: esta caixa não declara preenchimento
+        // nem contorno, e sem declaração a forma herda os do tema — que não
+        // sabemos resolver. Dizer que não há moldura poria uma caixa branca
+        // onde o documento pede uma azul.
         var result = DocxReader.Read(Fixtures.WithTextBoxes());
 
         Assert.Contains(Inventory.Shapes, result.Inventory.Invisible);
         Assert.DoesNotContain(Inventory.Shapes, result.Inventory.Structural);
+    }
+
+    [Fact]
+    public void CaixaSemMolduraNaoAvisaMolduraNenhuma()
+    {
+        // O aviso saía em toda caixa de texto, tivesse ela decoração ou não.
+        // Nos quatro documentos de evidências do corpus as caixas declaram
+        // `a:noFill` e linha de espessura zero: não há moldura, e o aviso
+        // apontava para uma perda que não existia. Aviso que aparece sempre é
+        // aviso que se aprende a ignorar.
+        var result = DocxReader.Read(Fixtures.WithDecoratedTextBoxes());
+
+        Assert.DoesNotContain(Inventory.Shapes, result.Inventory.Invisible);
+
+        var floats = result.Model.Doc.Content!.SelectMany(FloatsOf).ToList();
+
+        Assert.Null(TextOf(floats[0], "fill"));
+        Assert.Null(TextOf(floats[0], "line"));
+
+        // 12700 EMU são 1 pt.
+        Assert.Equal("#ffffff", TextOf(floats[1], "fill"));
+        Assert.Equal("#1f5fa9", TextOf(floats[1], "line"));
+        Assert.Equal(1, floats[1].GetProperty("lineWidthPt").GetDouble());
+        Assert.False(floats[1].GetProperty("dash").GetBoolean());
+    }
+
+    [Fact]
+    public void OGradienteContinuaSendoAvisado()
+    {
+        // O aviso não some por decreto: ele passa a falar só do que sobra.
+        // Gradiente, textura, sombra e canto arredondado continuam aqui.
+        var result = DocxReader.Read(Fixtures.WithGradientTextBox());
+
+        Assert.Contains(Inventory.Shapes, result.Inventory.Invisible);
     }
 
     [Fact]

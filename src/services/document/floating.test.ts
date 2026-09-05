@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { bandFloatsOf, placeFloating, type FloatingObject } from './floating.js'
+import { bandFloatsOf, frameOf, placeFloating, type FloatingObject } from './floating.js'
 import { DEFAULT_PAGE_SETUP, PageSize, type PageSetup } from './model.js'
 
 /** A4 retrato com 30 mm nas laterais: a geometria da capa do corpus. */
@@ -150,5 +150,46 @@ describe('objetos ancorados das faixas', () => {
   it('a substituição não altera o objeto original', () => {
     bandFloatsOf(withBand, 3)
     expect(box.content![0]!.content![0]!.text).toBe('Folha {n}')
+  })
+})
+
+/**
+ * A moldura da forma em CSS.
+ *
+ * O aviso "moldura e preenchimento de formas" saía em toda caixa de texto,
+ * tivesse ela decoração ou não. Agora a decoração é desenhada, e o aviso fala
+ * só do que sobra.
+ */
+describe('frameOf', () => {
+  const caixa = (extra: Partial<FloatingObject>): FloatingObject => ({
+    kind: 'text',
+    widthMm: 80,
+    heightMm: 10,
+    rotation: 0,
+    hFrom: 'page',
+    vFrom: 'paragraph',
+    behind: false,
+    wrap: 'none',
+    ...extra,
+  })
+
+  it('desenha o preenchimento e o traço que o documento declara', () => {
+    expect(frameOf(caixa({ fill: '#ffffff', line: '#1f5fa9', lineWidthPt: 1 }))).toEqual({
+      background: '#ffffff',
+      border: '1pt solid #1f5fa9',
+    })
+  })
+
+  it('traço de espessura zero não é traço', () => {
+    // As caixas do cabeçalho do corpus declaram cor nenhuma e espessura zero:
+    // não há moldura, e desenhar uma poria uma borda que o documento não tem.
+    expect(frameOf(caixa({ lineWidthPt: 0 }))).toEqual({})
+    expect(frameOf(caixa({ line: '#000000', lineWidthPt: 0 }))).toEqual({})
+  })
+
+  it('o tracejado sai tracejado', () => {
+    expect(frameOf(caixa({ line: '#000000', lineWidthPt: 0.75, dash: true }))).toEqual({
+      border: '0.75pt dashed #000000',
+    })
   })
 })

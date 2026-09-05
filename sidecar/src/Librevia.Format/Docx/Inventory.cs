@@ -44,11 +44,22 @@ public sealed class Inventory
     /// A **moldura** da forma, e não o conteúdo dela.
     /// </summary>
     /// <remarks>
-    /// O texto de dentro e a posição são desenhados; o que não é reproduzido é
-    /// a borda, o preenchimento e o efeito. Por isso este rótulo saiu da lista
-    /// estrutural: desde que os objetos ancorados passaram a ser copiados do
-    /// XML original para o parágrafo reescrito, editar o parágrafo não os apaga
-    /// mais — e travar o documento inteiro deixou de proteger de coisa alguma.
+    /// O texto de dentro e a posição são desenhados. A borda e o preenchimento
+    /// também, quando são de cor sólida — ver <see cref="ShapeLook"/>. Sobra o
+    /// que o CSS não faz por um retângulo: gradiente, textura, imagem de fundo,
+    /// sombra, três dimensões, canto arredondado, e a forma que não declara
+    /// preenchimento nem contorno e os herda de um tema que não resolvemos.
+    ///
+    /// É só disso que este aviso fala. Antes ele saía em toda forma, tivesse ela
+    /// decoração ou não — e nos quatro documentos de evidências do corpus as
+    /// caixas declaram `a:noFill` e linha de espessura zero, de modo que ele
+    /// apontava para uma perda que não existia. Aviso que aparece sempre é aviso
+    /// que se aprende a ignorar em duas semanas.
+    ///
+    /// Por isso este rótulo saiu da lista estrutural: desde que os objetos
+    /// ancorados passaram a ser copiados do XML original para o parágrafo
+    /// reescrito, editar o parágrafo não os apaga mais — e travar o documento
+    /// inteiro deixou de proteger de coisa alguma.
     /// </remarks>
     public const string Shapes = "moldura e preenchimento de formas";
     public const string ContentControls = "controles de conteúdo";

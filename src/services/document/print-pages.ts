@@ -10,7 +10,7 @@ import {
   type BandPiece,
   type PageSetup,
 } from './model.js'
-import { placeFloating, type FloatingObject } from './floating.js'
+import { frameOf, placeFloating, type FloatingObject } from './floating.js'
 
 /**
  * O papel montado a partir das mesmas páginas que a tela desenha.
@@ -90,7 +90,10 @@ export function buildPagedCss(page: PageSetup): string {
 .paper-floats { position: absolute; inset: 0; }
 .paper-floats--behind { z-index: 0; }
 .paper-floats--front { z-index: 2; }
-.paper-float { position: absolute; object-fit: contain; }
+/* A caixa inclui o contorno: a extensão que o arquivo declara já o conta, e
+   somá-lo por fora esticaria a forma pela espessura do traço. Crase nenhuma
+   aqui dentro: isto mora num template literal. */
+.paper-float { position: absolute; object-fit: contain; box-sizing: border-box; }
 .paper-float--text > * { margin: 0; }
 
 .paper-page__band {
@@ -202,7 +205,12 @@ function renderFloats(floats: readonly PrintFloat[], page: PageSetup, behind: bo
       `width:${box.widthMm}mm;height:${box.heightMm}mm;` +
       // Em torno do centro, como o Word gira: a caixa é posicionada sem girar e
       // o giro acontece depois.
-      (box.rotation === 0 ? '' : `transform:rotate(${box.rotation}deg);`)
+      (box.rotation === 0 ? '' : `transform:rotate(${box.rotation}deg);`) +
+      // A mesma moldura da tela, pela mesma função: duas regras iguais escritas
+      // em dois lugares é como os dois desenhos divergem.
+      Object.entries(frameOf(item.object))
+        .map(([nome, valor]) => `${nome === 'background' ? 'background' : 'border'}:${valor};`)
+        .join('')
 
     if (item.object.kind === 'image') {
       return `<img class="paper-float" alt="" style="${style}" src="${escapeHtml(item.object.src ?? '')}" />`

@@ -641,7 +641,11 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory)
                     // DrawingML e `mc:Fallback` no VML que o Word 2007 entendia.
                     // São o mesmo conteúdo, então lê-se um ramo só — ler os dois
                     // faria cada caixa de texto aparecer em dobro na tela.
-                    inventory.NoteInvisible(Inventory.Shapes);
+                    //
+                    // Nada de inventário aqui: quem sabe se a forma tem moldura
+                    // que não reproduzimos é quem a lê, mais abaixo. Este aviso
+                    // era dado a toda forma, imagem inclusive, e por isso
+                    // aparecia em todo documento que tivesse uma caixa.
                     var branch = (OpenXmlElement?)alternate.GetFirstChild<AlternateContentChoice>()
                                  ?? alternate.GetFirstChild<AlternateContentFallback>();
                     if (branch is not null)
@@ -741,7 +745,11 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory)
 
         foreach (var box in OutermostTextBoxes(shape))
         {
-            inventory.NoteInvisible(Inventory.Shapes);
+            // A moldura e o preenchimento da caixa, quando dá para desenhá-los.
+            // Só o que sobrar entra no inventário: um aviso que aparece em todo
+            // documento com caixa de texto é um aviso que se aprende a ignorar.
+            var look = ShapeLook.Of(box);
+            if (!look.Complete) inventory.NoteInvisible(Inventory.Shapes);
 
             var content = new List<Node>();
             foreach (var paragraph in box.Descendants<Paragraph>())
@@ -750,7 +758,16 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory)
                 content.Add(ReadParagraphOf(paragraph));
             }
 
-            if (content.Count > 0) yield return AnchorReader.Describe(anchor, "text", null, content);
+            if (content.Count > 0)
+            {
+                yield return AnchorReader.Describe(anchor, "text", null, content) with
+                {
+                    Fill = look.Fill,
+                    Line = look.Line,
+                    LineWidthPt = look.LineWidthPt,
+                    Dash = look.Dashed,
+                };
+            }
         }
     }
 
@@ -779,7 +796,11 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory)
     {
         foreach (var box in OutermostTextBoxes(shape))
         {
-            inventory.NoteInvisible(Inventory.Shapes);
+            // Aqui o texto entra na linha e a caixa não é desenhada em lugar
+            // nenhum: qualquer moldura que ela tenha se perde de vista, e é
+            // disso que o aviso fala.
+            var look = ShapeLook.Of(box);
+            if (!look.Complete || look.Draws) inventory.NoteInvisible(Inventory.Shapes);
 
             foreach (var paragraph in box.Descendants<Paragraph>())
             {

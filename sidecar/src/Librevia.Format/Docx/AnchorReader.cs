@@ -46,7 +46,20 @@ public sealed record FloatDto(
     /// texto muda — digitar abre e fecha parágrafos dentro dela, e endereçar
     /// parágrafo a parágrafo quebraria na primeira tecla Enter.
     /// </remarks>
-    [property: JsonPropertyName("bid")] string? BoxId = null);
+    [property: JsonPropertyName("bid")] string? BoxId = null,
+    /// <summary>
+    /// A moldura e o preenchimento da forma, quando dá para reproduzi-los.
+    /// </summary>
+    /// <remarks>
+    /// Cor sólida e traço sólido de uma espessura, que é o caso comum e é o que
+    /// o CSS desenha. O que não cabe aqui — gradiente, textura, sombra, canto
+    /// arredondado — não é desenhado e entra no inventário; ver
+    /// <see cref="ShapeLook"/>.
+    /// </remarks>
+    [property: JsonPropertyName("fill")] string? Fill = null,
+    [property: JsonPropertyName("line")] string? Line = null,
+    [property: JsonPropertyName("lineWidthPt")] double LineWidthPt = 0,
+    [property: JsonPropertyName("dash")] bool Dash = false);
 
 /// <summary>Uma peça de dentro de um desenho, na régua da página.</summary>
 public sealed record AnchoredPiece(

@@ -450,9 +450,16 @@ public static class HeaderReader
                 // caixa é pior do que um texto que não se pode editar.
                 var address = inside.Count == 1 ? boxes.Of(inside[0]) : null;
 
+                var look = ShapeLook.Of(piece.Shape);
+                if (!look.Complete) inventory.NoteInvisible(Inventory.Shapes);
+
                 yield return AnchorReader.Describe(anchor, "text", null, content, piece) with
                 {
                     BoxId = address,
+                    Fill = look.Fill,
+                    Line = look.Line,
+                    LineWidthPt = look.LineWidthPt,
+                    Dash = look.Dashed,
                 };
                 continue;
             }

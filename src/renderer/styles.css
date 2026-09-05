@@ -592,6 +592,9 @@ button {
 .paper-float {
   position: absolute;
   object-fit: contain;
+  /* A extensão que o arquivo declara já inclui o contorno: somá-lo por fora
+     esticaria a forma pela espessura do traço. */
+  box-sizing: border-box;
 }
 
 /* O filete do cabeçalho: a forma tem altura zero, e o que se vê é o contorno. */

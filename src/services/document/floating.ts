@@ -45,6 +45,39 @@ export interface FloatingObject {
    * parágrafos, e endereçar parágrafo a parágrafo quebraria no primeiro Enter.
    */
   readonly bid?: string | undefined
+  /**
+   * A moldura e o preenchimento da forma, quando dá para reproduzi-los.
+   *
+   * Cor sólida e traço sólido de uma espessura, que é o caso comum e é o que o
+   * CSS desenha. O que não cabe aqui não é desenhado e entra no inventário — e
+   * é só disso que o aviso "moldura e preenchimento de formas" passa a falar.
+   */
+  readonly fill?: string | undefined
+  readonly line?: string | undefined
+  readonly lineWidthPt?: number | undefined
+  readonly dash?: boolean | undefined
+}
+
+/**
+ * A moldura da forma em CSS, para a tela e o papel desenharem a mesma coisa.
+ *
+ * Compartilhada de propósito: dois desenhistas com a mesma regra escrita duas
+ * vezes é como a tela e o papel divergem.
+ *
+ * Traço de espessura zero não é traço: o formato o usa para dizer "a mais fina
+ * possível" quando há cor, e o leitor já resolve isso — aqui, zero é ausência.
+ */
+export function frameOf(object: FloatingObject): { background?: string; border?: string } {
+  const frame: { background?: string; border?: string } = {}
+
+  if (typeof object.fill === 'string' && object.fill.length > 0) frame.background = object.fill
+
+  const width = object.lineWidthPt ?? 0
+  if (typeof object.line === 'string' && object.line.length > 0 && width > 0) {
+    frame.border = `${width}pt ${object.dash === true ? 'dashed' : 'solid'} ${object.line}`
+  }
+
+  return frame
 }
 
 /** A caixa já resolvida, em milímetros da borda da folha. */
