@@ -9,19 +9,12 @@ incomum: salvar um `.docx` ou um `.xlsx` **não custa o que você não editou**.
 ![React](https://img.shields.io/badge/React_19-61DAFB?style=for-the-badge&logo=react&logoColor=black)
 ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)
 ![.NET](https://img.shields.io/badge/.NET_10-512BD4?style=for-the-badge&logo=dotnet&logoColor=white)
-![Vite](https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white)
-![Vitest](https://img.shields.io/badge/Vitest-6E9F18?style=for-the-badge&logo=vitest&logoColor=white)
-![Playwright](https://img.shields.io/badge/Playwright-2EAD33?style=for-the-badge&logo=playwright&logoColor=white)
 ![Licença MIT](https://img.shields.io/badge/Licença-MIT-22C55E?style=for-the-badge)
 
-> **Nome provisório.** Estado atual: suíte completa, com instalador para Linux e Windows.
+> **Estado atual:** suíte completa, com instalador para Linux e Windows.
 
-## 🔗 Links
-
-- **[Manual de uso](MANUAL.md)** — para quem usa o aplicativo. Este README é para quem
-  mexe no código.
-- **[Pipeline de CI](https://github.com/VStorch/LibreviaWorkspace/actions/workflows/ci.yml)** —
-  tipos, lint, testes e instaladores nos dois sistemas.
+Quem **usa** o aplicativo deve ler o **[manual](MANUAL.md)**. Este README é para quem mexe
+no código.
 
 ---
 
@@ -471,24 +464,8 @@ LIBREVIA_E2E_BINARY=release/linux-unpacked/librevia npm run test:e2e
 
 ## 🔄 CI/CD
 
-Pipeline em GitHub Actions, disparado a cada push na `main` e em todo pull request.
-
-```mermaid
-graph LR
-    Push["Push / PR"] --> V["verify<br/>Linux + Windows"]
-    Push --> I["instalador<br/>Linux + Windows"]
-    Push --> C["publicacao-cruzada<br/>Linux"]
-
-    V --> V1["formato, tipos e lint"]
-    V1 --> V2["testes .NET e TypeScript"]
-    V2 --> V3["portão de licenças"]
-
-    I --> I1["empacotar"]
-    I1 --> I2["ponta a ponta sobre o pacote"]
-    I2 --> I3["publicar instaladores"]
-
-    C --> C1["os dois binários do sidecar<br/>na mesma máquina"]
-```
+Pipeline em GitHub Actions, disparada a cada push na `main` e em todo pull request. São três
+jobs em paralelo, e os dois primeiros rodam duas vezes — uma no Linux, outra no Windows.
 
 | Job | Por que existe |
 | --- | --- |

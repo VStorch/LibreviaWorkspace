@@ -1,4 +1,4 @@
-/** Nome exibido. Provisório — ver docs/00-plano-tecnico.md §8, item 7. */
+/** Nome exibido do aplicativo. */
 export const APP_NAME = 'Librevia'
 
 export const WINDOW_DEFAULTS = {
