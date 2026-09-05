@@ -15,16 +15,25 @@
 
 import { execFileSync } from 'node:child_process'
 import { readFileSync, writeFileSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { collectNuGetLicenses, nugetAssetsExist } from './nuget-licenses.mjs'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
+const require = createRequire(import.meta.url)
 
 function npmPackages() {
+  // O próprio JS do license-checker, rodado por este Node — e não `npx`. No
+  // Windows `npx` é `npx.cmd`, e `execFile` sem shell não executa um `.cmd`:
+  // era o `spawnSync npx ENOENT` que derrubava o instalador lá. Resolver pelo
+  // `require` acha o pacote onde quer que o npm o tenha içado, e dispensa
+  // shell — que traria de volta o problema de caminho com espaço.
+  const checker = require.resolve('license-checker-rseidelsohn/bin/license-checker-rseidelsohn.js')
+
   const json = execFileSync(
-    'npx',
-    ['license-checker-rseidelsohn', '--production', '--excludePrivatePackages', '--json', '--start', root],
+    process.execPath,
+    [checker, '--production', '--excludePrivatePackages', '--json', '--start', root],
     { encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 },
   )
 

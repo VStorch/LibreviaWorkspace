@@ -5,6 +5,23 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { AppError } from '@shared/errors.js'
 import { writeFileAtomic } from './atomic-write.js'
 
+/**
+ * Três testes abaixo afirmam coisas que só existem em POSIX.
+ *
+ * No Windows o `chmod` do Node não escreve permissão nenhuma: ele liga e
+ * desliga o atributo de somente leitura, e `stat` devolve 0o666 para qualquer
+ * arquivo gravável — daí `expected 438 to be 416`. Em diretório ele não faz
+ * efeito algum: a pasta continua gravável, a gravação dá certo e o teste que
+ * espera falha não vê falha nenhuma. Não é o `writeFileAtomic` que muda de
+ * comportamento; é a permissão que não existe do outro lado, e forçar uma
+ * asserção equivalente exigiria mexer em ACL, que não é o que este módulo faz.
+ *
+ * O que eles protegem — não estreitar o acesso de um arquivo compartilhado, e
+ * não destruir o original quando a gravação falha — continua coberto no Linux,
+ * que é onde a permissão significa alguma coisa.
+ */
+const emPosix = process.platform !== 'win32'
+
 let directory: string
 
 beforeEach(async () => {
@@ -51,7 +68,7 @@ describe('writeFileAtomic', () => {
     await expect(stat(`${target}.bak`)).rejects.toThrow()
   })
 
-  it('preserva as permissões do arquivo existente', async () => {
+  it.runIf(emPosix)('preserva as permissões do arquivo existente', async () => {
     const target = join(directory, 'compartilhado.txt')
     await writeFile(target, 'original')
     await chmod(target, 0o640)
@@ -63,7 +80,7 @@ describe('writeFileAtomic', () => {
     expect((await stat(target)).mode & 0o777).toBe(0o640)
   })
 
-  it('mantém o arquivo original intacto quando a gravação falha', async () => {
+  it.runIf(emPosix)('mantém o arquivo original intacto quando a gravação falha', async () => {
     const target = join(directory, 'protegido.txt')
     await writeFile(target, 'conteúdo valioso')
     await chmod(directory, 0o500) // leitura e travessia, sem escrita
@@ -74,7 +91,7 @@ describe('writeFileAtomic', () => {
     expect(await readFile(target, 'utf8')).toBe('conteúdo valioso')
   })
 
-  it('reporta falha de gravação com mensagem compreensível', async () => {
+  it.runIf(emPosix)('reporta falha de gravação com mensagem compreensível', async () => {
     await chmod(directory, 0o500)
 
     await expect(writeFileAtomic(join(directory, 'x.txt'), 'a')).rejects.toMatchObject({
