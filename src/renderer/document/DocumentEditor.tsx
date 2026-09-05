@@ -1,30 +1,25 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { EditorContent, useEditor, type Editor } from '@tiptap/react'
+import { EditorContent, useEditor } from '@tiptap/react'
 import { DOCUMENT_CONTENT_CSS, EDITOR_ONLY_CSS } from '@services/document/content-styles.js'
 import {
-  bandForPage,
   contentInsetsMm,
   editBandFloat,
   editBandPiece,
-  hasBandContent,
   mmToPx,
   pageDimensionsMm,
-  pxToMm as toMm,
-  type BandHeights,
-  type PageSetup,
+  pxToMm,
+  type DocumentNode,
 } from '@services/document/model.js'
-import type { DocumentNode } from '@services/document/model.js'
+import { floatsOf } from '@services/document/floating.js'
 import { useWorkspace } from '../state/workspace.js'
 import { DocumentToolbar } from './toolbar/DocumentToolbar.js'
 import { FindReplacePanel } from './FindReplacePanel.js'
-import { PageBand } from './PageBand.js'
-import { usePagination, type PageLayout } from './usePagination.js'
-import { FloatingLayer, type FloatSource, type PlacedFloat } from './FloatingLayer.js'
-import { bandFloatsOf, floatsOf, type FloatingObject } from '@services/document/floating.js'
-import { pxToMm } from '@services/document/model.js'
-import type { PrintFloat, PrintPage } from '@services/document/print-pages.js'
-import { DOMSerializer, Fragment, Node as ProseMirrorNode } from '@tiptap/pm/model'
 import { PageSetupPanel } from './PageSetupPanel.js'
+import { PaperSheet } from './PaperSheet.js'
+import { usePagination } from './usePagination.js'
+import { useBandHeights } from './useBandHeights.js'
+import { splitIntoPages } from './print-source.js'
+import type { FloatSource, PlacedFloat } from './FloatingLayer.js'
 import { buildEditorExtensions } from './editor-extensions.js'
 import { isPaginationOnly } from './extensions/pagination.js'
 import { onEditorCommand } from './editor-commands.js'
@@ -244,9 +239,9 @@ export function DocumentEditor(): React.JSX.Element {
   if (editor === null) return <div className="editor-shell" />
 
   const { width, height } = pageDimensionsMm(page)
-  // Metade da margem: a faixa do cabeçalho é mais larga que a coluna de texto,
-  // como no documento original.
-  const bandInset = mmToPx(Math.min(page.margins.left, page.margins.right) / 2)
+  const editableSheet = readOnly
+    ? {}
+    : { onEditFloat: editFloat, onEditBandPiece: editBand, onEditBandBox: editBandBox }
 
   return (
     <div className="editor-shell">
@@ -290,62 +285,16 @@ export function DocumentEditor(): React.JSX.Element {
           {/* Uma faixa por folha, com o número real. No papel elas moram dentro
               da margem, e é por isso que não empurram o texto. */}
           {layout.sheetTops.map((top, index) => (
-            <div
+            <PaperSheet
               key={`banda-${top}`}
-              className="paper-bands"
-              style={{ top: `${top}px`, height: `${mmToPx(height)}px` }}
-            >
-              <FloatingLayer
-                objects={floatsByPage[index] ?? []}
-                page={page}
-                schema={editor.schema}
-                behind
-                {...(readOnly ? {} : { onEdit: editFloat })}
-              />
-              {(['header', 'footer'] as const).map((kind) => {
-                // A capa manda sobre a paridade, e a paridade sobre o padrão —
-                // a ordem do Word. Documento sem primeira página distinta cai no
-                // padrão, e nada muda para ele.
-                const band = bandForPage(page, index + 1, kind)
-                return hasBandContent(band) ? (
-                  <PageBand
-                    key={kind}
-                    band={band}
-                    kind={kind}
-                    pageNumber={index + 1}
-                    totalPages={layout.pages}
-                    insetPx={bandInset}
-                    offsetPx={mmToPx(kind === 'header' ? page.headerDistanceMm : page.footerDistanceMm)}
-                    {...(readOnly ? {} : { onEdit: editBand })}
-                  />
-                ) : null
-              })}
-
-              {/* Os objetos da faixa vêm por último e numa camada própria: a
-                  faixa repete em toda folha, mora na margem e não disputa
-                  espaço com o corpo. É a mesma razão pela qual a faixa fica
-                  acima da coluna de texto — o retângulo da coluna cobre a
-                  margem inteira e apanhava o clique destinado à caixa. */}
-              {(['behind', 'front'] as const).map((where) => (
-                <FloatingLayer
-                  key={where}
-                  objects={bandFloatsOf(page, index + 1)}
-                  page={page}
-                  schema={editor.schema}
-                  behind={where === 'behind'}
-                  variant="band"
-                  {...(readOnly ? {} : { onEditBand: editBandBox })}
-                />
-              ))}
-
-              <FloatingLayer
-                objects={floatsByPage[index] ?? []}
-                page={page}
-                schema={editor.schema}
-                behind={false}
-                {...(readOnly ? {} : { onEdit: editFloat })}
-              />
-            </div>
+              page={page}
+              pageNumber={index + 1}
+              totalPages={layout.pages}
+              topPx={top}
+              floats={floatsByPage[index] ?? []}
+              schema={editor.schema}
+              {...editableSheet}
+            />
           ))}
 
           <div
@@ -364,125 +313,4 @@ export function DocumentEditor(): React.JSX.Element {
       </div>
     </div>
   )
-}
-
-/**
- * A altura desenhada do cabeçalho e do rodapé.
- *
- * É a única parte da conta de margem que nenhum arquivo diz: um cabeçalho em
- * grade ocupa o que a fonte e a quebra derem, e isso só existe depois de
- * desenhar. Medido na primeira folha — as outras repetem a mesma faixa — e
- * arredondado a um décimo de milímetro, porque a medida do navegador oscila
- * sozinha e cada oscilação repaginaria o documento inteiro.
- *
- * Não há laço: a altura da faixa não depende de onde o texto caiu.
- */
-function useBandHeights(page: PageSetup, revision: number): BandHeights {
-  const [bands, setBands] = useState<BandHeights>({ headerMm: 0, footerMm: 0 })
-
-  useEffect(() => {
-    const measure = (): void => {
-      const sheet = document.querySelector('.paper-bands')
-      const heightOf = (kind: string): number => {
-        const band = sheet?.querySelector(`.band--${kind}`)
-        return band === null || band === undefined
-          ? 0
-          : Math.round(toMm((band as HTMLElement).offsetHeight) * 10) / 10
-      }
-
-      const next = { headerMm: heightOf('header'), footerMm: heightOf('footer') }
-      setBands((current) =>
-        current.headerMm === next.headerMm && current.footerMm === next.footerMm ? current : next,
-      )
-    }
-
-    measure()
-
-    const sheet = document.querySelector('.paper-bands')
-    if (sheet === null) return undefined
-
-    const observer = new ResizeObserver(measure)
-    observer.observe(sheet)
-    for (const band of sheet.querySelectorAll('.band')) observer.observe(band)
-    return () => observer.disconnect()
-  }, [page, revision])
-
-  return bands
-}
-
-/**
- * O documento recortado nas folhas que a tela mostra.
- *
- * Serializa **direto dos nós**, e não a partir de `getHTML()`. A diferença não
- * é de gosto: o leitor emite a quebra de página dentro do parágrafo quando o
- * Word a gravou assim (`w:br w:type="page"` no meio de um `w:r`), e um `<div>`
- * dentro de `<p>` faz o analisador de HTML fechar o parágrafo e desalojar o
- * `div`. Um documento de 15 nós virava 17 elementos, os índices deixavam de
- * casar, e o papel cortava em lugar diferente do da tela — que é exatamente o
- * defeito que este trabalho existe para acabar.
- *
- * Serializando o nó, o recorte cai sempre onde o paginador o pôs.
- */
-function splitIntoPages(editor: Editor, layout: PageLayout, page: PageSetup): PrintPage[] {
-  const serializer = DOMSerializer.fromSchema(editor.schema)
-
-  const blocks: ProseMirrorNode[] = []
-  editor.state.doc.forEach((node: ProseMirrorNode) => blocks.push(node))
-
-  const cortes = [0, ...layout.pageStarts, blocks.length]
-  const pages: PrintPage[] = []
-
-  for (let i = 0; i < cortes.length - 1; i++) {
-    const inicio = cortes[i]!
-    const fim = cortes[i + 1]!
-    if (fim <= inicio && pages.length > 0) continue
-
-    const holder = document.createElement('div')
-    holder.appendChild(serializer.serializeFragment(Fragment.fromArray(blocks.slice(inicio, fim))))
-
-    // Os objetos ancorados desta folha, com a caixa de texto já serializada: o
-    // desenho do papel não conhece o schema do ProseMirror, e quem o conhece é
-    // aqui.
-    const floats: PrintFloat[] = []
-    for (let b = inicio; b < fim; b++) {
-      const anchor = layout.anchors[b]
-      const block = blocks[b]
-      if (anchor === undefined || block === undefined) continue
-
-      for (const object of floatsOf(block.attrs)) {
-        floats.push({
-          object,
-          anchorTopMm: pxToMm(anchor.topPx),
-          ...(object.kind === 'text' ? { contentHtml: serializeFloatText(object, editor) } : {}),
-        })
-      }
-    }
-
-    // As caixas de texto das faixas também precisam do HTML: quem tem o schema
-    // do ProseMirror é o editor, e o desenhista do papel não o conhece.
-    for (const item of bandFloatsOf(page, pages.length + 1)) {
-      floats.push({
-        ...item,
-        ...(item.object.kind === 'text' ? { contentHtml: serializeFloatText(item.object, editor) } : {}),
-      })
-    }
-
-    pages.push({ number: pages.length + 1, html: holder.innerHTML, floats })
-  }
-
-  return pages
-}
-
-/** O conteúdo de uma caixa de texto, em HTML, pelo serializador do editor. */
-function serializeFloatText(object: FloatingObject, editor: Editor): string {
-  try {
-    const nodes = (object.content ?? []).map((node) => ProseMirrorNode.fromJSON(editor.schema, node))
-    const holder = document.createElement('div')
-    holder.appendChild(DOMSerializer.fromSchema(editor.schema).serializeFragment(Fragment.fromArray(nodes)))
-    return holder.innerHTML
-  } catch {
-    // Caixa que o schema não reconhece sai vazia em vez de derrubar a
-    // exportação inteira.
-    return ''
-  }
 }

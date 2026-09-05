@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { recalculate } from './formula/recalc.js'
 import { createSheet, getCell, setCell, type Sheet, type WorkbookModel } from './model.js'
-import { applyStructuralChange } from './structure.js'
+import { applyStructuralChange, isNameTaken, nextSheetName } from './structure.js'
 
 /** Coluna A com 1, 2, 3 e a soma delas em C1. */
 function planilha(name = 'Plan1'): Sheet {
@@ -120,5 +120,24 @@ describe('identidade', () => {
     const antes = pasta(planilha())
 
     expect(applyStructuralChange(antes, 0, { kind: 'deleteRows', at: 5000, count: 1 })).toBe(antes)
+  })
+})
+
+describe('nome da próxima aba', () => {
+  it('segue a contagem quando os nomes são os padrões', () => {
+    expect(nextSheetName(pasta(planilha('Planilha1')))).toBe('Planilha2')
+  })
+
+  it('pula o nome já usado em vez de repeti-lo', () => {
+    // Quem apagou a Planilha2 e criou outra teria duas com o mesmo nome, e
+    // `=Planilha2!A1` deixaria de ter destino único.
+    const atual = pasta(planilha('Planilha1'), planilha('Planilha3'))
+    expect(nextSheetName(atual)).toBe('Planilha4')
+  })
+
+  it('reconhece o nome tomado por outra aba, e não pela própria', () => {
+    const atual = pasta(planilha('Dados'), planilha('Resumo'))
+    expect(isNameTaken(atual, 'Dados', 1)).toBe(true)
+    expect(isNameTaken(atual, 'Dados', 0)).toBe(false)
   })
 })

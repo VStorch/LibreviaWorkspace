@@ -1,5 +1,6 @@
 import {
   bandForPage,
+  bandInsetMm,
   contentInsetsMm,
   hasBandContent,
   linesOf,
@@ -149,9 +150,7 @@ export interface PagedDocument {
 /** As folhas, uma caixa cada. */
 export function buildPagedBody(paged: PagedDocument, page: PageSetup): string {
   const total = paged.pages.length
-  // Mesma proporção da tela: a faixa do cabeçalho corporativo é mais larga que
-  // a coluna de texto, e usar a margem do texto encolheria o logotipo.
-  const inset = Math.min(page.margins.left, page.margins.right) / 2
+  const inset = bandInsetMm(page)
   const insets = contentInsetsMm(page, paged.bands)
 
   return paged.pages.map((sheet) => renderPage(sheet, page, total, inset, insets)).join('\n')
@@ -236,18 +235,10 @@ function renderBand(
   inset: number,
   offset: number,
 ): string {
-  const lines = (pieces: readonly BandPiece[]): string =>
-    linesOf(pieces)
-      .map(
-        (line) =>
-          '<div class="paper-page__line">' +
-          line.map((piece) => renderPiece(piece, pageNumber, total)).join('') +
-          '</div>',
-      )
-      .join('')
-
   const cell = (pieces: readonly BandPiece[], place: string): string =>
-    `<div class="paper-page__cell paper-page__cell--${place}">` + lines(pieces) + '</div>'
+    `<div class="paper-page__cell paper-page__cell--${place}">` +
+    renderLines(pieces, pageNumber, total) +
+    '</div>'
 
   return (
     `<div class="paper-page__band paper-page__band--${kind}${band.rule ? ' paper-page__band--ruled' : ''}" ` +
@@ -276,14 +267,7 @@ function renderGrid(band: Band, pageNumber: number, total: number): string {
         .map((cell) => {
           const span = cell.span === 1 ? '' : ` colspan="${cell.span}"`
           const down = cell.rowSpan === 1 ? '' : ` rowspan="${cell.rowSpan}"`
-          const pieces = linesOf(cell.pieces)
-            .map(
-              (line) =>
-                '<div class="paper-page__line">' +
-                line.map((piece) => renderPiece(piece, pageNumber, total)).join('') +
-                '</div>',
-            )
-            .join('')
+          const pieces = renderLines(cell.pieces, pageNumber, total)
           return `<td${span}${down} style="${cellStyle(cell)}">${pieces}</td>`
         })
         .join('')
@@ -292,6 +276,24 @@ function renderGrid(band: Band, pageNumber: number, total: number): string {
     .join('')
 
   return `<table class="paper-page__grid"><tbody>${rows}</tbody></table>`
+}
+
+/**
+ * As peças distribuídas em linhas, como o arquivo as quebrou.
+ *
+ * Vale para os três terços da faixa e para as células da grade: nos dois a
+ * quebra vem do mesmo `linesOf`, e uma segunda versão desta marcação divergiria
+ * da primeira no primeiro ajuste de estilo.
+ */
+function renderLines(pieces: readonly BandPiece[], pageNumber: number, total: number): string {
+  return linesOf(pieces)
+    .map(
+      (line) =>
+        '<div class="paper-page__line">' +
+        line.map((piece) => renderPiece(piece, pageNumber, total)).join('') +
+        '</div>',
+    )
+    .join('')
 }
 
 function cellStyle(cell: BandCell): string {

@@ -84,6 +84,26 @@ export function renameSheet(workbook: WorkbookModel, sheetIndex: number, name: s
   return { ...workbook, sheets }
 }
 
+/**
+ * O nome da próxima aba: "Planilha2", "Planilha3"…, pulando os já usados.
+ *
+ * Nome repetido quebraria a referência entre abas — `=Planilha2!A1` deixaria de
+ * ter destino único —, e é por isso que a contagem não é simplesmente o total
+ * de abas mais um: quem apagou a Planilha2 e criou outra teria duas.
+ */
+export function nextSheetName(workbook: WorkbookModel): string {
+  const used = new Set(workbook.sheets.map((sheet) => sheet.name))
+
+  let index = workbook.sheets.length + 1
+  while (used.has(`Planilha${index}`)) index += 1
+  return `Planilha${index}`
+}
+
+/** A aba já existe com este nome, sem contar a que está sendo renomeada? */
+export function isNameTaken(workbook: WorkbookModel, name: string, exceptIndex: number): boolean {
+  return workbook.sheets.some((sheet, index) => index !== exceptIndex && sheet.name === name)
+}
+
 /** Planilha sem fórmula nenhuma volta como o mesmo objeto. */
 function rewriteFormulas(sheet: Sheet, rewrite: (formula: string) => string): Sheet {
   let cells: Record<string, Cell> | null = null

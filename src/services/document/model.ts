@@ -381,6 +381,18 @@ export function contentInsetsMm(page: PageSetup, bands: BandHeights): { top: num
   }
 }
 
+/**
+ * Onde a faixa do cabeçalho e a do rodapé começam, medindo da borda da folha.
+ *
+ * Metade da margem: a faixa é mais larga que a coluna de texto, como o
+ * documento corporativo a desenha — usar a margem do texto encolheria o
+ * logotipo. Tela e papel leem daqui, e não cada um da sua conta: duas contas
+ * iguais escritas em dois lugares é como os dois desenhos divergem.
+ */
+export function bandInsetMm(page: PageSetup): number {
+  return Math.min(page.margins.left, page.margins.right) / 2
+}
+
 /** Conversão CSS: 1 polegada = 96 px = 25,4 mm. */
 export function mmToPx(mm: number): number {
   return (mm * 96) / 25.4
