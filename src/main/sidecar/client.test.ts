@@ -15,6 +15,28 @@ import { ErrorCode, type AppError } from '@shared/errors.js'
 import { SidecarClient } from './client.js'
 import { SidecarMethod, encodeFrame } from './protocol.js'
 
+/**
+ * O sidecar de mentira é um script com shebang, e só POSIX o executa direto.
+ *
+ * O Windows não tem shebang: o `spawn` de um `.sh` devolve EFTYPE — "isto não é
+ * uma imagem executável". Trocar por um `.cmd` não resolveria, porque o Node
+ * recusa `.bat` e `.cmd` sem `shell: true`, e o cliente spawna com
+ * `shell: false` de propósito; e alargar o resolvedor para aceitar argumentos
+ * afrouxaria justamente o contrato que o wrapper existe para preservar — um
+ * caminho só, sem argumentos, como o binário .NET de verdade.
+ *
+ * O que estes testes provam — decodificar quadros, expirar, subir de novo
+ * depois de uma queda — é lógica sem plataforma nenhuma, e roda no Linux. O que
+ * é de plataforma continua coberto no Windows: `sidecar-real.test.ts` conversa
+ * com o `.exe` publicado, e o job do instalador exercita o aplicativo
+ * empacotado.
+ *
+ * O portão vale só para quem precisa do processo **vivo**. Quem não precisa —
+ * o executável que não existe, e os que encerram o cliente antes de pedir
+ * qualquer coisa — continua rodando nos dois sistemas.
+ */
+const sidecarDeMentiraSobe = process.platform !== 'win32'
+
 const clients: SidecarClient[] = []
 
 afterEach(() => {
@@ -73,7 +95,7 @@ function reply(json, binary = Buffer.alloc(0)) {
 }
 `
 
-describe('conversa normal', () => {
+describe.runIf(sidecarDeMentiraSobe)('conversa normal', () => {
   it('responde a um pedido e devolve o binário', async () => {
     const client = await fakeSidecar(`${RESPONDER}
       function __handle(request, binary) {
@@ -122,7 +144,7 @@ describe('conversa normal', () => {
 })
 
 describe('o sidecar morre — o documento não pode morrer junto', () => {
-  it('falha com erro compreensível quando o processo morre no meio', async () => {
+  it.runIf(sidecarDeMentiraSobe)('falha com erro compreensível quando o processo morre no meio', async () => {
     const client = await fakeSidecar(`${RESPONDER}
       function __handle() { process.exit(1) }
     `)
@@ -132,7 +154,7 @@ describe('o sidecar morre — o documento não pode morrer junto', () => {
     expect(error).toBe(ErrorCode.SidecarFailed)
   })
 
-  it('não deixa o pedido pendurado para sempre quando o sidecar emudece', async () => {
+  it.runIf(sidecarDeMentiraSobe)('não deixa o pedido pendurado para sempre quando o sidecar emudece', async () => {
     // É o pior caso para o usuário: sem timeout, a janela congela e a única
     // saída é matar o aplicativo — perdendo o que não foi salvo.
     const client = await fakeSidecar(`${RESPONDER}
@@ -144,7 +166,7 @@ describe('o sidecar morre — o documento não pode morrer junto', () => {
     expect(error).toBe(ErrorCode.SidecarTimeout)
   })
 
-  it('sobe um processo novo depois de uma queda, em vez de ficar inutilizado', async () => {
+  it.runIf(sidecarDeMentiraSobe)('sobe um processo novo depois de uma queda, em vez de ficar inutilizado', async () => {
     const client = await fakeSidecar(`${RESPONDER}
       let primeiro = true
       function __handle(request) {
@@ -161,7 +183,7 @@ describe('o sidecar morre — o documento não pode morrer junto', () => {
     expect(segundo).toBe(ErrorCode.SidecarFailed)
   })
 
-  it('derruba um sidecar mudo em vez de deixá-lo acumulando pedidos', async () => {
+  it.runIf(sidecarDeMentiraSobe)('derruba um sidecar mudo em vez de deixá-lo acumulando pedidos', async () => {
     const client = await fakeSidecar(`${RESPONDER}
       function __handle() { /* nunca responde */ }
     `)
@@ -182,7 +204,7 @@ describe('o sidecar morre — o documento não pode morrer junto', () => {
   })
 })
 
-describe('o sidecar responde besteira', () => {
+describe.runIf(sidecarDeMentiraSobe)('o sidecar responde besteira', () => {
   it('recusa resposta fora do contrato', async () => {
     const client = await fakeSidecar(`${RESPONDER}
       function __handle() { reply({ isto: 'não é uma resposta' }) }
@@ -216,7 +238,7 @@ describe('o sidecar responde besteira', () => {
 })
 
 describe('encerramento', () => {
-  it('dispose não deixa pedido pendurado', async () => {
+  it.runIf(sidecarDeMentiraSobe)('dispose não deixa pedido pendurado', async () => {
     const client = await fakeSidecar(`${RESPONDER}
       function __handle() { /* nunca responde */ }
     `)
