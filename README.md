@@ -565,22 +565,29 @@ de licenças. Se ele passa na sua máquina, passa no CI.
 - **Teste junto.** Regra de negócio vive em camada pura justamente para ser testável sem
   subir o Electron.
 - **Dependência nova** precisa passar pelo portão de licenças — e pesar o que traz junto.
-- **Idioma:** código, comentários e commits em português, como o resto do repositório.
+- **Idioma.** Identificadores em **inglês** — nomes de arquivo, função, variável e tipo.
+  Comentários, mensagens ao usuário e descrições de teste em **português**, como o resto do
+  repositório. Commits em inglês, no formato abaixo.
 
 ### Mensagens de commit
 
-Não são Conventional Commits. O assunto é uma **frase afirmativa** dizendo o que passou a
-valer, e o corpo explica **por quê** — de preferência com a medição que sustenta a decisão:
+[Conventional Commits](https://www.conventionalcommits.org), em inglês, com escopo sempre
+que houver um: `type(scope): description`.
 
 ```text
-A entrelinha é vez a altura da fonte, e não vez o tamanho dela
+fix(docx): line height multiplies the font's height, not its size
 
-O múltiplo do OOXML é 1,13 vez a altura natural da fonte, e nós aplicávamos o
-fator sobre o tamanho: 11,3 pt onde o LibreOffice põe 12,98 em Arial 10 pt.
+OOXML's multiple is 1.13 times the font's natural height, and we applied the
+factor to the size: 11.3 pt where LibreOffice puts 12.98 in Arial 10 pt.
 ```
 
-O histórico é o registro técnico do projeto: é lá que mora o motivo de cada decisão que o
-código sozinho não explica.
+Os tipos em uso são `feat`, `fix`, `refactor`, `perf`, `test`, `docs`, `build`, `ci`,
+`chore` e `revert`. Os escopos saem do próprio código — `docx`, `xlsx`, `band`, `sheet`,
+`formula`, `pagination`, `floats`, `fonts`, `sidecar`, `print`, `state`, `ui`, `e2e`.
+
+**O corpo importa mais que o cabeçalho.** Ele explica *por quê*, de preferência com a
+medição que sustenta a decisão. O histórico é o registro técnico do projeto: é lá que mora
+o motivo de cada decisão que o código sozinho não explica.
 
 ---
 
