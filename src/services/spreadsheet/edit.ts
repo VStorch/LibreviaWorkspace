@@ -6,6 +6,7 @@
  * vai se apoiar.
  */
 
+import { parseInput } from './format.js'
 import { cellRef, getCell, setCell, type BorderSide, type Cell, type CellStyle, type Sheet } from './model.js'
 
 /** Um retângulo de células, em coordenadas base zero e inclusivas. */
@@ -34,6 +35,12 @@ export function describeRange(range: Range): string {
   const { fromRow, fromColumn, toRow, toColumn } = normalizeRange(range)
   const start = cellRef(fromRow, fromColumn)
   return fromRow === toRow && fromColumn === toColumn ? start : `${start}:${cellRef(toRow, toColumn)}`
+}
+
+/** O ponto cai dentro do retângulo? */
+export function rangeContains(range: Range, row: number, column: number): boolean {
+  const { fromRow, fromColumn, toRow, toColumn } = normalizeRange(range)
+  return row >= fromRow && row <= toRow && column >= fromColumn && column <= toColumn
 }
 
 export function* cellsIn(range: Range): Generator<{ row: number; column: number }> {
@@ -101,6 +108,32 @@ export function clearContents(sheet: Sheet, range: Range): Sheet {
   }
 
   return updated
+}
+
+/**
+ * Grava numa célula o que foi digitado ou colado.
+ *
+ * O `=` inicial é o que distingue fórmula de texto, e é a única marca que
+ * existe: o resto do conteúdo de uma fórmula é texto comum. O valor da fórmula
+ * fica indefinido de propósito — quem o preenche é o recálculo, que sabe a
+ * ordem certa de calcular.
+ */
+export function writeText(sheet: Sheet, row: number, column: number, text: string): Sheet {
+  const previous = getCell(sheet, row, column)
+
+  // O formato reconhecido na digitação não apaga o que o usuário escolheu à
+  // mão: quem já pintou a célula de moeda não quer perder isso ao redigitar.
+  // Atribuição condicional por causa de `exactOptionalPropertyTypes`: a
+  // propriedade ausente não é o mesmo que a propriedade indefinida.
+  const keepStyle = (cell: Cell, fallback?: Partial<CellStyle>): Cell => {
+    const style = previous?.style ?? fallback
+    return style === undefined ? cell : { ...cell, style }
+  }
+
+  if (text.startsWith('=')) return setCell(sheet, row, column, keepStyle({ formula: text }))
+
+  const parsed = parseInput(text)
+  return setCell(sheet, row, column, keepStyle({ value: parsed.value }, parsed.style))
 }
 
 /**

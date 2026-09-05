@@ -10,8 +10,10 @@ import {
   describeRange,
   insertColumns,
   insertRows,
+  rangeContains,
   singleCell,
   toggleStyle,
+  writeText,
 } from './edit.js'
 
 const range = { fromRow: 0, fromColumn: 0, toRow: 1, toColumn: 1 }
@@ -200,5 +202,36 @@ describe('linhas e colunas', () => {
     expect(insertColumns(sheet, 0).frozenColumns).toBe(3)
     // Abaixo da faixa congelada, o congelamento não se move.
     expect(insertRows(sheet, 2).frozenRows).toBe(2)
+  })
+})
+
+describe('rangeContains', () => {
+  it('aceita as bordas do retângulo e recusa o que está fora', () => {
+    expect(rangeContains(range, 0, 0)).toBe(true)
+    expect(rangeContains(range, 1, 1)).toBe(true)
+    expect(rangeContains(range, 2, 1)).toBe(false)
+    expect(rangeContains(range, 1, 2)).toBe(false)
+  })
+
+  it('vale para o intervalo arrastado de baixo para cima', () => {
+    expect(rangeContains({ fromRow: 3, fromColumn: 3, toRow: 1, toColumn: 1 }, 2, 2)).toBe(true)
+  })
+})
+
+describe('writeText', () => {
+  it('guarda a fórmula e deixa o valor para o recálculo', () => {
+    const sheet = writeText(createSheet('S'), 0, 0, '=SOMA(A2:A3)')
+    expect(getCell(sheet, 0, 0)).toEqual({ formula: '=SOMA(A2:A3)' })
+  })
+
+  it('reconhece o formato do que foi digitado', () => {
+    const sheet = writeText(createSheet('S'), 0, 0, 'R$ 10,50')
+    expect(getCell(sheet, 0, 0)?.value).toBe(10.5)
+    expect(getCell(sheet, 0, 0)?.style?.format).toBe(CellFormat.Currency)
+  })
+
+  it('não apaga o estilo que o usuário escolheu à mão', () => {
+    const painted = setCell(createSheet('S'), 0, 0, { value: 1, style: { bold: true } })
+    expect(writeText(painted, 0, 0, '2').cells['A1']).toEqual({ value: 2, style: { bold: true } })
   })
 })

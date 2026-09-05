@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { RevoGrid, type ColumnRegular } from '@revolist/react-datagrid'
 import type {
   AfterEditEvent,
@@ -7,22 +7,25 @@ import type {
   FocusAfterRenderEvent,
   RevoGridCustomEvent,
 } from '@revolist/revogrid'
-import { formatCell, parseInput } from '@services/spreadsheet/format.js'
+import { formatCell } from '@services/spreadsheet/format.js'
+import { DEFAULT_COLUMN_WIDTH, columnName, getCell, type Sheet } from '@services/spreadsheet/model.js'
 import {
-  DEFAULT_COLUMN_WIDTH,
-  columnName,
-  getCell,
-  setCell,
-  type Cell,
-  type CellStyle,
-  type Sheet,
-} from '@services/spreadsheet/model.js'
-import { normalizeRange, singleCell, toggleStyle, type Range } from '@services/spreadsheet/edit.js'
+  normalizeRange,
+  rangeContains,
+  singleCell,
+  toggleStyle,
+  writeText,
+  type Range,
+} from '@services/spreadsheet/edit.js'
 import { fillRange } from '@services/spreadsheet/fill.js'
 import type { StructuralChange } from '@services/spreadsheet/structure.js'
 import { FormulaBar } from './FormulaBar.js'
 import { SpreadsheetToolbar } from './SpreadsheetToolbar.js'
 import { SheetContextMenu, type MenuPosition } from './SheetContextMenu.js'
+import { cellStyleOf } from './cell-style.js'
+import { gridPositionOf } from './grid-position.js'
+import { useFormatShortcuts } from './useFormatShortcuts.js'
+import { useTypeAhead } from './useTypeAhead.js'
 
 /**
  * Editor de planilhas.
@@ -40,51 +43,6 @@ import { SheetContextMenu, type MenuPosition } from './SheetContextMenu.js'
 
 /** Uma linha como o grid espera: colunas indexadas por `c0`, `c1`… */
 type GridRow = Record<string, string>
-
-const SHORTCUTS: Record<string, 'bold' | 'italic' | 'underline' | undefined> = {
-  b: 'bold',
-  i: 'italic',
-  u: 'underline',
-}
-
-/**
- * Índice que o grid deixa no DOM da célula clicada.
- *
- * O grid é um web component: a posição não vem no evento do React, e ler o
- * atributo é o contrato público dele para descobrir onde o clique caiu.
- */
-function attributeOf(element: Element | null, name: string): number | null {
-  const owner = element?.closest(`[${name}]`)
-  const value = owner?.getAttribute(name)
-  if (value === null || value === undefined) return null
-
-  const index = Number.parseInt(value, 10)
-  return Number.isInteger(index) ? index : null
-}
-
-function contains(range: Range, row: number, column: number): boolean {
-  return row >= range.fromRow && row <= range.toRow && column >= range.fromColumn && column <= range.toColumn
-}
-
-/** Estilo do modelo → CSS embutido na célula desenhada. */
-function cellStyleOf(sheet: Sheet, row: number, column: number): Record<string, string> {
-  const style = getCell(sheet, row, column)?.style
-  if (style === undefined) return {}
-
-  const css: Record<string, string> = {}
-  if (style.bold === true) css['fontWeight'] = '700'
-  if (style.italic === true) css['fontStyle'] = 'italic'
-  if (style.underline === true) css['textDecoration'] = 'underline'
-  if (style.color !== undefined) css['color'] = style.color
-  if (style.background !== undefined) css['backgroundColor'] = style.background
-  if (style.align !== undefined) css['textAlign'] = style.align
-
-  for (const side of style.borders ?? []) {
-    css[`border${side[0]!.toUpperCase()}${side.slice(1)}`] = '1px solid #555'
-  }
-
-  return css
-}
 
 export function SpreadsheetEditor({
   sheet,
@@ -115,6 +73,8 @@ export function SpreadsheetEditor({
   selection.current = range
 
   const [menu, setMenu] = useState<MenuPosition | null>(null)
+
+  const typeAhead = useTypeAhead(readOnly)
 
   /**
    * Portão único do somente leitura.
@@ -178,172 +138,13 @@ export function SpreadsheetEditor({
     return rows
   }, [sheet])
 
-  /** Aplica um texto digitado ou colado a uma posição. */
-  const write = useCallback((sheet: Sheet, row: number, column: number, raw: unknown): Sheet => {
-    const text = typeof raw === 'string' ? raw : String(raw ?? '')
-    const previous = getCell(sheet, row, column)
-
-    // O formato reconhecido na digitação não apaga o que o usuário escolheu à
-    // mão: quem já pintou a célula de moeda não quer perder isso ao redigitar.
-    // Atribuição condicional por causa de `exactOptionalPropertyTypes`: a
-    // propriedade ausente não é o mesmo que a propriedade indefinida.
-    const keepStyle = (cell: Cell, fallback?: Partial<CellStyle>): Cell => {
-      const style = previous?.style ?? fallback
-      return style === undefined ? cell : { ...cell, style }
-    }
-
-    // O `=` inicial é o que distingue fórmula de texto, e é a única marca que
-    // existe: o resto do conteúdo de uma fórmula é texto comum.
-    if (text.startsWith('=')) {
-      // O valor fica indefinido de propósito; o recálculo o preenche logo em
-      // seguida, e é ele quem sabe a ordem certa de calcular.
-      return setCell(sheet, row, column, keepStyle({ formula: text }))
-    }
-
-    const parsed = parseInput(text)
-    return setCell(sheet, row, column, keepStyle({ value: parsed.value }, parsed.style))
-  }, [])
-
   /** Escreve pelo nome da coluna que o grid usa (`c0`, `c1`…). */
-  const writeAt = useCallback(
-    (sheet: Sheet, row: number, prop: string, raw: unknown): Sheet => {
-      const column = Number.parseInt(prop.slice(1), 10)
-      return Number.isInteger(column) ? write(sheet, row, column, raw) : sheet
-    },
-    [write],
-  )
+  const writeAt = useCallback((sheet: Sheet, row: number, prop: string, raw: unknown): Sheet => {
+    const column = Number.parseInt(prop.slice(1), 10)
+    if (!Number.isInteger(column)) return sheet
 
-  /**
-   * A tecla perdida entre uma célula e a seguinte.
-   *
-   * Depois do Enter o grid **espera 70 ms fixos** antes de mover o foco para
-   * baixo — `RESIZE_INTERVAL + 30` na `keyboard.service` dele, uma pausa para
-   * não pular a tela caso a grade tenha sido redimensionada. Quem lança uma
-   * coluna de números sem parar entre eles acerta essa janela: a tecla chega
-   * enquanto o grid ainda aponta para a célula anterior, e ou vira sufixo dela
-   * ou não vira nada. Medido: com 50 ms entre o Enter e a tecla seguinte,
-   * `1200` abaixo de `980` virava `200`. Perda silenciosa, que só aparece
-   * quando a soma não bate no fim do mês.
-   *
-   * Então a tecla é guardada e devolvida quando o foco chega. O `beforekeydown`
-   * é o evento que a própria biblioteca oferece para isso — "use this event to
-   * check if it wasn't processed by internal logic".
-   */
-  /** Teclas digitadas durante a janela, ainda sem dono. */
-  const typedWhileMoving = useRef<string[]>([])
-  /**
-   * A última tecla já guardada.
-   *
-   * O grid tem uma sobreposição de seleção por seção do viewport — dados,
-   * coluna congelada, linha congelada — e **cada uma** emite o seu
-   * `beforekeydown` para a mesma tecla. Sem isto, um `1` seria guardado nove
-   * vezes e devolvido nove vezes.
-   */
-  const lastHeld = useRef<KeyboardEvent | null>(null)
-  const moving = useRef(false)
-  const movingTimer = useRef<number | null>(null)
-
-  /**
-   * Abre a janela de transição.
-   *
-   * O relógio é a saída para o commit que não move o foco — confirmar clicando
-   * noutra célula, por exemplo. Sem ele, o que fosse digitado depois ficaria
-   * guardado para sempre.
-   */
-  const startMoving = useCallback(() => {
-    moving.current = true
-    if (movingTimer.current !== null) window.clearTimeout(movingTimer.current)
-    movingTimer.current = window.setTimeout(() => {
-      moving.current = false
-      movingTimer.current = null
-      replayTypedRef.current()
-    }, 250)
+    return writeText(sheet, row, column, typeof raw === 'string' ? raw : String(raw ?? ''))
   }, [])
-
-  const stopMoving = useCallback(() => {
-    moving.current = false
-    if (movingTimer.current !== null) {
-      window.clearTimeout(movingTimer.current)
-      movingTimer.current = null
-    }
-  }, [])
-
-  /**
-   * Devolve as teclas guardadas pelo caminho normal do grid.
-   *
-   * Reemitir `keydown` em vez de escrever na célula é o que mantém uma única
-   * definição de "digitar por cima de uma célula" — inclusive o `pending edit`
-   * dele, que já cuida das teclas que chegam antes de o editor montar. Uma
-   * segunda definição nossa divergiria da dele na primeira atualização.
-   */
-  const replayTyped = useCallback(() => {
-    const typed = typedWhileMoving.current
-    typedWhileMoving.current = []
-    if (readOnly) return
-
-    for (const key of typed) {
-      document.dispatchEvent(
-        new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, composed: true }),
-      )
-    }
-  }, [readOnly])
-
-  // Indireção para `startMoving` não depender da identidade de `replayTyped`:
-  // trocar o temporizador a cada renderização o reiniciaria no meio da janela.
-  const replayTypedRef = useRef(replayTyped)
-  replayTypedRef.current = replayTyped
-
-  useEffect(() => {
-    /**
-     * A janela abre já no Enter, e não só quando a gravação volta.
-     *
-     * Entre uma coisa e outra cabe uma tecla — quem digita rápido a perde. O
-     * `.edit-input-wrapper` é como a própria biblioteca reconhece o editor de
-     * célula (`isEditInput`), então isto só dispara ao confirmar uma edição,
-     * nunca ao apertar Enter numa célula parada.
-     */
-    const commit = (event: KeyboardEvent): void => {
-      if (readOnly || !event.isTrusted) return
-      if (event.key !== 'Enter' && event.key !== 'Tab') return
-      if (!(event.target instanceof HTMLElement)) return
-      if (event.target.closest('.edit-input-wrapper') === null) return
-      startMoving()
-    }
-
-    // No `document` porque o `beforekeydown` sobe até lá — e é lá que o próprio
-    // grid escuta o `keydown`. Ele emite o aviso e checa a resposta na mesma
-    // pilha, então prevenir aqui chega a tempo.
-    const hold = (event: Event): void => {
-      if (!moving.current || readOnly) return
-
-      const original = (event as CustomEvent<{ original: KeyboardEvent }>).detail.original
-      // A tecla devolvida não pode ser guardada de novo: seria um laço.
-      if (!original.isTrusted) return
-      if (original === lastHeld.current) {
-        // Já guardada por outra sobreposição: só falta impedir esta de tratá-la.
-        event.preventDefault()
-        return
-      }
-      if (original.ctrlKey || original.metaKey || original.altKey) return
-      // Só caractere digitável: seta, Enter e Escape continuam do grid, senão
-      // ninguém mais navegaria durante a janela.
-      if (original.key.length !== 1) return
-
-      // Sem isto o grid trataria a tecla apontando para a célula anterior, que
-      // é a outra metade do defeito — o `1200` que vira `9801200`.
-      event.preventDefault()
-      original.preventDefault()
-      lastHeld.current = original
-      typedWhileMoving.current.push(original.key)
-    }
-
-    document.addEventListener('keydown', commit, true)
-    document.addEventListener('beforekeydown', hold)
-    return () => {
-      document.removeEventListener('keydown', commit, true)
-      document.removeEventListener('beforekeydown', hold)
-    }
-  }, [readOnly, startMoving])
 
   /**
    * O evento cobre **dois** casos: uma célula editada e um intervalo colado. O
@@ -371,9 +172,9 @@ export function SpreadsheetEditor({
 
       // Colar e confirmar com o mouse não passam pelo Enter: a janela também
       // abre aqui, e fecha quando o foco chega na célula seguinte.
-      startMoving()
+      typeAhead.begin()
     },
-    [applyChange, startMoving, writeAt],
+    [applyChange, typeAhead, writeAt],
   )
 
   /**
@@ -409,11 +210,10 @@ export function SpreadsheetEditor({
       const { rowIndex, colIndex } = event.detail
       if (!Number.isInteger(rowIndex) || !Number.isInteger(colIndex)) return
 
-      stopMoving()
       setRange(singleCell(rowIndex, colIndex))
-      replayTyped()
+      typeAhead.settle()
     },
-    [replayTyped, stopMoving],
+    [typeAhead],
   )
 
   const handleRange = useCallback((event: RevoGridCustomEvent<ChangedRange>) => {
@@ -456,17 +256,10 @@ export function SpreadsheetEditor({
   const handleContextMenu = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
     event.preventDefault()
 
-    // `composedPath()[0]` e não `event.target`: o grid é um web component, e se
-    // um dia ele passar a usar shadow DOM o alvo chegaria aqui já reescrito
-    // como o elemento hospedeiro, sem posição nenhuma.
-    const deepest = event.nativeEvent.composedPath()[0]
-    const target = deepest instanceof Element ? deepest : null
-    const row = attributeOf(target, 'data-rgrow')
-    const column = attributeOf(target, 'data-rgcol')
-
     // Cabeçalho de coluna e área vazia não trazem posição: aí vale a seleção.
-    if (row !== null && column !== null && !contains(selection.current, row, column)) {
-      setRange(singleCell(row, column))
+    const position = gridPositionOf(event.nativeEvent)
+    if (position !== null && !rangeContains(selection.current, position.row, position.column)) {
+      setRange(singleCell(position.row, position.column))
     }
 
     setMenu({ x: event.clientX, y: event.clientY })
@@ -474,31 +267,7 @@ export function SpreadsheetEditor({
 
   const closeMenu = useCallback(() => setMenu(null), [])
 
-  /**
-   * Ctrl+B, Ctrl+I e Ctrl+U.
-   *
-   * No documento é o TipTap que trata; aqui não há editor de texto, então o
-   * atalho é nosso. Fica no `document` porque o foco vive dentro do grid, que
-   * é um web component — o evento nem sempre sobe até um `onKeyDown` do React.
-   */
-  useEffect(() => {
-    const shortcut = (event: KeyboardEvent): void => {
-      if (!(event.ctrlKey || event.metaKey) || event.altKey) return
-
-      // Digitando na barra de fórmulas ou no editor da célula, o atalho é do
-      // campo de texto: formatar a célula por baixo seria o oposto do esperado.
-      if (event.target instanceof HTMLElement && event.target.closest('input, textarea') !== null) return
-
-      const key = SHORTCUTS[event.key.toLowerCase()]
-      if (key === undefined) return
-
-      event.preventDefault()
-      applyChange(toggleStyle(current.current, selection.current, key))
-    }
-
-    document.addEventListener('keydown', shortcut)
-    return () => document.removeEventListener('keydown', shortcut)
-  }, [applyChange])
+  useFormatShortcuts((key) => applyChange(toggleStyle(current.current, selection.current, key)))
 
   return (
     <div className="sheet" onContextMenu={handleContextMenu}>
@@ -507,7 +276,7 @@ export function SpreadsheetEditor({
       <FormulaBar
         sheet={sheet}
         range={range}
-        onCommit={(text) => applyChange(write(current.current, range.fromRow, range.fromColumn, text))}
+        onCommit={(text) => applyChange(writeText(current.current, range.fromRow, range.fromColumn, text))}
       />
 
       {menu !== null && (
