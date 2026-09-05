@@ -47,7 +47,7 @@ export function FloatingLayer({
    * apanhava o clique destinado à caixa do cabeçalho. Como a faixa mora na
    * margem e o corpo não entra ali, subi-la não esconde nada.
    */
-  variant?: 'body' | 'band' 
+  variant?: 'body' | 'band'
   onEdit?: ((source: FloatSource, content: DocumentNode[]) => void) | undefined
   /**
    * O texto de uma caixa da faixa mudou.

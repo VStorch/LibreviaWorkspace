@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { linesOf, type BandPiece } from './model.js'
+import { linesOf, type BandPiece } from './band.js'
 
 /**
  * Cada parágrafo do cabeçalho ou do rodapé é uma linha.

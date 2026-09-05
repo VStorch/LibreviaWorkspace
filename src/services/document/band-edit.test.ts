@@ -1,12 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import {
-  DEFAULT_PAGE_SETUP,
-  editBandFloat,
-  editBandPiece,
-  type Band,
-  type BandPiece,
-  type PageSetup,
-} from './model.js'
+import { DEFAULT_PAGE_SETUP, type PageSetup } from './model.js'
+import { editBandFloat, editBandPiece, type Band, type BandPiece } from './band.js'
 import type { FloatingObject } from './floating.js'
 
 /**
@@ -38,10 +32,9 @@ describe('editBandPiece', () => {
   it('troca o texto da peça daquele endereço', () => {
     const page = setup({ headerBand: band(piece('Chamado 10001', 'rId5:0:0'), piece('Título', 'rId5:1:0')) })
 
-    expect(editBandPiece(page, 'rId5:1:0', 'Outro título').headerBand?.left.map((item) => item.text)).toEqual([
-      'Chamado 10001',
-      'Outro título',
-    ])
+    expect(editBandPiece(page, 'rId5:1:0', 'Outro título').headerBand?.left.map((item) => item.text)).toEqual(
+      ['Chamado 10001', 'Outro título'],
+    )
   })
 
   it('alcança a peça esteja ela onde estiver na faixa', () => {
@@ -50,7 +43,9 @@ describe('editBandPiece', () => {
     const page = setup({
       firstFooterBand: {
         ...band(),
-        rows: [{ cells: [{ pieces: [piece('Mês/ANO', 'rId7:2:0')], width: 1, span: 1, rowSpan: 1, borders: '' }] }],
+        rows: [
+          { cells: [{ pieces: [piece('Mês/ANO', 'rId7:2:0')], width: 1, span: 1, rowSpan: 1, borders: '' }] },
+        ],
       },
     })
 

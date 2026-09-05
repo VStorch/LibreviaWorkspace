@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { linesOf, type Band, type BandCell, type BandPiece } from '@services/document/model.js'
+import { linesOf, type Band, type BandCell, type BandPiece } from '@services/document/band.js'
 
 /**
  * Cabeçalho ou rodapé do documento importado, desenhado na margem.

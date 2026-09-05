@@ -3,13 +3,12 @@ import { EditorContent, useEditor } from '@tiptap/react'
 import { DOCUMENT_CONTENT_CSS, EDITOR_ONLY_CSS } from '@services/document/content-styles.js'
 import {
   contentInsetsMm,
-  editBandFloat,
-  editBandPiece,
   mmToPx,
   pageDimensionsMm,
   pxToMm,
   type DocumentNode,
 } from '@services/document/model.js'
+import { editBandFloat, editBandPiece } from '@services/document/band.js'
 import { floatsOf } from '@services/document/floating.js'
 import { useWorkspace } from '../state/workspace.js'
 import { DocumentToolbar } from './toolbar/DocumentToolbar.js'

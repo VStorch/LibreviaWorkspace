@@ -5,11 +5,10 @@ import {
   contentHeightMm,
   contentInsetsMm,
   mmToPx,
-  NO_BANDS,
   pageDimensionsMm,
-  type BandHeights,
   type PageSetup,
 } from '@services/document/model.js'
+import { NO_BANDS, type BandHeights } from '@services/document/band.js'
 import { applyPageGaps } from './extensions/pagination.js'
 
 /** Espaço entre uma folha e a seguinte, como numa pilha de papel. */

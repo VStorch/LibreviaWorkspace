@@ -1,4 +1,5 @@
-import { bandForPage, pageDimensionsMm, type DocumentNode, type PageSetup } from './model.js'
+import { pageDimensionsMm, type DocumentNode, type PageSetup } from './model.js'
+import { bandForPage } from './band.js'
 
 /**
  * Um objeto que não está no fluxo do texto.

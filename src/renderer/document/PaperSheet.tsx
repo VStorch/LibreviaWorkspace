@@ -1,13 +1,6 @@
 import type { Schema } from '@tiptap/pm/model'
-import {
-  bandForPage,
-  bandInsetMm,
-  hasBandContent,
-  mmToPx,
-  pageDimensionsMm,
-  type DocumentNode,
-  type PageSetup,
-} from '@services/document/model.js'
+import { mmToPx, pageDimensionsMm, type DocumentNode, type PageSetup } from '@services/document/model.js'
+import { bandForPage, bandInsetMm, hasBandContent } from '@services/document/band.js'
 import { bandFloatsOf } from '@services/document/floating.js'
 import { FloatingLayer, type FloatSource, type PlacedFloat } from './FloatingLayer.js'
 import { PageBand } from './PageBand.js'

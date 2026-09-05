@@ -1,16 +1,14 @@
+import { contentInsetsMm, pageDimensionsMm, type PageSetup } from './model.js'
 import {
   bandForPage,
   bandInsetMm,
-  contentInsetsMm,
   hasBandContent,
   linesOf,
-  pageDimensionsMm,
   type Band,
   type BandCell,
   type BandHeights,
   type BandPiece,
-  type PageSetup,
-} from './model.js'
+} from './band.js'
 import { frameOf, placeFloating, type FloatingObject } from './floating.js'
 
 /**
@@ -206,9 +204,10 @@ function renderFloats(floats: readonly PrintFloat[], page: PageSetup, behind: bo
       // o giro acontece depois.
       (box.rotation === 0 ? '' : `transform:rotate(${box.rotation}deg);`) +
       // A mesma moldura da tela, pela mesma função: duas regras iguais escritas
-      // em dois lugares é como os dois desenhos divergem.
+      // em dois lugares é como os dois desenhos divergem. As chaves já são os
+      // nomes das propriedades de CSS — `background` e `border`.
       Object.entries(frameOf(item.object))
-        .map(([nome, valor]) => `${nome === 'background' ? 'background' : 'border'}:${valor};`)
+        .map(([property, value]) => `${property}:${value};`)
         .join('')
 
     if (item.object.kind === 'image') {

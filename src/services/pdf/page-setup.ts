@@ -1,11 +1,5 @@
-import {
-  PageOrientation,
-  PageSize,
-  hasBandContent,
-  type Band,
-  type BandPiece,
-  type PageSetup,
-} from '@services/document/model.js'
+import { PageOrientation, PageSize, type PageSetup } from '@services/document/model.js'
+import { hasBandContent, type Band, type BandPiece } from '@services/document/band.js'
 
 /**
  * Tradução da configuração de página para as opções do `printToPDF`.

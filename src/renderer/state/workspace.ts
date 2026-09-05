@@ -7,7 +7,7 @@ import { createPrintActions } from './print-actions.js'
 import { createSheetActions } from './sheet-actions.js'
 import type { WorkspaceState } from './types.js'
 
-export type { DocumentSource, OpenFile, WorkspaceState } from './types.js'
+export type { DocumentSource, WorkspaceState } from './types.js'
 
 /**
  * O estado do que está aberto na janela.

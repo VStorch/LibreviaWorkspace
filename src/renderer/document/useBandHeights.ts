@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { pxToMm, type BandHeights, type PageSetup } from '@services/document/model.js'
+import { pxToMm, type PageSetup } from '@services/document/model.js'
+import { type BandHeights } from '@services/document/band.js'
 
 /**
  * A altura desenhada do cabeçalho e do rodapé.

@@ -1,4 +1,3 @@
-import type { FloatingObject } from './floating.js'
 /**
  * Modelo canônico do documento.
  *
@@ -7,6 +6,8 @@ import type { FloatingObject } from './floating.js'
  * Fase 4 vai mapear DOCX para estas duas partes, e a Fase 3 vai gerar o PDF a
  * partir delas.
  */
+
+import { NO_BANDS, type Band, type BandHeights } from './band.js'
 
 export const PageSize = {
   A4: 'A4',
@@ -26,104 +27,6 @@ export interface Margins {
   readonly right: number
   readonly bottom: number
   readonly left: number
-}
-
-/** Um pedaço de cabeçalho vindo do documento: texto, imagem ou campo. */
-export interface BandPiece {
-  readonly kind: 'text' | 'image' | 'pageNumber' | 'totalPages'
-  // `| undefined` explícito por causa de `exactOptionalPropertyTypes`: este
-  // tipo precisa ser atribuível ao que o zod infere no schema compartilhado.
-  readonly text?: string | undefined
-  readonly src?: string | undefined
-  readonly width?: number | undefined
-  readonly height?: number | undefined
-  readonly bold: boolean
-  readonly italic: boolean
-  readonly color?: string | undefined
-  readonly fontSize?: string | undefined
-  /** Pilha de CSS, como o leitor a resolveu. */
-  readonly fontFamily?: string | undefined
-  /**
-   * A peça abre linha nova.
-   *
-   * Cabeçalho e rodapé são feitos de parágrafos, e um parágrafo é uma linha.
-   * Sem isto o rodapé de três linhas do modelo de manual saía como uma frase
-   * só, emendada na largura da folha.
-   */
-  readonly line?: boolean | undefined
-  /**
-   * Onde esta peça mora no arquivo: a relação, o parágrafo e a peça nele.
-   *
-   * É o que torna a faixa editável sem deixar de ser cirúrgica — a gravação
-   * escreve no `w:t` desta peça e não olha para o resto do cabeçalho, que ela
-   * não saberia gerar de novo. Peça sem endereço não é editável: número de
-   * página, imagem e tabulação não têm texto próprio no arquivo onde escrever.
-   */
-  readonly pid?: string | undefined
-}
-
-/**
- * As peças agrupadas em linhas, quebrando onde o arquivo abre parágrafo.
- *
- * Compartilhada entre a tela e o papel de propósito: dois agrupamentos
- * parecidos escritos em dois arquivos é como os dois desenhos divergem.
- */
-export function linesOf(pieces: readonly BandPiece[]): BandPiece[][] {
-  const lines: BandPiece[][] = []
-  for (const piece of pieces) {
-    if (piece.line === true || lines.length === 0) lines.push([])
-    lines[lines.length - 1]!.push(piece)
-  }
-
-  return lines
-}
-
-/**
- * Cabeçalho ou rodapé preservado de um documento do Word.
- *
- * Três colunas e um filete opcional. O texto das peças que trazem endereço é
- * editável, e volta para o `w:t` de onde veio; todo o resto da parte OOXML
- * volta intacto. Ver docs/02-docx-cirurgico.md.
- */
-export interface Band {
-  readonly left: BandPiece[]
-  readonly center: BandPiece[]
-  readonly right: BandPiece[]
-  readonly rule: boolean
-  /**
-   * Objetos ancorados da faixa.
-   *
-   * O que não cabe em três colunas: desenho com posição de verdade, que pode vir
-   * girado. A marca lateral do corpus é uma faixa de 28,6 mm **em pé** — não
-   * entra numa banda de 10 mm de altura, e achatá-la ali a desenhava deitada.
-   */
-  readonly floats: FloatingObject[]
-  /**
-   * A grade, quando o cabeçalho é uma tabela.
-   *
-   * A outra metade do cabeçalho corporativo, e a que não cabe em três colunas:
-   * logotipo numa célula mesclada por quatro linhas, título ao lado, numeração
-   * à direita. Espalhada por esquerda, centro e direita ela virava uma sopa de
-   * palavras que ainda por cima transbordava sobre o texto.
-   */
-  readonly rows: BandRow[]
-}
-
-/** Uma linha da grade do cabeçalho. */
-export interface BandRow {
-  readonly cells: BandCell[]
-}
-
-/** Uma célula da grade: o que está escrito nela e o retângulo que ela ocupa. */
-export interface BandCell {
-  readonly pieces: BandPiece[]
-  /** Fração da largura da grade, de 0 a 1. */
-  readonly width: number
-  readonly span: number
-  readonly rowSpan: number
-  readonly align?: string | undefined
-  /** Iniciais dos lados com risco: `t`, `l`, `b`, `r`. */
-  readonly borders: string
 }
 
 export interface PageSetup {
@@ -164,119 +67,6 @@ export interface PageSetup {
    */
   readonly headerDistanceMm: number
   readonly footerDistanceMm: number
-}
-
-/**
- * Qual faixa desenhar nesta página.
- *
- * A ordem é a do Word: a capa manda sobre a paridade, e a paridade sobre o
- * padrão. Faixa ausente cai no padrão, e não em nada — um documento que declara
- * primeira página distinta mas deixa a faixa vazia quer a folha limpa, e é o
- * `hasBandContent` de quem desenha que decide isso.
- */
-export function bandForPage(page: PageSetup, pageNumber: number, kind: 'header' | 'footer'): Band | null {
-  const first = kind === 'header' ? page.firstHeaderBand : page.firstFooterBand
-  const even = kind === 'header' ? page.evenHeaderBand : page.evenFooterBand
-  const fallback = kind === 'header' ? page.headerBand : page.footerBand
-
-  if (pageNumber === 1 && first !== null) return first
-  if (pageNumber % 2 === 0 && even !== null) return even
-  return fallback
-}
-
-/**
- * O texto de uma peça da faixa, trocado onde quer que ela esteja.
- *
- * O mesmo cabeçalho é desenhado em todas as folhas, mas no arquivo ele é um só:
- * o endereço é único, e trocá-lo aqui atualiza todas as folhas de uma vez — que
- * é como o Word se comporta quando se edita um cabeçalho.
- *
- * Devolve a mesma configuração quando não há o que trocar, para não sujar o
- * documento por um clique que não mudou nada.
- */
-export function editBandPiece(page: PageSetup, pid: string, text: string): PageSetup {
-  let changed = false
-
-  const inPieces = (pieces: BandPiece[]): BandPiece[] =>
-    pieces.map((piece) => {
-      if (piece.pid !== pid || piece.text === text) return piece
-      changed = true
-      return { ...piece, text }
-    })
-
-  const inBand = (band: Band | null): Band | null =>
-    band === null
-      ? null
-      : {
-          ...band,
-          left: inPieces(band.left),
-          center: inPieces(band.center),
-          right: inPieces(band.right),
-          rows: band.rows.map((row) => ({
-            cells: row.cells.map((cell) => ({ ...cell, pieces: inPieces(cell.pieces) })),
-          })),
-        }
-
-  const updated: PageSetup = {
-    ...page,
-    headerBand: inBand(page.headerBand),
-    footerBand: inBand(page.footerBand),
-    firstHeaderBand: inBand(page.firstHeaderBand),
-    firstFooterBand: inBand(page.firstFooterBand),
-    evenHeaderBand: inBand(page.evenHeaderBand),
-    evenFooterBand: inBand(page.evenFooterBand),
-  }
-
-  return changed ? updated : page
-}
-
-/**
- * O conteúdo de uma caixa da faixa, trocado onde quer que ela esteja.
- *
- * O cabeçalho corporativo não é feito de parágrafos soltos: é um grupo de
- * formas, e o título mora dentro de uma caixa. Ela vem inteira, porque digitar
- * dentro dela abre e fecha parágrafos — endereçar parágrafo a parágrafo
- * quebraria no primeiro Enter.
- */
-export function editBandFloat(page: PageSetup, bid: string, content: DocumentNode[]): PageSetup {
-  let changed = false
-
-  const inBand = (band: Band | null): Band | null => {
-    if (band === null) return null
-
-    const floats = band.floats.map((object) => {
-      if (object.bid !== bid) return object
-      if (JSON.stringify(object.content ?? []) === JSON.stringify(content)) return object
-      changed = true
-      return { ...object, content }
-    })
-
-    return { ...band, floats }
-  }
-
-  const updated: PageSetup = {
-    ...page,
-    headerBand: inBand(page.headerBand),
-    footerBand: inBand(page.footerBand),
-    firstHeaderBand: inBand(page.firstHeaderBand),
-    firstFooterBand: inBand(page.firstFooterBand),
-    evenHeaderBand: inBand(page.evenHeaderBand),
-    evenFooterBand: inBand(page.evenFooterBand),
-  }
-
-  return changed ? updated : page
-}
-
-/** Há algo a desenhar nesta faixa? */
-export function hasBandContent(band: Band | null): band is Band {
-  return (
-    band !== null &&
-    (band.left.length > 0 ||
-      band.center.length > 0 ||
-      band.right.length > 0 ||
-      band.rows.length > 0 ||
-      band.rule)
-  )
 }
 
 /**
@@ -352,20 +142,6 @@ export function contentHeightMm(page: PageSetup, bands: BandHeights = NO_BANDS):
 }
 
 /**
- * Altura desenhada de cada faixa, medida na folha.
- *
- * É a única parte desta conta que nenhum arquivo diz: um cabeçalho de três
- * linhas ocupa o que a fonte e a quebra derem, e isso só existe depois de
- * desenhar.
- */
-export interface BandHeights {
-  readonly headerMm: number
-  readonly footerMm: number
-}
-
-export const NO_BANDS: BandHeights = { headerMm: 0, footerMm: 0 }
-
-/**
  * Onde a coluna de texto começa e termina na folha.
  *
  * A margem é um piso, não uma posição. Quando o cabeçalho é mais alto do que a
@@ -379,18 +155,6 @@ export function contentInsetsMm(page: PageSetup, bands: BandHeights): { top: num
     top: Math.max(page.margins.top, page.headerDistanceMm + bands.headerMm),
     bottom: Math.max(page.margins.bottom, page.footerDistanceMm + bands.footerMm),
   }
-}
-
-/**
- * Onde a faixa do cabeçalho e a do rodapé começam, medindo da borda da folha.
- *
- * Metade da margem: a faixa é mais larga que a coluna de texto, como o
- * documento corporativo a desenha — usar a margem do texto encolheria o
- * logotipo. Tela e papel leem daqui, e não cada um da sua conta: duas contas
- * iguais escritas em dois lugares é como os dois desenhos divergem.
- */
-export function bandInsetMm(page: PageSetup): number {
-  return Math.min(page.margins.left, page.margins.right) / 2
 }
 
 /** Conversão CSS: 1 polegada = 96 px = 25,4 mm. */
