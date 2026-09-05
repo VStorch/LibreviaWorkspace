@@ -1,6 +1,7 @@
 /// <reference lib="dom" />
 // O corpo de `evaluate` roda no renderer, mas é compilado no escopo do Node.
 
+import { existsSync } from 'node:fs'
 import { expect, test } from '@playwright/test'
 import { launch, menu, stubDialogs, type Session } from './app.js'
 
@@ -15,11 +16,22 @@ import { launch, menu, stubDialogs, type Session } from './app.js'
  * O documento é o modelo de manual do corpus, que traz os três casos numa folha
  * só: duas caixas de texto posicionadas, uma imagem girada um quarto de volta e
  * um objeto atrás do texto.
+ *
+ * O corpus não entra no repositório — são documentos de um cliente real, com
+ * capturas de sistemas internos —, e nem o nome dos arquivos: quem os tem
+ * aponta `LIBREVIA_CORPUS_DOC` para o documento. Sem a variável, no CI e em
+ * qualquer outra máquina, estes testes são pulados em vez de reprovarem por um
+ * arquivo que não existe.
  */
-const MODELO = '/home/usuario/corpus/modelo-de-manual.docx'
+const MODELO = process.env['LIBREVIA_CORPUS_DOC'] ?? ''
 
 test.describe('objetos ancorados', () => {
   let session: Session
+
+  test.skip(
+    MODELO === '' || !existsSync(MODELO),
+    'requer LIBREVIA_CORPUS_DOC apontando para o documento do corpus',
+  )
 
   test.beforeEach(async () => {
     session = await launch()
