@@ -139,6 +139,13 @@ ${DOCUMENT_FONT_CSS}
   captura 2% estreita, e os dois erros escondiam este. Com eles corrigidos, três
   dos quatro documentos de evidências passam a cortar nas mesmas folhas.
 
+  Dentro do parágrafo, e não como margin-bottom. A margem parece mais natural e
+  chega a consertar uma folha do documento de quinze — no LibreOffice esta linha
+  pode passar para a folha seguinte enquanto o quadro fica, e a margem imita isso
+  porque não conta no pé da folha. Mas medido nos quatro documentos ela custa
+  caro: 5/5, 5/5 e 5/5 folhas iguais caem para 3/5, 1/5 e 0/5. Dentro do
+  parágrafo a linha conta sempre, e é o que mais se parece com o resultado.
+
   Crase nenhuma aqui dentro: isto mora num template literal.
 */
 .page__content p:has(> img[data-anchored])::after {
