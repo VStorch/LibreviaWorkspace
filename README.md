@@ -18,24 +18,33 @@ incomum: salvar um `.docx` ou um `.xlsx` **não custa o que você não editou**.
 
 ## 🔗 Links
 
-- 📖 **[Manual de uso](MANUAL.md)** — para quem *usa* o aplicativo. Este README é para quem mexe no código.
-- ⚙️ **[Pipeline de CI](https://github.com/VStorch/LibreviaWorkspace/actions/workflows/ci.yml)** — tipos, lint, testes e instaladores nos dois sistemas.
+- **[Manual de uso](MANUAL.md)** — para quem usa o aplicativo. Este README é para quem
+  mexe no código.
+- **[Pipeline de CI](https://github.com/VStorch/LibreviaWorkspace/actions/workflows/ci.yml)** —
+  tipos, lint, testes e instaladores nos dois sistemas.
 
 ---
 
 ## 📑 Índice
 
-| | |
-| --- | --- |
-| [📌 O que já funciona](#o-que-já-funciona) | [🧱 Arquitetura](#arquitetura) |
-| [📄 Formatos](#formatos) | [🔌 Por que há .NET num projeto Electron](#por-que-há-net-num-projeto-electron) |
-| [🚀 Tecnologias](#tecnologias) | [🖨️ PDF e impressão](#pdf-e-impressão) |
-| [🔬 Salvar não custa o que você não editou](#salvar-não-custa-o-que-você-não-editou) | [💾 Recuperação depois de uma queda](#recuperação-depois-de-uma-queda) |
-| [🧮 Fórmulas em português](#fórmulas-em-português) | [⚡ Desempenho, medido](#desempenho-medido) |
-| [▶️ Rodando localmente](#rodando-localmente) | [🧪 Testes](#testes) |
-| [🔄 CI/CD](#cicd) | [📦 Empacotamento](#empacotamento) |
-| [🛡️ Portões de qualidade](#portões-de-qualidade) | [🗺️ Limites conhecidos](#limites-conhecidos) |
-| [🤝 Contribuindo](#contribuindo) | [📜 Licença](#licença) |
+- [O que já funciona](#o-que-já-funciona)
+- [Formatos](#formatos)
+- [Tecnologias](#tecnologias)
+- [Salvar não custa o que você não editou](#salvar-não-custa-o-que-você-não-editou)
+- [Fórmulas em português](#fórmulas-em-português)
+- [Arquitetura](#arquitetura)
+- [Por que há .NET num projeto Electron](#por-que-há-net-num-projeto-electron)
+- [PDF e impressão](#pdf-e-impressão)
+- [Recuperação depois de uma queda](#recuperação-depois-de-uma-queda)
+- [Desempenho, medido](#desempenho-medido)
+- [Rodando localmente](#rodando-localmente)
+- [Testes](#testes)
+- [CI/CD](#cicd)
+- [Empacotamento](#empacotamento)
+- [Portões de qualidade](#portões-de-qualidade)
+- [Limites conhecidos](#limites-conhecidos)
+- [Contribuindo](#contribuindo)
+- [Licença](#licença)
 
 ---
 
@@ -73,8 +82,6 @@ incomum: salvar um `.docx` ou um `.xlsx` **não custa o que você não editou**.
 <details>
 <summary><b>Por que ODT e ODS estão fora do escopo</b></summary>
 
-<br>
-
 Não existe biblioteca madura e de licença permissiva em nenhum ecossistema — no .NET tudo
 que presta é comercial, e no npm a opção viável tem seis meses de vida e um mantenedor.
 
@@ -107,10 +114,13 @@ Office quanto do LibreOffice, e o LibreOffice grava nos dois formatos pelo "Salv
 
 ## 🔬 Salvar não custa o que você não editou
 
-Este é o motivo do projeto existir. Um editor comum **regenera** o pacote OOXML a cada
-salvamento, e nisso apaga em silêncio comentários, revisões, notas e formas — tudo que o
-importador não entendeu. Aqui a gravação é **cirúrgica**: cada bloco que você não tocou volta
-para o arquivo exatamente como estava.
+É o motivo de o projeto existir.
+
+Um editor comum **regenera** o pacote OOXML a cada salvamento, e nisso apaga em silêncio
+comentários, revisões, notas e formas — tudo que o importador não entendeu.
+
+Aqui a gravação é **cirúrgica**: o bloco que você não tocou volta para o arquivo exatamente
+como estava.
 
 ```mermaid
 graph LR
@@ -149,8 +159,6 @@ usuário aprende a fechar sem ler.
 <details>
 <summary><b>Por que o somente leitura é padrão, e por que não é cadeado</b></summary>
 
-<br>
-
 Perda de **aparência** — posicionamento de imagem, decoração — não trava nada: quase todo
 documento corporativo tem uma imagem ancorada, e travar por causa disso travaria o uso do
 dia a dia. O usuário aprenderia a liberar sem ler, e aí a proteção deixaria de proteger.
@@ -168,17 +176,16 @@ a abrir editável sem ninguém perceber. Sendo constantes, o compilador não dei
 <details>
 <summary><b>No XLSX o risco não é o pacote, é a célula</b></summary>
 
-<br>
-
 O arquivo diz `SUM(A1,B1)`; a tela diz `SOMA(A1;B1)`. A tradução acontece num lugar só — a
 fronteira entre o processo main e o serviço de formato — e é feita **caractere a caractere**,
 não reconstruindo a fórmula a partir da árvore sintática.
 
-O motivo é medido, não estético. A gravação é cirúrgica também aqui: ela relê o arquivo
-original, compara célula a célula e só toca no que mudou. Reconstruir a fórmula normalizaria
-espaços e maiúsculas, toda célula pareceria diferente, e abrir e salvar sem editar
-reescreveria a planilha inteira — apagando fonte, alinhamento vertical, recuo e bordas
-diagonais, tudo que o modelo não representa.
+O motivo é medido, não estético. A gravação é cirúrgica também aqui: relê o arquivo
+original, compara célula a célula e só toca no que mudou.
+
+Reconstruir a fórmula normalizaria espaços e maiúsculas. Toda célula pareceria diferente, e
+abrir e salvar sem editar reescreveria a planilha inteira — apagando fonte, alinhamento
+vertical, recuo e bordas diagonais, tudo que o modelo não representa.
 
 A diferença para o DOCX vem de uma medição: a biblioteca de planilha **preserva as partes do
 pacote que não modela** — uma parte de XML injetada à mão sobrevive à ida e volta, e gráficos
@@ -198,23 +205,21 @@ e tabelas dinâmicas sobrevivem pelo mesmo mecanismo. O que ela regenera é a pl
 =PROCV("Ana";A1:C50;3;FALSO)
 ```
 
-**Vírgula é decimal, ponto e vírgula separa argumentos** — as duas regras do Excel em
-português, e elas andam juntas: com a vírgula ocupada pelo decimal, ela não pode separar
-nada. Quem escreve `SOMA(A1,B1)` recebe a frase dizendo qual é o separador, e não um erro
-genérico.
+**Vírgula é decimal, ponto e vírgula separa argumentos.** São as duas regras do Excel em
+português, e elas andam juntas: com a vírgula ocupada pelo decimal, ela não pode separar nada.
 
-| | |
-| --- | --- |
-| **52 funções** | contas, estatística, lógica, texto, procura e data — [lista completa no manual](MANUAL.md#funções-disponíveis) |
-| **Dois idiomas** | `SOMA` e `SUM` são a mesma função, assim como `SE`/`IF` e `PROCV`/`VLOOKUP` |
-| **Erro é valor** | `=A1/0` produz `#DIV/0!`, que se propaga — como no Excel, e ao contrário de derrubar o recálculo inteiro |
-| **Estrutura acompanha** | inserir linha reescreve as referências, inclusive as de outras abas; renomear aba conserta as fórmulas que a citam |
-| **A alça leva a fórmula** | `=B2*C2` arrastada para baixo vira `=B3*C3`, e a referência com `$` fica onde está |
+Quem escreve `SOMA(A1,B1)` recebe a frase dizendo qual é o separador, e não um erro genérico.
+
+- **52 funções**, em seis grupos — [lista completa no manual](MANUAL.md#funções-disponíveis).
+- **Dois idiomas:** `SOMA` e `SUM` são a mesma função, assim como `SE`/`IF` e `PROCV`/`VLOOKUP`.
+- **Erro é valor:** `=A1/0` produz `#DIV/0!`, que se propaga — em vez de derrubar o recálculo.
+- **A estrutura acompanha:** inserir linha reescreve as referências, inclusive as de outras
+  abas. Renomear uma aba conserta as fórmulas que a citam.
+- **A alça leva a fórmula:** `=B2*C2` arrastada para baixo vira `=B3*C3`, e a referência com
+  `$` fica onde está.
 
 <details>
 <summary><b>Comportamentos do Excel reproduzidos de propósito</b></summary>
-
-<br>
 
 Cada um com o motivo escrito onde ele está, no código:
 
@@ -271,7 +276,7 @@ graph LR
 | `src/shared/` | contratos de IPC, tipos e erros usados pelas três camadas |
 | `sidecar/` | serviço de formato em .NET, com os próprios testes |
 
-### 🔒 Duas travas de segurança no processo main
+### Duas travas de segurança no processo main
 
 Valem mesmo se o renderer for comprometido por um documento malicioso:
 
@@ -283,7 +288,7 @@ Qualquer outro caminho é recusado com `PATH_NOT_AUTHORIZED`, sem chegar ao disc
 
 <a id="duas-regras-que-o-linter-faz-cumprir"></a>
 
-### 📏 Duas regras que o linter faz cumprir
+### Duas regras que o linter faz cumprir
 
 1. **`src/services/` e `src/shared/` não importam `electron`, `react` nem APIs do Node.**
    São camadas puras: rodam nos dois lados e são testáveis sem Electron rodando.
@@ -313,8 +318,6 @@ O protocolo é um **quadro binário**, e não uma linha de texto: um DOCX é um 
 
 <details>
 <summary><b>O que acontece quando o sidecar morre</b></summary>
-
-<br>
 
 O documento aberto **não morre junto**: a operação em curso falha com uma frase
 compreensível, e o próximo pedido sobe um processo novo. Ele encerra ao perder o stdin,
@@ -381,8 +384,6 @@ Abrir de ponta a ponta: **≈ 3,5 s**.
 
 <details>
 <summary><b>Duas decisões que saíram dessa medição</b></summary>
-
-<br>
 
 **Compilação antecipada (ReadyToRun) no sidecar, ligada.** Sem ela a primeira abertura custa
 3,8 s; com ela, 1,9 s. No regime permanente ela *perde* ~100 ms, porque o código
@@ -532,8 +533,6 @@ O `npm run verify` reprova o código se:
 <details>
 <summary><b>Por que o portão de licenças reprova quem não declara nada</b></summary>
 
-<br>
-
 O aplicativo é de uso corporativo: uma dependência GPL/AGPL entrando sem querer é um problema
 jurídico, não técnico. O portão cobre os dois ecossistemas — npm e NuGet — e reprova pacote
 que **não declara licença SPDX**, e não só o que declara uma proibida.
@@ -584,12 +583,12 @@ de licenças. Se ele passa na sua máquina, passa no CI.
 
 ### O que o projeto espera do código
 
-| | |
-| --- | --- |
-| **As fronteiras** | `src/services/` e `src/shared/` não importam `electron`, `react` nem `node:*`, e o renderer só fala por `window.api`. Quem esquecer, o lint lembra |
-| **Teste junto** | regra de negócio vive em camada pura justamente para ser testável sem subir o Electron |
-| **Dependência nova** | precisa passar pelo portão de licenças (MIT, BSD, Apache-2.0, ISC e afins) — e pesar o que traz junto |
-| **Idioma** | código, comentários e commits em português, como o resto do repositório |
+- **As fronteiras.** `src/services/` e `src/shared/` não importam `electron`, `react` nem
+  `node:*`; o renderer só fala por `window.api`. Quem esquecer, o lint lembra.
+- **Teste junto.** Regra de negócio vive em camada pura justamente para ser testável sem
+  subir o Electron.
+- **Dependência nova** precisa passar pelo portão de licenças — e pesar o que traz junto.
+- **Idioma:** código, comentários e commits em português, como o resto do repositório.
 
 ### Mensagens de commit
 
