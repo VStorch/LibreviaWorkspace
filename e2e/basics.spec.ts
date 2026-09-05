@@ -48,7 +48,15 @@ test.describe('ciclo de arquivo', () => {
 
     await menu(session, 'new-spreadsheet')
     await menu(session, 'save-as')
+    // Esperar a gravação terminar não é zelo: `menu` só dispara o comando, e
+    // sem isto o `open` corria contra o `save-as` e lia um arquivo que ainda
+    // não existia — o teste passava porque a grade da planilha nova continuava
+    // na tela, e não porque o arquivo tivesse aberto.
+    await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
+
     await menu(session, 'close-file')
+    await expect(session.window.locator('.home')).toBeVisible()
+
     await menu(session, 'open')
 
     await expect(session.window.locator('revo-grid')).toBeVisible()
