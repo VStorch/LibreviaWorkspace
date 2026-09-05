@@ -12,6 +12,7 @@ incomum: salvar um `.docx` ou um `.xlsx` **não custa o que você não editou**.
 ![Vite](https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white)
 ![Vitest](https://img.shields.io/badge/Vitest-6E9F18?style=for-the-badge&logo=vitest&logoColor=white)
 ![Playwright](https://img.shields.io/badge/Playwright-2EAD33?style=for-the-badge&logo=playwright&logoColor=white)
+![Licença MIT](https://img.shields.io/badge/Licença-MIT-22C55E?style=for-the-badge)
 
 > **Nome provisório.** Estado atual: suíte completa, com instalador para Linux e Windows.
 
@@ -34,6 +35,7 @@ incomum: salvar um `.docx` ou um `.xlsx` **não custa o que você não editou**.
 | [▶️ Rodando localmente](#rodando-localmente) | [🧪 Testes](#testes) |
 | [🔄 CI/CD](#cicd) | [📦 Empacotamento](#empacotamento) |
 | [🛡️ Portões de qualidade](#portões-de-qualidade) | [🗺️ Limites conhecidos](#limites-conhecidos) |
+| [🤝 Contribuindo](#contribuindo) | [📜 Licença](#licença) |
 
 ---
 
@@ -558,6 +560,61 @@ do ClosedXML: quem só olha a lista de proibidas não vê uma troca dessas chega
 
 ---
 
-## 👨‍💻 Autor
+<a id="contribuindo"></a>
 
-**Vinícius Storch**
+## 🤝 Contribuindo
+
+O Librevia é **open source**, sob licença MIT: use, estude, modifique e redistribua à
+vontade. Contribuição é bem-vinda — issue, ideia, relato de arquivo que abriu errado ou
+pull request.
+
+**O relato mais valioso é um arquivo que não abriu direito.** O projeto se calibra contra
+documentos reais, e cada `.docx` ou `.xlsx` que se comporta de um jeito inesperado ensina
+mais que uma funcionalidade nova. Se puder anexar o arquivo, ótimo; se ele for confidencial,
+descreva o que o Word ou o LibreOffice mostram e o que o Librevia mostrou.
+
+### Antes de abrir o pull request
+
+```bash
+npm run verify
+```
+
+É o **mesmo comando que o CI roda**: tipos, lint, testes do TypeScript e do .NET, e o portão
+de licenças. Se ele passa na sua máquina, passa no CI.
+
+### O que o projeto espera do código
+
+| | |
+| --- | --- |
+| **As fronteiras** | `src/services/` e `src/shared/` não importam `electron`, `react` nem `node:*`, e o renderer só fala por `window.api`. Quem esquecer, o lint lembra |
+| **Teste junto** | regra de negócio vive em camada pura justamente para ser testável sem subir o Electron |
+| **Dependência nova** | precisa passar pelo portão de licenças (MIT, BSD, Apache-2.0, ISC e afins) — e pesar o que traz junto |
+| **Idioma** | código, comentários e commits em português, como o resto do repositório |
+
+### Mensagens de commit
+
+Não são Conventional Commits. O assunto é uma **frase afirmativa** dizendo o que passou a
+valer, e o corpo explica **por quê** — de preferência com a medição que sustenta a decisão:
+
+```text
+A entrelinha é vez a altura da fonte, e não vez o tamanho dela
+
+O múltiplo do OOXML é 1,13 vez a altura natural da fonte, e nós aplicávamos o
+fator sobre o tamanho: 11,3 pt onde o LibreOffice põe 12,98 em Arial 10 pt.
+```
+
+O histórico é o registro técnico do projeto: é lá que mora o motivo de cada decisão que o
+código sozinho não explica.
+
+---
+
+<a id="licença"></a>
+
+## 📜 Licença
+
+[MIT](LICENSE) — © 2026 Vinícius Storch.
+
+As dependências viajam com as próprias licenças, todas permissivas e conferidas a cada build
+pelo `npm run licenses:check`. O `THIRD-PARTY-NOTICES.md` que acompanha o instalador é gerado
+por `npm run notices` e cobre os três conjuntos distribuídos: pacotes npm, o Electron inteiro
+e os pacotes NuGet do sidecar.

@@ -8,6 +8,7 @@
     "name": "Librevia",
     "email": "librevia@librevia.internal"
   },
+  "license": "MIT",
   "private": true,
   "type": "module",
   "main": "./out/main/index.js",
