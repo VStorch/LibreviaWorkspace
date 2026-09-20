@@ -447,6 +447,87 @@ export async function docxWithSpacingOnBothSides(): Promise<Buffer> {
   ])
 }
 
+/**
+ * Documento com uma lista de marcador declarada de verdade.
+ *
+ * A numeração mora em `word/numbering.xml`, e o parágrafo só aponta um `numId`.
+ * É a estrutura em que a identidade do bloco é mais fácil de perder: no arquivo
+ * a lista são parágrafos irmãos, e na árvore do editor é um elemento de verdade
+ * com os itens dentro.
+ */
+export async function docxWithBulletList(): Promise<Buffer> {
+  const item = (texto: string): string =>
+    `<w:p><w:pPr><w:numPr><w:ilvl w:val="0"/><w:numId w:val="3"/></w:numPr></w:pPr>` +
+    `<w:r><w:t xml:space="preserve">${texto}</w:t></w:r></w:p>`
+
+  const numbering = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:numbering xmlns:w="${W}">
+<w:abstractNum w:abstractNumId="7"><w:lvl w:ilvl="0"><w:numFmt w:val="bullet"/><w:lvlText w:val="&#xF0A7;"/>
+<w:pPr><w:ind w:left="720" w:hanging="360"/></w:pPr></w:lvl></w:abstractNum>
+<w:num w:numId="3"><w:abstractNumId w:val="7"/></w:num>
+</w:numbering>`
+
+  return zip([
+    [
+      '[Content_Types].xml',
+      CONTENT_TYPES.replace(
+        /<Override PartName="\/word\/comments[^>]+>/,
+        '<Override PartName="/word/numbering.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.numbering+xml"/>',
+      ),
+    ],
+    ['_rels/.rels', ROOT_RELS],
+    [
+      'word/_rels/document.xml.rels',
+      DOCUMENT_RELS.replace(
+        /Type="[^"]*comments" Target="comments.xml"/,
+        'Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/numbering" Target="numbering.xml"',
+      ),
+    ],
+    ['word/numbering.xml', numbering],
+    [
+      'word/document.xml',
+      documentXml(paragraph('Antes da lista.') + item('Primeiro item') + item('Segundo item')),
+    ],
+  ])
+}
+
+/**
+ * Documento com uma tabela, e uma tabela dentro de uma célula dela.
+ *
+ * A célula é o único lugar do modelo em que um bloco mora dentro de outro, e a
+ * tabela aninhada é a estrutura mais nova do leitor. Também é onde a impressão
+ * digital tem mais como divergir sem ninguém notar: a largura da coluna, a
+ * mesclagem e o estilo não viajam no modelo, e o que viaja atravessa dois níveis
+ * de `content`.
+ */
+export async function docxWithTable(): Promise<Buffer> {
+  const cell = (text: string, width = 4500): string =>
+    `<w:tc><w:tcPr><w:tcW w:w="${width}" w:type="dxa"/></w:tcPr>${paragraph(text)}</w:tc>`
+
+  // A célula que recebe a tabela de dentro termina em parágrafo: `w:tc` que
+  // termina em `w:tbl` é inválido para o Word.
+  const inner =
+    `<w:tbl><w:tblPr><w:tblStyle w:val="GradeInterna"/></w:tblPr>` +
+    `<w:tblGrid><w:gridCol w:w="2000"/></w:tblGrid>` +
+    `<w:tr>${cell('Dentro da tabela de dentro', 2000)}</w:tr></w:tbl>`
+
+  const nesting =
+    `<w:tc><w:tcPr><w:tcW w:w="4500" w:type="dxa"/></w:tcPr>` +
+    `${paragraph('Antes da aninhada')}${inner}${paragraph('Depois da aninhada')}</w:tc>`
+
+  const table =
+    `<w:tbl><w:tblPr><w:tblStyle w:val="GradeMedia"/><w:tblW w:w="9000" w:type="dxa"/></w:tblPr>` +
+    `<w:tblGrid><w:gridCol w:w="4500"/><w:gridCol w:w="4500"/></w:tblGrid>` +
+    `<w:tr><w:trPr><w:tblHeader/></w:trPr>${cell('Cabeçalho A')}${cell('Cabeçalho B')}</w:tr>` +
+    `<w:tr>${nesting}${cell('Dado B')}</w:tr></w:tbl>`
+
+  return zip([
+    ['[Content_Types].xml', CONTENT_TYPES.replace(/<Override PartName="\/word\/comments[^>]+>/, '')],
+    ['_rels/.rels', ROOT_RELS],
+    ['word/document.xml', documentXml(paragraph('Antes da tabela.') + table)],
+  ])
+}
+
 /** Documento sem nada que o editor não mostre. */
 export async function docxWithoutExtras(): Promise<Buffer> {
   return zip([
