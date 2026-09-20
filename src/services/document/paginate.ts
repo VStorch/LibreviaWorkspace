@@ -32,15 +32,6 @@ export interface MeasuredBlock {
 }
 
 /**
- * Teto de páginas.
- *
- * Um documento não tem quinhentas páginas por acidente, mas uma altura de
- * página perto de zero — margens absurdas, fonte que não carregou — teria. O
- * teto troca um travamento por um documento estranho, que é o erro mais barato.
- */
-const MAX_PAGES = 500
-
-/**
  * Pontos de corte, em coordenadas de fluxo.
  *
  * Cada valor é onde uma página nova começa. Lista vazia é documento de uma
@@ -53,7 +44,19 @@ export function paginate(blocks: readonly MeasuredBlock[], pageHeight: number): 
   let pageStart = 0
   let index = 0
 
-  while (index < blocks.length && breaks.length < MAX_PAGES) {
+  // Sem teto de páginas, e por isso o laço precisa terminar sozinho. Ele
+  // termina: em cada volta, ou `index` avança, ou `pageStart` cresce para o topo
+  // do bloco que estourou — e então a volta seguinte cai no ramo "não há onde
+  // partir", que avança `index`. Nenhum bloco é visto mais de duas vezes.
+  //
+  // Havia um teto de quinhentas páginas, que parecia inofensivo e não era: ao
+  // ser alcançado, o laço simplesmente parava, e **todo o resto do documento
+  // ficava empilhado na última folha**. Uma altura de página perto de zero —
+  // margens absurdas, fonte que não carregou — dava quinhentas folhas em um
+  // documento de dez, e o que vinha depois desaparecia de vista. Perder conteúdo
+  // de vista é pior do que desenhar folhas demais, e quem protege da altura
+  // inválida é a guarda de `pageHeight` logo acima.
+  while (index < blocks.length) {
     const block = blocks[index]!
 
     // A quebra pedida à mão vale mesmo com a página pela metade, e é por isso

@@ -102,4 +102,23 @@ describe('paginação', () => {
     // 250 × 4 = 1000 por página; 20 blocos dão cinco páginas, quatro cortes.
     expect(paginate(blocos, 1000)).toEqual([1000, 2000, 3000, 4000])
   })
+
+  it('documento com mais de quinhentas folhas não empilha o resto na última', () => {
+    // Havia um teto de quinhentas páginas: alcançado, o laço parava e todo o
+    // resto do documento ficava amontoado na última folha, fora da vista. Uma
+    // altura de página pequena — margens absurdas, fonte que não carregou — o
+    // alcançava num documento comum.
+    const blocos = stack(Array.from({ length: 700 }, () => 100))
+    const cortes = paginate(blocos, 100)
+
+    expect(cortes).toHaveLength(699)
+    expect(cortes.at(-1)).toBe(69_900)
+  })
+
+  it('bloco mais alto que a folha fica com ela só para si, mesmo aos milhares', () => {
+    // O outro caminho pelo qual o laço avança. Se ele não avançasse, a paginação
+    // travaria a cada tecla digitada — é por isso que o teto existia.
+    const blocos = stack(Array.from({ length: 600 }, () => 300))
+    expect(paginate(blocos, 100)).toHaveLength(599)
+  })
 })
