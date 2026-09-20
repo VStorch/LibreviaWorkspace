@@ -226,6 +226,34 @@ public class DocxRoundTripTests
     }
 
     [Fact]
+    public void ReadsSuperscriptAndSubscript()
+    {
+        // `w:vertAlign` era lido como nada: a fórmula "H2O" e o expoente "m2"
+        // abriam na linha do texto, e voltavam assim para o arquivo. Perda
+        // silenciosa, que é o defeito que esta suíte existe para pegar.
+        var model = Open(Fixtures.WithVerticalAlignment());
+        var marks = Walk(model.Doc).SelectMany(n => n.Marks ?? []).Select(m => m.Type).ToList();
+
+        Assert.Contains("superscript", marks);
+        Assert.Contains("subscript", marks);
+    }
+
+    [Fact]
+    public void SavingVerticalAlignmentWithoutEditingRewritesNothing()
+    {
+        // O outro lado da leitura: ler um recurso novo não pode fazer o modelo
+        // divergir do arquivo. Se divergisse, abrir e salvar um documento com
+        // expoente reescreveria o parágrafo inteiro — e com ele iria tudo o que
+        // este gravador não sabe reproduzir.
+        var original = Fixtures.WithVerticalAlignment();
+        var (_, result) = Save(original, Clone(Open(original)));
+
+        Assert.Equal(0, result.RewrittenBlocks);
+        Assert.True(result.PreservedBlocks > 0);
+        Assert.Empty(result.Inventory.Lost);
+    }
+
+    [Fact]
     public void ReadsBulletListAsAList()
     {
         var model = Open(Fixtures.WithBulletList());

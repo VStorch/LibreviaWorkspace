@@ -17,6 +17,7 @@ Suíte de documentos e planilhas para trabalhar **offline**. Abre e grava os arq
 | [💿 Instalar](#instalar) | [⚠️ Os avisos, e por que são diferentes](#os-avisos) |
 | [📄 Os arquivos que ele abre](#os-arquivos-que-ele-abre) | [💾 Se o aplicativo fechar sozinho](#se-o-aplicativo-fechar-sozinho) |
 | [⌨️ Atalhos](#atalhos) | [🛟 Salvar não custa o que você não editou](#salvar-não-custa) |
+| [✍️ Formatar texto e parágrafo](#formatar) | |
 | [🧮 Fórmulas em português](#fórmulas-em-português) | [🖨️ Imprimir e exportar PDF](#imprimir-e-exportar-pdf) |
 | [🔒 Arquivos que abrem travados](#arquivos-que-abrem-travados) | [🚧 Limites conhecidos](#limites-conhecidos) |
 
@@ -85,6 +86,19 @@ Execute o instalador. Ele instala **para o seu usuário**, sem pedir senha de ad
 | `Ctrl+P` | imprimir |
 | `Ctrl+Enter` | quebra de página manual |
 | `Ctrl+B` / `Ctrl+I` / `Ctrl+U` | negrito, itálico, sublinhado |
+| `Ctrl+Shift+=` / `Ctrl+=` | sobrescrito e subscrito |
+| `Ctrl+L` / `Ctrl+E` / `Ctrl+R` / `Ctrl+J` | alinhar à esquerda, centralizar, à direita, justificar |
+| `Ctrl+1` / `Ctrl+5` / `Ctrl+2` | entrelinha simples, 1,5 e dupla |
+| `Ctrl+Alt+1`…`Ctrl+Alt+6` | Título 1 a Título 6 |
+| `Ctrl+Alt+0` | volta o parágrafo para corpo de texto |
+| `Ctrl+]` / `Ctrl+[` | aumentar e diminuir o recuo |
+
+> ℹ️ São os atalhos do Word, com duas exceções que valem explicar. **Corpo de texto** é
+> `Ctrl+Alt+0` e não `Ctrl+Shift+N`, porque aqui essa tecla abre uma planilha nova — e ela já
+> era assim antes. **Ampliar** mudou para o `+` do teclado numérico, para não engolir o
+> `Ctrl+Shift+=` do sobrescrito; reduzir segue em `Ctrl+-`, e o menu **Exibir** tem os dois.
+> Sobrescrito e subscrito também respondem a `Ctrl+.` e `Ctrl+,`, para o teclado em que o `=`
+> exige duas teclas.
 
 **Na planilha**, `Ctrl+B`, `Ctrl+I` e `Ctrl+U` valem para as células selecionadas. Clicar com
 o botão direito numa célula abre o menu de inserir e remover linhas e colunas.
@@ -92,6 +106,61 @@ o botão direito numa célula abre o menu de inserir e remover linhas e colunas.
 **A alça de preenchimento** é o quadradinho no canto inferior direito da seleção: arraste-o e
 as células seguintes são preenchidas. Se a célula de origem tiver uma fórmula, ela é
 **deslocada** — `=B2*C2` arrastada para baixo vira `=B3*C3`. Referência com `$` não se mexe.
+
+---
+
+<a id="formatar"></a>
+
+## ✍️ Formatar texto e parágrafo
+
+A barra do documento tem, da esquerda para a direita: estilo do parágrafo, fonte, tamanho, a
+formatação do texto, o parágrafo, as listas, o que se insere e a página.
+
+### A letra
+
+Além de negrito, itálico, sublinhado e tachado:
+
+| Botão | O que faz |
+| --- | --- |
+| **Sobrescrito** e **Subscrito** | põem o trecho acima ou abaixo da linha — `m³`, `H₂O`. Vão e voltam do `.docx` |
+| **Caixa alta** | desenha em maiúsculas sem trocar o que você digitou: apagar a formatação devolve o texto original |
+| **Versalete** | maiúsculas pequenas, do tamanho das minúsculas |
+| **Cor do texto** | a cor da letra |
+| **Cor de fundo do texto** | pinta o fundo do trecho com qualquer cor |
+| **Destaque** | o marca-texto do Word, que tem catorze cores fixas |
+
+> ℹ️ **Por que dois fundos?** No arquivo do Word eles são coisas diferentes: o marca-texto e o
+> sombreamento do trecho. Um documento recebido pode trazer os dois, e o aplicativo mantém cada
+> um onde estava.
+
+### A lista de fontes
+
+O seletor mostra, nesta ordem: **as fontes que o documento aberto usa**, as cinco que vêm com o
+aplicativo — Calibri, Cambria, Arial, Times New Roman e Courier New — e depois **as instaladas
+no seu computador**, em ordem alfabética.
+
+As cinco primeiras funcionam igual em qualquer máquina, porque viajam dentro do instalador. As
+suas funcionam na sua máquina; num computador que não as tenha, o documento será desenhado com
+outra fonte e pode paginar diferente.
+
+### O diálogo de parágrafo
+
+O botão **¶** — ou o menu **Formatar → Parágrafo…** — abre tudo o que é do parágrafo numa tela
+só, e já preenchido com o que o parágrafo tem:
+
+- **alinhamento**: esquerda, centro, direita, justificado;
+- **entrelinha**: simples, 1,15, 1,5, dupla, um múltiplo qualquer, ou uma medida em pontos;
+- **espaçamento** antes e depois, em pontos;
+- **recuo** à esquerda e à direita, em milímetros;
+- **primeira linha**: recuo (a primeira linha entra) ou deslocamento (ela sai, e as outras
+  entram — o formato da lista e da referência bibliográfica);
+- **manter com o próximo**: o parágrafo não fica sozinho no pé da página.
+
+Vale para todos os parágrafos que a seleção tocar. `Enter` aplica, `Esc` fecha sem aplicar.
+
+> ℹ️ **"Simples" não é "1,0".** Espaçamento simples é a altura que a própria fonte pede, e é
+> por isso que ele aparece como uma opção e não como um número: nenhum fator o imita, e trocar
+> um pelo outro muda onde as páginas quebram.
 
 ---
 

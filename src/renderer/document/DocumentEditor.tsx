@@ -53,6 +53,7 @@ export function DocumentEditor(): React.JSX.Element {
   const [searchStatus, setSearchStatus] = useState<SearchStatus>({ total: 0, current: 0 })
   const [findOpen, setFindOpen] = useState(false)
   const [pageSetupOpen, setPageSetupOpen] = useState(false)
+  const [paragraphOpen, setParagraphOpen] = useState(false)
 
   const handleSearchStatus = useCallback((status: SearchStatus) => setSearchStatus(status), [])
 
@@ -119,6 +120,7 @@ export function DocumentEditor(): React.JSX.Element {
         if (command === 'find-replace') setFindOpen(true)
         if (command === 'page-setup') setPageSetupOpen(true)
         if (command === 'insert-page-break') editor?.chain().focus().setPageBreak().run()
+        if (command === 'paragraph-setup') setParagraphOpen(true)
       }),
     [editor],
   )
@@ -253,6 +255,8 @@ export function DocumentEditor(): React.JSX.Element {
         editor={editor}
         onOpenFind={() => setFindOpen(true)}
         onOpenPageSetup={() => setPageSetupOpen(true)}
+        paragraphOpen={paragraphOpen}
+        onParagraphOpenChange={setParagraphOpen}
       />
 
       {findOpen && (

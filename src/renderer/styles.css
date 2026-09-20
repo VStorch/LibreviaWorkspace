@@ -1037,6 +1037,16 @@ button {
   padding: 0 4px;
 }
 
+/* A caixa de marcar do diálogo de parágrafo: rótulo ao lado, e não em cima como
+   nos campos de medida — "manter com o próximo" é uma frase, não uma etiqueta. */
+.popover__check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  margin: 2px 0 10px;
+}
+
 .popover__hint {
   font-size: 12px;
   color: var(--muted);

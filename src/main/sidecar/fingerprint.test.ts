@@ -52,6 +52,7 @@ import {
   docxWithStretchedImage,
   docxWithTable,
   docxWithTextBox,
+  docxWithVerticalAlignment,
   docxWithoutExtras,
 } from '../../../e2e/fixtures.js'
 import { SidecarClient } from './client.js'
@@ -205,6 +206,7 @@ describe.skipIf(!published)('impressão digital entre o editor e o sidecar', () 
     ['cabeçalho em grade', docxWithHeaderGrid],
     ['lista com marcador', docxWithBulletList],
     ['tabela com tabela aninhada', docxWithTable],
+    ['sobrescrito e subscrito', docxWithVerticalAlignment],
   ]
 
   it.each(documents)('abrir e salvar %s não reescreve bloco nenhum', async (_name, build) => {

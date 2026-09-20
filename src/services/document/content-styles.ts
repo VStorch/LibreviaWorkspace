@@ -63,6 +63,20 @@ ${DOCUMENT_FONT_CSS}
 
 .page__content a { color: #14538f; text-decoration: underline; }
 
+/**
+ * Sobrescrito e subscrito sem esticar a linha.
+ *
+ * O padrão do navegador — \`vertical-align: super\` com \`font-size: smaller\` — sobe
+ * o glifo e **cresce a caixa da linha** com ele: a linha que tem um expoente fica
+ * mais alta que as vizinhas, e num documento paginado ao vivo isso desloca a
+ * quebra de página. O Word não faz isso. \`line-height: 0\` devolve a medida da
+ * linha ao texto normal, que é o que a paginação precisa medir; o tamanho é
+ * declarado em fração de propósito, porque \`smaller\` encolhe de novo a cada
+ * expoente dentro de outro.
+ */
+.page__content sup,
+.page__content sub { font-size: 0.65em; line-height: 0; }
+
 .page__content img { max-width: 100%; height: auto; }
 
 /*

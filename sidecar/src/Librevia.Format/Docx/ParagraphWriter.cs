@@ -381,6 +381,25 @@ public sealed class ParagraphWriter
                     properties.Underline = new Underline { Val = UnderlineValues.Single };
                     break;
 
+                // Uma propriedade só para os dois, com valores que se excluem —
+                // é assim no OOXML, e é assim no editor, onde as duas marcas se
+                // excluem uma à outra. Enquanto não estavam aqui, o expoente
+                // sobrevivia à leitura e morria na gravação: o trecho voltava
+                // para a linha do texto e o aviso saía no inventário.
+                case "superscript":
+                    properties.VerticalTextAlignment = new VerticalTextAlignment
+                    {
+                        Val = VerticalPositionValues.Superscript,
+                    };
+                    break;
+
+                case "subscript":
+                    properties.VerticalTextAlignment = new VerticalTextAlignment
+                    {
+                        Val = VerticalPositionValues.Subscript,
+                    };
+                    break;
+
                 case "highlight":
                     if (Attr.MarkString(mark, "color") is { } fill) ApplyHighlight(properties, fill);
                     break;

@@ -904,6 +904,21 @@ public static class Fixtures
         body.AppendChild(paragraph);
     });
 
+    /// <summary>Sobrescrito e subscrito: a fórmula e a nota de referência.</summary>
+    public static byte[] WithVerticalAlignment() => Build((body, _) =>
+    {
+        var paragraph = new Paragraph();
+        paragraph.AppendChild(new Run(new Text("H")));
+        paragraph.AppendChild(new Run(
+            new RunProperties(new VerticalTextAlignment { Val = VerticalPositionValues.Subscript }),
+            new Text("2")));
+        paragraph.AppendChild(new Run(new Text("O e m")));
+        paragraph.AppendChild(new Run(
+            new RunProperties(new VerticalTextAlignment { Val = VerticalPositionValues.Superscript }),
+            new Text("2")));
+        body.AppendChild(paragraph);
+    });
+
     public static byte[] WithTable() => Build((body, _) =>
     {
         body.AppendChild(Paragraph("Antes da tabela."));

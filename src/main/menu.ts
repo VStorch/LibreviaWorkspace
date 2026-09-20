@@ -63,7 +63,20 @@ async function buildTemplate(): Promise<MenuItemConstructorOptions[]> {
 
   const viewSubmenu: MenuItemConstructorOptions[] = [
     { role: 'resetZoom', label: 'Tamanho normal' },
-    { role: 'zoomIn', label: 'Ampliar' },
+    /**
+     * Ampliar sai do `Ctrl+Shift+=`, e não por capricho.
+     *
+     * O acelerador padrão do papel `zoomIn` é `CommandOrControl+Plus`, e no
+     * Electron "Plus" é a tecla do `=` **com Shift** — a mesma combinação que no
+     * Word liga o sobrescrito. Acelerador de menu é registrado no processo main e
+     * intercepta a tecla antes de o renderer vê-la: deixá-lo aqui faria o atalho
+     * de sobrescrito nunca rodar, e atalho morto é pior do que atalho ausente.
+     *
+     * Num editor de texto a formatação vem antes do zoom, então quem se muda é o
+     * zoom — para o `+` do teclado numérico, que não disputa com tecla nenhuma.
+     * Reduzir fica onde estava: `Ctrl+-` não colide com nada.
+     */
+    { role: 'zoomIn', label: 'Ampliar', accelerator: 'CmdOrCtrl+numadd' },
     { role: 'zoomOut', label: 'Reduzir' },
     { type: 'separator' },
     { role: 'togglefullscreen', label: 'Tela cheia' },
@@ -72,7 +85,10 @@ async function buildTemplate(): Promise<MenuItemConstructorOptions[]> {
   if (devServerUrl() !== null) {
     viewSubmenu.push(
       { type: 'separator' },
-      { role: 'reload', label: 'Recarregar' },
+      // `Ctrl+Shift+R` e não `Ctrl+R`: em desenvolvimento o padrão do papel
+      // `reload` engoliria o `Ctrl+R` de "alinhar à direita", e o atalho pareceria
+      // quebrado só na máquina de quem programa.
+      { role: 'reload', label: 'Recarregar', accelerator: 'CmdOrCtrl+Shift+R' },
       { role: 'toggleDevTools', label: 'Ferramentas do desenvolvedor' },
     )
   }
@@ -131,6 +147,15 @@ async function buildTemplate(): Promise<MenuItemConstructorOptions[]> {
           label: 'Localizar e substituir…',
           accelerator: 'CmdOrCtrl+F',
           click: () => dispatch(MenuCommand.FindReplace),
+        },
+      ],
+    },
+    {
+      label: 'Formatar',
+      submenu: [
+        {
+          label: 'Parágrafo…',
+          click: () => dispatch(MenuCommand.ParagraphSetup),
         },
       ],
     },

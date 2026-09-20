@@ -15,6 +15,10 @@ export type IconName =
   | 'italic'
   | 'underline'
   | 'strike'
+  | 'superscript'
+  | 'subscript'
+  | 'caps'
+  | 'small-caps'
   | 'align-left'
   | 'align-center'
   | 'align-right'
@@ -32,6 +36,8 @@ export type IconName =
   | 'print-preview'
   | 'text-color'
   | 'fill-color'
+  | 'text-background'
+  | 'paragraph'
   | 'decimal-less'
   | 'decimal-more'
   | 'borders-all'
@@ -49,6 +55,17 @@ const PATHS: Record<IconName, React.ReactNode> = {
   strike: (
     <path d="M5 12h14M8 8a3.5 3.5 0 0 1 3.5-3h1A3.5 3.5 0 0 1 16 8M8 16a3.5 3.5 0 0 0 3.5 3h1a3.5 3.5 0 0 0 3.5-3" />
   ),
+
+  // Um "A" e um quadradinho, erguido num e rebaixado no outro: é a diferença que
+  // o ícone precisa mostrar, e desenhar "X²" com traços viraria borrão a 18 px.
+  superscript: <path d="M3.5 18 8.5 7l5 11M5.3 14.6h6.4M17 5.5h4v4h-4z" />,
+  subscript: <path d="M3.5 16 8.5 5l5 11M5.3 12.6h6.4M17 14.5h4v4h-4z" />,
+
+  // Dois "A" do mesmo tamanho para caixa alta; um grande e um pequeno para
+  // versalete — que é exatamente o que a formatação faz com o texto.
+  caps: <path d="M2 17.5 6 7l4 10.5M3.5 14.2h5M13 17.5 17 7l4 10.5M14.5 14.2h5" />,
+  'small-caps': <path d="M2 17.5 6 7l4 10.5M3.5 14.2h5M14 17.5 16.8 10.5l2.8 7M15 15.2h3.6" />,
+
   'align-left': <path d="M4 6h16M4 10h10M4 14h16M4 18h10" />,
   'align-center': <path d="M4 6h16M7 10h10M4 14h16M7 18h10" />,
   'align-right': <path d="M4 6h16M10 10h10M4 14h16M10 18h10" />,
@@ -73,6 +90,13 @@ const PATHS: Record<IconName, React.ReactNode> = {
   'fill-color': (
     <path d="M7.4 3.4 9.9 5.9M9.9 5.9 4.7 11.1a1.6 1.6 0 0 0 0 2.2l4.8 4.8a1.6 1.6 0 0 0 2.2 0l5.2-5.2zM20 8.6c0 1-.8 1.8-1.8 1.8s-1.8-.8-1.8-1.8 1.8-3.2 1.8-3.2 1.8 2.2 1.8 3.2z" />
   ),
+
+  // A letra dentro de um retângulo: o fundo é o retângulo, e é ele que recebe a
+  // cor. A barrinha do CSS vale aqui como nos dois de cima.
+  'text-background': <path d="M4 5h16v14H4zM8.5 15.5 12 8.5l3.5 7M9.8 13.4h4.4" />,
+
+  // O sinal de parágrafo, como no Word: é ele que abre o diálogo de parágrafo.
+  paragraph: <path d="M18 4h-6.5a4 4 0 0 0 0 8H14M14 4v16M18 4v16" />,
 
   // Um dígito, a vírgula e a direção: para a direita ganha casa decimal, para a
   // esquerda perde. Desenhar ",00→" com traços viraria borrão a 18 pixels.

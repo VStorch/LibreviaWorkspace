@@ -448,6 +448,32 @@ export async function docxWithSpacingOnBothSides(): Promise<Buffer> {
 }
 
 /**
+ * Documento com sobrescrito e subscrito (`w:vertAlign`).
+ *
+ * A fórmula e o expoente — "H₂O" e "m²" — são o caso em que a formatação de
+ * caractere muda o **sentido** do texto, e não só a aparência: "m2" não é "m²".
+ * Enquanto o editor não tinha as duas marcas, o trecho abria na linha do texto e
+ * voltava assim para o arquivo.
+ */
+export async function docxWithVerticalAlignment(): Promise<Buffer> {
+  const run = (align: string, texto: string): string =>
+    `<w:r><w:rPr>${align === '' ? '' : `<w:vertAlign w:val="${align}"/>`}</w:rPr>` +
+    `<w:t xml:space="preserve">${texto}</w:t></w:r>`
+
+  return zip([
+    ['[Content_Types].xml', CONTENT_TYPES.replace(/<Override PartName="\/word\/comments[^>]+>/, '')],
+    ['_rels/.rels', ROOT_RELS],
+    [
+      'word/document.xml',
+      documentXml(
+        `<w:p>${run('', 'H')}${run('subscript', '2')}${run('', 'O ocupa ')}` +
+          `${run('', '18 cm')}${run('superscript', '3')}${run('', '.')}</w:p>`,
+      ),
+    ],
+  ])
+}
+
+/**
  * Documento com uma lista de marcador declarada de verdade.
  *
  * A numeração mora em `word/numbering.xml`, e o parágrafo só aponta um `numId`.

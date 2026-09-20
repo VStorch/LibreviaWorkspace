@@ -36,6 +36,17 @@ public static class RunReader
             if (IsOn(properties.Caps)) marks.Add(Mark.Of("caps"));
             if (IsOn(properties.SmallCaps)) marks.Add(Mark.Of("smallCaps"));
 
+            // `w:vertAlign` também não é alternância: traz o valor, e
+            // `baseline` é o normal — que não é marca nenhuma. Enquanto isto
+            // ficava de fora, a fórmula e a nota de referência do documento
+            // abriam na linha do texto, e voltavam assim para o arquivo.
+            var vertical = properties.VerticalTextAlignment?.Val;
+            if (vertical is not null)
+            {
+                if (vertical.Value == VerticalPositionValues.Superscript) marks.Add(Mark.Of("superscript"));
+                else if (vertical.Value == VerticalPositionValues.Subscript) marks.Add(Mark.Of("subscript"));
+            }
+
             // `w:u` não é alternância: carrega o estilo do sublinhado, e "none"
             // é a forma de desligar.
             if (properties.Underline?.Val is not null &&

@@ -588,6 +588,36 @@ public class DocxWriteBackTests
     }
 
     [Fact]
+    public void EditarParagrafoMantemSobrescritoESubscrito()
+    {
+        // O parágrafo reescrito é o único lugar onde a perda acontece de verdade.
+        // Antes destas duas linhas no escritor, o expoente sobrevivia à leitura e
+        // morria na gravação: o trecho voltava para a linha do texto, e o aviso
+        // saía como "formatação superscript" no inventário.
+        var original = Fixtures.WithVerticalAlignment();
+        var model = Roundtrip.Clone(Roundtrip.Open(original));
+
+        Assert.True(Roundtrip.EditFirstTextContaining(model, "O e m", "O e n"));
+
+        var (saved, result) = Roundtrip.Save(original, model);
+        var xml = Roundtrip.XmlOf(saved);
+
+        Assert.Contains("w:vertAlign w:val=\"superscript\"", xml, StringComparison.Ordinal);
+        Assert.Contains("w:vertAlign w:val=\"subscript\"", xml, StringComparison.Ordinal);
+        Assert.Empty(result.Inventory.Lost);
+
+        // E o documento relido traz as duas marcas de volta: a ida e a volta
+        // fecham, que é o que o editor vai ver na próxima abertura.
+        var reread = Roundtrip.Walk(Roundtrip.Open(saved).Doc)
+            .SelectMany(node => node.Marks ?? [])
+            .Select(mark => mark.Type)
+            .ToList();
+
+        Assert.Contains("superscript", reread);
+        Assert.Contains("subscript", reread);
+    }
+
+    [Fact]
     public void CorQueNaoDaParaConverterEntraNoInventario()
     {
         var original = Fixtures.Simple();

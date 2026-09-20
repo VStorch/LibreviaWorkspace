@@ -3,6 +3,8 @@ import StarterKit from '@tiptap/starter-kit'
 import Highlight from '@tiptap/extension-highlight'
 import TextAlign from '@tiptap/extension-text-align'
 import { TableKit } from '@tiptap/extension-table'
+import Superscript from '@tiptap/extension-superscript'
+import Subscript from '@tiptap/extension-subscript'
 import { CharacterCount } from '@tiptap/extensions'
 import {
   BackgroundColor,
@@ -19,14 +21,16 @@ import { Indent } from './extensions/indent.js'
 import { Caps, SmallCaps } from './extensions/letter-case.js'
 import { PageBreak } from './extensions/page-break.js'
 import { Pagination } from './extensions/pagination.js'
+import { ParagraphCommands } from './extensions/paragraph-commands.js'
 import { SearchReplace, type SearchStatus } from './extensions/search-replace.js'
+import { WordShortcuts } from './extensions/word-shortcuts.js'
 
 /**
  * Conjunto de extensões do editor.
  *
- * Cobre a seção "Texto" e "Inserção" da especificação. Três extensões são
- * nossas porque não existem oficialmente: recuo, quebra de página e
- * localizar/substituir.
+ * Cobre a seção "Texto" e "Inserção" da especificação. Quatro extensões são
+ * nossas porque não existem oficialmente: recuo, quebra de página,
+ * localizar/substituir e os comandos do diálogo de parágrafo.
  */
 export function buildEditorExtensions(onSearchStatusChange: (status: SearchStatus) => void): Extensions {
   return [
@@ -52,6 +56,14 @@ export function buildEditorExtensions(onSearchStatusChange: (status: SearchStatu
     FontSize,
     LineHeight,
 
+    // Sobrescrito e subscrito. São marcas de verdade, e não um atributo de
+    // `textStyle`, porque no OOXML são um `w:vertAlign` — uma propriedade só,
+    // com dois valores que se excluem, e as extensões oficiais já se excluem
+    // uma à outra. Enquanto não existiam, o texto sobrescrito de um documento
+    // abria como texto comum e voltava assim para o arquivo.
+    Superscript,
+    Subscript,
+
     Highlight.configure({ multicolor: true }),
     TextAlign.configure({ types: ['heading', 'paragraph'] }),
 
@@ -70,6 +82,9 @@ export function buildEditorExtensions(onSearchStatusChange: (status: SearchStatu
     CharacterCount,
 
     Indent,
+    // Os comandos que o diálogo de parágrafo usa: escrevem o formulário inteiro
+    // numa transação só, para que desfazer não peça oito `Ctrl+Z`.
+    ParagraphCommands,
     // Fundo, espaçamento e entrelinha do parágrafo — no OOXML são
     // propriedades do bloco, e é o que faz `Heading1` virar barra colorida.
     BlockFormat,
@@ -85,5 +100,8 @@ export function buildEditorExtensions(onSearchStatusChange: (status: SearchStatu
     // documento saiba que existem.
     Pagination,
     SearchReplace.configure({ onStatusChange: onSearchStatusChange }),
+    // Por último na lista e com prioridade alta no próprio arquivo: é ele que
+    // decide `Ctrl+E`, disputado com a marca de código. Ver word-shortcuts.ts.
+    WordShortcuts,
   ]
 }

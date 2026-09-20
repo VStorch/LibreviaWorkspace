@@ -86,6 +86,8 @@ export const MenuCommand = {
   Print: 'print',
   PrintPreview: 'print-preview',
   PageSetup: 'page-setup',
+  /** Abre o diálogo de parágrafo — espaçamento, entrelinha, recuo, alinhamento. */
+  ParagraphSetup: 'paragraph-setup',
   InsertPageBreak: 'insert-page-break',
   /** Emitido quando o usuário escolhe "Salvar" no aviso de saída. */
   SaveAndExit: 'save-and-exit',

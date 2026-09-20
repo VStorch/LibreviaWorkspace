@@ -64,6 +64,8 @@ async function runMenuCommand(command: MenuCommand, path: string | undefined): P
       return emitEditorCommand('find-replace')
     case MenuCommand.PageSetup:
       return emitEditorCommand('page-setup')
+    case MenuCommand.ParagraphSetup:
+      return emitEditorCommand('paragraph-setup')
     case MenuCommand.InsertPageBreak:
       return emitEditorCommand('insert-page-break')
 

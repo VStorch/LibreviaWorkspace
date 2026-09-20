@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useEditorState, type Editor } from '@tiptap/react'
+import { firstFamilyOf } from '@services/document/font-list.js'
 import {
   ColorControl,
   ToolbarButton,
@@ -8,47 +9,27 @@ import {
   ToolbarSeparator,
 } from '../../components/ToolbarControls.js'
 import { useWorkspace } from '../../state/workspace.js'
+import { blockLineHeightOf } from '../extensions/paragraph-commands.js'
 import { LinkDialog } from './LinkDialog.js'
-
-/** Famílias disponíveis. A Fase 3 embute fontes métricas do Word (§6.4). */
-const FONT_FAMILIES = [
-  { value: '', label: 'Fonte padrão' },
-  { value: 'Arial, Liberation Sans, sans-serif', label: 'Arial' },
-  { value: 'Calibri, Carlito, sans-serif', label: 'Calibri' },
-  { value: 'Cambria, Caladea, serif', label: 'Cambria' },
-  { value: 'Georgia, serif', label: 'Georgia' },
-  { value: 'Times New Roman, Liberation Serif, serif', label: 'Times New Roman' },
-  { value: 'Verdana, sans-serif', label: 'Verdana' },
-  { value: 'Courier New, Liberation Mono, monospace', label: 'Courier New' },
-] as const
-
-const FONT_SIZES = ['8', '9', '10', '11', '12', '14', '16', '18', '20', '24', '28', '32', '36', '48', '72']
-
-const LINE_HEIGHTS = [
-  { value: '', label: 'Simples' },
-  { value: '1.15', label: '1,15' },
-  { value: '1.5', label: '1,5' },
-  { value: '2', label: 'Duplo' },
-] as const
-
-const BLOCK_STYLES = [
-  { value: 'paragraph', label: 'Texto normal' },
-  { value: '1', label: 'Título 1' },
-  { value: '2', label: 'Título 2' },
-  { value: '3', label: 'Título 3' },
-  { value: '4', label: 'Título 4' },
-] as const
+import { ParagraphDialog } from './ParagraphDialog.js'
+import { BLOCK_STYLES, FONT_SIZES, LINE_HEIGHTS, withCurrent } from './toolbar-options.js'
+import { useFontFamilies } from './useFontFamilies.js'
 
 interface DocumentToolbarProps {
   readonly editor: Editor
   readonly onOpenFind: () => void
   readonly onOpenPageSetup: () => void
+  /** Aberto de fora também: o menu nativo tem "Formatar → Parágrafo…". */
+  readonly paragraphOpen: boolean
+  readonly onParagraphOpenChange: (open: boolean) => void
 }
 
 export function DocumentToolbar({
   editor,
   onOpenFind,
   onOpenPageSetup,
+  paragraphOpen,
+  onParagraphOpenChange,
 }: DocumentToolbarProps): React.JSX.Element {
   const [linkDialogOpen, setLinkDialogOpen] = useState(false)
   const showError = useWorkspace((state) => state.showError)
@@ -62,6 +43,10 @@ export function DocumentToolbar({
       italic: current.isActive('italic'),
       underline: current.isActive('underline'),
       strike: current.isActive('strike'),
+      superscript: current.isActive('superscript'),
+      subscript: current.isActive('subscript'),
+      caps: current.isActive('caps'),
+      smallCaps: current.isActive('smallCaps'),
       bulletList: current.isActive('bulletList'),
       orderedList: current.isActive('orderedList'),
       alignLeft: current.isActive({ textAlign: 'left' }),
@@ -73,16 +58,21 @@ export function DocumentToolbar({
       heading: current.isActive('heading') ? String(current.getAttributes('heading')['level'] ?? '') : '',
       // Só o nome da fonte: o que vem do documento é uma pilha de CSS, com a
       // substituta genérica atrás, e é o nome que a lista aqui conhece.
-      fontFamily: String(current.getAttributes('textStyle')['fontFamily'] ?? '')
-        .split(',')[0]!
-        .trim(),
+      fontFamily: firstFamilyOf(String(current.getAttributes('textStyle')['fontFamily'] ?? '')),
       fontSize: String(current.getAttributes('textStyle')['fontSize'] ?? '').replace('pt', ''),
-      lineHeight: String(current.getAttributes('textStyle')['lineHeight'] ?? ''),
+      // Do **bloco**, e não da marca de texto: no OOXML a entrelinha é
+      // propriedade do parágrafo, e não existe `w:line` dentro de um `w:rPr`.
+      // Enquanto este seletor escrevia na marca, escolher "Duplo" aqui era perda
+      // garantida — o gravador não tinha onde pôr a medida e a anotava no
+      // inventário.
+      lineHeight: blockLineHeightOf(current),
       color: String(current.getAttributes('textStyle')['color'] ?? '#000000'),
+      background: String(current.getAttributes('textStyle')['backgroundColor'] ?? '#ffff00'),
       highlight: String(current.getAttributes('highlight')['color'] ?? '#ffff00'),
     }),
   })
 
+  const fontFamilies = useFontFamilies(active.fontFamily)
   const chain = () => editor.chain().focus()
 
   function applyBlockStyle(value: string): void {
@@ -117,7 +107,7 @@ export function DocumentToolbar({
         <ToolbarSelect
           label="Fonte"
           value={active.fontFamily}
-          options={FONT_FAMILIES}
+          options={fontFamilies}
           onChange={(value) =>
             value === '' ? chain().unsetFontFamily().run() : chain().setFontFamily(value).run()
           }
@@ -127,7 +117,10 @@ export function DocumentToolbar({
         <ToolbarSelect
           label="Tamanho"
           value={active.fontSize}
-          options={[{ value: '', label: '—' }, ...FONT_SIZES.map((size) => ({ value: size, label: size }))]}
+          options={withCurrent(
+            [{ value: '', label: '—' }, ...FONT_SIZES.map((size) => ({ value: size, label: size }))],
+            active.fontSize,
+          )}
           onChange={(value) =>
             value === '' ? chain().unsetFontSize().run() : chain().setFontSize(`${value}pt`).run()
           }
@@ -166,12 +159,53 @@ export function DocumentToolbar({
           onClick={() => chain().toggleStrike().run()}
         />
 
+        {/* Os atalhos anunciados são os do Word. Os padrões do Tiptap — `Ctrl+.`
+            e `Ctrl+,` — continuam valendo, para o teclado em que o `=` não é
+            uma tecla só. */}
+        <ToolbarButton
+          icon="superscript"
+          label="Sobrescrito"
+          shortcut="Ctrl+Shift+="
+          active={active.superscript}
+          onClick={() => chain().toggleSuperscript().run()}
+        />
+        <ToolbarButton
+          icon="subscript"
+          label="Subscrito"
+          shortcut="Ctrl+="
+          active={active.subscript}
+          onClick={() => chain().toggleSubscript().run()}
+        />
+        <ToolbarButton
+          icon="caps"
+          label="Caixa alta"
+          active={active.caps}
+          onClick={() => chain().toggleCaps().run()}
+        />
+        <ToolbarButton
+          icon="small-caps"
+          label="Versalete"
+          active={active.smallCaps}
+          onClick={() => chain().toggleSmallCaps().run()}
+        />
+
         <ColorControl
           icon="text-color"
           label="Cor do texto"
           value={active.color}
           onChange={(value) => chain().setColor(value).run()}
           onClear={() => chain().unsetColor().run()}
+        />
+        {/* Duas cores de fundo, e não uma por engano: "Destaque" é o marca-texto
+            do Word (`w:highlight`, catorze cores fixas) e esta é o sombreamento
+            do trecho (`w:shd`, cor livre). No arquivo são propriedades
+            diferentes, e um documento importado pode trazer as duas. */}
+        <ColorControl
+          icon="text-background"
+          label="Cor de fundo do texto"
+          value={active.background}
+          onChange={(value) => chain().setBackgroundColor(value).run()}
+          onClear={() => chain().unsetBackgroundColor().run()}
         />
         <ColorControl
           icon="fill-color"
@@ -188,24 +222,28 @@ export function DocumentToolbar({
         <ToolbarButton
           icon="align-left"
           label="Alinhar à esquerda"
+          shortcut="Ctrl+L"
           active={active.alignLeft}
           onClick={() => chain().setTextAlign('left').run()}
         />
         <ToolbarButton
           icon="align-center"
           label="Centralizar"
+          shortcut="Ctrl+E"
           active={active.alignCenter}
           onClick={() => chain().setTextAlign('center').run()}
         />
         <ToolbarButton
           icon="align-right"
           label="Alinhar à direita"
+          shortcut="Ctrl+R"
           active={active.alignRight}
           onClick={() => chain().setTextAlign('right').run()}
         />
         <ToolbarButton
           icon="align-justify"
           label="Justificar"
+          shortcut="Ctrl+J"
           active={active.alignJustify}
           onClick={() => chain().setTextAlign('justify').run()}
         />
@@ -213,11 +251,21 @@ export function DocumentToolbar({
         <ToolbarSelect
           label="Espaçamento entre linhas"
           value={active.lineHeight}
-          options={LINE_HEIGHTS}
+          // A vírgula é a nossa: o atributo guarda `1.5`, e a tela escreve 1,5.
+          options={withCurrent(LINE_HEIGHTS, active.lineHeight, (value) => value.replace('.', ','))}
           onChange={(value) =>
-            value === '' ? chain().unsetLineHeight().run() : chain().setLineHeight(value).run()
+            chain()
+              .setBlockLineHeight(value === '' ? 'normal' : value)
+              .run()
           }
           width={100}
+        />
+
+        <ToolbarButton
+          icon="paragraph"
+          label="Parágrafo…"
+          active={paragraphOpen}
+          onClick={() => onParagraphOpenChange(!paragraphOpen)}
         />
       </ToolbarGroup>
 
@@ -293,6 +341,7 @@ export function DocumentToolbar({
       </ToolbarGroup>
 
       {linkDialogOpen && <LinkDialog editor={editor} onClose={() => setLinkDialogOpen(false)} />}
+      {paragraphOpen && <ParagraphDialog editor={editor} onClose={() => onParagraphOpenChange(false)} />}
     </div>
   )
 }

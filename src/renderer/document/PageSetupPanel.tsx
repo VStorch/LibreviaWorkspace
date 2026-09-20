@@ -39,11 +39,24 @@ export function PageSetupPanel({ onClose }: { readonly onClose: () => void }): R
   }
 
   return (
-    <div className="popover popover--wide" role="dialog" aria-label="Configuração de página">
+    <div
+      className="popover popover--wide"
+      role="dialog"
+      aria-label="Configuração de página"
+      // `Esc` fecha e `Enter` aplica, como no diálogo de parágrafo: dois painéis
+      // que fazem a mesma coisa de dois jeitos custam mais a quem usa do que a
+      // quem escreve. No elemento, e não numa escuta global, para não fechar
+      // enquanto o foco está em outro canto da tela.
+      onKeyDown={(event) => {
+        if (event.key === 'Escape') onClose()
+        if (event.key === 'Enter') apply()
+      }}
+    >
       <div className="popover__row">
         <label className="popover__field">
           <span>Tamanho</span>
           <select
+            aria-label="Tamanho"
             value={draft.size}
             onChange={(event) => setDraft({ ...draft, size: event.target.value as PageSize })}
           >
@@ -55,6 +68,7 @@ export function PageSetupPanel({ onClose }: { readonly onClose: () => void }): R
         <label className="popover__field">
           <span>Orientação</span>
           <select
+            aria-label="Orientação"
             value={draft.orientation}
             onChange={(event) => setDraft({ ...draft, orientation: event.target.value as PageOrientation })}
           >

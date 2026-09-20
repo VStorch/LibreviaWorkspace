@@ -6,7 +6,7 @@
  * editor — que não é serializável — dentro do store.
  */
 
-export type EditorCommand = 'find-replace' | 'page-setup' | 'insert-page-break'
+export type EditorCommand = 'find-replace' | 'page-setup' | 'insert-page-break' | 'paragraph-setup'
 
 const listeners = new Set<(command: EditorCommand) => void>()
 
