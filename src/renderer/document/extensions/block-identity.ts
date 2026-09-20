@@ -1,4 +1,5 @@
 import { Extension } from '@tiptap/core'
+import { Plugin, PluginKey, type Transaction } from '@tiptap/pm/state'
 
 /**
  * O que o bloco traz do arquivo e o editor não interpreta — identidade e
@@ -23,17 +24,72 @@ import { Extension } from '@tiptap/core'
  * num arquivo que o usuário só abriu para ler.
  *
  * Vai para o HTML como `data-oid` — e não só para o JSON — porque a identidade
- * também precisa atravessar recortar/colar e desfazer, que passam pelo DOM. Um
- * `oid` repetido por colagem é previsto do outro lado: a gravação preserva o XML
- * original na primeira ocorrência e regenera as demais.
+ * também precisa atravessar recortar/colar e desfazer, que passam pelo DOM. E
+ * porque o DOM a duplica, a identidade repetida é desfeita aqui mesmo, por
+ * `uniqueOids`.
  */
 
 export interface BlockIdentityOptions {
   types: string[]
 }
 
+/**
+ * Um `oid` por bloco: a segunda ocorrência perde a identidade.
+ *
+ * Dois blocos com o mesmo `oid` é o pior caso da gravação cirúrgica. O gravador
+ * preserva o XML original na **primeira** ocorrência e regenera as demais — de
+ * modo que o bloco que a pessoa nem tocou volta reescrito, e com ele se vai o que
+ * o editor não sabe reproduzir. Foi assim que o marcador de um parágrafo dividido
+ * desapareceu do arquivo.
+ *
+ * Quem duplica é a divisão de parágrafo: o Enter entrega os dois lados com os
+ * atributos do original, `oid` incluído. A colagem faz o mesmo, pelo `data-oid`
+ * do HTML. A regra aqui é a que o gravador já aplica, um passo antes e uma vez
+ * só: o primeiro fica com a identidade — é ele que está no lugar do bloco que
+ * veio do arquivo — e o novo nasce sem nenhuma, o que o gravador entende como
+ * "bloco novo, gere do zero".
+ *
+ * Só quando há o que corrigir, e sem descer dentro do parágrafo: uma transação
+ * apendada a cada tecla suja o histórico de desfazer, e o percurso das palavras
+ * do documento não paga nada a esta conta.
+ */
+export function uniqueOids(): Plugin {
+  return new Plugin({
+    key: new PluginKey('blockIdentityUnique'),
+
+    appendTransaction(transactions, _oldState, newState) {
+      if (!transactions.some((transaction) => transaction.docChanged)) return null
+
+      const seen = new Set<string>()
+      let corrections: Transaction | null = null
+
+      newState.doc.descendants((node, position) => {
+        const oid: unknown = node.attrs['oid']
+        if (typeof oid === 'string' && oid.length > 0) {
+          if (seen.has(oid)) {
+            corrections ??= newState.tr
+            corrections.setNodeAttribute(position, 'oid', null)
+          } else {
+            seen.add(oid)
+          }
+        }
+
+        // Dentro de um parágrafo não há bloco com identidade: o que mora lá é
+        // texto, e percorrê-lo custaria o documento inteiro a cada tecla.
+        return !node.isTextblock
+      })
+
+      return corrections
+    },
+  })
+}
+
 export const BlockIdentity = Extension.create<BlockIdentityOptions>({
   name: 'blockIdentity',
+
+  addProseMirrorPlugins() {
+    return [uniqueOids()]
+  },
 
   addOptions() {
     // Exatamente os nós em que `BodyReader` chama `NewBlock`: o parágrafo de
