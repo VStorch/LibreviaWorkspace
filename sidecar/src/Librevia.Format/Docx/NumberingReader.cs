@@ -6,7 +6,18 @@ namespace Librevia.Format.Docx;
 /// <summary>
 /// A lista de um parágrafo: que tipo, em que nível, com que marca e recuo.
 /// </summary>
-public sealed record ListStyle(string Kind, int Level, string? Marker, double? IndentMm, double? HangingMm);
+/// <param name="NumberingId">
+/// O `w:numId` do arquivo. Vai para o nó da lista e volta na gravação: é o que
+/// mantém a lista editada apontando a mesma numeração, com a mesma marca e a
+/// mesma contagem.
+/// </param>
+public sealed record ListStyle(
+    string Kind,
+    int NumberingId,
+    int Level,
+    string? Marker,
+    double? IndentMm,
+    double? HangingMm);
 
 /// <summary>
 /// Decide se um parágrafo numerado é lista com marcador ou lista ordenada, e
@@ -32,6 +43,7 @@ public sealed class NumberingReader(MainDocumentPart part)
 
         return new ListStyle(
             KindOf(definition),
+            numId.Value,
             level,
             MarkerOf(definition),
             TwipsOf(definition?.PreviousParagraphProperties?.Indentation?.Left?.Value),

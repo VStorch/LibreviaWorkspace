@@ -279,6 +279,34 @@ export const BlockFormat = Extension.create<BlockFormatOptions>({
           },
         },
       },
+
+      {
+        // Só nas listas, porque só elas têm numeração. Entrada separada para que
+        // um parágrafo não passe a carregar um atributo que nunca vai usar.
+        types: ['bulletList', 'orderedList'],
+        attributes: {
+          /**
+           * A numeração que a lista tem no arquivo (`w:numId`).
+           *
+           * Não muda nada na tela: viaja junto para que a lista editada continue
+           * apontando a **mesma** numeração ao ser gravada. Sem ela o gravador
+           * escrevia `w:numId w:val="0"` — que no OOXML quer dizer "sem
+           * numeração" — e a lista voltava do arquivo como parágrafos comuns,
+           * sem marcador e sem recuo.
+           */
+          numId: {
+            default: null,
+            parseHTML: (element) => {
+              const value = Number(element.getAttribute('data-num-id'))
+              return Number.isInteger(value) && value > 0 ? value : null
+            },
+            renderHTML: (attributes) => {
+              const value = Number(attributes['numId'])
+              return Number.isInteger(value) && value > 0 ? { 'data-num-id': String(value) } : {}
+            },
+          },
+        },
+      },
     ]
   },
 })

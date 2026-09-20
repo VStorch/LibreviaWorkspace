@@ -18,16 +18,40 @@ namespace Librevia.Format.Docx;
 /// lugar mais perigoso da Fase 4. A edição cirúrgica reduz o estrago: blocos
 /// intactos nunca passam por aqui — vão direto do arquivo original para o novo.
 /// </remarks>
-public sealed class ParagraphWriter(MainDocumentPart part, Inventory inventory)
+public sealed class ParagraphWriter
 {
-    private const int TwipsPerIndentLevel = 720;
+    private readonly MainDocumentPart _part;
+    private readonly Inventory _inventory;
+    private readonly ParagraphFormat _format;
+    private readonly TableWriter _tables;
+    private readonly ImageWriter _images;
+
+    /// <param name="usableWidthPx">
+    /// A largura da coluna de texto, em pixels do CSS. É o teto de uma imagem
+    /// que chega sem medida: maior do que isso, o Word a desenha estourando a
+    /// margem.
+    /// </param>
+    public ParagraphWriter(
+        MainDocumentPart part,
+        Inventory inventory,
+        int usableWidthPx = ImageWriter.DefaultWidthPx)
+    {
+        _part = part;
+        _inventory = inventory;
+        _format = new ParagraphFormat(inventory);
+        _tables = new TableWriter(inventory, (node, original) => Write(node, null, original));
+        _images = new ImageWriter(
+            part,
+            inventory,
+            usableWidthPx > 0 ? usableWidthPx : ImageWriter.DefaultWidthPx);
+    }
 
     /// <param name="original">
     /// O parágrafo como estava no arquivo, quando existe.
     /// </param>
     public IEnumerable<OpenXmlElement> Write(
         Node node,
-        ListContext? list = null,
+        ListPlacement? list = null,
         OpenXmlElement? original = null)
     {
         switch (node.Type)
@@ -35,7 +59,7 @@ public sealed class ParagraphWriter(MainDocumentPart part, Inventory inventory)
             case "paragraph":
             case "heading":
             {
-                var paragraph = WriteParagraph(node, list);
+                var paragraph = WriteParagraph(node, list, original as Paragraph);
                 CarryAnchored(paragraph, node, original);
                 yield return paragraph;
                 break;
@@ -46,8 +70,20 @@ public sealed class ParagraphWriter(MainDocumentPart part, Inventory inventory)
                 break;
 
             case "table":
-                yield return WriteTable(node);
+                yield return _tables.Write(node, original as Table);
                 break;
+
+            // A imagem que a pessoa insere pela barra de ferramentas é um bloco,
+            // e não um trecho de linha: no OOXML não existe imagem fora de
+            // parágrafo, então ela viaja dentro de um. Sem este caso ela caía no
+            // ramo de baixo — parágrafo vazio e um aviso de perda — e desaparecia
+            // do documento ao salvar.
+            case "image":
+            {
+                var image = _images.Write(node);
+                yield return image is null ? new Paragraph() : new Paragraph(image);
+                break;
+            }
 
             case "horizontalRule":
                 yield return new Paragraph(new ParagraphProperties(
@@ -62,14 +98,36 @@ public sealed class ParagraphWriter(MainDocumentPart part, Inventory inventory)
             default:
                 // Um bloco que não sabemos gerar não pode virar nada em
                 // silêncio: vira parágrafo vazio e entra no inventário.
-                inventory.NoteLoss($"bloco do tipo \"{node.Type}\"");
+                _inventory.NoteLoss($"bloco do tipo \"{node.Type}\"");
                 yield return new Paragraph();
                 break;
         }
     }
 
     /// <summary>Numeração herdada do documento, para itens de lista.</summary>
-    public sealed record ListContext(int NumberingId, int Level);
+    /// <param name="Kind">
+    /// `bulletList` ou `orderedList`. Viaja junto porque uma sublista só pode
+    /// herdar a numeração da lista de fora quando é do mesmo tipo: herdada às
+    /// cegas, uma sublista numerada dentro de uma com marcador sai com marcador.
+    /// </param>
+    public sealed record ListContext(string Kind, int NumberingId, int Level);
+
+    /// <summary>
+    /// O que quem chama sabe sobre a numeração do parágrafo.
+    /// </summary>
+    /// <remarks>
+    /// São três estados, e não dois. O corpo sabe que o parágrafo **é** item de
+    /// lista — o embrulho com o contexto dentro; sabe que **não é** — o embrulho
+    /// com <c>null</c> dentro, e aí o `w:numPr` do original tem de sair, senão o
+    /// parágrafo continua numerado depois de a pessoa ter tirado a lista; e a
+    /// tabela **não sabe** — nem embrulho, e aí o `w:numPr` do original fica.
+    ///
+    /// O terceiro caso não existia, e a célula pagava por isso: a detecção de
+    /// lista mora no laço do corpo, nunca dentro da célula, de modo que a tabela
+    /// chamava o escritor sempre sem contexto. Corrigir uma palavra numa tabela
+    /// tirava os marcadores da lista que estava na célula, sem nada no inventário.
+    /// </remarks>
+    public readonly record struct ListPlacement(ListContext? List);
 
     /// <summary>
     /// Os objetos ancorados do parágrafo original seguem no parágrafo reescrito.
@@ -127,7 +185,7 @@ public sealed class ParagraphWriter(MainDocumentPart part, Inventory inventory)
         var boxes = TextBoxNav.AnchoredBoxesOf(paragraph).ToList();
         if (boxes.Count != wanted.Count)
         {
-            inventory.NoteLoss("texto de caixa num parágrafo que você editou");
+            _inventory.NoteLoss("texto de caixa num parágrafo que você editou");
             return;
         }
 
@@ -196,62 +254,23 @@ public sealed class ParagraphWriter(MainDocumentPart part, Inventory inventory)
     internal static bool IsAnchoredOnly(Run run) =>
         run.Descendants<WordDrawing.Anchor>().Any() && !run.Elements<Text>().Any();
 
-    private Paragraph WriteParagraph(Node node, ListContext? list)
+    private Paragraph WriteParagraph(Node node, ListPlacement? list, Paragraph? original)
     {
         var paragraph = new Paragraph();
-        var properties = new ParagraphProperties();
 
-        if (node.Type == "heading" && AttrInt(node, "level") is { } level)
+        // O `w:pPr` sai de ParagraphFormat, que parte do original: o estilo, o
+        // espaçamento, a entrelinha, o fundo, a marca de parágrafo e o `w:sectPr`
+        // do arquivo sobrevivem à edição porque ninguém os reescreve.
+        if (_format.Build(node, list, original) is { } properties)
         {
-            properties.ParagraphStyleId = new ParagraphStyleId { Val = "Heading" + level };
+            paragraph.ParagraphProperties = properties;
         }
 
-        if (AttrString(node, "textAlign") is { } align && align != "left")
+        // Os marcadores que abriam o parágrafo abrem o parágrafo reescrito.
+        foreach (var mark in Bookmarks(original, leading: true))
         {
-            properties.Justification = new Justification
-            {
-                Val = align switch
-                {
-                    "center" => JustificationValues.Center,
-                    "right" => JustificationValues.Right,
-                    "justify" => JustificationValues.Both,
-                    _ => JustificationValues.Left,
-                },
-            };
+            paragraph.AppendChild(mark.CloneNode(true));
         }
-
-        // A medida do arquivo primeiro, e o nível do editor por cima: são as
-        // duas origens do recuo, e o nível existe porque `Ctrl+]` trabalha em
-        // passos. Somá-los é o que faz recuar um parágrafo importado acrescentar
-        // um passo ao recuo que ele já tinha, em vez de apagá-lo.
-        var left = (MmToTwips(AttrDouble(node, "indentMm")) ?? 0)
-                   + ((AttrInt(node, "indent") ?? 0) * TwipsPerIndentLevel);
-        var right = MmToTwips(AttrDouble(node, "indentRightMm")) ?? 0;
-        var firstLine = MmToTwips(AttrDouble(node, "firstLineMm")) ?? 0;
-
-        if (left > 0 || right > 0 || firstLine != 0)
-        {
-            var indentation = new Indentation();
-            if (left > 0) indentation.Left = left.ToString(CultureInfo.InvariantCulture);
-            if (right > 0) indentation.Right = right.ToString(CultureInfo.InvariantCulture);
-
-            // Um só atributo, com o sinal decidindo qual: o Word grava
-            // `w:firstLine` e `w:hanging` como dois, e declarar os dois deixaria
-            // o arquivo dizendo duas coisas sobre a mesma linha.
-            if (firstLine > 0) indentation.FirstLine = firstLine.ToString(CultureInfo.InvariantCulture);
-            else if (firstLine < 0) indentation.Hanging = (-firstLine).ToString(CultureInfo.InvariantCulture);
-
-            properties.Indentation = indentation;
-        }
-
-        if (list is not null)
-        {
-            properties.NumberingProperties = new NumberingProperties(
-                new NumberingLevelReference { Val = list.Level },
-                new NumberingId { Val = list.NumberingId });
-        }
-
-        if (properties.HasChildren) paragraph.ParagraphProperties = properties;
 
         foreach (var child in node.Content ?? [])
         {
@@ -262,12 +281,59 @@ public sealed class ParagraphWriter(MainDocumentPart part, Inventory inventory)
         // `w:r`. O leitor a transformou em propriedade do bloco para não pôr um
         // nó de bloco em posição de linha; aqui ela desfaz o caminho. Sem isto,
         // editar o parágrafo que carrega a quebra a apagaria em silêncio.
-        if (AttrBool(node, "breakAfter"))
+        if (Attr.Bool(node, "breakAfter"))
         {
             paragraph.AppendChild(new Run(new Break { Type = BreakValues.Page }));
         }
 
+        foreach (var mark in Bookmarks(original, leading: false))
+        {
+            paragraph.AppendChild(mark.CloneNode(true));
+        }
+
         return paragraph;
+    }
+
+    /// <summary>
+    /// Os marcadores do parágrafo original, separados pelo lado em que estavam.
+    /// </summary>
+    /// <remarks>
+    /// `w:bookmarkStart` e `w:bookmarkEnd` são o destino da referência cruzada, da
+    /// entrada de índice e do link interno do documento — e o modelo do editor não
+    /// os representa. Reescrevendo o parágrafo só a partir do modelo, eles
+    /// desapareciam do arquivo: quem os citava passava a apontar para o vazio, e
+    /// nada disso chegava ao inventário. É a mesma solução dos objetos ancorados:
+    /// o que o editor não sabe dizer vem do XML original.
+    ///
+    /// Pelo lado em que estavam, e não todos juntos num canto: um marcador que
+    /// abraça o parágrafo tem o começo antes do texto e o fim depois dele, e
+    /// levar os dois para o mesmo lado encurtaria o trecho marcado até o vazio.
+    /// A posição **dentro** do texto não sobrevive — o modelo não diz onde o
+    /// marcador começava no meio da frase —, e é a perda que resta: o marcador
+    /// continua existindo e continua neste parágrafo.
+    ///
+    /// Marcador é conteúdo de nível de run, então ele cabe em qualquer ponto do
+    /// `w:p` depois do `w:pPr`.
+    /// </remarks>
+    /// <param name="leading">
+    /// Verdadeiro para os que vinham antes de qualquer conteúdo, falso para os
+    /// demais.
+    /// </param>
+    private static IEnumerable<OpenXmlElement> Bookmarks(Paragraph? original, bool leading)
+    {
+        if (original is null) yield break;
+
+        var started = false;
+        foreach (var child in original.ChildElements)
+        {
+            if (child is BookmarkStart or BookmarkEnd)
+            {
+                if (started != leading) yield return child;
+                continue;
+            }
+
+            if (child is not ParagraphProperties) started = true;
+        }
     }
 
     private IEnumerable<OpenXmlElement> WriteInline(Node node)
@@ -287,11 +353,11 @@ public sealed class ParagraphWriter(MainDocumentPart part, Inventory inventory)
                 break;
 
             case "image":
-                if (WriteImage(node) is { } image) yield return image;
+                if (_images.Write(node) is { } image) yield return image;
                 break;
 
             default:
-                inventory.NoteLoss($"conteúdo do tipo \"{node.Type}\"");
+                _inventory.NoteLoss($"conteúdo do tipo \"{node.Type}\"");
                 break;
         }
     }
@@ -316,19 +382,11 @@ public sealed class ParagraphWriter(MainDocumentPart part, Inventory inventory)
                     break;
 
                 case "highlight":
-                    if (MarkString(mark, "color") is { } fill)
-                    {
-                        properties.Shading = new Shading
-                        {
-                            Val = ShadingPatternValues.Clear,
-                            Fill = fill.TrimStart('#'),
-                        };
-                    }
-
+                    if (Attr.MarkString(mark, "color") is { } fill) ApplyHighlight(properties, fill);
                     break;
 
                 case "link":
-                    hyperlink = MarkString(mark, "href");
+                    hyperlink = Attr.MarkString(mark, "href");
                     break;
 
                 case "textStyle":
@@ -336,16 +394,24 @@ public sealed class ParagraphWriter(MainDocumentPart part, Inventory inventory)
                     break;
 
                 default:
-                    inventory.NoteLoss($"formatação \"{mark.Type}\"");
+                    _inventory.NoteLoss($"formatação \"{mark.Type}\"");
                     break;
             }
         }
 
         if (properties.HasChildren) run.RunProperties = properties;
 
-        // `xml:space="preserve"` senão o Word engole espaço no começo e no fim,
-        // e frases coladas aparecem sem separação.
-        run.AppendChild(new Text(node.Text ?? string.Empty) { Space = SpaceProcessingModeValues.Preserve });
+        // O texto entra peça por peça: tabulação é `w:tab`, quebra de linha é
+        // `w:br`, e caractere de controle não existe no XML 1.0 — escrevê-lo
+        // derrubava a gravação inteira. Ver XmlText.
+        var pieces = XmlText.Of(node.Text).ToList();
+        if (pieces.Count == 0)
+        {
+            // Run sem nada dentro é inválido para o Word.
+            pieces.Add(new Text(string.Empty) { Space = SpaceProcessingModeValues.Preserve });
+        }
+
+        foreach (var piece in pieces) run.AppendChild(piece);
 
         if (hyperlink is null) return run;
 
@@ -357,11 +423,11 @@ public sealed class ParagraphWriter(MainDocumentPart part, Inventory inventory)
         }
         catch (UriFormatException)
         {
-            inventory.NoteLoss("endereço de link inválido");
+            _inventory.NoteLoss("endereço de link inválido");
             return run;
         }
 
-        var relationship = part.AddHyperlinkRelationship(target, true);
+        var relationship = _part.AddHyperlinkRelationship(target, true);
         var link = new Hyperlink { Id = relationship.Id };
         link.AppendChild(run);
         return link;
@@ -369,208 +435,76 @@ public sealed class ParagraphWriter(MainDocumentPart part, Inventory inventory)
 
     private void ApplyTextStyle(RunProperties properties, Mark mark)
     {
-        if (MarkString(mark, "color") is { } color)
+        if (Attr.MarkString(mark, "color") is { } color)
         {
-            properties.Color = new Color { Val = color.TrimStart('#') };
+            if (ColorValue.Hex(color) is { } hex) properties.Color = new Color { Val = hex };
+            else _inventory.NoteLoss($"cor de texto \"{color}\"");
         }
 
-        if (MarkString(mark, "fontFamily") is { } font)
+        // O fundo de um trecho de texto: no editor é `backgroundColor`, no
+        // arquivo é o mesmo `w:shd` do realce. Enquanto ficava de fora, pintar o
+        // fundo de uma palavra não chegava ao documento.
+        if (Attr.MarkString(mark, "backgroundColor") is { } background)
         {
-            // Só a primeira da pilha volta para o arquivo. O que sai do leitor é
-            // uma pilha de CSS — a fonte pedida e a substituta genérica — e o
-            // `w:rFonts` guarda o nome de uma fonte, não uma pilha.
-            var first = font.Split(',')[0].Trim().Trim('\'', '"');
-            if (first.Length > 0) properties.RunFonts = new RunFonts { Ascii = first, HighAnsi = first };
+            ApplyHighlight(properties, background);
         }
 
-        if (MarkString(mark, "fontSize") is { } size)
+        if (Attr.MarkString(mark, "fontFamily") is { } font &&
+            ParagraphFormat.FirstFont(font) is { } first)
         {
-            var digits = size.TrimEnd('p', 't', ' ');
-            if (double.TryParse(digits, NumberStyles.Float, CultureInfo.InvariantCulture, out var points))
+            properties.RunFonts = new RunFonts { Ascii = first, HighAnsi = first };
+        }
+
+        if (Attr.MarkString(mark, "fontSize") is { } size)
+        {
+            // `w:sz` é em meios-pontos, e a medida pode chegar em pixels: o
+            // editor grava `font-size` como o CSS o escreve, e um `16px` lido
+            // como "16 pt" engordava o texto em um terço.
+            if (Attr.Points(size) is { } points && points > 0)
             {
-                // `w:sz` é em meios-pontos.
                 var halfPoints = (int)Math.Round(points * 2);
-                properties.FontSize = new FontSize { Val = halfPoints.ToString(CultureInfo.InvariantCulture) };
+                properties.FontSize = new FontSize
+                {
+                    Val = halfPoints.ToString(CultureInfo.InvariantCulture),
+                };
+            }
+            else
+            {
+                _inventory.NoteLoss($"tamanho de fonte \"{size}\"");
             }
         }
+
+        // A entrelinha é propriedade do parágrafo no OOXML: não existe `w:line`
+        // dentro de um `w:rPr`. Quem a grava é ParagraphFormat, a partir do
+        // atributo do bloco; aplicada a um trecho só, ela não tem para onde ir.
+        if (Attr.MarkString(mark, "lineHeight") is { } lineHeight)
+        {
+            _inventory.NoteLoss($"entrelinha de um trecho de texto (\"{lineHeight}\")");
+        }
     }
 
-    // --- imagens ------------------------------------------------------------
-
-    private static uint _drawingId = 1000;
-
-    private Run? WriteImage(Node node)
+    /// <summary>
+    /// Fundo de texto, como `w:shd`.
+    /// </summary>
+    /// <remarks>
+    /// Hexadecimal de seis dígitos, sempre: o editor guarda a cor como o CSS a
+    /// escreve — `rgb(255, 0, 0)`, `#f00`, `red` — e o atributo do OOXML não
+    /// aceita nenhuma dessas formas. `rgb(...)` no lugar fazia o Word declarar o
+    /// documento danificado; um nome de cor era aceito e desenhado como preto.
+    /// </remarks>
+    private void ApplyHighlight(RunProperties properties, string color)
     {
-        var source = AttrString(node, "src");
-        if (source is null || !source.StartsWith("data:", StringComparison.Ordinal))
+        if (ColorValue.Hex(color) is not { } hex)
         {
-            inventory.NoteLoss("imagem sem conteúdo embutido");
-            return null;
+            _inventory.NoteLoss($"cor de fundo de texto \"{color}\"");
+            return;
         }
 
-        var comma = source.IndexOf(',', StringComparison.Ordinal);
-        var header = source[5..comma];
-        if (!header.EndsWith(";base64", StringComparison.OrdinalIgnoreCase))
+        properties.Shading = new Shading
         {
-            inventory.NoteLoss("imagem em formato não suportado");
-            return null;
-        }
-
-        var contentType = header[..^";base64".Length];
-        byte[] bytes;
-        try
-        {
-            bytes = Convert.FromBase64String(source[(comma + 1)..]);
-        }
-        catch (FormatException)
-        {
-            inventory.NoteLoss("imagem com conteúdo ilegível");
-            return null;
-        }
-
-        // No OpenXml 3.x `ImagePartType` é classe estática de `PartTypeInfo`,
-        // e não mais um enum.
-        PartTypeInfo imageType;
-        switch (contentType)
-        {
-            case "image/png": imageType = ImagePartType.Png; break;
-            case "image/jpeg": imageType = ImagePartType.Jpeg; break;
-            case "image/gif": imageType = ImagePartType.Gif; break;
-            case "image/bmp": imageType = ImagePartType.Bmp; break;
-            default:
-                inventory.NoteLoss($"imagem em {contentType}");
-                return null;
-        }
-
-        var imagePart = part.AddImagePart(imageType);
-        using (var stream = new MemoryStream(bytes))
-        {
-            imagePart.FeedData(stream);
-        }
-
-        var relationshipId = part.GetIdOfPart(imagePart);
-
-        // Pixels CSS → EMU: 914400 por polegada, 96 px por polegada.
-        var widthPx = AttrInt(node, "width") ?? 600;
-        var heightPx = AttrInt(node, "height") ?? (int)Math.Round(widthPx * 0.75);
-        var cx = (long)widthPx * 914400 / 96;
-        var cy = (long)heightPx * 914400 / 96;
-
-        var id = _drawingId++;
-
-        return new Run(new DocumentFormat.OpenXml.Wordprocessing.Drawing(
-            new WordDrawing.Inline(
-                new WordDrawing.Extent { Cx = cx, Cy = cy },
-                new WordDrawing.EffectExtent { LeftEdge = 0, TopEdge = 0, RightEdge = 0, BottomEdge = 0 },
-                new WordDrawing.DocProperties { Id = id, Name = "Imagem " + id },
-                new Drawing.Graphic(
-                    new Drawing.GraphicData(
-                        new Pictures.Picture(
-                            new Pictures.NonVisualPictureProperties(
-                                new Pictures.NonVisualDrawingProperties { Id = 0U, Name = "Imagem " + id },
-                                new Pictures.NonVisualPictureDrawingProperties()),
-                            new Pictures.BlipFill(
-                                new Drawing.Blip { Embed = relationshipId },
-                                new Drawing.Stretch(new Drawing.FillRectangle())),
-                            new Pictures.ShapeProperties(
-                                new Drawing.Transform2D(
-                                    new Drawing.Offset { X = 0L, Y = 0L },
-                                    new Drawing.Extents { Cx = cx, Cy = cy }),
-                                new Drawing.PresetGeometry(new Drawing.AdjustValueList())
-                                {
-                                    Preset = Drawing.ShapeTypeValues.Rectangle,
-                                })))
-                    {
-                        Uri = "http://schemas.openxmlformats.org/drawingml/2006/picture",
-                    }))
-            {
-                DistanceFromTop = 0U,
-                DistanceFromBottom = 0U,
-                DistanceFromLeft = 0U,
-                DistanceFromRight = 0U,
-            }));
+            Val = ShadingPatternValues.Clear,
+            Color = "auto",
+            Fill = hex,
+        };
     }
-
-    // --- tabelas ------------------------------------------------------------
-
-    private Table WriteTable(Node node)
-    {
-        var table = new Table();
-
-        table.AppendChild(new TableProperties(
-            new TableBorders(
-                new TopBorder { Val = BorderValues.Single, Size = 4 },
-                new BottomBorder { Val = BorderValues.Single, Size = 4 },
-                new LeftBorder { Val = BorderValues.Single, Size = 4 },
-                new RightBorder { Val = BorderValues.Single, Size = 4 },
-                new InsideHorizontalBorder { Val = BorderValues.Single, Size = 4 },
-                new InsideVerticalBorder { Val = BorderValues.Single, Size = 4 })));
-
-        foreach (var rowNode in node.Content ?? [])
-        {
-            var row = new TableRow();
-
-            foreach (var cellNode in rowNode.Content ?? [])
-            {
-                var cell = new TableCell();
-
-                if (AttrInt(cellNode, "colspan") is { } span && span > 1)
-                {
-                    cell.TableCellProperties = new TableCellProperties(new GridSpan { Val = span });
-                }
-
-                var wrote = false;
-                foreach (var child in cellNode.Content ?? [])
-                {
-                    foreach (var element in Write(child))
-                    {
-                        cell.AppendChild(element);
-                        wrote = true;
-                    }
-                }
-
-                // Célula sem parágrafo torna o documento inválido para o Word.
-                if (!wrote) cell.AppendChild(new Paragraph());
-                row.AppendChild(cell);
-            }
-
-            table.AppendChild(row);
-        }
-
-        return table;
-    }
-
-    // --- leitura de atributos ----------------------------------------------
-
-    private static bool AttrBool(Node node, string name) =>
-        node.Attrs is not null
-        && node.Attrs.TryGetValue(name, out var value)
-        && value is not null
-        && value.GetValueKind() == System.Text.Json.JsonValueKind.True;
-
-    private static string? AttrString(Node node, string name) =>
-        node.Attrs is not null && node.Attrs.TryGetValue(name, out var value) && value is not null
-            ? value.GetValueKind() == System.Text.Json.JsonValueKind.String ? value.GetValue<string>() : null
-            : null;
-
-    /// <summary>1 twip = 1/1440 de polegada.</summary>
-    private static int? MmToTwips(double? mm) =>
-        mm is null ? null : (int)Math.Round(mm.Value * 1440 / 25.4);
-
-    private static double? AttrDouble(Node node, string name)
-    {
-        if (node.Attrs is null || !node.Attrs.TryGetValue(name, out var value) || value is null) return null;
-        return value.GetValueKind() == System.Text.Json.JsonValueKind.Number ? value.GetValue<double>() : null;
-    }
-
-    private static int? AttrInt(Node node, string name)
-    {
-        if (node.Attrs is null || !node.Attrs.TryGetValue(name, out var value) || value is null) return null;
-        return value.GetValueKind() == System.Text.Json.JsonValueKind.Number ? value.GetValue<int>() : null;
-    }
-
-    private static string? MarkString(Mark mark, string name) =>
-        mark.Attrs is not null && mark.Attrs.TryGetValue(name, out var value) && value is not null
-            ? value.GetValueKind() == System.Text.Json.JsonValueKind.String ? value.GetValue<string>() : null
-            : null;
 }

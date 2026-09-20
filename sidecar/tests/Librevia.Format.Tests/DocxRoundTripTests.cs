@@ -10,51 +10,23 @@ namespace Librevia.Format.Tests;
 /// </summary>
 public class DocxRoundTripTests
 {
-    private static DocumentModelDto Open(byte[] bytes) => DocxReader.Read(bytes).Model;
+    // Os quatro passos do caminho — abrir, clonar, gravar, conferir — moram em
+    // Roundtrip: esta classe e DocxWriteBackTests usam os mesmos.
+    private static DocumentModelDto Open(byte[] bytes) => Roundtrip.Open(bytes);
 
     private static (byte[] Bytes, SaveResult Result) Save(byte[] original, DocumentModelDto model) =>
-        DocxWriter.Write(original, model);
+        Roundtrip.Save(original, model);
 
-    /// <summary>Clona pelo JSON — é como o modelo viaja de verdade.</summary>
-    private static DocumentModelDto Clone(DocumentModelDto model) =>
-        JsonSerializer.Deserialize<DocumentModelDto>(
-            JsonSerializer.Serialize(model, DocxJson.Options), DocxJson.Options)!;
+    private static DocumentModelDto Clone(DocumentModelDto model) => Roundtrip.Clone(model);
 
-    private static IEnumerable<Node> Walk(Node node)
-    {
-        yield return node;
-        foreach (var child in node.Content ?? [])
-        {
-            foreach (var deeper in Walk(child)) yield return deeper;
-        }
-    }
+    private static IEnumerable<Node> Walk(Node node) => Roundtrip.Walk(node);
 
-    private static string TextOf(DocumentModelDto model) =>
-        string.Concat(Walk(model.Doc).Where(n => n.Type == "text").Select(n => n.Text));
+    private static string TextOf(DocumentModelDto model) => Roundtrip.TextOf(model);
 
-    private static bool EditFirstTextContaining(DocumentModelDto model, string needle, string replacement)
-    {
-        var target = Walk(model.Doc)
-            .FirstOrDefault(n => n.Type == "text" && n.Text?.Contains(needle, StringComparison.Ordinal) == true);
-        if (target is null) return false;
-        target.Text = replacement;
-        return true;
-    }
+    private static bool EditFirstTextContaining(DocumentModelDto model, string needle, string replacement) =>
+        Roundtrip.EditFirstTextContaining(model, needle, replacement);
 
-    private static Dictionary<string, byte[]> PartsOf(byte[] docx)
-    {
-        using var archive = new ZipArchive(new MemoryStream(docx), ZipArchiveMode.Read);
-        return archive.Entries.ToDictionary(
-            entry => entry.FullName,
-            entry =>
-            {
-                using var stream = entry.Open();
-                using var buffer = new MemoryStream();
-                stream.CopyTo(buffer);
-                return buffer.ToArray();
-            },
-            StringComparer.Ordinal);
-    }
+    private static Dictionary<string, byte[]> PartsOf(byte[] docx) => Roundtrip.PartsOf(docx);
 
     // --- o critério de aceite ----------------------------------------------
 

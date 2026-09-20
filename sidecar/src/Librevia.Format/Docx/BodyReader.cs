@@ -105,6 +105,13 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory)
                         // a lista que os desenha. Sem eles a bolinha do CSS
                         // aparece no lugar do quadrado que o documento pede, e
                         // o item sai colado na margem.
+                        // O `numId` viaja no nó da lista porque é o que a
+                        // gravação precisa para continuar apontando a **mesma**
+                        // numeração do arquivo. Sem ele o escritor gravava
+                        // `w:numId w:val="0"` — que no formato quer dizer "sem
+                        // numeração" — e a lista voltava como parágrafos comuns.
+                        listNode.With("numId", list.NumberingId);
+
                         if (list.Marker is { } marker) listNode.With("marker", marker);
                         if (list.IndentMm is { } indent) listNode.With("indentMm", indent);
                         if (list.HangingMm is { } hanging) listNode.With("hangingMm", hanging);
@@ -468,9 +475,19 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory)
     /// `Ttulo1` (sem acento, porque o id do estilo não os aceita). Aceitar as
     /// três formas custa uma linha e evita que todo título vire texto normal.
     /// </remarks>
-    private static int? HeadingLevelOf(ParagraphProperties? properties)
+    private static int? HeadingLevelOf(ParagraphProperties? properties) =>
+        HeadingLevelOfStyle(properties?.ParagraphStyleId?.Val?.Value);
+
+    /// <summary>
+    /// O mesmo, a partir do identificador de estilo cru.
+    /// </summary>
+    /// <remarks>
+    /// Visível para <see cref="ParagraphFormat"/>: quem grava precisa saber se o
+    /// estilo que o modelo carrega já é um estilo de título, para não trocar o
+    /// `Ttulo1` do documento por um `Heading1` que ele não define.
+    /// </remarks>
+    internal static int? HeadingLevelOfStyle(string? style)
     {
-        var style = properties?.ParagraphStyleId?.Val?.Value;
         if (string.IsNullOrEmpty(style)) return null;
 
         var normalized = style.Replace(" ", string.Empty).ToLowerInvariant();
@@ -957,14 +974,39 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory)
 
             foreach (var cell in row.Elements<TableCell>())
             {
-                var contents = cell.Elements<Paragraph>().Select(ReadParagraph).ToList();
+                // Tabela dentro de tabela é comum em documento de formulário, e
+                // ler só os parágrafos a fazia desaparecer da tela — com o texto
+                // dentro dela. O `tableCell` do editor aceita bloco, e a tabela
+                // aninhada é um bloco.
+                var contents = new List<Node>();
+                foreach (var child in cell.ChildElements)
+                {
+                    switch (child)
+                    {
+                        case Paragraph paragraph: contents.Add(ReadParagraph(paragraph)); break;
+                        case Table nested: contents.Add(ReadTable(nested)); break;
+                        case TableCellProperties: break;
+                        default: inventory.NoteInvisibleElement(child.LocalName); break;
+                    }
+                }
+
                 if (contents.Count == 0) contents.Add(Node.Of("paragraph"));
 
                 var node = Node.Of("tableCell");
                 node.Content = contents;
 
+                // Os dois são **sempre** escritos, pelo mesmo motivo do `indent`
+                // do parágrafo: o editor declara `colspan` e `rowspan` com padrão
+                // 1 e devolve os dois em toda célula. Omitidos aqui, os dois lados
+                // descreviam a mesma célula de formas diferentes e a comparação
+                // que decide o que preservar dizia "mudou" em tabela que ninguém
+                // tocou — toda tabela era regenerada ao salvar, e nada falhava.
                 var span = cell.TableCellProperties?.GridSpan?.Val?.Value;
-                if (span is > 1) node.With("colspan", span.Value);
+                node.With("colspan", span is > 1 ? span.Value : 1);
+
+                // O modelo do editor não representa mesclagem vertical: ela fica
+                // no `w:vMerge` do arquivo, que a gravação devolve ao lugar.
+                node.With("rowspan", 1);
 
                 cells.Add(node);
             }

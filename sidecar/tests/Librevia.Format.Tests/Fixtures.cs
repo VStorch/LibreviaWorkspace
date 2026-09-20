@@ -431,6 +431,7 @@ public static class Fixtures
                   <a:graphic>
                     <a:graphicData uri="http://schemas.microsoft.com/office/word/2010/wordprocessingGroup">
                       <wpg:wgp>
+                        <wpg:cNvGrpSpPr/>
                         <wpg:grpSpPr>
                           <a:xfrm>
                             <a:off x="0" y="0"/><a:ext cx="6371640" cy="604440"/>
@@ -452,7 +453,7 @@ public static class Fixtures
                           </wps:spPr>
                           <wps:txbx>
                             <w:txbxContent>
-                              <w:p><w:r><w:rPr><w:b/><w:rFonts w:ascii="Calibri" w:hAnsi="Calibri"/></w:rPr>
+                              <w:p><w:r><w:rPr><w:rFonts w:ascii="Calibri" w:hAnsi="Calibri"/><w:b/></w:rPr>
                                 <w:t>EVIDÊNCIAS DO ROTEIRO</w:t></w:r></w:p>
                             </w:txbxContent>
                           </wps:txbx>
@@ -772,15 +773,15 @@ public static class Fixtures
         // comum dele.
         var multiple = Paragraph("Arial e um pouco mais de linha.");
         multiple.ParagraphProperties = new ParagraphProperties(
-            new ParagraphMarkRunProperties(new RunFonts { Ascii = "Arial" }),
-            new SpacingBetweenLines { Line = "271", LineRule = LineSpacingRuleValues.Auto });
+            new SpacingBetweenLines { Line = "271", LineRule = LineSpacingRuleValues.Auto },
+            new ParagraphMarkRunProperties(new RunFonts { Ascii = "Arial" }));
         body.AppendChild(multiple);
 
         // Fonte que o instalador não leva: a substituta depende da máquina.
         var unknown = Paragraph("Numa fonte que ninguém tem.");
         unknown.ParagraphProperties = new ParagraphProperties(
-            new ParagraphMarkRunProperties(new RunFonts { Ascii = "Fonte Fantasma" }),
-            new SpacingBetweenLines { Line = "271", LineRule = LineSpacingRuleValues.Auto });
+            new SpacingBetweenLines { Line = "271", LineRule = LineSpacingRuleValues.Auto },
+            new ParagraphMarkRunProperties(new RunFonts { Ascii = "Fonte Fantasma" }));
         body.AppendChild(unknown);
     });
 
@@ -907,9 +908,13 @@ public static class Fixtures
     {
         body.AppendChild(Paragraph("Antes da tabela."));
 
-        var table = new Table(new TableProperties(new TableBorders(
-            new TopBorder { Val = BorderValues.Single, Size = 4 },
-            new BottomBorder { Val = BorderValues.Single, Size = 4 })));
+        // `w:tblGrid` não é enfeite: o esquema o exige em toda tabela, e sem ele
+        // o documento é recusado pelo Word.
+        var table = new Table(
+            new TableProperties(new TableBorders(
+                new TopBorder { Val = BorderValues.Single, Size = 4 },
+                new BottomBorder { Val = BorderValues.Single, Size = 4 })),
+            new TableGrid(new GridColumn { Width = "4675" }, new GridColumn { Width = "4675" }));
 
         foreach (var row in new[] { new[] { "A1", "B1" }, new[] { "A2", "B2" } })
         {
@@ -929,38 +934,227 @@ public static class Fixtures
     /// <summary>Lista com marcador, com a numeração declarada de verdade.</summary>
     public static byte[] WithBulletList() => Build((body, part) =>
     {
-        var numbering = part.AddNewPart<NumberingDefinitionsPart>();
-
-        // A marca do Word vem da área de uso privado do Unicode — é assim que
-        // ele grava os glifos de Symbol e Wingdings. Aqui, o quadrado.
-        var level = new Level(
-            new NumberingFormat { Val = NumberFormatValues.Bullet },
-            new LevelText { Val = "\uF0A7" },
-            new PreviousParagraphProperties(new Indentation { Left = "720", Hanging = "360" }))
-        {
-            LevelIndex = 0,
-        };
-
-        numbering.Numbering = new Numbering(
-            new AbstractNum(level) { AbstractNumberId = 1 },
-            new NumberingInstance(new AbstractNumId { Val = 1 }) { NumberID = 1 });
+        AddBulletNumbering(part);
 
         body.AppendChild(Paragraph("Introdução."));
-
-        foreach (var item in new[] { "Primeiro item", "Segundo item" })
-        {
-            var paragraph = Paragraph(item);
-            paragraph.ParagraphProperties = new ParagraphProperties(
-                new NumberingProperties(
-                    new NumberingLevelReference { Val = 0 },
-                    new NumberingId { Val = 1 }));
-            body.AppendChild(paragraph);
-        }
-
+        body.AppendChild(NumberedParagraph("Primeiro item", 1));
+        body.AppendChild(NumberedParagraph("Segundo item", 1));
         body.AppendChild(Paragraph("Conclusão."));
     });
 
+    /// <summary>
+    /// Lista com marcador **dentro de uma célula** de tabela.
+    /// </summary>
+    /// <remarks>
+    /// O leitor só junta parágrafos numerados numa lista no laço do corpo, e
+    /// nunca dentro da célula: para o editor estes dois parágrafos são parágrafos
+    /// comuns. Se a gravação apagar o `w:numPr` que o modelo não representa,
+    /// corrigir uma palavra na célula tira os marcadores da lista.
+    /// </remarks>
+    public static byte[] WithListInsideTableCell() => Build((body, part) =>
+    {
+        AddBulletNumbering(part);
+
+        var cell = new TableCell(NumberedParagraph("Primeiro da célula", 1));
+        cell.AppendChild(NumberedParagraph("Segundo da célula", 1));
+
+        var table = new Table(
+            new TableProperties(new TableStyle { Val = "GradeComLista" }),
+            new TableGrid(new GridColumn { Width = "9350" }));
+        table.AppendChild(new TableRow(cell));
+
+        body.AppendChild(table);
+    });
+
+    /// <summary>
+    /// Parágrafo com recuo **negativo**: a linha sai para fora da margem.
+    /// </summary>
+    /// <remarks>
+    /// O leitor só emite o recuo quando ele é positivo, então este não chega ao
+    /// editor — e o modelo volta dizendo zero sobre um recuo que existe. É o
+    /// contrapeso de zerar o `w:ind` quando o usuário diminui o recuo até o fim.
+    /// </remarks>
+    public static byte[] WithNegativeIndent() => Build((body, _) =>
+    {
+        var paragraph = Paragraph("Texto para fora da margem.");
+        paragraph.ParagraphProperties = new ParagraphProperties(new Indentation { Left = "-284" });
+        body.AppendChild(paragraph);
+    });
+
+    /// <summary>
+    /// Tabela com um marcador **entre** duas linhas.
+    /// </summary>
+    /// <remarks>
+    /// `w:bookmarkStart` e `w:bookmarkEnd` são filhos legítimos de `w:tbl`, e
+    /// moram entre as linhas que eles abraçam. Reescrever a tabela levando todos
+    /// os filhos que não são linha para antes da primeira encurta o marcador até
+    /// o vazio.
+    /// </remarks>
+    public static byte[] WithBookmarkBetweenRows() => Build((body, _) =>
+    {
+        var table = new Table(
+            new TableProperties(new TableStyle { Val = "GradeMarcada" }),
+            new TableGrid(new GridColumn { Width = "9350" }));
+        table.AppendChild(new TableRow(new TableCell(Paragraph("Linha de cima"))));
+        table.AppendChild(new BookmarkStart { Id = "1", Name = "MeioDaTabela" });
+        table.AppendChild(new TableRow(new TableCell(Paragraph("Linha de baixo"))));
+        table.AppendChild(new BookmarkEnd { Id = "1" });
+
+        body.AppendChild(table);
+    });
+
+
+    /// <summary>
+    /// Parágrafo **abraçado** por um marcador.
+    /// </summary>
+    /// <remarks>
+    /// `w:bookmarkStart` e `w:bookmarkEnd` são conteúdo de nível de run, e é a
+    /// eles que apontam a referência cruzada, a entrada de índice e o link
+    /// interno do documento. O editor não os representa: reescrevendo o
+    /// parágrafo a partir do modelo, eles iam embora — e com eles o destino de
+    /// quem os citava, sem uma linha no inventário.
+    /// </remarks>
+    public static byte[] WithBookmarkAroundParagraph() => Build((body, _) =>
+    {
+        var marked = new Paragraph();
+        marked.AppendChild(new BookmarkStart { Id = "1", Name = "CapituloUm" });
+        marked.AppendChild(new Run(new Text("Parágrafo marcado.") { Space = SpaceProcessingModeValues.Preserve }));
+        marked.AppendChild(new BookmarkEnd { Id = "1" });
+
+        body.AppendChild(marked);
+        body.AppendChild(Paragraph("Parágrafo comum."));
+    });
+
+    /// <summary>
+    /// Parágrafo com tudo o que o `w:pPr` sabe dizer.
+    /// </summary>
+    /// <remarks>
+    /// É o fixture do defeito nº 1: o escritor montava o `w:pPr` do zero, e cada
+    /// uma destas propriedades ia embora ao editar o texto. Metade delas o leitor
+    /// mostra na tela (estilo, espaçamento, entrelinha, fundo, fonte da marca), e
+    /// a outra metade ele nem conhece (borda, tabulação) — as duas precisam
+    /// sobreviver.
+    /// </remarks>
+    public static byte[] WithFormattedParagraph() => Build((body, part) =>
+    {
+        var styles = part.AddNewPart<StyleDefinitionsPart>();
+        styles.Styles = new Styles(new Style(
+            new StyleName { Val = "Título 1" },
+            new StyleParagraphProperties(new SpacingBetweenLines { Before = "240", After = "120" }))
+        {
+            Type = StyleValues.Paragraph,
+            StyleId = "Ttulo1",
+        });
+
+        var properties = new ParagraphProperties(
+            new ParagraphStyleId { Val = "Ttulo1" },
+            new KeepNext(),
+            new ParagraphBorders(new BottomBorder { Val = BorderValues.Double, Size = 18 }),
+            new Shading { Val = ShadingPatternValues.Clear, Color = "auto", Fill = "C00000" },
+            new Tabs(new TabStop { Val = TabStopValues.Center, Position = 4500 }),
+            new SpacingBetweenLines
+            {
+                Before = "360",
+                After = "180",
+                Line = "271",
+                LineRule = LineSpacingRuleValues.Auto,
+            },
+            new Indentation { Left = "720", FirstLine = "360" },
+            new Justification { Val = JustificationValues.Center },
+            new ParagraphMarkRunProperties(
+                new RunFonts { Ascii = "Arial", HighAnsi = "Arial" },
+                new FontSize { Val = "20" }));
+
+        var paragraph = new Paragraph(properties);
+        paragraph.AppendChild(new Run(new Text("Título formatado.") { Space = SpaceProcessingModeValues.Preserve }));
+
+        body.AppendChild(paragraph);
+        body.AppendChild(Paragraph("Parágrafo comum."));
+    });
+
+    /// <summary>
+    /// Tabela com tudo o que o modelo do editor não representa.
+    /// </summary>
+    /// <remarks>
+    /// Estilo, largura, grade de colunas, linha de cabeçalho que se repete,
+    /// sombreamento e mesclagem vertical. O escritor trocava tudo isso por seis
+    /// bordas finas iguais — editar uma palavra desmontava a tabela.
+    /// </remarks>
+    public static byte[] WithStyledTable() => Build((body, _) =>
+    {
+        var table = new Table(
+            new TableProperties(
+                new TableStyle { Val = "GradeMedia3" },
+                new TableWidth { Width = "5000", Type = TableWidthUnitValues.Pct },
+                new TableBorders(
+                    new TopBorder { Val = BorderValues.Double, Size = 18 },
+                    new BottomBorder { Val = BorderValues.Double, Size = 18 })),
+            new TableGrid(
+                new GridColumn { Width = "4000" },
+                new GridColumn { Width = "5000" }));
+
+        var header = new TableRow(new TableRowProperties(new TableHeader()));
+        header.AppendChild(new TableCell(
+            new TableCellProperties(
+                new TableCellWidth { Width = "4000", Type = TableWidthUnitValues.Dxa },
+                new VerticalMerge { Val = MergedCellValues.Restart },
+                new Shading { Val = ShadingPatternValues.Clear, Color = "auto", Fill = "D9D9D9" }),
+            Paragraph("Cabeçalho A")));
+        header.AppendChild(new TableCell(Paragraph("Cabeçalho B")));
+        table.AppendChild(header);
+
+        var row = new TableRow();
+        row.AppendChild(new TableCell(
+            new TableCellProperties(new VerticalMerge { Val = MergedCellValues.Continue }),
+            Paragraph("Continuação")));
+        row.AppendChild(new TableCell(Paragraph("Dado B")));
+        table.AppendChild(row);
+
+        body.AppendChild(table);
+    });
+
+    /// <summary>Tabela dentro de uma célula de outra tabela.</summary>
+    /// <remarks>
+    /// O leitor só olhava os parágrafos da célula, e a tabela de dentro — com o
+    /// texto dela — desaparecia da tela e do arquivo gravado.
+    /// </remarks>
+    public static byte[] WithNestedTable() => Build((body, _) =>
+    {
+        var inner = new Table(
+            new TableProperties(new TableStyle { Val = "GradeInterna" }),
+            new TableGrid(new GridColumn { Width = "4000" }));
+        inner.AppendChild(new TableRow(new TableCell(Paragraph("Dentro da tabela de dentro"))));
+
+        var outer = new Table(
+            new TableProperties(new TableStyle { Val = "GradeExterna" }),
+            new TableGrid(new GridColumn { Width = "9350" }));
+        var cell = new TableCell(Paragraph("Antes da aninhada"));
+        cell.AppendChild(inner);
+        // `w:tc` não pode terminar em tabela: o Word exige um parágrafo depois.
+        cell.AppendChild(Paragraph("Depois da aninhada"));
+        outer.AppendChild(new TableRow(cell));
+
+        body.AppendChild(outer);
+    });
+
+    /// <summary>
+    /// Documento em A5, que é papel que o modelo do editor não nomeia.
+    /// </summary>
+    public static byte[] WithCustomPaper() => Build(
+        (body, _) => body.AppendChild(Paragraph("Meia folha.")),
+        (section, _) =>
+        {
+            var size = section.GetFirstChild<PageSize>()!;
+            size.Width = 8391U;
+            size.Height = 11907U;
+        });
+
+    /// <summary>Um PNG de 4 × 4, para provar que a medida sai do cabeçalho dele.</summary>
+    public static byte[] SquarePng() => Convert.FromBase64String(
+        "iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAIAAAAmkwkpAAAADklEQVR4nGNwQAIMxHEAOEMMAfoZu1cAAAAASUVORK5CYII=");
+
     // --- construção ---------------------------------------------------------
+
 
     private static Paragraph Paragraph(string text, string? style = null)
     {
@@ -971,6 +1165,40 @@ public static class Fixtures
         }
 
         paragraph.AppendChild(new Run(new Text(text) { Space = SpaceProcessingModeValues.Preserve }));
+        return paragraph;
+    }
+
+    /// <summary>
+    /// A parte de numeração com uma definição de marcador.
+    /// </summary>
+    /// <remarks>
+    /// A marca do Word vem da área de uso privado do Unicode — é assim que ele
+    /// grava os glifos de Symbol e Wingdings. Aqui, o quadrado.
+    /// </remarks>
+    private static void AddBulletNumbering(MainDocumentPart part)
+    {
+        var level = new Level(
+            new NumberingFormat { Val = NumberFormatValues.Bullet },
+            new LevelText { Val = "\uF0A7" },
+            new PreviousParagraphProperties(new Indentation { Left = "720", Hanging = "360" }))
+        {
+            LevelIndex = 0,
+        };
+
+        var numbering = part.AddNewPart<NumberingDefinitionsPart>();
+        numbering.Numbering = new Numbering(
+            new AbstractNum(level) { AbstractNumberId = 1 },
+            new NumberingInstance(new AbstractNumId { Val = 1 }) { NumberID = 1 });
+    }
+
+    /// <summary>No arquivo, item de lista é parágrafo que aponta uma numeração.</summary>
+    private static Paragraph NumberedParagraph(string text, int numId, int level = 0)
+    {
+        var paragraph = Paragraph(text);
+        paragraph.ParagraphProperties = new ParagraphProperties(
+            new NumberingProperties(
+                new NumberingLevelReference { Val = level },
+                new NumberingId { Val = numId }));
         return paragraph;
     }
 
@@ -996,6 +1224,19 @@ public static class Fixtures
                 new PageSize { Width = 11906U, Height = 16838U },
                 new PageMargin { Top = 1440, Bottom = 1440, Left = 1440U, Right = 1440U });
             decorate?.Invoke(section, part);
+
+            // No esquema o `w:sectPr` **abre** pelas referências de cabeçalho e
+            // rodapé, e quem decora as acrescenta no fim. Sem esta volta ao lugar
+            // o fixture nascia fora do esquema, e o validador não teria como
+            // distinguir isso de um defeito do escritor.
+            var references = section.ChildElements
+                .Where(child => child is HeaderReference or FooterReference)
+                .ToList();
+            for (var index = 0; index < references.Count; index++)
+            {
+                references[index].Remove();
+                section.InsertAt(references[index], index);
+            }
             body.AppendChild(section);
 
             part.Document = new Document(body);
@@ -1013,7 +1254,8 @@ public static class Fixtures
     {
         var xml = $"""
             <mc:AlternateContent xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-                                 xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+                                 xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+                                 xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape">
               <mc:Choice Requires="wps">
                 <w:drawing xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"
                            xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"
@@ -1068,7 +1310,11 @@ public static class Fixtures
     }
 
     /// <summary>Imagem **no fluxo** (`wp:inline`): ocupa lugar na linha.</summary>
-    public static byte[] WithInlineImage() => Build((body, part) =>
+    /// <param name="docPrId">
+    /// O `wp:docPr/@id` do desenho que já está no arquivo. O fixture o escolhe
+    /// porque é com ele que o id de uma imagem nova não pode colidir.
+    /// </param>
+    public static byte[] WithInlineImage(uint docPrId = 1) => Build((body, part) =>
     {
         var image = part.AddImagePart(ImagePartType.Png);
         using (var stream = new MemoryStream(TinyPng()))
@@ -1076,10 +1322,10 @@ public static class Fixtures
             image.FeedData(stream);
         }
 
-        body.AppendChild(new Paragraph(new Run(InlineDrawing(part.GetIdOfPart(image)))));
+        body.AppendChild(new Paragraph(new Run(InlineDrawing(part.GetIdOfPart(image), docPrId))));
     });
 
-    private static OpenXmlElement InlineDrawing(string relationshipId)
+    private static OpenXmlElement InlineDrawing(string relationshipId, uint docPrId = 1)
     {
         var xml = $"""
             <wp:inline xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"
@@ -1088,7 +1334,7 @@ public static class Fixtures
                        xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"
                        distT="0" distB="0" distL="0" distR="0">
               <wp:extent cx="5274000" cy="2637000"/>
-              <wp:docPr id="1" name="Imagem 1"/>
+              <wp:docPr id="{docPrId}" name="Imagem {docPrId}"/>
               <a:graphic>
                 <a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">
                   <pic:pic>

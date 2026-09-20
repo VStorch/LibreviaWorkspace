@@ -47,24 +47,43 @@ public static class DocxWriter
         var index = blocks.ToDictionary(block => block.Oid, StringComparer.Ordinal);
 
         var section = body.Elements<SectionProperties>().LastOrDefault();
-        var replacement = BuildBody(model, part, index, inventory, out var preserved, out var rewritten);
+
+        // As partes fora de `word/document.xml` que esta gravação tem o direito
+        // de mexer. Começa vazio e só cresce quando algo de fato muda — uma faixa
+        // em que se digitou, a numeração de uma lista nova.
+        var touched = new HashSet<string>(StringComparer.Ordinal);
+
+        var replacement = BuildBody(
+            model,
+            part,
+            index,
+            inventory,
+            new NumberingFactory(part, touched),
+            out var preserved,
+            out var rewritten);
 
         body.RemoveAllChildren();
         foreach (var element in replacement) body.AppendChild(element);
 
         // `w:sectPr` fecha o corpo e carrega a configuração de página.
         body.AppendChild(section is null ? new SectionProperties() : section);
-        ApplyPageSetup(body.Elements<SectionProperties>().Last(), model.Page);
+
+        // Só se a página tiver mudado. Regravar `w:pgSz` e `w:pgMar` em todo save
+        // custava o papel de quem não usa A4 nem Carta: o modelo só conhece esses
+        // dois, e o arredondamento voltava para o arquivo como se fosse escolha do
+        // autor. Ver PageReader.Matches.
+        var current = body.Elements<SectionProperties>().Last();
+        if (!PageReader.Matches(current, model.Page)) ApplyPageSetup(current, model.Page);
 
         // O texto digitado no cabeçalho e no rodapé, peça por peça. Só as
         // partes que de fato mudaram entram na lista de graváveis: o resto
         // continua saindo do arquivo original, byte a byte.
-        var bands = BandWriter.Apply(part, model.Page, inventory);
+        touched.UnionWith(BandWriter.Apply(part, model.Page, inventory));
 
         part.Document!.Save();
         document.Dispose();
 
-        return (RestoreUntouchedParts(original, buffer.ToArray(), bands),
+        return (RestoreUntouchedParts(original, buffer.ToArray(), touched),
             new SaveResult(inventory, preserved, rewritten));
     }
 
@@ -148,24 +167,29 @@ public static class DocxWriter
         MainDocumentPart part,
         Dictionary<string, Block> index,
         Inventory inventory,
+        NumberingFactory numbering,
         out int preserved,
         out int rewritten)
     {
-        var writer = new ParagraphWriter(part, inventory);
+        var writer = new ParagraphWriter(part, inventory, UsableWidthPx(model.Page));
         var used = new HashSet<string>(StringComparer.Ordinal);
         var elements = new List<OpenXmlElement>();
 
         preserved = 0;
         rewritten = 0;
 
-        foreach (var slot in Flatten(model.Doc))
+        foreach (var slot in Flatten(model.Doc, numbering))
         {
             var oid = OidOf(slot.Identity);
 
-            // Um `oid` repetido é bloco colado: preservar o mesmo XML duas
-            // vezes duplicaria âncoras de comentário e ids de revisão, então a
-            // partir da segunda ocorrência ele é tratado como bloco novo.
-            if (oid is not null && used.Add(oid) && index.TryGetValue(oid, out var block) &&
+            // Um `oid` repetido é bloco colado: o XML original é de **um** deles,
+            // e preservá-lo duas vezes duplicaria âncoras de comentário, ids de
+            // revisão e marcadores. Da segunda ocorrência em diante o bloco é
+            // tratado como novo — e é por isso que a resposta fica guardada:
+            // vale também para o que se copia do original mais abaixo.
+            var first = oid is not null && used.Add(oid);
+
+            if (first && index.TryGetValue(oid!, out var block) &&
                 string.Equals(
                     block.Extracted.Fingerprint(),
                     slot.Identity.Fingerprint(),
@@ -179,9 +203,14 @@ public static class DocxWriter
             // O XML original do bloco editado ainda serve para o que este
             // escritor não sabe gerar: os objetos ancorados seguem para o
             // parágrafo reescrito em vez de sumirem com ele.
-            var source = oid is not null && index.TryGetValue(oid, out var edited) ? edited.Source : null;
+            var source = first && index.TryGetValue(oid!, out var edited) ? edited.Source : null;
 
-            foreach (var element in writer.Write(slot.Content, slot.List, source)) elements.Add(element);
+            // O embrulho é a afirmação do corpo: aqui se sabe se o parágrafo é
+            // item de lista ou não. Quem grava dentro de uma célula não sabe, e
+            // passa `null` — ver ParagraphWriter.ListPlacement.
+            var placement = new ParagraphWriter.ListPlacement(slot.List);
+
+            foreach (var element in writer.Write(slot.Content, placement, source)) elements.Add(element);
             rewritten++;
 
             if (source is not null) NoteWhatWasInside(source, inventory);
@@ -212,6 +241,7 @@ public static class DocxWriter
 
     private static IEnumerable<Slot> Flatten(
         Node doc,
+        NumberingFactory numbering,
         ParagraphWriter.ListContext? inherited = null)
     {
         foreach (var node in doc.Content ?? [])
@@ -222,13 +252,29 @@ public static class DocxWriter
                 case "orderedList":
                 {
                     var level = (inherited?.Level ?? -1) + 1;
-                    var numbering = NumberingOf(node) ?? inherited?.NumberingId ?? 0;
+
+                    // A numeração da lista de fora só serve à de dentro quando as
+                    // duas são do mesmo tipo: herdada às cegas, uma sublista
+                    // numerada dentro de uma com marcador saía com marcador.
+                    var fromParent = inherited is { } outer
+                                     && string.Equals(outer.Kind, node.Type, StringComparison.Ordinal)
+                        ? (int?)outer.NumberingId
+                        : null;
+
+                    // O `numId` do arquivo quando o nó o trouxe; o da lista de
+                    // fora quando esta é aninhada; e uma definição nova quando a
+                    // lista nasceu aqui dentro — ou quando o `numId` que veio no
+                    // modelo é de outro documento e este não o define, o que
+                    // acontece em lista colada. O que não pode é sair zero, que no
+                    // formato quer dizer "sem numeração": era assim que uma lista
+                    // criada no editor voltava como parágrafo comum.
+                    var numberingId = numbering.NumberingIdFor(node.Type, NumberingOf(node) ?? fromParent);
 
                     foreach (var item in node.Content ?? [])
                     {
                         if (item.Type != "listItem") continue;
 
-                        var context = new ParagraphWriter.ListContext(numbering, level);
+                        var context = new ParagraphWriter.ListContext(node.Type, numberingId, level);
                         var paragraphs = (item.Content ?? [])
                             .Where(child => child.Type is "paragraph" or "heading").ToList();
                         var nested = (item.Content ?? [])
@@ -247,7 +293,7 @@ public static class DocxWriter
                         {
                             var wrapper = Node.Of("doc");
                             wrapper.Content = [child];
-                            foreach (var deeper in Flatten(wrapper, context)) yield return deeper;
+                            foreach (var deeper in Flatten(wrapper, numbering, context)) yield return deeper;
                         }
                     }
 
@@ -272,15 +318,27 @@ public static class DocxWriter
         }
     }
 
-    private static int? NumberingOf(Node list)
-    {
-        if (list.Attrs is not null && list.Attrs.TryGetValue("numId", out var value) && value is not null &&
-            value.GetValueKind() == System.Text.Json.JsonValueKind.Number)
-        {
-            return value.GetValue<int>();
-        }
+    private static int? NumberingOf(Node list) =>
+        Attr.Int(list, "numId") is { } numId && numId > 0 ? numId : null;
 
-        return null;
+    /// <summary>
+    /// A largura da coluna de texto, em pixels do CSS.
+    /// </summary>
+    /// <remarks>
+    /// É o teto de uma imagem que chega sem medida — a que a pessoa insere pela
+    /// barra de ferramentas. Sem ele uma captura de tela de 1920 px entrava com
+    /// meio metro de largura e o Word a desenhava por cima das duas margens.
+    /// </remarks>
+    private static int UsableWidthPx(PageSetupDto page)
+    {
+        var (shortSide, longSide) = PageReader.MillimetersOfPaper(page.Size);
+
+        var across = string.Equals(page.Orientation, "landscape", StringComparison.Ordinal)
+            ? longSide
+            : shortSide;
+
+        var millimeters = across - page.Margins.Left - page.Margins.Right;
+        return millimeters > 10 ? (int)Math.Round(millimeters / 25.4 * 96) : ImageWriter.DefaultWidthPx;
     }
 
     private static string? OidOf(Node node)
@@ -336,15 +394,20 @@ public static class DocxWriter
     private static void ApplyPageSetup(SectionProperties section, PageSetupDto page)
     {
         var landscape = string.Equals(page.Orientation, "landscape", StringComparison.Ordinal);
-        var (shortSide, longSide) = string.Equals(page.Size, "Letter", StringComparison.Ordinal)
-            ? (12240U, 15840U)
-            : (11906U, 16838U);
+        var (shortSide, longSide) = PageReader.TwipsOfPaper(page.Size);
 
         var size = section.GetFirstChild<DocumentFormat.OpenXml.Wordprocessing.PageSize>();
         if (size is null)
         {
             size = new DocumentFormat.OpenXml.Wordprocessing.PageSize();
             section.PrependChild(size);
+        }
+        else if (PreservedPaper(size, page.Size) is { } measured)
+        {
+            // O papel do arquivo continua sendo o que o modelo diz — só a folha
+            // girou, ou a margem mudou. Então as medidas dele ficam: um A5 não
+            // tem por que virar A4 por causa de uma mudança de margem.
+            (shortSide, longSide) = measured;
         }
 
         size.Width = landscape ? longSide : shortSide;
@@ -358,14 +421,28 @@ public static class DocxWriter
             section.InsertAfter(margin, size);
         }
 
-        margin.Top = Twips(page.Margins.Top);
-        margin.Bottom = Twips(page.Margins.Bottom);
-        margin.Left = (uint)Math.Max(0, Twips(page.Margins.Left));
-        margin.Right = (uint)Math.Max(0, Twips(page.Margins.Right));
+        margin.Top = Attr.MmToTwips(page.Margins.Top);
+        margin.Bottom = Attr.MmToTwips(page.Margins.Bottom);
+        margin.Left = (uint)Math.Max(0, Attr.MmToTwips(page.Margins.Left));
+        margin.Right = (uint)Math.Max(0, Attr.MmToTwips(page.Margins.Right));
     }
 
-    private static int Twips(double millimeters) =>
-        (int)Math.Round(millimeters * 1440 / 25.4, MidpointRounding.AwayFromZero);
+    /// <summary>
+    /// As medidas do arquivo, quando ainda correspondem ao papel que o modelo
+    /// nomeia.
+    /// </summary>
+    private static (uint Short, uint Long)? PreservedPaper(
+        DocumentFormat.OpenXml.Wordprocessing.PageSize size,
+        string wanted)
+    {
+        if (size.Width?.Value is not { } width || size.Height?.Value is not { } height) return null;
+        if (width == 0 || height == 0) return null;
+
+        var landscape = size.Orient is not null && size.Orient.Value == PageOrientationValues.Landscape;
+        return string.Equals(PageReader.NameOfPaper(width, height, landscape), wanted, StringComparison.Ordinal)
+            ? (Math.Min(width, height), Math.Max(width, height))
+            : null;
+    }
 
     private static WordprocessingDocument OpenEditable(Stream stream)
     {
