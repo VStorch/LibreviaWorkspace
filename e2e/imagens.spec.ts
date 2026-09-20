@@ -6,11 +6,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
 import { launch, menu, stubDialogs, type Session } from './app.js'
-import {
-  docxWithAnchoredScreenshot,
-  docxWithIndentedScreenshot,
-  docxWithStretchedImage,
-} from './fixtures.js'
+import { docxWithAnchoredScreenshot, docxWithIndentedScreenshot, docxWithStretchedImage } from './fixtures.js'
 
 /**
  * A imagem sai do tamanho que o documento pediu.
