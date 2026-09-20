@@ -35,6 +35,25 @@ describe('findOccurrences', () => {
     expect(findOccurrences('texto', 'ausente')).toEqual([])
   })
 
+  it('mantém as posições alinhadas quando a letra muda de tamanho em minúsculas', () => {
+    // `'İ'.toLowerCase()` tem duas unidades, não uma. Enquanto a busca comparava
+    // o texto inteiro em minúsculas, tudo o que vinha depois de um `İ` voltava
+    // com a posição deslocada: o destaque caía sobre a palavra errada e o
+    // "substituir tudo" comia uma letra do vizinho.
+    const texto = 'İstanbul tem contrato'
+    const [ocorrencia] = findOccurrences(texto, 'contrato')
+
+    expect(ocorrencia).toBeDefined()
+    expect(texto.slice(ocorrencia!.start, ocorrencia!.end)).toBe('contrato')
+  })
+
+  it('mantém as posições alinhadas depois de um caractere fora do BMP', () => {
+    const texto = '😀 Contrato'
+    const [ocorrencia] = findOccurrences(texto, 'contrato')
+
+    expect(texto.slice(ocorrencia!.start, ocorrencia!.end)).toBe('Contrato')
+  })
+
   it('trata acentuação como caractere comum', () => {
     // "acao" não encontra "ação": normalizar acentos mudaria as posições e
     // quebraria a substituição. Se um dia for desejado, precisa de mapa de
