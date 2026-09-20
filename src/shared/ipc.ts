@@ -155,6 +155,13 @@ export const ipcContracts = {
       }),
     ]),
   },
+  [IpcChannel.FontsList]: {
+    request: emptyRequest,
+    // Teto generoso e mesmo assim teto: uma máquina de gráfica passa de mil
+    // famílias, e um nome de fonte não tem cem caracteres. O limite protege a
+    // interface de uma saída de sistema estragada, não o uso legítimo.
+    response: z.object({ families: z.array(z.string().min(1).max(100)).max(4000) }),
+  },
   [IpcChannel.PrintExportPdf]: {
     request: printRequestSchema.extend({ suggestedName: z.string().min(1).max(255) }),
     response: saveResultSchema,

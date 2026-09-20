@@ -31,6 +31,9 @@ const api: AppApi = {
   image: {
     pick: (payload) => ipcRenderer.invoke(IpcChannel.ImagePick, payload),
   },
+  fonts: {
+    list: (payload) => ipcRenderer.invoke(IpcChannel.FontsList, payload),
+  },
   print: {
     exportPdf: (payload) => ipcRenderer.invoke(IpcChannel.PrintExportPdf, payload),
     dialog: (payload) => ipcRenderer.invoke(IpcChannel.PrintDialog, payload),

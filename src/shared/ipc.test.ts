@@ -57,6 +57,24 @@ describe('validação de file:open-recent', () => {
   })
 })
 
+describe('validação de fonts:list', () => {
+  const schema = ipcContracts[IpcChannel.FontsList].response
+
+  it('aceita a lista vazia', () => {
+    // Sistema sem `fontconfig` devolve nada, e isso não é erro: a barra segue
+    // com as fontes que o instalador leva.
+    expect(schema.safeParse({ families: [] }).success).toBe(true)
+  })
+
+  it('recusa nome vazio e lista absurda', () => {
+    // O que chega aqui é saída de programa do sistema. Ela é dado, não verdade:
+    // um nome vazio viraria opção invisível no seletor, e uma lista de cem mil
+    // entradas travaria a barra ao abrir.
+    expect(schema.safeParse({ families: [''] }).success).toBe(false)
+    expect(schema.safeParse({ families: Array.from({ length: 4001 }, () => 'Arial') }).success).toBe(false)
+  })
+})
+
 describe('validação de dialog:confirm-discard', () => {
   const response = ipcContracts[IpcChannel.DialogConfirmDiscard].response
 

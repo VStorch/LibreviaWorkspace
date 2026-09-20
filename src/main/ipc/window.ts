@@ -4,6 +4,7 @@ import { IpcChannel } from '@shared/ipc-channels.js'
 import { fileNameFromPath } from '@services/file/formats.js'
 import { confirmDiscardChanges, confirmPlainTextSave, showImagePickerDialog } from '../dialogs.js'
 import { readImageAsDataUrl } from '../fs/read-image.js'
+import { listInstalledFontFamilies } from '../system-fonts.js'
 import { closeWithoutGuard, updateWindowState } from '../window.js'
 import { handle } from './registry.js'
 
@@ -38,6 +39,11 @@ export function registerWindowHandlers(): void {
       name: fileNameFromPath(path),
     }
   })
+
+  // A lista de fontes do sistema. Fica entre os handlers de janela porque é da
+  // mesma natureza: informação do ambiente que só o main alcança, sem nada a ver
+  // com arquivo nem com o documento aberto.
+  handle(IpcChannel.FontsList, async () => ({ families: await listInstalledFontFamilies() }))
 
   handle(IpcChannel.WindowSetState, (payload, event) => {
     updateWindowState(windowOf(event), payload.title, payload.isDirty)

@@ -39,6 +39,15 @@ export const IpcChannel = {
   /** Escolhe uma imagem no disco e devolve como data URI já validado. */
   ImagePick: 'image:pick',
 
+  /**
+   * As famílias de fonte instaladas na máquina.
+   *
+   * Vem do main porque descobri-las é executar programa do sistema, e o renderer
+   * não executa nada. Lista vazia é resposta legítima: num sistema sem
+   * `fontconfig` a barra segue com as fontes que o instalador leva.
+   */
+  FontsList: 'fonts:list',
+
   /** Gera o PDF e grava no destino escolhido pelo usuário. */
   PrintExportPdf: 'print:export-pdf',
   /** Abre o diálogo de impressão do sistema. */
@@ -75,6 +84,7 @@ export const INVOCABLE_IPC_CHANNELS = [
   IpcChannel.RecentList,
   IpcChannel.RecentClear,
   IpcChannel.ImagePick,
+  IpcChannel.FontsList,
   IpcChannel.PrintExportPdf,
   IpcChannel.PrintDialog,
   IpcChannel.PrintPreview,

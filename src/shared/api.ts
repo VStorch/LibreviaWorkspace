@@ -47,6 +47,9 @@ export interface AppApi {
   readonly image: {
     pick: Call<typeof IpcChannel.ImagePick>
   }
+  readonly fonts: {
+    list: Call<typeof IpcChannel.FontsList>
+  }
   readonly print: {
     exportPdf: Call<typeof IpcChannel.PrintExportPdf>
     dialog: Call<typeof IpcChannel.PrintDialog>
