@@ -65,13 +65,37 @@ export const IpcChannel = {
   /** Pedido explícito de fechamento, já resolvido do lado do renderer. */
   WindowClose: 'window:close',
 
+  /** Lê as preferências de edição — ortografia, marcas, tipografia. */
+  PreferencesGet: 'prefs:get',
+  /** Liga ou desliga uma preferência. O main é quem guarda e quem aplica. */
+  PreferencesSet: 'prefs:set',
+
+  /**
+   * Recortar, copiar e colar de verdade.
+   *
+   * O renderer não alcança a área de transferência do sistema — e não deve: quem
+   * a lê e escreve é o `webContents`, no main.
+   */
+  EditCommandRun: 'edit:command',
+  /** O texto da área de transferência, para colar sem formatação. */
+  ClipboardReadText: 'clipboard:read-text',
+
+  /** Troca a palavra errada pela sugestão escolhida no menu de contexto. */
+  SpellReplaceWord: 'spell:replace',
+  /** Guarda a palavra no dicionário — para sempre ou só nesta sessão. */
+  SpellAddWord: 'spell:add-word',
+
   /** Canal main → renderer: comandos disparados pelo menu nativo. */
   MenuCommand: 'menu:command',
+  /** Canal main → renderer: o botão direito foi clicado, e sobre o quê. */
+  ContextMenuRequested: 'context-menu:requested',
+  /** Canal main → renderer: uma preferência mudou, venha de onde vier. */
+  PreferencesChanged: 'prefs:changed',
 } as const
 
 export type IpcChannel = (typeof IpcChannel)[keyof typeof IpcChannel]
 
-/** Canais no sentido renderer → main. O `MenuCommand` vai no sentido oposto. */
+/** Canais no sentido renderer → main. Ver `PUSH_IPC_CHANNELS` para o oposto. */
 export const INVOCABLE_IPC_CHANNELS = [
   IpcChannel.FileOpen,
   IpcChannel.FileOpenRecent,
@@ -92,6 +116,27 @@ export const INVOCABLE_IPC_CHANNELS = [
   IpcChannel.DialogConfirmPlainText,
   IpcChannel.WindowSetState,
   IpcChannel.WindowClose,
+  IpcChannel.PreferencesGet,
+  IpcChannel.PreferencesSet,
+  IpcChannel.EditCommandRun,
+  IpcChannel.ClipboardReadText,
+  IpcChannel.SpellReplaceWord,
+  IpcChannel.SpellAddWord,
 ] as const
 
 export type InvocableIpcChannel = (typeof INVOCABLE_IPC_CHANNELS)[number]
+
+/**
+ * Canais no sentido main → renderer.
+ *
+ * Ficam listados à parte porque não têm handler: o main empurra, o renderer
+ * escuta. A lista existe para que o tipo da API do renderer saiba distinguir os
+ * dois sentidos — antes havia um só, e o `Exclude` era escrito à mão em `api.ts`.
+ */
+export const PUSH_IPC_CHANNELS = [
+  IpcChannel.MenuCommand,
+  IpcChannel.ContextMenuRequested,
+  IpcChannel.PreferencesChanged,
+] as const
+
+export type PushIpcChannel = (typeof PUSH_IPC_CHANNELS)[number]

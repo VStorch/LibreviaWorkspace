@@ -6,7 +6,14 @@
  * editor — que não é serializável — dentro do store.
  */
 
-export type EditorCommand = 'find-replace' | 'page-setup' | 'insert-page-break' | 'paragraph-setup'
+export type EditorCommand =
+  | 'find-replace'
+  | 'page-setup'
+  | 'insert-page-break'
+  | 'paragraph-setup'
+  | 'paste-without-format'
+  | 'word-count'
+  | 'special-character'
 
 const listeners = new Set<(command: EditorCommand) => void>()
 

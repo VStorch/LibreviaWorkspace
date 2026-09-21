@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import type { JSONContent } from '@tiptap/core'
 import { EditorContent, useEditor } from '@tiptap/react'
+import { IpcChannel } from '@shared/ipc-channels.js'
+import { pushContracts } from '@shared/ipc.js'
+import type { ContextMenuTarget } from '@shared/types.js'
 import { DOCUMENT_CONTENT_CSS, EDITOR_ONLY_CSS } from '@services/document/content-styles.js'
+import { plainPasteContent } from '@services/document/paste.js'
 import {
   contentInsetsMm,
   mmToPx,
@@ -10,10 +15,14 @@ import {
 } from '@services/document/model.js'
 import { editBandFloat, editBandPiece } from '@services/document/band.js'
 import { floatsOf } from '@services/document/floating.js'
+import { currentPreferences, usePreferences } from '../state/preferences.js'
 import { useWorkspace } from '../state/workspace.js'
 import { DocumentToolbar } from './toolbar/DocumentToolbar.js'
+import { DocumentContextMenu } from './DocumentContextMenu.js'
 import { FindReplacePanel } from './FindReplacePanel.js'
 import { PageSetupPanel } from './PageSetupPanel.js'
+import { SpecialCharsDialog } from './SpecialCharsDialog.js'
+import { WordCountDialog } from './WordCountDialog.js'
 import { PaperSheet } from './PaperSheet.js'
 import { usePagination } from './usePagination.js'
 import { useBandHeights } from './useBandHeights.js'
@@ -46,6 +55,8 @@ export function DocumentEditor(): React.JSX.Element {
   const setEstimatedPages = useWorkspace((state) => state.setEstimatedPages)
   const readOnly = useWorkspace((state) => state.readOnly)
   const setPage = useWorkspace((state) => state.setPage)
+  const showError = useWorkspace((state) => state.showError)
+  const preferences = usePreferences((state) => state.preferences)
 
   const pageRef = useRef<HTMLDivElement>(null)
   const [contentRevision, setContentRevision] = useState(0)
@@ -54,11 +65,19 @@ export function DocumentEditor(): React.JSX.Element {
   const [findOpen, setFindOpen] = useState(false)
   const [pageSetupOpen, setPageSetupOpen] = useState(false)
   const [paragraphOpen, setParagraphOpen] = useState(false)
+  const [wordCountOpen, setWordCountOpen] = useState(false)
+  const [charsOpen, setCharsOpen] = useState(false)
+  const [contextTarget, setContextTarget] = useState<ContextMenuTarget | null>(null)
 
   const handleSearchStatus = useCallback((status: SearchStatus) => setSearchStatus(status), [])
 
   const editor = useEditor({
-    extensions: buildEditorExtensions(handleSearchStatus),
+    // As preferências são lidas da loja, e não das props: o editor é criado uma
+    // vez só, e o que muda depois chega pelos efeitos mais abaixo.
+    extensions: buildEditorExtensions(handleSearchStatus, {
+      isTypographyEnabled: () => currentPreferences().typography,
+      invisibleCharactersVisible: currentPreferences().invisibleCharacters,
+    }),
     content: initialDoc,
     onUpdate: ({ editor: current, transaction }) => {
       // A paginação também chega como transação. Tratá-la como edição sujaria o
@@ -80,7 +99,10 @@ export function DocumentEditor(): React.JSX.Element {
       })
     },
     editorProps: {
-      attributes: { class: 'page__content', spellcheck: 'false' },
+      attributes: {
+        class: 'page__content',
+        spellcheck: currentPreferences().spellcheck ? 'true' : 'false',
+      },
     },
   })
 
@@ -114,6 +136,57 @@ export function DocumentEditor(): React.JSX.Element {
     return () => registerDocumentSource(null)
   }, [editor, page, registerDocumentSource])
 
+  /**
+   * Ortografia ligada e desligada no editor já montado.
+   *
+   * O atributo é escrito no elemento, e não passado de novo em `editorProps`: o
+   * ProseMirror só lê os atributos ao criar a visão, e recriá-la aqui perderia o
+   * cursor e o histórico — o mesmo motivo do `setEditable` acima.
+   *
+   * Quem de fato liga o corretor é o processo main, na sessão do Chromium. Este
+   * atributo é a outra metade: sem ele, o campo continua marcado como "não
+   * verifique".
+   */
+  useEffect(() => {
+    editor?.view.dom.setAttribute('spellcheck', preferences.spellcheck ? 'true' : 'false')
+  }, [editor, preferences.spellcheck])
+
+  // As marcas de formatação são um comando, e a transação dele não muda o
+  // documento — então não suja o arquivo nem dispara nova medição.
+  useEffect(() => {
+    editor?.commands.showInvisibleCharacters(preferences.invisibleCharacters)
+  }, [editor, preferences.invisibleCharacters])
+
+  /**
+   * Colar sem formatação.
+   *
+   * O texto vem do main (só ele alcança a área de transferência) e a conversão em
+   * parágrafos é função pura, testada em `@services/document/paste.ts`. Nada de
+   * `pasteAndMatchStyle` do Chromium: ele **adapta** a formatação em vez de
+   * descartá-la, e um trecho colado de uma página da web chegava com tamanho de
+   * fonte e cor próprios.
+   */
+  const pasteWithoutFormat = useCallback(async (): Promise<void> => {
+    if (editor === null || readOnly) return
+
+    const result = await window.api.edit.readClipboardText({})
+    if (!result.ok) {
+      showError(result.error)
+      return
+    }
+
+    const content = plainPasteContent(result.data.text)
+    if (content.length === 0) return
+
+    // O elenco existe porque `DocumentNode` é o nosso modelo e `JSONContent` é o
+    // do Tiptap: as duas formas são a mesma, e é o serviço puro que a garante.
+    editor
+      .chain()
+      .focus()
+      .insertContent(content as JSONContent[])
+      .run()
+  }, [editor, readOnly, showError])
+
   useEffect(
     () =>
       onEditorCommand((command) => {
@@ -121,8 +194,31 @@ export function DocumentEditor(): React.JSX.Element {
         if (command === 'page-setup') setPageSetupOpen(true)
         if (command === 'insert-page-break') editor?.chain().focus().setPageBreak().run()
         if (command === 'paragraph-setup') setParagraphOpen(true)
+        if (command === 'word-count') setWordCountOpen(true)
+        if (command === 'special-character') setCharsOpen(true)
+        if (command === 'paste-without-format') void pasteWithoutFormat()
       }),
-    [editor],
+    [editor, pasteWithoutFormat],
+  )
+
+  // O botão direito nasce no processo main: é lá que o corretor do Chromium conta
+  // qual palavra marcou e o que sugere.
+  useEffect(
+    () =>
+      window.api.contextMenu.onRequest((payload) => {
+        // Validado com o mesmo contrato que o main usou para mandar — a segunda
+        // ponta do zod, que o preload não pode fazer por rodar sandboxed.
+        const parsed = pushContracts[IpcChannel.ContextMenuRequested].safeParse(payload)
+        if (!parsed.success) return
+
+        // Fora de campo editável e sem nada selecionado não há ação a oferecer: o
+        // menu apareceria com todos os itens apagados, que é pior que menu nenhum.
+        // É o caso do clique na barra de ferramentas e na barra de status.
+        if (!parsed.data.editable && !parsed.data.canCopy) return
+
+        setContextTarget(parsed.data)
+      }),
+    [],
   )
 
   const bands = useBandHeights(page, contentRevision)
@@ -264,6 +360,18 @@ export function DocumentEditor(): React.JSX.Element {
       )}
 
       {pageSetupOpen && <PageSetupPanel onClose={() => setPageSetupOpen(false)} />}
+
+      {wordCountOpen && <WordCountDialog editor={editor} onClose={() => setWordCountOpen(false)} />}
+
+      {charsOpen && <SpecialCharsDialog editor={editor} onClose={() => setCharsOpen(false)} />}
+
+      {contextTarget !== null && (
+        <DocumentContextMenu
+          target={contextTarget}
+          onClose={() => setContextTarget(null)}
+          onPasteWithoutFormat={() => void pasteWithoutFormat()}
+        />
+      )}
 
       <div className="editor-scroll">
         <div

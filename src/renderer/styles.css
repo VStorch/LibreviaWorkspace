@@ -1315,7 +1315,7 @@ button {
   font-variant-numeric: tabular-nums;
 }
 
-.sheet-menu {
+.ctx-menu {
   position: fixed;
   z-index: 50;
   display: flex;
@@ -1328,7 +1328,7 @@ button {
   box-shadow: var(--shadow-lg);
 }
 
-.sheet-menu__item {
+.ctx-menu__item {
   padding: 6px 10px;
   border: none;
   border-radius: 5px;
@@ -1340,14 +1340,93 @@ button {
   cursor: pointer;
 }
 
-.sheet-menu__item:hover {
+.ctx-menu__item:hover:not(:disabled) {
   background: var(--accent-soft);
   color: var(--accent);
 }
 
-.sheet-menu__sep {
+/* Item desligado continua visível: "colar" apagado explica por que não colou. */
+.ctx-menu__item:disabled {
+  color: var(--muted);
+  cursor: default;
+}
+
+/* A sugestão do corretor vem em negrito, como no Word: é o que se clica. */
+.ctx-menu__item--suggestion {
+  font-weight: 600;
+}
+
+.ctx-menu__sep {
   height: 0;
   margin: 4px 6px;
   border: none;
   border-top: 1px solid var(--border);
+}
+
+/* Contagem de palavras: número à direita, rótulo à esquerda, como no Word. */
+.counts {
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.counts th,
+.counts td {
+  padding: 4px 12px 4px 0;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.counts thead th {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid var(--border);
+}
+
+.counts tbody th {
+  text-align: left;
+  font-weight: 400;
+}
+
+/* Caracteres especiais: uma grade fluida por grupo, dentro de uma área rolável.
+   A altura é limitada porque o catálogo inteiro passa da janela em tela pequena. */
+.chars {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 46vh;
+  overflow-y: auto;
+}
+
+.chars__label {
+  margin: 0 0 4px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.chars__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(30px, 1fr));
+  gap: 2px;
+}
+
+.chars__char {
+  height: 30px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: none;
+  font-family: inherit;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.chars__char:hover {
+  background: var(--accent-soft);
+  border-color: var(--accent-line);
 }

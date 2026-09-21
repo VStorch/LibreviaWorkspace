@@ -11,6 +11,7 @@ import { emitEditorCommand } from '../document/editor-commands.js'
 import { HomePage } from '../pages/HomePage.js'
 import { SheetTabs } from '../spreadsheet/SheetTabs.js'
 import { SpreadsheetEditor } from '../spreadsheet/SpreadsheetEditor.js'
+import { watchPreferences } from '../state/preferences.js'
 import { useWorkspace } from '../state/workspace.js'
 
 /**
@@ -68,6 +69,12 @@ async function runMenuCommand(command: MenuCommand, path: string | undefined): P
       return emitEditorCommand('paragraph-setup')
     case MenuCommand.InsertPageBreak:
       return emitEditorCommand('insert-page-break')
+    case MenuCommand.PasteWithoutFormat:
+      return emitEditorCommand('paste-without-format')
+    case MenuCommand.WordCount:
+      return emitEditorCommand('word-count')
+    case MenuCommand.SpecialCharacter:
+      return emitEditorCommand('special-character')
 
     case MenuCommand.NewSpreadsheet:
       return useWorkspace.getState().newSpreadsheet()
@@ -94,6 +101,10 @@ export function App(): React.JSX.Element {
     void useWorkspace.getState().refreshRecents()
     void useWorkspace.getState().checkRecovery()
   }, [])
+
+  // As preferências de edição moram no main, que é quem liga o corretor na sessão
+  // do Chromium. Aqui só se mantém a cópia que a tela desenha.
+  useEffect(() => watchPreferences(), [])
 
   useEffect(() => {
     // Por relógio, e não por tecla: o autosave serializa o documento inteiro, e

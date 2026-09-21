@@ -19,6 +19,10 @@ files:
 # pacote compactado. São 7,2 MB e não são enfeite — sem elas a quebra de linha
 # muda e o documento pagina diferente na máquina de quem instala.
 #
+# O dicionário de português sai do asar pelo mesmo motivo prático: ele é copiado
+# para o perfil do usuário na primeira execução, e copiar de dentro de um pacote
+# compactado exigiria descompactá-lo. São 3,8 MB que compram ortografia sem rede.
+#
 # O sidecar não entra no asar: ele é um executável, e um executável dentro de
 # um arquivo compactado não pode ser lançado. Cada plataforma leva só o seu
 # binário — os 126 MB do outro não serviriam para nada no destino.
@@ -41,6 +45,13 @@ linux:
       filter: ['!*.pdb']
     - from: resources/fonts
       to: resources/fonts
+    # O dicionário de português. Viaja pela mesma razão das fontes — a máquina de
+    # destino não tem nenhum — e é copiado para o perfil do usuário na primeira
+    # execução, porque é lá que o corretor do Chromium o procura antes de tentar
+    # baixá-lo. Ver src/main/spellcheck.ts.
+    - from: resources/dictionaries
+      to: resources/dictionaries
+      filter: ['*.bdic']
     - THIRD-PARTY-NOTICES.md
   # Extensões que o aplicativo abre, para o gerenciador de arquivos oferecê-lo.
   mimeTypes:
@@ -58,6 +69,13 @@ win:
       filter: ['!*.pdb']
     - from: resources/fonts
       to: resources/fonts
+    # O dicionário de português. Viaja pela mesma razão das fontes — a máquina de
+    # destino não tem nenhum — e é copiado para o perfil do usuário na primeira
+    # execução, porque é lá que o corretor do Chromium o procura antes de tentar
+    # baixá-lo. Ver src/main/spellcheck.ts.
+    - from: resources/dictionaries
+      to: resources/dictionaries
+      filter: ['*.bdic']
     - THIRD-PARTY-NOTICES.md
 
 nsis:

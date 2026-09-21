@@ -1,6 +1,18 @@
 import { z } from 'zod'
-import { IpcChannel, INVOCABLE_IPC_CHANNELS, type InvocableIpcChannel } from './ipc-channels.js'
-import { pageSetupSchema } from './schemas.js'
+import {
+  IpcChannel,
+  INVOCABLE_IPC_CHANNELS,
+  PUSH_IPC_CHANNELS,
+  type InvocableIpcChannel,
+  type PushIpcChannel,
+} from './ipc-channels.js'
+import {
+  contextMenuTargetSchema,
+  editorPreferencesPatchSchema,
+  editorPreferencesSchema,
+  pageSetupSchema,
+} from './schemas.js'
+import { DictionaryScope, EditCommand, MenuCommand } from './types.js'
 import type { SerializedError } from './errors.js'
 
 /**
@@ -194,7 +206,58 @@ export const ipcContracts = {
     request: emptyRequest,
     response: z.object({ closing: z.literal(true) }),
   },
+  [IpcChannel.PreferencesGet]: {
+    request: emptyRequest,
+    response: editorPreferencesSchema,
+  },
+  [IpcChannel.PreferencesSet]: {
+    // Remendo, e não o conjunto inteiro: quem clica em "marcas de formatação"
+    // não tem opinião sobre ortografia, e mandar as três de volta faria um
+    // clique desfazer o que o outro acabou de ligar.
+    request: editorPreferencesPatchSchema,
+    // A resposta é o estado resultante, para o renderer não ter de adivinhá-lo.
+    response: editorPreferencesSchema,
+  },
+  [IpcChannel.EditCommandRun]: {
+    request: z.object({ command: z.enum(EditCommand) }),
+    response: z.object({ done: z.literal(true) }),
+  },
+  [IpcChannel.ClipboardReadText]: {
+    request: emptyRequest,
+    response: z.object({ text: z.string().max(MAX_TEXT_LENGTH) }),
+  },
+  [IpcChannel.SpellReplaceWord]: {
+    request: z.object({ word: z.string().min(1).max(200) }),
+    response: z.object({ replaced: z.literal(true) }),
+  },
+  [IpcChannel.SpellAddWord]: {
+    request: z.object({ word: z.string().min(1).max(200), scope: z.enum(DictionaryScope) }),
+    // `false` quando o corretor recusou a palavra — está desligado, ou ela tem
+    // caractere que o dicionário do usuário não aceita. Não é erro.
+    response: z.object({ added: z.boolean() }),
+  },
 } as const
+
+/**
+ * Contratos do sentido oposto: o que o main empurra para o renderer.
+ *
+ * O renderer valida com o **mesmo** schema antes de agir. Parece exagero, já que
+ * quem manda é o main — mas é o que garante que os dois lados concordem sobre a
+ * forma da mensagem, e um dia um deles vai ser reescrito sem o outro.
+ */
+export const pushContracts = {
+  [IpcChannel.MenuCommand]: z.object({
+    command: z.enum(MenuCommand),
+    /** Só em "abrir recente". */
+    path: z.string().optional(),
+  }),
+  [IpcChannel.ContextMenuRequested]: contextMenuTargetSchema,
+  [IpcChannel.PreferencesChanged]: editorPreferencesSchema,
+} as const
+
+export type PushContracts = typeof pushContracts
+
+export type PushPayload<C extends PushIpcChannel> = z.infer<PushContracts[C]>
 
 export type IpcContracts = typeof ipcContracts
 
@@ -208,4 +271,4 @@ export type IpcResponse<C extends InvocableIpcChannel> = z.infer<IpcContracts[C]
 export type IpcResult<T> =
   { readonly ok: true; readonly data: T } | { readonly ok: false; readonly error: SerializedError }
 
-export { INVOCABLE_IPC_CHANNELS }
+export { INVOCABLE_IPC_CHANNELS, PUSH_IPC_CHANNELS }

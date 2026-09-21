@@ -259,6 +259,58 @@ export const EDITOR_ONLY_CSS = `
 }
 
 .page__content .ProseMirror-selectednode { outline: 2px solid #1f5fa9; }
+
+/*
+  As marcas de formatação não podem mudar a medida da linha.
+
+  É a mesma lição do sobrescrito, e aqui ela custaria mais caro: a marca de
+  parágrafo aparece no fim de **todo** parágrafo, então um pixel de altura a mais
+  se soma em cada linha e a paginação inteira desliza. O estilo que vem com a
+  extensão oficial desenha as marcas com line-height 1em — daí o injectCSS: false
+  em editor-extensions.ts e este pedaço aqui.
+
+  Largura e altura zero, entrelinha zero: a caixa não ocupa lugar nenhum. O glifo
+  continua visível porque overflow é visível por padrão, e pousa na linha de base
+  porque é a linha de base interna que um inline-block de overflow visível
+  apresenta ao redor.
+
+  Só no editor: o papel não mostra marca de formatação, como no Word. Elas são
+  decoração do ProseMirror e por isso nem chegam ao HTML que gera o PDF.
+
+  Crase nenhuma aqui dentro: isto mora num template literal.
+*/
+.page__content .tiptap-invisible-character {
+  width: 0;
+  height: 0;
+  padding: 0;
+  line-height: 0;
+  pointer-events: none;
+  user-select: none;
+}
+
+.page__content .tiptap-invisible-character::before {
+  display: inline-block;
+  width: 0;
+  line-height: 0;
+  color: #9aa3ad;
+  font-style: normal;
+  font-weight: 400;
+  caret-color: inherit;
+}
+
+.page__content .tiptap-invisible-character--space::before { content: '·'; }
+.page__content .tiptap-invisible-character--tab::before { content: '→'; }
+.page__content .tiptap-invisible-character--break::before { content: '¬'; }
+.page__content .tiptap-invisible-character--paragraph::before { content: '¶'; }
+
+/* A imagem de serviço que o ProseMirror põe ao lado da marca também não cobra
+   altura — é o mesmo cuidado que a imagem ancorada pediu mais acima. */
+.page__content .tiptap-invisible-character + img.ProseMirror-separator {
+  width: 0 !important;
+  height: 0 !important;
+  pointer-events: none;
+  user-select: none;
+}
 `
 
 /**

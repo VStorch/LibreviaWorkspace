@@ -122,6 +122,24 @@ function build() {
     '',
     table(bundledFonts(), ['Família', 'Licença', 'Origem']),
     '',
+    '## Dicionário ortográfico',
+    '',
+    'O instalador leva o dicionário de português do Brasil já convertido para o formato',
+    'binário que o Chromium lê. Ele viaja junto porque o aplicativo é offline: deixado',
+    'por conta própria, o corretor baixaria o dicionário de um CDN na primeira execução.',
+    'Ver `src/main/spellcheck.ts` e `resources/dictionaries/LEIA-ME.md`.',
+    '',
+    table(
+      [
+        [
+          'VERO — dicionário pt_BR do LibreOffice',
+          'LGPL-3 ou MPL',
+          'https://github.com/LibreOffice/dictionaries/tree/master/pt_BR',
+        ],
+      ],
+      ['Componente', 'Licença', 'Origem'],
+    ),
+    '',
   ]
 
   if (nuget.length > 0) {

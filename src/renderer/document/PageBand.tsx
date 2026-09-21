@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { linesOf, type Band, type BandCell, type BandPiece } from '@services/document/band.js'
+import { usePreferences } from '../state/preferences.js'
 
 /**
  * Cabeçalho ou rodapé do documento importado, desenhado na margem.
@@ -192,6 +193,12 @@ const renderPiece =
  * redesenha todas as folhas, e redesenhar por baixo de quem digita levaria o
  * cursor embora. Pela mesma razão o conteúdo só é reescrito quando a peça não
  * tem o foco.
+ *
+ * A ortografia vale aqui como vale no corpo: o cabeçalho é onde mora o nome do
+ * documento, e é justamente ali que um erro de digitação se repete em todas as
+ * folhas. A preferência é lida da loja porque a faixa é desenhada por três
+ * componentes de profundidade, e passar o valor de mão em mão só para chegar aqui
+ * seria três assinaturas a mais sem nada em troca.
  */
 function BandText({
   pid,
@@ -205,6 +212,7 @@ function BandText({
   onEdit: (pid: string, text: string) => void
 }): React.JSX.Element {
   const host = useRef<HTMLSpanElement>(null)
+  const spellcheck = usePreferences((state) => state.preferences.spellcheck)
 
   useEffect(() => {
     const element = host.current
@@ -223,7 +231,7 @@ function BandText({
       contentEditable
       suppressContentEditableWarning
       role="textbox"
-      spellCheck={false}
+      spellCheck={spellcheck}
       onBlur={() => {
         onEdit(pid, host.current?.textContent ?? '')
       }}

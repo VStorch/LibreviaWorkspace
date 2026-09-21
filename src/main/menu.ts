@@ -3,6 +3,7 @@ import { APP_NAME } from '@shared/constants.js'
 import { MenuCommand } from '@shared/types.js'
 import { showAboutDialog } from './dialogs.js'
 import { listRecentFiles } from './fs/recent.js'
+import { editorPreferences, updatePreferences } from './preferences.js'
 import { devServerUrl, sendMenuCommand } from './window.js'
 
 const isMac = process.platform === 'darwin'
@@ -61,7 +62,28 @@ async function buildTemplate(): Promise<MenuItemConstructorOptions[]> {
       ]
     : []
 
+  const preferences = editorPreferences()
+
   const viewSubmenu: MenuItemConstructorOptions[] = [
+    {
+      label: 'Marcas de formatação',
+      type: 'checkbox',
+      checked: preferences.invisibleCharacters,
+      /**
+       * `Ctrl+F10`, e não o `Ctrl+*` do Word.
+       *
+       * `Ctrl+Shift+8` **é** o `Ctrl+*`, e é também o atalho da lista com
+       * marcadores no Tiptap. Acelerador de menu é registrado no main e
+       * intercepta a tecla antes de o renderer vê-la — pela mesma razão do zoom
+       * logo abaixo, quem se muda é o item novo. `Ctrl+F10` é o que o LibreOffice
+       * usa para isto.
+       */
+      accelerator: 'CmdOrCtrl+F10',
+      click: () => {
+        updatePreferences({ invisibleCharacters: !preferences.invisibleCharacters })
+      },
+    },
+    { type: 'separator' },
     { role: 'resetZoom', label: 'Tamanho normal' },
     /**
      * Ampliar sai do `Ctrl+Shift+=`, e não por capricho.
@@ -141,6 +163,14 @@ async function buildTemplate(): Promise<MenuItemConstructorOptions[]> {
         { role: 'cut', label: 'Recortar' },
         { role: 'copy', label: 'Copiar' },
         { role: 'paste', label: 'Colar' },
+        {
+          label: 'Colar sem formatação',
+          // O Chromium já responde a `Ctrl+Shift+V` dentro de um campo editável,
+          // e o que ele faz não é o que o Word faz. O acelerador daqui é
+          // registrado no main e chega primeiro, então passa a valer o nosso.
+          accelerator: 'CmdOrCtrl+Shift+V',
+          click: () => dispatch(MenuCommand.PasteWithoutFormat),
+        },
         { role: 'selectAll', label: 'Selecionar tudo' },
         { type: 'separator' },
         {
@@ -167,9 +197,41 @@ async function buildTemplate(): Promise<MenuItemConstructorOptions[]> {
           accelerator: 'CmdOrCtrl+Enter',
           click: () => dispatch(MenuCommand.InsertPageBreak),
         },
+        {
+          label: 'Caractere especial…',
+          click: () => dispatch(MenuCommand.SpecialCharacter),
+        },
       ],
     },
     { label: 'Exibir', submenu: viewSubmenu },
+    {
+      label: 'Ferramentas',
+      submenu: [
+        {
+          label: 'Verificação ortográfica',
+          type: 'checkbox',
+          checked: preferences.spellcheck,
+          click: () => {
+            updatePreferences({ spellcheck: !preferences.spellcheck })
+          },
+        },
+        {
+          label: 'Autocorreção tipográfica',
+          type: 'checkbox',
+          checked: preferences.typography,
+          click: () => {
+            updatePreferences({ typography: !preferences.typography })
+          },
+        },
+        { type: 'separator' },
+        {
+          // O mesmo atalho do Word.
+          label: 'Contar palavras…',
+          accelerator: 'CmdOrCtrl+Shift+G',
+          click: () => dispatch(MenuCommand.WordCount),
+        },
+      ],
+    },
     {
       label: 'Ajuda',
       submenu: [

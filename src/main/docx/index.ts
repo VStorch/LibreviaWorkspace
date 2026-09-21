@@ -14,10 +14,24 @@ import type { LossInventory } from '@shared/types.js'
 import type { SidecarClient } from '../sidecar/client.js'
 import { SidecarMethod } from '../sidecar/protocol.js'
 
+/**
+ * Os rótulos do inventário, já cortados nos limites do contrato de IPC.
+ *
+ * `ipc.ts` recusa mais de 50 rótulos por categoria e mais de 300 caracteres em
+ * cada um, e o registro passou a executar esse schema também na resposta. Sem o
+ * corte aqui, um documento patológico — dezenas de medidas inválidas distintas —
+ * deixaria de abrir por causa do **aviso**, e não do conteúdo. Cortar a lista de
+ * avisos é o desfecho certo; recusar o arquivo por causa dela, não.
+ */
+const inventoryLabels = z
+  .array(z.string())
+  .default([])
+  .transform((labels) => labels.slice(0, 50).map((label) => label.slice(0, 300)))
+
 const inventorySchema = z.object({
-  invisible: z.array(z.string()).default([]),
-  lost: z.array(z.string()).default([]),
-  structural: z.array(z.string()).default([]),
+  invisible: inventoryLabels,
+  lost: inventoryLabels,
+  structural: inventoryLabels,
 })
 
 const openResultSchema = z.object({

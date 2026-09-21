@@ -17,7 +17,7 @@ Suíte de documentos e planilhas para trabalhar **offline**. Abre e grava os arq
 | [💿 Instalar](#instalar) | [⚠️ Os avisos, e por que são diferentes](#os-avisos) |
 | [📄 Os arquivos que ele abre](#os-arquivos-que-ele-abre) | [💾 Se o aplicativo fechar sozinho](#se-o-aplicativo-fechar-sozinho) |
 | [⌨️ Atalhos](#atalhos) | [🛟 Salvar não custa o que você não editou](#salvar-não-custa) |
-| [✍️ Formatar texto e parágrafo](#formatar) | |
+| [✍️ Formatar texto e parágrafo](#formatar) | [🔤 Ortografia, símbolos e contagem](#ferramentas) |
 | [🧮 Fórmulas em português](#fórmulas-em-português) | [🖨️ Imprimir e exportar PDF](#imprimir-e-exportar-pdf) |
 | [🔒 Arquivos que abrem travados](#arquivos-que-abrem-travados) | [🚧 Limites conhecidos](#limites-conhecidos) |
 
@@ -92,13 +92,17 @@ Execute o instalador. Ele instala **para o seu usuário**, sem pedir senha de ad
 | `Ctrl+Alt+1`…`Ctrl+Alt+6` | Título 1 a Título 6 |
 | `Ctrl+Alt+0` | volta o parágrafo para corpo de texto |
 | `Ctrl+]` / `Ctrl+[` | aumentar e diminuir o recuo |
+| `Ctrl+Shift+V` | colar sem formatação |
+| `Ctrl+Shift+G` | contar palavras |
+| `Ctrl+F10` | mostrar e ocultar as marcas de formatação |
 
 > ℹ️ São os atalhos do Word, com duas exceções que valem explicar. **Corpo de texto** é
 > `Ctrl+Alt+0` e não `Ctrl+Shift+N`, porque aqui essa tecla abre uma planilha nova — e ela já
 > era assim antes. **Ampliar** mudou para o `+` do teclado numérico, para não engolir o
 > `Ctrl+Shift+=` do sobrescrito; reduzir segue em `Ctrl+-`, e o menu **Exibir** tem os dois.
 > Sobrescrito e subscrito também respondem a `Ctrl+.` e `Ctrl+,`, para o teclado em que o `=`
-> exige duas teclas.
+> exige duas teclas. **Marcas de formatação** são `Ctrl+F10`, como no LibreOffice, e não o
+> `Ctrl+*` do Word: essa combinação já é a da lista com marcadores.
 
 **Na planilha**, `Ctrl+B`, `Ctrl+I` e `Ctrl+U` valem para as células selecionadas. Clicar com
 o botão direito numa célula abre o menu de inserir e remover linhas e colunas.
@@ -161,6 +165,100 @@ Vale para todos os parágrafos que a seleção tocar. `Enter` aplica, `Esc` fech
 > ℹ️ **"Simples" não é "1,0".** Espaçamento simples é a altura que a própria fonte pede, e é
 > por isso que ele aparece como uma opção e não como um número: nenhum fator o imita, e trocar
 > um pelo outro muda onde as páginas quebram.
+
+---
+
+<a id="ferramentas"></a>
+
+## 🔤 Ortografia, símbolos e contagem
+
+### A ortografia é em português e não usa internet
+
+O dicionário de português do Brasil **viaja dentro do instalador**. Na primeira vez que o
+aplicativo abre, ele é copiado para a pasta de dados do seu usuário, e é ali que o corretor o
+procura. Nenhuma máquina precisa estar na rede para a primeira palavra ser conferida — e esta
+é a diferença: deixado por conta própria, o corretor embutido baixaria o dicionário de um
+servidor na internet, e num computador sem rede ele simplesmente não marcaria nada, sem avisar.
+
+O que está errado ganha o sublinhado ondulado de sempre, **no corpo do texto e também no
+cabeçalho e no rodapé** — é lá que um erro de digitação se repete em todas as folhas.
+
+Clique com o **botão direito** sobre a palavra sublinhada para:
+
+- escolher uma das sugestões, que troca a palavra;
+- **Adicionar ao dicionário**, para nunca mais ser avisado dela — vale para sempre, em todos
+  os documentos;
+- **Ignorar nesta sessão**, que vale até você fechar o aplicativo. Serve para o nome de um
+  cliente que aparece dez vezes neste documento e não em outro.
+
+Para desligar a verificação: menu **Ferramentas → Verificação ortográfica**.
+
+### O botão direito no documento
+
+Além das sugestões, o menu tem **recortar**, **copiar**, **colar** e **colar sem formatação**.
+Um item apagado quer dizer que ele não se aplica ali — "colar" fica apagado quando não há nada
+na área de transferência, por exemplo.
+
+### Colar sem formatação
+
+`Ctrl+Shift+V`, o menu **Editar** ou o botão direito. O texto entra com a formatação do
+documento, não com a de onde veio: é o que evita que um trecho copiado de uma página da web
+chegue com outra fonte, outro tamanho e outra cor. Quebras de linha continuam sendo quebras de
+linha — cada uma abre um parágrafo.
+
+### Contar palavras
+
+`Ctrl+Shift+G` ou **Ferramentas → Contar palavras…**. Mostra palavras, caracteres com e sem
+espaço, parágrafos e páginas, em duas colunas: o **documento** e a **seleção**. Com nada
+selecionado, a coluna da seleção mostra um travessão — "nada selecionado" não é a mesma coisa
+que "zero palavras". O diálogo acompanha o que você digita, então pode ficar aberto.
+
+Parágrafo vazio não é contado. É tecla `Enter` batida para abrir espaço, e o Word também não o
+conta.
+
+### Caracteres especiais
+
+**Inserir → Caractere especial…** abre o painel com o que se procura de verdade: aspas
+tipográficas, travessão, símbolos de moeda, matemática, letras gregas e marcas como © e ®. Cada
+símbolo é um botão — clique, ou ande pela grade com as setas e insira com `Enter`. O painel
+continua aberto, porque quem o abre em geral quer mais de um símbolo.
+
+O `␣` do grupo "Pontuação" é o **espaço inquebrável**: é ele que impede o `R$` de ficar no fim
+de uma linha e o valor na linha seguinte.
+
+### Marcas de formatação (¶)
+
+`Ctrl+F10`, o botão `¶` da barra ou **Exibir → Marcas de formatação**. Mostra o que existe no
+texto e não tem tinta: o ponto de cada espaço, a seta de cada tabulação, o `¬` de cada quebra
+de linha e o `¶` no fim de cada parágrafo. Serve para descobrir por que um alinhamento saiu
+errado — quase sempre é um espaço a mais ou uma tabulação onde devia haver recuo.
+
+As marcas **não saem no papel nem no PDF**, como no Word. E não deslocam a paginação: elas são
+desenhadas sem ocupar lugar na linha, de propósito.
+
+### Autocorreção tipográfica
+
+Ligada por padrão. Enquanto você digita, ela troca:
+
+| O que você digita | O que sai |
+| --- | --- |
+| `"aspas"` | `“aspas”` |
+| `'aspas'` | `‘aspas’` |
+| `--` | `—` (travessão) |
+| `...` | `…` |
+| `(c)` `(r)` `(tm)` | `©` `®` `™` |
+| `1/2` `1/4` `3/4` | `½` `¼` `¾` |
+| `+/-` `!=` `<<` `>>` | `±` `≠` `«` `»` |
+
+É o que o Word faz em português. `->` e `3 x 4` **não** são trocados por flecha e por `×`, de
+propósito: em texto técnico isso atrapalha mais do que ajuda.
+
+`Backspace` logo depois de uma troca desfaz **só ela**, como no Word: escreva `--silent`, e o
+travessão volta a ser dois hifens sem que o resto do texto mude. É a saída para escrever um
+comando ou um pedaço de código sem desligar nada.
+
+Para desligar: **Ferramentas → Autocorreção tipográfica**. O que já foi trocado continua
+trocado — desligar vale para o que vem depois.
 
 ---
 

@@ -38,6 +38,7 @@ export type IconName =
   | 'fill-color'
   | 'text-background'
   | 'paragraph'
+  | 'formatting-marks'
   | 'decimal-less'
   | 'decimal-more'
   | 'borders-all'
@@ -97,6 +98,16 @@ const PATHS: Record<IconName, React.ReactNode> = {
 
   // O sinal de parágrafo, como no Word: é ele que abre o diálogo de parágrafo.
   paragraph: <path d="M18 4h-6.5a4 4 0 0 0 0 8H14M14 4v16M18 4v16" />,
+
+  // O mesmo sinal, com o ponto do espaço ao lado: são as duas marcas que se
+  // procura ao ligar "marcas de formatação", e o par as distingue do botão de
+  // cima, que abre o diálogo.
+  'formatting-marks': (
+    <>
+      <path d="M19 4h-6a3.5 3.5 0 0 0 0 7h2M15 4v16M19 4v16" />
+      <path d="M6 12.5h.01" strokeWidth="2.6" />
+    </>
+  ),
 
   // Um dígito, a vírgula e a direção: para a direita ganha casa decimal, para a
   // esquerda perde. Desenhar ",00→" com traços viraria borrão a 18 pixels.

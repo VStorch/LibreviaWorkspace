@@ -1,6 +1,26 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
 import { IpcChannel } from '@shared/ipc-channels.js'
 import type { AppApi, MenuCommandPayload } from '@shared/api.js'
+import type { ContextMenuTarget, EditorPreferences } from '@shared/types.js'
+
+/**
+ * Assinatura de um canal main → renderer.
+ *
+ * Escrita uma vez porque já são três: o `IpcRendererEvent` carrega referências ao
+ * sistema de mensagens e não pode vazar para o renderer, e repetir esse cuidado
+ * em cada assinante é como um dia ele deixaria de ser feito.
+ *
+ * Aqui não há validação de schema de propósito: o preload roda sandboxed e não
+ * carrega zod. Quem valida a mensagem recebida é o renderer, com o mesmo
+ * `pushContracts` que o main usou para mandá-la.
+ */
+function subscribe<T>(channel: string, listener: (payload: T) => void): () => void {
+  const wrapped = (_event: IpcRendererEvent, payload: T): void => listener(payload)
+  ipcRenderer.on(channel, wrapped)
+  return () => {
+    ipcRenderer.removeListener(channel, wrapped)
+  }
+}
 
 /**
  * Ponte entre renderer e main.
@@ -48,15 +68,23 @@ const api: AppApi = {
     close: (payload) => ipcRenderer.invoke(IpcChannel.WindowClose, payload),
   },
   menu: {
-    onCommand: (listener) => {
-      // O `IpcRendererEvent` carrega referências ao sistema de mensagens e não
-      // pode vazar para o renderer: só a payload atravessa.
-      const wrapped = (_event: IpcRendererEvent, payload: MenuCommandPayload): void => listener(payload)
-      ipcRenderer.on(IpcChannel.MenuCommand, wrapped)
-      return () => {
-        ipcRenderer.removeListener(IpcChannel.MenuCommand, wrapped)
-      }
-    },
+    onCommand: (listener) => subscribe<MenuCommandPayload>(IpcChannel.MenuCommand, listener),
+  },
+  preferences: {
+    get: (payload) => ipcRenderer.invoke(IpcChannel.PreferencesGet, payload),
+    set: (payload) => ipcRenderer.invoke(IpcChannel.PreferencesSet, payload),
+    onChange: (listener) => subscribe<EditorPreferences>(IpcChannel.PreferencesChanged, listener),
+  },
+  edit: {
+    run: (payload) => ipcRenderer.invoke(IpcChannel.EditCommandRun, payload),
+    readClipboardText: (payload) => ipcRenderer.invoke(IpcChannel.ClipboardReadText, payload),
+  },
+  spell: {
+    replace: (payload) => ipcRenderer.invoke(IpcChannel.SpellReplaceWord, payload),
+    addWord: (payload) => ipcRenderer.invoke(IpcChannel.SpellAddWord, payload),
+  },
+  contextMenu: {
+    onRequest: (listener) => subscribe<ContextMenuTarget>(IpcChannel.ContextMenuRequested, listener),
   },
 }
 

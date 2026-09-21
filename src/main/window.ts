@@ -1,10 +1,12 @@
 import { join } from 'node:path'
-import { BrowserWindow } from 'electron'
+import { BrowserWindow, type WebContents } from 'electron'
 import { APP_NAME, WINDOW_DEFAULTS } from '@shared/constants.js'
-import { IpcChannel } from '@shared/ipc-channels.js'
+import { IpcChannel, type PushIpcChannel } from '@shared/ipc-channels.js'
+import { pushContracts, type PushPayload } from '@shared/ipc.js'
 import type { MenuCommandPayload } from '@shared/api.js'
 import { DiscardChoice, MenuCommand } from '@shared/types.js'
 import { confirmDiscardChanges } from './dialogs.js'
+import { installContextMenu } from './context-menu.js'
 import { SECURE_WEB_PREFERENCES } from './security-policy.js'
 import { applyNavigationPolicy } from './security.js'
 
@@ -46,7 +48,28 @@ export function closeWithoutGuard(window: BrowserWindow): void {
 }
 
 export function sendMenuCommand(window: BrowserWindow, payload: MenuCommandPayload): void {
-  window.webContents.send(IpcChannel.MenuCommand, payload)
+  sendPush(window.webContents, IpcChannel.MenuCommand, payload)
+}
+
+/**
+ * Manda uma mensagem main → renderer, validada pelo contrato.
+ *
+ * Validar a **saída** parece exagero, já que quem escreve os dois lados é o mesmo
+ * projeto. Mas é aqui que um campo novo esquecido no schema aparece: sem isto ele
+ * atravessaria e o renderer o descartaria em silêncio, que é o modo de falha mais
+ * caro deste código.
+ */
+export function sendPush<C extends PushIpcChannel>(
+  contents: WebContents,
+  channel: C,
+  payload: PushPayload<C>,
+): void {
+  contents.send(channel, pushContracts[channel].parse(payload))
+}
+
+/** O mesmo, para toda janela aberta: preferência vale para o aplicativo. */
+export function broadcastPush<C extends PushIpcChannel>(channel: C, payload: PushPayload<C>): void {
+  for (const window of BrowserWindow.getAllWindows()) sendPush(window.webContents, channel, payload)
 }
 
 /**
@@ -97,6 +120,9 @@ export function createMainWindow(): BrowserWindow {
 
   const url = devServerUrl()
   applyNavigationPolicy(window.webContents, url)
+  // O menu de contexto nasce aqui porque o evento é do `webContents`: é o único
+  // lugar onde o corretor do Chromium conta o que achou errado.
+  installContextMenu(window.webContents)
   installCloseGuard(window)
 
   window.once('ready-to-show', () => window.show())

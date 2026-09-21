@@ -159,3 +159,52 @@ export const pageSetupSchema = z.object({
   headerDistanceMm: z.number().default(12.5),
   footerDistanceMm: z.number().default(12.5),
 })
+
+/**
+ * As preferências de edição, validadas.
+ *
+ * Mora aqui, e não no contrato de IPC, porque o mesmo schema serve em três
+ * pontos: a leitura do arquivo onde o main as guarda, o pedido do renderer e o
+ * aviso que volta para ele. Três definições divergiriam, e a divergência
+ * apareceria como um menu marcado que o editor não obedece.
+ *
+ * Os `default` são o que permite abrir uma instalação antiga: o arquivo gravado
+ * antes desta versão não tem chave nenhuma destas.
+ */
+export const editorPreferencesSchema = z.object({
+  spellcheck: z.boolean().default(true),
+  invisibleCharacters: z.boolean().default(false),
+  typography: z.boolean().default(true),
+})
+
+/**
+ * O remendo: uma ou mais chaves, e **só** as que vieram.
+ *
+ * Escrito à mão em vez de `editorPreferencesSchema.partial()`, e o teste de
+ * contrato existe por causa disto: `.partial()` torna as chaves opcionais mas
+ * **mantém os `default`**, então um pedido de "mostrar marcas" voltava do parse
+ * com as outras duas chaves preenchidas com o padrão — e desligar a ortografia era
+ * desfeito no clique seguinte em qualquer outra chave.
+ */
+export const editorPreferencesPatchSchema = z.object({
+  spellcheck: z.boolean().optional(),
+  invisibleCharacters: z.boolean().optional(),
+  typography: z.boolean().optional(),
+})
+
+/**
+ * O que o Chromium conta sobre o ponto onde o botão direito foi clicado.
+ *
+ * Os tetos não são burocracia: `dictionarySuggestions` alimenta itens de menu, e
+ * uma lista longa sairia da tela. O Chromium manda cinco.
+ */
+export const contextMenuTargetSchema = z.object({
+  x: z.number().int().min(0).max(100_000),
+  y: z.number().int().min(0).max(100_000),
+  editable: z.boolean(),
+  misspelledWord: z.string().max(200),
+  dictionarySuggestions: z.array(z.string().max(200)).max(10),
+  canCut: z.boolean(),
+  canCopy: z.boolean(),
+  canPaste: z.boolean(),
+})

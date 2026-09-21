@@ -8,6 +8,7 @@ import {
   ToolbarSelect,
   ToolbarSeparator,
 } from '../../components/ToolbarControls.js'
+import { setPreference, usePreferences } from '../../state/preferences.js'
 import { useWorkspace } from '../../state/workspace.js'
 import { blockLineHeightOf } from '../extensions/paragraph-commands.js'
 import { LinkDialog } from './LinkDialog.js'
@@ -34,6 +35,9 @@ export function DocumentToolbar({
   const [linkDialogOpen, setLinkDialogOpen] = useState(false)
   const showError = useWorkspace((state) => state.showError)
   const printPreview = useWorkspace((state) => state.printPreview)
+  // Do main, que é o dono da preferência: clicar aqui e clicar no item do menu
+  // "Exibir" mudam a mesma chave, e os dois ficam marcados juntos.
+  const invisibleCharacters = usePreferences((state) => state.preferences.invisibleCharacters)
 
   // Reavalia só o que a barra desenha, a cada transação do editor.
   const active = useEditorState({
@@ -253,11 +257,9 @@ export function DocumentToolbar({
           value={active.lineHeight}
           // A vírgula é a nossa: o atributo guarda `1.5`, e a tela escreve 1,5.
           options={withCurrent(LINE_HEIGHTS, active.lineHeight, (value) => value.replace('.', ','))}
-          onChange={(value) =>
-            chain()
-              .setBlockLineHeight(value === '' ? 'normal' : value)
-              .run()
-          }
+          // O valor é a escolha em linhas — vazio é "Simples" —, e a conversão para
+          // a medida do CSS acontece bloco a bloco, porque depende da fonte.
+          onChange={(value) => chain().setBlockLineHeight(value).run()}
           width={100}
         />
 
@@ -329,6 +331,13 @@ export function DocumentToolbar({
       <ToolbarSeparator />
 
       <ToolbarGroup label="Página">
+        <ToolbarButton
+          icon="formatting-marks"
+          label="Marcas de formatação"
+          shortcut="Ctrl+F10"
+          active={invisibleCharacters}
+          onClick={() => void setPreference({ invisibleCharacters: !invisibleCharacters })}
+        />
         <ToolbarButton icon="search" label="Localizar e substituir" shortcut="Ctrl+F" onClick={onOpenFind} />
         <ToolbarButton icon="page-setup" label="Configuração de página" onClick={onOpenPageSetup} />
         {/* Como o editor não pagina ao vivo (§6.3 do plano), a prévia é o que

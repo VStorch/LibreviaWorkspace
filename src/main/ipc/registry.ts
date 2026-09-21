@@ -10,6 +10,16 @@ import { AppError, ErrorCode, toSerializedError } from '@shared/errors.js'
  * chegar ao handler. O renderer é tratado como não confiável: se ele for
  * comprometido por um documento malicioso, não deve conseguir pedir uma
  * operação que o contrato não preveja.
+ *
+ * E a resposta é validada na volta, contra o `response` do mesmo contrato. Não
+ * por desconfiança do main — por desconfiança do que ele **lê**: a lista de
+ * fontes vem da saída de um programa do sistema, o conteúdo vem de disco, e o
+ * schema é o único lugar onde os limites disso estão escritos. Enquanto ninguém
+ * o executava, o contrato de resposta era tipo em tempo de compilação e mais
+ * nada, e um handler fora de forma só aparecia na interface, longe da causa.
+ *
+ * Custa pouco: as respostas são rasas. Um documento de 50 MB atravessa como uma
+ * `string`, e conferir uma `string` é conferir o tipo dela.
  */
 export function handle<C extends InvocableIpcChannel>(
   channel: C,
@@ -30,7 +40,22 @@ export function handle<C extends InvocableIpcChannel>(
       }
 
       const data = await handler(parsed.data as IpcRequest<C>, event)
-      return { ok: true, data }
+
+      const replied = contract.response.safeParse(data)
+      if (!replied.success) {
+        const field = replied.error.issues[0]?.path.join('.')
+        // Defeito nosso, não de quem usa: por isso `Internal`, e por isso o
+        // detalhe técnico fica no `console.error` do bloco abaixo.
+        throw new AppError(
+          ErrorCode.Internal,
+          'A operação terminou de um jeito que o aplicativo não reconhece.',
+          field === undefined || field === '' ? undefined : `resposta, campo: ${field}`,
+        )
+      }
+
+      // A resposta validada, e não a crua: o schema também normaliza — aplica
+      // padrão e descarta campo que o contrato não declara.
+      return { ok: true, data: replied.data as IpcResponse<C> }
     } catch (cause) {
       // O diagnóstico técnico fica aqui; o renderer recebe só o essencial.
       console.error(`[ipc] falha no canal ${channel}:`, cause)

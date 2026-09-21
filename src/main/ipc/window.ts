@@ -43,7 +43,14 @@ export function registerWindowHandlers(): void {
   // A lista de fontes do sistema. Fica entre os handlers de janela porque é da
   // mesma natureza: informação do ambiente que só o main alcança, sem nada a ver
   // com arquivo nem com o documento aberto.
-  handle(IpcChannel.FontsList, async () => ({ families: await listInstalledFontFamilies() }))
+  //
+  // A lista sai cortada nos limites do contrato — 4000 famílias, cem caracteres
+  // cada — em vez de chegar crua ao schema: o registro valida a resposta, e uma
+  // máquina de gráfica com um nome de fonte absurdo derrubaria a lista **inteira**
+  // por causa de uma entrada. Perder uma família é melhor que perder a lista.
+  handle(IpcChannel.FontsList, async () => ({
+    families: (await listInstalledFontFamilies()).filter((family) => family.length <= 100).slice(0, 4000),
+  }))
 
   handle(IpcChannel.WindowSetState, (payload, event) => {
     updateWindowState(windowOf(event), payload.title, payload.isDirty)

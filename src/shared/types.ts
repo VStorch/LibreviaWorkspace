@@ -89,6 +89,12 @@ export const MenuCommand = {
   /** Abre o diálogo de parágrafo — espaçamento, entrelinha, recuo, alinhamento. */
   ParagraphSetup: 'paragraph-setup',
   InsertPageBreak: 'insert-page-break',
+  /** Insere a área de transferência como texto, sem trazer formatação. */
+  PasteWithoutFormat: 'paste-without-format',
+  /** Abre o diálogo de contagem de palavras. */
+  WordCount: 'word-count',
+  /** Abre o seletor de caracteres especiais. */
+  SpecialCharacter: 'special-character',
   /** Emitido quando o usuário escolhe "Salvar" no aviso de saída. */
   SaveAndExit: 'save-and-exit',
 } as const
@@ -114,3 +120,91 @@ export const PlainTextChoice = {
 } as const
 
 export type PlainTextChoice = (typeof PlainTextChoice)[keyof typeof PlainTextChoice]
+
+/**
+ * Preferências de edição — as três chaves que ligam e desligam ferramenta.
+ *
+ * Moram no processo main porque uma delas, a ortografia, é configuração de
+ * `session`: só o main fala com o corretor do Chromium. Guardar duas metades da
+ * mesma preferência em dois lugares faria o menu marcar o que o editor não
+ * estava fazendo.
+ */
+export interface EditorPreferences {
+  /** Verificação ortográfica em português, no corpo e nas faixas. */
+  readonly spellcheck: boolean
+  /** Marcas de formatação: ¶, espaço, tabulação e quebra de linha. */
+  readonly invisibleCharacters: boolean
+  /** Autocorreção tipográfica: aspas curvas, travessão, reticências. */
+  readonly typography: boolean
+}
+
+/**
+ * Remendo de preferências: o que o canal `prefs:set` aceita.
+ *
+ * Um tipo próprio porque `Partial` não basta com `exactOptionalPropertyTypes`: o
+ * que o zod infere de um schema parcial admite a chave presente com `undefined`,
+ * e é exatamente esse valor que atravessa o IPC.
+ */
+export type EditorPreferencesPatch = {
+  readonly [K in keyof EditorPreferences]?: EditorPreferences[K] | undefined
+}
+
+/**
+ * O estado em que o aplicativo abre.
+ *
+ * Ortografia e tipografia ligadas, porque é o que um editor de texto em
+ * português faz de útil sem ninguém pedir. Marcas de formatação desligadas: elas
+ * são ferramenta de conferência, e deixá-las ligadas sujaria a tela de quem só
+ * quer escrever.
+ */
+export const DEFAULT_EDITOR_PREFERENCES: EditorPreferences = {
+  spellcheck: true,
+  invisibleCharacters: false,
+  typography: true,
+}
+
+/** Operações de área de transferência que só o `webContents` sabe fazer. */
+export const EditCommand = {
+  Cut: 'cut',
+  Copy: 'copy',
+  Paste: 'paste',
+} as const
+
+export type EditCommand = (typeof EditCommand)[keyof typeof EditCommand]
+
+/**
+ * O que estava debaixo do botão direito, como o Chromium o descreve.
+ *
+ * Vem do evento `context-menu` do `webContents`: é o **único** lugar onde o
+ * corretor ortográfico do Chromium conta o que ele achou errado e o que sugere
+ * no lugar. O renderer desenha o menu; o main é quem tem esses dados.
+ */
+export interface ContextMenuTarget {
+  /** Onde clicou, em pixels da janela. */
+  readonly x: number
+  readonly y: number
+  /** O clique caiu em algo editável — fora disso, colar não faz sentido. */
+  readonly editable: boolean
+  /** Vazio quando o clique não caiu sobre palavra marcada como errada. */
+  readonly misspelledWord: string
+  /** As sugestões do corretor, na ordem em que ele as deu. */
+  readonly dictionarySuggestions: string[]
+  readonly canCut: boolean
+  readonly canCopy: boolean
+  readonly canPaste: boolean
+}
+
+/**
+ * Até onde vai o "não marque mais esta palavra".
+ *
+ * `permanent` grava no dicionário do usuário, que sobrevive a fechar o
+ * aplicativo. `session` é o "ignorar": vale enquanto a janela estiver aberta e
+ * é desfeito na saída — o Chromium não tem lista de ignorados, então ela é
+ * imitada com uma entrada temporária no dicionário.
+ */
+export const DictionaryScope = {
+  Permanent: 'permanent',
+  Session: 'session',
+} as const
+
+export type DictionaryScope = (typeof DictionaryScope)[keyof typeof DictionaryScope]
