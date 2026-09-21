@@ -1,4 +1,5 @@
 import { execFile } from 'node:child_process'
+import { join } from 'node:path'
 import { promisify } from 'node:util'
 import { parseFontconfigFamilies, parseWindowsFontRegistry } from '@services/document/font-list.js'
 
@@ -38,11 +39,20 @@ const MAX_OUTPUT_BYTES = 8 * 1024 * 1024
 let cached: Promise<string[]> | null = null
 
 export function listInstalledFontFamilies(): Promise<string[]> {
-  cached ??= collect()
+  cached ??= collect().then((families) => {
+    // Lista vazia **não** fica em cache, e é o único caso em que a leitura se
+    // repete. Ela tem duas origens indistinguíveis daqui: máquina sem fontconfig
+    // (nada a fazer) e falha transitória — `fc-list` estourando o tempo enquanto o
+    // fontconfig reconstrói o cache. Guardar a segunda condenava a sessão inteira
+    // a abrir a barra sem fonte nenhuma. Repetir custa um processo por montagem
+    // da barra na máquina sem fontconfig; ficar sem lista custa a sessão.
+    if (families.length === 0) cached = null
+    return families
+  })
   return cached
 }
 
-/** Só para teste: descarta o que foi lido. */
+/** Só para teste: descarta o que foi lido. Ver `system-fonts.test.ts`. */
 export function forgetInstalledFonts(): void {
   cached = null
 }
@@ -83,7 +93,10 @@ async function fromFontconfig(): Promise<string[]> {
  * acabou de pôr.
  *
  * `reg query`, e não um módulo de registro: é dependência a menos para auditar,
- * e a saída é estável há décadas.
+ * e a saída é estável há décadas. Mas pelo **caminho absoluto**: o `CreateProcess`
+ * do Windows procura o nome simples no diretório do executável e no diretório
+ * atual antes do `System32`, então um `reg.exe` plantado numa pasta gravável
+ * rodaria no lugar do do sistema.
  */
 async function fromWindowsRegistry(): Promise<string[]> {
   const keys = [
@@ -91,11 +104,12 @@ async function fromWindowsRegistry(): Promise<string[]> {
     'HKCU\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Fonts',
   ]
 
+  const reg = join(process.env['SystemRoot'] ?? 'C:\\Windows', 'System32', 'reg.exe')
   const families = new Set<string>()
 
   for (const key of keys) {
     try {
-      const { stdout } = await run('reg', ['query', key], {
+      const { stdout } = await run(reg, ['query', key], {
         timeout: TIMEOUT_MS,
         maxBuffer: MAX_OUTPUT_BYTES,
         windowsHide: true,
