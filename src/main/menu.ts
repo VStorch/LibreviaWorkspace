@@ -1,5 +1,6 @@
 import { app, BrowserWindow, Menu, type MenuItemConstructorOptions } from 'electron'
 import { APP_NAME } from '@shared/constants.js'
+import { SHORTCUTS, acceleratorOf } from '@shared/shortcuts.js'
 import { MenuCommand } from '@shared/types.js'
 import { showAboutDialog } from './dialogs.js'
 import { listRecentFiles } from './fs/recent.js'
@@ -69,36 +70,16 @@ async function buildTemplate(): Promise<MenuItemConstructorOptions[]> {
       label: 'Marcas de formatação',
       type: 'checkbox',
       checked: preferences.invisibleCharacters,
-      /**
-       * `Ctrl+F10`, e não o `Ctrl+*` do Word.
-       *
-       * `Ctrl+Shift+8` **é** o `Ctrl+*`, e é também o atalho da lista com
-       * marcadores no Tiptap. Acelerador de menu é registrado no main e
-       * intercepta a tecla antes de o renderer vê-la — pela mesma razão do zoom
-       * logo abaixo, quem se muda é o item novo. `Ctrl+F10` é o que o LibreOffice
-       * usa para isto.
-       */
-      accelerator: 'CmdOrCtrl+F10',
+      // A tecla e o porquê dela estão na tabela de atalhos.
+      accelerator: acceleratorOf(SHORTCUTS.formattingMarks),
       click: () => {
         updatePreferences({ invisibleCharacters: !preferences.invisibleCharacters })
       },
     },
     { type: 'separator' },
     { role: 'resetZoom', label: 'Tamanho normal' },
-    /**
-     * Ampliar sai do `Ctrl+Shift+=`, e não por capricho.
-     *
-     * O acelerador padrão do papel `zoomIn` é `CommandOrControl+Plus`, e no
-     * Electron "Plus" é a tecla do `=` **com Shift** — a mesma combinação que no
-     * Word liga o sobrescrito. Acelerador de menu é registrado no processo main e
-     * intercepta a tecla antes de o renderer vê-la: deixá-lo aqui faria o atalho
-     * de sobrescrito nunca rodar, e atalho morto é pior do que atalho ausente.
-     *
-     * Num editor de texto a formatação vem antes do zoom, então quem se muda é o
-     * zoom — para o `+` do teclado numérico, que não disputa com tecla nenhuma.
-     * Reduzir fica onde estava: `Ctrl+-` não colide com nada.
-     */
-    { role: 'zoomIn', label: 'Ampliar', accelerator: 'CmdOrCtrl+numadd' },
+    // Ampliar sai do `Ctrl+Shift+=` do sobrescrito: ver a tabela de atalhos.
+    { role: 'zoomIn', label: 'Ampliar', accelerator: acceleratorOf(SHORTCUTS.zoomIn) },
     { role: 'zoomOut', label: 'Reduzir' },
     { type: 'separator' },
     { role: 'togglefullscreen', label: 'Tela cheia' },
@@ -107,10 +88,7 @@ async function buildTemplate(): Promise<MenuItemConstructorOptions[]> {
   if (devServerUrl() !== null) {
     viewSubmenu.push(
       { type: 'separator' },
-      // `Ctrl+Shift+R` e não `Ctrl+R`: em desenvolvimento o padrão do papel
-      // `reload` engoliria o `Ctrl+R` de "alinhar à direita", e o atalho pareceria
-      // quebrado só na máquina de quem programa.
-      { role: 'reload', label: 'Recarregar', accelerator: 'CmdOrCtrl+Shift+R' },
+      { role: 'reload', label: 'Recarregar', accelerator: acceleratorOf(SHORTCUTS.reload) },
       { role: 'toggleDevTools', label: 'Ferramentas do desenvolvedor' },
     )
   }
@@ -122,33 +100,45 @@ async function buildTemplate(): Promise<MenuItemConstructorOptions[]> {
       submenu: [
         {
           label: 'Novo documento',
-          accelerator: 'CmdOrCtrl+N',
+          accelerator: acceleratorOf(SHORTCUTS.newDocument),
           click: () => dispatch(MenuCommand.NewDocument),
         },
         {
           label: 'Nova planilha',
-          accelerator: 'CmdOrCtrl+Shift+N',
+          accelerator: acceleratorOf(SHORTCUTS.newSpreadsheet),
           click: () => dispatch(MenuCommand.NewSpreadsheet),
         },
         { type: 'separator' },
-        { label: 'Abrir…', accelerator: 'CmdOrCtrl+O', click: () => dispatch(MenuCommand.Open) },
+        {
+          label: 'Abrir…',
+          accelerator: acceleratorOf(SHORTCUTS.open),
+          click: () => dispatch(MenuCommand.Open),
+        },
         { label: 'Abrir recente', submenu: await buildRecentSubmenu() },
         { type: 'separator' },
-        { label: 'Salvar', accelerator: 'CmdOrCtrl+S', click: () => dispatch(MenuCommand.Save) },
+        {
+          label: 'Salvar',
+          accelerator: acceleratorOf(SHORTCUTS.save),
+          click: () => dispatch(MenuCommand.Save),
+        },
         {
           label: 'Salvar como…',
-          accelerator: 'CmdOrCtrl+Shift+S',
+          accelerator: acceleratorOf(SHORTCUTS.saveAs),
           click: () => dispatch(MenuCommand.SaveAs),
         },
         { type: 'separator' },
         { label: 'Configuração de página…', click: () => dispatch(MenuCommand.PageSetup) },
         { label: 'Visualizar impressão', click: () => dispatch(MenuCommand.PrintPreview) },
         { label: 'Exportar para PDF…', click: () => dispatch(MenuCommand.ExportPdf) },
-        { label: 'Imprimir…', accelerator: 'CmdOrCtrl+P', click: () => dispatch(MenuCommand.Print) },
+        {
+          label: 'Imprimir…',
+          accelerator: acceleratorOf(SHORTCUTS.print),
+          click: () => dispatch(MenuCommand.Print),
+        },
         { type: 'separator' },
         {
           label: 'Fechar arquivo',
-          accelerator: 'CmdOrCtrl+W',
+          accelerator: acceleratorOf(SHORTCUTS.closeFile),
           click: () => dispatch(MenuCommand.CloseFile),
         },
         { role: 'quit', label: 'Sair' },
@@ -165,17 +155,14 @@ async function buildTemplate(): Promise<MenuItemConstructorOptions[]> {
         { role: 'paste', label: 'Colar' },
         {
           label: 'Colar sem formatação',
-          // O Chromium já responde a `Ctrl+Shift+V` dentro de um campo editável,
-          // e o que ele faz não é o que o Word faz. O acelerador daqui é
-          // registrado no main e chega primeiro, então passa a valer o nosso.
-          accelerator: 'CmdOrCtrl+Shift+V',
+          accelerator: acceleratorOf(SHORTCUTS.pasteWithoutFormat),
           click: () => dispatch(MenuCommand.PasteWithoutFormat),
         },
         { role: 'selectAll', label: 'Selecionar tudo' },
         { type: 'separator' },
         {
           label: 'Localizar e substituir…',
-          accelerator: 'CmdOrCtrl+F',
+          accelerator: acceleratorOf(SHORTCUTS.findReplace),
           click: () => dispatch(MenuCommand.FindReplace),
         },
       ],
@@ -194,7 +181,7 @@ async function buildTemplate(): Promise<MenuItemConstructorOptions[]> {
       submenu: [
         {
           label: 'Quebra de página',
-          accelerator: 'CmdOrCtrl+Enter',
+          accelerator: acceleratorOf(SHORTCUTS.insertPageBreak),
           click: () => dispatch(MenuCommand.InsertPageBreak),
         },
         {
@@ -225,9 +212,8 @@ async function buildTemplate(): Promise<MenuItemConstructorOptions[]> {
         },
         { type: 'separator' },
         {
-          // O mesmo atalho do Word.
           label: 'Contar palavras…',
-          accelerator: 'CmdOrCtrl+Shift+G',
+          accelerator: acceleratorOf(SHORTCUTS.wordCount),
           click: () => dispatch(MenuCommand.WordCount),
         },
       ],
