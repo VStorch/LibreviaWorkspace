@@ -2,9 +2,7 @@ import { useState } from 'react'
 import type { Editor } from '@tiptap/react'
 import {
   DEFAULT_PARAGRAPH_DRAFT,
-  FirstLineKind,
   LineSpacingKind,
-  MAX_INDENT_MM,
   MAX_LINE_FACTOR,
   MAX_SPACING_PT,
   MIN_LINE_FACTOR,
@@ -13,6 +11,9 @@ import {
   type ParagraphDraft,
 } from '@services/document/paragraph-format.js'
 import { paragraphDraftAt } from '../extensions/paragraph-commands.js'
+import { ParagraphIndentFields } from './ParagraphIndentFields.js'
+import { ParagraphSpacingFields } from './ParagraphSpacingFields.js'
+import { isCustomLineSpacing, lineSpacingChoice, lineSpacingFrom } from './paragraph-draft.js'
 
 /**
  * Diálogo de parágrafo — o equivalente ao do Word e ao do Writer.
@@ -99,7 +100,7 @@ export function ParagraphDialog({
 
         {/* O campo da medida só aparece quando a escolha pede número: um campo
             desabilitado ao lado de "Simples" só faria a pessoa clicar nele. */}
-        {isCustom(draft) && (
+        {isCustomLineSpacing(draft) && (
           <label className="popover__field popover__field--narrow">
             <span>{draft.lineSpacingKind === LineSpacingKind.AtLeast ? 'Pontos' : 'Fator'}</span>
             <input
@@ -114,88 +115,9 @@ export function ParagraphDialog({
         )}
       </div>
 
-      <fieldset className="popover__fieldset">
-        <legend>Espaçamento (pt)</legend>
-        <div className="popover__row">
-          <label className="popover__field popover__field--narrow">
-            <span>Antes</span>
-            <input
-              type="number"
-              min={0}
-              max={MAX_SPACING_PT}
-              step={1}
-              value={draft.spaceBefore}
-              onChange={(event) => change('spaceBefore', Number(event.target.value))}
-            />
-          </label>
-          <label className="popover__field popover__field--narrow">
-            <span>Depois</span>
-            <input
-              type="number"
-              min={0}
-              max={MAX_SPACING_PT}
-              step={1}
-              value={draft.spaceAfter}
-              onChange={(event) => change('spaceAfter', Number(event.target.value))}
-            />
-          </label>
-        </div>
-      </fieldset>
+      <ParagraphSpacingFields draft={draft} onChange={change} />
 
-      <fieldset className="popover__fieldset">
-        <legend>Recuo (mm)</legend>
-        <div className="popover__row">
-          <label className="popover__field popover__field--narrow">
-            <span>Esquerda</span>
-            <input
-              type="number"
-              min={0}
-              max={MAX_INDENT_MM}
-              step={1}
-              value={draft.indentLeftMm}
-              onChange={(event) => change('indentLeftMm', Number(event.target.value))}
-            />
-          </label>
-          <label className="popover__field popover__field--narrow">
-            <span>Direita</span>
-            <input
-              type="number"
-              min={0}
-              max={MAX_INDENT_MM}
-              step={1}
-              value={draft.indentRightMm}
-              onChange={(event) => change('indentRightMm', Number(event.target.value))}
-            />
-          </label>
-
-          <label className="popover__field">
-            <span>Primeira linha</span>
-            <select
-              aria-label="Primeira linha"
-              value={draft.firstLineKind}
-              onChange={(event) => change('firstLineKind', event.target.value as FirstLineKind)}
-            >
-              <option value={FirstLineKind.None}>Nenhum</option>
-              <option value={FirstLineKind.Indent}>Recuo</option>
-              <option value={FirstLineKind.Hanging}>Deslocamento</option>
-            </select>
-          </label>
-
-          {draft.firstLineKind !== FirstLineKind.None && (
-            <label className="popover__field popover__field--narrow">
-              <span>Em</span>
-              <input
-                type="number"
-                min={0}
-                max={MAX_INDENT_MM}
-                step={1}
-                value={draft.firstLineMm}
-                onChange={(event) => change('firstLineMm', Number(event.target.value))}
-              />
-            </label>
-          )}
-        </div>
-      </fieldset>
+      <ParagraphIndentFields draft={draft} onChange={change} />
 
       <label className="popover__check">
         <input
@@ -243,37 +165,4 @@ export function ParagraphDialog({
       </div>
     </div>
   )
-}
-
-/**
- * A escolha do seletor de entrelinha.
- *
- * Os três fatores comuns são opções prontas porque é o que se usa noventa por
- * cento das vezes; "Múltiplo" existe para o resto.
- */
-function lineSpacingChoice(draft: ParagraphDraft): string {
-  if (draft.lineSpacingKind === LineSpacingKind.Single) return 'single'
-  if (draft.lineSpacingKind === LineSpacingKind.AtLeast) return 'at-least'
-
-  const exact = String(draft.lineSpacingValue)
-  return ['1.15', '1.5', '2'].includes(exact) ? exact : 'multiple'
-}
-
-function lineSpacingFrom(choice: string): Pick<ParagraphDraft, 'lineSpacingKind' | 'lineSpacingValue'> {
-  if (choice === 'single') {
-    return { lineSpacingKind: LineSpacingKind.Single, lineSpacingValue: 1.15 }
-  }
-  if (choice === 'at-least') {
-    return { lineSpacingKind: LineSpacingKind.AtLeast, lineSpacingValue: 14 }
-  }
-  if (choice === 'multiple') {
-    return { lineSpacingKind: LineSpacingKind.Multiple, lineSpacingValue: 1.15 }
-  }
-
-  return { lineSpacingKind: LineSpacingKind.Multiple, lineSpacingValue: Number(choice) }
-}
-
-/** A escolha pede um número digitado? */
-function isCustom(draft: ParagraphDraft): boolean {
-  return draft.lineSpacingKind === LineSpacingKind.AtLeast || lineSpacingChoice(draft) === 'multiple'
 }
