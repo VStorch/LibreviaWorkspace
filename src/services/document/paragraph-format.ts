@@ -6,9 +6,12 @@
  * tradução entre o que o arquivo representa e o que uma pessoa consegue
  * preencher num formulário. As duas formas não são a mesma:
  *
- *  - a entrelinha mora num campo só, como o CSS a escreve — `normal`, um fator
- *    (`1.5`) ou uma medida (`14pt`) —, e no diálogo são duas perguntas: que tipo
- *    de espaçamento, e quanto;
+ *  - a entrelinha mora num campo só, como o CSS a escreve — `normal`, um número
+ *    (`1.8311`) ou uma medida (`14pt`) —, e no diálogo são duas perguntas: que
+ *    tipo de espaçamento, e quanto. E o número do CSS **não** é o fator do Word:
+ *    é ele já multiplicado pela altura natural da fonte (ver `line-metrics.ts`).
+ *    Tratar um pelo outro é o que fazia todo parágrafo de Calibri abrir como
+ *    "Múltiplo 1,2207" e "1,5" gravar 1,23 linha no arquivo;
  *  - o recuo de primeira linha é **um** número com sinal, porque no CSS
  *    `text-indent` negativo é o deslocamento do Word; no diálogo são a escolha
  *    ("nenhum", "primeira linha", "deslocamento") e uma medida positiva.
@@ -16,6 +19,8 @@
  * Aqui só a conversão e os limites. Nada de React, nada de Tiptap: é o que
  * permite testar as duas direções sem montar editor nenhum.
  */
+
+import { cssLineHeightOf, explicitCssLineHeightOf, lineFactorOf } from './line-metrics.js'
 
 /** Como a entrelinha é medida. Os três casos que o gravador sabe escrever. */
 export const LineSpacingKind = {
@@ -81,6 +86,11 @@ export const MAX_INDENT_MM = 200
  * O gravador recusa fator fora de `(0,5; 4)` e registra perda — ver
  * `ParagraphFormat.ApplyLineHeight`. Oferecer no diálogo o que ele não escreve
  * seria prometer o que não se cumpre.
+ *
+ * São limites do fator **do Word**, e é a conversão de `line-metrics.ts` que os
+ * torna verdadeiros: enquanto o número do diálogo ia cru para o atributo, 0,51
+ * em Calibri chegava ao gravador como 0,42 — fora da faixa, perda no inventário
+ * e nada escrito no arquivo.
  */
 export const MIN_LINE_FACTOR = 0.51
 export const MAX_LINE_FACTOR = 3.99
@@ -100,7 +110,14 @@ export const DEFAULT_PARAGRAPH_DRAFT: ParagraphDraft = {
 
 /** Os atributos que o diálogo escreve no bloco. Valor nulo apaga o atributo. */
 export interface ParagraphAttrs {
-  readonly textAlign: TextAlignment
+  /**
+   * Nulo quando ninguém escolheu alinhamento.
+   *
+   * Pela mesma razão dos recuos: o leitor omite o atributo no parágrafo sem
+   * `w:jc`, e escrever `left` ali acrescentaria um `w:jc` que o documento não
+   * tinha — bloco reescrito à custa de um "Aplicar" que não mudou nada.
+   */
+  readonly textAlign: TextAlignment | null
   readonly spaceBefore: number
   readonly spaceAfter: number
   readonly lineHeight: string
@@ -144,7 +161,7 @@ export function paragraphDraftFrom(attrs: Record<string, unknown>): ParagraphDra
     align: alignmentOf(attrs['textAlign']),
     spaceBefore: clamp(round(numberOf(attrs['spaceBefore']) ?? 0), 0, MAX_SPACING_PT),
     spaceAfter: clamp(round(numberOf(attrs['spaceAfter']) ?? 0), 0, MAX_SPACING_PT),
-    ...lineSpacingOf(attrs['lineHeight']),
+    ...lineSpacingOf(attrs['lineHeight'], fontStackOf(attrs)),
     // O nível de `Ctrl+]` entra como medida, senão o recuo que a pessoa vê na
     // tela não é o que o campo mostra. 12,7 mm é o passo de meia polegada que o
     // OOXML usa (720 twips), o mesmo de `TwipsPerIndentLevel` no gravador.
@@ -166,7 +183,16 @@ function alignmentOf(value: unknown): TextAlignment {
   return found ?? TextAlignment.Left
 }
 
-function lineSpacingOf(value: unknown): Pick<ParagraphDraft, 'lineSpacingKind' | 'lineSpacingValue'> {
+/** A pilha de fontes do bloco, que é quem diz a altura natural da linha. */
+function fontStackOf(attrs: Record<string, unknown>): string | null {
+  const stack = attrs['fontFamily']
+  return typeof stack === 'string' && stack.trim() !== '' ? stack : null
+}
+
+function lineSpacingOf(
+  value: unknown,
+  fontStack: string | null,
+): Pick<ParagraphDraft, 'lineSpacingKind' | 'lineSpacingValue'> {
   if (typeof value !== 'string' || value === '' || value.toLowerCase() === 'normal') {
     return {
       lineSpacingKind: LineSpacingKind.Single,
@@ -187,8 +213,13 @@ function lineSpacingOf(value: unknown): Pick<ParagraphDraft, 'lineSpacingKind' |
         }
   }
 
-  const factor = numberOf(value)
-  return factor === null || factor <= 0
+  const css = numberOf(value)
+  // O número do atributo é medida de CSS; o do diálogo é linha do Word. Um
+  // parágrafo de Calibri sem entrelinha declarada chega aqui como 1,2207, e o que
+  // a pessoa precisa ver é "Simples".
+  const factor = css === null || css <= 0 ? 1 : lineFactorOf(css, fontStack)
+
+  return factor === 1
     ? {
         lineSpacingKind: LineSpacingKind.Single,
         lineSpacingValue: DEFAULT_PARAGRAPH_DRAFT.lineSpacingValue,
@@ -206,7 +237,10 @@ function lineSpacingOf(value: unknown): Pick<ParagraphDraft, 'lineSpacingKind' |
  * para o parágrafo sem recuo, e um `0` explícito faria a impressão digital ver
  * diferença onde não há — todo bloco seria reescrito ao salvar.
  */
-export function paragraphAttrsFrom(draft: ParagraphDraft): ParagraphAttrs {
+export function paragraphAttrsFrom(
+  draft: ParagraphDraft,
+  attrs: Record<string, unknown> = {},
+): ParagraphAttrs {
   const firstLine =
     draft.firstLineKind === FirstLineKind.None
       ? 0
@@ -215,10 +249,10 @@ export function paragraphAttrsFrom(draft: ParagraphDraft): ParagraphAttrs {
         : Math.abs(draft.firstLineMm)
 
   return {
-    textAlign: draft.align,
+    textAlign: keptAlignment(draft.align, attrs),
     spaceBefore: clamp(round(draft.spaceBefore), 0, MAX_SPACING_PT),
     spaceAfter: clamp(round(draft.spaceAfter), 0, MAX_SPACING_PT),
-    lineHeight: lineHeightOf(draft),
+    lineHeight: lineHeightOf(draft, attrs),
     indentMm: draft.indentLeftMm > 0 ? clamp(round(draft.indentLeftMm), 0, MAX_INDENT_MM) : null,
     indentRightMm: draft.indentRightMm > 0 ? clamp(round(draft.indentRightMm), 0, MAX_INDENT_MM) : null,
     firstLineMm: firstLine === 0 ? null : clamp(round(firstLine), -MAX_INDENT_MM, MAX_INDENT_MM),
@@ -227,15 +261,81 @@ export function paragraphAttrsFrom(draft: ParagraphDraft): ParagraphAttrs {
   }
 }
 
-/** A entrelinha como o CSS a escreve — a mesma forma que o leitor produz. */
-function lineHeightOf(draft: ParagraphDraft): string {
-  if (draft.lineSpacingKind === LineSpacingKind.Single) return 'normal'
+/**
+ * O alinhamento, escrito só quando é escolha.
+ *
+ * "À esquerda" é o que o formulário mostra para o parágrafo que não declara
+ * alinhamento nenhum — então, se era isso que estava lá, continua ausente. Num
+ * parágrafo que **declara** outro alinhamento, escolher esquerda é uma decisão, e
+ * apagar o atributo deixaria o estilo justificar de volta.
+ */
+function keptAlignment(align: TextAlignment, attrs: Record<string, unknown>): TextAlignment | null {
+  const declared = typeof attrs['textAlign'] === 'string' ? attrs['textAlign'] : null
+  return align === TextAlignment.Left && declared === null ? null : align
+}
 
+/**
+ * A entrelinha como o CSS a escreve — a mesma forma que o leitor produz.
+ *
+ * Recebe os atributos atuais porque a conversão depende de duas coisas do bloco:
+ * a fonte, que dá a altura natural da linha, e o que já estava escrito ali. O
+ * segundo importa só no espaçamento simples, e os três caminhos estão comentados
+ * abaixo.
+ */
+function lineHeightOf(draft: ParagraphDraft, attrs: Record<string, unknown>): string {
   if (draft.lineSpacingKind === LineSpacingKind.AtLeast) {
     return `${clamp(round(draft.lineSpacingValue), 1, MAX_SPACING_PT)}pt`
   }
 
-  return String(clamp(draft.lineSpacingValue, MIN_LINE_FACTOR, MAX_LINE_FACTOR))
+  const fontStack = fontStackOf(attrs)
+
+  if (draft.lineSpacingKind === LineSpacingKind.Single) {
+    const current = attrs['lineHeight']
+
+    // Nada declarado, ou `normal`: o simples do arquivo é o silêncio dele, e quem
+    // mede melhor aí é o navegador. Trocar por número reescreveria o bloco sem
+    // mudar uma linha do que se vê.
+    if (current === null || current === undefined || current === '') return 'normal'
+    if (typeof current === 'string' && current.toLowerCase() === 'normal') return 'normal'
+
+    // Já era o fator 1, na forma em que o leitor o escreveu: fica como está, pelo
+    // mesmo motivo.
+    const css = numberOf(current)
+    if (css !== null && css > 0 && lineFactorOf(css, fontStack) === 1) return String(current)
+
+    // Havia medida declarada, e agora a escolha é simples. Aqui **não** vale
+    // `normal`: é o único valor que o gravador não grava, e o `w:line` antigo
+    // ficaria de pé — a entrelinha da pessoa perdida em silêncio.
+    return explicitCssLineHeightOf(1, fontStack)
+  }
+
+  return cssLineHeightOf(clamp(draft.lineSpacingValue, MIN_LINE_FACTOR, MAX_LINE_FACTOR), fontStack)
+}
+
+/**
+ * A entrelinha do bloco como os seletores rápidos a falam: `''` para simples, o
+ * fator do Word (`1.5`) ou a medida em pontos (`14pt`).
+ *
+ * Existe para a barra de ferramentas e para os atalhos `Ctrl+1`, `Ctrl+5` e
+ * `Ctrl+2`: eles falam em linha, como o Word, e o atributo fala em CSS.
+ */
+export function lineSpacingChoiceOf(attrs: Record<string, unknown>): string {
+  const spacing = lineSpacingOf(attrs['lineHeight'], fontStackOf(attrs))
+
+  if (spacing.lineSpacingKind === LineSpacingKind.Single) return ''
+  if (spacing.lineSpacingKind === LineSpacingKind.AtLeast) return `${spacing.lineSpacingValue}pt`
+  return String(spacing.lineSpacingValue)
+}
+
+/** O inverso: a escolha do seletor rápido → o atributo do bloco. */
+export function lineHeightAttrFrom(choice: string, attrs: Record<string, unknown>): string {
+  const spacing = choice.endsWith('pt')
+    ? { lineSpacingKind: LineSpacingKind.AtLeast, lineSpacingValue: numberOf(choice.slice(0, -2)) ?? 12 }
+    : choice.trim() === ''
+      ? { lineSpacingKind: LineSpacingKind.Single, lineSpacingValue: 1 }
+      : { lineSpacingKind: LineSpacingKind.Multiple, lineSpacingValue: numberOf(choice) ?? 1 }
+
+  return lineHeightOf({ ...DEFAULT_PARAGRAPH_DRAFT, ...spacing }, attrs)
 }
 
 /**

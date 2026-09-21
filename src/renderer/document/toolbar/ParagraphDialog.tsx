@@ -39,10 +39,18 @@ export function ParagraphDialog({
   const change = <K extends keyof ParagraphDraft>(key: K, value: ParagraphDraft[K]): void =>
     setDraft({ ...draft, [key]: value })
 
+  const keepFocus = (event: React.MouseEvent): void => event.preventDefault()
+
   function apply(): void {
     if (!valid) return
     editor.chain().focus().setParagraphFormat(draft).run()
     onClose()
+
+    // E de novo depois do fechamento. O `focus()` da cadeia já rodou, mas o
+    // painel sai da tela em seguida, e o que ainda estiver com o foco do
+    // documento sai com ele — o foco cai no corpo da página. Sem isto, quem
+    // clica em "Aplicar" precisa clicar no texto antes de voltar a escrever.
+    requestAnimationFrame(() => editor.commands.focus())
   }
 
   return (
@@ -213,10 +221,23 @@ export function ParagraphDialog({
           Restaurar padrão
         </button>
         <span className="popover__spacer" />
-        <button type="button" className="btn" onClick={onClose}>
+        {/*
+          `preventDefault` no `mousedown`: sem ele o botão toma o foco do
+          documento no clique, e desmontá-lo junto com o painel o devolve ao
+          corpo da página — depois do `focus()` da cadeia, que já rodou. Quem
+          clicava em "Aplicar" tinha de clicar no texto antes de continuar
+          escrevendo. Com o foco parado no editor, não há corrida nenhuma.
+        */}
+        <button type="button" className="btn" onMouseDown={keepFocus} onClick={onClose}>
           Cancelar
         </button>
-        <button type="button" className="btn btn--primary" onClick={apply} disabled={!valid}>
+        <button
+          type="button"
+          className="btn btn--primary"
+          onMouseDown={keepFocus}
+          onClick={apply}
+          disabled={!valid}
+        >
           Aplicar
         </button>
       </div>

@@ -27,11 +27,12 @@ export const FONT_SIZES = [
 ] as const
 
 /**
- * A entrelinha do seletor rápido.
+ * A entrelinha do seletor rápido, em linhas do Word.
  *
- * Vazio é "Simples", que no CSS se chama `normal` — a altura que a própria fonte
- * pede. Nenhum fator a imita: com 1,0 cada linha sai meia altura mais apertada
- * do que no Word. O resto das opções mora no diálogo de parágrafo.
+ * Vazio é "Simples" — a altura que a própria fonte pede. Os números são fatores
+ * de linha, como o Word os mostra, e não a medida do CSS: 1,5 linha em Calibri é
+ * `line-height: 1.8311`, e quem faz a conta é `paragraph-format`. O resto das
+ * opções mora no diálogo de parágrafo.
  */
 export const LINE_HEIGHTS = [
   { value: '', label: 'Simples' },

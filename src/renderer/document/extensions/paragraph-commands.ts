@@ -1,6 +1,9 @@
 import { Extension, type CommandProps, type Editor } from '@tiptap/core'
+import type { Node as ProseMirrorNode } from '@tiptap/pm/model'
 import {
   DEFAULT_PARAGRAPH_DRAFT,
+  lineHeightAttrFrom,
+  lineSpacingChoiceOf,
   paragraphAttrsFrom,
   paragraphDraftFrom,
   type ParagraphDraft,
@@ -35,8 +38,10 @@ declare module '@tiptap/core' {
       /**
        * Só a entrelinha, para os atalhos `Ctrl+1`, `Ctrl+2` e `Ctrl+5` do Word.
        *
-       * Recebe a medida como o CSS a escreve, que é a forma em que o atributo
-       * vive: `normal`, um fator, ou pontos.
+       * Recebe a escolha como o Word a diz — `''` para simples, o fator em linhas
+       * (`1.5`) ou a medida (`14pt`) —, e **não** como o CSS a escreve: a
+       * conversão depende da fonte de cada bloco, e é `paragraph-format` quem a
+       * faz.
        */
       setBlockLineHeight: (value: string) => ReturnType
     }
@@ -73,8 +78,15 @@ export const ParagraphCommands = Extension.create<ParagraphCommandsOptions>({
   addCommands() {
     const types = this.options.types
 
+    /**
+     * Os atributos saem de uma função do bloco, e não de um objeto pronto.
+     *
+     * A entrelinha em CSS depende da altura natural da fonte **daquele** bloco:
+     * "1,5 linha" é 1,8311 em Calibri e 1,7249 em Times. Com um valor só para a
+     * seleção inteira, um parágrafo de cada fonte receberia a medida do outro.
+     */
     const applyAttrs =
-      (attrs: Record<string, unknown>) =>
+      (attrsOf: (node: ProseMirrorNode) => Record<string, unknown>) =>
       ({ state, tr, dispatch }: CommandProps): boolean => {
         const { from, to } = state.selection
         let changed = false
@@ -85,7 +97,7 @@ export const ParagraphCommands = Extension.create<ParagraphCommandsOptions>({
           const declared = node.type.spec.attrs
           if (declared === undefined) return true
 
-          for (const [name, value] of Object.entries(attrs)) {
+          for (const [name, value] of Object.entries(attrsOf(node))) {
             // Atributo que o tipo do bloco não declara faria o ProseMirror
             // reclamar: a lista não tem `textAlign`, porque o alinhamento dela é
             // dos itens.
@@ -100,12 +112,18 @@ export const ParagraphCommands = Extension.create<ParagraphCommandsOptions>({
         })
 
         if (changed && dispatch !== undefined) dispatch(tr)
-        return changed
+
+        // Sempre verdadeiro, mesmo sem nada a mudar: "já estava assim" é sucesso,
+        // não recusa. Devolver `false` cortava a cadeia do diálogo — e com ela o
+        // `focus()`, então clicar em "Aplicar" sem mexer em nada deixava o cursor
+        // fora do texto.
+        return true
       }
 
     return {
-      setParagraphFormat: (draft) => applyAttrs({ ...paragraphAttrsFrom(draft) }),
-      setBlockLineHeight: (value) => applyAttrs({ lineHeight: value }),
+      setParagraphFormat: (draft) => applyAttrs((node) => ({ ...paragraphAttrsFrom(draft, node.attrs) })),
+      setBlockLineHeight: (value) =>
+        applyAttrs((node) => ({ lineHeight: lineHeightAttrFrom(value, node.attrs) })),
     }
   },
 })
@@ -113,8 +131,9 @@ export const ParagraphCommands = Extension.create<ParagraphCommandsOptions>({
 /**
  * A entrelinha do bloco sob o cursor, como o seletor rápido da barra a mostra.
  *
- * `normal` volta como vazio porque na barra a opção se chama "Simples" e é a
- * primeira da lista — é a mesma coisa dita em duas línguas, a do CSS e a do Word.
+ * Em linhas do Word, e não na medida do CSS: o atributo de um parágrafo de
+ * Calibri a 1,5 linha é 1,8311, e a barra mostrava esse número. O simples volta
+ * como vazio porque na barra a opção se chama "Simples" e é a primeira da lista.
  */
 export function blockLineHeightOf(editor: Editor, types: readonly string[] = DEFAULT_TYPES): string {
   const { from, to } = editor.state.selection
@@ -124,10 +143,9 @@ export function blockLineHeightOf(editor: Editor, types: readonly string[] = DEF
     if (value !== null) return false
     if (!types.includes(node.type.name)) return true
 
-    const declared = node.attrs['lineHeight']
-    value = typeof declared === 'string' ? declared : ''
+    value = lineSpacingChoiceOf(node.attrs)
     return true
   })
 
-  return value === null || value === 'normal' ? '' : value
+  return value ?? ''
 }

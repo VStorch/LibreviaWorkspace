@@ -58,11 +58,11 @@ export const WordShortcuts = Extension.create({
        * Entrelinha: `Ctrl+1` simples, `Ctrl+5` um e meio, `Ctrl+2` duplo.
        *
        * São os do Word, e é por isso que os títulos ficam no `Ctrl+Alt+1`…`6`:
-       * no Word `Ctrl+1` nunca foi "Título 1". Simples é `normal` — a altura que
-       * a fonte pede —, e não o fator 1: nenhum fator imita o espaçamento
-       * simples do Word.
+       * no Word `Ctrl+1` nunca foi "Título 1". A medida é dita em **linhas**, como
+       * no Word: vazio é o espaçamento simples, e quem traduz para a medida do CSS
+       * — que depende da altura natural da fonte — é `paragraph-format`.
        */
-      'Mod-1': lineHeight('normal'),
+      'Mod-1': lineHeight(''),
       'Mod-5': lineHeight('1.5'),
       'Mod-2': lineHeight('2'),
 

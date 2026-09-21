@@ -113,6 +113,58 @@ test.describe('formatação do documento', () => {
     expect(Number.parseFloat(medidas.antes)).toBeCloseTo(18 * (96 / 72), 0)
     expect(Number.parseFloat(medidas.recuo)).toBeCloseTo(20 * (96 / 25.4), 0)
   })
+
+  test('a entrelinha de 1,5 linha é 1,5 linha, e não 1,5 de CSS', async () => {
+    await menu(session, 'new-document')
+    const editor = session.window.locator('.ProseMirror')
+    await editor.click()
+    await session.window.keyboard.type('Parágrafo de uma linha e meia.')
+
+    await menu(session, 'paragraph-setup')
+    const dialogo = session.window.getByRole('dialog', { name: 'Parágrafo' })
+    await dialogo.getByRole('combobox', { name: 'Entrelinha' }).selectOption('1.5')
+    await dialogo.getByRole('button', { name: 'Aplicar' }).click()
+
+    // O múltiplo do Word é medido sobre a **altura natural da fonte**, e não sobre
+    // o tamanho dela: 1,5 linha em Liberation Serif é `line-height: 1.7249`.
+    // Enquanto o diálogo escrevia 1,5 direto no CSS, o arquivo recebia 1,23 linha.
+    const proporcao = await editor
+      .locator('p')
+      .first()
+      .evaluate((elemento) => {
+        const estilo = getComputedStyle(elemento)
+        return Number.parseFloat(estilo.lineHeight) / Number.parseFloat(estilo.fontSize)
+      })
+
+    expect(proporcao).toBeCloseTo(1.7249, 2)
+
+    // E a barra mostra de volta o número do Word, que é o que a pessoa escolheu.
+    await expect(session.window.getByRole('combobox', { name: 'Espaçamento entre linhas' })).toHaveValue(
+      '1.5',
+    )
+  })
+
+  test('"Aplicar" sem mexer em nada devolve o foco ao texto', async () => {
+    await menu(session, 'new-document')
+    const editor = session.window.locator('.ProseMirror')
+    await editor.click()
+    await session.window.keyboard.type('Sem mudança nenhuma.')
+
+    await menu(session, 'paragraph-setup')
+    const dialogo = session.window.getByRole('dialog', { name: 'Parágrafo' })
+    await dialogo.getByRole('button', { name: 'Aplicar' }).click()
+    await expect(dialogo).toBeHidden()
+
+    // O comando devolvia `false` quando não havia nada a mudar, e a cadeia inteira
+    // não rodava — o `focus()` com ela. Quem clicava em "Aplicar" tinha de clicar
+    // no texto de novo para continuar escrevendo.
+    // O foco volta no quadro seguinte ao fechamento, então é ele que se espera
+    // antes de digitar: é o que o teste quer provar, e digitar antes só mediria
+    // a velocidade do teste.
+    await expect(editor).toBeFocused()
+    await session.window.keyboard.type(' Continua.')
+    await expect(editor).toContainText('Sem mudança nenhuma. Continua.')
+  })
 })
 
 /** Conteúdo de `word/document.xml` dentro do `.docx`, sem descompactar em disco. */
