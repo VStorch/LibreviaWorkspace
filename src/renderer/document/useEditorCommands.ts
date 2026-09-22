@@ -9,6 +9,7 @@ export interface EditorDialogs {
   readonly find: boolean
   readonly pageSetup: boolean
   readonly paragraph: boolean
+  readonly styles: boolean
   readonly wordCount: boolean
   readonly specialCharacter: boolean
   readonly table: boolean
@@ -20,6 +21,7 @@ const CLOSED: EditorDialogs = {
   find: false,
   pageSetup: false,
   paragraph: false,
+  styles: false,
   wordCount: false,
   specialCharacter: false,
   table: false,

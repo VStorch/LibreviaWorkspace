@@ -1430,3 +1430,48 @@ button {
   background: var(--accent-soft);
   border-color: var(--accent-line);
 }
+
+/* Painel de estilos: uma lista rolável, porque um `.docx` do Word declara
+   dezenas de estilos e o painel não pode crescer além da janela. */
+.styles-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: 40vh;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.styles-list__item {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 5px 8px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+
+.styles-list__item:last-child {
+  border-bottom: none;
+}
+
+/* O estilo do parágrafo onde está o cursor. O leitor de tela ouve o mesmo pelo
+   `aria-current`: a cor sozinha não é informação. */
+.styles-list__item--current {
+  background: var(--accent-soft);
+}
+
+.styles-list__name {
+  font-weight: 600;
+}
+
+.styles-list__meta,
+.styles-list__empty {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.styles-list__empty {
+  padding: 8px;
+}

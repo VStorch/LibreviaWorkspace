@@ -2,6 +2,7 @@ import type { SerializedError } from '@shared/errors.js'
 import type { DocumentKind, DraftSummary, LossInventory, RecentFile } from '@shared/types.js'
 import type { DocumentModel, DocumentNode, PageSetup } from '@services/document/model.js'
 import type { PagedDocument } from '@services/document/print-pages.js'
+import type { StyleSheet } from '@services/document/styles.js'
 import type { Sheet, WorkbookModel } from '@services/spreadsheet/model.js'
 import type { StructuralChange } from '@services/spreadsheet/structure.js'
 
@@ -52,6 +53,14 @@ export interface WorkspaceState {
    * conteúdo ao vivo mora no editor, e só é lido na hora de salvar.
    */
   initialDoc: DocumentNode
+  /**
+   * Os estilos do documento aberto.
+   *
+   * Só de leitura nesta fase: o painel de estilos os mostra e diz qual é o do
+   * parágrafo onde está o cursor. Aplicar e modificar são das entregas seguintes,
+   * e é por isso que não há ação nenhuma para mexer neles aqui.
+   */
+  styles: StyleSheet
   /**
    * A planilha aberta, quando o que está em edição é uma planilha.
    *

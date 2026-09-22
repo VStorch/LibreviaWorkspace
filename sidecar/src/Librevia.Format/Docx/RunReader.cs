@@ -94,7 +94,15 @@ public static class RunReader
         return attributes.Count == 0 ? null : new Mark { Type = "textStyle", Attrs = attributes };
     }
 
-    private static string FormatPoints(double points) =>
+    /// <summary>
+    /// Uma medida em pontos, do jeito que o CSS a escreve.
+    /// </summary>
+    /// <remarks>
+    /// Pública para <see cref="StyleReader"/>: o tamanho da fonte de um estilo é
+    /// a mesma medida do tamanho da fonte de um trecho, e duas formatações da
+    /// mesma coisa divergiriam no primeiro meio-ponto.
+    /// </remarks>
+    public static string FormatPoints(double points) =>
         points == Math.Floor(points)
             ? $"{(int)points}pt"
             : points.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture) + "pt";
@@ -102,19 +110,25 @@ public static class RunReader
     /// <summary>
     /// Fundo do texto: `w:highlight` traz nome de cor, `w:shd` traz hexadecimal.
     /// </summary>
-    private static string? HighlightOf(RunProperties properties)
+    /// <remarks>
+    /// Recebe o elemento, e não o `w:rPr` tipado, para servir também ao
+    /// <see cref="StyleReader"/>: o OOXML tem uma classe diferente para o `w:rPr`
+    /// do trecho, o do estilo e o do padrão do documento, e os três têm este
+    /// mesmo filho.
+    /// </remarks>
+    public static string? HighlightOf(OpenXmlElement properties)
     {
-        if (properties.Highlight?.Val is not null &&
-            properties.Highlight.Val.Value != HighlightColorValues.None)
+        var highlight = properties.GetFirstChild<Highlight>()?.Val;
+        if (highlight is not null && highlight.Value != HighlightColorValues.None)
         {
-            return NamedHighlight(properties.Highlight.Val.Value.ToString());
+            return NamedHighlight(highlight.Value.ToString());
         }
 
-        var fill = properties.Shading?.Fill?.Value;
-        return IsRealColor(fill) ? "#" + fill!.TrimStart('#').ToLowerInvariant() : null;
+        return ColorOf(properties.GetFirstChild<Shading>()?.Fill);
     }
 
-    private static string? ColorOf(StringValue? value) =>
+    /// <summary>A cor como o editor a guarda, ou <c>null</c> quando não é cor.</summary>
+    public static string? ColorOf(StringValue? value) =>
         IsRealColor(value?.Value) ? "#" + value!.Value!.TrimStart('#').ToLowerInvariant() : null;
 
     /// <summary>

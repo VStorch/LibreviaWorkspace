@@ -1,12 +1,18 @@
 import { useEditorState, type Editor } from '@tiptap/react'
 import { firstFamilyOf } from '@services/document/font-list.js'
-import { ToolbarGroup, ToolbarSelect } from '../../components/ToolbarControls.js'
+import { ToolbarButton, ToolbarGroup, ToolbarSelect } from '../../components/ToolbarControls.js'
 import { focusChain } from './focus-chain.js'
 import { BLOCK_STYLES, FONT_SIZES, withCurrent } from './toolbar-options.js'
 import { useFontFamilies } from './useFontFamilies.js'
 
 /** Estilo do bloco, família e tamanho da fonte — o começo da barra. */
-export function StyleAndFontGroup({ editor }: { readonly editor: Editor }): React.JSX.Element {
+export function StyleAndFontGroup({
+  editor,
+  onOpenStyles,
+}: {
+  readonly editor: Editor
+  readonly onOpenStyles: () => void
+}): React.JSX.Element {
   const active = useEditorState({
     editor,
     selector: ({ editor: current }) => ({
@@ -61,6 +67,10 @@ export function StyleAndFontGroup({ editor }: { readonly editor: Editor }): Reac
         }
         width={68}
       />
+
+      {/* A lista do documento, ao lado do seletor que aplica os quatro estilos
+          que o editor conhece: é aqui que se vê que um `.docx` tem muito mais. */}
+      <ToolbarButton icon="styles" label="Estilos do documento" onClick={onOpenStyles} />
     </ToolbarGroup>
   )
 }

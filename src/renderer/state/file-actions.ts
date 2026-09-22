@@ -2,6 +2,7 @@ import { DocumentKind, PlainTextChoice, type LossInventory } from '@shared/types
 import { DEFAULT_PAGE_SETUP, createEmptyDocument, type DocumentModel } from '@services/document/model.js'
 import { documentToPlainText, hasRichFormatting, plainTextToDocument } from '@services/document/plain-text.js'
 import { parseDocument, serializeDocument } from '@services/document/serialize.js'
+import { BUILTIN_STYLES } from '@services/document/styles.js'
 import { createEmptyWorkbook } from '@services/spreadsheet/model.js'
 import { parseWorkbook, serializeWorkbook } from '@services/spreadsheet/serialize.js'
 import { recalculate } from '@services/spreadsheet/formula/recalc.js'
@@ -207,6 +208,7 @@ export function createFileActions(set: SetWorkspace, get: GetWorkspace, ctx: Wor
         workbook: null,
         page: empty.page,
         initialDoc: empty.doc,
+        styles: empty.styles,
         generation: state.generation + 1,
         isDirty: false,
         error: null,
@@ -243,7 +245,9 @@ function interpret(opened: OpenedFile): LoadedFile {
 /** Interpreta o conteúdo lido do disco conforme a extensão do arquivo. */
 function decode(path: string, content: string): DocumentModel {
   if (isPlainTextPath(path)) {
-    return { page: DEFAULT_PAGE_SETUP, doc: plainTextToDocument(content) }
+    // Texto simples não tem estilo nenhum a trazer: recebe os do documento novo,
+    // que são a aparência com que o editor já o desenhava.
+    return { page: DEFAULT_PAGE_SETUP, doc: plainTextToDocument(content), styles: BUILTIN_STYLES }
   }
   return parseDocument(content)
 }

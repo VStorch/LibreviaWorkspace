@@ -8,6 +8,7 @@ import {
   type DocumentModel,
 } from './model.js'
 import { SDOC_VERSION, parseDocument, serializeDocument } from './serialize.js'
+import { BUILTIN_STYLES, type StyleSheet } from './styles.js'
 
 const richDocument: DocumentModel = {
   page: {
@@ -44,6 +45,7 @@ const richDocument: DocumentModel = {
       },
     ],
   },
+  styles: BUILTIN_STYLES,
 }
 
 describe('ida e volta do formato interno', () => {
@@ -91,6 +93,64 @@ describe('ida e volta do formato interno', () => {
       format: 'sdoc',
       version: SDOC_VERSION,
     })
+  })
+})
+
+describe('estilos no formato interno', () => {
+  const v2 = (styles?: StyleSheet): string =>
+    JSON.stringify({
+      format: 'sdoc',
+      version: 2,
+      page: DEFAULT_PAGE_SETUP,
+      doc: { type: 'doc', content: [{ type: 'paragraph' }] },
+      ...(styles === undefined ? {} : { styles }),
+    })
+
+  it('devolve os estilos gravados', () => {
+    // A ida e volta precisa ser fiel também aqui: os estilos do documento são o
+    // que a entrega seguinte vai usar para desenhar, e um só perdido no caminho
+    // mudaria a aparência de um arquivo que ninguém editou.
+    expect(parseDocument(serializeDocument(richDocument)).styles).toEqual(BUILTIN_STYLES)
+  })
+
+  it('dá os estilos embutidos ao arquivo da versão 2, que não os tinha', () => {
+    // Documento antigo tem de abrir **idêntico**: os embutidos são a aparência
+    // que o editor já desenhava, medida por medida.
+    expect(parseDocument(v2()).styles).toEqual(BUILTIN_STYLES)
+  })
+
+  it('ignora estilos num arquivo que se declara da versão 2', () => {
+    // Versão 2 não tem estilos. Um `styles` ali é remendo — provavelmente de um
+    // arquivo editado à mão —, e confiar nele seria abrir o documento com uma
+    // formatação que o programa que o gravou nunca conheceu.
+    const forjado: StyleSheet = {
+      defaults: { paragraph: {}, character: {}, paragraphStyleId: null, characterStyleId: null },
+      styles: {},
+    }
+    expect(parseDocument(v2(forjado)).styles).toEqual(BUILTIN_STYLES)
+  })
+
+  it('dá os estilos embutidos ao arquivo da versão 1', () => {
+    const version1 = JSON.stringify({
+      format: 'sdoc',
+      version: 1,
+      page: DEFAULT_PAGE_SETUP,
+      doc: { type: 'doc', content: [{ type: 'paragraph' }] },
+    })
+    expect(parseDocument(version1).styles).toEqual(BUILTIN_STYLES)
+  })
+
+  it('recusa um estilo malformado em vez de abrir o documento sem ele', () => {
+    // Sem tipo, o estilo não é de parágrafo nem de caractere: não há como dizer
+    // onde ele se aplica, e adivinhar é como a formatação some em silêncio.
+    const quebrado = JSON.stringify({
+      format: 'sdoc',
+      version: SDOC_VERSION,
+      page: DEFAULT_PAGE_SETUP,
+      doc: { type: 'doc' },
+      styles: { defaults: {}, styles: { Corpo: { id: 'Corpo', name: 'Corpo' } } },
+    })
+    expect(() => parseDocument(quebrado)).toThrow(/documento válido/i)
   })
 })
 

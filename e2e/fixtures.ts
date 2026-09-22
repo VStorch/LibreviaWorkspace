@@ -716,3 +716,50 @@ export async function entryOf(path: string, name: string): Promise<string> {
 
   throw new Error(`${name} não encontrado em ${path}`)
 }
+
+/**
+ * Documento em português com estilos de verdade em `word/styles.xml`.
+ *
+ * É a forma do corpus real, e a que o painel de estilos existe para mostrar: o id
+ * do estilo é **traduzido** (`Ttulo1`, sem acento, como o Word o grava) e o nome
+ * interno não (`heading 1`). Um parágrafo aponta um estilo criado por quem
+ * escreveu o documento (`Citao`), e é ele que tem de aparecer como o estilo do
+ * cursor — nada disso está no parágrafo, está todo no arquivo de estilos.
+ */
+export async function docxWithNamedStyles(): Promise<Buffer> {
+  const styles = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:styles xmlns:w="${W}">
+<w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="Calibri" w:hAnsi="Calibri"/><w:sz w:val="22"/></w:rPr></w:rPrDefault></w:docDefaults>
+<w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:qFormat/></w:style>
+<w:style w:type="paragraph" w:styleId="Ttulo1"><w:name w:val="heading 1"/><w:basedOn w:val="Normal"/><w:uiPriority w:val="9"/><w:qFormat/>
+<w:pPr><w:outlineLvl w:val="0"/></w:pPr><w:rPr><w:b/><w:sz w:val="32"/></w:rPr></w:style>
+<w:style w:type="paragraph" w:customStyle="1" w:styleId="Citao"><w:name w:val="Citação recuada"/><w:basedOn w:val="Normal"/><w:qFormat/>
+<w:pPr><w:ind w:left="720"/></w:pPr><w:rPr><w:i/></w:rPr></w:style>
+<w:style w:type="character" w:styleId="FonteParagrPadro" w:default="1"><w:name w:val="Default Paragraph Font"/><w:semiHidden/><w:unhideWhenUsed/></w:style>
+</w:styles>`
+
+  const rels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+</Relationships>`
+
+  const comEstilo = (id: string, texto: string): string =>
+    `<w:p><w:pPr><w:pStyle w:val="${id}"/></w:pPr><w:r><w:t xml:space="preserve">${texto}</w:t></w:r></w:p>`
+
+  return zip([
+    [
+      '[Content_Types].xml',
+      CONTENT_TYPES.replace(
+        '<Override PartName="/word/document.xml"',
+        '<Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/><Override PartName="/word/document.xml"',
+      ).replace(/<Override PartName="\/word\/comments[^>]+>/, ''),
+    ],
+    ['_rels/.rels', ROOT_RELS],
+    ['word/_rels/document.xml.rels', rels],
+    ['word/styles.xml', styles],
+    [
+      'word/document.xml',
+      documentXml(comEstilo('Ttulo1', 'Relatório anual') + comEstilo('Citao', 'Um trecho citado.')),
+    ],
+  ])
+}

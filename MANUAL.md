@@ -139,6 +139,20 @@ Além de negrito, itálico, sublinhado e tachado:
 > sombreamento do trecho. Um documento recebido pode trazer os dois, e o aplicativo mantém cada
 > um onde estava.
 
+### Os estilos do documento
+
+O botão **A≡**, ao lado do tamanho da fonte, abre a lista de estilos que **este documento**
+define e diz qual é o do parágrafo onde está o cursor.
+
+Serve para entender um documento recebido: num `.docx` feito no Word quase toda a formatação
+mora em estilos, e não no parágrafo — é por isso que um título pode ser uma barra colorida, e
+não uma letra grande. A lista mostra o nome que o autor deu a cada estilo, de que estilo ele
+herda e o que ele declara de fonte e tamanho.
+
+> ℹ️ **Por enquanto o painel só mostra.** Aplicar um estilo, criar um novo e modificar um
+> existente vêm nas próximas versões. Nada do que está no arquivo se perde nesse meio-tempo: os
+> estilos do documento continuam intactos quando você salva.
+
 ### A lista de fontes
 
 O seletor mostra, nesta ordem: **as fontes que o documento aberto usa**, as cinco que vêm com o

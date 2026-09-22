@@ -11,6 +11,7 @@ import { readFile } from 'node:fs/promises'
 import { z } from 'zod'
 import { SDOC_FORMAT, SDOC_VERSION } from '@services/document/serialize.js'
 import { AppError, ErrorCode, fromFileSystemError } from '@shared/errors.js'
+import { styleSheetSchema } from '@shared/schemas.js'
 import type { LossInventory } from '@shared/types.js'
 import { normalizePath } from '../fs/paths.js'
 import type { SidecarClient } from '../sidecar/client.js'
@@ -36,8 +37,17 @@ const inventorySchema = z.object({
   structural: inventoryLabels,
 })
 
+/**
+ * O resultado de abrir, conferido antes de virar documento na tela.
+ *
+ * `page` e `doc` atravessam como desconhecidos — quem os valida é o schema do
+ * `.sdoc`, na ponta do renderer, e o do ProseMirror depois dele. Os **estilos**
+ * não: eles são conferidos aqui, no primeiro ponto em que entram no programa,
+ * porque é este o único lugar por onde passam antes de serem gravados no arquivo
+ * do usuário. Um estilo malformado que chegasse ao `.sdoc` ficaria lá.
+ */
 const openResultSchema = z.object({
-  model: z.object({ page: z.unknown(), doc: z.unknown() }),
+  model: z.object({ page: z.unknown(), doc: z.unknown(), styles: styleSheetSchema }),
   inventory: inventorySchema,
 })
 
@@ -308,7 +318,15 @@ function unwrapSdoc(content: string): { page: unknown; doc: unknown } {
     throw new AppError(ErrorCode.Internal, 'O documento em edição está em estado inconsistente.')
   }
 
-  const envelope = z.object({ page: z.unknown(), doc: z.unknown() }).safeParse(parsed)
+  // Os estilos são conferidos e **não** seguem para o sidecar: nesta entrega o
+  // escritor não os usa — `word/styles.xml` volta ao arquivo byte a byte pela
+  // gravação cirúrgica, e no documento novo o pacote mínimo já os grava a partir
+  // da mesma tabela (`BuiltinStyles.cs`). Conferi-los aqui é o que garante que o
+  // modelo em edição continua sendo um modelo válido; mandá-los adiante seria
+  // prometer uma gravação que ainda não existe.
+  const envelope = z
+    .object({ page: z.unknown(), doc: z.unknown(), styles: styleSheetSchema.optional() })
+    .safeParse(parsed)
   if (!envelope.success) {
     throw new AppError(ErrorCode.Internal, 'O documento em edição está em estado inconsistente.')
   }

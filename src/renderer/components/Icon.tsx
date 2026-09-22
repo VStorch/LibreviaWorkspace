@@ -19,6 +19,7 @@ export type IconName =
   | 'subscript'
   | 'caps'
   | 'small-caps'
+  | 'styles'
   | 'align-left'
   | 'align-center'
   | 'align-right'
@@ -66,6 +67,10 @@ const PATHS: Record<IconName, React.ReactNode> = {
   // versalete — que é exatamente o que a formatação faz com o texto.
   caps: <path d="M2 17.5 6 7l4 10.5M3.5 14.2h5M13 17.5 17 7l4 10.5M14.5 14.2h5" />,
   'small-caps': <path d="M2 17.5 6 7l4 10.5M3.5 14.2h5M14 17.5 16.8 10.5l2.8 7M15 15.2h3.6" />,
+
+  // Um "A" grande ao lado de três linhas de texto: a lista de estilos do
+  // documento, e não a formatação de um parágrafo — que é o `paragraph`.
+  styles: <path d="M2.5 17 6.5 6l4 11M4 13.6h5M14 8h7M14 12h7M14 16h5" />,
 
   'align-left': <path d="M4 6h16M4 10h10M4 14h16M4 18h10" />,
   'align-center': <path d="M4 6h16M7 10h10M4 14h16M7 18h10" />,

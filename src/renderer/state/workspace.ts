@@ -20,11 +20,13 @@ export type { DocumentSource, WorkspaceState } from './types.js'
  */
 export const useWorkspace = create<WorkspaceState>((set, get) => {
   const ctx = createWorkspaceContext(set, get)
+  const empty = createEmptyDocument()
 
   return {
     file: null,
     page: DEFAULT_PAGE_SETUP,
-    initialDoc: createEmptyDocument().doc,
+    initialDoc: empty.doc,
+    styles: empty.styles,
     workbook: null,
     generation: 0,
     isDirty: false,

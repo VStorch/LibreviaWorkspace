@@ -68,7 +68,14 @@ export function createWorkspaceContext(set: SetWorkspace, get: GetWorkspace): Wo
 
   function currentModel(): DocumentModel {
     const state = get()
-    return { page: state.page, doc: documentSource?.readDoc() ?? state.initialDoc }
+    return {
+      page: state.page,
+      doc: documentSource?.readDoc() ?? state.initialDoc,
+      // Como vieram do arquivo: nesta fase nada na tela os altera, e gravar
+      // outros que não os do documento seria trocar a formatação de um arquivo
+      // alheio por causa de um passeio pelo painel.
+      styles: state.styles,
+    }
   }
 
   function currentContent(): string {
@@ -114,6 +121,7 @@ export function createWorkspaceContext(set: SetWorkspace, get: GetWorkspace): Wo
       workbook,
       page: model.page,
       initialDoc: model.doc,
+      styles: model.styles,
       generation: state.generation + 1,
       isDirty: false,
       error: null,

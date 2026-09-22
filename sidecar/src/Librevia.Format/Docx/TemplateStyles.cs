@@ -4,64 +4,30 @@ using DocumentFormat.OpenXml.Wordprocessing;
 namespace Librevia.Format.Docx;
 
 /// <summary>
-/// O `word/styles.xml` do documento novo.
+/// O `word/styles.xml` do documento novo, montado a partir de <see cref="BuiltinStyles"/>.
 /// </summary>
 /// <remarks>
-/// Não é um gosto: é a **tela**. O editor desenha o documento novo com o CSS de
-/// `src/services/document/content-styles.ts` e com o padrão do navegador para o
-/// que o CSS não diz, e o arquivo tem de reproduzir exatamente isso — se tela e
-/// arquivo discordassem, salvar em DOCX mudaria a paginação do que a pessoa
-/// acabou de escrever. Os números abaixo foram medidos no editor (estilo
-/// computado de `p` e de `h1` a `h6` num documento novo), e não copiados do Word.
+/// Aqui só a **montagem**: os números moram na tabela de dados, nas unidades do
+/// editor, e é ela que o teste de contrato compara com o `BUILTIN_STYLES` do lado
+/// TS. Enquanto os dois viviam juntos, mudar a aparência pedia mudar twips e
+/// meios-pontos em dois idiomas, e a chance de um lado ficar atrás era certa.
 ///
-/// Quando os estilos virarem dado, estes números saem daqui e passam a vir do
-/// documento; até lá, mudar a aparência é mudar os dois lugares juntos.
-///
-/// Duas aproximações, ambas abaixo do que o olho vê: o tamanho do `h5` e do `h6`
-/// (9,96 pt e 8,04 pt no navegador) vai para o meio-ponto mais próximo, que é a
-/// precisão do `w:sz`; e o `#111111` do texto fica `auto`, que é preto — gravado
-/// como cor, ele voltaria como cor explícita em cada trecho reaberto.
+/// A tabela não cobre os estilos de tabela e de numeração (`TableNormal`,
+/// `NoList`, `TableGrid`): o modelo do documento não representa borda nem margem
+/// de célula, então eles continuam montados à mão logo abaixo.
 /// </remarks>
 internal static class TemplateStyles
 {
-    /// <summary>A fonte do documento novo — a primeira da pilha do CSS.</summary>
-    public const string BodyFont = "Times New Roman";
+    /// <inheritdoc cref="BuiltinStyles.BodyFont"/>
+    public const string BodyFont = BuiltinStyles.BodyFont;
 
-    /// <summary>A fonte do cabeçalho e do rodapé de texto simples (`page-setup.ts`).</summary>
-    public const string BandFont = "Calibri";
-
-    /// <summary>
-    /// Entrelinha 1,5 do CSS, em 240-avos da altura natural da fonte.
-    /// </summary>
-    /// <remarks>
-    /// A mesma conta de <c>ParagraphFormat.ApplyLineHeight</c>: o múltiplo do
-    /// OOXML é medido sobre a altura da fonte, e não sobre o tamanho dela.
-    /// </remarks>
-    private static readonly int BodyLine = (int)Math.Round(1.5 / (LineMetrics.Of(BodyFont) ?? 1.1499) * 240);
-
-    /// <summary>
-    /// Os títulos: tamanho em meios-pontos, espaço antes e depois em twips e se
-    /// fica preso ao parágrafo seguinte.
-    /// </summary>
-    /// <remarks>
-    /// O antes é o `margin-top: 1em` do CSS (0,6em no `h5` e no `h6`, que não têm
-    /// regra própria); o depois é a margem de baixo do navegador — 0,67em no
-    /// `h1`, 0,83em no `h2`, 1em no `h3`, 1,33em no `h4`, 1,67em e 2,33em nos dois
-    /// últimos. O "manter com o próximo" é o `break-after: avoid` da impressão,
-    /// que só os quatro primeiros têm.
-    /// </remarks>
-    private static readonly (int HalfPoints, int Before, int After, bool KeepNext)[] Headings =
-    [
-        (44, 440, 295, true),
-        (34, 340, 282, true),
-        (28, 280, 280, true),
-        (24, 240, 319, true),
-        (20, 120, 333, false),
-        (16, 96, 375, false),
-    ];
+    /// <inheritdoc cref="BuiltinStyles.BandFont"/>
+    public const string BandFont = BuiltinStyles.BandFont;
 
     public static Styles Create()
     {
+        var bodySize = HalfPoints(BuiltinStyles.BodySizePt);
+
         var styles = new Styles(
             new DocDefaults(
                 new RunPropertiesDefault(new RunPropertiesBaseStyle(
@@ -69,19 +35,26 @@ internal static class TemplateStyles
                     // uma letra acentuada ou um caractere asiático cairia na fonte
                     // que o programa quisesse.
                     new RunFonts { Ascii = BodyFont, HighAnsi = BodyFont, EastAsia = BodyFont, ComplexScript = BodyFont },
-                    new FontSize { Val = "24" },
-                    new FontSizeComplexScript { Val = "24" })),
-                new ParagraphPropertiesDefault()),
-            Normal(),
-            DefaultParagraphFont(),
-            TableNormal(),
-            NoList());
+                    new FontSize { Val = bodySize },
+                    new FontSizeComplexScript { Val = bodySize })),
+                new ParagraphPropertiesDefault()));
 
-        for (var level = 1; level <= Headings.Length; level++) styles.AppendChild(Heading(level));
+        // Os de parágrafo e de caractere saem da tabela, na ordem dela; os de
+        // tabela e de numeração entram no meio, onde estavam: `TableNormal` e
+        // `NoList` são os padrões do pacote e o Word os espera antes do resto.
+        foreach (var style in BuiltinStyles.All)
+        {
+            if (style.Id == "Heading1")
+            {
+                styles.AppendChild(TableNormal());
+                styles.AppendChild(NoList());
+            }
 
-        styles.AppendChild(TableGrid());
-        styles.AppendChild(ListParagraph());
-        styles.AppendChild(Hyperlink());
+            styles.AppendChild(Of(style));
+
+            if (style.Id == "Heading6") styles.AppendChild(TableGrid());
+        }
+
         return styles;
     }
 
@@ -91,63 +64,105 @@ internal static class TemplateStyles
     /// define o estilo leva **esta** definição, e não outra — duas cópias da
     /// mesma aparência divergiriam na primeira correção.
     /// </remarks>
-    public static Style Heading(int level)
+    public static Style Heading(int level) => Of(BuiltinStyles.Heading(level));
+
+    public static int HeadingLevels => BuiltinStyles.HeadingLevels;
+
+    /// <summary>
+    /// Um estilo da tabela de dados, em OOXML.
+    /// </summary>
+    /// <remarks>
+    /// A ordem dos filhos não é gosto: o esquema do OOXML a fixa (nome, herança,
+    /// seguinte, ligado, escondido, prioridade, qFormat, e só então `w:pPr` e
+    /// `w:rPr`), e fora dela o Word recusa o arquivo. Quem confere é o
+    /// `OpenXmlValidator`, em todo DOCX que os testes gravam.
+    /// </remarks>
+    private static Style Of(BuiltinStyle style)
     {
-        var (halfPoints, before, after, keepNext) = Headings[level - 1];
-
-        var paragraph = new StyleParagraphProperties();
-        if (keepNext) paragraph.AppendChild(new KeepNext());
-        paragraph.AppendChild(new SpacingBetweenLines { Before = Invariant(before), After = Invariant(after) });
-        paragraph.AppendChild(new OutlineLevel { Val = level - 1 });
-
-        return new Style(
-            new StyleName { Val = $"heading {level}" },
-            new BasedOn { Val = "Normal" },
-            new NextParagraphStyle { Val = "Normal" },
-            new UIPriority { Val = 9 },
-            new PrimaryStyle(),
-            paragraph,
-            new StyleRunProperties(
-                new Bold(),
-                new BoldComplexScript(),
-                new FontSize { Val = Invariant(halfPoints) },
-                new FontSizeComplexScript { Val = Invariant(halfPoints) }))
+        var result = new Style
         {
-            Type = StyleValues.Paragraph,
-            StyleId = $"Heading{level}",
+            Type = style.Character ? StyleValues.Character : StyleValues.Paragraph,
+            StyleId = style.Id,
         };
+
+        result.AppendChild(new StyleName { Val = style.Name });
+        if (style.BasedOn is not null) result.AppendChild(new BasedOn { Val = style.BasedOn });
+        if (style.Next is not null) result.AppendChild(new NextParagraphStyle { Val = style.Next });
+        if (style.Link is not null) result.AppendChild(new LinkedStyle { Val = style.Link });
+        if (style.Hidden) result.AppendChild(new StyleHidden());
+        if (style.UiPriority is { } priority) result.AppendChild(new UIPriority { Val = priority });
+        if (style.SemiHidden) result.AppendChild(new SemiHidden());
+        if (style.UnhideWhenUsed) result.AppendChild(new UnhideWhenUsed());
+        if (style.QFormat) result.AppendChild(new PrimaryStyle());
+        if (style.Default) result.Default = true;
+
+        if (ParagraphOf(style) is { } paragraph) result.AppendChild(paragraph);
+        if (RunOf(style) is { } run) result.AppendChild(run);
+
+        return result;
     }
 
-    public static int HeadingLevels => Headings.Length;
+    private static StyleParagraphProperties? ParagraphOf(BuiltinStyle style)
+    {
+        var properties = new StyleParagraphProperties();
 
-    private static Style Normal() => new(
-        new StyleName { Val = "Normal" },
-        new PrimaryStyle(),
-        new StyleParagraphProperties(new SpacingBetweenLines
+        if (style.KeepNext) properties.AppendChild(new KeepNext());
+
+        if (style.BeforePt is not null || style.AfterPt is not null || style.LineFactor is not null)
         {
-            // 0,6em antes (`.page__content > * + *`) e 1em depois (o padrão do
-            // navegador para `p`), sobre 12 pt.
-            Before = "144",
-            After = "240",
-            Line = Invariant(BodyLine),
-            LineRule = LineSpacingRuleValues.Auto,
-        }))
-    {
-        Type = StyleValues.Paragraph,
-        StyleId = "Normal",
-        Default = true,
-    };
+            var spacing = new SpacingBetweenLines();
+            if (style.BeforePt is { } before) spacing.Before = Twips(before);
+            if (style.AfterPt is { } after) spacing.After = Twips(after);
+            if (style.LineFactor is { } factor)
+            {
+                // O múltiplo do OOXML vem em 240-avos da altura natural da linha
+                // — a mesma conta de `ParagraphFormat.ApplyLineHeight`.
+                spacing.Line = Invariant((int)Math.Round(factor * 240));
+                spacing.LineRule = LineSpacingRuleValues.Auto;
+            }
 
-    private static Style DefaultParagraphFont() => new(
-        new StyleName { Val = "Default Paragraph Font" },
-        new UIPriority { Val = 1 },
-        new SemiHidden(),
-        new UnhideWhenUsed())
+            properties.AppendChild(spacing);
+        }
+
+        if (style.IndentMm is { } indent)
+        {
+            properties.AppendChild(new Indentation { Left = Invariant(Attr.MmToTwips(indent)) });
+        }
+
+        if (style.ContextualSpacing) properties.AppendChild(new ContextualSpacing());
+        if (style.OutlineLevel is { } level) properties.AppendChild(new OutlineLevel { Val = level });
+
+        return properties.HasChildren ? properties : null;
+    }
+
+    private static StyleRunProperties? RunOf(BuiltinStyle style)
     {
-        Type = StyleValues.Character,
-        StyleId = "DefaultParagraphFont",
-        Default = true,
-    };
+        var properties = new StyleRunProperties();
+
+        // O negrito e o tamanho vão também na variante de escrita complexa: sem
+        // ela, um trecho em árabe ou hebraico dentro do título sai sem negrito e
+        // no tamanho do corpo.
+        if (style.Bold)
+        {
+            properties.AppendChild(new Bold());
+            properties.AppendChild(new BoldComplexScript());
+        }
+
+        if (style.Color is { } color)
+        {
+            properties.AppendChild(new Color { Val = color.TrimStart('#').ToUpperInvariant() });
+        }
+
+        if (style.SizePt is { } size)
+        {
+            properties.AppendChild(new FontSize { Val = HalfPoints(size) });
+            properties.AppendChild(new FontSizeComplexScript { Val = HalfPoints(size) });
+        }
+
+        if (style.Underline) properties.AppendChild(new Underline { Val = UnderlineValues.Single });
+
+        return properties.HasChildren ? properties : null;
+    }
 
     /// <remarks>
     /// A margem da célula é o `padding: 4px 8px` do CSS: 3 pt em cima e embaixo,
@@ -205,27 +220,11 @@ internal static class TemplateStyles
         };
     }
 
-    private static Style ListParagraph() => new(
-        new StyleName { Val = "List Paragraph" },
-        new BasedOn { Val = "Normal" },
-        new UIPriority { Val = 34 },
-        new PrimaryStyle(),
-        new StyleParagraphProperties(new Indentation { Left = "720" }, new ContextualSpacing()))
-    {
-        Type = StyleValues.Paragraph,
-        StyleId = "ListParagraph",
-    };
+    /// <summary>Pontos → meios-pontos, que é a unidade do `w:sz`.</summary>
+    private static string HalfPoints(double points) => Invariant((int)Math.Round(points * 2));
 
-    private static Style Hyperlink() => new(
-        new StyleName { Val = "Hyperlink" },
-        new BasedOn { Val = "DefaultParagraphFont" },
-        new UIPriority { Val = 99 },
-        new UnhideWhenUsed(),
-        new StyleRunProperties(new Color { Val = "0563C1" }, new Underline { Val = UnderlineValues.Single }))
-    {
-        Type = StyleValues.Character,
-        StyleId = "Hyperlink",
-    };
+    /// <summary>Pontos → twips, que é a unidade do `w:spacing`.</summary>
+    private static string Twips(double points) => Invariant((int)Math.Round(points * 20));
 
     private static string Invariant(int value) => value.ToString(CultureInfo.InvariantCulture);
 }

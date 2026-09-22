@@ -4,9 +4,22 @@ using DocumentFormat.OpenXml.Wordprocessing;
 
 namespace Librevia.Format.Docx;
 
+/// <summary>
+/// O modelo do documento como o editor o entende.
+/// </summary>
+/// <remarks>
+/// Os estilos ficam **fora** dos nós de propósito: a impressão digital de um
+/// bloco é feita do que está nele, e um estilo dentro do nó faria todo bloco
+/// parecer mudado na gravação seguinte — o documento inteiro reescrito para nada.
+///
+/// Anuláveis porque o escritor não os usa: um modelo que volta do editor para ser
+/// gravado não precisa carregá-los, e `word/styles.xml` volta ao arquivo byte a
+/// byte pela gravação cirúrgica. Quem os preenche é a leitura.
+/// </remarks>
 public sealed record DocumentModelDto(
     [property: JsonPropertyName("page")] PageSetupDto Page,
-    [property: JsonPropertyName("doc")] Node Doc);
+    [property: JsonPropertyName("doc")] Node Doc,
+    [property: JsonPropertyName("styles")] StyleSheetDto? Styles = null);
 
 public sealed record OpenResult(
     [property: JsonPropertyName("model")] DocumentModelDto Model,
@@ -42,7 +55,7 @@ public static class DocxReader
         var doc = Node.Of("doc");
         doc.Content = content;
 
-        return new OpenResult(new DocumentModelDto(page, doc), inventory);
+        return new OpenResult(new DocumentModelDto(page, doc, StyleReader.Read(part)), inventory);
     }
 
     /// <summary>

@@ -1,7 +1,8 @@
 import { z } from 'zod'
 import { AppError, ErrorCode } from '@shared/errors.js'
-import { pageSetupSchema } from '@shared/schemas.js'
+import { pageSetupSchema, styleSheetSchema } from '@shared/schemas.js'
 import { DEFAULT_PAGE_SETUP, isValidMargins, type DocumentModel, type DocumentNode } from './model.js'
+import { BUILTIN_STYLES, type StyleSheet } from './styles.js'
 
 /**
  * Formato interno `.sdoc`.
@@ -17,9 +18,13 @@ import { DEFAULT_PAGE_SETUP, isValidMargins, type DocumentModel, type DocumentNo
  *
  * - **2** — a imagem deixou de ser bloco e passou a morar dentro do parágrafo,
  *   como no Word. Editá-la como bloco partia o parágrafo em volta.
+ * - **3** — o documento passou a carregar os seus **estilos** (`styles.ts`). Um
+ *   arquivo da versão 2 não os tem, e recebe `BUILTIN_STYLES` na leitura: são a
+ *   aparência que o editor já desenhava, medida por medida, para que o documento
+ *   antigo abra idêntico.
  */
 export const SDOC_FORMAT = 'sdoc'
-export const SDOC_VERSION = 2
+export const SDOC_VERSION = 3
 
 /** O conteúdo é validado só na forma; a estrutura fina é do ProseMirror. */
 const documentNodeSchema: z.ZodType<DocumentNode> = z.looseObject({
@@ -31,11 +36,23 @@ const sdocSchema = z.object({
   version: z.number().int().positive(),
   page: pageSetupSchema,
   doc: documentNodeSchema,
+  // Opcional porque a versão 2 não tem estilos: quem decide o que fazer com a
+  // ausência é `migrate`, e não o schema.
+  styles: styleSheetSchema.optional(),
 })
 
 export function serializeDocument(model: DocumentModel): string {
   return JSON.stringify(
-    { format: SDOC_FORMAT, version: SDOC_VERSION, page: model.page, doc: model.doc },
+    {
+      format: SDOC_FORMAT,
+      version: SDOC_VERSION,
+      page: model.page,
+      doc: model.doc,
+      // No envelope, e não dentro do documento: é o mesmo lugar onde o sidecar os
+      // põe ao abrir um `.docx`, e é o que mantém os nós — e a impressão digital
+      // deles — como estavam.
+      styles: model.styles,
+    },
     null,
     2,
   )
@@ -78,12 +95,39 @@ export function parseDocument(text: string): DocumentModel {
   // configuração padrão, porque o texto do usuário vale mais que o layout.
   const page = isValidMargins(parsed.data.page) ? parsed.data.page : DEFAULT_PAGE_SETUP
 
-  return { page, doc: migrate(parsed.data.doc, parsed.data.version) }
+  return {
+    page,
+    doc: migrate(parsed.data.doc, parsed.data.version),
+    styles: migrateStyles(parsed.data.styles, parsed.data.version),
+  }
 }
 
 /** Traz um documento gravado por uma versão anterior do formato para a atual. */
 function migrate(doc: DocumentNode, version: number): DocumentNode {
   return version < 2 ? wrapLooseImages(doc) : doc
+}
+
+/**
+ * Os estilos de um arquivo que não os tinha.
+ *
+ * `BUILTIN_STYLES` reproduzem a aparência com que o editor já desenhava o
+ * documento — Times New Roman 12 pt, entrelinha 1,5, os títulos como estão hoje —,
+ * então o arquivo antigo abre **idêntico**. Dar-lhe outro padrão seria mudar, sem
+ * pedir, a paginação de um trabalho já entregue.
+ *
+ * Pela versão, e não pela presença do campo: um arquivo da versão 2 com um
+ * `styles` qualquer não é um arquivo de estilos, é um arquivo remendado.
+ *
+ * **Atenção para o dia em que o documento novo mudar de padrão** (o dono já
+ * decidiu: Calibri 11 pt, entrelinha 1,08, 8 pt depois). Aí `BUILTIN_STYLES`
+ * passa a ser o padrão novo, e este lugar **não** pode seguir junto: o arquivo da
+ * versão 2 foi escrito por um editor que desenhava Times New Roman 12 pt com
+ * entrelinha 1,5, e é essa a aparência que ele tem de reencontrar. A tabela de
+ * hoje vira a tabela dos arquivos antigos, com nome próprio, e esta função aponta
+ * para ela.
+ */
+function migrateStyles(styles: StyleSheet | undefined, version: number): StyleSheet {
+  return version < 3 || styles === undefined ? BUILTIN_STYLES : styles
 }
 
 /**

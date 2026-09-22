@@ -14,6 +14,8 @@ interface DocumentToolbarProps {
   readonly editor: Editor
   readonly onOpenFind: () => void
   readonly onOpenPageSetup: () => void
+  /** O painel de estilos do documento, só de leitura nesta fase. */
+  readonly onOpenStyles: () => void
   /** Aberto de fora também: o menu nativo tem "Formatar → Parágrafo…". */
   readonly paragraphOpen: boolean
   readonly onParagraphOpenChange: (open: boolean) => void
@@ -41,6 +43,7 @@ export function DocumentToolbar({
   editor,
   onOpenFind,
   onOpenPageSetup,
+  onOpenStyles,
   paragraphOpen,
   onParagraphOpenChange,
   onOpenTable,
@@ -50,7 +53,7 @@ export function DocumentToolbar({
 
   return (
     <div className="toolbar" role="toolbar" aria-label="Formatação do documento">
-      <StyleAndFontGroup editor={editor} />
+      <StyleAndFontGroup editor={editor} onOpenStyles={onOpenStyles} />
 
       <ToolbarSeparator />
 

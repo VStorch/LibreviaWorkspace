@@ -208,3 +208,88 @@ export const contextMenuTargetSchema = z.object({
   canCopy: z.boolean(),
   canPaste: z.boolean(),
 })
+
+/**
+ * Os estilos do documento, validados.
+ *
+ * Atravessam o IPC em dois sentidos: chegam do sidecar ao abrir um `.docx` e
+ * voltam do renderer dentro do `.sdoc` ao salvar. O mesmo schema nos dois pontos
+ * porque é o mesmo dado — e porque estilo malformado não pode virar tela: é ele
+ * que a entrega seguinte vai usar para desenhar.
+ *
+ * Nada aqui é `strict`: um `w:pPr` de estilo tem dezenas de propriedades, e o
+ * leitor lê as que sabe. Recusar o documento por causa de uma chave nova seria
+ * trocar uma tela incompleta por nenhuma tela.
+ */
+const lineSpacingSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('multiple'), factor: z.number().min(0).max(100) }),
+  z.object({ kind: z.literal('exact'), pt: z.number().min(0).max(2000) }),
+  z.object({ kind: z.literal('atLeast'), pt: z.number().min(0).max(2000) }),
+])
+
+const styleParagraphSchema = z.object({
+  textAlign: z.string().max(16).optional(),
+  indentMm: z.number().optional(),
+  indentRightMm: z.number().optional(),
+  firstLineMm: z.number().optional(),
+  spaceBefore: z.number().optional(),
+  spaceAfter: z.number().optional(),
+  lineSpacing: lineSpacingSchema.optional(),
+  keepNext: z.boolean().optional(),
+  keepLines: z.boolean().optional(),
+  pageBreakBefore: z.boolean().optional(),
+  contextualSpacing: z.boolean().optional(),
+  outlineLevel: z.number().int().min(0).max(8).optional(),
+  background: z.string().max(32).optional(),
+})
+
+const styleCharacterSchema = z.object({
+  fontFamily: z.string().max(200).optional(),
+  fontSize: z.string().max(16).optional(),
+  bold: z.boolean().optional(),
+  italic: z.boolean().optional(),
+  underline: z.boolean().optional(),
+  strike: z.boolean().optional(),
+  allCaps: z.boolean().optional(),
+  smallCaps: z.boolean().optional(),
+  verticalAlign: z.string().max(16).optional(),
+  color: z.string().max(32).optional(),
+  highlight: z.string().max(32).optional(),
+})
+
+/**
+ * Um estilo.
+ *
+ * Os três interruptores têm padrão porque são derivados da presença de um
+ * elemento no arquivo: um `.sdoc` editado à mão sem eles é um estilo que não
+ * esconde nem recomenda nada, e não um documento inválido.
+ */
+const styleDefinitionSchema = z.object({
+  id: z.string().min(1).max(120),
+  name: z.string().min(1).max(200),
+  type: z.enum(['paragraph', 'character']),
+  qFormat: z.boolean().default(false),
+  hidden: z.boolean().default(false),
+  custom: z.boolean().default(false),
+  basedOn: z.string().max(120).optional(),
+  next: z.string().max(120).optional(),
+  link: z.string().max(120).optional(),
+  uiPriority: z.number().int().min(0).max(1000).optional(),
+  paragraph: styleParagraphSchema.optional(),
+  character: styleCharacterSchema.optional(),
+})
+
+export const styleSheetSchema = z.object({
+  defaults: z.object({
+    paragraph: styleParagraphSchema.default({}),
+    character: styleCharacterSchema.default({}),
+    /** O estilo que vale sem `w:pStyle`; `null` quando o documento não marca nenhum. */
+    paragraphStyleId: z.string().max(120).nullable().default(null),
+    characterStyleId: z.string().max(120).nullable().default(null),
+  }),
+  // O teto é a rede contra arquivo patológico, e não um limite de projeto: um
+  // documento do Word com estilo para cada variante de tabela passa dos 400.
+  styles: z
+    .record(z.string().max(120), styleDefinitionSchema)
+    .refine((styles) => Object.keys(styles).length <= 4000, 'estilos demais'),
+})

@@ -25,6 +25,7 @@ import { DocumentContextMenu } from './DocumentContextMenu.js'
 import { FindReplacePanel } from './FindReplacePanel.js'
 import { PageSetupPanel } from './PageSetupPanel.js'
 import { SpecialCharsDialog } from './SpecialCharsDialog.js'
+import { StylesPanel } from './StylesPanel.js'
 import { WordCountDialog } from './WordCountDialog.js'
 import { PaperSheet } from './PaperSheet.js'
 import { usePagination } from './usePagination.js'
@@ -339,6 +340,7 @@ export function DocumentEditor(): React.JSX.Element {
         editor={editor}
         onOpenFind={() => setDialog('find', true)}
         onOpenPageSetup={() => setDialog('pageSetup', true)}
+        onOpenStyles={() => setDialog('styles', true)}
         paragraphOpen={dialogs.paragraph}
         onParagraphOpenChange={(open) => setDialog('paragraph', open)}
         onOpenTable={() => setDialog('table', true)}
@@ -352,6 +354,8 @@ export function DocumentEditor(): React.JSX.Element {
       {dialogs.pageSetup && <PageSetupPanel onClose={() => setDialog('pageSetup', false)} />}
 
       {dialogs.wordCount && <WordCountDialog editor={editor} onClose={() => setDialog('wordCount', false)} />}
+
+      {dialogs.styles && <StylesPanel editor={editor} onClose={() => setDialog('styles', false)} />}
 
       {dialogs.specialCharacter && (
         <SpecialCharsDialog editor={editor} onClose={() => setDialog('specialCharacter', false)} />

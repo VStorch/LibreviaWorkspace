@@ -8,6 +8,7 @@
  */
 
 import { NO_BANDS, type Band, type BandHeights } from './band.js'
+import { BUILTIN_STYLES, type StyleSheet } from './styles.js'
 
 export const PageSize = {
   A4: 'A4',
@@ -88,6 +89,17 @@ export interface DocumentNode {
 export interface DocumentModel {
   readonly page: PageSetup
   readonly doc: DocumentNode
+  /**
+   * Os estilos do documento — **fora dos nós**, e é isso que os torna seguros.
+   *
+   * A gravação cirúrgica decide o que preservar comparando a impressão digital de
+   * cada bloco com a que o leitor produziu, e ela é feita do que está dentro do
+   * nó. Um estilo guardado ali faria todo bloco parecer mudado, e o documento
+   * inteiro seria reescrito — exatamente o que este projeto existe para evitar.
+   *
+   * Ver `styles.ts`: nesta fase eles são dado a ler, e não a fonte da aparência.
+   */
+  readonly styles: StyleSheet
 }
 
 export const PAGE_DIMENSIONS_MM: Record<PageSize, { width: number; height: number }> = {
@@ -118,7 +130,7 @@ export const EMPTY_DOCUMENT: DocumentNode = {
 }
 
 export function createEmptyDocument(): DocumentModel {
-  return { page: DEFAULT_PAGE_SETUP, doc: EMPTY_DOCUMENT }
+  return { page: DEFAULT_PAGE_SETUP, doc: EMPTY_DOCUMENT, styles: BUILTIN_STYLES }
 }
 
 /** Largura e altura já considerando a orientação. */
