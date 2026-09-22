@@ -1,3 +1,6 @@
+using System.Globalization;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Wordprocessing;
 
@@ -26,7 +29,8 @@ namespace Librevia.Format.Docx;
 /// </remarks>
 internal sealed class TableWriter(
     Inventory inventory,
-    Func<Node, OpenXmlElement?, IEnumerable<OpenXmlElement>> writeBlock)
+    Func<Node, OpenXmlElement?, IEnumerable<OpenXmlElement>> writeBlock,
+    int usableWidthPx)
 {
     /// <summary>
     /// O aviso de que a correspondência por posição deixou de valer.
@@ -40,6 +44,11 @@ internal sealed class TableWriter(
     /// </remarks>
     private const string ShiftedStructure =
         "largura, mesclagem ou sombreamento de parte de uma tabela que você editou";
+
+    /// <summary>A mesclagem vertical feita na tela, que o gravador ainda não escreve.</summary>
+    internal const string VerticalMergeLoss = "mesclagem vertical de células feita no editor";
+
+    private readonly TableGridWriter _grid = new(inventory, usableWidthPx);
 
     public Table Write(Node node, Table? original)
     {
@@ -75,6 +84,7 @@ internal sealed class TableWriter(
             foreach (var orphan in Strays(interleaved, index)) table.AppendChild(orphan.CloneNode(true));
         }
 
+        _grid.Apply(table, rows, original);
         return table;
     }
 
@@ -116,11 +126,18 @@ internal sealed class TableWriter(
         map.TryGetValue(position, out var found) ? found : [];
 
     /// <summary>Bordas visíveis para a tabela criada aqui dentro, que não tem original.</summary>
+    /// <remarks>
+    /// A largura e o `w:tblLayout` entram em <see cref="TableGridWriter"/>, junto com a
+    /// grade: sem grade não há largura a declarar.
+    /// </remarks>
     private static TableProperties DefaultProperties() => new(
+        // Na ordem da sequência do esquema — topo, esquerda, baixo, direita, e só
+        // então as de dentro. Fora dela o Word recusa o documento, e nenhum teste
+        // pegava isso porque nenhum gravava uma tabela criada na tela.
         new TableBorders(
             new TopBorder { Val = BorderValues.Single, Size = 4 },
-            new BottomBorder { Val = BorderValues.Single, Size = 4 },
             new LeftBorder { Val = BorderValues.Single, Size = 4 },
+            new BottomBorder { Val = BorderValues.Single, Size = 4 },
             new RightBorder { Val = BorderValues.Single, Size = 4 },
             new InsideHorizontalBorder { Val = BorderValues.Single, Size = 4 },
             new InsideVerticalBorder { Val = BorderValues.Single, Size = 4 }));
@@ -158,8 +175,47 @@ internal sealed class TableWriter(
             foreach (var orphan in Strays(interleaved, index)) row.AppendChild(orphan.CloneNode(true));
         }
 
+        // Linha toda de `tableHeader` é a linha de cabeçalho do editor, e no
+        // arquivo isso é o `w:tblHeader` do `w:trPr`: a linha se repete no alto de
+        // cada página. Sem esta escrita o botão da tela não chegava ao arquivo.
+        ApplyHeader(row, cells.Count > 0 && cells.All(cell => cell.Type == "tableHeader"));
         return row;
     }
+
+    /// <summary>Liga ou desliga o `w:tblHeader` da linha, sem mexer no resto do `w:trPr`.</summary>
+    /// <remarks>
+    /// Só escreve quando o estado muda. O `w:trPr` do arquivo traz também a altura
+    /// da linha e a marcação de revisão, e recriá-lo para ligar uma bandeira
+    /// levaria os dois embora.
+    /// </remarks>
+    private static void ApplyHeader(TableRow row, bool wanted)
+    {
+        var properties = row.TableRowProperties;
+        var current = properties?.GetFirstChild<TableHeader>();
+        // `w:tblHeader` presente sem `w:val` já é "sim"; só `w:val="false"` nega.
+        var declared = current is not null && !IsOff(current);
+        if (declared == wanted) return;
+
+        current?.Remove();
+        if (!wanted) return;
+
+        if (properties is null)
+        {
+            properties = new TableRowProperties();
+            row.TableRowProperties = properties;
+        }
+
+        // Antes da marcação de revisão, que fecha o `w:trPr`: as propriedades da
+        // linha vêm primeiro e `w:ins`, `w:del` e `w:trPrChange` por último.
+        // Anexado depois delas, o documento saía fora do esquema.
+        var revision = properties.ChildElements.FirstOrDefault(child =>
+            child is Inserted or Deleted or TableRowPropertiesChange);
+        if (revision is null) properties.AppendChild(new TableHeader());
+        else properties.InsertBefore(new TableHeader(), revision);
+    }
+
+    private static bool IsOff(TableHeader header) =>
+        header.Val is { } value && value.Value == OnOffOnlyValues.Off;
 
     private static List<OpenXmlElement> ChildrenOf(OpenXmlElement? element) =>
         element is null ? [] : [.. element.ChildElements];
@@ -171,31 +227,38 @@ internal sealed class TableWriter(
     {
         var cell = new TableCell();
 
-        var properties = original?.TableCellProperties?.CloneNode(true) as TableCellProperties;
+        var properties = original?.TableCellProperties?.CloneNode(true) as TableCellProperties
+                         ?? new TableCellProperties();
         var span = Attr.Int(cellNode, "colspan");
 
-        if (properties is not null)
-        {
-            // O modelo só sabe do `colspan`, e ele pode ter mudado na tela — o
-            // `rowspan` dele é sempre 1, porque a mesclagem vertical mora no
-            // arquivo. Sobrepor só o `colspan` mantém intactos a largura, o
-            // `w:vMerge` e o sombreamento que vieram do arquivo.
-            if (span is > 1) properties.GridSpan = new GridSpan { Val = span };
-            else if (properties.GridSpan is not null) properties.GridSpan = null;
+        // O modelo sabe do `colspan`, do sombreamento e das bordas, e os três
+        // podem ter mudado na tela — o `rowspan` dele é sempre 1, porque a
+        // mesclagem vertical mora no arquivo. Sobrepor só o que o modelo
+        // representa mantém intactos o `w:vMerge`, a margem interna e o alinhamento
+        // vertical que vieram do arquivo.
+        if (span is > 1) properties.GridSpan = new GridSpan { Val = span };
+        else if (properties.GridSpan is not null) properties.GridSpan = null;
 
-            // Mesclagem vertical deslocada é o caso em que o Word acusa tabela
-            // corrompida — o `w:vMerge w:val="continue"` de uma célula que já não
-            // tem acima de si a que abriu a mesclagem. Quando as posições deixaram
-            // de casar, ela é descartada: tabela sem mesclagem abre, tabela com
-            // mesclagem errada não. A perda já está no inventário.
-            if (!aligned) properties.RemoveAllChildren<VerticalMerge>();
+        // Mesclagem vertical deslocada é o caso em que o Word acusa tabela
+        // corrompida — o `w:vMerge w:val="continue"` de uma célula que já não
+        // tem acima de si a que abriu a mesclagem. Quando as posições deixaram
+        // de casar, ela é descartada: tabela sem mesclagem abre, tabela com
+        // mesclagem errada não. A perda já está no inventário.
+        if (!aligned) properties.RemoveAllChildren<VerticalMerge>();
 
-            cell.TableCellProperties = properties;
-        }
-        else if (span is > 1)
-        {
-            cell.TableCellProperties = new TableCellProperties(new GridSpan { Val = span });
-        }
+        // Mesclagem vertical feita **na tela** — `mergeCells` sobre células de
+        // linhas diferentes — vira `rowspan` no modelo, e este gravador não a
+        // escreve como `w:vMerge`: a célula de baixo simplesmente não existe no
+        // arquivo. Sai no inventário, e não em silêncio.
+        if (Attr.Int(cellNode, "rowspan") is > 1) inventory.NoteLoss(VerticalMergeLoss);
+
+        // As duas só são reescritas quando diferem do que o arquivo tem: é o que
+        // permite ao `w:shd` com trama e ao `w:tcBorders` com estilo exótico
+        // voltarem intactos na célula que ninguém formatou. Ver TableLook.
+        TableLook.ApplyShading(properties, Attr.String(cellNode, "shading"), inventory);
+        TableLook.ApplyBorders(properties, Attr.String(cellNode, "borders"), inventory);
+
+        if (properties.HasChildren) cell.TableCellProperties = properties;
 
         var children = ChildrenOf(original);
         var blocks = children.Where(child => child is Paragraph or Table).ToList();

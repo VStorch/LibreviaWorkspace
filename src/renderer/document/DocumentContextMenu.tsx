@@ -1,4 +1,6 @@
+import { Fragment } from 'react'
 import type { IpcResult } from '@shared/ipc.js'
+import { TABLE_ACTIONS, type TableAction } from '@shared/table-actions.js'
 import { DictionaryScope, EditCommand, type ContextMenuTarget } from '@shared/types.js'
 import { ContextMenu, ContextMenuItem, ContextMenuSeparator } from '../components/ContextMenu.js'
 import { useWorkspace } from '../state/workspace.js'
@@ -20,10 +22,15 @@ import { useWorkspace } from '../state/workspace.js'
  */
 export function DocumentContextMenu({
   target,
+  inTable,
+  onTableAction,
   onClose,
   onPasteWithoutFormat,
 }: {
   readonly target: ContextMenuTarget
+  /** Se o cursor está numa tabela — só então as ações dela aparecem. */
+  readonly inTable: boolean
+  readonly onTableAction: (action: TableAction) => void
   readonly onClose: () => void
   readonly onPasteWithoutFormat: () => void
 }): React.JSX.Element {
@@ -116,6 +123,28 @@ export function DocumentContextMenu({
       >
         Colar sem formatação
       </ContextMenuItem>
+
+      {/* As ações de tabela vêm depois da área de transferência, como no Word, e
+          só com o cursor dentro de uma: fora dela seriam todas itens apagados.
+          "Inserir tabela" fica de fora aqui — tabela dentro de tabela é caso de
+          quem sabe o que quer, e mora no menu "Tabela". */}
+      {inTable && !readOnly && (
+        <>
+          {TABLE_ACTIONS.filter((action) => action.needsTable).map((action, index, list) => (
+            <Fragment key={action.id}>
+              {(index === 0 || list[index - 1]?.group !== action.group) && <ContextMenuSeparator />}
+              <ContextMenuItem
+                onClick={() => {
+                  onClose()
+                  onTableAction(action.id)
+                }}
+              >
+                {action.label}
+              </ContextMenuItem>
+            </Fragment>
+          ))}
+        </>
+      )}
     </ContextMenu>
   )
 }

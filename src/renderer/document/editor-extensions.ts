@@ -28,9 +28,11 @@ import { BlockIdentity } from './extensions/block-identity.js'
 import { Indent } from './extensions/indent.js'
 import { Caps, SmallCaps } from './extensions/letter-case.js'
 import { PageBreak } from './extensions/page-break.js'
+import { ReadOnlyGuard } from './extensions/read-only-guard.js'
 import { Pagination } from './extensions/pagination.js'
 import { ParagraphCommands } from './extensions/paragraph-commands.js'
 import { SearchReplace, type SearchStatus } from './extensions/search-replace.js'
+import { TableLook } from './extensions/table-look.js'
 import { WordShortcuts } from './extensions/word-shortcuts.js'
 
 /** O que o editor precisa saber das preferências de edição ao ser montado. */
@@ -93,18 +95,32 @@ export function buildEditorExtensions(
     TextAlign.configure({ types: ['heading', 'paragraph'] }),
 
     DocumentImage.configure({
-      inline: false,
+      // Em linha, porque é assim que ela está no arquivo: no OOXML não existe
+      // imagem fora de parágrafo, e a que o sidecar lê chega dentro do dela. Como
+      // bloco, o schema não a aceitava ali; o documento abria assim mesmo — o
+      // JSON não é conferido —, mas a primeira mudança de atributo partia o
+      // parágrafo, a imagem descia para um novo e voltava ao arquivo como imagem
+      // nova, com outro `wp:docPr` e outro relacionamento.
+      inline: true,
       // Imagens entram como data URI, validadas no processo main antes de
       // chegarem aqui. SVG é recusado lá: é vetor de script.
       allowBase64: true,
     }),
 
     TableKit.configure({
+      // `resizable` é o arrasto da divisória das colunas; a medida resultante
+      // vai para o `colwidth` das células e dali para o `w:tblGrid`.
       table: { resizable: true, allowTableNodeSelection: true },
     }),
+    // Borda e sombreamento de célula, e os comandos de largura de coluna que o
+    // diálogo de propriedades usa. Ver table-look.ts.
+    TableLook,
 
     // Alimenta a contagem exibida na barra de status.
     CharacterCount,
+
+    // O somente leitura vale para comando, e não só para o teclado.
+    ReadOnlyGuard,
 
     // Marcas de formatação: ¶ no fim do parágrafo, ponto no espaço, seta na
     // tabulação e ¬ na quebra de linha. São decorações, então não entram no HTML

@@ -106,7 +106,11 @@ test.describe('imagens do documento', () => {
 
     const medidas = await session.window.evaluate(() => {
       const img = document.querySelector('.page__content img[src^="data:"]') as HTMLImageElement
-      const bloco = img.parentElement as HTMLElement
+      // O parágrafo, e não o pai direto: na tela a imagem mora dentro da
+      // moldura das alças e do embrulho do NodeView. Medir o pai media a
+      // moldura, e o teste passava sem que a regra da linha a mais alcançasse
+      // parágrafo nenhum.
+      const bloco = img.closest('p') as HTMLElement
       return {
         sobra: bloco.getBoundingClientRect().height - img.getBoundingClientRect().height,
         entrelinha: Number.parseFloat(getComputedStyle(bloco).lineHeight),
@@ -135,7 +139,9 @@ test.describe('imagens do documento', () => {
       const legenda = document.querySelector('.page__content p') as HTMLElement
       return {
         imagem: img.getBoundingClientRect().width,
-        pedida: Number(img.getAttribute('width')),
+        // A medida que o documento pede está no estilo: o NodeView a põe lá
+        // para vencer o `height: auto` da folha, e o atributo `width` fica vazio.
+        pedida: Number.parseFloat(img.style.width),
         // O recuo é preenchimento e não margem: a caixa do parágrafo continua
         // sendo a coluna, e é por dentro dela que o texto anda.
         recuoDaLegenda: Number.parseFloat(getComputedStyle(legenda).paddingLeft),

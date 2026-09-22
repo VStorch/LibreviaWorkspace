@@ -39,11 +39,9 @@ public sealed class ParagraphWriter
         _part = part;
         _inventory = inventory;
         _format = new ParagraphFormat(inventory);
-        _tables = new TableWriter(inventory, (node, original) => Write(node, null, original));
-        _images = new ImageWriter(
-            part,
-            inventory,
-            usableWidthPx > 0 ? usableWidthPx : ImageWriter.DefaultWidthPx);
+        var usable = usableWidthPx > 0 ? usableWidthPx : ImageWriter.DefaultWidthPx;
+        _tables = new TableWriter(inventory, (node, original) => Write(node, null, original), usable);
+        _images = new ImageWriter(part, inventory, usable);
     }
 
     /// <param name="original">
@@ -81,7 +79,25 @@ public sealed class ParagraphWriter
             case "image":
             {
                 var image = _images.Write(node);
-                yield return image is null ? new Paragraph() : new Paragraph(image);
+                if (image is null)
+                {
+                    yield return new Paragraph();
+                    break;
+                }
+
+                // O alinhamento da imagem é o `w:jc` do parágrafo que a carrega —
+                // no OOXML não existe "imagem centralizada", existe parágrafo
+                // centralizado com uma imagem dentro. A imagem lida de um `.docx`
+                // já vem dentro de um parágrafo, e ali quem alinha é o próprio
+                // parágrafo; este caso é o da imagem inserida pela barra, que é um
+                // bloco do editor e não tem parágrafo seu.
+                var aligned = new Paragraph(image);
+                if (ParagraphFormat.JustificationOf(Attr.String(node, "align")) is { } justification)
+                {
+                    aligned.ParagraphProperties = new ParagraphProperties(justification);
+                }
+
+                yield return aligned;
                 break;
             }
 
@@ -150,9 +166,15 @@ public sealed class ParagraphWriter
     {
         if (original is null) return;
 
+        // O ancorado que corre com o texto chegou ao editor como imagem do
+        // parágrafo, e é por ela que ele volta. Copiá-lo aqui também punha duas
+        // imagens no arquivo — e trazia de volta a que a pessoa tivesse apagado.
+        var flowing = ImageWriter.FlowingImagesOf(original);
+
         foreach (var run in original.Elements<Run>())
         {
             if (!IsAnchoredOnly(run)) continue;
+            if (run.Elements<DocumentFormat.OpenXml.Wordprocessing.Drawing>().Any(flowing.Contains)) continue;
             paragraph.AppendChild(run.CloneNode(true));
         }
 
@@ -272,9 +294,12 @@ public sealed class ParagraphWriter
             paragraph.AppendChild(mark.CloneNode(true));
         }
 
+        // As imagens que já estavam no parágrafo voltam com o desenho original —
+        // ver ImageWriter.Reuse.
+        var images = ImageWriter.FlowingImagesOf(original);
         foreach (var child in node.Content ?? [])
         {
-            foreach (var element in WriteInline(child)) paragraph.AppendChild(element);
+            foreach (var element in WriteInline(child, images)) paragraph.AppendChild(element);
         }
 
         // A quebra volta para onde estava: no fim do parágrafo, dentro de um
@@ -336,7 +361,9 @@ public sealed class ParagraphWriter
         }
     }
 
-    private IEnumerable<OpenXmlElement> WriteInline(Node node)
+    private IEnumerable<OpenXmlElement> WriteInline(
+        Node node,
+        List<DocumentFormat.OpenXml.Wordprocessing.Drawing>? originalImages = null)
     {
         switch (node.Type)
         {
@@ -353,7 +380,15 @@ public sealed class ParagraphWriter
                 break;
 
             case "image":
-                if (_images.Write(node) is { } image) yield return image;
+                if ((originalImages is null ? null : _images.Reuse(node, originalImages)) is { } kept)
+                {
+                    yield return kept;
+                }
+                else if (_images.Write(node) is { } image)
+                {
+                    yield return image;
+                }
+
                 break;
 
             default:

@@ -95,6 +95,22 @@ export const MenuCommand = {
   WordCount: 'word-count',
   /** Abre o seletor de caracteres especiais. */
   SpecialCharacter: 'special-character',
+  /** Propriedades da imagem selecionada: texto alternativo e alinhamento. */
+  ImageProperties: 'image-properties',
+  // O menu "Tabela". Os valores são os mesmos de `TableAction` (ver
+  // `table-actions.ts`), e é por eles que o `App` os repassa ao editor.
+  TableInsert: 'table-insert',
+  TableRowBefore: 'table-row-before',
+  TableRowAfter: 'table-row-after',
+  TableDeleteRow: 'table-delete-row',
+  TableColumnBefore: 'table-column-before',
+  TableColumnAfter: 'table-column-after',
+  TableDeleteColumn: 'table-delete-column',
+  TableMergeCells: 'table-merge-cells',
+  TableSplitCell: 'table-split-cell',
+  TableHeaderRow: 'table-header-row',
+  TableDelete: 'table-delete',
+  TableProperties: 'table-properties',
   /** Emitido quando o usuário escolhe "Salvar" no aviso de saída. */
   SaveAndExit: 'save-and-exit',
 } as const

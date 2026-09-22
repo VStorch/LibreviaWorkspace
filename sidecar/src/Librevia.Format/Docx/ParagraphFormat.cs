@@ -106,19 +106,26 @@ internal sealed class ParagraphFormat(Inventory inventory)
 
     private static void ApplyAlignment(ParagraphProperties properties, Node node)
     {
-        if (Attr.String(node, "textAlign") is not { } align) return;
-
-        properties.Justification = new Justification
-        {
-            Val = align switch
-            {
-                "center" => JustificationValues.Center,
-                "right" => JustificationValues.Right,
-                "justify" => JustificationValues.Both,
-                _ => JustificationValues.Left,
-            },
-        };
+        if (JustificationOf(Attr.String(node, "textAlign")) is not { } justification) return;
+        properties.Justification = justification;
     }
+
+    /// <summary>
+    /// O alinhamento do CSS → `w:jc`, ou `null` quando não há alinhamento pedido.
+    /// </summary>
+    /// <remarks>
+    /// Público porque a imagem em bloco também o usa: no OOXML não existe imagem
+    /// centralizada, existe parágrafo centralizado com uma imagem dentro, e duas
+    /// cópias desta tradução divergiriam na primeira correção.
+    /// </remarks>
+    public static Justification? JustificationOf(string? align) => align switch
+    {
+        null => null,
+        "center" => new Justification { Val = JustificationValues.Center },
+        "right" => new Justification { Val = JustificationValues.Right },
+        "justify" => new Justification { Val = JustificationValues.Both },
+        _ => new Justification { Val = JustificationValues.Left },
+    };
 
     /// <remarks>
     /// A medida do arquivo primeiro, e o nível do editor por cima: são as duas

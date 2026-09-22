@@ -17,6 +17,13 @@ interface DocumentToolbarProps {
   /** Aberto de fora também: o menu nativo tem "Formatar → Parágrafo…". */
   readonly paragraphOpen: boolean
   readonly onParagraphOpenChange: (open: boolean) => void
+  /**
+   * Os diálogos de tabela e de imagem são desenhados pelo editor, e não aqui: o
+   * menu nativo e o menu de contexto também os abrem, então o estado deles mora
+   * um nível acima.
+   */
+  readonly onOpenTable: () => void
+  readonly onOpenImageProperties: () => void
 }
 
 /**
@@ -36,6 +43,8 @@ export function DocumentToolbar({
   onOpenPageSetup,
   paragraphOpen,
   onParagraphOpenChange,
+  onOpenTable,
+  onOpenImageProperties,
 }: DocumentToolbarProps): React.JSX.Element {
   const [linkDialogOpen, setLinkDialogOpen] = useState(false)
 
@@ -61,7 +70,12 @@ export function DocumentToolbar({
 
       <ToolbarSeparator />
 
-      <InsertGroup editor={editor} onOpenLink={() => setLinkDialogOpen(true)} />
+      <InsertGroup
+        editor={editor}
+        onOpenLink={() => setLinkDialogOpen(true)}
+        onOpenTable={onOpenTable}
+        onOpenImageProperties={onOpenImageProperties}
+      />
 
       <ToolbarSeparator />
 

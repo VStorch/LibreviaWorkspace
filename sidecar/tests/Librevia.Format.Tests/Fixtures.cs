@@ -1128,6 +1128,147 @@ public static class Fixtures
         body.AppendChild(table);
     });
 
+    /// <summary>
+    /// Célula com trama de sombreamento e borda de estilo que o CSS não desenha.
+    /// </summary>
+    /// <remarks>
+    /// São os dois casos em que a projeção do arquivo para o modelo **aproxima**:
+    /// `w:shd w:val="pct25"` chega à tela como cor lisa, e `thickThinSmallGap`
+    /// como linha simples. O gravador só reescreve a aparência da célula que a
+    /// pessoa formatou, então as duas voltam intactas enquanto ninguém mexer
+    /// nelas — e quando alguém mexer, o inventário diz o que a aproximação
+    /// custou.
+    /// </remarks>
+    public static byte[] WithPatternedCell() => Build((body, _) =>
+    {
+        var table = new Table(
+            new TableProperties(),
+            new TableGrid(new GridColumn { Width = "4500" }, new GridColumn { Width = "4500" }));
+
+        var row = new TableRow();
+        row.AppendChild(new TableCell(
+            new TableCellProperties(
+                new TableCellBorders(new TopBorder { Val = BorderValues.ThickThinSmallGap, Size = 24 }),
+                new Shading { Val = ShadingPatternValues.Percent25, Color = "FF0000", Fill = "FFFF00" }),
+            Paragraph("Com trama")));
+        row.AppendChild(new TableCell(Paragraph("Sem trama")));
+        table.AppendChild(row);
+
+        body.AppendChild(table);
+    });
+
+    /// <summary>
+    /// Célula com as bordas que o modelo não representa: diagonal, borda
+    /// interna, `w:space` e cor de tema num lado, e o `w:nil` de baixo que o Word
+    /// grava o tempo todo.
+    /// </summary>
+    public static byte[] WithRichCellBorders() => Build((body, _) =>
+    {
+        var table = new Table(
+            new TableProperties(),
+            new TableGrid(new GridColumn { Width = "4500" }, new GridColumn { Width = "4500" }));
+
+        var row = new TableRow();
+        row.AppendChild(new TableCell(
+            new TableCellProperties(
+                new TableCellBorders(
+                    new TopBorder
+                    {
+                        Val = BorderValues.Single,
+                        Size = 4,
+                        Space = 0,
+                        Color = "4472C4",
+                        ThemeColor = ThemeColorValues.Accent1,
+                    },
+                    new BottomBorder { Val = BorderValues.Nil },
+                    new InsideHorizontalBorder { Val = BorderValues.Single, Size = 4 },
+                    new TopLeftToBottomRightCellBorder { Val = BorderValues.Single, Size = 4 })),
+            Paragraph("Com diagonal")));
+        row.AppendChild(new TableCell(Paragraph("Sem borda")));
+        table.AppendChild(row);
+
+        body.AppendChild(table);
+    });
+
+    /// <summary>
+    /// Tabela cuja primeira linha não cobre a grade: começa uma coluna adiante
+    /// (`w:gridBefore`), como em formulário e em documento convertido de PDF.
+    /// </summary>
+    public static byte[] WithGridBefore() => Build((body, _) =>
+    {
+        var table = new Table(
+            new TableProperties(),
+            new TableGrid(
+                new GridColumn { Width = "2000" },
+                new GridColumn { Width = "3000" },
+                new GridColumn { Width = "4000" }));
+
+        var first = new TableRow(new TableRowProperties(new GridBefore { Val = 1 }));
+        first.AppendChild(new TableCell(Paragraph("Recuada B")));
+        first.AppendChild(new TableCell(Paragraph("Recuada C")));
+        table.AppendChild(first);
+
+        var second = new TableRow();
+        second.AppendChild(new TableCell(Paragraph("Cheia A")));
+        second.AppendChild(new TableCell(Paragraph("Cheia B")));
+        second.AppendChild(new TableCell(Paragraph("Cheia C")));
+        table.AppendChild(second);
+
+        body.AppendChild(table);
+    });
+
+    /// <summary>
+    /// Tabela de três colunas de larguras diferentes, com medidas que não são
+    /// múltiplo de 15 twips — o pixel do CSS. 2000 twips são 133,33 px.
+    /// </summary>
+    public static byte[] WithThreeColumns() => Build((body, _) =>
+    {
+        var table = new Table(
+            new TableProperties(),
+            new TableGrid(
+                new GridColumn { Width = "2000" },
+                new GridColumn { Width = "3000" },
+                new GridColumn { Width = "4000" }));
+
+        foreach (var prefix in new[] { "Um", "Dois" })
+        {
+            var row = new TableRow();
+            foreach (var column in new[] { "A", "B", "C" })
+            {
+                row.AppendChild(new TableCell(Paragraph($"{prefix} {column}")));
+            }
+
+            table.AppendChild(row);
+        }
+
+        body.AppendChild(table);
+    });
+
+    /// <summary>
+    /// Tabela cuja primeira linha foi inserida com o controle de alterações
+    /// ligado: o `w:ins` mora no fim do `w:trPr`.
+    /// </summary>
+    public static byte[] WithInsertedRow() => Build((body, _) =>
+    {
+        var table = new Table(
+            new TableProperties(),
+            new TableGrid(new GridColumn { Width = "4500" }, new GridColumn { Width = "4500" }));
+
+        var first = new TableRow(new TableRowProperties(
+            new TableRowHeight { Val = 400U },
+            new Inserted { Id = "1", Author = "Revisora", Date = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) }));
+        first.AppendChild(new TableCell(Paragraph("Título A")));
+        first.AppendChild(new TableCell(Paragraph("Título B")));
+        table.AppendChild(first);
+
+        var second = new TableRow();
+        second.AppendChild(new TableCell(Paragraph("Dado A")));
+        second.AppendChild(new TableCell(Paragraph("Dado B")));
+        table.AppendChild(second);
+
+        body.AppendChild(table);
+    });
+
     /// <summary>Tabela dentro de uma célula de outra tabela.</summary>
     /// <remarks>
     /// O leitor só olhava os parágrafos da célula, e a tabela de dentro — com o
@@ -1338,6 +1479,23 @@ public static class Fixtures
         }
 
         body.AppendChild(new Paragraph(new Run(InlineDrawing(part.GetIdOfPart(image), docPrId))));
+    });
+
+    /// <summary>Imagem no fluxo **com texto alternativo** (`wp:docPr/@descr`).</summary>
+    public static byte[] WithDescribedImage() => Build((body, part) =>
+    {
+        var image = part.AddImagePart(ImagePartType.Png);
+        using (var stream = new MemoryStream(TinyPng()))
+        {
+            image.FeedData(stream);
+        }
+
+        var drawing = InlineDrawing(part.GetIdOfPart(image));
+        drawing.Descendants<DocumentFormat.OpenXml.Drawing.Wordprocessing.DocProperties>()
+            .First()
+            .Description = "Organograma da diretoria";
+
+        body.AppendChild(new Paragraph(new Run(drawing)));
     });
 
     private static OpenXmlElement InlineDrawing(string relationshipId, uint docPrId = 1)

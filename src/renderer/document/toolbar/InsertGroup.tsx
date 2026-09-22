@@ -8,17 +8,28 @@ interface InsertGroupProps {
   readonly editor: Editor
   /** O diálogo do link é desenhado pela barra, junto com os outros. */
   readonly onOpenLink: () => void
+  /**
+   * Os dois abertos de fora: o menu nativo "Tabela" e o menu de contexto chegam
+   * aos mesmos diálogos, e um diálogo por caminho de abertura seriam dois.
+   */
+  readonly onOpenTable: () => void
+  readonly onOpenImageProperties: () => void
 }
 
 /** O que se põe dentro do documento: tabela, imagem, link, quebra de página. */
-export function InsertGroup({ editor, onOpenLink }: InsertGroupProps): React.JSX.Element {
+export function InsertGroup({
+  editor,
+  onOpenLink,
+  onOpenTable,
+  onOpenImageProperties,
+}: InsertGroupProps): React.JSX.Element {
   const showError = useWorkspace((state) => state.showError)
 
   const active = useEditorState({
     editor,
     selector: ({ editor: current }) => ({
-      inTable: current.isActive('table'),
       link: current.isActive('link'),
+      onImage: current.isActive('image'),
     }),
   })
 
@@ -36,17 +47,18 @@ export function InsertGroup({ editor, onOpenLink }: InsertGroupProps): React.JSX
 
   return (
     <ToolbarGroup label="Inserir">
+      {/* Abre o diálogo em vez de inserir uma 3 × 3 fixa: quem precisa de cinco
+          colunas não tem de acrescentá-las uma a uma depois. Excluir a tabela
+          mora no menu "Tabela" e no botão direito, com o resto da estrutura. */}
+      <ToolbarButton icon="table" label="Inserir tabela" onClick={onOpenTable} />
+      {/* Com uma imagem selecionada o botão passa a abrir as propriedades dela —
+          texto alternativo e alinhamento —, que é onde se espera procurá-las. */}
       <ToolbarButton
-        icon="table"
-        label={active.inTable ? 'Remover tabela' : 'Inserir tabela'}
-        active={active.inTable}
-        onClick={() =>
-          active.inTable
-            ? chain().deleteTable().run()
-            : chain().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()
-        }
+        icon="image"
+        label={active.onImage ? 'Propriedades da imagem' : 'Inserir imagem'}
+        active={active.onImage}
+        onClick={() => (active.onImage ? onOpenImageProperties() : void insertImage())}
       />
-      <ToolbarButton icon="image" label="Inserir imagem" onClick={() => void insertImage()} />
       <ToolbarButton icon="link" label="Inserir link" active={active.link} onClick={onOpenLink} />
       <ToolbarButton
         icon="page-break"

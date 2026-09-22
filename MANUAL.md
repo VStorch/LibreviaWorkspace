@@ -18,6 +18,7 @@ Suíte de documentos e planilhas para trabalhar **offline**. Abre e grava os arq
 | [📄 Os arquivos que ele abre](#os-arquivos-que-ele-abre) | [💾 Se o aplicativo fechar sozinho](#se-o-aplicativo-fechar-sozinho) |
 | [⌨️ Atalhos](#atalhos) | [🛟 Salvar não custa o que você não editou](#salvar-não-custa) |
 | [✍️ Formatar texto e parágrafo](#formatar) | [🔤 Ortografia, símbolos e contagem](#ferramentas) |
+| [📊 Tabelas e imagens](#tabelas-e-imagens) | |
 | [🧮 Fórmulas em português](#fórmulas-em-português) | [🖨️ Imprimir e exportar PDF](#imprimir-e-exportar-pdf) |
 | [🔒 Arquivos que abrem travados](#arquivos-que-abrem-travados) | [🚧 Limites conhecidos](#limites-conhecidos) |
 
@@ -85,6 +86,7 @@ Execute o instalador. Ele instala **para o seu usuário**, sem pedir senha de ad
 | `Ctrl+F` | localizar e substituir |
 | `Ctrl+P` | imprimir |
 | `Ctrl+Enter` | quebra de página manual |
+| `Ctrl+F12` | inserir tabela (pergunta linhas e colunas) |
 | `Ctrl+B` / `Ctrl+I` / `Ctrl+U` | negrito, itálico, sublinhado |
 | `Ctrl+Shift+=` / `Ctrl+=` | sobrescrito e subscrito |
 | `Ctrl+L` / `Ctrl+E` / `Ctrl+R` / `Ctrl+J` | alinhar à esquerda, centralizar, à direita, justificar |
@@ -196,6 +198,7 @@ Para desligar a verificação: menu **Ferramentas → Verificação ortográfica
 ### O botão direito no documento
 
 Além das sugestões, o menu tem **recortar**, **copiar**, **colar** e **colar sem formatação**.
+Dentro de uma tabela ele traz também as ações dela — ver [Tabelas e imagens](#tabelas-e-imagens).
 Um item apagado quer dizer que ele não se aplica ali — "colar" fica apagado quando não há nada
 na área de transferência, por exemplo.
 
@@ -259,6 +262,47 @@ comando ou um pedaço de código sem desligar nada.
 
 Para desligar: **Ferramentas → Autocorreção tipográfica**. O que já foi trocado continua
 trocado — desligar vale para o que vem depois.
+
+---
+
+<a id="tabelas-e-imagens"></a>
+
+## 📊 Tabelas e imagens
+
+**Inserir tabela** fica no menu **Tabela**, no botão de tabela da barra e em `Ctrl+F12`, e
+pergunta quantas linhas e colunas. A linha de cabeçalho vem marcada: no arquivo ela é a linha
+que o Word **repete no alto de cada página** quando a tabela quebra.
+
+Com o cursor numa célula, o menu **Tabela** e o **botão direito** oferecem:
+
+- inserir linha acima ou abaixo, coluna à esquerda ou à direita;
+- excluir linha, coluna ou a tabela inteira;
+- **mesclar células** (selecione-as arrastando o mouse) e **dividir célula**;
+- ligar e desligar a **linha de cabeçalho**;
+- **Propriedades da tabela…**: a largura da coluna do cursor em milímetros, a borda das células
+  selecionadas (estilo, espessura, cor e quais lados), o sombreamento e a repetição do
+  cabeçalho.
+
+A divisória entre duas colunas também se **arrasta** com o mouse. A largura vai para o arquivo
+nos dois casos.
+
+> ℹ️ O diálogo só oferece o que o `.docx` guarda. Estilos de borda que o Word tem e a tela não
+> desenha — linha grossa e fina, ondulada — aparecem como linha simples, e **voltam intactos**
+> ao salvar enquanto você não formatar aquela célula. Se formatar, o aviso de perda diz isso.
+
+**Redimensionar imagem**: clique nela e arraste uma das oito alças. Nos cantos a proporção
+fica travada; segure `Shift` para esticar livremente. As alças das bordas mexem numa medida só.
+A imagem não passa da largura da coluna de texto, e um `Ctrl+Z` desfaz o arrasto inteiro. Com
+uma alça em foco, as setas do teclado também redimensionam.
+
+**Texto alternativo e alinhamento**: com a imagem selecionada, o botão de imagem da barra passa a
+se chamar **Propriedades da imagem** (também em **Formatar → Imagem…**). O texto alternativo é
+o que um leitor de tela lê no lugar da imagem, e vai para o arquivo.
+
+**Mesclagem vertical**: células mescladas de cima para baixo num `.docx` continuam mescladas no
+arquivo, mas a tela as mostra separadas — e inserir ou excluir linha numa tabela assim desfaz a
+mesclagem, com aviso de perda. Mesclar **na vertical** dentro do Librevia funciona na tela, mas
+ainda não vai para o `.docx`: ao salvar, o aviso de perda diz isso. Mesclar na horizontal vai.
 
 ---
 

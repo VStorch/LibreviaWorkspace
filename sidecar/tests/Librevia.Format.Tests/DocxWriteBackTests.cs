@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using Librevia.Format.Docx;
 
@@ -528,6 +529,446 @@ public class DocxWriteBackTests
 
         // E a tabela continua abrindo com as três linhas que a pessoa vê.
         Assert.Equal(3, Roundtrip.Open(saved).Doc.Content![0].Content!.Count);
+    }
+
+    [Fact]
+    public void LarguraDeColunaArrastadaChegaAoArquivo()
+    {
+        // O TableKit já deixava arrastar a divisória, e o número novo morria no
+        // caminho: o `w:tblGrid` voltava do arquivo por posição. Perda silenciosa,
+        // que é o defeito mais grave do projeto.
+        var original = Fixtures.WithTable();
+        var model = Roundtrip.Clone(Roundtrip.Open(original));
+
+        var table = model.Doc.Content!.First(block => block.Type == "table");
+        foreach (var row in table.Content!)
+        {
+            row.Content![0].With("colwidth", new JsonArray(200));
+            row.Content[1].With("colwidth", new JsonArray(400));
+        }
+
+        var xml = Roundtrip.XmlOf(Roundtrip.Save(original, model).Bytes);
+
+        // 200 px são 3000 twips, e 400 são 6000 — 15 twips por pixel.
+        Assert.Contains("<w:gridCol w:w=\"3000\" /><w:gridCol w:w=\"6000\" />", xml, StringComparison.Ordinal);
+
+        // A largura de cada célula acompanha: deixada com o número antigo, ela
+        // contradiz a grade e o Word escolhe uma das duas sem avisar.
+        Assert.Contains("w:tcW w:w=\"3000\"", xml, StringComparison.Ordinal);
+
+        // E o Word passa a honrar a grade em vez de redistribuir pelo conteúdo,
+        // que é o que a tela faz com `table-layout: fixed`.
+        Assert.Contains("w:tblLayout w:type=\"fixed\"", xml, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void EditarTextoDaCelulaNaoMexeNaGradeDeColunas()
+    {
+        // A prova negativa da de cima. A conversão twip→pixel arredonda — 4675
+        // twips são 311,67 px —, então regravar a grade a cada salvamento mexeria
+        // na medida de uma tabela que ninguém redimensionou.
+        var original = Fixtures.WithTable();
+        var model = Roundtrip.Clone(Roundtrip.Open(original));
+
+        Assert.True(Roundtrip.EditFirstTextContaining(model, "A1", "A1 corrigido"));
+
+        var xml = Roundtrip.XmlOf(Roundtrip.Save(original, model).Bytes);
+
+        Assert.Contains("w:w=\"4675\"", xml, StringComparison.Ordinal);
+        Assert.DoesNotContain("w:tblLayout", xml, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TabelaInseridaNaTelaNasceComGradeDeColunas()
+    {
+        // `w:tblGrid` é exigido pelo esquema, e a tabela criada aqui não tem
+        // original de onde copiá-lo: colunas iguais na coluna de texto, que é o
+        // que o Word faz ao inserir.
+        var original = Fixtures.Simple();
+        var model = Roundtrip.Clone(Roundtrip.Open(original));
+
+        model.Doc.Content!.Add(Node.Of(
+            "table",
+            Node.Of(
+                "tableRow",
+                Node.Of("tableHeader", Node.Of("paragraph")),
+                Node.Of("tableHeader", Node.Of("paragraph")))));
+
+        var xml = Roundtrip.XmlOf(Roundtrip.Save(original, model).Bytes);
+
+        Assert.Contains("<w:tblGrid>", xml, StringComparison.Ordinal);
+
+        // Linha toda de `tableHeader` é a linha que se repete no alto de cada
+        // página: sem isto o botão da tela não chegava ao arquivo.
+        Assert.Contains("w:tblHeader", xml, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void LinhaDeCabecalhoDesligadaSaiDoArquivo()
+    {
+        // O outro sentido do interruptor. O `w:trPr` traz também a altura da linha
+        // e a marcação de revisão: desligar a bandeira não pode levá-lo embora.
+        var original = Fixtures.WithStyledTable();
+        var model = Roundtrip.Clone(Roundtrip.Open(original));
+
+        var first = model.Doc.Content!.First(block => block.Type == "table").Content![0];
+        first.Content = [.. first.Content!.Select(cell => new Node
+        {
+            Type = "tableCell",
+            Attrs = cell.Attrs,
+            Content = cell.Content,
+        })];
+
+        Assert.True(Roundtrip.EditFirstTextContaining(model, "Dado B", "Dado corrigido"));
+
+        var xml = Roundtrip.XmlOf(Roundtrip.Save(original, model).Bytes);
+
+        Assert.DoesNotContain("w:tblHeader", xml, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void SombreamentoEBordaEscolhidosNaTelaChegamAoArquivo()
+    {
+        var original = Fixtures.WithTable();
+        var model = Roundtrip.Clone(Roundtrip.Open(original));
+
+        var cell = model.Doc.Content!.First(block => block.Type == "table").Content![0].Content![0];
+        cell.With("shading", "#d9d9d9");
+        cell.With("borders", "top:double,1.5,#ff0000;bottom:none,0.5,#000000");
+
+        var xml = Roundtrip.XmlOf(Roundtrip.Save(original, model).Bytes);
+
+        Assert.Contains("w:fill=\"D9D9D9\"", xml, StringComparison.Ordinal);
+
+        // 1,5 pt são 12 oitavos, que é a unidade do `w:sz`.
+        // 1,5 pt são 12 oitavos, que é a unidade do `w:sz`.
+        Assert.Contains("<w:top w:val=\"double\" w:color=\"FF0000\" w:sz=\"12\" />", xml, StringComparison.Ordinal);
+
+        // Borda apagada de propósito é `w:nil`, e não a ausência do elemento: só
+        // ela **remove** a borda que a tabela pediu.
+        Assert.Contains("w:bottom w:val=\"nil\"", xml, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void CelulaNaoFormatadaConservaTramaEEstiloExotico()
+    {
+        // A trama de 25% e o `thickThinSmallGap` não têm representação no modelo:
+        // a tela os mostra aproximados. Enquanto ninguém formatar a célula, o XML
+        // original é que volta — é o que faz a aproximação não custar nada.
+        var original = Fixtures.WithPatternedCell();
+        var model = Roundtrip.Clone(Roundtrip.Open(original));
+
+        Assert.True(Roundtrip.EditFirstTextContaining(model, "Com trama", "Corrigido"));
+
+        var (saved, result) = Roundtrip.Save(original, model);
+        var xml = Roundtrip.XmlOf(saved);
+
+        Assert.Contains("w:val=\"pct25\"", xml, StringComparison.Ordinal);
+        Assert.Contains("thickThinSmallGap", xml, StringComparison.Ordinal);
+        Assert.Empty(result.Inventory.Lost);
+    }
+
+    [Fact]
+    public void LarguraArrastadaNumaTabelaNovaChegaAoArquivo()
+    {
+        // O TableKit põe `colwidth` só na coluna arrastada, e o gravador
+        // descartava a grade inteira por ela ser parcial: a largura que a pessoa
+        // viu na tela não chegava ao arquivo.
+        var original = Fixtures.Simple();
+        var model = Roundtrip.Clone(Roundtrip.Open(original));
+
+        var cell = (string text, int? width) =>
+        {
+            var node = Node.Of("tableCell").With("colspan", 1).With("rowspan", 1);
+            if (width is { } px) node.With("colwidth", new JsonArray(px));
+            node.Content = [Node.Of("paragraph")];
+            node.Content[0].Content = [new Node { Type = "text", Text = text }];
+            return node;
+        };
+
+        var row = Node.Of("tableRow");
+        row.Content = [cell("A", 300), cell("B", null), cell("C", null)];
+        var table = Node.Of("table");
+        table.Content = [row];
+        model.Doc.Content!.Add(table);
+
+        var xml = Roundtrip.XmlOf(Roundtrip.Save(original, model).Bytes);
+
+        // 300 px são 4500 twips; as outras dividem o que sobra da coluna de texto.
+        var grid = Regex.Matches(xml, "<w:gridCol w:w=\"(\\d+)\"").Select(match => match.Groups[1].Value).ToList();
+        Assert.Equal(3, grid.Count);
+        Assert.Equal("4500", grid[0]);
+        Assert.Equal(grid[1], grid[2]);
+    }
+
+    [Fact]
+    public void ArrastarUmaColunaNaoMexeNaMedidaDasOutras()
+    {
+        // A grade inteira era regravada com `px × 15`: a vizinha que ninguém tocou
+        // ia de 2000 para 1995 twips, porque 2000 twips são 133,33 px.
+        var original = Fixtures.WithThreeColumns();
+        var model = Roundtrip.Clone(Roundtrip.Open(original));
+
+        var table = model.Doc.Content!.First(block => block.Type == "table");
+        foreach (var row in table.Content!) row.Content![1].With("colwidth", new JsonArray(250));
+
+        var xml = Roundtrip.XmlOf(Roundtrip.Save(original, model).Bytes);
+
+        Assert.Contains("<w:gridCol w:w=\"2000\"", xml, StringComparison.Ordinal);
+        Assert.Contains("<w:gridCol w:w=\"3750\"", xml, StringComparison.Ordinal);
+        Assert.Contains("<w:gridCol w:w=\"4000\"", xml, StringComparison.Ordinal);
+        Assert.DoesNotContain("1995", xml, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ColunaInseridaRecalculaAGrade()
+    {
+        // Depois de inserir coluna o TableKit deixa a célula nova sem largura. A
+        // grade do arquivo ficava com três colunas para linhas de quatro células.
+        var original = Fixtures.WithThreeColumns();
+        var model = Roundtrip.Clone(Roundtrip.Open(original));
+
+        var table = model.Doc.Content!.First(block => block.Type == "table");
+        foreach (var row in table.Content!)
+        {
+            var added = Node.Of("tableCell").With("colspan", 1).With("rowspan", 1).With("colwidth", new JsonArray(0));
+            added.Content = [Node.Of("paragraph")];
+            row.Content!.Add(added);
+        }
+
+        var xml = Roundtrip.XmlOf(Roundtrip.Save(original, model).Bytes);
+
+        Assert.Equal(4, Regex.Matches(xml, "<w:gridCol ").Count);
+        Assert.Contains("<w:gridCol w:w=\"2000\"", xml, StringComparison.Ordinal);
+        Assert.Contains("<w:gridCol w:w=\"4000\"", xml, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void CabecalhoLigadoNumaLinhaComRevisaoFicaAntesDaRevisao()
+    {
+        // No `w:trPr` as propriedades vêm primeiro e a marcação de revisão —
+        // `w:ins`, `w:del`, `w:trPrChange` — fecha a sequência. O `w:tblHeader`
+        // era anexado depois dela, e o documento saía fora do esquema.
+        var original = Fixtures.WithInsertedRow();
+        var model = Roundtrip.Clone(Roundtrip.Open(original));
+
+        var row = model.Doc.Content!.First(block => block.Type == "table").Content![0];
+        row.Content = [.. row.Content!.Select(cell => new Node { Type = "tableHeader", Attrs = cell.Attrs, Content = cell.Content })];
+
+        var xml = Roundtrip.XmlOf(Roundtrip.Save(original, model).Bytes);
+
+        var header = xml.IndexOf("<w:tblHeader", StringComparison.Ordinal);
+        var inserted = xml.IndexOf("<w:ins ", StringComparison.Ordinal);
+        Assert.True(header > 0 && inserted > header, "o w:tblHeader saiu depois do w:ins");
+    }
+
+    [Fact]
+    public void LinhaQueNaoCobreAGradeNaoEncolheAGrade()
+    {
+        // O leitor ignorava o `w:gridBefore`, e a grade que o modelo descreve —
+        // lida da primeira linha — tinha menos colunas que a do arquivo. Na
+        // primeira correção de texto a grade era regravada com duas colunas no
+        // lugar de três, e com `tblLayout fixed`: a tabela mudava de forma sem
+        // ninguém ter mexido na largura.
+        var original = Fixtures.WithGridBefore();
+        var model = Roundtrip.Clone(Roundtrip.Open(original));
+
+        var table = model.Doc.Content!.First(block => block.Type == "table");
+        var recuada = table.Content![0].Content![0];
+
+        // 3000 twips são 200 px: a célula recuada tem a largura da segunda
+        // coluna da grade, e não a da primeira.
+        Assert.Equal(200, recuada.Attrs!["colwidth"]![0]!.GetValue<int>());
+
+        Assert.True(Roundtrip.EditFirstTextContaining(model, "Cheia A", "Cheia corrigida"));
+
+        var (saved, result) = Roundtrip.Save(original, model);
+        var xml = Roundtrip.XmlOf(saved);
+
+        Assert.Equal(3, Regex.Matches(xml, "<w:gridCol ").Count);
+        Assert.DoesNotContain("w:tblLayout", xml, StringComparison.Ordinal);
+        Assert.Empty(result.Inventory.Lost);
+    }
+
+    [Fact]
+    public void LarguraQueNaoCabeNaGradeDoArquivoEntraNoInventario()
+    {
+        // Arrastar a divisória numa tabela assim pede uma grade que o modelo não
+        // descreve inteira. A grade do arquivo fica, e o aviso diz que a largura
+        // nova não chegou.
+        var original = Fixtures.WithGridBefore();
+        var model = Roundtrip.Clone(Roundtrip.Open(original));
+
+        var table = model.Doc.Content!.First(block => block.Type == "table");
+        table.Content![0].Content![0].With("colwidth", new JsonArray(250));
+
+        var (saved, result) = Roundtrip.Save(original, model);
+        var xml = Roundtrip.XmlOf(saved);
+
+        Assert.Contains("<w:gridCol w:w=\"2000\"", xml, StringComparison.Ordinal);
+        Assert.Contains("<w:gridCol w:w=\"3000\"", xml, StringComparison.Ordinal);
+        Assert.Contains(result.Inventory.Lost, message => message.Contains("largura", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void FormatarUmLadoConservaOQueOModeloNaoRepresenta()
+    {
+        // `ApplyBorders` trocava o `w:tcBorders` inteiro, e só os quatro lados
+        // eram conferidos antes: a diagonal, a borda interna, o `w:space` e a cor
+        // de tema iam embora sem aviso quando a pessoa punha a borda de baixo.
+        var original = Fixtures.WithRichCellBorders();
+        var model = Roundtrip.Clone(Roundtrip.Open(original));
+
+        var cell = model.Doc.Content!.First(block => block.Type == "table").Content![0].Content![0];
+        var borders = cell.Attrs!["borders"]!.GetValue<string>();
+        cell.With("borders", borders.Replace("bottom:none,0.5,#000000", "bottom:single,1,#000000", StringComparison.Ordinal));
+
+        var (saved, result) = Roundtrip.Save(original, model);
+        var xml = Roundtrip.XmlOf(saved);
+
+        Assert.Contains("w:tl2br", xml, StringComparison.Ordinal);
+        Assert.Contains("w:insideH", xml, StringComparison.Ordinal);
+        Assert.Contains("w:themeColor=\"accent1\"", xml, StringComparison.Ordinal);
+        Assert.Contains("w:space=\"0\"", xml, StringComparison.Ordinal);
+        Assert.Matches("<w:bottom w:val=\"single\"[^>]*w:sz=\"8\"", xml);
+        Assert.Empty(result.Inventory.Lost);
+    }
+
+    [Fact]
+    public void TrocarACorDoLadoTiraACorDeTemaDele()
+    {
+        // A cor de tema vence o `w:color` no Word: trocar a cor e deixar o tema
+        // desenharia a cor antiga. O resto do lado — o `w:space` — fica.
+        var original = Fixtures.WithRichCellBorders();
+        var model = Roundtrip.Clone(Roundtrip.Open(original));
+
+        var cell = model.Doc.Content!.First(block => block.Type == "table").Content![0].Content![0];
+        var borders = cell.Attrs!["borders"]!.GetValue<string>();
+        cell.With("borders", borders.Replace("top:single,0.5,#4472c4", "top:single,0.5,#ff0000", StringComparison.Ordinal));
+
+        var xml = Roundtrip.XmlOf(Roundtrip.Save(original, model).Bytes);
+
+        Assert.DoesNotContain("w:themeColor", xml, StringComparison.Ordinal);
+        Assert.Contains("w:color=\"FF0000\"", xml, StringComparison.Ordinal);
+        Assert.Contains("w:space=\"0\"", xml, StringComparison.Ordinal);
+        Assert.Contains("w:tl2br", xml, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void FormatarACelulaDaTramaRegistraAPerda()
+    {
+        // A prova positiva: quando a pessoa **troca** a aparência da célula, a
+        // trama e o estilo exótico somem de verdade — e o inventário diz isso, em
+        // vez de o arquivo mudar em silêncio.
+        var original = Fixtures.WithPatternedCell();
+        var model = Roundtrip.Clone(Roundtrip.Open(original));
+
+        var cell = model.Doc.Content!.First(block => block.Type == "table").Content![0].Content![0];
+        cell.With("shading", "#00ff00");
+        cell.With("borders", "top:single,0.5,#000000");
+
+        var result = Roundtrip.Save(original, model).Result;
+
+        Assert.Contains(result.Inventory.Lost, message => message.Contains("trama", StringComparison.Ordinal));
+        Assert.Contains(
+            result.Inventory.Lost,
+            message => message.Contains("estilo de borda", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void MesclagemVerticalFeitaNaTelaEntraNoInventario()
+    {
+        // O TableKit mescla na vertical com `rowspan`, e o gravador não o escreve
+        // como `w:vMerge`. Enquanto não escreve, o mínimo é dizer.
+        var original = Fixtures.WithTable();
+        var model = Roundtrip.Clone(Roundtrip.Open(original));
+
+        var rows = model.Doc.Content!.First(block => block.Type == "table").Content!;
+        rows[0].Content![0].With("rowspan", 2);
+        rows[1].Content!.RemoveAt(0);
+
+        var result = Roundtrip.Save(original, model).Result;
+
+        Assert.Contains(result.Inventory.Lost, message => message.Contains("mesclagem vertical", StringComparison.Ordinal));
+    }
+
+    // --- imagens: texto alternativo e alinhamento -----------------------------
+
+    [Fact]
+    public void TextoAlternativoDaImagemVaiEVolta()
+    {
+        var original = Fixtures.Simple();
+        var model = Roundtrip.Clone(Roundtrip.Open(original));
+        var source = "data:image/png;base64," + Convert.ToBase64String(Fixtures.SquarePng());
+
+        model.Doc.Content!.Add(Node.Of("image")
+            .With("src", source)
+            .With("alt", "Organograma da diretoria")
+            .With("align", "center"));
+
+        var (saved, _) = Roundtrip.Save(original, model);
+        var xml = Roundtrip.XmlOf(saved);
+
+        Assert.Contains("descr=\"Organograma da diretoria\"", xml, StringComparison.Ordinal);
+
+        // No OOXML não existe imagem centralizada: existe parágrafo centralizado
+        // com uma imagem dentro.
+        Assert.Contains("w:jc w:val=\"center\"", xml, StringComparison.Ordinal);
+
+        var back = Roundtrip.Open(saved);
+        var image = Roundtrip.Walk(back.Doc).First(node => node.Type == "image");
+        Assert.Equal("Organograma da diretoria", image.Attrs!["alt"]!.GetValue<string>());
+    }
+
+    [Fact]
+    public void RedimensionarImagemDoArquivoMantemODesenhoOriginal()
+    {
+        // Redimensionar regravava a imagem como se fosse nova: outro `wp:docPr`
+        // ("Imagem 2" no lugar do nome que o documento dava), outra parte de
+        // imagem com outro relacionamento, e tudo o que o escritor não sabe gerar
+        // — efeito, recorte, borda — ia embora sem aviso. O que mudou foi o
+        // tamanho, e é só ele que muda no arquivo.
+        var original = Fixtures.WithInlineImage(7);
+        var model = Roundtrip.Clone(Roundtrip.Open(original));
+        var image = Roundtrip.Walk(model.Doc).Single(node => node.Type == "image");
+        image.With("width", 300).With("height", 150).With("alt", "Gráfico de vendas");
+
+        var (saved, result) = Roundtrip.Save(original, model);
+        var xml = Roundtrip.XmlOf(saved);
+        var before = Roundtrip.XmlOf(original);
+        var embed = Regex.Match(before, "r:embed=\"([^\"]+)\"").Groups[1].Value;
+
+        Assert.Contains("docPr id=\"7\" name=\"Imagem 7\"", xml, StringComparison.Ordinal);
+        Assert.Contains("descr=\"Gráfico de vendas\"", xml, StringComparison.Ordinal);
+        Assert.Single(Regex.Matches(xml, "r:embed=\"([^\"]+)\""));
+        Assert.Contains($"r:embed=\"{embed}\"", xml, StringComparison.Ordinal);
+        Assert.Single(Roundtrip.PartsOf(saved).Keys, name => name.EndsWith(".png", StringComparison.Ordinal));
+
+        // 300 × 150 px são 2857500 × 1428750 EMU, no `wp:extent` e no `a:ext`.
+        Assert.Equal(2, Regex.Matches(xml, "cx=\"2857500\" cy=\"1428750\"").Count);
+
+        // A imagem continua no parágrafo dela: nenhum parágrafo a mais.
+        Assert.Equal(
+            Regex.Matches(before, "<w:p[ >]").Count,
+            Regex.Matches(xml, "<w:p[ >]").Count);
+        Assert.Empty(result.Inventory.Lost);
+    }
+
+    [Fact]
+    public void ImagemAncoradaNoFluxoNaoSeDuplicaAoEditarOParagrafo()
+    {
+        // A imagem ancorada que corre com o texto chega ao editor como imagem do
+        // parágrafo, e o escritor também copiava o `w:r` ancorado do original:
+        // editar o parágrafo punha duas imagens no arquivo.
+        var original = Fixtures.WithAnchoredImageInTheFlow();
+        var model = Roundtrip.Clone(Roundtrip.Open(original));
+        var image = Roundtrip.Walk(model.Doc).Single(node => node.Type == "image");
+        image.With("width", 100).With("height", 50);
+
+        var xml = Roundtrip.XmlOf(Roundtrip.Save(original, model).Bytes);
+
+        Assert.Single(Regex.Matches(xml, "<wp:docPr "));
+        Assert.Contains("<wp:anchor", xml, StringComparison.Ordinal);
     }
 
     [Fact]

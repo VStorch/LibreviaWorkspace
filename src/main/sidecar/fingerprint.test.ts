@@ -49,9 +49,11 @@ import { Node as ProseMirrorNode } from '@tiptap/pm/model'
 import {
   docxWithBulletList,
   docxWithComment,
+  docxWithDescribedImage,
   docxWithHeaderGrid,
   docxWithSpacingOnBothSides,
   docxWithStretchedImage,
+  docxWithStyledCells,
   docxWithTable,
   docxWithTextBox,
   docxWithVerticalAlignment,
@@ -247,6 +249,10 @@ describe.skipIf(!published)('impressão digital entre o editor e o sidecar', () 
     ['lista com marcador', docxWithBulletList],
     ['tabela com tabela aninhada', docxWithTable],
     ['sobrescrito e subscrito', docxWithVerticalAlignment],
+    // Os atributos do M4: largura de coluna, sombreamento, borda, mesclagem
+    // horizontal e linha de cabeçalho na tabela; texto alternativo na imagem.
+    ['tabela com sombreamento, borda e cabeçalho', docxWithStyledCells],
+    ['imagem com texto alternativo', docxWithDescribedImage],
   ]
 
   it.each(documents)('abrir e salvar %s não reescreve bloco nenhum', async (_name, build) => {

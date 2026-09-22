@@ -60,6 +60,56 @@ test.describe('somente leitura', () => {
     await expect(editor).toContainText('Editado.')
   })
 
+  /**
+   * A trava vale para o que chega pelo menu, e não só para o teclado.
+   *
+   * O `contenteditable="false"` segura a digitação, mas os comandos do menu
+   * chamam o editor direto — e o editor obedece a comando mesmo travado. Inserir
+   * linha, excluir a tabela, sombrear pelas propriedades e inserir quebra de
+   * página funcionavam num documento aberto em somente leitura, e o status
+   * virava "Não salvo".
+   */
+  test('os comandos de edição do menu respeitam a trava', async () => {
+    const target = join(folder, 'ata-com-tabela.docx')
+    await writeFile(target, await docxWithComment({ leadingTable: true }))
+    await stubDialogs(session.app, { open: target, messageBox: 1 })
+
+    await menu(session, 'open')
+    await expect(session.window.locator('.banner--readonly')).toBeVisible()
+
+    const linhas = session.window.locator('.page__content tr')
+    await expect(linhas).toHaveCount(2)
+
+    for (const command of [
+      'table-row-after',
+      'table-column-after',
+      'table-merge-cells',
+      'table-header-row',
+      'table-delete',
+      'insert-page-break',
+      'paste-without-format',
+    ]) {
+      await menu(session, command)
+    }
+
+    // Os comandos que abrem diálogo de edição nem abrem: um diálogo que aceita e
+    // não aplica seria pior que nenhum.
+    await menu(session, 'table-insert')
+    await menu(session, 'table-properties')
+    await menu(session, 'paragraph-setup')
+    await menu(session, 'special-character')
+
+    // A contagem de palavras não edita nada, e continua valendo.
+    await menu(session, 'word-count')
+    await expect(session.window.getByRole('dialog', { name: /Contagem de palavras/ })).toBeVisible()
+
+    await expect(session.window.getByRole('dialog', { name: 'Inserir tabela' })).toHaveCount(0)
+    await expect(session.window.getByRole('dialog', { name: 'Propriedades da tabela' })).toHaveCount(0)
+    await expect(linhas).toHaveCount(2)
+    await expect(session.window.locator('.page__content table')).toHaveCount(1)
+    await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
+  })
+
   test('documento comum abre editável', async () => {
     const target = join(folder, 'simples.docx')
     await writeFile(target, await docxWithoutExtras())

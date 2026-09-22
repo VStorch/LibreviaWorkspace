@@ -59,15 +59,31 @@ const COMMENTS_XML = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:comment w:id="1" w:author="Revisor" w:date="2026-01-01T00:00:00Z"><w:p><w:r><w:t>Conferir este número.</w:t></w:r></w:p></w:comment>
 </w:comments>`
 
-/** Documento com um comentário ancorado no segundo parágrafo. */
-export async function docxWithComment(): Promise<Buffer> {
+/**
+ * Documento com um comentário ancorado no segundo parágrafo.
+ *
+ * Com `leadingTable`, uma tabela abre o documento: é onde o cursor está quando o
+ * arquivo abre, e é o caso em que os comandos do menu Tabela têm onde agir num
+ * documento travado.
+ */
+export async function docxWithComment(options: { leadingTable?: boolean } = {}): Promise<Buffer> {
+  const cell = (text: string): string =>
+    `<w:tc><w:tcPr><w:tcW w:w="4500" w:type="dxa"/></w:tcPr>${paragraph(text)}</w:tc>`
+  const table =
+    options.leadingTable === true
+      ? `<w:tbl><w:tblPr><w:tblW w:w="9000" w:type="dxa"/></w:tblPr>` +
+        `<w:tblGrid><w:gridCol w:w="4500"/><w:gridCol w:w="4500"/></w:tblGrid>` +
+        `<w:tr>${cell('Item')}${cell('Valor')}</w:tr>` +
+        `<w:tr>${cell('Café')}${cell('12')}</w:tr></w:tbl>`
+      : ''
+
   return zip([
     ['[Content_Types].xml', CONTENT_TYPES],
     ['_rels/.rels', ROOT_RELS],
     ['word/_rels/document.xml.rels', DOCUMENT_RELS],
     [
       'word/document.xml',
-      documentXml(paragraph('Ata da reunião de terça.') + COMMENTED_PARAGRAPH + paragraph('Fim.')),
+      documentXml(table + paragraph('Ata da reunião de terça.') + COMMENTED_PARAGRAPH + paragraph('Fim.')),
     ],
     ['word/comments.xml', COMMENTS_XML],
   ])
@@ -131,12 +147,13 @@ const IMAGE_RELS = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
  * travar a proporção estica a imagem, e o Word desenha esticado. Aqui um PNG
  * quadrado é declarado como 400 × 100 px — 3810000 × 952500 EMU.
  */
-export async function docxWithStretchedImage(): Promise<Buffer> {
+export async function docxWithStretchedImage(description?: string): Promise<Buffer> {
   const R = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships'
   const PIC = 'http://schemas.openxmlformats.org/drawingml/2006/picture'
   const imagem =
     `<w:p><w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0">` +
-    `<wp:extent cx="3810000" cy="952500"/><wp:docPr id="1" name="Quadrado"/>` +
+    `<wp:extent cx="3810000" cy="952500"/>` +
+    `<wp:docPr id="1" name="Quadrado"${description === undefined ? '' : ` descr="${description}"`}/>` +
     `<a:graphic><a:graphicData uri="${PIC}"><pic:pic xmlns:pic="${PIC}">` +
     `<pic:nvPicPr><pic:cNvPr id="1" name="Quadrado"/><pic:cNvPicPr/></pic:nvPicPr>` +
     `<pic:blipFill><a:blip xmlns:r="${R}" r:embed="rId9"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill>` +
@@ -151,6 +168,48 @@ export async function docxWithStretchedImage(): Promise<Buffer> {
     ['word/_rels/document.xml.rels', IMAGE_RELS],
     ['word/media/quadrado.png', SQUARE_PNG],
     ['word/document.xml', documentXml(imagem + paragraph('Legenda da imagem.'))],
+  ])
+}
+
+/**
+ * A mesma imagem, com texto alternativo (`wp:docPr/@descr`).
+ *
+ * É o `alt` do editor: o atributo novo precisa atravessar o schema sem que o
+ * bloco seja dado como editado.
+ */
+export async function docxWithDescribedImage(): Promise<Buffer> {
+  return docxWithStretchedImage('Quadrado azul de teste')
+}
+
+/**
+ * Tabela com a aparência que o editor passou a representar: sombreamento e borda
+ * de célula, célula mesclada na horizontal e linha de cabeçalho repetida.
+ *
+ * Cada uma vira atributo do nó (`shading`, `borders`, `colspan`, `colwidth`) ou
+ * tipo de nó (`tableHeader`), e cada uma é uma chance de o schema devolver o nó
+ * diferente do que o sidecar leu — e aí a tabela inteira seria regravada.
+ */
+export async function docxWithStyledCells(): Promise<Buffer> {
+  const bordas =
+    `<w:tcBorders><w:top w:val="double" w:sz="12" w:color="FF0000"/>` +
+    `<w:bottom w:val="nil"/></w:tcBorders>`
+  const cell = (text: string, extra = ''): string =>
+    `<w:tc><w:tcPr><w:tcW w:w="3000" w:type="dxa"/>${extra}</w:tcPr>${paragraph(text)}</w:tc>`
+
+  const table =
+    `<w:tbl><w:tblPr><w:tblW w:w="9000" w:type="dxa"/></w:tblPr>` +
+    `<w:tblGrid><w:gridCol w:w="3000"/><w:gridCol w:w="3000"/><w:gridCol w:w="3000"/></w:tblGrid>` +
+    `<w:tr><w:trPr><w:tblHeader/></w:trPr>` +
+    `${cell('Cabeçalho sombreado', '<w:shd w:val="clear" w:color="auto" w:fill="D9D9D9"/>')}` +
+    `${cell('Cabeçalho B')}${cell('Cabeçalho C')}</w:tr>` +
+    `<w:tr>${cell('Com borda', bordas)}` +
+    `<w:tc><w:tcPr><w:tcW w:w="6000" w:type="dxa"/><w:gridSpan w:val="2"/></w:tcPr>` +
+    `${paragraph('Mesclada na horizontal')}</w:tc></w:tr></w:tbl>`
+
+  return zip([
+    ['[Content_Types].xml', CONTENT_TYPES.replace(/<Override PartName="\/word\/comments[^>]+>/, '')],
+    ['_rels/.rels', ROOT_RELS],
+    ['word/document.xml', documentXml(paragraph('Antes da tabela.') + table)],
   ])
 }
 

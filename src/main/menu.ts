@@ -1,6 +1,7 @@
 import { app, BrowserWindow, Menu, type MenuItemConstructorOptions } from 'electron'
 import { APP_NAME } from '@shared/constants.js'
 import { SHORTCUTS, acceleratorOf } from '@shared/shortcuts.js'
+import { TABLE_ACTIONS, TableAction } from '@shared/table-actions.js'
 import { MenuCommand } from '@shared/types.js'
 import { showAboutDialog } from './dialogs.js'
 import { listRecentFiles } from './fs/recent.js'
@@ -36,6 +37,35 @@ async function buildRecentSubmenu(): Promise<MenuItemConstructorOptions[]> {
     { type: 'separator' },
     { label: 'Limpar recentes', click: () => dispatch(MenuCommand.ClearRecent) },
   ]
+}
+
+/**
+ * O menu "Tabela", montado da lista única de ações.
+ *
+ * Os itens não se apagam fora de uma tabela: o menu nativo mora no processo main
+ * e não sabe onde está o cursor, e reconstruí-lo a cada movimento dele custaria
+ * mais do que vale. Fora de uma tabela os comandos do TableKit simplesmente não
+ * fazem nada — e o menu de contexto, que sabe, só os oferece dentro de uma.
+ */
+function buildTableSubmenu(): MenuItemConstructorOptions[] {
+  const items: MenuItemConstructorOptions[] = []
+  let group = TABLE_ACTIONS[0]?.group
+
+  for (const action of TABLE_ACTIONS) {
+    if (action.group !== group) items.push({ type: 'separator' })
+    group = action.group
+
+    // `TableAction` é um subconjunto de `MenuCommand`, com os mesmos valores:
+    // o `App` repassa ao editor pelo nome.
+    const command: MenuCommand = action.id
+    items.push({
+      label: action.label,
+      ...(action.id === TableAction.Insert ? { accelerator: acceleratorOf(SHORTCUTS.insertTable) } : {}),
+      click: () => dispatch(command),
+    })
+  }
+
+  return items
 }
 
 /**
@@ -174,8 +204,13 @@ async function buildTemplate(): Promise<MenuItemConstructorOptions[]> {
           label: 'Parágrafo…',
           click: () => dispatch(MenuCommand.ParagraphSetup),
         },
+        {
+          label: 'Imagem…',
+          click: () => dispatch(MenuCommand.ImageProperties),
+        },
       ],
     },
+    { label: 'Tabela', submenu: buildTableSubmenu() },
     {
       label: 'Inserir',
       submenu: [

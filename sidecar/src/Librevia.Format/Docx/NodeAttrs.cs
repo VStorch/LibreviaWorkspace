@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace Librevia.Format.Docx;
 
@@ -29,6 +30,17 @@ internal static class Attr
         if (node.Attrs is null || !node.Attrs.TryGetValue(name, out var value) || value is null) return null;
         return value.GetValueKind() == JsonValueKind.Number ? value.GetValue<double>() : null;
     }
+
+    /// <summary>
+    /// O atributo cru, para o que não é escalar.
+    /// </summary>
+    /// <remarks>
+    /// A largura das colunas chega como lista de números (`colwidth`), e não há
+    /// como lê-la pelos acessores de cima sem inventar uma conversão. Devolver o
+    /// `JsonNode` deixa a interpretação com quem sabe o que espera.
+    /// </remarks>
+    public static JsonNode? Node(Node node, string name) =>
+        node.Attrs is not null && node.Attrs.TryGetValue(name, out var value) ? value : null;
 
     public static int? Int(Node node, string name)
     {

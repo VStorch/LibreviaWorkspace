@@ -18,6 +18,9 @@ import { floatsOf } from '@services/document/floating.js'
 import { currentPreferences, usePreferences } from '../state/preferences.js'
 import { useWorkspace } from '../state/workspace.js'
 import { DocumentToolbar } from './toolbar/DocumentToolbar.js'
+import { TableDialog } from './toolbar/TableDialog.js'
+import { TablePropertiesDialog } from './toolbar/TablePropertiesDialog.js'
+import { ImageDialog } from './toolbar/ImageDialog.js'
 import { DocumentContextMenu } from './DocumentContextMenu.js'
 import { FindReplacePanel } from './FindReplacePanel.js'
 import { PageSetupPanel } from './PageSetupPanel.js'
@@ -30,7 +33,7 @@ import { splitIntoPages } from './print-source.js'
 import type { FloatSource, PlacedFloat } from './FloatingLayer.js'
 import { buildEditorExtensions } from './editor-extensions.js'
 import { isPaginationOnly } from './extensions/pagination.js'
-import { onEditorCommand } from './editor-commands.js'
+import { useEditorCommands } from './useEditorCommands.js'
 import type { SearchStatus } from './extensions/search-replace.js'
 
 /**
@@ -62,11 +65,6 @@ export function DocumentEditor(): React.JSX.Element {
   const [contentRevision, setContentRevision] = useState(0)
 
   const [searchStatus, setSearchStatus] = useState<SearchStatus>({ total: 0, current: 0 })
-  const [findOpen, setFindOpen] = useState(false)
-  const [pageSetupOpen, setPageSetupOpen] = useState(false)
-  const [paragraphOpen, setParagraphOpen] = useState(false)
-  const [wordCountOpen, setWordCountOpen] = useState(false)
-  const [charsOpen, setCharsOpen] = useState(false)
   const [contextTarget, setContextTarget] = useState<ContextMenuTarget | null>(null)
 
   const handleSearchStatus = useCallback((status: SearchStatus) => setSearchStatus(status), [])
@@ -187,19 +185,9 @@ export function DocumentEditor(): React.JSX.Element {
       .run()
   }, [editor, readOnly, showError])
 
-  useEffect(
-    () =>
-      onEditorCommand((command) => {
-        if (command === 'find-replace') setFindOpen(true)
-        if (command === 'page-setup') setPageSetupOpen(true)
-        if (command === 'insert-page-break') editor?.chain().focus().setPageBreak().run()
-        if (command === 'paragraph-setup') setParagraphOpen(true)
-        if (command === 'word-count') setWordCountOpen(true)
-        if (command === 'special-character') setCharsOpen(true)
-        if (command === 'paste-without-format') void pasteWithoutFormat()
-      }),
-    [editor, pasteWithoutFormat],
-  )
+  // O menu nativo e o botão direito chegam pelo mesmo `run`, que é onde a trava
+  // do somente leitura é conferida — ver useEditorCommands.
+  const { dialogs, setDialog, run } = useEditorCommands(editor, readOnly, pasteWithoutFormat)
 
   // O botão direito nasce no processo main: é lá que o corretor do Chromium conta
   // qual palavra marcou e o que sugere.
@@ -349,25 +337,43 @@ export function DocumentEditor(): React.JSX.Element {
 
       <DocumentToolbar
         editor={editor}
-        onOpenFind={() => setFindOpen(true)}
-        onOpenPageSetup={() => setPageSetupOpen(true)}
-        paragraphOpen={paragraphOpen}
-        onParagraphOpenChange={setParagraphOpen}
+        onOpenFind={() => setDialog('find', true)}
+        onOpenPageSetup={() => setDialog('pageSetup', true)}
+        paragraphOpen={dialogs.paragraph}
+        onParagraphOpenChange={(open) => setDialog('paragraph', open)}
+        onOpenTable={() => setDialog('table', true)}
+        onOpenImageProperties={() => setDialog('imageProperties', true)}
       />
 
-      {findOpen && (
-        <FindReplacePanel editor={editor} status={searchStatus} onClose={() => setFindOpen(false)} />
+      {dialogs.find && (
+        <FindReplacePanel editor={editor} status={searchStatus} onClose={() => setDialog('find', false)} />
       )}
 
-      {pageSetupOpen && <PageSetupPanel onClose={() => setPageSetupOpen(false)} />}
+      {dialogs.pageSetup && <PageSetupPanel onClose={() => setDialog('pageSetup', false)} />}
 
-      {wordCountOpen && <WordCountDialog editor={editor} onClose={() => setWordCountOpen(false)} />}
+      {dialogs.wordCount && <WordCountDialog editor={editor} onClose={() => setDialog('wordCount', false)} />}
 
-      {charsOpen && <SpecialCharsDialog editor={editor} onClose={() => setCharsOpen(false)} />}
+      {dialogs.specialCharacter && (
+        <SpecialCharsDialog editor={editor} onClose={() => setDialog('specialCharacter', false)} />
+      )}
+
+      {dialogs.table && <TableDialog editor={editor} onClose={() => setDialog('table', false)} />}
+
+      {dialogs.tableProperties && (
+        <TablePropertiesDialog editor={editor} onClose={() => setDialog('tableProperties', false)} />
+      )}
+
+      {dialogs.imageProperties && (
+        <ImageDialog editor={editor} onClose={() => setDialog('imageProperties', false)} />
+      )}
 
       {contextTarget !== null && (
         <DocumentContextMenu
           target={contextTarget}
+          // O menu de contexto só oferece as ações de tabela quando o cursor está
+          // dentro de uma: fora dela, "mesclar células" não tem o que mesclar.
+          inTable={editor.isActive('table')}
+          onTableAction={run}
           onClose={() => setContextTarget(null)}
           onPasteWithoutFormat={() => void pasteWithoutFormat()}
         />

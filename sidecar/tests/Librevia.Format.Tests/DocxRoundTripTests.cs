@@ -272,6 +272,50 @@ public class DocxRoundTripTests
     }
 
     [Fact]
+    public void ReadsColumnWidthsShadingAndHeaderRow()
+    {
+        // As três chegavam ao editor como nada: a largura de coluna só existia no
+        // `w:tblGrid`, e o botão de redimensionar do TableKit escrevia a medida
+        // nova num atributo que ninguém lia — perda silenciosa na gravação.
+        var table = Walk(Open(Fixtures.WithStyledTable()).Doc).First(n => n.Type == "table");
+        var header = table.Content![0].Content![0];
+
+        // `w:tblHeader` é a linha que o Word repete no alto de cada página, e é
+        // isso que o editor chama de linha de cabeçalho.
+        Assert.Equal("tableHeader", header.Type);
+        Assert.Equal("tableCell", table.Content[1].Content![0].Type);
+
+        // 4000 twips são 267 px do CSS, e 5000 são 333 — 15 twips por pixel.
+        Assert.Equal("[267]", header.Attrs!["colwidth"]!.ToJsonString());
+        Assert.Equal("[333]", table.Content[0].Content![1].Attrs!["colwidth"]!.ToJsonString());
+        Assert.Equal("#d9d9d9", header.Attrs["shading"]!.GetValue<string>());
+    }
+
+    [Fact]
+    public void ReadsCellBordersInTheCanonicalForm()
+    {
+        // O texto do atributo é comparado com o que o editor devolve, então ele
+        // tem uma escrita só: lado, estilo, espessura em pontos e cor.
+        var model = Open(Fixtures.WithPatternedCell());
+        var cell = Walk(model.Doc).First(n => n.Type == "tableCell");
+
+        // 24 oitavos de ponto são 3 pt; `thickThinSmallGap` não existe no CSS e é
+        // aproximado para linha simples — e a trama de 25%, para a cor lisa.
+        Assert.Equal("top:single,3,#000000", cell.Attrs!["borders"]!.GetValue<string>());
+        Assert.Equal("#ffff00", cell.Attrs["shading"]!.GetValue<string>());
+    }
+
+    [Fact]
+    public void ReadsImageAlternativeText()
+    {
+        // `wp:docPr/@descr` é o texto alternativo, e é o que um leitor de tela lê
+        // no lugar da imagem. Sem esta leitura ele voltava vazio para o arquivo.
+        var image = Walk(Open(Fixtures.WithDescribedImage()).Doc).First(n => n.Type == "image");
+
+        Assert.Equal("Organograma da diretoria", image.Attrs!["alt"]!.GetValue<string>());
+    }
+
+    [Fact]
     public void FlattensIdenticalSectionsWithoutReportingLoss()
     {
         // Sete seções idênticas são artefato do LibreOffice, não intenção do

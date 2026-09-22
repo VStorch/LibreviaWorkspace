@@ -79,6 +79,12 @@ ${DOCUMENT_FONT_CSS}
 
 .page__content img { max-width: 100%; height: auto; }
 
+/* Imagem sem parágrafo, alinhada por atributo próprio. O editor de hoje não a
+   produz — a imagem é conteúdo de linha, e quem a alinha é o parágrafo —, mas
+   o que foi salvo quando ela era um bloco ainda imprime assim. */
+.page__content img[data-align='center'] { display: block; margin-inline: auto; }
+.page__content img[data-align='right'] { display: block; margin-left: auto; }
+
 /*
   A marca da lista é a que o documento declara, à distância que ele pede.
 
@@ -118,10 +124,22 @@ ${DOCUMENT_FONT_CSS}
 
   Crase nenhuma aqui dentro: isto mora num template literal.
 */
-.page__content img[data-anchored] {
+/* Na tela quem fica no lugar da imagem, como filho do parágrafo, é o embrulho
+   do NodeView (.node-image), e a moldura das alças mora dentro dele. A regra
+   tem de pegar o embrulho: aplicada à moldura, que não é filha do parágrafo,
+   as duas regras de baixo não casavam com nada — e a paginação da tela só batia
+   com a do papel por acaso. A moldura encolhe à imagem para as alças ficarem
+   nos cantos dela, e não nos da coluna. */
+.page__content img[data-anchored],
+.page__content .node-image[data-anchored] {
   display: block;
   margin-left: calc(-1 * var(--recuo, 0mm));
   max-width: calc(100% + var(--recuo, 0mm) + var(--recuo-direita, 0mm));
+}
+
+.page__content .node-image[data-anchored] > .image-frame {
+  display: block;
+  width: fit-content;
 }
 
 /*
@@ -133,7 +151,9 @@ ${DOCUMENT_FONT_CSS}
   por captura de diferença entre o que a tela mede e o que o papel imprime.
 */
 .page__content img[data-anchored] ~ br,
-.page__content img[data-anchored] ~ img.ProseMirror-separator { display: none !important; }
+.page__content img[data-anchored] ~ img.ProseMirror-separator,
+.page__content .node-image[data-anchored] ~ br,
+.page__content .node-image[data-anchored] ~ img.ProseMirror-separator { display: none !important; }
 
 /*
   Mas o parágrafo dela tem uma linha, e a linha ocupa lugar.
@@ -162,7 +182,8 @@ ${DOCUMENT_FONT_CSS}
 
   Crase nenhuma aqui dentro: isto mora num template literal.
 */
-.page__content p:has(> img[data-anchored])::after {
+.page__content p:has(> img[data-anchored])::after,
+.page__content p:has(> .node-image[data-anchored])::after {
   content: '';
   display: block;
   height: 1lh;
@@ -259,6 +280,44 @@ export const EDITOR_ONLY_CSS = `
 }
 
 .page__content .ProseMirror-selectednode { outline: 2px solid #1f5fa9; }
+
+/*
+  A moldura das alças de redimensionamento.
+
+  Em linha, como a imagem que ela envolve, e com line-height zero: sem isto a
+  linha de dentro da moldura cobraria a descida da fonte por baixo da imagem, e
+  a paginação mediria cada imagem alguns pixels mais alta do que o papel a
+  imprime.
+*/
+.page__content .image-frame {
+  display: inline-block;
+  position: relative;
+  max-width: 100%;
+  line-height: 0;
+}
+
+.page__content .image-frame > img { max-width: 100%; }
+
+.page__content .image-frame--resizing > img { opacity: 0.75; }
+
+.page__content .image-frame__grip {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  padding: 0;
+  border: 1px solid #ffffff;
+  background: #1f5fa9;
+  z-index: 2;
+}
+
+.page__content .image-frame__grip--nw { left: -5px; top: -5px; }
+.page__content .image-frame__grip--n { left: calc(50% - 5px); top: -5px; }
+.page__content .image-frame__grip--ne { right: -5px; top: -5px; }
+.page__content .image-frame__grip--e { right: -5px; top: calc(50% - 5px); }
+.page__content .image-frame__grip--se { right: -5px; bottom: -5px; }
+.page__content .image-frame__grip--s { left: calc(50% - 5px); bottom: -5px; }
+.page__content .image-frame__grip--sw { left: -5px; bottom: -5px; }
+.page__content .image-frame__grip--w { left: -5px; top: calc(50% - 5px); }
 
 /*
   As marcas de formatação não podem mudar a medida da linha.

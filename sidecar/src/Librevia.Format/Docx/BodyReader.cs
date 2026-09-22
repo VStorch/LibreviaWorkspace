@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
@@ -900,6 +901,18 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory)
         // linha de Arial 10 pt.
         if (AnchorReader.AnchorOf(drawing) is not null) node.With("anchored", true);
 
+        // O texto alternativo, que é o que um leitor de tela lê no lugar da
+        // imagem. Mora no `wp:docPr/@descr` e chega ao editor como o `alt` do
+        // `<img>` — os dois existem para a mesma pessoa. Só quando há algo
+        // escrito: `descr=""` é o padrão de quem nunca preencheu o campo, e
+        // emiti-lo como atributo faria toda imagem divergir do que o editor
+        // devolve.
+        var properties = drawing.Descendants<Drawing.Wordprocessing.DocProperties>().FirstOrDefault();
+        if (properties?.Description?.Value is { Length: > 0 } description)
+        {
+            node.With("alt", description);
+        }
+
         var extent = drawing.Descendants<Drawing.Wordprocessing.Extent>().FirstOrDefault();
         if (extent?.Cx?.Value is { } wide && extent.Cy?.Value is { } tall && wide > 0 && tall > 0)
         {
@@ -937,7 +950,7 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory)
     /// trocam de papel; um giro pequeno mantém a medida aproximadamente igual e
     /// não vale a conta do retângulo envolvente.
     /// </remarks>
-    private static bool IsQuarterTurned(OpenXmlElement drawing)
+    internal static bool IsQuarterTurned(OpenXmlElement drawing)
     {
         var rotation = drawing.Descendants<Drawing.Transform2D>().FirstOrDefault()?.Rotation?.Value;
         if (rotation is null) return false;
@@ -968,9 +981,29 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory)
     {
         var rows = new List<Node>();
 
+        // A largura de cada coluna vem da grade da tabela, uma vez só: é ela que
+        // o Word usa para desenhar e é ela que o editor espelha no `colgroup`.
+        var grid = TableLook.GridWidths(table);
+
         foreach (var row in table.Elements<TableRow>())
         {
             var cells = new List<Node>();
+
+            // `w:tblHeader` é a linha que o Word repete no alto de cada página, e
+            // é exatamente o que o editor chama de linha de cabeçalho. Sem esta
+            // leitura ela chegava como linha comum, e ligar a linha de cabeçalho
+            // na tela de um documento que já a tinha a **desligava** no arquivo.
+            // Presente sem `w:val` já é "sim"; só `w:val="false"` nega.
+            var repeat = row.TableRowProperties?.GetFirstChild<TableHeader>();
+            var header = repeat is not null
+                         && !(repeat.Val is { } declared && declared.Value == OnOffOnlyValues.Off);
+
+            // A linha pode começar colunas adiante — `w:gridBefore`, comum em
+            // formulário e em documento convertido de PDF. Sem pular essas
+            // colunas, cada célula ganhava a largura da coluna à esquerda da dela.
+            var column = row.TableRowProperties?.GetFirstChild<GridBefore>()?.Val?.Value is > 0 and var before
+                ? before
+                : 0;
 
             foreach (var cell in row.Elements<TableCell>())
             {
@@ -992,7 +1025,7 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory)
 
                 if (contents.Count == 0) contents.Add(Node.Of("paragraph"));
 
-                var node = Node.Of("tableCell");
+                var node = Node.Of(header ? "tableHeader" : "tableCell");
                 node.Content = contents;
 
                 // Os dois são **sempre** escritos, pelo mesmo motivo do `indent`
@@ -1002,11 +1035,32 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory)
                 // que decide o que preservar dizia "mudou" em tabela que ninguém
                 // tocou — toda tabela era regenerada ao salvar, e nada falhava.
                 var span = cell.TableCellProperties?.GridSpan?.Val?.Value;
-                node.With("colspan", span is > 1 ? span.Value : 1);
+                var spanned = span is > 1 ? span.Value : 1;
+                node.With("colspan", spanned);
 
                 // O modelo do editor não representa mesclagem vertical: ela fica
                 // no `w:vMerge` do arquivo, que a gravação devolve ao lugar.
                 node.With("rowspan", 1);
+
+                // A largura das colunas que esta célula ocupa, na forma que o
+                // TableKit usa: uma medida por coluna da grade, em pixels do CSS.
+                // Enquanto ela não era lida, arrastar a divisória escrevia o
+                // número novo no modelo e o gravador devolvia a grade antiga ao
+                // arquivo — perda silenciosa.
+                if (grid.Count >= column + spanned)
+                {
+                    var widths = new JsonArray();
+                    for (var index = 0; index < spanned; index++) widths.Add(grid[column + index]);
+                    node.With("colwidth", widths);
+                }
+
+                column += spanned;
+
+                // Sombreamento e bordas da célula. Só quando o arquivo os declara:
+                // atributo ausente e atributo nulo são a mesma afirmação, e é a
+                // que mantém a impressão digital igual à do editor.
+                if (TableLook.Shading(cell.TableCellProperties) is { } fill) node.With("shading", fill);
+                if (TableLook.Borders(cell.TableCellProperties) is { } borders) node.With("borders", borders);
 
                 cells.Add(node);
             }
@@ -1020,4 +1074,5 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory)
         tableNode.Content = rows;
         return tableNode;
     }
+
 }

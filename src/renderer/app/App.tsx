@@ -7,7 +7,7 @@ import { ReadOnlyBanner } from '../components/ReadOnlyBanner.js'
 import { RecoveryBanner } from '../components/RecoveryBanner.js'
 import { StatusBar } from '../components/StatusBar.js'
 import { DocumentEditor } from '../document/DocumentEditor.js'
-import { emitEditorCommand } from '../document/editor-commands.js'
+import { asEditorCommand, emitEditorCommand } from '../document/editor-commands.js'
 import { HomePage } from '../pages/HomePage.js'
 import { SheetTabs } from '../spreadsheet/SheetTabs.js'
 import { SpreadsheetEditor } from '../spreadsheet/SpreadsheetEditor.js'
@@ -25,6 +25,12 @@ const AUTOSAVE_INTERVAL_MS = 8_000
 /** Traduz um comando do menu nativo na ação correspondente. */
 async function runMenuCommand(command: MenuCommand, path: string | undefined): Promise<void> {
   const workspace = useWorkspace.getState()
+
+  // Comandos que pertencem ao editor: o App não tem referência a ele, e os
+  // reconhece pelo nome — o mesmo nas duas pontas. Uma tradução caso a caso
+  // crescia um `case` por recurso, e as tabelas sozinhas trouxeram doze.
+  const editorCommand = asEditorCommand(command)
+  if (editorCommand !== null) return emitEditorCommand(editorCommand)
 
   switch (command) {
     case MenuCommand.NewDocument:
@@ -59,22 +65,6 @@ async function runMenuCommand(command: MenuCommand, path: string | undefined): P
       return
     case MenuCommand.PrintPreview:
       return workspace.printPreview()
-
-    // Comandos que pertencem ao editor: o App não tem referência a ele.
-    case MenuCommand.FindReplace:
-      return emitEditorCommand('find-replace')
-    case MenuCommand.PageSetup:
-      return emitEditorCommand('page-setup')
-    case MenuCommand.ParagraphSetup:
-      return emitEditorCommand('paragraph-setup')
-    case MenuCommand.InsertPageBreak:
-      return emitEditorCommand('insert-page-break')
-    case MenuCommand.PasteWithoutFormat:
-      return emitEditorCommand('paste-without-format')
-    case MenuCommand.WordCount:
-      return emitEditorCommand('word-count')
-    case MenuCommand.SpecialCharacter:
-      return emitEditorCommand('special-character')
 
     case MenuCommand.NewSpreadsheet:
       return useWorkspace.getState().newSpreadsheet()
