@@ -1,4 +1,5 @@
 import type { Entry } from '../message.js'
+import { DIALOG } from './dialog.js'
 import { DOCUMENT } from './document.js'
 import { MENU } from './menu.js'
 import { SHELL } from './shell.js'
@@ -25,6 +26,7 @@ export const MESSAGES = {
   ...DOCUMENT,
   ...SPREADSHEET,
   ...SHELL,
+  ...DIALOG,
 } as const
 
 /**
@@ -44,4 +46,5 @@ export const AREAS: Readonly<Record<string, Readonly<Record<string, Entry>>>> = 
   document: DOCUMENT,
   spreadsheet: SPREADSHEET,
   shell: SHELL,
+  dialog: DIALOG,
 }
