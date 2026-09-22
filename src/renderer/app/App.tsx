@@ -12,6 +12,7 @@ import { HomePage } from '../pages/HomePage.js'
 import { SheetTabs } from '../spreadsheet/SheetTabs.js'
 import { SpreadsheetEditor } from '../spreadsheet/SpreadsheetEditor.js'
 import { watchPreferences } from '../state/preferences.js'
+import { useReadingMode } from '../state/reading.js'
 import { useTheme } from '../state/theme.js'
 import { useWorkspace } from '../state/workspace.js'
 
@@ -87,6 +88,7 @@ export function App(): React.JSX.Element {
   const renameSheet = useWorkspace((state) => state.renameSheet)
   const removeSheet = useWorkspace((state) => state.removeSheet)
   const readOnly = useWorkspace((state) => state.readOnly)
+  const reading = useReadingMode()
 
   useEffect(() => {
     void useWorkspace.getState().refreshRecents()
@@ -143,7 +145,17 @@ export function App(): React.JSX.Element {
   // A casca inteira muda de cor conforme o que está aberto — azul de
   // documento, verde de planilha. Ver o comentário de `--accent` no CSS.
   return (
-    <div className={workbook === null ? 'app' : 'app app--spreadsheet'}>
+    <div
+      className={[
+        'app',
+        workbook === null ? '' : 'app--spreadsheet',
+        // A casca inteira encolhe: e a classe que some com a barra de status
+        // aqui embaixo e com a de ferramentas la dentro do editor.
+        reading ? 'app--reading' : '',
+      ]
+        .filter((name) => name !== '')
+        .join(' ')}
+    >
       <ErrorBanner />
       <RecoveryBanner />
       <ReadOnlyBanner />
@@ -172,7 +184,9 @@ export function App(): React.JSX.Element {
           <HomePage />
         )}
       </div>
-      {hasFile && <StatusBar />}
+      {/* A barra de status sai no modo de leitura: contagem de palavras e
+          numero de paginas sao ferramentas de quem escreve. */}
+      {hasFile && !reading && <StatusBar />}
     </div>
   )
 }

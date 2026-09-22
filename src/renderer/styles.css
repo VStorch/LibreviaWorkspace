@@ -1605,3 +1605,77 @@ button {
 .styles-list__empty {
   padding: 8px;
 }
+
+/*
+  Modo de leitura.
+
+  Tudo o que some daqui some por uma razão só: não é o documento. A barra de
+  ferramentas, a de status, o papel, as faixas de cabeçalho e os números de
+  página são andaimes de quem escreve, e quem veio ler não precisa de nenhum —
+  a página é uma unidade de impressão, e não de leitura.
+
+  O que fica é a coluna de texto, numa largura escolhida para a linha e não
+  para o papel: uma A4 com margens de 20 mm dá uma linha de cerca de 170 mm, e
+  a tipografia é unânime em que se lê melhor entre 45 e 75 caracteres. `70ch` é
+  o meio dessa faixa, medido na fonte do próprio documento, então ele acompanha
+  quem troca de Times para Arial.
+*/
+.reading-hint {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--muted);
+  box-shadow: var(--shadow-md);
+  font-size: 12px;
+  pointer-events: none;
+  /* Aparece, fica cinco segundos e sai. `forwards` a deixa invisível em vez de
+     voltar ao começo — sem ele a dica repareceria no fim da animação. */
+  animation: reading-hint 5s ease-in-out forwards;
+}
+
+@keyframes reading-hint {
+  0% {
+    opacity: 0;
+  }
+  8%,
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* Quem prefere menos movimento não perde a informação: ela só deixa de animar
+   e fica parada até o modo acabar. */
+@media (prefers-reduced-motion: reduce) {
+  .reading-hint {
+    animation: none;
+  }
+}
+
+.editor-scroll--reading {
+  /* O fundo afundado é o da mesa em que o papel repousa. Sem papel, o texto
+     repousa na superfície, como numa página de leitura. */
+  background: var(--surface);
+  padding: 48px 24px 96px;
+}
+
+.pages--reading {
+  /* Sem altura calculada e sem largura de papel: a pilha deixa de ser uma
+     pilha e passa a ser só a coluna. */
+  position: static;
+  width: min(70ch, 100%);
+}
+
+.app--reading .editor-shell {
+  /* A sombra e a borda que separavam a área de edição das barras não têm mais
+     barras de que se separar. */
+  border: none;
+}

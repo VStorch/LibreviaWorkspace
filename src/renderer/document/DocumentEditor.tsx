@@ -16,6 +16,8 @@ import {
 import { editBandFloat, editBandPiece } from '@services/document/band.js'
 import { floatsOf } from '@services/document/floating.js'
 import { currentPreferences, usePreferences } from '../state/preferences.js'
+import { useLeaveReadingOnEscape, useReadingMode } from '../state/reading.js'
+import { useT } from '../i18n.js'
 import { useWorkspace } from '../state/workspace.js'
 import { DocumentToolbar } from './toolbar/DocumentToolbar.js'
 import { TableDialog } from './toolbar/TableDialog.js'
@@ -61,6 +63,10 @@ export function DocumentEditor(): React.JSX.Element {
   const setPage = useWorkspace((state) => state.setPage)
   const showError = useWorkspace((state) => state.showError)
   const preferences = usePreferences((state) => state.preferences)
+  const reading = useReadingMode()
+  const t = useT()
+
+  useLeaveReadingOnEscape(reading)
 
   const pageRef = useRef<HTMLDivElement>(null)
   const [contentRevision, setContentRevision] = useState(0)
@@ -117,9 +123,13 @@ export function DocumentEditor(): React.JSX.Element {
    * aberto aparecia como "não salvo" antes de o usuário tocar em nada — e o
    * aviso de descarte apareceria ao fechar um documento que ninguém editou.
    */
+  // O modo de leitura trava a edicao junto com o somente leitura, e pelo
+  // mesmo caminho: uma tecla perdida nao pode alterar o documento que a
+  // pessoa esta lendo. Sair do modo devolve a edicao sem recriar o editor,
+  // entao o cursor e o historico sobrevivem a ida e volta.
   useEffect(() => {
-    editor?.setEditable(!readOnly, false)
-  }, [editor, readOnly])
+    editor?.setEditable(!readOnly && !reading, false)
+  }, [editor, readOnly, reading])
 
   // Salvar e imprimir precisam do conteúdo atual, que só o editor conhece.
   useEffect(() => {
@@ -211,7 +221,7 @@ export function DocumentEditor(): React.JSX.Element {
   )
 
   const bands = useBandHeights(page, contentRevision)
-  const layout = usePagination(editor, page, contentRevision, bands)
+  const layout = usePagination(editor, page, contentRevision, bands, !reading)
   const insets = contentInsetsMm(page, bands)
 
   // Os objetos ancorados de cada folha. Recalculados junto com a paginação
@@ -336,16 +346,18 @@ export function DocumentEditor(): React.JSX.Element {
           sair igual à tela — o risco registrado no §6.3 do plano. */}
       <style>{DOCUMENT_CONTENT_CSS + EDITOR_ONLY_CSS}</style>
 
-      <DocumentToolbar
-        editor={editor}
-        onOpenFind={() => setDialog('find', true)}
-        onOpenPageSetup={() => setDialog('pageSetup', true)}
-        onOpenStyles={() => setDialog('styles', true)}
-        paragraphOpen={dialogs.paragraph}
-        onParagraphOpenChange={(open) => setDialog('paragraph', open)}
-        onOpenTable={() => setDialog('table', true)}
-        onOpenImageProperties={() => setDialog('imageProperties', true)}
-      />
+      {!reading && (
+        <DocumentToolbar
+          editor={editor}
+          onOpenFind={() => setDialog('find', true)}
+          onOpenPageSetup={() => setDialog('pageSetup', true)}
+          onOpenStyles={() => setDialog('styles', true)}
+          paragraphOpen={dialogs.paragraph}
+          onParagraphOpenChange={(open) => setDialog('paragraph', open)}
+          onOpenTable={() => setDialog('table', true)}
+          onOpenImageProperties={() => setDialog('imageProperties', true)}
+        />
+      )}
 
       {dialogs.find && (
         <FindReplacePanel editor={editor} status={searchStatus} onClose={() => setDialog('find', false)} />
@@ -383,50 +395,76 @@ export function DocumentEditor(): React.JSX.Element {
         />
       )}
 
-      <div className="editor-scroll">
+      {reading && (
+        // Some sozinha. Diz a unica tecla que e preciso saber para nao ficar
+        // preso, e continuar dizendo-a para sempre seria ruido na tela de quem
+        // veio justamente buscar uma tela sem ruido.
+        <div className="reading-hint" role="status">
+          {t('view.reading.hint')}
+        </div>
+      )}
+
+      <div className={`editor-scroll${reading ? ' editor-scroll--reading' : ''}`}>
         <div
           ref={pageRef}
-          className="pages"
-          style={{ width: `${mmToPx(width)}px`, height: `${layout.stackHeightPx}px` }}
+          className={`pages${reading ? ' pages--reading' : ''}`}
+          style={reading ? undefined : { width: `${mmToPx(width)}px`, height: `${layout.stackHeightPx}px` }}
         >
           {/* As folhas: papel desenhado atrás do texto. Ficam fora do
               `contenteditable` de propósito — dentro dele, cada folha seria um
-              nó que a pessoa conseguiria selecionar e apagar. */}
-          {layout.sheetTops.map((top, index) => (
-            <div
-              key={top}
-              className={`paper${(layout.sheetHeights[index] ?? 0) > mmToPx(height) + 1 ? ' paper--oversized' : ''}`}
-              style={{ top: `${top}px`, height: `${layout.sheetHeights[index] ?? mmToPx(height)}px` }}
-              aria-hidden="true"
-            >
-              <span className="paper__number">{index + 1}</span>
-            </div>
-          ))}
+              nó que a pessoa conseguiria selecionar e apagar.
+
+              No modo de leitura não há folha nenhuma: a pilha de papel é o que
+              a rolagem contínua existe para tirar da frente. Os objetos
+              ancorados saem junto, e não por descuido — a posição deles é
+              relativa a uma folha, e sem folha não há onde pousá-los. */}
+          {!reading &&
+            layout.sheetTops.map((top, index) => (
+              <div
+                key={top}
+                className={`paper${(layout.sheetHeights[index] ?? 0) > mmToPx(height) + 1 ? ' paper--oversized' : ''}`}
+                style={{ top: `${top}px`, height: `${layout.sheetHeights[index] ?? mmToPx(height)}px` }}
+                aria-hidden="true"
+              >
+                <span className="paper__number">{index + 1}</span>
+              </div>
+            ))}
 
           {/* Uma faixa por folha, com o número real. No papel elas moram dentro
-              da margem, e é por isso que não empurram o texto. */}
-          {layout.sheetTops.map((top, index) => (
-            <PaperSheet
-              key={`banda-${top}`}
-              page={page}
-              pageNumber={index + 1}
-              totalPages={layout.pages}
-              topPx={top}
-              floats={floatsByPage[index] ?? []}
-              schema={editor.schema}
-              {...editableSheet}
-            />
-          ))}
+              da margem, e é por isso que não empurram o texto. Sem folhas não
+              há cabeçalho repetido: "página 3 de 12" não quer dizer nada numa
+              tira contínua. */}
+          {!reading &&
+            layout.sheetTops.map((top, index) => (
+              <PaperSheet
+                key={`banda-${top}`}
+                page={page}
+                pageNumber={index + 1}
+                totalPages={layout.pages}
+                topPx={top}
+                floats={floatsByPage[index] ?? []}
+                schema={editor.schema}
+                {...editableSheet}
+              />
+            ))}
 
           <div
             className="pages__column"
-            style={{
-              // A margem de cima é um piso: um cabeçalho mais alto que ela
-              // desce o corpo até debaixo dele, como no Word.
-              paddingTop: `${mmToPx(insets.top)}px`,
-              paddingRight: `${mmToPx(page.margins.right)}px`,
-              paddingLeft: `${mmToPx(page.margins.left)}px`,
-            }}
+            style={
+              reading
+                ? // A largura da leitura vem do CSS e nao das margens do
+                  // documento: uma margem de 10 mm daria uma linha larga
+                  // demais para ler com conforto, e o modo existe justamente
+                  // para nao obedecer ao papel.
+                  undefined
+                : {
+                    // A margem de cima é um piso: um cabeçalho mais alto que ela
+                    // desce o corpo até debaixo dele, como no Word.
+                    paddingTop: `${mmToPx(insets.top)}px`,
+                    paddingRight: `${mmToPx(page.margins.right)}px`,
+                    paddingLeft: `${mmToPx(page.margins.left)}px`,
+                  }
+            }
           >
             <EditorContent editor={editor} />
           </div>

@@ -14,6 +14,9 @@ import { applyPageGaps } from './extensions/pagination.js'
 /** Espaço entre uma folha e a seguinte, como numa pilha de papel. */
 export const SHEET_GUTTER_PX = 28
 
+/** Nenhum vao aplicado. Constante para `sameGaps` poder compara-la por valor. */
+const EMPTY_GAPS = new Map<number, number>()
+
 export interface PageLayout {
   /** Quantas folhas desenhar. */
   readonly pages: number
@@ -71,6 +74,21 @@ export function usePagination(
   page: PageSetup,
   revision: number,
   bands: BandHeights = NO_BANDS,
+  /**
+   * Se os vãos devem ser **empurrados no DOM**.
+   *
+   * O modo de leitura desliga isto, e só isto: a conta continua acontecendo, e
+   * `pageStarts` continua valendo. É de propósito, e é o que permite imprimir
+   * de dentro do modo de leitura sem sair dele — o papel sai com as mesmas
+   * folhas de sempre, porque as coordenadas de fluxo não dependem de os vãos
+   * estarem aplicados. Elas são, por definição, a altura que o documento teria
+   * como tira contínua, que é exatamente o que o modo de leitura mostra.
+   *
+   * Desligar a medição junto pareceria mais simples e custaria a impressão: o
+   * gravador lê `layout` no momento de imprimir, e um layout de uma página só
+   * mandaria o documento inteiro para uma folha.
+   */
+  paginated = true,
 ): PageLayout {
   const [layout, setLayout] = useState<PageLayout>({
     pages: 1,
@@ -260,10 +278,17 @@ export function usePagination(
         stackHeightPx += height + SHEET_GUTTER_PX
       }
 
-      if (!sameGaps(applied.current, gaps) || !sameGaps(lastWritten.current, written)) {
-        applied.current = gaps
-        lastWritten.current = written
-        applyPageGaps(editor.view, written, gaps)
+      // No modo de leitura o documento é uma tira contínua: os vãos saem do
+      // DOM, e o mapa do que está aplicado esvazia junto. Esvaziá-lo é o que
+      // importa — a medição seguinte desconta o que este mapa diz estar
+      // empurrado, e deixá-lo cheio faria toda altura ser lida a menos.
+      const target = paginated ? gaps : EMPTY_GAPS
+      const targetWritten = paginated ? written : EMPTY_GAPS
+
+      if (!sameGaps(applied.current, target) || !sameGaps(lastWritten.current, targetWritten)) {
+        applied.current = target
+        lastWritten.current = targetWritten
+        applyPageGaps(editor.view, targetWritten, target)
       }
 
       setLayout({
@@ -297,7 +322,7 @@ export function usePagination(
       observer.disconnect()
       if (scheduled !== 0) cancelAnimationFrame(scheduled)
     }
-  }, [editor, page, revision, bands.headerMm, bands.footerMm])
+  }, [editor, page, revision, bands.headerMm, bands.footerMm, paginated])
 
   return layout
 }

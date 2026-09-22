@@ -1,20 +1,31 @@
 import { useEffect } from 'react'
-import type { ResolvedTheme } from '@shared/types.js'
+import { Theme, type ResolvedTheme } from '@shared/types.js'
 import { usePreferences } from './preferences.js'
 
-/**
- * O tema que a tela desenha, já resolvido.
- *
- * `system` não chega até aqui resolvido do main, e é de propósito: o main
- * escreve a escolha em `nativeTheme.themeSource`, e o Chromium faz a consulta
- * de mídia abaixo responder de acordo. Então a pergunta "claro ou escuro?" tem
- * uma resposta só, vinda do navegador, em vez de duas — uma calculada no main e
- * outra observada aqui, que é como os dois lados passam a discordar.
- *
- * O ganho concreto: em `system`, trocar o tema do sistema operacional com o
- * aplicativo aberto redesenha a tela sem o main mandar nada.
- */
 const DARK_QUERY = '(prefers-color-scheme: dark)'
+
+/**
+ * Claro ou escuro, a partir da escolha e do que o sistema diz.
+ *
+ * A escolha explícita decide sozinha. **Só** `system` consulta a mídia.
+ *
+ * A primeira versão disto deixava a consulta decidir sempre, contando com o
+ * `nativeTheme.themeSource` que o main escreve para fazer
+ * `prefers-color-scheme` mudar junto. É o arranjo mais bonito dos dois e não
+ * funcionou: o teste de ponta a ponta pediu o tema escuro e o `data-theme`
+ * continuou `light`. Bonito e não verificado perde para direto e conferido —
+ * uma escolha explícita agora não depende de o Chromium propagar nada.
+ *
+ * O `themeSource` continua sendo escrito no main, e continua valendo: é ele que
+ * põe menu de contexto, barra de rolagem e janela na cor certa, e é ele que faz
+ * `system` responder quando a pessoa troca o tema do sistema operacional sem
+ * fechar o aplicativo.
+ */
+function resolve(theme: Theme, systemPrefersDark: boolean): ResolvedTheme {
+  if (theme === Theme.Light) return 'light'
+  if (theme === Theme.Dark) return 'dark'
+  return systemPrefersDark ? 'dark' : 'light'
+}
 
 /**
  * Põe `data-theme` na raiz do documento e o mantém em dia.
@@ -33,7 +44,7 @@ export function useTheme(): ResolvedTheme {
     const media = window.matchMedia(DARK_QUERY)
 
     const apply = (): void => {
-      const resolved: ResolvedTheme = media.matches ? 'dark' : 'light'
+      const resolved = resolve(theme, media.matches)
       document.documentElement.setAttribute('data-theme', resolved)
       // `color-scheme` é o que faz o Chromium desenhar as barras de rolagem, os
       // campos e os menus nativos na cor certa. Sem isto o papel fica escuro e
@@ -44,10 +55,9 @@ export function useTheme(): ResolvedTheme {
     apply()
     media.addEventListener('change', apply)
     return () => media.removeEventListener('change', apply)
-    // `theme` é dependência mesmo sem ser lido no efeito: é a troca dele que
-    // muda o `themeSource` no main, e reexecutar aqui é o que garante o
-    // atributo escrito no mesmo quadro em vez de no evento seguinte.
+    // `theme` é lido dentro de `apply`, então o efeito precisa dele: sem a
+    // dependência, trocar de claro para escuro reaplicaria a escolha antiga.
   }, [theme])
 
-  return window.matchMedia(DARK_QUERY).matches ? 'dark' : 'light'
+  return resolve(theme, window.matchMedia(DARK_QUERY).matches)
 }
