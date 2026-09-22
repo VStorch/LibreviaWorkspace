@@ -21,13 +21,14 @@ export interface PageLayout {
   readonly stackHeightPx: number
   /** Topo de cada folha, em pixels, dentro da pilha. */
   readonly sheetTops: readonly number[]
+  readonly sheetHeights: readonly number[]
   /**
-   * Índice do bloco que abre cada folha a partir da segunda.
+   * Bloco e eventual linha/item que abrem cada folha a partir da segunda.
    *
    * É o que permite ao papel sair das mesmas páginas que a tela: recortar a
    * lista de blocos nestes pontos dá as folhas prontas, sem ninguém repaginar.
    */
-  readonly pageStarts: readonly number[]
+  readonly pageStarts: readonly PageStart[]
   /**
    * Em que folha cada bloco caiu, e a que altura dentro dela.
    *
@@ -35,6 +36,18 @@ export interface PageLayout {
    * relação ao parágrafo âncora, e o parágrafo só tem posição depois de paginar.
    */
   readonly anchors: readonly BlockAnchor[]
+}
+
+export interface PageStart {
+  readonly blockIndex: number
+  /** Índice da linha ou item que abre a folha, quando o corte é interno. */
+  readonly childIndex?: number
+}
+
+interface CutTarget {
+  readonly at: number
+  readonly start: PageStart
+  readonly nodes: readonly { position: number; natural: number }[]
 }
 
 export interface BlockAnchor {
@@ -63,6 +76,7 @@ export function usePagination(
     pages: 1,
     stackHeightPx: 0,
     sheetTops: [0],
+    sheetHeights: [],
     pageStarts: [],
     anchors: [],
   })
@@ -75,8 +89,22 @@ export function usePagination(
    * o `offsetTop` empurrado como se fosse altura de fluxo. As folhas mudavam de
    * quantidade a cada letra digitada, e a quebra pedida à mão chegava a
    * desaparecer.
+   *
+   * A chave passou a ser a **posição** do nó no documento, e não o índice do
+   * bloco: um corte interno empurra uma linha de tabela ou um item de lista, e
+   * nenhum dos dois tem índice na lista de blocos de primeiro nível.
    */
   const applied = useRef(new Map<number, number>())
+
+  /**
+   * O que a decoração recebeu, que é o vão **mais** a margem natural.
+   *
+   * Dois mapas, e não um, pela mesma razão de sempre: o vão é o que a conta de
+   * fluxo desconta, e o valor escrito é o que o CSS lê. Comparar o escrito é o
+   * que evita uma transação idêntica a cada medição; descontá-lo faria a conta
+   * errar por uma margem natural a cada corte.
+   */
+  const lastWritten = useRef(new Map<number, number>())
 
   useEffect(() => {
     if (editor === null) return undefined
@@ -98,25 +126,84 @@ export function usePagination(
       // por uma quantidade diferente. `nodeDOM` liga um ao outro.
       let accumulated = 0
       const blocks: MeasuredBlock[] = []
-      let index = 0
+      const targets: CutTarget[] = []
+      const origin = offsetTopOf(element)
 
-      editor.state.doc.forEach((_node, offset) => {
+      editor.state.doc.forEach((_node, offset, blockIndex) => {
         const dom = editor.view.nodeDOM(offset)
         const node = dom instanceof HTMLElement ? dom : null
-        accumulated += applied.current.get(index) ?? 0
-        index += 1
+        if (node === null) {
+          blocks.push({
+            top: 0,
+            height: 0,
+            breakpoints: [],
+            isPageBreak: false,
+            breakAfter: false,
+            keepWithNext: false,
+          })
+          return
+        }
 
-        blocks.push(
-          node === null
-            ? { top: 0, height: 0, isPageBreak: false, breakAfter: false, keepWithNext: false }
-            : {
-                top: node.offsetTop - accumulated,
-                height: node.offsetHeight,
-                isPageBreak: node.hasAttribute('data-page-break'),
-                breakAfter: node.hasAttribute('data-break-after'),
-                keepWithNext: node.hasAttribute('data-keep-next') || /^H[1-6]$/.test(node.tagName),
-              },
-        )
+        accumulated += shiftOf(node)
+        const top = offsetTopOf(node) - origin - accumulated
+        const before = blocks.at(-1)
+        targets.push({
+          at: top,
+          start: { blockIndex },
+          nodes: [
+            {
+              position: offset,
+              natural: Math.max(top - (before === undefined ? 0 : before.top + before.height), 0),
+            },
+          ],
+        })
+
+        // O TableView redimensionável envolve a tabela num div. Só as linhas
+        // da tabela externa contam; tabelas aninhadas pertencem às células.
+        const table =
+          node instanceof HTMLTableElement ? node : node.querySelector<HTMLTableElement>(':scope > table')
+        const children =
+          table !== null
+            ? Array.from(table.rows)
+            : node.tagName === 'UL' || node.tagName === 'OL'
+              ? Array.from(node.children).filter(
+                  (child): child is HTMLElement => child instanceof HTMLElement && child.tagName === 'LI',
+                )
+              : []
+        let internal = 0
+        const breakpoints: number[] = []
+        children.forEach((child, childIndex) => {
+          const cells = child instanceof HTMLTableRowElement ? Array.from(child.cells) : []
+          const shift = cells.length > 0 ? shiftOf(cells[0]!) : shiftOf(child)
+          // Padding aumenta a linha para baixo; margem já deslocou seu topo.
+          const at = offsetTopOf(child) - origin - accumulated - internal - (cells.length === 0 ? shift : 0)
+          if (childIndex > 0) {
+            breakpoints.push(at)
+            targets.push({
+              at,
+              start: { blockIndex, childIndex },
+              nodes: (cells.length > 0 ? cells : [child]).map((target) => ({
+                position: editor.view.posAtDOM(target, 0) - 1,
+                natural:
+                  parseFloat(
+                    cells.length > 0
+                      ? getComputedStyle(target).paddingTop
+                      : getComputedStyle(target).marginTop,
+                  ) - shiftOf(target),
+              })),
+            })
+          }
+          internal += shift
+        })
+        blocks.push({
+          top,
+          height: node.offsetHeight - internal,
+          breakpoints,
+          isPageBreak: node.hasAttribute('data-page-break'),
+          breakAfter: node.hasAttribute('data-break-after'),
+          keepWithNext: node.hasAttribute('data-keep-next') || /^H[1-6]$/.test(node.tagName),
+        })
+        accumulated += internal
       })
 
       const breaks = paginate(blocks, contentHeightPx)
@@ -141,34 +228,50 @@ export function usePagination(
       const gaps = new Map<number, number>()
       const written = new Map<number, number>()
       let previous = 0
+      const pageStarts: PageStart[] = []
+      const sheetHeights: number[] = []
 
       for (const at of breaks) {
-        const index = blocks.findIndex((block) => block.top >= at)
-        if (index <= 0) continue
-
-        const block = blocks[index]!
-        const before = blocks[index - 1]!
-        const natural = Math.max(block.top - (before.top + before.height), 0)
-
-        const remaining = Math.max(contentHeightPx - (at - previous), 0)
-        const shift = remaining + marginBottomPx + SHEET_GUTTER_PX + marginTopPx
-
-        gaps.set(index, shift)
-        written.set(index, shift + natural)
+        const target =
+          targets.find((target) => target.at === at && target.start.childIndex !== undefined) ??
+          targets.find((target) => target.at >= at)
+        const used = at - previous
+        sheetHeights.push(Math.max(pageHeightPx, used + marginTopPx + marginBottomPx))
+        const shift = Math.max(contentHeightPx - used, 0) + marginBottomPx + SHEET_GUTTER_PX + marginTopPx
+        if (target !== undefined) {
+          pageStarts.push(target.start)
+          for (const node of target.nodes) {
+            gaps.set(node.position, shift)
+            written.set(node.position, shift + node.natural)
+          }
+        } else {
+          // Uma quebra explícita final ainda abre uma folha vazia.
+          pageStarts.push({ blockIndex: blocks.length })
+        }
         previous = at
       }
 
-      if (!sameGaps(applied.current, gaps)) {
-        applied.current = gaps
-        applyPageGaps(editor.view, written)
+      const bottom = blocks.reduce((bottom, block) => Math.max(bottom, block.top + block.height), 0)
+      sheetHeights.push(Math.max(pageHeightPx, bottom - previous + marginTopPx + marginBottomPx))
+      const sheetTops: number[] = []
+      let stackHeightPx = 0
+      for (const height of sheetHeights) {
+        sheetTops.push(stackHeightPx)
+        stackHeightPx += height + SHEET_GUTTER_PX
       }
 
-      const pages = breaks.length + 1
+      if (!sameGaps(applied.current, gaps) || !sameGaps(lastWritten.current, written)) {
+        applied.current = gaps
+        lastWritten.current = written
+        applyPageGaps(editor.view, written, gaps)
+      }
+
       setLayout({
-        pages,
-        stackHeightPx: pages * pageHeightPx + (pages - 1) * SHEET_GUTTER_PX,
-        sheetTops: Array.from({ length: pages }, (_, i) => i * (pageHeightPx + SHEET_GUTTER_PX)),
-        pageStarts: [...gaps.keys()].sort((a, b) => a - b),
+        pages: sheetHeights.length,
+        stackHeightPx: stackHeightPx - SHEET_GUTTER_PX,
+        sheetTops,
+        sheetHeights,
+        pageStarts,
         anchors: anchorsFor(blocks, breaks, marginTopPx),
       })
     }
@@ -205,7 +308,7 @@ function sameGaps(left: ReadonlyMap<number, number>, right: ReadonlyMap<number, 
     // Um pixel de diferença não vale uma nova transação: o arredondamento da
     // medida oscila sozinho, e redesenhar a cada oscilação faria o documento
     // tremer enquanto se digita.
-    if (Math.abs((right.get(index) ?? Number.NaN) - gap) > 1) return false
+    if (!right.has(index) || Math.abs(right.get(index)! - gap) > 0.5) return false
   }
   return true
 }
@@ -231,4 +334,20 @@ function anchorsFor(
   }
 
   return anchors
+}
+
+/** Soma as origens dos offsetParents: uma linha mede a partir da tabela. */
+function offsetTopOf(node: HTMLElement): number {
+  let top = 0
+  let current: HTMLElement | null = node
+  while (current !== null) {
+    top += current.offsetTop
+    current = current.offsetParent instanceof HTMLElement ? current.offsetParent : null
+  }
+  return top
+}
+
+/** A decoração acompanha edições no modelo; a medida lê o empurrão já mapeado. */
+function shiftOf(node: HTMLElement): number {
+  return Number(node.dataset.pageShift ?? 0)
 }

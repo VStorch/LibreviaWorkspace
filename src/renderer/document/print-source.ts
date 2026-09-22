@@ -3,7 +3,7 @@ import { DOMSerializer, Fragment, Node as ProseMirrorNode } from '@tiptap/pm/mod
 import { pxToMm, type PageSetup } from '@services/document/model.js'
 import { bandFloatsOf, floatsOf, type FloatingObject } from '@services/document/floating.js'
 import type { PrintFloat, PrintPage } from '@services/document/print-pages.js'
-import type { PageLayout } from './usePagination.js'
+import type { PageLayout, PageStart } from './usePagination.js'
 
 /**
  * O documento recortado nas folhas que a tela mostra.
@@ -24,28 +24,63 @@ export function splitIntoPages(editor: Editor, layout: PageLayout, page: PageSet
   const blocks: ProseMirrorNode[] = []
   editor.state.doc.forEach((node: ProseMirrorNode) => blocks.push(node))
 
-  const cuts = [0, ...layout.pageStarts, blocks.length]
+  const cuts: PageStart[] = [{ blockIndex: 0 }, ...layout.pageStarts, { blockIndex: blocks.length }]
   const pages: PrintPage[] = []
 
   for (let cut = 0; cut < cuts.length - 1; cut++) {
     const start = cuts[cut]!
     const end = cuts[cut + 1]!
-    if (end <= start && pages.length > 0) continue
 
     const holder = document.createElement('div')
-    holder.appendChild(serializer.serializeFragment(Fragment.fromArray(blocks.slice(start, end))))
+    const fragments = slicePageBlocks(blocks, start, end)
+    holder.appendChild(serializer.serializeFragment(Fragment.fromArray(fragments)))
 
     pages.push({
       number: pages.length + 1,
       html: holder.innerHTML,
       floats: [
-        ...anchoredFloats(blocks, layout, start, end, editor),
+        ...anchoredFloats(
+          blocks,
+          layout,
+          start.blockIndex + (start.childIndex === undefined ? 0 : 1),
+          end.blockIndex + (end.childIndex === undefined ? 0 : 1),
+          editor,
+        ),
         ...bandFloats(page, pages.length + 1, editor),
       ],
     })
   }
 
   return pages
+}
+
+/** Recorta linhas e itens sem duplicar conteúdo nem reiniciar listas numeradas. */
+export function slicePageBlocks(
+  blocks: readonly ProseMirrorNode[],
+  start: PageStart,
+  end: PageStart,
+): ProseMirrorNode[] {
+  const fragments: ProseMirrorNode[] = []
+  for (let index = start.blockIndex; index <= end.blockIndex && index < blocks.length; index++) {
+    const block = blocks[index]!
+    const from = index === start.blockIndex ? (start.childIndex ?? 0) : 0
+    const to = index === end.blockIndex ? (end.childIndex ?? 0) : block.childCount
+    if (index === end.blockIndex && to === 0) break
+    if (from === 0 && to === block.childCount) {
+      fragments.push(block)
+    } else {
+      const children: ProseMirrorNode[] = []
+      block.forEach((child, _offset, childIndex) => {
+        if (childIndex >= from && childIndex < to) children.push(child)
+      })
+      const attrs =
+        block.type.name === 'orderedList'
+          ? { ...block.attrs, start: Number(block.attrs.start ?? 1) + from }
+          : block.attrs
+      fragments.push(block.type.create(attrs, Fragment.fromArray(children), block.marks))
+    }
+  }
+  return fragments
 }
 
 /**

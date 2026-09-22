@@ -395,8 +395,8 @@ export function DocumentEditor(): React.JSX.Element {
           {layout.sheetTops.map((top, index) => (
             <div
               key={top}
-              className="paper"
-              style={{ top: `${top}px`, height: `${mmToPx(height)}px` }}
+              className={`paper${(layout.sheetHeights[index] ?? 0) > mmToPx(height) + 1 ? ' paper--oversized' : ''}`}
+              style={{ top: `${top}px`, height: `${layout.sheetHeights[index] ?? mmToPx(height)}px` }}
               aria-hidden="true"
             >
               <span className="paper__number">{index + 1}</span>

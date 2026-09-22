@@ -673,6 +673,10 @@ button {
   pointer-events: none;
 }
 
+.paper--oversized {
+  outline: 1px dashed #b7791f;
+}
+
 /* O número no canto da folha, como o Writer mostra na régua lateral. */
 .paper__number {
   position: absolute;
