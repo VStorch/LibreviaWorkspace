@@ -9,6 +9,7 @@
 
 import { readFile } from 'node:fs/promises'
 import { z } from 'zod'
+import { SDOC_FORMAT, SDOC_VERSION } from '@services/document/serialize.js'
 import { AppError, ErrorCode, fromFileSystemError } from '@shared/errors.js'
 import type { LossInventory } from '@shared/types.js'
 import type { SidecarClient } from '../sidecar/client.js'
@@ -103,7 +104,10 @@ export async function openDocx(client: SidecarClient, path: string): Promise<Ope
   openedOriginal = { path, bytes }
 
   return {
-    content: JSON.stringify({ format: 'sdoc', version: 1, ...parsed.data.model }),
+    // As constantes, e não o literal: o envelope sai daqui rotulado com a versão
+    // do formato, e um `1` fixo faria todo documento vindo do Word passar por
+    // migrações que ele não precisa quando o formato mudasse.
+    content: JSON.stringify({ format: SDOC_FORMAT, version: SDOC_VERSION, ...parsed.data.model }),
     inventory: parsed.data.inventory,
   }
 }

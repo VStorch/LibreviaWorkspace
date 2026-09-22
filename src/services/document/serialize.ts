@@ -12,10 +12,14 @@ import { DEFAULT_PAGE_SETUP, isValidMargins, type DocumentModel, type DocumentNo
  * pesar, o container pode virar ZIP sem que nada fora deste arquivo mude.
  *
  * O campo `version` existe para que um arquivo gravado hoje continue legível
- * quando o modelo evoluir na Fase 4.
+ * quando o modelo evoluir. Cada versão que muda a forma do documento ganha uma
+ * migração em `migrate`, aplicada na leitura:
+ *
+ * - **2** — a imagem deixou de ser bloco e passou a morar dentro do parágrafo,
+ *   como no Word. Editá-la como bloco partia o parágrafo em volta.
  */
 export const SDOC_FORMAT = 'sdoc'
-export const SDOC_VERSION = 1
+export const SDOC_VERSION = 2
 
 /** O conteúdo é validado só na forma; a estrutura fina é do ProseMirror. */
 const documentNodeSchema: z.ZodType<DocumentNode> = z.looseObject({
@@ -74,7 +78,38 @@ export function parseDocument(text: string): DocumentModel {
   // configuração padrão, porque o texto do usuário vale mais que o layout.
   const page = isValidMargins(parsed.data.page) ? parsed.data.page : DEFAULT_PAGE_SETUP
 
-  return { page, doc: parsed.data.doc }
+  return { page, doc: migrate(parsed.data.doc, parsed.data.version) }
+}
+
+/** Traz um documento gravado por uma versão anterior do formato para a atual. */
+function migrate(doc: DocumentNode, version: number): DocumentNode {
+  return version < 2 ? wrapLooseImages(doc) : doc
+}
+
+/**
+ * Nós que guardam texto e marcas, e não outros blocos: só neles a imagem, hoje
+ * inline, tem lugar.
+ */
+const TEXTBLOCKS = new Set(['paragraph', 'heading', 'codeBlock'])
+
+/**
+ * Embrulha num parágrafo cada imagem que a versão 1 deixou solta num contêiner
+ * de blocos — entre os parágrafos, numa célula, num item de lista.
+ *
+ * Sem isto a imagem abre e aparece, mas num documento que o schema não aceita:
+ * o TipTap monta o conteúdo sem validar, e ela sobrevive por acaso até o
+ * primeiro caminho que valide. Aqui ela ganha o lugar que o schema exige, e
+ * nada do que ela era se perde.
+ */
+function wrapLooseImages(node: DocumentNode): DocumentNode {
+  if (node.content === undefined || TEXTBLOCKS.has(node.type)) return node
+
+  return {
+    ...node,
+    content: node.content.map((child) =>
+      child.type === 'image' ? { type: 'paragraph', content: [child] } : wrapLooseImages(child),
+    ),
+  }
 }
 
 export function isDocumentFile(text: string): boolean {

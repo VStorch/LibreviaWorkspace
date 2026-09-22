@@ -94,6 +94,57 @@ describe('ida e volta do formato interno', () => {
   })
 })
 
+describe('documento gravado pela versão 1 do formato', () => {
+  // Na versão 1 a imagem era bloco: inserida pela barra, ficava solta entre os
+  // parágrafos, ou direto dentro de uma célula. Hoje ela é inline e só existe
+  // dentro de um parágrafo — e o TipTap monta o documento sem validar o schema,
+  // então a imagem antiga abria "funcionando" num documento inválido.
+  const image = { type: 'image', attrs: { src: 'data:image/png;base64,AAAA', width: 40 } }
+  const versionOne = (doc: object): string =>
+    JSON.stringify({ format: 'sdoc', version: 1, page: DEFAULT_PAGE_SETUP, doc })
+
+  it('embrulha num parágrafo a imagem solta entre os blocos', () => {
+    const parsed = parseDocument(
+      versionOne({
+        type: 'doc',
+        content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Antes' }] }, image],
+      }),
+    )
+    expect(parsed.doc.content).toEqual([
+      { type: 'paragraph', content: [{ type: 'text', text: 'Antes' }] },
+      { type: 'paragraph', content: [image] },
+    ])
+  })
+
+  it('embrulha também a imagem solta dentro de uma célula', () => {
+    const parsed = parseDocument(
+      versionOne({
+        type: 'doc',
+        content: [
+          {
+            type: 'table',
+            content: [{ type: 'tableRow', content: [{ type: 'tableCell', content: [image] }] }],
+          },
+        ],
+      }),
+    )
+    expect(parsed.doc.content?.[0]?.content?.[0]?.content?.[0]?.content).toEqual([
+      { type: 'paragraph', content: [image] },
+    ])
+  })
+
+  it('não mexe na imagem que já está num parágrafo', () => {
+    const doc = { type: 'doc', content: [{ type: 'paragraph', content: [image] }] }
+    expect(parseDocument(versionOne(doc)).doc).toEqual(doc)
+  })
+
+  it('não migra o que já foi gravado na versão atual', () => {
+    const doc = { type: 'doc', content: [image] }
+    const current = JSON.stringify({ format: 'sdoc', version: SDOC_VERSION, page: DEFAULT_PAGE_SETUP, doc })
+    expect(parseDocument(current).doc).toEqual(doc)
+  })
+})
+
 describe('leitura de arquivo problemático', () => {
   it('recusa JSON malformado com mensagem compreensível', () => {
     expect(() => parseDocument('{ isto não é json')).toThrow(AppError)
