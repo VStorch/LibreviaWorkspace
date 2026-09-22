@@ -16,6 +16,8 @@ import type { LossInventory } from '@shared/types.js'
 import { normalizePath } from '../fs/paths.js'
 import type { SidecarClient } from '../sidecar/client.js'
 import { SidecarMethod } from '../sidecar/protocol.js'
+import { t } from '../i18n.js'
+import { editorPreferences } from '../preferences.js'
 
 /**
  * Os rótulos do inventário, já cortados nos limites do contrato de IPC.
@@ -99,7 +101,7 @@ export async function openDocx(client: SidecarClient, path: string): Promise<Ope
   try {
     bytes = await readFile(path)
   } catch (cause) {
-    throw fromFileSystemError(cause, 'leitura')
+    throw fromFileSystemError(cause, 'leitura', editorPreferences().language)
   }
 
   const reply = await client.request(SidecarMethod.DocxOpen, {}, new Uint8Array(bytes))
@@ -107,8 +109,8 @@ export async function openDocx(client: SidecarClient, path: string): Promise<Ope
   if (!parsed.success) {
     throw new AppError(
       ErrorCode.SidecarFailed,
-      'Não foi possível ler este documento do Word. O arquivo pode estar danificado.',
-      'docx.open fora do contrato',
+      t('errors.docx.cannotRead'),
+      t('errors.docx.openContract'),
     )
   }
 
@@ -176,8 +178,8 @@ export async function saveDocx(
   if (!parsed.success) {
     throw new AppError(
       ErrorCode.SidecarFailed,
-      'Não foi possível gravar o documento do Word. O arquivo original não foi alterado.',
-      'docx.save fora do contrato',
+      t('errors.docx.cannotSave'),
+      t('errors.docx.saveContract'),
     )
   }
 
@@ -315,7 +317,7 @@ function unwrapSdoc(content: string): { page: unknown; doc: unknown } {
   try {
     parsed = JSON.parse(content)
   } catch {
-    throw new AppError(ErrorCode.Internal, 'O documento em edição está em estado inconsistente.')
+    throw new AppError(ErrorCode.Internal, t('errors.docx.inconsistentState'))
   }
 
   // Os estilos são conferidos e **não** seguem para o sidecar: nesta entrega o
@@ -328,7 +330,7 @@ function unwrapSdoc(content: string): { page: unknown; doc: unknown } {
     .object({ page: z.unknown(), doc: z.unknown(), styles: styleSheetSchema.optional() })
     .safeParse(parsed)
   if (!envelope.success) {
-    throw new AppError(ErrorCode.Internal, 'O documento em edição está em estado inconsistente.')
+    throw new AppError(ErrorCode.Internal, t('errors.docx.inconsistentState'))
   }
 
   return { page: envelope.data.page, doc: envelope.data.doc }

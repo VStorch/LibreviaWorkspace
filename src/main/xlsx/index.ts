@@ -27,6 +27,8 @@ import {
 } from '@services/spreadsheet/serialize.js'
 import type { SidecarClient } from '../sidecar/client.js'
 import { SidecarMethod } from '../sidecar/protocol.js'
+import { t } from '../i18n.js'
+import { editorPreferences } from '../preferences.js'
 
 const inventorySchema = z.object({
   invisible: z.array(z.string()).default([]),
@@ -75,7 +77,7 @@ export async function openXlsx(client: SidecarClient, path: string): Promise<Ope
   try {
     bytes = await readFile(path)
   } catch (cause) {
-    throw fromFileSystemError(cause, 'leitura')
+    throw fromFileSystemError(cause, 'leitura', editorPreferences().language)
   }
 
   // Cronometrado porque "demorou para abrir" é a reclamação mais difícil de
@@ -89,8 +91,8 @@ export async function openXlsx(client: SidecarClient, path: string): Promise<Ope
   if (!parsed.success) {
     throw new AppError(
       ErrorCode.SidecarFailed,
-      'Não foi possível ler esta planilha do Excel. O arquivo pode estar danificado.',
-      'xlsx.open fora do contrato',
+      t('errors.xlsx.cannotRead'),
+      t('errors.xlsx.openContract'),
     )
   }
 
@@ -99,7 +101,7 @@ export async function openXlsx(client: SidecarClient, path: string): Promise<Ope
 
   const cells = model.sheets.reduce((total, sheet) => total + Object.keys(sheet.cells).length, 0)
   console.info(
-    `[xlsx] abertas ${cells} células — serviço ${readAt - startedAt} ms, conversão ${Date.now() - readAt} ms`,
+    `[xlsx] abertas ${cells} celulas — servico ${readAt - startedAt} ms, conversao ${Date.now() - readAt} ms`,
   )
 
   return {
@@ -135,8 +137,8 @@ export async function saveXlsx(client: SidecarClient, ssheetContent: string): Pr
   if (!parsed.success) {
     throw new AppError(
       ErrorCode.SidecarFailed,
-      'Não foi possível gravar a planilha do Excel. O arquivo original não foi alterado.',
-      'xlsx.save fora do contrato',
+      t('errors.xlsx.cannotSave'),
+      t('errors.xlsx.saveContract'),
     )
   }
 
@@ -155,8 +157,8 @@ function toModel(workbook: unknown): WorkbookModel {
   } catch {
     throw new AppError(
       ErrorCode.SidecarFailed,
-      'Não foi possível ler esta planilha do Excel. O arquivo pode estar danificado.',
-      'xlsx.open devolveu um modelo fora do esquema',
+      t('errors.xlsx.cannotRead'),
+      t('errors.xlsx.invalidSchema'),
     )
   }
 }
@@ -167,7 +169,7 @@ function readSsheet(content: string): WorkbookModel {
   } catch {
     throw new AppError(
       ErrorCode.UnsupportedFormat,
-      'Só é possível salvar em .xlsx uma planilha. Para um documento de texto, use .docx ou .sdoc.',
+      t('errors.xlsx.onlySpreadsheets'),
     )
   }
 }
@@ -210,7 +212,7 @@ function withUncalculated(inventory: LossInventory, model: WorkbookModel): LossI
   const names = [...unknown].sort((a, b) => a.localeCompare(b, 'pt-BR')).join(', ')
   return {
     ...inventory,
-    invisible: [...inventory.invisible, `funções que este aplicativo não calcula: ${names}`],
+    invisible: [...inventory.invisible, t('errors.xlsx.unknownFunctions', { names })],
   }
 }
 

@@ -6,12 +6,13 @@ import { showPdfSaveDialog } from '../dialogs.js'
 import { writeFileAtomic } from '../fs/atomic-write.js'
 import { authorizePath } from '../fs/paths.js'
 import { openPdfPreview, printDocument, renderPdf } from '../print/pdf.js'
+import { t } from '../i18n.js'
 import { handle } from './registry.js'
 
 function windowOf(event: IpcMainInvokeEvent): BrowserWindow {
   const window = BrowserWindow.fromWebContents(event.sender)
   if (window === null) {
-    throw new AppError(ErrorCode.Internal, 'A janela do aplicativo não está disponível.')
+    throw new AppError(ErrorCode.Internal, t('errors.ipc.windowNotAvailable'))
   }
   return window
 }

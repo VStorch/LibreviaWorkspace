@@ -7,6 +7,7 @@ import type { MenuCommandPayload } from '@shared/api.js'
 import { DiscardChoice, MenuCommand } from '@shared/types.js'
 import { confirmDiscardChanges } from './dialogs.js'
 import { installContextMenu } from './context-menu.js'
+import { t } from './i18n.js'
 import { SECURE_WEB_PREFERENCES } from './security-policy.js'
 import { applyNavigationPolicy } from './security.js'
 
@@ -22,7 +23,7 @@ const states = new WeakMap<BrowserWindow, WindowState>()
 function stateOf(window: BrowserWindow): WindowState {
   const existing = states.get(window)
   if (existing !== undefined) return existing
-  const created: WindowState = { isDirty: false, fileLabel: 'Sem título', bypassGuard: false }
+  const created: WindowState = { isDirty: false, fileLabel: t('shell.file.untitled'), bypassGuard: false }
   states.set(window, created)
   return created
 }

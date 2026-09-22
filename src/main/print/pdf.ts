@@ -5,6 +5,7 @@ import { BrowserWindow, app, type WebContents } from 'electron'
 import { AppError, ErrorCode } from '@shared/errors.js'
 import type { PageSetup } from '@services/document/model.js'
 import { buildNativePrintOptions, buildPrintOptions } from '@services/pdf/page-setup.js'
+import { t } from '../i18n.js'
 
 /**
  * Renderização para impressão.
@@ -37,7 +38,7 @@ async function withRenderWindow<T>(html: string, run: (contents: WebContents) =>
     const loaded = new Promise<void>((resolve, reject) => {
       window.webContents.once('did-finish-load', () => resolve())
       window.webContents.once('did-fail-load', (_event, _code, description) =>
-        reject(new AppError(ErrorCode.Internal, `Não foi possível preparar o documento: ${description}`)),
+        reject(new AppError(ErrorCode.Internal, t('errors.print.prepareFailed', { description }))),
       )
     })
 
@@ -75,7 +76,7 @@ export async function printDocument(html: string, page: PageSetup): Promise<bool
             resolve(false)
             return
           }
-          reject(new AppError(ErrorCode.Internal, `Não foi possível imprimir: ${reason}`))
+          reject(new AppError(ErrorCode.Internal, t('errors.print.printFailed', { reason })))
         })
       }),
   )
@@ -96,7 +97,7 @@ export async function openPdfPreview(parent: BrowserWindow, pdf: Buffer, title: 
     parent,
     width: 900,
     height: 1000,
-    title: `Visualizar impressão — ${title}`,
+    title: t('errors.print.previewTitle', { title }),
     autoHideMenuBar: true,
     webPreferences: {
       // O visualizador de PDF do Chromium precisa de plugins habilitados.

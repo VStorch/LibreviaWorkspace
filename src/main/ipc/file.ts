@@ -18,12 +18,13 @@ import { assertPathAuthorized, assertReadableFile, authorizePath } from '../fs/p
 import { clearRecentFiles, isRemembered, listRecentFiles, rememberRecentFile } from '../fs/recent.js'
 import { readTextFile } from '../fs/read-text.js'
 import { refreshMenu } from '../menu.js'
+import { t } from '../i18n.js'
 import { handle } from './registry.js'
 
 function windowOf(event: IpcMainInvokeEvent): BrowserWindow {
   const window = BrowserWindow.fromWebContents(event.sender)
   if (window === null) {
-    throw new AppError(ErrorCode.Internal, 'A janela do aplicativo não está disponível.')
+    throw new AppError(ErrorCode.Internal, t('errors.ipc.windowNotAvailable'))
   }
   return window
 }
@@ -73,7 +74,7 @@ export function registerFileHandlers(): void {
     if (!isRemembered(payload.path)) {
       throw new AppError(
         ErrorCode.PathNotAuthorized,
-        'Este arquivo não está mais na lista de recentes. Abra-o novamente pelo menu Arquivo.',
+        t('errors.ipc.notInRecents'),
       )
     }
     return { file: await loadFile(payload.path) }

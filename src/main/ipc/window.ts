@@ -6,12 +6,13 @@ import { confirmDiscardChanges, confirmPlainTextSave, showImagePickerDialog } fr
 import { readImageAsDataUrl } from '../fs/read-image.js'
 import { listInstalledFontFamilies } from '../system-fonts.js'
 import { closeWithoutGuard, updateWindowState } from '../window.js'
+import { t } from '../i18n.js'
 import { handle } from './registry.js'
 
 function windowOf(event: IpcMainInvokeEvent): BrowserWindow {
   const window = BrowserWindow.fromWebContents(event.sender)
   if (window === null) {
-    throw new AppError(ErrorCode.Internal, 'A janela do aplicativo não está disponível.')
+    throw new AppError(ErrorCode.Internal, t('errors.ipc.windowNotAvailable'))
   }
   return window
 }

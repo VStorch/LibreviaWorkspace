@@ -46,6 +46,9 @@ const EXEMPT = new Map([
   // renderiza. Confirmado por busca - nada le `.does`. Se um dia alguem
   // mostrar a tabela de atalhos na tela, tire daqui antes.
   ['src/shared/shortcuts.ts', 'o campo does e documentacao, nao vai para a tela'],
+  ['src/main/context-menu.ts', 'log tecnico de IPC no terminal do main, nao vai para a tela'],
+  ['src/main/sidecar/index.ts', 'log tecnico de subida do sidecar no terminal do main, nao vai para a tela'],
+  ['src/main/spellcheck.ts', 'logs tecnicos do corretor no terminal do main, nao vao para a tela'],
 ])
 
 /** Palavras que denunciam uma frase portuguesa mesmo sem acento. */
