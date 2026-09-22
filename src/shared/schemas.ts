@@ -1,5 +1,7 @@
 import { z } from 'zod'
 import type { DocumentNode } from '@services/document/model.js'
+import { Language, LANGUAGES } from './i18n/language.js'
+import { Theme } from './types.js'
 
 /**
  * Schemas usados em mais de um lugar.
@@ -175,6 +177,13 @@ export const editorPreferencesSchema = z.object({
   spellcheck: z.boolean().default(true),
   invisibleCharacters: z.boolean().default(false),
   typography: z.boolean().default(true),
+  // O `default` aqui é só a rede de segurança do parse. Na primeira execução
+  // quem escolhe é o sistema operacional, e isso acontece em
+  // `src/main/preferences.ts`, que sabe distinguir "chave ausente" de "chave
+  // gravada com este valor" — distinção que um `default` apaga.
+  language: z.enum(LANGUAGES).default(Language.Portuguese),
+  theme: z.enum([Theme.System, Theme.Light, Theme.Dark]).default(Theme.System),
+  readingMode: z.boolean().default(false),
 })
 
 /**
@@ -190,6 +199,9 @@ export const editorPreferencesPatchSchema = z.object({
   spellcheck: z.boolean().optional(),
   invisibleCharacters: z.boolean().optional(),
   typography: z.boolean().optional(),
+  language: z.enum(LANGUAGES).optional(),
+  theme: z.enum([Theme.System, Theme.Light, Theme.Dark]).optional(),
+  readingMode: z.boolean().optional(),
 })
 
 /**

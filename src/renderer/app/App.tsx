@@ -12,6 +12,7 @@ import { HomePage } from '../pages/HomePage.js'
 import { SheetTabs } from '../spreadsheet/SheetTabs.js'
 import { SpreadsheetEditor } from '../spreadsheet/SpreadsheetEditor.js'
 import { watchPreferences } from '../state/preferences.js'
+import { useTheme } from '../state/theme.js'
 import { useWorkspace } from '../state/workspace.js'
 
 /**
@@ -95,6 +96,10 @@ export function App(): React.JSX.Element {
   // As preferências de edição moram no main, que é quem liga o corretor na sessão
   // do Chromium. Aqui só se mantém a cópia que a tela desenha.
   useEffect(() => watchPreferences(), [])
+
+  // Escreve `data-theme` na raiz e o mantém em dia — inclusive quando quem
+  // mudou foi o sistema operacional, e não o menu.
+  useTheme()
 
   useEffect(() => {
     // Por relógio, e não por tecla: o autosave serializa o documento inteiro, e

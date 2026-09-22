@@ -25,6 +25,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest run",
+    "i18n:check": "node scripts/untranslated.mjs",
     "test:watch": "vitest",
     "sidecar:build": "node scripts/sidecar.mjs build",
     "sidecar:build:all": "node scripts/sidecar.mjs build --all",

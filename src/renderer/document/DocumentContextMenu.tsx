@@ -3,6 +3,7 @@ import type { IpcResult } from '@shared/ipc.js'
 import { TABLE_ACTIONS, type TableAction } from '@shared/table-actions.js'
 import { DictionaryScope, EditCommand, type ContextMenuTarget } from '@shared/types.js'
 import { ContextMenu, ContextMenuItem, ContextMenuSeparator } from '../components/ContextMenu.js'
+import { useT } from '../i18n.js'
 import { useWorkspace } from '../state/workspace.js'
 
 /**
@@ -36,6 +37,7 @@ export function DocumentContextMenu({
 }): React.JSX.Element {
   const showError = useWorkspace((state) => state.showError)
   const readOnly = useWorkspace((state) => state.readOnly)
+  const t = useT()
 
   /** Toda ação fecha o menu — inclusive quando falha, para o erro ficar visível. */
   const act = (run: () => Promise<IpcResult<unknown>>) => () => {
@@ -139,7 +141,7 @@ export function DocumentContextMenu({
                   onTableAction(action.id)
                 }}
               >
-                {action.label}
+                {t(action.labelKey)}
               </ContextMenuItem>
             </Fragment>
           ))}
