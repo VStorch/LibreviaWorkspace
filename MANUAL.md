@@ -59,7 +59,7 @@ Execute o instalador. Ele instala **para o seu usuário**, sem pedir senha de ad
 
 | Extensão | O que é |
 | --- | --- |
-| `.docx` | documento do Word — abre e grava |
+| `.docx` | documento do Word — abre e grava; documento novo também pode ser salvo nele |
 | `.xlsx` | planilha do Excel — abre e grava |
 | `.sdoc` | documento do Librevia — guarda tudo, sem perda nenhuma |
 | `.ssheet` | planilha do Librevia — idem |
@@ -414,6 +414,14 @@ que você mexeu e devolve o resto exatamente como estava.
 | O mesmo, com um parágrafo editado | **um** bloco reescrito |
 | Planilha do LibreOffice, aberta e salva sem editar | **zero** células escritas |
 
+**Documento novo em `.docx`.** Em "Salvar como", escolha "Documento do Word". Como não há
+arquivo de origem, o aplicativo cria um pacote mínimo — estilos, página e propriedades, sem
+o seu nome dentro — com a mesma aparência que a tela mostra, e grava o documento sobre ele.
+Cada gravação parte do mesmo pacote mínimo, e não do arquivo que ela mesma gravou: assim
+salvar dez vezes dá o mesmo arquivo que salvar uma, sem imagem repetida nem definição de
+lista sobrando. O cabeçalho e o rodapé de "Configurar página" vão junto, com o número da
+página.
+
 Na prática: fonte, alinhamento, bordas, gráficos, tabelas dinâmicas, comentários e filtros
 continuam no arquivo depois de você corrigir uma vírgula.
 
@@ -446,7 +454,6 @@ arquivo continua sendo só desenho — o logotipo, a moldura da tabela e o núme
 
 | Limite | O que fazer |
 | --- | --- |
-| **Não cria `.docx` do zero** | documento novo nasce `.sdoc`. Para virar `.docx` seria preciso gerar o pacote inteiro, e aí a promessa acima deixaria de valer. Planilha nova **pode** ser salva direto em `.xlsx` |
 | **Mesclagem de células** | ainda não existe na planilha |
 | **Filtros de planilha** | são preservados no arquivo, mas não há tela para criar ou alterar |
 | **Arquivos acima de 20 MB** | não abrem |

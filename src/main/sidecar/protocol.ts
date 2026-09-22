@@ -140,13 +140,16 @@ function concat(left: Uint8Array, right: Uint8Array): Uint8Array {
  * `health` prova que o processo sobe; `diagnostics.echo` prova que o binário
  * atravessa inteiro. Os dois de DOCX são sem estado: `docx.save` recebe os
  * bytes originais no lugar de um identificador de sessão, para que a morte do
- * sidecar não custe a gravação cirúrgica.
+ * sidecar não custe a gravação cirúrgica. `docx.create` recebe a configuração
+ * de página e devolve o pacote mínimo que faz o papel de original no documento
+ * que nasceu no editor.
  */
 export const SidecarMethod = {
   Health: 'health',
   Echo: 'diagnostics.echo',
   DocxOpen: 'docx.open',
   DocxSave: 'docx.save',
+  DocxCreate: 'docx.create',
   XlsxOpen: 'xlsx.open',
   XlsxSave: 'xlsx.save',
 } as const

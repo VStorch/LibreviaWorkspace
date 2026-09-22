@@ -59,6 +59,7 @@ public static class DocxWriter
             index,
             inventory,
             new NumberingFactory(part, touched),
+            new HeadingStyles(part, touched),
             out var preserved,
             out var rewritten);
 
@@ -74,6 +75,11 @@ public static class DocxWriter
         // autor. Ver PageReader.Matches.
         var current = body.Elements<SectionProperties>().Last();
         if (!PageReader.Matches(current, model.Page)) ApplyPageSetup(current, model.Page);
+
+        // O cabeçalho e o rodapé de texto simples do documento novo — ver
+        // PlainBandWriter. No documento que veio de fora a faixa manda, e isto
+        // não faz nada.
+        PlainBandWriter.Apply(part, current, model.Page, inventory, touched);
 
         // O texto digitado no cabeçalho e no rodapé, peça por peça. Só as
         // partes que de fato mudaram entram na lista de graváveis: o resto
@@ -168,10 +174,11 @@ public static class DocxWriter
         Dictionary<string, Block> index,
         Inventory inventory,
         NumberingFactory numbering,
+        HeadingStyles headings,
         out int preserved,
         out int rewritten)
     {
-        var writer = new ParagraphWriter(part, inventory, UsableWidthPx(model.Page));
+        var writer = new ParagraphWriter(part, inventory, UsableWidthPx(model.Page), headings);
         var used = new HashSet<string>(StringComparer.Ordinal);
         var elements = new List<OpenXmlElement>();
 
@@ -391,7 +398,7 @@ public static class DocxWriter
         }
     }
 
-    private static void ApplyPageSetup(SectionProperties section, PageSetupDto page)
+    internal static void ApplyPageSetup(SectionProperties section, PageSetupDto page)
     {
         var landscape = string.Equals(page.Orientation, "landscape", StringComparison.Ordinal);
         var (shortSide, longSide) = PageReader.TwipsOfPaper(page.Size);

@@ -56,6 +56,20 @@ public sealed class StyleResolver
             ?.StyleId?.Value;
     }
 
+    /// <summary>
+    /// O nível de título do estilo pelo nome dele, quando o id não o diz.
+    /// </summary>
+    /// <remarks>
+    /// O id é traduzido e o nome não: `Überschrift1` continua se chamando
+    /// `heading 1`. É o mesmo critério com que o escritor escolhe o estilo
+    /// (<see cref="HeadingStyles"/>) — se só um lado o usasse, o título gravado
+    /// voltaria parágrafo ao reabrir.
+    /// </remarks>
+    public int? HeadingLevelByName(string? styleId) =>
+        styleId is not null && _byId.TryGetValue(styleId, out var style)
+            ? HeadingStyles.LevelOfName(style.StyleName?.Val?.Value)
+            : null;
+
     /// <summary>Propriedades efetivas do parágrafo e dos seus runs.</summary>
     public (ParagraphProperties Paragraph, RunProperties Run) Resolve(ParagraphProperties? direct)
     {

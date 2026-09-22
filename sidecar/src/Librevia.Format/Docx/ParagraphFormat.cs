@@ -21,7 +21,7 @@ namespace Librevia.Format.Docx;
 /// não conhece — `w:pBdr`, `w:framePr`, `w:tabs`, `w:sectPr`, a marca de
 /// parágrafo inteira — atravessa a edição intacto porque ninguém o reescreve.
 /// </remarks>
-internal sealed class ParagraphFormat(Inventory inventory)
+internal sealed class ParagraphFormat(Inventory inventory, HeadingStyles headings)
 {
     private const int TwipsPerIndentLevel = 720;
 
@@ -78,24 +78,34 @@ internal sealed class ParagraphFormat(Inventory inventory)
     ///
     /// O nível só manda quando o estilo que o modelo traz não é de título: é o
     /// caso do parágrafo que a pessoa transformou em título aqui dentro, e aí não
-    /// há estilo original a respeitar.
+    /// há estilo original a respeitar. Mesmo aí o id não é inventado: é o que o
+    /// documento dá ao estilo de nome `heading N` (ver <see cref="HeadingStyles"/>).
+    ///
+    /// E o id do modelo só vale quando **este** pacote o define. O `.sdoc` que
+    /// veio de um `.docx` em português traz `Ttulo1`; salvo depois como `.docx`,
+    /// ele aponta um estilo que o pacote mínimo não tem, e o título sai com a cara
+    /// do Normal no Word — perda que não entrava em inventário nenhum.
     /// </remarks>
-    private static void ApplyStyle(ParagraphProperties properties, Node node)
+    private void ApplyStyle(ParagraphProperties properties, Node node)
     {
         var declared = Attr.String(node, "styleId");
         var level = node.Type == "heading" ? Attr.Int(node, "level") : null;
 
         if (level is not null)
         {
-            var keep = declared is not null && BodyReader.HeadingLevelOfStyle(declared) == level;
-            properties.ParagraphStyleId = new ParagraphStyleId { Val = keep ? declared : "Heading" + level };
+            var keep = declared is not null &&
+                       headings.Defines(declared) &&
+                       (BodyReader.HeadingLevelOfStyle(declared) == level || headings.LevelByName(declared) == level);
+            properties.ParagraphStyleId = new ParagraphStyleId { Val = keep ? declared : headings.IdFor(level.Value) };
             return;
         }
 
         // Título que deixou de ser título não pode continuar apontando o estilo
         // de título: na tela virou parágrafo, e no arquivo continuaria barra
-        // vermelha.
-        if (declared is null || BodyReader.HeadingLevelOfStyle(declared) is not null)
+        // vermelha. Pelo id **e** pelo nome, que é como o leitor o reconhece.
+        if (declared is null ||
+            BodyReader.HeadingLevelOfStyle(declared) is not null ||
+            headings.LevelByName(declared) is not null)
         {
             if (declared is not null) properties.ParagraphStyleId = null;
             return;

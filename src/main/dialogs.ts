@@ -1,5 +1,5 @@
 import { dialog, type BrowserWindow } from 'electron'
-import { DiscardChoice, PlainTextChoice } from '@shared/types.js'
+import { DiscardChoice, DocumentKind, PlainTextChoice } from '@shared/types.js'
 import {
   DOCUMENT_EXTENSION,
   EXCEL_EXTENSION,
@@ -21,6 +21,27 @@ const FILTERS = [
   { name: 'Todos os arquivos', extensions: ['*'] },
 ]
 
+/**
+ * Os formatos em que cada tipo pode ser salvo, o nativo primeiro.
+ *
+ * Com a lista de abrir, o diálogo de salvar oferecia planilha do Excel a um
+ * documento — e o `.docx` de um documento novo era recusado depois da escolha.
+ * Agora o documento novo também grava em `.docx`, e a lista oferece só o que
+ * de fato funciona para o que está aberto. O `.txt` continua na lista, com o
+ * aviso de formatação perdida que vem antes da gravação.
+ */
+const SAVE_FILTERS: Record<DocumentKind, { name: string; extensions: string[] }[]> = {
+  [DocumentKind.Document]: [
+    { name: 'Documento', extensions: [bare(DOCUMENT_EXTENSION)] },
+    { name: 'Documento do Word', extensions: [bare(WORD_EXTENSION)] },
+    { name: 'Texto simples', extensions: [bare(PLAIN_TEXT_EXTENSION)] },
+  ],
+  [DocumentKind.Spreadsheet]: [
+    { name: 'Planilha', extensions: [bare(SPREADSHEET_EXTENSION)] },
+    { name: 'Planilha do Excel', extensions: [bare(EXCEL_EXTENSION)] },
+  ],
+}
+
 const IMAGE_FILTERS = [
   { name: 'Imagens', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp'] },
   { name: 'Todos os arquivos', extensions: ['*'] },
@@ -39,11 +60,12 @@ export async function showOpenFileDialog(window: BrowserWindow): Promise<string 
 export async function showSaveFileDialog(
   window: BrowserWindow,
   suggestedName: string,
+  kind: DocumentKind,
 ): Promise<string | null> {
   const result = await dialog.showSaveDialog(window, {
     title: 'Salvar como',
     defaultPath: suggestedName,
-    filters: FILTERS,
+    filters: SAVE_FILTERS[kind],
     // O diálogo do sistema já avisa sobre sobrescrever; não duplicamos o aviso.
     properties: ['createDirectory', 'showOverwriteConfirmation'],
   })

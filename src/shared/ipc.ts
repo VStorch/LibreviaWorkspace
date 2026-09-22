@@ -106,6 +106,10 @@ export const ipcContracts = {
     request: z.object({
       path: z.string().min(1),
       content: z.string().max(MAX_TEXT_LENGTH),
+      // O caminho de que o documento em edição foi carregado, `null` no
+      // documento novo. O main só o compara com o `.docx` que ele abriu, para
+      // decidir se grava sobre aquele pacote ou sobre um novo: nada é lido dele.
+      origin: z.string().min(1).nullable(),
     }),
     response: z.object({
       path: z.string(),

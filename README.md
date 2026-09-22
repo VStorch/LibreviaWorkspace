@@ -67,7 +67,7 @@ no código.
 | --- | --- |
 | `.sdoc` | formato interno do documento: completo, com formatação — sem perda |
 | `.ssheet` | formato interno da planilha: valores, fórmulas e formatação — sem perda |
-| `.docx` | Word; abre e grava preservando o que não foi editado |
+| `.docx` | Word; abre e grava preservando o que não foi editado; documento novo também pode ser salvo em DOCX, sobre um pacote mínimo gerado pelo sidecar |
 | `.xlsx` | Excel; abre e grava preservando o que não foi editado |
 | `.txt` | apenas texto; salvar nele descarta formatação, e o aplicativo avisa antes |
 | `.pdf` | saída apenas (exportação e impressão) |
@@ -527,7 +527,7 @@ do ClosedXML: quem só olha a lista de proibidas não vê uma troca dessas chega
 
 | Limite | Situação |
 | --- | --- |
-| **Criar `.docx` do zero** | não faz. Documento novo nasce `.sdoc`; gerar o pacote inteiro faria a promessa da edição cirúrgica deixar de valer. Planilha nova **pode** ser salva direto em `.xlsx` |
+| **Estilos do `.docx` novo** | o pacote mínimo reproduz a aparência atual da tela (Times New Roman 12 pt, entrelinha 1,5); os estilos ainda não são dado do documento, e mudar o padrão fica para a próxima entrega |
 | **Mesclagem de células** | fora desta fase — toda biblioteca de grade madura a cobra |
 | **Filtros de planilha** | preservados no arquivo, mas sem tela para criar ou alterar |
 | **Fórmulas** | sem matrizes dinâmicas, referências de coluna inteira (`A:A`) ou intervalos nomeados |

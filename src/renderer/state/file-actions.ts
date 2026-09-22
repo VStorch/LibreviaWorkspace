@@ -164,7 +164,9 @@ export function createFileActions(set: SetWorkspace, get: GetWorkspace, ctx: Wor
       if (answer === 'cancel') return false
       if (answer === 'chooseAnother') return get().saveAs()
 
-      const data = await ctx.call(() => window.api.file.save({ path, content: encodeFor(path) }))
+      const data = await ctx.call(() =>
+        window.api.file.save({ path, content: encodeFor(path), origin: path }),
+      )
       if (data === null) return false
 
       await afterSave({ ...file, name: data.name }, data.inventory)
@@ -188,7 +190,7 @@ export function createFileActions(set: SetWorkspace, get: GetWorkspace, ctx: Wor
       if (answer === 'chooseAnother') return get().saveAs()
 
       const data = await ctx.call(() =>
-        window.api.file.save({ path: chosen.path, content: encodeFor(chosen.path) }),
+        window.api.file.save({ path: chosen.path, content: encodeFor(chosen.path), origin: file.path }),
       )
       if (data === null) return false
 

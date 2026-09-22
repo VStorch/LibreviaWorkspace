@@ -248,7 +248,7 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory)
         // e é exato no caso comum, que é a quebra encerrando o parágrafo.
         var breakAfter = content.RemoveAll(child => child.Type == "pageBreak") > 0;
 
-        var node = HeadingLevelOf(direct) is { } level
+        var node = (HeadingLevelOf(direct) ?? _styles.HeadingLevelByName(direct?.ParagraphStyleId?.Val?.Value)) is { } level
             ? Node.Of("heading").With("level", level)
             : Node.Of("paragraph");
 

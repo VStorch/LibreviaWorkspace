@@ -82,14 +82,21 @@ describe('validação de file:save', () => {
   const schema = ipcContracts[IpcChannel.FileSave].request
 
   it('aceita uma gravação bem formada', () => {
-    expect(schema.safeParse({ path: '/home/ana/ata.txt', content: 'texto' }).success).toBe(true)
+    expect(schema.safeParse({ path: '/home/ana/ata.txt', content: 'texto', origin: null }).success).toBe(true)
+  })
+
+  it('aceita a origem do documento aberto', () => {
+    const payload = { path: '/home/ana/ata.docx', content: '{}', origin: '/home/ana/ata.sdoc' }
+    expect(schema.safeParse(payload).success).toBe(true)
   })
 
   it.each([
     ['sem caminho', { content: 'texto' }],
     ['caminho vazio', { path: '', content: 'texto' }],
     ['sem conteúdo', { path: '/a/b.txt' }],
-    ['caminho não textual', { path: 42, content: 'texto' }],
+    ['caminho não textual', { path: 42, content: 'texto', origin: null }],
+    ['sem origem', { path: '/a/b.docx', content: 'texto' }],
+    ['origem vazia', { path: '/a/b.docx', content: 'texto', origin: '' }],
     ['nulo', null],
   ])('recusa %s', (_label, payload) => {
     expect(schema.safeParse(payload).success).toBe(false)
@@ -101,8 +108,8 @@ describe('validação de file:save', () => {
   })
 
   it('descarta campos não previstos no contrato', () => {
-    const parsed = schema.parse({ path: '/a/b.txt', content: 'oi', extra: 'ignorar' })
-    expect(parsed).toEqual({ path: '/a/b.txt', content: 'oi' })
+    const parsed = schema.parse({ path: '/a/b.txt', content: 'oi', origin: null, extra: 'ignorar' })
+    expect(parsed).toEqual({ path: '/a/b.txt', content: 'oi', origin: null })
   })
 })
 

@@ -69,6 +69,23 @@ describe.skipIf(!published)('sidecar .NET publicado', () => {
     }
   })
 
+  it('cria o pacote mínimo de um documento novo', async () => {
+    // O método novo do protocolo, com o executável publicado: a configuração de
+    // página vai no JSON, e o pacote volta no binário — pronto para abrir.
+    const page = { size: 'Letter', orientation: 'landscape', margins: { top: 20, right: 20, bottom: 20, left: 20 } }
+
+    const created = await client.request(SidecarMethod.DocxCreate, page)
+    expect([...created.binary.subarray(0, 2)]).toEqual([0x50, 0x4b])
+
+    const opened = await client.request(SidecarMethod.DocxOpen, {}, created.binary)
+    expect(opened.result).toMatchObject({ model: { page: { size: 'Letter', orientation: 'landscape' } } })
+
+    // E serve de original para a gravação de sempre.
+    const model = { page, doc: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Olá.' }] }] } }
+    const saved = await client.request(SidecarMethod.DocxSave, model, created.binary)
+    expect(saved.result).toMatchObject({ rewrittenBlocks: 1 })
+  })
+
   it('recusa método desconhecido com erro, sem morrer', async () => {
     const unknown = client.request('metodo.inexistente' as SidecarMethod, {})
     await expect(unknown).rejects.toThrow(/não conhece/i)

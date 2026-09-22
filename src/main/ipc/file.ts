@@ -10,7 +10,7 @@ import {
   kindFromPath,
 } from '@services/file/formats.js'
 import { showOpenFileDialog, showSaveFileDialog } from '../dialogs.js'
-import { forgetOpenedDocx, openDocx, saveDocx } from '../docx/index.js'
+import { followDocxOriginal, forgetOpenedDocx, openDocx, saveDocx } from '../docx/index.js'
 import { forgetOpenedXlsx, openXlsx, saveXlsx } from '../xlsx/index.js'
 import { sidecar } from '../sidecar/index.js'
 import { writeFileAtomic } from '../fs/atomic-write.js'
@@ -85,12 +85,12 @@ export function registerFileHandlers(): void {
     // Gravar `.docx` e `.xlsx` não escreve o que o renderer mandou: manda o
     // modelo ao sidecar, que reescreve só o que foi tocado sobre o pacote
     // original.
-    const saved = isWordPath(path)
-      ? await saveDocx(sidecar(), payload.content)
-      : isExcelPath(path)
-        ? await saveXlsx(sidecar(), payload.content)
-        : null
+    const word = isWordPath(path)
+      ? await saveDocx(sidecar(), payload.content, { origin: payload.origin, destination: path })
+      : null
+    const saved = word ?? (isExcelPath(path) ? await saveXlsx(sidecar(), payload.content) : null)
     await writeFileAtomic(path, saved?.bytes ?? payload.content)
+    followDocxOriginal(payload.origin, path, word)
 
     rememberRecentFile(path)
     void refreshMenu()
@@ -100,7 +100,7 @@ export function registerFileHandlers(): void {
   })
 
   handle(IpcChannel.FileChooseSavePath, async (payload, event) => {
-    const chosen = await showSaveFileDialog(windowOf(event), payload.suggestedName)
+    const chosen = await showSaveFileDialog(windowOf(event), payload.suggestedName, payload.kind)
     if (chosen === null) return { canceled: true as const }
 
     // Só autoriza o destino. A gravação é uma chamada separada, para que o

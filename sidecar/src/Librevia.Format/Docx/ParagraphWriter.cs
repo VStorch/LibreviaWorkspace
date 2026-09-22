@@ -31,14 +31,15 @@ public sealed class ParagraphWriter
     /// que chega sem medida: maior do que isso, o Word a desenha estourando a
     /// margem.
     /// </param>
-    public ParagraphWriter(
+    internal ParagraphWriter(
         MainDocumentPart part,
         Inventory inventory,
-        int usableWidthPx = ImageWriter.DefaultWidthPx)
+        int usableWidthPx = ImageWriter.DefaultWidthPx,
+        HeadingStyles? headings = null)
     {
         _part = part;
         _inventory = inventory;
-        _format = new ParagraphFormat(inventory);
+        _format = new ParagraphFormat(inventory, headings ?? new HeadingStyles(part, null));
         var usable = usableWidthPx > 0 ? usableWidthPx : ImageWriter.DefaultWidthPx;
         _tables = new TableWriter(inventory, (node, original) => Write(node, null, original), usable);
         _images = new ImageWriter(part, inventory, usable);

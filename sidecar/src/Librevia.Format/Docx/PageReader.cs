@@ -25,7 +25,11 @@ public sealed record PageSetupDto(
     /// aqui. Sem esta medida, um objeto ancorado na faixa não tem de onde contar.
     /// </remarks>
     [property: JsonPropertyName("headerDistanceMm")] double HeaderDistanceMm = 12.5,
-    [property: JsonPropertyName("footerDistanceMm")] double FooterDistanceMm = 12.5);
+    [property: JsonPropertyName("footerDistanceMm")] double FooterDistanceMm = 12.5,
+    // O cabeçalho e o rodapé de texto simples do documento novo, com `{n}` e
+    // `{total}` no lugar dos números. Quem os grava é PlainBandWriter.
+    [property: JsonPropertyName("header")] string? HeaderText = null,
+    [property: JsonPropertyName("footer")] string? FooterText = null);
 
 public sealed record MarginsDto(
     [property: JsonPropertyName("top")] double Top,
