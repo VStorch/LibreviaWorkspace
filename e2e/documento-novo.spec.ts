@@ -1,9 +1,9 @@
 import { expect, test } from '@playwright/test'
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { launch, menu, stubDialogs, type Session } from './app.js'
-import { entryOf } from './fixtures.js'
+import { docxWithHeaderGrid, entryOf } from './fixtures.js'
 
 /**
  * O documento que nasceu no editor, salvo como `.docx`.
@@ -64,5 +64,49 @@ test.describe('documento novo em .docx', () => {
     await menu(session, 'open')
     await expect(editor.locator('h1')).toHaveText('Relatório anual')
     await expect(editor.locator('p').first()).toHaveText('Primeiro parágrafo. Segunda gravação.')
+  })
+
+  test('o .sdoc que veio de um .docx com cabeçalho volta a .docx avisando da faixa', async () => {
+    // O caminho que o pacote mínimo abriu sem querer: o `.sdoc` guarda a faixa
+    // com os endereços das relações do `.docx` de origem, e reaberto do disco
+    // esse pacote não está mais aqui. A gravação parte do mínimo, que não tem
+    // nenhuma dessas relações — e procurar por uma delas derrubava o sidecar
+    // antes de gravar coisa alguma: nada no disco, "erro inesperado" na tela, e
+    // a perda da faixa nunca chegava a ser dita.
+    //
+    // A faixa não tem onde ser gravada, e isso é perda inevitável. O que este
+    // teste cobra é que o arquivo saia e que a perda apareça escrita.
+    const origem = join(folder, 'grade.docx')
+    const rascunho = join(folder, 'grade.sdoc')
+    const destino = join(folder, 'volta.docx')
+    const editor = session.window.locator('.ProseMirror')
+    await writeFile(origem, await docxWithHeaderGrid())
+
+    await stubDialogs(session.app, { open: origem, save: rascunho, messageBox: 1 })
+    await menu(session, 'open')
+    await expect(editor).toContainText('Primeira linha do corpo.')
+
+    await menu(session, 'save-as')
+    await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
+
+    // Reabrir do disco é o que apaga o original: o aplicativo guarda os bytes do
+    // `.docx` na abertura, e quem abre o `.sdoc` não os tem.
+    await stubDialogs(session.app, { open: rascunho })
+    await menu(session, 'close-file')
+    await expect(session.window.locator('.home')).toBeVisible()
+    await menu(session, 'open')
+    await expect(editor).toContainText('Primeira linha do corpo.')
+
+    await stubDialogs(session.app, { save: destino })
+    await menu(session, 'save-as')
+    await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
+
+    // Aviso de perda, e não faixa de erro: o `role="alert"` é do ErrorBanner.
+    const aviso = session.window.locator('.banner--notice')
+    await expect(aviso).toContainText('cabeçalho e rodapé do arquivo .docx de origem')
+    await expect(session.window.getByRole('alert')).toHaveCount(0)
+
+    // E o arquivo existe mesmo, com o corpo dentro.
+    expect(await entryOf(destino, 'word/document.xml')).toContain('Primeira linha do corpo.')
   })
 })

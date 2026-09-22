@@ -27,6 +27,16 @@ namespace Librevia.Format.Docx;
 internal static class BandWriter
 {
     /// <summary>
+    /// A faixa que veio de um `.docx` que não está mais aqui.
+    /// </summary>
+    /// <remarks>
+    /// Mesma frase que o processo `main` usa quando o modelo traz faixas e não há
+    /// pacote de origem nenhum: é a mesma perda, e duas redações dela seriam dois
+    /// avisos na tela para um só problema.
+    /// </remarks>
+    private const string ForeignBands = "cabeçalho e rodapé do arquivo .docx de origem";
+
+    /// <summary>
     /// Aplica o texto editado das faixas e devolve os caminhos que mudaram.
     /// </summary>
     internal static HashSet<string> Apply(MainDocumentPart part, PageSetupDto? page, Inventory inventory)
@@ -65,7 +75,15 @@ internal static class BandWriter
 
         foreach (var relationship in relationships)
         {
-            if (BandNav.PartOf(part, relationship) is not { } target) continue;
+            // A relação não existe neste pacote: a faixa foi lida de um `.docx`
+            // e o que está aqui é o pacote mínimo — o `.sdoc` reaberto do disco.
+            // Não há parte onde escrever, e a gravação segue sem ela; dita, porque
+            // perda calada é o pior defeito que este programa pode ter.
+            if (BandNav.PartOf(part, relationship) is not { } target)
+            {
+                inventory.NoteLoss(ForeignBands);
+                continue;
+            }
 
             // A mesma tabela de fontes do leitor, e não outra: é ela que decide
             // se dois runs vizinhos são a mesma peça, e uma fusão diferente aqui

@@ -225,6 +225,50 @@ public class DocxTemplateTests
         Assert.Contains("Relatório revisto", Roundtrip.XmlOf(again, header), StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void FaixaDeOutroPacoteNaoDerrubaAGravacaoEEntraNoInventario()
+    {
+        // O `.sdoc` que um dia foi `.docx` guarda a faixa com os ids de relação do
+        // pacote de origem — `rId5:0:0` é o endereço de uma peça dentro de
+        // `word/header1.xml` daquele arquivo. Reaberto do disco, o original não
+        // está mais aqui e a gravação parte do pacote mínimo, que não tem relação
+        // nenhuma dessas: procurar por uma delas estourava
+        // `ArgumentOutOfRangeException`, nada era gravado e a pessoa lia "erro
+        // inesperado ao processar o documento" no lugar do arquivo salvo.
+        //
+        // A faixa se perde, e isso é inevitável: não existe parte onde escrevê-la.
+        // O que não se aceita é perder o salvamento inteiro, nem perder a faixa em
+        // silêncio — por isso o arquivo sai e a perda é dita no inventário.
+        var band = new BandDto(
+            [new PieceDto("text", "Cabeçalho do arquivo de origem", Pid: "rId5:0:0")],
+            [],
+            [],
+            true,
+            // A caixa de texto do cabeçalho corporativo passa pelo mesmo caminho,
+            // por outro endereço: `rId5#0`, e nenhuma relação para resolvê-lo.
+            [new FloatDto(
+                "text", null, [], 0, 0, 0, "column", 0, null, "paragraph", 0, null, false, "none",
+                BoxId: "rId5#0")],
+            // A grade do cabeçalho de evidências: as peças dela moram nas células,
+            // e são as que o modelo do QA traz.
+            [new BandRowDto([new BandCellDto(
+                [new PieceDto("text", "Chamado 10001", Pid: "rId5:1:0")], 1, 1, 1, null, "tlbr")])]);
+
+        var page = A4() with { Header = band };
+        var model = new DocumentModelDto(page, Node.Of("doc", Text("paragraph", "Primeira linha do corpo.")));
+
+        var (saved, result) = Roundtrip.Save(DocxTemplate.Create(A4()), model);
+
+        Assert.Contains("cabeçalho e rodapé do arquivo .docx de origem", result.Inventory.Lost);
+        Assert.Contains(
+            "Primeira linha do corpo.",
+            Roundtrip.XmlOf(saved, "word/document.xml"),
+            StringComparison.Ordinal);
+        Assert.DoesNotContain(
+            Roundtrip.PartsOf(saved).Keys,
+            name => name.StartsWith("word/header", StringComparison.Ordinal));
+    }
+
     // --- o estilo de título -------------------------------------------------
 
     [Fact]

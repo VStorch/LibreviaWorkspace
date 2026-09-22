@@ -176,7 +176,10 @@ export async function saveDocx(
   const inventory = parsed.data.inventory
   const lost = [...inventory.lost]
   if (kept === null) {
-    if (hasForeignBands(model.page)) lost.push(FOREIGN_BANDS)
+    // `includes` porque o sidecar já declara a mesma perda quando a faixa tinha
+    // texto para gravar e a relação não existia no pacote mínimo: a frase é uma
+    // só, e repetida seriam dois avisos na tela para um problema.
+    if (hasForeignBands(model.page) && !lost.includes(FOREIGN_BANDS)) lost.push(FOREIGN_BANDS)
     // Rede de proteção: um modelo com `oid` foi numerado contra um pacote que
     // não está aqui. Isso é defeito — o vínculo com o original se perdeu no
     // caminho —, e o que sai é o pacote mínimo, sem os estilos, as notas nem os

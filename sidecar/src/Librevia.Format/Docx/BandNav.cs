@@ -44,6 +44,15 @@ internal static class BandNav
     /// <remarks>
     /// Cabeçalho e rodapé são partes irmãs com o mesmo formato por dentro; quem
     /// escreve o texto de volta não precisa saber qual das duas está olhando.
+    ///
+    /// Devolve nulo quando a relação não existe **neste** pacote, e não deixa a
+    /// exceção escapar. O `.sdoc` que um dia foi `.docx` traz as faixas do
+    /// arquivo de origem com os ids de relação daquele pacote; reaberto do disco,
+    /// a gravação parte do pacote mínimo, que não tem nenhuma delas. Procurar
+    /// pela lista, e não por `GetPartById`, é o que separa "esta faixa não tem
+    /// onde ser gravada" — perda declarada, e a gravação segue — de um
+    /// `ArgumentOutOfRangeException` que não grava nada e chega ao usuário como
+    /// erro interno.
     /// </remarks>
     internal static (OpenXmlPart Owner, OpenXmlPartRootElement Root)? PartOf(
         MainDocumentPart part,
@@ -51,7 +60,12 @@ internal static class BandNav
     {
         if (string.IsNullOrEmpty(relationshipId)) return null;
 
-        return part.GetPartById(relationshipId) switch
+        var owner = part.Parts
+            .Where(pair => string.Equals(pair.RelationshipId, relationshipId, StringComparison.Ordinal))
+            .Select(pair => pair.OpenXmlPart)
+            .FirstOrDefault();
+
+        return owner switch
         {
             HeaderPart header when header.Header is { } root => (header, root),
             FooterPart footer when footer.Footer is { } root => (footer, root),
