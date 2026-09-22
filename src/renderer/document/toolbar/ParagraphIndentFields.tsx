@@ -1,4 +1,5 @@
 import { FirstLineKind, MAX_INDENT_MM, type ParagraphDraft } from '@services/document/paragraph-format.js'
+import { useT } from '../../i18n.js'
 import type { DraftChange } from './paragraph-draft.js'
 
 interface ParagraphIndentFieldsProps {
@@ -8,12 +9,14 @@ interface ParagraphIndentFieldsProps {
 
 /** Os recuos, em milímetros, e o tratamento da primeira linha. */
 export function ParagraphIndentFields({ draft, onChange }: ParagraphIndentFieldsProps): React.JSX.Element {
+  const t = useT()
+
   return (
     <fieldset className="popover__fieldset">
-      <legend>Recuo (mm)</legend>
+      <legend>{t('document.paragraph.indentLegend')}</legend>
       <div className="popover__row">
         <label className="popover__field popover__field--narrow">
-          <span>Esquerda</span>
+          <span>{t('document.paragraph.indentLeft')}</span>
           <input
             type="number"
             min={0}
@@ -24,7 +27,7 @@ export function ParagraphIndentFields({ draft, onChange }: ParagraphIndentFields
           />
         </label>
         <label className="popover__field popover__field--narrow">
-          <span>Direita</span>
+          <span>{t('document.paragraph.indentRight')}</span>
           <input
             type="number"
             min={0}
@@ -36,21 +39,21 @@ export function ParagraphIndentFields({ draft, onChange }: ParagraphIndentFields
         </label>
 
         <label className="popover__field">
-          <span>Primeira linha</span>
+          <span>{t('document.paragraph.firstLine')}</span>
           <select
-            aria-label="Primeira linha"
+            aria-label={t('document.paragraph.firstLine')}
             value={draft.firstLineKind}
             onChange={(event) => onChange('firstLineKind', event.target.value as FirstLineKind)}
           >
-            <option value={FirstLineKind.None}>Nenhum</option>
-            <option value={FirstLineKind.Indent}>Recuo</option>
-            <option value={FirstLineKind.Hanging}>Deslocamento</option>
+            <option value={FirstLineKind.None}>{t('document.paragraph.firstLineNone')}</option>
+            <option value={FirstLineKind.Indent}>{t('document.paragraph.firstLineIndent')}</option>
+            <option value={FirstLineKind.Hanging}>{t('document.paragraph.firstLineHanging')}</option>
           </select>
         </label>
 
         {draft.firstLineKind !== FirstLineKind.None && (
           <label className="popover__field popover__field--narrow">
-            <span>Em</span>
+            <span>{t('document.paragraph.firstLineBy')}</span>
             <input
               type="number"
               min={0}

@@ -10,6 +10,7 @@ import {
   isValidParagraphDraft,
   type ParagraphDraft,
 } from '@services/document/paragraph-format.js'
+import { useT } from '../../i18n.js'
 import { paragraphDraftAt } from '../extensions/paragraph-commands.js'
 import { ParagraphIndentFields } from './ParagraphIndentFields.js'
 import { ParagraphSpacingFields } from './ParagraphSpacingFields.js'
@@ -34,6 +35,7 @@ export function ParagraphDialog({
   readonly editor: Editor
   readonly onClose: () => void
 }): React.JSX.Element {
+  const t = useT()
   const [draft, setDraft] = useState<ParagraphDraft>(() => paragraphDraftAt(editor))
 
   const valid = isValidParagraphDraft(draft)
@@ -58,7 +60,7 @@ export function ParagraphDialog({
     <div
       className="popover popover--wide"
       role="dialog"
-      aria-label="Parágrafo"
+      aria-label={t('document.paragraph.title')}
       // No elemento, e não numa escuta global: o painel de localizar faz igual, e
       // é o que permite fechar sem tirar o foco de quem está preenchendo.
       onKeyDown={(event) => {
@@ -68,33 +70,33 @@ export function ParagraphDialog({
     >
       <div className="popover__row">
         <label className="popover__field">
-          <span>Alinhamento</span>
+          <span>{t('document.paragraph.alignment')}</span>
           <select
-            aria-label="Alinhamento"
+            aria-label={t('document.paragraph.alignment')}
             value={draft.align}
             autoFocus
             onChange={(event) => change('align', event.target.value as TextAlignment)}
           >
-            <option value={TextAlignment.Left}>À esquerda</option>
-            <option value={TextAlignment.Center}>Centralizado</option>
-            <option value={TextAlignment.Right}>À direita</option>
-            <option value={TextAlignment.Justify}>Justificado</option>
+            <option value={TextAlignment.Left}>{t('document.paragraph.alignLeft')}</option>
+            <option value={TextAlignment.Center}>{t('document.paragraph.alignCenter')}</option>
+            <option value={TextAlignment.Right}>{t('document.paragraph.alignRight')}</option>
+            <option value={TextAlignment.Justify}>{t('document.paragraph.alignJustify')}</option>
           </select>
         </label>
 
         <label className="popover__field">
-          <span>Entrelinha</span>
+          <span>{t('document.paragraph.lineSpacing')}</span>
           <select
-            aria-label="Entrelinha"
+            aria-label={t('document.paragraph.lineSpacing')}
             value={lineSpacingChoice(draft)}
             onChange={(event) => setDraft({ ...draft, ...lineSpacingFrom(event.target.value) })}
           >
-            <option value="single">Simples</option>
+            <option value="single">{t('document.paragraph.spacingSingle')}</option>
             <option value="1.15">1,15</option>
             <option value="1.5">1,5</option>
-            <option value="2">Duplo</option>
-            <option value="multiple">Múltiplo…</option>
-            <option value="at-least">Pelo menos (pt)</option>
+            <option value="2">{t('document.paragraph.spacingDouble')}</option>
+            <option value="multiple">{t('document.paragraph.spacingMultiple')}</option>
+            <option value="at-least">{t('document.paragraph.spacingAtLeast')}</option>
           </select>
         </label>
 
@@ -102,7 +104,7 @@ export function ParagraphDialog({
             desabilitado ao lado de "Simples" só faria a pessoa clicar nele. */}
         {isCustomLineSpacing(draft) && (
           <label className="popover__field popover__field--narrow">
-            <span>{draft.lineSpacingKind === LineSpacingKind.AtLeast ? 'Pontos' : 'Fator'}</span>
+            <span>{draft.lineSpacingKind === LineSpacingKind.AtLeast ? t('document.paragraph.points') : t('document.paragraph.factor')}</span>
             <input
               type="number"
               min={draft.lineSpacingKind === LineSpacingKind.AtLeast ? 1 : MIN_LINE_FACTOR}
@@ -125,13 +127,13 @@ export function ParagraphDialog({
           checked={draft.keepNext}
           onChange={(event) => change('keepNext', event.target.checked)}
         />
-        <span>Manter com o próximo parágrafo</span>
+        <span>{t('document.paragraph.keepWithNext')}</span>
       </label>
 
       <p className={valid ? 'popover__hint' : 'popover__error'}>
         {valid
-          ? 'Vale para os parágrafos que a seleção tocar.'
-          : 'Há campo vazio ou fora da faixa — o documento não aceitaria a medida.'}
+          ? t('document.paragraph.hintValid')
+          : t('document.paragraph.hintInvalid')}
       </p>
 
       <div className="popover__actions">
@@ -140,7 +142,7 @@ export function ParagraphDialog({
           className="btn"
           onClick={() => setDraft({ ...DEFAULT_PARAGRAPH_DRAFT, align: draft.align })}
         >
-          Restaurar padrão
+          {t('document.common.restoreDefaults')}
         </button>
         <span className="popover__spacer" />
         {/*
@@ -151,7 +153,7 @@ export function ParagraphDialog({
           escrevendo. Com o foco parado no editor, não há corrida nenhuma.
         */}
         <button type="button" className="btn" onMouseDown={keepFocus} onClick={onClose}>
-          Cancelar
+          {t('document.common.cancel')}
         </button>
         <button
           type="button"
@@ -160,7 +162,7 @@ export function ParagraphDialog({
           onClick={apply}
           disabled={!valid}
         >
-          Aplicar
+          {t('document.common.apply')}
         </button>
       </div>
     </div>

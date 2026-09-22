@@ -1,6 +1,7 @@
 import { useEditorState, type Editor } from '@tiptap/react'
 import { SHORTCUTS, shortcutHintOf } from '@shared/shortcuts.js'
 import { ToolbarButton, ToolbarGroup } from '../../components/ToolbarControls.js'
+import { useT } from '../../i18n.js'
 import { useWorkspace } from '../../state/workspace.js'
 import { focusChain } from './focus-chain.js'
 
@@ -23,6 +24,7 @@ export function InsertGroup({
   onOpenTable,
   onOpenImageProperties,
 }: InsertGroupProps): React.JSX.Element {
+  const t = useT()
   const showError = useWorkspace((state) => state.showError)
 
   const active = useEditorState({
@@ -46,23 +48,23 @@ export function InsertGroup({
   }
 
   return (
-    <ToolbarGroup label="Inserir">
+    <ToolbarGroup label={t('document.insert.group')}>
       {/* Abre o diálogo em vez de inserir uma 3 × 3 fixa: quem precisa de cinco
           colunas não tem de acrescentá-las uma a uma depois. Excluir a tabela
           mora no menu "Tabela" e no botão direito, com o resto da estrutura. */}
-      <ToolbarButton icon="table" label="Inserir tabela" onClick={onOpenTable} />
+      <ToolbarButton icon="table" label={t('document.insert.table')} onClick={onOpenTable} />
       {/* Com uma imagem selecionada o botão passa a abrir as propriedades dela —
           texto alternativo e alinhamento —, que é onde se espera procurá-las. */}
       <ToolbarButton
         icon="image"
-        label={active.onImage ? 'Propriedades da imagem' : 'Inserir imagem'}
+        label={active.onImage ? t('document.imageDialog.title') : t('document.insert.image')}
         active={active.onImage}
         onClick={() => (active.onImage ? onOpenImageProperties() : void insertImage())}
       />
-      <ToolbarButton icon="link" label="Inserir link" active={active.link} onClick={onOpenLink} />
+      <ToolbarButton icon="link" label={t('document.insert.link')} active={active.link} onClick={onOpenLink} />
       <ToolbarButton
         icon="page-break"
-        label="Quebra de página"
+        label={t('menu.insert.pageBreak')}
         shortcut={shortcutHintOf(SHORTCUTS.insertPageBreak)}
         onClick={() => chain().setPageBreak().run()}
       />

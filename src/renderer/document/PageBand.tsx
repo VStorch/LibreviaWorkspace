@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { linesOf, type Band, type BandCell, type BandPiece } from '@services/document/band.js'
 import { usePreferences } from '../state/preferences.js'
+import { useT } from '../i18n.js'
 
 /**
  * Cabeçalho ou rodapé do documento importado, desenhado na margem.
@@ -57,6 +58,7 @@ export function PageBand({
    */
   onEdit?: ((pid: string, text: string) => void) | undefined
 }): React.JSX.Element {
+  const t = useT()
   const parts = { pageNumber, totalPages, onEdit }
 
   return (
@@ -71,7 +73,7 @@ export function PageBand({
       // conteúdo editável a tornaria inalcançável pelo teclado, e o leitor de
       // tela anunciaria um campo que não existe.
       role="group"
-      aria-label={kind === 'header' ? 'Cabeçalho' : 'Rodapé'}
+      aria-label={kind === 'header' ? t('document.band.header') : t('document.band.footer')}
     >
       {band.rows.length === 0 ? null : <BandGrid band={band} {...parts} />}
       <BandCellPieces pieces={band.left} place="left" {...parts} />

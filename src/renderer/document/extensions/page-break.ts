@@ -1,4 +1,5 @@
 import { Node, mergeAttributes } from '@tiptap/core'
+import { t } from '../../i18n.js'
 
 /**
  * Quebra de página manual.
@@ -41,7 +42,7 @@ export const PageBreak = Node.create({
         'data-page-break': '',
         class: 'page-break',
         // Rótulo por CSS: não entra no texto e não é copiado junto.
-        'aria-label': 'Quebra de página',
+        'aria-label': t('menu.insert.pageBreak'),
       }),
     ]
   },

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { Editor } from '@tiptap/react'
 import { ToolbarSeparator } from '../../components/ToolbarControls.js'
+import { useT } from '../../i18n.js'
 import { CharacterFormatGroup } from './CharacterFormatGroup.js'
 import { InsertGroup } from './InsertGroup.js'
 import { LinkDialog } from './LinkDialog.js'
@@ -49,10 +50,11 @@ export function DocumentToolbar({
   onOpenTable,
   onOpenImageProperties,
 }: DocumentToolbarProps): React.JSX.Element {
+  const t = useT()
   const [linkDialogOpen, setLinkDialogOpen] = useState(false)
 
   return (
-    <div className="toolbar" role="toolbar" aria-label="Formatação do documento">
+    <div className="toolbar" role="toolbar" aria-label={t('document.toolbar.label')}>
       <StyleAndFontGroup editor={editor} onOpenStyles={onOpenStyles} />
 
       <ToolbarSeparator />

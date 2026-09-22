@@ -1,8 +1,10 @@
+import { useMemo } from 'react'
 import { useEditorState, type Editor } from '@tiptap/react'
 import { firstFamilyOf } from '@services/document/font-list.js'
 import { ToolbarButton, ToolbarGroup, ToolbarSelect } from '../../components/ToolbarControls.js'
+import { useT } from '../../i18n.js'
 import { focusChain } from './focus-chain.js'
-import { BLOCK_STYLES, FONT_SIZES, withCurrent } from './toolbar-options.js'
+import { blockStyles, FONT_SIZES, withCurrent } from './toolbar-options.js'
 import { useFontFamilies } from './useFontFamilies.js'
 
 /** Estilo do bloco, família e tamanho da fonte — o começo da barra. */
@@ -13,6 +15,7 @@ export function StyleAndFontGroup({
   readonly editor: Editor
   readonly onOpenStyles: () => void
 }): React.JSX.Element {
+  const t = useT()
   const active = useEditorState({
     editor,
     selector: ({ editor: current }) => ({
@@ -24,6 +27,7 @@ export function StyleAndFontGroup({
     }),
   })
 
+  const styles = useMemo(() => blockStyles(t), [t])
   const fontFamilies = useFontFamilies(active.fontFamily)
   const chain = () => focusChain(editor)
 
@@ -36,17 +40,17 @@ export function StyleAndFontGroup({
   }
 
   return (
-    <ToolbarGroup label="Estilos e fonte">
+    <ToolbarGroup label={t('document.styleAndFont.group')}>
       <ToolbarSelect
-        label="Estilo"
+        label={t('document.styleAndFont.style')}
         value={active.heading === '' ? 'paragraph' : active.heading}
-        options={BLOCK_STYLES}
+        options={styles}
         onChange={applyBlockStyle}
         width={128}
       />
 
       <ToolbarSelect
-        label="Fonte"
+        label={t('document.styleAndFont.font')}
         value={active.fontFamily}
         options={fontFamilies}
         onChange={(value) =>
@@ -56,7 +60,7 @@ export function StyleAndFontGroup({
       />
 
       <ToolbarSelect
-        label="Tamanho"
+        label={t('document.styleAndFont.size')}
         value={active.fontSize}
         options={withCurrent(
           [{ value: '', label: '—' }, ...FONT_SIZES.map((size) => ({ value: size, label: size }))],
@@ -70,7 +74,7 @@ export function StyleAndFontGroup({
 
       {/* A lista do documento, ao lado do seletor que aplica os quatro estilos
           que o editor conhece: é aqui que se vê que um `.docx` tem muito mais. */}
-      <ToolbarButton icon="styles" label="Estilos do documento" onClick={onOpenStyles} />
+      <ToolbarButton icon="styles" label={t('document.styleAndFont.documentStyles')} onClick={onOpenStyles} />
     </ToolbarGroup>
   )
 }

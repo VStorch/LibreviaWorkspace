@@ -7,6 +7,8 @@
  * do documento aberto, e vem de `useFontFamilies`.
  */
 
+import type { MessageKey } from '@shared/i18n/index.js'
+
 /** Os corpos que o Word oferece na caixa de tamanho. */
 export const FONT_SIZES = [
   '8',
@@ -34,20 +36,24 @@ export const FONT_SIZES = [
  * `line-height: 1.8311`, e quem faz a conta é `paragraph-format`. O resto das
  * opções mora no diálogo de parágrafo.
  */
-export const LINE_HEIGHTS = [
-  { value: '', label: 'Simples' },
-  { value: '1.15', label: '1,15' },
-  { value: '1.5', label: '1,5' },
-  { value: '2', label: 'Duplo' },
-] as const
+export function lineHeights(t: (key: MessageKey) => string): readonly { value: string; label: string }[] {
+  return [
+    { value: '', label: t('document.paragraph.spacingSingle') },
+    { value: '1.15', label: '1,15' },
+    { value: '1.5', label: '1,5' },
+    { value: '2', label: t('document.paragraph.spacingDouble') },
+  ]
+}
 
-export const BLOCK_STYLES = [
-  { value: 'paragraph', label: 'Texto normal' },
-  { value: '1', label: 'Título 1' },
-  { value: '2', label: 'Título 2' },
-  { value: '3', label: 'Título 3' },
-  { value: '4', label: 'Título 4' },
-] as const
+export function blockStyles(t: (key: MessageKey) => string): readonly { value: string; label: string }[] {
+  return [
+    { value: 'paragraph', label: t('document.styleAndFont.normalText') },
+    { value: '1', label: t('document.styleAndFont.heading1') },
+    { value: '2', label: t('document.styleAndFont.heading2') },
+    { value: '3', label: t('document.styleAndFont.heading3') },
+    { value: '4', label: t('document.styleAndFont.heading4') },
+  ]
+}
 
 /**
  * As opções de um seletor, com o valor atual dentro dela quando faltar.

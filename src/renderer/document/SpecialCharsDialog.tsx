@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import type { Editor } from '@tiptap/react'
 import { SPECIAL_CHARACTER_GROUPS, type SpecialCharacter } from '@services/document/special-characters.js'
+import { useT } from '../i18n.js'
 
 /**
  * Seletor de caracteres especiais.
@@ -28,6 +29,7 @@ export function SpecialCharsDialog({
   readonly editor: Editor
   readonly onClose: () => void
 }): React.JSX.Element {
+  const t = useT()
   const panel = useRef<HTMLDivElement>(null)
   const host = useRef<HTMLDivElement>(null)
 
@@ -106,7 +108,7 @@ export function SpecialCharsDialog({
       ref={panel}
       className="popover popover--wide"
       role="dialog"
-      aria-label="Caracteres especiais"
+      aria-label={t('document.specialChars.title')}
       onKeyDown={onPanelKeyDown}
     >
       <div ref={host} className="chars" onKeyDown={onKeyDown}>
@@ -139,11 +141,11 @@ export function SpecialCharsDialog({
 
       <div className="popover__actions">
         <span className="popover__hint">
-          Setas escolhem, Enter insere. O painel continua aberto, e Esc fecha.
+          {t('document.specialChars.hint')}
         </span>
         <span className="popover__spacer" />
         <button type="button" className="btn btn--primary" onClick={onClose}>
-          Fechar
+          {t('document.common.close')}
         </button>
       </div>
     </div>
