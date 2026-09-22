@@ -93,4 +93,26 @@ test.describe('painel de estilos', () => {
     await panel.press('Escape')
     await expect(panel).toBeHidden()
   })
+
+  test('o foco circula dentro do painel, e Escape continua fechando', async () => {
+    await menu(session, 'new-document')
+    await session.window.getByRole('button', { name: 'Estilos do documento' }).click()
+
+    const panel = session.window.getByRole('dialog', { name: 'Estilos' })
+    await expect(panel.getByRole('button', { name: 'Fechar' })).toBeFocused()
+
+    // Sem a circulação, o Tab daqui caía no texto do documento — e dali o
+    // Escape não fechava mais o painel, porque quem escuta a tecla é ele.
+    await panel.press('Tab')
+    await expect(panel.getByRole('combobox', { name: 'Mostrar' })).toBeFocused()
+
+    await panel.press('Tab')
+    await expect(panel.getByRole('list', { name: 'Estilos do documento' })).toBeFocused()
+
+    await panel.press('Tab')
+    await expect(panel.getByRole('button', { name: 'Fechar' })).toBeFocused()
+
+    await panel.press('Escape')
+    await expect(panel).toBeHidden()
+  })
 })

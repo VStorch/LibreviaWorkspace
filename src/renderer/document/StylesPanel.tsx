@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useEditorState, type Editor } from '@tiptap/react'
 import {
   StyleType,
@@ -6,6 +6,7 @@ import {
   listedStyles,
   styleLabelOf,
   type StyleDefinition,
+  type StyleSheet,
 } from '@services/document/styles.js'
 import { useWorkspace } from '../state/workspace.js'
 
@@ -24,7 +25,8 @@ import { useWorkspace } from '../state/workspace.js'
  * tela que mostra do que um botão que promete.
  *
  * Mesmo desenho dos outros painéis (`PageSetupPanel`, `ParagraphDialog`): um
- * `popover`, `Escape` fecha, e o foco começa no botão de fechar.
+ * `popover`, `Escape` fecha, o foco começa no botão de fechar e `Tab` circula
+ * dentro do painel, como em `SpecialCharsDialog`.
  */
 export function StylesPanel({
   editor,
@@ -35,6 +37,33 @@ export function StylesPanel({
 }): React.JSX.Element {
   const sheet = useWorkspace((state) => state.styles)
   const [filter, setFilter] = useState<'all' | StyleType>('all')
+  const panel = useRef<HTMLDivElement>(null)
+
+  /**
+   * `Escape` fecha, e `Tab` circula dentro do painel.
+   *
+   * Sem a circulação, `Tab` a partir de "Fechar" caía no texto do documento — e
+   * dali `Escape` não fechava mais nada, porque quem escuta a tecla é o painel.
+   * A lista de paradas sai do DOM porque o seletor e a lista mudam com o filtro.
+   */
+  function onPanelKeyDown(event: React.KeyboardEvent<HTMLDivElement>): void {
+    if (event.key === 'Escape') {
+      onClose()
+      return
+    }
+
+    if (event.key !== 'Tab') return
+
+    const stops = [...(panel.current?.querySelectorAll<HTMLElement>('select, ul[tabindex], button') ?? [])]
+    if (stops.length === 0) return
+
+    const current = stops.indexOf(event.target as HTMLElement)
+    const next = stops[(current + (event.shiftKey ? -1 : 1) + stops.length) % stops.length]
+    if (next === undefined) return
+
+    event.preventDefault()
+    next.focus()
+  }
 
   // Ao vivo: o cursor anda enquanto o painel está aberto, e o estilo do bloco
   // muda com ele. Fechar o painel não é condição para continuar escrevendo.
@@ -56,14 +85,7 @@ export function StylesPanel({
   const styles = listedStyles(sheet).filter((style) => filter === 'all' || style.type === filter)
 
   return (
-    <div
-      className="popover"
-      role="dialog"
-      aria-label="Estilos"
-      onKeyDown={(event) => {
-        if (event.key === 'Escape') onClose()
-      }}
-    >
+    <div ref={panel} className="popover" role="dialog" aria-label="Estilos" onKeyDown={onPanelKeyDown}>
       <p className="popover__hint">
         {current === null
           ? 'Este documento não define estilos para o parágrafo do cursor.'
@@ -100,7 +122,7 @@ export function StylesPanel({
             aria-current={style.id === current?.id ? 'true' : undefined}
           >
             <span className="styles-list__name">{styleLabelOf(style)}</span>
-            <span className="styles-list__meta">{describe(style)}</span>
+            <span className="styles-list__meta">{describe(style, sheet)}</span>
           </li>
         ))}
       </ul>
@@ -127,14 +149,20 @@ export function StylesPanel({
  * estilo não declara não aparece — dizer "12 pt" num estilo que herda o tamanho
  * seria afirmar algo que o documento não diz, e a cascata é da entrega seguinte.
  */
-function describe(style: StyleDefinition): string {
+function describe(style: StyleDefinition, sheet: StyleSheet): string {
   const parts: string[] = [style.type === StyleType.Character ? 'caractere' : 'parágrafo']
 
   const font = style.character?.fontFamily
   if (font !== undefined) parts.push(font.split(',')[0]!.trim())
   if (style.character?.fontSize !== undefined) parts.push(style.character.fontSize)
   if (style.character?.bold === true) parts.push('negrito')
-  if (style.basedOn !== undefined) parts.push(`baseado em ${style.basedOn}`)
+  if (style.basedOn !== undefined) {
+    // Pelo nome, e não pelo id: o resto da linha fala em nomes, e num documento
+    // em português o id do pai é `Ttulo1` — uma palavra que a pessoa não
+    // reconhece e que não aparece em lugar nenhum da tela.
+    const parent = sheet.styles[style.basedOn]
+    parts.push(`baseado em ${parent === undefined ? style.basedOn : styleLabelOf(parent)}`)
+  }
 
   return parts.join(' · ')
 }
