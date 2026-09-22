@@ -2,147 +2,176 @@
  * Catálogo de caracteres especiais.
  *
  * É o conjunto que o Word deixa à mão na aba "Símbolo" — o que se procura de
- * verdade num documento em português: aspas tipográficas, travessão, moeda,
+ * verdade num documento: aspas tipográficas, travessão, moeda,
  * matemática, letra grega e marca registrada. Uma tabela Unicode completa seria
  * mais completa e menos útil: quem precisa de ❡ sabe achá-lo.
  *
- * Cada caractere leva nome em português porque o nome é o que o leitor de tela
+ * Cada caractere leva nome traduzido porque o nome é o que o leitor de tela
  * anuncia — um botão chamado "—" não diz nada a quem não o vê.
  */
+
+import { Language, translate, type MessageKey } from '@shared/i18n/index.js'
 
 export interface SpecialCharacter {
   /** O caractere em si, do jeito que entra no documento. */
   readonly char: string
+  /** Chave de tradução do nome. */
+  readonly nameKey: MessageKey
   /** Como ele se chama. Vira o nome acessível do botão e a dica do mouse. */
   readonly name: string
 }
 
 export interface SpecialCharacterGroup {
+  readonly labelKey: MessageKey
   readonly label: string
   readonly characters: readonly SpecialCharacter[]
 }
 
-export const SPECIAL_CHARACTER_GROUPS: readonly SpecialCharacterGroup[] = [
+interface CharDef {
+  readonly char: string
+  readonly nameKey: MessageKey
+}
+
+interface GroupDef {
+  readonly labelKey: MessageKey
+  readonly characters: readonly CharDef[]
+}
+
+const GROUPS_DEF: readonly GroupDef[] = [
   {
-    label: 'Pontuação',
+    labelKey: 'chars.group.punctuation',
     characters: [
-      { char: '“', name: 'abre aspas duplas' },
-      { char: '”', name: 'fecha aspas duplas' },
-      { char: '‘', name: 'abre aspas simples' },
-      { char: '’', name: 'fecha aspas simples' },
-      { char: '«', name: 'abre aspas angulares' },
-      { char: '»', name: 'fecha aspas angulares' },
-      { char: '—', name: 'travessão' },
-      { char: '–', name: 'meia-risca' },
-      { char: '…', name: 'reticências' },
-      { char: '·', name: 'ponto mediano' },
-      { char: '•', name: 'marcador' },
-      { char: '§', name: 'parágrafo de lei' },
-      { char: '¶', name: 'marca de parágrafo' },
-      { char: '†', name: 'obelisco' },
-      { char: '‡', name: 'obelisco duplo' },
-      { char: '‰', name: 'por milhar' },
-      { char: '¿', name: 'abre interrogação' },
-      { char: '¡', name: 'abre exclamação' },
+      { char: '“', nameKey: 'chars.punct.doubleQuoteOpen' },
+      { char: '”', nameKey: 'chars.punct.doubleQuoteClose' },
+      { char: '‘', nameKey: 'chars.punct.singleQuoteOpen' },
+      { char: '’', nameKey: 'chars.punct.singleQuoteClose' },
+      { char: '«', nameKey: 'chars.punct.angleQuoteOpen' },
+      { char: '»', nameKey: 'chars.punct.angleQuoteClose' },
+      { char: '—', nameKey: 'chars.punct.emDash' },
+      { char: '–', nameKey: 'chars.punct.enDash' },
+      { char: '…', nameKey: 'chars.punct.ellipsis' },
+      { char: '·', nameKey: 'chars.punct.middleDot' },
+      { char: '•', nameKey: 'chars.punct.bullet' },
+      { char: '§', nameKey: 'chars.punct.section' },
+      { char: '¶', nameKey: 'chars.punct.pilcrow' },
+      { char: '†', nameKey: 'chars.punct.dagger' },
+      { char: '‡', nameKey: 'chars.punct.doubleDagger' },
+      { char: '‰', nameKey: 'chars.punct.perMille' },
+      { char: '¿', nameKey: 'chars.punct.invertedQuestion' },
+      { char: '¡', nameKey: 'chars.punct.invertedExclamation' },
       // Espaço inquebrável: é ele que impede "R$" de ficar no fim de uma linha e
       // o valor na seguinte.
-      { char: '\u00a0', name: 'espaço inquebrável' },
+      { char: '\u00a0', nameKey: 'chars.punct.nonBreakingSpace' },
     ],
   },
   {
-    label: 'Moeda',
+    labelKey: 'chars.group.currency',
     characters: [
-      { char: '$', name: 'dólar' },
-      { char: '€', name: 'euro' },
-      { char: '£', name: 'libra' },
-      { char: '¥', name: 'iene' },
-      { char: '¢', name: 'centavo' },
-      { char: '₽', name: 'rublo' },
-      { char: '₹', name: 'rupia' },
-      { char: '¤', name: 'moeda genérica' },
+      { char: '$', nameKey: 'chars.currency.dollar' },
+      { char: '€', nameKey: 'chars.currency.euro' },
+      { char: '£', nameKey: 'chars.currency.pound' },
+      { char: '¥', nameKey: 'chars.currency.yen' },
+      { char: '¢', nameKey: 'chars.currency.cent' },
+      { char: '₽', nameKey: 'chars.currency.ruble' },
+      { char: '₹', nameKey: 'chars.currency.rupee' },
+      { char: '¤', nameKey: 'chars.currency.generic' },
     ],
   },
   {
-    label: 'Matemática',
+    labelKey: 'chars.group.math',
     characters: [
-      { char: '×', name: 'multiplicação' },
-      { char: '÷', name: 'divisão' },
-      { char: '±', name: 'mais ou menos' },
-      { char: '≠', name: 'diferente' },
-      { char: '≈', name: 'aproximadamente' },
-      { char: '≤', name: 'menor ou igual' },
-      { char: '≥', name: 'maior ou igual' },
-      { char: '∞', name: 'infinito' },
-      { char: '√', name: 'raiz quadrada' },
-      { char: '∑', name: 'somatório' },
-      { char: '∏', name: 'produtório' },
-      { char: '∫', name: 'integral' },
-      { char: '∂', name: 'derivada parcial' },
-      { char: '∆', name: 'variação' },
-      { char: '°', name: 'grau' },
-      { char: '′', name: 'minuto' },
-      { char: '″', name: 'segundo' },
-      { char: '½', name: 'um meio' },
-      { char: '¼', name: 'um quarto' },
-      { char: '¾', name: 'três quartos' },
-      { char: '¹', name: 'expoente um' },
-      { char: '²', name: 'expoente dois' },
-      { char: '³', name: 'expoente três' },
-      { char: 'µ', name: 'micro' },
+      { char: '×', nameKey: 'chars.math.multiplication' },
+      { char: '÷', nameKey: 'chars.math.division' },
+      { char: '±', nameKey: 'chars.math.plusMinus' },
+      { char: '≠', nameKey: 'chars.math.notEqual' },
+      { char: '≈', nameKey: 'chars.math.approxEqual' },
+      { char: '≤', nameKey: 'chars.math.lessOrEqual' },
+      { char: '≥', nameKey: 'chars.math.greaterOrEqual' },
+      { char: '∞', nameKey: 'chars.math.infinity' },
+      { char: '√', nameKey: 'chars.math.squareRoot' },
+      { char: '∑', nameKey: 'chars.math.summation' },
+      { char: '∏', nameKey: 'chars.math.product' },
+      { char: '∫', nameKey: 'chars.math.integral' },
+      { char: '∂', nameKey: 'chars.math.partialDifferential' },
+      { char: '∆', nameKey: 'chars.math.delta' },
+      { char: '°', nameKey: 'chars.math.degree' },
+      { char: '′', nameKey: 'chars.math.prime' },
+      { char: '″', nameKey: 'chars.math.doublePrime' },
+      { char: '½', nameKey: 'chars.math.half' },
+      { char: '¼', nameKey: 'chars.math.quarter' },
+      { char: '¾', nameKey: 'chars.math.threeQuarters' },
+      { char: '¹', nameKey: 'chars.math.superscriptOne' },
+      { char: '²', nameKey: 'chars.math.superscriptTwo' },
+      { char: '³', nameKey: 'chars.math.superscriptThree' },
+      { char: 'µ', nameKey: 'chars.math.micro' },
     ],
   },
   {
-    label: 'Grego',
+    labelKey: 'chars.group.greek',
     characters: [
-      { char: 'α', name: 'alfa' },
-      { char: 'β', name: 'beta' },
-      { char: 'γ', name: 'gama' },
-      { char: 'δ', name: 'delta' },
-      { char: 'ε', name: 'épsilon' },
-      { char: 'θ', name: 'teta' },
-      { char: 'λ', name: 'lambda' },
-      { char: 'μ', name: 'mi' },
-      { char: 'π', name: 'pi' },
-      { char: 'ρ', name: 'rô' },
-      { char: 'σ', name: 'sigma' },
-      { char: 'τ', name: 'tau' },
-      { char: 'φ', name: 'fi' },
-      { char: 'χ', name: 'qui' },
-      { char: 'ψ', name: 'psi' },
-      { char: 'ω', name: 'ômega' },
-      { char: 'Γ', name: 'gama maiúsculo' },
-      { char: 'Δ', name: 'delta maiúsculo' },
-      { char: 'Θ', name: 'teta maiúsculo' },
-      { char: 'Λ', name: 'lambda maiúsculo' },
-      { char: 'Π', name: 'pi maiúsculo' },
-      { char: 'Σ', name: 'sigma maiúsculo' },
-      { char: 'Φ', name: 'fi maiúsculo' },
-      { char: 'Ω', name: 'ômega maiúsculo' },
+      { char: 'α', nameKey: 'chars.greek.alpha' },
+      { char: 'β', nameKey: 'chars.greek.beta' },
+      { char: 'γ', nameKey: 'chars.greek.gamma' },
+      { char: 'δ', nameKey: 'chars.greek.delta' },
+      { char: 'ε', nameKey: 'chars.greek.epsilon' },
+      { char: 'θ', nameKey: 'chars.greek.theta' },
+      { char: 'λ', nameKey: 'chars.greek.lambda' },
+      { char: 'μ', nameKey: 'chars.greek.mu' },
+      { char: 'π', nameKey: 'chars.greek.pi' },
+      { char: 'ρ', nameKey: 'chars.greek.rho' },
+      { char: 'σ', nameKey: 'chars.greek.sigma' },
+      { char: 'τ', nameKey: 'chars.greek.tau' },
+      { char: 'φ', nameKey: 'chars.greek.phi' },
+      { char: 'χ', nameKey: 'chars.greek.chi' },
+      { char: 'ψ', nameKey: 'chars.greek.psi' },
+      { char: 'ω', nameKey: 'chars.greek.omega' },
+      { char: 'Γ', nameKey: 'chars.greek.capitalGamma' },
+      { char: 'Δ', nameKey: 'chars.greek.capitalDelta' },
+      { char: 'Θ', nameKey: 'chars.greek.capitalTheta' },
+      { char: 'Λ', nameKey: 'chars.greek.capitalLambda' },
+      { char: 'Π', nameKey: 'chars.greek.capitalPi' },
+      { char: 'Σ', nameKey: 'chars.greek.capitalSigma' },
+      { char: 'Φ', nameKey: 'chars.greek.capitalPhi' },
+      { char: 'Ω', nameKey: 'chars.greek.capitalOmega' },
     ],
   },
   {
-    label: 'Marcas e setas',
+    labelKey: 'chars.group.marksArrows',
     characters: [
-      { char: '©', name: 'direito autoral' },
-      { char: '®', name: 'marca registrada' },
-      { char: '™', name: 'marca comercial' },
-      { char: '℠', name: 'marca de serviço' },
-      { char: 'ª', name: 'ordinal feminino' },
-      { char: 'º', name: 'ordinal masculino' },
-      { char: '№', name: 'número' },
-      { char: '✓', name: 'certo' },
-      { char: '✗', name: 'errado' },
-      { char: '★', name: 'estrela cheia' },
-      { char: '☆', name: 'estrela vazia' },
-      { char: '→', name: 'seta à direita' },
-      { char: '←', name: 'seta à esquerda' },
-      { char: '↑', name: 'seta para cima' },
-      { char: '↓', name: 'seta para baixo' },
+      { char: '©', nameKey: 'chars.marks.copyright' },
+      { char: '®', nameKey: 'chars.marks.registered' },
+      { char: '™', nameKey: 'chars.marks.trademark' },
+      { char: '℠', nameKey: 'chars.marks.serviceMark' },
+      { char: 'ª', nameKey: 'chars.marks.feminineOrdinal' },
+      { char: 'º', nameKey: 'chars.marks.masculineOrdinal' },
+      { char: '№', nameKey: 'chars.marks.numero' },
+      { char: '✓', nameKey: 'chars.marks.check' },
+      { char: '✗', nameKey: 'chars.marks.cross' },
+      { char: '★', nameKey: 'chars.marks.blackStar' },
+      { char: '☆', nameKey: 'chars.marks.whiteStar' },
+      { char: '→', nameKey: 'chars.arrows.right' },
+      { char: '←', nameKey: 'chars.arrows.left' },
+      { char: '↑', nameKey: 'chars.arrows.up' },
+      { char: '↓', nameKey: 'chars.arrows.down' },
     ],
   },
 ]
 
+export function specialCharacterGroups(language: Language = Language.Portuguese): readonly SpecialCharacterGroup[] {
+  return GROUPS_DEF.map((group) => ({
+    labelKey: group.labelKey,
+    label: translate(language, group.labelKey),
+    characters: group.characters.map((character) => ({
+      char: character.char,
+      nameKey: character.nameKey,
+      name: translate(language, character.nameKey),
+    })),
+  }))
+}
+
+export const SPECIAL_CHARACTER_GROUPS: readonly SpecialCharacterGroup[] = specialCharacterGroups()
+
 /** Todos os caracteres do catálogo, na ordem em que aparecem. */
-export function allSpecialCharacters(): readonly SpecialCharacter[] {
-  return SPECIAL_CHARACTER_GROUPS.flatMap((group) => group.characters)
+export function allSpecialCharacters(language: Language = Language.Portuguese): readonly SpecialCharacter[] {
+  return specialCharacterGroups(language).flatMap((group) => group.characters)
 }

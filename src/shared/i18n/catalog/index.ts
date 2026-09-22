@@ -1,4 +1,5 @@
 import type { Entry } from '../message.js'
+import { CHARS } from './chars.js'
 import { DIALOG } from './dialog.js'
 import { DOCUMENT } from './document.js'
 import { ERRORS } from './errors.js'
@@ -29,6 +30,7 @@ export const MESSAGES = {
   ...SHELL,
   ...DIALOG,
   ...ERRORS,
+  ...CHARS,
 } as const
 
 /**
@@ -50,4 +52,5 @@ export const AREAS: Readonly<Record<string, Readonly<Record<string, Entry>>>> = 
   shell: SHELL,
   dialog: DIALOG,
   errors: ERRORS,
+  chars: CHARS,
 }
