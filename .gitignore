@@ -1,4 +1,5 @@
 node_modules/
+.nix/
 out/
 dist/
 release/
