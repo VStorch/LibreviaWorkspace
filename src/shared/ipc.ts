@@ -210,6 +210,10 @@ export const ipcContracts = {
     request: emptyRequest,
     response: z.object({ closing: z.literal(true) }),
   },
+  [IpcChannel.WindowReady]: {
+    request: emptyRequest,
+    response: z.object({ applied: z.literal(true) }),
+  },
   [IpcChannel.PreferencesGet]: {
     request: emptyRequest,
     response: editorPreferencesSchema,

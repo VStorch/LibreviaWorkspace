@@ -8,6 +8,8 @@ import type { Catalog } from '../message.js'
  * também a decisão de como chamá-las.
  */
 export const VIEW = {
+  'view.showToolbar': { pt: 'Mostrar barra de ferramentas', en: 'Show toolbar' },
+  'view.showStatusBar': { pt: 'Mostrar barra de status', en: 'Show status bar' },
   'view.appearance': { pt: 'Aparência', en: 'Appearance' },
 
   'view.theme': { pt: 'Tema', en: 'Theme' },
@@ -20,12 +22,6 @@ export const VIEW = {
   'view.reading': { pt: 'Modo de leitura', en: 'Reading mode' },
   'view.reading.enter': { pt: 'Entrar no modo de leitura', en: 'Enter reading mode' },
   'view.reading.exit': { pt: 'Sair do modo de leitura', en: 'Exit reading mode' },
-  // A dica que aparece ao entrar, e some sozinha. Diz a única tecla que é
-  // preciso saber para não ficar preso.
-  'view.reading.hint': {
-    pt: 'Modo de leitura. Esc para sair.',
-    en: 'Reading mode. Press Esc to leave.',
-  },
   'view.reading.readOnly': {
     pt: 'Somente leitura enquanto durar o modo de leitura.',
     en: 'Read-only for as long as reading mode lasts.',

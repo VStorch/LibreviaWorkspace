@@ -199,6 +199,8 @@ export interface EditorPreferences {
    * que está aqui.
    */
   readonly readingMode: boolean
+  readonly showToolbar: boolean
+  readonly showStatusBar: boolean
 }
 
 /**
@@ -233,6 +235,8 @@ export const DEFAULT_EDITOR_PREFERENCES: EditorPreferences = {
   language: Language.Portuguese,
   theme: Theme.System,
   readingMode: false,
+  showToolbar: true,
+  showStatusBar: true,
 }
 
 /** Operações de área de transferência que só o `webContents` sabe fazer. */

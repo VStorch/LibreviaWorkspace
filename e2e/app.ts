@@ -39,13 +39,14 @@ export interface Session {
  */
 const packaged = process.env['LIBREVIA_E2E_BINARY']
 
-export async function launch(options: { userData?: string } = {}): Promise<Session> {
+export async function launch(options: { userData?: string; file?: string } = {}): Promise<Session> {
   const userData = options.userData ?? (await mkdtemp(join(tmpdir(), 'librevia-e2e-')))
+  const fileArgs = options.file === undefined ? [] : [options.file]
 
   const app = await electron.launch({
     ...(packaged === undefined || packaged === ''
-      ? { args: [resolve('out/main/index.js'), `--user-data-dir=${userData}`] }
-      : { executablePath: resolve(packaged), args: [`--user-data-dir=${userData}`] }),
+      ? { args: [resolve('out/main/index.js'), `--user-data-dir=${userData}`, ...fileArgs] }
+      : { executablePath: resolve(packaged), args: [`--user-data-dir=${userData}`, ...fileArgs] }),
     env: { ...process.env, NODE_ENV: 'production' },
   })
 

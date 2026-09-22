@@ -17,7 +17,6 @@ import { editBandFloat, editBandPiece } from '@services/document/band.js'
 import { floatsOf } from '@services/document/floating.js'
 import { currentPreferences, usePreferences } from '../state/preferences.js'
 import { useLeaveReadingOnEscape, useReadingMode } from '../state/reading.js'
-import { useT } from '../i18n.js'
 import { useWorkspace } from '../state/workspace.js'
 import { DocumentToolbar } from './toolbar/DocumentToolbar.js'
 import { TableDialog } from './toolbar/TableDialog.js'
@@ -64,7 +63,6 @@ export function DocumentEditor(): React.JSX.Element {
   const showError = useWorkspace((state) => state.showError)
   const preferences = usePreferences((state) => state.preferences)
   const reading = useReadingMode()
-  const t = useT()
 
   useLeaveReadingOnEscape(reading)
 
@@ -346,7 +344,7 @@ export function DocumentEditor(): React.JSX.Element {
           sair igual à tela — o risco registrado no §6.3 do plano. */}
       <style>{DOCUMENT_CONTENT_CSS + EDITOR_ONLY_CSS}</style>
 
-      {!reading && (
+      {!reading && preferences.showToolbar && (
         <DocumentToolbar
           editor={editor}
           onOpenFind={() => setDialog('find', true)}
@@ -393,15 +391,6 @@ export function DocumentEditor(): React.JSX.Element {
           onClose={() => setContextTarget(null)}
           onPasteWithoutFormat={() => void pasteWithoutFormat()}
         />
-      )}
-
-      {reading && (
-        // Some sozinha. Diz a unica tecla que e preciso saber para nao ficar
-        // preso, e continuar dizendo-a para sempre seria ruido na tela de quem
-        // veio justamente buscar uma tela sem ruido.
-        <div className="reading-hint" role="status">
-          {t('view.reading.hint')}
-        </div>
       )}
 
       <div className={`editor-scroll${reading ? ' editor-scroll--reading' : ''}`}>

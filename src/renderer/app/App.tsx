@@ -11,7 +11,7 @@ import { asEditorCommand, emitEditorCommand } from '../document/editor-commands.
 import { HomePage } from '../pages/HomePage.js'
 import { SheetTabs } from '../spreadsheet/SheetTabs.js'
 import { SpreadsheetEditor } from '../spreadsheet/SpreadsheetEditor.js'
-import { watchPreferences } from '../state/preferences.js'
+import { usePreferences, watchPreferences } from '../state/preferences.js'
 import { useReadingMode } from '../state/reading.js'
 import { useTheme } from '../state/theme.js'
 import { useWorkspace } from '../state/workspace.js'
@@ -90,6 +90,7 @@ export function App(): React.JSX.Element {
   const removeSheet = useWorkspace((state) => state.removeSheet)
   const readOnly = useWorkspace((state) => state.readOnly)
   const reading = useReadingMode()
+  const showStatusBar = usePreferences((state) => state.preferences.showStatusBar)
 
   useEffect(() => {
     void useWorkspace.getState().refreshRecents()
@@ -114,13 +115,15 @@ export function App(): React.JSX.Element {
     return () => clearInterval(timer)
   }, [])
 
-  useEffect(
-    () =>
-      window.api.menu.onCommand(({ command, path }) => {
-        void runMenuCommand(command, path)
-      }),
-    [],
-  )
+  useEffect(() => {
+    let commands = Promise.resolve()
+    const unsubscribe = window.api.menu.onCommand(({ command, path }) => {
+      commands = commands.then(() => runMenuCommand(command, path)).catch(console.error)
+    })
+    // Subscribe before asking main to deliver files selected in Explorer.
+    void window.api.window.ready({})
+    return unsubscribe
+  }, [])
 
   useEffect(() => {
     // O título e o marcador de "não salvo" vivem no main. Só enviamos quando
@@ -188,7 +191,7 @@ export function App(): React.JSX.Element {
       </div>
       {/* A barra de status sai no modo de leitura: contagem de palavras e
           numero de paginas sao ferramentas de quem escreve. */}
-      {hasFile && !reading && <StatusBar />}
+      {hasFile && !reading && showStatusBar && <StatusBar />}
     </div>
   )
 }

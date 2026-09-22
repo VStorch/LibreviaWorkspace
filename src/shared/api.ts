@@ -60,6 +60,7 @@ export interface AppApi {
     confirmPlainText: Call<typeof IpcChannel.DialogConfirmPlainText>
   }
   readonly window: {
+    ready: Call<typeof IpcChannel.WindowReady>
     setState: Call<typeof IpcChannel.WindowSetState>
     close: Call<typeof IpcChannel.WindowClose>
   }

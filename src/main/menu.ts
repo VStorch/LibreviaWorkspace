@@ -111,6 +111,23 @@ async function buildTemplate(): Promise<MenuItemConstructorOptions[]> {
 
   const viewSubmenu: MenuItemConstructorOptions[] = [
     {
+      label: t('view.showToolbar'),
+      type: 'checkbox',
+      checked: preferences.showToolbar,
+      click: () => {
+        updatePreferences({ showToolbar: !preferences.showToolbar })
+      },
+    },
+    {
+      label: t('view.showStatusBar'),
+      type: 'checkbox',
+      checked: preferences.showStatusBar,
+      click: () => {
+        updatePreferences({ showStatusBar: !preferences.showStatusBar })
+      },
+    },
+    { type: 'separator' },
+    {
       label: t('view.reading'),
       type: 'checkbox',
       checked: preferences.readingMode,
@@ -160,7 +177,11 @@ async function buildTemplate(): Promise<MenuItemConstructorOptions[]> {
     { role: 'zoomIn', label: t('menu.view.zoomIn'), accelerator: acceleratorOf(SHORTCUTS.zoomIn) },
     { role: 'zoomOut', label: t('menu.view.zoomOut') },
     { type: 'separator' },
-    { role: 'togglefullscreen', label: t('menu.view.fullScreen') },
+    {
+      role: 'togglefullscreen',
+      label: t('menu.view.fullScreen'),
+      accelerator: isMac ? 'Ctrl+Command+F' : 'F11',
+    },
   ]
 
   if (devServerUrl() !== null) {

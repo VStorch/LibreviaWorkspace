@@ -64,6 +64,7 @@ const api: AppApi = {
     confirmPlainText: (payload) => ipcRenderer.invoke(IpcChannel.DialogConfirmPlainText, payload),
   },
   window: {
+    ready: (payload) => ipcRenderer.invoke(IpcChannel.WindowReady, payload),
     setState: (payload) => ipcRenderer.invoke(IpcChannel.WindowSetState, payload),
     close: (payload) => ipcRenderer.invoke(IpcChannel.WindowClose, payload),
   },

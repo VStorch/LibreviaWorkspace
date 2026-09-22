@@ -20,6 +20,7 @@ import {
 import { fillRange } from '@services/spreadsheet/fill.js'
 import type { StructuralChange } from '@services/spreadsheet/structure.js'
 import { FormulaBar } from './FormulaBar.js'
+import { usePreferences } from '../state/preferences.js'
 import { SpreadsheetToolbar } from './SpreadsheetToolbar.js'
 import { SheetContextMenu, type MenuPosition } from './SheetContextMenu.js'
 import { cellStyleOf } from './cell-style.js'
@@ -61,6 +62,7 @@ export function SpreadsheetEditor({
   /** Trava a edição sem esconder nada: ler e rolar continuam funcionando. */
   readOnly?: boolean
 }): React.JSX.Element {
+  const showToolbar = usePreferences((state) => state.preferences.showToolbar)
   // O modelo mais recente, para o handler de edição não capturar um estado
   // velho entre renderizações.
   const current = useRef(sheet)
@@ -271,7 +273,7 @@ export function SpreadsheetEditor({
 
   return (
     <div className="sheet" onContextMenu={handleContextMenu}>
-      <SpreadsheetToolbar sheet={sheet} range={range} onChange={applyChange} />
+      {showToolbar && <SpreadsheetToolbar sheet={sheet} range={range} onChange={applyChange} />}
 
       <FormulaBar
         sheet={sheet}

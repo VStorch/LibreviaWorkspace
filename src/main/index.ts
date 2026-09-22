@@ -13,6 +13,7 @@ import { applySessionPolicy } from './security.js'
 import { forgetSessionWords, installBundledDictionary, serveDictionary } from './spellcheck.js'
 import { checkSidecarHealth, disposeSidecar } from './sidecar/index.js'
 import { createMainWindow, devServerUrl } from './window.js'
+import { docxFromArguments, requestExternalFile } from './external-files.js'
 
 // Sandbox para todo renderer, inclusive os que vierem depois (janela oculta de
 // impressão, por exemplo). Precisa vir antes de `app.whenReady()`.
@@ -37,7 +38,12 @@ installBundledDictionary()
 if (!app.requestSingleInstanceLock()) {
   app.quit()
 } else {
-  app.on('second-instance', () => {
+  const initialFile = docxFromArguments(process.argv.slice(app.isPackaged ? 1 : 2), process.cwd())
+  if (initialFile !== undefined) requestExternalFile(initialFile)
+
+  app.on('second-instance', (_event, argv, workingDirectory) => {
+    const path = docxFromArguments(argv.slice(app.isPackaged ? 1 : 2), workingDirectory)
+    if (path !== undefined) requestExternalFile(path)
     const [existing] = BrowserWindow.getAllWindows()
     if (existing === undefined) return
     if (existing.isMinimized()) existing.restore()

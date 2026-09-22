@@ -60,6 +60,11 @@ linux:
     - text/plain
 
 win:
+  fileAssociations:
+    - ext: docx
+      name: Librevia Word Document
+      description: Word document
+      role: Editor
   target:
     - target: nsis
       arch: [x64]

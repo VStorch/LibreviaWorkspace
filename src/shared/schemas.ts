@@ -184,6 +184,8 @@ export const editorPreferencesSchema = z.object({
   language: z.enum(LANGUAGES).default(Language.Portuguese),
   theme: z.enum([Theme.System, Theme.Light, Theme.Dark]).default(Theme.System),
   readingMode: z.boolean().default(false),
+  showToolbar: z.boolean().default(true),
+  showStatusBar: z.boolean().default(true),
 })
 
 /**
@@ -202,6 +204,8 @@ export const editorPreferencesPatchSchema = z.object({
   language: z.enum(LANGUAGES).optional(),
   theme: z.enum([Theme.System, Theme.Light, Theme.Dark]).optional(),
   readingMode: z.boolean().optional(),
+  showToolbar: z.boolean().optional(),
+  showStatusBar: z.boolean().optional(),
 })
 
 /**

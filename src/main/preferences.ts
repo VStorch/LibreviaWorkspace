@@ -146,6 +146,8 @@ export function updatePreferences(patch: EditorPreferencesPatch): EditorPreferen
     language: patch.language ?? active.language,
     theme: patch.theme ?? active.theme,
     readingMode: patch.readingMode ?? active.readingMode,
+    showToolbar: patch.showToolbar ?? active.showToolbar,
+    showStatusBar: patch.showStatusBar ?? active.showStatusBar,
   }
 
   const spellcheckChanged = next.spellcheck !== active.spellcheck
