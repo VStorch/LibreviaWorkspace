@@ -77,7 +77,12 @@ export function SheetTabs({
         </div>
       ))}
 
-      <button type="button" className="tabs__add" onClick={onAdd} aria-label={t('spreadsheet.sheetTabs.addSheet')}>
+      <button
+        type="button"
+        className="tabs__add"
+        onClick={onAdd}
+        aria-label={t('spreadsheet.sheetTabs.addSheet')}
+      >
         +
       </button>
     </div>

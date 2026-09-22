@@ -29,7 +29,12 @@ export function InventoryBanner(): React.JSX.Element | null {
           <strong>{t('shell.banner.savedLoss')}</strong>
           <span className="banner__detail">{savedLoss.join('; ')}</span>
         </div>
-        <button type="button" className="banner__close" onClick={dismiss} aria-label={t('shell.banner.dismiss')}>
+        <button
+          type="button"
+          className="banner__close"
+          onClick={dismiss}
+          aria-label={t('shell.banner.dismiss')}
+        >
           ✕
         </button>
       </div>
@@ -60,15 +65,18 @@ export function InventoryBanner(): React.JSX.Element | null {
         {invisible.length > 0 && (
           <>
             <strong>
-              {notice.lost.length > 0
-                ? t('shell.banner.stillInFileAnd')
-                : t('shell.banner.stillInFileDoc')}
+              {notice.lost.length > 0 ? t('shell.banner.stillInFileAnd') : t('shell.banner.stillInFileDoc')}
             </strong>
             <span className="banner__detail">{invisible.join('; ')}</span>
           </>
         )}
       </div>
-      <button type="button" className="banner__close" onClick={dismiss} aria-label={t('shell.banner.dismiss')}>
+      <button
+        type="button"
+        className="banner__close"
+        onClick={dismiss}
+        aria-label={t('shell.banner.dismiss')}
+      >
         ✕
       </button>
     </div>

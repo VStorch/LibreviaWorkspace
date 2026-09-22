@@ -38,10 +38,7 @@ export function isPathAuthorized(path: string): boolean {
 export function assertPathAuthorized(path: string): string {
   const normalized = normalizePath(path)
   if (!authorizedPaths.has(normalized)) {
-    throw new AppError(
-      ErrorCode.PathNotAuthorized,
-      t('errors.paths.unauthorized'),
-    )
+    throw new AppError(ErrorCode.PathNotAuthorized, t('errors.paths.unauthorized'))
   }
   return normalized
 }
@@ -58,10 +55,7 @@ export async function assertReadableFile(path: string): Promise<void> {
   }
 
   if (!isSupportedExtension(path)) {
-    throw new AppError(
-      ErrorCode.UnsupportedFormat,
-      t('errors.paths.unsupportedType'),
-    )
+    throw new AppError(ErrorCode.UnsupportedFormat, t('errors.paths.unsupportedType'))
   }
 
   let info
@@ -77,9 +71,6 @@ export async function assertReadableFile(path: string): Promise<void> {
 
   if (info.size > MAX_FILE_BYTES) {
     const limit = Math.round(MAX_FILE_BYTES / (1024 * 1024))
-    throw new AppError(
-      ErrorCode.FileTooLarge,
-      t('errors.paths.fileTooLarge', { limit }),
-    )
+    throw new AppError(ErrorCode.FileTooLarge, t('errors.paths.fileTooLarge', { limit }))
   }
 }

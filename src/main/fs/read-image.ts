@@ -21,10 +21,7 @@ export async function readImageAsDataUrl(path: string): Promise<string> {
 
   if (!isImageWithinSizeLimit(size)) {
     const limit = Math.round(MAX_IMAGE_BYTES / (1024 * 1024))
-    throw new AppError(
-      ErrorCode.FileTooLarge,
-      t('errors.image.imageTooLarge', { limit }),
-    )
+    throw new AppError(ErrorCode.FileTooLarge, t('errors.image.imageTooLarge', { limit }))
   }
 
   let bytes: Buffer
@@ -36,10 +33,7 @@ export async function readImageAsDataUrl(path: string): Promise<string> {
 
   const mimeType = detectImageMimeType(bytes)
   if (mimeType === null) {
-    throw new AppError(
-      ErrorCode.UnsupportedFormat,
-      t('errors.image.unsupportedImage'),
-    )
+    throw new AppError(ErrorCode.UnsupportedFormat, t('errors.image.unsupportedImage'))
   }
 
   return `data:${mimeType};base64,${bytes.toString('base64')}`

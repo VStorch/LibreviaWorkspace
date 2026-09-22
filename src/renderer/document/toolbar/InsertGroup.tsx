@@ -61,7 +61,12 @@ export function InsertGroup({
         active={active.onImage}
         onClick={() => (active.onImage ? onOpenImageProperties() : void insertImage())}
       />
-      <ToolbarButton icon="link" label={t('document.insert.link')} active={active.link} onClick={onOpenLink} />
+      <ToolbarButton
+        icon="link"
+        label={t('document.insert.link')}
+        active={active.link}
+        onClick={onOpenLink}
+      />
       <ToolbarButton
         icon="page-break"
         label={t('menu.insert.pageBreak')}

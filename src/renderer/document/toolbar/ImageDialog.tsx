@@ -79,9 +79,7 @@ export function ImageDialog({
         </select>
       </label>
 
-      <p className="popover__hint">
-        {t('document.imageDialog.hint')}
-      </p>
+      <p className="popover__hint">{t('document.imageDialog.hint')}</p>
 
       <div className="popover__actions">
         <span className="popover__spacer" />

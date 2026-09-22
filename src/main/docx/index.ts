@@ -107,11 +107,7 @@ export async function openDocx(client: SidecarClient, path: string): Promise<Ope
   const reply = await client.request(SidecarMethod.DocxOpen, {}, new Uint8Array(bytes))
   const parsed = openResultSchema.safeParse(reply.result)
   if (!parsed.success) {
-    throw new AppError(
-      ErrorCode.SidecarFailed,
-      t('errors.docx.cannotRead'),
-      t('errors.docx.openContract'),
-    )
+    throw new AppError(ErrorCode.SidecarFailed, t('errors.docx.cannotRead'), t('errors.docx.openContract'))
   }
 
   // O caminho entra normalizado: é assim que ele volta do `authorizePath` e é
@@ -176,11 +172,7 @@ export async function saveDocx(
   const reply = await client.request(SidecarMethod.DocxSave, model, new Uint8Array(original))
   const parsed = saveResultSchema.safeParse(reply.result)
   if (!parsed.success) {
-    throw new AppError(
-      ErrorCode.SidecarFailed,
-      t('errors.docx.cannotSave'),
-      t('errors.docx.saveContract'),
-    )
+    throw new AppError(ErrorCode.SidecarFailed, t('errors.docx.cannotSave'), t('errors.docx.saveContract'))
   }
 
   console.info(`[docx] preservados ${parsed.data.preservedBlocks}, reescritos ${parsed.data.rewrittenBlocks}`)

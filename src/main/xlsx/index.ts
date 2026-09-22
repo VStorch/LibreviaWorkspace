@@ -89,11 +89,7 @@ export async function openXlsx(client: SidecarClient, path: string): Promise<Ope
 
   const parsed = openResultSchema.safeParse(reply.result)
   if (!parsed.success) {
-    throw new AppError(
-      ErrorCode.SidecarFailed,
-      t('errors.xlsx.cannotRead'),
-      t('errors.xlsx.openContract'),
-    )
+    throw new AppError(ErrorCode.SidecarFailed, t('errors.xlsx.cannotRead'), t('errors.xlsx.openContract'))
   }
 
   const model = translate(toModel(parsed.data.workbook), fromXlsxFormula)
@@ -135,11 +131,7 @@ export async function saveXlsx(client: SidecarClient, ssheetContent: string): Pr
 
   const parsed = saveResultSchema.safeParse(reply.result)
   if (!parsed.success) {
-    throw new AppError(
-      ErrorCode.SidecarFailed,
-      t('errors.xlsx.cannotSave'),
-      t('errors.xlsx.saveContract'),
-    )
+    throw new AppError(ErrorCode.SidecarFailed, t('errors.xlsx.cannotSave'), t('errors.xlsx.saveContract'))
   }
 
   console.info(
@@ -155,11 +147,7 @@ function toModel(workbook: unknown): WorkbookModel {
   try {
     return parseWorkbook(JSON.stringify(envelope))
   } catch {
-    throw new AppError(
-      ErrorCode.SidecarFailed,
-      t('errors.xlsx.cannotRead'),
-      t('errors.xlsx.invalidSchema'),
-    )
+    throw new AppError(ErrorCode.SidecarFailed, t('errors.xlsx.cannotRead'), t('errors.xlsx.invalidSchema'))
   }
 }
 
@@ -167,10 +155,7 @@ function readSsheet(content: string): WorkbookModel {
   try {
     return parseWorkbook(content)
   } catch {
-    throw new AppError(
-      ErrorCode.UnsupportedFormat,
-      t('errors.xlsx.onlySpreadsheets'),
-    )
+    throw new AppError(ErrorCode.UnsupportedFormat, t('errors.xlsx.onlySpreadsheets'))
   }
 }
 

@@ -71,25 +71,16 @@ export function parseDocument(text: string, language: Language = Language.Portug
   try {
     raw = JSON.parse(text)
   } catch {
-    throw new AppError(
-      ErrorCode.UnsupportedFormat,
-      translate(language, 'errors.document.corrupt'),
-    )
+    throw new AppError(ErrorCode.UnsupportedFormat, translate(language, 'errors.document.corrupt'))
   }
 
   const parsed = sdocSchema.safeParse(raw)
   if (!parsed.success) {
-    throw new AppError(
-      ErrorCode.UnsupportedFormat,
-      translate(language, 'errors.document.invalid'),
-    )
+    throw new AppError(ErrorCode.UnsupportedFormat, translate(language, 'errors.document.invalid'))
   }
 
   if (parsed.data.version > SDOC_VERSION) {
-    throw new AppError(
-      ErrorCode.UnsupportedFormat,
-      translate(language, 'errors.document.newerVersion'),
-    )
+    throw new AppError(ErrorCode.UnsupportedFormat, translate(language, 'errors.document.newerVersion'))
   }
 
   // Margens inválidas não impedem a leitura: o documento é recuperado com a

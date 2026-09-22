@@ -50,11 +50,7 @@ export function LinkDialog({ editor, onClose }: LinkDialogProps): React.JSX.Elem
         />
       </label>
 
-      {rejected && (
-        <p className="popover__error">
-          {t('document.linkDialog.invalidAddress')}
-        </p>
-      )}
+      {rejected && <p className="popover__error">{t('document.linkDialog.invalidAddress')}</p>}
 
       <div className="popover__actions">
         {existing !== '' && (

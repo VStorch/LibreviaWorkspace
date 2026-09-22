@@ -83,42 +83,24 @@ export function fromFileSystemError(
 
   switch (code) {
     case 'ENOENT':
-      return new AppError(
-        ErrorCode.FileNotFound,
-        translate(language, 'errors.fs.fileNotFound'),
-      )
+      return new AppError(ErrorCode.FileNotFound, translate(language, 'errors.fs.fileNotFound'))
     case 'EACCES':
     case 'EPERM':
-      return new AppError(
-        ErrorCode.PermissionDenied,
-        translate(language, 'errors.fs.permissionDenied'),
-      )
+      return new AppError(ErrorCode.PermissionDenied, translate(language, 'errors.fs.permissionDenied'))
     case 'EISDIR':
       return new AppError(ErrorCode.NotAFile, translate(language, 'errors.fs.notAFile'))
     case 'EROFS':
-      return new AppError(
-        ErrorCode.WriteFailed,
-        translate(language, 'errors.fs.readOnlyLocation'),
-      )
+      return new AppError(ErrorCode.WriteFailed, translate(language, 'errors.fs.readOnlyLocation'))
     case 'ENOSPC':
       return new AppError(ErrorCode.WriteFailed, translate(language, 'errors.fs.diskFull'))
     case 'EDQUOT':
       // Diferente de disco cheio, e a diferença muda o que a pessoa faz: aqui o
       // disco tem espaço, mas a cota dela na pasta de rede acabou.
-      return new AppError(
-        ErrorCode.WriteFailed,
-        translate(language, 'errors.fs.quotaExceeded'),
-      )
+      return new AppError(ErrorCode.WriteFailed, translate(language, 'errors.fs.quotaExceeded'))
     case 'ENAMETOOLONG':
-      return new AppError(
-        ErrorCode.WriteFailed,
-        translate(language, 'errors.fs.nameTooLong'),
-      )
+      return new AppError(ErrorCode.WriteFailed, translate(language, 'errors.fs.nameTooLong'))
     case 'EBUSY':
-      return new AppError(
-        ErrorCode.WriteFailed,
-        translate(language, 'errors.fs.fileInUse'),
-      )
+      return new AppError(ErrorCode.WriteFailed, translate(language, 'errors.fs.fileInUse'))
     // Típicos de pasta de rede que caiu no meio da operação.
     case 'ENETDOWN':
     case 'ENETUNREACH':

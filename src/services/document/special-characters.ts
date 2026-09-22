@@ -157,7 +157,9 @@ const GROUPS_DEF: readonly GroupDef[] = [
   },
 ]
 
-export function specialCharacterGroups(language: Language = Language.Portuguese): readonly SpecialCharacterGroup[] {
+export function specialCharacterGroups(
+  language: Language = Language.Portuguese,
+): readonly SpecialCharacterGroup[] {
   return GROUPS_DEF.map((group) => ({
     labelKey: group.labelKey,
     label: translate(language, group.labelKey),

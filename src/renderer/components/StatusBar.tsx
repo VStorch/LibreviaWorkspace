@@ -49,7 +49,11 @@ export function StatusBar(): React.JSX.Element {
       {/* Indicador de alterações não salvas: repete o marcador do título da
           janela, para que o estado seja legível sem sair do conteúdo. */}
       <span className={state.isDirty ? 'statusbar__state statusbar__state--dirty' : 'statusbar__state'}>
-        {state.busy ? t('shell.statusBar.working') : state.isDirty ? t('shell.statusBar.unsaved') : t('shell.statusBar.saved')}
+        {state.busy
+          ? t('shell.statusBar.working')
+          : state.isDirty
+            ? t('shell.statusBar.unsaved')
+            : t('shell.statusBar.saved')}
       </span>
     </footer>
   )

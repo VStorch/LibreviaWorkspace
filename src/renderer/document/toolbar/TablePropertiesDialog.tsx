@@ -176,9 +176,7 @@ export function TablePropertiesDialog({
       </label>
 
       <p className={valid ? 'popover__hint' : 'popover__error'}>
-        {valid
-          ? t('document.tableProperties.hintValid')
-          : t('document.tableProperties.hintInvalid')}
+        {valid ? t('document.tableProperties.hintValid') : t('document.tableProperties.hintInvalid')}
       </p>
 
       <div className="popover__actions">

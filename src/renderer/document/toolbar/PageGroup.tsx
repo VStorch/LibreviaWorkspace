@@ -35,7 +35,11 @@ export function PageGroup({ onOpenFind, onOpenPageSetup }: PageGroupProps): Reac
       <ToolbarButton icon="page-setup" label={t('document.pageSetup.title')} onClick={onOpenPageSetup} />
       {/* Como o editor não pagina ao vivo (§6.3 do plano), a prévia é o que
         responde "onde as páginas quebram" — e por isso fica à mão. */}
-      <ToolbarButton icon="print-preview" label={t('menu.file.printPreview')} onClick={() => void printPreview()} />
+      <ToolbarButton
+        icon="print-preview"
+        label={t('menu.file.printPreview')}
+        onClick={() => void printPreview()}
+      />
     </ToolbarGroup>
   )
 }

@@ -104,7 +104,11 @@ export function ParagraphDialog({
             desabilitado ao lado de "Simples" só faria a pessoa clicar nele. */}
         {isCustomLineSpacing(draft) && (
           <label className="popover__field popover__field--narrow">
-            <span>{draft.lineSpacingKind === LineSpacingKind.AtLeast ? t('document.paragraph.points') : t('document.paragraph.factor')}</span>
+            <span>
+              {draft.lineSpacingKind === LineSpacingKind.AtLeast
+                ? t('document.paragraph.points')
+                : t('document.paragraph.factor')}
+            </span>
             <input
               type="number"
               min={draft.lineSpacingKind === LineSpacingKind.AtLeast ? 1 : MIN_LINE_FACTOR}
@@ -131,9 +135,7 @@ export function ParagraphDialog({
       </label>
 
       <p className={valid ? 'popover__hint' : 'popover__error'}>
-        {valid
-          ? t('document.paragraph.hintValid')
-          : t('document.paragraph.hintInvalid')}
+        {valid ? t('document.paragraph.hintValid') : t('document.paragraph.hintInvalid')}
       </p>
 
       <div className="popover__actions">

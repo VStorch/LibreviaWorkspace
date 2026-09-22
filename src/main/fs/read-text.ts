@@ -48,10 +48,7 @@ function startsWith(bytes: Buffer, prefix: readonly number[]): boolean {
 function assertNotBinary(bytes: Buffer): void {
   const sample = bytes.subarray(0, 8192)
   if (sample.includes(0)) {
-    throw new AppError(
-      ErrorCode.NotTextFile,
-      t('errors.text.notTextFile'),
-    )
+    throw new AppError(ErrorCode.NotTextFile, t('errors.text.notTextFile'))
   }
 }
 

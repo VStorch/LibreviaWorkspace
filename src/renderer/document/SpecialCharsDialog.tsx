@@ -146,9 +146,7 @@ export function SpecialCharsDialog({
       </div>
 
       <div className="popover__actions">
-        <span className="popover__hint">
-          {t('document.specialChars.hint')}
-        </span>
+        <span className="popover__hint">{t('document.specialChars.hint')}</span>
         <span className="popover__spacer" />
         <button type="button" className="btn btn--primary" onClick={onClose}>
           {t('document.common.close')}

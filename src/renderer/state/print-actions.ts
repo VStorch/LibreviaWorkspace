@@ -88,7 +88,10 @@ export function createPrintActions(
       if (request === null) return refuse()
 
       const data = await ctx.call(() =>
-        window.api.print.exportPdf({ ...request, suggestedName: get().file?.name ?? t('shell.print.defaultDocumentName').toLowerCase() }),
+        window.api.print.exportPdf({
+          ...request,
+          suggestedName: get().file?.name ?? t('shell.print.defaultDocumentName').toLowerCase(),
+        }),
       )
       return data !== null && !data.canceled
     },

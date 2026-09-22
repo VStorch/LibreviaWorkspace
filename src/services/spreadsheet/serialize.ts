@@ -81,25 +81,16 @@ export function parseWorkbook(text: string, language: Language = Language.Portug
   try {
     raw = JSON.parse(text)
   } catch {
-    throw new AppError(
-      ErrorCode.UnsupportedFormat,
-      translate(language, 'spreadsheet.error.corrupt'),
-    )
+    throw new AppError(ErrorCode.UnsupportedFormat, translate(language, 'spreadsheet.error.corrupt'))
   }
 
   const parsed = ssheetSchema.safeParse(raw)
   if (!parsed.success) {
-    throw new AppError(
-      ErrorCode.UnsupportedFormat,
-      translate(language, 'spreadsheet.error.invalid'),
-    )
+    throw new AppError(ErrorCode.UnsupportedFormat, translate(language, 'spreadsheet.error.invalid'))
   }
 
   if (parsed.data.version > SSHEET_VERSION) {
-    throw new AppError(
-      ErrorCode.UnsupportedFormat,
-      translate(language, 'spreadsheet.error.newerVersion'),
-    )
+    throw new AppError(ErrorCode.UnsupportedFormat, translate(language, 'spreadsheet.error.newerVersion'))
   }
 
   // Aba ativa fora do intervalo não impede a leitura: os dados valem mais que

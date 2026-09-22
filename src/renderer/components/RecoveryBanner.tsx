@@ -24,9 +24,8 @@ export function RecoveryBanner(): React.JSX.Element | null {
 
   if (draft === null) return null
 
-  const what = draft.kind === DocumentKind.Spreadsheet
-    ? t('shell.recovery.spreadsheet')
-    : t('shell.recovery.document')
+  const what =
+    draft.kind === DocumentKind.Spreadsheet ? t('shell.recovery.spreadsheet') : t('shell.recovery.document')
 
   return (
     <div className="banner banner--recovery" role="alert">

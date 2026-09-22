@@ -130,9 +130,7 @@ export function PageSetupPanel({ onClose }: { readonly onClose: () => void }): R
           />
         </label>
 
-        <p className="popover__hint">
-          {t('document.pageSetup.hint', { n: '{n}', total: '{total}' })}
-        </p>
+        <p className="popover__hint">{t('document.pageSetup.hint', { n: '{n}', total: '{total}' })}</p>
 
         {/* O Chromium desenha cabeçalho e rodapé dentro da margem e recorta o
             excedente: com margem apertada eles somem sem explicação. */}

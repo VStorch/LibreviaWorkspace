@@ -59,7 +59,11 @@ export function WordCountDialog({
           </tr>
         </thead>
         <tbody>
-          <Row label={t('document.wordCount.words')} document={counts.document.words} selection={counts.selection?.words} />
+          <Row
+            label={t('document.wordCount.words')}
+            document={counts.document.words}
+            selection={counts.selection?.words}
+          />
           <Row
             label={t('document.wordCount.charactersWithSpaces')}
             document={counts.document.characters}

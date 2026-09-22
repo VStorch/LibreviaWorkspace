@@ -72,10 +72,7 @@ export function registerFileHandlers(): void {
     // O renderer não escolhe caminhos: só pode reabrir o que já está na lista
     // de recentes, que por sua vez só é alimentada por escolha do usuário.
     if (!isRemembered(payload.path)) {
-      throw new AppError(
-        ErrorCode.PathNotAuthorized,
-        t('errors.ipc.notInRecents'),
-      )
+      throw new AppError(ErrorCode.PathNotAuthorized, t('errors.ipc.notInRecents'))
     }
     return { file: await loadFile(payload.path) }
   })

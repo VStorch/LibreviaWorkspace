@@ -21,7 +21,12 @@ export function ErrorBanner(): React.JSX.Element | null {
         <strong>{error.message}</strong>
         {error.detail !== undefined && <span className="banner__detail">{error.detail}</span>}
       </div>
-      <button type="button" className="banner__close" onClick={dismiss} aria-label={t('shell.banner.dismiss')}>
+      <button
+        type="button"
+        className="banner__close"
+        onClick={dismiss}
+        aria-label={t('shell.banner.dismiss')}
+      >
         ✕
       </button>
     </div>
