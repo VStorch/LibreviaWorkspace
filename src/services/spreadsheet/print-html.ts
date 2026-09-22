@@ -14,6 +14,7 @@
 
 import { formatCell } from './format.js'
 import { cellRef, DEFAULT_COLUMN_WIDTH, type Cell, type Sheet } from './model.js'
+import { translate, Language } from '@shared/i18n/index.js'
 
 /** Até onde imprimir. */
 export interface PrintBounds {
@@ -57,10 +58,10 @@ function indexOfColumn(letters: string): number {
  * reaparece na página 4 sem que ninguém tenha de programar isso. É a mesma
  * intenção de quem congelou a linha na tela.
  */
-export function buildSheetHtml(sheet: Sheet): string {
+export function buildSheetHtml(sheet: Sheet, language: Language = Language.Portuguese): string {
   const bounds = usedBounds(sheet)
   if (bounds.rows === 0 || bounds.columns === 0) {
-    return '<p class="sheet-print__empty">Esta aba está vazia.</p>'
+    return `<p class="sheet-print__empty">${translate(language, 'spreadsheet.print.emptyTab')}</p>`
   }
 
   const widths = columnWidths(sheet, bounds)

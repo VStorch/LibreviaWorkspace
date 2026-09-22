@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { WorkbookModel } from '@services/spreadsheet/model.js'
+import { useT } from '../i18n.js'
 
 /**
  * Abas da pasta de trabalho.
@@ -21,6 +22,7 @@ export function SheetTabs({
   onRename: (index: number, name: string) => void
   onRemove: (index: number) => void
 }): React.JSX.Element {
+  const t = useT()
   const [editing, setEditing] = useState<number | null>(null)
 
   return (
@@ -53,7 +55,7 @@ export function SheetTabs({
               className="tab__name"
               onClick={() => onSelect(index)}
               onDoubleClick={() => setEditing(index)}
-              title="Clique duplo para renomear"
+              title={t('spreadsheet.sheetTabs.doubleClickToRename')}
             >
               {sheet.name}
             </button>
@@ -66,8 +68,8 @@ export function SheetTabs({
               type="button"
               className="tab__close"
               onClick={() => onRemove(index)}
-              aria-label={`Excluir ${sheet.name}`}
-              title={`Excluir ${sheet.name}`}
+              aria-label={t('spreadsheet.sheetTabs.deleteSheet', { name: sheet.name })}
+              title={t('spreadsheet.sheetTabs.deleteSheet', { name: sheet.name })}
             >
               ✕
             </button>
@@ -75,7 +77,7 @@ export function SheetTabs({
         </div>
       ))}
 
-      <button type="button" className="tabs__add" onClick={onAdd} aria-label="Nova planilha na pasta">
+      <button type="button" className="tabs__add" onClick={onAdd} aria-label={t('spreadsheet.sheetTabs.addSheet')}>
         +
       </button>
     </div>

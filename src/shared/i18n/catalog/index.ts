@@ -1,6 +1,7 @@
 import type { Entry } from '../message.js'
 import { DOCUMENT } from './document.js'
 import { MENU } from './menu.js'
+import { SPREADSHEET } from './spreadsheet.js'
 import { TABLE } from './table.js'
 import { VIEW } from './view.js'
 
@@ -21,6 +22,7 @@ export const MESSAGES = {
   ...TABLE,
   ...VIEW,
   ...DOCUMENT,
+  ...SPREADSHEET,
 } as const
 
 /**
@@ -38,4 +40,5 @@ export const AREAS: Readonly<Record<string, Readonly<Record<string, Entry>>>> = 
   table: TABLE,
   view: VIEW,
   document: DOCUMENT,
+  spreadsheet: SPREADSHEET,
 }

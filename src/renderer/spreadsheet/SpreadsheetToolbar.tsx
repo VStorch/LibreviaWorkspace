@@ -6,6 +6,7 @@ import {
   type Sheet,
 } from '@services/spreadsheet/model.js'
 import { applyBorders, applyStyle, toggleStyle, type Range } from '@services/spreadsheet/edit.js'
+import type { MessageKey } from '@shared/i18n/index.js'
 import {
   ColorControl,
   ToolbarButton,
@@ -13,15 +14,18 @@ import {
   ToolbarSelect,
   ToolbarSeparator,
 } from '../components/ToolbarControls.js'
+import { useT } from '../i18n.js'
 
-const NUMBER_FORMATS = [
-  { value: CellFormat.General, label: 'Geral' },
-  { value: CellFormat.Number, label: 'Número' },
-  { value: CellFormat.Currency, label: 'Moeda' },
-  { value: CellFormat.Percent, label: 'Percentual' },
-  { value: CellFormat.Date, label: 'Data' },
-  { value: CellFormat.Text, label: 'Texto' },
-] as const
+function numberFormats(t: (key: MessageKey) => string) {
+  return [
+    { value: CellFormat.General, label: t('spreadsheet.format.general') },
+    { value: CellFormat.Number, label: t('spreadsheet.format.number') },
+    { value: CellFormat.Currency, label: t('spreadsheet.format.currency') },
+    { value: CellFormat.Percent, label: t('spreadsheet.format.percent') },
+    { value: CellFormat.Date, label: t('spreadsheet.format.date') },
+    { value: CellFormat.Text, label: t('spreadsheet.format.text') },
+  ]
+}
 
 const ALL_SIDES: readonly BorderSide[] = ['top', 'right', 'bottom', 'left']
 
@@ -47,47 +51,48 @@ export function SpreadsheetToolbar({
   range: Range
   onChange: (sheet: Sheet) => void
 }): React.JSX.Element {
+  const t = useT()
   const style = styleOfSelection(sheet, range)
 
   const toggle = (key: 'bold' | 'italic' | 'underline') => () => onChange(toggleStyle(sheet, range, key))
   const set = (change: Partial<CellStyle>) => () => onChange(applyStyle(sheet, range, change))
 
   return (
-    <div className="toolbar" role="toolbar" aria-label="Formatação da planilha">
+    <div className="toolbar" role="toolbar" aria-label={t('spreadsheet.toolbar.label')}>
       {/* A referência da seleção mora na barra de fórmulas, logo abaixo, que é
           onde o Excel a põe — repeti-la aqui seria ruído. */}
-      <ToolbarGroup label="Formatação do texto">
+      <ToolbarGroup label={t('spreadsheet.toolbar.textFormat')}>
         <ToolbarButton
           icon="bold"
-          label="Negrito"
+          label={t('spreadsheet.toolbar.bold')}
           shortcut="Ctrl+B"
           active={style.bold === true}
           onClick={toggle('bold')}
         />
         <ToolbarButton
           icon="italic"
-          label="Itálico"
+          label={t('spreadsheet.toolbar.italic')}
           shortcut="Ctrl+I"
           active={style.italic === true}
           onClick={toggle('italic')}
         />
         <ToolbarButton
           icon="underline"
-          label="Sublinhado"
+          label={t('spreadsheet.toolbar.underline')}
           shortcut="Ctrl+U"
           active={style.underline === true}
           onClick={toggle('underline')}
         />
         <ColorControl
           icon="text-color"
-          label="Cor do texto"
+          label={t('spreadsheet.toolbar.textColor')}
           value={style.color ?? '#000000'}
           onChange={(value) => onChange(applyStyle(sheet, range, { color: value }))}
           onClear={() => onChange(applyStyle(sheet, range, { color: undefined }))}
         />
         <ColorControl
           icon="fill-color"
-          label="Cor de fundo"
+          label={t('spreadsheet.toolbar.fillColor')}
           value={style.background ?? '#ffffff'}
           onChange={(value) => onChange(applyStyle(sheet, range, { background: value }))}
           onClear={() => onChange(applyStyle(sheet, range, { background: undefined }))}
@@ -96,22 +101,22 @@ export function SpreadsheetToolbar({
 
       <ToolbarSeparator />
 
-      <ToolbarGroup label="Alinhamento">
+      <ToolbarGroup label={t('spreadsheet.toolbar.alignment')}>
         <ToolbarButton
           icon="align-left"
-          label="Alinhar à esquerda"
+          label={t('spreadsheet.toolbar.alignLeft')}
           active={style.align === 'left'}
           onClick={set({ align: 'left' })}
         />
         <ToolbarButton
           icon="align-center"
-          label="Centralizar"
+          label={t('spreadsheet.toolbar.alignCenter')}
           active={style.align === 'center'}
           onClick={set({ align: 'center' })}
         />
         <ToolbarButton
           icon="align-right"
-          label="Alinhar à direita"
+          label={t('spreadsheet.toolbar.alignRight')}
           active={style.align === 'right'}
           onClick={set({ align: 'right' })}
         />
@@ -119,54 +124,54 @@ export function SpreadsheetToolbar({
 
       <ToolbarSeparator />
 
-      <ToolbarGroup label="Número">
+      <ToolbarGroup label={t('spreadsheet.toolbar.numberGroup')}>
         <ToolbarSelect
-          label="Formato do número"
+          label={t('spreadsheet.toolbar.numberFormat')}
           value={style.format ?? CellFormat.General}
-          options={NUMBER_FORMATS}
+          options={numberFormats(t)}
           onChange={(value) => onChange(applyStyle(sheet, range, { format: value }))}
           width={124}
         />
         <ToolbarButton
           icon="decimal-less"
-          label="Menos casas decimais"
+          label={t('spreadsheet.toolbar.decreaseDecimals')}
           onClick={set({ decimals: Math.max(0, (style.decimals ?? 2) - 1) })}
         />
         <ToolbarButton
           icon="decimal-more"
-          label="Mais casas decimais"
+          label={t('spreadsheet.toolbar.increaseDecimals')}
           onClick={set({ decimals: Math.min(10, (style.decimals ?? 0) + 1) })}
         />
       </ToolbarGroup>
 
       <ToolbarSeparator />
 
-      <ToolbarGroup label="Bordas">
+      <ToolbarGroup label={t('spreadsheet.toolbar.borders')}>
         <ToolbarButton
           icon="borders-all"
-          label="Bordas em volta"
+          label={t('spreadsheet.toolbar.allBorders')}
           onClick={() => onChange(applyBorders(sheet, range, ALL_SIDES))}
         />
         <ToolbarButton
           icon="borders-none"
-          label="Sem bordas"
+          label={t('spreadsheet.toolbar.noBorders')}
           onClick={() => onChange(applyBorders(sheet, range, []))}
         />
       </ToolbarGroup>
 
       <ToolbarSeparator />
 
-      <ToolbarGroup label="Painéis">
+      <ToolbarGroup label={t('spreadsheet.toolbar.panes')}>
         {/* Congelar usa a seleção como referência: tudo acima e à esquerda dela
             fica preso, que é como o Excel e o Google Sheets fazem. */}
         <ToolbarButton
           icon="freeze"
-          label="Congelar até a seleção"
+          label={t('spreadsheet.toolbar.freeze')}
           onClick={() => onChange({ ...sheet, frozenRows: range.fromRow, frozenColumns: range.fromColumn })}
         />
         <ToolbarButton
           icon="unfreeze"
-          label="Descongelar"
+          label={t('spreadsheet.toolbar.unfreeze')}
           disabled={sheet.frozenRows === 0 && sheet.frozenColumns === 0}
           onClick={() => onChange({ ...sheet, frozenRows: 0, frozenColumns: 0 })}
         />
