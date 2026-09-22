@@ -122,6 +122,7 @@ export function createWorkspaceContext(set: SetWorkspace, get: GetWorkspace): Wo
       // o inventário do anterior não fala deste. Quem abre um arquivo de
       // verdade preenche os dois logo em seguida, com o que o arquivo trouxe.
       notice: null,
+      savedLoss: null,
       readOnly: false,
     }))
   }

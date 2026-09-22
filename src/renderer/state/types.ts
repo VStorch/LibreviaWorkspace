@@ -79,6 +79,15 @@ export interface WorkspaceState {
    */
   notice: LossInventory | null
   /**
+   * O que a última gravação perdeu, quando perdeu algo.
+   *
+   * Separado do `notice` porque é outro momento e outra frase: o da abertura
+   * avisa o que **vai** se perder se o bloco for editado; este diz o que **se
+   * perdeu** na gravação que acabou de acontecer. Sem ele o inventário da
+   * gravação vinha do sidecar e morria no renderer, e a pessoa via "Salvo".
+   */
+  savedLoss: readonly string[] | null
+  /**
    * Rascunho de uma sessão que não terminou bem, esperando decisão.
    *
    * Enquanto ele está aqui o autosave não escreve: gravar por cima do rascunho

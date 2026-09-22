@@ -28,3 +28,16 @@ export function hasReportableLoss(inventory: LossInventory | undefined): boolean
 export function locksEditing(inventory: LossInventory | undefined): boolean {
   return inventory !== undefined && inventory.structural.length > 0
 }
+
+/**
+ * O que uma gravação perdeu, cada coisa uma vez.
+ *
+ * Só o `lost`: o invisível continua no arquivo, e quem abriu o documento já foi
+ * avisado dele. O que interessa depois de salvar é o que **não** chegou ao disco
+ * — a mesclagem vertical feita na tela, a imagem sem conteúdo, o bloco que o
+ * escritor não sabe gerar. Repetido porque o sidecar registra por célula e por
+ * bloco, e a faixa diz o que se perdeu, não quantas vezes.
+ */
+export function lostOnSave(inventory: LossInventory | undefined): readonly string[] {
+  return inventory === undefined ? [] : [...new Set(inventory.lost)]
+}

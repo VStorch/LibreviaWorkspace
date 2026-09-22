@@ -33,6 +33,7 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
     recents: [],
     error: null,
     notice: null,
+    savedLoss: null,
     pendingDraft: null,
     readOnly: false,
     autosaveBroken: false,
@@ -51,7 +52,7 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
     },
     setPage: (page) => set({ page, isDirty: true }),
     dismissError: () => set({ error: null }),
-    dismissNotice: () => set({ notice: null }),
+    dismissNotice: () => set({ notice: null, savedLoss: null }),
     showError: (error) => set({ error }),
     allowEditing: () => set({ readOnly: false }),
 

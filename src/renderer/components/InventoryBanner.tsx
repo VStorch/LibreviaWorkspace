@@ -14,8 +14,25 @@ import { useWorkspace } from '../state/workspace.js'
  */
 export function InventoryBanner(): React.JSX.Element | null {
   const notice = useWorkspace((state) => state.notice)
+  const savedLoss = useWorkspace((state) => state.savedLoss)
   const readOnly = useWorkspace((state) => state.readOnly)
   const dismiss = useWorkspace((state) => state.dismissNotice)
+
+  // O que a gravação acabou de perder vem primeiro, e sozinho: é o aviso de
+  // agora, e o da abertura já foi lido quando o arquivo abriu.
+  if (savedLoss !== null && savedLoss.length > 0) {
+    return (
+      <div className="banner banner--notice" role="status">
+        <div className="banner__text">
+          <strong>Nesta gravação, isto não chegou ao arquivo:</strong>
+          <span className="banner__detail">{savedLoss.join('; ')}</span>
+        </div>
+        <button type="button" className="banner__close" onClick={dismiss} aria-label="Dispensar aviso">
+          ✕
+        </button>
+      </div>
+    )
+  }
 
   if (notice === null) return null
 

@@ -6,7 +6,7 @@ import { createEmptyWorkbook } from '@services/spreadsheet/model.js'
 import { parseWorkbook, serializeWorkbook } from '@services/spreadsheet/serialize.js'
 import { recalculate } from '@services/spreadsheet/formula/recalc.js'
 import { defaultFileName, isPlainTextPath, kindFromPath } from '@services/file/formats.js'
-import { hasReportableLoss, locksEditing } from '@services/file/inventory.js'
+import { hasReportableLoss, locksEditing, lostOnSave } from '@services/file/inventory.js'
 import { toSerialized, type GetWorkspace, type SetWorkspace, type WorkspaceContext } from './context.js'
 import type { LoadedFile, OpenFile, WorkspaceState } from './types.js'
 
@@ -65,9 +65,16 @@ export function createFileActions(set: SetWorkspace, get: GetWorkspace, ctx: Wor
     return answer.choice === PlainTextChoice.SaveAsDocument ? 'chooseAnother' : 'proceed'
   }
 
-  /** O disco passou a ter a versão boa: o rascunho não vale mais. */
-  async function afterSave(file: OpenFile): Promise<void> {
-    set({ file, isDirty: false })
+  /**
+   * O disco passou a ter a versão boa: o rascunho não vale mais.
+   *
+   * E o que a gravação não conseguiu levar ao disco vai para a faixa de aviso —
+   * nada se perde em silêncio, nem na hora de salvar. Cada gravação diz só o
+   * que perdeu **ela**: a que não perdeu nada apaga o aviso da anterior.
+   */
+  async function afterSave(file: OpenFile, inventory: LossInventory | undefined): Promise<void> {
+    const lost = lostOnSave(inventory)
+    set({ file, isDirty: false, savedLoss: lost.length > 0 ? lost : null })
     await ctx.forgetDraft()
     await get().refreshRecents()
   }
@@ -160,7 +167,7 @@ export function createFileActions(set: SetWorkspace, get: GetWorkspace, ctx: Wor
       const data = await ctx.call(() => window.api.file.save({ path, content: encodeFor(path) }))
       if (data === null) return false
 
-      await afterSave({ ...file, name: data.name })
+      await afterSave({ ...file, name: data.name }, data.inventory)
       return true
     },
 
@@ -185,7 +192,7 @@ export function createFileActions(set: SetWorkspace, get: GetWorkspace, ctx: Wor
       )
       if (data === null) return false
 
-      await afterSave({ path: chosen.path, name: data.name, kind: file.kind })
+      await afterSave({ path: chosen.path, name: data.name, kind: file.kind }, data.inventory)
       return true
     },
 
@@ -202,6 +209,7 @@ export function createFileActions(set: SetWorkspace, get: GetWorkspace, ctx: Wor
         isDirty: false,
         error: null,
         notice: null,
+        savedLoss: null,
         readOnly: false,
       }))
 
