@@ -1,7 +1,9 @@
 import { pageDimensionsMm } from '@services/document/model.js'
+import { useT } from '../i18n.js'
 import { useWorkspace } from '../state/workspace.js'
 
 export function StatusBar(): React.JSX.Element {
+  const t = useT()
   const state = useWorkspace()
   const { width, height } = pageDimensionsMm(state.page)
 
@@ -12,7 +14,7 @@ export function StatusBar(): React.JSX.Element {
   return (
     <footer className="statusbar">
       <span className="statusbar__file" title={state.file?.path ?? undefined}>
-        {state.file?.path ?? 'Arquivo ainda não salvo'}
+        {state.file?.path ?? t('shell.statusBar.notSavedYet')}
       </span>
 
       <span className="statusbar__spacer" />
@@ -26,22 +28,20 @@ export function StatusBar(): React.JSX.Element {
               que a pessoa vê nas folhas. Prometer aproximação quando a conta
               está certa ensina a desconfiar de um número bom. */}
           <span className="statusbar__metric">
-            {state.estimatedPages} {state.estimatedPages === 1 ? 'página' : 'páginas'}
+            {t('shell.statusBar.pages', { count: state.estimatedPages })}
           </span>
           <span className="statusbar__metric">
-            {state.stats.words.toLocaleString('pt-BR')} {state.stats.words === 1 ? 'palavra' : 'palavras'}
+            {t('shell.statusBar.words', { count: state.stats.words })}
           </span>
           <span className="statusbar__metric">
-            {state.stats.characters.toLocaleString('pt-BR')}{' '}
-            {state.stats.characters === 1 ? 'caractere' : 'caracteres'}
+            {t('shell.statusBar.characters', { count: state.stats.characters })}
           </span>
         </>
       ) : (
         <>
           <span className="statusbar__metric">{sheet.name}</span>
           <span className="statusbar__metric">
-            {Object.keys(sheet.cells).length.toLocaleString('pt-BR')}{' '}
-            {Object.keys(sheet.cells).length === 1 ? 'célula preenchida' : 'células preenchidas'}
+            {t('shell.statusBar.filledCells', { count: Object.keys(sheet.cells).length })}
           </span>
         </>
       )}
@@ -49,7 +49,7 @@ export function StatusBar(): React.JSX.Element {
       {/* Indicador de alterações não salvas: repete o marcador do título da
           janela, para que o estado seja legível sem sair do conteúdo. */}
       <span className={state.isDirty ? 'statusbar__state statusbar__state--dirty' : 'statusbar__state'}>
-        {state.busy ? 'Trabalhando…' : state.isDirty ? '• Não salvo' : 'Salvo'}
+        {state.busy ? t('shell.statusBar.working') : state.isDirty ? t('shell.statusBar.unsaved') : t('shell.statusBar.saved')}
       </span>
     </footer>
   )

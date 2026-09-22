@@ -15,6 +15,7 @@ import { watchPreferences } from '../state/preferences.js'
 import { useReadingMode } from '../state/reading.js'
 import { useTheme } from '../state/theme.js'
 import { useWorkspace } from '../state/workspace.js'
+import { t } from '../i18n.js'
 
 /**
  * De quanto em quanto tempo o rascunho é regravado.
@@ -129,13 +130,14 @@ export function App(): React.JSX.Element {
 
     const sync = (): void => {
       const state = useWorkspace.getState()
-      const title = state.file?.name ?? 'Sem título'
+      const untitled = t('shell.file.untitled')
+      const title = state.file?.name ?? untitled
       if (title === lastTitle && state.isDirty === lastDirty) return
 
       lastTitle = title
       lastDirty = state.isDirty
       void window.api.window.setState({ title, isDirty: state.isDirty })
-      document.title = buildWindowTitle(state.file?.name ?? null, state.isDirty, 'Librevia')
+      document.title = buildWindowTitle(state.file?.name ?? null, state.isDirty, 'Librevia', untitled)
     }
 
     sync()

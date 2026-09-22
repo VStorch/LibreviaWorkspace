@@ -1,6 +1,7 @@
 import { APP_NAME } from '@shared/constants.js'
 import type { RecentFile } from '@shared/types.js'
 import { Icon, type IconName } from '../components/Icon.js'
+import { useT } from '../i18n.js'
 import { useWorkspace } from '../state/workspace.js'
 
 function formatWhen(timestamp: number): string {
@@ -108,6 +109,7 @@ function Tile({
 }
 
 export function HomePage(): React.JSX.Element {
+  const t = useT()
   const { recents, newDocument, newSpreadsheet, openViaDialog, clearRecents } = useWorkspace()
 
   return (
@@ -117,28 +119,28 @@ export function HomePage(): React.JSX.Element {
           <BrandMark />
           <h1>{APP_NAME}</h1>
         </div>
-        <p className="home__subtitle">Documentos e planilhas, sem depender de nuvem.</p>
+        <p className="home__subtitle">{t('shell.home.subtitle')}</p>
       </header>
 
       <div className="home__actions">
         <Tile
           icon="file-document"
           tone="document"
-          title="Novo documento"
+          title={t('shell.home.newDocument')}
           hint="Ctrl+N"
           onClick={() => void newDocument()}
         />
         <Tile
           icon="file-spreadsheet"
           tone="spreadsheet"
-          title="Nova planilha"
+          title={t('shell.home.newSpreadsheet')}
           hint="Ctrl+Shift+N"
           onClick={() => void newSpreadsheet()}
         />
         <Tile
           icon="folder-open"
           tone="neutral"
-          title="Abrir arquivo"
+          title={t('shell.home.openFile')}
           hint="Ctrl+O"
           onClick={() => void openViaDialog()}
         />
@@ -146,16 +148,16 @@ export function HomePage(): React.JSX.Element {
 
       <section className="home__recents">
         <div className="home__recents-head">
-          <h2>Arquivos recentes</h2>
+          <h2>{t('shell.home.recentFiles')}</h2>
           {recents.length > 0 && (
             <button type="button" className="link" onClick={() => void clearRecents()}>
-              Limpar
+              {t('shell.home.clear')}
             </button>
           )}
         </div>
 
         {recents.length === 0 ? (
-          <p className="home__empty">Nenhum arquivo aberto ainda.</p>
+          <p className="home__empty">{t('shell.home.emptyRecents')}</p>
         ) : (
           <ul className="home__recents-list">
             {recents.map((file) => (

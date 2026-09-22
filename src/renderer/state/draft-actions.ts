@@ -5,6 +5,7 @@ import { parseDocument } from '@services/document/serialize.js'
 import { parseWorkbook } from '@services/spreadsheet/serialize.js'
 import { recalculate } from '@services/spreadsheet/formula/recalc.js'
 import { toSerialized, type GetWorkspace, type SetWorkspace, type WorkspaceContext } from './context.js'
+import { t } from '../i18n.js'
 import type { LoadedFile, WorkspaceState } from './types.js'
 
 /** O rascunho como ele volta do disco: o resumo mais o conteúdo. */
@@ -97,9 +98,7 @@ function autosaveBrokenState(cause: SerializedError): Partial<WorkspaceState> {
     autosaveBroken: true,
     error: {
       code: cause.code,
-      message:
-        'A gravação automática de segurança parou de funcionar. Seu arquivo não foi alterado, ' +
-        'mas salve o trabalho manualmente: uma queda agora custaria o que não foi salvo.',
+      message: t('shell.draft.autosaveBroken'),
       detail: cause.message,
     },
   }
