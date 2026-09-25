@@ -31,6 +31,7 @@ import { PageBreak } from './extensions/page-break.js'
 import { ReadOnlyGuard } from './extensions/read-only-guard.js'
 import { Pagination } from './extensions/pagination.js'
 import { ParagraphCommands } from './extensions/paragraph-commands.js'
+import { CharacterStyle, StyleCommands } from './extensions/style-commands.js'
 import { SearchReplace, type SearchStatus } from './extensions/search-replace.js'
 import { TableLook } from './extensions/table-look.js'
 import { WordShortcuts } from './extensions/word-shortcuts.js'
@@ -153,6 +154,10 @@ export function buildEditorExtensions(
     // Os comandos que o diálogo de parágrafo usa: escrevem o formulário inteiro
     // numa transação só, para que desfazer não peça oito `Ctrl+Z`.
     ParagraphCommands,
+    // Aplicar estilo, limpar a formatação direta, o "desligado" que vence o
+    // estilo e o Enter que passa ao estilo seguinte. Ver style-commands.ts.
+    StyleCommands,
+    CharacterStyle,
     // Fundo, espaçamento e entrelinha do parágrafo — no OOXML são
     // propriedades do bloco, e é o que faz `Heading1` virar barra colorida.
     BlockFormat,

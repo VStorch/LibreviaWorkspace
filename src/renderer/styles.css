@@ -1592,6 +1592,17 @@ button {
   background: var(--accent-soft);
 }
 
+/* O escolhido para aplicar ou modificar: contorno, para não se confundir com o
+   fundo do "do cursor" quando os dois são o mesmo estilo. */
+.styles-list__item {
+  cursor: pointer;
+}
+
+.styles-list__item--selected {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
 .styles-list__name {
   font-weight: 600;
 }

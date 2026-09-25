@@ -19,7 +19,15 @@ public static class RunReader
     public static bool IsOn(OnOffType? toggle) =>
         toggle is not null && (toggle.Val is null || toggle.Val.Value);
 
-    public static List<Mark>? MarksOf(RunProperties? properties, string? hyperlink, FontTable? fonts = null)
+    /// <param name="inherited">
+    /// O que o estilo do parágrafo dá aos runs. Com ele, o que o estilo liga e o
+    /// run desliga sai como a marca com <c>off</c> — ver <see cref="Off"/>.
+    /// </param>
+    public static List<Mark>? MarksOf(
+        RunProperties? properties,
+        string? hyperlink,
+        FontTable? fonts = null,
+        RunProperties? inherited = null)
     {
         var marks = new List<Mark>();
 
@@ -31,8 +39,11 @@ public static class RunReader
         if (properties is not null)
         {
             if (IsOn(properties.Bold)) marks.Add(Mark.Of("bold"));
+            else if (IsOn(inherited?.Bold)) marks.Add(Off("bold"));
             if (IsOn(properties.Italic)) marks.Add(Mark.Of("italic"));
+            else if (IsOn(inherited?.Italic)) marks.Add(Off("italic"));
             if (IsOn(properties.Strike)) marks.Add(Mark.Of("strike"));
+            else if (IsOn(inherited?.Strike)) marks.Add(Off("strike"));
             if (IsOn(properties.Caps)) marks.Add(Mark.Of("caps"));
             if (IsOn(properties.SmallCaps)) marks.Add(Mark.Of("smallCaps"));
 
@@ -49,11 +60,8 @@ public static class RunReader
 
             // `w:u` não é alternância: carrega o estilo do sublinhado, e "none"
             // é a forma de desligar.
-            if (properties.Underline?.Val is not null &&
-                properties.Underline.Val.Value != UnderlineValues.None)
-            {
-                marks.Add(Mark.Of("underline"));
-            }
+            if (IsUnderlined(properties)) marks.Add(Mark.Of("underline"));
+            else if (inherited is not null && IsUnderlined(inherited)) marks.Add(Off("underline"));
 
             var highlight = HighlightOf(properties);
             if (highlight is not null)
@@ -70,6 +78,20 @@ public static class RunReader
 
         return marks.Count == 0 ? null : marks;
     }
+
+    private static bool IsUnderlined(RunProperties properties) =>
+        properties.Underline?.Val is not null && properties.Underline.Val.Value != UnderlineValues.None;
+
+    /// <summary>
+    /// A marca "desligado": o estilo do parágrafo liga, o run desliga.
+    /// </summary>
+    /// <remarks>
+    /// Com o bloco desenhado pelo estilo, a ausência da marca quer dizer "o que o
+    /// estilo disser". O trecho que o autor tirou do negrito de um título precisa
+    /// dizer outra coisa, e é esta marca que o diz — na tela (`font-weight: 400`)
+    /// e de volta no arquivo (`w:b w:val="0"`).
+    /// </remarks>
+    public static Mark Off(string type) => Mark.Of(type, "off", true);
 
     private static Mark? TextStyleOf(RunProperties properties, FontTable? fonts)
     {

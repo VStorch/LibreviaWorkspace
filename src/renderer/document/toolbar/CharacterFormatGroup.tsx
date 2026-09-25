@@ -2,6 +2,7 @@ import { useEditorState, type Editor } from '@tiptap/react'
 import { SHORTCUTS, shortcutHintOf } from '@shared/shortcuts.js'
 import { ColorControl, ToolbarButton, ToolbarGroup } from '../../components/ToolbarControls.js'
 import { useT } from '../../i18n.js'
+import { markVisiblyOn } from '../extensions/style-commands.js'
 import { focusChain } from './focus-chain.js'
 
 /** O que é propriedade do trecho de texto: as marcas e as cores. */
@@ -10,10 +11,12 @@ export function CharacterFormatGroup({ editor }: { readonly editor: Editor }): R
   const active = useEditorState({
     editor,
     selector: ({ editor: current }) => ({
-      bold: current.isActive('bold'),
-      italic: current.isActive('italic'),
-      underline: current.isActive('underline'),
-      strike: current.isActive('strike'),
+      // O que aparece, com o estilo por baixo: o título negrito sem marca está
+      // negrito, e o trecho com a marca "desligado" não está.
+      bold: markVisiblyOn(current.state.tr, current.storage.paragraphCommands.styles, 'bold'),
+      italic: markVisiblyOn(current.state.tr, current.storage.paragraphCommands.styles, 'italic'),
+      underline: markVisiblyOn(current.state.tr, current.storage.paragraphCommands.styles, 'underline'),
+      strike: markVisiblyOn(current.state.tr, current.storage.paragraphCommands.styles, 'strike'),
       superscript: current.isActive('superscript'),
       subscript: current.isActive('subscript'),
       caps: current.isActive('caps'),
@@ -33,27 +36,27 @@ export function CharacterFormatGroup({ editor }: { readonly editor: Editor }): R
         label={t('document.characterFormat.bold')}
         shortcut={shortcutHintOf(SHORTCUTS.bold)}
         active={active.bold}
-        onClick={() => chain().toggleBold().run()}
+        onClick={() => chain().toggleInheritedMark('bold').run()}
       />
       <ToolbarButton
         icon="italic"
         label={t('document.characterFormat.italic')}
         shortcut={shortcutHintOf(SHORTCUTS.italic)}
         active={active.italic}
-        onClick={() => chain().toggleItalic().run()}
+        onClick={() => chain().toggleInheritedMark('italic').run()}
       />
       <ToolbarButton
         icon="underline"
         label={t('document.characterFormat.underline')}
         shortcut={shortcutHintOf(SHORTCUTS.underline)}
         active={active.underline}
-        onClick={() => chain().toggleUnderline().run()}
+        onClick={() => chain().toggleInheritedMark('underline').run()}
       />
       <ToolbarButton
         icon="strike"
         label={t('document.characterFormat.strikethrough')}
         active={active.strike}
-        onClick={() => chain().toggleStrike().run()}
+        onClick={() => chain().toggleInheritedMark('strike').run()}
       />
 
       {/* Os atalhos anunciados são os do Word. Os padrões do Tiptap — `Ctrl+.`

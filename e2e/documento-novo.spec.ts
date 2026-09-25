@@ -36,7 +36,7 @@ test.describe('documento novo em .docx', () => {
     await menu(session, 'new-document')
     await editor.click()
     await session.window.keyboard.type('Relatório anual')
-    await session.window.getByRole('combobox', { name: 'Estilo' }).selectOption('1')
+    await session.window.getByRole('combobox', { name: 'Estilo' }).selectOption({ label: 'Título 1' })
 
     await editor.locator('h1').click()
     await session.window.keyboard.press('End')

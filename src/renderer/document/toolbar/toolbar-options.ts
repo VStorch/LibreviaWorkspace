@@ -45,16 +45,6 @@ export function lineHeights(t: (key: MessageKey) => string): readonly { value: s
   ]
 }
 
-export function blockStyles(t: (key: MessageKey) => string): readonly { value: string; label: string }[] {
-  return [
-    { value: 'paragraph', label: t('document.styleAndFont.normalText') },
-    { value: '1', label: t('document.styleAndFont.heading1') },
-    { value: '2', label: t('document.styleAndFont.heading2') },
-    { value: '3', label: t('document.styleAndFont.heading3') },
-    { value: '4', label: t('document.styleAndFont.heading4') },
-  ]
-}
-
 /**
  * As opções de um seletor, com o valor atual dentro dela quando faltar.
  *

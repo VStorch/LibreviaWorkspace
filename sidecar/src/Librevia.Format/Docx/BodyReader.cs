@@ -747,7 +747,22 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory, bool 
 
     private IEnumerable<Node> ReadRun(Run run, RunProperties inherited, string? hyperlink)
     {
-        var marks = RunReader.MarksOf(_styles.ResolveRun(inherited, run.RunProperties), hyperlink, _fonts);
+        // O herdado vai junto para que o "desligado" direto sobre um estilo que
+        // liga vire marca — a tela desenha o estilo, e sem ela o trecho voltaria
+        // negrito. O rascunho antigo não as conhece, e a leitura dele não as dá.
+        var marks = RunReader.MarksOf(
+            _styles.ResolveRun(inherited, run.RunProperties),
+            hyperlink,
+            _fonts,
+            flatten ? null : inherited);
+
+        // O estilo de caractere do trecho (`w:rStyle`). A leitura não o resolve —
+        // quem o desenha é o CSS dos estilos, como no parágrafo —, e a marca é o
+        // que o faz voltar ao arquivo.
+        if (!flatten && run.RunProperties?.RunStyle?.Val?.Value is { Length: > 0 } characterStyle)
+        {
+            (marks ??= []).Add(Mark.Of("charStyle", "styleId", characterStyle));
+        }
 
         foreach (var element in run.ChildElements)
         {

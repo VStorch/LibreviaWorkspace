@@ -163,7 +163,34 @@ public class DocxWriteBackTests
         text.Text = "Sem a marca.";
 
         var xml = Roundtrip.XmlOf(Roundtrip.Save(original, model).Bytes);
-        Assert.DoesNotContain("<w:b w:val=\"0\"", xml, StringComparison.Ordinal);
+        Assert.DoesNotMatch("<w:b w:val=", xml);
+    }
+
+    [Fact]
+    public void ODesligadoSobreOEstiloVaiEVoltaDoArquivo()
+    {
+        // A marca com `off` é o trecho tirando o negrito que o estilo dá: no
+        // arquivo é `w:b w:val="0"`, e relido vira a mesma marca — senão a tela,
+        // desenhada pelo estilo, mostraria o trecho negrito de novo.
+        var original = Fixtures.WithStyles();
+        var model = Roundtrip.Clone(Roundtrip.Open(original));
+        var text = BlockOf(model, 0).Content![0];
+        text.Marks = [.. text.Marks!.Where(mark => mark.Type != "bold"), RunReader.Off("bold"), Mark.Of("charStyle", "styleId", "Destaque")];
+        text.Text = "Sem negrito.";
+
+        var saved = Roundtrip.Save(original, model).Bytes;
+        var xml = Roundtrip.XmlOf(saved);
+        Assert.Matches("<w:b w:val=\"(0|false)\" />", xml);
+        Assert.Contains("<w:rStyle w:val=\"Destaque\" />", xml, StringComparison.Ordinal);
+
+        var marks = Roundtrip.Open(saved).Doc.Content![0].Content![0].Marks!;
+        Assert.Contains(marks, mark => mark.Type == "bold" && mark.Attrs?["off"]?.GetValue<bool>() == true);
+        Assert.Contains(marks, mark => mark.Type == "charStyle");
+
+        // O rascunho antigo não conhece nem uma nem outra.
+        Assert.DoesNotContain(
+            Roundtrip.OpenFlat(saved).Doc.Content![0].Content![0].Marks!,
+            mark => mark.Type == "charStyle" || mark.Attrs?.ContainsKey("off") == true);
     }
 
     [Fact]

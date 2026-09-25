@@ -419,13 +419,18 @@ public sealed class ParagraphWriter
         {
             switch (mark.Type)
             {
-                case "bold": properties.Bold = new Bold(); break;
-                case "italic": properties.Italic = new Italic(); break;
-                case "strike": properties.Strike = new Strike(); break;
+                // `off` é o trecho desligando o que o estilo do parágrafo liga —
+                // ver RunReader.Off.
+                case "bold": properties.Bold = IsOff(mark) ? new Bold { Val = false } : new Bold(); break;
+                case "italic": properties.Italic = IsOff(mark) ? new Italic { Val = false } : new Italic(); break;
+                case "strike": properties.Strike = IsOff(mark) ? new Strike { Val = false } : new Strike(); break;
                 case "caps": properties.Caps = new Caps(); break;
                 case "smallCaps": properties.SmallCaps = new SmallCaps(); break;
                 case "underline":
-                    properties.Underline = new Underline { Val = UnderlineValues.Single };
+                    properties.Underline = new Underline
+                    {
+                        Val = IsOff(mark) ? UnderlineValues.None : UnderlineValues.Single,
+                    };
                     break;
 
                 // Uma propriedade só para os dois, com valores que se excluem —
@@ -453,6 +458,14 @@ public sealed class ParagraphWriter
 
                 case "link":
                     hyperlink = Attr.MarkString(mark, "href");
+                    break;
+
+                case "charStyle":
+                    if (Attr.MarkString(mark, "styleId") is { Length: > 0 } characterStyle)
+                    {
+                        properties.RunStyle = new RunStyle { Val = characterStyle };
+                    }
+
                     break;
 
                 case "textStyle":
@@ -515,14 +528,29 @@ public sealed class ParagraphWriter
     /// </remarks>
     private static void DropWhatRepeatsTheStyle(RunProperties properties, RunProperties style)
     {
-        if (properties.Bold is not null && RunReader.IsOn(style.Bold)) properties.Bold = null;
-        if (properties.Italic is not null && RunReader.IsOn(style.Italic)) properties.Italic = null;
-        if (properties.Strike is not null && RunReader.IsOn(style.Strike)) properties.Strike = null;
+        // Ligado ou desligado, o que coincide com o estilo sai: o "desligado"
+        // num estilo que não liga nada não diz nada.
+        if (properties.Bold is not null && RunReader.IsOn(properties.Bold) == RunReader.IsOn(style.Bold))
+        {
+            properties.Bold = null;
+        }
+
+        if (properties.Italic is not null && RunReader.IsOn(properties.Italic) == RunReader.IsOn(style.Italic))
+        {
+            properties.Italic = null;
+        }
+
+        if (properties.Strike is not null && RunReader.IsOn(properties.Strike) == RunReader.IsOn(style.Strike))
+        {
+            properties.Strike = null;
+        }
+
         if (properties.Caps is not null && RunReader.IsOn(style.Caps)) properties.Caps = null;
         if (properties.SmallCaps is not null && RunReader.IsOn(style.SmallCaps)) properties.SmallCaps = null;
 
-        if (properties.Underline is not null && style.Underline?.Val is { } line &&
-            line.Value != UnderlineValues.None)
+        if (properties.Underline?.Val is { } underline &&
+            (underline.Value != UnderlineValues.None) ==
+            (style.Underline?.Val is { } line && line.Value != UnderlineValues.None))
         {
             properties.Underline = null;
         }
@@ -535,6 +563,10 @@ public sealed class ParagraphWriter
             properties.VerticalTextAlignment = null;
         }
     }
+
+    private static bool IsOff(Mark mark) =>
+        mark.Attrs?.TryGetValue("off", out var off) == true &&
+        off?.GetValueKind() == System.Text.Json.JsonValueKind.True;
 
     private static bool Same(string? a, string? b) =>
         a is not null && string.Equals(a, b, StringComparison.OrdinalIgnoreCase);

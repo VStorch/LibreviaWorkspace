@@ -16,8 +16,14 @@
  */
 
 import { cssLineHeightOf, explicitCssLineHeightOf } from './line-metrics.js'
-import { headingStyleOf, resolveStyle, usableFactor, type ResolvedStyle } from './style-cascade.js'
-import { StyleType, type StyleSheet } from './styles.js'
+import {
+  headingStyleOf,
+  resolveCharacterStyle,
+  resolveStyle,
+  usableFactor,
+  type ResolvedStyle,
+} from './style-cascade.js'
+import { StyleType, type StyleCharacterFormat, type StyleSheet } from './styles.js'
 
 /** Até onde o editor tem título: `h1`…`h6`. */
 const HEADING_LEVELS = 6
@@ -41,6 +47,18 @@ export function styleSheetCss(sheet: StyleSheet): string {
   // documento, sem nem o estilo padrão. Antes das regras por id, que têm a
   // mesma especificidade e por isso vencem por virem depois.
   rules.push(rule('.page__content > [data-style-id]', resolveStyle(sheet, '')))
+
+  // Os de caractere, em qualquer profundidade: o trecho mora dentro do parágrafo,
+  // da célula e do item de lista. Só o que a cadeia declara — o resto é do
+  // parágrafo em volta.
+  for (const style of Object.values(sheet.styles)) {
+    if (style.type !== StyleType.Character) continue
+    const css = declaredCharacterCss(resolveCharacterStyle(sheet, style.id))
+    if (css.length === 0) continue
+    rules.push(
+      `.page__content [data-char-style="${attributeText(style.id)}"] { ${declarations(css).join(' ')} }`,
+    )
+  }
 
   for (const style of Object.values(sheet.styles)) {
     if (style.type !== StyleType.Paragraph) continue
@@ -94,6 +112,28 @@ function characterCss({ paragraph, character }: ResolvedStyle): Array<[string, s
   // Sem cor declarada vale a do texto (`#111111`, de `content-styles.ts`): o
   // "automático" do Word, que não é cor a gravar.
   if (character.color !== undefined) css.push(['color', character.color])
+  return css
+}
+
+/** Só o declarado, sem padrão nenhum: o que o estilo de caractere cala é do parágrafo. */
+function declaredCharacterCss(character: StyleCharacterFormat): Array<[string, string]> {
+  const css: Array<[string, string]> = []
+  if (character.fontFamily !== undefined) css.push(['font-family', fontStackOf(character.fontFamily)])
+  if (character.fontSize !== undefined) css.push(['font-size', character.fontSize])
+  if (character.bold !== undefined) css.push(['font-weight', character.bold ? '700' : '400'])
+  if (character.italic !== undefined) css.push(['font-style', character.italic ? 'italic' : 'normal'])
+  if (character.underline === true || character.strike === true) {
+    const lines = [
+      character.underline === true ? 'underline' : '',
+      character.strike === true ? 'line-through' : '',
+    ]
+    css.push(['text-decoration', lines.filter((line) => line !== '').join(' ')])
+  }
+  if (character.allCaps !== undefined) css.push(['text-transform', character.allCaps ? 'uppercase' : 'none'])
+  if (character.smallCaps !== undefined)
+    css.push(['font-variant', character.smallCaps ? 'small-caps' : 'normal'])
+  if (character.color !== undefined) css.push(['color', character.color])
+  if (character.highlight !== undefined) css.push(['background-color', character.highlight])
   return css
 }
 

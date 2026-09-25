@@ -54,6 +54,7 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
       if (get().estimatedPages !== pages) set({ estimatedPages: pages })
     },
     setPage: (page) => set({ page, isDirty: true }),
+    setStyles: (styles) => set({ styles, isDirty: true }),
     dismissError: () => set({ error: null }),
     dismissNotice: () => set({ notice: null, savedLoss: null }),
     showError: (error) => set({ error }),

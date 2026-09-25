@@ -4,19 +4,16 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
 import { launch, menu, stubDialogs, type Session } from './app.js'
-import { docxWithNamedStyles } from './fixtures.js'
+import { docxWithNamedStyles, entryOf } from './fixtures.js'
 
 /**
- * O painel de estilos, só de leitura.
+ * O painel de estilos: ver, aplicar, modificar, criar e limpar.
  *
- * Responde na tela duas perguntas que o programa não sabia responder: quais
- * estilos o documento tem, e qual é o do parágrafo onde está o cursor. Num
- * `.docx` corporativo quase toda a formatação mora em estilos, e quem abria um
- * aqui via o resultado sem nunca ver a regra.
- *
- * Aplicar, criar e modificar são das entregas seguintes — e é isso que o último
- * teste protege: o painel não pode ganhar um botão que mexa no documento sem que
- * alguém decida que ele pode.
+ * Responde na tela duas perguntas que o programa não sabia responder — quais
+ * estilos o documento tem, e qual é o do parágrafo onde está o cursor — e deixa
+ * agir sobre a resposta. O que se prova aqui é o que só o aplicativo inteiro
+ * mostra: a tela mudando com o estilo, o desfazer, e o estilo modificado chegando
+ * ao `.docx` e voltando dele.
  */
 test.describe('painel de estilos', () => {
   let session: Session
@@ -45,7 +42,7 @@ test.describe('painel de estilos', () => {
 
     // Virar título muda a resposta **ao vivo**, sem fechar o painel: o cursor
     // continua onde estava, e o seletor da barra devolve o foco ao documento.
-    await session.window.getByRole('combobox', { name: 'Estilo' }).selectOption('1')
+    await session.window.getByRole('combobox', { name: 'Estilo' }).selectOption({ label: 'Título 1' })
     await expect(panel).toContainText('Parágrafo do cursor: Título 1')
   })
 
@@ -79,19 +76,115 @@ test.describe('painel de estilos', () => {
     await expect(panel).not.toContainText('Citação recuada')
   })
 
-  test('não oferece nada que altere o documento, e fecha com Escape', async () => {
+  test('aplicar pelo painel troca o bloco, e desfazer o devolve', async () => {
     await menu(session, 'new-document')
+    const editor = session.window.locator('.ProseMirror')
+    await editor.click()
+    await session.window.keyboard.type('Relatório')
+
     await session.window.getByRole('button', { name: 'Estilos do documento' }).click()
-
     const panel = session.window.getByRole('dialog', { name: 'Estilos' })
-    // Um botão só: fechar. Aplicar um estilo reescreve o `w:pStyle` de um
-    // parágrafo e modificá-lo reescreve `word/styles.xml` — as duas coisas mexem
-    // no arquivo de quem confia neste programa, e cada uma tem a sua entrega.
-    await expect(panel.getByRole('button')).toHaveCount(1)
-    await expect(panel.getByRole('button', { name: 'Fechar' })).toBeFocused()
+    await panel.locator('.styles-list__item', { hasText: 'Título 1' }).click()
+    await panel.getByRole('button', { name: 'Aplicar' }).click()
 
-    await panel.press('Escape')
-    await expect(panel).toBeHidden()
+    await expect(editor.locator('h1')).toHaveText('Relatório')
+    await expect(panel).toContainText('Parágrafo do cursor: Título 1')
+
+    await session.window.keyboard.press('Control+z')
+    await expect(editor.locator('h1')).toHaveCount(0)
+    await expect(editor.locator('p').first()).toHaveText('Relatório')
+  })
+
+  test('modificar o estilo muda a tela na hora', async () => {
+    await menu(session, 'new-document')
+    const editor = session.window.locator('.ProseMirror')
+    await editor.click()
+    await session.window.keyboard.type('Corpo do texto.')
+
+    await session.window.getByRole('button', { name: 'Estilos do documento' }).click()
+    const panel = session.window.getByRole('dialog', { name: 'Estilos' })
+    await panel
+      .locator('.styles-list__item')
+      .filter({ has: session.window.locator('.styles-list__name', { hasText: /^Normal$/ }) })
+      .click()
+    await panel.getByRole('button', { name: 'Modificar…' }).click()
+
+    // O embutido não muda de nome: é por ele que o Word o reconhece.
+    await expect(panel.getByRole('textbox', { name: 'Nome' })).toBeDisabled()
+    await panel.getByRole('spinbutton', { name: 'Tamanho (pt)' }).fill('20')
+    await panel.getByRole('button', { name: 'OK' }).click()
+
+    // 20 pt em pixels de CSS: a regra do estilo foi regerada, e o parágrafo sem
+    // formatação direta a segue.
+    const size = await editor
+      .locator('p')
+      .first()
+      .evaluate((element) => getComputedStyle(element).fontSize)
+    expect(Number.parseFloat(size)).toBeCloseTo(20 * (96 / 72), 0)
+    await expect(session.window.locator('.statusbar__state')).not.toHaveText('Salvo')
+  })
+
+  test('Enter no fim do título abre o estilo seguinte', async () => {
+    await menu(session, 'new-document')
+    const editor = session.window.locator('.ProseMirror')
+    await editor.click()
+    await session.window.keyboard.type('Capítulo')
+    await session.window.getByRole('combobox', { name: 'Estilo' }).selectOption({ label: 'Título 1' })
+
+    await editor.locator('h1').click()
+    await session.window.keyboard.press('End')
+    await session.window.keyboard.press('Enter')
+    await session.window.keyboard.type('Texto depois do título.')
+
+    await expect(editor.locator('p').first()).toHaveText('Texto depois do título.')
+    await expect(session.window.getByRole('combobox', { name: 'Estilo' })).toHaveValue('Normal')
+  })
+
+  test('limpar a formatação tira o direto e deixa o estilo', async () => {
+    await menu(session, 'new-document')
+    const editor = session.window.locator('.ProseMirror')
+    await editor.click()
+    await session.window.keyboard.press('Control+b')
+    await session.window.keyboard.type('Negrito à mão')
+    await expect(editor.locator('strong')).toHaveCount(1)
+
+    await session.window.getByRole('button', { name: 'Estilos do documento' }).click()
+    const panel = session.window.getByRole('dialog', { name: 'Estilos' })
+    await panel.getByRole('button', { name: 'Limpar formatação' }).click()
+
+    await expect(editor.locator('strong')).toHaveCount(0)
+    await expect(editor.locator('p').first()).toHaveText('Negrito à mão')
+  })
+
+  test('o estilo modificado vai para o .docx e volta dele', async () => {
+    const origem = join(folder, 'estilos.docx')
+    await writeFile(origem, await docxWithNamedStyles())
+
+    await stubDialogs(session.app, { open: origem, save: origem, messageBox: 1 })
+    await menu(session, 'open')
+    const editor = session.window.locator('.ProseMirror')
+    await expect(editor).toContainText('Um trecho citado.')
+
+    await session.window.getByRole('button', { name: 'Estilos do documento' }).click()
+    const panel = session.window.getByRole('dialog', { name: 'Estilos' })
+    await panel.locator('.styles-list__item', { hasText: 'Citação recuada' }).click()
+    await panel.getByRole('button', { name: 'Modificar…' }).click()
+    await panel.getByRole('spinbutton', { name: 'Tamanho (pt)' }).fill('18')
+    await panel.getByRole('button', { name: 'OK' }).click()
+    await panel.getByRole('button', { name: 'Fechar' }).click()
+
+    await menu(session, 'save')
+    await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
+
+    // Só o estilo mudou no arquivo: o parágrafo continua só apontando para ele.
+    expect(await entryOf(origem, 'word/styles.xml')).toContain('<w:sz w:val="36"')
+    expect(await entryOf(origem, 'word/document.xml')).not.toContain('w:sz')
+
+    await menu(session, 'open')
+    const quote = editor.locator('[data-style-id="Citao"]')
+    await expect(quote).toHaveText('Um trecho citado.')
+    const size = await quote.evaluate((element) => getComputedStyle(element).fontSize)
+    expect(Number.parseFloat(size)).toBeCloseTo(18 * (96 / 72), 0)
   })
 
   test('o foco circula dentro do painel, e Escape continua fechando', async () => {
@@ -106,10 +199,7 @@ test.describe('painel de estilos', () => {
     await panel.press('Tab')
     await expect(panel.getByRole('combobox', { name: 'Mostrar' })).toBeFocused()
 
-    await panel.press('Tab')
-    await expect(panel.getByRole('list', { name: 'Estilos do documento' })).toBeFocused()
-
-    await panel.press('Tab')
+    await panel.press('Shift+Tab')
     await expect(panel.getByRole('button', { name: 'Fechar' })).toBeFocused()
 
     await panel.press('Escape')

@@ -134,6 +134,14 @@ export interface WorkspaceState {
   setStats: (stats: { characters: number; words: number }) => void
   setEstimatedPages: (pages: number) => void
   setPage: (page: PageSetup) => void
+  /**
+   * Troca os estilos do documento — modificar ou criar um estilo.
+   *
+   * Sempre uma folha nova, nunca a mesma alterada: é a referência nova que faz o
+   * CSS dos estilos ser regerado na tela e no papel. Não tem desfazer próprio:
+   * o documento fica marcado como alterado, e a gravação decide o que mudou.
+   */
+  setStyles: (styles: StyleSheet) => void
   dismissError: () => void
   dismissNotice: () => void
   showError: (error: SerializedError) => void

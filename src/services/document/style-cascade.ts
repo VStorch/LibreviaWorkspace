@@ -142,25 +142,49 @@ export interface StyledBlock {
  */
 export function effectiveAttrs(block: StyledBlock, sheet: StyleSheet | null): Record<string, unknown> {
   const attrs: Record<string, unknown> = { ...(block.attrs ?? {}) }
-  const type = typeof block.type === 'string' ? block.type : block.type.name
-  if (sheet === null || (type !== 'paragraph' && type !== 'heading')) return attrs
+  const style = blockStyleOfNode(block, sheet)
+  if (style === null) return attrs
 
-  const styleId = typeof attrs['styleId'] === 'string' && attrs['styleId'] !== '' ? attrs['styleId'] : null
-  const level = Number(attrs['level'])
-  const style =
-    styleId === null && type === 'heading' && Number.isInteger(level) && level >= 1
-      ? headingStyleOf(sheet, level)
-      : resolveStyle(sheet, styleId)
-
-  const inherited = attrsOfStyle(style)
+  const inherited = styleAttrsOf(style)
   for (const [name, value] of Object.entries(inherited)) {
     if (attrs[name] === null || attrs[name] === undefined) attrs[name] = value
   }
   return attrs
 }
 
+/**
+ * O estilo que desenha o bloco, já resolvido — ou `null` quando o bloco não é
+ * parágrafo nem título, ou não há folha de estilos. O mesmo critério da regra do
+ * CSS: o id declarado; o título sem id, pelo nome `heading N`; o resto, o padrão.
+ */
+export function blockStyleOfNode(block: StyledBlock, sheet: StyleSheet | null): ResolvedStyle | null {
+  const type = typeof block.type === 'string' ? block.type : block.type.name
+  if (sheet === null || (type !== 'paragraph' && type !== 'heading')) return null
+
+  const attrs = block.attrs ?? {}
+  const styleId = typeof attrs['styleId'] === 'string' && attrs['styleId'] !== '' ? attrs['styleId'] : null
+  const level = Number(attrs['level'])
+  return styleId === null && type === 'heading' && Number.isInteger(level) && level >= 1
+    ? headingStyleOf(sheet, level)
+    : resolveStyle(sheet, styleId)
+}
+
+/**
+ * O que um estilo de caractere diz, com a herança dele — e **sem** os padrões
+ * do documento.
+ *
+ * O trecho com estilo de caractere mora dentro de um parágrafo que já tem fonte,
+ * tamanho e cor; os padrões por cima apagariam o que o estilo do parágrafo deu.
+ * O estilo de caractere só fala do que ele (ou a cadeia dele) declara.
+ */
+export function resolveCharacterStyle(sheet: StyleSheet, styleId: string): StyleCharacterFormat {
+  let character: StyleCharacterFormat = {}
+  for (const style of chainOf(sheet, styleId)) character = overlay(character, style.character)
+  return character
+}
+
 /** O estilo resolvido como o bloco o diria, campo a campo. Ausente é "ninguém disse". */
-function attrsOfStyle({ paragraph, character }: ResolvedStyle): Record<string, unknown> {
+export function styleAttrsOf({ paragraph, character }: ResolvedStyle): Record<string, unknown> {
   const attrs: Record<string, unknown> = {
     textAlign: paragraph.textAlign,
     indentMm: paragraph.indentMm,

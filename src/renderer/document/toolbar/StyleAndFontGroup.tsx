@@ -1,10 +1,12 @@
 import { useMemo } from 'react'
 import { useEditorState, type Editor } from '@tiptap/react'
 import { firstFamilyOf } from '@services/document/font-list.js'
+import { StyleType, blockStyleOf, listedStyles, styleLabelOf } from '@services/document/styles.js'
 import { ToolbarButton, ToolbarGroup, ToolbarSelect } from '../../components/ToolbarControls.js'
-import { useT } from '../../i18n.js'
+import { useLanguage, useT } from '../../i18n.js'
+import { useWorkspace } from '../../state/workspace.js'
 import { focusChain } from './focus-chain.js'
-import { blockStyles, FONT_SIZES, withCurrent } from './toolbar-options.js'
+import { FONT_SIZES, withCurrent } from './toolbar-options.js'
 import { useFontFamilies } from './useFontFamilies.js'
 
 /** Estilo do bloco, família e tamanho da fonte — o começo da barra. */
@@ -19,7 +21,16 @@ export function StyleAndFontGroup({
   const active = useEditorState({
     editor,
     selector: ({ editor: current }) => ({
-      heading: current.isActive('heading') ? String(current.getAttributes('heading')['level'] ?? '') : '',
+      block: (() => {
+        const parent = current.state.selection.$from.parent
+        const styleId = parent.attrs['styleId']
+        const level = parent.attrs['level']
+        return {
+          type: parent.type.name,
+          styleId: typeof styleId === 'string' ? styleId : null,
+          level: typeof level === 'number' ? level : null,
+        }
+      })(),
       // Só o nome da fonte: o que vem do documento é uma pilha de CSS, com a
       // substituta genérica atrás, e é o nome que a lista aqui conhece.
       fontFamily: firstFamilyOf(String(current.getAttributes('textStyle')['fontFamily'] ?? '')),
@@ -27,25 +38,28 @@ export function StyleAndFontGroup({
     }),
   })
 
-  const styles = useMemo(() => blockStyles(t), [t])
+  const sheet = useWorkspace((state) => state.styles)
+  const language = useLanguage()
+  // Os estilos de parágrafo **do documento**, pelo nome que a tela mostra: é o
+  // mesmo que o painel aplica, e título ↔ parágrafo vem do nome `heading N`.
+  const styles = useMemo(
+    () =>
+      listedStyles(sheet, language)
+        .filter((style) => style.type === StyleType.Paragraph)
+        .map((style) => ({ value: style.id, label: styleLabelOf(style, language) })),
+    [sheet, language],
+  )
+  const currentStyle = blockStyleOf(sheet, active.block)?.id ?? ''
   const fontFamilies = useFontFamilies(active.fontFamily)
   const chain = () => focusChain(editor)
-
-  function applyBlockStyle(value: string): void {
-    if (value === 'paragraph') chain().setParagraph().run()
-    else
-      chain()
-        .toggleHeading({ level: Number(value) as 1 | 2 | 3 | 4 })
-        .run()
-  }
 
   return (
     <ToolbarGroup label={t('document.styleAndFont.group')}>
       <ToolbarSelect
         label={t('document.styleAndFont.style')}
-        value={active.heading === '' ? 'paragraph' : active.heading}
-        options={styles}
-        onChange={applyBlockStyle}
+        value={currentStyle}
+        options={withCurrent(styles, currentStyle)}
+        onChange={(value) => chain().applyParagraphStyle(value).run()}
         width={128}
       />
 
