@@ -52,6 +52,7 @@ import {
   docxWithDirectOverStyles,
   docxWithDescribedImage,
   docxWithHeaderGrid,
+  docxWithMultilevelList,
   docxWithNamedStyles,
   docxWithSpacingOnBothSides,
   docxWithStretchedImage,
@@ -251,6 +252,8 @@ describe.skipIf(!published)('impressão digital entre o editor e o sidecar', () 
     ['espaçamento dos dois lados', docxWithSpacingOnBothSides],
     ['cabeçalho em grade', docxWithHeaderGrid],
     ['lista com marcador', docxWithBulletList],
+    // M7: níveis, texto composto, continuação e reinício.
+    ['lista multinível com reinício', docxWithMultilevelList],
     ['tabela com tabela aninhada', docxWithTable],
     ['sobrescrito e subscrito', docxWithVerticalAlignment],
     // Os atributos do M4: largura de coluna, sombreamento, borda, mesclagem

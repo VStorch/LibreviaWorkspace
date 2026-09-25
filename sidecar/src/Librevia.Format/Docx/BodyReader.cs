@@ -87,7 +87,7 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory, bool 
 
         // Parágrafos numerados consecutivos viram uma lista só; a pilha guarda
         // as listas abertas, uma por nível de aninhamento.
-        var openLists = new List<(Node List, string Kind, int Level)>();
+        var openLists = new List<(Node List, string Kind, int Level, int NumId)>();
 
         foreach (var element in body.ChildElements)
         {
@@ -117,10 +117,21 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory, bool 
                         openLists.RemoveAt(openLists.Count - 1);
                     }
 
-                    if (openLists.Count == 0 || openLists[^1].Level < level || openLists[^1].Kind != kind)
+                    // No mesmo nível, outra numeração é outra lista — ainda que do
+                    // mesmo tipo. Juntadas, a segunda passava a ser contada pela
+                    // primeira, e a tela numerava diferente do Word.
+                    if (openLists.Count > 0 && openLists[^1].Level == level &&
+                        (openLists[^1].Kind != kind || openLists[^1].NumId != list.NumberingId))
+                    {
+                        openLists.RemoveAt(openLists.Count - 1);
+                    }
+
+                    if (openLists.Count == 0 || openLists[^1].Level < level)
                     {
                         var listNode = Node.Of(kind);
                         listNode.Content = [];
+                        var parent = openLists.Count > 0 ? openLists[^1] : default;
+                        var depth = openLists.Count;
 
                         // A marca e o recuo são do nível, e não do parágrafo: é
                         // a lista que os desenha. Sem eles a bolinha do CSS
@@ -134,22 +145,41 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory, bool 
                         listNode.With("numId", list.NumberingId);
 
                         if (list.Marker is { } marker) listNode.With("marker", marker);
+
+                        // O `start` que o editor materializa em toda lista numerada.
+                        // Não conta nada — quem conta é a definição —, mas entra na
+                        // impressão digital do item de fora quando a lista é
+                        // aninhada, e ausente de um lado só o item era reescrito.
+                        if (kind == "orderedList") listNode.With("start", 1);
                         if (list.IndentMm is { } indent) listNode.With("indentMm", indent);
                         if (list.HangingMm is { } hanging) listNode.With("hangingMm", hanging);
 
-                        if (openLists.Count > 0 && openLists[^1].Level < level)
+                        // A definição inteira só onde a numeração muda: a sublista
+                        // da mesma numeração a encontra na lista de fora, e repeti-la
+                        // em cada nível só engordaria o documento.
+                        if (depth == 0 || parent.NumId != list.NumberingId)
+                        {
+                            listNode.With("numbering", list.Definition);
+                        }
+
+                        // O nível do arquivo, quando a árvore não o diz sozinha: a
+                        // lista que começa no nível 2, sem 0 e 1 antes, mora no
+                        // topo da árvore — e sem isto voltava ao arquivo no nível 0,
+                        // com outra marca e outra conta.
+                        if (level != (depth == 0 ? 0 : parent.Level + 1)) listNode.With("level", level);
+
+                        if (depth > 0)
                         {
                             // Lista aninhada mora dentro do último item da de fora.
-                            var parentItems = openLists[^1].List.Content!;
+                            var parentItems = parent.List.Content!;
                             (parentItems[^1].Content ??= []).Add(listNode);
                         }
                         else
                         {
-                            openLists.Clear();
                             content.Add(listNode);
                         }
 
-                        openLists.Add((listNode, kind, level));
+                        openLists.Add((listNode, kind, level, list.NumberingId));
                     }
 
                     // O id fica no `listItem`, não no parágrafo: é o item que

@@ -1018,6 +1018,47 @@ public static class Fixtures
     });
 
     /// <summary>
+    /// Lista numerada de dois níveis, interrompida, com um reinício no fim.
+    /// </summary>
+    /// <remarks>
+    /// Tudo o que a contagem do Word tem de próprio num documento só: o segundo
+    /// nível em letra compondo o primeiro (`%1.%2)`), a lista que continua do
+    /// outro lado de um parágrafo (o mesmo `numId`), e um segundo `w:num` da mesma
+    /// definição **com** `w:startOverride` — que conta à parte, a partir de 10.
+    /// </remarks>
+    public static byte[] WithMultilevelList() => Build((body, part) =>
+    {
+        Level Level(int index, NumberFormatValues format, string text, int left) => new(
+            new StartNumberingValue { Val = 1 },
+            new NumberingFormat { Val = format },
+            new LevelText { Val = text },
+            new PreviousParagraphProperties(new Indentation { Left = $"{left}", Hanging = "360" }))
+        {
+            LevelIndex = index,
+        };
+
+        var numbering = part.AddNewPart<NumberingDefinitionsPart>();
+        numbering.Numbering = new Numbering(
+            new AbstractNum(
+                Level(0, NumberFormatValues.Decimal, "%1.", 360),
+                Level(1, NumberFormatValues.LowerLetter, "%1.%2)", 720)) { AbstractNumberId = 3 },
+            new NumberingInstance(new AbstractNumId { Val = 3 }) { NumberID = 5 },
+            new NumberingInstance(
+                new AbstractNumId { Val = 3 },
+                new LevelOverride(new StartOverrideNumberingValue { Val = 10 }) { LevelIndex = 0 }) { NumberID = 6 });
+
+        body.AppendChild(Paragraph("Introdução."));
+        body.AppendChild(NumberedParagraph("Um", 5));
+        body.AppendChild(NumberedParagraph("Um-a", 5, 1));
+        body.AppendChild(NumberedParagraph("Um-b", 5, 1));
+        body.AppendChild(NumberedParagraph("Dois", 5));
+        body.AppendChild(Paragraph("No meio."));
+        body.AppendChild(NumberedParagraph("Três", 5));
+        body.AppendChild(NumberedParagraph("Dez", 6));
+        body.AppendChild(Paragraph("Conclusão."));
+    });
+
+    /// <summary>
     /// Lista com marcador **dentro de uma célula** de tabela.
     /// </summary>
     /// <remarks>

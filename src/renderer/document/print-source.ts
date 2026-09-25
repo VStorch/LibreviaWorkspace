@@ -3,6 +3,7 @@ import { DOMSerializer, Fragment, Node as ProseMirrorNode } from '@tiptap/pm/mod
 import { pxToMm, type PageSetup } from '@services/document/model.js'
 import { bandFloatsOf, floatsOf, type FloatingObject } from '@services/document/floating.js'
 import type { PrintFloat, PrintPage } from '@services/document/print-pages.js'
+import { drawListsForPrint } from './extensions/list-numbering.js'
 import { isInternalStart, type PageLayout, type PageStart } from './usePagination.js'
 
 /**
@@ -21,10 +22,11 @@ import { isInternalStart, type PageLayout, type PageStart } from './usePaginatio
 export function splitIntoPages(editor: Editor, layout: PageLayout, page: PageSetup): PrintPage[] {
   const serializer = DOMSerializer.fromSchema(editor.schema)
 
-  const blocks: ProseMirrorNode[] = []
+  // Com a numeração das listas gravada nos nós: o serializador não vê as
+  // decorações que a desenham na tela.
+  const blocks = drawListsForPrint(editor.state.doc)
   const offsets: number[] = []
-  editor.state.doc.forEach((node: ProseMirrorNode, offset: number) => {
-    blocks.push(node)
+  editor.state.doc.forEach((_node: ProseMirrorNode, offset: number) => {
     offsets.push(offset)
   })
 

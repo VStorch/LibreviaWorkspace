@@ -26,6 +26,7 @@ import { BlockFormat } from './extensions/block-format.js'
 import { DocumentImage } from './extensions/document-image.js'
 import { BlockIdentity } from './extensions/block-identity.js'
 import { Indent } from './extensions/indent.js'
+import { ListNumbering } from './extensions/list-numbering.js'
 import { Caps, SmallCaps } from './extensions/letter-case.js'
 import { PageBreak } from './extensions/page-break.js'
 import { ReadOnlyGuard } from './extensions/read-only-guard.js'
@@ -171,6 +172,9 @@ export function buildEditorExtensions(
     // Fundo, espaçamento e entrelinha do parágrafo — no OOXML são
     // propriedades do bloco, e é o que faz `Heading1` virar barra colorida.
     BlockFormat,
+    // A numeração das listas contada como o Word conta: por definição, por
+    // nível e com o formato de cada nível. Ver list-numbering.ts.
+    ListNumbering,
     // A identidade que o bloco traz do `.docx`. Sem ela a gravação cirúrgica
     // deixa de reconhecer o que não mudou e regenera o documento inteiro.
     BlockIdentity,

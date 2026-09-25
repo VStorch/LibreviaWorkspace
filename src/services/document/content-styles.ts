@@ -89,20 +89,40 @@ ${DOCUMENT_FONT_CSS}
 .page__content img[data-align='right'] { display: block; margin-left: auto; }
 
 /*
-  A marca da lista é a que o documento declara, à distância que ele pede.
+  A marca da lista é a que o documento declara, contada como o Word conta.
 
-  O CSS escolheria a bolinha e a encostaria no texto; o documento diz o
-  caractere em w:lvlText e a distância em w:ind/@hanging. Desenhada por um
-  pseudo-elemento porque o marcador nativo não se posiciona — e é justamente a
-  distância que faz o recuo pendente do Word.
+  O contador do CSS recomeça a cada lista e só conhece um formato por vez; o
+  Word conta pela definição, compõe os níveis (%1.%2.) e continua a lista do
+  outro lado de um parágrafo. A marca vem pronta em --lista-marca — calculada em
+  list-numbering.ts e posta por decoração na tela e por atributo no papel.
+
+  Desenhada por um pseudo-elemento porque o marcador nativo não se posiciona — e
+  é justamente a distância (w:ind/@hanging) que faz o recuo pendente do Word. O
+  recuo da lista vem relativo ao da lista de fora (--lista-recuo): o ul aninhado
+  já começa dentro dela, e o recuo absoluto do arquivo somava os dois.
+  !important porque o nó pode trazer o recuo absoluto em estilo inline.
 */
-.page__content ul[data-marker] { list-style: none; }
+.page__content ul[data-list-indent],
+.page__content ol[data-list-indent] {
+  padding-left: var(--lista-recuo) !important;
+  margin-left: var(--lista-margem, 0mm);
+}
 
-.page__content ul[data-marker] > li > :first-child::before {
-  content: var(--marca);
+.page__content li[data-label] { list-style: none; }
+
+.page__content li[data-label] > :first-child::before {
+  content: var(--lista-marca);
   display: inline-block;
-  width: var(--pendente, 1em);
-  margin-left: calc(-1 * var(--pendente, 1em));
+  box-sizing: border-box;
+  min-width: var(--lista-pendente, 0mm);
+  margin-left: calc(-1 * var(--lista-pendente, 0mm));
+  /* A tabulação depois da marca. Quando a marca cabe no recuo pendente, a folga
+     some dentro dele e o texto começa onde o nível manda; quando não cabe (1.1.1.
+     num recuo de um quarto de polegada), o Word salta para a tabulação seguinte
+     em vez de colar o texto no número — aqui, ao menos meia letra de ar. */
+  padding-right: 0.5em;
+  text-indent: 0;
+  white-space: pre;
 }
 
 /*

@@ -577,6 +577,63 @@ export async function docxWithBulletList(): Promise<Buffer> {
 }
 
 /**
+ * Lista numerada de dois níveis, interrompida por um parágrafo, e um reinício.
+ *
+ * O segundo nível compõe o primeiro em letra (`%1.%2)`), a lista continua do
+ * outro lado do parágrafo (mesmo `numId`) e o `w:num` 6 é a mesma definição com
+ * `w:startOverride` 10 — conta à parte. No Word: 1. 1.a) 1.b) 2. | 3. 10.
+ */
+export async function docxWithMultilevelList(): Promise<Buffer> {
+  const item = (texto: string, numId: number, nivel = 0): string =>
+    `<w:p><w:pPr><w:numPr><w:ilvl w:val="${nivel}"/><w:numId w:val="${numId}"/></w:numPr></w:pPr>` +
+    `<w:r><w:t xml:space="preserve">${texto}</w:t></w:r></w:p>`
+
+  const level = (ilvl: number, fmt: string, text: string, left: number): string =>
+    `<w:lvl w:ilvl="${ilvl}"><w:start w:val="1"/><w:numFmt w:val="${fmt}"/><w:lvlText w:val="${text}"/>` +
+    `<w:pPr><w:ind w:left="${left}" w:hanging="360"/></w:pPr></w:lvl>`
+
+  const numbering = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:numbering xmlns:w="${W}">
+<w:abstractNum w:abstractNumId="3">${level(0, 'decimal', '%1.', 360)}${level(1, 'lowerLetter', '%1.%2)', 720)}</w:abstractNum>
+<w:num w:numId="5"><w:abstractNumId w:val="3"/></w:num>
+<w:num w:numId="6"><w:abstractNumId w:val="3"/><w:lvlOverride w:ilvl="0"><w:startOverride w:val="10"/></w:lvlOverride></w:num>
+</w:numbering>`
+
+  return zip([
+    [
+      '[Content_Types].xml',
+      CONTENT_TYPES.replace(
+        /<Override PartName="\/word\/comments[^>]+>/,
+        '<Override PartName="/word/numbering.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.numbering+xml"/>',
+      ),
+    ],
+    ['_rels/.rels', ROOT_RELS],
+    [
+      'word/_rels/document.xml.rels',
+      DOCUMENT_RELS.replace(
+        /Type="[^"]*comments" Target="comments.xml"/,
+        'Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/numbering" Target="numbering.xml"',
+      ),
+    ],
+    ['word/numbering.xml', numbering],
+    [
+      'word/document.xml',
+      documentXml(
+        paragraph('Antes da lista.') +
+          item('Um', 5) +
+          item('Um-a', 5, 1) +
+          item('Um-b', 5, 1) +
+          item('Dois', 5) +
+          paragraph('No meio.') +
+          item('Três', 5) +
+          item('Dez', 6) +
+          paragraph('Depois da lista.'),
+      ),
+    ],
+  ])
+}
+
+/**
  * Documento com uma tabela, e uma tabela dentro de uma célula dela.
  *
  * A célula é o único lugar do modelo em que um bloco mora dentro de outro, e a

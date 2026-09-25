@@ -209,10 +209,22 @@ public static class DocxWriter
 
             if (first && index.TryGetValue(oid!, out var block) &&
                 string.Equals(
-                    block.Extracted.Fingerprint(),
-                    slot.Identity.Fingerprint(),
+                    OwnContent(block.Extracted).Fingerprint(),
+                    OwnContent(slot.Identity).Fingerprint(),
                     StringComparison.Ordinal))
             {
+                // O conteúdo é o mesmo, mas o item pode ter mudado de lugar na
+                // lista: Tab o desce um nível, "Reiniciar numeração" o põe noutro
+                // `w:num`. Nada disso está no item — está na lista em volta —, e
+                // devolver o XML como estava desfazia a mudança ao reabrir. Só o
+                // `w:numPr` é trocado; o resto do parágrafo volta como veio.
+                if (slot.List is { } list && block.Source is Paragraph paragraph && !Points(paragraph, list))
+                {
+                    elements.Add(Renumbered(paragraph, list));
+                    rewritten++;
+                    continue;
+                }
+
                 elements.Add(block.Source.CloneNode(true));
                 preserved++;
                 continue;
@@ -236,6 +248,45 @@ public static class DocxWriter
 
         if (elements.Count == 0) elements.Add(new Paragraph());
         return elements;
+    }
+
+    /// <summary>
+    /// O item de lista sem as sublistas de dentro — o que corresponde ao `w:p` dele.
+    /// </summary>
+    /// <remarks>
+    /// No editor a sublista mora dentro do item de cima; no arquivo ela são os
+    /// parágrafos seguintes, cada um com a sua identidade. Comparada com elas, a
+    /// impressão digital do item de cima mudava a cada Tab num item de baixo — e
+    /// o parágrafo de cima, que ninguém tocou, era reescrito.
+    /// </remarks>
+    private static Node OwnContent(Node node)
+    {
+        if (node.Type != "listItem" || node.Content is null) return node;
+        return new Node
+        {
+            Type = node.Type,
+            Attrs = node.Attrs,
+            Content = [.. node.Content.Where(child => child.Type is not ("bulletList" or "orderedList"))],
+        };
+    }
+
+    /// <summary>O parágrafo já aponta esta numeração, neste nível?</summary>
+    private static bool Points(Paragraph paragraph, ParagraphWriter.ListContext list)
+    {
+        var numbering = paragraph.ParagraphProperties?.NumberingProperties;
+        return numbering?.NumberingId?.Val?.Value == list.NumberingId &&
+               (numbering.NumberingLevelReference?.Val?.Value ?? 0) == list.Level;
+    }
+
+    /// <summary>O parágrafo original, apontando a numeração e o nível novos.</summary>
+    private static Paragraph Renumbered(Paragraph original, ParagraphWriter.ListContext list)
+    {
+        var paragraph = (Paragraph)original.CloneNode(true);
+        var properties = paragraph.ParagraphProperties ??= new ParagraphProperties();
+        properties.NumberingProperties = new NumberingProperties(
+            new NumberingLevelReference { Val = list.Level },
+            new NumberingId { Val = list.NumberingId });
+        return paragraph;
     }
 
     /// <summary>
@@ -269,12 +320,19 @@ public static class DocxWriter
                 case "bulletList":
                 case "orderedList":
                 {
-                    var level = (inherited?.Level ?? -1) + 1;
+                    // O nível que o arquivo deu à lista, quando a árvore não o
+                    // diz sozinha; senão, um abaixo da lista de fora.
+                    var level = Math.Clamp(
+                        Attr.Int(node, "level") ?? (inherited?.Level ?? -1) + 1, 0, ListLevels.Count - 1);
+                    var definition = Attr.Node(node, "numbering") as System.Text.Json.Nodes.JsonObject;
 
                     // A numeração da lista de fora só serve à de dentro quando as
                     // duas são do mesmo tipo: herdada às cegas, uma sublista
-                    // numerada dentro de uma com marcador saía com marcador.
+                    // numerada dentro de uma com marcador saía com marcador. E só
+                    // quando a de dentro não trouxe definição própria — a que traz
+                    // é a que se reiniciou, e herdar a de fora desfaria o reinício.
                     var fromParent = inherited is { } outer
+                                     && definition is null
                                      && string.Equals(outer.Kind, node.Type, StringComparison.Ordinal)
                         ? (int?)outer.NumberingId
                         : null;
@@ -286,7 +344,8 @@ public static class DocxWriter
                     // acontece em lista colada. O que não pode é sair zero, que no
                     // formato quer dizer "sem numeração": era assim que uma lista
                     // criada no editor voltava como parágrafo comum.
-                    var numberingId = numbering.NumberingIdFor(node.Type, NumberingOf(node) ?? fromParent);
+                    var numberingId = numbering.NumberingIdFor(
+                        node.Type, NumberingOf(node) ?? fromParent, definition);
 
                     foreach (var item in node.Content ?? [])
                     {
