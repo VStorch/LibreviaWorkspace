@@ -402,6 +402,10 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory, bool 
         // É o que faz um rótulo descer junto com a imagem que ele apresenta —
         // e sem ler isto a quebra estimada cai um bloco depois da real.
         if (RunReader.IsOn(effective.KeepNext)) node.With("keepNext", true);
+
+        // "Manter linhas juntas": a paginação corta parágrafos entre linhas, e
+        // este é o parágrafo que pediu para não ser cortado.
+        if (RunReader.IsOn(effective.KeepLines)) node.With("keepLines", true);
     }
 
     /// <summary>
@@ -491,6 +495,7 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory, bool 
         // Ligado ou desligado, se o parágrafo diz: `w:keepNext w:val="0"` existe
         // para desfazer o do estilo.
         if (direct?.KeepNext is not null) node.With("keepNext", RunReader.IsOn(effective.KeepNext));
+        if (direct?.KeepLines is not null) node.With("keepLines", RunReader.IsOn(effective.KeepLines));
     }
 
     /// <summary>Uma medida declarada: zero conta, negativo vira zero.</summary>

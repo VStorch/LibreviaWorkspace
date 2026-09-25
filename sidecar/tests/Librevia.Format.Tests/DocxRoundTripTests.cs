@@ -630,6 +630,17 @@ public class DocxRoundTripTests
     }
 
     [Fact]
+    public void ReadsKeepLines()
+    {
+        // A paginação passou a cortar parágrafos entre linhas; o que pediu para
+        // não ser cortado precisa chegar ao editor dizendo isso.
+        var model = Open(Fixtures.WithKeepLines());
+
+        Assert.True(BlockContaining(model, "Linhas juntas").Attrs!["keepLines"]!.GetValue<bool>());
+        Assert.False(BlockContaining(model, "Comum").Attrs?.ContainsKey("keepLines") ?? false);
+    }
+
+    [Fact]
     public void TreatsLeadingTabsAsCentering()
     {
         // No corpus, o primeiro título de cada documento vem alinhado à

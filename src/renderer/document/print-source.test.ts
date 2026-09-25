@@ -57,4 +57,20 @@ describe('recorte das páginas para impressão', () => {
     expect(slicePageBlocks([block], { blockIndex: 0 }, { blockIndex: 1 })).toEqual([block])
     expect(slicePageBlocks([block], { blockIndex: 1 }, { blockIndex: 1 })).toEqual([])
   })
+
+  it('parágrafo cortado entre linhas sai em dois pedaços que somam o original', () => {
+    const block = paragraph('Primeira linha. Segunda linha.')
+    const blocks = [paragraph('Antes'), block]
+    const cut = { blockIndex: 1, offset: 16 }
+    const top = slicePageBlocks(blocks, { blockIndex: 0 }, cut)
+    const bottom = slicePageBlocks(blocks, cut, { blockIndex: 2 })
+    expect(top.map((node) => node.textContent)).toEqual(['Antes', 'Primeira linha. '])
+    expect(bottom.map((node) => node.textContent)).toEqual(['Segunda linha.'])
+  })
+
+  it('parágrafo de três folhas: o pedaço do meio é só o miolo', () => {
+    const block = paragraph('aaaabbbbcccc')
+    const page = slicePageBlocks([block], { blockIndex: 0, offset: 4 }, { blockIndex: 0, offset: 8 })
+    expect(page.map((node) => node.textContent)).toEqual(['bbbb'])
+  })
 })

@@ -848,6 +848,20 @@ public static class Fixtures
         body.AppendChild(Paragraph("Depois da marca."));
     });
 
+    /// <summary>Um parágrafo que não se corta entre linhas, e um que desliga o controle de viúvas.</summary>
+    public static byte[] WithKeepLines() => Build((body, _) =>
+    {
+        var kept = Paragraph("Linhas juntas.");
+        kept.ParagraphProperties = new ParagraphProperties(new KeepLines());
+        body.AppendChild(kept);
+
+        var loose = Paragraph("Viúva permitida.");
+        loose.ParagraphProperties = new ParagraphProperties(new WidowControl { Val = false });
+        body.AppendChild(loose);
+
+        body.AppendChild(Paragraph("Comum."));
+    });
+
     public static byte[] WithKeepNext() => Build((body, _) =>
     {
         var kept = Paragraph("Rótulo da imagem:");

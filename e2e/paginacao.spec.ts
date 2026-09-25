@@ -1,6 +1,8 @@
+import { execFile } from 'node:child_process'
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { promisify } from 'node:util'
 import { expect, test } from '@playwright/test'
 import { launch, menu, stubDialogs, type Session } from './app.js'
 import { docxWithLongTable } from './fixtures.js'
@@ -128,7 +130,102 @@ test.describe('paginação ao vivo', () => {
     await menu(session, 'export-pdf')
     await expect.poll(async () => contarPaginas(destino), { timeout: 30000 }).toBe(naTela)
   })
+
+  test('o parágrafo que não cabe é cortado entre linhas, no mesmo lugar na tela e no PDF', async () => {
+    test.skip(!(await temPdftotext()), 'pdftotext não instalado')
+    const destino = join(pasta, 'corte.pdf')
+    await stubDialogs(session.app, { save: destino, messageBox: 1 })
+    await paragrafoAtravessandoAFolha(session)
+
+    const folhas = session.window.locator('.paper')
+    await expect(folhas).toHaveCount(2)
+    await expect.poll(() => corteNaTela(session)).not.toBeNull()
+    const corte = (await corteNaTela(session))!
+
+    // Na tela: a linha antes do espaçador termina dentro da primeira folha, e a
+    // de depois começa dentro da segunda.
+    const limites = await session.window.evaluate((palavra) => {
+      const paragraph = document.querySelector('.ProseMirror .page-line-gap')!.closest('p')!
+      const walker = document.createTreeWalker(paragraph, NodeFilter.SHOW_TEXT)
+      for (let node = walker.nextNode(); node !== null; node = walker.nextNode()) {
+        const at = ` ${node.textContent ?? ''} `.indexOf(` ${palavra} `)
+        if (at === -1) continue
+        const range = document.createRange()
+        range.setStart(node, at)
+        range.setEnd(node, at + palavra.length)
+        return range.getBoundingClientRect().top
+      }
+      return null
+    }, corte.depois)
+    const sheets = await folhas.evaluateAll((all) => all.map((sheet) => sheet.getBoundingClientRect().top))
+    expect(limites).not.toBeNull()
+    expect(limites!).toBeGreaterThan(sheets[1]!)
+
+    await menu(session, 'export-pdf')
+    await expect.poll(async () => contarPaginas(destino), { timeout: 30000 }).toBe(2)
+    const primeira = await palavrasDaPagina(destino, 1)
+    const segunda = await palavrasDaPagina(destino, 2)
+    expect(primeira.at(-1)).toBe(corte.antes)
+    expect(segunda[0]).toBe(corte.depois)
+  })
 })
+
+/**
+ * Enche a folha com parágrafos curtos e depois escreve um parágrafo longo de
+ * palavras numeradas (`p1 p2 …`), que atravessa o pé da folha. As palavras
+ * únicas são o que deixa comparar o corte da tela com o do papel sem depender
+ * da fonte da máquina.
+ */
+async function paragrafoAtravessandoAFolha(session: Session): Promise<void> {
+  await menu(session, 'new-document')
+  await session.window.locator('.ProseMirror').click()
+  for (let i = 0; i < 28; i++) {
+    await session.window.keyboard.insertText(`Enchimento ${i}.`)
+    await session.window.keyboard.press('Enter')
+  }
+  const palavras = Array.from({ length: 160 }, (_, index) => `p${index + 1}`).join(' ')
+  await session.window.keyboard.insertText(palavras)
+}
+
+/** A última palavra antes do espaçador e a primeira depois, lidas do DOM. */
+async function corteNaTela(session: Session): Promise<{ antes: string; depois: string } | null> {
+  return session.window.evaluate(() => {
+    const gap = document.querySelector('.ProseMirror .page-line-gap')
+    const paragraph = gap?.closest('p')
+    if (gap === null || gap === undefined || paragraph === null || paragraph === undefined) return null
+    const before = document.createRange()
+    before.setStart(paragraph, 0)
+    before.setEndBefore(gap)
+    const after = document.createRange()
+    after.setStartAfter(gap)
+    after.setEnd(paragraph, paragraph.childNodes.length)
+    const words = (range: Range) => range.toString().trim().split(/\s+/)
+    return { antes: words(before).at(-1) ?? '', depois: words(after)[0] ?? '' }
+  })
+}
+
+/** As palavras de uma página do PDF, pelo `pdftotext` do sistema. */
+async function palavrasDaPagina(caminho: string, pagina: number): Promise<string[]> {
+  const { stdout } = await promisify(execFile)('pdftotext', [
+    '-f',
+    String(pagina),
+    '-l',
+    String(pagina),
+    '-layout',
+    caminho,
+    '-',
+  ])
+  return stdout.split(/\s+/).filter((word) => word.length > 0)
+}
+
+async function temPdftotext(): Promise<boolean> {
+  try {
+    await promisify(execFile)('pdftotext', ['-v'])
+    return true
+  } catch {
+    return false
+  }
+}
 
 /**
  * Páginas de um PDF, contando os objetos `/Type /Page`.

@@ -178,4 +178,39 @@ describe('cortes dentro de blocos', () => {
     blocks[1] = { ...blocks[1]!, breakpoints: [600, 1100, 1600, 2100] }
     expect(paginate(blocks, 1000)).toEqual([600, 1600, 2600])
   })
+
+  describe('parágrafo cortado entre linhas', () => {
+    // Um parágrafo de dez linhas de 50: os cortes são os topos das linhas 2 a 10.
+    const paragraph = (top: number, lines = 10, extra: Partial<MeasuredBlock> = {}): MeasuredBlock => ({
+      top,
+      height: lines * 50,
+      breakpoints: Array.from({ length: lines - 1 }, (_, index) => top + (index + 1) * 50),
+      isPageBreak: false,
+      breakAfter: false,
+      keepWithNext: false,
+      ...extra,
+    })
+
+    it('a folha termina na última linha que cabe, e não antes do parágrafo', () => {
+      // Antes daqui o parágrafo descia inteiro e deixava 300 de buraco na folha.
+      expect(paginate([...stack([700]), paragraph(700)], 1000)).toEqual([1000])
+    })
+
+    it('a linha que não cabe inteira desce', () => {
+      expect(paginate([...stack([720]), paragraph(720)], 1000)).toEqual([970])
+    })
+
+    it('manter linhas juntas faz o parágrafo descer inteiro', () => {
+      expect(paginate([...stack([700]), paragraph(700, 10, { keepLines: true })], 1000)).toEqual([700])
+    })
+
+    it('manter linhas juntas cede quando o parágrafo é maior que a folha', () => {
+      expect(paginate([paragraph(0, 30, { keepLines: true })], 1000)).toEqual([1000])
+    })
+
+    it('o título fica com as primeiras linhas do parágrafo que ele apresenta', () => {
+      const blocks = [...stack([700, 100], { keepNext: [1] }), paragraph(800)]
+      expect(paginate(blocks, 1000)).toEqual([1000])
+    })
+  })
 })

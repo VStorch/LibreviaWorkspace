@@ -31,6 +31,12 @@ export interface MeasuredBlock {
   readonly breakAfter: boolean
   /** `w:keepNext`: não pode ficar sozinho no pé da página. */
   readonly keepWithNext: boolean
+  /**
+   * `w:keepLines`: as linhas do parágrafo não se separam. Os pontos de corte
+   * continuam medidos, e só valem se o parágrafo sozinho for maior que a folha —
+   * aí não há como mantê-lo junto, e o Word também o corta.
+   */
+  readonly keepLines?: boolean
 }
 
 /**
@@ -89,15 +95,17 @@ export function paginate(blocks: readonly MeasuredBlock[], pageHeight: number): 
       continue
     }
 
-    const breakpoint = block.breakpoints.filter((at) => at > pageStart && at - pageStart <= pageHeight).at(-1)
+    const breakpoint = usableBreakpoints(block, pageHeight)
+      .filter((at) => at > pageStart && at - pageStart <= pageHeight)
+      .at(-1)
     if (breakpoint !== undefined) {
       breaks.push(breakpoint)
       pageStart = breakpoint
       continue
     }
 
-    // Quebra **antes** do bloco que estouraria — a mesma decisão do navegador ao
-    // imprimir, e o motivo de a página nunca cortar um parágrafo ao meio.
+    // Nenhuma linha, item ou linha de tabela cabe: a quebra vai para **antes**
+    // do bloco que estouraria.
     let breakAt = block.top
 
     // Um título sozinho no pé da página desce junto com o que ele apresenta.
@@ -126,4 +134,10 @@ export function paginate(blocks: readonly MeasuredBlock[], pageHeight: number): 
   }
 
   return breaks
+}
+
+/** Os cortes internos que o bloco aceita, pelas regras de manter junto. */
+function usableBreakpoints(block: MeasuredBlock, pageHeight: number): readonly number[] {
+  if (block.keepLines === true && block.height <= pageHeight) return []
+  return block.breakpoints
 }

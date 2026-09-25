@@ -3,7 +3,7 @@ import { DOMSerializer, Fragment, Node as ProseMirrorNode } from '@tiptap/pm/mod
 import { pxToMm, type PageSetup } from '@services/document/model.js'
 import { bandFloatsOf, floatsOf, type FloatingObject } from '@services/document/floating.js'
 import type { PrintFloat, PrintPage } from '@services/document/print-pages.js'
-import type { PageLayout, PageStart } from './usePagination.js'
+import { isInternalStart, type PageLayout, type PageStart } from './usePagination.js'
 
 /**
  * O documento recortado nas folhas que a tela mostra.
@@ -22,7 +22,11 @@ export function splitIntoPages(editor: Editor, layout: PageLayout, page: PageSet
   const serializer = DOMSerializer.fromSchema(editor.schema)
 
   const blocks: ProseMirrorNode[] = []
-  editor.state.doc.forEach((node: ProseMirrorNode) => blocks.push(node))
+  const offsets: number[] = []
+  editor.state.doc.forEach((node: ProseMirrorNode, offset: number) => {
+    blocks.push(node)
+    offsets.push(offset)
+  })
 
   const cuts: PageStart[] = [{ blockIndex: 0 }, ...layout.pageStarts, { blockIndex: blocks.length }]
   const pages: PrintPage[] = []
@@ -34,6 +38,12 @@ export function splitIntoPages(editor: Editor, layout: PageLayout, page: PageSet
     const holder = document.createElement('div')
     const fragments = slicePageBlocks(blocks, start, end)
     holder.appendChild(serializer.serializeFragment(Fragment.fromArray(fragments)))
+    markSplitParagraphs(
+      holder,
+      start,
+      end,
+      end.offset !== undefined && isJustified(editor, offsets[end.blockIndex]),
+    )
 
     pages.push({
       number: pages.length + 1,
@@ -42,8 +52,8 @@ export function splitIntoPages(editor: Editor, layout: PageLayout, page: PageSet
         ...anchoredFloats(
           blocks,
           layout,
-          start.blockIndex + (start.childIndex === undefined ? 0 : 1),
-          end.blockIndex + (end.childIndex === undefined ? 0 : 1),
+          start.blockIndex + (isInternalStart(start) ? 1 : 0),
+          end.blockIndex + (isInternalStart(end) ? 1 : 0),
           editor,
         ),
         ...bandFloats(page, pages.length + 1, editor),
@@ -63,6 +73,15 @@ export function slicePageBlocks(
   const fragments: ProseMirrorNode[] = []
   for (let index = start.blockIndex; index <= end.blockIndex && index < blocks.length; index++) {
     const block = blocks[index]!
+    // Parágrafo cortado entre linhas: o recorte é do conteúdo, no caractere
+    // em que a tela pôs o espaçador.
+    const textFrom = index === start.blockIndex ? start.offset : undefined
+    const textTo = index === end.blockIndex ? end.offset : undefined
+    if (block.isTextblock && (textFrom !== undefined || textTo !== undefined)) {
+      if (textTo === 0) break
+      fragments.push(block.cut(textFrom ?? 0, textTo ?? block.content.size))
+      continue
+    }
     const from = index === start.blockIndex ? (start.childIndex ?? 0) : 0
     const to = index === end.blockIndex ? (end.childIndex ?? 0) : block.childCount
     if (index === end.blockIndex && to === 0) break
@@ -81,6 +100,47 @@ export function slicePageBlocks(
     }
   }
   return fragments
+}
+
+/**
+ * A costura do parágrafo que a folha cortou entre linhas.
+ *
+ * A parte de cima perde o espaço depois, e a de baixo o espaço antes e o recuo
+ * da primeira linha: na tela os dois pedaços são um parágrafo só, e só a
+ * primeira linha dele tem recuo. A última linha da parte de cima era uma linha
+ * do meio, e no parágrafo justificado continua justificada — sem isto ela
+ * sairia alinhada à esquerda, como última linha que o papel acha que é.
+ *
+ * O objeto ancorado vai com o pedaço de cima, que é onde o parágrafo começa;
+ * `anchoredFloats` já conta o bloco na folha em que ele abre.
+ */
+function markSplitParagraphs(
+  holder: HTMLElement,
+  start: PageStart,
+  end: PageStart,
+  justified: boolean,
+): void {
+  const first = holder.firstElementChild
+  if (start.offset !== undefined && first instanceof HTMLElement) {
+    first.style.marginTop = '0'
+    first.style.paddingTop = '0'
+    first.style.textIndent = '0'
+    first.dataset.continued = 'from'
+  }
+  const last = holder.lastElementChild
+  if (end.offset !== undefined && last instanceof HTMLElement) {
+    last.style.marginBottom = '0'
+    last.style.paddingBottom = '0'
+    if (justified) last.style.textAlignLast = 'justify'
+    last.dataset.continued = 'to'
+  }
+}
+
+/** O alinhamento que se vê, que pode vir do estilo e não do nó. */
+function isJustified(editor: Editor, offset: number | undefined): boolean {
+  if (offset === undefined) return false
+  const dom = editor.view.nodeDOM(offset)
+  return dom instanceof HTMLElement && getComputedStyle(dom).textAlign === 'justify'
 }
 
 /**

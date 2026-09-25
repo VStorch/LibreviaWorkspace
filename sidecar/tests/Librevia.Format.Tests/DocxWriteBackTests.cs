@@ -1341,4 +1341,18 @@ public class DocxWriteBackTests
         Assert.Contains("w:top=\"2268\"", xml, StringComparison.Ordinal);
         Assert.Contains("w:w=\"8391\"", xml, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void KeepsKeepLinesWhenTheParagraphIsEdited()
+    {
+        // Gravação cirúrgica: corrigir o texto não pode soltar as linhas que o
+        // arquivo mandou manter juntas.
+        var original = Fixtures.WithKeepLines();
+        var model = Roundtrip.Clone(Roundtrip.Open(original));
+
+        Assert.True(Roundtrip.EditFirstTextContaining(model, "Linhas juntas", "Linhas ainda juntas."));
+
+        var (saved, _) = Roundtrip.Save(original, model);
+        Assert.Contains("<w:keepLines />", Roundtrip.XmlOf(saved), StringComparison.Ordinal);
+    }
 }

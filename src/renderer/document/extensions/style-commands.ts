@@ -29,6 +29,7 @@ export const DIRECT_BLOCK_ATTRS = [
   'lineHeight',
   'background',
   'keepNext',
+  'keepLines',
   'fontFamily',
   'fontSize',
 ] as const

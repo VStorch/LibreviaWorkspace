@@ -12,6 +12,7 @@ import {
 } from '@services/document/model.js'
 import { NO_BANDS, type BandHeights } from '@services/document/band.js'
 import { applyPageGaps } from './extensions/pagination.js'
+import { measureLines } from './line-boxes.js'
 
 /** Espaço entre uma folha e a seguinte, como numa pilha de papel. */
 export const SHEET_GUTTER_PX = 28
@@ -47,12 +48,27 @@ export interface PageStart {
   readonly blockIndex: number
   /** Índice da linha ou item que abre a folha, quando o corte é interno. */
   readonly childIndex?: number
+  /**
+   * Onde o parágrafo recomeça, quando a folha o corta entre linhas: posição
+   * dentro do conteúdo dele, a mesma que `Node.cut` recebe.
+   */
+  readonly offset?: number
+}
+
+/** O corte cai dentro do bloco — o bloco começa na folha anterior. */
+export function isInternalStart(start: PageStart): boolean {
+  return start.childIndex !== undefined || start.offset !== undefined
 }
 
 interface CutTarget {
   readonly at: number
   readonly start: PageStart
   readonly nodes: readonly { position: number; natural: number }[]
+  /**
+   * Corte entre linhas de um parágrafo: a posição do primeiro caractere da
+   * linha, resolvida só se o corte for escolhido, e a do próprio parágrafo.
+   */
+  readonly line?: { readonly resolve: () => number | null; readonly block: number }
 }
 
 export interface BlockAnchor {
@@ -131,6 +147,9 @@ export function usePagination(
    */
   const lastWritten = useRef(new Map<number, number>())
 
+  /** Os vãos entre linhas de parágrafo cortado, por posição do espaçador. */
+  const lastLines = useRef(new Map<number, number>())
+
   useEffect(() => {
     if (editor === null) return undefined
 
@@ -197,6 +216,24 @@ export function usePagination(
               : []
         let internal = 0
         const breakpoints: number[] = []
+
+        // Parágrafo e título cortam entre linhas. As linhas medem a partir da
+        // borda do bloco, e o topo de fluxo dele já está em `top`.
+        const lines = block.isTextblock && children.length === 0 ? measureLines(editor.view, node) : null
+        if (lines !== null) {
+          lines.starts.forEach((start, index) => {
+            const at = top + start
+            breakpoints.push(at)
+            targets.push({
+              at,
+              start: { blockIndex },
+              nodes: [],
+              line: { resolve: () => lines.positionOf(index), block: offset },
+            })
+          })
+          internal = lines.shift
+        }
+
         children.forEach((child, childIndex) => {
           const cells = child instanceof HTMLTableRowElement ? Array.from(child.cells) : []
           const shift = cells.length > 0 ? shiftOf(cells[0]!) : shiftOf(child)
@@ -220,13 +257,15 @@ export function usePagination(
           }
           internal += shift
         })
+        const effective = effectiveAttrs(block, styles)
         blocks.push({
           top,
           height: node.offsetHeight - internal,
           breakpoints,
           isPageBreak: node.hasAttribute('data-page-break'),
           breakAfter: node.hasAttribute('data-break-after'),
-          keepWithNext: effectiveAttrs(block, styles)['keepNext'] === true || /^H[1-6]$/.test(node.tagName),
+          keepWithNext: effective['keepNext'] === true || /^H[1-6]$/.test(node.tagName),
+          keepLines: effective['keepLines'] === true,
         })
         accumulated += internal
       })
@@ -252,18 +291,32 @@ export function usePagination(
       // bloco e o começo do seguinte é a margem que o documento pede.
       const gaps = new Map<number, number>()
       const written = new Map<number, number>()
+      const lineGaps = new Map<number, number>()
       let previous = 0
       const pageStarts: PageStart[] = []
       const sheetHeights: number[] = []
 
       for (const at of breaks) {
+        const internal = targets.find(
+          (target) =>
+            target.at === at && (target.start.childIndex !== undefined || target.line !== undefined),
+        )
+        const position = internal?.line?.resolve() ?? null
+        // A linha cujo caractere não se achou (DOM trocado no meio da medida)
+        // cede ao bloco seguinte: pior a folha curta que um espaçador perdido.
         const target =
-          targets.find((target) => target.at === at && target.start.childIndex !== undefined) ??
-          targets.find((target) => target.at >= at)
+          internal !== undefined && (internal.line === undefined || position !== null)
+            ? internal
+            : targets.find((target) => target.at >= at && target.line === undefined)
         const used = at - previous
         sheetHeights.push(Math.max(pageHeightPx, used + marginTopPx + marginBottomPx))
         const shift = Math.max(contentHeightPx - used, 0) + marginBottomPx + SHEET_GUTTER_PX + marginTopPx
-        if (target !== undefined) {
+        if (target?.line !== undefined && position !== null) {
+          // O espaçador entra antes do primeiro caractere da linha; o papel
+          // recorta o parágrafo no mesmo caractere.
+          pageStarts.push({ ...target.start, offset: position - target.line.block - 1 })
+          lineGaps.set(position, shift)
+        } else if (target !== undefined) {
           pageStarts.push(target.start)
           for (const node of target.nodes) {
             gaps.set(node.position, shift)
@@ -291,11 +344,17 @@ export function usePagination(
       // empurrado, e deixá-lo cheio faria toda altura ser lida a menos.
       const target = paginated ? gaps : EMPTY_GAPS
       const targetWritten = paginated ? written : EMPTY_GAPS
+      const targetLines = paginated ? lineGaps : EMPTY_GAPS
 
-      if (!sameGaps(applied.current, target) || !sameGaps(lastWritten.current, targetWritten)) {
+      if (
+        !sameGaps(applied.current, target) ||
+        !sameGaps(lastWritten.current, targetWritten) ||
+        !sameGaps(lastLines.current, targetLines)
+      ) {
         applied.current = target
         lastWritten.current = targetWritten
-        applyPageGaps(editor.view, targetWritten, target)
+        lastLines.current = targetLines
+        applyPageGaps(editor.view, targetWritten, target, targetLines)
       }
 
       setLayout({

@@ -281,6 +281,17 @@ export const BlockFormat = Extension.create<BlockFormatOptions>({
           },
 
           /**
+           * "Manter linhas juntas" (`w:keepLines`): a paginação não corta o
+           * parágrafo entre linhas. Como o `keepNext`, não muda a aparência, e
+           * `false` é o parágrafo desfazendo o que o estilo liga.
+           */
+          keepLines: {
+            default: null,
+            parseHTML: (element) => element.hasAttribute('data-keep-lines') || null,
+            renderHTML: (attributes) => (attributes['keepLines'] === true ? { 'data-keep-lines': '' } : {}),
+          },
+
+          /**
            * O identificador do estilo do Word. Não muda nada na tela: viaja
            * junto para que um parágrafo editado continue apontando o estilo
            * original na hora de gravar.

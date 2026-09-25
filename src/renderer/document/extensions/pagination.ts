@@ -1,6 +1,7 @@
 import { Extension } from '@tiptap/core'
 import { Plugin, PluginKey } from '@tiptap/pm/state'
 import { Decoration, DecorationSet, type EditorView } from '@tiptap/pm/view'
+import { LINE_GAP_CLASS } from '../line-boxes.js'
 
 /**
  * O vão entre uma folha e a seguinte.
@@ -58,8 +59,28 @@ export function applyPageGaps(
   view: EditorView,
   written: ReadonlyMap<number, number>,
   gaps: ReadonlyMap<number, number>,
+  /** Vãos entre linhas de um parágrafo cortado, pela posição do primeiro caractere da linha. */
+  lines: ReadonlyMap<number, number> = new Map(),
 ): void {
   const decorations: Decoration[] = []
+
+  // O corte no meio do parágrafo não tem nó a empurrar: o espaçador é um
+  // elemento da largura da linha, antes do primeiro caractere da linha que abre
+  // a folha. Ele cabe só numa linha própria, então a linha de cima termina onde
+  // já terminava — com a mesma justificação, porque a quebra continua sendo
+  // automática e não forçada — e a de baixo recomeça no topo da folha seguinte.
+  // `vertical-align: top` faz a linha dele ter a altura dele, sem somar a
+  // descendente do texto ao vão.
+  for (const [position, gap] of lines) {
+    if (gap <= 0 || position <= 0 || position > view.state.doc.content.size) continue
+    decorations.push(
+      Decoration.widget(position, () => lineGap(gap), {
+        side: -1,
+        ignoreSelection: true,
+        key: `page-line-gap:${gap.toFixed(2)}`,
+      }),
+    )
+  }
 
   view.state.doc.descendants((node, offset) => {
     const gap = written.get(offset)
@@ -79,6 +100,17 @@ export function applyPageGaps(
       .setMeta(paginationKey, DecorationSet.create(view.state.doc, decorations))
       .setMeta('addToHistory', false),
   )
+}
+
+/** O espaçador de um corte entre linhas; `data-page-shift` é o que a medida desconta. */
+function lineGap(gap: number): HTMLElement {
+  const element = document.createElement('span')
+  element.className = LINE_GAP_CLASS
+  element.contentEditable = 'false'
+  element.setAttribute('aria-hidden', 'true')
+  element.dataset.pageShift = String(gap)
+  element.style.cssText = `display:inline-block;width:100%;height:${gap}px;vertical-align:top;line-height:0;`
+  return element
 }
 
 /** A transação só mexeu em paginação — não é edição do documento. */

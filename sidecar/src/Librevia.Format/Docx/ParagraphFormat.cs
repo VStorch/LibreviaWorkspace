@@ -77,6 +77,7 @@ internal sealed class ParagraphFormat(
         ApplySpacing(properties, node);
         ApplyShading(properties, node);
         ApplyKeepNext(properties, node, direct);
+        ApplyKeepLines(properties, node, direct);
         ApplyMark(properties, node);
 
         DropWhatRepeatsTheStyle(properties, original?.ParagraphProperties, style);
@@ -300,6 +301,7 @@ internal sealed class ParagraphFormat(
 
         if (Absent("background")) properties.Shading = null;
         if (Absent("keepNext")) properties.KeepNext = null;
+        if (Absent("keepLines")) properties.KeepLines = null;
 
         if (properties.ParagraphMarkRunProperties is { } mark)
         {
@@ -378,6 +380,12 @@ internal sealed class ParagraphFormat(
             RunReader.IsOn(keep) == RunReader.IsOn(style.KeepNext))
         {
             properties.KeepNext = null;
+        }
+
+        if (original?.KeepLines is null && properties.KeepLines is { } lines &&
+            RunReader.IsOn(lines) == RunReader.IsOn(style.KeepLines))
+        {
+            properties.KeepLines = null;
         }
 
         if (properties.ParagraphMarkRunProperties is { HasChildren: false }) properties.ParagraphMarkRunProperties = null;
@@ -591,6 +599,24 @@ internal sealed class ParagraphFormat(
         }
 
         if (RunReader.IsOn(properties.KeepNext)) properties.KeepNext = null;
+    }
+
+    /// <remarks>A mesma regra do <see cref="ApplyKeepNext"/>, para `w:keepLines`.</remarks>
+    private static void ApplyKeepLines(ParagraphProperties properties, Node node, bool direct)
+    {
+        if (Attr.Bool(node, "keepLines"))
+        {
+            properties.KeepLines = new KeepLines();
+            return;
+        }
+
+        if (direct && Attr.Node(node, "keepLines") is not null)
+        {
+            properties.KeepLines = new KeepLines { Val = false };
+            return;
+        }
+
+        if (RunReader.IsOn(properties.KeepLines)) properties.KeepLines = null;
     }
 
     /// <summary>

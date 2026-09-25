@@ -196,6 +196,7 @@ export function styleAttrsOf({ paragraph, character }: ResolvedStyle): Record<st
     lineHeight: lineHeightAttrOf(paragraph.lineSpacing, character.fontFamily ?? null),
     background: paragraph.background,
     keepNext: paragraph.keepNext,
+    keepLines: paragraph.keepLines,
     fontFamily: character.fontFamily,
     fontSize: character.fontSize,
   }
