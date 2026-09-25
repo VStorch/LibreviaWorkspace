@@ -90,7 +90,45 @@ internal sealed class HeadingStyles(MainDocumentPart part, HashSet<string>? touc
                 style.Type?.Value == StyleValues.Paragraph && LevelOfName(style.StyleName?.Val?.Value) == level)
             ?.StyleId?.Value;
 
-    private string? Copied(int level)
+    private string? Copied(int level) => CopyOf(BuiltinStyles.Heading(level), $"Heading{level}_");
+
+    /// <summary>
+    /// O id a gravar para um estilo que o bloco aponta e que não é título.
+    /// </summary>
+    /// <remarks>
+    /// O que o pacote define fica como está. O que ele não define — o bloco que
+    /// veio de outro documento, ou do documento novo, apontando `ListParagraph`
+    /// num pacote que não o tem — é procurado pelo nome interno, e, se nem assim
+    /// existir, a definição embutida é copiada para `word/styles.xml`. Sem a
+    /// cópia o `w:pStyle` apontaria o vazio, e o Word desenharia o Normal.
+    ///
+    /// Id que nem o modelo embutido conhece volta como veio: não há de onde
+    /// tirar a definição, e trocá-lo por outro seria inventar estilo.
+    /// </remarks>
+    public string IdForDeclared(string declared)
+    {
+        if (Defines(declared)) return declared;
+
+        var builtin = BuiltinStyles.All.FirstOrDefault(style =>
+            !style.Character && string.Equals(style.Id, declared, StringComparison.Ordinal));
+        if (builtin is null) return declared;
+
+        if (_copied.TryGetValue(declared, out var known)) return known;
+
+        var byName = part.StyleDefinitionsPart?.Styles?.Elements<Style>()
+            .FirstOrDefault(style =>
+                (style.Type is null || style.Type.Value == StyleValues.Paragraph) &&
+                string.Equals(style.StyleName?.Val?.Value, builtin.Name, StringComparison.OrdinalIgnoreCase))
+            ?.StyleId?.Value;
+
+        var id = byName ?? CopyOf(builtin, declared + "_") ?? declared;
+        _copied[declared] = id;
+        return id;
+    }
+
+    private readonly Dictionary<string, string> _copied = new(StringComparer.Ordinal);
+
+    private string? CopyOf(BuiltinStyle builtin, string collisionPrefix)
     {
         if (touched is null) return null;
 
@@ -102,13 +140,15 @@ internal sealed class HeadingStyles(MainDocumentPart part, HashSet<string>? touc
             .OfType<string>()
             .ToHashSet(StringComparer.Ordinal);
 
-        var style = TemplateStyles.Heading(level);
+        var style = TemplateStyles.Of(builtin);
 
         // Um `Heading1` que não se chama `heading 1` é estilo de outra coisa, e
-        // não pode ser sobrescrito: o título ganha um id que ninguém usa.
+        // não pode ser sobrescrito: o estilo copiado ganha um id que ninguém usa.
         var id = style.StyleId!.Value!;
-        for (var suffix = 2; ids.Contains(id); suffix++) id = $"Heading{level}_{suffix}";
+        for (var suffix = 2; ids.Contains(id); suffix++) id = $"{collisionPrefix}{suffix}";
         style.StyleId = id;
+        // O padrão do pacote já existe; dois `w:default` confundem o Word.
+        style.Default = null;
 
         // A cadeia do modelo parte do `Normal`. Num documento que chama o estilo
         // padrão de outro jeito, herdar de um id que não existe é herdar de nada,

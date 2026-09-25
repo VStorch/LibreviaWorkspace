@@ -124,11 +124,119 @@ public class DocxWriteBackTests
     // --- recuo ---------------------------------------------------------------
 
     [Fact]
+    public void OBlocoEditadoNaoRepeteOEstiloNosRunsNemNoPPr()
+    {
+        // As marcas chegam achatadas: o trecho da faixa traz Arial, 10 pt,
+        // negrito e branco — tudo do estilo `Faixa`. Gravado de volta como
+        // direto, cada `w:r` repetia o estilo e desligava o parágrafo dele.
+        var original = Fixtures.WithStyles();
+        var model = Roundtrip.Clone(Roundtrip.Open(original));
+        Assert.True(Roundtrip.EditFirstTextContaining(model, "Informações", "Dados"));
+
+        var saved = Roundtrip.Save(original, model);
+        Assert.Equal(1, saved.Result.RewrittenBlocks);
+
+        // Só o bloco editado: os outros voltam byte a byte, com o que tinham.
+        var all = Roundtrip.XmlOf(saved.Bytes);
+        var start = all.IndexOf("<w:p>", StringComparison.Ordinal);
+        var xml = all[start..(all.IndexOf("</w:p>", start, StringComparison.Ordinal) + 6)];
+        Assert.Contains("<w:pStyle w:val=\"Faixa\" />", xml, StringComparison.Ordinal);
+        Assert.DoesNotContain("<w:rPr>", xml, StringComparison.Ordinal);
+        Assert.DoesNotContain("w:shd", xml, StringComparison.Ordinal);
+        Assert.DoesNotContain("<w:jc", xml, StringComparison.Ordinal);
+
+        // E reaberto, vale o mesmo: o estilo continua dando tudo.
+        var banner = Roundtrip.OpenFlat(saved.Bytes).Doc.Content![0];
+        Assert.Equal("#943634", banner.Attrs!["background"]!.GetValue<string>());
+    }
+
+    [Fact]
+    public void TrechoSemNegritoNumEstiloNegritoSegueOQueATelaMostra()
+    {
+        // Na tela o trecho sem a marca continua negrito — a regra do estilo dá
+        // `font-weight: 700` ao bloco. Gravar `w:b w:val="0"` faria o arquivo
+        // divergir da tela, e tiraria o negrito do texto digitado num título.
+        var original = Fixtures.WithStyles();
+        var model = Roundtrip.Clone(Roundtrip.Open(original));
+        var text = BlockOf(model, 0).Content![0];
+        text.Marks = text.Marks!.Where(mark => mark.Type != "bold").ToList();
+        text.Text = "Sem a marca.";
+
+        var xml = Roundtrip.XmlOf(Roundtrip.Save(original, model).Bytes);
+        Assert.DoesNotContain("<w:b w:val=\"0\"", xml, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void FormatacaoLimpaSaiDoArquivo()
+    {
+        // O bloco leva só o direto; o que estava direto e sumiu do nó foi limpo
+        // por alguém, e tem de sair — o que o editor não mostra (borda,
+        // tabulação) fica.
+        var original = Fixtures.WithFormattedParagraph();
+        var model = Roundtrip.Clone(Roundtrip.Open(original));
+        var attrs = BlockOf(model, 0).Attrs!;
+        foreach (var name in (string[])["background", "keepNext", "spaceBefore", "spaceAfter", "lineHeight", "textAlign"])
+        {
+            attrs[name] = null;
+        }
+
+        var xml = Roundtrip.XmlOf(Roundtrip.Save(original, model).Bytes);
+
+        Assert.DoesNotContain("w:shd", xml, StringComparison.Ordinal);
+        Assert.DoesNotContain("w:keepNext", xml, StringComparison.Ordinal);
+        Assert.DoesNotContain("w:spacing", xml, StringComparison.Ordinal);
+        Assert.DoesNotContain("<w:jc", xml, StringComparison.Ordinal);
+        Assert.Contains("w:pBdr", xml, StringComparison.Ordinal);
+        Assert.Contains("w:tabs", xml, StringComparison.Ordinal);
+        Assert.Contains("<w:pStyle w:val=\"Ttulo1\" />", xml, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void NoWordEmPortuguesOTituloApontaTtulo1()
+    {
+        // O id é traduzido; o nome, `heading 1`, não. O título criado aqui
+        // aponta o estilo do documento, e `word/styles.xml` volta intocado.
+        var original = DocxTemplateTests.WithLocalizedHeadingStyle();
+        var model = Roundtrip.Clone(Roundtrip.Open(original));
+        var paragraph = BlockOf(model, 0);
+        var heading = Node.Of("heading").With("level", 1).With("indent", 0);
+        heading.Content = paragraph.Content;
+        model.Doc.Content![0] = heading;
+
+        var saved = Roundtrip.Save(original, model).Bytes;
+
+        Assert.Contains("<w:pStyle w:val=\"Ttulo1\" />", Roundtrip.XmlOf(saved), StringComparison.Ordinal);
+        Assert.Equal(
+            Roundtrip.XmlOf(original, "word/styles.xml"),
+            Roundtrip.XmlOf(saved, "word/styles.xml"));
+    }
+
+    [Fact]
+    public void EstiloQueOPacoteNaoTemECopiadoDoModeloEmbutido()
+    {
+        // O bloco aponta `ListParagraph` — veio do documento novo — e este pacote
+        // não o define: sem a cópia o `w:pStyle` apontaria o vazio.
+        var original = DocxTemplateTests.WithLocalizedHeadingStyle();
+        var model = Roundtrip.Clone(Roundtrip.Open(original));
+        BlockOf(model, 0).With("styleId", "ListParagraph");
+        BlockOf(model, 0).Content![0].Text = "Recuado pelo estilo.";
+
+        var saved = Roundtrip.Save(original, model).Bytes;
+        var styles = Roundtrip.XmlOf(saved, "word/styles.xml");
+
+        Assert.Contains("w:styleId=\"ListParagraph\"", styles, StringComparison.Ordinal);
+        Assert.Contains("<w:pStyle w:val=\"ListParagraph\" />", Roundtrip.XmlOf(saved), StringComparison.Ordinal);
+        // E o parágrafo sem estilo, que ninguém tocou, não ganha `w:pStyle`.
+        Assert.Single(System.Text.RegularExpressions.Regex.Matches(Roundtrip.XmlOf(saved), "<w:pStyle"));
+    }
+
+    [Fact]
     public void DiminuirORecuoAteZeroChegaAoArquivo()
     {
         // O escritor saía calado quando o modelo dizia zero, e o `w:ind` do
         // arquivo ficava: quem apertava Ctrl+[ até o fim via o recuo voltar ao
-        // reabrir o documento.
+        // reabrir o documento. Com o bloco levando só o direto, o recuo limpo sai
+        // do `w:pPr` — e o parágrafo volta ao recuo do estilo, que aqui é nenhum.
         var original = Fixtures.WithFormattedParagraph();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
 
@@ -138,7 +246,7 @@ public class DocxWriteBackTests
 
         var xml = Roundtrip.XmlOf(Roundtrip.Save(original, model).Bytes);
 
-        Assert.Contains("w:left=\"0\"", xml, StringComparison.Ordinal);
+        Assert.DoesNotContain("<w:ind", xml, StringComparison.Ordinal);
         Assert.DoesNotContain("w:firstLine=", xml, StringComparison.Ordinal);
     }
 

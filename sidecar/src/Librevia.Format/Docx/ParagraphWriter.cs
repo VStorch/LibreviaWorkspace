@@ -23,6 +23,13 @@ public sealed class ParagraphWriter
     private readonly MainDocumentPart _part;
     private readonly Inventory _inventory;
     private readonly ParagraphFormat _format;
+    private readonly StyleResolver _styles;
+
+    /// <summary>
+    /// O que o estilo do parágrafo em gravação dá aos runs — ver
+    /// <see cref="DropWhatRepeatsTheStyle"/>.
+    /// </summary>
+    private RunProperties _paragraphRun = new();
     private readonly TableWriter _tables;
     private readonly ImageWriter _images;
 
@@ -35,11 +42,13 @@ public sealed class ParagraphWriter
         MainDocumentPart part,
         Inventory inventory,
         int usableWidthPx = ImageWriter.DefaultWidthPx,
-        HeadingStyles? headings = null)
+        HeadingStyles? headings = null,
+        bool flatten = false)
     {
         _part = part;
         _inventory = inventory;
-        _format = new ParagraphFormat(inventory, headings ?? new HeadingStyles(part, null), new StyleResolver(part));
+        _styles = new StyleResolver(part);
+        _format = new ParagraphFormat(inventory, headings ?? new HeadingStyles(part, null), _styles, flatten);
         var usable = usableWidthPx > 0 ? usableWidthPx : ImageWriter.DefaultWidthPx;
         _tables = new TableWriter(inventory, (node, original) => Write(node, null, original), usable);
         _images = new ImageWriter(part, inventory, usable);
@@ -295,6 +304,8 @@ public sealed class ParagraphWriter
             paragraph.AppendChild(mark.CloneNode(true));
         }
 
+        _paragraphRun = _styles.Resolve(paragraph.ParagraphProperties).Run;
+
         // As imagens que já estavam no parágrafo voltam com o desenho original —
         // ver ImageWriter.Reuse.
         var images = ImageWriter.FlowingImagesOf(original);
@@ -454,6 +465,7 @@ public sealed class ParagraphWriter
             }
         }
 
+        DropWhatRepeatsTheStyle(properties, _paragraphRun);
         if (properties.HasChildren) run.RunProperties = properties;
 
         // O texto entra peça por peça: tabulação é `w:tab`, quebra de linha é
@@ -487,6 +499,45 @@ public sealed class ParagraphWriter
         link.AppendChild(run);
         return link;
     }
+
+    /// <summary>
+    /// Tira do run o que o estilo do parágrafo já lhe dá.
+    /// </summary>
+    /// <remarks>
+    /// As marcas do editor chegam achatadas — o leitor põe em cada trecho a fonte,
+    /// o tamanho e o negrito do estilo —, e gravá-las de volta como formatação
+    /// direta repetia o estilo em cada `w:r` do bloco editado. O arquivo abria
+    /// igual, mas desligado do estilo: mudar a fonte do Normal no Word não
+    /// alcançava mais o parágrafo que alguém tinha corrigido aqui.
+    ///
+    /// Só o que coincide sai. Marca ausente não vira "desligado" explícito: na tela
+    /// o trecho sem marca mostra o estilo, e é o estilo que ele continua a ter.
+    /// </remarks>
+    private static void DropWhatRepeatsTheStyle(RunProperties properties, RunProperties style)
+    {
+        if (properties.Bold is not null && RunReader.IsOn(style.Bold)) properties.Bold = null;
+        if (properties.Italic is not null && RunReader.IsOn(style.Italic)) properties.Italic = null;
+        if (properties.Strike is not null && RunReader.IsOn(style.Strike)) properties.Strike = null;
+        if (properties.Caps is not null && RunReader.IsOn(style.Caps)) properties.Caps = null;
+        if (properties.SmallCaps is not null && RunReader.IsOn(style.SmallCaps)) properties.SmallCaps = null;
+
+        if (properties.Underline is not null && style.Underline?.Val is { } line &&
+            line.Value != UnderlineValues.None)
+        {
+            properties.Underline = null;
+        }
+
+        if (Same(properties.RunFonts?.Ascii?.Value, style.RunFonts?.Ascii?.Value)) properties.RunFonts = null;
+        if (Same(properties.FontSize?.Val?.Value, style.FontSize?.Val?.Value)) properties.FontSize = null;
+        if (Same(properties.Color?.Val?.Value, style.Color?.Val?.Value)) properties.Color = null;
+        if (Same(properties.VerticalTextAlignment?.Val?.InnerText, style.VerticalTextAlignment?.Val?.InnerText))
+        {
+            properties.VerticalTextAlignment = null;
+        }
+    }
+
+    private static bool Same(string? a, string? b) =>
+        a is not null && string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
 
     private void ApplyTextStyle(RunProperties properties, Mark mark)
     {

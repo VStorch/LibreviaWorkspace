@@ -27,7 +27,23 @@ namespace Librevia.Format.Docx;
 /// sobre a fonte da marca, e o recuo por nível, que soma ao recuo do estilo.
 /// Para essas, o <paramref name="styles"/> diz o que o estilo vale.
 /// </remarks>
-internal sealed class ParagraphFormat(Inventory inventory, HeadingStyles headings, StyleResolver styles)
+/// <remarks>
+/// <b>Direto ou achatado.</b> O parágrafo solto no corpo chega do leitor só com a
+/// formatação direta, e então o nó é a verdade inteira sobre o `w:pPr`: o que
+/// estava direto no original e sumiu do nó foi limpo por alguém, e sai do arquivo
+/// — senão a formatação limpa voltaria ao reabrir. O item de lista, o parágrafo
+/// de célula e o rascunho antigo (<paramref name="flatten"/>) chegam achatados, e
+/// ali ausência não diz nada: o escritor só sobrepõe, como sempre fez.
+///
+/// Em qualquer dos dois, o que só repete o estilo não é gravado onde o original
+/// não o declarava: duplicá-lo desligaria o parágrafo do estilo — mudar o estilo
+/// depois não o alcançaria mais.
+/// </remarks>
+internal sealed class ParagraphFormat(
+    Inventory inventory,
+    HeadingStyles headings,
+    StyleResolver styles,
+    bool flatten = false)
 {
     private const int TwipsPerIndentLevel = 720;
 
@@ -45,13 +61,26 @@ internal sealed class ParagraphFormat(Inventory inventory, HeadingStyles heading
                          ?? new ParagraphProperties();
 
         ApplyStyle(properties, node);
+
+        // O nó é a verdade inteira só no parágrafo solto do corpo que o leitor
+        // leu sem achatar: nem item de lista (antes ou agora), nem célula, nem
+        // rascunho antigo.
+        var direct = !flatten &&
+                     list is { List: null } &&
+                     original?.ParagraphProperties?.NumberingProperties is null;
+        if (direct) ClearWhatWasCleared(properties, node);
+        var style = styles.StyleParagraphOf(properties);
+
         ApplyAlignment(properties, node);
         ApplyIndentation(properties, node);
         ApplyExplicitZeros(properties, node);
         ApplySpacing(properties, node);
         ApplyShading(properties, node);
-        ApplyKeepNext(properties, node);
+        ApplyKeepNext(properties, node, direct);
         ApplyMark(properties, node);
+
+        DropWhatRepeatsTheStyle(properties, original?.ParagraphProperties, style);
+        DropMarkThatRepeatsTheStyle(properties, original?.ParagraphProperties, styles.Resolve(properties).Run);
 
         // A numeração vem do contexto, e não do nó: no arquivo a lista são
         // parágrafos irmãos apontando o mesmo `w:numId`.
@@ -118,7 +147,7 @@ internal sealed class ParagraphFormat(Inventory inventory, HeadingStyles heading
             return;
         }
 
-        properties.ParagraphStyleId = new ParagraphStyleId { Val = declared };
+        properties.ParagraphStyleId = new ParagraphStyleId { Val = headings.IdForDeclared(declared) };
     }
 
     private static void ApplyAlignment(ParagraphProperties properties, Node node)
@@ -198,6 +227,179 @@ internal sealed class ParagraphFormat(Inventory inventory, HeadingStyles heading
         indentation.FirstLine = Twips(firstLine > 0 ? firstLine : null);
         indentation.Hanging = Twips(firstLine < 0 ? -firstLine : null);
     }
+
+    /// <summary>
+    /// Tira do clone o que estava direto no original e o nó já não diz.
+    /// </summary>
+    /// <remarks>
+    /// Só o que o modelo representa — alinhamento, recuo, espaço, entrelinha,
+    /// fundo, "manter com o próximo", fonte e tamanho da marca. O resto do `w:pPr`
+    /// (bordas, tabulações, `w:sectPr`) o editor não mostra, e não pode ter sido
+    /// limpo por ninguém.
+    ///
+    /// O `w:shd` com "transparente" no nó é o `w:shd` sem cor do original, e fica.
+    /// </remarks>
+    private static void ClearWhatWasCleared(ParagraphProperties properties, Node node)
+    {
+        bool Absent(string name) => Attr.Node(node, name) is null;
+
+        // O leitor sempre leva o `w:pStyle` do parágrafo; sem ele no nó, o
+        // estilo foi tirado. O título escolhe o dele em ApplyStyle.
+        if (node.Type != "heading" && Absent("styleId")) properties.ParagraphStyleId = null;
+
+        if (Absent("textAlign")) properties.Justification = null;
+
+        if (properties.Indentation is { } indentation)
+        {
+            if (Absent("indentMm") && (Attr.Int(node, "indent") ?? 0) == 0)
+            {
+                indentation.Left = null;
+                indentation.Start = null;
+            }
+
+            if (Absent("indentRightMm"))
+            {
+                indentation.Right = null;
+                indentation.End = null;
+            }
+
+            if (Absent("firstLineMm"))
+            {
+                indentation.FirstLine = null;
+                indentation.Hanging = null;
+            }
+
+            if (!indentation.HasAttributes) properties.Indentation = null;
+        }
+
+        if (properties.SpacingBetweenLines is { } spacing)
+        {
+            if (Absent("spaceBefore")) spacing.Before = null;
+            if (Absent("spaceAfter")) spacing.After = null;
+            if (Absent("lineHeight"))
+            {
+                spacing.Line = null;
+                spacing.LineRule = null;
+            }
+
+            if (!spacing.HasAttributes) properties.SpacingBetweenLines = null;
+        }
+
+        if (Absent("background")) properties.Shading = null;
+        if (Absent("keepNext")) properties.KeepNext = null;
+
+        if (properties.ParagraphMarkRunProperties is { } mark)
+        {
+            if (Absent("fontFamily") && mark.GetFirstChild<RunFonts>() is { } fonts)
+            {
+                fonts.Ascii = null;
+                fonts.HighAnsi = null;
+                if (!fonts.HasAttributes) fonts.Remove();
+            }
+
+            if (Absent("fontSize")) mark.GetFirstChild<FontSize>()?.Remove();
+        }
+    }
+
+    /// <summary>
+    /// O que o escritor acrescentou e só repete o estilo sai de novo.
+    /// </summary>
+    /// <remarks>
+    /// Só o que o original **não** declarava: o que já estava direto no arquivo é
+    /// escolha de quem o escreveu, mesmo que coincida com o estilo, e fica. O
+    /// bloco achatado — lista, célula, rascunho antigo — é o caso que mais
+    /// importa: ele carrega o estilo inteiro em cada atributo.
+    /// </remarks>
+    private static void DropWhatRepeatsTheStyle(
+        ParagraphProperties properties,
+        ParagraphProperties? original,
+        ParagraphProperties style)
+    {
+        if (original?.Justification is null && properties.Justification is { } jc &&
+            SameValue(jc.Val?.InnerText, style.Justification?.Val?.InnerText ?? "left"))
+        {
+            properties.Justification = null;
+        }
+
+        if (properties.Indentation is { } indentation)
+        {
+            var was = original?.Indentation;
+            var from = style.Indentation;
+            if (was?.Left is null && SameTwips(indentation.Left, from?.Left)) indentation.Left = null;
+            if (was?.Right is null && SameTwips(indentation.Right, from?.Right)) indentation.Right = null;
+            if (was?.FirstLine is null && was?.Hanging is null &&
+                SameTwips(indentation.FirstLine, from?.FirstLine) &&
+                SameTwips(indentation.Hanging, from?.Hanging))
+            {
+                indentation.FirstLine = null;
+                indentation.Hanging = null;
+            }
+
+            if (!indentation.HasAttributes) properties.Indentation = null;
+        }
+
+        if (properties.SpacingBetweenLines is { } spacing)
+        {
+            var was = original?.SpacingBetweenLines;
+            var from = style.SpacingBetweenLines;
+            if (was?.Before is null && SameTwips(spacing.Before, from?.Before)) spacing.Before = null;
+            if (was?.After is null && SameTwips(spacing.After, from?.After)) spacing.After = null;
+            if (was?.Line is null && spacing.Line is not null &&
+                SameValue(spacing.Line.Value, from?.Line?.Value ?? "240") &&
+                SameValue(spacing.LineRule?.InnerText ?? "auto", from?.LineRule?.InnerText ?? "auto"))
+            {
+                spacing.Line = null;
+                spacing.LineRule = null;
+            }
+
+            if (!spacing.HasAttributes) properties.SpacingBetweenLines = null;
+        }
+
+        if (original?.Shading is null && properties.Shading is { } shading &&
+            SameValue(shading.Fill?.Value, style.Shading?.Fill?.Value))
+        {
+            properties.Shading = null;
+        }
+
+        if (original?.KeepNext is null && properties.KeepNext is { } keep &&
+            RunReader.IsOn(keep) == RunReader.IsOn(style.KeepNext))
+        {
+            properties.KeepNext = null;
+        }
+
+        if (properties.ParagraphMarkRunProperties is { HasChildren: false }) properties.ParagraphMarkRunProperties = null;
+    }
+
+    /// <summary>O mesmo na marca de parágrafo: fonte e tamanho que só repetem o estilo.</summary>
+    private static void DropMarkThatRepeatsTheStyle(
+        ParagraphProperties properties,
+        ParagraphProperties? original,
+        RunProperties style)
+    {
+        if (properties.ParagraphMarkRunProperties is not { } mark) return;
+        var was = original?.ParagraphMarkRunProperties;
+
+        if (was?.GetFirstChild<RunFonts>() is null && mark.GetFirstChild<RunFonts>() is { } fonts &&
+            SameValue(fonts.Ascii?.Value, style.RunFonts?.Ascii?.Value))
+        {
+            fonts.Remove();
+        }
+
+        if (was?.GetFirstChild<FontSize>() is null && mark.GetFirstChild<FontSize>() is { } size &&
+            SameValue(size.Val?.Value, style.FontSize?.Val?.Value))
+        {
+            size.Remove();
+        }
+
+        if (!mark.HasChildren) properties.ParagraphMarkRunProperties = null;
+    }
+
+    /// <summary>Silêncio vale zero: é o que o Word desenha para a medida ausente.</summary>
+    private static bool SameTwips(StringValue? a, StringValue? b) =>
+        a is not null && string.Equals(a.Value ?? "0", b?.Value ?? "0", StringComparison.Ordinal);
+
+    private static bool SameValue(string? a, string? b) =>
+        a is not null && string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
 
     private static int StyleTwips(StringValue? measure) =>
         int.TryParse(measure?.Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var twips) && twips > 0
@@ -359,11 +561,19 @@ internal sealed class ParagraphFormat(Inventory inventory, HeadingStyles heading
     /// **desligar** o que o estilo liga, e removê-lo faria o parágrafo voltar a
     /// grudar no seguinte.
     /// </remarks>
-    private static void ApplyKeepNext(ParagraphProperties properties, Node node)
+    private static void ApplyKeepNext(ParagraphProperties properties, Node node, bool direct)
     {
         if (Attr.Bool(node, "keepNext"))
         {
             properties.KeepNext = new KeepNext();
+            return;
+        }
+
+        // No nó direto, `false` é o parágrafo desfazendo o do estilo, e o
+        // desligado explícito é o único jeito de dizê-lo ao arquivo.
+        if (direct && Attr.Node(node, "keepNext") is not null)
+        {
+            properties.KeepNext = new KeepNext { Val = false };
             return;
         }
 

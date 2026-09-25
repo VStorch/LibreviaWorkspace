@@ -391,7 +391,7 @@ public class DocxTemplateTests
     }
 
     /// <summary>Um DOCX como o Word em português grava: `Ttulo1`, de nome `heading 1`.</summary>
-    private static byte[] WithLocalizedHeadingStyle()
+    internal static byte[] WithLocalizedHeadingStyle()
     {
         using var buffer = new MemoryStream();
         using (var document = WordprocessingDocument.Create(buffer, DocumentFormat.OpenXml.WordprocessingDocumentType.Document))

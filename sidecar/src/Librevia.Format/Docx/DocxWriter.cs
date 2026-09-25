@@ -182,7 +182,7 @@ public static class DocxWriter
         out int preserved,
         out int rewritten)
     {
-        var writer = new ParagraphWriter(part, inventory, UsableWidthPx(model.Page), headings);
+        var writer = new ParagraphWriter(part, inventory, UsableWidthPx(model.Page), headings, model.Flatten);
         var used = new HashSet<string>(StringComparer.Ordinal);
         var elements = new List<OpenXmlElement>();
 

@@ -161,7 +161,7 @@ internal static class TemplateStyles
     /// `w:rPr`), e fora dela o Word recusa o arquivo. Quem confere é o
     /// `OpenXmlValidator`, em todo DOCX que os testes gravam.
     /// </remarks>
-    private static Style Of(BuiltinStyle style)
+    public static Style Of(BuiltinStyle style)
     {
         var result = new Style
         {
