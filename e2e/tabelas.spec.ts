@@ -177,6 +177,40 @@ test.describe('tabelas e imagens editáveis', () => {
     await expect.poll(async () => Math.round((await imagem.boundingBox())?.width ?? 0)).toBe(400)
   })
 
+  test('com zoom de 150 %, arrastar a alça grava o tamanho que a pessoa vê', async () => {
+    const origem = join(pasta, 'imagem.docx')
+    await writeFile(origem, await docxWithStretchedImage())
+    await stubDialogs(session.app, { open: origem, messageBox: 1 })
+    await menu(session, 'open')
+    for (let i = 0; i < 3; i++) await menu(session, 'zoom-in')
+    await expect(session.window.locator('.statusbar__zoom-level')).toHaveText('150%')
+
+    const imagem = session.window.locator('.page__content .image-frame img')
+    await expect(imagem).toBeVisible()
+    await imagem.click()
+    const alça = session.window.getByRole('button', {
+      name: 'Redimensionar imagem pelo canto inferior direito',
+    })
+    const caixa = await alça.boundingBox()
+    if (caixa === null) throw new Error('a alça não apareceu')
+
+    // 150 px de tela a 150 % são 100 px de documento: 400 × 100 vira 300 × 75,
+    // exatamente como o mesmo gesto em 100 % com 100 px.
+    await session.window.mouse.move(caixa.x + 5, caixa.y + 5)
+    await session.window.mouse.down()
+    await session.window.mouse.move(caixa.x - 145, caixa.y + 5, { steps: 20 })
+    await session.window.mouse.up()
+
+    const medida = () =>
+      imagem.evaluate((img) => [
+        (img as HTMLImageElement).offsetWidth,
+        (img as HTMLImageElement).offsetHeight,
+      ])
+    await expect.poll(medida).toEqual([300, 75])
+    // Na tela, a imagem gravada aparece ampliada pelo zoom.
+    expect(Math.round((await imagem.boundingBox())!.width)).toBe(450)
+  })
+
   test('arrastar a alça para fora não passa da largura da coluna', async () => {
     const origem = join(pasta, 'imagem.docx')
     await writeFile(origem, await docxWithStretchedImage())

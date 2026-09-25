@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import { NodeViewWrapper, type NodeViewProps } from '@tiptap/react'
 import type { MessageKey } from '@shared/i18n/index.js'
 import { useT } from '../i18n.js'
+import { screenScaleOf } from './screen-scale.js'
 import {
   MIN_IMAGE_PX,
   RESIZE_HANDLES,
@@ -99,10 +100,14 @@ export function ImageNodeView({ node, selected, editor, getPos }: NodeViewProps)
 
     // O tamanho de partida é o que está na tela, e não o do atributo: a imagem
     // pode ter chegado sem medida nenhuma, e aí quem a define é o navegador.
-    const measured = frame.current?.querySelector('img')?.getBoundingClientRect()
+    // Tela e documento só coincidem em 100 %: com zoom, a medida e o arrasto
+    // chegam na escala da tela e voltam divididos por ela.
+    const image = frame.current?.querySelector('img') ?? null
+    const scale = screenScaleOf(image)
+    const measured = image?.getBoundingClientRect()
     const start = attributeSize ?? {
-      width: Math.round(measured?.width ?? MIN_IMAGE_PX),
-      height: Math.round(measured?.height ?? MIN_IMAGE_PX),
+      width: Math.round((measured?.width ?? MIN_IMAGE_PX * scale) / scale),
+      height: Math.round((measured?.height ?? MIN_IMAGE_PX * scale) / scale),
     }
 
     const originX = event.clientX
@@ -117,8 +122,8 @@ export function ImageNodeView({ node, selected, editor, getPos }: NodeViewProps)
       last = resizedImage({
         handle,
         start,
-        deltaX: moved.clientX - originX,
-        deltaY: moved.clientY - originY,
+        deltaX: (moved.clientX - originX) / scale,
+        deltaY: (moved.clientY - originY) / scale,
         // Nos cantos a proporção trava e o `Shift` **solta**: esticar uma captura
         // de tela sem querer é dano que só se percebe no papel.
         keepProportion: !moved.shiftKey,
