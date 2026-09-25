@@ -61,8 +61,23 @@ export function applyPageGaps(
   gaps: ReadonlyMap<number, number>,
   /** Vãos entre linhas de um parágrafo cortado, pela posição do primeiro caractere da linha. */
   lines: ReadonlyMap<number, number> = new Map(),
+  /** Cabeçalhos de tabela repetidos no alto das folhas em que a tabela continua. */
+  headers: readonly RepeatedHeader[] = [],
 ): void {
   const decorations: Decoration[] = []
+
+  // O cabeçalho repetido é cópia, e não conteúdo: fica fora da seleção e da
+  // edição, e o ProseMirror ignora o que acontece dentro de um widget.
+  for (const header of headers) {
+    if (header.position <= 0 || header.position > view.state.doc.content.size) continue
+    decorations.push(
+      Decoration.widget(header.position, () => repeatedHeader(header), {
+        side: -1,
+        ignoreSelection: true,
+        key: `page-header:${header.position}:${header.height.toFixed(2)}:${header.html.length}`,
+      }),
+    )
+  }
 
   // O corte no meio do parágrafo não tem nó a empurrar: o espaçador é um
   // elemento da largura da linha, antes do primeiro caractere da linha que abre
@@ -100,6 +115,32 @@ export function applyPageGaps(
       .setMeta(paginationKey, DecorationSet.create(view.state.doc, decorations))
       .setMeta('addToHistory', false),
   )
+}
+
+/** As linhas de cabeçalho de uma tabela, repetidas no alto de uma folha. */
+export interface RepeatedHeader {
+  /** Início do conteúdo da primeira célula da linha que abre a folha. */
+  readonly position: number
+  /** A tabela-cópia, com as colunas da original e só as linhas de cabeçalho. */
+  readonly html: string
+  readonly height: number
+  /** Quanto subir e recuar a partir do canto do conteúdo da célula. */
+  readonly offsetTop: number
+  readonly offsetLeft: number
+}
+
+export const REPEATED_HEADER_CLASS = 'page-repeated-header'
+
+function repeatedHeader(header: RepeatedHeader): HTMLElement {
+  const element = document.createElement('div')
+  element.className = REPEATED_HEADER_CLASS
+  element.contentEditable = 'false'
+  element.setAttribute('aria-hidden', 'true')
+  element.style.cssText =
+    `position:absolute;margin-top:${-header.offsetTop}px;margin-left:${-header.offsetLeft}px;` +
+    `height:${header.height}px;pointer-events:none;user-select:none;`
+  element.innerHTML = header.html
+  return element
 }
 
 /** O espaçador de um corte entre linhas; `data-page-shift` é o que a medida desconta. */

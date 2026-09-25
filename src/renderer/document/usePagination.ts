@@ -11,7 +11,7 @@ import {
   type PageSetup,
 } from '@services/document/model.js'
 import { NO_BANDS, type BandHeights } from '@services/document/band.js'
-import { applyPageGaps } from './extensions/pagination.js'
+import { applyPageGaps, type RepeatedHeader } from './extensions/pagination.js'
 import { measureLines } from './line-boxes.js'
 
 /** Espaço entre uma folha e a seguinte, como numa pilha de papel. */
@@ -53,6 +53,8 @@ export interface PageStart {
    * dentro do conteúdo dele, a mesma que `Node.cut` recebe.
    */
   readonly offset?: number
+  /** A folha abre com as linhas de cabeçalho da tabela repetidas. */
+  readonly repeatHeader?: boolean
 }
 
 /** O corte cai dentro do bloco — o bloco começa na folha anterior. */
@@ -69,6 +71,8 @@ interface CutTarget {
    * linha, resolvida só se o corte for escolhido, e a do próprio parágrafo.
    */
   readonly line?: { readonly resolve: () => number | null; readonly block: number }
+  /** Corte entre linhas de tabela com cabeçalho: o que se repete no alto da folha. */
+  readonly header?: () => RepeatedHeader
 }
 
 export interface BlockAnchor {
@@ -149,6 +153,9 @@ export function usePagination(
 
   /** Os vãos entre linhas de parágrafo cortado, por posição do espaçador. */
   const lastLines = useRef(new Map<number, number>())
+
+  /** Os cabeçalhos de tabela repetidos, comparados pelo que desenham. */
+  const lastHeaders = useRef('[]')
 
   useEffect(() => {
     if (editor === null) return undefined
@@ -234,12 +241,30 @@ export function usePagination(
           internal = lines.shift
         }
 
+        // Linhas de cabeçalho (`w:tblHeader`, células `th`) no começo da tabela:
+        // repetem-se no alto de cada folha em que a tabela continua. Cortar
+        // dentro delas, ou logo depois, deixaria o cabeçalho sozinho no pé.
+        const rows = table !== null ? Array.from(table.rows) : []
+        let headerRows = 0
+        while (
+          headerRows < rows.length - 1 &&
+          rows[headerRows]!.cells.length > 0 &&
+          Array.from(rows[headerRows]!.cells).every((cell) => cell.tagName === 'TH')
+        ) {
+          headerRows += 1
+        }
+        const lastHeader = rows[headerRows - 1]
+        const repeatHeight =
+          lastHeader === undefined
+            ? 0
+            : offsetTopOf(lastHeader) + lastHeader.offsetHeight - offsetTopOf(rows[0]!)
+
         children.forEach((child, childIndex) => {
           const cells = child instanceof HTMLTableRowElement ? Array.from(child.cells) : []
           const shift = cells.length > 0 ? shiftOf(cells[0]!) : shiftOf(child)
           // Padding aumenta a linha para baixo; margem já deslocou seu topo.
           const at = offsetTopOf(child) - origin - accumulated - internal - (cells.length === 0 ? shift : 0)
-          if (childIndex > 0) {
+          if (childIndex > headerRows) {
             breakpoints.push(at)
             targets.push({
               at,
@@ -253,6 +278,12 @@ export function usePagination(
                       : getComputedStyle(target).marginTop,
                   ) - shiftOf(target),
               })),
+              ...(table !== null && repeatHeight > 0
+                ? {
+                    header: () =>
+                      repeatedHeader(editor, table, rows.slice(0, headerRows), cells[0]!, repeatHeight),
+                  }
+                : {}),
             })
           }
           internal += shift
@@ -267,6 +298,7 @@ export function usePagination(
           keepWithNext: effective['keepNext'] === true || /^H[1-6]$/.test(node.tagName),
           keepLines: effective['keepLines'] === true,
           widowControl: lines !== null && effective['widowControl'] !== false,
+          ...(repeatHeight > 0 ? { repeatHeight } : {}),
         })
         accumulated += internal
       })
@@ -293,6 +325,7 @@ export function usePagination(
       const gaps = new Map<number, number>()
       const written = new Map<number, number>()
       const lineGaps = new Map<number, number>()
+      const headers: RepeatedHeader[] = []
       let previous = 0
       const pageStarts: PageStart[] = []
       const sheetHeights: number[] = []
@@ -318,11 +351,19 @@ export function usePagination(
           pageStarts.push({ ...target.start, offset: position - target.line.block - 1 })
           lineGaps.set(position, shift)
         } else if (target !== undefined) {
-          pageStarts.push(target.start)
+          // O cabeçalho repetido mora no vão, entre o topo da folha e a linha:
+          // o vão cresce a altura dele, e a conta de fluxo desconta os dois.
+          const header = target.header?.()
+          const extra = header !== undefined && header.height < contentHeightPx / 2 ? header.height : 0
+          if (header !== undefined && extra > 0) headers.push(header)
+          pageStarts.push(extra > 0 ? { ...target.start, repeatHeader: true } : target.start)
           for (const node of target.nodes) {
-            gaps.set(node.position, shift)
-            written.set(node.position, shift + node.natural)
+            gaps.set(node.position, shift + extra)
+            written.set(node.position, shift + extra + node.natural)
           }
+          // A folha nova começa acima do corte, pela altura do cabeçalho.
+          previous = at - extra
+          continue
         } else {
           // Uma quebra explícita final ainda abre uma folha vazia.
           pageStarts.push({ blockIndex: blocks.length })
@@ -346,16 +387,20 @@ export function usePagination(
       const target = paginated ? gaps : EMPTY_GAPS
       const targetWritten = paginated ? written : EMPTY_GAPS
       const targetLines = paginated ? lineGaps : EMPTY_GAPS
+      const targetHeaders = paginated ? headers : []
+      const headersKey = JSON.stringify(targetHeaders)
 
       if (
         !sameGaps(applied.current, target) ||
         !sameGaps(lastWritten.current, targetWritten) ||
-        !sameGaps(lastLines.current, targetLines)
+        !sameGaps(lastLines.current, targetLines) ||
+        lastHeaders.current !== headersKey
       ) {
+        lastHeaders.current = headersKey
         applied.current = target
         lastWritten.current = targetWritten
         lastLines.current = targetLines
-        applyPageGaps(editor.view, targetWritten, target, targetLines)
+        applyPageGaps(editor.view, targetWritten, target, targetLines, targetHeaders)
       }
 
       setLayout({
@@ -442,4 +487,38 @@ function offsetTopOf(node: HTMLElement): number {
 /** A decoração acompanha edições no modelo; a medida lê o empurrão já mapeado. */
 function shiftOf(node: HTMLElement): number {
   return Number(node.dataset.pageShift ?? 0)
+}
+
+/**
+ * O cabeçalho que se repete no alto da folha, pronto para a decoração.
+ *
+ * Uma cópia das linhas de cabeçalho, numa tabela com as mesmas colunas e a
+ * mesma largura, posta sobre o vão da linha que abre a folha. Mora na primeira
+ * célula dessa linha e sai dela por margens negativas: o ponto de partida é o
+ * canto do conteúdo da célula, que é onde o elemento fora do fluxo começaria.
+ */
+function repeatedHeader(
+  editor: Editor,
+  table: HTMLTableElement,
+  headerRows: readonly HTMLTableRowElement[],
+  cell: HTMLTableCellElement,
+  height: number,
+): RepeatedHeader {
+  const tableBox = table.getBoundingClientRect()
+  const cellBox = cell.getBoundingClientRect()
+  const scale = table.offsetWidth > 0 && tableBox.width > 0 ? tableBox.width / table.offsetWidth : 1
+  const style = getComputedStyle(cell)
+  const left = (cellBox.left - tableBox.left) / scale + cell.clientLeft + parseFloat(style.paddingLeft)
+  const natural = parseFloat(style.paddingTop) - shiftOf(cell)
+  const colgroup = table.querySelector(':scope > colgroup')?.outerHTML ?? ''
+  const html =
+    `<table class="${table.className}" style="width:${table.offsetWidth}px;margin:0">${colgroup}` +
+    `<tbody>${headerRows.map((row) => row.outerHTML).join('')}</tbody></table>`
+  return {
+    position: editor.view.posAtDOM(cell, 0),
+    html,
+    height,
+    offsetTop: height + Math.max(natural, 0),
+    offsetLeft: left,
+  }
 }

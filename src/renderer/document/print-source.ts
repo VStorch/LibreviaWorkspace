@@ -90,7 +90,11 @@ export function slicePageBlocks(
     } else {
       const children: ProseMirrorNode[] = []
       block.forEach((child, _offset, childIndex) => {
-        if (childIndex >= from && childIndex < to) children.push(child)
+        // As linhas de cabeçalho voltam no alto da folha em que a tabela
+        // continua, como a tela as desenha.
+        const repeated =
+          index === start.blockIndex && start.repeatHeader === true && isHeaderRow(block, childIndex)
+        if (repeated || (childIndex >= from && childIndex < to)) children.push(child)
       })
       const attrs =
         block.type.name === 'orderedList'
@@ -100,6 +104,20 @@ export function slicePageBlocks(
     }
   }
   return fragments
+}
+
+/** Linha de cabeçalho: está no começo da tabela e só tem células `tableHeader`. */
+function isHeaderRow(table: ProseMirrorNode, rowIndex: number): boolean {
+  for (let index = 0; index <= rowIndex; index++) {
+    const row = table.maybeChild(index)
+    if (row === null || row.childCount === 0) return false
+    let header = true
+    row.forEach((cell) => {
+      if (cell.type.name !== 'tableHeader') header = false
+    })
+    if (!header) return false
+  }
+  return true
 }
 
 /**

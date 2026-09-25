@@ -137,6 +137,18 @@ describe('cortes dentro de blocos', () => {
     expect(paginate([splittable(1500, [300, 600, 900, 1200])], 1000)).toEqual([900])
   })
 
+  it('o cabeçalho repetido ocupa a folha seguinte', () => {
+    // Linhas de 100, cabeçalho de 100: a segunda folha abre com o cabeçalho e
+    // cabe só mais nove linhas — o corte seguinte vem 100 antes.
+    const rows = Array.from({ length: 24 }, (_, index) => (index + 1) * 100)
+    expect(paginate([splittable(2500, rows, { repeatHeight: 100 })], 1000)).toEqual([1000, 1900])
+  })
+
+  it('cabeçalho maior que meia folha não se repete', () => {
+    const rows = Array.from({ length: 24 }, (_, index) => (index + 1) * 100)
+    expect(paginate([splittable(2500, rows, { repeatHeight: 600 })], 1000)).toEqual([1000, 2000])
+  })
+
   it('tabela de três páginas tem dois cortes internos', () => {
     expect(paginate([splittable(2500, [500, 1000, 1500, 2000])], 1000)).toEqual([1000, 2000])
   })

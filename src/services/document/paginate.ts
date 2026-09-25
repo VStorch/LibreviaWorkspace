@@ -45,6 +45,12 @@ export interface MeasuredBlock {
    * de duas ou três linhas fica sem corte e anda inteiro, como no Word.
    */
   readonly widowControl?: boolean
+  /**
+   * Altura das linhas de cabeçalho da tabela (`w:tblHeader`), que se repetem
+   * no alto de cada folha em que a tabela continua: a folha nova tem esse
+   * tanto a menos para o resto da tabela.
+   */
+  readonly repeatHeight?: number
 }
 
 /**
@@ -57,11 +63,16 @@ export function paginate(blocks: readonly MeasuredBlock[], pageHeight: number): 
   if (pageHeight <= 0) return []
 
   const breaks: number[] = []
+  // `pageStart` é de onde a folha conta a altura; `floor`, o último corte.
+  // Só diferem quando a folha abre com o cabeçalho repetido de uma tabela: a
+  // conta começa acima do corte, pela altura do cabeçalho, mas nada pode voltar
+  // para antes do corte.
   let pageStart = 0
+  let floor = 0
   let index = 0
 
   // Sem teto de páginas, e por isso o laço precisa terminar sozinho. Ele
-  // termina: em cada volta, ou `index` avança, ou `pageStart` cresce estritamente
+  // termina: em cada volta, ou `index` avança, ou `floor` cresce estritamente
   // para um topo de bloco ou um dos seus pontos de corte. Há uma quantidade
   // finita dessas posições; um corte interno nunca permite voltar para trás.
   //
@@ -81,9 +92,9 @@ export function paginate(blocks: readonly MeasuredBlock[], pageHeight: number): 
     // errado — três páginas viravam uma.
     if (block.isPageBreak) {
       const after = block.top + block.height
-      if (after > pageStart) {
+      if (after > floor) {
         breaks.push(after)
-        pageStart = after
+        pageStart = floor = after
       }
 
       index += 1
@@ -97,18 +108,22 @@ export function paginate(blocks: readonly MeasuredBlock[], pageHeight: number): 
       // houver mais nada, senão o documento fecha com uma folha em branco.
       if (block.breakAfter && index < blocks.length) {
         breaks.push(bottom)
-        pageStart = bottom
+        pageStart = floor = bottom
       }
 
       continue
     }
 
     const breakpoint = usableBreakpoints(block, pageHeight)
-      .filter((at) => at > pageStart && at - pageStart <= pageHeight)
+      .filter((at) => at > floor && at - pageStart <= pageHeight)
       .at(-1)
     if (breakpoint !== undefined) {
       breaks.push(breakpoint)
-      pageStart = breakpoint
+      floor = breakpoint
+      // Cabeçalho maior que meia folha não se repete: repeti-lo deixaria a
+      // folha sem lugar para a linha que ele apresenta.
+      const repeat = block.repeatHeight ?? 0
+      pageStart = repeat > 0 && repeat < pageHeight / 2 ? breakpoint - repeat : breakpoint
       continue
     }
 
@@ -121,23 +136,23 @@ export function paginate(blocks: readonly MeasuredBlock[], pageHeight: number): 
     while (candidate > 0) {
       const previous = blocks[candidate - 1]
       if (previous === undefined || !previous.keepWithNext) break
-      if (previous.top <= pageStart) break
+      if (previous.top <= floor) break
       candidate -= 1
       breakAt = previous.top
     }
 
-    if (breakAt <= pageStart) {
+    if (breakAt <= floor) {
       // Sem corte disponível, o restante fica com a folha só para si.
       // O layout aumenta esse papel para conter o bloco atômico; o próximo
       // bloco continua abrindo uma folha nova, como antes.
-      pageStart = bottom
+      pageStart = floor = bottom
       index += 1
       if (index < blocks.length) breaks.push(bottom)
       continue
     }
 
     breaks.push(breakAt)
-    pageStart = breakAt
+    pageStart = floor = breakAt
     // `index` não avança: o mesmo bloco é reavaliado na página nova.
   }
 

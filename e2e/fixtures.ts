@@ -786,9 +786,14 @@ export async function docxWithDirectOverStyles(): Promise<Buffer> {
 }
 
 /** Tabela longa em A4 com margens de 25 mm: uma única estrutura, muitas folhas. */
-export async function docxWithLongTable(rows = 80): Promise<Buffer> {
+export async function docxWithLongTable(rows = 80, header = false): Promise<Buffer> {
+  // Com `header`, a primeira linha é de cabeçalho (`w:tblHeader`), a que o Word
+  // repete no alto de cada folha.
   const table =
     '<w:tbl><w:tblPr/><w:tblGrid><w:gridCol w:w="9000"/></w:tblGrid>' +
+    (header
+      ? `<w:tr><w:trPr><w:tblHeader/></w:trPr><w:tc>${paragraph('Cabeçalho repetido')}</w:tc></w:tr>`
+      : '') +
     Array.from(
       { length: rows },
       (_, index) => `<w:tr><w:tc>${paragraph(`Linha ${index + 1} da tabela longa`)}</w:tc></w:tr>`,

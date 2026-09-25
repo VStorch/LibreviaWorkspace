@@ -8,8 +8,9 @@ const schema = new Schema({
     paragraph: { group: 'block', content: 'text*' },
     text: {},
     table: { group: 'block', content: 'tableRow+' },
-    tableRow: { content: 'tableCell+' },
+    tableRow: { content: '(tableCell | tableHeader)+' },
     tableCell: { content: 'paragraph+' },
+    tableHeader: { content: 'paragraph+' },
     bulletList: { group: 'block', content: 'listItem+' },
     orderedList: { group: 'block', content: 'listItem+', attrs: { start: { default: 1 } } },
     listItem: { content: 'paragraph+' },
@@ -72,5 +73,18 @@ describe('recorte das páginas para impressão', () => {
     const block = paragraph('aaaabbbbcccc')
     const page = slicePageBlocks([block], { blockIndex: 0, offset: 4 }, { blockIndex: 0, offset: 8 })
     expect(page.map((node) => node.textContent)).toEqual(['bbbb'])
+  })
+
+  it('a folha em que a tabela continua abre com as linhas de cabeçalho', () => {
+    const header = schema.node('tableRow', null, schema.node('tableHeader', null, paragraph('Cab')))
+    const table = schema.node('table', null, [header, ...['A', 'B', 'C'].map(row)])
+    const page = slicePageBlocks(
+      [table],
+      { blockIndex: 0, childIndex: 2, repeatHeader: true },
+      { blockIndex: 1 },
+    )
+    expect(page[0]!.textContent).toBe('CabBC')
+    const plain = slicePageBlocks([table], { blockIndex: 0, childIndex: 2 }, { blockIndex: 1 })
+    expect(plain[0]!.textContent).toBe('BC')
   })
 })

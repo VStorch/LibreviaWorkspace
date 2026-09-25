@@ -185,6 +185,55 @@ test.describe('paginação ao vivo', () => {
     expect(linhas.antes).toBeGreaterThanOrEqual(2)
     expect(linhas.depois).toBeGreaterThanOrEqual(2)
   })
+
+  test('a linha de cabeçalho da tabela se repete no alto de cada folha, na tela e no PDF', async () => {
+    test.skip(!(await temPdftotext()), 'pdftotext não instalado')
+    const source = join(pasta, 'cabecalho.docx')
+    const destino = join(pasta, 'cabecalho.pdf')
+    await writeFile(source, await docxWithLongTable(80, true))
+    await stubDialogs(session.app, { open: source, save: destino, messageBox: 1 })
+    await menu(session, 'open')
+
+    const sheets = session.window.locator('.paper')
+    await expect.poll(() => sheets.count()).toBeGreaterThanOrEqual(2)
+    const repetidos = session.window.locator('.page-repeated-header')
+    await expect.poll(() => repetidos.count()).toBe((await sheets.count()) - 1)
+
+    // A cópia fica dentro da segunda folha, acima da primeira linha dela.
+    const copia = await repetidos.first().boundingBox()
+    const folha = await sheets.nth(1).boundingBox()
+    expect(copia!.y).toBeGreaterThanOrEqual(folha!.y)
+    expect(copia!.y + copia!.height).toBeLessThanOrEqual(folha!.y + folha!.height)
+    await expect(repetidos.first()).toContainText('Cabeçalho repetido')
+    // E alinhada com a tabela original, coluna por coluna.
+    const original = await session.window.locator('.page__content th').first().boundingBox()
+    const clone = await repetidos.first().locator('th').first().boundingBox()
+    expect(Math.abs(clone!.x - original!.x)).toBeLessThanOrEqual(1)
+    expect(Math.abs(clone!.width - original!.width)).toBeLessThanOrEqual(1)
+    // Dentro do vão da linha que abre a folha, e não sobre o texto dela.
+    const vizinha = await session.window.evaluate(() => {
+      const header = document.querySelector('.page-repeated-header')!
+      const row = header.closest('tr')!
+      return {
+        copia: header.getBoundingClientRect().bottom,
+        linha: row.cells[0]!.getBoundingClientRect().top,
+      }
+    })
+    expect(vizinha.copia).toBeGreaterThan(vizinha.linha)
+
+    await menu(session, 'export-pdf')
+    await expect.poll(async () => contarPaginas(destino), { timeout: 30000 }).toBe(await sheets.count())
+    const segunda = await palavrasDaPagina(destino, 2)
+    expect(segunda.slice(0, 2)).toEqual(['Cabeçalho', 'repetido'])
+
+    // Desligar a linha de cabeçalho pelo menu da tabela tira a repetição.
+    await session.window
+      .locator('.page__content th', { hasText: 'Cabeçalho repetido' })
+      .first()
+      .click({ button: 'right' })
+    await session.window.getByRole('menuitem', { name: 'Linha de cabeçalho' }).click()
+    await expect(repetidos).toHaveCount(0)
+  })
 })
 
 /**
