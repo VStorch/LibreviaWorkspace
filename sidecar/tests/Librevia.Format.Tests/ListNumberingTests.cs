@@ -143,6 +143,31 @@ public class ListNumberingTests
     }
 
     [Fact]
+    public void ListasNovasComAMesmaChaveSaoUmaNumeracaoSo()
+    {
+        // "Continuar numeração" entre duas listas que ainda não foram gravadas: a
+        // chave é o que as junta, e as duas têm de sair no mesmo `w:num`.
+        var original = Fixtures.Simple();
+        var model = Roundtrip.Clone(Roundtrip.Open(original));
+        var definition = new JsonObject { ["key"] = "nova-junta", ["levels"] = ListLevels.Defaults("orderedList") };
+        Node List(string text) => Node.Of(
+                "orderedList",
+                Node.Of("listItem", Node.Of("paragraph", new Node { Type = "text", Text = text })))
+            .With("numbering", definition.DeepClone());
+
+        model.Doc.Content!.Add(List("um"));
+        model.Doc.Content!.Add(Node.Of("paragraph", new Node { Type = "text", Text = "meio" }));
+        model.Doc.Content!.Add(List("dois"));
+
+        var (saved, _) = Roundtrip.Save(original, model);
+        var numbering = Roundtrip.XmlOf(saved, "word/numbering.xml");
+
+        Assert.Single(Regex.Matches(numbering, "<w:num "));
+        var lists = ListsOf(Roundtrip.Open(saved));
+        Assert.Equal(IntOf(lists[0], "numId"), IntOf(lists[1], "numId"));
+    }
+
+    [Fact]
     public void ListaComDefinicaoDaGaleriaSaiComOsNiveisDela()
     {
         // A definição escolhida no editor (galeria, lista colada de outro

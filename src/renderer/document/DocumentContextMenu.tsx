@@ -21,10 +21,15 @@ import { useWorkspace } from '../state/workspace.js'
  * Colar sem formatação é a exceção e fica no editor: o texto vem do main, mas
  * quem o transforma em parágrafos é o documento.
  */
+/** O que o botão direito oferece sobre uma lista. */
+export type ListAction = 'restart' | 'continue' | 'setStart' | 'format'
+
 export function DocumentContextMenu({
   target,
   inTable,
   onTableAction,
+  inList,
+  onListAction,
   onClose,
   onPasteWithoutFormat,
 }: {
@@ -32,6 +37,9 @@ export function DocumentContextMenu({
   /** Se o cursor está numa tabela — só então as ações dela aparecem. */
   readonly inTable: boolean
   readonly onTableAction: (action: TableAction) => void
+  /** O tipo da lista em que está o cursor, ou `null` fora de lista. */
+  readonly inList: 'bulletList' | 'orderedList' | null
+  readonly onListAction: (action: ListAction) => void
   readonly onClose: () => void
   readonly onPasteWithoutFormat: () => void
 }): React.JSX.Element {
@@ -125,6 +133,50 @@ export function DocumentContextMenu({
       >
         {t('menu.edit.pasteWithoutFormat')}
       </ContextMenuItem>
+
+      {/* A numeração vem logo depois da área de transferência, como no Word; e
+          reiniciar ou continuar só faz sentido em lista numerada. */}
+      {inList !== null && !readOnly && (
+        <>
+          <ContextMenuSeparator />
+          {inList === 'orderedList' && (
+            <>
+              <ContextMenuItem
+                onClick={() => {
+                  onClose()
+                  onListAction('restart')
+                }}
+              >
+                {t('document.lists.restart')}
+              </ContextMenuItem>
+              <ContextMenuItem
+                onClick={() => {
+                  onClose()
+                  onListAction('continue')
+                }}
+              >
+                {t('document.lists.continue')}
+              </ContextMenuItem>
+              <ContextMenuItem
+                onClick={() => {
+                  onClose()
+                  onListAction('setStart')
+                }}
+              >
+                {t('document.lists.setStart')}
+              </ContextMenuItem>
+            </>
+          )}
+          <ContextMenuItem
+            onClick={() => {
+              onClose()
+              onListAction('format')
+            }}
+          >
+            {t('document.lists.format')}
+          </ContextMenuItem>
+        </>
+      )}
 
       {/* As ações de tabela vêm depois da área de transferência, como no Word, e
           só com o cursor dentro de uma: fora dela seriam todas itens apagados.

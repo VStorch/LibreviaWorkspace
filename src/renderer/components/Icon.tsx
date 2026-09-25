@@ -26,6 +26,7 @@ export type IconName =
   | 'align-justify'
   | 'bullet-list'
   | 'ordered-list'
+  | 'multilevel-list'
   | 'indent'
   | 'outdent'
   | 'table'
@@ -78,6 +79,8 @@ const PATHS: Record<IconName, React.ReactNode> = {
   'align-justify': <path d="M4 6h16M4 10h16M4 14h16M4 18h16" />,
   'bullet-list': <path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01" />,
   'ordered-list': <path d="M10 6h10M10 12h10M10 18h10M4 5h1v4M4 15h2v1H4v2h2" />,
+  // Três itens, cada um um degrau para dentro: os níveis da lista.
+  'multilevel-list': <path d="M9 6h11M12 12h8M15 18h5M4.5 6h.01M7.5 12h.01M10.5 18h.01" />,
   indent: <path d="M4 6h16M10 10h10M10 14h10M4 18h16M4 10l3 2-3 2z" />,
   outdent: <path d="M4 6h16M10 10h10M10 14h10M4 18h16M7 10l-3 2 3 2z" />,
   table: <path d="M4 5h16v14H4zM4 10h16M4 15h16M10 5v14" />,

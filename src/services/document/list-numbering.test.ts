@@ -9,6 +9,7 @@ import {
   type ListTreeReader,
   type NumberingDef,
 } from './list-numbering.js'
+import { LIST_PRESETS, kindOfLevels } from './list-presets.js'
 
 const reader: ListTreeReader<DocumentNode> = {
   typeOf: (node) => node.type,
@@ -194,5 +195,27 @@ describe('numberLists', () => {
     expect(listDrawAttrs(outer!)['style']).toContain('--lista-recuo: 6.35mm')
     expect(listDrawAttrs(inner!)['style']).toContain('--lista-recuo: 6.35mm')
     expect(inner!.indentMm).toBe(12.7)
+  })
+})
+
+describe('listas prontas', () => {
+  it('todas definem os nove níveis', () => {
+    for (const preset of LIST_PRESETS) {
+      expect(preset.levels).toHaveLength(9)
+      expect(kindOfLevels(preset.levels)).toBe(preset.kind)
+    }
+  })
+
+  it('1. 1.1. 1.1.1. compõe todos os níveis de cima', () => {
+    const legal = LIST_PRESETS.find((preset) => preset.id === 'legal')!
+    const numbering = { key: 'l', levels: legal.levels }
+    const root = doc(
+      list(
+        'orderedList',
+        { numbering },
+        item('um', list('orderedList', {}, item('um-um', list('orderedList', {}, item('fundo'))))),
+      ),
+    )
+    expect(labels(root)).toEqual(['1.', '1.1.', '1.1.1.'])
   })
 })

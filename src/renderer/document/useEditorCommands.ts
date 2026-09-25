@@ -15,6 +15,8 @@ export interface EditorDialogs {
   readonly table: boolean
   readonly tableProperties: boolean
   readonly imageProperties: boolean
+  readonly listFormat: boolean
+  readonly listStart: boolean
 }
 
 const CLOSED: EditorDialogs = {
@@ -27,6 +29,8 @@ const CLOSED: EditorDialogs = {
   table: false,
   tableProperties: false,
   imageProperties: false,
+  listFormat: false,
+  listStart: false,
 }
 
 export interface EditorCommands {

@@ -27,6 +27,8 @@ interface DocumentToolbarProps {
    */
   readonly onOpenTable: () => void
   readonly onOpenImageProperties: () => void
+  /** Formato de lista: galeria, níveis e numeração. O botão direito também o abre. */
+  readonly onOpenListFormat: () => void
 }
 
 /**
@@ -49,6 +51,7 @@ export function DocumentToolbar({
   onParagraphOpenChange,
   onOpenTable,
   onOpenImageProperties,
+  onOpenListFormat,
 }: DocumentToolbarProps): React.JSX.Element {
   const t = useT()
   const [linkDialogOpen, setLinkDialogOpen] = useState(false)
@@ -71,7 +74,7 @@ export function DocumentToolbar({
 
       <ToolbarSeparator />
 
-      <ListAndIndentGroup editor={editor} />
+      <ListAndIndentGroup editor={editor} onOpenListFormat={onOpenListFormat} />
 
       <ToolbarSeparator />
 

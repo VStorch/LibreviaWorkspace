@@ -27,6 +27,7 @@ import { TableDialog } from './toolbar/TableDialog.js'
 import { TablePropertiesDialog } from './toolbar/TablePropertiesDialog.js'
 import { ImageDialog } from './toolbar/ImageDialog.js'
 import { DocumentContextMenu } from './DocumentContextMenu.js'
+import { ListFormatDialog, ListStartDialog } from './ListFormatDialog.js'
 import { FindReplacePanel } from './FindReplacePanel.js'
 import { PageSetupPanel } from './PageSetupPanel.js'
 import { SpecialCharsDialog } from './SpecialCharsDialog.js'
@@ -382,6 +383,7 @@ export function DocumentEditor(): React.JSX.Element {
           onParagraphOpenChange={(open) => setDialog('paragraph', open)}
           onOpenTable={() => setDialog('table', true)}
           onOpenImageProperties={() => setDialog('imageProperties', true)}
+          onOpenListFormat={() => setDialog('listFormat', true)}
         />
       )}
 
@@ -409,6 +411,12 @@ export function DocumentEditor(): React.JSX.Element {
         <ImageDialog editor={editor} onClose={() => setDialog('imageProperties', false)} />
       )}
 
+      {dialogs.listFormat && (
+        <ListFormatDialog editor={editor} onClose={() => setDialog('listFormat', false)} />
+      )}
+
+      {dialogs.listStart && <ListStartDialog editor={editor} onClose={() => setDialog('listStart', false)} />}
+
       {contextTarget !== null && (
         <DocumentContextMenu
           target={contextTarget}
@@ -416,6 +424,20 @@ export function DocumentEditor(): React.JSX.Element {
           // dentro de uma: fora dela, "mesclar células" não tem o que mesclar.
           inTable={editor.isActive('table')}
           onTableAction={run}
+          // As ações de numeração, com o cursor numa lista: é pelo botão direito
+          // que o Word as oferece, sobre o item que se quer reiniciar.
+          inList={
+            editor.isActive('orderedList')
+              ? 'orderedList'
+              : editor.isActive('bulletList')
+                ? 'bulletList'
+                : null
+          }
+          onListAction={(action) => {
+            if (action === 'restart') editor.chain().focus().restartListNumbering(1).run()
+            else if (action === 'continue') editor.chain().focus().continueListNumbering().run()
+            else setDialog(action === 'setStart' ? 'listStart' : 'listFormat', true)
+          }}
           onClose={() => setContextTarget(null)}
           onPasteWithoutFormat={() => void pasteWithoutFormat()}
         />

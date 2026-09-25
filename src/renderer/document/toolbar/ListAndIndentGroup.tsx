@@ -5,7 +5,13 @@ import { useT } from '../../i18n.js'
 import { focusChain } from './focus-chain.js'
 
 /** Listas e recuo: o que muda a estrutura do bloco, e não a aparência do texto. */
-export function ListAndIndentGroup({ editor }: { readonly editor: Editor }): React.JSX.Element {
+export function ListAndIndentGroup({
+  editor,
+  onOpenListFormat,
+}: {
+  readonly editor: Editor
+  readonly onOpenListFormat: () => void
+}): React.JSX.Element {
   const t = useT()
   const active = useEditorState({
     editor,
@@ -31,6 +37,7 @@ export function ListAndIndentGroup({ editor }: { readonly editor: Editor }): Rea
         active={active.orderedList}
         onClick={() => chain().toggleOrderedList().run()}
       />
+      <ToolbarButton icon="multilevel-list" label={t('document.lists.format')} onClick={onOpenListFormat} />
       <ToolbarButton
         icon="outdent"
         label={t('document.listAndIndent.decreaseIndent')}

@@ -1730,3 +1730,21 @@ button {
      barras de que se separar. */
   border: none;
 }
+
+/* Galeria de listas prontas no diálogo de formato de lista: botões do mesmo
+   tamanho, em grade, com o nome da lista escrito com as marcas dela. */
+.list-gallery {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.list-gallery__item[aria-pressed='true'] {
+  outline: 2px solid var(--accent, #2b6cb0);
+  outline-offset: -2px;
+}
+
+.list-preview {
+  font-variant-numeric: tabular-nums;
+  white-space: pre;
+}
