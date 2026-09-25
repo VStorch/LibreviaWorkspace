@@ -57,6 +57,12 @@ public static class DocxWriter
         // em que se digitou, a numeração de uma lista nova.
         var touched = new HashSet<string>(StringComparer.Ordinal);
 
+        // Os estilos antes do corpo: o bloco que aponta um estilo criado agora
+        // precisa encontrá-lo definido, e o resolvedor de quem grava os blocos
+        // precisa ler as definições novas. O rascunho antigo não traz estilos
+        // que valha gravar — os blocos dele carregam a formatação inteira.
+        if (!model.Flatten) StyleWriter.Apply(part, model.Styles, inventory, touched);
+
         var replacement = BuildBody(
             model,
             part,

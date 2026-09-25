@@ -173,8 +173,15 @@ export async function saveDocx(
   const reply = await client.request(
     SidecarMethod.DocxSave,
     // `flatten` escolhe a leitura de referência do sidecar: o rascunho antigo
-    // traz blocos achatados, e só uma leitura achatada os reconhece.
-    { page: model.page, doc: model.doc, ...(model.flattened ? { flatten: true } : {}) },
+    // traz blocos achatados, e só uma leitura achatada os reconhece. Os estilos
+    // vão junto para que o modificado e o criado cheguem a `word/styles.xml`
+    // (`StyleWriter.cs`); do rascunho antigo, não — nele os blocos já carregam a
+    // formatação inteira, e os estilos são os que a migração lhe deu.
+    {
+      page: model.page,
+      doc: model.doc,
+      ...(model.flattened ? { flatten: true } : model.styles === undefined ? {} : { styles: model.styles }),
+    },
     new Uint8Array(original),
   )
   const parsed = saveResultSchema.safeParse(reply.result)
@@ -303,10 +310,9 @@ function unwrapSdoc(content: string): { page: unknown; doc: unknown; styles: unk
     throw new AppError(ErrorCode.Internal, t('errors.docx.inconsistentState'))
   }
 
-  // Os estilos são conferidos aqui e só seguem para o pacote do documento novo
-  // (`docx.create`): no documento aberto de um DOCX, `word/styles.xml` volta ao
-  // arquivo byte a byte pela gravação cirúrgica, e o escritor ainda não grava
-  // estilo modificado.
+  // Os estilos são conferidos aqui e seguem para o pacote do documento novo
+  // (`docx.create`) e para a gravação: o sidecar os compara com os do original e
+  // só toca `word/styles.xml` quando algum mudou — senão ele volta byte a byte.
   const envelope = z
     .object({
       page: z.unknown(),
