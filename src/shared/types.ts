@@ -91,6 +91,11 @@ export const MenuCommand = {
   /** Abre o diálogo de parágrafo — espaçamento, entrelinha, recuo, alinhamento. */
   ParagraphSetup: 'paragraph-setup',
   InsertPageBreak: 'insert-page-break',
+  /** Zoom da folha: o do editor, e não o do Chromium, que aumentaria a interface. */
+  ZoomIn: 'zoom-in',
+  ZoomOut: 'zoom-out',
+  ZoomReset: 'zoom-reset',
+  ZoomFitWidth: 'zoom-fit-width',
   /** Insere a área de transferência como texto, sem trazer formatação. */
   PasteWithoutFormat: 'paste-without-format',
   /** Abre o diálogo de contagem de palavras. */
@@ -201,6 +206,10 @@ export interface EditorPreferences {
   readonly readingMode: boolean
   readonly showToolbar: boolean
   readonly showStatusBar: boolean
+  /** Zoom da folha na tela, em porcento (50–200). Não muda a paginação. */
+  readonly zoom: number
+  /** Ajustar à largura: o zoom acompanha a janela, e `zoom` fica como estava. */
+  readonly zoomFit: boolean
 }
 
 /**
@@ -237,6 +246,8 @@ export const DEFAULT_EDITOR_PREFERENCES: EditorPreferences = {
   readingMode: false,
   showToolbar: true,
   showStatusBar: true,
+  zoom: 100,
+  zoomFit: false,
 }
 
 /** Operações de área de transferência que só o `webContents` sabe fazer. */

@@ -172,10 +172,31 @@ async function buildTemplate(): Promise<MenuItemConstructorOptions[]> {
       })),
     },
     { type: 'separator' },
-    { role: 'resetZoom', label: t('menu.view.resetZoom') },
+    // O zoom é da folha, e não da janela: o do Chromium aumentava também as
+    // barras e os diálogos. Quem calcula o degrau é o renderer, que sabe quanto
+    // vale o "ajustar à largura" na janela de agora.
+    {
+      label: t('menu.view.resetZoom'),
+      accelerator: acceleratorOf(SHORTCUTS.zoomReset),
+      click: () => dispatch(MenuCommand.ZoomReset),
+    },
     // Ampliar sai do `Ctrl+Shift+=` do sobrescrito: ver a tabela de atalhos.
-    { role: 'zoomIn', label: t('menu.view.zoomIn'), accelerator: acceleratorOf(SHORTCUTS.zoomIn) },
-    { role: 'zoomOut', label: t('menu.view.zoomOut') },
+    {
+      label: t('menu.view.zoomIn'),
+      accelerator: acceleratorOf(SHORTCUTS.zoomIn),
+      click: () => dispatch(MenuCommand.ZoomIn),
+    },
+    {
+      label: t('menu.view.zoomOut'),
+      accelerator: acceleratorOf(SHORTCUTS.zoomOut),
+      click: () => dispatch(MenuCommand.ZoomOut),
+    },
+    {
+      label: t('menu.view.zoomFitWidth'),
+      type: 'checkbox',
+      checked: preferences.zoomFit,
+      click: () => dispatch(MenuCommand.ZoomFitWidth),
+    },
     { type: 'separator' },
     {
       role: 'togglefullscreen',

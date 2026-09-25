@@ -148,6 +148,8 @@ export function updatePreferences(patch: EditorPreferencesPatch): EditorPreferen
     readingMode: patch.readingMode ?? active.readingMode,
     showToolbar: patch.showToolbar ?? active.showToolbar,
     showStatusBar: patch.showStatusBar ?? active.showStatusBar,
+    zoom: patch.zoom ?? active.zoom,
+    zoomFit: patch.zoomFit ?? active.zoomFit,
   }
 
   const spellcheckChanged = next.spellcheck !== active.spellcheck

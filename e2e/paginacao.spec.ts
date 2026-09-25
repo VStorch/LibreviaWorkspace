@@ -234,6 +234,39 @@ test.describe('paginação ao vivo', () => {
     await session.window.getByRole('menuitem', { name: 'Linha de cabeçalho' }).click()
     await expect(repetidos).toHaveCount(0)
   })
+
+  test('o zoom aumenta a folha sem mudar onde a página corta', async () => {
+    await paragrafoAtravessandoAFolha(session)
+    const folhas = session.window.locator('.paper')
+    await expect(folhas).toHaveCount(2)
+    await expect.poll(() => corteNaTela(session)).not.toBeNull()
+    const corte = await corteNaTela(session)
+    const largura = (await folhas.first().boundingBox())!.width
+
+    const nivel = session.window.locator('.statusbar__zoom-level')
+    await expect(nivel).toHaveText('100%')
+    await session.window.getByRole('button', { name: 'Ampliar' }).click()
+    await menu(session, 'zoom-in')
+    await expect(nivel).toHaveText('125%')
+
+    // A folha cresce na tela; a paginação, medida em 100 %, fica onde estava.
+    await expect.poll(async () => (await folhas.first().boundingBox())!.width).toBeCloseTo(largura * 1.25, 0)
+    await expect(folhas).toHaveCount(2)
+    expect(await corteNaTela(session)).toEqual(corte)
+
+    await menu(session, 'zoom-out')
+    await expect(nivel).toHaveText('110%')
+    await session.window.getByRole('button', { name: 'Ajustar à largura' }).click()
+    await expect(session.window.getByRole('button', { name: 'Ajustar à largura' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+    expect(await corteNaTela(session)).toEqual(corte)
+
+    await menu(session, 'zoom-reset')
+    await expect(nivel).toHaveText('100%')
+    await expect.poll(async () => (await folhas.first().boundingBox())!.width).toBeCloseTo(largura, 0)
+  })
 })
 
 /**

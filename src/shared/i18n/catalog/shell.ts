@@ -74,6 +74,10 @@ export const SHELL = {
   'shell.recovery.discard': { pt: 'Descartar', en: 'Discard' },
 
   // Barra de status
+  'shell.statusBar.zoomIn': { pt: 'Ampliar', en: 'Zoom in' },
+  'shell.statusBar.zoomOut': { pt: 'Reduzir', en: 'Zoom out' },
+  'shell.statusBar.zoomLevel': { pt: 'Zoom', en: 'Zoom' },
+  'shell.statusBar.zoomFitWidth': { pt: 'Ajustar à largura', en: 'Fit to width' },
   'shell.statusBar.notSavedYet': { pt: 'Arquivo ainda não salvo', en: 'File not saved yet' },
   'shell.statusBar.pages': {
     pt: { one: '{count} página', other: '{count} páginas' },

@@ -53,6 +53,7 @@ export const MENU = {
   'menu.view.resetZoom': { pt: 'Tamanho normal', en: 'Actual size' },
   'menu.view.zoomIn': { pt: 'Ampliar', en: 'Zoom in' },
   'menu.view.zoomOut': { pt: 'Reduzir', en: 'Zoom out' },
+  'menu.view.zoomFitWidth': { pt: 'Ajustar à largura', en: 'Fit to width' },
   'menu.view.fullScreen': { pt: 'Tela cheia', en: 'Full screen' },
   'menu.view.reload': { pt: 'Recarregar', en: 'Reload' },
   'menu.view.devTools': { pt: 'Ferramentas do desenvolvedor', en: 'Developer tools' },

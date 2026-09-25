@@ -14,6 +14,7 @@ import { SpreadsheetEditor } from '../spreadsheet/SpreadsheetEditor.js'
 import { usePreferences, watchPreferences } from '../state/preferences.js'
 import { useReadingMode } from '../state/reading.js'
 import { useTheme } from '../state/theme.js'
+import { runZoomCommand } from '../state/zoom.js'
 import { useWorkspace } from '../state/workspace.js'
 import { t } from '../i18n.js'
 
@@ -68,6 +69,12 @@ async function runMenuCommand(command: MenuCommand, path: string | undefined): P
       return
     case MenuCommand.PrintPreview:
       return workspace.printPreview()
+
+    case MenuCommand.ZoomIn:
+    case MenuCommand.ZoomOut:
+    case MenuCommand.ZoomReset:
+    case MenuCommand.ZoomFitWidth:
+      return runZoomCommand(command)
 
     case MenuCommand.NewSpreadsheet:
       return useWorkspace.getState().newSpreadsheet()

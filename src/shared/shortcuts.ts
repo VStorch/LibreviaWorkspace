@@ -25,10 +25,10 @@
  * ## O que não está aqui
  *
  * Os papéis prontos do Electron que mantêm o acelerador padrão — desfazer,
- * copiar, colar, selecionar tudo, sair, zoom normal, reduzir, tela cheia. São
+ * copiar, colar, selecionar tudo, sair, tela cheia. São
  * atendidos pelo próprio Chromium dentro do campo de edição, então declarar
  * `Ctrl+Z` como "do menu" inventaria uma colisão que não existe. Entram apenas
- * os papéis cujo acelerador nós trocamos: `zoomIn` e `reload`.
+ * os papéis cujo acelerador nós trocamos (`reload`) e o zoom, que é nosso.
  *
  * Fora também o alinhamento em `Ctrl+Shift+L/E/R/J`, que a extensão `TextAlign`
  * dá por padrão: em desenvolvimento o item "Recarregar" cobre o `Ctrl+Shift+R`
@@ -160,6 +160,9 @@ export const SHORTCUTS = {
    * padrão: `Ctrl+-` não colide com nada.
    */
   zoomIn: { owner: ShortcutOwner.Menu, key: { mod: true, key: 'numadd' }, does: 'Ampliar' },
+  /** Os dois deixaram de ser papéis do Electron: o zoom agora é da folha. */
+  zoomOut: { owner: ShortcutOwner.Menu, key: { mod: true, key: '-' }, does: 'Reduzir' },
+  zoomReset: { owner: ShortcutOwner.Menu, key: { mod: true, key: '0' }, does: 'Zoom 100 %' },
   /**
    * `Ctrl+Shift+R` e não `Ctrl+R`: o padrão do papel `reload` engoliria o `Ctrl+R`
    * de "alinhar à direita", e o atalho pareceria quebrado só na máquina de quem

@@ -610,6 +610,39 @@ button {
   text-align: left;
 }
 
+.statusbar__zoom {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.statusbar__zoom-button,
+.statusbar__zoom-level {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  padding: 0 6px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.statusbar__zoom-level {
+  min-width: 4.5ch;
+  font-variant-numeric: tabular-nums;
+}
+
+.statusbar__zoom-button:hover:not(:disabled),
+.statusbar__zoom-level:hover,
+.statusbar__zoom-button--active {
+  background: var(--hover);
+}
+
+.statusbar__zoom-button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
 .statusbar__spacer {
   flex: 1;
 }
@@ -653,6 +686,17 @@ button {
 .pages {
   position: relative;
   flex-shrink: 0;
+}
+
+/* O espaço que a pilha ocupa depois do zoom; ver `DocumentEditor`. */
+.pages-zoom {
+  position: relative;
+  flex-shrink: 0;
+}
+
+/* Na leitura não há zoom nem papel: o invólucro some do layout. */
+.pages-zoom--reading {
+  display: contents;
 }
 
 /*

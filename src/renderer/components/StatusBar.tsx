@@ -1,6 +1,10 @@
 import { pageDimensionsMm } from '@services/document/model.js'
 import { useT } from '../i18n.js'
 import { useWorkspace } from '../state/workspace.js'
+import { MenuCommand } from '@shared/types.js'
+import { MAX_ZOOM, MIN_ZOOM } from '@services/document/zoom.js'
+import { usePreferences } from '../state/preferences.js'
+import { runZoomCommand, useEffectiveZoom } from '../state/zoom.js'
 
 export function StatusBar(): React.JSX.Element {
   const t = useT()
@@ -10,6 +14,8 @@ export function StatusBar(): React.JSX.Element {
   // Planilha não tem página, palavra nem caractere: mostrar isso ali seria
   // informação falsa ocupando o lugar da verdadeira.
   const sheet = state.workbook?.sheets[state.workbook.activeSheet]
+  const zoom = useEffectiveZoom()
+  const zoomFit = usePreferences((preferences) => preferences.preferences.zoomFit)
 
   return (
     <footer className="statusbar">
@@ -35,6 +41,47 @@ export function StatusBar(): React.JSX.Element {
           </span>
           <span className="statusbar__metric">
             {t('shell.statusBar.characters', { count: state.stats.characters })}
+          </span>
+          {/* O zoom da folha, os mesmos comandos do menu Exibir. */}
+          <span className="statusbar__zoom" role="group" aria-label={t('shell.statusBar.zoomLevel')}>
+            <button
+              type="button"
+              className="statusbar__zoom-button"
+              aria-label={t('shell.statusBar.zoomOut')}
+              title={t('shell.statusBar.zoomOut')}
+              disabled={zoom <= MIN_ZOOM}
+              onClick={() => void runZoomCommand(MenuCommand.ZoomOut)}
+            >
+              −
+            </button>
+            <button
+              type="button"
+              className="statusbar__zoom-level"
+              title={t('shell.statusBar.zoomLevel')}
+              onClick={() => void runZoomCommand(MenuCommand.ZoomReset)}
+            >
+              {zoom}%
+            </button>
+            <button
+              type="button"
+              className="statusbar__zoom-button"
+              aria-label={t('shell.statusBar.zoomIn')}
+              title={t('shell.statusBar.zoomIn')}
+              disabled={zoom >= MAX_ZOOM}
+              onClick={() => void runZoomCommand(MenuCommand.ZoomIn)}
+            >
+              +
+            </button>
+            <button
+              type="button"
+              className={`statusbar__zoom-button${zoomFit ? ' statusbar__zoom-button--active' : ''}`}
+              aria-pressed={zoomFit}
+              aria-label={t('shell.statusBar.zoomFitWidth')}
+              title={t('shell.statusBar.zoomFitWidth')}
+              onClick={() => void runZoomCommand(MenuCommand.ZoomFitWidth)}
+            >
+              ↔
+            </button>
           </span>
         </>
       ) : (

@@ -186,6 +186,8 @@ export const editorPreferencesSchema = z.object({
   readingMode: z.boolean().default(false),
   showToolbar: z.boolean().default(true),
   showStatusBar: z.boolean().default(true),
+  zoom: z.number().int().min(50).max(200).default(100),
+  zoomFit: z.boolean().default(false),
 })
 
 /**
@@ -206,6 +208,8 @@ export const editorPreferencesPatchSchema = z.object({
   readingMode: z.boolean().optional(),
   showToolbar: z.boolean().optional(),
   showStatusBar: z.boolean().optional(),
+  zoom: z.number().int().min(50).max(200).optional(),
+  zoomFit: z.boolean().optional(),
 })
 
 /**

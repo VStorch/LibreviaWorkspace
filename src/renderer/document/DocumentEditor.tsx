@@ -20,6 +20,8 @@ import { currentPreferences, usePreferences } from '../state/preferences.js'
 import { useLeaveReadingOnEscape, useReadingMode } from '../state/reading.js'
 import { useT } from '../i18n.js'
 import { useWorkspace } from '../state/workspace.js'
+import { setFittedZoom, useEffectiveZoom } from '../state/zoom.js'
+import { fitWidthZoom } from '@services/document/zoom.js'
 import { DocumentToolbar } from './toolbar/DocumentToolbar.js'
 import { TableDialog } from './toolbar/TableDialog.js'
 import { TablePropertiesDialog } from './toolbar/TablePropertiesDialog.js'
@@ -72,6 +74,8 @@ export function DocumentEditor(): React.JSX.Element {
   useLeaveReadingOnEscape(reading)
 
   const pageRef = useRef<HTMLDivElement>(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const zoom = useEffectiveZoom()
   const [contentRevision, setContentRevision] = useState(0)
 
   const [searchStatus, setSearchStatus] = useState<SearchStatus>({ total: 0, current: 0 })
@@ -341,6 +345,19 @@ export function DocumentEditor(): React.JSX.Element {
 
   useEffect(() => setEstimatedPages(layout.pages), [layout.pages, setEstimatedPages])
 
+  // Quanto vale "ajustar à largura" nesta janela. Medido sempre, e não só com o
+  // ajuste ligado: ampliar a partir dele precisa do valor que se vê.
+  useEffect(() => {
+    const scroll = scrollRef.current
+    if (scroll === null) return undefined
+    const pageWidthPx = mmToPx(pageDimensionsMm(page).width)
+    const measure = (): void => setFittedZoom(fitWidthZoom(scroll.clientWidth, pageWidthPx))
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(scroll)
+    return () => observer.disconnect()
+  }, [editor, page])
+
   if (editor === null) return <div className="editor-shell" />
 
   const { width, height } = pageDimensionsMm(page)
@@ -410,13 +427,40 @@ export function DocumentEditor(): React.JSX.Element {
         </div>
       )}
 
-      <div className={`editor-scroll${reading ? ' editor-scroll--reading' : ''}`}>
+      <div ref={scrollRef} className={`editor-scroll${reading ? ' editor-scroll--reading' : ''}`}>
+        {/* O zoom é uma transformação sobre a pilha inteira, e este invólucro
+            ocupa o tamanho que ela passa a ter: `transform` não muda o espaço
+            que o elemento ocupa no layout, e sem isto a rolagem acabaria na
+            altura da pilha em 100 %. A paginação continua medindo em 100 % —
+            `offsetTop` e `offsetHeight` não veem a transformação. */}
         <div
-          ref={pageRef}
-          className={`pages${reading ? ' pages--reading' : ''}`}
-          style={reading ? undefined : { width: `${mmToPx(width)}px`, height: `${layout.stackHeightPx}px` }}
+          className={`pages-zoom${reading ? ' pages-zoom--reading' : ''}`}
+          style={
+            reading
+              ? undefined
+              : {
+                  width: `${(mmToPx(width) * zoom) / 100}px`,
+                  height: `${(layout.stackHeightPx * zoom) / 100}px`,
+                }
+          }
         >
-          {/* As folhas: papel desenhado atrás do texto. Ficam fora do
+          <div
+            ref={pageRef}
+            className={`pages${reading ? ' pages--reading' : ''}`}
+            data-zoom={reading ? 100 : zoom}
+            style={
+              reading
+                ? undefined
+                : {
+                    width: `${mmToPx(width)}px`,
+                    height: `${layout.stackHeightPx}px`,
+                    ...(zoom === 100
+                      ? {}
+                      : { transform: `scale(${zoom / 100})`, transformOrigin: 'top left' }),
+                  }
+            }
+          >
+            {/* As folhas: papel desenhado atrás do texto. Ficam fora do
               `contenteditable` de propósito — dentro dele, cada folha seria um
               nó que a pessoa conseguiria selecionar e apagar.
 
@@ -424,55 +468,56 @@ export function DocumentEditor(): React.JSX.Element {
               a rolagem contínua existe para tirar da frente. Os objetos
               ancorados saem junto, e não por descuido — a posição deles é
               relativa a uma folha, e sem folha não há onde pousá-los. */}
-          {!reading &&
-            layout.sheetTops.map((top, index) => (
-              <div
-                key={top}
-                className={`paper${(layout.sheetHeights[index] ?? 0) > mmToPx(height) + 1 ? ' paper--oversized' : ''}`}
-                style={{ top: `${top}px`, height: `${layout.sheetHeights[index] ?? mmToPx(height)}px` }}
-                aria-hidden="true"
-              >
-                <span className="paper__number">{index + 1}</span>
-              </div>
-            ))}
+            {!reading &&
+              layout.sheetTops.map((top, index) => (
+                <div
+                  key={top}
+                  className={`paper${(layout.sheetHeights[index] ?? 0) > mmToPx(height) + 1 ? ' paper--oversized' : ''}`}
+                  style={{ top: `${top}px`, height: `${layout.sheetHeights[index] ?? mmToPx(height)}px` }}
+                  aria-hidden="true"
+                >
+                  <span className="paper__number">{index + 1}</span>
+                </div>
+              ))}
 
-          {/* Uma faixa por folha, com o número real. No papel elas moram dentro
+            {/* Uma faixa por folha, com o número real. No papel elas moram dentro
               da margem, e é por isso que não empurram o texto. Sem folhas não
               há cabeçalho repetido: "página 3 de 12" não quer dizer nada numa
               tira contínua. */}
-          {!reading &&
-            layout.sheetTops.map((top, index) => (
-              <PaperSheet
-                key={`banda-${top}`}
-                page={page}
-                pageNumber={index + 1}
-                totalPages={layout.pages}
-                topPx={top}
-                floats={floatsByPage[index] ?? []}
-                schema={editor.schema}
-                {...editableSheet}
-              />
-            ))}
+            {!reading &&
+              layout.sheetTops.map((top, index) => (
+                <PaperSheet
+                  key={`banda-${top}`}
+                  page={page}
+                  pageNumber={index + 1}
+                  totalPages={layout.pages}
+                  topPx={top}
+                  floats={floatsByPage[index] ?? []}
+                  schema={editor.schema}
+                  {...editableSheet}
+                />
+              ))}
 
-          <div
-            className="pages__column"
-            style={
-              reading
-                ? // A largura da leitura vem do CSS e nao das margens do
-                  // documento: uma margem de 10 mm daria uma linha larga
-                  // demais para ler com conforto, e o modo existe justamente
-                  // para nao obedecer ao papel.
-                  undefined
-                : {
-                    // A margem de cima é um piso: um cabeçalho mais alto que ela
-                    // desce o corpo até debaixo dele, como no Word.
-                    paddingTop: `${mmToPx(insets.top)}px`,
-                    paddingRight: `${mmToPx(page.margins.right)}px`,
-                    paddingLeft: `${mmToPx(page.margins.left)}px`,
-                  }
-            }
-          >
-            <EditorContent editor={editor} />
+            <div
+              className="pages__column"
+              style={
+                reading
+                  ? // A largura da leitura vem do CSS e nao das margens do
+                    // documento: uma margem de 10 mm daria uma linha larga
+                    // demais para ler com conforto, e o modo existe justamente
+                    // para nao obedecer ao papel.
+                    undefined
+                  : {
+                      // A margem de cima é um piso: um cabeçalho mais alto que ela
+                      // desce o corpo até debaixo dele, como no Word.
+                      paddingTop: `${mmToPx(insets.top)}px`,
+                      paddingRight: `${mmToPx(page.margins.right)}px`,
+                      paddingLeft: `${mmToPx(page.margins.left)}px`,
+                    }
+              }
+            >
+              <EditorContent editor={editor} />
+            </div>
           </div>
         </div>
       </div>
