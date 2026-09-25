@@ -183,8 +183,13 @@ test.describe('painel de estilos', () => {
     await menu(session, 'open')
     const quote = editor.locator('[data-style-id="Citao"]')
     await expect(quote).toHaveText('Um trecho citado.')
-    const size = await quote.evaluate((element) => getComputedStyle(element).fontSize)
-    expect(Number.parseFloat(size)).toBeCloseTo(18 * (96 / 72), 0)
+    // Com espera: o texto reaberto é o mesmo, e a medida podia cair no
+    // parágrafo do documento anterior no instante em que ele saía da tela.
+    await expect
+      .poll(async () =>
+        Number.parseFloat(await quote.evaluate((element) => getComputedStyle(element).fontSize)),
+      )
+      .toBeCloseTo(18 * (96 / 72), 0)
   })
 
   test('o texto importado segue o estilo: modificado, e de título a Normal', async () => {
