@@ -169,21 +169,27 @@ test.describe('paginação ao vivo', () => {
     expect(segunda[0]).toBe(corte.depois)
   })
 
-  test('viúvas e órfãs: nenhuma linha do parágrafo fica sozinha numa folha', async () => {
+  test('viúvas e órfãs: a órfã no pé leva o parágrafo inteiro para a folha seguinte', async () => {
     // Trinta parágrafos de enchimento deixam lugar para uma linha só no pé: sem
     // o controle, ela ficaria órfã; com ele, o parágrafo desce inteiro.
     await paragrafoAtravessandoAFolha(session, 30, 100)
     await expect(session.window.locator('.paper')).toHaveCount(2)
     await expect.poll(() => linhasEmVoltaDoCorte(session)).toEqual({ antes: 0, depois: 0 })
+  })
 
+  test('viúvas e órfãs: o corte deixa ao menos duas linhas de cada lado', async () => {
     // Vinte e oito: o parágrafo de cinco linhas cabe menos a última, e a quebra
-    // leva junto a penúltima para ela não abrir a folha sozinha.
-    await menu(session, 'new-document')
+    // leva junto a penúltima para ela não abrir a folha sozinha. Sessão própria,
+    // e não um segundo documento na mesma: trocar de documento com o primeiro
+    // sujo abre o aviso de descartar, e o texto caía no documento de antes.
     await paragrafoAtravessandoAFolha(session, 28, 100)
-    await expect.poll(() => linhasEmVoltaDoCorte(session)).not.toEqual({ antes: 0, depois: 0 })
-    const linhas = (await linhasEmVoltaDoCorte(session))!
-    expect(linhas.antes).toBeGreaterThanOrEqual(2)
-    expect(linhas.depois).toBeGreaterThanOrEqual(2)
+    // Em `toPass`, e não lido uma vez: sob carga a medida ainda assenta, e um
+    // corte de passagem não é o que a folha termina mostrando.
+    await expect(async () => {
+      const linhas = await linhasEmVoltaDoCorte(session)
+      expect(linhas.antes).toBeGreaterThanOrEqual(2)
+      expect(linhas.depois).toBeGreaterThanOrEqual(2)
+    }).toPass()
   })
 
   test('a linha de cabeçalho da tabela se repete no alto de cada folha, na tela e no PDF', async () => {

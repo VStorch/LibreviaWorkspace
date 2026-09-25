@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
 import { launch, menu, stubDialogs, type Session } from './app.js'
-import { docxWithStretchedImage, docxWithTable, entryOf } from './fixtures.js'
+import { docxWithLongTable, docxWithStretchedImage, docxWithTable, entryOf } from './fixtures.js'
 
 /**
  * Tabelas e imagens editáveis — o marco M4.
@@ -209,6 +209,34 @@ test.describe('tabelas e imagens editáveis', () => {
     await expect.poll(medida).toEqual([300, 75])
     // Na tela, a imagem gravada aparece ampliada pelo zoom.
     expect(Math.round((await imagem.boundingBox())!.width)).toBe(450)
+  })
+
+  test('com zoom de 150 %, arrastar a divisória da coluna muda a largura na escala do documento', async () => {
+    const origem = join(pasta, 'tabela-longa.docx')
+    await writeFile(origem, await docxWithLongTable(5))
+    await stubDialogs(session.app, { open: origem, messageBox: 1 })
+    await menu(session, 'open')
+    for (let i = 0; i < 3; i++) await menu(session, 'zoom-in')
+    await expect(session.window.locator('.statusbar__zoom-level')).toHaveText('150%')
+
+    const célula = session.window.locator('.page__content td').first()
+    await expect(célula).toBeVisible()
+    const largura = () => célula.evaluate((cell) => (cell as HTMLElement).offsetWidth)
+    const antes = await largura()
+    const caixa = (await célula.boundingBox())!
+
+    // A divisória é a borda direita da célula; o plugin a acha passando o mouse.
+    const x = caixa.x + caixa.width - 2
+    const y = caixa.y + caixa.height / 2
+    await session.window.mouse.move(x - 20, y)
+    await session.window.mouse.move(x, y, { steps: 5 })
+    await session.window.mouse.down()
+    await session.window.mouse.move(x - 150, y, { steps: 10 })
+    await session.window.mouse.up()
+
+    // 150 px de tela a 150 % são 100 px de documento (sem a conversão, 150).
+    await expect.poll(async () => antes - (await largura())).toBeGreaterThanOrEqual(98)
+    expect(antes - (await largura())).toBeLessThanOrEqual(102)
   })
 
   test('arrastar a alça para fora não passa da largura da coluna', async () => {

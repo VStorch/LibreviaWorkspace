@@ -30,6 +30,7 @@ import { Caps, SmallCaps } from './extensions/letter-case.js'
 import { PageBreak } from './extensions/page-break.js'
 import { ReadOnlyGuard } from './extensions/read-only-guard.js'
 import { Pagination } from './extensions/pagination.js'
+import { ZoomedColumnResize } from './extensions/zoomed-column-resize.js'
 import { ParagraphCommands } from './extensions/paragraph-commands.js'
 import { CharacterStyle, StyleCommands } from './extensions/style-commands.js'
 import { SearchReplace, type SearchStatus } from './extensions/search-replace.js'
@@ -116,6 +117,8 @@ export function buildEditorExtensions(
     // Borda e sombreamento de célula, e os comandos de largura de coluna que o
     // diálogo de propriedades usa. Ver table-look.ts.
     TableLook,
+    // O arrasto da divisória dividido pelo zoom da folha.
+    ZoomedColumnResize,
 
     // Alimenta a contagem exibida na barra de status.
     CharacterCount,
