@@ -1385,4 +1385,21 @@ public class DocxWriteBackTests
         Assert.Contains("<w:tblCellMar><w:top w:w=\"100\" w:type=\"dxa\" /></w:tblCellMar>", xml, StringComparison.Ordinal);
         Assert.Contains("Margem própria, editada.", xml, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void TopAnchoredImageKeepsItsTextWhenTheParagraphIsEdited()
+    {
+        // O quadro foi para o começo do parágrafo no editor; gravado, continua um
+        // só, ancorado, e o texto dos dois lados volta inteiro.
+        var original = Fixtures.WithTextAroundTopAnchoredImage();
+        var model = Roundtrip.Clone(Roundtrip.Open(original));
+
+        Assert.True(Roundtrip.EditFirstTextContaining(model, "registros OK", " registros conferidos"));
+
+        var xml = Roundtrip.XmlOf(Roundtrip.Save(original, model).Bytes);
+        Assert.Single(Regex.Matches(xml, "<wp:docPr "));
+        Assert.Contains("<wp:anchor", xml, StringComparison.Ordinal);
+        Assert.Contains("Múltiplos", xml, StringComparison.Ordinal);
+        Assert.Contains("registros conferidos", xml, StringComparison.Ordinal);
+    }
 }

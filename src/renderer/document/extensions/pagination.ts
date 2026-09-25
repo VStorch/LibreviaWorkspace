@@ -45,6 +45,21 @@ export const Pagination = Extension.create({
           decorations: (state) => paginationKey.getState(state),
         },
       }),
+      // O parágrafo da captura ancorada que também tem texto: a linha dele é a
+      // do texto, e a linha vazia de 1lh (`content-styles.ts`) não se soma.
+      new Plugin({
+        props: {
+          decorations: (state) => {
+            const decorations: Decoration[] = []
+            state.doc.forEach((node, offset) => {
+              if (hasAnchoredImageAndText(node)) {
+                decorations.push(Decoration.node(offset, offset + node.nodeSize, { [ANCHOR_TEXT_ATTR]: '' }))
+              }
+            })
+            return DecorationSet.create(state.doc, decorations)
+          },
+        },
+      }),
     ]
   },
 })
@@ -152,6 +167,22 @@ function lineGap(gap: number): HTMLElement {
   element.dataset.pageShift = String(gap)
   element.style.cssText = `display:inline-block;width:100%;height:${gap}px;vertical-align:top;line-height:0;`
   return element
+}
+
+/** Marca o parágrafo que tem captura ancorada **e** texto; ver `content-styles.ts`. */
+export const ANCHOR_TEXT_ATTR = 'data-anchor-text'
+
+export function hasAnchoredImageAndText(node: {
+  readonly isTextblock: boolean
+  readonly textContent: string
+  forEach: (callback: (child: { type: { name: string }; attrs: Record<string, unknown> }) => void) => void
+}): boolean {
+  if (!node.isTextblock || node.textContent.trim() === '') return false
+  let anchored = false
+  node.forEach((child) => {
+    if (child.type.name === 'image' && child.attrs['anchored'] === true) anchored = true
+  })
+  return anchored
 }
 
 /** A transação só mexeu em paginação — não é edição do documento. */

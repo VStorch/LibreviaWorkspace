@@ -266,5 +266,14 @@ describe('cortes dentro de blocos', () => {
       }
       expect(paginate([...stack([60]), captura], 1000)).toEqual([960])
     })
+
+    it('a linha vazia da captura sobra no pé da folha em vez de descer', () => {
+      // Quadro de 900 + linha de 50 a partir de 60: passa 10 da folha, e cabe,
+      // porque a linha vazia entra na margem de baixo. O bloco seguinte abre a
+      // folha nova.
+      const captura = { ...stack([950])[0]!, top: 60, hangingBottom: 50 }
+      const depois = { ...stack([100])[0]!, top: 1010 }
+      expect(paginate([...stack([60]), captura, depois], 1000)).toEqual([1010])
+    })
   })
 })

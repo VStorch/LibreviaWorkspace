@@ -185,18 +185,13 @@ ${DOCUMENT_FONT_CSS}
 
   Crase nenhuma aqui dentro: isto mora num template literal.
 */
-.page__content p:has(> img[data-anchored])::after,
-.page__content p:has(> .node-image[data-anchored])::after {
+.page__content p:not([data-anchor-text]):has(> img[data-anchored])::after,
+.page__content p:not([data-anchor-text]):has(> .node-image[data-anchored])::after {
   content: '';
   display: block;
   height: 1lh;
 }
 
-/* No papel, a captura cortada no pé do quadro: a linha dela desceu para a folha
-   seguinte (ver usePagination), e não se repete aqui. */
-.page__content p[data-continued='to']:has(> img[data-anchored])::after {
-  content: none;
-}
 
 /*
   A marca de seção não ocupa linha.

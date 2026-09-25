@@ -247,29 +247,27 @@ export function usePagination(
         // fica. O corte é no pé do quadro, e o espaçador entra no fim do
         // parágrafo, depois da imagem.
         const freeBreakpoints: number[] = []
+        let hangingBottom = 0
         if (
           lines !== null &&
           node.querySelector(':scope > .node-image[data-anchored], :scope > img[data-anchored]') !== null
         ) {
-          const after = parseFloat(getComputedStyle(node, '::after').height)
-          const style = getComputedStyle(node)
-          const inner =
-            node.offsetHeight -
-            lines.shift -
-            parseFloat(style.paddingBottom) -
-            parseFloat(style.borderBottomWidth)
-          if (Number.isFinite(after) && after > 0 && inner - after > 0) {
-            const at = top + inner - after
-            const end = offset + block.nodeSize - 1
-            breakpoints.push(at)
-            freeBreakpoints.push(at)
-            targets.push({
-              at,
-              start: { blockIndex },
-              nodes: [],
-              line: { resolve: () => end, block: offset },
-            })
+          // Com texto, a linha do parágrafo é a do texto, logo abaixo do quadro
+          // quando ele abre o parágrafo: o corte entre o quadro e ela é livre
+          // da regra de viúvas, como o da linha vazia.
+          const first = lines.starts[0]
+          if (
+            first !== undefined &&
+            block.firstChild?.type.name === 'image' &&
+            block.firstChild.attrs['anchored'] === true
+          ) {
+            freeBreakpoints.push(top + first)
           }
+          // Sem texto, a linha vazia de 1lh depois do quadro pode sobrar no pé
+          // da folha: o LibreOffice a deixa passar da margem de baixo, e o bloco
+          // seguinte abre a folha nova sem ela.
+          const after = parseFloat(getComputedStyle(node, '::after').height)
+          if (Number.isFinite(after) && after > 0) hangingBottom = after
         }
 
         // Linhas de cabeçalho (`w:tblHeader`, células `th`) no começo da tabela:
@@ -331,6 +329,7 @@ export function usePagination(
           widowControl: lines !== null && effective['widowControl'] !== false,
           ...(repeatHeight > 0 ? { repeatHeight } : {}),
           ...(freeBreakpoints.length > 0 ? { freeBreakpoints } : {}),
+          ...(hangingBottom > 0 ? { hangingBottom } : {}),
         })
         accumulated += internal
       })
@@ -374,9 +373,14 @@ export function usePagination(
           internal !== undefined && (internal.line === undefined || position !== null)
             ? internal
             : targets.find((target) => target.at >= at && target.line === undefined)
-        const used = at - previous
+        // A linha vazia da captura que sobra no pé (`hangingBottom`) cabe na
+        // margem de baixo: nem estica a folha, nem empurra o bloco seguinte.
+        const span = at - previous
+        const hung = Math.min(Math.max(span - contentHeightPx, 0), hangingAt(blocks, at))
+        const used = span - hung
         sheetHeights.push(Math.max(pageHeightPx, used + marginTopPx + marginBottomPx))
-        const shift = Math.max(contentHeightPx - used, 0) + marginBottomPx + SHEET_GUTTER_PX + marginTopPx
+        const shift =
+          Math.max(contentHeightPx - used, 0) - hung + marginBottomPx + SHEET_GUTTER_PX + marginTopPx
         if (target?.line !== undefined && position !== null) {
           // O espaçador entra antes do primeiro caractere da linha; o papel
           // recorta o parágrafo no mesmo caractere.
@@ -404,7 +408,9 @@ export function usePagination(
       }
 
       const bottom = blocks.reduce((bottom, block) => Math.max(bottom, block.top + block.height), 0)
-      sheetHeights.push(Math.max(pageHeightPx, bottom - previous + marginTopPx + marginBottomPx))
+      const lastSpan = bottom - previous
+      const lastHung = Math.min(Math.max(lastSpan - contentHeightPx, 0), hangingAt(blocks, bottom))
+      sheetHeights.push(Math.max(pageHeightPx, lastSpan - lastHung + marginTopPx + marginBottomPx))
       const sheetTops: number[] = []
       let stackHeightPx = 0
       for (const height of sheetHeights) {
@@ -469,6 +475,16 @@ export function usePagination(
   }, [editor, page, revision, bands.headerMm, bands.footerMm, paginated, styles])
 
   return layout
+}
+
+/**
+ * Quanto do fim da folha que termina em `at` pode passar do pé: a linha vazia
+ * da captura (`hangingBottom`) e o vão até o bloco que abre a folha seguinte.
+ */
+function hangingAt(blocks: readonly MeasuredBlock[], at: number): number {
+  const ending = blocks.filter((block) => block.height > 0 && block.top + block.height <= at + 0.5).at(-1)
+  if (ending === undefined || (ending.hangingBottom ?? 0) <= 0) return 0
+  return ending.hangingBottom! + Math.max(at - (ending.top + ending.height), 0)
 }
 
 function sameGaps(left: ReadonlyMap<number, number>, right: ReadonlyMap<number, number>): boolean {

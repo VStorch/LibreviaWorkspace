@@ -614,6 +614,24 @@ public static class Fixtures
     /// altura, o texto se fechar por cima delas e um documento de doze folhas
     /// virar quatro.
     /// </remarks>
+    /// <summary>
+    /// O caso do corpus: texto, captura ancorada ao topo do parágrafo e mais texto,
+    /// tudo no mesmo parágrafo.
+    /// </summary>
+    public static byte[] WithTextAroundTopAnchoredImage() => Build((body, part) =>
+    {
+        var image = part.AddImagePart(ImagePartType.Png);
+        using (var stream = new MemoryStream(TinyPng()))
+        {
+            image.FeedData(stream);
+        }
+
+        body.AppendChild(new Paragraph(
+            new Run(new Text("Múltiplos")),
+            new Run(AnchoredDrawing(part.GetIdOfPart(image))),
+            new Run(new Text(" registros OK") { Space = SpaceProcessingModeValues.Preserve })));
+    });
+
     public static byte[] WithAnchoredImageInTheFlow() => Build((body, part) =>
     {
         var image = part.AddImagePart(ImagePartType.Png);

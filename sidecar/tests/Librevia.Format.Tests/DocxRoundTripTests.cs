@@ -630,6 +630,17 @@ public class DocxRoundTripTests
     }
 
     [Fact]
+    public void PutsTheTopAnchoredImageBeforeTheText()
+    {
+        // Ancorada ao topo do parágrafo: o quadro vem antes do texto, como o Word
+        // e o LibreOffice o desenham, qualquer que seja a posição do run.
+        var model = Open(Fixtures.WithTextAroundTopAnchoredImage());
+        var paragraph = model.Doc.Content!.Single(node => node.Type == "paragraph");
+
+        Assert.Equal(["image", "text", "text"], paragraph.Content!.Select(node => node.Type));
+    }
+
+    [Fact]
     public void ResolvesCellMarginsLikeWord()
     {
         // Lado a lado: a tabela, o estilo padrão de tabela, e o 0/108 do Word.

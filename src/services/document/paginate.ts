@@ -58,6 +58,12 @@ export interface MeasuredBlock {
    * fica. Já estão também em `breakpoints`.
    */
   readonly freeBreakpoints?: readonly number[]
+  /**
+   * Quanto do pé do bloco pode passar da folha: a linha vazia do parágrafo de
+   * uma captura ancorada. Medido no LibreOffice, ela entra na margem de baixo
+   * em vez de levar o quadro — ou ela mesma — para a folha seguinte.
+   */
+  readonly hangingBottom?: number
 }
 
 /**
@@ -109,7 +115,7 @@ export function paginate(blocks: readonly MeasuredBlock[], pageHeight: number): 
     }
 
     const bottom = block.top + block.height
-    if (bottom - pageStart <= pageHeight) {
+    if (bottom - pageStart <= pageHeight + Math.min(block.hangingBottom ?? 0, pageHeight / 2)) {
       index += 1
       // A quebra que o parágrafo carrega vale depois dele — e não vale se não
       // houver mais nada, senão o documento fecha com uma folha em branco.

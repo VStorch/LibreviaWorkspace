@@ -65,6 +65,12 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory, bool 
     private readonly List<FloatDto> _paragraphFloats = [];
 
     /// <summary>
+    /// As capturas ancoradas ao **topo do parágrafo** lidas no parágrafo corrente
+    /// — ver <see cref="TopAnchoredFirst"/>.
+    /// </summary>
+    private readonly HashSet<Node> _topAnchored = new(ReferenceEqualityComparer.Instance);
+
+    /// <summary>
     /// Percorre o corpo produzindo a árvore do editor e, em paralelo, a lista
     /// plana de blocos com identidade.
     /// </summary>
@@ -227,6 +233,7 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory, bool 
 
         _paragraphHasContent = false;
         _paragraphFloats.Clear();
+        _topAnchored.Clear();
         var outer = _directRuns;
         _directRuns = !flat;
         var content = ReadInline(paragraph, inheritedRun);
@@ -264,6 +271,7 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory, bool 
         // do mesmo parágrafo — esse texto desce junto em vez de abrir a página —
         // e é exato no caso comum, que é a quebra encerrando o parágrafo.
         var breakAfter = content.RemoveAll(child => child.Type == "pageBreak") > 0;
+        TopAnchoredFirst(content);
 
         var node = (HeadingLevelOf(direct) ?? _styles.HeadingLevelByName(direct?.ParagraphStyleId?.Val?.Value)) is { } level
             ? Node.Of("heading").With("level", level)
@@ -1060,6 +1068,31 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory, bool 
         return $"data:{image.ContentType};base64,{Convert.ToBase64String(buffer.ToArray())}";
     }
 
+    /// <summary>
+    /// A captura ancorada ao parágrafo vai para o começo dele.
+    /// </summary>
+    /// <remarks>
+    /// A âncora diz "no alto do parágrafo" (deslocamento vertical zero a partir
+    /// dele), e o run do desenho pode estar em qualquer ponto da frase: no corpus,
+    /// "Múltiplos" + captura + " Registros do InfPercurso OK". O Word e o
+    /// LibreOffice põem o quadro no topo e o texto embaixo; desenhá-lo na ordem
+    /// dos runs deixava uma linha de texto acima do quadro — 22 pt a mais na
+    /// folha, e as folhas seguintes cortando uma captura antes.
+    ///
+    /// A ordem dentro do parágrafo não muda o desenho do Word para a âncora
+    /// relativa ao parágrafo, e o parágrafo que ninguém edita volta do original,
+    /// byte a byte. Ancorada à **linha** fica onde está: aí o lugar do run é a
+    /// posição.
+    /// </remarks>
+    private void TopAnchoredFirst(List<Node> content)
+    {
+        if (_topAnchored.Count == 0) return;
+        var moved = content.Where(_topAnchored.Contains).ToList();
+        if (moved.Count == 0 || content.Take(moved.Count).SequenceEqual(moved)) return;
+        content.RemoveAll(_topAnchored.Contains);
+        content.InsertRange(0, moved);
+    }
+
     private Node? ReadImage(OpenXmlElement drawing)
     {
         if (ImageSourceOf(drawing) is not { } src) return null;
@@ -1073,7 +1106,15 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory, bool 
         // frase ocupa só a imagem. Medido no LibreOffice: 11,55 pt entre duas
         // capturas seguidas de um documento de evidências, que é exatamente uma
         // linha de Arial 10 pt.
-        if (AnchorReader.AnchorOf(drawing) is not null) node.With("anchored", true);
+        if (AnchorReader.AnchorOf(drawing) is { } anchor)
+        {
+            node.With("anchored", true);
+            var from = anchor.GetFirstChild<Drawing.Wordprocessing.VerticalPosition>()?.RelativeFrom?.Value;
+            if (from is null || from == Drawing.Wordprocessing.VerticalRelativePositionValues.Paragraph)
+            {
+                _topAnchored.Add(node);
+            }
+        }
 
         // O texto alternativo, que é o que um leitor de tela lê no lugar da
         // imagem. Mora no `wp:docPr/@descr` e chega ao editor como o `alt` do
