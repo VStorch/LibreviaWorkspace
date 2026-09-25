@@ -36,12 +36,12 @@ public sealed class Server(Stream input, Stream output)
             },
             // O pacote mínimo de um documento que nasceu no editor: é ele que faz
             // o papel de original na primeira gravação em DOCX. Recebe a
-            // configuração de página e devolve só binário — ver DocxTemplate.
+            // configuração de página e os estilos, e devolve só binário — ver DocxTemplate.
             ["docx.create"] = static (request, _, _) =>
             {
-                var page = request.Params.Deserialize<Docx.PageSetupDto>(JsonOptions.Default)
-                           ?? throw new Docx.DocxException("A configuração de página chegou vazia.");
-                return Task.FromResult(new Reply(null, Docx.DocxTemplate.Create(page)));
+                var create = request.Params.Deserialize<Docx.DocxCreateDto>(JsonOptions.Default)
+                             ?? throw new Docx.DocxException("A configuração de página chegou vazia.");
+                return Task.FromResult(new Reply(null, Docx.DocxTemplate.Create(create.Page, create.Styles)));
             },
             ["xlsx.open"] = static (_, binary, _) =>
                 Task.FromResult(Reply.Of(Xlsx.XlsxReader.Read(binary.ToArray()))),

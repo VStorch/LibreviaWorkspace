@@ -20,11 +20,9 @@
  * pode vir do próprio estilo e a multiplicação só pode acontecer depois de a
  * cascata ser resolvida. Quem multiplica é `line-metrics.ts`.
  *
- * Nada nesta entrega **desenha** a partir daqui: a tela continua vindo do CSS de
- * `content-styles.ts`, e é por isso que `BUILTIN_STYLES` tem de reproduzi-lo
- * medida por medida. No dia em que a tela passar a nascer destes dados, mudar um
- * número aqui muda a aparência; até então, mudar um número aqui só faz tela e
- * arquivo discordarem.
+ * A tela nasce daqui: `style-css.ts` resolve a cascata (`style-cascade.ts`) e
+ * gera o CSS de cada estilo, e é esse texto que vai para o editor e para o PDF.
+ * Mudar um número aqui muda a aparência — dos documentos que carregam a tabela.
  */
 
 import { Language, translate } from '@shared/i18n/index.js'
@@ -191,19 +189,21 @@ function heading(level: number): StyleDefinition {
 }
 
 /**
- * Os estilos do documento novo — **a tela de hoje, em dado**.
+ * Os estilos dos **arquivos antigos** — a tela de antes dos estilos, em dado.
  *
  * É a tabela que um `.sdoc` gravado antes da versão 3 do formato recebe ao ser
- * aberto, e a que o pacote mínimo do DOCX grava (`BuiltinStyles.cs`, comparada com
- * esta por `src/main/sidecar/builtin-styles.test.ts`). Por isso ela não é um
- * gosto: é o CSS de `content-styles.ts` medido — Times New Roman 12 pt, entrelinha
- * 1,5, 0,6em antes e 1em depois — mais o padrão do navegador para os títulos. Um
- * número diferente daqui faz documento antigo reabrir com outra paginação.
+ * aberto, e a dos títulos que o escritor acrescenta a um DOCX que não os tem
+ * (`BuiltinStyles.cs`, comparada com esta por
+ * `src/main/sidecar/builtin-styles.test.ts`). Por isso ela não é um gosto: é o
+ * CSS que o editor desenhava antes de desenhar a partir de estilos — Times New
+ * Roman 12 pt, entrelinha 1,5, 0,6em antes e 1em depois — mais o padrão do
+ * navegador para os títulos. Um número diferente daqui faz documento antigo
+ * reabrir com outra paginação.
  *
  * O `#111111` do texto fica de fora de propósito: gravado como cor, ele voltaria
  * do arquivo como cor explícita em cada trecho reaberto.
  */
-export const BUILTIN_STYLES: StyleSheet = {
+export const LEGACY_STYLES: StyleSheet = {
   defaults: {
     paragraph: {},
     // A fonte vai no padrão do documento, e não no `Normal`, porque é lá que o
@@ -266,6 +266,67 @@ export const BUILTIN_STYLES: StyleSheet = {
       uiPriority: 99,
       character: { color: '#0563c1', underline: true },
     },
+  },
+}
+
+/**
+ * A entrelinha do Word 2013–2021, que o diálogo dele mostra como 1,08: 259 de
+ * 240 avos, escrito como o leitor o devolve — a mesma grade de `BODY_LINE_FACTOR`.
+ */
+const WORD_LINE_FACTOR = 1.0792
+
+/** Tamanho, antes e cor de cada título do Word 2013–2021. */
+const WORD_HEADINGS = [
+  { fontSize: '16pt', spaceBefore: 12, color: '#2f5496' },
+  { fontSize: '13pt', spaceBefore: 2, color: '#2f5496' },
+  { fontSize: '12pt', spaceBefore: 2, color: '#1f3763' },
+  { spaceBefore: 2, color: '#2f5496', italic: true },
+  { spaceBefore: 2, color: '#2f5496' },
+  { spaceBefore: 2, color: '#1f3763' },
+] as const
+
+function wordHeading(level: number): StyleDefinition {
+  const { spaceBefore, ...character } = WORD_HEADINGS[level - 1]!
+  return {
+    ...heading(level),
+    // Sem a Calibri Light do Word: ela não tem substituta livre de mesmas
+    // medidas, e um título medido com outra fonte quebra a linha noutro lugar.
+    // O título herda a Calibri, que a Carlito desenha igual.
+    paragraph: { spaceBefore, spaceAfter: 0, keepNext: true, keepLines: true, outlineLevel: level - 1 },
+    character,
+  }
+}
+
+/**
+ * Os estilos do documento novo: o padrão do Word 2013–2021.
+ *
+ * Calibri 11 pt, entrelinha 1,08, 8 pt depois — no padrão do documento, e não no
+ * `Normal`, porque é assim que o Word o grava e é de lá que todo estilo o
+ * herda. É a tabela que o pacote DOCX do documento novo grava (`docx.create`).
+ */
+export const BUILTIN_STYLES: StyleSheet = {
+  defaults: {
+    paragraph: { spaceAfter: 8, lineSpacing: { kind: 'multiple', factor: WORD_LINE_FACTOR } },
+    character: { fontFamily: 'Calibri', fontSize: '11pt' },
+    paragraphStyleId: 'Normal',
+    characterStyleId: 'DefaultParagraphFont',
+  },
+  styles: {
+    ...LEGACY_STYLES.styles,
+    Normal: {
+      id: 'Normal',
+      name: 'Normal',
+      type: StyleType.Paragraph,
+      qFormat: true,
+      hidden: false,
+      custom: false,
+    },
+    Heading1: wordHeading(1),
+    Heading2: wordHeading(2),
+    Heading3: wordHeading(3),
+    Heading4: wordHeading(4),
+    Heading5: wordHeading(5),
+    Heading6: wordHeading(6),
   },
 }
 

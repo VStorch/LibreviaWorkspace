@@ -27,7 +27,10 @@ ${DOCUMENT_FONT_CSS}
   display: flex;
   flex-direction: column;
   /* Pelo nome do documento: a regra @font-face acima resolve para a
-     empacotada. Crase nenhuma aqui dentro: isto mora num template literal. */
+     empacotada. Crase nenhuma aqui dentro: isto mora num template literal.
+     No documento, a fonte, o tamanho e a entrelinha daqui (e os títulos logo
+     abaixo) são sobrepostos pelo CSS dos estilos (style-css.ts); valem sozinhos
+     só fora dele, na planilha impressa. */
   font-family: 'Times New Roman', 'Liberation Serif', Georgia, serif;
   font-size: 12pt;
   line-height: 1.5;

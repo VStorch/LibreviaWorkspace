@@ -5,6 +5,7 @@ import { IpcChannel } from '@shared/ipc-channels.js'
 import { pushContracts } from '@shared/ipc.js'
 import type { ContextMenuTarget } from '@shared/types.js'
 import { DOCUMENT_CONTENT_CSS, EDITOR_ONLY_CSS } from '@services/document/content-styles.js'
+import { styleSheetCss } from '@services/document/style-css.js'
 import { plainPasteContent } from '@services/document/paste.js'
 import {
   contentInsetsMm,
@@ -61,6 +62,8 @@ export function DocumentEditor(): React.JSX.Element {
   const setEstimatedPages = useWorkspace((state) => state.setEstimatedPages)
   const readOnly = useWorkspace((state) => state.readOnly)
   const setPage = useWorkspace((state) => state.setPage)
+  const styles = useWorkspace((state) => state.styles)
+  const styleCss = useMemo(() => styleSheetCss(styles), [styles])
   const showError = useWorkspace((state) => state.showError)
   const preferences = usePreferences((state) => state.preferences)
   const reading = useReadingMode()
@@ -344,7 +347,7 @@ export function DocumentEditor(): React.JSX.Element {
       {/* O estilo do conteúdo vem do mesmo módulo que o HTML de impressão usa.
           Duas folhas de estilo divergiriam com o tempo, e o PDF deixaria de
           sair igual à tela — o risco registrado no §6.3 do plano. */}
-      <style>{DOCUMENT_CONTENT_CSS + EDITOR_ONLY_CSS}</style>
+      <style>{DOCUMENT_CONTENT_CSS + styleCss + EDITOR_ONLY_CSS}</style>
 
       {!reading && preferences.showToolbar && (
         <DocumentToolbar

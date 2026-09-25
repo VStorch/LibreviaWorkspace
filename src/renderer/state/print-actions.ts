@@ -1,6 +1,7 @@
 import type { PageSetup } from '@services/document/model.js'
 import { buildPrintHtml } from '@services/document/print-html.js'
 import { buildPagedBody, buildPagedCss } from '@services/document/print-pages.js'
+import { styleSheetCss } from '@services/document/style-css.js'
 import { SHEET_PRINT_CSS, buildSheetHtml } from '@services/spreadsheet/print-html.js'
 import { t } from '../i18n.js'
 import { currentPreferences } from './preferences.js'
@@ -55,7 +56,7 @@ export function createPrintActions(
       html: buildPrintHtml(
         buildPagedBody(source.readPages(), state.page),
         name,
-        buildPagedCss(state.page),
+        styleSheetCss(state.styles) + buildPagedCss(state.page),
         false,
       ),
       page: state.page,

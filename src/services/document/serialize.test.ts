@@ -8,7 +8,7 @@ import {
   type DocumentModel,
 } from './model.js'
 import { SDOC_VERSION, parseDocument, serializeDocument } from './serialize.js'
-import { BUILTIN_STYLES, type StyleSheet } from './styles.js'
+import { BUILTIN_STYLES, LEGACY_STYLES, type StyleSheet } from './styles.js'
 
 const richDocument: DocumentModel = {
   page: {
@@ -116,7 +116,7 @@ describe('estilos no formato interno', () => {
   it('dá os estilos embutidos ao arquivo da versão 2, que não os tinha', () => {
     // Documento antigo tem de abrir **idêntico**: os embutidos são a aparência
     // que o editor já desenhava, medida por medida.
-    expect(parseDocument(v2()).styles).toEqual(BUILTIN_STYLES)
+    expect(parseDocument(v2()).styles).toEqual(LEGACY_STYLES)
   })
 
   it('ignora estilos num arquivo que se declara da versão 2', () => {
@@ -127,7 +127,7 @@ describe('estilos no formato interno', () => {
       defaults: { paragraph: {}, character: {}, paragraphStyleId: null, characterStyleId: null },
       styles: {},
     }
-    expect(parseDocument(v2(forjado)).styles).toEqual(BUILTIN_STYLES)
+    expect(parseDocument(v2(forjado)).styles).toEqual(LEGACY_STYLES)
   })
 
   it('dá os estilos embutidos ao arquivo da versão 1', () => {
@@ -137,7 +137,7 @@ describe('estilos no formato interno', () => {
       page: DEFAULT_PAGE_SETUP,
       doc: { type: 'doc', content: [{ type: 'paragraph' }] },
     })
-    expect(parseDocument(version1).styles).toEqual(BUILTIN_STYLES)
+    expect(parseDocument(version1).styles).toEqual(LEGACY_STYLES)
   })
 
   it('recusa um estilo malformado em vez de abrir o documento sem ele', () => {

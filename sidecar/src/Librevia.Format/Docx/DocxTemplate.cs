@@ -1,5 +1,6 @@
 using System.IO.Compression;
 using System.Text;
+using System.Text.Json.Serialization;
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.ExtendedProperties;
 using DocumentFormat.OpenXml.Packaging;
@@ -27,6 +28,11 @@ namespace Librevia.Format.Docx;
 /// lista pede) e sem nome de autor em `docProps/core.xml` — o arquivo não carrega
 /// quem o escreveu a não ser que a pessoa o diga.
 /// </remarks>
+/// <summary>O pedido de `docx.create`: a página e os estilos do documento.</summary>
+public sealed record DocxCreateDto(
+    [property: JsonPropertyName("page")] PageSetupDto Page,
+    [property: JsonPropertyName("styles")] StyleSheetDto? Styles = null);
+
 public static class DocxTemplate
 {
     /// <summary>
@@ -39,7 +45,7 @@ public static class DocxTemplate
     /// </remarks>
     private static readonly DateTimeOffset ZipEpoch = new(1980, 1, 1, 0, 0, 0, TimeSpan.Zero);
 
-    public static byte[] Create(PageSetupDto page)
+    public static byte[] Create(PageSetupDto page, StyleSheetDto? styles = null)
     {
         using var buffer = new MemoryStream();
         using (var document = WordprocessingDocument.Create(buffer, WordprocessingDocumentType.Document))
@@ -49,8 +55,8 @@ public static class DocxTemplate
             var main = document.AddNewPart<MainDocumentPart>(
                 "application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml", "rId1");
 
-            var styles = main.AddNewPart<StyleDefinitionsPart>("rId1");
-            styles.Styles = TemplateStyles.Create();
+            var stylesPart = main.AddNewPart<StyleDefinitionsPart>("rId1");
+            stylesPart.Styles = TemplateStyles.Create(styles);
 
             var settings = main.AddNewPart<DocumentSettingsPart>("rId2");
             settings.Settings = Settings();

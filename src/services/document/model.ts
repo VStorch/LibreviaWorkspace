@@ -97,7 +97,7 @@ export interface DocumentModel {
    * nó. Um estilo guardado ali faria todo bloco parecer mudado, e o documento
    * inteiro seria reescrito — exatamente o que este projeto existe para evitar.
    *
-   * Ver `styles.ts`: nesta fase eles são dado a ler, e não a fonte da aparência.
+   * Ver `styles.ts`: é deles que nasce o CSS da tela e do PDF (`style-css.ts`).
    */
   readonly styles: StyleSheet
 }

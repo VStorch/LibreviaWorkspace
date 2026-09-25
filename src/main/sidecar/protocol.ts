@@ -142,7 +142,7 @@ function concat(left: Uint8Array, right: Uint8Array): Uint8Array {
  * atravessa inteiro. Os dois de DOCX são sem estado: `docx.save` recebe os
  * bytes originais no lugar de um identificador de sessão, para que a morte do
  * sidecar não custe a gravação cirúrgica. `docx.create` recebe a configuração
- * de página e devolve o pacote mínimo que faz o papel de original no documento
+ * de página e os estilos, e devolve o pacote mínimo que faz o papel de original no documento
  * que nasceu no editor.
  */
 export const SidecarMethod = {

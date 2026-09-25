@@ -13,6 +13,8 @@
 
 import { Buffer } from 'node:buffer'
 import { access, constants } from 'node:fs/promises'
+import { firstFontOf } from '@services/document/line-metrics.js'
+import { BUILTIN_STYLES, LEGACY_STYLES, type StyleSheet } from '@services/document/styles.js'
 import { afterAll, describe, expect, it } from 'vitest'
 import { ErrorCode, type AppError } from '@shared/errors.js'
 import { SidecarClient } from './client.js'
@@ -74,7 +76,7 @@ describe.skipIf(!published)('sidecar .NET publicado', () => {
     // página vai no JSON, e o pacote volta no binário — pronto para abrir.
     const page = { size: 'Letter', orientation: 'landscape', margins: { top: 20, right: 20, bottom: 20, left: 20 } }
 
-    const created = await client.request(SidecarMethod.DocxCreate, page)
+    const created = await client.request(SidecarMethod.DocxCreate, { page })
     expect([...created.binary.subarray(0, 2)]).toEqual([0x50, 0x4b])
 
     const opened = await client.request(SidecarMethod.DocxOpen, {}, created.binary)
@@ -84,6 +86,31 @@ describe.skipIf(!published)('sidecar .NET publicado', () => {
     const model = { page, doc: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Olá.' }] }] } }
     const saved = await client.request(SidecarMethod.DocxSave, model, created.binary)
     expect(saved.result).toMatchObject({ rewrittenBlocks: 1 })
+  })
+
+  it('o pacote novo grava os estilos que o documento carrega', async () => {
+    const page = { size: 'A4', orientation: 'portrait', margins: { top: 25, right: 25, bottom: 25, left: 25 } }
+
+    for (const styles of [BUILTIN_STYLES, LEGACY_STYLES]) {
+      const created = await client.request(SidecarMethod.DocxCreate, { page, styles })
+      const opened = await client.request(SidecarMethod.DocxOpen, {}, created.binary)
+      const read = (opened.result as { model: { styles: StyleSheet } }).model.styles
+
+      // O leitor devolve a pilha de CSS; a tabela, o nome solto.
+      const { fontFamily, ...character } = read.defaults.character
+      expect(firstFontOf(fontFamily)).toBe(styles.defaults.character.fontFamily)
+      expect({ ...read.defaults, character }).toMatchObject({
+        ...styles.defaults,
+        character: { fontSize: styles.defaults.character.fontSize },
+      })
+      for (const [id, style] of Object.entries(styles.styles)) {
+        const { paragraph, character: run } = style
+        expect(read.styles[id], id).toMatchObject({
+          ...(paragraph === undefined ? {} : { paragraph }),
+          ...(run === undefined ? {} : { character: run }),
+        })
+      }
+    }
   })
 
   it('recusa método desconhecido com erro, sem morrer', async () => {

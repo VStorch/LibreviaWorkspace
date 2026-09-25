@@ -56,7 +56,9 @@ public sealed record BuiltinStyle(
     double? IndentMm = null,
     bool KeepNext = false,
     bool ContextualSpacing = false,
-    int? OutlineLevel = null);
+    int? OutlineLevel = null,
+    bool Italic = false,
+    bool KeepLines = false);
 
 /// <summary>
 /// Os estilos de parágrafo e de caractere do documento novo.

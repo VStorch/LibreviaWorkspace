@@ -3,7 +3,7 @@ import { AppError, ErrorCode } from '@shared/errors.js'
 import { Language, translate } from '@shared/i18n/index.js'
 import { pageSetupSchema, styleSheetSchema } from '@shared/schemas.js'
 import { DEFAULT_PAGE_SETUP, isValidMargins, type DocumentModel, type DocumentNode } from './model.js'
-import { BUILTIN_STYLES, type StyleSheet } from './styles.js'
+import { LEGACY_STYLES, type StyleSheet } from './styles.js'
 
 /**
  * Formato interno `.sdoc`.
@@ -20,7 +20,7 @@ import { BUILTIN_STYLES, type StyleSheet } from './styles.js'
  * - **2** — a imagem deixou de ser bloco e passou a morar dentro do parágrafo,
  *   como no Word. Editá-la como bloco partia o parágrafo em volta.
  * - **3** — o documento passou a carregar os seus **estilos** (`styles.ts`). Um
- *   arquivo da versão 2 não os tem, e recebe `BUILTIN_STYLES` na leitura: são a
+ *   arquivo da versão 2 não os tem, e recebe `LEGACY_STYLES` na leitura: são a
  *   aparência que o editor já desenhava, medida por medida, para que o documento
  *   antigo abra idêntico.
  */
@@ -102,7 +102,7 @@ function migrate(doc: DocumentNode, version: number): DocumentNode {
 /**
  * Os estilos de um arquivo que não os tinha.
  *
- * `BUILTIN_STYLES` reproduzem a aparência com que o editor já desenhava o
+ * `LEGACY_STYLES` reproduzem a aparência com que o editor já desenhava o
  * documento — Times New Roman 12 pt, entrelinha 1,5, os títulos como estão hoje —,
  * então o arquivo antigo abre **idêntico**. Dar-lhe outro padrão seria mudar, sem
  * pedir, a paginação de um trabalho já entregue.
@@ -110,16 +110,13 @@ function migrate(doc: DocumentNode, version: number): DocumentNode {
  * Pela versão, e não pela presença do campo: um arquivo da versão 2 com um
  * `styles` qualquer não é um arquivo de estilos, é um arquivo remendado.
  *
- * **Atenção para o dia em que o documento novo mudar de padrão** (o dono já
- * decidiu: Calibri 11 pt, entrelinha 1,08, 8 pt depois). Aí `BUILTIN_STYLES`
- * passa a ser o padrão novo, e este lugar **não** pode seguir junto: o arquivo da
- * versão 2 foi escrito por um editor que desenhava Times New Roman 12 pt com
- * entrelinha 1,5, e é essa a aparência que ele tem de reencontrar. A tabela de
- * hoje vira a tabela dos arquivos antigos, com nome próprio, e esta função aponta
- * para ela.
+ * E **não** `BUILTIN_STYLES`: esse é o padrão do documento novo (Calibri 11 pt,
+ * entrelinha 1,08, 8 pt depois), e o arquivo da versão 2 foi escrito por um
+ * editor que desenhava Times New Roman 12 pt com entrelinha 1,5 — é essa a
+ * aparência que ele tem de reencontrar.
  */
 function migrateStyles(styles: StyleSheet | undefined, version: number): StyleSheet {
-  return version < 3 || styles === undefined ? BUILTIN_STYLES : styles
+  return version < 3 || styles === undefined ? LEGACY_STYLES : styles
 }
 
 /**

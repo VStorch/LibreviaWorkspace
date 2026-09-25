@@ -2,18 +2,18 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import {
   BODY_LINE_FACTOR,
-  BUILTIN_STYLES,
+  LEGACY_STYLES,
   type StyleCharacterFormat,
   type StyleDefinition,
   type StyleParagraphFormat,
 } from '@services/document/styles.js'
 
 /**
- * Os estilos do documento novo, com os dois lados de verdade.
+ * Os estilos dos arquivos antigos, com os dois lados de verdade.
  *
- * A tabela existe duas vezes, e tem de existir: o sidecar grava `word/styles.xml`
- * a partir dela (`BuiltinStyles.cs`) e o leitor do `.sdoc` a dá a todo arquivo
- * gravado antes da versão 3 do formato (`BUILTIN_STYLES`). Uma medida mudada de um
+ * A tabela existe duas vezes, e tem de existir: o sidecar acrescenta os títulos
+ * dela ao DOCX que não os tem (`BuiltinStyles.cs`) e o leitor do `.sdoc` a dá a
+ * todo arquivo gravado antes da versão 3 do formato (`LEGACY_STYLES`). Uma medida mudada de um
  * lado só não quebra nada visível na hora — e é justamente aí que está o perigo:
  * o documento passa a abrir com uma aparência e a ser gravado com outra, e a
  * paginação muda no arquivo de alguém que não editou nada.
@@ -24,7 +24,7 @@ import {
  * Fica em `src/main` porque só aqui há Node: `src/services` é compilado também
  * para a web, e lá não existe `node:fs` para ler o arquivo do sidecar.
  */
-describe('contrato dos estilos do documento novo', () => {
+describe('contrato dos estilos dos arquivos antigos', () => {
   const source = readFileSync(
     new URL('../../../sidecar/src/Librevia.Format/Docx/BuiltinStyles.cs', import.meta.url),
     'utf8',
@@ -34,22 +34,22 @@ describe('contrato dos estilos do documento novo', () => {
     const declared = parseTable(source)
 
     expect(Object.keys(declared).length).toBeGreaterThan(0)
-    expect(declared).toEqual(BUILTIN_STYLES.styles)
+    expect(declared).toEqual(LEGACY_STYLES.styles)
   })
 
   it('os padrões do documento são os mesmos', () => {
     // A fonte e o tamanho moram no `w:docDefaults`, e não no `Normal`: é de lá
     // que todo estilo os herda, e é lá que o Word os procura.
-    expect(BUILTIN_STYLES.defaults.character).toEqual({
+    expect(LEGACY_STYLES.defaults.character).toEqual({
       fontFamily: constantText(source, 'BodyFont'),
       fontSize: `${constantNumber(source, 'BodySizePt')}pt`,
     })
-    expect(BUILTIN_STYLES.defaults.paragraph).toEqual({})
+    expect(LEGACY_STYLES.defaults.paragraph).toEqual({})
 
     // O `w:default="1"` de cada tipo: é ele que responde qual estilo vale num
     // parágrafo sem `w:pStyle`.
-    expect(BUILTIN_STYLES.defaults.paragraphStyleId).toBe(defaultIdOf(source, false))
-    expect(BUILTIN_STYLES.defaults.characterStyleId).toBe(defaultIdOf(source, true))
+    expect(LEGACY_STYLES.defaults.paragraphStyleId).toBe(defaultIdOf(source, false))
+    expect(LEGACY_STYLES.defaults.characterStyleId).toBe(defaultIdOf(source, true))
   })
 
   it('a entrelinha do corpo é o mesmo fator nos dois lados', () => {

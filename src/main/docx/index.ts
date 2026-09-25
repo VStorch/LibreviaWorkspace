@@ -168,9 +168,13 @@ export async function saveDocx(
     openedOriginal !== null && target.origin !== null && openedOriginal.path === normalizePath(target.origin)
       ? openedOriginal.bytes
       : null
-  const original = kept ?? Buffer.from(await createDocx(client, model.page))
+  const original = kept ?? Buffer.from(await createDocx(client, model.page, model.styles))
 
-  const reply = await client.request(SidecarMethod.DocxSave, model, new Uint8Array(original))
+  const reply = await client.request(
+    SidecarMethod.DocxSave,
+    { page: model.page, doc: model.doc },
+    new Uint8Array(original),
+  )
   const parsed = saveResultSchema.safeParse(reply.result)
   if (!parsed.success) {
     throw new AppError(ErrorCode.SidecarFailed, t('errors.docx.cannotSave'), t('errors.docx.saveContract'))
@@ -273,11 +277,12 @@ function hasForeignBands(page: unknown): boolean {
  * O pacote mínimo de um documento que nasceu no editor.
  *
  * Criado pelo sidecar, e não guardado aqui como binário: o pacote é código C#
- * validado pelo mesmo SDK que grava (`DocxTemplate`), e a página vem da
- * configuração do documento.
+ * validado pelo mesmo SDK que grava (`DocxTemplate`), e a página e os estilos
+ * vêm do documento: o `.sdoc` antigo leva a Times com que foi escrito, e o
+ * documento novo, a Calibri.
  */
-async function createDocx(client: SidecarClient, page: unknown): Promise<Uint8Array> {
-  const reply = await client.request(SidecarMethod.DocxCreate, page)
+async function createDocx(client: SidecarClient, page: unknown, styles: unknown): Promise<Uint8Array> {
+  const reply = await client.request(SidecarMethod.DocxCreate, { page, styles })
   if (reply.binary.length === 0) {
     throw new AppError(
       ErrorCode.SidecarFailed,
@@ -288,7 +293,7 @@ async function createDocx(client: SidecarClient, page: unknown): Promise<Uint8Ar
   return reply.binary
 }
 
-function unwrapSdoc(content: string): { page: unknown; doc: unknown } {
+function unwrapSdoc(content: string): { page: unknown; doc: unknown; styles: unknown } {
   let parsed: unknown
   try {
     parsed = JSON.parse(content)
@@ -296,12 +301,10 @@ function unwrapSdoc(content: string): { page: unknown; doc: unknown } {
     throw new AppError(ErrorCode.Internal, t('errors.docx.inconsistentState'))
   }
 
-  // Os estilos são conferidos e **não** seguem para o sidecar: nesta entrega o
-  // escritor não os usa — `word/styles.xml` volta ao arquivo byte a byte pela
-  // gravação cirúrgica, e no documento novo o pacote mínimo já os grava a partir
-  // da mesma tabela (`BuiltinStyles.cs`). Conferi-los aqui é o que garante que o
-  // modelo em edição continua sendo um modelo válido; mandá-los adiante seria
-  // prometer uma gravação que ainda não existe.
+  // Os estilos são conferidos aqui e só seguem para o pacote do documento novo
+  // (`docx.create`): no documento aberto de um DOCX, `word/styles.xml` volta ao
+  // arquivo byte a byte pela gravação cirúrgica, e o escritor ainda não grava
+  // estilo modificado.
   const envelope = z
     .object({ page: z.unknown(), doc: z.unknown(), styles: styleSheetSchema.optional() })
     .safeParse(parsed)
@@ -309,5 +312,5 @@ function unwrapSdoc(content: string): { page: unknown; doc: unknown } {
     throw new AppError(ErrorCode.Internal, t('errors.docx.inconsistentState'))
   }
 
-  return { page: envelope.data.page, doc: envelope.data.doc }
+  return { page: envelope.data.page, doc: envelope.data.doc, styles: envelope.data.styles }
 }
