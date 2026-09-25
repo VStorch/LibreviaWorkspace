@@ -63,8 +63,12 @@ public static class RunReader
             // `baseline` é o normal — que não é marca nenhuma. Enquanto isto
             // ficava de fora, a fórmula e a nota de referência do documento
             // abriam na linha do texto, e voltavam assim para o arquivo.
+            //
+            // Emitido mesmo quando repete o estilo, como o realce logo abaixo:
+            // o CSS dos estilos não desenha nenhum dos dois na regra do
+            // parágrafo, e omiti-los apagava da tela o que o papel mostra.
             var vertical = properties.VerticalTextAlignment?.Val;
-            if (vertical is not null && vertical.InnerText != from?.VerticalTextAlignment?.Val?.InnerText)
+            if (vertical is not null)
             {
                 if (vertical.Value == VerticalPositionValues.Superscript) marks.Add(Mark.Of("superscript"));
                 else if (vertical.Value == VerticalPositionValues.Subscript) marks.Add(Mark.Of("subscript"));
@@ -76,7 +80,7 @@ public static class RunReader
             else if (inherited is not null && IsUnderlined(inherited)) marks.Add(Off("underline"));
 
             var highlight = HighlightOf(properties);
-            if (highlight is not null && (from is null || highlight != HighlightOf(from)))
+            if (highlight is not null)
             {
                 marks.Add(Mark.Of("highlight", "color", highlight));
             }
