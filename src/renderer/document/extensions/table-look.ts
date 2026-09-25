@@ -72,20 +72,16 @@ export const TableLook = Extension.create({
   addProseMirrorPlugins() {
     return [
       new Plugin({
+        // Guardadas no estado e refeitas só quando o documento muda — não a cada
+        // transação de seleção ou de paginação, que são a maioria.
+        state: {
+          init: (_config, state) => cellMarginDecorations(state.doc),
+          apply: (transaction, current) =>
+            transaction.docChanged ? cellMarginDecorations(transaction.doc) : current,
+        },
         props: {
-          decorations: (state) => {
-            const decorations: Decoration[] = []
-            state.doc.descendants((node, pos) => {
-              if (node.type.name !== 'table') return true
-              const css = cellMarginsCss(node.attrs['cellMargins'])
-              if (css !== null) {
-                decorations.push(
-                  Decoration.node(pos, pos + node.nodeSize, { style: `--cell-margins: ${css}` }),
-                )
-              }
-              return true
-            })
-            return DecorationSet.create(state.doc, decorations)
+          decorations(state) {
+            return this.getState(state)
           },
         },
       }),
@@ -340,4 +336,25 @@ export function cellMarginsCss(value: unknown): string | null {
   if (sides.length !== 4 || sides.some((side) => !Number.isFinite(side) || side < 0)) return null
   // Twips para pixels de CSS: 1440 por polegada, 96 px por polegada.
   return sides.map((side) => `${Math.round((side / 15) * 100) / 100}px`).join(' ')
+}
+
+/**
+ * A variável de margem de célula em cada tabela que a declara.
+ *
+ * A descida para dentro de parágrafos e títulos é cortada: tabela só mora em
+ * bloco de bloco (documento, célula, item), e percorrer o texto a cada edição
+ * custava o documento inteiro por tecla.
+ */
+function cellMarginDecorations(doc: ProseMirrorNode): DecorationSet {
+  const decorations: Decoration[] = []
+  doc.descendants((node, pos) => {
+    if (node.isTextblock || node.isAtom) return false
+    if (node.type.name !== 'table') return true
+    const css = cellMarginsCss(node.attrs['cellMargins'])
+    if (css !== null) {
+      decorations.push(Decoration.node(pos, pos + node.nodeSize, { style: `--cell-margins: ${css}` }))
+    }
+    return true
+  })
+  return DecorationSet.create(doc, decorations)
 }

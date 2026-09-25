@@ -1109,8 +1109,15 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory, bool 
         if (AnchorReader.AnchorOf(drawing) is { } anchor)
         {
             node.With("anchored", true);
-            var from = anchor.GetFirstChild<Drawing.Wordprocessing.VerticalPosition>()?.RelativeFrom?.Value;
-            if (from is null || from == Drawing.Wordprocessing.VerticalRelativePositionValues.Paragraph)
+            var vertical = anchor.GetFirstChild<Drawing.Wordprocessing.VerticalPosition>();
+            var from = vertical?.RelativeFrom?.Value;
+            // Só no topo do parágrafo: deslocamento zero — até 1 pt, que é o
+            // arredondamento com que o LibreOffice grava o zero (635 EMU no
+            // corpus). Deslocado para baixo, o quadro pode ter texto acima dele,
+            // e o run fica onde está.
+            var offset = long.TryParse(vertical?.PositionOffset?.Text, out var emus) ? Math.Abs(emus) : 0;
+            if ((from is null || from == Drawing.Wordprocessing.VerticalRelativePositionValues.Paragraph) &&
+                offset <= 12700)
             {
                 _topAnchored.Add(node);
             }

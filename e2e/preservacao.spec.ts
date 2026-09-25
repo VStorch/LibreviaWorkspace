@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
 import { launch, menu, stubDialogs, type Session } from './app.js'
-import { docxWithTextBox } from './fixtures.js'
+import { docxWithNamedStyles, docxWithTextBox } from './fixtures.js'
 
 /**
  * Abrir e salvar sem editar não pode mexer no arquivo.
@@ -55,6 +55,27 @@ test.describe('gravação cirúrgica', () => {
     const corpo = await corpoDoDocumento(destino)
     expect(corpo).toContain('txbxContent')
     expect(corpo).toContain('Título na caixa')
+  })
+
+  test('documento que termina num título volta sem parágrafo vazio acrescentado', async () => {
+    // O Tiptap acrescentava um parágrafo vazio depois do último título, e gravar
+    // sem editar punha um `<w:p/>` novo no fim do arquivo — os quatro documentos
+    // de evidências do corpus terminam assim.
+    const origem = join(folder, 'titulo-no-fim.docx')
+    const destino = join(folder, 'titulo-no-fim-saida.docx')
+    const final = '<w:p><w:pPr><w:pStyle w:val="Ttulo1"/></w:pPr><w:r><w:t>Título final</w:t></w:r></w:p>'
+    await writeFile(origem, await docxWithNamedStyles(final))
+
+    await stubDialogs(session.app, { open: origem, save: destino, messageBox: 1 })
+    await menu(session, 'open')
+    await expect(session.window.locator('.ProseMirror')).toContainText('Título final')
+    await expect(session.window.locator('.ProseMirror > *').last()).toHaveText('Título final')
+
+    await menu(session, 'save-as')
+    await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
+
+    const paragrafos = (xml: string): number => (xml.match(/<w:p[ >/]/g) ?? []).length
+    expect(paragrafos(await corpoDoDocumento(destino))).toBe(paragrafos(await corpoDoDocumento(origem)))
   })
 })
 

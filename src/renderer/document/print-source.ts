@@ -139,6 +139,11 @@ function isHeaderRow(table: ProseMirrorNode, rowIndex: number): boolean {
  * do meio, e no parágrafo justificado continua justificada — sem isto ela
  * sairia alinhada à esquerda, como última linha que o papel acha que é.
  *
+ * Justificada pelo mesmo truque do espaçador da tela: um elemento da largura da
+ * linha no fim, que só cabe numa linha própria e faz da anterior uma quebra
+ * automática. O `text-align-last` parecia equivalente e não era: ele vale também
+ * para a linha antes de cada `<br>` (Shift+Enter), que a tela deixa à esquerda.
+ *
  * O objeto ancorado vai com o pedaço de cima, que é onde o parágrafo começa;
  * `anchoredFloats` já conta o bloco na folha em que ele abre.
  */
@@ -159,7 +164,12 @@ function markSplitParagraphs(
   if (end.offset !== undefined && last instanceof HTMLElement) {
     last.style.marginBottom = '0'
     last.style.paddingBottom = '0'
-    if (justified) last.style.textAlignLast = 'justify'
+    if (justified) {
+      const filler = document.createElement('span')
+      filler.setAttribute('aria-hidden', 'true')
+      filler.style.cssText = 'display:inline-block;width:100%;height:0;vertical-align:top'
+      last.appendChild(filler)
+    }
     last.dataset.continued = 'to'
   }
 }

@@ -12,7 +12,7 @@ import {
 } from '@services/document/model.js'
 import { NO_BANDS, type BandHeights } from '@services/document/band.js'
 import { applyPageGaps, type RepeatedHeader } from './extensions/pagination.js'
-import { measureLines } from './line-boxes.js'
+import { LINE_GAP_CLASS, measureLines } from './line-boxes.js'
 
 /** Espaço entre uma folha e a seguinte, como numa pilha de papel. */
 export const SHEET_GUTTER_PX = 28
@@ -170,6 +170,23 @@ export function usePagination(
     const marginBottomPx = mmToPx(insets.bottom)
 
     const measure = (): void => {
+      // Os espaçadores entre linhas saem de cena durante a medida. Diferente do
+      // vão de bloco, eles mudam **onde as linhas quebram**: o espaçador ocupa
+      // uma linha inteira, e quando o texto acima encolhe e ele deixa de estar
+      // num começo de linha, força uma quebra ali — a medida seguinte achava o
+      // mesmo corte, e a folha ficava com linhas vazias no pé para sempre.
+      // Escondidos, as linhas são as do texto; o estilo volta no mesmo quadro,
+      // antes de o navegador desenhar, e o observador de tamanho não vê nada.
+      const lineGapsInDom = Array.from(element.querySelectorAll<HTMLElement>(`.${LINE_GAP_CLASS}`))
+      for (const gap of lineGapsInDom) gap.style.display = 'none'
+      try {
+        measureHidden()
+      } finally {
+        for (const gap of lineGapsInDom) gap.style.display = 'inline-block'
+      }
+    }
+
+    const measureHidden = (): void => {
       // Percorrido pelo **documento**, e não pelos filhos do DOM: os dois não
       // são o mesmo sistema de índices. Um documento do corpus tem 15 elementos
       // na tela e 17 nós no topo do modelo, e a diferença é silenciosa — a
@@ -361,18 +378,34 @@ export function usePagination(
       const pageStarts: PageStart[] = []
       const sheetHeights: number[] = []
 
+      // Índice dos cortes internos por altura, e um cursor para os de bloco: a
+      // lista sai da medida em ordem de fluxo, e os cortes também crescem, então
+      // cada folha custa uma consulta, e não uma varredura do documento.
+      const internalAt = new Map<number, CutTarget>()
+      for (const target of targets) {
+        if (
+          (target.start.childIndex !== undefined || target.line !== undefined) &&
+          !internalAt.has(target.at)
+        ) {
+          internalAt.set(target.at, target)
+        }
+      }
+      let cursor = 0
+      const blockTargetFrom = (at: number): CutTarget | undefined => {
+        while (cursor < targets.length && (targets[cursor]!.at < at || targets[cursor]!.line !== undefined))
+          cursor++
+        return targets[cursor]
+      }
+
       for (const at of breaks) {
-        const internal = targets.find(
-          (target) =>
-            target.at === at && (target.start.childIndex !== undefined || target.line !== undefined),
-        )
+        const internal = internalAt.get(at)
         const position = internal?.line?.resolve() ?? null
         // A linha cujo caractere não se achou (DOM trocado no meio da medida)
         // cede ao bloco seguinte: pior a folha curta que um espaçador perdido.
         const target =
           internal !== undefined && (internal.line === undefined || position !== null)
             ? internal
-            : targets.find((target) => target.at >= at && target.line === undefined)
+            : blockTargetFrom(at)
         // A linha vazia da captura que sobra no pé (`hangingBottom`) cabe na
         // margem de baixo: nem estica a folha, nem empurra o bloco seguinte.
         const span = at - previous
@@ -561,7 +594,7 @@ function repeatedHeader(
   const colgroup = table.querySelector(':scope > colgroup')?.outerHTML ?? ''
   const html =
     `<table class="${table.className}" style="width:${table.offsetWidth}px;margin:0">${colgroup}` +
-    `<tbody>${headerRows.map((row) => row.outerHTML).join('')}</tbody></table>`
+    `<tbody>${headerRows.map(cleanHeaderRow).join('')}</tbody></table>`
   return {
     position: editor.view.posAtDOM(cell, 0),
     html,
@@ -569,4 +602,28 @@ function repeatedHeader(
     offsetTop: height + Math.max(natural, 0),
     offsetLeft: left,
   }
+}
+
+/**
+ * A cópia do cabeçalho sem o que é do momento, e não do documento: a célula
+ * selecionada, o destaque da busca, a alça de arrastar coluna, o vão de página
+ * e o espaçador de linha. Copiados, eles apareciam repetidos em cada folha.
+ */
+function cleanHeaderRow(row: HTMLTableRowElement): string {
+  const copy = row.cloneNode(true) as HTMLTableRowElement
+  for (const transient of copy.querySelectorAll(
+    '.column-resize-handle, .page-line-gap, .page-repeated-header',
+  )) {
+    transient.remove()
+  }
+  for (const element of [copy, ...copy.querySelectorAll<HTMLElement>('*')]) {
+    element.classList.remove('selectedCell', 'search-hit', 'search-hit--current', 'ProseMirror-selectednode')
+    if (element.hasAttribute('data-page-start')) {
+      element.style.removeProperty('padding-top')
+      element.style.removeProperty('margin-top')
+      element.removeAttribute('data-page-start')
+      element.removeAttribute('data-page-shift')
+    }
+  }
+  return copy.outerHTML
 }

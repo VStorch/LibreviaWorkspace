@@ -288,6 +288,41 @@ test.describe('paginação ao vivo', () => {
     await expect(nivel).toHaveText('100%')
     await expect.poll(async () => (await folhas.first().boundingBox())!.width).toBeCloseTo(largura, 0)
   })
+
+  test('o corte entre linhas volta quando o texto acima dele encolhe', async () => {
+    // O espaçador já desenhado entrava na medida seguinte: fora de um começo de
+    // linha ele forçava a quebra ali, e o corte não voltava mais — sobravam
+    // linhas vazias no pé da folha.
+    await paragrafoAtravessandoAFolha(session)
+    await expect.poll(() => corteNaTela(session)).not.toBeNull()
+    const original = await corteNaTela(session)
+    // Um passo de histórico à parte: digitado junto, o desfazer levaria o
+    // parágrafo inteiro com as palavras.
+    await session.window.waitForTimeout(700)
+
+    const inicioDoParagrafo = async (): Promise<void> => {
+      await session.window.evaluate(() => {
+        const paragraph = Array.from(document.querySelectorAll('.ProseMirror > p')).at(-1)!
+        const walker = document.createTreeWalker(paragraph, NodeFilter.SHOW_TEXT)
+        const text = walker.nextNode()!
+        window.getSelection()!.collapse(text, 0)
+      })
+      // O ProseMirror lê a seleção do DOM no `selectionchange`, um quadro depois.
+      await session.window.waitForTimeout(100)
+    }
+
+    await inicioDoParagrafo()
+    await session.window.keyboard.insertText(`${Array.from({ length: 25 }, () => 'extra').join(' ')} `)
+    await expect.poll(() => corteNaTela(session)).not.toEqual(original)
+
+    await session.window.keyboard.press('Control+z')
+    await expect.poll(() => corteNaTela(session)).toEqual(original)
+
+    await inicioDoParagrafo()
+    for (let i = 0; i < 3; i++) await session.window.keyboard.press('Enter')
+    for (let i = 0; i < 3; i++) await session.window.keyboard.press('Backspace')
+    await expect.poll(() => corteNaTela(session)).toEqual(original)
+  })
 })
 
 /**

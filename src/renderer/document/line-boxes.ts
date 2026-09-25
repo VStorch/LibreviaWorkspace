@@ -70,7 +70,8 @@ export function measureLines(view: EditorView, element: HTMLElement): ParagraphL
       // O vão de uma passada anterior: não é linha, é o empurrão, e tudo que
       // vem depois dele no DOM está abaixo dele na tela.
       if (node.classList.contains(LINE_GAP_CLASS)) {
-        shift += Number(node.dataset.pageShift ?? 0)
+        // Escondido pela medida (`usePagination`): não empurra nada.
+        if (node.style.display !== 'none') shift += Number(node.dataset.pageShift ?? 0)
         return NodeFilter.FILTER_REJECT
       }
       // O que flutua não está na linha; o separador do ProseMirror não tem altura.

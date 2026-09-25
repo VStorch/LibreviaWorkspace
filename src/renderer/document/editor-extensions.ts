@@ -74,6 +74,13 @@ export function buildEditorExtensions(
       },
       // O histórico do Tiptap já responde a Ctrl+Z e Ctrl+Y.
       undoRedo: { depth: 200 },
+      // O parágrafo vazio que o Tiptap acrescenta no fim do documento quando o
+      // último bloco não é parágrafo. Depois de um título ele não serve para
+      // nada — Enter no fim do título já abre um parágrafo —, e custava caro:
+      // os documentos do corpus terminam num `Heading1`, e gravar sem editar
+      // acrescentava um `<w:p/>` ao arquivo (um bloco reescrito, e às vezes uma
+      // linha a mais no pé da última folha).
+      trailingNode: { notAfter: ['paragraph', 'heading'] },
     }),
 
     // `TextStyle` é o suporte para cor, fonte, tamanho e espaçamento — todos
