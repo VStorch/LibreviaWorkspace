@@ -55,6 +55,21 @@ test.describe('paginação ao vivo', () => {
     }).toPass()
   })
 
+  test('a célula da tabela importada usa a margem do Word, e a tabela cabe nas folhas do papel', async () => {
+    // Sem `w:tblCellMar` o Word usa 0 em cima e embaixo; a margem fixa do editor
+    // (4 px) somava 8 px por linha, e as oitenta linhas iam para três folhas
+    // onde o LibreOffice usa duas.
+    const source = join(pasta, 'tabela-longa.docx')
+    await writeFile(source, await docxWithLongTable())
+    await stubDialogs(session.app, { open: source, messageBox: 1 })
+    await menu(session, 'open')
+    const célula = session.window.locator('.ProseMirror td').first()
+    await expect(célula).toBeVisible()
+    expect(await célula.evaluate((cell) => getComputedStyle(cell).paddingTop)).toBe('0px')
+    expect(await célula.evaluate((cell) => getComputedStyle(cell).paddingLeft)).toBe('7.2px')
+    await expect(session.window.locator('.paper')).toHaveCount(2)
+  })
+
   test('documento novo tem uma folha só', async () => {
     await menu(session, 'new-document')
     await expect(session.window.locator('.paper')).toHaveCount(1)

@@ -250,5 +250,21 @@ describe('cortes dentro de blocos', () => {
       // 21 linhas: cortar em 20 deixaria a 21ª viúva, então 19 ficam.
       expect(paginate([paragraph(0, 21, { widowControl: true })], 1000)).toEqual([950])
     })
+
+    it('o pé da captura ancorada corta mesmo com o controle de viúvas', () => {
+      // Quadro de 900 e a linha vazia dele (50) numa folha de 1000 que já tem
+      // 60: a linha desce e o quadro fica, como no LibreOffice.
+      const captura: MeasuredBlock = {
+        top: 60,
+        height: 950,
+        breakpoints: [960],
+        freeBreakpoints: [960],
+        isPageBreak: false,
+        breakAfter: false,
+        keepWithNext: false,
+        widowControl: true,
+      }
+      expect(paginate([...stack([60]), captura], 1000)).toEqual([960])
+    })
   })
 })

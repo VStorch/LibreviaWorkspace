@@ -1370,4 +1370,19 @@ public class DocxWriteBackTests
         // O parágrafo comum continua calado — ligado, pelo padrão.
         Assert.Equal(1, xml.Split("w:widowControl").Length - 1);
     }
+
+    [Fact]
+    public void KeepsTheTableCellMarginsWhenTheTableIsEdited()
+    {
+        // `cellMargins` é só leitura: o `w:tblCellMar` do arquivo volta como estava.
+        var original = Fixtures.WithCellMargins();
+        var model = Roundtrip.Clone(Roundtrip.Open(original));
+
+        Assert.True(Roundtrip.EditFirstTextContaining(model, "Margem própria", "Margem própria, editada."));
+
+        var (saved, _) = Roundtrip.Save(original, model);
+        var xml = Roundtrip.XmlOf(saved);
+        Assert.Contains("<w:tblCellMar><w:top w:w=\"100\" w:type=\"dxa\" /></w:tblCellMar>", xml, StringComparison.Ordinal);
+        Assert.Contains("Margem própria, editada.", xml, StringComparison.Ordinal);
+    }
 }

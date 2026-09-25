@@ -241,6 +241,37 @@ export function usePagination(
           internal = lines.shift
         }
 
+        // A captura ancorada: o parágrafo dela tem uma linha vazia depois do
+        // quadro (o `::after` de 1lh em `content-styles.ts`), e o LibreOffice a
+        // deixa passar para a folha seguinte quando ela não cabe — o quadro
+        // fica. O corte é no pé do quadro, e o espaçador entra no fim do
+        // parágrafo, depois da imagem.
+        const freeBreakpoints: number[] = []
+        if (
+          lines !== null &&
+          node.querySelector(':scope > .node-image[data-anchored], :scope > img[data-anchored]') !== null
+        ) {
+          const after = parseFloat(getComputedStyle(node, '::after').height)
+          const style = getComputedStyle(node)
+          const inner =
+            node.offsetHeight -
+            lines.shift -
+            parseFloat(style.paddingBottom) -
+            parseFloat(style.borderBottomWidth)
+          if (Number.isFinite(after) && after > 0 && inner - after > 0) {
+            const at = top + inner - after
+            const end = offset + block.nodeSize - 1
+            breakpoints.push(at)
+            freeBreakpoints.push(at)
+            targets.push({
+              at,
+              start: { blockIndex },
+              nodes: [],
+              line: { resolve: () => end, block: offset },
+            })
+          }
+        }
+
         // Linhas de cabeçalho (`w:tblHeader`, células `th`) no começo da tabela:
         // repetem-se no alto de cada folha em que a tabela continua. Cortar
         // dentro delas, ou logo depois, deixaria o cabeçalho sozinho no pé.
@@ -299,6 +330,7 @@ export function usePagination(
           keepLines: effective['keepLines'] === true,
           widowControl: lines !== null && effective['widowControl'] !== false,
           ...(repeatHeight > 0 ? { repeatHeight } : {}),
+          ...(freeBreakpoints.length > 0 ? { freeBreakpoints } : {}),
         })
         accumulated += internal
       })

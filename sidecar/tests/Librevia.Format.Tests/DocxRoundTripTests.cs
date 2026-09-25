@@ -630,6 +630,17 @@ public class DocxRoundTripTests
     }
 
     [Fact]
+    public void ResolvesCellMarginsLikeWord()
+    {
+        // Lado a lado: a tabela, o estilo padrão de tabela, e o 0/108 do Word.
+        var model = Open(Fixtures.WithCellMargins());
+        var tables = model.Doc.Content!.Where(node => node.Type == "table").ToList();
+
+        Assert.Equal("100 108 60 108", tables[0].Attrs!["cellMargins"]!.GetValue<string>());
+        Assert.Equal("0 108 60 108", tables[1].Attrs!["cellMargins"]!.GetValue<string>());
+    }
+
+    [Fact]
     public void ReadsKeepLines()
     {
         // A paginação passou a cortar parágrafos entre linhas; o que pediu para

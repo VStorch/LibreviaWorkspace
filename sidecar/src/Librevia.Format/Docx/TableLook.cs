@@ -30,6 +30,78 @@ namespace Librevia.Format.Docx;
 /// </remarks>
 internal static class TableLook
 {
+    /// <summary>Margem de célula do Word quando nada a declara: 0 em cima e embaixo, 0,075" dos lados.</summary>
+    private static readonly int[] WordCellMargins = [0, 108, 0, 108];
+
+    /// <summary>
+    /// A margem de célula que vale na tabela, em twips — cima, direita, baixo,
+    /// esquerda.
+    /// </summary>
+    /// <remarks>
+    /// Lado a lado, na ordem do Word: o `w:tblCellMar` da própria tabela, o do
+    /// estilo dela e dos estilos em que ele se baseia, o do estilo de tabela
+    /// padrão e, calando todos, 0/108. Enquanto a tela usava a medida fixa do
+    /// editor (4 × 8 px), cada linha de tabela importada saía 8 px mais alta que
+    /// no papel do Word e do LibreOffice — numa tabela de oitenta linhas, uma
+    /// folha a mais.
+    /// </remarks>
+    public static int[] CellMargins(Table table, DocumentFormat.OpenXml.Packaging.MainDocumentPart part)
+    {
+        var sides = new int?[4];
+        Fill(sides, table.GetFirstChild<TableProperties>()?.GetFirstChild<TableCellMarginDefault>());
+
+        var styles = part.StyleDefinitionsPart?.Styles?.Elements<Style>()
+            .Where(style => style.Type?.Value == StyleValues.Table)
+            .ToList() ?? [];
+        var styleId = table.GetFirstChild<TableProperties>()?.GetFirstChild<TableStyle>()?.Val?.Value;
+        FillFromChain(sides, styles, styleId);
+        FillFromChain(sides, styles, styles.FirstOrDefault(style => style.Default?.Value == true)?.StyleId?.Value);
+
+        return [.. sides.Select((side, index) => side ?? WordCellMargins[index])];
+    }
+
+    private static void FillFromChain(int?[] sides, List<Style> styles, string? styleId)
+    {
+        // Um teto de voltas contra `w:basedOn` circular, que arquivo quebrado tem.
+        for (var hops = 0; styleId is not null && hops < 16; hops++)
+        {
+            var style = styles.FirstOrDefault(candidate => candidate.StyleId?.Value == styleId);
+            if (style is null) return;
+            Fill(sides, style.StyleTableProperties?.GetFirstChild<TableCellMarginDefault>());
+            styleId = style.BasedOn?.Val?.Value;
+        }
+    }
+
+    private static void Fill(int?[] sides, TableCellMarginDefault? margins)
+    {
+        if (margins is null) return;
+        sides[0] ??= Twips(margins.TopMargin?.Width?.Value, margins.TopMargin?.Type?.Value);
+        sides[1] ??= Twips(margins.TableCellRightMargin?.Width?.Value.ToString(CultureInfo.InvariantCulture), margins.TableCellRightMargin?.Type?.Value)
+                     ?? Twips(margins.EndMargin?.Width?.Value, margins.EndMargin?.Type?.Value);
+        sides[2] ??= Twips(margins.BottomMargin?.Width?.Value, margins.BottomMargin?.Type?.Value);
+        sides[3] ??= Twips(margins.TableCellLeftMargin?.Width?.Value.ToString(CultureInfo.InvariantCulture), margins.TableCellLeftMargin?.Type?.Value)
+                     ?? Twips(margins.StartMargin?.Width?.Value, margins.StartMargin?.Type?.Value);
+    }
+
+    /// <summary>Só `dxa` (ou sem tipo) é medida; `nil` é zero; porcentagem não se aplica a margem.</summary>
+    private static int? Twips(string? width, TableWidthUnitValues? type)
+    {
+        if (type == TableWidthUnitValues.Nil) return 0;
+        if (type is not null && type != TableWidthUnitValues.Dxa) return null;
+        return int.TryParse(width, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value)
+            ? Math.Max(0, value)
+            : null;
+    }
+
+    private static int? Twips(string? width, TableWidthValues? type)
+    {
+        if (type == TableWidthValues.Nil) return 0;
+        if (type is not null && type != TableWidthValues.Dxa) return null;
+        return int.TryParse(width, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value)
+            ? Math.Max(0, value)
+            : null;
+    }
+
     /// <summary>1 pixel do CSS = 15 twips (1440/96).</summary>
     private const int TwipsPerPixel = 15;
 

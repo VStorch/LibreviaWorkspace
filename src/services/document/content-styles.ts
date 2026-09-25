@@ -192,6 +192,12 @@ ${DOCUMENT_FONT_CSS}
   height: 1lh;
 }
 
+/* No papel, a captura cortada no pé do quadro: a linha dela desceu para a folha
+   seguinte (ver usePagination), e não se repete aqui. */
+.page__content p[data-continued='to']:has(> img[data-anchored])::after {
+  content: none;
+}
+
 /*
   A marca de seção não ocupa linha.
 
@@ -221,13 +227,18 @@ ${DOCUMENT_FONT_CSS}
   border-collapse: collapse;
   width: 100%;
   table-layout: fixed;
-  margin: 0.8em 0;
+  /* Sem margem própria, como no Word: o ar em volta da tabela é o espaço dos
+     parágrafos vizinhos. Os 0,8em de antes somavam uma linha a cada tabela. */
+  margin: 0;
 }
 
+/* A margem de célula vem da tabela (--cell-margins, que o leitor resolve como o
+   Word); sem ela, a do modelo do editor — 60/120 twips, o TableNormal que ele
+   grava. */
 .page__content th,
 .page__content td {
   border: 1px solid #9aa3ad;
-  padding: 4px 8px;
+  padding: var(--cell-margins, 4px 8px);
   vertical-align: top;
   position: relative;
 }

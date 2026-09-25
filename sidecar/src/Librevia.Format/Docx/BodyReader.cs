@@ -1246,6 +1246,10 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory, bool 
 
         var tableNode = Node.Of("table");
         tableNode.Content = rows;
+
+        // A margem de célula que o Word usa nesta tabela, para a tela medir a
+        // linha como o papel. Só leitura: o `w:tblPr` original volta como estava.
+        tableNode.With("cellMargins", string.Join(' ', TableLook.CellMargins(table, part)));
         return tableNode;
     }
 

@@ -51,6 +51,13 @@ export interface MeasuredBlock {
    * tanto a menos para o resto da tabela.
    */
   readonly repeatHeight?: number
+  /**
+   * Cortes que não são entre linhas de texto e por isso não passam pela regra
+   * de viúvas e órfãs: o pé da captura ancorada, onde o LibreOffice deixa a
+   * linha vazia do parágrafo descer para a folha seguinte enquanto o quadro
+   * fica. Já estão também em `breakpoints`.
+   */
+  readonly freeBreakpoints?: readonly number[]
 }
 
 /**
@@ -163,7 +170,9 @@ export function paginate(blocks: readonly MeasuredBlock[], pageHeight: number): 
 function usableBreakpoints(block: MeasuredBlock, pageHeight: number): readonly number[] {
   if (block.keepLines === true && block.height <= pageHeight) return []
   if (block.widowControl !== true) return block.breakpoints
-  const guarded = block.breakpoints.slice(1, -1)
+  const free = block.freeBreakpoints ?? []
+  const lines = block.breakpoints.filter((at) => !free.includes(at))
+  const guarded = [...lines.slice(1, -1), ...free].sort((left, right) => left - right)
   // Maior que a folha e sem corte que respeite a regra: corta assim mesmo,
   // que a alternativa seria uma folha esticada além do papel.
   return guarded.length === 0 && block.height > pageHeight ? block.breakpoints : guarded

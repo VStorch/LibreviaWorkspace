@@ -1,6 +1,8 @@
 import { Extension, type Editor } from '@tiptap/core'
 import type { Node as ProseMirrorNode } from '@tiptap/pm/model'
 import { TableMap } from '@tiptap/pm/tables'
+import { Plugin } from '@tiptap/pm/state'
+import { Decoration, DecorationSet } from '@tiptap/pm/view'
 import {
   cellBordersFromAttr,
   cellLookPatch,
@@ -61,8 +63,56 @@ declare module '@tiptap/core' {
 export const TableLook = Extension.create({
   name: 'tableLook',
 
+  /**
+   * A margem de célula também na tela. O `renderHTML` do atributo só chega ao
+   * papel: na tela a tabela é desenhada pelo `TableView` redimensionável, que
+   * monta o próprio `<table>` e não aplica os atributos. A decoração de nó cai
+   * no embrulho dele, e a variável desce às células por herança.
+   */
+  addProseMirrorPlugins() {
+    return [
+      new Plugin({
+        props: {
+          decorations: (state) => {
+            const decorations: Decoration[] = []
+            state.doc.descendants((node, pos) => {
+              if (node.type.name !== 'table') return true
+              const css = cellMarginsCss(node.attrs['cellMargins'])
+              if (css !== null) {
+                decorations.push(
+                  Decoration.node(pos, pos + node.nodeSize, { style: `--cell-margins: ${css}` }),
+                )
+              }
+              return true
+            })
+            return DecorationSet.create(state.doc, decorations)
+          },
+        },
+      }),
+    ]
+  },
+
   addGlobalAttributes() {
     return [
+      {
+        types: ['table'],
+        attributes: {
+          /**
+           * A margem de célula que o Word usa nesta tabela, em twips — cima,
+           * direita, baixo, esquerda —, como o leitor a resolveu (tabela, estilo,
+           * padrão do Word). Vira a variável que o `padding` das células lê; a
+           * tabela sem ela é a tabela nova, com a margem do modelo do editor.
+           */
+          cellMargins: {
+            default: null,
+            parseHTML: () => null,
+            renderHTML: (attributes: Record<string, unknown>) => {
+              const css = cellMarginsCss(attributes['cellMargins'])
+              return css === null ? {} : { style: `--cell-margins: ${css}` }
+            },
+          },
+        },
+      },
       {
         types: [...CELL_TYPES],
         attributes: {
@@ -281,4 +331,13 @@ export function applyTableDraft(editor: Editor, draft: TableDraft, contentWidthP
   if (draft.headerRow !== placement.draft.headerRow) chain.toggleHeaderRow()
 
   return chain.run()
+}
+
+/** `"0 108 0 108"` (twips) em `padding` de CSS; o que não for quatro números some. */
+export function cellMarginsCss(value: unknown): string | null {
+  if (typeof value !== 'string') return null
+  const sides = value.trim().split(/\s+/).map(Number)
+  if (sides.length !== 4 || sides.some((side) => !Number.isFinite(side) || side < 0)) return null
+  // Twips para pixels de CSS: 1440 por polegada, 96 px por polegada.
+  return sides.map((side) => `${Math.round((side / 15) * 100) / 100}px`).join(' ')
 }

@@ -144,6 +144,9 @@ function markSplitParagraphs(
     first.style.paddingTop = '0'
     first.style.textIndent = '0'
     first.dataset.continued = 'from'
+    // O pedaço vazio é a linha que desceu da captura ancorada: sem conteúdo o
+    // parágrafo não teria altura, e a linha é o que ele leva para esta folha.
+    if (first.childNodes.length === 0) first.appendChild(document.createElement('br'))
   }
   const last = holder.lastElementChild
   if (end.offset !== undefined && last instanceof HTMLElement) {

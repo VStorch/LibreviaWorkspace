@@ -933,6 +933,34 @@ public static class Fixtures
         body.AppendChild(paragraph);
     });
 
+    /// <summary>
+    /// Duas tabelas: uma com `w:tblCellMar` próprio só em cima, outra calada — que
+    /// herda do estilo padrão de tabela (60 twips embaixo) e do Word (108 dos lados).
+    /// </summary>
+    public static byte[] WithCellMargins() => Build((body, part) =>
+    {
+        var styles = part.AddNewPart<StyleDefinitionsPart>();
+        styles.Styles = new Styles(new Style(
+            new StyleName { Val = "Normal Table" },
+            new StyleTableProperties(new TableCellMarginDefault(
+                new BottomMargin { Width = "60", Type = TableWidthUnitValues.Dxa })))
+        {
+            Type = StyleValues.Table,
+            StyleId = "TableNormal",
+            Default = true,
+        });
+
+        Table Make(string text, TableCellMarginDefault? margins) => new(
+            new TableProperties(margins is null ? [] : [margins]),
+            new TableGrid(new GridColumn { Width = "9000" }),
+            new TableRow(new TableCell(Paragraph(text))));
+
+        body.AppendChild(Make("Margem própria", new TableCellMarginDefault(
+            new TopMargin { Width = "100", Type = TableWidthUnitValues.Dxa })));
+        body.AppendChild(Paragraph("Entre as tabelas."));
+        body.AppendChild(Make("Margem herdada", null));
+    });
+
     public static byte[] WithTable() => Build((body, _) =>
     {
         body.AppendChild(Paragraph("Antes da tabela."));
