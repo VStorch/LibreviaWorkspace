@@ -174,13 +174,15 @@ export async function saveDocx(
     SidecarMethod.DocxSave,
     // `flatten` escolhe a leitura de referência do sidecar: o rascunho antigo
     // traz blocos achatados, e só uma leitura achatada os reconhece. Os estilos
-    // vão junto para que o modificado e o criado cheguem a `word/styles.xml`
-    // (`StyleWriter.cs`); do rascunho antigo, não — nele os blocos já carregam a
-    // formatação inteira, e os estilos são os que a migração lhe deu.
+    // vão sempre, para que o modificado e o criado cheguem a `word/styles.xml`
+    // (`StyleWriter.cs`) — também do rascunho antigo, que deixa criar e aplicar
+    // estilo como qualquer outro documento: gravá-los é seguro ali, porque os
+    // blocos achatados carregam os valores como formatação direta.
     {
       page: model.page,
       doc: model.doc,
-      ...(model.flattened ? { flatten: true } : model.styles === undefined ? {} : { styles: model.styles }),
+      ...(model.flattened ? { flatten: true } : {}),
+      ...(model.styles === undefined ? {} : { styles: model.styles }),
     },
     new Uint8Array(original),
   )

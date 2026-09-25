@@ -32,7 +32,20 @@ internal static class StyleWriter
     internal const string StaleEffects = "estilos com efeitos do Word 2010 (stylesWithEffects.xml)";
 
     /// <returns>Se alguma coisa foi gravada.</returns>
-    public static bool Apply(MainDocumentPart part, StyleSheetDto? wanted, Inventory inventory, HashSet<string> touched)
+    /// <param name="additionsOnly">
+    /// Rascunho antigo (blocos achatados): só acrescenta o estilo que o pacote
+    /// não tem. Os estilos de um rascunho da versão 2 foram **inventados** na
+    /// migração (`LEGACY_STYLES`), e não lidos deste arquivo; compará-los com os
+    /// do original e gravar a diferença reescreveria em Times os estilos
+    /// verdadeiros do documento. A mudança num estilo existente é declarada como
+    /// perda, e não gravada.
+    /// </param>
+    public static bool Apply(
+        MainDocumentPart part,
+        StyleSheetDto? wanted,
+        Inventory inventory,
+        HashSet<string> touched,
+        bool additionsOnly = false)
     {
         if (wanted is null) return false;
 
@@ -43,7 +56,13 @@ internal static class StyleWriter
         var styles = definitions.Styles ??= new Styles();
         var changed = false;
 
-        if (current.Defaults.Paragraph != wanted.Defaults.Paragraph)
+        var skipped = false;
+
+        if (additionsOnly)
+        {
+            skipped = current.Defaults != wanted.Defaults;
+        }
+        else if (current.Defaults.Paragraph != wanted.Defaults.Paragraph)
         {
             var defaults = styles.DocDefaults ??= new DocDefaults();
             var holder = defaults.ParagraphPropertiesDefault ??= new ParagraphPropertiesDefault();
@@ -52,7 +71,7 @@ internal static class StyleWriter
             changed = true;
         }
 
-        if (current.Defaults.Character != wanted.Defaults.Character)
+        if (!additionsOnly && current.Defaults.Character != wanted.Defaults.Character)
         {
             var defaults = styles.DocDefaults ??= new DocDefaults();
             var holder = defaults.RunPropertiesDefault ??= new RunPropertiesDefault();
@@ -66,9 +85,15 @@ internal static class StyleWriter
             if (current.Styles.TryGetValue(id, out var before))
             {
                 if (before == definition) continue;
+                if (additionsOnly)
+                {
+                    skipped = true;
+                    continue;
+                }
+
                 if (StyleOf(styles, id) is not { } element) continue;
 
-                Modify(styles, element, before, definition, current);
+                Modify(styles, element, before, definition, current, inventory);
                 changed = true;
                 continue;
             }
@@ -77,6 +102,7 @@ internal static class StyleWriter
             changed = true;
         }
 
+        if (skipped) inventory.NoteLoss("mudança nos estilos existentes feita num rascunho de versão antiga");
         if (!changed) return false;
 
         styles.Save();
@@ -100,9 +126,17 @@ internal static class StyleWriter
         Style element,
         StyleDefinitionDto before,
         StyleDefinitionDto after,
-        StyleSheetDto current)
+        StyleSheetDto current,
+        Inventory inventory)
     {
-        if (before.Custom && before.Name != after.Name) element.StyleName = new StyleName { Val = after.Name };
+        // O nome do embutido é como o Word o reconhece (`heading 1`): não muda, e
+        // quem pediu fica sabendo — a interface já não oferece, então chegar aqui
+        // é modelo vindo de outro lugar.
+        if (before.Name != after.Name)
+        {
+            if (before.Custom) element.StyleName = new StyleName { Val = after.Name };
+            else inventory.NoteLoss($"novo nome do estilo embutido \"{before.Name}\"");
+        }
         if (before.BasedOn != after.BasedOn) element.BasedOn = after.BasedOn is null ? null : new BasedOn { Val = after.BasedOn };
         if (before.Next != after.Next)
         {
@@ -185,20 +219,28 @@ internal static class StyleWriter
             before.FirstLineMm != after.FirstLineMm)
         {
             var indentation = properties.GetFirstChild<Indentation>() ?? new Indentation();
+            // As medidas em caracteres (`*Chars`) vencem a em twips no Word: sem
+            // tirá-las, a mudança não apareceria em lugar nenhum.
             if (before.IndentMm != after.IndentMm)
             {
                 indentation.Left = Twips(after.IndentMm);
                 indentation.Start = null;
+                indentation.LeftChars = null;
+                indentation.StartCharacters = null;
             }
 
             if (before.IndentRightMm != after.IndentRightMm)
             {
                 indentation.Right = Twips(after.IndentRightMm);
                 indentation.End = null;
+                indentation.RightChars = null;
+                indentation.EndCharacters = null;
             }
 
             if (before.FirstLineMm != after.FirstLineMm)
             {
+                indentation.FirstLineChars = null;
+                indentation.HangingChars = null;
                 indentation.FirstLine = after.FirstLineMm is >= 0 ? Twips(after.FirstLineMm) : null;
                 indentation.Hanging = after.FirstLineMm is < 0 ? Twips(-after.FirstLineMm) : null;
             }
@@ -210,8 +252,20 @@ internal static class StyleWriter
             before.LineSpacing != after.LineSpacing)
         {
             var spacing = properties.GetFirstChild<SpacingBetweenLines>() ?? new SpacingBetweenLines();
-            if (before.SpaceBefore != after.SpaceBefore) spacing.Before = PointsToTwips(after.SpaceBefore);
-            if (before.SpaceAfter != after.SpaceAfter) spacing.After = PointsToTwips(after.SpaceAfter);
+            // Em linhas e o automático do HTML vencem os twips, como no recuo.
+            if (before.SpaceBefore != after.SpaceBefore)
+            {
+                spacing.Before = PointsToTwips(after.SpaceBefore);
+                spacing.BeforeLines = null;
+                spacing.BeforeAutoSpacing = null;
+            }
+
+            if (before.SpaceAfter != after.SpaceAfter)
+            {
+                spacing.After = PointsToTwips(after.SpaceAfter);
+                spacing.AfterLines = null;
+                spacing.AfterAutoSpacing = null;
+            }
             if (before.LineSpacing != after.LineSpacing) LineSpacing(spacing, after.LineSpacing);
             Put(properties, "spacing", spacing.HasAttributes ? spacing : null, PPrOrder);
         }
@@ -248,11 +302,11 @@ internal static class StyleWriter
                 spacing.LineRule = null;
                 break;
             case { Kind: "multiple", Factor: { } factor }:
-                spacing.Line = Invariant((int)Math.Round(factor * 240));
+                spacing.Line = Invariant(Rounded(factor * 240));
                 spacing.LineRule = LineSpacingRuleValues.Auto;
                 break;
             case { Points: { } points }:
-                spacing.Line = Invariant((int)Math.Round(points * 20));
+                spacing.Line = Invariant(Rounded(points * 20));
                 spacing.LineRule = value.Kind == "exact" ? LineSpacingRuleValues.Exact : LineSpacingRuleValues.AtLeast;
                 break;
         }
@@ -277,7 +331,7 @@ internal static class StyleWriter
         if (before.FontSize != after.FontSize)
         {
             var size = Attr.Points(after.FontSize) is { } points and > 0
-                ? new FontSize { Val = Invariant((int)Math.Round(points * 2)) }
+                ? new FontSize { Val = Invariant(Rounded(points * 2)) }
                 : null;
             Put(properties, "sz", size, RPrOrder);
         }
@@ -344,7 +398,14 @@ internal static class StyleWriter
         millimeters is { } mm ? new StringValue(Invariant(Attr.MmToTwips(mm))) : null;
 
     private static StringValue? PointsToTwips(double? points) =>
-        points is { } value ? new StringValue(Invariant((int)Math.Round(value * 20))) : null;
+        points is { } value ? new StringValue(Invariant(Rounded(value * 20))) : null;
+
+    /// <summary>
+    /// Para longe do zero, e não para o par, como o resto do escritor
+    /// (<see cref="Attr.MmToTwips(double)"/>): 10,25 pt são 21 meios-pontos, e o
+    /// arredondamento do .NET daria 20 — um tamanho que ninguém escolheu.
+    /// </summary>
+    private static int Rounded(double value) => (int)Math.Round(value, MidpointRounding.AwayFromZero);
 
     private static string Invariant(int value) => value.ToString(CultureInfo.InvariantCulture);
 

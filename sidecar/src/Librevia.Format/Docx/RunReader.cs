@@ -1,3 +1,4 @@
+using System.Text.Json.Nodes;
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Wordprocessing;
 
@@ -23,12 +24,23 @@ public static class RunReader
     /// O que o estilo do parágrafo dá aos runs. Com ele, o que o estilo liga e o
     /// run desliga sai como a marca com <c>off</c> — ver <see cref="Off"/>.
     /// </param>
+    /// <param name="directOnly">
+    /// O trecho mora num parágrafo desenhado pelos estilos (o solto no corpo, lido
+    /// sem achatar): então só sai marca do que **difere** do herdado. O que o
+    /// estilo já dá fica com o estilo — senão a fonte, o tamanho e o negrito dele
+    /// ficariam presos em cada trecho, e modificar o estilo, ou trocar o título
+    /// por Normal, não mudaria o texto na tela. É a mesma regra do escritor
+    /// (<c>ParagraphWriter.DropWhatRepeatsTheStyle</c>).
+    /// </param>
     public static List<Mark>? MarksOf(
         RunProperties? properties,
         string? hyperlink,
         FontTable? fonts = null,
-        RunProperties? inherited = null)
+        RunProperties? inherited = null,
+        bool directOnly = false)
     {
+        var from = directOnly ? inherited : null;
+
         var marks = new List<Mark>();
 
         if (hyperlink is not null)
@@ -38,21 +50,21 @@ public static class RunReader
 
         if (properties is not null)
         {
-            if (IsOn(properties.Bold)) marks.Add(Mark.Of("bold"));
+            if (IsOn(properties.Bold)) { if (!IsOn(from?.Bold)) marks.Add(Mark.Of("bold")); }
             else if (IsOn(inherited?.Bold)) marks.Add(Off("bold"));
-            if (IsOn(properties.Italic)) marks.Add(Mark.Of("italic"));
+            if (IsOn(properties.Italic)) { if (!IsOn(from?.Italic)) marks.Add(Mark.Of("italic")); }
             else if (IsOn(inherited?.Italic)) marks.Add(Off("italic"));
-            if (IsOn(properties.Strike)) marks.Add(Mark.Of("strike"));
+            if (IsOn(properties.Strike)) { if (!IsOn(from?.Strike)) marks.Add(Mark.Of("strike")); }
             else if (IsOn(inherited?.Strike)) marks.Add(Off("strike"));
-            if (IsOn(properties.Caps)) marks.Add(Mark.Of("caps"));
-            if (IsOn(properties.SmallCaps)) marks.Add(Mark.Of("smallCaps"));
+            if (IsOn(properties.Caps) && !IsOn(from?.Caps)) marks.Add(Mark.Of("caps"));
+            if (IsOn(properties.SmallCaps) && !IsOn(from?.SmallCaps)) marks.Add(Mark.Of("smallCaps"));
 
             // `w:vertAlign` também não é alternância: traz o valor, e
             // `baseline` é o normal — que não é marca nenhuma. Enquanto isto
             // ficava de fora, a fórmula e a nota de referência do documento
             // abriam na linha do texto, e voltavam assim para o arquivo.
             var vertical = properties.VerticalTextAlignment?.Val;
-            if (vertical is not null)
+            if (vertical is not null && vertical.InnerText != from?.VerticalTextAlignment?.Val?.InnerText)
             {
                 if (vertical.Value == VerticalPositionValues.Superscript) marks.Add(Mark.Of("superscript"));
                 else if (vertical.Value == VerticalPositionValues.Subscript) marks.Add(Mark.Of("subscript"));
@@ -60,16 +72,32 @@ public static class RunReader
 
             // `w:u` não é alternância: carrega o estilo do sublinhado, e "none"
             // é a forma de desligar.
-            if (IsUnderlined(properties)) marks.Add(Mark.Of("underline"));
+            if (IsUnderlined(properties)) { if (from is null || !IsUnderlined(from)) marks.Add(Mark.Of("underline")); }
             else if (inherited is not null && IsUnderlined(inherited)) marks.Add(Off("underline"));
 
             var highlight = HighlightOf(properties);
-            if (highlight is not null)
+            if (highlight is not null && (from is null || highlight != HighlightOf(from)))
             {
                 marks.Add(Mark.Of("highlight", "color", highlight));
             }
 
             var style = TextStyleOf(properties, fonts);
+
+            // Campo a campo: a cor que repete a do estilo sai, o tamanho que
+            // difere fica.
+            if (style?.Attrs is { } attributes && from is not null && TextStyleOf(from, fonts)?.Attrs is { } baseline)
+            {
+                foreach (var (name, value) in baseline)
+                {
+                    if (attributes.TryGetValue(name, out var own) && JsonNode.DeepEquals(own, value))
+                    {
+                        attributes.Remove(name);
+                    }
+                }
+
+                if (attributes.Count == 0) style = null;
+            }
+
             if (style is not null)
             {
                 marks.Add(style);

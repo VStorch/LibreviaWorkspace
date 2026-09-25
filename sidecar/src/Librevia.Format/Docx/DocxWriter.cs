@@ -59,9 +59,10 @@ public static class DocxWriter
 
         // Os estilos antes do corpo: o bloco que aponta um estilo criado agora
         // precisa encontrá-lo definido, e o resolvedor de quem grava os blocos
-        // precisa ler as definições novas. O rascunho antigo não traz estilos
-        // que valha gravar — os blocos dele carregam a formatação inteira.
-        if (!model.Flatten) StyleWriter.Apply(part, model.Styles, inventory, touched);
+        // precisa ler as definições novas. No rascunho antigo, só o estilo que o
+        // pacote não tem: os dele podem ter sido inventados na migração (ver
+        // StyleWriter.Apply), e a mudança num existente vira perda declarada.
+        StyleWriter.Apply(part, model.Styles, inventory, touched, additionsOnly: model.Flatten);
 
         var replacement = BuildBody(
             model,

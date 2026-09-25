@@ -187,6 +187,48 @@ test.describe('painel de estilos', () => {
     expect(Number.parseFloat(size)).toBeCloseTo(18 * (96 / 72), 0)
   })
 
+  test('o texto importado segue o estilo: modificado, e de título a Normal', async () => {
+    // Mede o **trecho** — o elemento que envolve o texto —, e não o parágrafo:
+    // com a fonte do estilo presa numa marca do trecho, o parágrafo mudaria e o
+    // texto não.
+    const origem = join(folder, 'estilos.docx')
+    await writeFile(origem, await docxWithNamedStyles())
+    await stubDialogs(session.app, { open: origem, messageBox: 1 })
+    await menu(session, 'open')
+    const editor = session.window.locator('.ProseMirror')
+    await expect(editor).toContainText('Um trecho citado.')
+
+    const look = (text: string) =>
+      editor.evaluate((root, needle) => {
+        const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT)
+        for (let node = walker.nextNode(); node !== null; node = walker.nextNode()) {
+          if (node.textContent?.includes(needle) !== true) continue
+          const style = getComputedStyle(node.parentElement!)
+          return { size: Number.parseFloat(style.fontSize), weight: style.fontWeight }
+        }
+        return null
+      }, text)
+
+    await session.window.getByRole('button', { name: 'Estilos do documento' }).click()
+    const panel = session.window.getByRole('dialog', { name: 'Estilos' })
+    await panel.locator('.styles-list__item', { hasText: 'Citação recuada' }).click()
+    await panel.getByRole('button', { name: 'Modificar…' }).click()
+    await panel.getByRole('spinbutton', { name: 'Tamanho (pt)' }).fill('18')
+    await panel.getByRole('button', { name: 'OK' }).click()
+    await panel.getByRole('button', { name: 'Fechar' }).click()
+
+    expect((await look('Um trecho citado.'))?.size).toBeCloseTo(18 * (96 / 72), 0)
+
+    // O título do arquivo é negrito de 16 pt pelo estilo; trocado por Normal, o
+    // texto volta a 11 pt e sem negrito — nada do título ficou preso no trecho.
+    expect((await look('Relatório anual'))?.weight).toBe('700')
+    await editor.getByText('Relatório anual').click()
+    await session.window.getByRole('combobox', { name: 'Estilo' }).selectOption({ label: 'Normal' })
+    const normal = await look('Relatório anual')
+    expect(normal?.size).toBeCloseTo(11 * (96 / 72), 0)
+    expect(normal?.weight).toBe('400')
+  })
+
   test('o foco circula dentro do painel, e Escape continua fechando', async () => {
     await menu(session, 'new-document')
     await session.window.getByRole('button', { name: 'Estilos do documento' }).click()

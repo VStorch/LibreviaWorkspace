@@ -132,7 +132,9 @@ internal sealed class ParagraphFormat(
             var keep = declared is not null &&
                        headings.Defines(declared) &&
                        (BodyReader.HeadingLevelOfStyle(declared) == level || headings.LevelByName(declared) == level);
-            properties.ParagraphStyleId = new ParagraphStyleId { Val = keep ? declared : headings.IdFor(level.Value) };
+            var heading = keep ? declared! : headings.IdFor(level.Value);
+            properties.ParagraphStyleId = new ParagraphStyleId { Val = heading };
+            NoteUndefined(heading);
             return;
         }
 
@@ -147,7 +149,18 @@ internal sealed class ParagraphFormat(
             return;
         }
 
-        properties.ParagraphStyleId = new ParagraphStyleId { Val = headings.IdForDeclared(declared) };
+        var id = headings.IdForDeclared(declared);
+        properties.ParagraphStyleId = new ParagraphStyleId { Val = id };
+        NoteUndefined(id);
+    }
+
+    /// <summary>
+    /// `w:pStyle` que aponta estilo que o pacote não define é silêncio: o Word
+    /// desenha o Normal. Gravar assim sem dizer seria perder a aparência calado.
+    /// </summary>
+    private void NoteUndefined(string id)
+    {
+        if (!headings.Defines(id)) inventory.NoteLoss($"estilo \"{id}\", que o documento não define");
     }
 
     private static void ApplyAlignment(ParagraphProperties properties, Node node)

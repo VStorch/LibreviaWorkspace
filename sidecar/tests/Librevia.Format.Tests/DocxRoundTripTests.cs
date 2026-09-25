@@ -507,8 +507,12 @@ public class DocxRoundTripTests
         Assert.Equal("Verdana", marked.Attrs!["fontFamily"]!.GetValue<string>());
         Assert.Equal("10pt", marked.Attrs["fontSize"]!.GetValue<string>());
 
-        // E continua fora dos runs: o texto segue com a fonte do estilo.
-        var run = MarksOf(marked).Single(m => m.Type == "textStyle");
+        // E continua fora dos runs: o texto segue com a fonte do estilo — que no
+        // bloco desenhado pelos estilos nem aparece no trecho, e na leitura
+        // achatada aparece inteira.
+        Assert.DoesNotContain(MarksOf(marked), m => m.Type == "textStyle");
+        var flat = BlockContaining(OpenFlat(Fixtures.WithLineMetrics()), "Verdana");
+        var run = MarksOf(flat).Single(m => m.Type == "textStyle");
         Assert.Equal("Times New Roman", run.Attrs!["fontFamily"]!.GetValue<string>());
     }
 
@@ -1410,6 +1414,20 @@ public class DocxRoundTripTests
         var reopened = OpenFlat(Save(original, model).Bytes).Doc.Content![0];
         Assert.Equal(12.7, reopened.Attrs!["indentMm"]!.GetValue<double>());
         Assert.Equal(-6.35, reopened.Attrs!["firstLineMm"]!.GetValue<double>());
+    }
+
+    [Fact]
+    public void OTrechoLevaSoOQueDifereDoEstilo()
+    {
+        // A faixa é Arial 10 pt, negrito e branca pelo estilo: o trecho sem
+        // formatação própria não leva nada disso — senão modificar o estilo não
+        // mudaria o texto na tela.
+        var banner = FirstOfType(Open(Fixtures.WithStyles()), "paragraph");
+        Assert.Empty(MarksOf(banner));
+
+        // A leitura achatada continua levando tudo, para o rascunho antigo.
+        var flat = FirstOfType(OpenFlat(Fixtures.WithStyles()), "paragraph");
+        Assert.Contains(MarksOf(flat), m => m.Type == "bold");
     }
 
     [Fact]

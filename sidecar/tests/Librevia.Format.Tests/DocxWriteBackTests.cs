@@ -159,7 +159,7 @@ public class DocxWriteBackTests
         var original = Fixtures.WithStyles();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
         var text = BlockOf(model, 0).Content![0];
-        text.Marks = text.Marks!.Where(mark => mark.Type != "bold").ToList();
+        text.Marks = (text.Marks ?? []).Where(mark => mark.Type != "bold").ToList();
         text.Text = "Sem a marca.";
 
         var xml = Roundtrip.XmlOf(Roundtrip.Save(original, model).Bytes);
@@ -175,7 +175,7 @@ public class DocxWriteBackTests
         var original = Fixtures.WithStyles();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
         var text = BlockOf(model, 0).Content![0];
-        text.Marks = [.. text.Marks!.Where(mark => mark.Type != "bold"), RunReader.Off("bold"), Mark.Of("charStyle", "styleId", "Destaque")];
+        text.Marks = [.. (text.Marks ?? []).Where(mark => mark.Type != "bold"), RunReader.Off("bold"), Mark.Of("charStyle", "styleId", "Destaque")];
         text.Text = "Sem negrito.";
 
         var saved = Roundtrip.Save(original, model).Bytes;

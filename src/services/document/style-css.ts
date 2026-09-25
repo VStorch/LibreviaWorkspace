@@ -10,6 +10,11 @@
  * Só os filhos diretos de `.page__content`: parágrafo de lista e de célula têm
  * regras próprias em `content-styles.ts`, que ainda não vêm de estilo.
  *
+ * Fica de fora o `w:contextualSpacing` ("não somar espaço entre parágrafos do
+ * mesmo estilo"): o leitor achatado nunca o aplicou, e a paginação conferida
+ * contra o corpus foi medida sem ele. Paridade antes de melhoria — ele volta ao
+ * arquivo intacto, só não muda a tela.
+ *
  * O texto vai, igual, para o editor e para o HTML do PDF; e vem **depois** de
  * `DOCUMENT_CONTENT_CSS`, cujas regras de corpo e de título passam a ser só o
  * que vale fora de um documento (a planilha impressa).

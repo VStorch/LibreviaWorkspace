@@ -43,6 +43,17 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory, bool 
     private bool _paragraphHasContent;
 
     /// <summary>
+    /// Os trechos do parágrafo em leitura levam só o que difere do estilo?
+    /// </summary>
+    /// <remarks>
+    /// Só no parágrafo que o CSS dos estilos desenha — o solto no corpo, lido sem
+    /// achatar. O de lista, de célula, de caixa de texto e o do rascunho antigo
+    /// continuam com a formatação inteira em cada trecho: ali nenhuma regra de
+    /// estilo chega para preencher o que faltasse.
+    /// </remarks>
+    private bool _directRuns;
+
+    /// <summary>
     /// Objetos ancorados encontrados no parágrafo que está sendo lido.
     /// </summary>
     /// <remarks>
@@ -216,7 +227,10 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory, bool 
 
         _paragraphHasContent = false;
         _paragraphFloats.Clear();
+        var outer = _directRuns;
+        _directRuns = !flat;
         var content = ReadInline(paragraph, inheritedRun);
+        _directRuns = outer;
 
         // Uma quebra de página sozinha no parágrafo é o nó `pageBreak`, não um
         // parágrafo vazio com uma quebra dentro.
@@ -754,7 +768,8 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory, bool 
             _styles.ResolveRun(inherited, run.RunProperties),
             hyperlink,
             _fonts,
-            flatten ? null : inherited);
+            flatten ? null : inherited,
+            directOnly: _directRuns);
 
         // O estilo de caractere do trecho (`w:rStyle`). A leitura não o resolve —
         // quem o desenha é o CSS dos estilos, como no parágrafo —, e a marca é o
@@ -947,7 +962,10 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory, bool 
         var node = Node.Of("paragraph");
         if (AlignmentOf(effective) is { } alignment) node.With("textAlign", alignment);
 
+        var outer = _directRuns;
+        _directRuns = false;
         var content = ReadInline(paragraph, inheritedRun);
+        _directRuns = outer;
         if (content.Count > 0) node.Content = content;
         return node;
     }
@@ -970,7 +988,10 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory, bool 
                 var (_, inheritedRun) = _styles.Resolve(paragraph.ParagraphProperties);
                 var afterSomething = _paragraphHasContent;
 
+                var outer = _directRuns;
+                _directRuns = false;
                 var inline = ReadInline(paragraph, inheritedRun);
+                _directRuns = outer;
                 if (inline.Count == 0) continue;
 
                 if (afterSomething) yield return Node.Of("hardBreak");

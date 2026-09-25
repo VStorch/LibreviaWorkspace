@@ -1,4 +1,6 @@
 using System.Text.RegularExpressions;
+using DocumentFormat.OpenXml.Packaging;
+using DocumentFormat.OpenXml.Wordprocessing;
 using Librevia.Format.Docx;
 
 namespace Librevia.Format.Tests;
@@ -122,11 +124,19 @@ public class StyleWriterTests
     }
 
     [Fact]
-    public void RascunhoAntigoNaoGravaEstilos()
+    public void RascunhoAntigoSoAcrescentaEstilos()
     {
+        // Os estilos de um rascunho da versão 2 foram inventados na migração: a
+        // diferença deles para os do arquivo não é obra da pessoa, e gravá-la
+        // reescreveria os estilos verdadeiros. O estilo novo entra; a mudança num
+        // existente fica fora do arquivo e é declarada.
         var original = Fixtures.WithStyles();
-        var model = Changed(original, sheet =>
-            WithStyle(sheet, sheet.Styles["Faixa"] with { Character = new StyleCharacterDto(Bold: false) }));
+        var novo = new StyleDefinitionDto(
+            "Destaque", "Destaque", "paragraph", QFormat: true, Hidden: false, Custom: true,
+            Character: new StyleCharacterDto(Bold: true));
+        var model = Changed(original, sheet => WithStyle(
+            WithStyle(sheet, sheet.Styles["Faixa"] with { Character = new StyleCharacterDto(Bold: false) }),
+            novo));
 
         var saved = Roundtrip.Save(original, Roundtrip.Clone(Roundtrip.OpenFlat(original)) with
         {
@@ -134,6 +144,68 @@ public class StyleWriterTests
             Flatten = true,
         });
 
-        Assert.Equal(Roundtrip.PartsOf(original)["word/styles.xml"], Roundtrip.PartsOf(saved.Bytes)["word/styles.xml"]);
+        var reopened = Roundtrip.Open(saved.Bytes).Styles!;
+        Assert.Equal(0, saved.Result.RewrittenBlocks);
+        Assert.Equal(novo, reopened.Styles["Destaque"]);
+        Assert.Equal(Roundtrip.Open(original).Styles!.Styles["Faixa"], reopened.Styles["Faixa"]);
+        Assert.Contains(saved.Result.Inventory.Lost, item => item.Contains("rascunho", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void MeioPontoArredondaParaLongeDoZeroEMedidaEmLinhasSai()
+    {
+        // `w:beforeLines` vence `w:before` no Word: sem tirá-lo, o espaço novo não
+        // apareceria em lugar nenhum.
+        byte[] original;
+        using (var buffer = new MemoryStream())
+        {
+            buffer.Write(Fixtures.WithStyles());
+            using (var document = WordprocessingDocument.Open(buffer, true))
+            {
+                var faixa = document.MainDocumentPart!.StyleDefinitionsPart!.Styles!.Elements<Style>()
+                    .First(style => style.StyleId == "Faixa");
+                faixa.StyleParagraphProperties!.SpacingBetweenLines = new SpacingBetweenLines { Before = "120", BeforeLines = 50 };
+            }
+
+            original = buffer.ToArray();
+        }
+
+        var model = Changed(original, sheet =>
+        {
+            var faixa = sheet.Styles["Faixa"];
+            return WithStyle(sheet, faixa with
+            {
+                Paragraph = faixa.Paragraph! with { SpaceBefore = 12 },
+                Character = faixa.Character! with { FontSize = "10.25pt" },
+            });
+        });
+
+        var xml = StylesOf(Roundtrip.XmlOf(Roundtrip.Save(original, model).Bytes, "word/styles.xml"))["Faixa"];
+        Assert.Contains("<w:sz w:val=\"21\" />", xml, StringComparison.Ordinal);
+        Assert.DoesNotContain("beforeLines", xml, StringComparison.Ordinal);
+        Assert.Contains("w:before=\"240\"", xml, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void NomeDeEmbutidoNaoMudaEOAvisoSai()
+    {
+        var original = Fixtures.WithStyleSpacingAndDirectMargins();
+        var model = Changed(original, sheet => WithStyle(sheet, sheet.Styles["Normal"] with { Name = "Meu Normal" }));
+        var saved = Roundtrip.Save(original, model);
+
+        Assert.Contains("w:val=\"Normal\"", Roundtrip.XmlOf(saved.Bytes, "word/styles.xml"), StringComparison.Ordinal);
+        Assert.Contains(saved.Result.Inventory.Lost, item => item.Contains("Normal", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void ParagrafoQueApontaEstiloIndefinidoEntraNoInventario()
+    {
+        var original = Fixtures.WithStyles();
+        var model = Roundtrip.Clone(Roundtrip.Open(original));
+        model.Doc.Content![0].With("styleId", "NaoExiste");
+        model.Doc.Content[0].Content![0].Text = "Editado.";
+
+        var saved = Roundtrip.Save(original, model);
+        Assert.Contains(saved.Result.Inventory.Lost, item => item.Contains("NaoExiste", StringComparison.Ordinal));
     }
 }
