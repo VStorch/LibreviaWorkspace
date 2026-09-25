@@ -168,6 +168,23 @@ test.describe('paginação ao vivo', () => {
     expect(primeira.at(-1)).toBe(corte.antes)
     expect(segunda[0]).toBe(corte.depois)
   })
+
+  test('viúvas e órfãs: nenhuma linha do parágrafo fica sozinha numa folha', async () => {
+    // Trinta parágrafos de enchimento deixam lugar para uma linha só no pé: sem
+    // o controle, ela ficaria órfã; com ele, o parágrafo desce inteiro.
+    await paragrafoAtravessandoAFolha(session, 30, 100)
+    await expect(session.window.locator('.paper')).toHaveCount(2)
+    await expect.poll(() => linhasEmVoltaDoCorte(session)).toEqual({ antes: 0, depois: 0 })
+
+    // Vinte e oito: o parágrafo de cinco linhas cabe menos a última, e a quebra
+    // leva junto a penúltima para ela não abrir a folha sozinha.
+    await menu(session, 'new-document')
+    await paragrafoAtravessandoAFolha(session, 28, 100)
+    await expect.poll(() => linhasEmVoltaDoCorte(session)).not.toEqual({ antes: 0, depois: 0 })
+    const linhas = (await linhasEmVoltaDoCorte(session))!
+    expect(linhas.antes).toBeGreaterThanOrEqual(2)
+    expect(linhas.depois).toBeGreaterThanOrEqual(2)
+  })
 })
 
 /**
@@ -176,15 +193,42 @@ test.describe('paginação ao vivo', () => {
  * únicas são o que deixa comparar o corte da tela com o do papel sem depender
  * da fonte da máquina.
  */
-async function paragrafoAtravessandoAFolha(session: Session): Promise<void> {
+async function paragrafoAtravessandoAFolha(session: Session, enchimento = 28, total = 160): Promise<void> {
   await menu(session, 'new-document')
   await session.window.locator('.ProseMirror').click()
-  for (let i = 0; i < 28; i++) {
+  for (let i = 0; i < enchimento; i++) {
     await session.window.keyboard.insertText(`Enchimento ${i}.`)
     await session.window.keyboard.press('Enter')
   }
-  const palavras = Array.from({ length: 160 }, (_, index) => `p${index + 1}`).join(' ')
+  const palavras = Array.from({ length: total }, (_, index) => `p${index + 1}`).join(' ')
   await session.window.keyboard.insertText(palavras)
+}
+
+/**
+ * Quantas linhas do parágrafo cortado ficam antes e depois do espaçador —
+ * zero e zero quando nenhum parágrafo foi cortado.
+ */
+async function linhasEmVoltaDoCorte(session: Session): Promise<{ antes: number; depois: number }> {
+  return session.window.evaluate(() => {
+    const gap = document.querySelector('.ProseMirror .page-line-gap')
+    const paragraph = gap?.closest('p')
+    if (gap === null || gap === undefined || paragraph === null || paragraph === undefined) {
+      return { antes: 0, depois: 0 }
+    }
+    const lines = (range: Range) =>
+      new Set(
+        Array.from(range.getClientRects())
+          .filter((rect) => rect.height > 0 && rect.width > 0)
+          .map((rect) => Math.round(rect.top)),
+      ).size
+    const before = document.createRange()
+    before.setStart(paragraph, 0)
+    before.setEndBefore(gap)
+    const after = document.createRange()
+    after.setStartAfter(gap)
+    after.setEnd(paragraph, paragraph.childNodes.length)
+    return { antes: lines(before), depois: lines(after) }
+  })
 }
 
 /** A última palavra antes do espaçador e a primeira depois, lidas do DOM. */

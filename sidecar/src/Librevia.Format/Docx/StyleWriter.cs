@@ -272,6 +272,10 @@ internal static class StyleWriter
 
         if (before.KeepNext != after.KeepNext) Put(properties, "keepNext", Toggle<KeepNext>(after.KeepNext), PPrOrder);
         if (before.KeepLines != after.KeepLines) Put(properties, "keepLines", Toggle<KeepLines>(after.KeepLines), PPrOrder);
+        if (before.WidowControl != after.WidowControl)
+        {
+            Put(properties, "widowControl", Toggle<WidowControl>(after.WidowControl), PPrOrder);
+        }
         if (before.PageBreakBefore != after.PageBreakBefore)
         {
             Put(properties, "pageBreakBefore", Toggle<PageBreakBefore>(after.PageBreakBefore), PPrOrder);

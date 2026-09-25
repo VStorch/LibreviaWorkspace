@@ -406,6 +406,10 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory, bool 
         // "Manter linhas juntas": a paginação corta parágrafos entre linhas, e
         // este é o parágrafo que pediu para não ser cortado.
         if (RunReader.IsOn(effective.KeepLines)) node.With("keepLines", true);
+
+        // Viúvas e órfãs: ligado quando o arquivo cala, como o Word faz — então
+        // só o desligado vale ser dito.
+        if (effective.WidowControl is { } widow && !RunReader.IsOn(widow)) node.With("widowControl", false);
     }
 
     /// <summary>
@@ -496,6 +500,7 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory, bool 
         // para desfazer o do estilo.
         if (direct?.KeepNext is not null) node.With("keepNext", RunReader.IsOn(effective.KeepNext));
         if (direct?.KeepLines is not null) node.With("keepLines", RunReader.IsOn(effective.KeepLines));
+        if (direct?.WidowControl is not null) node.With("widowControl", RunReader.IsOn(effective.WidowControl));
     }
 
     /// <summary>Uma medida declarada: zero conta, negativo vira zero.</summary>

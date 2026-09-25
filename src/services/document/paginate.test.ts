@@ -212,5 +212,31 @@ describe('cortes dentro de blocos', () => {
       const blocks = [...stack([700, 100], { keepNext: [1] }), paragraph(800)]
       expect(paginate(blocks, 1000)).toEqual([1000])
     })
+
+    it('viúvas e órfãs: a última linha não desce sozinha, leva a penúltima', () => {
+      // Nove das dez linhas caberiam; a décima ficaria viúva no topo da folha.
+      expect(paginate([...stack([550]), paragraph(550, 10, { widowControl: true })], 1000)).toEqual([950])
+    })
+
+    it('viúvas e órfãs: a primeira linha não fica sozinha no pé', () => {
+      // Só uma linha caberia: o parágrafo inteiro desce.
+      expect(paginate([...stack([930]), paragraph(930, 10, { widowControl: true })], 1000)).toEqual([930])
+    })
+
+    it('parágrafo de duas ou três linhas anda inteiro', () => {
+      expect(paginate([...stack([920]), paragraph(920, 2, { widowControl: true })], 1000)).toEqual([920])
+      expect(paginate([...stack([880]), paragraph(880, 3, { widowControl: true })], 1000)).toEqual([880])
+    })
+
+    it('sem controle, a linha sozinha é aceita', () => {
+      expect(paginate([...stack([930]), paragraph(930, 10, { widowControl: false })], 1000)).toEqual([980])
+    })
+
+    it('parágrafo maior que a folha respeita a regra nos dois cortes', () => {
+      // 25 linhas numa folha de 20: 20 e 5 não violam, e cortar em 1000 serve.
+      expect(paginate([paragraph(0, 25, { widowControl: true })], 1000)).toEqual([1000])
+      // 21 linhas: cortar em 20 deixaria a 21ª viúva, então 19 ficam.
+      expect(paginate([paragraph(0, 21, { widowControl: true })], 1000)).toEqual([950])
+    })
   })
 })

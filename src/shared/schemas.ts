@@ -253,6 +253,7 @@ const styleParagraphSchema = z.object({
   lineSpacing: lineSpacingSchema.optional(),
   keepNext: z.boolean().optional(),
   keepLines: z.boolean().optional(),
+  widowControl: z.boolean().optional(),
   pageBreakBefore: z.boolean().optional(),
   contextualSpacing: z.boolean().optional(),
   outlineLevel: z.number().int().min(0).max(8).optional(),

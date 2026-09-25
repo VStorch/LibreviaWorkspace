@@ -641,6 +641,16 @@ public class DocxRoundTripTests
     }
 
     [Fact]
+    public void ReadsWidowControlOnlyWhenTurnedOff()
+    {
+        // Ligado é o padrão do Word: só o parágrafo que o desliga diz alguma coisa.
+        var model = Open(Fixtures.WithKeepLines());
+
+        Assert.False(BlockContaining(model, "Viúva permitida").Attrs!["widowControl"]!.GetValue<bool>());
+        Assert.False(BlockContaining(model, "Comum").Attrs?.ContainsKey("widowControl") ?? false);
+    }
+
+    [Fact]
     public void TreatsLeadingTabsAsCentering()
     {
         // No corpus, o primeiro título de cada documento vem alinhado à

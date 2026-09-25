@@ -59,6 +59,8 @@ export interface StyleParagraphFormat {
   readonly lineSpacing?: LineSpacing | undefined
   readonly keepNext?: boolean | undefined
   readonly keepLines?: boolean | undefined
+  /** Viúvas e órfãs (`w:widowControl`): ausente é ligado, como no Word. */
+  readonly widowControl?: boolean | undefined
   readonly pageBreakBefore?: boolean | undefined
   readonly contextualSpacing?: boolean | undefined
   /** Nível na estrutura do documento, de 0 a 8 — o que faz de um estilo título. */

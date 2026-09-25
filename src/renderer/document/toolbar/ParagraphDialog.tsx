@@ -134,6 +134,24 @@ export function ParagraphDialog({
         <span>{t('document.paragraph.keepWithNext')}</span>
       </label>
 
+      <label className="popover__check">
+        <input
+          type="checkbox"
+          checked={draft.keepLines}
+          onChange={(event) => change('keepLines', event.target.checked)}
+        />
+        <span>{t('document.paragraph.keepLinesTogether')}</span>
+      </label>
+
+      <label className="popover__check">
+        <input
+          type="checkbox"
+          checked={draft.widowControl}
+          onChange={(event) => change('widowControl', event.target.checked)}
+        />
+        <span>{t('document.paragraph.widowControl')}</span>
+      </label>
+
       <p className={valid ? 'popover__hint' : 'popover__error'}>
         {valid ? t('document.paragraph.hintValid') : t('document.paragraph.hintInvalid')}
       </p>

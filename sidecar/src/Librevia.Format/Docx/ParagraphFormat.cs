@@ -78,6 +78,7 @@ internal sealed class ParagraphFormat(
         ApplyShading(properties, node);
         ApplyKeepNext(properties, node, direct);
         ApplyKeepLines(properties, node, direct);
+        ApplyWidowControl(properties, node, direct);
         ApplyMark(properties, node);
 
         DropWhatRepeatsTheStyle(properties, original?.ParagraphProperties, style);
@@ -302,6 +303,7 @@ internal sealed class ParagraphFormat(
         if (Absent("background")) properties.Shading = null;
         if (Absent("keepNext")) properties.KeepNext = null;
         if (Absent("keepLines")) properties.KeepLines = null;
+        if (Absent("widowControl")) properties.WidowControl = null;
 
         if (properties.ParagraphMarkRunProperties is { } mark)
         {
@@ -386,6 +388,13 @@ internal sealed class ParagraphFormat(
             RunReader.IsOn(lines) == RunReader.IsOn(style.KeepLines))
         {
             properties.KeepLines = null;
+        }
+
+        // O estilo que cala sobre viúvas as controla: é o padrão do Word.
+        if (original?.WidowControl is null && properties.WidowControl is { } widow &&
+            RunReader.IsOn(widow) == (style.WidowControl is null || RunReader.IsOn(style.WidowControl)))
+        {
+            properties.WidowControl = null;
         }
 
         if (properties.ParagraphMarkRunProperties is { HasChildren: false }) properties.ParagraphMarkRunProperties = null;
@@ -599,6 +608,29 @@ internal sealed class ParagraphFormat(
         }
 
         if (RunReader.IsOn(properties.KeepNext)) properties.KeepNext = null;
+    }
+
+    /// <remarks>
+    /// Controle de viúvas e órfãs, que no Word vale **ligado** quando nada o
+    /// diz. Por isso o desligado é o que o nó carrega de todo jeito, e o ligado
+    /// só é escrito quando desfaz um desligado — no nó direto, o que a pessoa
+    /// marcou; no achatado, o desligado que o parágrafo trazia e ela religou.
+    /// </remarks>
+    private static void ApplyWidowControl(ParagraphProperties properties, Node node, bool direct)
+    {
+        if (Attr.Node(node, "widowControl") is not null && !Attr.Bool(node, "widowControl"))
+        {
+            properties.WidowControl = new WidowControl { Val = false };
+            return;
+        }
+
+        if (Attr.Bool(node, "widowControl") && direct)
+        {
+            properties.WidowControl = new WidowControl();
+            return;
+        }
+
+        if (properties.WidowControl is { } widow && !RunReader.IsOn(widow)) properties.WidowControl = new WidowControl();
     }
 
     /// <remarks>A mesma regra do <see cref="ApplyKeepNext"/>, para `w:keepLines`.</remarks>

@@ -37,6 +37,14 @@ export interface MeasuredBlock {
    * aí não há como mantê-lo junto, e o Word também o corta.
    */
   readonly keepLines?: boolean
+  /**
+   * Os pontos de corte são linhas de parágrafo com controle de viúvas e órfãs
+   * (`w:widowControl`, ligado por padrão no Word): nenhuma linha fica sozinha
+   * no pé nem no topo da folha. Cortar depois da primeira linha deixaria a
+   * órfã, antes da última a viúva — são esses dois cortes que saem. Parágrafo
+   * de duas ou três linhas fica sem corte e anda inteiro, como no Word.
+   */
+  readonly widowControl?: boolean
 }
 
 /**
@@ -139,5 +147,9 @@ export function paginate(blocks: readonly MeasuredBlock[], pageHeight: number): 
 /** Os cortes internos que o bloco aceita, pelas regras de manter junto. */
 function usableBreakpoints(block: MeasuredBlock, pageHeight: number): readonly number[] {
   if (block.keepLines === true && block.height <= pageHeight) return []
-  return block.breakpoints
+  if (block.widowControl !== true) return block.breakpoints
+  const guarded = block.breakpoints.slice(1, -1)
+  // Maior que a folha e sem corte que respeite a regra: corta assim mesmo,
+  // que a alternativa seria uma folha esticada além do papel.
+  return guarded.length === 0 && block.height > pageHeight ? block.breakpoints : guarded
 }

@@ -263,6 +263,8 @@ describe('formatação de parágrafo', () => {
         indentRightMm: null,
         firstLineMm: null,
         keepNext: null,
+        keepLines: null,
+        widowControl: null,
         indent: 0,
       })
     })

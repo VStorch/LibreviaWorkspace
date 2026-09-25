@@ -240,6 +240,14 @@ export const DOCUMENT = {
     pt: 'Manter com o próximo parágrafo',
     en: 'Keep with next paragraph',
   },
+  'document.paragraph.keepLinesTogether': {
+    pt: 'Manter linhas juntas',
+    en: 'Keep lines together',
+  },
+  'document.paragraph.widowControl': {
+    pt: 'Controle de linhas órfãs/viúvas',
+    en: 'Widow/orphan control',
+  },
   'document.paragraph.hintValid': {
     pt: 'Vale para os parágrafos que a seleção tocar.',
     en: 'Applies to paragraphs touched by the selection.',

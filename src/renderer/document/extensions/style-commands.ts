@@ -30,6 +30,7 @@ export const DIRECT_BLOCK_ATTRS = [
   'background',
   'keepNext',
   'keepLines',
+  'widowControl',
   'fontFamily',
   'fontSize',
 ] as const

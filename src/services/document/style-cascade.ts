@@ -197,6 +197,7 @@ export function styleAttrsOf({ paragraph, character }: ResolvedStyle): Record<st
     background: paragraph.background,
     keepNext: paragraph.keepNext,
     keepLines: paragraph.keepLines,
+    widowControl: paragraph.widowControl,
     fontFamily: character.fontFamily,
     fontSize: character.fontSize,
   }

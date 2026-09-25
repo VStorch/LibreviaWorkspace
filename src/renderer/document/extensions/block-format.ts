@@ -292,6 +292,18 @@ export const BlockFormat = Extension.create<BlockFormatOptions>({
           },
 
           /**
+           * Controle de viúvas e órfãs (`w:widowControl`). Ausente é ligado,
+           * como no Word; `false` é o parágrafo que aceita uma linha sozinha no
+           * pé ou no topo da folha.
+           */
+          widowControl: {
+            default: null,
+            parseHTML: (element) => (element.hasAttribute('data-widows-allowed') ? false : null),
+            renderHTML: (attributes) =>
+              attributes['widowControl'] === false ? { 'data-widows-allowed': '' } : {},
+          },
+
+          /**
            * O identificador do estilo do Word. Não muda nada na tela: viaja
            * junto para que um parágrafo editado continue apontando o estilo
            * original na hora de gravar.

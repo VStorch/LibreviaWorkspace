@@ -1355,4 +1355,19 @@ public class DocxWriteBackTests
         var (saved, _) = Roundtrip.Save(original, model);
         Assert.Contains("<w:keepLines />", Roundtrip.XmlOf(saved), StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void KeepsWidowControlOffWhenTheParagraphIsEdited()
+    {
+        var original = Fixtures.WithKeepLines();
+        var model = Roundtrip.Clone(Roundtrip.Open(original));
+
+        Assert.True(Roundtrip.EditFirstTextContaining(model, "Viúva permitida", "Viúva ainda permitida."));
+
+        var (saved, _) = Roundtrip.Save(original, model);
+        var xml = Roundtrip.XmlOf(saved);
+        Assert.Matches("<w:widowControl w:val=\"(0|false)\"", xml);
+        // O parágrafo comum continua calado — ligado, pelo padrão.
+        Assert.Equal(1, xml.Split("w:widowControl").Length - 1);
+    }
 }

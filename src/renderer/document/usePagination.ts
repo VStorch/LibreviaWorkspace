@@ -266,6 +266,7 @@ export function usePagination(
           breakAfter: node.hasAttribute('data-break-after'),
           keepWithNext: effective['keepNext'] === true || /^H[1-6]$/.test(node.tagName),
           keepLines: effective['keepLines'] === true,
+          widowControl: lines !== null && effective['widowControl'] !== false,
         })
         accumulated += internal
       })

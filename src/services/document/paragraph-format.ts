@@ -73,6 +73,9 @@ export interface ParagraphDraft {
   readonly firstLineKind: FirstLineKind
   readonly firstLineMm: number
   readonly keepNext: boolean
+  readonly keepLines: boolean
+  /** Viúvas e órfãs: ligado quando nada diz o contrário, como no Word. */
+  readonly widowControl: boolean
 }
 
 /** Meia polegada, em milímetros: o passo de recuo do OOXML (720 twips). */
@@ -106,6 +109,8 @@ export const DEFAULT_PARAGRAPH_DRAFT: ParagraphDraft = {
   firstLineKind: FirstLineKind.None,
   firstLineMm: 0,
   keepNext: false,
+  keepLines: false,
+  widowControl: true,
 }
 
 /**
@@ -125,6 +130,8 @@ export interface ParagraphAttrs {
   readonly indentRightMm: number | null
   readonly firstLineMm: number | null
   readonly keepNext: boolean | null
+  readonly keepLines: boolean | null
+  readonly widowControl: boolean | null
   /**
    * O recuo em passos de `Ctrl+]`.
    *
@@ -175,6 +182,8 @@ export function paragraphDraftFrom(attrs: Record<string, unknown>): ParagraphDra
       firstLine > 0 ? FirstLineKind.Indent : firstLine < 0 ? FirstLineKind.Hanging : FirstLineKind.None,
     firstLineMm: clamp(round(Math.abs(firstLine)), 0, MAX_INDENT_MM),
     keepNext: attrs['keepNext'] === true,
+    keepLines: attrs['keepLines'] === true,
+    widowControl: attrs['widowControl'] !== false,
   }
 }
 
@@ -284,6 +293,12 @@ export function paragraphAttrsFrom(
       ? (kept('firstLineMm') as number | null)
       : measureOf(firstLine, effective, 'firstLineMm', -MAX_INDENT_MM),
     keepNext: same('keepNext') ? (kept('keepNext') as boolean | null) : draft.keepNext ? true : false,
+    keepLines: same('keepLines') ? (kept('keepLines') as boolean | null) : draft.keepLines ? true : false,
+    widowControl: same('widowControl')
+      ? (kept('widowControl') as boolean | null)
+      : draft.widowControl
+        ? true
+        : false,
     indent: indentSame ? (numberOf(attrs['indent']) ?? 0) : 0,
   }
 }

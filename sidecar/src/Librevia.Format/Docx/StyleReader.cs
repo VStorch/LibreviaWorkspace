@@ -37,7 +37,8 @@ public sealed record StyleParagraphDto(
     [property: JsonPropertyName("pageBreakBefore")] bool? PageBreakBefore = null,
     [property: JsonPropertyName("contextualSpacing")] bool? ContextualSpacing = null,
     [property: JsonPropertyName("outlineLevel")] int? OutlineLevel = null,
-    [property: JsonPropertyName("background")] string? Background = null);
+    [property: JsonPropertyName("background")] string? Background = null,
+    [property: JsonPropertyName("widowControl")] bool? WidowControl = null);
 
 /// <summary>Propriedades de caractere de um estilo, nas unidades do editor.</summary>
 public sealed record StyleCharacterDto(
@@ -214,7 +215,8 @@ public static class StyleReader
             PageBreakBefore: Toggle(properties.GetFirstChild<PageBreakBefore>()),
             ContextualSpacing: Toggle(properties.GetFirstChild<ContextualSpacing>()),
             OutlineLevel: properties.GetFirstChild<OutlineLevel>()?.Val?.Value,
-            Background: ShadingOf(properties.GetFirstChild<Shading>()));
+            Background: ShadingOf(properties.GetFirstChild<Shading>()),
+            WidowControl: Toggle(properties.GetFirstChild<WidowControl>()));
 
         // Um `w:pPr` que só tem coisas que não lemos não vira objeto vazio no
         // modelo: "não declara nada que eu saiba ler" e "não existe" dão no mesmo
