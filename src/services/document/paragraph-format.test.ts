@@ -76,11 +76,17 @@ describe('formatação de parágrafo', () => {
     expect(paragraphAttrsFrom(draft).indent).toBe(0)
   })
 
-  it('a entrelinha simples é "normal" no bloco que nasceu no editor', () => {
+  it('a entrelinha simples do bloco que nasceu no editor continua calada', () => {
     // O espaçamento simples do Word é a altura que a fonte pede, e nenhum fator
-    // o imita. No bloco sem nada declarado a forma continua sendo `normal`: trocá-la
-    // por um número reescreveria o bloco sem mudar uma linha do que se vê.
-    expect(paragraphAttrsFrom(DEFAULT_PARAGRAPH_DRAFT).lineHeight).toBe('normal')
+    // o imita. No bloco sem nada declarado, "Simples" é o que já se via: o
+    // atributo continua ausente, e trocá-lo por um número reescreveria o bloco
+    // sem mudar uma linha do que se vê.
+    expect(paragraphAttrsFrom(DEFAULT_PARAGRAPH_DRAFT).lineHeight).toBeNull()
+    // Vindo de outra entrelinha é medida explícita, e não `normal` — o único
+    // valor que o gravador não grava, e que deixaria o `w:line` antigo de pé.
+    expect(
+      paragraphAttrsFrom(DEFAULT_PARAGRAPH_DRAFT, { lineHeight: '1.5' }, { lineHeight: '1.5' }).lineHeight,
+    ).toBe('1.1499')
     expect(paragraphDraftFrom({ lineHeight: 'normal' }).lineSpacingKind).toBe(LineSpacingKind.Single)
   })
 
@@ -230,5 +236,51 @@ describe('formatação de parágrafo', () => {
         lineSpacingValue: 0,
       }),
     ).toBe(false)
+  })
+
+  describe('contra o estilo', () => {
+    // O bloco carrega só a formatação direta; o resto é do estilo, e o diálogo
+    // mostra o que se vê — `effectiveAttrs` —, mas grava só o que mudou.
+    const attrs = { styleId: 'Citacao', spaceAfter: 6, indent: 0 }
+    const effective = {
+      ...attrs,
+      spaceBefore: 0,
+      indentMm: 12.7,
+      lineHeight: '1.3174',
+      fontFamily: 'Calibri, sans-serif',
+      keepNext: true,
+    }
+
+    it('OK sem mudança devolve cada atributo como estava', () => {
+      const result = paragraphAttrsFrom(paragraphDraftFrom(effective), attrs, effective)
+
+      expect(result).toEqual({
+        textAlign: null,
+        spaceBefore: null,
+        spaceAfter: 6,
+        lineHeight: null,
+        indentMm: null,
+        indentRightMm: null,
+        firstLineMm: null,
+        keepNext: null,
+        indent: 0,
+      })
+    })
+
+    it('grava só o campo que mudou, e o zero que desfaz o estilo é explícito', () => {
+      const draft = { ...paragraphDraftFrom(effective), indentLeftMm: 0, keepNext: false }
+      const result = paragraphAttrsFrom(draft, attrs, effective)
+
+      expect(result.indentMm).toBe(0)
+      expect(result.keepNext).toBe(false)
+      expect(result.lineHeight).toBeNull()
+      expect(result.spaceAfter).toBe(6)
+    })
+
+    it('a entrelinha nova é medida na fonte que o estilo dá ao bloco', () => {
+      const draft = { ...paragraphDraftFrom(effective), lineSpacingValue: 1.5 }
+
+      expect(paragraphAttrsFrom(draft, attrs, effective).lineHeight).toBe('1.8311')
+    })
   })
 })

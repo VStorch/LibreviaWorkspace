@@ -22,7 +22,7 @@ public sealed record Block(string Oid, OpenXmlElement Source, Node Extracted);
 /// XML original. Por isso um erro aqui é cosmético, não perda de dados — e é
 /// isso que permite ser tolerante em vez de recusar o arquivo.
 /// </remarks>
-public sealed class BodyReader(MainDocumentPart part, Inventory inventory)
+public sealed class BodyReader(MainDocumentPart part, Inventory inventory, bool flatten = false)
 {
     /// <summary>Passo de recuo do Word: meia polegada.</summary>
 
@@ -78,10 +78,13 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory)
             {
                 case Paragraph paragraph:
                 {
-                    var node = ReadParagraph(paragraph);
-                    var list = node.Type == "pageBreak"
-                        ? null
-                        : _numbering.ListKindOf(paragraph.ParagraphProperties);
+                    // Só o parágrafo solto no corpo deixa de ser achatado: é ele
+                    // que as regras dos estilos alcançam (`.page__content > p`).
+                    // O item de lista e o parágrafo de célula têm regras próprias
+                    // em `content-styles.ts`, e continuam levando o efetivo.
+                    var numbered = _numbering.ListKindOf(paragraph.ParagraphProperties);
+                    var node = ReadParagraph(paragraph, flat: flatten || numbered is not null);
+                    var list = node.Type == "pageBreak" ? null : numbered;
 
                     if (list is null)
                     {
@@ -202,7 +205,7 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory)
 
     // --- parágrafos ---------------------------------------------------------
 
-    private Node ReadParagraph(Paragraph paragraph)
+    private Node ReadParagraph(Paragraph paragraph, bool flat)
     {
         var direct = paragraph.ParagraphProperties;
 
@@ -278,7 +281,48 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory)
             }
         }
 
+        if (flat) Flattened(node, alignment, effective, direct, inheritedRun);
+        else DirectOnly(node, viaTabs, effective, direct, inheritedRun);
+
+        // O parágrafo que só carrega a marca de seção não é uma linha de texto.
+        //
+        // No OOXML a seção termina num `w:sectPr` guardado dentro do `w:pPr` de
+        // um parágrafo vazio: o parágrafo **é** a marca. O LibreOffice não lhe
+        // dá altura nenhuma, e é ele quem grava documentos assim — o de
+        // evidências do corpus tem sete seções, todas com a mesma geometria, e
+        // seis marcas espalhadas pelo meio do texto. Cada uma valia uma linha
+        // aqui, e o texto ia descendo folha após folha.
+        //
+        // A marca continua no modelo, e não é descartada: é ela que a gravação
+        // devolve ao arquivo, e sem ela as seções do documento sumiriam.
+        if (direct?.SectionProperties is not null && content.Count == 0)
+        {
+            node.With("sectionMark", true);
+        }
+
+        node.Content = content.Count == 0 ? null : content;
+        return node;
+    }
+
+    /// <summary>
+    /// A formatação **efetiva** no bloco: padrões, estilo e direta, achatados.
+    /// </summary>
+    /// <remarks>
+    /// Continua valendo onde as regras dos estilos não chegam — item de lista e
+    /// célula — e no modo <c>flatten</c>, que é a leitura de referência de um
+    /// rascunho gravado antes de o bloco carregar só a formatação direta: ali os
+    /// nós vieram achatados, e compará-los com uma leitura que não achata faria
+    /// todo bloco parecer mudado.
+    /// </remarks>
+    private void Flattened(
+        Node node,
+        string? alignment,
+        ParagraphProperties effective,
+        ParagraphProperties? direct,
+        RunProperties inheritedRun)
+    {
         if (alignment is not null) node.With("textAlign", alignment);
+
 
         // Zero, sempre. O nível é do editor — `Ctrl+]` trabalha em passos, e um
         // passo vale 2,5em, que a 10 pt são 25 pt e não os 36 pt que 720 twips
@@ -344,25 +388,101 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory)
         // É o que faz um rótulo descer junto com a imagem que ele apresenta —
         // e sem ler isto a quebra estimada cai um bloco depois da real.
         if (RunReader.IsOn(effective.KeepNext)) node.With("keepNext", true);
+    }
 
-        // O parágrafo que só carrega a marca de seção não é uma linha de texto.
-        //
-        // No OOXML a seção termina num `w:sectPr` guardado dentro do `w:pPr` de
-        // um parágrafo vazio: o parágrafo **é** a marca. O LibreOffice não lhe
-        // dá altura nenhuma, e é ele quem grava documentos assim — o de
-        // evidências do corpus tem sete seções, todas com a mesma geometria, e
-        // seis marcas espalhadas pelo meio do texto. Cada uma valia uma linha
-        // aqui, e o texto ia descendo folha após folha.
-        //
-        // A marca continua no modelo, e não é descartada: é ela que a gravação
-        // devolve ao arquivo, e sem ela as seções do documento sumiriam.
-        if (direct?.SectionProperties is not null && content.Count == 0)
+    /// <summary>
+    /// Só a formatação **direta** no bloco; o herdado vem do CSS dos estilos.
+    /// </summary>
+    /// <remarks>
+    /// A regra é uma só, campo a campo: o arquivo declara a propriedade no
+    /// `w:pPr` do parágrafo (ou na marca, `w:pPr/w:rPr`, para a fonte)? Então o
+    /// bloco leva o valor **efetivo** dela, calculado como no achatamento; se
+    /// cala, o bloco cala, e quem desenha é `style-css.ts`. Levar o efetivo, e
+    /// não o atributo cru, é o que mantém a tela igual à de antes: o `w:ind` e o
+    /// `w:spacing` se fundem atributo a atributo com os do estilo, e o valor que
+    /// sai da fusão é o que o achatamento mostrava.
+    ///
+    /// Zero declarado **é** declaração: um `w:ind w:left="0"` desfaz o recuo do
+    /// estilo, e omiti-lo traria o recuo de volta pela regra do estilo.
+    ///
+    /// Duas exceções derivam de outra coisa que não o `w:pPr`, e por isso podem
+    /// aparecer sem declaração direta: o alinhamento por tabulação
+    /// (<see cref="TabAlignmentOf"/>), que nasce do conteúdo; e a entrelinha
+    /// quando a fonte da marca é direta — o múltiplo é medido sobre a altura
+    /// natural da fonte, e a regra do estilo o mede com a fonte do estilo.
+    /// </remarks>
+    private void DirectOnly(
+        Node node,
+        string? viaTabs,
+        ParagraphProperties effective,
+        ParagraphProperties? direct,
+        RunProperties inheritedRun)
+    {
+        if (viaTabs is not null) node.With("textAlign", viaTabs);
+        else if (direct?.Justification is not null && AlignmentOf(effective) is { } alignment)
         {
-            node.With("sectionMark", true);
+            node.With("textAlign", alignment);
         }
 
-        node.Content = content.Count == 0 ? null : content;
-        return node;
+        // O nível de `Ctrl+]`, zero pelo mesmo motivo do achatamento: o editor
+        // declara `indent` com padrão 0 e o devolve em todo parágrafo.
+        node.With("indent", 0);
+
+        // Recuo negativo sai como zero, que é o que o achatamento mostrava: o
+        // bloco não desenha recuo para fora da margem.
+        var indentation = direct?.Indentation;
+        if (indentation?.Left is not null) Declared(node, "indentMm", effective.Indentation?.Left?.Value);
+        if (indentation?.Right is not null) Declared(node, "indentRightMm", effective.Indentation?.Right?.Value);
+        if (indentation?.FirstLine is not null || indentation?.Hanging is not null)
+        {
+            var firstLine = TwipsToMm(effective.Indentation?.FirstLine?.Value);
+            var hanging = TwipsToMm(effective.Indentation?.Hanging?.Value);
+            node.With("firstLineMm", firstLine is > 0 ? firstLine.Value : hanging is > 0 ? -hanging.Value : 0);
+        }
+
+        if (direct?.Shading is not null)
+        {
+            // `w:shd` sem cor sobre um estilo com fundo apaga o fundo do estilo:
+            // sem dizê-lo, a regra do estilo o pintaria de volta.
+            if (ShadingOf(effective) is { } background) node.With("background", background);
+            else if (ShadingOf(_styles.StyleParagraphOf(direct)) is not null) node.With("background", "transparent");
+        }
+
+        var spacing = effective.SpacingBetweenLines;
+        var declared = direct?.SpacingBetweenLines;
+        if (declared?.Before is not null) node.With("spaceBefore", TwipsToPt(spacing?.Before?.Value) ?? 0);
+        if (declared?.After is not null) node.With("spaceAfter", TwipsToPt(spacing?.After?.Value) ?? 0);
+
+        var mark = _styles.ResolveMark(inheritedRun, direct);
+        var lineHeight = LineHeightOf(spacing, LineMetrics.Of(mark.RunFonts?.Ascii?.Value), 4);
+        if (declared?.Line is not null ||
+            lineHeight != LineHeightOf(spacing, LineMetrics.Of(inheritedRun.RunFonts?.Ascii?.Value), 4))
+        {
+            node.With("lineHeight", lineHeight);
+        }
+
+        var markDirect = direct?.ParagraphMarkRunProperties;
+        if (markDirect?.GetFirstChild<RunFonts>() is { } fonts &&
+            (fonts.Ascii is not null || fonts.HighAnsi is not null) &&
+            FontOf(mark) is { } font)
+        {
+            node.With("fontFamily", font);
+        }
+
+        if (markDirect?.GetFirstChild<FontSize>() is not null && FontSizeOf(mark) is { } size)
+        {
+            node.With("fontSize", size);
+        }
+
+        // Ligado ou desligado, se o parágrafo diz: `w:keepNext w:val="0"` existe
+        // para desfazer o do estilo.
+        if (direct?.KeepNext is not null) node.With("keepNext", RunReader.IsOn(effective.KeepNext));
+    }
+
+    /// <summary>Uma medida declarada: zero conta, negativo vira zero.</summary>
+    private static void Declared(Node node, string name, string? twips)
+    {
+        if (TwipsToMm(twips) is { } value) node.With(name, Math.Max(0, value));
     }
 
     private string? FontOf(RunProperties properties)
@@ -426,7 +546,15 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory)
     /// as duas voltavam nulas, e um parágrafo com entrelinha travada em 9 pt
     /// era desenhado com a do editor.
     /// </remarks>
-    private static string LineHeightOf(SpacingBetweenLines? spacing, double? natural)
+    /// <param name="decimals">
+    /// Casas do múltiplo antes de multiplicar. Duas no bloco achatado, como
+    /// sempre foi — mudar faria o rascunho antigo parecer editado. Quatro no
+    /// bloco que só leva o direto: é a grade de 240-avos em que o múltiplo volta
+    /// ao arquivo, e a mesma com que <see cref="StyleReader"/> entrega o do
+    /// estilo — sem isso a entrelinha direta e a herdada seriam medidas em
+    /// grades diferentes.
+    /// </param>
+    private static string LineHeightOf(SpacingBetweenLines? spacing, double? natural, int decimals = 2)
     {
         var rule = spacing?.LineRule?.Value;
         var declared = spacing?.Line?.Value;
@@ -439,7 +567,7 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory)
                     .ToString("0.#", System.Globalization.CultureInfo.InvariantCulture) + "pt";
             }
 
-            var factor = Math.Round(value / 240.0, 2);
+            var factor = Math.Round(value / 240.0, decimals);
 
             // Fora dessa faixa é lixo do arquivo, e não pedido de espaçamento.
             if (factor is > 0.5 and < 4) return Multiple(factor, natural);
@@ -1016,7 +1144,7 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory)
                 {
                     switch (child)
                     {
-                        case Paragraph paragraph: contents.Add(ReadParagraph(paragraph)); break;
+                        case Paragraph paragraph: contents.Add(ReadParagraph(paragraph, flat: true)); break;
                         case Table nested: contents.Add(ReadTable(nested)); break;
                         case TableCellProperties: break;
                         default: inventory.NoteInvisibleElement(child.LocalName); break;

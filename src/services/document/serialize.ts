@@ -23,9 +23,14 @@ import { LEGACY_STYLES, type StyleSheet } from './styles.js'
  *   arquivo da versão 2 não os tem, e recebe `LEGACY_STYLES` na leitura: são a
  *   aparência que o editor já desenhava, medida por medida, para que o documento
  *   antigo abra idêntico.
+ * - **4** — o bloco passou a carregar só a formatação **direta**; o herdado vem
+ *   dos estilos. Os blocos de um arquivo anterior continuam achatados, e a
+ *   leitura os marca (`flattened`) para que a gravação em DOCX os compare com
+ *   uma leitura achatada do original. Os nós não são tocados: desachatar exigiria
+ *   o `styles.xml` de cada um, e o achatado desenha igual.
  */
 export const SDOC_FORMAT = 'sdoc'
-export const SDOC_VERSION = 3
+export const SDOC_VERSION = 4
 
 /** O conteúdo é validado só na forma; a estrutura fina é do ProseMirror. */
 const documentNodeSchema: z.ZodType<DocumentNode> = z.looseObject({
@@ -40,6 +45,8 @@ const sdocSchema = z.object({
   // Opcional porque a versão 2 não tem estilos: quem decide o que fazer com a
   // ausência é `migrate`, e não o schema.
   styles: styleSheetSchema.optional(),
+  // Só presente quando verdadeiro — ver `DocumentModel.flattened`.
+  flattened: z.boolean().optional(),
 })
 
 export function serializeDocument(model: DocumentModel): string {
@@ -53,6 +60,7 @@ export function serializeDocument(model: DocumentModel): string {
       // põe ao abrir um `.docx`, e é o que mantém os nós — e a impressão digital
       // deles — como estavam.
       styles: model.styles,
+      ...(model.flattened === true ? { flattened: true } : {}),
     },
     null,
     2,
@@ -91,6 +99,7 @@ export function parseDocument(text: string, language: Language = Language.Portug
     page,
     doc: migrate(parsed.data.doc, parsed.data.version),
     styles: migrateStyles(parsed.data.styles, parsed.data.version),
+    ...(parsed.data.version < 4 || parsed.data.flattened === true ? { flattened: true } : {}),
   }
 }
 

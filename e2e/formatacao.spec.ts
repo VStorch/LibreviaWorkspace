@@ -126,8 +126,10 @@ test.describe('formatação do documento', () => {
     await dialogo.getByRole('button', { name: 'Aplicar' }).click()
 
     // O múltiplo do Word é medido sobre a **altura natural da fonte**, e não sobre
-    // o tamanho dela: 1,5 linha em Liberation Serif é `line-height: 1.7249`.
-    // Enquanto o diálogo escrevia 1,5 direto no CSS, o arquivo recebia 1,23 linha.
+    // o tamanho dela: 1,5 linha em Calibri — a fonte que o estilo do documento
+    // novo dá ao parágrafo — é `line-height: 1.8311`. Enquanto o diálogo escrevia
+    // 1,5 direto no CSS, o arquivo recebia 1,23 linha; e enquanto media na fonte
+    // do bloco em vez da do estilo, 1,5 linha de Calibri saía 1,41.
     const proporcao = await editor
       .locator('p')
       .first()
@@ -136,7 +138,7 @@ test.describe('formatação do documento', () => {
         return Number.parseFloat(estilo.lineHeight) / Number.parseFloat(estilo.fontSize)
       })
 
-    expect(proporcao).toBeCloseTo(1.7249, 2)
+    expect(proporcao).toBeCloseTo(1.8311, 2)
 
     // E a barra mostra de volta o número do Word, que é o que a pessoa escolheu.
     await expect(session.window.getByRole('combobox', { name: 'Espaçamento entre linhas' })).toHaveValue(

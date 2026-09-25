@@ -209,6 +209,7 @@ export function createFileActions(set: SetWorkspace, get: GetWorkspace, ctx: Wor
         page: empty.page,
         initialDoc: empty.doc,
         styles: empty.styles,
+        flattened: false,
         generation: state.generation + 1,
         isDirty: false,
         error: null,

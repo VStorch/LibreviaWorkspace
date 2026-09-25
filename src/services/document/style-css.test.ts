@@ -40,4 +40,13 @@ describe('styleSheetCss', () => {
     const css = styleSheetCss({ ...BUILTIN_STYLES, styles })
     expect(ruleOf(css, '.page__content > h2:not([data-style-id])')).toContain('font-size: 17pt;')
   })
+
+  it('o id que o documento não define vale só os padrões, antes das regras por id', () => {
+    const css = styleSheetCss(BUILTIN_STYLES)
+    const generic = ruleOf(css, '.page__content > [data-style-id]')
+    expect(generic).toContain('margin-bottom: 8pt;')
+    expect(css.indexOf('.page__content > [data-style-id] {')).toBeLessThan(
+      css.indexOf('.page__content > [data-style-id="Normal"]'),
+    )
+  })
 })

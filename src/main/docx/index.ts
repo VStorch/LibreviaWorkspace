@@ -172,7 +172,9 @@ export async function saveDocx(
 
   const reply = await client.request(
     SidecarMethod.DocxSave,
-    { page: model.page, doc: model.doc },
+    // `flatten` escolhe a leitura de referência do sidecar: o rascunho antigo
+    // traz blocos achatados, e só uma leitura achatada os reconhece.
+    { page: model.page, doc: model.doc, ...(model.flattened ? { flatten: true } : {}) },
     new Uint8Array(original),
   )
   const parsed = saveResultSchema.safeParse(reply.result)
@@ -293,7 +295,7 @@ async function createDocx(client: SidecarClient, page: unknown, styles: unknown)
   return reply.binary
 }
 
-function unwrapSdoc(content: string): { page: unknown; doc: unknown; styles: unknown } {
+function unwrapSdoc(content: string): { page: unknown; doc: unknown; styles: unknown; flattened: boolean } {
   let parsed: unknown
   try {
     parsed = JSON.parse(content)
@@ -306,11 +308,21 @@ function unwrapSdoc(content: string): { page: unknown; doc: unknown; styles: unk
   // arquivo byte a byte pela gravação cirúrgica, e o escritor ainda não grava
   // estilo modificado.
   const envelope = z
-    .object({ page: z.unknown(), doc: z.unknown(), styles: styleSheetSchema.optional() })
+    .object({
+      page: z.unknown(),
+      doc: z.unknown(),
+      styles: styleSheetSchema.optional(),
+      flattened: z.boolean().optional(),
+    })
     .safeParse(parsed)
   if (!envelope.success) {
     throw new AppError(ErrorCode.Internal, t('errors.docx.inconsistentState'))
   }
 
-  return { page: envelope.data.page, doc: envelope.data.doc, styles: envelope.data.styles }
+  return {
+    page: envelope.data.page,
+    doc: envelope.data.doc,
+    styles: envelope.data.styles,
+    flattened: envelope.data.flattened === true,
+  }
 }

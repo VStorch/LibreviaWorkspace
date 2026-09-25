@@ -16,8 +16,8 @@
  */
 
 import { cssLineHeightOf, explicitCssLineHeightOf } from './line-metrics.js'
-import { resolveStyle, type ResolvedStyle } from './style-cascade.js'
-import { LEGACY_STYLES, StyleType, type StyleDefinition, type StyleSheet } from './styles.js'
+import { headingStyleOf, resolveStyle, usableFactor, type ResolvedStyle } from './style-cascade.js'
+import { StyleType, type StyleSheet } from './styles.js'
 
 /** Até onde o editor tem título: `h1`…`h6`. */
 const HEADING_LEVELS = 6
@@ -33,9 +33,14 @@ export function styleSheetCss(sheet: StyleSheet): string {
   ]
 
   for (let level = 1; level <= HEADING_LEVELS; level++) {
-    const style = headingOf(sheet, level)
+    const style = headingStyleOf(sheet, level)
     rules.push(rule(`.page__content > h${level}:not([data-style-id])`, style))
   }
+
+  // O id que o documento não define: o Word o desenha só com os padrões do
+  // documento, sem nem o estilo padrão. Antes das regras por id, que têm a
+  // mesma especificidade e por isso vencem por virem depois.
+  rules.push(rule('.page__content > [data-style-id]', resolveStyle(sheet, '')))
 
   for (const style of Object.values(sheet.styles)) {
     if (style.type !== StyleType.Paragraph) continue
@@ -45,26 +50,6 @@ export function styleSheetCss(sheet: StyleSheet): string {
   }
 
   return rules.join('\n')
-}
-
-/**
- * O título de nível `level`: o do documento, pelo nome interno, ou — quando ele
- * não o define — o que o escritor vai acrescentar ao gravar (`BuiltinStyles.cs`).
- * Desenhar outra coisa seria mostrar um título que o arquivo não vai ter.
- */
-function headingOf(sheet: StyleSheet, level: number): ResolvedStyle {
-  const name = `heading ${level}`
-  const own = Object.values(sheet.styles).find(
-    (style: StyleDefinition) => style.type === StyleType.Paragraph && style.name.toLowerCase() === name,
-  )
-  if (own !== undefined) return resolveStyle(sheet, own.id)
-
-  const fallback = LEGACY_STYLES.styles[`Heading${level}`]
-  const base = resolveStyle(sheet, null)
-  return {
-    paragraph: { ...base.paragraph, ...fallback?.paragraph },
-    character: { ...base.character, ...fallback?.character },
-  }
 }
 
 function rule(selector: string, style: ResolvedStyle): string {
@@ -117,7 +102,7 @@ function lineHeightOf(paragraph: ResolvedStyle['paragraph'], family: string | nu
   if (spacing === undefined) return cssLineHeightOf(1, family)
   switch (spacing.kind) {
     case 'multiple':
-      return cssLineHeightOf(spacing.factor, family)
+      return cssLineHeightOf(usableFactor(spacing.factor), family)
     case 'exact':
       return `${spacing.pt}pt`
     case 'atLeast':

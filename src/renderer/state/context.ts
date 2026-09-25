@@ -77,6 +77,7 @@ export function createWorkspaceContext(set: SetWorkspace, get: GetWorkspace): Wo
       // outros que não os do documento seria trocar a formatação de um arquivo
       // alheio por causa de um passeio pelo painel.
       styles: state.styles,
+      ...(state.flattened ? { flattened: true } : {}),
     }
   }
 
@@ -124,6 +125,7 @@ export function createWorkspaceContext(set: SetWorkspace, get: GetWorkspace): Wo
       page: model.page,
       initialDoc: model.doc,
       styles: model.styles,
+      flattened: model.flattened === true,
       generation: state.generation + 1,
       isDirty: false,
       error: null,

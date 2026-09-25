@@ -108,31 +108,31 @@ export const DEFAULT_PARAGRAPH_DRAFT: ParagraphDraft = {
   keepNext: false,
 }
 
-/** Os atributos que o diálogo escreve no bloco. Valor nulo apaga o atributo. */
+/**
+ * Os atributos que o diálogo escreve no bloco. Valor nulo apaga o atributo.
+ *
+ * O bloco carrega só a formatação **direta** — o herdado vem do estilo —, e o
+ * diálogo escreve só o que a pessoa mudou em relação ao que se vê. Um "Aplicar"
+ * sem mudança devolve cada atributo como estava: transformar herdado em direto
+ * seria reescrever o bloco ao salvar, e desligá-lo do estilo sem ninguém pedir.
+ */
 export interface ParagraphAttrs {
-  /**
-   * Nulo quando ninguém escolheu alinhamento.
-   *
-   * Pela mesma razão dos recuos: o leitor omite o atributo no parágrafo sem
-   * `w:jc`, e escrever `left` ali acrescentaria um `w:jc` que o documento não
-   * tinha — bloco reescrito à custa de um "Aplicar" que não mudou nada.
-   */
   readonly textAlign: TextAlignment | null
-  readonly spaceBefore: number
-  readonly spaceAfter: number
-  readonly lineHeight: string
+  readonly spaceBefore: number | null
+  readonly spaceAfter: number | null
+  readonly lineHeight: string | null
   readonly indentMm: number | null
   readonly indentRightMm: number | null
   readonly firstLineMm: number | null
-  readonly keepNext: true | null
+  readonly keepNext: boolean | null
   /**
-   * O recuo em passos de `Ctrl+]` é zerado.
+   * O recuo em passos de `Ctrl+]`.
    *
    * As duas origens somam no gravador (medida do arquivo + nível do editor), e
-   * o diálogo fala em milímetros: deixar o nível de pé faria o campo mostrar
-   * 10 mm e o arquivo receber 10 mm mais dois passos.
+   * o diálogo fala em milímetros: quando o recuo muda, o nível é zerado, senão o
+   * campo mostraria 10 mm e o arquivo receberia 10 mm mais dois passos.
    */
-  readonly indent: 0
+  readonly indent: number
 }
 
 const clamp = (value: number, min: number, max: number): number =>
@@ -233,14 +233,25 @@ function lineSpacingOf(
 /**
  * O formulário → os atributos do bloco.
  *
- * Zero vira `null` nos recuos de propósito: ausência é o que o leitor produz
- * para o parágrafo sem recuo, e um `0` explícito faria a impressão digital ver
- * diferença onde não há — todo bloco seria reescrito ao salvar.
+ * `attrs` são os atributos crus do nó, e `effective` o que ele vale com o estilo
+ * por baixo (`effectiveAttrs` de `style-cascade.ts`) — é deste que o formulário
+ * nasceu. Cada grupo de campos é comparado com o que o formulário mostrava ao
+ * abrir: igual, o atributo cru volta intocado, seja ele direto ou ausente;
+ * diferente, a escolha é gravada como formatação direta.
+ *
+ * Zero só vira atributo quando desfaz alguma coisa do estilo. Fora disso é
+ * ausência, que é o que o leitor produz para o parágrafo sem recuo.
  */
 export function paragraphAttrsFrom(
   draft: ParagraphDraft,
   attrs: Record<string, unknown> = {},
+  effective: Record<string, unknown> = attrs,
 ): ParagraphAttrs {
+  const shown = paragraphDraftFrom(effective)
+  const kept = (name: string): unknown => attrs[name] ?? null
+  const same = <K extends keyof ParagraphDraft>(...keys: K[]): boolean =>
+    keys.every((key) => draft[key] === shown[key])
+
   const firstLine =
     draft.firstLineKind === FirstLineKind.None
       ? 0
@@ -248,29 +259,61 @@ export function paragraphAttrsFrom(
         ? -Math.abs(draft.firstLineMm)
         : Math.abs(draft.firstLineMm)
 
+  const indentSame = same('indentLeftMm')
+
   return {
-    textAlign: keptAlignment(draft.align, attrs),
-    spaceBefore: clamp(round(draft.spaceBefore), 0, MAX_SPACING_PT),
-    spaceAfter: clamp(round(draft.spaceAfter), 0, MAX_SPACING_PT),
-    lineHeight: lineHeightOf(draft, attrs),
-    indentMm: draft.indentLeftMm > 0 ? clamp(round(draft.indentLeftMm), 0, MAX_INDENT_MM) : null,
-    indentRightMm: draft.indentRightMm > 0 ? clamp(round(draft.indentRightMm), 0, MAX_INDENT_MM) : null,
-    firstLineMm: firstLine === 0 ? null : clamp(round(firstLine), -MAX_INDENT_MM, MAX_INDENT_MM),
-    keepNext: draft.keepNext ? true : null,
-    indent: 0,
+    textAlign: same('align')
+      ? (kept('textAlign') as TextAlignment | null)
+      : keptAlignment(draft.align, effective),
+    spaceBefore: same('spaceBefore')
+      ? (kept('spaceBefore') as number | null)
+      : clamp(round(draft.spaceBefore), 0, MAX_SPACING_PT),
+    spaceAfter: same('spaceAfter')
+      ? (kept('spaceAfter') as number | null)
+      : clamp(round(draft.spaceAfter), 0, MAX_SPACING_PT),
+    lineHeight: same('lineSpacingKind', 'lineSpacingValue')
+      ? (kept('lineHeight') as string | null)
+      : lineHeightOf(draft, effective),
+    indentMm: indentSame
+      ? (kept('indentMm') as number | null)
+      : measureOf(draft.indentLeftMm, effective, 'indentMm', 0),
+    indentRightMm: same('indentRightMm')
+      ? (kept('indentRightMm') as number | null)
+      : measureOf(draft.indentRightMm, effective, 'indentRightMm', 0),
+    firstLineMm: same('firstLineKind', 'firstLineMm')
+      ? (kept('firstLineMm') as number | null)
+      : measureOf(firstLine, effective, 'firstLineMm', -MAX_INDENT_MM),
+    keepNext: same('keepNext') ? (kept('keepNext') as boolean | null) : draft.keepNext ? true : false,
+    indent: indentSame ? (numberOf(attrs['indent']) ?? 0) : 0,
   }
 }
 
 /**
- * O alinhamento, escrito só quando é escolha.
- *
- * "À esquerda" é o que o formulário mostra para o parágrafo que não declara
- * alinhamento nenhum — então, se era isso que estava lá, continua ausente. Num
- * parágrafo que **declara** outro alinhamento, escolher esquerda é uma decisão, e
- * apagar o atributo deixaria o estilo justificar de volta.
+ * Uma medida de recuo nova. Zero é ausência, a não ser que o estilo recue: aí
+ * é um zero explícito, que desfaz o do estilo — sem ele, a regra do estilo
+ * recuaria o parágrafo de volta.
  */
-function keptAlignment(align: TextAlignment, attrs: Record<string, unknown>): TextAlignment | null {
-  const declared = typeof attrs['textAlign'] === 'string' ? attrs['textAlign'] : null
+function measureOf(
+  value: number,
+  effective: Record<string, unknown>,
+  name: string,
+  min: number,
+): number | null {
+  if (value !== 0) return clamp(round(value), min, MAX_INDENT_MM)
+  const inherited = numberOf(effective[name]) ?? 0
+  return inherited === 0 ? null : 0
+}
+
+/**
+ * O alinhamento escolhido, escrito só quando é escolha.
+ *
+ * "À esquerda" é o que o formulário mostra para o parágrafo em que nada — nem
+ * ele, nem o estilo — declara alinhamento; se era isso, continua ausente. Onde
+ * algo declara outro alinhamento, escolher esquerda é uma decisão, e apagar o
+ * atributo deixaria o estilo justificar de volta.
+ */
+function keptAlignment(align: TextAlignment, effective: Record<string, unknown>): TextAlignment | null {
+  const declared = typeof effective['textAlign'] === 'string' ? effective['textAlign'] : null
   return align === TextAlignment.Left && declared === null ? null : align
 }
 

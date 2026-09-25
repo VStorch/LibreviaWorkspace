@@ -27,6 +27,7 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
     page: DEFAULT_PAGE_SETUP,
     initialDoc: empty.doc,
     styles: empty.styles,
+    flattened: false,
     workbook: null,
     generation: 0,
     isDirty: false,

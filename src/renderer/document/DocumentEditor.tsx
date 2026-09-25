@@ -134,6 +134,12 @@ export function DocumentEditor(): React.JSX.Element {
     editor?.setEditable(!readOnly && !reading, false)
   }, [editor, readOnly, reading])
 
+  // Os estilos do documento, para quem decide pelo valor que se vê — o diálogo
+  // de parágrafo e o seletor de entrelinha (ver `paragraph-commands.ts`).
+  useEffect(() => {
+    if (editor !== null) editor.storage.paragraphCommands.styles = styles
+  }, [editor, styles])
+
   // Salvar e imprimir precisam do conteúdo atual, que só o editor conhece.
   useEffect(() => {
     if (editor === null) return undefined
@@ -224,7 +230,7 @@ export function DocumentEditor(): React.JSX.Element {
   )
 
   const bands = useBandHeights(page, contentRevision)
-  const layout = usePagination(editor, page, contentRevision, bands, !reading)
+  const layout = usePagination(editor, page, contentRevision, bands, !reading, styles)
   const insets = contentInsetsMm(page, bands)
 
   // Os objetos ancorados de cada folha. Recalculados junto com a paginação

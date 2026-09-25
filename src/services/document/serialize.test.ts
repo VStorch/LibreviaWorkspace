@@ -113,6 +113,15 @@ describe('estilos no formato interno', () => {
     expect(parseDocument(serializeDocument(richDocument)).styles).toEqual(BUILTIN_STYLES)
   })
 
+  it('marca como achatados os blocos de um arquivo anterior à versão 4', () => {
+    // Antes da versão 4 cada bloco levava a formatação efetiva. A gravação em
+    // DOCX precisa saber, para comparar com uma leitura achatada do original.
+    expect(parseDocument(v2()).flattened).toBe(true)
+    expect(parseDocument(serializeDocument(richDocument)).flattened).toBeUndefined()
+    const flat = parseDocument(serializeDocument({ ...richDocument, flattened: true }))
+    expect(flat.flattened).toBe(true)
+  })
+
   it('dá os estilos embutidos ao arquivo da versão 2, que não os tinha', () => {
     // Documento antigo tem de abrir **idêntico**: os embutidos são a aparência
     // que o editor já desenhava, medida por medida.

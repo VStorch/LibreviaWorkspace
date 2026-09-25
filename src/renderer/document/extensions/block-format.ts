@@ -8,8 +8,11 @@ import { Extension } from '@tiptap/core'
  * estilo `Heading1` é uma barra vermelha com texto branco — o fundo é do
  * parágrafo, e sem ele o título vira texto solto no meio da página.
  *
- * Os valores chegam já resolvidos pelo sidecar (padrões do documento + estilo +
- * formatação direta), porque o editor não tem noção de estilo.
+ * No parágrafo solto do corpo, os valores são só a formatação **direta**: o
+ * herdado dos estilos chega pelo CSS de `style-css.ts`, e o inline daqui vence a
+ * regra do estilo — a última camada da cascata do Word. No item de lista, na
+ * célula e no rascunho antigo continuam chegando resolvidos (padrões + estilo +
+ * direta), porque ali nenhuma regra de estilo alcança.
  */
 
 export interface BlockFormatOptions {
@@ -22,6 +25,19 @@ const pointsToCss = (value: unknown): string | null => {
   if (value === null || value === undefined) return null
   const points = Number(value)
   return Number.isFinite(points) && points >= 0 ? `${points}pt` : null
+}
+
+/**
+ * Uma medida declarada, zero incluído — e `null` quando o bloco cala.
+ *
+ * O zero conta porque o bloco leva só a formatação direta: um recuo zero ali é o
+ * parágrafo desfazendo o do estilo, e calá-lo deixaria a regra do estilo recuar
+ * de volta. `Number(null)` é zero, e por isso o nulo é conferido antes.
+ */
+const declaredMeasure = (value: unknown): number | null => {
+  if (value === null || value === undefined || value === '') return null
+  const measure = Number(value)
+  return Number.isFinite(measure) ? measure : null
 }
 
 export const BlockFormat = Extension.create<BlockFormatOptions>({
@@ -86,12 +102,12 @@ export const BlockFormat = Extension.create<BlockFormatOptions>({
             default: null,
             parseHTML: (element) => element.getAttribute('data-indent-mm'),
             renderHTML: (attributes) => {
-              const value = Number(attributes['indentMm'])
+              const value = declaredMeasure(attributes['indentMm'])
               // A medida sai duas vezes: como recuo de verdade e como variável.
               // A imagem ancorada não é texto — no Word ela se posiciona pela
               // coluna, e não pelo recuo do parágrafo —, e é pela variável que
               // ela desconta o recuo de volta.
-              return Number.isFinite(value) && value > 0
+              return value !== null && value >= 0
                 ? {
                     'data-indent-mm': String(value),
                     style: `padding-left: ${value}mm; --recuo: ${value}mm`,
@@ -110,8 +126,8 @@ export const BlockFormat = Extension.create<BlockFormatOptions>({
             default: null,
             parseHTML: (element) => element.getAttribute('data-indent-right-mm'),
             renderHTML: (attributes) => {
-              const value = Number(attributes['indentRightMm'])
-              return Number.isFinite(value) && value > 0
+              const value = declaredMeasure(attributes['indentRightMm'])
+              return value !== null && value >= 0
                 ? {
                     'data-indent-right-mm': String(value),
                     style: `padding-right: ${value}mm; --recuo-direita: ${value}mm`,
@@ -131,8 +147,8 @@ export const BlockFormat = Extension.create<BlockFormatOptions>({
             default: null,
             parseHTML: (element) => element.getAttribute('data-first-line-mm'),
             renderHTML: (attributes) => {
-              const value = Number(attributes['firstLineMm'])
-              return Number.isFinite(value) && value !== 0
+              const value = declaredMeasure(attributes['firstLineMm'])
+              return value !== null
                 ? { 'data-first-line-mm': String(value), style: `text-indent: ${value}mm` }
                 : {}
             },

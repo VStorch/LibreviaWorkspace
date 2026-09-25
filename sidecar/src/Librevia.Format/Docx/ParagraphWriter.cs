@@ -39,7 +39,7 @@ public sealed class ParagraphWriter
     {
         _part = part;
         _inventory = inventory;
-        _format = new ParagraphFormat(inventory, headings ?? new HeadingStyles(part, null));
+        _format = new ParagraphFormat(inventory, headings ?? new HeadingStyles(part, null), new StyleResolver(part));
         var usable = usableWidthPx > 0 ? usableWidthPx : ImageWriter.DefaultWidthPx;
         _tables = new TableWriter(inventory, (node, original) => Write(node, null, original), usable);
         _images = new ImageWriter(part, inventory, usable);

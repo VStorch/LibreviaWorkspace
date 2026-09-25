@@ -19,7 +19,13 @@ namespace Librevia.Format.Docx;
 public sealed record DocumentModelDto(
     [property: JsonPropertyName("page")] PageSetupDto Page,
     [property: JsonPropertyName("doc")] Node Doc,
-    [property: JsonPropertyName("styles")] StyleSheetDto? Styles = null);
+    [property: JsonPropertyName("styles")] StyleSheetDto? Styles = null,
+    // Os blocos vieram achatados — rascunho gravado antes de o leitor passar a
+    // levar só a formatação direta. Só a gravação o lê: é o que escolhe a leitura
+    // de referência com que os blocos do modelo são comparados.
+    [property: JsonPropertyName("flatten")]
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    bool Flatten = false);
 
 public sealed record OpenResult(
     [property: JsonPropertyName("model")] DocumentModelDto Model,
@@ -36,7 +42,13 @@ public sealed record OpenResult(
 /// </remarks>
 public static class DocxReader
 {
-    public static OpenResult Read(byte[] bytes)
+    /// <param name="flatten">
+    /// Leva a formatação **efetiva** a todo bloco, como antes de os estilos
+    /// virarem CSS. É o que a gravação usa para o rascunho antigo (ver
+    /// <see cref="DocxWriter"/>), e o que os testes da cascata usam para ver o
+    /// resultado dela num lugar só.
+    /// </param>
+    public static OpenResult Read(byte[] bytes, bool flatten = false)
     {
         using var stream = new MemoryStream(bytes, writable: false);
         using var document = Open(stream);
@@ -49,7 +61,7 @@ public static class DocxReader
         var inventory = new Inventory();
         NoteWholeDocumentFeatures(part, inventory);
 
-        var (content, _) = new BodyReader(part, inventory).Read(body);
+        var (content, _) = new BodyReader(part, inventory, flatten).Read(body);
         var page = PageReader.Read(body, part, inventory);
 
         var doc = Node.Of("doc");

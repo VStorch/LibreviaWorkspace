@@ -49,8 +49,10 @@ import { Node as ProseMirrorNode } from '@tiptap/pm/model'
 import {
   docxWithBulletList,
   docxWithComment,
+  docxWithDirectOverStyles,
   docxWithDescribedImage,
   docxWithHeaderGrid,
+  docxWithNamedStyles,
   docxWithSpacingOnBothSides,
   docxWithStretchedImage,
   docxWithStyledCells,
@@ -66,6 +68,8 @@ import {
   paragraphAttrsFrom,
   paragraphDraftFrom,
 } from '@services/document/paragraph-format.js'
+import { effectiveAttrs } from '@services/document/style-cascade.js'
+import type { StyleSheet } from '@services/document/styles.js'
 import { SidecarClient } from './client.js'
 import { SidecarMethod } from './protocol.js'
 import { sidecarPathIn } from './locate.js'
@@ -214,7 +218,7 @@ function stable(value: unknown): string {
 }
 
 interface OpenReply {
-  readonly model: { readonly page: unknown; readonly doc: unknown }
+  readonly model: { readonly page: unknown; readonly doc: unknown; readonly styles: StyleSheet }
 }
 
 interface SaveReply {
@@ -253,6 +257,9 @@ describe.skipIf(!published)('impressão digital entre o editor e o sidecar', () 
     // horizontal e linha de cabeçalho na tabela; texto alternativo na imagem.
     ['tabela com sombreamento, borda e cabeçalho', docxWithStyledCells],
     ['imagem com texto alternativo', docxWithDescribedImage],
+    // M5: o bloco leva só a formatação direta, e o resto é dos estilos.
+    ['estilos nomeados', () => docxWithNamedStyles()],
+    ['formatação direta por cima dos estilos', docxWithDirectOverStyles],
   ]
 
   it.each(documents)('abrir e salvar %s não reescreve bloco nenhum', async (_name, build) => {
@@ -334,6 +341,32 @@ describe.skipIf(!published)('impressão digital entre o editor e o sidecar', () 
     expect(draft.lineSpacingValue).toBe(1.5)
     expect(draft.align).toBe(TextAlignment.Justify)
     expect(draft.spaceAfter).toBe(6)
+  })
+
+  it('o diálogo de parágrafo aplicado sem mudança não reescreve bloco nenhum', async () => {
+    // O bloco carrega só o direto, e o diálogo abre com o que se vê — estilo por
+    // baixo. "OK" sem mexer em nada não pode transformar o herdado em direto: cada
+    // bloco mudaria de forma, e o documento inteiro seria reescrito ao salvar.
+    const bytes = await docxWithDirectOverStyles()
+    const opened = await client.request(SidecarMethod.DocxOpen, {}, new Uint8Array(bytes))
+    const { model } = opened.result as OpenReply
+
+    const doc = model.doc as { content: Array<{ type: string; attrs?: Record<string, unknown> }> }
+    const content = doc.content.map((block) => {
+      const attrs = block.attrs ?? {}
+      const effective = effectiveAttrs(block, model.styles)
+      return { ...block, attrs: { ...attrs, ...paragraphAttrsFrom(paragraphDraftFrom(effective), attrs, effective) } }
+    })
+
+    const saved = await client.request(
+      SidecarMethod.DocxSave,
+      { page: model.page, doc: throughEditor({ ...(model.doc as Record<string, unknown>), content }) },
+      new Uint8Array(bytes),
+    )
+    const result = saved.result as SaveReply
+
+    expect(result.rewrittenBlocks).toBe(0)
+    expect(result.preservedBlocks).toBe(doc.content.length)
   })
 
   it('cada bloco do modelo chega ao editor com identidade', async () => {

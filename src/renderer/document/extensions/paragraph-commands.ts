@@ -8,6 +8,8 @@ import {
   paragraphDraftFrom,
   type ParagraphDraft,
 } from '@services/document/paragraph-format.js'
+import { effectiveAttrs } from '@services/document/style-cascade.js'
+import type { StyleSheet } from '@services/document/styles.js'
 
 /**
  * Ler e escrever a formatação de parágrafo dos blocos selecionados.
@@ -30,7 +32,32 @@ export interface ParagraphCommandsOptions {
   types: string[]
 }
 
+/**
+ * Os estilos do documento aberto, que o editor põe aqui ao recebê-lo.
+ *
+ * No `storage`, e não nas opções: as extensões são montadas uma vez, e os estilos
+ * mudam a cada documento. É deles que sai o valor **que se vê** de um bloco que
+ * só carrega a formatação direta.
+ */
+export interface ParagraphCommandsStorage {
+  styles: StyleSheet | null
+}
+
+/** O que o bloco vale, com os estilos que o editor conhece. */
+export function blockAttrsOf(editor: Editor, node: ProseMirrorNode): Record<string, unknown> {
+  return effectiveAttrs(node, stylesOf(editor))
+}
+
+/** Sem a extensão montada — num teste, num editor de faixa — não há estilos. */
+function stylesOf(editor: Editor): StyleSheet | null {
+  return (editor.storage.paragraphCommands as ParagraphCommandsStorage | undefined)?.styles ?? null
+}
+
 declare module '@tiptap/core' {
+  interface Storage {
+    paragraphCommands: ParagraphCommandsStorage
+  }
+
   interface Commands<ReturnType> {
     paragraphCommands: {
       /** Aplica o formulário inteiro aos blocos da seleção. */
@@ -61,22 +88,28 @@ export function paragraphDraftAt(editor: Editor, types: readonly string[] = DEFA
 
   editor.state.doc.nodesBetween(from, to, (node) => {
     if (attrs !== null) return false
-    if (types.includes(node.type.name)) attrs = node.attrs
+    if (types.includes(node.type.name)) attrs = blockAttrsOf(editor, node)
     return true
   })
 
   return attrs === null ? DEFAULT_PARAGRAPH_DRAFT : paragraphDraftFrom(attrs)
 }
 
-export const ParagraphCommands = Extension.create<ParagraphCommandsOptions>({
+export const ParagraphCommands = Extension.create<ParagraphCommandsOptions, ParagraphCommandsStorage>({
   name: 'paragraphCommands',
 
   addOptions() {
     return { types: [...DEFAULT_TYPES] }
   },
 
+  addStorage() {
+    return { styles: null }
+  },
+
   addCommands() {
     const types = this.options.types
+    const effective = (node: ProseMirrorNode): Record<string, unknown> =>
+      effectiveAttrs(node, this.storage.styles)
 
     /**
      * Os atributos saem de uma função do bloco, e não de um objeto pronto.
@@ -121,9 +154,12 @@ export const ParagraphCommands = Extension.create<ParagraphCommandsOptions>({
       }
 
     return {
-      setParagraphFormat: (draft) => applyAttrs((node) => ({ ...paragraphAttrsFrom(draft, node.attrs) })),
+      setParagraphFormat: (draft) =>
+        applyAttrs((node) => ({ ...paragraphAttrsFrom(draft, node.attrs, effective(node)) })),
+      // Contra o valor efetivo: a conversão precisa da fonte que o bloco **usa**,
+      // e ela pode vir do estilo.
       setBlockLineHeight: (value) =>
-        applyAttrs((node) => ({ lineHeight: lineHeightAttrFrom(value, node.attrs) })),
+        applyAttrs((node) => ({ lineHeight: lineHeightAttrFrom(value, effective(node)) })),
     }
   },
 })
@@ -143,7 +179,7 @@ export function blockLineHeightOf(editor: Editor, types: readonly string[] = DEF
     if (value !== null) return false
     if (!types.includes(node.type.name)) return true
 
-    value = lineSpacingChoiceOf(node.attrs)
+    value = lineSpacingChoiceOf(blockAttrsOf(editor, node))
     return true
   })
 

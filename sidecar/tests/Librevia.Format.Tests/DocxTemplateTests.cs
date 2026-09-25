@@ -127,7 +127,8 @@ public class DocxTemplateTests
             Text("paragraph", "Corpo do texto.")));
 
         var (saved, _) = Roundtrip.Save(DocxTemplate.Create(A4()), model);
-        var blocks = Roundtrip.Open(saved).Doc.Content!;
+        // Achatado: a pergunta é o que o arquivo **vale**, estilo incluído.
+        var blocks = Roundtrip.OpenFlat(saved).Doc.Content!;
 
         var heading = blocks[0];
         Assert.Equal("heading", heading.Type);
@@ -314,7 +315,7 @@ public class DocxTemplateTests
         Assert.Contains("<w:name w:val=\"heading 2\"", styles, StringComparison.Ordinal);
         Assert.Contains("w:styleId=\"Ttulo1\"", styles, StringComparison.Ordinal);
 
-        var heading = Roundtrip.Open(saved).Doc.Content![0];
+        var heading = Roundtrip.OpenFlat(saved).Doc.Content![0];
         Assert.Equal("heading", heading.Type);
         Assert.Equal(2, heading.Attrs!["level"]!.GetValue<int>());
         Assert.Equal("17pt", heading.Attrs["fontSize"]!.GetValue<string>());

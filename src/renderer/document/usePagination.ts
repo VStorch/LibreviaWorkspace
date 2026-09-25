@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Editor } from '@tiptap/react'
 import { paginate, type MeasuredBlock } from '@services/document/paginate.js'
+import { effectiveAttrs } from '@services/document/style-cascade.js'
+import type { StyleSheet } from '@services/document/styles.js'
 import {
   contentHeightMm,
   contentInsetsMm,
@@ -89,6 +91,11 @@ export function usePagination(
    * mandaria o documento inteiro para uma folha.
    */
   paginated = true,
+  /**
+   * Os estilos do documento: o "manter com o próximo" pode vir do estilo, e o
+   * bloco só carrega o que o parágrafo declara.
+   */
+  styles: StyleSheet | null = null,
 ): PageLayout {
   const [layout, setLayout] = useState<PageLayout>({
     pages: 1,
@@ -147,7 +154,7 @@ export function usePagination(
       const targets: CutTarget[] = []
       const origin = offsetTopOf(element)
 
-      editor.state.doc.forEach((_node, offset, blockIndex) => {
+      editor.state.doc.forEach((block, offset, blockIndex) => {
         const dom = editor.view.nodeDOM(offset)
         const node = dom instanceof HTMLElement ? dom : null
         if (node === null) {
@@ -219,7 +226,7 @@ export function usePagination(
           breakpoints,
           isPageBreak: node.hasAttribute('data-page-break'),
           breakAfter: node.hasAttribute('data-break-after'),
-          keepWithNext: node.hasAttribute('data-keep-next') || /^H[1-6]$/.test(node.tagName),
+          keepWithNext: effectiveAttrs(block, styles)['keepNext'] === true || /^H[1-6]$/.test(node.tagName),
         })
         accumulated += internal
       })
@@ -322,7 +329,7 @@ export function usePagination(
       observer.disconnect()
       if (scheduled !== 0) cancelAnimationFrame(scheduled)
     }
-  }, [editor, page, revision, bands.headerMm, bands.footerMm, paginated])
+  }, [editor, page, revision, bands.headerMm, bands.footerMm, paginated, styles])
 
   return layout
 }

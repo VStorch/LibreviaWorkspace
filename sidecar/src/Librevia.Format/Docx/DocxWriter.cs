@@ -43,7 +43,11 @@ public static class DocxWriter
 
         // Reindexa a partir dos mesmos bytes: os ids saem iguais aos da
         // abertura porque a numeração é posicional e determinística.
-        var (_, blocks) = new BodyReader(part, new Inventory()).Read(body);
+        //
+        // Com o mesmo leitor que produziu o modelo: um rascunho antigo traz os
+        // blocos achatados, e comparados com a leitura que só leva o direto todo
+        // bloco pareceria mudado — o documento inteiro seria reescrito.
+        var (_, blocks) = new BodyReader(part, new Inventory(), model.Flatten).Read(body);
         var index = blocks.ToDictionary(block => block.Oid, StringComparer.Ordinal);
 
         var section = body.Elements<SectionProperties>().LastOrDefault();

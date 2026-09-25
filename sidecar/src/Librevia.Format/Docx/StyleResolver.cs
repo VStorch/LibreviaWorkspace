@@ -87,6 +87,17 @@ public sealed class StyleResolver
         return (mergedParagraph, mergedRun);
     }
 
+    /// <summary>
+    /// O que o estilo do parágrafo vale, **sem** a formatação direta por cima.
+    /// </summary>
+    /// <remarks>
+    /// Só para consulta — é a instância do cache. Serve ao leitor que não achata,
+    /// para saber se um silêncio direto (um `w:shd` sem cor) está desfazendo
+    /// alguma coisa do estilo.
+    /// </remarks>
+    public ParagraphProperties StyleParagraphOf(ParagraphProperties? direct) =>
+        FromStyle(direct?.ParagraphStyleId?.Val?.Value).Item1;
+
     /// <summary>Propriedades efetivas de um run: estilo do parágrafo + diretas.</summary>
     public RunProperties ResolveRun(RunProperties inherited, RunProperties? direct)
     {

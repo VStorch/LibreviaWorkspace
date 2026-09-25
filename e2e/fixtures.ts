@@ -726,7 +726,7 @@ export async function entryOf(path: string, name: string): Promise<string> {
  * escreveu o documento (`Citao`), e é ele que tem de aparecer como o estilo do
  * cursor — nada disso está no parágrafo, está todo no arquivo de estilos.
  */
-export async function docxWithNamedStyles(): Promise<Buffer> {
+export async function docxWithNamedStyles(extraParagraphs = ''): Promise<Buffer> {
   const styles = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:styles xmlns:w="${W}">
 <w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="Calibri" w:hAnsi="Calibri"/><w:sz w:val="22"/></w:rPr></w:rPrDefault></w:docDefaults>
@@ -759,9 +759,30 @@ export async function docxWithNamedStyles(): Promise<Buffer> {
     ['word/styles.xml', styles],
     [
       'word/document.xml',
-      documentXml(comEstilo('Ttulo1', 'Relatório anual') + comEstilo('Citao', 'Um trecho citado.')),
+      documentXml(
+        comEstilo('Ttulo1', 'Relatório anual') + comEstilo('Citao', 'Um trecho citado.') + extraParagraphs,
+      ),
     ],
   ])
+}
+
+/**
+ * Os mesmos estilos, com formatação **direta** por cima deles: recuo zero que
+ * desfaz o da citação, "manter com o próximo" desligado, espaço e entrelinha
+ * declarados só em parte, e a fonte da marca de parágrafo. É o que o leitor passa
+ * a levar para o bloco — e só isso —, então é aqui que a impressão digital dos
+ * dois lados tem de continuar concordando.
+ */
+export async function docxWithDirectOverStyles(): Promise<Buffer> {
+  const p = (props: string, text: string): string =>
+    `<w:p><w:pPr>${props}</w:pPr><w:r><w:t xml:space="preserve">${text}</w:t></w:r></w:p>`
+  return docxWithNamedStyles(
+    p('<w:pStyle w:val="Citao"/><w:keepNext w:val="0"/><w:ind w:left="0"/>', 'Citação sem recuo.') +
+      p('<w:spacing w:after="0"/><w:jc w:val="center"/>', 'Só o espaço depois.') +
+      p('<w:spacing w:line="360" w:lineRule="auto"/>', 'Uma linha e meia.') +
+      p('<w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/><w:sz w:val="20"/></w:rPr>', 'Marca em Arial.') +
+      p('<w:pStyle w:val="EstiloQueNaoExiste"/>', 'Estilo que o documento não define.'),
+  )
 }
 
 /** Tabela longa em A4 com margens de 25 mm: uma única estrutura, muitas folhas. */

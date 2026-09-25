@@ -14,6 +14,8 @@ public class DocxRoundTripTests
     // Roundtrip: esta classe e DocxWriteBackTests usam os mesmos.
     private static DocumentModelDto Open(byte[] bytes) => Roundtrip.Open(bytes);
 
+    private static DocumentModelDto OpenFlat(byte[] bytes) => Roundtrip.OpenFlat(bytes);
+
     private static (byte[] Bytes, SaveResult Result) Save(byte[] original, DocumentModelDto model) =>
         Roundtrip.Save(original, model);
 
@@ -421,7 +423,7 @@ public class DocxRoundTripTests
         // O caso que doeu na tela: `Heading1` no corpus real não é um título
         // grande, é uma barra vermelha com texto branco. Nada disso está no
         // parágrafo — ler só a formatação direta perdia tudo.
-        var model = Open(Fixtures.WithStyles());
+        var model = OpenFlat(Fixtures.WithStyles());
         var banner = FirstOfType(model, "paragraph");
 
         Assert.Equal("#943634", banner.Attrs!["background"]!.GetValue<string>());
@@ -438,7 +440,7 @@ public class DocxRoundTripTests
     public void FollowsTheBasedOnChain()
     {
         // `Corpo` herda a fonte de `Base` e só acrescenta o alinhamento.
-        var model = Open(Fixtures.WithStyles());
+        var model = OpenFlat(Fixtures.WithStyles());
         var body = BlockContaining(model, "Texto do corpo");
 
         Assert.Equal("justify", body.Attrs!["textAlign"]!.GetValue<string>());
@@ -473,7 +475,7 @@ public class DocxRoundTripTests
         // dele. Sem a fonte no bloco, um parágrafo de 10 pt continuava ocupando
         // os 12 pt que a folha do editor declara — e um título de 10 pt virava
         // uma barra alta demais, porque o editor desenha títulos em 22 pt.
-        var model = Open(Fixtures.WithStyles());
+        var model = OpenFlat(Fixtures.WithStyles());
         var banner = FirstOfType(model, "paragraph");
 
         Assert.Equal("10pt", banner.Attrs!["fontSize"]!.GetValue<string>());
@@ -486,7 +488,7 @@ public class DocxRoundTripTests
         // O estilo marcado `w:default="1"` vale para quem não declara
         // `w:pStyle`. Sem consultá-lo, o texto do corpo de um documento inteiro
         // chegava só com os `docDefaults` — quer dizer, quase sem formatação.
-        var model = Open(Fixtures.WithLineMetrics());
+        var model = OpenFlat(Fixtures.WithLineMetrics());
         var first = BlockContaining(model, "estilo padrão");
 
         Assert.Equal("12pt", first.Attrs!["fontSize"]!.GetValue<string>());
@@ -518,7 +520,7 @@ public class DocxRoundTripTests
         // ausentes, o `margin-top` e o `line-height` que o editor traz para o
         // documento em branco reapareciam em cada parágrafo importado — mais de
         // uma página de ar num documento de meia centena de parágrafos.
-        var model = Open(Fixtures.WithLineMetrics());
+        var model = OpenFlat(Fixtures.WithLineMetrics());
         var first = BlockContaining(model, "estilo padrão");
 
         // Espaçamento simples sai como número, e não como `normal`: é a altura
@@ -555,7 +557,9 @@ public class DocxRoundTripTests
         // caber em menos folhas aqui do que no LibreOffice.
         var model = Open(Fixtures.WithLineMetrics());
 
-        Assert.Equal("1.2994", BlockContaining(model, "Arial e um pouco mais").Attrs!["lineHeight"]!.GetValue<string>());
+        // 271/240 a quatro casas (1,1292), que é a grade do arquivo: o bloco que
+        // só leva o direto não arredonda o múltiplo a centésimos, como o achatado.
+        Assert.Equal("1.2985", BlockContaining(model, "Arial e um pouco mais").Attrs!["lineHeight"]!.GetValue<string>());
     }
 
     [Fact]
@@ -567,7 +571,9 @@ public class DocxRoundTripTests
         // vale o palpite de 1,15, que é a altura de quase toda fonte latina.
         var model = Open(Fixtures.WithLineMetrics());
 
-        Assert.Equal("1.2994", BlockContaining(model, "fonte que ninguém tem").Attrs!["lineHeight"]!.GetValue<string>());
+        // 271/240 a quatro casas (1,1292), que é a grade do arquivo: o bloco que
+        // só leva o direto não arredonda o múltiplo a centésimos, como o achatado.
+        Assert.Equal("1.2985", BlockContaining(model, "fonte que ninguém tem").Attrs!["lineHeight"]!.GetValue<string>());
         Assert.Equal("normal", BlockContaining(model, "Verdana de dez").Attrs!["lineHeight"]!.GetValue<string>());
     }
 
@@ -1361,7 +1367,7 @@ public class DocxRoundTripTests
         // parágrafo redeclara apenas o espaço, toda linha saía 1,15 vez mais
         // curta do que no LibreOffice. A diferença ia se somando até a folha
         // cortar noutro lugar.
-        var blocks = Open(Fixtures.WithStyleSpacingAndDirectMargins()).Doc.Content!;
+        var blocks = OpenFlat(Fixtures.WithStyleSpacingAndDirectMargins()).Doc.Content!;
 
         // 276/240 em Arial de 10 pt: 1,15 × a altura natural da fonte.
         Assert.Equal("1.3224", blocks[0].Attrs!["lineHeight"]!.GetValue<string>());
@@ -1375,7 +1381,7 @@ public class DocxRoundTripTests
         // 720 twips pedem. Enquanto era só o nível, o parágrafo recuado saía
         // 30% mais estreito do que no LibreOffice, e a captura dentro dele
         // encolhia junto.
-        var blocks = Open(Fixtures.WithStyleSpacingAndDirectMargins()).Doc.Content!;
+        var blocks = OpenFlat(Fixtures.WithStyleSpacingAndDirectMargins()).Doc.Content!;
 
         // 720 twips = meia polegada = 12,7 mm; o recuo pendente vem com o sinal
         // trocado, porque é `text-indent` negativo.
@@ -1399,9 +1405,80 @@ public class DocxRoundTripTests
         // sobreviver, e não no que a gravação cirúrgica preserva intacto.
         model.Doc.Content![0].Content![0].Text = "Outro texto no mesmo recuo.";
 
-        var reopened = Open(Save(original, model).Bytes).Doc.Content![0];
+        // Relido achatado: o recuo herdado do estilo tem de continuar valendo
+        // no arquivo, e o bloco só leva o que o parágrafo declara.
+        var reopened = OpenFlat(Save(original, model).Bytes).Doc.Content![0];
         Assert.Equal(12.7, reopened.Attrs!["indentMm"]!.GetValue<double>());
         Assert.Equal(-6.35, reopened.Attrs!["firstLineMm"]!.GetValue<double>());
+    }
+
+    [Fact]
+    public void OBlocoLevaSoOQueOParagrafoDeclara()
+    {
+        // O herdado vem do CSS dos estilos; o bloco leva só o direto, no valor
+        // efetivo — o `w:spacing` que só redeclara o espaço não traz a entrelinha,
+        // e o recuo pendente do estilo fica no estilo.
+        var blocks = Open(Fixtures.WithStyleSpacingAndDirectMargins()).Doc.Content!;
+
+        var first = blocks[0].Attrs!;
+        Assert.Equal(0d, first["spaceAfter"]!.GetValue<double>());
+        Assert.Equal(0d, first["spaceBefore"]!.GetValue<double>());
+        Assert.False(first.ContainsKey("lineHeight"));
+        Assert.False(first.ContainsKey("indentMm"));
+        Assert.False(first.ContainsKey("firstLineMm"));
+        Assert.False(first.ContainsKey("fontFamily"));
+        Assert.Equal(0, first["indent"]!.GetValue<int>());
+
+        // Trocar o recuo da esquerda leva só ele.
+        var moved = blocks[1].Attrs!;
+        Assert.Equal(25.4, moved["indentMm"]!.GetValue<double>());
+        Assert.False(moved.ContainsKey("firstLineMm"));
+    }
+
+    [Fact]
+    public void OFundoEOManterComOProximoDoEstiloFicamNoEstilo()
+    {
+        var model = Open(Fixtures.WithStyles());
+        var banner = FirstOfType(model, "paragraph");
+
+        Assert.False(banner.Attrs!.ContainsKey("background"));
+        Assert.False(banner.Attrs.ContainsKey("textAlign"));
+        Assert.Equal("Faixa", banner.Attrs["styleId"]!.GetValue<string>());
+        // E o que o estilo diz chega pelos estilos do modelo.
+        Assert.Equal("#943634", model.Styles!.Styles["Faixa"].Paragraph!.Background);
+    }
+
+    [Fact]
+    public void OEditadoGravaAEntrelinhaNaFonteDoEstiloESomaONivelAoRecuoDoEstilo()
+    {
+        // O bloco não traz a fonte (é do estilo, Arial) nem o recuo (720 twips):
+        // o gravador os busca no estilo. Sem isso, 1,5 linha virava outro número
+        // no arquivo e o nível trocava o recuo do estilo em vez de somar a ele.
+        var original = Fixtures.WithStyleSpacingAndDirectMargins();
+        var model = Clone(Open(original));
+        var block = model.Doc.Content![0];
+        block.Content![0].Text = "Editado.";
+        block.With("lineHeight", "1.7249").With("indent", 1);
+
+        var xml = Roundtrip.XmlOf(Save(original, model).Bytes, "word/document.xml");
+        // 1,7249 ÷ 1,1499 (Arial) × 240 = 360.
+        Assert.Contains("w:line=\"360\"", xml, StringComparison.Ordinal);
+        Assert.Contains("w:left=\"1440\"", xml, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ORascunhoAchatadoEComparadoComALeituraAchatada()
+    {
+        // O rascunho gravado antes do M5/E3 traz blocos achatados. Comparados com
+        // a leitura que só leva o direto, todos pareceriam mudados.
+        var original = Fixtures.WithStyles();
+        var flat = Clone(OpenFlat(original));
+
+        var wrong = Save(original, flat).Result;
+        Assert.True(wrong.RewrittenBlocks > 0);
+
+        var right = Save(original, flat with { Flatten = true }).Result;
+        Assert.Equal(0, right.RewrittenBlocks);
     }
 
     [Fact]

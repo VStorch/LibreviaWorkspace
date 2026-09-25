@@ -61,6 +61,8 @@ export interface WorkspaceState {
    * e é por isso que não há ação nenhuma para mexer neles aqui.
    */
   styles: StyleSheet
+  /** Os blocos vieram achatados de um rascunho antigo — ver `DocumentModel.flattened`. */
+  flattened: boolean
   /**
    * A planilha aberta, quando o que está em edição é uma planilha.
    *

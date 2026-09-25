@@ -21,7 +21,13 @@ namespace Librevia.Format.Docx;
 /// não conhece — `w:pBdr`, `w:framePr`, `w:tabs`, `w:sectPr`, a marca de
 /// parágrafo inteira — atravessa a edição intacto porque ninguém o reescreve.
 /// </remarks>
-internal sealed class ParagraphFormat(Inventory inventory, HeadingStyles headings)
+/// <remarks>
+/// O bloco carrega só a formatação **direta** (o herdado vem do CSS dos
+/// estilos), e duas contas daqui dependem do herdado: a entrelinha, que é medida
+/// sobre a fonte da marca, e o recuo por nível, que soma ao recuo do estilo.
+/// Para essas, o <paramref name="styles"/> diz o que o estilo vale.
+/// </remarks>
+internal sealed class ParagraphFormat(Inventory inventory, HeadingStyles headings, StyleResolver styles)
 {
     private const int TwipsPerIndentLevel = 720;
 
@@ -41,6 +47,7 @@ internal sealed class ParagraphFormat(Inventory inventory, HeadingStyles heading
         ApplyStyle(properties, node);
         ApplyAlignment(properties, node);
         ApplyIndentation(properties, node);
+        ApplyExplicitZeros(properties, node);
         ApplySpacing(properties, node);
         ApplyShading(properties, node);
         ApplyKeepNext(properties, node);
@@ -153,10 +160,15 @@ internal sealed class ParagraphFormat(Inventory inventory, HeadingStyles heading
     /// o leitor só emite a medida positiva; o zero que volta do modelo não está
     /// falando dele, e por isso ele fica.
     /// </remarks>
-    private static void ApplyIndentation(ParagraphProperties properties, Node node)
+    private void ApplyIndentation(ParagraphProperties properties, Node node)
     {
-        var left = (Attr.MmToTwips(Attr.Double(node, "indentMm")) ?? 0)
-                   + ((Attr.Int(node, "indent") ?? 0) * TwipsPerIndentLevel);
+        // O nível soma ao recuo que o parágrafo **tem**, e sem medida direta no
+        // bloco esse recuo é o do estilo: gravar só os passos trocaria o recuo
+        // do estilo pelo nível, em vez de somar a ele.
+        var level = Attr.Int(node, "indent") ?? 0;
+        var measured = Attr.MmToTwips(Attr.Double(node, "indentMm"))
+                       ?? (level > 0 ? StyleTwips(styles.StyleParagraphOf(properties).Indentation?.Left) : 0);
+        var left = measured + (level * TwipsPerIndentLevel);
         var right = Attr.MmToTwips(Attr.Double(node, "indentRightMm")) ?? 0;
         var firstLine = Attr.MmToTwips(Attr.Double(node, "firstLineMm")) ?? 0;
 
@@ -185,6 +197,33 @@ internal sealed class ParagraphFormat(Inventory inventory, HeadingStyles heading
         // duas coisas sobre a mesma linha.
         indentation.FirstLine = Twips(firstLine > 0 ? firstLine : null);
         indentation.Hanging = Twips(firstLine < 0 ? -firstLine : null);
+    }
+
+    private static int StyleTwips(StringValue? measure) =>
+        int.TryParse(measure?.Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var twips) && twips > 0
+            ? twips
+            : 0;
+
+    /// <summary>
+    /// Zero no bloco é zero no arquivo, quando o parágrafo não o declarava.
+    /// </summary>
+    /// <remarks>
+    /// O bloco só carrega o direto, e um recuo zero ali é alguém desfazendo o do
+    /// estilo — o diálogo o escreve assim. Sem o atributo no `w:ind`, o estilo
+    /// voltaria a recuar o parágrafo no Word enquanto a tela mostra zero. O que
+    /// o arquivo já declarava fica como está.
+    /// </remarks>
+    private static void ApplyExplicitZeros(ParagraphProperties properties, Node node)
+    {
+        var left = Attr.Double(node, "indentMm") is 0 && (Attr.Int(node, "indent") ?? 0) == 0;
+        var right = Attr.Double(node, "indentRightMm") is 0;
+        var firstLine = Attr.Double(node, "firstLineMm") is 0;
+        if (!left && !right && !firstLine) return;
+
+        var indentation = properties.Indentation ??= new Indentation();
+        if (left && indentation.Left is null) indentation.Left = "0";
+        if (right && indentation.Right is null) indentation.Right = "0";
+        if (firstLine && indentation.FirstLine is null && indentation.Hanging is null) indentation.FirstLine = "0";
     }
 
     /// <summary>O recuo positivo do arquivo, zerado — o negativo fica de pé.</summary>
@@ -233,7 +272,7 @@ internal sealed class ParagraphFormat(Inventory inventory, HeadingStyles heading
         // ponto, que é a precisão com que o leitor entrega a medida.
         if (before is not null) spacing.Before = Invariant((int)Math.Round(before.Value * 20));
         if (after is not null) spacing.After = Invariant((int)Math.Round(after.Value * 20));
-        if (lineHeight is not null) ApplyLineHeight(spacing, lineHeight, Attr.String(node, "fontFamily"));
+        if (lineHeight is not null) ApplyLineHeight(spacing, lineHeight, Attr.String(node, "fontFamily") ?? MarkFontOf(properties));
     }
 
     /// <summary>
@@ -290,9 +329,20 @@ internal sealed class ParagraphFormat(Inventory inventory, HeadingStyles heading
         spacing.LineRule = LineSpacingRuleValues.Auto;
     }
 
+    /// <summary>
+    /// A fonte da marca quando o bloco não a declara: a do estilo, com a marca
+    /// original por cima — a mesma com que o leitor multiplicou a entrelinha.
+    /// </summary>
+    private string? MarkFontOf(ParagraphProperties properties) =>
+        styles.ResolveMark(styles.Resolve(properties).Run, properties).RunFonts?.Ascii?.Value;
+
     private void ApplyShading(ParagraphProperties properties, Node node)
     {
         if (Attr.String(node, "background") is not { } background) return;
+
+        // "Sem fundo por cima do fundo do estilo": o leitor só o emite quando o
+        // `w:shd` sem cor já está no parágrafo, e ele continua lá no clone.
+        if (background.Equals("transparent", StringComparison.OrdinalIgnoreCase)) return;
 
         if (ColorValue.Hex(background) is not { } fill)
         {

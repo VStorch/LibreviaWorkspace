@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { resolveStyle } from './style-cascade.js'
+import { effectiveAttrs, resolveStyle } from './style-cascade.js'
 import { BUILTIN_STYLES, LEGACY_STYLES, StyleType, type StyleSheet } from './styles.js'
 
 describe('resolveStyle', () => {
@@ -40,5 +40,28 @@ describe('resolveStyle', () => {
       },
     }
     expect(resolveStyle(sheet, 'A').paragraph).toEqual({ spaceAfter: 1, spaceBefore: 3 })
+  })
+})
+
+describe('effectiveAttrs', () => {
+  it('o título sem id vale o estilo `heading N`, e o direto vence', () => {
+    const attrs = effectiveAttrs(
+      { type: 'heading', attrs: { level: 1, spaceAfter: 4, keepNext: null } },
+      BUILTIN_STYLES,
+    )
+    // "Manter com o próximo" não está no nó: vem do estilo, e é o que a
+    // paginação precisa ver.
+    expect(attrs).toMatchObject({ keepNext: true, spaceBefore: 12, spaceAfter: 4, fontSize: '16pt' })
+  })
+
+  it('o parágrafo vale o estilo declarado, nas unidades do nó', () => {
+    const attrs = effectiveAttrs({ type: 'paragraph', attrs: { styleId: 'ListParagraph' } }, BUILTIN_STYLES)
+    expect(attrs).toMatchObject({ indentMm: 12.7, spaceAfter: 8, lineHeight: '1.3174' })
+  })
+
+  it('lista e tabela, e o editor sem estilos, voltam como estão', () => {
+    const list = { type: 'bulletList', attrs: { spaceBefore: 3 } }
+    expect(effectiveAttrs(list, BUILTIN_STYLES)).toEqual({ spaceBefore: 3 })
+    expect(effectiveAttrs({ type: 'paragraph', attrs: { indent: 0 } }, null)).toEqual({ indent: 0 })
   })
 })

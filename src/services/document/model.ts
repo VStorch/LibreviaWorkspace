@@ -100,6 +100,17 @@ export interface DocumentModel {
    * Ver `styles.ts`: é deles que nasce o CSS da tela e do PDF (`style-css.ts`).
    */
   readonly styles: StyleSheet
+  /**
+   * Os blocos vieram **achatados**: cada um com a formatação efetiva — padrões,
+   * estilo e direta —, como o leitor os produzia antes de levar só a direta.
+   *
+   * É o rascunho gravado por uma versão anterior (formato `.sdoc` < 4). Na tela
+   * não faz diferença — o inline vence a regra do estilo, e o achatado já diz
+   * tudo —, mas na gravação faz: os blocos são comparados com uma leitura do
+   * original, e ela tem de ser achatada também, senão todo bloco pareceria mudado
+   * e o documento inteiro seria reescrito. Ausente é falso.
+   */
+  readonly flattened?: boolean
 }
 
 export const PAGE_DIMENSIONS_MM: Record<PageSize, { width: number; height: number }> = {

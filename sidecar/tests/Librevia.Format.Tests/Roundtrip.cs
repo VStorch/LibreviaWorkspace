@@ -21,6 +21,9 @@ internal static class Roundtrip
 {
     public static DocumentModelDto Open(byte[] bytes) => DocxReader.Read(bytes).Model;
 
+    /// <summary>A leitura achatada: cada bloco com a formatação efetiva, estilo incluído.</summary>
+    public static DocumentModelDto OpenFlat(byte[] bytes) => DocxReader.Read(bytes, flatten: true).Model;
+
     /// <summary>
     /// Grava — e **confere o esquema** do que foi gravado.
     /// </summary>
