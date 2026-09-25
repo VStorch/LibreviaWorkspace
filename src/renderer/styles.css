@@ -1620,6 +1620,42 @@ button {
   o meio dessa faixa, medido na fonte do próprio documento, então ele acompanha
   quem troca de Times para Arial.
 */
+.reading-hint {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--muted);
+  box-shadow: var(--shadow-md);
+  font-size: 12px;
+  pointer-events: none;
+  animation: reading-hint 5s ease-in-out forwards;
+}
+
+@keyframes reading-hint {
+  0% {
+    opacity: 0;
+  }
+  8%,
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reading-hint {
+    animation: none;
+  }
+}
+
 .editor-scroll--reading {
   /* O fundo afundado é o da mesa em que o papel repousa. Sem papel, o texto
      repousa na superfície, como numa página de leitura. */

@@ -172,6 +172,19 @@ export const ERRORS = {
     pt: 'O documento em edição está em estado inconsistente.',
     en: 'The document being edited is in an inconsistent state.',
   },
+  'errors.docx.foreignBands': {
+    pt: 'cabeçalho e rodapé do arquivo .docx de origem',
+    en: 'header and footer from the original .docx file',
+  },
+  'errors.docx.originPackage': {
+    pt: 'estilos, notas, comentários e demais partes do arquivo .docx de origem',
+    en: 'styles, notes, comments, and other parts of the original .docx file',
+  },
+  'errors.docx.cannotCreate': {
+    pt: 'Não foi possível criar o documento do Word. Nada foi gravado.',
+    en: 'Could not create the Word document. Nothing was saved.',
+  },
+  'errors.docx.createContract': { pt: 'docx.create sem pacote', en: 'docx.create returned no package' },
 
   // XLSX (src/main/xlsx/index.ts)
   'errors.xlsx.cannotRead': {

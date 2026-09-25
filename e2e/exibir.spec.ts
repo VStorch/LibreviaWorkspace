@@ -1,3 +1,6 @@
+import { mkdtemp, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
 import { launch, menu, type Session } from './app.js'
 
@@ -29,6 +32,19 @@ test.describe('menu Exibir', () => {
 
   test.afterEach(async () => {
     await session.close()
+  })
+
+  test('as barras de ferramentas e de status obedecem às preferências', async () => {
+    await expect(session.window.locator('.toolbar')).toBeVisible()
+    await expect(session.window.locator('.statusbar')).toBeVisible()
+
+    await setPreference(session, { showToolbar: false, showStatusBar: false })
+    await expect(session.window.locator('.toolbar')).toHaveCount(0)
+    await expect(session.window.locator('.statusbar')).toHaveCount(0)
+
+    await setPreference(session, { showToolbar: true, showStatusBar: true })
+    await expect(session.window.locator('.toolbar')).toBeVisible()
+    await expect(session.window.locator('.statusbar')).toBeVisible()
   })
 
   test('o tema escuro troca a cor da casca e do papel', async () => {
@@ -143,8 +159,8 @@ test.describe('menu Exibir', () => {
  */
 test.describe('o que foi escolhido continua escolhido', () => {
   test('tema, idioma e modo de leitura voltam como estavam', async () => {
-    let session = await launch()
-    const { userData } = session
+    const userData = await mkdtemp(join(tmpdir(), 'librevia-prefs-'))
+    let session = await launch({ userData })
 
     try {
       await menu(session, 'new-document')
@@ -178,6 +194,7 @@ test.describe('o que foi escolhido continua escolhido', () => {
       await expect(session.window.locator('html')).toHaveAttribute('data-theme', 'dark')
     } finally {
       await session.close()
+      await rm(userData, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 })
     }
   })
 })

@@ -17,6 +17,7 @@ import { editBandFloat, editBandPiece } from '@services/document/band.js'
 import { floatsOf } from '@services/document/floating.js'
 import { currentPreferences, usePreferences } from '../state/preferences.js'
 import { useLeaveReadingOnEscape, useReadingMode } from '../state/reading.js'
+import { useT } from '../i18n.js'
 import { useWorkspace } from '../state/workspace.js'
 import { DocumentToolbar } from './toolbar/DocumentToolbar.js'
 import { TableDialog } from './toolbar/TableDialog.js'
@@ -63,6 +64,7 @@ export function DocumentEditor(): React.JSX.Element {
   const showError = useWorkspace((state) => state.showError)
   const preferences = usePreferences((state) => state.preferences)
   const reading = useReadingMode()
+  const t = useT()
 
   useLeaveReadingOnEscape(reading)
 
@@ -391,6 +393,12 @@ export function DocumentEditor(): React.JSX.Element {
           onClose={() => setContextTarget(null)}
           onPasteWithoutFormat={() => void pasteWithoutFormat()}
         />
+      )}
+
+      {reading && (
+        <div className="reading-hint" role="status">
+          {t('view.reading.hint')}
+        </div>
       )}
 
       <div className={`editor-scroll${reading ? ' editor-scroll--reading' : ''}`}>

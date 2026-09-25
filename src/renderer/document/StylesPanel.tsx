@@ -8,6 +8,7 @@ import {
   type StyleDefinition,
   type StyleSheet,
 } from '@services/document/styles.js'
+import { useLanguage, useT } from '../i18n.js'
 import { useWorkspace } from '../state/workspace.js'
 
 /**
@@ -36,6 +37,8 @@ export function StylesPanel({
   readonly onClose: () => void
 }): React.JSX.Element {
   const sheet = useWorkspace((state) => state.styles)
+  const language = useLanguage()
+  const t = useT()
   const [filter, setFilter] = useState<'all' | StyleType>('all')
   const panel = useRef<HTMLDivElement>(null)
 
@@ -82,35 +85,41 @@ export function StylesPanel({
   })
 
   const current = blockStyleOf(sheet, block)
-  const styles = listedStyles(sheet).filter((style) => filter === 'all' || style.type === filter)
+  const styles = listedStyles(sheet, language).filter((style) => filter === 'all' || style.type === filter)
 
   return (
-    <div ref={panel} className="popover" role="dialog" aria-label="Estilos" onKeyDown={onPanelKeyDown}>
+    <div
+      ref={panel}
+      className="popover"
+      role="dialog"
+      aria-label={t('document.styles.title')}
+      onKeyDown={onPanelKeyDown}
+    >
       <p className="popover__hint">
         {current === null
-          ? 'Este documento não define estilos para o parágrafo do cursor.'
-          : `Parágrafo do cursor: ${styleLabelOf(current)}`}
+          ? t('document.styles.noCurrent')
+          : t('document.styles.current', { style: styleLabelOf(current, language) })}
       </p>
 
       <div className="popover__row">
         <label className="popover__field">
-          <span>Mostrar</span>
+          <span>{t('document.styles.show')}</span>
           <select
-            aria-label="Mostrar"
+            aria-label={t('document.styles.show')}
             value={filter}
             onChange={(event) => setFilter(event.target.value as 'all' | StyleType)}
           >
-            <option value="all">Todos os estilos</option>
-            <option value={StyleType.Paragraph}>De parágrafo</option>
-            <option value={StyleType.Character}>De caractere</option>
+            <option value="all">{t('document.styles.all')}</option>
+            <option value={StyleType.Paragraph}>{t('document.styles.paragraphFilter')}</option>
+            <option value={StyleType.Character}>{t('document.styles.characterFilter')}</option>
           </select>
         </label>
       </div>
 
       {/* Focalizável para que a lista role pelo teclado: não há o que escolher
           aqui, então um `listbox` prometeria uma seleção que não existe. */}
-      <ul className="styles-list" tabIndex={0} aria-label="Estilos do documento">
-        {styles.length === 0 && <li className="styles-list__empty">Nenhum estilo deste tipo.</li>}
+      <ul className="styles-list" tabIndex={0} aria-label={t('document.styleAndFont.documentStyles')}>
+        {styles.length === 0 && <li className="styles-list__empty">{t('document.styles.empty')}</li>}
         {styles.map((style) => (
           <li
             key={style.id}
@@ -121,20 +130,18 @@ export function StylesPanel({
             // nome; a marca visual sozinha não diz nada a quem não vê a tela.
             aria-current={style.id === current?.id ? 'true' : undefined}
           >
-            <span className="styles-list__name">{styleLabelOf(style)}</span>
-            <span className="styles-list__meta">{describe(style, sheet)}</span>
+            <span className="styles-list__name">{styleLabelOf(style, language)}</span>
+            <span className="styles-list__meta">{describe(style, sheet, language, t)}</span>
           </li>
         ))}
       </ul>
 
-      <p className="popover__hint">
-        Por enquanto o painel apenas mostra: aplicar, criar e modificar estilos vêm nas próximas versões.
-      </p>
+      <p className="popover__hint">{t('document.styles.readOnly')}</p>
 
       <div className="popover__actions">
         <span className="popover__spacer" />
         <button type="button" className="btn btn--primary" autoFocus onClick={onClose}>
-          Fechar
+          {t('document.common.close')}
         </button>
       </div>
     </div>
@@ -149,19 +156,30 @@ export function StylesPanel({
  * estilo não declara não aparece — dizer "12 pt" num estilo que herda o tamanho
  * seria afirmar algo que o documento não diz, e a cascata é da entrega seguinte.
  */
-function describe(style: StyleDefinition, sheet: StyleSheet): string {
-  const parts: string[] = [style.type === StyleType.Character ? 'caractere' : 'parágrafo']
+function describe(
+  style: StyleDefinition,
+  sheet: StyleSheet,
+  language: ReturnType<typeof useLanguage>,
+  t: ReturnType<typeof useT>,
+): string {
+  const parts: string[] = [
+    style.type === StyleType.Character ? t('document.styles.character') : t('document.styles.paragraph'),
+  ]
 
   const font = style.character?.fontFamily
   if (font !== undefined) parts.push(font.split(',')[0]!.trim())
   if (style.character?.fontSize !== undefined) parts.push(style.character.fontSize)
-  if (style.character?.bold === true) parts.push('negrito')
+  if (style.character?.bold === true) parts.push(t('document.styles.bold'))
   if (style.basedOn !== undefined) {
     // Pelo nome, e não pelo id: o resto da linha fala em nomes, e num documento
     // em português o id do pai é `Ttulo1` — uma palavra que a pessoa não
     // reconhece e que não aparece em lugar nenhum da tela.
     const parent = sheet.styles[style.basedOn]
-    parts.push(`baseado em ${parent === undefined ? style.basedOn : styleLabelOf(parent)}`)
+    parts.push(
+      t('document.styles.basedOn', {
+        style: parent === undefined ? style.basedOn : styleLabelOf(parent, language),
+      }),
+    )
   }
 
   return parts.join(' · ')

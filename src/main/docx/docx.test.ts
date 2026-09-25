@@ -10,6 +10,7 @@
 import { access, constants, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { inflateRawSync } from 'node:zlib'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { SidecarClient } from '../sidecar/client.js'
 import { sidecarPathIn } from '../sidecar/locate.js'
@@ -331,35 +332,37 @@ describe.skipIf(!published)('o caminho do pacote original', () => {
   })
 })
 
-/** Lê as entradas de um ZIP sem depender de biblioteca. */
+/** Read ZIP entries from the central directory, including entries with data descriptors. */
 async function listParts(zip: Buffer): Promise<Map<string, Buffer>> {
-  const { execFile } = await import('node:child_process')
-  const { promisify } = await import('node:util')
-  const { mkdtemp, writeFile, rm } = await import('node:fs/promises')
-  const { tmpdir } = await import('node:os')
-
-  const run = promisify(execFile)
-  const directory = await mkdtemp(join(tmpdir(), 'librevia-zip-'))
-  const archive = join(directory, 'a.zip')
-
-  try {
-    await writeFile(archive, zip)
-    const { stdout } = await run('unzip', ['-Z1', archive])
-    const names = stdout.split('\n').filter((line) => line.length > 0 && !line.endsWith('/'))
-
-    const parts = new Map<string, Buffer>()
-    for (const name of names) {
-      // O unzip trata `[` e `]` como curinga, e o OOXML tem uma parte chamada
-      // `[Content_Types].xml` — sem escapar, ela nunca é encontrada.
-      const pattern = name.replace(/[[\]*?]/g, (char) => `\\${char}`)
-      const { stdout: content } = await run('unzip', ['-p', archive, pattern], {
-        encoding: 'buffer',
-        maxBuffer: 64 * 1024 * 1024,
-      })
-      parts.set(name, Buffer.from(content))
+  let end = -1
+  for (let at = zip.length - 22; at >= Math.max(0, zip.length - 65_557); at--) {
+    if (zip.readUInt32LE(at) === 0x06054b50) {
+      end = at
+      break
     }
-    return parts
-  } finally {
-    await rm(directory, { recursive: true, force: true })
   }
+  if (end < 0) throw new Error('ZIP end of central directory not found')
+
+  const parts = new Map<string, Buffer>()
+  let at = zip.readUInt32LE(end + 16)
+  const count = zip.readUInt16LE(end + 10)
+  for (let entry = 0; entry < count; entry++) {
+    if (zip.readUInt32LE(at) !== 0x02014b50) throw new Error('Invalid ZIP central directory')
+    const method = zip.readUInt16LE(at + 10)
+    const compressed = zip.readUInt32LE(at + 20)
+    const nameLength = zip.readUInt16LE(at + 28)
+    const extraLength = zip.readUInt16LE(at + 30)
+    const commentLength = zip.readUInt16LE(at + 32)
+    const local = zip.readUInt32LE(at + 42)
+    const name = zip.subarray(at + 46, at + 46 + nameLength).toString('utf8')
+    if (!name.endsWith('/')) {
+      if (zip.readUInt32LE(local) !== 0x04034b50) throw new Error('Invalid ZIP local entry')
+      const start = local + 30 + zip.readUInt16LE(local + 26) + zip.readUInt16LE(local + 28)
+      const data = zip.subarray(start, start + compressed)
+      if (method !== 0 && method !== 8) throw new Error(`Unsupported ZIP method ${method}`)
+      parts.set(name, method === 0 ? data : inflateRawSync(data))
+    }
+    at += 46 + nameLength + extraLength + commentLength
+  }
+  return parts
 }

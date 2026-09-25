@@ -22,6 +22,10 @@ export const VIEW = {
   'view.reading': { pt: 'Modo de leitura', en: 'Reading mode' },
   'view.reading.enter': { pt: 'Entrar no modo de leitura', en: 'Enter reading mode' },
   'view.reading.exit': { pt: 'Sair do modo de leitura', en: 'Exit reading mode' },
+  'view.reading.hint': {
+    pt: 'Modo de leitura. Esc para sair.',
+    en: 'Reading mode. Press Esc to leave.',
+  },
   'view.reading.readOnly': {
     pt: 'Somente leitura enquanto durar o modo de leitura.',
     en: 'Read-only for as long as reading mode lasts.',

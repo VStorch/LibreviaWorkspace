@@ -27,6 +27,8 @@
  * arquivo discordarem.
  */
 
+import { Language, translate } from '@shared/i18n/index.js'
+
 /** Como a entrelinha é medida, do jeito que o arquivo a declara. */
 export type LineSpacing =
   /** Vezes a altura natural da linha (`w:lineRule="auto"`). */
@@ -276,18 +278,21 @@ export const BUILTIN_STYLES: StyleSheet = {
  * qualquer outro estilo é dado do documento e aparece como está — traduzir o que
  * o autor escreveu seria inventar.
  */
-const HEADING_LABELS: Readonly<Record<string, string>> = {
-  'heading 1': 'Título 1',
-  'heading 2': 'Título 2',
-  'heading 3': 'Título 3',
-  'heading 4': 'Título 4',
-  'heading 5': 'Título 5',
-  'heading 6': 'Título 6',
+const HEADING_LABELS: Readonly<Record<string, number>> = {
+  'heading 1': 1,
+  'heading 2': 2,
+  'heading 3': 3,
+  'heading 4': 4,
+  'heading 5': 5,
+  'heading 6': 6,
 }
 
 /** Como o estilo se chama na tela. */
-export function styleLabelOf(style: StyleDefinition): string {
-  return HEADING_LABELS[style.name.toLowerCase()] ?? style.name
+export function styleLabelOf(style: StyleDefinition, language: Language = Language.Portuguese): string {
+  const heading = HEADING_LABELS[style.name.toLowerCase()]
+  return heading === undefined
+    ? style.name
+    : translate(language, 'document.styles.heading', { level: heading })
 }
 
 /**
@@ -302,12 +307,20 @@ export function styleLabelOf(style: StyleDefinition): string {
  * como critério de desempate — sem ele, dois estilos de mesma prioridade
  * trocariam de lugar entre uma abertura e outra.
  */
-export function listedStyles(sheet: StyleSheet): readonly StyleDefinition[] {
+export function listedStyles(
+  sheet: StyleSheet,
+  language: Language = Language.Portuguese,
+): readonly StyleDefinition[] {
   return Object.values(sheet.styles)
     .filter((style) => !style.hidden)
     .sort((left, right) => {
       const byPriority = (left.uiPriority ?? 100) - (right.uiPriority ?? 100)
-      return byPriority !== 0 ? byPriority : styleLabelOf(left).localeCompare(styleLabelOf(right), 'pt-BR')
+      return byPriority !== 0
+        ? byPriority
+        : styleLabelOf(left, language).localeCompare(
+            styleLabelOf(right, language),
+            language === Language.Portuguese ? 'pt-BR' : 'en-US',
+          )
     })
 }
 

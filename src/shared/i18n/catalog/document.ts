@@ -11,6 +11,27 @@ export const DOCUMENT = {
   'document.common.close': { pt: 'Fechar', en: 'Close' },
   'document.common.restoreDefaults': { pt: 'Restaurar padrão', en: 'Restore defaults' },
 
+  'document.styles.title': { pt: 'Estilos', en: 'Styles' },
+  'document.styles.noCurrent': {
+    pt: 'Este documento não define estilos para o parágrafo do cursor.',
+    en: 'This document does not define a style for the current paragraph.',
+  },
+  'document.styles.current': { pt: 'Parágrafo do cursor: {style}', en: 'Current paragraph: {style}' },
+  'document.styles.show': { pt: 'Mostrar', en: 'Show' },
+  'document.styles.all': { pt: 'Todos os estilos', en: 'All styles' },
+  'document.styles.paragraphFilter': { pt: 'De parágrafo', en: 'Paragraph styles' },
+  'document.styles.characterFilter': { pt: 'De caractere', en: 'Character styles' },
+  'document.styles.empty': { pt: 'Nenhum estilo deste tipo.', en: 'No styles of this type.' },
+  'document.styles.readOnly': {
+    pt: 'Por enquanto o painel apenas mostra: aplicar, criar e modificar estilos vêm nas próximas versões.',
+    en: 'For now, this panel only shows styles. Applying, creating, and editing styles will come in later versions.',
+  },
+  'document.styles.character': { pt: 'caractere', en: 'character' },
+  'document.styles.paragraph': { pt: 'parágrafo', en: 'paragraph' },
+  'document.styles.bold': { pt: 'negrito', en: 'bold' },
+  'document.styles.basedOn': { pt: 'baseado em {style}', en: 'based on {style}' },
+  'document.styles.heading': { pt: 'Título {level}', en: 'Heading {level}' },
+
   'document.contextMenu.label': { pt: 'Ações do documento', en: 'Document actions' },
   'document.contextMenu.noSuggestions': { pt: 'Nenhuma sugestão', en: 'No suggestions' },
   'document.contextMenu.addToDictionary': { pt: 'Adicionar ao dicionário', en: 'Add to dictionary' },
