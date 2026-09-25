@@ -763,3 +763,25 @@ export async function docxWithNamedStyles(): Promise<Buffer> {
     ],
   ])
 }
+
+/** Tabela longa em A4 com margens de 25 mm: uma única estrutura, muitas folhas. */
+export async function docxWithLongTable(rows = 80): Promise<Buffer> {
+  const table =
+    '<w:tbl><w:tblPr/><w:tblGrid><w:gridCol w:w="9000"/></w:tblGrid>' +
+    Array.from(
+      { length: rows },
+      (_, index) => `<w:tr><w:tc>${paragraph(`Linha ${index + 1} da tabela longa`)}</w:tc></w:tr>`,
+    ).join('') +
+    '</w:tbl>'
+  return zip([
+    ['[Content_Types].xml', CONTENT_TYPES.replace(/<Override PartName="\/word\/comments[^>]+>/, '')],
+    ['_rels/.rels', ROOT_RELS],
+    [
+      'word/document.xml',
+      documentXml(table).replace(
+        '<w:sectPr/>',
+        '<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1417" w:right="1417" w:bottom="1417" w:left="1417"/></w:sectPr>',
+      ),
+    ],
+  ])
+}

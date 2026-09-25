@@ -59,6 +59,33 @@
   --info-border: #a9c7e8;
   --info-text: #16395c;
 
+  /*
+    As cores que sobravam escritas à mão.
+
+    Eram seis, espalhadas pelo arquivo, e cada uma quebrava no escuro por um
+    motivo diferente — não por serem feias, mas por dependerem de um fundo que
+    deixa de existir. Estão aqui porque uma cor fixa é uma cor que o tema não
+    alcança.
+  */
+
+  /* Texto por cima de um preenchimento de ênfase. Branco enquanto a ênfase é
+     escura; no tema escuro a ênfase clareia, e este valor tem de escurecer
+     junto — senão fica claro sobre claro. */
+  --on-accent: #ffffff;
+
+  /* A seleção clareia o acento até o texto por cima continuar legível. No
+     escuro a mistura é com o papel, e não com o branco, que não existe lá. */
+  --selection-mix: #ffffff;
+
+  /* "Localizar": destaque do aplicativo, não do documento. Amarelo porque é o
+     amarelo de marca-texto que todo editor usa, e o atual é mais forte. */
+  --search-hit: #ffe9a8;
+  --search-hit-current: #ffb938;
+
+  /* O filete do cabeçalho vindo de uma forma do OOXML, que não declara cor.
+     Sem cor declarada é padrão, e padrão acompanha o tema. */
+  --rule: #000000;
+
   /* Forma */
   --radius: 10px;
   --radius-sm: 6px;
@@ -67,6 +94,105 @@
   --shadow-lg: 0 12px 32px rgb(16 24 40 / 16%);
 
   color-scheme: light;
+}
+
+/*
+  O tema escuro.
+
+  Só variáveis. Nenhuma regra nova, nenhum seletor duplicado: a casca inteira já
+  lia daqui de cima, e é essa disciplina — de cor escrita à mão não haver — que
+  torna o tema escuro uma folha de valores em vez de uma segunda folha de
+  estilo. Havia seis cores fixas fora deste bloco quando ele foi escrito, e as
+  seis viraram variáveis junto.
+
+  `:root[data-theme='dark']` é escrito pelo renderer a partir da consulta de
+  mídia, que por sua vez obedece ao `nativeTheme.themeSource` do main — ver
+  `state/theme.ts`. Então este bloco vale tanto para a escolha explícita quanto
+  para "acompanhar o sistema", sem precisar ser duplicado numa `@media`.
+
+  ## As três decisões que valem por todo o resto
+
+  **O papel escurece, mas não inverte.** `--surface` é um cinza muito escuro e
+  não preto: preto puro contra texto claro cansa mais, e é por isso que nenhum
+  editor sério usa preto. O papel continua parecendo papel — mais claro que o
+  fundo em que repousa, com a mesma sombra.
+
+  **A cor que o documento escolheu é dele.** O texto sem cor declarada segue o
+  tema; o texto que o autor pintou de vermelho continua vermelho. Um título que
+  o autor fez vermelho é informação, e invertê-lo apagaria essa informação.
+  Quem separa os dois casos é `content-styles.ts`, não este arquivo.
+
+  **Nada disto entra no arquivo.** O tema é como a tela desenha. O `.docx`
+  salvo depois de um dia inteiro no escuro é byte a byte o mesmo.
+*/
+:root[data-theme='dark'] {
+  --bg: #16181c;
+  /* O papel: mais claro que o fundo, como no claro — só que os dois desceram. */
+  --surface: #1e2126;
+  --sunken: #101215;
+  --border: #2c3138;
+  --border-strong: #454c56;
+  --hover: #262b31;
+  --text: #e4e7ea;
+  --muted: #9aa3ad;
+
+  /*
+    A ênfase clareia em vez de escurecer.
+
+    O azul #1f5fa9 do tema claro tem contraste 6.2:1 sobre branco e 2.4:1 sobre
+    este fundo — ilegível. Clarear o tom é o que recupera a leitura mantendo a
+    dupla azul/verde que diz em que editor a pessoa está.
+  */
+  --accent-document: #6ba5e7;
+  --accent-document-soft: #1c2a3a;
+  --accent-document-line: #2f4a68;
+
+  --accent-spreadsheet: #5cc48d;
+  --accent-spreadsheet-soft: #172a20;
+  --accent-spreadsheet-line: #2a5340;
+
+  /* Os estados mantêm o significado e trocam de luminosidade. */
+  --danger-bg: #2e1a18;
+  --danger-border: #6b342e;
+  --danger-text: #f0a79f;
+  --notice-bg: #2b2413;
+  --notice-border: #63522a;
+  --notice-text: #e8ce8c;
+  --warn-bg: #2d2214;
+  --warn-border: #6a4f2a;
+  --warn-text: #e8bd83;
+  --info-bg: #17222e;
+  --info-border: #2f4a68;
+  --info-text: #a8c9ec;
+
+  /*
+    As seis, invertidas pelo motivo de cada uma.
+
+    `--on-accent` escurece porque a ênfase clareou: branco sobre #6ba5e7 dá
+    2.6:1, e o quase-preto dá 8.9:1. `--selection-mix` mistura com o papel
+    escuro em vez de com o branco, senão a faixa de seleção fica mais clara
+    que o papel e o texto claro some dentro dela. Os destaques de "localizar"
+    deixam de ser amarelo de marca-texto e viram âmbar escuro, porque o texto
+    que eles marcam agora é claro. E o filete passa a ser o próprio texto.
+  */
+  --on-accent: #10151b;
+  --selection-mix: #1e2126;
+  --search-hit: #4a3a12;
+  --search-hit-current: #7d5c12;
+  --rule: #e4e7ea;
+
+  /*
+    Sombra preta, e mais forte.
+
+    A do tema claro é preta a 6-16%, calibrada para separar branco de cinza
+    claro. Sobre um fundo escuro ela some — não há para onde escurecer. A
+    separação passa a vir da borda, e a sombra só arredonda a transição.
+  */
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 40%);
+  --shadow-md: 0 4px 12px rgb(0 0 0 / 45%);
+  --shadow-lg: 0 12px 32px rgb(0 0 0 / 55%);
+
+  color-scheme: dark;
 }
 
 * {
@@ -143,7 +269,7 @@ button {
 /* Seleção na cor do editor aberto — e clara o bastante para o texto continuar
    preto por cima dela. */
 ::selection {
-  background: color-mix(in srgb, var(--accent) 24%, #fff);
+  background: color-mix(in srgb, var(--accent) 24%, var(--selection-mix));
 }
 
 .icon {
@@ -247,7 +373,7 @@ button {
   border-radius: var(--radius-sm);
   border: 1px solid var(--info-text);
   background: var(--info-text);
-  color: #fff;
+  color: var(--on-accent);
   cursor: pointer;
   font-size: 13px;
   white-space: nowrap;
@@ -547,6 +673,10 @@ button {
   pointer-events: none;
 }
 
+.paper--oversized {
+  outline: 1px dashed #b7791f;
+}
+
 /* O número no canto da folha, como o Writer mostra na régua lateral. */
 .paper__number {
   position: absolute;
@@ -599,7 +729,7 @@ button {
 
 /* O filete do cabeçalho: a forma tem altura zero, e o que se vê é o contorno. */
 .paper-float--rule {
-  border-top: 1px solid #000000;
+  border-top: 1px solid var(--rule);
 }
 
 /* A caixa é um fluxo de texto próprio, com a tipografia do documento. */
@@ -778,11 +908,11 @@ button {
 
 /* Destaques de "localizar" */
 .search-hit {
-  background: #ffe9a8;
+  background: var(--search-hit);
 }
 
 .search-hit--current {
-  background: #ffb938;
+  background: var(--search-hit-current);
 }
 
 /* ---------- barra de ferramentas ---------- */
@@ -1096,7 +1226,7 @@ button {
 .btn--primary {
   background: var(--accent);
   border-color: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
 }
 
 .btn--primary:hover:not(:disabled) {
@@ -1474,4 +1604,74 @@ button {
 
 .styles-list__empty {
   padding: 8px;
+}
+
+/*
+  Modo de leitura.
+
+  Tudo o que some daqui some por uma razão só: não é o documento. A barra de
+  ferramentas, a de status, o papel, as faixas de cabeçalho e os números de
+  página são andaimes de quem escreve, e quem veio ler não precisa de nenhum —
+  a página é uma unidade de impressão, e não de leitura.
+
+  O que fica é a coluna de texto, numa largura escolhida para a linha e não
+  para o papel: uma A4 com margens de 20 mm dá uma linha de cerca de 170 mm, e
+  a tipografia é unânime em que se lê melhor entre 45 e 75 caracteres. `70ch` é
+  o meio dessa faixa, medido na fonte do próprio documento, então ele acompanha
+  quem troca de Times para Arial.
+*/
+.reading-hint {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--muted);
+  box-shadow: var(--shadow-md);
+  font-size: 12px;
+  pointer-events: none;
+  animation: reading-hint 5s ease-in-out forwards;
+}
+
+@keyframes reading-hint {
+  0% {
+    opacity: 0;
+  }
+  8%,
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reading-hint {
+    animation: none;
+  }
+}
+
+.editor-scroll--reading {
+  /* O fundo afundado é o da mesa em que o papel repousa. Sem papel, o texto
+     repousa na superfície, como numa página de leitura. */
+  background: var(--surface);
+  padding: 48px 24px 96px;
+}
+
+.pages--reading {
+  /* Sem altura calculada e sem largura de papel: a pilha deixa de ser uma
+     pilha e passa a ser só a coluna. */
+  position: static;
+  width: min(70ch, 100%);
+}
+
+.app--reading .editor-shell {
+  /* A sombra e a borda que separavam a área de edição das barras não têm mais
+     barras de que se separar. */
+  border: none;
 }

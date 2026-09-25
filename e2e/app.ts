@@ -39,13 +39,14 @@ export interface Session {
  */
 const packaged = process.env['LIBREVIA_E2E_BINARY']
 
-export async function launch(options: { userData?: string } = {}): Promise<Session> {
+export async function launch(options: { userData?: string; file?: string } = {}): Promise<Session> {
   const userData = options.userData ?? (await mkdtemp(join(tmpdir(), 'librevia-e2e-')))
+  const fileArgs = options.file === undefined ? [] : [options.file]
 
   const app = await electron.launch({
     ...(packaged === undefined || packaged === ''
-      ? { args: [resolve('out/main/index.js'), `--user-data-dir=${userData}`] }
-      : { executablePath: resolve(packaged), args: [`--user-data-dir=${userData}`] }),
+      ? { args: [resolve('out/main/index.js'), `--user-data-dir=${userData}`, ...fileArgs] }
+      : { executablePath: resolve(packaged), args: [`--user-data-dir=${userData}`, ...fileArgs] }),
     env: { ...process.env, NODE_ENV: 'production' },
   })
 
@@ -56,13 +57,14 @@ export async function launch(options: { userData?: string } = {}): Promise<Sessi
     app,
     window,
     userData,
-    // Encerramento à força de propósito: um teste que deixou trabalho não
-    // salvo faria o aplicativo abrir o aviso nativo de descarte, e ninguém
-    // clicaria nele. Nenhum teste aqui verifica saída limpa.
+    // Encerra sem o guarda de alterações, mas pelo Electron: matar só o main
+    // deixa subprocessos com arquivos do perfil abertos no Windows.
     close: async () => {
-      app.process().kill('SIGKILL')
-      await app.waitForEvent('close').catch(() => undefined)
-      if (options.userData === undefined) await rm(userData, { recursive: true, force: true })
+      const closed = app.waitForEvent('close')
+      await app.evaluate(({ app }) => app.exit(0)).catch(() => undefined)
+      await closed
+      if (options.userData === undefined)
+        await rm(userData, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 })
     },
     crash: async () => {
       // SIGKILL não roda nenhum handler de saída: é a diferença entre "fechou" e

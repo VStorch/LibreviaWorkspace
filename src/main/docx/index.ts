@@ -11,11 +11,14 @@ import { readFile } from 'node:fs/promises'
 import { z } from 'zod'
 import { SDOC_FORMAT, SDOC_VERSION } from '@services/document/serialize.js'
 import { AppError, ErrorCode, fromFileSystemError } from '@shared/errors.js'
+import { Language, translate } from '@shared/i18n/index.js'
 import { styleSheetSchema } from '@shared/schemas.js'
 import type { LossInventory } from '@shared/types.js'
 import { normalizePath } from '../fs/paths.js'
 import type { SidecarClient } from '../sidecar/client.js'
 import { SidecarMethod } from '../sidecar/protocol.js'
+import { t } from '../i18n.js'
+import { editorPreferences } from '../preferences.js'
 
 /**
  * Os rótulos do inventário, já cortados nos limites do contrato de IPC.
@@ -99,17 +102,13 @@ export async function openDocx(client: SidecarClient, path: string): Promise<Ope
   try {
     bytes = await readFile(path)
   } catch (cause) {
-    throw fromFileSystemError(cause, 'leitura')
+    throw fromFileSystemError(cause, 'leitura', editorPreferences().language)
   }
 
   const reply = await client.request(SidecarMethod.DocxOpen, {}, new Uint8Array(bytes))
   const parsed = openResultSchema.safeParse(reply.result)
   if (!parsed.success) {
-    throw new AppError(
-      ErrorCode.SidecarFailed,
-      'Não foi possível ler este documento do Word. O arquivo pode estar danificado.',
-      'docx.open fora do contrato',
-    )
+    throw new AppError(ErrorCode.SidecarFailed, t('errors.docx.cannotRead'), t('errors.docx.openContract'))
   }
 
   // O caminho entra normalizado: é assim que ele volta do `authorizePath` e é
@@ -174,33 +173,31 @@ export async function saveDocx(
   const reply = await client.request(SidecarMethod.DocxSave, model, new Uint8Array(original))
   const parsed = saveResultSchema.safeParse(reply.result)
   if (!parsed.success) {
-    throw new AppError(
-      ErrorCode.SidecarFailed,
-      'Não foi possível gravar o documento do Word. O arquivo original não foi alterado.',
-      'docx.save fora do contrato',
-    )
+    throw new AppError(ErrorCode.SidecarFailed, t('errors.docx.cannotSave'), t('errors.docx.saveContract'))
   }
 
   console.info(`[docx] preservados ${parsed.data.preservedBlocks}, reescritos ${parsed.data.rewrittenBlocks}`)
 
   const inventory = parsed.data.inventory
-  const lost = [...inventory.lost]
+  const foreignBandsPt = translate(Language.Portuguese, 'errors.docx.foreignBands')
+  const lost = inventory.lost.map((item) => (item === foreignBandsPt ? t('errors.docx.foreignBands') : item))
   if (kept === null) {
     // `includes` porque o sidecar já declara a mesma perda quando a faixa tinha
     // texto para gravar e a relação não existia no pacote mínimo: a frase é uma
     // só, e repetida seriam dois avisos na tela para um problema.
-    if (hasForeignBands(model.page) && !lost.includes(FOREIGN_BANDS)) lost.push(FOREIGN_BANDS)
+    if (hasForeignBands(model.page) && !lost.includes(t('errors.docx.foreignBands')))
+      lost.push(t('errors.docx.foreignBands'))
     // Rede de proteção: um modelo com `oid` foi numerado contra um pacote que
     // não está aqui. Isso é defeito — o vínculo com o original se perdeu no
     // caminho —, e o que sai é o pacote mínimo, sem os estilos, as notas nem os
     // comentários do arquivo de origem. Dito em voz alta, porque perda calada é
     // o pior defeito que este programa pode ter.
-    if (hasOid(model.doc)) lost.push(ORIGIN_PACKAGE)
+    if (hasOid(model.doc)) lost.push(t('errors.docx.originPackage'))
   }
 
   return {
     bytes: reply.binary,
-    inventory: lost.length === inventory.lost.length ? inventory : { ...inventory, lost },
+    inventory: { ...inventory, lost },
     // O original que segue adiante é o pacote de partida desta gravação, e não
     // os bytes gravados. No documento novo isso é o **pacote mínimo**: com os
     // bytes gravados no lugar dele, cada gravação partia do resultado da
@@ -236,25 +233,6 @@ export function followDocxOriginal(
     openedOriginal = { path: target, bytes: openedOriginal.bytes }
   }
 }
-
-/**
- * Faixas de cabeçalho e rodapé que vieram de outro `.docx`.
- *
- * Elas só se gravam editando as partes do pacote de onde saíram. Sem esse
- * pacote — o `.sdoc` que um dia foi `.docx`, reaberto do disco — não há onde
- * escrevê-las, e o modelo mínimo sai sem elas. Perda sim, mas dita.
- */
-const FOREIGN_BANDS = 'cabeçalho e rodapé do arquivo .docx de origem'
-
-/**
- * O pacote inteiro do arquivo de origem, quando ele não está aqui.
- *
- * Os `oid` do modelo só existem porque um `.docx` foi aberto: cada um aponta um
- * bloco daquele pacote. Sem os bytes dele, a gravação parte do pacote mínimo e
- * nada mais do arquivo de origem — estilos, numeração, notas, comentários,
- * faixas — chega ao destino.
- */
-const ORIGIN_PACKAGE = 'estilos, notas, comentários e demais partes do arquivo .docx de origem'
 
 /**
  * Algum bloco do modelo veio de um pacote `.docx`?
@@ -303,8 +281,8 @@ async function createDocx(client: SidecarClient, page: unknown): Promise<Uint8Ar
   if (reply.binary.length === 0) {
     throw new AppError(
       ErrorCode.SidecarFailed,
-      'Não foi possível criar o documento do Word. Nada foi gravado.',
-      'docx.create sem pacote',
+      t('errors.docx.cannotCreate'),
+      t('errors.docx.createContract'),
     )
   }
   return reply.binary
@@ -315,7 +293,7 @@ function unwrapSdoc(content: string): { page: unknown; doc: unknown } {
   try {
     parsed = JSON.parse(content)
   } catch {
-    throw new AppError(ErrorCode.Internal, 'O documento em edição está em estado inconsistente.')
+    throw new AppError(ErrorCode.Internal, t('errors.docx.inconsistentState'))
   }
 
   // Os estilos são conferidos e **não** seguem para o sidecar: nesta entrega o
@@ -328,7 +306,7 @@ function unwrapSdoc(content: string): { page: unknown; doc: unknown } {
     .object({ page: z.unknown(), doc: z.unknown(), styles: styleSheetSchema.optional() })
     .safeParse(parsed)
   if (!envelope.success) {
-    throw new AppError(ErrorCode.Internal, 'O documento em edição está em estado inconsistente.')
+    throw new AppError(ErrorCode.Internal, t('errors.docx.inconsistentState'))
   }
 
   return { page: envelope.data.page, doc: envelope.data.doc }

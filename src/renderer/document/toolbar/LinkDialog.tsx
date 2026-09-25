@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { Editor } from '@tiptap/react'
 import { normalizeLinkUrl } from '@services/document/link.js'
+import { useT } from '../../i18n.js'
 
 interface LinkDialogProps {
   readonly editor: Editor
@@ -8,6 +9,7 @@ interface LinkDialogProps {
 }
 
 export function LinkDialog({ editor, onClose }: LinkDialogProps): React.JSX.Element {
+  const t = useT()
   const existing = String(editor.getAttributes('link')['href'] ?? '')
   const [value, setValue] = useState(existing)
   const [rejected, setRejected] = useState(false)
@@ -29,14 +31,14 @@ export function LinkDialog({ editor, onClose }: LinkDialogProps): React.JSX.Elem
   }
 
   return (
-    <div className="popover" role="dialog" aria-label="Inserir link">
+    <div className="popover" role="dialog" aria-label={t('document.linkDialog.title')}>
       <label className="popover__field">
-        <span>Endereço</span>
+        <span>{t('document.linkDialog.address')}</span>
         <input
           type="text"
           value={value}
           autoFocus
-          placeholder="empresa.com.br"
+          placeholder={t('document.linkDialog.placeholder')}
           onChange={(event) => {
             setValue(event.target.value)
             setRejected(false)
@@ -48,24 +50,20 @@ export function LinkDialog({ editor, onClose }: LinkDialogProps): React.JSX.Elem
         />
       </label>
 
-      {rejected && (
-        <p className="popover__error">
-          Endereço inválido. São aceitos endereços da web (http, https) e de e-mail (mailto).
-        </p>
-      )}
+      {rejected && <p className="popover__error">{t('document.linkDialog.invalidAddress')}</p>}
 
       <div className="popover__actions">
         {existing !== '' && (
           <button type="button" className="btn" onClick={remove}>
-            Remover
+            {t('document.linkDialog.remove')}
           </button>
         )}
         <span className="popover__spacer" />
         <button type="button" className="btn" onClick={onClose}>
-          Cancelar
+          {t('document.common.cancel')}
         </button>
         <button type="button" className="btn btn--primary" onClick={apply}>
-          Aplicar
+          {t('document.common.apply')}
         </button>
       </div>
     </div>

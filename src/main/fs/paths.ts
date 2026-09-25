@@ -2,6 +2,8 @@ import { stat } from 'node:fs/promises'
 import { isAbsolute, resolve } from 'node:path'
 import { AppError, ErrorCode, fromFileSystemError } from '@shared/errors.js'
 import { isSupportedExtension } from '@services/file/formats.js'
+import { t } from '../i18n.js'
+import { editorPreferences } from '../preferences.js'
 
 /** Teto de leitura da Fase 1. Protege contra travar a interface com um arquivo enorme. */
 export const MAX_FILE_BYTES = 20 * 1024 * 1024
@@ -36,10 +38,7 @@ export function isPathAuthorized(path: string): boolean {
 export function assertPathAuthorized(path: string): string {
   const normalized = normalizePath(path)
   if (!authorizedPaths.has(normalized)) {
-    throw new AppError(
-      ErrorCode.PathNotAuthorized,
-      'Esta operação foi recusada porque o arquivo não foi aberto nem escolhido por você nesta sessão.',
-    )
+    throw new AppError(ErrorCode.PathNotAuthorized, t('errors.paths.unauthorized'))
   }
   return normalized
 }
@@ -52,32 +51,26 @@ export function resetAuthorizedPaths(): void {
 /** Valida que o caminho é legível, é um arquivo comum e cabe no limite. */
 export async function assertReadableFile(path: string): Promise<void> {
   if (!isAbsolute(path)) {
-    throw new AppError(ErrorCode.InvalidRequest, 'O caminho do arquivo é inválido.')
+    throw new AppError(ErrorCode.InvalidRequest, t('errors.paths.invalidPath'))
   }
 
   if (!isSupportedExtension(path)) {
-    throw new AppError(
-      ErrorCode.UnsupportedFormat,
-      'Este tipo de arquivo não é suportado. O aplicativo abre .sdoc, .ssheet, .docx, .xlsx e .txt.',
-    )
+    throw new AppError(ErrorCode.UnsupportedFormat, t('errors.paths.unsupportedType'))
   }
 
   let info
   try {
     info = await stat(path)
   } catch (cause) {
-    throw fromFileSystemError(cause, 'leitura')
+    throw fromFileSystemError(cause, 'leitura', editorPreferences().language)
   }
 
   if (!info.isFile()) {
-    throw new AppError(ErrorCode.NotAFile, 'O caminho indicado não é um arquivo.')
+    throw new AppError(ErrorCode.NotAFile, t('errors.paths.notAFile'))
   }
 
   if (info.size > MAX_FILE_BYTES) {
     const limit = Math.round(MAX_FILE_BYTES / (1024 * 1024))
-    throw new AppError(
-      ErrorCode.FileTooLarge,
-      `O arquivo é grande demais para ser aberto (limite atual: ${limit} MB).`,
-    )
+    throw new AppError(ErrorCode.FileTooLarge, t('errors.paths.fileTooLarge', { limit }))
   }
 }

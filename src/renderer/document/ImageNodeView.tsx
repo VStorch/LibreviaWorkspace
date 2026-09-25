@@ -1,5 +1,7 @@
 import { useRef, useState } from 'react'
 import { NodeViewWrapper, type NodeViewProps } from '@tiptap/react'
+import type { MessageKey } from '@shared/i18n/index.js'
+import { useT } from '../i18n.js'
 import {
   MIN_IMAGE_PX,
   RESIZE_HANDLES,
@@ -10,15 +12,26 @@ import {
 } from '@services/document/image-resize.js'
 
 /** O que cada alça diz ao leitor de tela, e o cursor que ela mostra. */
-const HANDLES: Record<ResizeHandle, { readonly label: string; readonly cursor: string }> = {
-  nw: { label: 'pelo canto superior esquerdo', cursor: 'nwse-resize' },
-  n: { label: 'pela borda de cima', cursor: 'ns-resize' },
-  ne: { label: 'pelo canto superior direito', cursor: 'nesw-resize' },
-  e: { label: 'pela borda da direita', cursor: 'ew-resize' },
-  se: { label: 'pelo canto inferior direito', cursor: 'nwse-resize' },
-  s: { label: 'pela borda de baixo', cursor: 'ns-resize' },
-  sw: { label: 'pelo canto inferior esquerdo', cursor: 'nesw-resize' },
-  w: { label: 'pela borda da esquerda', cursor: 'ew-resize' },
+const HANDLE_KEYS: Record<ResizeHandle, MessageKey> = {
+  nw: 'document.image.handleNw',
+  n: 'document.image.handleN',
+  ne: 'document.image.handleNe',
+  e: 'document.image.handleE',
+  se: 'document.image.handleSe',
+  s: 'document.image.handleS',
+  sw: 'document.image.handleSw',
+  w: 'document.image.handleW',
+}
+
+const HANDLE_CURSORS: Record<ResizeHandle, string> = {
+  nw: 'nwse-resize',
+  n: 'ns-resize',
+  ne: 'nesw-resize',
+  e: 'ew-resize',
+  se: 'nwse-resize',
+  s: 'ns-resize',
+  sw: 'nesw-resize',
+  w: 'ew-resize',
 }
 
 /** Passo do teclado: oito pixels, como o Word move objeto com as setas. */
@@ -50,6 +63,7 @@ const KEYBOARD_STEP = 8
  * célula de tabela — e ali a coluna é a da célula.
  */
 export function ImageNodeView({ node, selected, editor, getPos }: NodeViewProps): React.JSX.Element {
+  const t = useT()
   const frame = useRef<HTMLSpanElement>(null)
   const [dragged, setDragged] = useState<ImageSize | null>(null)
 
@@ -189,13 +203,13 @@ export function ImageNodeView({ node, selected, editor, getPos }: NodeViewProps)
             key={handle}
             type="button"
             className={`image-frame__grip image-frame__grip--${handle}`}
-            style={{ cursor: HANDLES[handle].cursor }}
+            style={{ cursor: HANDLE_CURSORS[handle] }}
             contentEditable={false}
-            aria-label={`Redimensionar imagem ${HANDLES[handle].label}`}
+            aria-label={t('document.image.resizeLabel', { handle: t(HANDLE_KEYS[handle]) })}
             title={
               isCornerHandle(handle)
-                ? 'Arraste para redimensionar. Shift solta a proporção.'
-                : 'Arraste para redimensionar num eixo só.'
+                ? t('document.image.resizeCornerHint')
+                : t('document.image.resizeEdgeHint')
             }
             onPointerDown={(event) => startResize(handle, event)}
             onKeyDown={(event) => nudge(handle, event)}

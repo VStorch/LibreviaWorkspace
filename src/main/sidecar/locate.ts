@@ -10,11 +10,11 @@
 import { access, constants } from 'node:fs/promises'
 import { join } from 'node:path'
 import { AppError, ErrorCode } from '@shared/errors.js'
+import { t } from '../i18n.js'
 
 export const SIDECAR_EXECUTABLE = 'Librevia.Format'
 
-const UNAVAILABLE =
-  'O serviço que lê e grava documentos do Office não foi encontrado. A instalação parece incompleta — reinstale o aplicativo.'
+const unavailable = (): string => t('errors.sidecar.serviceNotFound')
 
 /**
  * Identificador de runtime do .NET.
@@ -43,8 +43,8 @@ export function sidecarPathIn(root: string, platform: NodeJS.Platform = process.
   if (rid === null) {
     throw new AppError(
       ErrorCode.SidecarUnavailable,
-      UNAVAILABLE,
-      `sem binário publicado para ${platform}-${process.arch}`,
+      unavailable(),
+      t('errors.sidecar.noBinary', { platform, arch: process.arch }),
     )
   }
   return join(root, 'resources', 'sidecar', rid, sidecarFileName(platform))
@@ -63,7 +63,7 @@ export async function locateSidecarIn(root: string): Promise<string> {
   try {
     await access(candidate, constants.X_OK)
   } catch {
-    throw new AppError(ErrorCode.SidecarUnavailable, UNAVAILABLE, 'ausente ou sem permissão de execução')
+    throw new AppError(ErrorCode.SidecarUnavailable, unavailable(), t('errors.sidecar.missingOrNotExecutable'))
   }
 
   return candidate

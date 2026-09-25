@@ -1,10 +1,12 @@
 import { app, BrowserWindow, Menu, type MenuItemConstructorOptions } from 'electron'
 import { APP_NAME } from '@shared/constants.js'
+import { LANGUAGES, LANGUAGE_NAMES, type MessageKey } from '@shared/i18n/index.js'
 import { SHORTCUTS, acceleratorOf } from '@shared/shortcuts.js'
 import { TABLE_ACTIONS, TableAction } from '@shared/table-actions.js'
-import { MenuCommand } from '@shared/types.js'
+import { MenuCommand, Theme } from '@shared/types.js'
 import { showAboutDialog } from './dialogs.js'
 import { listRecentFiles } from './fs/recent.js'
+import { t } from './i18n.js'
 import { editorPreferences, updatePreferences } from './preferences.js'
 import { devServerUrl, sendMenuCommand } from './window.js'
 
@@ -23,7 +25,7 @@ function dispatch(command: MenuCommand, path?: string): void {
 async function buildRecentSubmenu(): Promise<MenuItemConstructorOptions[]> {
   const recent = await listRecentFiles()
   if (recent.length === 0) {
-    return [{ label: 'Nenhum arquivo recente', enabled: false }]
+    return [{ label: t('menu.file.noRecent'), enabled: false }]
   }
 
   return [
@@ -35,8 +37,20 @@ async function buildRecentSubmenu(): Promise<MenuItemConstructorOptions[]> {
       click: () => dispatch(MenuCommand.OpenRecent, file.path),
     })),
     { type: 'separator' },
-    { label: 'Limpar recentes', click: () => dispatch(MenuCommand.ClearRecent) },
+    { label: t('menu.file.clearRecent'), click: () => dispatch(MenuCommand.ClearRecent) },
   ]
+}
+
+/** Um dos três temas, como item de rádio marcado conforme o que está escolhido. */
+function themeItem(theme: Theme, key: MessageKey, chosen: Theme): MenuItemConstructorOptions {
+  return {
+    label: t(key),
+    type: 'radio',
+    checked: chosen === theme,
+    click: () => {
+      updatePreferences({ theme })
+    },
+  }
 }
 
 /**
@@ -59,7 +73,7 @@ function buildTableSubmenu(): MenuItemConstructorOptions[] {
     // o `App` repassa ao editor pelo nome.
     const command: MenuCommand = action.id
     items.push({
-      label: action.label,
+      label: t(action.labelKey),
       ...(action.id === TableAction.Insert ? { accelerator: acceleratorOf(SHORTCUTS.insertTable) } : {}),
       click: () => dispatch(command),
     })
@@ -81,13 +95,13 @@ async function buildTemplate(): Promise<MenuItemConstructorOptions[]> {
         {
           label: APP_NAME,
           submenu: [
-            { role: 'about', label: `Sobre o ${APP_NAME}` },
+            { role: 'about', label: t('menu.help.about') },
             { type: 'separator' },
-            { role: 'hide', label: `Ocultar ${APP_NAME}` },
-            { role: 'hideOthers', label: 'Ocultar outros' },
-            { role: 'unhide', label: 'Mostrar todos' },
+            { role: 'hide', label: t('menu.app.hide') },
+            { role: 'hideOthers', label: t('menu.app.hideOthers') },
+            { role: 'unhide', label: t('menu.app.unhide') },
             { type: 'separator' },
-            { role: 'quit', label: `Encerrar ${APP_NAME}` },
+            { role: 'quit', label: t('menu.app.quit') },
           ],
         },
       ]
@@ -97,7 +111,34 @@ async function buildTemplate(): Promise<MenuItemConstructorOptions[]> {
 
   const viewSubmenu: MenuItemConstructorOptions[] = [
     {
-      label: 'Marcas de formatação',
+      label: t('view.showToolbar'),
+      type: 'checkbox',
+      checked: preferences.showToolbar,
+      click: () => {
+        updatePreferences({ showToolbar: !preferences.showToolbar })
+      },
+    },
+    {
+      label: t('view.showStatusBar'),
+      type: 'checkbox',
+      checked: preferences.showStatusBar,
+      click: () => {
+        updatePreferences({ showStatusBar: !preferences.showStatusBar })
+      },
+    },
+    { type: 'separator' },
+    {
+      label: t('view.reading'),
+      type: 'checkbox',
+      checked: preferences.readingMode,
+      accelerator: acceleratorOf(SHORTCUTS.readingMode),
+      click: () => {
+        updatePreferences({ readingMode: !preferences.readingMode })
+      },
+    },
+    { type: 'separator' },
+    {
+      label: t('menu.view.formattingMarks'),
       type: 'checkbox',
       checked: preferences.invisibleCharacters,
       // A tecla e o porquê dela estão na tabela de atalhos.
@@ -107,130 +148,158 @@ async function buildTemplate(): Promise<MenuItemConstructorOptions[]> {
       },
     },
     { type: 'separator' },
-    { role: 'resetZoom', label: 'Tamanho normal' },
-    // Ampliar sai do `Ctrl+Shift+=` do sobrescrito: ver a tabela de atalhos.
-    { role: 'zoomIn', label: 'Ampliar', accelerator: acceleratorOf(SHORTCUTS.zoomIn) },
-    { role: 'zoomOut', label: 'Reduzir' },
+    {
+      label: t('view.theme'),
+      submenu: [
+        // Botões de rádio, e não caixas: os três valores são exclusivos, e uma
+        // caixa marcada em dois deles ao mesmo tempo não quer dizer nada.
+        themeItem(Theme.System, 'view.theme.system', preferences.theme),
+        themeItem(Theme.Light, 'view.theme.light', preferences.theme),
+        themeItem(Theme.Dark, 'view.theme.dark', preferences.theme),
+      ],
+    },
+    {
+      label: t('view.language'),
+      // Cada idioma escrito nele mesmo, e por isso sem passar pelo catálogo:
+      // quem procura "English" num menu em português não acharia "Inglês".
+      submenu: LANGUAGES.map<MenuItemConstructorOptions>((language) => ({
+        label: LANGUAGE_NAMES[language],
+        type: 'radio',
+        checked: preferences.language === language,
+        click: () => {
+          updatePreferences({ language })
+        },
+      })),
+    },
     { type: 'separator' },
-    { role: 'togglefullscreen', label: 'Tela cheia' },
+    { role: 'resetZoom', label: t('menu.view.resetZoom') },
+    // Ampliar sai do `Ctrl+Shift+=` do sobrescrito: ver a tabela de atalhos.
+    { role: 'zoomIn', label: t('menu.view.zoomIn'), accelerator: acceleratorOf(SHORTCUTS.zoomIn) },
+    { role: 'zoomOut', label: t('menu.view.zoomOut') },
+    { type: 'separator' },
+    {
+      role: 'togglefullscreen',
+      label: t('menu.view.fullScreen'),
+      accelerator: isMac ? 'Ctrl+Command+F' : 'F11',
+    },
   ]
 
   if (devServerUrl() !== null) {
     viewSubmenu.push(
       { type: 'separator' },
-      { role: 'reload', label: 'Recarregar', accelerator: acceleratorOf(SHORTCUTS.reload) },
-      { role: 'toggleDevTools', label: 'Ferramentas do desenvolvedor' },
+      { role: 'reload', label: t('menu.view.reload'), accelerator: acceleratorOf(SHORTCUTS.reload) },
+      { role: 'toggleDevTools', label: t('menu.view.devTools') },
     )
   }
 
   return [
     ...macAppMenu,
     {
-      label: 'Arquivo',
+      label: t('menu.file'),
       submenu: [
         {
-          label: 'Novo documento',
+          label: t('menu.file.newDocument'),
           accelerator: acceleratorOf(SHORTCUTS.newDocument),
           click: () => dispatch(MenuCommand.NewDocument),
         },
         {
-          label: 'Nova planilha',
+          label: t('menu.file.newSpreadsheet'),
           accelerator: acceleratorOf(SHORTCUTS.newSpreadsheet),
           click: () => dispatch(MenuCommand.NewSpreadsheet),
         },
         { type: 'separator' },
         {
-          label: 'Abrir…',
+          label: t('menu.file.open'),
           accelerator: acceleratorOf(SHORTCUTS.open),
           click: () => dispatch(MenuCommand.Open),
         },
-        { label: 'Abrir recente', submenu: await buildRecentSubmenu() },
+        { label: t('menu.file.openRecent'), submenu: await buildRecentSubmenu() },
         { type: 'separator' },
         {
-          label: 'Salvar',
+          label: t('menu.file.save'),
           accelerator: acceleratorOf(SHORTCUTS.save),
           click: () => dispatch(MenuCommand.Save),
         },
         {
-          label: 'Salvar como…',
+          label: t('menu.file.saveAs'),
           accelerator: acceleratorOf(SHORTCUTS.saveAs),
           click: () => dispatch(MenuCommand.SaveAs),
         },
         { type: 'separator' },
-        { label: 'Configuração de página…', click: () => dispatch(MenuCommand.PageSetup) },
-        { label: 'Visualizar impressão', click: () => dispatch(MenuCommand.PrintPreview) },
-        { label: 'Exportar para PDF…', click: () => dispatch(MenuCommand.ExportPdf) },
+        { label: t('menu.file.pageSetup'), click: () => dispatch(MenuCommand.PageSetup) },
+        { label: t('menu.file.printPreview'), click: () => dispatch(MenuCommand.PrintPreview) },
+        { label: t('menu.file.exportPdf'), click: () => dispatch(MenuCommand.ExportPdf) },
         {
-          label: 'Imprimir…',
+          label: t('menu.file.print'),
           accelerator: acceleratorOf(SHORTCUTS.print),
           click: () => dispatch(MenuCommand.Print),
         },
         { type: 'separator' },
         {
-          label: 'Fechar arquivo',
+          label: t('menu.file.close'),
           accelerator: acceleratorOf(SHORTCUTS.closeFile),
           click: () => dispatch(MenuCommand.CloseFile),
         },
-        { role: 'quit', label: 'Sair' },
+        { role: 'quit', label: t('menu.file.quit') },
       ],
     },
     {
-      label: 'Editar',
+      label: t('menu.edit'),
       submenu: [
-        { role: 'undo', label: 'Desfazer' },
-        { role: 'redo', label: 'Refazer' },
+        { role: 'undo', label: t('menu.edit.undo') },
+        { role: 'redo', label: t('menu.edit.redo') },
         { type: 'separator' },
-        { role: 'cut', label: 'Recortar' },
-        { role: 'copy', label: 'Copiar' },
-        { role: 'paste', label: 'Colar' },
+        { role: 'cut', label: t('menu.edit.cut') },
+        { role: 'copy', label: t('menu.edit.copy') },
+        { role: 'paste', label: t('menu.edit.paste') },
         {
-          label: 'Colar sem formatação',
+          label: t('menu.edit.pasteWithoutFormat'),
           accelerator: acceleratorOf(SHORTCUTS.pasteWithoutFormat),
           click: () => dispatch(MenuCommand.PasteWithoutFormat),
         },
-        { role: 'selectAll', label: 'Selecionar tudo' },
+        { role: 'selectAll', label: t('menu.edit.selectAll') },
         { type: 'separator' },
         {
-          label: 'Localizar e substituir…',
+          label: t('menu.edit.findReplace'),
           accelerator: acceleratorOf(SHORTCUTS.findReplace),
           click: () => dispatch(MenuCommand.FindReplace),
         },
       ],
     },
     {
-      label: 'Formatar',
+      label: t('menu.format'),
       submenu: [
         {
-          label: 'Parágrafo…',
+          label: t('menu.format.paragraph'),
           click: () => dispatch(MenuCommand.ParagraphSetup),
         },
         {
-          label: 'Imagem…',
+          label: t('menu.format.image'),
           click: () => dispatch(MenuCommand.ImageProperties),
         },
       ],
     },
-    { label: 'Tabela', submenu: buildTableSubmenu() },
+    { label: t('menu.table'), submenu: buildTableSubmenu() },
     {
-      label: 'Inserir',
+      label: t('menu.insert'),
       submenu: [
         {
-          label: 'Quebra de página',
+          label: t('menu.insert.pageBreak'),
           accelerator: acceleratorOf(SHORTCUTS.insertPageBreak),
           click: () => dispatch(MenuCommand.InsertPageBreak),
         },
         {
-          label: 'Caractere especial…',
+          label: t('menu.insert.specialCharacter'),
           click: () => dispatch(MenuCommand.SpecialCharacter),
         },
       ],
     },
-    { label: 'Exibir', submenu: viewSubmenu },
+    { label: t('menu.view'), submenu: viewSubmenu },
     {
-      label: 'Ferramentas',
+      label: t('menu.tools'),
       submenu: [
         {
-          label: 'Verificação ortográfica',
+          label: t('menu.tools.spellcheck'),
           type: 'checkbox',
           checked: preferences.spellcheck,
           click: () => {
@@ -238,7 +307,7 @@ async function buildTemplate(): Promise<MenuItemConstructorOptions[]> {
           },
         },
         {
-          label: 'Autocorreção tipográfica',
+          label: t('menu.tools.typography'),
           type: 'checkbox',
           checked: preferences.typography,
           click: () => {
@@ -247,17 +316,17 @@ async function buildTemplate(): Promise<MenuItemConstructorOptions[]> {
         },
         { type: 'separator' },
         {
-          label: 'Contar palavras…',
+          label: t('menu.tools.wordCount'),
           accelerator: acceleratorOf(SHORTCUTS.wordCount),
           click: () => dispatch(MenuCommand.WordCount),
         },
       ],
     },
     {
-      label: 'Ajuda',
+      label: t('menu.help'),
       submenu: [
         {
-          label: `Sobre o ${APP_NAME}`,
+          label: t('menu.help.about'),
           click: () => {
             const window = focusedWindow()
             if (window !== null) showAboutDialog(window, APP_NAME, app.getVersion())

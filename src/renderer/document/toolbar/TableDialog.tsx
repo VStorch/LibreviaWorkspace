@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { Editor } from '@tiptap/react'
 import { MAX_TABLE_COLUMNS, MAX_TABLE_ROWS, isValidTableSize } from '@services/document/table-format.js'
+import { useT } from '../../i18n.js'
 
 /**
  * Inserir tabela, perguntando de que tamanho.
@@ -20,6 +21,7 @@ export function TableDialog({
   readonly editor: Editor
   readonly onClose: () => void
 }): React.JSX.Element {
+  const t = useT()
   const [rows, setRows] = useState(3)
   const [columns, setColumns] = useState(3)
   const [headerRow, setHeaderRow] = useState(true)
@@ -41,7 +43,7 @@ export function TableDialog({
     <div
       className="popover"
       role="dialog"
-      aria-label="Inserir tabela"
+      aria-label={t('document.insert.table')}
       onKeyDown={(event) => {
         if (event.key === 'Escape') onClose()
         if (event.key === 'Enter') insert()
@@ -49,7 +51,7 @@ export function TableDialog({
     >
       <div className="popover__row">
         <label className="popover__field popover__field--narrow">
-          <span>Linhas</span>
+          <span>{t('document.tableDialog.rows')}</span>
           <input
             type="number"
             min={1}
@@ -62,7 +64,7 @@ export function TableDialog({
         </label>
 
         <label className="popover__field popover__field--narrow">
-          <span>Colunas</span>
+          <span>{t('document.tableDialog.columns')}</span>
           <input
             type="number"
             min={1}
@@ -78,19 +80,19 @@ export function TableDialog({
         <input type="checkbox" checked={headerRow} onChange={(event) => setHeaderRow(event.target.checked)} />
         {/* O que o arquivo guarda é `w:tblHeader`, e é isso que o rótulo promete:
             a linha reaparece no alto de cada página, e não só fica em negrito. */}
-        <span>Linha de cabeçalho, repetida em cada página</span>
+        <span>{t('document.tableDialog.headerRow')}</span>
       </label>
 
       <p className={valid ? 'popover__hint' : 'popover__error'}>
         {valid
-          ? 'As colunas nascem com a mesma largura, e a divisória se arrasta depois.'
-          : `Entre 1 e ${MAX_TABLE_ROWS} linhas e 1 e ${MAX_TABLE_COLUMNS} colunas.`}
+          ? t('document.tableDialog.hintValid')
+          : t('document.tableDialog.hintInvalid', { maxRows: MAX_TABLE_ROWS, maxCols: MAX_TABLE_COLUMNS })}
       </p>
 
       <div className="popover__actions">
         <span className="popover__spacer" />
         <button type="button" className="btn" onMouseDown={keepFocus} onClick={onClose}>
-          Cancelar
+          {t('document.common.cancel')}
         </button>
         <button
           type="button"
@@ -99,7 +101,7 @@ export function TableDialog({
           onClick={insert}
           disabled={!valid}
         >
-          Inserir
+          {t('document.tableDialog.insert')}
         </button>
       </div>
     </div>

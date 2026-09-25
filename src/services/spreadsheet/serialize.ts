@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { AppError, ErrorCode } from '@shared/errors.js'
+import { translate, Language } from '@shared/i18n/index.js'
 import { DEFAULT_COLUMN_COUNT, DEFAULT_ROW_COUNT, createEmptyWorkbook, type WorkbookModel } from './model.js'
 
 /**
@@ -75,30 +76,21 @@ export function serializeWorkbook(model: WorkbookModel): string {
  * Arquivo corrompido ou de versão futura produz uma frase que o usuário
  * entende, e não um erro de JSON.
  */
-export function parseWorkbook(text: string): WorkbookModel {
+export function parseWorkbook(text: string, language: Language = Language.Portuguese): WorkbookModel {
   let raw: unknown
   try {
     raw = JSON.parse(text)
   } catch {
-    throw new AppError(
-      ErrorCode.UnsupportedFormat,
-      'Esta planilha não pôde ser lida: o conteúdo está corrompido ou não é uma planilha válida.',
-    )
+    throw new AppError(ErrorCode.UnsupportedFormat, translate(language, 'spreadsheet.error.corrupt'))
   }
 
   const parsed = ssheetSchema.safeParse(raw)
   if (!parsed.success) {
-    throw new AppError(
-      ErrorCode.UnsupportedFormat,
-      'Este arquivo não é uma planilha válida deste aplicativo.',
-    )
+    throw new AppError(ErrorCode.UnsupportedFormat, translate(language, 'spreadsheet.error.invalid'))
   }
 
   if (parsed.data.version > SSHEET_VERSION) {
-    throw new AppError(
-      ErrorCode.UnsupportedFormat,
-      'Esta planilha foi criada por uma versão mais recente do aplicativo. Atualize para abri-la.',
-    )
+    throw new AppError(ErrorCode.UnsupportedFormat, translate(language, 'spreadsheet.error.newerVersion'))
   }
 
   // Aba ativa fora do intervalo não impede a leitura: os dados valem mais que

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { familiesInDocument, orderFontFamilies } from '@services/document/font-list.js'
+import { useT } from '../../i18n.js'
 import { useWorkspace } from '../../state/workspace.js'
 
 /**
@@ -15,6 +16,7 @@ import { useWorkspace } from '../../state/workspace.js'
  * um processo do sistema por nada.
  */
 export function useFontFamilies(activeFamily: string): readonly { value: string; label: string }[] {
+  const t = useT()
   const initialDoc = useWorkspace((state) => state.initialDoc)
   const [installed, setInstalled] = useState<readonly string[]>([])
 
@@ -54,8 +56,8 @@ export function useFontFamilies(activeFamily: string): readonly { value: string;
     }
 
     return [
-      { value: '', label: 'Fonte padrão' },
+      { value: '', label: t('document.styleAndFont.defaultFont') },
       ...families.map((family) => ({ value: family, label: family })),
     ]
-  }, [installed, inDocument, activeFamily])
+  }, [installed, inDocument, activeFamily, t])
 }

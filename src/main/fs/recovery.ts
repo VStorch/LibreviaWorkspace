@@ -22,6 +22,7 @@ import { z } from 'zod'
 import { DocumentKind, type DraftSummary } from '@shared/types.js'
 import { MAX_TEXT_LENGTH } from '@shared/ipc.js'
 import { writeFileAtomic } from './atomic-write.js'
+import { t } from '../i18n.js'
 
 /** O rascunho inteiro. O resumo, sem conteúdo, mora em `shared/types.ts`. */
 export interface Draft extends DraftSummary {
@@ -46,7 +47,7 @@ export function useRecoveryFolder(path: string): void {
 }
 
 function directory(): string {
-  if (folder === null) throw new Error('a pasta de recuperação não foi configurada')
+  if (folder === null) throw new Error(t('errors.recovery.folderNotConfigured'))
   return folder
 }
 

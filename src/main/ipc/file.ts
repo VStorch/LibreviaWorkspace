@@ -18,12 +18,14 @@ import { assertPathAuthorized, assertReadableFile, authorizePath } from '../fs/p
 import { clearRecentFiles, isRemembered, listRecentFiles, rememberRecentFile } from '../fs/recent.js'
 import { readTextFile } from '../fs/read-text.js'
 import { refreshMenu } from '../menu.js'
+import { t } from '../i18n.js'
 import { handle } from './registry.js'
+import { forgetExternalFileRequest, isExternalFileRequested } from '../external-files.js'
 
 function windowOf(event: IpcMainInvokeEvent): BrowserWindow {
   const window = BrowserWindow.fromWebContents(event.sender)
   if (window === null) {
-    throw new AppError(ErrorCode.Internal, 'A janela do aplicativo não está disponível.')
+    throw new AppError(ErrorCode.Internal, t('errors.ipc.windowNotAvailable'))
   }
   return window
 }
@@ -68,15 +70,16 @@ export function registerFileHandlers(): void {
   })
 
   handle(IpcChannel.FileOpenRecent, async (payload) => {
-    // O renderer não escolhe caminhos: só pode reabrir o que já está na lista
-    // de recentes, que por sua vez só é alimentada por escolha do usuário.
-    if (!isRemembered(payload.path)) {
-      throw new AppError(
-        ErrorCode.PathNotAuthorized,
-        'Este arquivo não está mais na lista de recentes. Abra-o novamente pelo menu Arquivo.',
-      )
+    // O renderer não escolhe caminhos: aceita recentes ou pedidos do Explorer
+    // recebidos pelo main, ambos originados por escolha do usuário.
+    if (!isRemembered(payload.path) && !isExternalFileRequested(payload.path)) {
+      throw new AppError(ErrorCode.PathNotAuthorized, t('errors.ipc.notInRecents'))
     }
-    return { file: await loadFile(payload.path) }
+    try {
+      return { file: await loadFile(payload.path) }
+    } finally {
+      forgetExternalFileRequest(payload.path)
+    }
   })
 
   handle(IpcChannel.FileSave, async (payload) => {

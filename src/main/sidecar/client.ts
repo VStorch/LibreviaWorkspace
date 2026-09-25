@@ -20,6 +20,7 @@ import {
   parseResponse,
   type HealthResult,
 } from './protocol.js'
+import { t } from '../i18n.js'
 
 /**
  * Teto por operação. Documento grande demora, mas nada aqui justifica um
@@ -32,9 +33,8 @@ export const HEALTH_TIMEOUT_MS = 10_000
 /** Prazo entre pedir para encerrar e matar de vez. */
 export const SHUTDOWN_GRACE_MS = 2_000
 
-const DIED = 'O serviço de formatos foi encerrado inesperadamente. Seu documento continua aberto e intacto.'
-const TIMED_OUT =
-  'O serviço de formatos demorou demais para responder e a operação foi cancelada. Seu documento continua aberto e intacto.'
+const died = (): string => t('errors.sidecar.died')
+const timedOut = (): string => t('errors.sidecar.timedOut')
 
 export interface SidecarReply {
   readonly result: unknown
@@ -71,7 +71,7 @@ export class SidecarClient {
 
     const parsed = healthResultSchema.safeParse(result)
     if (!parsed.success) {
-      throw new AppError(ErrorCode.SidecarFailed, DIED, 'health fora do contrato')
+      throw new AppError(ErrorCode.SidecarFailed, died(), t('errors.sidecar.healthContract'))
     }
     return parsed.data
   }
@@ -83,7 +83,7 @@ export class SidecarClient {
     timeoutMs: number = REQUEST_TIMEOUT_MS,
   ): Promise<SidecarReply> {
     if (this.#disposed) {
-      throw new AppError(ErrorCode.SidecarUnavailable, DIED, 'cliente já encerrado')
+      throw new AppError(ErrorCode.SidecarUnavailable, died(), t('errors.sidecar.alreadyClosed'))
     }
 
     const child = await this.#ensureStarted()
@@ -94,7 +94,7 @@ export class SidecarClient {
     // ficaria pendurado para sempre, e o processo recém-nascido viraria órfão.
     if (this.#disposed) {
       this.#kill()
-      throw new AppError(ErrorCode.SidecarUnavailable, DIED, 'encerrado durante o pedido')
+      throw new AppError(ErrorCode.SidecarUnavailable, died(), t('errors.sidecar.closedDuringRequest'))
     }
 
     const id = this.#nextId++
@@ -106,7 +106,7 @@ export class SidecarClient {
         // estar num laço infinito com um documento malformado. Derrubar é o
         // único jeito de garantir que o próximo pedido comece limpo.
         this.#kill()
-        reject(new AppError(ErrorCode.SidecarTimeout, TIMED_OUT))
+        reject(new AppError(ErrorCode.SidecarTimeout, timedOut()))
       }, timeoutMs)
       timer.unref()
 
@@ -117,7 +117,7 @@ export class SidecarClient {
       } catch (cause) {
         this.#settle(id, (pending) =>
           pending.reject(
-            new AppError(ErrorCode.SidecarFailed, DIED, cause instanceof Error ? cause.message : undefined),
+            new AppError(ErrorCode.SidecarFailed, died(), cause instanceof Error ? cause.message : undefined),
           ),
         )
       }
@@ -127,7 +127,7 @@ export class SidecarClient {
   /** Encerra sem deixar processo órfão. Idempotente. */
   dispose(): void {
     this.#disposed = true
-    this.#failAllPending(new AppError(ErrorCode.SidecarUnavailable, DIED, 'aplicativo encerrando'))
+    this.#failAllPending(new AppError(ErrorCode.SidecarUnavailable, died(), 'aplicativo encerrando'))
 
     const child = this.#child
     if (child === null) return
@@ -171,13 +171,19 @@ export class SidecarClient {
 
     child.once('error', (cause) => {
       this.#child = null
-      this.#failAllPending(new AppError(ErrorCode.SidecarUnavailable, DIED, cause.message))
+      this.#failAllPending(new AppError(ErrorCode.SidecarUnavailable, died(), cause.message))
     })
 
     child.once('exit', (code, signal) => {
       this.#child = null
       this.#reader = new FrameReader()
-      this.#failAllPending(new AppError(ErrorCode.SidecarFailed, DIED, `saiu com code=${code} signal=${signal}`))
+      this.#failAllPending(
+        new AppError(
+          ErrorCode.SidecarFailed,
+          died(),
+          t('errors.sidecar.exitCodeSignal', { code: String(code), signal: String(signal) }),
+        ),
+      )
     })
 
     this.#child = child
@@ -192,7 +198,7 @@ export class SidecarClient {
       // Fluxo corrompido: não dá para saber onde o próximo quadro começa.
       this.#kill()
       this.#failAllPending(
-        cause instanceof AppError ? cause : new AppError(ErrorCode.SidecarFailed, DIED),
+        cause instanceof AppError ? cause : new AppError(ErrorCode.SidecarFailed, died()),
       )
       return
     }
@@ -202,7 +208,7 @@ export class SidecarClient {
       try {
         response = parseResponse(frame.json)
       } catch (cause) {
-        this.#failAllPending(cause instanceof AppError ? cause : new AppError(ErrorCode.SidecarFailed, DIED))
+        this.#failAllPending(cause instanceof AppError ? cause : new AppError(ErrorCode.SidecarFailed, died()))
         return
       }
 

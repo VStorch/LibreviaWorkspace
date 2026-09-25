@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import type { MessageKey } from '@shared/i18n/index.js'
 import {
   DEFAULT_PAGE_SETUP,
   PageOrientation,
@@ -10,16 +11,18 @@ import {
   type PageSetup,
 } from '@services/document/model.js'
 import { MIN_MARGIN_FOR_HEADER_MM, marginFitsHeaderOrFooter } from '@services/pdf/page-setup.js'
+import { useT } from '../i18n.js'
 import { useWorkspace } from '../state/workspace.js'
 
-const MARGIN_FIELDS: readonly { readonly key: keyof Margins; readonly label: string }[] = [
-  { key: 'top', label: 'Superior' },
-  { key: 'bottom', label: 'Inferior' },
-  { key: 'left', label: 'Esquerda' },
-  { key: 'right', label: 'Direita' },
+const MARGIN_FIELDS: readonly { readonly key: keyof Margins; readonly labelKey: MessageKey }[] = [
+  { key: 'top', labelKey: 'document.pageSetup.marginTop' },
+  { key: 'bottom', labelKey: 'document.pageSetup.marginBottom' },
+  { key: 'left', labelKey: 'document.pageSetup.marginLeft' },
+  { key: 'right', labelKey: 'document.pageSetup.marginRight' },
 ]
 
 export function PageSetupPanel({ onClose }: { readonly onClose: () => void }): React.JSX.Element {
+  const t = useT()
   const current = useWorkspace((state) => state.page)
   const setPage = useWorkspace((state) => state.setPage)
   const [draft, setDraft] = useState<PageSetup>(current)
@@ -42,7 +45,7 @@ export function PageSetupPanel({ onClose }: { readonly onClose: () => void }): R
     <div
       className="popover popover--wide"
       role="dialog"
-      aria-label="Configuração de página"
+      aria-label={t('document.pageSetup.title')}
       // `Esc` fecha e `Enter` aplica, como no diálogo de parágrafo: dois painéis
       // que fazem a mesma coisa de dois jeitos custam mais a quem usa do que a
       // quem escreve. No elemento, e não numa escuta global, para não fechar
@@ -54,36 +57,36 @@ export function PageSetupPanel({ onClose }: { readonly onClose: () => void }): R
     >
       <div className="popover__row">
         <label className="popover__field">
-          <span>Tamanho</span>
+          <span>{t('document.pageSetup.size')}</span>
           <select
-            aria-label="Tamanho"
+            aria-label={t('document.pageSetup.size')}
             value={draft.size}
             onChange={(event) => setDraft({ ...draft, size: event.target.value as PageSize })}
           >
             <option value={PageSize.A4}>A4 (210 × 297 mm)</option>
-            <option value={PageSize.Letter}>Carta (216 × 279 mm)</option>
+            <option value={PageSize.Letter}>{t('document.pageSetup.letter')}</option>
           </select>
         </label>
 
         <label className="popover__field">
-          <span>Orientação</span>
+          <span>{t('document.pageSetup.orientation')}</span>
           <select
-            aria-label="Orientação"
+            aria-label={t('document.pageSetup.orientation')}
             value={draft.orientation}
             onChange={(event) => setDraft({ ...draft, orientation: event.target.value as PageOrientation })}
           >
-            <option value={PageOrientation.Portrait}>Retrato</option>
-            <option value={PageOrientation.Landscape}>Paisagem</option>
+            <option value={PageOrientation.Portrait}>{t('document.pageSetup.portrait')}</option>
+            <option value={PageOrientation.Landscape}>{t('document.pageSetup.landscape')}</option>
           </select>
         </label>
       </div>
 
       <fieldset className="popover__fieldset">
-        <legend>Margens (mm)</legend>
+        <legend>{t('document.pageSetup.margins')}</legend>
         <div className="popover__row">
-          {MARGIN_FIELDS.map(({ key, label }) => (
+          {MARGIN_FIELDS.map(({ key, labelKey }) => (
             <label key={key} className="popover__field popover__field--narrow">
-              <span>{label}</span>
+              <span>{t(labelKey)}</span>
               <input
                 type="number"
                 min={0}
@@ -103,60 +106,61 @@ export function PageSetupPanel({ onClose }: { readonly onClose: () => void }): R
       </fieldset>
 
       <fieldset className="popover__fieldset">
-        <legend>Cabeçalho e rodapé</legend>
+        <legend>{t('document.pageSetup.headerAndFooter')}</legend>
 
         <label className="popover__field">
-          <span>Cabeçalho</span>
+          <span>{t('document.pageSetup.header')}</span>
           <input
             type="text"
             value={draft.header}
-            placeholder="deixe vazio para não usar"
+            placeholder={t('document.pageSetup.headerPlaceholder')}
             maxLength={500}
             onChange={(event) => setDraft({ ...draft, header: event.target.value })}
           />
         </label>
 
         <label className="popover__field">
-          <span>Rodapé</span>
+          <span>{t('document.pageSetup.footer')}</span>
           <input
             type="text"
             value={draft.footer}
-            placeholder="ex.: Página {n} de {total}"
+            placeholder={t('document.pageSetup.footerPlaceholder')}
             maxLength={500}
             onChange={(event) => setDraft({ ...draft, footer: event.target.value })}
           />
         </label>
 
-        <p className="popover__hint">
-          Use <code>{'{n}'}</code> para o número da página e <code>{'{total}'}</code> para o total.
-        </p>
+        <p className="popover__hint">{t('document.pageSetup.hint', { n: '{n}', total: '{total}' })}</p>
 
         {/* O Chromium desenha cabeçalho e rodapé dentro da margem e recorta o
             excedente: com margem apertada eles somem sem explicação. */}
         {needsRoomWarning && (
           <p className="popover__error">
-            A margem é pequena demais para caber o cabeçalho ou o rodapé — use pelo menos{' '}
-            {MIN_MARGIN_FOR_HEADER_MM} mm em cima e embaixo, senão eles não aparecem no PDF.
+            {t('document.pageSetup.marginWarning', { min: MIN_MARGIN_FOR_HEADER_MM })}
           </p>
         )}
       </fieldset>
 
       <p className={valid ? 'popover__hint' : 'popover__error'}>
         {valid
-          ? `Página ${width} × ${height} mm · área de texto ${contentWidthMm(draft).toFixed(0)} mm de largura`
-          : 'As margens somam mais que a página e não deixam espaço para o texto.'}
+          ? t('document.pageSetup.pageSummary', {
+              width,
+              height,
+              contentWidth: contentWidthMm(draft).toFixed(0),
+            })
+          : t('document.pageSetup.marginsError')}
       </p>
 
       <div className="popover__actions">
         <button type="button" className="btn" onClick={() => setDraft(DEFAULT_PAGE_SETUP)}>
-          Restaurar padrão
+          {t('document.common.restoreDefaults')}
         </button>
         <span className="popover__spacer" />
         <button type="button" className="btn" onClick={onClose}>
-          Cancelar
+          {t('document.common.cancel')}
         </button>
         <button type="button" className="btn btn--primary" onClick={apply} disabled={!valid}>
-          Aplicar
+          {t('document.common.apply')}
         </button>
       </div>
     </div>

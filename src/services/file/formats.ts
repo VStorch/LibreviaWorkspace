@@ -1,4 +1,5 @@
 import { DocumentKind } from '@shared/types.js'
+import { translate, Language } from '@shared/i18n/index.js'
 
 /**
  * Conhecimento sobre formatos e caminhos, em forma pura.
@@ -84,17 +85,22 @@ export function ensureSupportedExtension(path: string, kind: DocumentKind = Docu
   return `${path}${fallback}`
 }
 
-export function defaultFileName(kind: DocumentKind): string {
+export function defaultFileName(kind: DocumentKind, language: Language = Language.Portuguese): string {
   return kind === DocumentKind.Spreadsheet
-    ? `Planilha sem título${SPREADSHEET_EXTENSION}`
-    : `Documento sem título${DOCUMENT_EXTENSION}`
+    ? `${translate(language, 'shell.file.untitledSpreadsheet')}${SPREADSHEET_EXTENSION}`
+    : `${translate(language, 'shell.file.untitledDocument')}${DOCUMENT_EXTENSION}`
 }
 
 /**
  * Título da janela: nome do arquivo, marcador de alteração e nome do app.
  * O `•` é o indicador de não salvo — mesma convenção de editores de código.
  */
-export function buildWindowTitle(fileName: string | null, isDirty: boolean, appName: string): string {
-  const base = fileName ?? 'Sem título'
+export function buildWindowTitle(
+  fileName: string | null,
+  isDirty: boolean,
+  appName: string,
+  untitled: string = translate(Language.Portuguese, 'shell.file.untitled'),
+): string {
+  const base = fileName ?? untitled
   return `${isDirty ? '• ' : ''}${base} — ${appName}`
 }

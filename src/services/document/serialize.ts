@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { AppError, ErrorCode } from '@shared/errors.js'
+import { Language, translate } from '@shared/i18n/index.js'
 import { pageSetupSchema, styleSheetSchema } from '@shared/schemas.js'
 import { DEFAULT_PAGE_SETUP, isValidMargins, type DocumentModel, type DocumentNode } from './model.js'
 import { BUILTIN_STYLES, type StyleSheet } from './styles.js'
@@ -65,30 +66,21 @@ export function serializeDocument(model: DocumentModel): string {
  * usuário entenda — não um erro de JSON. Perder o arquivo por não conseguir
  * explicar o problema seria o pior desfecho.
  */
-export function parseDocument(text: string): DocumentModel {
+export function parseDocument(text: string, language: Language = Language.Portuguese): DocumentModel {
   let raw: unknown
   try {
     raw = JSON.parse(text)
   } catch {
-    throw new AppError(
-      ErrorCode.UnsupportedFormat,
-      'Este arquivo não pôde ser lido: o conteúdo está corrompido ou não é um documento válido.',
-    )
+    throw new AppError(ErrorCode.UnsupportedFormat, translate(language, 'errors.document.corrupt'))
   }
 
   const parsed = sdocSchema.safeParse(raw)
   if (!parsed.success) {
-    throw new AppError(
-      ErrorCode.UnsupportedFormat,
-      'Este arquivo não é um documento válido deste aplicativo.',
-    )
+    throw new AppError(ErrorCode.UnsupportedFormat, translate(language, 'errors.document.invalid'))
   }
 
   if (parsed.data.version > SDOC_VERSION) {
-    throw new AppError(
-      ErrorCode.UnsupportedFormat,
-      'Este documento foi criado por uma versão mais recente do aplicativo. Atualize para abri-lo.',
-    )
+    throw new AppError(ErrorCode.UnsupportedFormat, translate(language, 'errors.document.newerVersion'))
   }
 
   // Margens inválidas não impedem a leitura: o documento é recuperado com a

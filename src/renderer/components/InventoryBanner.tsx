@@ -1,4 +1,5 @@
 import { useWorkspace } from '../state/workspace.js'
+import { useT } from '../i18n.js'
 
 /**
  * O que o documento tem e o editor não reproduz por inteiro — ou não vai
@@ -13,6 +14,7 @@ import { useWorkspace } from '../state/workspace.js'
  * sumir". Ver docs/02-docx-cirurgico.md.
  */
 export function InventoryBanner(): React.JSX.Element | null {
+  const t = useT()
   const notice = useWorkspace((state) => state.notice)
   const savedLoss = useWorkspace((state) => state.savedLoss)
   const readOnly = useWorkspace((state) => state.readOnly)
@@ -24,10 +26,15 @@ export function InventoryBanner(): React.JSX.Element | null {
     return (
       <div className="banner banner--notice" role="status">
         <div className="banner__text">
-          <strong>Nesta gravação, isto não chegou ao arquivo:</strong>
+          <strong>{t('shell.banner.savedLoss')}</strong>
           <span className="banner__detail">{savedLoss.join('; ')}</span>
         </div>
-        <button type="button" className="banner__close" onClick={dismiss} aria-label="Dispensar aviso">
+        <button
+          type="button"
+          className="banner__close"
+          onClick={dismiss}
+          aria-label={t('shell.banner.dismiss')}
+        >
           ✕
         </button>
       </div>
@@ -51,22 +58,25 @@ export function InventoryBanner(): React.JSX.Element | null {
       <div className="banner__text">
         {notice.lost.length > 0 && (
           <>
-            <strong>Ao salvar, isto será perdido:</strong>
+            <strong>{t('shell.banner.willBeLost')}</strong>
             <span className="banner__detail">{notice.lost.join('; ')}</span>
           </>
         )}
         {invisible.length > 0 && (
           <>
             <strong>
-              {notice.lost.length > 0
-                ? 'E isto continua no arquivo, mas não aparece por inteiro aqui:'
-                : 'Este documento tem recursos que continuam no arquivo, mas não aparecem por inteiro aqui:'}
+              {notice.lost.length > 0 ? t('shell.banner.stillInFileAnd') : t('shell.banner.stillInFileDoc')}
             </strong>
             <span className="banner__detail">{invisible.join('; ')}</span>
           </>
         )}
       </div>
-      <button type="button" className="banner__close" onClick={dismiss} aria-label="Dispensar aviso">
+      <button
+        type="button"
+        className="banner__close"
+        onClick={dismiss}
+        aria-label={t('shell.banner.dismiss')}
+      >
         ✕
       </button>
     </div>

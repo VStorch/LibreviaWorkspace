@@ -1,8 +1,9 @@
-import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
 import { launch, menu, stubDialogs, type Session } from './app.js'
+import { docxWithLongTable } from './fixtures.js'
 
 /**
  * O editor pagina ao vivo.
@@ -12,10 +13,10 @@ import { launch, menu, stubDialogs, type Session } from './app.js'
  * plano. Agora o texto corre sobre folhas desenhadas, e o número de folhas
  * responde ao que se digita.
  *
- * Os testes olham a **contagem de folhas**, e não pixels: onde exatamente a
- * linha cai depende da fonte que a máquina tem, e um teste preso a isso reprova
- * por motivo errado. Quantas folhas o documento tem é a pergunta que a pessoa
- * faz, e é estável.
+ * A contagem de folhas responde à digitação. Na tabela longa, também se
+ * confere que a última linha está dentro do papel: contar folhas sozinho não
+ * detecta conteúdo desenhado além da borda. Não se fixa a fonte nem a linha
+ * exata do corte, que variam conforme a máquina.
  */
 test.describe('paginação ao vivo', () => {
   let session: Session
@@ -29,6 +30,27 @@ test.describe('paginação ao vivo', () => {
   test.afterEach(async () => {
     await session.close()
     await rm(pasta, { recursive: true, force: true })
+  })
+
+  test('tabela longa termina dentro da última folha', async () => {
+    const source = join(pasta, 'tabela-longa.docx')
+    await writeFile(source, await docxWithLongTable())
+    await stubDialogs(session.app, { open: source, messageBox: 1 })
+    await menu(session, 'open')
+    const sheets = session.window.locator('.paper')
+    const rows = session.window.locator('.ProseMirror table').first().locator('tr')
+    await expect(rows).toHaveCount(80)
+    await expect.poll(() => sheets.count()).toBeGreaterThanOrEqual(2)
+    await expect(async () => {
+      const row = await rows.last().boundingBox()
+      const sheet = await sheets.last().boundingBox()
+      expect(row).not.toBeNull()
+      expect(sheet).not.toBeNull()
+      expect(row!.x).toBeGreaterThanOrEqual(sheet!.x)
+      expect(row!.y).toBeGreaterThanOrEqual(sheet!.y)
+      expect(row!.x + row!.width).toBeLessThanOrEqual(sheet!.x + sheet!.width)
+      expect(row!.y + row!.height).toBeLessThanOrEqual(sheet!.y + sheet!.height)
+    }).toPass()
   })
 
   test('documento novo tem uma folha só', async () => {

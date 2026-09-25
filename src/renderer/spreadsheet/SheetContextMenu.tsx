@@ -7,6 +7,7 @@ import {
   ContextMenuSeparator,
   type MenuPosition,
 } from '../components/ContextMenu.js'
+import { useT } from '../i18n.js'
 
 /**
  * Menu de contexto da planilha.
@@ -40,6 +41,7 @@ export function SheetContextMenu({
   onStructure: (change: StructuralChange) => void
   onClose: () => void
 }): React.JSX.Element {
+  const t = useT()
   const rows = range.toRow - range.fromRow + 1
   const columns = range.toColumn - range.fromColumn + 1
 
@@ -54,39 +56,36 @@ export function SheetContextMenu({
   }
 
   return (
-    <ContextMenu position={position} label="Ações da planilha" onClose={onClose}>
+    <ContextMenu position={position} label={t('spreadsheet.contextMenu.label')} onClose={onClose}>
       <ContextMenuItem onClick={structural({ kind: 'insertRows', at: range.fromRow, count: rows })}>
-        Inserir {plural(rows, 'linha', 'linhas')} acima
+        {t('spreadsheet.rows.insertAbove', { count: rows })}
       </ContextMenuItem>
       <ContextMenuItem onClick={structural({ kind: 'insertRows', at: range.toRow + 1, count: rows })}>
-        Inserir {plural(rows, 'linha', 'linhas')} abaixo
+        {t('spreadsheet.rows.insertBelow', { count: rows })}
       </ContextMenuItem>
       <ContextMenuItem onClick={structural({ kind: 'deleteRows', at: range.fromRow, count: rows })}>
-        Excluir {plural(rows, 'linha', 'linhas')}
+        {t('spreadsheet.rows.delete', { count: rows })}
       </ContextMenuItem>
 
       <ContextMenuSeparator />
 
       <ContextMenuItem onClick={structural({ kind: 'insertColumns', at: range.fromColumn, count: columns })}>
-        Inserir {plural(columns, 'coluna', 'colunas')} à esquerda
+        {t('spreadsheet.columns.insertLeft', { count: columns })}
       </ContextMenuItem>
       <ContextMenuItem
         onClick={structural({ kind: 'insertColumns', at: range.toColumn + 1, count: columns })}
       >
-        Inserir {plural(columns, 'coluna', 'colunas')} à direita
+        {t('spreadsheet.columns.insertRight', { count: columns })}
       </ContextMenuItem>
       <ContextMenuItem onClick={structural({ kind: 'deleteColumns', at: range.fromColumn, count: columns })}>
-        Excluir {plural(columns, 'coluna', 'colunas')}
+        {t('spreadsheet.columns.delete', { count: columns })}
       </ContextMenuItem>
 
       <ContextMenuSeparator />
 
-      <ContextMenuItem onClick={run((s) => clearContents(s, range))}>Limpar conteúdo</ContextMenuItem>
+      <ContextMenuItem onClick={run((s) => clearContents(s, range))}>
+        {t('spreadsheet.contextMenu.clearContents')}
+      </ContextMenuItem>
     </ContextMenu>
   )
-}
-
-/** "1 linha", "3 linhas" — o número aparece só quando não é um. */
-function plural(count: number, one: string, many: string): string {
-  return count === 1 ? one : `${count} ${many}`
 }

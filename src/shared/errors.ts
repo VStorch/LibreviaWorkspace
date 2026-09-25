@@ -6,6 +6,8 @@
  * diagnóstico técnico fica no log do processo main.
  */
 
+import { Language, translate } from './i18n/index.js'
+
 export const ErrorCode = {
   InvalidRequest: 'INVALID_REQUEST',
   UnknownChannel: 'UNKNOWN_CHANNEL',
@@ -58,11 +60,11 @@ export class AppError extends Error {
 }
 
 /** Converte qualquer valor lançado num erro seguro para cruzar o IPC. */
-export function toSerializedError(cause: unknown): SerializedError {
+export function toSerializedError(cause: unknown, language: Language = Language.Portuguese): SerializedError {
   if (cause instanceof AppError) return cause.toSerialized()
   return {
     code: ErrorCode.Internal,
-    message: 'Ocorreu um erro inesperado. A operação não foi concluída.',
+    message: translate(language, 'errors.unexpected'),
   }
 }
 
@@ -72,47 +74,33 @@ export function toSerializedError(cause: unknown): SerializedError {
  * Sem isto, uma pasta de rede fora do ar produz "EBUSY" na tela — que não diz
  * nada a quem só quer saber se pode continuar trabalhando.
  */
-export function fromFileSystemError(cause: unknown, operation: 'leitura' | 'escrita'): AppError {
+export function fromFileSystemError(
+  cause: unknown,
+  operation: 'leitura' | 'escrita',
+  language: Language = Language.Portuguese,
+): AppError {
   const code = typeof cause === 'object' && cause !== null ? (cause as { code?: string }).code : undefined
 
   switch (code) {
     case 'ENOENT':
-      return new AppError(
-        ErrorCode.FileNotFound,
-        'O arquivo não foi encontrado. Ele pode ter sido movido ou excluído.',
-      )
+      return new AppError(ErrorCode.FileNotFound, translate(language, 'errors.fs.fileNotFound'))
     case 'EACCES':
     case 'EPERM':
-      return new AppError(
-        ErrorCode.PermissionDenied,
-        'Você não tem permissão para acessar este arquivo. Verifique com quem administra a pasta.',
-      )
+      return new AppError(ErrorCode.PermissionDenied, translate(language, 'errors.fs.permissionDenied'))
     case 'EISDIR':
-      return new AppError(ErrorCode.NotAFile, 'O caminho indicado é uma pasta, não um arquivo.')
+      return new AppError(ErrorCode.NotAFile, translate(language, 'errors.fs.notAFile'))
     case 'EROFS':
-      return new AppError(
-        ErrorCode.WriteFailed,
-        'Este local é somente leitura. Salve o arquivo em outra pasta.',
-      )
+      return new AppError(ErrorCode.WriteFailed, translate(language, 'errors.fs.readOnlyLocation'))
     case 'ENOSPC':
-      return new AppError(ErrorCode.WriteFailed, 'Não há espaço em disco para salvar o arquivo.')
+      return new AppError(ErrorCode.WriteFailed, translate(language, 'errors.fs.diskFull'))
     case 'EDQUOT':
       // Diferente de disco cheio, e a diferença muda o que a pessoa faz: aqui o
       // disco tem espaço, mas a cota dela na pasta de rede acabou.
-      return new AppError(
-        ErrorCode.WriteFailed,
-        'Sua cota de espaço nesta pasta de rede acabou. Libere espaço ou salve em outro lugar.',
-      )
+      return new AppError(ErrorCode.WriteFailed, translate(language, 'errors.fs.quotaExceeded'))
     case 'ENAMETOOLONG':
-      return new AppError(
-        ErrorCode.WriteFailed,
-        'O nome do arquivo, junto com o caminho da pasta, ficou longo demais. Use um nome mais curto.',
-      )
+      return new AppError(ErrorCode.WriteFailed, translate(language, 'errors.fs.nameTooLong'))
     case 'EBUSY':
-      return new AppError(
-        ErrorCode.WriteFailed,
-        'O arquivo está em uso por outro programa. Feche-o e tente novamente.',
-      )
+      return new AppError(ErrorCode.WriteFailed, translate(language, 'errors.fs.fileInUse'))
     // Típicos de pasta de rede que caiu no meio da operação.
     case 'ENETDOWN':
     case 'ENETUNREACH':
@@ -122,14 +110,14 @@ export function fromFileSystemError(cause: unknown, operation: 'leitura' | 'escr
     case 'ETIMEDOUT':
       return new AppError(
         operation === 'leitura' ? ErrorCode.ReadFailed : ErrorCode.WriteFailed,
-        'A pasta de rede não respondeu. Verifique a conexão e tente novamente.',
+        translate(language, 'errors.fs.networkTimeout'),
       )
     default:
       return new AppError(
         operation === 'leitura' ? ErrorCode.ReadFailed : ErrorCode.WriteFailed,
         operation === 'leitura'
-          ? 'Não foi possível ler o arquivo.'
-          : 'Não foi possível salvar o arquivo. O conteúdo original foi preservado.',
+          ? translate(language, 'errors.fs.readFailed')
+          : translate(language, 'errors.fs.writeFailed'),
       )
   }
 }

@@ -2,6 +2,7 @@ import { useEditorState, type Editor } from '@tiptap/react'
 import type { Node as ProseMirrorNode } from '@tiptap/pm/model'
 import type { DocumentNode } from '@services/document/model.js'
 import { charactersWithoutSpaces, countParagraphs } from '@services/document/word-count.js'
+import { useT } from '../i18n.js'
 import { useWorkspace } from '../state/workspace.js'
 
 /**
@@ -22,6 +23,7 @@ export function WordCountDialog({
   readonly editor: Editor
   readonly onClose: () => void
 }): React.JSX.Element {
+  const t = useT()
   const pages = useWorkspace((state) => state.estimatedPages)
 
   // Ao vivo: enquanto o diálogo está aberto o texto pode mudar — e muda, porque
@@ -43,7 +45,7 @@ export function WordCountDialog({
     <div
       className="popover"
       role="dialog"
-      aria-label="Contagem de palavras"
+      aria-label={t('document.wordCount.title')}
       onKeyDown={(event) => {
         if (event.key === 'Escape') onClose()
       }}
@@ -51,39 +53,43 @@ export function WordCountDialog({
       <table className="counts">
         <thead>
           <tr>
-            <th scope="col">Contagem</th>
-            <th scope="col">Documento</th>
-            <th scope="col">Seleção</th>
+            <th scope="col">{t('document.wordCount.count')}</th>
+            <th scope="col">{t('document.wordCount.document')}</th>
+            <th scope="col">{t('document.wordCount.selection')}</th>
           </tr>
         </thead>
         <tbody>
-          <Row label="Palavras" document={counts.document.words} selection={counts.selection?.words} />
           <Row
-            label="Caracteres (com espaços)"
+            label={t('document.wordCount.words')}
+            document={counts.document.words}
+            selection={counts.selection?.words}
+          />
+          <Row
+            label={t('document.wordCount.charactersWithSpaces')}
             document={counts.document.characters}
             selection={counts.selection?.characters}
           />
           <Row
-            label="Caracteres (sem espaços)"
+            label={t('document.wordCount.charactersNoSpaces')}
             document={counts.document.charactersNoSpaces}
             selection={counts.selection?.charactersNoSpaces}
           />
           <Row
-            label="Parágrafos"
+            label={t('document.wordCount.paragraphs')}
             document={counts.document.paragraphs}
             selection={counts.selection?.paragraphs}
           />
           {/* Páginas só do documento: a folha em que um trecho cai é a mesma
               informação que a barra de status já dá, e "meia página selecionada"
               seria um número inventado. */}
-          <Row label="Páginas" document={pages} selection={undefined} />
+          <Row label={t('document.wordCount.pages')} document={pages} selection={undefined} />
         </tbody>
       </table>
 
       <div className="popover__actions">
         <span className="popover__spacer" />
         <button type="button" className="btn btn--primary" autoFocus onClick={onClose}>
-          Fechar
+          {t('document.common.close')}
         </button>
       </div>
     </div>

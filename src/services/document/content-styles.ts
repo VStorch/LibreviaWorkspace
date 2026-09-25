@@ -240,7 +240,78 @@ ${DOCUMENT_FONT_CSS}
  * Estilo só do editor: seleção de célula, alça de redimensionamento e a
  * representação visual da quebra de página. Nada disso existe no papel.
  */
+/**
+ * O conteúdo no tema escuro.
+ *
+ * Mora **dentro** de `EDITOR_ONLY_CSS` de propósito, e é a decisão mais
+ * importante deste arquivo desde que ele existe: o tema é como a tela desenha,
+ * e o papel impresso é branco em qualquer tema. Uma regra escura em
+ * `DOCUMENT_CONTENT_CSS` sairia no PDF, e o primeiro PDF preto exportado por
+ * quem estava lendo no escuro seria um defeito difícil de rastrear até aqui.
+ * `print-html.ts` monta o papel com `DOCUMENT_CONTENT_CSS + PRINT_ONLY_CSS`, e
+ * nunca com este.
+ *
+ * ## O que troca de cor, e o que não
+ *
+ * Só troca o que o **documento não pediu**. `color: #111111` lá em cima não é
+ * uma escolha do autor: é o preto padrão de quem não declarou cor nenhuma, e
+ * padrão acompanha o tema. Já o que o autor pintou chega como estilo em linha,
+ * que ganha de qualquer seletor daqui — então continua exatamente como estava,
+ * sem uma linha de código para garanti-lo.
+ *
+ * Vale para a borda da tabela, o fundo do cabeçalho de tabela e a barra da
+ * citação pelo mesmo motivo: são padrões nossos, não do arquivo.
+ *
+ * ## O caso que isto não resolve
+ *
+ * Um documento que declara o texto como preto — `w:color w:val="000000"` — fica
+ * preto sobre papel escuro, e não se lê. É o preço de honrar a cor do autor:
+ * em linha, ela ganha, e distinguir "o autor quis preto" de "o Word escreveu
+ * preto por escrever" exigiria mexer no que `getHTML()` produz — que é
+ * exatamente o que alimenta a gravação cirúrgica. Trocar legibilidade de um
+ * caso incomum por risco no que o projeto existe para proteger não vale a
+ * troca. Word e LibreOffice só gravam `w:color` quando alguém mudou a cor, de
+ * modo que o corpo de um documento comum não declara nenhuma e acompanha o
+ * tema normalmente.
+ */
+const DARK_CONTENT_CSS = `
+:root[data-theme='dark'] .page__content {
+  color: var(--text);
+}
+
+/* O papel. A mesma cor do resto das superfícies, para o documento não parecer
+   uma janela recortada dentro da casca. */
+:root[data-theme='dark'] .paper {
+  background: var(--surface);
+}
+
+/* Azul de link clareado pelo mesmo motivo que a ênfase: #14538f sobre papel
+   escuro dá 2.1:1. */
+:root[data-theme='dark'] .page__content a {
+  color: var(--accent-document);
+}
+
+:root[data-theme='dark'] .page__content blockquote {
+  border-left-color: var(--border-strong);
+  color: var(--muted);
+}
+
+:root[data-theme='dark'] .page__content th,
+:root[data-theme='dark'] .page__content td {
+  border-color: var(--border-strong);
+}
+
+:root[data-theme='dark'] .page__content th {
+  background: var(--hover);
+}
+
+:root[data-theme='dark'] .page__content .tiptap-invisible-character::before {
+  color: var(--muted);
+}
+`
+
 export const EDITOR_ONLY_CSS = `
+${DARK_CONTENT_CSS}
 .page__content .selectedCell::after {
   content: '';
   position: absolute;

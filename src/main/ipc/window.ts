@@ -6,17 +6,23 @@ import { confirmDiscardChanges, confirmPlainTextSave, showImagePickerDialog } fr
 import { readImageAsDataUrl } from '../fs/read-image.js'
 import { listInstalledFontFamilies } from '../system-fonts.js'
 import { closeWithoutGuard, updateWindowState } from '../window.js'
+import { t } from '../i18n.js'
 import { handle } from './registry.js'
+import { externalFilesReady } from '../external-files.js'
 
 function windowOf(event: IpcMainInvokeEvent): BrowserWindow {
   const window = BrowserWindow.fromWebContents(event.sender)
   if (window === null) {
-    throw new AppError(ErrorCode.Internal, 'A janela do aplicativo não está disponível.')
+    throw new AppError(ErrorCode.Internal, t('errors.ipc.windowNotAvailable'))
   }
   return window
 }
 
 export function registerWindowHandlers(): void {
+  handle(IpcChannel.WindowReady, (_payload, event) => {
+    externalFilesReady(windowOf(event))
+    return { applied: true as const }
+  })
   // Mesmo aviso nativo usado pelo guarda de fechamento da janela, para que
   // fechar o arquivo, abrir outro ou sair pareçam a mesma coisa ao usuário.
   handle(IpcChannel.DialogConfirmDiscard, async (payload, event) => ({

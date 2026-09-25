@@ -1,4 +1,5 @@
 import { useWorkspace } from '../state/workspace.js'
+import { useT } from '../i18n.js'
 
 /**
  * Erros são mostrados como faixa, não como diálogo modal.
@@ -8,6 +9,7 @@ import { useWorkspace } from '../state/workspace.js'
  * ainda não tem; a faixa informa e deixa continuar trabalhando.
  */
 export function ErrorBanner(): React.JSX.Element | null {
+  const t = useT()
   const error = useWorkspace((state) => state.error)
   const dismiss = useWorkspace((state) => state.dismissError)
 
@@ -19,7 +21,12 @@ export function ErrorBanner(): React.JSX.Element | null {
         <strong>{error.message}</strong>
         {error.detail !== undefined && <span className="banner__detail">{error.detail}</span>}
       </div>
-      <button type="button" className="banner__close" onClick={dismiss} aria-label="Dispensar aviso">
+      <button
+        type="button"
+        className="banner__close"
+        onClick={dismiss}
+        aria-label={t('shell.banner.dismiss')}
+      >
         ✕
       </button>
     </div>

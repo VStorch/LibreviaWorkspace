@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { Editor } from '@tiptap/react'
+import { useT } from '../../i18n.js'
 import { applyImageProperties, imageAt } from '../extensions/document-image.js'
 
 /** O tamanho do campo de texto alternativo que o `w:docPr/@descr` aceita sem exagero. */
@@ -23,6 +24,7 @@ export function ImageDialog({
   readonly editor: Editor
   readonly onClose: () => void
 }): React.JSX.Element {
+  const t = useT()
   const placed = imageAt(editor)
   const [alt, setAlt] = useState(() => {
     const value = placed?.node.attrs['alt']
@@ -45,17 +47,17 @@ export function ImageDialog({
     <div
       className="popover"
       role="dialog"
-      aria-label="Propriedades da imagem"
+      aria-label={t('document.imageDialog.title')}
       onKeyDown={(event) => {
         if (event.key === 'Escape') onClose()
         if (event.key === 'Enter') apply()
       }}
     >
       <label className="popover__field">
-        <span>Texto alternativo</span>
+        <span>{t('document.imageDialog.altText')}</span>
         <input
           type="text"
-          aria-label="Texto alternativo"
+          aria-label={t('document.imageDialog.altText')}
           maxLength={MAX_ALT_LENGTH}
           value={alt}
           autoFocus
@@ -64,30 +66,28 @@ export function ImageDialog({
       </label>
 
       <label className="popover__field">
-        <span>Alinhamento</span>
+        <span>{t('document.imageDialog.alignment')}</span>
         <select
-          aria-label="Alinhamento da imagem"
+          aria-label={t('document.imageDialog.alignmentLabel')}
           value={align}
           onChange={(event) => setAlign(event.target.value)}
         >
-          <option value="">Como o parágrafo</option>
-          <option value="left">À esquerda</option>
-          <option value="center">Centralizada</option>
-          <option value="right">À direita</option>
+          <option value="">{t('document.imageDialog.alignSameAsParagraph')}</option>
+          <option value="left">{t('document.imageDialog.alignLeft')}</option>
+          <option value="center">{t('document.imageDialog.alignCenter')}</option>
+          <option value="right">{t('document.imageDialog.alignRight')}</option>
         </select>
       </label>
 
-      <p className="popover__hint">
-        O texto alternativo é lido em voz alta no lugar da imagem, e vai no arquivo.
-      </p>
+      <p className="popover__hint">{t('document.imageDialog.hint')}</p>
 
       <div className="popover__actions">
         <span className="popover__spacer" />
         <button type="button" className="btn" onMouseDown={keepFocus} onClick={onClose}>
-          Cancelar
+          {t('document.common.cancel')}
         </button>
         <button type="button" className="btn btn--primary" onMouseDown={keepFocus} onClick={apply}>
-          Aplicar
+          {t('document.common.apply')}
         </button>
       </div>
     </div>

@@ -3,6 +3,7 @@ import { getCell, type Sheet } from '@services/spreadsheet/model.js'
 import { describeRange, type Range } from '@services/spreadsheet/edit.js'
 import { checkFormula } from '@services/spreadsheet/formula/validate.js'
 import { formatCell } from '@services/spreadsheet/format.js'
+import { useT } from '../i18n.js'
 
 /**
  * Barra de fórmulas.
@@ -25,6 +26,7 @@ export function FormulaBar({
   range: Range
   onCommit: (text: string) => void
 }): React.JSX.Element {
+  const t = useT()
   const cell = getCell(sheet, range.fromRow, range.fromColumn)
   // O que a célula guarda: a fórmula quando há, e o valor cru quando não.
   // Valor cru, e não formatado: reeditar "R$ 1.234,50" devolveria texto.
@@ -67,7 +69,7 @@ export function FormulaBar({
 
   return (
     <div className="formula-bar">
-      <span className="formula-bar__ref" title="Célula selecionada">
+      <span className="formula-bar__ref" title={t('spreadsheet.formulaBar.selectedCell')}>
         {anchor}
       </span>
 
@@ -80,7 +82,7 @@ export function FormulaBar({
         className={problem === null ? 'formula-bar__input' : 'formula-bar__input formula-bar__input--bad'}
         value={draft}
         spellCheck={false}
-        aria-label="Fórmula ou conteúdo da célula"
+        aria-label={t('spreadsheet.formulaBar.inputLabel')}
         aria-invalid={problem !== null}
         onChange={(event) => {
           setDraft(event.target.value)

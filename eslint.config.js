@@ -7,7 +7,7 @@ import tseslint from 'typescript-eslint'
  * electron nem react" — vira erro de build em vez de recomendação em documento.
  */
 export default tseslint.config(
-  { ignores: ['out/**', 'dist/**', 'node_modules/**', 'sidecar/**', 'resources/**', '*.csv'] },
+  { ignores: ['out/**', 'dist/**', 'node_modules/**', 'sidecar/**', 'resources/**', '.nix/**', '*.csv'] },
 
   js.configs.recommended,
   ...tseslint.configs.recommended,

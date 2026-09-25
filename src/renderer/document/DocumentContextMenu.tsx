@@ -3,6 +3,7 @@ import type { IpcResult } from '@shared/ipc.js'
 import { TABLE_ACTIONS, type TableAction } from '@shared/table-actions.js'
 import { DictionaryScope, EditCommand, type ContextMenuTarget } from '@shared/types.js'
 import { ContextMenu, ContextMenuItem, ContextMenuSeparator } from '../components/ContextMenu.js'
+import { useT } from '../i18n.js'
 import { useWorkspace } from '../state/workspace.js'
 
 /**
@@ -36,6 +37,7 @@ export function DocumentContextMenu({
 }): React.JSX.Element {
   const showError = useWorkspace((state) => state.showError)
   const readOnly = useWorkspace((state) => state.readOnly)
+  const t = useT()
 
   /** Toda ação fecha o menu — inclusive quando falha, para o erro ficar visível. */
   const act = (run: () => Promise<IpcResult<unknown>>) => () => {
@@ -48,14 +50,14 @@ export function DocumentContextMenu({
   const misspelled = target.misspelledWord !== ''
 
   return (
-    <ContextMenu position={target} label="Ações do documento" onClose={onClose}>
+    <ContextMenu position={target} label={t('document.contextMenu.label')} onClose={onClose}>
       {misspelled && (
         <>
           {target.dictionarySuggestions.length === 0 ? (
             // Um item apagado, e não item nenhum: o menu abre por causa da palavra
             // sublinhada, e sem nada ali pareceria que o menu é que quebrou.
             <ContextMenuItem disabled onClick={onClose}>
-              Nenhuma sugestão
+              {t('document.contextMenu.noSuggestions')}
             </ContextMenuItem>
           ) : (
             target.dictionarySuggestions.map((suggestion) => (
@@ -79,7 +81,7 @@ export function DocumentContextMenu({
               }),
             )}
           >
-            Adicionar ao dicionário
+            {t('document.contextMenu.addToDictionary')}
           </ContextMenuItem>
           {/* "Ignorar" vale até fechar o aplicativo: o Chromium não tem lista de
               ignorados, então ela é imitada com uma entrada temporária no
@@ -89,7 +91,7 @@ export function DocumentContextMenu({
               window.api.spell.addWord({ word: target.misspelledWord, scope: DictionaryScope.Session }),
             )}
           >
-            Ignorar nesta sessão
+            {t('document.contextMenu.ignoreSession')}
           </ContextMenuItem>
 
           <ContextMenuSeparator />
@@ -100,19 +102,19 @@ export function DocumentContextMenu({
         disabled={!target.canCut || readOnly}
         onClick={act(() => window.api.edit.run({ command: EditCommand.Cut }))}
       >
-        Recortar
+        {t('menu.edit.cut')}
       </ContextMenuItem>
       <ContextMenuItem
         disabled={!target.canCopy}
         onClick={act(() => window.api.edit.run({ command: EditCommand.Copy }))}
       >
-        Copiar
+        {t('menu.edit.copy')}
       </ContextMenuItem>
       <ContextMenuItem
         disabled={!target.canPaste || readOnly}
         onClick={act(() => window.api.edit.run({ command: EditCommand.Paste }))}
       >
-        Colar
+        {t('menu.edit.paste')}
       </ContextMenuItem>
       <ContextMenuItem
         disabled={!target.canPaste || readOnly}
@@ -121,7 +123,7 @@ export function DocumentContextMenu({
           onPasteWithoutFormat()
         }}
       >
-        Colar sem formatação
+        {t('menu.edit.pasteWithoutFormat')}
       </ContextMenuItem>
 
       {/* As ações de tabela vêm depois da área de transferência, como no Word, e
@@ -139,7 +141,7 @@ export function DocumentContextMenu({
                   onTableAction(action.id)
                 }}
               >
-                {action.label}
+                {t(action.labelKey)}
               </ContextMenuItem>
             </Fragment>
           ))}

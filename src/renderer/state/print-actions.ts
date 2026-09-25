@@ -2,6 +2,8 @@ import type { PageSetup } from '@services/document/model.js'
 import { buildPrintHtml } from '@services/document/print-html.js'
 import { buildPagedBody, buildPagedCss } from '@services/document/print-pages.js'
 import { SHEET_PRINT_CSS, buildSheetHtml } from '@services/spreadsheet/print-html.js'
+import { t } from '../i18n.js'
+import { currentPreferences } from './preferences.js'
 import type { GetWorkspace, SetWorkspace, WorkspaceContext } from './context.js'
 import type { WorkspaceState } from './types.js'
 
@@ -30,7 +32,7 @@ export function createPrintActions(
    */
   function buildRequest(): PrintRequest | null {
     const state = get()
-    const name = state.file?.name ?? 'Documento'
+    const name = state.file?.name ?? t('shell.print.defaultDocumentName')
 
     const { workbook } = state
     if (workbook !== null) {
@@ -38,7 +40,7 @@ export function createPrintActions(
       if (sheet === undefined) return null
 
       return {
-        html: buildPrintHtml(buildSheetHtml(sheet), name, SHEET_PRINT_CSS),
+        html: buildPrintHtml(buildSheetHtml(sheet, currentPreferences().language), name, SHEET_PRINT_CSS),
         page: state.page,
         // A grade continua sendo uma tabela contínua que o Chromium reparte:
         // não há folha para recortar antes de imprimir.
@@ -58,13 +60,13 @@ export function createPrintActions(
       ),
       page: state.page,
       // Diz ao processo main para não deixar o Chromium paginar nem desenhar
-      // faixa: as folhas já vêm prontas no HTML.
+      // margens: cada página já tem seu tamanho e sua moldura em CSS.
       paged: true,
     }
   }
 
   /**
-   * Não há o que imprimir.
+   * Rejeita o pedido de impressão quando não há editor ativo.
    *
    * Devolver `false` em silêncio era o defeito: o usuário clicava em "Exportar
    * para PDF" e nada acontecia — nem papel, nem aviso, nem pista. Um menu que
@@ -74,7 +76,7 @@ export function createPrintActions(
     set({
       error: {
         code: 'INTERNAL',
-        message: 'Não há nada aberto para imprimir. Abra ou crie um documento ou uma planilha primeiro.',
+        message: t('shell.print.nothingToPrint'),
       },
     })
     return false
@@ -86,7 +88,10 @@ export function createPrintActions(
       if (request === null) return refuse()
 
       const data = await ctx.call(() =>
-        window.api.print.exportPdf({ ...request, suggestedName: get().file?.name ?? 'documento' }),
+        window.api.print.exportPdf({
+          ...request,
+          suggestedName: get().file?.name ?? t('shell.print.defaultDocumentName').toLowerCase(),
+        }),
       )
       return data !== null && !data.canceled
     },

@@ -1,5 +1,7 @@
 import { readFile } from 'node:fs/promises'
 import { AppError, ErrorCode, fromFileSystemError } from '@shared/errors.js'
+import { t } from '../i18n.js'
+import { editorPreferences } from '../preferences.js'
 
 /**
  * Lê um arquivo de texto respeitando a marca de ordem de bytes (BOM).
@@ -14,7 +16,7 @@ export async function readTextFile(path: string): Promise<string> {
   try {
     bytes = await readFile(path)
   } catch (cause) {
-    throw fromFileSystemError(cause, 'leitura')
+    throw fromFileSystemError(cause, 'leitura', editorPreferences().language)
   }
 
   if (startsWith(bytes, [0xef, 0xbb, 0xbf])) {
@@ -46,10 +48,7 @@ function startsWith(bytes: Buffer, prefix: readonly number[]): boolean {
 function assertNotBinary(bytes: Buffer): void {
   const sample = bytes.subarray(0, 8192)
   if (sample.includes(0)) {
-    throw new AppError(
-      ErrorCode.NotTextFile,
-      'Este arquivo não parece ser de texto e não pode ser aberto com segurança.',
-    )
+    throw new AppError(ErrorCode.NotTextFile, t('errors.text.notTextFile'))
   }
 }
 

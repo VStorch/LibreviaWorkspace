@@ -5,6 +5,7 @@ import type { IpcResult } from '@shared/ipc.js'
 import type { DocumentModel } from '@services/document/model.js'
 import { serializeDocument } from '@services/document/serialize.js'
 import { serializeWorkbook } from '@services/spreadsheet/serialize.js'
+import { t } from '../i18n.js'
 import type { DocumentSource, LoadedFile, WorkspaceState } from './types.js'
 
 export type SetWorkspace = StoreApi<WorkspaceState>['setState']
@@ -26,6 +27,7 @@ export interface WorkspaceContext {
   currentModel: () => DocumentModel
   /** O que está na tela, no formato interno — o mesmo que o rascunho guarda. */
   currentContent: () => string
+  /** Descarta o rascunho de recuperação atual, se houver. */
   forgetDraft: () => Promise<void>
   /**
    * Portão de proteção contra perda de trabalho.
@@ -43,7 +45,7 @@ export interface WorkspaceContext {
 
 export function toSerialized(cause: unknown): SerializedError {
   if (cause instanceof AppError) return cause.toSerialized()
-  return { code: 'INTERNAL', message: 'Ocorreu um erro inesperado. A operação não foi concluída.' }
+  return { code: 'INTERNAL', message: t('shell.error.unexpected') }
 }
 
 export function createWorkspaceContext(set: SetWorkspace, get: GetWorkspace): WorkspaceContext {
@@ -58,7 +60,7 @@ export function createWorkspaceContext(set: SetWorkspace, get: GetWorkspace): Wo
       return null
     } catch {
       set({
-        error: { code: 'INTERNAL', message: 'A comunicação com o aplicativo falhou. Tente novamente.' },
+        error: { code: 'INTERNAL', message: t('shell.error.communicationFailed') },
       })
       return null
     } finally {
@@ -101,7 +103,7 @@ export function createWorkspaceContext(set: SetWorkspace, get: GetWorkspace): Wo
     if (!state.isDirty) return true
 
     const answer = await call(() =>
-      window.api.dialog.confirmDiscard({ fileName: state.file?.name ?? 'Sem título' }),
+      window.api.dialog.confirmDiscard({ fileName: state.file?.name ?? t('shell.file.untitled') }),
     )
     if (answer === null) return false
 

@@ -11,8 +11,11 @@ import { asEditorCommand, emitEditorCommand } from '../document/editor-commands.
 import { HomePage } from '../pages/HomePage.js'
 import { SheetTabs } from '../spreadsheet/SheetTabs.js'
 import { SpreadsheetEditor } from '../spreadsheet/SpreadsheetEditor.js'
-import { watchPreferences } from '../state/preferences.js'
+import { usePreferences, watchPreferences } from '../state/preferences.js'
+import { useReadingMode } from '../state/reading.js'
+import { useTheme } from '../state/theme.js'
 import { useWorkspace } from '../state/workspace.js'
+import { t } from '../i18n.js'
 
 /**
  * De quanto em quanto tempo o rascunho é regravado.
@@ -86,6 +89,8 @@ export function App(): React.JSX.Element {
   const renameSheet = useWorkspace((state) => state.renameSheet)
   const removeSheet = useWorkspace((state) => state.removeSheet)
   const readOnly = useWorkspace((state) => state.readOnly)
+  const reading = useReadingMode()
+  const showStatusBar = usePreferences((state) => state.preferences.showStatusBar)
 
   useEffect(() => {
     void useWorkspace.getState().refreshRecents()
@@ -95,6 +100,10 @@ export function App(): React.JSX.Element {
   // As preferências de edição moram no main, que é quem liga o corretor na sessão
   // do Chromium. Aqui só se mantém a cópia que a tela desenha.
   useEffect(() => watchPreferences(), [])
+
+  // Escreve `data-theme` na raiz e o mantém em dia — inclusive quando quem
+  // mudou foi o sistema operacional, e não o menu.
+  useTheme()
 
   useEffect(() => {
     // Por relógio, e não por tecla: o autosave serializa o documento inteiro, e
@@ -106,13 +115,15 @@ export function App(): React.JSX.Element {
     return () => clearInterval(timer)
   }, [])
 
-  useEffect(
-    () =>
-      window.api.menu.onCommand(({ command, path }) => {
-        void runMenuCommand(command, path)
-      }),
-    [],
-  )
+  useEffect(() => {
+    let commands = Promise.resolve()
+    const unsubscribe = window.api.menu.onCommand(({ command, path }) => {
+      commands = commands.then(() => runMenuCommand(command, path)).catch(console.error)
+    })
+    // Subscribe before asking main to deliver files selected in Explorer.
+    void window.api.window.ready({})
+    return unsubscribe
+  }, [])
 
   useEffect(() => {
     // O título e o marcador de "não salvo" vivem no main. Só enviamos quando
@@ -122,13 +133,14 @@ export function App(): React.JSX.Element {
 
     const sync = (): void => {
       const state = useWorkspace.getState()
-      const title = state.file?.name ?? 'Sem título'
+      const untitled = t('shell.file.untitled')
+      const title = state.file?.name ?? untitled
       if (title === lastTitle && state.isDirty === lastDirty) return
 
       lastTitle = title
       lastDirty = state.isDirty
       void window.api.window.setState({ title, isDirty: state.isDirty })
-      document.title = buildWindowTitle(state.file?.name ?? null, state.isDirty, 'Librevia')
+      document.title = buildWindowTitle(state.file?.name ?? null, state.isDirty, 'Librevia', untitled)
     }
 
     sync()
@@ -138,7 +150,17 @@ export function App(): React.JSX.Element {
   // A casca inteira muda de cor conforme o que está aberto — azul de
   // documento, verde de planilha. Ver o comentário de `--accent` no CSS.
   return (
-    <div className={workbook === null ? 'app' : 'app app--spreadsheet'}>
+    <div
+      className={[
+        'app',
+        workbook === null ? '' : 'app--spreadsheet',
+        // A casca inteira encolhe: e a classe que some com a barra de status
+        // aqui embaixo e com a de ferramentas la dentro do editor.
+        reading ? 'app--reading' : '',
+      ]
+        .filter((name) => name !== '')
+        .join(' ')}
+    >
       <ErrorBanner />
       <RecoveryBanner />
       <ReadOnlyBanner />
@@ -167,7 +189,9 @@ export function App(): React.JSX.Element {
           <HomePage />
         )}
       </div>
-      {hasFile && <StatusBar />}
+      {/* A barra de status sai no modo de leitura: contagem de palavras e
+          numero de paginas sao ferramentas de quem escreve. */}
+      {hasFile && !reading && showStatusBar && <StatusBar />}
     </div>
   )
 }

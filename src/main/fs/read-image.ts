@@ -1,6 +1,8 @@
 import { readFile, stat } from 'node:fs/promises'
 import { AppError, ErrorCode, fromFileSystemError } from '@shared/errors.js'
 import { MAX_IMAGE_BYTES, detectImageMimeType, isImageWithinSizeLimit } from '@services/file/image.js'
+import { t } from '../i18n.js'
+import { editorPreferences } from '../preferences.js'
 
 /**
  * Lê uma imagem do disco e devolve um data URI.
@@ -14,30 +16,24 @@ export async function readImageAsDataUrl(path: string): Promise<string> {
   try {
     size = (await stat(path)).size
   } catch (cause) {
-    throw fromFileSystemError(cause, 'leitura')
+    throw fromFileSystemError(cause, 'leitura', editorPreferences().language)
   }
 
   if (!isImageWithinSizeLimit(size)) {
     const limit = Math.round(MAX_IMAGE_BYTES / (1024 * 1024))
-    throw new AppError(
-      ErrorCode.FileTooLarge,
-      `A imagem é grande demais para ser inserida (limite: ${limit} MB).`,
-    )
+    throw new AppError(ErrorCode.FileTooLarge, t('errors.image.imageTooLarge', { limit }))
   }
 
   let bytes: Buffer
   try {
     bytes = await readFile(path)
   } catch (cause) {
-    throw fromFileSystemError(cause, 'leitura')
+    throw fromFileSystemError(cause, 'leitura', editorPreferences().language)
   }
 
   const mimeType = detectImageMimeType(bytes)
   if (mimeType === null) {
-    throw new AppError(
-      ErrorCode.UnsupportedFormat,
-      'Este arquivo não é uma imagem suportada. Use PNG, JPEG, GIF ou WebP.',
-    )
+    throw new AppError(ErrorCode.UnsupportedFormat, t('errors.image.unsupportedImage'))
   }
 
   return `data:${mimeType};base64,${bytes.toString('base64')}`

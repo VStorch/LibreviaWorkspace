@@ -1,4 +1,5 @@
 import { MAX_SPACING_PT, type ParagraphDraft } from '@services/document/paragraph-format.js'
+import { useT } from '../../i18n.js'
 import type { DraftChange } from './paragraph-draft.js'
 
 interface ParagraphSpacingFieldsProps {
@@ -8,12 +9,14 @@ interface ParagraphSpacingFieldsProps {
 
 /** O espaço antes e depois do parágrafo, em pontos — como o Word o mede. */
 export function ParagraphSpacingFields({ draft, onChange }: ParagraphSpacingFieldsProps): React.JSX.Element {
+  const t = useT()
+
   return (
     <fieldset className="popover__fieldset">
-      <legend>Espaçamento (pt)</legend>
+      <legend>{t('document.paragraph.spacingLegend')}</legend>
       <div className="popover__row">
         <label className="popover__field popover__field--narrow">
-          <span>Antes</span>
+          <span>{t('document.paragraph.spacingBefore')}</span>
           <input
             type="number"
             min={0}
@@ -24,7 +27,7 @@ export function ParagraphSpacingFields({ draft, onChange }: ParagraphSpacingFiel
           />
         </label>
         <label className="popover__field popover__field--narrow">
-          <span>Depois</span>
+          <span>{t('document.paragraph.spacingAfter')}</span>
           <input
             type="number"
             min={0}

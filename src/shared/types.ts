@@ -1,3 +1,5 @@
+import { Language } from './i18n/language.js'
+
 /** O que está sendo editado. Guia ícone, filtros de diálogo e editor. */
 export const DocumentKind = {
   Document: 'document',
@@ -138,12 +140,38 @@ export const PlainTextChoice = {
 export type PlainTextChoice = (typeof PlainTextChoice)[keyof typeof PlainTextChoice]
 
 /**
- * Preferências de edição — as três chaves que ligam e desligam ferramenta.
+ * O tema da interface, como a pessoa o escolheu.
  *
- * Moram no processo main porque uma delas, a ortografia, é configuração de
- * `session`: só o main fala com o corretor do Chromium. Guardar duas metades da
- * mesma preferência em dois lugares faria o menu marcar o que o editor não
- * estava fazendo.
+ * Três valores e não dois: `system` é o padrão, e é o único que sabe a resposta
+ * certa para quem troca de claro para escuro ao anoitecer. `light` e `dark`
+ * são a escolha explícita, que o sistema não desfaz.
+ *
+ * O que a tela desenha é o tema **resolvido** — ver `ResolvedTheme`. Quem
+ * resolve é o main, porque é ele que enxerga o `nativeTheme` do Chromium.
+ */
+export const Theme = {
+  System: 'system',
+  Light: 'light',
+  Dark: 'dark',
+} as const
+
+export type Theme = (typeof Theme)[keyof typeof Theme]
+
+/** O tema depois de `system` virar um dos dois de verdade. */
+export type ResolvedTheme = 'light' | 'dark'
+
+/**
+ * Preferências de edição e de aparência.
+ *
+ * Moram no processo main porque três delas não podem morar em outro lugar: a
+ * ortografia é configuração de `session`, o idioma monta a barra de menus
+ * nativa, e o tema precisa do `nativeTheme` para resolver `system`. Guardar
+ * duas metades da mesma preferência em dois lugares faria o menu marcar o que
+ * o editor não estava fazendo.
+ *
+ * Um único conjunto, e não um "editor" e um "aparência" separados: são o mesmo
+ * arquivo, o mesmo canal de IPC e o mesmo aviso de mudança. Dois canais seriam
+ * duas chances de a tela e o menu discordarem.
  */
 export interface EditorPreferences {
   /** Verificação ortográfica em português, no corpo e nas faixas. */
@@ -152,6 +180,27 @@ export interface EditorPreferences {
   readonly invisibleCharacters: boolean
   /** Autocorreção tipográfica: aspas curvas, travessão, reticências. */
   readonly typography: boolean
+  /**
+   * O idioma da interface.
+   *
+   * Não muda as fórmulas, que continuam aceitando os dois idiomas como sempre,
+   * nem o dicionário do corretor. Quem escreve em português numa interface em
+   * inglês é caso comum, e amarrar as três coisas obrigaria a escolher qual
+   * delas sacrificar.
+   */
+  readonly language: Language
+  /** A escolha da pessoa; `system` deixa o sistema operacional decidir. */
+  readonly theme: Theme
+  /**
+   * Modo de leitura: sem barras, em rolagem contínua e sem edição.
+   *
+   * Guardado como preferência, e não como estado da sessão, porque o item do
+   * menu nativo precisa mostrar a marca — e o menu mora no main, que só sabe o
+   * que está aqui.
+   */
+  readonly readingMode: boolean
+  readonly showToolbar: boolean
+  readonly showStatusBar: boolean
 }
 
 /**
@@ -171,12 +220,23 @@ export type EditorPreferencesPatch = {
  * Ortografia e tipografia ligadas, porque é o que um editor de texto em
  * português faz de útil sem ninguém pedir. Marcas de formatação desligadas: elas
  * são ferramenta de conferência, e deixá-las ligadas sujaria a tela de quem só
- * quer escrever.
+ * quer escrever. Modo de leitura desligado: é para ler o que já existe, e o
+ * aplicativo abre para escrever.
+ *
+ * O `language` aqui é só o valor de última instância. Na primeira execução quem
+ * decide é o sistema operacional — ver `load()` em `src/main/preferences.ts`,
+ * que é o único lugar que enxerga `app.getLocale()`. Este módulo é `shared` e
+ * não pode importar `electron`.
  */
 export const DEFAULT_EDITOR_PREFERENCES: EditorPreferences = {
   spellcheck: true,
   invisibleCharacters: false,
   typography: true,
+  language: Language.Portuguese,
+  theme: Theme.System,
+  readingMode: false,
+  showToolbar: true,
+  showStatusBar: true,
 }
 
 /** Operações de área de transferência que só o `webContents` sabe fazer. */

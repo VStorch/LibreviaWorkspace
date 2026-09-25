@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import type { Editor } from '@tiptap/react'
 import { SPECIAL_CHARACTER_GROUPS, type SpecialCharacter } from '@services/document/special-characters.js'
+import { useT } from '../i18n.js'
 
 /**
  * Seletor de caracteres especiais.
@@ -28,6 +29,7 @@ export function SpecialCharsDialog({
   readonly editor: Editor
   readonly onClose: () => void
 }): React.JSX.Element {
+  const t = useT()
   const panel = useRef<HTMLDivElement>(null)
   const host = useRef<HTMLDivElement>(null)
 
@@ -106,44 +108,48 @@ export function SpecialCharsDialog({
       ref={panel}
       className="popover popover--wide"
       role="dialog"
-      aria-label="Caracteres especiais"
+      aria-label={t('document.specialChars.title')}
       onKeyDown={onPanelKeyDown}
     >
       <div ref={host} className="chars" onKeyDown={onKeyDown}>
-        {SPECIAL_CHARACTER_GROUPS.map((group) => (
-          <section key={group.label} className="chars__group">
-            <h3 className="chars__label">{group.label}</h3>
-            <div className="chars__grid" role="group" aria-label={group.label}>
-              {group.characters.map((character) => (
-                <button
-                  key={character.char}
-                  type="button"
-                  className="chars__char"
-                  data-char={character.char}
-                  // O nome acessível é o nome do caractere: um botão chamado "—"
-                  // não diz nada a quem não o vê. A dica do mouse repete, para
-                  // quem vê e não sabe o nome.
-                  aria-label={character.name}
-                  title={character.name}
-                  onClick={() => insert(character)}
-                >
-                  {/* O espaço inquebrável não desenha nada: sem um marcador, o
-                      botão dele pareceria vazio e quebrado. */}
-                  {character.char === '\u00a0' ? '␣' : character.char}
-                </button>
-              ))}
-            </div>
-          </section>
-        ))}
+        {SPECIAL_CHARACTER_GROUPS.map((group) => {
+          const groupLabel = t(group.labelKey)
+          return (
+            <section key={group.labelKey} className="chars__group">
+              <h3 className="chars__label">{groupLabel}</h3>
+              <div className="chars__grid" role="group" aria-label={groupLabel}>
+                {group.characters.map((character) => {
+                  const charName = t(character.nameKey)
+                  return (
+                    <button
+                      key={character.char}
+                      type="button"
+                      className="chars__char"
+                      data-char={character.char}
+                      // O nome acessível é o nome do caractere: um botão chamado "—"
+                      // não diz nada a quem não o vê. A dica do mouse repete, para
+                      // quem vê e não sabe o nome.
+                      aria-label={charName}
+                      title={charName}
+                      onClick={() => insert(character)}
+                    >
+                      {/* O espaço inquebrável não desenha nada: sem um marcador, o
+                          botão dele pareceria vazio e quebrado. */}
+                      {character.char === '\u00a0' ? '␣' : character.char}
+                    </button>
+                  )
+                })}
+              </div>
+            </section>
+          )
+        })}
       </div>
 
       <div className="popover__actions">
-        <span className="popover__hint">
-          Setas escolhem, Enter insere. O painel continua aberto, e Esc fecha.
-        </span>
+        <span className="popover__hint">{t('document.specialChars.hint')}</span>
         <span className="popover__spacer" />
         <button type="button" className="btn btn--primary" onClick={onClose}>
-          Fechar
+          {t('document.common.close')}
         </button>
       </div>
     </div>

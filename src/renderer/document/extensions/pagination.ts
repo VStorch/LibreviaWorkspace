@@ -49,22 +49,27 @@ export const Pagination = Extension.create({
 })
 
 /**
- * Aplica os vãos medidos, por índice de bloco de primeiro nível.
+ * Aplica os vãos por posição de nó, inclusive itens e células dentro de blocos.
  *
  * A transação não entra no histórico: desfazer precisa voltar o que a pessoa
  * escreveu, não o lugar onde a página caiu.
  */
-export function applyPageGaps(view: EditorView, gaps: ReadonlyMap<number, number>): void {
+export function applyPageGaps(
+  view: EditorView,
+  written: ReadonlyMap<number, number>,
+  gaps: ReadonlyMap<number, number>,
+): void {
   const decorations: Decoration[] = []
 
-  view.state.doc.forEach((node, offset, index) => {
-    const gap = gaps.get(index)
+  view.state.doc.descendants((node, offset) => {
+    const gap = written.get(offset)
     if (gap === undefined || gap <= 0) return
 
     decorations.push(
       Decoration.node(offset, offset + node.nodeSize, {
-        style: `margin-top:${Math.round(gap)}px`,
+        style: `${node.type.name === 'tableCell' || node.type.name === 'tableHeader' ? 'padding-top' : 'margin-top'}:${gap}px`,
         'data-page-start': 'true',
+        'data-page-shift': String(gaps.get(offset) ?? 0),
       }),
     )
   })

@@ -8,7 +8,7 @@
 export const IpcChannel = {
   /** Abre o diálogo do sistema e carrega o arquivo escolhido. */
   FileOpen: 'file:open',
-  /** Carrega um caminho específico — só o que já estiver na lista de recentes. */
+  /** Carrega um recente ou um arquivo recebido pelo main via Explorer. */
   FileOpenRecent: 'file:open-recent',
   /** Grava sobre um caminho já autorizado nesta sessão. */
   FileSave: 'file:save',
@@ -62,6 +62,8 @@ export const IpcChannel = {
 
   /** Informa ao main o título e o estado de alterações não salvas. */
   WindowSetState: 'window:set-state',
+  /** O renderer já assinou os comandos e pode receber arquivos do Explorer. */
+  WindowReady: 'window:ready',
   /** Pedido explícito de fechamento, já resolvido do lado do renderer. */
   WindowClose: 'window:close',
 
@@ -115,6 +117,7 @@ export const INVOCABLE_IPC_CHANNELS = [
   IpcChannel.DialogConfirmDiscard,
   IpcChannel.DialogConfirmPlainText,
   IpcChannel.WindowSetState,
+  IpcChannel.WindowReady,
   IpcChannel.WindowClose,
   IpcChannel.PreferencesGet,
   IpcChannel.PreferencesSet,

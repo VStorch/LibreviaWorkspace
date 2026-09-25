@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { Editor } from '@tiptap/react'
+import type { MessageKey } from '@shared/i18n/index.js'
 import { contentWidthMm, mmToPx } from '@services/document/model.js'
 import {
   CELL_BORDER_SIDES,
@@ -13,23 +14,24 @@ import {
   type CellBorderSide,
   type TableDraft,
 } from '@services/document/table-format.js'
+import { useT } from '../../i18n.js'
 import { applyTableDraft, tablePlacementAt } from '../extensions/table-look.js'
 import { useWorkspace } from '../../state/workspace.js'
 
 /** Só o que o gravador leva ao `.docx` — o resto não é oferecido. */
-const BORDER_STYLES: readonly { readonly value: CellBorderStyle; readonly label: string }[] = [
-  { value: CellBorderStyle.Single, label: 'Simples' },
-  { value: CellBorderStyle.Double, label: 'Dupla' },
-  { value: CellBorderStyle.Dashed, label: 'Tracejada' },
-  { value: CellBorderStyle.Dotted, label: 'Pontilhada' },
-  { value: CellBorderStyle.None, label: 'Apagada' },
+const BORDER_STYLE_KEYS: readonly { readonly value: CellBorderStyle; readonly labelKey: MessageKey }[] = [
+  { value: CellBorderStyle.Single, labelKey: 'document.tableProperties.borderSingle' },
+  { value: CellBorderStyle.Double, labelKey: 'document.tableProperties.borderDouble' },
+  { value: CellBorderStyle.Dashed, labelKey: 'document.tableProperties.borderDashed' },
+  { value: CellBorderStyle.Dotted, labelKey: 'document.tableProperties.borderDotted' },
+  { value: CellBorderStyle.None, labelKey: 'document.tableProperties.borderNone' },
 ]
 
-const SIDE_LABELS: Record<CellBorderSide, string> = {
-  top: 'Acima',
-  right: 'À direita',
-  bottom: 'Abaixo',
-  left: 'À esquerda',
+const SIDE_LABEL_KEYS: Record<CellBorderSide, MessageKey> = {
+  top: 'document.tableProperties.sideTop',
+  right: 'document.tableProperties.sideRight',
+  bottom: 'document.tableProperties.sideBottom',
+  left: 'document.tableProperties.sideLeft',
 }
 
 /**
@@ -48,6 +50,7 @@ export function TablePropertiesDialog({
   readonly editor: Editor
   readonly onClose: () => void
 }): React.JSX.Element {
+  const t = useT()
   const page = useWorkspace((state) => state.page)
   const contentWidthPx = mmToPx(contentWidthMm(page))
 
@@ -72,7 +75,7 @@ export function TablePropertiesDialog({
     <div
       className="popover popover--wide"
       role="dialog"
-      aria-label="Propriedades da tabela"
+      aria-label={t('table.properties')}
       onKeyDown={(event) => {
         if (event.key === 'Escape') onClose()
         if (event.key === 'Enter') apply()
@@ -80,7 +83,7 @@ export function TablePropertiesDialog({
     >
       <div className="popover__row">
         <label className="popover__field popover__field--narrow">
-          <span>Largura da coluna (mm)</span>
+          <span>{t('document.tableProperties.columnWidth')}</span>
           <input
             type="number"
             min={MIN_COLUMN_WIDTH_MM}
@@ -93,22 +96,22 @@ export function TablePropertiesDialog({
         </label>
 
         <label className="popover__field">
-          <span>Borda</span>
+          <span>{t('document.tableProperties.border')}</span>
           <select
-            aria-label="Estilo da borda"
+            aria-label={t('document.tableProperties.borderStyle')}
             value={draft.borderStyle}
             onChange={(event) => change('borderStyle', event.target.value as CellBorderStyle)}
           >
-            {BORDER_STYLES.map((style) => (
+            {BORDER_STYLE_KEYS.map((style) => (
               <option key={style.value} value={style.value}>
-                {style.label}
+                {t(style.labelKey)}
               </option>
             ))}
           </select>
         </label>
 
         <label className="popover__field popover__field--narrow">
-          <span>Espessura (pt)</span>
+          <span>{t('document.tableProperties.borderWidth')}</span>
           <input
             type="number"
             min={MIN_BORDER_PT}
@@ -120,7 +123,7 @@ export function TablePropertiesDialog({
         </label>
 
         <label className="popover__field popover__field--narrow">
-          <span>Cor da borda</span>
+          <span>{t('document.tableProperties.borderColor')}</span>
           <input
             type="color"
             value={draft.borderColor}
@@ -137,7 +140,7 @@ export function TablePropertiesDialog({
               checked={draft.sides[side]}
               onChange={(event) => change('sides', { ...draft.sides, [side]: event.target.checked })}
             />
-            <span>{SIDE_LABELS[side]}</span>
+            <span>{t(SIDE_LABEL_KEYS[side])}</span>
           </label>
         ))}
       </div>
@@ -149,11 +152,11 @@ export function TablePropertiesDialog({
             checked={draft.shaded}
             onChange={(event) => change('shaded', event.target.checked)}
           />
-          <span>Sombreamento</span>
+          <span>{t('document.tableProperties.shading')}</span>
         </label>
 
         <label className="popover__field popover__field--narrow">
-          <span>Cor do fundo</span>
+          <span>{t('document.tableProperties.shadingColor')}</span>
           <input
             type="color"
             value={draft.shadingColor}
@@ -169,13 +172,11 @@ export function TablePropertiesDialog({
           checked={draft.headerRow}
           onChange={(event) => change('headerRow', event.target.checked)}
         />
-        <span>Repetir a primeira linha no alto de cada página</span>
+        <span>{t('document.tableProperties.repeatHeader')}</span>
       </label>
 
       <p className={valid ? 'popover__hint' : 'popover__error'}>
-        {valid
-          ? 'Borda e sombreamento valem para as células que a seleção tocar; a largura, para a coluna do cursor.'
-          : 'Há medida fora da faixa que o documento aceita.'}
+        {valid ? t('document.tableProperties.hintValid') : t('document.tableProperties.hintInvalid')}
       </p>
 
       <div className="popover__actions">
@@ -184,11 +185,11 @@ export function TablePropertiesDialog({
           className="btn"
           onClick={() => setDraft({ ...DEFAULT_TABLE_DRAFT, columnWidthMm: draft.columnWidthMm })}
         >
-          Restaurar padrão
+          {t('document.common.restoreDefaults')}
         </button>
         <span className="popover__spacer" />
         <button type="button" className="btn" onMouseDown={keepFocus} onClick={onClose}>
-          Cancelar
+          {t('document.common.cancel')}
         </button>
         <button
           type="button"
@@ -197,7 +198,7 @@ export function TablePropertiesDialog({
           onClick={apply}
           disabled={!valid}
         >
-          Aplicar
+          {t('document.common.apply')}
         </button>
       </div>
     </div>

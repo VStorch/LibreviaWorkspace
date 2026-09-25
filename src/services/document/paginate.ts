@@ -18,6 +18,8 @@ export interface MeasuredBlock {
   /** Topo em coordenadas de fluxo. */
   readonly top: number
   readonly height: number
+  /** Topos de linhas/itens onde a página pode recomeçar; vazio é atômico. */
+  readonly breakpoints: readonly number[]
   /** É o nó `pageBreak` — a quebra que a pessoa pediu com Ctrl+Enter. */
   readonly isPageBreak: boolean
   /**
@@ -45,9 +47,9 @@ export function paginate(blocks: readonly MeasuredBlock[], pageHeight: number): 
   let index = 0
 
   // Sem teto de páginas, e por isso o laço precisa terminar sozinho. Ele
-  // termina: em cada volta, ou `index` avança, ou `pageStart` cresce para o topo
-  // do bloco que estourou — e então a volta seguinte cai no ramo "não há onde
-  // partir", que avança `index`. Nenhum bloco é visto mais de duas vezes.
+  // termina: em cada volta, ou `index` avança, ou `pageStart` cresce estritamente
+  // para um topo de bloco ou um dos seus pontos de corte. Há uma quantidade
+  // finita dessas posições; um corte interno nunca permite voltar para trás.
   //
   // Havia um teto de quinhentas páginas, que parecia inofensivo e não era: ao
   // ser alcançado, o laço simplesmente parava, e **todo o resto do documento
@@ -87,6 +89,13 @@ export function paginate(blocks: readonly MeasuredBlock[], pageHeight: number): 
       continue
     }
 
+    const breakpoint = block.breakpoints.filter((at) => at > pageStart && at - pageStart <= pageHeight).at(-1)
+    if (breakpoint !== undefined) {
+      breaks.push(breakpoint)
+      pageStart = breakpoint
+      continue
+    }
+
     // Quebra **antes** do bloco que estouraria — a mesma decisão do navegador ao
     // imprimir, e o motivo de a página nunca cortar um parágrafo ao meio.
     let breakAt = block.top
@@ -102,11 +111,9 @@ export function paginate(blocks: readonly MeasuredBlock[], pageHeight: number): 
     }
 
     if (breakAt <= pageStart) {
-      // Bloco mais alto que uma página inteira — uma captura de tela grande.
-      // Não há onde parti-lo, então ele fica com a folha só para si e
-      // transborda. O que vem depois começa numa folha nova: deixar o próximo
-      // parágrafo encostado embaixo do transbordo o poria fora do papel
-      // desenhado, que parece defeito de desenho e não documento grande demais.
+      // Sem corte disponível, o restante fica com a folha só para si.
+      // O layout aumenta esse papel para conter o bloco atômico; o próximo
+      // bloco continua abrindo uma folha nova, como antes.
       pageStart = bottom
       index += 1
       if (index < blocks.length) breaks.push(bottom)

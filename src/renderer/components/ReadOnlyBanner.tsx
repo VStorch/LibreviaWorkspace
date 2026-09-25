@@ -1,4 +1,5 @@
 import { useWorkspace } from '../state/workspace.js'
+import { useT } from '../i18n.js'
 
 /**
  * O arquivo abriu travado, e a faixa diz por quê e como destravar.
@@ -18,6 +19,7 @@ import { useWorkspace } from '../state/workspace.js'
  * que o usuário consegue desmentir olhando a tela é pior que nenhum.
  */
 export function ReadOnlyBanner(): React.JSX.Element | null {
+  const t = useT()
   const readOnly = useWorkspace((state) => state.readOnly)
   const notice = useWorkspace((state) => state.notice)
   const allowEditing = useWorkspace((state) => state.allowEditing)
@@ -29,16 +31,16 @@ export function ReadOnlyBanner(): React.JSX.Element | null {
   return (
     <div className="banner banner--readonly" role="status">
       <div className="banner__text">
-        <strong>Aberto somente para leitura.</strong>
+        <strong>{t('shell.banner.readOnly')}</strong>
         <span className="banner__detail">
           {reasons.length > 0
-            ? `Este arquivo tem ${reasons.join(', ')} — que o editor não reproduz por inteiro. Tudo isso volta intacto ao salvar, menos o que estiver no trecho que você editar.`
-            : 'Este arquivo tem recursos que o editor não reproduz por inteiro e que podem se perder ao editar.'}
+            ? t('shell.banner.readOnlyReasons', { reasons: reasons.join(', ') })
+            : t('shell.banner.readOnlyGeneric')}
         </span>
       </div>
       <div className="banner__actions">
         <button type="button" className="banner__action" onClick={allowEditing}>
-          Editar mesmo assim
+          {t('shell.banner.editAnyway')}
         </button>
       </div>
     </div>

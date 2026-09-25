@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { Editor } from '@tiptap/react'
+import { useT } from '../i18n.js'
 import type { SearchStatus } from './extensions/search-replace.js'
 
 interface FindReplacePanelProps {
@@ -9,6 +10,7 @@ interface FindReplacePanelProps {
 }
 
 export function FindReplacePanel({ editor, status, onClose }: FindReplacePanelProps): React.JSX.Element {
+  const t = useT()
   const [term, setTerm] = useState('')
   const [replacement, setReplacement] = useState('')
   const [caseSensitive, setCaseSensitive] = useState(false)
@@ -29,8 +31,8 @@ export function FindReplacePanel({ editor, status, onClose }: FindReplacePanelPr
         className="findbar__input"
         value={term}
         autoFocus
-        placeholder="Localizar"
-        aria-label="Localizar"
+        placeholder={t('document.findReplace.find')}
+        aria-label={t('document.findReplace.find')}
         onChange={(event) => setTerm(event.target.value)}
         onKeyDown={(event) => {
           if (event.key === 'Enter') editor.commands.goToMatch(event.shiftKey ? -1 : 1)
@@ -39,7 +41,11 @@ export function FindReplacePanel({ editor, status, onClose }: FindReplacePanelPr
       />
 
       <span className={noMatches ? 'findbar__count findbar__count--empty' : 'findbar__count'}>
-        {term.length === 0 ? '' : noMatches ? 'nenhuma' : `${status.current} de ${status.total}`}
+        {term.length === 0
+          ? ''
+          : noMatches
+            ? t('document.findReplace.noMatches')
+            : t('document.findReplace.matchCount', { current: status.current, total: status.total })}
       </span>
 
       <button
@@ -47,7 +53,7 @@ export function FindReplacePanel({ editor, status, onClose }: FindReplacePanelPr
         className="btn"
         onClick={() => editor.commands.goToMatch(-1)}
         disabled={status.total === 0}
-        title="Ocorrência anterior (Shift+Enter)"
+        title={t('document.findReplace.previousMatch')}
       >
         ↑
       </button>
@@ -56,7 +62,7 @@ export function FindReplacePanel({ editor, status, onClose }: FindReplacePanelPr
         className="btn"
         onClick={() => editor.commands.goToMatch(1)}
         disabled={status.total === 0}
-        title="Próxima ocorrência (Enter)"
+        title={t('document.findReplace.nextMatch')}
       >
         ↓
       </button>
@@ -65,8 +71,8 @@ export function FindReplacePanel({ editor, status, onClose }: FindReplacePanelPr
         type="text"
         className="findbar__input"
         value={replacement}
-        placeholder="Substituir por"
-        aria-label="Substituir por"
+        placeholder={t('document.findReplace.replaceWith')}
+        aria-label={t('document.findReplace.replaceWith')}
         onChange={(event) => setReplacement(event.target.value)}
       />
 
@@ -76,7 +82,7 @@ export function FindReplacePanel({ editor, status, onClose }: FindReplacePanelPr
         onClick={() => editor.commands.replaceCurrentMatch(replacement)}
         disabled={status.total === 0}
       >
-        Substituir
+        {t('document.findReplace.replace')}
       </button>
       <button
         type="button"
@@ -84,10 +90,10 @@ export function FindReplacePanel({ editor, status, onClose }: FindReplacePanelPr
         onClick={() => editor.commands.replaceAllMatches(replacement)}
         disabled={status.total === 0}
       >
-        Tudo
+        {t('document.findReplace.replaceAll')}
       </button>
 
-      <label className="findbar__toggle" title="Diferenciar maiúsculas de minúsculas">
+      <label className="findbar__toggle" title={t('document.findReplace.caseSensitive')}>
         <input
           type="checkbox"
           checked={caseSensitive}
@@ -96,7 +102,7 @@ export function FindReplacePanel({ editor, status, onClose }: FindReplacePanelPr
         Aa
       </label>
 
-      <button type="button" className="btn" onClick={onClose} aria-label="Fechar busca">
+      <button type="button" className="btn" onClick={onClose} aria-label={t('document.findReplace.close')}>
         ✕
       </button>
     </div>

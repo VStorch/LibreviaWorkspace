@@ -22,6 +22,7 @@
 
 import { z } from 'zod'
 import { AppError, ErrorCode } from '@shared/errors.js'
+import { t } from '../i18n.js'
 
 export const FRAME_HEADER_BYTES = 8
 
@@ -93,8 +94,8 @@ export class FrameReader {
     if (jsonLength > MAX_JSON_BYTES || binaryLength > MAX_BINARY_BYTES) {
       throw new AppError(
         ErrorCode.SidecarFailed,
-        'O serviço de formatos respondeu de forma inesperada. A operação não foi concluída.',
-        `quadro anuncia ${jsonLength} bytes de JSON e ${binaryLength} de binário`,
+        t('errors.sidecar.unexpectedResponse'),
+        t('errors.sidecar.frameAnnounce', { jsonLength, binaryLength }),
       )
     }
 
@@ -116,8 +117,8 @@ function parseJson(bytes: Uint8Array): unknown {
   } catch {
     throw new AppError(
       ErrorCode.SidecarFailed,
-      'O serviço de formatos respondeu de forma inesperada. A operação não foi concluída.',
-      'JSON inválido no quadro',
+      t('errors.sidecar.unexpectedResponse'),
+      t('errors.sidecar.invalidJson'),
     )
   }
 }
@@ -195,8 +196,8 @@ export function parseResponse(json: unknown): SidecarResponse {
   if (!parsed.success) {
     throw new AppError(
       ErrorCode.SidecarFailed,
-      'O serviço de formatos respondeu de forma inesperada. A operação não foi concluída.',
-      'resposta fora do contrato',
+      t('errors.sidecar.unexpectedResponse'),
+      t('errors.sidecar.contractViolation'),
     )
   }
   return parsed.data

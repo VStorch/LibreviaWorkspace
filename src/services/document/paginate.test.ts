@@ -13,6 +13,7 @@ function stack(
     const block: MeasuredBlock = {
       top,
       height,
+      breakpoints: [],
       isPageBreak: marks.pageBreak?.includes(index) ?? false,
       breakAfter: marks.breakAfter?.includes(index) ?? false,
       keepWithNext: marks.keepNext?.includes(index) ?? false,
@@ -120,5 +121,61 @@ describe('paginação', () => {
     // travaria a cada tecla digitada — é por isso que o teto existia.
     const blocos = stack(Array.from({ length: 600 }, () => 300))
     expect(paginate(blocos, 100)).toHaveLength(599)
+  })
+})
+
+describe('cortes dentro de blocos', () => {
+  function splittable(
+    height: number,
+    breakpoints: number[],
+    marks: Partial<MeasuredBlock> = {},
+  ): MeasuredBlock {
+    return { ...stack([height])[0]!, breakpoints, ...marks }
+  }
+
+  it('tabela corta na última linha que cabe', () => {
+    expect(paginate([splittable(1500, [300, 600, 900, 1200])], 1000)).toEqual([900])
+  })
+
+  it('tabela de três páginas tem dois cortes internos', () => {
+    expect(paginate([splittable(2500, [500, 1000, 1500, 2000])], 1000)).toEqual([1000, 2000])
+  })
+
+  it('lista corta no topo do item', () => {
+    expect(paginate([splittable(1200, [400, 800])], 1000)).toEqual([800])
+  })
+
+  it('bloco atômico gigante continua numa folha só', () => {
+    expect(paginate(stack([3000]), 1000)).toEqual([])
+  })
+
+  it('quebra explícita precede cortes internos', () => {
+    expect(
+      paginate(
+        [splittable(1500, [500, 1000], { isPageBreak: true }), { ...stack([100])[0]!, top: 1500 }],
+        1000,
+      ),
+    ).toEqual([1500])
+  })
+
+  it('quebra depois vale após o último pedaço da tabela', () => {
+    expect(
+      paginate(
+        [splittable(1500, [500, 1000], { breakAfter: true }), { ...stack([100])[0]!, top: 1500 }],
+        1000,
+      ),
+    ).toEqual([1000, 1500])
+  })
+
+  it('título acompanha tabela quando nem a primeira linha cabe', () => {
+    const blocks = stack([800, 100, 1500], { keepNext: [1] })
+    blocks[2] = { ...blocks[2]!, breakpoints: [1200, 1500, 1800, 2100] }
+    expect(paginate(blocks, 1000)).toEqual([800, 1800])
+  })
+
+  it('keepWithNext não volta para antes de um corte interno', () => {
+    const blocks = stack([100, 2500, 100], { keepNext: [0, 1] })
+    blocks[1] = { ...blocks[1]!, breakpoints: [600, 1100, 1600, 2100] }
+    expect(paginate(blocks, 1000)).toEqual([600, 1600, 2600])
   })
 })

@@ -128,6 +128,19 @@ export const SHORTCUTS = {
 
   // ## Menu → Exibir
   /**
+   * `Ctrl+F11`, vizinho do `Ctrl+F10` das marcas de formatação.
+   *
+   * As duas são chaves do mesmo tipo — ligam e desligam um jeito de ver o
+   * documento — e ficar uma ao lado da outra é o que faz a segunda ser
+   * lembrada por quem já sabe a primeira. `F11` sozinho é a tela cheia do
+   * sistema, e não se mexe nele.
+   */
+  readingMode: {
+    owner: ShortcutOwner.Menu,
+    key: { mod: true, key: 'F11' },
+    does: 'Modo de leitura',
+  },
+  /**
    * `Ctrl+F10`, e não o `Ctrl+*` do Word: `Ctrl+Shift+8` **é** o `Ctrl+*`, e é
    * também a lista com marcadores logo abaixo nesta tabela. Quem se muda é o item
    * novo, e `Ctrl+F10` é o que o LibreOffice usa para isto.

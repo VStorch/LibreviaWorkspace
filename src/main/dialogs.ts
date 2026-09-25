@@ -8,18 +8,21 @@ import {
   SUPPORTED_EXTENSIONS,
   WORD_EXTENSION,
 } from '@services/file/formats.js'
+import { t } from './i18n.js'
 
 const bare = (extension: string) => extension.replace('.', '')
 
-const FILTERS = [
-  { name: 'Todos os arquivos suportados', extensions: SUPPORTED_EXTENSIONS.map(bare) },
-  { name: 'Documentos do Word', extensions: [bare(WORD_EXTENSION)] },
-  { name: 'Planilhas do Excel', extensions: [bare(EXCEL_EXTENSION)] },
-  { name: 'Documentos', extensions: [bare(DOCUMENT_EXTENSION)] },
-  { name: 'Planilhas', extensions: [bare(SPREADSHEET_EXTENSION)] },
-  { name: 'Texto simples', extensions: [bare(PLAIN_TEXT_EXTENSION)] },
-  { name: 'Todos os arquivos', extensions: ['*'] },
-]
+function getFilters() {
+  return [
+    { name: t('dialog.filter.allSupported'), extensions: SUPPORTED_EXTENSIONS.map(bare) },
+    { name: t('dialog.filter.wordDocs'), extensions: [bare(WORD_EXTENSION)] },
+    { name: t('dialog.filter.excelSheets'), extensions: [bare(EXCEL_EXTENSION)] },
+    { name: t('dialog.filter.documents'), extensions: [bare(DOCUMENT_EXTENSION)] },
+    { name: t('dialog.filter.spreadsheets'), extensions: [bare(SPREADSHEET_EXTENSION)] },
+    { name: t('dialog.filter.plainText'), extensions: [bare(PLAIN_TEXT_EXTENSION)] },
+    { name: t('dialog.filter.allFiles'), extensions: ['*'] },
+  ]
+}
 
 /**
  * Os formatos em que cada tipo pode ser salvo, o nativo primeiro.
@@ -30,29 +33,32 @@ const FILTERS = [
  * de fato funciona para o que está aberto. O `.txt` continua na lista, com o
  * aviso de formatação perdida que vem antes da gravação.
  */
-const SAVE_FILTERS: Record<DocumentKind, { name: string; extensions: string[] }[]> = {
-  [DocumentKind.Document]: [
-    { name: 'Documento', extensions: [bare(DOCUMENT_EXTENSION)] },
-    { name: 'Documento do Word', extensions: [bare(WORD_EXTENSION)] },
-    { name: 'Texto simples', extensions: [bare(PLAIN_TEXT_EXTENSION)] },
-  ],
-  [DocumentKind.Spreadsheet]: [
-    { name: 'Planilha', extensions: [bare(SPREADSHEET_EXTENSION)] },
-    { name: 'Planilha do Excel', extensions: [bare(EXCEL_EXTENSION)] },
-  ],
+function getSaveFilters(kind: DocumentKind) {
+  return kind === DocumentKind.Document
+    ? [
+        { name: t('dialog.filter.document'), extensions: [bare(DOCUMENT_EXTENSION)] },
+        { name: t('dialog.filter.wordDoc'), extensions: [bare(WORD_EXTENSION)] },
+        { name: t('dialog.filter.plainText'), extensions: [bare(PLAIN_TEXT_EXTENSION)] },
+      ]
+    : [
+        { name: t('dialog.filter.spreadsheet'), extensions: [bare(SPREADSHEET_EXTENSION)] },
+        { name: t('dialog.filter.excelSheet'), extensions: [bare(EXCEL_EXTENSION)] },
+      ]
 }
 
-const IMAGE_FILTERS = [
-  { name: 'Imagens', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp'] },
-  { name: 'Todos os arquivos', extensions: ['*'] },
-]
+function getImageFilters() {
+  return [
+    { name: t('dialog.filter.images'), extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp'] },
+    { name: t('dialog.filter.allFiles'), extensions: ['*'] },
+  ]
+}
 
 /** Devolve o caminho escolhido, ou `null` se o usuário cancelou. */
 export async function showOpenFileDialog(window: BrowserWindow): Promise<string | null> {
   const result = await dialog.showOpenDialog(window, {
-    title: 'Abrir arquivo',
+    title: t('dialog.open.title'),
     properties: ['openFile'],
-    filters: FILTERS,
+    filters: getFilters(),
   })
   return result.canceled ? null : (result.filePaths[0] ?? null)
 }
@@ -63,9 +69,9 @@ export async function showSaveFileDialog(
   kind: DocumentKind,
 ): Promise<string | null> {
   const result = await dialog.showSaveDialog(window, {
-    title: 'Salvar como',
+    title: t('dialog.save.title'),
     defaultPath: suggestedName,
-    filters: SAVE_FILTERS[kind],
+    filters: getSaveFilters(kind),
     // O diálogo do sistema já avisa sobre sobrescrever; não duplicamos o aviso.
     properties: ['createDirectory', 'showOverwriteConfirmation'],
   })
@@ -81,10 +87,10 @@ export async function showSaveFileDialog(
 export async function confirmDiscardChanges(window: BrowserWindow, fileName: string): Promise<DiscardChoice> {
   const { response } = await dialog.showMessageBox(window, {
     type: 'warning',
-    title: 'Alterações não salvas',
-    message: `Salvar as alterações em “${fileName}”?`,
-    detail: 'Se não salvar, as alterações feitas desde a última gravação serão perdidas.',
-    buttons: ['Salvar', 'Não salvar', 'Cancelar'],
+    title: t('dialog.discard.title'),
+    message: t('dialog.discard.message', { fileName }),
+    detail: t('dialog.discard.detail'),
+    buttons: [t('dialog.discard.save'), t('dialog.discard.dontSave'), t('dialog.discard.cancel')],
     defaultId: 0,
     cancelId: 2,
     noLink: true,
@@ -100,7 +106,7 @@ export async function showPdfSaveDialog(
   suggestedName: string,
 ): Promise<string | null> {
   const result = await dialog.showSaveDialog(window, {
-    title: 'Exportar para PDF',
+    title: t('dialog.pdf.title'),
     defaultPath: suggestedName,
     filters: [{ name: 'PDF', extensions: ['pdf'] }],
     properties: ['createDirectory', 'showOverwriteConfirmation'],
@@ -110,9 +116,9 @@ export async function showPdfSaveDialog(
 
 export async function showImagePickerDialog(window: BrowserWindow): Promise<string | null> {
   const result = await dialog.showOpenDialog(window, {
-    title: 'Inserir imagem',
+    title: t('dialog.image.title'),
     properties: ['openFile'],
-    filters: IMAGE_FILTERS,
+    filters: getImageFilters(),
   })
   return result.canceled ? null : (result.filePaths[0] ?? null)
 }
@@ -130,12 +136,14 @@ export async function confirmPlainTextSave(
 ): Promise<PlainTextChoice> {
   const { response } = await dialog.showMessageBox(window, {
     type: 'warning',
-    title: 'Formatação será perdida',
-    message: `“${fileName}” é um arquivo de texto simples.`,
-    detail:
-      'Texto simples não guarda negrito, títulos, listas, tabelas nem imagens. ' +
-      'Salvar como documento preserva tudo.',
-    buttons: ['Salvar como documento', 'Salvar como texto simples', 'Cancelar'],
+    title: t('dialog.plainText.title'),
+    message: t('dialog.plainText.message', { fileName }),
+    detail: t('dialog.plainText.detail'),
+    buttons: [
+      t('dialog.plainText.saveAsDocument'),
+      t('dialog.plainText.saveAsPlain'),
+      t('dialog.discard.cancel'),
+    ],
     defaultId: 0,
     cancelId: 2,
     noLink: true,
@@ -149,10 +157,10 @@ export async function confirmPlainTextSave(
 export function showAboutDialog(window: BrowserWindow, appName: string, version: string): void {
   void dialog.showMessageBox(window, {
     type: 'info',
-    title: `Sobre o ${appName}`,
+    title: t('dialog.about.title', { app: appName }),
     message: appName,
-    detail: `Versão ${version}\n\nSuíte de documentos e planilhas, offline.\nEm desenvolvimento — Fase 7 de 8.`,
-    buttons: ['Fechar'],
+    detail: t('dialog.about.detail', { version }),
+    buttons: [t('dialog.about.close')],
     noLink: true,
   })
 }
