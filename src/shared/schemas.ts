@@ -34,6 +34,8 @@ export const bandPieceSchema = z.object({
    * digitado no cabeçalho voltaria para a tela e não para o `.docx`.
    */
   pid: z.string().max(120).optional(),
+  /** O texto traz `{n}` ou `{total}` escritos no arquivo: é texto, e não campo. */
+  literal: z.boolean().optional(),
 })
 
 /**

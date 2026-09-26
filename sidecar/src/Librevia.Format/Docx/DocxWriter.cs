@@ -69,7 +69,7 @@ public static class DocxWriter
             part,
             index,
             inventory,
-            new NumberingFactory(part, touched),
+            new NumberingFactory(part, touched, inventory),
             new HeadingStyles(part, touched),
             out var preserved,
             out var rewritten);
@@ -93,7 +93,7 @@ public static class DocxWriter
         PlainBandWriter.Apply(part, current, model.Page, inventory, touched);
 
         // Formato e início do número de página, capa distinta e páginas pares.
-        PageNumbering.Apply(part, current, model.Page, touched);
+        PageNumbering.Apply(part, current, model.Page, touched, inventory);
 
         // O texto digitado no cabeçalho e no rodapé, peça por peça. Só as
         // partes que de fato mudaram entram na lista de graváveis: o resto

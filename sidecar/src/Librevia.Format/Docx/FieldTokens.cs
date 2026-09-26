@@ -13,6 +13,9 @@ internal static class FieldTokens
     /// <summary>Um trecho de texto, precedido do campo que o abre (nulo no primeiro).</summary>
     public sealed record Segment(string? Field, string Text);
 
+    public static bool Contains(string? text) =>
+        text is not null && (text.Contains("{n}", StringComparison.Ordinal) || text.Contains("{total}", StringComparison.Ordinal));
+
     public static List<Segment> Split(string text)
     {
         var segments = new List<Segment>();

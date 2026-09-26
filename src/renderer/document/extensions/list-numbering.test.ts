@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { getSchema } from '@tiptap/core'
 import { Node as ProseMirrorNode, type DOMOutputSpec } from '@tiptap/pm/model'
 import { buildEditorExtensions } from '../editor-extensions.js'
-import { drawListsForPrint } from './list-numbering.js'
+import { Slice, Fragment } from '@tiptap/pm/model'
+import { drawListsForPrint, renamePastedKeys } from './list-numbering.js'
 
 const schema = getSchema(buildEditorExtensions(() => {}))
 
@@ -51,5 +52,29 @@ describe('drawListsForPrint', () => {
     drawListsForPrint(doc)
     expect(doc.child(0).attrs['listDraw']).toBeNull()
     expect(doc.child(0).child(0).attrs['listDraw']).toBeNull()
+  })
+})
+
+describe('renamePastedKeys', () => {
+  const levels = [{ fmt: 'decimal', text: '%1.', start: 1 }]
+  const listWith = (key: string, fmt = 'decimal') =>
+    ProseMirrorNode.fromJSON(schema, {
+      type: 'orderedList',
+      attrs: { numId: 1, numbering: { key, levels: [{ ...levels[0], fmt }] } },
+      content: [item('um')],
+    })
+  const docWith = (...lists: ProseMirrorNode[]) => schema.node('doc', null, lists)
+  const keyOf = (slice: Slice) => (slice.content.child(0).attrs['numbering'] as { key: string }).key
+
+  it('a lista colada de outro documento, com a chave de uma lista daqui, ganha chave própria', () => {
+    const doc = docWith(listWith('a1'))
+    const pasted = new Slice(Fragment.from(listWith('a1', 'upperRoman')), 0, 0)
+    expect(keyOf(renamePastedKeys(pasted, doc))).not.toBe('a1')
+  })
+
+  it('a cópia de dentro do documento continua a mesma numeração', () => {
+    const doc = docWith(listWith('a1'))
+    const pasted = new Slice(Fragment.from(listWith('a1')), 0, 0)
+    expect(keyOf(renamePastedKeys(pasted, doc))).toBe('a1')
   })
 })

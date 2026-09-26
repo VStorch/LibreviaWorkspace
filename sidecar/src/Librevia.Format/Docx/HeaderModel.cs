@@ -113,7 +113,13 @@ public sealed record PieceDto(
     /// imagem e texto em cache de campo não têm `w:t` próprio onde escrever, e
     /// digitar por cima deles apagaria o campo.
     /// </remarks>
-    [property: JsonPropertyName("pid")] string? Pid = null)
+    [property: JsonPropertyName("pid")] string? Pid = null,
+    /// <summary>
+    /// O texto traz `{n}` ou `{total}` escritos no arquivo — é texto, e não campo.
+    /// </summary>
+    [property: JsonPropertyName("literal")]
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    bool Literal = false)
 {
     public const string KindText = "text";
     public const string KindImage = "image";

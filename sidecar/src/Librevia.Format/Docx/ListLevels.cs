@@ -133,7 +133,7 @@ public static class ListLevels
     /// Formato que o SDK não conhece vira decimal: gravar um valor fora da
     /// enumeração faria o Word recusar o arquivo inteiro.
     /// </remarks>
-    public static Level ToOpenXml(JsonObject? source, int index, string kind)
+    public static Level ToOpenXml(JsonObject? source, int index, string kind, Inventory? inventory = null)
     {
         var fallback = (JsonObject)Defaults(kind)[index]!;
         var level = source ?? fallback;
@@ -151,11 +151,37 @@ public static class ListLevels
         {
             LevelIndex = index,
             StartNumberingValue = new StartNumberingValue { Val = start },
-            NumberingFormat = new NumberingFormat { Val = FormatOf(format) },
+            NumberingFormat = new NumberingFormat { Val = FormatOf(format, inventory) },
         };
+        if (level["restart"] is JsonValue restart && restart.TryGetValue<int>(out var restartValue))
+        {
+            definition.LevelRestart = new LevelRestart { Val = restartValue };
+        }
         if (level["legal"]?.GetValue<bool>() == true) definition.IsLegalNumberingStyle = new IsLegalNumberingStyle();
+        if (level["suff"]?.GetValue<string>() is { } suffix)
+        {
+            definition.LevelSuffix = new LevelSuffix
+            {
+                Val = suffix == "space" ? LevelSuffixValues.Space : suffix == "nothing" ? LevelSuffixValues.Nothing : LevelSuffixValues.Tab,
+            };
+        }
         definition.LevelText = new LevelText { Val = glyph };
-        definition.LevelJustification = new LevelJustification { Val = LevelJustificationValues.Left };
+        definition.LevelJustification = new LevelJustification
+        {
+            Val = level["jc"]?.GetValue<string>() switch
+            {
+                "right" or "end" => LevelJustificationValues.Right,
+                "center" => LevelJustificationValues.Center,
+                _ => LevelJustificationValues.Left,
+            },
+        };
+
+        // Nível recriado sem o original: a formatação própria do número e o
+        // estilo ligado ficaram no documento de onde a lista veio.
+        if (level["extra"]?.GetValue<bool>() == true)
+        {
+            inventory?.NoteLoss("formatação própria do número de uma lista (fonte, cor ou estilo do nível)");
+        }
         definition.PreviousParagraphProperties = new PreviousParagraphProperties(new Indentation
         {
             Left = AttrMm(indent),
@@ -183,15 +209,18 @@ public static class ListLevels
     private static double? Number(JsonNode? node) =>
         node is JsonValue value && value.TryGetValue<double>(out var number) ? number : null;
 
-    private static NumberFormatValues FormatOf(string name) => name switch
+    /// <summary>
+    /// O formato pelo nome OOXML — qualquer um que o esquema conheça, e não só os
+    /// que a tela desenha: `ordinal`, `chineseCounting` e companhia voltam como
+    /// vieram. Nome fora do esquema vira decimal, com aviso: gravá-lo faria o
+    /// Word recusar o arquivo inteiro.
+    /// </summary>
+    private static NumberFormatValues FormatOf(string name, Inventory? inventory)
     {
-        "bullet" => NumberFormatValues.Bullet,
-        "none" => NumberFormatValues.None,
-        "decimalZero" => NumberFormatValues.DecimalZero,
-        "lowerLetter" => NumberFormatValues.LowerLetter,
-        "upperLetter" => NumberFormatValues.UpperLetter,
-        "lowerRoman" => NumberFormatValues.LowerRoman,
-        "upperRoman" => NumberFormatValues.UpperRoman,
-        _ => NumberFormatValues.Decimal,
-    };
+        var value = new NumberFormatValues(name);
+        if (((DocumentFormat.OpenXml.IEnumValue)value).IsValid) return value;
+
+        inventory?.NoteLoss($"formato de numeração de lista \"{name}\" (gravado como decimal)");
+        return NumberFormatValues.Decimal;
+    }
 }

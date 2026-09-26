@@ -1473,6 +1473,58 @@ public static class Fixtures
         },
         (section, _) => decorate(section));
 
+    /// <summary>Um rodapé padrão com o parágrafo dado — para campos e textos de faixa.</summary>
+    public static byte[] WithFooter(Paragraph paragraph) => Build(
+        (body, _) => body.AppendChild(Paragraph("Corpo do documento.")),
+        (section, part) =>
+        {
+            var footer = part.AddNewPart<FooterPart>("rIdRodape");
+            footer.Footer = new Footer(paragraph);
+            footer.Footer.Save();
+            section.AppendChild(new FooterReference { Type = HeaderFooterValues.Default, Id = "rIdRodape" });
+        });
+
+    /// <summary>
+    /// Parágrafos numerados por um `numId` que o `numbering.xml` não define — o
+    /// Word os mostra sem marca nenhuma.
+    /// </summary>
+    public static byte[] WithDanglingNumbering() => Build((body, part) =>
+    {
+        AddBulletNumbering(part);
+        body.AppendChild(Paragraph("Introdução."));
+        body.AppendChild(NumberedParagraph("Sem definição", 99));
+        body.AppendChild(NumberedParagraph("Também sem", 99));
+    });
+
+    /// <summary>
+    /// Lista cujo nível 0 tem o que a definição do editor não leva: número à
+    /// direita, em vermelho, e formato `ordinal`.
+    /// </summary>
+    public static byte[] WithRichNumbering() => Build((body, part) =>
+    {
+        var numbering = part.AddNewPart<NumberingDefinitionsPart>();
+        numbering.Numbering = new Numbering(
+            new AbstractNum(
+                new Level(
+                    new StartNumberingValue { Val = 1 },
+                    new NumberingFormat { Val = NumberFormatValues.Ordinal },
+                    new LevelText { Val = "%1" },
+                    new LevelJustification { Val = LevelJustificationValues.Right },
+                    new PreviousParagraphProperties(new Indentation { Left = "720", Hanging = "360" }),
+                    new NumberingSymbolRunProperties(new Color { Val = "FF0000" }))
+                { LevelIndex = 0 },
+                new Level(
+                    new StartNumberingValue { Val = 1 },
+                    new NumberingFormat { Val = NumberFormatValues.LowerLetter },
+                    new LevelText { Val = "%2." },
+                    new PreviousParagraphProperties(new Indentation { Left = "1440", Hanging = "360" }))
+                { LevelIndex = 1 }) { AbstractNumberId = 4 },
+            new NumberingInstance(new AbstractNumId { Val = 4 }) { NumberID = 1 });
+
+        body.AppendChild(NumberedParagraph("Primeiro", 1));
+        body.AppendChild(NumberedParagraph("Segundo", 1));
+    });
+
     private static byte[] Build(Action<Body, MainDocumentPart> fill) => Build(fill, null);
 
     /// <param name="decorate">

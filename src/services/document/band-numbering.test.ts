@@ -23,6 +23,8 @@ describe('numeração de página', () => {
   it('a peça de texto mostra {n} e {total} com os números desta folha', () => {
     const piece = { kind: 'text' as const, text: 'Folha {n} de {total}', bold: false, italic: false }
     expect(pieceText(piece, 'iv', 9)).toBe('Folha iv de 9')
+    // Chaves escritas no arquivo são texto, e não campo.
+    expect(pieceText({ ...piece, literal: true }, 'iv', 9)).toBe('Folha {n} de {total}')
   })
 
   it('primeira página diferente sem faixa própria deixa a capa limpa', () => {

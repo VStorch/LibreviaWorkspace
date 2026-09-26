@@ -53,6 +53,13 @@ public sealed class NumberingReader(MainDocumentPart part)
         var numId = numbering?.NumberingId?.Val?.Value;
         if (numId is null or 0) return null;
 
+        // `numId` que o `numbering.xml` não define (ou cuja definição abstrata
+        // sumiu) não numera nada no Word: o parágrafo aparece sem marca. Tratado
+        // como lista, a tela inventava a numeração padrão — e a gravação criava
+        // uma definição e reescrevia parágrafos que ninguém tocou.
+        var instance = InstanceOf(numId.Value);
+        if (instance is null || AbstractOf(instance) is null) return null;
+
         var level = Math.Clamp(numbering?.NumberingLevelReference?.Val?.Value ?? 0, 0, ListLevels.Count - 1);
         var definition = LevelOf(numId.Value, level);
 
@@ -63,7 +70,37 @@ public sealed class NumberingReader(MainDocumentPart part)
             MarkerOf(definition),
             TwipsOf(definition?.PreviousParagraphProperties?.Indentation?.Left?.Value),
             TwipsOf(definition?.PreviousParagraphProperties?.Indentation?.Hanging?.Value),
-            DefinitionOf(numId.Value, KindOf(definition)));
+            DefinitionOf(numId.Value));
+    }
+
+    /// <summary>
+    /// A definição de um `numId` do arquivo, como o leitor a entregaria; nula
+    /// quando o arquivo não a define.
+    /// </summary>
+    /// <remarks>É com ela que a gravação confere se o `numId` que o nó traz ainda é o dele.</remarks>
+    internal JsonObject? FileDefinitionOf(int numId) =>
+        InstanceOf(numId) is { } instance && AbstractOf(instance) is not null ? DefinitionOf(numId) : null;
+
+    /// <summary>
+    /// Os nove níveis de uma definição abstrata, com os que faltam preenchidos.
+    /// </summary>
+    /// <remarks>
+    /// O preenchimento segue o primeiro nível da **definição**, e não o parágrafo
+    /// que a pediu: lida por um item com marcador e por outro numerado, a mesma
+    /// definição dava dois conjuntos de níveis — e a gravação, que compara níveis
+    /// para reaproveitar a definição, criava uma duplicada.
+    /// </remarks>
+    internal static JsonArray LevelsOf(AbstractNum? abstractNum)
+    {
+        var first = abstractNum?.Elements<Level>().FirstOrDefault(level => (level.LevelIndex?.Value ?? 0) == 0);
+        var levels = ListLevels.Defaults(KindOf(first));
+        foreach (var level in abstractNum?.Elements<Level>() ?? [])
+        {
+            var index = level.LevelIndex?.Value ?? 0;
+            if (index is >= 0 and < ListLevels.Count) levels[index] = LevelJson(level);
+        }
+
+        return levels;
     }
 
     /// <summary>
@@ -73,29 +110,24 @@ public sealed class NumberingReader(MainDocumentPart part)
     /// Clonada a cada pedido: o mesmo `numId` aparece em várias listas, e um
     /// `JsonNode` só pode ter um pai.
     /// </remarks>
-    private JsonObject DefinitionOf(int numId, string kind)
+    private JsonObject DefinitionOf(int numId)
     {
         if (!_definitions.TryGetValue(numId, out var cached))
         {
-            cached = Build(numId, kind);
+            cached = Build(numId);
             _definitions[numId] = cached;
         }
 
         return (JsonObject)cached.DeepClone();
     }
 
-    private JsonObject Build(int numId, string kind)
+    private JsonObject Build(int numId)
     {
         var instance = InstanceOf(numId);
         var abstractNum = AbstractOf(instance);
         var abstractId = abstractNum?.AbstractNumberId?.Value;
 
-        var levels = ListLevels.Defaults(kind);
-        foreach (var level in abstractNum?.Elements<Level>() ?? [])
-        {
-            var index = level.LevelIndex?.Value ?? 0;
-            if (index is >= 0 and < ListLevels.Count) levels[index] = LevelJson(level);
-        }
+        var levels = LevelsOf(abstractNum);
 
         var overrides = new JsonObject();
         var ownLevels = false;
@@ -132,13 +164,33 @@ public sealed class NumberingReader(MainDocumentPart part)
     {
         var format = ListLevels.FormatName(level);
         var text = level.LevelText?.Val?.Value ?? string.Empty;
-        return ListLevels.Level(
+        var json = ListLevels.Level(
             format,
             format == "bullet" ? ListLevels.Shown(text) : text,
             level.StartNumberingValue?.Val?.Value ?? 1,
             TwipsOf(level.PreviousParagraphProperties?.Indentation?.Left?.Value),
             TwipsOf(level.PreviousParagraphProperties?.Indentation?.Hanging?.Value),
             level.IsLegalNumberingStyle is { } legal && (legal.Val?.Value ?? true));
+
+        // O que a tela não desenha mas a gravação precisa para recriar o nível
+        // noutro arquivo (lista colada): alinhamento, o que vem depois do número
+        // e o reinício. Só quando foge do padrão, para não engordar toda lista.
+        if (level.LevelJustification?.Val?.InnerText is { } jc && jc is not ("left" or "start")) json["jc"] = jc;
+        if (level.LevelSuffix?.Val?.InnerText is { } suff && suff != "tab") json["suff"] = suff;
+        if (level.LevelRestart?.Val?.Value is { } restart) json["restart"] = restart;
+
+        // A formatação do número (cor, tamanho, negrito) e o estilo ligado ao
+        // nível não cabem na definição: a gravação que precisar recriar o nível
+        // sem o original avisa a perda. A fonte do marcador não conta — ela sai
+        // do próprio glifo (`ListLevels.GlyphOf`).
+        var numberFormatting = level.NumberingSymbolRunProperties?.ChildElements
+            .Any(child => child is not RunFonts) ?? false;
+        if (numberFormatting || level.ParagraphStyleIdInLevel is not null)
+        {
+            json["extra"] = true;
+        }
+
+        return json;
     }
 
     private Level? LevelOf(int numId, int level)

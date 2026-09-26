@@ -95,6 +95,11 @@ export interface BandPiece {
    * página, imagem e tabulação não têm texto próprio no arquivo onde escrever.
    */
   readonly pid?: string | undefined
+  /**
+   * O texto do arquivo já trazia `{n}` ou `{total}` escritos. É texto: a tela não
+   * o troca pelo número, e a gravação não o transforma em campo.
+   */
+  readonly literal?: boolean | undefined
 }
 
 /**
@@ -181,6 +186,7 @@ export function pageLabel(page: PageSetup, sheet: number): string {
 export function pieceText(piece: BandPiece, label: string, total: number): string {
   if (piece.kind === 'pageNumber') return label
   if (piece.kind === 'totalPages') return String(total)
+  if (piece.literal === true) return piece.text ?? ''
   return substituteFields(piece.text ?? '', label, total)
 }
 

@@ -26,8 +26,10 @@ namespace Librevia.Format.Docx;
 /// graváveis por fora, pelo mesmo mecanismo do cabeçalho em que se digitou: o
 /// resto do arquivo continua voltando byte a byte.
 /// </remarks>
-internal sealed class NumberingFactory(MainDocumentPart part, HashSet<string> touched)
+internal sealed class NumberingFactory(MainDocumentPart part, HashSet<string> touched, Inventory? inventory = null)
 {
+    private readonly NumberingReader _reader = new(part);
+
     /// <summary>Numeração já criada nesta gravação, pela chave da definição.</summary>
     /// <remarks>
     /// Duas listas com a mesma chave são a mesma contagem — a segunda "continua a
@@ -44,16 +46,32 @@ internal sealed class NumberingFactory(MainDocumentPart part, HashSet<string> to
     /// <param name="definition">A definição que o nó traz (`numbering`), se traz.</param>
     public int NumberingIdFor(string kind, int? declared, JsonObject? definition = null)
     {
-        // O que veio do arquivo vale, desde que ainda exista: um `numId` que
-        // ninguém define desenha lista sem marcador nenhum.
-        if (declared is > 0 && Defined().Contains(declared.Value)) return declared.Value;
-
         var key = definition?["key"]?.GetValue<string>();
+
+        // O que veio do arquivo vale, desde que ainda exista — um `numId` que
+        // ninguém define desenha lista sem marcador nenhum — e desde que seja a
+        // **mesma** numeração que o nó descreve. Lista colada de outro documento
+        // traz o `numId` de lá, e ele pode existir aqui com outra marca e outra
+        // contagem: gravada nele, a lista trocava de numeração em silêncio.
+        if (declared is > 0 && Defined().Contains(declared.Value) && SameAsFile(declared.Value, definition))
+        {
+            return declared.Value;
+        }
+
         if (key is not null && _created.TryGetValue(key, out var existing)) return existing;
 
         var created = Create(kind, definition);
         if (key is not null) _created[key] = created;
         return created;
+    }
+
+    /// <summary>O nó não traz definição, ou traz a mesma que o arquivo dá a este `numId`.</summary>
+    private bool SameAsFile(int numId, JsonObject? definition)
+    {
+        if (definition is null) return true;
+        if (_reader.FileDefinitionOf(numId) is not { } file) return false;
+        return JsonNode.DeepEquals(file["levels"], definition["levels"])
+               && JsonNode.DeepEquals(file["overrides"], definition["overrides"]);
     }
 
     private HashSet<int> Defined() => _declared ??= [
@@ -76,7 +94,7 @@ internal sealed class NumberingFactory(MainDocumentPart part, HashSet<string> to
         var numbering = definitions.Numbering ??= new Numbering();
         var levels = definition?["levels"] as JsonArray;
 
-        var abstractId = Reusable(numbering, kind, definition, levels) ?? AddAbstract(numbering, kind, levels);
+        var abstractId = Reusable(numbering, definition, levels) ?? AddAbstract(numbering, kind, definition, levels);
 
         var numberId = numbering.Elements<NumberingInstance>()
             .Select(existing => (int?)existing.NumberID?.Value ?? 0)
@@ -119,30 +137,32 @@ internal sealed class NumberingFactory(MainDocumentPart part, HashSet<string> to
     /// com outra marca, e reaproveitá-lo trocaria a numeração da lista em silêncio
     /// — daí a comparação dos níveis, e não só do número.
     /// </remarks>
-    private static int? Reusable(Numbering numbering, string kind, JsonObject? definition, JsonArray? levels)
+    private static int? Reusable(Numbering numbering, JsonObject? definition, JsonArray? levels)
     {
-        if (levels is null || definition?["abstractId"] is not JsonValue value ||
-            !value.TryGetValue<int>(out var abstractId))
-        {
-            return null;
-        }
-
-        var found = numbering.Elements<AbstractNum>()
-            .FirstOrDefault(candidate => candidate.AbstractNumberId?.Value == abstractId);
-        if (found is null) return null;
-
-        var existing = ListLevels.Defaults(kind);
-        foreach (var level in found.Elements<Level>())
-        {
-            var index = level.LevelIndex?.Value ?? 0;
-            if (index is >= 0 and < ListLevels.Count) existing[index] = NumberingReader.LevelJson(level);
-        }
-
-        return JsonNode.DeepEquals(existing, levels) ? abstractId : null;
+        if (levels is null || SourceOf(numbering, definition) is not { } found) return null;
+        return JsonNode.DeepEquals(NumberingReader.LevelsOf(found), levels) ? found.AbstractNumberId!.Value : null;
     }
 
-    private static int AddAbstract(Numbering numbering, string kind, JsonArray? levels)
+    /// <summary>A definição abstrata do arquivo de onde a definição do nó saiu, se ainda existe.</summary>
+    private static AbstractNum? SourceOf(Numbering numbering, JsonObject? definition)
     {
+        if (definition?["abstractId"] is not JsonValue value || !value.TryGetValue<int>(out var abstractId)) return null;
+        return numbering.Elements<AbstractNum>()
+            .FirstOrDefault(candidate => candidate.AbstractNumberId?.Value == abstractId);
+    }
+
+    private int AddAbstract(Numbering numbering, string kind, JsonObject? definition, JsonArray? levels)
+    {
+        // Os níveis que não mudaram em relação à definição de onde a lista saiu
+        // (a galeria mexeu num nível só, por exemplo) são copiados do original:
+        // o `w:lvl` guarda o que a definição do editor não leva — a fonte e a
+        // cor do número, o estilo ligado, os recuos de tabulação.
+        var source = SourceOf(numbering, definition);
+        var original = source?.Elements<Level>()
+            .Where(level => level.LevelIndex?.Value is >= 0 and < ListLevels.Count)
+            .GroupBy(level => level.LevelIndex!.Value)
+            .ToDictionary(group => group.Key, group => group.First());
+
         var abstractId = numbering.Elements<AbstractNum>()
             .Select(existing => existing.AbstractNumberId?.Value ?? 0)
             .DefaultIfEmpty(0)
@@ -154,8 +174,15 @@ internal sealed class NumberingFactory(MainDocumentPart part, HashSet<string> to
         };
         for (var level = 0; level < ListLevels.Count; level++)
         {
-            var source = levels is not null && level < levels.Count ? levels[level] as JsonObject : null;
-            abstractNum.AppendChild(ListLevels.ToOpenXml(source, level, kind));
+            var wanted = levels is not null && level < levels.Count ? levels[level] as JsonObject : null;
+            if (wanted is not null && original is not null && original.TryGetValue(level, out var kept) &&
+                JsonNode.DeepEquals(NumberingReader.LevelJson(kept), wanted))
+            {
+                abstractNum.AppendChild(kept.CloneNode(true));
+                continue;
+            }
+
+            abstractNum.AppendChild(ListLevels.ToOpenXml(wanted, level, kind, inventory));
         }
 
         // A ordem do `w:numbering` é sequência, não conjunto: primeiro os

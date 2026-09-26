@@ -800,7 +800,31 @@ public static class HeaderReader
             merged.Add(traced);
         }
 
-        return merged;
+        // Texto do arquivo que já traz `{n}` ou `{total}` escritos é texto, e não
+        // campo: marcado, a tela não o troca pelo número e a gravação não o
+        // transforma em `PAGE` quando a peça é editada.
+        return [.. merged.Select(traced =>
+            traced.Piece.Kind == PieceDto.KindText && FieldTokens.Contains(traced.Piece.Text)
+                ? traced with { Piece = traced.Piece with { Literal = true } }
+                : traced)];
+    }
+
+    /// <summary>
+    /// `PAGE` ou `NUMPAGES`, pela primeira palavra da instrução.
+    /// </summary>
+    /// <remarks>
+    /// Pela palavra, e não por `Contains`: `PAGEREF` e `SECTIONPAGES` também
+    /// contêm "PAGE", e viravam número de página.
+    /// </remarks>
+    private static string? FieldKindOf(string instruction)
+    {
+        var word = instruction.Trim().Split((char[]?)null, 2, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
+        return word?.ToUpperInvariant() switch
+        {
+            "PAGE" => PieceDto.KindPageNumber,
+            "NUMPAGES" => PieceDto.KindTotalPages,
+            _ => null,
+        };
     }
 
     private static void Collect(
@@ -837,14 +861,9 @@ public static class HeaderReader
                 // em cache — "1" em todas as folhas.
                 case SimpleField simple:
                 {
-                    var instruction = simple.Instruction?.Value ?? string.Empty;
-                    if (instruction.Contains("NUMPAGES", StringComparison.Ordinal))
+                    if (FieldKindOf(simple.Instruction?.Value ?? string.Empty) is { } simpleKind)
                     {
-                        pieces.Add(new TracedPiece(new PieceDto(PieceDto.KindTotalPages), []));
-                    }
-                    else if (instruction.Contains("PAGE", StringComparison.Ordinal))
-                    {
-                        pieces.Add(new TracedPiece(new PieceDto(PieceDto.KindPageNumber), []));
+                        pieces.Add(new TracedPiece(new PieceDto(simpleKind), []));
                     }
                     else
                     {
@@ -855,13 +874,9 @@ public static class HeaderReader
                 }
 
                 case FieldCode code:
-                    if (code.Text.Contains("NUMPAGES", StringComparison.Ordinal))
+                    if (FieldKindOf(code.Text) is { } codeKind)
                     {
-                        pieces.Add(new TracedPiece(new PieceDto(PieceDto.KindTotalPages), []));
-                    }
-                    else if (code.Text.Contains("PAGE", StringComparison.Ordinal))
-                    {
-                        pieces.Add(new TracedPiece(new PieceDto(PieceDto.KindPageNumber), []));
+                        pieces.Add(new TracedPiece(new PieceDto(codeKind), []));
                     }
                     else
                     {

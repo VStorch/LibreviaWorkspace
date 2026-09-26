@@ -34,7 +34,10 @@ public sealed record PageSetupDto(
     // Anuláveis: um `.sdoc` antigo não os traz, e ausência quer dizer "não mexa
     // no que o arquivo já diz" — e não "desligue".
     [property: JsonPropertyName("pageNumberFormat")] string? PageNumberFormat = null,
-    [property: JsonPropertyName("pageNumberStart")] int? PageNumberStart = null,
+    // Ausente e nulo são coisas diferentes aqui: ausente (rascunho de antes) é
+    // "não mexa no `w:start`"; nulo é "sem início", e apaga o que houver. Por isso
+    // `JsonElement`, que distingue os dois — ver PageNumberStartOf.
+    [property: JsonPropertyName("pageNumberStart")] System.Text.Json.JsonElement PageNumberStart = default,
     [property: JsonPropertyName("titlePage")] bool? TitlePage = null,
     [property: JsonPropertyName("evenAndOddHeaders")] bool? EvenAndOddHeaders = null);
 
@@ -117,6 +120,15 @@ public static class PageReader
         }
 
         var section = sections[0];
+
+        // Formato de número que a tela não desenha: a folha mostra decimal, e o
+        // arquivo continua pedindo o dele — é diferença de aparência, e se avisa.
+        if (section.GetFirstChild<PageNumberType>()?.Format?.InnerText is { } pageFormat &&
+            !PageNumberFormats.Contains(pageFormat))
+        {
+            inventory.NoteInvisible(
+                $"formato de número de página \"{pageFormat}\" (mostrado em algarismos; o arquivo o mantém)");
+        }
         var size = section.GetFirstChild<DocumentFormat.OpenXml.Wordprocessing.PageSize>();
         var margin = section.GetFirstChild<PageMargin>();
 
@@ -166,9 +178,31 @@ public static class PageReader
             HeaderDistanceMm: Millimeters((int?)margin?.Header?.Value, 708),
             FooterDistanceMm: Millimeters((int?)margin?.Footer?.Value, 708),
             PageNumberFormat: PageNumberFormatOf(section),
-            PageNumberStart: section.GetFirstChild<PageNumberType>()?.Start?.Value,
+            PageNumberStart: StartElement(section.GetFirstChild<PageNumberType>()?.Start?.Value),
             TitlePage: HasTitlePage(section),
             EvenAndOddHeaders: UsesEvenAndOdd(part));
+    }
+
+    /// <summary>O início como o modelo o leva: número ou nulo, sempre presente.</summary>
+    public static System.Text.Json.JsonElement StartElement(int? start) =>
+        System.Text.Json.JsonSerializer.SerializeToElement(start);
+
+    /// <summary>
+    /// O início que o modelo pede; `false` quando ele não diz nada (campo ausente).
+    /// </summary>
+    public static bool TryStartOf(PageSetupDto page, out int? start)
+    {
+        start = null;
+        switch (page.PageNumberStart.ValueKind)
+        {
+            case System.Text.Json.JsonValueKind.Number when page.PageNumberStart.TryGetInt32(out var value):
+                start = value;
+                return true;
+            case System.Text.Json.JsonValueKind.Null:
+                return true;
+            default:
+                return false;
+        }
     }
 
     /// <summary>Os formatos de número de página que o editor desenha.</summary>

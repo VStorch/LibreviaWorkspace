@@ -1,5 +1,5 @@
 import { Extension, type CommandProps } from '@tiptap/core'
-import { Fragment, type Node as ProseMirrorNode } from '@tiptap/pm/model'
+import { Fragment, Slice, type Node as ProseMirrorNode } from '@tiptap/pm/model'
 import { Plugin, PluginKey, type EditorState, type Transaction } from '@tiptap/pm/state'
 import { Decoration, DecorationSet } from '@tiptap/pm/view'
 import {
@@ -105,6 +105,48 @@ function hasList(node: ProseMirrorNode): boolean {
     return !found
   })
   return found
+}
+
+/**
+ * A lista colada conta sozinha, a menos que seja a mesma numeração do documento.
+ *
+ * A chave vem do documento de origem (`a1`, `a3`) e pode existir aqui com outra
+ * definição: mantida, a lista colada passaria a continuar a contagem de uma lista
+ * que não tem nada com ela. Mesma chave com os mesmos níveis é cópia de dentro do
+ * próprio documento, e continua — como no Word.
+ */
+export function renamePastedKeys(slice: Slice, doc: ProseMirrorNode): Slice {
+  const existing = new Map<string, string>()
+  for (const entry of listEntries(doc)) {
+    const own = parseNumbering(entry.node.attrs['numbering'])
+    if (own !== null) existing.set(own.key, JSON.stringify(own.levels))
+  }
+
+  const renamed = new Map<string, string>()
+  let changed = false
+  const rename = (node: ProseMirrorNode): ProseMirrorNode => {
+    const children: ProseMirrorNode[] = []
+    node.forEach((child) => children.push(rename(child)))
+    const own = LIST_TYPES.includes(node.type.name) ? parseNumbering(node.attrs['numbering']) : null
+    let attrs = node.attrs
+    if (own !== null && existing.get(own.key) !== JSON.stringify(own.levels)) {
+      const key = renamed.get(own.key) ?? freshKey()
+      renamed.set(own.key, key)
+      attrs = { ...node.attrs, numbering: { ...own, key } }
+      changed = true
+    }
+    if (
+      node.isText ||
+      (attrs === node.attrs && children.every((child, index) => child === node.maybeChild(index)))
+    ) {
+      return node
+    }
+    return node.type.create(attrs, Fragment.fromArray(children), node.marks)
+  }
+
+  const content: ProseMirrorNode[] = []
+  slice.content.forEach((node) => content.push(rename(node)))
+  return changed ? new Slice(Fragment.fromArray(content), slice.openStart, slice.openEnd) : slice
 }
 
 /** Quantas listas envolvem a seleção — o nível do item, a contar de 1. */
@@ -283,7 +325,14 @@ const applyLevels =
 
     const target = entryAt(tr, list.pos)
     if (target === null) return false
-    const def: NumberingDef = { key: freshKey(), levels: levels.map((level) => ({ ...level })) }
+    // A definição de onde a lista saiu vai junto: os níveis que não mudaram são
+    // copiados dela na gravação, com o que a definição do editor não leva.
+    const abstractId = target.info.def.abstractId
+    const def: NumberingDef = {
+      key: freshKey(),
+      ...(abstractId === undefined ? {} : { abstractId }),
+      levels: levels.map((level) => ({ ...level })),
+    }
 
     for (const entry of listEntries(tr.doc)) {
       const inside = entry.pos >= target.pos && entry.pos < target.pos + target.node.nodeSize
@@ -404,6 +453,7 @@ export const ListNumbering = Extension.create({
         },
         props: {
           decorations: (state) => listNumberingKey.getState(state),
+          transformPasted: (slice, view) => renamePastedKeys(slice, view.state.doc),
         },
       }),
     ]

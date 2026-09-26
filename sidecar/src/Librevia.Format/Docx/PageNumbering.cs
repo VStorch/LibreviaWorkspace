@@ -20,14 +20,22 @@ namespace Librevia.Format.Docx;
 /// </remarks>
 internal static class PageNumbering
 {
-    public static void Apply(MainDocumentPart part, SectionProperties section, PageSetupDto page, HashSet<string> touched)
+    public static void Apply(
+        MainDocumentPart part,
+        SectionProperties section,
+        PageSetupDto page,
+        HashSet<string> touched,
+        Inventory inventory)
     {
-        ApplyNumberType(section, page);
+        ApplyNumberType(section, page, inventory);
 
         if (page.TitlePage is { } title && title != PageReader.TitlePageOf(section))
         {
             section.RemoveAllChildren<TitlePage>();
-            if (title) section.AddChild(new TitlePage(), throwOnError: false);
+            if (title && !section.AddChild(new TitlePage(), throwOnError: false))
+            {
+                inventory.NoteLoss("\"Primeira página diferente\" (o arquivo não aceitou o interruptor)");
+            }
         }
 
         if (page.EvenAndOddHeaders is { } even && even != PageReader.EvenAndOddOf(part))
@@ -35,20 +43,33 @@ internal static class PageNumbering
             var settingsPart = part.DocumentSettingsPart ?? part.AddNewPart<DocumentSettingsPart>();
             var settings = settingsPart.Settings ??= new Settings();
             settings.RemoveAllChildren<EvenAndOddHeaders>();
-            if (even) settings.AddChild(new EvenAndOddHeaders(), throwOnError: false);
+
+            // Sem lugar no `w:settings` — a ordem dele é sequência rígida —, a
+            // parte não é gravada e o aviso fica: marcar a parte como mudada
+            // gravaria um `settings.xml` que não diz o que a tela mostra.
+            if (even && !settings.AddChild(new EvenAndOddHeaders(), throwOnError: false))
+            {
+                inventory.NoteLoss("\"Pares e ímpares diferentes\" (o arquivo não aceitou o interruptor)");
+                return;
+            }
+
             settings.Save();
             touched.Add(settingsPart.Uri.ToString().TrimStart('/'));
         }
     }
 
-    private static void ApplyNumberType(SectionProperties section, PageSetupDto page)
+    private static void ApplyNumberType(SectionProperties section, PageSetupDto page, Inventory inventory)
     {
         if (page.PageNumberFormat is null) return;
 
         var existing = section.GetFirstChild<PageNumberType>();
         var format = PageReader.PageNumberFormats.Contains(page.PageNumberFormat) ? page.PageNumberFormat : "decimal";
         var sameFormat = format == PageReader.PageNumberFormatOf(section);
-        var sameStart = page.PageNumberStart == existing?.Start?.Value;
+
+        // Início ausente no modelo (rascunho de antes) é "não mexa": escolher só
+        // o formato não pode apagar o `w:start` que o arquivo já tinha.
+        var knowsStart = PageReader.TryStartOf(page, out var start);
+        var sameStart = !knowsStart || start == existing?.Start?.Value;
         if (sameFormat && sameStart) return;
 
         var element = existing ?? new PageNumberType();
@@ -57,7 +78,7 @@ internal static class PageNumbering
             element.Format = format == "decimal" ? null : new EnumValue<NumberFormatValues>(FormatOf(format));
         }
 
-        if (!sameStart) element.Start = page.PageNumberStart;
+        if (!sameStart) element.Start = start;
 
         if (!element.HasAttributes)
         {
@@ -65,7 +86,10 @@ internal static class PageNumbering
             return;
         }
 
-        if (existing is null) section.AddChild(element, throwOnError: false);
+        if (existing is null && !section.AddChild(element, throwOnError: false))
+        {
+            inventory.NoteLoss("formato e início da numeração de página (o arquivo não aceitou a mudança)");
+        }
     }
 
     private static NumberFormatValues FormatOf(string name) => name switch

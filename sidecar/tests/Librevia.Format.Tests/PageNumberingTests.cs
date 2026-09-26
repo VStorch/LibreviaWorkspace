@@ -26,7 +26,7 @@ public class PageNumberingTests
         var page = Roundtrip.Open(WithNumbering("lowerRoman", 3, titlePage: true)).Page;
 
         Assert.Equal("lowerRoman", page.PageNumberFormat);
-        Assert.Equal(3, page.PageNumberStart);
+        Assert.Equal(3, page.PageNumberStart.GetInt32());
         Assert.True(page.TitlePage);
         Assert.False(page.EvenAndOddHeaders);
     }
@@ -52,7 +52,7 @@ public class PageNumberingTests
             Page = model.Page with
             {
                 PageNumberFormat = "upperRoman",
-                PageNumberStart = 5,
+                PageNumberStart = PageReader.StartElement(5),
                 TitlePage = true,
                 EvenAndOddHeaders = true,
             },
@@ -62,7 +62,7 @@ public class PageNumberingTests
         var page = Roundtrip.Open(saved).Page;
 
         Assert.Equal("upperRoman", page.PageNumberFormat);
-        Assert.Equal(5, page.PageNumberStart);
+        Assert.Equal(5, page.PageNumberStart.GetInt32());
         Assert.True(page.TitlePage);
         Assert.True(page.EvenAndOddHeaders);
         Assert.Contains("w:evenAndOddHeaders", Roundtrip.XmlOf(saved, "word/settings.xml"), StringComparison.Ordinal);
@@ -71,7 +71,7 @@ public class PageNumberingTests
         var back = Roundtrip.Clone(Roundtrip.Open(saved));
         back = back with
         {
-            Page = back.Page with { PageNumberFormat = "decimal", PageNumberStart = null, TitlePage = false, EvenAndOddHeaders = false },
+            Page = back.Page with { PageNumberFormat = "decimal", PageNumberStart = PageReader.StartElement(null), TitlePage = false, EvenAndOddHeaders = false },
         };
         var (again, _) = Roundtrip.Save(saved, back);
         Assert.DoesNotContain("w:pgNumType", Roundtrip.XmlOf(again), StringComparison.Ordinal);
@@ -99,5 +99,54 @@ public class PageNumberingTests
         Assert.Single(kinds, kind => kind == PieceDto.KindPageNumber);
         Assert.Contains(PieceDto.KindTotalPages, kinds);
         Assert.Empty(Regex.Matches(xml, "\\{total\\}"));
+    }
+
+    [Fact]
+    public void RascunhoSemInicioMudaOFormatoSemApagarOInicio()
+    {
+        var original = WithNumbering("lowerRoman", 3);
+        var model = Roundtrip.Clone(Roundtrip.Open(original));
+        model = model with { Page = model.Page with { PageNumberFormat = "upperRoman", PageNumberStart = default } };
+
+        var (saved, _) = Roundtrip.Save(original, model);
+        Assert.Contains("<w:pgNumType w:fmt=\"upperRoman\" w:start=\"3\" />", Roundtrip.XmlOf(saved), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void PageRefESectionPagesNaoSaoNumeroDePagina()
+    {
+        var bytes = Fixtures.WithFooter(new Paragraph(
+            new SimpleField(new Run(new Text("4"))) { Instruction = " PAGEREF _Toc1 \\h " },
+            new SimpleField(new Run(new Text("2"))) { Instruction = " SECTIONPAGES " },
+            new SimpleField(new Run(new Text("1"))) { Instruction = " PAGE \\* MERGEFORMAT " }));
+
+        var footer = Roundtrip.Open(bytes).Page.Footer!;
+        var kinds = footer.Left.Concat(footer.Center).Concat(footer.Right).Select(piece => piece.Kind).ToList();
+        Assert.Single(kinds, kind => kind == PieceDto.KindPageNumber);
+        Assert.DoesNotContain(PieceDto.KindTotalPages, kinds);
+    }
+
+    [Fact]
+    public void ChavesEscritasNoArquivoContinuamTexto()
+    {
+        var bytes = Fixtures.WithFooter(new Paragraph(new Run(new Text("Use {n} aqui"))));
+        var model = Roundtrip.Clone(Roundtrip.Open(bytes));
+        var piece = model.Page.Footer!.Left.Concat(model.Page.Footer.Center).Single(item => item.Pid is not null);
+        Assert.True(piece.Literal);
+
+        var footer = model.Page.Footer;
+        PieceDto Swap(PieceDto item) => item == piece ? item with { Text = "Use {n} ali" } : item;
+        model = model with
+        {
+            Page = model.Page with
+            {
+                Footer = footer with { Left = [.. footer.Left.Select(Swap)], Center = [.. footer.Center.Select(Swap)] },
+            },
+        };
+
+        var (saved, _) = Roundtrip.Save(bytes, model);
+        var xml = Roundtrip.XmlOf(saved, "word/footer1.xml");
+        Assert.Contains("Use {n} ali", xml, StringComparison.Ordinal);
+        Assert.DoesNotContain("fldSimple", xml, StringComparison.Ordinal);
     }
 }

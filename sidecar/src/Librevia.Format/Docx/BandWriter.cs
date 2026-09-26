@@ -256,7 +256,7 @@ internal static class BandWriter
             if (piece.Source.Count == 0) continue;
             if (piece.Piece.Text == text) continue;
 
-            Rewrite(piece.Source, text);
+            Rewrite(piece.Source, text, piece.Piece.Literal);
             touched = true;
         }
 
@@ -293,9 +293,10 @@ internal static class BandWriter
     /// `xml:space="preserve"` sempre: sem ele o Word come o espaço da ponta, e
     /// "Manual do " voltaria como "Manual do" colado no que vem depois.
     /// </remarks>
-    private static void Rewrite(List<Text> source, string text)
+    private static void Rewrite(List<Text> source, string text, bool literal)
     {
-        var segments = FieldTokens.Split(text);
+        // A peça que já trazia `{n}` escrito no arquivo continua texto.
+        var segments = literal ? [new FieldTokens.Segment(null, text)] : FieldTokens.Split(text);
         source[0].Text = segments[0].Text;
         source[0].Space = SpaceProcessingModeValues.Preserve;
 

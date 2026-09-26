@@ -201,4 +201,87 @@ public class ListNumberingTests
         Assert.Equal(("–", (string?)null), ListLevels.GlyphOf("–"));
         Assert.Equal("▪", ListLevels.Shown(""));
     }
+
+    [Fact]
+    public void ListaColadaComNumIdQueODestinoUsaParaOutraCoisaGanhaNumeracaoPropria()
+    {
+        // A lista vem de outro documento com `numId` 5 e marcadores; aqui o 5 é a
+        // numeração decimal de "Um, Dois, Três". Gravada no 5, trocaria de marca.
+        var original = Fixtures.WithMultilevelList();
+        var model = Roundtrip.Clone(Roundtrip.Open(original));
+        var definition = new JsonObject { ["key"] = "a7", ["abstractId"] = 7, ["levels"] = ListLevels.Defaults("bulletList") };
+        var pasted = Node.Of("bulletList", Node.Of("listItem", Node.Of("paragraph", new Node { Type = "text", Text = "Colado" })))
+            .With("numId", 5)
+            .With("numbering", definition);
+        model.Doc.Content!.Add(pasted);
+
+        var (saved, result) = Roundtrip.Save(original, model);
+        var xml = Roundtrip.XmlOf(saved);
+
+        Assert.Equal(1, result.RewrittenBlocks);
+        Assert.Matches("<w:numId w:val=\"7\" />.*Colado", xml);
+        var reopened = ListsOf(Roundtrip.Open(saved)).Last();
+        Assert.Equal("bullet", DefinitionOf(reopened)["levels"]![0]!["fmt"]!.GetValue<string>());
+    }
+
+    [Fact]
+    public void NumIdSemDefinicaoNaoEListaENaoEReescrito()
+    {
+        var original = Fixtures.WithDanglingNumbering();
+        var opened = Roundtrip.Open(original);
+        Assert.Empty(ListsOf(opened));
+
+        var (saved, result) = Roundtrip.Save(original, Roundtrip.Clone(opened));
+        Assert.Equal(0, result.RewrittenBlocks);
+        Assert.Equal(Roundtrip.PartsOf(original)["word/numbering.xml"], Roundtrip.PartsOf(saved)["word/numbering.xml"]);
+    }
+
+    [Fact]
+    public void NivelNaoMudadoECopiadoDoOriginalAoRecriarADefinicao()
+    {
+        // A galeria mexeu só no nível 2: o nível 1 volta do arquivo como estava —
+        // à direita, em vermelho, `ordinal` —, e não reconstruído do que a tela sabe.
+        var original = Fixtures.WithRichNumbering();
+        var model = Roundtrip.Clone(Roundtrip.Open(original));
+        var list = ListsOf(model)[0];
+        var definition = (JsonObject)DefinitionOf(list).DeepClone();
+        Assert.Equal("ordinal", definition["levels"]![0]!["fmt"]!.GetValue<string>());
+        Assert.Equal("right", definition["levels"]![0]!["jc"]!.GetValue<string>());
+
+        definition["key"] = "galeria-2";
+        definition["levels"]![1] = ListLevels.Level("upperRoman", "%2)", 1, 25.4, 6.35);
+        list.With("numId", null).With("numbering", definition);
+
+        var (saved, result) = Roundtrip.Save(original, model);
+        var numbering = Roundtrip.XmlOf(saved, "word/numbering.xml");
+
+        Assert.Equal(2, Regex.Matches(numbering, "<w:abstractNum ").Count);
+        Assert.Equal(2, Regex.Matches(numbering, "w:val=\"FF0000\"").Count);
+        Assert.Equal(2, Regex.Matches(numbering, "w:numFmt w:val=\"ordinal\"").Count);
+        Assert.Contains("upperRoman", numbering, StringComparison.Ordinal);
+        Assert.Empty(result.Inventory.Lost);
+    }
+
+    [Fact]
+    public void NivelRecriadoSemOriginalLevaAlinhamentoEFormatoEAvisaOQueFicou()
+    {
+        // Colado de outro documento: não há `w:lvl` para copiar. O que a definição
+        // leva volta (à direita, `ordinal`); a cor do número, não — e se avisa.
+        var original = Fixtures.Simple();
+        var model = Roundtrip.Clone(Roundtrip.Open(original));
+        var levels = ListLevels.Defaults("orderedList");
+        var rich = ListLevels.Level("ordinal", "%1", 1, 12.7, 6.35);
+        rich["jc"] = "right";
+        rich["extra"] = true;
+        levels[0] = rich;
+        model.Doc.Content!.Add(Node.Of("orderedList", Node.Of("listItem", Node.Of("paragraph", new Node { Type = "text", Text = "x" })))
+            .With("numbering", new JsonObject { ["key"] = "colada-1", ["levels"] = levels }));
+
+        var (saved, result) = Roundtrip.Save(original, model);
+        var numbering = Roundtrip.XmlOf(saved, "word/numbering.xml");
+
+        Assert.Contains("w:numFmt w:val=\"ordinal\"", numbering, StringComparison.Ordinal);
+        Assert.Contains("w:lvlJc w:val=\"right\"", numbering, StringComparison.Ordinal);
+        Assert.Single(result.Inventory.Lost);
+    }
 }
