@@ -17,6 +17,7 @@ export interface EditorDialogs {
   readonly imageProperties: boolean
   readonly listFormat: boolean
   readonly listStart: boolean
+  readonly bookmark: boolean
 }
 
 const CLOSED: EditorDialogs = {
@@ -31,6 +32,7 @@ const CLOSED: EditorDialogs = {
   imageProperties: false,
   listFormat: false,
   listStart: false,
+  bookmark: false,
 }
 
 export interface EditorCommands {
@@ -81,6 +83,8 @@ export function useEditorCommands(
           return setDialog('specialCharacter', true)
         case EditorCommand.ImageProperties:
           return setDialog('imageProperties', true)
+        case EditorCommand.InsertBookmark:
+          return setDialog('bookmark', true)
         case EditorCommand.PasteWithoutFormat:
           void pasteWithoutFormat()
           return

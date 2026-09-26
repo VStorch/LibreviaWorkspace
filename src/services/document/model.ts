@@ -138,6 +138,13 @@ export interface DocumentModel {
    * e o documento inteiro seria reescrito. Ausente é falso.
    */
   readonly flattened?: boolean
+  /**
+   * O rascunho é de antes das **referências** (formato `.sdoc` < 5): os nós não
+   * trazem marcador, campo, link interno nem sumário, que o leitor passou a
+   * produzir no M8. Mesmo motivo de `flattened`: a gravação compara com uma
+   * leitura do original feita como era então. Ausente é falso.
+   */
+  readonly beforeReferences?: boolean
 }
 
 export const PAGE_DIMENSIONS_MM: Record<PageSize, { width: number; height: number }> = {

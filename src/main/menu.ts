@@ -322,6 +322,12 @@ async function buildTemplate(): Promise<MenuItemConstructorOptions[]> {
           label: t('menu.insert.specialCharacter'),
           click: () => dispatch(MenuCommand.SpecialCharacter),
         },
+        { type: 'separator' },
+        {
+          label: t('menu.insert.bookmark'),
+          accelerator: acceleratorOf(SHORTCUTS.insertBookmark),
+          click: () => dispatch(MenuCommand.InsertBookmark),
+        },
       ],
     },
     { label: t('menu.view'), submenu: viewSubmenu },

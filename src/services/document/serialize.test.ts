@@ -122,6 +122,17 @@ describe('estilos no formato interno', () => {
     expect(flat.flattened).toBe(true)
   })
 
+  it('marca como anterior às referências o arquivo de antes da versão 5', () => {
+    // Os nós de antes do M8 não trazem marcador nem campo, e a gravação em DOCX
+    // precisa comparar com a leitura daquela época.
+    const v4 = JSON.stringify({ ...JSON.parse(v2(BUILTIN_STYLES)), version: 4 })
+    expect(parseDocument(v4).beforeReferences).toBe(true)
+    expect(parseDocument(v4).flattened).toBeUndefined()
+    expect(parseDocument(serializeDocument(richDocument)).beforeReferences).toBeUndefined()
+    const legacy = parseDocument(serializeDocument({ ...richDocument, beforeReferences: true }))
+    expect(legacy.beforeReferences).toBe(true)
+  })
+
   it('dá os estilos embutidos ao arquivo da versão 2, que não os tinha', () => {
     // Documento antigo tem de abrir **idêntico**: os embutidos são a aparência
     // que o editor já desenhava, medida por medida.

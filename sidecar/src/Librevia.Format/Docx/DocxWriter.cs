@@ -47,7 +47,7 @@ public static class DocxWriter
         // Com o mesmo leitor que produziu o modelo: um rascunho antigo traz os
         // blocos achatados, e comparados com a leitura que só leva o direto todo
         // bloco pareceria mudado — o documento inteiro seria reescrito.
-        var (_, blocks) = new BodyReader(part, new Inventory(), model.Flatten).Read(body);
+        var (_, blocks) = new BodyReader(part, new Inventory(), model.Flatten, !model.BeforeReferences).Read(body);
         var index = blocks.ToDictionary(block => block.Oid, StringComparer.Ordinal);
 
         var section = body.Elements<SectionProperties>().LastOrDefault();
@@ -192,9 +192,11 @@ public static class DocxWriter
         out int preserved,
         out int rewritten)
     {
-        var writer = new ParagraphWriter(part, inventory, UsableWidthPx(model.Page), headings, model.Flatten);
+        var writer = new ParagraphWriter(
+            part, inventory, UsableWidthPx(model.Page), headings, model.Flatten, !model.BeforeReferences);
         var used = new HashSet<string>(StringComparer.Ordinal);
         var elements = new List<OpenXmlElement>();
+        var generated = new HashSet<OpenXmlElement>(ReferenceEqualityComparer.Instance);
 
         preserved = 0;
         rewritten = 0;
@@ -210,47 +212,151 @@ public static class DocxWriter
             // vale também para o que se copia do original mais abaixo.
             var first = oid is not null && used.Add(oid);
 
-            if (first && index.TryGetValue(oid!, out var block) &&
-                string.Equals(
-                    OwnContent(block.Extracted).Fingerprint(),
-                    OwnContent(slot.Identity).Fingerprint(),
-                    StringComparison.Ordinal))
+            // O que o corpo guardava entre este bloco e o anterior — um marcador
+            // solto entre dois parágrafos, um controle de conteúdo que o leitor
+            // não conhece — volta antes dele, preservado ou reescrito. Ver
+            // Block.Leading. Só na primeira ocorrência, pela mesma razão do XML
+            // do próprio bloco.
+            var owner = first && index.TryGetValue(oid!, out var known) ? known : null;
+            if (owner is not null)
             {
-                // O conteúdo é o mesmo, mas o item pode ter mudado de lugar na
-                // lista: Tab o desce um nível, "Reiniciar numeração" o põe noutro
-                // `w:num`. Nada disso está no item — está na lista em volta —, e
-                // devolver o XML como estava desfazia a mudança ao reabrir. Só o
-                // `w:numPr` é trocado; o resto do parágrafo volta como veio.
-                if (slot.List is { } list && block.Source is Paragraph paragraph && !Points(paragraph, list))
-                {
-                    elements.Add(Renumbered(paragraph, list));
-                    rewritten++;
-                    continue;
-                }
-
-                elements.Add(block.Source.CloneNode(true));
-                preserved++;
-                continue;
+                foreach (var loose in owner.Leading) elements.Add(loose.CloneNode(true));
             }
 
-            // O XML original do bloco editado ainda serve para o que este
-            // escritor não sabe gerar: os objetos ancorados seguem para o
-            // parágrafo reescrito em vez de sumirem com ele.
-            var source = first && index.TryGetValue(oid!, out var edited) ? edited.Source : null;
+            var before = elements.Count;
+            if (BuildSlot(slot, owner, writer, inventory, elements))
+            {
+                preserved++;
+            }
+            else
+            {
+                rewritten++;
+                for (var i = before; i < elements.Count; i++) generated.Add(elements[i]);
+            }
 
-            // O embrulho é a afirmação do corpo: aqui se sabe se o parágrafo é
-            // item de lista ou não. Quem grava dentro de uma célula não sabe, e
-            // passa `null` — ver ParagraphWriter.ListPlacement.
-            var placement = new ParagraphWriter.ListPlacement(slot.List);
-
-            foreach (var element in writer.Write(slot.Content, placement, source)) elements.Add(element);
-            rewritten++;
-
-            if (source is not null) NoteWhatWasInside(source, inventory);
+            if (owner is not null)
+            {
+                foreach (var loose in owner.Trailing) elements.Add(loose.CloneNode(true));
+            }
         }
+
+        // O bloco apagado leva junto o que estava solto antes dele: um marcador
+        // perdido com o texto que marcava é o que o Word também faz. Qualquer outra
+        // coisa — um controle de conteúdo — não se apaga em silêncio.
+        foreach (var block in index.Values.Where(block => !used.Contains(block.Oid)))
+        {
+            if (block.Leading.Concat(block.Trailing).Any(loose => loose is not (BookmarkStart or BookmarkEnd)))
+            {
+                inventory.NoteLoss("conteúdo solto entre blocos que você apagou");
+            }
+        }
+
+        UniqueBookmarks(elements, generated);
 
         if (elements.Count == 0) elements.Add(new Paragraph());
         return elements;
+    }
+
+    /// <summary>
+    /// Um marcador por nome e por id, no documento inteiro.
+    /// </summary>
+    /// <remarks>
+    /// O parágrafo copiado e colado leva os marcadores junto — são nós do
+    /// modelo —, e o Word recusa dois `w:bookmarkStart` de mesmo id: é âncora
+    /// ambígua para o sumário e para a referência que o cita. Quem cede é sempre
+    /// o bloco gerado agora; o preservado volta como estava. Entre dois gerados,
+    /// fica o primeiro, que é a ordem em que o Word resolve o nome repetido.
+    /// </remarks>
+    private static void UniqueBookmarks(List<OpenXmlElement> elements, HashSet<OpenXmlElement> generated)
+    {
+        var ids = new HashSet<string>(StringComparer.Ordinal);
+        var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var ends = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (var kept in elements.Where(element => !generated.Contains(element)))
+        {
+            foreach (var start in Starts(kept))
+            {
+                ids.Add(start.Id?.Value ?? string.Empty);
+                names.Add(start.Name?.Value ?? string.Empty);
+            }
+
+            foreach (var end in Ends(kept)) ends.Add(end.Id?.Value ?? string.Empty);
+        }
+
+        var dropped = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var element in elements.Where(generated.Contains))
+        {
+            foreach (var start in Starts(element).ToList())
+            {
+                var id = start.Id?.Value ?? string.Empty;
+                if (ids.Add(id) && names.Add(start.Name?.Value ?? string.Empty)) continue;
+
+                dropped.Add(id);
+                start.Remove();
+            }
+
+            foreach (var end in Ends(element).ToList())
+            {
+                var id = end.Id?.Value ?? string.Empty;
+                if (dropped.Contains(id) || !ends.Add(id)) end.Remove();
+            }
+        }
+
+        static IEnumerable<BookmarkStart> Starts(OpenXmlElement element) =>
+            element is BookmarkStart start ? [start] : element.Descendants<BookmarkStart>();
+
+        static IEnumerable<BookmarkEnd> Ends(OpenXmlElement element) =>
+            element is BookmarkEnd end ? [end] : element.Descendants<BookmarkEnd>();
+    }
+
+    /// <summary>
+    /// Grava um bloco: o XML original quando o conteúdo não mudou, o reescrito
+    /// quando mudou. Devolve se foi preservado.
+    /// </summary>
+    /// <param name="owner">O bloco do arquivo com o mesmo `oid`, na primeira ocorrência dele.</param>
+    private static bool BuildSlot(
+        Slot slot,
+        Block? owner,
+        ParagraphWriter writer,
+        Inventory inventory,
+        List<OpenXmlElement> elements)
+    {
+        if (owner is not null &&
+            string.Equals(
+                OwnContent(owner.Extracted).Fingerprint(),
+                OwnContent(slot.Identity).Fingerprint(),
+                StringComparison.Ordinal))
+        {
+            // O conteúdo é o mesmo, mas o item pode ter mudado de lugar na
+            // lista: Tab o desce um nível, "Reiniciar numeração" o põe noutro
+            // `w:num`. Nada disso está no item — está na lista em volta —, e
+            // devolver o XML como estava desfazia a mudança ao reabrir. Só o
+            // `w:numPr` é trocado; o resto do parágrafo volta como veio.
+            if (slot.List is { } list && owner.Source is Paragraph paragraph && !Points(paragraph, list))
+            {
+                elements.Add(Renumbered(paragraph, list));
+                return false;
+            }
+
+            elements.Add(owner.Source.CloneNode(true));
+            return true;
+        }
+
+        // O XML original do bloco editado ainda serve para o que este
+        // escritor não sabe gerar: os objetos ancorados seguem para o
+        // parágrafo reescrito em vez de sumirem com ele.
+        var source = owner?.Source;
+
+        // O embrulho é a afirmação do corpo: aqui se sabe se o parágrafo é
+        // item de lista ou não. Quem grava dentro de uma célula não sabe, e
+        // passa `null` — ver ParagraphWriter.ListPlacement.
+        var placement = new ParagraphWriter.ListPlacement(slot.List);
+
+        foreach (var element in writer.Write(slot.Content, placement, source)) elements.Add(element);
+
+        if (source is not null) NoteWhatWasInside(source, inventory);
+        return false;
     }
 
     /// <summary>

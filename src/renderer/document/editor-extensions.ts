@@ -1,4 +1,4 @@
-import { InputRule, type Extensions } from '@tiptap/core'
+import { InputRule, type Attribute, type Extensions } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
 import {
   InvisibleCharacter,
@@ -8,6 +8,7 @@ import {
   SpaceCharacter,
 } from '@tiptap/extension-invisible-characters'
 import Typography from '@tiptap/extension-typography'
+import Link from '@tiptap/extension-link'
 import Highlight from '@tiptap/extension-highlight'
 import TextAlign from '@tiptap/extension-text-align'
 import { TableKit } from '@tiptap/extension-table'
@@ -25,6 +26,7 @@ import {
 import { BlockFormat } from './extensions/block-format.js'
 import { DocumentImage } from './extensions/document-image.js'
 import { BlockIdentity } from './extensions/block-identity.js'
+import { BookmarkEnd, BookmarkStart, Bookmarks } from './extensions/bookmark.js'
 import { Indent } from './extensions/indent.js'
 import { ListNumbering } from './extensions/list-numbering.js'
 import { Caps, SmallCaps } from './extensions/letter-case.js'
@@ -65,14 +67,8 @@ export function buildEditorExtensions(
 ): Extensions {
   return [
     StarterKit.configure({
-      link: {
-        // Links do documento não navegam dentro do aplicativo: são abertos no
-        // navegador do sistema, e só depois de passarem pela allowlist de
-        // esquema no processo main (ver src/main/security-policy.ts).
-        openOnClick: false,
-        autolink: true,
-        HTMLAttributes: { rel: 'noopener noreferrer' },
-      },
+      // O link é o de baixo, com menos atributos — ver `DocumentLink`.
+      link: false,
       // O histórico do Tiptap já responde a Ctrl+Z e Ctrl+Y.
       undoRedo: { depth: 200 },
       // O parágrafo vazio que o Tiptap acrescenta no fim do documento quando o
@@ -82,6 +78,16 @@ export function buildEditorExtensions(
       // acrescentava um `<w:p/>` ao arquivo (um bloco reescrito, e às vezes uma
       // linha a mais no pé da última folha).
       trailingNode: { notAfter: ['paragraph', 'heading'] },
+    }),
+
+    DocumentLink.configure({
+      // Links do documento não navegam dentro do aplicativo: são abertos no
+      // navegador do sistema, e só depois de passarem pela allowlist de
+      // esquema no processo main (ver src/main/security-policy.ts). O link para
+      // um marcador (`#nome`) leva ao marcador — ver bookmark.ts.
+      openOnClick: false,
+      autolink: true,
+      HTMLAttributes: { rel: 'noopener noreferrer' },
     }),
 
     // `TextStyle` é o suporte para cor, fonte, tamanho e espaçamento — todos
@@ -182,6 +188,11 @@ export function buildEditorExtensions(
     Caps,
     SmallCaps,
     PageBreak,
+    // Referências (M8): as duas pontas de cada marcador, e os comandos, o clique
+    // no link interno e a colagem sem marcador repetido. Ver bookmark.ts.
+    BookmarkStart,
+    BookmarkEnd,
+    Bookmarks,
     // Guarda os vãos entre as folhas. Quem os calcula é `usePagination`; aqui
     // fica só o lugar onde eles vivem, para acompanharem a edição sem que o
     // documento saiba que existem.
@@ -240,3 +251,19 @@ function guardedTypography(enabled: () => boolean): Extensions[number] {
     },
   })
 }
+
+/**
+ * O link com os atributos que o `.docx` tem: o endereço e a dica.
+ *
+ * O padrão da extensão materializa `target`, `rel` e `class` em **toda** marca, e
+ * o `w:hyperlink` não tem nenhum deles: o nó que voltava do editor trazia dois
+ * atributos que o sidecar não lera, a impressão digital divergia e todo parágrafo
+ * com link era reescrito ao salvar sem ninguém tê-lo tocado. Os dois continuam no
+ * HTML — quem os escreve é `HTMLAttributes`, que não passa pelo modelo.
+ */
+const DocumentLink = Link.extend({
+  addAttributes() {
+    const inherited: Record<string, Attribute> = this.parent?.() ?? {}
+    return { href: inherited['href'] ?? {}, title: inherited['title'] ?? {} }
+  },
+})

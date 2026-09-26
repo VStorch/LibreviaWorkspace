@@ -28,6 +28,7 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
     initialDoc: empty.doc,
     styles: empty.styles,
     flattened: false,
+    beforeReferences: false,
     workbook: null,
     generation: 0,
     isDirty: false,

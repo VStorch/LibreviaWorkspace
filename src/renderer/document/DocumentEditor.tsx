@@ -33,6 +33,7 @@ import { PageSetupPanel } from './PageSetupPanel.js'
 import { SpecialCharsDialog } from './SpecialCharsDialog.js'
 import { StylesPanel } from './StylesPanel.js'
 import { NavigationPane } from './NavigationPane.js'
+import { BookmarkDialog } from './BookmarkDialog.js'
 import { WordCountDialog } from './WordCountDialog.js'
 import { PaperSheet } from './PaperSheet.js'
 import { usePagination } from './usePagination.js'
@@ -417,6 +418,8 @@ export function DocumentEditor(): React.JSX.Element {
       )}
 
       {dialogs.listStart && <ListStartDialog editor={editor} onClose={() => setDialog('listStart', false)} />}
+
+      {dialogs.bookmark && <BookmarkDialog editor={editor} onClose={() => setDialog('bookmark', false)} />}
 
       {contextTarget !== null && (
         <DocumentContextMenu

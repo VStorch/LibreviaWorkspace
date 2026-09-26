@@ -63,6 +63,8 @@ export interface WorkspaceState {
   styles: StyleSheet
   /** Os blocos vieram achatados de um rascunho antigo — ver `DocumentModel.flattened`. */
   flattened: boolean
+  /** O rascunho é de antes das referências — ver `DocumentModel.beforeReferences`. */
+  beforeReferences: boolean
   /**
    * A planilha aberta, quando o que está em edição é uma planilha.
    *

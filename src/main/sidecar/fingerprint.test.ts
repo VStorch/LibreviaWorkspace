@@ -61,6 +61,7 @@ import {
   docxWithTextBox,
   docxWithVerticalAlignment,
   docxWithoutExtras,
+  docxWithReferences,
 } from '../../../e2e/fixtures.js'
 import {
   DEFAULT_PARAGRAPH_DRAFT,
@@ -263,6 +264,8 @@ describe.skipIf(!published)('impressão digital entre o editor e o sidecar', () 
     // M5: o bloco leva só a formatação direta, e o resto é dos estilos.
     ['estilos nomeados', () => docxWithNamedStyles()],
     ['formatação direta por cima dos estilos', docxWithDirectOverStyles],
+    // M8: sumário, marcadores (inclusive os ocultos), campos e link interno.
+    ['referências do Word', () => docxWithReferences()],
   ]
 
   it.each(documents)('abrir e salvar %s não reescreve bloco nenhum', async (_name, build) => {

@@ -3,9 +3,13 @@ import { MenuCommand } from '@shared/types.js'
 import { EditorCommand, asEditorCommand, runsWhileLocked } from './editor-commands.js'
 
 describe('comandos do editor no somente leitura', () => {
-  it('só a busca e a contagem rodam com o documento travado', () => {
+  it('só a busca, a contagem e os marcadores rodam com o documento travado', () => {
+    // O diálogo de marcadores abre para "Ir para"; adicionar e excluir se apagam
+    // lá dentro.
     const allowed = Object.values(EditorCommand).filter(runsWhileLocked)
-    expect(allowed.sort()).toEqual([EditorCommand.FindReplace, EditorCommand.WordCount].sort())
+    expect(allowed.sort()).toEqual(
+      [EditorCommand.FindReplace, EditorCommand.WordCount, EditorCommand.InsertBookmark].sort(),
+    )
   })
 
   it('toda ação de tabela é edição', () => {

@@ -210,6 +210,7 @@ export function createFileActions(set: SetWorkspace, get: GetWorkspace, ctx: Wor
         initialDoc: empty.doc,
         styles: empty.styles,
         flattened: false,
+        beforeReferences: false,
         generation: state.generation + 1,
         isDirty: false,
         error: null,

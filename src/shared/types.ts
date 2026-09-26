@@ -104,6 +104,8 @@ export const MenuCommand = {
   SpecialCharacter: 'special-character',
   /** Propriedades da imagem selecionada: texto alternativo e alinhamento. */
   ImageProperties: 'image-properties',
+  /** Marcadores: adicionar, ir para e excluir. */
+  InsertBookmark: 'insert-bookmark',
   // O menu "Tabela". Os valores são os mesmos de `TableAction` (ver
   // `table-actions.ts`), e é por eles que o `App` os repassa ao editor.
   TableInsert: 'table-insert',

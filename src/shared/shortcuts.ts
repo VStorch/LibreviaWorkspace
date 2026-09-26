@@ -124,6 +124,12 @@ export const SHORTCUTS = {
    * `Ctrl+F12` é o do LibreOffice para inserir tabela. O Word não tem tecla para
    * isto, e as letras livres com `Ctrl` já acabaram nesta tabela.
    */
+  /** `Ctrl+Shift+F5`, o do Word para o diálogo de indicadores. */
+  insertBookmark: {
+    owner: ShortcutOwner.Menu,
+    key: { mod: true, shift: true, key: 'F5' },
+    does: 'Marcador…',
+  },
   insertTable: { owner: ShortcutOwner.Menu, key: { mod: true, key: 'F12' }, does: 'Inserir tabela…' },
 
   // ## Menu → Exibir

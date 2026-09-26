@@ -28,9 +28,12 @@ import { LEGACY_STYLES, type StyleSheet } from './styles.js'
  *   leitura os marca (`flattened`) para que a gravação em DOCX os compare com
  *   uma leitura achatada do original. Os nós não são tocados: desachatar exigiria
  *   o `styles.xml` de cada um, e o achatado desenha igual.
+ * - **5** — o leitor do `.docx` passou a produzir marcadores, campos, links
+ *   internos e sumário (M8). O rascunho anterior não os tem nos nós, e a leitura
+ *   o marca (`beforeReferences`) pelo mesmo motivo da versão 4.
  */
 export const SDOC_FORMAT = 'sdoc'
-export const SDOC_VERSION = 4
+export const SDOC_VERSION = 5
 
 /** O conteúdo é validado só na forma; a estrutura fina é do ProseMirror. */
 const documentNodeSchema: z.ZodType<DocumentNode> = z.looseObject({
@@ -47,6 +50,8 @@ const sdocSchema = z.object({
   styles: styleSheetSchema.optional(),
   // Só presente quando verdadeiro — ver `DocumentModel.flattened`.
   flattened: z.boolean().optional(),
+  // Só presente quando verdadeiro — ver `DocumentModel.beforeReferences`.
+  beforeReferences: z.boolean().optional(),
 })
 
 export function serializeDocument(model: DocumentModel): string {
@@ -61,6 +66,7 @@ export function serializeDocument(model: DocumentModel): string {
       // deles — como estavam.
       styles: model.styles,
       ...(model.flattened === true ? { flattened: true } : {}),
+      ...(model.beforeReferences === true ? { beforeReferences: true } : {}),
     },
     null,
     2,
@@ -100,6 +106,7 @@ export function parseDocument(text: string, language: Language = Language.Portug
     doc: migrate(parsed.data.doc, parsed.data.version),
     styles: migrateStyles(parsed.data.styles, parsed.data.version),
     ...(parsed.data.version < 4 || parsed.data.flattened === true ? { flattened: true } : {}),
+    ...(parsed.data.version < 5 || parsed.data.beforeReferences === true ? { beforeReferences: true } : {}),
   }
 }
 

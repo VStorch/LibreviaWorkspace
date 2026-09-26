@@ -11,7 +11,24 @@ namespace Librevia.Format.Docx;
 /// <param name="Oid">Id estável na ordem do documento: b1, b2, …</param>
 /// <param name="Source">O elemento original, para gravar de volta sem tocar.</param>
 /// <param name="Extracted">O que o editor vê.</param>
-public sealed record Block(string Oid, OpenXmlElement Source, Node Extracted);
+public sealed record Block(string Oid, OpenXmlElement Source, Node Extracted)
+{
+    /// <summary>
+    /// O que o corpo guarda **antes** do bloco e não é bloco: um marcador solto
+    /// entre dois parágrafos (o Word grava assim o fim de um marcador que termina
+    /// depois de uma tabela), um controle de conteúdo que o leitor não conhece.
+    /// </summary>
+    /// <remarks>
+    /// Não aparece na tela, e a gravação o devolve antes do bloco, byte a byte.
+    /// Antes daqui ele caía fora: o corpo é refeito a partir dos blocos, e o que
+    /// não era bloco não voltava — em silêncio, porque o marcador nem entra no
+    /// inventário.
+    /// </remarks>
+    public List<OpenXmlElement> Leading { get; } = [];
+
+    /// <summary>O mesmo, depois do último bloco do corpo.</summary>
+    public List<OpenXmlElement> Trailing { get; } = [];
+}
 
 /// <summary>
 /// Corpo do documento → nós do editor.
@@ -22,7 +39,12 @@ public sealed record Block(string Oid, OpenXmlElement Source, Node Extracted);
 /// XML original. Por isso um erro aqui é cosmético, não perda de dados — e é
 /// isso que permite ser tolerante em vez de recusar o arquivo.
 /// </remarks>
-public sealed class BodyReader(MainDocumentPart part, Inventory inventory, bool flatten = false)
+/// <param name="references">
+/// Lê marcadores, campos, links internos e sumário (M8). Desligado, a leitura é a
+/// de antes deles — a de referência para um rascunho daquela época (ver
+/// <see cref="DocumentModelDto.BeforeReferences"/>).
+/// </param>
+public sealed class BodyReader(MainDocumentPart part, Inventory inventory, bool flatten = false, bool references = true)
 {
     /// <summary>Passo de recuo do Word: meia polegada.</summary>
 
@@ -89,6 +111,16 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory, bool 
         // as listas abertas, uma por nível de aninhamento.
         var openLists = new List<(Node List, string Kind, int Level, int NumId)>();
 
+        // O que não é bloco espera pelo próximo — ver Block.Leading.
+        var loose = new List<OpenXmlElement>();
+
+        void Add(Block block)
+        {
+            block.Leading.AddRange(loose);
+            loose.Clear();
+            blocks.Add(block);
+        }
+
         foreach (var element in body.ChildElements)
         {
             switch (element)
@@ -106,7 +138,7 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory, bool 
                     if (list is null)
                     {
                         openLists.Clear();
-                        blocks.Add(NewBlock(element, node));
+                        Add(NewBlock(element, node));
                         content.Add(node);
                         break;
                     }
@@ -188,7 +220,7 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory, bool 
                     item.Content = [node];
                     openLists[^1].List.Content!.Add(item);
                     CarrySpacing(openLists[^1].List, node);
-                    blocks.Add(NewBlock(element, item));
+                    Add(NewBlock(element, item));
                     break;
                 }
 
@@ -196,7 +228,7 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory, bool 
                 {
                     openLists.Clear();
                     var node = ReadTable(table);
-                    blocks.Add(NewBlock(element, node));
+                    Add(NewBlock(element, node));
                     content.Add(node);
                     break;
                 }
@@ -207,9 +239,14 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory, bool 
 
                 default:
                     inventory.NoteInvisibleElement(element.LocalName);
+                    loose.Add(element);
                     break;
             }
         }
+
+        // O que sobrou depois do último bloco fica com ele. Sem bloco nenhum não
+        // há onde pendurar — e o corpo sem parágrafo não tem marcador a guardar.
+        if (blocks.Count > 0) blocks[^1].Trailing.AddRange(loose);
 
         // O ProseMirror recusa um documento sem nenhum bloco.
         if (content.Count == 0) content.Add(Node.Of("paragraph"));
@@ -775,6 +812,21 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory, bool 
                     nodes.AddRange(ReadInline(link, inherited, HyperlinkTargetOf(link) ?? hyperlink));
                     break;
 
+                // O marcador é um par de pontos no texto, e cada ponta vira um nó
+                // sem largura: é assim que ele sobrevive à edição do parágrafo e
+                // chega ao diálogo de marcadores, ao link interno e à referência
+                // cruzada. Os ocultos (`_Toc…`, `_Ref…`, `_GoBack`) entram também —
+                // o sumário e as referências do Word apontam para eles.
+                case BookmarkStart start when references:
+                    nodes.Add(Node.Of("bookmarkStart")
+                        .With("name", start.Name?.Value ?? string.Empty)
+                        .With("bid", start.Id?.Value ?? string.Empty));
+                    break;
+
+                case BookmarkEnd end when references:
+                    nodes.Add(Node.Of("bookmarkEnd").With("bid", end.Id?.Value ?? string.Empty));
+                    break;
+
                 case ParagraphProperties:
                 case BookmarkStart:
                 case BookmarkEnd:
@@ -1214,7 +1266,14 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory, bool 
     private string? HyperlinkTargetOf(Hyperlink link)
     {
         var id = link.Id?.Value;
-        if (string.IsNullOrEmpty(id)) return null;
+
+        // O link para um lugar do próprio documento não tem relacionamento: tem
+        // `w:anchor`, o nome do marcador. No editor ele é um `#nome`, que é o
+        // que um link de página faz, e a gravação desfaz o caminho.
+        if (string.IsNullOrEmpty(id))
+        {
+            return references && link.Anchor?.Value is { Length: > 0 } anchor ? "#" + anchor : null;
+        }
 
         try
         {

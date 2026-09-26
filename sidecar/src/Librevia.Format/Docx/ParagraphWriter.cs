@@ -33,6 +33,12 @@ public sealed class ParagraphWriter
     private readonly TableWriter _tables;
     private readonly ImageWriter _images;
 
+    /// <summary>
+    /// Os marcadores vêm do modelo (M8). Desligado — o rascunho de antes deles —,
+    /// os do parágrafo original são copiados para o reescrito, como eram.
+    /// </summary>
+    private readonly bool _references;
+
     /// <param name="usableWidthPx">
     /// A largura da coluna de texto, em pixels do CSS. É o teto de uma imagem
     /// que chega sem medida: maior do que isso, o Word a desenha estourando a
@@ -43,9 +49,11 @@ public sealed class ParagraphWriter
         Inventory inventory,
         int usableWidthPx = ImageWriter.DefaultWidthPx,
         HeadingStyles? headings = null,
-        bool flatten = false)
+        bool flatten = false,
+        bool references = true)
     {
         _part = part;
+        _references = references;
         _inventory = inventory;
         _styles = new StyleResolver(part);
         _format = new ParagraphFormat(inventory, headings ?? new HeadingStyles(part, null), _styles, flatten);
@@ -299,7 +307,7 @@ public sealed class ParagraphWriter
         }
 
         // Os marcadores que abriam o parágrafo abrem o parágrafo reescrito.
-        foreach (var mark in Bookmarks(original, leading: true))
+        foreach (var mark in _references ? [] : Bookmarks(original, leading: true))
         {
             paragraph.AppendChild(mark.CloneNode(true));
         }
@@ -323,7 +331,7 @@ public sealed class ParagraphWriter
             paragraph.AppendChild(new Run(new Break { Type = BreakValues.Page }));
         }
 
-        foreach (var mark in Bookmarks(original, leading: false))
+        foreach (var mark in _references ? [] : Bookmarks(original, leading: false))
         {
             paragraph.AppendChild(mark.CloneNode(true));
         }
@@ -389,6 +397,20 @@ public sealed class ParagraphWriter
 
             case "pageBreak":
                 yield return new Run(new Break { Type = BreakValues.Page });
+                break;
+
+            // As duas pontas do marcador, com o id e o nome que o arquivo tinha —
+            // ou que o editor deu ao marcador novo.
+            case "bookmarkStart":
+                yield return new BookmarkStart
+                {
+                    Id = Attr.String(node, "bid") ?? "0",
+                    Name = Attr.String(node, "name") ?? string.Empty,
+                };
+                break;
+
+            case "bookmarkEnd":
+                yield return new BookmarkEnd { Id = Attr.String(node, "bid") ?? "0" };
                 break;
 
             case "image":
@@ -494,6 +516,14 @@ public sealed class ParagraphWriter
         foreach (var piece in pieces) run.AppendChild(piece);
 
         if (hyperlink is null) return run;
+
+        // O link para um marcador do próprio documento: `w:anchor`, sem
+        // relacionamento. `w:history` é o que o Word grava em todo link que ele
+        // mesmo cria.
+        if (hyperlink.StartsWith('#'))
+        {
+            return new Hyperlink(run) { Anchor = hyperlink[1..], History = true };
+        }
 
         // `w:hyperlink` embrulha o run — não cabe dentro dele.
         Uri target;

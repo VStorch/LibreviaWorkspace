@@ -78,6 +78,7 @@ export function createWorkspaceContext(set: SetWorkspace, get: GetWorkspace): Wo
       // alheio por causa de um passeio pelo painel.
       styles: state.styles,
       ...(state.flattened ? { flattened: true } : {}),
+      ...(state.beforeReferences ? { beforeReferences: true } : {}),
     }
   }
 
@@ -126,6 +127,7 @@ export function createWorkspaceContext(set: SetWorkspace, get: GetWorkspace): Wo
       initialDoc: model.doc,
       styles: model.styles,
       flattened: model.flattened === true,
+      beforeReferences: model.beforeReferences === true,
       generation: state.generation + 1,
       isDirty: false,
       error: null,

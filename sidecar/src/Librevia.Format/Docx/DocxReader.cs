@@ -25,7 +25,14 @@ public sealed record DocumentModelDto(
     // de referência com que os blocos do modelo são comparados.
     [property: JsonPropertyName("flatten")]
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-    bool Flatten = false);
+    bool Flatten = false,
+    // O rascunho é de antes das referências (M8): os nós dele não trazem
+    // marcador, campo, link interno nem sumário. Como `Flatten`, só a gravação o
+    // lê — a leitura de referência tem de ser a de então, ou todo bloco com um
+    // marcador pareceria mudado e os `oid` depois de um sumário se desencontrariam.
+    [property: JsonPropertyName("beforeReferences")]
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    bool BeforeReferences = false);
 
 public sealed record OpenResult(
     [property: JsonPropertyName("model")] DocumentModelDto Model,

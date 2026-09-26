@@ -182,6 +182,7 @@ export async function saveDocx(
       page: model.page,
       doc: model.doc,
       ...(model.flattened ? { flatten: true } : {}),
+      ...(model.beforeReferences ? { beforeReferences: true } : {}),
       ...(model.styles === undefined ? {} : { styles: model.styles }),
     },
     new Uint8Array(original),
@@ -304,7 +305,13 @@ async function createDocx(client: SidecarClient, page: unknown, styles: unknown)
   return reply.binary
 }
 
-function unwrapSdoc(content: string): { page: unknown; doc: unknown; styles: unknown; flattened: boolean } {
+function unwrapSdoc(content: string): {
+  page: unknown
+  doc: unknown
+  styles: unknown
+  flattened: boolean
+  beforeReferences: boolean
+} {
   let parsed: unknown
   try {
     parsed = JSON.parse(content)
@@ -321,6 +328,7 @@ function unwrapSdoc(content: string): { page: unknown; doc: unknown; styles: unk
       doc: z.unknown(),
       styles: styleSheetSchema.optional(),
       flattened: z.boolean().optional(),
+      beforeReferences: z.boolean().optional(),
     })
     .safeParse(parsed)
   if (!envelope.success) {
@@ -332,5 +340,6 @@ function unwrapSdoc(content: string): { page: unknown; doc: unknown; styles: unk
     doc: envelope.data.doc,
     styles: envelope.data.styles,
     flattened: envelope.data.flattened === true,
+    beforeReferences: envelope.data.beforeReferences === true,
   }
 }

@@ -48,6 +48,7 @@ export const MENU = {
 
   'menu.insert.pageBreak': { pt: 'Quebra de página', en: 'Page break' },
   'menu.insert.specialCharacter': { pt: 'Caractere especial…', en: 'Special character…' },
+  'menu.insert.bookmark': { pt: 'Marcador…', en: 'Bookmark…' },
 
   'menu.view.formattingMarks': { pt: 'Marcas de formatação', en: 'Formatting marks' },
   'menu.view.navigationPane': { pt: 'Painel de navegação', en: 'Navigation pane' },

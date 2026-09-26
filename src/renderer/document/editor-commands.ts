@@ -30,6 +30,8 @@ export const EditorCommand = {
   SpecialCharacter: 'special-character',
   /** Propriedades da imagem selecionada: texto alternativo e alinhamento. */
   ImageProperties: 'image-properties',
+  /** Marcadores: adicionar, ir para e excluir. */
+  InsertBookmark: 'insert-bookmark',
   ...TableAction,
 } as const satisfies Record<string, MenuCommand>
 
@@ -58,6 +60,8 @@ export function asEditorCommand(command: string): EditorCommand | null {
 const READS_ONLY: ReadonlySet<EditorCommand> = new Set<EditorCommand>([
   EditorCommand.FindReplace,
   EditorCommand.WordCount,
+  // O diálogo abre para "Ir para"; adicionar e excluir se apagam lá dentro.
+  EditorCommand.InsertBookmark,
 ])
 
 /** O comando pode rodar num documento aberto em somente leitura? */
