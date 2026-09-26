@@ -16,7 +16,8 @@ import {
   type PageSetup,
 } from '@services/document/model.js'
 import { editBandFloat, editBandPiece } from '@services/document/band.js'
-import { effectiveSections } from '@services/document/sections.js'
+import { effectiveSections, sheetSetups } from '@services/document/sections.js'
+import { NO_BANDS } from '@services/document/band.js'
 import { floatsOf } from '@services/document/floating.js'
 import { currentPreferences, usePreferences } from '../state/preferences.js'
 import { useLeaveReadingOnEscape, useReadingMode } from '../state/reading.js'
@@ -46,6 +47,7 @@ import { splitIntoPages } from './print-source.js'
 import type { FloatSource, PlacedFloat } from './FloatingLayer.js'
 import { buildEditorExtensions } from './editor-extensions.js'
 import { isPaginationOnly } from './extensions/pagination.js'
+import { setSectionBoxes } from './extensions/section-geometry.js'
 import { useEditorCommands } from './useEditorCommands.js'
 import { settlePageFields, type ReferenceContext } from './references.js'
 import type { SearchStatus } from './extensions/search-replace.js'
@@ -67,9 +69,11 @@ export function DocumentEditor(): React.JSX.Element {
   const initialDoc = useWorkspace((state) => state.initialDoc)
   const declaredPage = useWorkspace((state) => state.page)
   const sections = useWorkspace((state) => state.sections)
-  // A última seção com as faixas que ela herda das anteriores: é a que a folha
-  // desenha enquanto a paginação não distingue as seções.
-  const page = useMemo(() => effectiveSections(declaredPage, sections).at(-1)!, [declaredPage, sections])
+  // Todas as seções, com as faixas que cada uma herda das anteriores. A última —
+  // a do corpo — é a base da coluna de texto: os blocos das outras seções são
+  // deslocados para a caixa da sua (ver `section-geometry.ts`).
+  const effective = useMemo(() => effectiveSections(declaredPage, sections), [declaredPage, sections])
+  const page = effective.at(-1)!
   const markDirty = useWorkspace((state) => state.markDirty)
   const setStats = useWorkspace((state) => state.setStats)
   const registerDocumentSource = useWorkspace((state) => state.registerDocumentSource)
@@ -164,12 +168,13 @@ export function DocumentEditor(): React.JSX.Element {
       readDoc: () => editor.getJSON() as DocumentNode,
       readHtml: () => editor.getHTML(),
       readPages: () => ({
-        pages: splitIntoPages(editor, layoutRef.current, page),
+        pages: splitIntoPages(editor, layoutRef.current, effective),
         bands: bandsRef.current,
+        sections: layoutRef.current.sheets.map((sheet) => sheet.section),
       }),
     })
     return () => registerDocumentSource(null)
-  }, [editor, page, registerDocumentSource])
+  }, [editor, effective, registerDocumentSource])
 
   /**
    * Ortografia ligada e desligada no editor já montado.
@@ -230,6 +235,7 @@ export function DocumentEditor(): React.JSX.Element {
     (): ReferenceContext => ({
       layout: layoutRef.current,
       page: useWorkspace.getState().page,
+      sections: effectiveSections(useWorkspace.getState().page, useWorkspace.getState().sections),
       styles: useWorkspace.getState().styles,
       setStyles: useWorkspace.getState().setStyles,
       outsideBookmarks: useWorkspace.getState().outsideBookmarks,
@@ -265,9 +271,37 @@ export function DocumentEditor(): React.JSX.Element {
     [],
   )
 
-  const bands = useBandHeights(page, contentRevision)
-  const layout = usePagination(editor, page, contentRevision, bands, !reading, styles)
-  const insets = contentInsetsMm(page, bands)
+  // Que seção abre cada folha: as faixas são medidas na primeira folha de cada
+  // seção, e é preciso medir de novo quando essa distribuição muda.
+  const [sheetSections, setSheetSections] = useState('')
+  const bands = useBandHeights(effective, contentRevision, sheetSections)
+  const layout = usePagination(editor, effective, sections, contentRevision, bands, !reading, styles)
+  useEffect(() => setSheetSections(layout.sheets.map((sheet) => sheet.section).join(',')), [layout.sheets])
+  const sheetSetupList = useMemo(() => sheetSetups(effective, layout.sheets), [effective, layout.sheets])
+
+  // A pilha tem a largura da folha mais larga, e cada folha vai centrada nela —
+  // como o Word mostra retrato e paisagem no mesmo documento.
+  const stackWidthPx = Math.max(layout.stackWidthPx, mmToPx(pageDimensionsMm(page).width))
+  const firstSection = effective[layout.sheets[0]?.section ?? 0] ?? page
+  const insets = contentInsetsMm(firstSection, bands[layout.sheets[0]?.section ?? 0] ?? NO_BANDS)
+  const baseLeftPx = (stackWidthPx - mmToPx(pageDimensionsMm(page).width)) / 2 + mmToPx(page.margins.left)
+  const baseRightPx = (stackWidthPx - mmToPx(pageDimensionsMm(page).width)) / 2 + mmToPx(page.margins.right)
+
+  // Os blocos das seções cuja caixa de texto difere da base: deslocados e com a
+  // largura da sua seção. No modo de leitura não há folha, e nada se desloca.
+  useEffect(() => {
+    if (editor === null) return
+    const boxes = reading
+      ? []
+      : effective.map((section) => {
+          const widthPx = mmToPx(pageDimensionsMm(section).width)
+          const left = (stackWidthPx - widthPx) / 2 + mmToPx(section.margins.left)
+          const content = widthPx - mmToPx(section.margins.left) - mmToPx(section.margins.right)
+          const base = stackWidthPx - baseLeftPx - baseRightPx
+          return { shiftPx: left - baseLeftPx, narrowerPx: base - content }
+        })
+    setSectionBoxes(editor.view, boxes, sections)
+  }, [editor, effective, sections, reading, stackWidthPx, baseLeftPx, baseRightPx])
 
   // Os objetos ancorados de cada folha. Recalculados junto com a paginação
   // porque a posição de um deles depende de em que folha o parágrafo âncora
@@ -397,17 +431,23 @@ export function DocumentEditor(): React.JSX.Element {
   useEffect(() => {
     const scroll = scrollRef.current
     if (scroll === null) return undefined
-    const pageWidthPx = mmToPx(pageDimensionsMm(page).width)
-    const measure = (): void => setFittedZoom(fitWidthZoom(scroll.clientWidth, pageWidthPx))
+    const measure = (): void => setFittedZoom(fitWidthZoom(scroll.clientWidth, stackWidthPx))
     measure()
     const observer = new ResizeObserver(measure)
     observer.observe(scroll)
     return () => observer.disconnect()
-  }, [editor, page])
+  }, [editor, stackWidthPx])
 
   if (editor === null) return <div className="editor-shell" />
 
-  const { width, height } = pageDimensionsMm(page)
+  // A caixa de cada folha na pilha: a largura e a altura do papel da seção dela,
+  // centrada na largura da pilha.
+  const sheetBox = (index: number): { leftPx: number; widthPx: number; heightPx: number } => {
+    const setup = effective[layout.sheets[index]?.section ?? effective.length - 1] ?? page
+    const { width, height } = pageDimensionsMm(setup)
+    return { leftPx: (stackWidthPx - mmToPx(width)) / 2, widthPx: mmToPx(width), heightPx: mmToPx(height) }
+  }
+
   const editableSheet = readOnly
     ? {}
     : { onEditFloat: editFloat, onEditBandPiece: editBand, onEditBandBox: editBandBox }
@@ -530,7 +570,7 @@ export function DocumentEditor(): React.JSX.Element {
               reading
                 ? undefined
                 : {
-                    width: `${(mmToPx(width) * zoom) / 100}px`,
+                    width: `${(stackWidthPx * zoom) / 100}px`,
                     height: `${(layout.stackHeightPx * zoom) / 100}px`,
                   }
             }
@@ -543,7 +583,7 @@ export function DocumentEditor(): React.JSX.Element {
                 reading
                   ? undefined
                   : {
-                      width: `${mmToPx(width)}px`,
+                      width: `${stackWidthPx}px`,
                       height: `${layout.stackHeightPx}px`,
                       ...(zoom === 100
                         ? {}
@@ -560,34 +600,50 @@ export function DocumentEditor(): React.JSX.Element {
               ancorados saem junto, e não por descuido — a posição deles é
               relativa a uma folha, e sem folha não há onde pousá-los. */}
               {!reading &&
-                layout.sheetTops.map((top, index) => (
-                  <div
-                    key={top}
-                    className={`paper${(layout.sheetHeights[index] ?? 0) > mmToPx(height) + 1 ? ' paper--oversized' : ''}`}
-                    style={{ top: `${top}px`, height: `${layout.sheetHeights[index] ?? mmToPx(height)}px` }}
-                    aria-hidden="true"
-                  >
-                    <span className="paper__number">{index + 1}</span>
-                  </div>
-                ))}
+                layout.sheetTops.map((top, index) => {
+                  const box = sheetBox(index)
+                  return (
+                    <div
+                      key={top}
+                      className={`paper${(layout.sheetHeights[index] ?? 0) > box.heightPx + 1 ? ' paper--oversized' : ''}${layout.sheets[index]?.blank === true ? ' paper--blank' : ''}`}
+                      style={{
+                        top: `${top}px`,
+                        height: `${layout.sheetHeights[index] ?? box.heightPx}px`,
+                        left: `${box.leftPx}px`,
+                        width: `${box.widthPx}px`,
+                        right: 'auto',
+                      }}
+                      data-section={layout.sheets[index]?.section ?? 0}
+                      aria-hidden="true"
+                    >
+                      <span className="paper__number">{index + 1}</span>
+                    </div>
+                  )
+                })}
 
               {/* Uma faixa por folha, com o número real. No papel elas moram dentro
               da margem, e é por isso que não empurram o texto. Sem folhas não
               há cabeçalho repetido: "página 3 de 12" não quer dizer nada numa
               tira contínua. */}
               {!reading &&
-                layout.sheetTops.map((top, index) => (
-                  <PaperSheet
-                    key={`banda-${top}`}
-                    page={page}
-                    pageNumber={index + 1}
-                    totalPages={layout.pages}
-                    topPx={top}
-                    floats={floatsByPage[index] ?? []}
-                    schema={editor.schema}
-                    {...editableSheet}
-                  />
-                ))}
+                layout.sheetTops.map((top, index) => {
+                  const box = sheetBox(index)
+                  const setup = sheetSetupList[index] ?? { page, inSection: index + 1 }
+                  return (
+                    <PaperSheet
+                      key={`banda-${top}`}
+                      page={setup.page}
+                      pageNumber={setup.inSection}
+                      totalPages={layout.pages}
+                      topPx={top}
+                      leftPx={box.leftPx}
+                      section={layout.sheets[index]?.section ?? 0}
+                      floats={floatsByPage[index] ?? []}
+                      schema={editor.schema}
+                      {...editableSheet}
+                    />
+                  )
+                })}
 
               <div
                 className="pages__column"
@@ -602,8 +658,8 @@ export function DocumentEditor(): React.JSX.Element {
                         // A margem de cima é um piso: um cabeçalho mais alto que ela
                         // desce o corpo até debaixo dele, como no Word.
                         paddingTop: `${mmToPx(insets.top)}px`,
-                        paddingRight: `${mmToPx(page.margins.right)}px`,
-                        paddingLeft: `${mmToPx(page.margins.left)}px`,
+                        paddingRight: `${baseRightPx}px`,
+                        paddingLeft: `${baseLeftPx}px`,
                       }
                 }
               >

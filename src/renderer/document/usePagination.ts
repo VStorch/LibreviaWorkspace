@@ -1,6 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Editor } from '@tiptap/react'
-import { paginate, type MeasuredBlock } from '@services/document/paginate.js'
+import {
+  paginateSections,
+  type MeasuredBlock,
+  type SectionFlow,
+  type SheetPlan,
+} from '@services/document/paginate.js'
 import { effectiveAttrs } from '@services/document/style-cascade.js'
 import type { StyleSheet } from '@services/document/styles.js'
 import {
@@ -9,8 +14,16 @@ import {
   mmToPx,
   pageDimensionsMm,
   type PageSetup,
+  type SectionSetup,
 } from '@services/document/model.js'
 import { NO_BANDS, type BandHeights } from '@services/document/band.js'
+import {
+  blockSections,
+  parityOf,
+  sectionBreakIn,
+  startsNewSheet,
+  type SectionBlock,
+} from '@services/document/sections.js'
 import { applyPageGaps, type RepeatedHeader } from './extensions/pagination.js'
 import { LINE_GAP_CLASS, measureLines } from './line-boxes.js'
 
@@ -21,7 +34,7 @@ export const SHEET_GUTTER_PX = 28
 const EMPTY_GAPS = new Map<number, number>()
 
 export interface PageLayout {
-  /** Quantas folhas desenhar. */
+  /** Quantas folhas desenhar — as em branco das seções par e ímpar incluídas. */
   readonly pages: number
   /** Altura total da pilha, com os vãos. */
   readonly stackHeightPx: number
@@ -42,6 +55,34 @@ export interface PageLayout {
    * relação ao parágrafo âncora, e o parágrafo só tem posição depois de paginar.
    */
   readonly anchors: readonly BlockAnchor[]
+  /**
+   * Cada folha desenhada: a seção dela, o número impresso, se é a primeira da
+   * seção e se é a folha em branco que a seção par ou ímpar pediu (M9).
+   */
+  readonly sheets: readonly SheetPlan[]
+  /** Largura de cada folha, em pixels: a folha em paisagem é mais larga. */
+  readonly sheetWidths: readonly number[]
+  /** A largura da pilha — a da folha mais larga; as outras vão centradas. */
+  readonly stackWidthPx: number
+  /**
+   * A folha desenhada de cada folha com conteúdo: `pageStarts` conta só as com
+   * conteúdo, e as em branco ficam entre elas.
+   */
+  readonly contentSheets: readonly number[]
+}
+
+/** A folha desenhada em que cai a folha de conteúdo `index`. */
+export function drawnSheet(layout: PageLayout, index: number): number {
+  return layout.contentSheets[index] ?? index
+}
+
+/** Medidas de uma seção na tela, em pixels. */
+interface SectionMetrics {
+  readonly widthPx: number
+  readonly heightPx: number
+  readonly contentPx: number
+  readonly topPx: number
+  readonly bottomPx: number
 }
 
 export interface PageStart {
@@ -93,9 +134,16 @@ export interface BlockAnchor {
  */
 export function usePagination(
   editor: Editor | null,
-  page: PageSetup,
+  /**
+   * Todas as seções, com as faixas herdadas já resolvidas (`effectiveSections`):
+   * a última é a do corpo. O documento de uma seção só tem uma.
+   */
+  sections: readonly PageSetup[],
+  /** As seções antes da última, como o modelo as guarda — é pelo id que o bloco acha a sua. */
+  declared: readonly SectionSetup[],
   revision: number,
-  bands: BandHeights = NO_BANDS,
+  /** Altura das faixas de cada seção, na ordem de `sections`. */
+  bands: readonly BandHeights[] = [],
   /**
    * Se os vãos devem ser **empurrados no DOM**.
    *
@@ -124,6 +172,10 @@ export function usePagination(
     sheetHeights: [],
     pageStarts: [],
     anchors: [],
+    sheets: [{ section: 0, blank: false, number: 1, first: true }],
+    sheetWidths: [],
+    stackWidthPx: 0,
+    contentSheets: [0],
   })
 
   /**
@@ -157,17 +209,36 @@ export function usePagination(
   /** Os cabeçalhos de tabela repetidos, comparados pelo que desenham. */
   const lastHeaders = useRef('[]')
 
+  // As alturas das faixas chegam num vetor novo a cada medida; o efeito só
+  // precisa refazer a conta quando algum número muda.
+  const bandsKey = bands.map((band) => `${band.headerMm}:${band.footerMm}`).join('|')
+
   useEffect(() => {
     if (editor === null) return undefined
 
     const element = editor.view.dom as HTMLElement // alvo do observador de tamanho
-    const pageHeightPx = mmToPx(pageDimensionsMm(page).height)
-    const contentHeightPx = mmToPx(contentHeightMm(page, bands))
-    // A margem é um piso: um cabeçalho mais alto que ela empurra o corpo para
-    // baixo, e é essa a altura de onde a folha seguinte recomeça.
-    const insets = contentInsetsMm(page, bands)
-    const marginTopPx = mmToPx(insets.top)
-    const marginBottomPx = mmToPx(insets.bottom)
+    // As medidas de cada seção. A margem é um piso: um cabeçalho mais alto que
+    // ela empurra o corpo para baixo, e é essa a altura de onde a folha seguinte
+    // recomeça.
+    const metrics: SectionMetrics[] = sections.map((setup, index) => {
+      const heights = bands[index] ?? NO_BANDS
+      const insets = contentInsetsMm(setup, heights)
+      const { width, height } = pageDimensionsMm(setup)
+      return {
+        widthPx: mmToPx(width),
+        heightPx: mmToPx(height),
+        contentPx: mmToPx(contentHeightMm(setup, heights)),
+        topPx: mmToPx(insets.top),
+        bottomPx: mmToPx(insets.bottom),
+      }
+    })
+    const metricsOf = (section: number): SectionMetrics => metrics[section] ?? metrics.at(-1)!
+    const flows: SectionFlow[] = sections.map((setup, index) => ({
+      height: metricsOf(index).contentPx,
+      newSheet: startsNewSheet(setup, sections[index - 1]),
+      parity: parityOf(setup),
+      restart: setup.pageNumberStart ?? null,
+    }))
 
     const measure = (): void => {
       // Os espaçadores entre linhas saem de cena durante a medida. Diferente do
@@ -197,7 +268,13 @@ export function usePagination(
       const targets: CutTarget[] = []
       const origin = offsetTopOf(element)
 
+      // A seção de cada bloco, pela marca que fecha a seção (ver `blockSections`).
+      const marks: (string | null)[] = []
+      editor.state.doc.forEach((block) => marks.push(sectionBreakIn(block as unknown as SectionBlock)))
+      const sectionOfBlock = blockSections(marks, declared)
+
       editor.state.doc.forEach((block, offset, blockIndex) => {
+        const section = sectionOfBlock[blockIndex] ?? 0
         const dom = editor.view.nodeDOM(offset)
         const node = dom instanceof HTMLElement ? dom : null
         if (node === null) {
@@ -208,6 +285,7 @@ export function usePagination(
             isPageBreak: false,
             breakAfter: false,
             keepWithNext: false,
+            section,
           })
           return
         }
@@ -353,11 +431,16 @@ export function usePagination(
           ...(repeatHeight > 0 ? { repeatHeight } : {}),
           ...(freeBreakpoints.length > 0 ? { freeBreakpoints } : {}),
           ...(hangingBottom > 0 ? { hangingBottom } : {}),
+          section,
         })
         accumulated += internal
       })
 
-      const breaks = paginate(blocks, contentHeightPx)
+      const plan = paginateSections(blocks, flows)
+      const breaks = plan.breaks
+      // As folhas com conteúdo, na pilha: entre elas ficam as em branco.
+      const contentSheets = plan.sheets.flatMap((sheet, index) => (sheet.blank ? [] : [index]))
+      const sheetOf = (content: number): SheetPlan => plan.sheets[contentSheets[content] ?? 0]!
 
       // Vão = o que sobrou da folha + as duas margens + o espaço entre papéis.
       // É essa soma que faz o bloco cair exatamente no topo da coluna de texto
@@ -403,7 +486,12 @@ export function usePagination(
         return targets[cursor]
       }
 
-      for (const at of breaks) {
+      breaks.forEach((at, cut) => {
+        // A folha que termina aqui e a que abre, com as medidas da seção de
+        // cada uma; as em branco entre elas entram no vão inteiras.
+        const ending = metricsOf(sheetOf(cut).section)
+        const opening = metricsOf(sheetOf(cut + 1).section)
+        const blanks = plan.sheets.slice((contentSheets[cut] ?? 0) + 1, contentSheets[cut + 1] ?? 0)
         const internal = internalAt.get(at)
         const position = internal?.line?.resolve() ?? null
         // A linha cujo caractere não se achou (DOM trocado no meio da medida)
@@ -415,11 +503,22 @@ export function usePagination(
         // A linha vazia da captura que sobra no pé (`hangingBottom`) cabe na
         // margem de baixo: nem estica a folha, nem empurra o bloco seguinte.
         const span = at - previous
-        const hung = Math.min(Math.max(span - contentHeightPx, 0), hangingAt(blocks, at))
+        const hung = Math.min(Math.max(span - ending.contentPx, 0), hangingAt(blocks, at))
         const used = span - hung
-        sheetHeights.push(Math.max(pageHeightPx, used + marginTopPx + marginBottomPx))
+        sheetHeights.push(Math.max(ending.heightPx, used + ending.topPx + ending.bottomPx))
+        let skipped = 0
+        for (const blank of blanks) {
+          const height = metricsOf(blank.section).heightPx
+          sheetHeights.push(height)
+          skipped += height + SHEET_GUTTER_PX
+        }
         const shift =
-          Math.max(contentHeightPx - used, 0) - hung + marginBottomPx + SHEET_GUTTER_PX + marginTopPx
+          Math.max(ending.contentPx - used, 0) -
+          hung +
+          ending.bottomPx +
+          SHEET_GUTTER_PX +
+          skipped +
+          opening.topPx
         if (target?.line !== undefined && position !== null) {
           // O espaçador entra antes do primeiro caractere da linha; o papel
           // recorta o parágrafo no mesmo caractere.
@@ -429,7 +528,7 @@ export function usePagination(
           // O cabeçalho repetido mora no vão, entre o topo da folha e a linha:
           // o vão cresce a altura dele, e a conta de fluxo desconta os dois.
           const header = target.header?.()
-          const extra = header !== undefined && header.height < contentHeightPx / 2 ? header.height : 0
+          const extra = header !== undefined && header.height < opening.contentPx / 2 ? header.height : 0
           if (header !== undefined && extra > 0) headers.push(header)
           pageStarts.push(extra > 0 ? { ...target.start, repeatHeader: true } : target.start)
           for (const node of target.nodes) {
@@ -438,18 +537,23 @@ export function usePagination(
           }
           // A folha nova começa acima do corte, pela altura do cabeçalho.
           previous = at - extra
-          continue
+          return
         } else {
           // Uma quebra explícita final ainda abre uma folha vazia.
           pageStarts.push({ blockIndex: blocks.length })
         }
         previous = at
-      }
+      })
 
+      const last = metricsOf(sheetOf(breaks.length).section)
       const bottom = blocks.reduce((bottom, block) => Math.max(bottom, block.top + block.height), 0)
       const lastSpan = bottom - previous
-      const lastHung = Math.min(Math.max(lastSpan - contentHeightPx, 0), hangingAt(blocks, bottom))
-      sheetHeights.push(Math.max(pageHeightPx, lastSpan - lastHung + marginTopPx + marginBottomPx))
+      const lastHung = Math.min(Math.max(lastSpan - last.contentPx, 0), hangingAt(blocks, bottom))
+      sheetHeights.push(Math.max(last.heightPx, lastSpan - lastHung + last.topPx + last.bottomPx))
+      // Folhas em branco depois da última com conteúdo não existem: a seção par
+      // ou ímpar só pede a folha antes de começar.
+      const sheets = plan.sheets.slice(0, sheetHeights.length)
+      const sheetWidths = sheets.map((sheet) => metricsOf(sheet.section).widthPx)
       const sheetTops: number[] = []
       let stackHeightPx = 0
       for (const height of sheetHeights) {
@@ -486,7 +590,14 @@ export function usePagination(
         sheetTops,
         sheetHeights,
         pageStarts,
-        anchors: anchorsFor(blocks, breaks, marginTopPx),
+        anchors: anchorsFor(blocks, breaks, (content) => ({
+          sheet: contentSheets[content] ?? content,
+          marginTopPx: metricsOf(sheetOf(content).section).topPx,
+        })),
+        sheets,
+        sheetWidths,
+        stackWidthPx: Math.max(0, ...sheetWidths),
+        contentSheets,
       })
     }
 
@@ -511,7 +622,7 @@ export function usePagination(
       observer.disconnect()
       if (scheduled !== 0) cancelAnimationFrame(scheduled)
     }
-  }, [editor, page, revision, bands.headerMm, bands.footerMm, paginated, styles])
+  }, [editor, sections, declared, revision, bandsKey, paginated, styles])
 
   return layout
 }
@@ -546,7 +657,8 @@ function sameGaps(left: ReadonlyMap<number, number>, right: ReadonlyMap<number, 
 function anchorsFor(
   blocks: readonly MeasuredBlock[],
   breaks: readonly number[],
-  marginTopPx: number,
+  /** A folha desenhada e a margem de cima da folha de conteúdo `content`. */
+  sheetOf: (content: number) => { readonly sheet: number; readonly marginTopPx: number },
 ): BlockAnchor[] {
   const anchors: BlockAnchor[] = []
   let page = 0
@@ -554,7 +666,8 @@ function anchorsFor(
   for (const block of blocks) {
     while (page < breaks.length && block.top >= breaks[page]!) page += 1
     const start = page === 0 ? 0 : breaks[page - 1]!
-    anchors.push({ pageIndex: page, topPx: marginTopPx + (block.top - start) })
+    const { sheet, marginTopPx } = sheetOf(page)
+    anchors.push({ pageIndex: sheet, topPx: marginTopPx + (block.top - start) })
   }
 
   return anchors

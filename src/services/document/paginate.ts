@@ -64,6 +64,53 @@ export interface MeasuredBlock {
    * em vez de levar o quadro — ou ela mesma — para a folha seguinte.
    */
   readonly hangingBottom?: number
+  /**
+   * A seção do bloco (M9): o índice dela em `SectionFlow[]`. Ausente é a
+   * primeira — o documento de uma seção só.
+   */
+  readonly section?: number
+}
+
+/**
+ * O que a paginação precisa saber de uma seção.
+ *
+ * As medidas já em pixels de tela e já descontadas as faixas: é a altura útil da
+ * folha da seção, a mesma conta de `contentHeightMm`.
+ */
+export interface SectionFlow {
+  readonly height: number
+  /**
+   * A seção abre folha nova: "próxima página", par, ímpar — e também a contínua
+   * cujo papel ou orientação difere da anterior, que o Word trata como próxima
+   * página, já que uma folha não muda de tamanho no meio.
+   */
+  readonly newSheet: boolean
+  /** A folha que abre a seção precisa ter número par ou ímpar (`w:type` evenPage/oddPage). */
+  readonly parity: 'even' | 'odd' | null
+  /** O número que a primeira folha da seção recebe (`w:pgNumType/@w:start`). */
+  readonly restart: number | null
+}
+
+/** Uma folha do documento, na ordem da pilha. */
+export interface SheetPlan {
+  /** A seção que abre a folha — é dela o papel, a margem e a faixa. */
+  readonly section: number
+  /**
+   * Folha em branco que o Word insere para a seção par ou ímpar cair na folha
+   * certa. Não recebe bloco nenhum; conta na numeração, e já tem o papel da
+   * seção que vem depois dela.
+   */
+  readonly blank: boolean
+  /** O número impresso na folha. */
+  readonly number: number
+  /** É a primeira folha da seção — a da "Primeira página diferente". */
+  readonly first: boolean
+}
+
+/** Os cortes, e as folhas que eles produzem (as em branco incluídas). */
+export interface PagePlan {
+  readonly breaks: number[]
+  readonly sheets: SheetPlan[]
 }
 
 /**
@@ -73,9 +120,70 @@ export interface MeasuredBlock {
  * página só.
  */
 export function paginate(blocks: readonly MeasuredBlock[], pageHeight: number): number[] {
-  if (pageHeight <= 0) return []
+  return paginateSections(blocks, [{ height: pageHeight, newSheet: false, parity: null, restart: null }])
+    .breaks
+}
 
+/**
+ * Os cortes e as folhas de um documento com seções.
+ *
+ * A folha tem a altura da seção que a abre: é o papel dela. A seção que começa
+ * em folha nova corta antes do primeiro bloco dela — a menos que a folha ainda
+ * esteja vazia, e aí a folha passa a ser dela —, e a de página par ou ímpar
+ * ganha antes uma folha em branco quando o número não bate, como no Word.
+ */
+export function paginateSections(
+  blocks: readonly MeasuredBlock[],
+  sections: readonly SectionFlow[],
+): PagePlan {
   const breaks: number[] = []
+  const sheets: SheetPlan[] = []
+  const flowOf = (section: number): SectionFlow =>
+    sections[section] ?? sections.at(-1) ?? { height: 0, newSheet: false, parity: null, restart: null }
+  const sectionOf = (block: MeasuredBlock | undefined, fallback: number): number => block?.section ?? fallback
+
+  // A folha nova da seção `section`: numerada a partir da anterior, ou do
+  // reinício quando é a primeira da seção. A paridade só vale para a primeira
+  // folha de uma seção que a pede, e nunca para a primeira do documento.
+  const open = (section: number): void => {
+    const previous = sheets.at(-1)
+    const first = previous === undefined || previous.section !== section
+    const flow = flowOf(section)
+    let number = first && flow.restart !== null ? flow.restart : (previous?.number ?? 0) + 1
+    if (
+      previous !== undefined &&
+      first &&
+      flow.parity !== null &&
+      (number % 2 === 0) !== (flow.parity === 'even')
+    ) {
+      sheets.push({ section, blank: true, number, first: false })
+      number += 1
+    }
+    sheets.push({ section, blank: false, number, first })
+  }
+
+  // A folha que acabou de abrir, vazia, passa a ser da seção que começa nela:
+  // refeita, com a numeração e a paridade da seção nova.
+  const retarget = (section: number): void => {
+    const last = sheets.at(-1)
+    if (last === undefined || last.section === section) return
+    sheets.pop()
+    while (sheets.at(-1)?.blank === true) sheets.pop()
+    open(section)
+  }
+
+  const firstSection = sectionOf(blocks[0], 0)
+  open(firstSection)
+  if (blocks.length === 0) return { breaks, sheets }
+
+  let current = firstSection
+  let pageHeight = flowOf(firstSection).height
+  const cut = (at: number, section: number): void => {
+    breaks.push(at)
+    open(section)
+    pageHeight = flowOf(section).height
+  }
+
   // `pageStart` é de onde a folha conta a altura; `floor`, o último corte.
   // Só diferem quando a folha abre com o cabeçalho repetido de uma tabela: a
   // conta começa acima do corte, pela altura do cabeçalho, mas nada pode voltar
@@ -95,9 +203,31 @@ export function paginate(blocks: readonly MeasuredBlock[], pageHeight: number): 
   // margens absurdas, fonte que não carregou — dava quinhentas folhas em um
   // documento de dez, e o que vinha depois desaparecia de vista. Perder conteúdo
   // de vista é pior do que desenhar folhas demais, e quem protege da altura
-  // inválida é a guarda de `pageHeight` logo acima.
+  // inválida é a guarda de `pageHeight` logo abaixo.
   while (index < blocks.length) {
     const block = blocks[index]!
+
+    // A seção nova que começa em folha nova corta antes do primeiro bloco
+    // dela. Com a folha ainda vazia — a seção anterior terminou numa quebra de
+    // página —, não há o que cortar: a folha passa a ser da seção nova.
+    const section = sectionOf(block, current)
+    if (section !== current) {
+      current = section
+      if (flowOf(section).newSheet) {
+        if (block.top > floor) {
+          cut(block.top, section)
+          pageStart = floor = block.top
+        } else {
+          retarget(section)
+          pageHeight = flowOf(section).height
+        }
+      }
+    }
+
+    if (pageHeight <= 0) {
+      index += 1
+      continue
+    }
 
     // A quebra pedida à mão vale mesmo com a página pela metade, e é por isso
     // que ela vem antes de qualquer conta de altura. O medidor anterior a
@@ -106,7 +236,7 @@ export function paginate(blocks: readonly MeasuredBlock[], pageHeight: number): 
     if (block.isPageBreak) {
       const after = block.top + block.height
       if (after > floor) {
-        breaks.push(after)
+        cut(after, current)
         pageStart = floor = after
       }
 
@@ -120,7 +250,7 @@ export function paginate(blocks: readonly MeasuredBlock[], pageHeight: number): 
       // A quebra que o parágrafo carrega vale depois dele — e não vale se não
       // houver mais nada, senão o documento fecha com uma folha em branco.
       if (block.breakAfter && index < blocks.length) {
-        breaks.push(bottom)
+        cut(bottom, current)
         pageStart = floor = bottom
       }
 
@@ -131,7 +261,7 @@ export function paginate(blocks: readonly MeasuredBlock[], pageHeight: number): 
       .filter((at) => at > floor && at - pageStart <= pageHeight)
       .at(-1)
     if (breakpoint !== undefined) {
-      breaks.push(breakpoint)
+      cut(breakpoint, current)
       floor = breakpoint
       // Cabeçalho maior que meia folha não se repete: repeti-lo deixaria a
       // folha sem lugar para a linha que ele apresenta.
@@ -143,6 +273,7 @@ export function paginate(blocks: readonly MeasuredBlock[], pageHeight: number): 
     // Nenhuma linha, item ou linha de tabela cabe: a quebra vai para **antes**
     // do bloco que estouraria.
     let breakAt = block.top
+    let opening = current
 
     // Um título sozinho no pé da página desce junto com o que ele apresenta.
     let candidate = index
@@ -150,8 +281,13 @@ export function paginate(blocks: readonly MeasuredBlock[], pageHeight: number): 
       const previous = blocks[candidate - 1]
       if (previous === undefined || !previous.keepWithNext) break
       if (previous.top <= floor) break
+      // Não atravessa a quebra de seção que abre folha: o título da seção de
+      // cima não desce para a folha da seção de baixo.
+      const previousSection = sectionOf(previous, current)
+      if (previousSection !== current && flowOf(current).newSheet) break
       candidate -= 1
       breakAt = previous.top
+      opening = previousSection
     }
 
     if (breakAt <= floor) {
@@ -160,16 +296,16 @@ export function paginate(blocks: readonly MeasuredBlock[], pageHeight: number): 
       // bloco continua abrindo uma folha nova, como antes.
       pageStart = floor = bottom
       index += 1
-      if (index < blocks.length) breaks.push(bottom)
+      if (index < blocks.length) cut(bottom, current)
       continue
     }
 
-    breaks.push(breakAt)
+    cut(breakAt, opening)
     pageStart = floor = breakAt
     // `index` não avança: o mesmo bloco é reavaliado na página nova.
   }
 
-  return breaks
+  return { breaks, sheets }
 }
 
 /** Os cortes internos que o bloco aceita, pelas regras de manter junto. */

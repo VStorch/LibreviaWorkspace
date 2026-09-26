@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { paginate, type MeasuredBlock } from './paginate.js'
+import { paginate, paginateSections, type MeasuredBlock, type SectionFlow } from './paginate.js'
 
 /**
  * Blocos empilhados de altura fixa, na ordem — o formato que o editor mede.
@@ -275,5 +275,74 @@ describe('cortes dentro de blocos', () => {
       const depois = { ...stack([100])[0]!, top: 1010 }
       expect(paginate([...stack([60]), captura, depois], 1000)).toEqual([1010])
     })
+  })
+})
+
+describe('paginação por seção (M9)', () => {
+  const flow = (height: number, options: Partial<SectionFlow> = {}): SectionFlow => ({
+    height,
+    newSheet: false,
+    parity: null,
+    restart: null,
+    ...options,
+  })
+  const inSections = (heights: readonly number[], sections: readonly number[]): MeasuredBlock[] =>
+    stack(heights).map((block, index) => ({ ...block, section: sections[index] ?? 0 }))
+
+  it('a seção de próxima página corta antes do primeiro bloco dela', () => {
+    const plan = paginateSections(inSections([100, 100, 100], [0, 1, 1]), [
+      flow(1000),
+      flow(1000, { newSheet: true }),
+    ])
+    expect(plan.breaks).toEqual([100])
+    expect(plan.sheets.map((sheet) => [sheet.section, sheet.number, sheet.first])).toEqual([
+      [0, 1, true],
+      [1, 2, true],
+    ])
+  })
+
+  it('a contínua continua na mesma folha, e a folha seguinte tem a altura da seção que a abre', () => {
+    // A primeira seção tem folha útil de 300; a contínua, de 500 (outras
+    // margens). A segunda folha abre na seção 1 e comporta os dois blocos de 250.
+    const plan = paginateSections(inSections([200, 50, 250, 250], [0, 1, 1, 1]), [flow(300), flow(500)])
+    expect(plan.breaks).toEqual([250])
+    expect(plan.sheets.map((sheet) => sheet.section)).toEqual([0, 1])
+  })
+
+  it('a seção ímpar que cairia em folha par ganha uma folha em branco antes', () => {
+    const plan = paginateSections(inSections([100, 100, 100], [0, 1, 2]), [
+      flow(1000),
+      flow(1000, { newSheet: true, restart: 1 }),
+      flow(1000, { newSheet: true, parity: 'odd' }),
+    ])
+    expect(plan.breaks).toEqual([100, 200])
+    expect(plan.sheets.map((sheet) => [sheet.section, sheet.number, sheet.blank])).toEqual([
+      [0, 1, false],
+      [1, 1, false],
+      [2, 2, true],
+      [2, 3, false],
+    ])
+  })
+
+  it('a seção par que já cai em folha par não ganha folha em branco', () => {
+    const plan = paginateSections(inSections([100, 100], [0, 1]), [
+      flow(1000),
+      flow(1000, { newSheet: true, parity: 'even' }),
+    ])
+    expect(plan.sheets.map((sheet) => sheet.blank)).toEqual([false, false])
+  })
+
+  it('com a folha ainda vazia, a seção nova toma a folha em vez de abrir outra', () => {
+    // A quebra de página manual antes da marca de seção deixa a folha nova
+    // vazia: o Word não desenha uma segunda folha em branco.
+    const blocks = inSections([100, 10, 100], [0, 0, 1]).map((block, index) =>
+      index === 1 ? { ...block, isPageBreak: true } : block,
+    )
+    const plan = paginateSections(blocks, [flow(1000), flow(1000, { newSheet: true, restart: 5 })])
+    expect(plan.breaks).toEqual([110])
+    expect(plan.sheets.map((sheet) => [sheet.section, sheet.number, sheet.first])).toEqual([
+      [0, 1, true],
+      [1, 5, true],
+    ])
   })
 })

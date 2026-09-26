@@ -1,5 +1,6 @@
 import { contentInsetsMm, pageDimensionsMm, type PageSetup } from './model.js'
 import {
+  NO_BANDS,
   bandForPage,
   pageLabel,
   pieceText,
@@ -42,6 +43,15 @@ export interface PrintPage {
   readonly html: string
   /** Os objetos ancorados que caem nesta folha. */
   readonly floats: readonly PrintFloat[]
+  /**
+   * A seção da folha (M9): papel, margens e faixas dela, com `pageNumberStart`
+   * no número da primeira folha da seção — ver `sheetSetups`.
+   */
+  readonly setup: PageSetup
+  /** A folha dentro da seção, a partir de 1: é o que decide a capa e o número. */
+  readonly inSection: number
+  /** A folha em branco que a seção par ou ímpar pediu. */
+  readonly blank?: boolean
 }
 
 /**
@@ -66,17 +76,31 @@ export interface PrintFloat {
  * A margem é zero **de propósito** — quem recua o texto é a caixa da página, e
  * pedir margem também ao `printToPDF` a contaria duas vezes.
  */
-export function buildPagedCss(page: PageSetup): string {
-  const { width, height } = pageDimensionsMm(page)
+export function buildPagedCss(pages: readonly Pick<PrintPage, 'setup'>[]): string {
+  // Um `@page` nomeado por papel: a folha em paisagem sai em paisagem no meio de
+  // um documento em retrato. O Chromium honra o nome com `preferCSSPageSize`.
+  const papers = new Map<string, { width: number; height: number }>()
+  for (const sheet of pages) {
+    const size = pageDimensionsMm(sheet.setup)
+    papers.set(paperName(size), size)
+  }
+  const first = pages[0] === undefined ? { width: 210, height: 297 } : pageDimensionsMm(pages[0].setup)
+  const named = [...papers]
+    .map(
+      ([name, size]) =>
+        `@page ${name} { size: ${size.width}mm ${size.height}mm; margin: 0; }\n` +
+        `.paper-page--${name} { page: ${name}; width: ${size.width}mm; height: ${size.height}mm; }`,
+    )
+    .join('\n')
 
   return `
-@page { size: ${width}mm ${height}mm; margin: 0; }
+@page { size: ${first.width}mm ${first.height}mm; margin: 0; }
 
 .paper-page {
   position: relative;
   box-sizing: border-box;
-  width: ${width}mm;
-  height: ${height}mm;
+  width: ${first.width}mm;
+  height: ${first.height}mm;
   /* Bloco mais alto que a folha transborda na tela; no papel não há para onde
      transbordar, e deixá-lo invadir a folha seguinte sobreporia texto a texto. */
   overflow: hidden;
@@ -131,6 +155,10 @@ export function buildPagedCss(page: PageSetup): string {
 }
 .paper-page__grid td { padding: 0 1.9mm; vertical-align: middle; overflow-wrap: break-word; }
 .paper-page__grid img { max-width: 100%; height: auto; }
+
+/* Por último, para vencer a medida padrão de .paper-page acima: cada folha com
+   o papel da sua seção. */
+${named}
 `
 }
 
@@ -144,16 +172,28 @@ export function buildPagedCss(page: PageSetup): string {
  */
 export interface PagedDocument {
   readonly pages: readonly PrintPage[]
-  readonly bands: BandHeights
+  /** Altura das faixas de cada seção, na ordem das seções (`useBandHeights`). */
+  readonly bands: readonly BandHeights[]
+  /** A seção de cada folha, para achar a altura das faixas dela. */
+  readonly sections?: readonly number[]
+}
+
+/** O nome do `@page` de um papel: as medidas, que é o que o distingue. */
+function paperName(size: { width: number; height: number }): string {
+  return `folha-${Math.round(size.width * 10)}x${Math.round(size.height * 10)}`
 }
 
 /** As folhas, uma caixa cada. */
-export function buildPagedBody(paged: PagedDocument, page: PageSetup): string {
+export function buildPagedBody(paged: PagedDocument): string {
   const total = paged.pages.length
-  const inset = bandInsetMm(page)
-  const insets = contentInsetsMm(page, paged.bands)
 
-  return paged.pages.map((sheet) => renderPage(sheet, page, total, inset, insets)).join('\n')
+  return paged.pages
+    .map((sheet, index) => {
+      const page = sheet.setup
+      const bands = paged.bands[paged.sections?.[index] ?? 0] ?? paged.bands[0] ?? NO_BANDS
+      return renderPage(sheet, page, total, bandInsetMm(page), contentInsetsMm(page, bands))
+    })
+    .join('\n')
 }
 
 function renderPage(
@@ -163,8 +203,8 @@ function renderPage(
   inset: number,
   insets: { top: number; bottom: number },
 ): string {
-  const header = bandForPage(page, sheet.number, 'header')
-  const footer = bandForPage(page, sheet.number, 'footer')
+  const header = bandForPage(page, sheet.inSection, 'header')
+  const footer = bandForPage(page, sheet.inSection, 'footer')
 
   const body =
     `<div class="page__content paper-page__body" style="padding:${insets.top}mm ${page.margins.right}mm ${insets.bottom}mm ${page.margins.left}mm">` +
@@ -179,14 +219,14 @@ function renderPage(
   const floats = sheet.floats
 
   return (
-    '<div class="paper-page">' +
+    `<div class="paper-page paper-page--${paperName(pageDimensionsMm(page))}">` +
     renderFloats(floats, page, true) +
     (hasBandContent(header)
-      ? renderBand(header, 'header', pageLabel(page, sheet.number), total, inset, page.headerDistanceMm)
+      ? renderBand(header, 'header', pageLabel(page, sheet.inSection), total, inset, page.headerDistanceMm)
       : '') +
     body +
     (hasBandContent(footer)
-      ? renderBand(footer, 'footer', pageLabel(page, sheet.number), total, inset, page.footerDistanceMm)
+      ? renderBand(footer, 'footer', pageLabel(page, sheet.inSection), total, inset, page.footerDistanceMm)
       : '') +
     renderFloats(floats, page, false) +
     '</div>'

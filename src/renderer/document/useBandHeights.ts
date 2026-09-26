@@ -3,49 +3,86 @@ import { pxToMm, type PageSetup } from '@services/document/model.js'
 import { type BandHeights } from '@services/document/band.js'
 
 /**
- * A altura desenhada do cabeçalho e do rodapé.
+ * A altura desenhada do cabeçalho e do rodapé, seção por seção.
  *
  * É a única parte da conta de margem que nenhum arquivo diz: um cabeçalho em
  * grade ocupa o que a fonte e a quebra derem, e isso só existe depois de
- * desenhar. Medido na primeira folha — as outras repetem a mesma faixa — e
- * arredondado a um décimo de milímetro, porque a medida do navegador oscila
- * sozinha e cada oscilação repaginaria o documento inteiro.
+ * desenhar. Medido na primeira folha de cada seção — as outras da mesma seção
+ * repetem a mesma faixa — e arredondado a um décimo de milímetro, porque a
+ * medida do navegador oscila sozinha e cada oscilação repaginaria o documento
+ * inteiro.
  *
- * Não há laço: a altura da faixa não depende de onde o texto caiu.
+ * Não há laço: a altura da faixa não depende de onde o texto caiu. A seção que
+ * ainda não tem folha desenhada fica com a altura da anterior até ter uma.
+ *
+ * @param sheets Que seção abre cada folha — muda quando uma seção ganha ou perde
+ * folhas, e aí há faixa nova para medir.
  */
-export function useBandHeights(page: PageSetup, revision: number): BandHeights {
-  const [bands, setBands] = useState<BandHeights>({ headerMm: 0, footerMm: 0 })
+export function useBandHeights(sections: readonly PageSetup[], revision: number, sheets = ''): BandHeights[] {
+  const [bands, setBands] = useState<BandHeights[]>([])
 
   useEffect(() => {
     const measure = (): void => {
-      const next = measureBands()
-      setBands((current) =>
-        current.headerMm === next.headerMm && current.footerMm === next.footerMm ? current : next,
-      )
+      const next = measureBands(sections.length)
+      setBands((current) => (sameBands(current, next) ? current : next))
     }
 
     measure()
 
-    const sheet = document.querySelector('.paper-bands')
-    if (sheet === null) return undefined
+    const layers = document.querySelectorAll('.paper-bands')
+    if (layers.length === 0) return undefined
 
     const observer = new ResizeObserver(measure)
-    observer.observe(sheet)
-    for (const band of sheet.querySelectorAll('.band')) observer.observe(band)
+    for (const layer of firstOfEachSection(layers)) {
+      observer.observe(layer)
+      for (const band of layer.querySelectorAll('.band')) observer.observe(band)
+    }
     return () => observer.disconnect()
-  }, [page, revision])
+  }, [sections, revision, sheets])
 
   return bands
 }
 
-function measureBands(): BandHeights {
-  const sheet = document.querySelector('.paper-bands')
+/** A primeira camada de faixas de cada seção. */
+function firstOfEachSection(layers: NodeListOf<Element>): Element[] {
+  const seen = new Set<string>()
+  const first: Element[] = []
+  for (const layer of layers) {
+    const section = layer.getAttribute('data-section') ?? '0'
+    if (seen.has(section)) continue
+    seen.add(section)
+    first.push(layer)
+  }
+  return first
+}
 
-  const heightOf = (kind: string): number => {
-    const band = sheet?.querySelector(`.band--${kind}`)
+function measureBands(count: number): BandHeights[] {
+  const layers = firstOfEachSection(document.querySelectorAll('.paper-bands'))
+  const bySection = new Map(layers.map((layer) => [Number(layer.getAttribute('data-section') ?? 0), layer]))
+
+  const heightOf = (layer: Element | undefined, kind: string): number => {
+    const band = layer?.querySelector(`.band--${kind}`)
     if (band === null || band === undefined) return 0
     return Math.round(pxToMm((band as HTMLElement).offsetHeight) * 10) / 10
   }
 
-  return { headerMm: heightOf('header'), footerMm: heightOf('footer') }
+  const result: BandHeights[] = []
+  for (let section = 0; section < Math.max(count, 1); section++) {
+    const layer = bySection.get(section)
+    result.push(
+      layer === undefined
+        ? (result.at(-1) ?? { headerMm: 0, footerMm: 0 })
+        : { headerMm: heightOf(layer, 'header'), footerMm: heightOf(layer, 'footer') },
+    )
+  }
+  return result
+}
+
+function sameBands(left: readonly BandHeights[], right: readonly BandHeights[]): boolean {
+  return (
+    left.length === right.length &&
+    left.every(
+      (band, index) => band.headerMm === right[index]!.headerMm && band.footerMm === right[index]!.footerMm,
+    )
+  )
 }

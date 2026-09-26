@@ -4,7 +4,8 @@ import { pxToMm, type PageSetup } from '@services/document/model.js'
 import { bandFloatsOf, floatsOf, type FloatingObject } from '@services/document/floating.js'
 import type { PrintFloat, PrintPage } from '@services/document/print-pages.js'
 import { drawListsForPrint } from './extensions/list-numbering.js'
-import { isInternalStart, type PageLayout, type PageStart } from './usePagination.js'
+import { sheetSetups } from '@services/document/sections.js'
+import { drawnSheet, isInternalStart, type PageLayout, type PageStart } from './usePagination.js'
 
 /**
  * O documento recortado nas folhas que a tela mostra.
@@ -19,7 +20,11 @@ import { isInternalStart, type PageLayout, type PageStart } from './usePaginatio
  *
  * Serializando o nó, o recorte cai sempre onde o paginador o pôs.
  */
-export function splitIntoPages(editor: Editor, layout: PageLayout, page: PageSetup): PrintPage[] {
+export function splitIntoPages(
+  editor: Editor,
+  layout: PageLayout,
+  sections: readonly PageSetup[],
+): PrintPage[] {
   const serializer = DOMSerializer.fromSchema(editor.schema)
 
   // Com a numeração das listas gravada nos nós: o serializador não vê as
@@ -32,10 +37,33 @@ export function splitIntoPages(editor: Editor, layout: PageLayout, page: PageSet
 
   const cuts: PageStart[] = [{ blockIndex: 0 }, ...layout.pageStarts, { blockIndex: blocks.length }]
   const pages: PrintPage[] = []
+  // A configuração de cada folha desenhada: papel, faixas e número da seção dela.
+  const setups = sheetSetups(sections, layout.sheets)
+  const setupOf = (drawn: number): { setup: PageSetup; inSection: number } => {
+    const found = setups[drawn]
+    return found === undefined
+      ? { setup: sections.at(-1)!, inSection: drawn + 1 }
+      : { setup: found.page, inSection: found.inSection }
+  }
 
   for (let cut = 0; cut < cuts.length - 1; cut++) {
     const start = cuts[cut]!
     const end = cuts[cut + 1]!
+
+    // As folhas em branco que a seção par ou ímpar pediu antes desta: só a
+    // faixa, como no Word.
+    const drawn = drawnSheet(layout, cut)
+    while (pages.length < drawn) {
+      const blank = setupOf(pages.length)
+      pages.push({
+        number: pages.length + 1,
+        html: '',
+        floats: bandFloats(blank.setup, blank.inSection, editor),
+        ...blank,
+        blank: true,
+      })
+    }
+    const sheet = setupOf(pages.length)
 
     const holder = document.createElement('div')
     const fragments = slicePageBlocks(blocks, start, end)
@@ -68,8 +96,9 @@ export function splitIntoPages(editor: Editor, layout: PageLayout, page: PageSet
           end.blockIndex + (isInternalStart(end) ? 1 : 0),
           editor,
         ),
-        ...bandFloats(page, pages.length + 1, editor),
+        ...bandFloats(sheet.setup, sheet.inSection, editor),
       ],
+      ...sheet,
     })
   }
 

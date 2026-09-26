@@ -24,7 +24,7 @@ import type { MessageKey } from '@shared/i18n/index.js'
 import { bookmarksOf } from './extensions/bookmark.js'
 import { DEFAULT_TOC_INSTRUCTION } from './extensions/table-of-contents.js'
 import { outlineBlocksOf } from './outline-blocks.js'
-import type { PageLayout, PageStart } from './usePagination.js'
+import { drawnSheet, type PageLayout, type PageStart } from './usePagination.js'
 
 /**
  * O que as referências precisam saber além do documento: em que folha cada coisa
@@ -37,6 +37,11 @@ import type { PageLayout, PageStart } from './usePagination.js'
 export interface ReferenceContext {
   readonly layout: PageLayout
   readonly page: PageSetup
+  /**
+   * Todas as seções, com as faixas herdadas (`effectiveSections`): o número da
+   * folha sai no formato da seção dela (M9). Ausente, vale `page`.
+   */
+  readonly sections?: readonly PageSetup[]
   readonly styles: StyleSheet
   readonly setStyles: (styles: StyleSheet) => void
   readonly t: (key: MessageKey) => string
@@ -71,6 +76,17 @@ function positionOfStart(doc: ProseMirrorNode, start: PageStart): number | null 
 }
 
 /** A folha (de 1 em diante) em que a posição cai, pelos cortes da paginação. */
+/**
+ * O número da folha de conteúdo `sheet` (a partir de 1) como o campo `PAGE` o
+ * escreve: com o reinício e o formato da seção em que ela cai.
+ */
+export function sheetLabel(context: ReferenceContext, sheet: number): string {
+  const plan = context.layout.sheets[drawnSheet(context.layout, sheet - 1)]
+  if (plan === undefined) return pageLabel(context.page, sheet)
+  const section = context.sections?.[plan.section] ?? context.page
+  return pageLabel({ ...section, pageNumberStart: plan.number }, 1)
+}
+
 export function sheetAt(doc: ProseMirrorNode, starts: readonly PageStart[], pos: number): number {
   let sheet = 1
   for (const start of starts) {
@@ -191,12 +207,12 @@ export function updateFieldsIn(
           result = outside.has(name) ? null : missing
           break
         }
-        result = pageLabel(context.page, sheetAt(doc, context.layout.pageStarts, target.pos))
+        result = sheetLabel(context, sheetAt(doc, context.layout.pageStarts, target.pos))
         pageDependent = true
         break
       }
       case 'PAGE':
-        result = pageLabel(context.page, sheetAt(doc, context.layout.pageStarts, field.pos))
+        result = sheetLabel(context, sheetAt(doc, context.layout.pageStarts, field.pos))
         pageDependent = true
         break
       case 'NUMPAGES':
@@ -368,7 +384,7 @@ function buildEntries(
     // A folha é lida na paginação que a tela tem agora, e por isso no documento
     // de antes dos marcadores novos, que é o que ela mediu. O segundo passe (ver
     // `settlePageFields`) a corrige depois de o sumário ocupar o lugar dele.
-    const page = pageLabel(context.page, sheetAt(tr.before, context.layout.pageStarts, heading.pos))
+    const page = sheetLabel(context, sheetAt(tr.before, context.layout.pageStarts, heading.pos))
     return {
       type: 'paragraph',
       attrs: { styleId: ensured.id },

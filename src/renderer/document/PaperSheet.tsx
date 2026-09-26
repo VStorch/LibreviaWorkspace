@@ -17,6 +17,8 @@ export function PaperSheet({
   pageNumber,
   totalPages,
   topPx,
+  leftPx = 0,
+  section = 0,
   floats,
   schema,
   onEditFloat,
@@ -29,6 +31,10 @@ export function PaperSheet({
   totalPages: number
   /** Onde a folha começa na pilha desenhada. */
   topPx: number
+  /** Onde a folha começa na horizontal: a pilha tem a largura da folha mais larga. */
+  leftPx?: number
+  /** A seção da folha — é por ela que a altura das faixas é medida (`useBandHeights`). */
+  section?: number
   /** Os objetos ancorados em blocos que caíram nesta folha. */
   floats: readonly PlacedFloat[]
   schema: Schema
@@ -37,12 +43,22 @@ export function PaperSheet({
   onEditBandPiece?: ((pid: string, text: string) => void) | undefined
   onEditBandBox?: ((bid: string, content: DocumentNode[]) => void) | undefined
 }): React.JSX.Element {
-  const { height } = pageDimensionsMm(page)
+  const { width, height } = pageDimensionsMm(page)
   const bandFloats = bandFloatsOf(page, pageNumber)
   const editFloat = onEditFloat === undefined ? {} : { onEdit: onEditFloat }
 
   return (
-    <div className="paper-bands" style={{ top: `${topPx}px`, height: `${mmToPx(height)}px` }}>
+    <div
+      className="paper-bands"
+      data-section={section}
+      style={{
+        top: `${topPx}px`,
+        height: `${mmToPx(height)}px`,
+        left: `${leftPx}px`,
+        width: `${mmToPx(width)}px`,
+        right: 'auto',
+      }}
+    >
       <FloatingLayer objects={floats} page={page} schema={schema} behind {...editFloat} />
 
       {(['header', 'footer'] as const).map((kind) => {

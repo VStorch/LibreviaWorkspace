@@ -53,14 +53,16 @@ export function createPrintActions(
     const source = ctx.source()
     if (source === null) return null
 
-    // A última seção com as faixas que herda: a folha da tela é desenhada com ela.
-    const page = effectiveSections(state.page, state.sections).at(-1)!
+    // Cada folha leva o papel da sua seção; o pedido leva o da primeira, que é
+    // o que a impressora nativa oferece como padrão.
+    const paged = source.readPages()
+    const page = paged.pages[0]?.setup ?? effectiveSections(state.page, state.sections)[0]!
 
     return {
       html: buildPrintHtml(
-        buildPagedBody(source.readPages(), page),
+        buildPagedBody(paged),
         name,
-        styleSheetCss(state.styles) + buildPagedCss(page),
+        styleSheetCss(state.styles) + buildPagedCss(paged.pages),
         false,
       ),
       page,
