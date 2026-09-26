@@ -3,6 +3,7 @@ import { Fragment, Slice, type Node as ProseMirrorNode } from '@tiptap/pm/model'
 import { Plugin, PluginKey, TextSelection, type Transaction } from '@tiptap/pm/state'
 import type { EditorView } from '@tiptap/pm/view'
 import { hiddenBookmarkName, nextBookmarkId } from '@services/document/bookmarks.js'
+import { fieldArgument, fieldKind, fieldSwitch } from '@services/document/fields.js'
 
 /**
  * Marcadores (bookmarks): as duas pontas como nós sem largura.
@@ -280,6 +281,20 @@ export const Bookmarks = Extension.create({
             if (typeof href !== 'string' || !href.startsWith('#')) return false
             event.preventDefault()
             return goToBookmark(view, href.slice(1))
+          },
+
+          /**
+           * A referência cruzada com `\h` leva ao que cita, pelo mesmo gesto do
+           * link: é o que a chave quer dizer no Word.
+           */
+          handleClickOn(view, _pos, node, _nodePos, event) {
+            if (node.type.name !== 'field') return false
+            if (!event.ctrlKey && !event.metaKey && view.editable) return false
+            const instr = String(node.attrs['instr'] ?? '')
+            if (!['REF', 'PAGEREF'].includes(fieldKind(instr)) || fieldSwitch(instr, 'h') === null)
+              return false
+            const target = fieldArgument(instr)
+            return target !== null && goToBookmark(view, target)
           },
 
           // Ver `withoutRepeatedBookmarks`.

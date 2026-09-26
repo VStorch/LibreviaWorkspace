@@ -35,6 +35,8 @@ export const EditorCommand = {
   InsertTableOfContents: 'insert-table-of-contents',
   UpdateTableOfContents: 'update-table-of-contents',
   UpdateFields: 'update-fields',
+  InsertCaption: 'insert-caption',
+  InsertCrossReference: 'insert-cross-reference',
   ...TableAction,
 } as const satisfies Record<string, MenuCommand>
 

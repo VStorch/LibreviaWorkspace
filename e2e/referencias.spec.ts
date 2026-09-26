@@ -357,3 +357,76 @@ test.describe('sumário', () => {
     expect(normal(depois)).toBe(normal(antes))
   })
 })
+
+test.describe('legendas e referências cruzadas', () => {
+  let session: Session
+  let folder: string
+
+  test.beforeEach(async () => {
+    folder = await mkdtemp(join(tmpdir(), 'librevia-legendas-'))
+    session = await launch()
+  })
+
+  test.afterEach(async () => {
+    await session.close()
+    await rm(folder, { recursive: true, force: true })
+  })
+
+  test('legenda nova, F9 renumera, e a referência cruzada cita o número e o título', async () => {
+    const origem = join(folder, 'legendas.docx')
+    const destino = join(folder, 'legendas-saida.docx')
+    await writeFile(origem, await docxWithReferences())
+    await stubDialogs(session.app, { open: origem, save: destino, messageBox: 1 })
+    await menu(session, 'open')
+    const editor = session.window.locator('.ProseMirror')
+    await expect(editor).toContainText('Como mostra a Figura 1')
+
+    // Uma legenda nova logo abaixo de "Escopo", antes da Figura 1 do arquivo.
+    await setPreference(session, { navigationPane: true })
+    await session.window
+      .getByRole('navigation', { name: 'Navegação' })
+      .getByRole('button', { name: /Escopo/ })
+      .click()
+    await menu(session, 'insert-caption')
+    const legenda = session.window.getByRole('dialog', { name: 'Legenda' })
+    await legenda.getByLabel('Rótulo').selectOption('Figura')
+    await legenda.getByLabel('Texto depois do número').fill('— Fluxo')
+    await legenda.getByRole('button', { name: 'Inserir' }).click()
+    await expect(editor.locator('p', { hasText: 'Fluxo' })).toHaveText('Figura 1 — Fluxo')
+
+    // F9 com o cursor parado: o documento inteiro. A legenda do arquivo vira 2,
+    // e a referência a ela acompanha.
+    await menu(session, 'update-fields')
+    await expect(editor.locator('p', { hasText: 'Arquitetura' })).toHaveText('Figura 2 — Arquitetura')
+    await expect(editor).toContainText('Como mostra a Figura 2, na página 1')
+
+    // Referências cruzadas no fim do último parágrafo: o número da figura do
+    // arquivo e o texto de um título.
+    await editor.locator('p', { hasText: 'Veja o' }).click()
+    await session.window.keyboard.press('End')
+    await session.window.waitForTimeout(100)
+    await menu(session, 'insert-cross-reference')
+    const ref = session.window.getByRole('dialog', { name: 'Referência cruzada' })
+    await ref.getByLabel('Tipo').selectOption('caption:Figura')
+    await ref.getByLabel('Para qual').selectOption({ label: 'Figura 2 — Arquitetura' })
+    await ref.getByLabel('Inserir referência a').selectOption('number')
+    await ref.getByRole('button', { name: 'Inserir' }).click()
+
+    await menu(session, 'insert-cross-reference')
+    await ref.getByLabel('Tipo').selectOption('heading')
+    await ref.getByLabel('Para qual').selectOption({ label: 'Introdução' })
+    await ref.getByRole('button', { name: 'Inserir' }).click()
+    await expect(editor.locator('p', { hasText: 'Veja o' })).toHaveText(
+      'Como mostra a Figura 2, na página 1. Veja o resumo.2Introdução',
+    )
+
+    await menu(session, 'save-as')
+    await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
+    const corpo = await entryOf(destino, 'word/document.xml')
+    expect(corpo.match(/SEQ Figura/g)).toHaveLength(2)
+    expect(corpo).toMatch(/REF _Ref\d+ \\h/)
+    expect(corpo).toMatch(/REF _Ref200 \\h/)
+    // O número novo da figura do arquivo foi para o resultado do campo.
+    expect(corpo).toMatch(/<w:t[^>]*>Figura 2<\/w:t>/)
+  })
+})

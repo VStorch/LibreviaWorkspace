@@ -54,6 +54,8 @@ export const MENU = {
   'menu.references.tableOfContents': { pt: 'Inserir sumário', en: 'Insert table of contents' },
   'menu.references.updateTableOfContents': { pt: 'Atualizar sumário', en: 'Update table of contents' },
   'menu.references.updateFields': { pt: 'Atualizar campos', en: 'Update fields' },
+  'menu.references.caption': { pt: 'Inserir legenda…', en: 'Insert caption…' },
+  'menu.references.crossReference': { pt: 'Referência cruzada…', en: 'Cross-reference…' },
 
   'menu.view.formattingMarks': { pt: 'Marcas de formatação', en: 'Formatting marks' },
   'menu.view.navigationPane': { pt: 'Painel de navegação', en: 'Navigation pane' },

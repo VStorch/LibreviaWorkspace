@@ -14,7 +14,11 @@ import {
 } from '@services/document/fields.js'
 import type { PageSetup } from '@services/document/model.js'
 import { outlineOf } from '@services/document/outline.js'
-import { ensureTocHeadingStyle, ensureTocStyle } from '@services/document/reference-styles.js'
+import {
+  ensureCaptionStyle,
+  ensureTocHeadingStyle,
+  ensureTocStyle,
+} from '@services/document/reference-styles.js'
 import type { StyleSheet } from '@services/document/styles.js'
 import type { MessageKey } from '@shared/i18n/index.js'
 import { bookmarksOf } from './extensions/bookmark.js'
@@ -440,5 +444,229 @@ export function updateTableOfContents(editor: Editor, context: ReferenceContext)
   if (sheet !== context.styles) context.setStyles(sheet)
   editor.view.dispatch(tr)
   pendingPagePass.set(editor, 'toc')
+  return true
+}
+
+// --- legendas ----------------------------------------------------------------
+
+/** Os campos `SEQ` de um bloco de texto, com a posição de cada um. */
+function sequencesIn(block: ProseMirrorNode, pos: number): Array<{ pos: number; label: string }> {
+  const found: Array<{ pos: number; label: string }> = []
+  block.forEach((child, offset) => {
+    if (child.type.name !== 'field') return
+    const instr = String(child.attrs['instr'] ?? '')
+    if (fieldKind(instr) === 'SEQ') found.push({ pos: pos + 1 + offset, label: fieldArgument(instr) ?? '' })
+  })
+  return found
+}
+
+/**
+ * Os rótulos de legenda: os que o documento já usa em algum `SEQ`, e os do Word
+ * (Figura, Tabela, Equação) no idioma da interface.
+ */
+export function captionLabels(doc: ProseMirrorNode, defaults: readonly string[]): string[] {
+  const labels = new Set(defaults)
+  doc.descendants((node, pos) => {
+    if (!node.isTextblock) return true
+    for (const sequence of sequencesIn(node, pos)) if (sequence.label !== '') labels.add(sequence.label)
+    return false
+  })
+  return [...labels]
+}
+
+export interface CaptionRequest {
+  readonly label: string
+  /** O que vem depois do número: "— Arquitetura do sistema". Pode ser vazio. */
+  readonly text: string
+  /** Acima do bloco do cursor (o costume das tabelas) ou abaixo (o das figuras). */
+  readonly above: boolean
+}
+
+/**
+ * Insere uma legenda — "Figura 1 — texto" — num parágrafo novo, acima ou abaixo
+ * do bloco do cursor, no estilo `caption`.
+ *
+ * O número é um `SEQ` do rótulo, como no Word, e sai já contado: as legendas
+ * de antes dela dão o número. As de depois não mudam sozinhas; "Atualizar
+ * campos" as renumera, também como no Word.
+ */
+export function insertCaption(editor: Editor, context: ReferenceContext, request: CaptionRequest): void {
+  flushSelection(editor)
+  const { state } = editor
+  const ensured = ensureCaptionStyle(context.styles)
+  const label = request.label.trim()
+  if (label === '') return
+
+  const $from = state.selection.$from
+  const top = $from.depth === 0 ? $from.pos : $from.before(1)
+  const block = state.doc.nodeAt(top)
+  const at = request.above || block === null ? top : top + block.nodeSize
+
+  const text = request.text.trim()
+  const paragraph = state.schema.nodeFromJSON({
+    type: 'paragraph',
+    attrs: { styleId: ensured.id },
+    content: [
+      { type: 'text', text: `${label} ` },
+      { type: 'field', attrs: { instr: ` SEQ ${label} \\* ARABIC `, result: '1' } },
+      ...(text === '' ? [] : [{ type: 'text', text: ` ${text}` }]),
+    ],
+  })
+
+  const tr = state.tr.insert(at, paragraph)
+  if (ensured.sheet !== context.styles) context.setStyles(ensured.sheet)
+  editor.view.dispatch(tr.scrollIntoView())
+
+  // O número certo pela contagem do documento — só o campo novo muda.
+  const fieldPos = at + 1 + label.length + 1
+  updateFieldsIn(editor, context, fieldPos, fieldPos + 1, new Set(['SEQ']))
+}
+
+// --- referências cruzadas -----------------------------------------------------
+
+/** A que a referência aponta: um título, um marcador, ou a legenda de um rótulo. */
+export type CrossReferenceKind =
+  | { readonly type: 'heading' }
+  | { readonly type: 'bookmark' }
+  | { readonly type: 'caption'; readonly label: string }
+
+export interface CrossReferenceTarget {
+  /** Posição do bloco (título, legenda) ou nome do marcador. */
+  readonly key: string
+  readonly text: string
+}
+
+/** Os destinos possíveis do tipo escolhido, na ordem do documento. */
+export function crossReferenceTargets(
+  doc: ProseMirrorNode,
+  sheet: StyleSheet,
+  kind: CrossReferenceKind,
+): CrossReferenceTarget[] {
+  if (kind.type === 'heading') {
+    return outlineOf(outlineBlocksOf(doc), sheet).map((entry) => ({
+      key: String(entry.pos),
+      text: `${' '.repeat(entry.level - 1)}${entry.text}`,
+    }))
+  }
+
+  if (kind.type === 'bookmark') {
+    return bookmarksOf(doc)
+      .filter((bookmark) => !bookmark.name.startsWith('_'))
+      .map((bookmark) => ({ key: bookmark.name, text: bookmark.name }))
+  }
+
+  const wanted = kind.label.toLowerCase()
+  const captions: CrossReferenceTarget[] = []
+  doc.descendants((node, pos) => {
+    if (!node.isTextblock) return true
+    if (sequencesIn(node, pos).some((sequence) => sequence.label.toLowerCase() === wanted)) {
+      captions.push({ key: String(pos), text: textBetween(doc, pos + 1, pos + node.nodeSize - 1).trim() })
+    }
+    return false
+  })
+  return captions
+}
+
+/** O que a referência mostra: o texto do destino, o número da legenda, ou a página. */
+export type CrossReferenceShow = 'text' | 'number' | 'page'
+
+export interface CrossReferenceRequest {
+  readonly kind: CrossReferenceKind
+  readonly key: string
+  readonly show: CrossReferenceShow
+  /** `\h`: com Ctrl+clique, a referência leva ao destino. */
+  readonly link: boolean
+}
+
+/**
+ * O marcador oculto que cobre o trecho `[from, to)` — o que já existe, ou um
+ * `_Ref` novo — e devolve o nome.
+ *
+ * O que já existe vale quando termina logo depois do trecho e começa no trecho ou
+ * até `slack` posições antes dele: o marcador da legenda que o Word grava começa
+ * antes do "Figura", e outros marcadores podem estar colados no começo.
+ */
+function rangeBookmark(tr: Transaction, from: number, to: number, slack: number): string {
+  const existing = bookmarksOf(tr.doc).find(
+    (bookmark) =>
+      bookmark.name.startsWith('_Ref') &&
+      bookmark.end === to &&
+      bookmark.pos < from &&
+      bookmark.pos >= from - 1 - slack,
+  )
+  if (existing !== undefined) return existing.name
+
+  const ids: string[] = []
+  tr.doc.descendants((node) => {
+    if (node.type.name === 'bookmarkStart' || node.type.name === 'bookmarkEnd')
+      ids.push(String(node.attrs['bid']))
+    return true
+  })
+  const name = hiddenBookmarkName(
+    '_Ref',
+    bookmarksOf(tr.doc).map((bookmark) => bookmark.name),
+  )
+  const bid = nextBookmarkId(ids)
+  const schema = tr.doc.type.schema
+  tr.insert(to, schema.nodes['bookmarkEnd']!.create({ bid }))
+  tr.insert(from, schema.nodes['bookmarkStart']!.create({ name, bid }))
+  return name
+}
+
+/**
+ * Insere uma referência cruzada no cursor: um `REF` (o texto ou o número) ou um
+ * `PAGEREF` (a página) para o marcador do destino — que o título e a legenda
+ * ganham na hora, oculto, como no Word.
+ *
+ * Da legenda, "texto" é o rótulo e o número ("Figura 1"), e "número" só o número:
+ * são dois marcadores, um em volta de cada trecho.
+ */
+export function insertCrossReference(
+  editor: Editor,
+  context: ReferenceContext,
+  request: CrossReferenceRequest,
+): boolean {
+  flushSelection(editor)
+  const { state } = editor
+  const tr = state.tr
+  let name: string | null
+
+  if (request.kind.type === 'bookmark') {
+    name = request.key
+  } else if (request.kind.type === 'heading') {
+    name = ensureBookmarks(tr, [Number(request.key)], '_Ref')[0] ?? null
+  } else {
+    const pos = Number(request.key)
+    const block = tr.doc.nodeAt(pos)
+    const wanted = request.kind.label.toLowerCase()
+    const sequence =
+      block === null ? undefined : sequencesIn(block, pos).find((item) => item.label.toLowerCase() === wanted)
+    if (sequence === undefined) return false
+    // O começo do texto da legenda: depois dos marcadores que abrem o parágrafo.
+    let first = pos + 1
+    for (let index = 0; block !== null && index < block.childCount; index++) {
+      const child = block.child(index)
+      if (child.type.name !== 'bookmarkStart' && child.type.name !== 'bookmarkEnd') break
+      first += child.nodeSize
+    }
+    name =
+      request.show === 'number'
+        ? rangeBookmark(tr, sequence.pos, sequence.pos + 1, 0)
+        : rangeBookmark(tr, first, sequence.pos + 1, first - pos - 1)
+  }
+  if (name === null) return false
+
+  const switches = request.link ? ' \\h' : ''
+  const instr = request.show === 'page' ? ` PAGEREF ${name}${switches} ` : ` REF ${name}${switches} `
+  const at = tr.mapping.map(state.selection.from)
+  tr.replaceWith(
+    at,
+    tr.mapping.map(state.selection.to),
+    state.schema.nodes['field']!.create({ instr, result: '' }),
+  )
+  editor.view.dispatch(tr.scrollIntoView())
+
+  // O resultado sai do cálculo, e não de uma cópia: é o mesmo caminho do F9.
+  updateFieldsIn(editor, context, at, at + 1)
   return true
 }

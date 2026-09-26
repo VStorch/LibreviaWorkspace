@@ -25,6 +25,8 @@ export interface EditorDialogs {
   readonly listFormat: boolean
   readonly listStart: boolean
   readonly bookmark: boolean
+  readonly caption: boolean
+  readonly crossReference: boolean
 }
 
 const CLOSED: EditorDialogs = {
@@ -40,6 +42,8 @@ const CLOSED: EditorDialogs = {
   listFormat: false,
   listStart: false,
   bookmark: false,
+  caption: false,
+  crossReference: false,
 }
 
 export interface EditorCommands {
@@ -106,6 +110,10 @@ export function useEditorCommands(
         case EditorCommand.UpdateTableOfContents:
           if (editor !== null) updateTableOfContents(editor, referenceContext())
           return
+        case EditorCommand.InsertCaption:
+          return setDialog('caption', true)
+        case EditorCommand.InsertCrossReference:
+          return setDialog('crossReference', true)
         case EditorCommand.UpdateFields:
           if (editor !== null) updateFields(editor, referenceContext())
           return

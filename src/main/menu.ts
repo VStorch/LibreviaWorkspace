@@ -345,6 +345,15 @@ async function buildTemplate(): Promise<MenuItemConstructorOptions[]> {
         },
         { type: 'separator' },
         {
+          label: t('menu.references.caption'),
+          click: () => dispatch(MenuCommand.InsertCaption),
+        },
+        {
+          label: t('menu.references.crossReference'),
+          click: () => dispatch(MenuCommand.InsertCrossReference),
+        },
+        { type: 'separator' },
+        {
           label: t('menu.references.updateFields'),
           accelerator: acceleratorOf(SHORTCUTS.updateFields),
           click: () => dispatch(MenuCommand.UpdateFields),

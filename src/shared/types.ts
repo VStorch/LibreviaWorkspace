@@ -112,6 +112,10 @@ export const MenuCommand = {
   UpdateTableOfContents: 'update-table-of-contents',
   /** F9: recalcula os campos da seleção, ou do documento inteiro. */
   UpdateFields: 'update-fields',
+  /** Legenda com número (`SEQ`): Figura 1, Tabela 1… */
+  InsertCaption: 'insert-caption',
+  /** Referência cruzada a título, marcador ou legenda (`REF`/`PAGEREF`). */
+  InsertCrossReference: 'insert-cross-reference',
   // O menu "Tabela". Os valores são os mesmos de `TableAction` (ver
   // `table-actions.ts`), e é por eles que o `App` os repassa ao editor.
   TableInsert: 'table-insert',
