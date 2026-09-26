@@ -85,6 +85,30 @@ export interface PageSetup {
    */
   readonly titlePage?: boolean | null | undefined
   readonly evenAndOddHeaders?: boolean | null | undefined
+  /**
+   * Como a seção começa (`w:sectPr/w:type`). Ausente (rascunho de antes das
+   * seções) vale "próxima página" na tela e "não mexa" na gravação.
+   */
+  readonly start?: SectionStart | undefined
+}
+
+/** Os começos de seção do OOXML — os de `w:type/@w:val`. */
+export const SECTION_STARTS = ['nextPage', 'continuous', 'evenPage', 'oddPage', 'nextColumn'] as const
+export type SectionStart = (typeof SECTION_STARTS)[number]
+
+/**
+ * Uma seção antes da última (M9).
+ *
+ * O `id` é o elo com o texto: o parágrafo que **encerra** a seção leva o mesmo
+ * valor no atributo `sectionBreak`, como no OOXML o `w:sectPr` mora no parágrafo
+ * que fecha a seção. A última seção é `DocumentModel.page` — a do corpo, que não
+ * tem parágrafo.
+ *
+ * Cada seção traz só as faixas que **declara**; nula, da segunda em diante, é
+ * "vincular ao anterior" — ver `effectiveSections`.
+ */
+export interface SectionSetup extends PageSetup {
+  readonly id: string
 }
 
 /** Os formatos de número de página que o painel oferece — os de `w:pgNumType/@w:fmt`. */
@@ -114,7 +138,14 @@ export interface DocumentNode {
 }
 
 export interface DocumentModel {
+  /** A última seção — a do corpo, e a única do documento de uma seção só. */
   readonly page: PageSetup
+  /**
+   * As seções antes da última, em ordem (M9). Ausente é documento de uma seção.
+   * Fora dos nós pelo mesmo motivo dos estilos: mudar o papel de uma seção não
+   * pode fazer o parágrafo da marca parecer editado.
+   */
+  readonly sections?: readonly SectionSetup[]
   readonly doc: DocumentNode
   /**
    * Os estilos do documento — **fora dos nós**, e é isso que os torna seguros.
@@ -145,6 +176,11 @@ export interface DocumentModel {
    * leitura do original feita como era então. Ausente é falso.
    */
   readonly beforeReferences?: boolean
+  /**
+   * O rascunho é de antes das **seções** (formato `.sdoc` < 6): os parágrafos
+   * que encerram seção não trazem `sectionBreak`. Mesmo motivo de `flattened`.
+   */
+  readonly beforeSections?: boolean
   /**
    * Os marcadores do arquivo que não viraram nó — entre linhas de tabela, soltos
    * entre blocos, no cabeçalho ou numa caixa de texto. Existem, e continuam no

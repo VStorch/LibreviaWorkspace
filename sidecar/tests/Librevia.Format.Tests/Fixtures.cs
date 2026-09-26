@@ -685,6 +685,47 @@ public static class Fixtures
     });
 
     /// <summary>
+    /// Três seções: a primeira declara cabeçalho e numeração em romanos; a do
+    /// meio, contínua, herda o cabeçalho; a última (do corpo) começa em página
+    /// ímpar, em paisagem, e reinicia a numeração em 1.
+    /// </summary>
+    public static byte[] WithThreeSections() => Build((body, part) =>
+    {
+        var header = part.AddNewPart<HeaderPart>();
+        header.Header = new Header(new Paragraph(new Run(new Text("Cabeçalho da primeira"))));
+        var headerId = part.GetIdOfPart(header);
+
+        body.AppendChild(Paragraph("Primeira seção."));
+        var first = new Paragraph();
+        first.ParagraphProperties = new ParagraphProperties(
+            new SectionProperties(
+                new HeaderReference { Type = HeaderFooterValues.Default, Id = headerId },
+                new PageSize { Width = 11906U, Height = 16838U },
+                new PageMargin { Top = 1440, Bottom = 1440, Left = 1440U, Right = 1440U },
+                new PageNumberType { Format = NumberFormatValues.LowerRoman }));
+        body.AppendChild(first);
+
+        var second = Paragraph("Segunda seção, que termina aqui.");
+        second.ParagraphProperties = new ParagraphProperties(
+            new SectionProperties(
+                new SectionType { Val = SectionMarkValues.Continuous },
+                new PageSize { Width = 11906U, Height = 16838U },
+                new PageMargin { Top = 1440, Bottom = 1440, Left = 1440U, Right = 1440U }));
+        body.AppendChild(second);
+
+        body.AppendChild(Paragraph("Terceira seção."));
+    },
+    (section, _) =>
+    {
+        section.PrependChild(new SectionType { Val = SectionMarkValues.OddPage });
+        var size = section.GetFirstChild<PageSize>()!;
+        size.Width = 16838U;
+        size.Height = 11906U;
+        size.Orient = PageOrientationValues.Landscape;
+        section.AppendChild(new PageNumberType { Start = 1 });
+    });
+
+    /// <summary>
     /// Documento cuja formatação mora nos **estilos**, como o corpus real.
     /// </summary>
     /// <remarks>

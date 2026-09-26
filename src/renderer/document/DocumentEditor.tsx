@@ -13,8 +13,10 @@ import {
   pageDimensionsMm,
   pxToMm,
   type DocumentNode,
+  type PageSetup,
 } from '@services/document/model.js'
 import { editBandFloat, editBandPiece } from '@services/document/band.js'
+import { effectiveSections } from '@services/document/sections.js'
 import { floatsOf } from '@services/document/floating.js'
 import { currentPreferences, usePreferences } from '../state/preferences.js'
 import { useLeaveReadingOnEscape, useReadingMode } from '../state/reading.js'
@@ -63,13 +65,18 @@ import type { SearchStatus } from './extensions/search-replace.js'
  */
 export function DocumentEditor(): React.JSX.Element {
   const initialDoc = useWorkspace((state) => state.initialDoc)
-  const page = useWorkspace((state) => state.page)
+  const declaredPage = useWorkspace((state) => state.page)
+  const sections = useWorkspace((state) => state.sections)
+  // A última seção com as faixas que ela herda das anteriores: é a que a folha
+  // desenha enquanto a paginação não distingue as seções.
+  const page = useMemo(() => effectiveSections(declaredPage, sections).at(-1)!, [declaredPage, sections])
   const markDirty = useWorkspace((state) => state.markDirty)
   const setStats = useWorkspace((state) => state.setStats)
   const registerDocumentSource = useWorkspace((state) => state.registerDocumentSource)
   const setEstimatedPages = useWorkspace((state) => state.setEstimatedPages)
   const readOnly = useWorkspace((state) => state.readOnly)
   const setPage = useWorkspace((state) => state.setPage)
+  const setSections = useWorkspace((state) => state.setSections)
   const styles = useWorkspace((state) => state.styles)
   const styleCss = useMemo(() => styleSheetCss(styles), [styles])
   const showError = useWorkspace((state) => state.showError)
@@ -325,18 +332,29 @@ export function DocumentEditor(): React.JSX.Element {
    * histórico do editor não tem o que desfazer aqui, e o gravador lê a
    * configuração pelo mesmo caminho de sempre.
    */
+  const editAllSections = useCallback(
+    (change: <T extends PageSetup>(section: T) => T) => {
+      // A configuração vem da loja e não da renderização: várias peças podem
+      // sair do foco em sequência, e uma leitura presa no fechamento apagaria
+      // a edição anterior a cada uma delas.
+      const state = useWorkspace.getState()
+      const page = change(state.page)
+      if (page !== state.page) setPage(page)
+      const sections = state.sections.map(change)
+      if (sections.some((section, index) => section !== state.sections[index])) setSections(sections)
+    },
+    [setPage, setSections],
+  )
+
   const editBand = useCallback(
     (pid: string, text: string) => {
       if (readOnly) return
 
-      // A configuração vem da loja e não da renderização: várias peças podem
-      // sair do foco em sequência, e uma leitura presa no fechamento apagaria
-      // a edição anterior a cada uma delas.
-      const current = useWorkspace.getState().page
-      const updated = editBandPiece(current, pid, text)
-      if (updated !== current) setPage(updated)
+      // Em toda seção que declara a peça: a quebra de seção copia as referências
+      // da seção que partiu, e a mesma parte do arquivo mora então nas duas.
+      editAllSections((section) => editBandPiece(section, pid, text))
     },
-    [readOnly, setPage],
+    [readOnly, editAllSections],
   )
 
   /**
@@ -349,11 +367,9 @@ export function DocumentEditor(): React.JSX.Element {
     (bid: string, content: DocumentNode[]) => {
       if (readOnly) return
 
-      const current = useWorkspace.getState().page
-      const updated = editBandFloat(current, bid, content)
-      if (updated !== current) setPage(updated)
+      editAllSections((section) => editBandFloat(section, bid, content))
     },
-    [readOnly, setPage],
+    [readOnly, editAllSections],
   )
 
   // O recorte em páginas é lido no momento de imprimir, e não no da renderização

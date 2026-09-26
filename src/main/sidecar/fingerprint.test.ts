@@ -62,6 +62,7 @@ import {
   docxWithVerticalAlignment,
   docxWithoutExtras,
   docxWithReferences,
+  docxWithSections,
 } from '../../../e2e/fixtures.js'
 import {
   DEFAULT_PARAGRAPH_DRAFT,
@@ -220,7 +221,12 @@ function stable(value: unknown): string {
 }
 
 interface OpenReply {
-  readonly model: { readonly page: unknown; readonly doc: unknown; readonly styles: StyleSheet }
+  readonly model: {
+    readonly page: unknown
+    readonly sections?: unknown
+    readonly doc: unknown
+    readonly styles: StyleSheet
+  }
 }
 
 interface SaveReply {
@@ -228,17 +234,34 @@ interface SaveReply {
   readonly rewrittenBlocks: number
 }
 
-async function openSaveAndCount(bytes: Buffer): Promise<SaveReply> {
+async function openSaveAndCount(bytes: Buffer): Promise<SaveReply & { readonly bytes: Uint8Array }> {
   const opened = await client.request(SidecarMethod.DocxOpen, {}, new Uint8Array(bytes))
   const { model } = opened.result as OpenReply
 
   const saved = await client.request(
     SidecarMethod.DocxSave,
-    { page: model.page, doc: throughEditor(model.doc) },
+    {
+      page: model.page,
+      ...(model.sections === undefined ? {} : { sections: model.sections }),
+      doc: throughEditor(model.doc),
+    },
     new Uint8Array(bytes),
   )
 
-  return saved.result as SaveReply
+  return { ...(saved.result as SaveReply), bytes: saved.binary }
+}
+
+/**
+ * Os `w:sectPr` do documento, em ordem.
+ *
+ * O `word/document.xml` inteiro é serializado de novo pelo SDK — é a única parte
+ * que a gravação sempre escreve —, e ele fecha o elemento vazio com `" />"`. O
+ * espaço é a única diferença de escrita; qualquer outra é mudança de verdade.
+ */
+function sectionsOf(xml: string): string[] {
+  return (xml.match(/<w:sectPr[ >][\s\S]*?<\/w:sectPr>/g) ?? []).map((section) =>
+    section.replaceAll(' />', '/>'),
+  )
 }
 
 describe.skipIf(!published)('impressão digital entre o editor e o sidecar', () => {
@@ -266,6 +289,8 @@ describe.skipIf(!published)('impressão digital entre o editor e o sidecar', () 
     ['formatação direta por cima dos estilos', docxWithDirectOverStyles],
     // M8: sumário, marcadores (inclusive os ocultos), campos e link interno.
     ['referências do Word', () => docxWithReferences()],
+    // M9: três seções, com marca vazia, marca em parágrafo com texto e herança.
+    ['seções', docxWithSections],
   ]
 
   it.each(documents)('abrir e salvar %s não reescreve bloco nenhum', async (_name, build) => {
@@ -274,6 +299,17 @@ describe.skipIf(!published)('impressão digital entre o editor e o sidecar', () 
 
     expect(result.rewrittenBlocks).toBe(0)
     expect(result.preservedBlocks).toBeGreaterThan(0)
+  })
+
+  it('abrir e salvar um documento de seções devolve cada w:sectPr byte a byte', async () => {
+    // A configuração de cada seção mora fora dos nós; a marca é só o id no
+    // parágrafo. Aberto e gravado sem editar, nenhum `w:sectPr` pode mudar — nem
+    // o do corpo, que agora é a última seção, e não a primeira.
+    const bytes = await docxWithSections()
+    const result = await openSaveAndCount(bytes)
+
+    expect(result.rewrittenBlocks).toBe(0)
+    expect(sectionsOf(await documentXmlOf(result.bytes))).toEqual(sectionsOf(await documentXmlOf(bytes)))
   })
 
   it.each(documents)('o modelo de %s volta do schema como o sidecar o leu', async (_name, build) => {

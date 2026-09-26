@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { AppError, ErrorCode } from '@shared/errors.js'
 import { Language, translate } from '@shared/i18n/index.js'
-import { pageSetupSchema, styleSheetSchema } from '@shared/schemas.js'
+import { pageSetupSchema, sectionSetupSchema, styleSheetSchema } from '@shared/schemas.js'
 import { DEFAULT_PAGE_SETUP, isValidMargins, type DocumentModel, type DocumentNode } from './model.js'
 import { LEGACY_STYLES, type StyleSheet } from './styles.js'
 
@@ -31,9 +31,14 @@ import { LEGACY_STYLES, type StyleSheet } from './styles.js'
  * - **5** — o leitor do `.docx` passou a produzir marcadores, campos, links
  *   internos e sumário (M8). O rascunho anterior não os tem nos nós, e a leitura
  *   o marca (`beforeReferences`) pelo mesmo motivo da versão 4.
+ * - **6** — o documento passou a ter **seções** (M9): `sections` leva as
+ *   anteriores à última, e o parágrafo que encerra cada uma leva `sectionBreak`.
+ *   O rascunho anterior não tem nem uma coisa nem outra — a página dele é a do
+ *   documento inteiro —, e a leitura o marca (`beforeSections`) pelo mesmo
+ *   motivo da versão 4.
  */
 export const SDOC_FORMAT = 'sdoc'
-export const SDOC_VERSION = 5
+export const SDOC_VERSION = 6
 
 /** O conteúdo é validado só na forma; a estrutura fina é do ProseMirror. */
 const documentNodeSchema: z.ZodType<DocumentNode> = z.looseObject({
@@ -52,6 +57,9 @@ const sdocSchema = z.object({
   flattened: z.boolean().optional(),
   // Só presente quando verdadeiro — ver `DocumentModel.beforeReferences`.
   beforeReferences: z.boolean().optional(),
+  // Ver `DocumentModel.sections` e `beforeSections`.
+  sections: z.array(sectionSetupSchema).max(10_000).optional(),
+  beforeSections: z.boolean().optional(),
   outsideBookmarks: z.array(z.string()).optional(),
 })
 
@@ -68,6 +76,8 @@ export function serializeDocument(model: DocumentModel): string {
       styles: model.styles,
       ...(model.flattened === true ? { flattened: true } : {}),
       ...(model.beforeReferences === true ? { beforeReferences: true } : {}),
+      ...(model.sections === undefined || model.sections.length === 0 ? {} : { sections: model.sections }),
+      ...(model.beforeSections === true ? { beforeSections: true } : {}),
       ...(model.outsideBookmarks === undefined ? {} : { outsideBookmarks: model.outsideBookmarks }),
     },
     null,
@@ -102,6 +112,9 @@ export function parseDocument(text: string, language: Language = Language.Portug
   // Margens inválidas não impedem a leitura: o documento é recuperado com a
   // configuração padrão, porque o texto do usuário vale mais que o layout.
   const page = isValidMargins(parsed.data.page) ? parsed.data.page : DEFAULT_PAGE_SETUP
+  const sections = (parsed.data.sections ?? []).map((section) =>
+    isValidMargins(section) ? section : { ...DEFAULT_PAGE_SETUP, id: section.id },
+  )
 
   return {
     page,
@@ -109,6 +122,8 @@ export function parseDocument(text: string, language: Language = Language.Portug
     styles: migrateStyles(parsed.data.styles, parsed.data.version),
     ...(parsed.data.version < 4 || parsed.data.flattened === true ? { flattened: true } : {}),
     ...(parsed.data.version < 5 || parsed.data.beforeReferences === true ? { beforeReferences: true } : {}),
+    ...(sections.length > 0 ? { sections } : {}),
+    ...(parsed.data.version < 6 || parsed.data.beforeSections === true ? { beforeSections: true } : {}),
     ...(parsed.data.outsideBookmarks === undefined ? {} : { outsideBookmarks: parsed.data.outsideBookmarks }),
   }
 }

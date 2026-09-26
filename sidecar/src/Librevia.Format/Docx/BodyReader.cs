@@ -56,8 +56,23 @@ public sealed record Block(string Oid, OpenXmlElement Source, Node Extracted)
 /// de antes deles — a de referência para um rascunho daquela época (ver
 /// <see cref="DocumentModelDto.BeforeReferences"/>).
 /// </param>
-public sealed class BodyReader(MainDocumentPart part, Inventory inventory, bool flatten = false, bool references = true)
+/// <param name="sections">
+/// Marca com `sectionBreak` o parágrafo que encerra uma seção (M9). Desligado, é
+/// a leitura de antes das seções — a de referência para um rascunho daquela
+/// época (ver <see cref="DocumentModelDto.BeforeSections"/>).
+/// </param>
+public sealed class BodyReader(
+    MainDocumentPart part,
+    Inventory inventory,
+    bool flatten = false,
+    bool references = true,
+    bool sections = true)
 {
+    /// <summary>
+    /// O id de cada `w:sectPr` de parágrafo, o mesmo que PageReader dá à seção.
+    /// </summary>
+    private Dictionary<SectionProperties, string> _sectionIds = new(ReferenceEqualityComparer.Instance);
+
     /// <summary>Passo de recuo do Word: meia polegada.</summary>
 
     private readonly NumberingReader _numbering = new(part);
@@ -128,6 +143,7 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory, bool 
     {
         var content = new List<Node>();
         var blocks = new List<Block>();
+        if (sections) _sectionIds = PageReader.SectionIds(body);
 
         // Parágrafos numerados consecutivos viram uma lista só; a pilha guarda
         // as listas abertas, uma por nível de aninhamento.
@@ -427,6 +443,16 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory, bool 
         if (direct?.SectionProperties is not null && content.Count == 0)
         {
             node.With("sectionMark", true);
+        }
+
+        // A seção que termina aqui: o parágrafo leva o id dela, e a configuração
+        // mora fora dos nós, em `sections` — como os estilos, para que mudar o
+        // papel de uma seção não faça o parágrafo parecer editado. O id é o elo:
+        // apagar a marca solta a seção, e o trecho passa à de baixo, que é o que
+        // o Word faz ao excluir uma quebra de seção.
+        if (direct?.SectionProperties is { } marked && _sectionIds.TryGetValue(marked, out var sectionId))
+        {
+            node.With("sectionBreak", sectionId);
         }
 
         node.Content = content.Count == 0 ? null : content;

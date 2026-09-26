@@ -133,6 +133,25 @@ describe('estilos no formato interno', () => {
     expect(legacy.beforeReferences).toBe(true)
   })
 
+  it('marca como anterior às seções o arquivo de antes da versão 6, e leva as seções na ida e volta', () => {
+    // O rascunho de antes do M9 não tem `sections` nem `sectionBreak`: a página
+    // dele é a do documento inteiro, e a gravação em DOCX segue o caminho de então.
+    const v5 = JSON.stringify({ ...JSON.parse(v2(BUILTIN_STYLES)), version: 5 })
+    expect(parseDocument(v5).beforeSections).toBe(true)
+    expect(parseDocument(v5).sections).toBeUndefined()
+    expect(parseDocument(serializeDocument(richDocument)).beforeSections).toBeUndefined()
+
+    const landscape = {
+      ...DEFAULT_PAGE_SETUP,
+      id: 's1',
+      orientation: 'landscape' as const,
+      start: 'continuous' as const,
+    }
+    const reopened = parseDocument(serializeDocument({ ...richDocument, sections: [landscape] }))
+    expect(reopened.sections).toEqual([landscape])
+    expect(reopened.beforeSections).toBeUndefined()
+  })
+
   it('dá os estilos embutidos ao arquivo da versão 2, que não os tinha', () => {
     // Documento antigo tem de abrir **idêntico**: os embutidos são a aparência
     // que o editor já desenhava, medida por medida.

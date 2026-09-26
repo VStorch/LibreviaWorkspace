@@ -1,5 +1,6 @@
 import type { PageSetup } from '@services/document/model.js'
 import { buildPrintHtml } from '@services/document/print-html.js'
+import { effectiveSections } from '@services/document/sections.js'
 import { buildPagedBody, buildPagedCss } from '@services/document/print-pages.js'
 import { styleSheetCss } from '@services/document/style-css.js'
 import { SHEET_PRINT_CSS, buildSheetHtml } from '@services/spreadsheet/print-html.js'
@@ -52,14 +53,17 @@ export function createPrintActions(
     const source = ctx.source()
     if (source === null) return null
 
+    // A última seção com as faixas que herda: a folha da tela é desenhada com ela.
+    const page = effectiveSections(state.page, state.sections).at(-1)!
+
     return {
       html: buildPrintHtml(
-        buildPagedBody(source.readPages(), state.page),
+        buildPagedBody(source.readPages(), page),
         name,
-        styleSheetCss(state.styles) + buildPagedCss(state.page),
+        styleSheetCss(state.styles) + buildPagedCss(page),
         false,
       ),
-      page: state.page,
+      page,
       // Diz ao processo main para não deixar o Chromium paginar nem desenhar
       // margens: cada página já tem seu tamanho e sua moldura em CSS.
       paged: true,

@@ -1,6 +1,6 @@
 import type { SerializedError } from '@shared/errors.js'
 import type { DocumentKind, DraftSummary, LossInventory, RecentFile } from '@shared/types.js'
-import type { DocumentModel, DocumentNode, PageSetup } from '@services/document/model.js'
+import type { DocumentModel, DocumentNode, PageSetup, SectionSetup } from '@services/document/model.js'
 import type { PagedDocument } from '@services/document/print-pages.js'
 import type { StyleSheet } from '@services/document/styles.js'
 import type { Sheet, WorkbookModel } from '@services/spreadsheet/model.js'
@@ -65,6 +65,10 @@ export interface WorkspaceState {
   flattened: boolean
   /** O rascunho é de antes das referências — ver `DocumentModel.beforeReferences`. */
   beforeReferences: boolean
+  /** As seções antes da última — ver `DocumentModel.sections`. Vazio é uma seção só. */
+  sections: readonly SectionSetup[]
+  /** O rascunho é de antes das seções — ver `DocumentModel.beforeSections`. */
+  beforeSections: boolean
   /** Marcadores do arquivo fora dos nós — ver `DocumentModel.outsideBookmarks`. */
   outsideBookmarks: readonly string[]
   /**
@@ -138,6 +142,11 @@ export interface WorkspaceState {
   setStats: (stats: { characters: number; words: number }) => void
   setEstimatedPages: (pages: number) => void
   setPage: (page: PageSetup) => void
+  /**
+   * Troca as seções antes da última — a configuração delas ou a lista inteira,
+   * quando uma quebra de seção entra ou sai. Como `setPage`, marca o documento.
+   */
+  setSections: (sections: readonly SectionSetup[]) => void
   /**
    * Troca os estilos do documento — modificar ou criar um estilo.
    *

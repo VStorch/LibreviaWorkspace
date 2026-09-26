@@ -168,6 +168,13 @@ export const pageSetupSchema = z.object({
   pageNumberStart: z.number().int().min(0).max(32767).nullable().optional(),
   titlePage: z.boolean().nullable().optional(),
   evenAndOddHeaders: z.boolean().nullable().optional(),
+  // Como a seção começa (M9). Opcional pelo mesmo motivo.
+  start: z.enum(['nextPage', 'continuous', 'evenPage', 'oddPage', 'nextColumn']).optional(),
+})
+
+/** Uma seção antes da última: a configuração dela e o id da marca que a encerra. */
+export const sectionSetupSchema = pageSetupSchema.extend({
+  id: z.string().min(1).max(100),
 })
 
 /**

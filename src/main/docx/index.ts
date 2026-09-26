@@ -52,6 +52,7 @@ const inventorySchema = z.object({
 const openResultSchema = z.object({
   model: z.object({
     page: z.unknown(),
+    sections: z.unknown().optional(),
     doc: z.unknown(),
     styles: styleSheetSchema,
     outsideBookmarks: z.array(z.string().max(200)).max(10_000).optional(),
@@ -188,6 +189,8 @@ export async function saveDocx(
       doc: model.doc,
       ...(model.flattened ? { flatten: true } : {}),
       ...(model.beforeReferences ? { beforeReferences: true } : {}),
+      ...(model.sections === undefined ? {} : { sections: model.sections }),
+      ...(model.beforeSections ? { beforeSections: true } : {}),
       ...(model.styles === undefined ? {} : { styles: model.styles }),
     },
     new Uint8Array(original),
@@ -206,7 +209,10 @@ export async function saveDocx(
     // `includes` porque o sidecar já declara a mesma perda quando a faixa tinha
     // texto para gravar e a relação não existia no pacote mínimo: a frase é uma
     // só, e repetida seriam dois avisos na tela para um problema.
-    if (hasForeignBands(model.page) && !lost.includes(t('errors.docx.foreignBands')))
+    if (
+      [model.page, ...(Array.isArray(model.sections) ? model.sections : [])].some(hasForeignBands) &&
+      !lost.includes(t('errors.docx.foreignBands'))
+    )
       lost.push(t('errors.docx.foreignBands'))
     // Rede de proteção: um modelo com `oid` foi numerado contra um pacote que
     // não está aqui. Isso é defeito — o vínculo com o original se perdeu no
@@ -316,6 +322,8 @@ function unwrapSdoc(content: string): {
   styles: unknown
   flattened: boolean
   beforeReferences: boolean
+  sections: unknown
+  beforeSections: boolean
 } {
   let parsed: unknown
   try {
@@ -334,6 +342,8 @@ function unwrapSdoc(content: string): {
       styles: styleSheetSchema.optional(),
       flattened: z.boolean().optional(),
       beforeReferences: z.boolean().optional(),
+      sections: z.unknown().optional(),
+      beforeSections: z.boolean().optional(),
     })
     .safeParse(parsed)
   if (!envelope.success) {
@@ -346,5 +356,7 @@ function unwrapSdoc(content: string): {
     styles: envelope.data.styles,
     flattened: envelope.data.flattened === true,
     beforeReferences: envelope.data.beforeReferences === true,
+    sections: envelope.data.sections,
+    beforeSections: envelope.data.beforeSections === true,
   }
 }

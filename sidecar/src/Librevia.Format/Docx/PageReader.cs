@@ -39,7 +39,14 @@ public sealed record PageSetupDto(
     // `JsonElement`, que distingue os dois — ver PageNumberStartOf.
     [property: JsonPropertyName("pageNumberStart")] System.Text.Json.JsonElement PageNumberStart = default,
     [property: JsonPropertyName("titlePage")] bool? TitlePage = null,
-    [property: JsonPropertyName("evenAndOddHeaders")] bool? EvenAndOddHeaders = null);
+    [property: JsonPropertyName("evenAndOddHeaders")] bool? EvenAndOddHeaders = null,
+    // Seções (M9). `Id` só existe nas seções anteriores à última: é o valor do
+    // atributo `sectionBreak` do parágrafo que carrega o `w:sectPr` delas. A
+    // última é o `w:sectPr` do corpo, e não tem parágrafo nem id.
+    [property: JsonPropertyName("id")] string? Id = null,
+    // Como a seção começa (`w:sectPr/w:type`): nextPage, continuous, evenPage,
+    // oddPage ou nextColumn. Ausente (rascunho de antes) é "não mexa".
+    [property: JsonPropertyName("start")] string? Start = null);
 
 public sealed record MarginsDto(
     [property: JsonPropertyName("top")] double Top,
@@ -56,9 +63,6 @@ public static class PageReader
 
     /// <summary>1 twip = 1/1440 polegada; 1 polegada = 914400 EMU.</summary>
     private const double EmusPerTwip = 914400.0 / 1440;
-
-    /// <summary>Tolerância ao comparar seções: 1 twip é 0,018 mm.</summary>
-    private const int GeometryTolerance = 2;
 
     /// <summary>
     /// Meio milímetro de folga ao reconhecer o papel.
@@ -105,22 +109,64 @@ public static class PageReader
         return (shortSide / TwipsPerMillimeter, longSide / TwipsPerMillimeter);
     }
 
-    public static PageSetupDto Read(Body body, MainDocumentPart part, Inventory inventory)
+    /// <summary>
+    /// As seções do documento: a última (o `w:sectPr` do corpo) e as anteriores.
+    /// </summary>
+    /// <remarks>
+    /// A última continua sendo "a página" do modelo — é ela que o documento de uma
+    /// seção só tem, e é por ela que o `.sdoc` de antes das seções continua
+    /// abrindo igual. As anteriores vêm em ordem, cada uma com o id que o leitor
+    /// do corpo põe no parágrafo que a encerra (ver <see cref="SectionIds"/>).
+    ///
+    /// Cada seção leva só as faixas que ela **declara**. A que não declara um tipo
+    /// herda o da seção anterior — é o "Vincular ao anterior" do Word —, e quem
+    /// resolve a herança é quem desenha: repetir a faixa em cada seção faria duas
+    /// cópias de uma parte só, e editar uma não mudaria a outra.
+    /// </remarks>
+    public static (PageSetupDto Page, List<PageSetupDto>? Sections) ReadAll(
+        Body body,
+        MainDocumentPart part,
+        Inventory inventory)
     {
-        var sections = body.Descendants<SectionProperties>().ToList();
-        if (sections.Count == 0) return Default();
+        var all = body.Descendants<SectionProperties>().ToList();
+        if (all.Count == 0) return (Default(), null);
 
-        // Seções consecutivas com a mesma geometria são artefato do
-        // LibreOffice, não intenção do autor: o documento de 15 páginas do
-        // corpus tem sete, todas idênticas. Só há perda quando divergem.
-        // Ver docs/01-corpus-docx.md, Descoberta 5.
-        if (sections.Count > 1 && !AllShareGeometry(sections))
+        // A última é a do corpo; as de parágrafo vêm antes, na ordem do arquivo.
+        // O documento que termina num `w:sectPr` de parágrafo sem o do corpo é
+        // inválido, mas acontece: a última de parágrafo faz as vezes da final.
+        var ids = SectionIds(body);
+        var earlier = new List<PageSetupDto>();
+        for (var index = 0; index < all.Count - 1; index++)
         {
-            inventory.NoteLoss("seções com tamanho ou margem diferentes (o documento usará a primeira)");
+            var section = all[index];
+            earlier.Add(ReadOne(section, part, inventory, index) with
+            {
+                Id = ids.TryGetValue(section, out var id) ? id : $"s{index + 1}",
+            });
         }
 
-        var section = sections[0];
+        var page = ReadOne(all[^1], part, inventory, all.Count - 1);
+        return (page, earlier.Count == 0 ? null : earlier);
+    }
 
+    /// <summary>
+    /// O id de cada `w:sectPr` de parágrafo: `s1`, `s2`… na ordem do corpo.
+    /// </summary>
+    /// <remarks>
+    /// Posicional e determinístico, como o `oid` dos blocos: a leitura de
+    /// referência da gravação reproduz os mesmos ids, e é isso que deixa o
+    /// parágrafo da marca ser reconhecido e voltar byte a byte.
+    /// </remarks>
+    public static Dictionary<SectionProperties, string> SectionIds(Body body)
+    {
+        var ids = new Dictionary<SectionProperties, string>(ReferenceEqualityComparer.Instance);
+        var all = body.Descendants<SectionProperties>().ToList();
+        for (var index = 0; index < all.Count - 1; index++) ids[all[index]] = $"s{index + 1}";
+        return ids;
+    }
+
+    private static PageSetupDto ReadOne(SectionProperties section, MainDocumentPart part, Inventory inventory, int index)
+    {
         // Formato de número que a tela não desenha: a folha mostra decimal, e o
         // arquivo continua pedindo o dele — é diferença de aparência, e se avisa.
         if (section.GetFirstChild<PageNumberType>()?.Format?.InnerText is { } pageFormat &&
@@ -155,6 +201,23 @@ public static class PageReader
             (widthTwips - (margin?.Left?.Value ?? 1440) - (margin?.Right?.Value ?? 1440)) * EmusPerTwip,
             1);
 
+        // As faixas de capa e de página par vêm sempre que o arquivo as tem;
+        // quem decide se valem são os interruptores, que vão junto. O Word
+        // guarda o `first` mesmo com `w:titlePg` desligado — e é justamente
+        // ele que volta a aparecer quando a pessoa liga o interruptor na
+        // configuração de página. Lido só com o interruptor ligado, ligar
+        // mostrava a capa em branco na tela e a do arquivo no Word.
+        BandDto? Band(bool header, HeaderFooterValues type)
+        {
+            // Da segunda seção em diante, faixa ausente é faixa herdada — e a
+            // declarada vazia é folha limpa, não herança: fica vazia, e não nula.
+            if (index > 0 && !Declares(section, header, type)) return null;
+            var band = header
+                ? HeaderReader.Read(section, part, inventory, type, contentWidthEmus)
+                : HeaderReader.ReadFooter(section, part, inventory, type, contentWidthEmus);
+            return index == 0 ? NullIfEmpty(band) : band;
+        }
+
         return new PageSetupDto(
             Size: NearestSize(widthTwips, heightTwips, landscape),
             Orientation: landscape ? "landscape" : "portrait",
@@ -163,24 +226,43 @@ public static class PageReader
                 Right: Millimeters((int?)margin?.Right?.Value, 1440),
                 Bottom: Millimeters(margin?.Bottom?.Value, 1440),
                 Left: Millimeters((int?)margin?.Left?.Value, 1440)),
-            Header: NullIfEmpty(HeaderReader.Read(section, part, inventory, HeaderFooterValues.Default, contentWidthEmus)),
-            Footer: NullIfEmpty(HeaderReader.ReadFooter(section, part, inventory, HeaderFooterValues.Default, contentWidthEmus)),
-            // As faixas de capa e de página par vêm sempre que o arquivo as tem;
-            // quem decide se valem são os interruptores, que vão junto. O Word
-            // guarda o `first` mesmo com `w:titlePg` desligado — e é justamente
-            // ele que volta a aparecer quando a pessoa liga o interruptor na
-            // configuração de página. Lido só com o interruptor ligado, ligar
-            // mostrava a capa em branco na tela e a do arquivo no Word.
-            FirstHeader: NullIfEmpty(HeaderReader.Read(section, part, inventory, HeaderFooterValues.First, contentWidthEmus)),
-            FirstFooter: NullIfEmpty(HeaderReader.ReadFooter(section, part, inventory, HeaderFooterValues.First, contentWidthEmus)),
-            EvenHeader: NullIfEmpty(HeaderReader.Read(section, part, inventory, HeaderFooterValues.Even, contentWidthEmus)),
-            EvenFooter: NullIfEmpty(HeaderReader.ReadFooter(section, part, inventory, HeaderFooterValues.Even, contentWidthEmus)),
+            Header: Band(true, HeaderFooterValues.Default),
+            Footer: Band(false, HeaderFooterValues.Default),
+            FirstHeader: Band(true, HeaderFooterValues.First),
+            FirstFooter: Band(false, HeaderFooterValues.First),
+            EvenHeader: Band(true, HeaderFooterValues.Even),
+            EvenFooter: Band(false, HeaderFooterValues.Even),
             HeaderDistanceMm: Millimeters((int?)margin?.Header?.Value, 708),
             FooterDistanceMm: Millimeters((int?)margin?.Footer?.Value, 708),
             PageNumberFormat: PageNumberFormatOf(section),
             PageNumberStart: StartElement(section.GetFirstChild<PageNumberType>()?.Start?.Value),
             TitlePage: HasTitlePage(section),
-            EvenAndOddHeaders: UsesEvenAndOdd(part));
+            EvenAndOddHeaders: UsesEvenAndOdd(part),
+            Start: StartOf(section));
+    }
+
+    /// <summary>A seção declara uma faixa deste tipo, ainda que vazia?</summary>
+    private static bool Declares(SectionProperties section, bool header, HeaderFooterValues type)
+    {
+        IEnumerable<HeaderFooterReferenceType> references = header
+            ? section.Elements<HeaderReference>()
+            : section.Elements<FooterReference>();
+        return references.Any(reference =>
+            (reference.Type?.Value ?? HeaderFooterValues.Default) == type &&
+            !string.IsNullOrEmpty(reference.Id?.Value));
+    }
+
+    /// <summary>Os começos de seção que o modelo nomeia — os de `w:type/@w:val`.</summary>
+    public static readonly string[] SectionStarts = ["nextPage", "continuous", "evenPage", "oddPage", "nextColumn"];
+
+    /// <summary>
+    /// `w:type/@w:val`, ou "nextPage" — o padrão da especificação quando o
+    /// elemento falta.
+    /// </summary>
+    public static string StartOf(SectionProperties section)
+    {
+        var name = section.GetFirstChild<SectionType>()?.Val?.InnerText;
+        return name is not null && SectionStarts.Contains(name) ? name : "nextPage";
     }
 
     /// <summary>O início como o modelo o leva: número ou nulo, sempre presente.</summary>
@@ -251,31 +333,6 @@ public static class PageReader
     {
         var flag = part.DocumentSettingsPart?.Settings?.GetFirstChild<EvenAndOddHeaders>();
         return flag is not null && (flag.Val?.Value ?? true);
-    }
-
-    private static bool AllShareGeometry(List<SectionProperties> sections)
-    {
-        static (int W, int H, int T, int R, int B, int L) Geometry(SectionProperties section)
-        {
-            var size = section.GetFirstChild<DocumentFormat.OpenXml.Wordprocessing.PageSize>();
-            var margin = section.GetFirstChild<PageMargin>();
-            return (
-                (int?)size?.Width?.Value ?? 0,
-                (int?)size?.Height?.Value ?? 0,
-                margin?.Top?.Value ?? 0,
-                (int?)margin?.Right?.Value ?? 0,
-                margin?.Bottom?.Value ?? 0,
-                (int?)margin?.Left?.Value ?? 0);
-        }
-
-        var first = Geometry(sections[0]);
-        return sections.Skip(1).Select(Geometry).All(other =>
-            Math.Abs(other.W - first.W) <= GeometryTolerance &&
-            Math.Abs(other.H - first.H) <= GeometryTolerance &&
-            Math.Abs(other.T - first.T) <= GeometryTolerance &&
-            Math.Abs(other.R - first.R) <= GeometryTolerance &&
-            Math.Abs(other.B - first.B) <= GeometryTolerance &&
-            Math.Abs(other.L - first.L) <= GeometryTolerance);
     }
 
     /// <summary>Faixa vazia vira ausência: o modelo distingue "não tem" de "tem e está vazia".</summary>

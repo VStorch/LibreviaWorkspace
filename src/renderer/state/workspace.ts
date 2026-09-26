@@ -29,6 +29,8 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
     styles: empty.styles,
     flattened: false,
     beforeReferences: false,
+    sections: [],
+    beforeSections: false,
     outsideBookmarks: [],
     workbook: null,
     generation: 0,
@@ -56,6 +58,7 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
       if (get().estimatedPages !== pages) set({ estimatedPages: pages })
     },
     setPage: (page) => set({ page, isDirty: true }),
+    setSections: (sections) => set({ sections, isDirty: true }),
     setStyles: (styles) => set({ styles, isDirty: true }),
     dismissError: () => set({ error: null }),
     dismissNotice: () => set({ notice: null, savedLoss: null }),

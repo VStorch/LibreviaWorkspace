@@ -321,6 +321,53 @@ export async function docxWithPageNumbering(): Promise<Buffer> {
 }
 
 /**
+ * Três seções (M9): retrato, paisagem e retrato de novo, começando em ímpar.
+ *
+ * A primeira declara o rodapé "Página {PAGE}" e numera em romanos; as outras não
+ * declaram faixa nenhuma e **herdam** a dela ("Vincular ao anterior"). A
+ * segunda, em paisagem, termina num parágrafo com texto e reinicia a numeração
+ * em 1; a terceira (a do corpo) começa em página ímpar — depois da folha 1 da
+ * seção de paisagem, o Word insere uma folha em branco.
+ */
+export async function docxWithSections(): Promise<Buffer> {
+  const footer = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:ftr xmlns:w="${W}"><w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:t xml:space="preserve">Página </w:t></w:r><w:fldSimple w:instr=" PAGE "><w:r><w:t>1</w:t></w:r></w:fldSimple></w:p></w:ftr>`
+
+  const rels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+<Relationship Id="rId5" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer" Target="footer1.xml"/>
+</Relationships>`
+
+  const R = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships'
+  const margins = `<w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440" w:header="708" w:footer="708"/>`
+  const corpo =
+    paragraph('Folha em retrato.') +
+    `<w:p><w:pPr><w:sectPr><w:footerReference xmlns:r="${R}" w:type="default" r:id="rId5"/>` +
+    `<w:pgSz w:w="11906" w:h="16838"/>${margins}<w:pgNumType w:fmt="lowerRoman"/></w:sectPr></w:pPr></w:p>` +
+    `<w:p><w:pPr><w:sectPr><w:pgSz w:w="16838" w:h="11906" w:orient="landscape"/>${margins}` +
+    `<w:pgNumType w:start="1"/></w:sectPr></w:pPr><w:r><w:t xml:space="preserve">Folha em paisagem.</w:t></w:r></w:p>` +
+    paragraph('Retrato outra vez, em página ímpar.') +
+    `<w:sectPr><w:type w:val="oddPage"/><w:pgSz w:w="11906" w:h="16838"/>${margins}</w:sectPr>`
+
+  return zip([
+    [
+      '[Content_Types].xml',
+      CONTENT_TYPES.replace(
+        '<Override PartName="/word/document.xml"',
+        '<Override PartName="/word/footer1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"/><Override PartName="/word/document.xml"',
+      ).replace(/<Override PartName="\/word\/comments[^>]+>/, ''),
+    ],
+    ['_rels/.rels', ROOT_RELS],
+    ['word/_rels/document.xml.rels', rels],
+    ['word/footer1.xml', footer],
+    [
+      'word/document.xml',
+      documentXml('').replace('<w:sectPr/>', '').replace('</w:body>', `${corpo}</w:body>`),
+    ],
+  ])
+}
+
+/**
  * Documento com uma imagem **ancorada** no lugar do próprio parágrafo.
  *
  * É como o LibreOffice grava captura de tela: `wp:anchor` sem deslocamento

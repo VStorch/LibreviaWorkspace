@@ -187,6 +187,24 @@ export const BlockFormat = Extension.create<BlockFormatOptions>({
               attributes['sectionMark'] === true ? { 'data-section-mark': '' } : {},
           },
 
+          /**
+           * A seção que termina neste parágrafo (M9): o id dela em `sections`.
+           *
+           * É o `w:sectPr` do OOXML, que mora no parágrafo que fecha a seção. A
+           * configuração fica fora do nó, como os estilos; o id é só o elo. Não
+           * passa adiante no Enter: partir o parágrafo não parte a seção, e a
+           * marca repetida faria duas seções com o mesmo id.
+           */
+          sectionBreak: {
+            default: null,
+            keepOnSplit: false,
+            parseHTML: (element) => element.getAttribute('data-section-break'),
+            renderHTML: (attributes) =>
+              typeof attributes['sectionBreak'] === 'string'
+                ? { 'data-section-break': attributes['sectionBreak'] }
+                : {},
+          },
+
           spaceBefore: {
             default: null,
             parseHTML: (element) => element.style.marginTop || null,

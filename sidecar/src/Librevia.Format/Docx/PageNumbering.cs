@@ -25,7 +25,8 @@ internal static class PageNumbering
         SectionProperties section,
         PageSetupDto page,
         HashSet<string> touched,
-        Inventory inventory)
+        Inventory inventory,
+        bool documentWide = true)
     {
         ApplyNumberType(section, page, inventory);
 
@@ -38,7 +39,9 @@ internal static class PageNumbering
             }
         }
 
-        if (page.EvenAndOddHeaders is { } even && even != PageReader.EvenAndOddOf(part))
+        // Pares e ímpares é do documento: quem o leva é a última seção, e as
+        // anteriores (`documentWide` falso) não o tocam.
+        if (documentWide && page.EvenAndOddHeaders is { } even && even != PageReader.EvenAndOddOf(part))
         {
             var settingsPart = part.DocumentSettingsPart ?? part.AddNewPart<DocumentSettingsPart>();
             var settings = settingsPart.Settings ??= new Settings();

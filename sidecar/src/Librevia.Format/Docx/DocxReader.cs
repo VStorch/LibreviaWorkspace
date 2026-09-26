@@ -39,7 +39,19 @@ public sealed record DocumentModelDto(
     // referência que os cita (F9 escreveria "Erro! Indicador não definido.").
     [property: JsonPropertyName("outsideBookmarks")]
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    List<string>? OutsideBookmarks = null);
+    List<string>? OutsideBookmarks = null,
+    // As seções antes da última (M9), em ordem — ver PageReader.ReadAll. Ausente
+    // é documento de uma seção só.
+    [property: JsonPropertyName("sections")]
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    List<PageSetupDto>? Sections = null,
+    // O rascunho é de antes das seções (formato `.sdoc` < 6): os parágrafos que
+    // encerram seção não trazem `sectionBreak`, e a gravação segue o caminho de
+    // então — a página vai só para o `w:sectPr` do corpo. Mesmo motivo de
+    // `BeforeReferences`.
+    [property: JsonPropertyName("beforeSections")]
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    bool BeforeSections = false);
 
 public sealed record OpenResult(
     [property: JsonPropertyName("model")] DocumentModelDto Model,
@@ -76,13 +88,14 @@ public static class DocxReader
         NoteWholeDocumentFeatures(part, inventory);
 
         var (content, _) = new BodyReader(part, inventory, flatten).Read(body);
-        var page = PageReader.Read(body, part, inventory);
+        var (page, sections) = PageReader.ReadAll(body, part, inventory);
 
         var doc = Node.Of("doc");
         doc.Content = content;
 
         return new OpenResult(
-            new DocumentModelDto(page, doc, StyleReader.Read(part), OutsideBookmarks: OutsideBookmarksOf(part, doc)),
+            new DocumentModelDto(
+                page, doc, StyleReader.Read(part), OutsideBookmarks: OutsideBookmarksOf(part, doc), Sections: sections),
             inventory);
     }
 

@@ -47,7 +47,8 @@ public static class DocxWriter
         // Com o mesmo leitor que produziu o modelo: um rascunho antigo traz os
         // blocos achatados, e comparados com a leitura que só leva o direto todo
         // bloco pareceria mudado — o documento inteiro seria reescrito.
-        var (_, blocks) = new BodyReader(part, new Inventory(), model.Flatten, !model.BeforeReferences).Read(body);
+        var (_, blocks) = new BodyReader(
+            part, new Inventory(), model.Flatten, !model.BeforeReferences, !model.BeforeSections).Read(body);
         var index = blocks.ToDictionary(block => block.Oid, StringComparer.Ordinal);
 
         var section = body.Elements<SectionProperties>().LastOrDefault();
@@ -72,7 +73,8 @@ public static class DocxWriter
             new NumberingFactory(part, touched, inventory),
             new HeadingStyles(part, touched),
             out var preserved,
-            out var rewritten);
+            out var rewritten,
+            out var breaks);
 
         body.RemoveAllChildren();
         foreach (var element in replacement) body.AppendChild(element);
@@ -87,6 +89,16 @@ public static class DocxWriter
         var current = body.Elements<SectionProperties>().Last();
         if (!PageReader.Matches(current, model.Page)) ApplyPageSetup(current, model.Page);
 
+        // As seções antes da última: as marcas que o corpo levou, com a
+        // configuração que o modelo dá a cada uma. No rascunho de antes das
+        // seções não há marca nenhuma no modelo, e os `w:sectPr` de parágrafo
+        // voltam como estavam — ver SectionWriter.
+        if (!model.BeforeSections)
+        {
+            SectionWriter.ApplyStart(current, model.Page);
+            SectionWriter.Apply(part, breaks, current, model, inventory, touched);
+        }
+
         // O cabeçalho e o rodapé de texto simples do documento novo — ver
         // PlainBandWriter. No documento que veio de fora a faixa manda, e isto
         // não faz nada.
@@ -98,7 +110,7 @@ public static class DocxWriter
         // O texto digitado no cabeçalho e no rodapé, peça por peça. Só as
         // partes que de fato mudaram entram na lista de graváveis: o resto
         // continua saindo do arquivo original, byte a byte.
-        touched.UnionWith(BandWriter.Apply(part, model.Page, inventory));
+        touched.UnionWith(BandWriter.Apply(part, [.. model.Sections ?? [], model.Page], inventory));
 
         part.Document!.Save();
         document.Dispose();
@@ -190,7 +202,8 @@ public static class DocxWriter
         NumberingFactory numbering,
         HeadingStyles headings,
         out int preserved,
-        out int rewritten)
+        out int rewritten,
+        out List<SectionWriter.Break> breaks)
     {
         var writer = new ParagraphWriter(
             part, inventory, UsableWidthPx(model.Page), headings, model.Flatten, !model.BeforeReferences);
@@ -200,6 +213,8 @@ public static class DocxWriter
 
         preserved = 0;
         rewritten = 0;
+        breaks = [];
+        var breakIds = new HashSet<string>(StringComparer.Ordinal);
 
         foreach (var slot in Flatten(model.Doc, numbering))
         {
@@ -224,7 +239,8 @@ public static class DocxWriter
             }
 
             var before = elements.Count;
-            if (BuildSlot(slot, owner, writer, inventory, elements))
+            var kept = BuildSlot(slot, owner, writer, inventory, elements);
+            if (kept)
             {
                 preserved++;
             }
@@ -232,6 +248,13 @@ public static class DocxWriter
             {
                 rewritten++;
                 for (var i = before; i < elements.Count; i++) generated.Add(elements[i]);
+            }
+
+            if (!model.BeforeSections &&
+                SectionWriter.Mark(slot.Content, elements.Skip(before).OfType<Paragraph>().ToList(), kept, breakIds)
+                    is { } mark)
+            {
+                breaks.Add(mark);
             }
 
             if (owner is not null)

@@ -329,16 +329,6 @@ public class DocxRoundTripTests
     }
 
     [Fact]
-    public void ReportsLossWhenSectionsActuallyDiverge()
-    {
-        // A prova negativa do teste acima: sem ela, o achatamento poderia estar
-        // engolindo divergência de verdade e ninguém saberia.
-        var result = DocxReader.Read(Fixtures.WithDivergentSections());
-
-        Assert.Contains(result.Inventory.Lost, m => m.Contains("seções", StringComparison.Ordinal));
-    }
-
-    [Fact]
     public void ReadsPageGeometryInMillimeters()
     {
         var page = Open(Fixtures.Simple()).Page;

@@ -229,7 +229,7 @@ export function plainBand(text: string): Band | null {
  * Devolve a mesma configuração quando não há o que trocar, para não sujar o
  * documento por um clique que não mudou nada.
  */
-export function editBandPiece(page: PageSetup, pid: string, text: string): PageSetup {
+export function editBandPiece<T extends PageSetup>(page: T, pid: string, text: string): T {
   let changed = false
 
   const inPieces = (pieces: BandPiece[]): BandPiece[] =>
@@ -260,7 +260,7 @@ export function editBandPiece(page: PageSetup, pid: string, text: string): PageS
  * dentro dela abre e fecha parágrafos — endereçar parágrafo a parágrafo
  * quebraria no primeiro Enter.
  */
-export function editBandFloat(page: PageSetup, bid: string, content: DocumentNode[]): PageSetup {
+export function editBandFloat<T extends PageSetup>(page: T, bid: string, content: DocumentNode[]): T {
   let changed = false
 
   const updated = mapBands(page, (band) => ({
@@ -297,7 +297,7 @@ export function hasBandContent(band: Band | null): band is Band {
  * todas as folhas de uma vez, como no Word. Escrever a lista das seis em cada
  * edição é como uma delas acaba esquecida numa.
  */
-function mapBands(page: PageSetup, transform: (band: Band) => Band): PageSetup {
+function mapBands<T extends PageSetup>(page: T, transform: (band: Band) => Band): T {
   const at = (band: Band | null): Band | null => (band === null ? null : transform(band))
 
   return {

@@ -39,16 +39,24 @@ internal static class BandWriter
     /// <summary>
     /// Aplica o texto editado das faixas e devolve os caminhos que mudaram.
     /// </summary>
-    internal static HashSet<string> Apply(MainDocumentPart part, PageSetupDto? page, Inventory inventory)
+    /// <param name="sections">
+    /// Todas as seções: cada uma traz só as faixas que declara, e duas que
+    /// apontam a mesma parte trazem o mesmo texto — ver PageReader.ReadAll.
+    /// </param>
+    internal static HashSet<string> Apply(
+        MainDocumentPart part,
+        IReadOnlyList<PageSetupDto?> sections,
+        Inventory inventory)
     {
         var touched = new HashSet<string>(StringComparer.Ordinal);
-        if (page is null) return touched;
+        var bands = sections.OfType<PageSetupDto>().SelectMany(BandsOf).ToList();
+        if (bands.Count == 0) return touched;
 
         // Endereço → texto que se quer ali. Um mesmo cabeçalho aparece em várias
         // folhas mas é um só no arquivo, e o modelo o traz uma vez por papel:
         // se dois papéis apontarem para a mesma parte, o texto é o mesmo.
         var wanted = new Dictionary<string, string>(StringComparer.Ordinal);
-        foreach (var band in BandsOf(page))
+        foreach (var band in bands)
         {
             foreach (var piece in PiecesOf(band)) Remember(wanted, piece);
         }
@@ -56,7 +64,7 @@ internal static class BandWriter
         // O mesmo, um nível acima: o cabeçalho corporativo não é feito de
         // parágrafos soltos, e o título dele mora dentro de uma caixa.
         var boxes = new Dictionary<string, List<Node>>(StringComparer.Ordinal);
-        foreach (var band in BandsOf(page))
+        foreach (var band in bands)
         {
             foreach (var float_ in band.Floats ?? [])
             {
