@@ -36,8 +36,21 @@ export function NavigationPane({ editor }: { readonly editor: Editor }): React.J
     // O foco vai direto à visão, e não pelo comando `focus` do Tiptap: aquele
     // espera o próximo quadro, e a tecla digitada logo depois do clique caía no
     // botão do painel.
-    editor.commands.setTextSelection(pos + 1)
+    //
+    // Depois dos marcadores do começo do título (o `_Toc` do sumário): com o
+    // cursor antes do nó sem largura, o navegador o punha dentro dele, e `End`
+    // e as setas deixavam de andar.
+    let start = pos + 1
+    const block = editor.state.doc.nodeAt(pos)
+    for (let index = 0; block !== null && index < block.childCount; index++) {
+      const child = block.child(index)
+      if (child.type.name !== 'bookmarkStart' && child.type.name !== 'bookmarkEnd') break
+      start += child.nodeSize
+    }
+    // O foco antes da seleção: sem foco o ProseMirror muda só o estado, e o
+    // cursor do navegador — o que `Home` e `End` movem — ficava onde estava.
     editor.view.focus()
+    editor.commands.setTextSelection(start)
     const dom = editor.view.nodeDOM(pos)
     if (dom instanceof HTMLElement) dom.scrollIntoView({ block: 'start' })
   }

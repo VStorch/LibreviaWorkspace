@@ -27,6 +27,8 @@ import { BlockFormat } from './extensions/block-format.js'
 import { DocumentImage } from './extensions/document-image.js'
 import { BlockIdentity } from './extensions/block-identity.js'
 import { BookmarkEnd, BookmarkStart, Bookmarks } from './extensions/bookmark.js'
+import { Field } from './extensions/field.js'
+import { TableOfContents } from './extensions/table-of-contents.js'
 import { Indent } from './extensions/indent.js'
 import { ListNumbering } from './extensions/list-numbering.js'
 import { Caps, SmallCaps } from './extensions/letter-case.js'
@@ -193,6 +195,10 @@ export function buildEditorExtensions(
     BookmarkStart,
     BookmarkEnd,
     Bookmarks,
+    // Os campos (PAGEREF, REF, SEQ…) como nós com instrução e resultado, e o
+    // sumário como bloco. Ver field.ts e table-of-contents.ts.
+    Field,
+    TableOfContents,
     // Guarda os vãos entre as folhas. Quem os calcula é `usePagination`; aqui
     // fica só o lugar onde eles vivem, para acompanharem a edição sem que o
     // documento saiba que existem.

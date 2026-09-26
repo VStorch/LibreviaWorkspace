@@ -18,7 +18,7 @@ import { editBandFloat, editBandPiece } from '@services/document/band.js'
 import { floatsOf } from '@services/document/floating.js'
 import { currentPreferences, usePreferences } from '../state/preferences.js'
 import { useLeaveReadingOnEscape, useReadingMode } from '../state/reading.js'
-import { useT } from '../i18n.js'
+import { t as translateNow, useT } from '../i18n.js'
 import { useWorkspace } from '../state/workspace.js'
 import { setFittedZoom, useEffectiveZoom } from '../state/zoom.js'
 import { fitWidthZoom } from '@services/document/zoom.js'
@@ -43,6 +43,7 @@ import type { FloatSource, PlacedFloat } from './FloatingLayer.js'
 import { buildEditorExtensions } from './editor-extensions.js'
 import { isPaginationOnly } from './extensions/pagination.js'
 import { useEditorCommands } from './useEditorCommands.js'
+import { settlePageFields, type ReferenceContext } from './references.js'
 import type { SearchStatus } from './extensions/search-replace.js'
 
 /**
@@ -214,7 +215,25 @@ export function DocumentEditor(): React.JSX.Element {
 
   // O menu nativo e o botão direito chegam pelo mesmo `run`, que é onde a trava
   // do somente leitura é conferida — ver useEditorCommands.
-  const { dialogs, setDialog, run } = useEditorCommands(editor, readOnly, pasteWithoutFormat)
+  // O que as referências leem na hora do comando: a paginação de agora (pela
+  // `ref`, que acompanha cada medida), a página e os estilos da loja.
+  const referenceContext = useCallback(
+    (): ReferenceContext => ({
+      layout: layoutRef.current,
+      page: useWorkspace.getState().page,
+      styles: useWorkspace.getState().styles,
+      setStyles: useWorkspace.getState().setStyles,
+      t: translateNow,
+    }),
+    [],
+  )
+
+  const { dialogs, setDialog, run } = useEditorCommands(
+    editor,
+    readOnly,
+    pasteWithoutFormat,
+    referenceContext,
+  )
 
   // O botão direito nasce no processo main: é lá que o corretor do Chromium conta
   // qual palavra marcou e o que sugere.
@@ -347,6 +366,12 @@ export function DocumentEditor(): React.JSX.Element {
   bandsRef.current = bands
 
   useEffect(() => setEstimatedPages(layout.pages), [layout.pages, setEstimatedPages])
+
+  // O segundo passe dos campos de página, quando a paginação assenta depois de
+  // um sumário ou de um F9 — ver `settlePageFields`.
+  useEffect(() => {
+    if (editor !== null && !readOnly) settlePageFields(editor, referenceContext())
+  }, [editor, layout, readOnly, referenceContext])
 
   // Quanto vale "ajustar à largura" nesta janela. Medido sempre, e não só com o
   // ajuste ligado: ampliar a partir dele precisa do valor que se vê.

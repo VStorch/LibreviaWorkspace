@@ -156,6 +156,185 @@ public class ReferencesTests
         Assert.Equal(BodyXml(original), BodyXml(saved));
     }
 
+    [Fact]
+    public void MarcadorEntreLinhasDeTabelaEditadaContinuaNoLugar()
+    {
+        // O Word grava assim o marcador que abraça linhas inteiras: as pontas são
+        // filhas de `w:tbl` e de `w:tr`, fora de qualquer parágrafo. Editar uma
+        // célula reescreve a tabela, e as pontas têm de voltar onde estavam.
+        const string cell = "<w:tc><w:tcPr><w:tcW w:w=\"4500\" w:type=\"dxa\"/></w:tcPr><w:p><w:r><w:t>{0}</w:t></w:r></w:p></w:tc>";
+        var body =
+            "<w:tbl><w:tblPr><w:tblW w:w=\"9000\" w:type=\"dxa\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"4500\"/><w:gridCol w:w=\"4500\"/></w:tblGrid>" +
+            "<w:tr>" + string.Format(cell, "A") + string.Format(cell, "B") + "</w:tr>" +
+            "<w:bookmarkStart w:id=\"5\" w:name=\"Linhas\"/>" +
+            "<w:tr><w:bookmarkStart w:id=\"6\" w:name=\"Celula\"/>" + string.Format(cell, "C") + "<w:bookmarkEnd w:id=\"6\"/>" + string.Format(cell, "D") + "</w:tr>" +
+            "<w:bookmarkEnd w:id=\"5\"/></w:tbl><w:p/>";
+        var original = Fixtures.BuildFromXml(body, "");
+        var model = Roundtrip.Clone(Roundtrip.Open(original));
+        Assert.True(Roundtrip.EditFirstTextContaining(model, "A", "A editado"));
+
+        var (saved, result) = Roundtrip.Save(original, model);
+        var xml = Roundtrip.XmlOf(saved);
+
+        Assert.Equal(1, result.RewrittenBlocks);
+        Assert.Empty(result.Inventory.Lost);
+        Assert.Matches("</w:tr><w:bookmarkStart w:name=\"Linhas\" w:id=\"5\" ?/><w:tr>", xml);
+        Assert.Matches("<w:tr><w:bookmarkStart w:name=\"Celula\" w:id=\"6\" ?/><w:tc>", xml);
+        Assert.Matches("</w:tr><w:bookmarkEnd w:id=\"5\" ?/></w:tbl>", xml);
+    }
+
+    // --- campos e sumário ----------------------------------------------------
+
+    private static string Instruction(Node field) => AttrOf(field, "instr")!.Trim();
+
+    [Fact]
+    public void CamposViramNosComInstrucaoEResultado()
+    {
+        var opened = DocxReader.Read(Fixtures.WithReferences());
+        var fields = NodesOf(opened.Model, "field");
+
+        Assert.Contains(fields, field => Instruction(field) == "SEQ Figura \\* ARABIC" && AttrOf(field, "result") == "1");
+        Assert.Contains(fields, field => Instruction(field) == "REF _Ref200 \\h" && AttrOf(field, "result") == "Figura 1");
+        Assert.Contains(fields, field => Instruction(field) == "PAGEREF _Ref200 \\h");
+
+        // Representados, os campos e o sumário deixam de travar o documento.
+        Assert.Empty(opened.Inventory.Structural);
+    }
+
+    [Fact]
+    public void OSumarioViraUmBlocoComAsEntradasDentro()
+    {
+        var model = Roundtrip.Open(Fixtures.WithReferences());
+        var toc = Assert.Single(NodesOf(model, "tableOfContents"));
+
+        Assert.StartsWith("TOC \\o \"1-3\"", Instruction(toc));
+        Assert.Equal(1, toc.Attrs!["head"]!.GetValue<int>());
+        Assert.True(toc.Attrs!["sdt"]!.GetValue<bool>());
+        Assert.Equal(4, toc.Content!.Count);
+
+        // A entrada: o link para o `_Toc` do título, com o PAGEREF dentro.
+        var entry = toc.Content[1];
+        var pageRef = Assert.Single(entry.Content!, node => node.Type == "field");
+        Assert.Equal("PAGEREF _Toc100 \\h", Instruction(pageRef));
+        Assert.Contains(pageRef.Marks!, mark => mark.Type == "link");
+        // As peças do campo TOC saíram do texto: nenhum `field` com TOC dentro.
+        Assert.DoesNotContain(NodesOf(model, "field"), field => Instruction(field).StartsWith("TOC", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void SumarioEditadoVoltaComoCampoDentroDoControleDeConteudo()
+    {
+        var original = Fixtures.WithReferences();
+        var model = Roundtrip.Clone(Roundtrip.Open(original));
+        Assert.True(Roundtrip.EditFirstTextContaining(model, "Escopo", "Escopo revisto"));
+
+        var (saved, result) = Roundtrip.Save(original, model);
+        var xml = Roundtrip.XmlOf(saved);
+
+        Assert.Equal(1, result.RewrittenBlocks);
+        Assert.Empty(result.Inventory.Lost);
+        Assert.Contains("w:docPartGallery w:val=\"Table of Contents\"", xml, StringComparison.Ordinal);
+        Assert.Single(Regex.Matches(xml, "> TOC \\\\o"));
+        Assert.Equal(2, Regex.Matches(xml, "PAGEREF _Toc10").Count);
+
+        var reopened = Roundtrip.Open(saved);
+        var toc = Assert.Single(NodesOf(reopened, "tableOfContents"));
+        Assert.Equal(4, toc.Content!.Count);
+        Assert.Contains("Escopo revisto", Roundtrip.TextOf(reopened), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ParagrafoComCampoEditadoMantemOCampo()
+    {
+        var original = Fixtures.WithReferences();
+        var model = Roundtrip.Clone(Roundtrip.Open(original));
+        Assert.True(Roundtrip.EditFirstTextContaining(model, " — Arquitetura", " — Arquitetura geral"));
+
+        var (saved, result) = Roundtrip.Save(original, model);
+
+        Assert.Equal(1, result.RewrittenBlocks);
+        Assert.Empty(result.Inventory.Lost);
+        var reopened = Roundtrip.Open(saved);
+        Assert.Contains(NodesOf(reopened, "field"), field => Instruction(field) == "SEQ Figura \\* ARABIC");
+        // O marcador `_Ref` da legenda continua em volta do número.
+        Assert.Contains(NodesOf(reopened, "bookmarkStart"), node => AttrOf(node, "name") == "_Ref200");
+    }
+
+    [Fact]
+    public void SumarioSemControleDeConteudoEhUmBlocoDeVariosParagrafos()
+    {
+        var body = Fixtures.ReferencesBody;
+        var inner = body[(body.IndexOf("<w:sdtContent>", StringComparison.Ordinal) + "<w:sdtContent>".Length)..body.IndexOf("</w:sdtContent>", StringComparison.Ordinal)];
+        // Sem o título, que fora do controle de conteúdo seria um parágrafo comum.
+        inner = inner[(inner.IndexOf("</w:p>", StringComparison.Ordinal) + "</w:p>".Length)..];
+        var bare = inner + body[(body.IndexOf("</w:sdt>", StringComparison.Ordinal) + "</w:sdt>".Length)..];
+        var original = Fixtures.BuildFromXml(bare, Fixtures.ReferencesStyles);
+
+        var model = Roundtrip.Open(original);
+        var toc = Assert.Single(NodesOf(model, "tableOfContents"));
+        Assert.False(toc.Attrs!["sdt"]!.GetValue<bool>());
+        Assert.Equal(3, toc.Content!.Count);
+
+        var (unchanged, untouched) = Roundtrip.Save(original, Roundtrip.Clone(model));
+        Assert.Equal(0, untouched.RewrittenBlocks);
+        Assert.Equal(BodyXml(original), BodyXml(unchanged));
+
+        var edited = Roundtrip.Clone(model);
+        Assert.True(Roundtrip.EditFirstTextContaining(edited, "Introdução", "Introdução geral"));
+        var xml = Roundtrip.XmlOf(Roundtrip.Save(original, edited).Bytes);
+        Assert.DoesNotContain("<w:sdt>", xml, StringComparison.Ordinal);
+        Assert.Single(Regex.Matches(xml, "> TOC \\\\o"));
+    }
+
+    [Fact]
+    public void SumarioNovoGanhaControleDeConteudoEParadaDeTabulacao()
+    {
+        // O que o editor manda ao inserir um sumário: o nó sem `oid`, com as
+        // entradas já montadas.
+        var original = Fixtures.WithReferences();
+        var model = Roundtrip.Clone(Roundtrip.Open(original));
+        var entry = Node.Of("paragraph").With("styleId", "Sumrio1");
+        entry.Content =
+        [
+            new Node { Type = "text", Text = "Introdução\t", Marks = [Mark.Of("link", "href", "#_Toc100")] },
+            new Node
+            {
+                Type = "field",
+                Marks = [Mark.Of("link", "href", "#_Toc100")],
+                Attrs = new() { ["instr"] = " PAGEREF _Toc100 \\h ", ["result"] = "2" },
+            },
+        ];
+        var toc = Node.Of("tableOfContents", entry).With("instr", " TOC \\o \"1-2\" \\h ").With("head", 0).With("sdt", true);
+        model.Doc.Content!.Add(toc);
+
+        var xml = Roundtrip.XmlOf(Roundtrip.Save(original, model).Bytes);
+
+        Assert.Equal(2, Regex.Matches(xml, "Table of Contents").Count);
+        Assert.Contains("> TOC \\o \"1-2\" \\h <", xml, StringComparison.Ordinal);
+        Assert.Matches("w:leader=\"dot\"[^>]*w:pos=\"\\d+\"|w:pos=\"\\d+\"[^>]*w:leader=\"dot\"", xml);
+    }
+
+    [Fact]
+    public void CampoAninhadoContinuaTravandoEPerdeAoEditar()
+    {
+        // O campo dentro do campo não cabe no nó: fica como era — o resultado na
+        // tela, o documento travado e o aviso se o parágrafo for reescrito.
+        const string nested =
+            "<w:p><w:r><w:t xml:space=\"preserve\">Antes </w:t></w:r><w:r><w:fldChar w:fldCharType=\"begin\"/></w:r>" +
+            "<w:r><w:instrText xml:space=\"preserve\"> IF </w:instrText></w:r><w:r><w:fldChar w:fldCharType=\"begin\"/></w:r>" +
+            "<w:r><w:instrText> PAGE </w:instrText></w:r><w:r><w:fldChar w:fldCharType=\"separate\"/></w:r><w:r><w:t>1</w:t></w:r>" +
+            "<w:r><w:fldChar w:fldCharType=\"end\"/></w:r><w:r><w:instrText xml:space=\"preserve\"> = 1 \"um\" \"outro\" </w:instrText></w:r>" +
+            "<w:r><w:fldChar w:fldCharType=\"separate\"/></w:r><w:r><w:t>um</w:t></w:r><w:r><w:fldChar w:fldCharType=\"end\"/></w:r></w:p>";
+        var original = Fixtures.BuildFromXml(nested, "");
+        var opened = DocxReader.Read(original);
+        Assert.Contains(Inventory.Fields, opened.Inventory.Structural);
+
+        var model = Roundtrip.Clone(opened.Model);
+        Assert.True(Roundtrip.EditFirstTextContaining(model, "Antes ", "Depois "));
+        var (_, result) = Roundtrip.Save(original, model);
+        Assert.Contains("campo calculado num parágrafo que você editou", result.Inventory.Lost);
+    }
+
     private static Node DocxReaderOf(byte[] bytes, bool references)
     {
         using var stream = new MemoryStream(bytes, writable: false);

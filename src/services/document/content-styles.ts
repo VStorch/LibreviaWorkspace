@@ -66,6 +66,34 @@ ${DOCUMENT_FONT_CSS}
 
 .page__content a { color: #14538f; text-decoration: underline; }
 
+/*
+  O sumário. As entradas são parágrafos comuns com uma tabulação à direita e
+  pontinhos até o número — é o que o estilo "toc N" do Word declara. Não há
+  paradas de tabulação no editor, e esta é a aproximação: a linha da entrada vira
+  uma fileira flexível em que o número (o campo PAGEREF) encosta na margem e os
+  pontinhos preenchem o que sobra. A tabulação do texto, sozinha no fim da
+  entrada, deixa de ocupar lugar.
+
+  O link da entrada não se pinta de link: o Word também não o pinta.
+*/
+.page__content .toc a { color: inherit; text-decoration: none; }
+.page__content .toc :is(p, h1, h2, h3, h4, h5, h6, a):has(> .field[data-field='pageref']) {
+  display: flex;
+  align-items: baseline;
+}
+.page__content .toc .field[data-field='pageref'] {
+  flex: 1 1 auto;
+  display: flex;
+  min-width: 1.5em;
+  white-space: nowrap;
+}
+.page__content .toc .field[data-field='pageref']::before {
+  content: '. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .';
+  flex: 1 1 auto;
+  overflow: hidden;
+  padding: 0 0.2em;
+}
+
 /**
  * Sobrescrito e subscrito sem esticar a linha.
  *
@@ -340,6 +368,12 @@ const DARK_CONTENT_CSS = `
 `
 
 export const EDITOR_ONLY_CSS = `
+/*
+  O campo selecionado ganha o sombreado cinza do Word — é como se vê que aquele
+  número é calculado, e que F9 o atualiza. Só na tela: o papel não o mostra.
+*/
+.page__content .field.ProseMirror-selectednode { background: #d9d9d9; outline: none; }
+
 ${DARK_CONTENT_CSS}
 .page__content .selectedCell::after {
   content: '';

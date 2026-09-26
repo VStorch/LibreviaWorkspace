@@ -237,7 +237,13 @@ export function usePagination(
               ? Array.from(node.children).filter(
                   (child): child is HTMLElement => child instanceof HTMLElement && child.tagName === 'LI',
                 )
-              : []
+              : // O sumário corta entre entradas, como a lista entre itens: um
+                // sumário de duas folhas é comum, e inteiro ele não caberia.
+                node.hasAttribute('data-toc')
+                ? Array.from(node.children).filter(
+                    (child): child is HTMLElement => child instanceof HTMLElement,
+                  )
+                : []
         let internal = 0
         const breakpoints: number[] = []
 

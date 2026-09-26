@@ -153,6 +153,13 @@ internal static class BandWriter
                 continue;
             }
 
+            // O leitor de faixa não traz marcador para o modelo: reescrita, a caixa
+            // o perde. Não é motivo para recusar o texto novo — é para avisar.
+            if (box.Descendants<BookmarkStart>().Any())
+            {
+                inventory.NoteLoss("marcador numa caixa de cabeçalho que você editou");
+            }
+
             box.RemoveAllChildren();
             foreach (var block in content)
             {

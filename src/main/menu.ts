@@ -330,6 +330,27 @@ async function buildTemplate(): Promise<MenuItemConstructorOptions[]> {
         },
       ],
     },
+    {
+      // As referências do Word: sumário, legendas, referências cruzadas e o F9
+      // que recalcula os campos. O marcador fica em "Inserir", como lá.
+      label: t('menu.references'),
+      submenu: [
+        {
+          label: t('menu.references.tableOfContents'),
+          click: () => dispatch(MenuCommand.InsertTableOfContents),
+        },
+        {
+          label: t('menu.references.updateTableOfContents'),
+          click: () => dispatch(MenuCommand.UpdateTableOfContents),
+        },
+        { type: 'separator' },
+        {
+          label: t('menu.references.updateFields'),
+          accelerator: acceleratorOf(SHORTCUTS.updateFields),
+          click: () => dispatch(MenuCommand.UpdateFields),
+        },
+      ],
+    },
     { label: t('menu.view'), submenu: viewSubmenu },
     {
       label: t('menu.tools'),

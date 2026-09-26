@@ -40,4 +40,16 @@ export const REFERENCES = {
   'references.link.noPlace': { pt: '(nenhum — usar o endereço)', en: '(none — use the address)' },
   'references.link.headings': { pt: 'Títulos', en: 'Headings' },
   'references.link.bookmarks': { pt: 'Marcadores', en: 'Bookmarks' },
+
+  // Texto do documento, e não da interface: entra no arquivo no idioma de quem
+  // escreve, como o Word faz.
+  'references.toc.title': { pt: 'Sumário', en: 'Contents' },
+  'references.toc.empty': {
+    pt: 'Nenhuma entrada de sumário foi encontrada.',
+    en: 'No table of contents entries found.',
+  },
+  'references.field.missingBookmark': {
+    pt: 'Erro! Indicador não definido.',
+    en: 'Error! Bookmark not defined.',
+  },
 } satisfies Catalog

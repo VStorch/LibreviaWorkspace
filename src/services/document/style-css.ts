@@ -72,7 +72,15 @@ export function styleSheetCss(sheet: StyleSheet): string {
     )
   }
 
-  return rules.join('\n')
+  // As mesmas regras para os parágrafos do sumário, que é um bloco no editor e
+  // parágrafos comuns no arquivo — com o estilo `toc 1`, `toc 2`… de cada nível.
+  // Repetidas no fim, e na mesma ordem, para que valha entre elas a precedência
+  // que vale entre as de cima.
+  const inContents = rules
+    .filter((text) => text.startsWith('.page__content > ') && !text.startsWith('.page__content > * + *'))
+    .map((text) => text.replace('.page__content > ', '.page__content > [data-toc] > '))
+
+  return [...rules, ...inContents].join('\n')
 }
 
 function rule(selector: string, style: ResolvedStyle): string {

@@ -39,6 +39,9 @@ public sealed class ParagraphWriter
     /// </summary>
     private readonly bool _references;
 
+    /// <summary>A largura da coluna de texto em vinte-avos de ponto: 1 px do CSS são 15.</summary>
+    private readonly int _usableTwips;
+
     /// <param name="usableWidthPx">
     /// A largura da coluna de texto, em pixels do CSS. É o teto de uma imagem
     /// que chega sem medida: maior do que isso, o Word a desenha estourando a
@@ -60,6 +63,7 @@ public sealed class ParagraphWriter
         var usable = usableWidthPx > 0 ? usableWidthPx : ImageWriter.DefaultWidthPx;
         _tables = new TableWriter(inventory, (node, original) => Write(node, null, original), usable);
         _images = new ImageWriter(part, inventory, usable);
+        _usableTwips = usable * 15;
     }
 
     /// <param name="original">
@@ -118,6 +122,10 @@ public sealed class ParagraphWriter
                 yield return aligned;
                 break;
             }
+
+            case "tableOfContents":
+                foreach (var element in WriteTableOfContents(node, original)) yield return element;
+                break;
 
             case "horizontalRule":
                 yield return new Paragraph(new ParagraphProperties(
@@ -388,7 +396,7 @@ public sealed class ParagraphWriter
         switch (node.Type)
         {
             case "text":
-                yield return WriteTextRun(node);
+                foreach (var element in WriteTextRun(node)) yield return element;
                 break;
 
             case "hardBreak":
@@ -413,6 +421,10 @@ public sealed class ParagraphWriter
                 yield return new BookmarkEnd { Id = Attr.String(node, "bid") ?? "0" };
                 break;
 
+            case "field":
+                foreach (var element in WriteField(node)) yield return element;
+                break;
+
             case "image":
                 if ((originalImages is null ? null : _images.Reuse(node, originalImages)) is { } kept)
                 {
@@ -431,9 +443,9 @@ public sealed class ParagraphWriter
         }
     }
 
-    private OpenXmlElement WriteTextRun(Node node)
+    /// <summary>As marcas do nó → o `w:rPr` do run e o destino do link, se houver.</summary>
+    private (RunProperties Properties, string? Hyperlink) FormatOf(Node node)
     {
-        var run = new Run();
         var properties = new RunProperties();
         string? hyperlink = null;
 
@@ -501,6 +513,13 @@ public sealed class ParagraphWriter
         }
 
         DropWhatRepeatsTheStyle(properties, _paragraphRun);
+        return (properties, hyperlink);
+    }
+
+    private IEnumerable<OpenXmlElement> WriteTextRun(Node node)
+    {
+        var run = new Run();
+        var (properties, hyperlink) = FormatOf(node);
         if (properties.HasChildren) run.RunProperties = properties;
 
         // O texto entra peça por peça: tabulação é `w:tab`, quebra de linha é
@@ -515,14 +534,20 @@ public sealed class ParagraphWriter
 
         foreach (var piece in pieces) run.AppendChild(piece);
 
-        if (hyperlink is null) return run;
+        return Linked([run], hyperlink);
+    }
+
+    /// <summary>Os runs, dentro de um `w:hyperlink` quando há destino.</summary>
+    private IEnumerable<OpenXmlElement> Linked(List<Run> runs, string? hyperlink)
+    {
+        if (hyperlink is null) return runs;
 
         // O link para um marcador do próprio documento: `w:anchor`, sem
         // relacionamento. `w:history` é o que o Word grava em todo link que ele
         // mesmo cria.
         if (hyperlink.StartsWith('#'))
         {
-            return new Hyperlink(run) { Anchor = hyperlink[1..], History = true };
+            return [new Hyperlink(runs) { Anchor = hyperlink[1..], History = true }];
         }
 
         // `w:hyperlink` embrulha o run — não cabe dentro dele.
@@ -534,13 +559,141 @@ public sealed class ParagraphWriter
         catch (UriFormatException)
         {
             _inventory.NoteLoss("endereço de link inválido");
-            return run;
+            return runs;
         }
 
         var relationship = _part.AddHyperlinkRelationship(target, true);
-        var link = new Hyperlink { Id = relationship.Id };
-        link.AppendChild(run);
-        return link;
+        return [new Hyperlink(runs) { Id = relationship.Id }];
+    }
+
+    /// <summary>
+    /// Um campo: início, instrução, separador, resultado e fim, cada um no seu
+    /// run e todos com a formatação do nó — a forma em que o Word o grava.
+    /// </summary>
+    private IEnumerable<OpenXmlElement> WriteField(Node node)
+    {
+        var (properties, hyperlink) = FormatOf(node);
+
+        Run Piece(params OpenXmlElement[] content)
+        {
+            var run = new Run();
+            if (properties.HasChildren) run.RunProperties = (RunProperties)properties.CloneNode(true);
+            foreach (var element in content) run.AppendChild(element);
+            return run;
+        }
+
+        var runs = new List<Run>
+        {
+            Piece(new FieldChar { FieldCharType = FieldCharValues.Begin }),
+            Piece(new FieldCode(Attr.String(node, "instr") ?? string.Empty) { Space = SpaceProcessingModeValues.Preserve }),
+            Piece(new FieldChar { FieldCharType = FieldCharValues.Separate }),
+        };
+
+        var result = XmlText.Of(Attr.String(node, "result")).ToArray();
+        if (result.Length > 0) runs.Add(Piece(result));
+        runs.Add(Piece(new FieldChar { FieldCharType = FieldCharValues.End }));
+
+        return Linked(runs, hyperlink);
+    }
+
+    /// <summary>
+    /// O sumário: os parágrafos do nó com o campo `TOC` em volta, dentro do
+    /// controle de conteúdo quando o original tinha um — ver BodyReader.ReadTableOfContents.
+    /// </summary>
+    /// <remarks>
+    /// O título (antes de `head`) volta com o `w:pPr` original. As entradas, não:
+    /// "Atualizar sumário" as refaz, e o parágrafo de índice `n` pode não ser mais
+    /// o de índice `n` do arquivo. A entrada que traz número de página e não tem
+    /// parada de tabulação ganha a do Word — à direita, na margem, com pontinhos —,
+    /// sem a qual o número cairia colado ao texto.
+    /// </remarks>
+    private IEnumerable<OpenXmlElement> WriteTableOfContents(Node node, OpenXmlElement? original)
+    {
+        var children = node.Content ?? [];
+        if (children.Count == 0) children = [Node.Of("paragraph")];
+
+        var head = Math.Clamp(Attr.Int(node, "head") ?? 0, 0, children.Count - 1);
+        var originals = original switch
+        {
+            SdtBlock block => block.SdtContentBlock?.Elements<Paragraph>().ToList() ?? [],
+            Paragraph first => [first],
+            _ => [],
+        };
+
+        var paragraphs = new List<Paragraph>();
+        for (var index = 0; index < children.Count; index++)
+        {
+            var source = index < head ? originals.ElementAtOrDefault(index) : null;
+            foreach (var paragraph in Write(children[index], null, source).OfType<Paragraph>())
+            {
+                if (index >= head) WithPageTab(paragraph);
+                paragraphs.Add(paragraph);
+            }
+        }
+
+        var opening = paragraphs[Math.Min(head, paragraphs.Count - 1)];
+        var at = opening.ParagraphProperties is null ? 0 : 1;
+        opening.InsertAt(new Run(new FieldChar { FieldCharType = FieldCharValues.Begin }), at);
+        opening.InsertAt(
+            new Run(new FieldCode(Attr.String(node, "instr") ?? " TOC \\o \"1-3\" \\h \\z \\u ")
+            {
+                Space = SpaceProcessingModeValues.Preserve,
+            }),
+            at + 1);
+        opening.InsertAt(new Run(new FieldChar { FieldCharType = FieldCharValues.Separate }), at + 2);
+        paragraphs[^1].AppendChild(new Run(new FieldChar { FieldCharType = FieldCharValues.End }));
+
+        if (!Attr.Bool(node, "sdt"))
+        {
+            foreach (var paragraph in paragraphs) yield return paragraph;
+            yield break;
+        }
+
+        // As propriedades do controle de conteúdo são as do original; o sumário
+        // novo ganha as que o Word dá ao dele.
+        var sdt = new SdtBlock();
+        if (original is SdtBlock previous && previous.SdtProperties is { } kept)
+        {
+            sdt.AppendChild(kept.CloneNode(true));
+            if (previous.SdtEndCharProperties is { } end) sdt.AppendChild(end.CloneNode(true));
+        }
+        else
+        {
+            sdt.AppendChild(new SdtProperties(
+                new SdtContentDocPartObject(
+                    new DocPartGallery { Val = "Table of Contents" },
+                    new DocPartUnique())));
+        }
+
+        sdt.AppendChild(new SdtContentBlock(paragraphs));
+        yield return sdt;
+    }
+
+    /// <summary>A parada de tabulação do número da página, na entrada que não tem nenhuma.</summary>
+    private void WithPageTab(Paragraph paragraph)
+    {
+        if (!paragraph.Descendants<FieldCode>().Any(code => code.Text.Contains("PAGEREF", StringComparison.OrdinalIgnoreCase)))
+        {
+            return;
+        }
+
+        var properties = paragraph.ParagraphProperties ??= new ParagraphProperties();
+        if (properties.Tabs is not null) return;
+
+        var tabs = new Tabs(new TabStop
+        {
+            Val = TabStopValues.Right,
+            Leader = TabStopLeaderCharValues.Dot,
+            Position = _usableTwips,
+        });
+
+        // Na ordem do esquema: depois do estilo, da numeração e das bordas, antes do
+        // espaçamento. `InsertAfter` do último que vem antes, ou no começo.
+        var before = properties.ChildElements.LastOrDefault(child =>
+            child is ParagraphStyleId or KeepNext or KeepLines or PageBreakBefore or FrameProperties
+                or WidowControl or NumberingProperties or SuppressLineNumbers or ParagraphBorders or Shading);
+        if (before is null) properties.PrependChild(tabs);
+        else properties.InsertAfter(tabs, before);
     }
 
     /// <summary>

@@ -3,6 +3,13 @@ import type { Editor } from '@tiptap/react'
 import { TableAction } from '@shared/table-actions.js'
 import { EditorCommand, onEditorCommand, runsWhileLocked } from './editor-commands.js'
 import { runTableAction } from './table-actions.js'
+import {
+  flushSelection,
+  insertTableOfContents,
+  updateFields,
+  updateTableOfContents,
+  type ReferenceContext,
+} from './references.js'
 
 /** Os diálogos e painéis que um comando do editor abre. */
 export interface EditorDialogs {
@@ -59,6 +66,8 @@ export function useEditorCommands(
   editor: Editor | null,
   readOnly: boolean,
   pasteWithoutFormat: () => Promise<void>,
+  /** A paginação, a página e os estilos de agora — ver `ReferenceContext`. */
+  referenceContext: () => ReferenceContext,
 ): EditorCommands {
   const [dialogs, setDialogs] = useState<EditorDialogs>(CLOSED)
 
@@ -69,6 +78,12 @@ export function useEditorCommands(
   const run = useCallback(
     (command: EditorCommand) => {
       if (readOnly && !runsWhileLocked(command)) return
+
+      // O cursor que a pessoa acabou de mover com Home, End ou as setas ainda
+      // pode estar só no DOM: o ProseMirror o lê no `selectionchange`, e o
+      // comando que chega do menu nativo pelo IPC pode chegar antes. Sem isto, o
+      // sumário pedido logo depois de um Home entrava onde o cursor estava antes.
+      if (editor !== null) flushSelection(editor)
 
       switch (command) {
         case EditorCommand.FindReplace:
@@ -85,6 +100,15 @@ export function useEditorCommands(
           return setDialog('imageProperties', true)
         case EditorCommand.InsertBookmark:
           return setDialog('bookmark', true)
+        case EditorCommand.InsertTableOfContents:
+          if (editor !== null) insertTableOfContents(editor, referenceContext())
+          return
+        case EditorCommand.UpdateTableOfContents:
+          if (editor !== null) updateTableOfContents(editor, referenceContext())
+          return
+        case EditorCommand.UpdateFields:
+          if (editor !== null) updateFields(editor, referenceContext())
+          return
         case EditorCommand.PasteWithoutFormat:
           void pasteWithoutFormat()
           return
@@ -115,7 +139,7 @@ export function useEditorCommands(
           command satisfies never
       }
     },
-    [editor, readOnly, pasteWithoutFormat, setDialog],
+    [editor, readOnly, pasteWithoutFormat, referenceContext, setDialog],
   )
 
   useEffect(() => onEditorCommand(run), [run])

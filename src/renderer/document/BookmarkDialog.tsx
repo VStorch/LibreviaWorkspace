@@ -42,8 +42,12 @@ export function BookmarkDialog({
 
   function add(): void {
     if (readOnly || !valid) return
-    editor.chain().focus().setBookmark(name).run()
+    editor.commands.setBookmark(name)
     onClose()
+    // O foco volta ao texto depois de o diálogo sair da tela: devolvido antes,
+    // o campo do nome o levava junto ao ser desmontado, e o que se digitava em
+    // seguida não ia para lugar nenhum.
+    requestAnimationFrame(() => editor.view.focus())
   }
 
   return (

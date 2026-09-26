@@ -94,9 +94,10 @@ export const BlockIdentity = Extension.create<BlockIdentityOptions>({
   addOptions() {
     // Exatamente os nós em que `BodyReader` chama `NewBlock`: o parágrafo de
     // topo (que pode sair como `paragraph`, `heading` ou `pageBreak`), o item de
-    // lista — que no arquivo é um `w:p` — e a tabela. Declarar em mais nós não
-    // machucaria, mas sugeriria uma identidade que o leitor não emite.
-    return { types: ['paragraph', 'heading', 'pageBreak', 'listItem', 'table'] }
+    // lista — que no arquivo é um `w:p` — a tabela e o sumário, que no arquivo é
+    // o `w:sdt` inteiro. Declarar em mais nós não machucaria, mas sugeriria uma
+    // identidade que o leitor não emite.
+    return { types: ['paragraph', 'heading', 'pageBreak', 'listItem', 'table', 'tableOfContents'] }
   },
 
   addGlobalAttributes() {

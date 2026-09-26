@@ -106,6 +106,12 @@ export const MenuCommand = {
   ImageProperties: 'image-properties',
   /** Marcadores: adicionar, ir para e excluir. */
   InsertBookmark: 'insert-bookmark',
+  /** Sumário dos títulos, com número de página e link. */
+  InsertTableOfContents: 'insert-table-of-contents',
+  /** Refaz as entradas do sumário a partir dos títulos de agora. */
+  UpdateTableOfContents: 'update-table-of-contents',
+  /** F9: recalcula os campos da seleção, ou do documento inteiro. */
+  UpdateFields: 'update-fields',
   // O menu "Tabela". Os valores são os mesmos de `TableAction` (ver
   // `table-actions.ts`), e é por eles que o `App` os repassa ao editor.
   TableInsert: 'table-insert',

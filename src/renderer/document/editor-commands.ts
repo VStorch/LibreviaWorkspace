@@ -32,6 +32,9 @@ export const EditorCommand = {
   ImageProperties: 'image-properties',
   /** Marcadores: adicionar, ir para e excluir. */
   InsertBookmark: 'insert-bookmark',
+  InsertTableOfContents: 'insert-table-of-contents',
+  UpdateTableOfContents: 'update-table-of-contents',
+  UpdateFields: 'update-fields',
   ...TableAction,
 } as const satisfies Record<string, MenuCommand>
 

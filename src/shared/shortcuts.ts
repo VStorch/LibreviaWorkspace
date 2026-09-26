@@ -51,15 +51,16 @@ export type ShortcutOwner = (typeof ShortcutOwner)[keyof typeof ShortcutOwner]
 /**
  * A combinação em forma neutra, de onde saem as duas escritas.
  *
- * Todo atalho nosso usa o modificador de comando, então ele é obrigatório: o que
- * varia é o resto. A tecla vai pelo nome que o Electron usa (`B`, `=`, `[`,
+ * Quase todo atalho nosso usa o modificador de comando; a exceção são as teclas de
+ * função que o Word usa sozinhas — o `F9` de atualizar campos —, e é só por elas
+ * que `mod` pode faltar. A tecla vai pelo nome que o Electron usa (`B`, `=`, `[`,
  * `F10`, `Enter`, `numadd`), e nunca por um apelido: escrever `Plus` seria dizer
  * `Shift+=` com outro nome, e a colisão que se quer impossível voltaria a passar
  * em silêncio porque as duas grafias não se parecem.
  */
 export interface ShortcutKey {
-  /** `Ctrl` no Windows e no Linux, `Cmd` no macOS. */
-  readonly mod: true
+  /** `Ctrl` no Windows e no Linux, `Cmd` no macOS. Ausente só em tecla de função. */
+  readonly mod?: true
   readonly shift?: true
   readonly alt?: true
   readonly key: string
@@ -161,6 +162,15 @@ export const SHORTCUTS = {
    * nossa leva. O `Ctrl+F` do Word abre o painel pela busca, e aqui ele já é o
    * localizar e substituir.
    */
+  /**
+   * `F9` sozinho, como no Word: atualiza os campos da seleção — ou do documento
+   * inteiro, com o cursor parado. É a única tecla sem `Ctrl` da tabela.
+   */
+  updateFields: {
+    owner: ShortcutOwner.Menu,
+    key: { key: 'F9' },
+    does: 'Atualizar campos',
+  },
   navigationPane: {
     owner: ShortcutOwner.Menu,
     key: { mod: true, key: 'F5' },
@@ -347,17 +357,21 @@ export type EditorShortcutId = {
     : never
 }[ShortcutId]
 
-function parts(key: ShortcutKey): { readonly modifiers: readonly string[]; readonly key: string } {
+function parts(key: ShortcutKey): {
+  readonly mod: boolean
+  readonly modifiers: readonly string[]
+  readonly key: string
+} {
   const modifiers: string[] = []
   if (key.shift === true) modifiers.push('Shift')
   if (key.alt === true) modifiers.push('Alt')
-  return { modifiers, key: key.key }
+  return { mod: key.mod === true, modifiers, key: key.key }
 }
 
 /** A tecla como o Electron a quer, para `accelerator` de item de menu. */
 export function acceleratorOf(shortcut: Shortcut): string {
-  const { modifiers, key } = parts(shortcut.key)
-  return ['CmdOrCtrl', ...modifiers, key].join('+')
+  const { mod, modifiers, key } = parts(shortcut.key)
+  return [...(mod ? ['CmdOrCtrl'] : []), ...modifiers, key].join('+')
 }
 
 /**
@@ -365,8 +379,8 @@ export function acceleratorOf(shortcut: Shortcut): string {
  * ele `L` é a tecla que só sai com Shift, e o atalho nunca dispararia.
  */
 export function editorKeyOf(shortcut: Shortcut): string {
-  const { modifiers, key } = parts(shortcut.key)
-  return ['Mod', ...modifiers, key.length === 1 ? key.toLowerCase() : key].join('-')
+  const { mod, modifiers, key } = parts(shortcut.key)
+  return [...(mod ? ['Mod'] : []), ...modifiers, key.length === 1 ? key.toLowerCase() : key].join('-')
 }
 
 /**
@@ -374,8 +388,8 @@ export function editorKeyOf(shortcut: Shortcut): string {
  * todo sistema, como sempre disse: é o nome que o usuário deste aplicativo lê.
  */
 export function shortcutHintOf(shortcut: Shortcut): string {
-  const { modifiers, key } = parts(shortcut.key)
-  return ['Ctrl', ...modifiers, key].join('+')
+  const { mod, modifiers, key } = parts(shortcut.key)
+  return [...(mod ? ['Ctrl'] : []), ...modifiers, key].join('+')
 }
 
 /**
@@ -383,6 +397,6 @@ export function shortcutHintOf(shortcut: Shortcut): string {
  * teste de colisão descobre que duas entradas pedem a mesma tecla.
  */
 export function canonicalKeyOf(key: ShortcutKey): string {
-  const { modifiers, key: name } = parts(key)
-  return ['Mod', ...modifiers, name.toLowerCase()].join('+')
+  const { mod, modifiers, key: name } = parts(key)
+  return [...(mod ? ['Mod'] : []), ...modifiers, name.toLowerCase()].join('+')
 }

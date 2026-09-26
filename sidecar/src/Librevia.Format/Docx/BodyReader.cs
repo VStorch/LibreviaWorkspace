@@ -28,6 +28,18 @@ public sealed record Block(string Oid, OpenXmlElement Source, Node Extracted)
 
     /// <summary>O mesmo, depois do último bloco do corpo.</summary>
     public List<OpenXmlElement> Trailing { get; } = [];
+
+    /// <summary>
+    /// Os parágrafos seguintes que o bloco também é — o sumário sem controle de
+    /// conteúdo, cujo campo abre no primeiro parágrafo e fecha num dos de baixo.
+    /// </summary>
+    public List<OpenXmlElement> Continuation { get; } = [];
+
+    /// <summary>
+    /// Há campo no bloco que o leitor mostrou só pelo resultado: reescrito, ele
+    /// vira texto comum.
+    /// </summary>
+    public bool UnrepresentedField { get; init; }
 }
 
 /// <summary>
@@ -93,6 +105,16 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory, bool 
     private readonly HashSet<Node> _topAnchored = new(ReferenceEqualityComparer.Instance);
 
     /// <summary>
+    /// O bloco em leitura tem campo que o nó `field` não representou.
+    /// </summary>
+    /// <remarks>
+    /// É o que decide, na gravação, se reescrever o bloco perde um campo: o que
+    /// virou nó volta ao arquivo como campo, e o que ficou só no texto não. Ver
+    /// <see cref="Block.UnrepresentedField"/>.
+    /// </remarks>
+    private bool _unrepresentedField;
+
+    /// <summary>
     /// Percorre o corpo produzindo a árvore do editor e, em paralelo, a lista
     /// plana de blocos com identidade.
     /// </summary>
@@ -121,8 +143,24 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory, bool 
             blocks.Add(block);
         }
 
-        foreach (var element in body.ChildElements)
+        var elements = body.ChildElements.ToList();
+        for (var at = 0; at < elements.Count; at++)
         {
+            var element = elements[at];
+
+            // O sumário: um bloco só, dentro ou fora de controle de conteúdo — ver
+            // ReadTableOfContents.
+            if (references && TableOfContentsAt(elements, at) is { } toc)
+            {
+                openLists.Clear();
+                var block = NewBlock(element, toc.Node);
+                block.Continuation.AddRange(toc.Continuation);
+                Add(block);
+                content.Add(toc.Node);
+                at += toc.Continuation.Count;
+                continue;
+            }
+
             switch (element)
             {
                 case Paragraph paragraph:
@@ -284,7 +322,9 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory, bool 
     {
         var oid = "b" + _nextId++;
         extracted.With("oid", oid);
-        return new Block(oid, source, extracted);
+        var block = new Block(oid, source, extracted) { UnrepresentedField = _unrepresentedField };
+        _unrepresentedField = false;
+        return block;
     }
 
     // --- parágrafos ---------------------------------------------------------
@@ -799,9 +839,30 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory, bool 
         string? hyperlink = null)
     {
         var nodes = new List<Node>();
+        var children = container.ChildElements.ToList();
 
-        foreach (var element in container.ChildElements)
+        for (var index = 0; index < children.Count; index++)
         {
+            var element = children[index];
+
+            // O campo inteiro vira um nó — ver ReadField. O que não couber no nó
+            // segue pelo caminho de sempre, run a run, e é esse caminho que o
+            // registra no inventário.
+            if (references && element is Run begin && IsFieldBegin(begin) &&
+                ReadField(children, index, inherited, hyperlink) is { } field)
+            {
+                nodes.Add(field.Node);
+                index = field.Last;
+                continue;
+            }
+
+            if (references && element is SimpleField simple &&
+                ReadSimpleField(simple, inherited, hyperlink) is { } plain)
+            {
+                nodes.Add(plain);
+                continue;
+            }
+
             switch (element)
             {
                 case Run run:
@@ -825,6 +886,14 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory, bool 
 
                 case BookmarkEnd end when references:
                     nodes.Add(Node.Of("bookmarkEnd").With("bid", end.Id?.Value ?? string.Empty));
+                    break;
+
+                // O campo simples que o nó não representa (ver ReadSimpleField):
+                // o texto de dentro não aparece, e o bloco não pode ser reescrito
+                // sem perdê-lo.
+                case SimpleField:
+                    inventory.NoteInvisible(Inventory.Fields);
+                    _unrepresentedField = true;
                     break;
 
                 case ParagraphProperties:
@@ -859,7 +928,7 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory, bool 
         return nodes;
     }
 
-    private IEnumerable<Node> ReadRun(Run run, RunProperties inherited, string? hyperlink)
+    private List<Mark>? MarksOfRun(Run run, RunProperties inherited, string? hyperlink)
     {
         // O herdado vai junto para que o "desligado" direto sobre um estilo que
         // liga vire marca — a tela desenha o estilo, e sem ela o trecho voltaria
@@ -878,6 +947,283 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory, bool 
         {
             (marks ??= []).Add(Mark.Of("charStyle", "styleId", characterStyle));
         }
+
+        return marks;
+    }
+
+    // --- sumário ------------------------------------------------------------
+
+    private sealed record TableOfContentsRead(Node Node, List<OpenXmlElement> Continuation);
+
+    /// <summary>
+    /// O sumário que começa em <paramref name="at"/>, ou nulo.
+    /// </summary>
+    /// <remarks>
+    /// Duas formas. A do Word e do LibreOffice é um `w:sdt` com a galeria "Table
+    /// of Contents", e ele é o bloco. A antiga, sem controle de conteúdo, são os
+    /// próprios parágrafos: o campo `TOC` abre no primeiro e fecha num dos de
+    /// baixo, e o bloco é o grupo inteiro — o primeiro é a fonte e os outros a
+    /// continuação (<see cref="Block.Continuation"/>).
+    /// </remarks>
+    private TableOfContentsRead? TableOfContentsAt(List<OpenXmlElement> elements, int at)
+    {
+        if (elements[at] is SdtBlock sdt)
+        {
+            var inside = sdt.SdtContentBlock?.ChildElements.ToList() ?? [];
+            if (inside.Count == 0 || inside.Any(child => child is not Paragraph)) return null;
+            var node = ReadTableOfContents([.. inside.Cast<Paragraph>()], sdt: true);
+            return node is null ? null : new TableOfContentsRead(node, []);
+        }
+
+        if (elements[at] is not Paragraph first || TocBegin(first) is null) return null;
+
+        // O grupo vai até o parágrafo em que o campo fecha. Um bloco que não é
+        // parágrafo no caminho desfaz o grupo: o sumário não atravessa tabela.
+        var depth = 0;
+        for (var index = at; index < elements.Count; index++)
+        {
+            if (elements[index] is not Paragraph paragraph) return null;
+            foreach (var mark in paragraph.Descendants<FieldChar>())
+            {
+                if (mark.FieldCharType?.Value == FieldCharValues.Begin) depth++;
+                else if (mark.FieldCharType?.Value == FieldCharValues.End) depth--;
+            }
+
+            if (depth > 0) continue;
+
+            var group = elements.Skip(at).Take(index - at + 1).Cast<Paragraph>().ToList();
+            var node = ReadTableOfContents(group, sdt: false);
+            return node is null ? null : new TableOfContentsRead(node, [.. group.Skip(1)]);
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// O primeiro campo do parágrafo, quando é um `TOC` de primeiro nível: o índice
+    /// do run que o abre, o do separador e a instrução.
+    /// </summary>
+    private static (int Begin, int Separate, string Instruction)? TocBegin(Paragraph paragraph)
+    {
+        var children = paragraph.ChildElements.ToList();
+        var begin = children.FindIndex(child => child is Run run && IsFieldBegin(run));
+        if (begin < 0) return null;
+
+        var instruction = new System.Text.StringBuilder();
+        for (var index = begin + 1; index < children.Count; index++)
+        {
+            if (children[index] is not Run run) return null;
+            if (FieldCharOf(run) is { } mark)
+            {
+                if (mark.FieldCharType?.Value != FieldCharValues.Separate) return null;
+                var text = instruction.ToString();
+                return text.TrimStart().StartsWith("TOC", StringComparison.OrdinalIgnoreCase)
+                    ? (begin, index, text)
+                    : null;
+            }
+
+            foreach (var code in run.Elements<FieldCode>()) instruction.Append(code.Text);
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Os parágrafos de um sumário → o nó `tableOfContents`.
+    /// </summary>
+    /// <remarks>
+    /// O campo `TOC` sai dos parágrafos e vai para o nó: a instrução num atributo,
+    /// e as três peças do começo e a do fim somem do texto. O que sobra são
+    /// parágrafos comuns — o título, as entradas com o link para o `_Toc` do
+    /// título e o `PAGEREF` do número da página — lidos como qualquer outro, e é
+    /// assim que a pessoa pode corrigir uma entrada à mão, como no Word.
+    ///
+    /// `head` conta os parágrafos antes do campo (o "Sumário" do Word mora dentro
+    /// do controle de conteúdo, mas fora do campo). O campo tem de fechar no
+    /// último parágrafo; outra forma não é representada, e o sumário fica como
+    /// estava — preservado e fora da tela.
+    /// </remarks>
+    private Node? ReadTableOfContents(List<Paragraph> paragraphs, bool sdt)
+    {
+        var head = paragraphs.FindIndex(paragraph => paragraph.Descendants<FieldChar>().Any());
+        if (head < 0 || TocBegin(paragraphs[head]) is not { } begin) return null;
+
+        // O fim que casa com o começo, contando os campos de dentro (os PAGEREF).
+        var depth = 0;
+        FieldChar? end = null;
+        var endParagraph = -1;
+        for (var index = head; index < paragraphs.Count && end is null; index++)
+        {
+            foreach (var mark in paragraphs[index].Descendants<FieldChar>())
+            {
+                if (mark.FieldCharType?.Value == FieldCharValues.Begin) depth++;
+                else if (mark.FieldCharType?.Value == FieldCharValues.End && --depth == 0)
+                {
+                    end = mark;
+                    endParagraph = index;
+                    break;
+                }
+            }
+        }
+
+        if (end is null || endParagraph != paragraphs.Count - 1) return null;
+        if (end.Parent is not Run endRun || endRun.Parent != paragraphs[endParagraph] || FieldCharOf(endRun) is null)
+        {
+            return null;
+        }
+
+        var endIndex = paragraphs[endParagraph].ChildElements.ToList().IndexOf(endRun);
+        var clones = paragraphs.Select(paragraph => (Paragraph)paragraph.CloneNode(true)).ToList();
+
+        // O fim antes do começo: no sumário de um parágrafo só, tirar o começo
+        // primeiro deslocaria o índice do fim.
+        clones[endParagraph].ChildElements[endIndex].Remove();
+        var opening = clones[head].ChildElements.Skip(begin.Begin).Take(begin.Separate - begin.Begin + 1).ToList();
+        foreach (var piece in opening) piece.Remove();
+
+        var content = new List<Node>();
+        foreach (var clone in clones)
+        {
+            var node = ReadParagraph(clone, flat: flatten);
+            if (node.Type is not ("paragraph" or "heading")) return null;
+            content.Add(node);
+        }
+
+        var toc = Node.Of("tableOfContents")
+            .With("instr", begin.Instruction)
+            .With("head", head)
+            .With("sdt", sdt);
+        toc.Content = content;
+        return toc;
+    }
+
+    // --- campos -------------------------------------------------------------
+
+    /// <summary>O run só abre um campo complexo — `w:fldChar` de início e nada mais.</summary>
+    private static bool IsFieldBegin(Run run) =>
+        FieldCharOf(run) is { } mark && mark.FieldCharType?.Value == FieldCharValues.Begin;
+
+    /// <summary>O `w:fldChar` do run, quando é a única coisa que ele carrega.</summary>
+    private static FieldChar? FieldCharOf(Run run)
+    {
+        var content = run.ChildElements.Where(child => child is not RunProperties).ToList();
+        return content is [FieldChar only] ? only : null;
+    }
+
+    private sealed record ReadFieldResult(Node Node, int Last);
+
+    /// <summary>
+    /// Um campo complexo inteiro — início, instrução, separador, resultado e fim —
+    /// como um nó `field` com a instrução e o texto do resultado.
+    /// </summary>
+    /// <remarks>
+    /// É o que deixa o campo sobreviver à edição do parágrafo: antes ele era lido
+    /// só pelo resultado, como texto comum, e reescrever o parágrafo gravava o
+    /// número da página como se a pessoa o tivesse digitado — por isso o
+    /// documento com campo abria travado.
+    ///
+    /// Só o caso que o nó representa sem perda: tudo no mesmo contêiner, um run
+    /// por peça, resultado feito de texto e tabulação, sem campo dentro de campo.
+    /// Fora disso (o sumário que abre num parágrafo e fecha noutro, a imagem
+    /// vinculada, o campo aninhado) devolve nulo, e o campo segue lido como antes.
+    /// A formatação do nó é a do primeiro run do resultado — a que o Word dá ao
+    /// resultado inteiro quando o atualiza.
+    /// </remarks>
+    private ReadFieldResult? ReadField(List<OpenXmlElement> siblings, int start, RunProperties inherited, string? hyperlink)
+    {
+        var instruction = new System.Text.StringBuilder();
+        var result = new System.Text.StringBuilder();
+        Run? formatted = null;
+        var separated = false;
+
+        for (var index = start + 1; index < siblings.Count; index++)
+        {
+            if (siblings[index] is ProofError) continue;
+            if (siblings[index] is not Run run) return null;
+
+            foreach (var child in run.ChildElements)
+            {
+                switch (child)
+                {
+                    case RunProperties:
+                    case LastRenderedPageBreak:
+                        break;
+
+                    case FieldChar mark when mark.FieldCharType?.Value == FieldCharValues.Separate && !separated:
+                        separated = true;
+                        break;
+
+                    case FieldChar mark when mark.FieldCharType?.Value == FieldCharValues.End:
+                        if (FieldCharOf(run) is null) return null;
+                        var node = Node.Of("field")
+                            .With("instr", instruction.ToString())
+                            .With("result", result.ToString());
+                        node.Marks = MarksOfRun(formatted ?? (Run)siblings[start], inherited, hyperlink);
+                        if (result.Length > 0) _paragraphHasContent = true;
+                        return new ReadFieldResult(node, index);
+
+                    case FieldCode code when !separated:
+                        instruction.Append(code.Text);
+                        break;
+
+                    case Text text when separated:
+                        result.Append(text.Text);
+                        formatted ??= run;
+                        break;
+
+                    case TabChar when separated:
+                        result.Append('\t');
+                        formatted ??= run;
+                        break;
+
+                    default:
+                        return null;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// `w:fldSimple`: a instrução num atributo e o resultado nos runs de dentro.
+    /// Vira o mesmo nó do campo complexo, e é na forma complexa que volta ao
+    /// arquivo se o parágrafo for reescrito — as duas são o mesmo campo para o
+    /// Word.
+    /// </summary>
+    private Node? ReadSimpleField(SimpleField field, RunProperties inherited, string? hyperlink)
+    {
+        var result = new System.Text.StringBuilder();
+        Run? formatted = null;
+
+        foreach (var child in field.ChildElements)
+        {
+            if (child is not Run run) return null;
+            foreach (var piece in run.ChildElements)
+            {
+                switch (piece)
+                {
+                    case RunProperties: break;
+                    case Text text: result.Append(text.Text); break;
+                    case TabChar: result.Append('\t'); break;
+                    default: return null;
+                }
+            }
+
+            formatted ??= run;
+        }
+
+        var node = Node.Of("field")
+            .With("instr", field.Instruction?.Value ?? string.Empty)
+            .With("result", result.ToString());
+        node.Marks = formatted is null ? null : MarksOfRun(formatted, inherited, hyperlink);
+        if (result.Length > 0) _paragraphHasContent = true;
+        return node;
+    }
+
+    private IEnumerable<Node> ReadRun(Run run, RunProperties inherited, string? hyperlink)
+    {
+        var marks = MarksOfRun(run, inherited, hyperlink);
 
         foreach (var element in run.ChildElements)
         {
@@ -937,9 +1283,12 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory, bool 
 
                 case FieldChar:
                 case FieldCode:
-                    // `PAGE` e afins: o valor só existe na paginação. O texto
-                    // que o Word deixou em cache vem no run seguinte.
+                    // O campo que o nó `field` não representa — ver ReadField. O
+                    // texto que o Word deixou em cache vem no run seguinte, e é o
+                    // que a tela mostra; reescrito, o parágrafo o gravaria como
+                    // texto comum, e é por isso que o campo trava o documento.
                     inventory.NoteInvisible(Inventory.Fields);
+                    _unrepresentedField = true;
                     break;
 
                 default:

@@ -15,6 +15,7 @@ export const MENU = {
   'menu.format': { pt: 'Formatar', en: 'Format' },
   'menu.table': { pt: 'Tabela', en: 'Table' },
   'menu.insert': { pt: 'Inserir', en: 'Insert' },
+  'menu.references': { pt: 'Referências', en: 'References' },
   'menu.view': { pt: 'Exibir', en: 'View' },
   'menu.tools': { pt: 'Ferramentas', en: 'Tools' },
   'menu.help': { pt: 'Ajuda', en: 'Help' },
@@ -49,6 +50,10 @@ export const MENU = {
   'menu.insert.pageBreak': { pt: 'Quebra de página', en: 'Page break' },
   'menu.insert.specialCharacter': { pt: 'Caractere especial…', en: 'Special character…' },
   'menu.insert.bookmark': { pt: 'Marcador…', en: 'Bookmark…' },
+
+  'menu.references.tableOfContents': { pt: 'Inserir sumário', en: 'Insert table of contents' },
+  'menu.references.updateTableOfContents': { pt: 'Atualizar sumário', en: 'Update table of contents' },
+  'menu.references.updateFields': { pt: 'Atualizar campos', en: 'Update fields' },
 
   'menu.view.formattingMarks': { pt: 'Marcas de formatação', en: 'Formatting marks' },
   'menu.view.navigationPane': { pt: 'Painel de navegação', en: 'Navigation pane' },

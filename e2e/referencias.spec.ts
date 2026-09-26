@@ -1,7 +1,9 @@
 /// <reference lib="dom" />
-import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { execFile } from 'node:child_process'
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { promisify } from 'node:util'
 import { expect, test } from '@playwright/test'
 import { launch, menu, stubDialogs, type Session } from './app.js'
 import { docxWithNamedStyles, docxWithReferences, entryOf } from './fixtures.js'
@@ -207,5 +209,151 @@ test.describe('marcadores', () => {
     const nome = /w:anchor="(_Ref\d+)"/.exec(corpo)?.[1]
     expect(nome).toBeDefined()
     expect(corpo).toContain(`w:name="${nome ?? ''}"`)
+  })
+})
+
+/** O texto de uma página do PDF, pelo `pdftotext` do sistema — nulo sem ele. */
+async function textoDaPagina(caminho: string, pagina: number): Promise<string | null> {
+  try {
+    const { stdout } = await promisify(execFile)('pdftotext', [
+      '-f',
+      String(pagina),
+      '-l',
+      String(pagina),
+      '-layout',
+      caminho,
+      '-',
+    ])
+    return stdout
+  } catch {
+    return null
+  }
+}
+
+async function pdfPronto(caminho: string): Promise<boolean> {
+  try {
+    return (await readFile(caminho)).toString('latin1').includes('%%EOF')
+  } catch {
+    return false
+  }
+}
+
+test.describe('sumário', () => {
+  let session: Session
+  let folder: string
+
+  test.beforeEach(async () => {
+    folder = await mkdtemp(join(tmpdir(), 'librevia-sumario-'))
+    session = await launch()
+  })
+
+  test.afterEach(async () => {
+    await session.close()
+    await rm(folder, { recursive: true, force: true })
+  })
+
+  test('insere com o número da página de cada título, atualiza e sai igual no PDF e no .docx', async () => {
+    const pdf = join(folder, 'sumario.pdf')
+    const docx = join(folder, 'sumario.docx')
+    await stubDialogs(session.app, { save: pdf, messageBox: 1 })
+    await menu(session, 'new-document')
+    const editor = session.window.locator('.ProseMirror')
+    await editor.click()
+
+    await session.window.keyboard.type('Capa.')
+    await menu(session, 'insert-page-break')
+    await session.window.keyboard.press('Control+Alt+1')
+    await session.window.keyboard.type('Introdução')
+    await session.window.keyboard.press('Enter')
+    await session.window.keyboard.type('Texto.')
+    await menu(session, 'insert-page-break')
+    await session.window.keyboard.press('Control+Alt+2')
+    await session.window.keyboard.type('Escopo')
+    await expect(session.window.locator('.paper')).toHaveCount(3)
+
+    // O sumário entra antes do bloco do cursor, na primeira folha.
+    await editor.locator('p', { hasText: 'Capa.' }).click()
+    await session.window.keyboard.press('Home')
+    await menu(session, 'insert-table-of-contents')
+    const toc = editor.locator('.toc')
+    await expect(toc).toContainText('Sumário')
+    // O número é o da folha em que o título caiu, depois de o sumário ocupar a
+    // primeira — o segundo passe da paginação.
+    await expect(toc.locator('.field')).toHaveText(['2', '3'])
+    await expect(toc.locator('a').first()).toHaveAttribute('href', /^#_Toc\d+$/)
+
+    // Um título novo, e "Atualizar sumário" o acrescenta.
+    // Pelo painel de navegação: leva o cursor ao título sem depender de onde o
+    // clique cai na folha.
+    await setPreference(session, { navigationPane: true })
+    await session.window
+      .getByRole('navigation', { name: 'Navegação' })
+      .getByRole('button', { name: /Escopo/ })
+      .click()
+    await session.window.keyboard.press('End')
+    // O `End` é do navegador, e o ProseMirror só o lê no `selectionchange`; uma
+    // pessoa nunca aperta a tecla seguinte no mesmo milissegundo, o teste sim.
+    await session.window.waitForTimeout(100)
+    await session.window.keyboard.press('Enter')
+    await session.window.keyboard.press('Control+Alt+1')
+    await session.window.keyboard.type('Conclusão')
+    await menu(session, 'update-table-of-contents')
+
+    await expect(toc.locator('p', { hasText: 'Conclusão' })).toHaveCount(1)
+    await expect(toc.locator('.field')).toHaveText(['2', '3', '3'])
+
+    // O papel: a mesma primeira folha, com as entradas e os números.
+    await menu(session, 'export-pdf')
+    await expect.poll(() => pdfPronto(pdf), { timeout: 30_000 }).toBe(true)
+    const primeira = await textoDaPagina(pdf, 1)
+    if (primeira !== null) {
+      expect(primeira).toMatch(/Introdução[ .]*2/)
+      expect(primeira).toMatch(/Escopo[ .]*3/)
+      expect(primeira).toMatch(/Conclusão[ .]*3/)
+    }
+
+    await stubDialogs(session.app, { save: docx, messageBox: 1 })
+    await menu(session, 'save-as')
+    await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
+    const corpo = await entryOf(docx, 'word/document.xml')
+    expect(corpo).toContain('w:val="Table of Contents"')
+    expect(corpo).toMatch(/TOC \\o "1-3" \\h/)
+    expect(corpo.match(/PAGEREF _Toc\d+/g)).toHaveLength(3)
+    expect(
+      corpo.match(/w:bookmarkStart[^>]*w:name="_Toc\d+"|w:name="_Toc\d+"[^>]*w:bookmarkStart/g)?.length ?? 0,
+    ).toBeGreaterThan(0)
+    const estilos = await entryOf(docx, 'word/styles.xml')
+    expect(estilos).toContain('w:val="toc 1"')
+    expect(estilos).toContain('w:val="TOC Heading"')
+  })
+
+  test('o sumário do Word abre editável, mostra as entradas e volta intacto', async () => {
+    const origem = join(folder, 'word.docx')
+    const destino = join(folder, 'word-saida.docx')
+    await writeFile(origem, await docxWithReferences())
+    await stubDialogs(session.app, { open: origem, save: destino, messageBox: 1 })
+    await menu(session, 'open')
+    const editor = session.window.locator('.ProseMirror')
+
+    // Campos e sumário representados não travam mais o documento.
+    await expect(editor).toHaveAttribute('contenteditable', 'true')
+    await expect(session.window.locator('.banner--readonly')).toHaveCount(0)
+    const toc = editor.locator('.toc')
+    await expect(toc).toContainText('Sumário')
+    await expect(toc.locator('.field')).toHaveText(['1', '1'])
+
+    await menu(session, 'save-as')
+    await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
+    const antes = await entryOf(origem, 'word/document.xml')
+    const depois = await entryOf(destino, 'word/document.xml')
+    const sumario = (xml: string): string => /<w:sdt>.*<\/w:sdt>/.exec(xml)?.[0] ?? ''
+    expect(sumario(depois)).not.toBe('')
+    // Preservado sem ninguém pedir "Atualizar": o mesmo XML, peça por peça.
+    // A ordem dos atributos é a do SDK, que reserializa o corpo; o conteúdo não muda.
+    const normal = (xml: string): string =>
+      sumario(xml)
+        .replace(/ \/>/g, '/>')
+        .replace(/ w:history="1"/g, '')
+    expect(normal(depois)).toBe(normal(antes))
   })
 })

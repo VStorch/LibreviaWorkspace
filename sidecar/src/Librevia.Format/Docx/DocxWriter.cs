@@ -340,6 +340,7 @@ public static class DocxWriter
             }
 
             elements.Add(owner.Source.CloneNode(true));
+            foreach (var next in owner.Continuation) elements.Add(next.CloneNode(true));
             return true;
         }
 
@@ -355,7 +356,7 @@ public static class DocxWriter
 
         foreach (var element in writer.Write(slot.Content, placement, source)) elements.Add(element);
 
-        if (source is not null) NoteWhatWasInside(source, inventory);
+        if (owner is not null) NoteWhatWasInside(owner, inventory);
         return false;
     }
 
@@ -542,8 +543,10 @@ public static class DocxWriter
     /// um comentário ancorado", em vez de um alerta genérico na abertura que o
     /// usuário aprende a ignorar.
     /// </remarks>
-    private static void NoteWhatWasInside(OpenXmlElement original, Inventory inventory)
+    private static void NoteWhatWasInside(Block block, Inventory inventory)
     {
+        var original = block.Source;
+
         if (original.Descendants<CommentRangeStart>().Any() ||
             original.Descendants<CommentReference>().Any())
         {
@@ -560,7 +563,9 @@ public static class DocxWriter
             inventory.NoteLoss("nota de rodapé num parágrafo que você editou");
         }
 
-        if (original.Descendants<FieldChar>().Any())
+        // O campo que virou nó volta ao arquivo como campo (ver BodyReader.ReadField);
+        // perde-se só o que o leitor mostrou pelo resultado.
+        if (block.UnrepresentedField)
         {
             inventory.NoteLoss("campo calculado num parágrafo que você editou");
         }
