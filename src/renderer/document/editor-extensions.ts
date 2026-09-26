@@ -35,7 +35,7 @@ import { Caps, SmallCaps } from './extensions/letter-case.js'
 import { PageBreak } from './extensions/page-break.js'
 import { ReadOnlyGuard } from './extensions/read-only-guard.js'
 import { Pagination } from './extensions/pagination.js'
-import { SectionGeometry } from './extensions/section-geometry.js'
+import { SectionGeometry, SectionMarks } from './extensions/section-geometry.js'
 import { ZoomedColumnResize } from './extensions/zoomed-column-resize.js'
 import { ParagraphCommands } from './extensions/paragraph-commands.js'
 import { CharacterStyle, StyleCommands } from './extensions/style-commands.js'
@@ -206,6 +206,7 @@ export function buildEditorExtensions(
     Pagination,
     // A caixa de texto de cada seção, quando ela difere da base (M9).
     SectionGeometry,
+    SectionMarks,
     SearchReplace.configure({ onStatusChange: onSearchStatusChange }),
     // Por último na lista e com prioridade alta no próprio arquivo: é ele que
     // decide `Ctrl+E`, disputado com a marca de código. Ver word-shortcuts.ts.

@@ -256,7 +256,7 @@ public static class DocxWriter
 
             if (!model.BeforeSections &&
                 SectionWriter.Mark(
-                    slot.Content, elements.Skip(before).OfType<Paragraph>().ToList(), kept, breakIds, knownSections)
+                    slot.Content, elements.Skip(before).OfType<Paragraph>().ToList(), kept, breakIds, knownSections, inventory)
                     is { } mark)
             {
                 breaks.Add(mark);

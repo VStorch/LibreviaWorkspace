@@ -19,7 +19,9 @@ import {
   isLinkedToPrevious,
   withBandsLinked,
   withPageSetup,
+  type ResolvedSections,
 } from '@services/document/sections.js'
+import { commitSections } from './section-commands.js'
 import { useT } from '../i18n.js'
 import { useWorkspace } from '../state/workspace.js'
 
@@ -33,16 +35,19 @@ const MARGIN_FIELDS: readonly { readonly key: keyof Margins; readonly labelKey: 
 export function PageSetupPanel({
   onClose,
   sectionIndex = 0,
+  resolved,
 }: {
   readonly onClose: () => void
+  /** As seções que o texto usa agora; ausente, a página da loja é a única. */
+  readonly resolved?: ResolvedSections
   /** A seção do cursor, em `allSections` (M9): é ela que o painel mostra. */
   readonly sectionIndex?: number
 }): React.JSX.Element {
   const t = useT()
-  const page = useWorkspace((state) => state.page)
-  const sections = useWorkspace((state) => state.sections)
+  const storedPage = useWorkspace((state) => state.page)
   const setPage = useWorkspace((state) => state.setPage)
-  const setSections = useWorkspace((state) => state.setSections)
+  // As seções que o texto usa, na ordem dele — ver `resolveSections`.
+  const { page, sections, bodyId } = resolved ?? { page: storedPage, sections: [], bodyId: null }
   const all = allSections(page, sections)
   const index = Math.min(Math.max(sectionIndex, 0), all.length - 1)
   const [draft, setDraft] = useState<PageSetup>(all[index] ?? page)
@@ -77,12 +82,10 @@ export function PageSetupPanel({
 
   function apply(): void {
     if (!valid) return
-    if (sections.length === 0) {
+    if (sections.length === 0 && bodyId === null) {
       setPage(draft)
     } else {
-      const next = withPageSetup({ page, sections }, index, draft, scope)
-      if (next.page !== page) setPage(next.page)
-      setSections(next.sections)
+      commitSections(withPageSetup({ page, sections }, index, draft, scope), bodyId)
     }
     onClose()
   }

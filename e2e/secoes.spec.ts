@@ -228,6 +228,57 @@ test.describe('seções', () => {
     expect(corpo).toMatch(/<w:cols [^>]*w:num="2"/)
     expect(corpo).toContain('w:type="column"')
   })
+
+  test('desfazer a quebra de seção desfaz a seção, na tela e no arquivo', async () => {
+    // A seção mora na biblioteca da loja, e é o texto que diz se ela vale: o
+    // desfazer tira a marca e, com ela, a seção e o começo que a de baixo ganhou.
+    await menu(session, 'new-document')
+    await session.window.locator('.ProseMirror').click()
+    await session.window.keyboard.type('Antes.')
+    await session.window.keyboard.press('Enter')
+    await session.window.keyboard.type('Depois.')
+    await session.window.keyboard.press('Home')
+    await menu(session, 'insert-section-odd-page')
+    await expect(session.window.locator('.paper')).toHaveCount(3)
+
+    await session.window.keyboard.press('Control+z')
+    await expect(session.window.locator('.paper')).toHaveCount(1)
+
+    const destino = join(pasta, 'desfeito.docx')
+    await stubDialogs(session.app, { save: destino, messageBox: 1 })
+    await menu(session, 'save-as')
+    await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
+    const corpo = await entryOf(destino, 'word/document.xml')
+    expect(corpo.match(/<w:sectPr/g)).toHaveLength(1)
+    expect(corpo).not.toContain('oddPage')
+  })
+
+  test('o rascunho de antes das seções recusa quebra e colunas dizendo por quê', async () => {
+    // Gravado pelo caminho de então, ele não levaria a quebra ao arquivo: a
+    // mudança apareceria na tela e sumiria no .docx.
+    const rascunho = join(pasta, 'antigo.sdoc')
+    await writeFile(
+      rascunho,
+      JSON.stringify({
+        format: 'sdoc',
+        version: 5,
+        page: { size: 'A4', orientation: 'portrait', margins: { top: 25, right: 25, bottom: 25, left: 25 } },
+        doc: {
+          type: 'doc',
+          content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Rascunho antigo.' }] }],
+        },
+      }),
+    )
+    await stubDialogs(session.app, { open: rascunho, messageBox: 1 })
+    await menu(session, 'open')
+    await expect(session.window.locator('.ProseMirror')).toContainText('Rascunho antigo.')
+    await session.window.locator('.ProseMirror').click()
+
+    await menu(session, 'insert-section-next-page')
+    await expect(session.window.getByRole('alert')).toContainText('versão anterior')
+    await expect(session.window.locator('.paper')).toHaveCount(1)
+    await expect(session.window.locator('.ProseMirror p')).toHaveCount(1)
+  })
 })
 
 async function temPoppler(): Promise<boolean> {

@@ -39,19 +39,33 @@ internal static class SectionWriter
     /// <param name="used">Os ids já vistos: o parágrafo partido ou colado leva a marca repetida.</param>
     /// <param name="known">
     /// Os ids que o modelo configura. Marca de outro id — parágrafo colado de
-    /// outro documento — não é quebra: a tela também não a trata como uma.
+    /// outro documento, marca que voltou por um desfazer sem a seção — não é
+    /// quebra: a tela também não a trata como uma, e o `w:sectPr` dela sai.
     /// </param>
     public static Break? Mark(
         Node node,
         List<Paragraph> paragraphs,
         bool kept,
         HashSet<string> used,
-        IReadOnlySet<string> known)
+        IReadOnlySet<string> known,
+        Inventory inventory)
     {
         if (paragraphs.Count == 0) return null;
 
         var id = node.Type is "paragraph" or "heading" ? Attr.String(node, "sectionBreak") : null;
-        if (id is not null && (!known.Contains(id) || !used.Add(id))) id = null;
+        if (id is not null && (!known.Contains(id) || !used.Add(id)))
+        {
+            // Preservado com `w:sectPr` e sem seção no modelo: guardá-lo faria o
+            // arquivo ter uma seção que a tela não mostra, e deslocaria a conta
+            // das seguintes. Sai, e se diz.
+            if (paragraphs.Any(p => p.ParagraphProperties?.SectionProperties is not null))
+            {
+                inventory.NoteLoss("quebra de seção sem configuração no documento (a seção foi unida à seguinte)");
+            }
+
+            id = null;
+            kept = false;
+        }
 
         if (kept)
         {
@@ -125,11 +139,44 @@ internal static class SectionWriter
             ApplyStart(section, setup);
             ApplyColumns(section, setup);
             PageNumbering.Apply(part, section, setup, touched, inventory, documentWide: false);
-            ApplyBands(part, section, setup, index, aliases);
         }
 
-        ApplyBands(part, last, model.Page, breaks.Count, aliases);
+        var replaced = new HashSet<string>(StringComparer.Ordinal);
+        for (var index = 0; index < breaks.Count; index++)
+        {
+            if (breaks[index].Existing is { } section && byId.TryGetValue(breaks[index].Id, out var setup))
+            {
+                ApplyBands(part, section, setup, index, aliases, replaced);
+            }
+        }
+
+        ApplyBands(part, last, model.Page, breaks.Count, aliases, replaced);
+        DropOrphans(part, replaced);
         return aliases;
+    }
+
+    /// <summary>
+    /// As partes de faixa cuja referência a gravação trocou, e que nenhuma seção
+    /// aponta mais: saem, senão cada gravação deixaria uma cópia esquecida.
+    /// </summary>
+    private static void DropOrphans(MainDocumentPart part, HashSet<string> replaced)
+    {
+        if (replaced.Count == 0) return;
+        var referenced = part.Document?.Body?.Descendants<HeaderFooterReferenceType>()
+            .Select(reference => reference.Id?.Value)
+            .OfType<string>()
+            .ToHashSet(StringComparer.Ordinal) ?? [];
+        foreach (var relationship in replaced.Where(id => !referenced.Contains(id)))
+        {
+            try
+            {
+                part.DeletePart(relationship);
+            }
+            catch (ArgumentOutOfRangeException)
+            {
+                // A relação já não existia: nada a apagar.
+            }
+        }
     }
 
     /// <summary>
@@ -193,7 +240,8 @@ internal static class SectionWriter
         SectionProperties section,
         PageSetupDto setup,
         int index,
-        Dictionary<string, string> aliases)
+        Dictionary<string, string> aliases,
+        HashSet<string> replaced)
     {
         var key = KeyOf(setup);
         foreach (var (header, type, band) in new (bool, HeaderFooterValues, BandDto?)[]
@@ -219,39 +267,71 @@ internal static class SectionWriter
             }
 
             var source = UnlinkedSource(band, key);
-            if (source is null) continue;
-
-            if (references.Count > 0)
+            if (source is null)
             {
-                aliases[source] = references[0].Id?.Value ?? string.Empty;
+                // Faixa própria sem referência e sem marca de desvinculada: é a
+                // herdada que a seção passou a declarar (a de cima foi excluída).
+                // Aponta a mesma parte — é o mesmo cabeçalho.
+                if (references.Count == 0 && SharedRelationship(band) is { } shared && PartExists(part, shared))
+                {
+                    AddReference(section, header, type, shared);
+                }
+
                 continue;
             }
 
+            // A desvinculada ganha sempre uma parte nova, copiada da que ela
+            // herdava — ainda que a seção já aponte uma: essa pode ser a própria
+            // de antes, e as peças que o modelo traz são as da cópia.
             var relationship = source[(key.Length + 1)..];
             if (CloneBandPart(part, relationship, header) is not { } fresh) continue;
+            foreach (var reference in references)
+            {
+                if (reference.Id?.Value is { } old) replaced.Add(old);
+                reference.Remove();
+            }
 
-            HeaderFooterReferenceType added = header
-                ? new HeaderReference { Type = type, Id = fresh }
-                : new FooterReference { Type = type, Id = fresh };
-            // As referências abrem o `w:sectPr`, cabeçalhos antes dos rodapés.
-            var after = section.ChildElements
-                .Where(child => header ? child is HeaderReference : child is HeaderReference or FooterReference)
-                .LastOrDefault();
-            if (after is null) section.InsertAt(added, 0);
-            else section.InsertAfter(added, after);
+            AddReference(section, header, type, fresh);
             aliases[source] = fresh;
         }
     }
+
+    private static void AddReference(SectionProperties section, bool header, HeaderFooterValues type, string id)
+    {
+        HeaderFooterReferenceType added = header
+            ? new HeaderReference { Type = type, Id = id }
+            : new FooterReference { Type = type, Id = id };
+        // As referências abrem o `w:sectPr`, cabeçalhos antes dos rodapés.
+        var after = section.ChildElements
+            .Where(child => header ? child is HeaderReference : child is HeaderReference or FooterReference)
+            .LastOrDefault();
+        if (after is null) section.InsertAt(added, 0);
+        else section.InsertAfter(added, after);
+    }
+
+    private static bool PartExists(MainDocumentPart part, string relationship) =>
+        part.Parts.Any(pair => pair.RelationshipId == relationship);
+
+    /// <summary>A relação das peças de uma faixa sem marca de desvinculada (`rIdN:0:1`).</summary>
+    private static string? SharedRelationship(BandDto band)
+    {
+        var address = AddressesOf(band).FirstOrDefault(value => value is not null && !value.Contains(UnlinkedSeparator));
+        if (address is null) return null;
+        var end = address.IndexOfAny([':', '#']);
+        return end <= 0 ? null : address[..end];
+    }
+
+    private static IEnumerable<string?> AddressesOf(BandDto band) =>
+        band.Left.Concat(band.Center).Concat(band.Right)
+            .Concat((band.Rows ?? []).SelectMany(row => row.Cells).SelectMany(cell => cell.Pieces))
+            .Select(piece => piece.Pid)
+            .Concat((band.Floats ?? []).Select(item => item.BoxId));
 
     /// <summary>A relação marcada (`chave~rIdN`) da faixa desvinculada, se a faixa é uma.</summary>
     private static string? UnlinkedSource(BandDto band, string key)
     {
         var prefix = key + UnlinkedSeparator;
-        var addresses = band.Left.Concat(band.Center).Concat(band.Right)
-            .Concat((band.Rows ?? []).SelectMany(row => row.Cells).SelectMany(cell => cell.Pieces))
-            .Select(piece => piece.Pid)
-            .Concat((band.Floats ?? []).Select(item => item.BoxId));
-        foreach (var address in addresses)
+        foreach (var address in AddressesOf(band))
         {
             if (address is null || !address.StartsWith(prefix, StringComparison.Ordinal)) continue;
             var end = address.IndexOfAny([':', '#'], prefix.Length);

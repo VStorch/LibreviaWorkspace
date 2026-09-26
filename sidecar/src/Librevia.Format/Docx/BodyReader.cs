@@ -275,6 +275,11 @@ public sealed class BodyReader(
                     openLists[^1].List.Content!.Add(item);
                     CarrySpacing(openLists[^1].List, node);
                     Add(NewBlock(element, item));
+
+                    // A seção termina neste item, como no Word: a lista fecha
+                    // aqui, e o item seguinte abre outra, com a mesma numeração —
+                    // senão a tela só mudaria de seção depois da lista inteira.
+                    if (node.Attrs?.ContainsKey("sectionBreak") == true) openLists.Clear();
                     break;
                 }
 

@@ -254,6 +254,10 @@ export const DOCUMENT = {
   'document.pageSetup.insertPageNumber': { pt: 'Número da página', en: 'Page number' },
   'document.pageSetup.insertTotalPages': { pt: 'Total de páginas', en: 'Total pages' },
   'document.pageSetup.titlePage': { pt: 'Primeira página diferente', en: 'Different first page' },
+  'document.sections.legacyDraft': {
+    pt: 'Este rascunho é de uma versão anterior, que grava uma seção só. Salve-o como .docx e reabra-o para usar quebras de seção e colunas.',
+    en: 'This draft comes from an earlier version that saves a single section. Save it as .docx and reopen it to use section breaks and columns.',
+  },
   'document.columns.title': { pt: 'Colunas', en: 'Columns' },
   'document.columns.count': { pt: 'Número de colunas', en: 'Number of columns' },
   'document.columns.spacing': { pt: 'Espaço entre elas (mm)', en: 'Spacing (mm)' },

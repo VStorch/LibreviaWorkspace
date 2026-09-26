@@ -4,6 +4,7 @@ import { DiscardChoice } from '@shared/types.js'
 import type { IpcResult } from '@shared/ipc.js'
 import type { DocumentModel } from '@services/document/model.js'
 import { serializeDocument } from '@services/document/serialize.js'
+import { marksOfJson, resolveSections } from '@services/document/sections.js'
 import { serializeWorkbook } from '@services/spreadsheet/serialize.js'
 import { t } from '../i18n.js'
 import type { DocumentSource, LoadedFile, WorkspaceState } from './types.js'
@@ -70,16 +71,29 @@ export function createWorkspaceContext(set: SetWorkspace, get: GetWorkspace): Wo
 
   function currentModel(): DocumentModel {
     const state = get()
+    // As seções vão como o texto as ordena, só as que ele usa, e a última já
+    // trocada pela entrada que o atributo do documento aponta — ver
+    // `resolveSections`. O atributo não vai ao arquivo: é estado do editor.
+    const read = documentSource?.readDoc() ?? state.initialDoc
+    const resolved = resolveSections(
+      marksOfJson(read),
+      read.attrs?.['bodySection'],
+      state.page,
+      state.sections,
+    )
+    const { bodySection: _bodySection, ...docAttrs } = read.attrs ?? {}
+    void _bodySection
+    const doc = read.attrs === undefined ? read : { ...read, attrs: docAttrs }
     return {
-      page: state.page,
-      doc: documentSource?.readDoc() ?? state.initialDoc,
+      page: resolved.page,
+      doc,
       // Como vieram do arquivo: nesta fase nada na tela os altera, e gravar
       // outros que não os do documento seria trocar a formatação de um arquivo
       // alheio por causa de um passeio pelo painel.
       styles: state.styles,
       ...(state.flattened ? { flattened: true } : {}),
       ...(state.beforeReferences ? { beforeReferences: true } : {}),
-      ...(state.sections.length > 0 ? { sections: state.sections } : {}),
+      ...(resolved.sections.length > 0 ? { sections: [...resolved.sections] } : {}),
       ...(state.beforeSections ? { beforeSections: true } : {}),
       ...(state.outsideBookmarks.length > 0 ? { outsideBookmarks: state.outsideBookmarks } : {}),
     }

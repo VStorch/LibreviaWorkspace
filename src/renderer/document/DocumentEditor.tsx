@@ -16,7 +16,12 @@ import {
   type PageSetup,
 } from '@services/document/model.js'
 import { editBandFloat, editBandPiece } from '@services/document/band.js'
-import { columnGeometry, effectiveSections, sheetSetups } from '@services/document/sections.js'
+import {
+  columnGeometry,
+  effectiveSections,
+  resolveSections,
+  sheetSetups,
+} from '@services/document/sections.js'
 import { NO_BANDS } from '@services/document/band.js'
 import { floatsOf } from '@services/document/floating.js'
 import { currentPreferences, usePreferences } from '../state/preferences.js'
@@ -49,7 +54,7 @@ import type { FloatSource, PlacedFloat } from './FloatingLayer.js'
 import { buildEditorExtensions } from './editor-extensions.js'
 import { isPaginationOnly } from './extensions/pagination.js'
 import { setSectionBoxes } from './extensions/section-geometry.js'
-import { sectionAtCursor } from './section-commands.js'
+import { marksOfDoc, sectionAtCursor } from './section-commands.js'
 import { useEditorCommands } from './useEditorCommands.js'
 import { settlePageFields, type ReferenceContext } from './references.js'
 import type { SearchStatus } from './extensions/search-replace.js'
@@ -70,12 +75,7 @@ import type { SearchStatus } from './extensions/search-replace.js'
 export function DocumentEditor(): React.JSX.Element {
   const initialDoc = useWorkspace((state) => state.initialDoc)
   const declaredPage = useWorkspace((state) => state.page)
-  const sections = useWorkspace((state) => state.sections)
-  // Todas as seções, com as faixas que cada uma herda das anteriores. A última —
-  // a do corpo — é a base da coluna de texto: os blocos das outras seções são
-  // deslocados para a caixa da sua (ver `section-geometry.ts`).
-  const effective = useMemo(() => effectiveSections(declaredPage, sections), [declaredPage, sections])
-  const page = effective.at(-1)!
+  const library = useWorkspace((state) => state.sections)
   const markDirty = useWorkspace((state) => state.markDirty)
   const setStats = useWorkspace((state) => state.setStats)
   const registerDocumentSource = useWorkspace((state) => state.registerDocumentSource)
@@ -98,6 +98,7 @@ export function DocumentEditor(): React.JSX.Element {
   const [contentRevision, setContentRevision] = useState(0)
 
   const [searchStatus, setSearchStatus] = useState<SearchStatus>({ total: 0, current: 0 })
+
   const [contextTarget, setContextTarget] = useState<ContextMenuTarget | null>(null)
 
   const handleSearchStatus = useCallback((status: SearchStatus) => setSearchStatus(status), [])
@@ -136,6 +137,25 @@ export function DocumentEditor(): React.JSX.Element {
       },
     },
   })
+
+  // As seções que o texto usa, na ordem do corpo (ver `resolveSections`), e
+  // todas elas com as faixas que cada uma herda das anteriores. A última — a do
+  // corpo — é a base da coluna de texto: os blocos das outras seções são
+  // deslocados para a caixa da sua (ver `section-geometry.ts`).
+  const doc = editor?.state.doc ?? null
+  const resolved = useMemo(
+    () =>
+      doc === null
+        ? resolveSections([], null, declaredPage, library)
+        : resolveSections(marksOfDoc(doc), doc.attrs['bodySection'], declaredPage, library),
+    [doc, declaredPage, library],
+  )
+  const sections = resolved.sections
+  const effective = useMemo(() => effectiveSections(resolved.page, sections), [resolved.page, sections])
+  const page = effective.at(-1)!
+  // As referências leem as seções na hora do comando, e não na da renderização.
+  const effectiveRef = useRef(effective)
+  effectiveRef.current = effective
 
   /**
    * Somente leitura ligado e desligado no editor já montado.
@@ -237,7 +257,7 @@ export function DocumentEditor(): React.JSX.Element {
     (): ReferenceContext => ({
       layout: layoutRef.current,
       page: useWorkspace.getState().page,
-      sections: effectiveSections(useWorkspace.getState().page, useWorkspace.getState().sections),
+      sections: effectiveRef.current,
       styles: useWorkspace.getState().styles,
       setStyles: useWorkspace.getState().setStyles,
       outsideBookmarks: useWorkspace.getState().outsideBookmarks,
@@ -484,7 +504,8 @@ export function DocumentEditor(): React.JSX.Element {
       {dialogs.pageSetup && (
         <PageSetupPanel
           onClose={() => setDialog('pageSetup', false)}
-          sectionIndex={sectionAtCursor(editor, sections)}
+          resolved={resolved}
+          sectionIndex={sectionAtCursor(editor, resolved)}
         />
       )}
 

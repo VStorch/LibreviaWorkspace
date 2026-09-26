@@ -5,6 +5,11 @@ import {
   blockSections,
   effectiveSections,
   freshSectionId,
+  marksOfJson,
+  planSectionBreak,
+  planSectionDelete,
+  resolveSections,
+  storeSections,
   isLinkedToPrevious,
   withBandsLinked,
   withPageSetup,
@@ -126,5 +131,55 @@ describe('seções', () => {
     expect(own.headerBand?.center[0]?.pid).toBe('s2~rId5:0:0')
     expect(isLinkedToPrevious(own, 1, 'header')).toBe(false)
     expect(withBandsLinked(own, inherited, 's2', 'header', true).headerBand).toBeNull()
+  })
+
+  it('o texto decide que seções valem e em que ordem; a biblioteca só guarda', () => {
+    // A ordem é a do corpo, e não a da biblioteca; a entrada que o texto não usa
+    // não vale — é a marca que um desfazer tirou, e pode voltar.
+    const extra = { ...second, id: 'n9' }
+    const resolved = resolveSections(['s2', null, 's1'], null, DEFAULT_PAGE_SETUP, [first, second, extra])
+    expect(resolved.sections.map((section) => section.id)).toEqual(['s2', 's1'])
+    const doc = {
+      type: 'doc',
+      content: [
+        { type: 'paragraph', attrs: { sectionBreak: 's1' } },
+        {
+          type: 'bulletList',
+          content: [{ type: 'listItem', content: [{ type: 'paragraph', attrs: { sectionBreak: 's2' } }] }],
+        },
+      ],
+    }
+    expect(marksOfJson(doc)).toEqual(['s1', 's2'])
+  })
+
+  it('a quebra nova só acrescenta à biblioteca, e o desfazer volta tudo como era', () => {
+    const library = [first]
+    const before = resolveSections(['s1'], null, DEFAULT_PAGE_SETUP, library)
+    // Na última seção: a de baixo é uma entrada nova, apontada pelo documento.
+    const plan = planSectionBreak(before, library, 1, 'oddPage')
+    expect(plan.rename).toBeNull()
+    const grown = [...library, ...plan.additions]
+    const after = resolveSections(['s1', plan.upperId], plan.bodyId, DEFAULT_PAGE_SETUP, grown)
+    expect(after.sections.map((section) => section.id)).toEqual(['s1', plan.upperId])
+    expect(after.page.start).toBe('oddPage')
+    // Desfeito o texto (sem a marca nova e sem o atributo), a biblioteca maior
+    // não muda nada: a última seção volta a começar como antes.
+    const undone = resolveSections(['s1'], null, DEFAULT_PAGE_SETUP, grown)
+    expect(undone).toEqual(before)
+
+    // No meio: a marca que fecha a seção partida passa a apontar a entrada nova.
+    const middle = planSectionBreak(before, library, 0, 'continuous')
+    expect(middle.rename?.from).toBe('s1')
+    expect(middle.bodyId).toBeNull()
+  })
+
+  it('excluir a primeira quebra dá à seção de baixo as faixas que ela herdava', () => {
+    const resolved = resolveSections(['s1', 's2'], null, DEFAULT_PAGE_SETUP, [first, second])
+    const plan = planSectionDelete(resolved, 0)!
+    expect(plan.removeId).toBe('s1')
+    expect(plan.next.sections.map((section) => [section.id, section.headerBand])).toEqual([['s2', header]])
+    const stored = storeSections(plan.next, null, DEFAULT_PAGE_SETUP, [first, second])
+    // A entrada da excluída fica: o desfazer pode trazer a marca de volta.
+    expect(stored.library.map((section) => section.id)).toEqual(['s1', 's2'])
   })
 })

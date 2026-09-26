@@ -376,3 +376,164 @@ export function withColumns(
     ),
   }
 }
+
+/**
+ * As seções como o texto as ordena agora.
+ *
+ * A loja guarda uma **biblioteca** de seções por id, e é o texto que diz quais
+ * valem e em que ordem: as marcas (`sectionBreak`) na ordem do corpo, e o
+ * atributo `bodySection` do documento para a última, quando ela foi trocada por
+ * uma quebra nova. Assim o desfazer, que só conhece o texto, desfaz também a
+ * seção: a marca que some leva a seção junto, a que volta a traz de volta — a
+ * configuração dela continua na biblioteca —, e a ordem nunca diverge da do
+ * arquivo, que a gravação lê do corpo.
+ */
+export interface ResolvedSections extends SectionList {
+  readonly sections: readonly SectionSetup[]
+  /** A entrada da biblioteca que faz as vezes da última seção, se há uma. */
+  readonly bodyId: string | null
+}
+
+/** A configuração sem o id — é assim que a última seção vai ao modelo. */
+function withoutId(section: PageSetup): PageSetup {
+  if (!('id' in section)) return section
+  const { id: _id, ...rest } = section as SectionSetup
+  void _id
+  return rest
+}
+
+export function resolveSections(
+  marks: readonly (string | null)[],
+  bodyId: unknown,
+  page: PageSetup,
+  library: readonly SectionSetup[],
+): ResolvedSections {
+  const byId = new Map(library.map((section) => [section.id, section]))
+  const seen = new Set<string>()
+  const sections: SectionSetup[] = []
+  for (const id of marks) {
+    const section = id === null ? undefined : byId.get(id)
+    if (section === undefined || seen.has(section.id)) continue
+    seen.add(section.id)
+    sections.push(section)
+  }
+  const body = typeof bodyId === 'string' ? byId.get(bodyId) : undefined
+  return {
+    page: body === undefined ? page : withoutId(body),
+    sections,
+    bodyId: body === undefined ? null : body.id,
+  }
+}
+
+/**
+ * Leva de volta à biblioteca as seções mudadas por um painel.
+ *
+ * Por id, e sem apagar nada: a entrada que o texto não usa mais pode voltar com
+ * um desfazer.
+ */
+export function storeSections(
+  next: SectionList,
+  bodyId: string | null,
+  page: PageSetup,
+  library: readonly SectionSetup[],
+): { page: PageSetup; library: SectionSetup[] } {
+  const changed = new Map(next.sections.map((section) => [section.id, section]))
+  if (bodyId !== null) changed.set(bodyId, { ...next.page, id: bodyId })
+  const known = new Set(library.map((section) => section.id))
+  return {
+    page: bodyId === null ? next.page : page,
+    library: [
+      ...library.map((section) => changed.get(section.id) ?? section),
+      ...[...changed.values()].filter((section) => !known.has(section.id)),
+    ],
+  }
+}
+
+/** As marcas de seção de um documento em JSON, bloco a bloco de primeiro nível. */
+export function marksOfJson(doc: DocumentNode): (string | null)[] {
+  const find = (node: DocumentNode): string | null => {
+    const own = sectionBreakOf(node)
+    if (own !== null) return own
+    for (const child of node.content ?? []) {
+      const found = find(child)
+      if (found !== null) return found
+    }
+    return null
+  }
+  return (doc.content ?? []).map(find)
+}
+
+/**
+ * Uma quebra de seção nova na seção `index` (de `allSections`), como o desfazer
+ * a entende: só **acrescenta** à biblioteca.
+ *
+ * A seção de cima é uma cópia da partida, com um id novo, e é esse id que vai na
+ * marca nova. A de baixo muda de começo — e em vez de mudar a entrada dela, que
+ * o desfazer não voltaria, ganha outra entrada com o começo novo: a marca que a
+ * fecha passa a apontá-la (`rename`), ou, se ela é a última, o atributo do
+ * documento (`bodyId`). As duas mudanças são do texto, e o desfazer as leva.
+ */
+export function planSectionBreak(
+  resolved: ResolvedSections,
+  library: readonly SectionSetup[],
+  index: number,
+  start: SectionStart,
+): {
+  readonly upperId: string
+  readonly additions: SectionSetup[]
+  readonly rename: { readonly from: string; readonly to: string } | null
+  readonly bodyId: string | null
+} {
+  const all = allSections(resolved.page, resolved.sections)
+  const current = withoutId(all[index] ?? resolved.page)
+  const upperId = freshSectionId(library)
+  const lowerId = freshSectionId([...library, { ...current, id: upperId }])
+  const lower = resolved.sections[index]
+  return {
+    upperId,
+    additions: [
+      { ...current, id: upperId },
+      { ...current, id: lowerId, start },
+    ],
+    rename: lower === undefined ? null : { from: lower.id, to: lowerId },
+    bodyId: lower === undefined ? lowerId : null,
+  }
+}
+
+/**
+ * A exclusão da quebra que fecha a seção `index` — ou, na última, a que a abre.
+ *
+ * O trecho de cima passa à seção de baixo, como no Word. A de baixo recebe as
+ * faixas que herdava da excluída: sem isso, se a excluída era a primeira, a de
+ * baixo ficaria sem cabeçalho.
+ */
+export function planSectionDelete(
+  resolved: ResolvedSections,
+  index: number,
+): { readonly removeId: string; readonly next: SectionList } | null {
+  if (resolved.sections.length === 0) return null
+  const target = Math.min(index, resolved.sections.length - 1)
+  const removed = resolved.sections[target]!
+  const effective = effectiveSections(resolved.page, resolved.sections)
+  const lowerIndex = target + 1
+  const all = allSections(resolved.page, resolved.sections)
+  const lower = all[lowerIndex]!
+  const inherited: Partial<Record<BandKey, Band | null>> = {}
+  for (const key of BAND_KEYS) {
+    if (lower[key] === null || lower[key] === undefined) inherited[key] = effective[target]![key] ?? null
+  }
+  const updated = { ...lower, ...inherited }
+  const sections = resolved.sections.filter((section) => section.id !== removed.id)
+  return {
+    removeId: removed.id,
+    next:
+      lowerIndex >= resolved.sections.length
+        ? { page: updated, sections }
+        : {
+            page: resolved.page,
+            sections: sections.map((section) =>
+              section.id === (lower as SectionSetup).id ? (updated as SectionSetup) : section,
+            ),
+          },
+  }
+}

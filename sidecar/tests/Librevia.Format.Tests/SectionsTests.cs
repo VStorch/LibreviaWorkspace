@@ -311,4 +311,66 @@ public class SectionsTests
         Assert.Equal(1, result.RewrittenBlocks);
         Assert.Contains("w:type=\"column\"", Roundtrip.XmlOf(saved), StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void DesvincularDeNovoASecaoQueJaTemParteNaoEscreveNaParteErrada()
+    {
+        // Desvinculada e gravada, a seção passa a ter parte própria. Vinculada e
+        // desvinculada de novo na mesma sessão, a cópia volta a apontar a parte
+        // da anterior (`s2~rId…`): ela precisa de outra parte, e não da própria
+        // de antes — senão o texto de cima iria parar no cabeçalho da seção.
+        var original = Fixtures.WithThreeSections();
+        var model = Roundtrip.Clone(Roundtrip.Open(original));
+        var inherited = model.Sections![0].Header!;
+        model.Sections[1] = model.Sections[1] with { Header = Unlinked(inherited, "s2", "Própria") };
+        var (once, _) = Roundtrip.Save(original, model);
+
+        var again = Roundtrip.Clone(Roundtrip.Open(once));
+        again.Sections![1] = again.Sections[1] with
+        {
+            Header = Unlinked(again.Sections[0].Header!, "s2", "Desvinculada de novo"),
+        };
+        var (twice, result) = Roundtrip.Save(once, again);
+        var reread = Roundtrip.Open(twice);
+
+        Assert.Empty(result.Inventory.Lost);
+        Assert.Equal("Cabeçalho da primeira", TextOf(reread.Sections![0].Header));
+        Assert.Equal("Desvinculada de novo", TextOf(reread.Sections[1].Header));
+        // A parte própria de antes, que nenhuma seção aponta mais, sai.
+        Assert.Equal(2, Roundtrip.PartsOf(twice).Keys.Count(name => name.StartsWith("word/header", StringComparison.Ordinal)));
+    }
+
+    [Fact]
+    public void MarcaSemSecaoNoModeloSaiDoArquivoComAvisoESemDeslocarAsOutras()
+    {
+        // O desfazer devolve a marca `s2` ao texto sem a seção dela: o arquivo não
+        // pode guardar uma seção que a tela não mostra, nem contar as seguintes
+        // a partir dela.
+        var original = Fixtures.WithThreeSections();
+        var model = Roundtrip.Clone(Roundtrip.Open(original));
+        model = model with { Sections = [model.Sections![0]] };
+
+        var (saved, result) = Roundtrip.Save(original, model);
+        var reread = Roundtrip.Open(saved);
+
+        Assert.Contains(result.Inventory.Lost, message => message.Contains("quebra de seção", StringComparison.Ordinal));
+        Assert.Equal(2, SectionXmlOf(saved).Count);
+        Assert.Equal("Cabeçalho da primeira", TextOf(reread.Sections![0].Header));
+        Assert.Equal("landscape", reread.Page.Orientation);
+    }
+
+    [Fact]
+    public void SecaoQuePassaADeclararAFaixaHerdadaApontaAMesmaParte()
+    {
+        // Excluída a primeira quebra, a seção de baixo recebe as faixas que
+        // herdava: sem referência no arquivo, ela aponta a parte delas.
+        var original = Fixtures.WithThreeSections();
+        var model = Roundtrip.Clone(Roundtrip.Open(original));
+        model.Sections![1] = model.Sections[1] with { Header = model.Sections[0].Header };
+
+        var (saved, _) = Roundtrip.Save(original, model);
+        var reread = Roundtrip.Open(saved);
+
+        Assert.Equal("Cabeçalho da primeira", TextOf(reread.Sections![1].Header));
+    }
 }

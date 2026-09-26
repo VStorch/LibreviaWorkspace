@@ -2,8 +2,7 @@ import { useState } from 'react'
 import type { Editor } from '@tiptap/react'
 import { allSections, withColumns } from '@services/document/sections.js'
 import { useT } from '../i18n.js'
-import { useWorkspace } from '../state/workspace.js'
-import { sectionAtCursor } from './section-commands.js'
+import { commitSections, resolvedOf, sectionAtCursor } from './section-commands.js'
 
 /**
  * Formatar → Colunas (M9): quantas, o espaço entre elas e a linha separadora, na
@@ -17,11 +16,9 @@ export function ColumnsDialog({
   readonly onClose: () => void
 }): React.JSX.Element {
   const t = useT()
-  const page = useWorkspace((state) => state.page)
-  const sections = useWorkspace((state) => state.sections)
-  const setPage = useWorkspace((state) => state.setPage)
-  const setSections = useWorkspace((state) => state.setSections)
-  const [index] = useState(() => sectionAtCursor(editor, sections))
+  // As seções que o texto usa, na ordem dele — ver `resolveSections`.
+  const [{ page, sections, bodyId }] = useState(() => resolvedOf(editor.state.doc))
+  const [index] = useState(() => sectionAtCursor(editor))
   const current = allSections(page, sections)[index] ?? page
   const [count, setCount] = useState(current.columns?.count ?? 1)
   const [spaceMm, setSpaceMm] = useState(current.columns?.spaceMm ?? 12.7)
@@ -32,9 +29,7 @@ export function ColumnsDialog({
 
   function apply(): void {
     if (!valid) return
-    const next = withColumns({ page, sections }, index, { count, spaceMm, separator }, scope)
-    if (next.page !== page) setPage(next.page)
-    if (next.sections !== sections) setSections(next.sections)
+    commitSections(withColumns({ page, sections }, index, { count, spaceMm, separator }, scope), bodyId)
     onClose()
     requestAnimationFrame(() => editor.view.focus())
   }

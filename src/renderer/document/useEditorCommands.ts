@@ -3,7 +3,12 @@ import type { Editor } from '@tiptap/react'
 import { TableAction } from '@shared/table-actions.js'
 import { EditorCommand, onEditorCommand, runsWhileLocked } from './editor-commands.js'
 import { runTableAction } from './table-actions.js'
-import { deleteSectionBreak, insertColumnBreak, insertSectionBreak } from './section-commands.js'
+import {
+  deleteSectionBreak,
+  insertColumnBreak,
+  insertSectionBreak,
+  sectionEditsAllowed,
+} from './section-commands.js'
 import {
   flushSelection,
   insertTableOfContents,
@@ -145,7 +150,8 @@ export function useEditorCommands(
           if (editor !== null) insertColumnBreak(editor)
           return
         case EditorCommand.FormatColumns:
-          return setDialog('columns', true)
+          if (sectionEditsAllowed()) setDialog('columns', true)
+          return
 
         case TableAction.Insert:
           return setDialog('table', true)

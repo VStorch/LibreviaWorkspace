@@ -1,5 +1,5 @@
 import { Extension } from '@tiptap/core'
-import type { Node as ProseMirrorNode } from '@tiptap/pm/model'
+import { Fragment, Slice, type Node as ProseMirrorNode } from '@tiptap/pm/model'
 import { Plugin, PluginKey } from '@tiptap/pm/state'
 import { Decoration, DecorationSet, type EditorView } from '@tiptap/pm/view'
 import type { SectionSetup } from '@services/document/model.js'
@@ -120,4 +120,52 @@ export function setSectionBoxes(
     return
   }
   view.dispatch(view.state.tr.setMeta(sectionGeometryKey, { boxes, declared }).setMeta('addToHistory', false))
+}
+
+/**
+ * A estrutura das seções no texto (M9).
+ *
+ * `bodySection`, no documento, aponta a entrada da biblioteca que faz as vezes
+ * da última seção depois de uma quebra nova — é atributo do documento para que o
+ * desfazer o leve junto com a marca (ver `planSectionBreak`).
+ *
+ * E a marca não viaja por colagem: o parágrafo colado (ou arrastado) levaria o
+ * id de uma seção que já tem a sua marca, e duas marcas de um id são duas seções
+ * que a gravação não sabe ordenar. A estrutura de seções não se copia, como no
+ * Word ao colar texto dentro de uma seção.
+ */
+export const SectionMarks = Extension.create({
+  name: 'sectionMarks',
+
+  addGlobalAttributes() {
+    return [
+      {
+        types: ['doc'],
+        attributes: {
+          bodySection: { default: null, rendered: false },
+        },
+      },
+    ]
+  },
+
+  addProseMirrorPlugins() {
+    return [
+      new Plugin({
+        props: {
+          transformPasted: (slice) => new Slice(withoutMarks(slice.content), slice.openStart, slice.openEnd),
+        },
+      }),
+    ]
+  },
+})
+
+function withoutMarks(fragment: Fragment): Fragment {
+  const nodes: ProseMirrorNode[] = []
+  fragment.forEach((node) => {
+    const content = withoutMarks(node.content)
+    const attrs =
+      typeof node.attrs['sectionBreak'] === 'string' ? { ...node.attrs, sectionBreak: null } : node.attrs
+    nodes.push(node.isText ? node : node.type.create(attrs, content, node.marks))
+  })
+  return Fragment.fromArray(nodes)
 }
