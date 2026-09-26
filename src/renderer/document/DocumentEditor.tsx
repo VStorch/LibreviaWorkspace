@@ -48,6 +48,7 @@ import type { FloatSource, PlacedFloat } from './FloatingLayer.js'
 import { buildEditorExtensions } from './editor-extensions.js'
 import { isPaginationOnly } from './extensions/pagination.js'
 import { setSectionBoxes } from './extensions/section-geometry.js'
+import { sectionAtCursor } from './section-commands.js'
 import { useEditorCommands } from './useEditorCommands.js'
 import { settlePageFields, type ReferenceContext } from './references.js'
 import type { SearchStatus } from './extensions/search-replace.js'
@@ -477,7 +478,12 @@ export function DocumentEditor(): React.JSX.Element {
         <FindReplacePanel editor={editor} status={searchStatus} onClose={() => setDialog('find', false)} />
       )}
 
-      {dialogs.pageSetup && <PageSetupPanel onClose={() => setDialog('pageSetup', false)} />}
+      {dialogs.pageSetup && (
+        <PageSetupPanel
+          onClose={() => setDialog('pageSetup', false)}
+          sectionIndex={sectionAtCursor(editor, sections)}
+        />
+      )}
 
       {dialogs.wordCount && <WordCountDialog editor={editor} onClose={() => setDialog('wordCount', false)} />}
 

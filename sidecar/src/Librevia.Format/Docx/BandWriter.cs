@@ -46,7 +46,8 @@ internal static class BandWriter
     internal static HashSet<string> Apply(
         MainDocumentPart part,
         IReadOnlyList<PageSetupDto?> sections,
-        Inventory inventory)
+        Inventory inventory,
+        IReadOnlyDictionary<string, string>? aliases = null)
     {
         var touched = new HashSet<string>(StringComparer.Ordinal);
         var bands = sections.OfType<PageSetupDto>().SelectMany(BandsOf).ToList();
@@ -58,7 +59,11 @@ internal static class BandWriter
         var wanted = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (var band in bands)
         {
-            foreach (var piece in PiecesOf(band)) Remember(wanted, piece);
+            foreach (var piece in PiecesOf(band))
+            {
+                if (Translate(piece.Pid, Relationship, aliases, inventory) is not { } pid) continue;
+                Remember(wanted, piece with { Pid = pid });
+            }
         }
 
         // O mesmo, um nível acima: o cabeçalho corporativo não é feito de
@@ -69,7 +74,8 @@ internal static class BandWriter
             foreach (var float_ in band.Floats ?? [])
             {
                 if (float_.BoxId is null || float_.Kind != "text") continue;
-                boxes[float_.BoxId] = float_.Content ?? [];
+                if (Translate(float_.BoxId, BoxRelationship, aliases, inventory) is not { } bid) continue;
+                boxes[bid] = float_.Content ?? [];
             }
         }
 
@@ -236,6 +242,30 @@ internal static class BandWriter
     {
         if (piece.Pid is null || piece.Kind != PieceDto.KindText) return;
         wanted[piece.Pid] = piece.Text ?? string.Empty;
+    }
+
+    /// <summary>
+    /// O endereço da faixa desvinculada (`s2~rId5:0:1`) com a relação da parte
+    /// que a gravação criou para ela — ver SectionWriter.ApplyBands. Endereço
+    /// comum passa como está; o desvinculado sem parte não é escrito em lugar
+    /// nenhum, e se diz.
+    /// </summary>
+    private static string? Translate(
+        string? address,
+        Func<string, string> relationshipOf,
+        IReadOnlyDictionary<string, string>? aliases,
+        Inventory inventory)
+    {
+        if (address is null) return null;
+        var relationship = relationshipOf(address);
+        if (!relationship.Contains(SectionWriter.UnlinkedSeparator, StringComparison.Ordinal)) return address;
+        if (aliases is not null && aliases.TryGetValue(relationship, out var fresh) && fresh.Length > 0)
+        {
+            return fresh + address[relationship.Length..];
+        }
+
+        inventory.NoteLoss("cabeçalho ou rodapé desvinculado da seção anterior");
+        return null;
     }
 
     private static string Relationship(string address) =>

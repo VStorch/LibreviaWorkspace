@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { promisify } from 'node:util'
 import { expect, test } from '@playwright/test'
 import { launch, menu, stubDialogs, type Session } from './app.js'
-import { docxWithSections } from './fixtures.js'
+import { docxWithSections, entryOf } from './fixtures.js'
 
 /**
  * Seções (M9): cada folha com o papel, a faixa e o número da sua seção.
@@ -91,6 +91,80 @@ test.describe('seções', () => {
 
     const { stdout } = await promisify(execFile)('pdftotext', ['-layout', destino, '-'])
     expect(stdout).toMatch(/Página i[\s\S]*Folha em paisagem[\s\S]*Página 1[\s\S]*Página 2[\s\S]*Página 3/)
+  })
+
+  const orientacoes = (session: Session) =>
+    session.window.locator('.paper').evaluateAll((papeis) =>
+      papeis.map((papel) => {
+        const caixa = papel.getBoundingClientRect()
+        return caixa.width > caixa.height ? 'paisagem' : 'retrato'
+      }),
+    )
+
+  test('inserir quebra de seção, virar só a seção de baixo e excluir a quebra', async () => {
+    await menu(session, 'new-document')
+    await session.window.locator('.ProseMirror').click()
+    await session.window.keyboard.type('Em retrato.')
+    await session.window.keyboard.press('Enter')
+    await session.window.keyboard.type('Em paisagem.')
+    await session.window.keyboard.press('Home')
+    await menu(session, 'insert-section-next-page')
+    await expect(session.window.locator('.paper')).toHaveCount(2)
+
+    // O cursor está na seção de baixo: "nesta seção" vira só ela.
+    await session.window.locator('.ProseMirror p', { hasText: 'Em paisagem.' }).click()
+    await menu(session, 'page-setup')
+    const painel = session.window.getByRole('dialog', { name: 'Configuração de página' })
+    await painel.getByLabel('Orientação').selectOption('landscape')
+    await expect(painel.getByLabel('Nesta seção')).toBeChecked()
+    await painel.getByRole('button', { name: 'Aplicar' }).click()
+    await expect.poll(() => orientacoes(session)).toEqual(['retrato', 'paisagem'])
+
+    const destino = join(pasta, 'duas-secoes.docx')
+    await stubDialogs(session.app, { save: destino, messageBox: 1 })
+    await menu(session, 'save-as')
+    await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
+    const corpo = await entryOf(destino, 'word/document.xml')
+    expect(corpo.match(/<w:sectPr/g)).toHaveLength(2)
+    expect(corpo).toMatch(/<w:p>(?:(?!<\/w:p>).)*<w:sectPr(?:(?!<\/w:sectPr>).)*w:h="16838"/)
+    expect(corpo).toMatch(/<w:sectPr(?:(?!<\/w:sectPr>).)*w:orient="landscape"(?:(?!<w:sectPr).)*<\/w:body>/)
+
+    // Excluída a quebra, o trecho de cima assume o formato do de baixo, como no Word.
+    await menu(session, 'delete-section-break')
+    await expect.poll(() => orientacoes(session)).toEqual(['paisagem'])
+  })
+
+  test('desvincular o rodapé da seção de paisagem dá a ela um rodapé próprio', async () => {
+    await abrir()
+    await session.window.locator('.ProseMirror p', { hasText: 'Folha em paisagem.' }).click()
+    await menu(session, 'page-setup')
+    const painel = session.window.getByRole('dialog', { name: 'Configuração de página' })
+    const vinculo = painel.getByLabel('Rodapé: vincular ao anterior')
+    await expect(vinculo).toBeChecked()
+    await vinculo.uncheck()
+    await painel.getByRole('button', { name: 'Aplicar' }).click()
+
+    // A cópia é da seção de paisagem: editá-la não muda o rodapé da primeira.
+    const peca = session.window.locator('.band--footer .band__text').nth(1)
+    await peca.click()
+    await session.window.keyboard.press('Home')
+    await session.window.keyboard.type('Anexo — ')
+    await session.window.locator('.ProseMirror').click()
+    await expect
+      .poll(() =>
+        session.window
+          .locator('.band--footer')
+          .evaluateAll((faixas) => faixas.map((faixa) => (faixa.textContent ?? '').trim())),
+      )
+      .toEqual(['Página i', 'Anexo — Página 1', 'Anexo — Página 2', 'Anexo — Página 3'])
+
+    const destino = join(pasta, 'desvinculado.docx')
+    await stubDialogs(session.app, { save: destino, messageBox: 1 })
+    await menu(session, 'save-as')
+    await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
+    expect(await entryOf(destino, 'word/footer1.xml')).not.toContain('Anexo')
+    const corpo = await entryOf(destino, 'word/document.xml')
+    expect(corpo.match(/<w:footerReference/g)).toHaveLength(2)
   })
 })
 

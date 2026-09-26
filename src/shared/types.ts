@@ -91,6 +91,13 @@ export const MenuCommand = {
   /** Abre o diálogo de parágrafo — espaçamento, entrelinha, recuo, alinhamento. */
   ParagraphSetup: 'paragraph-setup',
   InsertPageBreak: 'insert-page-break',
+  /** Quebra de seção no cursor (M9), pelo começo da seção nova. */
+  InsertSectionNextPage: 'insert-section-next-page',
+  InsertSectionContinuous: 'insert-section-continuous',
+  InsertSectionEvenPage: 'insert-section-even-page',
+  InsertSectionOddPage: 'insert-section-odd-page',
+  /** Exclui a quebra que fecha a seção do cursor: a seção de cima assume a de baixo. */
+  DeleteSectionBreak: 'delete-section-break',
   /** Zoom da folha: o do editor, e não o do Chromium, que aumentaria a interface. */
   ZoomIn: 'zoom-in',
   ZoomOut: 'zoom-out',

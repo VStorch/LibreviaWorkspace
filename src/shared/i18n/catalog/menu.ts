@@ -48,6 +48,12 @@ export const MENU = {
   'menu.format.image': { pt: 'Imagem…', en: 'Image…' },
 
   'menu.insert.pageBreak': { pt: 'Quebra de página', en: 'Page break' },
+  'menu.insert.sectionBreak': { pt: 'Quebra de seção', en: 'Section break' },
+  'menu.insert.sectionNextPage': { pt: 'Próxima página', en: 'Next page' },
+  'menu.insert.sectionContinuous': { pt: 'Contínua', en: 'Continuous' },
+  'menu.insert.sectionEvenPage': { pt: 'Página par', en: 'Even page' },
+  'menu.insert.sectionOddPage': { pt: 'Página ímpar', en: 'Odd page' },
+  'menu.insert.deleteSectionBreak': { pt: 'Excluir quebra de seção', en: 'Delete section break' },
   'menu.insert.specialCharacter': { pt: 'Caractere especial…', en: 'Special character…' },
   'menu.insert.bookmark': { pt: 'Marcador…', en: 'Bookmark…' },
 

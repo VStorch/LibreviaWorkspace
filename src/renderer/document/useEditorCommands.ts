@@ -3,6 +3,7 @@ import type { Editor } from '@tiptap/react'
 import { TableAction } from '@shared/table-actions.js'
 import { EditorCommand, onEditorCommand, runsWhileLocked } from './editor-commands.js'
 import { runTableAction } from './table-actions.js'
+import { deleteSectionBreak, insertSectionBreak } from './section-commands.js'
 import {
   flushSelection,
   insertTableOfContents,
@@ -122,6 +123,21 @@ export function useEditorCommands(
           return
         case EditorCommand.InsertPageBreak:
           editor?.chain().focus().setPageBreak().run()
+          return
+        case EditorCommand.InsertSectionNextPage:
+          if (editor !== null) insertSectionBreak(editor, 'nextPage')
+          return
+        case EditorCommand.InsertSectionContinuous:
+          if (editor !== null) insertSectionBreak(editor, 'continuous')
+          return
+        case EditorCommand.InsertSectionEvenPage:
+          if (editor !== null) insertSectionBreak(editor, 'evenPage')
+          return
+        case EditorCommand.InsertSectionOddPage:
+          if (editor !== null) insertSectionBreak(editor, 'oddPage')
+          return
+        case EditorCommand.DeleteSectionBreak:
+          if (editor !== null) deleteSectionBreak(editor)
           return
 
         case TableAction.Insert:

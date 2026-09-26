@@ -319,6 +319,34 @@ async function buildTemplate(): Promise<MenuItemConstructorOptions[]> {
           click: () => dispatch(MenuCommand.InsertPageBreak),
         },
         {
+          // Os quatro começos do Word, e a exclusão: a quebra não se vê no texto
+          // para ser apagada com o teclado.
+          label: t('menu.insert.sectionBreak'),
+          submenu: [
+            {
+              label: t('menu.insert.sectionNextPage'),
+              click: () => dispatch(MenuCommand.InsertSectionNextPage),
+            },
+            {
+              label: t('menu.insert.sectionContinuous'),
+              click: () => dispatch(MenuCommand.InsertSectionContinuous),
+            },
+            {
+              label: t('menu.insert.sectionEvenPage'),
+              click: () => dispatch(MenuCommand.InsertSectionEvenPage),
+            },
+            {
+              label: t('menu.insert.sectionOddPage'),
+              click: () => dispatch(MenuCommand.InsertSectionOddPage),
+            },
+            { type: 'separator' },
+            {
+              label: t('menu.insert.deleteSectionBreak'),
+              click: () => dispatch(MenuCommand.DeleteSectionBreak),
+            },
+          ],
+        },
+        {
           label: t('menu.insert.specialCharacter'),
           click: () => dispatch(MenuCommand.SpecialCharacter),
         },

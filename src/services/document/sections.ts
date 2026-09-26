@@ -1,6 +1,6 @@
-import type { Band } from './band.js'
+import type { Band, BandPiece } from './band.js'
 import type { SheetPlan } from './paginate.js'
-import type { DocumentNode, PageSetup, SectionSetup } from './model.js'
+import type { DocumentNode, PageSetup, SectionSetup, SectionStart } from './model.js'
 
 /**
  * As seções do documento (M9), e a herança das faixas entre elas.
@@ -176,4 +176,145 @@ export function sheetSetups(
     })
   }
   return result
+}
+
+/** A última seção e as anteriores, como o modelo as guarda. */
+export interface SectionList {
+  readonly page: PageSetup
+  readonly sections: readonly SectionSetup[]
+}
+
+/** Um id de seção que ainda não existe: `n1`, `n2`… (os lidos do arquivo são `s1`, `s2`…). */
+export function freshSectionId(sections: readonly SectionSetup[]): string {
+  const taken = new Set(sections.map((section) => section.id))
+  let counter = sections.length + 1
+  while (taken.has(`n${counter}`)) counter += 1
+  return `n${counter}`
+}
+
+/**
+ * Parte a seção `index` (em `allSections`) numa quebra nova.
+ *
+ * Como no Word: a seção de cima é uma cópia da que foi partida — papel,
+ * margens, faixas e numeração —, e a de baixo continua sendo ela, agora
+ * começando do jeito que a quebra pediu. O `w:type` é da seção que começa.
+ */
+export function withSectionBreak(
+  list: SectionList,
+  index: number,
+  id: string,
+  start: SectionStart,
+): SectionList {
+  const all = allSections(list.page, list.sections)
+  const current = all[index] ?? list.page
+  // A cópia leva o id novo por cima do da seção partida (a do corpo não tem).
+  const upper: SectionSetup = { ...current, id }
+  if (index >= list.sections.length) {
+    return { page: { ...list.page, start }, sections: [...list.sections, upper] }
+  }
+  return {
+    page: list.page,
+    sections: [
+      ...list.sections.slice(0, index),
+      upper,
+      { ...list.sections[index]!, start },
+      ...list.sections.slice(index + 1),
+    ],
+  }
+}
+
+/** A lista sem a seção `id` — a quebra dela foi excluída, e o trecho passa à seção de baixo. */
+export function withoutSection(list: SectionList, id: string): SectionList {
+  return { page: list.page, sections: list.sections.filter((section) => section.id !== id) }
+}
+
+/**
+ * Aplica o painel de configuração de página "nesta seção" ou "no documento todo".
+ *
+ * Na seção editada vale tudo o que o painel diz. No documento todo, as outras
+ * recebem o papel, as margens, as distâncias das faixas, o formato do número e a
+ * capa distinta — o reinício da numeração fica só onde foi pedido, que é o que
+ * faz sentido numa seção e seria estranho em todas. "Pares e ímpares" é do
+ * documento inteiro no Word, e vai a todas nos dois casos.
+ */
+export function withPageSetup(
+  list: SectionList,
+  index: number,
+  draft: PageSetup,
+  scope: 'section' | 'document',
+): SectionList {
+  const shared = (section: PageSetup): Partial<PageSetup> =>
+    scope === 'document'
+      ? {
+          size: draft.size,
+          orientation: draft.orientation,
+          margins: draft.margins,
+          headerDistanceMm: draft.headerDistanceMm,
+          footerDistanceMm: draft.footerDistanceMm,
+          pageNumberFormat: draft.pageNumberFormat,
+          titlePage: draft.titlePage,
+          evenAndOddHeaders: draft.evenAndOddHeaders,
+        }
+      : { evenAndOddHeaders: draft.evenAndOddHeaders ?? section.evenAndOddHeaders }
+  const last = list.sections.length
+  const page = index >= last ? draft : { ...list.page, ...shared(list.page) }
+  const sections = list.sections.map((section, at) =>
+    at === index ? { ...draft, id: section.id } : { ...section, ...shared(section) },
+  )
+  return { page, sections }
+}
+
+/** As chaves das faixas de um lado: cabeçalho ou rodapé. */
+const KIND_KEYS = {
+  header: ['headerBand', 'firstHeaderBand', 'evenHeaderBand'],
+  footer: ['footerBand', 'firstFooterBand', 'evenFooterBand'],
+} as const satisfies Record<'header' | 'footer', readonly BandKey[]>
+
+/** O cabeçalho (ou rodapé) da seção vem da anterior: ela não declara nenhum dos três tipos. */
+export function isLinkedToPrevious(section: PageSetup, index: number, kind: 'header' | 'footer'): boolean {
+  return index > 0 && KIND_KEYS[kind].every((key) => section[key] === null || section[key] === undefined)
+}
+
+/**
+ * "Vincular ao anterior" ligado ou desligado.
+ *
+ * Ligado, a seção deixa de declarar as faixas daquele lado, e passa a mostrar as
+ * da anterior. Desligado, ela ganha uma cópia das que herdava — com os endereços
+ * marcados com a seção dona (`s2~rId5:0:1`, a do corpo é `body`): a gravação cria
+ * uma parte nova para a cópia (`SectionWriter.ApplyBands`), e editar uma não muda
+ * a outra.
+ */
+export function withBandsLinked<T extends PageSetup>(
+  section: T,
+  inherited: PageSetup | undefined,
+  key: string,
+  kind: 'header' | 'footer',
+  linked: boolean,
+): T {
+  const changes: Partial<Record<BandKey, Band | null>> = {}
+  for (const band of KIND_KEYS[kind]) {
+    changes[band] = linked ? null : unlinkedCopy(inherited?.[band] ?? null, key)
+  }
+  return { ...section, ...changes }
+}
+
+/** A cópia da faixa herdada, com os endereços marcados pela seção que passa a ser dona dela. */
+function unlinkedCopy(band: Band | null, key: string): Band | null {
+  if (band === null) return null
+  const mark = (address: string | undefined): string | undefined =>
+    address === undefined ? undefined : `${key}~${address.slice(address.indexOf('~') + 1)}`
+  const pieces = (list: readonly BandPiece[]): BandPiece[] =>
+    list.map((piece) => (piece.pid === undefined ? piece : { ...piece, pid: mark(piece.pid)! }))
+  return {
+    ...band,
+    left: pieces(band.left),
+    center: pieces(band.center),
+    right: pieces(band.right),
+    rows: band.rows.map((row) => ({
+      cells: row.cells.map((cell) => ({ ...cell, pieces: pieces(cell.pieces) })),
+    })),
+    floats: band.floats.map((object) =>
+      object.bid === undefined ? object : { ...object, bid: mark(object.bid)! },
+    ),
+  }
 }

@@ -1,3 +1,4 @@
+using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
 
@@ -36,12 +37,21 @@ internal static class SectionWriter
     /// <param name="paragraphs">Os `w:p` que o bloco produziu.</param>
     /// <param name="kept">O bloco voltou byte a byte.</param>
     /// <param name="used">Os ids já vistos: o parágrafo partido ou colado leva a marca repetida.</param>
-    public static Break? Mark(Node node, List<Paragraph> paragraphs, bool kept, HashSet<string> used)
+    /// <param name="known">
+    /// Os ids que o modelo configura. Marca de outro id — parágrafo colado de
+    /// outro documento — não é quebra: a tela também não a trata como uma.
+    /// </param>
+    public static Break? Mark(
+        Node node,
+        List<Paragraph> paragraphs,
+        bool kept,
+        HashSet<string> used,
+        IReadOnlySet<string> known)
     {
         if (paragraphs.Count == 0) return null;
 
         var id = node.Type is "paragraph" or "heading" ? Attr.String(node, "sectionBreak") : null;
-        if (id is not null && !used.Add(id)) id = null;
+        if (id is not null && (!known.Contains(id) || !used.Add(id))) id = null;
 
         if (kept)
         {
@@ -73,7 +83,11 @@ internal static class SectionWriter
     /// <summary>
     /// Dá a cada marca o `w:sectPr` que o modelo descreve.
     /// </summary>
-    public static void Apply(
+    /// <returns>
+    /// Os endereços de faixa desvinculada (`id~rIdN`) e a relação da parte nova
+    /// que cada um passou a ter — ver <see cref="ApplyBands"/>.
+    /// </returns>
+    public static Dictionary<string, string> Apply(
         MainDocumentPart part,
         List<Break> breaks,
         SectionProperties last,
@@ -81,6 +95,8 @@ internal static class SectionWriter
         Inventory inventory,
         HashSet<string> touched)
     {
+        var aliases = new Dictionary<string, string>(StringComparer.Ordinal);
+
         var byId = (model.Sections ?? [])
             .Where(section => section.Id is not null)
             .GroupBy(section => section.Id!, StringComparer.Ordinal)
@@ -108,7 +124,138 @@ internal static class SectionWriter
             if (!PageReader.Matches(section, setup)) DocxWriter.ApplyPageSetup(section, setup);
             ApplyStart(section, setup);
             PageNumbering.Apply(part, section, setup, touched, inventory, documentWide: false);
+            ApplyBands(part, section, setup, index, aliases);
         }
+
+        ApplyBands(part, last, model.Page, breaks.Count, aliases);
+        return aliases;
+    }
+
+    /// <summary>O prefixo que o editor põe no endereço da faixa desvinculada.</summary>
+    /// <remarks>
+    /// Desvincular copia a faixa da seção anterior, e a cópia ainda aponta a parte
+    /// de lá. O editor marca cada endereço copiado com a seção dona
+    /// (`s2~rId5:0:1`; a do corpo é `body`), e é aqui que a marca vira uma parte
+    /// nova: editar a cópia não pode mudar o cabeçalho das outras seções.
+    /// </remarks>
+    public const char UnlinkedSeparator = '~';
+
+    /// <summary>A chave da seção no endereço desvinculado.</summary>
+    private static string KeyOf(PageSetupDto setup) => setup.Id ?? "body";
+
+    /// <summary>
+    /// "Vincular ao anterior", tipo por tipo.
+    /// </summary>
+    /// <remarks>
+    /// Faixa nula numa seção que não é a primeira é herança: a referência que o
+    /// arquivo tinha sai. Faixa presente sem referência é a desvinculada: a parte
+    /// da seção anterior é copiada, com imagens e links, e a seção passa a
+    /// apontá-la. Na primeira seção, nula é "sem faixa" desde a leitura (vazia
+    /// também vira nula lá), e nada se remove.
+    /// </remarks>
+    private static void ApplyBands(
+        MainDocumentPart part,
+        SectionProperties section,
+        PageSetupDto setup,
+        int index,
+        Dictionary<string, string> aliases)
+    {
+        var key = KeyOf(setup);
+        foreach (var (header, type, band) in new (bool, HeaderFooterValues, BandDto?)[]
+                 {
+                     (true, HeaderFooterValues.Default, setup.Header),
+                     (true, HeaderFooterValues.First, setup.FirstHeader),
+                     (true, HeaderFooterValues.Even, setup.EvenHeader),
+                     (false, HeaderFooterValues.Default, setup.Footer),
+                     (false, HeaderFooterValues.First, setup.FirstFooter),
+                     (false, HeaderFooterValues.Even, setup.EvenFooter),
+                 })
+        {
+            var references = (header
+                    ? section.Elements<HeaderReference>().Cast<HeaderFooterReferenceType>()
+                    : section.Elements<FooterReference>())
+                .Where(reference => (reference.Type?.Value ?? HeaderFooterValues.Default) == type)
+                .ToList();
+
+            if (band is null)
+            {
+                if (index > 0) foreach (var reference in references) reference.Remove();
+                continue;
+            }
+
+            var source = UnlinkedSource(band, key);
+            if (source is null) continue;
+
+            if (references.Count > 0)
+            {
+                aliases[source] = references[0].Id?.Value ?? string.Empty;
+                continue;
+            }
+
+            var relationship = source[(key.Length + 1)..];
+            if (CloneBandPart(part, relationship, header) is not { } fresh) continue;
+
+            HeaderFooterReferenceType added = header
+                ? new HeaderReference { Type = type, Id = fresh }
+                : new FooterReference { Type = type, Id = fresh };
+            // As referências abrem o `w:sectPr`, cabeçalhos antes dos rodapés.
+            var after = section.ChildElements
+                .Where(child => header ? child is HeaderReference : child is HeaderReference or FooterReference)
+                .LastOrDefault();
+            if (after is null) section.InsertAt(added, 0);
+            else section.InsertAfter(added, after);
+            aliases[source] = fresh;
+        }
+    }
+
+    /// <summary>A relação marcada (`chave~rIdN`) da faixa desvinculada, se a faixa é uma.</summary>
+    private static string? UnlinkedSource(BandDto band, string key)
+    {
+        var prefix = key + UnlinkedSeparator;
+        var addresses = band.Left.Concat(band.Center).Concat(band.Right)
+            .Concat((band.Rows ?? []).SelectMany(row => row.Cells).SelectMany(cell => cell.Pieces))
+            .Select(piece => piece.Pid)
+            .Concat((band.Floats ?? []).Select(item => item.BoxId));
+        foreach (var address in addresses)
+        {
+            if (address is null || !address.StartsWith(prefix, StringComparison.Ordinal)) continue;
+            var end = address.IndexOfAny([':', '#'], prefix.Length);
+            return end < 0 ? address : address[..end];
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Uma cópia da parte de cabeçalho ou rodapé, com as mesmas imagens e links.
+    /// </summary>
+    private static string? CloneBandPart(MainDocumentPart part, string relationship, bool header)
+    {
+        if (string.IsNullOrEmpty(relationship)) return null;
+        OpenXmlPart? source;
+        try
+        {
+            source = part.GetPartById(relationship);
+        }
+        catch (ArgumentOutOfRangeException)
+        {
+            return null;
+        }
+
+        OpenXmlPart target = header ? part.AddNewPart<HeaderPart>() : part.AddNewPart<FooterPart>();
+        using (var stream = source.GetStream()) target.FeedData(stream);
+        foreach (var child in source.Parts) target.AddPart(child.OpenXmlPart, child.RelationshipId);
+        foreach (var external in source.ExternalRelationships)
+        {
+            target.AddExternalRelationship(external.RelationshipType, external.Uri, external.Id);
+        }
+
+        foreach (var link in source.HyperlinkRelationships)
+        {
+            target.AddHyperlinkRelationship(link.Uri, link.IsExternal, link.Id);
+        }
+
+        return part.GetIdOfPart(target);
     }
 
     /// <summary>

@@ -13,6 +13,13 @@ import {
 } from '@services/document/model.js'
 import { MIN_MARGIN_FOR_HEADER_MM, marginFitsHeaderOrFooter } from '@services/pdf/page-setup.js'
 import { usesEvenAndOdd, usesTitlePage } from '@services/document/band.js'
+import {
+  allSections,
+  effectiveSections,
+  isLinkedToPrevious,
+  withBandsLinked,
+  withPageSetup,
+} from '@services/document/sections.js'
 import { useT } from '../i18n.js'
 import { useWorkspace } from '../state/workspace.js'
 
@@ -23,11 +30,27 @@ const MARGIN_FIELDS: readonly { readonly key: keyof Margins; readonly labelKey: 
   { key: 'right', labelKey: 'document.pageSetup.marginRight' },
 ]
 
-export function PageSetupPanel({ onClose }: { readonly onClose: () => void }): React.JSX.Element {
+export function PageSetupPanel({
+  onClose,
+  sectionIndex = 0,
+}: {
+  readonly onClose: () => void
+  /** A seção do cursor, em `allSections` (M9): é ela que o painel mostra. */
+  readonly sectionIndex?: number
+}): React.JSX.Element {
   const t = useT()
-  const current = useWorkspace((state) => state.page)
+  const page = useWorkspace((state) => state.page)
+  const sections = useWorkspace((state) => state.sections)
   const setPage = useWorkspace((state) => state.setPage)
-  const [draft, setDraft] = useState<PageSetup>(current)
+  const setSections = useWorkspace((state) => state.setSections)
+  const all = allSections(page, sections)
+  const index = Math.min(Math.max(sectionIndex, 0), all.length - 1)
+  const [draft, setDraft] = useState<PageSetup>(all[index] ?? page)
+  // "Nesta seção" ou "no documento todo", como no Word; só há escolha quando há
+  // mais de uma seção.
+  const [scope, setScope] = useState<'section' | 'document'>('section')
+  // A chave da seção nos endereços da faixa desvinculada — ver `withBandsLinked`.
+  const sectionKey = sections[index]?.id ?? 'body'
   // O último campo de texto que teve o cursor, e onde: é nele que "Número da
   // página" e "Total de páginas" entram, como no Word.
   const lastField = useRef<{ field: 'header' | 'footer'; at: number }>({ field: 'footer', at: -1 })
@@ -54,8 +77,19 @@ export function PageSetupPanel({ onClose }: { readonly onClose: () => void }): R
 
   function apply(): void {
     if (!valid) return
-    setPage(draft)
+    if (sections.length === 0) {
+      setPage(draft)
+    } else {
+      const next = withPageSetup({ page, sections }, index, draft, scope)
+      if (next.page !== page) setPage(next.page)
+      setSections(next.sections)
+    }
     onClose()
+  }
+
+  function link(kind: 'header' | 'footer', linked: boolean): void {
+    const inherited = effectiveSections(page, sections)[index - 1]
+    setDraft(withBandsLinked(draft, inherited, sectionKey, kind, linked))
   }
 
   return (
@@ -160,6 +194,20 @@ export function PageSetupPanel({ onClose }: { readonly onClose: () => void }): R
 
         <p className="popover__hint">{t('document.pageSetup.hint', { n: '{n}', total: '{total}' })}</p>
 
+        {/* "Vincular ao anterior", da segunda seção em diante: vinculada, a seção
+            mostra as faixas da anterior; desvinculada, ganha uma cópia própria. */}
+        {index > 0 &&
+          (['header', 'footer'] as const).map((kind) => (
+            <label key={kind} className="popover__check">
+              <input
+                type="checkbox"
+                checked={isLinkedToPrevious(draft, index, kind)}
+                onChange={(event) => link(kind, event.target.checked)}
+              />
+              {t(kind === 'header' ? 'document.pageSetup.linkHeader' : 'document.pageSetup.linkFooter')}
+            </label>
+          ))}
+
         <label className="popover__check">
           <input
             type="checkbox"
@@ -233,6 +281,29 @@ export function PageSetupPanel({ onClose }: { readonly onClose: () => void }): R
             })
           : t('document.pageSetup.marginsError')}
       </p>
+
+      {sections.length > 0 && (
+        <fieldset className="popover__fieldset">
+          <legend>{t('document.pageSetup.applyTo')}</legend>
+          <div className="popover__row">
+            {(['section', 'document'] as const).map((choice) => (
+              <label key={choice} className="popover__check">
+                <input
+                  type="radio"
+                  name="page-setup-scope"
+                  checked={scope === choice}
+                  onChange={() => setScope(choice)}
+                />
+                {t(
+                  choice === 'section'
+                    ? 'document.pageSetup.thisSection'
+                    : 'document.pageSetup.wholeDocument',
+                )}
+              </label>
+            ))}
+          </div>
+        </fieldset>
+      )}
 
       <div className="popover__actions">
         <button type="button" className="btn" onClick={() => setDraft(DEFAULT_PAGE_SETUP)}>

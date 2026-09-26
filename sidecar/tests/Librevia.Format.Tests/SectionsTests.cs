@@ -212,4 +212,58 @@ public class SectionsTests
         Assert.Equal(0, result.RewrittenBlocks);
         Assert.Equal(SectionXmlOf(original), SectionXmlOf(saved));
     }
+    private static BandDto Unlinked(BandDto band, string key, string? text = null)
+    {
+        PieceDto Copy(PieceDto piece) => piece with
+        {
+            Pid = piece.Pid is null ? null : $"{key}~{piece.Pid}",
+            Text = text ?? piece.Text,
+        };
+        return band with
+        {
+            Left = [.. band.Left.Select(Copy)],
+            Center = [.. band.Center.Select(Copy)],
+            Right = [.. band.Right.Select(Copy)],
+        };
+    }
+
+    private static string TextOf(BandDto? band) =>
+        band is null ? string.Empty : string.Concat(band.Left.Concat(band.Center).Concat(band.Right).Select(p => p.Text));
+
+    [Fact]
+    public void DesvincularCriaUmaParteNovaEEditarACopiaNaoMudaAOriginal()
+    {
+        var original = Fixtures.WithThreeSections();
+        var model = Roundtrip.Clone(Roundtrip.Open(original));
+        var inherited = model.Sections![0].Header!;
+        model.Sections[1] = model.Sections[1] with { Header = Unlinked(inherited, "s2", "Cabeçalho da segunda") };
+
+        var (saved, result) = Roundtrip.Save(original, model);
+        var reread = Roundtrip.Open(saved);
+
+        Assert.Empty(result.Inventory.Lost);
+        Assert.Equal("Cabeçalho da primeira", TextOf(reread.Sections![0].Header));
+        Assert.Equal("Cabeçalho da segunda", TextOf(reread.Sections[1].Header));
+        // A última continua herdando — agora da segunda.
+        Assert.Null(reread.Page.Header);
+    }
+
+    [Fact]
+    public void VincularAoAnteriorTiraAReferenciaDaSecao()
+    {
+        var original = Fixtures.WithThreeSections();
+        var model = Roundtrip.Clone(Roundtrip.Open(original));
+        model.Sections![1] = model.Sections[1] with { Header = Unlinked(model.Sections[0].Header!, "s2") };
+        var (unlinked, _) = Roundtrip.Save(original, model);
+
+        var again = Roundtrip.Clone(Roundtrip.Open(unlinked));
+        Assert.NotNull(again.Sections![1].Header);
+        again.Sections[1] = again.Sections[1] with { Header = null };
+        // A primeira não herda de ninguém: nula ali não tira nada.
+        var (linked, _) = Roundtrip.Save(unlinked, again);
+        var reread = Roundtrip.Open(linked);
+
+        Assert.Null(reread.Sections![1].Header);
+        Assert.Equal("Cabeçalho da primeira", TextOf(reread.Sections[0].Header));
+    }
 }
