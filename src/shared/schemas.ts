@@ -170,6 +170,14 @@ export const pageSetupSchema = z.object({
   evenAndOddHeaders: z.boolean().nullable().optional(),
   // Como a seção começa (M9). Opcional pelo mesmo motivo.
   start: z.enum(['nextPage', 'continuous', 'evenPage', 'oddPage', 'nextColumn']).optional(),
+  columns: z
+    .object({
+      count: z.number().int().min(1).max(45),
+      spaceMm: z.number().min(0).max(1000),
+      separator: z.boolean(),
+      widthsMm: z.array(z.number()).max(45).optional(),
+    })
+    .optional(),
 })
 
 /** Uma seção antes da última: a configuração dela e o id da marca que a encerra. */

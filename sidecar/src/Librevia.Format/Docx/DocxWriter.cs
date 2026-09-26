@@ -97,6 +97,7 @@ public static class DocxWriter
         if (!model.BeforeSections)
         {
             SectionWriter.ApplyStart(current, model.Page);
+            SectionWriter.ApplyColumns(current, model.Page);
             aliases = SectionWriter.Apply(part, breaks, current, model, inventory, touched);
         }
 

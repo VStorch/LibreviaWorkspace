@@ -1,6 +1,12 @@
 import type { Band, BandPiece } from './band.js'
 import type { SheetPlan } from './paginate.js'
-import type { DocumentNode, PageSetup, SectionSetup, SectionStart } from './model.js'
+import {
+  contentWidthMm,
+  type DocumentNode,
+  type PageSetup,
+  type SectionSetup,
+  type SectionStart,
+} from './model.js'
 
 /**
  * As seções do documento (M9), e a herança das faixas entre elas.
@@ -315,6 +321,58 @@ function unlinkedCopy(band: Band | null, key: string): Band | null {
     })),
     floats: band.floats.map((object) =>
       object.bid === undefined ? object : { ...object, bid: mark(object.bid)! },
+    ),
+  }
+}
+
+/** As colunas de uma seção, já em medidas: quantas, a largura de cada uma e o passo entre elas (mm). */
+export interface ColumnGeometry {
+  readonly count: number
+  readonly widthMm: number
+  /** Da borda esquerda de uma coluna à da seguinte: largura mais espaço. */
+  readonly stepMm: number
+  readonly spaceMm: number
+  readonly separator: boolean
+}
+
+/**
+ * A coluna de texto da seção dividida em colunas iguais.
+ *
+ * Larguras diferentes (`widthsMm`) são desenhadas iguais — o arquivo as mantém,
+ * e o inventário diz que a tela não as mostra.
+ */
+export function columnGeometry(section: PageSetup): ColumnGeometry {
+  const count = Math.max(1, Math.round(section.columns?.count ?? 1))
+  const spaceMm = count > 1 ? Math.max(0, section.columns?.spaceMm ?? 12.7) : 0
+  const content = contentWidthMm(section)
+  const widthMm = Math.max((content - spaceMm * (count - 1)) / count, 1)
+  return {
+    count,
+    widthMm,
+    stepMm: widthMm + spaceMm,
+    spaceMm,
+    separator: section.columns?.separator === true,
+  }
+}
+
+/**
+ * Colunas novas na seção `index` (em `allSections`) ou no documento todo.
+ *
+ * Sem as larguras diferentes que o arquivo trouxesse: o painel só conhece
+ * colunas iguais, e a gravação então as iguala (`SectionWriter.ApplyColumns`).
+ */
+export function withColumns(
+  list: SectionList,
+  index: number,
+  columns: { readonly count: number; readonly spaceMm: number; readonly separator: boolean },
+  scope: 'section' | 'document',
+): SectionList {
+  const applies = (at: number): boolean => scope === 'document' || at === index
+  const last = list.sections.length
+  return {
+    page: applies(last) ? { ...list.page, columns: { ...columns } } : list.page,
+    sections: list.sections.map((section, at) =>
+      applies(at) ? { ...section, columns: { ...columns } } : section,
     ),
   }
 }

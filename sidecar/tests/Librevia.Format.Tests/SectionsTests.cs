@@ -266,4 +266,49 @@ public class SectionsTests
         Assert.Null(reread.Sections![1].Header);
         Assert.Equal("Cabeçalho da primeira", TextOf(reread.Sections[0].Header));
     }
+
+    [Fact]
+    public void LeColunasEAQuebraDeColuna()
+    {
+        var result = DocxReader.Read(Fixtures.WithColumns());
+        var model = result.Model;
+
+        Assert.Equal(new ColumnsDto(2, 10, true), model.Sections![0].Columns! with { WidthsMm = null });
+        Assert.Equal(3, model.Page.Columns!.Count);
+        Assert.Equal(3, model.Page.Columns.WidthsMm!.Count);
+        Assert.Contains(result.Inventory.Invisible, m => m.Contains("larguras diferentes", StringComparison.Ordinal));
+        Assert.True(model.Doc.Content![0].Attrs!["columnBreakAfter"]!.GetValue<bool>());
+    }
+
+    [Fact]
+    public void ColunasVoltamIntactasEMudarONumeroIgualaAsLarguras()
+    {
+        var original = Fixtures.WithColumns();
+        var model = Roundtrip.Clone(Roundtrip.Open(original));
+        var (unchanged, kept) = Roundtrip.Save(original, model);
+        Assert.Equal(0, kept.RewrittenBlocks);
+        Assert.Equal(SectionXmlOf(original), SectionXmlOf(unchanged));
+
+        model = model with { Page = model.Page with { Columns = new ColumnsDto(2, 5, false) } };
+        model.Sections![0] = model.Sections[0] with { Columns = new ColumnsDto(1, 12.7, false) };
+        var (saved, _) = Roundtrip.Save(original, model);
+        var reread = Roundtrip.Open(saved);
+
+        Assert.Equal(new ColumnsDto(2, 5, false), reread.Page.Columns);
+        Assert.Equal(1, reread.Sections![0].Columns!.Count);
+        Assert.DoesNotContain("w:col ", SectionXmlOf(saved)[1], StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void EditarOParagrafoDaQuebraDeColunaAMantem()
+    {
+        var original = Fixtures.WithColumns();
+        var model = Roundtrip.Clone(Roundtrip.Open(original));
+        Assert.True(Roundtrip.EditFirstTextContaining(model, "Fim da primeira", "Fim editado."));
+
+        var (saved, result) = Roundtrip.Save(original, model);
+
+        Assert.Equal(1, result.RewrittenBlocks);
+        Assert.Contains("w:type=\"column\"", Roundtrip.XmlOf(saved), StringComparison.Ordinal);
+    }
 }

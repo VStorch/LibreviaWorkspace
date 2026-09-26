@@ -78,6 +78,11 @@ export function applyPageGaps(
   lines: ReadonlyMap<number, number> = new Map(),
   /** Cabeçalhos de tabela repetidos no alto das folhas em que a tabela continua. */
   headers: readonly RepeatedHeader[] = [],
+  /**
+   * O deslocamento lateral dos blocos postos em coluna (M9), pela posição do
+   * bloco. Translação, e não margem: mudar de coluna não pode mudar a altura.
+   */
+  columns: ReadonlyMap<number, number> = new Map(),
 ): void {
   const decorations: Decoration[] = []
 
@@ -113,8 +118,17 @@ export function applyPageGaps(
   }
 
   view.state.doc.descendants((node, offset) => {
+    const dx = columns.get(offset)
+    if (dx !== undefined && dx !== 0) {
+      decorations.push(
+        Decoration.node(offset, offset + node.nodeSize, { style: `transform:translateX(${dx}px)` }),
+      )
+    }
+
+    // O desvio das colunas pode ser negativo: o primeiro bloco de uma coluna
+    // sobe até o topo da região. Só o zero não se escreve.
     const gap = written.get(offset)
-    if (gap === undefined || gap <= 0) return
+    if (gap === undefined || (gap === 0 && !gaps.has(offset))) return
 
     decorations.push(
       Decoration.node(offset, offset + node.nodeSize, {

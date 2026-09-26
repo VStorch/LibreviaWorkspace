@@ -90,6 +90,23 @@ export interface PageSetup {
    * seções) vale "próxima página" na tela e "não mexa" na gravação.
    */
   readonly start?: SectionStart | undefined
+  /**
+   * As colunas da seção (`w:cols`). Ausente (rascunho de antes) é uma coluna na
+   * tela e "não mexa" na gravação.
+   */
+  readonly columns?: SectionColumns | undefined
+}
+
+/** `w:cols`: quantas colunas, o espaço entre elas (mm) e a linha separadora. */
+export interface SectionColumns {
+  readonly count: number
+  readonly spaceMm: number
+  readonly separator: boolean
+  /**
+   * Larguras diferentes, como o arquivo as declara (`w:equalWidth="0"`). A tela
+   * desenha colunas iguais; mudar as colunas no painel as iguala.
+   */
+  readonly widthsMm?: number[] | undefined
 }
 
 /** Os começos de seção do OOXML — os de `w:type/@w:val`. */

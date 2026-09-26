@@ -16,7 +16,7 @@ import {
   type PageSetup,
 } from '@services/document/model.js'
 import { editBandFloat, editBandPiece } from '@services/document/band.js'
-import { effectiveSections, sheetSetups } from '@services/document/sections.js'
+import { columnGeometry, effectiveSections, sheetSetups } from '@services/document/sections.js'
 import { NO_BANDS } from '@services/document/band.js'
 import { floatsOf } from '@services/document/floating.js'
 import { currentPreferences, usePreferences } from '../state/preferences.js'
@@ -37,6 +37,7 @@ import { SpecialCharsDialog } from './SpecialCharsDialog.js'
 import { StylesPanel } from './StylesPanel.js'
 import { NavigationPane } from './NavigationPane.js'
 import { BookmarkDialog } from './BookmarkDialog.js'
+import { ColumnsDialog } from './ColumnsDialog.js'
 import { CaptionDialog } from './CaptionDialog.js'
 import { CrossReferenceDialog } from './CrossReferenceDialog.js'
 import { WordCountDialog } from './WordCountDialog.js'
@@ -297,7 +298,9 @@ export function DocumentEditor(): React.JSX.Element {
       : effective.map((section) => {
           const widthPx = mmToPx(pageDimensionsMm(section).width)
           const left = (stackWidthPx - widthPx) / 2 + mmToPx(section.margins.left)
-          const content = widthPx - mmToPx(section.margins.left) - mmToPx(section.margins.right)
+          // Com colunas, o bloco tem a largura de uma coluna; qual coluna, quem
+          // decide é a paginação (`usePagination`, por translação).
+          const content = mmToPx(columnGeometry(section).widthMm)
           const base = stackWidthPx - baseLeftPx - baseRightPx
           return { shiftPx: left - baseLeftPx, narrowerPx: base - content }
         })
@@ -509,6 +512,8 @@ export function DocumentEditor(): React.JSX.Element {
 
       {dialogs.listStart && <ListStartDialog editor={editor} onClose={() => setDialog('listStart', false)} />}
 
+      {dialogs.columns && <ColumnsDialog editor={editor} onClose={() => setDialog('columns', false)} />}
+
       {dialogs.bookmark && <BookmarkDialog editor={editor} onClose={() => setDialog('bookmark', false)} />}
 
       {dialogs.caption && (
@@ -645,6 +650,7 @@ export function DocumentEditor(): React.JSX.Element {
                       leftPx={box.leftPx}
                       section={layout.sheets[index]?.section ?? 0}
                       floats={floatsByPage[index] ?? []}
+                      columnLines={layout.columnLines.filter((line) => line.sheet === index)}
                       schema={editor.schema}
                       {...editableSheet}
                     />

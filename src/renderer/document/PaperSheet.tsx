@@ -19,6 +19,7 @@ export function PaperSheet({
   topPx,
   leftPx = 0,
   section = 0,
+  columnLines = [],
   floats,
   schema,
   onEditFloat,
@@ -35,6 +36,8 @@ export function PaperSheet({
   leftPx?: number
   /** A seção da folha — é por ela que a altura das faixas é medida (`useBandHeights`). */
   section?: number
+  /** As linhas entre colunas desta folha, em pixels da folha. */
+  columnLines?: readonly { readonly leftPx: number; readonly topPx: number; readonly heightPx: number }[]
   /** Os objetos ancorados em blocos que caíram nesta folha. */
   floats: readonly PlacedFloat[]
   schema: Schema
@@ -100,6 +103,14 @@ export function PaperSheet({
       ))}
 
       <FloatingLayer objects={floats} page={page} schema={schema} behind={false} {...editFloat} />
+
+      {columnLines.map((line) => (
+        <div
+          key={`${line.leftPx}:${line.topPx}`}
+          className="paper-column-line"
+          style={{ left: `${line.leftPx}px`, top: `${line.topPx}px`, height: `${line.heightPx}px` }}
+        />
+      ))}
     </div>
   )
 }

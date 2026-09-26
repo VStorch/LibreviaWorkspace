@@ -5,7 +5,7 @@ import { bandFloatsOf, floatsOf, type FloatingObject } from '@services/document/
 import type { PrintFloat, PrintPage } from '@services/document/print-pages.js'
 import { drawListsForPrint } from './extensions/list-numbering.js'
 import { sheetSetups } from '@services/document/sections.js'
-import { drawnSheet, isInternalStart, type PageLayout, type PageStart } from './usePagination.js'
+import { collapsed, drawnSheet, isInternalStart, type PageLayout, type PageStart } from './usePagination.js'
 
 /**
  * O documento recortado nas folhas que a tela mostra.
@@ -78,6 +78,7 @@ export function splitIntoPages(
         paragraph.setAttribute('data-anchor-text', '')
       }
     }
+    placeColumns(holder, start, end, layout)
     markSplitParagraphs(
       holder,
       start,
@@ -98,11 +99,41 @@ export function splitIntoPages(
         ),
         ...bandFloats(sheet.setup, sheet.inSection, editor),
       ],
+      columnLines: layout.columnLines
+        .filter((line) => line.sheet === pages.length)
+        .map((line) => ({
+          leftMm: pxToMm(line.leftPx),
+          topMm: pxToMm(line.topPx),
+          heightMm: pxToMm(line.heightPx),
+        })),
       ...sheet,
     })
   }
 
   return pages
+}
+
+/**
+ * Os blocos em coluna saem no papel como na tela (M9): a largura de uma coluna,
+ * o lado da coluna dela e o desvio vertical do primeiro de cada coluna — os
+ * mesmos números que a paginação da tela produziu.
+ */
+function placeColumns(holder: HTMLElement, start: PageStart, end: PageStart, layout: PageLayout): void {
+  if (layout.columnMoves.length === 0) return
+  const moves = new Map(layout.columnMoves.map((move) => [move.blockIndex, move]))
+  const last = isInternalStart(end) ? end.blockIndex : end.blockIndex - 1
+  const children = Array.from(holder.children)
+  for (let index = start.blockIndex; index <= last; index++) {
+    const element = children[index - start.blockIndex]
+    const move = moves.get(index)
+    if (!(element instanceof HTMLElement) || move === undefined) continue
+    if (move.narrowerPx !== 0) element.style.marginRight = `${move.narrowerPx}px`
+    if (move.dx !== 0) element.style.transform = `translateX(${move.dx}px)`
+    // O primeiro da folha não sobe: a folha nova já o põe no topo.
+    if (move.lift !== 0 && index !== start.blockIndex) {
+      element.style.marginTop = `${collapsed(move.natural + move.lift, move.collapse)}px`
+    }
+  }
 }
 
 /** Recorta linhas e itens sem duplicar conteúdo nem reiniciar listas numeradas. */

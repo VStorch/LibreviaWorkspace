@@ -341,6 +341,11 @@ public sealed class ParagraphWriter
             paragraph.AppendChild(new Run(new Break { Type = BreakValues.Page }));
         }
 
+        if (Attr.Bool(node, "columnBreakAfter"))
+        {
+            paragraph.AppendChild(new Run(new Break { Type = BreakValues.Column }));
+        }
+
         foreach (var mark in _references ? [] : Bookmarks(original, leading: false))
         {
             paragraph.AppendChild(mark.CloneNode(true));

@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { promisify } from 'node:util'
 import { expect, test } from '@playwright/test'
 import { launch, menu, stubDialogs, type Session } from './app.js'
-import { docxWithSections, entryOf } from './fixtures.js'
+import { docxWithColumns, docxWithSections, entryOf } from './fixtures.js'
 
 /**
  * Seções (M9): cada folha com o papel, a faixa e o número da sua seção.
@@ -165,6 +165,68 @@ test.describe('seções', () => {
     expect(await entryOf(destino, 'word/footer1.xml')).not.toContain('Anexo')
     const corpo = await entryOf(destino, 'word/document.xml')
     expect(corpo.match(/<w:footerReference/g)).toHaveLength(2)
+  })
+
+  test('colunas equilibradas antes da seção contínua, na tela e no PDF', async () => {
+    const origem = join(pasta, 'colunas.docx')
+    await writeFile(origem, await docxWithColumns())
+    await stubDialogs(session.app, { open: origem, messageBox: 1 })
+    await menu(session, 'open')
+    await expect(session.window.locator('.paper')).toHaveCount(1)
+
+    const caixa = (texto: string) =>
+      session.window.locator('.ProseMirror p', { hasText: texto }).boundingBox()
+    // Seis parágrafos em duas colunas equilibradas: três de cada lado.
+    await expect
+      .poll(async () => (await caixa('Parágrafo 4'))!.x)
+      .toBeGreaterThan((await caixa('Parágrafo 1'))!.x + 100)
+    const primeiro = (await caixa('Parágrafo 1'))!
+    const quarto = (await caixa('Parágrafo 4'))!
+    expect(Math.abs(quarto.y - primeiro.y)).toBeLessThan(2)
+    expect(quarto.width).toBeLessThan(primeiro.width + 1)
+    // O texto da seção de baixo desce ao pé da coluna mais alta, e ocupa a folha toda.
+    const terceiro = (await caixa('Parágrafo 3'))!
+    const depois = (await caixa('Depois das colunas'))!
+    expect(depois.y).toBeGreaterThan(terceiro.y + terceiro.height - 1)
+    expect(depois.width).toBeGreaterThan(primeiro.width * 1.5)
+    await expect(session.window.locator('.paper-column-line')).toHaveCount(1)
+
+    test.skip(!(await temPoppler()), 'pdftotext não instalado')
+    const destino = join(pasta, 'colunas.pdf')
+    await stubDialogs(session.app, { save: destino, messageBox: 1 })
+    await menu(session, 'export-pdf')
+    await expect.poll(() => tamanhos(destino), { timeout: 30_000 }).toHaveLength(1)
+    const { stdout } = await promisify(execFile)('pdftotext', ['-layout', destino, '-'])
+    expect(stdout).toMatch(/Parágrafo 1 em colunas\.\s+Parágrafo 4 em colunas\./)
+  })
+
+  test('Formatar → Colunas e a quebra de coluna num documento novo', async () => {
+    await menu(session, 'new-document')
+    await session.window.locator('.ProseMirror').click()
+    await session.window.keyboard.type('Esquerda.')
+    await session.window.keyboard.press('Enter')
+    await session.window.keyboard.type('Direita.')
+    await menu(session, 'format-columns')
+    const dialogo = session.window.getByRole('dialog', { name: 'Colunas' })
+    await dialogo.getByLabel('Número de colunas').fill('2')
+    await dialogo.getByRole('button', { name: 'Aplicar' }).click()
+
+    await session.window.locator('.ProseMirror p', { hasText: 'Esquerda.' }).click()
+    await session.window.keyboard.press('End')
+    await menu(session, 'insert-column-break')
+    const esquerda = session.window.locator('.ProseMirror p', { hasText: 'Esquerda.' })
+    const direita = session.window.locator('.ProseMirror p', { hasText: 'Direita.' })
+    await expect
+      .poll(async () => (await direita.boundingBox())!.x - (await esquerda.boundingBox())!.x)
+      .toBeGreaterThan(100)
+
+    const destino = join(pasta, 'colunas-novo.docx')
+    await stubDialogs(session.app, { save: destino, messageBox: 1 })
+    await menu(session, 'save-as')
+    await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
+    const corpo = await entryOf(destino, 'word/document.xml')
+    expect(corpo).toMatch(/<w:cols [^>]*w:num="2"/)
+    expect(corpo).toContain('w:type="column"')
   })
 })
 

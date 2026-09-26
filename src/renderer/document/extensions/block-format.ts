@@ -292,6 +292,19 @@ export const BlockFormat = Extension.create<BlockFormatOptions>({
             renderHTML: (attributes) => (attributes['breakAfter'] === true ? { 'data-break-after': '' } : {}),
           },
 
+          /**
+           * A coluna termina depois deste bloco (`w:br w:type="column"`), pelo
+           * mesmo motivo de `breakAfter`. Não passa adiante no Enter: a quebra fica
+           * no fim do parágrafo, que é a metade de cima.
+           */
+          columnBreakAfter: {
+            default: null,
+            keepOnSplit: false,
+            parseHTML: (element) => (element.hasAttribute('data-column-break') ? true : null),
+            renderHTML: (attributes) =>
+              attributes['columnBreakAfter'] === true ? { 'data-column-break': '' } : {},
+          },
+
           keepNext: {
             default: null,
             parseHTML: (element) => element.hasAttribute('data-keep-next') || null,

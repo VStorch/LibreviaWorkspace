@@ -1824,3 +1824,11 @@ button {
   font-variant-numeric: tabular-nums;
   white-space: pre;
 }
+
+/* A linha entre colunas (`w:cols/@w:sep`): fina, da altura da região de colunas. */
+.paper-column-line {
+  position: absolute;
+  width: 0;
+  border-left: 1px solid #000000;
+  pointer-events: none;
+}

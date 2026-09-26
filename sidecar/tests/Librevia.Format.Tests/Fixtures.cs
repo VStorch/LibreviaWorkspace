@@ -726,6 +726,35 @@ public static class Fixtures
     });
 
     /// <summary>
+    /// Colunas (M9): a primeira seção em duas colunas iguais com linha entre elas
+    /// e uma quebra de coluna; a do corpo em três de larguras diferentes.
+    /// </summary>
+    public static byte[] WithColumns() => Build((body, _) =>
+    {
+        var broken = Paragraph("Fim da primeira coluna.");
+        broken.AppendChild(new Run(new Break { Type = BreakValues.Column }));
+        body.AppendChild(broken);
+        body.AppendChild(Paragraph("Segunda coluna."));
+
+        var mark = new Paragraph();
+        mark.ParagraphProperties = new ParagraphProperties(
+            new SectionProperties(
+                new PageSize { Width = 11906U, Height = 16838U },
+                new PageMargin { Top = 1440, Bottom = 1440, Left = 1440U, Right = 1440U },
+                new Columns { ColumnCount = 2, Space = "567", Separator = true }));
+        body.AppendChild(mark);
+        body.AppendChild(Paragraph("Três colunas desiguais."));
+    },
+    (section, _) =>
+    {
+        section.PrependChild(new SectionType { Val = SectionMarkValues.Continuous });
+        section.AppendChild(new Columns(
+            new Column { Width = "2000", Space = "400" },
+            new Column { Width = "3000", Space = "400" },
+            new Column { Width = "3226" }) { ColumnCount = 3, EqualWidth = false });
+    });
+
+    /// <summary>
     /// Documento cuja formatação mora nos **estilos**, como o corpus real.
     /// </summary>
     /// <remarks>

@@ -98,6 +98,8 @@ function contextWith(layout: Partial<PageLayout>, outsideBookmarks: string[] = [
       sheetWidths: [],
       stackWidthPx: 0,
       contentSheets: [],
+      columnMoves: [],
+      columnLines: [],
       ...layout,
     },
     page: DEFAULT_PAGE_SETUP,

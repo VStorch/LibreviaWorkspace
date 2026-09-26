@@ -22,6 +22,7 @@ import {
   parityOf,
   sectionBreakIn,
   startsNewSheet,
+  columnGeometry,
   type SectionBlock,
 } from '@services/document/sections.js'
 import { applyPageGaps, type RepeatedHeader } from './extensions/pagination.js'
@@ -69,6 +70,43 @@ export interface PageLayout {
    * conteúdo, e as em branco ficam entre elas.
    */
   readonly contentSheets: readonly number[]
+  /** Os blocos postos em coluna — o papel repete o mesmo desvio (`print-source.ts`). */
+  readonly columnMoves: readonly ColumnMove[]
+  /** As linhas entre colunas, nas seções que as pedem. */
+  readonly columnLines: readonly ColumnLine[]
+}
+
+/** Um bloco de seção com colunas: o lado da coluna e o quanto subiu ou desceu. */
+export interface ColumnMove {
+  readonly blockIndex: number
+  readonly dx: number
+  /** Quanto a coluna é mais estreita que a coluna de texto da folha. */
+  readonly narrowerPx: number
+  readonly lift: number
+  /** A margem de cima que o bloco já tinha: o papel escreve margem natural mais desvio. */
+  readonly natural: number
+  /** A margem de baixo do bloco anterior — ver `collapsed`. */
+  readonly collapse: number
+}
+
+/**
+ * A margem de cima que dá a distância `distance` depois de um bloco com margem
+ * de baixo `previous`.
+ *
+ * As margens verticais colapsam: positiva com positiva vale a maior, e uma
+ * negativa se **soma** à positiva. A distância menor que a margem de baixo do
+ * anterior — a coluna que sobe até o topo da região — só se obtém descontando-a.
+ */
+export function collapsed(distance: number, previous: number): number {
+  return distance >= previous ? distance : distance - previous
+}
+
+/** Uma linha entre colunas, em pixels da folha desenhada. */
+export interface ColumnLine {
+  readonly sheet: number
+  readonly leftPx: number
+  readonly topPx: number
+  readonly heightPx: number
 }
 
 /** A folha desenhada em que cai a folha de conteúdo `index`. */
@@ -78,6 +116,13 @@ export function drawnSheet(layout: PageLayout, index: number): number {
 
 /** Medidas de uma seção na tela, em pixels. */
 interface SectionMetrics {
+  /** As colunas da seção, em pixels: quantas e o passo de uma à seguinte. */
+  readonly columns: number
+  readonly columnStepPx: number
+  readonly columnWidthPx: number
+  readonly separator: boolean
+  readonly leftPx: number
+  readonly rightPx: number
   readonly widthPx: number
   readonly heightPx: number
   readonly contentPx: number
@@ -106,7 +151,7 @@ export function isInternalStart(start: PageStart): boolean {
 interface CutTarget {
   readonly at: number
   readonly start: PageStart
-  readonly nodes: readonly { position: number; natural: number }[]
+  readonly nodes: readonly { position: number; natural: number; collapse?: number }[]
   /**
    * Corte entre linhas de um parágrafo: a posição do primeiro caractere da
    * linha, resolvida só se o corte for escolhido, e a do próprio parágrafo.
@@ -176,6 +221,8 @@ export function usePagination(
     sheetWidths: [],
     stackWidthPx: 0,
     contentSheets: [0],
+    columnMoves: [],
+    columnLines: [],
   })
 
   /**
@@ -206,6 +253,9 @@ export function usePagination(
   /** Os vãos entre linhas de parágrafo cortado, por posição do espaçador. */
   const lastLines = useRef(new Map<number, number>())
 
+  /** O deslocamento lateral das colunas já aplicado, por posição do bloco. */
+  const lastColumns = useRef(new Map<number, number>())
+
   /** Os cabeçalhos de tabela repetidos, comparados pelo que desenham. */
   const lastHeaders = useRef('[]')
 
@@ -224,7 +274,14 @@ export function usePagination(
       const heights = bands[index] ?? NO_BANDS
       const insets = contentInsetsMm(setup, heights)
       const { width, height } = pageDimensionsMm(setup)
+      const columns = columnGeometry(setup)
       return {
+        columns: columns.count,
+        columnStepPx: mmToPx(columns.stepMm),
+        columnWidthPx: mmToPx(columns.widthMm),
+        separator: columns.separator,
+        leftPx: mmToPx(setup.margins.left),
+        rightPx: mmToPx(setup.margins.right),
         widthPx: mmToPx(width),
         heightPx: mmToPx(height),
         contentPx: mmToPx(contentHeightMm(setup, heights)),
@@ -238,6 +295,7 @@ export function usePagination(
       newSheet: startsNewSheet(setup, sections[index - 1]),
       parity: parityOf(setup),
       restart: setup.pageNumberStart ?? null,
+      columns: metricsOf(index).columns,
     }))
 
     const measure = (): void => {
@@ -293,6 +351,7 @@ export function usePagination(
         accumulated += shiftOf(node)
         const top = offsetTopOf(node) - origin - accumulated
         const before = blocks.at(-1)
+        const previousDom = node.previousElementSibling
         targets.push({
           at: top,
           start: { blockIndex },
@@ -300,6 +359,12 @@ export function usePagination(
             {
               position: offset,
               natural: Math.max(top - (before === undefined ? 0 : before.top + before.height), 0),
+              // A margem de baixo do bloco anterior: é com ela que uma margem de
+              // cima negativa se soma, em vez de a substituir (ver `collapsed`).
+              collapse:
+                previousDom instanceof HTMLElement
+                  ? parseFloat(getComputedStyle(previousDom).marginBottom) || 0
+                  : 0,
             },
           ],
         })
@@ -425,6 +490,7 @@ export function usePagination(
           breakpoints,
           isPageBreak: node.hasAttribute('data-page-break'),
           breakAfter: node.hasAttribute('data-break-after'),
+          columnBreakAfter: node.hasAttribute('data-column-break'),
           keepWithNext: effective['keepNext'] === true || /^H[1-6]$/.test(node.tagName),
           keepLines: effective['keepLines'] === true,
           widowControl: lines !== null && effective['widowControl'] !== false,
@@ -441,6 +507,16 @@ export function usePagination(
       // As folhas com conteúdo, na pilha: entre elas ficam as em branco.
       const contentSheets = plan.sheets.flatMap((sheet, index) => (sheet.blank ? [] : [index]))
       const sheetOf = (content: number): SheetPlan => plan.sheets[contentSheets[content] ?? 0]!
+      // O quanto as colunas subiram (ou desceram) os blocos entre dois pontos da
+      // tira: a altura desenhada de uma folha é a da tira mais esses desvios.
+      const liftsBetween = (from: number, to: number): number => {
+        let sum = 0
+        for (const [index, placement] of plan.placements) {
+          const top = blocks[index]?.top
+          if (top !== undefined && top >= from && top < to) sum += placement.lift
+        }
+        return sum
+      }
 
       // Vão = o que sobrou da folha + as duas margens + o espaço entre papéis.
       // É essa soma que faz o bloco cair exatamente no topo da coluna de texto
@@ -502,7 +578,7 @@ export function usePagination(
             : blockTargetFrom(at)
         // A linha vazia da captura que sobra no pé (`hangingBottom`) cabe na
         // margem de baixo: nem estica a folha, nem empurra o bloco seguinte.
-        const span = at - previous
+        const span = at - previous + liftsBetween(previous, at)
         const hung = Math.min(Math.max(span - ending.contentPx, 0), hangingAt(blocks, at))
         const used = span - hung
         sheetHeights.push(Math.max(ending.heightPx, used + ending.topPx + ending.bottomPx))
@@ -547,7 +623,7 @@ export function usePagination(
 
       const last = metricsOf(sheetOf(breaks.length).section)
       const bottom = blocks.reduce((bottom, block) => Math.max(bottom, block.top + block.height), 0)
-      const lastSpan = bottom - previous
+      const lastSpan = bottom - previous + liftsBetween(previous, bottom + 1)
       const lastHung = Math.min(Math.max(lastSpan - last.contentPx, 0), hangingAt(blocks, bottom))
       sheetHeights.push(Math.max(last.heightPx, lastSpan - lastHung + last.topPx + last.bottomPx))
       // Folhas em branco depois da última com conteúdo não existem: a seção par
@@ -561,6 +637,64 @@ export function usePagination(
         stackHeightPx += height + SHEET_GUTTER_PX
       }
 
+      // As colunas: o primeiro bloco de cada coluna sobe até o topo da região, e
+      // todos vão para o lado da sua coluna. O desvio vertical entra no vão do
+      // bloco — a conta de fluxo o desconta como desconta o vão de folha —, e o
+      // lateral é uma translação, que não mexe em altura nenhuma.
+      const columnShifts = new Map<number, number>()
+      const blockTargets = new Map<number, CutTarget>()
+      for (const cut of targets) {
+        if (
+          cut.line === undefined &&
+          cut.start.childIndex === undefined &&
+          !blockTargets.has(cut.start.blockIndex)
+        )
+          blockTargets.set(cut.start.blockIndex, cut)
+      }
+      const columnMoves: ColumnMove[] = []
+      for (const [index, placement] of plan.placements) {
+        const node = blockTargets.get(index)?.nodes[0]
+        if (node === undefined) continue
+        const metrics = metricsOf(blocks[index]?.section ?? 0)
+        const dx = placement.column * metrics.columnStepPx
+        if (dx !== 0) columnShifts.set(node.position, dx)
+        if (placement.lift !== 0) {
+          gaps.set(node.position, (gaps.get(node.position) ?? 0) + placement.lift)
+          const distance = (written.get(node.position) ?? node.natural) + placement.lift
+          written.set(node.position, collapsed(distance, node.collapse ?? 0))
+        }
+        columnMoves.push({
+          blockIndex: index,
+          dx,
+          narrowerPx:
+            metrics.columns > 1
+              ? metrics.widthPx - metrics.leftPx - metrics.rightPx - metrics.columnWidthPx
+              : 0,
+          lift: placement.lift,
+          natural: node.natural,
+          collapse: node.collapse ?? 0,
+        })
+      }
+
+      // As linhas entre as colunas, na folha desenhada e em pixels da folha.
+      const columnLines: ColumnLine[] = []
+      for (const region of plan.regions) {
+        const metrics = metricsOf(region.section)
+        if (!metrics.separator) continue
+        const sheet = contentSheets[region.sheet] ?? region.sheet
+        for (let column = 1; column < region.columns; column++) {
+          columnLines.push({
+            sheet,
+            leftPx:
+              metrics.leftPx +
+              column * metrics.columnStepPx -
+              (metrics.columnStepPx - metrics.columnWidthPx) / 2,
+            topPx: metrics.topPx + region.top,
+            heightPx: region.height,
+          })
+        }
+      }
+
       // No modo de leitura o documento é uma tira contínua: os vãos saem do
       // DOM, e o mapa do que está aplicado esvazia junto. Esvaziá-lo é o que
       // importa — a medição seguinte desconta o que este mapa diz estar
@@ -569,9 +703,11 @@ export function usePagination(
       const targetWritten = paginated ? written : EMPTY_GAPS
       const targetLines = paginated ? lineGaps : EMPTY_GAPS
       const targetHeaders = paginated ? headers : []
+      const targetColumns = paginated ? columnShifts : EMPTY_GAPS
       const headersKey = JSON.stringify(targetHeaders)
 
       if (
+        !sameGaps(lastColumns.current, targetColumns) ||
         !sameGaps(applied.current, target) ||
         !sameGaps(lastWritten.current, targetWritten) ||
         !sameGaps(lastLines.current, targetLines) ||
@@ -581,7 +717,8 @@ export function usePagination(
         applied.current = target
         lastWritten.current = targetWritten
         lastLines.current = targetLines
-        applyPageGaps(editor.view, targetWritten, target, targetLines, targetHeaders)
+        lastColumns.current = targetColumns
+        applyPageGaps(editor.view, targetWritten, target, targetLines, targetHeaders, targetColumns)
       }
 
       setLayout({
@@ -590,14 +727,21 @@ export function usePagination(
         sheetTops,
         sheetHeights,
         pageStarts,
-        anchors: anchorsFor(blocks, breaks, (content) => ({
-          sheet: contentSheets[content] ?? content,
-          marginTopPx: metricsOf(sheetOf(content).section).topPx,
-        })),
+        anchors: anchorsFor(
+          blocks,
+          breaks,
+          (content) => ({
+            sheet: contentSheets[content] ?? content,
+            marginTopPx: metricsOf(sheetOf(content).section).topPx,
+          }),
+          (index) => plan.placements.get(index)?.lift ?? 0,
+        ),
         sheets,
         sheetWidths,
         stackWidthPx: Math.max(0, ...sheetWidths),
         contentSheets,
+        columnMoves,
+        columnLines,
       })
     }
 
@@ -659,16 +803,23 @@ function anchorsFor(
   breaks: readonly number[],
   /** A folha desenhada e a margem de cima da folha de conteúdo `content`. */
   sheetOf: (content: number) => { readonly sheet: number; readonly marginTopPx: number },
+  /** O desvio vertical das colunas em cada bloco. */
+  liftOf: (index: number) => number = () => 0,
 ): BlockAnchor[] {
   const anchors: BlockAnchor[] = []
   let page = 0
+  let drift = 0
 
-  for (const block of blocks) {
-    while (page < breaks.length && block.top >= breaks[page]!) page += 1
+  blocks.forEach((block, index) => {
+    while (page < breaks.length && block.top >= breaks[page]!) {
+      page += 1
+      drift = 0
+    }
+    drift += liftOf(index)
     const start = page === 0 ? 0 : breaks[page - 1]!
     const { sheet, marginTopPx } = sheetOf(page)
-    anchors.push({ pageIndex: sheet, topPx: marginTopPx + (block.top - start) })
-  }
+    anchors.push({ pageIndex: sheet, topPx: marginTopPx + (block.top - start) + drift })
+  })
 
   return anchors
 }

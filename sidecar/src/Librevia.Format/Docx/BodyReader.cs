@@ -394,6 +394,8 @@ public sealed class BodyReader(
         // do mesmo parágrafo — esse texto desce junto em vez de abrir a página —
         // e é exato no caso comum, que é a quebra encerrando o parágrafo.
         var breakAfter = content.RemoveAll(child => child.Type == "pageBreak") > 0;
+        // A quebra de coluna, pelo mesmo caminho: a coluna termina depois do bloco.
+        var columnBreakAfter = content.RemoveAll(child => child.Type == "columnBreak") > 0;
         TopAnchoredFirst(content);
 
         var node = (HeadingLevelOf(direct) ?? _styles.HeadingLevelByName(direct?.ParagraphStyleId?.Val?.Value)) is { } level
@@ -401,6 +403,7 @@ public sealed class BodyReader(
             : Node.Of("paragraph");
 
         if (breakAfter) node.With("breakAfter", true);
+        if (columnBreakAfter) node.With("columnBreakAfter", true);
 
         WithFloats(node);
 
@@ -1285,9 +1288,15 @@ public sealed class BodyReader(
                     break;
 
                 case Break br:
+                    // A quebra de coluna vira propriedade do bloco, como a de
+                    // página (ver ReadParagraph). No rascunho de antes das seções
+                    // ela era uma quebra de linha, e a leitura de referência dele
+                    // continua assim.
                     yield return br.Type is not null && br.Type.Value == BreakValues.Page
                         ? Node.Of("pageBreak")
-                        : Node.Of("hardBreak");
+                        : br.Type is not null && br.Type.Value == BreakValues.Column && sections
+                            ? Node.Of("columnBreak")
+                            : Node.Of("hardBreak");
                     break;
 
                 case DocumentFormat.OpenXml.Wordprocessing.Drawing:

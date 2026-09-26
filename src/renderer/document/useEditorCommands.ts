@@ -3,7 +3,7 @@ import type { Editor } from '@tiptap/react'
 import { TableAction } from '@shared/table-actions.js'
 import { EditorCommand, onEditorCommand, runsWhileLocked } from './editor-commands.js'
 import { runTableAction } from './table-actions.js'
-import { deleteSectionBreak, insertSectionBreak } from './section-commands.js'
+import { deleteSectionBreak, insertColumnBreak, insertSectionBreak } from './section-commands.js'
 import {
   flushSelection,
   insertTableOfContents,
@@ -28,6 +28,7 @@ export interface EditorDialogs {
   readonly bookmark: boolean
   readonly caption: boolean
   readonly crossReference: boolean
+  readonly columns: boolean
 }
 
 const CLOSED: EditorDialogs = {
@@ -45,6 +46,7 @@ const CLOSED: EditorDialogs = {
   bookmark: false,
   caption: false,
   crossReference: false,
+  columns: false,
 }
 
 export interface EditorCommands {
@@ -139,6 +141,11 @@ export function useEditorCommands(
         case EditorCommand.DeleteSectionBreak:
           if (editor !== null) deleteSectionBreak(editor)
           return
+        case EditorCommand.InsertColumnBreak:
+          if (editor !== null) insertColumnBreak(editor)
+          return
+        case EditorCommand.FormatColumns:
+          return setDialog('columns', true)
 
         case TableAction.Insert:
           return setDialog('table', true)

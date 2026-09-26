@@ -46,7 +46,23 @@ public sealed record PageSetupDto(
     [property: JsonPropertyName("id")] string? Id = null,
     // Como a seção começa (`w:sectPr/w:type`): nextPage, continuous, evenPage,
     // oddPage ou nextColumn. Ausente (rascunho de antes) é "não mexa".
-    [property: JsonPropertyName("start")] string? Start = null);
+    [property: JsonPropertyName("start")] string? Start = null,
+    // As colunas da seção (`w:cols`). Ausente (rascunho de antes) é "não mexa".
+    [property: JsonPropertyName("columns")] ColumnsDto? Columns = null);
+
+/// <summary>
+/// `w:cols`: quantas colunas, o espaço entre elas e a linha separadora.
+/// </summary>
+/// <remarks>
+/// As larguras diferentes (`w:equalWidth="0"` com um `w:col` por coluna) vêm em
+/// `WidthsMm`: a tela desenha colunas iguais, e o arquivo as mantém enquanto a
+/// pessoa não mudar o número de colunas.
+/// </remarks>
+public sealed record ColumnsDto(
+    [property: JsonPropertyName("count")] int Count,
+    [property: JsonPropertyName("spaceMm")] double SpaceMm,
+    [property: JsonPropertyName("separator")] bool Separator,
+    [property: JsonPropertyName("widthsMm")] List<double>? WidthsMm = null);
 
 public sealed record MarginsDto(
     [property: JsonPropertyName("top")] double Top,
@@ -238,7 +254,8 @@ public static class PageReader
             PageNumberStart: StartElement(section.GetFirstChild<PageNumberType>()?.Start?.Value),
             TitlePage: HasTitlePage(section),
             EvenAndOddHeaders: UsesEvenAndOdd(part),
-            Start: StartOf(section));
+            Start: StartOf(section),
+            Columns: ColumnsOf(section, inventory));
     }
 
     /// <summary>A seção declara uma faixa deste tipo, ainda que vazia?</summary>
@@ -251,6 +268,35 @@ public static class PageReader
             (reference.Type?.Value ?? HeaderFooterValues.Default) == type &&
             !string.IsNullOrEmpty(reference.Id?.Value));
     }
+
+    /// <summary>
+    /// `w:cols`, com os padrões da especificação: uma coluna, 720 twips (12,7 mm)
+    /// entre elas, sem linha.
+    /// </summary>
+    public static ColumnsDto ColumnsOf(SectionProperties section, Inventory? inventory = null)
+    {
+        var columns = section.GetFirstChild<Columns>();
+        var widths = columns?.Elements<Column>().Select(column => Millimeters((int?)ParseTwips(column.Width?.Value), 0))
+            .ToList();
+        var count = Math.Clamp((int?)columns?.ColumnCount?.Value ?? (widths?.Count > 0 ? widths.Count : 1), 1, 45);
+        var unequal = columns?.EqualWidth is not null && !columns.EqualWidth.Value && widths is { Count: > 1 };
+        if (unequal && count > 1)
+        {
+            inventory?.NoteInvisible("colunas de larguras diferentes (mostradas iguais; o arquivo as mantém)");
+        }
+
+        return new ColumnsDto(
+            count,
+            Millimeters((int?)ParseTwips(columns?.Space?.Value), 720),
+            columns?.Separator?.Value ?? false,
+            unequal ? widths : null);
+    }
+
+    /// <summary>Medida de `w:cols` e `w:col`, que o esquema dá como texto.</summary>
+    private static int? ParseTwips(string? value) =>
+        int.TryParse(value, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var twips)
+            ? twips
+            : null;
 
     /// <summary>Os começos de seção que o modelo nomeia — os de `w:type/@w:val`.</summary>
     public static readonly string[] SectionStarts = ["nextPage", "continuous", "evenPage", "oddPage", "nextColumn"];

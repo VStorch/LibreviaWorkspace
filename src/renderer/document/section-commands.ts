@@ -84,6 +84,28 @@ export function insertSectionBreak(editor: Editor, start: SectionStart): void {
 }
 
 /**
+ * Quebra de coluna no cursor (`w:br w:type="column"`): o parágrafo se parte, e a
+ * metade de cima termina a coluna. Como a de página que o Word grava dentro do
+ * parágrafo, ela é propriedade do bloco (`columnBreakAfter`).
+ */
+export function insertColumnBreak(editor: Editor): void {
+  if (insideTable(editor)) return
+  editor
+    .chain()
+    .focus()
+    .splitBlock()
+    .command(({ tr }) => {
+      const $cursor = tr.selection.$from
+      const lower = $cursor.before($cursor.depth)
+      const upperNode = tr.doc.resolve(lower).nodeBefore
+      if (upperNode === null) return false
+      tr.setNodeAttribute(lower - upperNode.nodeSize, 'columnBreakAfter', true)
+      return true
+    })
+    .run()
+}
+
+/**
  * Exclui a quebra que fecha a seção do cursor — ou, na última seção, a que a
  * abre. Como no Word, o texto de cima passa a ter o formato da seção de baixo:
  * sem a marca, os blocos são da seção da próxima marca.

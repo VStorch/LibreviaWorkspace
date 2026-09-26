@@ -53,6 +53,8 @@ export const MENU = {
   'menu.insert.sectionContinuous': { pt: 'Contínua', en: 'Continuous' },
   'menu.insert.sectionEvenPage': { pt: 'Página par', en: 'Even page' },
   'menu.insert.sectionOddPage': { pt: 'Página ímpar', en: 'Odd page' },
+  'menu.insert.columnBreak': { pt: 'Quebra de coluna', en: 'Column break' },
+  'menu.format.columns': { pt: 'Colunas…', en: 'Columns…' },
   'menu.insert.deleteSectionBreak': { pt: 'Excluir quebra de seção', en: 'Delete section break' },
   'menu.insert.specialCharacter': { pt: 'Caractere especial…', en: 'Special character…' },
   'menu.insert.bookmark': { pt: 'Marcador…', en: 'Bookmark…' },

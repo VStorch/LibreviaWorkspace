@@ -52,6 +52,12 @@ export interface PrintPage {
   readonly inSection: number
   /** A folha em branco que a seção par ou ímpar pediu. */
   readonly blank?: boolean
+  /** As linhas entre colunas desta folha (`w:cols/@w:sep`), em mm da folha. */
+  readonly columnLines?: readonly {
+    readonly leftMm: number
+    readonly topMm: number
+    readonly heightMm: number
+  }[]
 }
 
 /**
@@ -156,6 +162,8 @@ export function buildPagedCss(pages: readonly Pick<PrintPage, 'setup'>[]): strin
 .paper-page__grid td { padding: 0 1.9mm; vertical-align: middle; overflow-wrap: break-word; }
 .paper-page__grid img { max-width: 100%; height: auto; }
 
+.paper-column-line { position: absolute; width: 0; border-left: 1px solid #000000; }
+
 /* Por último, para vencer a medida padrão de .paper-page acima: cada folha com
    o papel da sua seção. */
 ${named}
@@ -229,6 +237,12 @@ function renderPage(
       ? renderBand(footer, 'footer', pageLabel(page, sheet.inSection), total, inset, page.footerDistanceMm)
       : '') +
     renderFloats(floats, page, false) +
+    (sheet.columnLines ?? [])
+      .map(
+        (line) =>
+          `<div class="paper-column-line" style="left:${line.leftMm}mm;top:${line.topMm}mm;height:${line.heightMm}mm"></div>`,
+      )
+      .join('') +
     '</div>'
   )
 }

@@ -98,6 +98,10 @@ export const MenuCommand = {
   InsertSectionOddPage: 'insert-section-odd-page',
   /** Exclui a quebra que fecha a seção do cursor: a seção de cima assume a de baixo. */
   DeleteSectionBreak: 'delete-section-break',
+  /** Quebra de coluna no cursor. */
+  InsertColumnBreak: 'insert-column-break',
+  /** Formatar → Colunas. */
+  FormatColumns: 'format-columns',
   /** Zoom da folha: o do editor, e não o do Chromium, que aumentaria a interface. */
   ZoomIn: 'zoom-in',
   ZoomOut: 'zoom-out',

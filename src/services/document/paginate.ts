@@ -69,6 +69,8 @@ export interface MeasuredBlock {
    * primeira — o documento de uma seção só.
    */
   readonly section?: number
+  /** `w:br w:type="column"`: a coluna termina depois deste bloco. */
+  readonly columnBreakAfter?: boolean
 }
 
 /**
@@ -89,6 +91,33 @@ export interface SectionFlow {
   readonly parity: 'even' | 'odd' | null
   /** O número que a primeira folha da seção recebe (`w:pgNumType/@w:start`). */
   readonly restart: number | null
+  /** Quantas colunas (`w:cols`). Ausente é uma. */
+  readonly columns?: number
+}
+
+/**
+ * Onde um bloco de seção com colunas foi posto (M9).
+ *
+ * O editor continua sendo uma tira só; a coluna é desenhada **levantando** o
+ * primeiro bloco de cada coluna até o topo da região (`lift` negativo) e
+ * deslocando para o lado todos os blocos dela. Depois da região, o bloco
+ * seguinte desce até o pé da coluna mais alta (`lift` positivo).
+ */
+export interface ColumnPlacement {
+  readonly column: number
+  /** Deslocamento vertical a somar ao vão do bloco, em pixels. */
+  readonly lift: number
+}
+
+/** Uma faixa de colunas numa folha: é nela que a linha separadora é desenhada. */
+export interface ColumnRegion {
+  /** A folha de conteúdo (índice entre as que têm texto). */
+  readonly sheet: number
+  /** Topo da região, a contar do topo da coluna de texto da folha. */
+  readonly top: number
+  readonly height: number
+  readonly section: number
+  readonly columns: number
 }
 
 /** Uma folha do documento, na ordem da pilha. */
@@ -111,6 +140,9 @@ export interface SheetPlan {
 export interface PagePlan {
   readonly breaks: number[]
   readonly sheets: SheetPlan[]
+  /** Os blocos postos em coluna, por índice; os outros não têm entrada. */
+  readonly placements: Map<number, ColumnPlacement>
+  readonly regions: ColumnRegion[]
 }
 
 /**
@@ -172,13 +204,21 @@ export function paginateSections(
     open(section)
   }
 
+  const placements = new Map<number, ColumnPlacement>()
+  const regions: ColumnRegion[] = []
+  // O bloco que desceu até o pé da região de colunas: se a folha acabar
+  // justamente antes dele, a descida não vale — quem o põe no lugar é o corte.
+  let pendingLift: number | null = null
+
   const firstSection = sectionOf(blocks[0], 0)
   open(firstSection)
-  if (blocks.length === 0) return { breaks, sheets }
+  if (blocks.length === 0) return { breaks, sheets, placements, regions }
 
   let current = firstSection
   let pageHeight = flowOf(firstSection).height
   const cut = (at: number, section: number): void => {
+    if (pendingLift !== null && at <= blocks[pendingLift]!.top) placements.delete(pendingLift)
+    pendingLift = null
     breaks.push(at)
     open(section)
     pageHeight = flowOf(section).height
@@ -226,6 +266,14 @@ export function paginateSections(
 
     if (pageHeight <= 0) {
       index += 1
+      continue
+    }
+
+    // Seção com colunas: os blocos dela, inteiros, vão para as colunas desta
+    // folha; o que não couber abre a folha seguinte.
+    const columns = flowOf(section).columns ?? 1
+    if (columns > 1 && !block.isPageBreak) {
+      index = layoutColumns(index, section, columns)
       continue
     }
 
@@ -305,7 +353,120 @@ export function paginateSections(
     // `index` não avança: o mesmo bloco é reavaliado na página nova.
   }
 
-  return { breaks, sheets }
+  return { breaks, sheets, placements, regions }
+
+  /**
+   * Distribui nas colunas desta folha os blocos da seção a partir de `start`, e
+   * devolve o primeiro que ficou de fora.
+   *
+   * Por bloco inteiro: a linha de um parágrafo não sobe para a coluna seguinte,
+   * ele vai todo — aproximação do Word, que corta entre linhas. A região termina
+   * com a seção, com a folha cheia ou com uma quebra de página. Antes de uma
+   * seção contínua na mesma folha as colunas são **equilibradas**, como no Word:
+   * a menor altura em que tudo cabe.
+   */
+  function layoutColumns(start: number, section: number, count: number): number {
+    let end = start
+    while (end < blocks.length && sectionOf(blocks[end], section) === section) end += 1
+
+    const first = blocks[start]!
+    const offset = first.top - pageStart
+    const available = pageHeight - offset
+    // A região que começa no meio da folha e não comporta nem o primeiro bloco
+    // vai para a folha seguinte.
+    if (offset > 0 && first.height > available) {
+      cut(first.top, section)
+      pageStart = floor = first.top
+      return start
+    }
+
+    let fill = fillColumns(blocks, start, end, available, count)
+    const next = blocks[end]
+    const balances =
+      fill.stop === end && !fill.forced && next !== undefined && !flowOf(sectionOf(next, section)).newSheet
+    if (balances) {
+      let low = Math.max(...blocks.slice(start, end).map((block) => block.height), 1)
+      let high = available
+      for (let step = 0; step < 24 && high - low > 0.5; step++) {
+        const middle = (low + high) / 2
+        const trial = fillColumns(blocks, start, end, middle, count)
+        if (trial.stop === end) high = middle
+        else low = middle
+      }
+      fill = fillColumns(blocks, start, end, high, count)
+    }
+
+    // O primeiro bloco de cada coluna sobe até o topo da região; os outros a
+    // acompanham, porque a tira continua a mesma dentro da coluna.
+    let height = 0
+    for (const column of fill.columns) {
+      const top = blocks[column.from]!
+      const last = blocks[column.to - 1]!
+      height = Math.max(height, last.top + last.height - top.top)
+      const drawn = top.top - pageStart
+      const lift = column.index === 0 ? 0 : offset - drawn
+      for (let at = column.from; at < column.to; at++) {
+        placements.set(at, { column: column.index, lift: at === column.from ? lift : 0 })
+      }
+      pageStart -= lift
+    }
+    regions.push({ sheet: breaks.length, top: offset, height, section, columns: count })
+
+    const stop = fill.stop
+    const after = blocks[stop]
+    if (after === undefined) return stop
+
+    if (fill.forced || stop < end) {
+      // Folha cheia, ou quebra de página ou de coluna na última coluna.
+      const lastPlaced = blocks[stop - 1]!
+      const at = fill.forced ? lastPlaced.top + lastPlaced.height : after.top
+      cut(at, sectionOf(after, section))
+      pageStart = floor = at
+      return stop
+    }
+
+    // A seção acabou nesta folha: o bloco seguinte desce ao pé da coluna mais
+    // alta, com o espaço natural que ele já tinha acima de si.
+    const lastPlaced = blocks[stop - 1]!
+    const gap = Math.max(after.top - (lastPlaced.top + lastPlaced.height), 0)
+    const lift = offset + height + gap - (after.top - pageStart)
+    placements.set(stop, { column: 0, lift })
+    pageStart -= lift
+    pendingLift = stop
+    return stop
+  }
+}
+
+/** As colunas preenchidas até a altura `height`, bloco inteiro por bloco inteiro. */
+function fillColumns(
+  blocks: readonly MeasuredBlock[],
+  start: number,
+  end: number,
+  height: number,
+  count: number,
+): { stop: number; forced: boolean; columns: { index: number; from: number; to: number }[] } {
+  const columns: { index: number; from: number; to: number }[] = [{ index: 0, from: start, to: start }]
+  const column = (): { index: number; from: number; to: number } => columns.at(-1)!
+  const done = (stop: number, forced: boolean) => ({
+    stop,
+    forced,
+    columns: columns.filter((item) => item.to > item.from),
+  })
+  for (let at = start; at < end; at++) {
+    const block = blocks[at]!
+    const opened = blocks[column().from]!
+    if (at > column().from && block.top + block.height - opened.top > height) {
+      if (column().index + 1 >= count) return done(at, false)
+      columns.push({ index: column().index + 1, from: at, to: at })
+    }
+    column().to = at + 1
+    if (block.breakAfter === true && at + 1 < blocks.length) return done(at + 1, true)
+    if (block.columnBreakAfter === true && at + 1 < end) {
+      if (column().index + 1 >= count) return done(at + 1, true)
+      columns.push({ index: column().index + 1, from: at + 1, to: at + 1 })
+    }
+  }
+  return done(end, false)
 }
 
 /** Os cortes internos que o bloco aceita, pelas regras de manter junto. */

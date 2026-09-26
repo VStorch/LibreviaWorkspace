@@ -123,12 +123,47 @@ internal static class SectionWriter
 
             if (!PageReader.Matches(section, setup)) DocxWriter.ApplyPageSetup(section, setup);
             ApplyStart(section, setup);
+            ApplyColumns(section, setup);
             PageNumbering.Apply(part, section, setup, touched, inventory, documentWide: false);
             ApplyBands(part, section, setup, index, aliases);
         }
 
         ApplyBands(part, last, model.Page, breaks.Count, aliases);
         return aliases;
+    }
+
+    /// <summary>
+    /// `w:cols`: só quando o modelo diz algo diferente do arquivo, e só o que o
+    /// painel conhece. Larguras diferentes voltam como estavam enquanto o modelo
+    /// as trouxer; o modelo sem elas (a pessoa mudou as colunas) as iguala.
+    /// </summary>
+    public static void ApplyColumns(SectionProperties section, PageSetupDto page)
+    {
+        if (page.Columns is not { } wanted) return;
+        var current = PageReader.ColumnsOf(section);
+        var sameWidths = (wanted.WidthsMm ?? []).SequenceEqual(current.WidthsMm ?? []);
+        if (wanted.Count == current.Count && wanted.SpaceMm == current.SpaceMm &&
+            wanted.Separator == current.Separator && sameWidths)
+        {
+            return;
+        }
+
+        var columns = section.GetFirstChild<Columns>();
+        if (columns is null)
+        {
+            columns = new Columns();
+            if (!section.AddChild(columns, throwOnError: false)) return;
+        }
+
+        var count = Math.Clamp(wanted.Count, 1, 45);
+        columns.ColumnCount = count > 1 ? (short)count : null;
+        columns.Space = Attr.MmToTwips(wanted.SpaceMm).ToString(System.Globalization.CultureInfo.InvariantCulture);
+        columns.Separator = wanted.Separator ? true : null;
+        if (!sameWidths || wanted.WidthsMm is null)
+        {
+            columns.RemoveAllChildren<Column>();
+            columns.EqualWidth = null;
+        }
     }
 
     /// <summary>O prefixo que o editor põe no endereço da faixa desvinculada.</summary>

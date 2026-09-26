@@ -29,6 +29,8 @@ export const EditorCommand = {
   InsertSectionEvenPage: 'insert-section-even-page',
   InsertSectionOddPage: 'insert-section-odd-page',
   DeleteSectionBreak: 'delete-section-break',
+  InsertColumnBreak: 'insert-column-break',
+  FormatColumns: 'format-columns',
   ParagraphSetup: 'paragraph-setup',
   PasteWithoutFormat: 'paste-without-format',
   WordCount: 'word-count',

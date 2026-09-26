@@ -346,3 +346,51 @@ describe('paginação por seção (M9)', () => {
     ])
   })
 })
+
+describe('colunas (M9)', () => {
+  const flow = (height: number, options: Partial<SectionFlow> = {}): SectionFlow => ({
+    height,
+    newSheet: false,
+    parity: null,
+    restart: null,
+    ...options,
+  })
+  const inSections = (heights: readonly number[], sections: readonly number[]): MeasuredBlock[] =>
+    stack(heights).map((block, index) => ({ ...block, section: sections[index] ?? 0 }))
+  const columnsOf = (plan: ReturnType<typeof paginateSections>, count: number): number[] =>
+    Array.from({ length: count }, (_, index) => plan.placements.get(index)?.column ?? -1)
+
+  it('enche a primeira coluna, sobe o resto para a segunda e só então abre folha', () => {
+    const plan = paginateSections(stack([400, 400, 400, 400, 400]), [flow(1000, { columns: 2 })])
+    expect(columnsOf(plan, 5)).toEqual([0, 0, 1, 1, 0])
+    // O primeiro da segunda coluna sobe o que a primeira ocupou.
+    expect(plan.placements.get(2)?.lift).toBe(-800)
+    expect(plan.breaks).toEqual([1600])
+    expect(plan.regions.map((region) => [region.sheet, region.top, region.height])).toEqual([
+      [0, 0, 800],
+      [1, 0, 400],
+    ])
+  })
+
+  it('antes de uma seção contínua as colunas se equilibram, e o texto seguinte desce ao pé', () => {
+    const plan = paginateSections(inSections([100, 100, 100, 100, 50], [0, 0, 0, 0, 1]), [
+      flow(1000, { columns: 2 }),
+      flow(1000),
+    ])
+    expect(columnsOf(plan, 4)).toEqual([0, 0, 1, 1])
+    expect(plan.regions[0]?.height).toBe(200)
+    // O bloco da seção de baixo estava em 400 na tira; desenhado, fica em 200.
+    expect(plan.placements.get(4)?.lift).toBe(0)
+    expect(plan.placements.get(2)?.lift).toBe(-200)
+    expect(plan.breaks).toEqual([])
+  })
+
+  it('a quebra de coluna passa o resto para a coluna seguinte', () => {
+    const blocks = stack([100, 100, 100]).map((block, index) =>
+      index === 0 ? { ...block, columnBreakAfter: true } : block,
+    )
+    const plan = paginateSections(blocks, [flow(1000, { columns: 2 })])
+    expect(columnsOf(plan, 3)).toEqual([0, 1, 1])
+    expect(plan.placements.get(1)?.lift).toBe(-100)
+  })
+})

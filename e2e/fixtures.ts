@@ -368,6 +368,29 @@ export async function docxWithSections(): Promise<Buffer> {
 }
 
 /**
+ * Colunas (M9): uma seção em duas colunas, com linha entre elas, seguida de uma
+ * seção contínua de uma coluna — as duas colunas se equilibram antes dela.
+ */
+export async function docxWithColumns(): Promise<Buffer> {
+  const margins = `<w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440" w:header="708" w:footer="708"/>`
+  const corpo =
+    Array.from({ length: 6 }, (_, index) => paragraph(`Parágrafo ${index + 1} em colunas.`)).join('') +
+    `<w:p><w:pPr><w:sectPr><w:pgSz w:w="11906" w:h="16838"/>${margins}` +
+    `<w:cols w:num="2" w:space="720" w:sep="1"/></w:sectPr></w:pPr></w:p>` +
+    paragraph('Depois das colunas.') +
+    `<w:sectPr><w:type w:val="continuous"/><w:pgSz w:w="11906" w:h="16838"/>${margins}</w:sectPr>`
+
+  return zip([
+    ['[Content_Types].xml', CONTENT_TYPES.replace(/<Override PartName="\/word\/comments[^>]+>/, '')],
+    ['_rels/.rels', ROOT_RELS],
+    [
+      'word/document.xml',
+      documentXml('').replace('<w:sectPr/>', '').replace('</w:body>', `${corpo}</w:body>`),
+    ],
+  ])
+}
+
+/**
  * Documento com uma imagem **ancorada** no lugar do próprio parágrafo.
  *
  * É como o LibreOffice grava captura de tela: `wp:anchor` sem deslocamento

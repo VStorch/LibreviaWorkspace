@@ -307,6 +307,10 @@ async function buildTemplate(): Promise<MenuItemConstructorOptions[]> {
           label: t('menu.format.image'),
           click: () => dispatch(MenuCommand.ImageProperties),
         },
+        {
+          label: t('menu.format.columns'),
+          click: () => dispatch(MenuCommand.FormatColumns),
+        },
       ],
     },
     { label: t('menu.table'), submenu: buildTableSubmenu() },
@@ -340,6 +344,10 @@ async function buildTemplate(): Promise<MenuItemConstructorOptions[]> {
               click: () => dispatch(MenuCommand.InsertSectionOddPage),
             },
             { type: 'separator' },
+            {
+              label: t('menu.insert.columnBreak'),
+              click: () => dispatch(MenuCommand.InsertColumnBreak),
+            },
             {
               label: t('menu.insert.deleteSectionBreak'),
               click: () => dispatch(MenuCommand.DeleteSectionBreak),
