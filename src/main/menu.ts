@@ -147,6 +147,15 @@ async function buildTemplate(): Promise<MenuItemConstructorOptions[]> {
         updatePreferences({ invisibleCharacters: !preferences.invisibleCharacters })
       },
     },
+    {
+      label: t('menu.view.navigationPane'),
+      type: 'checkbox',
+      checked: preferences.navigationPane,
+      accelerator: acceleratorOf(SHORTCUTS.navigationPane),
+      click: () => {
+        updatePreferences({ navigationPane: !preferences.navigationPane })
+      },
+    },
     { type: 'separator' },
     {
       label: t('view.theme'),

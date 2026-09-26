@@ -151,6 +151,16 @@ export const SHORTCUTS = {
     does: 'Marcas de formatação',
   },
   /**
+   * `Ctrl+F5`: o `F5` é o Navegador do LibreOffice, e o `Ctrl` é o que toda tecla
+   * nossa leva. O `Ctrl+F` do Word abre o painel pela busca, e aqui ele já é o
+   * localizar e substituir.
+   */
+  navigationPane: {
+    owner: ShortcutOwner.Menu,
+    key: { mod: true, key: 'F5' },
+    does: 'Painel de navegação',
+  },
+  /**
    * Ampliar sai do `Ctrl+Shift+=`, e não por capricho.
    *
    * O acelerador padrão do papel `zoomIn` é `CommandOrControl+Plus`, e no Electron

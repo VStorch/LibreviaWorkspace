@@ -32,6 +32,7 @@ import { FindReplacePanel } from './FindReplacePanel.js'
 import { PageSetupPanel } from './PageSetupPanel.js'
 import { SpecialCharsDialog } from './SpecialCharsDialog.js'
 import { StylesPanel } from './StylesPanel.js'
+import { NavigationPane } from './NavigationPane.js'
 import { WordCountDialog } from './WordCountDialog.js'
 import { PaperSheet } from './PaperSheet.js'
 import { usePagination } from './usePagination.js'
@@ -449,40 +450,45 @@ export function DocumentEditor(): React.JSX.Element {
         </div>
       )}
 
-      <div ref={scrollRef} className={`editor-scroll${reading ? ' editor-scroll--reading' : ''}`}>
-        {/* O zoom é uma transformação sobre a pilha inteira, e este invólucro
+      {/* O painel de navegação ao lado da folha, e não por cima dela: consultar
+          a estrutura enquanto se lê é o uso dele, e um painel flutuante taparia o
+          texto. Fora do modo de leitura, que existe para tirar tudo da frente. */}
+      <div className="editor-body">
+        {!reading && preferences.navigationPane && <NavigationPane editor={editor} />}
+        <div ref={scrollRef} className={`editor-scroll${reading ? ' editor-scroll--reading' : ''}`}>
+          {/* O zoom é uma transformação sobre a pilha inteira, e este invólucro
             ocupa o tamanho que ela passa a ter: `transform` não muda o espaço
             que o elemento ocupa no layout, e sem isto a rolagem acabaria na
             altura da pilha em 100 %. A paginação continua medindo em 100 % —
             `offsetTop` e `offsetHeight` não veem a transformação. */}
-        <div
-          className={`pages-zoom${reading ? ' pages-zoom--reading' : ''}`}
-          style={
-            reading
-              ? undefined
-              : {
-                  width: `${(mmToPx(width) * zoom) / 100}px`,
-                  height: `${(layout.stackHeightPx * zoom) / 100}px`,
-                }
-          }
-        >
           <div
-            ref={pageRef}
-            className={`pages${reading ? ' pages--reading' : ''}`}
-            data-zoom={reading ? 100 : zoom}
+            className={`pages-zoom${reading ? ' pages-zoom--reading' : ''}`}
             style={
               reading
                 ? undefined
                 : {
-                    width: `${mmToPx(width)}px`,
-                    height: `${layout.stackHeightPx}px`,
-                    ...(zoom === 100
-                      ? {}
-                      : { transform: `scale(${zoom / 100})`, transformOrigin: 'top left' }),
+                    width: `${(mmToPx(width) * zoom) / 100}px`,
+                    height: `${(layout.stackHeightPx * zoom) / 100}px`,
                   }
             }
           >
-            {/* As folhas: papel desenhado atrás do texto. Ficam fora do
+            <div
+              ref={pageRef}
+              className={`pages${reading ? ' pages--reading' : ''}`}
+              data-zoom={reading ? 100 : zoom}
+              style={
+                reading
+                  ? undefined
+                  : {
+                      width: `${mmToPx(width)}px`,
+                      height: `${layout.stackHeightPx}px`,
+                      ...(zoom === 100
+                        ? {}
+                        : { transform: `scale(${zoom / 100})`, transformOrigin: 'top left' }),
+                    }
+              }
+            >
+              {/* As folhas: papel desenhado atrás do texto. Ficam fora do
               `contenteditable` de propósito — dentro dele, cada folha seria um
               nó que a pessoa conseguiria selecionar e apagar.
 
@@ -490,55 +496,56 @@ export function DocumentEditor(): React.JSX.Element {
               a rolagem contínua existe para tirar da frente. Os objetos
               ancorados saem junto, e não por descuido — a posição deles é
               relativa a uma folha, e sem folha não há onde pousá-los. */}
-            {!reading &&
-              layout.sheetTops.map((top, index) => (
-                <div
-                  key={top}
-                  className={`paper${(layout.sheetHeights[index] ?? 0) > mmToPx(height) + 1 ? ' paper--oversized' : ''}`}
-                  style={{ top: `${top}px`, height: `${layout.sheetHeights[index] ?? mmToPx(height)}px` }}
-                  aria-hidden="true"
-                >
-                  <span className="paper__number">{index + 1}</span>
-                </div>
-              ))}
+              {!reading &&
+                layout.sheetTops.map((top, index) => (
+                  <div
+                    key={top}
+                    className={`paper${(layout.sheetHeights[index] ?? 0) > mmToPx(height) + 1 ? ' paper--oversized' : ''}`}
+                    style={{ top: `${top}px`, height: `${layout.sheetHeights[index] ?? mmToPx(height)}px` }}
+                    aria-hidden="true"
+                  >
+                    <span className="paper__number">{index + 1}</span>
+                  </div>
+                ))}
 
-            {/* Uma faixa por folha, com o número real. No papel elas moram dentro
+              {/* Uma faixa por folha, com o número real. No papel elas moram dentro
               da margem, e é por isso que não empurram o texto. Sem folhas não
               há cabeçalho repetido: "página 3 de 12" não quer dizer nada numa
               tira contínua. */}
-            {!reading &&
-              layout.sheetTops.map((top, index) => (
-                <PaperSheet
-                  key={`banda-${top}`}
-                  page={page}
-                  pageNumber={index + 1}
-                  totalPages={layout.pages}
-                  topPx={top}
-                  floats={floatsByPage[index] ?? []}
-                  schema={editor.schema}
-                  {...editableSheet}
-                />
-              ))}
+              {!reading &&
+                layout.sheetTops.map((top, index) => (
+                  <PaperSheet
+                    key={`banda-${top}`}
+                    page={page}
+                    pageNumber={index + 1}
+                    totalPages={layout.pages}
+                    topPx={top}
+                    floats={floatsByPage[index] ?? []}
+                    schema={editor.schema}
+                    {...editableSheet}
+                  />
+                ))}
 
-            <div
-              className="pages__column"
-              style={
-                reading
-                  ? // A largura da leitura vem do CSS e nao das margens do
-                    // documento: uma margem de 10 mm daria uma linha larga
-                    // demais para ler com conforto, e o modo existe justamente
-                    // para nao obedecer ao papel.
-                    undefined
-                  : {
-                      // A margem de cima é um piso: um cabeçalho mais alto que ela
-                      // desce o corpo até debaixo dele, como no Word.
-                      paddingTop: `${mmToPx(insets.top)}px`,
-                      paddingRight: `${mmToPx(page.margins.right)}px`,
-                      paddingLeft: `${mmToPx(page.margins.left)}px`,
-                    }
-              }
-            >
-              <EditorContent editor={editor} />
+              <div
+                className="pages__column"
+                style={
+                  reading
+                    ? // A largura da leitura vem do CSS e nao das margens do
+                      // documento: uma margem de 10 mm daria uma linha larga
+                      // demais para ler com conforto, e o modo existe justamente
+                      // para nao obedecer ao papel.
+                      undefined
+                    : {
+                        // A margem de cima é um piso: um cabeçalho mais alto que ela
+                        // desce o corpo até debaixo dele, como no Word.
+                        paddingTop: `${mmToPx(insets.top)}px`,
+                        paddingRight: `${mmToPx(page.margins.right)}px`,
+                        paddingLeft: `${mmToPx(page.margins.left)}px`,
+                      }
+                }
+              >
+                <EditorContent editor={editor} />
+              </div>
             </div>
           </div>
         </div>

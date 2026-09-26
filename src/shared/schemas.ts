@@ -196,6 +196,7 @@ export const editorPreferencesSchema = z.object({
   showStatusBar: z.boolean().default(true),
   zoom: z.number().int().min(50).max(200).default(100),
   zoomFit: z.boolean().default(false),
+  navigationPane: z.boolean().default(false),
 })
 
 /**
@@ -218,6 +219,7 @@ export const editorPreferencesPatchSchema = z.object({
   showStatusBar: z.boolean().optional(),
   zoom: z.number().int().min(50).max(200).optional(),
   zoomFit: z.boolean().optional(),
+  navigationPane: z.boolean().optional(),
 })
 
 /**
@@ -268,7 +270,10 @@ const styleParagraphSchema = z.object({
   widowControl: z.boolean().optional(),
   pageBreakBefore: z.boolean().optional(),
   contextualSpacing: z.boolean().optional(),
-  outlineLevel: z.number().int().min(0).max(8).optional(),
+  // 9 é "corpo de texto": o nível que o Word grava no estilo `TOC Heading`, que
+  // herda de `heading 1` e precisa desligar o nível herdado. Recusá-lo recusava a
+  // folha de estilos de todo documento com sumário do Word.
+  outlineLevel: z.number().int().min(0).max(9).optional(),
   background: z.string().max(32).optional(),
 })
 

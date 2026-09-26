@@ -4,6 +4,7 @@ import { DIALOG } from './dialog.js'
 import { DOCUMENT } from './document.js'
 import { ERRORS } from './errors.js'
 import { MENU } from './menu.js'
+import { REFERENCES } from './references.js'
 import { SHELL } from './shell.js'
 import { SPREADSHEET } from './spreadsheet.js'
 import { TABLE } from './table.js'
@@ -31,6 +32,7 @@ export const MESSAGES = {
   ...DIALOG,
   ...ERRORS,
   ...CHARS,
+  ...REFERENCES,
 } as const
 
 /**
@@ -53,4 +55,5 @@ export const AREAS: Readonly<Record<string, Readonly<Record<string, Entry>>>> = 
   dialog: DIALOG,
   errors: ERRORS,
   chars: CHARS,
+  references: REFERENCES,
 }

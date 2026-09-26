@@ -50,6 +50,7 @@ export const MENU = {
   'menu.insert.specialCharacter': { pt: 'Caractere especial…', en: 'Special character…' },
 
   'menu.view.formattingMarks': { pt: 'Marcas de formatação', en: 'Formatting marks' },
+  'menu.view.navigationPane': { pt: 'Painel de navegação', en: 'Navigation pane' },
   'menu.view.resetZoom': { pt: 'Tamanho normal', en: 'Actual size' },
   'menu.view.zoomIn': { pt: 'Ampliar', en: 'Zoom in' },
   'menu.view.zoomOut': { pt: 'Reduzir', en: 'Zoom out' },

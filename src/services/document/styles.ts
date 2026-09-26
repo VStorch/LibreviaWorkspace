@@ -63,7 +63,7 @@ export interface StyleParagraphFormat {
   readonly widowControl?: boolean | undefined
   readonly pageBreakBefore?: boolean | undefined
   readonly contextualSpacing?: boolean | undefined
-  /** Nível na estrutura do documento, de 0 a 8 — o que faz de um estilo título. */
+  /** Nível na estrutura do documento, de 0 a 8 — o que faz de um estilo título; 9 é corpo de texto. */
   readonly outlineLevel?: number | undefined
   readonly background?: string | undefined
 }

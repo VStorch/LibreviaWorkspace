@@ -210,6 +210,14 @@ export interface EditorPreferences {
   readonly zoom: number
   /** Ajustar à largura: o zoom acompanha a janela, e `zoom` fica como estava. */
   readonly zoomFit: boolean
+  /**
+   * O painel de navegação: os títulos do documento, à esquerda da folha.
+   *
+   * Preferência, e não estado do documento, pelo mesmo motivo do modo de leitura:
+   * o item do menu "Exibir" mostra a marca, e o menu só sabe o que está aqui. E é
+   * assim no Word — quem abre o painel num documento o encontra aberto no próximo.
+   */
+  readonly navigationPane: boolean
 }
 
 /**
@@ -248,6 +256,7 @@ export const DEFAULT_EDITOR_PREFERENCES: EditorPreferences = {
   showStatusBar: true,
   zoom: 100,
   zoomFit: false,
+  navigationPane: false,
 }
 
 /** Operações de área de transferência que só o `webContents` sabe fazer. */

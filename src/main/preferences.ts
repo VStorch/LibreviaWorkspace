@@ -150,6 +150,7 @@ export function updatePreferences(patch: EditorPreferencesPatch): EditorPreferen
     showStatusBar: patch.showStatusBar ?? active.showStatusBar,
     zoom: patch.zoom ?? active.zoom,
     zoomFit: patch.zoomFit ?? active.zoomFit,
+    navigationPane: patch.navigationPane ?? active.navigationPane,
   }
 
   const spellcheckChanged = next.spellcheck !== active.spellcheck
