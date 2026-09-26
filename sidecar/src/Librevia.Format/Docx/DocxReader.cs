@@ -32,7 +32,14 @@ public sealed record DocumentModelDto(
     // marcador pareceria mudado e os `oid` depois de um sumário se desencontrariam.
     [property: JsonPropertyName("beforeReferences")]
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-    bool BeforeReferences = false);
+    bool BeforeReferences = false,
+    // Os marcadores do arquivo que não viraram nó — entre linhas de tabela, soltos
+    // entre blocos, em cabeçalho, rodapé ou caixa de texto. Só a leitura os dá: o
+    // editor precisa saber que existem para não tratar como quebrada a
+    // referência que os cita (F9 escreveria "Erro! Indicador não definido.").
+    [property: JsonPropertyName("outsideBookmarks")]
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    List<string>? OutsideBookmarks = null);
 
 public sealed record OpenResult(
     [property: JsonPropertyName("model")] DocumentModelDto Model,
@@ -74,7 +81,43 @@ public static class DocxReader
         var doc = Node.Of("doc");
         doc.Content = content;
 
-        return new OpenResult(new DocumentModelDto(page, doc, StyleReader.Read(part)), inventory);
+        return new OpenResult(
+            new DocumentModelDto(page, doc, StyleReader.Read(part), OutsideBookmarks: OutsideBookmarksOf(part, doc)),
+            inventory);
+    }
+
+    /// <summary>Os nomes de marcador do pacote que não estão entre os nós lidos.</summary>
+    private static List<string>? OutsideBookmarksOf(MainDocumentPart part, Node doc)
+    {
+        var read = new HashSet<string>(StringComparer.Ordinal);
+        void Walk(Node node)
+        {
+            if (node.Type == "bookmarkStart" && node.Attrs?.GetValueOrDefault("name")?.GetValue<string>() is { } name)
+            {
+                read.Add(name);
+            }
+
+            foreach (var child in node.Content ?? []) Walk(child);
+        }
+
+        Walk(doc);
+
+        IEnumerable<DocumentFormat.OpenXml.OpenXmlPartRootElement?> roots =
+        [
+            part.Document,
+            .. part.HeaderParts.Select(header => header.Header),
+            .. part.FooterParts.Select(footer => footer.Footer),
+            part.FootnotesPart?.Footnotes,
+            part.EndnotesPart?.Endnotes,
+        ];
+        var outside = roots
+            .SelectMany(root => root?.Descendants<BookmarkStart>() ?? [])
+            .Select(start => start.Name?.Value)
+            .OfType<string>()
+            .Where(name => name.Length > 0 && !read.Contains(name))
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+        return outside.Count == 0 ? null : outside;
     }
 
     /// <summary>

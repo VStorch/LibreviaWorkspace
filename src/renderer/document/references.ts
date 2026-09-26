@@ -40,6 +40,8 @@ export interface ReferenceContext {
   readonly styles: StyleSheet
   readonly setStyles: (styles: StyleSheet) => void
   readonly t: (key: MessageKey) => string
+  /** Marcadores que existem no arquivo fora dos nós — ver `DocumentModel.outsideBookmarks`. */
+  readonly outsideBookmarks?: readonly string[]
 }
 
 /** Faz o ProseMirror ler agora a seleção que o navegador já mudou. */
@@ -149,6 +151,9 @@ export function updateFieldsIn(
 
   const bookmarks = new Map(bookmarksOf(updatedSequenceDoc).map((bookmark) => [bookmark.name, bookmark]))
   const missing = context.t('references.field.missingBookmark')
+  // O marcador que o arquivo tem fora dos nós não está perdido: a referência a
+  // ele fica com o resultado que o Word calculou.
+  const outside = new Set(context.outsideBookmarks ?? [])
   const sheets = context.layout.pages
 
   const tr = state.tr
@@ -167,19 +172,26 @@ export function updateFieldsIn(
         result = fieldSwitch(instr, 'h') !== null ? '' : (sequenceResult.get(field.pos) ?? null)
         break
       case 'REF': {
-        const target = bookmarks.get(fieldArgument(instr) ?? '')
-        result =
-          target === undefined
-            ? missing
-            : textBetween(updatedSequenceDoc, target.pos + 1, target.end ?? target.pos + 1)
+        const name = fieldArgument(instr) ?? ''
+        const target = bookmarks.get(name)
+        if (target === undefined) {
+          result = outside.has(name) ? null : missing
+          break
+        }
+        const text = textBetween(updatedSequenceDoc, target.pos + 1, target.end ?? target.pos + 1)
+        // `\# 0`: só o número do texto citado — "Figura 2" vira "2". É como o
+        // Word faz a referência "só o número" a uma legenda.
+        result = fieldSwitch(instr, '#') === null ? text : (/(\d+)(?!.*\d)/.exec(text)?.[1] ?? text)
         break
       }
       case 'PAGEREF': {
-        const target = bookmarks.get(fieldArgument(instr) ?? '')
-        result =
-          target === undefined
-            ? missing
-            : pageLabel(context.page, sheetAt(doc, context.layout.pageStarts, target.pos))
+        const name = fieldArgument(instr) ?? ''
+        const target = bookmarks.get(name)
+        if (target === undefined) {
+          result = outside.has(name) ? null : missing
+          break
+        }
+        result = pageLabel(context.page, sheetAt(doc, context.layout.pageStarts, target.pos))
         pageDependent = true
         break
       }
@@ -216,7 +228,9 @@ export function updateFields(editor: Editor, context: ReferenceContext): FieldUp
   const { from, to, empty } = editor.state.selection
   const range = empty ? { from: 0, to: editor.state.doc.content.size } : { from, to }
   const update = updateFieldsIn(editor, context, range.from, range.to)
-  if (update.pageDependent && empty) pendingPagePass.set(editor, 'all')
+  // Só quando algo mudou: armado à toa, o passe dispararia na próxima digitação
+  // e reescreveria campos que ninguém mandou atualizar.
+  if (update.pageDependent && update.changed > 0 && empty) arm(editor, 'all')
   return update
 }
 
@@ -225,16 +239,25 @@ export function updateFields(editor: Editor, context: ReferenceContext): FieldUp
  * de página; o sumário, só os dele — o resto do documento a pessoa não mandou
  * atualizar.
  */
-const pendingPagePass = new WeakMap<Editor, 'all' | 'toc'>()
+const pendingPagePass = new WeakMap<Editor, { scope: 'all' | 'toc'; doc: ProseMirrorNode }>()
+
+/** Arma o segundo passe para o documento de agora. */
+function arm(editor: Editor, scope: 'all' | 'toc'): void {
+  pendingPagePass.set(editor, { scope, doc: editor.state.doc })
+}
 
 /**
  * O segundo passe, chamado quando a paginação muda. Só os campos de página, e uma
  * vez: o passe não pede outro.
  */
 export function settlePageFields(editor: Editor, context: ReferenceContext): void {
-  const scope = pendingPagePass.get(editor)
-  if (scope === undefined) return
+  const pending = pendingPagePass.get(editor)
+  if (pending === undefined) return
   pendingPagePass.delete(editor)
+  // A pessoa voltou a escrever antes de a paginação assentar: o passe é de
+  // outro documento, e não vale mais.
+  if (pending.doc !== editor.state.doc) return
+  const { scope } = pending
 
   if (scope === 'all') {
     updateFieldsIn(editor, context, 0, editor.state.doc.content.size, PAGE_KINDS)
@@ -403,7 +426,7 @@ export function insertTableOfContents(editor: Editor, context: ReferenceContext)
 
   if (sheet !== context.styles) context.setStyles(sheet)
   editor.view.dispatch(tr.scrollIntoView())
-  pendingPagePass.set(editor, 'toc')
+  arm(editor, 'toc')
 }
 
 /**
@@ -443,7 +466,7 @@ export function updateTableOfContents(editor: Editor, context: ReferenceContext)
 
   if (sheet !== context.styles) context.setStyles(sheet)
   editor.view.dispatch(tr)
-  pendingPagePass.set(editor, 'toc')
+  arm(editor, 'toc')
   return true
 }
 
@@ -649,14 +672,13 @@ export function insertCrossReference(
       if (child.type.name !== 'bookmarkStart' && child.type.name !== 'bookmarkEnd') break
       first += child.nodeSize
     }
-    name =
-      request.show === 'number'
-        ? rangeBookmark(tr, sequence.pos, sequence.pos + 1, 0)
-        : rangeBookmark(tr, first, sequence.pos + 1, first - pos - 1)
+    // Um marcador só por legenda, em volta do rótulo e do número, para o texto,
+    // o número (`\# 0`) e a página — como o Word.
+    name = rangeBookmark(tr, first, sequence.pos + 1, first - pos - 1)
   }
   if (name === null) return false
 
-  const switches = request.link ? ' \\h' : ''
+  const switches = `${request.show === 'number' ? ' \\# 0' : ''}${request.link ? ' \\h' : ''}`
   const instr = request.show === 'page' ? ` PAGEREF ${name}${switches} ` : ` REF ${name}${switches} `
   const at = tr.mapping.map(state.selection.from)
   tr.replaceWith(

@@ -145,6 +145,13 @@ export interface DocumentModel {
    * leitura do original feita como era então. Ausente é falso.
    */
   readonly beforeReferences?: boolean
+  /**
+   * Os marcadores do arquivo que não viraram nó — entre linhas de tabela, soltos
+   * entre blocos, no cabeçalho ou numa caixa de texto. Existem, e continuam no
+   * arquivo; a referência que os cita não está quebrada, e "Atualizar campos"
+   * deixa o resultado dela como o Word o deixou.
+   */
+  readonly outsideBookmarks?: readonly string[]
 }
 
 export const PAGE_DIMENSIONS_MM: Record<PageSize, { width: number; height: number }> = {

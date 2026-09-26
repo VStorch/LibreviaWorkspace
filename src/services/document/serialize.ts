@@ -52,6 +52,7 @@ const sdocSchema = z.object({
   flattened: z.boolean().optional(),
   // Só presente quando verdadeiro — ver `DocumentModel.beforeReferences`.
   beforeReferences: z.boolean().optional(),
+  outsideBookmarks: z.array(z.string()).optional(),
 })
 
 export function serializeDocument(model: DocumentModel): string {
@@ -67,6 +68,7 @@ export function serializeDocument(model: DocumentModel): string {
       styles: model.styles,
       ...(model.flattened === true ? { flattened: true } : {}),
       ...(model.beforeReferences === true ? { beforeReferences: true } : {}),
+      ...(model.outsideBookmarks === undefined ? {} : { outsideBookmarks: model.outsideBookmarks }),
     },
     null,
     2,
@@ -107,6 +109,7 @@ export function parseDocument(text: string, language: Language = Language.Portug
     styles: migrateStyles(parsed.data.styles, parsed.data.version),
     ...(parsed.data.version < 4 || parsed.data.flattened === true ? { flattened: true } : {}),
     ...(parsed.data.version < 5 || parsed.data.beforeReferences === true ? { beforeReferences: true } : {}),
+    ...(parsed.data.outsideBookmarks === undefined ? {} : { outsideBookmarks: parsed.data.outsideBookmarks }),
   }
 }
 

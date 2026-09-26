@@ -29,6 +29,7 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
     styles: empty.styles,
     flattened: false,
     beforeReferences: false,
+    outsideBookmarks: [],
     workbook: null,
     generation: 0,
     isDirty: false,

@@ -79,6 +79,7 @@ export function createWorkspaceContext(set: SetWorkspace, get: GetWorkspace): Wo
       styles: state.styles,
       ...(state.flattened ? { flattened: true } : {}),
       ...(state.beforeReferences ? { beforeReferences: true } : {}),
+      ...(state.outsideBookmarks.length > 0 ? { outsideBookmarks: state.outsideBookmarks } : {}),
     }
   }
 
@@ -128,6 +129,7 @@ export function createWorkspaceContext(set: SetWorkspace, get: GetWorkspace): Wo
       styles: model.styles,
       flattened: model.flattened === true,
       beforeReferences: model.beforeReferences === true,
+      outsideBookmarks: model.outsideBookmarks ?? [],
       generation: state.generation + 1,
       isDirty: false,
       error: null,

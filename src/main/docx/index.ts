@@ -50,7 +50,12 @@ const inventorySchema = z.object({
  * do usuário. Um estilo malformado que chegasse ao `.sdoc` ficaria lá.
  */
 const openResultSchema = z.object({
-  model: z.object({ page: z.unknown(), doc: z.unknown(), styles: styleSheetSchema }),
+  model: z.object({
+    page: z.unknown(),
+    doc: z.unknown(),
+    styles: styleSheetSchema,
+    outsideBookmarks: z.array(z.string().max(200)).max(10_000).optional(),
+  }),
   inventory: inventorySchema,
 })
 

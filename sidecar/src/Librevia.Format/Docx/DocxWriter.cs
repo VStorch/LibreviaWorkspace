@@ -252,6 +252,7 @@ public static class DocxWriter
         }
 
         UniqueBookmarks(elements, generated);
+        MatchLooseBookmarks(elements, index.Values.Where(block => !used.Contains(block.Oid)));
 
         if (elements.Count == 0) elements.Add(new Paragraph());
         return elements;
@@ -267,11 +268,59 @@ public static class DocxWriter
     /// o bloco gerado agora; o preservado volta como estava. Entre dois gerados,
     /// fica o primeiro, que é a ordem em que o Word resolve o nome repetido.
     /// </remarks>
+    /// <summary>
+    /// A ponta solta que ia embora com o bloco apagado, quando a outra ponta ficou.
+    /// </summary>
+    /// <remarks>
+    /// O Word grava entre dois parágrafos o fim do marcador que termina depois de
+    /// uma tabela. Apagado o bloco que o guardava, o começo ficava sem fim — e o
+    /// marcador órfão é âncora quebrada para quem o cita. O fim volta logo depois
+    /// do bloco do começo, e o começo órfão de fim, logo antes do bloco do fim: o
+    /// marcador encolhe até o que sobrou dele, como no Word.
+    /// </remarks>
+    private static void MatchLooseBookmarks(List<OpenXmlElement> elements, IEnumerable<Block> deleted)
+    {
+        foreach (var loose in deleted.SelectMany(block => block.Leading.Concat(block.Trailing)))
+        {
+            if (loose is BookmarkEnd end && end.Id?.Value is { } endId)
+            {
+                var owner = elements.FindIndex(element => Has<BookmarkStart>(element, endId));
+                if (owner >= 0 && !elements.Any(element => Has<BookmarkEnd>(element, endId)))
+                {
+                    elements.Insert(owner + 1, end.CloneNode(true));
+                }
+            }
+            else if (loose is BookmarkStart start && start.Id?.Value is { } startId)
+            {
+                var owner = elements.FindIndex(element => Has<BookmarkEnd>(element, startId));
+                if (owner >= 0 && !elements.Any(element => Has<BookmarkStart>(element, startId)))
+                {
+                    elements.Insert(owner, start.CloneNode(true));
+                }
+            }
+        }
+
+        static bool Has<T>(OpenXmlElement element, string id)
+            where T : OpenXmlElement =>
+            element.Descendants<T>().Cast<OpenXmlElement>().Prepend(element).Where(mark => mark is T).Any(mark =>
+                ((mark as BookmarkStart)?.Id?.Value ?? (mark as BookmarkEnd)?.Id?.Value) == id);
+    }
+
     private static void UniqueBookmarks(List<OpenXmlElement> elements, HashSet<OpenXmlElement> generated)
     {
         var ids = new HashSet<string>(StringComparer.Ordinal);
         var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var ends = new HashSet<string>(StringComparer.Ordinal);
+
+        // O maior id do corpo inteiro — inclusive os que o modelo não conhece: as
+        // pontas entre linhas de tabela, as soltas entre blocos, as de dentro de
+        // caixa de texto. É dele que sai o id novo de quem precisa renumerar.
+        var highest = elements
+            .SelectMany(element => Starts(element).Select(start => start.Id?.Value)
+                .Concat(Ends(element).Select(end => end.Id?.Value)))
+            .Select(id => int.TryParse(id, out var value) ? value : -1)
+            .DefaultIfEmpty(-1)
+            .Max();
 
         foreach (var kept in elements.Where(element => !generated.Contains(element)))
         {
@@ -285,21 +334,51 @@ public static class DocxWriter
         }
 
         var dropped = new HashSet<string>(StringComparer.Ordinal);
+        // Id antigo → id novo, do marcador renumerado que ainda espera a ponta final.
+        var renamed = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (var element in elements.Where(generated.Contains))
         {
-            foreach (var start in Starts(element).ToList())
+            // As pontas na ordem do documento, para que o fim encontre o começo
+            // renumerado que veio antes dele.
+            foreach (var mark in element.Descendants().Prepend(element).ToList())
             {
-                var id = start.Id?.Value ?? string.Empty;
-                if (ids.Add(id) && names.Add(start.Name?.Value ?? string.Empty)) continue;
+                if (mark is BookmarkStart start)
+                {
+                    var id = start.Id?.Value ?? string.Empty;
+                    var name = start.Name?.Value ?? string.Empty;
 
-                dropped.Add(id);
-                start.Remove();
-            }
+                    // O nome repetido é a cópia colada de um marcador que o
+                    // documento já tem: sai, com a ponta final.
+                    if (!names.Add(name))
+                    {
+                        dropped.Add(id);
+                        start.Remove();
+                        continue;
+                    }
 
-            foreach (var end in Ends(element).ToList())
-            {
-                var id = end.Id?.Value ?? string.Empty;
-                if (dropped.Contains(id) || !ends.Add(id)) end.Remove();
+                    // Só o id repetido é outro marcador que calhou de ter o mesmo
+                    // número — o de outro documento, que o Word também numera de
+                    // zero. Ganha um id novo em vez de sumir.
+                    if (!ids.Add(id))
+                    {
+                        var fresh = (++highest).ToString(System.Globalization.CultureInfo.InvariantCulture);
+                        renamed[id] = fresh;
+                        start.Id = fresh;
+                        ids.Add(fresh);
+                    }
+                }
+                else if (mark is BookmarkEnd end)
+                {
+                    var id = end.Id?.Value ?? string.Empty;
+                    if (renamed.Remove(id, out var fresh))
+                    {
+                        end.Id = fresh;
+                        ends.Add(fresh);
+                        continue;
+                    }
+
+                    if (dropped.Remove(id) || !ends.Add(id)) end.Remove();
+                }
             }
         }
 

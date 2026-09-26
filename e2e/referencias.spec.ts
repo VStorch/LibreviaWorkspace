@@ -161,10 +161,23 @@ test.describe('marcadores', () => {
     await dialog.getByRole('button', { name: 'Adicionar' }).click()
     await expect(dialog).toHaveCount(0)
 
+    // Excluir não fecha o diálogo, e o `Esc` continua sendo dele.
+    await menu(session, 'insert-bookmark')
+    await dialog.getByLabel('Nome do marcador').fill('Descartavel')
+    await dialog.getByRole('button', { name: 'Adicionar' }).click()
+    await menu(session, 'insert-bookmark')
+    await list.getByRole('option', { name: 'Descartavel' }).click()
+    await dialog.getByRole('button', { name: 'Excluir' }).click()
+    await expect(dialog).toBeVisible()
+    await expect(list.getByRole('option', { name: 'Descartavel' })).toHaveCount(0)
+    await session.window.keyboard.press('Escape')
+    await expect(dialog).toHaveCount(0)
+
     await menu(session, 'save-as')
     await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
     const corpo = await entryOf(destino, 'word/document.xml')
     expect(corpo).toMatch(/w:name="Conclusao"/)
+    expect(corpo).not.toMatch(/Descartavel/)
     // O oculto do título e a ponta que mora no corpo, entre dois parágrafos.
     expect(corpo).toMatch(/w:name="_Toc100"/)
     expect(corpo).toMatch(/<\/w:p><w:bookmarkEnd w:id="1" ?\/>/)
@@ -428,5 +441,32 @@ test.describe('legendas e referências cruzadas', () => {
     expect(corpo).toMatch(/REF _Ref200 \\h/)
     // O número novo da figura do arquivo foi para o resultado do campo.
     expect(corpo).toMatch(/<w:t[^>]*>Figura 2<\/w:t>/)
+  })
+
+  test('recortar e colar a legenda inteira leva o marcador que a referência cita', async () => {
+    const origem = join(folder, 'mover.docx')
+    await writeFile(origem, await docxWithReferences())
+    await stubDialogs(session.app, { open: origem, messageBox: 1 })
+    await menu(session, 'open')
+    const editor = session.window.locator('.ProseMirror')
+
+    // A seleção natural da linha: do fim ao começo, com o teclado.
+    await editor.locator('p', { hasText: 'Arquitetura' }).click()
+    await session.window.keyboard.press('End')
+    await session.window.waitForTimeout(100)
+    await session.window.keyboard.press('Shift+Home')
+    await session.window.waitForTimeout(100)
+    await session.window.keyboard.press('Control+X')
+
+    await editor.locator('p', { hasText: 'Veja o' }).click()
+    await session.window.keyboard.press('End')
+    await session.window.waitForTimeout(100)
+    await session.window.keyboard.press('Enter')
+    await session.window.keyboard.press('Control+V')
+    await expect(editor.locator('p', { hasText: 'Arquitetura' })).toHaveText('Figura 1 — Arquitetura')
+
+    await menu(session, 'update-fields')
+    await expect(editor).toContainText('Como mostra a Figura 1, na página 1')
+    await expect(editor).not.toContainText('Erro!')
   })
 })

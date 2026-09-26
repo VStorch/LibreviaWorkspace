@@ -1,6 +1,6 @@
 import { Extension, Node } from '@tiptap/core'
 import { Fragment, Slice, type Node as ProseMirrorNode } from '@tiptap/pm/model'
-import { Plugin, PluginKey, TextSelection, type Transaction } from '@tiptap/pm/state'
+import { Plugin, PluginKey, TextSelection, type EditorState, type Transaction } from '@tiptap/pm/state'
 import type { EditorView } from '@tiptap/pm/view'
 import { hiddenBookmarkName, nextBookmarkId } from '@services/document/bookmarks.js'
 import { fieldArgument, fieldKind, fieldSwitch } from '@services/document/fields.js'
@@ -109,6 +109,37 @@ export function ensureBlockBookmark(view: EditorView, pos: number, prefix: '_Ref
   return name
 }
 
+/** Ver o `appendTransaction` de `Bookmarks`: a seleção leva os marcadores encostados nas pontas do texto. */
+export function extendOverBookmarks(state: EditorState): Transaction | null {
+  const { selection } = state
+  if (!(selection instanceof TextSelection) || selection.empty) return null
+  const { $from, $to } = selection
+  const isMark = (node: ProseMirrorNode | null | undefined): boolean =>
+    node?.type.name === 'bookmarkStart' || node?.type.name === 'bookmarkEnd'
+
+  let from = selection.from
+  let before = $from.parent.childBefore($from.parentOffset)
+  let offset = $from.parentOffset
+  while (offset > 0 && isMark(before.node)) {
+    offset = before.offset
+    before = $from.parent.childBefore(offset)
+  }
+  if (offset === 0) from = $from.start()
+
+  let to = selection.to
+  let after = $to.parent.childAfter($to.parentOffset)
+  let end = $to.parentOffset
+  while (end < $to.parent.content.size && isMark(after.node)) {
+    end = after.offset + after.node!.nodeSize
+    after = $to.parent.childAfter(end)
+  }
+  if (end === $to.parent.content.size) to = $to.end()
+
+  if (from === selection.from && to === selection.to) return null
+  const [anchor, head] = selection.anchor <= selection.head ? [from, to] : [to, from]
+  return state.tr.setSelection(TextSelection.create(state.doc, anchor, head))
+}
+
 const bookmarkNode = (name: 'bookmarkStart' | 'bookmarkEnd') =>
   Node.create({
     name,
@@ -203,31 +234,56 @@ export function placeBookmark(tr: Transaction, name: string): void {
  * âncora ambígua — o Word recusa o id repetido. O que foi **recortado** não está
  * mais no documento, e volta inteiro: mover um parágrafo não custa o marcador.
  */
-export function withoutRepeatedBookmarks(slice: Slice, doc: ProseMirrorNode): Slice {
-  const present = new Set<string>()
+export function withoutRepeatedBookmarks(slice: Slice, doc: ProseMirrorNode, moving = false): Slice {
+  // Arrastar e soltar dentro do documento **move**: a origem sai na mesma
+  // transação, e o marcador vai com o texto.
+  if (moving) return slice
+
+  const names = new Set<string>()
+  const ids = new Set<string>()
   doc.descendants((node) => {
-    if (node.type.name === 'bookmarkStart') present.add(`n:${String(node.attrs['name'])}`)
-    if (node.type.name === 'bookmarkStart' || node.type.name === 'bookmarkEnd') {
-      present.add(`i:${String(node.attrs['bid'])}`)
-    }
+    if (node.type.name === 'bookmarkStart') names.add(String(node.attrs['name']))
+    if (node.type.name === 'bookmarkStart' || node.type.name === 'bookmarkEnd')
+      ids.add(String(node.attrs['bid']))
     return true
   })
-  if (present.size === 0) return slice
+  if (names.size === 0 && ids.size === 0) return slice
 
+  // Só o nome repetido é cópia: sai. O id repetido é outro marcador que calhou de
+  // ter o mesmo número — o de outro documento, que o Word também numera de zero —
+  // e ganha um id livre em vez de sumir.
   const dropped = new Set<string>()
+  const renamed = new Map<string, string>()
+  const used = new Set(ids)
   const strip = (fragment: Fragment): Fragment => {
     const children: ProseMirrorNode[] = []
     fragment.forEach((child) => {
       const kind = child.type.name
       const bid = String(child.attrs['bid'] ?? '')
-      if (
-        kind === 'bookmarkStart' &&
-        (present.has(`n:${String(child.attrs['name'])}`) || present.has(`i:${bid}`))
-      ) {
-        dropped.add(bid)
-        return
+      if (kind === 'bookmarkStart') {
+        if (names.has(String(child.attrs['name']))) {
+          dropped.add(bid)
+          return
+        }
+        if (used.has(bid)) {
+          const fresh = nextBookmarkId(used)
+          used.add(fresh)
+          renamed.set(bid, fresh)
+          children.push(child.type.create({ ...child.attrs, bid: fresh }))
+          return
+        }
+        used.add(bid)
+      } else if (kind === 'bookmarkEnd') {
+        if (dropped.has(bid)) return
+        const fresh = renamed.get(bid)
+        if (fresh !== undefined) {
+          children.push(child.type.create({ ...child.attrs, bid: fresh }))
+          return
+        }
+        // O fim cujo começo não veio na colagem e cujo id o documento já usa é
+        // de um marcador daqui: repetido, fecharia o marcador no lugar errado.
+        if (ids.has(bid)) return
       }
-      if (kind === 'bookmarkEnd' && (dropped.has(bid) || present.has(`i:${bid}`))) return
       children.push(child.isLeaf ? child : child.copy(strip(child.content)))
     })
     return Fragment.from(children)
@@ -264,6 +320,20 @@ export const Bookmarks = Extension.create({
     return [
       new Plugin({
         key: new PluginKey('bookmarks'),
+        /**
+         * A seleção que chega ao começo ou ao fim do texto de um parágrafo leva
+         * junto os marcadores encostados ali.
+         *
+         * Os nós não têm largura, e o navegador põe o cursor do lado de dentro
+         * deles: `Shift+Home` numa legenda selecionava "Figura 1 — texto" sem o
+         * começo do `_Ref` que a referência de página cita, e recortar e colar a
+         * legenda deixava o marcador para trás — o F9 seguinte escrevia "Erro!
+         * Indicador não definido.". Estendida, a seleção leva o marcador com o
+         * texto, como no Word.
+         */
+        appendTransaction: (transactions, _old, state) =>
+          transactions.some((tr) => tr.selectionSet) ? extendOverBookmarks(state) : null,
+
         props: {
           /**
            * O link para um lugar do documento leva a ele: com `Ctrl`, como no
@@ -298,7 +368,8 @@ export const Bookmarks = Extension.create({
           },
 
           // Ver `withoutRepeatedBookmarks`.
-          transformPasted: (slice, view) => withoutRepeatedBookmarks(slice, view.state.doc),
+          transformPasted: (slice, view) =>
+            withoutRepeatedBookmarks(slice, view.state.doc, view.dragging?.move === true),
         },
       }),
     ]

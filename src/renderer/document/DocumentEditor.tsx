@@ -225,6 +225,7 @@ export function DocumentEditor(): React.JSX.Element {
       page: useWorkspace.getState().page,
       styles: useWorkspace.getState().styles,
       setStyles: useWorkspace.getState().setStyles,
+      outsideBookmarks: useWorkspace.getState().outsideBookmarks,
       t: translateNow,
     }),
     [],

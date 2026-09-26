@@ -65,6 +65,8 @@ export interface WorkspaceState {
   flattened: boolean
   /** O rascunho é de antes das referências — ver `DocumentModel.beforeReferences`. */
   beforeReferences: boolean
+  /** Marcadores do arquivo fora dos nós — ver `DocumentModel.outsideBookmarks`. */
+  outsideBookmarks: readonly string[]
   /**
    * A planilha aberta, quando o que está em edição é uma planilha.
    *

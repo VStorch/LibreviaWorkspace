@@ -1131,6 +1131,16 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory, bool 
     /// </remarks>
     private ReadFieldResult? ReadField(List<OpenXmlElement> siblings, int start, RunProperties inherited, string? hyperlink)
     {
+        // O que o nó não carrega fica fora dele: o formulário (`w:ffData` do
+        // FORMTEXT e do FORMCHECKBOX), os dados binários (`w:fldData`), a trava
+        // (`w:fldLock`) e o "atualizar ao abrir" (`w:dirty`). Regravado pelo nó, o
+        // campo voltava sem eles — e em silêncio.
+        if (FieldCharOf((Run)siblings[start]) is { } opening &&
+            (opening.HasChildren || opening.FieldLock is not null || opening.Dirty is not null))
+        {
+            return null;
+        }
+
         var instruction = new System.Text.StringBuilder();
         var result = new System.Text.StringBuilder();
         Run? formatted = null;
@@ -1193,6 +1203,12 @@ public sealed class BodyReader(MainDocumentPart part, Inventory inventory, bool 
     /// </summary>
     private Node? ReadSimpleField(SimpleField field, RunProperties inherited, string? hyperlink)
     {
+        // A trava e os dados do campo simples, pelo mesmo motivo de ReadField.
+        if (field.FieldLock is not null || field.Dirty is not null || field.GetFirstChild<FieldData>() is not null)
+        {
+            return null;
+        }
+
         var result = new System.Text.StringBuilder();
         Run? formatted = null;
 

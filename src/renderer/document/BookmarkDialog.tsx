@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useEditorState, type Editor } from '@tiptap/react'
 import { isHiddenBookmark, isValidBookmarkName } from '@services/document/bookmarks.js'
 import { useT } from '../i18n.js'
@@ -25,6 +25,7 @@ export function BookmarkDialog({
   const t = useT()
   const readOnly = useWorkspace((state) => state.readOnly)
   const [name, setName] = useState('')
+  const input = useRef<HTMLInputElement>(null)
   const [showHidden, setShowHidden] = useState(false)
   const [order, setOrder] = useState<'name' | 'location'>('name')
 
@@ -64,6 +65,7 @@ export function BookmarkDialog({
         <input
           type="text"
           value={name}
+          ref={input}
           autoFocus
           maxLength={40}
           onChange={(event) => setName(event.target.value)}
@@ -125,8 +127,12 @@ export function BookmarkDialog({
           className="btn"
           disabled={readOnly || !exists}
           onClick={() => {
-            editor.chain().focus().deleteBookmark(name).run()
+            // Sem devolver o foco ao texto: o diálogo continua aberto, e o `Esc` é dele.
+            editor.commands.deleteBookmark(name)
             setName('')
+            // O botão se apaga sem o marcador, e o foco que ele tinha cairia no
+            // corpo da janela — onde o `Esc` não chega ao diálogo.
+            input.current?.focus()
           }}
         >
           {t('references.bookmark.delete')}

@@ -330,6 +330,8 @@ public sealed class ParagraphWriter
             foreach (var element in WriteInline(child, images)) paragraph.AppendChild(element);
         }
 
+        MergeAnchorLinks(paragraph);
+
         // A quebra volta para onde estava: no fim do parágrafo, dentro de um
         // `w:r`. O leitor a transformou em propriedade do bloco para não pôr um
         // nó de bloco em posição de linha; aqui ela desfaz o caminho. Sem isto,
@@ -372,6 +374,36 @@ public sealed class ParagraphWriter
     /// Verdadeiro para os que vinham antes de qualquer conteúdo, falso para os
     /// demais.
     /// </param>
+    /// <summary>
+    /// Links vizinhos para o mesmo marcador viram um só `w:hyperlink`.
+    /// </summary>
+    /// <remarks>
+    /// No editor o link é marca de cada trecho, e o campo é um nó à parte: a
+    /// entrada do sumário (texto, tabulação e o PAGEREF) saía em dois links
+    /// seguidos. O Word grava um só, e é o que o leitor dele espera ao clicar.
+    /// </remarks>
+    private static void MergeAnchorLinks(Paragraph paragraph)
+    {
+        Hyperlink? previous = null;
+        foreach (var child in paragraph.ChildElements.ToList())
+        {
+            if (child is Hyperlink link && link.Id is null && link.Anchor?.Value is { } anchor &&
+                previous?.Anchor?.Value == anchor && previous.Id is null)
+            {
+                foreach (var inner in link.ChildElements.ToList())
+                {
+                    inner.Remove();
+                    previous.AppendChild(inner);
+                }
+
+                link.Remove();
+                continue;
+            }
+
+            previous = child as Hyperlink;
+        }
+    }
+
     private static IEnumerable<OpenXmlElement> Bookmarks(Paragraph? original, bool leading)
     {
         if (original is null) yield break;

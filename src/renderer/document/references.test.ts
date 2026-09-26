@@ -3,7 +3,18 @@ import { getSchema } from '@tiptap/core'
 import { Node as ProseMirrorNode } from '@tiptap/pm/model'
 import { BUILTIN_STYLES } from '@services/document/styles.js'
 import { buildEditorExtensions } from './editor-extensions.js'
-import { captionLabels, crossReferenceTargets, sheetAt } from './references.js'
+import { EditorState, type Transaction } from '@tiptap/pm/state'
+import type { Editor } from '@tiptap/react'
+import { DEFAULT_PAGE_SETUP } from '@services/document/model.js'
+import {
+  captionLabels,
+  crossReferenceTargets,
+  settlePageFields,
+  sheetAt,
+  updateFields,
+  type ReferenceContext,
+} from './references.js'
+import type { PageLayout } from './usePagination.js'
 
 const schema = getSchema(buildEditorExtensions(() => {}))
 
@@ -51,5 +62,76 @@ describe('destinos das referências', () => {
       'Um',
       ' Dois',
     ])
+  })
+})
+
+/** Um editor de mentira: o estado e o `dispatch`, que é tudo o que as funções usam. */
+function fakeEditor(json: unknown): { editor: Editor; fields: () => string[] } {
+  let state = EditorState.create({ doc: ProseMirrorNode.fromJSON(schema, json) })
+  const editor = {
+    get state() {
+      return state
+    },
+    view: { dispatch: (tr: Transaction) => (state = state.apply(tr)) },
+  } as unknown as Editor
+  const fields = (): string[] => {
+    const results: string[] = []
+    state.doc.descendants((node) => {
+      if (node.type.name === 'field') results.push(String(node.attrs['result']))
+      return true
+    })
+    return results
+  }
+  return { editor, fields }
+}
+
+function contextWith(layout: Partial<PageLayout>, outsideBookmarks: string[] = []): ReferenceContext {
+  return {
+    layout: {
+      pages: 2,
+      stackHeightPx: 0,
+      sheetTops: [],
+      sheetHeights: [],
+      pageStarts: [],
+      anchors: [],
+      ...layout,
+    },
+    page: DEFAULT_PAGE_SETUP,
+    styles: BUILTIN_STYLES,
+    setStyles: () => {},
+    t: (key) => key,
+    outsideBookmarks,
+  }
+}
+
+const field = (instr: string, result: string) => ({ type: 'field', attrs: { instr, result } })
+
+describe('atualizar campos', () => {
+  it('a referência a marcador que o arquivo tem fora dos nós fica como estava', () => {
+    const { editor, fields } = fakeEditor({
+      type: 'doc',
+      content: [paragraph(field(' REF Linhas \\h ', 'texto do Word'), field(' REF Sumiu ', 'velho'))],
+    })
+    updateFields(editor, contextWith({}, ['Linhas']))
+    expect(fields()).toEqual(['texto do Word', 'references.field.missingBookmark'])
+  })
+
+  it('F9 que não mudou nada não arma o segundo passe', () => {
+    const { editor, fields } = fakeEditor({
+      type: 'doc',
+      content: [
+        paragraph({ type: 'bookmarkStart', attrs: { name: 'Alvo', bid: '1' } }, text('x'), {
+          type: 'bookmarkEnd',
+          attrs: { bid: '1' },
+        }),
+        paragraph(field(' PAGEREF Alvo \\h ', '1')),
+      ],
+    })
+    expect(updateFields(editor, contextWith({})).changed).toBe(0)
+
+    // A paginação muda depois — o alvo passaria para a folha 2 —, e o passe não
+    // pode reescrever o campo que o F9 deixou como estava.
+    settlePageFields(editor, contextWith({ pageStarts: [{ blockIndex: 0 }] }))
+    expect(fields()).toEqual(['1'])
   })
 })

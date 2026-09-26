@@ -335,6 +335,107 @@ public class ReferencesTests
         Assert.Contains("campo calculado num parágrafo que você editou", result.Inventory.Lost);
     }
 
+    // --- revisão do M8 -------------------------------------------------------
+
+    [Theory]
+    [InlineData("<w:fldChar w:fldCharType=\"begin\"><w:ffData><w:name w:val=\"Texto1\"/><w:enabled/></w:ffData></w:fldChar>", " FORMTEXT ")]
+    [InlineData("<w:fldChar w:fldCharType=\"begin\" w:fldLock=\"1\"/>", " PAGE ")]
+    [InlineData("<w:fldChar w:fldCharType=\"begin\" w:dirty=\"1\"/>", " PAGE ")]
+    public void CampoComDadosOuTravaNaoViraNoEPerdaEhDeclarada(string begin, string instruction)
+    {
+        var body =
+            "<w:p><w:r><w:t xml:space=\"preserve\">Antes </w:t></w:r><w:r>" + begin + "</w:r>" +
+            "<w:r><w:instrText xml:space=\"preserve\">" + instruction + "</w:instrText></w:r>" +
+            "<w:r><w:fldChar w:fldCharType=\"separate\"/></w:r><w:r><w:t>valor</w:t></w:r>" +
+            "<w:r><w:fldChar w:fldCharType=\"end\"/></w:r></w:p>";
+        var original = Fixtures.BuildFromXml(body, "");
+        var opened = DocxReader.Read(original);
+
+        Assert.Empty(NodesOf(opened.Model, "field"));
+        Assert.Contains(Inventory.Fields, opened.Inventory.Structural);
+
+        var model = Roundtrip.Clone(opened.Model);
+        Assert.True(Roundtrip.EditFirstTextContaining(model, "Antes ", "Depois "));
+        Assert.Contains("campo calculado num parágrafo que você editou", Roundtrip.Save(original, model).Result.Inventory.Lost);
+    }
+
+    [Fact]
+    public void CampoSimplesTravadoNaoViraNo()
+    {
+        var original = Fixtures.BuildFromXml(
+            "<w:p><w:fldSimple w:instr=\" PAGE \" w:fldLock=\"1\"><w:r><w:t>3</w:t></w:r></w:fldSimple></w:p>", "");
+        var opened = DocxReader.Read(original);
+        Assert.Empty(NodesOf(opened.Model, "field"));
+        Assert.Contains(Inventory.Fields, opened.Inventory.Structural);
+    }
+
+    [Fact]
+    public void MarcadorColadoComIdRepetidoGanhaIdNovoEFica()
+    {
+        // O parágrafo colado de outro documento traz um marcador de nome novo com
+        // um id que este já usa — inclusive um que o modelo não conhece (entre as
+        // linhas de uma tabela).
+        var body =
+            "<w:tbl><w:tblPr/><w:tblGrid><w:gridCol w:w=\"9000\"/></w:tblGrid><w:tr><w:tc><w:p><w:r><w:t>A</w:t></w:r></w:p></w:tc></w:tr>" +
+            "<w:bookmarkStart w:id=\"7\" w:name=\"Linha\"/><w:tr><w:tc><w:p><w:r><w:t>B</w:t></w:r></w:p></w:tc></w:tr><w:bookmarkEnd w:id=\"7\"/></w:tbl>" +
+            "<w:p><w:r><w:t>Fim.</w:t></w:r></w:p>";
+        var original = Fixtures.BuildFromXml(body, "");
+        var model = Roundtrip.Clone(Roundtrip.Open(original));
+        var pasted = Node.Of("paragraph",
+            Node.Of("bookmarkStart").With("name", "Colado").With("bid", "7"),
+            new Node { Type = "text", Text = "Colado." },
+            Node.Of("bookmarkEnd").With("bid", "7"));
+        model.Doc.Content!.Add(pasted);
+
+        var xml = Roundtrip.XmlOf(Roundtrip.Save(original, model).Bytes);
+
+        Assert.Matches("w:name=\"Colado\" w:id=\"8\"|w:id=\"8\" w:name=\"Colado\"", xml);
+        Assert.Matches("Colado\\.</w:t></w:r><w:bookmarkEnd w:id=\"8\"", xml);
+        Assert.Matches("w:name=\"Linha\" w:id=\"7\"|w:id=\"7\" w:name=\"Linha\"", xml);
+    }
+
+    [Fact]
+    public void MarcadoresForaDoModeloVaoNaLista()
+    {
+        var model = Roundtrip.Open(Fixtures.BuildFromXml(
+            "<w:tbl><w:tblPr/><w:tblGrid><w:gridCol w:w=\"9000\"/></w:tblGrid><w:bookmarkStart w:id=\"1\" w:name=\"Tabela\"/>" +
+            "<w:tr><w:tc><w:p><w:bookmarkStart w:id=\"2\" w:name=\"Celula\"/><w:r><w:t>A</w:t></w:r><w:bookmarkEnd w:id=\"2\"/></w:p></w:tc></w:tr>" +
+            "<w:bookmarkEnd w:id=\"1\"/></w:tbl><w:p/>", ""));
+
+        Assert.Equal(["Tabela"], model.OutsideBookmarks!);
+    }
+
+    [Fact]
+    public void BlocoApagadoComOFimDoMarcadorDevolveOFimDepoisDoComeco()
+    {
+        // O fim do "Resumo" mora solto antes do título "Escopo". Apagado o título,
+        // o fim não pode sumir com ele.
+        var original = Fixtures.WithReferences();
+        var model = Roundtrip.Clone(Roundtrip.Open(original));
+        model.Doc.Content!.RemoveAll(node => node.Type == "heading" && Roundtrip.Walk(node).Any(n => n.Text == "Escopo"));
+
+        var xml = Roundtrip.XmlOf(Roundtrip.Save(original, model).Bytes);
+
+        Assert.Matches("<w:bookmarkEnd w:id=\"1\" ?/>", xml);
+    }
+
+    [Fact]
+    public void EntradaNovaDoSumarioTemUmLinkSo()
+    {
+        var original = Fixtures.WithReferences();
+        var model = Roundtrip.Clone(Roundtrip.Open(original));
+        var link = new List<Mark> { Mark.Of("link", "href", "#_Toc100") };
+        var entry = Node.Of("paragraph",
+            new Node { Type = "text", Text = "Introdução\t", Marks = link },
+            new Node { Type = "field", Marks = link, Attrs = new() { ["instr"] = " PAGEREF _Toc100 \\h ", ["result"] = "1" } });
+        model.Doc.Content!.Add(Node.Of("tableOfContents", entry).With("instr", " TOC \\o \"1-3\" \\h ").With("head", 0).With("sdt", true));
+
+        var xml = Roundtrip.XmlOf(Roundtrip.Save(original, model).Bytes);
+        var added = xml[xml.LastIndexOf("<w:sdt>", StringComparison.Ordinal)..];
+
+        Assert.Single(Regex.Matches(added, "<w:hyperlink "));
+    }
+
     private static Node DocxReaderOf(byte[] bytes, bool references)
     {
         using var stream = new MemoryStream(bytes, writable: false);
