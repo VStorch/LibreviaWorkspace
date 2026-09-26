@@ -1,6 +1,6 @@
 import type { Schema } from '@tiptap/pm/model'
 import { mmToPx, pageDimensionsMm, type DocumentNode, type PageSetup } from '@services/document/model.js'
-import { bandForPage, bandInsetMm, hasBandContent } from '@services/document/band.js'
+import { bandForPage, bandInsetMm, hasBandContent, pageLabel } from '@services/document/band.js'
 import { bandFloatsOf } from '@services/document/floating.js'
 import { FloatingLayer, type FloatSource, type PlacedFloat } from './FloatingLayer.js'
 import { PageBand } from './PageBand.js'
@@ -57,7 +57,7 @@ export function PaperSheet({
             key={kind}
             band={band}
             kind={kind}
-            pageNumber={pageNumber}
+            pageLabel={pageLabel(page, pageNumber)}
             totalPages={totalPages}
             insetPx={mmToPx(bandInsetMm(page))}
             offsetPx={mmToPx(kind === 'header' ? page.headerDistanceMm : page.footerDistanceMm)}

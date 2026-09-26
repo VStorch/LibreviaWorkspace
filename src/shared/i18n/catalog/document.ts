@@ -251,6 +251,21 @@ export const DOCUMENT = {
     en: 'Place the cursor in a list to restart or continue its numbering.',
   },
 
+  'document.pageSetup.insertPageNumber': { pt: 'Número da página', en: 'Page number' },
+  'document.pageSetup.insertTotalPages': { pt: 'Total de páginas', en: 'Total pages' },
+  'document.pageSetup.titlePage': { pt: 'Primeira página diferente', en: 'Different first page' },
+  'document.pageSetup.evenAndOdd': { pt: 'Pares e ímpares diferentes', en: 'Different odd and even pages' },
+  'document.pageSetup.pageNumbering': { pt: 'Numeração de página', en: 'Page numbering' },
+  'document.pageSetup.pageNumberFormat': { pt: 'Formato do número', en: 'Number format' },
+  'document.pageSetup.pageNumberStart': { pt: 'Começar em', en: 'Start at' },
+  'document.pageSetup.pageFormat.decimal': { pt: '1, 2, 3', en: '1, 2, 3' },
+  'document.pageSetup.pageFormat.lowerRoman': { pt: 'i, ii, iii', en: 'i, ii, iii' },
+  'document.pageSetup.pageFormat.upperRoman': { pt: 'I, II, III', en: 'I, II, III' },
+  'document.pageSetup.pageFormat.lowerLetter': { pt: 'a, b, c', en: 'a, b, c' },
+  'document.pageSetup.pageFormat.upperLetter': { pt: 'A, B, C', en: 'A, B, C' },
+  'document.insert.pageNumber': { pt: 'Inserir número da página', en: 'Insert page number' },
+  'document.insert.totalPages': { pt: 'Inserir total de páginas', en: 'Insert total pages' },
+
   'document.pageGroup.group': { pt: 'Página', en: 'Page' },
   'document.pageGroup.findReplace': { pt: 'Localizar e substituir', en: 'Find and replace' },
 

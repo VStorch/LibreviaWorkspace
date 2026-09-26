@@ -1,6 +1,8 @@
 import { contentInsetsMm, pageDimensionsMm, type PageSetup } from './model.js'
 import {
   bandForPage,
+  pageLabel,
+  pieceText,
   bandInsetMm,
   hasBandContent,
   linesOf,
@@ -180,11 +182,11 @@ function renderPage(
     '<div class="paper-page">' +
     renderFloats(floats, page, true) +
     (hasBandContent(header)
-      ? renderBand(header, 'header', sheet.number, total, inset, page.headerDistanceMm)
+      ? renderBand(header, 'header', pageLabel(page, sheet.number), total, inset, page.headerDistanceMm)
       : '') +
     body +
     (hasBandContent(footer)
-      ? renderBand(footer, 'footer', sheet.number, total, inset, page.footerDistanceMm)
+      ? renderBand(footer, 'footer', pageLabel(page, sheet.number), total, inset, page.footerDistanceMm)
       : '') +
     renderFloats(floats, page, false) +
     '</div>'
@@ -229,20 +231,18 @@ function renderFloats(floats: readonly PrintFloat[], page: PageSetup, behind: bo
 function renderBand(
   band: Band,
   kind: 'header' | 'footer',
-  pageNumber: number,
+  label: string,
   total: number,
   inset: number,
   offset: number,
 ): string {
   const cell = (pieces: readonly BandPiece[], place: string): string =>
-    `<div class="paper-page__cell paper-page__cell--${place}">` +
-    renderLines(pieces, pageNumber, total) +
-    '</div>'
+    `<div class="paper-page__cell paper-page__cell--${place}">` + renderLines(pieces, label, total) + '</div>'
 
   return (
     `<div class="paper-page__band paper-page__band--${kind}${band.rule ? ' paper-page__band--ruled' : ''}" ` +
     `style="left:${inset}mm;right:${inset}mm;${kind === 'header' ? 'top' : 'bottom'}:${offset}mm">` +
-    renderGrid(band, pageNumber, total) +
+    renderGrid(band, label, total) +
     cell(band.left, 'left') +
     cell(band.center, 'center') +
     cell(band.right, 'right') +
@@ -257,7 +257,7 @@ function renderBand(
  * larguras, mesclagem e bordas vêm prontas do leitor, e nenhum dos dois refaz a
  * conta por conta própria — que é como tela e papel divergem.
  */
-function renderGrid(band: Band, pageNumber: number, total: number): string {
+function renderGrid(band: Band, label: string, total: number): string {
   if (band.rows.length === 0) return ''
 
   const rows = band.rows
@@ -266,7 +266,7 @@ function renderGrid(band: Band, pageNumber: number, total: number): string {
         .map((cell) => {
           const span = cell.span === 1 ? '' : ` colspan="${cell.span}"`
           const down = cell.rowSpan === 1 ? '' : ` rowspan="${cell.rowSpan}"`
-          const pieces = renderLines(cell.pieces, pageNumber, total)
+          const pieces = renderLines(cell.pieces, label, total)
           return `<td${span}${down} style="${cellStyle(cell)}">${pieces}</td>`
         })
         .join('')
@@ -284,12 +284,12 @@ function renderGrid(band: Band, pageNumber: number, total: number): string {
  * quebra vem do mesmo `linesOf`, e uma segunda versão desta marcação divergiria
  * da primeira no primeiro ajuste de estilo.
  */
-function renderLines(pieces: readonly BandPiece[], pageNumber: number, total: number): string {
+function renderLines(pieces: readonly BandPiece[], label: string, total: number): string {
   return linesOf(pieces)
     .map(
       (line) =>
         '<div class="paper-page__line">' +
-        line.map((piece) => renderPiece(piece, pageNumber, total)).join('') +
+        line.map((piece) => renderPiece(piece, label, total)).join('') +
         '</div>',
     )
     .join('')
@@ -310,7 +310,7 @@ function cellStyle(cell: BandCell): string {
   )
 }
 
-function renderPiece(piece: BandPiece, pageNumber: number, total: number): string {
+function renderPiece(piece: BandPiece, label: string, total: number): string {
   if (piece.kind === 'image') {
     if (piece.src === undefined) return ''
     // Sem o fator de escala que o template do Chromium exigia: aqui a imagem
@@ -319,12 +319,7 @@ function renderPiece(piece: BandPiece, pageNumber: number, total: number): strin
     return `<img src="${escapeHtml(piece.src)}" alt="" style="${width}" />`
   }
 
-  const text =
-    piece.kind === 'pageNumber'
-      ? String(pageNumber)
-      : piece.kind === 'totalPages'
-        ? String(total)
-        : (piece.text ?? '')
+  const text = pieceText(piece, label, total)
 
   const style =
     (piece.bold ? 'font-weight:700;' : '') +

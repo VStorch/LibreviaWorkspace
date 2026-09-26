@@ -12,6 +12,7 @@
  */
 
 import type { DocumentNode, PageSetup } from './model.js'
+import { formatNumber } from './list-numbering.js'
 import type { FloatingObject } from './floating.js'
 
 /**
@@ -134,14 +135,82 @@ export const NO_BANDS: BandHeights = { headerMm: 0, footerMm: 0 }
  * primeira página distinta mas deixa a faixa vazia quer a folha limpa, e é o
  * `hasBandContent` de quem desenha que decide isso.
  */
-export function bandForPage(page: PageSetup, pageNumber: number, kind: 'header' | 'footer'): Band | null {
+export function bandForPage(page: PageSetup, sheet: number, kind: 'header' | 'footer'): Band | null {
   const first = kind === 'header' ? page.firstHeaderBand : page.firstFooterBand
   const even = kind === 'header' ? page.evenHeaderBand : page.evenFooterBand
-  const fallback = kind === 'header' ? page.headerBand : page.footerBand
+  const fallback =
+    (kind === 'header' ? page.headerBand : page.footerBand) ??
+    plainBand(kind === 'header' ? page.header : page.footer)
 
-  if (pageNumber === 1 && first !== null) return first
-  if (pageNumber % 2 === 0 && even !== null) return even
+  // Ligado sem faixa própria quer dizer folha limpa, como no Word: é o uso de
+  // "Primeira página diferente" na capa sem número.
+  if (sheet === 1 && usesTitlePage(page)) return first
+  // A paridade é a do número impresso, e não a da folha: começando em 2, a
+  // primeira folha já é par.
+  if (usesEvenAndOdd(page) && pageNumberOf(page, sheet) % 2 === 0) return even
   return fallback
+}
+
+/** "Primeira página diferente": o que o documento diz, ou o que as faixas dão a entender. */
+export function usesTitlePage(page: PageSetup): boolean {
+  return page.titlePage ?? (page.firstHeaderBand !== null || page.firstFooterBand !== null)
+}
+
+/** "Pares e ímpares diferentes", pelo mesmo critério. */
+export function usesEvenAndOdd(page: PageSetup): boolean {
+  return page.evenAndOddHeaders ?? (page.evenHeaderBand !== null || page.evenFooterBand !== null)
+}
+
+/** O número impresso na folha `sheet` (a contar de 1): o início de `w:pgNumType` mais o avanço. */
+export function pageNumberOf(page: PageSetup, sheet: number): number {
+  return (page.pageNumberStart ?? 1) + sheet - 1
+}
+
+/** O número da folha como o campo `PAGE` o escreve, no formato de `w:pgNumType`. */
+export function pageLabel(page: PageSetup, sheet: number): string {
+  return formatNumber(pageNumberOf(page, sheet), page.pageNumberFormat ?? 'decimal')
+}
+
+/**
+ * O texto de uma peça nesta folha.
+ *
+ * O número e o total são calculados; o texto pode trazer `{n}` e `{total}` —
+ * é como o campo inserido pela pessoa mora na peça até a gravação o transformar
+ * em campo de verdade (`BandWriter.Rewrite`).
+ */
+export function pieceText(piece: BandPiece, label: string, total: number): string {
+  if (piece.kind === 'pageNumber') return label
+  if (piece.kind === 'totalPages') return String(total)
+  return substituteFields(piece.text ?? '', label, total)
+}
+
+export function substituteFields(text: string, label: string, total: number): string {
+  return text.replaceAll('{n}', label).replaceAll('{total}', String(total))
+}
+
+/** Fonte da linha de texto simples: a de `TemplateStyles.BandFont`, que é a que o arquivo recebe. */
+const PLAIN_BAND_FONT = 'Calibri, Carlito, sans-serif'
+
+/**
+ * O cabeçalho ou rodapé de texto simples como faixa.
+ *
+ * O documento novo não tem faixa: tem a linha digitada em "Configurar página",
+ * com `{n}` e `{total}`. Ela ia para o arquivo (`PlainBandWriter`) e para o PDF
+ * do Chromium, mas não para a folha paginada — nem na tela, nem no papel que sai
+ * dela. Como faixa, é desenhada pelos mesmos desenhistas, com o número de cada
+ * folha, centralizada em 9 pt cinza como o arquivo a grava.
+ */
+export function plainBand(text: string): Band | null {
+  if (text.trim().length === 0) return null
+  const style = { bold: false, italic: false, color: '#444444', fontSize: '9pt', fontFamily: PLAIN_BAND_FONT }
+  const center: BandPiece[] = []
+  for (const part of text.split(/(\{n\}|\{total\})/)) {
+    if (part === '') continue
+    if (part === '{n}') center.push({ kind: 'pageNumber', ...style })
+    else if (part === '{total}') center.push({ kind: 'totalPages', ...style })
+    else center.push({ kind: 'text', text: part, ...style })
+  }
+  return { left: [], center, right: [], rule: false, floats: [], rows: [] }
 }
 
 /**
@@ -246,4 +315,35 @@ function mapBands(page: PageSetup, transform: (band: Band) => Band): PageSetup {
  */
 export function bandInsetMm(page: PageSetup): number {
   return Math.min(page.margins.left, page.margins.right) / 2
+}
+
+/**
+ * "Inserir número da página" sem o cursor numa faixa: o campo vai para o fim do
+ * rodapé, que é onde o Word o põe por padrão.
+ *
+ * No rodapé que veio do arquivo, entra no fim da última peça de texto editável —
+ * a gravação o transforma em campo `PAGE` ali (`BandWriter.Rewrite`). Rodapé do
+ * arquivo sem texto onde escrever devolve `null`: o campo não teria onde morar, e
+ * inventar um parágrafo na parte do Word é o que a gravação cirúrgica não faz. Sem
+ * rodapé nenhum, vai para a linha de texto simples.
+ */
+export function appendPageField(page: PageSetup, token: '{n}' | '{total}'): PageSetup | null {
+  const band = page.footerBand
+  if (band === null || !hasBandContent(band)) {
+    const footer = page.footer.trimEnd()
+    return { ...page, footer: footer === '' ? token : `${footer} ${token}` }
+  }
+
+  const candidates = [
+    ...band.rows.flatMap((row) => row.cells.flatMap((cell) => cell.pieces)),
+    ...band.left,
+    ...band.center,
+    ...band.right,
+  ].filter((piece) => piece.kind === 'text' && piece.pid !== undefined)
+  const target = candidates.at(-1)
+  if (target === undefined || target.pid === undefined) return null
+
+  const text = target.text ?? ''
+  const joined = text === '' || text.endsWith(' ') ? `${text}${token}` : `${text} ${token}`
+  return editBandPiece(page, target.pid, joined)
 }

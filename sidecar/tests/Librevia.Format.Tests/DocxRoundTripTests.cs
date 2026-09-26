@@ -961,11 +961,13 @@ public class DocxRoundTripTests
     public void SemTitlePgOCabecalhoDaCapaNaoEhUsado()
     {
         // O Word guarda a parte `first` mesmo com o interruptor desligado —
-        // quatro dos seis documentos do corpus são assim. Usá-la sem conferir
-        // poria a capa em todas as páginas.
+        // quatro dos seis documentos do corpus são assim. Ela vem, para aparecer
+        // se a pessoa ligar o interruptor; mas vem com ele desligado, e quem
+        // desenha não a usa (`bandForPage`).
         var page = DocxReader.Read(Fixtures.WithFirstPageHeader(titlePage: false)).Model.Page;
 
-        Assert.Null(page.FirstHeader);
+        Assert.False(page.TitlePage);
+        Assert.Equal("Capa", TextOfBand(page.FirstHeader));
         Assert.Equal("Miolo", TextOfBand(page.Header));
     }
 

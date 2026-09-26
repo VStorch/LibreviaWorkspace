@@ -29,7 +29,14 @@ public sealed record PageSetupDto(
     // O cabeçalho e o rodapé de texto simples do documento novo, com `{n}` e
     // `{total}` no lugar dos números. Quem os grava é PlainBandWriter.
     [property: JsonPropertyName("header")] string? HeaderText = null,
-    [property: JsonPropertyName("footer")] string? FooterText = null);
+    [property: JsonPropertyName("footer")] string? FooterText = null,
+    // Numeração de página (`w:pgNumType`) e os dois interruptores das faixas.
+    // Anuláveis: um `.sdoc` antigo não os traz, e ausência quer dizer "não mexa
+    // no que o arquivo já diz" — e não "desligue".
+    [property: JsonPropertyName("pageNumberFormat")] string? PageNumberFormat = null,
+    [property: JsonPropertyName("pageNumberStart")] int? PageNumberStart = null,
+    [property: JsonPropertyName("titlePage")] bool? TitlePage = null,
+    [property: JsonPropertyName("evenAndOddHeaders")] bool? EvenAndOddHeaders = null);
 
 public sealed record MarginsDto(
     [property: JsonPropertyName("top")] double Top,
@@ -146,24 +153,47 @@ public static class PageReader
                 Left: Millimeters((int?)margin?.Left?.Value, 1440)),
             Header: NullIfEmpty(HeaderReader.Read(section, part, inventory, HeaderFooterValues.Default, contentWidthEmus)),
             Footer: NullIfEmpty(HeaderReader.ReadFooter(section, part, inventory, HeaderFooterValues.Default, contentWidthEmus)),
-            // Os dois interruptores decidem se as referências valem. O Word
-            // guarda o `first` mesmo com `w:titlePg` desligado — usá-lo sem
-            // conferir poria a capa em todas as páginas.
-            FirstHeader: HasTitlePage(section)
-                ? NullIfEmpty(HeaderReader.Read(section, part, inventory, HeaderFooterValues.First, contentWidthEmus))
-                : null,
-            FirstFooter: HasTitlePage(section)
-                ? NullIfEmpty(HeaderReader.ReadFooter(section, part, inventory, HeaderFooterValues.First, contentWidthEmus))
-                : null,
-            EvenHeader: UsesEvenAndOdd(part)
-                ? NullIfEmpty(HeaderReader.Read(section, part, inventory, HeaderFooterValues.Even, contentWidthEmus))
-                : null,
-            EvenFooter: UsesEvenAndOdd(part)
-                ? NullIfEmpty(HeaderReader.ReadFooter(section, part, inventory, HeaderFooterValues.Even, contentWidthEmus))
-                : null,
+            // As faixas de capa e de página par vêm sempre que o arquivo as tem;
+            // quem decide se valem são os interruptores, que vão junto. O Word
+            // guarda o `first` mesmo com `w:titlePg` desligado — e é justamente
+            // ele que volta a aparecer quando a pessoa liga o interruptor na
+            // configuração de página. Lido só com o interruptor ligado, ligar
+            // mostrava a capa em branco na tela e a do arquivo no Word.
+            FirstHeader: NullIfEmpty(HeaderReader.Read(section, part, inventory, HeaderFooterValues.First, contentWidthEmus)),
+            FirstFooter: NullIfEmpty(HeaderReader.ReadFooter(section, part, inventory, HeaderFooterValues.First, contentWidthEmus)),
+            EvenHeader: NullIfEmpty(HeaderReader.Read(section, part, inventory, HeaderFooterValues.Even, contentWidthEmus)),
+            EvenFooter: NullIfEmpty(HeaderReader.ReadFooter(section, part, inventory, HeaderFooterValues.Even, contentWidthEmus)),
             HeaderDistanceMm: Millimeters((int?)margin?.Header?.Value, 708),
-            FooterDistanceMm: Millimeters((int?)margin?.Footer?.Value, 708));
+            FooterDistanceMm: Millimeters((int?)margin?.Footer?.Value, 708),
+            PageNumberFormat: PageNumberFormatOf(section),
+            PageNumberStart: section.GetFirstChild<PageNumberType>()?.Start?.Value,
+            TitlePage: HasTitlePage(section),
+            EvenAndOddHeaders: UsesEvenAndOdd(part));
     }
+
+    /// <summary>Os formatos de número de página que o editor desenha.</summary>
+    public static readonly string[] PageNumberFormats =
+        ["decimal", "lowerRoman", "upperRoman", "lowerLetter", "upperLetter"];
+
+    /// <summary>
+    /// `w:pgNumType/@w:fmt`, ou decimal.
+    /// </summary>
+    /// <remarks>
+    /// Formato que o editor não desenha (`numberInDash`, os de outros alfabetos)
+    /// vira decimal na tela, mas volta intacto ao arquivo: a gravação só toca o
+    /// atributo quando o modelo diz algo diferente do que se leu.
+    /// </remarks>
+    public static string PageNumberFormatOf(SectionProperties section)
+    {
+        var name = section.GetFirstChild<PageNumberType>()?.Format?.InnerText;
+        return name is not null && PageNumberFormats.Contains(name) ? name : "decimal";
+    }
+
+    /// <inheritdoc cref="HasTitlePage(SectionProperties)"/>
+    public static bool TitlePageOf(SectionProperties section) => HasTitlePage(section);
+
+    /// <inheritdoc cref="UsesEvenAndOdd(MainDocumentPart)"/>
+    public static bool EvenAndOddOf(MainDocumentPart part) => UsesEvenAndOdd(part);
 
     /// <summary>`w:titlePg`: a primeira página tem cabeçalho próprio.</summary>
     /// <remarks>
@@ -293,5 +323,6 @@ public static class PageReader
         NearestSize(widthTwips ?? Papers[0].Short, heightTwips ?? Papers[0].Long, landscape);
 
     private static PageSetupDto Default() => new(
-        "A4", "portrait", new MarginsDto(25, 25, 25, 25), null, null);
+        "A4", "portrait", new MarginsDto(25, 25, 25, 25), null, null,
+        PageNumberFormat: "decimal", TitlePage: false, EvenAndOddHeaders: false);
 }

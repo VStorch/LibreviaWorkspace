@@ -1,5 +1,5 @@
 import { pageDimensionsMm, type DocumentNode, type PageSetup } from './model.js'
-import { bandForPage } from './band.js'
+import { bandForPage, pageLabel } from './band.js'
 
 /**
  * Um objeto que não está no fluxo do texto.
@@ -205,14 +205,15 @@ export function bandFloatsOf(page: PageSetup, pageNumber: number): AnchoredFloat
   const height = pageDimensionsMm(page).height
   const header = bandForPage(page, pageNumber, 'header')
   const footer = bandForPage(page, pageNumber, 'footer')
+  const label = pageLabel(page, pageNumber)
 
   return [
     ...(header?.floats ?? []).map((object) => ({
-      object: numbered(object, pageNumber),
+      object: numbered(object, label),
       anchorTopMm: page.headerDistanceMm,
     })),
     ...(footer?.floats ?? []).map((object) => ({
-      object: numbered(object, pageNumber),
+      object: numbered(object, label),
       anchorTopMm: height - page.footerDistanceMm,
     })),
   ]
@@ -225,7 +226,7 @@ export function bandFloatsOf(page: PageSetup, pageNumber: number): AnchoredFloat
  * leitor o entrega como `{n}` — o mesmo marcador que o cabeçalho digitado à mão
  * já usa. Sem esta troca a folha sairia com as chaves escritas nela.
  */
-function numbered(object: FloatingObject, pageNumber: number): FloatingObject {
+function numbered(object: FloatingObject, pageNumber: string): FloatingObject {
   if (object.kind !== 'text' || object.content === undefined) return object
 
   const content = object.content.map((node) => replaceMarkers(node, pageNumber))
@@ -239,10 +240,10 @@ function numbered(object: FloatingObject, pageNumber: number): FloatingObject {
   return { ...object, content, ...(marked ? { bid: undefined } : {}) }
 }
 
-function replaceMarkers(node: DocumentNode, pageNumber: number): DocumentNode {
+function replaceMarkers(node: DocumentNode, pageNumber: string): DocumentNode {
   return {
     ...node,
-    ...(typeof node.text === 'string' ? { text: node.text.replaceAll('{n}', String(pageNumber)) } : {}),
+    ...(typeof node.text === 'string' ? { text: node.text.replaceAll('{n}', pageNumber) } : {}),
     ...(Array.isArray(node.content)
       ? { content: node.content.map((child) => replaceMarkers(child, pageNumber)) }
       : {}),

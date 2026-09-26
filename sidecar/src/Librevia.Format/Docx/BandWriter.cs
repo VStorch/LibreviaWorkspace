@@ -295,9 +295,37 @@ internal static class BandWriter
     /// </remarks>
     private static void Rewrite(List<Text> source, string text)
     {
-        source[0].Text = text;
+        var segments = FieldTokens.Split(text);
+        source[0].Text = segments[0].Text;
         source[0].Space = SpaceProcessingModeValues.Preserve;
 
         for (var index = 1; index < source.Count; index++) source[index].Text = string.Empty;
+
+        // "Inserir número da página" dentro de uma peça: o texto chega com `{n}`
+        // e `{total}` onde a pessoa os pôs, e cada um vira um campo de verdade
+        // logo depois do run da peça, com a mesma formatação dele. Escrito como
+        // texto, o rodapé do Word passaria a mostrar "{n}" em todas as folhas.
+        if (segments.Count == 1 || source[0].Parent is not Run anchor) return;
+
+        OpenXmlElement last = anchor;
+        foreach (var segment in segments.Skip(1))
+        {
+            if (segment.Field is { } instruction)
+            {
+                var field = new SimpleField(RunLike(anchor, "1")) { Instruction = instruction };
+                last = last.InsertAfterSelf(field);
+            }
+
+            if (segment.Text.Length > 0) last = last.InsertAfterSelf(RunLike(anchor, segment.Text));
+        }
+    }
+
+    /// <summary>Um run com a formatação de outro e este texto.</summary>
+    private static Run RunLike(Run model, string text)
+    {
+        var run = new Run();
+        if (model.RunProperties is { } properties) run.AppendChild(properties.CloneNode(true));
+        run.AppendChild(new Text(text) { Space = SpaceProcessingModeValues.Preserve });
+        return run;
     }
 }

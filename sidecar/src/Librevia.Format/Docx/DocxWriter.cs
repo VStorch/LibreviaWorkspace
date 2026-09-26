@@ -92,6 +92,9 @@ public static class DocxWriter
         // não faz nada.
         PlainBandWriter.Apply(part, current, model.Page, inventory, touched);
 
+        // Formato e início do número de página, capa distinta e páginas pares.
+        PageNumbering.Apply(part, current, model.Page, touched);
+
         // O texto digitado no cabeçalho e no rodapé, peça por peça. Só as
         // partes que de fato mudaram entram na lista de graváveis: o resto
         // continua saindo do arquivo original, byte a byte.

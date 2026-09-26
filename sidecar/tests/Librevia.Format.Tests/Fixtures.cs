@@ -1459,6 +1459,20 @@ public static class Fixtures
         return paragraph;
     }
 
+    /// <summary>
+    /// Um parágrafo, a seção decorada por quem pede e um `settings.xml` mínimo —
+    /// para conferir que a gravação não o toca quando nada mudou nele.
+    /// </summary>
+    public static byte[] WithSection(Action<SectionProperties> decorate) => Build(
+        (body, part) =>
+        {
+            body.AppendChild(Paragraph("Corpo do documento."));
+            var settings = part.AddNewPart<DocumentSettingsPart>();
+            settings.Settings = new Settings(new DefaultTabStop { Val = 708 });
+            settings.Settings.Save();
+        },
+        (section, _) => decorate(section));
+
     private static byte[] Build(Action<Body, MainDocumentPart> fill) => Build(fill, null);
 
     /// <param name="decorate">

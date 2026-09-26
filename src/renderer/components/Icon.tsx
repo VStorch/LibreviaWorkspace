@@ -33,6 +33,8 @@ export type IconName =
   | 'image'
   | 'link'
   | 'page-break'
+  | 'page-number'
+  | 'page-total'
   | 'search'
   | 'page-setup'
   | 'print-preview'
@@ -89,6 +91,9 @@ const PATHS: Record<IconName, React.ReactNode> = {
     <path d="M10 13a4 4 0 0 0 5.7.3l2.6-2.6a4 4 0 0 0-5.7-5.7l-1.5 1.5M14 11a4 4 0 0 0-5.7-.3l-2.6 2.6a4 4 0 0 0 5.7 5.7l1.5-1.5" />
   ),
   'page-break': <path d="M6 4h12M6 20h12M3 12h4M10 12h4M17 12h4M8 7l4-3 4 3M8 17l4 3 4-3" />,
+  // A folha com o número no pé; e com a barra de fração, o total.
+  'page-number': <path d="M6 3h12v18H6zM11 15.5l1.5-1v4.5" />,
+  'page-total': <path d="M6 3h12v18H6zM9 11l1.2-1v3.5M12.5 17.5l3-5" />,
   search: <path d="M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM16 16l4 4" />,
   'page-setup': <path d="M5 3h9l5 5v13H5zM14 3v5h5M8 13h8M8 17h5" />,
   'print-preview': <path d="M7 9V4h10v5M7 18H5v-6h14v6h-2M8 15h8v6H8z" />,

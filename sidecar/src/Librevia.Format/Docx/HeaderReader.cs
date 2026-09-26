@@ -831,6 +831,29 @@ public static class HeaderReader
 
                     break;
 
+                // O campo simples (`w:fldSimple`) é como o nosso próprio rodapé o
+                // grava, e como o Word grava o campo inserido por "Número da
+                // página". Sem este caso o leitor descia nele e trazia o número
+                // em cache — "1" em todas as folhas.
+                case SimpleField simple:
+                {
+                    var instruction = simple.Instruction?.Value ?? string.Empty;
+                    if (instruction.Contains("NUMPAGES", StringComparison.Ordinal))
+                    {
+                        pieces.Add(new TracedPiece(new PieceDto(PieceDto.KindTotalPages), []));
+                    }
+                    else if (instruction.Contains("PAGE", StringComparison.Ordinal))
+                    {
+                        pieces.Add(new TracedPiece(new PieceDto(PieceDto.KindPageNumber), []));
+                    }
+                    else
+                    {
+                        Collect(element, pieces, field, inventory, fonts);
+                    }
+
+                    break;
+                }
+
                 case FieldCode code:
                     if (code.Text.Contains("NUMPAGES", StringComparison.Ordinal))
                     {

@@ -68,7 +68,34 @@ export interface PageSetup {
    */
   readonly headerDistanceMm: number
   readonly footerDistanceMm: number
+  /**
+   * Numeração de página (`w:pgNumType`): o formato e o número da primeira folha.
+   *
+   * Opcionais, como os interruptores abaixo: o `.sdoc` gravado antes não os
+   * tem, e ausência quer dizer "decimal, a partir de 1" na tela e "não mexa" na
+   * gravação.
+   */
+  readonly pageNumberFormat?: PageNumberFormat | undefined
+  readonly pageNumberStart?: number | null | undefined
+  /**
+   * "Primeira página diferente" (`w:titlePg`) e "Pares e ímpares diferentes"
+   * (`w:evenAndOddHeaders`). Ausentes, valem pelo que as faixas dizem: um
+   * rascunho de antes só trazia a faixa da capa quando o interruptor estava
+   * ligado.
+   */
+  readonly titlePage?: boolean | null | undefined
+  readonly evenAndOddHeaders?: boolean | null | undefined
 }
+
+/** Os formatos de número de página que o painel oferece — os de `w:pgNumType/@w:fmt`. */
+export const PAGE_NUMBER_FORMATS = [
+  'decimal',
+  'lowerRoman',
+  'upperRoman',
+  'lowerLetter',
+  'upperLetter',
+] as const
+export type PageNumberFormat = (typeof PAGE_NUMBER_FORMATS)[number]
 
 /**
  * Nó do ProseMirror em forma serializável.

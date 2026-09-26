@@ -160,6 +160,12 @@ export const pageSetupSchema = z.object({
    */
   headerDistanceMm: z.number().default(12.5),
   footerDistanceMm: z.number().default(12.5),
+  // Numeração de página e os interruptores das faixas (M7). Opcionais pelo
+  // mesmo motivo: ausentes, a gravação não mexe no que o arquivo diz.
+  pageNumberFormat: z.enum(['decimal', 'lowerRoman', 'upperRoman', 'lowerLetter', 'upperLetter']).optional(),
+  pageNumberStart: z.number().int().min(0).max(32767).nullable().optional(),
+  titlePage: z.boolean().nullable().optional(),
+  evenAndOddHeaders: z.boolean().nullable().optional(),
 })
 
 /**

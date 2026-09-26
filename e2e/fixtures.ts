@@ -277,6 +277,50 @@ export async function docxWithHeaderGrid(): Promise<Buffer> {
 }
 
 /**
+ * Duas folhas com rodapé "Página {PAGE}" e `w:pgNumType` em romano a partir de 3.
+ *
+ * O rodapé tem texto próprio ("Página ") onde inserir campo, e o campo é um
+ * `w:fldSimple` — como o Word grava o "Número da página" inserido pela faixa.
+ */
+export async function docxWithPageNumbering(): Promise<Buffer> {
+  const footer = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:ftr xmlns:w="${W}"><w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:t xml:space="preserve">Página </w:t></w:r><w:fldSimple w:instr=" PAGE "><w:r><w:t>1</w:t></w:r></w:fldSimple></w:p></w:ftr>`
+
+  const rels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+<Relationship Id="rId5" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer" Target="footer1.xml"/>
+</Relationships>`
+
+  const R = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships'
+  const corpo =
+    paragraph('Primeira folha.') +
+    '<w:p><w:r><w:br w:type="page"/></w:r></w:p>' +
+    paragraph('Segunda folha.') +
+    `<w:sectPr><w:footerReference xmlns:r="${R}" w:type="default" r:id="rId5"/>` +
+    `<w:pgSz w:w="11906" w:h="16838"/>` +
+    `<w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440" w:header="708" w:footer="708"/>` +
+    `<w:pgNumType w:fmt="lowerRoman" w:start="3"/>` +
+    `</w:sectPr>`
+
+  return zip([
+    [
+      '[Content_Types].xml',
+      CONTENT_TYPES.replace(
+        '<Override PartName="/word/document.xml"',
+        '<Override PartName="/word/footer1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"/><Override PartName="/word/document.xml"',
+      ).replace(/<Override PartName="\/word\/comments[^>]+>/, ''),
+    ],
+    ['_rels/.rels', ROOT_RELS],
+    ['word/_rels/document.xml.rels', rels],
+    ['word/footer1.xml', footer],
+    [
+      'word/document.xml',
+      documentXml('').replace('<w:sectPr/>', '').replace('</w:body>', `${corpo}</w:body>`),
+    ],
+  ])
+}
+
+/**
  * Documento com uma imagem **ancorada** no lugar do próprio parágrafo.
  *
  * É como o LibreOffice grava captura de tela: `wp:anchor` sem deslocamento

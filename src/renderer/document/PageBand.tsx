@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { linesOf, type Band, type BandCell, type BandPiece } from '@services/document/band.js'
+import { linesOf, pieceText, type Band, type BandCell, type BandPiece } from '@services/document/band.js'
 import { usePreferences } from '../state/preferences.js'
 import { useT } from '../i18n.js'
 
@@ -21,7 +21,7 @@ import { useT } from '../i18n.js'
 export function PageBand({
   band,
   kind,
-  pageNumber,
+  pageLabel,
   totalPages,
   insetPx,
   offsetPx,
@@ -29,8 +29,8 @@ export function PageBand({
 }: {
   band: Band
   kind: 'header' | 'footer'
-  /** Em qual folha esta faixa está sendo desenhada. */
-  pageNumber: number
+  /** O número impresso nesta folha, já no formato de `w:pgNumType`. */
+  pageLabel: string
   /** Quantas folhas o documento tem agora. */
   totalPages: number
   /**
@@ -59,7 +59,7 @@ export function PageBand({
   onEdit?: ((pid: string, text: string) => void) | undefined
 }): React.JSX.Element {
   const t = useT()
-  const parts = { pageNumber, totalPages, onEdit }
+  const parts = { pageLabel, totalPages, onEdit }
 
   return (
     <div
@@ -85,7 +85,7 @@ export function PageBand({
 
 /** O que cada desenhista de peça precisa saber, junto. */
 interface BandParts {
-  pageNumber: number
+  pageLabel: string
   totalPages: number
   onEdit?: ((pid: string, text: string) => void) | undefined
 }
@@ -142,7 +142,7 @@ function cellStyle(cell: BandCell): React.CSSProperties {
 }
 
 const renderPiece =
-  ({ pageNumber, totalPages, onEdit }: BandParts) =>
+  ({ pageLabel, totalPages, onEdit }: BandParts) =>
   (piece: BandPiece, index: number): React.JSX.Element => {
     if (piece.kind === 'image') {
       return (
@@ -160,12 +160,7 @@ const renderPiece =
     // O total existia só depois de exportar, e a faixa mostrava um marcador no
     // lugar dele. Agora a tela pagina, então o número é o de verdade — e é ele
     // que a pessoa confere antes de imprimir.
-    const text =
-      piece.kind === 'pageNumber'
-        ? String(pageNumber)
-        : piece.kind === 'totalPages'
-          ? String(totalPages)
-          : (piece.text ?? '')
+    const text = pieceText(piece, pageLabel, totalPages)
 
     const style: React.CSSProperties = {
       fontWeight: piece.bold ? 700 : undefined,
@@ -185,7 +180,16 @@ const renderPiece =
       )
     }
 
-    return <BandText key={index} pid={piece.pid} text={text} style={style} onEdit={onEdit} />
+    return (
+      <BandText
+        key={index}
+        pid={piece.pid}
+        text={text}
+        raw={piece.text ?? ''}
+        style={style}
+        onEdit={onEdit}
+      />
+    )
   }
 
 /**
@@ -205,11 +209,15 @@ const renderPiece =
 function BandText({
   pid,
   text,
+  raw,
   style,
   onEdit,
 }: {
   pid: string
+  /** O que se vê: com o número desta folha no lugar de `{n}`. */
   text: string
+  /** O que se edita: com `{n}` e `{total}`, que é o que volta ao arquivo como campo. */
+  raw: string
   style: React.CSSProperties
   onEdit: (pid: string, text: string) => void
 }): React.JSX.Element {
@@ -234,8 +242,16 @@ function BandText({
       suppressContentEditableWarning
       role="textbox"
       spellCheck={spellcheck}
+      // Com o cursor dentro, a peça mostra os campos como `{n}` e `{total}`: o
+      // número desta folha, editado e devolvido, viraria texto fixo — o rodapé
+      // diria "3" em todas as folhas.
+      onFocus={() => {
+        if (host.current !== null && host.current.textContent !== raw) host.current.textContent = raw
+      }}
       onBlur={() => {
-        onEdit(pid, host.current?.textContent ?? '')
+        const edited = host.current?.textContent ?? ''
+        if (host.current !== null) host.current.textContent = text
+        onEdit(pid, edited)
       }}
       // Enter abriria parágrafo dentro da peça, e a faixa não tem onde guardar
       // um: um `w:t` é uma linha só. A tecla passa a fechar a edição.
