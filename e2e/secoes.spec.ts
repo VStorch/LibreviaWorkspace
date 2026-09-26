@@ -279,6 +279,31 @@ test.describe('seções', () => {
     await expect(session.window.locator('.paper')).toHaveCount(1)
     await expect(session.window.locator('.ProseMirror p')).toHaveCount(1)
   })
+
+  test('a quebra de seção num item de lista fica no item, e a lista continua na folha seguinte', async () => {
+    await menu(session, 'new-document')
+    await session.window.locator('.ProseMirror').click()
+    await session.window.keyboard.type('- Primeiro item.')
+    await session.window.keyboard.press('Enter')
+    await session.window.keyboard.type('Segundo item.')
+    await session.window.keyboard.press('Enter')
+    await session.window.keyboard.type('Terceiro item.')
+    await session.window.locator('.ProseMirror li', { hasText: 'Segundo item.' }).click()
+    await menu(session, 'insert-section-next-page')
+    await expect(session.window.locator('.paper')).toHaveCount(2)
+
+    const folhas = await session.window
+      .locator('.paper')
+      .evaluateAll((papeis) => papeis.map((papel) => papel.getBoundingClientRect().top))
+    const segundo = await session.window
+      .locator('.ProseMirror li', { hasText: 'Segundo item.' })
+      .boundingBox()
+    const terceiro = await session.window
+      .locator('.ProseMirror li', { hasText: 'Terceiro item.' })
+      .boundingBox()
+    expect(segundo!.y).toBeLessThan(folhas[1]!)
+    expect(terceiro!.y).toBeGreaterThan(folhas[1]!)
+  })
 })
 
 async function temPoppler(): Promise<boolean> {

@@ -97,6 +97,11 @@ public sealed class Node
                 if (o["attrs"] is JsonObject attrs)
                 {
                     attrs.Remove("oid");
+                    // A marca de seção também é identidade, e não conteúdo: o id
+                    // muda quando uma quebra nova parte a seção (ver
+                    // `planSectionBreak`), e o parágrafo que a fecha continua o
+                    // mesmo. Quem cuida do `w:sectPr` dele é SectionWriter.
+                    attrs.Remove("sectionBreak");
                     foreach (var entry in attrs.ToList())
                     {
                         if (entry.Value is null) attrs.Remove(entry.Key);

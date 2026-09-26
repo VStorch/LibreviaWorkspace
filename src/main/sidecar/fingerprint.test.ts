@@ -156,7 +156,7 @@ function asFingerprinted(value: unknown): unknown {
   for (const [key, entry] of Object.entries(value as Record<string, unknown>)) {
     if (key === 'attrs') {
       const attrs = Object.entries((entry ?? {}) as Record<string, unknown>).filter(
-        ([name, item]) => name !== 'oid' && item !== null && item !== undefined,
+        ([name, item]) => name !== 'oid' && name !== 'sectionBreak' && item !== null && item !== undefined,
       )
       if (attrs.length > 0) node['attrs'] = Object.fromEntries(attrs.map(([name, item]) => [name, item]))
       continue

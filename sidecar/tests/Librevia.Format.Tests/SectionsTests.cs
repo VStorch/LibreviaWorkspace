@@ -148,7 +148,8 @@ public class SectionsTests
         var (saved, result) = Roundtrip.Save(original, model);
         var after = SectionXmlOf(saved);
 
-        Assert.Equal(1, result.RewrittenBlocks);
+        // A marca não é conteúdo: o parágrafo volta preservado, só sem o `w:sectPr`.
+        Assert.Equal(0, result.RewrittenBlocks);
         Assert.Equal(2, after.Count);
         Assert.Equal(SectionXmlOf(original)[0], after[0]);
         Assert.Contains("Segunda seção", Roundtrip.XmlOf(saved), StringComparison.Ordinal);
@@ -372,5 +373,26 @@ public class SectionsTests
         var reread = Roundtrip.Open(saved);
 
         Assert.Equal("Cabeçalho da primeira", TextOf(reread.Sections![1].Header));
+    }
+
+    [Fact]
+    public void RenomearAMarcaDaSecaoPartidaNaoReescreveOParagrafo()
+    {
+        // Inserir uma quebra renomeia a marca da seção partida (ver
+        // `planSectionBreak`): o parágrafo que a fecha não foi tocado, e tem de
+        // voltar preservado — com formas e caixas que o escritor não refaria —,
+        // recebendo só a configuração da entrada nova.
+        var original = Fixtures.WithThreeSections();
+        var model = Roundtrip.Clone(Roundtrip.Open(original));
+        Holder(model, "s2").With("sectionBreak", "n5");
+        model.Sections![1] = model.Sections[1] with { Id = "n5", Start = "evenPage" };
+
+        var (saved, result) = Roundtrip.Save(original, model);
+        var reread = Roundtrip.Open(saved);
+
+        Assert.Equal(0, result.RewrittenBlocks);
+        Assert.Empty(result.Inventory.Lost);
+        Assert.Equal("evenPage", reread.Sections![1].Start);
+        Assert.Equal(3, SectionXmlOf(saved).Count);
     }
 }

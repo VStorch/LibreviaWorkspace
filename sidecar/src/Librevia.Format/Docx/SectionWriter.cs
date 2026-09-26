@@ -69,12 +69,18 @@ internal static class SectionWriter
 
         if (kept)
         {
-            // O preservado com marca volta com o `w:sectPr` dele; sem marca, a
-            // leitura de referência também não a deu, e ele não tem `w:sectPr`.
+            // O preservado volta com o `w:sectPr` dele — a marca não entra na
+            // impressão digital, e o parágrafo cuja seção foi renomeada ou cuja
+            // quebra foi excluída continua preservado. Sem marca, a quebra saiu:
+            // o `w:sectPr` sai também, e o trecho passa à seção de baixo.
             var holder = paragraphs.FirstOrDefault(p => p.ParagraphProperties?.SectionProperties is not null);
-            return id is null
-                ? null
-                : new Break(holder ?? paragraphs[^1], holder?.ParagraphProperties?.SectionProperties, id);
+            if (id is null)
+            {
+                holder?.ParagraphProperties?.SectionProperties?.Remove();
+                return null;
+            }
+
+            return new Break(holder ?? paragraphs[^1], holder?.ParagraphProperties?.SectionProperties, id);
         }
 
         // O reescrito traz o `w:sectPr` do original pela cópia do `w:pPr`: sai

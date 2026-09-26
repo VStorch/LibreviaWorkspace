@@ -101,8 +101,9 @@ function renameMark(tr: Transaction, from: string, to: string): void {
 /**
  * Quebra de seção no cursor, como o Word: o parágrafo se parte, e a metade de
  * cima fecha a seção nova — que é cópia da seção partida. A de baixo continua a
- * seção de antes, começando do jeito pedido. Numa tabela ou numa lista, a
- * quebra vem logo depois dela, num parágrafo próprio.
+ * seção de antes, começando do jeito pedido. Num item de lista, a quebra fica
+ * no item e a lista se parte; numa tabela, ela vem logo depois da tabela, num
+ * parágrafo próprio.
  */
 export function insertSectionBreak(editor: Editor, start: SectionStart): void {
   if (!sectionEditsAllowed()) return
@@ -116,6 +117,32 @@ export function insertSectionBreak(editor: Editor, start: SectionStart): void {
   const structure = (tr: Transaction): void => {
     if (plan.rename !== null) renameMark(tr, plan.rename.from, plan.rename.to)
     if (plan.bodyId !== null) tr.setDocAttribute('bodySection', plan.bodyId)
+  }
+
+  // Num item de lista a quebra fica no item, como no Word e como o leitor a
+  // entrega: o parágrafo do item fecha a seção, e a lista se parte depois do
+  // item de fora que o contém — a segunda parte leva os mesmos atributos (e a
+  // mesma numeração, quando a lista tem uma do arquivo).
+  const $cursor = editor.state.selection.$from
+  if (
+    !insideTable(editor) &&
+    insideList(editor) &&
+    $cursor.parent.isTextblock &&
+    $cursor.parent.attrs['sectionBreak'] === null
+  ) {
+    editor
+      .chain()
+      .focus()
+      .command(({ tr }) => {
+        structure(tr)
+        const $from = tr.selection.$from
+        tr.setNodeAttribute($from.before($from.depth), 'sectionBreak', plan.upperId)
+        const list = $from.node(1)
+        if ($from.index(1) < list.childCount - 1) tr.split($from.after(2), 1)
+        return true
+      })
+      .run()
+    return
   }
 
   if (insideTable(editor) || insideList(editor)) {
