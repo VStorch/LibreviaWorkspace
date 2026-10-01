@@ -6,6 +6,7 @@ import { DOCUMENT } from './document.js'
 import { ERRORS } from './errors.js'
 import { MENU } from './menu.js'
 import { REFERENCES } from './references.js'
+import { REVISIONS } from './revisions.js'
 import { SHELL } from './shell.js'
 import { SPREADSHEET } from './spreadsheet.js'
 import { TABLE } from './table.js'
@@ -35,6 +36,7 @@ export const MESSAGES = {
   ...CHARS,
   ...REFERENCES,
   ...COMMENTS,
+  ...REVISIONS,
 } as const
 
 /**
@@ -59,4 +61,5 @@ export const AREAS: Readonly<Record<string, Readonly<Record<string, Entry>>>> = 
   chars: CHARS,
   references: REFERENCES,
   comments: COMMENTS,
+  revisions: REVISIONS,
 }

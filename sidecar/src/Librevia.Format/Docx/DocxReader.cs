@@ -62,7 +62,18 @@ public sealed record DocumentModelDto(
     // trazem `commentStart`/`commentEnd`. Mesmo motivo de `BeforeReferences`.
     [property: JsonPropertyName("beforeComments")]
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-    bool BeforeComments = false);
+    bool BeforeComments = false,
+    // O `w:trackRevisions` do `settings.xml` (M10). A leitura só o dá quando
+    // ligado; na gravação, ausente é "não mexa" — ver Revisions.ApplyTracking.
+    [property: JsonPropertyName("trackChanges")]
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    bool? TrackChanges = null,
+    // O rascunho é de antes das revisões (formato `.sdoc` < 8): os nós não trazem
+    // `insertion`/`deletion` nem a revisão de bloco. Mesmo motivo de
+    // `BeforeReferences`.
+    [property: JsonPropertyName("beforeRevisions")]
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    bool BeforeRevisions = false);
 
 public sealed record OpenResult(
     [property: JsonPropertyName("model")] DocumentModelDto Model,
@@ -111,7 +122,8 @@ public static class DocxReader
                 StyleReader.Read(part),
                 OutsideBookmarks: OutsideBookmarksOf(part, doc),
                 Sections: sections,
-                Comments: CommentsReader.Read(part)),
+                Comments: CommentsReader.Read(part),
+                TrackChanges: Revisions.TrackingOf(part) ? true : null),
             inventory);
     }
 
@@ -206,11 +218,24 @@ public static class DocxReader
             inventory.NoteInvisible(Inventory.Endnotes);
         }
 
+        // As revisões de texto não entram mais aqui: o editor as mostra (M10).
+        // Sobram as de estrutura, que ele não representa e a gravação de uma
+        // tabela ou seção editada perderia, e as de formatação, que só se perdem
+        // no parágrafo editado — ver DocxWriter.NoteWhatWasInside.
         var document = part.Document;
-        if (document is not null &&
-            (document.Descendants<InsertedRun>().Any() || document.Descendants<DeletedRun>().Any()))
+        if (document is null) return;
+
+        if (document.Descendants().Any(element =>
+                element.LocalName is "cellIns" or "cellDel" or "cellMerge" or "numberingChange"
+                    or "sectPrChange" or "tblPrChange"))
         {
-            inventory.NoteInvisible(Inventory.TrackedChanges);
+            inventory.NoteInvisible(Inventory.StructureRevisions);
+        }
+
+        if (document.Descendants<RunPropertiesChange>().Any() ||
+            document.Descendants<ParagraphPropertiesChange>().Any())
+        {
+            inventory.NoteInvisible(Inventory.FormatRevisions);
         }
     }
 }

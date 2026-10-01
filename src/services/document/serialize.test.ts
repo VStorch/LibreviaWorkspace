@@ -178,6 +178,22 @@ describe('estilos no formato interno', () => {
     expect(legacy.beforeComments).toBe(true)
   })
 
+  it('marca como anterior às revisões o arquivo da versão 7, e leva o interruptor na ida e volta', () => {
+    // O rascunho de antes do controle de alterações não traz as marcas de
+    // revisão, e a gravação em DOCX precisa compará-lo com a leitura daquela época.
+    const v7 = JSON.stringify({ ...JSON.parse(v2(BUILTIN_STYLES)), version: 7 })
+    expect(parseDocument(v7).beforeRevisions).toBe(true)
+    expect(parseDocument(v7).beforeComments).toBeUndefined()
+    expect(parseDocument(serializeDocument(richDocument)).beforeRevisions).toBeUndefined()
+    expect(JSON.parse(serializeDocument(richDocument)).version).toBe(8)
+
+    const tracked = parseDocument(serializeDocument({ ...richDocument, trackChanges: true }))
+    expect(tracked.trackChanges).toBe(true)
+    expect(parseDocument(serializeDocument(richDocument)).trackChanges).toBeUndefined()
+    const legacy = parseDocument(serializeDocument({ ...richDocument, beforeRevisions: true }))
+    expect(legacy.beforeRevisions).toBe(true)
+  })
+
   it('dá os estilos embutidos ao arquivo da versão 2, que não os tinha', () => {
     // Documento antigo tem de abrir **idêntico**: os embutidos são a aparência
     // que o editor já desenhava, medida por medida.

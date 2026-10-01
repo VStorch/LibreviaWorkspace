@@ -66,14 +66,30 @@ public sealed record Block(string Oid, OpenXmlElement Source, Node Extracted)
 /// é a leitura de antes delas — a de referência para um rascunho daquela época
 /// (ver <see cref="DocumentModelDto.BeforeComments"/>).
 /// </param>
+/// <param name="revisions">
+/// Lê as revisões como marcas `insertion`/`deletion` e atributos de bloco (M10).
+/// Desligado, é a leitura de antes delas: o inserido entra como texto comum e o
+/// excluído não entra — a de referência para um rascunho daquela época (ver
+/// <see cref="DocumentModelDto.BeforeRevisions"/>).
+/// </param>
 public sealed class BodyReader(
     MainDocumentPart part,
     Inventory inventory,
     bool flatten = false,
     bool references = true,
     bool sections = true,
-    bool comments = true)
+    bool comments = true,
+    bool revisions = true)
 {
+    /// <summary>
+    /// As marcas de revisão do trecho em leitura: a de cada `w:ins`/`w:del` que o
+    /// envolve, de fora para dentro.
+    /// </summary>
+    private readonly List<Mark> _revision = [];
+
+    /// <summary>O nome da movimentação de cada `w:moveFrom`/`w:moveTo` — ver <see cref="MoveNamesOf"/>.</summary>
+    private Dictionary<OpenXmlElement, string>? _moveNames;
+
     /// <summary>
     /// Os comentários que são resposta a outro: as pontas deles não viram nó.
     /// </summary>
@@ -494,6 +510,13 @@ public sealed class BodyReader(
         if (direct?.SectionProperties is { } marked && _sectionIds.TryGetValue(marked, out var sectionId))
         {
             node.With("sectionBreak", sectionId);
+        }
+
+        // A marca de parágrafo inserida ou excluída (M10): o Enter que a revisão
+        // pôs ou tirou. Aceitar a exclusão junta este parágrafo ao seguinte.
+        if (revisions && Revisions.BlockRevisionOf(direct?.ParagraphMarkRunProperties) is { } markRevision)
+        {
+            node.With("markRevision", markRevision);
         }
 
         node.Content = content.Count == 0 ? null : content;
@@ -1006,14 +1029,21 @@ public sealed class BodyReader(
                     inventory.NoteInvisible(Inventory.Comments);
                     break;
 
+                // A revisão (M10): o trecho de dentro leva a marca dela, e a
+                // gravação o devolve embrulhado. Nas duas ordens em que o link e a
+                // revisão aparecem — a recursão desce em qualquer uma.
+                case InsertedRun or DeletedRun or MoveFromRun or MoveToRun when revisions:
+                    _revision.Add(Revisions.MarkOf(element, MoveNameOf(element)));
+                    nodes.AddRange(ReadInline(element, inherited, hyperlink));
+                    _revision.RemoveAt(_revision.Count - 1);
+                    break;
+
+                // A leitura de antes do M10, para o rascunho daquela época.
                 case InsertedRun inserted:
-                    inventory.NoteInvisible(Inventory.TrackedChanges);
                     nodes.AddRange(ReadInline(inserted, inherited, hyperlink));
                     break;
 
                 case DeletedRun:
-                    // Texto marcado como excluído não deve aparecer na tela.
-                    inventory.NoteInvisible(Inventory.TrackedChanges);
                     break;
 
                 default:
@@ -1039,6 +1069,51 @@ public sealed class BodyReader(
         return id;
     }
 
+    /// <summary>
+    /// O nome da movimentação que abraça o run de `w:moveFrom`/`w:moveTo`: ele mora
+    /// no `w:moveFromRangeStart`/`w:moveToRangeStart`, e não no run.
+    /// </summary>
+    private string? MoveNameOf(OpenXmlElement revision)
+    {
+        if (revision is not (MoveFromRun or MoveToRun)) return null;
+        _moveNames ??= MoveNamesOf(part);
+        return _moveNames.GetValueOrDefault(revision);
+    }
+
+    private static Dictionary<OpenXmlElement, string> MoveNamesOf(MainDocumentPart part)
+    {
+        var names = new Dictionary<OpenXmlElement, string>(ReferenceEqualityComparer.Instance);
+        var open = new List<(string Id, string Name, bool From)>();
+        foreach (var element in part.Document?.Descendants() ?? [])
+        {
+            switch (element)
+            {
+                case MoveFromRangeStart start:
+                    open.Add((start.Id?.Value ?? string.Empty, start.Name?.Value ?? string.Empty, true));
+                    break;
+                case MoveToRangeStart start:
+                    open.Add((start.Id?.Value ?? string.Empty, start.Name?.Value ?? string.Empty, false));
+                    break;
+                case MoveFromRangeEnd end:
+                    open.RemoveAll(range => range.From && range.Id == end.Id?.Value);
+                    break;
+                case MoveToRangeEnd end:
+                    open.RemoveAll(range => !range.From && range.Id == end.Id?.Value);
+                    break;
+                case MoveFromRun or MoveToRun:
+                    var from = element is MoveFromRun;
+                    var range = open.LastOrDefault(candidate => candidate.From == from);
+                    if (range.Name is { Length: > 0 } name) names[element] = name;
+                    break;
+            }
+        }
+
+        return names;
+    }
+
+    /// <summary>As marcas de revisão em volta, para o nó que não é texto (a quebra de linha).</summary>
+    private List<Mark>? RevisionMarks() => _revision.Count == 0 ? null : [.. _revision];
+
     private List<Mark>? MarksOfRun(Run run, RunProperties inherited, string? hyperlink)
     {
         // O herdado vai junto para que o "desligado" direto sobre um estilo que
@@ -1058,6 +1133,8 @@ public sealed class BodyReader(
         {
             (marks ??= []).Add(Mark.Of("charStyle", "styleId", characterStyle));
         }
+
+        if (_revision.Count > 0) (marks ??= []).AddRange(_revision);
 
         return marks;
     }
@@ -1287,7 +1364,17 @@ public sealed class BodyReader(
                         instruction.Append(code.Text);
                         break;
 
+                    // O campo excluído (M10): `w:delInstrText` e `w:delText`.
+                    case DeletedFieldCode code when !separated && revisions:
+                        instruction.Append(code.Text);
+                        break;
+
                     case Text text when separated:
+                        result.Append(text.Text);
+                        formatted ??= run;
+                        break;
+
+                    case DeletedText text when separated && revisions:
                         result.Append(text.Text);
                         formatted ??= run;
                         break;
@@ -1365,6 +1452,16 @@ public sealed class BodyReader(
 
                     break;
 
+                // O texto excluído (M10): `w:delText` dentro de `w:del`.
+                case DeletedText deleted when revisions:
+                    if (deleted.Text.Length > 0)
+                    {
+                        _paragraphHasContent = true;
+                        yield return new Node { Type = "text", Text = deleted.Text, Marks = marks };
+                    }
+
+                    break;
+
                 case TabChar:
                     yield return new Node { Type = "text", Text = "\t", Marks = marks };
                     break;
@@ -1374,11 +1471,21 @@ public sealed class BodyReader(
                     // página (ver ReadParagraph). No rascunho de antes das seções
                     // ela era uma quebra de linha, e a leitura de referência dele
                     // continua assim.
-                    yield return br.Type is not null && br.Type.Value == BreakValues.Page
-                        ? Node.Of("pageBreak")
-                        : br.Type is not null && br.Type.Value == BreakValues.Column && sections
-                            ? Node.Of("columnBreak")
-                            : Node.Of("hardBreak");
+                    if (br.Type is not null && br.Type.Value == BreakValues.Page)
+                    {
+                        yield return Node.Of("pageBreak");
+                    }
+                    else if (br.Type is not null && br.Type.Value == BreakValues.Column && sections)
+                    {
+                        yield return Node.Of("columnBreak");
+                    }
+                    else
+                    {
+                        var hardBreak = Node.Of("hardBreak");
+                        hardBreak.Marks = RevisionMarks();
+                        yield return hardBreak;
+                    }
+
                     break;
 
                 case DocumentFormat.OpenXml.Wordprocessing.Drawing:
@@ -1869,6 +1976,13 @@ public sealed class BodyReader(
 
             var rowNode = Node.Of("tableRow");
             rowNode.Content = cells;
+
+            // A linha inserida ou excluída (M10), do `w:trPr`.
+            if (revisions && Revisions.BlockRevisionOf(row.TableRowProperties) is { } rowRevision)
+            {
+                rowNode.With("rowRevision", rowRevision);
+            }
+
             rows.Add(rowNode);
         }
 

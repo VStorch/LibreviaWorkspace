@@ -218,6 +218,8 @@ export function createFileActions(set: SetWorkspace, get: GetWorkspace, ctx: Wor
         commentsOutside: [],
         commentDraft: null,
         beforeComments: false,
+        trackChanges: undefined,
+        beforeRevisions: false,
         generation: state.generation + 1,
         isDirty: false,
         error: null,

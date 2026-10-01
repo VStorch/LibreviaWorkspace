@@ -44,7 +44,23 @@ public sealed class Inventory
     /// ao arquivo — a do comentário e as das respostas.
     /// </remarks>
     public const string Comments = "comentários";
-    public const string TrackedChanges = "controle de alterações";
+    /// <summary>
+    /// A revisão que o editor não representa: célula inserida, excluída ou
+    /// mesclada, mudança de numeração, de seção ou de tabela.
+    /// </summary>
+    /// <remarks>
+    /// Era "controle de alterações", e travava todo documento revisado. No M10 o
+    /// `w:ins` e o `w:del` de texto viraram marca, a de parágrafo e a de linha
+    /// viraram atributo, e sobrou isto — o que a gravação de uma tabela ou seção
+    /// editada perderia.
+    /// </remarks>
+    public const string StructureRevisions = "revisões de estrutura";
+
+    /// <summary>
+    /// `w:rPrChange` e `w:pPrChange`: a formatação de antes da revisão. Voltam
+    /// byte a byte no parágrafo intocado; no editado, a do trecho se perde.
+    /// </summary>
+    public const string FormatRevisions = "revisões de formatação";
     public const string Footnotes = "notas de rodapé";
     public const string Endnotes = "notas de fim";
     public const string Fields = "campos calculados (como sumário e número de página)";
@@ -75,7 +91,7 @@ public sealed class Inventory
 
     private static readonly HashSet<string> StructuralLabels = new(StringComparer.Ordinal)
     {
-        TrackedChanges, Footnotes, Endnotes, Fields, HeaderFields, ContentControls,
+        StructureRevisions, Footnotes, Endnotes, Fields, HeaderFields, ContentControls,
     };
 
     private readonly SortedSet<string> _invisible = new(StringComparer.Ordinal);
@@ -135,7 +151,7 @@ public sealed class Inventory
         "sectPr" or "tabs" or "spacing" or "ind" or "jc" or "widowControl" => null,
 
         "commentRangeStart" or "commentRangeEnd" or "comentário" => Comments,
-        "ins" or "del" or "controle de alterações" => TrackedChanges,
+        "cellIns" or "cellDel" or "cellMerge" or "revisões de estrutura" => StructureRevisions,
         "footnoteReference" => Footnotes,
         "endnoteReference" => Endnotes,
         "fldChar" or "fldSimple" or "instrText" or "campo calculado" => Fields,

@@ -3,6 +3,7 @@ import { Plugin, PluginKey, TextSelection, type Transaction } from '@tiptap/pm/s
 import { Decoration, DecorationSet } from '@tiptap/pm/view'
 import type { Node as ProseMirrorNode } from '@tiptap/pm/model'
 import { findOccurrences, stepIndex } from '@services/document/search.js'
+import { textWithoutDeletions } from './track-changes.js'
 
 /**
  * Localizar e substituir.
@@ -64,7 +65,10 @@ function collectMatches(doc: ProseMirrorNode, term: string, caseSensitive: boole
 
     // O separador de um caractere para nós folha mantém o comprimento do texto
     // alinhado com as posições do documento.
-    const text = node.textBetween(0, node.content.size, undefined, ' ')
+    //
+    // O texto excluído por uma revisão (M10) não é achado: vira um caractere que
+    // nunca casa, do mesmo comprimento — ver `textWithoutDeletions`.
+    const text = textWithoutDeletions(node, undefined, ' ', '\u0000')
 
     for (const occurrence of findOccurrences(text, term, caseSensitive)) {
       matches.push({ from: pos + 1 + occurrence.start, to: pos + 1 + occurrence.end })

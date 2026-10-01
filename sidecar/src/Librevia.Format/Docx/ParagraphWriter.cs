@@ -60,15 +60,16 @@ public sealed class ParagraphWriter
         int usableWidthPx = ImageWriter.DefaultWidthPx,
         HeadingStyles? headings = null,
         bool flatten = false,
-        bool references = true)
+        bool references = true,
+        bool revisions = true)
     {
         _part = part;
         _references = references;
         _inventory = inventory;
         _styles = new StyleResolver(part);
-        _format = new ParagraphFormat(inventory, headings ?? new HeadingStyles(part, null), _styles, flatten);
+        _format = new ParagraphFormat(inventory, headings ?? new HeadingStyles(part, null), _styles, flatten, revisions);
         var usable = usableWidthPx > 0 ? usableWidthPx : ImageWriter.DefaultWidthPx;
-        _tables = new TableWriter(inventory, (node, original) => Write(node, null, original), usable);
+        _tables = new TableWriter(inventory, (node, original) => Write(node, null, original), usable, revisions);
         _images = new ImageWriter(part, inventory, usable);
         _usableTwips = usable * 15;
     }
@@ -334,10 +335,16 @@ public sealed class ParagraphWriter
         var images = ImageWriter.FlowingImagesOf(original);
         foreach (var child in node.Content ?? [])
         {
-            foreach (var element in WriteInline(child, images)) paragraph.AppendChild(element);
+            // A revisão do trecho (M10) embrulha o que ele escreveu — ver Revisions.Wrap.
+            var written = WriteInline(child, images);
+            foreach (var element in Revisions.HasRevision(child) ? Revisions.Wrap([.. written], child.Marks) : written)
+            {
+                paragraph.AppendChild(element);
+            }
         }
 
         MergeAnchorLinks(paragraph);
+        Revisions.MergeNeighbours(paragraph);
 
         // A quebra volta para onde estava: no fim do parágrafo, dentro de um
         // `w:r`. O leitor a transformou em propriedade do bloco para não pôr um
@@ -571,6 +578,11 @@ public sealed class ParagraphWriter
 
                 case "textStyle":
                     ApplyTextStyle(properties, mark);
+                    break;
+
+                // A revisão não é formatação: ela embrulha o run — ver WriteParagraph.
+                case Revisions.Insertion:
+                case Revisions.Deletion:
                     break;
 
                 default:

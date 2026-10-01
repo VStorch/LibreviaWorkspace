@@ -174,6 +174,13 @@ internal static class BandWriter
                 inventory.NoteLoss("marcador numa caixa de cabeçalho que você editou");
             }
 
+            // Nem revisão: a faixa não as leva como marca (M10).
+            if (box.Descendants<InsertedRun>().Any() || box.Descendants<DeletedRun>().Any() ||
+                box.Descendants<MoveFromRun>().Any() || box.Descendants<MoveToRun>().Any())
+            {
+                inventory.NoteLoss("revisões numa caixa de cabeçalho que você editou");
+            }
+
             box.RemoveAllChildren();
             foreach (var block in content)
             {

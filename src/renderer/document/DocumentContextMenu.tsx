@@ -33,6 +33,7 @@ export function DocumentContextMenu({
   onClose,
   onPasteWithoutFormat,
   onNewComment,
+  onRevision,
 }: {
   readonly target: ContextMenuTarget
   /** Se o cursor está numa tabela — só então as ações dela aparecem. */
@@ -45,6 +46,8 @@ export function DocumentContextMenu({
   readonly onPasteWithoutFormat: () => void
   /** Comentário na seleção, ou no cursor — ver `insertComment`. */
   readonly onNewComment: () => void
+  /** Aceitar ou rejeitar a alteração no cursor — `null` fora de alteração. */
+  readonly onRevision: ((accept: boolean) => void) | null
 }): React.JSX.Element {
   const showError = useWorkspace((state) => state.showError)
   const readOnly = useWorkspace((state) => state.readOnly)
@@ -148,6 +151,29 @@ export function DocumentContextMenu({
       >
         {t('comments.new')}
       </ContextMenuItem>
+
+      {/* Sobre uma alteração, aceitar e rejeitar — como o Word oferece. */}
+      {onRevision !== null && !readOnly && (
+        <>
+          <ContextMenuSeparator />
+          <ContextMenuItem
+            onClick={() => {
+              onClose()
+              onRevision(true)
+            }}
+          >
+            {t('revisions.accept')}
+          </ContextMenuItem>
+          <ContextMenuItem
+            onClick={() => {
+              onClose()
+              onRevision(false)
+            }}
+          >
+            {t('revisions.reject')}
+          </ContextMenuItem>
+        </>
+      )}
 
       {/* A numeração vem logo depois da área de transferência, como no Word; e
           reiniciar ou continuar só faz sentido em lista numerada. */}

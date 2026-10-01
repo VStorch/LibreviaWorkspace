@@ -92,6 +92,10 @@ export interface WorkspaceState {
   commentDraft: string | null
   /** O rascunho é de antes dos comentários — ver `DocumentModel.beforeComments`. */
   beforeComments: boolean
+  /** O `w:trackRevisions` do arquivo — ver `DocumentModel.trackChanges`. */
+  trackChanges: boolean | undefined
+  /** O rascunho é de antes das revisões — ver `DocumentModel.beforeRevisions`. */
+  beforeRevisions: boolean
   /**
    * A planilha aberta, quando o que está em edição é uma planilha.
    *

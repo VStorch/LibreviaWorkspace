@@ -716,27 +716,29 @@ public class DocxRoundTripTests
     }
 
     [Fact]
-    public void ReportsTrackedChangesAsInvisible()
+    public void TrackedChangesNoLongerLockOrWarn()
     {
+        // M10: a revisão de texto virou marca do editor — nem invisível, nem trava.
         var result = DocxReader.Read(Fixtures.WithTrackedChanges());
 
-        Assert.Contains("controle de alterações", result.Inventory.Invisible);
+        Assert.Empty(result.Inventory.Invisible);
+        Assert.Empty(result.Inventory.Structural);
         Assert.Empty(result.Inventory.Lost);
     }
 
     [Fact]
-    public void ControleDeAlteracoesEEstruturalEComentarioNao()
+    public void RevisaoDeEstruturaEEstruturalEComentarioNao()
     {
         // É esta lista que decide se o documento abre em somente leitura. Ela é
         // subconjunto da invisibilidade: o recurso continua no arquivo, e só
         // some se o usuário editar justamente o bloco que o ancora.
-        // O comentário saiu dela no M10: editar o parágrafo que o ancora não o
-        // perde mais.
+        // O comentário saiu dela no M10, e a revisão de texto também; ficou a de
+        // estrutura (célula inserida, excluída ou mesclada).
         var comentado = DocxReader.Read(Fixtures.WithComment()).Inventory;
-        var revisado = DocxReader.Read(Fixtures.WithTrackedChanges()).Inventory;
+        var revisado = DocxReader.Read(Fixtures.WithInsertedCell()).Inventory;
 
         Assert.DoesNotContain(Inventory.Comments, comentado.Structural);
-        Assert.Contains(Inventory.TrackedChanges, revisado.Structural);
+        Assert.Contains(Inventory.StructureRevisions, revisado.Structural);
         // Subconjunto, não lista paralela: tudo que é estrutural também é
         // invisível, senão o aviso de tela deixaria de mencioná-lo.
         Assert.All(revisado.Structural, item => Assert.Contains(item, revisado.Invisible));

@@ -36,6 +36,8 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
     commentsOutside: [],
     commentDraft: null,
     beforeComments: false,
+    trackChanges: undefined,
+    beforeRevisions: false,
     workbook: null,
     generation: 0,
     isDirty: false,

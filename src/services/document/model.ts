@@ -217,6 +217,17 @@ export interface DocumentModel {
    * trazem a âncora. Mesmo motivo de `flattened`.
    */
   readonly beforeComments?: boolean
+  /**
+   * O documento grava controlando alterações — o `w:trackRevisions` do arquivo
+   * (M10). Ausente é "não mexa": o arquivo fica como está.
+   */
+  readonly trackChanges?: boolean
+  /**
+   * O rascunho é de antes das **revisões** (formato `.sdoc` < 8): os nós não
+   * trazem as marcas `insertion`/`deletion` nem a revisão de bloco. Mesmo motivo
+   * de `flattened`.
+   */
+  readonly beforeRevisions?: boolean
 }
 
 /** Um comentário, como `word/comments.xml` e `word/commentsExtended.xml` o descrevem. */

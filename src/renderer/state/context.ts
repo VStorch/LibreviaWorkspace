@@ -105,6 +105,8 @@ export function createWorkspaceContext(set: SetWorkspace, get: GetWorkspace): Wo
       ...(state.outsideBookmarks.length > 0 ? { outsideBookmarks: state.outsideBookmarks } : {}),
       ...(comments.length > 0 ? { comments } : {}),
       ...(state.beforeComments ? { beforeComments: true } : {}),
+      ...(state.trackChanges === undefined ? {} : { trackChanges: state.trackChanges }),
+      ...(state.beforeRevisions ? { beforeRevisions: true } : {}),
     }
   }
 
@@ -161,6 +163,8 @@ export function createWorkspaceContext(set: SetWorkspace, get: GetWorkspace): Wo
       commentsOutside: commentsOutsideOf(model.doc, model.comments ?? []),
       commentDraft: null,
       beforeComments: model.beforeComments === true,
+      trackChanges: model.trackChanges,
+      beforeRevisions: model.beforeRevisions === true,
       generation: state.generation + 1,
       isDirty: false,
       error: null,

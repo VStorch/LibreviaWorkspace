@@ -1055,6 +1055,68 @@ button {
   background: var(--comment-hit-active);
 }
 
+/* ---------- controle de alterações (M10) ---------- */
+
+/*
+ * Inserido sublinhado, excluído riscado, numa cor por autor — como o Word mostra
+ * "Todas as marcações". As seis cores se repetem a partir do sétimo autor.
+ */
+.revision-author-0 {
+  --revision: #1f5fa9;
+}
+.revision-author-1 {
+  --revision: #b3261e;
+}
+.revision-author-2 {
+  --revision: #1a7a4c;
+}
+.revision-author-3 {
+  --revision: #8a4baf;
+}
+.revision-author-4 {
+  --revision: #b26a00;
+}
+.revision-author-5 {
+  --revision: #00796b;
+}
+
+.ProseMirror ins.revision {
+  color: var(--revision);
+  text-decoration: underline;
+  text-decoration-color: var(--revision);
+}
+
+.ProseMirror del.revision {
+  color: var(--revision);
+  text-decoration: line-through;
+  text-decoration-color: var(--revision);
+}
+
+/* O Enter inserido ou excluído: um ¶ na cor do autor, sem mexer na altura da linha. */
+.ProseMirror [data-revision]::after {
+  content: '¶';
+  color: var(--revision);
+  line-height: 0;
+}
+
+.ProseMirror [data-revision='del']::after {
+  text-decoration: line-through;
+}
+
+/* A linha inserida ou excluída: a barra na margem, como a do Word. */
+.ProseMirror tr[data-revision] {
+  box-shadow: inset 3px 0 0 var(--revision);
+}
+
+.ProseMirror tr[data-revision]::after {
+  content: none;
+}
+
+.ProseMirror tr[data-revision='del'] td,
+.ProseMirror tr[data-revision='del'] th {
+  text-decoration: line-through;
+}
+
 /*
  * A coluna dos cartões, à direita das folhas e dentro da pilha: o zoom a escala
  * junto, e a altura de cada cartão é a do trecho que ele comenta.

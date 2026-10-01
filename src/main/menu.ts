@@ -419,6 +419,20 @@ async function buildTemplate(): Promise<MenuItemConstructorOptions[]> {
         },
       ],
     },
+    {
+      // O controle de alterações (M10): aceitar, rejeitar e andar entre elas.
+      label: t('menu.review'),
+      submenu: [
+        { label: t('revisions.accept'), click: () => dispatch(MenuCommand.AcceptChange) },
+        { label: t('revisions.reject'), click: () => dispatch(MenuCommand.RejectChange) },
+        { type: 'separator' },
+        { label: t('revisions.acceptAll'), click: () => dispatch(MenuCommand.AcceptAllChanges) },
+        { label: t('revisions.rejectAll'), click: () => dispatch(MenuCommand.RejectAllChanges) },
+        { type: 'separator' },
+        { label: t('revisions.next'), click: () => dispatch(MenuCommand.NextChange) },
+        { label: t('revisions.previous'), click: () => dispatch(MenuCommand.PreviousChange) },
+      ],
+    },
     { label: t('menu.view'), submenu: viewSubmenu },
     {
       label: t('menu.tools'),

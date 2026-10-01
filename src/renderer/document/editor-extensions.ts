@@ -14,7 +14,6 @@ import TextAlign from '@tiptap/extension-text-align'
 import { TableKit } from '@tiptap/extension-table'
 import Superscript from '@tiptap/extension-superscript'
 import Subscript from '@tiptap/extension-subscript'
-import { CharacterCount } from '@tiptap/extensions'
 import {
   BackgroundColor,
   Color,
@@ -29,6 +28,7 @@ import { BlockIdentity } from './extensions/block-identity.js'
 import { BookmarkEnd, BookmarkStart, Bookmarks } from './extensions/bookmark.js'
 import { CommentEnd, CommentStart, Comments } from './extensions/comment.js'
 import { ZeroWidthAnchors } from './extensions/zero-width.js'
+import { CountWithoutDeletions, TrackChanges } from './extensions/track-changes.js'
 import { Field } from './extensions/field.js'
 import { TableOfContents } from './extensions/table-of-contents.js'
 import { Indent } from './extensions/indent.js'
@@ -141,8 +141,9 @@ export function buildEditorExtensions(
     // O arrasto da divisória dividido pelo zoom da folha.
     ZoomedColumnResize,
 
-    // Alimenta a contagem exibida na barra de status.
-    CharacterCount,
+    // Alimenta a contagem exibida na barra de status — sem o texto excluído por
+    // uma revisão, como no Word. Ver track-changes.ts.
+    CountWithoutDeletions,
 
     // O somente leitura vale para comando, e não só para o teclado.
     ReadOnlyGuard,
@@ -205,6 +206,9 @@ export function buildEditorExtensions(
     CommentStart,
     CommentEnd,
     Comments.configure({ isKnown: options.isKnownComment }),
+    // Controle de alterações (M10): as marcas de inserção e exclusão e a
+    // revisão da marca de parágrafo e da linha. Ver track-changes.ts.
+    ...TrackChanges,
     // O cursor, a seleção e o Backspace em volta das pontas sem largura de
     // marcadores e comentários. Ver zero-width.ts.
     ZeroWidthAnchors,

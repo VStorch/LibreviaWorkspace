@@ -94,17 +94,30 @@ export async function docxWithComment(options: { leadingTable?: boolean } = {}):
 }
 
 /**
- * Documento com uma inserção do controle de alterações no segundo parágrafo.
- *
- * É o que trava a edição desde que o comentário deixou de travar (M10): editar o
- * parágrafo da revisão a perde. Com `leadingTable`, a mesma tabela de abertura
+ * Documento com um pouco de cada revisão que o editor lê (M10): inserção e
+ * exclusão no segundo parágrafo, a marca de parágrafo inserida, um trecho movido
+ * e uma linha de tabela excluída. Com `leadingTable`, a mesma tabela de abertura
  * de `docxWithComment`.
  */
 export async function docxWithTrackedChange(options: { leadingTable?: boolean } = {}): Promise<Buffer> {
   const table = options.leadingTable === true ? LEADING_TABLE : ''
+  const date = 'w:date="2026-01-01T00:00:00Z"'
   const tracked =
     `<w:p><w:r><w:t xml:space="preserve">Segundo parágrafo, </w:t></w:r>` +
-    `<w:ins w:id="1" w:author="Revisor" w:date="2026-01-01T00:00:00Z"><w:r><w:t>com uma inserção revisada.</w:t></w:r></w:ins></w:p>`
+    `<w:ins w:id="1" w:author="Revisor" ${date}><w:r><w:t>com uma inserção revisada.</w:t></w:r></w:ins>` +
+    `<w:del w:id="2" w:author="Revisora" ${date}><w:r><w:delText xml:space="preserve"> Trecho excluído.</w:delText></w:r></w:del></w:p>` +
+    `<w:p><w:pPr><w:rPr><w:ins w:id="3" w:author="Revisor" ${date}/></w:rPr></w:pPr>` +
+    `<w:r><w:t>Parágrafo partido</w:t></w:r></w:p>` +
+    `<w:p><w:moveFromRangeStart w:id="4" w:author="Revisor" ${date} w:name="move1"/>` +
+    `<w:moveFrom w:id="5" w:author="Revisor" ${date}><w:r><w:t>Frase movida.</w:t></w:r></w:moveFrom>` +
+    `<w:moveFromRangeEnd w:id="4"/></w:p>` +
+    `<w:p><w:r><w:t xml:space="preserve">Destino: </w:t></w:r>` +
+    `<w:moveToRangeStart w:id="6" w:author="Revisor" ${date} w:name="move1"/>` +
+    `<w:moveTo w:id="7" w:author="Revisor" ${date}><w:r><w:t>Frase movida.</w:t></w:r></w:moveTo>` +
+    `<w:moveToRangeEnd w:id="6"/></w:p>` +
+    `<w:tbl><w:tblPr><w:tblW w:w="9000" w:type="dxa"/></w:tblPr><w:tblGrid><w:gridCol w:w="9000"/></w:tblGrid>` +
+    `<w:tr><w:trPr><w:del w:id="8" w:author="Revisora" ${date}/></w:trPr><w:tc>${paragraph('Linha excluída')}</w:tc></w:tr>` +
+    `<w:tr><w:tc>${paragraph('Linha que fica')}</w:tc></w:tr></w:tbl>`
 
   return zip([
     ['[Content_Types].xml', CONTENT_TYPES.replace(/<Override PartName="\/word\/comments[^>]+>/, '')],
@@ -113,6 +126,49 @@ export async function docxWithTrackedChange(options: { leadingTable?: boolean } 
       'word/document.xml',
       documentXml(table + paragraph('Ata da reunião de terça.') + tracked + paragraph('Fim.')),
     ],
+  ])
+}
+
+/**
+ * Documento com uma nota de rodapé no segundo parágrafo.
+ *
+ * É o que trava a edição desde que o controle de alterações deixou de travar
+ * (M10): editar o parágrafo da referência a perde. Com `leadingTable`, a mesma
+ * tabela de abertura de `docxWithComment`.
+ */
+export async function docxWithFootnote(options: { leadingTable?: boolean } = {}): Promise<Buffer> {
+  const table = options.leadingTable === true ? LEADING_TABLE : ''
+  const noted =
+    `<w:p><w:r><w:t xml:space="preserve">Segundo parágrafo, com uma nota.</w:t></w:r>` +
+    `<w:r><w:rPr><w:vertAlign w:val="superscript"/></w:rPr><w:footnoteReference w:id="1"/></w:r></w:p>`
+  const footnotes =
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<w:footnotes xmlns:w="${W}">` +
+    `<w:footnote w:type="separator" w:id="-1"><w:p><w:r><w:separator/></w:r></w:p></w:footnote>` +
+    `<w:footnote w:type="continuationSeparator" w:id="0"><w:p><w:r><w:continuationSeparator/></w:r></w:p></w:footnote>` +
+    `<w:footnote w:id="1"><w:p><w:r><w:footnoteRef/></w:r><w:r><w:t xml:space="preserve"> Fonte: ata anterior.</w:t></w:r></w:p></w:footnote>` +
+    `</w:footnotes>`
+
+  return zip([
+    [
+      '[Content_Types].xml',
+      CONTENT_TYPES.replace(
+        /<Override PartName="\/word\/comments[^>]+>/,
+        '<Override PartName="/word/footnotes.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footnotes+xml"/>',
+      ),
+    ],
+    ['_rels/.rels', ROOT_RELS],
+    [
+      'word/_rels/document.xml.rels',
+      DOCUMENT_RELS.replace(
+        'relationships/comments" Target="comments.xml"',
+        'relationships/footnotes" Target="footnotes.xml"',
+      ),
+    ],
+    [
+      'word/document.xml',
+      documentXml(table + paragraph('Ata da reunião de terça.') + noted + paragraph('Fim.')),
+    ],
+    ['word/footnotes.xml', footnotes],
   ])
 }
 

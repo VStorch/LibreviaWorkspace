@@ -16,6 +16,7 @@ export const MENU = {
   'menu.table': { pt: 'Tabela', en: 'Table' },
   'menu.insert': { pt: 'Inserir', en: 'Insert' },
   'menu.references': { pt: 'Referências', en: 'References' },
+  'menu.review': { pt: 'Revisão', en: 'Review' },
   'menu.view': { pt: 'Exibir', en: 'View' },
   'menu.tools': { pt: 'Ferramentas', en: 'Tools' },
   'menu.help': { pt: 'Ajuda', en: 'Help' },

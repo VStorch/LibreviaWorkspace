@@ -122,6 +122,14 @@ export const MenuCommand = {
   /** Vai à próxima conversa (ou à anterior), pela ordem do texto, e a escolhe no painel. */
   NextComment: 'next-comment',
   PreviousComment: 'previous-comment',
+  /** Revisão (M10): aceitar ou rejeitar a alteração no cursor, ou todas. */
+  AcceptChange: 'accept-change',
+  RejectChange: 'reject-change',
+  AcceptAllChanges: 'accept-all-changes',
+  RejectAllChanges: 'reject-all-changes',
+  /** Vai à próxima alteração (ou à anterior), pela ordem do texto, e a seleciona. */
+  NextChange: 'next-change',
+  PreviousChange: 'previous-change',
   /** O nome que assina os comentários novos. */
   AuthorName: 'author-name',
   /** Sumário dos títulos, com número de página e link. */

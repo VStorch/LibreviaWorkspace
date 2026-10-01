@@ -1509,6 +1509,19 @@ public static class Fixtures
         body.AppendChild(table);
     });
 
+    /// <summary>
+    /// Tabela com uma célula inserida pelo controle de alterações (`w:cellIns`):
+    /// revisão de estrutura, que o editor não representa.
+    /// </summary>
+    public static byte[] WithInsertedCell() => BuildFromXml(
+        """
+        <w:tbl><w:tblPr/><w:tblGrid><w:gridCol w:w="4500"/><w:gridCol w:w="4500"/></w:tblGrid>
+        <w:tr><w:tc><w:p><w:r><w:t>A</w:t></w:r></w:p></w:tc>
+        <w:tc><w:tcPr><w:cellIns w:id="1" w:author="Revisora"/></w:tcPr><w:p><w:r><w:t>B</w:t></w:r></w:p></w:tc></w:tr>
+        </w:tbl><w:p/>
+        """,
+        string.Empty);
+
     /// <summary>Tabela dentro de uma célula de outra tabela.</summary>
     /// <remarks>
     /// O leitor só olhava os parágrafos da célula, e a tabela de dentro — com o

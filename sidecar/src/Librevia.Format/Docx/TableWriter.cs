@@ -30,7 +30,8 @@ namespace Librevia.Format.Docx;
 internal sealed class TableWriter(
     Inventory inventory,
     Func<Node, OpenXmlElement?, IEnumerable<OpenXmlElement>> writeBlock,
-    int usableWidthPx)
+    int usableWidthPx,
+    bool revisions = true)
 {
     /// <summary>
     /// O aviso de que a correspondência por posição deixou de valer.
@@ -179,7 +180,32 @@ internal sealed class TableWriter(
         // arquivo isso é o `w:tblHeader` do `w:trPr`: a linha se repete no alto de
         // cada página. Sem esta escrita o botão da tela não chegava ao arquivo.
         ApplyHeader(row, cells.Count > 0 && cells.All(cell => cell.Type == "tableHeader"));
+        if (revisions) ApplyRowRevision(row, Attr.Node(rowNode, "rowRevision"));
         return row;
+    }
+
+    /// <summary>
+    /// A linha inserida ou excluída (M10): `w:ins`/`w:del` no fim do `w:trPr`, antes
+    /// só do `w:trPrChange`.
+    /// </summary>
+    private static void ApplyRowRevision(TableRow row, System.Text.Json.Nodes.JsonNode? wanted)
+    {
+        var properties = row.TableRowProperties;
+        if (properties is null)
+        {
+            if (wanted is null) return;
+            properties = new TableRowProperties();
+            row.PrependChild(properties);
+        }
+
+        Revisions.ApplyBlock(properties, wanted, created =>
+        {
+            var change = properties.GetFirstChild<TableRowPropertiesChange>();
+            if (change is null) properties.AppendChild(created);
+            else properties.InsertBefore(created, change);
+        });
+
+        if (!properties.HasChildren) properties.Remove();
     }
 
     /// <summary>Liga ou desliga o `w:tblHeader` da linha, sem mexer no resto do `w:trPr`.</summary>

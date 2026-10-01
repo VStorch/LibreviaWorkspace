@@ -48,7 +48,13 @@ public static class DocxWriter
         // blocos achatados, e comparados com a leitura que só leva o direto todo
         // bloco pareceria mudado — o documento inteiro seria reescrito.
         var (_, blocks) = new BodyReader(
-            part, new Inventory(), model.Flatten, !model.BeforeReferences, !model.BeforeSections, !model.BeforeComments)
+            part,
+                new Inventory(),
+                model.Flatten,
+                !model.BeforeReferences,
+                !model.BeforeSections,
+                !model.BeforeComments,
+                !model.BeforeRevisions)
             .Read(body);
         var index = blocks.ToDictionary(block => block.Oid, StringComparer.Ordinal);
 
@@ -87,6 +93,12 @@ public static class DocxWriter
 
         // As pontas de comentário que a edição desemparelhou — ver MendCommentAnchors.
         MendCommentAnchors(body, part);
+
+        // As revisões (M10): a movimentação que a edição partiu vira exclusão e
+        // inserção, e cada revisão sai com um `w:id` só dela.
+        MendMoves(body);
+        Revisions.MakeIdsUnique(body, part);
+        Revisions.ApplyTracking(part, model.TrackChanges, touched, inventory);
 
         // `w:sectPr` fecha o corpo e carrega a configuração de página.
         body.AppendChild(section is null ? new SectionProperties() : section);
@@ -284,6 +296,109 @@ public static class DocxWriter
         }
     }
 
+    /// <summary>
+    /// A movimentação que continua inteira no corpo, e a que a edição partiu.
+    /// </summary>
+    /// <remarks>
+    /// Mover é um par: o trecho de origem (`w:moveFrom`) e o de destino (`w:moveTo`),
+    /// cada um entre as pontas de um intervalo com o mesmo nome. O parágrafo
+    /// reescrito leva o trecho como `w:del`/`w:ins` e perde as pontas; o que sobra
+    /// do par no parágrafo preservado viraria movimentação sem origem ou sem
+    /// destino. Então o par incompleto vira exclusão e inserção dos dois lados, e
+    /// as pontas soltas saem — a perda já foi declarada em NoteWhatWasInside.
+    /// </remarks>
+    private static void MendMoves(Body body)
+    {
+        var fromStarts = body.Descendants<MoveFromRangeStart>().ToList();
+        var toStarts = body.Descendants<MoveToRangeStart>().ToList();
+        var fromEnds = body.Descendants<MoveFromRangeEnd>().ToList();
+        var toEnds = body.Descendants<MoveToRangeEnd>().ToList();
+        var moves = body.Descendants().Where(element => element is MoveFromRun or MoveToRun ||
+            (element.Parent is ParagraphMarkRunProperties && element.LocalName is "moveFrom" or "moveTo")).ToList();
+        if (fromStarts.Count + toStarts.Count + fromEnds.Count + toEnds.Count + moves.Count == 0) return;
+
+        static string? Id(OpenXmlElement element) => Revisions.AttributeOf(element, "id");
+        static string? Name(OpenXmlElement element) => Revisions.AttributeOf(element, "name");
+
+        // O nome com as duas pontas dos dois lados.
+        var fromEndIds = fromEnds.Select(Id).ToHashSet(StringComparer.Ordinal);
+        var toEndIds = toEnds.Select(Id).ToHashSet(StringComparer.Ordinal);
+        var fromNames = fromStarts.Where(start => fromEndIds.Contains(Id(start))).Select(Name)
+            .ToHashSet(StringComparer.Ordinal);
+        var toNames = toStarts.Where(start => toEndIds.Contains(Id(start))).Select(Name)
+            .ToHashSet(StringComparer.Ordinal);
+        var whole = fromNames.Intersect(toNames, StringComparer.Ordinal).ToHashSet(StringComparer.Ordinal);
+
+        // Os ids dos intervalos que ficam, e o lado de cada um.
+        var keptIds = new HashSet<string?>(StringComparer.Ordinal);
+        foreach (var start in fromStarts.Concat<OpenXmlElement>(toStarts))
+        {
+            if (whole.Contains(Name(start))) keptIds.Add((start is MoveFromRangeStart ? "f" : "t") + Id(start));
+        }
+
+        // Cada trecho de movimentação dentro de um intervalo que fica, em ordem.
+        var inside = new HashSet<OpenXmlElement>(ReferenceEqualityComparer.Instance);
+        var open = new List<string>();
+        foreach (var element in body.Descendants())
+        {
+            switch (element)
+            {
+                case MoveFromRangeStart start when keptIds.Contains("f" + Id(start)): open.Add("f" + Id(start)); break;
+                case MoveToRangeStart start when keptIds.Contains("t" + Id(start)): open.Add("t" + Id(start)); break;
+                case MoveFromRangeEnd end: open.Remove("f" + Id(end)); break;
+                case MoveToRangeEnd end: open.Remove("t" + Id(end)); break;
+                default:
+                    var side = element is MoveFromRun || element.LocalName == "moveFrom" ? "f" : "t";
+                    if (moves.Contains(element) && open.Any(id => id.StartsWith(side, StringComparison.Ordinal)))
+                    {
+                        inside.Add(element);
+                    }
+
+                    break;
+            }
+        }
+
+        foreach (var marker in fromStarts.Concat<OpenXmlElement>(toStarts))
+        {
+            if (!whole.Contains(Name(marker))) marker.Remove();
+        }
+
+        foreach (var end in fromEnds)
+        {
+            if (!keptIds.Contains("f" + Id(end))) end.Remove();
+        }
+
+        foreach (var end in toEnds)
+        {
+            if (!keptIds.Contains("t" + Id(end))) end.Remove();
+        }
+
+        foreach (var move in moves.Where(move => !inside.Contains(move)))
+        {
+            OpenXmlElement plain = move switch
+            {
+                MoveFromRun => new DeletedRun(),
+                MoveToRun => new InsertedRun(),
+                _ when move.LocalName == "moveFrom" => new Deleted(),
+                _ => new Inserted(),
+            };
+
+            Revisions.Stamp(
+                plain,
+                Revisions.AttributeOf(move, "id"),
+                Revisions.AttributeOf(move, "author"),
+                Revisions.AttributeOf(move, "date"));
+            foreach (var child in move.ChildElements.ToList())
+            {
+                child.Remove();
+                plain.AppendChild(child);
+            }
+
+            move.InsertAfterSelf(plain);
+            move.Remove();
+        }
+    }
+
     private static List<OpenXmlElement> BuildBody(
         DocumentModelDto model,
         MainDocumentPart part,
@@ -296,7 +411,13 @@ public static class DocxWriter
         out List<SectionWriter.Break> breaks)
     {
         var writer = new ParagraphWriter(
-            part, inventory, UsableWidthPx(model.Page), headings, model.Flatten, !model.BeforeReferences);
+            part,
+            inventory,
+            UsableWidthPx(model.Page),
+            headings,
+            model.Flatten,
+            !model.BeforeReferences,
+            !model.BeforeRevisions);
         var used = new HashSet<string>(StringComparer.Ordinal);
         var elements = new List<OpenXmlElement>();
         var generated = new HashSet<OpenXmlElement>(ReferenceEqualityComparer.Instance);
@@ -331,7 +452,7 @@ public static class DocxWriter
             }
 
             var before = elements.Count;
-            var kept = BuildSlot(slot, owner, writer, inventory, elements, model.BeforeComments);
+            var kept = BuildSlot(slot, owner, writer, inventory, elements, model.BeforeComments, model.BeforeRevisions);
             if (kept)
             {
                 preserved++;
@@ -516,7 +637,8 @@ public static class DocxWriter
         ParagraphWriter writer,
         Inventory inventory,
         List<OpenXmlElement> elements,
-        bool beforeComments)
+        bool beforeComments,
+        bool beforeRevisions)
     {
         if (owner is not null &&
             string.Equals(
@@ -552,7 +674,7 @@ public static class DocxWriter
 
         foreach (var element in writer.Write(slot.Content, placement, source)) elements.Add(element);
 
-        if (owner is not null) NoteWhatWasInside(owner, inventory, beforeComments);
+        if (owner is not null) NoteWhatWasInside(owner, inventory, beforeComments, beforeRevisions);
         return false;
     }
 
@@ -744,7 +866,12 @@ public static class DocxWriter
     /// reescrever o parágrafo a perde. Depois dele a âncora volta pelos nós — só a
     /// referência que dividia o run com texto não tem como voltar.
     /// </param>
-    private static void NoteWhatWasInside(Block block, Inventory inventory, bool beforeComments)
+    /// <param name="beforeRevisions">
+    /// O rascunho é de antes das revisões (M10): os nós não as trazem, e reescrever
+    /// o parágrafo perde o `w:ins` e o `w:del`. Depois dele elas voltam pelas
+    /// marcas — só a de formatação do trecho e a movimentação não voltam inteiras.
+    /// </param>
+    private static void NoteWhatWasInside(Block block, Inventory inventory, bool beforeComments, bool beforeRevisions)
     {
         var original = block.Source;
 
@@ -756,9 +883,41 @@ public static class DocxWriter
             inventory.NoteLoss("comentário ancorado num parágrafo que você editou");
         }
 
-        if (original.Descendants<InsertedRun>().Any() || original.Descendants<DeletedRun>().Any())
+        // No rascunho antigo nenhuma revisão vem pelas marcas: a movimentação e a
+        // de formatação também se perdem, e não só o `w:ins` e o `w:del`.
+        if (beforeRevisions &&
+            (original.Descendants<InsertedRun>().Any() || original.Descendants<DeletedRun>().Any() ||
+             original.Descendants<MoveFromRun>().Any() || original.Descendants<MoveToRun>().Any() ||
+             original.Descendants<MoveFromRangeStart>().Any() || original.Descendants<MoveToRangeStart>().Any() ||
+             original.Descendants<RunPropertiesChange>().Any(change => change.Parent?.Parent is Run)))
         {
             inventory.NoteLoss("marcas de revisão num parágrafo que você editou");
+        }
+
+        // A imagem dentro de uma revisão não leva a marca (só o texto leva): o
+        // parágrafo reescrito a devolve como conteúdo aceito.
+        if (!beforeRevisions &&
+            original.Descendants().Any(element =>
+                element is InsertedRun or DeletedRun or MoveFromRun or MoveToRun &&
+                (element.Descendants<Drawing>().Any() || element.Descendants<Picture>().Any() ||
+                 element.Descendants<EmbeddedObject>().Any())))
+        {
+            inventory.NoteLoss("imagem dentro de uma revisão num parágrafo que você editou (ficou como aceita)");
+        }
+
+        // A formatação de antes da revisão mora no `w:rPr` do run, que a gravação
+        // refaz a partir das marcas. A do parágrafo (`w:pPrChange`) e a da marca
+        // de parágrafo voltam com o `w:pPr` original.
+        if (!beforeRevisions && original.Descendants<RunPropertiesChange>().Any(change => change.Parent?.Parent is Run))
+        {
+            inventory.NoteLoss("revisão de formatação num parágrafo que você editou");
+        }
+
+        if (!beforeRevisions &&
+            (original.Descendants<MoveFromRangeStart>().Any() || original.Descendants<MoveToRangeStart>().Any() ||
+             original.Descendants<MoveFromRangeEnd>().Any() || original.Descendants<MoveToRangeEnd>().Any()))
+        {
+            inventory.NoteLoss("movimentação de texto num parágrafo que você editou (virou exclusão e inserção)");
         }
 
         if (original.Descendants<FootnoteReference>().Any())

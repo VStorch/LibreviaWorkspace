@@ -4,6 +4,7 @@ import type { DocumentNode } from '@services/document/model.js'
 import { charactersWithoutSpaces, countParagraphs } from '@services/document/word-count.js'
 import { useT } from '../i18n.js'
 import { useWorkspace } from '../state/workspace.js'
+import { textWithoutDeletions } from './extensions/track-changes.js'
 
 /**
  * Contagem de palavras — o diálogo do Word.
@@ -113,8 +114,8 @@ function tally(editor: Editor, node: ProseMirrorNode): Tally {
     characters: storage.characters({ node }),
     // Pelo mesmo texto que o `CharacterCount` mede — separador de bloco nenhum,
     // nó folha como um espaço — para que "com espaços" menos "sem espaços" seja
-    // exatamente a quantidade de espaços.
-    charactersNoSpaces: charactersWithoutSpaces(node.textBetween(0, node.content.size, undefined, ' ')),
+    // exatamente a quantidade de espaços. Sem o texto excluído, como ela.
+    charactersNoSpaces: charactersWithoutSpaces(textWithoutDeletions(node, undefined, ' ')),
     paragraphs: countParagraphs(node.toJSON() as DocumentNode),
   }
 }

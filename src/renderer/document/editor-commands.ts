@@ -48,6 +48,12 @@ export const EditorCommand = {
   NextComment: 'next-comment',
   PreviousComment: 'previous-comment',
   AuthorName: 'author-name',
+  AcceptChange: 'accept-change',
+  RejectChange: 'reject-change',
+  AcceptAllChanges: 'accept-all-changes',
+  RejectAllChanges: 'reject-all-changes',
+  NextChange: 'next-change',
+  PreviousChange: 'previous-change',
   ...TableAction,
 } as const satisfies Record<string, MenuCommand>
 
@@ -82,6 +88,9 @@ const READS_ONLY: ReadonlySet<EditorCommand> = new Set<EditorCommand>([
   EditorCommand.NextComment,
   EditorCommand.PreviousComment,
   EditorCommand.AuthorName,
+  // Andar entre as alterações também só lê; aceitar e rejeitar editam.
+  EditorCommand.NextChange,
+  EditorCommand.PreviousChange,
 ])
 
 /** O comando pode rodar num documento aberto em somente leitura? */

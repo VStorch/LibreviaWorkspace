@@ -51,6 +51,7 @@ import { PaperSheet } from './PaperSheet.js'
 import { COMMENTS_PANE_WIDTH_PX, CommentsPane } from './CommentsPane.js'
 import { useComments } from './useComments.js'
 import { insertComment } from './comment-commands.js'
+import { hasChangeAtCursor, settleChange } from './revision-commands.js'
 import { focusComment } from './extensions/comment.js'
 import { usePagination } from './usePagination.js'
 import { useBandHeights } from './useBandHeights.js'
@@ -600,6 +601,7 @@ export function DocumentEditor(): React.JSX.Element {
           onClose={() => setContextTarget(null)}
           onPasteWithoutFormat={() => void pasteWithoutFormat()}
           onNewComment={() => insertComment(editor)}
+          onRevision={hasChangeAtCursor(editor) ? (accept) => void settleChange(editor, accept) : null}
         />
       )}
 

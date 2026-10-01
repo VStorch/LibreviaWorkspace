@@ -58,6 +58,8 @@ const openResultSchema = z.object({
     outsideBookmarks: z.array(z.string().max(200)).max(10_000).optional(),
     // Conferidos aqui pelo mesmo motivo dos estilos: vão parar no `.sdoc`.
     comments: z.array(documentCommentSchema).max(100_000).optional(),
+    // O `w:trackRevisions` do arquivo (M10) — só presente quando ligado.
+    trackChanges: z.boolean().optional(),
   }),
   inventory: inventorySchema,
 })
@@ -198,6 +200,10 @@ export async function saveDocx(
       // de antes deles, só a marca, que escolhe a leitura de referência e deixa
       // as partes como estão.
       ...(model.beforeComments ? { beforeComments: true } : { comments: model.comments }),
+      // As revisões vão nos nós; aqui só o interruptor e a marca do rascunho de
+      // antes delas, que escolhe a leitura de referência.
+      ...(model.trackChanges === undefined ? {} : { trackChanges: model.trackChanges }),
+      ...(model.beforeRevisions ? { beforeRevisions: true } : {}),
       ...(model.styles === undefined ? {} : { styles: model.styles }),
     },
     new Uint8Array(original),
@@ -333,6 +339,8 @@ function unwrapSdoc(content: string): {
   beforeSections: boolean
   beforeComments: boolean
   comments: unknown[]
+  trackChanges: boolean | undefined
+  beforeRevisions: boolean
 } {
   let parsed: unknown
   try {
@@ -355,6 +363,8 @@ function unwrapSdoc(content: string): {
       beforeSections: z.boolean().optional(),
       beforeComments: z.boolean().optional(),
       comments: z.array(documentCommentSchema).max(100_000).optional(),
+      trackChanges: z.boolean().optional(),
+      beforeRevisions: z.boolean().optional(),
     })
     .safeParse(parsed)
   if (!envelope.success) {
@@ -371,5 +381,7 @@ function unwrapSdoc(content: string): {
     beforeSections: envelope.data.beforeSections === true,
     beforeComments: envelope.data.beforeComments === true,
     comments: envelope.data.comments ?? [],
+    trackChanges: envelope.data.trackChanges,
+    beforeRevisions: envelope.data.beforeRevisions === true,
   }
 }

@@ -4,6 +4,7 @@ import { TableAction } from '@shared/table-actions.js'
 import { EditorCommand, onEditorCommand, runsWhileLocked } from './editor-commands.js'
 import { runTableAction } from './table-actions.js'
 import { goToComment, insertComment } from './comment-commands.js'
+import { goToChange, settleAll, settleChange } from './revision-commands.js'
 import {
   deleteSectionBreak,
   insertColumnBreak,
@@ -124,6 +125,18 @@ export function useEditorCommands(
           return
         case EditorCommand.AuthorName:
           return setDialog('authorName', true)
+        case EditorCommand.AcceptChange:
+        case EditorCommand.RejectChange:
+          if (editor !== null) settleChange(editor, command === EditorCommand.AcceptChange)
+          return
+        case EditorCommand.AcceptAllChanges:
+        case EditorCommand.RejectAllChanges:
+          if (editor !== null) settleAll(editor, command === EditorCommand.AcceptAllChanges)
+          return
+        case EditorCommand.NextChange:
+        case EditorCommand.PreviousChange:
+          if (editor !== null) goToChange(editor, command === EditorCommand.NextChange ? 1 : -1)
+          return
         case EditorCommand.InsertTableOfContents:
           if (editor !== null) insertTableOfContents(editor, referenceContext())
           return

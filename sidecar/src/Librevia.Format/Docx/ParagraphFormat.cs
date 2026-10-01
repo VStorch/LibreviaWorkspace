@@ -43,7 +43,8 @@ internal sealed class ParagraphFormat(
     Inventory inventory,
     HeadingStyles headings,
     StyleResolver styles,
-    bool flatten = false)
+    bool flatten = false,
+    bool revisions = true)
 {
     private const int TwipsPerIndentLevel = 720;
 
@@ -80,6 +81,7 @@ internal sealed class ParagraphFormat(
         ApplyKeepLines(properties, node, direct);
         ApplyWidowControl(properties, node, direct);
         ApplyMark(properties, node);
+        if (revisions) ApplyMarkRevision(properties, node);
 
         DropWhatRepeatsTheStyle(properties, original?.ParagraphProperties, style);
         DropMarkThatRepeatsTheStyle(properties, original?.ParagraphProperties, styles.Resolve(properties).Run);
@@ -696,6 +698,25 @@ internal sealed class ParagraphFormat(
         {
             inventory.NoteLoss($"tamanho de fonte \"{size}\"");
         }
+    }
+
+    /// <summary>
+    /// A marca de parágrafo inserida ou excluída (M10) — `markRevision` ↔
+    /// `w:pPr/w:rPr/w:ins|w:del`. A do arquivo fica quando é a mesma.
+    /// </summary>
+    private static void ApplyMarkRevision(ParagraphProperties properties, Node node)
+    {
+        var wanted = Attr.Node(node, "markRevision");
+        var mark = properties.ParagraphMarkRunProperties;
+        if (mark is null)
+        {
+            if (wanted is null) return;
+            mark = new ParagraphMarkRunProperties();
+            properties.ParagraphMarkRunProperties = mark;
+        }
+
+        Revisions.ApplyBlock(mark, wanted, created => PutInOrder(mark, created));
+        if (!mark.HasChildren) properties.ParagraphMarkRunProperties = null;
     }
 
     /// <summary>

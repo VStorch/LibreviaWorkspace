@@ -51,9 +51,15 @@ import { LEGACY_STYLES, type StyleSheet } from './styles.js'
  *   corpo de cada um, e o texto leva as pontas da âncora (`commentStart` e
  *   `commentEnd`). O rascunho anterior não tem as pontas, e a leitura o marca
  *   (`beforeComments`) pelo mesmo motivo da versão 4.
+ * - **8** — o texto passou a levar as **revisões** (M10): as marcas `insertion` e
+ *   `deletion`, a revisão da marca de parágrafo (`markRevision`) e a da linha de
+ *   tabela (`rowRevision`); `trackChanges` é o interruptor do documento. O
+ *   rascunho anterior não as tem — o inserido era texto comum e o excluído não
+ *   aparecia —, e a leitura o marca (`beforeRevisions`) pelo mesmo motivo da
+ *   versão 4.
  */
 export const SDOC_FORMAT = 'sdoc'
-export const SDOC_VERSION = 7
+export const SDOC_VERSION = 8
 
 /** O conteúdo é validado só na forma; a estrutura fina é do ProseMirror. */
 const documentNodeSchema: z.ZodType<DocumentNode> = z.looseObject({
@@ -79,6 +85,9 @@ const sdocSchema = z.object({
   // Ver `DocumentModel.comments` e `beforeComments`.
   comments: z.array(documentCommentSchema).max(100_000).optional(),
   beforeComments: z.boolean().optional(),
+  // Ver `DocumentModel.trackChanges` e `beforeRevisions`.
+  trackChanges: z.boolean().optional(),
+  beforeRevisions: z.boolean().optional(),
 })
 
 export function serializeDocument(model: DocumentModel): string {
@@ -99,6 +108,8 @@ export function serializeDocument(model: DocumentModel): string {
       ...(model.outsideBookmarks === undefined ? {} : { outsideBookmarks: model.outsideBookmarks }),
       ...(model.comments === undefined || model.comments.length === 0 ? {} : { comments: model.comments }),
       ...(model.beforeComments === true ? { beforeComments: true } : {}),
+      ...(model.trackChanges === undefined ? {} : { trackChanges: model.trackChanges }),
+      ...(model.beforeRevisions === true ? { beforeRevisions: true } : {}),
     },
     null,
     2,
@@ -147,6 +158,8 @@ export function parseDocument(text: string, language: Language = Language.Portug
     ...(parsed.data.outsideBookmarks === undefined ? {} : { outsideBookmarks: parsed.data.outsideBookmarks }),
     ...(parsed.data.comments === undefined ? {} : { comments: parsed.data.comments.map(commentOf) }),
     ...(parsed.data.version < 7 || parsed.data.beforeComments === true ? { beforeComments: true } : {}),
+    ...(parsed.data.trackChanges === undefined ? {} : { trackChanges: parsed.data.trackChanges }),
+    ...(parsed.data.version < 8 || parsed.data.beforeRevisions === true ? { beforeRevisions: true } : {}),
   }
 }
 

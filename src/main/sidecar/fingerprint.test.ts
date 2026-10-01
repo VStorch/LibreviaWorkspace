@@ -60,6 +60,7 @@ import {
   docxWithStyledCells,
   docxWithTable,
   docxWithTextBox,
+  docxWithTrackedChange,
   docxWithVerticalAlignment,
   docxWithoutExtras,
   docxWithReferences,
@@ -294,6 +295,8 @@ describe.skipIf(!published)('impressão digital entre o editor e o sidecar', () 
     ['referências do Word', () => docxWithReferences()],
     // M9: três seções, com marca vazia, marca em parágrafo com texto e herança.
     ['seções', docxWithSections],
+    // M10: inserção, exclusão, marca de parágrafo, movimentação e linha revisadas.
+    ['controle de alterações', () => docxWithTrackedChange()],
   ]
 
   it.each(documents)('abrir e salvar %s não reescreve bloco nenhum', async (_name, build) => {
