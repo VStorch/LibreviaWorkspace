@@ -104,18 +104,21 @@ public class DocxRoundTripTests
     }
 
     [Fact]
-    public void EditingAParagraphThatCarriesACommentIsReportedAsLoss()
+    public void EditingAParagraphThatCarriesACommentKeepsTheAnchor()
     {
-        // Aqui a perda é real, e o aviso precisa dizer isso — com precisão, e
-        // não como alerta genérico na abertura.
+        // Até o M10 a perda era real e declarada. Agora a âncora é nó do
+        // parágrafo e volta com ele — ver CommentsTests.
         var original = Fixtures.WithComment();
         var model = Clone(Open(original));
 
         Assert.True(EditFirstTextContaining(model, "Parágrafo comentado", "Reescrito."));
 
-        var (_, result) = Save(original, model);
+        var (saved, result) = Save(original, model);
 
-        Assert.Contains(result.Inventory.Lost, message => message.Contains("comentário", StringComparison.Ordinal));
+        Assert.Empty(result.Inventory.Lost);
+        var body = System.Text.Encoding.UTF8.GetString(PartsOf(saved)["word/document.xml"]);
+        Assert.Contains("<w:commentRangeStart w:id=\"1\"", body, StringComparison.Ordinal);
+        Assert.Contains("<w:commentReference w:id=\"1\"", body, StringComparison.Ordinal);
     }
 
     // --- extração ------------------------------------------------------------
@@ -703,14 +706,12 @@ public class DocxRoundTripTests
     // --- inventário ---------------------------------------------------------
 
     [Fact]
-    public void ReportsCommentsAsInvisibleNotLost()
+    public void CommentsAreNeitherInvisibleNorLost()
     {
-        // A distinção é o ponto: comentários são preservados no arquivo, e o
-        // editor não os mostra. Chamar isso de perda seria mentira, e o usuário
-        // aprenderia a ignorar o aviso.
+        // Desde o M10 o painel os mostra: nem aviso de invisível, nem de perda.
         var result = DocxReader.Read(Fixtures.WithComment());
 
-        Assert.Contains("comentários", result.Inventory.Invisible);
+        Assert.DoesNotContain("comentários", result.Inventory.Invisible);
         Assert.Empty(result.Inventory.Lost);
     }
 
@@ -724,19 +725,21 @@ public class DocxRoundTripTests
     }
 
     [Fact]
-    public void ComentarioEControleDeAlteracoesSaoEstruturais()
+    public void ControleDeAlteracoesEEstruturalEComentarioNao()
     {
         // É esta lista que decide se o documento abre em somente leitura. Ela é
         // subconjunto da invisibilidade: o recurso continua no arquivo, e só
         // some se o usuário editar justamente o bloco que o ancora.
+        // O comentário saiu dela no M10: editar o parágrafo que o ancora não o
+        // perde mais.
         var comentado = DocxReader.Read(Fixtures.WithComment()).Inventory;
         var revisado = DocxReader.Read(Fixtures.WithTrackedChanges()).Inventory;
 
-        Assert.Contains(Inventory.Comments, comentado.Structural);
+        Assert.DoesNotContain(Inventory.Comments, comentado.Structural);
         Assert.Contains(Inventory.TrackedChanges, revisado.Structural);
         // Subconjunto, não lista paralela: tudo que é estrutural também é
         // invisível, senão o aviso de tela deixaria de mencioná-lo.
-        Assert.All(comentado.Structural, item => Assert.Contains(item, comentado.Invisible));
+        Assert.All(revisado.Structural, item => Assert.Contains(item, revisado.Invisible));
     }
 
     [Fact]

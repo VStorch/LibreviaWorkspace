@@ -152,6 +152,32 @@ describe('estilos no formato interno', () => {
     expect(reopened.beforeSections).toBeUndefined()
   })
 
+  it('marca como anterior aos comentários o arquivo da versão 6, e leva os comentários na ida e volta', () => {
+    // O rascunho de antes do M10 não traz as pontas da âncora nos nós, e a
+    // gravação em DOCX precisa compará-lo com a leitura daquela época.
+    const v6 = JSON.stringify({ ...JSON.parse(v2(BUILTIN_STYLES)), version: 6 })
+    expect(parseDocument(v6).beforeComments).toBe(true)
+    expect(parseDocument(v6).comments).toBeUndefined()
+    expect(parseDocument(serializeDocument(richDocument)).beforeComments).toBeUndefined()
+
+    const thread = [
+      {
+        id: '0',
+        author: 'Ana',
+        initials: 'A',
+        date: '2026-03-02T10:00:00Z',
+        paragraphs: ['Conferir.'],
+        done: false,
+      },
+      { id: '1', parentId: '0', author: 'Bruno', date: '', paragraphs: ['Ok.'], done: true, rich: true },
+    ]
+    const reopened = parseDocument(serializeDocument({ ...richDocument, comments: thread }))
+    expect(reopened.comments).toEqual(thread)
+    expect(reopened.beforeComments).toBeUndefined()
+    const legacy = parseDocument(serializeDocument({ ...richDocument, beforeComments: true }))
+    expect(legacy.beforeComments).toBe(true)
+  })
+
   it('dá os estilos embutidos ao arquivo da versão 2, que não os tinha', () => {
     // Documento antigo tem de abrir **idêntico**: os embutidos são a aparência
     // que o editor já desenhava, medida por medida.

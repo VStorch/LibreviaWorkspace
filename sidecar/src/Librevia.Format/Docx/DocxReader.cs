@@ -51,7 +51,18 @@ public sealed record DocumentModelDto(
     // `BeforeReferences`.
     [property: JsonPropertyName("beforeSections")]
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-    bool BeforeSections = false);
+    bool BeforeSections = false,
+    // Os comentários do arquivo (M10), fora dos nós — ver CommentsReader. Só a
+    // leitura os dá: nesta fase o corpo deles não muda, e `word/comments.xml`
+    // volta ao arquivo byte a byte.
+    [property: JsonPropertyName("comments")]
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    List<CommentDto>? Comments = null,
+    // O rascunho é de antes dos comentários (formato `.sdoc` < 7): os nós não
+    // trazem `commentStart`/`commentEnd`. Mesmo motivo de `BeforeReferences`.
+    [property: JsonPropertyName("beforeComments")]
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    bool BeforeComments = false);
 
 public sealed record OpenResult(
     [property: JsonPropertyName("model")] DocumentModelDto Model,
@@ -95,7 +106,12 @@ public static class DocxReader
 
         return new OpenResult(
             new DocumentModelDto(
-                page, doc, StyleReader.Read(part), OutsideBookmarks: OutsideBookmarksOf(part, doc), Sections: sections),
+                page,
+                doc,
+                StyleReader.Read(part),
+                OutsideBookmarks: OutsideBookmarksOf(part, doc),
+                Sections: sections,
+                Comments: CommentsReader.Read(part)),
             inventory);
     }
 
@@ -176,10 +192,7 @@ public static class DocxReader
     /// </remarks>
     private static void NoteWholeDocumentFeatures(MainDocumentPart part, Inventory inventory)
     {
-        if (part.WordprocessingCommentsPart?.Comments?.Any() == true)
-        {
-            inventory.NoteInvisible(Inventory.Comments);
-        }
+        // Os comentários não entram mais aqui: o painel os mostra (M10).
 
         if (part.FootnotesPart?.Footnotes?.Elements<Footnote>()
                 .Any(note => note.Type?.Value is null || note.Type.Value == FootnoteEndnoteValues.Normal) == true)

@@ -70,7 +70,7 @@ test.describe('painel de navegação', () => {
   })
 
   test('no documento travado também leva ao título', async () => {
-    // O comentário trava a edição. O título é o `Ttulo1` do Word em português, que
+    // A revisão trava a edição. O título é o `Ttulo1` do Word em português, que
     // o painel reconhece pelo nome interno `heading 1`.
     const origem = join(folder, 'travado.docx')
     const p = (style: string, text: string): string =>
@@ -80,7 +80,7 @@ test.describe('painel de navegação', () => {
       await docxWithNamedStyles(
         Array.from({ length: 40 }, (_, index) => p('Normal', `Parágrafo ${index + 1}.`)).join('') +
           p('Ttulo1', 'Conclusão') +
-          '<w:p><w:commentRangeStart w:id="1"/><w:r><w:t>Comentado.</w:t></w:r><w:commentRangeEnd w:id="1"/></w:p>',
+          '<w:p><w:ins w:id="1" w:author="Revisor" w:date="2026-01-01T00:00:00Z"><w:r><w:t>Revisado.</w:t></w:r></w:ins></w:p>',
       ),
     )
     await stubDialogs(session.app, { open: origem, messageBox: 1 })

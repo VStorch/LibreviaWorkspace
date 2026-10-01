@@ -39,6 +39,13 @@ public sealed class ParagraphWriter
     /// </summary>
     private readonly bool _references;
 
+    /// <summary>
+    /// O que as pontas do comentário precisam do arquivo original — ver
+    /// <see cref="CommentAnchors"/>. Lido na primeira ponta, antes de o corpo ser
+    /// trocado: quem grava o cabeçalho nunca chega a precisar.
+    /// </summary>
+    private CommentAnchors? _comments;
+
     /// <summary>A largura da coluna de texto em vinte-avos de ponto: 1 px do CSS são 15.</summary>
     private readonly int _usableTwips;
 
@@ -458,6 +465,28 @@ public sealed class ParagraphWriter
                 yield return new BookmarkEnd { Id = Attr.String(node, "bid") ?? "0" };
                 break;
 
+            // As pontas do comentário (M10), e com elas as das respostas, que o
+            // editor não leva como nó: no Word a conversa inteira abraça o mesmo
+            // trecho, e a resposta sem âncora fica órfã.
+            case "commentStart":
+                _comments ??= new CommentAnchors(_part);
+                foreach (var id in _comments.Thread(Attr.String(node, "cid") ?? "0"))
+                {
+                    yield return new CommentRangeStart { Id = id };
+                }
+
+                break;
+
+            case "commentEnd":
+                _comments ??= new CommentAnchors(_part);
+                foreach (var id in _comments.Thread(Attr.String(node, "cid") ?? "0"))
+                {
+                    if (_comments.Ranged(id)) yield return new CommentRangeEnd { Id = id };
+                    yield return _comments.Reference(id);
+                }
+
+                break;
+
             case "field":
                 foreach (var element in WriteField(node)) yield return element;
                 break;
@@ -864,5 +893,45 @@ public sealed class ParagraphWriter
             Color = "auto",
             Fill = hex,
         };
+    }
+
+    /// <summary>
+    /// O que o arquivo original sabe das âncoras de comentário.
+    /// </summary>
+    /// <remarks>
+    /// As respostas de cada conversa, os comentários que tinham trecho (o de ponto
+    /// só tem a referência, e ganhar um `w:commentRangeEnd` sem começo seria
+    /// inventar) e o run de cada referência — devolvido como estava, com o estilo
+    /// de caractere que o Word ou o LibreOffice lhe deram.
+    /// </remarks>
+    private sealed class CommentAnchors
+    {
+        private readonly Dictionary<string, List<string>> _replies;
+        private readonly HashSet<string> _ranged;
+        private readonly Dictionary<string, Run> _references = new(StringComparer.Ordinal);
+
+        public CommentAnchors(MainDocumentPart part)
+        {
+            _replies = CommentsReader.RepliesOf(part);
+            var document = (OpenXmlElement?)part.Document;
+            _ranged = (document?.Descendants<CommentRangeStart>() ?? [])
+                .Select(start => start.Id?.Value).OfType<string>().ToHashSet(StringComparer.Ordinal);
+            foreach (var run in document?.Descendants<Run>() ?? [])
+            {
+                if (BodyReader.ReferenceOnly(run) is { } id) _references.TryAdd(id, run);
+            }
+        }
+
+        /// <summary>O comentário e as respostas dele, na ordem do arquivo.</summary>
+        public IEnumerable<string> Thread(string id) => [id, .. _replies.GetValueOrDefault(id) ?? []];
+
+        public bool Ranged(string id) => _ranged.Contains(id);
+
+        public Run Reference(string id) =>
+            _references.TryGetValue(id, out var original)
+                ? (Run)original.CloneNode(true)
+                : new Run(
+                    new RunProperties(new RunStyle { Val = "CommentReference" }),
+                    new CommentReference { Id = id });
     }
 }

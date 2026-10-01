@@ -186,6 +186,25 @@ export const sectionSetupSchema = pageSetupSchema.extend({
 })
 
 /**
+ * Um comentário do documento (M10) — ver `DocumentComment`.
+ *
+ * Validado na entrada, como os estilos: vem de um arquivo alheio e vai parar no
+ * `.sdoc` do usuário. Os tetos só seguram o arquivo patológico; um comentário de
+ * verdade cabe com folga.
+ */
+export const documentCommentSchema = z.object({
+  id: z.string().min(1).max(100),
+  parentId: z.string().max(100).optional(),
+  author: z.string().max(1000),
+  initials: z.string().max(100).optional(),
+  date: z.string().max(100),
+  paragraphs: z.array(z.string().max(100_000)).max(1000),
+  done: z.boolean(),
+  paraId: z.string().max(100).optional(),
+  rich: z.boolean().optional(),
+})
+
+/**
  * As preferências de edição, validadas.
  *
  * Mora aqui, e não no contrato de IPC, porque o mesmo schema serve em três

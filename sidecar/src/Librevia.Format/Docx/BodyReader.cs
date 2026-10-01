@@ -61,13 +61,46 @@ public sealed record Block(string Oid, OpenXmlElement Source, Node Extracted)
 /// a leitura de antes das seções — a de referência para um rascunho daquela
 /// época (ver <see cref="DocumentModelDto.BeforeSections"/>).
 /// </param>
+/// <param name="comments">
+/// Lê as âncoras de comentário como `commentStart`/`commentEnd` (M10). Desligado,
+/// é a leitura de antes delas — a de referência para um rascunho daquela época
+/// (ver <see cref="DocumentModelDto.BeforeComments"/>).
+/// </param>
 public sealed class BodyReader(
     MainDocumentPart part,
     Inventory inventory,
     bool flatten = false,
     bool references = true,
-    bool sections = true)
+    bool sections = true,
+    bool comments = true)
 {
+    /// <summary>
+    /// Os comentários que são resposta a outro: as pontas deles não viram nó.
+    /// </summary>
+    /// <remarks>
+    /// A âncora da resposta é a mesma da conversa, e o editor leva uma só por
+    /// conversa. Pular aqui vale igual na abertura e na leitura de referência da
+    /// gravação, e é isso que mantém a impressão digital estável.
+    /// </remarks>
+    private readonly HashSet<string> _replies = comments
+        ? CommentsReader.RepliesOf(part).Values.SelectMany(ids => ids).ToHashSet(StringComparer.Ordinal)
+        : [];
+
+    /// <summary>
+    /// Os comentários com `w:commentRangeEnd` no corpo. O que não tem é comentário
+    /// de ponto — só a referência —, e é ela que vira o `commentEnd` dele.
+    /// </summary>
+    private readonly HashSet<string> _rangeEnds = comments
+        ? (part.Document?.Descendants<CommentRangeEnd>() ?? [])
+            .Select(end => end.Id?.Value).OfType<string>().ToHashSet(StringComparer.Ordinal)
+        : [];
+
+    /// <summary>
+    /// Lendo o texto de uma caixa? A âncora de comentário ali não vira nó: a caixa
+    /// não é reescrita a partir do modelo, e o painel não teria onde apontá-la.
+    /// </summary>
+    private int _textBoxDepth;
+
     /// <summary>
     /// O id de cada `w:sectPr` de parágrafo, o mesmo que PageReader dá à seção.
     /// </summary>
@@ -899,6 +932,35 @@ public sealed class BodyReader(
 
             switch (element)
             {
+                // A âncora do comentário (M10): as duas pontas viram nós sem
+                // largura, como as do marcador. A resposta não — ver `_replies`.
+                case CommentRangeStart start when comments && _textBoxDepth == 0:
+                    if (start.Id?.Value is { } startId && !_replies.Contains(startId))
+                    {
+                        nodes.Add(Node.Of("commentStart").With("cid", startId));
+                    }
+
+                    break;
+
+                case CommentRangeEnd end when comments && _textBoxDepth == 0:
+                    if (end.Id?.Value is { } endId && !_replies.Contains(endId))
+                    {
+                        nodes.Add(Node.Of("commentEnd").With("cid", endId));
+                    }
+
+                    break;
+
+                // O run da referência é a marca que o Word desenha no texto; a
+                // gravação o refaz junto com o `commentEnd`. Só o comentário de
+                // ponto, que não tem `w:commentRangeEnd`, ganha o fim aqui.
+                case Run reference when comments && ReferenceOnly(reference) is { } referenced:
+                    if (_textBoxDepth == 0 && !_replies.Contains(referenced) && !_rangeEnds.Contains(referenced))
+                    {
+                        nodes.Add(Node.Of("commentEnd").With("cid", referenced));
+                    }
+
+                    break;
+
                 case Run run:
                     nodes.AddRange(ReadRun(run, inherited, hyperlink));
                     break;
@@ -936,8 +998,9 @@ public sealed class BodyReader(
                 case ProofError:
                     break;
 
-                // Comentários e revisões são preservados pelo XML original; o
-                // editor não os mostra. Invisibilidade, não perda.
+                // O comentário de caixa de texto e o do rascunho de antes do M10
+                // são preservados pelo XML original; o editor não os mostra.
+                // Invisibilidade, não perda.
                 case CommentRangeStart:
                 case CommentRangeEnd:
                     inventory.NoteInvisible(Inventory.Comments);
@@ -960,6 +1023,20 @@ public sealed class BodyReader(
         }
 
         return nodes;
+    }
+
+    /// <summary>O id do comentário quando o run só traz a referência a ele — e nulo nos outros.</summary>
+    internal static string? ReferenceOnly(Run run)
+    {
+        string? id = null;
+        foreach (var child in run.ChildElements)
+        {
+            if (child is RunProperties) continue;
+            if (child is not CommentReference reference || id is not null) return null;
+            id = reference.Id?.Value ?? string.Empty;
+        }
+
+        return id;
     }
 
     private List<Mark>? MarksOfRun(Run run, RunProperties inherited, string? hyperlink)
@@ -1337,6 +1414,11 @@ public sealed class BodyReader(
                 case LastRenderedPageBreak:
                     break;
 
+                // A referência que divide o run com texto: rara, e a gravação a
+                // declara se o parágrafo for reescrito (ver DocxWriter).
+                case CommentReference when comments:
+                    break;
+
                 case FieldChar:
                 case FieldCode:
                     // O campo que o nó `field` não representa — ver ReadField. O
@@ -1469,7 +1551,9 @@ public sealed class BodyReader(
 
         var outer = _directRuns;
         _directRuns = false;
+        _textBoxDepth++;
         var content = ReadInline(paragraph, inheritedRun);
+        _textBoxDepth--;
         _directRuns = outer;
         if (content.Count > 0) node.Content = content;
         return node;
@@ -1495,7 +1579,9 @@ public sealed class BodyReader(
 
                 var outer = _directRuns;
                 _directRuns = false;
+                _textBoxDepth++;
                 var inline = ReadInline(paragraph, inheritedRun);
+                _textBoxDepth--;
                 _directRuns = outer;
                 if (inline.Count == 0) continue;
 

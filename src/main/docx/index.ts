@@ -12,7 +12,7 @@ import { z } from 'zod'
 import { SDOC_FORMAT, SDOC_VERSION } from '@services/document/serialize.js'
 import { AppError, ErrorCode, fromFileSystemError } from '@shared/errors.js'
 import { Language, translate } from '@shared/i18n/index.js'
-import { styleSheetSchema } from '@shared/schemas.js'
+import { documentCommentSchema, styleSheetSchema } from '@shared/schemas.js'
 import type { LossInventory } from '@shared/types.js'
 import { normalizePath } from '../fs/paths.js'
 import type { SidecarClient } from '../sidecar/client.js'
@@ -56,6 +56,8 @@ const openResultSchema = z.object({
     doc: z.unknown(),
     styles: styleSheetSchema,
     outsideBookmarks: z.array(z.string().max(200)).max(10_000).optional(),
+    // Conferidos aqui pelo mesmo motivo dos estilos: vão parar no `.sdoc`.
+    comments: z.array(documentCommentSchema).max(100_000).optional(),
   }),
   inventory: inventorySchema,
 })
@@ -191,6 +193,9 @@ export async function saveDocx(
       ...(model.beforeReferences ? { beforeReferences: true } : {}),
       ...(model.sections === undefined ? {} : { sections: model.sections }),
       ...(model.beforeSections ? { beforeSections: true } : {}),
+      // Os comentários não vão: nesta fase o corpo deles não muda. Só a marca do
+      // rascunho antigo, que escolhe a leitura de referência.
+      ...(model.beforeComments ? { beforeComments: true } : {}),
       ...(model.styles === undefined ? {} : { styles: model.styles }),
     },
     new Uint8Array(original),
@@ -324,6 +329,7 @@ function unwrapSdoc(content: string): {
   beforeReferences: boolean
   sections: unknown
   beforeSections: boolean
+  beforeComments: boolean
 } {
   let parsed: unknown
   try {
@@ -344,6 +350,7 @@ function unwrapSdoc(content: string): {
       beforeReferences: z.boolean().optional(),
       sections: z.unknown().optional(),
       beforeSections: z.boolean().optional(),
+      beforeComments: z.boolean().optional(),
     })
     .safeParse(parsed)
   if (!envelope.success) {
@@ -358,5 +365,6 @@ function unwrapSdoc(content: string): {
     beforeReferences: envelope.data.beforeReferences === true,
     sections: envelope.data.sections,
     beforeSections: envelope.data.beforeSections === true,
+    beforeComments: envelope.data.beforeComments === true,
   }
 }

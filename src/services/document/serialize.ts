@@ -1,8 +1,19 @@
 import { z } from 'zod'
 import { AppError, ErrorCode } from '@shared/errors.js'
 import { Language, translate } from '@shared/i18n/index.js'
-import { pageSetupSchema, sectionSetupSchema, styleSheetSchema } from '@shared/schemas.js'
-import { DEFAULT_PAGE_SETUP, isValidMargins, type DocumentModel, type DocumentNode } from './model.js'
+import {
+  documentCommentSchema,
+  pageSetupSchema,
+  sectionSetupSchema,
+  styleSheetSchema,
+} from '@shared/schemas.js'
+import {
+  DEFAULT_PAGE_SETUP,
+  isValidMargins,
+  type DocumentComment,
+  type DocumentModel,
+  type DocumentNode,
+} from './model.js'
 import { LEGACY_STYLES, type StyleSheet } from './styles.js'
 
 /**
@@ -36,9 +47,13 @@ import { LEGACY_STYLES, type StyleSheet } from './styles.js'
  *   O rascunho anterior não tem nem uma coisa nem outra — a página dele é a do
  *   documento inteiro —, e a leitura o marca (`beforeSections`) pelo mesmo
  *   motivo da versão 4.
+ * - **7** — o documento passou a ter **comentários** (M10): `comments` leva o
+ *   corpo de cada um, e o texto leva as pontas da âncora (`commentStart` e
+ *   `commentEnd`). O rascunho anterior não tem as pontas, e a leitura o marca
+ *   (`beforeComments`) pelo mesmo motivo da versão 4.
  */
 export const SDOC_FORMAT = 'sdoc'
-export const SDOC_VERSION = 6
+export const SDOC_VERSION = 7
 
 /** O conteúdo é validado só na forma; a estrutura fina é do ProseMirror. */
 const documentNodeSchema: z.ZodType<DocumentNode> = z.looseObject({
@@ -61,6 +76,9 @@ const sdocSchema = z.object({
   sections: z.array(sectionSetupSchema).max(10_000).optional(),
   beforeSections: z.boolean().optional(),
   outsideBookmarks: z.array(z.string()).optional(),
+  // Ver `DocumentModel.comments` e `beforeComments`.
+  comments: z.array(documentCommentSchema).max(100_000).optional(),
+  beforeComments: z.boolean().optional(),
 })
 
 export function serializeDocument(model: DocumentModel): string {
@@ -79,6 +97,8 @@ export function serializeDocument(model: DocumentModel): string {
       ...(model.sections === undefined || model.sections.length === 0 ? {} : { sections: model.sections }),
       ...(model.beforeSections === true ? { beforeSections: true } : {}),
       ...(model.outsideBookmarks === undefined ? {} : { outsideBookmarks: model.outsideBookmarks }),
+      ...(model.comments === undefined || model.comments.length === 0 ? {} : { comments: model.comments }),
+      ...(model.beforeComments === true ? { beforeComments: true } : {}),
     },
     null,
     2,
@@ -125,6 +145,23 @@ export function parseDocument(text: string, language: Language = Language.Portug
     ...(sections.length > 0 ? { sections } : {}),
     ...(parsed.data.version < 6 || parsed.data.beforeSections === true ? { beforeSections: true } : {}),
     ...(parsed.data.outsideBookmarks === undefined ? {} : { outsideBookmarks: parsed.data.outsideBookmarks }),
+    ...(parsed.data.comments === undefined ? {} : { comments: parsed.data.comments.map(commentOf) }),
+    ...(parsed.data.version < 7 || parsed.data.beforeComments === true ? { beforeComments: true } : {}),
+  }
+}
+
+/** O comentário do envelope sem as chaves ausentes — `exactOptionalPropertyTypes`. */
+export function commentOf(raw: z.infer<typeof documentCommentSchema>): DocumentComment {
+  return {
+    id: raw.id,
+    author: raw.author,
+    date: raw.date,
+    paragraphs: raw.paragraphs,
+    done: raw.done,
+    ...(raw.parentId === undefined ? {} : { parentId: raw.parentId }),
+    ...(raw.initials === undefined ? {} : { initials: raw.initials }),
+    ...(raw.paraId === undefined ? {} : { paraId: raw.paraId }),
+    ...(raw.rich === true ? { rich: true } : {}),
   }
 }
 

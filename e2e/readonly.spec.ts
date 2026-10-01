@@ -3,13 +3,15 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
 import { launch, menu, stubDialogs, type Session } from './app.js'
-import { docxWithComment, docxWithoutExtras } from './fixtures.js'
+import { docxWithComment, docxWithTrackedChange, docxWithoutExtras } from './fixtures.js'
 
 /**
  * Somente leitura **graduado**, não ligado/desligado.
  *
- * Documento com comentário abre travado, porque editar o parágrafo que ancora o
- * comentário o apaga. Documento comum abre editável, porque travar tudo
+ * Documento com controle de alterações abre travado, porque editar o parágrafo
+ * da revisão a apaga. O comentário travava pelo mesmo motivo até o M10, quando a
+ * âncora virou nó e passou a voltar ao arquivo. Documento comum abre editável,
+ * porque travar tudo
  * ensinaria o usuário a clicar "editar mesmo assim" sem ler — e aí a proteção
  * deixaria de proteger.
  */
@@ -27,18 +29,18 @@ test.describe('somente leitura', () => {
     await rm(folder, { recursive: true, force: true })
   })
 
-  test('documento com comentário abre travado e diz por quê', async () => {
+  test('documento com controle de alterações abre travado e diz por quê', async () => {
     const target = join(folder, 'ata.docx')
-    await writeFile(target, await docxWithComment())
+    await writeFile(target, await docxWithTrackedChange())
     await stubDialogs(session.app, { open: target, messageBox: 1 })
 
     await menu(session, 'open')
 
     const banner = session.window.locator('.banner--readonly')
     await expect(banner).toBeVisible()
-    await expect(banner).toContainText('comentários')
+    await expect(banner).toContainText('controle de alterações')
 
-    // Um aviso só: a faixa de inventário repetiria "comentários" logo abaixo, e
+    // Um aviso só: a faixa de inventário repetiria o motivo logo abaixo, e
     // dois avisos dizendo a mesma coisa valem menos que um.
     await expect(session.window.locator('.banner--notice')).toBeHidden()
 
@@ -71,7 +73,7 @@ test.describe('somente leitura', () => {
    */
   test('os comandos de edição do menu respeitam a trava', async () => {
     const target = join(folder, 'ata-com-tabela.docx')
-    await writeFile(target, await docxWithComment({ leadingTable: true }))
+    await writeFile(target, await docxWithTrackedChange({ leadingTable: true }))
     await stubDialogs(session.app, { open: target, messageBox: 1 })
 
     await menu(session, 'open')
@@ -107,6 +109,20 @@ test.describe('somente leitura', () => {
     await expect(session.window.getByRole('dialog', { name: 'Propriedades da tabela' })).toHaveCount(0)
     await expect(linhas).toHaveCount(2)
     await expect(session.window.locator('.page__content table')).toHaveCount(1)
+    await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
+  })
+
+  test('documento com comentário abre editável e mostra o comentário', async () => {
+    const target = join(folder, 'comentado.docx')
+    await writeFile(target, await docxWithComment())
+    await stubDialogs(session.app, { open: target, messageBox: 1 })
+
+    await menu(session, 'open')
+
+    await expect(session.window.locator('.ProseMirror')).toHaveAttribute('contenteditable', 'true')
+    await expect(session.window.locator('.banner--readonly')).toBeHidden()
+    await expect(session.window.locator('.banner--notice')).toBeHidden()
+    await expect(session.window.locator('.comment-card')).toContainText('Conferir este número.')
     await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
   })
 

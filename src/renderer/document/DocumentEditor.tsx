@@ -47,6 +47,7 @@ import { CaptionDialog } from './CaptionDialog.js'
 import { CrossReferenceDialog } from './CrossReferenceDialog.js'
 import { WordCountDialog } from './WordCountDialog.js'
 import { PaperSheet } from './PaperSheet.js'
+import { COMMENTS_PANE_WIDTH_PX, CommentsPane } from './CommentsPane.js'
 import { usePagination } from './usePagination.js'
 import { useBandHeights } from './useBandHeights.js'
 import { splitIntoPages } from './print-source.js'
@@ -81,6 +82,7 @@ export function DocumentEditor(): React.JSX.Element {
   const registerDocumentSource = useWorkspace((state) => state.registerDocumentSource)
   const setEstimatedPages = useWorkspace((state) => state.setEstimatedPages)
   const readOnly = useWorkspace((state) => state.readOnly)
+  const comments = useWorkspace((state) => state.comments)
   const setPage = useWorkspace((state) => state.setPage)
   const setSections = useWorkspace((state) => state.setSections)
   const styles = useWorkspace((state) => state.styles)
@@ -304,6 +306,10 @@ export function DocumentEditor(): React.JSX.Element {
   // A pilha tem a largura da folha mais larga, e cada folha vai centrada nela —
   // como o Word mostra retrato e paisagem no mesmo documento.
   const stackWidthPx = Math.max(layout.stackWidthPx, mmToPx(pageDimensionsMm(page).width))
+  // A coluna dos comentários ocupa lugar ao lado das folhas, e o invólucro do
+  // zoom cresce para a rolagem chegar até ela. Fora da leitura, como o papel.
+  const commentsPane = !reading && comments.length > 0
+  const zoomedWidthPx = stackWidthPx + (commentsPane ? COMMENTS_PANE_WIDTH_PX : 0)
   const firstSection = effective[layout.sheets[0]?.section ?? 0] ?? page
   const insets = contentInsetsMm(firstSection, bands[layout.sheets[0]?.section ?? 0] ?? NO_BANDS)
   const baseLeftPx = (stackWidthPx - mmToPx(pageDimensionsMm(page).width)) / 2 + mmToPx(page.margins.left)
@@ -602,7 +608,7 @@ export function DocumentEditor(): React.JSX.Element {
               reading
                 ? undefined
                 : {
-                    width: `${(stackWidthPx * zoom) / 100}px`,
+                    width: `${(zoomedWidthPx * zoom) / 100}px`,
                     height: `${(layout.stackHeightPx * zoom) / 100}px`,
                   }
             }
@@ -698,6 +704,8 @@ export function DocumentEditor(): React.JSX.Element {
               >
                 <EditorContent editor={editor} />
               </div>
+
+              {commentsPane && <CommentsPane editor={editor} comments={comments} leftPx={stackWidthPx} />}
             </div>
           </div>
         </div>

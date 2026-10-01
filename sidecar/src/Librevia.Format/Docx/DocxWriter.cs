@@ -48,7 +48,8 @@ public static class DocxWriter
         // blocos achatados, e comparados com a leitura que só leva o direto todo
         // bloco pareceria mudado — o documento inteiro seria reescrito.
         var (_, blocks) = new BodyReader(
-            part, new Inventory(), model.Flatten, !model.BeforeReferences, !model.BeforeSections).Read(body);
+            part, new Inventory(), model.Flatten, !model.BeforeReferences, !model.BeforeSections, !model.BeforeComments)
+            .Read(body);
         var index = blocks.ToDictionary(block => block.Oid, StringComparer.Ordinal);
 
         var section = body.Elements<SectionProperties>().LastOrDefault();
@@ -78,6 +79,9 @@ public static class DocxWriter
 
         body.RemoveAllChildren();
         foreach (var element in replacement) body.AppendChild(element);
+
+        // As pontas de comentário que a edição desemparelhou — ver MendCommentAnchors.
+        MendCommentAnchors(body, part);
 
         // `w:sectPr` fecha o corpo e carrega a configuração de página.
         body.AppendChild(section is null ? new SectionProperties() : section);
@@ -196,6 +200,85 @@ public static class DocxWriter
         return result.ToArray();
     }
 
+    /// <summary>
+    /// Deixa cada comentário do corpo com pontas que o Word e o LibreOffice leem.
+    /// </summary>
+    /// <remarks>
+    /// O editor apaga uma ponta junto com o texto, e o parágrafo preservado guarda
+    /// a dele: sobra começo sem fim, ou âncora de um comentário que o pacote não
+    /// tem (o rascunho reaberto e gravado num pacote novo). O LibreOffice recusa o
+    /// arquivo no segundo caso e descarta a conversa no primeiro. Então:
+    /// <list type="bullet">
+    /// <item>âncora de comentário que o pacote não tem sai — a perda já foi declarada na leitura;</item>
+    /// <item>começo sem fim nem referência vira comentário de ponto ali mesmo;</item>
+    /// <item>fim sem começo sai, e fica a referência;</item>
+    /// <item>trecho inteiro sem referência ganha uma logo depois do fim.</item>
+    /// </list>
+    /// Só elementos de largura zero: o parágrafo preservado continua preservado.
+    /// </remarks>
+    private static void MendCommentAnchors(Body body, MainDocumentPart part)
+    {
+        var known = (part.WordprocessingCommentsPart?.Comments?.Elements<Comment>() ?? [])
+            .Select(comment => comment.Id?.Value).OfType<string>().ToHashSet(StringComparer.Ordinal);
+        var starts = body.Descendants<CommentRangeStart>().ToList();
+        var ends = body.Descendants<CommentRangeEnd>().ToList();
+        var references = body.Descendants<CommentReference>().ToList();
+
+        static string IdOf(OpenXmlElement element) => element.GetAttribute("id", element.NamespaceUri).Value ?? string.Empty;
+        static void Remove(OpenXmlElement element)
+        {
+            // A referência mora num run: sozinha nele, o run vai junto.
+            if (element is CommentReference && element.Parent is Run run && BodyReader.ReferenceOnly(run) is not null)
+            {
+                run.Remove();
+            }
+            else
+            {
+                element.Remove();
+            }
+        }
+
+        foreach (var element in starts.Concat<OpenXmlElement>(ends).Concat(references))
+        {
+            if (!known.Contains(IdOf(element))) Remove(element);
+        }
+
+        var startIds = starts.Where(start => start.Parent is not null).Select(IdOf).ToHashSet(StringComparer.Ordinal);
+        var endIds = ends.Where(end => end.Parent is not null).Select(IdOf).ToHashSet(StringComparer.Ordinal);
+        var referenceIds = references.Where(reference => reference.Parent is not null).Select(IdOf)
+            .ToHashSet(StringComparer.Ordinal);
+
+        static Run ReferenceRun(string id) =>
+            new(new RunProperties(new RunStyle { Val = "CommentReference" }), new CommentReference { Id = id });
+
+        foreach (var start in starts.Where(start => start.Parent is not null))
+        {
+            var id = IdOf(start);
+            if (endIds.Contains(id)) continue;
+            if (!referenceIds.Contains(id) && start.Parent is Paragraph or Hyperlink or SimpleField)
+            {
+                start.InsertAfterSelf(ReferenceRun(id));
+                referenceIds.Add(id);
+            }
+
+            start.Remove();
+        }
+
+        foreach (var end in ends.Where(end => end.Parent is not null))
+        {
+            var id = IdOf(end);
+            if (!startIds.Contains(id))
+            {
+                end.Remove();
+            }
+            else if (!referenceIds.Contains(id) && end.Parent is Paragraph or Hyperlink or SimpleField)
+            {
+                end.InsertAfterSelf(ReferenceRun(id));
+                referenceIds.Add(id);
+            }
+        }
+    }
+
     private static List<OpenXmlElement> BuildBody(
         DocumentModelDto model,
         MainDocumentPart part,
@@ -243,7 +326,7 @@ public static class DocxWriter
             }
 
             var before = elements.Count;
-            var kept = BuildSlot(slot, owner, writer, inventory, elements);
+            var kept = BuildSlot(slot, owner, writer, inventory, elements, model.BeforeComments);
             if (kept)
             {
                 preserved++;
@@ -427,7 +510,8 @@ public static class DocxWriter
         Block? owner,
         ParagraphWriter writer,
         Inventory inventory,
-        List<OpenXmlElement> elements)
+        List<OpenXmlElement> elements,
+        bool beforeComments)
     {
         if (owner is not null &&
             string.Equals(
@@ -463,7 +547,7 @@ public static class DocxWriter
 
         foreach (var element in writer.Write(slot.Content, placement, source)) elements.Add(element);
 
-        if (owner is not null) NoteWhatWasInside(owner, inventory);
+        if (owner is not null) NoteWhatWasInside(owner, inventory, beforeComments);
         return false;
     }
 
@@ -650,12 +734,19 @@ public static class DocxWriter
     /// um comentário ancorado", em vez de um alerta genérico na abertura que o
     /// usuário aprende a ignorar.
     /// </remarks>
-    private static void NoteWhatWasInside(Block block, Inventory inventory)
+    /// <param name="beforeComments">
+    /// O rascunho é de antes dos comentários (M10): os nós não trazem a âncora, e
+    /// reescrever o parágrafo a perde. Depois dele a âncora volta pelos nós — só a
+    /// referência que dividia o run com texto não tem como voltar.
+    /// </param>
+    private static void NoteWhatWasInside(Block block, Inventory inventory, bool beforeComments)
     {
         var original = block.Source;
 
-        if (original.Descendants<CommentRangeStart>().Any() ||
-            original.Descendants<CommentReference>().Any())
+        if (beforeComments
+                ? original.Descendants<CommentRangeStart>().Any() || original.Descendants<CommentReference>().Any()
+                : original.Descendants<CommentReference>().Any(reference =>
+                    reference.Parent is Run run && BodyReader.ReferenceOnly(run) is null))
         {
             inventory.NoteLoss("comentário ancorado num parágrafo que você editou");
         }

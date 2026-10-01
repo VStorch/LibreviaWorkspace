@@ -1,6 +1,12 @@
 import type { SerializedError } from '@shared/errors.js'
 import type { DocumentKind, DraftSummary, LossInventory, RecentFile } from '@shared/types.js'
-import type { DocumentModel, DocumentNode, PageSetup, SectionSetup } from '@services/document/model.js'
+import type {
+  DocumentComment,
+  DocumentModel,
+  DocumentNode,
+  PageSetup,
+  SectionSetup,
+} from '@services/document/model.js'
 import type { PagedDocument } from '@services/document/print-pages.js'
 import type { StyleSheet } from '@services/document/styles.js'
 import type { Sheet, WorkbookModel } from '@services/spreadsheet/model.js'
@@ -71,6 +77,10 @@ export interface WorkspaceState {
   beforeSections: boolean
   /** Marcadores do arquivo fora dos nós — ver `DocumentModel.outsideBookmarks`. */
   outsideBookmarks: readonly string[]
+  /** Os comentários do arquivo — ver `DocumentModel.comments`. Só de leitura nesta fase. */
+  comments: readonly DocumentComment[]
+  /** O rascunho é de antes dos comentários — ver `DocumentModel.beforeComments`. */
+  beforeComments: boolean
   /**
    * A planilha aberta, quando o que está em edição é uma planilha.
    *

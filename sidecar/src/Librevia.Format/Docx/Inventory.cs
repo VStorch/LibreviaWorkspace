@@ -34,6 +34,15 @@ public sealed class Inventory
     /// deixaria de casar com esta lista e o documento passaria a abrir editável
     /// sem que ninguém percebesse. Sendo constantes, o compilador não deixa.
     /// </remarks>
+    /// <summary>
+    /// Comentário que o editor não leva como nó — o de cabeçalho, de nota ou de
+    /// caixa de texto.
+    /// </summary>
+    /// <remarks>
+    /// Saiu da lista estrutural no M10, como a moldura das formas antes dele: a
+    /// âncora do corpo virou nó, e editar o parágrafo que a leva devolve as pontas
+    /// ao arquivo — a do comentário e as das respostas.
+    /// </remarks>
     public const string Comments = "comentários";
     public const string TrackedChanges = "controle de alterações";
     public const string Footnotes = "notas de rodapé";
@@ -66,7 +75,7 @@ public sealed class Inventory
 
     private static readonly HashSet<string> StructuralLabels = new(StringComparer.Ordinal)
     {
-        Comments, TrackedChanges, Footnotes, Endnotes, Fields, HeaderFields, ContentControls,
+        TrackedChanges, Footnotes, Endnotes, Fields, HeaderFields, ContentControls,
     };
 
     private readonly SortedSet<string> _invisible = new(StringComparer.Ordinal);

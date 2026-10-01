@@ -81,6 +81,9 @@
      amarelo de marca-texto que todo editor usa, e o atual é mais forte. */
   --search-hit: #ffe9a8;
   --search-hit-current: #ffb938;
+  /* O trecho comentado (M10) e o da conversa em foco no painel. */
+  --comment-hit: #fbeecb;
+  --comment-hit-active: #f5d77e;
 
   /* O filete do cabeçalho vindo de uma forma do OOXML, que não declara cor.
      Sem cor declarada é padrão, e padrão acompanha o tema. */
@@ -179,6 +182,8 @@
   --selection-mix: #1e2126;
   --search-hit: #4a3a12;
   --search-hit-current: #7d5c12;
+  --comment-hit: #3d3522;
+  --comment-hit-active: #6b5520;
   --rule: #e4e7ea;
 
   /*
@@ -1033,6 +1038,109 @@ button {
 
 .search-hit--current {
   background: var(--search-hit-current);
+}
+
+/* ---------- comentários (M10) ---------- */
+
+/* O trecho comentado. Decoração da tela: a impressão sai do JSON e não o vê. */
+.comment-range {
+  background: var(--comment-hit);
+}
+
+.comment-range--resolved {
+  background: transparent;
+}
+
+.comment-range--active {
+  background: var(--comment-hit-active);
+}
+
+/*
+ * A coluna dos cartões, à direita das folhas e dentro da pilha: o zoom a escala
+ * junto, e a altura de cada cartão é a do trecho que ele comenta.
+ */
+.comments-pane {
+  position: absolute;
+  top: 0;
+  width: 260px;
+}
+
+.comments-pane__list {
+  position: relative;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.comment-card {
+  position: absolute;
+  left: 0;
+  right: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1.4;
+  cursor: pointer;
+  transition: top 120ms ease;
+}
+
+.comment-card:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.comment-card--active {
+  border-color: var(--accent-line);
+  box-shadow: var(--shadow-md);
+}
+
+.comment-card--done {
+  color: var(--muted);
+  background: var(--sunken);
+}
+
+.comment-card__head {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+
+.comment-card__author {
+  font-weight: 600;
+}
+
+.comment-card__date,
+.comment-card__note {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.comment-card__badge {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.comment-card__text {
+  margin: 4px 0 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.comment-card__replies {
+  margin: 6px 0 0;
+  padding: 0 0 0 8px;
+  border-left: 2px solid var(--border);
+  list-style: none;
+}
+
+.comment-card__replies > li + li {
+  margin-top: 6px;
 }
 
 /* ---------- barra de ferramentas ---------- */

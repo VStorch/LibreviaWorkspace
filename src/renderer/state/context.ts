@@ -96,6 +96,10 @@ export function createWorkspaceContext(set: SetWorkspace, get: GetWorkspace): Wo
       ...(resolved.sections.length > 0 ? { sections: [...resolved.sections] } : {}),
       ...(state.beforeSections ? { beforeSections: true } : {}),
       ...(state.outsideBookmarks.length > 0 ? { outsideBookmarks: state.outsideBookmarks } : {}),
+      // Como vieram do arquivo, pelo mesmo motivo dos estilos: nesta fase nada
+      // na tela os altera.
+      ...(state.comments.length > 0 ? { comments: state.comments } : {}),
+      ...(state.beforeComments ? { beforeComments: true } : {}),
     }
   }
 
@@ -148,6 +152,8 @@ export function createWorkspaceContext(set: SetWorkspace, get: GetWorkspace): Wo
       sections: model.sections ?? [],
       beforeSections: model.beforeSections === true,
       outsideBookmarks: model.outsideBookmarks ?? [],
+      comments: model.comments ?? [],
+      beforeComments: model.beforeComments === true,
       generation: state.generation + 1,
       isDirty: false,
       error: null,

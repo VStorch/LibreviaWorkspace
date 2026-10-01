@@ -205,6 +205,37 @@ export interface DocumentModel {
    * deixa o resultado dela como o Word o deixou.
    */
   readonly outsideBookmarks?: readonly string[]
+  /**
+   * Os comentários do arquivo (M10). O corpo mora aqui, fora dos nós, pelo mesmo
+   * motivo dos estilos; no texto ficam só as pontas da âncora (`commentStart` e
+   * `commentEnd`, uma por conversa — a resposta não tem nó). Nesta fase são só de
+   * leitura: a gravação não os envia, e `word/comments.xml` volta byte a byte.
+   */
+  readonly comments?: readonly DocumentComment[]
+  /**
+   * O rascunho é de antes dos **comentários** (formato `.sdoc` < 7): os nós não
+   * trazem a âncora. Mesmo motivo de `flattened`.
+   */
+  readonly beforeComments?: boolean
+}
+
+/** Um comentário, como `word/comments.xml` e `word/commentsExtended.xml` o descrevem. */
+export interface DocumentComment {
+  /** O `w:id` — o mesmo `cid` das pontas no texto. */
+  readonly id: string
+  /** O comentário que este responde. Ausente é o que abre a conversa. */
+  readonly parentId?: string
+  readonly author: string
+  readonly initials?: string
+  /** Como o arquivo o traz (ISO 8601); vazio quando não traz. */
+  readonly date: string
+  /** O texto de cada parágrafo, sem formatação. */
+  readonly paragraphs: readonly string[]
+  /** Resolvido (`w15:done`) — vale para a conversa, pelo comentário que a abre. */
+  readonly done: boolean
+  readonly paraId?: string
+  /** O corpo tem formatação, imagem ou campo que o texto simples não mostra. */
+  readonly rich?: boolean
 }
 
 export const PAGE_DIMENSIONS_MM: Record<PageSize, { width: number; height: number }> = {

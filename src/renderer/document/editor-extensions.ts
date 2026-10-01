@@ -27,6 +27,7 @@ import { BlockFormat } from './extensions/block-format.js'
 import { DocumentImage } from './extensions/document-image.js'
 import { BlockIdentity } from './extensions/block-identity.js'
 import { BookmarkEnd, BookmarkStart, Bookmarks } from './extensions/bookmark.js'
+import { CommentEnd, CommentStart, Comments } from './extensions/comment.js'
 import { Field } from './extensions/field.js'
 import { TableOfContents } from './extensions/table-of-contents.js'
 import { Indent } from './extensions/indent.js'
@@ -196,6 +197,11 @@ export function buildEditorExtensions(
     BookmarkStart,
     BookmarkEnd,
     Bookmarks,
+    // Comentários (M10): as pontas da âncora, o realce do trecho e a colagem
+    // sem âncora repetida. Ver comment.ts.
+    CommentStart,
+    CommentEnd,
+    Comments,
     // Os campos (PAGEREF, REF, SEQ…) como nós com instrução e resultado, e o
     // sumário como bloco. Ver field.ts e table-of-contents.ts.
     Field,

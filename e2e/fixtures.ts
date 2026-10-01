@@ -59,6 +59,18 @@ const COMMENTS_XML = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:comment w:id="1" w:author="Revisor" w:date="2026-01-01T00:00:00Z"><w:p><w:r><w:t>Conferir este número.</w:t></w:r></w:p></w:comment>
 </w:comments>`
 
+/** A tabela que abre o documento travado — ver `docxWithComment`. */
+const LEADING_TABLE = ((): string => {
+  const cell = (text: string): string =>
+    `<w:tc><w:tcPr><w:tcW w:w="4500" w:type="dxa"/></w:tcPr>${paragraph(text)}</w:tc>`
+  return (
+    `<w:tbl><w:tblPr><w:tblW w:w="9000" w:type="dxa"/></w:tblPr>` +
+    `<w:tblGrid><w:gridCol w:w="4500"/><w:gridCol w:w="4500"/></w:tblGrid>` +
+    `<w:tr>${cell('Item')}${cell('Valor')}</w:tr>` +
+    `<w:tr>${cell('Café')}${cell('12')}</w:tr></w:tbl>`
+  )
+})()
+
 /**
  * Documento com um comentário ancorado no segundo parágrafo.
  *
@@ -67,15 +79,7 @@ const COMMENTS_XML = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
  * documento travado.
  */
 export async function docxWithComment(options: { leadingTable?: boolean } = {}): Promise<Buffer> {
-  const cell = (text: string): string =>
-    `<w:tc><w:tcPr><w:tcW w:w="4500" w:type="dxa"/></w:tcPr>${paragraph(text)}</w:tc>`
-  const table =
-    options.leadingTable === true
-      ? `<w:tbl><w:tblPr><w:tblW w:w="9000" w:type="dxa"/></w:tblPr>` +
-        `<w:tblGrid><w:gridCol w:w="4500"/><w:gridCol w:w="4500"/></w:tblGrid>` +
-        `<w:tr>${cell('Item')}${cell('Valor')}</w:tr>` +
-        `<w:tr>${cell('Café')}${cell('12')}</w:tr></w:tbl>`
-      : ''
+  const table = options.leadingTable === true ? LEADING_TABLE : ''
 
   return zip([
     ['[Content_Types].xml', CONTENT_TYPES],
@@ -86,6 +90,94 @@ export async function docxWithComment(options: { leadingTable?: boolean } = {}):
       documentXml(table + paragraph('Ata da reunião de terça.') + COMMENTED_PARAGRAPH + paragraph('Fim.')),
     ],
     ['word/comments.xml', COMMENTS_XML],
+  ])
+}
+
+/**
+ * Documento com uma inserção do controle de alterações no segundo parágrafo.
+ *
+ * É o que trava a edição desde que o comentário deixou de travar (M10): editar o
+ * parágrafo da revisão a perde. Com `leadingTable`, a mesma tabela de abertura
+ * de `docxWithComment`.
+ */
+export async function docxWithTrackedChange(options: { leadingTable?: boolean } = {}): Promise<Buffer> {
+  const table = options.leadingTable === true ? LEADING_TABLE : ''
+  const tracked =
+    `<w:p><w:r><w:t xml:space="preserve">Segundo parágrafo, </w:t></w:r>` +
+    `<w:ins w:id="1" w:author="Revisor" w:date="2026-01-01T00:00:00Z"><w:r><w:t>com uma inserção revisada.</w:t></w:r></w:ins></w:p>`
+
+  return zip([
+    ['[Content_Types].xml', CONTENT_TYPES.replace(/<Override PartName="\/word\/comments[^>]+>/, '')],
+    ['_rels/.rels', ROOT_RELS],
+    [
+      'word/document.xml',
+      documentXml(table + paragraph('Ata da reunião de terça.') + tracked + paragraph('Fim.')),
+    ],
+  ])
+}
+
+const W14 = 'http://schemas.microsoft.com/office/word/2010/wordml'
+const W15 = 'http://schemas.microsoft.com/office/word/2012/wordml'
+
+/**
+ * Uma conversa (comentário e resposta) e um comentário resolvido, como o Word
+ * grava (M10).
+ *
+ * A resposta abraça o mesmo trecho que o comentário, com as pontas logo depois
+ * das dele; `commentsExtended.xml` liga as duas pelo `w14:paraId` e marca o
+ * resolvido com `w15:done`.
+ */
+export async function docxWithCommentThread(): Promise<Buffer> {
+  const comment = (id: string, author: string, paraId: string, text: string): string =>
+    `<w:comment w:id="${id}" w:author="${author}" w:initials="${author[0]}" w:date="2026-03-02T10:00:00Z">` +
+    `<w:p w14:paraId="${paraId}"><w:r><w:t>${text}</w:t></w:r></w:p></w:comment>`
+  const comments =
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n` +
+    `<w:comments xmlns:w="${W}" xmlns:w14="${W14}">` +
+    comment('0', 'Ana', '10000000', 'Conferir o valor.') +
+    comment('1', 'Bruno', '10000001', 'Conferido na planilha.') +
+    comment('2', 'Carla', '10000002', 'Trocar o título.') +
+    `</w:comments>`
+  const extended =
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n` +
+    `<w15:commentsEx xmlns:w15="${W15}" xmlns:mc="${MC}" mc:Ignorable="w15">` +
+    `<w15:commentEx w15:paraId="10000000" w15:done="0"/>` +
+    `<w15:commentEx w15:paraId="10000001" w15:paraIdParent="10000000" w15:done="0"/>` +
+    `<w15:commentEx w15:paraId="10000002" w15:done="1"/>` +
+    `</w15:commentsEx>`
+  const reference = (id: string): string =>
+    `<w:commentRangeEnd w:id="${id}"/><w:r><w:rPr><w:rStyle w:val="CommentReference"/></w:rPr><w:commentReference w:id="${id}"/></w:r>`
+
+  return zip([
+    [
+      '[Content_Types].xml',
+      CONTENT_TYPES.replace(
+        '</Types>',
+        '<Override PartName="/word/commentsExtended.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.commentsExtended+xml"/></Types>',
+      ),
+    ],
+    ['_rels/.rels', ROOT_RELS],
+    [
+      'word/_rels/document.xml.rels',
+      DOCUMENT_RELS.replace(
+        '</Relationships>',
+        '<Relationship Id="rId2" Type="http://schemas.microsoft.com/office/2011/relationships/commentsExtended" Target="commentsExtended.xml"/></Relationships>',
+      ),
+    ],
+    [
+      'word/document.xml',
+      documentXml(
+        paragraph('Ata da reunião de terça.') +
+          `<w:p><w:r><w:t xml:space="preserve">O orçamento é de </w:t></w:r>` +
+          `<w:commentRangeStart w:id="0"/><w:commentRangeStart w:id="1"/>` +
+          `<w:r><w:t>doze mil reais</w:t></w:r>${reference('0')}${reference('1')}` +
+          `<w:r><w:t xml:space="preserve"> por ano.</w:t></w:r></w:p>` +
+          `<w:p><w:commentRangeStart w:id="2"/><w:r><w:t>Título provisório</w:t></w:r>${reference('2')}</w:p>` +
+          paragraph('Fim.'),
+      ),
+    ],
+    ['word/comments.xml', comments],
+    ['word/commentsExtended.xml', extended],
   ])
 }
 

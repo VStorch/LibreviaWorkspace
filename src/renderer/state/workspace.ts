@@ -32,6 +32,8 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
     sections: [],
     beforeSections: false,
     outsideBookmarks: [],
+    comments: [],
+    beforeComments: false,
     workbook: null,
     generation: 0,
     isDirty: false,

@@ -53,6 +53,75 @@ public static class Fixtures
         body.AppendChild(Paragraph("Outro parágrafo sem comentário."));
     });
 
+    /// <summary>
+    /// Uma conversa, um comentário resolvido e um de ponto (M10).
+    /// </summary>
+    /// <remarks>
+    /// Como o Word grava: a resposta abraça o mesmo trecho que o comentário que ela
+    /// responde, com as pontas dela logo depois das dele, e `commentsExtended.xml`
+    /// liga as duas pelo `w14:paraId` do último parágrafo de cada uma. O resolvido
+    /// é `w15:done`. O de ponto não tem trecho — só a referência.
+    /// </remarks>
+    public static byte[] WithCommentThread() => Build((body, part) =>
+    {
+        var date = System.Xml.XmlConvert.ToDateTime(
+            "2026-03-02T10:00:00Z", System.Xml.XmlDateTimeSerializationMode.Utc);
+        Comment Of(string id, string author, string paraId, params string[] lines) =>
+            new(lines.Select(line => new Paragraph(new Run(new Text(line))) { ParagraphId = paraId }))
+            {
+                Id = id,
+                Author = author,
+                Initials = author[..1],
+                Date = date,
+            };
+
+        var comments = part.AddNewPart<WordprocessingCommentsPart>();
+        comments.Comments = new Comments(
+            Of("0", "Ana", "10000000", "Conferir o valor."),
+            Of("1", "Bruno", "10000001", "Conferido."),
+            Of("2", "Ana", "10000002", "Já resolvido."),
+            Of("3", "Carla", "10000003", "Ponto sem trecho."));
+        var rich = new Paragraph(new Run(new RunProperties(new Bold()), new Text("negrito")));
+        comments.Comments.AppendChild(new Comment(rich) { Id = "4", Author = "Dora", Date = date });
+
+        var extended = part.AddNewPart<WordprocessingCommentsExPart>();
+        extended.CommentsEx = new DocumentFormat.OpenXml.Office2013.Word.CommentsEx(
+            new DocumentFormat.OpenXml.Office2013.Word.CommentEx { ParaId = "10000000", Done = false },
+            new DocumentFormat.OpenXml.Office2013.Word.CommentEx
+            {
+                ParaId = "10000001", ParaIdParent = "10000000", Done = false,
+            },
+            new DocumentFormat.OpenXml.Office2013.Word.CommentEx { ParaId = "10000002", Done = true },
+            new DocumentFormat.OpenXml.Office2013.Word.CommentEx { ParaId = "10000003", Done = false });
+
+        body.AppendChild(Paragraph("Parágrafo sem comentário."));
+
+        var thread = new Paragraph(
+            new Run(new Text("O valor ") { Space = SpaceProcessingModeValues.Preserve }),
+            new CommentRangeStart { Id = "0" },
+            new CommentRangeStart { Id = "1" },
+            new Run(new Text("doze mil")),
+            new CommentRangeEnd { Id = "0" },
+            new Run(new RunProperties(new RunStyle { Val = "CommentReference" }), new CommentReference { Id = "0" }),
+            new CommentRangeEnd { Id = "1" },
+            new Run(new RunProperties(new RunStyle { Val = "CommentReference" }), new CommentReference { Id = "1" }),
+            new Run(new Text(" consta da ata.") { Space = SpaceProcessingModeValues.Preserve }));
+        body.AppendChild(thread);
+
+        var resolved = Paragraph("Parágrafo resolvido.");
+        resolved.PrependChild(new CommentRangeStart { Id = "2" });
+        resolved.AppendChild(new CommentRangeEnd { Id = "2" });
+        resolved.AppendChild(new Run(new CommentReference { Id = "2" }));
+        body.AppendChild(resolved);
+
+        var point = Paragraph("Parágrafo com ponto.");
+        point.AppendChild(new Run(new CommentReference { Id = "3" }));
+        point.AppendChild(new CommentRangeStart { Id = "4" });
+        point.AppendChild(new CommentRangeEnd { Id = "4" });
+        point.AppendChild(new Run(new CommentReference { Id = "4" }));
+        body.AppendChild(point);
+    });
+
     /// <summary>Documento com controle de alterações no segundo parágrafo.</summary>
     public static byte[] WithTrackedChanges() => Build((body, _) =>
     {

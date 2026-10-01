@@ -49,6 +49,7 @@ import { Node as ProseMirrorNode } from '@tiptap/pm/model'
 import {
   docxWithBulletList,
   docxWithComment,
+  docxWithCommentThread,
   docxWithDirectOverStyles,
   docxWithDescribedImage,
   docxWithHeaderGrid,
@@ -270,6 +271,8 @@ describe.skipIf(!published)('impressão digital entre o editor e o sidecar', () 
   // ancorada, o espaçamento sempre declarado, o cabeçalho em grade.
   const documents: Array<[string, () => Promise<Buffer>]> = [
     ['parágrafos com comentário ancorado', docxWithComment],
+    // M10: a âncora vira nó, e a da resposta não — nos dois lados.
+    ['conversa de comentários com resposta e resolvido', docxWithCommentThread],
     ['parágrafo sem nada em volta', docxWithoutExtras],
     ['imagem esticada no fluxo do texto', docxWithStretchedImage],
     ['caixa de texto', docxWithTextBox],
