@@ -193,9 +193,11 @@ export async function saveDocx(
       ...(model.beforeReferences ? { beforeReferences: true } : {}),
       ...(model.sections === undefined ? {} : { sections: model.sections }),
       ...(model.beforeSections ? { beforeSections: true } : {}),
-      // Os comentários não vão: nesta fase o corpo deles não muda. Só a marca do
-      // rascunho antigo, que escolhe a leitura de referência.
-      ...(model.beforeComments ? { beforeComments: true } : {}),
+      // Os comentários vão sempre — a lista vazia é "todos excluídos". O sidecar
+      // compara cada um com o do arquivo e só toca a parte que mudou. No rascunho
+      // de antes deles, só a marca, que escolhe a leitura de referência e deixa
+      // as partes como estão.
+      ...(model.beforeComments ? { beforeComments: true } : { comments: model.comments }),
       ...(model.styles === undefined ? {} : { styles: model.styles }),
     },
     new Uint8Array(original),
@@ -330,6 +332,7 @@ function unwrapSdoc(content: string): {
   sections: unknown
   beforeSections: boolean
   beforeComments: boolean
+  comments: unknown[]
 } {
   let parsed: unknown
   try {
@@ -351,6 +354,7 @@ function unwrapSdoc(content: string): {
       sections: z.unknown().optional(),
       beforeSections: z.boolean().optional(),
       beforeComments: z.boolean().optional(),
+      comments: z.array(documentCommentSchema).max(100_000).optional(),
     })
     .safeParse(parsed)
   if (!envelope.success) {
@@ -366,5 +370,6 @@ function unwrapSdoc(content: string): {
     sections: envelope.data.sections,
     beforeSections: envelope.data.beforeSections === true,
     beforeComments: envelope.data.beforeComments === true,
+    comments: envelope.data.comments ?? [],
   }
 }

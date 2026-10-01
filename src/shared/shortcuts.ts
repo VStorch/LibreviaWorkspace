@@ -132,6 +132,12 @@ export const SHORTCUTS = {
     does: 'Marcador…',
   },
   insertTable: { owner: ShortcutOwner.Menu, key: { mod: true, key: 'F12' }, does: 'Inserir tabela…' },
+  /** `Ctrl+Alt+M`, o do Word e o do LibreOffice para inserir comentário. */
+  insertComment: {
+    owner: ShortcutOwner.Menu,
+    key: { mod: true, alt: true, key: 'M' },
+    does: 'Comentário',
+  },
 
   // ## Menu → Exibir
   /**

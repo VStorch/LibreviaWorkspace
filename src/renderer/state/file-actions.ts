@@ -215,6 +215,8 @@ export function createFileActions(set: SetWorkspace, get: GetWorkspace, ctx: Wor
         beforeSections: false,
         outsideBookmarks: [],
         comments: [],
+        commentsOutside: [],
+        commentDraft: null,
         beforeComments: false,
         generation: state.generation + 1,
         isDirty: false,

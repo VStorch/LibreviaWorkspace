@@ -117,6 +117,8 @@ export const MenuCommand = {
   ImageProperties: 'image-properties',
   /** Marcadores: adicionar, ir para e excluir. */
   InsertBookmark: 'insert-bookmark',
+  /** Comentário na seleção, ou no cursor (M10). */
+  InsertComment: 'insert-comment',
   /** Sumário dos títulos, com número de página e link. */
   InsertTableOfContents: 'insert-table-of-contents',
   /** Refaz as entradas do sumário a partir dos títulos de agora. */
@@ -241,6 +243,11 @@ export interface EditorPreferences {
    * assim no Word — quem abre o painel num documento o encontra aberto no próximo.
    */
   readonly navigationPane: boolean
+  /**
+   * O nome que assina os comentários novos (M10). Vazio no arquivo, o main põe o
+   * usuário do sistema — ver `load()` em `src/main/preferences.ts`.
+   */
+  readonly authorName: string
 }
 
 /**
@@ -280,6 +287,7 @@ export const DEFAULT_EDITOR_PREFERENCES: EditorPreferences = {
   zoom: 100,
   zoomFit: false,
   navigationPane: false,
+  authorName: '',
 }
 
 /** Operações de área de transferência que só o `webContents` sabe fazer. */

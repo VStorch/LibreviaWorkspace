@@ -230,9 +230,7 @@ describe.skipIf(!published)('documento novo em .docx', () => {
       destination: '/tmp/destino.docx',
     })
 
-    expect(saved.inventory.lost).toContain(
-      'estilos, notas, comentários e demais partes do arquivo .docx de origem',
-    )
+    expect(saved.inventory.lost).toContain('estilos, notas e demais partes do arquivo .docx de origem')
   })
 
   it('avisa quando as faixas de um .docx de origem não têm onde ser gravadas', async () => {

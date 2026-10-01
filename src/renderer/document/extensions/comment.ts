@@ -1,5 +1,5 @@
 import { Extension, Node } from '@tiptap/core'
-import { Fragment, Slice, type Node as ProseMirrorNode } from '@tiptap/pm/model'
+import { Fragment, Slice, type Node as ProseMirrorNode, type Schema } from '@tiptap/pm/model'
 import { Plugin, PluginKey, type EditorState, type Transaction } from '@tiptap/pm/state'
 import { Decoration, DecorationSet } from '@tiptap/pm/view'
 
@@ -38,6 +38,39 @@ export function commentAnchorsOf(doc: ProseMirrorNode): Map<string, CommentAncho
     return false
   })
   return anchors
+}
+
+/**
+ * As pontas de um comentário novo na seleção: o começo no `from`, o fim no `to`.
+ * Sem seleção, é comentário de ponto — só o fim, como o Word grava.
+ *
+ * Devolve `false` quando a seleção não cai em texto (uma tabela inteira, uma
+ * imagem de bloco), onde um nó de linha não cabe.
+ */
+export function insertCommentAnchors(tr: Transaction, schema: Schema, cid: string): boolean {
+  const { from, to, $from, $to } = tr.selection
+  if (!$from.parent.inlineContent || !$to.parent.inlineContent) return false
+  const start = schema.nodes['commentStart']
+  const end = schema.nodes['commentEnd']
+  if (start === undefined || end === undefined) return false
+  // O fim primeiro: inserido antes, ele empurraria a posição do começo.
+  tr.insert(to, end.create({ cid }))
+  if (to > from) tr.insert(from, start.create({ cid }))
+  return true
+}
+
+/** Tira as pontas da conversa `cid` do texto. Devolve se havia alguma. */
+export function removeCommentAnchors(tr: Transaction, cid: string): boolean {
+  const positions: number[] = []
+  tr.doc.descendants((node, pos) => {
+    if ((node.type.name === 'commentStart' || node.type.name === 'commentEnd') && node.attrs['cid'] === cid) {
+      positions.push(pos)
+    }
+    return node.isBlock
+  })
+  // De trás para a frente: cada remoção mexe só no que vem depois dela.
+  for (const pos of positions.reverse()) tr.delete(pos, pos + 1)
+  return positions.length > 0
 }
 
 const commentNode = (name: 'commentStart' | 'commentEnd') =>
@@ -109,8 +142,8 @@ function decorate(doc: ProseMirrorNode, focus: CommentFocus): DecorationSet {
 /**
  * O trecho colado sem âncora de comentário.
  *
- * Nesta fase o corpo do comentário é só de leitura, e a cópia de uma âncora seria
- * a mesma conversa em dois lugares — o Word recusa o id repetido. O que foi
+ * A cópia de uma âncora seria a mesma conversa em dois lugares — o Word recusa o
+ * id repetido. O que foi
  * **arrastado** dentro do documento se move, e leva a âncora junto.
  */
 export function withoutCommentAnchors(slice: Slice, moving = false): Slice {

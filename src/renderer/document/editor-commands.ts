@@ -44,6 +44,7 @@ export const EditorCommand = {
   UpdateFields: 'update-fields',
   InsertCaption: 'insert-caption',
   InsertCrossReference: 'insert-cross-reference',
+  InsertComment: 'insert-comment',
   ...TableAction,
 } as const satisfies Record<string, MenuCommand>
 

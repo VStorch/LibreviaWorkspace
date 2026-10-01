@@ -48,6 +48,8 @@ import { CrossReferenceDialog } from './CrossReferenceDialog.js'
 import { WordCountDialog } from './WordCountDialog.js'
 import { PaperSheet } from './PaperSheet.js'
 import { COMMENTS_PANE_WIDTH_PX, CommentsPane } from './CommentsPane.js'
+import { useComments } from './useComments.js'
+import { insertComment } from './comment-commands.js'
 import { usePagination } from './usePagination.js'
 import { useBandHeights } from './useBandHeights.js'
 import { splitIntoPages } from './print-source.js'
@@ -82,7 +84,6 @@ export function DocumentEditor(): React.JSX.Element {
   const registerDocumentSource = useWorkspace((state) => state.registerDocumentSource)
   const setEstimatedPages = useWorkspace((state) => state.setEstimatedPages)
   const readOnly = useWorkspace((state) => state.readOnly)
-  const comments = useWorkspace((state) => state.comments)
   const setPage = useWorkspace((state) => state.setPage)
   const setSections = useWorkspace((state) => state.setSections)
   const styles = useWorkspace((state) => state.styles)
@@ -297,6 +298,8 @@ export function DocumentEditor(): React.JSX.Element {
 
   // Que seção abre cada folha: as faixas são medidas na primeira folha de cada
   // seção, e é preciso medir de novo quando essa distribuição muda.
+  // Os comentários que o texto sustenta agora — o desfeito some do painel.
+  const { comments, outside } = useComments(editor)
   const [sheetSections, setSheetSections] = useState('')
   const bands = useBandHeights(effective, contentRevision, sheetSections)
   const layout = usePagination(editor, effective, sections, contentRevision, bands, !reading, styles)
@@ -582,6 +585,7 @@ export function DocumentEditor(): React.JSX.Element {
           }}
           onClose={() => setContextTarget(null)}
           onPasteWithoutFormat={() => void pasteWithoutFormat()}
+          onNewComment={() => insertComment(editor)}
         />
       )}
 
@@ -705,7 +709,9 @@ export function DocumentEditor(): React.JSX.Element {
                 <EditorContent editor={editor} />
               </div>
 
-              {commentsPane && <CommentsPane editor={editor} comments={comments} leftPx={stackWidthPx} />}
+              {commentsPane && (
+                <CommentsPane editor={editor} comments={comments} outside={outside} leftPx={stackWidthPx} />
+              )}
             </div>
           </div>
         </div>

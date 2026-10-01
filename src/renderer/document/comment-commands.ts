@@ -1,0 +1,125 @@
+import type { Editor } from '@tiptap/react'
+import type { DocumentComment } from '@services/document/model.js'
+import { initialsOf, nextCommentId, paragraphsOfText } from '@services/document/comments.js'
+import { t } from '../i18n.js'
+import { currentPreferences } from '../state/preferences.js'
+import { useWorkspace } from '../state/workspace.js'
+import { insertCommentAnchors, removeCommentAnchors } from './extensions/comment.js'
+
+/**
+ * Criar, responder, editar, resolver e excluir comentários (M10, fase 2).
+ *
+ * O desenho é o das seções (ver section-commands.ts): o comentário mora em dois
+ * lugares — as pontas no texto e o corpo na biblioteca da loja —, e quem diz qual
+ * vale é o texto (`resolveComments`). Inserir e excluir são **uma transação do
+ * editor** cada, e o desfazer tira e devolve o cartão junto com as pontas. Texto,
+ * resposta e resolvido mudam só a loja: ficam fora do desfazer, como os estilos,
+ * e marcam o documento.
+ */
+
+/**
+ * Comentários só se criam e mudam em documento que os grava.
+ *
+ * O rascunho de antes deles (`.sdoc` < 7) não tem as pontas nos nós, e a gravação
+ * dele deixa as partes de comentário como estão: a mudança apareceria na tela e
+ * sumiria no arquivo. O comando recusa e diz por quê.
+ */
+export function commentEditsAllowed(): boolean {
+  const store = useWorkspace.getState()
+  if (store.readOnly) return false
+  if (!store.beforeComments) return true
+  store.showError({ code: 'INTERNAL', message: t('comments.legacyDraft') })
+  return false
+}
+
+/** Um comentário novo, assinado pelo autor das preferências e datado de agora. */
+function newComment(library: readonly DocumentComment[], parentId?: string): DocumentComment {
+  const author = currentPreferences().authorName.trim()
+  const initials = initialsOf(author)
+  return {
+    id: nextCommentId(library),
+    author,
+    ...(initials === '' ? {} : { initials }),
+    date: new Date().toISOString(),
+    paragraphs: [],
+    done: false,
+    ...(parentId === undefined ? {} : { parentId }),
+  }
+}
+
+/**
+ * Inserir → Comentário: as pontas na seleção e um cartão novo no painel, com a
+ * caixa de texto aberta. Vazio, o cartão desiste e leva as pontas (`cancelNewComment`).
+ */
+export function insertComment(editor: Editor): void {
+  if (!commentEditsAllowed()) return
+  const store = useWorkspace.getState()
+  const wasClean = !store.isDirty
+  const comment = newComment(store.comments)
+  // A biblioteca antes do texto, como nas seções: a ponta nova precisa achar o
+  // corpo quando o painel medir. Entrada a mais não muda nada até o texto apontá-la.
+  // Sem `focus()`: com o editor fora de foco (o clique no menu de contexto), o
+  // foco do TipTap chega num quadro seguinte e rouba o da caixa do cartão.
+  const inserted = editor
+    .chain()
+    .command(({ tr, state }) => {
+      if (!insertCommentAnchors(tr, state.schema, comment.id)) return false
+      store.setComments([...store.comments, comment])
+      return true
+    })
+    .run()
+  if (!inserted) return
+  cleanBeforeDraft = wasClean
+  store.setCommentDraft(comment.id)
+}
+
+/** O documento estava salvo quando o cartão novo abriu: desistir dele o devolve assim. */
+let cleanBeforeDraft = false
+
+/**
+ * O cartão novo desistiu (Esc, ou confirmado vazio): as pontas saem, fora do
+ * desfazer — refazer um comentário que nunca teve texto seria um cartão vazio.
+ */
+export function cancelNewComment(editor: Editor, cid: string): void {
+  const store = useWorkspace.getState()
+  store.setCommentDraft(null)
+  const tr = editor.state.tr
+  if (removeCommentAnchors(tr, cid)) editor.view.dispatch(tr.setMeta('addToHistory', false))
+  if (cleanBeforeDraft) useWorkspace.setState({ isDirty: false })
+  cleanBeforeDraft = false
+}
+
+/** Excluir a conversa: as pontas saem do texto, e com elas o cartão e as respostas. */
+export function deleteCommentThread(editor: Editor, cid: string): void {
+  if (!commentEditsAllowed()) return
+  const tr = editor.state.tr
+  if (removeCommentAnchors(tr, cid)) editor.view.dispatch(tr)
+  const store = useWorkspace.getState()
+  if (store.commentDraft === cid) store.setCommentDraft(null)
+}
+
+/** Troca o texto de um comentário. */
+export function editComment(id: string, text: string): void {
+  if (!commentEditsAllowed()) return
+  const store = useWorkspace.getState()
+  const paragraphs = paragraphsOfText(text)
+  store.setComments(
+    store.comments.map((comment) => (comment.id === id ? { ...comment, paragraphs } : comment)),
+  )
+  if (store.commentDraft === id) store.setCommentDraft(null)
+}
+
+/** Uma resposta nova no fim da conversa `rootId`. */
+export function replyToComment(rootId: string, text: string): void {
+  if (!commentEditsAllowed()) return
+  const store = useWorkspace.getState()
+  const reply = { ...newComment(store.comments, rootId), paragraphs: paragraphsOfText(text) }
+  store.setComments([...store.comments, reply])
+}
+
+/** Resolver e reabrir: vale para a conversa inteira, pelo comentário que a abre. */
+export function setCommentDone(rootId: string, done: boolean): void {
+  if (!commentEditsAllowed()) return
+  const store = useWorkspace.getState()
+  store.setComments(store.comments.map((comment) => (comment.id === rootId ? { ...comment, done } : comment)))
+}

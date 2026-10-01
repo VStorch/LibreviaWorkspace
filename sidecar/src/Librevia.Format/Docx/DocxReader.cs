@@ -52,9 +52,9 @@ public sealed record DocumentModelDto(
     [property: JsonPropertyName("beforeSections")]
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     bool BeforeSections = false,
-    // Os comentários do arquivo (M10), fora dos nós — ver CommentsReader. Só a
-    // leitura os dá: nesta fase o corpo deles não muda, e `word/comments.xml`
-    // volta ao arquivo byte a byte.
+    // Os comentários do documento (M10), fora dos nós — ver CommentsReader. Na
+    // gravação, ausente é "não mexa"; a lista é o que vale, e o que não mudou
+    // volta byte a byte — ver CommentsWriter.
     [property: JsonPropertyName("comments")]
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     List<CommentDto>? Comments = null,

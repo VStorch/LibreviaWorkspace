@@ -77,8 +77,19 @@ export interface WorkspaceState {
   beforeSections: boolean
   /** Marcadores do arquivo fora dos nós — ver `DocumentModel.outsideBookmarks`. */
   outsideBookmarks: readonly string[]
-  /** Os comentários do arquivo — ver `DocumentModel.comments`. Só de leitura nesta fase. */
+  /**
+   * A biblioteca de comentários — ver `DocumentModel.comments`. Só ganha
+   * entradas: quais valem é o texto que diz (`resolveComments`), e é assim que o
+   * desfazer tira e devolve um comentário inserido ou excluído.
+   */
   comments: readonly DocumentComment[]
+  /**
+   * As conversas que o arquivo ancora fora do corpo (cabeçalho, nota, caixa de
+   * texto), que o texto do editor não tem como sustentar — ver `commentsOutsideOf`.
+   */
+  commentsOutside: readonly string[]
+  /** O comentário recém-inserido cuja caixa de texto o painel abre, à espera do texto. */
+  commentDraft: string | null
   /** O rascunho é de antes dos comentários — ver `DocumentModel.beforeComments`. */
   beforeComments: boolean
   /**
@@ -157,6 +168,12 @@ export interface WorkspaceState {
    * quando uma quebra de seção entra ou sai. Como `setPage`, marca o documento.
    */
   setSections: (sections: readonly SectionSetup[]) => void
+  /**
+   * Troca a biblioteca de comentários — texto, resposta, resolvido. Fora do
+   * desfazer do editor, como os estilos; marca o documento.
+   */
+  setComments: (comments: readonly DocumentComment[]) => void
+  setCommentDraft: (cid: string | null) => void
   /**
    * Troca os estilos do documento — modificar ou criar um estilo.
    *

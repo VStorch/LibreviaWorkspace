@@ -32,6 +32,7 @@ export function DocumentContextMenu({
   onListAction,
   onClose,
   onPasteWithoutFormat,
+  onNewComment,
 }: {
   readonly target: ContextMenuTarget
   /** Se o cursor está numa tabela — só então as ações dela aparecem. */
@@ -42,6 +43,8 @@ export function DocumentContextMenu({
   readonly onListAction: (action: ListAction) => void
   readonly onClose: () => void
   readonly onPasteWithoutFormat: () => void
+  /** Comentário na seleção, ou no cursor — ver `insertComment`. */
+  readonly onNewComment: () => void
 }): React.JSX.Element {
   const showError = useWorkspace((state) => state.showError)
   const readOnly = useWorkspace((state) => state.readOnly)
@@ -132,6 +135,18 @@ export function DocumentContextMenu({
         }}
       >
         {t('menu.edit.pasteWithoutFormat')}
+      </ContextMenuItem>
+
+      {/* Logo depois da área de transferência, como o "Novo comentário" do Word. */}
+      <ContextMenuSeparator />
+      <ContextMenuItem
+        disabled={readOnly}
+        onClick={() => {
+          onClose()
+          onNewComment()
+        }}
+      >
+        {t('comments.new')}
       </ContextMenuItem>
 
       {/* A numeração vem logo depois da área de transferência, como no Word; e

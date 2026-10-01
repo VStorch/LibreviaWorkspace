@@ -3,6 +3,7 @@ import type { Editor } from '@tiptap/react'
 import { TableAction } from '@shared/table-actions.js'
 import { EditorCommand, onEditorCommand, runsWhileLocked } from './editor-commands.js'
 import { runTableAction } from './table-actions.js'
+import { insertComment } from './comment-commands.js'
 import {
   deleteSectionBreak,
   insertColumnBreak,
@@ -112,6 +113,9 @@ export function useEditorCommands(
           return setDialog('imageProperties', true)
         case EditorCommand.InsertBookmark:
           return setDialog('bookmark', true)
+        case EditorCommand.InsertComment:
+          if (editor !== null) insertComment(editor)
+          return
         case EditorCommand.InsertTableOfContents:
           if (editor !== null) insertTableOfContents(editor, referenceContext())
           return

@@ -3,6 +3,14 @@ import type { Editor } from '@tiptap/react'
 import { TextSelection } from '@tiptap/pm/state'
 import type { DocumentComment } from '@services/document/model.js'
 import { useLanguage, useT } from '../i18n.js'
+import { useWorkspace } from '../state/workspace.js'
+import {
+  cancelNewComment,
+  deleteCommentThread,
+  editComment,
+  replyToComment,
+  setCommentDone,
+} from './comment-commands.js'
 import { commentAnchorsOf, focusComment } from './extensions/comment.js'
 
 /** Vão entre dois cartões empilhados, em pixels da folha. */
@@ -36,10 +44,20 @@ function threadsOf(comments: readonly DocumentComment[]): Thread[] {
   return roots.map((root) => ({ root, replies: replies.get(root.id) ?? [] }))
 }
 
+/** A caixa de texto aberta num cartão: a resposta, ou o texto do comentário. */
+interface Composing {
+  readonly kind: 'reply' | 'edit'
+  readonly id: string
+}
+
 /**
- * Os comentários do documento, numa coluna ao lado das folhas (M10, fase 1).
+ * Os comentários do documento, numa coluna ao lado das folhas (M10).
  *
- * Só lê. Cada cartão fica na altura do trecho que comenta — a da ponta de início,
+ * `comments` são os que valem agora (`resolveComments`): o desfeito e o excluído
+ * já não vêm. O cartão escolhido mostra as ações — responder, editar, resolver,
+ * excluir —, e o recém-inserido (`commentDraft`) abre com a caixa de texto.
+ *
+ * Cada cartão fica na altura do trecho que comenta — a da ponta de início,
  * ou a do fim no comentário de ponto — e desce o quanto for preciso para não
  * cobrir o de cima, como a margem do Word. Clicar seleciona o trecho e o realça.
  *
@@ -50,20 +68,41 @@ function threadsOf(comments: readonly DocumentComment[]): Thread[] {
 export function CommentsPane({
   editor,
   comments,
+  outside,
   leftPx,
 }: {
   readonly editor: Editor
   readonly comments: readonly DocumentComment[]
+  /** As conversas ancoradas fora do corpo — ver `commentsOutsideOf`. */
+  readonly outside: ReadonlySet<string>
   /** A borda direita das folhas, em pixels da pilha. */
   readonly leftPx: number
 }): React.JSX.Element {
   const t = useT()
   const language = useLanguage()
+  const readOnly = useWorkspace((state) => state.readOnly)
+  const draft = useWorkspace((state) => state.commentDraft)
   const paneRef = useRef<HTMLElement>(null)
   const listRef = useRef<HTMLOListElement>(null)
   const threads = useMemo(() => threadsOf(comments), [comments])
   const [tops, setTops] = useState<ReadonlyMap<string, number>>(new Map())
   const [active, setActive] = useState<string | null>(null)
+  const [composing, setComposing] = useState<Composing | null>(null)
+
+  // O comentário recém-inserido abre escolhido, com a caixa de texto.
+  useEffect(() => {
+    if (draft === null) return
+    setActive(draft)
+    setComposing(null)
+    editor.view.dispatch(focusComment(editor.state.tr, { active: draft }))
+  }, [editor, draft])
+
+  // O rascunho cujas pontas o desfazer levou não espera mais texto.
+  useEffect(() => {
+    if (draft !== null && !threads.some((thread) => thread.root.id === draft)) {
+      useWorkspace.getState().setCommentDraft(null)
+    }
+  }, [draft, threads])
 
   // As conversas resolvidas saem do realce do texto, como no Word.
   useEffect(() => {
@@ -164,13 +203,39 @@ export function CommentsPane({
         <span className="comment-card__author">{comment.author || t('comments.card.unknownAuthor')}</span>
         <span className="comment-card__date">{date(comment.date)}</span>
       </div>
-      {comment.paragraphs.map((text, index) => (
-        <p key={index} className="comment-card__text">
-          {text}
-        </p>
-      ))}
+      {composing?.kind === 'edit' && composing.id === comment.id ? (
+        <CommentComposer
+          initial={comment.paragraphs.join('\n')}
+          submitLabel={t('comments.action.save')}
+          onSubmit={(text) => {
+            setComposing(null)
+            editComment(comment.id, text)
+          }}
+          onCancel={() => setComposing(null)}
+        />
+      ) : (
+        comment.paragraphs.map((text, index) => (
+          <p key={index} className="comment-card__text">
+            {text}
+          </p>
+        ))
+      )}
       {comment.rich === true && <p className="comment-card__note">{t('comments.card.rich')}</p>}
     </>
+  )
+
+  /** O botão do cartão não escolhe o cartão: o clique para nele. */
+  const action = (label: string, run: () => void): React.JSX.Element => (
+    <button
+      type="button"
+      className="comment-card__action"
+      onClick={(event) => {
+        event.stopPropagation()
+        run()
+      }}
+    >
+      {label}
+    </button>
   )
 
   return (
@@ -183,6 +248,7 @@ export function CommentsPane({
       <ol ref={listRef} className="comments-pane__list">
         {ordered.map(({ root, replies }) => {
           const isActive = active === root.id
+          const isDraft = draft === root.id
           // A resolvida fica recolhida — só o cabeçalho — até ser escolhida.
           const collapsed = root.done && !isActive
           return (
@@ -197,8 +263,12 @@ export function CommentsPane({
               aria-label={t('comments.card.label', {
                 author: root.author || t('comments.card.unknownAuthor'),
               })}
-              onClick={() => choose(root.id)}
+              onClick={() => {
+                if (!isDraft) choose(root.id)
+              }}
               onKeyDown={(event) => {
+                // A tecla da caixa de texto e dos botões é deles.
+                if (event.target !== event.currentTarget) return
                 if (event.key !== 'Enter' && event.key !== ' ') return
                 event.preventDefault()
                 choose(root.id)
@@ -211,11 +281,29 @@ export function CommentsPane({
                   </span>
                   <span className="comment-card__badge">{t('comments.card.resolved')}</span>
                 </div>
+              ) : isDraft ? (
+                <>
+                  <div className="comment-card__head">
+                    <span className="comment-card__author">
+                      {root.author || t('comments.card.unknownAuthor')}
+                    </span>
+                  </div>
+                  <CommentComposer
+                    initial=""
+                    submitLabel={t('comments.action.post')}
+                    placeholder={t('comments.editor.placeholder')}
+                    onSubmit={(text) => {
+                      if (text.trim() === '') cancelNewComment(editor, root.id)
+                      else editComment(root.id, text)
+                    }}
+                    onCancel={() => cancelNewComment(editor, root.id)}
+                  />
+                </>
               ) : (
                 <>
                   {body(root)}
                   {root.done && <p className="comment-card__note">{t('comments.card.resolved')}</p>}
-                  {!tops.has(root.id) && (
+                  {outside.has(root.id) && (
                     <p className="comment-card__note">{t('comments.card.unanchored')}</p>
                   )}
                   {replies.length > 0 && (
@@ -225,13 +313,106 @@ export function CommentsPane({
                       ))}
                     </ol>
                   )}
+                  {composing?.kind === 'reply' && composing.id === root.id && (
+                    <CommentComposer
+                      initial=""
+                      submitLabel={t('comments.action.reply')}
+                      placeholder={t('comments.reply.placeholder')}
+                      onSubmit={(text) => {
+                        setComposing(null)
+                        if (text.trim() !== '') replyToComment(root.id, text)
+                      }}
+                      onCancel={() => setComposing(null)}
+                    />
+                  )}
                 </>
+              )}
+              {isActive && !isDraft && !readOnly && composing === null && (
+                <div className="comment-card__actions">
+                  {!root.done &&
+                    action(t('comments.action.reply'), () => setComposing({ kind: 'reply', id: root.id }))}
+                  {!root.done &&
+                    action(t('comments.action.edit'), () => setComposing({ kind: 'edit', id: root.id }))}
+                  {action(t(root.done ? 'comments.action.reopen' : 'comments.action.resolve'), () =>
+                    setCommentDone(root.id, !root.done),
+                  )}
+                  {action(t('comments.action.delete'), () => {
+                    setActive(null)
+                    deleteCommentThread(editor, root.id)
+                  })}
+                </div>
               )}
             </li>
           )
         })}
       </ol>
     </aside>
+  )
+}
+
+/**
+ * A caixa de texto do cartão: o comentário novo, a resposta, a edição.
+ *
+ * Abre com o foco. `Ctrl+Enter` confirma e `Esc` desiste; o clique e a tecla não
+ * sobem para o cartão, que os leria como "escolher".
+ */
+function CommentComposer({
+  initial,
+  submitLabel,
+  placeholder,
+  onSubmit,
+  onCancel,
+}: {
+  readonly initial: string
+  readonly submitLabel: string
+  readonly placeholder?: string
+  readonly onSubmit: (text: string) => void
+  readonly onCancel: () => void
+}): React.JSX.Element {
+  const t = useT()
+  const [text, setText] = useState(initial)
+  const ref = useRef<HTMLTextAreaElement>(null)
+
+  useEffect(() => {
+    const field = ref.current
+    if (field === null) return
+    field.focus()
+    field.setSelectionRange(field.value.length, field.value.length)
+  }, [])
+
+  return (
+    <div
+      className="comment-composer"
+      onClick={(event) => event.stopPropagation()}
+      onKeyDown={(event) => event.stopPropagation()}
+    >
+      <textarea
+        ref={ref}
+        className="comment-composer__field"
+        aria-label={t('comments.editor.label')}
+        placeholder={placeholder}
+        value={text}
+        rows={3}
+        onChange={(event) => setText(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === 'Escape') {
+            event.preventDefault()
+            onCancel()
+          } else if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
+            event.preventDefault()
+            onSubmit(text)
+          }
+        }}
+      />
+      <div className="comment-composer__buttons">
+        <button type="button" className="btn" onClick={onCancel}>
+          {t('comments.action.cancel')}
+        </button>
+        <button type="button" className="btn btn--primary" onClick={() => onSubmit(text)}>
+          {submitLabel}
+        </button>
+      </div>
+    </div>
   )
 }
 

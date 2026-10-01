@@ -1,7 +1,7 @@
 import type { Catalog } from '../message.js'
 
 /**
- * Comentários (M10): o painel ao lado da folha.
+ * Comentários (M10): o painel ao lado da folha, e criar, responder, resolver.
  *
  * Área própria porque o marco inteiro mora aqui — e as fases seguintes (criar,
  * responder, resolver) crescem a lista sem tocar as outras áreas.
@@ -17,7 +17,23 @@ export const COMMENTS = {
     en: 'This comment has formatting or images the pane does not show. They stay in the file.',
   },
   'comments.card.unanchored': {
-    pt: 'Sem trecho no corpo do texto: foi apagado, ou está num cabeçalho, nota ou caixa de texto.',
-    en: 'No range in the body text: it was deleted, or it is in a header, note or text box.',
+    pt: 'Ancorado fora do corpo do texto: num cabeçalho, nota ou caixa de texto.',
+    en: 'Anchored outside the body text: in a header, note or text box.',
+  },
+  'comments.new': { pt: 'Novo comentário', en: 'New comment' },
+  'comments.editor.label': { pt: 'Texto do comentário', en: 'Comment text' },
+  'comments.editor.placeholder': { pt: 'Escreva um comentário…', en: 'Write a comment…' },
+  'comments.reply.placeholder': { pt: 'Responder…', en: 'Reply…' },
+  'comments.action.post': { pt: 'Comentar', en: 'Comment' },
+  'comments.action.save': { pt: 'Salvar', en: 'Save' },
+  'comments.action.cancel': { pt: 'Cancelar', en: 'Cancel' },
+  'comments.action.reply': { pt: 'Responder', en: 'Reply' },
+  'comments.action.edit': { pt: 'Editar', en: 'Edit' },
+  'comments.action.delete': { pt: 'Excluir', en: 'Delete' },
+  'comments.action.resolve': { pt: 'Resolver', en: 'Resolve' },
+  'comments.action.reopen': { pt: 'Reabrir', en: 'Reopen' },
+  'comments.legacyDraft': {
+    pt: 'Este rascunho é de uma versão anterior aos comentários. Salve-o como .docx e reabra para comentar.',
+    en: 'This draft is from a version before comments. Save it as .docx and reopen it to comment.',
   },
 } satisfies Catalog

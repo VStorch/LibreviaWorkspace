@@ -472,6 +472,7 @@ public sealed class ParagraphWriter
                 _comments ??= new CommentAnchors(_part);
                 foreach (var id in _comments.Thread(Attr.String(node, "cid") ?? "0"))
                 {
+                    _comments.Start(id);
                     yield return new CommentRangeStart { Id = id };
                 }
 
@@ -910,6 +911,12 @@ public sealed class ParagraphWriter
         private readonly HashSet<string> _ranged;
         private readonly Dictionary<string, Run> _references = new(StringComparer.Ordinal);
 
+        /// <summary>
+        /// Os começos já gravados nesta gravação. O comentário criado no editor não
+        /// está no original, e é o começo dele que diz que ele tem trecho.
+        /// </summary>
+        private readonly HashSet<string> _started = new(StringComparer.Ordinal);
+
         public CommentAnchors(MainDocumentPart part)
         {
             _replies = CommentsReader.RepliesOf(part);
@@ -925,7 +932,9 @@ public sealed class ParagraphWriter
         /// <summary>O comentário e as respostas dele, na ordem do arquivo.</summary>
         public IEnumerable<string> Thread(string id) => [id, .. _replies.GetValueOrDefault(id) ?? []];
 
-        public bool Ranged(string id) => _ranged.Contains(id);
+        public void Start(string id) => _started.Add(id);
+
+        public bool Ranged(string id) => _ranged.Contains(id) || _started.Contains(id);
 
         public Run Reference(string id) =>
             _references.TryGetValue(id, out var original)

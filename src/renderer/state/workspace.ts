@@ -33,6 +33,8 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
     beforeSections: false,
     outsideBookmarks: [],
     comments: [],
+    commentsOutside: [],
+    commentDraft: null,
     beforeComments: false,
     workbook: null,
     generation: 0,
@@ -61,6 +63,10 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
     },
     setPage: (page) => set({ page, isDirty: true }),
     setSections: (sections) => set({ sections, isDirty: true }),
+    setComments: (comments) => set({ comments, isDirty: true }),
+    setCommentDraft: (commentDraft) => {
+      if (get().commentDraft !== commentDraft) set({ commentDraft })
+    },
     setStyles: (styles) => set({ styles, isDirty: true }),
     dismissError: () => set({ error: null }),
     dismissNotice: () => set({ notice: null, savedLoss: null }),

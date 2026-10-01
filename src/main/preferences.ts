@@ -1,3 +1,4 @@
+import { userInfo } from 'node:os'
 import * as electron from 'electron'
 import Store from 'electron-store'
 import { IpcChannel } from '@shared/ipc-channels.js'
@@ -58,6 +59,25 @@ let current: EditorPreferences | null = null
 const listeners = new Set<(preferences: EditorPreferences) => void>()
 
 function load(): EditorPreferences {
+  return withAuthor(loadStored())
+}
+
+/**
+ * O autor dos comentários novos, quando a pessoa ainda não deu um: o usuário do
+ * sistema, como o Word faz na primeira vez. Só o main enxerga o sistema.
+ */
+function withAuthor(preferences: EditorPreferences): EditorPreferences {
+  if (preferences.authorName.trim() !== '') return preferences
+  let username = ''
+  try {
+    username = userInfo().username
+  } catch {
+    // Sem conta no sistema (contêiner, por exemplo): o comentário sai sem autor.
+  }
+  return { ...preferences, authorName: username }
+}
+
+function loadStored(): EditorPreferences {
   if (!process.versions.electron) return DEFAULT_EDITOR_PREFERENCES
 
   try {
@@ -151,6 +171,7 @@ export function updatePreferences(patch: EditorPreferencesPatch): EditorPreferen
     zoom: patch.zoom ?? active.zoom,
     zoomFit: patch.zoomFit ?? active.zoomFit,
     navigationPane: patch.navigationPane ?? active.navigationPane,
+    authorName: patch.authorName ?? active.authorName,
   }
 
   const spellcheckChanged = next.spellcheck !== active.spellcheck

@@ -1143,6 +1143,63 @@ button {
   margin-top: 6px;
 }
 
+/* As ações do cartão escolhido: links discretos, como na margem do Word. */
+.comment-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 10px;
+  margin-top: 6px;
+}
+
+.comment-card__action {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.comment-card__action:hover {
+  text-decoration: underline;
+}
+
+.comment-card__action:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.comment-composer {
+  margin-top: 6px;
+  cursor: default;
+}
+
+.comment-composer__field {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 48px;
+  padding: 4px 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  resize: vertical;
+}
+
+.comment-composer__field:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.comment-composer__buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-top: 4px;
+}
+
 /* ---------- barra de ferramentas ---------- */
 
 /*

@@ -58,6 +58,7 @@ export const MENU = {
   'menu.insert.deleteSectionBreak': { pt: 'Excluir quebra de seção', en: 'Delete section break' },
   'menu.insert.specialCharacter': { pt: 'Caractere especial…', en: 'Special character…' },
   'menu.insert.bookmark': { pt: 'Marcador…', en: 'Bookmark…' },
+  'menu.insert.comment': { pt: 'Comentário', en: 'Comment' },
 
   'menu.references.tableOfContents': { pt: 'Inserir sumário', en: 'Insert table of contents' },
   'menu.references.updateTableOfContents': { pt: 'Atualizar sumário', en: 'Update table of contents' },

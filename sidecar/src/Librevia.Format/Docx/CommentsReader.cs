@@ -101,10 +101,10 @@ public static class CommentsReader
         return replies;
     }
 
-    private sealed record ThreadEntry(bool Done, string? Parent);
+    internal sealed record ThreadEntry(bool Done, string? Parent);
 
     /// <summary>`w15:done` e `w15:paraIdParent`, pelo `paraId` do comentário — o pai já traduzido para id.</summary>
-    private static Dictionary<string, ThreadEntry> ThreadsOf(MainDocumentPart part)
+    internal static Dictionary<string, ThreadEntry> ThreadsOf(MainDocumentPart part)
     {
         var entries = part.WordprocessingCommentsExPart?.CommentsEx?.Elements<W15.CommentEx>().ToList() ?? [];
         var result = new Dictionary<string, ThreadEntry>(StringComparer.OrdinalIgnoreCase);
@@ -132,7 +132,7 @@ public static class CommentsReader
         return result;
     }
 
-    private static string TextOf(Paragraph paragraph)
+    internal static string TextOf(Paragraph paragraph)
     {
         var text = new StringBuilder();
         foreach (var element in paragraph.Descendants())

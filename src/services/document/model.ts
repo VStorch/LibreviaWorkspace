@@ -208,8 +208,8 @@ export interface DocumentModel {
   /**
    * Os comentários do arquivo (M10). O corpo mora aqui, fora dos nós, pelo mesmo
    * motivo dos estilos; no texto ficam só as pontas da âncora (`commentStart` e
-   * `commentEnd`, uma por conversa — a resposta não tem nó). Nesta fase são só de
-   * leitura: a gravação não os envia, e `word/comments.xml` volta byte a byte.
+   * `commentEnd`, uma por conversa — a resposta não tem nó). Só os que o texto
+   * sustenta (`resolveComments`); o que não mudou volta ao arquivo byte a byte.
    */
   readonly comments?: readonly DocumentComment[]
   /**

@@ -4,6 +4,7 @@ import { DiscardChoice } from '@shared/types.js'
 import type { IpcResult } from '@shared/ipc.js'
 import type { DocumentModel } from '@services/document/model.js'
 import { serializeDocument } from '@services/document/serialize.js'
+import { commentAnchorIdsOfJson, commentsOutsideOf, resolveComments } from '@services/document/comments.js'
 import { marksOfJson, resolveSections } from '@services/document/sections.js'
 import { serializeWorkbook } from '@services/spreadsheet/serialize.js'
 import { t } from '../i18n.js'
@@ -84,6 +85,12 @@ export function createWorkspaceContext(set: SetWorkspace, get: GetWorkspace): Wo
     const { bodySection: _bodySection, ...docAttrs } = read.attrs ?? {}
     void _bodySection
     const doc = read.attrs === undefined ? read : { ...read, attrs: docAttrs }
+    // Os comentários que o texto sustenta, como as seções: o desfeito e o
+    // excluído ficam na biblioteca e não vão ao arquivo. O rascunho de antes dos
+    // comentários não tem as pontas no texto, e a biblioteca vai como veio.
+    const comments = state.beforeComments
+      ? state.comments
+      : resolveComments(commentAnchorIdsOfJson(read), state.comments, new Set(state.commentsOutside))
     return {
       page: resolved.page,
       doc,
@@ -96,9 +103,7 @@ export function createWorkspaceContext(set: SetWorkspace, get: GetWorkspace): Wo
       ...(resolved.sections.length > 0 ? { sections: [...resolved.sections] } : {}),
       ...(state.beforeSections ? { beforeSections: true } : {}),
       ...(state.outsideBookmarks.length > 0 ? { outsideBookmarks: state.outsideBookmarks } : {}),
-      // Como vieram do arquivo, pelo mesmo motivo dos estilos: nesta fase nada
-      // na tela os altera.
-      ...(state.comments.length > 0 ? { comments: state.comments } : {}),
+      ...(comments.length > 0 ? { comments } : {}),
       ...(state.beforeComments ? { beforeComments: true } : {}),
     }
   }
@@ -153,6 +158,8 @@ export function createWorkspaceContext(set: SetWorkspace, get: GetWorkspace): Wo
       beforeSections: model.beforeSections === true,
       outsideBookmarks: model.outsideBookmarks ?? [],
       comments: model.comments ?? [],
+      commentsOutside: commentsOutsideOf(model.doc, model.comments ?? []),
+      commentDraft: null,
       beforeComments: model.beforeComments === true,
       generation: state.generation + 1,
       isDirty: false,

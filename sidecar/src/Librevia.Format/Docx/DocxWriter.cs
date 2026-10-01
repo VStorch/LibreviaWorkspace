@@ -21,7 +21,7 @@ public sealed record SaveResult(
 ///
 /// Só `word/document.xml` é reescrito. Estilos, numeração, cabeçalhos,
 /// rodapés, mídia, comentários, notas, tema e configurações continuam
-/// exatamente como estavam, porque ninguém os abre.
+/// exatamente como estavam, a não ser que o usuário os tenha mudado.
 /// </remarks>
 public static class DocxWriter
 {
@@ -79,6 +79,11 @@ public static class DocxWriter
 
         body.RemoveAllChildren();
         foreach (var element in replacement) body.AppendChild(element);
+
+        // O corpo dos comentários: o criado, o editado, o resolvido e o excluído —
+        // ver CommentsWriter. Antes do conserto das pontas, que precisa conhecer os
+        // comentários novos para não descartar as âncoras deles.
+        CommentsWriter.Apply(part, model, inventory, touched);
 
         // As pontas de comentário que a edição desemparelhou — ver MendCommentAnchors.
         MendCommentAnchors(body, part);
