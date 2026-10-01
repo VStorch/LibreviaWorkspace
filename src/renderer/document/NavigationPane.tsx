@@ -3,6 +3,7 @@ import { currentEntryIndex, outlineOf } from '@services/document/outline.js'
 import { useT } from '../i18n.js'
 import { setPreference } from '../state/preferences.js'
 import { useWorkspace } from '../state/workspace.js'
+import { textStartOf } from './extensions/zero-width.js'
 import { outlineBlocksOf } from './outline-blocks.js'
 
 /**
@@ -37,16 +38,10 @@ export function NavigationPane({ editor }: { readonly editor: Editor }): React.J
     // espera o próximo quadro, e a tecla digitada logo depois do clique caía no
     // botão do painel.
     //
-    // Depois dos marcadores do começo do título (o `_Toc` do sumário): com o
+    // Depois dos âncoras do começo do título (o `_Toc` do sumário, um comentário): com o
     // cursor antes do nó sem largura, o navegador o punha dentro dele, e `End`
     // e as setas deixavam de andar.
-    let start = pos + 1
-    const block = editor.state.doc.nodeAt(pos)
-    for (let index = 0; block !== null && index < block.childCount; index++) {
-      const child = block.child(index)
-      if (child.type.name !== 'bookmarkStart' && child.type.name !== 'bookmarkEnd') break
-      start += child.nodeSize
-    }
+    const start = textStartOf(editor.state.doc, pos)
     // O foco antes da seleção: sem foco o ProseMirror muda só o estado, e o
     // cursor do navegador — o que `Home` e `End` movem — ficava onde estava.
     editor.view.focus()

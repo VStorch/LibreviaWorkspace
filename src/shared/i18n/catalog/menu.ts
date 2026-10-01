@@ -59,6 +59,8 @@ export const MENU = {
   'menu.insert.specialCharacter': { pt: 'Caractere especial…', en: 'Special character…' },
   'menu.insert.bookmark': { pt: 'Marcador…', en: 'Bookmark…' },
   'menu.insert.comment': { pt: 'Comentário', en: 'Comment' },
+  'menu.insert.nextComment': { pt: 'Próximo comentário', en: 'Next comment' },
+  'menu.insert.previousComment': { pt: 'Comentário anterior', en: 'Previous comment' },
 
   'menu.references.tableOfContents': { pt: 'Inserir sumário', en: 'Insert table of contents' },
   'menu.references.updateTableOfContents': { pt: 'Atualizar sumário', en: 'Update table of contents' },
@@ -68,6 +70,7 @@ export const MENU = {
 
   'menu.view.formattingMarks': { pt: 'Marcas de formatação', en: 'Formatting marks' },
   'menu.view.navigationPane': { pt: 'Painel de navegação', en: 'Navigation pane' },
+  'menu.view.commentsPane': { pt: 'Comentários', en: 'Comments' },
   'menu.view.resetZoom': { pt: 'Tamanho normal', en: 'Actual size' },
   'menu.view.zoomIn': { pt: 'Ampliar', en: 'Zoom in' },
   'menu.view.zoomOut': { pt: 'Reduzir', en: 'Zoom out' },
@@ -79,6 +82,7 @@ export const MENU = {
   'menu.tools.spellcheck': { pt: 'Verificação ortográfica', en: 'Spell check' },
   'menu.tools.typography': { pt: 'Autocorreção tipográfica', en: 'Smart typography' },
   'menu.tools.wordCount': { pt: 'Contar palavras…', en: 'Word count…' },
+  'menu.tools.authorName': { pt: 'Nome do autor…', en: 'Author name…' },
 
   'menu.help.about': { pt: 'Sobre o {app}', en: 'About {app}' },
 

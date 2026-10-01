@@ -3,13 +3,8 @@ import { getSchema } from '@tiptap/core'
 import { Fragment, Node as ProseMirrorNode, Slice } from '@tiptap/pm/model'
 import { EditorState, TextSelection } from '@tiptap/pm/state'
 import { buildEditorExtensions } from '../editor-extensions.js'
-import {
-  bookmarksOf,
-  extendOverBookmarks,
-  placeBookmark,
-  removeBookmark,
-  withoutRepeatedBookmarks,
-} from './bookmark.js'
+import { bookmarksOf, placeBookmark, removeBookmark, withoutRepeatedBookmarks } from './bookmark.js'
+import { extendOverAnchors } from './zero-width.js'
 
 const schema = getSchema(buildEditorExtensions(() => {}))
 
@@ -102,12 +97,23 @@ describe('seleção de uma linha inteira', () => {
     // O começo do texto é a posição 2 (depois do marcador); o fim, 10.
     let state = EditorState.create({ doc })
     state = state.apply(state.tr.setSelection(TextSelection.create(state.doc, 2, 10)))
-    const extended = extendOverBookmarks(state)
+    const extended = extendOverAnchors(state)
     expect(extended).not.toBeNull()
     expect([extended!.selection.from, extended!.selection.to]).toEqual([1, 11])
 
     // No meio do texto, nada muda.
     state = state.apply(state.tr.setSelection(TextSelection.create(state.doc, 3, 5)))
-    expect(extendOverBookmarks(state)).toBeNull()
+    expect(extendOverAnchors(state)).toBeNull()
+  })
+
+  it('o pedaço que só encosta numa ponta não leva a âncora dali', () => {
+    const doc = docOf([start('_Ref1', '1'), text('Figura 1'), end('1')])
+    let state = EditorState.create({ doc })
+    // Shift+← do fim: só o "1".
+    state = state.apply(state.tr.setSelection(TextSelection.create(state.doc, 10, 9)))
+    expect(extendOverAnchors(state)).toBeNull()
+    // Ctrl+Shift+→ do começo: só "Figura".
+    state = state.apply(state.tr.setSelection(TextSelection.create(state.doc, 2, 8)))
+    expect(extendOverAnchors(state)).toBeNull()
   })
 })

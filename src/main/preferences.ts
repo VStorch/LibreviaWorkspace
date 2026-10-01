@@ -159,7 +159,8 @@ export function updatePreferences(patch: EditorPreferencesPatch): EditorPreferen
   // Chave por chave, e não por espalhamento: o remendo pode trazer a chave
   // presente com `undefined`, e espalhá-la apagaria a preferência em vez de
   // deixá-la como estava.
-  const next: EditorPreferences = {
+  // O nome apagado volta a ser o do sistema na hora, e não só no próximo início.
+  const next: EditorPreferences = withAuthor({
     spellcheck: patch.spellcheck ?? active.spellcheck,
     invisibleCharacters: patch.invisibleCharacters ?? active.invisibleCharacters,
     typography: patch.typography ?? active.typography,
@@ -171,8 +172,9 @@ export function updatePreferences(patch: EditorPreferencesPatch): EditorPreferen
     zoom: patch.zoom ?? active.zoom,
     zoomFit: patch.zoomFit ?? active.zoomFit,
     navigationPane: patch.navigationPane ?? active.navigationPane,
+    commentsPane: patch.commentsPane ?? active.commentsPane,
     authorName: patch.authorName ?? active.authorName,
-  }
+  })
 
   const spellcheckChanged = next.spellcheck !== active.spellcheck
   const themeChanged = next.theme !== active.theme

@@ -68,6 +68,10 @@ export function splitIntoPages(
     const holder = document.createElement('div')
     const fragments = slicePageBlocks(blocks, start, end)
     holder.appendChild(serializer.serializeFragment(Fragment.fromArray(fragments)))
+    // Os comentários não vão ao papel, como no Word com a marcação desligada: o
+    // painel e o realce são da tela (o realce é decoração, que o serializador não
+    // vê), e as pontas saem aqui — vazias, mas são marcação de comentário.
+    for (const anchor of holder.querySelectorAll('[data-comment-start], [data-comment-end]')) anchor.remove()
     // A mesma marca que a decoração põe na tela: o parágrafo da captura com
     // texto não ganha a linha vazia de 1lh.
     for (const paragraph of holder.querySelectorAll('p')) {

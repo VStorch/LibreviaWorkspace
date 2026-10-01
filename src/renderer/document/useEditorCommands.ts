@@ -3,7 +3,7 @@ import type { Editor } from '@tiptap/react'
 import { TableAction } from '@shared/table-actions.js'
 import { EditorCommand, onEditorCommand, runsWhileLocked } from './editor-commands.js'
 import { runTableAction } from './table-actions.js'
-import { insertComment } from './comment-commands.js'
+import { goToComment, insertComment } from './comment-commands.js'
 import {
   deleteSectionBreak,
   insertColumnBreak,
@@ -35,6 +35,7 @@ export interface EditorDialogs {
   readonly caption: boolean
   readonly crossReference: boolean
   readonly columns: boolean
+  readonly authorName: boolean
 }
 
 const CLOSED: EditorDialogs = {
@@ -53,6 +54,7 @@ const CLOSED: EditorDialogs = {
   caption: false,
   crossReference: false,
   columns: false,
+  authorName: false,
 }
 
 export interface EditorCommands {
@@ -116,6 +118,12 @@ export function useEditorCommands(
         case EditorCommand.InsertComment:
           if (editor !== null) insertComment(editor)
           return
+        case EditorCommand.NextComment:
+        case EditorCommand.PreviousComment:
+          if (editor !== null) goToComment(editor, command === EditorCommand.NextComment ? 1 : -1)
+          return
+        case EditorCommand.AuthorName:
+          return setDialog('authorName', true)
         case EditorCommand.InsertTableOfContents:
           if (editor !== null) insertTableOfContents(editor, referenceContext())
           return

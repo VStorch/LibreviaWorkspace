@@ -46,10 +46,12 @@ import { ColumnsDialog } from './ColumnsDialog.js'
 import { CaptionDialog } from './CaptionDialog.js'
 import { CrossReferenceDialog } from './CrossReferenceDialog.js'
 import { WordCountDialog } from './WordCountDialog.js'
+import { AuthorNameDialog } from './AuthorNameDialog.js'
 import { PaperSheet } from './PaperSheet.js'
 import { COMMENTS_PANE_WIDTH_PX, CommentsPane } from './CommentsPane.js'
 import { useComments } from './useComments.js'
 import { insertComment } from './comment-commands.js'
+import { focusComment } from './extensions/comment.js'
 import { usePagination } from './usePagination.js'
 import { useBandHeights } from './useBandHeights.js'
 import { splitIntoPages } from './print-source.js'
@@ -112,6 +114,7 @@ export function DocumentEditor(): React.JSX.Element {
     extensions: buildEditorExtensions(handleSearchStatus, {
       isTypographyEnabled: () => currentPreferences().typography,
       invisibleCharactersVisible: currentPreferences().invisibleCharacters,
+      isKnownComment: (cid) => useWorkspace.getState().comments.some((comment) => comment.id === cid),
     }),
     content: initialDoc,
     onUpdate: ({ editor: current, transaction }) => {
@@ -222,6 +225,13 @@ export function DocumentEditor(): React.JSX.Element {
     editor?.commands.showInvisibleCharacters(preferences.invisibleCharacters)
   }, [editor, preferences.invisibleCharacters])
 
+  // O painel de comentários escondido leva o realce dos trechos; as pontas e os
+  // corpos ficam, e voltam ao arquivo. Também sem mudar o documento.
+  useEffect(() => {
+    if (editor === null || editor.isDestroyed) return
+    editor.view.dispatch(focusComment(editor.state.tr, { hidden: !preferences.commentsPane }))
+  }, [editor, preferences.commentsPane])
+
   /**
    * Colar sem formatação.
    *
@@ -311,7 +321,7 @@ export function DocumentEditor(): React.JSX.Element {
   const stackWidthPx = Math.max(layout.stackWidthPx, mmToPx(pageDimensionsMm(page).width))
   // A coluna dos comentários ocupa lugar ao lado das folhas, e o invólucro do
   // zoom cresce para a rolagem chegar até ela. Fora da leitura, como o papel.
-  const commentsPane = !reading && comments.length > 0
+  const commentsPane = !reading && preferences.commentsPane && comments.length > 0
   const zoomedWidthPx = stackWidthPx + (commentsPane ? COMMENTS_PANE_WIDTH_PX : 0)
   const firstSection = effective[layout.sheets[0]?.section ?? 0] ?? page
   const insets = contentInsetsMm(firstSection, bands[layout.sheets[0]?.section ?? 0] ?? NO_BANDS)
@@ -519,6 +529,10 @@ export function DocumentEditor(): React.JSX.Element {
       )}
 
       {dialogs.wordCount && <WordCountDialog editor={editor} onClose={() => setDialog('wordCount', false)} />}
+
+      {dialogs.authorName && (
+        <AuthorNameDialog editor={editor} onClose={() => setDialog('authorName', false)} />
+      )}
 
       {dialogs.styles && <StylesPanel editor={editor} onClose={() => setDialog('styles', false)} />}
 

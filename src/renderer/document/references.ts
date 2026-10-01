@@ -23,6 +23,7 @@ import type { StyleSheet } from '@services/document/styles.js'
 import type { MessageKey } from '@shared/i18n/index.js'
 import { bookmarksOf } from './extensions/bookmark.js'
 import { DEFAULT_TOC_INSTRUCTION } from './extensions/table-of-contents.js'
+import { readPendingSelection, textStartOf } from './extensions/zero-width.js'
 import { outlineBlocksOf } from './outline-blocks.js'
 import { drawnSheet, type PageLayout, type PageStart } from './usePagination.js'
 
@@ -51,7 +52,7 @@ export interface ReferenceContext {
 
 /** Faz o ProseMirror ler agora a seleção que o navegador já mudou. */
 export function flushSelection(editor: Editor): void {
-  ;(editor.view as { domObserver?: { flush?: () => void } }).domObserver?.flush?.()
+  readPendingSelection(editor.view)
 }
 
 // --- página de uma posição -------------------------------------------------
@@ -682,12 +683,7 @@ export function insertCrossReference(
       block === null ? undefined : sequencesIn(block, pos).find((item) => item.label.toLowerCase() === wanted)
     if (sequence === undefined) return false
     // O começo do texto da legenda: depois dos marcadores que abrem o parágrafo.
-    let first = pos + 1
-    for (let index = 0; block !== null && index < block.childCount; index++) {
-      const child = block.child(index)
-      if (child.type.name !== 'bookmarkStart' && child.type.name !== 'bookmarkEnd') break
-      first += child.nodeSize
-    }
+    const first = textStartOf(tr.doc, pos)
     // Um marcador só por legenda, em volta do rótulo e do número, para o texto,
     // o número (`\# 0`) e a página — como o Word.
     name = rangeBookmark(tr, first, sequence.pos + 1, first - pos - 1)

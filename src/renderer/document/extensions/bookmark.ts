@@ -1,6 +1,6 @@
 import { Extension, Node } from '@tiptap/core'
 import { Fragment, Slice, type Node as ProseMirrorNode } from '@tiptap/pm/model'
-import { Plugin, PluginKey, TextSelection, type EditorState, type Transaction } from '@tiptap/pm/state'
+import { Plugin, PluginKey, TextSelection, type Transaction } from '@tiptap/pm/state'
 import type { EditorView } from '@tiptap/pm/view'
 import { hiddenBookmarkName, nextBookmarkId } from '@services/document/bookmarks.js'
 import { fieldArgument, fieldKind, fieldSwitch } from '@services/document/fields.js'
@@ -107,37 +107,6 @@ export function ensureBlockBookmark(view: EditorView, pos: number, prefix: '_Ref
   tr.insert(pos + 1, schema.nodes['bookmarkStart']!.create({ name, bid }))
   view.dispatch(tr)
   return name
-}
-
-/** Ver o `appendTransaction` de `Bookmarks`: a seleção leva os marcadores encostados nas pontas do texto. */
-export function extendOverBookmarks(state: EditorState): Transaction | null {
-  const { selection } = state
-  if (!(selection instanceof TextSelection) || selection.empty) return null
-  const { $from, $to } = selection
-  const isMark = (node: ProseMirrorNode | null | undefined): boolean =>
-    node?.type.name === 'bookmarkStart' || node?.type.name === 'bookmarkEnd'
-
-  let from = selection.from
-  let before = $from.parent.childBefore($from.parentOffset)
-  let offset = $from.parentOffset
-  while (offset > 0 && isMark(before.node)) {
-    offset = before.offset
-    before = $from.parent.childBefore(offset)
-  }
-  if (offset === 0) from = $from.start()
-
-  let to = selection.to
-  let after = $to.parent.childAfter($to.parentOffset)
-  let end = $to.parentOffset
-  while (end < $to.parent.content.size && isMark(after.node)) {
-    end = after.offset + after.node!.nodeSize
-    after = $to.parent.childAfter(end)
-  }
-  if (end === $to.parent.content.size) to = $to.end()
-
-  if (from === selection.from && to === selection.to) return null
-  const [anchor, head] = selection.anchor <= selection.head ? [from, to] : [to, from]
-  return state.tr.setSelection(TextSelection.create(state.doc, anchor, head))
 }
 
 const bookmarkNode = (name: 'bookmarkStart' | 'bookmarkEnd') =>
@@ -320,20 +289,6 @@ export const Bookmarks = Extension.create({
     return [
       new Plugin({
         key: new PluginKey('bookmarks'),
-        /**
-         * A seleção que chega ao começo ou ao fim do texto de um parágrafo leva
-         * junto os marcadores encostados ali.
-         *
-         * Os nós não têm largura, e o navegador põe o cursor do lado de dentro
-         * deles: `Shift+Home` numa legenda selecionava "Figura 1 — texto" sem o
-         * começo do `_Ref` que a referência de página cita, e recortar e colar a
-         * legenda deixava o marcador para trás — o F9 seguinte escrevia "Erro!
-         * Indicador não definido.". Estendida, a seleção leva o marcador com o
-         * texto, como no Word.
-         */
-        appendTransaction: (transactions, _old, state) =>
-          transactions.some((tr) => tr.selectionSet) ? extendOverBookmarks(state) : null,
-
         props: {
           /**
            * O link para um lugar do documento leva a ele: com `Ctrl`, como no

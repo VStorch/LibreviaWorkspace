@@ -45,6 +45,9 @@ export const EditorCommand = {
   InsertCaption: 'insert-caption',
   InsertCrossReference: 'insert-cross-reference',
   InsertComment: 'insert-comment',
+  NextComment: 'next-comment',
+  PreviousComment: 'previous-comment',
+  AuthorName: 'author-name',
   ...TableAction,
 } as const satisfies Record<string, MenuCommand>
 
@@ -75,6 +78,10 @@ const READS_ONLY: ReadonlySet<EditorCommand> = new Set<EditorCommand>([
   EditorCommand.WordCount,
   // O diálogo abre para "Ir para"; adicionar e excluir se apagam lá dentro.
   EditorCommand.InsertBookmark,
+  // Andar entre os comentários só lê; e o nome do autor é preferência, não documento.
+  EditorCommand.NextComment,
+  EditorCommand.PreviousComment,
+  EditorCommand.AuthorName,
 ])
 
 /** O comando pode rodar num documento aberto em somente leitura? */

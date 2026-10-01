@@ -231,6 +231,7 @@ export const editorPreferencesSchema = z.object({
   zoom: z.number().int().min(50).max(200).default(100),
   zoomFit: z.boolean().default(false),
   navigationPane: z.boolean().default(false),
+  commentsPane: z.boolean().default(true),
   authorName: z.string().max(200).default(''),
 })
 
@@ -255,6 +256,7 @@ export const editorPreferencesPatchSchema = z.object({
   zoom: z.number().int().min(50).max(200).optional(),
   zoomFit: z.boolean().optional(),
   navigationPane: z.boolean().optional(),
+  commentsPane: z.boolean().optional(),
   authorName: z.string().max(200).optional(),
 })
 

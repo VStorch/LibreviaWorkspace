@@ -119,6 +119,11 @@ export const MenuCommand = {
   InsertBookmark: 'insert-bookmark',
   /** Comentário na seleção, ou no cursor (M10). */
   InsertComment: 'insert-comment',
+  /** Vai à próxima conversa (ou à anterior), pela ordem do texto, e a escolhe no painel. */
+  NextComment: 'next-comment',
+  PreviousComment: 'previous-comment',
+  /** O nome que assina os comentários novos. */
+  AuthorName: 'author-name',
   /** Sumário dos títulos, com número de página e link. */
   InsertTableOfContents: 'insert-table-of-contents',
   /** Refaz as entradas do sumário a partir dos títulos de agora. */
@@ -244,6 +249,11 @@ export interface EditorPreferences {
    */
   readonly navigationPane: boolean
   /**
+   * O painel de comentários ao lado das folhas, e o realce dos trechos (M10).
+   * Escondido, os comentários continuam no documento e no arquivo — é só a tela.
+   */
+  readonly commentsPane: boolean
+  /**
    * O nome que assina os comentários novos (M10). Vazio no arquivo, o main põe o
    * usuário do sistema — ver `load()` em `src/main/preferences.ts`.
    */
@@ -287,6 +297,7 @@ export const DEFAULT_EDITOR_PREFERENCES: EditorPreferences = {
   zoom: 100,
   zoomFit: false,
   navigationPane: false,
+  commentsPane: true,
   authorName: '',
 }
 

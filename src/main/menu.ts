@@ -156,6 +156,16 @@ async function buildTemplate(): Promise<MenuItemConstructorOptions[]> {
         updatePreferences({ navigationPane: !preferences.navigationPane })
       },
     },
+    {
+      // Esconder o painel não tira nada do documento: os comentários continuam
+      // no texto e voltam ao arquivo.
+      label: t('menu.view.commentsPane'),
+      type: 'checkbox',
+      checked: preferences.commentsPane,
+      click: () => {
+        updatePreferences({ commentsPane: !preferences.commentsPane })
+      },
+    },
     { type: 'separator' },
     {
       label: t('view.theme'),
@@ -369,6 +379,14 @@ async function buildTemplate(): Promise<MenuItemConstructorOptions[]> {
           accelerator: acceleratorOf(SHORTCUTS.insertComment),
           click: () => dispatch(MenuCommand.InsertComment),
         },
+        {
+          label: t('menu.insert.nextComment'),
+          click: () => dispatch(MenuCommand.NextComment),
+        },
+        {
+          label: t('menu.insert.previousComment'),
+          click: () => dispatch(MenuCommand.PreviousComment),
+        },
       ],
     },
     {
@@ -426,6 +444,10 @@ async function buildTemplate(): Promise<MenuItemConstructorOptions[]> {
           label: t('menu.tools.wordCount'),
           accelerator: acceleratorOf(SHORTCUTS.wordCount),
           click: () => dispatch(MenuCommand.WordCount),
+        },
+        {
+          label: t('menu.tools.authorName'),
+          click: () => dispatch(MenuCommand.AuthorName),
         },
       ],
     },

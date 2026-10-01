@@ -1,10 +1,17 @@
 import type { Editor } from '@tiptap/react'
 import type { DocumentComment } from '@services/document/model.js'
-import { initialsOf, nextCommentId, paragraphsOfText } from '@services/document/comments.js'
+import { initialsOf, nextCommentId, paragraphsOfText, resolveComments } from '@services/document/comments.js'
 import { t } from '../i18n.js'
-import { currentPreferences } from '../state/preferences.js'
+import { currentPreferences, setPreference } from '../state/preferences.js'
 import { useWorkspace } from '../state/workspace.js'
-import { insertCommentAnchors, removeCommentAnchors } from './extensions/comment.js'
+import {
+  adjacentComment,
+  commentAnchorsOf,
+  commentsKey,
+  insertCommentAnchors,
+  removeCommentAnchors,
+  selectComment,
+} from './extensions/comment.js'
 
 /**
  * Criar, responder, editar, resolver e excluir comentários (M10, fase 2).
@@ -69,6 +76,7 @@ export function insertComment(editor: Editor): void {
     })
     .run()
   if (!inserted) return
+  showCommentsPane()
   cleanBeforeDraft = wasClean
   store.setCommentDraft(comment.id)
 }
@@ -122,4 +130,33 @@ export function setCommentDone(rootId: string, done: boolean): void {
   if (!commentEditsAllowed()) return
   const store = useWorkspace.getState()
   store.setComments(store.comments.map((comment) => (comment.id === rootId ? { ...comment, done } : comment)))
+}
+
+/** O painel escondido volta quando um comando de comentário precisa dele. */
+function showCommentsPane(): void {
+  if (!currentPreferences().commentsPane) void setPreference({ commentsPane: true })
+}
+
+/**
+ * Próximo e anterior: o cursor vai ao trecho da conversa seguinte (ou da
+ * anterior) pela ordem do texto, e o cartão dela fica escolhido — ver
+ * `adjacentComment`. Devolve se achou alguma.
+ */
+export function goToComment(editor: Editor, direction: 1 | -1): boolean {
+  const store = useWorkspace.getState()
+  const anchors = commentAnchorsOf(editor.state.doc)
+  const visible = resolveComments(new Set(anchors.keys()), store.comments, new Set(store.commentsOutside))
+  const ids = new Set(visible.map((comment) => comment.id))
+  const threads = new Set(
+    visible
+      .filter((comment) => comment.parentId === undefined || !ids.has(comment.parentId))
+      .map((comment) => comment.id),
+  )
+  const active = commentsKey.getState(editor.state)?.active ?? null
+  const cid = adjacentComment(editor.state.doc, threads, active, editor.state.selection.from, direction)
+  if (cid === null) return false
+  showCommentsPane()
+  editor.view.focus()
+  editor.view.dispatch(selectComment(editor.state.tr, cid))
+  return true
 }

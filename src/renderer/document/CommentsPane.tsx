@@ -1,6 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import type { Editor } from '@tiptap/react'
-import { TextSelection } from '@tiptap/pm/state'
+import { useEditorState, type Editor } from '@tiptap/react'
 import type { DocumentComment } from '@services/document/model.js'
 import { useLanguage, useT } from '../i18n.js'
 import { useWorkspace } from '../state/workspace.js'
@@ -11,7 +10,7 @@ import {
   replyToComment,
   setCommentDone,
 } from './comment-commands.js'
-import { commentAnchorsOf, focusComment } from './extensions/comment.js'
+import { commentAnchorsOf, commentsKey, focusComment, selectComment } from './extensions/comment.js'
 
 /** Vão entre dois cartões empilhados, em pixels da folha. */
 const GAP_PX = 8
@@ -86,13 +85,20 @@ export function CommentsPane({
   const listRef = useRef<HTMLOListElement>(null)
   const threads = useMemo(() => threadsOf(comments), [comments])
   const [tops, setTops] = useState<ReadonlyMap<string, number>>(new Map())
-  const [active, setActive] = useState<string | null>(null)
+  // A conversa em foco mora no estado do realce, e não aqui: o Próximo e o
+  // Anterior do menu a escolhem sem passar pelo painel.
+  const active = useEditorState({
+    editor,
+    selector: ({ editor: current }) => commentsKey.getState(current.state)?.active ?? null,
+  })
+  const setActive = (cid: string | null): void => {
+    editor.view.dispatch(focusComment(editor.state.tr, { active: cid }))
+  }
   const [composing, setComposing] = useState<Composing | null>(null)
 
   // O comentário recém-inserido abre escolhido, com a caixa de texto.
   useEffect(() => {
     if (draft === null) return
-    setActive(draft)
     setComposing(null)
     editor.view.dispatch(focusComment(editor.state.tr, { active: draft }))
   }, [editor, draft])
@@ -177,17 +183,10 @@ export function CommentsPane({
   }, [threads, tops])
 
   function choose(cid: string): void {
-    const next = active === cid ? null : cid
-    setActive(next)
-    let tr = focusComment(editor.state.tr, { active: next })
-    const anchor = commentAnchorsOf(editor.state.doc).get(cid)
-    if (next !== null && anchor !== undefined) {
-      // Depois da ponta de início e antes da de fim: o trecho, e só ele.
-      const from = anchor.start === null ? (anchor.end ?? 0) : anchor.start + 1
-      const to = anchor.end ?? from
-      tr = tr.setSelection(TextSelection.create(tr.doc, from, Math.max(from, to))).scrollIntoView()
-    }
-    editor.view.dispatch(tr)
+    setComposing(null)
+    editor.view.dispatch(
+      active === cid ? focusComment(editor.state.tr, { active: null }) : selectComment(editor.state.tr, cid),
+    )
   }
 
   const date = (value: string): string => {
@@ -309,7 +308,17 @@ export function CommentsPane({
                   {replies.length > 0 && (
                     <ol className="comment-card__replies" aria-label={t('comments.card.replies')}>
                       {replies.map((reply) => (
-                        <li key={reply.id}>{body(reply)}</li>
+                        <li key={reply.id}>
+                          {body(reply)}
+                          {/* A resposta se edita como o comentário: a conversa escolhida e aberta. */}
+                          {isActive && !root.done && !readOnly && composing === null && (
+                            <div className="comment-card__actions">
+                              {action(t('comments.action.edit'), () =>
+                                setComposing({ kind: 'edit', id: reply.id }),
+                              )}
+                            </div>
+                          )}
+                        </li>
                       ))}
                     </ol>
                   )}

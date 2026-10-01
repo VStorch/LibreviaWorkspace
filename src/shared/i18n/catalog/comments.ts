@@ -32,6 +32,12 @@ export const COMMENTS = {
   'comments.action.delete': { pt: 'Excluir', en: 'Delete' },
   'comments.action.resolve': { pt: 'Resolver', en: 'Resolve' },
   'comments.action.reopen': { pt: 'Reabrir', en: 'Reopen' },
+  'comments.author.title': { pt: 'Nome do autor', en: 'Author name' },
+  'comments.author.label': { pt: 'Nome', en: 'Name' },
+  'comments.author.hint': {
+    pt: 'Assina os comentários e as respostas novos. Os que já existem guardam o autor que tinham.',
+    en: 'Signs new comments and replies. Existing ones keep the author they had.',
+  },
   'comments.legacyDraft': {
     pt: 'Este rascunho é de uma versão anterior aos comentários. Salve-o como .docx e reabra para comentar.',
     en: 'This draft is from a version before comments. Save it as .docx and reopen it to comment.',
