@@ -43,9 +43,9 @@ async function entradaZip(caminho: string, nome: string): Promise<string> {
 }
 
 /**
- * Controle de alterações (M10, fase 1): a revisão aparece na tela, aceitar e
- * rejeitar mudam o texto, e o arquivo gravado diz o mesmo — no Word e no
- * LibreOffice.
+ * Controle de alterações (M10): a revisão aparece na tela, aceitar e rejeitar
+ * mudam o texto, o que se digita com o controle ligado vira revisão, e o arquivo
+ * gravado diz o mesmo — no Word e no LibreOffice.
  */
 test.describe('revisões', () => {
   let session: Session
@@ -140,5 +140,65 @@ test.describe('revisões', () => {
     // Inserção, exclusão, marca de parágrafo, movimentação (dois lados) e linha.
     const regioes = conteudo.match(/<text:changed-region/g) ?? []
     expect(regioes.length).toBeGreaterThanOrEqual(4)
+  })
+
+  test('controlar alterações: o que se digita e apaga vira revisão no arquivo e no rascunho', async () => {
+    const arquivo = join(pasta, 'controlado.docx')
+    const rascunho = join(pasta, 'controlado.sdoc')
+    const editor = session.window.locator('.ProseMirror')
+    const indicador = session.window.getByTestId('track-changes-status')
+
+    await menu(session, 'new-document')
+    await editor.click()
+    await session.window.keyboard.type('Texto antigo.')
+    await expect(indicador).toHaveCount(0)
+    await menu(session, 'toggle-track-changes')
+    await expect(indicador).toBeVisible()
+
+    // O Backspace guarda o ponto como excluído; o que se digita depois é inserção.
+    await session.window.keyboard.press('End')
+    await session.window.keyboard.press('Backspace')
+    await session.window.keyboard.type(' e novo')
+    await expect(editor.locator('del.revision')).toHaveText('.')
+    await expect(editor.locator('ins.revision')).toHaveText(' e novo')
+
+    await stubDialogs(session.app, { save: arquivo, open: arquivo, messageBox: 1 })
+    await menu(session, 'save')
+    await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
+
+    const corpo = await entryOf(arquivo, 'word/document.xml')
+    expect(corpo).toMatch(/<w:ins [^>]*w:author="[^"]+"/)
+    expect(corpo).toMatch(/<w:del [^>]*w:author="[^"]+"/)
+    expect(corpo).toContain('<w:delText')
+    expect(await entryOf(arquivo, 'word/settings.xml')).toContain('<w:trackRevisions')
+
+    if (await temSoffice()) {
+      const copia = join(pasta, 'copia.docx')
+      await copyFile(arquivo, copia)
+      await promisify(execFile)('soffice', ['--headless', '--convert-to', 'odt', '--outdir', pasta, copia], {
+        timeout: 120_000,
+      })
+      const conteudo = await entradaZip(join(pasta, 'copia.odt'), 'content.xml')
+      expect((conteudo.match(/<text:changed-region/g) ?? []).length).toBeGreaterThanOrEqual(2)
+    }
+
+    // Reaberto, as marcas e o controle continuam; aceitar tudo limpa o texto.
+    await menu(session, 'open')
+    await expect(editor.locator('ins.revision')).toHaveText(' e novo')
+    await expect(editor.locator('del.revision')).toHaveText('.')
+    await expect(indicador).toBeVisible()
+    await menu(session, 'accept-all-changes')
+    await expect(editor.locator('ins.revision, del.revision, [data-revision]')).toHaveCount(0)
+    await expect(editor).toContainText('Texto antigo e novo')
+
+    // O rascunho guarda o interruptor.
+    await stubDialogs(session.app, { save: rascunho, open: rascunho })
+    await menu(session, 'save-as')
+    await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
+    expect(JSON.parse(await readFile(rascunho, 'utf8'))).toMatchObject({ trackChanges: true })
+    await menu(session, 'toggle-track-changes')
+    await expect(indicador).toHaveCount(0)
+    await menu(session, 'open')
+    await expect(indicador).toBeVisible()
   })
 })

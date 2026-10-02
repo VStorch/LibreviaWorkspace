@@ -18,14 +18,19 @@ import { CharacterCount } from '@tiptap/extensions'
  * do bloco, como no arquivo.
  *
  * Aceitar e rejeitar são transações comuns do editor: o desfazer as devolve. O
- * que ainda não existe é **controlar** o que se digita (fase 2).
+ * controle do que se digita (fase 2) mora em track-input.ts.
  */
 
 export const INSERTION = 'insertion'
 export const DELETION = 'deletion'
 
 /** As pontas sem largura de marcador e de comentário: não partem uma alteração. */
-const ZERO_WIDTH = new Set(['bookmarkStart', 'bookmarkEnd', 'commentStart', 'commentEnd'])
+export const ZERO_WIDTH: ReadonlySet<string> = new Set([
+  'bookmarkStart',
+  'bookmarkEnd',
+  'commentStart',
+  'commentEnd',
+])
 
 /** A revisão de bloco, como o leitor a dá. */
 export interface BlockRevision {
@@ -55,7 +60,7 @@ function attrString(value: unknown): string | null {
   return typeof value === 'string' && value !== '' ? value : null
 }
 
-function blockRevisionOf(value: unknown): BlockRevision | null {
+export function blockRevisionOf(value: unknown): BlockRevision | null {
   if (typeof value !== 'object' || value === null) return null
   const kind = (value as { kind?: unknown }).kind
   return kind === 'ins' || kind === 'del' ? (value as BlockRevision) : null
@@ -385,10 +390,24 @@ function revisionMark(name: typeof INSERTION | typeof DELETION, tag: 'ins' | 'de
   return Mark.create({
     name,
     // A revisão não se estende ao que se digita na ponta dela: texto novo não é
-    // revisão do outro autor (e o controle do que se digita é da fase 2).
+    // revisão do outro autor (o controle do que se digita põe a marca à mão — ver track-input.ts).
     inclusive: false,
-    // A colagem não traz revisão de fora: o trecho colado vira texto comum.
-    parseHTML: () => [],
+    // A tela relida: quando o navegador apaga ou digita por conta própria (o
+    // Backspace num caractere, o Ctrl+Backspace), o ProseMirror relê o trecho do
+    // DOM — sem esta regra o excluído voltava sem marca e era tomado por texto
+    // novo. A colagem não traz revisão: `stripRevisions` (track-input.ts) a tira.
+    parseHTML: () => [
+      {
+        tag: `${tag}.revision`,
+        getAttrs: (element) => ({
+          author: element.getAttribute('data-author'),
+          date: element.getAttribute('data-date'),
+          rid: element.getAttribute('data-rid'),
+          move: element.getAttribute('data-move'),
+          moveName: element.getAttribute('data-move-name'),
+        }),
+      },
+    ],
     addAttributes: () => ({ ...revisionAttributes }),
     renderHTML({ mark, HTMLAttributes }) {
       const author = attrString(mark.attrs['author'])
@@ -399,8 +418,14 @@ function revisionMark(name: typeof INSERTION | typeof DELETION, tag: 'ins' | 'de
           {
             class: `revision revision-${tag} revision-author-${authorColor(author)}`,
             title: revisionTitle(author, date),
+            // Para a releitura da tela (ver `parseHTML`).
+            'data-author': author,
+            'data-date': date,
+            'data-rid': attrString(mark.attrs['rid']),
+            'data-move': attrString(mark.attrs['move']),
+            'data-move-name': attrString(mark.attrs['moveName']),
           },
-          // Os atributos ficam fora do HTML: a impressão e a colagem não os levam.
+          // Os atributos crus ficam fora do HTML.
           Object.fromEntries(Object.entries(HTMLAttributes).filter(([key]) => !(key in revisionAttributes))),
         ),
         0,

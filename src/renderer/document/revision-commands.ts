@@ -1,5 +1,6 @@
 import type { Editor } from '@tiptap/react'
 import { useWorkspace } from '../state/workspace.js'
+import { SKIP_TRACKING } from './extensions/track-input.js'
 import {
   adjacentChange,
   changeAt,
@@ -12,7 +13,8 @@ import {
  * Aceitar, rejeitar e andar entre as alterações (M10, controle de alterações).
  *
  * Cada comando é uma transação comum do editor: o desfazer devolve a revisão como
- * estava. As regras moram em track-changes.ts; aqui só a ponte com o editor.
+ * estava — e fora do controle (`SKIP_TRACKING`): aceitar não é uma edição nova a
+ * controlar. As regras moram em track-changes.ts; aqui só a ponte com o editor.
  */
 
 /** Há uma alteração no cursor — é o que o menu de contexto pergunta. */
@@ -25,7 +27,7 @@ export function settleChange(editor: Editor, accept: boolean): boolean {
   if (useWorkspace.getState().readOnly) return false
   const tr = editor.state.tr
   if (!settleChangeAt(tr, editor.state.selection.from, accept)) return false
-  editor.view.dispatch(tr.scrollIntoView())
+  editor.view.dispatch(tr.setMeta(SKIP_TRACKING, true).scrollIntoView())
   return true
 }
 
@@ -34,7 +36,7 @@ export function settleAll(editor: Editor, accept: boolean): boolean {
   if (useWorkspace.getState().readOnly) return false
   const tr = editor.state.tr
   if (!settleAllChanges(tr, accept)) return false
-  editor.view.dispatch(tr)
+  editor.view.dispatch(tr.setMeta(SKIP_TRACKING, true))
   return true
 }
 

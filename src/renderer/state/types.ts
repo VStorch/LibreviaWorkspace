@@ -186,6 +186,11 @@ export interface WorkspaceState {
    * o documento fica marcado como alterado, e a gravação decide o que mudou.
    */
   setStyles: (styles: StyleSheet) => void
+  /**
+   * Revisão → Controlar alterações. É do documento (`w:trackRevisions`), e não da
+   * pessoa: muda o arquivo, e o documento fica marcado como alterado.
+   */
+  toggleTrackChanges: () => void
   dismissError: () => void
   dismissNotice: () => void
   showError: (error: SerializedError) => void

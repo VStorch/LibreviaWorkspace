@@ -116,6 +116,10 @@ export function DocumentEditor(): React.JSX.Element {
       isTypographyEnabled: () => currentPreferences().typography,
       invisibleCharactersVisible: currentPreferences().invisibleCharacters,
       isKnownComment: (cid) => useWorkspace.getState().comments.some((comment) => comment.id === cid),
+      isTrackingChanges: () => useWorkspace.getState().trackChanges === true,
+      // Sem nome nas preferências, a revisão leva um autor genérico: o `w:author`
+      // é obrigatório, e o Word faz o mesmo.
+      revisionAuthor: () => currentPreferences().authorName.trim() || translateNow('revisions.unknownAuthor'),
     }),
     content: initialDoc,
     onUpdate: ({ editor: current, transaction }) => {

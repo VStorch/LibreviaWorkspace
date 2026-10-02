@@ -54,6 +54,7 @@ export const EditorCommand = {
   RejectAllChanges: 'reject-all-changes',
   NextChange: 'next-change',
   PreviousChange: 'previous-change',
+  ToggleTrackChanges: 'toggle-track-changes',
   ...TableAction,
 } as const satisfies Record<string, MenuCommand>
 

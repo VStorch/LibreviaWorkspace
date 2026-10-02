@@ -12,6 +12,16 @@ import { devServerUrl, sendMenuCommand } from './window.js'
 
 const isMac = process.platform === 'darwin'
 
+/** O controle de alterações do documento aberto — quem sabe é o renderer. */
+let trackChangesOn = false
+
+/** O renderer avisou o estado do controle de alterações: a marca do menu acompanha. */
+export function setTrackChangesChecked(on: boolean): void {
+  if (on === trackChangesOn) return
+  trackChangesOn = on
+  void refreshMenu()
+}
+
 function focusedWindow(): BrowserWindow | null {
   return BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0] ?? null
 }
@@ -423,6 +433,20 @@ async function buildTemplate(): Promise<MenuItemConstructorOptions[]> {
       // O controle de alterações (M10): aceitar, rejeitar e andar entre elas.
       label: t('menu.review'),
       submenu: [
+        {
+          label: t('revisions.track'),
+          type: 'checkbox',
+          checked: trackChangesOn,
+          accelerator: acceleratorOf(SHORTCUTS.trackChanges),
+          toolTip: t('revisions.trackHint'),
+          click: () => {
+            dispatch(MenuCommand.ToggleTrackChanges)
+            // O Electron já trocou a marca; quem decide é o documento, que responde
+            // pelo estado da janela. Sem resposta (somente leitura), a marca volta.
+            void refreshMenu()
+          },
+        },
+        { type: 'separator' },
         { label: t('revisions.accept'), click: () => dispatch(MenuCommand.AcceptChange) },
         { label: t('revisions.reject'), click: () => dispatch(MenuCommand.RejectChange) },
         { type: 'separator' },

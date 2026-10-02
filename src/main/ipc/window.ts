@@ -8,6 +8,7 @@ import { listInstalledFontFamilies } from '../system-fonts.js'
 import { closeWithoutGuard, updateWindowState } from '../window.js'
 import { t } from '../i18n.js'
 import { handle } from './registry.js'
+import { setTrackChangesChecked } from '../menu.js'
 import { externalFilesReady } from '../external-files.js'
 
 function windowOf(event: IpcMainInvokeEvent): BrowserWindow {
@@ -60,6 +61,7 @@ export function registerWindowHandlers(): void {
 
   handle(IpcChannel.WindowSetState, (payload, event) => {
     updateWindowState(windowOf(event), payload.title, payload.isDirty)
+    setTrackChangesChecked(payload.trackChanges)
     return { applied: true as const }
   })
 

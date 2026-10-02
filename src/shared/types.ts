@@ -130,6 +130,8 @@ export const MenuCommand = {
   /** Vai à próxima alteração (ou à anterior), pela ordem do texto, e a seleciona. */
   NextChange: 'next-change',
   PreviousChange: 'previous-change',
+  /** Liga ou desliga o controle de alterações do documento (`w:trackRevisions`). */
+  ToggleTrackChanges: 'toggle-track-changes',
   /** O nome que assina os comentários novos. */
   AuthorName: 'author-name',
   /** Sumário dos títulos, com número de página e link. */

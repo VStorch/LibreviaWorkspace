@@ -202,6 +202,17 @@ export const SHORTCUTS = {
    */
   reload: { owner: ShortcutOwner.Menu, key: { mod: true, shift: true, key: 'R' }, does: 'Recarregar' },
 
+  // ## Menu → Revisão
+  /**
+   * O mesmo atalho do Word. O `TextAlign` dá `Ctrl+Shift+E` ao centralizar, mas o
+   * acelerador chega primeiro — e centralizar segue no `Ctrl+E` do Word.
+   */
+  trackChanges: {
+    owner: ShortcutOwner.Menu,
+    key: { mod: true, shift: true, key: 'E' },
+    does: 'Controlar alterações',
+  },
+
   // ## Menu → Ferramentas
   /** O mesmo atalho do Word. */
   wordCount: {

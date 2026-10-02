@@ -5,6 +5,7 @@ import { EditorCommand, onEditorCommand, runsWhileLocked } from './editor-comman
 import { runTableAction } from './table-actions.js'
 import { goToComment, insertComment } from './comment-commands.js'
 import { goToChange, settleAll, settleChange } from './revision-commands.js'
+import { useWorkspace } from '../state/workspace.js'
 import {
   deleteSectionBreak,
   insertColumnBreak,
@@ -137,6 +138,8 @@ export function useEditorCommands(
         case EditorCommand.PreviousChange:
           if (editor !== null) goToChange(editor, command === EditorCommand.NextChange ? 1 : -1)
           return
+        case EditorCommand.ToggleTrackChanges:
+          return useWorkspace.getState().toggleTrackChanges()
         case EditorCommand.InsertTableOfContents:
           if (editor !== null) insertTableOfContents(editor, referenceContext())
           return

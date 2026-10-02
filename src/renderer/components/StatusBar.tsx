@@ -42,6 +42,15 @@ export function StatusBar(): React.JSX.Element {
           <span className="statusbar__metric">
             {t('shell.statusBar.characters', { count: state.stats.characters })}
           </span>
+          {state.trackChanges === true && (
+            <span
+              className="statusbar__metric"
+              data-testid="track-changes-status"
+              title={t('revisions.trackHint')}
+            >
+              {t('revisions.trackOn')}
+            </span>
+          )}
           {/* O zoom da folha, os mesmos comandos do menu Exibir. */}
           <span className="statusbar__zoom" role="group" aria-label={t('shell.statusBar.zoomLevel')}>
             <button

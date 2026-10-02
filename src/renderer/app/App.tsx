@@ -137,16 +137,20 @@ export function App(): React.JSX.Element {
     // algum dos dois muda de fato — não a cada tecla digitada.
     let lastTitle = ''
     let lastDirty: boolean | null = null
+    let lastTracking: boolean | null = null
 
     const sync = (): void => {
       const state = useWorkspace.getState()
       const untitled = t('shell.file.untitled')
       const title = state.file?.name ?? untitled
-      if (title === lastTitle && state.isDirty === lastDirty) return
+      // O controle de alterações é do documento; com planilha aberta, desligado.
+      const trackChanges = state.workbook === null && state.trackChanges === true
+      if (title === lastTitle && state.isDirty === lastDirty && trackChanges === lastTracking) return
 
       lastTitle = title
       lastDirty = state.isDirty
-      void window.api.window.setState({ title, isDirty: state.isDirty })
+      lastTracking = trackChanges
+      void window.api.window.setState({ title, isDirty: state.isDirty, trackChanges })
       document.title = buildWindowTitle(state.file?.name ?? null, state.isDirty, 'Librevia', untitled)
     }
 

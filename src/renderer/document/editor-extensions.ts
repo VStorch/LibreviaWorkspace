@@ -29,6 +29,7 @@ import { BookmarkEnd, BookmarkStart, Bookmarks } from './extensions/bookmark.js'
 import { CommentEnd, CommentStart, Comments } from './extensions/comment.js'
 import { ZeroWidthAnchors } from './extensions/zero-width.js'
 import { CountWithoutDeletions, TrackChanges } from './extensions/track-changes.js'
+import { TrackInput } from './extensions/track-input.js'
 import { Field } from './extensions/field.js'
 import { TableOfContents } from './extensions/table-of-contents.js'
 import { Indent } from './extensions/indent.js'
@@ -59,6 +60,10 @@ export interface EditorToolOptions {
   readonly invisibleCharactersVisible?: boolean
   /** Se a conversa está na biblioteca de comentários — ver `withoutCommentAnchors`. */
   readonly isKnownComment?: (cid: string) => boolean
+  /** O controle de alterações está ligado? Consultado a cada transação, como a tipografia. */
+  readonly isTrackingChanges?: () => boolean
+  /** Quem assina as alterações controladas. */
+  readonly revisionAuthor?: () => string
 }
 
 /**
@@ -209,6 +214,11 @@ export function buildEditorExtensions(
     // Controle de alterações (M10): as marcas de inserção e exclusão e a
     // revisão da marca de parágrafo e da linha. Ver track-changes.ts.
     ...TrackChanges,
+    // E o que se digita com o controle ligado vira revisão. Ver track-input.ts.
+    TrackInput.configure({
+      isTracking: options.isTrackingChanges ?? (() => false),
+      author: options.revisionAuthor ?? (() => ''),
+    }),
     // O cursor, a seleção e o Backspace em volta das pontas sem largura de
     // marcadores e comentários. Ver zero-width.ts.
     ZeroWidthAnchors,

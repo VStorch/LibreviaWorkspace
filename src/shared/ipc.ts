@@ -203,6 +203,8 @@ export const ipcContracts = {
     request: z.object({
       title: z.string().max(300),
       isDirty: z.boolean(),
+      /** O controle de alterações do documento, para a marca do menu Revisão. */
+      trackChanges: z.boolean(),
     }),
     response: z.object({ applied: z.literal(true) }),
   },
