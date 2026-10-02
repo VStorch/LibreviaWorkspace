@@ -421,3 +421,30 @@ describe('Ctrl+Backspace e Ctrl+Delete', () => {
     expect(wordRangeAt(block, 0, true)).toBeNull()
   })
 })
+
+describe('a equação (M11, fase 2) com o controle ligado', () => {
+  const old = { type: 'math', attrs: { omml: '<m:oMath/>', mathml: '<math/>', latex: 'x' } }
+
+  it('trocar a equação é excluir a antiga e inserir a nova, num passo de desfazer', () => {
+    const state = stateOf([paragraph(text('a'), old, text('b'))], undefined, true)
+    const replacement = schema.nodes['math']!.create({ omml: null, mathml: '<math/>', latex: 'y' })
+    const next = track(state, (tr) => tr.replaceWith(2, 3, replacement))
+
+    const equations: { latex: unknown; marks: string[] }[] = []
+    next.doc.descendants((node) => {
+      if (node.type.name === 'math') {
+        equations.push({ latex: node.attrs['latex'], marks: node.marks.map((m) => m.type.name) })
+      }
+    })
+    expect(equations).toEqual([
+      { latex: 'x', marks: ['deletion'] },
+      { latex: 'y', marks: ['insertion'] },
+    ])
+    expect(undoDepth(next)).toBe(1)
+
+    let undone: EditorState | null = null
+    undo(next, (tr) => (undone = next.apply(tr)))
+    expect(undone).not.toBeNull()
+    expect(undone!.doc.eq(state.doc)).toBe(true)
+  })
+})

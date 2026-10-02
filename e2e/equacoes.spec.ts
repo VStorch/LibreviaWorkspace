@@ -127,4 +127,101 @@ test.describe('equações', () => {
     expect(texto).toContain('√')
     expect(texto).toContain('Fim.')
   })
+
+  // --- fase 2: o editor de equações ------------------------------------------
+
+  test('inserir pelo menu, digitar o LaTeX, desfazer e refazer; salvar em .docx e reabrir', async () => {
+    const destino = join(pasta, 'nova.docx')
+    await stubDialogs(session.app, { save: destino, open: destino, messageBox: 1 })
+    await menu(session, 'new-document')
+    const editor = session.window.locator('.pages__column .ProseMirror')
+    await editor.click()
+    await session.window.keyboard.type('Área: ')
+    // Passado o intervalo do histórico, o texto é um passo e a equação é outro.
+    await session.window.waitForTimeout(700)
+
+    await menu(session, 'insert-equation')
+    const dialogo = session.window.getByRole('dialog', { name: 'Equação', exact: true })
+    const fonte = dialogo.locator('textarea')
+    await expect(fonte).toBeFocused()
+    await fonte.fill('\\frac{a}{b}+\\sqrt{x}')
+    await expect(dialogo.locator('.equation__preview math mfrac')).toHaveCount(1)
+    await dialogo.getByRole('button', { name: 'OK', exact: true }).click()
+    await expect(dialogo).toHaveCount(0)
+
+    const equacao = editor.locator('.equacao')
+    await expect(equacao).toHaveCount(1)
+    await expect(equacao.locator('math mfrac')).toHaveCount(1)
+    await expect(equacao.locator('math msqrt')).toHaveCount(1)
+
+    // Um passo de desfazer por OK.
+    await session.window.keyboard.press('Control+z')
+    await expect(editor.locator('.equacao')).toHaveCount(0)
+    await expect(editor).toContainText('Área:')
+    await session.window.keyboard.press('Control+y')
+    await expect(editor.locator('.equacao math mfrac')).toHaveCount(1)
+
+    await menu(session, 'save-as')
+    await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
+    const corpo = await entryOf(destino, 'word/document.xml')
+    expect(corpo).toContain('<m:f>')
+    expect(corpo).toContain('<m:rad>')
+    expect(corpo).toContain('Cambria Math')
+
+    await menu(session, 'close-file')
+    await menu(session, 'open')
+    await expect(editor.locator('.equacao')).toHaveCount(1)
+    await expect(editor.locator('.equacao math mfrac')).toHaveCount(1)
+    await expect(editor.locator('.equacao math msqrt')).toHaveCount(1)
+  })
+
+  test('editar uma equação do arquivo; cancelar não muda nada; a travada só abre para ver', async () => {
+    const origem = join(pasta, 'relatorio.docx')
+    await writeFile(origem, await docxWithEquations())
+    const antes = equacoesDo(await entryOf(origem, 'word/document.xml'))
+    await stubDialogs(session.app, { open: origem, messageBox: 1 })
+    await menu(session, 'open')
+
+    const editor = session.window.locator('.pages__column .ProseMirror')
+    const equacoes = editor.locator('.equacao')
+    await expect(equacoes).toHaveCount(3)
+    const estado = session.window.locator('.statusbar__state')
+    const estadoAntes = await estado.textContent()
+    const dialogo = session.window.getByRole('dialog', { name: 'Equação', exact: true })
+
+    // O LaTeX sai do MathML da equação do arquivo; cancelar deixa tudo como estava.
+    await equacoes.nth(0).dblclick()
+    await expect(dialogo.locator('textarea')).toHaveValue(/\\pi\s*r\^\{2\}/)
+    await dialogo.getByRole('button', { name: 'Cancelar' }).click()
+    await expect(dialogo).toHaveCount(0)
+    await expect(estado).toHaveText(estadoAntes ?? '')
+
+    // Selecionada, o Enter também abre.
+    await equacoes.nth(0).click()
+    await session.window.keyboard.press('Enter')
+    await expect(dialogo).toHaveCount(1)
+    await dialogo.locator('textarea').fill('\\pi r^{3}')
+    await dialogo.getByRole('button', { name: 'OK', exact: true }).click()
+    await expect(equacoes.nth(0).locator('math msup mn')).toHaveText('3')
+    await expect(equacoes).toHaveCount(3)
+
+    // A travada lista só a construção que falta, e não abre para editar.
+    await equacoes.nth(2).dblclick()
+    await expect(dialogo).toContainText('m:borderBox')
+    await expect(dialogo).not.toContainText('m:e')
+    await expect(dialogo.locator('textarea')).toHaveCount(0)
+    await dialogo.getByRole('button', { name: 'Fechar' }).click()
+
+    await menu(session, 'save')
+    await expect(estado).toHaveText('Salvo')
+    const depois = equacoesDo(await entryOf(origem, 'word/document.xml'))
+    expect(depois).toHaveLength(3)
+    expect(depois[0]).toContain('<m:sSup>')
+    expect(depois[0]).toMatch(/<m:t>3<\/m:t>/)
+    // As outras duas voltam como vieram.
+    expect(depois.slice(1)).toEqual(antes.slice(1))
+
+    await menu(session, 'open')
+    await expect(editor.locator('.equacao').nth(0).locator('math msup mn')).toHaveText('3')
+  })
 })

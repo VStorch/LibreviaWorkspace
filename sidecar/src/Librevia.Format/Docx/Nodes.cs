@@ -113,9 +113,12 @@ public sealed class Node
                 // A equação (M11) vale pelo OMML: o MathML, o LaTeX e a lista do que
                 // não se desenha saem dele, e mudam quando a conversão melhora — o
                 // parágrafo não pode parecer editado por isso.
+                // A nova ou editada (sem OMML) vale pelo MathML e pelo modo.
                 if (o["type"]?.GetValueKind() == JsonValueKind.String &&
                     o["type"]!.GetValue<string>() == "math" &&
-                    o["attrs"] is JsonObject mathAttrs)
+                    o["attrs"] is JsonObject mathAttrs &&
+                    mathAttrs["omml"]?.GetValueKind() == JsonValueKind.String &&
+                    mathAttrs["omml"]!.GetValue<string>().Length > 0)
                 {
                     foreach (var entry in mathAttrs.ToList())
                     {

@@ -109,7 +109,7 @@ const MAX_NODES = 50_000
  * de serem adivinhados.
  */
 export function sanitizeMathMl(source: string): MathElement | null {
-  const parsed = parse(source)
+  const parsed = parseMathMl(source)
   if (parsed === null || parsed.tag !== 'math') return null
   return clean(parsed)
 }
@@ -184,7 +184,12 @@ interface Building {
   children: MathChild[]
 }
 
-function parse(source: string): MathElement | null {
+/**
+ * A árvore do texto, **sem** a lista: só para quem a ajeita antes de filtrar
+ * (`latex.ts`, que traduz o que o Temml escreve fora do MathML Core). Quem
+ * desenha usa `sanitizeMathMl`.
+ */
+export function parseMathMl(source: string): MathElement | null {
   const stack: Building[] = []
   let root: Building | null = null
   let count = 0

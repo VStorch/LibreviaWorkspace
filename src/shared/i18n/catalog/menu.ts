@@ -64,6 +64,8 @@ export const MENU = {
   'menu.format.columns': { pt: 'Colunas…', en: 'Columns…' },
   'menu.insert.deleteSectionBreak': { pt: 'Excluir quebra de seção', en: 'Delete section break' },
   'menu.insert.specialCharacter': { pt: 'Caractere especial…', en: 'Special character…' },
+  'menu.insert.equation': { pt: 'Equação', en: 'Equation' },
+  'menu.insert.displayEquation': { pt: 'Equação em destaque', en: 'Display equation' },
   'menu.insert.bookmark': { pt: 'Marcador…', en: 'Bookmark…' },
   'menu.insert.comment': { pt: 'Comentário', en: 'Comment' },
   'menu.insert.footnote': { pt: 'Nota de rodapé', en: 'Footnote' },

@@ -1,5 +1,8 @@
-import { Node } from '@tiptap/core'
+import { Extension, Node } from '@tiptap/core'
 import type { Node as ProseMirrorNode } from '@tiptap/pm/model'
+import { NodeSelection, Plugin, PluginKey } from '@tiptap/pm/state'
+import { EditorCommand, emitEditorCommand } from '../editor-commands.js'
+import { equationAtSelection } from '../math-commands.js'
 import { MATHML_NAMESPACE, sanitizeMathMl, type MathElement } from '@services/document/mathml.js'
 import { t } from '../../i18n.js'
 
@@ -14,7 +17,8 @@ export const MATH_CLASS = 'equacao'
  * arquivo trazia e que volta a ele na gravação; o resto sai dele no sidecar
  * (`OmmlMath.cs`): o `mathml` que a tela desenha, a lista `lossy` do que ela não
  * desenha e o `editable`, falso quando a lista não é vazia. O `latex` é a fonte da
- * edição, que esta fase ainda não tem.
+ * edição (fase 2, `MathDialog.tsx`): a equação nova ou editada chega com `omml`
+ * nulo, e o sidecar refaz o OMML a partir do MathML.
  *
  * A de exibição continua no parágrafo dela, porque é ali que o OOXML a guarda; é
  * o desenho que a põe num bloco, alinhado pelo `jc`. Para a paginação ela é uma
@@ -108,7 +112,8 @@ export function renderMath(node: ProseMirrorNode, doc: Document): HTMLElement {
   return wrapper
 }
 
-function buildMath(element: MathElement, doc: Document): Element {
+/** O MathML já filtrado em DOM, nó a nó — também a visualização do editor de equações. */
+export function buildMath(element: MathElement, doc: Document): Element {
   const built = doc.createElementNS(MATHML_NAMESPACE, element.tag)
   for (const [name, value] of Object.entries(element.attrs)) built.setAttribute(name, value)
   for (const child of element.children) {
@@ -116,3 +121,43 @@ function buildMath(element: MathElement, doc: Document): Element {
   }
   return built
 }
+
+/**
+ * Abrir a equação no editor: o clique duplo nela, ou o Enter com ela selecionada
+ * (M11, fase 2). Os dois chegam ao mesmo comando do menu, `EditEquation`, que é
+ * quem decide se abre para editar ou só para ver.
+ *
+ * Extensão à parte, com prioridade alta, para o Enter dela vir antes do Enter
+ * que parte o parágrafo — e sem mexer na prioridade do nó, que decide a ordem
+ * do esquema.
+ */
+export const MathEditing = Extension.create({
+  name: 'mathEditing',
+  priority: 1000,
+
+  addKeyboardShortcuts() {
+    return {
+      Enter: () => {
+        if (equationAtSelection(this.editor.state) === null) return false
+        emitEditorCommand(EditorCommand.EditEquation)
+        return true
+      },
+    }
+  },
+
+  addProseMirrorPlugins() {
+    return [
+      new Plugin({
+        key: new PluginKey('mathEditing'),
+        props: {
+          handleDoubleClickOn(view, pos, node, _nodePos, _event, direct) {
+            if (!direct || node.type.name !== 'math') return false
+            view.dispatch(view.state.tr.setSelection(NodeSelection.create(view.state.doc, pos)))
+            emitEditorCommand(EditorCommand.EditEquation)
+            return true
+          },
+        },
+      }),
+    ]
+  },
+})

@@ -1982,6 +1982,46 @@ button {
   border-color: var(--accent-line);
 }
 
+/* O editor de equações (M11): o LaTeX em fonte de código, a visualização num
+   quadro e os modelos na grade dos caracteres especiais, com casas mais largas —
+   "sin" e "2×2" não cabem em 30px. */
+.equation__source {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 6px 8px;
+  font-family: ui-monospace, 'DejaVu Sans Mono', monospace;
+  font-size: 13px;
+  resize: vertical;
+}
+
+.equation__preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 56px;
+  margin-top: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px;
+  font-size: 20px;
+  overflow-x: auto;
+}
+
+.equation__palette {
+  max-height: 32vh;
+  margin-top: 4px;
+}
+
+.equation__grid {
+  grid-template-columns: repeat(auto-fill, minmax(42px, 1fr));
+}
+
+.equation__template {
+  font-size: 14px;
+}
+
 /* Painel de estilos: uma lista rolável, porque um `.docx` do Word declara
    dezenas de estilos e o painel não pode crescer além da janela. */
 .styles-list {

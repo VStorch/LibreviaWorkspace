@@ -9,6 +9,7 @@ import { flushNoteSelection } from './extensions/note-view.js'
 import { NoteKind } from '@services/document/notes.js'
 import { goToChange, settleAll, settleChange } from './revision-commands.js'
 import { useWorkspace } from '../state/workspace.js'
+import { equationAtSelection, type EquationTarget } from './math-commands.js'
 import {
   deleteSectionBreak,
   insertColumnBreak,
@@ -42,6 +43,7 @@ export interface EditorDialogs {
   readonly columns: boolean
   readonly authorName: boolean
   readonly properties: boolean
+  readonly equation: boolean
 }
 
 const CLOSED: EditorDialogs = {
@@ -62,6 +64,7 @@ const CLOSED: EditorDialogs = {
   columns: false,
   authorName: false,
   properties: false,
+  equation: false,
 }
 
 export interface EditorCommands {
@@ -70,6 +73,8 @@ export interface EditorCommands {
   readonly setDialog: (dialog: keyof EditorDialogs, open: boolean) => void
   /** Roda um comando do editor, venha do menu nativo ou do botão direito. */
   readonly run: (command: EditorCommand) => void
+  /** A equação que o editor de equações abriu: uma nova, ou a do documento. */
+  readonly equationTarget: EquationTarget
 }
 
 /**
@@ -92,6 +97,7 @@ export function useEditorCommands(
   referenceContext: () => ReferenceContext,
 ): EditorCommands {
   const [dialogs, setDialogs] = useState<EditorDialogs>(CLOSED)
+  const [equationTarget, setEquationTarget] = useState<EquationTarget>({ kind: 'insert', display: false })
 
   const setDialog = useCallback((dialog: keyof EditorDialogs, open: boolean) => {
     setDialogs((current) => (current[dialog] === open ? current : { ...current, [dialog]: open }))
@@ -124,6 +130,16 @@ export function useEditorCommands(
           return setDialog('properties', true)
         case EditorCommand.SpecialCharacter:
           return setDialog('specialCharacter', true)
+        case EditorCommand.InsertEquation:
+        case EditorCommand.InsertDisplayEquation:
+          setEquationTarget({ kind: 'insert', display: command === EditorCommand.InsertDisplayEquation })
+          return setDialog('equation', true)
+        case EditorCommand.EditEquation: {
+          const pos = editor === null ? null : equationAtSelection(editor.state)
+          if (pos === null) return
+          setEquationTarget({ kind: 'edit', pos })
+          return setDialog('equation', true)
+        }
         case EditorCommand.ImageProperties:
           return setDialog('imageProperties', true)
         case EditorCommand.InsertBookmark:
@@ -228,5 +244,5 @@ export function useEditorCommands(
 
   useEffect(() => onEditorCommand(run), [run])
 
-  return { dialogs, setDialog, run }
+  return { dialogs, setDialog, run, equationTarget }
 }

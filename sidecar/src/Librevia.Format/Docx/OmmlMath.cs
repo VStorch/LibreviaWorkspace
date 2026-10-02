@@ -20,7 +20,7 @@ namespace Librevia.Format.Docx;
 /// alfanuméricos matemáticos do Unicode — é o que o Core recomenda no lugar do
 /// `mathvariant`.
 /// </remarks>
-public static class OmmlMath
+public static partial class OmmlMath
 {
     public static readonly XNamespace M = "http://schemas.openxmlformats.org/officeDocument/2006/math";
     private static readonly XNamespace W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
@@ -280,6 +280,14 @@ public static class OmmlMath
                     yield return On(properties, "show", absent: true) ? phantom : new XElement(Ml + "mphantom", phantom);
                     break;
 
+                // O argumento solto só aparece dentro de uma construção que não
+                // sabemos desenhar (as conhecidas leem os seus por `Arg`): o
+                // conteúdo dele segue, e a lista fica só com a construção — antes
+                // ela dizia `m:e` ao lado do que de fato faltava.
+                case "e" or "num" or "den" or "sub" or "sup" or "deg" or "lim" or "fName" or "mr":
+                    foreach (var inner in Children(element)) yield return inner;
+                    break;
+
                 default:
                     // O que não sabemos desenhar: o conteúdo dos argumentos, para a
                     // equação não sumir da tela, e a construção na lista.
@@ -452,7 +460,7 @@ public static class OmmlMath
         /// A letra ou o algarismo no alfabeto matemático do Unicode (U+1D400…), que
         /// é como o MathML Core faz negrito, script, fraktur e duplo.
         /// </summary>
-        private static string Styled(Rune rune, string? style, string script)
+        internal static string Styled(Rune rune, string? style, string script)
         {
             var c = rune.Value;
             var upper = c is >= 'A' and <= 'Z';
@@ -523,4 +531,711 @@ public static class OmmlMath
         };
     }
 
+}
+
+/// <summary>
+/// O caminho de volta (M11, fase 2): o MathML de uma equação editada vira OMML.
+/// </summary>
+/// <remarks>
+/// Só para a equação sem `omml` — a nova, ou a que a pessoa editou. A que veio do
+/// arquivo e não mudou continua voltando como entrou (ver ParagraphWriter.MathOf).
+///
+/// A entrada são duas famílias de MathML: a que <see cref="Convert"/> produz e a
+/// do Temml, que o editor usa para desenhar o LaTeX. As duas dizem a mesma coisa
+/// de jeitos um pouco diferentes — o somatório do Temml leva o corpo como irmão, o
+/// nosso num `mrow`; a função do Temml embrulha o nome com o U+2061 num `mrow` —,
+/// e o mapa aceita as duas. O que ele não reconhece segue como o conteúdo, para a
+/// equação não perder texto.
+/// </remarks>
+public static partial class OmmlMath
+{
+    /// <summary>A fonte das fichas, como o Word as grava.</summary>
+    private const string MathFont = "Cambria Math";
+
+    /// <summary>
+    /// O `m:oMath` (ou o `m:oMathPara`, na de exibição) de um MathML — nulo quando
+    /// o texto não é um `math` bem formado.
+    /// </summary>
+    public static string? ToOmml(string mathMl, bool display, string? jc)
+    {
+        XElement root;
+        try
+        {
+            root = XElement.Parse(mathMl);
+        }
+        catch (XmlException)
+        {
+            return null;
+        }
+
+        if (root.Name.LocalName != "math") return null;
+
+        var writer = new Writer();
+        var children = root.Elements().Where(child => child.Name.LocalName != "annotation").ToList();
+
+        // As linhas da de exibição (ver Convert): a tabela de uma coluna com o
+        // alinhamento declarado é o `m:oMathPara` de vários `m:oMath`.
+        List<XElement> lines;
+        if (display && children.Count == 1 && Unwrapped(children[0]) is { } table &&
+            table.Name.LocalName == "mtable" && table.Attribute("columnalign") is not null &&
+            table.Elements().All(row => row.Elements().Count() == 1))
+        {
+            lines = [.. table.Elements().Select(row => new XElement(M + "oMath", writer.Row(row.Elements().First())))];
+        }
+        else
+        {
+            lines = [new XElement(M + "oMath", writer.Row(root))];
+        }
+
+        XElement result;
+        if (display)
+        {
+            var align = jc is "left" or "right" or "center" or "centerGroup" ? jc : "center";
+            result = new XElement(
+                M + "oMathPara",
+                new XElement(M + "oMathParaPr", new XElement(M + "jc", new XAttribute(M + "val", align))),
+                lines);
+        }
+        else
+        {
+            result = lines[0];
+        }
+
+        result.Add(new XAttribute(XNamespace.Xmlns + "m", M.NamespaceName));
+        result.Add(new XAttribute(XNamespace.Xmlns + "w", W.NamespaceName));
+        return result.ToString(SaveOptions.DisableFormatting);
+    }
+
+    /// <summary>O `mrow` de um filho só, sem o embrulho.</summary>
+    private static XElement Unwrapped(XElement element)
+    {
+        while (element.Name.LocalName == "mrow" && element.Attribute("class") is null && element.Elements().Count() == 1)
+        {
+            element = element.Elements().First();
+        }
+
+        return element;
+    }
+
+    /// <summary>Os operadores de n-ário: somatório, integrais, produtório, uniões…</summary>
+    private const string NaryChars = "∑∏∐∫∬∭∮∯∰⋀⋁⋂⋃⨀⨁⨂⨄⨆";
+
+    /// <summary>
+    /// Onde termina o corpo de um n-ário do Temml, que vem como irmão: no primeiro
+    /// operador de relação ou de soma do mesmo nível.
+    /// </summary>
+    private const string BodyStops = "=+-−±∓<>≤≥≠≈≡∼≃≅∝→←↔⇒⇐⇔∈∉⊂⊃⊆⊇,;";
+
+    /// <summary>Os acentos de um caractere (o do MathML) e o combinante que o OMML guarda.</summary>
+    private static readonly Dictionary<string, string> Accents = new(StringComparer.Ordinal)
+    {
+        ["^"] = "̂", ["ˆ"] = "̂", ["̂"] = "̂",
+        ["¯"] = "̅", ["‾"] = "̅", ["̄"] = "̄", ["̅"] = "̅",
+        ["→"] = "⃗", ["⃗"] = "⃗", ["←"] = "⃖", ["⃖"] = "⃖", ["↔"] = "⃡", ["⃡"] = "⃡",
+        ["˙"] = "̇", ["̇"] = "̇", ["¨"] = "̈", ["̈"] = "̈",
+        ["~"] = "̃", ["˜"] = "̃", ["̃"] = "̃",
+        ["ˇ"] = "̌", ["̌"] = "̌", ["´"] = "́", ["́"] = "́", ["`"] = "̀", ["̀"] = "̀",
+        ["˘"] = "̆", ["̆"] = "̆",
+    };
+
+    /// <summary>As letras e os algarismos dos alfabetos matemáticos do Unicode, de volta ao ASCII.</summary>
+    private static readonly Dictionary<int, (char Plain, string? Script, string? Style)> Alphabets = BuildAlphabets();
+
+    private static Dictionary<int, (char, string?, string?)> BuildAlphabets()
+    {
+        var map = new Dictionary<int, (char, string?, string?)>();
+        string[] scripts = ["roman", "script", "fraktur", "double-struck", "sans-serif", "monospace"];
+        // O estilo mais simples primeiro: o alfabeto que não distingue o negrito
+        // (o duplo, por exemplo) fica sem `m:sty`.
+        string?[] styles = [null, "p", "b", "bi"];
+        foreach (var script in scripts)
+        {
+            foreach (var style in styles)
+            {
+                foreach (var c in "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789")
+                {
+                    var styled = Converter.Styled(new Rune(c), style, script);
+                    if (styled.Length == 1 && styled[0] == c) continue;
+                    var code = char.ConvertToUtf32(styled, 0);
+                    map.TryAdd(code, (c, script == "roman" ? null : script, style));
+                }
+            }
+        }
+
+        // O itálico do romano, que o Convert não usa (o `mi` inclina sozinho), mas
+        // o `\mathit` do Temml usa; o `h` dele mora no bloco Letterlike.
+        for (var c = 'A'; c <= 'Z'; c++) map.TryAdd(0x1D434 + (c - 'A'), (c, null, "i"));
+        for (var c = 'a'; c <= 'z'; c++) map.TryAdd(0x1D44E + (c - 'a'), (c, null, "i"));
+        map.TryAdd(0x210E, ('h', null, "i"));
+        return map;
+    }
+
+    private sealed class Writer
+    {
+        /// <summary>O conteúdo de um `mrow` (ou de qualquer argumento) em elementos OMML.</summary>
+        public List<XElement> Row(XElement? container)
+        {
+            var output = new List<XElement>();
+            if (container is null) return output;
+            if (container.Name.LocalName is "mi" or "mn" or "mo" or "mtext" or "ms")
+            {
+                AddToken(output, container);
+                return output;
+            }
+
+            AddItems(output, Flatten(container.Elements()));
+            return output;
+        }
+
+        /// <summary>Um argumento (`m:e`, `m:num`…) com o elemento que o MathML põe no lugar dele.</summary>
+        private List<XElement> Arg(string name, XElement? content) =>
+            [new XElement(M + name, Argument(content))];
+
+        /// <summary>O elemento de um argumento — um `mrow` é o grupo; qualquer outro, um item só.</summary>
+        private List<XElement> Argument(XElement? content)
+        {
+            var output = new List<XElement>();
+            if (content is not null) AddItems(output, Flatten([content]));
+            return output;
+        }
+
+        /// <summary>
+        /// Os filhos de um nível, sem os espaços e com a função do Temml aberta: o
+        /// `mrow` que termina no U+2061 é o nome da função, e o argumento é o irmão.
+        /// </summary>
+        private static List<XElement> Flatten(IEnumerable<XElement> children)
+        {
+            var items = new List<XElement>();
+            foreach (var child in children)
+            {
+                var name = child.Name.LocalName;
+                if (name is "mspace" or "none" or "annotation" or "annotation-xml") continue;
+                if (name is "mstyle" or "mpadded" or "merror" or "semantics")
+                {
+                    var inner = name == "semantics" ? child.Elements().Take(1) : child.Elements();
+                    // O `mpadded` de um filho só é o `\mathrm{abc}` do Temml: segue inteiro.
+                    items.AddRange(Flatten(inner));
+                    continue;
+                }
+
+                if (name == "mrow" && child.Attribute("class") is null && !Fenced(child))
+                {
+                    // O embrulho de um filho só (o `\sum` de exibição do Temml vem
+                    // num `mrow`) não é grupo: o filho fica no nível de cima.
+                    var significant = child.Elements().Where(e => e.Name.LocalName != "mspace").ToList();
+                    if (significant.Count == 1 || (significant.Count > 0 && IsApply(significant[^1])))
+                    {
+                        items.AddRange(Flatten(significant));
+                        continue;
+                    }
+                }
+
+                items.Add(child);
+            }
+
+            return items;
+        }
+
+        private void AddItems(List<XElement> output, List<XElement> items)
+        {
+            for (var i = 0; i < items.Count; i++)
+            {
+                var item = items[i];
+
+                // O n-ário: o corpo é o `mrow` seguinte (o nosso) ou os irmãos até
+                // o próximo operador de relação ou de soma (o do Temml).
+                if (NaryOf(item) is { } nary)
+                {
+                    var body = new List<XElement>();
+                    if (i + 1 < items.Count && IsPlainRow(items[i + 1]))
+                    {
+                        body.AddRange(Argument(items[++i]));
+                    }
+                    else
+                    {
+                        var taken = new List<XElement>();
+                        while (i + 1 < items.Count && !IsBodyStop(items[i + 1]) && NaryOf(items[i + 1]) is null)
+                        {
+                            taken.Add(items[++i]);
+                        }
+
+                        AddItems(body, taken);
+                    }
+
+                    output.Add(Nary(nary, body));
+                    continue;
+                }
+
+                // A função: o nome, o U+2061, e o argumento.
+                if (i + 1 < items.Count && IsApply(items[i + 1]))
+                {
+                    var name = Argument(item);
+                    var argument = new List<XElement>();
+                    var next = i + 2;
+                    if (next < items.Count)
+                    {
+                        argument.AddRange(Argument(items[next]));
+                        i = next;
+                    }
+                    else
+                    {
+                        i++;
+                    }
+
+                    output.Add(new XElement(M + "func", new XElement(M + "fName", name), new XElement(M + "e", argument)));
+                    continue;
+                }
+
+                if (IsApply(item) || IsInvisible(item)) continue;
+
+                // O pré-índice do Temml: `{}_a^b X` é um índice de base vazia seguido da base.
+                if (item.Name.LocalName is "msub" or "msup" or "msubsup" && EmptyBase(item) && i + 1 < items.Count)
+                {
+                    var scripts = item.Elements().ToList();
+                    var (sub, sup) = item.Name.LocalName switch
+                    {
+                        "msub" => (scripts.ElementAtOrDefault(1), (XElement?)null),
+                        "msup" => (null, scripts.ElementAtOrDefault(1)),
+                        _ => (scripts.ElementAtOrDefault(1), scripts.ElementAtOrDefault(2)),
+                    };
+                    output.Add(new XElement(M + "sPre", Arg("sub", sub), Arg("sup", sup), Arg("e", items[++i])));
+                    continue;
+                }
+
+                if (item.Name.LocalName is "mi" or "mn" or "mo" or "mtext" or "ms")
+                {
+                    AddToken(output, item);
+                    continue;
+                }
+
+                output.AddRange(Element(item));
+            }
+        }
+
+        private IEnumerable<XElement> Element(XElement element)
+        {
+            var args = element.Elements().ToList();
+            XElement? At(int index) => args.ElementAtOrDefault(index);
+
+            switch (element.Name.LocalName)
+            {
+                case "mrow":
+                    if (Fenced(element))
+                    {
+                        yield return Delimited(element);
+                    }
+                    else if (element.Attribute("class")?.Value.Split(' ').Contains(BoxClass) == true)
+                    {
+                        yield return new XElement(M + "borderBox", new XElement(M + "e", Row(element)));
+                    }
+                    else
+                    {
+                        foreach (var inner in Row(element)) yield return inner;
+                    }
+
+                    break;
+
+                case "mfrac":
+                    var bar = element.Attribute("linethickness")?.Value is "0" or "0px" or "0pt" or "0em";
+                    yield return new XElement(
+                        M + "f",
+                        bar ? new XElement(M + "fPr", new XElement(M + "type", new XAttribute(M + "val", "noBar"))) : null,
+                        Arg("num", At(0)),
+                        Arg("den", At(1)));
+                    break;
+
+                case "msqrt":
+                    yield return new XElement(
+                        M + "rad",
+                        new XElement(M + "radPr", new XElement(M + "degHide", new XAttribute(M + "val", "1"))),
+                        new XElement(M + "deg"),
+                        new XElement(M + "e", Row(element)));
+                    break;
+
+                case "mroot":
+                    yield return new XElement(M + "rad", Arg("deg", At(1)), Arg("e", At(0)));
+                    break;
+
+                case "msub":
+                    yield return new XElement(M + "sSub", Arg("e", At(0)), Arg("sub", At(1)));
+                    break;
+                case "msup":
+                    yield return new XElement(M + "sSup", Arg("e", At(0)), Arg("sup", At(1)));
+                    break;
+                case "msubsup":
+                    yield return new XElement(M + "sSubSup", Arg("e", At(0)), Arg("sub", At(1)), Arg("sup", At(2)));
+                    break;
+
+                case "mmultiscripts":
+                {
+                    var split = args.FindIndex(arg => arg.Name.LocalName == "mprescripts");
+                    if (split >= 0)
+                    {
+                        yield return new XElement(M + "sPre", Arg("sub", At(split + 1)), Arg("sup", At(split + 2)), Arg("e", At(0)));
+                    }
+                    else
+                    {
+                        yield return new XElement(M + "sSubSup", Arg("e", At(0)), Arg("sub", At(1)), Arg("sup", At(2)));
+                    }
+
+                    break;
+                }
+
+                case "munder":
+                    yield return Under(element, At(0), At(1));
+                    break;
+                case "mover":
+                    yield return Over(element, At(0), At(1));
+                    break;
+                case "munderover":
+                    yield return new XElement(
+                        M + "limUpp",
+                        new XElement(M + "e", new XElement(M + "limLow", Arg("e", At(0)), Arg("lim", At(1)))),
+                        Arg("lim", At(2)));
+                    break;
+
+                case "mtable":
+                    yield return Table(element);
+                    break;
+
+                case "mphantom":
+                    yield return new XElement(
+                        M + "phant",
+                        new XElement(M + "phantPr", new XElement(M + "show", new XAttribute(M + "val", "0"))),
+                        new XElement(M + "e", Row(element)));
+                    break;
+
+                // O que não conhecemos: o conteúdo, para nada sumir.
+                default:
+                    foreach (var inner in Row(element)) yield return inner;
+                    break;
+            }
+        }
+
+        private XElement Under(XElement element, XElement? baseElement, XElement? under)
+        {
+            if (Single(under) is { } mark && mark.Name.LocalName == "mo")
+            {
+                var chr = mark.Value;
+                if (chr is "‾" or "_" or "̲" or "¯" && (Stretchy(mark) || element.Attribute("accentunder")?.Value == "true"))
+                {
+                    return new XElement(
+                        M + "bar",
+                        new XElement(M + "barPr", new XElement(M + "pos", new XAttribute(M + "val", "bot"))),
+                        Arg("e", baseElement));
+                }
+
+                if (Stretchy(mark)) return GroupChr(chr, "bot", baseElement);
+            }
+
+            return new XElement(M + "limLow", Arg("e", baseElement), Arg("lim", under));
+        }
+
+        private XElement Over(XElement element, XElement? baseElement, XElement? over)
+        {
+            if (Single(over) is { } mark && mark.Name.LocalName == "mo")
+            {
+                var chr = mark.Value;
+                if (chr is "‾" or "¯" && Stretchy(mark))
+                {
+                    return new XElement(
+                        M + "bar",
+                        new XElement(M + "barPr", new XElement(M + "pos", new XAttribute(M + "val", "top"))),
+                        Arg("e", baseElement));
+                }
+
+                if (!Stretchy(mark) && Accents.TryGetValue(chr, out var combining))
+                {
+                    return new XElement(
+                        M + "acc",
+                        new XElement(M + "accPr", new XElement(M + "chr", new XAttribute(M + "val", combining))),
+                        Arg("e", baseElement));
+                }
+
+                if (Stretchy(mark)) return GroupChr(chr, "top", baseElement);
+            }
+
+            return new XElement(M + "limUpp", Arg("e", baseElement), Arg("lim", over));
+        }
+
+        private XElement GroupChr(string chr, string pos, XElement? baseElement) =>
+            new(
+                M + "groupChr",
+                new XElement(
+                    M + "groupChrPr",
+                    new XElement(M + "chr", new XAttribute(M + "val", chr)),
+                    new XElement(M + "pos", new XAttribute(M + "val", pos)),
+                    new XElement(M + "vertJc", new XAttribute(M + "val", pos == "top" ? "bot" : "top"))),
+                Arg("e", baseElement));
+
+        private XElement Table(XElement table)
+        {
+            var rows = table.Elements().Where(row => row.Name.LocalName is "mtr" or "mlabeledtr").ToList();
+            if (rows.Count > 0 && rows.All(row => row.Elements().Count() <= 1))
+            {
+                return new XElement(M + "eqArr", rows.Select(row => new XElement(M + "e", Row(row.Elements().FirstOrDefault()))));
+            }
+
+            var columns = Math.Max(1, rows.Count == 0 ? 1 : rows.Max(row => row.Elements().Count()));
+            return new XElement(
+                M + "m",
+                new XElement(
+                    M + "mPr",
+                    new XElement(
+                        M + "mcs",
+                        new XElement(
+                            M + "mc",
+                            new XElement(
+                                M + "mcPr",
+                                new XElement(M + "count", new XAttribute(M + "val", columns)),
+                                new XElement(M + "mcJc", new XAttribute(M + "val", "center")))))),
+                rows.Select(row =>
+                {
+                    var cells = row.Elements().ToList();
+                    return new XElement(
+                        M + "mr",
+                        Enumerable.Range(0, columns).Select(index => new XElement(M + "e", Row(cells.ElementAtOrDefault(index)))));
+                }));
+        }
+
+        /// <summary>O `mrow` entre delimitadores: o primeiro ou o último filho é um `mo` de cerca.</summary>
+        private static bool Fenced(XElement row)
+        {
+            if (row.Name.LocalName != "mrow") return false;
+            var children = row.Elements().ToList();
+            if (children.Count < 2) return false;
+            return IsFence(children[0]) || IsFence(children[^1]);
+        }
+
+        private static bool IsFence(XElement element) =>
+            element.Name.LocalName == "mo" && element.Attribute("fence")?.Value == "true";
+
+        private XElement Delimited(XElement row)
+        {
+            var children = row.Elements().ToList();
+            var open = IsFence(children[0]) ? children[0].Value : string.Empty;
+            var close = children.Count > 1 && IsFence(children[^1]) ? children[^1].Value : string.Empty;
+            var inner = children
+                .Skip(IsFence(children[0]) ? 1 : 0)
+                .Take(children.Count - (IsFence(children[0]) ? 1 : 0) - (IsFence(children[^1]) ? 1 : 0))
+                .ToList();
+
+            // Os separadores: o nosso (`separator`) e o `\middle` do Temml, que é
+            // um `mo` esticável sem ser cerca.
+            var arguments = new List<List<XElement>> { new() };
+            string? separator = null;
+            foreach (var child in inner)
+            {
+                if (child.Name.LocalName == "mo" &&
+                    (child.Attribute("separator")?.Value == "true" || (Stretchy(child) && !IsFence(child))) &&
+                    (separator is null || separator == child.Value))
+                {
+                    separator = child.Value;
+                    arguments.Add([]);
+                    continue;
+                }
+
+                arguments[^1].Add(child);
+            }
+
+            var properties = new XElement(M + "dPr", new XElement(M + "begChr", new XAttribute(M + "val", open)));
+            if (arguments.Count > 1) properties.Add(new XElement(M + "sepChr", new XAttribute(M + "val", separator ?? "|")));
+            properties.Add(new XElement(M + "endChr", new XAttribute(M + "val", close)));
+
+            return new XElement(
+                M + "d",
+                properties,
+                arguments.Select(argument =>
+                {
+                    var content = new List<XElement>();
+                    AddItems(content, Flatten(argument));
+                    return new XElement(M + "e", content);
+                }));
+        }
+
+        /// <summary>O operador de n-ário de um elemento: o `mo` sozinho, ou com limites.</summary>
+        private static XElement? NaryOf(XElement element)
+        {
+            var name = element.Name.LocalName;
+            if (name == "mo") return IsNaryOperator(element) ? element : null;
+            if (name is "msub" or "msup" or "msubsup" or "munder" or "mover" or "munderover" &&
+                element.Elements().FirstOrDefault() is { } first && Unwrapped(first) is var op &&
+                op.Name.LocalName == "mo" && IsNaryOperator(op))
+            {
+                return element;
+            }
+
+            return null;
+        }
+
+        private static bool IsNaryOperator(XElement mo) =>
+            mo.Value.Trim() is { Length: > 0 } text && (NaryChars.Contains(text, StringComparison.Ordinal) && text.Length == 1 ||
+                                                       mo.Attribute("largeop")?.Value == "true");
+
+        private XElement Nary(XElement nary, List<XElement> body)
+        {
+            var args = nary.Elements().ToList();
+            var op = nary.Name.LocalName == "mo" ? nary : Unwrapped(args[0]);
+            var (limLoc, sub, sup) = nary.Name.LocalName switch
+            {
+                "msub" => ("subSup", args.ElementAtOrDefault(1), (XElement?)null),
+                "msup" => ("subSup", null, args.ElementAtOrDefault(1)),
+                "msubsup" => ("subSup", args.ElementAtOrDefault(1), args.ElementAtOrDefault(2)),
+                "munder" => ("undOvr", args.ElementAtOrDefault(1), null),
+                "mover" => ("undOvr", null, args.ElementAtOrDefault(1)),
+                "munderover" => ("undOvr", args.ElementAtOrDefault(1), args.ElementAtOrDefault(2)),
+                _ => (op.Attribute("movablelimits")?.Value == "false" || "∫∬∭∮∯∰".Contains(op.Value.Trim(), StringComparison.Ordinal)
+                    ? "subSup"
+                    : "undOvr", null, null),
+            };
+
+            var properties = new XElement(
+                M + "naryPr",
+                new XElement(M + "chr", new XAttribute(M + "val", op.Value.Trim())),
+                new XElement(M + "limLoc", new XAttribute(M + "val", limLoc)));
+            if (sub is null) properties.Add(new XElement(M + "subHide", new XAttribute(M + "val", "1")));
+            if (sup is null) properties.Add(new XElement(M + "supHide", new XAttribute(M + "val", "1")));
+
+            return new XElement(M + "nary", properties, Arg("sub", sub), Arg("sup", sup), new XElement(M + "e", body));
+        }
+
+        private static bool IsPlainRow(XElement element) =>
+            element.Name.LocalName == "mrow" && element.Attribute("class") is null && !Fenced(element);
+
+        private static bool IsBodyStop(XElement element) =>
+            element.Name.LocalName == "mo" && element.Value.Trim() is { Length: > 0 } text &&
+            BodyStops.Contains(text, StringComparison.Ordinal) && text.Length == 1;
+
+        private static bool IsApply(XElement element) => element.Name.LocalName == "mo" && element.Value == "⁡";
+
+        private static bool IsInvisible(XElement element) =>
+            element.Name.LocalName == "mo" && element.Value is "⁢" or "⁣" or "⁤" or "";
+
+        private static bool EmptyBase(XElement script) =>
+            script.Elements().FirstOrDefault() is { } first && first.Name.LocalName == "mrow" && !first.HasElements &&
+            first.Value.Length == 0;
+
+        private static XElement? Single(XElement? element) => element is null ? null : Unwrapped(element);
+
+        private static bool Stretchy(XElement mo) => mo.Attribute("stretchy")?.Value == "true";
+
+        // --- as fichas -------------------------------------------------------
+
+        /// <summary>
+        /// A ficha (`mi`, `mn`, `mo`, `mtext`) num `m:r` — fundida com o anterior
+        /// quando as propriedades são as mesmas, como o Word escreve.
+        /// </summary>
+        private static void AddToken(List<XElement> output, XElement token)
+        {
+            var text = token.Value;
+            if (text.Length == 0) return;
+
+            string? script = null;
+            string? style = null;
+            var normal = false;
+            var plain = new StringBuilder();
+
+            if (token.Name.LocalName is "mtext" or "ms")
+            {
+                normal = true;
+                plain.Append(text);
+            }
+            else
+            {
+                var styledAlphabet = false;
+                foreach (var rune in text.EnumerateRunes())
+                {
+                    if (Alphabets.TryGetValue(rune.Value, out var letter))
+                    {
+                        plain.Append(letter.Plain);
+                        script = letter.Script;
+                        style = letter.Style;
+                        styledAlphabet = true;
+                    }
+                    else if (rune.Value is 0x2061 or 0x2062 or 0x2063 or 0x2064)
+                    {
+                        continue;
+                    }
+                    else
+                    {
+                        plain.Append(rune.ToString());
+                    }
+                }
+
+                if (plain.Length == 0) return;
+
+                if (!styledAlphabet && token.Name.LocalName == "mi")
+                {
+                    // O `mi` de uma letra é itálico; o de várias, ou o com
+                    // `mathvariant="normal"`, é reto — o `m:sty p` do Word.
+                    var upright = token.Attribute("mathvariant")?.Value == "normal" ||
+                                  (token.Attribute("mathvariant") is null && plain.ToString().EnumerateRunes().Count() > 1);
+                    var variant = token.Attribute("mathvariant")?.Value;
+                    style = upright ? "p" : variant switch
+                    {
+                        "bold" => "b",
+                        "bold-italic" => "bi",
+                        _ => null,
+                    };
+                }
+                else if (styledAlphabet && style == "i")
+                {
+                    // O itálico simples é o padrão do Word: não precisa ser dito.
+                    style = null;
+                }
+            }
+
+            var value = plain.ToString();
+            if (output.Count > 0 && output[^1] is { } last && last.Name == M + "r" &&
+                Same(last, script, style, normal))
+            {
+                var t = last.Element(M + "t")!;
+                t.Value += value;
+                Preserve(t);
+                return;
+            }
+
+            output.Add(Run(value, script, style, normal));
+        }
+
+        private static XElement Run(string text, string? script, string? style, bool normal)
+        {
+            XElement? properties = null;
+            if (normal)
+            {
+                properties = new XElement(M + "rPr", new XElement(M + "nor"));
+            }
+            else if (script is not null || style is not null)
+            {
+                properties = new XElement(
+                    M + "rPr",
+                    script is null ? null : new XElement(M + "scr", new XAttribute(M + "val", script)),
+                    style is null ? null : new XElement(M + "sty", new XAttribute(M + "val", style)));
+            }
+
+            var t = new XElement(M + "t", text);
+            Preserve(t);
+            return new XElement(
+                M + "r",
+                properties,
+                new XElement(W + "rPr", new XElement(W + "rFonts", new XAttribute(W + "ascii", MathFont), new XAttribute(W + "hAnsi", MathFont))),
+                t);
+        }
+
+        private static void Preserve(XElement t)
+        {
+            var value = t.Value;
+            var needs = value.Length > 0 && (char.IsWhiteSpace(value[0]) || char.IsWhiteSpace(value[^1]));
+            t.SetAttributeValue(XNamespace.Xml + "space", needs ? "preserve" : null);
+        }
+
+        private static bool Same(XElement run, string? script, string? style, bool normal)
+        {
+            var properties = run.Element(M + "rPr");
+            var runNormal = properties?.Element(M + "nor") is not null;
+            var runScript = properties?.Element(M + "scr")?.Attribute(M + "val")?.Value;
+            var runStyle = properties?.Element(M + "sty")?.Attribute(M + "val")?.Value;
+            return runNormal == normal && runScript == script && runStyle == style;
+        }
+    }
 }

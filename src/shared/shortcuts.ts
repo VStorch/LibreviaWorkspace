@@ -59,7 +59,7 @@ export type ShortcutOwner = (typeof ShortcutOwner)[keyof typeof ShortcutOwner]
  * em silêncio porque as duas grafias não se parecem.
  */
 export interface ShortcutKey {
-  /** `Ctrl` no Windows e no Linux, `Cmd` no macOS. Ausente só em tecla de função. */
+  /** `Ctrl` no Windows e no Linux, `Cmd` no macOS. Ausente só em tecla de função e no `Alt+=` do Word. */
   readonly mod?: true
   readonly shift?: true
   readonly alt?: true
@@ -142,6 +142,15 @@ export const SHORTCUTS = {
     owner: ShortcutOwner.Menu,
     key: { mod: true, alt: true, key: 'D' },
     does: 'Nota de fim',
+  },
+  /**
+   * `Alt+=`, o do Word para inserir equação (M11). Sem `Ctrl`, como o `F9`: é a
+   * tecla que quem vem do Word já tem nos dedos, e nenhuma outra entrada a usa.
+   */
+  insertEquation: {
+    owner: ShortcutOwner.Menu,
+    key: { alt: true, key: '=' },
+    does: 'Equação',
   },
   /** `Ctrl+Alt+M`, o do Word e o do LibreOffice para inserir comentário. */
   insertComment: {

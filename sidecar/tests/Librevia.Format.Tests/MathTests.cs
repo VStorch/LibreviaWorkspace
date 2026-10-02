@@ -17,25 +17,25 @@ namespace Librevia.Format.Tests;
 /// </remarks>
 public class MathTests
 {
-    private const string W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
-    private const string Mns = "http://schemas.openxmlformats.org/officeDocument/2006/math";
+    internal const string W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
+    internal const string Mns = "http://schemas.openxmlformats.org/officeDocument/2006/math";
 
     /// <summary>O `m:r` do Word: a fonte de matemática no `w:rPr`, o estilo no `m:rPr`.</summary>
-    private static string R(string text, string? sty = null) =>
+    internal static string R(string text, string? sty = null) =>
         "<m:r>" + (sty is null ? string.Empty : $"""<m:rPr><m:sty m:val="{sty}"/></m:rPr>""") +
         """<w:rPr><w:rFonts w:ascii="Cambria Math" w:hAnsi="Cambria Math"/></w:rPr>""" +
         $"<m:t>{text}</m:t></m:r>";
 
-    private const string Ctrl = """<m:ctrlPr><w:rPr><w:rFonts w:ascii="Cambria Math" w:hAnsi="Cambria Math"/><w:i/></w:rPr></m:ctrlPr>""";
+    internal const string Ctrl = """<m:ctrlPr><w:rPr><w:rFonts w:ascii="Cambria Math" w:hAnsi="Cambria Math"/><w:i/></w:rPr></m:ctrlPr>""";
 
     /// <summary>πr² no meio da frase, como o Word grava a equação em linha.</summary>
-    private static readonly string Inline =
+    internal static readonly string Inline =
         """<w:p><w:r><w:t xml:space="preserve">A área é </w:t></w:r>""" +
         $"<m:oMath>{R("π")}<m:sSup><m:sSupPr>{Ctrl}</m:sSupPr><m:e>{R("r")}</m:e><m:sup>{R("2")}</m:sup></m:sSup></m:oMath>" +
         """<w:r><w:t xml:space="preserve"> e acabou.</w:t></w:r></w:p>""";
 
     /// <summary>A fórmula de Bhaskara em exibição, centrada, como o Word a grava.</summary>
-    private static readonly string Display =
+    internal static readonly string Display =
         """<w:p><m:oMathPara><m:oMathParaPr><m:jc m:val="center"/></m:oMathParaPr><m:oMath>""" +
         R("x") + R("=") +
         $"<m:f><m:fPr>{Ctrl}</m:fPr><m:num>{R("-b±")}<m:rad><m:radPr><m:degHide m:val=\"1\"/>{Ctrl}</m:radPr><m:deg/>" +
@@ -46,7 +46,7 @@ public class MathTests
     /// Como o LibreOffice grava: `m:sty` sempre explícito, o somatório com os
     /// liga-desliga declarados, o delimitador com o separador vazio.
     /// </summary>
-    private static readonly string LibreOffice =
+    internal static readonly string LibreOffice =
         """<w:p><w:r><w:t xml:space="preserve">Soma </w:t></w:r><m:oMath>""" +
         """<m:nary><m:naryPr><m:chr m:val="∑"/><m:limLoc m:val="undOvr"/><m:subHide m:val="0"/><m:supHide m:val="0"/></m:naryPr>""" +
         $"<m:sub>{R("i", "i")}{R("=", "p")}{R("1", "p")}</m:sub><m:sup>{R("n", "i")}</m:sup>" +
@@ -56,13 +56,13 @@ public class MathTests
         "</m:oMath></w:p>";
 
     /// <summary>A caixa sem o lado de cima: o CSS de um `mrow` não a desenha.</summary>
-    private static readonly string Lossy =
+    internal static readonly string Lossy =
         """<w:p><w:r><w:t xml:space="preserve">Caixa </w:t></w:r><m:oMath>""" +
         $"""<m:borderBox><m:borderBoxPr><m:hideTop m:val="1"/></m:borderBoxPr><m:e>{R("z")}</m:e></m:borderBox>""" +
         "</m:oMath></w:p>";
 
     /// <summary>Duas linhas numa equação de exibição (Shift+Enter no Word).</summary>
-    private static readonly string TwoLines =
+    internal static readonly string TwoLines =
         """<w:p><m:oMathPara><m:oMathParaPr><m:jc m:val="left"/></m:oMathParaPr>""" +
         $"<m:oMath>{R("a")}{R("=")}{R("1")}</m:oMath><m:oMath>{R("b")}{R("=")}{R("2")}</m:oMath>" +
         "</m:oMathPara></w:p>";
@@ -86,7 +86,7 @@ public class MathTests
         return buffer.ToArray();
     }
 
-    private static List<Node> Equations(DocumentModelDto model) =>
+    internal static List<Node> Equations(DocumentModelDto model) =>
         Walk(model.Doc).Where(node => node.Type == "math").ToList();
 
     private static string? Attr(Node node, string name) =>
@@ -95,7 +95,7 @@ public class MathTests
     private static bool Flag(Node node, string name) =>
         node.Attrs?.GetValueOrDefault(name)?.GetValue<bool>() == true;
 
-    private static List<string> OmmlOf(byte[] docx)
+    internal static List<string> OmmlOf(byte[] docx)
     {
         using var stream = new MemoryStream(docx);
         using var document = WordprocessingDocument.Open(stream, false);
@@ -302,12 +302,12 @@ public class MathTests
     }
 
     [Fact]
-    public void EquacaoSemOmmlEDeclaradaComoPerda()
+    public void EquacaoSemOmmlNemMathMlEDeclaradaComoPerda()
     {
         var original = WithMath();
         var model = Clone(Open(original));
         var equation = Equations(model)[0];
-        equation.With("omml", null);
+        equation.With("omml", null).With("mathml", "");
 
         var (bytes, result) = Save(original, model);
         Assert.Contains("equação que não pôde ser gravada", result.Inventory.Lost);

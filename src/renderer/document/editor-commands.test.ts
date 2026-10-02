@@ -3,9 +3,9 @@ import { MenuCommand } from '@shared/types.js'
 import { EditorCommand, asEditorCommand, runsWhileLocked } from './editor-commands.js'
 
 describe('comandos do editor no somente leitura', () => {
-  it('só a busca, a contagem, os marcadores e a navegação dos comentários e das alterações rodam com o documento travado', () => {
+  it('só a busca, a contagem, os marcadores, a navegação e abrir a equação rodam com o documento travado', () => {
     // O diálogo de marcadores abre para "Ir para"; adicionar e excluir se apagam
-    // lá dentro.
+    // lá dentro. A equação abre para ser vista: o diálogo não grava travado.
     const allowed = Object.values(EditorCommand).filter(runsWhileLocked)
     expect(allowed.sort()).toEqual(
       [
@@ -17,6 +17,7 @@ describe('comandos do editor no somente leitura', () => {
         EditorCommand.AuthorName,
         EditorCommand.NextChange,
         EditorCommand.PreviousChange,
+        EditorCommand.EditEquation,
       ].sort(),
     )
   })

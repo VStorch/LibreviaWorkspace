@@ -412,6 +412,15 @@ async function buildTemplate(): Promise<MenuItemConstructorOptions[]> {
           label: t('menu.insert.specialCharacter'),
           click: () => dispatch(MenuCommand.SpecialCharacter),
         },
+        {
+          label: t('menu.insert.equation'),
+          accelerator: acceleratorOf(SHORTCUTS.insertEquation),
+          click: () => dispatch(MenuCommand.InsertEquation),
+        },
+        {
+          label: t('menu.insert.displayEquation'),
+          click: () => dispatch(MenuCommand.InsertDisplayEquation),
+        },
         { type: 'separator' },
         {
           label: t('menu.insert.bookmark'),

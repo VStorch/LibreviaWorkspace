@@ -102,6 +102,7 @@ public sealed class ParagraphWriter
             {
                 var paragraph = WriteParagraph(node, list, original as Paragraph);
                 CarryAnchored(paragraph, node, original);
+                NoteEditedMathFormatting(node, original);
                 yield return paragraph;
                 break;
             }
@@ -518,8 +519,9 @@ public sealed class ParagraphWriter
                 yield return WriteNoteReference(node);
                 break;
 
-            // A equação (M11): o OMML como veio. A fase 1 não edita equação, então
-            // o nó sem OMML é defeito — declarado, e não um `m:oMath` inventado.
+            // A equação (M11): o OMML como veio. A nova ou editada não tem OMML, e
+            // ele sai do MathML (OmmlMath.ToOmml); sem nenhum dos dois, é defeito —
+            // declarado, e não um `m:oMath` inventado.
             case "math":
                 if (MathOf(node) is { } math) yield return math;
                 else _inventory.NoteLoss("equação que não pôde ser gravada");
@@ -546,10 +548,48 @@ public sealed class ParagraphWriter
     private const string WordprocessingNamespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
     private const string MathNamespace = "http://schemas.openxmlformats.org/officeDocument/2006/math";
 
+    /// <summary>
+    /// A equação editada sai do MathML, que não guarda cor nem fonte das fichas:
+    /// se o parágrafo do arquivo tinha uma equação formatada por dentro e ela não
+    /// voltou como veio, a formatação se perdeu — e isso se diz uma vez.
+    /// </summary>
+    private void NoteEditedMathFormatting(Node paragraph, OpenXmlElement? original)
+    {
+        if (original is null || paragraph.Content is not { } content) return;
+        var maths = content.Where(child => child.Type == "math").ToList();
+        if (!maths.Any(math => Attr.String(math, "omml") is not { Length: > 0 })) return;
+
+        var kept = maths.Select(math => Attr.String(math, "omml")).OfType<string>().ToHashSet(StringComparer.Ordinal);
+        var equations = original.Descendants()
+            .Where(element => element is DocumentFormat.OpenXml.Math.Paragraph ||
+                              (element is DocumentFormat.OpenXml.Math.OfficeMath &&
+                               element.Ancestors<DocumentFormat.OpenXml.Math.Paragraph>().FirstOrDefault() is null));
+        if (equations.Any(equation => FormattedInside(equation) && !kept.Contains(equation.OuterXml)))
+        {
+            _inventory.NoteLoss("formatação dentro da equação editada");
+        }
+    }
+
+    /// <summary>A equação tem fichas com formatação além da fonte de matemática e do itálico?</summary>
+    private static bool FormattedInside(OpenXmlElement equation) =>
+        equation.Descendants<RunProperties>().Any(properties => properties.ChildElements.Any(child => child switch
+        {
+            RunFonts fonts => (fonts.Ascii?.Value ?? MathFontName) != MathFontName || (fonts.HighAnsi?.Value ?? MathFontName) != MathFontName,
+            Italic or ItalicComplexScript or Languages or NoProof => false,
+            _ => true,
+        }));
+
+    private const string MathFontName = "Cambria Math";
+
     /// <summary>O `m:oMath` ou `m:oMathPara` guardado no nó, de volta a elemento — ou nulo.</summary>
     internal static OpenXmlElement? MathOf(Node node)
     {
-        if (Attr.String(node, "omml") is not { Length: > 0 } omml) return null;
+        var omml = Attr.String(node, "omml") is { Length: > 0 } kept
+            ? kept
+            : Attr.String(node, "mathml") is { Length: > 0 } mathMl
+                ? OmmlMath.ToOmml(mathMl, Attr.Bool(node, "display"), Attr.String(node, "jc"))
+                : null;
+        if (omml is null) return null;
         try
         {
             var root = System.Xml.Linq.XElement.Parse(omml);

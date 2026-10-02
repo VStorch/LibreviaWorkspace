@@ -41,6 +41,7 @@ import { ListFormatDialog, ListStartDialog } from './ListFormatDialog.js'
 import { FindReplacePanel } from './FindReplacePanel.js'
 import { PageSetupPanel } from './PageSetupPanel.js'
 import { SpecialCharsDialog } from './SpecialCharsDialog.js'
+import { MathDialog } from './MathDialog.js'
 import { StylesPanel } from './StylesPanel.js'
 import { NavigationPane } from './NavigationPane.js'
 import { BookmarkDialog } from './BookmarkDialog.js'
@@ -321,7 +322,7 @@ export function DocumentEditor(): React.JSX.Element {
     [],
   )
 
-  const { dialogs, setDialog, run } = useEditorCommands(
+  const { dialogs, setDialog, run, equationTarget } = useEditorCommands(
     editor,
     readOnly,
     pasteWithoutFormat,
@@ -602,6 +603,15 @@ export function DocumentEditor(): React.JSX.Element {
 
       {dialogs.specialCharacter && (
         <SpecialCharsDialog editor={editor} onClose={() => setDialog('specialCharacter', false)} />
+      )}
+
+      {dialogs.equation && (
+        <MathDialog
+          editor={editor}
+          target={equationTarget}
+          readOnly={readOnly}
+          onClose={() => setDialog('equation', false)}
+        />
       )}
 
       {dialogs.table && <TableDialog editor={editor} onClose={() => setDialog('table', false)} />}

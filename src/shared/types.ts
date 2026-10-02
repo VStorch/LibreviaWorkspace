@@ -133,6 +133,11 @@ export const MenuCommand = {
   DocumentProperties: 'document-properties',
   /** Abre o seletor de caracteres especiais. */
   SpecialCharacter: 'special-character',
+  /** Equação em linha e em destaque, com o editor de equações aberto (M11, fase 2). */
+  InsertEquation: 'insert-equation',
+  InsertDisplayEquation: 'insert-display-equation',
+  /** Abre a equação selecionada no editor — o clique duplo e o Enter chegam aqui. */
+  EditEquation: 'edit-equation',
   /** Propriedades da imagem selecionada: texto alternativo e alinhamento. */
   ImageProperties: 'image-properties',
   /** Marcadores: adicionar, ir para e excluir. */

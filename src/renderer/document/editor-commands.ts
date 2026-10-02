@@ -37,6 +37,9 @@ export const EditorCommand = {
   /** Arquivo → Propriedades (M11). */
   DocumentProperties: 'document-properties',
   SpecialCharacter: 'special-character',
+  InsertEquation: 'insert-equation',
+  InsertDisplayEquation: 'insert-display-equation',
+  EditEquation: 'edit-equation',
   /** Propriedades da imagem selecionada: texto alternativo e alinhamento. */
   ImageProperties: 'image-properties',
   /** Marcadores: adicionar, ir para e excluir. */
@@ -96,6 +99,8 @@ const READS_ONLY: ReadonlySet<EditorCommand> = new Set<EditorCommand>([
   // Andar entre as alterações também só lê; aceitar e rejeitar editam.
   EditorCommand.NextChange,
   EditorCommand.PreviousChange,
+  // A equação abre para ser vista; o diálogo só grava com o documento editável.
+  EditorCommand.EditEquation,
 ])
 
 /** O comando pode rodar num documento aberto em somente leitura? */
