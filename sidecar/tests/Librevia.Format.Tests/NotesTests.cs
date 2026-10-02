@@ -430,4 +430,108 @@ public class NotesTests
         var (bytes, _) = Save(original, Open(original));
         Assert.Equal(PartsOf(original)["word/settings.xml"], PartsOf(bytes)["word/settings.xml"]);
     }
+
+    // --- fase 3: comentários nas notas e NOTEREF --------------------------------
+
+    private static Node NodeOf(string type, params (string Name, string Value)[] attrs)
+    {
+        var node = new Node { Type = type, Attrs = [] };
+        foreach (var (name, value) in attrs) node.Attrs[name] = System.Text.Json.Nodes.JsonValue.Create(value);
+        return node;
+    }
+
+    private static List<string> CommentMarkers(string xml) =>
+        [.. Regex.Matches(xml, "<w:(commentRangeStart|commentRangeEnd|commentReference) w:id=\"(\\d+)\"")
+            .Select(match => $"{match.Groups[1].Value}:{match.Groups[2].Value}")];
+
+    /// <summary>
+    /// O validador do SDK, menos o falso positivo da âncora de comentário numa nota:
+    /// ele procura `comments.xml` entre as relações da parte das notas, e o Word não
+    /// a relaciona ali — o comentário mora na parte do documento.
+    /// </summary>
+    private static void AssertSchemaButCommentsInNotes(byte[] docx)
+    {
+        using var stream = new MemoryStream(docx.ToArray());
+        using var document = WordprocessingDocument.Open(stream, false);
+        var errors = new DocumentFormat.OpenXml.Validation.OpenXmlValidator(DocumentFormat.OpenXml.FileFormatVersions.Office2021)
+            .Validate(document)
+            .Where(error => !(error.Part is FootnotesPart or EndnotesPart &&
+                              error.Description.Contains("'WordprocessingCommentsPart'", StringComparison.Ordinal)))
+            .Select(error => $"{error.Path?.XPath}: {error.Description}")
+            .ToList();
+        Assert.Empty(errors);
+    }
+
+    /// <summary>O documento de notas com um comentário novo no trecho da primeira nota de rodapé.</summary>
+    private static (byte[] Original, byte[] Saved) WithCommentInNote()
+    {
+        var original = WithNotes();
+        var model = Clone(Open(original));
+        var paragraph = NoteRef(model, "footnote", "1").Content![0];
+        paragraph.Content!.Insert(0, NodeOf("commentStart", ("cid", "0")));
+        paragraph.Content.Add(NodeOf("commentEnd", ("cid", "0")));
+        model = model with { Comments = [new CommentDto("0", "Vinícius Storch", "2026-10-02T12:00:00Z", ["Conferir a ata."], false)] };
+        return (original, DocxWriter.Write(original, model).Bytes);
+    }
+
+    [Fact]
+    public void ComentarioNovoNaNotaVaiParaANotaEVoltaNaLeitura()
+    {
+        var (_, saved) = WithCommentInNote();
+
+        // As pontas e a referência na nota, e não no corpo.
+        Assert.Equal(["commentRangeStart:0", "commentRangeEnd:0", "commentReference:0"],
+            CommentMarkers(NoteXml(XmlOf(saved, "word/footnotes.xml"), "footnote", "1")));
+        Assert.Empty(CommentMarkers(XmlOf(saved)));
+        Assert.Contains("Conferir a ata.", XmlOf(saved, "word/comments.xml"), StringComparison.Ordinal);
+        AssertSchemaButCommentsInNotes(saved);
+
+        var reopened = Open(saved);
+        Assert.Equal("0", Assert.Single(reopened.Comments!).Id);
+        var anchors = Walk(NoteRef(reopened, "footnote", "1"))
+            .Where(node => node.Type is "commentStart" or "commentEnd")
+            .Select(node => $"{node.Type}:{Attr(node, "cid")}");
+        Assert.Equal(["commentStart:0", "commentEnd:0"], anchors);
+    }
+
+    [Fact]
+    public void ComentarioExcluidoDaNotaSaiDaNotaEDosComentarios()
+    {
+        var (_, saved) = WithCommentInNote();
+        var model = Clone(Open(saved));
+        foreach (var node in Walk(NoteRef(model, "footnote", "1")))
+            node.Content?.RemoveAll(child => child.Type is "commentStart" or "commentEnd");
+        model = model with { Comments = [] };
+
+        var (bytes, result) = Save(saved, model);
+
+        Assert.Empty(result.Inventory.Lost);
+        Assert.Empty(CommentMarkers(XmlOf(bytes, "word/footnotes.xml")));
+        Assert.Empty(Open(bytes).Comments ?? []);
+    }
+
+    [Fact]
+    public void ReferenciaCruzadaANotaGravaONoterefEOMarcadorEmVoltaDaReferencia()
+    {
+        var original = WithNotes();
+        var model = Clone(Open(original));
+        var host = Paragraph(model.Doc, "Texto com nota");
+        var at = host.Content!.FindIndex(node => node.Type == "noteRef");
+        host.Content.Insert(at + 1, NodeOf("bookmarkEnd", ("bid", "40")));
+        host.Content.Insert(at, NodeOf("bookmarkStart", ("name", "_Ref900"), ("bid", "40")));
+        Paragraph(model.Doc, "Intocado.").Content!.Add(NodeOf("field", ("instr", " NOTEREF _Ref900 \\h "), ("result", "iii")));
+
+        var (bytes, _) = Save(original, model);
+        var xml = XmlOf(bytes);
+
+        Assert.Matches(new Regex("<w:bookmarkStart [^>]*w:name=\"_Ref900\"[^>]*/>.*<w:footnoteReference w:id=\"1\"[^>]*/>.*<w:bookmarkEnd ", RegexOptions.Singleline), xml);
+        Assert.Contains("NOTEREF _Ref900 \\h", xml, StringComparison.Ordinal);
+        AssertSchema(bytes);
+
+        var reopened = Open(bytes);
+        var field = Walk(reopened.Doc).Single(node => node.Type == "field");
+        Assert.Equal(" NOTEREF _Ref900 \\h ", Attr(field, "instr"));
+        Assert.Equal("iii", Attr(field, "result"));
+        Assert.Contains(Walk(reopened.Doc), node => node.Type == "bookmarkStart" && Attr(node, "name") == "_Ref900");
+    }
 }

@@ -7,11 +7,13 @@ import { useWorkspace } from '../state/workspace.js'
 import {
   adjacentComment,
   commentAnchorsOf,
+  commentSelectionOf,
   commentsKey,
   insertCommentAnchors,
   removeCommentAnchors,
   selectComment,
 } from './extensions/comment.js'
+import { caretOf, selectInNote } from './extensions/note-view.js'
 
 /**
  * Criar, responder, editar, resolver e excluir comentários (M10, fase 2).
@@ -67,10 +69,20 @@ export function insertComment(editor: Editor): void {
   // corpo quando o painel medir. Entrada a mais não muda nada até o texto apontá-la.
   // Sem `focus()`: com o editor fora de foco (o clique no menu de contexto), o
   // foco do TipTap chega num quadro seguinte e rouba o da caixa do cartão.
+  // Digitando numa nota, as pontas vão para o corpo dela, na seleção dele.
+  const caret = caretOf(editor.view)
+  // Comentário novo dentro de nota, não: o LibreOffice não abre o .docx que traz
+  // `w:commentReference` em `footnotes.xml` ("não foi possível carregar"), e o
+  // próprio LibreOffice os descarta ao gravar. O que vem do arquivo continua lido,
+  // mostrado e devolvido como estava.
+  if (caret.note !== null) {
+    store.showError({ code: 'INTERNAL', message: t('comments.notInNote') })
+    return
+  }
   const inserted = editor
     .chain()
     .command(({ tr, state }) => {
-      if (!insertCommentAnchors(tr, state.schema, comment.id)) return false
+      if (!insertCommentAnchors(tr, state.schema, comment.id, caret)) return false
       store.setComments([...store.comments, comment])
       return true
     })
@@ -153,10 +165,22 @@ export function goToComment(editor: Editor, direction: 1 | -1): boolean {
       .map((comment) => comment.id),
   )
   const active = commentsKey.getState(editor.state)?.active ?? null
-  const cid = adjacentComment(editor.state.doc, threads, active, editor.state.selection.from, direction)
+  const cid = adjacentComment(editor.state.doc, threads, active, caretOf(editor.view).from, direction)
   if (cid === null) return false
   showCommentsPane()
-  editor.view.focus()
-  editor.view.dispatch(selectComment(editor.state.tr, cid))
+  showComment(editor, cid, true)
   return true
+}
+
+/**
+ * Escolhe a conversa `cid`: o realce em foco e o trecho selecionado — no corpo da
+ * nota, quando é lá que ela está (`selectInNote`). `focus` leva o teclado ao
+ * trecho; o clique no cartão deixa o foco onde está.
+ */
+export function showComment(editor: Editor, cid: string, focus: boolean): void {
+  const anchor = commentAnchorsOf(editor.state.doc).get(cid)
+  const range = anchor === undefined ? null : commentSelectionOf(anchor)
+  if (focus) editor.view.focus()
+  editor.view.dispatch(selectComment(editor.state.tr, cid))
+  if (range !== null) selectInNote(editor.view, range.from, range.to, focus)
 }

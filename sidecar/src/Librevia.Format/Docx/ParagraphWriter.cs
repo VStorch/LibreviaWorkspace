@@ -982,10 +982,11 @@ public sealed class ParagraphWriter
         public CommentAnchors(MainDocumentPart part)
         {
             _replies = CommentsReader.RepliesOf(part);
-            var document = (OpenXmlElement?)part.Document;
-            _ranged = (document?.Descendants<CommentRangeStart>() ?? [])
+            // O corpo e as notas (M11): o parágrafo da nota também leva âncora.
+            var roots = CommentsWriter.AnchorRoots(part);
+            _ranged = roots.SelectMany(root => root.Descendants<CommentRangeStart>())
                 .Select(start => start.Id?.Value).OfType<string>().ToHashSet(StringComparer.Ordinal);
-            foreach (var run in document?.Descendants<Run>() ?? [])
+            foreach (var run in roots.SelectMany(root => root.Descendants<Run>()))
             {
                 if (BodyReader.ReferenceOnly(run) is { } id) _references.TryAdd(id, run);
             }

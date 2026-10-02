@@ -55,6 +55,7 @@ import { COMMENTS_PANE_WIDTH_PX, CommentsPane } from './CommentsPane.js'
 import { useComments } from './useComments.js'
 import { insertComment } from './comment-commands.js'
 import { hasChangeAtCursor, settleChange } from './revision-commands.js'
+import { convertNote, noteAtCursor } from './note-commands.js'
 import { focusComment } from './extensions/comment.js'
 import { usePagination } from './usePagination.js'
 import { useBandHeights } from './useBandHeights.js'
@@ -66,6 +67,7 @@ import { setSectionBoxes } from './extensions/section-geometry.js'
 import { marksOfDoc, sectionAtCursor } from './section-commands.js'
 import { useEditorCommands } from './useEditorCommands.js'
 import { settlePageFields, type ReferenceContext } from './references.js'
+import { footnotePagesOf, notePagesOf, samePages, setNotePages } from './extensions/note-ref.js'
 import type { SearchStatus } from './extensions/search-replace.js'
 
 /**
@@ -506,6 +508,17 @@ export function DocumentEditor(): React.JSX.Element {
 
   useEffect(() => setEstimatedPages(layout.pages), [layout.pages, setEstimatedPages])
 
+  // A folha de cada nota de rodapé, para a numeração que reinicia a cada página
+  // (M11): ela só existe depois de paginar. Transação sem mudança no texto.
+  const notesSetup = useWorkspace((state) => state.notes)
+  useEffect(() => {
+    if (editor === null || editor.isDestroyed) return
+    const current = notePagesOf(editor.state)
+    const pages = notesSetup?.footnotePr?.restart === 'eachPage' ? footnotePagesOf(layout.noteAreas) : []
+    if (samePages(pages, current)) return
+    editor.view.dispatch(setNotePages(editor.state.tr, pages))
+  }, [editor, layout.noteAreas, notesSetup])
+
   // O segundo passe dos campos de página, quando a paginação assenta depois de
   // um sumário ou de um F9 — ver `settlePageFields`.
   useEffect(() => {
@@ -537,6 +550,9 @@ export function DocumentEditor(): React.JSX.Element {
   const editableSheet = readOnly
     ? {}
     : { onEditFloat: editFloat, onEditBandPiece: editBand, onEditBandBox: editBandBox }
+
+  // A nota sobre a qual o menu de contexto abriu — lida quando ele abre.
+  const contextNote = contextTarget === null ? null : noteAtCursor(editor)
 
   return (
     <div className="editor-shell">
@@ -644,6 +660,10 @@ export function DocumentEditor(): React.JSX.Element {
           onPasteWithoutFormat={() => void pasteWithoutFormat()}
           onNewComment={() => insertComment(editor)}
           onRevision={hasChangeAtCursor(editor) ? (accept) => void settleChange(editor, accept) : null}
+          noteKind={contextNote?.kind ?? null}
+          onConvertNote={() => {
+            if (contextNote !== null) convertNote(editor, contextNote.pos)
+          }}
         />
       )}
 

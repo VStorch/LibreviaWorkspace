@@ -245,6 +245,25 @@ describe('alterações dentro das notas (M11)', () => {
     expect(revisionChangesOf(tr.doc)).toEqual([])
   })
 
+  it('aceita ou rejeita a alteração no cursor de dentro da nota, e só ela', () => {
+    const inside = positionOf(withNote, 'velha') + 1
+    const tr = EditorState.create({ doc: withNote }).tr
+    expect(settleChangeAt(tr, inside, false)).toBe(true)
+    expect(tr.doc.child(0).child(1).textContent).toBe('Nota nova velha')
+    expect(revisionChangesOf(tr.doc).map((change) => tr.doc.textBetween(change.from, change.to))).toEqual([
+      'nova',
+    ])
+  })
+
+  it('do cursor na nota, a próxima e a anterior andam dentro da mesma nota', () => {
+    const afterNova = positionOf(withNote, 'nova') + 'nova'.length
+    const next = adjacentChange(withNote, afterNova, 1)!
+    expect(withNote.textBetween(next.from, next.to)).toBe(' velha')
+    const back = adjacentChange(withNote, next.from, -1)!
+    expect(withNote.textBetween(back.from, back.to)).toBe('nova')
+    expect(adjacentChange(withNote, next.to, 1)).toBeNull()
+  })
+
   it('a próxima alteração entra na nota', () => {
     expect(
       withNote.textBetween(adjacentChange(withNote, 0, 1)!.from, adjacentChange(withNote, 0, 1)!.to),

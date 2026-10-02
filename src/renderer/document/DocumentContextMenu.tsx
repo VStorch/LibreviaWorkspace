@@ -5,6 +5,7 @@ import { DictionaryScope, EditCommand, type ContextMenuTarget } from '@shared/ty
 import { ContextMenu, ContextMenuItem, ContextMenuSeparator } from '../components/ContextMenu.js'
 import { useT } from '../i18n.js'
 import { useWorkspace } from '../state/workspace.js'
+import { NoteKind } from '@services/document/notes.js'
 
 /**
  * Menu de contexto do editor de documentos.
@@ -34,6 +35,8 @@ export function DocumentContextMenu({
   onPasteWithoutFormat,
   onNewComment,
   onRevision,
+  noteKind,
+  onConvertNote,
 }: {
   readonly target: ContextMenuTarget
   /** Se o cursor está numa tabela — só então as ações dela aparecem. */
@@ -48,6 +51,10 @@ export function DocumentContextMenu({
   readonly onNewComment: () => void
   /** Aceitar ou rejeitar a alteração no cursor — `null` fora de alteração. */
   readonly onRevision: ((accept: boolean) => void) | null
+  /** O tipo da nota no cursor (ver `noteAtCursor`), ou `null` longe de nota. */
+  readonly noteKind: NoteKind | null
+  /** Converte a nota no cursor no outro tipo. */
+  readonly onConvertNote: () => void
 }): React.JSX.Element {
   const showError = useWorkspace((state) => state.showError)
   const readOnly = useWorkspace((state) => state.readOnly)
@@ -171,6 +178,25 @@ export function DocumentContextMenu({
             }}
           >
             {t('revisions.reject')}
+          </ContextMenuItem>
+        </>
+      )}
+
+      {/* Sobre uma nota, convertê-la no outro tipo — como o Word oferece. */}
+      {noteKind !== null && !readOnly && (
+        <>
+          <ContextMenuSeparator />
+          <ContextMenuItem
+            onClick={() => {
+              onClose()
+              onConvertNote()
+            }}
+          >
+            {t(
+              noteKind === NoteKind.Footnote
+                ? 'document.contextMenu.toEndnote'
+                : 'document.contextMenu.toFootnote',
+            )}
           </ContextMenuItem>
         </>
       )}

@@ -16,6 +16,10 @@ export const COMMENTS = {
     pt: 'Este comentário tem formatação ou imagem que o painel não mostra. Ela continua no arquivo.',
     en: 'This comment has formatting or images the pane does not show. They stay in the file.',
   },
+  'comments.notInNote': {
+    pt: 'Comentário novo dentro de uma nota não é criado: o LibreOffice não abriria o arquivo .docx. Comente o trecho do texto que tem a nota.',
+    en: 'A new comment inside a note is not created: LibreOffice would not open the .docx file. Comment the text that holds the note instead.',
+  },
   'comments.card.unanchored': {
     pt: 'Ancorado fora do corpo do texto: num cabeçalho, nota ou caixa de texto.',
     en: 'Anchored outside the body text: in a header, note or text box.',

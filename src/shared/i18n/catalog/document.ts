@@ -58,6 +58,8 @@ export const DOCUMENT = {
   'document.contextMenu.noSuggestions': { pt: 'Nenhuma sugestão', en: 'No suggestions' },
   'document.contextMenu.addToDictionary': { pt: 'Adicionar ao dicionário', en: 'Add to dictionary' },
   'document.contextMenu.ignoreSession': { pt: 'Ignorar nesta sessão', en: 'Ignore in this session' },
+  'document.contextMenu.toEndnote': { pt: 'Converter em nota de fim', en: 'Convert to endnote' },
+  'document.contextMenu.toFootnote': { pt: 'Converter em nota de rodapé', en: 'Convert to footnote' },
 
   'document.findReplace.find': { pt: 'Localizar', en: 'Find' },
   'document.findReplace.replaceWith': { pt: 'Substituir por', en: 'Replace with' },

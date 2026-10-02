@@ -174,3 +174,40 @@ describe('Backspace e Delete em volta da âncora', () => {
     expect(pastAnchors(at(7), 1)).toBeNull()
   })
 })
+
+describe('comentário dentro de uma nota (M11)', () => {
+  const withNote = ProseMirrorNode.fromJSON(schema, {
+    type: 'doc',
+    content: [
+      {
+        type: 'paragraph',
+        content: [
+          { type: 'text', text: 'Corpo' },
+          {
+            type: 'noteRef',
+            attrs: { kind: 'footnote', nid: '1', mark: null },
+            content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Fonte da nota.' }] }],
+          },
+        ],
+      },
+    ],
+  })
+  // "Fonte" dentro da nota: o parágrafo do corpo, a referência, o parágrafo da nota.
+  const from = 1 + 'Corpo'.length + 2
+  const to = from + 'Fonte'.length
+
+  it('as pontas vão para a nota, na seleção dela, e o painel as vê', () => {
+    const state = EditorState.create({ doc: withNote })
+    const tr = state.tr
+    expect(insertCommentAnchors(tr, schema, '0', { from, to })).toBe(true)
+    const anchor = commentAnchorsOf(tr.doc).get('0')!
+    expect(tr.doc.textBetween(anchor.start! + 1, anchor.end!)).toBe('Fonte')
+    expect(tr.doc.child(0).child(1).textContent).toBe('Fonte da nota.')
+    expect(tr.doc.child(0).child(1).child(0).childCount).toBe(4)
+
+    // Excluir a conversa tira as pontas de dentro da nota.
+    const removal = EditorState.create({ doc: tr.doc }).tr
+    expect(removeCommentAnchors(removal, '0')).toBe(true)
+    expect(commentAnchorsOf(removal.doc).size).toBe(0)
+  })
+})

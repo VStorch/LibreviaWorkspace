@@ -21,7 +21,7 @@ import {
   type TrackInputOptions,
 } from './track-input.js'
 import { revisionViewOf } from './revision-view.js'
-import { drawsNoteNumber } from './note-ref.js'
+import { drawsNoteNumber, noteRefAround } from './note-ref.js'
 
 /**
  * O corpo da nota, editável no pé da página (M11, fase 2).
@@ -52,6 +52,9 @@ const bodies = new Map<string, NoteBody>()
 const byReference = new WeakMap<Node, NoteBody>()
 const pools = new WeakMap<EditorView, HTMLElement>()
 const listeners = new Set<() => void>()
+/** A última nota que teve o foco, até o texto pegá-lo de volta — ver `activeNoteOf`. */
+const lastActive = new WeakMap<EditorView, NoteBody>()
+const watched = new WeakSet<EditorView>()
 
 function changed(): void {
   for (const listener of listeners) listener()
@@ -134,6 +137,70 @@ function move(body: NoteBody, target: HTMLElement): void {
   }
   body.refocus = false
   body.view.focus()
+}
+
+/**
+ * A nota onde está o cursor: a que tem o foco, ou a última que o teve enquanto o
+ * texto não o pegou de volta. O clique no menu de contexto tira o foco do corpo,
+ * e o comando que ele dispara — aceitar a alteração, comentar — ainda é sobre a
+ * nota em que a pessoa estava.
+ */
+export function activeNoteOf(outer: EditorView): NoteBody | null {
+  const body = lastActive.get(outer)
+  if (body === undefined || bodies.get(body.key) !== body || body.position() === undefined) return null
+  return body
+}
+
+/**
+ * A seleção de quem tem o cursor, em posições do documento de fora: a da nota
+ * ativa, deslocada para dentro do nó (o corpo é o próprio nó como documento), ou
+ * a do texto.
+ */
+export function caretOf(outer: EditorView): { from: number; to: number; note: NoteBody | null } {
+  const note = activeNoteOf(outer)
+  const at = note?.position()
+  if (note !== null && at !== undefined) {
+    const { from, to } = note.view.state.selection
+    return { from: at + 1 + from, to: at + 1 + to, note }
+  }
+  const { from, to } = outer.state.selection
+  return { from, to, note: null }
+}
+
+/**
+ * Escolhe um trecho que mora dentro de uma nota: o texto fica com o cursor
+ * depois da referência, e o corpo seleciona o trecho. Devolve `false` quando o
+ * trecho não está numa nota — aí quem chamou o escolhe no texto. `focus` leva o
+ * teclado para o corpo (o Próximo do menu); o clique no cartão do painel não.
+ */
+export function selectInNote(outer: EditorView, from: number, to: number, focus: boolean): boolean {
+  const { doc } = outer.state
+  const reference = noteRefAround(doc, from)
+  const node = reference === null ? null : doc.nodeAt(reference)
+  if (reference === null || node === null) return false
+  const after = TextSelection.create(doc, reference + node.nodeSize)
+  outer.dispatch(outer.state.tr.setSelection(after).scrollIntoView())
+  const body = noteBodyOf(outer.nodeDOM(reference))
+  if (body === undefined) return true
+  if (focus) body.view.focus()
+  body.select(from - reference - 1, to - reference - 1)
+  return true
+}
+
+/**
+ * Onde uma posição do documento cai na tela. Dentro de uma nota, no corpo dela,
+ * no pé da página; o corpo que ainda não tem folha (no depósito, escondido) cede
+ * à referência, no texto.
+ */
+export function coordsInDocument(outer: EditorView, pos: number): { top: number; left: number } {
+  const reference = noteRefAround(outer.state.doc, pos)
+  if (reference === null) return outer.coordsAtPos(pos)
+  const body = noteBodyOf(outer.nodeDOM(reference))
+  if (body !== undefined && body.body.isConnected && body.body.parentElement !== pools.get(outer)) {
+    const inner = Math.min(Math.max(pos - reference - 1, 0), body.view.state.doc.content.size)
+    return body.view.coordsAtPos(inner)
+  }
+  return outer.coordsAtPos(reference)
 }
 
 /** Lê já a seleção da nota que tem o foco — o comando do menu age sobre ela. */
@@ -242,6 +309,13 @@ export class NoteBody implements NodeView {
       },
     )
     this.body = this.view.dom
+    // A nota ativa (ver `activeNoteOf`): a que recebeu o foco por último, até o
+    // texto recebê-lo.
+    this.body.addEventListener('focus', () => lastActive.set(this.outer, this))
+    if (!watched.has(this.outer)) {
+      watched.add(this.outer)
+      this.outer.dom.addEventListener('focus', () => lastActive.delete(this.outer))
+    }
     bodies.set(this.key, this)
     byReference.set(this.dom, this)
     pools.get(this.outer)?.appendChild(this.body)
@@ -249,6 +323,11 @@ export class NoteBody implements NodeView {
   }
 
   private readonly getPos: () => number | undefined
+
+  /** A posição da referência no documento de fora. */
+  position(): number | undefined {
+    return this.getPos()
+  }
 
   /** A ordem dos atributos é a do `renderHTML` do nó, para o HTML não divergir. */
   private render(): void {

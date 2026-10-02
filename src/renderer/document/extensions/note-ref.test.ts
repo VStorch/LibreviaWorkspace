@@ -5,8 +5,11 @@ import { buildEditorExtensions } from '../editor-extensions.js'
 import { textWithoutDeletions } from './track-changes.js'
 import {
   drawsNoteNumber,
+  footnotePagesOf,
+  noteRefAround,
   noteRefLabels,
   noteRefsOf,
+  samePages,
   textBetweenWithoutNotes,
   withoutRepeatedNotes,
 } from './note-ref.js'
@@ -100,5 +103,52 @@ describe('o número no começo do corpo (M11)', () => {
     const refs = noteRefsOf(doc)
     // A ordem do texto: 1, a do "*", a de fim e a 3.
     expect(refs.map(({ node }) => drawsNoteNumber(node))).toEqual([true, false, true, true])
+  })
+})
+
+describe('a nota em volta de uma posição e a numeração com reinício (M11)', () => {
+  const withSections = ProseMirrorNode.fromJSON(schema, {
+    type: 'doc',
+    content: [
+      { type: 'paragraph', content: [{ type: 'text', text: 'A' }, note(null, 'Um.'), note(null, 'Dois.')] },
+      { type: 'paragraph', attrs: { sectionBreak: 's1' }, content: [{ type: 'text', text: 'B' }] },
+      { type: 'paragraph', content: [{ type: 'text', text: 'C' }, note(null, 'Três.')] },
+    ],
+  })
+
+  it('acha a referência que contém a posição, e nenhuma fora das notas', () => {
+    const [first] = noteRefsOf(withSections)
+    expect(noteRefAround(withSections, first!.pos + 2)).toBe(first!.pos)
+    expect(noteRefAround(withSections, 1)).toBeNull()
+    expect(noteRefAround(withSections, first!.pos)).toBeNull()
+  })
+
+  it('reinicia a cada seção pelas marcas do texto', () => {
+    expect(noteRefLabels(withSections, { footnotePr: { restart: 'eachSect' } })).toEqual(['1', '2', '1'])
+    expect(noteRefLabels(withSections)).toEqual(['1', '2', '3'])
+  })
+
+  it('reinicia a cada página pelas folhas que a paginação dá', () => {
+    const areas = [
+      { sheet: 0, kind: 'footnote', items: [{ index: 0, fromLine: 0 }] },
+      {
+        sheet: 1,
+        kind: 'footnote',
+        items: [
+          { index: 0, fromLine: 3 },
+          { index: 1, fromLine: 0 },
+          { index: 2, fromLine: 0 },
+        ],
+      },
+    ]
+    const pages = footnotePagesOf(areas)
+    expect(pages).toEqual([0, 1, 1])
+    expect(noteRefLabels(withSections, { footnotePr: { restart: 'eachPage' } }, pages)).toEqual([
+      '1',
+      '1',
+      '2',
+    ])
+    expect(samePages(pages, [0, 1, 1])).toBe(true)
+    expect(samePages(pages, [0, 1])).toBe(false)
   })
 })

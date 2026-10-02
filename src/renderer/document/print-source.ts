@@ -8,13 +8,7 @@ import { sheetSetups } from '@services/document/sections.js'
 import { RevisionView } from '@shared/types.js'
 import { DELETION, INSERTION } from './extensions/track-changes.js'
 import { isHiddenBlock, isHiddenInline, revisionViewOf } from './extensions/revision-view.js'
-import {
-  drawsNoteNumber,
-  noteRefLabels,
-  noteRefsOf,
-  notesSetupOf,
-  numberNotesForPrint,
-} from './extensions/note-ref.js'
+import { drawsNoteNumber, noteLabelsOf, noteRefsOf, numberNotesForPrint } from './extensions/note-ref.js'
 import { NOTE_NUMBER_CLASS } from './extensions/note-view.js'
 import {
   NOTE_SEPARATOR_PX,
@@ -58,9 +52,13 @@ export function splitIntoPages(
   const cuts: PageStart[] = [{ blockIndex: 0 }, ...layout.pageStarts, { blockIndex: blocks.length }]
   const pages: PrintPage[] = []
   // O número das notas (M11) é decoração na tela; no papel ele é escrito aqui,
-  // contado ao longo das folhas.
-  const noteCounters = new Map<string, number>()
-  const notes = notesSetupOf(editor.extensionManager.extensions)
+  // com os rótulos da tela — os reinícios por folha e por seção já contados.
+  const screenLabels = noteLabelsOf(editor.state)
+  const labelOf = new Map<ProseMirrorNode, string>()
+  noteRefsOf(editor.state.doc).forEach(({ node }, index) => {
+    const label = screenLabels[index]
+    if (label !== undefined) labelOf.set(node, label)
+  })
   // A configuração de cada folha desenhada: papel, faixas e número da seção dela.
   const setups = sheetSetups(sections, layout.sheets)
   const setupOf = (drawn: number): { setup: PageSetup; inSection: number } => {
@@ -97,7 +95,7 @@ export function splitIntoPages(
     // painel e o realce são da tela (o realce é decoração, que o serializador não
     // vê), e as pontas saem aqui — vazias, mas são marcação de comentário.
     for (const anchor of holder.querySelectorAll('[data-comment-start], [data-comment-end]')) anchor.remove()
-    numberNotesForPrint(holder, noteCounters, notes)
+    numberNotesForPrint(holder, printedNoteLabels(fragments, labelOf))
     // A mesma marca que a decoração põe na tela: o parágrafo da captura com
     // texto não ganha a linha vazia de 1lh.
     for (const paragraph of holder.querySelectorAll('p')) {
@@ -129,7 +127,7 @@ export function splitIntoPages(
         ),
         ...bandFloats(sheet.setup, sheet.inSection, editor),
       ],
-      notes: notesForPrint(editor, layout, pages.length, view, notes),
+      notes: notesForPrint(editor, layout, pages.length, view, screenLabels),
       columnLines: layout.columnLines
         .filter((line) => line.sheet === pages.length)
         .map((line) => ({
@@ -154,13 +152,12 @@ function notesForPrint(
   layout: PageLayout,
   sheet: number,
   view: RevisionView,
-  notes: ReturnType<typeof notesSetupOf>,
+  labels: readonly string[],
 ): PrintNoteArea[] {
   const areas = layout.noteAreas.filter((area) => area.sheet === sheet)
   if (areas.length === 0) return []
   const serializer = DOMSerializer.fromSchema(editor.schema)
   const refs = noteRefsOf(editor.state.doc)
-  const labels = noteRefLabels(editor.state.doc, notes)
   return areas.map((area) => ({
     topMm: pxToMm(area.topPx),
     leftMm: pxToMm(area.leftPx),
@@ -263,11 +260,36 @@ export function blocksForView(blocks: readonly ProseMirrorNode[], view: Revision
   return blocks.flatMap((block) => nodeForView(block, view) ?? [])
 }
 
+/** A referência de nota sem as marcas de revisão → a do documento, que tem o rótulo. */
+const originalNoteRefs = new WeakMap<ProseMirrorNode, ProseMirrorNode>()
+
+/**
+ * Os rótulos das referências que a folha mostra, na ordem: o que o modo de
+ * mostrar escondeu não está no HTML, e não leva rótulo.
+ */
+function printedNoteLabels(
+  fragments: readonly ProseMirrorNode[],
+  labelOf: ReadonlyMap<ProseMirrorNode, string>,
+): string[] {
+  const labels: string[] = []
+  for (const fragment of fragments) {
+    fragment.descendants((node) => {
+      if (node.type.name !== 'noteRef') return true
+      labels.push(labelOf.get(originalNoteRefs.get(node) ?? node) ?? '')
+      return false
+    })
+  }
+  return labels
+}
+
 function nodeForView(node: ProseMirrorNode, view: RevisionView): ProseMirrorNode | null {
   if (node.isInline) {
     if (isHiddenInline(node, view)) return null
     const marks = node.marks.filter((mark) => mark.type.name !== INSERTION && mark.type.name !== DELETION)
-    return marks.length === node.marks.length ? node : node.mark(marks)
+    if (marks.length === node.marks.length) return node
+    const shown = node.mark(marks)
+    if (node.type.name === 'noteRef') originalNoteRefs.set(shown, node)
+    return shown
   }
   if (isHiddenBlock(node, view)) return null
 

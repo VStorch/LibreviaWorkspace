@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react'
 import type { Editor } from '@tiptap/react'
+import { NoteKind } from '@services/document/notes.js'
 import { useT } from '../i18n.js'
+import { noteLabelsOf } from './extensions/note-ref.js'
 import {
   captionLabels,
   crossReferenceTargets,
@@ -10,10 +12,17 @@ import {
   type ReferenceContext,
 } from './references.js'
 
+/** O valor do seletor de tipo para cada tipo de nota (M11). */
+const NOTE_TYPES: Record<NoteKind, string> = {
+  [NoteKind.Footnote]: 'note:footnote',
+  [NoteKind.Endnote]: 'note:endnote',
+}
+
 /**
- * Referência cruzada: a um título, a um marcador ou a uma legenda, mostrando o
- * texto, o número (da legenda) ou a página. Vira um campo `REF` ou `PAGEREF` que
- * "Atualizar campos" (F9) recalcula — ver `insertCrossReference`.
+ * Referência cruzada: a um título, a um marcador, a uma legenda ou a uma nota,
+ * mostrando o texto, o número (da legenda ou da nota) ou a página. Vira um campo
+ * `REF`, `NOTEREF` ou `PAGEREF` que "Atualizar campos" (F9) recalcula — ver
+ * `insertCrossReference`.
  */
 export function CrossReferenceDialog({
   editor,
@@ -28,7 +37,7 @@ export function CrossReferenceDialog({
   const [labels] = useState(() =>
     captionLabels(editor.state.doc, [t('references.caption.figure'), t('references.caption.table')]),
   )
-  // `heading`, `bookmark` ou `caption:<rótulo>` — um valor só para o seletor.
+  // `heading`, `bookmark`, `note:<tipo>` ou `caption:<rótulo>` — um valor só para o seletor.
   const [type, setType] = useState('heading')
   const [key, setKey] = useState<string | null>(null)
   const [show, setShow] = useState<CrossReferenceShow>('text')
@@ -37,9 +46,11 @@ export function CrossReferenceDialog({
   const kind: CrossReferenceKind =
     type === 'heading' || type === 'bookmark'
       ? { type }
-      : { type: 'caption', label: type.slice('caption:'.length) }
+      : type === NOTE_TYPES[NoteKind.Footnote] || type === NOTE_TYPES[NoteKind.Endnote]
+        ? { type: 'note', kind: type === NOTE_TYPES[NoteKind.Endnote] ? NoteKind.Endnote : NoteKind.Footnote }
+        : { type: 'caption', label: type.slice('caption:'.length) }
   const targets = useMemo(
-    () => crossReferenceTargets(editor.state.doc, context().styles, kind),
+    () => crossReferenceTargets(editor.state.doc, context().styles, kind, noteLabelsOf(editor.state)),
     // O documento não muda com o diálogo aberto; o tipo sim.
     [type],
   )
@@ -66,13 +77,18 @@ export function CrossReferenceDialog({
         <select
           value={type}
           onChange={(event) => {
-            setType(event.target.value)
+            const next = event.target.value
+            setType(next)
             setKey(null)
-            if (event.target.value !== type && show === 'number') setShow('text')
+            // A nota mostra o número dela ou a página; o resto, o texto de saída.
+            if (next.startsWith('note:')) setShow(show === 'page' ? 'page' : 'number')
+            else if (next !== type && show === 'number') setShow('text')
           }}
         >
           <option value="heading">{t('references.crossRef.heading')}</option>
           <option value="bookmark">{t('references.crossRef.bookmark')}</option>
+          <option value={NOTE_TYPES[NoteKind.Footnote]}>{t('references.crossRef.footnote')}</option>
+          <option value={NOTE_TYPES[NoteKind.Endnote]}>{t('references.crossRef.endnote')}</option>
           {labels.map((label) => (
             <option key={label} value={`caption:${label}`}>
               {label}
@@ -96,8 +112,9 @@ export function CrossReferenceDialog({
       <label className="popover__field">
         <span>{t('references.crossRef.show')}</span>
         <select value={show} onChange={(event) => setShow(event.target.value as CrossReferenceShow)}>
-          <option value="text">{t('references.crossRef.showText')}</option>
+          {kind.type !== 'note' && <option value="text">{t('references.crossRef.showText')}</option>}
           {kind.type === 'caption' && <option value="number">{t('references.crossRef.showNumber')}</option>}
+          {kind.type === 'note' && <option value="number">{t('references.crossRef.showNoteNumber')}</option>}
           <option value="page">{t('references.crossRef.showPage')}</option>
         </select>
       </label>

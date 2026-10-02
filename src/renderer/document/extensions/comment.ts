@@ -2,6 +2,7 @@ import { Extension, Node } from '@tiptap/core'
 import { Fragment, Slice, type Node as ProseMirrorNode, type Schema } from '@tiptap/pm/model'
 import { Plugin, PluginKey, TextSelection, type EditorState, type Transaction } from '@tiptap/pm/state'
 import { Decoration, DecorationSet } from '@tiptap/pm/view'
+import { noteRefAround } from './note-ref.js'
 import { KEEP_SELECTION } from './zero-width.js'
 
 /**
@@ -32,10 +33,8 @@ export function commentAnchorsOf(doc: ProseMirrorNode): Map<string, CommentAncho
   const anchors = new Map<string, CommentAnchor>()
   doc.descendants((node, pos) => {
     const kind = node.type.name
-    // A âncora dentro de uma nota (M11) não está na tela até a nota ter o pé da
-    // página (fase 2): o painel não teria onde pô-la. Ela continua no modelo, e
-    // a gravação a devolve com a nota.
-    if (kind === 'noteRef') return false
+    // Desce também no corpo das notas (M11): a conversa ancorada numa nota tem
+    // cartão como as outras, na altura do corpo, no pé da página.
     if (kind !== 'commentStart' && kind !== 'commentEnd') return true
     const cid = String(node.attrs['cid'] ?? '')
     const known = anchors.get(cid) ?? { cid, start: null, end: null }
@@ -94,13 +93,21 @@ export function adjacentComment(
 
 /**
  * As pontas de um comentário novo na seleção: o começo no `from`, o fim no `to`.
- * Sem seleção, é comentário de ponto — só o fim, como o Word grava.
+ * Sem seleção, é comentário de ponto — só o fim, como o Word grava. `range`
+ * troca a seleção do texto pela de uma nota (`caretOf`), que mora em outro editor.
  *
  * Devolve `false` quando a seleção não cai em texto (uma tabela inteira, uma
  * imagem de bloco), onde um nó de linha não cabe.
  */
-export function insertCommentAnchors(tr: Transaction, schema: Schema, cid: string): boolean {
-  const { from, to, $from, $to } = tr.selection
+export function insertCommentAnchors(
+  tr: Transaction,
+  schema: Schema,
+  cid: string,
+  range: { readonly from: number; readonly to: number } = tr.selection,
+): boolean {
+  const { from, to } = range
+  const $from = tr.doc.resolve(from)
+  const $to = tr.doc.resolve(to)
   if (!$from.parent.inlineContent || !$to.parent.inlineContent) return false
   const start = schema.nodes['commentStart']
   const end = schema.nodes['commentEnd']
@@ -118,7 +125,8 @@ export function removeCommentAnchors(tr: Transaction, cid: string): boolean {
     if ((node.type.name === 'commentStart' || node.type.name === 'commentEnd') && node.attrs['cid'] === cid) {
       positions.push(pos)
     }
-    return node.isBlock
+    // O corpo da nota é filho de um nó em linha: a busca desce nele também.
+    return node.isBlock || node.type.name === 'noteRef'
   })
   // De trás para a frente: cada remoção mexe só no que vem depois dela.
   for (const pos of positions.reverse()) tr.delete(pos, pos + 1)
@@ -185,6 +193,9 @@ export function selectComment(tr: Transaction, cid: string): Transaction {
   const anchor = commentAnchorsOf(tr.doc).get(cid)
   if (anchor === undefined) return next
   const { from, to } = commentSelectionOf(anchor)
+  // O trecho numa nota é escolhido no corpo dela (`selectInNote`), que tem editor
+  // próprio: a seleção do texto não entra no nó.
+  if (noteRefAround(tr.doc, from) !== null) return next
   return next
     .setSelection(TextSelection.create(tr.doc, from, to))
     .setMeta(KEEP_SELECTION, true)

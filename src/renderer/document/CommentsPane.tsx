@@ -9,8 +9,10 @@ import {
   editComment,
   replyToComment,
   setCommentDone,
+  showComment,
 } from './comment-commands.js'
-import { commentAnchorsOf, commentsKey, focusComment, selectComment } from './extensions/comment.js'
+import { commentAnchorsOf, commentsKey, focusComment } from './extensions/comment.js'
+import { coordsInDocument } from './extensions/note-view.js'
 
 /** Vão entre dois cartões empilhados, em pixels da folha. */
 const GAP_PX = 8
@@ -132,7 +134,8 @@ export function CommentsPane({
         const pos = anchor?.start ?? anchor?.end ?? null
         if (pos === null) continue
         try {
-          next.set(root.id, (editor.view.coordsAtPos(pos).top - box.top) / scale)
+          // A conversa numa nota fica na altura do corpo dela, no pé da página.
+          next.set(root.id, (coordsInDocument(editor.view, pos).top - box.top) / scale)
         } catch {
           // A posição saiu do documento entre a edição e o quadro: a medida
           // seguinte a acha.
@@ -184,9 +187,8 @@ export function CommentsPane({
 
   function choose(cid: string): void {
     setComposing(null)
-    editor.view.dispatch(
-      active === cid ? focusComment(editor.state.tr, { active: null }) : selectComment(editor.state.tr, cid),
-    )
+    if (active === cid) editor.view.dispatch(focusComment(editor.state.tr, { active: null }))
+    else showComment(editor, cid, false)
   }
 
   const date = (value: string): string => {

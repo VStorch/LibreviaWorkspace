@@ -23,6 +23,13 @@ export type NoteKind = (typeof NoteKind)[keyof typeof NoteKind]
 export interface NoteReference {
   readonly kind: string
   readonly mark?: string | null
+  /** A seção da referência (o índice dela), para `numRestart` `eachSect`. */
+  readonly section?: number
+  /**
+   * A folha da referência, para `eachPage`. Só a paginação a sabe: antes dela (e
+   * no modo de leitura, sem folha) a conta segue, como se fosse contínua.
+   */
+  readonly page?: number
 }
 
 /** O padrão do Word: 1, 2, 3 nas de rodapé; i, ii, iii nas de fim. */
@@ -41,8 +48,7 @@ function numberingOf(kind: string, notes: DocumentNotes | undefined): NoteNumber
 /**
  * O rótulo da nota numerada de índice `ordinal` (a partir de 0) do tipo dado.
  *
- * `numRestart` (por seção, por página) ainda não muda a conta: a numeração é
- * contada antes de paginar, e reiniciar por folha pediria a conta depois dela.
+ * O reinício (`numRestart`) é de quem conta — ver `noteCounter`.
  */
 export function noteLabel(kind: string, ordinal: number, notes?: DocumentNotes): string {
   const numbering = numberingOf(kind, notes)
@@ -59,13 +65,37 @@ export function noteLabel(kind: string, ordinal: number, notes?: DocumentNotes):
   return text === '' ? String(value) : text
 }
 
+/**
+ * A conta que corre pelo documento: devolve o rótulo de cada referência, chamada
+ * na ordem do texto. `numRestart` volta ao início (`numStart`) na primeira nota
+ * de cada seção (`eachSect`) ou de cada folha (`eachPage`, só nas de rodapé —
+ * a de fim não tem folha própria, e o Word não oferece). Referência sem a seção
+ * ou a folha conhecida não reinicia.
+ */
+export function noteCounter(notes?: DocumentNotes): (reference: NoteReference) => string {
+  const last = new Map<string, { ordinal: number; section?: number; page?: number }>()
+  return (reference) => {
+    if (typeof reference.mark === 'string' && reference.mark !== '') return reference.mark
+    const restart = numberingOf(reference.kind, notes)?.restart
+    const previous = last.get(reference.kind)
+    const moved = (before: number | undefined, now: number | undefined): boolean =>
+      before !== undefined && now !== undefined && before !== now
+    const ordinal =
+      previous === undefined ||
+      (restart === 'eachSect' && moved(previous.section, reference.section)) ||
+      (restart === 'eachPage' && reference.kind !== NoteKind.Endnote && moved(previous.page, reference.page))
+        ? 0
+        : previous.ordinal + 1
+    last.set(reference.kind, {
+      ordinal,
+      ...(reference.section === undefined ? {} : { section: reference.section }),
+      ...(reference.page === undefined ? {} : { page: reference.page }),
+    })
+    return noteLabel(reference.kind, ordinal, notes)
+  }
+}
+
 /** O rótulo de cada referência, na mesma ordem. */
 export function noteLabels(references: readonly NoteReference[], notes?: DocumentNotes): string[] {
-  const counters = new Map<string, number>()
-  return references.map((reference) => {
-    if (typeof reference.mark === 'string' && reference.mark !== '') return reference.mark
-    const ordinal = counters.get(reference.kind) ?? 0
-    counters.set(reference.kind, ordinal + 1)
-    return noteLabel(reference.kind, ordinal, notes)
-  })
+  return references.map(noteCounter(notes))
 }

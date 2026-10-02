@@ -76,7 +76,7 @@ public static class CommentsWriter
             if (original is not null && !string.Equals(LastParaId(original), wish.ParaId, StringComparison.OrdinalIgnoreCase))
             {
                 id = NextId(ids);
-                Rename(document, wish.Id, id);
+                Rename(AnchorRoots(part), wish.Id, id);
                 original = null;
             }
 
@@ -93,7 +93,7 @@ public static class CommentsWriter
         foreach (var entry in entries.Where(entry => entry.Original is null && entry.Model.ParentId is not null))
         {
             var rootId = byModelId.TryGetValue(entry.Model.ParentId!, out var root) ? root.Id : entry.Model.ParentId!;
-            AddReplyAnchors(document, rootId, entry.Id);
+            AddReplyAnchors(AnchorRoots(part), rootId, entry.Id);
         }
 
         // Quem fica: o comentário com âncora em alguma parte do pacote, e a
@@ -321,8 +321,13 @@ public static class CommentsWriter
     }
 
     /// <summary>As pontas da resposta logo depois das do comentário — começo com começo, fim com fim.</summary>
-    private static void AddReplyAnchors(Document document, string rootId, string replyId)
+    private static void AddReplyAnchors(IReadOnlyList<OpenXmlElement> roots, string rootId, string replyId)
     {
+        // A conversa mora numa parte só — o corpo ou uma das notas.
+        var document = roots.FirstOrDefault(root =>
+            root.Descendants<CommentRangeStart>().Any(element => element.Id?.Value == rootId) ||
+            root.Descendants<CommentReference>().Any(element => element.Id?.Value == rootId));
+        if (document is null) return;
         var start = document.Descendants<CommentRangeStart>().FirstOrDefault(element => element.Id?.Value == rootId);
         if (start is not null)
         {
@@ -382,9 +387,17 @@ public static class CommentsWriter
         return ids;
     }
 
-    private static void Rename(Document document, string from, string to)
+    /// <summary>
+    /// As partes em que o editor põe âncoras de comentário: o corpo e as notas (M11).
+    /// As faixas não — o editor não as tem.
+    /// </summary>
+    internal static IReadOnlyList<OpenXmlElement> AnchorRoots(MainDocumentPart part) =>
+        new OpenXmlElement?[] { part.Document, part.FootnotesPart?.Footnotes, part.EndnotesPart?.Endnotes }
+            .OfType<OpenXmlElement>().ToList();
+
+    private static void Rename(IReadOnlyList<OpenXmlElement> roots, string from, string to)
     {
-        foreach (var element in document.Descendants())
+        foreach (var element in roots.SelectMany(root => root.Descendants()))
         {
             switch (element)
             {

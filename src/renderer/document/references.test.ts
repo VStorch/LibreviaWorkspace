@@ -3,12 +3,14 @@ import { getSchema } from '@tiptap/core'
 import { Node as ProseMirrorNode } from '@tiptap/pm/model'
 import { BUILTIN_STYLES } from '@services/document/styles.js'
 import { buildEditorExtensions } from './editor-extensions.js'
-import { EditorState, type Transaction } from '@tiptap/pm/state'
+import { EditorState, TextSelection, type Transaction } from '@tiptap/pm/state'
 import type { Editor } from '@tiptap/react'
 import { DEFAULT_PAGE_SETUP } from '@services/document/model.js'
 import {
   captionLabels,
   crossReferenceTargets,
+  insertCrossReference,
+  noteNumberIn,
   settlePageFields,
   sheetAt,
   updateFields,
@@ -140,5 +142,70 @@ describe('atualizar campos', () => {
     // pode reescrever o campo que o F9 deixou como estava.
     settlePageFields(editor, contextWith({ pageStarts: [{ blockIndex: 0 }] }))
     expect(fields()).toEqual(['1'])
+  })
+})
+
+describe('referência cruzada a uma nota (M11)', () => {
+  const footnote = (body: string): unknown => ({
+    type: 'noteRef',
+    attrs: { kind: 'footnote', nid: null, mark: null },
+    content: [paragraph(text(body))],
+  })
+
+  it('acha a nota pelo marcador e mostra o número dela', () => {
+    const plain = ProseMirrorNode.fromJSON(schema, {
+      type: 'doc',
+      content: [paragraph(text('A'), footnote('Um.'), text('B'), footnote('Dois.'))],
+    })
+    const refs: number[] = []
+    plain.descendants((node, pos) => {
+      if (node.type.name !== 'noteRef') return true
+      refs.push(pos)
+      return false
+    })
+    expect(noteNumberIn(plain, ['1', '2'], refs[1]!, refs[1]! + 1)).toBe('2')
+    expect(noteNumberIn(plain, ['1', '2'], 0, 1)).toBeNull()
+    expect(
+      crossReferenceTargets(plain, BUILTIN_STYLES, { type: 'note', kind: 'footnote' }, ['1', '2']).map(
+        (target) => target.text,
+      ),
+    ).toEqual(['1 Um.', '2 Dois.'])
+  })
+
+  it('insere o NOTEREF com o marcador na referência, e o F9 o renumera', () => {
+    const { editor, fields } = fakeEditor({
+      type: 'doc',
+      content: [paragraph(text('A'), footnote('Um.'), text('B'), footnote('Dois.')), paragraph(text('Ver '))],
+    })
+    const [target] = crossReferenceTargets(editor.state.doc, BUILTIN_STYLES, {
+      type: 'note',
+      kind: 'footnote',
+    }).slice(1)
+    const end = editor.state.doc.content.size - 1
+    editor.view.dispatch(editor.state.tr.setSelection(TextSelection.create(editor.state.doc, end)))
+    expect(
+      insertCrossReference(editor, contextWith({}), {
+        kind: { type: 'note', kind: 'footnote' },
+        key: target!.key,
+        show: 'number',
+        link: true,
+      }),
+    ).toBe(true)
+    expect(fields()).toEqual(['2'])
+    let instr = ''
+    editor.state.doc.descendants((node) => {
+      if (node.type.name === 'field') instr = String(node.attrs['instr'])
+      return true
+    })
+    expect(instr).toMatch(/^ NOTEREF _Ref\d+ \\h $/)
+    const host = editor.state.doc.child(0)
+    const kinds: string[] = []
+    host.forEach((child) => kinds.push(child.type.name))
+    expect(kinds.slice(-3)).toEqual(['bookmarkStart', 'noteRef', 'bookmarkEnd'])
+
+    // Uma nota nova antes: o F9 passa a citar o 3.
+    editor.view.dispatch(editor.state.tr.insert(1, ProseMirrorNode.fromJSON(schema, footnote('Zero.'))))
+    updateFields(editor, contextWith({}))
+    expect(fields()).toEqual(['3'])
   })
 })

@@ -68,6 +68,8 @@ export const REFERENCES = {
   'references.crossRef.type': { pt: 'Tipo', en: 'Reference type' },
   'references.crossRef.heading': { pt: 'Título', en: 'Heading' },
   'references.crossRef.bookmark': { pt: 'Marcador', en: 'Bookmark' },
+  'references.crossRef.footnote': { pt: 'Nota de rodapé', en: 'Footnote' },
+  'references.crossRef.endnote': { pt: 'Nota de fim', en: 'Endnote' },
   'references.crossRef.target': { pt: 'Para qual', en: 'For which' },
   'references.crossRef.empty': {
     pt: 'Nada deste tipo no documento.',
@@ -76,6 +78,7 @@ export const REFERENCES = {
   'references.crossRef.show': { pt: 'Inserir referência a', en: 'Insert reference to' },
   'references.crossRef.showText': { pt: 'Texto', en: 'Text' },
   'references.crossRef.showNumber': { pt: 'Número', en: 'Number' },
+  'references.crossRef.showNoteNumber': { pt: 'Número da nota', en: 'Footnote number' },
   'references.crossRef.showPage': { pt: 'Número da página', en: 'Page number' },
   'references.crossRef.link': { pt: 'Inserir como hiperlink', en: 'Insert as hyperlink' },
 } satisfies Catalog

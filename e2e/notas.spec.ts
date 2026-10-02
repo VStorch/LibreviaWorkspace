@@ -352,6 +352,75 @@ test.describe('notas no pé da página', () => {
     await expect(texto(session).locator('sup.note-ref')).toHaveCount(1)
   })
 
+  test('aceitar pelo menu de contexto a alteração no cursor dentro da nota', async () => {
+    await menu(session, 'new-document')
+    await texto(session).click()
+    await session.window.keyboard.type('Texto')
+    await menu(session, 'insert-footnote')
+    await session.window.keyboard.type('Original.')
+    await expect(notas(session)).toContainText('Original.')
+
+    await menu(session, 'toggle-track-changes')
+    await notas(session).click()
+    await session.window.keyboard.press('End')
+    await session.window.keyboard.type(' Novo')
+    await session.window.keyboard.type(' Outro')
+    await expect(notas(session).locator('ins')).toHaveText(' Novo Outro')
+
+    await notas(session).locator('ins').click({ button: 'right' })
+    const contexto = session.window.getByRole('menu', { name: 'Ações do documento' })
+    await contexto.getByRole('menuitem', { name: 'Aceitar alteração' }).click()
+    await expect(notas(session).locator('ins')).toHaveCount(0)
+    await expect(notas(session)).toContainText('Original. Novo Outro')
+  })
+
+  test('comentário novo dentro da nota é recusado, e o texto fica como estava', async () => {
+    // O LibreOffice não abre o .docx com `w:commentReference` em `footnotes.xml`.
+    await menu(session, 'new-document')
+    await texto(session).click()
+    await session.window.keyboard.type('Ata')
+    await menu(session, 'insert-footnote')
+    await session.window.keyboard.type('Fonte da ata.')
+    await session.window.keyboard.press('End')
+    await session.window.keyboard.press('ArrowLeft')
+    for (let vez = 0; vez < 'ata'.length; vez++) await session.window.keyboard.press('Shift+ArrowLeft')
+    await menu(session, 'insert-comment')
+
+    await expect(session.window.getByText(/não abriria o arquivo/)).toBeVisible()
+    await expect(session.window.locator('.comment-card')).toHaveCount(0)
+    await expect(notas(session).locator('.comment-range')).toHaveCount(0)
+    await expect(notas(session)).toContainText('Fonte da ata.')
+  })
+
+  test('a referência cruzada a uma nota mostra o número e o F9 o atualiza', async () => {
+    await menu(session, 'new-document')
+    await texto(session).click()
+    await session.window.keyboard.type('Primeira')
+    await menu(session, 'insert-footnote')
+    await session.window.keyboard.type('Nota alvo.')
+    await notas(session).locator('.note-number').click()
+    await session.window.keyboard.press('Enter')
+    await session.window.keyboard.type('Ver nota ')
+
+    await menu(session, 'insert-cross-reference')
+    const ref = session.window.getByRole('dialog', { name: 'Referência cruzada' })
+    await ref.getByLabel('Tipo').selectOption('note:footnote')
+    await ref.getByLabel('Para qual').selectOption({ label: '1 Nota alvo.' })
+    await expect(ref.getByLabel('Inserir referência a')).toHaveValue('number')
+    await ref.getByRole('button', { name: 'Inserir' }).click()
+    const paragrafo = texto(session).locator('p', { hasText: 'Ver nota' })
+    await expect(paragrafo).toHaveText('Ver nota 1')
+
+    // Uma nota nova antes da citada: o F9 passa a citar o 2.
+    await texto(session).locator('p').first().click()
+    await session.window.keyboard.press('Home')
+    await menu(session, 'insert-footnote')
+    await session.window.keyboard.type('Nota nova.')
+    await expect(texto(session).locator('sup.note-ref').nth(1)).toHaveAttribute('data-note-number', '2')
+    await menu(session, 'update-fields')
+    await expect(paragrafo).toHaveText('Ver nota 2')
+  })
+
   test('comentar uma palavra do parágrafo que tem nota ancora o comentário nela', async () => {
     const origem = join(pasta, 'comentario.docx')
     const destino = join(pasta, 'comentario-salvo.docx')

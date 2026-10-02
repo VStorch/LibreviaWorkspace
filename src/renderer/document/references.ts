@@ -13,6 +13,7 @@ import {
   tocOmitsPages,
 } from '@services/document/fields.js'
 import type { PageSetup } from '@services/document/model.js'
+import type { NoteKind } from '@services/document/notes.js'
 import { outlineOf } from '@services/document/outline.js'
 import {
   ensureCaptionStyle,
@@ -22,7 +23,7 @@ import {
 import type { StyleSheet } from '@services/document/styles.js'
 import type { MessageKey } from '@shared/i18n/index.js'
 import { bookmarksOf } from './extensions/bookmark.js'
-import { textBetweenWithoutNotes } from './extensions/note-ref.js'
+import { noteLabelsOf, noteRefsOf, textBetweenWithoutNotes } from './extensions/note-ref.js'
 import { DEFAULT_TOC_INSTRUCTION } from './extensions/table-of-contents.js'
 import { readPendingSelection, textStartOf } from './extensions/zero-width.js'
 import { outlineBlocksOf } from './outline-blocks.js'
@@ -109,11 +110,25 @@ function textBetween(doc: ProseMirrorNode, from: number, to: number): string {
   )
 }
 
+/**
+ * O rótulo da primeira referência de nota entre `from` e `to` — o que o
+ * `NOTEREF` mostra. `null` sem nota no trecho: o campo fica como está.
+ */
+export function noteNumberIn(
+  doc: ProseMirrorNode,
+  labels: readonly string[],
+  from: number,
+  to: number,
+): string | null {
+  const index = noteRefsOf(doc).findIndex(({ pos }) => pos >= from && pos < to)
+  return index < 0 ? null : (labels[index] ?? null)
+}
+
 /** Os tipos que dependem de onde o texto cai na folha. */
 const PAGE_KINDS = new Set(['PAGE', 'PAGEREF', 'NUMPAGES'])
 
 /** Os tipos que o editor sabe recalcular. O resto fica como o Word o deixou. */
-const UPDATABLE = new Set(['PAGE', 'PAGEREF', 'NUMPAGES', 'REF', 'SEQ'])
+const UPDATABLE = new Set(['PAGE', 'PAGEREF', 'NUMPAGES', 'REF', 'SEQ', 'NOTEREF'])
 
 export interface FieldUpdate {
   /** Quantos campos mudaram de resultado. */
@@ -174,6 +189,7 @@ export function updateFieldsIn(
   // ele fica com o resultado que o Word calculou.
   const outside = new Set(context.outsideBookmarks ?? [])
   const sheets = context.layout.pages
+  const noteLabels = noteLabelsOf(state)
 
   const tr = state.tr
   let changed = 0
@@ -201,6 +217,18 @@ export function updateFieldsIn(
         // `\# 0`: só o número do texto citado — "Figura 2" vira "2". É como o
         // Word faz a referência "só o número" a uma legenda.
         result = fieldSwitch(instr, '#') === null ? text : (/(\d+)(?!.*\d)/.exec(text)?.[1] ?? text)
+        break
+      }
+      case 'NOTEREF': {
+        // O número da nota cuja referência o marcador cobre — o da tela, com os
+        // reinícios por folha e por seção (M11).
+        const name = fieldArgument(instr) ?? ''
+        const target = bookmarks.get(name)
+        if (target === undefined) {
+          result = outside.has(name) ? null : missing
+          break
+        }
+        result = noteNumberIn(doc, noteLabels, target.pos, target.end ?? target.pos)
         break
       }
       case 'PAGEREF': {
@@ -571,6 +599,7 @@ export type CrossReferenceKind =
   | { readonly type: 'heading' }
   | { readonly type: 'bookmark' }
   | { readonly type: 'caption'; readonly label: string }
+  | { readonly type: 'note'; readonly kind: NoteKind }
 
 export interface CrossReferenceTarget {
   /** Posição do bloco (título, legenda) ou nome do marcador. */
@@ -583,6 +612,8 @@ export function crossReferenceTargets(
   doc: ProseMirrorNode,
   sheet: StyleSheet,
   kind: CrossReferenceKind,
+  /** Os rótulos das notas na tela (`noteLabelsOf`), para listá-las pelo número. */
+  labels?: readonly string[],
 ): CrossReferenceTarget[] {
   if (kind.type === 'heading') {
     return outlineOf(outlineBlocksOf(doc), sheet).map((entry) => ({
@@ -595,6 +626,17 @@ export function crossReferenceTargets(
     return bookmarksOf(doc)
       .filter((bookmark) => !bookmark.name.startsWith('_'))
       .map((bookmark) => ({ key: bookmark.name, text: bookmark.name }))
+  }
+
+  if (kind.type === 'note') {
+    // O número e o começo do texto da nota, como o Word lista.
+    return noteRefsOf(doc).flatMap(({ node, pos }, index) => {
+      if (node.attrs['kind'] !== kind.kind) return []
+      const text = node.textBetween(0, node.content.size, ' ').trim()
+      const label = labels?.[index] ?? ''
+      const short = text.length > 60 ? `${text.slice(0, 60)}…` : text
+      return [{ key: String(pos), text: `${label} ${short}`.trim() }]
+    })
   }
 
   const wanted = kind.label.toLowerCase()
@@ -677,6 +719,13 @@ export function insertCrossReference(
     name = request.key
   } else if (request.kind.type === 'heading') {
     name = ensureBookmarks(tr, [Number(request.key)], '_Ref')[0] ?? null
+  } else if (request.kind.type === 'note') {
+    // O marcador em volta da referência da nota, como o Word grava: é ele que o
+    // `NOTEREF` cita.
+    const pos = Number(request.key)
+    const reference = tr.doc.nodeAt(pos)
+    if (reference === null || reference.type.name !== 'noteRef') return false
+    name = rangeBookmark(tr, pos, pos + reference.nodeSize, 0)
   } else {
     const pos = Number(request.key)
     const block = tr.doc.nodeAt(pos)
@@ -693,7 +742,12 @@ export function insertCrossReference(
   if (name === null) return false
 
   const switches = `${request.show === 'number' ? ' \\# 0' : ''}${request.link ? ' \\h' : ''}`
-  const instr = request.show === 'page' ? ` PAGEREF ${name}${switches} ` : ` REF ${name}${switches} `
+  const instr =
+    request.show === 'page'
+      ? ` PAGEREF ${name}${switches} `
+      : request.kind.type === 'note'
+        ? ` NOTEREF ${name}${request.link ? ' \\h' : ''} `
+        : ` REF ${name}${switches} `
   const at = tr.mapping.map(state.selection.from)
   tr.replaceWith(
     at,

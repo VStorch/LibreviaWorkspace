@@ -1,7 +1,7 @@
 import type { Editor } from '@tiptap/react'
-import { TextSelection } from '@tiptap/pm/state'
+import { NodeSelection, TextSelection } from '@tiptap/pm/state'
 import { NoteKind } from '@services/document/notes.js'
-import { noteBodyOf } from './extensions/note-view.js'
+import { activeNoteOf, noteBodyOf } from './extensions/note-view.js'
 import { useWorkspace } from '../state/workspace.js'
 
 /** O estilo que o Word dá ao parágrafo da nota nova, quando o documento o tem. */
@@ -37,5 +37,51 @@ export function insertNote(editor: Editor, kind: NoteKind): boolean {
     body.separateHistory = true
     body.reveal()
   }
+  return true
+}
+
+/**
+ * A nota sobre a qual o menu de contexto age: a do corpo em que está o cursor, a
+ * referência selecionada, ou a que encosta no cursor do texto. `null` longe de
+ * qualquer nota.
+ */
+export function noteAtCursor(editor: Editor): { pos: number; kind: NoteKind } | null {
+  const { state, view } = editor
+  const found = (pos: number | undefined): { pos: number; kind: NoteKind } | null => {
+    const node = pos === undefined ? null : state.doc.nodeAt(pos)
+    if (pos === undefined || node === null || node.type.name !== 'noteRef') return null
+    return { pos, kind: node.attrs['kind'] === NoteKind.Endnote ? NoteKind.Endnote : NoteKind.Footnote }
+  }
+  const active = activeNoteOf(view)
+  if (active !== null) return found(active.position())
+  const { selection } = state
+  if (selection instanceof NodeSelection) return found(selection.from)
+  if (!selection.empty) return null
+  const { $from } = selection
+  if ($from.nodeBefore?.type.name === 'noteRef') return found($from.pos - $from.nodeBefore.nodeSize)
+  if ($from.nodeAfter?.type.name === 'noteRef') return found($from.pos)
+  return null
+}
+
+/**
+ * Converte a nota de rodapé em nota de fim, ou o contrário (M11). A referência
+ * perde o `nid`: a nota sai de uma parte do arquivo e a gravação a cria na outra,
+ * com o mesmo corpo. O parágrafo com o estilo de um tipo passa ao do outro.
+ */
+export function convertNote(editor: Editor, pos: number): boolean {
+  if (useWorkspace.getState().readOnly) return false
+  const { state } = editor
+  const node = state.doc.nodeAt(pos)
+  if (node === null || node.type.name !== 'noteRef') return false
+  const from: NoteKind = node.attrs['kind'] === NoteKind.Endnote ? NoteKind.Endnote : NoteKind.Footnote
+  const to: NoteKind = from === NoteKind.Endnote ? NoteKind.Footnote : NoteKind.Endnote
+  const known = useWorkspace.getState().styles.styles[NOTE_STYLE[to]] !== undefined
+  const tr = state.tr.setNodeMarkup(pos, undefined, { ...node.attrs, kind: to, nid: null })
+  node.descendants((child, offset) => {
+    if (child.attrs['styleId'] !== NOTE_STYLE[from]) return true
+    tr.setNodeMarkup(pos + 1 + offset, undefined, { ...child.attrs, styleId: known ? NOTE_STYLE[to] : null })
+    return false
+  })
+  editor.view.dispatch(tr)
   return true
 }

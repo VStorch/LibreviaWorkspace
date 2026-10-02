@@ -129,7 +129,18 @@ public static class DocxWriter
         CommentsWriter.Apply(part, model, inventory, touched);
 
         // As pontas de comentário que a edição desemparelhou — ver MendCommentAnchors.
-        MendCommentAnchors(body, part);
+        // No corpo e nas notas (M11): o comentário criado numa nota sai de lá com a
+        // referência, e o excluído leva as pontas que a nota preservada ainda tinha.
+        var knownComments = (part.WordprocessingCommentsPart?.Comments?.Elements<Comment>() ?? [])
+            .Select(comment => comment.Id?.Value).OfType<string>().ToHashSet(StringComparer.Ordinal);
+        MendCommentAnchors(body, knownComments);
+        foreach (OpenXmlPart? notesPart in new OpenXmlPart?[] { part.FootnotesPart, part.EndnotesPart })
+        {
+            if (notesPart?.RootElement is not OpenXmlPartRootElement notesRoot) continue;
+            if (!MendCommentAnchors(notesRoot, knownComments)) continue;
+            notesRoot.Save();
+            touched.Add(notesPart.Uri.ToString().TrimStart('/'));
+        }
 
         // As revisões (M10): a movimentação que a edição partiu vira exclusão e
         // inserção, e cada revisão sai com um `w:id` só dela.
@@ -270,17 +281,18 @@ public static class DocxWriter
     /// </list>
     /// Só elementos de largura zero: o parágrafo preservado continua preservado.
     /// </remarks>
-    private static void MendCommentAnchors(Body body, MainDocumentPart part)
+    /// <returns>Se mudou alguma coisa — a parte das notas só é gravada então.</returns>
+    private static bool MendCommentAnchors(OpenXmlElement body, HashSet<string> known)
     {
-        var known = (part.WordprocessingCommentsPart?.Comments?.Elements<Comment>() ?? [])
-            .Select(comment => comment.Id?.Value).OfType<string>().ToHashSet(StringComparer.Ordinal);
+        var changed = false;
         var starts = body.Descendants<CommentRangeStart>().ToList();
         var ends = body.Descendants<CommentRangeEnd>().ToList();
         var references = body.Descendants<CommentReference>().ToList();
 
         static string IdOf(OpenXmlElement element) => element.GetAttribute("id", element.NamespaceUri).Value ?? string.Empty;
-        static void Remove(OpenXmlElement element)
+        void Remove(OpenXmlElement element)
         {
+            changed = true;
             // A referência mora num run: sozinha nele, o run vai junto.
             if (element is CommentReference && element.Parent is Run run && BodyReader.ReferenceOnly(run) is not null)
             {
@@ -316,6 +328,7 @@ public static class DocxWriter
             }
 
             start.Remove();
+            changed = true;
         }
 
         foreach (var end in ends.Where(end => end.Parent is not null))
@@ -324,13 +337,17 @@ public static class DocxWriter
             if (!startIds.Contains(id))
             {
                 end.Remove();
+                changed = true;
             }
             else if (!referenceIds.Contains(id) && end.Parent is Paragraph or Hyperlink or SimpleField)
             {
                 end.InsertAfterSelf(ReferenceRun(id));
                 referenceIds.Add(id);
+                changed = true;
             }
         }
+
+        return changed;
     }
 
     /// <summary>
