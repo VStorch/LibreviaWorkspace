@@ -12,7 +12,7 @@ import {
   editorPreferencesSchema,
   pageSetupSchema,
 } from './schemas.js'
-import { DictionaryScope, EditCommand, MenuCommand } from './types.js'
+import { DictionaryScope, EditCommand, MenuCommand, RevisionView } from './types.js'
 import type { SerializedError } from './errors.js'
 
 /**
@@ -205,6 +205,8 @@ export const ipcContracts = {
       isDirty: z.boolean(),
       /** O controle de alterações do documento, para a marca do menu Revisão. */
       trackChanges: z.boolean(),
+      /** Como a janela mostra as alterações, para o item marcado de Revisão → Mostrar. */
+      revisionView: z.enum(RevisionView),
     }),
     response: z.object({ applied: z.literal(true) }),
   },

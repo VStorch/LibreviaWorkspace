@@ -3,7 +3,7 @@ import { APP_NAME } from '@shared/constants.js'
 import { LANGUAGES, LANGUAGE_NAMES, type MessageKey } from '@shared/i18n/index.js'
 import { SHORTCUTS, acceleratorOf } from '@shared/shortcuts.js'
 import { TABLE_ACTIONS, TableAction } from '@shared/table-actions.js'
-import { MenuCommand, Theme } from '@shared/types.js'
+import { MenuCommand, RevisionView, Theme } from '@shared/types.js'
 import { showAboutDialog } from './dialogs.js'
 import { listRecentFiles } from './fs/recent.js'
 import { t } from './i18n.js'
@@ -20,6 +20,30 @@ export function setTrackChangesChecked(on: boolean): void {
   if (on === trackChangesOn) return
   trackChangesOn = on
   void refreshMenu()
+}
+
+/** Como a janela mostra as alterações — também é o renderer quem sabe. */
+let revisionView: RevisionView = RevisionView.All
+
+/** O renderer avisou como mostra as alterações: o item marcado de Revisão → Mostrar acompanha. */
+export function setRevisionViewChecked(view: RevisionView): void {
+  if (view === revisionView) return
+  revisionView = view
+  void refreshMenu()
+}
+
+/** Um dos quatro jeitos de mostrar as alterações, como item de rádio. */
+function revisionViewItem(
+  view: RevisionView,
+  key: MessageKey,
+  command: MenuCommand,
+): MenuItemConstructorOptions {
+  return {
+    label: t(key),
+    type: 'radio',
+    checked: revisionView === view,
+    click: () => dispatch(command),
+  }
 }
 
 function focusedWindow(): BrowserWindow | null {
@@ -445,6 +469,15 @@ async function buildTemplate(): Promise<MenuItemConstructorOptions[]> {
             // pelo estado da janela. Sem resposta (somente leitura), a marca volta.
             void refreshMenu()
           },
+        },
+        {
+          label: t('revisions.show'),
+          submenu: [
+            revisionViewItem(RevisionView.All, 'revisions.show.all', MenuCommand.ShowAllMarkup),
+            revisionViewItem(RevisionView.Simple, 'revisions.show.simple', MenuCommand.ShowSimpleMarkup),
+            revisionViewItem(RevisionView.None, 'revisions.show.none', MenuCommand.ShowNoMarkup),
+            revisionViewItem(RevisionView.Original, 'revisions.show.original', MenuCommand.ShowOriginal),
+          ],
         },
         { type: 'separator' },
         { label: t('revisions.accept'), click: () => dispatch(MenuCommand.AcceptChange) },

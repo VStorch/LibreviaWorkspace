@@ -2,11 +2,13 @@ import { describe, expect, it } from 'vitest'
 import { getSchema } from '@tiptap/core'
 import { Fragment, Node as ProseMirrorNode, Slice } from '@tiptap/pm/model'
 import { EditorState, TextSelection, type Transaction } from '@tiptap/pm/state'
-import { history, undo } from '@tiptap/pm/history'
+import { history, undo, undoDepth } from '@tiptap/pm/history'
 import { buildEditorExtensions } from '../editor-extensions.js'
 import { revisionChangesOf, settleAllChanges, textWithoutDeletions } from './track-changes.js'
 import {
   SKIP_TRACKING,
+  joinHistoryGroup,
+  type TrackGroup,
   revisionDate,
   shouldTrack,
   stripDeleted,
@@ -195,6 +197,60 @@ describe('controle do que se digita', () => {
     let undone = state
     undo(state, (tr) => (undone = state.apply(tr)))
     expect(undone.doc.eq(before)).toBe(true)
+  })
+
+  it('Backspaces seguidos, Delete seguidos, e Enter com o que se digita depois: um desfazer cada', () => {
+    const initial = stateOf([paragraph(text('abcdef'))], 4, true)
+    let state = initial
+    let group: TrackGroup | null = null
+    let time = 1_000
+    // Como o `dispatchTransaction` faz: reescreve e junta ao grupo.
+    const edit = (build: (tr: Transaction) => Transaction): void => {
+      const original = build(state.tr).setTime((time += 100))
+      const tracked = trackTransaction(original, state, 'Ana', NOW)
+      group = joinHistoryGroup(original, tracked, group)
+      state = state.apply(tracked)
+    }
+    edit((tr) => tr.delete(3, 4))
+    edit((tr) => tr.delete(2, 3))
+    edit((tr) => tr.delete(1, 2))
+    expect(shown(state.doc)).toEqual(['[abc]def'])
+    expect(undoDepth(state)).toBe(1)
+
+    // O Delete, que deixa o cursor depois do excluído.
+    state = state.apply(state.tr.setSelection(TextSelection.create(state.doc, 4)))
+    time += 1_000
+    edit((tr) => tr.delete(4, 5))
+    edit((tr) => tr.delete(5, 6))
+    expect(shown(state.doc)).toEqual(['[abcde]f'])
+    expect(undoDepth(state)).toBe(2)
+
+    // O Enter e o texto do parágrafo novo.
+    time += 1_000
+    edit((tr) => tr.split(state.selection.from))
+    edit((tr) => tr.insertText('x'))
+    edit((tr) => tr.insertText('y'))
+    expect(undoDepth(state)).toBe(3)
+
+    // E desfazer devolve cada grupo exatamente.
+    for (let step = 0; step < 3; step++) undo(state, (tr) => (state = state.apply(tr)))
+    expect(state.doc.eq(initial.doc)).toBe(true)
+  })
+
+  it('depois de meio segundo, ou longe do cursor, começa outro desfazer', () => {
+    let state = stateOf([paragraph(text('abcdef'))], 4, true)
+    const tracked1 = trackTransaction(state.tr.delete(3, 4).setTime(1_000), state, 'Ana', NOW)
+    let group = joinHistoryGroup(state.tr.delete(3, 4).setTime(1_000), tracked1, null)
+    state = state.apply(tracked1)
+    const late = state.tr.delete(2, 3).setTime(2_000)
+    const tracked2 = trackTransaction(late, state, 'Ana', NOW)
+    group = joinHistoryGroup(late, tracked2, group)
+    state = state.apply(tracked2)
+    const far = state.tr.delete(6, 7).setTime(2_100)
+    const tracked3 = trackTransaction(far, state, 'Ana', NOW)
+    joinHistoryGroup(far, tracked3, group)
+    state = state.apply(tracked3)
+    expect(undoDepth(state)).toBe(3)
   })
 
   it('na composição do IME o que sai sai de verdade, e o que entra é marcado', () => {

@@ -534,4 +534,29 @@ export const PRINT_ONLY_CSS = `
 .page__content img { break-inside: avoid; }
 
 .page__content thead { display: table-header-group; }
+
+/* Controle de alterações na marcação completa: como na tela (ver styles.css),
+   inserido sublinhado e excluído riscado, na cor do autor. Nos outros modos a
+   impressão já sai sem as marcas (ver print-source.ts). */
+.page__content .revision-author-0 { --revision: #1f5fa9; }
+.page__content .revision-author-1 { --revision: #b3261e; }
+.page__content .revision-author-2 { --revision: #1a7a4c; }
+.page__content .revision-author-3 { --revision: #8a4baf; }
+.page__content .revision-author-4 { --revision: #b26a00; }
+.page__content .revision-author-5 { --revision: #00796b; }
+.page__content ins.revision {
+  color: var(--revision);
+  text-decoration: underline;
+  text-decoration-color: var(--revision);
+}
+.page__content del.revision {
+  color: var(--revision);
+  text-decoration: line-through;
+  text-decoration-color: var(--revision);
+}
+.page__content [data-revision]::after { content: '¶'; color: var(--revision); line-height: 0; }
+.page__content [data-revision='del']::after { text-decoration: line-through; }
+.page__content tr[data-revision] { box-shadow: inset 3px 0 0 var(--revision); }
+.page__content tr[data-revision]::after { content: none; }
+.page__content tr[data-revision='del'] :is(td, th) { text-decoration: line-through; }
 `

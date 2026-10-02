@@ -1,19 +1,24 @@
 import { describe, expect, it } from 'vitest'
-import { Schema } from '@tiptap/pm/model'
-import { slicePageBlocks } from './print-source.js'
+import { Schema, type Node as ProseMirrorNode } from '@tiptap/pm/model'
+import { RevisionView } from '@shared/types.js'
+import { blocksForView, slicePageBlocks } from './print-source.js'
 
 const schema = new Schema({
   nodes: {
     doc: { content: 'block+' },
-    paragraph: { group: 'block', content: 'text*' },
+    paragraph: { group: 'block', content: 'text*', attrs: { markRevision: { default: null } } },
     text: {},
     table: { group: 'block', content: 'tableRow+' },
-    tableRow: { content: '(tableCell | tableHeader)+' },
+    tableRow: { content: '(tableCell | tableHeader)+', attrs: { rowRevision: { default: null } } },
     tableCell: { content: 'paragraph+' },
     tableHeader: { content: 'paragraph+' },
     bulletList: { group: 'block', content: 'listItem+' },
     orderedList: { group: 'block', content: 'listItem+', attrs: { start: { default: 1 } } },
     listItem: { content: 'paragraph+' },
+  },
+  marks: {
+    insertion: { attrs: { author: { default: null } }, inclusive: false },
+    deletion: { attrs: { author: { default: null } }, inclusive: false },
   },
 })
 const paragraph = (text: string) => schema.node('paragraph', null, schema.text(text))
@@ -86,5 +91,80 @@ describe('recorte das páginas para impressão', () => {
     expect(page[0]!.textContent).toBe('CabBC')
     const plain = slicePageBlocks([table], { blockIndex: 0, childIndex: 2 }, { blockIndex: 1 })
     expect(plain[0]!.textContent).toBe('BC')
+  })
+})
+
+describe('impressão conforme Revisão → Mostrar', () => {
+  const ins = schema.marks['insertion']!.create({ author: 'Ana' })
+  const del = schema.marks['deletion']!.create({ author: 'Ana' })
+  const revised = schema.node('paragraph', { markRevision: { kind: 'del', author: 'Ana' } }, [
+    schema.text('Era '),
+    schema.text('velho', [del]),
+    schema.text('novo', [ins]),
+  ])
+  const insertedBlock = schema.node(
+    'paragraph',
+    { markRevision: { kind: 'ins' } },
+    schema.text('Todo novo', [ins]),
+  )
+  const deletedBlock = schema.node(
+    'paragraph',
+    { markRevision: { kind: 'del' } },
+    schema.text('Todo velho', [del]),
+  )
+  const table = schema.node('table', null, [
+    row('Fica'),
+    schema.node(
+      'tableRow',
+      { rowRevision: { kind: 'ins' } },
+      schema.node('tableCell', null, paragraph('Nova')),
+    ),
+    schema.node(
+      'tableRow',
+      { rowRevision: { kind: 'del' } },
+      schema.node('tableCell', null, paragraph('Velha')),
+    ),
+  ])
+  const blocks = [revised, insertedBlock, deletedBlock, table]
+  const hasBlockRevision = (node: ProseMirrorNode): boolean =>
+    (node.attrs['markRevision'] ?? null) !== null || (node.attrs['rowRevision'] ?? null) !== null
+  const marksOf = (nodes: readonly ProseMirrorNode[]): string[] => {
+    const names = new Set<string>()
+    for (const node of nodes) {
+      node.descendants((child) => {
+        for (const mark of child.marks) names.add(mark.type.name)
+        if (hasBlockRevision(child)) names.add('bloco')
+      })
+      if (hasBlockRevision(node)) names.add('bloco')
+    }
+    return [...names].sort()
+  }
+
+  it('marcação completa: tudo como está, com as marcas', () => {
+    const shown = blocksForView(blocks, RevisionView.All)
+    expect(shown).toEqual(blocks)
+    expect(marksOf(shown)).toEqual(['bloco', 'deletion', 'insertion'])
+  })
+
+  it.each([RevisionView.Simple, RevisionView.None])('%s: o texto final, sem excluído nem marca', (view) => {
+    const shown = blocksForView(blocks, view)
+    expect(shown.map((node) => node.textContent)).toEqual(['Era novo', 'Todo novo', 'FicaNova'])
+    expect(marksOf(shown)).toEqual([])
+  })
+
+  it('original: o texto de antes, sem inserido nem marca', () => {
+    const shown = blocksForView(blocks, RevisionView.Original)
+    expect(shown.map((node) => node.textContent)).toEqual(['Era velho', 'Todo velho', 'FicaVelha'])
+    expect(marksOf(shown)).toEqual([])
+  })
+
+  it('a célula que perdeu o texto continua, vazia', () => {
+    const cell = schema.node('tableCell', null, schema.node('paragraph', null, schema.text('x', [ins])))
+    const shown = blocksForView(
+      [schema.node('table', null, schema.node('tableRow', null, cell))],
+      RevisionView.Original,
+    )
+    expect(shown[0]!.firstChild!.childCount).toBe(1)
+    expect(shown[0]!.textContent).toBe('')
   })
 })

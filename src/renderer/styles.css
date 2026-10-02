@@ -1118,6 +1118,55 @@ button {
 }
 
 /*
+ * Revisão → Mostrar (ver extensions/revision-view.ts). Fora da marcação completa,
+ * o que fica aparece como texto comum, e o que sai não ocupa lugar: a paginação
+ * mede a tela, e a folha acompanha o modo.
+ */
+.ProseMirror:is(.revisions-simple, .revisions-none) del.revision,
+.ProseMirror.revisions-original ins.revision,
+.ProseMirror .revision-hidden {
+  display: none;
+}
+
+.ProseMirror:is(.revisions-simple, .revisions-none, .revisions-original) :is(ins, del).revision {
+  color: inherit;
+  text-decoration: none;
+}
+
+.ProseMirror:is(.revisions-simple, .revisions-none, .revisions-original) [data-revision]::after {
+  content: none;
+}
+
+/* A linha alterada guarda a barra só na marcação simples. */
+.ProseMirror:is(.revisions-none, .revisions-original) tr[data-revision] {
+  box-shadow: none;
+}
+
+.ProseMirror:is(.revisions-simple, .revisions-none, .revisions-original) tr[data-revision] :is(td, th) {
+  text-decoration: none;
+}
+
+/* O parágrafo cujo texto saiu todo, mas a marca ficou: a linha vazia continua. */
+.ProseMirror .revision-blank {
+  min-height: 1lh;
+}
+
+/* Marcação simples: a barra fina na margem, ao lado do parágrafo alterado. */
+.ProseMirror.revisions-simple .revision-changed {
+  position: relative;
+}
+
+.ProseMirror.revisions-simple .revision-changed::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -12px;
+  width: 2px;
+  background: #b3261e;
+}
+
+/*
  * A coluna dos cartões, à direita das folhas e dentro da pilha: o zoom a escala
  * junto, e a altura de cada cartão é a do trecho que ele comenta.
  */

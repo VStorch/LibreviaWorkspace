@@ -15,6 +15,7 @@ import { usePreferences, watchPreferences } from '../state/preferences.js'
 import { useReadingMode } from '../state/reading.js'
 import { useTheme } from '../state/theme.js'
 import { runZoomCommand } from '../state/zoom.js'
+import { revisionViewOfCommand, setRevisionView, useRevisionView } from '../state/revision-view.js'
 import { useWorkspace } from '../state/workspace.js'
 import { t } from '../i18n.js'
 
@@ -35,6 +36,8 @@ async function runMenuCommand(command: MenuCommand, path: string | undefined): P
   // crescia um `case` por recurso, e as tabelas sozinhas trouxeram doze.
   const editorCommand = asEditorCommand(command)
   if (editorCommand !== null) return emitEditorCommand(editorCommand)
+  const revisionView = revisionViewOfCommand(command)
+  if (revisionView !== null) return setRevisionView(revisionView)
 
   switch (command) {
     case MenuCommand.NewDocument:
@@ -138,6 +141,7 @@ export function App(): React.JSX.Element {
     let lastTitle = ''
     let lastDirty: boolean | null = null
     let lastTracking: boolean | null = null
+    let lastView: string | null = null
 
     const sync = (): void => {
       const state = useWorkspace.getState()
@@ -145,17 +149,30 @@ export function App(): React.JSX.Element {
       const title = state.file?.name ?? untitled
       // O controle de alterações é do documento; com planilha aberta, desligado.
       const trackChanges = state.workbook === null && state.trackChanges === true
-      if (title === lastTitle && state.isDirty === lastDirty && trackChanges === lastTracking) return
+      const revisionView = useRevisionView.getState().view
+      if (
+        title === lastTitle &&
+        state.isDirty === lastDirty &&
+        trackChanges === lastTracking &&
+        revisionView === lastView
+      )
+        return
 
       lastTitle = title
       lastDirty = state.isDirty
       lastTracking = trackChanges
-      void window.api.window.setState({ title, isDirty: state.isDirty, trackChanges })
+      lastView = revisionView
+      void window.api.window.setState({ title, isDirty: state.isDirty, trackChanges, revisionView })
       document.title = buildWindowTitle(state.file?.name ?? null, state.isDirty, 'Librevia', untitled)
     }
 
     sync()
-    return useWorkspace.subscribe(sync)
+    const unsubscribeView = useRevisionView.subscribe(sync)
+    const unsubscribe = useWorkspace.subscribe(sync)
+    return () => {
+      unsubscribeView()
+      unsubscribe()
+    }
   }, [])
 
   // A casca inteira muda de cor conforme o que está aberto — azul de

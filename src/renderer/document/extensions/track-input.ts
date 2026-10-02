@@ -455,6 +455,52 @@ export function trackTransaction(
   return tracked
 }
 
+// --- o desfazer ---------------------------------------------------------------
+
+/** O grupo do desfazer em que as últimas edições controladas caíram. */
+export interface TrackGroup {
+  readonly id: string
+  /** A hora da última edição do grupo. */
+  readonly time: number
+  /** Onde o cursor ficou depois dela. */
+  readonly head: number
+}
+
+/** O mesmo intervalo do `prosemirror-history` (`newGroupDelay`). */
+const GROUP_DELAY_MS = 500
+let groupCount = 0
+
+/**
+ * Junta a edição controlada às anteriores no desfazer, como o histórico junta as
+ * sem controle.
+ *
+ * O histórico agrupa pelo relógio e pela vizinhança dos trechos mudados, mas a
+ * exclusão controlada não muda trecho nenhum — só põe a marca — e cada Backspace
+ * virava um passo próprio. A vizinhança aqui se mede pela edição pedida
+ * (`original`): ela começa onde o cursor ficou depois da anterior? E dentro do
+ * mesmo intervalo? Então vai junto, pela meta `composition`, que é a que o
+ * histórico usa para não partir a composição do IME — um valor nosso, que não
+ * colide com os números dela. Devolve o grupo de agora.
+ */
+export function joinHistoryGroup(
+  original: Transaction,
+  tracked: Transaction,
+  previous: TrackGroup | null,
+): TrackGroup | null {
+  // A composição de verdade manda no próprio grupo.
+  if (original.getMeta('composition') !== undefined) return null
+  const map = original.mapping.maps[0]
+  let adjacent = false
+  if (previous !== null && original.time - previous.time < GROUP_DELAY_MS && map !== undefined) {
+    map.forEach((start, end) => {
+      if (start <= previous.head && end >= previous.head) adjacent = true
+    })
+  }
+  const id = adjacent && previous !== null ? previous.id : `track-${++groupCount}`
+  tracked.setMeta('composition', id)
+  return { id, time: original.time, head: tracked.selection.head }
+}
+
 // --- a área de transferência ---------------------------------------------------
 
 function isRevisionMark(mark: Mark): boolean {
@@ -570,8 +616,14 @@ export const TrackInput = Extension.create<TrackInputOptions>({
     return { isTracking: () => false, author: () => '' }
   },
 
+  addStorage() {
+    return { group: null as TrackGroup | null }
+  },
+
   dispatchTransaction({ transaction, next }) {
     if (!this.options.isTracking() || !shouldTrack(transaction)) {
+      // Outra edição no meio: a seguinte controlada começa grupo novo.
+      if (transaction.docChanged) this.storage.group = null
       next(transaction)
       return
     }
@@ -586,6 +638,8 @@ export const TrackInput = Extension.create<TrackInputOptions>({
       console.error(error)
       tracked = transaction
     }
+    if (tracked !== transaction)
+      this.storage.group = joinHistoryGroup(transaction, tracked, this.storage.group)
     next(tracked)
   },
 

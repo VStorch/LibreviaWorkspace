@@ -30,6 +30,7 @@ import { CommentEnd, CommentStart, Comments } from './extensions/comment.js'
 import { ZeroWidthAnchors } from './extensions/zero-width.js'
 import { CountWithoutDeletions, TrackChanges } from './extensions/track-changes.js'
 import { TrackInput } from './extensions/track-input.js'
+import { RevisionViewExtension } from './extensions/revision-view.js'
 import { Field } from './extensions/field.js'
 import { TableOfContents } from './extensions/table-of-contents.js'
 import { Indent } from './extensions/indent.js'
@@ -214,6 +215,9 @@ export function buildEditorExtensions(
     // Controle de alterações (M10): as marcas de inserção e exclusão e a
     // revisão da marca de parágrafo e da linha. Ver track-changes.ts.
     ...TrackChanges,
+    // Como a janela mostra as alterações, e o cursor fora do que ela esconde.
+    // Antes do controle do que se digita: o Backspace passa pelo escondido antes.
+    RevisionViewExtension,
     // E o que se digita com o controle ligado vira revisão. Ver track-input.ts.
     TrackInput.configure({
       isTracking: options.isTrackingChanges ?? (() => false),

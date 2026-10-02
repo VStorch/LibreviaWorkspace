@@ -21,4 +21,9 @@ export const REVISIONS = {
   },
   'revisions.trackOn': { pt: 'Controle de alterações: ativado', en: 'Track changes: on' },
   'revisions.unknownAuthor': { pt: 'Autor', en: 'Author' },
+  'revisions.show': { pt: 'Mostrar', en: 'Show' },
+  'revisions.show.all': { pt: 'Marcação completa', en: 'All markup' },
+  'revisions.show.simple': { pt: 'Marcação simples', en: 'Simple markup' },
+  'revisions.show.none': { pt: 'Sem marcação', en: 'No markup' },
+  'revisions.show.original': { pt: 'Original', en: 'Original' },
 } satisfies Catalog

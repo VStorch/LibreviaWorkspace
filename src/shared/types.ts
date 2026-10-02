@@ -132,6 +132,11 @@ export const MenuCommand = {
   PreviousChange: 'previous-change',
   /** Liga ou desliga o controle de alterações do documento (`w:trackRevisions`). */
   ToggleTrackChanges: 'toggle-track-changes',
+  /** Revisão → Mostrar: como as alterações aparecem na janela (ver `RevisionView`). */
+  ShowAllMarkup: 'show-all-markup',
+  ShowSimpleMarkup: 'show-simple-markup',
+  ShowNoMarkup: 'show-no-markup',
+  ShowOriginal: 'show-original',
   /** O nome que assina os comentários novos. */
   AuthorName: 'author-name',
   /** Sumário dos títulos, com número de página e link. */
@@ -163,6 +168,22 @@ export const MenuCommand = {
 } as const
 
 export type MenuCommand = (typeof MenuCommand)[keyof typeof MenuCommand]
+
+/**
+ * Como as alterações controladas aparecem: todas marcadas, o texto final com
+ * uma barra na margem, o texto final limpo, ou o texto de antes delas.
+ *
+ * É da janela, e não do arquivo nem da pessoa — como no Word, cada janela olha
+ * o documento do seu jeito, e nada disso é gravado. A impressão segue a janela.
+ */
+export const RevisionView = {
+  All: 'all',
+  Simple: 'simple',
+  None: 'none',
+  Original: 'original',
+} as const
+
+export type RevisionView = (typeof RevisionView)[keyof typeof RevisionView]
 
 /** Resposta do aviso de alterações não salvas. */
 export const DiscardChoice = {

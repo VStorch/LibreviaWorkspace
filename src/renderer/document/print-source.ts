@@ -5,6 +5,9 @@ import { bandFloatsOf, floatsOf, type FloatingObject } from '@services/document/
 import type { PrintFloat, PrintPage } from '@services/document/print-pages.js'
 import { drawListsForPrint } from './extensions/list-numbering.js'
 import { sheetSetups } from '@services/document/sections.js'
+import { RevisionView } from '@shared/types.js'
+import { DELETION, INSERTION } from './extensions/track-changes.js'
+import { isHiddenBlock, isHiddenInline, revisionViewOf } from './extensions/revision-view.js'
 import { collapsed, drawnSheet, isInternalStart, type PageLayout, type PageStart } from './usePagination.js'
 
 /**
@@ -30,6 +33,8 @@ export function splitIntoPages(
   // Com a numeração das listas gravada nos nós: o serializador não vê as
   // decorações que a desenham na tela.
   const blocks = drawListsForPrint(editor.state.doc)
+  // As alterações saem como a janela as mostra (Revisão → Mostrar).
+  const view = revisionViewOf(editor.state)
   const offsets: number[] = []
   editor.state.doc.forEach((_node: ProseMirrorNode, offset: number) => {
     offsets.push(offset)
@@ -66,7 +71,8 @@ export function splitIntoPages(
     const sheet = setupOf(pages.length)
 
     const holder = document.createElement('div')
-    const fragments = slicePageBlocks(blocks, start, end)
+    // O recorte primeiro, nos índices da tela; o modo depois, que não os mexe.
+    const fragments = blocksForView(slicePageBlocks(blocks, start, end), view)
     holder.appendChild(serializer.serializeFragment(Fragment.fromArray(fragments)))
     // Os comentários não vão ao papel, como no Word com a marcação desligada: o
     // painel e o realce são da tela (o realce é decoração, que o serializador não
@@ -180,6 +186,44 @@ export function slicePageBlocks(
     }
   }
   return fragments
+}
+
+/**
+ * Os blocos como o modo de mostrar as alterações os vê. Na marcação completa,
+ * os mesmos — a revisão sai sublinhada e riscada, na cor do autor, como na tela.
+ * Na simples e na sem marcação, o texto final: o excluído sai, o inserido fica
+ * como texto comum. No Original, o contrário. A marca de parágrafo e a linha de
+ * tabela seguem a mesma regra, e o bloco que a tela esconde inteiro não vai.
+ */
+export function blocksForView(blocks: readonly ProseMirrorNode[], view: RevisionView): ProseMirrorNode[] {
+  if (view === RevisionView.All) return [...blocks]
+  return blocks.flatMap((block) => nodeForView(block, view) ?? [])
+}
+
+function nodeForView(node: ProseMirrorNode, view: RevisionView): ProseMirrorNode | null {
+  if (node.isInline) {
+    if (isHiddenInline(node, view)) return null
+    const marks = node.marks.filter((mark) => mark.type.name !== INSERTION && mark.type.name !== DELETION)
+    return marks.length === node.marks.length ? node : node.mark(marks)
+  }
+  if (isHiddenBlock(node, view)) return null
+
+  const children: ProseMirrorNode[] = []
+  node.forEach((child) => {
+    const shown = nodeForView(child, view)
+    if (shown !== null) children.push(shown)
+  })
+  const attrs = { ...node.attrs }
+  if ('markRevision' in attrs) attrs['markRevision'] = null
+  if ('rowRevision' in attrs) attrs['rowRevision'] = null
+  if (children.length === 0 && node.childCount > 0 && !node.isTextblock) {
+    // A célula vazia continua (a linha precisa dela); a tabela ou a lista que
+    // perdeu tudo, não.
+    return node.type.name === 'tableCell' || node.type.name === 'tableHeader'
+      ? node.type.createAndFill(attrs, null, node.marks)
+      : null
+  }
+  return node.type.create(attrs, Fragment.fromArray(children), node.marks)
 }
 
 /** Linha de cabeçalho: está no começo da tabela e só tem células `tableHeader`. */

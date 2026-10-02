@@ -3,7 +3,7 @@ import type { JSONContent } from '@tiptap/core'
 import { EditorContent, useEditor } from '@tiptap/react'
 import { IpcChannel } from '@shared/ipc-channels.js'
 import { pushContracts } from '@shared/ipc.js'
-import type { ContextMenuTarget } from '@shared/types.js'
+import { RevisionView, type ContextMenuTarget } from '@shared/types.js'
 import { DOCUMENT_CONTENT_CSS, EDITOR_ONLY_CSS } from '@services/document/content-styles.js'
 import { styleSheetCss } from '@services/document/style-css.js'
 import { plainPasteContent } from '@services/document/paste.js'
@@ -26,6 +26,8 @@ import { NO_BANDS } from '@services/document/band.js'
 import { floatsOf } from '@services/document/floating.js'
 import { currentPreferences, usePreferences } from '../state/preferences.js'
 import { useLeaveReadingOnEscape, useReadingMode } from '../state/reading.js'
+import { useRevisionView } from '../state/revision-view.js'
+import { revisionViewOf, setRevisionViewMeta } from './extensions/revision-view.js'
 import { t as translateNow, useT } from '../i18n.js'
 import { useWorkspace } from '../state/workspace.js'
 import { setFittedZoom, useEffectiveZoom } from '../state/zoom.js'
@@ -94,6 +96,7 @@ export function DocumentEditor(): React.JSX.Element {
   const showError = useWorkspace((state) => state.showError)
   const preferences = usePreferences((state) => state.preferences)
   const reading = useReadingMode()
+  const revisionView = useRevisionView((state) => state.view)
   const t = useT()
 
   useLeaveReadingOnEscape(reading)
@@ -184,9 +187,21 @@ export function DocumentEditor(): React.JSX.Element {
   // mesmo caminho: uma tecla perdida nao pode alterar o documento que a
   // pessoa esta lendo. Sair do modo devolve a edicao sem recriar o editor,
   // entao o cursor e o historico sobrevivem a ida e volta.
+  // O Original (Revisão → Mostrar) também trava: é o texto de antes das
+  // alterações, e digitar nele não teria onde cair.
+  const original = revisionView === RevisionView.Original
   useEffect(() => {
-    editor?.setEditable(!readOnly && !reading, false)
-  }, [editor, readOnly, reading])
+    editor?.setEditable(!readOnly && !reading && !original, false)
+  }, [editor, readOnly, reading, original])
+
+  // Como a janela mostra as alterações: uma transação sem mudança no documento
+  // (não suja o arquivo), e a paginação mede de novo — o escondido não ocupa
+  // lugar na folha.
+  useEffect(() => {
+    if (editor === null || editor.isDestroyed || revisionViewOf(editor.state) === revisionView) return
+    editor.view.dispatch(setRevisionViewMeta(editor.state.tr, revisionView))
+    setContentRevision((value) => value + 1)
+  }, [editor, revisionView])
 
   // Os estilos do documento, para quem decide pelo valor que se vê — o diálogo
   // de parágrafo e o seletor de entrelinha (ver `paragraph-commands.ts`).

@@ -18,6 +18,24 @@ async function temSoffice(): Promise<boolean> {
 }
 
 /** Uma entrada de um ZIP comum (comprimido), como o LibreOffice grava o `.odt`. */
+async function temPdftotext(): Promise<boolean> {
+  try {
+    await promisify(execFile)('pdftotext', ['-v'])
+    return true
+  } catch {
+    return false
+  }
+}
+
+async function textoDoPdf(caminho: string): Promise<string> {
+  try {
+    const { stdout } = await promisify(execFile)('pdftotext', ['-layout', caminho, '-'])
+    return stdout
+  } catch {
+    return ''
+  }
+}
+
 async function entradaZip(caminho: string, nome: string): Promise<string> {
   const zip = await readFile(caminho)
   // O diretório central no fim: cada entrada diz onde começa o cabeçalho local.
@@ -200,5 +218,104 @@ test.describe('revisões', () => {
     await expect(indicador).toHaveCount(0)
     await menu(session, 'open')
     await expect(indicador).toBeVisible()
+  })
+
+  test('mostrar: marcação simples, sem marcação e original, com o cursor fora do escondido', async () => {
+    const origem = join(pasta, 'revisado.docx')
+    const destino = join(pasta, 'revisado.pdf')
+    await writeFile(origem, await docxWithTrackedChange())
+    await stubDialogs(session.app, { open: origem, save: destino, messageBox: 1 })
+    await menu(session, 'open')
+
+    const editor = session.window.locator('.ProseMirror')
+    const excluido = editor.locator('del.revision', { hasText: 'Trecho excluído.' })
+    const inserido = editor.locator('ins.revision', { hasText: 'com uma inserção' })
+    const segundo = editor.locator('p', { hasText: 'Segundo parágrafo' })
+    await expect(excluido).toBeVisible()
+
+    // Marcação simples: o excluído e a linha excluída somem, a barra aparece.
+    await menu(session, 'show-simple-markup')
+    await expect(editor).toHaveClass(/revisions-simple/)
+    await expect(excluido).toBeHidden()
+    await expect(editor.locator('tr', { hasText: 'Linha excluída' })).toBeHidden()
+    await expect(inserido).toBeVisible()
+    await expect(segundo).toHaveClass(/revision-changed/)
+
+    // O cursor não entra no excluído escondido: o que se digita no fim e depois
+    // de duas setas cai no texto que se vê.
+    await inserido.click()
+    await session.window.keyboard.press('End')
+    await session.window.keyboard.type('!')
+    await session.window.keyboard.press('ArrowLeft')
+    await session.window.keyboard.press('ArrowLeft')
+    await session.window.keyboard.type('Z')
+    await expect(segundo).toContainText('revisadaZ.!', { useInnerText: true })
+    await expect(excluido).toHaveText('Trecho excluído.')
+
+    // Sem marcação: o inserido fica como texto comum, sem barra.
+    await menu(session, 'show-no-markup')
+    await expect(excluido).toBeHidden()
+    expect(await inserido.evaluate((element) => getComputedStyle(element).textDecorationLine)).toBe('none')
+    await expect(editor.locator('.revision-changed')).toHaveCount(0)
+
+    if (await temPdftotext()) {
+      await menu(session, 'export-pdf')
+      await expect.poll(() => textoDoPdf(destino), { timeout: 30_000 }).toContain('Ata da reunião')
+      const texto = await textoDoPdf(destino)
+      expect(texto).toContain('Linha que fica')
+      expect(texto).not.toContain('Trecho excluído')
+      expect(texto).not.toContain('Linha excluída')
+    }
+
+    // Original: o inserido some, o excluído volta, e o editor não aceita digitação.
+    await menu(session, 'show-original')
+    await expect(inserido).toBeHidden()
+    await expect(excluido).toBeVisible()
+    await expect(editor.locator('tr', { hasText: 'Linha excluída' })).toBeVisible()
+    await expect(editor).toHaveAttribute('contenteditable', 'false')
+
+    await menu(session, 'show-all-markup')
+    await expect(inserido).toBeVisible()
+    await expect(editor).toHaveAttribute('contenteditable', 'true')
+  })
+
+  test('a paginação acompanha o modo de mostrar', async () => {
+    const editor = session.window.locator('.ProseMirror')
+    await menu(session, 'new-document')
+    await editor.click()
+    for (let linha = 1; linha <= 60; linha++) {
+      await session.window.keyboard.insertText(`Linha ${linha}`)
+      await session.window.keyboard.press('Enter')
+    }
+    await session.window.keyboard.insertText('Fica.')
+    await expect(session.window.locator('.paper')).toHaveCount(2)
+
+    // Tudo menos a última linha, excluído com o controle ligado.
+    await menu(session, 'toggle-track-changes')
+    await session.window.keyboard.press('Home')
+    await session.window.keyboard.press('Control+Shift+Home')
+    await session.window.keyboard.press('Delete')
+    await expect(editor.locator('del.revision').first()).toBeVisible()
+    await expect(session.window.locator('.paper')).toHaveCount(2)
+
+    await menu(session, 'show-no-markup')
+    await expect(session.window.locator('.paper')).toHaveCount(1)
+    await menu(session, 'show-all-markup')
+    await expect(session.window.locator('.paper')).toHaveCount(2)
+  })
+
+  test('Backspaces seguidos com o controle ligado saem num desfazer só', async () => {
+    const editor = session.window.locator('.ProseMirror')
+    await menu(session, 'new-document')
+    await editor.click()
+    await session.window.keyboard.type('abcdef')
+    await menu(session, 'toggle-track-changes')
+    await session.window.keyboard.press('End')
+    for (let vez = 0; vez < 3; vez++) await session.window.keyboard.press('Backspace')
+    await expect(editor.locator('del.revision')).toHaveText('def')
+
+    await session.window.keyboard.press('Control+z')
+    await expect(editor.locator('del.revision')).toHaveCount(0)
+    await expect(editor).toHaveText('abcdef')
   })
 })
