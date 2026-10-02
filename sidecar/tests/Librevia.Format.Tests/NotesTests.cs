@@ -180,6 +180,37 @@ public class NotesTests
     }
 
     [Fact]
+    public void RevisaoNovaNaNotaGanhaIdUnicoNoPacote()
+    {
+        var original = WithNotes();
+        var model = Clone(Open(original));
+        // Duas inserções novas, sem `rid`: uma na nota de rodapé, outra no corpo.
+        var paragraph = NoteRef(model, "footnote", "1").Content![0];
+        paragraph.Content!.Add(new Node
+        {
+            Type = "text",
+            Text = " acrescentado",
+            Marks = [new Mark { Type = Revisions.Insertion, Attrs = new() { ["author"] = "Ana", ["date"] = "2026-01-01T00:00:00Z" } }],
+        });
+        Paragraph(model.Doc, "Intocado.").Content!.Add(new Node
+        {
+            Type = "text",
+            Text = " novo",
+            Marks = [new Mark { Type = Revisions.Insertion, Attrs = new() { ["author"] = "Ana", ["date"] = "2026-01-01T00:00:00Z" } }],
+        });
+
+        var (bytes, _) = Save(original, model);
+
+        var ids = new[] { "word/document.xml", "word/footnotes.xml" }
+            .SelectMany(path => Regex.Matches(XmlOf(bytes, path), @"<w:ins\b[^>]*>").Select(tag => tag.Value))
+            .Select(tag => Regex.Match(tag, "w:id=\"([^\"]+)\"").Groups[1].Value)
+            .ToList();
+        Assert.Equal(2, ids.Count);
+        Assert.All(ids, id => Assert.NotEqual("", id));
+        Assert.Equal(ids.Count, ids.Distinct().Count());
+    }
+
+    [Fact]
     public void ApagarAReferenciaTiraANota()
     {
         var original = WithNotes();
@@ -235,11 +266,13 @@ public class NotesTests
 
         var (bytes, _) = Save(original, model);
 
+        // A cópia ganha nota própria, com o mesmo texto; os ids seguem a ordem do
+        // texto (`NotesWriter.InTextOrder`), e a cópia, no primeiro parágrafo, vem antes.
         var after = XmlOf(bytes, "word/footnotes.xml");
-        Assert.NotEmpty(NoteXml(after, "footnote", "1"));
-        var fresh = NoteXml(after, "footnote", "3");
-        Assert.Contains("Fonte: ata anterior.", fresh);
-        Assert.Contains("footnoteRef", fresh);
+        var copies = new[] { "1", "2", "3" }.Select(id => NoteXml(after, "footnote", id))
+            .Where(note => note.Contains("Fonte: ata anterior.", StringComparison.Ordinal)).ToList();
+        Assert.Equal(2, copies.Count);
+        Assert.All(copies, note => Assert.Contains("footnoteRef", note));
 
         var reread = Open(bytes);
         Assert.Equal(["1", "2", "3"], NoteRefs(reread).Where(node => Attr(node, "kind") == "footnote")
@@ -337,5 +370,64 @@ public class NotesTests
         var (bytes, result) = Save(original, model with { BeforeNotes = true });
         Assert.Contains("nota de rodapé num parágrafo que você editou", result.Inventory.Lost);
         Assert.Equal(PartsOf(original)["word/footnotes.xml"], PartsOf(bytes)["word/footnotes.xml"]);
+    }
+
+    [Fact]
+    public void NumeracaoDoModeloQueOPacoteNaoTemEGravada()
+    {
+        // O `.sdoc` reaberto guarda a numeração no modelo; o pacote em que ele é
+        // gravado como `.docx` não a tem — e ela não pode se perder.
+        var original = WithNotes();
+        var model = Open(original);
+        Assert.Equal(3, model.Notes?.FootnotePr?.Start);
+
+        byte[] target;
+        using (var stream = new MemoryStream())
+        {
+            stream.Write(original);
+            using (var document = WordprocessingDocument.Open(stream, true))
+            {
+                var settings = document.MainDocumentPart!.DocumentSettingsPart!.Settings!;
+                foreach (var child in settings.Descendants().Where(child => child.LocalName is "numFmt" or "numStart").ToList())
+                    child.Remove();
+                settings.Save();
+            }
+
+            target = stream.ToArray();
+        }
+
+        Assert.Null(Open(target).Notes?.FootnotePr);
+
+        var (bytes, _) = Save(target, model);
+        Assert.Matches(
+            """<w:footnotePr><w:numFmt w:val="lowerRoman" ?/><w:numStart w:val="3" ?/><w:footnote w:id="-1" ?/><w:footnote w:id="0" ?/></w:footnotePr>""",
+            XmlOf(bytes, "word/settings.xml"));
+        Assert.Equal(model.Notes, Open(bytes).Notes);
+        AssertSchema(bytes);
+    }
+
+    [Fact]
+    public void NumeracaoNovaDaNotaDeFimCriaODeclaradoNoSettings()
+    {
+        var original = WithNotes();
+        var model = Open(original) with
+        {
+            Notes = new NotesDto(new NotePrDto("lowerRoman", 3), new NotePrDto("upperLetter", 2)),
+        };
+
+        var (bytes, _) = Save(original, model);
+        var settings = XmlOf(bytes, "word/settings.xml");
+        Assert.Matches(
+            """<w:endnotePr><w:numFmt w:val="upperLetter" ?/><w:numStart w:val="2" ?/><w:endnote w:id="-1" ?/>""",
+            settings);
+        Assert.Equal(model.Notes, Open(bytes).Notes);
+    }
+
+    [Fact]
+    public void NumeracaoIgualNaoTocaOSettings()
+    {
+        var original = WithNotes();
+        var (bytes, _) = Save(original, Open(original));
+        Assert.Equal(PartsOf(original)["word/settings.xml"], PartsOf(bytes)["word/settings.xml"]);
     }
 }

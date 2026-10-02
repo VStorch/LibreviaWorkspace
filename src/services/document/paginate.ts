@@ -71,6 +71,31 @@ export interface MeasuredBlock {
   readonly section?: number
   /** `w:br w:type="column"`: a coluna termina depois deste bloco. */
   readonly columnBreakAfter?: boolean
+  /** As notas de rodapé cujas referências estão neste bloco (M11), na ordem do texto. */
+  readonly notes?: readonly MeasuredNote[]
+}
+
+/**
+ * Uma nota de rodapé, medida no corpo dela (M11).
+ *
+ * A altura não depende da paginação — o corpo é medido na largura da coluna de
+ * texto, fora do fluxo —, e por isso reservá-la não realimenta a medida.
+ */
+export interface MeasuredNote {
+  /** Quem desenha a nota sabe achá-la por aqui. */
+  readonly id: string
+  /** O pé da linha da referência, em coordenadas de fluxo. */
+  readonly at: number
+  readonly height: number
+  /** O topo de cada linha do corpo, a partir do topo dele; a primeira é 0. */
+  readonly lines: readonly number[]
+}
+
+/** O pedaço de uma nota que cai numa folha: as linhas `[fromLine, toLine)`. */
+export interface NoteSlice {
+  readonly id: string
+  readonly fromLine: number
+  readonly toLine: number
 }
 
 /**
@@ -143,6 +168,30 @@ export interface PagePlan {
   /** Os blocos postos em coluna, por índice; os outros não têm entrada. */
   readonly placements: Map<number, ColumnPlacement>
   readonly regions: ColumnRegion[]
+  /** As notas de rodapé de cada folha de conteúdo (índice entre as com texto). */
+  readonly notes: NoteSlice[][]
+  /** A altura da área de notas de cada folha de conteúdo, com o separador; 0 sem nota. */
+  readonly noteHeights: number[]
+}
+
+/** O que a paginação precisa saber das notas, além dos blocos. */
+export interface NoteFlow {
+  /** A altura do separador entre o texto e as notas. */
+  readonly separator: number
+}
+
+/** O topo da linha `line` da nota; a linha depois da última é o pé dela. */
+export function noteLineTop(note: Pick<MeasuredNote, 'height' | 'lines'>, line: number): number {
+  return line >= note.lines.length ? note.height : (note.lines[line] ?? 0)
+}
+
+/** A altura das linhas `[from, to)` da nota. */
+export function noteSpan(note: Pick<MeasuredNote, 'height' | 'lines'>, from: number, to: number): number {
+  return noteLineTop(note, to) - noteLineTop(note, from)
+}
+
+function lineCount(note: MeasuredNote): number {
+  return Math.max(note.lines.length, 1)
 }
 
 /**
@@ -167,6 +216,7 @@ export function paginate(blocks: readonly MeasuredBlock[], pageHeight: number): 
 export function paginateSections(
   blocks: readonly MeasuredBlock[],
   sections: readonly SectionFlow[],
+  noteFlow: NoteFlow = { separator: 0 },
 ): PagePlan {
   const breaks: number[] = []
   const sheets: SheetPlan[] = []
@@ -210,15 +260,101 @@ export function paginateSections(
   // justamente antes dele, a descida não vale — quem o põe no lugar é o corte.
   let pendingLift: number | null = null
 
+  const notes: NoteSlice[][] = []
+  const noteHeights: number[] = []
+
   const firstSection = sectionOf(blocks[0], 0)
   open(firstSection)
-  if (blocks.length === 0) return { breaks, sheets, placements, regions }
+  if (blocks.length === 0) return { breaks, sheets, placements, regions, notes, noteHeights }
+
+  // As notas de rodapé (M11). A folha leva a nota cuja referência ela leva, no
+  // pé, e a conta de caber passa a ser texto + separador + notas. A nota longa
+  // segue a regra do Word: a linha da referência e pelo menos a primeira linha
+  // da nota ficam na mesma folha, e o resto continua no alto da área de notas
+  // da folha seguinte (`carry`).
+  const footnotes = blocks.flatMap((block) => block.notes ?? [])
+  // A primeira nota que ainda não caiu em folha nenhuma.
+  let nextNote = 0
+  let carry: { note: MeasuredNote; from: number }[] = []
+  const separator = noteFlow.separator
+
+  // As notas que a folha levaria se terminasse em `at`: as que continuam da
+  // anterior e as das referências até ali.
+  const pendingNotes = (at: number): { note: MeasuredNote; from: number }[] => {
+    const list = [...carry]
+    for (let next = nextNote; next < footnotes.length && footnotes[next]!.at <= at + 0.5; next++) {
+      list.push({ note: footnotes[next]!, from: 0 })
+    }
+    return list
+  }
+
+  // O espaço que as notas pedem para a folha terminar em `at`: as novas
+  // inteiras, menos a última, de que basta a primeira linha. Cresce com `at`, e
+  // é por isso que "o último corte que cabe" continua valendo.
+  //
+  // A continuação vem antes do texto, como no Word: ela pede o resto inteiro,
+  // até meia folha — a nota de várias folhas segue enchendo o pé das
+  // seguintes, sem tomar a folha toda do texto. Contada só pela primeira linha,
+  // ela andava uma linha por folha enquanto o texto ocupava o resto.
+  const noteNeed = (at: number): number => {
+    if (carry.length === 0 && (nextNote >= footnotes.length || footnotes[nextNote]!.at > at + 0.5)) return 0
+    const fresh = pendingNotes(at).slice(carry.length)
+    let carried = 0
+    for (const item of carry) carried += noteSpan(item.note, item.from, lineCount(item.note))
+    const first = carry[0]
+    let need =
+      separator +
+      (first === undefined
+        ? 0
+        : Math.max(Math.min(carried, pageHeight / 2), noteSpan(first.note, first.from, first.from + 1)))
+    fresh.forEach((item, position) => {
+      need +=
+        position === fresh.length - 1
+          ? noteSpan(item.note, item.from, item.from + 1)
+          : noteSpan(item.note, item.from, lineCount(item.note))
+    })
+    return need
+  }
+
+  // Fecha a folha que termina em `at` com `used` de texto: as notas que cabem
+  // vão inteiras, a primeira que não cabe é cortada entre linhas, e o resto
+  // continua na folha seguinte.
+  const settleNotes = (at: number, used: number): void => {
+    const list = pendingNotes(at)
+    while (nextNote < footnotes.length && footnotes[nextNote]!.at <= at + 0.5) nextNote += 1
+    carry = []
+    const placed: NoteSlice[] = []
+    let room = pageHeight - used - separator
+    let height = 0
+    for (const item of list) {
+      if (carry.length > 0) {
+        carry.push(item)
+        continue
+      }
+      const total = lineCount(item.note)
+      let to = item.from
+      while (to < total && noteSpan(item.note, item.from, to + 1) <= room + 0.5) to += 1
+      // Pelo menos uma linha na folha que não levou nenhuma: é o que faz a nota
+      // maior que a folha terminar, uma folha por vez.
+      if (to === item.from && placed.length === 0) to += 1
+      if (to > item.from) {
+        const span = noteSpan(item.note, item.from, to)
+        placed.push({ id: item.note.id, fromLine: item.from, toLine: to })
+        room -= span
+        height += span
+      }
+      if (to < total) carry.push({ note: item.note, from: to })
+    }
+    notes[breaks.length] = placed
+    noteHeights[breaks.length] = placed.length > 0 ? height + separator : 0
+  }
 
   let current = firstSection
   let pageHeight = flowOf(firstSection).height
-  const cut = (at: number, section: number): void => {
+  const cut = (at: number, section: number, used = at - pageStart): void => {
     if (pendingLift !== null && at <= blocks[pendingLift]!.top) placements.delete(pendingLift)
     pendingLift = null
+    settleNotes(at, used)
     breaks.push(at)
     open(section)
     pageHeight = flowOf(section).height
@@ -293,7 +429,10 @@ export function paginateSections(
     }
 
     const bottom = block.top + block.height
-    if (bottom - pageStart <= pageHeight + Math.min(block.hangingBottom ?? 0, pageHeight / 2)) {
+    if (
+      bottom - pageStart + noteNeed(bottom) <=
+      pageHeight + Math.min(block.hangingBottom ?? 0, pageHeight / 2)
+    ) {
       index += 1
       // A quebra que o parágrafo carrega vale depois dele — e não vale se não
       // houver mais nada, senão o documento fecha com uma folha em branco.
@@ -306,7 +445,7 @@ export function paginateSections(
     }
 
     const breakpoint = usableBreakpoints(block, pageHeight)
-      .filter((at) => at > floor && at - pageStart <= pageHeight)
+      .filter((at) => at > floor && at - pageStart + noteNeed(at) <= pageHeight)
       .at(-1)
     if (breakpoint !== undefined) {
       cut(breakpoint, current)
@@ -342,9 +481,10 @@ export function paginateSections(
       // Sem corte disponível, o restante fica com a folha só para si.
       // O layout aumenta esse papel para conter o bloco atômico; o próximo
       // bloco continua abrindo uma folha nova, como antes.
+      const used = bottom - pageStart
       pageStart = floor = bottom
       index += 1
-      if (index < blocks.length) cut(bottom, current)
+      if (index < blocks.length) cut(bottom, current, used)
       continue
     }
 
@@ -353,7 +493,20 @@ export function paginateSections(
     // `index` não avança: o mesmo bloco é reavaliado na página nova.
   }
 
-  return { breaks, sheets, placements, regions }
+  // A última folha fecha com as notas que sobraram; a nota que ainda não coube
+  // continua em folhas só de notas, depois do texto.
+  const end = blocks.reduce((bottom, block) => Math.max(bottom, block.top + block.height), 0)
+  let used = Math.max(end - pageStart, 0)
+  for (;;) {
+    settleNotes(Number.POSITIVE_INFINITY, used)
+    if (carry.length === 0 || pageHeight <= 0) break
+    breaks.push(end)
+    open(current)
+    pageStart = floor = end
+    used = 0
+  }
+
+  return { breaks, sheets, placements, regions, notes, noteHeights }
 
   /**
    * Distribui nas colunas desta folha os blocos da seção a partir de `start`, e
@@ -371,7 +524,10 @@ export function paginateSections(
 
     const first = blocks[start]!
     const offset = first.top - pageStart
-    const available = pageHeight - offset
+    // As notas da região saem da altura das colunas; a área delas fica embaixo,
+    // na largura da folha (limitação declarada: o Word as põe sob cada coluna).
+    const last = blocks[end - 1]!
+    const available = pageHeight - offset - noteNeed(last.top + last.height)
     // A região que começa no meio da folha e não comporta nem o primeiro bloco
     // vai para a folha seguinte.
     if (offset > 0 && first.height > available) {

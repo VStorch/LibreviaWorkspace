@@ -4,6 +4,9 @@ import { TableAction } from '@shared/table-actions.js'
 import { EditorCommand, onEditorCommand, runsWhileLocked } from './editor-commands.js'
 import { runTableAction } from './table-actions.js'
 import { goToComment, insertComment } from './comment-commands.js'
+import { insertNote } from './note-commands.js'
+import { flushNoteSelection } from './extensions/note-view.js'
+import { NoteKind } from '@services/document/notes.js'
 import { goToChange, settleAll, settleChange } from './revision-commands.js'
 import { useWorkspace } from '../state/workspace.js'
 import {
@@ -100,7 +103,11 @@ export function useEditorCommands(
       // pode estar só no DOM: o ProseMirror o lê no `selectionchange`, e o
       // comando que chega do menu nativo pelo IPC pode chegar antes. Sem isto, o
       // sumário pedido logo depois de um Home entrava onde o cursor estava antes.
-      if (editor !== null) flushSelection(editor)
+      // A nota com o foco tem o próprio editor (`note-view.ts`), com a mesma demora.
+      if (editor !== null) {
+        flushSelection(editor)
+        flushNoteSelection(editor.view)
+      }
 
       switch (command) {
         case EditorCommand.FindReplace:
@@ -119,6 +126,14 @@ export function useEditorCommands(
           return setDialog('bookmark', true)
         case EditorCommand.InsertComment:
           if (editor !== null) insertComment(editor)
+          return
+        case EditorCommand.InsertFootnote:
+        case EditorCommand.InsertEndnote:
+          if (editor !== null)
+            insertNote(
+              editor,
+              command === EditorCommand.InsertFootnote ? NoteKind.Footnote : NoteKind.Endnote,
+            )
           return
         case EditorCommand.NextComment:
         case EditorCommand.PreviousComment:

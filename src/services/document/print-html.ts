@@ -1,4 +1,4 @@
-import { DOCUMENT_CONTENT_CSS, PRINT_ONLY_CSS } from './content-styles.js'
+import { DOCUMENT_CONTENT_CSS, NOTES_CSS, PRINT_ONLY_CSS } from './content-styles.js'
 
 /**
  * Monta o HTML que o Chromium vai transformar em PDF.
@@ -38,6 +38,7 @@ export function buildPrintHtml(
 html, body { margin: 0; padding: 0; }
 body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 ${DOCUMENT_CONTENT_CSS}
+${NOTES_CSS}
 ${PRINT_ONLY_CSS}
 ${extraCss}
 </style>

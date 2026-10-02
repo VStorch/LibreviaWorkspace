@@ -259,17 +259,19 @@ public static class Revisions
         AttributeOf(a, "date") == AttributeOf(b, "date");
 
     /// <summary>
-    /// Dá a cada revisão do corpo um `w:id` só dela.
+    /// Dá a cada revisão do corpo e das notas um `w:id` só dela.
     /// </summary>
     /// <remarks>
     /// O id que o arquivo deu fica enquanto for único; o repetido (um parágrafo
     /// revisado que a pessoa partiu em dois) e o ausente ganham um número acima do
     /// maior `w:id` do pacote — de revisão, de comentário ou de marcador, que o
-    /// esquema trata como um espaço só.
+    /// esquema trata como um espaço só. As notas (M11) entram na mesma conta: a
+    /// revisão escrita numa nota editada sai sem id, e o id é único no pacote.
     /// </remarks>
     public static void MakeIdsUnique(Body body, MainDocumentPart part)
     {
-        var revisions = body.Descendants().Where(IsRevision).ToList();
+        IEnumerable<OpenXmlElement?> roots = [body, part.FootnotesPart?.Footnotes, part.EndnotesPart?.Endnotes];
+        var revisions = roots.OfType<OpenXmlElement>().SelectMany(root => root.Descendants().Where(IsRevision)).ToList();
         if (revisions.Count == 0) return;
 
         var used = new HashSet<string>(StringComparer.Ordinal);

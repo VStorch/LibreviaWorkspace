@@ -1,5 +1,7 @@
 import type { Editor } from '@tiptap/react'
+import { TextSelection } from '@tiptap/pm/state'
 import { useWorkspace } from '../state/workspace.js'
+import { noteBodyOf } from './extensions/note-view.js'
 import { SKIP_TRACKING } from './extensions/track-input.js'
 import {
   adjacentChange,
@@ -46,6 +48,21 @@ export function goToChange(editor: Editor, direction: 1 | -1): boolean {
   const change = adjacentChange(editor.state.doc, direction === 1 ? selection.to : selection.from, direction)
   if (change === null) return false
   editor.view.focus()
+  // Dentro de uma nota a seleção é a do corpo, que tem editor próprio: o texto
+  // fica com o cursor depois da referência, e o corpo escolhe o trecho.
+  const $from = editor.state.doc.resolve(change.from)
+  for (let depth = $from.depth; depth > 0; depth--) {
+    if ($from.node(depth).type.name !== 'noteRef') continue
+    const reference = $from.before(depth)
+    const tr = editor.state.tr.setSelection(TextSelection.create(editor.state.doc, $from.after(depth)))
+    editor.view.dispatch(tr.scrollIntoView())
+    const body = noteBodyOf(editor.view.nodeDOM(reference))
+    if (body !== undefined) {
+      body.view.focus()
+      body.select(change.from - reference - 1, change.to - reference - 1)
+    }
+    return true
+  }
   editor.view.dispatch(selectChange(editor.state.tr, change))
   return true
 }

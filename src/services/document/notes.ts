@@ -41,8 +41,8 @@ function numberingOf(kind: string, notes: DocumentNotes | undefined): NoteNumber
 /**
  * O rótulo da nota numerada de índice `ordinal` (a partir de 0) do tipo dado.
  *
- * `numRestart` (por seção, por página) ainda não muda a conta: sem paginar as
- * notas, a tela não sabe em que página cada uma cai — é a fase 2.
+ * `numRestart` (por seção, por página) ainda não muda a conta: a numeração é
+ * contada antes de paginar, e reiniciar por folha pediria a conta depois dela.
  */
 export function noteLabel(kind: string, ordinal: number, notes?: DocumentNotes): string {
   const numbering = numberingOf(kind, notes)

@@ -22,6 +22,8 @@ namespace Librevia.Format.Docx;
 /// </remarks>
 internal static class NotesWriter
 {
+    private const string W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
+
     public const string Footnote = "footnote";
     public const string Endnote = "endnote";
 
@@ -107,7 +109,9 @@ internal static class NotesWriter
         {
             if (!Ascending(OriginalOrder(part, endnote))) continue;
             var mine = result.Select((entry, index) => (entry, index)).Where(pair => pair.entry.Endnote == endnote).ToList();
-            if (Ascending(mine.Where(pair => !pair.entry.Fresh).Select(pair => pair.entry.Id))) continue;
+            // A nota nova também conta: inserida antes das outras, ela ganha o maior id
+            // e quebra a ordem do mesmo jeito que uma movida.
+            if (Ascending(mine.Select(pair => pair.entry.Id))) continue;
 
             var next = NotesIn(part, endnote).Where(note => !IsNormal(note))
                 .Select(note => note.Id?.Value ?? 0).DefaultIfEmpty(0).Max() + 1;
@@ -483,6 +487,106 @@ internal static class NotesWriter
 
         settings.Save();
         touched.Add(settingsPart.Uri.ToString().TrimStart('/'));
+    }
+
+    /// <summary>
+    /// Grava a numeração das notas (`w:footnotePr`/`w:endnotePr`) quando a do modelo
+    /// difere da que o pacote declara. Igual, nada se toca: o `settings.xml` do
+    /// arquivo aberto e salvo volta byte a byte.
+    /// </summary>
+    /// <remarks>
+    /// Vai para o `settings.xml`, que vale para o documento todo; e, se o último
+    /// `w:sectPr` também declara a numeração — é ela que vence na leitura —, para
+    /// ele também. Modelo sem numeração não apaga a do pacote: ausência não é pedido.
+    /// </remarks>
+    public static void ApplyNumbering(MainDocumentPart part, NotesDto? wanted, HashSet<string> touched)
+    {
+        if (wanted is null) return;
+        var body = part.Document?.Body;
+        if (body is null) return;
+        var current = NotesReader.Read(part, body);
+        var footnote = Differs(wanted.FootnotePr, current?.FootnotePr);
+        var endnote = Differs(wanted.EndnotePr, current?.EndnotePr);
+        if (!footnote && !endnote) return;
+
+        var settingsPart = part.DocumentSettingsPart ?? part.AddNewPart<DocumentSettingsPart>();
+        var settings = settingsPart.Settings ??= new Settings();
+        var section = body.Elements<SectionProperties>().LastOrDefault();
+
+        if (footnote)
+        {
+            var properties = settings.GetFirstChild<FootnoteDocumentWideProperties>();
+            if (properties is null)
+            {
+                properties = new FootnoteDocumentWideProperties();
+                foreach (var id in SpecialIds(part.FootnotesPart?.Footnotes))
+                    properties.AppendChild(new FootnoteSpecialReference { Id = id });
+                settings.AddChild(properties, throwOnError: false);
+            }
+
+            SetNumbering(properties, wanted.FootnotePr, () => new FootnotePosition());
+            if (section?.GetFirstChild<FootnoteProperties>() is { } own)
+                SetNumbering(own, wanted.FootnotePr, () => new FootnotePosition());
+        }
+
+        if (endnote)
+        {
+            var properties = settings.GetFirstChild<EndnoteDocumentWideProperties>();
+            if (properties is null)
+            {
+                properties = new EndnoteDocumentWideProperties();
+                foreach (var id in SpecialIds(part.EndnotesPart?.Endnotes))
+                    properties.AppendChild(new EndnoteSpecialReference { Id = id });
+                settings.AddChild(properties, throwOnError: false);
+            }
+
+            SetNumbering(properties, wanted.EndnotePr, () => new EndnotePosition());
+            if (section?.GetFirstChild<EndnoteProperties>() is { } own)
+                SetNumbering(own, wanted.EndnotePr, () => new EndnotePosition());
+        }
+
+        settings.Save();
+        touched.Add(settingsPart.Uri.ToString().TrimStart('/'));
+    }
+
+    /// <summary>A numeração ausente é a do Word: só os campos declarados contam.</summary>
+    private static bool Differs(NotePrDto? wanted, NotePrDto? current) =>
+        (wanted ?? new NotePrDto()) != (current ?? new NotePrDto());
+
+    /// <summary>Os ids das notas separadoras da parte (`-1` e `0`, no Word), que o `w:footnotePr` aponta.</summary>
+    private static IEnumerable<long> SpecialIds(OpenXmlElement? notes) =>
+        notes?.ChildElements.OfType<FootnoteEndnoteType>()
+            .Where(note => note.Type?.Value is { } type &&
+                           (type == FootnoteEndnoteValues.Separator || type == FootnoteEndnoteValues.ContinuationSeparator))
+            .Select(note => note.Id?.Value ?? 0)
+            .ToList() ?? [];
+
+    /// <summary>
+    /// Troca `w:pos`, `w:numFmt`, `w:numStart` e `w:numRestart` pelos do modelo, na
+    /// ordem do esquema — antes das referências às separadoras.
+    /// </summary>
+    private static void SetNumbering(OpenXmlCompositeElement properties, NotePrDto? wanted, Func<OpenXmlElement> position)
+    {
+        string[] names = ["pos", "numFmt", "numStart", "numRestart"];
+        foreach (var child in properties.ChildElements.Where(child => names.Contains(child.LocalName)).ToList())
+            child.Remove();
+
+        var values = new (OpenXmlElement Element, string? Value)[]
+        {
+            (position(), wanted?.Pos),
+            (new NumberingFormat(), wanted?.NumFmt),
+            (new NumberingStart(), wanted?.Start?.ToString(CultureInfo.InvariantCulture)),
+            (new NumberingRestart(), wanted?.Restart),
+        };
+        OpenXmlElement? previous = null;
+        foreach (var (element, value) in values)
+        {
+            if (value is null) continue;
+            element.SetAttribute(new OpenXmlAttribute("w", "val", W, value));
+            if (previous is null) properties.PrependChild(element);
+            else previous.InsertAfterSelf(element);
+            previous = element;
+        }
     }
 
     /// <summary>

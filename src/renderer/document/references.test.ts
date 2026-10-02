@@ -100,6 +100,7 @@ function contextWith(layout: Partial<PageLayout>, outsideBookmarks: string[] = [
       contentSheets: [],
       columnMoves: [],
       columnLines: [],
+      noteAreas: [],
       ...layout,
     },
     page: DEFAULT_PAGE_SETUP,

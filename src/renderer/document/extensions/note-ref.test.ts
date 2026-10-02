@@ -3,7 +3,13 @@ import { getSchema } from '@tiptap/core'
 import { DOMSerializer, Node as ProseMirrorNode, Slice } from '@tiptap/pm/model'
 import { buildEditorExtensions } from '../editor-extensions.js'
 import { textWithoutDeletions } from './track-changes.js'
-import { noteRefLabels, noteRefsOf, textBetweenWithoutNotes, withoutRepeatedNotes } from './note-ref.js'
+import {
+  drawsNoteNumber,
+  noteRefLabels,
+  noteRefsOf,
+  textBetweenWithoutNotes,
+  withoutRepeatedNotes,
+} from './note-ref.js'
 
 const schema = getSchema(buildEditorExtensions(() => {}))
 
@@ -86,5 +92,13 @@ describe('referência de nota', () => {
     expect(noteRule?.priority ?? 50).toBeGreaterThan(
       Math.max(50, ...supRules.map((rule) => rule.priority ?? 50)),
     )
+  })
+})
+
+describe('o número no começo do corpo (M11)', () => {
+  it('a nota de marca própria não ganha o número: a marca já está no corpo', () => {
+    const refs = noteRefsOf(doc)
+    // A ordem do texto: 1, a do "*", a de fim e a 3.
+    expect(refs.map(({ node }) => drawsNoteNumber(node))).toEqual([true, false, true, true])
   })
 })

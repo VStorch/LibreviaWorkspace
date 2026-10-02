@@ -1,11 +1,16 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Editor } from '@tiptap/react'
 import {
+  noteLineTop,
+  noteSpan,
   paginateSections,
   type MeasuredBlock,
+  type MeasuredNote,
+  type NoteSlice,
   type SectionFlow,
   type SheetPlan,
 } from '@services/document/paginate.js'
+import { NoteKind } from '@services/document/notes.js'
 import { effectiveAttrs } from '@services/document/style-cascade.js'
 import type { StyleSheet } from '@services/document/styles.js'
 import {
@@ -27,9 +32,46 @@ import {
 } from '@services/document/sections.js'
 import { applyPageGaps, type RepeatedHeader } from './extensions/pagination.js'
 import { LINE_GAP_CLASS, measureLines } from './line-boxes.js'
+import { noteBodyOf, type NoteBody } from './extensions/note-view.js'
 
 /** Espaço entre uma folha e a seguinte, como numa pilha de papel. */
 export const SHEET_GUTTER_PX = 28
+
+/**
+ * O separador entre o texto e as notas (M11): uma linha de 12 pt, com o traço
+ * no meio — a altura do parágrafo do separador do Word.
+ */
+export const NOTE_SEPARATOR_PX = 16
+
+/** Uma nota (ou o pedaço dela) numa área de notas. */
+export interface NoteAreaItem {
+  /** O corpo na tela (`note-view.ts`). */
+  readonly key: string
+  /** A ordem da referência entre todas as do documento (`noteRefsOf`) — o papel acha o nó por ela. */
+  readonly index: number
+  readonly fromLine: number
+  readonly toLine: number
+  /** Onde, no corpo, começa a primeira linha mostrada. */
+  readonly clipTopPx: number
+  readonly heightPx: number
+}
+
+/**
+ * A área de notas de uma folha: as de rodapé no pé da coluna de texto, as de
+ * fim logo depois do último bloco (e nas folhas que vierem depois dele).
+ */
+export interface NoteArea {
+  /** A folha desenhada. */
+  readonly sheet: number
+  readonly kind: 'footnote' | 'endnote'
+  /** Em pixels da folha, já com o separador. */
+  readonly topPx: number
+  readonly leftPx: number
+  readonly widthPx: number
+  /** O traço curto, o de continuação (largura toda) ou nenhum. */
+  readonly separator: 'normal' | 'continuation' | null
+  readonly items: readonly NoteAreaItem[]
+}
 
 /** Nenhum vao aplicado. Constante para `sameGaps` poder compara-la por valor. */
 const EMPTY_GAPS = new Map<number, number>()
@@ -74,6 +116,8 @@ export interface PageLayout {
   readonly columnMoves: readonly ColumnMove[]
   /** As linhas entre colunas, nas seções que as pedem. */
   readonly columnLines: readonly ColumnLine[]
+  /** As áreas de notas (M11), por folha desenhada. */
+  readonly noteAreas: readonly NoteArea[]
 }
 
 /** Um bloco de seção com colunas: o lado da coluna e o quanto subiu ou desceu. */
@@ -223,6 +267,7 @@ export function usePagination(
     contentSheets: [0],
     columnMoves: [],
     columnLines: [],
+    noteAreas: [],
   })
 
   /**
@@ -326,6 +371,12 @@ export function usePagination(
       const targets: CutTarget[] = []
       const origin = offsetTopOf(element)
 
+      // As notas (M11): as de rodapé vão com o bloco da referência; as de fim,
+      // depois do último bloco. `refIndex` é a ordem de `noteRefsOf`.
+      const measuredNotes = new Map<string, MeasuredNote & { index: number }>()
+      const endnotes: (MeasuredNote & { index: number })[] = []
+      let refIndex = 0
+
       // A seção de cada bloco, pela marca que fecha a seção (ver `blockSections`).
       const marks: (string | null)[] = []
       editor.state.doc.forEach((block) => marks.push(sectionBreakIn(block as unknown as SectionBlock)))
@@ -336,6 +387,11 @@ export function usePagination(
         const dom = editor.view.nodeDOM(offset)
         const node = dom instanceof HTMLElement ? dom : null
         if (node === null) {
+          block.descendants((child) => {
+            if (child.type.name !== 'noteRef') return true
+            refIndex += 1
+            return false
+          })
           blocks.push({
             top: 0,
             height: 0,
@@ -389,6 +445,9 @@ export function usePagination(
                 : []
         let internal = 0
         const breakpoints: number[] = []
+        // O topo de fluxo de cada linha de tabela, item ou entrada: é o pé da
+        // linha da referência de nota que está dentro dela.
+        const childTops: number[] = []
 
         // Parágrafo e título cortam entre linhas. As linhas medem a partir da
         // borda do bloco, e o topo de fluxo dele já está em `top`.
@@ -459,6 +518,7 @@ export function usePagination(
           const shift = cells.length > 0 ? shiftOf(cells[0]!) : shiftOf(child)
           // Padding aumenta a linha para baixo; margem já deslocou seu topo.
           const at = offsetTopOf(child) - origin - accumulated - internal - (cells.length === 0 ? shift : 0)
+          childTops.push(at)
           if (childIndex > headerRows) {
             breakpoints.push(at)
             targets.push({
@@ -484,9 +544,27 @@ export function usePagination(
           internal += shift
         })
         const effective = effectiveAttrs(block, styles)
+        const height = node.offsetHeight - internal
+
+        // As referências de nota do bloco, na ordem do texto, sem descer em corpo de nota.
+        const blockNotes: MeasuredNote[] = []
+        block.descendants((child, pos) => {
+          if (child.type.name !== 'noteRef') return true
+          const index = refIndex++
+          const reference = editor.view.nodeDOM(offset + 1 + pos)
+          const body = noteBodyOf(reference)
+          if (body === undefined || !(reference instanceof HTMLElement)) return false
+          const at = referenceBottom(node, reference, top, height, lines?.starts ?? null, children, childTops)
+          const measured = { id: body.key, at, index, ...measureNote(body) }
+          measuredNotes.set(body.key, measured)
+          if (child.attrs['kind'] === NoteKind.Endnote) endnotes.push(measured)
+          else blockNotes.push(measured)
+          return false
+        })
+
         blocks.push({
           top,
-          height: node.offsetHeight - internal,
+          height,
           breakpoints,
           isPageBreak: node.hasAttribute('data-page-break'),
           breakAfter: node.hasAttribute('data-break-after'),
@@ -497,12 +575,33 @@ export function usePagination(
           ...(repeatHeight > 0 ? { repeatHeight } : {}),
           ...(freeBreakpoints.length > 0 ? { freeBreakpoints } : {}),
           ...(hangingBottom > 0 ? { hangingBottom } : {}),
+          ...(blockNotes.length > 0 ? { notes: blockNotes } : {}),
           section,
         })
         accumulated += internal
       })
 
-      const plan = paginateSections(blocks, flows)
+      // As notas de fim entram no fluxo depois do último bloco, como blocos que
+      // cortam entre as linhas delas: não há elemento no editor para empurrar, e
+      // as folhas que elas pedem a mais são só desenho.
+      const textBottom = blocks.reduce((bottom, block) => Math.max(bottom, block.top + block.height), 0)
+      const lastSection = blocks.at(-1)?.section ?? 0
+      const endnoteBlocks: MeasuredBlock[] = []
+      let endnoteTop = textBottom + NOTE_SEPARATOR_PX
+      for (const note of endnotes) {
+        endnoteBlocks.push({
+          top: endnoteTop,
+          height: note.height,
+          breakpoints: note.lines.slice(1).map((line) => endnoteTop + line),
+          isPageBreak: false,
+          breakAfter: false,
+          keepWithNext: false,
+          section: lastSection,
+        })
+        endnoteTop += note.height
+      }
+
+      const plan = paginateSections([...blocks, ...endnoteBlocks], flows, { separator: NOTE_SEPARATOR_PX })
       const breaks = plan.breaks
       // As folhas com conteúdo, na pilha: entre elas ficam as em branco.
       const contentSheets = plan.sheets.flatMap((sheet, index) => (sheet.blank ? [] : [index]))
@@ -542,6 +641,42 @@ export function usePagination(
       let previous = 0
       const pageStarts: PageStart[] = []
       const sheetHeights: number[] = []
+      const noteAreas: NoteArea[] = []
+      // Onde cada folha de conteúdo começa e termina na tira: é o que recorta
+      // as notas de fim.
+      const sheetStarts: number[] = []
+
+      // As notas de rodapé de uma folha, no pé da coluna de texto: acima da
+      // margem de baixo, ou logo depois do texto se a folha esticou.
+      const footnoteArea = (content: number, metrics: SectionMetrics, used: number): void => {
+        const slices = plan.notes[content] ?? []
+        const items = slices.flatMap((slice) => itemOf(slice))
+        if (items.length === 0) return
+        const height = plan.noteHeights[content] ?? 0
+        noteAreas.push({
+          sheet: contentSheets[content] ?? content,
+          kind: 'footnote',
+          topPx: metrics.topPx + Math.max(metrics.contentPx - height, used),
+          leftPx: metrics.leftPx,
+          widthPx: metrics.widthPx - metrics.leftPx - metrics.rightPx,
+          separator: items[0]!.fromLine > 0 ? 'continuation' : 'normal',
+          items,
+        })
+      }
+      const itemOf = (slice: NoteSlice): NoteAreaItem[] => {
+        const note = measuredNotes.get(slice.id)
+        if (note === undefined) return []
+        return [
+          {
+            key: slice.id,
+            index: note.index,
+            fromLine: slice.fromLine,
+            toLine: slice.toLine,
+            clipTopPx: noteLineTop(note, slice.fromLine),
+            heightPx: noteSpan(note, slice.fromLine, slice.toLine),
+          },
+        ]
+      }
 
       // Índice dos cortes internos por altura, e um cursor para os de bloco: a
       // lista sai da medida em ordem de fluxo, e os cortes também crescem, então
@@ -581,7 +716,11 @@ export function usePagination(
         const span = at - previous + liftsBetween(previous, at)
         const hung = Math.min(Math.max(span - ending.contentPx, 0), hangingAt(blocks, at))
         const used = span - hung
-        sheetHeights.push(Math.max(ending.heightPx, used + ending.topPx + ending.bottomPx))
+        // A nota maior que o que sobrou estica a folha, como o bloco atômico.
+        const notesHeight = plan.noteHeights[cut] ?? 0
+        sheetStarts.push(previous)
+        footnoteArea(cut, ending, used)
+        sheetHeights.push(Math.max(ending.heightPx, used + notesHeight + ending.topPx + ending.bottomPx))
         let skipped = 0
         for (const blank of blanks) {
           const height = metricsOf(blank.section).heightPx
@@ -589,7 +728,7 @@ export function usePagination(
           skipped += height + SHEET_GUTTER_PX
         }
         const shift =
-          Math.max(ending.contentPx - used, 0) -
+          Math.max(ending.contentPx - used, notesHeight, 0) -
           hung +
           ending.bottomPx +
           SHEET_GUTTER_PX +
@@ -622,10 +761,57 @@ export function usePagination(
       })
 
       const last = metricsOf(sheetOf(breaks.length).section)
-      const bottom = blocks.reduce((bottom, block) => Math.max(bottom, block.top + block.height), 0)
-      const lastSpan = bottom - previous + liftsBetween(previous, bottom + 1)
+      const bottom = endnoteBlocks.length > 0 ? endnoteTop : textBottom
+      const lastSpan = Math.max(bottom - previous, 0) + liftsBetween(previous, bottom + 1)
       const lastHung = Math.min(Math.max(lastSpan - last.contentPx, 0), hangingAt(blocks, bottom))
-      sheetHeights.push(Math.max(last.heightPx, lastSpan - lastHung + last.topPx + last.bottomPx))
+      const lastNotes = plan.noteHeights[breaks.length] ?? 0
+      sheetStarts.push(previous)
+      footnoteArea(breaks.length, last, lastSpan - lastHung)
+      sheetHeights.push(Math.max(last.heightPx, lastSpan - lastHung + lastNotes + last.topPx + last.bottomPx))
+
+      // As notas de fim: cada folha mostra as linhas delas que caem entre o
+      // começo dela e o da seguinte, logo abaixo do texto.
+      endnoteBlocks.forEach((block, position) => {
+        const note = endnotes[position]!
+        sheetStarts.forEach((start, content) => {
+          const end = breaks[content] ?? Number.POSITIVE_INFINITY
+          const visible = [block.top, ...block.breakpoints]
+            .map((at, line) => ({ at, line }))
+            .filter(({ at }) => at >= start - 0.5 && at < end - 0.5)
+          if (visible.length === 0) return
+          const fromLine = visible[0]!.line
+          const toLine = visible.at(-1)!.line + 1
+          const metrics = metricsOf(sheetOf(content).section)
+          const sheet = contentSheets[content] ?? content
+          const item: NoteAreaItem = {
+            key: note.id,
+            index: note.index,
+            fromLine,
+            toLine,
+            clipTopPx: noteLineTop(note, fromLine),
+            heightPx: noteSpan(note, fromLine, toLine),
+          }
+          const area = noteAreas.find(
+            (candidate) => candidate.sheet === sheet && candidate.kind === 'endnote',
+          )
+          if (area !== undefined) {
+            noteAreas[noteAreas.indexOf(area)] = { ...area, items: [...area.items, item] }
+            return
+          }
+          // O separador vai acima da primeira nota de fim, onde o texto acaba; a
+          // folha que só continua as notas não o repete.
+          const opens = position === 0 && fromLine === 0
+          noteAreas.push({
+            sheet,
+            kind: 'endnote',
+            topPx: metrics.topPx + (visible[0]!.at - start) - (opens ? NOTE_SEPARATOR_PX : 0),
+            leftPx: metrics.leftPx,
+            widthPx: metrics.widthPx - metrics.leftPx - metrics.rightPx,
+            separator: opens ? 'normal' : null,
+            items: [item],
+          })
+        })
+      })
       // Folhas em branco depois da última com conteúdo não existem: a seção par
       // ou ímpar só pede a folha antes de começar.
       const sheets = plan.sheets.slice(0, sheetHeights.length)
@@ -742,6 +928,7 @@ export function usePagination(
         contentSheets,
         columnMoves,
         columnLines,
+        noteAreas,
       })
     }
 
@@ -896,4 +1083,54 @@ function cleanHeaderRow(row: HTMLTableRowElement): string {
     }
   }
   return copy.outerHTML
+}
+
+/**
+ * O pé da linha em que a referência de nota está, em coordenadas de fluxo: o
+ * começo da linha seguinte do parágrafo, ou da linha de tabela (item, entrada)
+ * seguinte. É o ponto até onde a folha precisa ir para levar a referência.
+ */
+function referenceBottom(
+  block: HTMLElement,
+  reference: HTMLElement,
+  top: number,
+  height: number,
+  lineStarts: readonly number[] | null,
+  children: readonly HTMLElement[],
+  childTops: readonly number[],
+): number {
+  if (lineStarts !== null) {
+    const box = block.getBoundingClientRect()
+    const scale = block.offsetHeight > 0 && box.height > 0 ? box.height / block.offsetHeight : 1
+    // O pé do sobrescrito, e não o topo: ele sobe acima da linha dele.
+    const y = (reference.getBoundingClientRect().bottom - box.top) / scale - 1
+    const next = lineStarts.find((start) => start > y)
+    return top + (next ?? height)
+  }
+  const index = children.findIndex((child) => child.contains(reference))
+  if (index >= 0 && childTops[index + 1] !== undefined) return childTops[index + 1]!
+  return top + height
+}
+
+/** A altura do corpo da nota e o topo de cada linha dele, na largura em que está. */
+function measureNote(body: NoteBody): { height: number; lines: number[] } {
+  const element = body.body
+  const height = element.offsetHeight
+  if (height <= 0) return { height: 0, lines: [0] }
+  const box = element.getBoundingClientRect()
+  const scale = box.height > 0 ? box.height / height : 1
+  const lines: number[] = []
+  for (const child of Array.from(element.children)) {
+    if (!(child instanceof HTMLElement)) continue
+    const top = (child.getBoundingClientRect().top - box.top) / scale
+    const measured = /^(P|H[1-6])$/.test(child.tagName) ? measureLines(body.view, child) : null
+    if (measured === null || measured.starts.length === 0) lines.push(top)
+    else for (const start of measured.starts) lines.push(top + start)
+  }
+  const sorted = [...new Set(lines.map((line) => Math.round(line * 100) / 100))]
+    .filter((line) => line >= 0 && line < height)
+    .sort((left, right) => left - right)
+  // A primeira linha começa no topo do corpo: a margem de cima vai com ela.
+  sorted[0] = 0
+  return { height, lines: sorted }
 }

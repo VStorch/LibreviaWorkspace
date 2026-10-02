@@ -119,6 +119,10 @@ public static class DocxWriter
                 model.BeforeRevisions);
         }
 
+        // A numeração das notas (M11): só quando o modelo pede outra que a do
+        // pacote — o `.sdoc` reaberto e gravado como `.docx` não a perde mais.
+        NotesWriter.ApplyNumbering(part, model.Notes, touched);
+
         // O corpo dos comentários: o criado, o editado, o resolvido e o excluído —
         // ver CommentsWriter. Antes do conserto das pontas, que precisa conhecer os
         // comentários novos para não descartar as âncoras deles.

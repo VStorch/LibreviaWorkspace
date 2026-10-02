@@ -60,6 +60,8 @@ export const MENU = {
   'menu.insert.specialCharacter': { pt: 'Caractere especial…', en: 'Special character…' },
   'menu.insert.bookmark': { pt: 'Marcador…', en: 'Bookmark…' },
   'menu.insert.comment': { pt: 'Comentário', en: 'Comment' },
+  'menu.insert.footnote': { pt: 'Nota de rodapé', en: 'Footnote' },
+  'menu.insert.endnote': { pt: 'Nota de fim', en: 'Endnote' },
   'menu.insert.nextComment': { pt: 'Próximo comentário', en: 'Next comment' },
   'menu.insert.previousComment': { pt: 'Comentário anterior', en: 'Previous comment' },
 

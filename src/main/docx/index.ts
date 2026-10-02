@@ -210,6 +210,9 @@ export async function saveDocx(
       // rascunho de antes delas, que escolhe a leitura de referência e deixa as
       // partes das notas como estão.
       ...(model.beforeNotes ? { beforeNotes: true } : {}),
+      // E a numeração delas, que o sidecar só grava quando difere da do arquivo
+      // de destino — é o que um rascunho levado para .docx precisa.
+      ...(model.notes === undefined ? {} : { notes: model.notes }),
       ...(model.styles === undefined ? {} : { styles: model.styles }),
     },
     new Uint8Array(original),
@@ -348,6 +351,7 @@ function unwrapSdoc(content: string): {
   trackChanges: boolean | undefined
   beforeRevisions: boolean
   beforeNotes: boolean
+  notes: unknown
 } {
   let parsed: unknown
   try {
@@ -373,6 +377,9 @@ function unwrapSdoc(content: string): {
       trackChanges: z.boolean().optional(),
       beforeRevisions: z.boolean().optional(),
       beforeNotes: z.boolean().optional(),
+      // A numeração vai como veio; quem a confere é o sidecar, que só a grava
+      // quando difere da do pacote.
+      notes: z.unknown().optional(),
     })
     .safeParse(parsed)
   if (!envelope.success) {
@@ -392,5 +399,6 @@ function unwrapSdoc(content: string): {
     trackChanges: envelope.data.trackChanges,
     beforeRevisions: envelope.data.beforeRevisions === true,
     beforeNotes: envelope.data.beforeNotes === true,
+    notes: envelope.data.notes,
   }
 }

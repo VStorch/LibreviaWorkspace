@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { paginate, paginateSections, type MeasuredBlock, type SectionFlow } from './paginate.js'
+import {
+  paginate,
+  paginateSections,
+  type MeasuredBlock,
+  type MeasuredNote,
+  type SectionFlow,
+  noteLineTop,
+  noteSpan,
+} from './paginate.js'
 
 /**
  * Blocos empilhados de altura fixa, na ordem — o formato que o editor mede.
@@ -392,5 +400,137 @@ describe('colunas (M9)', () => {
     const plan = paginateSections(blocks, [flow(1000, { columns: 2 })])
     expect(columnsOf(plan, 3)).toEqual([0, 1, 1])
     expect(plan.placements.get(1)?.lift).toBe(-100)
+  })
+})
+
+describe('notas de rodapé (M11)', () => {
+  const page = [{ height: 1000, newSheet: false, parity: null, restart: null }] as const
+  const SEPARATOR = 20
+  /** Uma nota de `lines` linhas de 20 px, com a referência no pé de `at`. */
+  const note = (id: string, at: number, lines = 1): MeasuredNote => ({
+    id,
+    at,
+    height: lines * 20,
+    lines: Array.from({ length: lines }, (_, line) => line * 20),
+  })
+  /** Um parágrafo de linhas de 20 px, cortável entre elas. */
+  const paragraph = (top: number, lines: number, notes: MeasuredNote[] = []): MeasuredBlock => ({
+    top,
+    height: lines * 20,
+    breakpoints: Array.from({ length: lines - 1 }, (_, line) => top + (line + 1) * 20),
+    isPageBreak: false,
+    breakAfter: false,
+    keepWithNext: false,
+    notes,
+  })
+
+  it('reserva no pé da folha o separador e a nota', () => {
+    // 50 linhas cabem (1000); com a nota de uma linha (20 + 20 de separador)
+    // na primeira, só 48.
+    const plan = paginateSections([paragraph(0, 60, [note('a', 20)])], page, { separator: SEPARATOR })
+    expect(plan.breaks).toEqual([960])
+    expect(plan.notes[0]).toEqual([{ id: 'a', fromLine: 0, toLine: 1 }])
+    expect(plan.noteHeights[0]).toBe(40)
+    expect(plan.notes[1]).toEqual([])
+  })
+
+  it('o pedaço da nota vai do topo de uma linha ao da seguinte, e a última até o pé', () => {
+    const measured = { height: 70, lines: [0, 22, 40] }
+    expect(noteLineTop(measured, 1)).toBe(22)
+    expect(noteLineTop(measured, 3)).toBe(70)
+    expect(noteSpan(measured, 1, 3)).toBe(48)
+    expect(noteSpan(measured, 0, 1)).toBe(22)
+  })
+
+  it('sem nota, nada muda', () => {
+    const blocks = [paragraph(0, 60)]
+    expect(paginateSections(blocks, page, { separator: SEPARATOR }).breaks).toEqual(paginate(blocks, 1000))
+  })
+
+  it('a nota que não cabe leva a linha da referência para a folha seguinte', () => {
+    // A referência está na linha 49 (pé em 980): o texto caberia, a primeira
+    // linha da nota não — a linha desce, e a nota vai com ela.
+    const plan = paginateSections([paragraph(0, 60, [note('a', 980)])], page, { separator: SEPARATOR })
+    expect(plan.breaks).toEqual([960])
+    expect(plan.notes[0]).toEqual([])
+    expect(plan.notes[1]).toEqual([{ id: 'a', fromLine: 0, toLine: 1 }])
+  })
+
+  it('a nota longa fica com a primeira linha na folha da referência e continua na seguinte', () => {
+    const blocks = [paragraph(0, 30, [note('a', 400, 40)]), paragraph(600, 25)]
+    const plan = paginateSections(blocks, page, { separator: SEPARATOR })
+    // A última nota só precisa da primeira linha: o texto continua até 960, e
+    // a nota fica com o que sobra (20 px, uma linha).
+    expect(plan.breaks).toEqual([960])
+    expect(plan.notes[0]).toEqual([{ id: 'a', fromLine: 0, toLine: 1 }])
+    // Na folha seguinte a continuação vem antes de tudo.
+    expect(plan.notes[1]).toEqual([{ id: 'a', fromLine: 1, toLine: 40 }])
+  })
+
+  it('a continuação longa enche o pé das folhas seguintes, sem tomar a folha toda', () => {
+    // A nota de 120 linhas na primeira linha e texto de sobra depois: a
+    // continuação pede meia folha em cada uma, e não uma linha por folha.
+    const plan = paginateSections([paragraph(0, 1, [note('a', 20, 120)]), paragraph(20, 150)], page, {
+      separator: SEPARATOR,
+    })
+    const slices = plan.notes.map((sheet) => sheet.map((slice) => [slice.fromLine, slice.toLine]))
+    expect(slices[0]).toEqual([[0, 1]])
+    expect(slices[1]).toEqual([[1, 26]])
+    expect(slices[2]).toEqual([[26, 51]])
+    // Nenhuma folha passa da altura: texto + separador + notas.
+    plan.notes.forEach((_, sheet) => {
+      const start = sheet === 0 ? 0 : plan.breaks[sheet - 1]!
+      const end = plan.breaks[sheet] ?? 3020
+      expect(end - start + (plan.noteHeights[sheet] ?? 0)).toBeLessThanOrEqual(1000)
+    })
+    expect(plan.notes.flat().at(-1)?.toLine).toBe(120)
+  })
+
+  it('a nota maior que a folha continua em folhas só de notas no fim', () => {
+    const plan = paginateSections([paragraph(0, 2, [note('a', 20, 120)])], page, { separator: SEPARATOR })
+    expect(plan.breaks.length).toBe(2)
+    expect(plan.notes.map((slices) => slices.map((slice) => [slice.fromLine, slice.toLine]))).toEqual([
+      [[0, 47]],
+      [[47, 96]],
+      [[96, 120]],
+    ])
+    expect(plan.sheets).toHaveLength(3)
+  })
+
+  it('as notas de várias referências somam, e a última pode ser cortada', () => {
+    const blocks = [paragraph(0, 45, [note('a', 20, 3), note('b', 880, 5)])]
+    const plan = paginateSections(blocks, page, { separator: SEPARATOR })
+    // Até 900 de texto: 900 + 20 + 60 de a + primeira linha de b (20) = 1000
+    // cabe; a linha seguinte não. A anterior vai inteira.
+    expect(plan.breaks).toEqual([900])
+    expect(plan.notes[0]).toEqual([
+      { id: 'a', fromLine: 0, toLine: 3 },
+      { id: 'b', fromLine: 0, toLine: 1 },
+    ])
+    expect(plan.notes[1]).toEqual([{ id: 'b', fromLine: 1, toLine: 5 }])
+  })
+
+  it('cada seção reserva as notas da própria folha', () => {
+    const blocks = [
+      { ...paragraph(0, 10, [note('a', 20)]), section: 0 },
+      { ...paragraph(200, 10, [note('b', 220)]), section: 1 },
+    ]
+    const plan = paginateSections(
+      blocks,
+      [
+        { height: 1000, newSheet: false, parity: null, restart: null },
+        { height: 1000, newSheet: true, parity: null, restart: null },
+      ],
+      { separator: SEPARATOR },
+    )
+    expect(plan.breaks).toEqual([200])
+    expect(plan.notes).toEqual([[{ id: 'a', fromLine: 0, toLine: 1 }], [{ id: 'b', fromLine: 0, toLine: 1 }]])
+  })
+
+  it('as notas de fim, como blocos depois do texto, cortam entre as linhas delas', () => {
+    // Quem as põe no fluxo é a medida (`usePagination`): aqui são blocos comuns.
+    const blocks = [paragraph(0, 40), paragraph(820, 20)]
+    const plan = paginateSections(blocks, page, { separator: SEPARATOR })
+    expect(plan.breaks).toEqual([1000])
   })
 })

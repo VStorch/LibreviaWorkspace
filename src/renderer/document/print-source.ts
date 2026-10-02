@@ -2,14 +2,28 @@ import type { Editor } from '@tiptap/react'
 import { DOMSerializer, Fragment, Node as ProseMirrorNode } from '@tiptap/pm/model'
 import { pxToMm, type PageSetup } from '@services/document/model.js'
 import { bandFloatsOf, floatsOf, type FloatingObject } from '@services/document/floating.js'
-import type { PrintFloat, PrintPage } from '@services/document/print-pages.js'
+import type { PrintFloat, PrintNoteArea, PrintPage } from '@services/document/print-pages.js'
 import { drawListsForPrint } from './extensions/list-numbering.js'
 import { sheetSetups } from '@services/document/sections.js'
 import { RevisionView } from '@shared/types.js'
 import { DELETION, INSERTION } from './extensions/track-changes.js'
 import { isHiddenBlock, isHiddenInline, revisionViewOf } from './extensions/revision-view.js'
-import { notesSetupOf, numberNotesForPrint } from './extensions/note-ref.js'
-import { collapsed, drawnSheet, isInternalStart, type PageLayout, type PageStart } from './usePagination.js'
+import {
+  drawsNoteNumber,
+  noteRefLabels,
+  noteRefsOf,
+  notesSetupOf,
+  numberNotesForPrint,
+} from './extensions/note-ref.js'
+import { NOTE_NUMBER_CLASS } from './extensions/note-view.js'
+import {
+  NOTE_SEPARATOR_PX,
+  collapsed,
+  drawnSheet,
+  isInternalStart,
+  type PageLayout,
+  type PageStart,
+} from './usePagination.js'
 
 /**
  * O documento recortado nas folhas que a tela mostra.
@@ -115,6 +129,7 @@ export function splitIntoPages(
         ),
         ...bandFloats(sheet.setup, sheet.inSection, editor),
       ],
+      notes: notesForPrint(editor, layout, pages.length, view, notes),
       columnLines: layout.columnLines
         .filter((line) => line.sheet === pages.length)
         .map((line) => ({
@@ -127,6 +142,48 @@ export function splitIntoPages(
   }
 
   return pages
+}
+
+/**
+ * As notas da folha desenhada `sheet` (M11): as áreas que a tela pôs nela, com o
+ * corpo de cada nota serializado do nó e o número escrito no começo — no papel
+ * não há decoração para desenhá-lo.
+ */
+function notesForPrint(
+  editor: Editor,
+  layout: PageLayout,
+  sheet: number,
+  view: RevisionView,
+  notes: ReturnType<typeof notesSetupOf>,
+): PrintNoteArea[] {
+  const areas = layout.noteAreas.filter((area) => area.sheet === sheet)
+  if (areas.length === 0) return []
+  const serializer = DOMSerializer.fromSchema(editor.schema)
+  const refs = noteRefsOf(editor.state.doc)
+  const labels = noteRefLabels(editor.state.doc, notes)
+  return areas.map((area) => ({
+    topMm: pxToMm(area.topPx),
+    leftMm: pxToMm(area.leftPx),
+    widthMm: pxToMm(area.widthPx),
+    separator: area.separator,
+    separatorMm: pxToMm(NOTE_SEPARATOR_PX),
+    items: area.items.flatMap((item) => {
+      const reference = refs[item.index]
+      if (reference === undefined) return []
+      const children: ProseMirrorNode[] = []
+      reference.node.forEach((child) => children.push(child))
+      const holder = document.createElement('div')
+      holder.appendChild(serializer.serializeFragment(Fragment.fromArray(blocksForView(children, view))))
+      const first = holder.firstElementChild
+      if (drawsNoteNumber(reference.node) && first !== null && /^(P|H[1-6])$/.test(first.tagName)) {
+        const number = document.createElement('span')
+        number.className = NOTE_NUMBER_CLASS
+        number.textContent = labels[item.index] ?? ''
+        first.prepend(number)
+      }
+      return [{ html: holder.innerHTML, clipTopMm: pxToMm(item.clipTopPx), heightMm: pxToMm(item.heightPx) }]
+    }),
+  }))
 }
 
 /**

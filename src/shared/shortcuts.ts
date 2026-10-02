@@ -132,6 +132,17 @@ export const SHORTCUTS = {
     does: 'Marcador…',
   },
   insertTable: { owner: ShortcutOwner.Menu, key: { mod: true, key: 'F12' }, does: 'Inserir tabela…' },
+  /** `Ctrl+Alt+F` e `Ctrl+Alt+D`: os do Word para as notas de rodapé e de fim (M11). */
+  insertFootnote: {
+    owner: ShortcutOwner.Menu,
+    key: { mod: true, alt: true, key: 'F' },
+    does: 'Nota de rodapé',
+  },
+  insertEndnote: {
+    owner: ShortcutOwner.Menu,
+    key: { mod: true, alt: true, key: 'D' },
+    does: 'Nota de fim',
+  },
   /** `Ctrl+Alt+M`, o do Word e o do LibreOffice para inserir comentário. */
   insertComment: {
     owner: ShortcutOwner.Menu,

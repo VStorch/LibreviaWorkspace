@@ -2108,3 +2108,39 @@ button {
   border-left: 1px solid #000000;
   pointer-events: none;
 }
+
+/*
+  A área de notas da folha (M11). A camada das faixas não recebe clique; a nota,
+  que se edita, recebe — e fica acima da coluna de texto, cujo retângulo cobre
+  também o pé da folha.
+*/
+.paper-notes {
+  pointer-events: auto;
+  z-index: 2;
+}
+
+.paper-notes__slot--continued {
+  cursor: text;
+}
+
+/*
+  Os corpos de nota sem folha: medidos aqui, na largura da coluna, sem aparecer.
+  Transparentes, e não escondidos: a nota que acabou de nascer recebe o foco
+  aqui mesmo, antes de a paginação a pôr no pé da folha.
+*/
+.note-pool {
+  position: absolute;
+  top: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* No modo de leitura não há folha: as notas vêm depois do texto, numa lista. */
+.note-pool--reading {
+  position: static;
+  opacity: 1;
+  pointer-events: auto;
+  margin-top: 2em;
+  padding-top: 0.5em;
+  border-top: 1px solid var(--border, #cccccc);
+}

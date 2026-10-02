@@ -367,6 +367,33 @@ const DARK_CONTENT_CSS = `
 }
 `
 
+/*
+  As notas (M11), na tela e no papel: a área no pé da folha, o separador e o
+  número no começo de cada nota. A altura do separador vem da paginação, no
+  próprio elemento; o traço fica no meio dele.
+*/
+export const NOTES_CSS = `
+.paper-notes { position: absolute; }
+.paper-notes__separator { position: relative; }
+.paper-notes__separator::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 33%;
+  border-top: 0.75pt solid #000000;
+}
+.paper-notes__separator--continued::after { width: 100%; }
+/* clip, e não hidden: a área recortada não rola nem quando o cursor anda nela. */
+/*
+  E flow-root, porque clip não isola a margem: sem isso a margem negativa da
+  continuação vaza do recorte e sobe a área inteira, por cima do texto.
+*/
+.paper-notes__slot { overflow: clip; display: flow-root; }
+.note-body { display: flex; flex-direction: column; }
+.note-number { vertical-align: super; font-size: 0.65em; line-height: 0; }
+`
+
 export const EDITOR_ONLY_CSS = `
 /*
   O campo selecionado ganha o sombreado cinza do Word — é como se vê que aquele

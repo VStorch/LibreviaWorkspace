@@ -4,6 +4,8 @@ import { bandForPage, bandInsetMm, hasBandContent, pageLabel } from '@services/d
 import { bandFloatsOf } from '@services/document/floating.js'
 import { FloatingLayer, type FloatSource, type PlacedFloat } from './FloatingLayer.js'
 import { PageBand } from './PageBand.js'
+import { NoteAreaView } from './NoteArea.js'
+import type { NoteArea } from './usePagination.js'
 
 /**
  * O que se desenha por cima de uma folha: cabeçalho, rodapé e objetos ancorados.
@@ -20,6 +22,7 @@ export function PaperSheet({
   leftPx = 0,
   section = 0,
   columnLines = [],
+  noteAreas = [],
   floats,
   schema,
   onEditFloat,
@@ -38,6 +41,8 @@ export function PaperSheet({
   section?: number
   /** As linhas entre colunas desta folha, em pixels da folha. */
   columnLines?: readonly { readonly leftPx: number; readonly topPx: number; readonly heightPx: number }[]
+  /** As notas de rodapé e de fim desta folha (M11). */
+  noteAreas?: readonly NoteArea[]
   /** Os objetos ancorados em blocos que caíram nesta folha. */
   floats: readonly PlacedFloat[]
   schema: Schema
@@ -110,6 +115,10 @@ export function PaperSheet({
           className="paper-column-line"
           style={{ left: `${line.leftPx}px`, top: `${line.topPx}px`, height: `${line.heightPx}px` }}
         />
+      ))}
+
+      {noteAreas.map((area) => (
+        <NoteAreaView key={area.kind} area={area} />
       ))}
     </div>
   )

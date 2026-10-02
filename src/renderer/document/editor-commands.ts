@@ -45,6 +45,8 @@ export const EditorCommand = {
   InsertCaption: 'insert-caption',
   InsertCrossReference: 'insert-cross-reference',
   InsertComment: 'insert-comment',
+  InsertFootnote: 'insert-footnote',
+  InsertEndnote: 'insert-endnote',
   NextComment: 'next-comment',
   PreviousComment: 'previous-comment',
   AuthorName: 'author-name',

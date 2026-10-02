@@ -196,3 +196,58 @@ describe('controle de alterações', () => {
     expect(textWithoutDeletions(paragraph, ' ', ' ')).toBe('Texto inserido   fim.')
   })
 })
+
+describe('alterações dentro das notas (M11)', () => {
+  const withNote = ProseMirrorNode.fromJSON(schema, {
+    type: 'doc',
+    content: [
+      {
+        type: 'paragraph',
+        content: [
+          { type: 'text', text: 'Corpo' },
+          {
+            type: 'noteRef',
+            attrs: { kind: 'footnote', nid: '1', mark: null },
+            content: [
+              {
+                type: 'paragraph',
+                content: [
+                  { type: 'text', text: 'Nota ' },
+                  { type: 'text', text: 'nova', marks: [ins('Ana', '7')] },
+                  { type: 'text', text: ' velha', marks: [del('Ana', '8')] },
+                ],
+              },
+            ],
+          },
+          { type: 'text', text: ' fim' },
+        ],
+      },
+    ],
+  })
+
+  it('acha as alterações do corpo da nota, na ordem do texto', () => {
+    const changes = revisionChangesOf(withNote)
+    expect(changes.map((change) => withNote.textBetween(change.from, change.to))).toEqual(['nova', ' velha'])
+  })
+
+  it('aceitar todas não deixa marca na nota', () => {
+    const state = EditorState.create({ doc: withNote })
+    const tr = state.tr
+    expect(settleAllChanges(tr, true)).toBe(true)
+    expect(revisionChangesOf(tr.doc)).toEqual([])
+    expect(tr.doc.child(0).child(1).textContent).toBe('Nota nova')
+  })
+
+  it('rejeitar todas devolve a nota como era', () => {
+    const tr = EditorState.create({ doc: withNote }).tr
+    settleAllChanges(tr, false)
+    expect(tr.doc.child(0).child(1).textContent).toBe('Nota  velha')
+    expect(revisionChangesOf(tr.doc)).toEqual([])
+  })
+
+  it('a próxima alteração entra na nota', () => {
+    expect(
+      withNote.textBetween(adjacentChange(withNote, 0, 1)!.from, adjacentChange(withNote, 0, 1)!.to),
+    ).toBe('nova')
+  })
+})

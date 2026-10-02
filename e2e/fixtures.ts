@@ -1208,3 +1208,90 @@ export async function docxWithLongTable(rows = 80, header = false): Promise<Buff
     ],
   ])
 }
+
+/**
+ * Um documento longo com uma nota de rodapé por parágrafo (M11, fase 2): as
+ * notas tiram altura das folhas e empurram linhas para a seguinte. Papel A4,
+ * margens e fonte declaradas, para a conta de folhas valer também no LibreOffice.
+ */
+export async function docxWithManyFootnotes(count = 24): Promise<Buffer> {
+  const text =
+    'Os conselheiros discutiram o orçamento do ano seguinte, as obras da sede e a contratação de pessoal, ' +
+    'e decidiram adiar a votação até que os números da tesouraria fossem revistos por uma comissão própria.'
+  const noteText =
+    'Conforme a ata anterior, a comissão terá trinta dias para revisar os números e apresentar um parecer ' +
+    'escrito, que será lido na abertura da reunião seguinte, antes de qualquer outro assunto da pauta.'
+  let body = ''
+  let notes = ''
+  for (let id = 1; id <= count; id++) {
+    body +=
+      `<w:p><w:r><w:t xml:space="preserve">${id}. ${text}</w:t></w:r>` +
+      `<w:r><w:rPr><w:rStyle w:val="FootnoteReference"/></w:rPr><w:footnoteReference w:id="${id}"/></w:r>` +
+      `<w:r><w:t xml:space="preserve"> ${text}</w:t></w:r></w:p>`
+    notes +=
+      `<w:footnote w:id="${id}"><w:p><w:pPr><w:pStyle w:val="FootnoteText"/></w:pPr>` +
+      `<w:r><w:rPr><w:rStyle w:val="FootnoteReference"/></w:rPr><w:footnoteRef/></w:r>` +
+      `<w:r><w:t xml:space="preserve"> Nota ${id}. ${noteText}</w:t></w:r></w:p></w:footnote>`
+  }
+  return footnotesPackage(body, notes)
+}
+
+/** O pacote com corpo e notas de rodapé dados, na fonte e no papel dos testes de nota. */
+function footnotesPackage(body: string, notes: string): Buffer {
+  const styles = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:styles xmlns:w="${W}">
+<w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="Liberation Serif" w:hAnsi="Liberation Serif"/><w:sz w:val="24"/></w:rPr></w:rPrDefault>
+<w:pPrDefault><w:pPr><w:spacing w:after="0" w:line="240" w:lineRule="auto"/></w:pPr></w:pPrDefault></w:docDefaults>
+<w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:qFormat/></w:style>
+<w:style w:type="paragraph" w:styleId="FootnoteText"><w:name w:val="footnote text"/><w:basedOn w:val="Normal"/><w:rPr><w:sz w:val="20"/></w:rPr></w:style>
+<w:style w:type="character" w:styleId="FootnoteReference"><w:name w:val="footnote reference"/><w:rPr><w:vertAlign w:val="superscript"/></w:rPr></w:style>
+</w:styles>`
+  const rels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footnotes" Target="footnotes.xml"/>
+</Relationships>`
+  const footnotes =
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<w:footnotes xmlns:w="${W}">` +
+    `<w:footnote w:type="separator" w:id="-1"><w:p><w:pPr><w:spacing w:after="0" w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:separator/></w:r></w:p></w:footnote>` +
+    `<w:footnote w:type="continuationSeparator" w:id="0"><w:p><w:pPr><w:spacing w:after="0" w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:continuationSeparator/></w:r></w:p></w:footnote>` +
+    notes +
+    `</w:footnotes>`
+  const document = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="${W}"><w:body>${body}<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1417" w:right="1701" w:bottom="1417" w:left="1701" w:header="708" w:footer="708" w:gutter="0"/></w:sectPr></w:body></w:document>`
+
+  return zip([
+    [
+      '[Content_Types].xml',
+      CONTENT_TYPES.replace(
+        /<Override PartName="\/word\/comments[^>]+>/,
+        '<Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>' +
+          '<Override PartName="/word/footnotes.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footnotes+xml"/>',
+      ),
+    ],
+    ['_rels/.rels', ROOT_RELS],
+    ['word/_rels/document.xml.rels', rels],
+    ['word/styles.xml', styles],
+    ['word/document.xml', document],
+    ['word/footnotes.xml', footnotes],
+  ])
+}
+
+/**
+ * Uma nota de rodapé maior que uma folha (`lines` parágrafos curtos) na primeira
+ * linha, e alguns parágrafos depois: a continuação passa para as folhas seguintes.
+ */
+export async function docxWithLongFootnote(lines = 70): Promise<Buffer> {
+  let note =
+    `<w:footnote w:id="1"><w:p><w:pPr><w:pStyle w:val="FootnoteText"/></w:pPr>` +
+    `<w:r><w:rPr><w:rStyle w:val="FootnoteReference"/></w:rPr><w:footnoteRef/></w:r>` +
+    `<w:r><w:t xml:space="preserve"> Nota longa.</w:t></w:r></w:p>`
+  for (let line = 0; line < lines; line++) {
+    note += `<w:p><w:pPr><w:pStyle w:val="FootnoteText"/></w:pPr><w:r><w:t>Linha ${line} da nota longa.</w:t></w:r></w:p>`
+  }
+  note += '</w:footnote>'
+  const body =
+    `<w:p><w:r><w:t>Alfa</w:t></w:r><w:r><w:rPr><w:rStyle w:val="FootnoteReference"/></w:rPr><w:footnoteReference w:id="1"/></w:r></w:p>` +
+    ['Beta', 'Gama', 'Delta'].map((word) => `<w:p><w:r><w:t>${word}</w:t></w:r></w:p>`).join('')
+  return footnotesPackage(body, note)
+}

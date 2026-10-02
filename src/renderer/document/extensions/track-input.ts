@@ -2,6 +2,7 @@ import { Extension } from '@tiptap/core'
 import { Fragment, Slice, type Mark, type Node as ProseMirrorNode } from '@tiptap/pm/model'
 import { Plugin, PluginKey, TextSelection, type EditorState, type Transaction } from '@tiptap/pm/state'
 import { Mapping, ReplaceStep, StepMap, canJoin, type Step } from '@tiptap/pm/transform'
+import type { EditorView } from '@tiptap/pm/view'
 import { DELETION, INSERTION, ZERO_WIDTH, blockRevisionOf } from './track-changes.js'
 
 /**
@@ -627,6 +628,47 @@ function plainTextOf(fragment: Fragment): string {
   return blocks.join('\n\n')
 }
 
+/**
+ * O Backspace e o Delete de um caractere, com o controle ligado, feitos aqui e
+ * não pelo navegador: apagando sozinho ele mexe também no trecho excluído
+ * vizinho (o espaço do começo vira `&nbsp;`), e a releitura da tela devolvia
+ * esse trecho como texto novo — inserido de volta. Exportado para o corpo da
+ * nota (M11), que é outro `EditorView` e não tem os plugins do editor.
+ */
+export function trackedDeleteKey(view: EditorView, event: KeyboardEvent, isTracking: () => boolean): boolean {
+  if (view.composing) return false
+  if (event.key !== 'Backspace' && event.key !== 'Delete') return false
+  if (event.metaKey || event.altKey || event.shiftKey) return false
+  const { selection } = view.state
+  if (!selection.empty) return false
+  const $cursor = selection.$head
+  const backward = event.key === 'Backspace'
+
+  // Ctrl: a palavra. O navegador, apagando sozinho, refaz o `<del>`
+  // vizinho como tachado comum — a revisão virava formatação mesmo com o
+  // controle desligado. Então, perto de revisão ou com o controle ligado,
+  // a palavra sai por aqui.
+  if (event.ctrlKey) {
+    if (!isTracking() && !hasRevisionInside($cursor.parent)) return false
+    const range = wordRangeAt($cursor.parent, $cursor.parentOffset, backward)
+    if (range === null) return false
+    const start = $cursor.start()
+    view.dispatch(view.state.tr.delete(start + range[0], start + range[1]).scrollIntoView())
+    return true
+  }
+  if (!isTracking()) return false
+  const node = backward ? $cursor.nodeBefore : $cursor.nodeAfter
+  if (node === null || !node.isText || node.text === undefined) return false
+  // Um caractere, inteiro: o par substituto de um emoji vai junto.
+  const text = node.text
+  const unit = backward ? text.charCodeAt(text.length - 1) : text.charCodeAt(0)
+  const surrogate = backward ? unit >= 0xdc00 && unit <= 0xdfff : unit >= 0xd800 && unit <= 0xdbff
+  const size = surrogate && text.length > 1 ? 2 : 1
+  const from = backward ? $cursor.pos - size : $cursor.pos
+  view.dispatch(view.state.tr.delete(from, from + size).scrollIntoView())
+  return true
+}
+
 export const TrackInput = Extension.create<TrackInputOptions>({
   name: 'trackInput',
 
@@ -667,43 +709,7 @@ export const TrackInput = Extension.create<TrackInputOptions>({
       new Plugin({
         key: trackInputKey,
         props: {
-          // O Backspace e o Delete de um caractere, com o controle ligado, feitos
-          // aqui e não pelo navegador: apagando sozinho ele mexe também no trecho
-          // excluído vizinho (o espaço do começo vira `&nbsp;`), e a releitura da
-          // tela devolvia esse trecho como texto novo — inserido de volta.
-          handleKeyDown(view, event) {
-            if (view.composing) return false
-            if (event.key !== 'Backspace' && event.key !== 'Delete') return false
-            if (event.metaKey || event.altKey || event.shiftKey) return false
-            const { selection } = view.state
-            if (!selection.empty) return false
-            const $cursor = selection.$head
-            const backward = event.key === 'Backspace'
-
-            // Ctrl: a palavra. O navegador, apagando sozinho, refaz o `<del>`
-            // vizinho como tachado comum — a revisão virava formatação mesmo com o
-            // controle desligado. Então, perto de revisão ou com o controle ligado,
-            // a palavra sai por aqui.
-            if (event.ctrlKey) {
-              if (!options.isTracking() && !hasRevisionInside($cursor.parent)) return false
-              const range = wordRangeAt($cursor.parent, $cursor.parentOffset, backward)
-              if (range === null) return false
-              const start = $cursor.start()
-              view.dispatch(view.state.tr.delete(start + range[0], start + range[1]).scrollIntoView())
-              return true
-            }
-            if (!options.isTracking()) return false
-            const node = backward ? $cursor.nodeBefore : $cursor.nodeAfter
-            if (node === null || !node.isText || node.text === undefined) return false
-            // Um caractere, inteiro: o par substituto de um emoji vai junto.
-            const text = node.text
-            const unit = backward ? text.charCodeAt(text.length - 1) : text.charCodeAt(0)
-            const surrogate = backward ? unit >= 0xdc00 && unit <= 0xdfff : unit >= 0xd800 && unit <= 0xdbff
-            const size = surrogate && text.length > 1 ? 2 : 1
-            const from = backward ? $cursor.pos - size : $cursor.pos
-            view.dispatch(view.state.tr.delete(from, from + size).scrollIntoView())
-            return true
-          },
+          handleKeyDown: (view, event) => trackedDeleteKey(view, event, options.isTracking),
           // O que se cola (e se arrasta) entra como texto novo; com o controle
           // ligado, é ele que vira inserção.
           transformPasted: (slice) => stripRevisions(slice),

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { pxToMm, type PageSetup } from '@services/document/model.js'
 import { type BandHeights } from '@services/document/band.js'
 
@@ -20,11 +20,17 @@ import { type BandHeights } from '@services/document/band.js'
  */
 export function useBandHeights(sections: readonly PageSetup[], revision: number, sheets = ''): BandHeights[] {
   const [bands, setBands] = useState<BandHeights[]>([])
+  const last = useRef<BandHeights[]>([])
 
   useEffect(() => {
+    // Sem chamar o `setState` quando nada mudou: o efeito roda a cada tecla, e
+    // um estado pedido a cada desenho — mesmo igual — encadeava desenhos na
+    // digitação rápida até o React desistir (erro 185).
     const measure = (): void => {
       const next = measureBands(sections.length)
-      setBands((current) => (sameBands(current, next) ? current : next))
+      if (sameBands(last.current, next)) return
+      last.current = next
+      setBands(next)
     }
 
     measure()

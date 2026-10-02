@@ -119,6 +119,9 @@ export const MenuCommand = {
   InsertBookmark: 'insert-bookmark',
   /** Comentário na seleção, ou no cursor (M10). */
   InsertComment: 'insert-comment',
+  /** Nota de rodapé e nota de fim no cursor, com o cursor já no corpo dela (M11). */
+  InsertFootnote: 'insert-footnote',
+  InsertEndnote: 'insert-endnote',
   /** Vai à próxima conversa (ou à anterior), pela ordem do texto, e a escolhe no painel. */
   NextComment: 'next-comment',
   PreviousComment: 'previous-comment',

@@ -80,8 +80,18 @@ function sameRevision(a: ProseMirrorMark, b: ProseMirrorMark): boolean {
  */
 export function revisionChangesOf(doc: ProseMirrorNode): RevisionChange[] {
   const changes: RevisionChange[] = []
+  collectChanges(doc, 0, changes)
+  return changes.sort((a, b) => a.from - b.from || a.to - b.to)
+}
 
-  doc.descendants((node, pos) => {
+/**
+ * As alterações dentro de `parent`, cujo conteúdo começa em `base`. Desce nos
+ * corpos de nota (M11): o que se controla numa nota é alteração do documento,
+ * e aceitar ou rejeitar todas não pode deixá-la para trás.
+ */
+function collectChanges(parent: ProseMirrorNode, base: number, changes: RevisionChange[]): void {
+  parent.descendants((node, relative) => {
+    const pos = base + relative
     if (node.type.name === 'tableRow') {
       const revision = blockRevisionOf(node.attrs['rowRevision'])
       if (revision !== null) {
@@ -147,10 +157,11 @@ export function revisionChangesOf(doc: ProseMirrorNode): RevisionChange[] {
       })
     }
 
+    node.forEach((child, offset) => {
+      if (child.type.name === 'noteRef') collectChanges(child, pos + 1 + offset + 1, changes)
+    })
     return false
   })
-
-  return changes.sort((a, b) => a.from - b.from || a.to - b.to)
 }
 
 /**

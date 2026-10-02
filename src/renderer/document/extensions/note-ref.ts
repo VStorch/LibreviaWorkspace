@@ -4,13 +4,14 @@ import { Plugin, PluginKey } from '@tiptap/pm/state'
 import { Decoration, DecorationSet } from '@tiptap/pm/view'
 import type { DocumentNotes } from '@services/document/model.js'
 import { NoteKind, noteLabel, noteLabels } from '@services/document/notes.js'
+import { noteRefView } from './note-view.js'
 
 /**
- * Notas de rodapé e de fim (M11, fase 1): a referência como nó, com o corpo dentro.
+ * Notas de rodapé e de fim (M11): a referência como nó, com o corpo dentro.
  *
  * Um nó em linha e atômico, mas **com conteúdo**: os blocos da nota (`block+`).
- * Atômico porque, nesta fase, o corpo não se edita na tela — a edição no pé da
- * página é a fase 2 —, e com conteúdo porque é assim que ele viaja: copiar a
+ * Atômico porque o corpo não se edita no texto — ele tem um editor próprio, no
+ * pé da página (`note-view.ts`) —, e com conteúdo porque é assim que ele viaja: copiar a
  * referência copia a nota, apagá-la apaga a nota, e o arquivo recebe de volta o
  * corpo que leu. O `nid` é o `w:id` que casa a referência com a nota no arquivo;
  * a colada ao lado da original perde o dela, e a gravação lhe dá uma nota própria.
@@ -43,6 +44,15 @@ function markOf(node: ProseMirrorNode): string | null {
   return typeof mark === 'string' && mark !== '' ? mark : null
 }
 
+/**
+ * Se o corpo da nota leva o número desenhado no começo. A de marca própria
+ * (`customMarkFollows`) não: o Word grava a marca no próprio corpo, e desenhá-la
+ * de novo daria "**".
+ */
+export function drawsNoteNumber(node: ProseMirrorNode): boolean {
+  return markOf(node) === null
+}
+
 /** O rótulo de cada referência do documento, na ordem do texto. */
 export function noteRefLabels(doc: ProseMirrorNode, notes?: DocumentNotes): string[] {
   return noteLabels(
@@ -62,6 +72,8 @@ function numberDecorations(doc: ProseMirrorNode, notes: DocumentNotes | undefine
         pos,
         pos + node.nodeSize,
         markOf(node) === null ? { 'data-note-number': labels[index]! } : {},
+        // O corpo (note-view.ts) lê daqui o número que desenha no começo da nota.
+        { noteLabel: labels[index]! },
       ),
     ),
   )
@@ -165,11 +177,13 @@ export const NoteRef = Node.create<NoteRefOptions>({
         'data-note-ref': '',
         class: 'note-ref',
         'data-note-body': JSON.stringify(node.content.toJSON()),
-        // O corpo à mão enquanto o pé da página não o mostra (fase 2).
-        title: node.textContent,
       },
       markOf(node) ?? '',
     ]
+  },
+
+  addNodeView() {
+    return noteRefView(this.editor)
   },
 
   renderText({ node }) {
@@ -252,7 +266,6 @@ export function numberNotesForPrint(
 ): void {
   for (const element of holder.querySelectorAll<HTMLElement>('sup[data-note-ref]')) {
     element.removeAttribute('data-note-body')
-    element.removeAttribute('title')
     if (element.hasAttribute('data-mark')) continue
     const kind = element.getAttribute('data-kind') ?? NoteKind.Footnote
     const ordinal = counters.get(kind) ?? 0

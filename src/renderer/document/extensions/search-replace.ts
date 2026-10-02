@@ -1,9 +1,10 @@
 import { Extension } from '@tiptap/core'
 import { Plugin, PluginKey, TextSelection, type Transaction } from '@tiptap/pm/state'
-import { Decoration, DecorationSet } from '@tiptap/pm/view'
+import { Decoration, DecorationSet, type EditorView } from '@tiptap/pm/view'
 import type { Node as ProseMirrorNode } from '@tiptap/pm/model'
 import { findOccurrences, stepIndex } from '@services/document/search.js'
 import { textWithoutDeletions } from './track-changes.js'
+import { noteBodyOf } from './note-view.js'
 
 /**
  * Localizar e substituir.
@@ -55,12 +56,20 @@ declare module '@tiptap/core' {
 
 export const searchPluginKey = new PluginKey<SearchPluginState>('searchReplace')
 
-function collectMatches(doc: ProseMirrorNode, term: string, caseSensitive: boolean): SearchMatch[] {
+export function collectMatches(doc: ProseMirrorNode, term: string, caseSensitive: boolean): SearchMatch[] {
   if (term.length === 0) return []
+  const matches = collectIn(doc, 0, term, caseSensitive)
+  // As notas entram na ordem do texto: a ocorrência dentro da nota fica entre as
+  // do parágrafo que vêm antes e depois da referência.
+  return matches.sort((left, right) => left.from - right.from)
+}
 
+/** As ocorrências dentro de `root`, cujo conteúdo começa em `base`. */
+function collectIn(root: ProseMirrorNode, base: number, term: string, caseSensitive: boolean): SearchMatch[] {
   const matches: SearchMatch[] = []
 
-  doc.descendants((node, pos) => {
+  root.descendants((node, offset) => {
+    const pos = base + offset
     if (!node.isTextblock) return true
 
     // O separador de um caractere para nós folha mantém o comprimento do texto
@@ -73,6 +82,14 @@ function collectMatches(doc: ProseMirrorNode, term: string, caseSensitive: boole
     for (const occurrence of findOccurrences(text, term, caseSensitive)) {
       matches.push({ from: pos + 1 + occurrence.start, to: pos + 1 + occurrence.end })
     }
+
+    // O corpo das notas (M11) é do documento e se busca também; a referência
+    // ocupa no texto do parágrafo o lugar dela, sem o corpo.
+    node.forEach((child, childOffset) => {
+      if (child.type.name === 'noteRef') {
+        matches.push(...collectIn(child, pos + 1 + childOffset + 1, term, caseSensitive))
+      }
+    })
 
     // Um bloco de texto não contém outro; descer seria reprocessar o conteúdo.
     return false
@@ -166,7 +183,21 @@ export const SearchReplace = Extension.create<SearchReplaceOptions>({
 
   addCommands() {
     /** Leva o cursor até a ocorrência para que ela role para a área visível. */
-    const revealMatch = (tr: Transaction, match: SearchMatch): void => {
+    const revealMatch = (tr: Transaction, match: SearchMatch, view: EditorView): void => {
+      // Dentro de uma nota a seleção é a do corpo, que tem editor próprio: o
+      // texto fica com o cursor depois da referência, e o corpo seleciona a
+      // ocorrência quando a transação já tiver passado.
+      const $from = tr.doc.resolve(match.from)
+      for (let depth = $from.depth; depth > 0; depth--) {
+        if ($from.node(depth).type.name !== 'noteRef') continue
+        const reference = $from.before(depth)
+        tr.setSelection(TextSelection.create(tr.doc, $from.after(depth)))
+        tr.scrollIntoView()
+        setTimeout(() => {
+          noteBodyOf(view.nodeDOM(reference))?.select(match.from - reference - 1, match.to - reference - 1)
+        }, 0)
+        return
+      }
       tr.setSelection(TextSelection.create(tr.doc, match.from, match.to))
       tr.scrollIntoView()
     }
@@ -194,7 +225,7 @@ export const SearchReplace = Extension.create<SearchReplaceOptions>({
 
       goToMatch:
         (delta) =>
-        ({ tr, state, dispatch }) => {
+        ({ tr, state, dispatch, view }) => {
           const pluginState = searchPluginKey.getState(state)
           if (pluginState === undefined || pluginState.matches.length === 0) return false
 
@@ -202,7 +233,7 @@ export const SearchReplace = Extension.create<SearchReplaceOptions>({
           if (dispatch !== undefined) {
             tr.setMeta(searchPluginKey, { currentIndex: next })
             const match = pluginState.matches[next]
-            if (match !== undefined) revealMatch(tr, match)
+            if (match !== undefined) revealMatch(tr, match, view)
             dispatch(tr)
           }
           return true

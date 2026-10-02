@@ -58,6 +58,23 @@ export interface PrintPage {
     readonly topMm: number
     readonly heightMm: number
   }[]
+  /** As áreas de notas desta folha (M11), já com o HTML de cada nota e o recorte da tela. */
+  readonly notes?: readonly PrintNoteArea[]
+}
+
+/** Uma área de notas no papel: a mesma da tela (`NoteArea`), em mm e com o HTML das notas. */
+export interface PrintNoteArea {
+  readonly topMm: number
+  readonly leftMm: number
+  readonly widthMm: number
+  readonly separator: 'normal' | 'continuation' | null
+  readonly separatorMm: number
+  readonly items: readonly {
+    readonly html: string
+    /** Onde, no corpo da nota, começa a primeira linha desta folha. */
+    readonly clipTopMm: number
+    readonly heightMm: number
+  }[]
 }
 
 /**
@@ -243,6 +260,32 @@ function renderPage(
           `<div class="paper-column-line" style="left:${line.leftMm}mm;top:${line.topMm}mm;height:${line.heightMm}mm"></div>`,
       )
       .join('') +
+    (sheet.notes ?? []).map(renderNotes).join('') +
+    '</div>'
+  )
+}
+
+/**
+ * A área de notas, desenhada como na tela: o separador e cada nota recortada na
+ * altura que a paginação lhe deu — a continuação sobe o corpo até a linha em
+ * que a folha anterior parou.
+ */
+function renderNotes(area: PrintNoteArea): string {
+  const separator =
+    area.separator === null
+      ? ''
+      : `<div class="paper-notes__separator${area.separator === 'continuation' ? ' paper-notes__separator--continued' : ''}" style="height:${area.separatorMm}mm"></div>`
+  const items = area.items
+    .map(
+      (item) =>
+        `<div class="paper-notes__slot" style="height:${item.heightMm}mm">` +
+        `<div class="page__content note-body" style="margin-top:${-item.clipTopMm}mm">${item.html}</div></div>`,
+    )
+    .join('')
+  return (
+    `<div class="paper-notes" style="top:${area.topMm}mm;left:${area.leftMm}mm;width:${area.widthMm}mm">` +
+    separator +
+    items +
     '</div>'
   )
 }

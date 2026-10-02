@@ -99,9 +99,17 @@ export async function stubDialogs(
   }, answers)
 }
 
-/** Dispara um comando do menu nativo, que é como o aplicativo é operado. */
+/**
+ * Dispara um comando do menu nativo, que é como o aplicativo é operado.
+ *
+ * O IPC e as teclas do Playwright chegam à página por canais diferentes, e o
+ * Chromium atende a entrada antes: a tecla digitada logo depois do comando
+ * passava à frente dele (a primeira letra da nota ia para o texto). Uma volta
+ * pela fila de tarefas da página deixa o comando, já entregue, rodar antes.
+ */
 export async function menu(session: Session, command: string): Promise<void> {
   await session.app.evaluate(({ BrowserWindow }, name) => {
     BrowserWindow.getAllWindows()[0]?.webContents.send('menu:command', { command: name })
   }, command)
+  await session.window.evaluate(() => new Promise<void>((resolve) => setTimeout(resolve, 0)))
 }

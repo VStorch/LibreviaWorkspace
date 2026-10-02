@@ -74,8 +74,8 @@ public sealed record DocumentModelDto(
     [property: JsonPropertyName("beforeRevisions")]
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     bool BeforeRevisions = false,
-    // Como o documento numera as notas (M11), fora dos nós — ver NotesReader. Só a
-    // leitura o dá; a gravação não o muda, e `settings.xml` volta byte a byte.
+    // Como o documento numera as notas (M11), fora dos nós — ver NotesReader. A
+    // gravação só a escreve quando difere da do pacote (NotesWriter.ApplyNumbering).
     [property: JsonPropertyName("notes")]
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     NotesDto? Notes = null,

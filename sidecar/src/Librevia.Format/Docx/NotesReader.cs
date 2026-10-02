@@ -40,8 +40,8 @@ public sealed record NotesDto(
 /// Lê a numeração das notas: a do `w:sectPr` do corpo vence a do `settings.xml`.
 /// </summary>
 /// <remarks>
-/// Só leitura, na fase 1: a tela numera as referências por ela, e o arquivo a
-/// guarda como estava — `settings.xml` volta byte a byte.
+/// A tela numera as referências por ela. Na gravação, o arquivo a guarda como
+/// estava, a menos que o modelo peça outra — ver NotesWriter.ApplyNumbering.
 /// </remarks>
 internal static class NotesReader
 {

@@ -155,11 +155,14 @@ test.describe('somente leitura', () => {
 
     await menu(session, 'open')
 
-    await expect(session.window.locator('.ProseMirror')).toHaveAttribute('contenteditable', 'true')
+    await expect(session.window.locator('.pages__column .ProseMirror')).toHaveAttribute(
+      'contenteditable',
+      'true',
+    )
     await expect(session.window.locator('.banner--readonly')).toBeHidden()
     const reference = session.window.locator('.page__content sup.note-ref')
     await expect(reference).toHaveAttribute('data-note-number', '1')
-    await expect(reference).toHaveAttribute('title', /Fonte: ata anterior\./)
+    await expect(session.window.locator('.paper-notes .note-body')).toContainText('Fonte: ata anterior.')
     await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
   })
 
@@ -170,7 +173,10 @@ test.describe('somente leitura', () => {
 
     await menu(session, 'open')
 
-    await expect(session.window.locator('.ProseMirror')).toHaveAttribute('contenteditable', 'true')
+    await expect(session.window.locator('.pages__column .ProseMirror')).toHaveAttribute(
+      'contenteditable',
+      'true',
+    )
     await expect(session.window.locator('.banner--readonly')).toBeHidden()
     await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
   })

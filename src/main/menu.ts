@@ -409,6 +409,16 @@ async function buildTemplate(): Promise<MenuItemConstructorOptions[]> {
           click: () => dispatch(MenuCommand.InsertBookmark),
         },
         {
+          label: t('menu.insert.footnote'),
+          accelerator: acceleratorOf(SHORTCUTS.insertFootnote),
+          click: () => dispatch(MenuCommand.InsertFootnote),
+        },
+        {
+          label: t('menu.insert.endnote'),
+          accelerator: acceleratorOf(SHORTCUTS.insertEndnote),
+          click: () => dispatch(MenuCommand.InsertEndnote),
+        },
+        {
           label: t('menu.insert.comment'),
           accelerator: acceleratorOf(SHORTCUTS.insertComment),
           click: () => dispatch(MenuCommand.InsertComment),

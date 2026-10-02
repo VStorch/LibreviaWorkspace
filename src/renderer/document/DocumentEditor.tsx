@@ -4,7 +4,7 @@ import { EditorContent, useEditor } from '@tiptap/react'
 import { IpcChannel } from '@shared/ipc-channels.js'
 import { pushContracts } from '@shared/ipc.js'
 import { RevisionView, type ContextMenuTarget } from '@shared/types.js'
-import { DOCUMENT_CONTENT_CSS, EDITOR_ONLY_CSS } from '@services/document/content-styles.js'
+import { DOCUMENT_CONTENT_CSS, EDITOR_ONLY_CSS, NOTES_CSS } from '@services/document/content-styles.js'
 import { styleSheetCss } from '@services/document/style-css.js'
 import { plainPasteContent } from '@services/document/paste.js'
 import {
@@ -50,6 +50,7 @@ import { CrossReferenceDialog } from './CrossReferenceDialog.js'
 import { WordCountDialog } from './WordCountDialog.js'
 import { AuthorNameDialog } from './AuthorNameDialog.js'
 import { PaperSheet } from './PaperSheet.js'
+import { noteBodiesOf, setNotePool } from './extensions/note-view.js'
 import { COMMENTS_PANE_WIDTH_PX, CommentsPane } from './CommentsPane.js'
 import { useComments } from './useComments.js'
 import { insertComment } from './comment-commands.js'
@@ -102,6 +103,8 @@ export function DocumentEditor(): React.JSX.Element {
   useLeaveReadingOnEscape(reading)
 
   const pageRef = useRef<HTMLDivElement>(null)
+  // O depósito dos corpos de nota que ainda não têm folha (M11, `note-view.ts`).
+  const notePoolRef = useRef<HTMLDivElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const zoom = useEffectiveZoom()
   const [contentRevision, setContentRevision] = useState(0)
@@ -157,13 +160,17 @@ export function DocumentEditor(): React.JSX.Element {
   // todas elas com as faixas que cada uma herda das anteriores. A última — a do
   // corpo — é a base da coluna de texto: os blocos das outras seções são
   // deslocados para a caixa da sua (ver `section-geometry.ts`).
+  //
+  // Pelas marcas, e não pelo documento: cada tecla é um documento novo, e seções
+  // novas a cada tecla refaziam a conta da paginação e despachavam a geometria
+  // das seções de novo — na digitação rápida, desenho atrás de desenho até o
+  // React desistir (erro 185) no meio de uma edição.
   const doc = editor?.state.doc ?? null
+  const marksKey = doc === null ? '[]' : JSON.stringify(marksOfDoc(doc))
+  const bodySection: unknown = doc?.attrs['bodySection'] ?? null
   const resolved = useMemo(
-    () =>
-      doc === null
-        ? resolveSections([], null, declaredPage, library)
-        : resolveSections(marksOfDoc(doc), doc.attrs['bodySection'], declaredPage, library),
-    [doc, declaredPage, library],
+    () => resolveSections(JSON.parse(marksKey) as (string | null)[], bodySection, declaredPage, library),
+    [marksKey, bodySection, declaredPage, library],
   )
   const sections = resolved.sections
   const effective = useMemo(() => effectiveSections(resolved.page, sections), [resolved.page, sections])
@@ -193,7 +200,16 @@ export function DocumentEditor(): React.JSX.Element {
   const original = revisionView === RevisionView.Original
   useEffect(() => {
     editor?.setEditable(!readOnly && !reading && !original, false)
+    // O corpo das notas tem editor próprio, que lê o "editável" deste.
+    if (editor !== null && !editor.isDestroyed) for (const body of noteBodiesOf(editor.view)) body.refresh()
   }, [editor, readOnly, reading, original])
+
+  useEffect(() => {
+    if (editor === null || editor.isDestroyed) return undefined
+    const view = editor.view
+    setNotePool(view, notePoolRef.current)
+    return () => setNotePool(view, null)
+  }, [editor])
 
   // Como a janela mostra as alterações: uma transação sem mudança no documento
   // (não suja o arquivo), e a paginação mede de novo — o escondido não ocupa
@@ -201,6 +217,8 @@ export function DocumentEditor(): React.JSX.Element {
   useEffect(() => {
     if (editor === null || editor.isDestroyed || revisionViewOf(editor.state) === revisionView) return
     editor.view.dispatch(setRevisionViewMeta(editor.state.tr, revisionView))
+    // O corpo das notas leva a mesma classe do modo (`revisions-…`): o CSS esconde por ela.
+    for (const body of noteBodiesOf(editor.view)) body.refresh()
     setContentRevision((value) => value + 1)
   }, [editor, revisionView])
 
@@ -334,7 +352,11 @@ export function DocumentEditor(): React.JSX.Element {
   const [sheetSections, setSheetSections] = useState('')
   const bands = useBandHeights(effective, contentRevision, sheetSections)
   const layout = usePagination(editor, effective, sections, contentRevision, bands, !reading, styles)
-  useEffect(() => setSheetSections(layout.sheets.map((sheet) => sheet.section).join(',')), [layout.sheets])
+  // A string igual não chama o `setState` (ver `useBandHeights`).
+  const sheetSectionsNow = layout.sheets.map((sheet) => sheet.section).join(',')
+  useEffect(() => {
+    if (sheetSectionsNow !== sheetSections) setSheetSections(sheetSectionsNow)
+  }, [sheetSectionsNow, sheetSections])
   const sheetSetupList = useMemo(() => sheetSetups(effective, layout.sheets), [effective, layout.sheets])
 
   // A pilha tem a largura da folha mais larga, e cada folha vai centrada nela —
@@ -521,7 +543,7 @@ export function DocumentEditor(): React.JSX.Element {
       {/* O estilo do conteúdo vem do mesmo módulo que o HTML de impressão usa.
           Duas folhas de estilo divergiriam com o tempo, e o PDF deixaria de
           sair igual à tela — o risco registrado no §6.3 do plano. */}
-      <style>{DOCUMENT_CONTENT_CSS + styleCss + EDITOR_ONLY_CSS}</style>
+      <style>{DOCUMENT_CONTENT_CSS + styleCss + NOTES_CSS + EDITOR_ONLY_CSS}</style>
 
       {!reading && preferences.showToolbar && (
         <DocumentToolbar
@@ -718,6 +740,7 @@ export function DocumentEditor(): React.JSX.Element {
                       section={layout.sheets[index]?.section ?? 0}
                       floats={floatsByPage[index] ?? []}
                       columnLines={layout.columnLines.filter((line) => line.sheet === index)}
+                      noteAreas={layout.noteAreas.filter((area) => area.sheet === index)}
                       schema={editor.schema}
                       {...editableSheet}
                     />
@@ -744,6 +767,22 @@ export function DocumentEditor(): React.JSX.Element {
               >
                 <EditorContent editor={editor} />
               </div>
+
+              {/* Os corpos de nota sem folha: escondidos, mas com a largura da
+                  coluna de texto, que é onde a paginação os mede. No modo de
+                  leitura não há folha, e as notas aparecem aqui, depois do texto. */}
+              <div
+                ref={notePoolRef}
+                className={`note-pool${reading ? ' note-pool--reading' : ''}`}
+                style={
+                  reading
+                    ? undefined
+                    : {
+                        left: `${baseLeftPx}px`,
+                        width: `${mmToPx(pageDimensionsMm(page).width - page.margins.left - page.margins.right)}px`,
+                      }
+                }
+              />
 
               {commentsPane && (
                 <CommentsPane editor={editor} comments={comments} outside={outside} leftPx={stackWidthPx} />
