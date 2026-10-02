@@ -40,6 +40,7 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
     beforeRevisions: false,
     notes: undefined,
     beforeNotes: false,
+    beforeMath: false,
     properties: undefined,
     workbook: null,
     generation: 0,

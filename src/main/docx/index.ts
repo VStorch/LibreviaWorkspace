@@ -223,6 +223,10 @@ export async function saveDocx(
       // rascunho de antes delas, que escolhe a leitura de referência e deixa as
       // partes das notas como estão.
       ...(model.beforeNotes ? { beforeNotes: true } : {}),
+      // A equação vai no nó `math`, com o OMML dentro; aqui só a marca do rascunho
+      // de antes delas, que escolhe a leitura de referência e declara a perda do
+      // parágrafo editado que escondia uma.
+      ...(model.beforeMath ? { beforeMath: true } : {}),
       // E a numeração delas, que o sidecar só grava quando difere da do arquivo
       // de destino — é o que um rascunho levado para .docx precisa.
       ...(model.notes === undefined ? {} : { notes: model.notes }),
@@ -369,6 +373,7 @@ function unwrapSdoc(content: string): {
   trackChanges: boolean | undefined
   beforeRevisions: boolean
   beforeNotes: boolean
+  beforeMath: boolean
   notes: unknown
   properties: unknown
 } {
@@ -396,6 +401,7 @@ function unwrapSdoc(content: string): {
       trackChanges: z.boolean().optional(),
       beforeRevisions: z.boolean().optional(),
       beforeNotes: z.boolean().optional(),
+      beforeMath: z.boolean().optional(),
       // A numeração vai como veio; quem a confere é o sidecar, que só a grava
       // quando difere da do pacote.
       notes: z.unknown().optional(),
@@ -420,6 +426,7 @@ function unwrapSdoc(content: string): {
     trackChanges: envelope.data.trackChanges,
     beforeRevisions: envelope.data.beforeRevisions === true,
     beforeNotes: envelope.data.beforeNotes === true,
+    beforeMath: envelope.data.beforeMath === true,
     notes: envelope.data.notes,
     properties: envelope.data.properties,
   }

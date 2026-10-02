@@ -19,6 +19,7 @@ import {
   type DocumentNode,
   type PageSetup,
 } from './model.js'
+import { mathText, sanitizeMathMl } from './mathml.js'
 import { NoteKind } from './notes.js'
 import {
   attr,
@@ -853,6 +854,12 @@ class Renderer {
         return this.note(node)
       case 'field':
         return this.wrap(this.field(node), node.marks ?? [])
+      // A equação (M11) vai como o texto dela: o objeto de fórmula do ODF é a
+      // fase das equações editáveis.
+      case 'math': {
+        const tree = sanitizeMathMl(typeof node.attrs?.['mathml'] === 'string' ? node.attrs['mathml'] : '')
+        return tree === null ? '' : odfText(mathText(tree))
+      }
       case 'bookmarkStart':
         return this.bookmarkStart(node)
       case 'bookmarkEnd': {

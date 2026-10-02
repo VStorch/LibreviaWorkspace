@@ -264,6 +264,7 @@ export function createFileActions(set: SetWorkspace, get: GetWorkspace, ctx: Wor
         beforeRevisions: false,
         notes: undefined,
         beforeNotes: false,
+        beforeMath: false,
         properties: undefined,
         generation: state.generation + 1,
         isDirty: false,

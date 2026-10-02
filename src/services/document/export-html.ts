@@ -9,6 +9,7 @@ import {
   type ExportSource,
 } from './export-common.js'
 import { itemDrawAttrs, listDrawAttrs } from './list-numbering.js'
+import { mathMlToString, sanitizeMathMl } from './mathml.js'
 import type { DocumentModel, DocumentNode } from './model.js'
 import { NoteKind } from './notes.js'
 import { styleSheetCss } from './style-css.js'
@@ -317,6 +318,9 @@ export function createHtmlRenderer(source: ExportSource, imageSrc: ImageSource):
       }
       case 'field':
         return escapeHtml(stringAttr(node.attrs?.['result']))
+      // A equação (M11) vai como o MathML filtrado — o navegador a desenha.
+      case 'math':
+        return mathHtml(node)
       case 'bookmarkStart': {
         const name = stringAttr(node.attrs?.['name'])
         return name === '' ? '' : `<a id="${escapeHtml(name)}"></a>`
@@ -537,4 +541,10 @@ export function escapeHtml(text: string): string {
     .replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#39;')
+}
+
+/** O MathML filtrado da equação, ou nada quando ele não passa no filtro. */
+export function mathHtml(node: DocumentNode): string {
+  const tree = sanitizeMathMl(typeof node.attrs?.['mathml'] === 'string' ? node.attrs['mathml'] : '')
+  return tree === null ? '' : mathMlToString(tree)
 }

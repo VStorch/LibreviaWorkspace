@@ -9,7 +9,7 @@ import {
   type ExportNote,
   type ExportSource,
 } from './export-common.js'
-import { createHtmlRenderer, escapeHtml } from './export-html.js'
+import { createHtmlRenderer, escapeHtml, mathHtml } from './export-html.js'
 import type { DocumentModel, DocumentNode } from './model.js'
 
 /**
@@ -315,6 +315,10 @@ class MarkdownWriter {
       }
       case 'field':
         return escapeMarkdown(String(node.attrs?.['result'] ?? ''))
+      // A equação (M11) vai como HTML: o Markdown aceita, e o MathML é o que a
+      // desenha onde o Markdown é mostrado.
+      case 'math':
+        return mathHtml(node)
       case 'bookmarkStart': {
         // Só os que algum link aponta: os outros seriam ruído no texto.
         const name = String(node.attrs?.['name'] ?? '')

@@ -97,6 +97,13 @@ public sealed class Inventory
     /// </remarks>
     public const string Shapes = "moldura e preenchimento de formas";
     public const string ContentControls = "controles de conteúdo";
+    /// <summary>
+    /// A equação com alguma construção que a tela não desenha (M11). Ela aparece
+    /// travada, com o que deu para desenhar, e o OMML volta ao arquivo inteiro —
+    /// por isso não é estrutural. A de dentro de uma caixa de texto também: não é
+    /// desenhada, e volta com o XML da caixa.
+    /// </summary>
+    public const string Equations = "equações";
 
     private static readonly HashSet<string> StructuralLabels = new(StringComparer.Ordinal)
     {

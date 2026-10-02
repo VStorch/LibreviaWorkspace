@@ -210,6 +210,26 @@ describe('estilos no formato interno', () => {
     expect(legacy.beforeNotes).toBe(true)
   })
 
+  it('marca como anterior às equações o arquivo da versão 10, e o atual não', () => {
+    // O rascunho de antes das equações não traz o nó `math`: a equação ficava
+    // escondida no parágrafo, e editá-lo a perde — a gravação em DOCX precisa da
+    // leitura daquela época para declarar isso.
+    const v10 = JSON.stringify({ ...JSON.parse(v2(BUILTIN_STYLES)), version: 10 })
+    expect(parseDocument(v10).beforeMath).toBe(true)
+    expect(parseDocument(v10).beforeNotes).toBeUndefined()
+    expect(JSON.parse(serializeDocument(richDocument)).version).toBe(11)
+    expect(parseDocument(serializeDocument(richDocument)).beforeMath).toBeUndefined()
+
+    const legacy = parseDocument(serializeDocument({ ...richDocument, beforeMath: true }))
+    expect(legacy.beforeMath).toBe(true)
+
+    // O nó atravessa o `.sdoc` como veio: o OMML é o que volta ao arquivo.
+    const omml = '<m:oMath xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math"/>'
+    const math = { type: 'math', attrs: { omml, mathml: '<math></math>', latex: '', display: false } }
+    const doc = { type: 'doc', content: [{ type: 'paragraph', content: [math] }] }
+    expect(parseDocument(serializeDocument({ ...richDocument, doc })).doc).toEqual(doc)
+  })
+
   it('leva as propriedades na ida e volta, e o arquivo da versão 9 abre sem elas e sem marca', () => {
     // O rascunho de antes das propriedades não as tem, e não precisa de marca: na
     // gravação em DOCX, a ausência deixa `docProps/` como está no arquivo.
@@ -217,7 +237,7 @@ describe('estilos no formato interno', () => {
     const legacy = parseDocument(v9)
     expect(legacy.properties).toBeUndefined()
     expect(Object.keys(legacy).some((key) => key.startsWith('before') && key.includes('Propert'))).toBe(false)
-    expect(JSON.parse(serializeDocument(richDocument)).version).toBe(10)
+    expect(JSON.parse(serializeDocument(richDocument)).version).toBe(SDOC_VERSION)
 
     const properties = {
       title: 'Relatório',

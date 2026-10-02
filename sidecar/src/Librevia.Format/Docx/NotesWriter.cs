@@ -184,7 +184,8 @@ internal static class NotesWriter
         Inventory inventory,
         HashSet<string> touched,
         bool beforeComments,
-        bool beforeRevisions)
+        bool beforeRevisions,
+        bool beforeMath)
     {
         var rewritten = 0;
         foreach (var endnote in new[] { false, true })
@@ -236,7 +237,7 @@ internal static class NotesWriter
                         !Unchanged(original, entry.Reference, numbering))
                     {
                         rewritten += Rebuild(original, entry.Reference, writer, numbering, inventory,
-                            beforeComments, beforeRevisions);
+                            beforeComments, beforeRevisions, beforeMath);
                         EnsureReferenceMark(original.Source, mark, endnote);
                     }
 
@@ -248,7 +249,7 @@ internal static class NotesWriter
                     : new DocumentFormat.OpenXml.Wordprocessing.Footnote();
                 note.Id = long.Parse(entry.Id, CultureInfo.InvariantCulture);
                 var empty = new BodyReader.NoteRead(note, []);
-                rewritten += Rebuild(empty, entry.Reference, writer, numbering, inventory, beforeComments, beforeRevisions);
+                rewritten += Rebuild(empty, entry.Reference, writer, numbering, inventory, beforeComments, beforeRevisions, beforeMath);
                 StyleNewNote(note, part, endnote);
                 EnsureReferenceMark(note, mark, endnote);
                 root.AppendChild(note);
@@ -314,7 +315,8 @@ internal static class NotesWriter
         NumberingFactory numbering,
         Inventory inventory,
         bool beforeComments,
-        bool beforeRevisions)
+        bool beforeRevisions,
+        bool beforeMath)
     {
         var index = original.Blocks.ToDictionary(block => block.Oid, StringComparer.Ordinal);
         var used = new HashSet<string>(StringComparer.Ordinal);
@@ -333,7 +335,7 @@ internal static class NotesWriter
                 foreach (var loose in owner.Leading) elements.Add(loose.CloneNode(true));
             }
 
-            if (!DocxWriter.BuildSlot(slot, owner, writer, inventory, elements, beforeComments, beforeRevisions, beforeNotes: false))
+            if (!DocxWriter.BuildSlot(slot, owner, writer, inventory, elements, beforeComments, beforeRevisions, beforeNotes: false, beforeMath))
             {
                 rewritten++;
             }

@@ -84,6 +84,12 @@ public sealed record DocumentModelDto(
     [property: JsonPropertyName("beforeNotes")]
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     bool BeforeNotes = false,
+    // O rascunho é de antes das equações (formato `.sdoc` < 11): os nós não trazem
+    // o `math`, e a equação ficava escondida no parágrafo. Mesmo motivo de
+    // `BeforeReferences`.
+    [property: JsonPropertyName("beforeMath")]
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    bool BeforeMath = false,
     // As propriedades do documento (M11), fora dos nós — ver DocumentProperties.
     // Na gravação, cada campo é remendo: ausente é "não mexa".
     [property: JsonPropertyName("properties")]

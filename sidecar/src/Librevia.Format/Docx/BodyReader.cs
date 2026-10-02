@@ -4,6 +4,8 @@ using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
 using Drawing = DocumentFormat.OpenXml.Drawing;
+using MathParagraph = DocumentFormat.OpenXml.Math.Paragraph;
+using OfficeMath = DocumentFormat.OpenXml.Math.OfficeMath;
 
 namespace Librevia.Format.Docx;
 
@@ -77,6 +79,11 @@ public sealed record Block(string Oid, OpenXmlElement Source, Node Extracted)
 /// nota dentro (M11). Desligado, é a leitura de antes delas — a de referência para
 /// um rascunho daquela época (ver <see cref="DocumentModelDto.BeforeNotes"/>).
 /// </param>
+/// <param name="math">
+/// Lê a equação (`m:oMath`, `m:oMathPara`) como o nó `math`, com o OMML dentro
+/// (M11). Desligado, é a leitura de antes delas — a de referência para um
+/// rascunho daquela época (ver <see cref="DocumentModelDto.BeforeMath"/>).
+/// </param>
 public sealed class BodyReader(
     MainDocumentPart part,
     Inventory inventory,
@@ -85,7 +92,8 @@ public sealed class BodyReader(
     bool sections = true,
     bool comments = true,
     bool revisions = true,
-    bool notes = true)
+    bool notes = true,
+    bool math = true)
 {
     /// <summary>Uma nota lida: o `w:footnote`/`w:endnote` do arquivo e os blocos dele.</summary>
     public sealed record NoteRead(OpenXmlElement Source, List<Block> Blocks);
@@ -1124,6 +1132,18 @@ public sealed class BodyReader(
                 case DeletedRun:
                     break;
 
+                // A equação (M11): um nó atômico com o OMML como veio — é ele que
+                // volta ao arquivo — e o MathML que a tela desenha.
+                case OfficeMath or MathParagraph when math && _textBoxDepth == 0:
+                    nodes.Add(ReadMath(element));
+                    break;
+
+                // A de dentro de uma caixa de texto fica no XML da caixa, que volta
+                // com ela; a tela não a desenha.
+                case OfficeMath or MathParagraph when math:
+                    inventory.NoteInvisible(Inventory.Equations);
+                    break;
+
                 default:
                     inventory.NoteInvisibleElement(element.LocalName);
                     break;
@@ -1131,6 +1151,33 @@ public sealed class BodyReader(
         }
 
         return nodes;
+    }
+
+    /// <summary>
+    /// O nó `math` de um `m:oMath` ou `m:oMathPara`.
+    /// </summary>
+    /// <remarks>
+    /// O `omml` é a identidade da equação: a impressão digital só vê ele (ver
+    /// Node.Fingerprint), porque o resto — o MathML, a lista do que não se
+    /// desenha — sai do OMML e muda quando a conversão melhora, sem que a
+    /// equação tenha mudado. O que a conversão não desenha é invisibilidade, e
+    /// não perda: o OMML volta inteiro na gravação.
+    /// </remarks>
+    private Node ReadMath(OpenXmlElement element)
+    {
+        var omml = element.OuterXml;
+        var converted = OmmlMath.Convert(omml);
+        if (converted.Lossy.Count > 0) inventory.NoteInvisible(Inventory.Equations);
+
+        var node = new Node { Type = "math", Marks = RevisionMarks() }
+            .With("omml", omml)
+            .With("mathml", converted.MathMl)
+            .With("latex", string.Empty)
+            .With("display", converted.Display)
+            .With("lossy", new JsonArray([.. converted.Lossy.Select(name => (JsonNode?)JsonValue.Create(name))]))
+            .With("editable", converted.Lossy.Count == 0);
+        if (converted.Jc is { } jc) node.With("jc", jc);
+        return node;
     }
 
     /// <summary>O id do comentário quando o run só traz a referência a ele — e nulo nos outros.</summary>
@@ -1174,7 +1221,7 @@ public sealed class BodyReader(
 
         var owner = endnote ? (OpenXmlPart)part.EndnotesPart! : part.FootnotesPart!;
         var address = NotesWriter.Address(endnote, id!);
-        _noteReader ??= new BodyReader(part, inventory, flatten, references, sections: false, comments, revisions, notes: false);
+        _noteReader ??= new BodyReader(part, inventory, flatten, references, sections: false, comments, revisions, notes: false, math);
         var (content, blocks) = _noteReader.ReadNote(source, address, owner);
         Notes[address] = new NoteRead(source, blocks);
         node.Content = content;

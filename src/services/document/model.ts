@@ -241,6 +241,12 @@ export interface DocumentModel {
    */
   readonly beforeNotes?: boolean
   /**
+   * O rascunho é de antes das **equações** (formato `.sdoc` < 11): os nós não
+   * trazem o `math`, e a equação ficava escondida no parágrafo. Mesmo motivo de
+   * `flattened`.
+   */
+  readonly beforeMath?: boolean
+  /**
    * As propriedades do documento (M11) — `docProps/core.xml` e parte de
    * `docProps/app.xml`. Fora dos nós pelo mesmo motivo dos estilos.
    *

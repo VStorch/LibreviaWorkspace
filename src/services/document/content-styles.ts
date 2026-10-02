@@ -94,6 +94,26 @@ ${DOCUMENT_FONT_CSS}
   padding: 0 0.2em;
 }
 
+/*
+  As equações (M11), desenhadas pelo MathML do Chromium. A fonte de matemática
+  é a do sistema: STIX Two Math não vem com o aplicativo (não havia cópia dela
+  sem baixar), e \`math\` é a família genérica que o Chromium resolve para a
+  fonte com tabela OpenType MATH que houver — Cambria Math no Windows, Noto Sans
+  Math ou DejaVu Math TeX Gyre no Linux.
+
+  A de exibição (\`m:oMathPara\`) é um bloco dentro do parágrafo, alinhado como o
+  arquivo pede; a caixa (\`m:borderBox\`) é um \`mrow\` com borda, que o MathML
+  Core não tem \`menclose\`.
+*/
+.page__content .equacao math {
+  font-family: 'STIX Two Math', 'Cambria Math', 'Noto Sans Math', 'DejaVu Math TeX Gyre', math;
+}
+.page__content .equacao--exibicao { display: block; text-align: center; }
+.page__content .equacao--exibicao[data-jc='left'] { text-align: left; }
+.page__content .equacao--exibicao[data-jc='right'] { text-align: right; }
+.page__content .equacao--exibicao math { display: inline math; math-style: normal; }
+.page__content .equacao .omml-caixa { border: 1px solid currentColor; padding: 0.1em; }
+
 /**
  * Sobrescrito e subscrito sem esticar a linha.
  *
@@ -407,6 +427,13 @@ export const EDITOR_ONLY_CSS = `
 */
 .page__content .note-ref::after { content: attr(data-note-number); }
 .page__content .note-ref.ProseMirror-selectednode { background: #d9d9d9; outline: none; }
+
+/*
+  A equação selecionada ganha o sombreado do Word. A travada — com construção
+  que a tela não desenha — leva um traço por baixo, e a dica diz o que falta.
+*/
+.page__content .equacao.ProseMirror-selectednode { background: #d9d9d9; outline: none; }
+.page__content .equacao--travada { text-decoration: underline dotted #b0b0b0; }
 
 ${DARK_CONTENT_CSS}
 .page__content .selectedCell::after {

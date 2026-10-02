@@ -34,6 +34,7 @@ import { CountWithoutDeletions, TrackChanges } from './extensions/track-changes.
 import { TrackInput } from './extensions/track-input.js'
 import { RevisionViewExtension } from './extensions/revision-view.js'
 import { Field } from './extensions/field.js'
+import { MathNode } from './extensions/math.js'
 import { TableOfContents } from './extensions/table-of-contents.js'
 import { Indent } from './extensions/indent.js'
 import { ListNumbering } from './extensions/list-numbering.js'
@@ -237,6 +238,8 @@ export function buildEditorExtensions(
     // sumário como bloco. Ver field.ts e table-of-contents.ts.
     Field,
     TableOfContents,
+    // As equações (M11): o OMML do arquivo, desenhado pelo MathML. Ver math.ts.
+    MathNode,
     // Guarda os vãos entre as folhas. Quem os calcula é `usePagination`; aqui
     // fica só o lugar onde eles vivem, para acompanharem a edição sem que o
     // documento saiba que existem.

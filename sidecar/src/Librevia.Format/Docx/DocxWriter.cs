@@ -55,7 +55,8 @@ public static class DocxWriter
             !model.BeforeSections,
             !model.BeforeComments,
             !model.BeforeRevisions,
-            !model.BeforeNotes);
+            !model.BeforeNotes,
+            !model.BeforeMath);
         var (_, blocks) = reader.Read(body);
         var index = blocks.ToDictionary(block => block.Oid, StringComparer.Ordinal);
 
@@ -116,7 +117,8 @@ public static class DocxWriter
                 inventory,
                 touched,
                 model.BeforeComments,
-                model.BeforeRevisions);
+                model.BeforeRevisions,
+                model.BeforeMath);
         }
 
         // A numeração das notas (M11): só quando o modelo pede outra que a do
@@ -515,7 +517,8 @@ public static class DocxWriter
 
             var before = elements.Count;
             var kept = BuildSlot(
-                slot, owner, writer, inventory, elements, model.BeforeComments, model.BeforeRevisions, model.BeforeNotes);
+                slot, owner, writer, inventory, elements, model.BeforeComments, model.BeforeRevisions, model.BeforeNotes,
+                model.BeforeMath);
             if (kept)
             {
                 preserved++;
@@ -702,7 +705,8 @@ public static class DocxWriter
         List<OpenXmlElement> elements,
         bool beforeComments,
         bool beforeRevisions,
-        bool beforeNotes)
+        bool beforeNotes,
+        bool beforeMath)
     {
         if (owner is not null && SameContent(slot, owner))
         {
@@ -734,7 +738,7 @@ public static class DocxWriter
 
         foreach (var element in writer.Write(slot.Content, placement, source)) elements.Add(element);
 
-        if (owner is not null) NoteWhatWasInside(owner, inventory, beforeComments, beforeRevisions, beforeNotes);
+        if (owner is not null) NoteWhatWasInside(owner, inventory, beforeComments, beforeRevisions, beforeNotes, beforeMath);
         return false;
     }
 
@@ -950,8 +954,12 @@ public static class DocxWriter
     /// O rascunho é de antes das notas (M11): os nós não trazem a referência, e
     /// reescrever o parágrafo a perde. Depois dele ela volta pelo `noteRef`.
     /// </param>
+    /// <param name="beforeMath">
+    /// O rascunho é de antes das equações (M11): os nós não trazem o `math`, e
+    /// reescrever o parágrafo perde o `m:oMath`. Depois dele ela volta pelo nó.
+    /// </param>
     private static void NoteWhatWasInside(
-        Block block, Inventory inventory, bool beforeComments, bool beforeRevisions, bool beforeNotes)
+        Block block, Inventory inventory, bool beforeComments, bool beforeRevisions, bool beforeNotes, bool beforeMath)
     {
         var original = block.Source;
 
@@ -1008,6 +1016,11 @@ public static class DocxWriter
         if (beforeNotes && original.Descendants<EndnoteReference>().Any())
         {
             inventory.NoteLoss("nota de fim num parágrafo que você editou");
+        }
+
+        if (beforeMath && original.Descendants<DocumentFormat.OpenXml.Math.OfficeMath>().Any())
+        {
+            inventory.NoteLoss("equação num parágrafo que você editou");
         }
 
         // O campo que virou nó volta ao arquivo como campo (ver BodyReader.ReadField);

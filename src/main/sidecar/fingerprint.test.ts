@@ -52,6 +52,7 @@ import {
   docxWithCommentThread,
   docxWithDirectOverStyles,
   docxWithDescribedImage,
+  docxWithEquations,
   docxWithFootnote,
   docxWithHeaderGrid,
   docxWithMultilevelList,
@@ -165,6 +166,13 @@ function asFingerprinted(value: unknown): unknown {
       ...rest,
       attrs: { kind: attrs['kind'], nid: attrs['nid'], mark: attrs['mark'] },
     })
+  }
+
+  // A equação (M11) vale pelo OMML: o MathML, o LaTeX e a lista do que não se
+  // desenha saem dele no sidecar, e a impressão digital não os vê.
+  if (record['type'] === 'math') {
+    const attrs = (record['attrs'] ?? {}) as Record<string, unknown>
+    return fingerprintEntries({ ...record, attrs: { omml: attrs['omml'] } })
   }
 
   return fingerprintEntries(record)
@@ -318,6 +326,8 @@ describe.skipIf(!published)('impressão digital entre o editor e o sidecar', () 
     ['controle de alterações', () => docxWithTrackedChange()],
     // M11: a referência de nota leva o corpo dentro, e a impressão digital não o vê.
     ['nota de rodapé', () => docxWithFootnote()],
+    // M11: a equação leva o OMML como identidade, e o MathML derivado não conta.
+    ['equações em linha e de exibição', docxWithEquations],
   ]
 
   it.each(documents)('abrir e salvar %s não reescreve bloco nenhum', async (_name, build) => {

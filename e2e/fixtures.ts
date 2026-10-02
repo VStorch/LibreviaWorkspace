@@ -196,6 +196,49 @@ export async function docxWithFootnote(options: { leadingTable?: boolean } = {})
   ])
 }
 
+const M = 'http://schemas.openxmlformats.org/officeDocument/2006/math'
+
+/** O `m:r` como o Word o grava, com a fonte de matemática no `w:rPr`. */
+function mathRun(text: string, sty?: string): string {
+  const style = sty === undefined ? '' : `<m:rPr><m:sty m:val="${sty}"/></m:rPr>`
+  return `<m:r>${style}<w:rPr><w:rFonts w:ascii="Cambria Math" w:hAnsi="Cambria Math"/></w:rPr><m:t>${text}</m:t></m:r>`
+}
+
+/** O texto da equação em linha de `docxWithEquations`, em volta dela. */
+export const EQUATION_BEFORE = 'A área do círculo é '
+export const EQUATION_AFTER = ' para todo raio.'
+
+/**
+ * Documento com equações (M11): uma em linha (πr²) no meio da frase, uma de
+ * exibição centrada (a de Bhaskara) e uma travada — a caixa sem o lado de cima,
+ * que a tela não desenha. O namespace `m` vai em cada equação, como o
+ * LibreOffice o declara.
+ */
+export async function docxWithEquations(): Promise<Buffer> {
+  const inline =
+    `<w:p><w:r><w:t xml:space="preserve">${EQUATION_BEFORE}</w:t></w:r>` +
+    `<m:oMath xmlns:m="${M}">${mathRun('π')}<m:sSup><m:e>${mathRun('r')}</m:e><m:sup>${mathRun('2')}</m:sup></m:sSup></m:oMath>` +
+    `<w:r><w:t xml:space="preserve">${EQUATION_AFTER}</w:t></w:r></w:p>`
+  const display =
+    `<w:p><m:oMathPara xmlns:m="${M}"><m:oMathParaPr><m:jc m:val="center"/></m:oMathParaPr><m:oMath>` +
+    `${mathRun('x')}${mathRun('=')}<m:f><m:num>${mathRun('-b±')}<m:rad><m:radPr><m:degHide m:val="1"/></m:radPr><m:deg/>` +
+    `<m:e>${mathRun('Δ')}</m:e></m:rad></m:num><m:den>${mathRun('2a')}</m:den></m:f>` +
+    `</m:oMath></m:oMathPara></w:p>`
+  const locked =
+    `<w:p><w:r><w:t xml:space="preserve">Caixa: </w:t></w:r><m:oMath xmlns:m="${M}">` +
+    `<m:borderBox><m:borderBoxPr><m:hideTop m:val="1"/></m:borderBoxPr><m:e>${mathRun('z')}</m:e></m:borderBox>` +
+    `</m:oMath></w:p>`
+
+  return zip([
+    ['[Content_Types].xml', CONTENT_TYPES.replace(/<Override PartName="\/word\/comments[^>]+>/, '')],
+    ['_rels/.rels', ROOT_RELS],
+    [
+      'word/document.xml',
+      documentXml(paragraph('Equações do relatório.') + inline + display + locked + paragraph('Fim.')),
+    ],
+  ])
+}
+
 /** As propriedades de `docxWithProperties`, como o Word as grava (M11). */
 export const PROPERTIES_CORE =
   `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n` +

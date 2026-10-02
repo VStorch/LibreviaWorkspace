@@ -518,6 +518,13 @@ public sealed class ParagraphWriter
                 yield return WriteNoteReference(node);
                 break;
 
+            // A equação (M11): o OMML como veio. A fase 1 não edita equação, então
+            // o nó sem OMML é defeito — declarado, e não um `m:oMath` inventado.
+            case "math":
+                if (MathOf(node) is { } math) yield return math;
+                else _inventory.NoteLoss("equação que não pôde ser gravada");
+                break;
+
             case "image":
                 if ((originalImages is null ? null : _images.Reuse(node, originalImages)) is { } kept)
                 {
@@ -533,6 +540,46 @@ public sealed class ParagraphWriter
             default:
                 _inventory.NoteLoss($"conteúdo do tipo \"{node.Type}\"");
                 break;
+        }
+    }
+
+    private const string WordprocessingNamespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
+    private const string MathNamespace = "http://schemas.openxmlformats.org/officeDocument/2006/math";
+
+    /// <summary>O `m:oMath` ou `m:oMathPara` guardado no nó, de volta a elemento — ou nulo.</summary>
+    internal static OpenXmlElement? MathOf(Node node)
+    {
+        if (Attr.String(node, "omml") is not { Length: > 0 } omml) return null;
+        try
+        {
+            var root = System.Xml.Linq.XElement.Parse(omml);
+            if (root.Name.Namespace != OmmlMath.M) return null;
+            OpenXmlElement? math = root.Name.LocalName switch
+            {
+                "oMathPara" => new DocumentFormat.OpenXml.Math.Paragraph(omml),
+                "oMath" => new DocumentFormat.OpenXml.Math.OfficeMath(omml),
+                _ => null,
+            };
+
+            // O OuterXml lido declara o `w:` em cada `w:rPr` de dentro, porque a
+            // equação saiu do documento sozinha; de volta a ele, a declaração da
+            // raiz basta, e a equação sai escrita como entrou.
+            foreach (var element in math?.Descendants() ?? [])
+            {
+                foreach (var (prefix, uri) in element.NamespaceDeclarations.ToList())
+                {
+                    if ((prefix, uri) is ("w", WordprocessingNamespace) or ("m", MathNamespace))
+                    {
+                        element.RemoveNamespaceDeclaration(prefix);
+                    }
+                }
+            }
+
+            return math;
+        }
+        catch (System.Xml.XmlException)
+        {
+            return null;
         }
     }
 

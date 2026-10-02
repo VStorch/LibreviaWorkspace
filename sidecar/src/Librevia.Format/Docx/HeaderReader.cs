@@ -775,12 +775,26 @@ public static class HeaderReader
 
         // Junta textos vizinhos de mesmo estilo: o Word pica uma frase em vários
         // runs, e sem isto cada pedaço viraria um elemento solto.
+        //
+        // Só texto vizinho de verdade: com uma equação no meio, a peça fundida
+        // escreveria tudo no primeiro `w:t` e a equação, que fica onde estava,
+        // iria parar no fim da frase.
+        var order = new Dictionary<OpenXmlElement, int>(ReferenceEqualityComparer.Instance);
+        foreach (var element in paragraph.Descendants()) order[element] = order.Count;
+        var equations = paragraph.Descendants()
+            .Where(element => element is DocumentFormat.OpenXml.Math.OfficeMath or DocumentFormat.OpenXml.Math.Paragraph)
+            .Select(element => order[element]).ToList();
+        bool Apart(List<Text> before, List<Text> after) =>
+            equations.Count > 0 && before.Count > 0 && after.Count > 0 &&
+            equations.Any(at => at > order[before[^1]] && at < order[after[0]]);
+
         var merged = new List<TracedPiece>();
         foreach (var traced in pieces)
         {
             var piece = traced.Piece;
             var previous = merged.Count > 0 ? merged[^1].Piece : null;
             if (piece.Kind == PieceDto.KindText && previous is { Kind: PieceDto.KindText } &&
+                !Apart(merged[^1].Source, traced.Source) &&
                 previous.Bold == piece.Bold && previous.Italic == piece.Italic &&
                 previous.Color == piece.Color && previous.FontSize == piece.FontSize &&
                 previous.FontFamily == piece.FontFamily)
@@ -887,6 +901,14 @@ public static class HeaderReader
 
                 case Run run:
                     Collect(run, pieces, field, StyleOf(run.RunProperties, fonts), inventory, fonts);
+                    break;
+
+                // A equação da faixa não se desenha nem se edita aqui: fica no
+                // arquivo como veio, e o aviso diz que existe. O texto dos dois
+                // lados dela não se funde numa peça só — ver TracedRuns.
+                case DocumentFormat.OpenXml.Math.OfficeMath:
+                case DocumentFormat.OpenXml.Math.Paragraph:
+                    inventory.NoteInvisible(Inventory.Equations);
                     break;
 
                 default:

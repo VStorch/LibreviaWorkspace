@@ -61,6 +61,16 @@ export const DOCUMENT = {
   'document.contextMenu.toEndnote': { pt: 'Converter em nota de fim', en: 'Convert to endnote' },
   'document.contextMenu.toFootnote': { pt: 'Converter em nota de rodapé', en: 'Convert to footnote' },
 
+  'document.math.placeholder': { pt: '[equação]', en: '[equation]' },
+  'document.math.title': {
+    pt: 'Equação do documento (a edição de equações ainda não está disponível)',
+    en: 'Document equation (equation editing is not available yet)',
+  },
+  'document.math.locked': {
+    pt: 'Equação travada: a tela não desenha {constructs}. Ela volta ao arquivo como estava.',
+    en: 'Locked equation: the screen does not draw {constructs}. It is saved back unchanged.',
+  },
+
   'document.findReplace.find': { pt: 'Localizar', en: 'Find' },
   'document.findReplace.replaceWith': { pt: 'Substituir por', en: 'Replace with' },
   'document.findReplace.noMatches': { pt: 'nenhuma', en: 'none' },

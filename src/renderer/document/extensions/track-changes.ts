@@ -377,10 +377,23 @@ export const CountWithoutDeletions = CharacterCount.extend({
     }
     this.storage.words = (options) => {
       const node = options?.node ?? this.editor.state.doc
-      return this.options.wordCounter(textWithoutDeletions(node, ' ', ' '))
+      return this.options.wordCounter(textWithoutDeletions(node, ' ', ' ')) + equationsIn(node)
     }
   },
 })
+
+/**
+ * As equações do trecho (M11), que contam uma palavra cada, como no Word. No texto
+ * da contagem ela é um espaço — o LaTeX de uma ou o marcador "[equação]" inflariam
+ * a conta de palavras com o que ninguém escreveu.
+ */
+function equationsIn(node: ProseMirrorNode): number {
+  let count = node.type.name === 'math' && !isDeleted(node) ? 1 : 0
+  node.descendants((child) => {
+    if (child.type.name === 'math' && !isDeleted(child)) count++
+  })
+  return count
+}
 
 // --- as marcas e os atributos ----------------------------------------------
 

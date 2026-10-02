@@ -69,9 +69,13 @@ import { LEGACY_STYLES, type StyleSheet } from './styles.js'
  * - **10** — as **propriedades** do documento (M11): título, assunto, autor…,
  *   em `properties`. O rascunho anterior simplesmente não as tem, e não ganha
  *   marca: na gravação em DOCX a ausência é "deixe as do arquivo como estão".
+ * - **11** — as **equações** (M11): o nó `math`, com o OMML do arquivo dentro e o
+ *   MathML que a tela desenha. O rascunho anterior não tem o nó — a equação ficava
+ *   escondida no parágrafo —, e a leitura o marca (`beforeMath`) pelo mesmo motivo
+ *   da versão 4.
  */
 export const SDOC_FORMAT = 'sdoc'
-export const SDOC_VERSION = 10
+export const SDOC_VERSION = 11
 
 /** O conteúdo é validado só na forma; a estrutura fina é do ProseMirror. */
 const documentNodeSchema: z.ZodType<DocumentNode> = z.looseObject({
@@ -103,6 +107,8 @@ const sdocSchema = z.object({
   // Ver `DocumentModel.notes` e `beforeNotes`.
   notes: documentNotesSchema.optional(),
   beforeNotes: z.boolean().optional(),
+  // Ver `DocumentModel.beforeMath`.
+  beforeMath: z.boolean().optional(),
   // Ver `DocumentModel.properties`.
   properties: documentPropertiesSchema.optional(),
 })
@@ -129,6 +135,7 @@ export function serializeDocument(model: DocumentModel): string {
       ...(model.beforeRevisions === true ? { beforeRevisions: true } : {}),
       ...(model.notes === undefined ? {} : { notes: model.notes }),
       ...(model.beforeNotes === true ? { beforeNotes: true } : {}),
+      ...(model.beforeMath === true ? { beforeMath: true } : {}),
       ...(model.properties === undefined ? {} : { properties: model.properties }),
     },
     null,
@@ -182,6 +189,7 @@ export function parseDocument(text: string, language: Language = Language.Portug
     ...(parsed.data.version < 8 || parsed.data.beforeRevisions === true ? { beforeRevisions: true } : {}),
     ...(parsed.data.notes === undefined ? {} : { notes: notesOf(parsed.data.notes) }),
     ...(parsed.data.version < 9 || parsed.data.beforeNotes === true ? { beforeNotes: true } : {}),
+    ...(parsed.data.version < 11 || parsed.data.beforeMath === true ? { beforeMath: true } : {}),
     ...(parsed.data.properties === undefined ? {} : { properties: propertiesOf(parsed.data.properties) }),
   }
 }

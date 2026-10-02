@@ -108,6 +108,8 @@ export interface WorkspaceState {
   notes: DocumentNotes | undefined
   /** O rascunho é de antes das notas — ver `DocumentModel.beforeNotes`. */
   beforeNotes: boolean
+  /** O rascunho é de antes das equações — ver `DocumentModel.beforeMath`. */
+  beforeMath: boolean
   /** Título, assunto, autor… — ver `DocumentModel.properties`. */
   properties: DocumentProperties | undefined
   /**

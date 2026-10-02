@@ -110,6 +110,19 @@ public sealed class Node
                     }
                 }
 
+                // A equação (M11) vale pelo OMML: o MathML, o LaTeX e a lista do que
+                // não se desenha saem dele, e mudam quando a conversão melhora — o
+                // parágrafo não pode parecer editado por isso.
+                if (o["type"]?.GetValueKind() == JsonValueKind.String &&
+                    o["type"]!.GetValue<string>() == "math" &&
+                    o["attrs"] is JsonObject mathAttrs)
+                {
+                    foreach (var entry in mathAttrs.ToList())
+                    {
+                        if (entry.Key != "omml") mathAttrs.Remove(entry.Key);
+                    }
+                }
+
                 if (o["attrs"] is JsonObject attrs)
                 {
                     attrs.Remove("oid");
