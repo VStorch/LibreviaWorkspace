@@ -177,8 +177,8 @@ export const ERRORS = {
     en: 'header and footer from the original .docx file',
   },
   'errors.docx.originPackage': {
-    pt: 'estilos, notas e demais partes do arquivo .docx de origem',
-    en: 'styles, notes, and other parts of the original .docx file',
+    pt: 'estilos, numeração das notas e demais partes do arquivo .docx de origem',
+    en: 'styles, note numbering, and other parts of the original .docx file',
   },
   'errors.docx.cannotCreate': {
     pt: 'Não foi possível criar o documento do Word. Nada foi gravado.',

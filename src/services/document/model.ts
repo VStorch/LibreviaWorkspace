@@ -228,6 +228,33 @@ export interface DocumentModel {
    * de `flattened`.
    */
   readonly beforeRevisions?: boolean
+  /**
+   * Como o documento numera as notas de rodapé e as de fim (M11). Fora dos nós
+   * pelo mesmo motivo dos estilos; a referência (`noteRef`) não guarda número —
+   * ele é a ordem dela no documento. Ausente é a numeração do Word: 1, 2, 3 nas
+   * de rodapé e i, ii, iii nas de fim.
+   */
+  readonly notes?: DocumentNotes
+  /**
+   * O rascunho é de antes das **notas** (formato `.sdoc` < 9): os nós não trazem
+   * o `noteRef`. Mesmo motivo de `flattened`.
+   */
+  readonly beforeNotes?: boolean
+}
+
+/** A numeração de um tipo de nota, como `w:footnotePr`/`w:endnotePr` a descrevem. */
+export interface NoteNumbering {
+  /** `decimal`, `lowerRoman`, `upperLetter`, `chicago`… */
+  readonly numFmt?: string
+  readonly start?: number
+  /** `continuous`, `eachSect`, `eachPage`. */
+  readonly restart?: string
+  readonly pos?: string
+}
+
+export interface DocumentNotes {
+  readonly footnotePr?: NoteNumbering
+  readonly endnotePr?: NoteNumbering
 }
 
 /** Um comentário, como `word/comments.xml` e `word/commentsExtended.xml` o descrevem. */

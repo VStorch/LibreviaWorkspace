@@ -374,6 +374,13 @@ export const EDITOR_ONLY_CSS = `
 */
 .page__content .field.ProseMirror-selectednode { background: #d9d9d9; outline: none; }
 
+/*
+  A referência de nota (M11): o número é decoração, contado pela ordem no texto
+  (ver note-ref.ts). No papel ele vem escrito no próprio elemento.
+*/
+.page__content .note-ref::after { content: attr(data-note-number); }
+.page__content .note-ref.ProseMirror-selectednode { background: #d9d9d9; outline: none; }
+
 ${DARK_CONTENT_CSS}
 .page__content .selectedCell::after {
   content: '';

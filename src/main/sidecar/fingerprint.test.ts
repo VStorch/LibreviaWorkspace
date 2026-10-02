@@ -52,6 +52,7 @@ import {
   docxWithCommentThread,
   docxWithDirectOverStyles,
   docxWithDescribedImage,
+  docxWithFootnote,
   docxWithHeaderGrid,
   docxWithMultilevelList,
   docxWithNamedStyles,
@@ -153,9 +154,27 @@ function asFingerprinted(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(asFingerprinted)
   if (value === null || typeof value !== 'object') return value
 
+  // A referência de nota (M11) vale pelo que aponta, e não pelo corpo da nota: a
+  // impressão digital do parágrafo vê só `kind`, `nid` e `mark`. O corpo é
+  // comparado bloco a bloco por NotesWriter.
+  const record = value as Record<string, unknown>
+  if (record['type'] === 'noteRef') {
+    const attrs = (record['attrs'] ?? {}) as Record<string, unknown>
+    const rest = Object.fromEntries(Object.entries(record).filter(([key]) => key !== 'content'))
+    return fingerprintEntries({
+      ...rest,
+      attrs: { kind: attrs['kind'], nid: attrs['nid'], mark: attrs['mark'] },
+    })
+  }
+
+  return fingerprintEntries(record)
+}
+
+function fingerprintEntries(value: Record<string, unknown>): Record<string, unknown> {
+
   const node: Record<string, unknown> = {}
 
-  for (const [key, entry] of Object.entries(value as Record<string, unknown>)) {
+  for (const [key, entry] of Object.entries(value)) {
     if (key === 'attrs') {
       const attrs = Object.entries((entry ?? {}) as Record<string, unknown>).filter(
         ([name, item]) => name !== 'oid' && name !== 'sectionBreak' && item !== null && item !== undefined,
@@ -297,6 +316,8 @@ describe.skipIf(!published)('impressão digital entre o editor e o sidecar', () 
     ['seções', docxWithSections],
     // M10: inserção, exclusão, marca de parágrafo, movimentação e linha revisadas.
     ['controle de alterações', () => docxWithTrackedChange()],
+    // M11: a referência de nota leva o corpo dentro, e a impressão digital não o vê.
+    ['nota de rodapé', () => docxWithFootnote()],
   ]
 
   it.each(documents)('abrir e salvar %s não reescreve bloco nenhum', async (_name, build) => {
@@ -328,6 +349,30 @@ describe.skipIf(!published)('impressão digital entre o editor e o sidecar', () 
     const { model } = opened.result as OpenReply
 
     expect(asFingerprinted(throughEditor(model.doc))).toEqual(asFingerprinted(model.doc))
+  })
+
+  it('o corpo da nota volta do schema como o sidecar o leu', async () => {
+    // A impressão digital do parágrafo não vê o corpo da nota; quem o compara é
+    // NotesWriter, bloco a bloco — e um atributo que o schema perdesse ali faria a
+    // nota ser reescrita a cada gravação.
+    const bytes = await docxWithFootnote()
+    const opened = await client.request(SidecarMethod.DocxOpen, {}, new Uint8Array(bytes))
+    const { model } = opened.result as OpenReply
+
+    const bodies = (doc: unknown): unknown[] => {
+      const found: unknown[] = []
+      const walk = (node: unknown): void => {
+        const record = node as { type?: string; content?: unknown[] }
+        if (record.type === 'noteRef') found.push(record.content)
+        for (const child of record.content ?? []) walk(child)
+      }
+      walk(doc)
+      return found
+    }
+
+    const read = bodies(model.doc)
+    expect(read).toHaveLength(1)
+    expect(asFingerprinted(bodies(throughEditor(model.doc)))).toEqual(asFingerprinted(read))
   })
 
   it('a saída do diálogo de parágrafo é o que o arquivo recebe', async () => {

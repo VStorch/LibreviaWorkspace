@@ -12,7 +12,7 @@ import { z } from 'zod'
 import { SDOC_FORMAT, SDOC_VERSION } from '@services/document/serialize.js'
 import { AppError, ErrorCode, fromFileSystemError } from '@shared/errors.js'
 import { Language, translate } from '@shared/i18n/index.js'
-import { documentCommentSchema, styleSheetSchema } from '@shared/schemas.js'
+import { documentCommentSchema, documentNotesSchema, styleSheetSchema } from '@shared/schemas.js'
 import type { LossInventory } from '@shared/types.js'
 import { normalizePath } from '../fs/paths.js'
 import type { SidecarClient } from '../sidecar/client.js'
@@ -60,6 +60,8 @@ const openResultSchema = z.object({
     comments: z.array(documentCommentSchema).max(100_000).optional(),
     // O `w:trackRevisions` do arquivo (M10) — só presente quando ligado.
     trackChanges: z.boolean().optional(),
+    // A numeração das notas (M11), que vai parar no `.sdoc`.
+    notes: documentNotesSchema.optional(),
   }),
   inventory: inventorySchema,
 })
@@ -204,6 +206,10 @@ export async function saveDocx(
       // antes delas, que escolhe a leitura de referência.
       ...(model.trackChanges === undefined ? {} : { trackChanges: model.trackChanges }),
       ...(model.beforeRevisions ? { beforeRevisions: true } : {}),
+      // As notas vão nos nós (`noteRef`, com o corpo dentro); aqui só a marca do
+      // rascunho de antes delas, que escolhe a leitura de referência e deixa as
+      // partes das notas como estão.
+      ...(model.beforeNotes ? { beforeNotes: true } : {}),
       ...(model.styles === undefined ? {} : { styles: model.styles }),
     },
     new Uint8Array(original),
@@ -341,6 +347,7 @@ function unwrapSdoc(content: string): {
   comments: unknown[]
   trackChanges: boolean | undefined
   beforeRevisions: boolean
+  beforeNotes: boolean
 } {
   let parsed: unknown
   try {
@@ -365,6 +372,7 @@ function unwrapSdoc(content: string): {
       comments: z.array(documentCommentSchema).max(100_000).optional(),
       trackChanges: z.boolean().optional(),
       beforeRevisions: z.boolean().optional(),
+      beforeNotes: z.boolean().optional(),
     })
     .safeParse(parsed)
   if (!envelope.success) {
@@ -383,5 +391,6 @@ function unwrapSdoc(content: string): {
     comments: envelope.data.comments ?? [],
     trackChanges: envelope.data.trackChanges,
     beforeRevisions: envelope.data.beforeRevisions === true,
+    beforeNotes: envelope.data.beforeNotes === true,
   }
 }

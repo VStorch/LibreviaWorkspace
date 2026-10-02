@@ -22,6 +22,7 @@ import {
 import type { StyleSheet } from '@services/document/styles.js'
 import type { MessageKey } from '@shared/i18n/index.js'
 import { bookmarksOf } from './extensions/bookmark.js'
+import { textBetweenWithoutNotes } from './extensions/note-ref.js'
 import { DEFAULT_TOC_INSTRUCTION } from './extensions/table-of-contents.js'
 import { readPendingSelection, textStartOf } from './extensions/zero-width.js'
 import { outlineBlocksOf } from './outline-blocks.js'
@@ -102,7 +103,8 @@ export function sheetAt(doc: ProseMirrorNode, starts: readonly PageStart[], pos:
 
 /** O texto entre duas posições, com o resultado dos campos no lugar deles. */
 function textBetween(doc: ProseMirrorNode, from: number, to: number): string {
-  return doc.textBetween(from, to, ' ', (leaf) =>
+  // Sem o corpo das notas (M11): ver `textBetweenWithoutNotes`.
+  return textBetweenWithoutNotes(doc, from, to, ' ', (leaf) =>
     leaf.type.name === 'field' ? String(leaf.attrs['result'] ?? '') : '',
   )
 }

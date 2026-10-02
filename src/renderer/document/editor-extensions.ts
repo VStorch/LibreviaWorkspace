@@ -27,6 +27,8 @@ import { DocumentImage } from './extensions/document-image.js'
 import { BlockIdentity } from './extensions/block-identity.js'
 import { BookmarkEnd, BookmarkStart, Bookmarks } from './extensions/bookmark.js'
 import { CommentEnd, CommentStart, Comments } from './extensions/comment.js'
+import { NoteRef } from './extensions/note-ref.js'
+import type { DocumentNotes } from '@services/document/model.js'
 import { ZeroWidthAnchors } from './extensions/zero-width.js'
 import { CountWithoutDeletions, TrackChanges } from './extensions/track-changes.js'
 import { TrackInput } from './extensions/track-input.js'
@@ -65,6 +67,8 @@ export interface EditorToolOptions {
   readonly isTrackingChanges?: () => boolean
   /** Quem assina as alterações controladas. */
   readonly revisionAuthor?: () => string
+  /** A numeração das notas do documento — ver `DocumentModel.notes`. */
+  readonly notes?: () => DocumentNotes | undefined
 }
 
 /**
@@ -212,6 +216,9 @@ export function buildEditorExtensions(
     CommentStart,
     CommentEnd,
     Comments.configure({ isKnown: options.isKnownComment }),
+    // Notas de rodapé e de fim (M11): a referência com o corpo da nota dentro,
+    // numerada pela ordem no texto. Ver note-ref.ts.
+    NoteRef.configure({ notes: options.notes }),
     // Controle de alterações (M10): as marcas de inserção e exclusão e a
     // revisão da marca de parágrafo e da linha. Ver track-changes.ts.
     ...TrackChanges,

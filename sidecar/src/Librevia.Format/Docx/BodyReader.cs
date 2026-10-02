@@ -72,6 +72,11 @@ public sealed record Block(string Oid, OpenXmlElement Source, Node Extracted)
 /// excluído não entra — a de referência para um rascunho daquela época (ver
 /// <see cref="DocumentModelDto.BeforeRevisions"/>).
 /// </param>
+/// <param name="notes">
+/// Lê a referência de nota de rodapé ou de fim como o nó `noteRef`, com o corpo da
+/// nota dentro (M11). Desligado, é a leitura de antes delas — a de referência para
+/// um rascunho daquela época (ver <see cref="DocumentModelDto.BeforeNotes"/>).
+/// </param>
 public sealed class BodyReader(
     MainDocumentPart part,
     Inventory inventory,
@@ -79,8 +84,39 @@ public sealed class BodyReader(
     bool references = true,
     bool sections = true,
     bool comments = true,
-    bool revisions = true)
+    bool revisions = true,
+    bool notes = true)
 {
+    /// <summary>Uma nota lida: o `w:footnote`/`w:endnote` do arquivo e os blocos dele.</summary>
+    public sealed record NoteRead(OpenXmlElement Source, List<Block> Blocks);
+
+    /// <summary>
+    /// As notas que o corpo referencia, pelo endereço (`fn:3`, `en:1`) — o que a
+    /// gravação compara com o corpo de cada `noteRef` do modelo. A nota que nada
+    /// no corpo referencia não entra: a gravação não a vê, e ela fica como está.
+    /// </summary>
+    public Dictionary<string, NoteRead> Notes { get; } = new(StringComparer.Ordinal);
+
+    /// <summary>
+    /// Quem lê o corpo das notas: outra instância, porque a nota é lida no meio de
+    /// um parágrafo do corpo, e o estado do parágrafo em leitura (os objetos
+    /// ancorados, as marcas de revisão em volta) não pode ser o da nota.
+    /// </summary>
+    private BodyReader? _noteReader;
+
+    /// <summary>
+    /// A parte dona dos relacionamentos do que se lê — imagem e link. É o
+    /// documento, menos na leitura de uma nota, cujas imagens moram em
+    /// `footnotes.xml.rels`.
+    /// </summary>
+    private OpenXmlPart _owner = part;
+
+    /// <summary>
+    /// O endereço dos blocos em leitura: nulo no corpo (`b1`, `b2`…), o da nota
+    /// (`fn:3`) na leitura de uma nota, cujos blocos saem `fn:3/p1`, `fn:3/p2`…
+    /// </summary>
+    private string? _oidPrefix;
+
     /// <summary>
     /// As marcas de revisão do trecho em leitura: a de cada `w:ins`/`w:del` que o
     /// envolve, de fora para dentro.
@@ -107,7 +143,8 @@ public sealed class BodyReader(
     /// de ponto — só a referência —, e é ela que vira o `commentEnd` dele.
     /// </summary>
     private readonly HashSet<string> _rangeEnds = comments
-        ? (part.Document?.Descendants<CommentRangeEnd>() ?? [])
+        ? new OpenXmlElement?[] { part.Document, part.FootnotesPart?.Footnotes, part.EndnotesPart?.Endnotes }
+            .SelectMany(root => root?.Descendants<CommentRangeEnd>() ?? [])
             .Select(end => end.Id?.Value).OfType<string>().ToHashSet(StringComparer.Ordinal)
         : [];
 
@@ -190,9 +227,31 @@ public sealed class BodyReader(
     /// </remarks>
     public (List<Node> Content, List<Block> Blocks) Read(Body body)
     {
+        if (sections) _sectionIds = PageReader.SectionIds(body);
+        return ReadBlocks(body);
+    }
+
+    /// <summary>
+    /// O corpo de uma nota, como blocos com endereço próprio (`fn:3/p1`…).
+    /// </summary>
+    /// <remarks>
+    /// Achatado, como o item de lista e a célula: as regras dos estilos alcançam o
+    /// parágrafo solto no corpo, e não o de dentro de uma nota. O run do
+    /// `w:footnoteRef` — o número que o Word desenha no começo da nota — não vira
+    /// nó: quem o refaz é a gravação.
+    /// </remarks>
+    private (List<Node> Content, List<Block> Blocks) ReadNote(OpenXmlElement note, string address, OpenXmlPart owner)
+    {
+        _owner = owner;
+        _oidPrefix = address;
+        _nextId = 1;
+        return ReadBlocks(note);
+    }
+
+    private (List<Node> Content, List<Block> Blocks) ReadBlocks(OpenXmlElement container)
+    {
         var content = new List<Node>();
         var blocks = new List<Block>();
-        if (sections) _sectionIds = PageReader.SectionIds(body);
 
         // Parágrafos numerados consecutivos viram uma lista só; a pilha guarda
         // as listas abertas, uma por nível de aninhamento.
@@ -208,7 +267,7 @@ public sealed class BodyReader(
             blocks.Add(block);
         }
 
-        var elements = body.ChildElements.ToList();
+        var elements = container.ChildElements.ToList();
         for (var at = 0; at < elements.Count; at++)
         {
             var element = elements[at];
@@ -235,7 +294,7 @@ public sealed class BodyReader(
                     // O item de lista e o parágrafo de célula têm regras próprias
                     // em `content-styles.ts`, e continuam levando o efetivo.
                     var numbered = _numbering.ListKindOf(paragraph.ParagraphProperties);
-                    var node = ReadParagraph(paragraph, flat: flatten || numbered is not null);
+                    var node = ReadParagraph(paragraph, flat: flatten || _oidPrefix is not null || numbered is not null);
                     var list = node.Type == "pageBreak" ? null : numbered;
 
                     if (list is null)
@@ -390,7 +449,7 @@ public sealed class BodyReader(
 
     private Block NewBlock(OpenXmlElement source, Node extracted)
     {
-        var oid = "b" + _nextId++;
+        var oid = _oidPrefix is null ? "b" + _nextId++ : $"{_oidPrefix}/p{_nextId++}";
         extracted.With("oid", oid);
         var block = new Block(oid, source, extracted) { UnrepresentedField = _unrepresentedField };
         _unrepresentedField = false;
@@ -946,6 +1005,25 @@ public sealed class BodyReader(
                 continue;
             }
 
+            // A referência de nota (M11): ReadRun a lê como `noteRef`. A marca
+            // própria (`w:customMarkFollows`) costuma vir no mesmo run, depois da
+            // referência; quando vem no run seguinte, ele é a marca, e não texto.
+            if (notes && _textBoxDepth == 0 && element is Run noted && NoteReferenceOf(noted) is { } noteReference)
+            {
+                var read = ReadRun(noted, inherited, hyperlink).ToList();
+                if (read.LastOrDefault(node => node.Type == "noteRef") is { } noteRef &&
+                    IsCustomMark(noteReference) && noteRef.Attrs?.ContainsKey("mark") != true &&
+                    index + 1 < children.Count && children[index + 1] is Run follower &&
+                    string.Concat(follower.Elements<Text>().Select(text => text.Text)) is { Length: > 0 } mark)
+                {
+                    noteRef.With("mark", mark);
+                    index++;
+                }
+
+                nodes.AddRange(read);
+                continue;
+            }
+
             if (references && element is SimpleField simple &&
                 ReadSimpleField(simple, inherited, hyperlink) is { } plain)
             {
@@ -1067,6 +1145,40 @@ public sealed class BodyReader(
         }
 
         return id;
+    }
+
+    /// <summary>A referência de nota de rodapé ou de fim que o run traz, quando traz.</summary>
+    internal static OpenXmlElement? NoteReferenceOf(Run run) =>
+        run.ChildElements.FirstOrDefault(child => child is FootnoteReference or EndnoteReference);
+
+    /// <summary>`w:customMarkFollows`: a referência não é numerada, e a marca é o texto que vem depois.</summary>
+    internal static bool IsCustomMark(OpenXmlElement reference) =>
+        (reference as FootnoteEndnoteReferenceType)?.CustomMarkFollows?.Value == true;
+
+    /// <summary>O `noteRef` de uma referência, com o corpo da nota dentro.</summary>
+    private Node ReadNoteRef(OpenXmlElement reference)
+    {
+        var endnote = reference is EndnoteReference;
+        var id = (reference as FootnoteEndnoteReferenceType)?.Id?.Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        var node = Node.Of("noteRef")
+            .With("kind", endnote ? NotesWriter.Endnote : NotesWriter.Footnote)
+            .With("nid", id);
+        node.Marks = RevisionMarks();
+
+        var source = id is null ? null : NotesWriter.NoteOf(part, endnote, id);
+        if (source is null)
+        {
+            node.Content = [Node.Of("paragraph")];
+            return node;
+        }
+
+        var owner = endnote ? (OpenXmlPart)part.EndnotesPart! : part.FootnotesPart!;
+        var address = NotesWriter.Address(endnote, id!);
+        _noteReader ??= new BodyReader(part, inventory, flatten, references, sections: false, comments, revisions, notes: false);
+        var (content, blocks) = _noteReader.ReadNote(source, address, owner);
+        Notes[address] = new NoteRead(source, blocks);
+        node.Content = content;
+        return node;
     }
 
     /// <summary>
@@ -1439,10 +1551,34 @@ public sealed class BodyReader(
     {
         var marks = MarksOfRun(run, inherited, hyperlink);
 
+        // A referência de marca própria espera o texto que vem depois dela.
+        Node? customMark = null;
+
         foreach (var element in run.ChildElements)
         {
             switch (element)
             {
+                case Text text when customMark is not null:
+                    customMark.With("mark", text.Text);
+                    customMark = null;
+                    break;
+
+                // A referência de nota (M11): o número não se guarda — ele é a
+                // ordem no documento —, e o corpo da nota vai dentro do nó.
+                case FootnoteReference or EndnoteReference when notes && _textBoxDepth == 0:
+                {
+                    var noteRef = ReadNoteRef(element);
+                    if (IsCustomMark(element)) customMark = noteRef;
+                    _paragraphHasContent = true;
+                    yield return noteRef;
+                    break;
+                }
+
+                // O número no começo do corpo da nota: o Word o desenha, e a
+                // gravação o refaz — ver NotesWriter.
+                case FootnoteReferenceMark or EndnoteReferenceMark when _oidPrefix is not null:
+                    break;
+
                 case Text text:
                     if (text.Text.Length > 0)
                     {
@@ -1735,7 +1871,7 @@ public sealed class BodyReader(
         var relationshipId = blip?.Embed?.Value;
         if (string.IsNullOrEmpty(relationshipId)) return null;
 
-        if (part.GetPartById(relationshipId) is not ImagePart image)
+        if (!_owner.TryGetPartById(relationshipId, out var found) || found is not ImagePart image)
         {
             inventory.NoteLoss("imagem em formato não suportado");
             return null;
@@ -1875,7 +2011,7 @@ public sealed class BodyReader(
 
         try
         {
-            return part.HyperlinkRelationships
+            return _owner.HyperlinkRelationships
                 .FirstOrDefault(relationship => relationship.Id == id)?.Uri.ToString();
         }
         catch (UriFormatException)

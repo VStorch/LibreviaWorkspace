@@ -47,15 +47,16 @@ public static class DocxWriter
         // Com o mesmo leitor que produziu o modelo: um rascunho antigo traz os
         // blocos achatados, e comparados com a leitura que só leva o direto todo
         // bloco pareceria mudado — o documento inteiro seria reescrito.
-        var (_, blocks) = new BodyReader(
+        var reader = new BodyReader(
             part,
-                new Inventory(),
-                model.Flatten,
-                !model.BeforeReferences,
-                !model.BeforeSections,
-                !model.BeforeComments,
-                !model.BeforeRevisions)
-            .Read(body);
+            new Inventory(),
+            model.Flatten,
+            !model.BeforeReferences,
+            !model.BeforeSections,
+            !model.BeforeComments,
+            !model.BeforeRevisions,
+            !model.BeforeNotes);
+        var (_, blocks) = reader.Read(body);
         var index = blocks.ToDictionary(block => block.Oid, StringComparer.Ordinal);
 
         var section = body.Elements<SectionProperties>().LastOrDefault();
@@ -72,19 +73,51 @@ public static class DocxWriter
         // StyleWriter.Apply), e a mudança num existente vira perda declarada.
         StyleWriter.Apply(part, model.Styles, inventory, touched, additionsOnly: model.Flatten);
 
+        // O id de cada referência de nota (M11), antes do corpo: o run da
+        // referência o leva, e quem grava o run é o parágrafo. No rascunho de antes
+        // das notas o modelo não tem referência nenhuma, e as partes ficam como
+        // estão — a perda do parágrafo editado é declarada em NoteWhatWasInside.
+        var notes = model.BeforeNotes ? null : NotesWriter.Plan(model.Doc, part);
+
+        var numbering = new NumberingFactory(part, touched, inventory);
+        var headings = new HeadingStyles(part, touched);
         var replacement = BuildBody(
             model,
             part,
             index,
             inventory,
-            new NumberingFactory(part, touched, inventory),
-            new HeadingStyles(part, touched),
+            numbering,
+            headings,
             out var preserved,
             out var rewritten,
             out var breaks);
 
         body.RemoveAllChildren();
         foreach (var element in replacement) body.AppendChild(element);
+
+        // O corpo das notas (M11): só a nota que mudou, e só a parte que a guarda.
+        // Antes dos comentários, que procuram as âncoras também nas notas.
+        if (notes is not null)
+        {
+            rewritten += NotesWriter.Apply(
+                part,
+                notes,
+                reader.Notes,
+                owner => new ParagraphWriter(
+                    part,
+                    inventory,
+                    UsableWidthPx(model.Page),
+                    headings,
+                    model.Flatten,
+                    !model.BeforeReferences,
+                    !model.BeforeRevisions,
+                    owner),
+                numbering,
+                inventory,
+                touched,
+                model.BeforeComments,
+                model.BeforeRevisions);
+        }
 
         // O corpo dos comentários: o criado, o editado, o resolvido e o excluído —
         // ver CommentsWriter. Antes do conserto das pontas, que precisa conhecer os
@@ -452,7 +485,8 @@ public static class DocxWriter
             }
 
             var before = elements.Count;
-            var kept = BuildSlot(slot, owner, writer, inventory, elements, model.BeforeComments, model.BeforeRevisions);
+            var kept = BuildSlot(
+                slot, owner, writer, inventory, elements, model.BeforeComments, model.BeforeRevisions, model.BeforeNotes);
             if (kept)
             {
                 preserved++;
@@ -631,20 +665,17 @@ public static class DocxWriter
     /// quando mudou. Devolve se foi preservado.
     /// </summary>
     /// <param name="owner">O bloco do arquivo com o mesmo `oid`, na primeira ocorrência dele.</param>
-    private static bool BuildSlot(
+    internal static bool BuildSlot(
         Slot slot,
         Block? owner,
         ParagraphWriter writer,
         Inventory inventory,
         List<OpenXmlElement> elements,
         bool beforeComments,
-        bool beforeRevisions)
+        bool beforeRevisions,
+        bool beforeNotes)
     {
-        if (owner is not null &&
-            string.Equals(
-                OwnContent(owner.Extracted).Fingerprint(),
-                OwnContent(slot.Identity).Fingerprint(),
-                StringComparison.Ordinal))
+        if (owner is not null && SameContent(slot, owner))
         {
             // O conteúdo é o mesmo, mas o item pode ter mudado de lugar na
             // lista: Tab o desce um nível, "Reiniciar numeração" o põe noutro
@@ -674,9 +705,24 @@ public static class DocxWriter
 
         foreach (var element in writer.Write(slot.Content, placement, source)) elements.Add(element);
 
-        if (owner is not null) NoteWhatWasInside(owner, inventory, beforeComments, beforeRevisions);
+        if (owner is not null) NoteWhatWasInside(owner, inventory, beforeComments, beforeRevisions, beforeNotes);
         return false;
     }
+
+    /// <summary>O bloco do modelo diz o mesmo que o do arquivo — ver OwnContent.</summary>
+    private static bool SameContent(Slot slot, Block owner) =>
+        string.Equals(
+            OwnContent(owner.Extracted).Fingerprint(),
+            OwnContent(slot.Identity).Fingerprint(),
+            StringComparison.Ordinal);
+
+    /// <summary>
+    /// O bloco voltaria ao arquivo exatamente como estava: o mesmo conteúdo, e o
+    /// item de lista na mesma numeração — ver BuildSlot.
+    /// </summary>
+    internal static bool Preservable(Slot slot, Block owner) =>
+        SameContent(slot, owner) &&
+        !(slot.List is { } list && owner.Source is Paragraph paragraph && !Points(paragraph, list));
 
     /// <summary>
     /// O item de lista sem as sublistas de dentro — o que corresponde ao `w:p` dele.
@@ -734,9 +780,9 @@ public static class DocxWriter
     /// completa sem que nada falhasse visivelmente.
     /// </param>
     /// <param name="Content">O nó a gravar quando não houver preservação.</param>
-    private sealed record Slot(Node Identity, Node Content, ParagraphWriter.ListContext? List);
+    internal sealed record Slot(Node Identity, Node Content, ParagraphWriter.ListContext? List);
 
-    private static IEnumerable<Slot> Flatten(
+    internal static IEnumerable<Slot> Flatten(
         Node doc,
         NumberingFactory numbering,
         ParagraphWriter.ListContext? inherited = null)
@@ -846,7 +892,7 @@ public static class DocxWriter
         return millimeters > 10 ? (int)Math.Round(millimeters / 25.4 * 96) : ImageWriter.DefaultWidthPx;
     }
 
-    private static string? OidOf(Node node)
+    internal static string? OidOf(Node node)
     {
         if (node.Attrs is null || !node.Attrs.TryGetValue("oid", out var value) || value is null) return null;
         return value.GetValueKind() == System.Text.Json.JsonValueKind.String ? value.GetValue<string>() : null;
@@ -871,7 +917,12 @@ public static class DocxWriter
     /// o parágrafo perde o `w:ins` e o `w:del`. Depois dele elas voltam pelas
     /// marcas — só a de formatação do trecho e a movimentação não voltam inteiras.
     /// </param>
-    private static void NoteWhatWasInside(Block block, Inventory inventory, bool beforeComments, bool beforeRevisions)
+    /// <param name="beforeNotes">
+    /// O rascunho é de antes das notas (M11): os nós não trazem a referência, e
+    /// reescrever o parágrafo a perde. Depois dele ela volta pelo `noteRef`.
+    /// </param>
+    private static void NoteWhatWasInside(
+        Block block, Inventory inventory, bool beforeComments, bool beforeRevisions, bool beforeNotes)
     {
         var original = block.Source;
 
@@ -920,9 +971,14 @@ public static class DocxWriter
             inventory.NoteLoss("movimentação de texto num parágrafo que você editou (virou exclusão e inserção)");
         }
 
-        if (original.Descendants<FootnoteReference>().Any())
+        if (beforeNotes && original.Descendants<FootnoteReference>().Any())
         {
             inventory.NoteLoss("nota de rodapé num parágrafo que você editou");
+        }
+
+        if (beforeNotes && original.Descendants<EndnoteReference>().Any())
+        {
+            inventory.NoteLoss("nota de fim num parágrafo que você editou");
         }
 
         // O campo que virou nó volta ao arquivo como campo (ver BodyReader.ReadField);

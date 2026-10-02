@@ -38,6 +38,8 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
     beforeComments: false,
     trackChanges: undefined,
     beforeRevisions: false,
+    notes: undefined,
+    beforeNotes: false,
     workbook: null,
     generation: 0,
     isDirty: false,

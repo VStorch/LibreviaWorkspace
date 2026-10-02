@@ -205,6 +205,22 @@ export const documentCommentSchema = z.object({
 })
 
 /**
+ * Como o documento numera as notas (M11) — `w:footnotePr`/`w:endnotePr`. Vai ao
+ * `.sdoc`, e por isso é conferido na entrada, como os comentários.
+ */
+const notePrSchema = z.object({
+  numFmt: z.string().max(100).optional(),
+  start: z.number().int().min(0).max(100_000).optional(),
+  restart: z.string().max(100).optional(),
+  pos: z.string().max(100).optional(),
+})
+
+export const documentNotesSchema = z.object({
+  footnotePr: notePrSchema.optional(),
+  endnotePr: notePrSchema.optional(),
+})
+
+/**
  * As preferências de edição, validadas.
  *
  * Mora aqui, e não no contrato de IPC, porque o mesmo schema serve em três

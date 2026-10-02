@@ -17,7 +17,11 @@ namespace Librevia.Format.Docx;
 /// medir o cabeçalho dos bytes e converter pixel em EMU. Trinta linhas de árvore
 /// de DrawingML no meio do escritor de parágrafo escondiam as duas coisas.
 /// </remarks>
-internal sealed class ImageWriter(MainDocumentPart part, Inventory inventory, int usableWidthPx)
+/// <param name="owner">
+/// A parte dona do relacionamento da imagem: o documento, ou a parte das notas
+/// quando a imagem está numa nota (M11).
+/// </param>
+internal sealed class ImageWriter(MainDocumentPart part, Inventory inventory, int usableWidthPx, OpenXmlPart? owner = null)
 {
     /// <summary>A coluna de uma A4 retrato com margens de uma polegada.</summary>
     internal const int DefaultWidthPx = 624;
@@ -91,13 +95,18 @@ internal sealed class ImageWriter(MainDocumentPart part, Inventory inventory, in
                 return null;
         }
 
-        var imagePart = part.AddImagePart(imageType);
+        var imagePart = (owner ?? part) switch
+        {
+            FootnotesPart footnotes => footnotes.AddImagePart(imageType),
+            EndnotesPart endnotes => endnotes.AddImagePart(imageType),
+            _ => part.AddImagePart(imageType),
+        };
         using (var stream = new MemoryStream(bytes))
         {
             imagePart.FeedData(stream);
         }
 
-        var relationshipId = part.GetIdOfPart(imagePart);
+        var relationshipId = (owner ?? part).GetIdOfPart(imagePart);
 
         var (widthPx, heightPx) = Dimensions(node, bytes);
 
@@ -222,7 +231,7 @@ internal sealed class ImageWriter(MainDocumentPart part, Inventory inventory, in
         var relationshipId = drawing.Descendants<Drawing.Blip>().FirstOrDefault()?.Embed?.Value;
         if (string.IsNullOrEmpty(relationshipId)) return null;
 
-        if (!part.TryGetPartById(relationshipId, out var found) || found is not ImagePart image) return null;
+        if (!(owner ?? part).TryGetPartById(relationshipId, out var found) || found is not ImagePart image) return null;
 
         using var stream = image.GetStream();
         using var buffer = new MemoryStream();

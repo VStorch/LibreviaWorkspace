@@ -8,6 +8,7 @@ import { sheetSetups } from '@services/document/sections.js'
 import { RevisionView } from '@shared/types.js'
 import { DELETION, INSERTION } from './extensions/track-changes.js'
 import { isHiddenBlock, isHiddenInline, revisionViewOf } from './extensions/revision-view.js'
+import { notesSetupOf, numberNotesForPrint } from './extensions/note-ref.js'
 import { collapsed, drawnSheet, isInternalStart, type PageLayout, type PageStart } from './usePagination.js'
 
 /**
@@ -42,6 +43,10 @@ export function splitIntoPages(
 
   const cuts: PageStart[] = [{ blockIndex: 0 }, ...layout.pageStarts, { blockIndex: blocks.length }]
   const pages: PrintPage[] = []
+  // O número das notas (M11) é decoração na tela; no papel ele é escrito aqui,
+  // contado ao longo das folhas.
+  const noteCounters = new Map<string, number>()
+  const notes = notesSetupOf(editor.extensionManager.extensions)
   // A configuração de cada folha desenhada: papel, faixas e número da seção dela.
   const setups = sheetSetups(sections, layout.sheets)
   const setupOf = (drawn: number): { setup: PageSetup; inSection: number } => {
@@ -78,6 +83,7 @@ export function splitIntoPages(
     // painel e o realce são da tela (o realce é decoração, que o serializador não
     // vê), e as pontas saem aqui — vazias, mas são marcação de comentário.
     for (const anchor of holder.querySelectorAll('[data-comment-start], [data-comment-end]')) anchor.remove()
+    numberNotesForPrint(holder, noteCounters, notes)
     // A mesma marca que a decoração põe na tela: o parágrafo da captura com
     // texto não ganha a linha vazia de 1lh.
     for (const paragraph of holder.querySelectorAll('p')) {

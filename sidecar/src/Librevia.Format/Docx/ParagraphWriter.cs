@@ -21,6 +21,17 @@ namespace Librevia.Format.Docx;
 public sealed class ParagraphWriter
 {
     private readonly MainDocumentPart _part;
+
+    /// <summary>
+    /// A parte dona dos relacionamentos do que se grava — o link e a imagem nova.
+    /// É o documento, menos na nota (M11): o `r:id` do link de uma nota é de
+    /// `footnotes.xml.rels`, e apontado no do documento ele não existiria.
+    /// </summary>
+    private readonly OpenXmlPart _owner;
+
+    /// <summary>O run de cada referência de nota do corpo original — ver NotesWriter.ReferenceRunsOf.</summary>
+    private Dictionary<string, Run>? _noteRuns;
+
     private readonly Inventory _inventory;
     private readonly ParagraphFormat _format;
     private readonly StyleResolver _styles;
@@ -61,16 +72,18 @@ public sealed class ParagraphWriter
         HeadingStyles? headings = null,
         bool flatten = false,
         bool references = true,
-        bool revisions = true)
+        bool revisions = true,
+        OpenXmlPart? owner = null)
     {
         _part = part;
+        _owner = owner ?? part;
         _references = references;
         _inventory = inventory;
         _styles = new StyleResolver(part);
         _format = new ParagraphFormat(inventory, headings ?? new HeadingStyles(part, null), _styles, flatten, revisions);
         var usable = usableWidthPx > 0 ? usableWidthPx : ImageWriter.DefaultWidthPx;
         _tables = new TableWriter(inventory, (node, original) => Write(node, null, original), usable, revisions);
-        _images = new ImageWriter(part, inventory, usable);
+        _images = new ImageWriter(part, inventory, usable, _owner);
         _usableTwips = usable * 15;
     }
 
@@ -499,6 +512,12 @@ public sealed class ParagraphWriter
                 foreach (var element in WriteField(node)) yield return element;
                 break;
 
+            // A referência de nota (M11): o corpo vai para a parte das notas — ver
+            // NotesWriter —, e aqui fica o run com o id.
+            case "noteRef":
+                yield return WriteNoteReference(node);
+                break;
+
             case "image":
                 if ((originalImages is null ? null : _images.Reuse(node, originalImages)) is { } kept)
                 {
@@ -515,6 +534,37 @@ public sealed class ParagraphWriter
                 _inventory.NoteLoss($"conteúdo do tipo \"{node.Type}\"");
                 break;
         }
+    }
+
+    /// <summary>
+    /// O run da referência de nota: o `w:rPr` do run original (o estilo, o
+    /// sobrescrito), e na nota nova o do Word. A marca própria
+    /// (`w:customMarkFollows`) vem no mesmo run, logo depois da referência.
+    /// </summary>
+    private Run WriteNoteReference(Node node)
+    {
+        var endnote = Attr.String(node, "kind") == NotesWriter.Endnote;
+        var id = long.TryParse(Attr.String(node, "nid"), System.Globalization.NumberStyles.Integer,
+            System.Globalization.CultureInfo.InvariantCulture, out var number) ? number : 0L;
+        _noteRuns ??= NotesWriter.ReferenceRunsOf(_part);
+
+        var run = new Run();
+        var address = NotesWriter.Address(endnote, id.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        run.RunProperties = _noteRuns.TryGetValue(address, out var original) && original.RunProperties is { } kept
+            ? (RunProperties)kept.CloneNode(true)
+            : NotesWriter.ReferenceProperties(_part, endnote);
+
+        FootnoteEndnoteReferenceType reference = endnote ? new EndnoteReference() : new FootnoteReference();
+        reference.Id = id;
+        var mark = Attr.String(node, "mark");
+        if (mark is { Length: > 0 }) reference.CustomMarkFollows = true;
+        run.AppendChild(reference);
+        if (mark is { Length: > 0 })
+        {
+            foreach (var piece in XmlText.Of(mark)) run.AppendChild(piece);
+        }
+
+        return run;
     }
 
     /// <summary>As marcas do nó → o `w:rPr` do run e o destino do link, se houver.</summary>
@@ -641,7 +691,7 @@ public sealed class ParagraphWriter
             return runs;
         }
 
-        var relationship = _part.AddHyperlinkRelationship(target, true);
+        var relationship = _owner.AddHyperlinkRelationship(target, true);
         return [new Hyperlink(runs) { Id = relationship.Id }];
     }
 

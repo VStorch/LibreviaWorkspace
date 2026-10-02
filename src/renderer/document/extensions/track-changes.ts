@@ -319,6 +319,17 @@ export function textWithoutDeletions(
   let text = ''
   let first = true
   node.descendants((child) => {
+    // A nota (M11) é um nó só no texto do parágrafo: a busca precisa do
+    // comprimento dela nas posições, e o corpo não está na tela para ser achado.
+    // Na contagem ela entra — o Word conta as notas —, separada do texto em volta.
+    if (child.type.name === 'noteRef') {
+      if (hide !== undefined) text += hide.repeat(child.nodeSize)
+      else {
+        const inner = textWithoutDeletions(child, blockSeparator, leafText)
+        if (inner !== '') text += ` ${inner}`
+      }
+      return false
+    }
     const own = child.isText
       ? isDeleted(child)
         ? hide === undefined

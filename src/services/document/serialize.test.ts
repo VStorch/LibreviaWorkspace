@@ -185,13 +185,29 @@ describe('estilos no formato interno', () => {
     expect(parseDocument(v7).beforeRevisions).toBe(true)
     expect(parseDocument(v7).beforeComments).toBeUndefined()
     expect(parseDocument(serializeDocument(richDocument)).beforeRevisions).toBeUndefined()
-    expect(JSON.parse(serializeDocument(richDocument)).version).toBe(8)
+    expect(JSON.parse(serializeDocument(richDocument)).version).toBe(SDOC_VERSION)
 
     const tracked = parseDocument(serializeDocument({ ...richDocument, trackChanges: true }))
     expect(tracked.trackChanges).toBe(true)
     expect(parseDocument(serializeDocument(richDocument)).trackChanges).toBeUndefined()
     const legacy = parseDocument(serializeDocument({ ...richDocument, beforeRevisions: true }))
     expect(legacy.beforeRevisions).toBe(true)
+  })
+
+  it('marca como anterior às notas o arquivo da versão 8, e leva a numeração na ida e volta', () => {
+    // O rascunho de antes das notas não traz o `noteRef`, e a gravação em DOCX
+    // precisa compará-lo com a leitura daquela época.
+    const v8 = JSON.stringify({ ...JSON.parse(v2(BUILTIN_STYLES)), version: 8 })
+    expect(parseDocument(v8).beforeNotes).toBe(true)
+    expect(parseDocument(v8).beforeRevisions).toBeUndefined()
+    expect(JSON.parse(serializeDocument(richDocument)).version).toBe(9)
+    expect(parseDocument(serializeDocument(richDocument)).beforeNotes).toBeUndefined()
+
+    const notes = { footnotePr: { numFmt: 'lowerRoman', start: 3 }, endnotePr: { pos: 'docEnd' } }
+    expect(parseDocument(serializeDocument({ ...richDocument, notes })).notes).toEqual(notes)
+    expect(parseDocument(serializeDocument(richDocument)).notes).toBeUndefined()
+    const legacy = parseDocument(serializeDocument({ ...richDocument, beforeNotes: true }))
+    expect(legacy.beforeNotes).toBe(true)
   })
 
   it('dá os estilos embutidos ao arquivo da versão 2, que não os tinha', () => {

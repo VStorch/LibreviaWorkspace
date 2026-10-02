@@ -61,6 +61,15 @@ public sealed class Inventory
     /// byte a byte no parágrafo intocado; no editado, a do trecho se perde.
     /// </summary>
     public const string FormatRevisions = "revisões de formatação";
+    /// <summary>
+    /// A referência de nota que o editor não leva como nó — a de dentro de uma
+    /// caixa de texto, e a do rascunho de antes do M11.
+    /// </summary>
+    /// <remarks>
+    /// Saiu da lista estrutural no M11, como o comentário no M10: a referência do
+    /// corpo virou `noteRef`, e editar o parágrafo que a leva a devolve ao arquivo
+    /// com o corpo da nota.
+    /// </remarks>
     public const string Footnotes = "notas de rodapé";
     public const string Endnotes = "notas de fim";
     public const string Fields = "campos calculados (como sumário e número de página)";
@@ -91,7 +100,7 @@ public sealed class Inventory
 
     private static readonly HashSet<string> StructuralLabels = new(StringComparer.Ordinal)
     {
-        StructureRevisions, Footnotes, Endnotes, Fields, HeaderFields, ContentControls,
+        StructureRevisions, Fields, HeaderFields, ContentControls,
     };
 
     private readonly SortedSet<string> _invisible = new(StringComparer.Ordinal);

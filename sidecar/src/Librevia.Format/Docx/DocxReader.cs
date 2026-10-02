@@ -73,7 +73,17 @@ public sealed record DocumentModelDto(
     // `BeforeReferences`.
     [property: JsonPropertyName("beforeRevisions")]
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-    bool BeforeRevisions = false);
+    bool BeforeRevisions = false,
+    // Como o documento numera as notas (M11), fora dos nós — ver NotesReader. Só a
+    // leitura o dá; a gravação não o muda, e `settings.xml` volta byte a byte.
+    [property: JsonPropertyName("notes")]
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    NotesDto? Notes = null,
+    // O rascunho é de antes das notas (formato `.sdoc` < 9): os nós não trazem o
+    // `noteRef`. Mesmo motivo de `BeforeReferences`.
+    [property: JsonPropertyName("beforeNotes")]
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    bool BeforeNotes = false);
 
 public sealed record OpenResult(
     [property: JsonPropertyName("model")] DocumentModelDto Model,
@@ -123,7 +133,8 @@ public static class DocxReader
                 OutsideBookmarks: OutsideBookmarksOf(part, doc),
                 Sections: sections,
                 Comments: CommentsReader.Read(part),
-                TrackChanges: Revisions.TrackingOf(part) ? true : null),
+                TrackChanges: Revisions.TrackingOf(part) ? true : null,
+                Notes: NotesReader.Read(part, body)),
             inventory);
     }
 
@@ -204,19 +215,8 @@ public static class DocxReader
     /// </remarks>
     private static void NoteWholeDocumentFeatures(MainDocumentPart part, Inventory inventory)
     {
-        // Os comentários não entram mais aqui: o painel os mostra (M10).
-
-        if (part.FootnotesPart?.Footnotes?.Elements<Footnote>()
-                .Any(note => note.Type?.Value is null || note.Type.Value == FootnoteEndnoteValues.Normal) == true)
-        {
-            inventory.NoteInvisible(Inventory.Footnotes);
-        }
-
-        if (part.EndnotesPart?.Endnotes?.Elements<Endnote>()
-                .Any(note => note.Type?.Value is null || note.Type.Value == FootnoteEndnoteValues.Normal) == true)
-        {
-            inventory.NoteInvisible(Inventory.Endnotes);
-        }
+        // Os comentários não entram mais aqui: o painel os mostra (M10). Nem as
+        // notas: a referência virou `noteRef`, com o corpo dentro (M11).
 
         // As revisões de texto não entram mais aqui: o editor as mostra (M10).
         // Sobram as de estrutura, que ele não representa e a gravação de uma

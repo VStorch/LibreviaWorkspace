@@ -32,6 +32,10 @@ export function commentAnchorsOf(doc: ProseMirrorNode): Map<string, CommentAncho
   const anchors = new Map<string, CommentAnchor>()
   doc.descendants((node, pos) => {
     const kind = node.type.name
+    // A âncora dentro de uma nota (M11) não está na tela até a nota ter o pé da
+    // página (fase 2): o painel não teria onde pô-la. Ela continua no modelo, e
+    // a gravação a devolve com a nota.
+    if (kind === 'noteRef') return false
     if (kind !== 'commentStart' && kind !== 'commentEnd') return true
     const cid = String(node.attrs['cid'] ?? '')
     const known = anchors.get(cid) ?? { cid, start: null, end: null }

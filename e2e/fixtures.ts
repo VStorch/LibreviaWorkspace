@@ -130,11 +130,35 @@ export async function docxWithTrackedChange(options: { leadingTable?: boolean } 
 }
 
 /**
+ * Documento com uma célula inserida por revisão (`w:cellIns`).
+ *
+ * É o que trava a edição desde que a nota de rodapé deixou de travar (M11): a
+ * revisão de estrutura o editor não representa, e a gravação da tabela editada a
+ * perderia. Com `leadingTable`, a tabela revisada abre o documento — é onde o
+ * cursor está, e onde os comandos do menu Tabela têm onde agir.
+ */
+export async function docxWithCellRevision(options: { leadingTable?: boolean } = {}): Promise<Buffer> {
+  const revised = LEADING_TABLE.replace(
+    '<w:tcW w:w="4500" w:type="dxa"/></w:tcPr>',
+    '<w:tcW w:w="4500" w:type="dxa"/><w:cellIns w:id="1" w:author="Revisor" w:date="2026-01-01T00:00:00Z"/></w:tcPr>',
+  )
+  const body =
+    options.leadingTable === true
+      ? revised + paragraph('Ata da reunião de terça.') + paragraph('Fim.')
+      : paragraph('Ata da reunião de terça.') + revised + paragraph('Fim.')
+
+  return zip([
+    ['[Content_Types].xml', CONTENT_TYPES.replace(/<Override PartName="\/word\/comments[^>]+>/, '')],
+    ['_rels/.rels', ROOT_RELS],
+    ['word/document.xml', documentXml(body)],
+  ])
+}
+
+/**
  * Documento com uma nota de rodapé no segundo parágrafo.
  *
- * É o que trava a edição desde que o controle de alterações deixou de travar
- * (M10): editar o parágrafo da referência a perde. Com `leadingTable`, a mesma
- * tabela de abertura de `docxWithComment`.
+ * Travava a edição até o M11, quando a referência virou nó com o corpo da nota
+ * dentro. Com `leadingTable`, a mesma tabela de abertura de `docxWithComment`.
  */
 export async function docxWithFootnote(options: { leadingTable?: boolean } = {}): Promise<Buffer> {
   const table = options.leadingTable === true ? LEADING_TABLE : ''

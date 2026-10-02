@@ -107,6 +107,8 @@ export function createWorkspaceContext(set: SetWorkspace, get: GetWorkspace): Wo
       ...(state.beforeComments ? { beforeComments: true } : {}),
       ...(state.trackChanges === undefined ? {} : { trackChanges: state.trackChanges }),
       ...(state.beforeRevisions ? { beforeRevisions: true } : {}),
+      ...(state.notes === undefined ? {} : { notes: state.notes }),
+      ...(state.beforeNotes ? { beforeNotes: true } : {}),
     }
   }
 
@@ -165,6 +167,8 @@ export function createWorkspaceContext(set: SetWorkspace, get: GetWorkspace): Wo
       beforeComments: model.beforeComments === true,
       trackChanges: model.trackChanges,
       beforeRevisions: model.beforeRevisions === true,
+      notes: model.notes,
+      beforeNotes: model.beforeNotes === true,
       generation: state.generation + 1,
       isDirty: false,
       error: null,

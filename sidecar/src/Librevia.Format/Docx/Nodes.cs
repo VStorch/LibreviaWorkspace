@@ -94,6 +94,22 @@ public sealed class Node
         switch (node)
         {
             case JsonObject o:
+                // A referência de nota (M11) vale pelo que aponta, e não pelo corpo da
+                // nota: editar a nota não pode fazer o parágrafo que a referencia
+                // parecer editado. Quem compara o corpo é NotesWriter, bloco a bloco.
+                if (o["type"]?.GetValueKind() == JsonValueKind.String &&
+                    o["type"]!.GetValue<string>() == "noteRef")
+                {
+                    o.Remove("content");
+                    if (o["attrs"] is JsonObject noteAttrs)
+                    {
+                        foreach (var entry in noteAttrs.ToList())
+                        {
+                            if (entry.Key is not ("kind" or "nid" or "mark")) noteAttrs.Remove(entry.Key);
+                        }
+                    }
+                }
+
                 if (o["attrs"] is JsonObject attrs)
                 {
                     attrs.Remove("oid");

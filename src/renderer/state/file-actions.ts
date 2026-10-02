@@ -220,6 +220,8 @@ export function createFileActions(set: SetWorkspace, get: GetWorkspace, ctx: Wor
         beforeComments: false,
         trackChanges: undefined,
         beforeRevisions: false,
+        notes: undefined,
+        beforeNotes: false,
         generation: state.generation + 1,
         isDirty: false,
         error: null,

@@ -3,6 +3,7 @@ import { AppError, ErrorCode } from '@shared/errors.js'
 import { Language, translate } from '@shared/i18n/index.js'
 import {
   documentCommentSchema,
+  documentNotesSchema,
   pageSetupSchema,
   sectionSetupSchema,
   styleSheetSchema,
@@ -13,6 +14,8 @@ import {
   type DocumentComment,
   type DocumentModel,
   type DocumentNode,
+  type DocumentNotes,
+  type NoteNumbering,
 } from './model.js'
 import { LEGACY_STYLES, type StyleSheet } from './styles.js'
 
@@ -57,9 +60,13 @@ import { LEGACY_STYLES, type StyleSheet } from './styles.js'
  *   rascunho anterior não as tem — o inserido era texto comum e o excluído não
  *   aparecia —, e a leitura o marca (`beforeRevisions`) pelo mesmo motivo da
  *   versão 4.
+ * - **9** — o texto passou a levar as **notas** de rodapé e de fim (M11): a
+ *   referência é o nó `noteRef`, com o corpo da nota dentro, e `notes` leva a
+ *   numeração do documento. O rascunho anterior não tem a referência, e a leitura
+ *   o marca (`beforeNotes`) pelo mesmo motivo da versão 4.
  */
 export const SDOC_FORMAT = 'sdoc'
-export const SDOC_VERSION = 8
+export const SDOC_VERSION = 9
 
 /** O conteúdo é validado só na forma; a estrutura fina é do ProseMirror. */
 const documentNodeSchema: z.ZodType<DocumentNode> = z.looseObject({
@@ -88,6 +95,9 @@ const sdocSchema = z.object({
   // Ver `DocumentModel.trackChanges` e `beforeRevisions`.
   trackChanges: z.boolean().optional(),
   beforeRevisions: z.boolean().optional(),
+  // Ver `DocumentModel.notes` e `beforeNotes`.
+  notes: documentNotesSchema.optional(),
+  beforeNotes: z.boolean().optional(),
 })
 
 export function serializeDocument(model: DocumentModel): string {
@@ -110,6 +120,8 @@ export function serializeDocument(model: DocumentModel): string {
       ...(model.beforeComments === true ? { beforeComments: true } : {}),
       ...(model.trackChanges === undefined ? {} : { trackChanges: model.trackChanges }),
       ...(model.beforeRevisions === true ? { beforeRevisions: true } : {}),
+      ...(model.notes === undefined ? {} : { notes: model.notes }),
+      ...(model.beforeNotes === true ? { beforeNotes: true } : {}),
     },
     null,
     2,
@@ -160,6 +172,22 @@ export function parseDocument(text: string, language: Language = Language.Portug
     ...(parsed.data.version < 7 || parsed.data.beforeComments === true ? { beforeComments: true } : {}),
     ...(parsed.data.trackChanges === undefined ? {} : { trackChanges: parsed.data.trackChanges }),
     ...(parsed.data.version < 8 || parsed.data.beforeRevisions === true ? { beforeRevisions: true } : {}),
+    ...(parsed.data.notes === undefined ? {} : { notes: notesOf(parsed.data.notes) }),
+    ...(parsed.data.version < 9 || parsed.data.beforeNotes === true ? { beforeNotes: true } : {}),
+  }
+}
+
+/** A numeração das notas sem as chaves ausentes — `exactOptionalPropertyTypes`. */
+export function notesOf(raw: z.infer<typeof documentNotesSchema>): DocumentNotes {
+  const numbering = (pr: NonNullable<typeof raw.footnotePr>): NoteNumbering => ({
+    ...(pr.numFmt === undefined ? {} : { numFmt: pr.numFmt }),
+    ...(pr.start === undefined ? {} : { start: pr.start }),
+    ...(pr.restart === undefined ? {} : { restart: pr.restart }),
+    ...(pr.pos === undefined ? {} : { pos: pr.pos }),
+  })
+  return {
+    ...(raw.footnotePr === undefined ? {} : { footnotePr: numbering(raw.footnotePr) }),
+    ...(raw.endnotePr === undefined ? {} : { endnotePr: numbering(raw.endnotePr) }),
   }
 }
 

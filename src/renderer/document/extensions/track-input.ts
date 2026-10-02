@@ -609,6 +609,24 @@ export function wordRangeAt(
   return index === offset ? null : [offset, index]
 }
 
+/**
+ * O texto puro do que se copia: blocos separados por linha em branco, a quebra
+ * de linha como `\n`, e a referência de nota só como a marca dela — o corpo da
+ * nota mora dentro do nó, e `textBetween` o despejaria no meio da frase.
+ */
+function plainTextOf(fragment: Fragment): string {
+  const blocks: string[] = []
+  let inline = ''
+  fragment.forEach((node) => {
+    if (node.isText) inline += node.text ?? ''
+    else if (node.type.name === 'hardBreak') inline += '\n'
+    else if (node.isInline) inline += node.type.name === 'noteRef' ? String(node.attrs['mark'] ?? '') : ''
+    else blocks.push(plainTextOf(node.content))
+  })
+  if (inline !== '') blocks.unshift(inline)
+  return blocks.join('\n\n')
+}
+
 export const TrackInput = Extension.create<TrackInputOptions>({
   name: 'trackInput',
 
@@ -693,10 +711,7 @@ export const TrackInput = Extension.create<TrackInputOptions>({
           transformCopied: (slice) => stripDeleted(slice),
           // E nem do texto puro, que o Tiptap tira da seleção sem passar acima.
           clipboardTextSerializer: (slice) => {
-            const content = stripDeleted(slice).content
-            return content.textBetween(0, content.size, '\n\n', (leaf) =>
-              leaf.type.name === 'hardBreak' ? '\n' : '',
-            )
+            return plainTextOf(stripDeleted(slice).content)
           },
         },
       }),

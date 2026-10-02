@@ -4,6 +4,7 @@ import type {
   DocumentComment,
   DocumentModel,
   DocumentNode,
+  DocumentNotes,
   PageSetup,
   SectionSetup,
 } from '@services/document/model.js'
@@ -96,6 +97,10 @@ export interface WorkspaceState {
   trackChanges: boolean | undefined
   /** O rascunho é de antes das revisões — ver `DocumentModel.beforeRevisions`. */
   beforeRevisions: boolean
+  /** A numeração das notas do documento — ver `DocumentModel.notes`. */
+  notes: DocumentNotes | undefined
+  /** O rascunho é de antes das notas — ver `DocumentModel.beforeNotes`. */
+  beforeNotes: boolean
   /**
    * A planilha aberta, quando o que está em edição é uma planilha.
    *

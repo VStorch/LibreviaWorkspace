@@ -3,15 +3,22 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
 import { launch, menu, stubDialogs, type Session } from './app.js'
-import { docxWithComment, docxWithFootnote, docxWithTrackedChange, docxWithoutExtras } from './fixtures.js'
+import {
+  docxWithCellRevision,
+  docxWithComment,
+  docxWithFootnote,
+  docxWithTrackedChange,
+  docxWithoutExtras,
+} from './fixtures.js'
 
 /**
  * Somente leitura **graduado**, não ligado/desligado.
  *
- * Documento com nota de rodapé abre travado, porque editar o parágrafo da
- * referência a apaga. O comentário e o controle de alterações travavam pelo
- * mesmo motivo até o M10, quando a âncora virou nó e a revisão virou marca — os
- * dois passaram a voltar ao arquivo. Documento comum abre editável,
+ * Documento com revisão de estrutura (a célula inserida) abre travado, porque
+ * editar a tabela a perde. O comentário e o controle de alterações travavam pelo
+ * mesmo motivo até o M10, quando a âncora virou nó e a revisão virou marca, e a
+ * nota de rodapé até o M11, quando a referência virou nó com o corpo dentro —
+ * os três passaram a voltar ao arquivo. Documento comum abre editável,
  * porque travar tudo
  * ensinaria o usuário a clicar "editar mesmo assim" sem ler — e aí a proteção
  * deixaria de proteger.
@@ -30,16 +37,16 @@ test.describe('somente leitura', () => {
     await rm(folder, { recursive: true, force: true })
   })
 
-  test('documento com nota de rodapé abre travado e diz por quê', async () => {
+  test('documento com revisão de estrutura abre travado e diz por quê', async () => {
     const target = join(folder, 'ata.docx')
-    await writeFile(target, await docxWithFootnote())
+    await writeFile(target, await docxWithCellRevision())
     await stubDialogs(session.app, { open: target, messageBox: 1 })
 
     await menu(session, 'open')
 
     const banner = session.window.locator('.banner--readonly')
     await expect(banner).toBeVisible()
-    await expect(banner).toContainText('notas de rodapé')
+    await expect(banner).toContainText('revisões de estrutura')
 
     // Um aviso só: a faixa de inventário repetiria o motivo logo abaixo, e
     // dois avisos dizendo a mesma coisa valem menos que um.
@@ -74,7 +81,7 @@ test.describe('somente leitura', () => {
    */
   test('os comandos de edição do menu respeitam a trava', async () => {
     const target = join(folder, 'ata-com-tabela.docx')
-    await writeFile(target, await docxWithFootnote({ leadingTable: true }))
+    await writeFile(target, await docxWithCellRevision({ leadingTable: true }))
     await stubDialogs(session.app, { open: target, messageBox: 1 })
 
     await menu(session, 'open')
@@ -138,6 +145,21 @@ test.describe('somente leitura', () => {
     await expect(session.window.locator('.banner--readonly')).toBeHidden()
     await expect(session.window.locator('ins.revision').first()).toContainText('com uma inserção revisada.')
     await expect(session.window.locator('del.revision').first()).toContainText('Trecho excluído.')
+    await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
+  })
+
+  test('documento com nota de rodapé abre editável e numera a referência', async () => {
+    const target = join(folder, 'nota.docx')
+    await writeFile(target, await docxWithFootnote())
+    await stubDialogs(session.app, { open: target, messageBox: 1 })
+
+    await menu(session, 'open')
+
+    await expect(session.window.locator('.ProseMirror')).toHaveAttribute('contenteditable', 'true')
+    await expect(session.window.locator('.banner--readonly')).toBeHidden()
+    const reference = session.window.locator('.page__content sup.note-ref')
+    await expect(reference).toHaveAttribute('data-note-number', '1')
+    await expect(reference).toHaveAttribute('title', /Fonte: ata anterior\./)
     await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
   })
 
