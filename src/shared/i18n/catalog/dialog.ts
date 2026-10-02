@@ -30,6 +30,8 @@ export const DIALOG = {
   'dialog.export.markdownTitle': { pt: 'Exportar como Markdown', en: 'Export as Markdown' },
   'dialog.filter.html': { pt: 'Página da Web (HTML)', en: 'Web page (HTML)' },
   'dialog.filter.markdown': { pt: 'Markdown', en: 'Markdown' },
+  'dialog.export.odtTitle': { pt: 'Exportar como ODT', en: 'Export as ODT' },
+  'dialog.filter.odt': { pt: 'Texto do OpenDocument (ODT)', en: 'OpenDocument Text (ODT)' },
   // O que vai dentro do arquivo exportado, na língua da interface.
   'dialog.export.notes': { pt: 'Notas', en: 'Notes' },
   'dialog.export.backToText': { pt: 'Voltar ao texto', en: 'Back to text' },

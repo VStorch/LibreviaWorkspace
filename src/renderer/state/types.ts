@@ -237,7 +237,7 @@ export interface WorkspaceState {
    * Exporta para HTML ou Markdown (M11) num arquivo novo. O documento continua
    * no caminho dele e com o estado de alterado que tinha.
    */
-  exportDocument: (format: 'html' | 'markdown') => Promise<boolean>
+  exportDocument: (format: 'html' | 'markdown' | 'odt') => Promise<boolean>
   print: () => Promise<boolean>
   printPreview: () => Promise<void>
 }

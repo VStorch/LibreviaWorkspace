@@ -88,6 +88,8 @@ export const MenuCommand = {
   /** Arquivo → Exportar como → HTML… e Markdown… (M11). */
   ExportHtml: 'export-html',
   ExportMarkdown: 'export-markdown',
+  /** Arquivo → Exportar como → ODT… (M11). */
+  ExportOdt: 'export-odt',
   Print: 'print',
   PrintPreview: 'print-preview',
   PageSetup: 'page-setup',

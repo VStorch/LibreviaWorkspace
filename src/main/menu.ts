@@ -308,6 +308,7 @@ async function buildTemplate(): Promise<MenuItemConstructorOptions[]> {
           submenu: [
             { label: t('menu.file.exportHtml'), click: () => dispatch(MenuCommand.ExportHtml) },
             { label: t('menu.file.exportMarkdown'), click: () => dispatch(MenuCommand.ExportMarkdown) },
+            { label: t('menu.file.exportOdt'), click: () => dispatch(MenuCommand.ExportOdt) },
           ],
         },
         { label: t('menu.file.properties'), click: () => dispatch(MenuCommand.DocumentProperties) },

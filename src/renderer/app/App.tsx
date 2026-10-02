@@ -73,6 +73,9 @@ async function runMenuCommand(command: MenuCommand, path: string | undefined): P
     case MenuCommand.ExportMarkdown:
       await workspace.exportDocument('markdown')
       return
+    case MenuCommand.ExportOdt:
+      await workspace.exportDocument('odt')
+      return
     case MenuCommand.Print:
       await workspace.print()
       return

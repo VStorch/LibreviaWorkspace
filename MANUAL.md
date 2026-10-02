@@ -460,17 +460,21 @@ que você escrever volta para o lugar exato de onde saiu. O que não tem texto p
 arquivo continua sendo só desenho — o logotipo, a moldura da tabela e o número da página, que
 é recalculado a cada abertura.
 
-### Exportar como HTML ou Markdown
+### Exportar como HTML, Markdown ou ODT
 
-Em **Arquivo → Exportar como**, o documento vira uma **página da Web** (`.html`) ou um texto
-**Markdown** (`.md`). É um arquivo novo: o documento continua aberto no caminho dele, do jeito
-que estava.
+Em **Arquivo → Exportar como**, o documento vira uma **página da Web** (`.html`), um texto
+**Markdown** (`.md`) ou um **texto do OpenDocument** (`.odt`). É um arquivo novo: o documento
+continua aberto no caminho dele, do jeito que estava.
 
 - **HTML** sai numa página só, com os estilos, as listas, as tabelas e as imagens embutidas; as
   notas vão para o fim, com o caminho de volta ao texto.
 - **Markdown** leva títulos, ênfase, links, listas, tabelas e notas (`[^1]`); as imagens vão
   para uma pasta ao lado, `nome_arquivos/`. A tabela com células mescladas sai em HTML.
-- As **revisões** saem já aceitas, e os **comentários** ficam de fora.
+- **ODT** abre no LibreOffice e nos editores que leem OpenDocument, com os estilos do documento,
+  as listas numeradas, as tabelas mescladas, as imagens, as notas de rodapé e de fim, os
+  marcadores e os links; cada seção leva o tamanho do papel, as margens, as colunas, o cabeçalho e
+  o rodapé dela, e os comentários vão como anotações.
+- As **revisões** saem já aceitas. No HTML e no Markdown os **comentários** ficam de fora.
 
 ---
 

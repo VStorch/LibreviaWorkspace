@@ -68,10 +68,11 @@ const DROPPED = new Set(['commentStart', 'commentEnd'])
  * O excluído sai, o inserido fica como texto comum, a linha de tabela excluída
  * some e o parágrafo cuja marca foi excluída se junta ao seguinte — o mesmo que
  * "Aceitar todas" faria, sem passar pelo editor. Os comentários também saem: são
- * conversa sobre o documento, não o documento.
+ * conversa sobre o documento, não o documento — salvo para o ODT (`keepComments`),
+ * que os leva como anotações, como o `.docx` os leva.
  */
-export function finalDocument(node: DocumentNode): DocumentNode {
-  let content = node.content === undefined ? undefined : finalChildren(node.content)
+export function finalDocument(node: DocumentNode, keepComments = false): DocumentNode {
+  let content = node.content === undefined ? undefined : finalChildren(node.content, keepComments)
   // Um bloco que o esquema não deixa vazio (a célula, o item, a nota) volta com
   // um parágrafo quando tudo o que tinha era excluído.
   if (content?.length === 0 && NEEDS_BLOCK.has(node.type)) content = [{ type: 'paragraph' }]
@@ -86,12 +87,12 @@ export function finalDocument(node: DocumentNode): DocumentNode {
   }
 }
 
-function finalChildren(children: readonly DocumentNode[]): DocumentNode[] {
+function finalChildren(children: readonly DocumentNode[], keepComments: boolean): DocumentNode[] {
   const kept: DocumentNode[] = []
   for (const child of children) {
-    if (DROPPED.has(child.type) || hasMark(child, 'deletion')) continue
+    if ((!keepComments && DROPPED.has(child.type)) || hasMark(child, 'deletion')) continue
     if (child.type === 'tableRow' && blockRevisionKind(child.attrs?.['rowRevision']) === 'del') continue
-    kept.push(finalDocument(child))
+    kept.push(finalDocument(child, keepComments))
   }
 
   // A marca de parágrafo excluída: o texto dele continua no parágrafo seguinte.
@@ -122,8 +123,11 @@ export function walk(node: DocumentNode, visit: (node: DocumentNode) => void): v
 }
 
 /** Aceita as revisões e conta notas e listas, uma vez, para quem exporta. */
-export function prepareExport(model: Pick<DocumentModel, 'doc' | 'notes'>): ExportSource {
-  const doc = finalDocument(model.doc)
+export function prepareExport(
+  model: Pick<DocumentModel, 'doc' | 'notes'>,
+  options: { readonly keepComments?: boolean } = {},
+): ExportSource {
+  const doc = finalDocument(model.doc, options.keepComments === true)
 
   const noteOf = new Map<DocumentNode, ExportNote>()
   const notes: ExportNote[] = []

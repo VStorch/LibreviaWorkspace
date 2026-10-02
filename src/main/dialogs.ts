@@ -114,21 +114,27 @@ export async function showPdfSaveDialog(
   return result.canceled ? null : (result.filePath ?? null)
 }
 
-/** Destino da exportação para HTML ou Markdown (M11): só a extensão do formato. */
+const EXPORT_DIALOGS = {
+  html: { title: 'dialog.export.htmlTitle', filter: 'dialog.filter.html', extensions: ['html', 'htm'] },
+  markdown: {
+    title: 'dialog.export.markdownTitle',
+    filter: 'dialog.filter.markdown',
+    extensions: ['md', 'markdown'],
+  },
+  odt: { title: 'dialog.export.odtTitle', filter: 'dialog.filter.odt', extensions: ['odt'] },
+} as const
+
+/** Destino da exportação para HTML, Markdown ou ODT (M11): só a extensão do formato. */
 export async function showExportSaveDialog(
   window: BrowserWindow,
   suggestedName: string,
-  format: 'html' | 'markdown',
+  format: keyof typeof EXPORT_DIALOGS,
 ): Promise<string | null> {
-  const html = format === 'html'
+  const chosen = EXPORT_DIALOGS[format]
   const result = await dialog.showSaveDialog(window, {
-    title: t(html ? 'dialog.export.htmlTitle' : 'dialog.export.markdownTitle'),
+    title: t(chosen.title),
     defaultPath: suggestedName,
-    filters: [
-      html
-        ? { name: t('dialog.filter.html'), extensions: ['html', 'htm'] }
-        : { name: t('dialog.filter.markdown'), extensions: ['md', 'markdown'] },
-    ],
+    filters: [{ name: t(chosen.filter), extensions: [...chosen.extensions] }],
     properties: ['createDirectory', 'showOverwriteConfirmation'],
   })
   return result.canceled ? null : (result.filePath ?? null)

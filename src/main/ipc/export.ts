@@ -1,11 +1,13 @@
 import { mkdir } from 'node:fs/promises'
 import { basename, dirname, extname, join } from 'node:path'
+import { deflateRawSync } from 'node:zlib'
 import { BrowserWindow, type IpcMainInvokeEvent } from 'electron'
 import { AppError, ErrorCode } from '@shared/errors.js'
 import { Language } from '@shared/i18n/language.js'
 import { IpcChannel } from '@shared/ipc-channels.js'
 import { exportHtml } from '@services/document/export-html.js'
 import { exportMarkdown } from '@services/document/export-markdown.js'
+import { exportOdt } from '@services/document/export-odt.js'
 import { parseDocument } from '@services/document/serialize.js'
 import { fileNameFromPath } from '@services/file/formats.js'
 import { showExportSaveDialog } from '../dialogs.js'
@@ -16,7 +18,7 @@ import { editorPreferences } from '../preferences.js'
 import { handle } from './registry.js'
 
 /**
- * Exportação para HTML e Markdown (M11).
+ * Exportação para HTML, Markdown e ODT (M11).
  *
  * O renderer manda o documento serializado — o mesmo texto do salvar — e o main
  * monta o arquivo com as funções puras de `@services/document`. Escrever é um
@@ -46,9 +48,10 @@ export function assetFolderOf(path: string): string {
 export function registerExportHandlers(): void {
   handle(IpcChannel.FileExport, async (payload, event) => {
     const html = payload.format === 'html'
+    const extension = { html: 'html', markdown: 'md', odt: 'odt' }[payload.format]
     const chosen = await showExportSaveDialog(
       windowOf(event),
-      exportName(payload.suggestedName, html ? 'html' : 'md'),
+      exportName(payload.suggestedName, extension),
       payload.format,
     )
     if (chosen === null) return { canceled: true as const }
@@ -57,7 +60,11 @@ export function registerExportHandlers(): void {
     const model = parseDocument(payload.content, language)
     const path = authorizePath(chosen)
 
-    if (html) {
+    if (payload.format === 'odt') {
+      // O pacote sai pronto da função pura; a compressão é a do Node.
+      const bytes = exportOdt(model, {}, (data) => deflateRawSync(data))
+      await writeFileAtomic(path, Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength))
+    } else if (html) {
       const text = exportHtml(model, {
         fileName: payload.suggestedName,
         lang: language === Language.Portuguese ? 'pt-BR' : 'en',

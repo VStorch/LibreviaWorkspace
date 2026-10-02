@@ -184,7 +184,7 @@ export const ipcContracts = {
   },
   [IpcChannel.FileExport]: {
     request: z.object({
-      format: z.enum(['html', 'markdown']),
+      format: z.enum(['html', 'markdown', 'odt']),
       // O documento serializado, como no salvar: o main monta o arquivo a partir
       // do modelo, e não de um HTML pronto que o renderer pudesse ter trocado.
       content: z.string().max(MAX_TEXT_LENGTH),
