@@ -19,7 +19,8 @@ import {
   type DocumentNode,
   type PageSetup,
 } from './model.js'
-import { mathText, sanitizeMathMl } from './mathml.js'
+import { mathMlToString, mathText, sanitizeMathMl, type MathElement } from './mathml.js'
+import { latexOfEquation } from './mathml-latex.js'
 import { NoteKind } from './notes.js'
 import {
   attr,
@@ -73,6 +74,7 @@ type OdtModel = Pick<
 >
 
 const MIMETYPE = 'application/vnd.oasis.opendocument.text'
+const FORMULA_MIMETYPE = 'application/vnd.oasis.opendocument.formula'
 
 const NAMESPACES = [
   'xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"',
@@ -116,7 +118,13 @@ export function odtEntries(model: OdtModel, options: OdtExportOptions = {}): Zip
   for (const picture of writer.pictures.list()) {
     entries.push({ name: picture.path, data: picture.bytes, stored: true })
   }
-  entries.push({ name: 'META-INF/manifest.xml', data: encoder.encode(manifestXml(writer.pictures.list())) })
+  for (const formula of writer.formulas.list()) {
+    entries.push({ name: `${formula.path}/content.xml`, data: encoder.encode(formula.content) })
+  }
+  entries.push({
+    name: 'META-INF/manifest.xml',
+    data: encoder.encode(manifestXml(writer.pictures.list(), writer.formulas.list())),
+  })
   return entries
 }
 
@@ -165,6 +173,54 @@ class PictureBook {
   }
 }
 
+// --- equações ------------------------------------------------------------------
+
+interface Formula {
+  /** A pasta do objeto no pacote, `Object 1` — sem a barra do fim. */
+  readonly path: string
+  /** O `content.xml` do objeto: o MathML da equação, que é o que o ODF guarda nele. */
+  readonly content: string
+}
+
+/**
+ * As equações do pacote (M11, fase 3): cada uma é um objeto de fórmula embutido,
+ * uma subpasta com o MathML — como o LibreOffice Math grava. Sem a imagem de
+ * substituição (`ObjectReplacements/`): quem abre o arquivo desenha a fórmula.
+ */
+class FormulaBook {
+  private readonly formulas: Formula[] = []
+
+  add(tree: MathElement, display: boolean): Formula {
+    const math = mathMlToString({ ...tree, attrs: { ...tree.attrs, display: display ? 'block' : 'inline' } })
+    const formula: Formula = { path: `Object ${this.formulas.length + 1}`, content: `${XML_HEAD}${math}` }
+    this.formulas.push(formula)
+    return formula
+  }
+
+  list(): readonly Formula[] {
+    return this.formulas
+  }
+}
+
+/**
+ * O tamanho do quadro da equação, estimado: quem desenha a fórmula a ajusta, mas
+ * o quadro precisa de um tamanho para a linha não pular quando ninguém desenha.
+ * A largura sai do texto; a altura, de quantas coisas a equação empilha.
+ */
+export function formulaSizeMm(tree: MathElement): { width: number; height: number } {
+  const STACKED = new Set(['mfrac', 'munder', 'mover', 'munderover', 'mtable'])
+  const levels = (node: MathElement): number => {
+    const inner = Math.max(
+      0,
+      ...node.children.map((child) => (typeof child === 'string' ? 0 : levels(child))),
+    )
+    if (node.tag === 'mtable') return inner + Math.max(0, node.children.length - 1)
+    return inner + (STACKED.has(node.tag) ? 1 : 0)
+  }
+  const chars = [...mathText(tree)].length
+  return { width: Math.max(3, Math.min(170, chars * 2.2 + 1)), height: Math.min(120, 5 + levels(tree) * 3.5) }
+}
+
 /** A largura e a altura gravadas no PNG, no GIF ou no JPEG; `null` nos outros. */
 export function pixelSizeOf(bytes: Uint8Array): { width: number; height: number } | null {
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength)
@@ -199,6 +255,7 @@ interface Pending {
 
 class OdtWriter {
   readonly pictures = new PictureBook()
+  readonly formulas = new FormulaBook()
   readonly fonts = new FontBook()
   private readonly sheet: StyleSheet
   private readonly source: ExportSource
@@ -854,12 +911,8 @@ class Renderer {
         return this.note(node)
       case 'field':
         return this.wrap(this.field(node), node.marks ?? [])
-      // A equação (M11) vai como o texto dela: o objeto de fórmula do ODF é a
-      // fase das equações editáveis.
-      case 'math': {
-        const tree = sanitizeMathMl(typeof node.attrs?.['mathml'] === 'string' ? node.attrs['mathml'] : '')
-        return tree === null ? '' : odfText(mathText(tree))
-      }
+      case 'math':
+        return this.wrap(this.formula(node), node.marks ?? [])
       case 'bookmarkStart':
         return this.bookmarkStart(node)
       case 'bookmarkEnd': {
@@ -1050,6 +1103,28 @@ class Renderer {
       `${attr('svg:width', mm(size.width))}${attr('svg:height', mm(size.height))}${attr('draw:z-index', number)}>` +
       `<draw:image${attr('xlink:href', picture.path)} xlink:type="simple" xlink:show="embed" xlink:actuate="onLoad"/>` +
       `${alt === '' ? '' : `<svg:desc>${xml(alt)}</svg:desc>`}</draw:frame>`
+    )
+  }
+
+  /** A equação (M11, fase 3): um objeto de fórmula no texto, como um caractere. */
+  private formula(node: DocumentNode): string {
+    const tree = sanitizeMathMl(typeof node.attrs?.['mathml'] === 'string' ? node.attrs['mathml'] : '')
+    if (tree === null) return ''
+    const formula = this.writer.formulas.add(tree, node.attrs?.['display'] === true)
+    const size = formulaSizeMm(tree)
+    const style = this.book.style(
+      'graphic',
+      'fr',
+      '',
+      '<style:graphic-properties style:vertical-pos="middle" style:vertical-rel="text" fo:padding="0mm" fo:border="none"/>',
+    )
+    const latex = latexOfEquation(node.attrs)
+    const number = this.writer.nextFrame()
+    return (
+      `<draw:frame${attr('draw:style-name', style)}${attr('draw:name', `Equation${number}`)} text:anchor-type="as-char"` +
+      `${attr('svg:width', mm(size.width))}${attr('svg:height', mm(size.height))}${attr('draw:z-index', number)}>` +
+      `<draw:object${attr('xlink:href', `./${formula.path}`)} xlink:type="simple" xlink:show="embed" xlink:actuate="onLoad"/>` +
+      `${latex === '' ? '' : `<svg:desc>${xml(latex)}</svg:desc>`}</draw:frame>`
     )
   }
 
@@ -1512,7 +1587,7 @@ function metaXml(model: OdtModel, options: OdtExportOptions): string {
   )
 }
 
-function manifestXml(pictures: readonly Picture[]): string {
+function manifestXml(pictures: readonly Picture[], formulas: readonly Formula[]): string {
   const entry = (path: string, type: string): string =>
     `<manifest:file-entry${attr('manifest:full-path', path)}${attr('manifest:media-type', type)}/>`
   return (
@@ -1522,6 +1597,14 @@ function manifestXml(pictures: readonly Picture[]): string {
     entry('styles.xml', 'text/xml') +
     entry('meta.xml', 'text/xml') +
     pictures.map((picture) => entry(picture.path, picture.mime)).join('') +
+    formulas
+      .map(
+        (formula) =>
+          `<manifest:file-entry${attr('manifest:full-path', `${formula.path}/`)} manifest:version="1.3"` +
+          `${attr('manifest:media-type', FORMULA_MIMETYPE)}/>` +
+          entry(`${formula.path}/content.xml`, 'text/xml'),
+      )
+      .join('') +
     '</manifest:manifest>'
   )
 }

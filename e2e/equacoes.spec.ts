@@ -1,5 +1,5 @@
 import { execFile } from 'node:child_process'
-import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
@@ -223,5 +223,84 @@ test.describe('equações', () => {
 
     await menu(session, 'open')
     await expect(editor.locator('.equacao').nth(0).locator('math msup mn')).toHaveText('3')
+  })
+
+  // --- fase 3: exportações e integração ---------------------------------------
+
+  test('exportar em HTML, Markdown e ODT leva as equações', async () => {
+    const origem = join(pasta, 'relatorio.docx')
+    await writeFile(origem, await docxWithEquations())
+    await stubDialogs(session.app, { open: origem, messageBox: 1 })
+    await menu(session, 'open')
+    await expect(session.window.locator('.pages__column .equacao')).toHaveCount(3)
+    const lido = (caminho: string) => () => readFile(caminho, 'utf8').catch(() => '')
+
+    const html = join(pasta, 'relatorio.html')
+    await stubDialogs(session.app, { save: html })
+    await menu(session, 'export-html')
+    await expect.poll(lido(html), { timeout: 15_000 }).toContain('</html>')
+    const pagina = await readFile(html, 'utf8')
+    expect(pagina).toMatch(/<math xmlns="http:\/\/www\.w3\.org\/1998\/Math\/MathML" display="inline">/)
+    expect(pagina).toMatch(
+      /<math xmlns="http:\/\/www\.w3\.org\/1998\/Math\/MathML" display="block">.*<mfrac>/,
+    )
+
+    const markdown = join(pasta, 'relatorio.md')
+    await stubDialogs(session.app, { save: markdown })
+    await menu(session, 'export-markdown')
+    await expect.poll(lido(markdown), { timeout: 15_000 }).toContain(EQUATION_AFTER.trim())
+    const texto = await readFile(markdown, 'utf8')
+    // O LaTeX sai do MathML das equações do arquivo, que não o guardam.
+    expect(texto).toMatch(/A área do círculo é \$\\pi\s*r\^\{2\}\$ para todo raio\./)
+    expect(texto).toMatch(/^\$\$x\s*=.*\\frac\{.*\\Delta.*\$\$$/m)
+
+    const odt = join(pasta, 'relatorio.odt')
+    await stubDialogs(session.app, { save: odt })
+    await menu(session, 'export-odt')
+    await expect
+      .poll(() => entryOf(odt, 'META-INF/manifest.xml').catch(() => ''), { timeout: 15_000 })
+      .toContain('application/vnd.oasis.opendocument.formula')
+    const conteudo = await entryOf(odt, 'content.xml')
+    expect(conteudo.match(/<draw:object xlink:href="\.\/Object \d+"/g)).toHaveLength(3)
+    expect(await entryOf(odt, 'Object 2/content.xml')).toMatch(/<math [^>]*display="block">.*<mfrac>/)
+  })
+
+  test('copiar uma equação dá o LaTeX; colar a nossa mantém o OMML, e o MathML de fora vira equação nova', async () => {
+    const origem = join(pasta, 'relatorio.docx')
+    await writeFile(origem, await docxWithEquations())
+    await stubDialogs(session.app, { open: origem, messageBox: 1 })
+    await menu(session, 'open')
+    const editor = session.window.locator('.pages__column .ProseMirror')
+    const equacoes = editor.locator('.equacao')
+    await expect(equacoes).toHaveCount(3)
+    const omml = await equacoes.nth(0).getAttribute('data-omml')
+    expect(omml).toContain('oMath')
+
+    await equacoes.nth(0).click()
+    await session.window.keyboard.press('ControlOrMeta+c')
+    await expect
+      .poll(() => session.app.evaluate(({ clipboard }) => clipboard.readText()))
+      .toMatch(/\\pi\s*r\^\{2\}/)
+
+    // Colada no fim do documento, é a mesma equação, com o OMML que veio do arquivo.
+    await session.window.keyboard.press('ControlOrMeta+End')
+    await session.window.keyboard.press('ControlOrMeta+v')
+    await expect(equacoes).toHaveCount(4)
+    await expect(equacoes.nth(3)).toHaveAttribute('data-omml', omml ?? '')
+
+    // O MathML de uma página da Web: equação nova, sem OMML, com o LaTeX tirado dele.
+    await session.app.evaluate(({ clipboard }) => {
+      clipboard.write({
+        text: 'a/b',
+        html: '<p>Da Web: <math display="block"><mfrac><mi>a</mi><mi>b</mi></mfrac></math></p>',
+      })
+    })
+    await session.window.keyboard.press('ControlOrMeta+v')
+    await expect(equacoes).toHaveCount(5)
+    const colada = equacoes.nth(4)
+    await expect(colada).toHaveAttribute('data-omml', '')
+    await expect(colada).toHaveAttribute('data-latex', '\\frac{a}{b}')
+    await expect(colada).toHaveAttribute('data-display', 'true')
+    await expect(colada.locator('math mfrac')).toHaveCount(1)
   })
 })

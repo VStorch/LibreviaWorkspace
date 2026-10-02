@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { exportOdt, odtEntries, pixelSizeOf } from './export-odt.js'
+import { exportOdt, formulaSizeMm, odtEntries, pixelSizeOf } from './export-odt.js'
 import { DEFAULT_PAGE_SETUP, type DocumentModel, type DocumentNode } from './model.js'
 import { odfText, xml } from './odt-xml.js'
 import { BUILTIN_STYLES } from './styles.js'
@@ -358,5 +358,89 @@ describe('exportOdt', () => {
       'META-INF/manifest.xml',
     ])
     expect(odtEntries(RICH_ODT_MODEL).map((entry) => entry.name)).toEqual([...entries.keys()])
+  })
+})
+
+describe('as equações no ODT (M11, fase 3)', () => {
+  const SQUARE = '<math display="inline"><msup><mi>x</mi><mn>2</mn></msup></math>'
+  const FRACTION = '<math display="block"><mfrac><mi>a</mi><mi>b</mi></mfrac></math>'
+  const model: DocumentModel = {
+    ...RICH_ODT_MODEL,
+    doc: {
+      type: 'doc',
+      content: [
+        paragraph(
+          text('Seja '),
+          { type: 'math', attrs: { mathml: SQUARE, latex: 'x^2', display: false } },
+          text(' & mais'),
+        ),
+        paragraph({
+          type: 'math',
+          attrs: { mathml: FRACTION, latex: '', display: true, omml: '<m:oMath/>' },
+        }),
+        paragraph({ type: 'math', attrs: { mathml: '<script/>', latex: 'y' } }),
+      ],
+    },
+  }
+  const entries = unzip(exportOdt(model))
+  const read = (name: string): string => decode(entries.get(name)?.data)
+  const content = read('content.xml')
+
+  it('cada equação é um objeto de fórmula, como um caractere, com o MathML na pasta dele', () => {
+    expect(content).toMatch(
+      /<draw:frame draw:style-name="fr\d+" draw:name="Equation\d+" text:anchor-type="as-char" svg:width="[\d.]+mm" svg:height="[\d.]+mm" draw:z-index="\d+"><draw:object xlink:href="\.\/Object 1" xlink:type="simple" xlink:show="embed" xlink:actuate="onLoad"\/><svg:desc>x\^2<\/svg:desc><\/draw:frame>/,
+    )
+    expect(content).toContain('xlink:href="./Object 2"')
+    // A que não passa no filtro não deixa objeto nem texto.
+    expect(content).not.toContain('Object 3')
+    expect(content).not.toContain('script')
+    expect(read('Object 1/content.xml')).toBe(
+      '<?xml version="1.0" encoding="UTF-8"?>\n<math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><msup><mi>x</mi><mn>2</mn></msup></math>',
+    )
+    expect(read('Object 2/content.xml')).toContain(
+      'display="block"><mfrac><mi>a</mi><mi>b</mi></mfrac></math>',
+    )
+    // O LaTeX que vai na descrição sai do MathML quando a equação não o guarda.
+    expect(content).toContain('<svg:desc>\\frac{a}{b}</svg:desc>')
+  })
+
+  it('o manifesto declara cada objeto e cada parte dele, e só o que está no pacote', () => {
+    const manifest = read('META-INF/manifest.xml')
+    expect(manifest).toContain(
+      '<manifest:file-entry manifest:full-path="Object 1/" manifest:version="1.3" manifest:media-type="application/vnd.oasis.opendocument.formula"/>',
+    )
+    expect(manifest).toContain('manifest:full-path="Object 2/content.xml" manifest:media-type="text/xml"')
+    const declared = [...manifest.matchAll(/manifest:full-path="([^"]+)"/g)].map((match) => match[1]!)
+    const files = declared.filter((path) => path !== '/' && !path.endsWith('/'))
+    expect(files.sort()).toEqual(
+      [...entries.keys()].filter((name) => name !== 'mimetype' && !name.startsWith('META-INF/')).sort(),
+    )
+    for (const folder of declared.filter((path) => path.length > 1 && path.endsWith('/'))) {
+      expect(files.some((path) => path.startsWith(folder))).toBe(true)
+    }
+  })
+
+  it('o quadro cresce com o texto e com o que a equação empilha', () => {
+    const flat = formulaSizeMm({
+      tag: 'math',
+      attrs: {},
+      children: [{ tag: 'mi', attrs: {}, children: ['x'] }],
+    })
+    const stacked = formulaSizeMm({
+      tag: 'math',
+      attrs: {},
+      children: [
+        {
+          tag: 'mfrac',
+          attrs: {},
+          children: [
+            { tag: 'mi', attrs: {}, children: ['x'] },
+            { tag: 'mn', attrs: {}, children: ['2'] },
+          ],
+        },
+      ],
+    })
+    expect(stacked.height).toBeGreaterThan(flat.height)
+    expect(stacked.width).toBeGreaterThan(flat.width)
   })
 })

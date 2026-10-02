@@ -11,6 +11,7 @@ import {
 } from './export-common.js'
 import { createHtmlRenderer, escapeHtml, mathHtml } from './export-html.js'
 import type { DocumentModel, DocumentNode } from './model.js'
+import { latexOfEquation } from './mathml-latex.js'
 
 /**
  * Exportação para Markdown (M11): CommonMark com as tabelas e as notas do GFM.
@@ -149,7 +150,9 @@ class MarkdownWriter {
   }
 
   private paragraph(content: readonly DocumentNode[]): string {
-    const text = this.inline(content, 'block').replace(/(\\\n)+$/, '')
+    const text = this.inline(content, 'block')
+      .replace(/(\\\n)+$/, '')
+      .replace(/^\n+|\n+$/g, '')
     return text.trim() === '' ? '' : escapeLineStarts(text)
   }
 
@@ -315,10 +318,11 @@ class MarkdownWriter {
       }
       case 'field':
         return escapeMarkdown(String(node.attrs?.['result'] ?? ''))
-      // A equação (M11) vai como HTML: o Markdown aceita, e o MathML é o que a
-      // desenha onde o Markdown é mostrado.
+      // A equação (M11) vai em LaTeX entre cifrões — `$…$` no texto, `$$…$$` na
+      // linha dela quando é de exibição —, que é o que o Pandoc, o GitHub e os
+      // editores de Markdown leem. Sem LaTeX nenhum, vai o MathML como HTML.
       case 'math':
-        return mathHtml(node)
+        return mathMarkdown(node, mode)
       case 'bookmarkStart': {
         // Só os que algum link aponta: os outros seriam ruído no texto.
         const name = String(node.attrs?.['name'] ?? '')
@@ -328,6 +332,14 @@ class MarkdownWriter {
         return node.content === undefined ? '' : this.inline(node.content, mode)
     }
   }
+}
+
+function mathMarkdown(node: DocumentNode, mode: Mode): string {
+  const latex = latexOfEquation(node.attrs).replace(/\s*\n\s*/g, ' ')
+  if (latex === '') return mathHtml(node)
+  const escaped = mode === 'cell' ? latex.replace(/\|/g, '\\|') : latex
+  if (node.attrs?.['display'] !== true) return `$${escaped}$`
+  return mode === 'block' ? `\n$$${escaped}$$\n` : `$$${escaped}$$`
 }
 
 /** `[^1]` nas de rodapé, `[^fim-1]` nas de fim: as duas contas não se cruzam. */
@@ -359,7 +371,7 @@ function isSimpleTable(rows: readonly DocumentNode[]): boolean {
  * linha (`#`, `>`, `-`, `1.`) é com `escapeLineStarts`, que sabe onde ela começa.
  */
 export function escapeMarkdown(text: string): string {
-  return text.replace(/[\\`*_[\]<>~|]/g, '\\$&').replace(/&(?=#?[a-z0-9]+;)/gi, '&amp;')
+  return text.replace(/[\\`*_[\]<>~|$]/g, '\\$&').replace(/&(?=#?[a-z0-9]+;)/gi, '&amp;')
 }
 
 /** Escapa, em cada linha do parágrafo, o que no começo dela abriria outro bloco. */

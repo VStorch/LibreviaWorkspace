@@ -345,3 +345,61 @@ describe('finalDocument', () => {
     expect(doc.content).toEqual([{ type: 'paragraph', content: [] }])
   })
 })
+
+describe('as equações (M11, fase 3)', () => {
+  const FRACTION = '<math display="block"><mfrac><mi>a</mi><mi>b</mi></mfrac></math>'
+  const inline = (attrs: Record<string, unknown>): DocumentNode => ({
+    type: 'math',
+    attrs: { omml: null, display: false, ...attrs },
+  })
+  const doc = (...content: DocumentNode[]): DocumentNode => ({ type: 'doc', content })
+
+  it('no HTML, o MathML filtrado, em bloco só a de exibição', () => {
+    const output = html({
+      doc: doc(
+        paragraph(text('Seja '), inline({ mathml: '<math display="block"><mi>x</mi></math>', latex: 'x' })),
+        paragraph({ type: 'math', attrs: { mathml: FRACTION, latex: '\\frac{a}{b}', display: true } }),
+      ),
+      styles: BUILTIN_STYLES,
+    })
+    expect(output).toContain(
+      '<math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"><mi>x</mi></math>',
+    )
+    expect(output).toContain('display="block"><mfrac><mi>a</mi><mi>b</mi></mfrac></math>')
+  })
+
+  it('no Markdown, o LaTeX entre cifrões; o da exibição na linha dele', () => {
+    const markdown = exportMarkdown(
+      {
+        doc: doc(
+          paragraph(
+            text('Custa $5 e '),
+            inline({ mathml: '<math><mi>x</mi></math>', latex: 'x^2' }),
+            text('.'),
+          ),
+          paragraph(
+            text('Logo'),
+            { type: 'math', attrs: { mathml: FRACTION, latex: '', display: true } },
+            text('fim'),
+          ),
+        ),
+      },
+      { assetFolder: 'x' },
+    ).markdown
+    // Sem LaTeX guardado (a equação veio de um arquivo), ele sai do MathML.
+    expect(markdown).toBe('Custa \\$5 e $x^2$.\n\nLogo\n$$\\frac{a}{b}$$\nfim\n')
+  })
+
+  it('no Markdown, a equação sem LaTeX nenhum vai como MathML', () => {
+    const markdown = exportMarkdown(
+      { doc: doc(paragraph(inline({ mathml: '<math><mi>x</mi></math>', latex: '', omml: '<m:oMath/>' }))) },
+      { assetFolder: 'x' },
+    ).markdown
+    expect(markdown).toBe('$x$\n')
+    const empty = exportMarkdown(
+      { doc: doc(paragraph(text('a'), inline({ mathml: '<math></math>', latex: '' }))) },
+      { assetFolder: 'x' },
+    ).markdown
+    expect(empty).toBe('a<math xmlns="http://www.w3.org/1998/Math/MathML" display="inline"></math>\n')
+  })
+})

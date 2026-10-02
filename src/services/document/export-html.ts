@@ -543,8 +543,14 @@ export function escapeHtml(text: string): string {
     .replaceAll("'", '&#39;')
 }
 
-/** O MathML filtrado da equação, ou nada quando ele não passa no filtro. */
+/**
+ * O MathML filtrado da equação, ou nada quando ele não passa no filtro. O
+ * `display` sai do nó, e não do MathML: é ele que faz da equação de exibição um
+ * bloco no navegador.
+ */
 export function mathHtml(node: DocumentNode): string {
   const tree = sanitizeMathMl(typeof node.attrs?.['mathml'] === 'string' ? node.attrs['mathml'] : '')
-  return tree === null ? '' : mathMlToString(tree)
+  if (tree === null) return ''
+  const display = node.attrs?.['display'] === true ? 'block' : 'inline'
+  return mathMlToString({ ...tree, attrs: { ...tree.attrs, display } })
 }

@@ -3,7 +3,13 @@ import type { Node as ProseMirrorNode } from '@tiptap/pm/model'
 import { NodeSelection, Plugin, PluginKey } from '@tiptap/pm/state'
 import { EditorCommand, emitEditorCommand } from '../editor-commands.js'
 import { equationAtSelection } from '../math-commands.js'
-import { MATHML_NAMESPACE, sanitizeMathMl, type MathElement } from '@services/document/mathml.js'
+import {
+  MATHML_NAMESPACE,
+  mathMlToString,
+  sanitizeMathMl,
+  type MathElement,
+} from '@services/document/mathml.js'
+import { latexOfEquation } from '@services/document/mathml-latex.js'
 import { t } from '../../i18n.js'
 
 /** A classe do embrulho — o CSS dela está em `content-styles.ts`. */
@@ -37,18 +43,29 @@ export const MathNode = Node.create({
 
   addAttributes() {
     return {
-      omml: { default: null, parseHTML: (element) => element.getAttribute('data-omml') },
-      mathml: { default: '', parseHTML: (element) => element.getAttribute('data-mathml') ?? '' },
-      latex: { default: '', parseHTML: (element) => element.getAttribute('data-latex') ?? '' },
-      display: { default: false, parseHTML: (element) => element.getAttribute('data-display') === 'true' },
+      // O `data-omml` vazio é o da equação que não veio de arquivo (o embrulho
+      // escreve o nulo como texto): volta a ser nulo, e o sidecar refaz o OMML.
+      omml: { default: null, parseHTML: (element) => element.getAttribute('data-omml') || null },
+      // Nulo é "não diz": fica o do `getAttrs` da regra — o do `math` colado de
+      // fora, que não tem os `data-*` — ou o padrão.
+      mathml: { default: '', parseHTML: (element) => element.getAttribute('data-mathml') },
+      latex: { default: '', parseHTML: (element) => element.getAttribute('data-latex') },
+      display: {
+        default: false,
+        parseHTML: (element) =>
+          element.hasAttribute('data-display') ? element.getAttribute('data-display') === 'true' : null,
+      },
       jc: { default: null, parseHTML: (element) => element.getAttribute('data-jc') },
       lossy: { default: [], parseHTML: (element) => lossyOf(element.getAttribute('data-lossy')) },
       editable: { default: true, parseHTML: (element) => element.getAttribute('data-editable') !== 'false' },
     }
   },
 
+  // O embrulho é o que o próprio editor copia, com o `omml` junto. O `math` solto
+  // é o que vem de fora — uma página da Web, a nossa exportação em HTML —: vira
+  // uma equação nova, só com o MathML filtrado e o LaTeX tirado dele.
   parseHTML() {
-    return [{ tag: 'span[data-math]' }]
+    return [{ tag: 'span[data-math]' }, { tag: 'math', getAttrs: pastedMathAttrs }]
   },
 
   // Um elemento pronto, e não uma especificação: o MathML filtrado é montado nó a
@@ -63,10 +80,31 @@ export const MathNode = Node.create({
   },
 })
 
-/** O texto que a equação deixa ao ser copiada: o LaTeX, quando há, ou o marcador. */
+/**
+ * O texto que a equação deixa ao ser copiada: o LaTeX, o guardado ou o tirado do
+ * MathML, ou o marcador quando nem isso dá.
+ */
 export function plainTextOf(node: ProseMirrorNode): string {
-  const latex = String(node.attrs['latex'] ?? '')
+  const latex = latexOfEquation(node.attrs)
   return latex === '' ? t('document.math.placeholder') : latex
+}
+
+/** Os atributos do `math` colado de fora, ou `false` quando o MathML não passa no filtro. */
+export function pastedMathAttrs(element: HTMLElement): Record<string, unknown> | false {
+  return mathAttrsOfMarkup(new XMLSerializer().serializeToString(element))
+}
+
+/** A equação nova que sai de um MathML de fora: sem OMML, com o LaTeX tirado dele. */
+export function mathAttrsOfMarkup(markup: string): Record<string, unknown> | false {
+  const tree = sanitizeMathMl(markup)
+  if (tree === null) return false
+  const mathml = mathMlToString(tree)
+  return {
+    omml: null,
+    mathml,
+    latex: latexOfEquation({ mathml }),
+    display: tree.attrs['display'] === 'block',
+  }
 }
 
 function lossyOf(raw: string | null): string[] {

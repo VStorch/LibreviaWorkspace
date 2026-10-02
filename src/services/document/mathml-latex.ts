@@ -1,4 +1,4 @@
-import { MATH_BOX_CLASS, type MathChild, type MathElement } from './mathml.js'
+import { MATH_BOX_CLASS, sanitizeMathMl, type MathChild, type MathElement } from './mathml.js'
 
 /**
  * O MathML de uma equação de volta a LaTeX (M11, fase 2).
@@ -275,6 +275,36 @@ export function latexOfSymbol(char: string): string | null {
 
 export function mathMlToLatex(tree: MathElement): string {
   return row(tree.children)
+}
+
+/**
+ * O LaTeX de uma equação (M11, fase 3): o que ela guarda, ou — na que veio de um
+ * arquivo e nunca passou pelo editor — o que sai do MathML dela. Vazio só quando
+ * nem o MathML passa no filtro. É o que vai para o Markdown e para o texto copiado.
+ */
+export function latexOfEquation(attrs: Readonly<Record<string, unknown>> | undefined): string {
+  const latex = typeof attrs?.['latex'] === 'string' ? attrs['latex'].trim() : ''
+  if (latex !== '') return latex
+  const tree = sanitizeMathMl(typeof attrs?.['mathml'] === 'string' ? attrs['mathml'] : '')
+  if (tree === null) return ''
+  // O LaTeX que veio junto (o `annotation` do KaTeX, da Wikipédia), quando há.
+  const semantics = tree.children.find(
+    (child): child is MathElement => typeof child !== 'string' && child.tag === 'semantics',
+  )
+  const annotation = semantics?.children.find(
+    (child): child is MathElement =>
+      typeof child !== 'string' &&
+      child.tag === 'annotation' &&
+      child.attrs['encoding'] === 'application/x-tex',
+  )
+  const annotated =
+    annotation === undefined
+      ? ''
+      : annotation.children
+          .filter((c) => typeof c === 'string')
+          .join('')
+          .trim()
+  return annotated !== '' ? annotated : mathMlToLatex(tree).trim()
 }
 
 // --- a árvore ---------------------------------------------------------------

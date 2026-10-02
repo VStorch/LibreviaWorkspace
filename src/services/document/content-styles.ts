@@ -108,7 +108,7 @@ ${DOCUMENT_FONT_CSS}
 .page__content .equacao math {
   font-family: 'STIX Two Math', 'Cambria Math', 'Noto Sans Math', 'DejaVu Math TeX Gyre', math;
 }
-.page__content .equacao--exibicao { display: block; text-align: center; }
+.page__content .equacao--exibicao { display: block; text-align: center; break-inside: avoid; }
 .page__content .equacao--exibicao[data-jc='left'] { text-align: left; }
 .page__content .equacao--exibicao[data-jc='right'] { text-align: right; }
 .page__content .equacao--exibicao math { display: inline math; math-style: normal; }

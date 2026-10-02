@@ -324,7 +324,7 @@ function isDeleted(node: ProseMirrorNode): boolean {
 export function textWithoutDeletions(
   node: ProseMirrorNode,
   blockSeparator: string | undefined,
-  leafText: string,
+  leafText: string | ((leaf: ProseMirrorNode) => string),
   hide?: string,
 ): string {
   let text = ''
@@ -348,7 +348,9 @@ export function textWithoutDeletions(
           : hide.repeat(child.text?.length ?? 0)
         : (child.text ?? '')
       : child.isLeaf
-        ? leafText
+        ? typeof leafText === 'string'
+          ? leafText
+          : leafText(child)
         : ''
     if (
       child.isBlock &&
@@ -371,7 +373,7 @@ export const CountWithoutDeletions = CharacterCount.extend({
     this.storage.characters = (options) => {
       const node = options?.node ?? this.editor.state.doc
       if ((options?.mode ?? this.options.mode) === 'textSize') {
-        return this.options.textCounter(textWithoutDeletions(node, undefined, ' '))
+        return this.options.textCounter(textWithoutDeletions(node, undefined, characterLeaf))
       }
       return node.nodeSize
     }
@@ -381,6 +383,14 @@ export const CountWithoutDeletions = CharacterCount.extend({
     }
   },
 })
+
+/**
+ * O texto de um nó folha na contagem de caracteres: a equação (M11) não tem
+ * caracteres — é uma palavra, contada à parte, e nenhum caractere.
+ */
+export function characterLeaf(leaf: ProseMirrorNode): string {
+  return leaf.type.name === 'math' ? '' : ' '
+}
 
 /**
  * As equações do trecho (M11), que contam uma palavra cada, como no Word. No texto

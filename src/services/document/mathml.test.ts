@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { mathMlToString, mathText, sanitizeMathMl } from './mathml.js'
+import { DOCUMENT_CONTENT_CSS, PRINT_ONLY_CSS } from './content-styles.js'
+import { latexOfEquation } from './mathml-latex.js'
 
 const NS = 'http://www.w3.org/1998/Math/MathML'
 
@@ -75,5 +77,29 @@ describe('o filtro do MathML das equações', () => {
     expect(mathMlToString(tree!)).toBe(
       `<math xmlns="${NS}"><mmultiscripts><mi>C</mi><mprescripts></mprescripts><mn>1</mn><mn>2</mn></mmultiscripts></math>`,
     )
+  })
+})
+
+describe('a equação no papel (M11, fase 3)', () => {
+  it('a de exibição não se parte entre páginas, e a impressão leva o CSS da tela', () => {
+    expect(DOCUMENT_CONTENT_CSS).toMatch(/\.equacao--exibicao \{[^}]*break-inside: avoid/)
+    expect(DOCUMENT_CONTENT_CSS).toContain('.page__content .equacao math {')
+    expect(PRINT_ONLY_CSS).not.toContain('equacao')
+  })
+})
+
+describe('latexOfEquation', () => {
+  it('o guardado; senão, a anotação TeX; senão, o tirado do MathML', () => {
+    expect(latexOfEquation({ latex: ' x^2 ', mathml: '<math><mi>y</mi></math>' })).toBe('x^2')
+    expect(
+      latexOfEquation({
+        latex: '',
+        mathml:
+          '<math><semantics><mrow><mi>y</mi></mrow><annotation encoding="application/x-tex">y_{0}</annotation></semantics></math>',
+      }),
+    ).toBe('y_{0}')
+    expect(latexOfEquation({ mathml: '<math><msup><mi>r</mi><mn>2</mn></msup></math>' })).toBe('r^{2}')
+    expect(latexOfEquation({ mathml: '<script/>' })).toBe('')
+    expect(latexOfEquation(undefined)).toBe('')
   })
 })
