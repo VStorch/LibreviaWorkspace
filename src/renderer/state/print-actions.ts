@@ -61,7 +61,10 @@ export function createPrintActions(
     return {
       html: buildPrintHtml(
         buildPagedBody(paged),
-        name,
+        // O `<title>` é o que o Chromium grava como Title do PDF: o título das
+        // propriedades (M11), quando há um. Autor, assunto e palavras-chave o
+        // `printToPDF` não grava, e sem biblioteca de PDF não há como pô-los.
+        state.properties?.title?.trim() || name,
         styleSheetCss(state.styles) + buildPagedCss(paged.pages),
         false,
       ),

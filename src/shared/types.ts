@@ -111,6 +111,8 @@ export const MenuCommand = {
   PasteWithoutFormat: 'paste-without-format',
   /** Abre o diálogo de contagem de palavras. */
   WordCount: 'word-count',
+  /** Arquivo → Propriedades: título, assunto, autor… e as estatísticas (M11). */
+  DocumentProperties: 'document-properties',
   /** Abre o seletor de caracteres especiais. */
   SpecialCharacter: 'special-character',
   /** Propriedades da imagem selecionada: texto alternativo e alinhamento. */

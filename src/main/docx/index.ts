@@ -12,7 +12,12 @@ import { z } from 'zod'
 import { SDOC_FORMAT, SDOC_VERSION } from '@services/document/serialize.js'
 import { AppError, ErrorCode, fromFileSystemError } from '@shared/errors.js'
 import { Language, translate } from '@shared/i18n/index.js'
-import { documentCommentSchema, documentNotesSchema, styleSheetSchema } from '@shared/schemas.js'
+import {
+  documentCommentSchema,
+  documentNotesSchema,
+  documentPropertiesSchema,
+  styleSheetSchema,
+} from '@shared/schemas.js'
 import type { LossInventory } from '@shared/types.js'
 import { normalizePath } from '../fs/paths.js'
 import type { SidecarClient } from '../sidecar/client.js'
@@ -62,6 +67,8 @@ const openResultSchema = z.object({
     trackChanges: z.boolean().optional(),
     // A numeração das notas (M11), que vai parar no `.sdoc`.
     notes: documentNotesSchema.optional(),
+    // As propriedades do documento (M11), que também vão parar no `.sdoc`.
+    properties: documentPropertiesSchema.optional(),
   }),
   inventory: inventorySchema,
 })
@@ -213,6 +220,10 @@ export async function saveDocx(
       // E a numeração delas, que o sidecar só grava quando difere da do arquivo
       // de destino — é o que um rascunho levado para .docx precisa.
       ...(model.notes === undefined ? {} : { notes: model.notes }),
+      // As propriedades (M11) são um remendo: o campo ausente fica como está no
+      // arquivo, e o sidecar só regrava `docProps/core.xml` ou `app.xml` quando
+      // algum campo difere — ver PropertiesWriter.
+      ...(model.properties === undefined ? {} : { properties: model.properties }),
       ...(model.styles === undefined ? {} : { styles: model.styles }),
     },
     new Uint8Array(original),
@@ -352,6 +363,7 @@ function unwrapSdoc(content: string): {
   beforeRevisions: boolean
   beforeNotes: boolean
   notes: unknown
+  properties: unknown
 } {
   let parsed: unknown
   try {
@@ -380,6 +392,8 @@ function unwrapSdoc(content: string): {
       // A numeração vai como veio; quem a confere é o sidecar, que só a grava
       // quando difere da do pacote.
       notes: z.unknown().optional(),
+      // Conferidas aqui, e não só no renderer: vão para o arquivo do usuário.
+      properties: documentPropertiesSchema.optional(),
     })
     .safeParse(parsed)
   if (!envelope.success) {
@@ -400,5 +414,6 @@ function unwrapSdoc(content: string): {
     beforeRevisions: envelope.data.beforeRevisions === true,
     beforeNotes: envelope.data.beforeNotes === true,
     notes: envelope.data.notes,
+    properties: envelope.data.properties,
   }
 }

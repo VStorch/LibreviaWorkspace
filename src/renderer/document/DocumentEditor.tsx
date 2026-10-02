@@ -48,6 +48,7 @@ import { ColumnsDialog } from './ColumnsDialog.js'
 import { CaptionDialog } from './CaptionDialog.js'
 import { CrossReferenceDialog } from './CrossReferenceDialog.js'
 import { WordCountDialog } from './WordCountDialog.js'
+import { PropertiesDialog } from './PropertiesDialog.js'
 import { AuthorNameDialog } from './AuthorNameDialog.js'
 import { PaperSheet } from './PaperSheet.js'
 import { noteBodiesOf, setNotePool } from './extensions/note-view.js'
@@ -588,6 +589,10 @@ export function DocumentEditor(): React.JSX.Element {
       )}
 
       {dialogs.wordCount && <WordCountDialog editor={editor} onClose={() => setDialog('wordCount', false)} />}
+
+      {dialogs.properties && (
+        <PropertiesDialog editor={editor} onClose={() => setDialog('properties', false)} />
+      )}
 
       {dialogs.authorName && (
         <AuthorNameDialog editor={editor} onClose={() => setDialog('authorName', false)} />

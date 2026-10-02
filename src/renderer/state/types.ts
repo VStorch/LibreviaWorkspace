@@ -5,6 +5,7 @@ import type {
   DocumentModel,
   DocumentNode,
   DocumentNotes,
+  DocumentProperties,
   PageSetup,
   SectionSetup,
 } from '@services/document/model.js'
@@ -101,6 +102,8 @@ export interface WorkspaceState {
   notes: DocumentNotes | undefined
   /** O rascunho é de antes das notas — ver `DocumentModel.beforeNotes`. */
   beforeNotes: boolean
+  /** Título, assunto, autor… — ver `DocumentModel.properties`. */
+  properties: DocumentProperties | undefined
   /**
    * A planilha aberta, quando o que está em edição é uma planilha.
    *
@@ -196,6 +199,11 @@ export interface WorkspaceState {
    * pessoa: muda o arquivo, e o documento fica marcado como alterado.
    */
   toggleTrackChanges: () => void
+  /**
+   * Arquivo → Propriedades. Do documento, como os estilos: fora do desfazer do
+   * editor, e marca o documento como alterado.
+   */
+  setProperties: (properties: DocumentProperties) => void
   dismissError: () => void
   dismissNotice: () => void
   showError: (error: SerializedError) => void

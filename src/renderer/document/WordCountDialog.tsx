@@ -97,14 +97,14 @@ export function WordCountDialog({
   )
 }
 
-interface Tally {
+export interface Tally {
   readonly words: number
   readonly characters: number
   readonly charactersNoSpaces: number
   readonly paragraphs: number
 }
 
-function tally(editor: Editor, node: ProseMirrorNode): Tally {
+export function tally(editor: Editor, node: ProseMirrorNode): Tally {
   // A mesma extensão que a barra de status usa. Ela aceita um nó, e é isso que
   // permite contar a seleção sem escrever um segundo contador.
   const storage = editor.storage['characterCount']

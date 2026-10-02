@@ -240,6 +240,40 @@ export interface DocumentModel {
    * o `noteRef`. Mesmo motivo de `flattened`.
    */
   readonly beforeNotes?: boolean
+  /**
+   * As propriedades do documento (M11) — `docProps/core.xml` e parte de
+   * `docProps/app.xml`. Fora dos nós pelo mesmo motivo dos estilos.
+   *
+   * Na gravação em DOCX cada campo é um **remendo**: ausente é "deixe como está
+   * no arquivo", e a cadeia vazia é "apague". Por isso o rascunho de antes delas
+   * (`.sdoc` < 10) não precisa de marca: sem `properties`, nada em `docProps/`
+   * é tocado, e o pacote de origem guarda as do arquivo byte a byte.
+   */
+  readonly properties?: DocumentProperties
+}
+
+/**
+ * As propriedades de um documento, como o Word as mostra em Arquivo →
+ * Propriedades. As datas são W3CDTF (`2026-10-02T12:00:00Z`), como no pacote.
+ */
+export interface DocumentProperties {
+  readonly title?: string
+  readonly subject?: string
+  /** `dc:creator`: o(s) autor(es), separados por ponto e vírgula, como no Word. */
+  readonly creator?: string
+  readonly keywords?: string
+  readonly category?: string
+  /** `dc:description`: o que o Word chama de Comentários. */
+  readonly description?: string
+  readonly lastModifiedBy?: string
+  readonly revision?: string
+  readonly created?: string
+  readonly modified?: string
+  /** `docProps/app.xml`. */
+  readonly company?: string
+  readonly manager?: string
+  /** `TotalTime` do `app.xml`, em minutos. Só lido: o editor não o mede. */
+  readonly totalTime?: number
 }
 
 /** A numeração de um tipo de nota, como `w:footnotePr`/`w:endnotePr` a descrevem. */

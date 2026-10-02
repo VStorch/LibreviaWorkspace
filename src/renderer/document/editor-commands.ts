@@ -34,6 +34,8 @@ export const EditorCommand = {
   ParagraphSetup: 'paragraph-setup',
   PasteWithoutFormat: 'paste-without-format',
   WordCount: 'word-count',
+  /** Arquivo → Propriedades (M11). */
+  DocumentProperties: 'document-properties',
   SpecialCharacter: 'special-character',
   /** Propriedades da imagem selecionada: texto alternativo e alinhamento. */
   ImageProperties: 'image-properties',

@@ -41,6 +41,7 @@ export interface EditorDialogs {
   readonly crossReference: boolean
   readonly columns: boolean
   readonly authorName: boolean
+  readonly properties: boolean
 }
 
 const CLOSED: EditorDialogs = {
@@ -60,6 +61,7 @@ const CLOSED: EditorDialogs = {
   crossReference: false,
   columns: false,
   authorName: false,
+  properties: false,
 }
 
 export interface EditorCommands {
@@ -118,6 +120,8 @@ export function useEditorCommands(
           return setDialog('paragraph', true)
         case EditorCommand.WordCount:
           return setDialog('wordCount', true)
+        case EditorCommand.DocumentProperties:
+          return setDialog('properties', true)
         case EditorCommand.SpecialCharacter:
           return setDialog('specialCharacter', true)
         case EditorCommand.ImageProperties:

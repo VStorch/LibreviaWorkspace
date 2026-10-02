@@ -2,12 +2,14 @@ import { DocumentKind, PlainTextChoice, type LossInventory } from '@shared/types
 import { DEFAULT_PAGE_SETUP, createEmptyDocument, type DocumentModel } from '@services/document/model.js'
 import { documentToPlainText, hasRichFormatting, plainTextToDocument } from '@services/document/plain-text.js'
 import { parseDocument, serializeDocument } from '@services/document/serialize.js'
+import { stampProperties } from '@services/document/properties.js'
 import { BUILTIN_STYLES } from '@services/document/styles.js'
 import { createEmptyWorkbook } from '@services/spreadsheet/model.js'
 import { parseWorkbook, serializeWorkbook } from '@services/spreadsheet/serialize.js'
 import { recalculate } from '@services/spreadsheet/formula/recalc.js'
 import { defaultFileName, isPlainTextPath, kindFromPath } from '@services/file/formats.js'
 import { hasReportableLoss, locksEditing, lostOnSave } from '@services/file/inventory.js'
+import { currentPreferences } from './preferences.js'
 import { toSerialized, type GetWorkspace, type SetWorkspace, type WorkspaceContext } from './context.js'
 import type { LoadedFile, OpenFile, WorkspaceState } from './types.js'
 
@@ -47,9 +49,27 @@ export function createFileActions(set: SetWorkspace, get: GetWorkspace, ctx: Wor
   function encodeFor(path: string): string {
     const { workbook } = get()
     if (workbook !== null) return serializeWorkbook(workbook)
+    if (!isPlainTextPath(path)) stampForSave()
 
     const model = ctx.currentModel()
     return isPlainTextPath(path) ? documentToPlainText(model.doc) : serializeDocument(model)
+  }
+
+  /**
+   * Quem modificou, quando e a revisão (M11), no estado e portanto no que vai ao
+   * disco — ver `stampProperties`. Só quando o documento mudou, ou quando nunca
+   * foi gravado: o arquivo aberto e salvo sem edição volta com `docProps/` byte a
+   * byte. Fica no estado mesmo que a gravação falhe: é só a data da tentativa.
+   */
+  function stampForSave(): void {
+    const state = get()
+    const stamped = stampProperties(state.properties, {
+      author: currentPreferences().authorName,
+      now: new Date(),
+      fresh: state.file?.path === null,
+      edited: state.isDirty,
+    })
+    if (stamped !== state.properties) set({ properties: stamped })
   }
 
   /**
@@ -222,6 +242,7 @@ export function createFileActions(set: SetWorkspace, get: GetWorkspace, ctx: Wor
         beforeRevisions: false,
         notes: undefined,
         beforeNotes: false,
+        properties: undefined,
         generation: state.generation + 1,
         isDirty: false,
         error: null,

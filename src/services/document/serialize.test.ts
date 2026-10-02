@@ -200,7 +200,7 @@ describe('estilos no formato interno', () => {
     const v8 = JSON.stringify({ ...JSON.parse(v2(BUILTIN_STYLES)), version: 8 })
     expect(parseDocument(v8).beforeNotes).toBe(true)
     expect(parseDocument(v8).beforeRevisions).toBeUndefined()
-    expect(JSON.parse(serializeDocument(richDocument)).version).toBe(9)
+    expect(JSON.parse(serializeDocument(richDocument)).version).toBe(SDOC_VERSION)
     expect(parseDocument(serializeDocument(richDocument)).beforeNotes).toBeUndefined()
 
     const notes = { footnotePr: { numFmt: 'lowerRoman', start: 3 }, endnotePr: { pos: 'docEnd' } }
@@ -208,6 +208,40 @@ describe('estilos no formato interno', () => {
     expect(parseDocument(serializeDocument(richDocument)).notes).toBeUndefined()
     const legacy = parseDocument(serializeDocument({ ...richDocument, beforeNotes: true }))
     expect(legacy.beforeNotes).toBe(true)
+  })
+
+  it('leva as propriedades na ida e volta, e o arquivo da versão 9 abre sem elas e sem marca', () => {
+    // O rascunho de antes das propriedades não as tem, e não precisa de marca: na
+    // gravação em DOCX, a ausência deixa `docProps/` como está no arquivo.
+    const v9 = JSON.stringify({ ...JSON.parse(v2(BUILTIN_STYLES)), version: 9 })
+    const legacy = parseDocument(v9)
+    expect(legacy.properties).toBeUndefined()
+    expect(Object.keys(legacy).some((key) => key.startsWith('before') && key.includes('Propert'))).toBe(false)
+    expect(JSON.parse(serializeDocument(richDocument)).version).toBe(10)
+
+    const properties = {
+      title: 'Relatório',
+      keywords: 'a; b',
+      creator: 'Ana',
+      created: '2026-01-02T03:04:05Z',
+      totalTime: 12,
+      company: '',
+    }
+    expect(parseDocument(serializeDocument({ ...richDocument, properties })).properties).toEqual(properties)
+    expect(parseDocument(serializeDocument(richDocument)).properties).toBeUndefined()
+  })
+
+  it('recusa propriedades malformadas', () => {
+    const broken = JSON.stringify({
+      ...JSON.parse(serializeDocument(richDocument)),
+      properties: { title: 42 },
+    })
+    expect(() => parseDocument(broken)).toThrow(AppError)
+    const long = JSON.stringify({
+      ...JSON.parse(serializeDocument(richDocument)),
+      properties: { totalTime: -1 },
+    })
+    expect(() => parseDocument(long)).toThrow(AppError)
   })
 
   it('dá os estilos embutidos ao arquivo da versão 2, que não os tinha', () => {

@@ -183,6 +183,10 @@ public static class DocxWriter
         // continua saindo do arquivo original, byte a byte.
         touched.UnionWith(BandWriter.Apply(part, [.. model.Sections ?? [], model.Page], inventory, aliases));
 
+        // As propriedades (M11): só a parte em que algum campo mudou — ver
+        // DocumentProperties. `docProps/custom.xml` nunca é tocado.
+        DocumentProperties.Apply(document, model.Properties, touched);
+
         part.Document!.Save();
         document.Dispose();
 

@@ -4,6 +4,7 @@ import { Language, translate } from '@shared/i18n/index.js'
 import {
   documentCommentSchema,
   documentNotesSchema,
+  documentPropertiesSchema,
   pageSetupSchema,
   sectionSetupSchema,
   styleSheetSchema,
@@ -15,6 +16,7 @@ import {
   type DocumentModel,
   type DocumentNode,
   type DocumentNotes,
+  type DocumentProperties,
   type NoteNumbering,
 } from './model.js'
 import { LEGACY_STYLES, type StyleSheet } from './styles.js'
@@ -64,9 +66,12 @@ import { LEGACY_STYLES, type StyleSheet } from './styles.js'
  *   referência é o nó `noteRef`, com o corpo da nota dentro, e `notes` leva a
  *   numeração do documento. O rascunho anterior não tem a referência, e a leitura
  *   o marca (`beforeNotes`) pelo mesmo motivo da versão 4.
+ * - **10** — as **propriedades** do documento (M11): título, assunto, autor…,
+ *   em `properties`. O rascunho anterior simplesmente não as tem, e não ganha
+ *   marca: na gravação em DOCX a ausência é "deixe as do arquivo como estão".
  */
 export const SDOC_FORMAT = 'sdoc'
-export const SDOC_VERSION = 9
+export const SDOC_VERSION = 10
 
 /** O conteúdo é validado só na forma; a estrutura fina é do ProseMirror. */
 const documentNodeSchema: z.ZodType<DocumentNode> = z.looseObject({
@@ -98,6 +103,8 @@ const sdocSchema = z.object({
   // Ver `DocumentModel.notes` e `beforeNotes`.
   notes: documentNotesSchema.optional(),
   beforeNotes: z.boolean().optional(),
+  // Ver `DocumentModel.properties`.
+  properties: documentPropertiesSchema.optional(),
 })
 
 export function serializeDocument(model: DocumentModel): string {
@@ -122,6 +129,7 @@ export function serializeDocument(model: DocumentModel): string {
       ...(model.beforeRevisions === true ? { beforeRevisions: true } : {}),
       ...(model.notes === undefined ? {} : { notes: model.notes }),
       ...(model.beforeNotes === true ? { beforeNotes: true } : {}),
+      ...(model.properties === undefined ? {} : { properties: model.properties }),
     },
     null,
     2,
@@ -174,7 +182,15 @@ export function parseDocument(text: string, language: Language = Language.Portug
     ...(parsed.data.version < 8 || parsed.data.beforeRevisions === true ? { beforeRevisions: true } : {}),
     ...(parsed.data.notes === undefined ? {} : { notes: notesOf(parsed.data.notes) }),
     ...(parsed.data.version < 9 || parsed.data.beforeNotes === true ? { beforeNotes: true } : {}),
+    ...(parsed.data.properties === undefined ? {} : { properties: propertiesOf(parsed.data.properties) }),
   }
+}
+
+/** As propriedades sem as chaves ausentes — `exactOptionalPropertyTypes`. */
+export function propertiesOf(raw: z.infer<typeof documentPropertiesSchema>): DocumentProperties {
+  return Object.fromEntries(
+    Object.entries(raw).filter(([, value]) => value !== undefined),
+  ) as DocumentProperties
 }
 
 /** A numeração das notas sem as chaves ausentes — `exactOptionalPropertyTypes`. */

@@ -83,7 +83,12 @@ public sealed record DocumentModelDto(
     // `noteRef`. Mesmo motivo de `BeforeReferences`.
     [property: JsonPropertyName("beforeNotes")]
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-    bool BeforeNotes = false);
+    bool BeforeNotes = false,
+    // As propriedades do documento (M11), fora dos nós — ver DocumentProperties.
+    // Na gravação, cada campo é remendo: ausente é "não mexa".
+    [property: JsonPropertyName("properties")]
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    PropertiesDto? Properties = null);
 
 public sealed record OpenResult(
     [property: JsonPropertyName("model")] DocumentModelDto Model,
@@ -134,7 +139,8 @@ public static class DocxReader
                 Sections: sections,
                 Comments: CommentsReader.Read(part),
                 TrackChanges: Revisions.TrackingOf(part) ? true : null,
-                Notes: NotesReader.Read(part, body)),
+                Notes: NotesReader.Read(part, body),
+                Properties: DocumentProperties.Read(document)),
             inventory);
     }
 

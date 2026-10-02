@@ -196,6 +196,57 @@ export async function docxWithFootnote(options: { leadingTable?: boolean } = {})
   ])
 }
 
+/** As propriedades de `docxWithProperties`, como o Word as grava (M11). */
+export const PROPERTIES_CORE =
+  `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n` +
+  `<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:dcmitype="http://purl.org/dc/dcmitype/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">` +
+  `<dc:title>Relatório anual</dc:title><dc:subject>Contas</dc:subject><dc:creator>Ana Lima</dc:creator>` +
+  `<cp:keywords>contas; 2025</cp:keywords><cp:lastModifiedBy>Bia</cp:lastModifiedBy><cp:revision>7</cp:revision>` +
+  `<dcterms:created xsi:type="dcterms:W3CDTF">2025-01-02T03:04:05Z</dcterms:created>` +
+  `<dcterms:modified xsi:type="dcterms:W3CDTF">2025-02-03T04:05:06Z</dcterms:modified>` +
+  `<cp:contentStatus>Rascunho</cp:contentStatus></cp:coreProperties>`
+
+export const PROPERTIES_APP =
+  `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n` +
+  `<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes">` +
+  `<Template>Normal.dotm</Template><TotalTime>42</TotalTime><Company>ACME</Company></Properties>`
+
+export const PROPERTIES_CUSTOM =
+  `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n` +
+  `<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/custom-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes">` +
+  `<property fmtid="{D5CDD505-2E9C-101B-9397-08002B2CF9AE}" pid="2" name="Cliente"><vt:lpwstr>XPTO</vt:lpwstr></property></Properties>`
+
+/** Documento com `docProps/core.xml`, `app.xml` e `custom.xml` (M11). */
+export async function docxWithProperties(): Promise<Buffer> {
+  const docProps = (name: string, type: string): string =>
+    `<Override PartName="/docProps/${name}.xml" ContentType="application/vnd.openxmlformats-${type}+xml"/>`
+  return zip([
+    [
+      '[Content_Types].xml',
+      CONTENT_TYPES.replace(
+        /<Override PartName="\/word\/comments[^>]+>/,
+        docProps('core', 'package.core-properties') +
+          docProps('app', 'officedocument.extended-properties') +
+          docProps('custom', 'officedocument.custom-properties'),
+      ),
+    ],
+    [
+      '_rels/.rels',
+      ROOT_RELS.replace(
+        '</Relationships>',
+        `<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/>` +
+          `<Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/>` +
+          `<Relationship Id="rId4" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/custom-properties" Target="docProps/custom.xml"/>` +
+          '</Relationships>',
+      ),
+    ],
+    ['word/document.xml', documentXml(paragraph('Relatório de contas do ano.') + paragraph('Fim.'))],
+    ['docProps/core.xml', PROPERTIES_CORE],
+    ['docProps/app.xml', PROPERTIES_APP],
+    ['docProps/custom.xml', PROPERTIES_CUSTOM],
+  ])
+}
+
 const W14 = 'http://schemas.microsoft.com/office/word/2010/wordml'
 const W15 = 'http://schemas.microsoft.com/office/word/2012/wordml'
 

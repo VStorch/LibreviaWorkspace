@@ -32,6 +32,7 @@ export const MENU = {
   'menu.file.pageSetup': { pt: 'Configuração de página…', en: 'Page setup…' },
   'menu.file.printPreview': { pt: 'Visualizar impressão', en: 'Print preview' },
   'menu.file.exportPdf': { pt: 'Exportar para PDF…', en: 'Export to PDF…' },
+  'menu.file.properties': { pt: 'Propriedades…', en: 'Properties…' },
   'menu.file.print': { pt: 'Imprimir…', en: 'Print…' },
   'menu.file.close': { pt: 'Fechar arquivo', en: 'Close file' },
   'menu.file.quit': { pt: 'Sair', en: 'Quit' },

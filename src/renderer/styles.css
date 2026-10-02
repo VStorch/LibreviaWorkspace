@@ -1550,6 +1550,31 @@ button {
   font: inherit;
 }
 
+/* Arquivo → Propriedades: rótulo à esquerda, campo à direita, como no Word; o
+   diálogo é alto, e por isso rola dentro da janela. */
+.properties__field {
+  flex-direction: row;
+  align-items: baseline;
+  margin-bottom: 6px;
+}
+
+.properties__field > span {
+  flex: 0 0 120px;
+}
+
+.properties__field input,
+.properties__field textarea {
+  flex: 1;
+}
+
+.properties__field textarea {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 4px 8px;
+  font: inherit;
+  resize: vertical;
+}
+
 .popover__fieldset {
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -2143,4 +2168,9 @@ button {
   margin-top: 2em;
   padding-top: 0.5em;
   border-top: 1px solid var(--border, #cccccc);
+}
+
+.properties {
+  max-height: calc(100vh - 140px);
+  overflow-y: auto;
 }

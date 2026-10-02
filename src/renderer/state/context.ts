@@ -109,6 +109,7 @@ export function createWorkspaceContext(set: SetWorkspace, get: GetWorkspace): Wo
       ...(state.beforeRevisions ? { beforeRevisions: true } : {}),
       ...(state.notes === undefined ? {} : { notes: state.notes }),
       ...(state.beforeNotes ? { beforeNotes: true } : {}),
+      ...(state.properties === undefined ? {} : { properties: state.properties }),
     }
   }
 
@@ -169,6 +170,7 @@ export function createWorkspaceContext(set: SetWorkspace, get: GetWorkspace): Wo
       beforeRevisions: model.beforeRevisions === true,
       notes: model.notes,
       beforeNotes: model.beforeNotes === true,
+      properties: model.properties,
       generation: state.generation + 1,
       isDirty: false,
       error: null,

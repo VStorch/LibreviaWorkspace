@@ -221,6 +221,28 @@ export const documentNotesSchema = z.object({
 })
 
 /**
+ * As propriedades do documento (M11) — `docProps/core.xml` e `docProps/app.xml`.
+ * Vão ao `.sdoc` e ao arquivo do usuário, e por isso são conferidas na entrada.
+ */
+const propertyText = z.string().max(2_000).optional()
+
+export const documentPropertiesSchema = z.object({
+  title: propertyText,
+  subject: propertyText,
+  creator: propertyText,
+  keywords: propertyText,
+  category: propertyText,
+  description: z.string().max(100_000).optional(),
+  lastModifiedBy: propertyText,
+  revision: z.string().max(100).optional(),
+  created: z.string().max(100).optional(),
+  modified: z.string().max(100).optional(),
+  company: propertyText,
+  manager: propertyText,
+  totalTime: z.number().int().min(0).max(1_000_000_000).optional(),
+})
+
+/**
  * As preferências de edição, validadas.
  *
  * Mora aqui, e não no contrato de IPC, porque o mesmo schema serve em três

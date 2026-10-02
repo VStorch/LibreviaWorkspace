@@ -303,6 +303,7 @@ async function buildTemplate(): Promise<MenuItemConstructorOptions[]> {
         { label: t('menu.file.pageSetup'), click: () => dispatch(MenuCommand.PageSetup) },
         { label: t('menu.file.printPreview'), click: () => dispatch(MenuCommand.PrintPreview) },
         { label: t('menu.file.exportPdf'), click: () => dispatch(MenuCommand.ExportPdf) },
+        { label: t('menu.file.properties'), click: () => dispatch(MenuCommand.DocumentProperties) },
         {
           label: t('menu.file.print'),
           accelerator: acceleratorOf(SHORTCUTS.print),
