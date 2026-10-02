@@ -67,6 +67,12 @@ async function runMenuCommand(command: MenuCommand, path: string | undefined): P
     case MenuCommand.ExportPdf:
       await workspace.exportPdf()
       return
+    case MenuCommand.ExportHtml:
+      await workspace.exportDocument('html')
+      return
+    case MenuCommand.ExportMarkdown:
+      await workspace.exportDocument('markdown')
+      return
     case MenuCommand.Print:
       await workspace.print()
       return

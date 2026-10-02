@@ -233,6 +233,11 @@ export interface WorkspaceState {
   allowEditing: () => void
 
   exportPdf: () => Promise<boolean>
+  /**
+   * Exporta para HTML ou Markdown (M11) num arquivo novo. O documento continua
+   * no caminho dele e com o estado de alterado que tinha.
+   */
+  exportDocument: (format: 'html' | 'markdown') => Promise<boolean>
   print: () => Promise<boolean>
   printPreview: () => Promise<void>
 }

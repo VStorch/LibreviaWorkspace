@@ -303,6 +303,13 @@ async function buildTemplate(): Promise<MenuItemConstructorOptions[]> {
         { label: t('menu.file.pageSetup'), click: () => dispatch(MenuCommand.PageSetup) },
         { label: t('menu.file.printPreview'), click: () => dispatch(MenuCommand.PrintPreview) },
         { label: t('menu.file.exportPdf'), click: () => dispatch(MenuCommand.ExportPdf) },
+        {
+          label: t('menu.file.exportAs'),
+          submenu: [
+            { label: t('menu.file.exportHtml'), click: () => dispatch(MenuCommand.ExportHtml) },
+            { label: t('menu.file.exportMarkdown'), click: () => dispatch(MenuCommand.ExportMarkdown) },
+          ],
+        },
         { label: t('menu.file.properties'), click: () => dispatch(MenuCommand.DocumentProperties) },
         {
           label: t('menu.file.print'),

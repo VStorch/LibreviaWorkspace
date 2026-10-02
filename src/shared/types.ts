@@ -85,6 +85,9 @@ export const MenuCommand = {
   CloseFile: 'close-file',
   FindReplace: 'find-replace',
   ExportPdf: 'export-pdf',
+  /** Arquivo → Exportar como → HTML… e Markdown… (M11). */
+  ExportHtml: 'export-html',
+  ExportMarkdown: 'export-markdown',
   Print: 'print',
   PrintPreview: 'print-preview',
   PageSetup: 'page-setup',

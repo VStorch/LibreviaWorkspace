@@ -2,6 +2,7 @@ import { app, BrowserWindow, session } from 'electron'
 import { APP_NAME } from '@shared/constants.js'
 import { registerEditingHandlers } from './ipc/editing.js'
 import { registerFileHandlers } from './ipc/file.js'
+import { registerExportHandlers } from './ipc/export.js'
 import { registerPrintHandlers } from './ipc/print.js'
 import { registerRecoveryHandlers } from './ipc/recovery.js'
 import { registerWindowHandlers } from './ipc/window.js'
@@ -63,6 +64,7 @@ if (!app.requestSingleInstanceLock()) {
     registerEditingHandlers()
     registerFileHandlers()
     registerPrintHandlers()
+    registerExportHandlers()
     registerRecoveryHandlers()
     registerWindowHandlers()
 

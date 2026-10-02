@@ -16,7 +16,7 @@ interface PrintRequest {
   readonly paged: boolean
 }
 
-type PrintActions = Pick<WorkspaceState, 'exportPdf' | 'print' | 'printPreview'>
+type PrintActions = Pick<WorkspaceState, 'exportPdf' | 'exportDocument' | 'print' | 'printPreview'>
 
 export function createPrintActions(
   set: SetWorkspace,
@@ -101,6 +101,25 @@ export function createPrintActions(
         window.api.print.exportPdf({
           ...request,
           suggestedName: get().file?.name ?? t('shell.print.defaultDocumentName').toLowerCase(),
+        }),
+      )
+      return data !== null && !data.canceled
+    },
+
+    exportDocument: async (format) => {
+      const state = get()
+      if (state.workbook !== null || ctx.source() === null) {
+        set({ error: { code: 'INTERNAL', message: t('shell.export.documentOnly') } })
+        return false
+      }
+
+      // O modelo serializado, como no salvar: o main monta o arquivo a partir
+      // dele. Nada aqui muda `file` nem `isDirty` — exportar não é salvar.
+      const data = await ctx.call(() =>
+        window.api.print.exportDocument({
+          format,
+          content: ctx.currentContent(),
+          suggestedName: state.file?.name ?? t('shell.print.defaultDocumentName').toLowerCase(),
         }),
       )
       return data !== null && !data.canceled

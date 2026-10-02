@@ -114,6 +114,26 @@ export async function showPdfSaveDialog(
   return result.canceled ? null : (result.filePath ?? null)
 }
 
+/** Destino da exportação para HTML ou Markdown (M11): só a extensão do formato. */
+export async function showExportSaveDialog(
+  window: BrowserWindow,
+  suggestedName: string,
+  format: 'html' | 'markdown',
+): Promise<string | null> {
+  const html = format === 'html'
+  const result = await dialog.showSaveDialog(window, {
+    title: t(html ? 'dialog.export.htmlTitle' : 'dialog.export.markdownTitle'),
+    defaultPath: suggestedName,
+    filters: [
+      html
+        ? { name: t('dialog.filter.html'), extensions: ['html', 'htm'] }
+        : { name: t('dialog.filter.markdown'), extensions: ['md', 'markdown'] },
+    ],
+    properties: ['createDirectory', 'showOverwriteConfirmation'],
+  })
+  return result.canceled ? null : (result.filePath ?? null)
+}
+
 export async function showImagePickerDialog(window: BrowserWindow): Promise<string | null> {
   const result = await dialog.showOpenDialog(window, {
     title: t('dialog.image.title'),

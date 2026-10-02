@@ -182,6 +182,16 @@ export const ipcContracts = {
     request: printRequestSchema.extend({ suggestedName: z.string().min(1).max(255) }),
     response: saveResultSchema,
   },
+  [IpcChannel.FileExport]: {
+    request: z.object({
+      format: z.enum(['html', 'markdown']),
+      // O documento serializado, como no salvar: o main monta o arquivo a partir
+      // do modelo, e não de um HTML pronto que o renderer pudesse ter trocado.
+      content: z.string().max(MAX_TEXT_LENGTH),
+      suggestedName: z.string().min(1).max(255),
+    }),
+    response: saveResultSchema,
+  },
   [IpcChannel.PrintDialog]: {
     request: printRequestSchema,
     // `false` significa que o usuário cancelou — cancelar não é erro.

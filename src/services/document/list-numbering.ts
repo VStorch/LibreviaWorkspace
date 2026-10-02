@@ -185,6 +185,11 @@ export interface ListNumbering {
   readonly lists: ListInfo[]
   /** A marca de cada item, em ordem de documento (pré-ordem). */
   readonly labels: string[]
+  /**
+   * O valor do contador no nível de cada item, na mesma ordem de `labels`: o
+   * número que a exportação para HTML e Markdown põe no `start` da lista.
+   */
+  readonly values: number[]
 }
 
 function positiveInt(value: unknown): number | null {
@@ -213,6 +218,7 @@ interface Counter {
 export function numberLists<N>(root: N, reader: ListTreeReader<N>): ListNumbering {
   const lists: ListInfo[] = []
   const labels: string[] = []
+  const values: number[] = []
   const counters = new Map<string, Counter>()
   const byNumId = definitionsByNumId(root, reader)
   let fresh = 0
@@ -281,6 +287,7 @@ export function numberLists<N>(root: N, reader: ListTreeReader<N>): ListNumberin
     }
     started.add(level)
     counts[level] = counts[level]! + 1
+    values.push(counts[level])
     // `w:lvlRestart` ausente: o item de um nível zera os de baixo.
     for (let deeper = level + 1; deeper < LIST_LEVELS; deeper++) counts[deeper] = undefined
 
@@ -318,7 +325,7 @@ export function numberLists<N>(root: N, reader: ListTreeReader<N>): ListNumberin
   }
 
   visit(root, null)
-  return { lists, labels }
+  return { lists, labels, values }
 }
 
 /** A definição de cada `numId` que alguma lista do documento traz. */

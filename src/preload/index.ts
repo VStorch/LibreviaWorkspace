@@ -56,6 +56,7 @@ const api: AppApi = {
   },
   print: {
     exportPdf: (payload) => ipcRenderer.invoke(IpcChannel.PrintExportPdf, payload),
+    exportDocument: (payload) => ipcRenderer.invoke(IpcChannel.FileExport, payload),
     dialog: (payload) => ipcRenderer.invoke(IpcChannel.PrintDialog, payload),
     preview: (payload) => ipcRenderer.invoke(IpcChannel.PrintPreview, payload),
   },

@@ -26,6 +26,13 @@ export const DIALOG = {
   'dialog.open.title': { pt: 'Abrir arquivo', en: 'Open file' },
   'dialog.save.title': { pt: 'Salvar como', en: 'Save as' },
   'dialog.pdf.title': { pt: 'Exportar para PDF', en: 'Export to PDF' },
+  'dialog.export.htmlTitle': { pt: 'Exportar como HTML', en: 'Export as HTML' },
+  'dialog.export.markdownTitle': { pt: 'Exportar como Markdown', en: 'Export as Markdown' },
+  'dialog.filter.html': { pt: 'Página da Web (HTML)', en: 'Web page (HTML)' },
+  'dialog.filter.markdown': { pt: 'Markdown', en: 'Markdown' },
+  // O que vai dentro do arquivo exportado, na língua da interface.
+  'dialog.export.notes': { pt: 'Notas', en: 'Notes' },
+  'dialog.export.backToText': { pt: 'Voltar ao texto', en: 'Back to text' },
   'dialog.image.title': { pt: 'Inserir imagem', en: 'Insert image' },
 
   // Confirmar descarte de alterações

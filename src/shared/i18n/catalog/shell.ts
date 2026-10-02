@@ -132,6 +132,10 @@ export const SHELL = {
     pt: 'Não há nada aberto para imprimir. Abra ou crie um documento ou uma planilha primeiro.',
     en: 'Nothing is open to print. Open or create a document or spreadsheet first.',
   },
+  'shell.export.documentOnly': {
+    pt: 'Só documentos podem ser exportados como HTML ou Markdown. Abra ou crie um documento primeiro.',
+    en: 'Only documents can be exported as HTML or Markdown. Open or create a document first.',
+  },
   'shell.print.defaultDocumentName': {
     pt: 'Documento',
     en: 'Document',

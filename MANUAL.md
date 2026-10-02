@@ -460,6 +460,18 @@ que você escrever volta para o lugar exato de onde saiu. O que não tem texto p
 arquivo continua sendo só desenho — o logotipo, a moldura da tabela e o número da página, que
 é recalculado a cada abertura.
 
+### Exportar como HTML ou Markdown
+
+Em **Arquivo → Exportar como**, o documento vira uma **página da Web** (`.html`) ou um texto
+**Markdown** (`.md`). É um arquivo novo: o documento continua aberto no caminho dele, do jeito
+que estava.
+
+- **HTML** sai numa página só, com os estilos, as listas, as tabelas e as imagens embutidas; as
+  notas vão para o fim, com o caminho de volta ao texto.
+- **Markdown** leva títulos, ênfase, links, listas, tabelas e notas (`[^1]`); as imagens vão
+  para uma pasta ao lado, `nome_arquivos/`. A tabela com células mescladas sai em HTML.
+- As **revisões** saem já aceitas, e os **comentários** ficam de fora.
+
 ---
 
 <a id="limites-conhecidos"></a>

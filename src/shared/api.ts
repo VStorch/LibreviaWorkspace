@@ -52,6 +52,8 @@ export interface AppApi {
   }
   readonly print: {
     exportPdf: Call<typeof IpcChannel.PrintExportPdf>
+    /** HTML ou Markdown (M11). */
+    exportDocument: Call<typeof IpcChannel.FileExport>
     dialog: Call<typeof IpcChannel.PrintDialog>
     preview: Call<typeof IpcChannel.PrintPreview>
   }

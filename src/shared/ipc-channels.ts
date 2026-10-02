@@ -50,6 +50,11 @@ export const IpcChannel = {
 
   /** Gera o PDF e grava no destino escolhido pelo usuário. */
   PrintExportPdf: 'print:export-pdf',
+  /**
+   * Exporta o documento para HTML ou Markdown (M11) num arquivo novo. O
+   * documento em edição continua no caminho dele, com o estado que tinha.
+   */
+  FileExport: 'file:export',
   /** Abre o diálogo de impressão do sistema. */
   PrintDialog: 'print:dialog',
   /** Gera o PDF e abre numa janela de visualização. */
@@ -112,6 +117,7 @@ export const INVOCABLE_IPC_CHANNELS = [
   IpcChannel.ImagePick,
   IpcChannel.FontsList,
   IpcChannel.PrintExportPdf,
+  IpcChannel.FileExport,
   IpcChannel.PrintDialog,
   IpcChannel.PrintPreview,
   IpcChannel.DialogConfirmDiscard,
