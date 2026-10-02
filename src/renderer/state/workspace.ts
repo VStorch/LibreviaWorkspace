@@ -52,6 +52,7 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
     savedLoss: null,
     pendingDraft: null,
     readOnly: false,
+    templateGallery: false,
     autosaveBroken: false,
     busy: false,
 
@@ -79,6 +80,7 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
     dismissNotice: () => set({ notice: null, savedLoss: null }),
     showError: (error) => set({ error }),
     allowEditing: () => set({ readOnly: false }),
+    setTemplateGallery: (templateGallery) => set({ templateGallery }),
 
     ...createFileActions(set, get, ctx),
     ...createSheetActions(set, get),

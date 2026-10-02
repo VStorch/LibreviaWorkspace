@@ -8,9 +8,16 @@ const requested = new Set<string>()
 const pending: string[] = []
 let target: BrowserWindow | null = null
 
-/** Only native launch arguments can grant access to files outside recents. */
+/**
+ * Only native launch arguments can grant access to files outside recents.
+ *
+ * Os modelos do Word (M11) também: abrir um `.dotx` ou `.dotm` pela linha de
+ * comando cria um documento novo a partir dele, como no Word.
+ */
 export function docxFromArguments(args: readonly string[], cwd: string): string | undefined {
-  const path = args.find((arg) => !arg.startsWith('-') && extname(arg).toLowerCase() === '.docx')
+  const path = args.find(
+    (arg) => !arg.startsWith('-') && ['.docx', '.dotx', '.dotm'].includes(extname(arg).toLowerCase()),
+  )
   return path === undefined ? undefined : resolve(cwd, path)
 }
 

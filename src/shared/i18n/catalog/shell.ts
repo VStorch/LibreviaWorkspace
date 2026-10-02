@@ -107,6 +107,43 @@ export const SHELL = {
   'shell.home.newDocument': { pt: 'Novo documento', en: 'New document' },
   'shell.home.newSpreadsheet': { pt: 'Nova planilha', en: 'New spreadsheet' },
   'shell.home.openFile': { pt: 'Abrir arquivo', en: 'Open file' },
+  'shell.home.fromTemplate': { pt: 'A partir de modelo', en: 'From template' },
+
+  // Galeria de modelos (M11)
+  'shell.template.title': { pt: 'Novo a partir de modelo', en: 'New from template' },
+  'shell.template.builtin': { pt: 'Modelos do Librevia', en: 'Librevia templates' },
+  'shell.template.user': { pt: 'Meus modelos', en: 'My templates' },
+  'shell.template.userEmpty': {
+    pt: 'Nenhum modelo na pasta ainda. Salve um documento como “Modelo do Word (.dotx)” nela.',
+    en: 'No templates in the folder yet. Save a document as “Word template (.dotx)” there.',
+  },
+  'shell.template.userTemplate': { pt: 'Modelo do Word', en: 'Word template' },
+  'shell.template.create': { pt: 'Criar', en: 'Create' },
+  'shell.template.browse': { pt: 'Procurar…', en: 'Browse…' },
+  'shell.template.openFolder': { pt: 'Abrir pasta de modelos', en: 'Open templates folder' },
+  'shell.template.cancel': { pt: 'Cancelar', en: 'Cancel' },
+  'shell.template.loading': { pt: 'Carregando modelos…', en: 'Loading templates…' },
+  'shell.template.blank.name': { pt: 'Documento em branco', en: 'Blank document' },
+  'shell.template.blank.description': {
+    pt: 'Página A4 com os estilos padrão: Calibri 11, títulos e listas.',
+    en: 'A4 page with the default styles: Calibri 11, headings and lists.',
+  },
+  'shell.template.letter.name': { pt: 'Carta', en: 'Letter' },
+  'shell.template.letter.description': {
+    pt: 'Remetente, data, destinatário, saudação e assinatura, com rodapé de contato.',
+    en: 'Sender, date, recipient, greeting and signature, with a contact footer.',
+  },
+  'shell.template.report.name': { pt: 'Relatório com capa e sumário', en: 'Report with cover and contents' },
+  'shell.template.report.description': {
+    pt: 'Capa, sumário, seções numeradas por título e número de página no rodapé.',
+    en: 'Cover page, table of contents, heading sections and page numbers in the footer.',
+  },
+  'shell.template.minutes.name': { pt: 'Ata de reunião', en: 'Meeting minutes' },
+  'shell.template.minutes.description': {
+    pt: 'Data, participantes, pauta, deliberações e tabela de encaminhamentos.',
+    en: 'Date, attendees, agenda, decisions and a table of action items.',
+  },
+
   'shell.home.recentFiles': { pt: 'Arquivos recentes', en: 'Recent files' },
   'shell.home.clear': { pt: 'Limpar', en: 'Clear' },
   'shell.home.emptyRecents': { pt: 'Nenhum arquivo aberto ainda.', en: 'No files opened yet.' },

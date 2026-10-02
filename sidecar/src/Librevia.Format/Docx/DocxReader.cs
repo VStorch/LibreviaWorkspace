@@ -88,7 +88,12 @@ public sealed record DocumentModelDto(
     // Na gravação, cada campo é remendo: ausente é "não mexa".
     [property: JsonPropertyName("properties")]
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    PropertiesDto? Properties = null);
+    PropertiesDto? Properties = null,
+    // O destino é um modelo do Word (`.dotx`, M11). Só a gravação o lê: é o que
+    // decide o rótulo da parte principal — ver PackageKind.Retarget.
+    [property: JsonPropertyName("template")]
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    bool Template = false);
 
 public sealed record OpenResult(
     [property: JsonPropertyName("model")] DocumentModelDto Model,
@@ -123,6 +128,8 @@ public static class DocxReader
 
         var inventory = new Inventory();
         NoteWholeDocumentFeatures(part, inventory);
+        // O `.dotm` (M11): as macros não chegam a arquivo nenhum que sair daqui.
+        if (PackageKind.HasMacros(bytes)) inventory.NoteLoss(PackageKind.Macros);
 
         var (content, _) = new BodyReader(part, inventory, flatten).Read(body);
         var (page, sections) = PageReader.ReadAll(body, part, inventory);

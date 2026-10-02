@@ -23,6 +23,7 @@ export const MENU = {
 
   'menu.file.newDocument': { pt: 'Novo documento', en: 'New document' },
   'menu.file.newSpreadsheet': { pt: 'Nova planilha', en: 'New spreadsheet' },
+  'menu.file.newFromTemplate': { pt: 'Novo a partir de modelo…', en: 'New from template…' },
   'menu.file.open': { pt: 'Abrir…', en: 'Open…' },
   'menu.file.openRecent': { pt: 'Abrir recente', en: 'Open recent' },
   'menu.file.noRecent': { pt: 'Nenhum arquivo recente', en: 'No recent files' },

@@ -49,6 +49,17 @@ const loadedFileSchema = z.object({
   kind: documentKindSchema,
   content: z.string(),
   inventory: inventorySchema.optional(),
+  // O arquivo é um modelo do Word (M11): o renderer o abre como documento novo,
+  // sem título, e `path` vira só a origem do pacote — nunca destino de gravação.
+  template: z.boolean().optional(),
+})
+
+/** Um modelo da galeria (M11): o embutido pelo id, o do usuário pelo caminho. */
+const templateEntrySchema = z.object({
+  source: z.enum(['builtin', 'user']),
+  id: z.string().min(1).max(4096),
+  name: z.string().max(255),
+  description: z.string().max(500),
 })
 
 const recentFileSchema = z.object({
@@ -116,6 +127,28 @@ export const ipcContracts = {
       name: z.string(),
       inventory: inventorySchema.optional(),
     }),
+  },
+  [IpcChannel.TemplateList]: {
+    request: emptyRequest,
+    response: z.object({
+      builtin: z.array(templateEntrySchema).max(100),
+      user: z.array(templateEntrySchema).max(1000),
+      folder: z.string(),
+    }),
+  },
+  [IpcChannel.TemplateOpen]: {
+    // Só o par fonte e id: o main confere o id contra a lista que ele mesmo
+    // monta — o renderer não abre caminho arbitrário por aqui.
+    request: z.object({ source: z.enum(['builtin', 'user']), id: z.string().min(1).max(4096) }),
+    response: z.object({ file: loadedFileSchema }),
+  },
+  [IpcChannel.TemplateBrowse]: {
+    request: emptyRequest,
+    response: openResultSchema,
+  },
+  [IpcChannel.TemplateOpenFolder]: {
+    request: emptyRequest,
+    response: z.object({ folder: z.string() }),
   },
   [IpcChannel.FileChooseSavePath]: {
     // O tipo viaja junto porque decide a extensão padrão: uma planilha gravada

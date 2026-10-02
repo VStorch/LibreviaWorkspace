@@ -190,7 +190,11 @@ public static class DocxWriter
         part.Document!.Save();
         document.Dispose();
 
-        return (RestoreUntouchedParts(original, buffer.ToArray(), touched),
+        // O rótulo do destino — documento ou modelo — e as macros do `.dotm` fora
+        // (M11). Depois da restauração, sobre os bytes finais: o resto do pacote
+        // não muda por causa disto.
+        var restored = RestoreUntouchedParts(original, buffer.ToArray(), touched);
+        return (PackageKind.Retarget(restored, model.Template, inventory),
             new SaveResult(inventory, preserved, rewritten));
     }
 

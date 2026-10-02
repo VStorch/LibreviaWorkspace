@@ -39,6 +39,12 @@ const api: AppApi = {
     chooseSavePath: (payload) => ipcRenderer.invoke(IpcChannel.FileChooseSavePath, payload),
     autosave: (payload) => ipcRenderer.invoke(IpcChannel.FileAutosave, payload),
   },
+  template: {
+    list: (payload) => ipcRenderer.invoke(IpcChannel.TemplateList, payload),
+    open: (payload) => ipcRenderer.invoke(IpcChannel.TemplateOpen, payload),
+    browse: (payload) => ipcRenderer.invoke(IpcChannel.TemplateBrowse, payload),
+    openFolder: (payload) => ipcRenderer.invoke(IpcChannel.TemplateOpenFolder, payload),
+  },
   recovery: {
     peek: (payload) => ipcRenderer.invoke(IpcChannel.RecoveryPeek, payload),
     restore: (payload) => ipcRenderer.invoke(IpcChannel.RecoveryRestore, payload),

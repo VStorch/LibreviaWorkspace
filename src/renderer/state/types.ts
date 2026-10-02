@@ -18,6 +18,12 @@ import type { StructuralChange } from '@services/spreadsheet/structure.js'
 export interface OpenFile {
   /** `null` enquanto o arquivo nunca foi gravado. */
   readonly path: string | null
+  /**
+   * O modelo do Word de que o documento novo saiu (M11), enquanto ele não for
+   * gravado. Vai como origem na primeira gravação: é por ele que o main encontra
+   * o pacote do modelo para gravar por cima — nunca é destino.
+   */
+  readonly origin?: string
   readonly name: string
   readonly kind: DocumentKind
 }
@@ -219,6 +225,16 @@ export interface WorkspaceState {
   removeSheet: (index: number) => void
   openViaDialog: () => Promise<void>
   openRecent: (path: string) => Promise<void>
+  /** A galeria de "Novo a partir de modelo…" (M11) está aberta. */
+  templateGallery: boolean
+  setTemplateGallery: (open: boolean) => void
+  /**
+   * Cria um documento a partir de um modelo da galeria, ou do `.dotx` que o
+   * usuário procurar (`null`). Devolve se o documento novo chegou à tela.
+   */
+  newFromTemplate: (
+    template: { readonly source: 'builtin' | 'user'; readonly id: string } | null,
+  ) => Promise<boolean>
   save: () => Promise<boolean>
   saveAs: () => Promise<boolean>
   closeFile: () => Promise<void>

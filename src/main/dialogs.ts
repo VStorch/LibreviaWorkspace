@@ -7,6 +7,8 @@ import {
   SPREADSHEET_EXTENSION,
   SUPPORTED_EXTENSIONS,
   WORD_EXTENSION,
+  WORD_MACRO_TEMPLATE_EXTENSION,
+  WORD_TEMPLATE_EXTENSION,
 } from '@services/file/formats.js'
 import { t } from './i18n.js'
 
@@ -16,6 +18,7 @@ function getFilters() {
   return [
     { name: t('dialog.filter.allSupported'), extensions: SUPPORTED_EXTENSIONS.map(bare) },
     { name: t('dialog.filter.wordDocs'), extensions: [bare(WORD_EXTENSION)] },
+    { name: t('dialog.filter.wordTemplates'), extensions: templateExtensions() },
     { name: t('dialog.filter.excelSheets'), extensions: [bare(EXCEL_EXTENSION)] },
     { name: t('dialog.filter.documents'), extensions: [bare(DOCUMENT_EXTENSION)] },
     { name: t('dialog.filter.spreadsheets'), extensions: [bare(SPREADSHEET_EXTENSION)] },
@@ -33,11 +36,17 @@ function getFilters() {
  * de fato funciona para o que está aberto. O `.txt` continua na lista, com o
  * aviso de formatação perdida que vem antes da gravação.
  */
+function templateExtensions(): string[] {
+  return [bare(WORD_TEMPLATE_EXTENSION), bare(WORD_MACRO_TEMPLATE_EXTENSION)]
+}
+
 function getSaveFilters(kind: DocumentKind) {
   return kind === DocumentKind.Document
     ? [
         { name: t('dialog.filter.document'), extensions: [bare(DOCUMENT_EXTENSION)] },
         { name: t('dialog.filter.wordDoc'), extensions: [bare(WORD_EXTENSION)] },
+        // O modelo (M11): o mesmo pacote, com o rótulo de modelo — ver PackageKind.
+        { name: t('dialog.filter.wordTemplate'), extensions: [bare(WORD_TEMPLATE_EXTENSION)] },
         { name: t('dialog.filter.plainText'), extensions: [bare(PLAIN_TEXT_EXTENSION)] },
       ]
     : [
@@ -59,6 +68,23 @@ export async function showOpenFileDialog(window: BrowserWindow): Promise<string 
     title: t('dialog.open.title'),
     properties: ['openFile'],
     filters: getFilters(),
+  })
+  return result.canceled ? null : (result.filePaths[0] ?? null)
+}
+
+/** Procurar… da galeria de modelos (M11): só `.dotx` e `.dotm`. */
+export async function showTemplatePickerDialog(
+  window: BrowserWindow,
+  defaultPath: string,
+): Promise<string | null> {
+  const result = await dialog.showOpenDialog(window, {
+    title: t('dialog.template.title'),
+    defaultPath,
+    properties: ['openFile'],
+    filters: [
+      { name: t('dialog.filter.wordTemplates'), extensions: templateExtensions() },
+      { name: t('dialog.filter.allFiles'), extensions: ['*'] },
+    ],
   })
   return result.canceled ? null : (result.filePaths[0] ?? null)
 }

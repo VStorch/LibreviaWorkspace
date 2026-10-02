@@ -110,7 +110,8 @@ function Tile({
 
 export function HomePage(): React.JSX.Element {
   const t = useT()
-  const { recents, newDocument, newSpreadsheet, openViaDialog, clearRecents } = useWorkspace()
+  const { recents, newDocument, newSpreadsheet, openViaDialog, clearRecents, setTemplateGallery } =
+    useWorkspace()
 
   return (
     <div className="home">
@@ -143,6 +144,13 @@ export function HomePage(): React.JSX.Element {
           title={t('shell.home.openFile')}
           hint="Ctrl+O"
           onClick={() => void openViaDialog()}
+        />
+        <Tile
+          icon="file-document"
+          tone="neutral"
+          title={t('shell.home.fromTemplate')}
+          hint=""
+          onClick={() => setTemplateGallery(true)}
         />
       </div>
 

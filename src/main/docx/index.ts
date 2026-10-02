@@ -161,6 +161,12 @@ export interface DocxTarget {
    */
   readonly origin: string | null
   readonly destination: string
+  /**
+   * O destino é um modelo do Word (`.dotx`, M11). O sidecar grava o rótulo de
+   * modelo na parte principal; sem isto, o de documento — inclusive no documento
+   * criado a partir de um modelo, cujo pacote de partida traz o rótulo de modelo.
+   */
+  readonly template?: boolean
 }
 
 /**
@@ -225,6 +231,7 @@ export async function saveDocx(
       // algum campo difere — ver PropertiesWriter.
       ...(model.properties === undefined ? {} : { properties: model.properties }),
       ...(model.styles === undefined ? {} : { styles: model.styles }),
+      ...(target.template === true ? { template: true } : {}),
     },
     new Uint8Array(original),
   )

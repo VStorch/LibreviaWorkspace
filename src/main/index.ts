@@ -5,6 +5,7 @@ import { registerFileHandlers } from './ipc/file.js'
 import { registerExportHandlers } from './ipc/export.js'
 import { registerPrintHandlers } from './ipc/print.js'
 import { registerRecoveryHandlers } from './ipc/recovery.js'
+import { registerTemplateHandlers } from './ipc/templates.js'
 import { registerWindowHandlers } from './ipc/window.js'
 import { useRecoveryFolder } from './fs/recovery.js'
 import { refreshMenu } from './menu.js'
@@ -66,6 +67,7 @@ if (!app.requestSingleInstanceLock()) {
     registerPrintHandlers()
     registerExportHandlers()
     registerRecoveryHandlers()
+    registerTemplateHandlers()
     registerWindowHandlers()
 
     // O menu desenha as marcas de seleção a partir das preferências, então

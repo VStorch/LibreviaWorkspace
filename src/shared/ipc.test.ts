@@ -113,6 +113,44 @@ describe('validação de file:save', () => {
   })
 })
 
+describe('modelos do Word (M11)', () => {
+  const open = ipcContracts[IpcChannel.TemplateOpen].request
+  const opened = ipcContracts[IpcChannel.TemplateOpen].response
+  const list = ipcContracts[IpcChannel.TemplateList].response
+
+  it('abre pelo par fonte e id', () => {
+    expect(open.safeParse({ source: 'builtin', id: 'carta.dotx' }).success).toBe(true)
+    expect(open.safeParse({ source: 'user', id: '/home/ana/Modelos/proposta.dotx' }).success).toBe(true)
+  })
+
+  it.each([
+    ['fonte desconhecida', { source: 'web', id: 'carta.dotx' }],
+    ['id vazio', { source: 'builtin', id: '' }],
+    ['sem id', { source: 'user' }],
+  ])('recusa %s', (_label, payload) => {
+    expect(open.safeParse(payload).success).toBe(false)
+  })
+
+  it('o documento aberto de um modelo traz a marca de modelo', () => {
+    const file = {
+      path: '/r/carta.dotx',
+      name: 'Carta.docx',
+      kind: 'document',
+      content: '{}',
+      template: true,
+    }
+    expect(opened.parse({ file }).file.template).toBe(true)
+  })
+
+  it('a galeria lista as duas fontes e a pasta do usuário', () => {
+    const entry = { source: 'builtin', id: 'carta.dotx', name: 'Carta', description: 'Uma carta' }
+    expect(list.safeParse({ builtin: [entry], user: [], folder: '/home/ana/Modelos' }).success).toBe(true)
+    expect(list.safeParse({ builtin: [{ ...entry, source: 'outra' }], user: [], folder: '' }).success).toBe(
+      false,
+    )
+  })
+})
+
 describe('validação de file:open-recent', () => {
   const schema = ipcContracts[IpcChannel.FileOpenRecent].request
 

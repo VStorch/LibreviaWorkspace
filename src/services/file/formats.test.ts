@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest'
-import { buildWindowTitle, extensionOf, fileNameFromPath, isSupportedExtension } from './formats.js'
+import { DocumentKind } from '@shared/types.js'
+import {
+  buildWindowTitle,
+  ensureSupportedExtension,
+  extensionOf,
+  fileNameFromPath,
+  isSupportedExtension,
+  isWordPackagePath,
+  isWordTemplatePath,
+} from './formats.js'
 
 describe('fileNameFromPath', () => {
   it.each([
@@ -43,6 +52,24 @@ describe('isSupportedExtension', () => {
     // `.xls` e `.ods` são formatos diferentes, não variações: abrir um deles
     // como se fosse `.xlsx` daria erro de arquivo corrompido.
     expect(isSupportedExtension(path)).toBe(false)
+  })
+})
+
+describe('modelos do Word (M11)', () => {
+  it.each(['/a/b.dotx', '/a/b.DOTX', '/a/b.dotm'])('%s é modelo e pacote do Word', (path) => {
+    expect(isSupportedExtension(path)).toBe(true)
+    expect(isWordTemplatePath(path)).toBe(true)
+    expect(isWordPackagePath(path)).toBe(true)
+  })
+
+  it('o .docx é pacote do Word, mas não modelo', () => {
+    expect(isWordTemplatePath('/a/b.docx')).toBe(false)
+    expect(isWordPackagePath('/a/b.docx')).toBe(true)
+  })
+
+  it('o .dotx é destino; o .dotm não, porque as macros não viajam', () => {
+    expect(ensureSupportedExtension('/a/b.dotx', DocumentKind.Document)).toBe('/a/b.dotx')
+    expect(ensureSupportedExtension('/a/b.dotm', DocumentKind.Document)).toBe('/a/b.dotm.sdoc')
   })
 })
 

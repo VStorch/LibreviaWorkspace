@@ -22,10 +22,19 @@ export const SPREADSHEET_EXTENSION = '.ssheet'
 export const PLAIN_TEXT_EXTENSION = '.txt'
 export const WORD_EXTENSION = '.docx'
 export const EXCEL_EXTENSION = '.xlsx'
+/**
+ * Os modelos do Word (M11). Abrir um deles cria um documento novo, sem título,
+ * que parte do pacote do modelo; o `.dotx` também é destino de "salvar como". O
+ * `.dotm` só é aberto: as macros dele não viajam, e por isso ele não é destino.
+ */
+export const WORD_TEMPLATE_EXTENSION = '.dotx'
+export const WORD_MACRO_TEMPLATE_EXTENSION = '.dotm'
 export const SUPPORTED_EXTENSIONS = [
   DOCUMENT_EXTENSION,
   SPREADSHEET_EXTENSION,
   WORD_EXTENSION,
+  WORD_TEMPLATE_EXTENSION,
+  WORD_MACRO_TEMPLATE_EXTENSION,
   EXCEL_EXTENSION,
   PLAIN_TEXT_EXTENSION,
 ] as const
@@ -36,6 +45,17 @@ export function isPlainTextPath(path: string): boolean {
 
 export function isWordPath(path: string): boolean {
   return extensionOf(path) === WORD_EXTENSION
+}
+
+/** `.dotx` ou `.dotm`: abrir cria um documento novo a partir do modelo. */
+export function isWordTemplatePath(path: string): boolean {
+  const extension = extensionOf(path)
+  return extension === WORD_TEMPLATE_EXTENSION || extension === WORD_MACRO_TEMPLATE_EXTENSION
+}
+
+/** Qualquer pacote do Word que o sidecar lê e grava: documento ou modelo. */
+export function isWordPackagePath(path: string): boolean {
+  return isWordPath(path) || isWordTemplatePath(path)
 }
 
 export function isSpreadsheetPath(path: string): boolean {
@@ -78,7 +98,9 @@ export function kindFromPath(path: string): DocumentKind {
  * extensão certa.
  */
 export function ensureSupportedExtension(path: string, kind: DocumentKind = DocumentKind.Document): string {
-  if (isSupportedExtension(path)) return path
+  // O `.dotm` abre, mas não é destino: gravado ali, sairia sem as macros que o
+  // nome promete — ver WORD_MACRO_TEMPLATE_EXTENSION.
+  if (isSupportedExtension(path) && extensionOf(path) !== WORD_MACRO_TEMPLATE_EXTENSION) return path
   // A extensão padrão depende do que está sendo salvo: uma planilha gravada
   // como `.sdoc` abriria como documento vazio na próxima vez.
   const fallback = kind === DocumentKind.Spreadsheet ? SPREADSHEET_EXTENSION : DOCUMENT_EXTENSION

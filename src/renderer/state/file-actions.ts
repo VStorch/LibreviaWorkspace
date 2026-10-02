@@ -21,6 +21,7 @@ interface OpenedFile {
   // `| undefined` explícito por causa de `exactOptionalPropertyTypes`: o
   // contrato de IPC declara a propriedade como podendo vir indefinida.
   readonly inventory?: LossInventory | undefined
+  readonly template?: boolean | undefined
 }
 
 /** O que o usuário respondeu ao aviso de que `.txt` não guarda formatação. */
@@ -34,6 +35,7 @@ type FileActions = Pick<
   | 'newSpreadsheet'
   | 'openViaDialog'
   | 'openRecent'
+  | 'newFromTemplate'
   | 'save'
   | 'saveAs'
   | 'closeFile'
@@ -100,9 +102,9 @@ export function createFileActions(set: SetWorkspace, get: GetWorkspace, ctx: Wor
     await get().refreshRecents()
   }
 
-  async function openFile(fetch: () => Promise<OpenedFile | null>): Promise<void> {
+  async function openFile(fetch: () => Promise<OpenedFile | null>): Promise<boolean> {
     const opened = await fetch()
-    if (opened === null) return
+    if (opened === null) return false
 
     try {
       ctx.show(interpret(opened))
@@ -114,9 +116,11 @@ export function createFileActions(set: SetWorkspace, get: GetWorkspace, ctx: Wor
       })
     } catch (cause) {
       set({ error: toSerialized(cause) })
+      return false
     }
 
     await get().refreshRecents()
+    return true
   }
 
   return {
@@ -156,6 +160,18 @@ export function createFileActions(set: SetWorkspace, get: GetWorkspace, ctx: Wor
       if (!(await ctx.ensureChangesHandled())) return
       await openFile(async () => {
         const data = await ctx.call(() => window.api.file.open({}))
+        return data === null || data.canceled ? null : data.file
+      })
+    },
+
+    newFromTemplate: async (template) => {
+      if (!(await ctx.ensureChangesHandled())) return false
+      return openFile(async () => {
+        if (template !== null) {
+          const data = await ctx.call(() => window.api.template.open(template))
+          return data === null ? null : data.file
+        }
+        const data = await ctx.call(() => window.api.template.browse({}))
         return data === null || data.canceled ? null : data.file
       })
     },
@@ -211,7 +227,13 @@ export function createFileActions(set: SetWorkspace, get: GetWorkspace, ctx: Wor
       if (answer === 'chooseAnother') return get().saveAs()
 
       const data = await ctx.call(() =>
-        window.api.file.save({ path: chosen.path, content: encodeFor(chosen.path), origin: file.path }),
+        window.api.file.save({
+          path: chosen.path,
+          content: encodeFor(chosen.path),
+          // O documento criado a partir de um modelo (M11) ainda não tem caminho:
+          // a origem é o modelo, e é sobre o pacote dele que a gravação parte.
+          origin: file.origin ?? file.path,
+        }),
       )
       if (data === null) return false
 
@@ -265,7 +287,12 @@ export function createFileActions(set: SetWorkspace, get: GetWorkspace, ctx: Wor
  */
 function interpret(opened: OpenedFile): LoadedFile {
   const kind = kindFromPath(opened.path)
-  const file: OpenFile = { path: opened.path, name: opened.name, kind }
+  // O modelo do Word (M11) abre como documento novo: sem caminho, para que
+  // "salvar" pergunte o destino e nunca grave por cima do modelo.
+  const file: OpenFile =
+    opened.template === true
+      ? { path: null, name: opened.name, kind, origin: opened.path }
+      : { path: opened.path, name: opened.name, kind }
 
   if (kind === DocumentKind.Spreadsheet) {
     // Recalcula ao abrir: o arquivo guarda o valor de quando foi salvo, e uma
@@ -273,7 +300,11 @@ function interpret(opened: OpenedFile): LoadedFile {
     return { file, model: createEmptyDocument(), workbook: recalculate(parseWorkbook(opened.content)) }
   }
 
-  return { file, model: decode(opened.path, opened.content), workbook: null }
+  return {
+    file,
+    model: opened.template === true ? parseDocument(opened.content) : decode(opened.path, opened.content),
+    workbook: null,
+  }
 }
 
 /** Interpreta o conteúdo lido do disco conforme a extensão do arquivo. */

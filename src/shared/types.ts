@@ -50,6 +50,17 @@ export interface LoadedFile {
   readonly content: string
   /** Presente só quando o arquivo veio de um formato do Office. */
   readonly inventory?: LossInventory
+  /** O arquivo é um modelo do Word (M11): abre como documento novo — ver `ipc.ts`. */
+  readonly template?: boolean
+}
+
+/** Um modelo da galeria (M11). */
+export interface TemplateEntry {
+  readonly source: 'builtin' | 'user'
+  /** O nome do arquivo no embutido; o caminho no do usuário. */
+  readonly id: string
+  readonly name: string
+  readonly description: string
 }
 
 /**
@@ -77,6 +88,8 @@ export interface RecentFile {
 export const MenuCommand = {
   NewDocument: 'new-document',
   NewSpreadsheet: 'new-spreadsheet',
+  /** Arquivo → Novo a partir de modelo… (M11): a galeria de modelos. */
+  NewFromTemplate: 'new-from-template',
   Open: 'open',
   OpenRecent: 'open-recent',
   ClearRecent: 'clear-recent',

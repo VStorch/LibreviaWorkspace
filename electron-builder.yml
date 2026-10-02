@@ -52,10 +52,15 @@ linux:
     - from: resources/dictionaries
       to: resources/dictionaries
       filter: ['*.bdic']
+    # Os modelos da galeria (M11) — ver src/main/ipc/templates.ts.
+    - from: resources/templates
+      to: resources/templates
+      filter: ['*.dotx']
     - THIRD-PARTY-NOTICES.md
   # Extensões que o aplicativo abre, para o gerenciador de arquivos oferecê-lo.
   mimeTypes:
     - application/vnd.openxmlformats-officedocument.wordprocessingml.document
+    - application/vnd.openxmlformats-officedocument.wordprocessingml.template
     - application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
     - text/plain
 
@@ -64,6 +69,10 @@ win:
     - ext: docx
       name: Librevia Word Document
       description: Word document
+      role: Editor
+    - ext: dotx
+      name: Librevia Word Template
+      description: Word template
       role: Editor
   target:
     - target: nsis
@@ -81,6 +90,10 @@ win:
     - from: resources/dictionaries
       to: resources/dictionaries
       filter: ['*.bdic']
+    # Os modelos da galeria (M11) — ver src/main/ipc/templates.ts.
+    - from: resources/templates
+      to: resources/templates
+      filter: ['*.dotx']
     - THIRD-PARTY-NOTICES.md
 
 nsis:

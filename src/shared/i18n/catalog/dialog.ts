@@ -19,6 +19,9 @@ export const DIALOG = {
   'dialog.filter.images': { pt: 'Imagens', en: 'Images' },
   'dialog.filter.document': { pt: 'Documento', en: 'Document' },
   'dialog.filter.wordDoc': { pt: 'Documento do Word', en: 'Word document' },
+  'dialog.filter.wordTemplates': { pt: 'Modelos do Word', en: 'Word templates' },
+  'dialog.filter.wordTemplate': { pt: 'Modelo do Word (.dotx)', en: 'Word template (.dotx)' },
+  'dialog.template.title': { pt: 'Procurar modelo', en: 'Browse for template' },
   'dialog.filter.spreadsheet': { pt: 'Planilha', en: 'Spreadsheet' },
   'dialog.filter.excelSheet': { pt: 'Planilha do Excel', en: 'Excel spreadsheet' },
 

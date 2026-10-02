@@ -6,15 +6,17 @@ import {
   ensureSupportedExtension,
   fileNameFromPath,
   isExcelPath,
-  isWordPath,
+  isWordPackagePath,
+  isWordTemplatePath,
   kindFromPath,
+  WORD_EXTENSION,
 } from '@services/file/formats.js'
 import { showOpenFileDialog, showSaveFileDialog } from '../dialogs.js'
 import { followDocxOriginal, forgetOpenedDocx, openDocx, saveDocx } from '../docx/index.js'
 import { forgetOpenedXlsx, openXlsx, saveXlsx } from '../xlsx/index.js'
 import { sidecar } from '../sidecar/index.js'
 import { writeFileAtomic } from '../fs/atomic-write.js'
-import { assertPathAuthorized, assertReadableFile, authorizePath } from '../fs/paths.js'
+import { assertPathAuthorized, assertReadableFile, authorizePath, normalizePath } from '../fs/paths.js'
 import { clearRecentFiles, isRemembered, listRecentFiles, rememberRecentFile } from '../fs/recent.js'
 import { readTextFile } from '../fs/read-text.js'
 import { refreshMenu } from '../menu.js'
@@ -30,13 +32,22 @@ function windowOf(event: IpcMainInvokeEvent): BrowserWindow {
   return window
 }
 
-/** Valida, lê e passa a considerar o caminho autorizado para gravação. */
-async function loadFile(path: string): Promise<LoadedFile> {
+/**
+ * Valida, lê e passa a considerar o caminho autorizado para gravação.
+ *
+ * O modelo do Word (M11) é a exceção: abre como documento novo, sem título, e o
+ * caminho dele **não** é autorizado — nada grava por cima do modelo a partir
+ * daqui. Os bytes dele ficam guardados como o original do documento novo (ver
+ * `openDocx`), e o renderer manda o caminho de volta só como origem.
+ * `templateName` é o nome que o documento novo recebe — o do modelo embutido,
+ * traduzido; ausente, o do arquivo.
+ */
+export async function loadFile(path: string, templateName?: string): Promise<LoadedFile> {
   await assertReadableFile(path)
 
   // DOCX e XLSX viram formato interno aqui, e não no renderer: assim o renderer
   // segue com um caminho só e nunca vê OOXML.
-  const loaded = isWordPath(path)
+  const loaded = isWordPackagePath(path)
     ? await openDocx(sidecar(), path)
     : isExcelPath(path)
       ? await openXlsx(sidecar(), path)
@@ -45,8 +56,25 @@ async function loadFile(path: string): Promise<LoadedFile> {
   // Os bytes originais guardados valem para **um** arquivo. Abrir outro sem
   // esquecer os anteriores faria a próxima gravação escrever por cima do
   // pacote errado.
-  if (!isWordPath(path)) forgetOpenedDocx()
+  if (!isWordPackagePath(path)) forgetOpenedDocx()
   if (!isExcelPath(path)) forgetOpenedXlsx()
+
+  if (isWordTemplatePath(path)) {
+    const source = normalizePath(path)
+    rememberRecentFile(source)
+    void refreshMenu()
+    const base = templateName ?? fileNameFromPath(source).replace(/\.dot[xm]$/i, '')
+    const file: LoadedFile = {
+      path: source,
+      // O destino natural do documento criado a partir do modelo é um `.docx`:
+      // é o nome que o "salvar" sugere.
+      name: `${base}${WORD_EXTENSION}`,
+      kind: kindFromPath(source),
+      content: loaded.content,
+      template: true,
+    }
+    return loaded.inventory === undefined ? file : { ...file, inventory: loaded.inventory }
+  }
 
   const authorized = authorizePath(path)
   rememberRecentFile(authorized)
@@ -88,8 +116,12 @@ export function registerFileHandlers(): void {
     // Gravar `.docx` e `.xlsx` não escreve o que o renderer mandou: manda o
     // modelo ao sidecar, que reescreve só o que foi tocado sobre o pacote
     // original.
-    const word = isWordPath(path)
-      ? await saveDocx(sidecar(), payload.content, { origin: payload.origin, destination: path })
+    const word = isWordPackagePath(path)
+      ? await saveDocx(sidecar(), payload.content, {
+          origin: payload.origin,
+          destination: path,
+          template: isWordTemplatePath(path),
+        })
       : null
     const saved = word ?? (isExcelPath(path) ? await saveXlsx(sidecar(), payload.content) : null)
     await writeFileAtomic(path, saved?.bytes ?? payload.content)

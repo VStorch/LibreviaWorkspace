@@ -60,11 +60,22 @@ Execute o instalador. Ele instala **para o seu usuário**, sem pedir senha de ad
 | Extensão | O que é |
 | --- | --- |
 | `.docx` | documento do Word — abre e grava; documento novo também pode ser salvo nele |
+| `.dotx` | modelo do Word — abrir cria um documento novo a partir dele; "Salvar como" também grava modelo |
+| `.dotm` | modelo do Word com macros — abre como o `.dotx`, mas as macros não vêm junto (o app avisa) |
 | `.xlsx` | planilha do Excel — abre e grava |
 | `.sdoc` | documento do Librevia — guarda tudo, sem perda nenhuma |
 | `.ssheet` | planilha do Librevia — idem |
 | `.txt` | texto puro; salvar nele descarta formatação, e o app avisa antes |
 | `.pdf` | só saída: exportar e imprimir, tanto documento quanto planilha |
+
+### Modelos
+
+**Arquivo → Novo a partir de modelo…** mostra os modelos que vêm com o app — documento em
+branco, carta, relatório com capa e sumário, ata de reunião — e os seus, da pasta de modelos
+(o botão **Abrir pasta de modelos** a mostra; **Procurar…** aceita qualquer `.dotx`). O
+documento criado é novo e sem título: estilos, cabeçalho, rodapé e página vêm do modelo, e
+**Salvar** pergunta onde gravar — o modelo nunca é sobrescrito. Para criar um modelo seu,
+use **Salvar como → Modelo do Word (.dotx)** e grave na pasta de modelos.
 
 > ℹ️ **`.odt` e `.ods` não abrem.** Se você recebe arquivos assim, peça para quem enviou
 > salvar como `.docx` ou `.xlsx` — o LibreOffice faz isso pelo menu "Salvar como".

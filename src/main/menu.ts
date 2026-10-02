@@ -281,6 +281,7 @@ async function buildTemplate(): Promise<MenuItemConstructorOptions[]> {
           accelerator: acceleratorOf(SHORTCUTS.newSpreadsheet),
           click: () => dispatch(MenuCommand.NewSpreadsheet),
         },
+        { label: t('menu.file.newFromTemplate'), click: () => dispatch(MenuCommand.NewFromTemplate) },
         { type: 'separator' },
         {
           label: t('menu.file.open'),

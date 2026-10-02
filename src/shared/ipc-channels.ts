@@ -55,6 +55,15 @@ export const IpcChannel = {
    * documento em edição continua no caminho dele, com o estado que tinha.
    */
   FileExport: 'file:export',
+  /**
+   * Modelos (M11): a galeria — os que vêm com o aplicativo e os da pasta do
+   * usuário —, criar um documento a partir de um deles, procurar um `.dotx`
+   * qualquer e abrir a pasta de modelos no gerenciador de arquivos.
+   */
+  TemplateList: 'template:list',
+  TemplateOpen: 'template:open',
+  TemplateBrowse: 'template:browse',
+  TemplateOpenFolder: 'template:open-folder',
   /** Abre o diálogo de impressão do sistema. */
   PrintDialog: 'print:dialog',
   /** Gera o PDF e abre numa janela de visualização. */
@@ -118,6 +127,10 @@ export const INVOCABLE_IPC_CHANNELS = [
   IpcChannel.FontsList,
   IpcChannel.PrintExportPdf,
   IpcChannel.FileExport,
+  IpcChannel.TemplateList,
+  IpcChannel.TemplateOpen,
+  IpcChannel.TemplateBrowse,
+  IpcChannel.TemplateOpenFolder,
   IpcChannel.PrintDialog,
   IpcChannel.PrintPreview,
   IpcChannel.DialogConfirmDiscard,

@@ -6,6 +6,7 @@ import { InventoryBanner } from '../components/InventoryBanner.js'
 import { ReadOnlyBanner } from '../components/ReadOnlyBanner.js'
 import { RecoveryBanner } from '../components/RecoveryBanner.js'
 import { StatusBar } from '../components/StatusBar.js'
+import { TemplateGallery } from '../components/TemplateGallery.js'
 import { DocumentEditor } from '../document/DocumentEditor.js'
 import { asEditorCommand, emitEditorCommand } from '../document/editor-commands.js'
 import { HomePage } from '../pages/HomePage.js'
@@ -42,6 +43,8 @@ async function runMenuCommand(command: MenuCommand, path: string | undefined): P
   switch (command) {
     case MenuCommand.NewDocument:
       return workspace.newDocument()
+    case MenuCommand.NewFromTemplate:
+      return workspace.setTemplateGallery(true)
     case MenuCommand.Open:
       return workspace.openViaDialog()
     case MenuCommand.OpenRecent:
@@ -95,6 +98,7 @@ async function runMenuCommand(command: MenuCommand, path: string | undefined): P
 
 export function App(): React.JSX.Element {
   const hasFile = useWorkspace((state) => state.file !== null)
+  const templateGallery = useWorkspace((state) => state.templateGallery)
   // Recarrega o editor por completo a cada documento aberto, em vez de tentar
   // sincronizar conteúdo — elimina estado residual entre um arquivo e outro.
   const generation = useWorkspace((state) => state.generation)
@@ -229,6 +233,7 @@ export function App(): React.JSX.Element {
       {/* A barra de status sai no modo de leitura: contagem de palavras e
           numero de paginas sao ferramentas de quem escreve. */}
       {hasFile && !reading && showStatusBar && <StatusBar />}
+      {templateGallery && <TemplateGallery />}
     </div>
   )
 }

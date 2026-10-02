@@ -35,6 +35,13 @@ export interface AppApi {
     chooseSavePath: Call<typeof IpcChannel.FileChooseSavePath>
     autosave: Call<typeof IpcChannel.FileAutosave>
   }
+  /** Modelos do Word (M11). */
+  readonly template: {
+    list: Call<typeof IpcChannel.TemplateList>
+    open: Call<typeof IpcChannel.TemplateOpen>
+    browse: Call<typeof IpcChannel.TemplateBrowse>
+    openFolder: Call<typeof IpcChannel.TemplateOpenFolder>
+  }
   readonly recovery: {
     peek: Call<typeof IpcChannel.RecoveryPeek>
     restore: Call<typeof IpcChannel.RecoveryRestore>
