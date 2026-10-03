@@ -52,7 +52,7 @@ linux:
     - from: resources/dictionaries
       to: resources/dictionaries
       filter: ['*.bdic']
-    # Os modelos da galeria (M11) — ver src/main/ipc/templates.ts.
+    # Os modelos da galeria — ver src/main/ipc/templates.ts.
     - from: resources/templates
       to: resources/templates
       filter: ['*.dotx']
@@ -90,7 +90,7 @@ win:
     - from: resources/dictionaries
       to: resources/dictionaries
       filter: ['*.bdic']
-    # Os modelos da galeria (M11) — ver src/main/ipc/templates.ts.
+    # Os modelos da galeria — ver src/main/ipc/templates.ts.
     - from: resources/templates
       to: resources/templates
       filter: ['*.dotx']

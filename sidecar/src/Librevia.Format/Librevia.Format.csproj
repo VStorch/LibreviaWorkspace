@@ -17,15 +17,13 @@
     <InvariantGlobalization>true</InvariantGlobalization>
     <UseSystemResourceKeys>true</UseSystemResourceKeys>
 
-    <!-- Alvos decididos em §8.1 do plano. -->
     <RuntimeIdentifiers>linux-x64;win-x64</RuntimeIdentifiers>
     <SelfContained>true</SelfContained>
     <PublishSingleFile>true</PublishSingleFile>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <!-- Trimming desligado de propósito: OpenXml e ClosedXML usam reflexão, e
          um trim agressivo quebraria a leitura de partes só em tempo de execução,
-         que é o pior momento possível para descobrir. Tamanho é problema da
-         Fase 8; corretude é problema de agora. -->
+         que é o pior momento possível para descobrir. -->
     <PublishTrimmed>false</PublishTrimmed>
     <!-- Compilação antecipada, ligada por medição e não por hábito. Numa
          planilha de 120 mil células, abrindo três vezes seguidas no mesmo

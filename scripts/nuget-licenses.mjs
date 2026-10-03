@@ -14,7 +14,7 @@ import { fileURLToPath } from 'node:url'
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const assetsPath = join(root, 'sidecar', 'src', 'Librevia.Format', 'obj', 'project.assets.json')
 
-/** Mesma allowlist do lado npm — ver §4.4 do plano. */
+/** A mesma allowlist do lado npm. */
 export const ALLOWED_LICENSES = new Set([
   'MIT',
   'MIT-0',

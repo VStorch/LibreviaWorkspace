@@ -6,7 +6,7 @@ on:
   pull_request:
 
 jobs:
-  # Linux e Windows são as duas plataformas-alvo (§8.1 do plano). O sidecar .NET
+  # Linux e Windows são as duas plataformas-alvo. O sidecar .NET
   # sobe um processo filho e resolve caminhos de arquivo — duas coisas que se
   # comportam diferente nos dois sistemas, e que só um runner de verdade pega.
   verify:
@@ -51,7 +51,7 @@ jobs:
         run: npm test
 
       # Portão de licenças: o build falha se qualquer dependência transitiva
-      # trouxer licença fora da allowlist. Ver docs/00-plano-tecnico.md §4.4.
+      # trouxer licença fora da allowlist.
       - name: Licenças (npm)
         run: npm run licenses:check
 
@@ -112,9 +112,8 @@ jobs:
             release/*.exe
           if-no-files-found: error
 
-  # O instalador precisa dos dois binários, e quem publica é uma máquina só.
-  # Este job prova que a publicação cruzada funciona antes da Fase 8 depender
-  # disso.
+  # O instalador precisa dos dois binários, e quem publica é uma máquina só:
+  # este job prova que a publicação cruzada funciona.
   publicacao-cruzada:
     runs-on: ubuntu-latest
     steps:

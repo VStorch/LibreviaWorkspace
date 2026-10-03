@@ -79,14 +79,14 @@ describe('assertReadableFile', () => {
     await expect(assertReadableFile(path)).rejects.toMatchObject({ code: 'UNSUPPORTED_FORMAT' })
   })
 
-  it('aceita .xlsx desde a Fase 7', async () => {
+  it('aceita .xlsx', async () => {
     const path = join(directory, 'vendas.xlsx')
     await writeFile(path, 'x')
 
     await expect(assertReadableFile(path)).resolves.toBeUndefined()
   })
 
-  it('aceita .docx desde a Fase 4', async () => {
+  it('aceita .docx', async () => {
     const path = join(directory, 'contrato.docx')
     await writeFile(path, 'x')
 

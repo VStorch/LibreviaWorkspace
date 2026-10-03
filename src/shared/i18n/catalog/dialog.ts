@@ -67,8 +67,8 @@ export const DIALOG = {
 
   'dialog.about.title': { pt: 'Sobre o {app}', en: 'About {app}' },
   'dialog.about.detail': {
-    pt: 'Versão {version}\n\nSuíte de documentos e planilhas, offline.\nEm desenvolvimento — Fase 7 de 8.',
-    en: 'Version {version}\n\nDocument and spreadsheet suite, offline.\nIn development — Phase 7 of 8.',
+    pt: 'Versão {version}\n\nSuíte de documentos e planilhas, offline.',
+    en: 'Version {version}\n\nDocument and spreadsheet suite, offline.',
   },
   'dialog.about.close': { pt: 'Fechar', en: 'Close' },
 } satisfies Catalog
