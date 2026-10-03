@@ -1,0 +1,300 @@
+{
+  "src/main/docx/index.ts": {
+    "complexity": {
+      "count": 1
+    }
+  },
+  "src/main/menu.ts": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "src/main/preferences.ts": {
+    "complexity": {
+      "count": 1
+    }
+  },
+  "src/renderer/app/App.tsx": {
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "src/renderer/components/StatusBar.tsx": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "src/renderer/components/TemplateGallery.tsx": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "src/renderer/document/BookmarkDialog.tsx": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "src/renderer/document/ColumnsDialog.tsx": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "src/renderer/document/CommentsPane.tsx": {
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 2
+    }
+  },
+  "src/renderer/document/CrossReferenceDialog.tsx": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "src/renderer/document/DocumentContextMenu.tsx": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "src/renderer/document/DocumentEditor.tsx": {
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "src/renderer/document/FindReplacePanel.tsx": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "src/renderer/document/ImageNodeView.tsx": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "src/renderer/document/ListFormatDialog.tsx": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "src/renderer/document/MathDialog.tsx": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "src/renderer/document/PageSetupPanel.tsx": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "src/renderer/document/PaperSheet.tsx": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "src/renderer/document/PropertiesDialog.tsx": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "src/renderer/document/SpecialCharsDialog.tsx": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "src/renderer/document/StyleDialog.tsx": {
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "src/renderer/document/StylesPanel.tsx": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "src/renderer/document/editor-extensions.ts": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "src/renderer/document/extensions/block-format.ts": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "src/renderer/document/extensions/revision-view.ts": {
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "src/renderer/document/extensions/track-input.ts": {
+    "complexity": {
+      "count": 2
+    }
+  },
+  "src/renderer/document/print-source.ts": {
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "src/renderer/document/references.ts": {
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "src/renderer/document/toolbar/CharacterFormatGroup.tsx": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "src/renderer/document/toolbar/LinkDialog.tsx": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "src/renderer/document/toolbar/ParagraphDialog.tsx": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "src/renderer/document/toolbar/TableDialog.tsx": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "src/renderer/document/toolbar/TablePropertiesDialog.tsx": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "src/renderer/document/useEditorCommands.ts": {
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 2
+    }
+  },
+  "src/renderer/document/usePagination.ts": {
+    "complexity": {
+      "count": 3
+    },
+    "max-lines-per-function": {
+      "count": 4
+    }
+  },
+  "src/renderer/spreadsheet/SpreadsheetEditor.tsx": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "src/renderer/spreadsheet/SpreadsheetToolbar.tsx": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "src/renderer/state/context.ts": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "src/renderer/state/file-actions.ts": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "src/renderer/state/print-actions.ts": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "src/services/document/export-html.ts": {
+    "complexity": {
+      "count": 2
+    },
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "src/services/document/export-markdown.ts": {
+    "complexity": {
+      "count": 1
+    }
+  },
+  "src/services/document/export-odt.ts": {
+    "complexity": {
+      "count": 3
+    }
+  },
+  "src/services/document/list-numbering.ts": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "src/services/document/mathml-latex.ts": {
+    "complexity": {
+      "count": 2
+    }
+  },
+  "src/services/document/mathml.ts": {
+    "complexity": {
+      "count": 1
+    }
+  },
+  "src/services/document/odt-xml.ts": {
+    "complexity": {
+      "count": 1
+    }
+  },
+  "src/services/document/paginate.ts": {
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "src/services/document/serialize.ts": {
+    "complexity": {
+      "count": 1
+    }
+  },
+  "src/services/document/style-editing.ts": {
+    "complexity": {
+      "count": 1
+    }
+  },
+  "src/services/spreadsheet/format.ts": {
+    "complexity": {
+      "count": 1
+    }
+  },
+  "src/services/spreadsheet/formula/tokenize.ts": {
+    "complexity": {
+      "count": 1
+    }
+  },
+  "src/shared/errors.ts": {
+    "complexity": {
+      "count": 1
+    }
+  }
+}
