@@ -211,6 +211,32 @@ export interface BlockAnchor {
   readonly topPx: number
 }
 
+/** O que o editor passa à paginação além do documento e das seções. */
+export interface PaginationOptions {
+  /** Altura das faixas de cada seção, na ordem de `sections`. */
+  readonly bands?: readonly BandHeights[]
+  /**
+   * Se os vãos devem ser **empurrados no DOM**.
+   *
+   * O modo de leitura desliga isto, e só isto: a conta continua acontecendo, e
+   * `pageStarts` continua valendo. É de propósito, e é o que permite imprimir
+   * de dentro do modo de leitura sem sair dele — o papel sai com as mesmas
+   * folhas de sempre, porque as coordenadas de fluxo não dependem de os vãos
+   * estarem aplicados. Elas são, por definição, a altura que o documento teria
+   * como tira contínua, que é exatamente o que o modo de leitura mostra.
+   *
+   * Desligar a medição junto pareceria mais simples e custaria a impressão: o
+   * gravador lê `layout` no momento de imprimir, e um layout de uma página só
+   * mandaria o documento inteiro para uma folha.
+   */
+  readonly paginated?: boolean
+  /**
+   * Os estilos do documento: o "manter com o próximo" pode vir do estilo, e o
+   * bloco só carrega o que o parágrafo declara.
+   */
+  readonly styles?: StyleSheet | null
+}
+
 /**
  * Mede o documento, decide onde as páginas quebram e empurra os blocos.
  *
@@ -231,28 +257,7 @@ export function usePagination(
   /** As seções antes da última, como o modelo as guarda — é pelo id que o bloco acha a sua. */
   declared: readonly SectionSetup[],
   revision: number,
-  /** Altura das faixas de cada seção, na ordem de `sections`. */
-  bands: readonly BandHeights[] = [],
-  /**
-   * Se os vãos devem ser **empurrados no DOM**.
-   *
-   * O modo de leitura desliga isto, e só isto: a conta continua acontecendo, e
-   * `pageStarts` continua valendo. É de propósito, e é o que permite imprimir
-   * de dentro do modo de leitura sem sair dele — o papel sai com as mesmas
-   * folhas de sempre, porque as coordenadas de fluxo não dependem de os vãos
-   * estarem aplicados. Elas são, por definição, a altura que o documento teria
-   * como tira contínua, que é exatamente o que o modo de leitura mostra.
-   *
-   * Desligar a medição junto pareceria mais simples e custaria a impressão: o
-   * gravador lê `layout` no momento de imprimir, e um layout de uma página só
-   * mandaria o documento inteiro para uma folha.
-   */
-  paginated = true,
-  /**
-   * Os estilos do documento: o "manter com o próximo" pode vir do estilo, e o
-   * bloco só carrega o que o parágrafo declara.
-   */
-  styles: StyleSheet | null = null,
+  { bands = [], paginated = true, styles = null }: PaginationOptions = {},
 ): PageLayout {
   const [layout, setLayout] = useState<PageLayout>({
     pages: 1,
@@ -554,7 +559,11 @@ export function usePagination(
           const reference = editor.view.nodeDOM(offset + 1 + pos)
           const body = noteBodyOf(reference)
           if (body === undefined || !(reference instanceof HTMLElement)) return false
-          const at = referenceBottom(node, reference, top, height, lines?.starts ?? null, children, childTops)
+          const at = referenceBottom(node, reference, top, height, {
+            lineStarts: lines?.starts ?? null,
+            children,
+            childTops,
+          })
           const measured = { id: body.key, at, index, ...measureNote(body) }
           measuredNotes.set(body.key, measured)
           if (child.attrs['kind'] === NoteKind.Endnote) endnotes.push(measured)
@@ -904,7 +913,11 @@ export function usePagination(
         lastWritten.current = targetWritten
         lastLines.current = targetLines
         lastColumns.current = targetColumns
-        applyPageGaps(editor.view, targetWritten, target, targetLines, targetHeaders, targetColumns)
+        applyPageGaps(editor.view, targetWritten, target, {
+          lines: targetLines,
+          headers: targetHeaders,
+          columns: targetColumns,
+        })
       }
 
       setLayout({
@@ -1085,6 +1098,13 @@ function cleanHeaderRow(row: HTMLTableRowElement): string {
   return copy.outerHTML
 }
 
+/** Onde ficam as linhas do bloco: as do parágrafo, ou as linhas de tabela e os itens filhos. */
+interface ReferenceRows {
+  readonly lineStarts: readonly number[] | null
+  readonly children: readonly HTMLElement[]
+  readonly childTops: readonly number[]
+}
+
 /**
  * O pé da linha em que a referência de nota está, em coordenadas de fluxo: o
  * começo da linha seguinte do parágrafo, ou da linha de tabela (item, entrada)
@@ -1095,9 +1115,7 @@ function referenceBottom(
   reference: HTMLElement,
   top: number,
   height: number,
-  lineStarts: readonly number[] | null,
-  children: readonly HTMLElement[],
-  childTops: readonly number[],
+  { lineStarts, children, childTops }: ReferenceRows,
 ): number {
   if (lineStarts !== null) {
     const box = block.getBoundingClientRect()

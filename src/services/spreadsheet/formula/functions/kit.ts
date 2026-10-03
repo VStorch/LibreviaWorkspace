@@ -49,11 +49,9 @@ export function numbersIn(args: readonly Argument[]): number[] | FormulaError {
 
   for (const arg of args) {
     if (arg.kind === 'range') {
-      for (const row of arg.rows) {
-        for (const cell of row) {
-          if (isFormulaError(cell)) return cell
-          if (typeof cell === 'number') numbers.push(cell)
-        }
+      for (const cell of arg.rows.flat()) {
+        if (isFormulaError(cell)) return cell
+        if (typeof cell === 'number') numbers.push(cell)
       }
       continue
     }

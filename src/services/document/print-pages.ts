@@ -247,11 +247,17 @@ function renderPage(
     `<div class="paper-page paper-page--${paperName(pageDimensionsMm(page))}">` +
     renderFloats(floats, page, true) +
     (hasBandContent(header)
-      ? renderBand(header, 'header', pageLabel(page, sheet.inSection), total, inset, page.headerDistanceMm)
+      ? renderBand(header, 'header', pageLabel(page, sheet.inSection), total, {
+          inset,
+          offset: page.headerDistanceMm,
+        })
       : '') +
     body +
     (hasBandContent(footer)
-      ? renderBand(footer, 'footer', pageLabel(page, sheet.inSection), total, inset, page.footerDistanceMm)
+      ? renderBand(footer, 'footer', pageLabel(page, sheet.inSection), total, {
+          inset,
+          offset: page.footerDistanceMm,
+        })
       : '') +
     renderFloats(floats, page, false) +
     (sheet.columnLines ?? [])
@@ -330,8 +336,7 @@ function renderBand(
   kind: 'header' | 'footer',
   label: string,
   total: number,
-  inset: number,
-  offset: number,
+  { inset, offset }: { readonly inset: number; readonly offset: number },
 ): string {
   const cell = (pieces: readonly BandPiece[], place: string): string =>
     `<div class="paper-page__cell paper-page__cell--${place}">` + renderLines(pieces, label, total) + '</div>'

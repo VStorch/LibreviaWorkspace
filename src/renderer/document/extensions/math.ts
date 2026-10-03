@@ -188,6 +188,8 @@ export const MathEditing = Extension.create({
       new Plugin({
         key: new PluginKey('mathEditing'),
         props: {
+          // A assinatura é a do ProseMirror, e não nossa.
+          // eslint-disable-next-line max-params
           handleDoubleClickOn(view, _pos, node, nodePos, _event, direct) {
             if (!direct || node.type.name !== 'math') return false
             // A posição do nó, e não a do clique: na metade direita da equação o

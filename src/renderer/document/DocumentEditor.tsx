@@ -355,7 +355,11 @@ export function DocumentEditor(): React.JSX.Element {
   const { comments, outside } = useComments(editor)
   const [sheetSections, setSheetSections] = useState('')
   const bands = useBandHeights(effective, contentRevision, sheetSections)
-  const layout = usePagination(editor, effective, sections, contentRevision, bands, !reading, styles)
+  const layout = usePagination(editor, effective, sections, contentRevision, {
+    bands,
+    paginated: !reading,
+    styles,
+  })
   // A string igual não chama o `setState` (ver `useBandHeights`).
   const sheetSectionsNow = layout.sheets.map((sheet) => sheet.section).join(',')
   useEffect(() => {

@@ -74,15 +74,7 @@ export function applyPageGaps(
   view: EditorView,
   written: ReadonlyMap<number, number>,
   gaps: ReadonlyMap<number, number>,
-  /** Vãos entre linhas de um parágrafo cortado, pela posição do primeiro caractere da linha. */
-  lines: ReadonlyMap<number, number> = new Map(),
-  /** Cabeçalhos de tabela repetidos no alto das folhas em que a tabela continua. */
-  headers: readonly RepeatedHeader[] = [],
-  /**
-   * O deslocamento lateral dos blocos postos em coluna (M9), pela posição do
-   * bloco. Translação, e não margem: mudar de coluna não pode mudar a altura.
-   */
-  columns: ReadonlyMap<number, number> = new Map(),
+  { lines = new Map(), headers = [], columns = new Map() }: PageGapExtras = {},
 ): void {
   const decorations: Decoration[] = []
 
@@ -147,6 +139,19 @@ export function applyPageGaps(
 }
 
 /** As linhas de cabeçalho de uma tabela, repetidas no alto de uma folha. */
+/** O que a paginação empurra além dos vãos entre blocos. */
+export interface PageGapExtras {
+  /** Vãos entre linhas de um parágrafo cortado, pela posição do primeiro caractere da linha. */
+  readonly lines?: ReadonlyMap<number, number>
+  /** Cabeçalhos de tabela repetidos no alto das folhas em que a tabela continua. */
+  readonly headers?: readonly RepeatedHeader[]
+  /**
+   * O deslocamento lateral dos blocos postos em coluna (M9), pela posição do
+   * bloco. Translação, e não margem: mudar de coluna não pode mudar a altura.
+   */
+  readonly columns?: ReadonlyMap<number, number>
+}
+
 export interface RepeatedHeader {
   /** Início do conteúdo da primeira célula da linha que abre a folha. */
   readonly position: number
