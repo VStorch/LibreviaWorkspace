@@ -14,13 +14,12 @@ import {
 import { commentAnchorsOf, commentsKey, focusComment } from './extensions/comment.js'
 import { coordsInDocument } from './extensions/note-view.js'
 
-/** Vão entre dois cartões empilhados, em pixels da folha. */
+/** Em pixels da folha. */
 const GAP_PX = 8
 
-/** A distância entre a borda direita das folhas e a coluna dos cartões. */
 export const COMMENTS_PANE_OFFSET_PX = 24
 
-/** A largura que a coluna ocupa ao lado das folhas — ver `.comments-pane` no CSS. */
+/** Ver `.comments-pane` no CSS. */
 export const COMMENTS_PANE_WIDTH_PX = 260 + COMMENTS_PANE_OFFSET_PX
 
 interface Thread {
@@ -28,14 +27,13 @@ interface Thread {
   readonly replies: readonly DocumentComment[]
 }
 
-/** As conversas: cada comentário que abre uma, com as respostas na ordem do arquivo. */
+/** Com as respostas na ordem do arquivo. */
 function threadsOf(comments: readonly DocumentComment[]): Thread[] {
   const known = new Set(comments.map((comment) => comment.id))
   const replies = new Map<string, DocumentComment[]>()
   const roots: DocumentComment[] = []
   for (const comment of comments) {
-    // A resposta cujo comentário não está no arquivo vira conversa própria: some
-    // da tela é que ela não pode.
+    // A resposta sem o comentário no arquivo vira conversa própria: não pode sumir da tela.
     if (comment.parentId !== undefined && known.has(comment.parentId)) {
       replies.set(comment.parentId, [...(replies.get(comment.parentId) ?? []), comment])
     } else {
@@ -45,26 +43,16 @@ function threadsOf(comments: readonly DocumentComment[]): Thread[] {
   return roots.map((root) => ({ root, replies: replies.get(root.id) ?? [] }))
 }
 
-/** A caixa de texto aberta num cartão: a resposta, ou o texto do comentário. */
 interface Composing {
   readonly kind: 'reply' | 'edit'
   readonly id: string
 }
 
 /**
- * Os comentários do documento, numa coluna ao lado das folhas.
- *
- * `comments` são os que valem agora (`resolveComments`): o desfeito e o excluído
- * já não vêm. O cartão escolhido mostra as ações — responder, editar, resolver,
- * excluir —, e o recém-inserido (`commentDraft`) abre com a caixa de texto.
- *
- * Cada cartão fica na altura do trecho que comenta — a da ponta de início,
- * ou a do fim no comentário de ponto — e desce o quanto for preciso para não
- * cobrir o de cima, como a margem do Word. Clicar seleciona o trecho e o realça.
- *
- * A medida é a mesma da paginação: uma por quadro, no máximo, disparada pela
- * edição e pela mudança de tamanho da pilha. O que o arquivo ancora fora do
- * corpo (cabeçalho, nota, caixa de texto) vai para o fim da coluna.
+ * `comments` são os que valem agora (`resolveComments`). Cada cartão fica na
+ * altura do trecho e desce o preciso para não cobrir o de cima, como a margem do
+ * Word. Uma medida por quadro, como a paginação; o que o arquivo ancora fora do
+ * corpo vai para o fim.
  */
 export function CommentsPane({
   editor,
@@ -74,9 +62,8 @@ export function CommentsPane({
 }: {
   readonly editor: Editor
   readonly comments: readonly DocumentComment[]
-  /** As conversas ancoradas fora do corpo — ver `commentsOutsideOf`. */
   readonly outside: ReadonlySet<string>
-  /** A borda direita das folhas, em pixels da pilha. */
+  /** Em pixels da pilha. */
   readonly leftPx: number
 }): React.JSX.Element {
   const t = useT()
@@ -87,8 +74,7 @@ export function CommentsPane({
   const listRef = useRef<HTMLOListElement>(null)
   const threads = useMemo(() => threadsOf(comments), [comments])
   const [tops, setTops] = useState<ReadonlyMap<string, number>>(new Map())
-  // A conversa em foco mora no estado do realce, e não aqui: o Próximo e o
-  // Anterior do menu a escolhem sem passar pelo painel.
+  // A conversa em foco mora no realce: o Próximo do menu a escolhe sem passar pelo painel.
   const active = useEditorState({
     editor,
     selector: ({ editor: current }) => commentsKey.getState(current.state)?.active ?? null,
@@ -98,7 +84,6 @@ export function CommentsPane({
   }
   const [composing, setComposing] = useState<Composing | null>(null)
 
-  // O comentário recém-inserido abre escolhido, com a caixa de texto.
   useEffect(() => {
     if (draft === null) return
     setComposing(null)
@@ -112,7 +97,6 @@ export function CommentsPane({
     }
   }, [draft, threads])
 
-  // As conversas resolvidas saem do realce do texto, como no Word.
   useEffect(() => {
     const resolved = new Set(threads.filter((thread) => thread.root.done).map((thread) => thread.root.id))
     editor.view.dispatch(focusComment(editor.state.tr, { resolved }))
@@ -125,7 +109,7 @@ export function CommentsPane({
     const measure = (): void => {
       if (editor.isDestroyed) return
       const box = host.getBoundingClientRect()
-      // O zoom é `transform` na pilha: a tela mede escalado, a pilha não.
+      // O zoom é `transform`: a tela mede escalado.
       const scale = host.offsetWidth > 0 ? box.width / host.offsetWidth : 1
       const anchors = commentAnchorsOf(editor.state.doc)
       const next = new Map<string, number>()
@@ -134,11 +118,9 @@ export function CommentsPane({
         const pos = anchor?.start ?? anchor?.end ?? null
         if (pos === null) continue
         try {
-          // A conversa numa nota fica na altura do corpo dela, no pé da página.
           next.set(root.id, (coordsInDocument(editor.view, pos).top - box.top) / scale)
         } catch {
-          // A posição saiu do documento entre a edição e o quadro: a medida
-          // seguinte a acha.
+          // A posição saiu do documento entre a edição e o quadro: a medida seguinte a acha.
         }
       }
       setTops((previous) => (sameTops(previous, next) ? previous : next))
@@ -154,8 +136,7 @@ export function CommentsPane({
     }
 
     schedule()
-    // A transação, e não só a edição: os vãos da paginação e as decorações
-    // descem o texto sem mudar o documento.
+    // A transação, e não só a edição: os vãos e as decorações descem o texto.
     editor.on('transaction', schedule)
     const observer = new ResizeObserver(schedule)
     observer.observe(host)
@@ -166,8 +147,7 @@ export function CommentsPane({
     }
   }, [editor, threads])
 
-  // Empilha: cada cartão na altura do trecho, ou logo abaixo do de cima. Depois
-  // de todo desenho, porque a altura de um cartão só existe depois dele.
+  // Depois do desenho: a altura de um cartão só existe depois dele.
   useLayoutEffect(() => {
     let bottom = 0
     for (const card of Array.from(listRef.current?.children ?? [])) {
@@ -225,7 +205,7 @@ export function CommentsPane({
     </>
   )
 
-  /** O botão do cartão não escolhe o cartão: o clique para nele. */
+  /** O clique no botão não escolhe o cartão. */
   const action = (label: string, run: () => void): React.JSX.Element => (
     <button
       type="button"
@@ -250,7 +230,6 @@ export function CommentsPane({
         {ordered.map(({ root, replies }) => {
           const isActive = active === root.id
           const isDraft = draft === root.id
-          // A resolvida fica recolhida — só o cabeçalho — até ser escolhida.
           const collapsed = root.done && !isActive
           return (
             <li
@@ -268,7 +247,6 @@ export function CommentsPane({
                 if (!isDraft) choose(root.id)
               }}
               onKeyDown={(event) => {
-                // A tecla da caixa de texto e dos botões é deles.
                 if (event.target !== event.currentTarget) return
                 if (event.key !== 'Enter' && event.key !== ' ') return
                 event.preventDefault()
@@ -312,7 +290,6 @@ export function CommentsPane({
                       {replies.map((reply) => (
                         <li key={reply.id}>
                           {body(reply)}
-                          {/* A resposta se edita como o comentário: a conversa escolhida e aberta. */}
                           {isActive && !root.done && !readOnly && composing === null && (
                             <div className="comment-card__actions">
                               {action(t('comments.action.edit'), () =>
@@ -361,12 +338,7 @@ export function CommentsPane({
   )
 }
 
-/**
- * A caixa de texto do cartão: o comentário novo, a resposta, a edição.
- *
- * Abre com o foco. `Ctrl+Enter` confirma e `Esc` desiste; o clique e a tecla não
- * sobem para o cartão, que os leria como "escolher".
- */
+/** `Ctrl+Enter` confirma e `Esc` desiste; o clique e a tecla não sobem para o cartão. */
 function CommentComposer({
   initial,
   submitLabel,
@@ -430,7 +402,7 @@ function CommentComposer({
 function sameTops(left: ReadonlyMap<string, number>, right: ReadonlyMap<string, number>): boolean {
   if (left.size !== right.size) return false
   for (const [cid, top] of left) {
-    // Meio pixel não vale um redesenho: o arredondamento oscila sozinho.
+    // Meio pixel não vale um redesenho.
     if (!right.has(cid) || Math.abs(right.get(cid)! - top) > 0.5) return false
   }
   return true

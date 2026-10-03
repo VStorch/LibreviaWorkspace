@@ -21,8 +21,7 @@ function RecentItem({ file }: { readonly file: RecentFile }): React.JSX.Element 
     <li>
       <button type="button" className="recent" onClick={() => void openRecent(file.path)}>
         <span className="recent__name">{file.name}</span>
-        {/* O caminho é o que distingue dois arquivos de mesmo nome em pastas
-            diferentes — situação comum em unidade de rede compartilhada. */}
+        {/* O caminho distingue arquivos de mesmo nome em pastas de rede. */}
         <span className="recent__path" title={file.path}>
           {file.path}
         </span>
@@ -32,14 +31,7 @@ function RecentItem({ file }: { readonly file: RecentFile }): React.JSX.Element 
   )
 }
 
-/**
- * A marca.
- *
- * Duas folhas empilhadas, uma de cada cor da suíte: a verde da planilha atrás,
- * a azul do documento à frente. É o único lugar do programa onde cabe algo
- * assim — a tela inicial é onde o Writer põe o Start Center e o Word põe a sua
- * capa. Dentro do editor, o espaço pertence ao documento.
- */
+/** Duas folhas, verde atrás e azul à frente: a tela inicial é o único lugar para a marca. */
 function BrandMark(): React.JSX.Element {
   return (
     <svg

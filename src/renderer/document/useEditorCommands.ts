@@ -24,7 +24,6 @@ import {
   type ReferenceContext,
 } from './references.js'
 
-/** Os diálogos e painéis que um comando do editor abre. */
 export interface EditorDialogs {
   readonly find: boolean
   readonly pageSetup: boolean
@@ -69,31 +68,20 @@ const CLOSED: EditorDialogs = {
 
 export interface EditorCommands {
   readonly dialogs: EditorDialogs
-  /** Abre ou fecha um diálogo sem passar pela trava — é para fechar e para a barra. */
+  /** Sem passar pela trava: é para fechar e para a barra. */
   readonly setDialog: (dialog: keyof EditorDialogs, open: boolean) => void
-  /** Roda um comando do editor, venha do menu nativo ou do botão direito. */
   readonly run: (command: EditorCommand) => void
-  /** A equação que o editor de equações abriu: uma nova, ou a do documento. */
   readonly equationTarget: EquationTarget
 }
 
 /**
- * Os comandos do editor, e a trava do somente leitura, num lugar só.
- *
- * O menu nativo e o botão direito chegam aqui pelo mesmo `run`, e é nele — e só
- * nele — que o somente leitura é conferido. Antes cada comando decidia por si:
- * colar sem formatação conferia, a quebra de página e as ações de tabela não, e
- * um documento aberto travado ganhava linha, perdia a tabela e virava "Não
- * salvo" pelo menu.
- *
- * O `switch` é exaustivo de propósito: um comando novo em `EditorCommand` que
- * não tenha caso aqui não compila, em vez de chegar e não fazer nada.
+ * O somente leitura é conferido no `run`, e só nele. O `switch` é exaustivo: um
+ * comando sem caso não compila.
  */
 export function useEditorCommands(
   editor: Editor | null,
   readOnly: boolean,
   pasteWithoutFormat: () => Promise<void>,
-  /** A paginação, a página e os estilos de agora — ver `ReferenceContext`. */
   referenceContext: () => ReferenceContext,
 ): EditorCommands {
   const [dialogs, setDialogs] = useState<EditorDialogs>(CLOSED)
@@ -107,11 +95,8 @@ export function useEditorCommands(
     (command: EditorCommand) => {
       if (readOnly && !runsWhileLocked(command)) return
 
-      // O cursor que a pessoa acabou de mover com Home, End ou as setas ainda
-      // pode estar só no DOM: o ProseMirror o lê no `selectionchange`, e o
-      // comando que chega do menu nativo pelo IPC pode chegar antes. Sem isto, o
-      // sumário pedido logo depois de um Home entrava onde o cursor estava antes.
-      // A nota com o foco tem o próprio editor (`note-view.ts`), com a mesma demora.
+      // O cursor recém-movido pode estar só no DOM, e o comando do menu chega
+      // antes do `selectionchange`; a nota com foco tem a mesma demora.
       if (editor !== null) {
         flushSelection(editor)
         flushNoteSelection(editor.view)
@@ -221,7 +206,6 @@ export function useEditorCommands(
         case TableAction.Properties:
           return setDialog('tableProperties', true)
 
-        // O resto das ações de tabela é comando do TableKit, e não diálogo.
         case TableAction.RowBefore:
         case TableAction.RowAfter:
         case TableAction.DeleteRow:

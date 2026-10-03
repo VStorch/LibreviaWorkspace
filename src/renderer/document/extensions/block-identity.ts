@@ -2,31 +2,11 @@ import { Extension } from '@tiptap/core'
 import { Plugin, PluginKey, type Transaction } from '@tiptap/pm/state'
 
 /**
- * O que o bloco traz do arquivo e o editor não interpreta — identidade e
- * objetos ancorados.
- *
- * O leitor do sidecar carimba um `oid` em cada bloco de primeiro nível
- * (`BodyReader.NewBlock`), e a gravação usa esse `oid` para decidir o que
- * **não** reescrever: bloco cujo conteúdo não mudou volta para o `.docx` como o
- * XML original, byte a byte (`DocxWriter.OidOf`). É o eixo inteiro da gravação
- * cirúrgica, e o que protege comentário, revisão, caixa de texto e forma de
- * sumirem num documento que o editor não sabe reproduzir.
- *
- * O ProseMirror descarta todo atributo que o schema não declara. Sem esta
- * extensão o `oid` morria na travessia pelo editor, `OidOf` devolvia `null` para
- * cada bloco e a gravação degradava para regeneração completa — **em silêncio**,
- * que é o modo de falha que o plano técnico chama de risco nº 1 (§6.1).
- *
- * Medido antes da correção, abrindo e salvando `modelo-de-manual.docx`
- * **sem editar nada**: `document.xml` caiu de 32.282 para 5.094 bytes, os 23
- * `w14:paraId` viraram 0 e as quatro caixas de texto (16 `txbxContent`)
- * desapareceram do arquivo. Não era perda de formatação: era perda de conteúdo,
- * num arquivo que o usuário só abriu para ler.
- *
- * Vai para o HTML como `data-oid` — e não só para o JSON — porque a identidade
- * também precisa atravessar recortar/colar e desfazer, que passam pelo DOM. E
- * porque o DOM a duplica, a identidade repetida é desfeita aqui mesmo, por
- * `uniqueOids`.
+ * O `oid` que o leitor carimba em cada bloco (`BodyReader.NewBlock`) decide o que
+ * a gravação **não** reescreve (`DocxWriter.OidOf`). O ProseMirror descarta
+ * atributo fora do schema: sem esta extensão a gravação viraria regeneração
+ * completa, em silêncio. Vai também ao HTML (`data-oid`), para atravessar
+ * recortar, colar e desfazer.
  */
 
 export interface BlockIdentityOptions {
@@ -34,24 +14,9 @@ export interface BlockIdentityOptions {
 }
 
 /**
- * Um `oid` por bloco: a segunda ocorrência perde a identidade.
- *
- * Dois blocos com o mesmo `oid` é o pior caso da gravação cirúrgica. O gravador
- * preserva o XML original na **primeira** ocorrência e regenera as demais — de
- * modo que o bloco que a pessoa nem tocou volta reescrito, e com ele se vai o que
- * o editor não sabe reproduzir. Foi assim que o marcador de um parágrafo dividido
- * desapareceu do arquivo.
- *
- * Quem duplica é a divisão de parágrafo: o Enter entrega os dois lados com os
- * atributos do original, `oid` incluído. A colagem faz o mesmo, pelo `data-oid`
- * do HTML. A regra aqui é a que o gravador já aplica, um passo antes e uma vez
- * só: o primeiro fica com a identidade — é ele que está no lugar do bloco que
- * veio do arquivo — e o novo nasce sem nenhuma, o que o gravador entende como
- * "bloco novo, gere do zero".
- *
- * Só quando há o que corrigir, e sem descer dentro do parágrafo: uma transação
- * apendada a cada tecla suja o histórico de desfazer, e o percurso das palavras
- * do documento não paga nada a esta conta.
+ * Dois blocos com o mesmo `oid` (o Enter e a colagem duplicam) fariam o gravador
+ * regenerar o segundo. O primeiro fica com a identidade, e o novo nasce sem.
+ * Só quando há o que corrigir, e sem descer dentro do parágrafo.
  */
 export function uniqueOids(): Plugin {
   return new Plugin({
@@ -74,8 +39,6 @@ export function uniqueOids(): Plugin {
           }
         }
 
-        // Dentro de um parágrafo não há bloco com identidade: o que mora lá é
-        // texto, e percorrê-lo custaria o documento inteiro a cada tecla.
         return !node.isTextblock
       })
 
@@ -92,11 +55,7 @@ export const BlockIdentity = Extension.create<BlockIdentityOptions>({
   },
 
   addOptions() {
-    // Exatamente os nós em que `BodyReader` chama `NewBlock`: o parágrafo de
-    // topo (que pode sair como `paragraph`, `heading` ou `pageBreak`), o item de
-    // lista — que no arquivo é um `w:p` — a tabela e o sumário, que no arquivo é
-    // o `w:sdt` inteiro. Declarar em mais nós não machucaria, mas sugeriria uma
-    // identidade que o leitor não emite.
+    // Os nós em que `BodyReader` chama `NewBlock`; o item de lista é um `w:p`, e o sumário, o `w:sdt`.
     return { types: ['paragraph', 'heading', 'pageBreak', 'listItem', 'table', 'tableOfContents'] }
   },
 
@@ -115,20 +74,9 @@ export const BlockIdentity = Extension.create<BlockIdentityOptions>({
           },
 
           /**
-           * Objetos ancorados neste bloco: imagem ou caixa de texto que não
-           * estão no fluxo.
-           *
-           * Dado opaco, como o `oid` — nada aqui os interpreta, e é por isso que
-           * precisam ser declarados: o ProseMirror descarta atributo fora do
-           * schema, e a capa perderia a marca e as caixas ao atravessar o
-           * editor, inclusive ao salvar.
-           *
-           * Declarado nos mesmos nós que o `oid`, e não só em parágrafo e
-           * título: quando um parágrafo tem só a imagem e uma quebra de página,
-           * ele vira o nó `pageBreak` — e os objetos dele iam junto.
-           *
-           * Não vai para o HTML: é dado, não aparência. Quem desenha lê do
-           * modelo e põe numa camada própria, fora do texto editável.
+           * Imagem ou caixa fora do fluxo, dado opaco como o `oid`. Nos mesmos nós:
+           * o parágrafo com imagem e quebra de página vira `pageBreak`. Não vai ao
+           * HTML: quem desenha lê do modelo.
            */
           floats: {
             default: null,

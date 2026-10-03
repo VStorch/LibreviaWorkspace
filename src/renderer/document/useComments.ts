@@ -5,18 +5,13 @@ import { resolveComments } from '@services/document/comments.js'
 import { useWorkspace } from '../state/workspace.js'
 import { commentAnchorsOf } from './extensions/comment.js'
 
-/** As pontas do texto como chave: muda só quando um comentário entra ou sai. */
+/** Muda só quando um comentário entra ou sai. */
 function anchorKey(editor: Editor | null): string {
   if (editor === null || editor.isDestroyed) return ''
   return [...commentAnchorsOf(editor.state.doc).keys()].sort().join('\u0000')
 }
 
-/**
- * Os comentários que valem agora, pelo texto do editor — ver `resolveComments`.
- *
- * A tela só redesenha quando o conjunto de pontas muda (inserir, excluir,
- * desfazer), e não a cada letra digitada.
- */
+/** Redesenha só quando o conjunto de pontas muda, e não a cada letra — ver `resolveComments`. */
 export function useComments(editor: Editor | null): {
   readonly comments: readonly DocumentComment[]
   readonly outside: ReadonlySet<string>

@@ -6,29 +6,19 @@ import { hiddenBookmarkName, nextBookmarkId } from '@services/document/bookmarks
 import { fieldArgument, fieldKind, fieldSwitch } from '@services/document/fields.js'
 
 /**
- * Marcadores (bookmarks): as duas pontas como nós sem largura.
- *
- * No arquivo o marcador é um par `w:bookmarkStart`/`w:bookmarkEnd` que pode
- * começar num parágrafo e terminar noutro — por isso dois nós, e não uma marca de
- * texto: a marca não atravessa parágrafo e não existe sobre um trecho vazio, que
- * é justamente o marcador mais comum (o ponto onde o cursor estava). O `bid` é o
- * `w:id` do arquivo, que casa as pontas; o nome mora só no começo, como lá.
- *
- * Os ocultos (`_Toc…`, `_Ref…`, `_GoBack`) são nós iguais aos outros: o sumário e
- * as referências cruzadas do Word apontam para eles, e é por isso que precisam
- * sobreviver à edição do parágrafo que os carrega.
+ * Dois nós, e não uma marca: o par `w:bookmarkStart`/`w:bookmarkEnd` atravessa
+ * parágrafos e muitas vezes cobre um trecho vazio. O `bid` é o `w:id`. Os ocultos
+ * (`_Toc…`, `_Ref…`) são iguais: o sumário e as referências do Word os citam.
  */
 
 export interface BookmarkEntry {
   readonly name: string
   readonly bid: string
-  /** Posição do nó de início. */
   readonly pos: number
-  /** Posição do nó de fim, quando ele está no documento. */
+  /** Quando está no documento. */
   readonly end: number | null
 }
 
-/** Os marcadores do documento, na ordem em que começam. */
 export function bookmarksOf(doc: ProseMirrorNode): BookmarkEntry[] {
   const starts: Array<{ name: string; bid: string; pos: number }> = []
   const ends = new Map<string, number>()
@@ -45,7 +35,7 @@ export function bookmarksOf(doc: ProseMirrorNode): BookmarkEntry[] {
   return starts.map((start) => ({ ...start, end: ends.get(start.bid) ?? null }))
 }
 
-/** Os ids em uso — os das pontas finais também, cuja ponta inicial pode estar noutra parte. */
+/** Também os das pontas finais, cuja ponta inicial pode estar noutra parte. */
 function idsOf(doc: ProseMirrorNode): string[] {
   const ids: string[] = []
   doc.descendants((node) => {
@@ -57,7 +47,7 @@ function idsOf(doc: ProseMirrorNode): string[] {
   return ids
 }
 
-/** Leva o cursor ao marcador e rola a folha até ele. `false` quando ele não existe. */
+/** `false` quando ele não existe. */
 export function goToBookmark(view: EditorView, name: string): boolean {
   const entry = bookmarksOf(view.state.doc).find((bookmark) => bookmark.name === name)
   if (entry === undefined) return false
@@ -75,14 +65,9 @@ export function goToBookmark(view: EditorView, name: string): boolean {
 }
 
 /**
- * O nome do marcador que envolve o texto do bloco em `pos` — e, se não houver, um
- * oculto novo com o prefixo dado, que é como o Word faz: o link para um título e a
- * referência cruzada a ele apontam para um `_Ref…` em volta do texto, e o sumário
- * para um `_Toc…`.
- *
- * Aproveita o que já está no começo do bloco com o mesmo prefixo; outro prefixo
- * não serve, porque "Atualizar sumário" recria os `_Toc` e levaria junto a
- * referência que apontasse para eles.
+ * Como o Word: o link e a referência cruzada a um título apontam para um `_Ref…`
+ * em volta do texto, e o sumário para um `_Toc…`. Outro prefixo não serve:
+ * "Atualizar sumário" recria os `_Toc`.
  */
 export function ensureBlockBookmark(view: EditorView, pos: number, prefix: '_Ref' | '_Toc'): string | null {
   const block = view.state.doc.nodeAt(pos)
@@ -116,8 +101,7 @@ const bookmarkNode = (name: 'bookmarkStart' | 'bookmarkEnd') =>
     inline: true,
     atom: true,
     selectable: false,
-    // O marcador não é texto: não vai para a área de transferência como texto
-    // nem conta palavra.
+    // Não vai à área de transferência como texto nem conta palavra.
     renderText: () => '',
 
     addAttributes() {
@@ -134,7 +118,6 @@ const bookmarkNode = (name: 'bookmarkStart' | 'bookmarkEnd') =>
     },
 
     renderHTML({ node }) {
-      // Vazio e sem largura: na tela e no papel o marcador não ocupa lugar.
       return name === 'bookmarkStart'
         ? [
             'span',
@@ -154,18 +137,15 @@ export const BookmarkEnd = bookmarkNode('bookmarkEnd')
 declare module '@tiptap/core' {
   interface Commands<ReturnType> {
     bookmarks: {
-      /**
-       * Marca a seleção com o nome dado. O nome que já existe **muda de lugar**,
-       * como no Word: o marcador é um só.
-       */
+      /** O nome que já existe **muda de lugar**, como no Word. */
       setBookmark: (name: string) => ReturnType
-      /** Tira o marcador do documento — as duas pontas. O texto fica. */
+      /** As duas pontas; o texto fica. */
       deleteBookmark: (name: string) => ReturnType
     }
   }
 }
 
-/** Remove as pontas de um marcador, de trás para a frente para as posições valerem. */
+/** De trás para a frente, para as posições valerem. */
 export function removeBookmark(tr: Transaction, name: string): boolean {
   const entry = bookmarksOf(tr.doc).find((bookmark) => bookmark.name === name)
   if (entry === undefined) return false
@@ -182,30 +162,20 @@ export function removeBookmark(tr: Transaction, name: string): boolean {
   return true
 }
 
-/**
- * Marca a seleção da transação com o nome dado. O que já tinha o nome sai antes —
- * o marcador é um só —, e o id é um a mais que o maior do documento.
- */
+/** O que já tinha o nome sai antes: o marcador é um só. */
 export function placeBookmark(tr: Transaction, name: string): void {
   removeBookmark(tr, name)
   const { from, to } = tr.selection
   const bid = nextBookmarkId(idsOf(tr.doc))
   const schema = tr.doc.type.schema
-  // O fim primeiro: inserir o começo antes deslocaria a posição dele.
+  // O fim primeiro: o começo deslocaria a posição dele.
   tr.insert(to, schema.nodes['bookmarkEnd']!.create({ bid }))
   tr.insert(from, schema.nodes['bookmarkStart']!.create({ name, bid }))
 }
 
-/**
- * O trecho colado sem os marcadores que o documento já tem.
- *
- * Copiar um parágrafo leva os marcadores dele junto, e dois de mesmo nome são
- * âncora ambígua — o Word recusa o id repetido. O que foi **recortado** não está
- * mais no documento, e volta inteiro: mover um parágrafo não custa o marcador.
- */
+/** Dois de mesmo nome são âncora ambígua. O que foi **recortado** volta inteiro. */
 export function withoutRepeatedBookmarks(slice: Slice, doc: ProseMirrorNode, moving = false): Slice {
-  // Arrastar e soltar dentro do documento **move**: a origem sai na mesma
-  // transação, e o marcador vai com o texto.
+  // Arrastar move: a origem sai na mesma transação.
   if (moving) return slice
 
   const names = new Set<string>()
@@ -218,9 +188,7 @@ export function withoutRepeatedBookmarks(slice: Slice, doc: ProseMirrorNode, mov
   })
   if (names.size === 0 && ids.size === 0) return slice
 
-  // Só o nome repetido é cópia: sai. O id repetido é outro marcador que calhou de
-  // ter o mesmo número — o de outro documento, que o Word também numera de zero —
-  // e ganha um id livre em vez de sumir.
+  // O nome repetido é cópia e sai; o id repetido é de outro documento e ganha um livre.
   const dropped = new Set<string>()
   const renamed = new Map<string, string>()
   const used = new Set(ids)
@@ -249,8 +217,7 @@ export function withoutRepeatedBookmarks(slice: Slice, doc: ProseMirrorNode, mov
           children.push(child.type.create({ ...child.attrs, bid: fresh }))
           return
         }
-        // O fim cujo começo não veio na colagem e cujo id o documento já usa é
-        // de um marcador daqui: repetido, fecharia o marcador no lugar errado.
+        // Repetido, fecharia o marcador daqui no lugar errado.
         if (ids.has(bid)) return
       }
       children.push(child.isLeaf ? child : child.copy(strip(child.content)))
@@ -261,9 +228,6 @@ export function withoutRepeatedBookmarks(slice: Slice, doc: ProseMirrorNode, mov
   return new Slice(strip(slice.content), slice.openStart, slice.openEnd)
 }
 
-/**
- * Os comandos, o clique no link interno e a colagem sem marcador repetido.
- */
 export const Bookmarks = Extension.create({
   name: 'bookmarks',
 
@@ -290,12 +254,7 @@ export const Bookmarks = Extension.create({
       new Plugin({
         key: new PluginKey('bookmarks'),
         props: {
-          /**
-           * O link para um lugar do documento leva a ele: com `Ctrl`, como no
-           * Word, ou com clique simples no somente leitura, onde clicar não tem
-           * outro uso. O link externo continua como era — quem o abre é o
-           * processo main, depois da allowlist.
-           */
+          /** Com `Ctrl`, como no Word, ou com clique simples no somente leitura. */
           handleClick(view, pos, event) {
             if (!event.ctrlKey && !event.metaKey && view.editable) return false
             const $pos = view.state.doc.resolve(pos)
@@ -308,10 +267,7 @@ export const Bookmarks = Extension.create({
             return goToBookmark(view, href.slice(1))
           },
 
-          /**
-           * A referência cruzada com `\h` leva ao que cita, pelo mesmo gesto do
-           * link: é o que a chave quer dizer no Word.
-           */
+          /** `\h` leva ao que cita, pelo mesmo gesto do link. */
           handleClickOn(view, _pos, node, _nodePos, event) {
             if (node.type.name !== 'field') return false
             if (!event.ctrlKey && !event.metaKey && view.editable) return false
@@ -322,7 +278,6 @@ export const Bookmarks = Extension.create({
             return target !== null && goToBookmark(view, target)
           },
 
-          // Ver `withoutRepeatedBookmarks`.
           transformPasted: (slice, view) =>
             withoutRepeatedBookmarks(slice, view.state.doc, view.dragging?.move === true),
         },

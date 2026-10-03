@@ -50,66 +50,39 @@ import { SearchReplace, type SearchStatus } from './extensions/search-replace.js
 import { TableLook } from './extensions/table-look.js'
 import { WordShortcuts } from './extensions/word-shortcuts.js'
 
-/** O que o editor precisa saber das preferências de edição ao ser montado. */
 export interface EditorToolOptions {
-  /**
-   * Se a autocorreção tipográfica está ligada — consultada **a cada** regra.
-   *
-   * Uma função, e não um booleano: as regras de entrada são registradas quando o
-   * editor nasce, e a preferência muda com ele no ar. Com um valor fixo aqui,
-   * desligar a autocorreção só valeria no próximo documento aberto.
-   */
+  /** Uma função, consultada a cada regra: as regras nascem com o editor, e a preferência muda com ele no ar. */
   readonly isTypographyEnabled?: () => boolean
-  /** Estado inicial das marcas de formatação. Depois quem manda é o comando. */
+  /** Só o estado inicial; depois quem manda é o comando. */
   readonly invisibleCharactersVisible?: boolean
   /** Se a conversa está na biblioteca de comentários — ver `withoutCommentAnchors`. */
   readonly isKnownComment?: (cid: string) => boolean
-  /** O controle de alterações está ligado? Consultado a cada transação, como a tipografia. */
+  /** Consultado a cada transação. */
   readonly isTrackingChanges?: () => boolean
-  /** Quem assina as alterações controladas. */
   readonly revisionAuthor?: () => string
-  /** A numeração das notas do documento — ver `DocumentModel.notes`. */
   readonly notes?: () => DocumentNotes | undefined
 }
 
-/**
- * Conjunto de extensões do editor.
- *
- * Cobre a seção "Texto" e "Inserção" da especificação. Quatro extensões são
- * nossas porque não existem oficialmente: recuo, quebra de página,
- * localizar/substituir e os comandos do diálogo de parágrafo.
- */
 export function buildEditorExtensions(
   onSearchStatusChange: (status: SearchStatus) => void,
   options: EditorToolOptions = {},
 ): Extensions {
   return [
     StarterKit.configure({
-      // O link é o de baixo, com menos atributos — ver `DocumentLink`.
       link: false,
-      // O histórico do Tiptap já responde a Ctrl+Z e Ctrl+Y.
       undoRedo: { depth: 200 },
-      // O parágrafo vazio que o Tiptap acrescenta no fim do documento quando o
-      // último bloco não é parágrafo. Depois de um título ele não serve para
-      // nada — Enter no fim do título já abre um parágrafo —, e custava caro:
-      // os documentos do corpus terminam num `Heading1`, e gravar sem editar
-      // acrescentava um `<w:p/>` ao arquivo (um bloco reescrito, e às vezes uma
-      // linha a mais no pé da última folha).
+      // Sem o parágrafo vazio depois do título: o corpus termina em `Heading1`, e
+      // gravar sem editar acrescentaria um `<w:p/>`.
       trailingNode: { notAfter: ['paragraph', 'heading'] },
     }),
 
     DocumentLink.configure({
-      // Links do documento não navegam dentro do aplicativo: são abertos no
-      // navegador do sistema, e só depois de passarem pela allowlist de
-      // esquema no processo main (ver src/main/security-policy.ts). O link para
-      // um marcador (`#nome`) leva ao marcador — ver bookmark.ts.
+      // Os links abrem no navegador do sistema, depois da lista de esquemas do main.
       openOnClick: false,
       autolink: true,
       HTMLAttributes: { rel: 'noopener noreferrer' },
     }),
 
-    // `TextStyle` é o suporte para cor, fonte, tamanho e espaçamento — todos
-    // guardados como atributos de uma marca só.
     TextStyle,
     Color,
     BackgroundColor,
@@ -117,11 +90,7 @@ export function buildEditorExtensions(
     FontSize,
     LineHeight,
 
-    // Sobrescrito e subscrito. São marcas de verdade, e não um atributo de
-    // `textStyle`, porque no OOXML são um `w:vertAlign` — uma propriedade só,
-    // com dois valores que se excluem, e as extensões oficiais já se excluem
-    // uma à outra. Enquanto não existiam, o texto sobrescrito de um documento
-    // abria como texto comum e voltava assim para o arquivo.
+    // Marcas, e não atributo de `textStyle`: no OOXML são um `w:vertAlign`, de valores que se excluem.
     Superscript,
     Subscript,
 
@@ -129,159 +98,87 @@ export function buildEditorExtensions(
     TextAlign.configure({ types: ['heading', 'paragraph'] }),
 
     DocumentImage.configure({
-      // Em linha, porque é assim que ela está no arquivo: no OOXML não existe
-      // imagem fora de parágrafo, e a que o sidecar lê chega dentro do dela. Como
-      // bloco, o schema não a aceitava ali; o documento abria assim mesmo — o
-      // JSON não é conferido —, mas a primeira mudança de atributo partia o
-      // parágrafo, a imagem descia para um novo e voltava ao arquivo como imagem
-      // nova, com outro `wp:docPr` e outro relacionamento.
+      // Em linha, como no arquivo: no OOXML não há imagem fora de parágrafo, e
+      // como bloco a primeira mudança de atributo partiria o parágrafo.
       inline: true,
-      // Imagens entram como data URI, validadas no processo main antes de
-      // chegarem aqui. SVG é recusado lá: é vetor de script.
+      // Data URI, validado no main, que recusa SVG.
       allowBase64: true,
     }),
 
     TableKit.configure({
-      // `resizable` é o arrasto da divisória das colunas; a medida resultante
-      // vai para o `colwidth` das células e dali para o `w:tblGrid`.
       table: { resizable: true, allowTableNodeSelection: true },
     }),
-    // Borda e sombreamento de célula, e os comandos de largura de coluna que o
-    // diálogo de propriedades usa. Ver table-look.ts.
     TableLook,
-    // O arrasto da divisória dividido pelo zoom da folha.
     ZoomedColumnResize,
 
-    // Alimenta a contagem exibida na barra de status — sem o texto excluído por
-    // uma revisão, como no Word. Ver track-changes.ts.
+    // A contagem sem o texto excluído por uma revisão, como no Word.
     CountWithoutDeletions,
 
     // O somente leitura vale para comando, e não só para o teclado.
     ReadOnlyGuard,
 
-    // Marcas de formatação: ¶ no fim do parágrafo, ponto no espaço, seta na
-    // tabulação e ¬ na quebra de linha. São decorações, então não entram no HTML
-    // que gera o PDF — o papel nunca as mostra, como no Word.
-    //
-    // `injectCSS: false` de propósito: o estilo que vem com a extensão desenha as
-    // marcas com `line-height: 1em`, e num documento paginado ao vivo uma marca
-    // que mexa na medida da linha desloca a quebra de página. O nosso mora em
-    // `content-styles.ts`, com `line-height: 0` — a mesma lição que o sobrescrito
-    // deixou.
+    // `injectCSS: false`: o estilo da extensão usa `line-height: 1em`, e uma marca
+    // que mude a medida da linha desloca a quebra de página (ver `content-styles.ts`).
     InvisibleCharacters.configure({
       visible: options.invisibleCharactersVisible ?? false,
       injectCSS: false,
       builders: [
         new SpaceCharacter(),
-        // A tabulação não vem na lista padrão da extensão, e num documento de
-        // escritório ela é justamente o que se procura quando o alinhamento saiu
-        // errado.
+        // A tabulação, que a extensão não traz e é o que se procura quando o alinhamento saiu errado.
         new InvisibleCharacter({ type: 'tab', predicate: (char) => char === '\t' }),
         new ParagraphNode(),
         new HardBreakNode(),
       ],
     }),
 
-    // Autocorreção tipográfica: aspas curvas, travessão, reticências. Ver
-    // `guardedTypography` para o que foi desligado e por quê.
     guardedTypography(options.isTypographyEnabled ?? (() => true)),
 
     Indent,
-    // Os comandos que o diálogo de parágrafo usa: escrevem o formulário inteiro
-    // numa transação só, para que desfazer não peça oito `Ctrl+Z`.
+    // O formulário inteiro numa transação, para desfazer não pedir oito `Ctrl+Z`.
     ParagraphCommands,
-    // Aplicar estilo, limpar a formatação direta, o "desligado" que vence o
-    // estilo e o Enter que passa ao estilo seguinte. Ver style-commands.ts.
     StyleCommands,
     CharacterStyle,
-    // Fundo, espaçamento e entrelinha do parágrafo — no OOXML são
-    // propriedades do bloco, e é o que faz `Heading1` virar barra colorida.
     BlockFormat,
-    // A numeração das listas contada como o Word conta: por definição, por
-    // nível e com o formato de cada nível. Ver list-numbering.ts.
     ListNumbering,
-    // A identidade que o bloco traz do `.docx`. Sem ela a gravação cirúrgica
-    // deixa de reconhecer o que não mudou e regenera o documento inteiro.
+    // Sem a identidade do bloco, a gravação cirúrgica regeneraria o documento inteiro.
     BlockIdentity,
-    // Vieram do corpus real: `w:caps` e `w:smallCaps` aparecem 45 vezes.
     Caps,
     SmallCaps,
     PageBreak,
-    // Referências: as duas pontas de cada marcador, e os comandos, o clique no
-    // link interno e a colagem sem marcador repetido. Ver bookmark.ts.
     BookmarkStart,
     BookmarkEnd,
     Bookmarks,
-    // Comentários: as pontas da âncora, o realce do trecho e a colagem sem
-    // âncora repetida. Ver comment.ts.
     CommentStart,
     CommentEnd,
     Comments.configure({ isKnown: options.isKnownComment }),
-    // Notas de rodapé e de fim: a referência com o corpo da nota dentro,
-    // numerada pela ordem no texto. Ver note-ref.ts.
     NoteRef.configure({ notes: options.notes }),
-    // Controle de alterações: as marcas de inserção e exclusão e a revisão da
-    // marca de parágrafo e da linha. Ver track-changes.ts.
     ...TrackChanges,
-    // Como a janela mostra as alterações, e o cursor fora do que ela esconde.
     // Antes do controle do que se digita: o Backspace passa pelo escondido antes.
     RevisionViewExtension,
-    // E o que se digita com o controle ligado vira revisão. Ver track-input.ts.
     TrackInput.configure({
       isTracking: options.isTrackingChanges ?? (() => false),
       author: options.revisionAuthor ?? (() => ''),
     }),
-    // O cursor, a seleção e o Backspace em volta das pontas sem largura de
-    // marcadores e comentários. Ver zero-width.ts.
     ZeroWidthAnchors,
-    // Os campos (PAGEREF, REF, SEQ…) como nós com instrução e resultado, e o
-    // sumário como bloco. Ver field.ts e table-of-contents.ts.
     Field,
     TableOfContents,
-    // As equações: o OMML do arquivo, desenhado pelo MathML, e o clique duplo e
-    // o Enter que as abrem no editor. Ver math.ts.
     MathNode,
     MathEditing,
-    // Guarda os vãos entre as folhas. Quem os calcula é `usePagination`; aqui
-    // fica só o lugar onde eles vivem, para acompanharem a edição sem que o
-    // documento saiba que existem.
+    // Só guarda os vãos que `usePagination` calcula, para acompanharem a edição.
     Pagination,
-    // A caixa de texto de cada seção, quando ela difere da base.
     SectionGeometry,
     SectionMarks,
     SearchReplace.configure({ onStatusChange: onSearchStatusChange }),
-    // Por último na lista e com prioridade alta no próprio arquivo: é ele que
-    // decide `Ctrl+E`, disputado com a marca de código. Ver word-shortcuts.ts.
+    // Prioridade alta: decide `Ctrl+E`, disputado com a marca de código.
     WordShortcuts,
   ]
 }
 
 /**
- * A autocorreção tipográfica, com interruptor e com duas regras a menos.
- *
- * ## O que ficou de fora
- *
- * `<-` e `->` viravam flechas, e `3 x 4` virava `3 × 4`. As duas são regras que o
- * Word **não** tem em português, e as duas atrapalham texto técnico: ninguém que
- * escreve `a -> b` num procedimento quis uma flecha, e `x` entre números aparece
- * em dimensão de imagem e em código. O resto do conjunto é o que o Word faz:
- * aspas curvas, travessão, reticências, `(c)`, `(r)`, `(tm)`, frações e expoentes.
- *
- * ## Por que embrulhar em vez de configurar
- *
- * As regras de entrada do Tiptap são registradas quando o editor nasce, e não há
- * como retirar as de uma extensão depois. O embrulho consulta a preferência no
- * momento em que a regra ia disparar: devolver `null` ali é dizer "não houve
- * correção", e o texto digitado fica como está.
- *
- * ## E para desfazer uma correção só
- *
- * `Backspace` logo depois da substituição desfaz **só ela** — `—silent` volta a
- * `--silent` —, como no Word. Não há atalho nosso para isso: quem trata a tecla é
- * o `Keymap` do próprio Tiptap, que tenta `undoInputRule` antes de qualquer outra
- * coisa. O embrulho preserva o `undoable` de cada regra justamente para que essa
- * tecla continue funcionando; sem ele, desligar a autocorreção seria a única saída
- * para quem escreve texto técnico.
+ * Sem `<-`, `->` e `3 x 4`, que o Word não tem em português e atrapalham texto
+ * técnico. Embrulhada, e não configurada, porque as regras do Tiptap nascem com
+ * o editor: devolver `null` é "não houve correção". O `undoable` é preservado
+ * para o Backspace logo depois desfazer só a substituição, como no Word.
  */
 function guardedTypography(enabled: () => boolean): Extensions[number] {
   return Typography.configure({
@@ -295,8 +192,7 @@ function guardedTypography(enabled: () => boolean): Extensions[number] {
           new InputRule({
             find: rule.find,
             handler: (props) => (enabled() ? rule.handler(props) : null),
-            // Sem isto o `Backspace` não desfaria a substituição: é esta bandeira
-            // que faz o plugin guardar o que desfazer. Ver o comentário acima.
+            // É o que faz o Backspace desfazer a substituição.
             undoable: rule.undoable,
           }),
       )
@@ -305,13 +201,9 @@ function guardedTypography(enabled: () => boolean): Extensions[number] {
 }
 
 /**
- * O link com os atributos que o `.docx` tem: o endereço e a dica.
- *
- * O padrão da extensão materializa `target`, `rel` e `class` em **toda** marca, e
- * o `w:hyperlink` não tem nenhum deles: o nó que voltava do editor trazia dois
- * atributos que o sidecar não lera, a impressão digital divergia e todo parágrafo
- * com link era reescrito ao salvar sem ninguém tê-lo tocado. Os dois continuam no
- * HTML — quem os escreve é `HTMLAttributes`, que não passa pelo modelo.
+ * O padrão da extensão poria `target`, `rel` e `class` em toda marca, que o
+ * `w:hyperlink` não tem: a impressão digital divergiria e todo parágrafo com link
+ * seria reescrito. No HTML eles continuam, por `HTMLAttributes`.
  */
 const DocumentLink = Link.extend({
   addAttributes() {

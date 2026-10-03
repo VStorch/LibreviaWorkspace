@@ -1,13 +1,7 @@
 import { useWorkspace } from '../state/workspace.js'
 import { useT } from '../i18n.js'
 
-/**
- * Erros são mostrados como faixa, não como diálogo modal.
- *
- * Falha de leitura ou gravação quase sempre é recuperável (rede fora do ar,
- * arquivo movido). Interromper com um modal força uma resposta que o usuário
- * ainda não tem; a faixa informa e deixa continuar trabalhando.
- */
+/** Faixa, e não modal: a falha quase sempre é recuperável, e o modal forçaria uma resposta que a pessoa ainda não tem. */
 export function ErrorBanner(): React.JSX.Element | null {
   const t = useT()
   const error = useWorkspace((state) => state.error)

@@ -16,21 +16,14 @@ import { ParagraphIndentFields } from './toolbar/ParagraphIndentFields.js'
 import { ParagraphSpacingFields } from './toolbar/ParagraphSpacingFields.js'
 import { isCustomLineSpacing, lineSpacingChoice, lineSpacingFrom } from './toolbar/paragraph-draft.js'
 
-/** Modificar um estilo existente, ou criar um a partir de outro. */
 export type StyleDialogMode =
   | { readonly kind: 'modify'; readonly id: string }
   | { readonly kind: 'create'; readonly basedOn: string | null }
 
 /**
- * O formulário de estilo: nome, herança, o de parágrafo e a fonte.
- *
- * Mostra o que o estilo **vale** — a cadeia resolvida — e grava só o que mudou
- * (`styleWithDraft`), para que o resto continue vindo do pai. Os campos de
- * parágrafo são os do diálogo de parágrafo, os mesmos componentes: duas telas para
- * a mesma medida ensinariam duas coisas.
- *
- * "Atualizar a partir da seleção" só preenche o formulário com o que o bloco do
- * cursor vale; nada muda até o OK. Nunca é automático.
+ * Mostra o que o estilo **vale** e grava só o que mudou (`styleWithDraft`). Os
+ * campos de parágrafo são os do diálogo de parágrafo. "Atualizar a partir da
+ * seleção" só preenche o formulário; nada muda até o OK.
  */
 export function StyleDialog({
   editor,

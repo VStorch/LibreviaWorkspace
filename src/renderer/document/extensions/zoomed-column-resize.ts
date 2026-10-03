@@ -4,21 +4,10 @@ import { columnResizingPluginKey } from '@tiptap/pm/tables'
 import { screenScaleOf } from '../screen-scale.js'
 
 /**
- * O arrasto da divisória de coluna na escala do documento.
- *
- * O `columnResizing` do prosemirror-tables mede o arrasto por `clientX` —
- * largura nova = largura de partida + (x agora − x de partida) —, e com a folha
- * ampliada por `transform` o deslocamento chega na escala da tela: a 150 %,
- * arrastar 30 px alargava a coluna 30 px de documento, que na tela são 45. O
- * plugin não tem opção para isso, e copiá-lo seria manter um fork.
- *
- * Então os eventos do arrasto chegam a ele já convertidos: durante o gesto, o
- * `clientX` de cada evento é redefinido como `clientX / escala`. Como partida e
- * chegada passam pela mesma conversão, a diferença sai dividida pela escala, que
- * é o que se quer. Fora do arrasto nada muda — a detecção da divisória compara
- * `clientX` com `getBoundingClientRect`, os dois na escala da tela, e continua
- * certa sem ajuda. Os ouvintes são de captura na janela, para correr antes dos
- * do plugin (`mousedown` na visão, `mousemove`/`mouseup` na janela).
+ * O `columnResizing` mede o arrasto por `clientX`, que com zoom chega na escala
+ * da tela: a 150 %, arrastar 30 px alargaria 45. Durante o gesto, o `clientX` de
+ * cada evento vira `clientX / escala`, por ouvintes de captura na janela, que
+ * correm antes dos do plugin.
  */
 export const ZoomedColumnResize = Extension.create({
   name: 'zoomedColumnResize',

@@ -7,13 +7,7 @@ import { PageBand } from './PageBand.js'
 import { NoteAreaView } from './NoteArea.js'
 import type { NoteArea } from './usePagination.js'
 
-/**
- * O que se desenha por cima de uma folha: cabeçalho, rodapé e objetos ancorados.
- *
- * Fica **fora** do `contenteditable`, na camada das folhas: no papel essas
- * peças moram dentro da margem, e ali não empurram o texto nem entram na
- * seleção. A faixa é uma só no arquivo mesmo aparecendo em todas as folhas.
- */
+/** Fora do `contenteditable`: no papel estas peças moram na margem, sem empurrar o texto. */
 export function PaperSheet({
   page,
   pageNumber,
@@ -30,23 +24,20 @@ export function PaperSheet({
   onEditBandBox,
 }: {
   page: PageSetup
-  /** Qual folha esta é, começando em 1. */
+  /** A partir de 1. */
   pageNumber: number
   totalPages: number
-  /** Onde a folha começa na pilha desenhada. */
   topPx: number
-  /** Onde a folha começa na horizontal: a pilha tem a largura da folha mais larga. */
+  /** A pilha tem a largura da folha mais larga. */
   leftPx?: number
-  /** A seção da folha — é por ela que a altura das faixas é medida (`useBandHeights`). */
+  /** É por ela que a altura das faixas é medida (`useBandHeights`). */
   section?: number
-  /** As linhas entre colunas desta folha, em pixels da folha. */
+  /** Em pixels da folha. */
   columnLines?: readonly { readonly leftPx: number; readonly topPx: number; readonly heightPx: number }[]
-  /** As notas de rodapé e de fim desta folha. */
   noteAreas?: readonly NoteArea[]
-  /** Os objetos ancorados em blocos que caíram nesta folha. */
   floats: readonly PlacedFloat[]
   schema: Schema
-  /** Ausentes quando o documento está travado: aí nada recebe o cursor. */
+  /** Ausentes no documento travado: nada recebe o cursor. */
   onEditFloat?: ((source: FloatSource, content: DocumentNode[]) => void) | undefined
   onEditBandPiece?: ((pid: string, text: string) => void) | undefined
   onEditBandBox?: ((bid: string, content: DocumentNode[]) => void) | undefined
@@ -70,9 +61,7 @@ export function PaperSheet({
       <FloatingLayer objects={floats} page={page} schema={schema} behind {...editFloat} />
 
       {(['header', 'footer'] as const).map((kind) => {
-        // A capa manda sobre a paridade, e a paridade sobre o padrão — a ordem
-        // do Word. Documento sem primeira página distinta cai no padrão, e nada
-        // muda para ele.
+        // A ordem do Word: a capa manda sobre a paridade, e a paridade sobre o padrão.
         const band = bandForPage(page, pageNumber, kind)
         if (!hasBandContent(band)) return null
 
@@ -90,11 +79,7 @@ export function PaperSheet({
         )
       })}
 
-      {/* Os objetos da faixa vêm por último e numa camada própria: a faixa
-          repete em toda folha, mora na margem e não disputa espaço com o corpo.
-          É a mesma razão pela qual a faixa fica acima da coluna de texto — o
-          retângulo da coluna cobre a margem inteira e apanhava o clique
-          destinado à caixa. */}
+      {/* Numa camada própria, acima da coluna de texto, que cobre a margem e apanharia o clique. */}
       {(['behind', 'front'] as const).map((where) => (
         <FloatingLayer
           key={where}

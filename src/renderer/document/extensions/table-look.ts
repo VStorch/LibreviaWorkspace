@@ -15,24 +15,9 @@ import {
 import { mmToPx, pxToMm } from '@services/document/model.js'
 
 /**
- * Borda, sombreamento e largura de coluna da tabela.
- *
- * O TableKit dá os comandos de estrutura — inserir, remover, mesclar, dividir,
- * alternar cabeçalho — e nenhum de aparência: célula com fundo cinza e célula com
- * a borda de baixo apagada são as duas coisas que todo documento corporativo tem
- * e que o editor não sabia escrever. Os dois atributos entram aqui, e o gravador
- * os leva a `w:tcBorders` e `w:shd`.
- *
- * Extensão separada de `BlockFormat` pelo mesmo motivo que `ParagraphCommands`: lá
- * mora o atributo do parágrafo, aqui o da célula, e junto seriam duas listas de
- * tipos no mesmo arquivo.
- *
- * ## Uma transação por formulário
- *
- * `applyTableDraft` escreve borda, sombreamento, largura de coluna e linha de
- * cabeçalho numa cadeia só. Quatro transações em fila pediriam quatro `Ctrl+Z`
- * para desfazer um clique em "Aplicar" — e cada uma faria a paginação remedir o
- * documento inteiro.
+ * O TableKit dá a estrutura, e nenhuma aparência. `applyTableDraft` escreve o
+ * formulário numa transação só: quatro pediriam quatro `Ctrl+Z` e quatro
+ * remedições do documento.
  */
 
 const CELL_TYPES: readonly string[] = ['tableCell', 'tableHeader']
@@ -40,21 +25,9 @@ const CELL_TYPES: readonly string[] = ['tableCell', 'tableHeader']
 declare module '@tiptap/core' {
   interface Commands<ReturnType> {
     tableLook: {
-      /**
-       * Borda e sombreamento nas células que a seleção cobre.
-       *
-       * Com uma função, cada célula recebe o que a função devolve a partir do que
-       * ela já tem — é como o diálogo aplica só o que a pessoa mexeu.
-       */
+      /** Com uma função, cada célula recebe o que ela devolve a partir do que tem. */
       setCellLook: (look: CellLook | ((current: CellLook) => CellLook)) => ReturnType
-      /**
-       * A grade inteira, em pixels do CSS, e não uma coluna só.
-       *
-       * Inteira porque é assim que o arquivo a guarda: o `w:tblGrid` é uma lista
-       * completa, e o gravador descarta a lista em que falte uma medida — largura
-       * parcial não é grade. Quem calcula as que o documento não declara é
-       * `resolvedColumnWidths`.
-       */
+      /** A grade inteira: o gravador descarta o `w:tblGrid` parcial. Ver `resolvedColumnWidths`. */
       setColumnWidths: (widths: readonly number[]) => ReturnType
     }
   }
@@ -63,17 +36,11 @@ declare module '@tiptap/core' {
 export const TableLook = Extension.create({
   name: 'tableLook',
 
-  /**
-   * A margem de célula também na tela. O `renderHTML` do atributo só chega ao
-   * papel: na tela a tabela é desenhada pelo `TableView` redimensionável, que
-   * monta o próprio `<table>` e não aplica os atributos. A decoração de nó cai
-   * no embrulho dele, e a variável desce às células por herança.
-   */
+  /** Na tela, o `TableView` monta o próprio `<table>` sem os atributos: a decoração cai no embrulho dele. */
   addProseMirrorPlugins() {
     return [
       new Plugin({
-        // Guardadas no estado e refeitas só quando o documento muda — não a cada
-        // transação de seleção ou de paginação, que são a maioria.
+        // Refeitas só quando o documento muda, e não a cada seleção ou paginação.
         state: {
           init: (_config, state) => cellMarginDecorations(state.doc),
           apply: (transaction, current) =>
@@ -93,12 +60,7 @@ export const TableLook = Extension.create({
       {
         types: ['table'],
         attributes: {
-          /**
-           * A margem de célula que o Word usa nesta tabela, em twips — cima,
-           * direita, baixo, esquerda —, como o leitor a resolveu (tabela, estilo,
-           * padrão do Word). Vira a variável que o `padding` das células lê; a
-           * tabela sem ela é a tabela nova, com a margem do modelo do editor.
-           */
+          /** Em twips, como o leitor a resolveu; sem ela, a margem do modelo do editor. */
           cellMargins: {
             default: null,
             parseHTML: () => null,
@@ -112,16 +74,10 @@ export const TableLook = Extension.create({
       {
         types: [...CELL_TYPES],
         attributes: {
-          /**
-           * Os quatro lados em texto canônico. Ver `table-format.ts` para o
-           * porquê de ser texto e não objeto.
-           */
+          /** Texto canônico — ver `table-format.ts`. */
           borders: {
             default: null,
-            // Sem `parseHTML`: o CSS que a renderização produz não volta a ser o
-            // atributo. Colar uma tabela de fora traz as bordas que o navegador
-            // desenhar, e inventar o atributo a partir do estilo colado daria à
-            // célula uma borda que o documento de origem não declarava.
+            // Sem `parseHTML`: a tabela colada de fora não ganha bordas que a origem não declarava.
             parseHTML: () => null,
             renderHTML: (attributes: Record<string, unknown>) => {
               const css = cellBordersToCss(cellBordersFromAttr(attributes['borders']))
@@ -158,9 +114,7 @@ export const TableLook = Extension.create({
               }
               const next = typeof look === 'function' ? look(current) : look
 
-              // Célula que não muda não entra na transação: um passo que regrava
-              // o mesmo valor ainda conta como edição, e a tabela inteira seria
-              // dada como alterada — e regravada — por causa de uma célula.
+              // Regravar o mesmo valor ainda é edição, e a tabela inteira seria regravada.
               if (next.borders !== current.borders) tr.setNodeAttribute(pos, 'borders', next.borders)
               if (next.shading !== current.shading) tr.setNodeAttribute(pos, 'shading', next.shading)
               touched = true
@@ -182,9 +136,7 @@ export const TableLook = Extension.create({
           const map = TableMap.get(found.node)
           if (map.width !== widths.length) return false
 
-          // Percorrido pela **grade**, e não pelas células: uma célula mesclada
-          // ocupa várias colunas e aparece várias vezes no mapa, e escrever nela
-          // uma vez por coluna sobrescreveria a medida anterior.
+          // Pela **grade**: a célula mesclada aparece várias vezes, e escrever nela por coluna sobrescreveria a medida.
           const written = new Set<number>()
 
           for (let column = 0; column < map.width; column += 1) {
@@ -211,7 +163,6 @@ export const TableLook = Extension.create({
 
 interface FoundTable {
   readonly node: ProseMirrorNode
-  /** Posição do primeiro filho da tabela — a base do mapa. */
   readonly start: number
 }
 
@@ -228,17 +179,11 @@ function tableAt($pos: {
   return null
 }
 
-/**
- * Onde o cursor está dentro da tabela, como o diálogo precisa ver.
- *
- * `null` quando o cursor não está em tabela nenhuma — é o que desabilita o item
- * de menu em vez de abrir um diálogo sem assunto.
- */
+/** `null` fora de tabela: desabilita o item de menu. */
 export interface TablePlacement {
   readonly draft: TableDraft
   /** A grade resolvida, inclusive as colunas que o documento não declara. */
   readonly columnWidths: readonly number[]
-  /** Índice da coluna do cursor dentro da grade. */
   readonly column: number
 }
 
@@ -253,8 +198,7 @@ export function tablePlacementAt(editor: Editor, contentWidthPx: number): TableP
   const map = TableMap.get(found.node)
   const rect = map.findCell(cell.pos - found.start)
 
-  // A largura declarada por coluna sai da primeira linha, que é de onde o próprio
-  // TableKit a lê para desenhar o `colgroup`.
+  // Da primeira linha, de onde o TableKit lê para o `colgroup`.
   const declared: (number | null)[] = []
   const first = found.node.firstChild
   if (first !== null) {
@@ -276,8 +220,6 @@ export function tablePlacementAt(editor: Editor, contentWidthPx: number): TableP
     draft: tableDraftFrom({
       borders: cell.node.attrs['borders'],
       shading: cell.node.attrs['shading'],
-      // Arredondada em um décimo de milímetro: o campo mostra a medida, não o
-      // arredondamento do pixel.
       columnWidthMm: Math.round(pxToMm(columnWidths[rect.left] ?? 0) * 10) / 10,
       headerRow: found.node.firstChild?.firstChild?.type.name === 'tableHeader',
     }),
@@ -297,27 +239,18 @@ function cellAt($pos: {
   return null
 }
 
-/**
- * O formulário inteiro, numa transação.
- *
- * A linha de cabeçalho vem por último porque `toggleHeaderRow` troca o **tipo**
- * dos nós da primeira linha, e uma troca de tipo invalida as posições que os
- * passos anteriores usaram.
- */
+/** A linha de cabeçalho por último: `toggleHeaderRow` troca o tipo dos nós e invalida as posições. */
 export function applyTableDraft(editor: Editor, draft: TableDraft, contentWidthPx: number): boolean {
   const placement = tablePlacementAt(editor, contentWidthPx)
   if (placement === null) return false
 
   const chain = editor.chain().focus()
 
-  // Só o que a pessoa mexeu, contado contra o formulário de abertura — ver
-  // `cellLookPatch`. Aplicar o rascunho inteiro apagava as bordas que o resumo do
-  // formulário não representa.
+  // Só o que a pessoa mexeu — ver `cellLookPatch`.
   const opened = placement.draft
   chain.setCellLook((current) => cellLookPatch(current, opened, draft))
 
-  // A largura também só quando mudou: regravar a grade que ninguém tocou
-  // declararia em pixels as colunas que o arquivo media em twips.
+  // Regravar a grade intocada declararia em pixels o que o arquivo media em twips.
   if (draft.columnWidthMm !== null && draft.columnWidthMm !== opened.columnWidthMm) {
     const widths = [...placement.columnWidths]
     widths[placement.column] = Math.max(1, Math.round(mmToPx(draft.columnWidthMm)))
@@ -338,13 +271,7 @@ export function cellMarginsCss(value: unknown): string | null {
   return sides.map((side) => `${Math.round((side / 15) * 100) / 100}px`).join(' ')
 }
 
-/**
- * A variável de margem de célula em cada tabela que a declara.
- *
- * A descida para dentro de parágrafos e títulos é cortada: tabela só mora em
- * bloco de bloco (documento, célula, item), e percorrer o texto a cada edição
- * custava o documento inteiro por tecla.
- */
+/** Sem descer em parágrafos: percorrer o texto a cada edição custaria o documento por tecla. */
 function cellMarginDecorations(doc: ProseMirrorNode): DecorationSet {
   const decorations: Decoration[] = []
   doc.descendants((node, pos) => {

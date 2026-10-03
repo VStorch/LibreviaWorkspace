@@ -4,13 +4,7 @@ interface ToolbarButtonProps {
   readonly icon: IconName
   readonly label: string
   readonly onClick: () => void
-  /**
-   * Só para botões que ligam e desligam algo.
-   *
-   * Deixado de fora quando o botão apenas executa — aí não há estado a mostrar,
-   * e anunciar `aria-pressed="false"` faria o leitor de tela chamar de
-   * interruptor desligado o que na verdade é um comando.
-   */
+  /** Só em botão que liga e desliga: no comando, `aria-pressed="false"` soaria como interruptor. */
   readonly active?: boolean
   readonly disabled?: boolean
   readonly shortcut?: string
@@ -33,8 +27,7 @@ export function ToolbarButton({
       title={shortcut === undefined ? label : `${label} (${shortcut})`}
       aria-label={label}
       aria-pressed={active}
-      // Sem isto, clicar num botão tira o foco do editor e a seleção some
-      // antes de o comando rodar.
+      // Sem isto o clique tiraria o foco do editor, e a seleção, antes do comando.
       onMouseDown={(event) => event.preventDefault()}
     >
       <Icon name={icon} />
@@ -84,15 +77,7 @@ interface ColorControlProps {
   readonly onClear: () => void
 }
 
-/**
- * Escolher cor: ícone do que recebe a cor, sobre uma barra com a cor atual.
- *
- * É o formato do Word, do Writer e do Google Docs — e resolve a pergunta que um
- * quadradinho colorido sozinho não responde: se aquela cor é do texto ou do
- * fundo. O seletor nativo continua ali, invisível por cima: ele é quem abre o
- * diálogo de cores do sistema, mas sua aparência muda de sistema para sistema e
- * não combina com o resto da barra.
- */
+/** Como no Word e no Docs: o ícone diz o que recebe a cor, a barra diz qual. */
 export function ColorControl({
   icon,
   label,
@@ -129,13 +114,7 @@ export function ColorControl({
   )
 }
 
-/**
- * Grupo de botões afins.
- *
- * Além de nomear o conjunto para quem usa leitor de tela, é o que faz a barra
- * quebrar em linha inteira quando a janela aperta: o grupo não se parte, então
- * "alinhar à direita" nunca aparece sozinho no começo da segunda linha.
- */
+/** O grupo não se parte quando a barra quebra de linha. */
 export function ToolbarGroup({
   label,
   children,

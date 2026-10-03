@@ -1,17 +1,9 @@
 /*
-  Aparência da interface.
-
-  Tudo o que é cor, sombra ou canto arredondado sai daqui de cima. Antes havia
-  dois azuis de "botão ligado" — um na barra do documento, outro na da planilha
-  — e uns vinte tons escritos à mão espalhados pelo arquivo; a mesma coisa
-  parecia duas coisas dependendo do editor aberto.
-
-  A linguagem é a das suítes conhecidas: barras claras separadas por fios de um
-  pixel, papel branco sobre fundo cinza, e ênfase só onde há estado a mostrar.
+  Toda cor, sombra e canto arredondado sai das variáveis daqui de cima, para a
+  mesma coisa não parecer duas conforme o editor aberto.
 */
 
 :root {
-  /* Neutros */
   --bg: #f5f6f8;
   --surface: #ffffff;
   /* Fundo em que o papel e a grade repousam: mais escuro que o resto da casca. */
@@ -23,15 +15,8 @@
   --muted: #6b7280;
 
   /*
-    Ênfase, uma por editor.
-
-    Documento é azul e planilha é verde porque essa dupla é a mesma em toda
-    parte — Word e Excel, Writer e Calc, Docs e Sheets. Não é enfeite: é como
-    a pessoa sabe onde está antes de ler qualquer coisa na tela, e vale mais
-    que qualquer marca nossa nos mesmos pixels.
-
-    `--accent` é o azul por padrão e a casca inteira troca junto pela classe
-    do `.app`, para que barra, aba, foco e seleção nunca discordem entre si.
+    Documento azul e planilha verde, como Word e Excel, Writer e Calc: é como a
+    pessoa sabe onde está. A casca troca `--accent` pela classe do `.app`.
   */
   --accent: var(--accent-document);
   --accent-soft: var(--accent-document-soft);
@@ -59,37 +44,23 @@
   --info-border: #a9c7e8;
   --info-text: #16395c;
 
-  /*
-    As cores que sobravam escritas à mão.
+  /* Cores que seriam fixas, e por isso viram variáveis que o tema alcança. */
 
-    Eram seis, espalhadas pelo arquivo, e cada uma quebrava no escuro por um
-    motivo diferente — não por serem feias, mas por dependerem de um fundo que
-    deixa de existir. Estão aqui porque uma cor fixa é uma cor que o tema não
-    alcança.
-  */
-
-  /* Texto por cima de um preenchimento de ênfase. Branco enquanto a ênfase é
-     escura; no tema escuro a ênfase clareia, e este valor tem de escurecer
-     junto — senão fica claro sobre claro. */
+  /* No escuro a ênfase clareia, e o texto por cima dela escurece junto. */
   --on-accent: #ffffff;
 
-  /* A seleção clareia o acento até o texto por cima continuar legível. No
-     escuro a mistura é com o papel, e não com o branco, que não existe lá. */
+  /* No escuro a mistura é com o papel, e não com o branco. */
   --selection-mix: #ffffff;
 
-  /* "Localizar": destaque do aplicativo, não do documento. Amarelo porque é o
-     amarelo de marca-texto que todo editor usa, e o atual é mais forte. */
+  /* O destaque do "Localizar" é do aplicativo, e não do documento. */
   --search-hit: #ffe9a8;
   --search-hit-current: #ffb938;
-  /* O trecho comentado (M10) e o da conversa em foco no painel. */
   --comment-hit: #fbeecb;
   --comment-hit-active: #f5d77e;
 
-  /* O filete do cabeçalho vindo de uma forma do OOXML, que não declara cor.
-     Sem cor declarada é padrão, e padrão acompanha o tema. */
+  /* O filete de forma sem cor declarada acompanha o tema. */
   --rule: #000000;
 
-  /* Forma */
   --radius: 10px;
   --radius-sm: 6px;
   --shadow-sm: 0 1px 2px rgb(16 24 40 / 6%);
@@ -100,37 +71,14 @@
 }
 
 /*
-  O tema escuro.
-
-  Só variáveis. Nenhuma regra nova, nenhum seletor duplicado: a casca inteira já
-  lia daqui de cima, e é essa disciplina — de cor escrita à mão não haver — que
-  torna o tema escuro uma folha de valores em vez de uma segunda folha de
-  estilo. Havia seis cores fixas fora deste bloco quando ele foi escrito, e as
-  seis viraram variáveis junto.
-
-  `:root[data-theme='dark']` é escrito pelo renderer a partir da consulta de
-  mídia, que por sua vez obedece ao `nativeTheme.themeSource` do main — ver
-  `state/theme.ts`. Então este bloco vale tanto para a escolha explícita quanto
-  para "acompanhar o sistema", sem precisar ser duplicado numa `@media`.
-
-  ## As três decisões que valem por todo o resto
-
-  **O papel escurece, mas não inverte.** `--surface` é um cinza muito escuro e
-  não preto: preto puro contra texto claro cansa mais, e é por isso que nenhum
-  editor sério usa preto. O papel continua parecendo papel — mais claro que o
-  fundo em que repousa, com a mesma sombra.
-
-  **A cor que o documento escolheu é dele.** O texto sem cor declarada segue o
-  tema; o texto que o autor pintou de vermelho continua vermelho. Um título que
-  o autor fez vermelho é informação, e invertê-lo apagaria essa informação.
-  Quem separa os dois casos é `content-styles.ts`, não este arquivo.
-
-  **Nada disto entra no arquivo.** O tema é como a tela desenha. O `.docx`
-  salvo depois de um dia inteiro no escuro é byte a byte o mesmo.
+  O tema escuro é só variáveis. `data-theme` é escrito pelo renderer a partir da
+  consulta de mídia, que obedece ao `nativeTheme.themeSource` (`state/theme.ts`).
+  O papel escurece sem inverter; a cor que o documento escolheu continua dele
+  (`content-styles.ts`); e nada disto entra no arquivo.
 */
 :root[data-theme='dark'] {
   --bg: #16181c;
-  /* O papel: mais claro que o fundo, como no claro — só que os dois desceram. */
+  /* Mais claro que o fundo, como no tema claro. */
   --surface: #1e2126;
   --sunken: #101215;
   --border: #2c3138;
@@ -139,13 +87,7 @@
   --text: #e4e7ea;
   --muted: #9aa3ad;
 
-  /*
-    A ênfase clareia em vez de escurecer.
-
-    O azul #1f5fa9 do tema claro tem contraste 6.2:1 sobre branco e 2.4:1 sobre
-    este fundo — ilegível. Clarear o tom é o que recupera a leitura mantendo a
-    dupla azul/verde que diz em que editor a pessoa está.
-  */
+  /* #1f5fa9 dá 2.4:1 sobre este fundo: a ênfase clareia, mantendo azul e verde. */
   --accent-document: #6ba5e7;
   --accent-document-soft: #1c2a3a;
   --accent-document-line: #2f4a68;
@@ -154,7 +96,6 @@
   --accent-spreadsheet-soft: #172a20;
   --accent-spreadsheet-line: #2a5340;
 
-  /* Os estados mantêm o significado e trocam de luminosidade. */
   --danger-bg: #2e1a18;
   --danger-border: #6b342e;
   --danger-text: #f0a79f;
@@ -169,14 +110,8 @@
   --info-text: #a8c9ec;
 
   /*
-    As seis, invertidas pelo motivo de cada uma.
-
-    `--on-accent` escurece porque a ênfase clareou: branco sobre #6ba5e7 dá
-    2.6:1, e o quase-preto dá 8.9:1. `--selection-mix` mistura com o papel
-    escuro em vez de com o branco, senão a faixa de seleção fica mais clara
-    que o papel e o texto claro some dentro dela. Os destaques de "localizar"
-    deixam de ser amarelo de marca-texto e viram âmbar escuro, porque o texto
-    que eles marcam agora é claro. E o filete passa a ser o próprio texto.
+    Branco sobre #6ba5e7 dá 2.6:1, e o quase-preto 8.9:1. A seleção mistura com
+    o papel escuro, o "localizar" vira âmbar escuro, e o filete é o próprio texto.
   */
   --on-accent: #10151b;
   --selection-mix: #1e2126;
@@ -186,13 +121,7 @@
   --comment-hit-active: #6b5520;
   --rule: #e4e7ea;
 
-  /*
-    Sombra preta, e mais forte.
-
-    A do tema claro é preta a 6-16%, calibrada para separar branco de cinza
-    claro. Sobre um fundo escuro ela some — não há para onde escurecer. A
-    separação passa a vir da borda, e a sombra só arredonda a transição.
-  */
+  /* Sobre fundo escuro a sombra some: a separação vem da borda. */
   --shadow-sm: 0 1px 2px rgb(0 0 0 / 40%);
   --shadow-md: 0 4px 12px rgb(0 0 0 / 45%);
   --shadow-lg: 0 12px 32px rgb(0 0 0 / 55%);
@@ -229,12 +158,7 @@ button {
   color: inherit;
 }
 
-/*
-  Um único anel de foco para o programa inteiro.
-
-  `:focus-visible`, e não `:focus`: quem clica com o mouse não quer ver anel
-  nenhum; quem chega pelo teclado precisa saber onde está.
-*/
+/* `:focus-visible`: o anel é para quem chega pelo teclado. */
 :where(button, input, select, textarea, [tabindex]):focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
@@ -242,12 +166,8 @@ button {
 }
 
 /*
-  Barras de rolagem finas.
-
-  A do sistema é larga e cinza-chumbo: numa planilha ela vira o elemento mais
-  escuro da tela e disputa atenção com os próprios dados. A borda transparente
-  com `background-clip` é o que dá a folga em volta do polegar sem encolher a
-  área de clique.
+  A do sistema disputaria atenção com os dados da planilha. A borda
+  transparente com `background-clip` dá folga sem encolher a área de clique.
 */
 ::-webkit-scrollbar {
   width: 12px;
@@ -271,8 +191,6 @@ button {
   background-clip: content-box;
 }
 
-/* Seleção na cor do editor aberto — e clara o bastante para o texto continuar
-   preto por cima dela. */
 ::selection {
   background: color-mix(in srgb, var(--accent) 24%, var(--selection-mix));
 }
@@ -297,8 +215,6 @@ button {
   flex: 1;
   min-height: 0;
 }
-
-/* ---------- faixas ---------- */
 
 .banner {
   display: flex;
@@ -334,8 +250,7 @@ button {
   background: rgb(0 0 0 / 8%);
 }
 
-/* Aviso de inventário: informa, não alarma. Cor de erro aqui faria o usuário
-   achar que o documento não abriu — e ele abriu. */
+/* Informa, não alarma: o documento abriu. */
 .banner--notice {
   background: var(--notice-bg);
   border-bottom-color: var(--notice-border);
@@ -346,8 +261,7 @@ button {
   margin-top: 6px;
 }
 
-/* Somente leitura: âmbar de atenção, não vermelho de erro. Nada quebrou — o
-   arquivo abriu, e a faixa explica por que a edição está travada. */
+/* Âmbar de atenção, e não vermelho: nada quebrou. */
 .banner--readonly {
   background: var(--warn-bg);
   border-bottom-color: var(--warn-border);
@@ -359,8 +273,7 @@ button {
   border-color: var(--warn-text);
 }
 
-/* Recuperação: azul de informação, não vermelho de erro. Nada quebrou — há
-   trabalho de volta, e a faixa existe para oferecê-lo. */
+/* Azul de informação: há trabalho de volta. */
 .banner--recovery {
   background: var(--info-bg);
   border-bottom-color: var(--info-border);
@@ -388,7 +301,7 @@ button {
   filter: brightness(1.15);
 }
 
-/* Descartar apaga trabalho: não pode competir em peso visual com recuperar. */
+/* Descartar apaga trabalho: não compete em peso visual com recuperar. */
 .banner__action--quiet {
   background: none;
   color: inherit;
@@ -399,8 +312,6 @@ button {
   background: rgb(0 0 0 / 8%);
   filter: none;
 }
-
-/* ---------- tela inicial ---------- */
 
 .home {
   max-width: 780px;
@@ -463,9 +374,7 @@ button {
   box-shadow: none;
 }
 
-/* O ícone diz num relance o que o botão cria — é o que a tela inicial do
-   Writer e a do Google Drive fazem, e o que faltava aqui. Cada um na cor do
-   editor que abre, a mesma que a casca vai vestir depois do clique. */
+/* Na cor do editor que o botão abre. */
 .tile__icon {
   display: flex;
   align-items: center;
@@ -486,8 +395,7 @@ button {
   color: var(--accent-spreadsheet);
 }
 
-/* Abrir não escolhe tipo: o arquivo é que decide, e a cor só se resolve
-   depois. */
+/* Abrir não escolhe tipo: quem decide é o arquivo. */
 .tile__icon--neutral {
   background: var(--bg);
   color: var(--muted);
@@ -590,8 +498,6 @@ button {
   text-align: left;
 }
 
-/* ---------- barra de status ---------- */
-
 .statusbar {
   display: flex;
   align-items: center;
@@ -601,8 +507,7 @@ button {
   background: var(--surface);
   font-size: 12px;
   color: var(--muted);
-  /* Contagem de palavras muda a cada tecla: com dígitos de larguras
-     diferentes, o número inteiro treme a cada digitação. */
+  /* A contagem muda a cada tecla, e dígitos de larguras diferentes fariam o número tremer. */
   font-variant-numeric: tabular-nums;
 }
 
@@ -657,8 +562,6 @@ button {
   font-weight: 600;
 }
 
-/* ---------- editor de documentos ---------- */
-
 .editor-shell {
   height: 100%;
   display: flex;
@@ -666,7 +569,6 @@ button {
   background: var(--sunken);
 }
 
-/* A folha e, ao lado dela, o painel de navegação. */
 .editor-body {
   flex: 1;
   min-height: 0;
@@ -748,28 +650,16 @@ button {
   padding: 28px 24px 60px;
   display: flex;
   justify-content: center;
-  /*
-    Sem isto o `stretch` padrão do flex dá à folha a altura do contêiner, e o
-    texto que passa disso escorre para fora do branco — a página fica cortada
-    no meio do documento. Com `flex-start`, a altura vem do conteúdo.
-  */
+  /* Sem isto o `stretch` do flex cortaria a folha na altura do contêiner. */
   align-items: flex-start;
 }
 
-/*
-  A pilha de folhas.
-
-  Sem fundo próprio: é só o sistema de coordenadas. As folhas brancas, as faixas
-  e o texto são três camadas empilhadas aqui dentro, todas na mesma origem — é
-  isso que permite ao texto correr como um fluxo só enquanto o papel atrás dele
-  parece descontínuo.
-*/
+/* Folhas, faixas e texto são três camadas na mesma origem: o texto corre como um fluxo só. */
 .pages {
   position: relative;
   flex-shrink: 0;
 }
 
-/* O espaço que a pilha ocupa depois do zoom; ver `DocumentEditor`. */
 .pages-zoom {
   position: relative;
   flex-shrink: 0;
@@ -780,13 +670,7 @@ button {
   display: contents;
 }
 
-/*
-  Uma folha. Papel desenhado **atrás** do texto, e não em volta dele.
-
-  Envolver o texto exigiria parti-lo em N elementos, e aí a seleção, o
-  copiar-colar e o `Ctrl+A` teriam de saber que a página existe. Desenhando
-  atrás, a página é aparência: some do documento e não some da tela.
-*/
+/* Atrás do texto, e não em volta: envolvê-lo exigiria partir o texto, e a seleção saberia da página. */
 .paper {
   position: absolute;
   left: 0;
@@ -812,13 +696,7 @@ button {
   user-select: none;
 }
 
-/*
-  Objetos ancorados: imagem ou caixa que não estão no fluxo do texto.
-
-  Duas camadas porque o OOXML distingue: `behindDoc` é decoração de capa e marca
-  d'água, que ficam **debaixo** do texto; o resto fica por cima. Nenhuma recebe
-  clique — o cursor pertence ao texto, e o editor não sabe recriar estes objetos.
-*/
+/* Duas camadas, como o `behindDoc` do OOXML. Nenhuma recebe clique: o cursor pertence ao texto. */
 .paper-floats {
   position: absolute;
   inset: 0;
@@ -832,11 +710,7 @@ button {
   z-index: 2;
 }
 
-/*
-  Os objetos da faixa, acima da coluna de texto. A coluna é um retângulo que
-  cobre a folha inteira, margens incluídas, e apanhava o clique destinado à
-  caixa do cabeçalho — que mora na margem, onde o corpo não entra.
-*/
+/* Acima da coluna de texto, que cobre a folha inteira e apanharia o clique da caixa do cabeçalho. */
 .paper-floats--band-behind {
   z-index: 2;
 }
@@ -847,8 +721,7 @@ button {
 .paper-float {
   position: absolute;
   object-fit: contain;
-  /* A extensão que o arquivo declara já inclui o contorno: somá-lo por fora
-     esticaria a forma pela espessura do traço. */
+  /* A extensão que o arquivo declara já inclui o contorno. */
   box-sizing: border-box;
 }
 
@@ -857,21 +730,18 @@ button {
   border-top: 1px solid var(--rule);
 }
 
-/* A caixa é um fluxo de texto próprio, com a tipografia do documento. */
 .paper-float--text > * {
   margin: 0;
 }
 
-/* A camada não recebe clique; a caixa em que se digita, sim. Sem isto o cursor
-   nunca chegaria ao título da capa, que não está no fluxo. */
+/* Sem isto o cursor não chegaria ao título da capa, que não está no fluxo. */
 .paper-float--edit {
   pointer-events: auto;
   cursor: text;
   outline: none;
 }
 
-/* A moldura só aparece quando se aponta ou se escreve: no papel ela não existe,
-   e desenhá-la o tempo todo mostraria uma caixa que o documento não tem. */
+/* No papel a moldura não existe. */
 .paper-float--edit:hover {
   outline: 1px dashed var(--border-strong);
   outline-offset: 2px;
@@ -882,7 +752,6 @@ button {
   outline-offset: 2px;
 }
 
-/* Camada das faixas de uma folha: mesma caixa da folha, sem o papel. */
 .paper-bands {
   position: absolute;
   left: 0;
@@ -890,45 +759,23 @@ button {
   pointer-events: none;
 }
 
-/*
-  A coluna de texto, sobre as folhas.
-
-  Só as margens laterais e a superior entram como recuo: a inferior de cada
-  folha nasce do vão que a paginação empurra, e somá-la aqui a contaria duas
-  vezes.
-*/
+/* A margem de baixo nasce do vão que a paginação empurra. */
 .pages__column {
   position: relative;
-  /* Acima da camada `behind` e abaixo da `front`: é a ordem que o OOXML pede. */
+  /* A ordem que o OOXML pede. */
   z-index: 1;
 }
 
-/*
-  Cabeçalho e rodapé vindos do documento.
-
-  Ficam dentro da margem, como no papel — por isso são absolutos e não empurram
-  o texto. A faixa não recebe clique; só as peças de texto que trazem endereço
-  do arquivo o recebem, e a margem em volta continua pertencendo ao corpo.
-  Ver docs/02-docx-cirurgico.md.
-*/
+/* Dentro da margem, como no papel. Só as peças de texto com endereço recebem clique. */
 .band {
   position: absolute;
-  /*
-    Acima da coluna de texto, como os objetos da frente: a faixa mora na margem
-    e não cobre o corpo, mas o `z-index: 1` da coluna vale para a folha inteira
-    e apanhava o clique destinado à peça editável.
-  */
+  /* O `z-index: 1` da coluna vale para a folha inteira e apanharia o clique da peça. */
   z-index: 2;
-  /*
-    Grade, e não três colunas iguais: laterais do tamanho do conteúdo e o
-    centro ficando com o resto. Com colunas iguais, um título grande quebraria
-    em duas linhas dentro do seu terço — e no papel ele cabe numa linha só.
-  */
+  /* Laterais do tamanho do conteúdo: em três terços iguais, um título grande quebraria. */
   display: grid;
   grid-template-columns: auto 1fr auto;
   align-items: center;
-  /* Só entre as colunas. `gap` também separaria a grade dos três terços, e como
-     a altura da faixa passa a empurrar o corpo, esse espaço viraria margem. */
+  /* Só entre as colunas: a altura da faixa empurra o corpo, e o espaço viraria margem. */
   column-gap: 12px;
   pointer-events: none;
   user-select: none;
@@ -936,8 +783,7 @@ button {
   line-height: 1.2;
 }
 
-/* `top` e `bottom` vêm do documento, em linha: é `w:pgMar/@header` e `@footer`,
-   e é de lá que a conta de margem parte. */
+/* `top` e `bottom` vêm em linha, de `w:pgMar/@header` e `@footer`. */
 
 .band--ruled.band--header {
   padding-bottom: 3px;
@@ -949,12 +795,7 @@ button {
   border-top: 1px solid var(--border-strong);
 }
 
-/*
-  O terço empilha as linhas; a linha põe as peças lado a lado. Cada parágrafo do
-  arquivo é uma linha, e por isso são elementos de verdade: dentro de um
-  contêiner flex um `br` não gera caixa nenhuma, e o rodapé de três linhas saía
-  como uma frase só.
-*/
+/* Cada parágrafo do arquivo é uma linha: num flex, um `br` não gera caixa. */
 .band__cell {
   display: flex;
   flex-direction: column;
@@ -969,14 +810,7 @@ button {
   gap: 6px;
 }
 
-/*
-  A peça de texto que veio com endereço do arquivo recebe o cursor. A faixa
-  toda continua sem receber clique — a margem em volta pertence ao texto do
-  corpo, e clicar nela não pode tirar o cursor de lá.
-
-  `min-width` porque uma peça esvaziada teria largura zero e não haveria onde
-  clicar para escrever de novo.
-*/
+/* `min-width` porque uma peça esvaziada não teria onde clicar. */
 .band__text {
   pointer-events: auto;
   user-select: text;
@@ -1003,10 +837,7 @@ button {
   align-items: flex-end;
 }
 
-/*
-  A grade do cabeçalho ocupa a faixa inteira, atravessando os três terços: ela
-  é a moldura do cabeçalho, e não uma peça a ser distribuída entre eles.
-*/
+/* A moldura do cabeçalho atravessa os três terços. */
 .band__grid {
   grid-column: 1 / -1;
   width: 100%;
@@ -1015,7 +846,7 @@ button {
 }
 
 .band__grid td {
-  /* Como o Word: nada em cima e embaixo, 1,9 mm nos lados (`w:tblCellMar`). */
+  /* Como o Word: 1,9 mm nos lados (`w:tblCellMar`). */
   padding: 0 1.9mm;
   vertical-align: middle;
   overflow-wrap: break-word;
@@ -1031,7 +862,6 @@ button {
   object-fit: contain;
 }
 
-/* Destaques de "localizar" */
 .search-hit {
   background: var(--search-hit);
 }
@@ -1040,9 +870,7 @@ button {
   background: var(--search-hit-current);
 }
 
-/* ---------- comentários (M10) ---------- */
-
-/* O trecho comentado. Decoração da tela: a impressão sai do JSON e não o vê. */
+/* A impressão sai do JSON e não vê esta decoração. */
 .comment-range {
   background: var(--comment-hit);
 }
@@ -1055,12 +883,7 @@ button {
   background: var(--comment-hit-active);
 }
 
-/* ---------- controle de alterações (M10) ---------- */
-
-/*
- * Inserido sublinhado, excluído riscado, numa cor por autor — como o Word mostra
- * "Todas as marcações". As seis cores se repetem a partir do sétimo autor.
- */
+/* Como "Todas as marcações" do Word; as seis cores se repetem a partir do sétimo autor. */
 .revision-author-0 {
   --revision: #1f5fa9;
 }
@@ -1092,7 +915,7 @@ button {
   text-decoration-color: var(--revision);
 }
 
-/* O Enter inserido ou excluído: um ¶ na cor do autor, sem mexer na altura da linha. */
+/* O Enter inserido ou excluído, sem mexer na altura da linha. */
 .ProseMirror [data-revision]::after {
   content: '¶';
   color: var(--revision);
@@ -1103,7 +926,6 @@ button {
   text-decoration: line-through;
 }
 
-/* A linha inserida ou excluída: a barra na margem, como a do Word. */
 .ProseMirror tr[data-revision] {
   box-shadow: inset 3px 0 0 var(--revision);
 }
@@ -1117,11 +939,7 @@ button {
   text-decoration: line-through;
 }
 
-/*
- * Revisão → Mostrar (ver extensions/revision-view.ts). Fora da marcação completa,
- * o que fica aparece como texto comum, e o que sai não ocupa lugar: a paginação
- * mede a tela, e a folha acompanha o modo.
- */
+/* Fora da marcação completa o que sai não ocupa lugar: a paginação mede a tela. */
 .ProseMirror:is(.revisions-simple, .revisions-none) del.revision,
 .ProseMirror.revisions-original ins.revision,
 .ProseMirror .revision-hidden {
@@ -1146,12 +964,10 @@ button {
   text-decoration: none;
 }
 
-/* O parágrafo cujo texto saiu todo, mas a marca ficou: a linha vazia continua. */
 .ProseMirror .revision-blank {
   min-height: 1lh;
 }
 
-/* Marcação simples: a barra fina na margem, ao lado do parágrafo alterado. */
 .ProseMirror.revisions-simple .revision-changed {
   position: relative;
 }
@@ -1166,10 +982,7 @@ button {
   background: #b3261e;
 }
 
-/*
- * A coluna dos cartões, à direita das folhas e dentro da pilha: o zoom a escala
- * junto, e a altura de cada cartão é a do trecho que ele comenta.
- */
+/* Dentro da pilha, para o zoom escalar junto. */
 .comments-pane {
   position: absolute;
   top: 0;
@@ -1254,7 +1067,7 @@ button {
   margin-top: 6px;
 }
 
-/* As ações do cartão escolhido: links discretos, como na margem do Word. */
+/* Links discretos, como na margem do Word. */
 .comment-card__actions {
   display: flex;
   flex-wrap: wrap;
@@ -1311,14 +1124,7 @@ button {
   margin-top: 4px;
 }
 
-/* ---------- barra de ferramentas ---------- */
-
-/*
-  A mesma barra serve ao documento e à planilha.
-
-  `row-gap` maior que `column-gap` porque a barra quebra em janela estreita: as
-  linhas precisam se distinguir, os botões vizinhos não.
-*/
+/* `row-gap` maior: em janela estreita as linhas precisam se distinguir. */
 .toolbar {
   display: flex;
   flex-wrap: wrap;
@@ -1383,13 +1189,7 @@ button {
   border-color: var(--border-strong);
 }
 
-/*
-  Escolher cor.
-
-  O seletor nativo do sistema fica invisível por cima do ícone: ele abre o
-  diálogo de cores, mas sua aparência é de outro programa. O que se vê é o
-  ícone do que recebe a cor com a cor atual embaixo, como no Word e no Docs.
-*/
+/* O seletor nativo fica invisível por cima do ícone, que mostra a cor atual, como no Word. */
 .tcolor {
   display: inline-flex;
   align-items: center;
@@ -1425,8 +1225,7 @@ button {
   width: 16px;
   height: 4px;
   border-radius: 1px;
-  /* Sem isto, branco sobre branco vira um vazio: a barra some justamente
-     quando a cor escolhida é a do fundo. */
+  /* Senão a cor igual à do fundo sumiria. */
   box-shadow: inset 0 0 0 1px rgb(0 0 0 / 15%);
 }
 
@@ -1465,8 +1264,6 @@ button {
   margin: 0 6px;
 }
 
-/* ---------- barra de localizar ---------- */
-
 .findbar {
   display: flex;
   align-items: center;
@@ -1503,8 +1300,6 @@ button {
   font-size: 12px;
   color: var(--muted);
 }
-
-/* ---------- painéis ---------- */
 
 .popover {
   position: absolute;
@@ -1550,8 +1345,7 @@ button {
   font: inherit;
 }
 
-/* Arquivo → Propriedades: rótulo à esquerda, campo à direita, como no Word; o
-   diálogo é alto, e por isso rola dentro da janela. */
+/* Como no Word; o diálogo é alto e rola dentro da janela. */
 .properties__field {
   flex-direction: row;
   align-items: baseline;
@@ -1588,8 +1382,7 @@ button {
   padding: 0 4px;
 }
 
-/* A caixa de marcar do diálogo de parágrafo: rótulo ao lado, e não em cima como
-   nos campos de medida — "manter com o próximo" é uma frase, não uma etiqueta. */
+/* "Manter com o próximo" é uma frase, e não uma etiqueta. */
 .popover__check {
   display: flex;
   align-items: center;
@@ -1655,21 +1448,13 @@ button {
   filter: brightness(1.1);
 }
 
-/* ---------- editor de planilhas ---------- */
-
 .workbook {
   height: 100%;
   display: flex;
   flex-direction: column;
 }
 
-/*
-  Abas no rodapé, como em toda planilha.
-
-  A tira fica no cinza do fundo e a aba ativa é a folha branca por cima dela,
-  com um fio de cor na borda que encosta na grade — assim se lê qual está
-  aberta sem precisar de negrito.
-*/
+/* A aba ativa é a folha branca sobre a tira, com um fio de cor junto à grade. */
 .tabs {
   display: flex;
   align-items: stretch;
@@ -1748,13 +1533,6 @@ button {
   background: var(--surface);
 }
 
-/*
-  Barra de fórmulas.
-
-  Caixa de nome à esquerda, o ƒx e o campo ocupando o resto — a mesma ordem do
-  Excel, do Calc e do Sheets. Quem já usou qualquer um deles não precisa
-  procurar.
-*/
 .formula-bar {
   display: flex;
   align-items: center;
@@ -1825,13 +1603,7 @@ button {
   text-overflow: ellipsis;
 }
 
-/*
-  A grade na paleta do programa.
-
-  O revogrid vem com azul e cinzas próprios, que não são os daqui — sem isto a
-  planilha parece um componente de terceiros embutido numa janela, que é
-  exatamente o que ela é, e não deveria parecer.
-*/
+/* O revogrid traz cores próprias. */
 .sheet revo-grid {
   flex: 1;
   min-height: 0;
@@ -1860,8 +1632,7 @@ button {
   --rg-theme-shadow: var(--shadow-md);
 }
 
-/* Coluna de números alinhada: o mesmo motivo da barra de status, multiplicado
-   por uma tela inteira de células. */
+/* Números alinhados, como na barra de status. */
 .sheet revo-grid .rgCell {
   font-variant-numeric: tabular-nums;
 }
@@ -1896,13 +1667,13 @@ button {
   color: var(--accent);
 }
 
-/* Item desligado continua visível: "colar" apagado explica por que não colou. */
+/* "Colar" apagado explica por que não colou. */
 .ctx-menu__item:disabled {
   color: var(--muted);
   cursor: default;
 }
 
-/* A sugestão do corretor vem em negrito, como no Word: é o que se clica. */
+/* Como no Word. */
 .ctx-menu__item--suggestion {
   font-weight: 600;
 }
@@ -1914,7 +1685,6 @@ button {
   border-top: 1px solid var(--border);
 }
 
-/* Contagem de palavras: número à direita, rótulo à esquerda, como no Word. */
 .counts {
   border-collapse: collapse;
   font-size: 13px;
@@ -1941,8 +1711,7 @@ button {
   font-weight: 400;
 }
 
-/* Caracteres especiais: uma grade fluida por grupo, dentro de uma área rolável.
-   A altura é limitada porque o catálogo inteiro passa da janela em tela pequena. */
+/* O catálogo inteiro passaria da janela em tela pequena. */
 .chars {
   display: flex;
   flex-direction: column;
@@ -1982,9 +1751,7 @@ button {
   border-color: var(--accent-line);
 }
 
-/* O editor de equações (M11): o LaTeX em fonte de código, a visualização num
-   quadro e os modelos na grade dos caracteres especiais, com casas mais largas —
-   "sin" e "2×2" não cabem em 30px. */
+/* Casas mais largas que as dos caracteres: "sin" e "2×2" não cabem em 30px. */
 .equation__source {
   width: 100%;
   box-sizing: border-box;
@@ -2022,8 +1789,7 @@ button {
   font-size: 14px;
 }
 
-/* Painel de estilos: uma lista rolável, porque um `.docx` do Word declara
-   dezenas de estilos e o painel não pode crescer além da janela. */
+/* Um `.docx` do Word declara dezenas de estilos. */
 .styles-list {
   margin: 0;
   padding: 0;
@@ -2047,14 +1813,12 @@ button {
   border-bottom: none;
 }
 
-/* O estilo do parágrafo onde está o cursor. O leitor de tela ouve o mesmo pelo
-   `aria-current`: a cor sozinha não é informação. */
+/* A cor sozinha não é informação: o leitor de tela ouve o `aria-current`. */
 .styles-list__item--current {
   background: var(--accent-soft);
 }
 
-/* O escolhido para aplicar ou modificar: contorno, para não se confundir com o
-   fundo do "do cursor" quando os dois são o mesmo estilo. */
+/* Contorno, para não se confundir com o fundo do "do cursor". */
 .styles-list__item {
   cursor: pointer;
 }
@@ -2079,18 +1843,8 @@ button {
 }
 
 /*
-  Modo de leitura.
-
-  Tudo o que some daqui some por uma razão só: não é o documento. A barra de
-  ferramentas, a de status, o papel, as faixas de cabeçalho e os números de
-  página são andaimes de quem escreve, e quem veio ler não precisa de nenhum —
-  a página é uma unidade de impressão, e não de leitura.
-
-  O que fica é a coluna de texto, numa largura escolhida para a linha e não
-  para o papel: uma A4 com margens de 20 mm dá uma linha de cerca de 170 mm, e
-  a tipografia é unânime em que se lê melhor entre 45 e 75 caracteres. `70ch` é
-  o meio dessa faixa, medido na fonte do próprio documento, então ele acompanha
-  quem troca de Times para Arial.
+  Some tudo o que não é o documento. A coluna tem `70ch`, o meio da faixa de 45
+  a 75 caracteres em que se lê melhor, medido na fonte do documento.
 */
 .reading-hint {
   position: fixed;
@@ -2129,27 +1883,19 @@ button {
 }
 
 .editor-scroll--reading {
-  /* O fundo afundado é o da mesa em que o papel repousa. Sem papel, o texto
-     repousa na superfície, como numa página de leitura. */
   background: var(--surface);
   padding: 48px 24px 96px;
 }
 
 .pages--reading {
-  /* Sem altura calculada e sem largura de papel: a pilha deixa de ser uma
-     pilha e passa a ser só a coluna. */
   position: static;
   width: min(70ch, 100%);
 }
 
 .app--reading .editor-shell {
-  /* A sombra e a borda que separavam a área de edição das barras não têm mais
-     barras de que se separar. */
   border: none;
 }
 
-/* Galeria de listas prontas no diálogo de formato de lista: botões do mesmo
-   tamanho, em grade, com o nome da lista escrito com as marcas dela. */
 .list-gallery {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -2166,7 +1912,6 @@ button {
   white-space: pre;
 }
 
-/* A linha entre colunas (`w:cols/@w:sep`): fina, da altura da região de colunas. */
 .paper-column-line {
   position: absolute;
   width: 0;
@@ -2174,11 +1919,7 @@ button {
   pointer-events: none;
 }
 
-/*
-  A área de notas da folha (M11). A camada das faixas não recebe clique; a nota,
-  que se edita, recebe — e fica acima da coluna de texto, cujo retângulo cobre
-  também o pé da folha.
-*/
+/* Acima da coluna de texto, que cobre também o pé da folha: a nota se edita. */
 .paper-notes {
   pointer-events: auto;
   z-index: 2;
@@ -2188,11 +1929,7 @@ button {
   cursor: text;
 }
 
-/*
-  Os corpos de nota sem folha: medidos aqui, na largura da coluna, sem aparecer.
-  Transparentes, e não escondidos: a nota que acabou de nascer recebe o foco
-  aqui mesmo, antes de a paginação a pôr no pé da folha.
-*/
+/* Transparentes, e não escondidos: a nota nova recebe o foco aqui antes de ir para o pé da folha. */
 .note-pool {
   position: absolute;
   top: 0;
@@ -2214,8 +1951,6 @@ button {
   max-height: calc(100vh - 140px);
   overflow-y: auto;
 }
-
-/* ---------- galeria de modelos (M11) ---------- */
 
 /* Por cima de tudo, também da tela inicial: a galeria abre sem documento. */
 .templates__backdrop {

@@ -15,33 +15,17 @@ interface DocumentToolbarProps {
   readonly editor: Editor
   readonly onOpenFind: () => void
   readonly onOpenPageSetup: () => void
-  /** O painel de estilos do documento, só de leitura nesta fase. */
   readonly onOpenStyles: () => void
-  /** Aberto de fora também: o menu nativo tem "Formatar → Parágrafo…". */
+  /** O menu nativo também abre o parágrafo. */
   readonly paragraphOpen: boolean
   readonly onParagraphOpenChange: (open: boolean) => void
-  /**
-   * Os diálogos de tabela e de imagem são desenhados pelo editor, e não aqui: o
-   * menu nativo e o menu de contexto também os abrem, então o estado deles mora
-   * um nível acima.
-   */
+  /** O menu nativo e o de contexto também os abrem: o estado mora acima. */
   readonly onOpenTable: () => void
   readonly onOpenImageProperties: () => void
-  /** Formato de lista: galeria, níveis e numeração. O botão direito também o abre. */
   readonly onOpenListFormat: () => void
 }
 
-/**
- * A barra de ferramentas do documento.
- *
- * Aqui mora só a ordem dos grupos e os diálogos que eles abrem. Cada grupo é um
- * arquivo, e cada arquivo observa no editor apenas o que os seus próprios botões
- * desenham — a barra inteira reavaliada a cada tecla digitada era o que fazia um
- * recurso novo custar linhas neste arquivo em vez de custar um arquivo novo.
- *
- * Os diálogos ficam fora dos grupos, no fim da barra, porque são um só por vez e
- * se posicionam em relação à janela.
- */
+/** Só a ordem dos grupos e os diálogos; cada grupo observa no editor só o que desenha. */
 export function DocumentToolbar({
   editor,
   onOpenFind,

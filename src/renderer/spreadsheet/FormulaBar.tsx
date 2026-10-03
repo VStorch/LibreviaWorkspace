@@ -6,16 +6,8 @@ import { formatCell } from '@services/spreadsheet/format.js'
 import { useT } from '../i18n.js'
 
 /**
- * Barra de fórmulas.
- *
- * Existe porque a célula mostra o **resultado**, e o usuário precisa de um
- * lugar que mostre a **fórmula**. Sem ela, a única forma de reler uma conta
- * seria entrar no modo de edição da célula — e sair dele sem querer alteraria o
- * conteúdo.
- *
- * A fórmula digitada é conferida antes de entrar: quem escreveu `=ABS(1;2)`
- * recebe a frase em vez de descobrir pelo `#VALOR!` na célula que o problema
- * era o número de argumentos.
+ * A célula mostra o resultado, e aqui se vê a fórmula. A fórmula é conferida
+ * antes de entrar: `=ABS(1;2)` recebe a frase, e não o `#VALOR!`.
  */
 export function FormulaBar({
   sheet,
@@ -28,27 +20,19 @@ export function FormulaBar({
 }): React.JSX.Element {
   const t = useT()
   const cell = getCell(sheet, range.fromRow, range.fromColumn)
-  // O que a célula guarda: a fórmula quando há, e o valor cru quando não.
-  // Valor cru, e não formatado: reeditar "R$ 1.234,50" devolveria texto.
+  // O valor cru, e não o formatado: reeditar "R$ 1.234,50" devolveria texto.
   const stored = cell?.formula ?? (cell?.value === undefined ? '' : String(cell.value))
 
   const [draft, setDraft] = useState(stored)
   const [problem, setProblem] = useState<string | null>(null)
   const input = useRef<HTMLInputElement>(null)
 
-  /**
-   * Trocar de célula recarrega a barra; recalcular, não.
-   *
-   * O efeito depende só da referência selecionada, e de propósito: se ele
-   * seguisse o conteúdo, cada recálculo disparado pela digitação em outra
-   * célula apagaria o que o usuário está escrevendo aqui.
-   */
+  /** Só a troca de célula recarrega a barra: o recálculo apagaria o que se está escrevendo. */
   const anchor = describeRange(range)
   const loaded = useRef(anchor)
   if (loaded.current !== anchor) {
     loaded.current = anchor
-    // Durante a renderização, e não num efeito: o campo já aparece com o
-    // conteúdo certo, sem o piscar de um valor velho por um quadro.
+    // Na renderização, e não num efeito, para não piscar um valor velho.
     setDraft(stored)
     setProblem(null)
   }
@@ -99,8 +83,7 @@ export function FormulaBar({
             setProblem(null)
           }
         }}
-        // Sair do campo confirma, como no Excel — menos quando há problema, que
-        // descartaria o que o usuário escreveu sem ele ter chance de corrigir.
+        // Sair confirma, como no Excel, menos com problema, que descartaria o que se escreveu.
         onBlur={() => {
           if (problem === null && draft !== stored) commit()
         }}

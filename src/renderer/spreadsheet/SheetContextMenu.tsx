@@ -9,23 +9,9 @@ import {
 } from '../components/ContextMenu.js'
 import { useT } from '../i18n.js'
 
-/**
- * Menu de contexto da planilha.
- *
- * Inserir e excluir linha ou coluna não cabe na barra de ferramentas: são
- * operações sobre a **posição** clicada, e o gesto que todo mundo já conhece é
- * o botão direito.
- *
- * A quantidade vem da seleção, como no Excel e no Google Sheets: com três
- * linhas selecionadas, "inserir acima" insere três. Inserir uma de cada vez
- * seria o comportamento de um editor que não sabe o que está selecionado.
- *
- * Onde o menu aparece e quando ele fecha mora em `components/ContextMenu.tsx`:
- * aquilo não tem nada de planilha, e o editor de documentos usa o mesmo.
- */
-
 export type { MenuPosition }
 
+/** A quantidade vem da seleção, como no Excel: com três linhas selecionadas, "inserir acima" insere três. */
 export function SheetContextMenu({
   sheet,
   range,

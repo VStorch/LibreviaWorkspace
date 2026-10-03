@@ -37,13 +37,9 @@ import { noteBodyOf, type NoteBody } from './extensions/note-view.js'
 /** Espaço entre uma folha e a seguinte, como numa pilha de papel. */
 export const SHEET_GUTTER_PX = 28
 
-/**
- * O separador entre o texto e as notas: uma linha de 12 pt, com o traço no meio
- * — a altura do parágrafo do separador do Word.
- */
+/** Uma linha de 12 pt com o traço no meio: o parágrafo do separador do Word. */
 export const NOTE_SEPARATOR_PX = 16
 
-/** Uma nota (ou o pedaço dela) numa área de notas. */
 export interface NoteAreaItem {
   /** O corpo na tela (`note-view.ts`). */
   readonly key: string
@@ -51,7 +47,6 @@ export interface NoteAreaItem {
   readonly index: number
   readonly fromLine: number
   readonly toLine: number
-  /** Onde, no corpo, começa a primeira linha mostrada. */
   readonly clipTopPx: number
   readonly heightPx: number
 }
@@ -61,62 +56,38 @@ export interface NoteAreaItem {
  * fim logo depois do último bloco (e nas folhas que vierem depois dele).
  */
 export interface NoteArea {
-  /** A folha desenhada. */
   readonly sheet: number
   readonly kind: 'footnote' | 'endnote'
   /** Em pixels da folha, já com o separador. */
   readonly topPx: number
   readonly leftPx: number
   readonly widthPx: number
-  /** O traço curto, o de continuação (largura toda) ou nenhum. */
   readonly separator: 'normal' | 'continuation' | null
   readonly items: readonly NoteAreaItem[]
 }
 
-/** Nenhum vao aplicado. Constante para `sameGaps` poder compara-la por valor. */
+/** Constante, para `sameGaps` comparar por valor. */
 const EMPTY_GAPS = new Map<number, number>()
 
 export interface PageLayout {
   /** Quantas folhas desenhar — as em branco das seções par e ímpar incluídas. */
   readonly pages: number
-  /** Altura total da pilha, com os vãos. */
   readonly stackHeightPx: number
-  /** Topo de cada folha, em pixels, dentro da pilha. */
   readonly sheetTops: readonly number[]
   readonly sheetHeights: readonly number[]
-  /**
-   * Bloco e eventual linha/item que abrem cada folha a partir da segunda.
-   *
-   * É o que permite ao papel sair das mesmas páginas que a tela: recortar a
-   * lista de blocos nestes pontos dá as folhas prontas, sem ninguém repaginar.
-   */
+  /** Recortar a lista de blocos nestes pontos dá ao papel as mesmas folhas da tela. */
   readonly pageStarts: readonly PageStart[]
-  /**
-   * Em que folha cada bloco caiu, e a que altura dentro dela.
-   *
-   * É o que falta para desenhar um objeto ancorado: a posição dele vem em
-   * relação ao parágrafo âncora, e o parágrafo só tem posição depois de paginar.
-   */
+  /** A posição de um objeto ancorado vem do parágrafo, que só tem posição depois de paginar. */
   readonly anchors: readonly BlockAnchor[]
-  /**
-   * Cada folha desenhada: a seção dela, o número impresso, se é a primeira da
-   * seção e se é a folha em branco que a seção par ou ímpar pediu.
-   */
   readonly sheets: readonly SheetPlan[]
-  /** Largura de cada folha, em pixels: a folha em paisagem é mais larga. */
   readonly sheetWidths: readonly number[]
-  /** A largura da pilha — a da folha mais larga; as outras vão centradas. */
+  /** A da folha mais larga; as outras vão centradas. */
   readonly stackWidthPx: number
-  /**
-   * A folha desenhada de cada folha com conteúdo: `pageStarts` conta só as com
-   * conteúdo, e as em branco ficam entre elas.
-   */
+  /** `pageStarts` conta só as folhas com conteúdo; as em branco ficam entre elas. */
   readonly contentSheets: readonly number[]
-  /** Os blocos postos em coluna — o papel repete o mesmo desvio (`print-source.ts`). */
+  /** O papel repete o mesmo desvio (`print-source.ts`). */
   readonly columnMoves: readonly ColumnMove[]
-  /** As linhas entre colunas, nas seções que as pedem. */
   readonly columnLines: readonly ColumnLine[]
-  /** As áreas de notas, por folha desenhada. */
   readonly noteAreas: readonly NoteArea[]
 }
 
@@ -127,19 +98,16 @@ export interface ColumnMove {
   /** Quanto a coluna é mais estreita que a coluna de texto da folha. */
   readonly narrowerPx: number
   readonly lift: number
-  /** A margem de cima que o bloco já tinha: o papel escreve margem natural mais desvio. */
+  /** O papel escreve margem natural mais desvio. */
   readonly natural: number
   /** A margem de baixo do bloco anterior — ver `collapsed`. */
   readonly collapse: number
 }
 
 /**
- * A margem de cima que dá a distância `distance` depois de um bloco com margem
- * de baixo `previous`.
- *
  * As margens verticais colapsam: positiva com positiva vale a maior, e uma
- * negativa se **soma** à positiva. A distância menor que a margem de baixo do
- * anterior — a coluna que sobe até o topo da região — só se obtém descontando-a.
+ * negativa se **soma** à positiva. Por isso a distância menor que a margem de
+ * baixo do anterior só se obtém descontando-a.
  */
 export function collapsed(distance: number, previous: number): number {
   return distance >= previous ? distance : distance - previous
@@ -158,9 +126,7 @@ export function drawnSheet(layout: PageLayout, index: number): number {
   return layout.contentSheets[index] ?? index
 }
 
-/** Medidas de uma seção na tela, em pixels. */
 interface SectionMetrics {
-  /** As colunas da seção, em pixels: quantas e o passo de uma à seguinte. */
   readonly columns: number
   readonly columnStepPx: number
   readonly columnWidthPx: number
@@ -178,10 +144,7 @@ export interface PageStart {
   readonly blockIndex: number
   /** Índice da linha ou item que abre a folha, quando o corte é interno. */
   readonly childIndex?: number
-  /**
-   * Onde o parágrafo recomeça, quando a folha o corta entre linhas: posição
-   * dentro do conteúdo dele, a mesma que `Node.cut` recebe.
-   */
+  /** Posição dentro do conteúdo do parágrafo, a mesma que `Node.cut` recebe. */
   readonly offset?: number
   /** A folha abre com as linhas de cabeçalho da tabela repetidas. */
   readonly repeatHeader?: boolean
@@ -196,10 +159,7 @@ interface CutTarget {
   readonly at: number
   readonly start: PageStart
   readonly nodes: readonly { position: number; natural: number; collapse?: number }[]
-  /**
-   * Corte entre linhas de um parágrafo: a posição do primeiro caractere da
-   * linha, resolvida só se o corte for escolhido, e a do próprio parágrafo.
-   */
+  /** Resolvida só se o corte for escolhido. */
   readonly line?: { readonly resolve: () => number | null; readonly block: number }
   /** Corte entre linhas de tabela com cabeçalho: o que se repete no alto da folha. */
   readonly header?: () => RepeatedHeader
@@ -213,48 +173,28 @@ export interface BlockAnchor {
 
 /** O que o editor passa à paginação além do documento e das seções. */
 export interface PaginationOptions {
-  /** Altura das faixas de cada seção, na ordem de `sections`. */
   readonly bands?: readonly BandHeights[]
   /**
-   * Se os vãos devem ser **empurrados no DOM**.
-   *
-   * O modo de leitura desliga isto, e só isto: a conta continua acontecendo, e
-   * `pageStarts` continua valendo. É de propósito, e é o que permite imprimir
-   * de dentro do modo de leitura sem sair dele — o papel sai com as mesmas
-   * folhas de sempre, porque as coordenadas de fluxo não dependem de os vãos
-   * estarem aplicados. Elas são, por definição, a altura que o documento teria
-   * como tira contínua, que é exatamente o que o modo de leitura mostra.
-   *
-   * Desligar a medição junto pareceria mais simples e custaria a impressão: o
-   * gravador lê `layout` no momento de imprimir, e um layout de uma página só
-   * mandaria o documento inteiro para uma folha.
+   * O modo de leitura desliga só o empurrão no DOM: a conta continua, e imprimir
+   * de dentro dele sai com as mesmas folhas, porque as coordenadas de fluxo não
+   * dependem dos vãos aplicados.
    */
   readonly paginated?: boolean
-  /**
-   * Os estilos do documento: o "manter com o próximo" pode vir do estilo, e o
-   * bloco só carrega o que o parágrafo declara.
-   */
+  /** O "manter com o próximo" pode vir do estilo, e o bloco só carrega o que o parágrafo declara. */
   readonly styles?: StyleSheet | null
 }
 
 /**
- * Mede o documento, decide onde as páginas quebram e empurra os blocos.
- *
- * O laço fecha sozinho porque a medição é convertida para **coordenadas de
- * fluxo** antes de decidir: o `offsetTop` que o navegador dá já inclui os vãos
- * que aplicamos na passada anterior, então subtraí-los devolve a altura que o
- * documento teria como tira contínua. Decidir sobre essa altura é estável —
- * aplicar o resultado não muda a entrada da próxima medida. Sem isso, cada
- * passada empurraria os blocos um pouco mais e a paginação nunca assentaria.
+ * A medição é convertida em **coordenadas de fluxo** antes de decidir: o
+ * `offsetTop` já inclui os vãos aplicados, e subtraí-los devolve a altura da
+ * tira contínua. Aplicar o resultado não muda a entrada da próxima medida, e o
+ * laço assenta.
  */
 export function usePagination(
   editor: Editor | null,
-  /**
-   * Todas as seções, com as faixas herdadas já resolvidas (`effectiveSections`):
-   * a última é a do corpo. O documento de uma seção só tem uma.
-   */
+  /** Com as faixas herdadas resolvidas (`effectiveSections`); a última é a do corpo. */
   sections: readonly PageSetup[],
-  /** As seções antes da última, como o modelo as guarda — é pelo id que o bloco acha a sua. */
+  /** É pelo id que o bloco acha a sua seção. */
   declared: readonly SectionSetup[],
   revision: number,
   { bands = [], paginated = true, styles = null }: PaginationOptions = {},
@@ -276,28 +216,13 @@ export function usePagination(
   })
 
   /**
-   * Vãos que já estão aplicados no DOM.
-   *
-   * Mora numa `ref`, e não numa variável do efeito, porque o efeito é refeito a
-   * cada tecla: esquecer o que já foi empurrado faria a leitura seguinte tomar
-   * o `offsetTop` empurrado como se fosse altura de fluxo. As folhas mudavam de
-   * quantidade a cada letra digitada, e a quebra pedida à mão chegava a
-   * desaparecer.
-   *
-   * A chave é a **posição** do nó no documento, e não o índice do bloco: um
-   * corte interno empurra uma linha de tabela ou um item de lista, e nenhum dos
-   * dois tem índice na lista de blocos de primeiro nível.
+   * Numa `ref`, porque o efeito é refeito a cada tecla e a leitura seguinte
+   * precisa descontar o que já foi empurrado. A chave é a **posição** do nó: um
+   * corte interno empurra linha de tabela ou item de lista, sem índice de bloco.
    */
   const applied = useRef(new Map<number, number>())
 
-  /**
-   * O que a decoração recebeu, que é o vão **mais** a margem natural.
-   *
-   * Dois mapas, e não um, pela mesma razão de sempre: o vão é o que a conta de
-   * fluxo desconta, e o valor escrito é o que o CSS lê. Comparar o escrito é o
-   * que evita uma transação idêntica a cada medição; descontá-lo faria a conta
-   * errar por uma margem natural a cada corte.
-   */
+  /** O vão **mais** a margem natural, que é o que o CSS lê; o vão é o que a conta desconta. */
   const lastWritten = useRef(new Map<number, number>())
 
   /** Os vãos entre linhas de parágrafo cortado, por posição do espaçador. */
@@ -309,17 +234,13 @@ export function usePagination(
   /** Os cabeçalhos de tabela repetidos, comparados pelo que desenham. */
   const lastHeaders = useRef('[]')
 
-  // As alturas das faixas chegam num vetor novo a cada medida; o efeito só
-  // precisa refazer a conta quando algum número muda.
   const bandsKey = bands.map((band) => `${band.headerMm}:${band.footerMm}`).join('|')
 
   useEffect(() => {
     if (editor === null) return undefined
 
     const element = editor.view.dom as HTMLElement // alvo do observador de tamanho
-    // As medidas de cada seção. A margem é um piso: um cabeçalho mais alto que
-    // ela empurra o corpo para baixo, e é essa a altura de onde a folha seguinte
-    // recomeça.
+    // A margem é um piso: o cabeçalho mais alto a empurra para baixo.
     const metrics: SectionMetrics[] = sections.map((setup, index) => {
       const heights = bands[index] ?? NO_BANDS
       const insets = contentInsetsMm(setup, heights)
@@ -349,13 +270,9 @@ export function usePagination(
     }))
 
     const measure = (): void => {
-      // Os espaçadores entre linhas saem de cena durante a medida. Diferente do
-      // vão de bloco, eles mudam **onde as linhas quebram**: o espaçador ocupa
-      // uma linha inteira, e quando o texto acima encolhe e ele deixa de estar
-      // num começo de linha, força uma quebra ali — a medida seguinte achava o
-      // mesmo corte, e a folha ficava com linhas vazias no pé para sempre.
-      // Escondidos, as linhas são as do texto; o estilo volta no mesmo quadro,
-      // antes de o navegador desenhar, e o observador de tamanho não vê nada.
+      // Os espaçadores entre linhas saem durante a medida: eles mudam onde as
+      // linhas quebram, e a folha ficaria com linhas vazias no pé. O estilo volta
+      // no mesmo quadro, antes de o navegador desenhar.
       const lineGapsInDom = Array.from(element.querySelectorAll<HTMLElement>(`.${LINE_GAP_CLASS}`))
       for (const gap of lineGapsInDom) gap.style.display = 'none'
       try {
@@ -366,11 +283,8 @@ export function usePagination(
     }
 
     const measureHidden = (): void => {
-      // Percorrido pelo **documento**, e não pelos filhos do DOM: os dois não
-      // são o mesmo sistema de índices. Um documento do corpus tem 15 elementos
-      // na tela e 17 nós no topo do modelo, e a diferença é silenciosa — a
-      // decoração cairia num bloco e o recorte do papel noutro, cada um errando
-      // por uma quantidade diferente. `nodeDOM` liga um ao outro.
+      // Pelo **documento**, e não pelos filhos do DOM, que têm outros índices:
+      // `nodeDOM` liga um ao outro.
       let accumulated = 0
       const blocks: MeasuredBlock[] = []
       const targets: CutTarget[] = []
@@ -382,7 +296,6 @@ export function usePagination(
       const endnotes: (MeasuredNote & { index: number })[] = []
       let refIndex = 0
 
-      // A seção de cada bloco, pela marca que fecha a seção (ver `blockSections`).
       const marks: (string | null)[] = []
       editor.state.doc.forEach((block) => marks.push(sectionBreakIn(block as unknown as SectionBlock)))
       const sectionOfBlock = blockSections(marks, declared)
@@ -420,8 +333,7 @@ export function usePagination(
             {
               position: offset,
               natural: Math.max(top - (before === undefined ? 0 : before.top + before.height), 0),
-              // A margem de baixo do bloco anterior: é com ela que uma margem de
-              // cima negativa se soma, em vez de a substituir (ver `collapsed`).
+              // É com ela que uma margem de cima negativa se soma (`collapsed`).
               collapse:
                 previousDom instanceof HTMLElement
                   ? parseFloat(getComputedStyle(previousDom).marginBottom) || 0
@@ -430,8 +342,7 @@ export function usePagination(
           ],
         })
 
-        // O TableView redimensionável envolve a tabela num div. Só as linhas
-        // da tabela externa contam; tabelas aninhadas pertencem às células.
+        // Só as linhas da tabela externa: as aninhadas pertencem às células.
         const table =
           node instanceof HTMLTableElement ? node : node.querySelector<HTMLTableElement>(':scope > table')
         const children =
@@ -441,8 +352,7 @@ export function usePagination(
               ? Array.from(node.children).filter(
                   (child): child is HTMLElement => child instanceof HTMLElement && child.tagName === 'LI',
                 )
-              : // O sumário corta entre entradas, como a lista entre itens: um
-                // sumário de duas folhas é comum, e inteiro ele não caberia.
+              : // O sumário corta entre entradas, como a lista entre itens.
                 node.hasAttribute('data-toc')
                 ? Array.from(node.children).filter(
                     (child): child is HTMLElement => child instanceof HTMLElement,
@@ -450,8 +360,7 @@ export function usePagination(
                 : []
         let internal = 0
         const breakpoints: number[] = []
-        // O topo de fluxo de cada linha de tabela, item ou entrada: é o pé da
-        // linha da referência de nota que está dentro dela.
+        // O pé da linha da referência de nota que está dentro dela.
         const childTops: number[] = []
 
         // Parágrafo e título cortam entre linhas. As linhas medem a partir da
@@ -471,20 +380,15 @@ export function usePagination(
           internal = lines.shift
         }
 
-        // A captura ancorada: o parágrafo dela tem uma linha vazia depois do
-        // quadro (o `::after` de 1lh em `content-styles.ts`), e o LibreOffice a
-        // deixa passar para a folha seguinte quando ela não cabe — o quadro
-        // fica. O corte é no pé do quadro, e o espaçador entra no fim do
-        // parágrafo, depois da imagem.
+        // A captura ancorada: a linha vazia depois do quadro (`::after` de 1lh)
+        // passa para a folha seguinte quando não cabe, como no LibreOffice.
         const freeBreakpoints: number[] = []
         let hangingBottom = 0
         if (
           lines !== null &&
           node.querySelector(':scope > .node-image[data-anchored], :scope > img[data-anchored]') !== null
         ) {
-          // Com texto, a linha do parágrafo é a do texto, logo abaixo do quadro
-          // quando ele abre o parágrafo: o corte entre o quadro e ela é livre
-          // da regra de viúvas, como o da linha vazia.
+          // Com texto, o corte entre o quadro e a linha é livre da regra de viúvas.
           const first = lines.starts[0]
           if (
             first !== undefined &&
@@ -493,16 +397,13 @@ export function usePagination(
           ) {
             freeBreakpoints.push(top + first)
           }
-          // Sem texto, a linha vazia de 1lh depois do quadro pode sobrar no pé
-          // da folha: o LibreOffice a deixa passar da margem de baixo, e o bloco
-          // seguinte abre a folha nova sem ela.
+          // Sem texto, a linha vazia pode sobrar no pé da folha.
           const after = parseFloat(getComputedStyle(node, '::after').height)
           if (Number.isFinite(after) && after > 0) hangingBottom = after
         }
 
-        // Linhas de cabeçalho (`w:tblHeader`, células `th`) no começo da tabela:
-        // repetem-se no alto de cada folha em que a tabela continua. Cortar
-        // dentro delas, ou logo depois, deixaria o cabeçalho sozinho no pé.
+        // Linhas de cabeçalho (`w:tblHeader`) no começo da tabela: cortar dentro
+        // delas, ou logo depois, deixaria o cabeçalho sozinho no pé.
         const rows = table !== null ? Array.from(table.rows) : []
         let headerRows = 0
         while (
@@ -551,7 +452,6 @@ export function usePagination(
         const effective = effectiveAttrs(block, styles)
         const height = node.offsetHeight - internal
 
-        // As referências de nota do bloco, na ordem do texto, sem descer em corpo de nota.
         const blockNotes: MeasuredNote[] = []
         block.descendants((child, pos) => {
           if (child.type.name !== 'noteRef') return true
@@ -590,9 +490,7 @@ export function usePagination(
         accumulated += internal
       })
 
-      // As notas de fim entram no fluxo depois do último bloco, como blocos que
-      // cortam entre as linhas delas: não há elemento no editor para empurrar, e
-      // as folhas que elas pedem a mais são só desenho.
+      // As notas de fim entram no fluxo depois do último bloco, cortando entre linhas.
       const textBottom = blocks.reduce((bottom, block) => Math.max(bottom, block.top + block.height), 0)
       const lastSection = blocks.at(-1)?.section ?? 0
       const endnoteBlocks: MeasuredBlock[] = []
@@ -612,11 +510,9 @@ export function usePagination(
 
       const plan = paginateSections([...blocks, ...endnoteBlocks], flows, { separator: NOTE_SEPARATOR_PX })
       const breaks = plan.breaks
-      // As folhas com conteúdo, na pilha: entre elas ficam as em branco.
       const contentSheets = plan.sheets.flatMap((sheet, index) => (sheet.blank ? [] : [index]))
       const sheetOf = (content: number): SheetPlan => plan.sheets[contentSheets[content] ?? 0]!
-      // O quanto as colunas subiram (ou desceram) os blocos entre dois pontos da
-      // tira: a altura desenhada de uma folha é a da tira mais esses desvios.
+      // A altura desenhada de uma folha é a da tira mais os desvios das colunas.
       const liftsBetween = (from: number, to: number): number => {
         let sum = 0
         for (const [index, placement] of plan.placements) {
@@ -627,22 +523,9 @@ export function usePagination(
       }
 
       // Vão = o que sobrou da folha + as duas margens + o espaço entre papéis.
-      // É essa soma que faz o bloco cair exatamente no topo da coluna de texto
-      // da folha seguinte.
-      // Dois números por bloco, e não um: o **empurrão** e a **margem escrita**.
-      //
-      // O estilo da decoração é acrescentado ao do nó, e em CSS a última
-      // declaração ganha — então a margem do vão não se soma à margem natural
-      // do bloco, ela a substitui. Escrever só o empurrão faria o bloco subir o
-      // tanto da margem que ele já tinha, e a conta de fluxo, que desconta o
-      // empurrão, passaria a errar por essa diferença. Num título com 18 pt de
-      // espaço antes, isso bastava para o corte cair um bloco adiante — a tela
-      // mostrava o título abrindo a folha e o papel o deixava no fim da
-      // anterior.
-      //
-      // A margem natural é observável mesmo depois de decorada: as coordenadas
-      // de fluxo já removem o empurrão, então a distância entre o fim de um
-      // bloco e o começo do seguinte é a margem que o documento pede.
+      // A margem escrita **substitui** a margem natural do bloco (a última
+      // declaração ganha), e por isso o valor escrito é o vão mais a margem
+      // natural; a conta de fluxo desconta só o vão.
       const gaps = new Map<number, number>()
       const written = new Map<number, number>()
       const lineGaps = new Map<number, number>()
@@ -651,12 +534,9 @@ export function usePagination(
       const pageStarts: PageStart[] = []
       const sheetHeights: number[] = []
       const noteAreas: NoteArea[] = []
-      // Onde cada folha de conteúdo começa e termina na tira: é o que recorta
-      // as notas de fim.
       const sheetStarts: number[] = []
 
-      // As notas de rodapé de uma folha, no pé da coluna de texto: acima da
-      // margem de baixo, ou logo depois do texto se a folha esticou.
+      // No pé da coluna de texto, ou logo depois do texto se a folha esticou.
       const footnoteArea = (content: number, metrics: SectionMetrics, used: number): void => {
         const slices = plan.notes[content] ?? []
         const items = slices.flatMap((slice) => itemOf(slice))
@@ -687,9 +567,7 @@ export function usePagination(
         ]
       }
 
-      // Índice dos cortes internos por altura, e um cursor para os de bloco: a
-      // lista sai da medida em ordem de fluxo, e os cortes também crescem, então
-      // cada folha custa uma consulta, e não uma varredura do documento.
+      // A lista e os cortes crescem juntos: cada folha custa uma consulta.
       const internalAt = new Map<number, CutTarget>()
       for (const target of targets) {
         if (
@@ -707,25 +585,20 @@ export function usePagination(
       }
 
       breaks.forEach((at, cut) => {
-        // A folha que termina aqui e a que abre, com as medidas da seção de
-        // cada uma; as em branco entre elas entram no vão inteiras.
         const ending = metricsOf(sheetOf(cut).section)
         const opening = metricsOf(sheetOf(cut + 1).section)
         const blanks = plan.sheets.slice((contentSheets[cut] ?? 0) + 1, contentSheets[cut + 1] ?? 0)
         const internal = internalAt.get(at)
         const position = internal?.line?.resolve() ?? null
-        // A linha cujo caractere não se achou (DOM trocado no meio da medida)
-        // cede ao bloco seguinte: pior a folha curta que um espaçador perdido.
+        // Linha não achada (DOM trocado no meio da medida): cede ao bloco seguinte.
         const target =
           internal !== undefined && (internal.line === undefined || position !== null)
             ? internal
             : blockTargetFrom(at)
-        // A linha vazia da captura que sobra no pé (`hangingBottom`) cabe na
-        // margem de baixo: nem estica a folha, nem empurra o bloco seguinte.
+        // `hangingBottom` cabe na margem de baixo.
         const span = at - previous + liftsBetween(previous, at)
         const hung = Math.min(Math.max(span - ending.contentPx, 0), hangingAt(blocks, at))
         const used = span - hung
-        // A nota maior que o que sobrou estica a folha, como o bloco atômico.
         const notesHeight = plan.noteHeights[cut] ?? 0
         sheetStarts.push(previous)
         footnoteArea(cut, ending, used)
@@ -744,13 +617,11 @@ export function usePagination(
           skipped +
           opening.topPx
         if (target?.line !== undefined && position !== null) {
-          // O espaçador entra antes do primeiro caractere da linha; o papel
-          // recorta o parágrafo no mesmo caractere.
+          // O papel recorta o parágrafo no mesmo caractere.
           pageStarts.push({ ...target.start, offset: position - target.line.block - 1 })
           lineGaps.set(position, shift)
         } else if (target !== undefined) {
-          // O cabeçalho repetido mora no vão, entre o topo da folha e a linha:
-          // o vão cresce a altura dele, e a conta de fluxo desconta os dois.
+          // O cabeçalho repetido mora no vão; a conta de fluxo desconta os dois.
           const header = target.header?.()
           const extra = header !== undefined && header.height < opening.contentPx / 2 ? header.height : 0
           if (header !== undefined && extra > 0) headers.push(header)
@@ -759,7 +630,6 @@ export function usePagination(
             gaps.set(node.position, shift + extra)
             written.set(node.position, shift + extra + node.natural)
           }
-          // A folha nova começa acima do corte, pela altura do cabeçalho.
           previous = at - extra
           return
         } else {
@@ -778,8 +648,6 @@ export function usePagination(
       footnoteArea(breaks.length, last, lastSpan - lastHung)
       sheetHeights.push(Math.max(last.heightPx, lastSpan - lastHung + lastNotes + last.topPx + last.bottomPx))
 
-      // As notas de fim: cada folha mostra as linhas delas que caem entre o
-      // começo dela e o da seguinte, logo abaixo do texto.
       endnoteBlocks.forEach((block, position) => {
         const note = endnotes[position]!
         sheetStarts.forEach((start, content) => {
@@ -807,8 +675,7 @@ export function usePagination(
             noteAreas[noteAreas.indexOf(area)] = { ...area, items: [...area.items, item] }
             return
           }
-          // O separador vai acima da primeira nota de fim, onde o texto acaba; a
-          // folha que só continua as notas não o repete.
+          // A folha que só continua as notas não repete o separador.
           const opens = position === 0 && fromLine === 0
           noteAreas.push({
             sheet,
@@ -821,8 +688,7 @@ export function usePagination(
           })
         })
       })
-      // Folhas em branco depois da última com conteúdo não existem: a seção par
-      // ou ímpar só pede a folha antes de começar.
+      // A seção par ou ímpar só pede a folha em branco antes de começar.
       const sheets = plan.sheets.slice(0, sheetHeights.length)
       const sheetWidths = sheets.map((sheet) => metricsOf(sheet.section).widthPx)
       const sheetTops: number[] = []
@@ -832,10 +698,7 @@ export function usePagination(
         stackHeightPx += height + SHEET_GUTTER_PX
       }
 
-      // As colunas: o primeiro bloco de cada coluna sobe até o topo da região, e
-      // todos vão para o lado da sua coluna. O desvio vertical entra no vão do
-      // bloco — a conta de fluxo o desconta como desconta o vão de folha —, e o
-      // lateral é uma translação, que não mexe em altura nenhuma.
+      // O desvio vertical das colunas entra no vão; o lateral é uma translação.
       const columnShifts = new Map<number, number>()
       const blockTargets = new Map<number, CutTarget>()
       for (const cut of targets) {
@@ -871,7 +734,6 @@ export function usePagination(
         })
       }
 
-      // As linhas entre as colunas, na folha desenhada e em pixels da folha.
       const columnLines: ColumnLine[] = []
       for (const region of plan.regions) {
         const metrics = metricsOf(region.section)
@@ -890,10 +752,8 @@ export function usePagination(
         }
       }
 
-      // No modo de leitura o documento é uma tira contínua: os vãos saem do
-      // DOM, e o mapa do que está aplicado esvazia junto. Esvaziá-lo é o que
-      // importa — a medição seguinte desconta o que este mapa diz estar
-      // empurrado, e deixá-lo cheio faria toda altura ser lida a menos.
+      // No modo de leitura o mapa do aplicado esvazia junto, senão a medida
+      // seguinte descontaria um empurrão que não existe.
       const target = paginated ? gaps : EMPTY_GAPS
       const targetWritten = paginated ? written : EMPTY_GAPS
       const targetLines = paginated ? lineGaps : EMPTY_GAPS
@@ -945,9 +805,7 @@ export function usePagination(
       })
     }
 
-    // Uma medida por quadro, no máximo. Digitar depressa dispara dezenas de
-    // atualizações por segundo, e medir em todas custa layout do navegador sem
-    // mudar resposta nenhuma — a folha não nasce entre duas teclas.
+    // Uma medida por quadro: digitar depressa dispararia dezenas por segundo.
     let scheduled = 0
     const schedule = (): void => {
       if (scheduled !== 0) return
@@ -959,7 +817,6 @@ export function usePagination(
 
     schedule()
 
-    // Altura muda ao digitar, ao carregar imagem e ao trocar a fonte.
     const observer = new ResizeObserver(schedule)
     observer.observe(element)
     return () => {
@@ -971,10 +828,7 @@ export function usePagination(
   return layout
 }
 
-/**
- * Quanto do fim da folha que termina em `at` pode passar do pé: a linha vazia
- * da captura (`hangingBottom`) e o vão até o bloco que abre a folha seguinte.
- */
+/** A linha vazia da captura e o vão até o bloco que abre a folha seguinte. */
 function hangingAt(blocks: readonly MeasuredBlock[], at: number): number {
   const ending = blocks.filter((block) => block.height > 0 && block.top + block.height <= at + 0.5).at(-1)
   if (ending === undefined || (ending.hangingBottom ?? 0) <= 0) return 0
@@ -984,26 +838,17 @@ function hangingAt(blocks: readonly MeasuredBlock[], at: number): number {
 function sameGaps(left: ReadonlyMap<number, number>, right: ReadonlyMap<number, number>): boolean {
   if (left.size !== right.size) return false
   for (const [index, gap] of left) {
-    // Um pixel de diferença não vale uma nova transação: o arredondamento da
-    // medida oscila sozinho, e redesenhar a cada oscilação faria o documento
-    // tremer enquanto se digita.
+    // Um pixel não vale uma transação: a medida oscila, e o documento tremeria.
     if (!right.has(index) || Math.abs(right.get(index)! - gap) > 0.5) return false
   }
   return true
 }
 
-/**
- * Em que folha cada bloco caiu, e a que altura dentro dela.
- *
- * Em coordenadas de fluxo os cortes são fronteiras crescentes, então uma
- * varredura só resolve — os blocos já vêm em ordem.
- */
+/** Os cortes são fronteiras crescentes: uma varredura só. */
 function anchorsFor(
   blocks: readonly MeasuredBlock[],
   breaks: readonly number[],
-  /** A folha desenhada e a margem de cima da folha de conteúdo `content`. */
   sheetOf: (content: number) => { readonly sheet: number; readonly marginTopPx: number },
-  /** O desvio vertical das colunas em cada bloco. */
   liftOf: (index: number) => number = () => 0,
 ): BlockAnchor[] {
   const anchors: BlockAnchor[] = []
@@ -1041,12 +886,8 @@ function shiftOf(node: HTMLElement): number {
 }
 
 /**
- * O cabeçalho que se repete no alto da folha, pronto para a decoração.
- *
- * Uma cópia das linhas de cabeçalho, numa tabela com as mesmas colunas e a
- * mesma largura, posta sobre o vão da linha que abre a folha. Mora na primeira
- * célula dessa linha e sai dela por margens negativas: o ponto de partida é o
- * canto do conteúdo da célula, que é onde o elemento fora do fluxo começaria.
+ * Uma cópia das linhas de cabeçalho sobre o vão da linha que abre a folha,
+ * presa à primeira célula dela por margens negativas.
  */
 function repeatedHeader(
   editor: Editor,
@@ -1074,11 +915,7 @@ function repeatedHeader(
   }
 }
 
-/**
- * A cópia do cabeçalho sem o que é do momento, e não do documento: a célula
- * selecionada, o destaque da busca, a alça de arrastar coluna, o vão de página
- * e o espaçador de linha. Copiados, eles apareciam repetidos em cada folha.
- */
+/** Sem seleção, busca, alça e vãos: copiados, apareceriam em cada folha. */
 function cleanHeaderRow(row: HTMLTableRowElement): string {
   const copy = row.cloneNode(true) as HTMLTableRowElement
   for (const transient of copy.querySelectorAll(
@@ -1098,18 +935,13 @@ function cleanHeaderRow(row: HTMLTableRowElement): string {
   return copy.outerHTML
 }
 
-/** Onde ficam as linhas do bloco: as do parágrafo, ou as linhas de tabela e os itens filhos. */
 interface ReferenceRows {
   readonly lineStarts: readonly number[] | null
   readonly children: readonly HTMLElement[]
   readonly childTops: readonly number[]
 }
 
-/**
- * O pé da linha em que a referência de nota está, em coordenadas de fluxo: o
- * começo da linha seguinte do parágrafo, ou da linha de tabela (item, entrada)
- * seguinte. É o ponto até onde a folha precisa ir para levar a referência.
- */
+/** Até onde a folha precisa ir para levar a referência. */
 function referenceBottom(
   block: HTMLElement,
   reference: HTMLElement,

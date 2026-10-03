@@ -4,18 +4,15 @@ import { NoteKind } from '@services/document/notes.js'
 import { activeNoteOf, noteBodyOf } from './extensions/note-view.js'
 import { useWorkspace } from '../state/workspace.js'
 
-/** O estilo que o Word dá ao parágrafo da nota nova, quando o documento o tem. */
+/** Quando o documento o tem. */
 const NOTE_STYLE: Record<NoteKind, string> = {
   [NoteKind.Footnote]: 'FootnoteText',
   [NoteKind.Endnote]: 'EndnoteText',
 }
 
 /**
- * Insere uma nota no cursor: a referência no fim da seleção, como no Word, e o
- * cursor no corpo da nota, que começa com o espaço depois do número.
- *
- * O foco vai para o corpo quando ele chega à folha: antes de a paginação o pôr
- * no pé da página, ele mora num depósito escondido (ver `note-view.ts`).
+ * A referência no fim da seleção, como no Word, e o cursor no corpo. O foco vai
+ * ao corpo quando ele chega à folha (ver `note-view.ts`).
  */
 export function insertNote(editor: Editor, kind: NoteKind): boolean {
   const { state, schema } = editor
@@ -40,11 +37,7 @@ export function insertNote(editor: Editor, kind: NoteKind): boolean {
   return true
 }
 
-/**
- * A nota sobre a qual o menu de contexto age: a do corpo em que está o cursor, a
- * referência selecionada, ou a que encosta no cursor do texto. `null` longe de
- * qualquer nota.
- */
+/** A do corpo em que está o cursor, a referência selecionada, ou a que encosta no cursor. */
 export function noteAtCursor(editor: Editor): { pos: number; kind: NoteKind } | null {
   const { state, view } = editor
   const found = (pos: number | undefined): { pos: number; kind: NoteKind } | null => {
@@ -63,11 +56,7 @@ export function noteAtCursor(editor: Editor): { pos: number; kind: NoteKind } | 
   return null
 }
 
-/**
- * Converte a nota de rodapé em nota de fim, ou o contrário. A referência perde
- * o `nid`: a nota sai de uma parte do arquivo e a gravação a cria na outra, com
- * o mesmo corpo. O parágrafo com o estilo de um tipo passa ao do outro.
- */
+/** A referência perde o `nid`: a gravação cria a nota na outra parte, com o mesmo corpo. */
 export function convertNote(editor: Editor, pos: number): boolean {
   if (useWorkspace.getState().readOnly) return false
   const { state } = editor

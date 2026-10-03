@@ -1,18 +1,7 @@
 import { useWorkspace } from '../state/workspace.js'
 import { useT } from '../i18n.js'
 
-/**
- * O que o documento tem e o editor não reproduz por inteiro — ou não vai
- * preservar.
- *
- * Faixa, e não modal, pela mesma razão do `ErrorBanner`: o arquivo abriu e o
- * usuário pode trabalhar. Um modal aqui treinaria a mão a clicar "OK" sem ler,
- * e aí o dia em que o aviso for grave ele também passa direto.
- *
- * As duas listas ficam **separadas na tela**, e não numa só, porque são
- * problemas diferentes: uma diz "existe e você não vê", a outra diz "vai
- * sumir".
- */
+/** As duas listas ficam **separadas**: uma diz "existe e você não vê", a outra "vai sumir". */
 export function InventoryBanner(): React.JSX.Element | null {
   const t = useT()
   const notice = useWorkspace((state) => state.notice)
@@ -20,8 +9,7 @@ export function InventoryBanner(): React.JSX.Element | null {
   const readOnly = useWorkspace((state) => state.readOnly)
   const dismiss = useWorkspace((state) => state.dismissNotice)
 
-  // O que a gravação acabou de perder vem primeiro, e sozinho: é o aviso de
-  // agora, e o da abertura já foi lido quando o arquivo abriu.
+  // O que a gravação acabou de perder vem primeiro, e sozinho.
   if (savedLoss !== null && savedLoss.length > 0) {
     return (
       <div className="banner banner--notice" role="status">
@@ -43,10 +31,7 @@ export function InventoryBanner(): React.JSX.Element | null {
 
   if (notice === null) return null
 
-  // Enquanto a faixa de somente leitura está na tela, ela já nomeia o que é
-  // estrutural. Repetir aqui empilharia dois avisos dizendo a mesma coisa, e
-  // dois avisos iguais valem menos que um. Ao liberar a edição a lista volta
-  // inteira — que é justamente quando ela passa a importar.
+  // Com a faixa de somente leitura na tela, o estrutural já foi nomeado; ao liberar, a lista volta inteira.
   const invisible = readOnly
     ? notice.invisible.filter((item) => !notice.structural.includes(item))
     : notice.invisible

@@ -4,10 +4,7 @@ import { allSections, withColumns } from '@services/document/sections.js'
 import { useT } from '../i18n.js'
 import { commitSections, resolvedOf, sectionAtCursor } from './section-commands.js'
 
-/**
- * Formatar → Colunas: quantas, o espaço entre elas e a linha separadora, na
- * seção do cursor ou no documento todo — como a configuração de página.
- */
+/** Na seção do cursor ou no documento todo, como a configuração de página. */
 export function ColumnsDialog({
   editor,
   onClose,
@@ -16,7 +13,6 @@ export function ColumnsDialog({
   readonly onClose: () => void
 }): React.JSX.Element {
   const t = useT()
-  // As seções que o texto usa, na ordem dele — ver `resolveSections`.
   const [{ page, sections, bodyId }] = useState(() => resolvedOf(editor.state.doc))
   const [index] = useState(() => sectionAtCursor(editor))
   const current = allSections(page, sections)[index] ?? page

@@ -3,29 +3,18 @@ import { pxToMm, type PageSetup } from '@services/document/model.js'
 import { type BandHeights } from '@services/document/band.js'
 
 /**
- * A altura desenhada do cabeçalho e do rodapé, seção por seção.
+ * A única parte da conta de margem que nenhum arquivo diz. Medida na primeira
+ * folha de cada seção e arredondada a um décimo de milímetro, porque a medida
+ * oscila e cada oscilação repaginaria o documento.
  *
- * É a única parte da conta de margem que nenhum arquivo diz: um cabeçalho em
- * grade ocupa o que a fonte e a quebra derem, e isso só existe depois de
- * desenhar. Medido na primeira folha de cada seção — as outras da mesma seção
- * repetem a mesma faixa — e arredondado a um décimo de milímetro, porque a
- * medida do navegador oscila sozinha e cada oscilação repaginaria o documento
- * inteiro.
- *
- * Não há laço: a altura da faixa não depende de onde o texto caiu. A seção que
- * ainda não tem folha desenhada fica com a altura da anterior até ter uma.
- *
- * @param sheets Que seção abre cada folha — muda quando uma seção ganha ou perde
- * folhas, e aí há faixa nova para medir.
+ * @param sheets Que seção abre cada folha: muda quando uma seção ganha ou perde folhas.
  */
 export function useBandHeights(sections: readonly PageSetup[], revision: number, sheets = ''): BandHeights[] {
   const [bands, setBands] = useState<BandHeights[]>([])
   const last = useRef<BandHeights[]>([])
 
   useEffect(() => {
-    // Sem chamar o `setState` quando nada mudou: o efeito roda a cada tecla, e
-    // um estado pedido a cada desenho — mesmo igual — encadeava desenhos na
-    // digitação rápida até o React desistir (erro 185).
+    // Sem `setState` quando nada mudou: na digitação rápida o React desistiria (erro 185).
     const measure = (): void => {
       const next = measureBands(sections.length)
       if (sameBands(last.current, next)) return
@@ -49,7 +38,6 @@ export function useBandHeights(sections: readonly PageSetup[], revision: number,
   return bands
 }
 
-/** A primeira camada de faixas de cada seção. */
 function firstOfEachSection(layers: NodeListOf<Element>): Element[] {
   const seen = new Set<string>()
   const first: Element[] = []

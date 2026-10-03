@@ -3,11 +3,7 @@ import type { Editor } from '@tiptap/react'
 import { useT } from '../i18n.js'
 import { currentPreferences, setPreference } from '../state/preferences.js'
 
-/**
- * Ferramentas → Nome do autor: quem assina os comentários novos, e as iniciais
- * que saem dele. Os que já existem guardam o autor com que foram escritos, como
- * no Word.
- */
+/** Os comentários existentes guardam o autor com que foram escritos, como no Word. */
 export function AuthorNameDialog({
   editor,
   onClose,

@@ -2,17 +2,9 @@ import { Node } from '@tiptap/core'
 import { fieldKind } from '@services/document/fields.js'
 
 /**
- * Um campo do Word (`w:fldChar`/`w:instrText`, ou `w:fldSimple`): a instrução e o
- * último resultado calculado.
- *
- * Um nó atômico, e não texto: a instrução (`PAGEREF _Toc123 \h`, `SEQ Figura`,
- * `REF _Ref4 \h`) é o que o campo **é**, e o resultado só o que ele mostrou da
- * última vez. Como texto, o número da página virava número digitado na primeira
- * edição do parágrafo — que era por que o documento com campo abria travado.
- *
- * O resultado é desenhado como está até alguém pedir "Atualizar campos" (F9),
- * como no Word; quem o recalcula é `field-update.ts`. As marcas do nó são a
- * formatação do resultado inteiro, e o link do sumário mora nelas também.
+ * A instrução é o que o campo **é**; o resultado, o que mostrou da última vez.
+ * Como texto, o número da página viraria número digitado na primeira edição. O
+ * resultado só muda com "Atualizar campos" (F9), em `references.ts`.
  */
 export const Field = Node.create({
   name: 'field',
@@ -38,8 +30,7 @@ export const Field = Node.create({
     return [
       'span',
       {
-        // O tipo do campo em minúsculas, para o CSS: é o `pageref` que o sumário
-        // alinha à direita com os pontinhos.
+        // Para o CSS: o `pageref` do sumário vai à direita com os pontinhos.
         'data-field': fieldKind(instr).toLowerCase(),
         'data-instr': instr,
         'data-result': result,

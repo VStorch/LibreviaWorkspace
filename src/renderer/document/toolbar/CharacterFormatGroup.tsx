@@ -5,14 +5,12 @@ import { useT } from '../../i18n.js'
 import { markVisiblyOn } from '../extensions/style-commands.js'
 import { focusChain } from './focus-chain.js'
 
-/** O que é propriedade do trecho de texto: as marcas e as cores. */
 export function CharacterFormatGroup({ editor }: { readonly editor: Editor }): React.JSX.Element {
   const t = useT()
   const active = useEditorState({
     editor,
     selector: ({ editor: current }) => ({
-      // O que aparece, com o estilo por baixo: o título negrito sem marca está
-      // negrito, e o trecho com a marca "desligado" não está.
+      // O que aparece, com o estilo por baixo.
       bold: markVisiblyOn(current.state.tr, current.storage.paragraphCommands.styles, 'bold'),
       italic: markVisiblyOn(current.state.tr, current.storage.paragraphCommands.styles, 'italic'),
       underline: markVisiblyOn(current.state.tr, current.storage.paragraphCommands.styles, 'underline'),
@@ -59,9 +57,7 @@ export function CharacterFormatGroup({ editor }: { readonly editor: Editor }): R
         onClick={() => chain().toggleInheritedMark('strike').run()}
       />
 
-      {/* Os atalhos anunciados são os do Word. Os padrões do Tiptap — `Ctrl+.`
-          e `Ctrl+,` — continuam valendo, para o teclado em que o `=` não é
-          uma tecla só. */}
+      {/* Os atalhos anunciados são os do Word; `Ctrl+.` e `Ctrl+,` do Tiptap continuam valendo. */}
       <ToolbarButton
         icon="superscript"
         label={t('document.characterFormat.superscript')}
@@ -96,10 +92,7 @@ export function CharacterFormatGroup({ editor }: { readonly editor: Editor }): R
         onChange={(value) => chain().setColor(value).run()}
         onClear={() => chain().unsetColor().run()}
       />
-      {/* Duas cores de fundo, e não uma por engano: "Destaque" é o marca-texto
-          do Word (`w:highlight`, catorze cores fixas) e esta é o sombreamento
-          do trecho (`w:shd`, cor livre). No arquivo são propriedades
-          diferentes, e um documento importado pode trazer as duas. */}
+      {/* O "Destaque" é `w:highlight`, de catorze cores; este é `w:shd`, de cor livre. */}
       <ColorControl
         icon="text-background"
         label={t('document.characterFormat.backgroundColor')}

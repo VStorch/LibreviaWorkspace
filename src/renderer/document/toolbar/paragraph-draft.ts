@@ -1,19 +1,9 @@
 import { LineSpacingKind, type ParagraphDraft } from '@services/document/paragraph-format.js'
 
-/**
- * Muda um campo do rascunho.
- *
- * O rascunho é um só, e vive no diálogo: os grupos de campos recebem esta função
- * em vez de um estado próprio, porque "Aplicar" precisa ver tudo de uma vez.
- */
+/** Os grupos de campos recebem esta função: "Aplicar" precisa ver o rascunho inteiro. */
 export type DraftChange = <K extends keyof ParagraphDraft>(key: K, value: ParagraphDraft[K]) => void
 
-/**
- * A escolha do seletor de entrelinha.
- *
- * Os três fatores comuns são opções prontas porque é o que se usa noventa por
- * cento das vezes; "Múltiplo" existe para o resto.
- */
+/** Os três fatores comuns são opções prontas; "Múltiplo" é para o resto. */
 export function lineSpacingChoice(draft: ParagraphDraft): string {
   if (draft.lineSpacingKind === LineSpacingKind.Single) return 'single'
   if (draft.lineSpacingKind === LineSpacingKind.AtLeast) return 'at-least'
@@ -38,7 +28,6 @@ export function lineSpacingFrom(
   return { lineSpacingKind: LineSpacingKind.Multiple, lineSpacingValue: Number(choice) }
 }
 
-/** A escolha pede um número digitado? */
 export function isCustomLineSpacing(draft: ParagraphDraft): boolean {
   return draft.lineSpacingKind === LineSpacingKind.AtLeast || lineSpacingChoice(draft) === 'multiple'
 }

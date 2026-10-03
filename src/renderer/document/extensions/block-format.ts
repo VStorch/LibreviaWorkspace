@@ -1,39 +1,25 @@
 import { Extension } from '@tiptap/core'
 
 /**
- * Formatação de bloco vinda do documento: fundo, espaçamento e entrelinha.
- *
- * Existe porque o Tiptap trata isso como estilo de texto, e no OOXML é
- * propriedade do **parágrafo**. A diferença não é acadêmica: no corpus real, o
- * estilo `Heading1` é uma barra vermelha com texto branco — o fundo é do
- * parágrafo, e sem ele o título vira texto solto no meio da página.
- *
- * No parágrafo solto do corpo, os valores são só a formatação **direta**: o
- * herdado dos estilos chega pelo CSS de `style-css.ts`, e o inline daqui vence a
- * regra do estilo — a última camada da cascata do Word. No item de lista, na
- * célula e no rascunho antigo continuam chegando resolvidos (padrões + estilo +
- * direta), porque ali nenhuma regra de estilo alcança.
+ * No OOXML fundo, espaçamento e entrelinha são do **parágrafo**, e não estilo de
+ * texto como no Tiptap: no corpus, o `Heading1` é uma barra vermelha com texto
+ * branco. No parágrafo do corpo só vem a formatação direta, e o inline vence a
+ * regra do estilo; na lista, na célula e no rascunho antigo os valores chegam
+ * já resolvidos, porque ali nenhuma regra de estilo alcança.
  */
 
 export interface BlockFormatOptions {
   types: string[]
 }
 
-// Zero é valor legítimo — "sem espaço antes" é instrução do documento, e
-// descartá-lo deixaria a margem padrão do editor reaparecer.
+// Zero é "sem espaço antes", uma instrução do documento.
 const pointsToCss = (value: unknown): string | null => {
   if (value === null || value === undefined) return null
   const points = Number(value)
   return Number.isFinite(points) && points >= 0 ? `${points}pt` : null
 }
 
-/**
- * Uma medida declarada, zero incluído — e `null` quando o bloco cala.
- *
- * O zero conta porque o bloco leva só a formatação direta: um recuo zero ali é o
- * parágrafo desfazendo o do estilo, e calá-lo deixaria a regra do estilo recuar
- * de volta. `Number(null)` é zero, e por isso o nulo é conferido antes.
- */
+/** O zero conta: é o parágrafo desfazendo o recuo do estilo. `Number(null)` é zero, daí a conferência antes. */
 const declaredMeasure = (value: unknown): number | null => {
   if (value === null || value === undefined || value === '') return null
   const measure = Number(value)
@@ -44,9 +30,8 @@ export const BlockFormat = Extension.create<BlockFormatOptions>({
   name: 'blockFormat',
 
   addOptions() {
-    // A lista entra junto: no arquivo ela não existe como bloco — são
-    // parágrafos numerados —, mas na árvore do editor é um elemento de verdade,
-    // e sem espaçamento declarado ele recebe o do editor.
+    // A lista não existe como bloco no arquivo, mas na árvore do editor existe,
+    // e sem espaçamento declarado receberia o do editor.
     return { types: ['paragraph', 'heading', 'bulletList', 'orderedList'] }
   },
 
@@ -66,25 +51,15 @@ export const BlockFormat = Extension.create<BlockFormatOptions>({
             },
           },
 
-          /**
-           * A marca da lista, como o documento a declara.
-           *
-           * Sem ela o CSS escolhe a bolinha, e o documento pede um quadrado —
-           * `w:lvlText` guarda o caractere, e ele costuma vir da área de uso
-           * privado do Unicode, que é como o Word grava os glifos das fontes
-           * Symbol e Wingdings. Quem os traduz é o leitor.
-           */
+          /** `w:lvlText`, muitas vezes na área de uso privado, como o Word grava Symbol e Wingdings. */
           marker: {
             default: null,
             parseHTML: (element) => element.getAttribute('data-marker'),
             renderHTML: (attributes) => {
               const value = attributes['marker']
               if (typeof value !== 'string' || value.length === 0) return {}
-              // Como custom property, e não `list-style-type`: o marcador é
-              // desenhado por um `::before` do item, que é o único jeito de
-              // controlar a distância dele até o texto — o recuo pendente do
-              // Word. Aspas simples porque o valor entra numa string de CSS, e
-              // uma aspa dentro dele a fecharia.
+              // Variável, e não `list-style-type`: o `::before` do item é o único jeito de
+              // controlar a distância até o texto. Aspas simples, porque o valor entra numa string de CSS.
               return {
                 'data-marker': value,
                 style: `--marca: '${value.replace(/['\\]/g, '\\$&')}'`,
@@ -92,21 +67,13 @@ export const BlockFormat = Extension.create<BlockFormatOptions>({
             },
           },
 
-          /**
-           * Onde o texto do item começa, em milímetros.
-           *
-           * `w:ind/@left` do nível. Sem ele o item sai colado na margem, e não
-           * no recuo que o documento pede.
-           */
+          /** `w:ind/@left` do nível. */
           indentMm: {
             default: null,
             parseHTML: (element) => element.getAttribute('data-indent-mm'),
             renderHTML: (attributes) => {
               const value = declaredMeasure(attributes['indentMm'])
-              // A medida sai duas vezes: como recuo de verdade e como variável.
-              // A imagem ancorada não é texto — no Word ela se posiciona pela
-              // coluna, e não pelo recuo do parágrafo —, e é pela variável que
-              // ela desconta o recuo de volta.
+              // Também como variável: a imagem ancorada se posiciona pela coluna, e desconta o recuo por ela.
               return value !== null && value >= 0
                 ? {
                     'data-indent-mm': String(value),
@@ -116,12 +83,7 @@ export const BlockFormat = Extension.create<BlockFormatOptions>({
             },
           },
 
-          /**
-           * Recuo da direita, em milímetros.
-           *
-           * `w:ind/@right`. Estreita a coluna do parágrafo, e por isso muda
-           * onde a linha quebra — não é decoração.
-           */
+          /** `w:ind/@right`: estreita a coluna e muda onde a linha quebra. */
           indentRightMm: {
             default: null,
             parseHTML: (element) => element.getAttribute('data-indent-right-mm'),
@@ -136,13 +98,7 @@ export const BlockFormat = Extension.create<BlockFormatOptions>({
             },
           },
 
-          /**
-           * Onde a primeira linha começa, em milímetros, a contar do recuo.
-           *
-           * Positivo é `w:firstLine` e negativo é `w:hanging` — o Word os grava
-           * como dois atributos, mas eles são a mesma medida com o sinal
-           * trocado, e é assim que o CSS a entende.
-           */
+          /** Positivo é `w:firstLine` e negativo é `w:hanging`, a mesma medida com o sinal trocado. */
           firstLineMm: {
             default: null,
             parseHTML: (element) => element.getAttribute('data-first-line-mm'),
@@ -154,12 +110,7 @@ export const BlockFormat = Extension.create<BlockFormatOptions>({
             },
           },
 
-          /**
-           * Quanto o marcador fica antes do texto do item.
-           *
-           * `w:ind/@hanging` do nível — o recuo pendente do Word. Sem ele a
-           * marca sai encostada na primeira letra.
-           */
+          /** `w:ind/@hanging` do nível: a distância do marcador até o texto. */
           hangingMm: {
             default: null,
             parseHTML: (element) => element.getAttribute('data-hanging-mm'),
@@ -171,15 +122,7 @@ export const BlockFormat = Extension.create<BlockFormatOptions>({
             },
           },
 
-          /**
-           * O parágrafo é só a marca de uma seção.
-           *
-           * No OOXML a seção termina num `w:sectPr` guardado dentro do `w:pPr`
-           * de um parágrafo vazio: o parágrafo **é** a marca, e o LibreOffice
-           * não lhe dá altura nenhuma. Sem isto cada marca valia uma linha, e o
-           * documento de evidências do corpus tem seis delas espalhadas pelo
-           * meio do texto.
-           */
+          /** O parágrafo vazio que guarda o `w:sectPr` **é** a marca, e o LibreOffice não lhe dá altura. */
           sectionMark: {
             default: null,
             parseHTML: (element) => element.hasAttribute('data-section-mark') || null,
@@ -188,12 +131,8 @@ export const BlockFormat = Extension.create<BlockFormatOptions>({
           },
 
           /**
-           * A seção que termina neste parágrafo: o id dela em `sections`.
-           *
-           * É o `w:sectPr` do OOXML, que mora no parágrafo que fecha a seção. A
-           * configuração fica fora do nó, como os estilos; o id é só o elo. Não
-           * passa adiante no Enter: partir o parágrafo não parte a seção, e a
-           * marca repetida faria duas seções com o mesmo id.
+           * O id da seção em `sections` que termina aqui, como o `w:sectPr` no OOXML.
+           * Não passa adiante no Enter: a marca repetida faria duas seções com o mesmo id.
            */
           sectionBreak: {
             default: null,
@@ -223,15 +162,7 @@ export const BlockFormat = Extension.create<BlockFormatOptions>({
             },
           },
 
-          /**
-           * A fonte do próprio bloco.
-           *
-           * Não é redundante com a marca do texto: **a altura da linha nasce da
-           * fonte do elemento**, não do que está escrito dentro dele. Um
-           * parágrafo de 10 pt num bloco que o CSS declara com 12 pt continua
-           * ocupando 12 pt de altura, e um título de 10 pt vira uma barra alta
-           * demais porque o editor desenha títulos grandes.
-           */
+          /** A altura da linha nasce da fonte do elemento, e não da do texto dentro dele. */
           fontFamily: {
             default: null,
             parseHTML: (element) => element.style.fontFamily || null,
@@ -252,15 +183,7 @@ export const BlockFormat = Extension.create<BlockFormatOptions>({
             },
           },
 
-          /**
-           * A entrelinha, já como o CSS a escreve.
-           *
-           * Texto, e não número: o espaçamento simples do Word — o que o
-           * arquivo quer dizer quando não diz nada — é a altura que a própria
-           * fonte pede, e em CSS isso se chama `normal`. Nenhum fator o imita,
-           * e enquanto o padrão do editor valia para o documento importado cada
-           * linha saía meia altura mais arejada do que no Word.
-           */
+          /** O simples do Word é a altura que a fonte pede, que no CSS é `normal`: nenhum fator o imita. */
           lineHeight: {
             default: null,
             parseHTML: (element) => element.style.lineHeight || null,
@@ -274,17 +197,8 @@ export const BlockFormat = Extension.create<BlockFormatOptions>({
           },
 
           /**
-           * "Manter com o próximo" do Word (`w:keepNext`). Não muda a
-           * aparência: diz que este bloco não pode ficar sozinho no pé da
-           * página, e é o que a marca de fim de página e a exportação usam.
-           */
-          /**
-           * A folha termina depois deste bloco.
-           *
-           * Vem de um `w:br w:type="page"` que o Word gravou **dentro** do
-           * parágrafo. Emiti-lo como nó ali dentro poria um bloco em posição de
-           * linha — inválido no schema, e o serializador o desalojaria ao
-           * atravessar HTML, desalinhando os índices entre tela e papel.
+           * Um `w:br w:type="page"` gravado **dentro** do parágrafo: como nó, ficaria em posição de
+           * linha, inválido no schema, e desalinharia os índices entre tela e papel.
            */
           breakAfter: {
             default: null,
@@ -292,11 +206,7 @@ export const BlockFormat = Extension.create<BlockFormatOptions>({
             renderHTML: (attributes) => (attributes['breakAfter'] === true ? { 'data-break-after': '' } : {}),
           },
 
-          /**
-           * A coluna termina depois deste bloco (`w:br w:type="column"`), pelo
-           * mesmo motivo de `breakAfter`. Não passa adiante no Enter: a quebra fica
-           * no fim do parágrafo, que é a metade de cima.
-           */
+          /** `w:br w:type="column"`, pelo mesmo motivo de `breakAfter`; não passa adiante no Enter. */
           columnBreakAfter: {
             default: null,
             keepOnSplit: false,
@@ -305,28 +215,21 @@ export const BlockFormat = Extension.create<BlockFormatOptions>({
               attributes['columnBreakAfter'] === true ? { 'data-column-break': '' } : {},
           },
 
+          /** `w:keepNext`: não muda a aparência; a marca de fim de página e a exportação o usam. */
           keepNext: {
             default: null,
             parseHTML: (element) => element.hasAttribute('data-keep-next') || null,
             renderHTML: (attributes) => (attributes['keepNext'] === true ? { 'data-keep-next': '' } : {}),
           },
 
-          /**
-           * "Manter linhas juntas" (`w:keepLines`): a paginação não corta o
-           * parágrafo entre linhas. Como o `keepNext`, não muda a aparência, e
-           * `false` é o parágrafo desfazendo o que o estilo liga.
-           */
+          /** `w:keepLines`. `false` é o parágrafo desfazendo o que o estilo liga. */
           keepLines: {
             default: null,
             parseHTML: (element) => element.hasAttribute('data-keep-lines') || null,
             renderHTML: (attributes) => (attributes['keepLines'] === true ? { 'data-keep-lines': '' } : {}),
           },
 
-          /**
-           * Controle de viúvas e órfãs (`w:widowControl`). Ausente é ligado,
-           * como no Word; `false` é o parágrafo que aceita uma linha sozinha no
-           * pé ou no topo da folha.
-           */
+          /** `w:widowControl`: ausente é ligado, como no Word. */
           widowControl: {
             default: null,
             parseHTML: (element) => (element.hasAttribute('data-widows-allowed') ? false : null),
@@ -334,11 +237,7 @@ export const BlockFormat = Extension.create<BlockFormatOptions>({
               attributes['widowControl'] === false ? { 'data-widows-allowed': '' } : {},
           },
 
-          /**
-           * O identificador do estilo do Word. Não muda nada na tela: viaja
-           * junto para que um parágrafo editado continue apontando o estilo
-           * original na hora de gravar.
-           */
+          /** Não muda a tela: o parágrafo editado continua apontando o estilo original ao gravar. */
           styleId: {
             default: null,
             parseHTML: (element) => element.getAttribute('data-style-id'),
@@ -351,19 +250,10 @@ export const BlockFormat = Extension.create<BlockFormatOptions>({
       },
 
       {
-        // Só nas listas, porque só elas têm numeração. Entrada separada para que
-        // um parágrafo não passe a carregar um atributo que nunca vai usar.
+        // Só nas listas, as únicas com numeração.
         types: ['bulletList', 'orderedList'],
         attributes: {
-          /**
-           * A numeração que a lista tem no arquivo (`w:numId`).
-           *
-           * Não muda nada na tela: viaja junto para que a lista editada continue
-           * apontando a **mesma** numeração ao ser gravada. Sem ela o gravador
-           * escrevia `w:numId w:val="0"` — que no OOXML quer dizer "sem
-           * numeração" — e a lista voltava do arquivo como parágrafos comuns,
-           * sem marcador e sem recuo.
-           */
+          /** `w:numId`: sem ele o gravador escreveria `w:numId w:val="0"`, que no OOXML é "sem numeração". */
           numId: {
             default: null,
             parseHTML: (element) => {

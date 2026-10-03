@@ -6,14 +6,8 @@ import { useWorkspace } from '../state/workspace.js'
 import { bookmarksOf, goToBookmark } from './extensions/bookmark.js'
 
 /**
- * Marcadores: adicionar, ir para e excluir — o diálogo "Indicador" do Word.
- *
- * O nome digitado que já existe **move** o marcador para a seleção, como lá: o
- * marcador é um só. Os ocultos (`_Toc…`, `_Ref…`) ficam fora da lista até a caixa
- * ser marcada; são do sumário e das referências cruzadas, e apagá-los por engano
- * quebraria as duas coisas.
- *
- * No somente leitura só "Ir para" funciona: andar pelo documento não o muda.
+ * O nome que já existe **move** o marcador, como no Word. Os ocultos ficam fora
+ * da lista até a caixa ser marcada. No somente leitura só "Ir para" funciona.
  */
 export function BookmarkDialog({
   editor,
@@ -45,9 +39,7 @@ export function BookmarkDialog({
     if (readOnly || !valid) return
     editor.commands.setBookmark(name)
     onClose()
-    // O foco volta ao texto depois de o diálogo sair da tela: devolvido antes,
-    // o campo do nome o levava junto ao ser desmontado, e o que se digitava em
-    // seguida não ia para lugar nenhum.
+    // Depois de o diálogo sair: o campo desmontado levaria o foco junto.
     requestAnimationFrame(() => editor.view.focus())
   }
 
@@ -127,11 +119,10 @@ export function BookmarkDialog({
           className="btn"
           disabled={readOnly || !exists}
           onClick={() => {
-            // Sem devolver o foco ao texto: o diálogo continua aberto, e o `Esc` é dele.
+            // O diálogo continua aberto, e o `Esc` é dele.
             editor.commands.deleteBookmark(name)
             setName('')
-            // O botão se apaga sem o marcador, e o foco que ele tinha cairia no
-            // corpo da janela — onde o `Esc` não chega ao diálogo.
+            // O botão se apaga, e o foco cairia no corpo da janela, longe do `Esc`.
             input.current?.focus()
           }}
         >

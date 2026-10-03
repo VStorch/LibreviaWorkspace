@@ -9,15 +9,7 @@ import type { WorkspaceState } from './types.js'
 
 export type { DocumentSource, WorkspaceState } from './types.js'
 
-/**
- * O estado do que está aberto na janela.
- *
- * Aqui ficam os campos e os ajustes de uma linha; o que tem regra própria mora
- * num grupo de ações ao lado — arquivo, planilha, rascunho e impressão. Todos
- * conversam pelo mesmo `context.js`, que é onde estão os cinco gestos que os
- * quatro compartilham: chamar o main, ler o que está na tela, esquecer o
- * rascunho, perguntar antes de descartar e pôr um arquivo na tela.
- */
+/** Os campos e os ajustes de uma linha; o que tem regra mora nos grupos de ações, ligados por `context.ts`. */
 export const useWorkspace = create<WorkspaceState>((set, get) => {
   const ctx = createWorkspaceContext(set, get)
   const empty = createEmptyDocument()
@@ -46,7 +38,7 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
     generation: 0,
     isDirty: false,
     stats: { characters: 0, words: 0 },
-    estimatedPages: 1,
+    pageCount: 1,
     recents: [],
     error: null,
     notice: null,
@@ -65,8 +57,8 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
       const current = get().stats
       if (current.characters !== stats.characters || current.words !== stats.words) set({ stats })
     },
-    setEstimatedPages: (pages) => {
-      if (get().estimatedPages !== pages) set({ estimatedPages: pages })
+    setPageCount: (pages) => {
+      if (get().pageCount !== pages) set({ pageCount: pages })
     },
     setPage: (page) => set({ page, isDirty: true }),
     setSections: (sections) => set({ sections, isDirty: true }),

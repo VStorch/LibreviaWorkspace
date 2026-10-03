@@ -6,23 +6,13 @@ import type { SectionSetup } from '@services/document/model.js'
 import { blockSections, sectionBreakIn, type SectionBlock } from '@services/document/sections.js'
 
 /**
- * A caixa de texto de cada seção, na coluna única do editor.
- *
- * O editor é um fluxo só, com a largura da seção base (a última). Um bloco de
- * outra seção — a de paisagem, a de margens diferentes — precisa quebrar as
- * linhas na largura da sua folha e começar na margem dela, que fica noutro
- * lugar da pilha: a folha em paisagem é mais larga, e as folhas vão centradas.
- *
- * Decoração de nó, pela mesma razão dos vãos de página (`pagination.ts`): é
- * aparência sobre o nó, e não conteúdo. `left` desloca o bloco sem mexer na
- * margem esquerda dele, que já é o recuo do parágrafo e da lista; a margem
- * direita negativa alarga a caixa (ou a positiva a estreita) na medida exata
- * da diferença entre as duas colunas de texto.
+ * O bloco de outra seção quebra as linhas na largura da folha dela e começa na
+ * margem dela. Decoração, como os vãos (`pagination.ts`): `left` desloca sem
+ * mexer no recuo, e a margem direita negativa alarga a caixa.
  */
 export interface SectionBox {
-  /** Quanto a coluna da seção começa à direita da coluna base. */
   readonly shiftPx: number
-  /** Quanto a coluna da seção é mais estreita que a base (negativo: mais larga). */
+  /** Negativo: mais larga. */
   readonly narrowerPx: number
 }
 
@@ -34,7 +24,7 @@ interface SectionGeometryState {
 
 export const sectionGeometryKey = new PluginKey<SectionGeometryState>('sectionGeometry')
 
-/** Menos de meio pixel de diferença é arredondamento, e não outra caixa. */
+/** Menos de meio pixel é arredondamento. */
 const TOLERANCE_PX = 0.5
 
 function decorate(
@@ -80,9 +70,7 @@ export const SectionGeometry = Extension.create({
             if (next !== undefined) {
               return { ...next, decorations: decorate(transaction.doc, next.boxes, next.declared) }
             }
-            // A marca de seção entra e sai com a edição, e o bloco muda de seção:
-            // refeito a cada mudança do documento, que é uma volta pelos blocos
-            // de primeiro nível.
+            // A marca entra e sai com a edição: refeito a cada mudança do documento.
             if (!transaction.docChanged || current.boxes.length === 0) return current
             return { ...current, decorations: decorate(transaction.doc, current.boxes, current.declared) }
           },
@@ -95,12 +83,7 @@ export const SectionGeometry = Extension.create({
   },
 })
 
-/**
- * As caixas de cada seção, na ordem de `effectiveSections`.
- *
- * Fora do histórico: desfazer volta o que a pessoa escreveu, e não o lugar da
- * coluna.
- */
+/** Na ordem de `effectiveSections`. Fora do histórico. */
 export function setSectionBoxes(
   view: EditorView,
   boxes: readonly SectionBox[],
@@ -123,16 +106,10 @@ export function setSectionBoxes(
 }
 
 /**
- * A estrutura das seções no texto.
- *
- * `bodySection`, no documento, aponta a entrada da biblioteca que faz as vezes
- * da última seção depois de uma quebra nova — é atributo do documento para que o
- * desfazer o leve junto com a marca (ver `planSectionBreak`).
- *
- * E a marca não viaja por colagem: o parágrafo colado (ou arrastado) levaria o
- * id de uma seção que já tem a sua marca, e duas marcas de um id são duas seções
- * que a gravação não sabe ordenar. A estrutura de seções não se copia, como no
- * Word ao colar texto dentro de uma seção.
+ * `bodySection` aponta a entrada que faz as vezes da última seção, como atributo
+ * do documento para o desfazer levá-lo (`planSectionBreak`). A marca não viaja
+ * por colagem: duas marcas de um id seriam duas seções sem ordem, e o Word também
+ * não copia a estrutura.
  */
 export const SectionMarks = Extension.create({
   name: 'sectionMarks',

@@ -1,15 +1,8 @@
-/**
- * As listas fechadas da barra do documento.
- *
- * Fora do componente porque são dados, e porque a barra já tem trabalho
- * suficiente: o arquivo dela passava de trezentas linhas e continua crescendo a
- * cada recurso. A lista de fontes **não** mora aqui — ela depende da máquina e
- * do documento aberto, e vem de `useFontFamilies`.
- */
+/** A lista de fontes não mora aqui: depende da máquina e do documento (`useFontFamilies`). */
 
 import type { MessageKey } from '@shared/i18n/index.js'
 
-/** Os corpos que o Word oferece na caixa de tamanho. */
+/** Os do Word. */
 export const FONT_SIZES = [
   '8',
   '9',
@@ -28,14 +21,7 @@ export const FONT_SIZES = [
   '72',
 ] as const
 
-/**
- * A entrelinha do seletor rápido, em linhas do Word.
- *
- * Vazio é "Simples" — a altura que a própria fonte pede. Os números são fatores
- * de linha, como o Word os mostra, e não a medida do CSS: 1,5 linha em Calibri é
- * `line-height: 1.8311`, e quem faz a conta é `paragraph-format`. O resto das
- * opções mora no diálogo de parágrafo.
- */
+/** Em linhas do Word, e não em CSS; vazio é "Simples". */
 export function lineHeights(t: (key: MessageKey) => string): readonly { value: string; label: string }[] {
   return [
     { value: '', label: t('document.paragraph.spacingSingle') },
@@ -45,14 +31,7 @@ export function lineHeights(t: (key: MessageKey) => string): readonly { value: s
   ]
 }
 
-/**
- * As opções de um seletor, com o valor atual dentro dela quando faltar.
- *
- * Um `<select>` cujo valor não está entre as opções mostra a **primeira** da
- * lista: a barra passaria a dizer "Simples" num parágrafo de entrelinha 14 pt, e
- * "8" num texto de 10,5 pt. O documento importado traz medidas que nenhuma lista
- * fechada prevê, e a barra tem de contá-las, não escondê-las.
- */
+/** Um `<select>` sem a opção do próprio valor mostra a primeira, e a barra mentiria. */
 export function withCurrent(
   options: readonly { readonly value: string; readonly label: string }[],
   current: string,

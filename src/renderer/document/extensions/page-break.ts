@@ -2,19 +2,9 @@ import { Node, mergeAttributes } from '@tiptap/core'
 import { t } from '../../i18n.js'
 
 /**
- * Quebra de página manual.
- *
- * O editor pagina ao vivo, então a quebra é visível pelo que ela faz: a folha
- * termina ali, e é só isso que o Word e o LibreOffice mostram na vista de
- * impressão. A linha tracejada escrita "QUEBRA DE PÁGINA" fazia sentido quando
- * a tela era uma tira contínua e a quebra não tinha efeito nenhum de se ver;
- * hoje ela é ruído, e na capa do modelo de manual caía no meio do desenho.
- *
- * O nó continua existindo, selecionável e apagável — com Backspace no começo da
- * folha seguinte, como no Word.
- *
- * Na exportação vira `break-after: page` no CSS de impressão, e no DOCX vira
- * `<w:br w:type="page"/>`.
+ * Não desenha nada: a folha termina ali, como na vista de impressão do Word e do
+ * LibreOffice. Continua selecionável e apagável com Backspace no começo da folha
+ * seguinte. No DOCX vira `<w:br w:type="page"/>`.
  */
 declare module '@tiptap/core' {
   interface Commands<ReturnType> {
@@ -27,7 +17,6 @@ declare module '@tiptap/core' {
 export const PageBreak = Node.create({
   name: 'pageBreak',
   group: 'block',
-  // Bloco indivisível: o cursor o seleciona inteiro, nunca entra "dentro".
   atom: true,
   selectable: true,
 
@@ -41,7 +30,6 @@ export const PageBreak = Node.create({
       mergeAttributes(HTMLAttributes, {
         'data-page-break': '',
         class: 'page-break',
-        // Rótulo por CSS: não entra no texto e não é copiado junto.
         'aria-label': t('menu.insert.pageBreak'),
       }),
     ]
@@ -52,18 +40,14 @@ export const PageBreak = Node.create({
       setPageBreak:
         () =>
         ({ commands }) =>
-          // A quebra vem acompanhada do parágrafo que a sucede, e o cursor
-          // termina dentro dele. É o que o Word faz com Ctrl+Enter, e evita que
-          // `insertContent` sozinho deixa o nó **selecionado**, e como ele é
-          // atômico a primeira tecla digitada o substituiria — quem inserisse a
-          // quebra e continuasse escrevendo a apagaria sem sinal nenhum.
+          // Com o parágrafo seguinte e o cursor dentro dele, como o Ctrl+Enter do
+          // Word: o nó atômico selecionado seria substituído pela primeira tecla.
           commands.insertContent([{ type: this.name }, { type: 'paragraph' }]),
     }
   },
 
   addKeyboardShortcuts() {
     return {
-      // Mesmo atalho do Word.
       'Mod-Enter': () => this.editor.commands.setPageBreak(),
     }
   },

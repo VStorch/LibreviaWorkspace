@@ -3,18 +3,7 @@ import { familiesInDocument, orderFontFamilies } from '@services/document/font-l
 import { useT } from '../../i18n.js'
 import { useWorkspace } from '../../state/workspace.js'
 
-/**
- * As fontes que o seletor da barra oferece.
- *
- * Três origens, nesta ordem de importância: as do documento aberto, as que o
- * instalador garante, e as instaladas na máquina. A ordem e a fusão são de
- * `@services/document/font-list.ts`; aqui fica só o que é de React — quando
- * perguntar ao main e o que fazer enquanto a resposta não chega.
- *
- * A lista das instaladas é pedida **uma vez por janela**. É informação do
- * ambiente, não do documento: repetir a pergunta a cada arquivo aberto gastaria
- * um processo do sistema por nada.
- */
+/** A ordem é de `font-list.ts`. As instaladas são pedidas uma vez por janela. */
 export function useFontFamilies(activeFamily: string): readonly { value: string; label: string }[] {
   const t = useT()
   const initialDoc = useWorkspace((state) => state.initialDoc)
@@ -24,10 +13,7 @@ export function useFontFamilies(activeFamily: string): readonly { value: string;
     let alive = true
 
     void window.api.fonts.list({}).then((result) => {
-      // Falha aqui não vira aviso na tela: a lista é um conforto, e sem ela a
-      // barra segue oferecendo as fontes que viajam no instalador. Interromper o
-      // trabalho de quem escreve por causa de um `fc-list` ausente seria pior do
-      // que a lista curta.
+      // Sem aviso: a lista é um conforto.
       if (alive && result.ok) setInstalled(result.data.families)
     })
 
@@ -36,18 +22,13 @@ export function useFontFamilies(activeFamily: string): readonly { value: string;
     }
   }, [])
 
-  // As do documento vêm do modelo com que o editor foi montado, e não do
-  // conteúdo ao vivo: varrer a árvore inteira a cada tecla digitada custaria
-  // mais do que tudo o que esta barra faz junto.
+  // Do modelo de montagem, e não do conteúdo ao vivo: varrer a árvore a cada tecla custaria caro.
   const inDocument = useMemo(() => familiesInDocument(initialDoc), [initialDoc])
 
   return useMemo(() => {
     const families = orderFontFamilies(installed, inDocument)
 
-    // A fonte do cursor entra na lista mesmo quando não está em nenhuma das três
-    // origens — texto colado de outro documento traz nome que ninguém listou, e
-    // um `<select>` sem a opção do seu próprio valor mostra a primeira da lista:
-    // a barra passaria a mentir sobre o que está debaixo do cursor.
+    // A fonte do cursor entra mesmo fora das três origens: o `<select>` mentiria.
     if (
       activeFamily !== '' &&
       !families.some((family) => family.toLowerCase() === activeFamily.toLowerCase())

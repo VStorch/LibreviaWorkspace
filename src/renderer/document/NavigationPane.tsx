@@ -7,15 +7,8 @@ import { textStartOf } from './extensions/zero-width.js'
 import { outlineBlocksOf } from './outline-blocks.js'
 
 /**
- * O painel de navegação: os títulos do documento, e o da seção do cursor em
- * destaque.
- *
- * Só lê. Clicar num título move o cursor para ele e rola a folha até lá — mover
- * o cursor não muda o documento, e por isso o painel funciona igual no somente
- * leitura, que é justamente onde se abre um documento longo para consultar.
- *
- * Ao vivo, como o painel de estilos: a lista acompanha cada título digitado, e o
- * destaque, cada movimento do cursor. O nível é o efetivo — ver `outline.ts`.
+ * Clicar move o cursor e rola a folha: não muda o documento, e por isso vale no
+ * somente leitura. O nível é o efetivo (`outline.ts`).
  */
 export function NavigationPane({ editor }: { readonly editor: Editor }): React.JSX.Element {
   const sheet = useWorkspace((state) => state.styles)
@@ -30,20 +23,11 @@ export function NavigationPane({ editor }: { readonly editor: Editor }): React.J
   })
 
   function go(pos: number): void {
-    // O cursor no começo do texto do título, e a folha rolada até ele. A rolagem
-    // é do elemento, e não do `scrollIntoView` do ProseMirror: aquele só garante
-    // que o cursor apareça, e o título ficava colado no pé da janela.
-    //
-    // O foco vai direto à visão, e não pelo comando `focus` do Tiptap: aquele
-    // espera o próximo quadro, e a tecla digitada logo depois do clique caía no
-    // botão do painel.
-    //
-    // Depois dos âncoras do começo do título (o `_Toc` do sumário, um comentário): com o
-    // cursor antes do nó sem largura, o navegador o punha dentro dele, e `End`
-    // e as setas deixavam de andar.
+    // A rolagem é do elemento: o `scrollIntoView` do ProseMirror deixaria o título
+    // no pé da janela. O foco vai direto à visão, porque o `focus` do Tiptap espera
+    // um quadro. O cursor vai depois das âncoras do começo do título.
     const start = textStartOf(editor.state.doc, pos)
-    // O foco antes da seleção: sem foco o ProseMirror muda só o estado, e o
-    // cursor do navegador — o que `Home` e `End` movem — ficava onde estava.
+    // O foco antes da seleção, para o cursor do navegador ir junto.
     editor.view.focus()
     editor.commands.setTextSelection(start)
     const dom = editor.view.nodeDOM(pos)
@@ -74,7 +58,6 @@ export function NavigationPane({ editor }: { readonly editor: Editor }): React.J
               <button
                 type="button"
                 className={`nav-pane__entry${index === current ? ' nav-pane__entry--current' : ''}`}
-                // O recuo diz o nível; o leitor de tela ouve o mesmo pelo rótulo.
                 style={{ paddingLeft: `${8 + (entry.level - 1) * 14}px` }}
                 aria-current={index === current ? 'location' : undefined}
                 aria-label={t('references.nav.entry', { level: entry.level, text: entry.text })}

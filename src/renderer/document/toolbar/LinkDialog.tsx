@@ -13,10 +13,7 @@ interface LinkDialogProps {
   readonly onClose: () => void
 }
 
-/**
- * O destino escolhido em "Lugar neste documento": um marcador pelo nome, ou um
- * título pela posição — o título ganha um marcador oculto na hora de aplicar.
- */
+/** O título ganha um marcador oculto na hora de aplicar. */
 type Place =
   { readonly kind: 'bookmark'; readonly name: string } | { readonly kind: 'heading'; readonly pos: number }
 
@@ -32,15 +29,13 @@ export function LinkDialog({ editor, onClose }: LinkDialogProps): React.JSX.Elem
   const [value, setValue] = useState(internal ? '' : existing)
   const [rejected, setRejected] = useState(false)
 
-  // Os lugares são lidos uma vez, ao abrir: o diálogo não muda o documento
-  // enquanto está aberto, e lê-los ao vivo só custaria.
+  // Uma vez, ao abrir: o diálogo não muda o documento enquanto está aberto.
   const [places] = useState(() => {
     const doc = editor.state.doc
     return {
       bookmarks: bookmarksOf(doc)
         .map((bookmark) => bookmark.name)
-        // O oculto só quando é o destino do link em edição: sem ele na lista, o
-        // seletor abriria em branco num link que funciona.
+        // O oculto só quando é o destino do link em edição, senão o seletor abriria em branco.
         .filter((name) => !isHiddenBookmark(name) || (internal && name === existing.slice(1)))
         .sort((left, right) => left.localeCompare(right)),
       headings: outlineOf(outlineBlocksOf(doc), sheet),
@@ -56,9 +51,7 @@ export function LinkDialog({ editor, onClose }: LinkDialogProps): React.JSX.Elem
         : null
     if (chosen === null) return
 
-    // O título não tem nome a citar: ganha um marcador oculto em volta do texto,
-    // que é o que o Word faz. A posição dos lugares foi lida ao abrir, e o
-    // marcador novo entra depois dela — a seleção é mapeada pela transação.
+    // O título ganha um marcador oculto, como no Word; a seleção é mapeada pela transação.
     const label =
       chosen.kind === 'bookmark'
         ? chosen.name
@@ -120,8 +113,7 @@ export function LinkDialog({ editor, onClose }: LinkDialogProps): React.JSX.Elem
         />
       </label>
 
-      {/* O lugar neste documento substitui o endereço: um link é uma coisa ou a
-          outra, e o campo se apaga para dizer isso. */}
+      {/* Um link é endereço ou lugar: o campo se apaga para dizer isso. */}
       <label className="popover__field">
         <span>{t('references.link.place')}</span>
         <select value={place} onChange={(event) => setPlace(event.target.value)}>

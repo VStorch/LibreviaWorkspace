@@ -16,13 +16,7 @@ type SheetActions = Pick<
 
 export function createSheetActions(set: SetWorkspace, get: GetWorkspace): SheetActions {
   return {
-    /**
-     * Toda mudança de célula passa por aqui, e por isso o recálculo mora aqui.
-     *
-     * Um só ponto de recálculo é o que garante que nenhum caminho de edição
-     * deixe um valor velho na tela: quem esquecer de recalcular teria uma
-     * planilha que só mostra o resultado certo na próxima vez que for tocada.
-     */
+    /** Um só ponto de recálculo: nenhum caminho de edição deixa valor velho na tela. */
     updateSheet: (sheet) => {
       const { workbook } = get()
       if (workbook === null) return
@@ -45,7 +39,7 @@ export function createSheetActions(set: SetWorkspace, get: GetWorkspace): SheetA
     selectSheet: (index) => {
       const { workbook } = get()
       if (workbook === null || index < 0 || index >= workbook.sheets.length) return
-      // Trocar de aba não suja o arquivo: é navegação, não edição.
+      // Navegação, e não edição.
       set({ workbook: { ...workbook, activeSheet: index } })
     },
 
@@ -65,18 +59,14 @@ export function createSheetActions(set: SetWorkspace, get: GetWorkspace): SheetA
       const sheet = workbook.sheets[index]
       if (sheet === undefined || trimmed.length === 0) return
 
-      // Nome repetido quebraria a referência entre abas — melhor recusar agora,
-      // em silêncio, do que aceitar e falhar depois.
+      // Nome repetido quebraria a referência entre abas.
       if (isNameTaken(workbook, trimmed, index)) return
 
-      // Renomear reescreve as fórmulas que citam a aba: sem isso o gesto, que o
-      // usuário considera cosmético, viraria #REF! em toda planilha que a usa.
       set({ workbook: recalculate(renameSheetIn(workbook, index, trimmed)), isDirty: true })
     },
 
     removeSheet: (index) => {
       const { workbook } = get()
-      // Uma pasta sem planilha nenhuma não é estado válido do modelo.
       if (workbook === null || workbook.sheets.length <= 1) return
 
       const sheets = workbook.sheets.filter((_, at) => at !== index)

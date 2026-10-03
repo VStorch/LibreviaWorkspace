@@ -8,17 +8,12 @@ import { focusChain } from './focus-chain.js'
 
 interface InsertGroupProps {
   readonly editor: Editor
-  /** O diálogo do link é desenhado pela barra, junto com os outros. */
   readonly onOpenLink: () => void
-  /**
-   * Os dois abertos de fora: o menu nativo "Tabela" e o menu de contexto chegam
-   * aos mesmos diálogos, e um diálogo por caminho de abertura seriam dois.
-   */
+  /** O menu "Tabela" e o de contexto chegam aos mesmos diálogos, abertos de fora. */
   readonly onOpenTable: () => void
   readonly onOpenImageProperties: () => void
 }
 
-/** O que se põe dentro do documento: tabela, imagem, link, quebra de página. */
 export function InsertGroup({
   editor,
   onOpenLink,
@@ -40,12 +35,7 @@ export function InsertGroup({
 
   const readOnly = useWorkspace((state) => state.readOnly)
 
-  /**
-   * O campo entra onde está o cursor quando ele está numa peça da faixa — o
-   * botão não tira o foco dela (`ToolbarButton` segura o `mousedown`) — e no fim
-   * do rodapé quando não está. Na peça ele é `{n}`, que a peça mostra como está
-   * enquanto se edita e que a gravação transforma em campo.
-   */
+  /** Na peça da faixa com o cursor, como `{n}`, que a gravação transforma em campo; senão, no fim do rodapé. */
   function insertPageField(token: '{n}' | '{total}'): void {
     if (readOnly) return
     const focused = document.activeElement
@@ -70,12 +60,9 @@ export function InsertGroup({
 
   return (
     <ToolbarGroup label={t('document.insert.group')}>
-      {/* Abre o diálogo em vez de inserir uma 3 × 3 fixa: quem precisa de cinco
-          colunas não tem de acrescentá-las uma a uma depois. Excluir a tabela
-          mora no menu "Tabela" e no botão direito, com o resto da estrutura. */}
+      {/* Excluir a tabela mora no menu "Tabela" e no botão direito. */}
       <ToolbarButton icon="table" label={t('document.insert.table')} onClick={onOpenTable} />
-      {/* Com uma imagem selecionada o botão passa a abrir as propriedades dela —
-          texto alternativo e alinhamento —, que é onde se espera procurá-las. */}
+      {/* Com uma imagem selecionada, abre as propriedades dela. */}
       <ToolbarButton
         icon="image"
         label={active.onImage ? t('document.imageDialog.title') : t('document.insert.image')}

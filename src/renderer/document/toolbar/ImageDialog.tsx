@@ -3,19 +3,12 @@ import type { Editor } from '@tiptap/react'
 import { useT } from '../../i18n.js'
 import { applyImageProperties, imageAt } from '../extensions/document-image.js'
 
-/** O tamanho do campo de texto alternativo que o `w:docPr/@descr` aceita sem exagero. */
+/** O que o `w:docPr/@descr` aceita sem exagero. */
 const MAX_ALT_LENGTH = 300
 
 /**
- * Propriedades da imagem: texto alternativo e alinhamento.
- *
- * O texto alternativo é acessibilidade de verdade — vai para `wp:docPr/@descr`,
- * é o que um leitor de tela anuncia no lugar da imagem, e é o campo que o Word
- * chama de "Texto Alt". O **nome do arquivo** seria melhor que nada, mas não é
- * uma descrição.
- *
- * O tamanho não está aqui de propósito: ele se resolve arrastando as alças da
- * própria imagem, que é onde se espera mexer nele.
+ * O texto alternativo vai para `wp:docPr/@descr` e é o que o leitor de tela
+ * anuncia: o "Texto Alt" do Word. O tamanho se resolve pelas alças da imagem.
  */
 export function ImageDialog({
   editor,
@@ -94,10 +87,7 @@ export function ImageDialog({
   )
 }
 
-/**
- * O alinhamento que a imagem já tem — do parágrafo, quando ela mora num, ou do
- * atributo dela, quando é um bloco solto.
- */
+/** Do parágrafo, quando ela mora num, ou dela, quando é bloco solto. */
 function currentAlign(editor: Editor): string {
   const placed = imageAt(editor)
   if (placed === null) return ''

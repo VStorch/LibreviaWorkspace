@@ -9,16 +9,10 @@ import { insertEquation, replaceEquation, type EquationTarget } from './math-com
 import { useT } from '../i18n.js'
 
 /**
- * O editor de equações: o LaTeX, a visualização ao vivo e os modelos.
- *
- * O LaTeX é a fonte; o Temml o desenha em MathML (`latex.ts`), que passa pelo
- * mesmo filtro da equação lida do arquivo antes de virar DOM. A equação que veio
- * de um `.docx` não tem LaTeX: ele sai do MathML dela (`mathml-latex.ts`) ao
- * abrir. Se ninguém mudar nada, o OK fecha sem tocar no documento — e a equação
- * continua com o OMML do arquivo, intacto.
- *
- * A equação travada (com construções que a tela não desenha) abre só para ver:
- * editar o LaTeX derivado dela perderia justamente o que não se vê.
+ * O LaTeX é a fonte; o Temml o desenha (`latex.ts`), pelo mesmo filtro da
+ * equação do arquivo. A equação do `.docx` ganha LaTeX ao abrir
+ * (`mathml-latex.ts`), e o OK sem mudança não toca o documento. A travada abre só
+ * para ver.
  */
 export function MathDialog({
   editor,
@@ -33,7 +27,7 @@ export function MathDialog({
 }): React.JSX.Element {
   const t = useT()
 
-  // O nó lido uma vez, ao abrir: o diálogo edita o que estava lá naquele momento.
+  // Lido uma vez, ao abrir.
   const [initial] = useState(() => {
     if (target.kind === 'insert') {
       return {
@@ -67,7 +61,7 @@ export function MathDialog({
   const result = useMemo(() => (latex.trim() === '' ? null : latexToMathMl(latex, display)), [latex, display])
   const shown = initial.locked ? initial.mathml : result?.ok === true ? result.tree : null
 
-  // A visualização é montada nó a nó, como a equação no documento: nada de innerHTML.
+  // Nó a nó, como no documento: nada de innerHTML.
   useLayoutEffect(() => {
     const host = preview.current
     if (host === null) return
@@ -88,7 +82,7 @@ export function MathDialog({
 
   function close(): void {
     onClose()
-    // Depois de o diálogo sair: o foco volta ao texto, e não ao corpo da janela.
+    // Depois de o diálogo sair, para o foco não cair no corpo da janela.
     requestAnimationFrame(() => editor.view.focus())
   }
 

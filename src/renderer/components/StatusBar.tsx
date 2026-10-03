@@ -30,12 +30,7 @@ export function StatusBar(): React.JSX.Element {
           <span className="statusbar__metric">
             {state.page.size} {width} × {height} mm
           </span>
-          {/* Sem "≈": a tela pagina de verdade, e o número é o mesmo
-              que a pessoa vê nas folhas. Prometer aproximação quando a conta
-              está certa ensina a desconfiar de um número bom. */}
-          <span className="statusbar__metric">
-            {t('shell.statusBar.pages', { count: state.estimatedPages })}
-          </span>
+          <span className="statusbar__metric">{t('shell.statusBar.pages', { count: state.pageCount })}</span>
           <span className="statusbar__metric">
             {t('shell.statusBar.words', { count: state.stats.words })}
           </span>

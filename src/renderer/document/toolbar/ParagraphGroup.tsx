@@ -9,12 +9,11 @@ import { lineHeights, withCurrent } from './toolbar-options.js'
 
 interface ParagraphGroupProps {
   readonly editor: Editor
-  /** Aberto de fora também: o menu nativo tem "Formatar → Parágrafo…". */
+  /** O menu nativo também abre o parágrafo. */
   readonly paragraphOpen: boolean
   readonly onParagraphOpenChange: (open: boolean) => void
 }
 
-/** O que é propriedade do parágrafo: alinhamento, entrelinha e o diálogo completo. */
 export function ParagraphGroup({
   editor,
   paragraphOpen,
@@ -29,11 +28,7 @@ export function ParagraphGroup({
       alignCenter: current.isActive({ textAlign: 'center' }),
       alignRight: current.isActive({ textAlign: 'right' }),
       alignJustify: current.isActive({ textAlign: 'justify' }),
-      // Do **bloco**, e não da marca de texto: no OOXML a entrelinha é
-      // propriedade do parágrafo, e não existe `w:line` dentro de um `w:rPr`.
-      // Enquanto este seletor escrevia na marca, escolher "Duplo" aqui era perda
-      // garantida — o gravador não tinha onde pôr a medida e a anotava no
-      // inventário.
+      // Do **bloco**, e não da marca de texto: no OOXML não existe `w:line` num `w:rPr`.
       lineHeight: blockLineHeightOf(current),
     }),
   })
@@ -74,10 +69,9 @@ export function ParagraphGroup({
       <ToolbarSelect
         label={t('document.paragraph.lineSpacingLabel')}
         value={active.lineHeight}
-        // A vírgula é a nossa: o atributo guarda `1.5`, e a tela escreve 1,5.
+        // O atributo guarda `1.5`, e a tela escreve 1,5.
         options={withCurrent(lineHeightOptions, active.lineHeight, (value) => value.replace('.', ','))}
-        // O valor é a escolha em linhas — vazio é "Simples" —, e a conversão para
-        // a medida do CSS acontece bloco a bloco, porque depende da fonte.
+        // A conversão para o CSS é bloco a bloco, porque depende da fonte.
         onChange={(value) => chain().setBlockLineHeight(value).run()}
         width={100}
       />

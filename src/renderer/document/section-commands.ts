@@ -17,30 +17,23 @@ import { t } from '../i18n.js'
 import { useWorkspace } from '../state/workspace.js'
 
 /**
- * Inserir e excluir quebra de seção.
- *
- * A quebra mora em dois lugares: o id no parágrafo que fecha a seção (a marca,
- * como o `w:sectPr` do OOXML) e a configuração na biblioteca de seções da loja.
- * Quem diz quais seções valem, e em que ordem, é o texto (`resolveSections`):
- * por isso as mudanças de estrutura vão todas numa transação do editor, e a
- * biblioteca só ganha entradas — o desfazer volta o texto, e a seção volta com
- * ele.
+ * O id mora no parágrafo que fecha a seção, como o `w:sectPr`, e a configuração
+ * na biblioteca da loja. Quem diz quais seções valem é o texto
+ * (`resolveSections`): por isso a estrutura muda numa transação do editor, e o
+ * desfazer volta a seção com o texto.
  */
 
-/** As marcas de seção dos blocos de primeiro nível, na ordem do corpo. */
 export function marksOfDoc(doc: ProseMirrorNode): (string | null)[] {
   const marks: (string | null)[] = []
   doc.forEach((block) => marks.push(sectionBreakIn(block as unknown as SectionBlock)))
   return marks
 }
 
-/** As seções que o texto do editor usa agora, com a configuração da loja. */
 export function resolvedOf(doc: ProseMirrorNode): ResolvedSections {
   const store = useWorkspace.getState()
   return resolveSections(marksOfDoc(doc), doc.attrs['bodySection'], store.page, store.sections)
 }
 
-/** Grava na loja as seções mudadas por um painel, pela biblioteca. */
 export function commitSections(next: SectionList, bodyId: string | null): void {
   const store = useWorkspace.getState()
   const stored = storeSections(next, bodyId, store.page, store.sections)
@@ -48,7 +41,7 @@ export function commitSections(next: SectionList, bodyId: string | null): void {
   store.setSections(stored.library)
 }
 
-/** A seção do cursor, como índice em `allSections` das seções resolvidas. */
+/** Como índice em `allSections`. */
 export function sectionAtCursor(
   editor: Editor,
   resolved: ResolvedSections = resolvedOf(editor.state.doc),
@@ -58,13 +51,7 @@ export function sectionAtCursor(
   return blockSections(marks, resolved.sections)[index] ?? resolved.sections.length
 }
 
-/**
- * Seções e colunas só se editam em documento que as grava.
- *
- * O rascunho de antes das seções (`.sdoc` < 6) é gravado pelo caminho de então,
- * que não conhece quebra, coluna nem vínculo de faixa: a mudança apareceria na
- * tela e sumiria no arquivo. O comando recusa e diz por quê.
- */
+/** O rascunho anterior às seções (`.sdoc` < 6) não grava quebra, coluna nem vínculo: o comando recusa. */
 export function sectionEditsAllowed(): boolean {
   const store = useWorkspace.getState()
   if (!store.beforeSections) return true
@@ -72,7 +59,7 @@ export function sectionEditsAllowed(): boolean {
   return false
 }
 
-/** O cursor está dentro de uma tabela: a marca não pode morar numa célula. */
+/** A marca não pode morar numa célula. */
 function insideTable(editor: Editor): boolean {
   const { $from } = editor.state.selection
   for (let depth = $from.depth; depth > 0; depth--) {
@@ -81,7 +68,7 @@ function insideTable(editor: Editor): boolean {
   return false
 }
 
-/** O cursor está num item de lista: a quebra vai depois da lista. */
+/** A quebra vai depois da lista. */
 function insideList(editor: Editor): boolean {
   const { $from } = editor.state.selection
   for (let depth = $from.depth; depth > 0; depth--) {
@@ -90,7 +77,6 @@ function insideList(editor: Editor): boolean {
   return false
 }
 
-/** A marca `from` passa a ser `to`, onde quer que esteja no texto. */
 function renameMark(tr: Transaction, from: string, to: string): void {
   tr.doc.descendants((node, pos) => {
     if (node.attrs['sectionBreak'] === from) tr.setNodeAttribute(pos, 'sectionBreak', to)
@@ -99,19 +85,16 @@ function renameMark(tr: Transaction, from: string, to: string): void {
 }
 
 /**
- * Quebra de seção no cursor, como o Word: o parágrafo se parte, e a metade de
- * cima fecha a seção nova — que é cópia da seção partida. A de baixo continua a
- * seção de antes, começando do jeito pedido. Num item de lista, a quebra fica
- * no item e a lista se parte; numa tabela, ela vem logo depois da tabela, num
- * parágrafo próprio.
+ * Como o Word: o parágrafo se parte, e a metade de cima fecha a seção nova,
+ * cópia da partida. Num item de lista a lista se parte; numa tabela, a quebra vem
+ * depois dela, num parágrafo próprio.
  */
 export function insertSectionBreak(editor: Editor, start: SectionStart): void {
   if (!sectionEditsAllowed()) return
   const store = useWorkspace.getState()
   const resolved = resolvedOf(editor.state.doc)
   const plan = planSectionBreak(resolved, store.sections, sectionAtCursor(editor, resolved), start)
-  // A biblioteca antes do texto: a marca nova precisa achar a seção dela quando
-  // a paginação medir. Entradas a mais não mudam nada até o texto apontá-las.
+  // A biblioteca antes do texto: a marca nova precisa achar a seção quando a paginação medir.
   store.setSections([...store.sections, ...plan.additions])
 
   const structure = (tr: Transaction): void => {
@@ -119,10 +102,8 @@ export function insertSectionBreak(editor: Editor, start: SectionStart): void {
     if (plan.bodyId !== null) tr.setDocAttribute('bodySection', plan.bodyId)
   }
 
-  // Num item de lista a quebra fica no item, como no Word e como o leitor a
-  // entrega: o parágrafo do item fecha a seção, e a lista se parte depois do
-  // item de fora que o contém — a segunda parte leva os mesmos atributos (e a
-  // mesma numeração, quando a lista tem uma do arquivo).
+  // Num item a quebra fica no item, como no Word: a lista se parte depois do item
+  // de fora, e a segunda parte leva os mesmos atributos.
   const $cursor = editor.state.selection.$from
   if (
     !insideTable(editor) &&
@@ -167,9 +148,7 @@ export function insertSectionBreak(editor: Editor, start: SectionStart): void {
     .focus()
     .splitBlock()
     .command(({ tr }) => {
-      // A metade de baixo é o bloco do cursor; a de cima, o irmão antes dele.
-      // A marca que o parágrafo já tinha fica com a de baixo, que é onde o
-      // parágrafo termina — o Enter não a leva adiante sozinho.
+      // A marca que o parágrafo já tinha fica com a metade de baixo, onde ele termina.
       const $cursor = tr.selection.$from
       const lower = $cursor.before($cursor.depth)
       const upperNode = tr.doc.resolve(lower).nodeBefore
@@ -177,8 +156,7 @@ export function insertSectionBreak(editor: Editor, start: SectionStart): void {
       const upper = lower - upperNode.nodeSize
       const previous = upperNode.attrs['sectionBreak'] as string | null
       tr.setNodeAttribute(upper, 'sectionBreak', plan.upperId)
-      // Parágrafo vazio que só carrega a marca é marca, como o leitor o entrega:
-      // sem altura, e excluído junto com a quebra.
+      // Parágrafo vazio com marca é marca, como o leitor o entrega.
       if (upperNode.content.size === 0) tr.setNodeAttribute(upper, 'sectionMark', true)
       if (previous !== null) tr.setNodeAttribute(lower, 'sectionBreak', previous)
       structure(tr)
@@ -187,11 +165,7 @@ export function insertSectionBreak(editor: Editor, start: SectionStart): void {
     .run()
 }
 
-/**
- * Quebra de coluna no cursor (`w:br w:type="column"`): o parágrafo se parte, e a
- * metade de cima termina a coluna. Como a de página que o Word grava dentro do
- * parágrafo, ela é propriedade do bloco (`columnBreakAfter`).
- */
+/** `w:br w:type="column"`: propriedade do bloco (`columnBreakAfter`), como a quebra de página que o Word grava no parágrafo. */
 export function insertColumnBreak(editor: Editor): void {
   if (!sectionEditsAllowed() || insideTable(editor)) return
   editor
@@ -210,10 +184,8 @@ export function insertColumnBreak(editor: Editor): void {
 }
 
 /**
- * Exclui a quebra que fecha a seção do cursor — ou, na última seção, a que a
- * abre. Como no Word, o texto de cima passa a ter o formato da seção de baixo:
- * sem a marca, os blocos são da seção da próxima marca. A seção de baixo recebe
- * as faixas que herdava da excluída (`planSectionDelete`).
+ * Ou, na última seção, a que a abre. Como no Word, o texto de cima passa ao
+ * formato da seção de baixo, que recebe as faixas que herdava (`planSectionDelete`).
  */
 export function deleteSectionBreak(editor: Editor): boolean {
   if (!sectionEditsAllowed()) return false
@@ -235,7 +207,6 @@ export function deleteSectionBreak(editor: Editor): boolean {
     .chain()
     .focus()
     .command(({ tr }) => {
-      // O parágrafo que era só a marca não tem o que sobrar: vai junto.
       if (
         target.node.attrs['sectionMark'] === true &&
         target.node.content.size === 0 &&

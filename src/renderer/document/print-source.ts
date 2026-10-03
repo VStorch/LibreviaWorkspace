@@ -20,17 +20,9 @@ import {
 } from './usePagination.js'
 
 /**
- * O documento recortado nas folhas que a tela mostra.
- *
- * Serializa **direto dos nós**, e não a partir de `getHTML()`. A diferença não
- * é de gosto: o leitor emite a quebra de página dentro do parágrafo quando o
- * Word a gravou assim (`w:br w:type="page"` no meio de um `w:r`), e um `<div>`
- * dentro de `<p>` faz o analisador de HTML fechar o parágrafo e desalojar o
- * `div`. Um documento de 15 nós virava 17 elementos, os índices deixavam de
- * casar, e o papel cortava em lugar diferente do da tela — que é exatamente o
- * defeito que este trabalho existe para acabar.
- *
- * Serializando o nó, o recorte cai sempre onde o paginador o pôs.
+ * Serializa **direto dos nós**, e não de `getHTML()`: o Word grava quebra de
+ * página dentro do parágrafo, e um `<div>` dentro de `<p>` faria o analisador de
+ * HTML desalojá-lo, desalinhando os índices entre tela e papel.
  */
 export function splitIntoPages(
   editor: Editor,
@@ -39,10 +31,8 @@ export function splitIntoPages(
 ): PrintPage[] {
   const serializer = DOMSerializer.fromSchema(editor.schema)
 
-  // Com a numeração das listas gravada nos nós: o serializador não vê as
-  // decorações que a desenham na tela.
+  // O serializador não vê as decorações que desenham a numeração na tela.
   const blocks = drawListsForPrint(editor.state.doc)
-  // As alterações saem como a janela as mostra (Revisão → Mostrar).
   const view = revisionViewOf(editor.state)
   const offsets: number[] = []
   editor.state.doc.forEach((_node: ProseMirrorNode, offset: number) => {
@@ -51,15 +41,13 @@ export function splitIntoPages(
 
   const cuts: PageStart[] = [{ blockIndex: 0 }, ...layout.pageStarts, { blockIndex: blocks.length }]
   const pages: PrintPage[] = []
-  // O número das notas é decoração na tela; no papel ele é escrito aqui, com os
-  // rótulos da tela — os reinícios por folha e por seção já contados.
+  // Na tela o número das notas é decoração; aqui é escrito com os rótulos da tela.
   const screenLabels = noteLabelsOf(editor.state)
   const labelOf = new Map<ProseMirrorNode, string>()
   noteRefsOf(editor.state.doc).forEach(({ node }, index) => {
     const label = screenLabels[index]
     if (label !== undefined) labelOf.set(node, label)
   })
-  // A configuração de cada folha desenhada: papel, faixas e número da seção dela.
   const setups = sheetSetups(sections, layout.sheets)
   const setupOf = (drawn: number): { setup: PageSetup; inSection: number } => {
     const found = setups[drawn]
@@ -72,8 +60,7 @@ export function splitIntoPages(
     const start = cuts[cut]!
     const end = cuts[cut + 1]!
 
-    // As folhas em branco que a seção par ou ímpar pediu antes desta: só a
-    // faixa, como no Word.
+    // As folhas em branco da seção par ou ímpar levam só a faixa, como no Word.
     const drawn = drawnSheet(layout, cut)
     while (pages.length < drawn) {
       const blank = setupOf(pages.length)
@@ -88,16 +75,13 @@ export function splitIntoPages(
     const sheet = setupOf(pages.length)
 
     const holder = document.createElement('div')
-    // O recorte primeiro, nos índices da tela; o modo depois, que não os mexe.
+    // O recorte primeiro, nos índices da tela; o modo depois.
     const fragments = blocksForView(slicePageBlocks(blocks, start, end), view)
     holder.appendChild(serializer.serializeFragment(Fragment.fromArray(fragments)))
-    // Os comentários não vão ao papel, como no Word com a marcação desligada: o
-    // painel e o realce são da tela (o realce é decoração, que o serializador não
-    // vê), e as pontas saem aqui — vazias, mas são marcação de comentário.
+    // Os comentários não vão ao papel, como no Word com a marcação desligada.
     for (const anchor of holder.querySelectorAll('[data-comment-start], [data-comment-end]')) anchor.remove()
     numberNotesForPrint(holder, printedNoteLabels(fragments, labelOf))
-    // A mesma marca que a decoração põe na tela: o parágrafo da captura com
-    // texto não ganha a linha vazia de 1lh.
+    // A mesma marca da decoração da tela: a captura com texto não ganha a linha de 1lh.
     for (const paragraph of holder.querySelectorAll('p')) {
       if (
         paragraph.querySelector(':scope > img[data-anchored]') !== null &&
@@ -142,11 +126,7 @@ export function splitIntoPages(
   return pages
 }
 
-/**
- * As notas da folha desenhada `sheet`: as áreas que a tela pôs nela, com o
- * corpo de cada nota serializado do nó e o número escrito no começo — no papel
- * não há decoração para desenhá-lo.
- */
+/** No papel não há decoração: o número é escrito no começo do corpo. */
 function notesForPrint(
   editor: Editor,
   layout: PageLayout,
@@ -183,11 +163,7 @@ function notesForPrint(
   }))
 }
 
-/**
- * Os blocos em coluna saem no papel como na tela: a largura de uma coluna, o
- * lado da coluna dela e o desvio vertical do primeiro de cada coluna — os
- * mesmos números que a paginação da tela produziu.
- */
+/** Os mesmos números que a paginação da tela produziu. */
 function placeColumns(holder: HTMLElement, start: PageStart, end: PageStart, layout: PageLayout): void {
   if (layout.columnMoves.length === 0) return
   const moves = new Map(layout.columnMoves.map((move) => [move.blockIndex, move]))
@@ -215,8 +191,7 @@ export function slicePageBlocks(
   const fragments: ProseMirrorNode[] = []
   for (let index = start.blockIndex; index <= end.blockIndex && index < blocks.length; index++) {
     const block = blocks[index]!
-    // Parágrafo cortado entre linhas: o recorte é do conteúdo, no caractere
-    // em que a tela pôs o espaçador.
+    // Cortado entre linhas, no caractere em que a tela pôs o espaçador.
     const textFrom = index === start.blockIndex ? start.offset : undefined
     const textTo = index === end.blockIndex ? end.offset : undefined
     if (block.isTextblock && (textFrom !== undefined || textTo !== undefined)) {
@@ -232,8 +207,6 @@ export function slicePageBlocks(
     } else {
       const children: ProseMirrorNode[] = []
       block.forEach((child, _offset, childIndex) => {
-        // As linhas de cabeçalho voltam no alto da folha em que a tabela
-        // continua, como a tela as desenha.
         const repeated =
           index === start.blockIndex && start.repeatHeader === true && isHeaderRow(block, childIndex)
         if (repeated || (childIndex >= from && childIndex < to)) children.push(child)
@@ -249,24 +222,17 @@ export function slicePageBlocks(
 }
 
 /**
- * Os blocos como o modo de mostrar as alterações os vê. Na marcação completa,
- * os mesmos — a revisão sai sublinhada e riscada, na cor do autor, como na tela.
- * Na simples e na sem marcação, o texto final: o excluído sai, o inserido fica
- * como texto comum. No Original, o contrário. A marca de parágrafo e a linha de
- * tabela seguem a mesma regra, e o bloco que a tela esconde inteiro não vai.
+ * Na marcação completa, os mesmos blocos; na simples e na sem marcação, o
+ * texto final; no Original, o contrário. O bloco que a tela esconde não vai.
  */
 export function blocksForView(blocks: readonly ProseMirrorNode[], view: RevisionView): ProseMirrorNode[] {
   if (view === RevisionView.All) return [...blocks]
   return blocks.flatMap((block) => nodeForView(block, view) ?? [])
 }
 
-/** A referência de nota sem as marcas de revisão → a do documento, que tem o rótulo. */
 const originalNoteRefs = new WeakMap<ProseMirrorNode, ProseMirrorNode>()
 
-/**
- * Os rótulos das referências que a folha mostra, na ordem: o que o modo de
- * mostrar escondeu não está no HTML, e não leva rótulo.
- */
+/** O que o modo de mostrar escondeu não leva rótulo. */
 function printedNoteLabels(
   fragments: readonly ProseMirrorNode[],
   labelOf: ReadonlyMap<ProseMirrorNode, string>,
@@ -302,8 +268,7 @@ function nodeForView(node: ProseMirrorNode, view: RevisionView): ProseMirrorNode
   if ('markRevision' in attrs) attrs['markRevision'] = null
   if ('rowRevision' in attrs) attrs['rowRevision'] = null
   if (children.length === 0 && node.childCount > 0 && !node.isTextblock) {
-    // A célula vazia continua (a linha precisa dela); a tabela ou a lista que
-    // perdeu tudo, não.
+    // A célula vazia continua, porque a linha precisa dela.
     return node.type.name === 'tableCell' || node.type.name === 'tableHeader'
       ? node.type.createAndFill(attrs, null, node.marks)
       : null
@@ -326,21 +291,10 @@ function isHeaderRow(table: ProseMirrorNode, rowIndex: number): boolean {
 }
 
 /**
- * A costura do parágrafo que a folha cortou entre linhas.
- *
- * A parte de cima perde o espaço depois, e a de baixo o espaço antes e o recuo
- * da primeira linha: na tela os dois pedaços são um parágrafo só, e só a
- * primeira linha dele tem recuo. A última linha da parte de cima era uma linha
- * do meio, e no parágrafo justificado continua justificada — sem isto ela
- * sairia alinhada à esquerda, como última linha que o papel acha que é.
- *
- * Justificada pelo mesmo truque do espaçador da tela: um elemento da largura da
- * linha no fim, que só cabe numa linha própria e faz da anterior uma quebra
- * automática. O `text-align-last` parecia equivalente e não era: ele vale também
- * para a linha antes de cada `<br>` (Shift+Enter), que a tela deixa à esquerda.
- *
- * O objeto ancorado vai com o pedaço de cima, que é onde o parágrafo começa;
- * `anchoredFloats` já conta o bloco na folha em que ele abre.
+ * Na tela os dois pedaços são um parágrafo só: o de cima perde o espaço depois,
+ * o de baixo o espaço antes e o recuo da primeira linha. A última linha de cima,
+ * justificada, recebe o espaçador da tela: `text-align-last` valeria também antes
+ * de cada `<br>`.
  */
 function markSplitParagraphs(
   holder: HTMLElement,
@@ -369,18 +323,13 @@ function markSplitParagraphs(
   }
 }
 
-/** O alinhamento que se vê, que pode vir do estilo e não do nó. */
 function isJustified(editor: Editor, offset: number | undefined): boolean {
   if (offset === undefined) return false
   const dom = editor.view.nodeDOM(offset)
   return dom instanceof HTMLElement && getComputedStyle(dom).textAlign === 'justify'
 }
 
-/**
- * Os objetos ancorados nos blocos desta folha, com a caixa de texto já
- * serializada: o desenho do papel não conhece o schema do ProseMirror, e quem o
- * conhece é aqui.
- */
+/** Serializada aqui, que é quem conhece o schema do ProseMirror. */
 function anchoredFloats(
   blocks: readonly ProseMirrorNode[],
   layout: PageLayout,
@@ -403,7 +352,6 @@ function anchoredFloats(
   return floats
 }
 
-/** As caixas do cabeçalho e do rodapé, pela mesma razão: o HTML sai daqui. */
 function bandFloats(page: PageSetup, pageNumber: number, editor: Editor): PrintFloat[] {
   return bandFloatsOf(page, pageNumber).map((item) => ({
     ...item,
@@ -411,7 +359,6 @@ function bandFloats(page: PageSetup, pageNumber: number, editor: Editor): PrintF
   }))
 }
 
-/** O conteúdo de uma caixa de texto, em HTML, pelo serializador do editor. */
 function contentHtmlOf(object: FloatingObject, editor: Editor): { contentHtml?: string } {
   if (object.kind !== 'text') return {}
 
@@ -421,8 +368,7 @@ function contentHtmlOf(object: FloatingObject, editor: Editor): { contentHtml?: 
     holder.appendChild(DOMSerializer.fromSchema(editor.schema).serializeFragment(Fragment.fromArray(nodes)))
     return { contentHtml: holder.innerHTML }
   } catch {
-    // Caixa que o schema não reconhece sai vazia em vez de derrubar a
-    // exportação inteira.
+    // Caixa que o schema não reconhece sai vazia, sem derrubar a exportação.
     return { contentHtml: '' }
   }
 }

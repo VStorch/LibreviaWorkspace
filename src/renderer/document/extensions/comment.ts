@@ -6,35 +6,24 @@ import { noteRefAround } from './note-ref.js'
 import { KEEP_SELECTION } from './zero-width.js'
 
 /**
- * Comentários: as duas pontas da âncora como nós sem largura.
- *
- * Mesmo desenho do marcador (ver bookmark.ts): no arquivo a âncora é um par
- * `w:commentRangeStart`/`w:commentRangeEnd` que pode atravessar parágrafos, e é
- * por ser nó que ela sobrevive à edição do parágrafo e volta ao arquivo. O `cid`
- * é o `w:id`, que casa as pontas com o corpo em `DocumentModel.comments`.
- *
- * Uma âncora por conversa: a resposta não tem nó, e quem grava devolve as pontas
- * dela ao lado das do comentário que ela responde. O comentário de ponto — só a
- * referência, sem trecho — tem só o `commentEnd`.
- *
- * O realce do trecho é decoração da tela, e nunca vai ao JSON nem ao papel.
+ * Como o marcador (`bookmark.ts`): a âncora `w:commentRangeStart`/`End` atravessa
+ * parágrafos, e é por ser nó que volta ao arquivo. O `cid` é o `w:id`. Uma âncora
+ * por conversa: a resposta não tem nó. O comentário de ponto tem só o
+ * `commentEnd`. O realce é decoração, e nunca vai ao JSON nem ao papel.
  */
 
 export interface CommentAnchor {
   readonly cid: string
-  /** Posição do nó de início, quando ele está no documento. */
+  /** Quando está no documento. */
   readonly start: number | null
-  /** Posição do nó de fim, quando ele está no documento. */
   readonly end: number | null
 }
 
-/** As âncoras do documento, pelo `cid`. */
 export function commentAnchorsOf(doc: ProseMirrorNode): Map<string, CommentAnchor> {
   const anchors = new Map<string, CommentAnchor>()
   doc.descendants((node, pos) => {
     const kind = node.type.name
-    // Desce também no corpo das notas: a conversa ancorada numa nota tem cartão
-    // como as outras, na altura do corpo, no pé da página.
+    // Desce no corpo das notas: a conversa numa nota também tem cartão.
     if (kind !== 'commentStart' && kind !== 'commentEnd') return true
     const cid = String(node.attrs['cid'] ?? '')
     const known = anchors.get(cid) ?? { cid, start: null, end: null }
@@ -44,10 +33,7 @@ export function commentAnchorsOf(doc: ProseMirrorNode): Map<string, CommentAncho
   return anchors
 }
 
-/**
- * O trecho de uma conversa como seleção: depois da ponta de início e antes da de
- * fim — o trecho, e só ele. No comentário de ponto, o cursor na ponta.
- */
+/** O trecho entre as pontas; no comentário de ponto, o cursor na ponta. */
 export function commentSelectionOf(anchor: CommentAnchor): { readonly from: number; readonly to: number } {
   const from = anchor.start === null ? (anchor.end ?? 0) : anchor.start + 1
   const to = anchor.end ?? from
@@ -55,12 +41,8 @@ export function commentSelectionOf(anchor: CommentAnchor): { readonly from: numb
 }
 
 /**
- * A conversa seguinte (`direction` 1) ou a anterior (-1), pela ordem do texto.
- *
- * `threads` são as conversas que o painel mostra — a resposta lida do arquivo tem
- * pontas próprias, mas não cartão. A partir da conversa em foco, quando o cursor
- * está nela; senão, do cursor. No fim volta ao começo, e no começo ao fim. `null` sem conversa
- * ancorada no texto.
+ * `threads` são as conversas com cartão. A partir da conversa em foco, se o
+ * cursor está nela; senão, do cursor; circular. `null` sem conversa no texto.
  */
 export function adjacentComment(
   doc: ProseMirrorNode,
@@ -78,8 +60,7 @@ export function adjacentComment(
     }))
     .sort((left, right) => left.pos - right.pos)
   if (order.length === 0) return null
-  // A conversa em foco vale enquanto o cursor está no trecho dela: clicado em
-  // outro lugar, quem manda é o cursor.
+  // A conversa em foco vale enquanto o cursor está no trecho dela.
   const current = order.findIndex(
     (item) => item.cid === active && cursor >= item.pos && cursor <= item.end + 1,
   )
@@ -92,12 +73,8 @@ export function adjacentComment(
 }
 
 /**
- * As pontas de um comentário novo na seleção: o começo no `from`, o fim no `to`.
- * Sem seleção, é comentário de ponto — só o fim, como o Word grava. `range`
- * troca a seleção do texto pela de uma nota (`caretOf`), que mora em outro editor.
- *
- * Devolve `false` quando a seleção não cai em texto (uma tabela inteira, uma
- * imagem de bloco), onde um nó de linha não cabe.
+ * Sem seleção, comentário de ponto, só o fim, como o Word grava. `range` vem de
+ * uma nota (`caretOf`). `false` quando a seleção não cai em texto.
  */
 export function insertCommentAnchors(
   tr: Transaction,
@@ -112,23 +89,22 @@ export function insertCommentAnchors(
   const start = schema.nodes['commentStart']
   const end = schema.nodes['commentEnd']
   if (start === undefined || end === undefined) return false
-  // O fim primeiro: inserido antes, ele empurraria a posição do começo.
+  // O fim primeiro: ele empurraria a posição do começo.
   tr.insert(to, end.create({ cid }))
   if (to > from) tr.insert(from, start.create({ cid }))
   return true
 }
 
-/** Tira as pontas da conversa `cid` do texto. Devolve se havia alguma. */
+/** Devolve se havia alguma. */
 export function removeCommentAnchors(tr: Transaction, cid: string): boolean {
   const positions: number[] = []
   tr.doc.descendants((node, pos) => {
     if ((node.type.name === 'commentStart' || node.type.name === 'commentEnd') && node.attrs['cid'] === cid) {
       positions.push(pos)
     }
-    // O corpo da nota é filho de um nó em linha: a busca desce nele também.
+    // O corpo da nota é filho de um nó em linha.
     return node.isBlock || node.type.name === 'noteRef'
   })
-  // De trás para a frente: cada remoção mexe só no que vem depois dela.
   for (const pos of positions.reverse()) tr.delete(pos, pos + 1)
   return positions.length > 0
 }
@@ -140,8 +116,7 @@ const commentNode = (name: 'commentStart' | 'commentEnd') =>
     inline: true,
     atom: true,
     selectable: false,
-    // A âncora não é texto: não vai para a área de transferência como texto nem
-    // conta palavra.
+    // Não vai à área de transferência como texto nem conta palavra.
     renderText: () => '',
 
     addAttributes() {
@@ -153,7 +128,6 @@ const commentNode = (name: 'commentStart' | 'commentEnd') =>
     },
 
     renderHTML({ node }) {
-      // Vazio e sem largura: na tela e no papel a âncora não ocupa lugar.
       return [
         'span',
         {
@@ -168,11 +142,9 @@ const commentNode = (name: 'commentStart' | 'commentEnd') =>
 export const CommentStart = commentNode('commentStart')
 export const CommentEnd = commentNode('commentEnd')
 
-/** O que o painel diz ao realce: a conversa em foco, as resolvidas e se ele está à vista. */
 export interface CommentFocus {
   readonly active: string | null
   readonly resolved: ReadonlySet<string>
-  /** O painel escondido (Exibir → Comentários) leva o realce junto. */
   readonly hidden: boolean
 }
 
@@ -182,19 +154,17 @@ interface CommentsState extends CommentFocus {
 
 export const commentsKey = new PluginKey<CommentsState>('comments')
 
-/** Pede à visão que realce a conversa `cid` (ou nenhuma) — ver `Comments`. */
 export function focusComment(tr: Transaction, focus: Partial<CommentFocus>): Transaction {
   return tr.setMeta(commentsKey, focus)
 }
 
-/** Escolhe a conversa `cid`: o realce em foco e o trecho dela selecionado, à vista. */
+/** O realce em foco e o trecho selecionado, à vista. */
 export function selectComment(tr: Transaction, cid: string): Transaction {
   const next = focusComment(tr, { active: cid })
   const anchor = commentAnchorsOf(tr.doc).get(cid)
   if (anchor === undefined) return next
   const { from, to } = commentSelectionOf(anchor)
-  // O trecho numa nota é escolhido no corpo dela (`selectInNote`), que tem editor
-  // próprio: a seleção do texto não entra no nó.
+  // Numa nota o trecho é escolhido no corpo (`selectInNote`), que tem editor próprio.
   if (noteRefAround(tr.doc, from) !== null) return next
   return next
     .setSelection(TextSelection.create(tr.doc, from, to))
@@ -218,17 +188,9 @@ function decorate(doc: ProseMirrorNode, focus: CommentFocus): DecorationSet {
 }
 
 /**
- * O trecho colado sem as âncoras de comentário que o documento já tem.
- *
- * A cópia de uma âncora seria a mesma conversa em dois lugares — o Word recusa o
- * id repetido —, e ela sai. O que foi **recortado** não está mais no documento, e
- * volta inteiro: mover um parágrafo não custa o comentário. A regra é por ponta:
- * recortada só a metade de um trecho que atravessa parágrafos, a ponta que saiu
- * volta, e a que ficou não se repete.
- *
- * `isKnown` diz se a conversa está na biblioteca do documento: a âncora de outro
- * documento, sem corpo aqui, também sai. O que foi **arrastado** dentro do
- * documento se move, e leva a âncora junto.
+ * A cópia de uma âncora seria a mesma conversa em dois lugares: sai. O que foi
+ * **recortado** volta inteiro, ponta a ponta; o arrastado se move. `isKnown` tira
+ * também a âncora de outro documento, sem corpo aqui.
  */
 export function withoutCommentAnchors(
   slice: Slice,
@@ -264,11 +226,9 @@ export function withoutCommentAnchors(
 }
 
 export interface CommentsOptions {
-  /** Se a conversa `cid` está na biblioteca do documento — ver `withoutCommentAnchors`. */
   readonly isKnown: ((cid: string) => boolean) | undefined
 }
 
-/** O realce do trecho comentado e a colagem sem âncora. */
 export const Comments = Extension.create<CommentsOptions>({
   name: 'comments',
 

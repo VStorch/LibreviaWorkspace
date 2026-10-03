@@ -30,17 +30,8 @@ function numberFormats(t: (key: MessageKey) => string) {
 const ALL_SIDES: readonly BorderSide[] = ['top', 'right', 'bottom', 'left']
 
 /**
- * Barra de ferramentas da planilha.
- *
- * Age sobre a **seleção**, não sobre uma célula: formatar uma coluna inteira é
- * o uso normal, e obrigar clique a clique seria inútil na prática.
- *
- * Os botões mostram o estado da seleção — negrito fica marcado quando *toda* a
- * seleção está em negrito, que é a mesma regra que o clique aplica. Um botão
- * que acende com a seleção mista mentiria sobre o que o próximo clique faz.
- *
- * Usa os mesmos controles da barra do documento: numa suíte, negrito precisa
- * ser o mesmo botão nos dois editores.
+ * Age sobre a **seleção**. O botão acende quando *toda* a seleção tem o estilo,
+ * a mesma regra do clique; os controles são os da barra do documento.
  */
 export function SpreadsheetToolbar({
   sheet,
@@ -59,8 +50,7 @@ export function SpreadsheetToolbar({
 
   return (
     <div className="toolbar" role="toolbar" aria-label={t('spreadsheet.toolbar.label')}>
-      {/* A referência da seleção mora na barra de fórmulas, logo abaixo, que é
-          onde o Excel a põe — repeti-la aqui seria ruído. */}
+      {/* A referência da seleção mora na barra de fórmulas, como no Excel. */}
       <ToolbarGroup label={t('spreadsheet.toolbar.textFormat')}>
         <ToolbarButton
           icon="bold"
@@ -162,8 +152,7 @@ export function SpreadsheetToolbar({
       <ToolbarSeparator />
 
       <ToolbarGroup label={t('spreadsheet.toolbar.panes')}>
-        {/* Congelar usa a seleção como referência: tudo acima e à esquerda dela
-            fica preso, que é como o Excel e o Google Sheets fazem. */}
+        {/* Tudo acima e à esquerda da seleção fica preso, como no Excel. */}
         <ToolbarButton
           icon="freeze"
           label={t('spreadsheet.toolbar.freeze')}
@@ -180,13 +169,7 @@ export function SpreadsheetToolbar({
   )
 }
 
-/**
- * O estilo comum a toda a seleção.
- *
- * Só devolve um atributo quando **todas** as células concordam. É o que faz o
- * botão de negrito acender apenas quando a seleção inteira está em negrito — o
- * mesmo critério que o clique usa para decidir entre ligar e desligar.
- */
+/** Só o atributo em que todas as células concordam. */
 function styleOfSelection(sheet: Sheet, range: Range): CellStyle {
   const first = getCell(sheet, range.fromRow, range.fromColumn)?.style ?? {}
   const common: Record<string, unknown> = { ...first }

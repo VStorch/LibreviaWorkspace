@@ -3,13 +3,9 @@ import { noteBody, parkNoteBody, placeNoteBody, subscribeNoteBodies } from './ex
 import { NOTE_SEPARATOR_PX, type NoteArea, type NoteAreaItem } from './usePagination.js'
 
 /**
- * A área de notas de uma folha: o separador e as notas, cada uma com o pedaço
- * que a paginação deu a esta folha.
- *
- * O pedaço que começa na primeira linha mostra o **próprio** corpo editável da
- * nota (`note-view.ts`), recortado na altura que coube; a continuação, na folha
- * seguinte, é uma cópia do corpo deslocada para cima — um elemento não mora em
- * dois lugares. Editar a continuação é clicar nela: o cursor vai para o corpo.
+ * O pedaço da primeira linha mostra o **próprio** corpo editável, recortado; a
+ * continuação é uma cópia deslocada, porque um elemento não mora em dois lugares.
+ * Clicar na continuação leva o cursor ao corpo.
  */
 export function NoteAreaView({ area }: { area: NoteArea }): React.JSX.Element {
   return (
@@ -37,8 +33,7 @@ export function NoteAreaView({ area }: { area: NoteArea }): React.JSX.Element {
 
 function LiveNote({ item }: { item: NoteAreaItem }): React.JSX.Element {
   const slot = useRef<HTMLDivElement>(null)
-  // Só quando a nota muda de lugar: refazer a cada desenho tiraria o foco de
-  // quem está digitando nela.
+  // Só quando a nota muda de lugar: refazer a cada desenho tiraria o foco.
   useLayoutEffect(() => {
     const element = slot.current
     const body = noteBody(item.key)
@@ -53,10 +48,7 @@ function LiveNote({ item }: { item: NoteAreaItem }): React.JSX.Element {
 function ContinuedNote({ item }: { item: NoteAreaItem }): React.JSX.Element {
   const slot = useRef<HTMLDivElement>(null)
 
-  // A cópia se refaz fora do React, no quadro seguinte à edição. Um estado do
-  // React assinado a cada tecla fazia, na digitação rápida, um desenho
-  // síncrono atrás do outro até o React desistir (erro 185) — e a edição que
-  // estava a caminho do documento se perdia no meio, com o corpo já adiante.
+  // A cópia se refaz fora do React: um estado assinado a cada tecla levaria o React a desistir (erro 185).
   useLayoutEffect(() => {
     const element = slot.current
     if (element === null) return undefined

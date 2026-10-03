@@ -2,21 +2,10 @@ import { useWorkspace } from '../state/workspace.js'
 import { useT } from '../i18n.js'
 
 /**
- * O arquivo abriu travado, e a faixa diz por quê e como destravar.
- *
- * A proteção é contra o caso concreto: a gravação é cirúrgica, então comentário,
- * revisão e nota voltam intactos **desde que você não edite o bloco que os
- * ancora**. Quem só precisa ler não corre risco nenhum; quem precisa editar
- * clica uma vez e assume o risco sabendo qual é.
- *
- * Por isso é padrão e não cadeado, e por isso a lista do que está em jogo
- * aparece junto do botão: um aviso que não diz o que se perde é um aviso que se
- * fecha sem ler.
- *
- * "Não reproduz por inteiro", e não "não mostra": o leitor traz o texto de
- * dentro das caixas, e dizer que elas não aparecem seria falso na metade dos
- * casos — o texto aparece, a moldura e a posição não. Um aviso que o usuário
- * consegue desmentir olhando a tela é pior que nenhum.
+ * Comentário, revisão e nota voltam intactos desde que não se edite o bloco que
+ * os ancora: é padrão, e não cadeado, e a lista do que está em jogo fica junto do
+ * botão. "Não reproduz por inteiro", e não "não mostra": o texto das caixas
+ * aparece, a moldura e a posição não.
  */
 export function ReadOnlyBanner(): React.JSX.Element | null {
   const t = useT()

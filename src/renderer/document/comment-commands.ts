@@ -16,23 +16,12 @@ import {
 import { caretOf, selectInNote } from './extensions/note-view.js'
 
 /**
- * Criar, responder, editar, resolver e excluir comentários.
- *
- * O desenho é o das seções (ver section-commands.ts): o comentário mora em dois
- * lugares — as pontas no texto e o corpo na biblioteca da loja —, e quem diz qual
- * vale é o texto (`resolveComments`). Inserir e excluir são **uma transação do
- * editor** cada, e o desfazer tira e devolve o cartão junto com as pontas. Texto,
- * resposta e resolvido mudam só a loja: ficam fora do desfazer, como os estilos,
- * e marcam o documento.
+ * Como as seções: as pontas no texto e o corpo na biblioteca da loja. Inserir e
+ * excluir são uma transação do editor cada, com desfazer; texto, resposta e
+ * resolvido mudam só a loja, como os estilos.
  */
 
-/**
- * Comentários só se criam e mudam em documento que os grava.
- *
- * O rascunho de antes deles (`.sdoc` < 7) não tem as pontas nos nós, e a gravação
- * dele deixa as partes de comentário como estão: a mudança apareceria na tela e
- * sumiria no arquivo. O comando recusa e diz por quê.
- */
+/** O rascunho anterior aos comentários (`.sdoc` < 7) não os grava: o comando recusa. */
 export function commentEditsAllowed(): boolean {
   const store = useWorkspace.getState()
   if (store.readOnly) return false
@@ -41,7 +30,6 @@ export function commentEditsAllowed(): boolean {
   return false
 }
 
-/** Um comentário novo, assinado pelo autor das preferências e datado de agora. */
 function newComment(library: readonly DocumentComment[], parentId?: string): DocumentComment {
   const author = currentPreferences().authorName.trim()
   const initials = initialsOf(author)
@@ -56,25 +44,17 @@ function newComment(library: readonly DocumentComment[], parentId?: string): Doc
   }
 }
 
-/**
- * Inserir → Comentário: as pontas na seleção e um cartão novo no painel, com a
- * caixa de texto aberta. Vazio, o cartão desiste e leva as pontas (`cancelNewComment`).
- */
+/** Um cartão novo com a caixa aberta; vazio, ele desiste e leva as pontas (`cancelNewComment`). */
 export function insertComment(editor: Editor): void {
   if (!commentEditsAllowed()) return
   const store = useWorkspace.getState()
   const wasClean = !store.isDirty
   const comment = newComment(store.comments)
-  // A biblioteca antes do texto, como nas seções: a ponta nova precisa achar o
-  // corpo quando o painel medir. Entrada a mais não muda nada até o texto apontá-la.
-  // Sem `focus()`: com o editor fora de foco (o clique no menu de contexto), o
-  // foco do TipTap chega num quadro seguinte e rouba o da caixa do cartão.
-  // Digitando numa nota, as pontas vão para o corpo dela, na seleção dele.
+  // A biblioteca antes do texto, como nas seções. Sem `focus()`: o foco do Tiptap
+  // chegaria depois e roubaria o da caixa do cartão.
   const caret = caretOf(editor.view)
-  // Comentário novo dentro de nota, não: o LibreOffice não abre o .docx que traz
-  // `w:commentReference` em `footnotes.xml` ("não foi possível carregar"), e o
-  // próprio LibreOffice os descarta ao gravar. O que vem do arquivo continua lido,
-  // mostrado e devolvido como estava.
+  // Comentário novo dentro de nota é recusado: o LibreOffice não abre o .docx com
+  // `w:commentReference` em `footnotes.xml`.
   if (caret.note !== null) {
     store.showError({ code: 'INTERNAL', message: t('comments.notInNote') })
     return
@@ -93,13 +73,10 @@ export function insertComment(editor: Editor): void {
   store.setCommentDraft(comment.id)
 }
 
-/** O documento estava salvo quando o cartão novo abriu: desistir dele o devolve assim. */
+/** Desistir do cartão novo devolve o documento a salvo. */
 let cleanBeforeDraft = false
 
-/**
- * O cartão novo desistiu (Esc, ou confirmado vazio): as pontas saem, fora do
- * desfazer — refazer um comentário que nunca teve texto seria um cartão vazio.
- */
+/** Fora do desfazer: refazer um comentário sem texto seria um cartão vazio. */
 export function cancelNewComment(editor: Editor, cid: string): void {
   const store = useWorkspace.getState()
   store.setCommentDraft(null)
@@ -109,7 +86,7 @@ export function cancelNewComment(editor: Editor, cid: string): void {
   cleanBeforeDraft = false
 }
 
-/** Excluir a conversa: as pontas saem do texto, e com elas o cartão e as respostas. */
+/** As pontas saem, e com elas o cartão e as respostas. */
 export function deleteCommentThread(editor: Editor, cid: string): void {
   if (!commentEditsAllowed()) return
   const tr = editor.state.tr
@@ -118,7 +95,6 @@ export function deleteCommentThread(editor: Editor, cid: string): void {
   if (store.commentDraft === cid) store.setCommentDraft(null)
 }
 
-/** Troca o texto de um comentário. */
 export function editComment(id: string, text: string): void {
   if (!commentEditsAllowed()) return
   const store = useWorkspace.getState()
@@ -129,7 +105,6 @@ export function editComment(id: string, text: string): void {
   if (store.commentDraft === id) store.setCommentDraft(null)
 }
 
-/** Uma resposta nova no fim da conversa `rootId`. */
 export function replyToComment(rootId: string, text: string): void {
   if (!commentEditsAllowed()) return
   const store = useWorkspace.getState()
@@ -137,23 +112,18 @@ export function replyToComment(rootId: string, text: string): void {
   store.setComments([...store.comments, reply])
 }
 
-/** Resolver e reabrir: vale para a conversa inteira, pelo comentário que a abre. */
+/** Vale para a conversa inteira. */
 export function setCommentDone(rootId: string, done: boolean): void {
   if (!commentEditsAllowed()) return
   const store = useWorkspace.getState()
   store.setComments(store.comments.map((comment) => (comment.id === rootId ? { ...comment, done } : comment)))
 }
 
-/** O painel escondido volta quando um comando de comentário precisa dele. */
 function showCommentsPane(): void {
   if (!currentPreferences().commentsPane) void setPreference({ commentsPane: true })
 }
 
-/**
- * Próximo e anterior: o cursor vai ao trecho da conversa seguinte (ou da
- * anterior) pela ordem do texto, e o cartão dela fica escolhido — ver
- * `adjacentComment`. Devolve se achou alguma.
- */
+/** O cartão da conversa fica escolhido. Devolve se achou alguma. */
 export function goToComment(editor: Editor, direction: 1 | -1): boolean {
   const store = useWorkspace.getState()
   const anchors = commentAnchorsOf(editor.state.doc)
@@ -172,11 +142,7 @@ export function goToComment(editor: Editor, direction: 1 | -1): boolean {
   return true
 }
 
-/**
- * Escolhe a conversa `cid`: o realce em foco e o trecho selecionado — no corpo da
- * nota, quando é lá que ela está (`selectInNote`). `focus` leva o teclado ao
- * trecho; o clique no cartão deixa o foco onde está.
- */
+/** No corpo da nota, quando é lá que ela está. `focus` leva o teclado ao trecho. */
 export function showComment(editor: Editor, cid: string, focus: boolean): void {
   const anchor = commentAnchorsOf(editor.state.doc).get(cid)
   const range = anchor === undefined ? null : commentSelectionOf(anchor)

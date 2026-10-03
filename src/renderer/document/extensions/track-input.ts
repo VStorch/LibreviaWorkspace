@@ -6,59 +6,41 @@ import type { EditorView } from '@tiptap/pm/view'
 import { DELETION, INSERTION, ZERO_WIDTH, blockRevisionOf } from './track-changes.js'
 
 /**
- * Controle de alterações: o que se digita com o controle ligado.
+ * A transação é reescrita **antes** de ser aplicada (`dispatchTransaction`): uma
+ * só, com a seleção certa e um passo de desfazer. Em cada `ReplaceStep`:
  *
- * A transação é reescrita **antes** de ser aplicada (`dispatchTransaction`): sai
- * uma transação só, com a seleção certa e um passo de desfazer. A regra, para
- * cada `ReplaceStep`:
+ * - o que entra ganha `insertion` do autor e perde `deletion`;
+ * - o que sai **fica**, com `deletion` — menos a inserção do próprio autor, que
+ *   sai de verdade como no Word, e o já excluído, que fica como estava;
+ * - o Enter que sai vira `markRevision del` do bloco de cima, e o que entra,
+ *   `markRevision ins`;
+ * - a linha de tabela inteira ganha `rowRevision`.
  *
- * - o que entra ganha a marca `insertion` do autor, e perde qualquer `deletion`;
- * - o que sai **fica**, com a marca `deletion` — menos o que já era inserção do
- *   mesmo autor (esse sai de verdade, como no Word) e o que já era exclusão (fica
- *   como estava; o cursor só passa por cima);
- * - o Enter que sai vira a marca de parágrafo excluída (`markRevision del`) do
- *   bloco de cima, e o que entra, a inserida (`markRevision ins`); a marca que o
- *   próprio autor inseriu sai de verdade — os blocos se juntam;
- * - a linha de tabela inteira que sai fica, com `rowRevision del`; a que entra
- *   ganha `rowRevision ins`.
- *
- * Formatação (marcas, atributos, `ReplaceAroundStep` de lista e de tipo de bloco)
- * passa sem controle, como passos comuns. Também passam o desfazer, o aceitar e
- * rejeitar (`SKIP_TRACKING`), o que não entra no histórico e a ponta de comentário
- * ou de marcador sozinha — ponta não é texto.
- *
- * Durante a composição do IME só a marca de inserção entra: devolver o que a
- * composição apaga desmontaria o DOM que o IME está editando. O que ela apaga no
- * meio é, quase sempre, o próprio texto ainda em composição.
+ * Formatação passa sem controle, assim como desfazer, aceitar e rejeitar
+ * (`SKIP_TRACKING`) e a ponta sozinha de comentário ou marcador. Na composição do
+ * IME só a inserção é marcada: devolver o que ela apaga desmontaria o DOM dela.
  */
 
-/** A meta que tira a transação do controle — aceitar e rejeitar, por exemplo. */
+/** Aceitar e rejeitar, por exemplo. */
 export const SKIP_TRACKING = 'trackChanges:skip'
 
-/** A meta do histórico (`prosemirror-history`): desfazer e refazer não são edição nova. */
+/** Desfazer e refazer não são edição nova. */
 const HISTORY_META = 'history$'
 
-/**
- * A data da revisão, com precisão de minuto, como o Word a grava. É ela que deixa
- * o que se digita no mesmo minuto virar um trecho só: as marcas ficam iguais e o
- * texto se funde.
- */
+/** Ao minuto, como o Word: o que se digita no mesmo minuto se funde num trecho só. */
 export function revisionDate(now: Date): string {
   return `${now.toISOString().slice(0, 16)}:00Z`
 }
 
-/** O autor e a data de uma edição controlada. */
 interface Revision {
   readonly author: string
   readonly date: string
 }
 
 export interface TrackOptions {
-  /** A composição do IME está em curso (`view.composing`). */
   readonly composing?: boolean
 }
 
-/** A transação deve passar pelo controle? */
 export function shouldTrack(tr: Transaction): boolean {
   if (!tr.docChanged) return false
   if (tr.getMeta(SKIP_TRACKING) === true) return false
@@ -66,13 +48,9 @@ export function shouldTrack(tr: Transaction): boolean {
   return tr.getMeta('addToHistory') !== false
 }
 
-// --- o que ficou no documento controlado e não está no original --------------
-
 /**
- * O texto excluído que o controle guardou, visto do documento original: cada
- * ponto é uma posição do original onde o controlado tem `size` posições a mais.
- * É o mapa entre os dois — as posições do original, depois de cada passo, viram as
- * do controlado por aqui.
+ * O texto excluído que o controle guardou, visto do original: cada ponto é uma
+ * posição do original onde o controlado tem `size` posições a mais.
  */
 class KeptContent {
   private points: { pos: number; size: number }[] = []
@@ -86,7 +64,6 @@ class KeptContent {
     return result
   }
 
-  /** O mesmo mapa, como `Mapping`, para os passos que passam sem controle. */
   mapping(): Mapping {
     const mapping = new Mapping()
     let shift = 0
@@ -97,11 +74,7 @@ class KeptContent {
     return mapping
   }
 
-  /**
-   * Leva os pontos para depois do passo original. Os que caem em `absorbed` (o
-   * trecho que o passo controlado guardou) viram um ponto só, no começo dele; os
-   * que o passo apagou de fora a fora somem com ele.
-   */
+  /** Os pontos dentro de `absorbed` viram um só, no começo dele; os que o passo apagou somem. */
   advance(map: StepMap, absorbed?: { from: number; to: number; size: number }): void {
     const next: { pos: number; size: number }[] = []
     for (const point of this.points) {
@@ -121,13 +94,11 @@ class KeptContent {
   }
 }
 
-// --- a exclusão ---------------------------------------------------------------
-
 function hasMark(node: ProseMirrorNode, name: string): boolean {
   return node.marks.some((mark) => mark.type.name === name)
 }
 
-/** Texto que o próprio autor inseriu (e ninguém excluiu): apagar é apagar de verdade. */
+/** Apagar o que o próprio autor inseriu é apagar de verdade. */
 function isOwnInsertion(node: ProseMirrorNode, author: string): boolean {
   return (
     !hasMark(node, DELETION) &&
@@ -144,9 +115,7 @@ function blockRevision(kind: 'ins' | 'del', revision: Revision): Record<string, 
   return { kind, author: revision.author, date: revision.date }
 }
 
-/** O que fazer com um trecho excluído com o controle ligado. */
 interface DeletionPlan {
-  /** Trechos que ganham a marca `deletion`. */
   readonly marks: [number, number][]
   /** Trechos que saem de verdade: inserção própria, objeto de bloco, linha própria. */
   readonly drops: [number, number][]
@@ -154,15 +123,10 @@ interface DeletionPlan {
   readonly paragraphMarks: number[]
   /** Blocos cuja marca de parágrafo (inserida pelo autor) sai: juntam-se ao seguinte. */
   readonly joins: number[]
-  /** Linhas de tabela que passam a excluídas. */
   readonly rows: number[]
 }
 
-/**
- * A marca de parágrafo de qual bloco a exclusão de [from, to] leva, se leva — a
- * do próprio bloco, quando o fim dele cai no meio do trecho; a do bloco de cima,
- * quando o trecho é o último bloco inteiro (o Backspace num parágrafo vazio).
- */
+/** A do próprio bloco, quando o fim dele cai no trecho; a do de cima, no Backspace num parágrafo vazio. */
 function paragraphMarkTaken(
   doc: ProseMirrorNode,
   node: ProseMirrorNode,
@@ -182,7 +146,7 @@ function paragraphMarkTaken(
   return pos - previous.nodeSize
 }
 
-/** Planeja a exclusão controlada de [from, to] — ou `null`, se ela não tem controle (coluna de tabela). */
+/** `null` quando a exclusão não tem controle, como numa coluna de tabela. */
 function planDeletion(doc: ProseMirrorNode, from: number, to: number, author: string): DeletionPlan | null {
   const plan: DeletionPlan = { marks: [], drops: [], paragraphMarks: [], joins: [], rows: [] }
   const taken = new Set<number>()
@@ -240,7 +204,7 @@ function planDeletion(doc: ProseMirrorNode, from: number, to: number, author: st
   return untracked ? null : plan
 }
 
-/** Aplica o plano. Devolve quantas posições saíram de verdade. */
+/** Devolve quantas posições saíram de verdade. */
 function applyDeletion(tr: Transaction, plan: DeletionPlan, revision: Revision): number {
   const schema = tr.doc.type.schema
   const sizeBefore = tr.doc.content.size
@@ -256,10 +220,8 @@ function applyDeletion(tr: Transaction, plan: DeletionPlan, revision: Revision):
   }
   for (const [from, to] of plan.marks) tr.addMark(from, to, mark)
 
-  // O bloco que se junta fica com a marca de parágrafo do seguinte: é ela que
-  // termina o parágrafo junto. De trás para frente — o que sai adiante não mexe
-  // nas posições de antes, e na fila de junções cada bloco herda a marca que o
-  // seguinte já herdou.
+  // O bloco que se junta fica com a marca de parágrafo do seguinte. De trás para
+  // frente, para o que sai adiante não mexer nas posições de antes.
   const removals: { from: number; to: number; join?: number }[] = plan.drops.map(([from, to]) => ({
     from,
     to,
@@ -281,13 +243,7 @@ function applyDeletion(tr: Transaction, plan: DeletionPlan, revision: Revision):
   return sizeBefore - tr.doc.content.size
 }
 
-// --- a inserção ---------------------------------------------------------------
-
-/**
- * O trecho fechado só tem blocos de texto vazios — o parágrafo que o ProseMirror
- * põe no lugar do apagado (a célula limpa, o documento inteiro apagado). Aberto,
- * é o Enter, e esse entra.
- */
+/** O parágrafo que o ProseMirror põe no lugar do apagado; aberto, é o Enter, e esse entra. */
 function onlyEmptyBlocks(slice: Slice): boolean {
   if (slice.openStart > 0) return false
   let empty = true
@@ -297,7 +253,6 @@ function onlyEmptyBlocks(slice: Slice): boolean {
   return empty
 }
 
-/** Marca [from, to] como inserido pelo autor: o texto, as marcas de parágrafo e as linhas. */
 function markInserted(tr: Transaction, from: number, to: number, revision: Revision): void {
   const schema = tr.doc.type.schema
   const insertion = schema.marks[INSERTION]!.create({ ...revision })
@@ -335,9 +290,6 @@ function markInserted(tr: Transaction, from: number, to: number, revision: Revis
   }
 }
 
-// --- a transação ---------------------------------------------------------------
-
-/** O passo só põe ou tira pontas sem largura — comentário, marcador. */
 function onlyAnchors(step: ReplaceStep, doc: ProseMirrorNode): boolean {
   const anchorsOnly = (fragment: Fragment): boolean => {
     let only = true
@@ -350,7 +302,6 @@ function onlyAnchors(step: ReplaceStep, doc: ProseMirrorNode): boolean {
   return anchorsOnly(doc.slice(step.from, step.to).content) && anchorsOnly(step.slice.content)
 }
 
-/** Copia o que a transação traz além dos passos: metas, hora, marcas guardadas, rolagem. */
 function copyExtras(from: Transaction, to: Transaction): void {
   const meta = (from as unknown as { meta: Record<string, unknown> }).meta
   for (const key of Object.keys(meta)) to.setMeta(key, meta[key])
@@ -358,11 +309,7 @@ function copyExtras(from: Transaction, to: Transaction): void {
   if (from.scrolledIntoView) to.scrollIntoView()
 }
 
-/**
- * Reescreve a transação com o controle de alterações: a mesma edição, com o que
- * sai guardado como excluído e o que entra marcado como inserido. Pura: recebe o
- * estado de antes e devolve outra transação sobre ele.
- */
+/** Pura: recebe o estado de antes e devolve outra transação sobre ele. */
 export function trackTransaction(
   tr: Transaction,
   state: EditorState,
@@ -414,8 +361,7 @@ export function trackTransaction(
     const slice = step.slice
     if (slice.size > 0 && !(step.to > step.from && onlyEmptyBlocks(slice))) {
       const before = tracked.steps.length
-      // O bloco que o Enter abre leva a marca de parágrafo de onde ele caiu — a do
-      // documento controlado, e não a do original, que o trecho copiou.
+      // A marca de parágrafo do documento controlado, e não a do original.
       const $at = tracked.doc.resolve(to)
       const tail: unknown = $at.parent.isTextblock ? $at.parent.attrs['markRevision'] : undefined
       tracked.replace(to, to, slice)
@@ -456,39 +402,27 @@ export function trackTransaction(
   return tracked
 }
 
-// --- o desfazer ---------------------------------------------------------------
-
-/** O grupo do desfazer em que as últimas edições controladas caíram. */
 export interface TrackGroup {
   readonly id: string
-  /** A hora da última edição do grupo. */
   readonly time: number
-  /** Onde o cursor ficou depois dela. */
   readonly head: number
 }
 
-/** O mesmo intervalo do `prosemirror-history` (`newGroupDelay`). */
+/** O de `newGroupDelay` do `prosemirror-history`. */
 const GROUP_DELAY_MS = 500
 let groupCount = 0
 
 /**
- * Junta a edição controlada às anteriores no desfazer, como o histórico junta as
- * sem controle.
- *
- * O histórico agrupa pelo relógio e pela vizinhança dos trechos mudados, mas a
- * exclusão controlada não muda trecho nenhum — só põe a marca — e cada Backspace
- * virava um passo próprio. A vizinhança aqui se mede pela edição pedida
- * (`original`): ela começa onde o cursor ficou depois da anterior? E dentro do
- * mesmo intervalo? Então vai junto, pela meta `composition`, que é a que o
- * histórico usa para não partir a composição do IME — um valor nosso, que não
- * colide com os números dela. Devolve o grupo de agora.
+ * A exclusão controlada só põe a marca, e o histórico, que agrupa pela
+ * vizinhança dos trechos mudados, faria de cada Backspace um passo. Aqui a
+ * vizinhança é a da edição pedida, e o agrupamento vai pela meta `composition`,
+ * a mesma que o histórico usa para o IME.
  */
 export function joinHistoryGroup(
   original: Transaction,
   tracked: Transaction,
   previous: TrackGroup | null,
 ): TrackGroup | null {
-  // A composição de verdade manda no próprio grupo.
   if (original.getMeta('composition') !== undefined) return null
   const map = original.mapping.maps[0]
   let adjacent = false
@@ -502,13 +436,11 @@ export function joinHistoryGroup(
   return { id, time: original.time, head: tracked.selection.head }
 }
 
-// --- a área de transferência ---------------------------------------------------
-
 function isRevisionMark(mark: Mark): boolean {
   return mark.type.name === INSERTION || mark.type.name === DELETION
 }
 
-/** O conteúdo sem marcas nem atributos de revisão: o que se cola é texto novo. */
+/** O que se cola é texto novo. */
 function withoutRevisions(fragment: Fragment): Fragment {
   const children: ProseMirrorNode[] = []
   fragment.forEach((node) => {
@@ -535,7 +467,7 @@ function withoutRevisions(fragment: Fragment): Fragment {
   return Fragment.fromArray(children)
 }
 
-/** O conteúdo sem o que está excluído: copiar leva o texto como ele fica. */
+/** Copiar leva o texto como ele fica. */
 function withoutDeleted(fragment: Fragment): Fragment {
   const children: ProseMirrorNode[] = []
   fragment.forEach((node) => {
@@ -553,18 +485,14 @@ export function stripDeleted(slice: Slice): Slice {
   return new Slice(withoutDeleted(slice.content), slice.openStart, slice.openEnd)
 }
 
-// --- a extensão ---------------------------------------------------------------
-
 export interface TrackInputOptions {
-  /** O controle está ligado? Consultado a cada transação — muda com o editor no ar. */
+  /** Consultado a cada transação: muda com o editor no ar. */
   readonly isTracking: () => boolean
-  /** Quem assina as alterações. */
   readonly author: () => string
 }
 
 const trackInputKey = new PluginKey('trackInput')
 
-/** Se o bloco tem algum trecho com marca de revisão. */
 function hasRevisionInside(block: ProseMirrorNode): boolean {
   let found = false
   block.forEach((child) => {
@@ -573,18 +501,13 @@ function hasRevisionInside(block: ProseMirrorNode): boolean {
   return found
 }
 
-/**
- * O trecho que o Ctrl+Backspace (ou Ctrl+Delete) apaga, em posições dentro do
- * bloco: até o começo da palavra anterior (ou o começo da seguinte). O já
- * excluído e as âncoras sem largura são transparentes — a palavra é a do texto
- * que se vê. `null` quando não há o que apagar (a ponta do bloco).
- */
+/** O já excluído e as âncoras sem largura são transparentes; `null` na ponta do bloco. */
 export function wordRangeAt(
   block: ProseMirrorNode,
   offset: number,
   backward: boolean,
 ): [number, number] | null {
-  // Uma entrada por posição do bloco: 'w' letra, 's' espaço, 't' transparente.
+  // 'w' letra, 's' espaço, 't' transparente.
   const kinds: string[] = []
   block.forEach((child) => {
     if (child.isText) {
@@ -610,11 +533,7 @@ export function wordRangeAt(
   return index === offset ? null : [offset, index]
 }
 
-/**
- * O texto puro do que se copia: blocos separados por linha em branco, a quebra
- * de linha como `\n`, e a referência de nota só como a marca dela — o corpo da
- * nota mora dentro do nó, e `textBetween` o despejaria no meio da frase.
- */
+/** A referência de nota só como a marca: `textBetween` despejaria o corpo no meio da frase. */
 function plainTextOf(fragment: Fragment): string {
   const blocks: string[] = []
   let inline = ''
@@ -629,11 +548,9 @@ function plainTextOf(fragment: Fragment): string {
 }
 
 /**
- * O Backspace e o Delete de um caractere, com o controle ligado, feitos aqui e
- * não pelo navegador: apagando sozinho ele mexe também no trecho excluído
- * vizinho (o espaço do começo vira `&nbsp;`), e a releitura da tela devolvia
- * esse trecho como texto novo — inserido de volta. Exportado para o corpo da
- * nota, que é outro `EditorView` e não tem os plugins do editor.
+ * Feitos aqui, e não pelo navegador, que mexeria no trecho excluído vizinho e o
+ * devolveria como texto novo. Exportado para o corpo da nota, que é outro
+ * `EditorView`, sem os plugins do editor.
  */
 export function trackedDeleteKey(view: EditorView, event: KeyboardEvent, isTracking: () => boolean): boolean {
   if (view.composing) return false
@@ -644,10 +561,7 @@ export function trackedDeleteKey(view: EditorView, event: KeyboardEvent, isTrack
   const $cursor = selection.$head
   const backward = event.key === 'Backspace'
 
-  // Ctrl: a palavra. O navegador, apagando sozinho, refaz o `<del>`
-  // vizinho como tachado comum — a revisão virava formatação mesmo com o
-  // controle desligado. Então, perto de revisão ou com o controle ligado,
-  // a palavra sai por aqui.
+  // A palavra também: o navegador refaria o `<del>` vizinho como tachado comum.
   if (event.ctrlKey) {
     if (!isTracking() && !hasRevisionInside($cursor.parent)) return false
     const range = wordRangeAt($cursor.parent, $cursor.parentOffset, backward)
@@ -659,7 +573,7 @@ export function trackedDeleteKey(view: EditorView, event: KeyboardEvent, isTrack
   if (!isTracking()) return false
   const node = backward ? $cursor.nodeBefore : $cursor.nodeAfter
   if (node === null || !node.isText || node.text === undefined) return false
-  // Um caractere, inteiro: o par substituto de um emoji vai junto.
+  // Um caractere inteiro: o par substituto de um emoji vai junto.
   const text = node.text
   const unit = backward ? text.charCodeAt(text.length - 1) : text.charCodeAt(0)
   const surrogate = backward ? unit >= 0xdc00 && unit <= 0xdfff : unit >= 0xd800 && unit <= 0xdbff
@@ -710,12 +624,10 @@ export const TrackInput = Extension.create<TrackInputOptions>({
         key: trackInputKey,
         props: {
           handleKeyDown: (view, event) => trackedDeleteKey(view, event, options.isTracking),
-          // O que se cola (e se arrasta) entra como texto novo; com o controle
-          // ligado, é ele que vira inserção.
+          // O que se cola entra como texto novo; o excluído não vai para a área
+          // de transferência, nem no texto puro.
           transformPasted: (slice) => stripRevisions(slice),
-          // O excluído não vai para a área de transferência.
           transformCopied: (slice) => stripDeleted(slice),
-          // E nem do texto puro, que o Tiptap tira da seleção sem passar acima.
           clipboardTextSerializer: (slice) => {
             return plainTextOf(stripDeleted(slice).content)
           },

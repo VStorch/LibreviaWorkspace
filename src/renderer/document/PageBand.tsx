@@ -4,19 +4,10 @@ import { usePreferences } from '../state/preferences.js'
 import { useT } from '../i18n.js'
 
 /**
- * Cabeçalho ou rodapé do documento importado, desenhado na margem.
- *
- * **O texto é editável; a moldura não.** Cada peça que trouxe endereço do
- * arquivo recebe o cursor, e o que se digita nela volta para o `w:t` de onde
- * veio. O resto — o logotipo, a tabela, o filete, o campo do número da página —
- * continua sendo desenho de uma parte OOXML que a gravação devolve intacta, e
- * que este componente não saberia gerar de novo.
- *
- * A faixa é uma só no arquivo mesmo aparecendo em todas as folhas: editar na
- * folha 3 muda todas, como no Word.
- *
- * `pointer-events: none` na faixa, e `auto` só nas peças editáveis: clicar na
- * margem em volta não tira o cursor do texto do corpo.
+ * **O texto é editável; a moldura não.** Cada peça com endereço do arquivo
+ * recebe o cursor, e o que se digita volta ao `w:t` dela; o resto é desenho de
+ * uma parte OOXML que volta intacta. `pointer-events: none` na faixa, para o
+ * clique na margem não tirar o cursor do corpo.
  */
 export function PageBand({
   band,
@@ -29,32 +20,14 @@ export function PageBand({
 }: {
   band: Band
   kind: 'header' | 'footer'
-  /** O número impresso nesta folha, já no formato de `w:pgNumType`. */
+  /** No formato de `w:pgNumType`. */
   pageLabel: string
-  /** Quantas folhas o documento tem agora. */
   totalPages: number
-  /**
-   * Recuo lateral da faixa. Cabeçalho corporativo costuma ser **mais largo que
-   * a coluna de texto** — no corpus real, 177 mm contra 146,5 mm — então usar
-   * a margem do texto encolheria o logotipo para dentro. Metade da margem
-   * reproduz a proporção do original sem precisar de número mágico.
-   */
+  /** Metade da margem: o cabeçalho corporativo é mais largo que a coluna de texto. */
   insetPx: number
-  /**
-   * Distância da faixa até a borda do papel, que o arquivo declara em
-   * `w:pgMar/@header` e `@footer`.
-   *
-   * A altura do cabeçalho empurra o corpo para baixo, e desenhar num lugar e
-   * contar de outro faria a conta e o desenho discordarem — e o corpo desceria
-   * demais ou de menos.
-   */
+  /** `w:pgMar/@header` e `@footer`: desenhar num lugar e contar de outro faria o corpo descer errado. */
   offsetPx: number
-  /**
-   * O texto de uma peça mudou.
-   *
-   * Ausente quando o documento está travado — e nesse caso nenhuma peça recebe
-   * o cursor, em vez de recebê-lo e descartar o que for digitado.
-   */
+  /** Ausente quando o documento está travado: nenhuma peça recebe o cursor. */
   onEdit?: ((pid: string, text: string) => void) | undefined
 }): React.JSX.Element {
   const t = useT()
@@ -68,9 +41,7 @@ export function PageBand({
         right: `${insetPx}px`,
         [kind === 'header' ? 'top' : 'bottom']: `${offsetPx}px`,
       }}
-      // `aria-label` e não `aria-hidden`: esconder uma região que agora tem
-      // conteúdo editável a tornaria inalcançável pelo teclado, e o leitor de
-      // tela anunciaria um campo que não existe.
+      // `aria-label`, e não `aria-hidden`: a região tem conteúdo editável.
       role="group"
       aria-label={kind === 'header' ? t('document.band.header') : t('document.band.footer')}
     >
@@ -82,25 +53,13 @@ export function PageBand({
   )
 }
 
-/** O que cada desenhista de peça precisa saber, junto. */
 interface BandParts {
   pageLabel: string
   totalPages: number
   onEdit?: ((pid: string, text: string) => void) | undefined
 }
 
-/**
- * A grade do cabeçalho, quando ele é uma tabela.
- *
- * Uma tabela de verdade, e não três colunas: no corpus real o logotipo mora
- * numa célula mesclada por quatro linhas, com o título ao lado e a numeração à
- * direita. Espalhado pelos terços, o mesmo cabeçalho virava uma fileira de
- * palavras que transbordava sobre a primeira linha do texto.
- *
- * As bordas vêm resolvidas do leitor, lado a lado: no OOXML cada uma delas sai
- * de três lugares — a célula, a moldura da tabela, a linha interna — e refazer
- * essa conta aqui e outra vez no papel é como os dois divergem.
- */
+/** Uma tabela de verdade: o logotipo mora numa célula mesclada. As bordas vêm resolvidas do leitor. */
 function BandGrid({ band, ...parts }: { band: Band } & BandParts): React.JSX.Element {
   return (
     <table className="band__grid">
@@ -156,8 +115,6 @@ const renderPiece =
       )
     }
 
-    // A tela pagina, então o total é o de verdade — e é ele que a pessoa
-    // confere antes de imprimir.
     const text = pieceText(piece, pageLabel, totalPages)
 
     const style: React.CSSProperties = {
@@ -168,8 +125,7 @@ const renderPiece =
       fontFamily: piece.fontFamily,
     }
 
-    // Só peça com endereço recebe o cursor: o número da página é calculado a
-    // cada abertura e não tem `w:t` onde guardar o que fosse digitado nele.
+    // O número da página não tem `w:t` onde guardar o que se digitasse nele.
     if (piece.pid === undefined || onEdit === undefined) {
       return (
         <span key={index} style={style}>
@@ -191,18 +147,9 @@ const renderPiece =
   }
 
 /**
- * Uma peça de texto da faixa, com o cursor dentro.
- *
  * O texto sai no `blur`, e não a cada tecla: mudar a configuração de página
- * redesenha todas as folhas, e redesenhar por baixo de quem digita levaria o
- * cursor embora. Pela mesma razão o conteúdo só é reescrito quando a peça não
- * tem o foco.
- *
- * A ortografia vale aqui como vale no corpo: o cabeçalho é onde mora o nome do
- * documento, e é justamente ali que um erro de digitação se repete em todas as
- * folhas. A preferência é lida da loja porque a faixa é desenhada por três
- * componentes de profundidade, e passar o valor de mão em mão só para chegar aqui
- * seria três assinaturas a mais sem nada em troca.
+ * redesenha as folhas e levaria o cursor embora. A ortografia vale aqui como no
+ * corpo; a preferência é lida da loja.
  */
 function BandText({
   pid,
@@ -212,9 +159,8 @@ function BandText({
   onEdit,
 }: {
   pid: string
-  /** O que se vê: com o número desta folha no lugar de `{n}`. */
   text: string
-  /** O que se edita: com `{n}` e `{total}`, que é o que volta ao arquivo como campo. */
+  /** Com `{n}` e `{total}`, que voltam ao arquivo como campo. */
   raw: string
   style: React.CSSProperties
   onEdit: (pid: string, text: string) => void
@@ -240,9 +186,7 @@ function BandText({
       suppressContentEditableWarning
       role="textbox"
       spellCheck={spellcheck}
-      // Com o cursor dentro, a peça mostra os campos como `{n}` e `{total}`: o
-      // número desta folha, editado e devolvido, viraria texto fixo — o rodapé
-      // diria "3" em todas as folhas.
+      // Com o cursor dentro, os campos aparecem como `{n}` e `{total}`: o número desta folha viraria texto fixo.
       onFocus={() => {
         if (host.current !== null && host.current.textContent !== raw) host.current.textContent = raw
       }}
@@ -251,8 +195,7 @@ function BandText({
         if (host.current !== null) host.current.textContent = text
         onEdit(pid, edited)
       }}
-      // Enter abriria parágrafo dentro da peça, e a faixa não tem onde guardar
-      // um: um `w:t` é uma linha só. A tecla passa a fechar a edição.
+      // Um `w:t` é uma linha só: Enter fecha a edição.
       onKeyDown={(event) => {
         if (event.key === 'Enter') {
           event.preventDefault()
@@ -263,14 +206,7 @@ function BandText({
   )
 }
 
-/**
- * Um terço da faixa, com as peças agrupadas em linhas.
- *
- * Cada parágrafo do arquivo é uma linha, e por isso são elementos de verdade e
- * não um `<br>`: dentro de um contêiner flex o `br` não gera caixa nenhuma, e o
- * rodapé de três linhas do modelo de manual continuava saindo como uma frase
- * só, emendada na largura da folha.
- */
+/** Cada parágrafo do arquivo é uma linha: num flex, um `<br>` não gera caixa. */
 function BandCellPieces({
   pieces,
   place,

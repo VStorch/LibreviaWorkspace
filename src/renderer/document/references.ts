@@ -29,21 +29,11 @@ import { readPendingSelection, textStartOf } from './extensions/zero-width.js'
 import { outlineBlocksOf } from './outline-blocks.js'
 import { drawnSheet, type PageLayout, type PageStart } from './usePagination.js'
 
-/**
- * O que as referências precisam saber além do documento: em que folha cada
- * coisa caiu, como a folha numera e os estilos.
- *
- * Lido na hora do comando, e não guardado: a paginação muda a cada linha
- * digitada, e um número de página calculado com a de antes é o erro que o
- * sumário existe para não ter.
- */
+/** Lido na hora do comando: a paginação muda a cada linha, e um número de página velho é o erro que o sumário não pode ter. */
 export interface ReferenceContext {
   readonly layout: PageLayout
   readonly page: PageSetup
-  /**
-   * Todas as seções, com as faixas herdadas (`effectiveSections`): o número da
-   * folha sai no formato da seção dela. Ausente, vale `page`.
-   */
+  /** O número da folha sai no formato da seção dela. Ausente, vale `page`. */
   readonly sections?: readonly PageSetup[]
   readonly styles: StyleSheet
   readonly setStyles: (styles: StyleSheet) => void
@@ -56,8 +46,6 @@ export interface ReferenceContext {
 export function flushSelection(editor: Editor): void {
   readPendingSelection(editor.view)
 }
-
-// --- página de uma posição -------------------------------------------------
 
 /** A posição do documento em que a folha começa, ou nulo se o layout envelheceu. */
 function positionOfStart(doc: ProseMirrorNode, start: PageStart): number | null {
@@ -78,11 +66,7 @@ function positionOfStart(doc: ProseMirrorNode, start: PageStart): number | null 
   return pos
 }
 
-/** A folha (de 1 em diante) em que a posição cai, pelos cortes da paginação. */
-/**
- * O número da folha de conteúdo `sheet` (a partir de 1) como o campo `PAGE` o
- * escreve: com o reinício e o formato da seção em que ela cai.
- */
+/** Com o reinício e o formato da seção em que a folha cai, como o campo `PAGE` escreve. */
 export function sheetLabel(context: ReferenceContext, sheet: number): string {
   const plan = context.layout.sheets[drawnSheet(context.layout, sheet - 1)]
   if (plan === undefined) return pageLabel(context.page, sheet)
@@ -90,6 +74,7 @@ export function sheetLabel(context: ReferenceContext, sheet: number): string {
   return pageLabel({ ...section, pageNumberStart: plan.number }, 1)
 }
 
+/** A folha (de 1 em diante) em que a posição cai, pelos cortes da paginação. */
 export function sheetAt(doc: ProseMirrorNode, starts: readonly PageStart[], pos: number): number {
   let sheet = 1
   for (const start of starts) {
@@ -100,20 +85,14 @@ export function sheetAt(doc: ProseMirrorNode, starts: readonly PageStart[], pos:
   return sheet
 }
 
-// --- campos ------------------------------------------------------------------
-
 /** O texto entre duas posições, com o resultado dos campos no lugar deles. */
 function textBetween(doc: ProseMirrorNode, from: number, to: number): string {
-  // Sem o corpo das notas: ver `textBetweenWithoutNotes`.
   return textBetweenWithoutNotes(doc, from, to, ' ', (leaf) =>
     leaf.type.name === 'field' ? String(leaf.attrs['result'] ?? '') : '',
   )
 }
 
-/**
- * O rótulo da primeira referência de nota entre `from` e `to` — o que o
- * `NOTEREF` mostra. `null` sem nota no trecho: o campo fica como está.
- */
+/** O que o `NOTEREF` mostra; `null` sem nota no trecho, e o campo fica como está. */
 export function noteNumberIn(
   doc: ProseMirrorNode,
   labels: readonly string[],
@@ -131,24 +110,16 @@ const PAGE_KINDS = new Set(['PAGE', 'PAGEREF', 'NUMPAGES'])
 const UPDATABLE = new Set(['PAGE', 'PAGEREF', 'NUMPAGES', 'REF', 'SEQ', 'NOTEREF'])
 
 export interface FieldUpdate {
-  /** Quantos campos mudaram de resultado. */
   readonly changed: number
   /** Algum campo de página foi recalculado — e a paginação pode mudar com ele. */
   readonly pageDependent: boolean
 }
 
 /**
- * Recalcula os campos entre `from` e `to` — o F9 do Word.
- *
- * A ordem é a do Word: primeiro as sequências (`SEQ`), porque a referência a uma
- * legenda (`REF`) cita o número dela; depois as referências; e as páginas por
- * último, com a paginação que a tela tem agora. O `SEQ` conta o documento
- * inteiro — o número de uma legenda depende das de antes, estejam ou não na
- * seleção —, mas só os de dentro dela mudam.
- *
- * O campo que aponta para marcador que não existe mais ganha o texto do Word,
- * "Erro! Indicador não definido.", e não some: é assim que a pessoa descobre que
- * apagou o que ele citava.
+ * O F9 do Word, na ordem dele: `SEQ` primeiro, porque o `REF` a uma legenda cita
+ * o número; depois as referências; e as páginas por último. O `SEQ` conta o
+ * documento inteiro, mas só os de dentro do trecho mudam. Marcador que não
+ * existe mais dá "Erro! Indicador não definido.", como no Word.
  */
 export function updateFieldsIn(
   editor: Editor,
@@ -157,9 +128,7 @@ export function updateFieldsIn(
   to: number,
   kinds: ReadonlySet<string> = UPDATABLE,
 ): FieldUpdate {
-  // O cursor que a pessoa acabou de mover pode estar só no DOM; a transação
-  // abaixo leva a seleção do estado, e sem isto o devolveria ao lugar de antes —
-  // o segundo passe chega sozinho, a qualquer momento, e puxava o cursor de volta.
+  // O cursor recém-movido pode estar só no DOM: sem isto a transação o puxaria de volta.
   flushSelection(editor)
   const { state } = editor
   const doc = state.doc
@@ -170,13 +139,11 @@ export function updateFieldsIn(
     return true
   })
 
-  // As sequências contam o documento inteiro, na ordem.
   const sequences = fields.filter((field) => field.kind === 'SEQ')
   const numbers = sequenceNumbers(sequences.map((field) => String(field.node.attrs['instr'])))
   const sequenceResult = new Map(sequences.map((field, index) => [field.pos, numbers[index]!]))
 
-  // A referência lê o texto do marcador **depois** de as sequências mudarem: a
-  // legenda "Figura 1" que virou "Figura 2" tem de ser citada como "Figura 2".
+  // A referência lê o marcador **depois** das sequências: "Figura 1" que virou "Figura 2".
   const updatedSequenceDoc = (() => {
     const tr = state.tr
     for (const [pos, result] of sequenceResult) tr.setNodeAttribute(pos, 'result', result)
@@ -185,8 +152,7 @@ export function updateFieldsIn(
 
   const bookmarks = new Map(bookmarksOf(updatedSequenceDoc).map((bookmark) => [bookmark.name, bookmark]))
   const missing = context.t('references.field.missingBookmark')
-  // O marcador que o arquivo tem fora dos nós não está perdido: a referência a
-  // ele fica com o resultado que o Word calculou.
+  // O marcador fora dos nós não está perdido: fica o resultado que o Word calculou.
   const outside = new Set(context.outsideBookmarks ?? [])
   const sheets = context.layout.pages
   const noteLabels = noteLabelsOf(state)
@@ -214,14 +180,12 @@ export function updateFieldsIn(
           break
         }
         const text = textBetween(updatedSequenceDoc, target.pos + 1, target.end ?? target.pos + 1)
-        // `\# 0`: só o número do texto citado — "Figura 2" vira "2". É como o
-        // Word faz a referência "só o número" a uma legenda.
+        // `\# 0`: só o número do texto citado, a referência "só o número" do Word.
         result = fieldSwitch(instr, '#') === null ? text : (/(\d+)(?!.*\d)/.exec(text)?.[1] ?? text)
         break
       }
       case 'NOTEREF': {
-        // O número da nota cuja referência o marcador cobre — o da tela, com os
-        // reinícios por folha e por seção.
+        // O número da tela, com os reinícios por folha e por seção.
         const name = fieldArgument(instr) ?? ''
         const target = bookmarks.get(name)
         if (target === undefined) {
@@ -264,45 +228,32 @@ export function updateFieldsIn(
 }
 
 /**
- * Os campos da seleção, ou do documento inteiro com o cursor parado — e, se
- * algum deles depende da página, um segundo passe quando a paginação assentar.
- *
- * O segundo passe é o que faz o número da página sair certo: atualizar muda o
- * texto dos campos, o texto pode empurrar uma linha para a folha seguinte, e o
- * número calculado antes do empurrão fica velho. O Word também faz os dois.
+ * Se algum campo depende da página, há um segundo passe quando a paginação
+ * assenta: o texto novo pode empurrar uma linha para a folha seguinte. O Word
+ * também faz os dois.
  */
 export function updateFields(editor: Editor, context: ReferenceContext): FieldUpdate {
   const { from, to, empty } = editor.state.selection
   const range = empty ? { from: 0, to: editor.state.doc.content.size } : { from, to }
   const update = updateFieldsIn(editor, context, range.from, range.to)
-  // Só quando algo mudou: armado à toa, o passe dispararia na próxima digitação
-  // e reescreveria campos que ninguém mandou atualizar.
+  // Só quando algo mudou: senão o passe reescreveria campos na próxima digitação.
   if (update.pageDependent && update.changed > 0 && empty) arm(editor, 'all')
   return update
 }
 
-/**
- * Quem pediu o segundo passe: o F9 do documento inteiro corrige todos os campos
- * de página; o sumário, só os dele — o resto do documento a pessoa não mandou
- * atualizar.
- */
+/** O F9 do documento corrige todos os campos de página; o sumário, só os dele. */
 const pendingPagePass = new WeakMap<Editor, { scope: 'all' | 'toc'; doc: ProseMirrorNode }>()
 
-/** Arma o segundo passe para o documento de agora. */
 function arm(editor: Editor, scope: 'all' | 'toc'): void {
   pendingPagePass.set(editor, { scope, doc: editor.state.doc })
 }
 
-/**
- * O segundo passe, chamado quando a paginação muda. Só os campos de página, e uma
- * vez: o passe não pede outro.
- */
+/** Uma vez: o passe não pede outro. */
 export function settlePageFields(editor: Editor, context: ReferenceContext): void {
   const pending = pendingPagePass.get(editor)
   if (pending === undefined) return
   pendingPagePass.delete(editor)
-  // A pessoa voltou a escrever antes de a paginação assentar: o passe é de
-  // outro documento, e não vale mais.
+  // A pessoa voltou a escrever: o passe é de outro documento.
   if (pending.doc !== editor.state.doc) return
   const { scope } = pending
 
@@ -311,21 +262,12 @@ export function settlePageFields(editor: Editor, context: ReferenceContext): voi
     return
   }
 
-  // De trás para a frente não é preciso: mudar o resultado não desloca posição.
   for (const { pos, node } of tablesOfContents(editor.state.doc)) {
     updateFieldsIn(editor, context, pos, pos + node.nodeSize, PAGE_KINDS)
   }
 }
 
-// --- marcadores ocultos dos títulos -----------------------------------------------
-
-/**
- * Garante o marcador oculto em volta do texto de cada bloco dado, na mesma
- * transação, e devolve o nome de cada um na ordem dada.
- *
- * De trás para a frente, para que a inserção de um não desloque a posição dos
- * que ainda faltam.
- */
+/** De trás para a frente, para uma inserção não deslocar as que faltam. */
 function ensureBookmarks(tr: Transaction, positions: readonly number[], prefix: '_Toc' | '_Ref'): string[] {
   const schema: Schema = tr.doc.type.schema
   const names = new Array<string>(positions.length)
@@ -364,9 +306,6 @@ function ensureBookmarks(tr: Transaction, positions: readonly number[], prefix: 
   return names
 }
 
-// --- sumário ---------------------------------------------------------------
-
-/** As posições dos sumários do documento. */
 function tablesOfContents(doc: ProseMirrorNode): Array<{ pos: number; node: ProseMirrorNode }> {
   const found: Array<{ pos: number; node: ProseMirrorNode }> = []
   doc.forEach((node, pos) => {
@@ -375,11 +314,7 @@ function tablesOfContents(doc: ProseMirrorNode): Array<{ pos: number; node: Pros
   return found
 }
 
-/**
- * Monta as entradas de um sumário na transação: marca os títulos com `_Toc…` e
- * devolve os parágrafos, na forma do Word — o texto do título e uma tabulação,
- * e o `PAGEREF` do número, os dois dentro do link para o marcador.
- */
+/** Como o Word: o texto do título, uma tabulação e o `PAGEREF`, dentro do link para o marcador `_Toc…`. */
 function buildEntries(
   tr: Transaction,
   context: ReferenceContext,
@@ -390,8 +325,7 @@ function buildEntries(
   const links = tocLinks(instr)
   const omitPages = tocOmitsPages(instr)
 
-  // Os títulos de fora dos sumários: a entrada de um sumário nunca é título, mas
-  // um sumário antigo com parágrafo em estilo de título se listaria a si mesmo.
+  // Um sumário antigo com parágrafo em estilo de título se listaria a si mesmo.
   const inside = tablesOfContents(tr.doc).map(({ pos, node }) => [pos, pos + node.nodeSize] as const)
   const headings = outlineOf(outlineBlocksOf(tr.doc), sheet).filter(
     (heading) =>
@@ -412,9 +346,7 @@ function buildEntries(
     styles = ensured.sheet
     const name = names[index]!
     const marks = links ? [{ type: 'link', attrs: { href: `#${name}` } }] : []
-    // A folha é lida na paginação que a tela tem agora, e por isso no documento
-    // de antes dos marcadores novos, que é o que ela mediu. O segundo passe (ver
-    // `settlePageFields`) a corrige depois de o sumário ocupar o lugar dele.
+    // A folha da paginação atual, que mediu o documento antes dos marcadores; o segundo passe corrige.
     const page = sheetLabel(context, sheetAt(tr.before, context.layout.pageStarts, heading.pos))
     return {
       type: 'paragraph',
@@ -439,10 +371,7 @@ function buildEntries(
   return { entries, sheet: styles }
 }
 
-/**
- * Insere um sumário no lugar do bloco do cursor — antes dele, ou no lugar dele se
- * estiver vazio —, com o título "Sumário" e as entradas dos títulos 1 a 3.
- */
+/** Antes do bloco do cursor, ou no lugar dele se estiver vazio, com os títulos 1 a 3. */
 export function insertTableOfContents(editor: Editor, context: ReferenceContext): void {
   const { state } = editor
   const tr = state.tr
@@ -461,7 +390,6 @@ export function insertTableOfContents(editor: Editor, context: ReferenceContext)
     content: [title, ...entries],
   })
 
-  // O bloco de primeiro nível do cursor, na transação que já tem os marcadores.
   const $from = tr.doc.resolve(tr.mapping.map(state.selection.from))
   const top = $from.depth === 0 ? $from.pos : $from.before(1)
   const current = tr.doc.nodeAt(top)
@@ -477,15 +405,9 @@ export function insertTableOfContents(editor: Editor, context: ReferenceContext)
 }
 
 /**
- * Refaz as entradas do sumário do cursor — ou do primeiro, com o cursor fora
- * de todos —, a partir dos títulos de agora.
- *
- * O título do sumário (os parágrafos antes de `head`), a instrução e o controle
- * de conteúdo ficam; as entradas são trocadas inteiras, como no "Atualizar
- * sumário inteiro" do Word. A correção feita à mão numa entrada vai embora, e lá
- * também.
- *
- * Devolve falso quando o documento não tem sumário.
+ * O do cursor, ou o primeiro. O título, a instrução e o controle de conteúdo
+ * ficam; as entradas são trocadas inteiras, como no "Atualizar sumário inteiro"
+ * do Word. Falso quando não há sumário.
  */
 export function updateTableOfContents(editor: Editor, context: ReferenceContext): boolean {
   const { state } = editor
@@ -498,8 +420,7 @@ export function updateTableOfContents(editor: Editor, context: ReferenceContext)
   const instr = String(chosen.node.attrs['instr'] ?? DEFAULT_TOC_INSTRUCTION)
   const { entries, sheet } = buildEntries(tr, context, instr, context.styles)
 
-  // A posição do sumário depois dos marcadores novos, que podem ter entrado antes
-  // dele (um título antes do sumário é raro, mas existe).
+  // Os marcadores novos podem ter entrado antes do sumário.
   const pos = tr.mapping.map(chosen.pos)
   const toc = tr.doc.nodeAt(pos)
   if (toc === null) return false
@@ -517,9 +438,6 @@ export function updateTableOfContents(editor: Editor, context: ReferenceContext)
   return true
 }
 
-// --- legendas ----------------------------------------------------------------
-
-/** Os campos `SEQ` de um bloco de texto, com a posição de cada um. */
 function sequencesIn(block: ProseMirrorNode, pos: number): Array<{ pos: number; label: string }> {
   const found: Array<{ pos: number; label: string }> = []
   block.forEach((child, offset) => {
@@ -530,10 +448,7 @@ function sequencesIn(block: ProseMirrorNode, pos: number): Array<{ pos: number; 
   return found
 }
 
-/**
- * Os rótulos de legenda: os que o documento já usa em algum `SEQ`, e os do Word
- * (Figura, Tabela, Equação) no idioma da interface.
- */
+/** Os que o documento já usa e os do Word (Figura, Tabela, Equação) no idioma da interface. */
 export function captionLabels(doc: ProseMirrorNode, defaults: readonly string[]): string[] {
   const labels = new Set(defaults)
   doc.descendants((node, pos) => {
@@ -546,19 +461,15 @@ export function captionLabels(doc: ProseMirrorNode, defaults: readonly string[])
 
 export interface CaptionRequest {
   readonly label: string
-  /** O que vem depois do número: "— Arquitetura do sistema". Pode ser vazio. */
+  /** Pode ser vazio. */
   readonly text: string
-  /** Acima do bloco do cursor (o costume das tabelas) ou abaixo (o das figuras). */
+  /** Acima é o costume das tabelas; abaixo, o das figuras. */
   readonly above: boolean
 }
 
 /**
- * Insere uma legenda — "Figura 1 — texto" — num parágrafo novo, acima ou abaixo
- * do bloco do cursor, no estilo `caption`.
- *
- * O número é um `SEQ` do rótulo, como no Word, e sai já contado: as legendas
- * de antes dela dão o número. As de depois não mudam sozinhas; "Atualizar
- * campos" as renumera, também como no Word.
+ * No estilo `caption`, com um `SEQ` já contado, como no Word. As legendas de
+ * depois só se renumeram com "Atualizar campos", também como no Word.
  */
 export function insertCaption(editor: Editor, context: ReferenceContext, request: CaptionRequest): void {
   flushSelection(editor)
@@ -587,12 +498,9 @@ export function insertCaption(editor: Editor, context: ReferenceContext, request
   if (ensured.sheet !== context.styles) context.setStyles(ensured.sheet)
   editor.view.dispatch(tr.scrollIntoView())
 
-  // O número certo pela contagem do documento — só o campo novo muda.
   const fieldPos = at + 1 + label.length + 1
   updateFieldsIn(editor, context, fieldPos, fieldPos + 1, new Set(['SEQ']))
 }
-
-// --- referências cruzadas -----------------------------------------------------
 
 /** A que a referência aponta: um título, um marcador, ou a legenda de um rótulo. */
 export type CrossReferenceKind =
@@ -602,17 +510,15 @@ export type CrossReferenceKind =
   | { readonly type: 'note'; readonly kind: NoteKind }
 
 export interface CrossReferenceTarget {
-  /** Posição do bloco (título, legenda) ou nome do marcador. */
   readonly key: string
   readonly text: string
 }
 
-/** Os destinos possíveis do tipo escolhido, na ordem do documento. */
 export function crossReferenceTargets(
   doc: ProseMirrorNode,
   sheet: StyleSheet,
   kind: CrossReferenceKind,
-  /** Os rótulos das notas na tela (`noteLabelsOf`), para listá-las pelo número. */
+  /** Para listar as notas pelo número da tela (`noteLabelsOf`). */
   labels?: readonly string[],
 ): CrossReferenceTarget[] {
   if (kind.type === 'heading') {
@@ -629,7 +535,7 @@ export function crossReferenceTargets(
   }
 
   if (kind.type === 'note') {
-    // O número e o começo do texto da nota, como o Word lista.
+    // O número e o começo do texto, como o Word lista.
     return noteRefsOf(doc).flatMap(({ node, pos }, index) => {
       if (node.attrs['kind'] !== kind.kind) return []
       const text = node.textBetween(0, node.content.size, ' ').trim()
@@ -651,7 +557,6 @@ export function crossReferenceTargets(
   return captions
 }
 
-/** O que a referência mostra: o texto do destino, o número da legenda, ou a página. */
 export type CrossReferenceShow = 'text' | 'number' | 'page'
 
 export interface CrossReferenceRequest {
@@ -663,12 +568,8 @@ export interface CrossReferenceRequest {
 }
 
 /**
- * O marcador oculto que cobre o trecho `[from, to)` — o que já existe, ou um
- * `_Ref` novo — e devolve o nome.
- *
- * O que já existe vale quando termina logo depois do trecho e começa no trecho ou
- * até `slack` posições antes dele: o marcador da legenda que o Word grava começa
- * antes do "Figura", e outros marcadores podem estar colados no começo.
+ * O existente vale quando termina logo depois do trecho e começa até `slack`
+ * posições antes: o marcador da legenda do Word começa antes do "Figura".
  */
 function rangeBookmark(tr: Transaction, from: number, to: number, slack: number): string {
   const existing = bookmarksOf(tr.doc).find(
@@ -698,12 +599,8 @@ function rangeBookmark(tr: Transaction, from: number, to: number, slack: number)
 }
 
 /**
- * Insere uma referência cruzada no cursor: um `REF` (o texto ou o número) ou um
- * `PAGEREF` (a página) para o marcador do destino — que o título e a legenda
- * ganham na hora, oculto, como no Word.
- *
- * Da legenda, "texto" é o rótulo e o número ("Figura 1"), e "número" só o número:
- * são dois marcadores, um em volta de cada trecho.
+ * O título e a legenda ganham na hora o marcador oculto, como no Word. Da
+ * legenda, "texto" é rótulo e número, e "número" só o número.
  */
 export function insertCrossReference(
   editor: Editor,
@@ -720,8 +617,7 @@ export function insertCrossReference(
   } else if (request.kind.type === 'heading') {
     name = ensureBookmarks(tr, [Number(request.key)], '_Ref')[0] ?? null
   } else if (request.kind.type === 'note') {
-    // O marcador em volta da referência da nota, como o Word grava: é ele que o
-    // `NOTEREF` cita.
+    // O marcador que o `NOTEREF` cita, como o Word grava.
     const pos = Number(request.key)
     const reference = tr.doc.nodeAt(pos)
     if (reference === null || reference.type.name !== 'noteRef') return false
@@ -733,10 +629,8 @@ export function insertCrossReference(
     const sequence =
       block === null ? undefined : sequencesIn(block, pos).find((item) => item.label.toLowerCase() === wanted)
     if (sequence === undefined) return false
-    // O começo do texto da legenda: depois dos marcadores que abrem o parágrafo.
     const first = textStartOf(tr.doc, pos)
-    // Um marcador só por legenda, em volta do rótulo e do número, para o texto,
-    // o número (`\# 0`) e a página — como o Word.
+    // Um marcador por legenda, para o texto, o número (`\# 0`) e a página, como o Word.
     name = rangeBookmark(tr, first, sequence.pos + 1, first - pos - 1)
   }
   if (name === null) return false
@@ -756,7 +650,7 @@ export function insertCrossReference(
   )
   editor.view.dispatch(tr.scrollIntoView())
 
-  // O resultado sai do cálculo, e não de uma cópia: é o mesmo caminho do F9.
+  // Pelo mesmo caminho do F9.
   updateFieldsIn(editor, context, at, at + 1)
   return true
 }

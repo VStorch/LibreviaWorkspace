@@ -1,28 +1,20 @@
 import { Node } from '@tiptap/core'
 
-/** A instrução do sumário que o Word insere por padrão: títulos 1 a 3, com link. */
+/** O padrão do Word: títulos 1 a 3, com link. */
 export const DEFAULT_TOC_INSTRUCTION = ' TOC \\o "1-3" \\h \\z \\u '
 
 /**
- * O sumário: um bloco com os parágrafos das entradas dentro.
- *
- * No arquivo ele é um campo `TOC` — quase sempre dentro de um controle de
- * conteúdo (`w:sdt`) — cujo resultado são parágrafos comuns: o título, e uma
- * entrada por título do documento, cada uma com o link para o marcador `_Toc…`
- * do título e um `PAGEREF` com o número da página. O leitor tira o campo dos
- * parágrafos e o põe aqui (`instr`); `head` conta os parágrafos antes dele, e
- * `sdt` diz se havia controle de conteúdo em volta. Ver
- * `BodyReader.ReadTableOfContents`.
- *
- * As entradas continuam editáveis, como no Word, e "Atualizar sumário" as refaz
- * dos títulos — ver `toc-update.ts`.
+ * No arquivo é um campo `TOC`, quase sempre num `w:sdt`, cujo resultado são
+ * parágrafos comuns com link para o `_Toc…` e um `PAGEREF`. O leitor tira o campo
+ * dos parágrafos (`instr`); `head` conta os parágrafos antes dele, e `sdt` diz se
+ * havia controle de conteúdo (`BodyReader.ReadTableOfContents`). As entradas são
+ * editáveis, e "Atualizar sumário" as refaz (`references.ts`).
  */
 export const TableOfContents = Node.create({
   name: 'tableOfContents',
   group: 'block',
   content: '(paragraph | heading)+',
   defining: true,
-  // Apagar até a borda não funde o sumário com o parágrafo vizinho.
   isolating: true,
 
   addAttributes() {

@@ -16,18 +16,7 @@ import { ParagraphIndentFields } from './ParagraphIndentFields.js'
 import { ParagraphSpacingFields } from './ParagraphSpacingFields.js'
 import { isCustomLineSpacing, lineSpacingChoice, lineSpacingFrom } from './paragraph-draft.js'
 
-/**
- * Diálogo de parágrafo — o equivalente ao do Word e ao do Writer.
- *
- * Mesmo desenho da configuração de página (`PageSetupPanel`): um `popover` com
- * campos em linha, rascunho local, `Escape` fecha e `Aplicar` só funciona quando
- * o formulário está válido. Duas telas que fazem a mesma coisa de dois jeitos
- * diferentes custam mais a quem usa do que a quem escreve.
- *
- * Abre com o que o parágrafo do cursor **já** tem, inclusive o que veio do
- * arquivo: é a única forma de o diálogo ser também um jeito de **ler** a
- * formatação de um documento alheio.
- */
+/** Abre com o que o parágrafo do cursor já tem: é também um jeito de **ler** a formatação. */
 export function ParagraphDialog({
   editor,
   onClose,
@@ -49,10 +38,7 @@ export function ParagraphDialog({
     editor.chain().focus().setParagraphFormat(draft).run()
     onClose()
 
-    // E de novo depois do fechamento. O `focus()` da cadeia já rodou, mas o
-    // painel sai da tela em seguida, e o que ainda estiver com o foco do
-    // documento sai com ele — o foco cai no corpo da página. Sem isto, quem
-    // clica em "Aplicar" precisa clicar no texto antes de voltar a escrever.
+    // De novo depois de fechar: o painel sai da tela e levaria o foco ao corpo da página.
     requestAnimationFrame(() => editor.commands.focus())
   }
 
@@ -61,8 +47,7 @@ export function ParagraphDialog({
       className="popover popover--wide"
       role="dialog"
       aria-label={t('document.paragraph.title')}
-      // No elemento, e não numa escuta global: o painel de localizar faz igual, e
-      // é o que permite fechar sem tirar o foco de quem está preenchendo.
+      // No elemento, e não globalmente, como o painel de localizar.
       onKeyDown={(event) => {
         if (event.key === 'Escape') onClose()
         if (event.key === 'Enter') apply()
@@ -100,8 +85,7 @@ export function ParagraphDialog({
           </select>
         </label>
 
-        {/* O campo da medida só aparece quando a escolha pede número: um campo
-            desabilitado ao lado de "Simples" só faria a pessoa clicar nele. */}
+        {/* Um campo desabilitado ao lado de "Simples" só faria clicar nele. */}
         {isCustomLineSpacing(draft) && (
           <label className="popover__field popover__field--narrow">
             <span>
@@ -165,13 +149,7 @@ export function ParagraphDialog({
           {t('document.common.restoreDefaults')}
         </button>
         <span className="popover__spacer" />
-        {/*
-          `preventDefault` no `mousedown`: sem ele o botão toma o foco do
-          documento no clique, e desmontá-lo junto com o painel o devolve ao
-          corpo da página — depois do `focus()` da cadeia, que já rodou. Quem
-          clicava em "Aplicar" tinha de clicar no texto antes de continuar
-          escrevendo. Com o foco parado no editor, não há corrida nenhuma.
-        */}
+        {/* `preventDefault` no `mousedown`: o botão não toma o foco do documento. */}
         <button type="button" className="btn" onMouseDown={keepFocus} onClick={onClose}>
           {t('document.common.cancel')}
         </button>

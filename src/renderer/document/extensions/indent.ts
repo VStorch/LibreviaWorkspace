@@ -1,14 +1,8 @@
 import { Extension, type CommandProps } from '@tiptap/core'
 
 /**
- * Recuo de parágrafo.
- *
- * Não existe extensão oficial para isto, então é nossa. O recuo é guardado como
- * um número de níveis — e não como uma medida em CSS — porque a gravação o
- * traduz para `w:ind` do DOCX, que também trabalha em passos.
- *
- * O atalho é `Ctrl+]` / `Ctrl+[` em vez de `Tab`: dentro de uma lista, `Tab`
- * já significa "aninhar item", e roubar essa tecla quebraria as listas.
+ * Em níveis, e não em CSS: a gravação o traduz para `w:ind`, que também anda em
+ * passos. `Ctrl+]` e `Ctrl+[`, porque na lista o `Tab` aninha o item.
  */
 
 export const INDENT_STEP_EM = 2.5

@@ -9,7 +9,6 @@ import { focusChain } from './focus-chain.js'
 import { FONT_SIZES, withCurrent } from './toolbar-options.js'
 import { useFontFamilies } from './useFontFamilies.js'
 
-/** Estilo do bloco, família e tamanho da fonte — o começo da barra. */
 export function StyleAndFontGroup({
   editor,
   onOpenStyles,
@@ -31,8 +30,7 @@ export function StyleAndFontGroup({
           level: typeof level === 'number' ? level : null,
         }
       })(),
-      // Só o nome da fonte: o que vem do documento é uma pilha de CSS, com a
-      // substituta genérica atrás, e é o nome que a lista aqui conhece.
+      // O nome, e não a pilha de CSS que vem do documento.
       fontFamily: firstFamilyOf(String(current.getAttributes('textStyle')['fontFamily'] ?? '')),
       fontSize: String(current.getAttributes('textStyle')['fontSize'] ?? '').replace('pt', ''),
     }),
@@ -40,8 +38,7 @@ export function StyleAndFontGroup({
 
   const sheet = useWorkspace((state) => state.styles)
   const language = useLanguage()
-  // Os estilos de parágrafo **do documento**, pelo nome que a tela mostra: é o
-  // mesmo que o painel aplica, e título ↔ parágrafo vem do nome `heading N`.
+  // Os estilos **do documento**, pelo nome da tela; título ↔ parágrafo pelo nome `heading N`.
   const styles = useMemo(
     () =>
       listedStyles(sheet, language)
@@ -86,8 +83,6 @@ export function StyleAndFontGroup({
         width={68}
       />
 
-      {/* A lista do documento, ao lado do seletor que aplica os quatro estilos
-          que o editor conhece: é aqui que se vê que um `.docx` tem muito mais. */}
       <ToolbarButton icon="styles" label={t('document.styleAndFont.documentStyles')} onClick={onOpenStyles} />
     </ToolbarGroup>
   )

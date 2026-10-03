@@ -11,44 +11,24 @@ import {
 import { effectiveAttrs } from '@services/document/style-cascade.js'
 import type { StyleSheet } from '@services/document/styles.js'
 
-/**
- * Ler e escrever a formatação de parágrafo dos blocos selecionados.
- *
- * Os atributos já existem: espaçamento, entrelinha, recuo e "manter com o
- * próximo" são de `BlockFormat`, e o alinhamento é de `TextAlign`. O que não
- * existia era um comando que os escrevesse **todos de uma vez** nos blocos que a
- * seleção cobre. Sem ele o diálogo de parágrafo despacharia oito transações em
- * fila, e desfazer pediria oito `Ctrl+Z`.
- *
- * Extensão separada de `BlockFormat` porque são responsabilidades diferentes: lá
- * mora o que o atributo **é** e como ele vira CSS; aqui, o que a interface faz
- * com ele.
- */
+/** O formulário inteiro numa transação: oito em fila pediriam oito `Ctrl+Z`. */
 
-/** Os mesmos tipos de `BlockFormat`: no OOXML isto é propriedade do bloco. */
+/** No OOXML isto é propriedade do bloco. */
 const DEFAULT_TYPES: readonly string[] = ['paragraph', 'heading', 'bulletList', 'orderedList']
 
 export interface ParagraphCommandsOptions {
   types: string[]
 }
 
-/**
- * Os estilos do documento aberto, que o editor põe aqui ao recebê-lo.
- *
- * No `storage`, e não nas opções: as extensões são montadas uma vez, e os estilos
- * mudam a cada documento. É deles que sai o valor **que se vê** de um bloco que
- * só carrega a formatação direta.
- */
+/** No `storage`, e não nas opções: as extensões são montadas uma vez, e os estilos mudam a cada documento. */
 export interface ParagraphCommandsStorage {
   styles: StyleSheet | null
 }
 
-/** O que o bloco vale, com os estilos que o editor conhece. */
 export function blockAttrsOf(editor: Editor, node: ProseMirrorNode): Record<string, unknown> {
   return effectiveAttrs(node, stylesOf(editor))
 }
 
-/** Sem a extensão montada — num teste, num editor de faixa — não há estilos. */
 function stylesOf(editor: Editor): StyleSheet | null {
   return (editor.storage.paragraphCommands as ParagraphCommandsStorage | undefined)?.styles ?? null
 }
@@ -60,28 +40,14 @@ declare module '@tiptap/core' {
 
   interface Commands<ReturnType> {
     paragraphCommands: {
-      /** Aplica o formulário inteiro aos blocos da seleção. */
       setParagraphFormat: (draft: ParagraphDraft) => ReturnType
-      /**
-       * Só a entrelinha, para os atalhos `Ctrl+1`, `Ctrl+2` e `Ctrl+5` do Word.
-       *
-       * Recebe a escolha como o Word a diz — `''` para simples, o fator em linhas
-       * (`1.5`) ou a medida (`14pt`) —, e **não** como o CSS a escreve: a
-       * conversão depende da fonte de cada bloco, e é `paragraph-format` quem a
-       * faz.
-       */
+      /** Para `Ctrl+1`, `Ctrl+2` e `Ctrl+5`, como o Word diz: a conversão em CSS depende da fonte de cada bloco. */
       setBlockLineHeight: (value: string) => ReturnType
     }
   }
 }
 
-/**
- * O primeiro bloco que a seleção toca, como o diálogo o mostra.
- *
- * O primeiro, e não uma média dos vários: com dois parágrafos de espaçamento
- * diferente selecionados, qualquer fusão inventaria um número que não é de
- * nenhum deles. O Word faz assim — mostra o do primeiro e aplica a todos.
- */
+/** O primeiro bloco, como no Word: uma média inventaria um número que não é de nenhum. */
 export function paragraphDraftAt(editor: Editor, types: readonly string[] = DEFAULT_TYPES): ParagraphDraft {
   const { from, to } = editor.state.selection
   let attrs: Record<string, unknown> | null = null
@@ -111,13 +77,7 @@ export const ParagraphCommands = Extension.create<ParagraphCommandsOptions, Para
     const effective = (node: ProseMirrorNode): Record<string, unknown> =>
       effectiveAttrs(node, this.storage.styles)
 
-    /**
-     * Os atributos saem de uma função do bloco, e não de um objeto pronto.
-     *
-     * A entrelinha em CSS depende da altura natural da fonte **daquele** bloco:
-     * "1,5 linha" é 1,8311 em Calibri e 1,7249 em Times. Com um valor só para a
-     * seleção inteira, um parágrafo de cada fonte receberia a medida do outro.
-     */
+    /** Por bloco: "1,5 linha" é 1,8311 em Calibri e 1,7249 em Times. */
     const applyAttrs =
       (attrsOf: (node: ProseMirrorNode) => Record<string, unknown>) =>
       ({ state, tr, dispatch }: CommandProps): boolean => {
@@ -131,9 +91,7 @@ export const ParagraphCommands = Extension.create<ParagraphCommandsOptions, Para
           if (declared === undefined) return true
 
           for (const [name, value] of Object.entries(attrsOf(node))) {
-            // Atributo que o tipo do bloco não declara faria o ProseMirror
-            // reclamar: a lista não tem `textAlign`, porque o alinhamento dela é
-            // dos itens.
+            // A lista não tem `textAlign`: o alinhamento é dos itens.
             if (!(name in declared)) continue
             if (node.attrs[name] === value) continue
 
@@ -146,31 +104,21 @@ export const ParagraphCommands = Extension.create<ParagraphCommandsOptions, Para
 
         if (changed && dispatch !== undefined) dispatch(tr)
 
-        // Sempre verdadeiro, mesmo sem nada a mudar: "já estava assim" é sucesso,
-        // não recusa. Devolver `false` cortava a cadeia do diálogo — e com ela o
-        // `focus()`, então clicar em "Aplicar" sem mexer em nada deixava o cursor
-        // fora do texto.
+        // "Já estava assim" é sucesso: `false` cortaria a cadeia, e o `focus()` com ela.
         return true
       }
 
     return {
       setParagraphFormat: (draft) =>
         applyAttrs((node) => ({ ...paragraphAttrsFrom(draft, node.attrs, effective(node)) })),
-      // Contra o valor efetivo: a conversão precisa da fonte que o bloco **usa**,
-      // e ela pode vir do estilo.
+      // Contra o valor efetivo: a fonte pode vir do estilo.
       setBlockLineHeight: (value) =>
         applyAttrs((node) => ({ lineHeight: lineHeightAttrFrom(value, effective(node)) })),
     }
   },
 })
 
-/**
- * A entrelinha do bloco sob o cursor, como o seletor rápido da barra a mostra.
- *
- * Em linhas do Word, e não na medida do CSS: o atributo de um parágrafo de
- * Calibri a 1,5 linha é 1,8311, e a barra mostrava esse número. O simples volta
- * como vazio porque na barra a opção se chama "Simples" e é a primeira da lista.
- */
+/** Em linhas do Word; o simples volta vazio, a primeira opção da barra. */
 export function blockLineHeightOf(editor: Editor, types: readonly string[] = DEFAULT_TYPES): string {
   const { from, to } = editor.state.selection
   let value: string | null = null

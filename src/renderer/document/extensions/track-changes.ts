@@ -5,20 +5,11 @@ import { canJoin } from '@tiptap/pm/transform'
 import { CharacterCount } from '@tiptap/extensions'
 
 /**
- * Controle de alterações: ler, mostrar, aceitar e rejeitar.
- *
- * A revisão de texto é marca do trecho — `insertion` e `deletion` —, com o autor,
- * a data como o arquivo a escreveu e o `w:id` original (`rid`). As duas não se
- * excluem: o `w:ins` que embrulha um `w:del` é o texto que alguém inseriu e outro
- * excluiu. A movimentação (`w:moveFrom`/`w:moveTo`) aparece como exclusão e
- * inserção, e leva `move` e `moveName` para voltar como era.
- *
- * O Enter inserido ou excluído é a revisão da marca de parágrafo (`markRevision`),
- * e a linha de tabela inserida ou excluída, a da linha (`rowRevision`) — atributos
- * do bloco, como no arquivo.
- *
- * Aceitar e rejeitar são transações comuns do editor: o desfazer as devolve. O
- * controle do que se digita mora em track-input.ts.
+ * A revisão de texto é marca do trecho (`insertion`, `deletion`), com autor,
+ * data e o `w:id` original (`rid`); as duas não se excluem: o `w:ins` que embrulha
+ * um `w:del` é o texto que alguém inseriu e outro excluiu. A movimentação leva
+ * `move` e `moveName` para voltar como era. Enter e linha de tabela são atributos
+ * do bloco (`markRevision`, `rowRevision`), como no arquivo.
  */
 
 export const INSERTION = 'insertion'
@@ -32,7 +23,6 @@ export const ZERO_WIDTH: ReadonlySet<string> = new Set([
   'commentEnd',
 ])
 
-/** A revisão de bloco, como o leitor a dá. */
 export interface BlockRevision {
   readonly kind: 'ins' | 'del'
   readonly author?: string
@@ -43,16 +33,15 @@ export interface BlockRevision {
 export type ChangeKind =
   'insertion' | 'deletion' | 'markInsertion' | 'markDeletion' | 'rowInsertion' | 'rowDeletion'
 
-/** Uma alteração: o trecho de texto, a marca de parágrafo ou a linha. */
 export interface RevisionChange {
   readonly kind: ChangeKind
   readonly from: number
   readonly to: number
   readonly author: string | null
   readonly date: string | null
-  /** Os pedaços de texto do trecho, sem as pontas sem largura entre eles. */
+  /** Sem as pontas sem largura entre os pedaços. */
   readonly segments: readonly { readonly from: number; readonly to: number }[]
-  /** A marca do trecho — só nas alterações de texto. */
+  /** Só nas alterações de texto. */
   readonly mark?: ProseMirrorMark
 }
 
@@ -66,29 +55,19 @@ export function blockRevisionOf(value: unknown): BlockRevision | null {
   return kind === 'ins' || kind === 'del' ? (value as BlockRevision) : null
 }
 
-/** O mesmo autor e o mesmo `rid` (o arquivo), ou o mesmo autor sem `rid` (o editor). */
+/** Mesmo autor e mesmo `rid` (o arquivo), ou mesmo autor sem `rid` (o editor). */
 function sameRevision(a: ProseMirrorMark, b: ProseMirrorMark): boolean {
   return a.attrs['author'] === b.attrs['author'] && a.attrs['rid'] === b.attrs['rid']
 }
 
-/**
- * Todas as alterações do documento, na ordem do texto.
- *
- * Um trecho é o texto contíguo com a mesma marca (mesmo autor e mesmo `rid`); as
- * pontas de marcador e de comentário no meio não o partem — e sobrevivem ao
- * aceite, porque só os pedaços de texto saem.
- */
+/** Na ordem do texto. As pontas de marcador e de comentário no meio não partem o trecho e sobrevivem ao aceite. */
 export function revisionChangesOf(doc: ProseMirrorNode): RevisionChange[] {
   const changes: RevisionChange[] = []
   collectChanges(doc, 0, changes)
   return changes.sort((a, b) => a.from - b.from || a.to - b.to)
 }
 
-/**
- * As alterações dentro de `parent`, cujo conteúdo começa em `base`. Desce nos
- * corpos de nota: o que se controla numa nota é alteração do documento, e
- * aceitar ou rejeitar todas não pode deixá-la para trás.
- */
+/** Desce nos corpos de nota: aceitar todas não pode deixá-las para trás. */
 function collectChanges(parent: ProseMirrorNode, base: number, changes: RevisionChange[]): void {
   parent.descendants((node, relative) => {
     const pos = base + relative
@@ -164,10 +143,7 @@ function collectChanges(parent: ProseMirrorNode, base: number, changes: Revision
   })
 }
 
-/**
- * A alteração no cursor: o trecho que o contém, senão a marca do parágrafo dele,
- * senão a linha. `null` fora de qualquer alteração.
- */
+/** O trecho que contém o cursor, senão a marca do parágrafo, senão a linha. */
 export function changeAt(doc: ProseMirrorNode, pos: number): RevisionChange | null {
   const changes = revisionChangesOf(doc)
   const inline = changes.find(
@@ -199,7 +175,7 @@ export function changeAt(doc: ProseMirrorNode, pos: number): RevisionChange | nu
   return null
 }
 
-/** O que aceitar faz com cada alteração — e rejeitar faz o contrário. */
+/** Rejeitar faz o contrário. */
 type Effect = 'keep' | 'drop'
 
 function effectOf(kind: ChangeKind, accept: boolean): Effect {
@@ -207,11 +183,7 @@ function effectOf(kind: ChangeKind, accept: boolean): Effect {
   return inserted === accept ? 'keep' : 'drop'
 }
 
-/**
- * Aplica o aceite ou a rejeição de uma alteração à transação. As posições da
- * alteração são as do documento em que ela foi achada, e passam pelo mapeamento
- * dos passos que a transação já tem desde `since`.
- */
+/** As posições são as do documento em que a alteração foi achada, mapeadas desde `since`. */
 function settle(tr: Transaction, change: RevisionChange, accept: boolean, since: number): void {
   const mapping = tr.mapping.slice(since)
   const effect = effectOf(change.kind, accept)
@@ -222,7 +194,6 @@ function settle(tr: Transaction, change: RevisionChange, accept: boolean, since:
       const segments = change.segments
         .map((segment) => ({ from: mapping.map(segment.from, 1), to: mapping.map(segment.to, -1) }))
         .filter((segment) => segment.to > segment.from)
-      // De trás para frente: apagar um pedaço não mexe nas posições dos anteriores.
       for (const segment of [...segments].reverse()) {
         if (effect === 'drop') tr.delete(segment.from, segment.to)
         else tr.removeMark(segment.from, segment.to, change.mark)
@@ -237,7 +208,7 @@ function settle(tr: Transaction, change: RevisionChange, accept: boolean, since:
       const start = end - paragraph.nodeSize + 1
       if (start < 0 || tr.doc.nodeAt(start) !== paragraph) return
       tr.setNodeMarkup(start, undefined, { ...paragraph.attrs, markRevision: null })
-      // O Enter que sai junta este parágrafo ao seguinte, como no Word.
+      // O Enter que sai junta os parágrafos, como no Word.
       const after = start + paragraph.nodeSize
       if (effect === 'drop' && after < tr.doc.content.size && canJoin(tr.doc, after)) tr.join(after)
       return
@@ -254,7 +225,7 @@ function settle(tr: Transaction, change: RevisionChange, accept: boolean, since:
       }
       const $row = tr.doc.resolve(from)
       const table = $row.parent
-      // A última linha leva a tabela junto: tabela sem linha não existe.
+      // Tabela sem linha não existe.
       if (table.childCount === 1) {
         const tableStart = $row.before()
         tr.delete(tableStart, tableStart + table.nodeSize)
@@ -266,7 +237,7 @@ function settle(tr: Transaction, change: RevisionChange, accept: boolean, since:
   }
 }
 
-/** Aceita (ou rejeita) a alteração no cursor. Devolve se havia alguma. */
+/** Devolve se havia alguma. */
 export function settleChangeAt(tr: Transaction, pos: number, accept: boolean): boolean {
   const change = changeAt(tr.doc, pos)
   if (change === null) return false
@@ -274,29 +245,24 @@ export function settleChangeAt(tr: Transaction, pos: number, accept: boolean): b
   return true
 }
 
-/** Aceita (ou rejeita) todas, numa transação só — um desfazer devolve tudo. */
+/** Numa transação só: um desfazer devolve tudo. */
 export function settleAllChanges(tr: Transaction, accept: boolean): boolean {
   const changes = revisionChangesOf(tr.doc)
   if (changes.length === 0) return false
   const since = tr.steps.length
-  // Do fim para o começo: o que se apaga adiante não mexe no que vem antes.
   for (const change of [...changes].reverse()) settle(tr, change, accept, since)
   return true
 }
 
-/** A alteração seguinte (ou a anterior) ao cursor, pela ordem do texto. */
 export function adjacentChange(doc: ProseMirrorNode, pos: number, direction: 1 | -1): RevisionChange | null {
   const changes = revisionChangesOf(doc)
-  // Para frente, a que começa no cursor também vale — a menos que acabe nele, que
-  // é a que acabou de ser escolhida. Para trás, a que acaba antes do cursor: a
-  // linha escolhida põe o cursor dentro dela, e "começa antes" a escolheria de novo.
+  // Para frente, a que começa no cursor vale, menos a que acaba nele (a recém-escolhida).
   if (direction === 1) {
     return changes.find((change) => change.from > pos || (change.from === pos && change.to > pos)) ?? null
   }
   return [...changes].reverse().find((change) => change.from < pos && change.to <= pos) ?? null
 }
 
-/** Escolhe a alteração na tela: o trecho selecionado, ou o cursor na marca ou na linha. */
 export function selectChange(tr: Transaction, change: RevisionChange): Transaction {
   const doc = tr.doc
   const selection =
@@ -308,19 +274,11 @@ export function selectChange(tr: Transaction, change: RevisionChange): Transacti
   return tr.setSelection(selection).scrollIntoView()
 }
 
-// --- texto sem o excluído --------------------------------------------------
-
 function isDeleted(node: ProseMirrorNode): boolean {
   return node.marks.some((mark) => mark.type.name === DELETION)
 }
 
-/**
- * O texto do nó, como `textBetween`, mas sem o que está marcado como excluído.
- *
- * Com `hide`, o excluído vira esse caractere repetido em vez de sumir: a busca
- * precisa do texto com o comprimento das posições, e um caractere que nunca casa
- * impede que ela ache um termo atravessando o trecho excluído.
- */
+/** Com `hide`, o excluído vira esse caractere repetido: a busca precisa das posições, e ele nunca casa. */
 export function textWithoutDeletions(
   node: ProseMirrorNode,
   blockSeparator: string | undefined,
@@ -330,9 +288,7 @@ export function textWithoutDeletions(
   let text = ''
   let first = true
   node.descendants((child) => {
-    // A nota é um nó só no texto do parágrafo: a busca precisa do comprimento
-    // dela nas posições, e o corpo não está na tela para ser achado. Na
-    // contagem ela entra — o Word conta as notas —, separada do texto em volta.
+    // A nota é um nó só no texto do parágrafo; na contagem ela entra, como no Word.
     if (child.type.name === 'noteRef') {
       if (hide !== undefined) text += hide.repeat(child.nodeSize)
       else {
@@ -366,7 +322,6 @@ export function textWithoutDeletions(
   return text
 }
 
-/** A contagem de palavras e caracteres, sem o texto excluído. Mesmo nome e mesmo armazenamento. */
 export const CountWithoutDeletions = CharacterCount.extend({
   onBeforeCreate(event) {
     this.parent?.(event)
@@ -384,19 +339,12 @@ export const CountWithoutDeletions = CharacterCount.extend({
   },
 })
 
-/**
- * O texto de um nó folha na contagem de caracteres: a equação não tem
- * caracteres — é uma palavra, contada à parte, e nenhum caractere.
- */
+/** A equação conta uma palavra, e nenhum caractere. */
 export function characterLeaf(leaf: ProseMirrorNode): string {
   return leaf.type.name === 'math' ? '' : ' '
 }
 
-/**
- * As equações do trecho, que contam uma palavra cada, como no Word. No texto da
- * contagem ela é um espaço — o LaTeX de uma ou o marcador "[equação]" inflariam
- * a conta de palavras com o que ninguém escreveu.
- */
+/** Como no Word, uma palavra cada; no texto da contagem é um espaço. */
 function equationsIn(node: ProseMirrorNode): number {
   let count = node.type.name === 'math' && !isDeleted(node) ? 1 : 0
   node.descendants((child) => {
@@ -405,9 +353,7 @@ function equationsIn(node: ProseMirrorNode): number {
   return count
 }
 
-// --- as marcas e os atributos ----------------------------------------------
-
-/** Uma cor por autor, estável entre aberturas: o mesmo nome cai sempre na mesma. */
+/** O mesmo nome cai sempre na mesma cor. */
 export const AUTHOR_COLORS = 6
 
 export function authorColor(author: string | null): number {
@@ -416,7 +362,6 @@ export function authorColor(author: string | null): number {
   return hash % AUTHOR_COLORS
 }
 
-/** "autor, data" — a dica que o trecho mostra sob o ponteiro. */
 export function revisionTitle(author: string | null, date: string | null): string {
   const when = date === null ? null : new Date(date)
   const shown = when === null || Number.isNaN(when.getTime()) ? date : when.toLocaleString()
@@ -434,13 +379,10 @@ const revisionAttributes = {
 function revisionMark(name: typeof INSERTION | typeof DELETION, tag: 'ins' | 'del') {
   return Mark.create({
     name,
-    // A revisão não se estende ao que se digita na ponta dela: texto novo não é
-    // revisão do outro autor (o controle do que se digita põe a marca à mão — ver track-input.ts).
+    // O texto digitado na ponta não é revisão do outro autor.
     inclusive: false,
-    // A tela relida: quando o navegador apaga ou digita por conta própria (o
-    // Backspace num caractere, o Ctrl+Backspace), o ProseMirror relê o trecho do
-    // DOM — sem esta regra o excluído voltava sem marca e era tomado por texto
-    // novo. A colagem não traz revisão: `stripRevisions` (track-input.ts) a tira.
+    // Quando o navegador apaga por conta própria, o ProseMirror relê o DOM: sem
+    // esta regra o excluído voltaria sem marca. A colagem é limpa por `stripRevisions`.
     parseHTML: () => [
       {
         tag: `${tag}.revision`,
@@ -463,14 +405,12 @@ function revisionMark(name: typeof INSERTION | typeof DELETION, tag: 'ins' | 'de
           {
             class: `revision revision-${tag} revision-author-${authorColor(author)}`,
             title: revisionTitle(author, date),
-            // Para a releitura da tela (ver `parseHTML`).
             'data-author': author,
             'data-date': date,
             'data-rid': attrString(mark.attrs['rid']),
             'data-move': attrString(mark.attrs['move']),
             'data-move-name': attrString(mark.attrs['moveName']),
           },
-          // Os atributos crus ficam fora do HTML.
           Object.fromEntries(Object.entries(HTMLAttributes).filter(([key]) => !(key in revisionAttributes))),
         ),
         0,
@@ -482,7 +422,6 @@ function revisionMark(name: typeof INSERTION | typeof DELETION, tag: 'ins' | 'de
 export const Insertion = revisionMark(INSERTION, 'ins')
 export const Deletion = revisionMark(DELETION, 'del')
 
-/** Os atributos de bloco: a marca de parágrafo e a linha de tabela revisadas. */
 export const BlockRevisions = Extension.create({
   name: 'blockRevisions',
 

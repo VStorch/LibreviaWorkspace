@@ -2,12 +2,7 @@ import { useState } from 'react'
 import type { WorkbookModel } from '@services/spreadsheet/model.js'
 import { useT } from '../i18n.js'
 
-/**
- * Abas da pasta de trabalho.
- *
- * Renomear é por duplo clique, como em toda planilha — e o nome é validado:
- * duas abas com o mesmo nome quebrariam a referência entre abas nas fórmulas.
- */
+/** O nome é validado: abas de mesmo nome quebrariam a referência entre abas. */
 export function SheetTabs({
   workbook,
   onSelect,
@@ -44,7 +39,6 @@ export function SheetTabs({
               }}
               onKeyDown={(event) => {
                 if (event.key === 'Enter') event.currentTarget.blur()
-                // Esc desiste sem gravar: renomear por engano é fácil de fazer.
                 if (event.key === 'Escape') setEditing(null)
               }}
             />
@@ -60,8 +54,7 @@ export function SheetTabs({
             </button>
           )}
 
-          {/* A última aba não pode ser removida: uma pasta sem planilha nenhuma
-              não é um estado que o modelo aceite. */}
+          {/* A pasta precisa de pelo menos uma planilha. */}
           {workbook.sheets.length > 1 && editing !== index && (
             <button
               type="button"

@@ -13,18 +13,15 @@ import { currentPreferences } from './preferences.js'
 import { toSerialized, type GetWorkspace, type SetWorkspace, type WorkspaceContext } from './context.js'
 import type { LoadedFile, OpenFile, WorkspaceState } from './types.js'
 
-/** O que o processo main devolve quando um arquivo abre. */
 interface OpenedFile {
   readonly path: string
   readonly name: string
   readonly content: string
-  // `| undefined` explícito por causa de `exactOptionalPropertyTypes`: o
-  // contrato de IPC declara a propriedade como podendo vir indefinida.
+  // `| undefined`: o contrato de IPC declara a propriedade como podendo vir indefinida.
   readonly inventory?: LossInventory | undefined
   readonly template?: boolean | undefined
 }
 
-/** O que o usuário respondeu ao aviso de que `.txt` não guarda formatação. */
 type PlainTextAnswer = 'proceed' | 'cancel' | 'chooseAnother'
 
 type FileActions = Pick<
@@ -42,12 +39,7 @@ type FileActions = Pick<
 >
 
 export function createFileActions(set: SetWorkspace, get: GetWorkspace, ctx: WorkspaceContext): FileActions {
-  /**
-   * O conteúdo a gravar num destino, no formato que a extensão dele pede.
-   *
-   * Planilha não passa pelo caminho de texto: não tem formatação a perder para
-   * `.txt`, e o conteúdo é outro.
-   */
+  /** Planilha não passa pelo caminho de texto: não tem formatação a perder. */
   function encodeFor(path: string): string {
     const { workbook } = get()
     if (workbook !== null) return serializeWorkbook(workbook)
@@ -58,11 +50,8 @@ export function createFileActions(set: SetWorkspace, get: GetWorkspace, ctx: Wor
   }
 
   /**
-   * Quem modificou, quando e a revisão, no estado e portanto no que vai ao
-   * disco — ver `stampProperties`. Só quando o documento mudou, ou quando nunca
-   * foi gravado: o arquivo aberto e salvo sem edição volta com `docProps/` byte
-   * a byte. Fica no estado mesmo que a gravação falhe: é só a data da
-   * tentativa.
+   * Só quando o documento mudou ou nunca foi gravado: aberto e salvo sem edição,
+   * `docProps/` volta byte a byte. Fica no estado mesmo se a gravação falhar.
    */
   function stampForSave(): void {
     const state = get()
@@ -75,10 +64,7 @@ export function createFileActions(set: SetWorkspace, get: GetWorkspace, ctx: Wor
     if (stamped !== state.properties) set({ properties: stamped })
   }
 
-  /**
-   * Salvar em `.txt` descartaria formatação. Perguntar antes é a regra do
-   * projeto: nada se perde em silêncio.
-   */
+  /** Nada se perde em silêncio. */
   async function confirmPlainTextLoss(path: string, fileName: string): Promise<PlainTextAnswer> {
     const { workbook } = get()
     if (workbook !== null || !isPlainTextPath(path)) return 'proceed'
@@ -89,13 +75,7 @@ export function createFileActions(set: SetWorkspace, get: GetWorkspace, ctx: Wor
     return answer.choice === PlainTextChoice.SaveAsDocument ? 'chooseAnother' : 'proceed'
   }
 
-  /**
-   * O disco passou a ter a versão boa: o rascunho não vale mais.
-   *
-   * E o que a gravação não conseguiu levar ao disco vai para a faixa de aviso —
-   * nada se perde em silêncio, nem na hora de salvar. Cada gravação diz só o
-   * que perdeu **ela**: a que não perdeu nada apaga o aviso da anterior.
-   */
+  /** O rascunho não vale mais; o que a gravação perdeu vai à faixa, e a que não perdeu nada apaga o aviso anterior. */
   async function afterSave(file: OpenFile, inventory: LossInventory | undefined): Promise<void> {
     const lost = lostOnSave(inventory)
     set({ file, isDirty: false, savedLoss: lost.length > 0 ? lost : null })
@@ -109,8 +89,6 @@ export function createFileActions(set: SetWorkspace, get: GetWorkspace, ctx: Wor
 
     try {
       ctx.show(interpret(opened))
-      // O aviso só aparece quando há o que avisar: um alerta que abre em todo
-      // arquivo é um alerta que o usuário fecha sem ler.
       set({
         notice: hasReportableLoss(opened.inventory) ? (opened.inventory ?? null) : null,
         readOnly: locksEditing(opened.inventory),
@@ -182,7 +160,6 @@ export function createFileActions(set: SetWorkspace, get: GetWorkspace, ctx: Wor
       await openFile(async () => {
         const data = await ctx.call(() => window.api.file.openRecent({ path }))
         if (data === null) {
-          // O arquivo pode ter sumido; a lista precisa refletir isso.
           await get().refreshRecents()
           return null
         }
@@ -194,7 +171,6 @@ export function createFileActions(set: SetWorkspace, get: GetWorkspace, ctx: Wor
       const file = get().file
       if (file === null) return false
 
-      // Arquivo que nunca foi gravado não tem destino: vira "salvar como".
       const { path } = file
       if (path === null) return get().saveAs()
 
@@ -220,19 +196,16 @@ export function createFileActions(set: SetWorkspace, get: GetWorkspace, ctx: Wor
       )
       if (chosen === null || chosen.canceled) return false
 
-      // O aviso vem antes da gravação: se o usuário desistir aqui, nenhum byte
-      // foi escrito e o destino continua como estava.
+      // Antes da gravação: desistir aqui não escreve nenhum byte.
       const answer = await confirmPlainTextLoss(chosen.path, chosen.name)
       if (answer === 'cancel') return false
-      // Quis preservar a formatação: escolhe outro destino.
       if (answer === 'chooseAnother') return get().saveAs()
 
       const data = await ctx.call(() =>
         window.api.file.save({
           path: chosen.path,
           content: encodeFor(chosen.path),
-          // O documento criado a partir de um modelo ainda não tem caminho: a
-          // origem é o modelo, e é sobre o pacote dele que a gravação parte.
+          // O documento criado de um modelo grava a partir do pacote dele.
           origin: file.origin ?? file.path,
         }),
       )
@@ -281,24 +254,17 @@ export function createFileActions(set: SetWorkspace, get: GetWorkspace, ctx: Wor
   }
 }
 
-/**
- * O que veio do disco, já no formato do editor.
- *
- * `.xlsx` chega aqui convertido pelo processo main, no mesmo envelope do
- * `.ssheet` — por isso a extensão decide o editor, e não o conteúdo.
- */
+/** `.xlsx` chega convertido no envelope do `.ssheet`: a extensão decide o editor. */
 function interpret(opened: OpenedFile): LoadedFile {
   const kind = kindFromPath(opened.path)
-  // O modelo do Word abre como documento novo: sem caminho, para que "salvar"
-  // pergunte o destino e nunca grave por cima do modelo.
+  // O modelo do Word abre sem caminho, para "salvar" nunca gravar por cima dele.
   const file: OpenFile =
     opened.template === true
       ? { path: null, name: opened.name, kind, origin: opened.path }
       : { path: opened.path, name: opened.name, kind }
 
   if (kind === DocumentKind.Spreadsheet) {
-    // Recalcula ao abrir: o arquivo guarda o valor de quando foi salvo, e uma
-    // fórmula com HOJE() ou editada à mão estaria desatualizada.
+    // Recalcula ao abrir: `HOJE()` e a fórmula editada à mão estariam desatualizadas.
     return { file, model: createEmptyDocument(), workbook: recalculate(parseWorkbook(opened.content)) }
   }
 
@@ -309,11 +275,9 @@ function interpret(opened: OpenedFile): LoadedFile {
   }
 }
 
-/** Interpreta o conteúdo lido do disco conforme a extensão do arquivo. */
 function decode(path: string, content: string): DocumentModel {
   if (isPlainTextPath(path)) {
-    // Texto simples não tem estilo nenhum a trazer: recebe os do documento novo,
-    // que são a aparência com que o editor já o desenhava.
+    // Texto simples recebe os estilos do documento novo.
     return { page: DEFAULT_PAGE_SETUP, doc: plainTextToDocument(content), styles: BUILTIN_STYLES }
   }
   return parseDocument(content)

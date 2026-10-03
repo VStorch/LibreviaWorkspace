@@ -13,23 +13,11 @@ import { RevisionView } from '@shared/types.js'
 import { DELETION, INSERTION, ZERO_WIDTH, blockRevisionOf } from './track-changes.js'
 
 /**
- * Controle de alterações: como a janela mostra as alterações.
- *
- * - **Marcação completa**: tudo à vista.
- * - **Marcação simples**: o texto final — o excluído some, o inserido fica sem
- *   marca — e uma barra na margem ao lado do parágrafo alterado.
- * - **Sem marcação**: o texto final, limpo.
- * - **Original**: o texto de antes — o inserido some, o excluído fica sem marca.
- *   O editor fica travado nesse modo (ver DocumentEditor).
- *
- * Quem esconde é o CSS, por uma classe na raiz do editor (`revisions-<modo>`); as
- * decorações marcam os blocos que somem inteiros e os parágrafos alterados. O
- * documento não muda: trocar de modo não suja o arquivo nem entra no desfazer.
- *
- * Esconder não basta: o cursor não pode cair dentro do texto escondido, onde se
- * digitaria sem ver. A seleção que para lá é empurrada para a borda, no sentido
- * em que andava, e o Backspace e o Delete passam por cima do escondido antes de
- * apagar o caractere que se vê.
+ * Marcação completa: tudo à vista. Simples: o texto final, com uma barra na
+ * margem do parágrafo alterado. Sem marcação: o texto final, limpo. Original: o
+ * texto de antes, com o editor travado. Quem esconde é o CSS, pela classe
+ * `revisions-<modo>`; o documento não muda. O cursor não cai no escondido: a
+ * seleção é empurrada para a borda, e Backspace e Delete passam por cima dele.
  */
 
 interface ViewState {
@@ -39,31 +27,29 @@ interface ViewState {
 
 export const revisionViewKey = new PluginKey<ViewState>('revisionView')
 
-/** O modo do editor. */
 export function revisionViewOf(state: EditorState): RevisionView {
   return revisionViewKey.getState(state)?.view ?? RevisionView.All
 }
 
-/** A transação que troca o modo — sem mudar o documento. */
+/** Sem mudar o documento. */
 export function setRevisionViewMeta(tr: Transaction, view: RevisionView): Transaction {
   return tr.setMeta(revisionViewKey, view)
 }
 
-/** O nó em linha some neste modo? */
 export function isHiddenInline(node: ProseMirrorNode, view: RevisionView): boolean {
   if (view === RevisionView.All) return false
   const name = view === RevisionView.Original ? INSERTION : DELETION
   return node.marks.some((mark) => mark.type.name === name)
 }
 
-/** A revisão de bloco (marca de parágrafo, linha) some neste modo? */
+/** Marca de parágrafo ou linha. */
 function isHiddenRevision(value: unknown, view: RevisionView): boolean {
   if (view === RevisionView.All) return false
   const kind = blockRevisionOf(value)?.kind
   return view === RevisionView.Original ? kind === 'ins' : kind === 'del'
 }
 
-/** Todo o conteúdo do bloco de texto some — e há o que sumir. */
+/** E há o que sumir. */
 function allContentHidden(block: ProseMirrorNode, view: RevisionView): boolean {
   let hidden = false
   let visible = false
@@ -74,11 +60,7 @@ function allContentHidden(block: ProseMirrorNode, view: RevisionView): boolean {
   return hidden && !visible
 }
 
-/**
- * O bloco some inteiro neste modo: a linha de tabela da revisão escondida, e o
- * parágrafo cuja marca some junto com todo o texto (o parágrafo inserido inteiro,
- * no Original; o excluído inteiro, no texto final).
- */
+/** A linha de tabela da revisão escondida, e o parágrafo cuja marca some com todo o texto. */
 export function isHiddenBlock(node: ProseMirrorNode, view: RevisionView): boolean {
   if (view === RevisionView.All) return false
   if (node.type.name === 'tableRow') return isHiddenRevision(node.attrs['rowRevision'], view)
@@ -86,11 +68,7 @@ export function isHiddenBlock(node: ProseMirrorNode, view: RevisionView): boolea
   return node.content.size === 0 || allContentHidden(node, view)
 }
 
-/**
- * Os trechos escondidos do bloco de texto, em posições relativas a ele: de onde
- * começa o primeiro nó escondido até onde termina o último, atravessando as
- * pontas sem largura entre eles.
- */
+/** Em posições relativas ao bloco, atravessando as pontas sem largura entre os escondidos. */
 export function hiddenRuns(block: ProseMirrorNode, view: RevisionView): { from: number; to: number }[] {
   const runs: { from: number; to: number }[] = []
   if (view === RevisionView.All || !block.isTextblock) return runs
@@ -110,12 +88,10 @@ export function hiddenRuns(block: ProseMirrorNode, view: RevisionView): { from: 
   return runs
 }
 
-/** Uma posição fora do escondido, andando no sentido `dir` (ou, sem saída, no outro). */
+/** No sentido `dir`, ou no outro sem saída. */
 export function visiblePosition(doc: ProseMirrorNode, pos: number, view: RevisionView, dir: 1 | -1): number {
   if (view === RevisionView.All) return pos
-  // Um bloco escondido pode levar a outro, e a saída para trás de volta ao primeiro.
-  // A gangorra se reconhece pela posição repetida — não por um número de voltas,
-  // que cortava no meio uma sequência longa de parágrafos excluídos.
+  // A gangorra entre blocos escondidos se reconhece pela posição repetida, e não por um número de voltas.
   const seen = new Set<number>()
   while (!seen.has(pos)) {
     seen.add(pos)
@@ -137,7 +113,7 @@ export function visiblePosition(doc: ProseMirrorNode, pos: number, view: Revisio
   return pos
 }
 
-/** A posição seguinte fora do bloco escondido em volta de `$pos`, a mesma se não há, ou `null` sem saída. */
+/** A mesma se não há, ou `null` sem saída. */
 function outOfHiddenBlock(
   doc: ProseMirrorNode,
   $pos: ResolvedPos,
@@ -155,11 +131,7 @@ function outOfHiddenBlock(
   return $pos.pos
 }
 
-/**
- * Apaga de `from` a `to` só o que o modo deixa ver: o texto escondido no meio
- * fica (o excluído que não se vê não é apagado de verdade por uma seleção que
- * passou por cima dele sem mostrá-lo).
- */
+/** O excluído escondido no meio não é apagado por uma seleção que passou por cima sem mostrá-lo. */
 export function deleteVisible(tr: Transaction, from: number, to: number, view: RevisionView): Transaction {
   const hidden: { from: number; to: number }[] = []
   tr.doc.nodesBetween(from, to, (node, pos) => {
@@ -175,12 +147,11 @@ export function deleteVisible(tr: Transaction, from: number, to: number, view: R
     cursor = Math.max(cursor, range.to)
   }
   if (cursor < to) pieces.push({ from: cursor, to })
-  // De trás para frente: apagar adiante não mexe nas posições de trás.
   for (const piece of pieces.reverse()) tr.delete(piece.from, piece.to)
   return tr
 }
 
-/** A seleção de texto empurrada para fora do escondido — ou `null`, se já está fora. */
+/** `null` se já está fora. */
 export function visibleSelection(
   doc: ProseMirrorNode,
   selection: Selection,
@@ -204,7 +175,7 @@ function buildDecorations(doc: ProseMirrorNode, view: RevisionView): DecorationS
     }
     if (!node.isTextblock) return true
     const classes: string[] = []
-    // O texto todo escondido, a marca de parágrafo não: fica a linha vazia.
+    // Todo o texto escondido, a marca não: fica a linha vazia.
     if (node.content.size > 0 && allContentHidden(node, view)) classes.push('revision-blank')
     if (view === RevisionView.Simple && hasRevision(node)) classes.push('revision-changed')
     if (classes.length > 0) {
@@ -226,8 +197,7 @@ function hasRevision(block: ProseMirrorNode): boolean {
 
 export const RevisionViewExtension = Extension.create({
   name: 'revisionView',
-  // Antes do controle do que se digita (track-input.ts), que apagaria o
-  // escondido vizinho; depois das âncoras sem largura (zero-width.ts, 1000).
+  // Antes de `track-input.ts`, que apagaria o escondido; depois de `zero-width.ts` (1000).
   priority: 900,
 
   addProseMirrorPlugins() {
@@ -248,10 +218,8 @@ export const RevisionViewExtension = Extension.create({
         props: {
           attributes: (state) => ({ class: `revisions-${revisionViewOf(state)}` }),
           decorations: (state) => revisionViewKey.getState(state)?.decorations ?? null,
-          // Com algo escondido, o Backspace e o Delete são feitos aqui, e não pelo
-          // navegador: apagando sozinho, ele levava junto o excluído escondido
-          // (`display:none`) ou o relia como tachado comum. Apaga-se só o que se
-          // vê — um caractere, ou a parte visível da seleção —, e o escondido fica.
+          // Com algo escondido, o navegador levaria junto o excluído ou o reapareceria como
+          // tachado: apaga-se aqui só o que se vê.
           handleKeyDown(view, event) {
             if (event.key !== 'Backspace' && event.key !== 'Delete') return false
             if (event.ctrlKey || event.metaKey || event.altKey || event.shiftKey || view.composing)
@@ -267,7 +235,6 @@ export const RevisionViewExtension = Extension.create({
             const $cursor = selection.$head
             const start = $cursor.start()
             let offset = $cursor.parentOffset
-            // Passa o escondido e as âncoras sem largura até o caractere que se vê.
             for (let moved = true; moved;) {
               moved = false
               for (const run of hiddenRuns($cursor.parent, mode)) {
@@ -287,8 +254,7 @@ export const RevisionViewExtension = Extension.create({
             const $at = view.state.doc.resolve(start + offset)
             const node = backward ? $at.nodeBefore : $at.nodeAfter
             if (node === null || !node.isText || node.text === undefined) {
-              // Na borda do bloco: o cursor fica do lado de fora do escondido, e o
-              // juntar de parágrafos segue o caminho de sempre.
+              // Na borda do bloco, o juntar de parágrafos segue o caminho de sempre.
               if (start + offset !== $cursor.pos)
                 view.dispatch(
                   view.state.tr.setSelection(TextSelection.create(view.state.doc, start + offset)),
@@ -303,10 +269,8 @@ export const RevisionViewExtension = Extension.create({
             view.dispatch(view.state.tr.delete(from, from + size).scrollIntoView())
             return true
           },
-          // Digitar por cima de uma seleção que passa por texto escondido: o
-          // navegador apagaria a seleção inteira (e refaria o excluído como
-          // tachado) antes do `handleTextInput` — então a tecla para já no
-          // `beforeinput`, e só o que se vê é trocado.
+          // Digitar sobre seleção com escondido: o navegador apagaria tudo antes do
+          // `handleTextInput`, e a tecla para no `beforeinput`.
           handleDOMEvents: {
             beforeinput(view, event) {
               const input = event as InputEvent
@@ -331,8 +295,7 @@ export const RevisionViewExtension = Extension.create({
             return true
           },
         },
-        // A seleção que caiu no escondido — pela seta, pelo clique, pela edição
-        // — sai para a borda, no sentido em que andava.
+        // A seleção que caiu no escondido sai para a borda, no sentido em que andava.
         appendTransaction(transactions, oldState, newState) {
           const mode = revisionViewOf(newState)
           if (mode === RevisionView.All) return null

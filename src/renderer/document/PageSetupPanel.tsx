@@ -38,26 +38,23 @@ export function PageSetupPanel({
   resolved,
 }: {
   readonly onClose: () => void
-  /** As seções que o texto usa agora; ausente, a página da loja é a única. */
+  /** Ausente, a página da loja é a única. */
   readonly resolved?: ResolvedSections
-  /** A seção do cursor, em `allSections`: é ela que o painel mostra. */
+  /** Em `allSections`. */
   readonly sectionIndex?: number
 }): React.JSX.Element {
   const t = useT()
   const storedPage = useWorkspace((state) => state.page)
   const setPage = useWorkspace((state) => state.setPage)
-  // As seções que o texto usa, na ordem dele — ver `resolveSections`.
   const { page, sections, bodyId } = resolved ?? { page: storedPage, sections: [], bodyId: null }
   const all = allSections(page, sections)
   const index = Math.min(Math.max(sectionIndex, 0), all.length - 1)
   const [draft, setDraft] = useState<PageSetup>(all[index] ?? page)
-  // "Nesta seção" ou "no documento todo", como no Word; só há escolha quando há
-  // mais de uma seção.
+  // "Nesta seção" ou "no documento todo", como no Word.
   const [scope, setScope] = useState<'section' | 'document'>('section')
-  // A chave da seção nos endereços da faixa desvinculada — ver `withBandsLinked`.
+  // Ver `withBandsLinked`.
   const sectionKey = sections[index]?.id ?? 'body'
-  // O último campo de texto que teve o cursor, e onde: é nele que "Número da
-  // página" e "Total de páginas" entram, como no Word.
+  // "Número da página" e "Total de páginas" entram no último campo que teve o cursor, como no Word.
   const lastField = useRef<{ field: 'header' | 'footer'; at: number }>({ field: 'footer', at: -1 })
 
   function remember(field: 'header' | 'footer', input: HTMLInputElement): void {
@@ -100,10 +97,7 @@ export function PageSetupPanel({
       className="popover popover--wide"
       role="dialog"
       aria-label={t('document.pageSetup.title')}
-      // `Esc` fecha e `Enter` aplica, como no diálogo de parágrafo: dois painéis
-      // que fazem a mesma coisa de dois jeitos custam mais a quem usa do que a
-      // quem escreve. No elemento, e não numa escuta global, para não fechar
-      // enquanto o foco está em outro canto da tela.
+      // `Esc` fecha e `Enter` aplica, como no diálogo de parágrafo.
       onKeyDown={(event) => {
         if (event.key === 'Escape') onClose()
         if (event.key === 'Enter') apply()
@@ -197,8 +191,7 @@ export function PageSetupPanel({
 
         <p className="popover__hint">{t('document.pageSetup.hint', { n: '{n}', total: '{total}' })}</p>
 
-        {/* "Vincular ao anterior", da segunda seção em diante: vinculada, a seção
-            mostra as faixas da anterior; desvinculada, ganha uma cópia própria. */}
+        {/* Desvinculada, a seção ganha uma cópia própria das faixas da anterior. */}
         {index > 0 &&
           (['header', 'footer'] as const).map((kind) => (
             <label key={kind} className="popover__check">
@@ -228,8 +221,7 @@ export function PageSetupPanel({
           {t('document.pageSetup.evenAndOdd')}
         </label>
 
-        {/* O Chromium desenha cabeçalho e rodapé dentro da margem e recorta o
-            excedente: com margem apertada eles somem sem explicação. */}
+        {/* O Chromium recorta o excedente da margem: apertada, as faixas somem. */}
         {needsRoomWarning && (
           <p className="popover__error">
             {t('document.pageSetup.marginWarning', { min: MIN_MARGIN_FOR_HEADER_MM })}

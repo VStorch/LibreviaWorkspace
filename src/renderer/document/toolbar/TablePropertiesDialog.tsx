@@ -18,7 +18,7 @@ import { useT } from '../../i18n.js'
 import { applyTableDraft, tablePlacementAt } from '../extensions/table-look.js'
 import { useWorkspace } from '../../state/workspace.js'
 
-/** Só o que o gravador leva ao `.docx` — o resto não é oferecido. */
+/** Só o que o gravador leva ao `.docx`. */
 const BORDER_STYLE_KEYS: readonly { readonly value: CellBorderStyle; readonly labelKey: MessageKey }[] = [
   { value: CellBorderStyle.Single, labelKey: 'document.tableProperties.borderSingle' },
   { value: CellBorderStyle.Double, labelKey: 'document.tableProperties.borderDouble' },
@@ -35,13 +35,9 @@ const SIDE_LABEL_KEYS: Record<CellBorderSide, MessageKey> = {
 }
 
 /**
- * Propriedades da tabela: largura da coluna, bordas e sombreamento da célula, e a
- * linha de cabeçalho que se repete em cada página.
- *
- * **Só o que o arquivo sabe guardar.** Cada campo aqui tem um destino em OOXML —
- * `w:tblGrid`, `w:tcBorders`, `w:shd` e `w:trPr/w:tblHeader` —, e é por isso que
- * não há margem interna, direção do texto nem alinhamento vertical: o gravador não
- * os leva, e oferecê-los seria prometer o que se perde ao salvar.
+ * **Só o que o arquivo guarda**: `w:tblGrid`, `w:tcBorders`, `w:shd` e
+ * `w:tblHeader`. Margem interna, direção do texto e alinhamento vertical o gravador
+ * não leva, e oferecê-los prometeria o que se perde ao salvar.
  */
 export function TablePropertiesDialog({
   editor,

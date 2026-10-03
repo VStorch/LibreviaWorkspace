@@ -9,12 +9,10 @@ interface PageGroupProps {
   readonly onOpenPageSetup: () => void
 }
 
-/** A página e o documento inteiro: nada aqui depende da seleção. */
 export function PageGroup({ onOpenFind, onOpenPageSetup }: PageGroupProps): React.JSX.Element {
   const t = useT()
   const printPreview = useWorkspace((state) => state.printPreview)
-  // Do main, que é o dono da preferência: clicar aqui e clicar no item do menu
-  // "Exibir" mudam a mesma chave, e os dois ficam marcados juntos.
+  // Do main: a barra e o menu "Exibir" mudam a mesma chave.
   const invisibleCharacters = usePreferences((state) => state.preferences.invisibleCharacters)
 
   return (
@@ -33,8 +31,6 @@ export function PageGroup({ onOpenFind, onOpenPageSetup }: PageGroupProps): Reac
         onClick={onOpenFind}
       />
       <ToolbarButton icon="page-setup" label={t('document.pageSetup.title')} onClick={onOpenPageSetup} />
-      {/* Como o editor não pagina ao vivo (§6.3 do plano), a prévia é o que
-        responde "onde as páginas quebram" — e por isso fica à mão. */}
       <ToolbarButton
         icon="print-preview"
         label={t('menu.file.printPreview')}

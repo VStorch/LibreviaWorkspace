@@ -13,21 +13,9 @@ import { useWorkspace } from '../state/workspace.js'
 import { StyleDialog, type StyleDialogMode } from './StyleDialog.js'
 
 /**
- * Os estilos do documento: ver, aplicar, modificar e criar.
- *
- * Responde às duas perguntas que a tela não respondia — **quais estilos este
- * documento tem** e **qual é o do parágrafo onde estou** — e deixa agir sobre a
- * resposta. Aplicar e limpar a formatação são transações do editor, com desfazer
- * (`style-commands.ts`); modificar e criar trocam a folha de estilos do store, que
- * regera o CSS da tela e do papel e vai para `word/styles.xml` na gravação
- * (`StyleWriter.cs`). Nenhum estilo é excluído.
- *
- * No somente leitura tudo o que muda o documento fica desligado: o painel volta a
- * ser só de consulta.
- *
- * Mesmo desenho dos outros painéis (`PageSetupPanel`, `ParagraphDialog`): um
- * `popover`, `Escape` fecha e `Tab` circula dentro do painel, como em
- * `SpecialCharsDialog`.
+ * Aplicar e limpar são transações do editor (`style-commands.ts`); modificar e
+ * criar trocam a folha do store, que vai a `word/styles.xml` (`StyleWriter.cs`).
+ * Nenhum estilo é excluído. No somente leitura, só consulta.
  */
 export function StylesPanel({
   editor,
@@ -46,13 +34,7 @@ export function StylesPanel({
   const [filter, setFilter] = useState<'all' | StyleType>('all')
   const panel = useRef<HTMLDivElement>(null)
 
-  /**
-   * `Escape` fecha, e `Tab` circula dentro do painel.
-   *
-   * Sem a circulação, `Tab` a partir de "Fechar" caía no texto do documento — e
-   * dali `Escape` não fechava mais nada, porque quem escuta a tecla é o painel.
-   * A lista de paradas sai do DOM porque o seletor e a lista mudam com o filtro.
-   */
+  /** Sem a circulação, `Tab` a partir de "Fechar" cairia no texto, e `Escape` não fecharia mais. */
   function onPanelKeyDown(event: React.KeyboardEvent<HTMLDivElement>): void {
     if (event.key === 'Escape') {
       onClose()
@@ -76,8 +58,7 @@ export function StylesPanel({
     next.focus()
   }
 
-  // Ao vivo: o cursor anda enquanto o painel está aberto, e o estilo do bloco
-  // muda com ele. Fechar o painel não é condição para continuar escrevendo.
+  // Ao vivo: o cursor anda com o painel aberto.
   const block = useEditorState({
     editor,
     selector: ({ editor: current }) => {
@@ -158,8 +139,7 @@ export function StylesPanel({
         </label>
       </div>
 
-      {/* Focalizável para que a lista role pelo teclado. Clicar escolhe o estilo
-          a aplicar ou modificar; clique duplo já aplica. */}
+      {/* Focalizável, para a lista rolar pelo teclado; clique duplo já aplica. */}
       <ul className="styles-list" tabIndex={0} aria-label={t('document.styleAndFont.documentStyles')}>
         {styles.length === 0 && <li className="styles-list__empty">{t('document.styles.empty')}</li>}
         {styles.map((style) => (
@@ -181,8 +161,7 @@ export function StylesPanel({
               if (style.type === StyleType.Character) chain.applyCharacterStyle(style.id).run()
               else chain.applyParagraphStyle(style.id).run()
             }}
-            // O leitor de tela precisa ouvir "este é o do cursor" junto com o
-            // nome; a marca visual sozinha não diz nada a quem não vê a tela.
+            // A marca visual sozinha não diz nada a quem não vê a tela.
             aria-current={style.id === current?.id ? 'true' : undefined}
           >
             <span className="styles-list__name">{styleLabelOf(style, language)}</span>
@@ -239,14 +218,7 @@ export function StylesPanel({
   )
 }
 
-/**
- * O resumo de um estilo numa linha.
- *
- * A fonte e o tamanho, quando o estilo os declara, mais de quem ele herda: é o
- * que responde "por que este parágrafo está assim" sem abrir o arquivo. O que o
- * estilo não declara não aparece — dizer "12 pt" num estilo que herda o tamanho
- * seria afirmar algo que o documento não diz, e a cascata é da entrega seguinte.
- */
+/** Só o que o estilo declara, e de quem herda: "12 pt" num estilo que herda o tamanho afirmaria o que o documento não diz. */
 function describe(
   style: StyleDefinition,
   sheet: StyleSheet,
@@ -262,9 +234,7 @@ function describe(
   if (style.character?.fontSize !== undefined) parts.push(style.character.fontSize)
   if (style.character?.bold === true) parts.push(t('document.styles.bold'))
   if (style.basedOn !== undefined) {
-    // Pelo nome, e não pelo id: o resto da linha fala em nomes, e num documento
-    // em português o id do pai é `Ttulo1` — uma palavra que a pessoa não
-    // reconhece e que não aparece em lugar nenhum da tela.
+    // Pelo nome: num documento em português o id do pai é `Ttulo1`.
     const parent = sheet.styles[style.basedOn]
     parts.push(
       t('document.styles.basedOn', {

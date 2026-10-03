@@ -6,7 +6,7 @@ import { useLanguage, useT } from '../i18n.js'
 import { useWorkspace } from '../state/workspace.js'
 import { tally } from './WordCountDialog.js'
 
-/** Os campos que o diálogo deixa editar, na ordem do Word. */
+/** Na ordem do Word. */
 const EDITABLE = [
   ['title', 'document.properties.title'],
   ['subject', 'document.properties.subject'],
@@ -21,17 +21,9 @@ const EDITABLE = [
 type EditableKey = (typeof EDITABLE)[number][0]
 
 /**
- * Arquivo → Propriedades: o resumo que o Word guarda em `docProps/` e as
- * estatísticas do documento.
- *
- * O que se grava é um **remendo**: o campo que o arquivo não tinha e continuou
- * vazio fica ausente, e o que tinha e foi apagado vira cadeia vazia — "apague".
- * Assim o sidecar só regrava a parte de propriedades quando algum campo mudou
- * de fato.
- *
- * As estatísticas são as da contagem de palavras, pela mesma régua; as datas, o
- * autor da última gravação e a revisão são só lidos — quem os escreve é a
- * gravação (ver `stampProperties`).
+ * Grava um **remendo**: o campo que não existia e ficou vazio fica ausente; o que
+ * foi apagado vira cadeia vazia. Datas, autor da última gravação e revisão são só
+ * lidos (`stampProperties`).
  */
 export function PropertiesDialog({
   editor,
@@ -43,7 +35,7 @@ export function PropertiesDialog({
   const t = useT()
   const language = useLanguage()
   const properties = useWorkspace((state) => state.properties)
-  const pages = useWorkspace((state) => state.estimatedPages)
+  const pages = useWorkspace((state) => state.pageCount)
   const setProperties = useWorkspace((state) => state.setProperties)
   const [values, setValues] = useState<Record<EditableKey, string>>(
     () =>
@@ -64,7 +56,6 @@ export function PropertiesDialog({
     for (const [key] of EDITABLE) {
       const before = properties?.[key]
       const value = values[key]
-      // O campo que o arquivo não tinha e continua vazio não vira "apague".
       if (value === (before ?? '')) continue
       next = { ...next, [key]: value }
       changed = true

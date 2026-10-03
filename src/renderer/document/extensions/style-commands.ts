@@ -7,18 +7,12 @@ import { headingLevelOfStyle, nextStyleIdOf } from '@services/document/style-edi
 import type { StyleCharacterFormat, StyleSheet } from '@services/document/styles.js'
 
 /**
- * Aplicar estilos, limpar a formatação direta e o "desligado" que vence o estilo.
- *
- * Tudo em transação do editor, e por isso com desfazer. Modificar e criar estilo
- * não passa por aqui: mexe na folha de estilos do store (`style-editing.ts`), que
- * está fora do documento.
- *
- * As funções de transação ficam soltas, e não dentro da extensão, para que o teste
- * as rode sobre um `EditorState` sem montar editor nenhum — o mesmo motivo de
- * `paragraph-format.ts`.
+ * Tudo em transação do editor, com desfazer; modificar e criar estilo mexe na
+ * folha do store (`style-editing.ts`). As funções ficam soltas para o teste as
+ * rodar sobre um `EditorState`.
  */
 
-/** A formatação direta de parágrafo que o bloco carrega — o que "limpar" apaga. */
+/** O que "limpar" apaga. */
 export const DIRECT_BLOCK_ATTRS = [
   'textAlign',
   'indentMm',
@@ -36,12 +30,8 @@ export const DIRECT_BLOCK_ATTRS = [
 ] as const
 
 /**
- * As marcas que um estilo pode ligar, e o campo do estilo que liga cada uma.
- *
- * São as que ganham o "desligado" (`off`): com o bloco desenhado pelo estilo, o
- * trecho sem marca mostra o que o estilo diz, e tirar o negrito de uma palavra num
- * título precisa de uma marca que diga o contrário. Na leitura ela vem de
- * `w:b w:val="0"` sobre estilo que liga; na gravação volta a ser isso.
+ * As que ganham o "desligado" (`off`): tirar o negrito de uma palavra num título
+ * precisa de uma marca que diga o contrário. Vem de `w:b w:val="0"` e volta a ser isso.
  */
 export const INHERITABLE_MARKS: Readonly<Record<string, keyof StyleCharacterFormat>> = {
   bold: 'bold',
@@ -50,21 +40,18 @@ export const INHERITABLE_MARKS: Readonly<Record<string, keyof StyleCharacterForm
   strike: 'strike',
 }
 
-/** Marcas que "limpar" deixa: o link é conteúdo, e o estilo de caractere é estilo. */
+/** O link é conteúdo, e o estilo de caractere é estilo. */
 const KEPT_MARKS = new Set(['link', 'charStyle'])
 
 const isStyledBlock = (node: ProseMirrorNode): boolean =>
   node.type.name === 'paragraph' || node.type.name === 'heading'
 
-/**
- * O id que o bloco grava para o estilo: nenhum para o padrão de parágrafo — é o
- * que o leitor produz para o parágrafo sem `w:pStyle` —, o próprio para o resto.
- */
+/** Nenhum para o padrão de parágrafo, como o leitor produz para o parágrafo sem `w:pStyle`. */
 function storedIdOf(sheet: StyleSheet, styleId: string): string | null {
   return styleId === sheet.defaults.paragraphStyleId ? null : styleId
 }
 
-/** O estilo de parágrafo do bloco, por id — o título sem id, pelo nome `heading N`. */
+/** O título sem id, pelo nome `heading N`. */
 export function styleIdOfBlock(sheet: StyleSheet, node: ProseMirrorNode): string | null {
   const declared = node.attrs['styleId']
   if (typeof declared === 'string' && declared !== '') return declared
@@ -75,13 +62,7 @@ export function styleIdOfBlock(sheet: StyleSheet, node: ProseMirrorNode): string
   return null
 }
 
-/**
- * Aplica um estilo de parágrafo aos blocos da seleção.
- *
- * Título ↔ parágrafo pelo nome do estilo (`heading N`), como o leitor e o escritor
- * reconhecem um título. A formatação direta do parágrafo sai, como no Word: aplicar
- * um estilo é pedir a aparência dele. A de caractere (as marcas) fica.
- */
+/** Título ↔ parágrafo pelo nome do estilo. A formatação direta do parágrafo sai, como no Word; as marcas ficam. */
 export function applyParagraphStyle(tr: Transaction, sheet: StyleSheet, styleId: string): boolean {
   const style = sheet.styles[styleId]
   if (style === undefined) return false
@@ -108,7 +89,7 @@ export function applyParagraphStyle(tr: Transaction, sheet: StyleSheet, styleId:
   return targets.length > 0
 }
 
-/** Aplica (ou tira, com `null`) um estilo de caractere ao trecho selecionado. */
+/** `null` tira o estilo. */
 export function applyCharacterStyle(tr: Transaction, styleId: string | null): boolean {
   const type = tr.doc.type.schema.marks['charStyle']
   if (type === undefined) return false
@@ -125,12 +106,7 @@ export function applyCharacterStyle(tr: Transaction, styleId: string | null): bo
   return true
 }
 
-/**
- * Limpa a formatação direta: os atributos de parágrafo do bloco e as marcas dos
- * trechos — o estilo fica, e é ele que passa a desenhar.
- *
- * Sem seleção, o bloco do cursor inteiro, como no Word.
- */
+/** O estilo fica e passa a desenhar. Sem seleção, o bloco inteiro, como no Word. */
 export function clearDirectFormatting(tr: Transaction): boolean {
   const { $from, empty } = tr.selection
   const from = empty ? $from.start() : tr.selection.from
@@ -158,14 +134,13 @@ export function clearDirectFormatting(tr: Transaction): boolean {
   return changed
 }
 
-/** O estilo do bloco do cursor liga esta marca? */
 function inheritedOn(tr: Transaction, sheet: StyleSheet | null, name: string): boolean {
   const field = INHERITABLE_MARKS[name]
   if (field === undefined) return false
   return blockStyleOfNode(tr.selection.$from.parent, sheet)?.character[field] === true
 }
 
-/** As marcas da seleção de que se fala: as guardadas, as do cursor, ou as do trecho. */
+/** As guardadas, as do cursor, ou as do trecho. */
 function marksHere(tr: Transaction, type: MarkType): ProseMirrorMark | null {
   const { $from, empty, from, to } = tr.selection
   if (empty) return type.isInSet(tr.storedMarks ?? $from.marks()) ?? null
@@ -182,10 +157,7 @@ function marksHere(tr: Transaction, type: MarkType): ProseMirrorMark | null {
   return all ? found : null
 }
 
-/**
- * A marca aparece? Com o estilo por baixo: sem marca vale o estilo, a marca com
- * `off` desliga, e a marca comum liga.
- */
+/** Sem marca vale o estilo; a marca com `off` desliga, e a comum liga. */
 export function markVisiblyOn(tr: Transaction, sheet: StyleSheet | null, name: string): boolean {
   const type = tr.doc.type.schema.marks[name]
   if (type === undefined) return false
@@ -195,11 +167,8 @@ export function markVisiblyOn(tr: Transaction, sheet: StyleSheet | null, name: s
 }
 
 /**
- * Liga ou desliga uma marca que o estilo pode dar.
- *
- * Onde o estilo não a liga, é a alternância de sempre (`false`: quem chama usa o
- * comando do próprio Tiptap). Onde liga, o trecho que aparece ligado ganha a marca
- * com `off`, e o que aparece desligado perde a marca — e volta ao estilo.
+ * Onde o estilo não liga a marca, `false`: quem chama usa o comando do Tiptap.
+ * Onde liga, o trecho ligado ganha a marca com `off`, e o desligado volta ao estilo.
  */
 export function toggleInheritedMark(tr: Transaction, sheet: StyleSheet | null, name: string): boolean {
   if (!inheritedOn(tr, sheet, name)) return false
@@ -219,13 +188,7 @@ export function toggleInheritedMark(tr: Transaction, sheet: StyleSheet | null, n
   return true
 }
 
-/**
- * Enter no fim de um parágrafo cujo estilo tem `next`: o bloco novo nasce no
- * estilo seguinte — o título dá lugar ao Normal. Devolve falso quando não é o
- * caso, e o Enter de sempre segue.
- *
- * Só no bloco solto do corpo: o Enter de lista e de célula é deles.
- */
+/** O título dá lugar ao estilo `next`. Só no bloco solto: o Enter de lista e de célula é deles. */
 export function splitWithNextStyle(tr: Transaction, sheet: StyleSheet | null): boolean {
   const { $from, empty } = tr.selection
   if (sheet === null || !empty || $from.depth !== 1) return false
@@ -249,7 +212,7 @@ export function splitWithNextStyle(tr: Transaction, sheet: StyleSheet | null): b
   return true
 }
 
-/** Os estilos que o editor conhece — os mesmos de `paragraphCommands`. */
+/** Os mesmos de `paragraphCommands`. */
 function stylesOf(storage: Record<string, unknown>): StyleSheet | null {
   const paragraph = storage['paragraphCommands'] as { styles?: StyleSheet | null } | undefined
   return paragraph?.styles ?? null
@@ -261,7 +224,6 @@ declare module '@tiptap/core' {
       applyParagraphStyle: (styleId: string) => ReturnType
       applyCharacterStyle: (styleId: string | null) => ReturnType
       clearDirectFormatting: () => ReturnType
-      /** Negrito, itálico, sublinhado e tachado, com o estilo por baixo. */
       toggleInheritedMark: (name: string) => ReturnType
     }
   }
@@ -270,13 +232,11 @@ declare module '@tiptap/core' {
 export const StyleCommands = Extension.create({
   name: 'styleCommands',
 
-  // Acima do Tiptap: `Mod-b` e o Enter são dele também, e aqui decidem primeiro.
+  // Acima do Tiptap: `Mod-b` e o Enter decidem aqui primeiro.
   priority: 200,
 
   addGlobalAttributes() {
-    // O "desligado" de cada marca: como o CSS desfaz o que a regra do estilo dá.
-    // Sublinhado e tachado do bloco não se desfazem num filho — a decoração do
-    // pai atravessa —, e só um `inline-block` a interrompe.
+    // Sublinhado e tachado do bloco atravessam os filhos: só um `inline-block` interrompe.
     const off = (css: string) => ({
       off: {
         default: null,
@@ -301,7 +261,7 @@ export const StyleCommands = Extension.create({
           const current = sheet()
           if (current === null) return false
           if (dispatch === undefined) return true
-          // Um passo de desfazer só dele, e não emendado ao texto digitado antes.
+          // Um passo de desfazer só dele.
           closeHistory(tr)
           return applyParagraphStyle(tr, current, styleId)
         },
@@ -340,10 +300,7 @@ export const StyleCommands = Extension.create({
   },
 })
 
-/**
- * O estilo de caractere do trecho (`w:rStyle`). Não desenha nada sozinho: quem
- * desenha é a regra de `style-css.ts` para `[data-char-style]`.
- */
+/** `w:rStyle`: quem desenha é a regra de `style-css.ts` para `[data-char-style]`. */
 export const CharacterStyle = Mark.create({
   name: 'charStyle',
 

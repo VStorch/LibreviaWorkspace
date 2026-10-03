@@ -1,24 +1,12 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 
-/**
- * A casca de um menu de contexto: onde ele aparece e quando ele fecha.
- *
- * Nasceu no menu da planilha e saiu de lá quando o editor de documentos ganhou o
- * seu — as duas coisas difíceis não têm nada de planilha nem de documento:
- *
- *  - **caber na tela**: a altura depende da fonte do sistema, então só medindo
- *    depois de desenhar se sabe se o menu cabe;
- *  - **fechar**: clique fora, `Escape` e redimensionamento da janela.
- *
- * Quem herda daqui só escreve os itens.
- */
+/** O que é comum a todo menu de contexto: caber na tela e fechar. Quem herda só escreve os itens. */
 
 export interface MenuPosition {
   readonly x: number
   readonly y: number
 }
 
-/** Distância mínima da borda da janela, para o menu não encostar. */
 const EDGE_MARGIN = 8
 
 export function ContextMenu({
@@ -28,7 +16,7 @@ export function ContextMenu({
   children,
 }: {
   readonly position: MenuPosition
-  /** Nome acessível do menu: é o que o leitor de tela anuncia ao abrir. */
+  /** O que o leitor de tela anuncia ao abrir. */
   readonly label: string
   readonly onClose: () => void
   readonly children: React.ReactNode
@@ -36,8 +24,7 @@ export function ContextMenu({
   const menu = useRef<HTMLDivElement>(null)
   const [placement, setPlacement] = useState<MenuPosition>(position)
 
-  // Medir depois de desenhar é o único jeito de saber se o menu cabe: a altura
-  // depende da fonte do sistema, não de constante nossa.
+  // Só medindo depois de desenhar: a altura depende da fonte do sistema.
   useLayoutEffect(() => {
     const element = menu.current
     if (element === null) return
@@ -58,8 +45,7 @@ export function ContextMenu({
       if (event.key === 'Escape') onClose()
     }
 
-    // `pointerdown` e não `click`: fechar só no clique deixaria o menu aberto
-    // enquanto o botão está pressionado em outro lugar.
+    // `pointerdown`, e não `click`, para fechar já ao pressionar em outro lugar.
     document.addEventListener('pointerdown', dismiss, true)
     document.addEventListener('keydown', onKey, true)
     window.addEventListener('resize', onClose)
@@ -92,7 +78,7 @@ export function ContextMenuItem({
   readonly children: React.ReactNode
   readonly onClick: () => void
   readonly disabled?: boolean
-  /** Destaque de "é este que você quer" — as sugestões do corretor o usam. */
+  /** As sugestões do corretor o usam. */
   readonly strong?: boolean
 }): React.JSX.Element {
   return (

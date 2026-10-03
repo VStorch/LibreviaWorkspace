@@ -73,17 +73,9 @@ import { footnotePagesOf, notePagesOf, samePages, setNotePages } from './extensi
 import type { SearchStatus } from './extensions/search-replace.js'
 
 /**
- * Editor de documentos.
- *
- * Pagina ao vivo: o texto é um fluxo só, e as folhas são desenhadas atrás dele
- * nas posições que a medição produz. Quem empurra cada bloco para a folha certa
- * é uma decoração de margem — ver `extensions/pagination.ts`, que explica por
- * que não é um espaçador de verdade.
- *
- * Cabeçalho e rodapé se repetem em cada folha, com o número da página. São
- * desenhados fora do `contenteditable`, na mesma camada das folhas: no papel
- * eles moram dentro da margem, e ali não empurram o texto nem entram na
- * seleção.
+ * Pagina ao vivo: o texto é um fluxo só, e uma decoração de margem empurra cada
+ * bloco para a folha certa (ver `extensions/pagination.ts`). As faixas são
+ * desenhadas fora do `contenteditable`, na camada das folhas.
  */
 export function DocumentEditor(): React.JSX.Element {
   const initialDoc = useWorkspace((state) => state.initialDoc)
@@ -92,7 +84,7 @@ export function DocumentEditor(): React.JSX.Element {
   const markDirty = useWorkspace((state) => state.markDirty)
   const setStats = useWorkspace((state) => state.setStats)
   const registerDocumentSource = useWorkspace((state) => state.registerDocumentSource)
-  const setEstimatedPages = useWorkspace((state) => state.setEstimatedPages)
+  const setPageCount = useWorkspace((state) => state.setPageCount)
   const readOnly = useWorkspace((state) => state.readOnly)
   const setPage = useWorkspace((state) => state.setPage)
   const setSections = useWorkspace((state) => state.setSections)
@@ -107,7 +99,6 @@ export function DocumentEditor(): React.JSX.Element {
   useLeaveReadingOnEscape(reading)
 
   const pageRef = useRef<HTMLDivElement>(null)
-  // O depósito dos corpos de nota que ainda não têm folha.
   const notePoolRef = useRef<HTMLDivElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const zoom = useEffectiveZoom()
@@ -120,23 +111,19 @@ export function DocumentEditor(): React.JSX.Element {
   const handleSearchStatus = useCallback((status: SearchStatus) => setSearchStatus(status), [])
 
   const editor = useEditor({
-    // As preferências são lidas da loja, e não das props: o editor é criado uma
-    // vez só, e o que muda depois chega pelos efeitos mais abaixo.
+    // Da loja, e não das props: o editor é criado uma vez, e o resto chega pelos efeitos.
     extensions: buildEditorExtensions(handleSearchStatus, {
       isTypographyEnabled: () => currentPreferences().typography,
       invisibleCharactersVisible: currentPreferences().invisibleCharacters,
       isKnownComment: (cid) => useWorkspace.getState().comments.some((comment) => comment.id === cid),
       notes: () => useWorkspace.getState().notes,
       isTrackingChanges: () => useWorkspace.getState().trackChanges === true,
-      // Sem nome nas preferências, a revisão leva um autor genérico: o `w:author`
-      // é obrigatório, e o Word faz o mesmo.
+      // O `w:author` é obrigatório: sem nome, um autor genérico, como no Word.
       revisionAuthor: () => currentPreferences().authorName.trim() || translateNow('revisions.unknownAuthor'),
     }),
     content: initialDoc,
     onUpdate: ({ editor: current, transaction }) => {
-      // A paginação também chega como transação. Tratá-la como edição sujaria o
-      // documento sem ninguém digitar, e a medição que ela dispara pediria
-      // outra medição — o laço fecharia aqui.
+      // A paginação chega como transação: tratá-la como edição sujaria o documento.
       if (isPaginationOnly(transaction)) return
 
       markDirty()
@@ -160,15 +147,8 @@ export function DocumentEditor(): React.JSX.Element {
     },
   })
 
-  // As seções que o texto usa, na ordem do corpo (ver `resolveSections`), e
-  // todas elas com as faixas que cada uma herda das anteriores. A última — a do
-  // corpo — é a base da coluna de texto: os blocos das outras seções são
-  // deslocados para a caixa da sua (ver `section-geometry.ts`).
-  //
-  // Pelas marcas, e não pelo documento: cada tecla é um documento novo, e seções
-  // novas a cada tecla refaziam a conta da paginação e despachavam a geometria
-  // das seções de novo — na digitação rápida, desenho atrás de desenho até o
-  // React desistir (erro 185) no meio de uma edição.
+  // Pelas marcas, e não pelo documento: seções novas a cada tecla refariam a
+  // paginação e a geometria das seções, até o React desistir (erro 185).
   const doc = editor?.state.doc ?? null
   const marksKey = doc === null ? '[]' : JSON.stringify(marksOfDoc(doc))
   const bodySection: unknown = doc?.attrs['bodySection'] ?? null
@@ -179,32 +159,16 @@ export function DocumentEditor(): React.JSX.Element {
   const sections = resolved.sections
   const effective = useMemo(() => effectiveSections(resolved.page, sections), [resolved.page, sections])
   const page = effective.at(-1)!
-  // As referências leem as seções na hora do comando, e não na da renderização.
+  // Lidas na hora do comando, e não na da renderização.
   const effectiveRef = useRef(effective)
   effectiveRef.current = effective
 
-  /**
-   * Somente leitura ligado e desligado no editor já montado.
-   *
-   * Passar `editable` na criação não bastaria: liberar a edição pelo aviso
-   * acontece **depois**, e recriar o editor ali perderia a posição do cursor e
-   * o histórico de desfazer.
-   *
-   * O segundo argumento é o que importa: `setEditable` emite um update por
-   * padrão, e o update marca o documento como alterado. Sem ele, todo arquivo
-   * aberto aparecia como "não salvo" antes de o usuário tocar em nada — e o
-   * aviso de descarte apareceria ao fechar um documento que ninguém editou.
-   */
-  // O modo de leitura trava a edicao junto com o somente leitura, e pelo
-  // mesmo caminho: uma tecla perdida nao pode alterar o documento que a
-  // pessoa esta lendo. Sair do modo devolve a edicao sem recriar o editor,
-  // entao o cursor e o historico sobrevivem a ida e volta.
-  // O Original (Revisão → Mostrar) também trava: é o texto de antes das
-  // alterações, e digitar nele não teria onde cair.
+  // `setEditable` no editor já montado, e com o segundo argumento: recriar o
+  // editor perderia cursor e histórico, e o update padrão marcaria todo arquivo
+  // aberto como "não salvo". O modo de leitura e o Original também travam a edição.
   const original = revisionView === RevisionView.Original
   useEffect(() => {
     editor?.setEditable(!readOnly && !reading && !original, false)
-    // O corpo das notas tem editor próprio, que lê o "editável" deste.
     if (editor !== null && !editor.isDestroyed) for (const body of noteBodiesOf(editor.view)) body.refresh()
   }, [editor, readOnly, reading, original])
 
@@ -215,24 +179,19 @@ export function DocumentEditor(): React.JSX.Element {
     return () => setNotePool(view, null)
   }, [editor])
 
-  // Como a janela mostra as alterações: uma transação sem mudança no documento
-  // (não suja o arquivo), e a paginação mede de novo — o escondido não ocupa
-  // lugar na folha.
+  // Uma transação sem mudança no documento: a paginação mede de novo, e o escondido não ocupa lugar.
   useEffect(() => {
     if (editor === null || editor.isDestroyed || revisionViewOf(editor.state) === revisionView) return
     editor.view.dispatch(setRevisionViewMeta(editor.state.tr, revisionView))
-    // O corpo das notas leva a mesma classe do modo (`revisions-…`): o CSS esconde por ela.
+    // O CSS esconde pela classe do modo (`revisions-…`), que o corpo das notas também leva.
     for (const body of noteBodiesOf(editor.view)) body.refresh()
     setContentRevision((value) => value + 1)
   }, [editor, revisionView])
 
-  // Os estilos do documento, para quem decide pelo valor que se vê — o diálogo
-  // de parágrafo e o seletor de entrelinha (ver `paragraph-commands.ts`).
   useEffect(() => {
     if (editor !== null) editor.storage.paragraphCommands.styles = styles
   }, [editor, styles])
 
-  // Salvar e imprimir precisam do conteúdo atual, que só o editor conhece.
   useEffect(() => {
     if (editor === null) return undefined
     registerDocumentSource({
@@ -248,41 +207,27 @@ export function DocumentEditor(): React.JSX.Element {
   }, [editor, effective, registerDocumentSource])
 
   /**
-   * Ortografia ligada e desligada no editor já montado.
-   *
-   * O atributo é escrito no elemento, e não passado de novo em `editorProps`: o
-   * ProseMirror só lê os atributos ao criar a visão, e recriá-la aqui perderia o
-   * cursor e o histórico — o mesmo motivo do `setEditable` acima.
-   *
-   * Quem de fato liga o corretor é o processo main, na sessão do Chromium. Este
-   * atributo é a outra metade: sem ele, o campo continua marcado como "não
-   * verifique".
+   * Escrito no elemento: o ProseMirror só lê os atributos ao criar a visão. O
+   * main liga o corretor na sessão; isto é a outra metade.
    */
   useEffect(() => {
     editor?.view.dom.setAttribute('spellcheck', preferences.spellcheck ? 'true' : 'false')
   }, [editor, preferences.spellcheck])
 
-  // As marcas de formatação são um comando, e a transação dele não muda o
-  // documento — então não suja o arquivo nem dispara nova medição.
+  // A transação das marcas de formatação não muda o documento.
   useEffect(() => {
     editor?.commands.showInvisibleCharacters(preferences.invisibleCharacters)
   }, [editor, preferences.invisibleCharacters])
 
-  // O painel de comentários escondido leva o realce dos trechos; as pontas e os
-  // corpos ficam, e voltam ao arquivo. Também sem mudar o documento.
+  // Sem o painel, sai só o realce: pontas e corpos ficam, e voltam ao arquivo.
   useEffect(() => {
     if (editor === null || editor.isDestroyed) return
     editor.view.dispatch(focusComment(editor.state.tr, { hidden: !preferences.commentsPane }))
   }, [editor, preferences.commentsPane])
 
   /**
-   * Colar sem formatação.
-   *
-   * O texto vem do main (só ele alcança a área de transferência) e a conversão em
-   * parágrafos é função pura, testada em `@services/document/paste.ts`. Nada de
-   * `pasteAndMatchStyle` do Chromium: ele **adapta** a formatação em vez de
-   * descartá-la, e um trecho colado de uma página da web chegava com tamanho de
-   * fonte e cor próprios.
+   * Nada de `pasteAndMatchStyle` do Chromium: ele **adapta** a formatação em vez
+   * de descartá-la. A conversão é `@services/document/paste.ts`.
    */
   const pasteWithoutFormat = useCallback(async (): Promise<void> => {
     if (editor === null || readOnly) return
@@ -296,8 +241,7 @@ export function DocumentEditor(): React.JSX.Element {
     const content = plainPasteContent(result.data.text)
     if (content.length === 0) return
 
-    // O elenco existe porque `DocumentNode` é o nosso modelo e `JSONContent` é o
-    // do Tiptap: as duas formas são a mesma, e é o serviço puro que a garante.
+    // `DocumentNode` e `JSONContent` são a mesma forma.
     editor
       .chain()
       .focus()
@@ -305,10 +249,7 @@ export function DocumentEditor(): React.JSX.Element {
       .run()
   }, [editor, readOnly, showError])
 
-  // O menu nativo e o botão direito chegam pelo mesmo `run`, que é onde a trava
-  // do somente leitura é conferida — ver useEditorCommands.
-  // O que as referências leem na hora do comando: a paginação de agora (pela
-  // `ref`, que acompanha cada medida), a página e os estilos da loja.
+  // A trava do somente leitura é conferida no `run` (`useEditorCommands`).
   const referenceContext = useCallback(
     (): ReferenceContext => ({
       layout: layoutRef.current,
@@ -329,19 +270,14 @@ export function DocumentEditor(): React.JSX.Element {
     referenceContext,
   )
 
-  // O botão direito nasce no processo main: é lá que o corretor do Chromium conta
-  // qual palavra marcou e o que sugere.
   useEffect(
     () =>
       window.api.contextMenu.onRequest((payload) => {
-        // Validado com o mesmo contrato que o main usou para mandar — a segunda
-        // ponta do zod, que o preload não pode fazer por rodar sandboxed.
+        // A segunda ponta do zod, que o preload sandboxed não pode fazer.
         const parsed = pushContracts[IpcChannel.ContextMenuRequested].safeParse(payload)
         if (!parsed.success) return
 
-        // Fora de campo editável e sem nada selecionado não há ação a oferecer: o
-        // menu apareceria com todos os itens apagados, que é pior que menu nenhum.
-        // É o caso do clique na barra de ferramentas e na barra de status.
+        // Sem ação a oferecer, o menu teria todos os itens apagados, como na barra de ferramentas.
         if (!parsed.data.editable && !parsed.data.canCopy) return
 
         setContextTarget(parsed.data)
@@ -349,9 +285,6 @@ export function DocumentEditor(): React.JSX.Element {
     [],
   )
 
-  // Que seção abre cada folha: as faixas são medidas na primeira folha de cada
-  // seção, e é preciso medir de novo quando essa distribuição muda.
-  // Os comentários que o texto sustenta agora — o desfeito some do painel.
   const { comments, outside } = useComments(editor)
   const [sheetSections, setSheetSections] = useState('')
   const bands = useBandHeights(effective, contentRevision, sheetSections)
@@ -360,18 +293,15 @@ export function DocumentEditor(): React.JSX.Element {
     paginated: !reading,
     styles,
   })
-  // A string igual não chama o `setState` (ver `useBandHeights`).
   const sheetSectionsNow = layout.sheets.map((sheet) => sheet.section).join(',')
   useEffect(() => {
     if (sheetSectionsNow !== sheetSections) setSheetSections(sheetSectionsNow)
   }, [sheetSectionsNow, sheetSections])
   const sheetSetupList = useMemo(() => sheetSetups(effective, layout.sheets), [effective, layout.sheets])
 
-  // A pilha tem a largura da folha mais larga, e cada folha vai centrada nela —
-  // como o Word mostra retrato e paisagem no mesmo documento.
+  // Cada folha centrada na pilha, como o Word mostra retrato e paisagem juntos.
   const stackWidthPx = Math.max(layout.stackWidthPx, mmToPx(pageDimensionsMm(page).width))
-  // A coluna dos comentários ocupa lugar ao lado das folhas, e o invólucro do
-  // zoom cresce para a rolagem chegar até ela. Fora da leitura, como o papel.
+  // O invólucro do zoom cresce para a rolagem chegar até a coluna dos comentários.
   const commentsPane = !reading && preferences.commentsPane && comments.length > 0
   const zoomedWidthPx = stackWidthPx + (commentsPane ? COMMENTS_PANE_WIDTH_PX : 0)
   const firstSection = effective[layout.sheets[0]?.section ?? 0] ?? page
@@ -379,8 +309,7 @@ export function DocumentEditor(): React.JSX.Element {
   const baseLeftPx = (stackWidthPx - mmToPx(pageDimensionsMm(page).width)) / 2 + mmToPx(page.margins.left)
   const baseRightPx = (stackWidthPx - mmToPx(pageDimensionsMm(page).width)) / 2 + mmToPx(page.margins.right)
 
-  // Os blocos das seções cuja caixa de texto difere da base: deslocados e com a
-  // largura da sua seção. No modo de leitura não há folha, e nada se desloca.
+  // No modo de leitura não há folha, e nada se desloca.
   useEffect(() => {
     if (editor === null) return
     const boxes = reading
@@ -388,8 +317,7 @@ export function DocumentEditor(): React.JSX.Element {
       : effective.map((section) => {
           const widthPx = mmToPx(pageDimensionsMm(section).width)
           const left = (stackWidthPx - widthPx) / 2 + mmToPx(section.margins.left)
-          // Com colunas, o bloco tem a largura de uma coluna; qual coluna, quem
-          // decide é a paginação (`usePagination`, por translação).
+          // Qual coluna, quem decide é a paginação, por translação.
           const content = mmToPx(columnGeometry(section).widthMm)
           const base = stackWidthPx - baseLeftPx - baseRightPx
           return { shiftPx: left - baseLeftPx, narrowerPx: base - content }
@@ -397,9 +325,7 @@ export function DocumentEditor(): React.JSX.Element {
     setSectionBoxes(editor.view, boxes, sections)
   }, [editor, effective, sections, reading, stackWidthPx, baseLeftPx, baseRightPx])
 
-  // Os objetos ancorados de cada folha. Recalculados junto com a paginação
-  // porque a posição de um deles depende de em que folha o parágrafo âncora
-  // caiu — e isso muda a cada linha digitada.
+  // A posição depende da folha em que o parágrafo âncora caiu.
   const floatsByPage = useMemo(() => {
     const pages: PlacedFloat[][] = Array.from({ length: layout.pages }, () => [])
     if (editor === null) return pages
@@ -415,8 +341,7 @@ export function DocumentEditor(): React.JSX.Element {
 
       let slot = 0
       for (const object of floatsOf(node.attrs)) {
-        // A posição do bloco viaja junto: é por ela que o texto digitado dentro
-        // da caixa acha o caminho de volta ao atributo de onde saiu.
+        // É pela posição do bloco que o texto da caixa volta ao atributo de onde saiu.
         sheet.push({ object, anchorTopMm: pxToMm(anchor.topPx), source: { pos, index: slot } })
         slot += 1
       }
@@ -425,13 +350,7 @@ export function DocumentEditor(): React.JSX.Element {
     return pages
   }, [editor, layout, contentRevision])
 
-  /**
-   * O texto digitado dentro de uma caixa volta para o atributo do bloco.
-   *
-   * Uma transação comum, e não um caminho paralelo: assim a edição entra no
-   * histórico, marca o documento como alterado e chega ao gravador pelo mesmo
-   * `getJSON()` de todo o resto.
-   */
+  /** Uma transação comum: entra no histórico, suja o documento e chega ao gravador pelo `getJSON()`. */
   const editFloat = useCallback(
     (source: FloatSource, content: DocumentNode[]) => {
       if (editor === null || readOnly) return
@@ -452,19 +371,10 @@ export function DocumentEditor(): React.JSX.Element {
     [editor, readOnly],
   )
 
-  /**
-   * O texto digitado no cabeçalho ou no rodapé volta para a configuração.
-   *
-   * A faixa não mora no documento do editor — ela é a parte OOXML preservada, e
-   * vive em `page`. Por isso a volta é `setPage` e não uma transação: o
-   * histórico do editor não tem o que desfazer aqui, e o gravador lê a
-   * configuração pelo mesmo caminho de sempre.
-   */
+  /** A faixa mora em `page`, e não no documento do editor: por isso `setPage`, e não transação. */
   const editAllSections = useCallback(
     (change: <T extends PageSetup>(section: T) => T) => {
-      // A configuração vem da loja e não da renderização: várias peças podem
-      // sair do foco em sequência, e uma leitura presa no fechamento apagaria
-      // a edição anterior a cada uma delas.
+      // Da loja: várias peças podem sair do foco em sequência.
       const state = useWorkspace.getState()
       const page = change(state.page)
       if (page !== state.page) setPage(page)
@@ -478,19 +388,13 @@ export function DocumentEditor(): React.JSX.Element {
     (pid: string, text: string) => {
       if (readOnly) return
 
-      // Em toda seção que declara a peça: a quebra de seção copia as referências
-      // da seção que partiu, e a mesma parte do arquivo mora então nas duas.
+      // A quebra de seção copia as referências, e a mesma parte mora nas duas seções.
       editAllSections((section) => editBandPiece(section, pid, text))
     },
     [readOnly, editAllSections],
   )
 
-  /**
-   * O texto digitado numa caixa da faixa volta para a configuração.
-   *
-   * A caixa vem inteira, e não parágrafo a parágrafo: digitar dentro dela abre
-   * e fecha parágrafos, e um endereço por parágrafo quebraria no primeiro Enter.
-   */
+  /** A caixa vem inteira: digitar dentro dela abre e fecha parágrafos. */
   const editBandBox = useCallback(
     (bid: string, content: DocumentNode[]) => {
       if (readOnly) return
@@ -500,22 +404,16 @@ export function DocumentEditor(): React.JSX.Element {
     [readOnly, editAllSections],
   )
 
-  // O recorte em páginas é lido no momento de imprimir, e não no da renderização
-  // — daí a `ref`: registrar `readPages` a cada mudança de layout recriaria a
-  // fonte do documento dezenas de vezes por segundo enquanto se digita.
+  // Lido ao imprimir: registrar `readPages` a cada layout recriaria a fonte do documento a cada tecla.
   const layoutRef = useRef(layout)
   layoutRef.current = layout
 
-  // O papel precisa das mesmas medidas de faixa que a tela usou, e pela mesma
-  // razão da `ref` acima: elas mudam durante a digitação e quem as lê é a
-  // impressão, no momento em que ela acontece.
   const bandsRef = useRef(bands)
   bandsRef.current = bands
 
-  useEffect(() => setEstimatedPages(layout.pages), [layout.pages, setEstimatedPages])
+  useEffect(() => setPageCount(layout.pages), [layout.pages, setPageCount])
 
-  // A folha de cada nota de rodapé, para a numeração que reinicia a cada página
-  //: ela só existe depois de paginar. Transação sem mudança no texto.
+  // A folha de cada nota de rodapé, para o reinício por página. Transação sem mudança no texto.
   const notesSetup = useWorkspace((state) => state.notes)
   useEffect(() => {
     if (editor === null || editor.isDestroyed) return
@@ -525,14 +423,12 @@ export function DocumentEditor(): React.JSX.Element {
     editor.view.dispatch(setNotePages(editor.state.tr, pages))
   }, [editor, layout.noteAreas, notesSetup])
 
-  // O segundo passe dos campos de página, quando a paginação assenta depois de
-  // um sumário ou de um F9 — ver `settlePageFields`.
+  // O segundo passe dos campos de página (`settlePageFields`).
   useEffect(() => {
     if (editor !== null && !readOnly) settlePageFields(editor, referenceContext())
   }, [editor, layout, readOnly, referenceContext])
 
-  // Quanto vale "ajustar à largura" nesta janela. Medido sempre, e não só com o
-  // ajuste ligado: ampliar a partir dele precisa do valor que se vê.
+  // Medido sempre: ampliar a partir do ajuste precisa do valor que se vê.
   useEffect(() => {
     const scroll = scrollRef.current
     if (scroll === null) return undefined
@@ -545,8 +441,6 @@ export function DocumentEditor(): React.JSX.Element {
 
   if (editor === null) return <div className="editor-shell" />
 
-  // A caixa de cada folha na pilha: a largura e a altura do papel da seção dela,
-  // centrada na largura da pilha.
   const sheetBox = (index: number): { leftPx: number; widthPx: number; heightPx: number } => {
     const setup = effective[layout.sheets[index]?.section ?? effective.length - 1] ?? page
     const { width, height } = pageDimensionsMm(setup)
@@ -557,14 +451,11 @@ export function DocumentEditor(): React.JSX.Element {
     ? {}
     : { onEditFloat: editFloat, onEditBandPiece: editBand, onEditBandBox: editBandBox }
 
-  // A nota sobre a qual o menu de contexto abriu — lida quando ele abre.
   const contextNote = contextTarget === null ? null : noteAtCursor(editor)
 
   return (
     <div className="editor-shell">
-      {/* O estilo do conteúdo vem do mesmo módulo que o HTML de impressão usa.
-          Duas folhas de estilo divergiriam com o tempo, e o PDF deixaria de
-          sair igual à tela — o risco registrado no §6.3 do plano. */}
+      {/* O mesmo CSS do HTML de impressão, para o papel sair igual à tela. */}
       <style>{DOCUMENT_CONTENT_CSS + styleCss + NOTES_CSS + EDITOR_ONLY_CSS}</style>
 
       {!reading && preferences.showToolbar && (
@@ -657,12 +548,10 @@ export function DocumentEditor(): React.JSX.Element {
       {contextTarget !== null && (
         <DocumentContextMenu
           target={contextTarget}
-          // O menu de contexto só oferece as ações de tabela quando o cursor está
-          // dentro de uma: fora dela, "mesclar células" não tem o que mesclar.
+          // Fora de uma tabela, "mesclar células" não tem o que mesclar.
           inTable={editor.isActive('table')}
           onTableAction={run}
-          // As ações de numeração, com o cursor numa lista: é pelo botão direito
-          // que o Word as oferece, sobre o item que se quer reiniciar.
+          // Como no Word, pelo botão direito sobre o item que se quer reiniciar.
           inList={
             editor.isActive('orderedList')
               ? 'orderedList'
@@ -692,17 +581,12 @@ export function DocumentEditor(): React.JSX.Element {
         </div>
       )}
 
-      {/* O painel de navegação ao lado da folha, e não por cima dela: consultar
-          a estrutura enquanto se lê é o uso dele, e um painel flutuante taparia o
-          texto. Fora do modo de leitura, que existe para tirar tudo da frente. */}
+      {/* Ao lado da folha, e não por cima: um painel flutuante taparia o texto. */}
       <div className="editor-body">
         {!reading && preferences.navigationPane && <NavigationPane editor={editor} />}
         <div ref={scrollRef} className={`editor-scroll${reading ? ' editor-scroll--reading' : ''}`}>
-          {/* O zoom é uma transformação sobre a pilha inteira, e este invólucro
-            ocupa o tamanho que ela passa a ter: `transform` não muda o espaço
-            que o elemento ocupa no layout, e sem isto a rolagem acabaria na
-            altura da pilha em 100 %. A paginação continua medindo em 100 % —
-            `offsetTop` e `offsetHeight` não veem a transformação. */}
+          {/* O `transform` do zoom não muda o espaço ocupado: este invólucro o
+            reserva, para a rolagem chegar ao fim. A paginação mede em 100 %. */}
           <div
             className={`pages-zoom${reading ? ' pages-zoom--reading' : ''}`}
             style={
@@ -730,14 +614,9 @@ export function DocumentEditor(): React.JSX.Element {
                     }
               }
             >
-              {/* As folhas: papel desenhado atrás do texto. Ficam fora do
-              `contenteditable` de propósito — dentro dele, cada folha seria um
-              nó que a pessoa conseguiria selecionar e apagar.
-
-              No modo de leitura não há folha nenhuma: a pilha de papel é o que
-              a rolagem contínua existe para tirar da frente. Os objetos
-              ancorados saem junto, e não por descuido — a posição deles é
-              relativa a uma folha, e sem folha não há onde pousá-los. */}
+              {/* Fora do `contenteditable`: dentro, cada folha seria um nó
+              selecionável. Sem folhas no modo de leitura, nem objetos ancorados,
+              cuja posição é relativa a uma folha. */}
               {!reading &&
                 layout.sheetTops.map((top, index) => {
                   const box = sheetBox(index)
@@ -760,10 +639,7 @@ export function DocumentEditor(): React.JSX.Element {
                   )
                 })}
 
-              {/* Uma faixa por folha, com o número real. No papel elas moram dentro
-              da margem, e é por isso que não empurram o texto. Sem folhas não
-              há cabeçalho repetido: "página 3 de 12" não quer dizer nada numa
-              tira contínua. */}
+              {/* No papel as faixas moram dentro da margem e não empurram o texto. */}
               {!reading &&
                 layout.sheetTops.map((top, index) => {
                   const box = sheetBox(index)
@@ -790,14 +666,10 @@ export function DocumentEditor(): React.JSX.Element {
                 className="pages__column"
                 style={
                   reading
-                    ? // A largura da leitura vem do CSS e nao das margens do
-                      // documento: uma margem de 10 mm daria uma linha larga
-                      // demais para ler com conforto, e o modo existe justamente
-                      // para nao obedecer ao papel.
+                    ? // A largura da leitura vem do CSS, e não das margens do documento.
                       undefined
                     : {
-                        // A margem de cima é um piso: um cabeçalho mais alto que ela
-                        // desce o corpo até debaixo dele, como no Word.
+                        // A margem de cima é um piso, como no Word.
                         paddingTop: `${mmToPx(insets.top)}px`,
                         paddingRight: `${baseRightPx}px`,
                         paddingLeft: `${baseLeftPx}px`,
@@ -807,9 +679,8 @@ export function DocumentEditor(): React.JSX.Element {
                 <EditorContent editor={editor} />
               </div>
 
-              {/* Os corpos de nota sem folha: escondidos, mas com a largura da
-                  coluna de texto, que é onde a paginação os mede. No modo de
-                  leitura não há folha, e as notas aparecem aqui, depois do texto. */}
+              {/* Os corpos de nota sem folha, na largura da coluna, onde a paginação
+                  os mede; no modo de leitura, aparecem aqui, depois do texto. */}
               <div
                 ref={notePoolRef}
                 className={`note-pool${reading ? ' note-pool--reading' : ''}`}

@@ -1,11 +1,6 @@
 import { getCell, type Sheet } from '@services/spreadsheet/model.js'
 
-/**
- * Estilo do modelo → CSS embutido na célula desenhada.
- *
- * A aparência é aplicada na hora de desenhar, e não guardada no DOM: a rolagem
- * descarta e recria as células, e um estilo que morasse ali sumiria com elas.
- */
+/** Na hora de desenhar: a rolagem recria as células, e um estilo guardado no DOM sumiria com elas. */
 export function cellStyleOf(sheet: Sheet, row: number, column: number): Record<string, string> {
   const style = getCell(sheet, row, column)?.style
   if (style === undefined) return {}

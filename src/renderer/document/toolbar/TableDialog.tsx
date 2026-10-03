@@ -3,17 +3,6 @@ import type { Editor } from '@tiptap/react'
 import { MAX_TABLE_COLUMNS, MAX_TABLE_ROWS, isValidTableSize } from '@services/document/table-format.js'
 import { useT } from '../../i18n.js'
 
-/**
- * Inserir tabela, perguntando de que tamanho.
- *
- * O botão da barra inseria uma 3 × 3 fixa. Era o único jeito de pôr uma tabela no
- * documento, e quem precisava de cinco colunas tinha de inserir e depois
- * acrescentar coluna a coluna — sem comando nenhum na interface para isso.
- *
- * Mesmo desenho dos outros diálogos do documento (`ParagraphDialog`): `popover`
- * com rascunho local, `Escape` fecha, `Enter` aplica e "Inserir" só funciona com o
- * formulário válido.
- */
 export function TableDialog({
   editor,
   onClose,
@@ -34,8 +23,7 @@ export function TableDialog({
     editor.chain().focus().insertTable({ rows, cols: columns, withHeaderRow: headerRow }).run()
     onClose()
 
-    // E de novo depois do fechamento, como no diálogo de parágrafo: o painel sai
-    // da tela depois do `focus()` da cadeia e leva o foco do documento com ele.
+    // De novo depois de fechar, como no diálogo de parágrafo.
     requestAnimationFrame(() => editor.commands.focus())
   }
 
@@ -78,8 +66,7 @@ export function TableDialog({
 
       <label className="popover__check">
         <input type="checkbox" checked={headerRow} onChange={(event) => setHeaderRow(event.target.checked)} />
-        {/* O que o arquivo guarda é `w:tblHeader`, e é isso que o rótulo promete:
-            a linha reaparece no alto de cada página, e não só fica em negrito. */}
+        {/* `w:tblHeader`: a linha reaparece no alto de cada página. */}
         <span>{t('document.tableDialog.headerRow')}</span>
       </label>
 

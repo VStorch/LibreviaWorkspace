@@ -7,24 +7,14 @@ import { useT } from '../i18n.js'
 import { useWorkspace } from '../state/workspace.js'
 import { NoteKind } from '@services/document/notes.js'
 
-/**
- * Menu de contexto do editor de documentos.
- *
- * O que se espera do botão direito num editor de texto, na ordem do Word: as
- * sugestões do corretor primeiro — é por elas que se clica com o botão direito
- * numa palavra sublinhada — e depois a área de transferência.
- *
- * Os dados de onde se clicou vêm do processo main, porque só lá o Chromium conta
- * qual palavra ele marcou e o que sugere (ver `src/main/context-menu.ts`). As
- * ações voltam para lá pelo mesmo motivo: recortar, copiar, colar e trocar a
- * palavra errada são operações do `webContents`.
- *
- * Colar sem formatação é a exceção e fica no editor: o texto vem do main, mas
- * quem o transforma em parágrafos é o documento.
- */
 /** O que o botão direito oferece sobre uma lista. */
 export type ListAction = 'restart' | 'continue' | 'setStart' | 'format'
 
+/**
+ * Na ordem do Word: as sugestões do corretor primeiro, depois a área de
+ * transferência. Os dados e as ações são do main, onde estão o corretor e o
+ * `webContents`; colar sem formatação é a exceção e fica no editor.
+ */
 export function DocumentContextMenu({
   target,
   inTable,
@@ -39,28 +29,25 @@ export function DocumentContextMenu({
   onConvertNote,
 }: {
   readonly target: ContextMenuTarget
-  /** Se o cursor está numa tabela — só então as ações dela aparecem. */
+  /** Só então as ações dela aparecem. */
   readonly inTable: boolean
   readonly onTableAction: (action: TableAction) => void
-  /** O tipo da lista em que está o cursor, ou `null` fora de lista. */
   readonly inList: 'bulletList' | 'orderedList' | null
   readonly onListAction: (action: ListAction) => void
   readonly onClose: () => void
   readonly onPasteWithoutFormat: () => void
-  /** Comentário na seleção, ou no cursor — ver `insertComment`. */
   readonly onNewComment: () => void
-  /** Aceitar ou rejeitar a alteração no cursor — `null` fora de alteração. */
+  /** `null` fora de alteração. */
   readonly onRevision: ((accept: boolean) => void) | null
-  /** O tipo da nota no cursor (ver `noteAtCursor`), ou `null` longe de nota. */
+  /** `null` longe de nota (`noteAtCursor`). */
   readonly noteKind: NoteKind | null
-  /** Converte a nota no cursor no outro tipo. */
   readonly onConvertNote: () => void
 }): React.JSX.Element {
   const showError = useWorkspace((state) => state.showError)
   const readOnly = useWorkspace((state) => state.readOnly)
   const t = useT()
 
-  /** Toda ação fecha o menu — inclusive quando falha, para o erro ficar visível. */
+  /** Toda ação fecha o menu, inclusive quando falha, para o erro ficar visível. */
   const act = (run: () => Promise<IpcResult<unknown>>) => () => {
     onClose()
     void run().then((result) => {
@@ -75,8 +62,7 @@ export function DocumentContextMenu({
       {misspelled && (
         <>
           {target.dictionarySuggestions.length === 0 ? (
-            // Um item apagado, e não item nenhum: o menu abre por causa da palavra
-            // sublinhada, e sem nada ali pareceria que o menu é que quebrou.
+            // Um item apagado, e não nenhum: senão pareceria que o menu quebrou.
             <ContextMenuItem disabled onClick={onClose}>
               {t('document.contextMenu.noSuggestions')}
             </ContextMenuItem>
@@ -104,9 +90,7 @@ export function DocumentContextMenu({
           >
             {t('document.contextMenu.addToDictionary')}
           </ContextMenuItem>
-          {/* "Ignorar" vale até fechar o aplicativo: o Chromium não tem lista de
-              ignorados, então ela é imitada com uma entrada temporária no
-              dicionário, desfeita na saída. */}
+          {/* "Ignorar" vale até fechar o aplicativo: o Chromium não tem lista de ignorados. */}
           <ContextMenuItem
             onClick={act(() =>
               window.api.spell.addWord({ word: target.misspelledWord, scope: DictionaryScope.Session }),
@@ -159,7 +143,6 @@ export function DocumentContextMenu({
         {t('comments.new')}
       </ContextMenuItem>
 
-      {/* Sobre uma alteração, aceitar e rejeitar — como o Word oferece. */}
       {onRevision !== null && !readOnly && (
         <>
           <ContextMenuSeparator />
@@ -182,7 +165,6 @@ export function DocumentContextMenu({
         </>
       )}
 
-      {/* Sobre uma nota, convertê-la no outro tipo — como o Word oferece. */}
       {noteKind !== null && !readOnly && (
         <>
           <ContextMenuSeparator />
@@ -201,8 +183,7 @@ export function DocumentContextMenu({
         </>
       )}
 
-      {/* A numeração vem logo depois da área de transferência, como no Word; e
-          reiniciar ou continuar só faz sentido em lista numerada. */}
+      {/* Reiniciar e continuar só fazem sentido em lista numerada. */}
       {inList !== null && !readOnly && (
         <>
           <ContextMenuSeparator />
@@ -245,10 +226,7 @@ export function DocumentContextMenu({
         </>
       )}
 
-      {/* As ações de tabela vêm depois da área de transferência, como no Word, e
-          só com o cursor dentro de uma: fora dela seriam todas itens apagados.
-          "Inserir tabela" fica de fora aqui — tabela dentro de tabela é caso de
-          quem sabe o que quer, e mora no menu "Tabela". */}
+      {/* "Inserir tabela" fica de fora: tabela dentro de tabela mora no menu "Tabela". */}
       {inTable && !readOnly && (
         <>
           {TABLE_ACTIONS.filter((action) => action.needsTable).map((action, index, list) => (

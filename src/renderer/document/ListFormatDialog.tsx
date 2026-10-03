@@ -30,13 +30,7 @@ const JSON_READER: ListTreeReader<DocumentNode> = {
   childrenOf: (node) => node.content ?? [],
 }
 
-/**
- * As marcas dos três primeiros níveis, contadas pela mesma conta do documento.
- *
- * Uma lista de verdade, montada em JSON, e não uma segunda gramática de `%1.%2.`
- * escrita para a prévia: duas contas parecidas é como a prévia e o papel passam a
- * discordar.
- */
+/** Pela mesma conta do documento: uma segunda gramática de `%1.%2.` divergiria do papel. */
 export function previewOf(levels: readonly LevelDef[]): string[] {
   const kind = kindOfLevels(levels)
   const numbering = { key: 'previa', levels }
@@ -55,14 +49,7 @@ export function previewOf(levels: readonly LevelDef[]): string[] {
   return numberLists({ type: 'doc', content: [nested!] }, JSON_READER).labels
 }
 
-/**
- * Formato de lista: a galeria de listas prontas, o formato de cada nível e a
- * numeração — reiniciar, continuar, valor inicial.
- *
- * Os níveis começam pelos da lista em que está o cursor, como no Word: mudar o
- * segundo nível de uma lista do documento não pode trazer de volta o primeiro
- * nível padrão.
- */
+/** Os níveis começam pelos da lista do cursor, como no Word. */
 export function ListFormatDialog({
   editor,
   onClose,
@@ -75,7 +62,6 @@ export function ListFormatDialog({
   const current = useMemo(() => {
     const { $from } = editor.state.selection
     const entries = listEntries(editor.state.doc)
-    // A lista mais de dentro em volta do cursor: a última que o contém.
     return entries
       .filter((entry) => entry.pos < $from.pos && entry.pos + entry.node.nodeSize > $from.pos)
       .at(-1)
@@ -100,8 +86,7 @@ export function ListFormatDialog({
     setLevels((all) => all.map((entry, index) => (index === level ? { ...entry, ...change } : entry)))
 
   function changeFormat(fmt: string): void {
-    // Trocar número por marcador (e de volta) troca também o texto: `%2.` num
-    // marcador desenharia "%2.", e um marcador num número, nada.
+    // Trocar número por marcador troca o texto: `%2.` num marcador desenharia "%2.".
     if (fmt === 'bullet') update({ fmt, text: bullet ? own.text : '•' })
     else update({ fmt, text: bullet || own.text === '' ? `%${level + 1}.` : own.text })
   }
@@ -269,7 +254,7 @@ export function ListFormatDialog({
   )
 }
 
-/** "Definir valor inicial…": só o número, para quem veio pelo botão direito. */
+/** Só o número, para quem veio pelo botão direito. */
 export function ListStartDialog({
   editor,
   onClose,

@@ -8,15 +8,7 @@ interface Listing {
   readonly user: readonly TemplateEntry[]
 }
 
-/**
- * Arquivo → Novo a partir de modelo….
- *
- * Os modelos que vêm com o aplicativo e os da pasta do usuário, cada um com nome
- * e descrição — sem miniatura, que pediria renderizar o pacote só para mostrar.
- * "Criar" (ou o duplo clique) abre o documento novo; "Procurar…" aceita qualquer
- * `.dotx`; "Abrir pasta de modelos" mostra a pasta onde o modelo salvo passa a
- * aparecer aqui.
- */
+/** Sem miniatura, que pediria renderizar o pacote só para mostrar. */
 export function TemplateGallery(): React.JSX.Element {
   const t = useT()
   const close = useWorkspace((state) => state.setTemplateGallery)
@@ -45,8 +37,7 @@ export function TemplateGallery(): React.JSX.Element {
   }, [showError])
 
   async function create(template: TemplateEntry | null): Promise<void> {
-    // A galeria fecha antes: o aviso de alterações não salvas e o diálogo de
-    // procurar ficam por cima dela, e ela não tem mais o que fazer depois.
+    // Fecha antes: o aviso e o diálogo de procurar ficam por cima.
     close(false)
     await newFromTemplate(template === null ? null : { source: template.source, id: template.id })
   }

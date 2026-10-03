@@ -12,18 +12,12 @@ import {
   type ReferenceContext,
 } from './references.js'
 
-/** O valor do seletor de tipo para cada tipo de nota. */
 const NOTE_TYPES: Record<NoteKind, string> = {
   [NoteKind.Footnote]: 'note:footnote',
   [NoteKind.Endnote]: 'note:endnote',
 }
 
-/**
- * Referência cruzada: a um título, a um marcador, a uma legenda ou a uma nota,
- * mostrando o texto, o número (da legenda ou da nota) ou a página. Vira um campo
- * `REF`, `NOTEREF` ou `PAGEREF` que "Atualizar campos" (F9) recalcula — ver
- * `insertCrossReference`.
- */
+/** Vira um campo `REF`, `NOTEREF` ou `PAGEREF` que o F9 recalcula — ver `insertCrossReference`. */
 export function CrossReferenceDialog({
   editor,
   context,
@@ -37,7 +31,7 @@ export function CrossReferenceDialog({
   const [labels] = useState(() =>
     captionLabels(editor.state.doc, [t('references.caption.figure'), t('references.caption.table')]),
   )
-  // `heading`, `bookmark`, `note:<tipo>` ou `caption:<rótulo>` — um valor só para o seletor.
+  // `heading`, `bookmark`, `note:<tipo>` ou `caption:<rótulo>`: um valor só para o seletor.
   const [type, setType] = useState('heading')
   const [key, setKey] = useState<string | null>(null)
   const [show, setShow] = useState<CrossReferenceShow>('text')
@@ -51,7 +45,6 @@ export function CrossReferenceDialog({
         : { type: 'caption', label: type.slice('caption:'.length) }
   const targets = useMemo(
     () => crossReferenceTargets(editor.state.doc, context().styles, kind, noteLabelsOf(editor.state)),
-    // O documento não muda com o diálogo aberto; o tipo sim.
     [type],
   )
   const chosen = key ?? targets[0]?.key ?? null
@@ -80,7 +73,6 @@ export function CrossReferenceDialog({
             const next = event.target.value
             setType(next)
             setKey(null)
-            // A nota mostra o número dela ou a página; o resto, o texto de saída.
             if (next.startsWith('note:')) setShow(show === 'page' ? 'page' : 'number')
             else if (next !== type && show === 'number') setShow('text')
           }}

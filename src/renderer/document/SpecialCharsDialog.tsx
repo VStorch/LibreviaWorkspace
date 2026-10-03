@@ -4,23 +4,9 @@ import { SPECIAL_CHARACTER_GROUPS, type SpecialCharacter } from '@services/docum
 import { useT } from '../i18n.js'
 
 /**
- * Seletor de caracteres especiais.
- *
- * O conjunto que o Word deixa à mão, agrupado pelo que se procura: pontuação,
- * moeda, matemática, grego e marcas. O catálogo mora em `@services` porque é
- * dado, não tela.
- *
- * **Navegável pelo teclado sem truque**: cada caractere é um botão de verdade, e
- * as setas andam pela grade como se espera de uma grade.
- *
- * Duas decisões fazem o teclado funcionar de verdade, e as duas faltavam:
- *
- *  - o **foco entra no painel** ao abrir. Sem isso o foco continuava no texto: as
- *    setas moviam o cursor do documento, `Enter` partia o parágrafo e só o mouse
- *    inseria;
- *  - o `Tab` **fica dentro** do painel. Sem a armadilha, o `Tab` caía no seletor
- *    "Estilo" da barra de ferramentas, e a seta seguinte trocava o estilo do
- *    parágrafo — um painel de inserir símbolo mudava o documento.
+ * O foco **entra no painel** ao abrir, e o `Tab` **fica dentro** dele: senão as
+ * setas andariam pelo documento, e o `Tab` cairia no seletor "Estilo" da barra,
+ * onde a seta seguinte trocaria o estilo do parágrafo.
  */
 export function SpecialCharsDialog({
   editor,
@@ -33,32 +19,19 @@ export function SpecialCharsDialog({
   const panel = useRef<HTMLDivElement>(null)
   const host = useRef<HTMLDivElement>(null)
 
-  // O foco vai para o primeiro caractere da grade, e não para o botão "Fechar":
-  // quem abriu o painel quer inserir, e daí as setas já andam pela grade.
+  // No primeiro caractere, e não no "Fechar": quem abriu quer inserir.
   useEffect(() => {
     host.current?.querySelector<HTMLButtonElement>('button[data-char]')?.focus()
   }, [])
 
   function insert(character: SpecialCharacter): void {
-    // Insere e **continua no painel** — sem `focus()` no editor. Duas razões: quem
-    // abre este painel costuma querer dois ou três caracteres (fechar a cada um
-    // seria um clique por símbolo), e devolver o foco ao texto faria a seta
-    // seguinte andar pelo documento em vez de pela grade, que é exatamente o
-    // defeito que o painel tinha.
-    //
-    // A inserção cai no lugar certo mesmo com o editor sem foco: o cursor mora na
-    // seleção do ProseMirror, e cada inserção a empurra para depois do que
-    // acabou de entrar.
+    // Insere e continua no painel: quem abre costuma querer dois ou três
+    // caracteres. Sem foco no editor a inserção cai no lugar certo, porque a
+    // seleção do ProseMirror avança a cada uma.
     editor.chain().insertContent(character.char).run()
   }
 
-  /**
-   * As setas andam pela grade.
-   *
-   * O passo horizontal é um botão; o vertical é o número de colunas que couberam
-   * na linha, medido no próprio DOM — a grade é fluida, e um número fixo aqui
-   * discordaria do que está na tela em outra largura de janela.
-   */
+  /** O passo vertical é o número de colunas medido no DOM: a grade é fluida. */
   function onKeyDown(event: React.KeyboardEvent<HTMLDivElement>): void {
     const sideways = event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0
     const updown = event.key === 'ArrowDown' ? 1 : event.key === 'ArrowUp' ? -1 : 0
@@ -76,14 +49,7 @@ export function SpecialCharsDialog({
     target.focus()
   }
 
-  /**
-   * `Escape` fecha, e `Tab` circula dentro do painel.
-   *
-   * No elemento de fora, e não na grade: o botão "Fechar" também é do painel, e
-   * `Escape` tem de valer com o foco nele. A lista de paradas sai do DOM porque é
-   * ela que muda de tamanho — a grade tem centenas de botões, e o último é o
-   * "Fechar".
-   */
+  /** No elemento de fora, para o `Escape` valer com o foco no "Fechar". */
   function onPanelKeyDown(event: React.KeyboardEvent<HTMLDivElement>): void {
     if (event.key === 'Escape') {
       onClose()
@@ -126,15 +92,12 @@ export function SpecialCharsDialog({
                       type="button"
                       className="chars__char"
                       data-char={character.char}
-                      // O nome acessível é o nome do caractere: um botão chamado "—"
-                      // não diz nada a quem não o vê. A dica do mouse repete, para
-                      // quem vê e não sabe o nome.
+                      // Um botão chamado "—" não diz nada a quem não o vê.
                       aria-label={charName}
                       title={charName}
                       onClick={() => insert(character)}
                     >
-                      {/* O espaço inquebrável não desenha nada: sem um marcador, o
-                          botão dele pareceria vazio e quebrado. */}
+                      {/* O espaço inquebrável não desenha nada: sem marcador, o botão pareceria quebrado. */}
                       {character.char === '\u00a0' ? '␣' : character.char}
                     </button>
                   )
@@ -156,13 +119,7 @@ export function SpecialCharsDialog({
   )
 }
 
-/**
- * Quantos botões cabem na linha em que este botão está.
- *
- * Para as setas horizontais o passo é sempre 1; para as verticais, é a largura da
- * linha. A conta sai da posição desenhada, e não de uma constante: a grade é
- * fluida.
- */
+/** A conta sai da posição desenhada: a grade é fluida. */
 function columnsAround(buttons: readonly HTMLButtonElement[], current: number): number {
   const reference = buttons[current]
   if (reference === undefined) return 1

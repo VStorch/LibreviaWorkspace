@@ -4,16 +4,8 @@ import { useLanguage, useT } from '../i18n.js'
 import { useWorkspace } from '../state/workspace.js'
 
 /**
- * Havia trabalho não salvo quando a sessão anterior terminou.
- *
- * Faixa com duas ações, e não modal, pela mesma razão dos outros avisos — mas
- * aqui há uma segunda razão, mais forte: enquanto esta faixa estiver na tela o
- * autosave **não escreve**, então ignorá-la não custa nada ao usuário. O
- * rascunho só desaparece quando ele mesmo diz para descartar.
- *
- * O texto diz de quando é o rascunho porque essa é a informação que decide: um
- * rascunho de dois minutos atrás quase sempre vale mais que o arquivo em disco,
- * e um de três semanas quase nunca.
+ * Enquanto a faixa estiver na tela o autosave **não escreve**: ignorá-la não
+ * custa nada. A data é o que decide entre o rascunho e o arquivo em disco.
  */
 export function RecoveryBanner(): React.JSX.Element | null {
   const t = useT()
@@ -51,12 +43,7 @@ export function RecoveryBanner(): React.JSX.Element | null {
   )
 }
 
-/**
- * "há 3 minutos", "ontem às 17:42".
- *
- * Tempo relativo perto e data absoluta longe: "há 26 dias" não ajuda ninguém a
- * decidir, e "às 17:42" de hoje de manhã tampouco.
- */
+/** Tempo relativo perto e data absoluta longe: "há 26 dias" não ajuda a decidir. */
 function when(savedAt: number, t: (key: MessageKey, vars?: Vars) => string, language: Language): string {
   const minutes = Math.round((Date.now() - savedAt) / 60_000)
   if (minutes < 1) return t('shell.recovery.justNow')

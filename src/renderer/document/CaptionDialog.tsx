@@ -3,11 +3,7 @@ import type { Editor } from '@tiptap/react'
 import { useT } from '../i18n.js'
 import { captionLabels, insertCaption, type ReferenceContext } from './references.js'
 
-/**
- * Inserir legenda: o rótulo (Figura, Tabela, Equação ou um que o documento já
- * use), o texto e o lado do bloco do cursor. O número é um campo `SEQ` — ver
- * `insertCaption`.
- */
+/** O número é um campo `SEQ` — ver `insertCaption`. */
 export function CaptionDialog({
   editor,
   context,

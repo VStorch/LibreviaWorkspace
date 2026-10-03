@@ -9,7 +9,6 @@ import { currentPreferences } from './preferences.js'
 import type { GetWorkspace, SetWorkspace, WorkspaceContext } from './context.js'
 import type { WorkspaceState } from './types.js'
 
-/** O que o processo main precisa para pôr algo no papel. */
 interface PrintRequest {
   readonly html: string
   readonly page: PageSetup
@@ -23,15 +22,7 @@ export function createPrintActions(
   get: GetWorkspace,
   ctx: WorkspaceContext,
 ): PrintActions {
-  /**
-   * O que vai para o PDF e para a impressora.
-   *
-   * O documento entrega o HTML do próprio editor — o que sai no papel é
-   * literalmente o que estava na tela. A planilha **não pode** fazer o mesmo: a
-   * grade só desenha as células visíveis, então imprimir o DOM dela renderizaria
-   * a janela, e não a planilha. Por isso a planilha é gerada a partir do modelo,
-   * com as mesmas funções de formatação que a tela usa.
-   */
+  /** O documento entrega o HTML do editor; a planilha é gerada do modelo, porque a grade só desenha as células visíveis. */
   function buildRequest(): PrintRequest | null {
     const state = get()
     const name = state.file?.name ?? t('shell.print.defaultDocumentName')
@@ -44,8 +35,7 @@ export function createPrintActions(
       return {
         html: buildPrintHtml(buildSheetHtml(sheet, currentPreferences().language), name, SHEET_PRINT_CSS),
         page: state.page,
-        // A grade continua sendo uma tabela contínua que o Chromium reparte:
-        // não há folha para recortar antes de imprimir.
+        // A grade é uma tabela contínua que o Chromium reparte.
         paged: false,
       }
     }
@@ -53,35 +43,24 @@ export function createPrintActions(
     const source = ctx.source()
     if (source === null) return null
 
-    // Cada folha leva o papel da sua seção; o pedido leva o da primeira, que é
-    // o que a impressora nativa oferece como padrão.
+    // O pedido leva o papel da primeira seção, que a impressora nativa oferece como padrão.
     const paged = source.readPages()
     const page = paged.pages[0]?.setup ?? effectiveSections(state.page, state.sections)[0]!
 
     return {
       html: buildPrintHtml(
         buildPagedBody(paged),
-        // O `<title>` é o que o Chromium grava como Title do PDF: o título das
-        // propriedades, quando há um. Autor, assunto e palavras-chave o
-        // `printToPDF` não grava, e sem biblioteca de PDF não há como pô-los.
+        // O `<title>` vira o Title do PDF; autor e assunto o `printToPDF` não grava.
         state.properties?.title?.trim() || name,
         styleSheetCss(state.styles) + buildPagedCss(paged.pages),
         false,
       ),
       page,
-      // Diz ao processo main para não deixar o Chromium paginar nem desenhar
-      // margens: cada página já tem seu tamanho e sua moldura em CSS.
       paged: true,
     }
   }
 
-  /**
-   * Rejeita o pedido de impressão quando não há editor ativo.
-   *
-   * Devolver `false` em silêncio faria o clique em "Exportar para PDF" não dar
-   * em nada — nem papel, nem aviso, nem pista. Um menu que não faz nada é pior
-   * que um menu ausente.
-   */
+  /** Devolver `false` em silêncio faria "Exportar para PDF" não dar em nada. */
   function refuse(): false {
     set({
       error: {
@@ -113,8 +92,7 @@ export function createPrintActions(
         return false
       }
 
-      // O modelo serializado, como no salvar: o main monta o arquivo a partir
-      // dele. Nada aqui muda `file` nem `isDirty` — exportar não é salvar.
+      // Exportar não é salvar: nada aqui muda `file` nem `isDirty`.
       const data = await ctx.call(() =>
         window.api.print.exportDocument({
           format,

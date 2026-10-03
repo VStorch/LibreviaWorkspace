@@ -7,15 +7,8 @@ import { useWorkspace } from '../state/workspace.js'
 import { textWithoutDeletions } from './extensions/track-changes.js'
 
 /**
- * Contagem de palavras — o diálogo do Word.
- *
- * Duas colunas, documento e seleção, porque a pergunta real quase nunca é
- * "quantas palavras tem o arquivo": é "quantas palavras tem **este trecho**", com
- * um limite de laudas ou de caracteres para cumprir.
- *
- * Palavras e caracteres vêm da extensão `CharacterCount`, a mesma que alimenta a
- * barra de status. Contá-los aqui de outro jeito daria dois números para a mesma
- * coisa na mesma tela.
+ * Duas colunas, documento e seleção: a pergunta costuma ser sobre **este
+ * trecho**. Palavras e caracteres vêm do `CharacterCount`, como na barra de status.
  */
 export function WordCountDialog({
   editor,
@@ -25,18 +18,16 @@ export function WordCountDialog({
   readonly onClose: () => void
 }): React.JSX.Element {
   const t = useT()
-  const pages = useWorkspace((state) => state.estimatedPages)
+  const pages = useWorkspace((state) => state.pageCount)
 
-  // Ao vivo: enquanto o diálogo está aberto o texto pode mudar — e muda, porque
-  // fechar o diálogo não é condição para continuar escrevendo.
+  // Ao vivo: o texto pode mudar com o diálogo aberto.
   const counts = useEditorState({
     editor,
     selector: ({ editor: current }) => {
       const { from, to, empty } = current.state.selection
       return {
         document: tally(current, current.state.doc),
-        // `doc.cut` devolve um nó de verdade, e é ele que o `CharacterCount`
-        // aceita: assim a seleção é contada pela mesma régua do documento.
+        // `doc.cut` devolve o nó que o `CharacterCount` aceita.
         selection: empty ? null : tally(current, current.state.doc.cut(from, to)),
       }
     },
@@ -80,9 +71,7 @@ export function WordCountDialog({
             document={counts.document.paragraphs}
             selection={counts.selection?.paragraphs}
           />
-          {/* Páginas só do documento: a folha em que um trecho cai é a mesma
-              informação que a barra de status já dá, e "meia página selecionada"
-              seria um número inventado. */}
+          {/* Páginas só do documento: "meia página selecionada" seria número inventado. */}
           <Row label={t('document.wordCount.pages')} document={pages} selection={undefined} />
         </tbody>
       </table>
@@ -105,16 +94,12 @@ export interface Tally {
 }
 
 export function tally(editor: Editor, node: ProseMirrorNode): Tally {
-  // A mesma extensão que a barra de status usa. Ela aceita um nó, e é isso que
-  // permite contar a seleção sem escrever um segundo contador.
   const storage = editor.storage['characterCount']
 
   return {
     words: storage.words({ node }),
     characters: storage.characters({ node }),
-    // Pelo mesmo texto que o `CharacterCount` mede — separador de bloco nenhum,
-    // nó folha como um espaço — para que "com espaços" menos "sem espaços" seja
-    // exatamente a quantidade de espaços. Sem o texto excluído, como ela.
+    // O mesmo texto que o `CharacterCount` mede, para "com" menos "sem" espaços dar os espaços.
     charactersNoSpaces: charactersWithoutSpaces(textWithoutDeletions(node, undefined, ' ')),
     paragraphs: countParagraphs(node.toJSON() as DocumentNode),
   }
@@ -133,8 +118,7 @@ function Row({
     <tr>
       <th scope="row">{label}</th>
       <td>{document.toLocaleString('pt-BR')}</td>
-      {/* Travessão, e não zero: "nada selecionado" e "seleção com zero palavras"
-          são coisas diferentes. */}
+      {/* "Nada selecionado" não é "zero palavras". */}
       <td>{selection === undefined ? '—' : selection.toLocaleString('pt-BR')}</td>
     </tr>
   )

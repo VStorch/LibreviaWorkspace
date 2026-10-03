@@ -4,21 +4,10 @@ import { Decoration, DecorationSet, type EditorView } from '@tiptap/pm/view'
 import { LINE_GAP_CLASS } from '../line-boxes.js'
 
 /**
- * O vão entre uma folha e a seguinte.
- *
- * Paginar num editor de texto é empurrar: o bloco que abre uma página nova
- * ganha uma margem superior do tamanho exato do que sobrou da folha anterior
- * mais as duas margens e o vão entre os papéis. O texto continua sendo um
- * fluxo só, e as folhas brancas são desenhadas atrás, nas posições que essa
- * conta produz.
- *
- * A margem entra como **decoração de nó**, e não como um elemento inserido no
- * meio do texto. É a diferença que decide o resto: um espaçador de verdade
- * dentro do `contenteditable` entraria na seleção, no `Ctrl+A` e no que a
- * pessoa copia — colar um trecho de duas páginas levaria junto um pedaço de
- * papel. Decoração não existe para o documento: é aparência aplicada sobre
- * nós que continuam intactos, e some sem deixar rastro quando a página muda de
- * lugar.
+ * O bloco que abre uma folha ganha uma margem do tamanho do que sobrou da
+ * anterior, mais as margens e o vão entre papéis. Como **decoração**, e não
+ * elemento: um espaçador de verdade entraria na seleção, no `Ctrl+A` e no que se
+ * copia.
  */
 export const paginationKey = new PluginKey<DecorationSet>('pagination')
 
@@ -35,9 +24,7 @@ export const Pagination = Extension.create({
             const next = transaction.getMeta(paginationKey) as DecorationSet | undefined
             if (next !== undefined) return next
 
-            // Enquanto a medição não chega, as decorações acompanham a edição:
-            // sem isto, digitar no meio do documento deslocaria as folhas de
-            // baixo até a próxima medida, e elas piscariam de lugar.
+            // Até a medição chegar, as decorações acompanham a edição, senão as folhas piscariam.
             return current.map(transaction.mapping, transaction.doc)
           },
         },
@@ -45,8 +32,7 @@ export const Pagination = Extension.create({
           decorations: (state) => paginationKey.getState(state),
         },
       }),
-      // O parágrafo da captura ancorada que também tem texto: a linha dele é a
-      // do texto, e a linha vazia de 1lh (`content-styles.ts`) não se soma.
+      // A captura ancorada com texto: a linha de 1lh (`content-styles.ts`) não se soma.
       new Plugin({
         props: {
           decorations: (state) => {
@@ -64,12 +50,7 @@ export const Pagination = Extension.create({
   },
 })
 
-/**
- * Aplica os vãos por posição de nó, inclusive itens e células dentro de blocos.
- *
- * A transação não entra no histórico: desfazer precisa voltar o que a pessoa
- * escreveu, não o lugar onde a página caiu.
- */
+/** Fora do histórico: desfazer volta o que a pessoa escreveu, e não onde a página caiu. */
 export function applyPageGaps(
   view: EditorView,
   written: ReadonlyMap<number, number>,
@@ -78,8 +59,7 @@ export function applyPageGaps(
 ): void {
   const decorations: Decoration[] = []
 
-  // O cabeçalho repetido é cópia, e não conteúdo: fica fora da seleção e da
-  // edição, e o ProseMirror ignora o que acontece dentro de um widget.
+  // O cabeçalho repetido é cópia num widget: fora da seleção e da edição.
   for (const header of headers) {
     if (header.position <= 0 || header.position > view.state.doc.content.size) continue
     decorations.push(
@@ -91,13 +71,9 @@ export function applyPageGaps(
     )
   }
 
-  // O corte no meio do parágrafo não tem nó a empurrar: o espaçador é um
-  // elemento da largura da linha, antes do primeiro caractere da linha que abre
-  // a folha. Ele cabe só numa linha própria, então a linha de cima termina onde
-  // já terminava — com a mesma justificação, porque a quebra continua sendo
-  // automática e não forçada — e a de baixo recomeça no topo da folha seguinte.
-  // `vertical-align: top` faz a linha dele ter a altura dele, sem somar a
-  // descendente do texto ao vão.
+  // No corte entre linhas, o espaçador tem a largura da linha e vem antes do
+  // primeiro caractere da que abre a folha: a de cima termina onde já terminava,
+  // com a mesma justificação. `vertical-align: top` não soma a descendente ao vão.
   for (const [position, gap] of lines) {
     if (gap <= 0 || position <= 0 || position > view.state.doc.content.size) continue
     decorations.push(
@@ -117,8 +93,7 @@ export function applyPageGaps(
       )
     }
 
-    // O desvio das colunas pode ser negativo: o primeiro bloco de uma coluna
-    // sobe até o topo da região. Só o zero não se escreve.
+    // O desvio das colunas pode ser negativo; só o zero não se escreve.
     const gap = written.get(offset)
     if (gap === undefined || (gap === 0 && !gaps.has(offset))) return
 
@@ -138,27 +113,23 @@ export function applyPageGaps(
   )
 }
 
-/** As linhas de cabeçalho de uma tabela, repetidas no alto de uma folha. */
 /** O que a paginação empurra além dos vãos entre blocos. */
 export interface PageGapExtras {
-  /** Vãos entre linhas de um parágrafo cortado, pela posição do primeiro caractere da linha. */
+  /** Pela posição do primeiro caractere da linha. */
   readonly lines?: ReadonlyMap<number, number>
-  /** Cabeçalhos de tabela repetidos no alto das folhas em que a tabela continua. */
   readonly headers?: readonly RepeatedHeader[]
-  /**
-   * O deslocamento lateral dos blocos postos em coluna, pela posição do bloco.
-   * Translação, e não margem: mudar de coluna não pode mudar a altura.
-   */
+  /** Translação, e não margem: mudar de coluna não muda a altura. */
   readonly columns?: ReadonlyMap<number, number>
 }
 
+/** As linhas de cabeçalho de uma tabela, repetidas no alto de uma folha. */
 export interface RepeatedHeader {
   /** Início do conteúdo da primeira célula da linha que abre a folha. */
   readonly position: number
-  /** A tabela-cópia, com as colunas da original e só as linhas de cabeçalho. */
+  /** Com as colunas da original e só as linhas de cabeçalho. */
   readonly html: string
   readonly height: number
-  /** Quanto subir e recuar a partir do canto do conteúdo da célula. */
+  /** A partir do canto do conteúdo da célula. */
   readonly offsetTop: number
   readonly offsetLeft: number
 }
@@ -177,7 +148,7 @@ function repeatedHeader(header: RepeatedHeader): HTMLElement {
   return element
 }
 
-/** O espaçador de um corte entre linhas; `data-page-shift` é o que a medida desconta. */
+/** `data-page-shift` é o que a medida desconta. */
 function lineGap(gap: number): HTMLElement {
   const element = document.createElement('span')
   element.className = LINE_GAP_CLASS
@@ -188,7 +159,7 @@ function lineGap(gap: number): HTMLElement {
   return element
 }
 
-/** Marca o parágrafo que tem captura ancorada **e** texto; ver `content-styles.ts`. */
+/** Captura ancorada **e** texto; ver `content-styles.ts`. */
 export const ANCHOR_TEXT_ATTR = 'data-anchor-text'
 
 export function hasAnchoredImageAndText(node: {
@@ -204,7 +175,6 @@ export function hasAnchoredImageAndText(node: {
   return anchored
 }
 
-/** A transação só mexeu em paginação — não é edição do documento. */
 export function isPaginationOnly(transaction: {
   getMeta: (key: PluginKey<DecorationSet>) => unknown
 }): boolean {

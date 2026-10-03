@@ -8,28 +8,20 @@ import { sectionBreakIn, type SectionBlock } from '@services/document/sections.j
 import { noteRefView } from './note-view.js'
 
 /**
- * Notas de rodapé e de fim: a referência como nó, com o corpo dentro.
- *
- * Um nó em linha e atômico, mas **com conteúdo**: os blocos da nota (`block+`).
- * Atômico porque o corpo não se edita no texto — ele tem um editor próprio, no
- * pé da página (`note-view.ts`) —, e com conteúdo porque é assim que ele viaja: copiar a
- * referência copia a nota, apagá-la apaga a nota, e o arquivo recebe de volta o
- * corpo que leu. O `nid` é o `w:id` que casa a referência com a nota no arquivo;
- * a colada ao lado da original perde o dela, e a gravação lhe dá uma nota própria.
- *
- * O número não é atributo: é a ordem da referência no documento, contada por
- * `noteLabels` e desenhada por decoração (`data-note-number`), que o JSON nunca
- * vê. A marca própria (`w:customMarkFollows`) é texto do nó, e não conta.
+ * Um nó em linha e atômico, **com conteúdo**: o corpo tem editor próprio
+ * (`note-view.ts`), mas viaja dentro da referência — copiar copia a nota, apagar
+ * apaga. O `nid` é o `w:id`; a colada ao lado da original o perde, e ganha nota
+ * própria. O número é a ordem da referência, desenhado por decoração.
  */
 
 export interface NoteRefOptions {
-  /** A numeração do documento — ver `DocumentModel.notes`. Consultada a cada conta. */
+  /** Consultada a cada conta. */
   readonly notes: (() => DocumentNotes | undefined) | undefined
 }
 
 export const noteRefKey = new PluginKey<NoteRefState>('noteRef')
 
-/** As referências do documento, em ordem — sem descer no corpo de nenhuma. */
+/** Sem descer no corpo de nenhuma. */
 export function noteRefsOf(doc: ProseMirrorNode): Array<{ node: ProseMirrorNode; pos: number }> {
   const found: Array<{ node: ProseMirrorNode; pos: number }> = []
   doc.descendants((node, pos) => {
@@ -40,11 +32,7 @@ export function noteRefsOf(doc: ProseMirrorNode): Array<{ node: ProseMirrorNode;
   return found
 }
 
-/**
- * A posição da referência cuja nota contém `pos`, ou `null` fora de qualquer
- * nota. É por ela que o comando que achou um trecho dentro de uma nota sabe que
- * a seleção é a do corpo, que tem editor próprio (`note-view.ts`).
- */
+/** `null` fora de nota: é por ela que um comando sabe que a seleção é a do corpo. */
 export function noteRefAround(doc: ProseMirrorNode, pos: number): number | null {
   if (pos < 0 || pos > doc.content.size) return null
   const $pos = doc.resolve(pos)
@@ -59,20 +47,12 @@ function markOf(node: ProseMirrorNode): string | null {
   return typeof mark === 'string' && mark !== '' ? mark : null
 }
 
-/**
- * Se o corpo da nota leva o número desenhado no começo. A de marca própria
- * (`customMarkFollows`) não: o Word grava a marca no próprio corpo, e desenhá-la
- * de novo daria "**".
- */
+/** A de marca própria não: o Word grava a marca no corpo, e desenhá-la de novo daria "**". */
 export function drawsNoteNumber(node: ProseMirrorNode): boolean {
   return markOf(node) === null
 }
 
-/**
- * A seção de cada referência, pela ordem de `noteRefsOf`: a contagem das marcas
- * de seção (`sectionBreak`) dos blocos de primeiro nível antes dela — a marca
- * fecha a seção, como o `w:sectPr` no parágrafo.
- */
+/** Pela contagem das marcas de seção antes dela, que fecham a seção como o `w:sectPr`. */
 function noteRefSections(doc: ProseMirrorNode): number[] {
   const sections: number[] = []
   let section = 0
@@ -87,10 +67,7 @@ function noteRefSections(doc: ProseMirrorNode): number[] {
   return sections
 }
 
-/**
- * O rótulo de cada referência do documento, na ordem do texto. `pages` é a folha
- * de cada uma (pelo índice), para a numeração que reinicia a cada página.
- */
+/** `pages` é a folha de cada uma, para o reinício por página. */
 export function noteRefLabels(
   doc: ProseMirrorNode,
   notes?: DocumentNotes,
@@ -113,9 +90,7 @@ export function noteRefLabels(
 
 interface NoteRefState {
   readonly decorations: DecorationSet
-  /** O rótulo de cada referência, pela ordem de `noteRefsOf`. */
   readonly labels: readonly string[]
-  /** A folha de cada referência, que a paginação conta — ver `setNotePages`. */
   readonly pages: readonly (number | undefined)[]
 }
 
@@ -134,7 +109,6 @@ function noteRefState(
         pos,
         pos + node.nodeSize,
         markOf(node) === null ? { 'data-note-number': labels[index]! } : {},
-        // O corpo (note-view.ts) lê daqui o número que desenha no começo da nota.
         { noteLabel: labels[index]! },
       ),
     ),
@@ -142,7 +116,7 @@ function noteRefState(
   return { decorations, labels, pages }
 }
 
-/** Os rótulos que a tela mostra agora, pela ordem de `noteRefsOf` — o papel e o `NOTEREF` usam os mesmos. */
+/** O papel e o `NOTEREF` usam os mesmos. */
 export function noteLabelsOf(state: EditorState): readonly string[] {
   // Sem o plugin (um estado montado à parte), a conta padrão do documento.
   return noteRefKey.getState(state)?.labels ?? noteRefLabels(state.doc)
@@ -152,18 +126,11 @@ export function notePagesOf(state: EditorState): readonly (number | undefined)[]
   return noteRefKey.getState(state)?.pages ?? []
 }
 
-/**
- * Dá à numeração a folha de cada referência (`numRestart` `eachPage`). Vem da
- * paginação, depois de ela assentar; a transação não muda o documento.
- */
+/** Vem da paginação, depois de ela assentar; a transação não muda o documento. */
 export function setNotePages(tr: Transaction, pages: readonly (number | undefined)[]): Transaction {
   return tr.setMeta(noteRefKey, pages).setMeta('addToHistory', false)
 }
 
-/**
- * A folha de cada nota de rodapé, pelo índice da referência: a folha em que a
- * nota começa — e a paginação a põe na folha da referência.
- */
 export function footnotePagesOf(
   areas: ReadonlyArray<{
     readonly sheet: number
@@ -179,7 +146,6 @@ export function footnotePagesOf(
   return pages
 }
 
-/** As duas listas de folhas dizem o mesmo. */
 export function samePages(
   left: readonly (number | undefined)[],
   right: readonly (number | undefined)[],
@@ -190,10 +156,8 @@ export function samePages(
 }
 
 /**
- * A colagem que repetiria uma nota do documento leva a nota sem `nid`: o
- * arquivo não aceita duas referências à mesma nota, e a gravação dá à colada uma
- * nota própria, com o mesmo corpo. Arrastar não é colar — a referência só muda
- * de lugar, e leva o `nid` junto.
+ * O arquivo não aceita duas referências à mesma nota: a colada vai sem `nid` e
+ * ganha nota própria. Arrastar não é colar, e leva o `nid` junto.
  */
 export function withoutRepeatedNotes(slice: Slice, doc: ProseMirrorNode, moving = false): Slice {
   if (moving) return slice
@@ -224,7 +188,7 @@ function contentFromJson(element: HTMLElement, schema: Schema): Fragment {
     const raw = element.getAttribute('data-note-body')
     if (raw !== null) return Fragment.fromJSON(schema, JSON.parse(raw) as unknown)
   } catch {
-    // Corpo ilegível: a nota chega vazia em vez de derrubar a colagem.
+    // Corpo ilegível: a nota chega vazia, sem derrubar a colagem.
   }
   return Fragment.from(schema.nodes['paragraph']!.create())
 }
@@ -268,12 +232,9 @@ export const NoteRef = Node.create<NoteRefOptions>({
     return [
       {
         tag: 'sup[data-note-ref]',
-        // Acima da marca de sobrescrito, que também reconhece o `<sup>` e, com a
-        // mesma prioridade, venceria: a colagem perdia a referência (e a nota).
+        // Acima do sobrescrito, que também reconhece o `<sup>` e levaria a nota embora.
         priority: 100,
-        // O corpo vai num atributo, e não como filhos: `<p>` dentro de `<p>` faz o
-        // analisador de HTML fechar o parágrafo de fora, e a colagem partiria o
-        // parágrafo em volta da referência.
+        // Num atributo: `<p>` dentro de `<p>` faria o analisador partir o parágrafo.
         getContent: (element, schema) => contentFromJson(element as HTMLElement, schema),
       },
     ]
@@ -310,7 +271,6 @@ export const NoteRef = Node.create<NoteRefOptions>({
           apply: (transaction, previous, _old, state) => {
             const pages = transaction.getMeta(noteRefKey) as readonly (number | undefined)[] | undefined
             if (!transaction.docChanged && pages === undefined) return previous
-            // As folhas da paginação de antes valem até ela assentar de novo.
             return noteRefState(state.doc, notes(), pages ?? previous.pages)
           },
         },
@@ -324,13 +284,7 @@ export const NoteRef = Node.create<NoteRefOptions>({
   },
 })
 
-/**
- * `textBetween` sem o corpo das notas.
- *
- * O ProseMirror desce em todo nó que não é folha, e a referência de nota tem o
- * corpo dentro: o título com uma nota ia para o sumário, para a referência
- * cruzada e para o painel de navegação com o texto da nota colado nele.
- */
+/** A referência tem o corpo dentro: sem isto o título com nota iria ao sumário com o texto dela. */
 export function textBetweenWithoutNotes(
   node: ProseMirrorNode,
   from: number,
@@ -361,11 +315,7 @@ export function textBetweenWithoutNotes(
   return text
 }
 
-/**
- * Escreve o número nas referências do HTML do papel, na ordem em que aparecem:
- * `labels` são os rótulos das referências desta folha, na mesma ordem (ver
- * `print-source.ts`), os mesmos da tela — reinícios por folha e seção incluídos.
- */
+/** `labels` são os da tela para esta folha, na mesma ordem (ver `print-source.ts`). */
 export function numberNotesForPrint(holder: HTMLElement, labels: readonly string[]): void {
   let index = 0
   for (const element of holder.querySelectorAll<HTMLElement>('sup[data-note-ref]')) {
