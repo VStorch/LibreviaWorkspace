@@ -283,7 +283,7 @@ genérico.
 <details>
 <summary><b>Comportamentos do Excel copiados de propósito</b></summary>
 
-Cada um tem o motivo escrito no código, onde ele está:
+São eles:
 
 - `=-2^2` vale **4**;
 - `="a"="A"` é verdadeiro, mas `=1="1"` é falso;
@@ -846,7 +846,7 @@ troca dessas chegando.
 
 ### Idioma e commits
 
-Identificadores em inglês; comentários, mensagens ao usuário e nomes de teste em português;
+Identificadores em inglês; mensagens ao usuário, nomes de teste e os raros comentários em português;
 commits em inglês, no padrão [Conventional Commits](https://www.conventionalcommits.org). Os
 detalhes estão no [CONTRIBUTING](CONTRIBUTING.md#commits).
 
@@ -884,7 +884,6 @@ A lista completa de diferenças conhecidas, com o que fazer em cada caso, está 
 | [`SECURITY.md`](SECURITY.md) | como relatar uma falha de segurança em particular |
 | [`AGENTS.md`](AGENTS.md) | instruções curtas para agentes de código que trabalham no repositório |
 | `git log` | o motivo de cada decisão, com as medições |
-| comentários no código | por que cada comportamento estranho do Word ou do Excel foi copiado |
 
 ---
 

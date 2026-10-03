@@ -97,12 +97,24 @@ quem escreveu. Não é uma regra só, mas um conjunto de hábitos:
 | **Funções pequenas, que fazem uma coisa** | se a descrição de uma função precisa de um "e", provavelmente são duas funções | os [limites de tamanho e complexidade](#tamanho-e-complexidade-das-funções), cobrados pelo lint |
 | **Poucos parâmetros** | uma chamada com sete argumentos posicionais obriga quem lê a contar vírgulas; um objeto com nomes se explica sozinho | `max-params` 5; acima disso, objeto de opções, como em `usePagination` |
 | **Sem números mágicos** | um `20971520` solto não diz nada; `MAX_FILE_BYTES` diz o que é e muda num lugar só | constantes nomeadas para limites, versões de formato e rótulos de aviso |
-| **Comentário explica o porquê** | o código já diz *o que* faz; o comentário diz *por que* foi feito assim, principalmente quando parece estranho | os comentários que explicam qual comportamento do Word ou do Excel está sendo copiado, e por quê |
+| **O código se explica sozinho** | se um trecho precisa de comentário para ser entendido, o trecho é que precisa melhorar: um nome melhor, uma função extraída, uma constante com nome. Comentário envelhece sem que o compilador perceba; o código, não | o *porquê* mora no nome, no teste e no commit. Um comportamento copiado do Excel vira um teste cujo nome o descreve, por exemplo "`=-2^2` vale 4, como no Excel" |
 | **Sem efeito escondido** | uma função chamada `formatCell` não grava nada no disco; o nome promete, e o corpo cumpre | a lógica pura em `src/services/` não toca disco, rede nem tela |
 | **Erro tratado de propósito** | o erro tem tipo e mensagem que a pessoa entende, em vez de uma exceção genérica engolida ou propagada sem contexto | `AppError` com `ErrorCode`; na planilha, erro é valor (`#DIV/0!`) e se propaga sem derrubar o cálculo |
 | **Sem duplicação** | a mesma regra escrita em dois lugares diverge na primeira mudança feita às pressas | os rótulos de `Inventory.cs` são constantes; os textos da interface vivem num catálogo só |
 | **Deixe melhor do que encontrou** | ao mexer num arquivo, arrume o que estiver ao alcance — um nome ruim, uma função grande da lista de exceções | `npm run lint:prune` registra cada função antiga que foi corrigida |
 | **Formatação que ninguém discute** | o formatador decide espaços e quebras, e a revisão fala do que importa | Prettier, conferido no CI |
+
+#### Quando um comentário ainda cabe
+
+Comentário é a exceção, para o que o código **não tem como dizer**:
+
+- uma restrição de fora, como a assinatura de um callback que a biblioteca impõe;
+- um comportamento contraintuitivo que o Word, o Excel ou o formato exigem, quando nem o nome
+  nem o teste deixam isso claro para quem lê aquele trecho;
+- o motivo de um `eslint-disable`.
+
+Nesses casos, o comentário diz **por quê**, nunca **o quê**. Comentário que repete o código,
+narra a história da mudança ou guarda código desligado é apagado.
 
 ### Clean Architecture
 
@@ -237,7 +249,7 @@ tem. A regra passa a valer assim:
 
 A meta é baixar a complexidade para 15 quando a lista estiver menor.
 
-### Quando a exceção é legítima
+### Quando a exceção à regra é legítima
 
 Às vezes a assinatura não é nossa. Um callback do ProseMirror, por exemplo, recebe seis
 parâmetros porque a biblioteca manda seis. Nesse caso, desligue a regra **só naquela linha** e
@@ -307,7 +319,7 @@ permissivas — MIT, BSD, Apache-2.0, ISC e parecidas — e reprova o pacote que
 ## Idioma
 
 - **Identificadores em inglês:** nomes de arquivo, função, variável e tipo.
-- **Comentários, mensagens ao usuário e nomes de teste em português.**
+- **Mensagens ao usuário, nomes de teste e os raros comentários em português.**
 - **Commits em inglês.**
 
 ---

@@ -53,11 +53,14 @@ Teste só o que a mudança tocou. Rodar a suíte inteira a cada passo é desperd
 - Siga os [princípios do CONTRIBUTING](CONTRIBUTING.md#princípios): Clean Code (nomes claros,
   funções pequenas, sem números mágicos, sem duplicação), Clean Architecture (dependências só para
   dentro; regra de negócio em `src/services/`, sem Electron nem React) e SOLID.
-- Identificadores em **inglês**. Comentários, mensagens ao usuário e nomes de teste em
+- Identificadores em **inglês**. Mensagens ao usuário, nomes de teste e os raros comentários em
   **português**.
-- Comentários explicam **por quê**, não o quê, e acompanham a densidade do código em volta.
-- Comportamento copiado do Word, do Excel ou do LibreOffice leva um comentário dizendo de quem e
-  por quê.
+- **Evite comentários.** O código deve se explicar por nomes, funções pequenas e constantes
+  nomeadas; o porquê vai no nome do teste e no commit. Comentário só para o que o código não tem
+  como dizer (restrição externa, comportamento contraintuitivo do Word ou do Excel, motivo de um
+  `eslint-disable`), e sempre dizendo por quê, nunca o quê.
+- Ao mexer num trecho com comentário que só repete o código, troque o comentário por um nome
+  melhor.
 - README e MANUAL: linguagem simples e exata, frases curtas, exemplos concretos, números medidos.
 
 ## Commits
