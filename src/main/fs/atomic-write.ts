@@ -2,31 +2,21 @@ import { copyFile, open, rename, stat, unlink, type FileHandle } from 'node:fs/p
 import { dirname, join } from 'node:path'
 import { fromFileSystemError } from '@shared/errors.js'
 
-/** Sistemas de arquivos de rede às vezes não implementam fsync. Não é falha de gravação. */
+/** Pastas de rede às vezes não implementam fsync, e isso não é falha de gravação. */
 const FSYNC_UNSUPPORTED = new Set(['EINVAL', 'ENOTSUP', 'EPERM', 'EBADF', 'EISDIR'])
 
 /**
- * Grava um arquivo sem janela de perda — texto ou binário.
+ * Sem janela de perda:
  *
- * A sequência importa, e cada passo existe por um motivo:
+ *  1. temporário **na mesma pasta**, porque `rename()` entre volumes falha com
+ *     EXDEV, como numa pasta de rede;
+ *  2. fsync do temporário;
+ *  3. cópia do atual para `.bak` (dispensável com `backup: false`, como no
+ *     rascunho, reescrito a cada oito segundos);
+ *  4. `rename` sobre o destino, a troca atômica;
+ *  5. fsync da pasta, para a troca sobreviver a uma queda.
  *
- *  1. escreve num temporário **na mesma pasta** do destino — não em /tmp:
- *     `rename()` entre sistemas de arquivos diferentes falha com EXDEV, que é
- *     exatamente o caso de uma pasta de rede montada;
- *  2. faz fsync do temporário, para que os dados estejam no disco antes de
- *     qualquer coisa passar a apontar para eles;
- *  3. copia o arquivo atual para `.bak`, se já existir;
- *  4. renomeia o temporário sobre o destino — troca atômica no mesmo volume:
- *     em nenhum instante o destino fica truncado ou pela metade;
- *  5. faz fsync da pasta, para que a própria troca sobreviva a uma queda.
- *
- * Se qualquer passo falhar, o temporário é removido e o arquivo original
- * continua exatamente como estava.
- *
- * O passo 3 pode ser dispensado (`backup: false`) para arquivos que o próprio
- * aplicativo reescreve o tempo todo, como o rascunho de recuperação: guardar a
- * versão anterior de cada gravação de oito em oito segundos dobraria a escrita
- * sem proteger nada que já não estivesse protegido pela troca atômica.
+ * Se algo falhar, o temporário sai e o original fica como estava.
  */
 export async function writeFileAtomic(
   targetPath: string,
@@ -40,7 +30,7 @@ export async function writeFileAtomic(
   try {
     const existingMode = await modeOf(targetPath)
 
-    // 'wx' falha se o temporário já existir — evita colidir com outra instância.
+    // 'wx' falha se o temporário já existir, de outra instância.
     handle = await open(temporaryPath, 'wx', existingMode ?? 0o666)
     await (typeof data === 'string' ? handle.writeFile(data, 'utf8') : handle.writeFile(data))
     await syncIfSupported(handle)
@@ -60,7 +50,7 @@ export async function writeFileAtomic(
   }
 }
 
-/** Modo do arquivo existente, para que salvar não altere as permissões dele. */
+/** Para salvar não alterar as permissões. */
 async function modeOf(path: string): Promise<number | null> {
   try {
     return (await stat(path)).mode
@@ -74,23 +64,18 @@ async function syncIfSupported(handle: FileHandle): Promise<void> {
     await handle.sync()
   } catch (cause) {
     const code = (cause as { code?: string }).code
-    // Falta de suporte a fsync não invalida a gravação; qualquer outro erro sim.
     if (code === undefined || !FSYNC_UNSUPPORTED.has(code)) throw cause
   }
 }
 
-/**
- * Sincroniza a entrada de diretório. É melhor-esforço de propósito: o Windows
- * não permite abrir diretório para fsync, e nenhuma rede garante isso — mas
- * quando funciona, protege a troca de nome contra uma queda de energia.
- */
+/** Melhor esforço: o Windows não abre diretório para fsync, e rede nenhuma garante. */
 async function syncDirectory(directory: string): Promise<void> {
   let handle: FileHandle | undefined
   try {
     handle = await open(directory, 'r')
     await handle.sync()
   } catch {
-    // silêncio proposital
+    // Melhor esforço: sem fsync da pasta, a troca já está feita.
   } finally {
     await handle?.close().catch(() => undefined)
   }

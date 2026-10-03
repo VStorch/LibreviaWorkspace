@@ -1,14 +1,7 @@
 /**
- * XLSX no processo main: conversa com o sidecar e guarda os bytes originais.
- *
- * Espelha `main/docx/index.ts`, e pelo mesmo motivo: o sidecar é sem estado, e
- * os bytes originais moram aqui para que a morte dele não custe a capacidade de
- * gravar cirurgicamente.
- *
- * A diferença fica na fórmula. O arquivo guarda `SUM(A1,B1)`; o aplicativo usa
- * `SOMA(A1;B1)`. A tradução acontece **aqui**, na fronteira, e não no sidecar:
- * o analisador já existe do lado TypeScript, e uma segunda gramática em C#
- * seria duas coisas para manter em acordo.
+ * Como o DOCX, os bytes originais moram aqui. A fórmula é traduzida **aqui**
+ * (`SUM(A1,B1)` ↔ `SOMA(A1;B1)`), e não no sidecar: o analisador já existe do
+ * lado TypeScript.
  */
 
 import { readFile } from 'node:fs/promises'
@@ -48,14 +41,13 @@ const saveResultSchema = z.object({
   cellsPreserved: z.number().int().nonnegative(),
 })
 
-/** Os bytes da planilha aberta, como estavam no disco na hora de abrir. */
 let openedOriginal: { path: string; bytes: Buffer } | null = null
 
 export function forgetOpenedXlsx(): void {
   openedOriginal = null
 }
 
-/** Reata o vínculo com o pacote original depois de uma recuperação. Ver o DOCX. */
+/** Ver `adoptDocxOriginal`. */
 export async function adoptXlsxOriginal(path: string): Promise<boolean> {
   try {
     openedOriginal = { path, bytes: await readFile(path) }
@@ -67,7 +59,6 @@ export async function adoptXlsxOriginal(path: string): Promise<boolean> {
 }
 
 export interface OpenedXlsx {
-  /** O modelo já no envelope `.ssheet`, para o renderer seguir por um caminho só. */
   readonly content: string
   readonly inventory: LossInventory
 }
@@ -80,9 +71,7 @@ export async function openXlsx(client: SidecarClient, path: string): Promise<Ope
     throw fromFileSystemError(cause, 'leitura', editorPreferences().language)
   }
 
-  // Cronometrado porque "demorou para abrir" é a reclamação mais difícil de
-  // diagnosticar depois: sem os dois números, não dá para saber se o tempo foi
-  // do serviço de formatos ou da conversão deste lado.
+  // Os dois tempos dizem se a demora foi do sidecar ou da conversão.
   const startedAt = Date.now()
   const reply = await client.request(SidecarMethod.XlsxOpen, {}, new Uint8Array(bytes))
   const readAt = Date.now()
@@ -111,14 +100,7 @@ export interface SavedXlsx {
   readonly inventory: LossInventory
 }
 
-/**
- * Grava o modelo por cima do pacote original.
- *
- * Sem original — planilha criada aqui e salva como `.xlsx` pela primeira vez —
- * o sidecar monta um pacote novo. É a diferença para o DOCX, que se recusa a
- * criar do zero: uma planilha é grade, valor e fórmula, e um arquivo montado
- * assim não perde nada de um original que não existe.
- */
+/** Sem original, o sidecar monta um pacote novo: uma planilha é grade, valor e fórmula, sem nada a perder. */
 export async function saveXlsx(client: SidecarClient, ssheetContent: string): Promise<SavedXlsx> {
   const model = translate(readSsheet(ssheetContent), toXlsxFormula)
   const original = openedOriginal?.bytes
@@ -141,7 +123,6 @@ export async function saveXlsx(client: SidecarClient, ssheetContent: string): Pr
   return { bytes: reply.binary, inventory: { invisible: [], lost: [], structural: [] } }
 }
 
-/** O modelo que veio do sidecar, conferido pelo mesmo esquema do `.ssheet`. */
 function toModel(workbook: unknown): WorkbookModel {
   const envelope = { format: SSHEET_FORMAT, version: SSHEET_VERSION, ...(workbook as object) }
   try {
@@ -159,7 +140,6 @@ function readSsheet(content: string): WorkbookModel {
   }
 }
 
-/** Reescreve toda fórmula do modelo, deixando o resto como está. */
 function translate(model: WorkbookModel, convert: (formula: string) => string): WorkbookModel {
   return { ...model, sheets: model.sheets.map((sheet) => translateSheet(sheet, convert)) }
 }
@@ -172,14 +152,7 @@ function translateSheet(sheet: Sheet, convert: (formula: string) => string): She
   return { ...sheet, cells }
 }
 
-/**
- * Acrescenta ao inventário as funções que o motor não calcula.
- *
- * É invisibilidade, não perda: a fórmula continua no arquivo e volta intacta ao
- * gravar. O que muda é a tela, onde a célula mostra `#NOME?` em vez do valor que
- * o Excel havia calculado — e sem aviso o usuário concluiria que a planilha
- * quebrou.
- */
+/** Invisibilidade, e não perda: a fórmula volta intacta, mas a célula mostra `#NOME?`. */
 function withUncalculated(inventory: LossInventory, model: WorkbookModel): LossInventory {
   const unknown = new Set<string>()
 
@@ -207,8 +180,7 @@ function functionsIn(formula: string): string[] {
       .filter((token) => token.kind === TokenKind.Name)
       .map((token) => token.text)
   } catch {
-    // Fórmula que nem se consegue separar em símbolos já vai mostrar erro na
-    // célula. Um segundo aviso sobre ela não ajudaria em nada.
+    // A célula já vai mostrar o erro.
     return []
   }
 }

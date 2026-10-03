@@ -4,15 +4,8 @@ import type { AppApi, MenuCommandPayload } from '@shared/api.js'
 import type { ContextMenuTarget, EditorPreferences } from '@shared/types.js'
 
 /**
- * Assinatura de um canal main → renderer.
- *
- * Escrita uma vez porque já são três: o `IpcRendererEvent` carrega referências ao
- * sistema de mensagens e não pode vazar para o renderer, e repetir esse cuidado
- * em cada assinante é como um dia ele deixaria de ser feito.
- *
- * Aqui não há validação de schema de propósito: o preload roda sandboxed e não
- * carrega zod. Quem valida a mensagem recebida é o renderer, com o mesmo
- * `pushContracts` que o main usou para mandá-la.
+ * O `IpcRendererEvent` não pode vazar para o renderer. Sem schema aqui: o
+ * preload sandboxed não carrega zod, e o renderer valida com `pushContracts`.
  */
 function subscribe<T>(channel: string, listener: (payload: T) => void): () => void {
   const wrapped = (_event: IpcRendererEvent, payload: T): void => listener(payload)
@@ -23,13 +16,8 @@ function subscribe<T>(channel: string, listener: (payload: T) => void): () => vo
 }
 
 /**
- * Ponte entre renderer e main.
- *
- * Regras que valem para sempre neste arquivo:
- *  - nada de expor `ipcRenderer` cru, nem um `invoke` genérico: isso devolveria
- *    ao renderer o poder que o contextIsolation acabou de tirar;
- *  - um método por operação prevista no contrato, e nada além disso;
- *  - sem lógica de negócio — este é um encaminhador, não uma camada.
+ * Nada de `ipcRenderer` cru nem `invoke` genérico, que devolveriam o poder que o
+ * contextIsolation tirou: um método por operação do contrato, e nenhuma lógica.
  */
 const api: AppApi = {
   file: {

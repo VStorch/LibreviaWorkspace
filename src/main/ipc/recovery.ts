@@ -1,11 +1,4 @@
-/**
- * Autosave e recuperação.
- *
- * O rascunho não é uma segunda cópia do arquivo: é o que estava **na tela**. Por
- * isso ele guarda o formato interno (`.sdoc`/`.ssheet`) mesmo quando o arquivo
- * de origem é `.docx` ou `.xlsx` — recuperar tem de devolver o documento como
- * ele estava sendo editado, e não como estava no disco antes da queda.
- */
+/** O rascunho é o que estava **na tela**, em formato interno mesmo quando a origem é `.docx` ou `.xlsx`. */
 
 import { stat } from 'node:fs/promises'
 import { IpcChannel } from '@shared/ipc-channels.js'
@@ -43,15 +36,8 @@ export function registerRecoveryHandlers(): void {
 }
 
 /**
- * Devolve ao caminho recuperado o que a sessão anterior sabia sobre ele.
- *
- * Duas coisas morreram com o processo: a autorização de gravação e os bytes
- * originais do pacote OOXML. Sem a primeira, salvar seria recusado; sem os
- * segundos, a gravação cirúrgica não teria sobre o que operar.
- *
- * O arquivo pode ter sumido no meio tempo — foi apagado, ou estava numa pasta de
- * rede que caiu junto. Nesse caso não há o que reatar, e o trabalho recuperado
- * continua válido: ele vira um "salvar como".
+ * A autorização de gravação e os bytes originais morreram com o processo. Se o
+ * arquivo sumiu, o trabalho recuperado vira um "salvar como".
  */
 async function reattach(path: string): Promise<void> {
   if (!(await exists(path))) return

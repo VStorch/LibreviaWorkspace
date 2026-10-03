@@ -1,9 +1,4 @@
-/**
- * DOCX no processo main: conversa com o sidecar e guarda os bytes originais.
- *
- * Os bytes ficam **aqui**, e não no sidecar: o sidecar é sem estado, então a
- * morte dele não custa a capacidade de gravar cirurgicamente.
- */
+/** Os bytes originais ficam **aqui**, e não no sidecar, que é sem estado: a morte dele não custa a gravação cirúrgica. */
 
 import { readFile } from 'node:fs/promises'
 import { z } from 'zod'
@@ -24,13 +19,9 @@ import { t } from '../i18n.js'
 import { editorPreferences } from '../preferences.js'
 
 /**
- * Os rótulos do inventário, já cortados nos limites do contrato de IPC.
- *
  * `ipc.ts` recusa mais de 50 rótulos por categoria e mais de 300 caracteres em
- * cada um, e o registro executa esse schema também na resposta. Sem o corte
- * aqui, um documento patológico — dezenas de medidas inválidas distintas —
- * deixaria de abrir por causa do **aviso**, e não do conteúdo. Cortar a lista
- * de avisos é o desfecho certo; recusar o arquivo por causa dela, não.
+ * cada um: sem o corte, um documento patológico deixaria de abrir por causa do
+ * aviso.
  */
 const inventoryLabels = z
   .array(z.string())
@@ -44,13 +35,8 @@ const inventorySchema = z.object({
 })
 
 /**
- * O resultado de abrir, conferido antes de virar documento na tela.
- *
- * `page` e `doc` atravessam como desconhecidos — quem os valida é o schema do
- * `.sdoc`, na ponta do renderer, e o do ProseMirror depois dele. Os **estilos**
- * não: eles são conferidos aqui, no primeiro ponto em que entram no programa,
- * porque é este o único lugar por onde passam antes de serem gravados no arquivo
- * do usuário. Um estilo malformado que chegasse ao `.sdoc` ficaria lá.
+ * `page` e `doc` são validados no renderer; os estilos, aqui, o único ponto por
+ * onde passam antes de irem para o `.sdoc`.
  */
 const openResultSchema = z.object({
   model: z.object({
@@ -59,13 +45,9 @@ const openResultSchema = z.object({
     doc: z.unknown(),
     styles: styleSheetSchema,
     outsideBookmarks: z.array(z.string().max(200)).max(10_000).optional(),
-    // Conferidos aqui pelo mesmo motivo dos estilos: vão parar no `.sdoc`.
     comments: z.array(documentCommentSchema).max(100_000).optional(),
-    // O `w:trackRevisions` do arquivo — só presente quando ligado.
     trackChanges: z.boolean().optional(),
-    // A numeração das notas, que vai parar no `.sdoc`.
     notes: documentNotesSchema.optional(),
-    // As propriedades do documento, que também vão parar no `.sdoc`.
     properties: documentPropertiesSchema.optional(),
   }),
   inventory: inventorySchema,
@@ -77,27 +59,14 @@ const saveResultSchema = z.object({
   rewrittenBlocks: z.number().int().nonnegative(),
 })
 
-/**
- * Os bytes do documento aberto, como estavam no disco na hora de abrir.
- *
- * Uma entrada só: o aplicativo edita um documento por vez. E é de propósito que
- * a fonte de verdade seja *o arquivo como você o abriu*, e não como ele está no
- * disco agora — que pode ter mudado por outra mão no meio da edição.
- */
+/** Como estavam no disco ao abrir, e não como estão agora, que pode ter mudado por outra mão. */
 let openedOriginal: { path: string; bytes: Buffer } | null = null
 
 export function forgetOpenedDocx(): void {
   openedOriginal = null
 }
 
-/**
- * Reata o vínculo com o pacote original depois de uma recuperação.
- *
- * Depois de uma queda, o modelo volta do rascunho mas os bytes originais não —
- * eles moravam na memória do processo que morreu. Sem relê-los, salvar por cima
- * do `.docx` recuperado seria recusado, e o usuário ficaria com o trabalho na
- * tela sem poder gravá-lo onde ele estava.
- */
+/** Depois de uma queda os bytes originais se perderam com o processo: sem relê-los, salvar seria recusado. */
 export async function adoptDocxOriginal(path: string): Promise<boolean> {
   try {
     openedOriginal = { path: normalizePath(path), bytes: await readFile(path) }
@@ -109,7 +78,6 @@ export async function adoptDocxOriginal(path: string): Promise<boolean> {
 }
 
 export interface OpenedDocx {
-  /** O modelo já no envelope `.sdoc`, para o renderer seguir por um caminho só. */
   readonly content: string
   readonly inventory: LossInventory
 }
@@ -128,16 +96,12 @@ export async function openDocx(client: SidecarClient, path: string): Promise<Ope
     throw new AppError(ErrorCode.SidecarFailed, t('errors.docx.cannotRead'), t('errors.docx.openContract'))
   }
 
-  // O caminho entra normalizado: é assim que ele volta do `authorizePath` e é
-  // assim que o `origin` chega na gravação. Guardado cru, um `/tmp/./a.docx`
-  // não se reconheceria no `/tmp/a.docx` da gravação, e o `.docx` aberto seria
-  // gravado por cima do pacote mínimo — todo `oid` descartado com ele.
+  // Normalizado, como volta do `authorizePath` e chega no `origin`: cru, o `.docx`
+  // aberto seria gravado por cima do pacote mínimo.
   openedOriginal = { path: normalizePath(path), bytes }
 
   return {
-    // As constantes, e não o literal: o envelope sai daqui rotulado com a versão
-    // do formato, e um `1` fixo faria todo documento vindo do Word passar por
-    // migrações que ele não precisa quando o formato mudasse.
+    // As constantes, e não o literal: um `1` fixo faria todo documento do Word passar por migrações.
     content: JSON.stringify({ format: SDOC_FORMAT, version: SDOC_VERSION, ...parsed.data.model }),
     inventory: parsed.data.inventory,
   }
@@ -146,40 +110,21 @@ export async function openDocx(client: SidecarClient, path: string): Promise<Ope
 export interface SavedDocx {
   readonly bytes: Uint8Array
   readonly inventory: LossInventory
-  /** Os bytes que passam a ser o original quando a gravação chegar ao disco. */
   readonly original: Buffer
 }
 
-/** De onde o documento veio e para onde vai. */
 export interface DocxTarget {
-  /**
-   * O caminho de que o documento em edição foi carregado — `null` no documento
-   * novo. Só serve para comparar com o original guardado: nenhum byte é lido
-   * dele.
-   */
+  /** `null` no documento novo. Só para comparar com o original guardado. */
   readonly origin: string | null
   readonly destination: string
-  /**
-   * O destino é um modelo do Word (`.dotx`). O sidecar grava o rótulo de modelo
-   * na parte principal; sem isto, o de documento — inclusive no documento
-   * criado a partir de um modelo, cujo pacote de partida traz o rótulo de
-   * modelo.
-   */
+  /** O sidecar grava o rótulo de modelo na parte principal; sem isto, o de documento. */
   readonly template?: boolean
 }
 
 /**
- * Grava o modelo por cima do pacote original — ou, no documento que nasceu no
- * editor, por cima de um pacote mínimo criado pelo sidecar.
- *
- * `sdocContent` é o mesmo JSON que o renderer manda para qualquer destino — o
- * envelope é descascado aqui para que o renderer não precise saber que DOCX
- * existe.
- *
- * O original só vale para o documento que saiu dele: a origem do documento em
- * edição precisa ser o caminho do original. Sem isso, um documento novo criado
- * depois de abrir um `.docx` sairia com os cabeçalhos, os estilos e as notas do
- * outro arquivo.
+ * Por cima do pacote original, ou do pacote mínimo no documento que nasceu no
+ * editor. O original só vale se a origem do documento em edição for o caminho
+ * dele: senão um documento novo levaria cabeçalhos, estilos e notas de outro.
  */
 export async function saveDocx(
   client: SidecarClient,
@@ -196,12 +141,8 @@ export async function saveDocx(
 
   const reply = await client.request(
     SidecarMethod.DocxSave,
-    // `flatten` escolhe a leitura de referência do sidecar: o rascunho antigo
-    // traz blocos achatados, e só uma leitura achatada os reconhece. Os estilos
-    // vão sempre, para que o modificado e o criado cheguem a `word/styles.xml`
-    // (`StyleWriter.cs`) — também do rascunho antigo, que deixa criar e aplicar
-    // estilo como qualquer outro documento: gravá-los é seguro ali, porque os
-    // blocos achatados carregam os valores como formatação direta.
+    // `flatten` escolhe a leitura de referência do sidecar para o rascunho
+    // achatado. Os estilos vão sempre, para chegarem a `word/styles.xml`.
     {
       page: model.page,
       doc: model.doc,
@@ -209,29 +150,15 @@ export async function saveDocx(
       ...(model.beforeReferences ? { beforeReferences: true } : {}),
       ...(model.sections === undefined ? {} : { sections: model.sections }),
       ...(model.beforeSections ? { beforeSections: true } : {}),
-      // Os comentários vão sempre — a lista vazia é "todos excluídos". O sidecar
-      // compara cada um com o do arquivo e só toca a parte que mudou. No rascunho
-      // de antes deles, só a marca, que escolhe a leitura de referência e deixa
-      // as partes como estão.
+      // A lista vazia é "todos excluídos"; no rascunho de antes deles, só a marca.
       ...(model.beforeComments ? { beforeComments: true } : { comments: model.comments }),
-      // As revisões vão nos nós; aqui só o interruptor e a marca do rascunho de
-      // antes delas, que escolhe a leitura de referência.
       ...(model.trackChanges === undefined ? {} : { trackChanges: model.trackChanges }),
       ...(model.beforeRevisions ? { beforeRevisions: true } : {}),
-      // As notas vão nos nós (`noteRef`, com o corpo dentro); aqui só a marca do
-      // rascunho de antes delas, que escolhe a leitura de referência e deixa as
-      // partes das notas como estão.
       ...(model.beforeNotes ? { beforeNotes: true } : {}),
-      // A equação vai no nó `math`, com o OMML dentro; aqui só a marca do rascunho
-      // de antes delas, que escolhe a leitura de referência e declara a perda do
-      // parágrafo editado que escondia uma.
       ...(model.beforeMath ? { beforeMath: true } : {}),
-      // E a numeração delas, que o sidecar só grava quando difere da do arquivo
-      // de destino — é o que um rascunho levado para .docx precisa.
+      // O sidecar só grava a numeração das notas e as propriedades quando diferem
+      // das do arquivo de destino.
       ...(model.notes === undefined ? {} : { notes: model.notes }),
-      // As propriedades são um remendo: o campo ausente fica como está no
-      // arquivo, e o sidecar só regrava `docProps/core.xml` ou `app.xml` quando
-      // algum campo difere — ver PropertiesWriter.
       ...(model.properties === undefined ? {} : { properties: model.properties }),
       ...(model.styles === undefined ? {} : { styles: model.styles }),
       ...(target.template === true ? { template: true } : {}),
@@ -249,45 +176,33 @@ export async function saveDocx(
   const foreignBandsPt = translate(Language.Portuguese, 'errors.docx.foreignBands')
   const lost = inventory.lost.map((item) => (item === foreignBandsPt ? t('errors.docx.foreignBands') : item))
   if (kept === null) {
-    // `includes` porque o sidecar já declara a mesma perda quando a faixa tinha
-    // texto para gravar e a relação não existia no pacote mínimo: a frase é uma
-    // só, e repetida seriam dois avisos na tela para um problema.
+    // O sidecar já declara a mesma perda quando a relação não existia no pacote
+    // mínimo: a frase é uma só.
     if (
       [model.page, ...(Array.isArray(model.sections) ? model.sections : [])].some(hasForeignBands) &&
       !lost.includes(t('errors.docx.foreignBands'))
     )
       lost.push(t('errors.docx.foreignBands'))
     // Rede de proteção: um modelo com `oid` foi numerado contra um pacote que
-    // não está aqui. Isso é defeito — o vínculo com o original se perdeu no
-    // caminho —, e o que sai é o pacote mínimo, sem os estilos, as notas nem os
-    // comentários do arquivo de origem. Dito em voz alta, porque perda calada é
-    // o pior defeito que este programa pode ter.
+    // não está aqui, e sai o pacote mínimo. Dito em voz alta, porque perda calada
+    // é o pior defeito deste programa.
     if (hasOid(model.doc)) lost.push(t('errors.docx.originPackage'))
   }
 
   return {
     bytes: reply.binary,
     inventory: { ...inventory, lost },
-    // O original que segue adiante é o pacote de partida desta gravação, e não
-    // os bytes gravados. No documento novo isso é o **pacote mínimo**: com os
-    // bytes gravados no lugar dele, cada gravação partia do resultado da
-    // anterior e somava o que já estava lá — uma definição de numeração e uma
-    // cópia de cada imagem por gravação. Partindo sempre do mesmo pacote, e sem
-    // nenhum bloco com `oid`, nada se perde e o resultado é o mesmo.
+    // O pacote de partida desta gravação, e não os bytes gravados: partindo do
+    // resultado anterior, o documento novo somaria uma cópia de cada imagem por
+    // gravação.
     original,
   }
 }
 
 /**
- * O original acompanha o documento para onde ele foi gravado.
- *
- * Chamado **depois** que a gravação chegou ao disco: movido antes, uma gravação
- * que falhasse deixaria o original apontando um caminho que o documento não
- * tem, e a gravação seguinte trocaria o pacote do arquivo pelo modelo mínimo.
- *
- * Vale também para destino que não é `.docx`: o `.docx` salvo como `.sdoc` e
- * depois como `.docx` de novo continua sendo o mesmo documento, com os mesmos
- * `oid`, e o pacote de origem continua sendo o dele.
+ * Chamado **depois** que a gravação chegou ao disco, para uma falha não deixar o
+ * original apontando um caminho que o documento não tem. Vale para qualquer
+ * destino: o `.docx` salvo como `.sdoc` continua com os mesmos `oid`.
  */
 export function followDocxOriginal(
   origin: string | null,
@@ -304,13 +219,7 @@ export function followDocxOriginal(
   }
 }
 
-/**
- * Algum bloco do modelo veio de um pacote `.docx`?
- *
- * O `oid` é a impressão digital do bloco no arquivo de origem, e o leitor só o
- * põe em bloco que saiu de um. Basta um para que o modelo esteja falando de um
- * pacote que a gravação precisa ter em mãos.
- */
+/** O `oid` é a impressão digital do bloco no pacote de origem: basta um. */
 function hasOid(doc: unknown): boolean {
   if (typeof doc !== 'object' || doc === null) return false
   const content = (doc as { content?: unknown }).content
@@ -339,14 +248,7 @@ function hasForeignBands(page: unknown): boolean {
   return bandKeys.some((key) => record[key] !== null && record[key] !== undefined)
 }
 
-/**
- * O pacote mínimo de um documento que nasceu no editor.
- *
- * Criado pelo sidecar, e não guardado aqui como binário: o pacote é código C#
- * validado pelo mesmo SDK que grava (`DocxTemplate`), e a página e os estilos
- * vêm do documento: o `.sdoc` antigo leva a Times com que foi escrito, e o
- * documento novo, a Calibri.
- */
+/** Criado pelo sidecar (`DocxTemplate`), com a página e os estilos do documento. */
 async function createDocx(client: SidecarClient, page: unknown, styles: unknown): Promise<Uint8Array> {
   const reply = await client.request(SidecarMethod.DocxCreate, { page, styles })
   if (reply.binary.length === 0) {
@@ -383,9 +285,7 @@ function unwrapSdoc(content: string): {
     throw new AppError(ErrorCode.Internal, t('errors.docx.inconsistentState'))
   }
 
-  // Os estilos são conferidos aqui e seguem para o pacote do documento novo
-  // (`docx.create`) e para a gravação: o sidecar os compara com os do original e
-  // só toca `word/styles.xml` quando algum mudou — senão ele volta byte a byte.
+  // O sidecar só toca `word/styles.xml` quando algum estilo mudou.
   const envelope = z
     .object({
       page: z.unknown(),
@@ -401,10 +301,8 @@ function unwrapSdoc(content: string): {
       beforeRevisions: z.boolean().optional(),
       beforeNotes: z.boolean().optional(),
       beforeMath: z.boolean().optional(),
-      // A numeração vai como veio; quem a confere é o sidecar, que só a grava
-      // quando difere da do pacote.
       notes: z.unknown().optional(),
-      // Conferidas aqui, e não só no renderer: vão para o arquivo do usuário.
+      // Conferidas aqui também: vão para o arquivo do usuário.
       properties: documentPropertiesSchema.optional(),
     })
     .safeParse(parsed)

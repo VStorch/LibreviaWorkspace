@@ -1,12 +1,6 @@
 /**
- * Contrato entre o processo main e o sidecar .NET.
- *
- * A costura é deliberadamente burra: **bytes entram, JSON sai**. Nenhum objeto
- * de biblioteca, nenhuma classe, nenhuma referência compartilhada — só um
- * quadro binário que as duas linguagens sabem montar sem framework nenhum.
- * É isso que permite trocar a implementação do outro lado sem tocar no app.
- *
- * ## Formato do quadro
+ * **Bytes entram, JSON sai**, num quadro binário que as duas linguagens montam
+ * sem framework:
  *
  * ```text
  *   offset 0   uint32 BE   bytes de JSON
@@ -15,9 +9,8 @@
  *   depois     ...         binário cru
  * ```
  *
- * O binário viaja **fora** do JSON de propósito. Base64 custaria 33% a mais em
- * cima de documentos de até 20 MB, e a conversão apareceria no tempo de abrir
- * cada arquivo.
+ * O binário viaja fora do JSON: Base64 custaria 33% a mais em documentos de até
+ * 20 MB.
  */
 
 import { z } from 'zod'
@@ -27,14 +20,8 @@ import { t } from '../i18n.js'
 export const FRAME_HEADER_BYTES = 8
 
 /**
- * Tetos de sanidade. Não são política de produto: existem para que um sidecar
- * corrompido — ou trocado por outra coisa — não consiga nos fazer alocar
- * gigabytes anunciando um quadro absurdo.
- *
- * O teto do JSON é generoso porque o modelo de um DOCX carrega as imagens como
- * data URI: um arquivo de 6,6 MB cheio de capturas de tela vira ~9 MB de JSON,
- * e o limite de 20 MB por arquivo (`MAX_FILE_BYTES`) chega perto de 30 MB
- * depois do base64.
+ * Contra um sidecar corrompido anunciando um quadro absurdo. O teto do JSON é
+ * generoso porque as imagens do DOCX vão como data URI.
  */
 export const MAX_JSON_BYTES = 64 * 1024 * 1024
 export const MAX_BINARY_BYTES = 64 * 1024 * 1024
@@ -59,20 +46,11 @@ export function encodeFrame(json: unknown, binary: Uint8Array = EMPTY_BINARY): U
   return frame
 }
 
-/**
- * Remonta quadros a partir de pedaços arbitrários de stdout.
- *
- * Um pipe não preserva fronteiras de mensagem: um quadro pode chegar partido em
- * cinco pedaços, e cinco quadros podem chegar num pedaço só. Tratar cada chunk
- * como se fosse uma mensagem é o bug clássico desse tipo de integração, e ele
- * só aparece sob carga — exatamente quando o documento é grande.
- */
+/** Um pipe não preserva fronteiras: um quadro chega partido, e vários chegam juntos. */
 export class FrameReader {
-  // Anotado: `new Uint8Array(0)` infere `Uint8Array<ArrayBuffer>`, mais estreito
-  // que os pedaços que chegam do pipe.
+  // Anotado: `new Uint8Array(0)` inferiria um tipo mais estreito que os pedaços do pipe.
   #buffer: Uint8Array = EMPTY_BINARY
 
-  /** Consome um pedaço e devolve os quadros que ficaram completos com ele. */
   push(chunk: Uint8Array): Frame[] {
     this.#buffer = concat(this.#buffer, chunk)
 
@@ -103,7 +81,7 @@ export class FrameReader {
     if (this.#buffer.length < total) return undefined
 
     const jsonBytes = this.#buffer.subarray(FRAME_HEADER_BYTES, FRAME_HEADER_BYTES + jsonLength)
-    // Cópia proposital: o binário sobrevive ao buffer, que será fatiado a seguir.
+    // Cópia: o binário sobrevive ao buffer, que será fatiado.
     const binary = this.#buffer.slice(FRAME_HEADER_BYTES + jsonLength, total)
     this.#buffer = this.#buffer.slice(total)
 
@@ -133,17 +111,11 @@ function concat(left: Uint8Array, right: Uint8Array): Uint8Array {
   return merged
 }
 
-// --- Mensagens -------------------------------------------------------------
 
 /**
- * Métodos disponíveis.
- *
- * `health` prova que o processo sobe; `diagnostics.echo` prova que o binário
- * atravessa inteiro. Os dois de DOCX são sem estado: `docx.save` recebe os
- * bytes originais no lugar de um identificador de sessão, para que a morte do
- * sidecar não custe a gravação cirúrgica. `docx.create` recebe a configuração
- * de página e os estilos, e devolve o pacote mínimo que faz o papel de original no documento
- * que nasceu no editor.
+ * `health` prova que o processo sobe; `diagnostics.echo`, que o binário atravessa.
+ * `docx.save` recebe os bytes originais, e não uma sessão, porque o sidecar é sem
+ * estado. `docx.create` devolve o pacote mínimo do documento que nasceu no editor.
  */
 export const SidecarMethod = {
   Health: 'health',
@@ -174,9 +146,7 @@ const responseSchema = z.discriminatedUnion('ok', [
   z.object({
     id: z.number().int().nonnegative(),
     ok: z.literal(true),
-    // Opcional de propósito: o serializador do .NET omite propriedade nula, e
-    // operação sem valor de retorno — só binário — é o caso normal, não o
-    // excepcional. Ausente e nulo significam a mesma coisa aqui.
+    // O .NET omite propriedade nula, e operação só com binário é o caso normal.
     result: z.unknown().optional(),
   }),
   z.object({ id: z.number().int().nonnegative(), ok: z.literal(false), error: sidecarErrorSchema }),
@@ -184,13 +154,7 @@ const responseSchema = z.discriminatedUnion('ok', [
 
 export type SidecarResponse = z.infer<typeof responseSchema>
 
-/**
- * Valida a resposta antes de qualquer uso.
- *
- * O sidecar é código nosso, mas é **outro processo**: pode estar numa versão
- * antiga, pode ter sido substituído no disco, pode estar corrompido. Confiar na
- * forma do que ele devolve seria o mesmo erro de confiar no renderer.
- */
+/** O sidecar é outro processo: pode estar antigo, trocado ou corrompido. */
 export function parseResponse(json: unknown): SidecarResponse {
   const parsed = responseSchema.safeParse(json)
   if (!parsed.success) {

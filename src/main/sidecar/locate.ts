@@ -1,11 +1,4 @@
-/**
- * Onde está o binário do sidecar.
- *
- * Sem `import { app } from 'electron'` de propósito — a raiz chega como
- * parâmetro. É a mesma disciplina de `security-policy.ts` e `fs/paths.ts`:
- * lógica que dá para testar sem subir o Electron inteiro é lógica que vai ser
- * testada de verdade.
- */
+/** Sem `electron`: a raiz chega por parâmetro, para testar. */
 
 import { access, constants } from 'node:fs/promises'
 import { join } from 'node:path'
@@ -16,13 +9,7 @@ export const SIDECAR_EXECUTABLE = 'Librevia.Format'
 
 const unavailable = (): string => t('errors.sidecar.serviceNotFound')
 
-/**
- * Identificador de runtime do .NET.
- *
- * São os dois alvos decididos em §8.1 do plano. Qualquer outro par
- * plataforma/arquitetura não tem binário publicado, e dizer isso é melhor do
- * que procurar um arquivo que nunca existiu.
- */
+/** Só os dois alvos publicados: outro par diz que não há binário, em vez de procurar um. */
 export function runtimeIdentifier(
   platform: NodeJS.Platform = process.platform,
   arch: string = process.arch,
@@ -37,7 +24,6 @@ export function sidecarFileName(platform: NodeJS.Platform = process.platform): s
   return platform === 'win32' ? `${SIDECAR_EXECUTABLE}.exe` : SIDECAR_EXECUTABLE
 }
 
-/** Caminho esperado dentro de uma raiz, sem tocar no disco. */
 export function sidecarPathIn(root: string, platform: NodeJS.Platform = process.platform): string {
   const rid = runtimeIdentifier(platform)
   if (rid === null) {
@@ -50,12 +36,7 @@ export function sidecarPathIn(root: string, platform: NodeJS.Platform = process.
   return join(root, 'resources', 'sidecar', rid, sidecarFileName(platform))
 }
 
-/**
- * Resolve o executável, já verificado como existente e executável.
- *
- * `LIBREVIA_SIDECAR_PATH` tem prioridade para que os testes apontem para um
- * sidecar de mentira sem precisar publicar o projeto .NET.
- */
+/** `LIBREVIA_SIDECAR_PATH` vence, para os testes usarem um sidecar de mentira. */
 export async function locateSidecarIn(root: string): Promise<string> {
   const override = process.env['LIBREVIA_SIDECAR_PATH']
   const candidate = override !== undefined && override !== '' ? override : sidecarPathIn(root)

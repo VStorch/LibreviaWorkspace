@@ -1,19 +1,7 @@
 /**
- * Rascunho de recuperação: o que estava na tela quando o aplicativo caiu.
- *
- * Duas escolhas de desenho valem a pena registrar.
- *
- * **O rascunho nunca toca o arquivo do usuário.** Gravar por cima dele de tempos
- * em tempos transformaria "não salvei" em "salvei sem querer" — e desfazer isso
- * exigiria o `.bak`, que existe para outro problema. O rascunho vive na pasta do
- * aplicativo, e a decisão de escrever no arquivo continua sendo só do usuário.
- *
- * **Um rascunho por vez**, porque o aplicativo edita um arquivo por vez. Uma
- * fila de rascunhos precisaria de uma tela para escolher entre eles, e essa tela
- * só apareceria depois de uma queda — o pior momento para pedir uma decisão.
- *
- * Este módulo não importa `electron` de propósito: a pasta chega por parâmetro,
- * e é o que permite testá-lo sem subir um aplicativo inteiro.
+ * O rascunho **nunca** toca o arquivo do usuário: gravar por cima transformaria
+ * "não salvei" em "salvei sem querer". Um rascunho por vez, como um arquivo por
+ * vez. A pasta chega por parâmetro, para testar sem Electron.
  */
 
 import { mkdir, readFile, rm } from 'node:fs/promises'
@@ -24,7 +12,7 @@ import { MAX_TEXT_LENGTH } from '@shared/ipc.js'
 import { writeFileAtomic } from './atomic-write.js'
 import { t } from '../i18n.js'
 
-/** O rascunho inteiro. O resumo, sem conteúdo, mora em `shared/types.ts`. */
+/** O resumo, sem conteúdo, mora em `shared/types.ts`. */
 export interface Draft extends DraftSummary {
   readonly content: string
 }
@@ -41,7 +29,7 @@ const FILE_NAME = 'rascunho.json'
 
 let folder: string | null = null
 
-/** Aponta o rascunho para uma pasta. Chamado uma vez, na subida do main. */
+/** Uma vez, na subida do main. */
 export function useRecoveryFolder(path: string): void {
   folder = join(path, 'recuperacao')
 }
@@ -55,13 +43,7 @@ function file(): string {
   return join(directory(), FILE_NAME)
 }
 
-/**
- * Grava o rascunho.
- *
- * Sem cópia `.bak`: o rascunho é reescrito a cada poucos segundos, e guardar a
- * versão anterior de cada uma delas só dobraria a escrita. A troca continua
- * atômica, que é o que impede um rascunho pela metade de sobreviver a uma queda.
- */
+/** Sem `.bak`, porque é reescrito a cada poucos segundos; a troca continua atômica. */
 export async function writeDraft(draft: Omit<Draft, 'savedAt'>): Promise<number> {
   const savedAt = Date.now()
   await mkdir(directory(), { recursive: true })
@@ -69,14 +51,7 @@ export async function writeDraft(draft: Omit<Draft, 'savedAt'>): Promise<number>
   return savedAt
 }
 
-/**
- * Lê o rascunho, ou `null` quando não há.
- *
- * Rascunho ilegível é tratado como ausente, e de propósito: ele existe para
- * salvar o dia depois de uma queda, e um erro de leitura dele viraria uma
- * segunda falha logo na abertura — em cima de um usuário que acabou de perder
- * trabalho.
- */
+/** Ilegível é ausente: um erro aqui seria uma segunda falha logo depois de uma queda. */
 export async function readDraft(): Promise<Draft | null> {
   let text: string
   try {
@@ -100,7 +75,7 @@ export async function readDraftSummary(): Promise<DraftSummary | null> {
   return { path: draft.path, name: draft.name, kind: draft.kind, savedAt: draft.savedAt }
 }
 
-/** Apaga o rascunho. Silencioso: não haver o que apagar é o caso normal. */
+/** Não haver o que apagar é o caso normal. */
 export async function discardDraft(): Promise<void> {
   await rm(file(), { force: true }).catch(() => undefined)
 }

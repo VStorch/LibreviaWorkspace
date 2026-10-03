@@ -14,16 +14,9 @@ import { loadFile } from './file.js'
 import { handle } from './registry.js'
 
 /**
- * Modelos do Word: a galeria e o que ela abre.
- *
- * Duas fontes. Os modelos que vêm com o aplicativo moram em
- * `resources/templates`, ao lado das fontes e do dicionário, com nome e
- * descrição traduzidos aqui. Os do usuário moram em `<userData>/Modelos` — a
- * pasta que "Abrir pasta de modelos" mostra, e onde "salvar como modelo" deixa
- * o arquivo para que ele apareça na galeria.
- *
- * Abrir qualquer um deles passa pelo mesmo `loadFile` do "abrir": o documento
- * novo, sem título, parte do pacote do modelo.
+ * Os embutidos moram em `resources/templates`; os do usuário em
+ * `<userData>/Modelos`, onde "salvar como modelo" os deixa. Abrir passa pelo
+ * mesmo `loadFile`.
  */
 
 interface BuiltinTemplate {
@@ -32,7 +25,7 @@ interface BuiltinTemplate {
   readonly description: MessageKey
 }
 
-/** Na ordem da galeria: o documento em branco primeiro, como no Word. */
+/** O documento em branco primeiro, como no Word. */
 const BUILTIN_TEMPLATES: readonly BuiltinTemplate[] = [
   {
     file: 'documento-em-branco.dotx',
@@ -56,7 +49,7 @@ const BUILTIN_TEMPLATES: readonly BuiltinTemplate[] = [
   },
 ]
 
-/** Mesma regra das fontes (`fonts.ts`): empacotado é `process.resourcesPath`. */
+/** Como `fonts.ts`: empacotado é `process.resourcesPath`. */
 function builtinRoot(): string {
   const root = app.isPackaged
     ? process.resourcesPath
@@ -77,7 +70,7 @@ function builtinEntries(): TemplateEntry[] {
   }))
 }
 
-/** Os `.dotx` e `.dotm` da pasta do usuário, sem descer em subpastas. */
+/** Sem descer em subpastas. */
 async function userEntries(): Promise<TemplateEntry[]> {
   const folder = userTemplatesFolder()
   let names: string[]
@@ -87,7 +80,7 @@ async function userEntries(): Promise<TemplateEntry[]> {
       .filter((entry) => entry.isFile() && isWordTemplatePath(entry.name))
       .map((entry) => entry.name)
   } catch {
-    // A pasta ainda não existe: ninguém salvou modelo nenhum.
+    // Ninguém salvou modelo ainda.
     return []
   }
 
@@ -118,8 +111,7 @@ export function registerTemplateHandlers(): void {
   }))
 
   handle(IpcChannel.TemplateOpen, async (payload) => {
-    // O renderer não escolhe caminho: o id precisa estar na lista que o próprio
-    // main monta agora — o nome de um embutido, ou um arquivo da pasta do usuário.
+    // O id precisa estar na lista que o próprio main monta.
     if (payload.source === 'builtin') {
       const builtin = builtinEntries().find((entry) => entry.id === payload.id)
       if (builtin === undefined)
@@ -145,8 +137,7 @@ export function registerTemplateHandlers(): void {
   handle(IpcChannel.TemplateOpenFolder, async () => {
     const folder = userTemplatesFolder()
     await mkdir(folder, { recursive: true })
-    // `openPath` devolve a mensagem de erro, e não lança: sem gerenciador de
-    // arquivos não há o que fazer, e a pasta já existe para o "salvar como".
+    // `openPath` devolve a mensagem de erro, e não lança.
     const problem = await shell.openPath(folder)
     if (problem !== '') console.warn(`[templates] ${problem}`)
     return { folder }

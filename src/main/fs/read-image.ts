@@ -4,13 +4,7 @@ import { MAX_IMAGE_BYTES, detectImageMimeType, isImageWithinSizeLimit } from '@s
 import { t } from '../i18n.js'
 import { editorPreferences } from '../preferences.js'
 
-/**
- * Lê uma imagem do disco e devolve um data URI.
- *
- * A validação é por assinatura de bytes, não por extensão: o arquivo vai ser
- * embutido no documento do usuário e distribuído junto com ele, então o que
- * entra precisa ser mesmo uma imagem de formato conhecido.
- */
+/** Por assinatura de bytes, e não por extensão: a imagem viaja dentro do documento. */
 export async function readImageAsDataUrl(path: string): Promise<string> {
   let size: number
   try {

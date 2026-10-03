@@ -6,7 +6,7 @@ import {
   type AppMode,
 } from './security-policy.js'
 
-/** Injeta a CSP e nega toda permissão de dispositivo — o app não precisa de nenhuma. */
+/** Nega toda permissão de dispositivo: o app não precisa de nenhuma. */
 export function applySessionPolicy(session: Session, mode: AppMode): void {
   const csp = buildContentSecurityPolicy(mode)
 
@@ -19,17 +19,11 @@ export function applySessionPolicy(session: Session, mode: AppMode): void {
     })
   })
 
-  // Câmera, microfone, geolocalização, notificações: nada disso tem uso aqui.
   session.setPermissionRequestHandler((_wc, _permission, callback) => callback(false))
   session.setPermissionCheckHandler(() => false)
 }
 
-/**
- * Trava a navegação da janela e o comportamento de links.
- *
- * `appOrigin` é a URL do servidor de desenvolvimento, ou `null` em produção
- * (onde a interface vem de `file:`).
- */
+/** `appOrigin` é o servidor de desenvolvimento, ou `null` em produção (`file:`). */
 export function applyNavigationPolicy(contents: WebContents, appOrigin: string | null): void {
   contents.on('will-navigate', (event, url) => {
     if (!isAllowedNavigation(url, appOrigin)) event.preventDefault()
@@ -37,8 +31,7 @@ export function applyNavigationPolicy(contents: WebContents, appOrigin: string |
 
   contents.on('will-attach-webview', (event) => event.preventDefault())
 
-  // Nenhuma janela filha é aberta pelo Chromium. Links legítimos vão para o
-  // navegador do sistema, e só depois de passarem pela allowlist de esquema.
+  // Nenhuma janela filha: links vão ao navegador do sistema, depois da lista de esquemas.
   contents.setWindowOpenHandler(({ url }) => {
     if (isAllowedExternalUrl(url)) void shell.openExternal(url)
     return { action: 'deny' }

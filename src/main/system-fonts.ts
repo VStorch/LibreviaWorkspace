@@ -4,55 +4,30 @@ import { promisify } from 'node:util'
 import { parseFontconfigFamilies, parseWindowsFontRegistry } from '@services/document/font-list.js'
 
 /**
- * As fontes que a máquina tem instaladas.
- *
- * O Electron não expõe isso, e nem o Chromium: `queryLocalFonts()` existe no
- * padrão, mas pede permissão do usuário e não vale num renderer sem origem de
- * verdade. Então perguntamos ao sistema, que é trabalho de processo main — o
- * renderer não executa programa, e é justamente essa a garantia do sandbox.
- *
- * A lista é um **conforto**, não um requisito: sem ela a barra continua
- * oferecendo as famílias que viajam no instalador. Por isso toda falha aqui é
- * engolida e devolve lista vazia: nenhum documento deixa de abrir porque o
- * `fc-list` não está instalado.
+ * `queryLocalFonts()` pede permissão e não vale num renderer sem origem: quem
+ * pergunta é o main. Conforto, e não requisito: toda falha devolve lista vazia.
  */
 
 const run = promisify(execFile)
 
-/**
- * Teto de tempo e de saída.
- *
- * Um `fc-list` num sistema com mil fontes devolve algumas dezenas de milhares de
- * linhas, e é chamado uma vez por sessão. O tempo existe para o caso patológico
- * — cache de fontconfig sendo reconstruído, fonte em disco de rede — em que a
- * barra não pode ficar esperando.
- */
+/** Para o caso patológico, como o cache do fontconfig sendo reconstruído. */
 const TIMEOUT_MS = 4000
 const MAX_OUTPUT_BYTES = 8 * 1024 * 1024
 
-/**
- * Lida uma vez por sessão.
- *
- * Instalar fonte com o aplicativo aberto é raro; reexecutar um programa a cada
- * vez que a barra de ferramentas monta seria caro e sem ganho nenhum.
- */
+/** Uma vez por sessão: instalar fonte com o aplicativo aberto é raro. */
 let cached: Promise<string[]> | null = null
 
 export function listInstalledFontFamilies(): Promise<string[]> {
   cached ??= collect().then((families) => {
-    // Lista vazia **não** fica em cache, e é o único caso em que a leitura se
-    // repete. Ela tem duas origens indistinguíveis daqui: máquina sem fontconfig
-    // (nada a fazer) e falha transitória — `fc-list` estourando o tempo enquanto o
-    // fontconfig reconstrói o cache. Guardar a segunda condenava a sessão inteira
-    // a abrir a barra sem fonte nenhuma. Repetir custa um processo por montagem
-    // da barra na máquina sem fontconfig; ficar sem lista custa a sessão.
+    // Lista vazia não fica em cache: pode ser falha transitória, e guardá-la
+    // deixaria a barra sem fonte nenhuma pela sessão inteira.
     if (families.length === 0) cached = null
     return families
   })
   return cached
 }
 
-/** Só para teste: descarta o que foi lido. Ver `system-fonts.test.ts`. */
+/** Para os testes. */
 export function forgetInstalledFonts(): void {
   cached = null
 }
@@ -61,19 +36,11 @@ async function collect(): Promise<string[]> {
   try {
     return process.platform === 'win32' ? await fromWindowsRegistry() : await fromFontconfig()
   } catch {
-    // Programa ausente, chave de registro inacessível, tempo esgotado: em todos
-    // os casos a resposta é a mesma, e ela não é um erro para quem usa.
     return []
   }
 }
 
-/**
- * Linux, BSD e macOS com fontconfig instalado.
- *
- * `%{family[0]}` pede só o primeiro nome de cada família — a forma que o CSS
- * acha. Sem o formato, `fc-list` devolve caminho de arquivo e estilo junto, e o
- * seletor mostraria "/usr/share/fonts/… : DejaVu Sans:style=Book".
- */
+/** `%{family[0]}`: só o primeiro nome da família, sem caminho nem estilo. */
 async function fromFontconfig(): Promise<string[]> {
   const { stdout } = await run('fc-list', ['--format', '%{family[0]}\\n'], {
     timeout: TIMEOUT_MS,
@@ -85,18 +52,9 @@ async function fromFontconfig(): Promise<string[]> {
 }
 
 /**
- * Windows: as duas chaves de fontes do registro.
- *
- * A da máquina traz as do sistema; a do usuário traz as que ele instalou só para
- * si, que desde o Windows 10 é o caminho padrão de "instalar fonte" sem
- * administrador. Ler só a primeira esconderia justamente as que a pessoa
- * acabou de pôr.
- *
- * `reg query`, e não um módulo de registro: é dependência a menos para auditar,
- * e a saída é estável há décadas. Mas pelo **caminho absoluto**: o `CreateProcess`
- * do Windows procura o nome simples no diretório do executável e no diretório
- * atual antes do `System32`, então um `reg.exe` plantado numa pasta gravável
- * rodaria no lugar do do sistema.
+ * As duas chaves do registro: a da máquina e a do usuário, onde fica a fonte
+ * instalada sem administrador. `reg query` pelo **caminho absoluto**, porque o
+ * `CreateProcess` procura o nome simples antes no diretório atual.
  */
 async function fromWindowsRegistry(): Promise<string[]> {
   const keys = [
@@ -116,8 +74,7 @@ async function fromWindowsRegistry(): Promise<string[]> {
       })
       for (const family of parseWindowsFontRegistry(stdout)) families.add(family)
     } catch {
-      // A chave do usuário não existe em instalação nova. Continuar é o certo:
-      // a da máquina sozinha já é uma lista útil.
+      // A chave do usuário não existe em instalação nova.
     }
   }
 

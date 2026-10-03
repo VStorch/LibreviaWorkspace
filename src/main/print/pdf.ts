@@ -8,15 +8,8 @@ import { buildNativePrintOptions, buildPrintOptions } from '@services/pdf/page-s
 import { t } from '../i18n.js'
 
 /**
- * Renderização para impressão.
- *
- * O documento é carregado numa janela oculta e o próprio Chromium produz o
- * PDF. É o mesmo motor que desenha o editor, então o resultado sai igual ao
- * que estava na tela — e sem nenhuma biblioteca de PDF envolvida.
- *
- * A janela roda com **JavaScript desligado**: o HTML vem do documento do
- * usuário, que pode ter vindo de qualquer lugar, e para virar PDF não é
- * preciso executar nada.
+ * O próprio Chromium gera o PDF numa janela oculta, com **JavaScript
+ * desligado**: o HTML vem do documento, e virar PDF não exige executar nada.
  */
 async function withRenderWindow<T>(html: string, run: (contents: WebContents) => Promise<T>): Promise<T> {
   const temporaryPath = join(app.getPath('temp'), `librevia-print-${randomUUID()}.html`)
@@ -56,11 +49,7 @@ export async function renderPdf(html: string, page: PageSetup, paged = false): P
   return withRenderWindow(html, async (contents) => contents.printToPDF(buildPrintOptions(page, paged)))
 }
 
-/**
- * Abre o diálogo de impressão do sistema.
- *
- * Resolve com `false` quando o usuário cancela — cancelar não é erro.
- */
+/** `false` quando a pessoa cancela: cancelar não é erro. */
 export async function printDocument(html: string, page: PageSetup): Promise<boolean> {
   return withRenderWindow(
     html,
@@ -82,13 +71,7 @@ export async function printDocument(html: string, page: PageSetup): Promise<bool
   )
 }
 
-/**
- * Visualização de impressão.
- *
- * Mostra o **PDF já gerado**, não uma segunda renderização em HTML: é a única
- * forma de a prévia responder à pergunta que importa — onde as páginas
- * quebram de verdade. Compensa o editor não paginar ao vivo (§6.3 do plano).
- */
+/** Mostra o **PDF já gerado**, e não outra renderização: é onde as páginas quebram de verdade. */
 export async function openPdfPreview(parent: BrowserWindow, pdf: Buffer, title: string): Promise<void> {
   const temporaryPath = join(app.getPath('temp'), `librevia-preview-${randomUUID()}.pdf`)
   await writeFile(temporaryPath, pdf)
@@ -100,7 +83,6 @@ export async function openPdfPreview(parent: BrowserWindow, pdf: Buffer, title: 
     title: t('errors.print.previewTitle', { title }),
     autoHideMenuBar: true,
     webPreferences: {
-      // O visualizador de PDF do Chromium precisa de plugins habilitados.
       plugins: true,
       javascript: false,
       contextIsolation: true,

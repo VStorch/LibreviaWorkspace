@@ -14,7 +14,6 @@ import { applyNavigationPolicy } from './security.js'
 interface WindowState {
   isDirty: boolean
   fileLabel: string
-  /** Ligado quando o fechamento já foi decidido e não deve ser interceptado de novo. */
   bypassGuard: boolean
 }
 
@@ -38,11 +37,10 @@ export function updateWindowState(window: BrowserWindow, title: string, isDirty:
   state.isDirty = isDirty
   state.fileLabel = title
   window.setTitle(`${isDirty ? '• ' : ''}${title} — ${APP_NAME}`)
-  // No macOS a bolinha no botão de fechar é a convenção nativa.
   window.setDocumentEdited(isDirty)
 }
 
-/** Fecha sem passar pelo guarda — o renderer já resolveu o que fazer. */
+/** O renderer já resolveu o que fazer. */
 export function closeWithoutGuard(window: BrowserWindow): void {
   stateOf(window).bypassGuard = true
   window.close()
@@ -52,14 +50,7 @@ export function sendMenuCommand(window: BrowserWindow, payload: MenuCommandPaylo
   sendPush(window.webContents, IpcChannel.MenuCommand, payload)
 }
 
-/**
- * Manda uma mensagem main → renderer, validada pelo contrato.
- *
- * Validar a **saída** parece exagero, já que quem escreve os dois lados é o mesmo
- * projeto. Mas é aqui que um campo novo esquecido no schema aparece: sem isto ele
- * atravessaria e o renderer o descartaria em silêncio, que é o modo de falha mais
- * caro deste código.
- */
+/** Validar a saída pega o campo novo esquecido no schema, que o renderer descartaria em silêncio. */
 export function sendPush<C extends PushIpcChannel>(
   contents: WebContents,
   channel: C,
@@ -68,18 +59,11 @@ export function sendPush<C extends PushIpcChannel>(
   contents.send(channel, pushContracts[channel].parse(payload))
 }
 
-/** O mesmo, para toda janela aberta: preferência vale para o aplicativo. */
 export function broadcastPush<C extends PushIpcChannel>(channel: C, payload: PushPayload<C>): void {
   for (const window of BrowserWindow.getAllWindows()) sendPush(window.webContents, channel, payload)
 }
 
-/**
- * Guarda de fechamento.
- *
- * É a última linha contra perda de trabalho, e por isso mora no processo main:
- * mesmo que o renderer trave ou seja fechado pelo gerenciador de janelas, o
- * aviso aparece.
- */
+/** No main, para o aviso aparecer mesmo que o renderer trave. */
 function installCloseGuard(window: BrowserWindow): void {
   window.on('close', (event) => {
     const state = stateOf(window)
@@ -95,8 +79,7 @@ function installCloseGuard(window: BrowserWindow): void {
         return
       }
 
-      // "Salvar": só o renderer sabe o conteúdo atual. Ele grava e então
-      // chama window.close() pela API, que passa por closeWithoutGuard.
+      // Só o renderer sabe o conteúdo: ele grava e fecha por `closeWithoutGuard`.
       sendMenuCommand(window, { command: MenuCommand.SaveAndExit })
     })
   })
@@ -109,20 +92,18 @@ export function createMainWindow(): BrowserWindow {
     minWidth: WINDOW_DEFAULTS.minWidth,
     minHeight: WINDOW_DEFAULTS.minHeight,
     title: APP_NAME,
-    // Evita o flash branco: só mostramos quando o renderer terminou de pintar.
+    // Sem o flash branco: só aparece quando o renderer terminou de pintar.
     show: false,
     backgroundColor: '#f6f7f9',
     webPreferences: {
       ...SECURE_WEB_PREFERENCES,
-      // .cjs e não .mjs: preloads sandboxed não suportam ESM.
+      // .cjs: preloads sandboxed não suportam ESM.
       preload: join(import.meta.dirname, '../preload/index.cjs'),
     },
   })
 
   const url = devServerUrl()
   applyNavigationPolicy(window.webContents, url)
-  // O menu de contexto nasce aqui porque o evento é do `webContents`: é o único
-  // lugar onde o corretor do Chromium conta o que achou errado.
   installContextMenu(window.webContents)
   installCloseGuard(window)
 

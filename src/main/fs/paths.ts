@@ -9,15 +9,8 @@ import { editorPreferences } from '../preferences.js'
 export const MAX_FILE_BYTES = 20 * 1024 * 1024
 
 /**
- * Autorização de caminhos.
- *
- * O renderer é tratado como não confiável, então ele **não escolhe** que
- * arquivo o processo main lê ou grava. Um caminho só entra neste conjunto
- * quando o próprio usuário o escolheu num diálogo nativo — e é por isso que
- * `file:save` recebe um caminho do renderer sem que isso seja uma brecha: se
- * o caminho não estiver aqui, a operação é recusada.
- *
- * O conjunto vive só enquanto o aplicativo estiver aberto.
+ * O renderer **não escolhe** o arquivo que o main lê ou grava: só entra aqui o
+ * caminho escolhido num diálogo nativo. Vive enquanto o aplicativo estiver aberto.
  */
 const authorizedPaths = new Set<string>()
 
@@ -43,7 +36,7 @@ export function assertPathAuthorized(path: string): string {
   return normalized
 }
 
-/** Apenas para testes: devolve o conjunto ao estado inicial. */
+/** Para os testes. */
 export function resetAuthorizedPaths(): void {
   authorizedPaths.clear()
 }

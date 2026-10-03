@@ -1,17 +1,8 @@
 import { ALLOWED_EXTERNAL_PROTOCOLS } from '@shared/constants.js'
 
-/**
- * Política de segurança em forma pura — sem importar `electron`, para que seja
- * verificável por teste unitário. `security.ts` é quem a aplica.
- */
+/** Sem `electron`, para testar; `security.ts` a aplica. */
 
-/**
- * Preferências obrigatórias de toda janela do aplicativo.
- *
- * O renderer não pode alcançar o Node.js. São estes quatro valores que garantem
- * isso, e há teste travando cada um deles: uma regressão aqui é silenciosa e
- * catastrófica, então não confiamos na revisão humana.
- */
+/** O renderer não alcança o Node.js. Há teste travando cada valor: a regressão aqui é silenciosa. */
 export const SECURE_WEB_PREFERENCES = {
   contextIsolation: true,
   nodeIntegration: false,
@@ -27,12 +18,8 @@ export const SECURE_WEB_PREFERENCES = {
 export type AppMode = 'development' | 'production'
 
 /**
- * CSP da janela.
- *
- * `style-src` precisa de 'unsafe-inline' porque React aplica estilos inline; é
- * um relaxamento conhecido e aceito. Em desenvolvimento, o Vite injeta scripts
- * inline e usa WebSocket para HMR — daí a variante mais permissiva, que nunca
- * chega à build de produção.
+ * `style-src` aceita 'unsafe-inline' porque o React aplica estilo inline. Em
+ * desenvolvimento, o Vite injeta script e usa WebSocket para o HMR.
  */
 export function buildContentSecurityPolicy(mode: AppMode): string {
   const directives: Record<string, string> =
@@ -42,8 +29,6 @@ export function buildContentSecurityPolicy(mode: AppMode): string {
           'script-src': "'self' 'unsafe-inline'",
           'style-src': "'self' 'unsafe-inline'",
           'img-src': "'self' data: blob:",
-          // `librevia-font:` serve as fontes metricamente compatíveis que viajam
-          // no instalador. Ver src/main/fonts.ts.
           'font-src': "'self' data: librevia-font:",
           'connect-src': "'self' ws://localhost:* http://localhost:*",
         }
@@ -52,10 +37,8 @@ export function buildContentSecurityPolicy(mode: AppMode): string {
           'script-src': "'self'",
           'style-src': "'self' 'unsafe-inline'",
           'img-src': "'self' data: blob:",
-          // `librevia-font:` serve as fontes metricamente compatíveis que viajam
-          // no instalador. Ver src/main/fonts.ts.
           'font-src': "'self' data: librevia-font:",
-          // O aplicativo é offline: nenhuma requisição de rede é legítima.
+          // O aplicativo é offline.
           'connect-src': "'none'",
         }
 
@@ -84,11 +67,7 @@ export function isAllowedExternalUrl(rawUrl: string): boolean {
   return (ALLOWED_EXTERNAL_PROTOCOLS as readonly string[]).includes(parsed.protocol)
 }
 
-/**
- * Navegação permitida dentro da janela: apenas a própria origem do aplicativo.
- * Qualquer outra coisa — inclusive um link clicado dentro de um documento —
- * é bloqueada, para que a janela nunca deixe de ser o aplicativo.
- */
+/** Só a própria origem: um link dentro de um documento não tira a janela do aplicativo. */
 export function isAllowedNavigation(targetUrl: string, appOrigin: string | null): boolean {
   let target: URL
   try {
@@ -97,7 +76,6 @@ export function isAllowedNavigation(targetUrl: string, appOrigin: string | null)
     return false
   }
 
-  // Produção: a interface é carregada de disco.
   if (target.protocol === 'file:') return appOrigin === null
 
   if (appOrigin === null) return false

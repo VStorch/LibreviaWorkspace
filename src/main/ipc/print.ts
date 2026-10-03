@@ -17,7 +17,6 @@ function windowOf(event: IpcMainInvokeEvent): BrowserWindow {
   return window
 }
 
-/** Troca a extensão do documento pela do PDF, preservando o nome. */
 function toPdfName(suggestedName: string): string {
   const dot = suggestedName.lastIndexOf('.')
   return `${dot > 0 ? suggestedName.slice(0, dot) : suggestedName}.pdf`
@@ -25,8 +24,7 @@ function toPdfName(suggestedName: string): string {
 
 export function registerPrintHandlers(): void {
   handle(IpcChannel.PrintExportPdf, async (payload, event) => {
-    // O destino é escolhido antes de gerar: se o usuário desistir, não gastamos
-    // tempo renderizando, e nada é escrito.
+    // O destino antes de gerar: se a pessoa desistir, nada é renderizado nem escrito.
     const chosen = await showPdfSaveDialog(windowOf(event), toPdfName(payload.suggestedName))
     if (chosen === null) return { canceled: true as const }
 

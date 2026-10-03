@@ -1,13 +1,4 @@
-/**
- * Cliente do sidecar .NET: sobe o processo, conversa por stdio e garante que
- * ele nunca trave o aplicativo.
- *
- * A regra que orienta todo este arquivo: **o sidecar pode morrer a qualquer
- * momento, e isso não pode custar o documento aberto.** Ele não grava nada em
- * disco e não guarda estado que só exista nele; se cair, o pior caso é a
- * operação em curso falhar com uma frase compreensível, e a próxima subir um
- * processo novo.
- */
+/** O sidecar pode morrer a qualquer momento, e isso não pode custar o documento aberto. */
 
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
 import { AppError, ErrorCode } from '@shared/errors.js'
@@ -22,15 +13,10 @@ import {
 } from './protocol.js'
 import { t } from '../i18n.js'
 
-/**
- * Teto por operação. Documento grande demora, mas nada aqui justifica um
- * minuto: passou disso, alguma coisa travou, e travar em silêncio é pior que
- * falhar rápido.
- */
+/** Passou disso, algo travou, e travar em silêncio é pior que falhar rápido. */
 export const REQUEST_TIMEOUT_MS = 60_000
 export const HEALTH_TIMEOUT_MS = 10_000
 
-/** Prazo entre pedir para encerrar e matar de vez. */
 export const SHUTDOWN_GRACE_MS = 2_000
 
 const died = (): string => t('errors.sidecar.died')
@@ -47,10 +33,7 @@ interface Pending {
   readonly timer: NodeJS.Timeout
 }
 
-/**
- * Como achar o executável. Recebido por parâmetro para que o cliente não
- * dependa do Electron e possa ser testado contra um sidecar de mentira.
- */
+/** Por parâmetro, para testar contra um sidecar de mentira. */
 export type ResolveExecutable = () => Promise<string>
 
 export class SidecarClient {
@@ -88,10 +71,8 @@ export class SidecarClient {
 
     const child = await this.#ensureStarted()
 
-    // Subir o processo leva tempo, e `dispose()` pode acontecer no meio disso —
-    // é o caso de fechar o aplicativo logo depois de mandar salvar. Sem esta
-    // segunda checagem o pedido se registraria num cliente já encerrado e
-    // ficaria pendurado para sempre, e o processo recém-nascido viraria órfão.
+    // `dispose()` pode acontecer enquanto o processo sobe: o pedido ficaria
+    // pendurado e o processo, órfão.
     if (this.#disposed) {
       this.#kill()
       throw new AppError(ErrorCode.SidecarUnavailable, died(), t('errors.sidecar.closedDuringRequest'))
@@ -102,9 +83,7 @@ export class SidecarClient {
     return new Promise<SidecarReply>((resolve, reject) => {
       const timer = setTimeout(() => {
         this.#pending.delete(id)
-        // Um processo que estourou o prazo não volta ao normal sozinho: pode
-        // estar num laço infinito com um documento malformado. Derrubar é o
-        // único jeito de garantir que o próximo pedido comece limpo.
+        // Pode estar num laço infinito: derrubar garante que o próximo comece limpo.
         this.#kill()
         reject(new AppError(ErrorCode.SidecarTimeout, timedOut()))
       }, timeoutMs)
@@ -124,7 +103,7 @@ export class SidecarClient {
     })
   }
 
-  /** Encerra sem deixar processo órfão. Idempotente. */
+/** Idempotente. */
   dispose(): void {
     this.#disposed = true
     this.#failAllPending(new AppError(ErrorCode.SidecarUnavailable, died(), 'aplicativo encerrando'))
@@ -142,7 +121,6 @@ export class SidecarClient {
     child.once('exit', () => clearTimeout(forceKill))
   }
 
-  // --- interno -------------------------------------------------------------
 
   async #ensureStarted(): Promise<ChildProcessWithoutNullStreams> {
     if (this.#child !== null) return this.#child
@@ -158,13 +136,12 @@ export class SidecarClient {
 
     const child = spawn(executable, [], {
       stdio: ['pipe', 'pipe', 'pipe'],
-      // Sem shell: o caminho não passa por interpretação nenhuma.
       shell: false,
       windowsHide: true,
     })
 
     child.stdout.on('data', (chunk: Buffer) => this.#onStdout(chunk))
-    // stderr é diagnóstico nosso e fica no log do main — nunca chega ao usuário.
+    // Diagnóstico nosso: fica no log, e nunca chega ao usuário.
     child.stderr.on('data', (chunk: Buffer) => {
       console.error('[sidecar]', chunk.toString('utf8').trimEnd())
     })
@@ -216,8 +193,7 @@ export class SidecarClient {
         if (response.ok) {
           pending.resolve({ result: response.result, binary: frame.binary })
         } else {
-          // O sidecar já manda a frase em português; o código dele é interno,
-          // então vira SidecarFailed com o detalhe preservado para o log.
+          // A frase já vem em português; o código vira SidecarFailed, com o detalhe no log.
           pending.reject(
             new AppError(ErrorCode.SidecarFailed, response.error.message, response.error.code),
           )
@@ -228,8 +204,7 @@ export class SidecarClient {
 
   #settle(id: number, apply: (pending: Pending) => void): void {
     const pending = this.#pending.get(id)
-    // Resposta sem pedido correspondente: já expirou, ou o sidecar inventou um
-    // id. Ignorar é o certo — não há a quem entregar.
+    // Já expirou, ou o sidecar inventou um id: não há a quem entregar.
     if (pending === undefined) return
 
     this.#pending.delete(id)

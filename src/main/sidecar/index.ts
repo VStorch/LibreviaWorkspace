@@ -1,9 +1,4 @@
-/**
- * A instância única do sidecar, já ligada ao ciclo de vida do Electron.
- *
- * Este é o único arquivo da pasta que conhece o `electron` — `client.ts` e
- * `locate.ts` ficam puros para serem testáveis sem subir o app.
- */
+/** O único arquivo da pasta que conhece o `electron`. */
 
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -11,14 +6,7 @@ import { app } from 'electron'
 import { SidecarClient } from './client.js'
 import { locateSidecarIn } from './locate.js'
 
-/**
- * A raiz onde procurar `resources/sidecar/`.
- *
- * Fora do pacote, deriva da localização do próprio bundle (`out/main/index.js`
- * → dois níveis acima) em vez de `app.getAppPath()`. O `getAppPath()` muda
- * conforme o Electron é chamado — arquivo, pasta ou app empacotado — e essa
- * variação já custou um "instalação incompleta" com o binário no lugar certo.
- */
+/** Fora do pacote, deriva do próprio bundle: `app.getAppPath()` muda conforme o Electron é chamado. */
 function resourceRoot(): string {
   if (app.isPackaged) return process.resourcesPath
   return join(dirname(fileURLToPath(import.meta.url)), '..', '..')
@@ -31,14 +19,7 @@ export function sidecar(): SidecarClient {
   return instance
 }
 
-/**
- * Confere na subida se o serviço de formatos responde.
- *
- * **Não bloqueia a abertura do aplicativo.** Documento interno, texto e PDF não
- * passam pelo sidecar; travar tudo porque o serviço de DOCX não subiu seria
- * punir o usuário por um recurso que ele talvez nem vá usar. Quando ele de fato
- * abrir um `.docx`, aí sim recebe o erro — e aí ele é relevante.
- */
+/** Não bloqueia a abertura: documento interno, texto e PDF não passam pelo sidecar. */
 export async function checkSidecarHealth(): Promise<void> {
   try {
     const health = await sidecar().health()
@@ -48,7 +29,7 @@ export async function checkSidecarHealth(): Promise<void> {
   }
 }
 
-/** Encerra o processo filho. Idempotente e seguro se nunca subiu. */
+/** Idempotente, e seguro se nunca subiu. */
 export function disposeSidecar(): void {
   instance?.dispose()
   instance = null

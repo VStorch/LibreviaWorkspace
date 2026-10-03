@@ -12,27 +12,22 @@ import { devServerUrl, sendMenuCommand } from './window.js'
 
 const isMac = process.platform === 'darwin'
 
-/** O controle de alterações do documento aberto — quem sabe é o renderer. */
 let trackChangesOn = false
 
-/** O renderer avisou o estado do controle de alterações: a marca do menu acompanha. */
 export function setTrackChangesChecked(on: boolean): void {
   if (on === trackChangesOn) return
   trackChangesOn = on
   void refreshMenu()
 }
 
-/** Como a janela mostra as alterações — também é o renderer quem sabe. */
 let revisionView: RevisionView = RevisionView.All
 
-/** O renderer avisou como mostra as alterações: o item marcado de Revisão → Mostrar acompanha. */
 export function setRevisionViewChecked(view: RevisionView): void {
   if (view === revisionView) return
   revisionView = view
   void refreshMenu()
 }
 
-/** Um dos quatro jeitos de mostrar as alterações, como item de rádio. */
 function revisionViewItem(
   view: RevisionView,
   key: MessageKey,
@@ -65,8 +60,7 @@ async function buildRecentSubmenu(): Promise<MenuItemConstructorOptions[]> {
   return [
     ...recent.map<MenuItemConstructorOptions>((file) => ({
       label: file.name,
-      // O caminho completo é útil quando há dois arquivos de mesmo nome em
-      // pastas diferentes — situação comum em rede.
+      // Dois arquivos de mesmo nome em pastas diferentes são comuns em rede.
       toolTip: file.path,
       click: () => dispatch(MenuCommand.OpenRecent, file.path),
     })),
@@ -75,7 +69,6 @@ async function buildRecentSubmenu(): Promise<MenuItemConstructorOptions[]> {
   ]
 }
 
-/** Um dos três temas, como item de rádio marcado conforme o que está escolhido. */
 function themeItem(theme: Theme, key: MessageKey, chosen: Theme): MenuItemConstructorOptions {
   return {
     label: t(key),
@@ -87,14 +80,7 @@ function themeItem(theme: Theme, key: MessageKey, chosen: Theme): MenuItemConstr
   }
 }
 
-/**
- * O menu "Tabela", montado da lista única de ações.
- *
- * Os itens não se apagam fora de uma tabela: o menu nativo mora no processo main
- * e não sabe onde está o cursor, e reconstruí-lo a cada movimento dele custaria
- * mais do que vale. Fora de uma tabela os comandos do TableKit simplesmente não
- * fazem nada — e o menu de contexto, que sabe, só os oferece dentro de uma.
- */
+/** Os itens não se apagam fora de uma tabela: o main não sabe onde está o cursor. */
 function buildTableSubmenu(): MenuItemConstructorOptions[] {
   const items: MenuItemConstructorOptions[] = []
   let group = TABLE_ACTIONS[0]?.group
@@ -103,8 +89,7 @@ function buildTableSubmenu(): MenuItemConstructorOptions[] {
     if (action.group !== group) items.push({ type: 'separator' })
     group = action.group
 
-    // `TableAction` é um subconjunto de `MenuCommand`, com os mesmos valores:
-    // o `App` repassa ao editor pelo nome.
+    // `TableAction` é um subconjunto de `MenuCommand`, com os mesmos valores.
     const command: MenuCommand = action.id
     items.push({
       label: t(action.labelKey),
@@ -116,12 +101,7 @@ function buildTableSubmenu(): MenuItemConstructorOptions[] {
   return items
 }
 
-/**
- * Menu do aplicativo.
- *
- * Só entram itens que funcionam: um item de menu desabilitado ou que não faz
- * nada é pior que a ausência dele.
- */
+/** Só entram itens que funcionam. */
 async function buildTemplate(): Promise<MenuItemConstructorOptions[]> {
   const macAppMenu: MenuItemConstructorOptions[] = isMac
     ? [
@@ -174,7 +154,6 @@ async function buildTemplate(): Promise<MenuItemConstructorOptions[]> {
       label: t('menu.view.formattingMarks'),
       type: 'checkbox',
       checked: preferences.invisibleCharacters,
-      // A tecla e o porquê dela estão na tabela de atalhos.
       accelerator: acceleratorOf(SHORTCUTS.formattingMarks),
       click: () => {
         updatePreferences({ invisibleCharacters: !preferences.invisibleCharacters })
@@ -190,8 +169,6 @@ async function buildTemplate(): Promise<MenuItemConstructorOptions[]> {
       },
     },
     {
-      // Esconder o painel não tira nada do documento: os comentários continuam
-      // no texto e voltam ao arquivo.
       label: t('menu.view.commentsPane'),
       type: 'checkbox',
       checked: preferences.commentsPane,
@@ -203,8 +180,6 @@ async function buildTemplate(): Promise<MenuItemConstructorOptions[]> {
     {
       label: t('view.theme'),
       submenu: [
-        // Botões de rádio, e não caixas: os três valores são exclusivos, e uma
-        // caixa marcada em dois deles ao mesmo tempo não quer dizer nada.
         themeItem(Theme.System, 'view.theme.system', preferences.theme),
         themeItem(Theme.Light, 'view.theme.light', preferences.theme),
         themeItem(Theme.Dark, 'view.theme.dark', preferences.theme),
@@ -212,8 +187,7 @@ async function buildTemplate(): Promise<MenuItemConstructorOptions[]> {
     },
     {
       label: t('view.language'),
-      // Cada idioma escrito nele mesmo, e por isso sem passar pelo catálogo:
-      // quem procura "English" num menu em português não acharia "Inglês".
+      // Cada idioma escrito nele mesmo, fora do catálogo: quem procura "English" não acharia "Inglês".
       submenu: LANGUAGES.map<MenuItemConstructorOptions>((language) => ({
         label: LANGUAGE_NAMES[language],
         type: 'radio',
@@ -224,15 +198,12 @@ async function buildTemplate(): Promise<MenuItemConstructorOptions[]> {
       })),
     },
     { type: 'separator' },
-    // O zoom é da folha, e não da janela: o do Chromium aumentava também as
-    // barras e os diálogos. Quem calcula o degrau é o renderer, que sabe quanto
-    // vale o "ajustar à largura" na janela de agora.
+    // O zoom é da folha; o degrau é do renderer, que sabe quanto vale o "ajustar à largura".
     {
       label: t('menu.view.resetZoom'),
       accelerator: acceleratorOf(SHORTCUTS.zoomReset),
       click: () => dispatch(MenuCommand.ZoomReset),
     },
-    // Ampliar sai do `Ctrl+Shift+=` do sobrescrito: ver a tabela de atalhos.
     {
       label: t('menu.view.zoomIn'),
       accelerator: acceleratorOf(SHORTCUTS.zoomIn),
@@ -376,8 +347,7 @@ async function buildTemplate(): Promise<MenuItemConstructorOptions[]> {
           click: () => dispatch(MenuCommand.InsertPageBreak),
         },
         {
-          // Os quatro começos do Word, e a exclusão: a quebra não se vê no texto
-          // para ser apagada com o teclado.
+          // A quebra de seção não se vê no texto, e por isso também se exclui pelo menu.
           label: t('menu.insert.sectionBreak'),
           submenu: [
             {
@@ -452,8 +422,7 @@ async function buildTemplate(): Promise<MenuItemConstructorOptions[]> {
       ],
     },
     {
-      // As referências do Word: sumário, legendas, referências cruzadas e o F9
-      // que recalcula os campos. O marcador fica em "Inserir", como lá.
+      // O marcador fica em "Inserir", como no Word.
       label: t('menu.references'),
       submenu: [
         {
@@ -482,7 +451,6 @@ async function buildTemplate(): Promise<MenuItemConstructorOptions[]> {
       ],
     },
     {
-      // O controle de alterações: aceitar, rejeitar e andar entre elas.
       label: t('menu.review'),
       submenu: [
         {
@@ -493,8 +461,7 @@ async function buildTemplate(): Promise<MenuItemConstructorOptions[]> {
           toolTip: t('revisions.trackHint'),
           click: () => {
             dispatch(MenuCommand.ToggleTrackChanges)
-            // O Electron já trocou a marca; quem decide é o documento, que responde
-            // pelo estado da janela. Sem resposta (somente leitura), a marca volta.
+            // Quem decide é o documento; sem resposta (somente leitura), a marca volta.
             void refreshMenu()
           },
         },
@@ -565,7 +532,6 @@ async function buildTemplate(): Promise<MenuItemConstructorOptions[]> {
   ]
 }
 
-/** Reconstrói o menu. Necessário sempre que a lista de recentes mudar. */
 export async function refreshMenu(): Promise<void> {
   Menu.setApplicationMenu(Menu.buildFromTemplate(await buildTemplate()))
 }

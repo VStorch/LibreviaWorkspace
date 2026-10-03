@@ -17,26 +17,18 @@ import { checkSidecarHealth, disposeSidecar } from './sidecar/index.js'
 import { createMainWindow, devServerUrl } from './window.js'
 import { docxFromArguments, requestExternalFile } from './external-files.js'
 
-// Sandbox para todo renderer, inclusive os que vierem depois (janela oculta de
-// impressão, por exemplo). Precisa vir antes de `app.whenReady()`.
+// Sandbox para todo renderer, inclusive a janela oculta de impressão. Antes de `app.whenReady()`.
 app.enableSandbox()
 app.setName(APP_NAME)
 
-// Também antes do `whenReady`: um esquema só ganha privilégio se for declarado
-// enquanto o Chromium ainda está montando a lista.
+// Também antes do `whenReady`: o esquema só ganha privilégio enquanto o Chromium monta a lista.
 registerFontScheme()
 
-// E o dicionário de português antes de tudo, síncrono.
-//
-// Isto foi medido: feito dentro do `whenReady`, o corretor do Chromium já havia
-// começado a baixar o dicionário — ele se inicializa quando a sessão padrão passa
-// a existir, e a sessão passa a existir na primeira linha que a menciona. O
-// arquivo baixado sobrescrevia o embutido, e o aplicativo ficava dependendo de
-// rede sem ninguém notar. Ver src/main/spellcheck.ts.
+// O dicionário antes de tudo, síncrono: dentro do `whenReady` o corretor já
+// teria começado a baixar o dele, que sobrescreveria o embutido.
 installBundledDictionary()
 
-// Uma instância só: duas instâncias editando o mesmo arquivo é caminho certo
-// para perda de dados.
+// Uma instância só: duas editando o mesmo arquivo perderiam dados.
 if (!app.requestSingleInstanceLock()) {
   app.quit()
 } else {
@@ -58,8 +50,6 @@ if (!app.requestSingleInstanceLock()) {
     serveDictionary()
     applyStoredPreferences()
 
-    // A pasta chega por parâmetro para que o módulo de recuperação não dependa
-    // do Electron — é o que permite testá-lo sem subir um aplicativo inteiro.
     useRecoveryFolder(app.getPath('userData'))
 
     registerEditingHandlers()
@@ -70,9 +60,7 @@ if (!app.requestSingleInstanceLock()) {
     registerTemplateHandlers()
     registerWindowHandlers()
 
-    // O menu desenha as marcas de seleção a partir das preferências, então
-    // precisa ser refeito quando alguma muda — inclusive quando quem a mudou foi
-    // a barra de ferramentas.
+    // O menu desenha as marcas pelas preferências, inclusive as mudadas pela barra.
     onPreferencesChanged(() => {
       void refreshMenu()
     })
@@ -80,8 +68,7 @@ if (!app.requestSingleInstanceLock()) {
 
     createMainWindow()
 
-    // Depois da janela: o aplicativo não espera pelo serviço de formatos para
-    // aparecer na tela.
+    // Depois da janela: o aplicativo não espera o sidecar para aparecer.
     void checkSidecarHealth()
 
     app.on('activate', () => {
@@ -93,12 +80,10 @@ if (!app.requestSingleInstanceLock()) {
     if (process.platform !== 'darwin') app.quit()
   })
 
-  // `will-quit` e não `window-all-closed`: no macOS o app segue vivo sem janela,
-  // e matar o sidecar ali deixaria o próximo documento sem serviço.
+  // `will-quit`: no macOS o app segue vivo sem janela.
   app.on('will-quit', () => {
     disposeSidecar()
-    // As palavras "ignoradas" desta sessão saem do dicionário do usuário: ignorar
-    // é para agora, adicionar ao dicionário é para sempre.
+    // Ignorar é para a sessão; adicionar ao dicionário é para sempre.
     forgetSessionWords(session.defaultSession)
   })
 }

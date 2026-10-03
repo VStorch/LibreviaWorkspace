@@ -17,14 +17,7 @@ import { t } from '../i18n.js'
 import { editorPreferences } from '../preferences.js'
 import { handle } from './registry.js'
 
-/**
- * Exportação para HTML, Markdown e ODT.
- *
- * O renderer manda o documento serializado — o mesmo texto do salvar — e o main
- * monta o arquivo com as funções puras de `@services/document`. Escrever é um
- * arquivo **novo**: nada aqui toca o caminho do documento aberto nem o estado de
- * "alterado", que é o que distingue exportar de salvar como.
- */
+/** Escreve um arquivo **novo**: não toca o caminho nem o estado "alterado" do documento aberto. */
 
 function windowOf(event: IpcMainInvokeEvent): BrowserWindow {
   const window = BrowserWindow.fromWebContents(event.sender)
@@ -34,7 +27,6 @@ function windowOf(event: IpcMainInvokeEvent): BrowserWindow {
   return window
 }
 
-/** Troca a extensão do documento pela do formato, preservando o nome. */
 export function exportName(suggestedName: string, extension: string): string {
   const dot = suggestedName.lastIndexOf('.')
   return `${dot > 0 ? suggestedName.slice(0, dot) : suggestedName}.${extension}`
@@ -61,7 +53,6 @@ export function registerExportHandlers(): void {
     const path = authorizePath(chosen)
 
     if (payload.format === 'odt') {
-      // O pacote sai pronto da função pura; a compressão é a do Node.
       const bytes = exportOdt(model, {}, (data) => deflateRawSync(data))
       await writeFileAtomic(path, Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength))
     } else if (html) {
@@ -74,8 +65,7 @@ export function registerExportHandlers(): void {
     } else {
       const folder = assetFolderOf(path)
       const { markdown, assets } = exportMarkdown(model, { assetFolder: folder })
-      // A pasta só nasce quando há imagem: um texto sem figuras não deixa
-      // diretório vazio ao lado.
+      // A pasta só nasce quando há imagem.
       if (assets.length > 0) {
         const directory = join(dirname(path), folder)
         await mkdir(directory, { recursive: true })

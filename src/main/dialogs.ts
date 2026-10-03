@@ -27,13 +27,7 @@ function getFilters() {
   ]
 }
 
-/**
- * Os formatos em que cada tipo pode ser salvo, o nativo primeiro.
- *
- * A lista de abrir ofereceria planilha do Excel a um documento; esta oferece só
- * o que de fato funciona para o que está aberto. O `.txt` continua na lista,
- * com o aviso de formatação perdida que vem antes da gravação.
- */
+/** Só o que funciona para o que está aberto: a lista de abrir ofereceria planilha a um documento. */
 function templateExtensions(): string[] {
   return [bare(WORD_TEMPLATE_EXTENSION), bare(WORD_MACRO_TEMPLATE_EXTENSION)]
 }
@@ -43,7 +37,6 @@ function getSaveFilters(kind: DocumentKind) {
     ? [
         { name: t('dialog.filter.document'), extensions: [bare(DOCUMENT_EXTENSION)] },
         { name: t('dialog.filter.wordDoc'), extensions: [bare(WORD_EXTENSION)] },
-        // O modelo: o mesmo pacote, com o rótulo de modelo — ver PackageKind.
         { name: t('dialog.filter.wordTemplate'), extensions: [bare(WORD_TEMPLATE_EXTENSION)] },
         { name: t('dialog.filter.plainText'), extensions: [bare(PLAIN_TEXT_EXTENSION)] },
       ]
@@ -60,7 +53,7 @@ function getImageFilters() {
   ]
 }
 
-/** Devolve o caminho escolhido, ou `null` se o usuário cancelou. */
+/** `null` se a pessoa cancelou. */
 export async function showOpenFileDialog(window: BrowserWindow): Promise<string | null> {
   const result = await dialog.showOpenDialog(window, {
     title: t('dialog.open.title'),
@@ -70,7 +63,6 @@ export async function showOpenFileDialog(window: BrowserWindow): Promise<string 
   return result.canceled ? null : (result.filePaths[0] ?? null)
 }
 
-/** Procurar… da galeria de modelos: só `.dotx` e `.dotm`. */
 export async function showTemplatePickerDialog(
   window: BrowserWindow,
   defaultPath: string,
@@ -96,18 +88,13 @@ export async function showSaveFileDialog(
     title: t('dialog.save.title'),
     defaultPath: suggestedName,
     filters: getSaveFilters(kind),
-    // O diálogo do sistema já avisa sobre sobrescrever; não duplicamos o aviso.
+    // O diálogo do sistema já avisa sobre sobrescrever.
     properties: ['createDirectory', 'showOverwriteConfirmation'],
   })
   return result.canceled ? null : (result.filePath ?? null)
 }
 
-/**
- * Aviso de alterações não salvas.
- *
- * "Cancelar" é o botão de fuga (Esc) e "Salvar" é o padrão (Enter): quem
- * apertar uma tecla por reflexo não perde trabalho.
- */
+/** "Cancelar" responde ao Esc e "Salvar" ao Enter: a tecla apertada por reflexo não perde trabalho. */
 export async function confirmDiscardChanges(window: BrowserWindow, fileName: string): Promise<DiscardChoice> {
   const { response } = await dialog.showMessageBox(window, {
     type: 'warning',
@@ -148,7 +135,6 @@ const EXPORT_DIALOGS = {
   odt: { title: 'dialog.export.odtTitle', filter: 'dialog.filter.odt', extensions: ['odt'] },
 } as const
 
-/** Destino da exportação para HTML, Markdown ou ODT: só a extensão do formato. */
 export async function showExportSaveDialog(
   window: BrowserWindow,
   suggestedName: string,
@@ -173,13 +159,7 @@ export async function showImagePickerDialog(window: BrowserWindow): Promise<stri
   return result.canceled ? null : (result.filePaths[0] ?? null)
 }
 
-/**
- * Aviso de que `.txt` não guarda formatação.
- *
- * A alternativa — salvar em silêncio e descartar negrito, títulos, tabelas e
- * imagens — é exatamente o tipo de perda que o plano se compromete a evitar
- * (§6.1). Por isso o padrão oferecido é salvar como documento.
- */
+/** O padrão oferecido é salvar como documento. */
 export async function confirmPlainTextSave(
   window: BrowserWindow,
   fileName: string,

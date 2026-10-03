@@ -13,18 +13,11 @@ interface RecentSchema {
 const store = new Store<RecentSchema>({
   name: 'recent-files',
   defaults: { files: [] },
-  // Um JSON corrompido não pode impedir o aplicativo de abrir: a lista de
-  // recentes é conveniência, não dado do usuário.
+  // Um JSON corrompido não impede o aplicativo de abrir.
   clearInvalidConfig: true,
 })
 
-/**
- * Lista de recentes, já sem os arquivos que sumiram do disco.
- *
- * A poda acontece na leitura porque arquivos em pasta de rede desaparecem e
- * reaparecem o tempo todo — oferecer um item que só vai dar erro ao clicar é
- * pior do que não oferecer.
- */
+/** Sem os arquivos que sumiram: em pasta de rede eles somem e voltam o tempo todo. */
 export async function listRecentFiles(): Promise<readonly RecentFile[]> {
   const stored = store.get('files')
   const existing = await Promise.all(
