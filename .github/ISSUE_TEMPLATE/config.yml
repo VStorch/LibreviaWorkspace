@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Falha de segurança
+    url: https://github.com/VStorch/LibreviaWorkspace/security/advisories/new
+    about: Relate em particular, para que a falha não fique à vista antes da correção.
+  - name: Manual de uso
+    url: https://github.com/VStorch/LibreviaWorkspace/blob/main/MANUAL.md
+    about: Como usar cada função, os atalhos e os limites conhecidos.

@@ -1,0 +1,73 @@
+name: Arquivo que abriu errado
+description: Um .docx ou .xlsx que aparece, imprime ou é gravado diferente do Word ou do LibreOffice.
+title: '[arquivo] '
+labels: ['arquivo']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Obrigado. Este é o relato mais útil para o projeto: cada arquivo real que se comporta de um jeito inesperado ensina mais que uma função nova.
+
+        Se o arquivo for confidencial, **não o anexe**. Descreva o que aparece e, se puder, uma captura de tela com o conteúdo coberto.
+  - type: dropdown
+    id: formato
+    attributes:
+      label: Formato
+      options:
+        - .docx
+        - .dotx / .dotm
+        - .xlsx
+        - outro
+    validations:
+      required: true
+  - type: dropdown
+    id: origem
+    attributes:
+      label: Em que programa o arquivo foi feito?
+      options:
+        - Microsoft Word / Excel
+        - LibreOffice
+        - Google Docs / Planilhas
+        - não sei
+        - outro
+    validations:
+      required: true
+  - type: dropdown
+    id: quando
+    attributes:
+      label: Quando o problema aparece?
+      multiple: true
+      options:
+        - ao abrir (aparece diferente)
+        - ao editar
+        - ao salvar (o arquivo gravado abre diferente no Word ou no LibreOffice)
+        - ao imprimir ou exportar PDF
+        - um aviso que não faz sentido
+    validations:
+      required: true
+  - type: textarea
+    id: esperado
+    attributes:
+      label: O que o Word ou o LibreOffice mostram
+      description: Se der, com uma captura de tela.
+    validations:
+      required: true
+  - type: textarea
+    id: obtido
+    attributes:
+      label: O que o Librevia mostrou
+      description: Se der, com uma captura de tela. Inclua o texto de qualquer aviso que apareceu.
+    validations:
+      required: true
+  - type: textarea
+    id: arquivo
+    attributes:
+      label: O arquivo
+      description: Arraste o arquivo para cá, se puder compartilhá-lo. Se não puder, diga o que ele tem de especial (tabelas, imagens, seções, comentários, revisões, fórmulas…).
+  - type: input
+    id: versao
+    attributes:
+      label: Versão do Librevia e sistema
+      placeholder: 'ex.: 0.0.0, Windows 11'
+    validations:
+      required: true

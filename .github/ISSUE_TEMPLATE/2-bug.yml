@@ -1,0 +1,40 @@
+name: Erro
+description: Algo no aplicativo não funciona como deveria.
+title: '[erro] '
+labels: ['bug']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Se o problema é com um arquivo específico, use o modelo **Arquivo que abriu errado**.
+        Se é uma falha de segurança, **não abra issue**: veja a [política de segurança](https://github.com/VStorch/LibreviaWorkspace/blob/main/SECURITY.md).
+  - type: textarea
+    id: passos
+    attributes:
+      label: Passos para reproduzir
+      placeholder: |
+        1. Abra um documento novo
+        2. Insira uma tabela de 3 × 3
+        3. …
+    validations:
+      required: true
+  - type: textarea
+    id: esperado
+    attributes:
+      label: O que você esperava
+    validations:
+      required: true
+  - type: textarea
+    id: obtido
+    attributes:
+      label: O que aconteceu
+      description: Inclua o texto de mensagens de erro e capturas de tela, se houver.
+    validations:
+      required: true
+  - type: input
+    id: versao
+    attributes:
+      label: Versão do Librevia e sistema
+      placeholder: 'ex.: 0.0.0, Ubuntu 24.04, AppImage'
+    validations:
+      required: true

@@ -1,0 +1,21 @@
+name: Sugestão
+description: Uma ideia de função nova ou de melhoria.
+title: '[sugestão] '
+labels: ['enhancement']
+body:
+  - type: textarea
+    id: problema
+    attributes:
+      label: O que você está tentando fazer
+      description: Descreva a situação, e não só a solução. "Preciso numerar as figuras de um relatório" ajuda mais que "quero um botão X".
+    validations:
+      required: true
+  - type: textarea
+    id: hoje
+    attributes:
+      label: Como você faz isso hoje
+      description: No Librevia, no Word, no LibreOffice ou de outro jeito.
+  - type: textarea
+    id: ideia
+    attributes:
+      label: Como poderia funcionar
