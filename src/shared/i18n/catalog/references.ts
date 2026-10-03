@@ -1,12 +1,5 @@
 import type { Catalog } from '../message.js'
 
-/**
- * Referências: navegação, marcadores, sumário, legendas e referências cruzadas.
- *
- * Área própria porque parte do que ela guarda não é interface e sim **texto do
- * documento** — "Sumário", "Figura", "Tabela" — que entra no arquivo no idioma
- * de quem o escreve.
- */
 export const REFERENCES = {
   'references.nav.title': { pt: 'Navegação', en: 'Navigation' },
   'references.nav.empty': {

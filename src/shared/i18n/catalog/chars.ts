@@ -1,18 +1,12 @@
 import type { Catalog } from '../message.js'
 
-/**
- * Caracteres especiais: nomes dos símbolos e rótulos de grupos
- * do seletor de caracteres.
- */
 export const CHARS = {
-  // Grupos
   'chars.group.punctuation': { pt: 'Pontuação', en: 'Punctuation' },
   'chars.group.currency': { pt: 'Moeda', en: 'Currency' },
   'chars.group.math': { pt: 'Matemática', en: 'Math' },
   'chars.group.greek': { pt: 'Grego', en: 'Greek' },
   'chars.group.marksArrows': { pt: 'Marcas e setas', en: 'Marks and arrows' },
 
-  // Pontuação
   'chars.punct.doubleQuoteOpen': { pt: 'abre aspas duplas', en: 'left double quotation mark' },
   'chars.punct.doubleQuoteClose': { pt: 'fecha aspas duplas', en: 'right double quotation mark' },
   'chars.punct.singleQuoteOpen': { pt: 'abre aspas simples', en: 'left single quotation mark' },
@@ -33,7 +27,6 @@ export const CHARS = {
   'chars.punct.invertedExclamation': { pt: 'abre exclamação', en: 'inverted exclamation mark' },
   'chars.punct.nonBreakingSpace': { pt: 'espaço inquebrável', en: 'non-breaking space' },
 
-  // Moeda
   'chars.currency.dollar': { pt: 'dólar', en: 'dollar' },
   'chars.currency.euro': { pt: 'euro', en: 'euro' },
   'chars.currency.pound': { pt: 'libra', en: 'pound' },
@@ -43,7 +36,6 @@ export const CHARS = {
   'chars.currency.rupee': { pt: 'rupia', en: 'rupee' },
   'chars.currency.generic': { pt: 'moeda genérica', en: 'currency sign' },
 
-  // Matemática
   'chars.math.multiplication': { pt: 'multiplicação', en: 'multiplication' },
   'chars.math.division': { pt: 'divisão', en: 'division' },
   'chars.math.plusMinus': { pt: 'mais ou menos', en: 'plus-minus' },
@@ -69,7 +61,6 @@ export const CHARS = {
   'chars.math.superscriptThree': { pt: 'expoente três', en: 'superscript three' },
   'chars.math.micro': { pt: 'micro', en: 'micro sign' },
 
-  // Grego
   'chars.greek.alpha': { pt: 'alfa', en: 'alpha' },
   'chars.greek.beta': { pt: 'beta', en: 'beta' },
   'chars.greek.gamma': { pt: 'gama', en: 'gamma' },
@@ -95,7 +86,6 @@ export const CHARS = {
   'chars.greek.capitalPhi': { pt: 'fi maiúsculo', en: 'capital phi' },
   'chars.greek.capitalOmega': { pt: 'ômega maiúsculo', en: 'capital omega' },
 
-  // Marcas e setas
   'chars.marks.copyright': { pt: 'direito autoral', en: 'copyright' },
   'chars.marks.registered': { pt: 'marca registrada', en: 'registered trademark' },
   'chars.marks.trademark': { pt: 'marca comercial', en: 'trademark' },

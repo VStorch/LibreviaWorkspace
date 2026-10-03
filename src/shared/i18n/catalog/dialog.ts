@@ -1,11 +1,6 @@
 import type { Catalog } from '../message.js'
 
-/**
- * Frases dos diálogos nativos do sistema operacional: abrir, salvar,
- * confirmação de descarte, aviso de texto simples e sobre.
- */
 export const DIALOG = {
-  // Filtros de arquivo
   'dialog.filter.allSupported': {
     pt: 'Todos os arquivos suportados',
     en: 'All supported files',
@@ -25,7 +20,6 @@ export const DIALOG = {
   'dialog.filter.spreadsheet': { pt: 'Planilha', en: 'Spreadsheet' },
   'dialog.filter.excelSheet': { pt: 'Planilha do Excel', en: 'Excel spreadsheet' },
 
-  // Abrir e Salvar
   'dialog.open.title': { pt: 'Abrir arquivo', en: 'Open file' },
   'dialog.save.title': { pt: 'Salvar como', en: 'Save as' },
   'dialog.pdf.title': { pt: 'Exportar para PDF', en: 'Export to PDF' },
@@ -40,7 +34,6 @@ export const DIALOG = {
   'dialog.export.backToText': { pt: 'Voltar ao texto', en: 'Back to text' },
   'dialog.image.title': { pt: 'Inserir imagem', en: 'Insert image' },
 
-  // Confirmar descarte de alterações
   'dialog.discard.title': { pt: 'Alterações não salvas', en: 'Unsaved changes' },
   'dialog.discard.message': {
     pt: 'Salvar as alterações em “{fileName}”?',
@@ -54,7 +47,6 @@ export const DIALOG = {
   'dialog.discard.dontSave': { pt: 'Não salvar', en: 'Don’t save' },
   'dialog.discard.cancel': { pt: 'Cancelar', en: 'Cancel' },
 
-  // Aviso de texto simples (.txt)
   'dialog.plainText.title': { pt: 'Formatação será perdida', en: 'Formatting will be lost' },
   'dialog.plainText.message': {
     pt: '“{fileName}” é um arquivo de texto simples.',
@@ -73,7 +65,6 @@ export const DIALOG = {
     en: 'Save as plain text',
   },
 
-  // Diálogo Sobre
   'dialog.about.title': { pt: 'Sobre o {app}', en: 'About {app}' },
   'dialog.about.detail': {
     pt: 'Versão {version}\n\nSuíte de documentos e planilhas, offline.\nEm desenvolvimento — Fase 7 de 8.',

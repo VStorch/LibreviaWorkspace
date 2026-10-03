@@ -1,19 +1,12 @@
 import type { Catalog } from '../message.js'
 
-/**
- * Frases da casca do aplicativo: faixas de aviso, barra de status, tela
- * inicial, títulos de janela e mensagens de estado global.
- */
 export const SHELL = {
-  // Arquivo / nomes padrão
   'shell.file.untitled': { pt: 'Sem título', en: 'Untitled' },
   'shell.file.untitledDocument': { pt: 'Documento sem título', en: 'Untitled document' },
   'shell.file.untitledSpreadsheet': { pt: 'Planilha sem título', en: 'Untitled spreadsheet' },
 
-  // Faixa de erro
   'shell.banner.dismiss': { pt: 'Dispensar aviso', en: 'Dismiss notice' },
 
-  // Faixa de inventário (perda cirúrgica)
   'shell.banner.savedLoss': {
     pt: 'Nesta gravação, isto não chegou ao arquivo:',
     en: 'In this save, this did not make it into the file:',
@@ -31,7 +24,6 @@ export const SHELL = {
     en: 'This document has features that remain in the file, but do not appear completely here:',
   },
 
-  // Faixa de somente leitura
   'shell.banner.readOnly': {
     pt: 'Aberto somente para leitura.',
     en: 'Opened as read-only.',
@@ -49,7 +41,6 @@ export const SHELL = {
     en: 'Edit anyway',
   },
 
-  // Faixa de recuperação
   'shell.recovery.title': {
     pt: 'O aplicativo fechou com trabalho não salvo.',
     en: 'The application closed with unsaved work.',
@@ -73,7 +64,6 @@ export const SHELL = {
   'shell.recovery.recover': { pt: 'Recuperar', en: 'Recover' },
   'shell.recovery.discard': { pt: 'Descartar', en: 'Discard' },
 
-  // Barra de status
   'shell.statusBar.zoomIn': { pt: 'Ampliar', en: 'Zoom in' },
   'shell.statusBar.zoomOut': { pt: 'Reduzir', en: 'Zoom out' },
   'shell.statusBar.zoomLevel': { pt: 'Zoom', en: 'Zoom' },
@@ -99,7 +89,6 @@ export const SHELL = {
   'shell.statusBar.unsaved': { pt: '• Não salvo', en: '• Unsaved' },
   'shell.statusBar.saved': { pt: 'Salvo', en: 'Saved' },
 
-  // Tela inicial (HomePage)
   'shell.home.subtitle': {
     pt: 'Documentos e planilhas, sem depender de nuvem.',
     en: 'Documents and spreadsheets, without depending on the cloud.',
@@ -109,7 +98,6 @@ export const SHELL = {
   'shell.home.openFile': { pt: 'Abrir arquivo', en: 'Open file' },
   'shell.home.fromTemplate': { pt: 'A partir de modelo', en: 'From template' },
 
-  // Galeria de modelos
   'shell.template.title': { pt: 'Novo a partir de modelo', en: 'New from template' },
   'shell.template.builtin': { pt: 'Modelos do Librevia', en: 'Librevia templates' },
   'shell.template.user': { pt: 'Meus modelos', en: 'My templates' },
@@ -148,7 +136,6 @@ export const SHELL = {
   'shell.home.clear': { pt: 'Limpar', en: 'Clear' },
   'shell.home.emptyRecents': { pt: 'Nenhum arquivo aberto ainda.', en: 'No files opened yet.' },
 
-  // Erros e avisos de estado
   'shell.error.unexpected': {
     pt: 'Ocorreu um erro inesperado. A operação não foi concluída.',
     en: 'An unexpected error occurred. The operation could not be completed.',

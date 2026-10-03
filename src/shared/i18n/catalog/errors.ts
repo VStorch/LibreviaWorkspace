@@ -1,17 +1,11 @@
 import type { Catalog } from '../message.js'
 
-/**
- * Frases de erro: erros de arquivo, validação de caminhos, limites,
- * serviço de formatos (sidecar), IPC e falhas de leitura/escrita.
- */
 export const ERRORS = {
-  // Erro genérico
   'errors.unexpected': {
     pt: 'Ocorreu um erro inesperado. A operação não foi concluída.',
     en: 'An unexpected error occurred. The operation could not be completed.',
   },
 
-  // Sistema de arquivos (fromFileSystemError)
   'errors.fs.fileNotFound': {
     pt: 'O arquivo não foi encontrado. Ele pode ter sido movido ou excluído.',
     en: 'The file was not found. It may have been moved or deleted.',
@@ -57,7 +51,6 @@ export const ERRORS = {
     en: 'Could not save the file. The original content was preserved.',
   },
 
-  // Documento .sdoc
   'errors.document.corrupt': {
     pt: 'Este arquivo não pôde ser lido: o conteúdo está corrompido ou não é um documento válido.',
     en: 'This file could not be read: the content is corrupt or not a valid document.',
@@ -71,7 +64,6 @@ export const ERRORS = {
     en: 'This document was created by a newer version of the application. Update to open it.',
   },
 
-  // Caminhos e limites (src/main/fs/paths.ts)
   'errors.paths.unauthorized': {
     pt: 'Esta operação foi recusada porque o arquivo não foi aberto nem escolhido por você nesta sessão.',
     en: 'This operation was refused because the file was not opened or chosen by you in this session.',
@@ -93,7 +85,6 @@ export const ERRORS = {
     en: 'The file is too large to open (current limit: {limit} MB).',
   },
 
-  // Imagens (src/main/fs/read-image.ts)
   'errors.image.imageTooLarge': {
     pt: 'A imagem é grande demais para ser inserida (limite: {limit} MB).',
     en: 'The image is too large to insert (limit: {limit} MB).',
@@ -103,19 +94,16 @@ export const ERRORS = {
     en: 'This file is not a supported image. Use PNG, JPEG, GIF, or WebP.',
   },
 
-  // Texto (src/main/fs/read-text.ts)
   'errors.text.notTextFile': {
     pt: 'Este arquivo não parece ser de texto e não pode ser aberto com segurança.',
     en: 'This file does not appear to be text and cannot be opened safely.',
   },
 
-  // Recuperação (src/main/fs/recovery.ts)
   'errors.recovery.folderNotConfigured': {
     pt: 'a pasta de recuperação não foi configurada',
     en: 'recovery folder has not been configured',
   },
 
-  // IPC (src/main/ipc/)
   'errors.ipc.windowNotAvailable': {
     pt: 'A janela do aplicativo não está disponível.',
     en: 'The application window is not available.',
@@ -133,7 +121,6 @@ export const ERRORS = {
     en: 'The operation ended in a way the application does not recognize.',
   },
 
-  // Impressão (src/main/print/pdf.ts)
   'errors.print.prepareFailed': {
     pt: 'Não foi possível preparar o documento: {description}',
     en: 'Could not prepare document: {description}',
@@ -147,7 +134,6 @@ export const ERRORS = {
     en: 'Print preview — {title}',
   },
 
-  // DOCX (src/main/docx/index.ts)
   'errors.docx.cannotRead': {
     pt: 'Não foi possível ler este documento do Word. O arquivo pode estar danificado.',
     en: 'Could not read this Word document. The file may be damaged.',
@@ -186,7 +172,6 @@ export const ERRORS = {
   },
   'errors.docx.createContract': { pt: 'docx.create sem pacote', en: 'docx.create returned no package' },
 
-  // XLSX (src/main/xlsx/index.ts)
   'errors.xlsx.cannotRead': {
     pt: 'Não foi possível ler esta planilha do Excel. O arquivo pode estar danificado.',
     en: 'Could not read this Excel spreadsheet. The file may be damaged.',
@@ -216,7 +201,6 @@ export const ERRORS = {
     en: 'functions this application does not calculate: {names}',
   },
 
-  // Sidecar (src/main/sidecar/)
   'errors.sidecar.died': {
     pt: 'O serviço de formatos foi encerrado inesperadamente. Seu documento continua aberto e intacto.',
     en: 'The format service terminated unexpectedly. Your document remains open and intact.',

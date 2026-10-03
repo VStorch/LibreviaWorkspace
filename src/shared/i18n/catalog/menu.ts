@@ -1,14 +1,6 @@
 import type { Catalog } from '../message.js'
 
-/**
- * O menu nativo.
- *
- * Montado no processo main, e por isso a primeira área a entrar no catálogo:
- * ela é a prova de que a tradução atravessa a fronteira do IPC. Uma solução que
- * só funcionasse no renderer deixaria a barra de menus em português para sempre.
- *
- * `{app}` é o nome do aplicativo, que não se traduz.
- */
+/** `{app}` é o nome do aplicativo, que não se traduz. */
 export const MENU = {
   'menu.file': { pt: 'Arquivo', en: 'File' },
   'menu.edit': { pt: 'Editar', en: 'Edit' },

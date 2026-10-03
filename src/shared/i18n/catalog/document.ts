@@ -1,10 +1,5 @@
 import type { Catalog } from '../message.js'
 
-/**
- * A interface do editor de documentos.
- *
- * Barra de ferramentas, diálogos, painéis laterais e mensagens de rodapé.
- */
 export const DOCUMENT = {
   'document.common.apply': { pt: 'Aplicar', en: 'Apply' },
   'document.common.cancel': { pt: 'Cancelar', en: 'Cancel' },

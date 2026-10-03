@@ -64,7 +64,6 @@ export const IpcChannel = {
   TemplateOpen: 'template:open',
   TemplateBrowse: 'template:browse',
   TemplateOpenFolder: 'template:open-folder',
-  /** Abre o diálogo de impressão do sistema. */
   PrintDialog: 'print:dialog',
   /** Gera o PDF e abre numa janela de visualização. */
   PrintPreview: 'print:preview',
@@ -81,7 +80,6 @@ export const IpcChannel = {
   /** Pedido explícito de fechamento, já resolvido do lado do renderer. */
   WindowClose: 'window:close',
 
-  /** Lê as preferências de edição — ortografia, marcas, tipografia. */
   PreferencesGet: 'prefs:get',
   /** Liga ou desliga uma preferência. O main é quem guarda e quem aplica. */
   PreferencesSet: 'prefs:set',
@@ -153,7 +151,7 @@ export type InvocableIpcChannel = (typeof INVOCABLE_IPC_CHANNELS)[number]
  *
  * Ficam listados à parte porque não têm handler: o main empurra, o renderer
  * escuta. A lista existe para que o tipo da API do renderer saiba distinguir os
- * dois sentidos — antes havia um só, e o `Exclude` era escrito à mão em `api.ts`.
+ * dois sentidos.
  */
 export const PUSH_IPC_CHANNELS = [
   IpcChannel.MenuCommand,

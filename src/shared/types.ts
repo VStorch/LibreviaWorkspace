@@ -1,6 +1,6 @@
 import { Language } from './i18n/language.js'
 
-/** O que está sendo editado. Guia ícone, filtros de diálogo e editor. */
+/** Guia ícone, filtros de diálogo e editor. */
 export const DocumentKind = {
   Document: 'document',
   Spreadsheet: 'spreadsheet',
@@ -9,14 +9,8 @@ export const DocumentKind = {
 export type DocumentKind = (typeof DocumentKind)[keyof typeof DocumentKind]
 
 /**
- * O que o documento tem e o aplicativo não dá conta — em duas categorias que
- * **não** são o mesmo problema.
- *
- * `invisible`: continua no arquivo depois de salvar, mas não aparece na tela.
- * `lost`: some de verdade ao salvar.
- *
- * Misturar os dois produz um aviso genérico que o usuário aprende a ignorar, e
- * aí ele deixa de proteger de qualquer coisa.
+ * `invisible` continua no arquivo depois de salvar, mas não aparece na tela;
+ * `lost` some ao salvar. Separados porque um aviso genérico se aprende a ignorar.
  */
 export interface LossInventory {
   // Coleções mutáveis, como em `DocumentNode`: este tipo precisa ser atribuível
@@ -26,22 +20,14 @@ export interface LossInventory {
   readonly lost: string[]
   /**
    * Subconjunto de `invisible`: o que some se o bloco que o ancora for editado.
-   *
-   * Comentário, revisão, nota e campo calculado entram aqui; posicionamento de
-   * imagem e decoração, não. A diferença decide se o arquivo abre em somente
-   * leitura — travar a edição por perda de aparência travaria o uso do dia a
-   * dia, e o usuário aprenderia a liberar sem ler.
+   * Decide se o arquivo abre em somente leitura.
    */
   readonly structural: string[]
 }
 
 /**
- * Um arquivo carregado do disco.
- *
- * `content` é sempre texto: `.txt` vem cru e `.sdoc` vem como JSON. Um `.docx`
- * chega aqui **já convertido** para o formato interno pelo processo main, de
- * modo que o renderer segue com um caminho só. Os bytes originais ficam no
- * main, que é quem precisa deles para gravar cirurgicamente.
+ * `content` é sempre texto. Um `.docx` chega **já convertido** para o formato
+ * interno; os bytes originais ficam no main, que grava cirurgicamente.
  */
 export interface LoadedFile {
   readonly path: string
@@ -54,7 +40,6 @@ export interface LoadedFile {
   readonly template?: boolean
 }
 
-/** Um modelo da galeria. */
 export interface TemplateEntry {
   readonly source: 'builtin' | 'user'
   /** O nome do arquivo no embutido; o caminho no do usuário. */
@@ -63,13 +48,7 @@ export interface TemplateEntry {
   readonly description: string
 }
 
-/**
- * O rascunho de recuperação, sem o conteúdo.
- *
- * O aviso precisa dizer de que arquivo veio e de quando é; carregar junto o
- * conteúdo — que pode ter dezenas de megabytes com imagens embutidas — só para
- * decidir se mostra um aviso seria desperdício.
- */
+/** Sem o conteúdo, que pode ter dezenas de megabytes: o aviso só precisa da origem e da data. */
 export interface DraftSummary {
   readonly path: string | null
   readonly name: string
@@ -88,7 +67,6 @@ export interface RecentFile {
 export const MenuCommand = {
   NewDocument: 'new-document',
   NewSpreadsheet: 'new-spreadsheet',
-  /** Arquivo → Novo a partir de modelo…: a galeria de modelos. */
   NewFromTemplate: 'new-from-template',
   Open: 'open',
   OpenRecent: 'open-recent',
@@ -98,15 +76,12 @@ export const MenuCommand = {
   CloseFile: 'close-file',
   FindReplace: 'find-replace',
   ExportPdf: 'export-pdf',
-  /** Arquivo → Exportar como → HTML… e Markdown…. */
   ExportHtml: 'export-html',
   ExportMarkdown: 'export-markdown',
-  /** Arquivo → Exportar como → ODT…. */
   ExportOdt: 'export-odt',
   Print: 'print',
   PrintPreview: 'print-preview',
   PageSetup: 'page-setup',
-  /** Abre o diálogo de parágrafo — espaçamento, entrelinha, recuo, alinhamento. */
   ParagraphSetup: 'paragraph-setup',
   InsertPageBreak: 'insert-page-break',
   /** Quebra de seção no cursor, pelo começo da seção nova. */
@@ -116,62 +91,43 @@ export const MenuCommand = {
   InsertSectionOddPage: 'insert-section-odd-page',
   /** Exclui a quebra que fecha a seção do cursor: a seção de cima assume a de baixo. */
   DeleteSectionBreak: 'delete-section-break',
-  /** Quebra de coluna no cursor. */
   InsertColumnBreak: 'insert-column-break',
-  /** Formatar → Colunas. */
   FormatColumns: 'format-columns',
   /** Zoom da folha: o do editor, e não o do Chromium, que aumentaria a interface. */
   ZoomIn: 'zoom-in',
   ZoomOut: 'zoom-out',
   ZoomReset: 'zoom-reset',
   ZoomFitWidth: 'zoom-fit-width',
-  /** Insere a área de transferência como texto, sem trazer formatação. */
   PasteWithoutFormat: 'paste-without-format',
-  /** Abre o diálogo de contagem de palavras. */
   WordCount: 'word-count',
-  /** Arquivo → Propriedades: título, assunto, autor… e as estatísticas. */
   DocumentProperties: 'document-properties',
-  /** Abre o seletor de caracteres especiais. */
   SpecialCharacter: 'special-character',
-  /** Equação em linha e em destaque, com o editor de equações aberto. */
   InsertEquation: 'insert-equation',
   InsertDisplayEquation: 'insert-display-equation',
   /** Abre a equação selecionada no editor — o clique duplo e o Enter chegam aqui. */
   EditEquation: 'edit-equation',
-  /** Propriedades da imagem selecionada: texto alternativo e alinhamento. */
   ImageProperties: 'image-properties',
-  /** Marcadores: adicionar, ir para e excluir. */
   InsertBookmark: 'insert-bookmark',
-  /** Comentário na seleção, ou no cursor. */
   InsertComment: 'insert-comment',
-  /** Nota de rodapé e nota de fim no cursor, com o cursor já no corpo dela. */
   InsertFootnote: 'insert-footnote',
   InsertEndnote: 'insert-endnote',
-  /** Vai à próxima conversa (ou à anterior), pela ordem do texto, e a escolhe no painel. */
   NextComment: 'next-comment',
   PreviousComment: 'previous-comment',
-  /** Revisão: aceitar ou rejeitar a alteração no cursor, ou todas. */
   AcceptChange: 'accept-change',
   RejectChange: 'reject-change',
   AcceptAllChanges: 'accept-all-changes',
   RejectAllChanges: 'reject-all-changes',
-  /** Vai à próxima alteração (ou à anterior), pela ordem do texto, e a seleciona. */
   NextChange: 'next-change',
   PreviousChange: 'previous-change',
-  /** Liga ou desliga o controle de alterações do documento (`w:trackRevisions`). */
+  /** `w:trackRevisions` do documento. */
   ToggleTrackChanges: 'toggle-track-changes',
-  /** Revisão → Mostrar: como as alterações aparecem na janela (ver `RevisionView`). */
   ShowAllMarkup: 'show-all-markup',
   ShowSimpleMarkup: 'show-simple-markup',
   ShowNoMarkup: 'show-no-markup',
   ShowOriginal: 'show-original',
-  /** O nome que assina os comentários novos. */
   AuthorName: 'author-name',
-  /** Sumário dos títulos, com número de página e link. */
   InsertTableOfContents: 'insert-table-of-contents',
-  /** Refaz as entradas do sumário a partir dos títulos de agora. */
   UpdateTableOfContents: 'update-table-of-contents',
-  /** F9: recalcula os campos da seleção, ou do documento inteiro. */
   UpdateFields: 'update-fields',
   /** Legenda com número (`SEQ`): Figura 1, Tabela 1… */
   InsertCaption: 'insert-caption',
@@ -197,13 +153,7 @@ export const MenuCommand = {
 
 export type MenuCommand = (typeof MenuCommand)[keyof typeof MenuCommand]
 
-/**
- * Como as alterações controladas aparecem: todas marcadas, o texto final com
- * uma barra na margem, o texto final limpo, ou o texto de antes delas.
- *
- * É da janela, e não do arquivo nem da pessoa — como no Word, cada janela olha
- * o documento do seu jeito, e nada disso é gravado. A impressão segue a janela.
- */
+/** É da janela, como no Word: nada disso é gravado, e a impressão segue a janela. */
 export const RevisionView = {
   All: 'all',
   Simple: 'simple',
@@ -233,16 +183,7 @@ export const PlainTextChoice = {
 
 export type PlainTextChoice = (typeof PlainTextChoice)[keyof typeof PlainTextChoice]
 
-/**
- * O tema da interface, como a pessoa o escolheu.
- *
- * Três valores e não dois: `system` é o padrão, e é o único que sabe a resposta
- * certa para quem troca de claro para escuro ao anoitecer. `light` e `dark`
- * são a escolha explícita, que o sistema não desfaz.
- *
- * O que a tela desenha é o tema **resolvido** — ver `ResolvedTheme`. Quem
- * resolve é o main, porque é ele que enxerga o `nativeTheme` do Chromium.
- */
+/** Quem resolve `system` é o main, que enxerga o `nativeTheme` do Chromium. */
 export const Theme = {
   System: 'system',
   Light: 'light',
@@ -255,43 +196,19 @@ export type Theme = (typeof Theme)[keyof typeof Theme]
 export type ResolvedTheme = 'light' | 'dark'
 
 /**
- * Preferências de edição e de aparência.
- *
- * Moram no processo main porque três delas não podem morar em outro lugar: a
- * ortografia é configuração de `session`, o idioma monta a barra de menus
- * nativa, e o tema precisa do `nativeTheme` para resolver `system`. Guardar
- * duas metades da mesma preferência em dois lugares faria o menu marcar o que
- * o editor não estava fazendo.
- *
- * Um único conjunto, e não um "editor" e um "aparência" separados: são o mesmo
- * arquivo, o mesmo canal de IPC e o mesmo aviso de mudança. Dois canais seriam
- * duas chances de a tela e o menu discordarem.
+ * Moram no main: a ortografia é configuração de `session`, o idioma monta o menu
+ * nativo e o tema precisa do `nativeTheme`.
  */
 export interface EditorPreferences {
-  /** Verificação ortográfica em português, no corpo e nas faixas. */
   readonly spellcheck: boolean
   /** Marcas de formatação: ¶, espaço, tabulação e quebra de linha. */
   readonly invisibleCharacters: boolean
   /** Autocorreção tipográfica: aspas curvas, travessão, reticências. */
   readonly typography: boolean
-  /**
-   * O idioma da interface.
-   *
-   * Não muda as fórmulas, que continuam aceitando os dois idiomas como sempre,
-   * nem o dicionário do corretor. Quem escreve em português numa interface em
-   * inglês é caso comum, e amarrar as três coisas obrigaria a escolher qual
-   * delas sacrificar.
-   */
+  /** Não muda as fórmulas, que aceitam os dois idiomas, nem o dicionário do corretor. */
   readonly language: Language
-  /** A escolha da pessoa; `system` deixa o sistema operacional decidir. */
   readonly theme: Theme
-  /**
-   * Modo de leitura: sem barras, em rolagem contínua e sem edição.
-   *
-   * Guardado como preferência, e não como estado da sessão, porque o item do
-   * menu nativo precisa mostrar a marca — e o menu mora no main, que só sabe o
-   * que está aqui.
-   */
+  /** Preferência, e não estado da sessão, porque o menu nativo mostra a marca e só sabe o que está aqui. */
   readonly readingMode: boolean
   readonly showToolbar: boolean
   readonly showStatusBar: boolean
@@ -299,19 +216,9 @@ export interface EditorPreferences {
   readonly zoom: number
   /** Ajustar à largura: o zoom acompanha a janela, e `zoom` fica como estava. */
   readonly zoomFit: boolean
-  /**
-   * O painel de navegação: os títulos do documento, à esquerda da folha.
-   *
-   * Preferência, e não estado do documento, pelo mesmo motivo do modo de leitura:
-   * o item do menu "Exibir" mostra a marca, e o menu só sabe o que está aqui. E é
-   * assim no Word — quem abre o painel num documento o encontra aberto no próximo.
-   */
+  /** Preferência pelo mesmo motivo de `readingMode`; no Word o painel também fica aberto no documento seguinte. */
   readonly navigationPane: boolean
-  /**
-   * O painel de comentários ao lado das folhas, e o realce dos trechos.
-   * Escondido, os comentários continuam no documento e no arquivo — é só a
-   * tela.
-   */
+  /** Escondido, os comentários continuam no documento e no arquivo. */
   readonly commentsPane: boolean
   /**
    * O nome que assina os comentários novos. Vazio no arquivo, o main põe o
@@ -321,30 +228,15 @@ export interface EditorPreferences {
 }
 
 /**
- * Remendo de preferências: o que o canal `prefs:set` aceita.
- *
- * Um tipo próprio porque `Partial` não basta com `exactOptionalPropertyTypes`: o
- * que o zod infere de um schema parcial admite a chave presente com `undefined`,
- * e é exatamente esse valor que atravessa o IPC.
+ * `Partial` não basta com `exactOptionalPropertyTypes`: o que o zod infere de um
+ * schema parcial admite a chave presente com `undefined`, e é esse valor que
+ * atravessa o IPC.
  */
 export type EditorPreferencesPatch = {
   readonly [K in keyof EditorPreferences]?: EditorPreferences[K] | undefined
 }
 
-/**
- * O estado em que o aplicativo abre.
- *
- * Ortografia e tipografia ligadas, porque é o que um editor de texto em
- * português faz de útil sem ninguém pedir. Marcas de formatação desligadas: elas
- * são ferramenta de conferência, e deixá-las ligadas sujaria a tela de quem só
- * quer escrever. Modo de leitura desligado: é para ler o que já existe, e o
- * aplicativo abre para escrever.
- *
- * O `language` aqui é só o valor de última instância. Na primeira execução quem
- * decide é o sistema operacional — ver `load()` em `src/main/preferences.ts`,
- * que é o único lugar que enxerga `app.getLocale()`. Este módulo é `shared` e
- * não pode importar `electron`.
- */
+/** `language` só vale em último caso: na primeira execução, `load()` em `src/main/preferences.ts` usa o idioma do sistema. */
 export const DEFAULT_EDITOR_PREFERENCES: EditorPreferences = {
   spellcheck: true,
   invisibleCharacters: false,
@@ -370,13 +262,7 @@ export const EditCommand = {
 
 export type EditCommand = (typeof EditCommand)[keyof typeof EditCommand]
 
-/**
- * O que estava debaixo do botão direito, como o Chromium o descreve.
- *
- * Vem do evento `context-menu` do `webContents`: é o **único** lugar onde o
- * corretor ortográfico do Chromium conta o que ele achou errado e o que sugere
- * no lugar. O renderer desenha o menu; o main é quem tem esses dados.
- */
+/** Vem do evento `context-menu` do `webContents`, o único que traz o que o corretor do Chromium achou e sugere. */
 export interface ContextMenuTarget {
   /** Onde clicou, em pixels da janela. */
   readonly x: number
@@ -385,21 +271,13 @@ export interface ContextMenuTarget {
   readonly editable: boolean
   /** Vazio quando o clique não caiu sobre palavra marcada como errada. */
   readonly misspelledWord: string
-  /** As sugestões do corretor, na ordem em que ele as deu. */
   readonly dictionarySuggestions: string[]
   readonly canCut: boolean
   readonly canCopy: boolean
   readonly canPaste: boolean
 }
 
-/**
- * Até onde vai o "não marque mais esta palavra".
- *
- * `permanent` grava no dicionário do usuário, que sobrevive a fechar o
- * aplicativo. `session` é o "ignorar": vale enquanto a janela estiver aberta e
- * é desfeito na saída — o Chromium não tem lista de ignorados, então ela é
- * imitada com uma entrada temporária no dicionário.
- */
+/** `session` imita o "ignorar", que o Chromium não tem: entra no dicionário e sai no fim da sessão. */
 export const DictionaryScope = {
   Permanent: 'permanent',
   Session: 'session',

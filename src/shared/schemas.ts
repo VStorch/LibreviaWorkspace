@@ -11,7 +11,6 @@ import { Theme } from './types.js'
  * e a divergência apareceria como margem errada no papel.
  */
 
-/** Um pedaço de cabeçalho: texto, imagem ou número de página. */
 export const bandPieceSchema = z.object({
   kind: z.enum(['text', 'image', 'pageNumber', 'totalPages']),
   text: z.string().max(1000).optional(),
@@ -30,7 +29,7 @@ export const bandPieceSchema = z.object({
   /**
    * Onde a peça mora no arquivo: a relação, o parágrafo e a peça nele.
    *
-   * Sem declarar o campo, o zod o **descartava em silêncio** — e o texto
+   * Sem declarar o campo, o zod o **descartaria em silêncio** — e o texto
    * digitado no cabeçalho voltaria para a tela e não para o `.docx`.
    */
   pid: z.string().max(120).optional(),
@@ -38,15 +37,6 @@ export const bandPieceSchema = z.object({
   literal: z.boolean().optional(),
 })
 
-/**
- * Cabeçalho ou rodapé vindo de um documento do Word.
- *
- * Três colunas e um filete — o modelo que o Word sempre usou, e que cobre
- * quase todo cabeçalho corporativo.
- *
- * O texto das peças que têm endereço é editável; todo o resto da parte OOXML
- * volta intacto para o arquivo.
- */
 /**
  * Um nó do documento, do jeito que o editor o entende.
  *
@@ -76,8 +66,8 @@ const bandFloatSchema = z.object({
    *
    * Aberto como o resto deste esquema, e pela mesma razão: quem o interpreta é
    * o serializador do editor, que só emite o que o schema dele conhece. Sem
-   * declarar o campo, o zod o **descartava em silêncio** — e a caixa do título
-   * do cabeçalho aparecia na folha com o tamanho certo e vazia por dentro.
+   * declarar o campo, o zod o **descartaria em silêncio** — e a caixa do título
+   * do cabeçalho apareceria na folha com o tamanho certo e vazia por dentro.
    */
   content: z.array(documentNodeSchema).max(200).optional(),
   /** Onde a caixa mora no arquivo, quando o texto dela é editável. */
@@ -118,6 +108,13 @@ const bandCellSchema = z.object({
   borders: z.string().max(4).default(''),
 })
 
+/**
+ * Cabeçalho ou rodapé vindo de um documento do Word.
+ *
+ * Três colunas e um filete — o modelo que o Word sempre usou, e que cobre
+ * quase todo cabeçalho corporativo. O texto das peças que têm endereço é
+ * editável; todo o resto da parte OOXML volta intacto para o arquivo.
+ */
 export const bandSchema = z.object({
   left: z.array(bandPieceSchema).max(20).default([]),
   center: z.array(bandPieceSchema).max(20).default([]),
@@ -155,8 +152,6 @@ export const pageSetupSchema = z.object({
   evenHeaderBand: bandSchema.nullable().default(null),
   evenFooterBand: bandSchema.nullable().default(null),
   /**
-   * Distância da faixa à borda do papel, em milímetros.
-   *
    * Origem vertical das âncoras de dentro do cabeçalho: elas se dizem relativas
    * ao parágrafo, e o parágrafo do cabeçalho começa aqui.
    */
@@ -278,9 +273,9 @@ export const editorPreferencesSchema = z.object({
  *
  * Escrito à mão em vez de `editorPreferencesSchema.partial()`, e o teste de
  * contrato existe por causa disto: `.partial()` torna as chaves opcionais mas
- * **mantém os `default`**, então um pedido de "mostrar marcas" voltava do parse
- * com as outras duas chaves preenchidas com o padrão — e desligar a ortografia era
- * desfeito no clique seguinte em qualquer outra chave.
+ * **mantém os `default`**, então um pedido de "mostrar marcas" voltaria do
+ * parse com as outras chaves preenchidas com o padrão — e desligar a ortografia
+ * seria desfeito no clique seguinte em qualquer outra chave.
  */
 export const editorPreferencesPatchSchema = z.object({
   spellcheck: z.boolean().optional(),
@@ -315,18 +310,6 @@ export const contextMenuTargetSchema = z.object({
   canPaste: z.boolean(),
 })
 
-/**
- * Os estilos do documento, validados.
- *
- * Atravessam o IPC em dois sentidos: chegam do sidecar ao abrir um `.docx` e
- * voltam do renderer dentro do `.sdoc` ao salvar. O mesmo schema nos dois pontos
- * porque é o mesmo dado — e porque estilo malformado não pode virar tela: é ele
- * que a entrega seguinte vai usar para desenhar.
- *
- * Nada aqui é `strict`: um `w:pPr` de estilo tem dezenas de propriedades, e o
- * leitor lê as que sabe. Recusar o documento por causa de uma chave nova seria
- * trocar uma tela incompleta por nenhuma tela.
- */
 const lineSpacingSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('multiple'), factor: z.number().min(0).max(100) }),
   z.object({ kind: z.literal('exact'), pt: z.number().min(0).max(2000) }),
@@ -347,8 +330,8 @@ const styleParagraphSchema = z.object({
   pageBreakBefore: z.boolean().optional(),
   contextualSpacing: z.boolean().optional(),
   // 9 é "corpo de texto": o nível que o Word grava no estilo `TOC Heading`, que
-  // herda de `heading 1` e precisa desligar o nível herdado. Recusá-lo recusava a
-  // folha de estilos de todo documento com sumário do Word.
+  // herda de `heading 1` e precisa desligar o nível herdado. Recusá-lo recusaria
+  // a folha de estilos de todo documento com sumário do Word.
   outlineLevel: z.number().int().min(0).max(9).optional(),
   background: z.string().max(32).optional(),
 })
@@ -389,6 +372,17 @@ const styleDefinitionSchema = z.object({
   character: styleCharacterSchema.optional(),
 })
 
+/**
+ * Os estilos do documento, validados.
+ *
+ * Atravessam o IPC em dois sentidos: chegam do sidecar ao abrir um `.docx` e
+ * voltam do renderer dentro do `.sdoc` ao salvar. O mesmo schema nos dois pontos
+ * porque é o mesmo dado — e porque estilo malformado não pode virar tela.
+ *
+ * Nada aqui é `strict`: um `w:pPr` de estilo tem dezenas de propriedades, e o
+ * leitor lê as que sabe. Recusar o documento por causa de uma chave nova seria
+ * trocar uma tela incompleta por nenhuma tela.
+ */
 export const styleSheetSchema = z.object({
   defaults: z.object({
     paragraph: styleParagraphSchema.default({}),

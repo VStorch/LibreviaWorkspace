@@ -119,18 +119,18 @@ export const SHORTCUTS = {
   insertPageBreak: { owner: ShortcutOwner.Menu, key: { mod: true, key: 'Enter' }, does: 'Quebra de página' },
 
   // ## Menu → Tabela
-  /**
-   * `Ctrl+F12` é o do LibreOffice para inserir tabela. O Word não tem tecla para
-   * isto, e as letras livres com `Ctrl` já acabaram nesta tabela.
-   */
   /** `Ctrl+Shift+F5`, o do Word para o diálogo de indicadores. */
   insertBookmark: {
     owner: ShortcutOwner.Menu,
     key: { mod: true, shift: true, key: 'F5' },
     does: 'Marcador…',
   },
+  /**
+   * `Ctrl+F12` é o do LibreOffice para inserir tabela. O Word não tem tecla para
+   * isto, e as letras livres com `Ctrl` já acabaram nesta tabela.
+   */
   insertTable: { owner: ShortcutOwner.Menu, key: { mod: true, key: 'F12' }, does: 'Inserir tabela…' },
-  /** `Ctrl+Alt+F` e `Ctrl+Alt+D`: os do Word para as notas de rodapé e de fim. */
+  /** Os do Word para as notas de rodapé e de fim. */
   insertFootnote: {
     owner: ShortcutOwner.Menu,
     key: { mod: true, alt: true, key: 'F' },
@@ -150,7 +150,7 @@ export const SHORTCUTS = {
     key: { alt: true, key: '=' },
     does: 'Equação',
   },
-  /** `Ctrl+Alt+M`, o do Word e o do LibreOffice para inserir comentário. */
+  /** O do Word e o do LibreOffice para inserir comentário. */
   insertComment: {
     owner: ShortcutOwner.Menu,
     key: { mod: true, alt: true, key: 'M' },
@@ -182,19 +182,19 @@ export const SHORTCUTS = {
     does: 'Marcas de formatação',
   },
   /**
-   * `Ctrl+F5`: o `F5` é o Navegador do LibreOffice, e o `Ctrl` é o que toda tecla
-   * nossa leva. O `Ctrl+F` do Word abre o painel pela busca, e aqui ele já é o
-   * localizar e substituir.
-   */
-  /**
    * `F9` sozinho, como no Word: atualiza os campos da seleção — ou do documento
-   * inteiro, com o cursor parado. É a única tecla sem `Ctrl` da tabela.
+   * inteiro, com o cursor parado.
    */
   updateFields: {
     owner: ShortcutOwner.Menu,
     key: { key: 'F9' },
     does: 'Atualizar campos',
   },
+  /**
+   * `Ctrl+F5`: o `F5` é o Navegador do LibreOffice, e o `Ctrl` é o que toda tecla
+   * nossa leva. O `Ctrl+F` do Word abre o painel pela busca, e aqui ele já é o
+   * localizar e substituir.
+   */
   navigationPane: {
     owner: ShortcutOwner.Menu,
     key: { mod: true, key: 'F5' },

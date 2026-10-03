@@ -1,12 +1,5 @@
 import type { Catalog } from '../message.js'
 
-/**
- * Aparência e modo de leitura: o que este conjunto de mudanças trouxe.
- *
- * Fica separado do menu porque as mesmas frases aparecem nos dois lugares — no
- * menu nativo e no painel de preferências da tela — e repeti-las seria repetir
- * também a decisão de como chamá-las.
- */
 export const VIEW = {
   'view.showToolbar': { pt: 'Mostrar barra de ferramentas', en: 'Show toolbar' },
   'view.showStatusBar': { pt: 'Mostrar barra de status', en: 'Show status bar' },

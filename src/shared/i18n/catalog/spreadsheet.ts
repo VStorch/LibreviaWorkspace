@@ -1,18 +1,12 @@
 import type { Catalog } from '../message.js'
 
-/**
- * Frases da planilha: barra de ferramentas, abas, menu de contexto e mensagens
- * de leitura e gravação do formato.
- */
 export const SPREADSHEET = {
-  // Barra de fórmulas
   'spreadsheet.formulaBar.selectedCell': { pt: 'Célula selecionada', en: 'Selected cell' },
   'spreadsheet.formulaBar.inputLabel': {
     pt: 'Fórmula ou conteúdo da célula',
     en: 'Formula or cell content',
   },
 
-  // Menu de contexto
   'spreadsheet.contextMenu.label': { pt: 'Ações da planilha', en: 'Sheet actions' },
   'spreadsheet.rows.insertAbove': {
     pt: { one: 'Inserir linha acima', other: 'Inserir {count} linhas acima' },
@@ -40,7 +34,6 @@ export const SPREADSHEET = {
   },
   'spreadsheet.contextMenu.clearContents': { pt: 'Limpar conteúdo', en: 'Clear contents' },
 
-  // Abas
   'spreadsheet.sheetTabs.doubleClickToRename': {
     pt: 'Clique duplo para renomear',
     en: 'Double-click to rename',
@@ -48,7 +41,6 @@ export const SPREADSHEET = {
   'spreadsheet.sheetTabs.deleteSheet': { pt: 'Excluir {name}', en: 'Delete {name}' },
   'spreadsheet.sheetTabs.addSheet': { pt: 'Nova planilha na pasta', en: 'New sheet in workbook' },
 
-  // Barra de ferramentas
   'spreadsheet.toolbar.label': { pt: 'Formatação da planilha', en: 'Spreadsheet formatting' },
   'spreadsheet.toolbar.textFormat': { pt: 'Formatação do texto', en: 'Text formatting' },
   'spreadsheet.toolbar.bold': { pt: 'Negrito', en: 'Bold' },
@@ -77,7 +69,6 @@ export const SPREADSHEET = {
   'spreadsheet.toolbar.freeze': { pt: 'Congelar até a seleção', en: 'Freeze panes to selection' },
   'spreadsheet.toolbar.unfreeze': { pt: 'Descongelar', en: 'Unfreeze panes' },
 
-  // Formatos de número
   'spreadsheet.format.general': { pt: 'Geral', en: 'General' },
   'spreadsheet.format.number': { pt: 'Número', en: 'Number' },
   'spreadsheet.format.currency': { pt: 'Moeda', en: 'Currency' },
@@ -85,10 +76,8 @@ export const SPREADSHEET = {
   'spreadsheet.format.date': { pt: 'Data', en: 'Date' },
   'spreadsheet.format.text': { pt: 'Texto', en: 'Text' },
 
-  // Impressão
   'spreadsheet.print.emptyTab': { pt: 'Esta aba está vazia.', en: 'This sheet is empty.' },
 
-  // Serialização / erros
   'spreadsheet.error.corrupt': {
     pt: 'Esta planilha não pôde ser lida: o conteúdo está corrompido ou não é uma planilha válida.',
     en: 'This spreadsheet could not be read: the content is corrupt or not a valid spreadsheet.',

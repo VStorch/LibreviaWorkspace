@@ -1,11 +1,5 @@
 import type { Catalog } from '../message.js'
 
-/**
- * Comentários: o painel ao lado da folha, e criar, responder, resolver.
- *
- * Área própria porque o marco inteiro mora aqui — e as fases seguintes (criar,
- * responder, resolver) crescem a lista sem tocar as outras áreas.
- */
 export const COMMENTS = {
   'comments.pane.title': { pt: 'Comentários', en: 'Comments' },
   'comments.card.label': { pt: 'Comentário de {author}', en: 'Comment by {author}' },

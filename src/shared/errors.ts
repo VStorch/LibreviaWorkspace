@@ -1,10 +1,4 @@
-/**
- * Erros com mensagem destinada ao usuário final.
- *
- * Regra: nada de stack trace, caminho absoluto ou detalhe interno atravessa o
- * IPC. O renderer recebe um código estável e uma frase compreensível; o
- * diagnóstico técnico fica no log do processo main.
- */
+/** Nada de stack trace, caminho absoluto ou detalhe interno atravessa o IPC: o detalhe fica no log do main. */
 
 import { Language, translate } from './i18n/index.js'
 
@@ -68,12 +62,7 @@ export function toSerializedError(cause: unknown, language: Language = Language.
   }
 }
 
-/**
- * Traduz o `errno` do sistema de arquivos numa frase que o usuário entenda.
- *
- * Sem isto, uma pasta de rede fora do ar produz "EBUSY" na tela — que não diz
- * nada a quem só quer saber se pode continuar trabalhando.
- */
+/** Sem isto, uma pasta de rede fora do ar mostraria "EBUSY" na tela. */
 export function fromFileSystemError(
   cause: unknown,
   operation: 'leitura' | 'escrita',

@@ -18,11 +18,9 @@ import type { SerializedError } from './errors.js'
 /**
  * Contratos de IPC.
  *
- * Princípio de arquitetura: esta fronteira é **neutra em linguagem**. Só
- * trafegam dados serializáveis — nunca objetos do Node, Buffers compartilhados,
- * classes ou tipos de bibliotecas de terceiros. É isso que permite, no futuro,
- * trocar um worker Node por um binário de outra linguagem sem tocar no resto do
- * aplicativo.
+ * Esta fronteira é **neutra em linguagem**: só trafegam dados serializáveis —
+ * nunca objetos do Node, Buffers compartilhados, classes ou tipos de bibliotecas
+ * de terceiros.
  */
 
 /**
@@ -87,8 +85,8 @@ const printRequestSchema = z.object({
    * O HTML já vem dividido em folhas do tamanho do papel.
    *
    * Quando verdadeiro, o `printToPDF` não recebe margem nem faixa: quem as
-   * desenha é a própria página. A planilha continua no caminho antigo, em que o
-   * Chromium pagina uma tabela contínua.
+   * desenha é a própria página. A planilha não vem paginada: o Chromium pagina
+   * a tabela contínua.
    */
   paged: z.boolean().default(false),
 })

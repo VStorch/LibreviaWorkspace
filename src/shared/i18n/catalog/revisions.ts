@@ -1,12 +1,5 @@
 import type { Catalog } from '../message.js'
 
-/**
- * Controle de alterações: o menu Revisão e o que o botão direito oferece sobre
- * uma alteração.
- *
- * Área própria pelo mesmo motivo da dos comentários: a fase seguinte (controlar
- * o que se digita) cresce a lista sem tocar as outras áreas.
- */
 export const REVISIONS = {
   'revisions.accept': { pt: 'Aceitar alteração', en: 'Accept change' },
   'revisions.reject': { pt: 'Rejeitar alteração', en: 'Reject change' },
