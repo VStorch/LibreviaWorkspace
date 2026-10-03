@@ -685,6 +685,7 @@ npm run dev
 | `npm run sidecar:test` | testes do sidecar (.NET) |
 | `npm run e2e` | build e testes de ponta a ponta no aplicativo montado |
 | `npm run lint` | lint, incluindo as fronteiras entre as camadas |
+| `npm run lint:prune` | tira de `eslint-suppressions.json` as exceções de funções já corrigidas |
 | `npm run i18n:check` | procura texto da interface fora do catálogo de traduções |
 | `npm run verify` | **o mesmo que o CI roda**: tipos, lint, testes dos dois lados, licenças e traduções |
 | `npm run dist` | instaladores AppImage e `.deb` em `release/` |
@@ -817,6 +818,9 @@ O `npm run verify` reprova o código se:
 
 - os tipos não fecharem (TypeScript estrito, com `noUncheckedIndexedAccess`);
 - as fronteiras acima forem violadas;
+- uma função nova passar dos limites de tamanho e complexidade (complexidade 20, 80 linhas,
+  4 níveis de aninhamento, 5 parâmetros); as que já passavam estão congeladas e só podem
+  melhorar — ver [CONTRIBUTING](CONTRIBUTING.md#tamanho-e-complexidade-das-funções);
 - algum teste falhar, incluindo os que travam as opções de segurança da janela;
 - houver texto da interface fora do catálogo de traduções;
 - alguma dependência trouxer licença fora da lista permitida (MIT, BSD, Apache-2.0, ISC e
@@ -837,26 +841,9 @@ troca dessas chegando.
 
 ### Idioma e commits
 
-- **Identificadores em inglês**: nomes de arquivo, função, variável e tipo.
-- **Comentários, mensagens ao usuário e nomes de teste em português.**
-- **Commits em inglês**, no padrão [Conventional Commits](https://www.conventionalcommits.org),
-  com escopo sempre que houver um: `type(scope): description`.
-
-```text
-fix(docx): line height multiplies the font's height, not its size
-
-OOXML's multiple is 1.13 times the font's natural height, and we applied the
-factor to the size: 11.3 pt where LibreOffice puts 12.98 in Arial 10 pt.
-```
-
-Os tipos em uso são `feat`, `fix`, `refactor`, `perf`, `test`, `docs`, `build`, `ci`,
-`chore` e `revert`. Os escopos vêm do próprio código, por exemplo `docx`, `xlsx`, `styles`,
-`pagination`, `lists`, `sections`, `comments`, `revisions`, `notes`, `equations`, `sidecar`,
-`print` e `ui`.
-
-**O corpo do commit importa mais que o título.** Ele diz *por quê*, de preferência com a
-medição que sustenta a decisão. O histórico é o registro técnico do projeto: é lá que fica o
-motivo das decisões que o código sozinho não explica.
+Identificadores em inglês; comentários, mensagens ao usuário e nomes de teste em português;
+commits em inglês, no padrão [Conventional Commits](https://www.conventionalcommits.org). Os
+detalhes estão no [CONTRIBUTING](CONTRIBUTING.md#commits).
 
 ---
 
@@ -888,6 +875,9 @@ A lista completa de diferenças conhecidas, com o que fazer em cada caso, está 
 | Onde | O que tem |
 | --- | --- |
 | [`MANUAL.md`](MANUAL.md) | como usar: atalhos, formatação, fórmulas, avisos, exportação |
+| [`CONTRIBUTING.md`](CONTRIBUTING.md) | como relatar um problema e preparar uma mudança, e os padrões do código |
+| [`SECURITY.md`](SECURITY.md) | como relatar uma falha de segurança em particular |
+| [`AGENTS.md`](AGENTS.md) | instruções curtas para agentes de código que trabalham no repositório |
 | `git log` | o motivo de cada decisão, com as medições |
 | comentários no código | por que cada comportamento estranho do Word ou do Excel foi copiado |
 
@@ -905,21 +895,9 @@ documentos reais, e cada `.docx` ou `.xlsx` que se comporta de um jeito inespera
 que uma função nova. Se puder, anexe o arquivo. Se ele for confidencial, descreva o que o Word
 ou o LibreOffice mostram e o que o Librevia mostrou.
 
-Antes de abrir o pull request, rode:
-
-```bash
-npm run verify
-```
-
-É o **mesmo comando que o CI roda**. Se passa na sua máquina, passa no CI.
-
-O que o projeto espera de uma mudança:
-
-- **respeitar as fronteiras** entre as camadas; o lint avisa quem esquecer;
-- **vir com teste**; a regra de negócio fica em camada pura justamente para ser testada sem
-  subir o Electron;
-- **pesar cada dependência nova**: ela passa pelo portão de licenças e traz o que vier junto;
-- **seguir as [regras do código](#regras-do-código)** quanto a idioma e commits.
+Antes de abrir uma issue ou um pull request, leia o [CONTRIBUTING](CONTRIBUTING.md): ele diz
+como montar o ambiente, o que o `npm run verify` confere e quais padrões o código segue. Falhas
+de segurança não vão em issue pública; veja a [política de segurança](SECURITY.md).
 
 ---
 
