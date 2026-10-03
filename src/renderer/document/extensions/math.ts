@@ -188,9 +188,11 @@ export const MathEditing = Extension.create({
       new Plugin({
         key: new PluginKey('mathEditing'),
         props: {
-          handleDoubleClickOn(view, pos, node, _nodePos, _event, direct) {
+          handleDoubleClickOn(view, _pos, node, nodePos, _event, direct) {
             if (!direct || node.type.name !== 'math') return false
-            view.dispatch(view.state.tr.setSelection(NodeSelection.create(view.state.doc, pos)))
+            // A posição do nó, e não a do clique: na metade direita da equação o
+            // clique cai depois dela, onde não há nó para selecionar.
+            view.dispatch(view.state.tr.setSelection(NodeSelection.create(view.state.doc, nodePos)))
             emitEditorCommand(EditorCommand.EditEquation)
             return true
           },
