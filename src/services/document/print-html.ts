@@ -1,32 +1,15 @@
 import { DOCUMENT_CONTENT_CSS, NOTES_CSS, PRINT_ONLY_CSS } from './content-styles.js'
 
 /**
- * Monta o HTML que o Chromium vai transformar em PDF.
- *
- * O corpo vem do próprio editor (`editor.getHTML()`), então o que é impresso é
- * literalmente o que foi editado — não uma segunda renderização a partir do
- * modelo, que poderia divergir.
- *
- * Não há margem nem largura fixada aqui: quem define tamanho de página e
- * margens é o `printToPDF` (ver @services/pdf/page-setup.ts). Duplicar isso no
- * CSS produziria margem dobrada.
- *
- * `extraCss` existe para a planilha, que imprime uma tabela gerada a partir do
- * modelo e precisa das regras dela. O invólucro continua um só: tamanho de
- * página, margens, cabeçalho e rodapé são os mesmos nos dois casos, e duplicar
- * este arquivo faria os dois divergirem na primeira correção.
+ * O corpo vem do próprio editor (`editor.getHTML()`). Tamanho de página e
+ * margens são do `printToPDF` (`@services/pdf/page-setup.ts`). `extraCss` é para
+ * a planilha.
  */
 export function buildPrintHtml(
   bodyHtml: string,
   title: string,
   extraCss = '',
-  /**
-   * Envolver o corpo em `.page__content`.
-   *
-   * A planilha e o documento em folha única precisam do invólucro, que é onde
-   * mora a tipografia. O documento paginado **não**: cada folha traz o seu, e um
-   * segundo por fora aplicaria recuo e entrelinha duas vezes.
-   */
+  /** O documento paginado **não** se envolve: cada folha traz o seu `.page__content`. */
   wrapInContent = true,
 ): string {
   return `<!doctype html>

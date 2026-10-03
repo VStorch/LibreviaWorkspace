@@ -1,25 +1,6 @@
-/**
- * A lista de fontes que a barra oferece.
- *
- * Eram sete nomes fixos no código, e isso mentia duas vez: escondia as fontes
- * que a máquina tem e escondia as que o **documento aberto** pede. A segunda é a
- * pior — um documento em Garamond abria com "Fonte padrão" no seletor, e trocar
- * qualquer outra coisa na barra o reescrevia noutra fonte sem aviso.
- *
- * Aqui mora a parte que não depende de sistema operacional nenhum: a ordem da
- * lista e a leitura do que cada sistema cospe quando lhe perguntam as fontes.
- * Quem pergunta é o processo main (`src/main/system-fonts.ts`), porque só ele
- * pode executar programa.
- */
+/** A ordem da lista e a leitura do que cada sistema devolve; quem pergunta é `src/main/system-fonts.ts`. */
 
-/**
- * As famílias que viajam no instalador.
- *
- * Vêm primeiro depois das do documento porque são as únicas com garantia: existe
- * substituta metricamente compatível para cada uma (ver `fonts.ts`), então
- * escolhê-las dá o mesmo resultado em qualquer máquina. As demais dependem do
- * que estiver instalado.
- */
+/** As únicas com substituta metricamente compatível em qualquer máquina (ver `fonts.ts`). */
 export const GUARANTEED_FONT_FAMILIES: readonly string[] = [
   'Calibri',
   'Cambria',
@@ -28,21 +9,11 @@ export const GUARANTEED_FONT_FAMILIES: readonly string[] = [
   'Courier New',
 ]
 
-/** Normaliza para comparar: fonte é nome, e nome não distingue caixa. */
 const key = (family: string): string => family.trim().toLowerCase()
 
 /**
- * A lista final, sem repetição e na ordem em que a pessoa procura.
- *
- * Três camadas, e a ordem delas é a resposta a "onde está a minha fonte?":
- *
- *  1. **as do documento** — quem abriu um arquivo alheio quer ver o que ele usa;
- *  2. **as garantidas** — as cinco que o instalador leva, que funcionam sempre;
- *  3. **as instaladas**, em ordem alfabética da região.
- *
- * Lista de instaladas vazia não é caso de erro: é o que acontece num sistema sem
- * `fontconfig`, e aí sobram as duas primeiras camadas — exatamente o que a barra
- * oferecia antes.
+ * As do documento, as garantidas e as instaladas em ordem alfabética. Lista de
+ * instaladas vazia é o sistema sem `fontconfig`, e não erro.
  */
 export function orderFontFamilies(
   installed: readonly string[],
@@ -61,8 +32,7 @@ export function orderFontFamilies(
   for (const family of inDocument) push(family)
   for (const family of GUARANTEED_FONT_FAMILIES) push(family)
 
-  // Ordenada aqui, e não por quem coletou: `fc-list` devolve na ordem do cache
-  // do fontconfig, que não é ordem nenhuma para quem lê.
+  // `fc-list` devolve na ordem do cache do fontconfig.
   for (const family of [...installed].sort((left, right) => left.localeCompare(right, 'pt-BR'))) {
     push(family)
   }
@@ -70,25 +40,13 @@ export function orderFontFamilies(
   return ordered
 }
 
-/**
- * O primeiro nome de uma pilha de CSS.
- *
- * O que o documento traz em `fontFamily` é uma pilha — a fonte pedida e a
- * substituta genérica atrás — e o seletor conhece nomes, não pilhas.
- */
+/** O seletor conhece nomes, e o documento traz pilhas de CSS. */
 export function firstFamilyOf(stack: string): string {
   const first = stack.split(',')[0]?.trim() ?? ''
   return first.replace(/^['"]|['"]$/g, '')
 }
 
-/**
- * As famílias que aparecem no documento, na ordem em que aparecem.
- *
- * Varre o modelo inteiro porque a fonte mora em dois lugares: na marca do texto
- * (`textStyle`) e no atributo do bloco — a altura da linha nasce da fonte do
- * elemento, e por isso o leitor a emite nos dois. Sem os dois, um título em
- * Garamond não entraria na lista.
- */
+/** A fonte mora na marca do texto e no atributo do bloco, e o leitor a emite nos dois. */
 export function familiesInDocument(doc: unknown): string[] {
   const found: string[] = []
   const seen = new Set<string>()
@@ -122,13 +80,7 @@ export function familiesInDocument(doc: unknown): string[] {
   return found
 }
 
-/**
- * A saída de `fc-list --format '%{family[0]}\n'`.
- *
- * Uma família por linha, e o fontconfig às vezes devolve mais de um nome para a
- * mesma família separados por vírgula — o nome local e o inglês, como em
- * "Nimbus Sans,Nimbus Sans L". O primeiro basta: é o que o CSS acha.
- */
+/** Uma família por linha; nomes separados por vírgula ("Nimbus Sans,Nimbus Sans L") ficam no primeiro. */
 export function parseFontconfigFamilies(output: string): string[] {
   const families = new Set<string>()
 
@@ -140,23 +92,10 @@ export function parseFontconfigFamilies(output: string): string[] {
   return [...families]
 }
 
-/**
- * Os sufixos de corte que o Windows cola no nome do arquivo de fonte.
- *
- * "Arial Bold" não é família: é o corte gordo da Arial, e listá-lo faria o
- * seletor oferecer duas Arial. Só estes cinco, e sempre no fim do nome: cortar
- * mais apagaria famílias de verdade — "Arial Black" e "Segoe UI Light" existem
- * como famílias próprias.
- */
+/** Os cortes que o Windows cola no nome. Só estes, e só no fim: "Arial Black" é família. */
 const WINDOWS_STYLE_SUFFIXES = [' Bold Italic', ' Bold Oblique', ' Bold', ' Italic', ' Oblique', ' Regular']
 
-/**
- * A saída de `reg query` sobre a chave de fontes do Windows.
- *
- * Cada linha é `    <nomes> (TrueType)    REG_SZ    arquivo.ttf`, e `<nomes>`
- * pode trazer vários cortes de uma vez, separados por ` & ` — é assim que o
- * instalador de fonte registra uma família inteira num arquivo só.
- */
+/** Cada linha é `    <nomes> (TrueType)    REG_SZ    arquivo.ttf`, com cortes separados por ` & `. */
 export function parseWindowsFontRegistry(output: string): string[] {
   const families = new Set<string>()
 
@@ -164,7 +103,6 @@ export function parseWindowsFontRegistry(output: string): string[] {
     const match = /^\s+(.+?)\s{2,}REG_SZ\s{2,}/.exec(line)
     if (match === null) continue
 
-    // O tipo do arquivo vem entre parênteses no fim, e não faz parte do nome.
     const names = match[1]!.replace(/\s*\((TrueType|OpenType|All res)\)\s*$/i, '')
 
     for (const name of names.split('&')) {

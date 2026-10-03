@@ -1,23 +1,11 @@
 /**
- * Borda e sombreamento de célula, na forma em que o arquivo sabe levá-los.
+ * Borda e sombreamento viajam como **texto canônico** no nó da célula: a
+ * impressão digital é o JSON do nó (ver `Nodes.cs`), e dois objetos que descrevem
+ * a mesma célula de jeitos diferentes fariam toda tabela ser regenerada.
  *
- * ## Por que um texto, e não um objeto
- *
- * Os dois atributos viajam como **string** no nó da célula. Um objeto aninhado
- * seria mais bonito de ler e pior de comparar: a impressão digital que decide se
- * o bloco mudou é o JSON canônico do nó (ver `Nodes.cs`), e um lado que escreva
- * `{top: null, right: {…}}` e outro que escreva `{right: {…}}` descrevem a mesma
- * célula com duas impressões diferentes — e aí toda tabela do documento é
- * regenerada ao salvar. Texto canônico tem uma escrita só.
- *
- * ## O que entra aqui e o que fica fora
- *
- * Só o que o gravador leva ao `.docx`: `w:tcBorders` (quatro lados, com estilo,
- * espessura e cor) e `w:shd/@fill`. Estilo de borda que o OOXML tem e o CSS não
- * desenha — `thickThinSmallGap` e companhia — é aproximado para `single` na
- * leitura, e o gravador só reescreve a borda da célula **que a pessoa
- * formatou**: nas outras o XML original volta intacto, com o estilo exótico e
- * tudo. Ver `TableLook.cs`.
+ * Só `w:tcBorders` e `w:shd/@fill`. Estilo de borda que o CSS não desenha vira
+ * `single` na leitura, e só a célula que a pessoa formatou é reescrita (ver
+ * `TableLook.cs`).
  */
 
 /** Os estilos que o OOXML e o CSS desenham do mesmo jeito. */
@@ -62,11 +50,7 @@ function isBorderStyle(value: string): value is CellBorderStyle {
   return (Object.values(CellBorderStyle) as string[]).includes(value)
 }
 
-/**
- * A medida em pontos como os dois lados a escrevem: ponto decimal, sem zero à
- * direita. `0,5 pt` num lado e `0.50 pt` no outro seriam duas impressões
- * digitais para a mesma borda.
- */
+/** Ponto decimal e sem zero à direita, como os dois lados escrevem: senão, duas impressões digitais. */
 function formatPt(value: number): string {
   return Number(value.toFixed(2)).toString()
 }
@@ -117,13 +101,7 @@ export function withBorderOnSides(
   return next
 }
 
-/**
- * O CSS da célula, para a tela e para o papel saírem iguais.
- *
- * `none` vira `0` de propósito: no OOXML `w:val="nil"` **apaga** a borda que a
- * tabela pediu, e um `border-top: none` sem largura deixaria a borda da tabela
- * aparecer por baixo em `border-collapse`.
- */
+/** `none` vira `0`: `w:val="nil"` apaga a borda da tabela, que apareceria por baixo em `border-collapse`. */
 export function cellBordersToCss(borders: CellBorders): string {
   return CELL_BORDER_SIDES.flatMap((side) => {
     const border = borders[side]
@@ -133,15 +111,8 @@ export function cellBordersToCss(borders: CellBorders): string {
   }).join(';')
 }
 
-// --- o formulário do diálogo ------------------------------------------------
-
-/** O que o diálogo de propriedades edita de uma vez. */
 export interface TableDraft {
-  /**
-   * Largura da coluna do cursor, em milímetros. `null` é a coluna que nunca foi
-   * medida — tabela recém-inserida, em que o editor deixa a largura a cargo do
-   * navegador. Aplicar o formulário assim **não** mexe na largura.
-   */
+  /** `null` é a coluna nunca medida, de tabela recém-inserida: aplicar não mexe na largura. */
   readonly columnWidthMm: number | null
   readonly borderStyle: CellBorderStyle
   readonly borderWidthPt: number
@@ -182,7 +153,6 @@ export function isValidTableDraft(draft: TableDraft): boolean {
   )
 }
 
-/** O formulário aberto com o que a célula do cursor já tem. */
 export function tableDraftFrom(attrs: {
   readonly borders?: unknown
   readonly shading?: unknown
@@ -217,21 +187,10 @@ export interface CellLook {
 }
 
 /**
- * O que o diálogo muda **nesta** célula: só os campos que a pessoa alterou.
- *
- * O rascunho resume a célula numa borda só — o estilo, a espessura e a cor da
- * primeira borda declarada — porque o formulário tem um campo de cada. Aplicá-lo
- * inteiro reescrevia os quatro lados com esse resumo: a célula com `top: nil` e
- * `bottom: single`, que o Word grava o tempo todo, perdia a borda de baixo de
- * quem só trocou o sombreamento; a de espessura diferente por lado ficava igual
- * nos quatro.
- *
- * Por isso a conta é contra o rascunho **de abertura**. Campo igual ao de antes
- * não foi tocado, e o que a célula tinha fica. Campo diferente vale em cada lado
- * que já tem borda, trocando só aquele campo. Lado desmarcado sai; lado marcado
- * agora entra com o que o formulário mostra. Serve também às outras células da
- * seleção, que têm bordas próprias: a elas chega a mudança, e não o resumo da
- * célula do cursor.
+ * Só os campos que a pessoa alterou, contados contra o rascunho **de abertura**.
+ * O rascunho resume a célula numa borda só; aplicá-lo inteiro reescreveria os
+ * quatro lados com o resumo, e a célula com `top: nil` e `bottom: single`
+ * perderia a borda de baixo.
  */
 export function cellLookPatch(cell: CellLook, before: TableDraft, after: TableDraft): CellLook {
   const styleChanged = after.borderStyle !== before.borderStyle
@@ -278,14 +237,9 @@ export function cellLookPatch(cell: CellLook, before: TableDraft, after: TableDr
 }
 
 /**
- * A largura de cada coluna **como a tela a desenha**, mesmo sem o documento dizer.
- *
- * O editor desenha a tabela com `table-layout: fixed` e `width: 100%`: coluna com
- * medida declarada fica com ela, e o que resta é dividido igualmente entre as
- * outras. Reproduzir essa conta aqui é o que permite ao diálogo mostrar a largura
- * de uma tabela recém-inserida — que não declara nenhuma — e, sobretudo, aplicar
- * uma largura só **sem** deixar as outras em zero: largura parcial não é grade, e
- * o gravador a descarta por inteiro.
+ * Como a tela desenha (`table-layout: fixed`): o que sobra é dividido entre as
+ * colunas sem medida. Aplicar uma largura só deixaria as outras em zero, e o
+ * gravador descarta grade parcial.
  */
 export function resolvedColumnWidths(declared: readonly (number | null)[], totalPx: number): number[] {
   const known = declared.filter((width): width is number => width !== null && width > 0)
@@ -298,15 +252,7 @@ export function resolvedColumnWidths(declared: readonly (number | null)[], total
   return declared.map((width) => (width !== null && width > 0 ? Math.round(width) : share))
 }
 
-// --- inserir tabela ---------------------------------------------------------
-
-/**
- * Teto de linhas e colunas na inserção.
- *
- * Não é purismo: cada célula é um parágrafo no modelo e um nó medido pela
- * paginação, e uma tabela de mil por mil pedida por engano num campo numérico
- * travaria o editor sem que a pessoa tivesse pedido nada demais.
- */
+/** Cada célula é um parágrafo medido pela paginação: mil por mil travaria o editor. */
 export const MAX_TABLE_ROWS = 100
 export const MAX_TABLE_COLUMNS = 40
 

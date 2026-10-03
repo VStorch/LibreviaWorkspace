@@ -1,22 +1,11 @@
-/**
- * Funções lógicas.
- *
- * `SE` e `SEERRO` não estão aqui: elas precisam receber os argumentos sem
- * avaliar e vivem no avaliador, junto da explicação do porquê.
- */
+/** `SE` e `SEERRO` recebem os argumentos sem avaliar e moram no avaliador. */
 
 import type { Argument } from '../evaluate.js'
 import { FormulaError, isFormulaError } from '../errors.js'
 import { toBoolean, type Scalar } from '../values.js'
 import { VARIADIC, define, single, valuesIn, type FunctionDefinition } from './kit.js'
 
-/**
- * `E` e `OU` **não** interrompem no primeiro resultado.
- *
- * O Excel avalia todos os argumentos, e o erro de qualquer um contamina o
- * resultado. Parar cedo faria `=E(FALSO;1/0)` devolver FALSO aqui e `#DIV/0!`
- * no Excel, para a mesma planilha.
- */
+/** Como no Excel, avaliam todos os argumentos: `=E(FALSO;1/0)` é `#DIV/0!`. */
 function fold(
   args: readonly Argument[],
   combine: (a: boolean, b: boolean) => boolean,
@@ -35,7 +24,6 @@ function fold(
     seen = true
   }
 
-  // Nenhum valor lógico entre os argumentos: não há o que responder.
   return seen ? result : FormulaError.Value
 }
 

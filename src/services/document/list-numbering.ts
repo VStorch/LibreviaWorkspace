@@ -1,24 +1,9 @@
 /**
- * A numeração das listas, contada como o Word conta.
- *
- * O CSS só sabe contar item a item dentro de um `<ol>`, recomeçando a cada lista.
- * O Word conta de outro jeito, e é esse o que o papel mostra:
- *
- * - **por definição, e não por lista** — duas listas da mesma numeração separadas
- *   por um parágrafo continuam a contagem (1, 2, … 3, 4). No OOXML quem conta é o
- *   `w:abstractNum`; o `w:num` com reinício (`w:startOverride`) conta à parte;
- * - **por nível**, com o texto do nível compondo os números de cima: `%1.%2.`
- *   desenha `2.3.` no terceiro item do segundo;
- * - **com formato por nível** — decimal, letras, romanos, marcador — e o início
- *   que o nível declara (`w:start`).
- *
- * Por isso a marca de cada item é **calculada aqui** e entregue pronta: na tela
- * por decoração, no papel por atributo (ver `extensions/list-numbering.ts`). As
- * duas leem esta mesma conta, que é o que as mantém iguais.
- *
- * A definição mora no nó da lista (`numbering`), como o sidecar a leu — ver
- * `ListLevels.cs`, o espelho desta forma. Nó sem definição (lista criada aqui, ou
- * sublista aberta com Tab) herda a da lista de fora ou recebe a padrão do Word.
+ * O Word conta **por definição** (`w:abstractNum`), e não por lista: duas listas
+ * da mesma numeração separadas por um parágrafo continuam a contagem. Compõe os
+ * níveis (`%1.%2.`) e tem formato e início por nível. Por isso a marca é
+ * calculada aqui e entregue pronta, à tela e ao papel. A definição mora no nó da
+ * lista (`numbering`), como em `ListLevels.cs`.
  */
 
 /** Um nível da definição: `w:lvl`. */
@@ -34,12 +19,10 @@ export interface LevelDef {
   readonly legal?: boolean
 }
 
-/** A definição que o nó da lista leva em `numbering`. */
 export interface NumberingDef {
   /**
-   * Quem conta: `a7` (a definição abstrata 7, que várias listas continuam) ou
-   * `n12` (o `w:num` 12, que tem reinício e conta sozinho). Lista reiniciada no
-   * editor ganha uma chave nova até ser gravada.
+   * `a7` é a definição abstrata 7, que várias listas continuam; `n12` é o
+   * `w:num` 12, com reinício próprio. Lista reiniciada no editor ganha chave nova.
    */
   readonly key: string
   readonly abstractId?: number
@@ -57,12 +40,8 @@ const HANGING_MM = 6.35
 const round2 = (value: number): number => Math.round(value * 100) / 100
 
 /**
- * Os níveis que o Word dá a uma lista nova: 1. a. i. na numerada, • o ▪ na com
- * marcador, repetidos de três em três; recuo de meia polegada por nível e marca
- * pendurada a um quarto.
- *
- * Iguais a `ListLevels.Defaults` no sidecar: é com eles que a lista nova é
- * gravada, e a tela tem de desenhá-la como o arquivo vai sair.
+ * Os níveis do Word para uma lista nova: 1. a. i. ou • o ▪, de três em três,
+ * meia polegada por nível. Iguais a `ListLevels.Defaults`, com que a lista é gravada.
  */
 export function defaultLevels(kind: string): LevelDef[] {
   const bullet = kind === 'bulletList'
@@ -92,8 +71,6 @@ export function parseNumbering(value: unknown): NumberingDef | null {
   if (levels.length === 0) return null
   return value as NumberingDef
 }
-
-// --- formatos -----------------------------------------------------------------
 
 function roman(value: number): string {
   const table: Array<[number, string]> = [
@@ -131,13 +108,7 @@ function letter(value: number): string {
   return String.fromCharCode(97 + index).repeat(Math.floor((value - 1) / 26) + 1)
 }
 
-/**
- * Um número no formato do nível.
- *
- * Formato que o editor não desenha (`ordinal`, `cardinalText`, os de outros
- * alfabetos) sai em decimal: o número certo na forma errada é melhor que a marca
- * sumir. O arquivo não perde nada — a definição volta ao `numbering.xml` intacta.
- */
+/** Formato que o editor não desenha sai em decimal; a definição volta intacta ao arquivo. */
 export function formatNumber(value: number, fmt: string): string {
   if (fmt === 'none' || fmt === 'bullet') return ''
   if (value <= 0 && fmt !== 'decimal' && fmt !== 'decimalZero') return String(value)
@@ -156,8 +127,6 @@ export function formatNumber(value: number, fmt: string): string {
       return String(value)
   }
 }
-
-// --- a conta ------------------------------------------------------------------
 
 /** Como ler uma árvore — a do ProseMirror na tela, a do JSON nos testes. */
 export interface ListTreeReader<N> {
@@ -208,13 +177,7 @@ interface Counter {
   readonly started: Set<number>
 }
 
-/**
- * Conta todas as listas de um documento.
- *
- * Um passo só, em ordem de documento, porque é assim que o Word conta: o
- * terceiro item de uma lista depende de tudo o que veio antes dela com a mesma
- * definição, inclusive do que está do outro lado de uma tabela.
- */
+/** Um passo só, em ordem de documento: o item depende de tudo o que veio antes com a mesma definição. */
 export function numberLists<N>(root: N, reader: ListTreeReader<N>): ListNumbering {
   const lists: ListInfo[] = []
   const labels: string[] = []
@@ -345,14 +308,9 @@ function definitionsByNumId<N>(root: N, reader: ListTreeReader<N>): Map<number, 
 }
 
 /**
- * Os atributos de desenho de uma lista: o recuo, relativo ao da lista de fora, e
- * a distância da marca.
- *
- * Em variáveis, e não em `padding-left` direto: o nó já pode trazer o recuo do
- * arquivo (`indentMm`), que é absoluto, e a regra em `content-styles.ts` é que
- * decide qual vale — a relativa, porque o `<ul>` aninhado já começa dentro do
- * recuo da lista de fora. Somados, os dois recuos empurravam a sublista para o
- * dobro do que o Word mostra.
+ * Em variáveis: o nó pode trazer o recuo absoluto do arquivo, e a regra em
+ * `content-styles.ts` usa o relativo, porque o `<ul>` aninhado já começa dentro
+ * da lista de fora.
  */
 export function listDrawAttrs(info: ListInfo): Record<string, string> {
   const relative = round2(info.indentMm - info.parentIndentMm)
@@ -362,13 +320,7 @@ export function listDrawAttrs(info: ListInfo): Record<string, string> {
   }
 }
 
-/**
- * O atributo de desenho de um item: a marca pronta.
- *
- * Duas vezes: em `data-label`, para quem lê (testes, acessibilidade), e numa
- * variável, que é o que o `::before` desenha — ele mora no parágrafo de dentro, e
- * `attr()` ali leria o atributo do parágrafo, e não o do item.
- */
+/** A variável é o que o `::before` desenha: `attr()` no parágrafo de dentro leria o atributo errado. */
 export function itemDrawAttrs(label: string): Record<string, string> {
   const quoted = label.replace(/["\\]/g, '\\$&').replace(/\n/g, ' ')
   return { 'data-label': label, style: `--lista-marca: "${quoted}"` }

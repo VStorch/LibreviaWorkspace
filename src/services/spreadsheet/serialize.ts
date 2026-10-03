@@ -3,15 +3,6 @@ import { AppError, ErrorCode } from '@shared/errors.js'
 import { translate, Language } from '@shared/i18n/index.js'
 import { DEFAULT_COLUMN_COUNT, DEFAULT_ROW_COUNT, createEmptyWorkbook, type WorkbookModel } from './model.js'
 
-/**
- * Formato interno `.ssheet`.
- *
- * Mesma ideia do `.sdoc`: o modelo gravado como está, num JSON. Serve para
- * salvar e reabrir **sem perda nenhuma** enquanto o XLSX não chega.
- *
- * O mapa de células é esparso também no arquivo — uma planilha de 10 mil linhas
- * com trinta valores gera trinta entradas, não dez mil linhas vazias.
- */
 export const SSHEET_FORMAT = 'ssheet'
 export const SSHEET_VERSION = 1
 
@@ -36,12 +27,7 @@ const cellSchema = z.object({
   style: cellStyleSchema.optional(),
 })
 
-/**
- * Dimensões por índice.
- *
- * As chaves saem do JSON como texto e voltam como número — `z.coerce` faz a
- * conversão, senão `columnWidths[3]` nunca encontraria a entrada `"3"`.
- */
+/** As chaves saem do JSON como texto: `z.coerce` as devolve a número. */
 const dimensionsSchema = z.record(z.coerce.number().int().nonnegative(), z.number().positive().max(4000))
 
 const sheetSchema = z.object({
@@ -70,12 +56,7 @@ export function serializeWorkbook(model: WorkbookModel): string {
   )
 }
 
-/**
- * Lê um `.ssheet`.
- *
- * Arquivo corrompido ou de versão futura produz uma frase que o usuário
- * entende, e não um erro de JSON.
- */
+/** Arquivo corrompido ou de versão futura produz uma frase, e não um erro de JSON. */
 export function parseWorkbook(text: string, language: Language = Language.Portuguese): WorkbookModel {
   let raw: unknown
   try {
@@ -93,8 +74,7 @@ export function parseWorkbook(text: string, language: Language = Language.Portug
     throw new AppError(ErrorCode.UnsupportedFormat, translate(language, 'spreadsheet.error.newerVersion'))
   }
 
-  // Aba ativa fora do intervalo não impede a leitura: os dados valem mais que
-  // a lembrança de qual aba estava aberta.
+  // Aba ativa fora do intervalo não impede a leitura.
   const activeSheet = parsed.data.activeSheet < parsed.data.sheets.length ? parsed.data.activeSheet : 0
 
   return { sheets: parsed.data.sheets, activeSheet }

@@ -1,14 +1,7 @@
-/**
- * Valor cru → texto na tela.
- *
- * A separação entre valor e aparência é o que permite somar uma coluna de moeda
- * sem tropeçar no "R$" — e é como o XLSX também guarda. Formatar na hora de
- * exibir, e não ao digitar, mantém o dado íntegro.
- */
+/** Formatar na hora de exibir, e não ao digitar, como o XLSX: somar moeda não tropeça no "R$". */
 
 import { CellFormat, type Cell, type CellStyle, type CellValue } from './model.js'
 
-/** Como o Brasil escreve: vírgula decimal, ponto de milhar. */
 const LOCALE = 'pt-BR'
 
 export function formatCell(cell: Cell | undefined): string {
@@ -51,27 +44,15 @@ export function formatCell(cell: Cell | undefined): string {
       })
 
     default:
-      // "Geral" não inventa separador de milhar: o usuário digitou 1000 e
-      // espera ver 1000, não 1.000. Mas a vírgula decimal não é invenção — é
-      // como se escreve número aqui, e o resultado de uma média cai quase
-      // sempre neste caso.
-      //
-      // Só vale para número de verdade: uma matrícula "0012" guardada como
-      // texto perderia o zero à esquerda se passasse por conversão numérica.
+      // "Geral" não inventa separador de milhar, mas usa a vírgula decimal. Só
+      // número de verdade: "0012" guardado como texto perderia o zero.
       return typeof value === 'number'
         ? value.toLocaleString(LOCALE, { maximumFractionDigits: 10, useGrouping: false })
         : String(value)
   }
 }
 
-/**
- * Número de série do Excel → data.
- *
- * O dia 1 é 1899-12-31 na contagem do Excel, e não 1900-01-01, porque a planilha
- * herdou do Lotus 1-2-3 o **bug de 1900 ser bissexto** — que não é. Corrigir
- * seria quebrar a compatibilidade com todo arquivo existente, então a data é
- * calculada a partir de 1899-12-30 para que os números batam.
- */
+/** A partir de 1899-12-30: o Excel herdou do Lotus 1-2-3 o 1900 bissexto, que não é. */
 const EXCEL_EPOCH = Date.UTC(1899, 11, 30)
 const MS_PER_DAY = 86_400_000
 
@@ -90,13 +71,7 @@ function formatDate(serial: number): string {
   return serialToDate(serial).toLocaleDateString(LOCALE, { timeZone: 'UTC' })
 }
 
-/**
- * Texto digitado → valor guardado.
- *
- * Reconhece número, percentual, moeda e data no formato brasileiro. O que não
- * for reconhecido fica como texto — **nunca** vira número por aproximação: uma
- * matrícula "0012" que virasse 12 seria perda de dado silenciosa.
- */
+/** Número, percentual, moeda e data no formato brasileiro; o resto fica texto, nunca número aproximado. */
 export function parseInput(raw: string): { value: CellValue; style?: Partial<CellStyle> } {
   const text = raw.trim()
   if (text.length === 0) return { value: '' }
@@ -126,15 +101,9 @@ export function parseInput(raw: string): { value: CellValue; style?: Partial<Cel
 }
 
 /**
- * "1.234,56" → 1234.56.
- *
- * O ponto é ambíguo, e a ambiguidade importa: no Brasil `1.234` é mil duzentos
- * e trinta e quatro, mas `1234.56` colado de uma planilha estrangeira é decimal.
- * Escolher um significado fixo erraria metade dos casos por um fator de mil.
- *
- * A regra: **ponto seguido de exatamente três dígitos, em todos os grupos, é
- * separador de milhar.** Qualquer outra coisa é decimal. Cobre os dois usos sem
- * perguntar nada ao usuário.
+ * `1.234` é mil duzentos e trinta e quatro, e `1234.56` colado de planilha
+ * estrangeira é decimal: ponto seguido de exatamente três dígitos, em todos os
+ * grupos, é separador de milhar; o resto é decimal.
  */
 export function parseBrazilianNumber(text: string): number | null {
   const trimmed = text.trim()

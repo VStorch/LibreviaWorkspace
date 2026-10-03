@@ -1,10 +1,6 @@
 /**
- * A biblioteca de listas prontas: as que o Word oferece na galeria de numeração
- * e de marcadores, com as medidas dele.
- *
- * Cada uma são os nove níveis inteiros, e não só o primeiro: Tab dentro da lista
- * desce ao nível seguinte, e é ele que tem de estar definido — senão a sublista
- * sai com a marca padrão, e não com a da lista escolhida.
+ * As listas da galeria do Word, com as medidas dele. Os nove níveis, porque Tab
+ * desce ao nível seguinte, que tem de estar definido.
  */
 
 import { LIST_LEVELS, defaultLevels, type LevelDef } from './list-numbering.js'
@@ -12,7 +8,6 @@ import { LIST_LEVELS, defaultLevels, type LevelDef } from './list-numbering.js'
 export interface ListPreset {
   readonly id: string
   readonly kind: 'bulletList' | 'orderedList'
-  /** Chave do catálogo i18n com o nome da lista. */
   readonly labelKey: string
   readonly levels: readonly LevelDef[]
 }
@@ -22,7 +17,6 @@ const twipsToMm = (twips: number): number => Math.round((twips / 1440) * 25.4 * 
 const levels = (build: (level: number) => Omit<LevelDef, 'start'> & { start?: number }): LevelDef[] =>
   Array.from({ length: LIST_LEVELS }, (_, level) => ({ start: 1, ...build(level) }))
 
-/** Os formatos que o diálogo oferece, na ordem em que aparecem. */
 export const NUMBER_FORMATS = [
   'decimal',
   'decimalZero',
@@ -109,7 +103,7 @@ export const LIST_PRESETS: readonly ListPreset[] = [
   },
 ]
 
-/** O tipo de nó que uma definição pede, pelo primeiro nível — como o leitor decide. */
+/** Pelo primeiro nível, como o leitor decide. */
 export function kindOfLevels(list: readonly LevelDef[]): 'bulletList' | 'orderedList' {
   const fmt = list[0]?.fmt
   return fmt === 'bullet' || fmt === 'none' ? 'bulletList' : 'orderedList'

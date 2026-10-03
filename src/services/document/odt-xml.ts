@@ -2,14 +2,9 @@ import { firstFontOf, lineFactorOf } from './line-metrics.js'
 import type { StyleCharacterFormat, StyleParagraphFormat } from './styles.js'
 
 /**
- * As peças miúdas da exportação para ODT: escapar, medir, traduzir cor e fonte,
- * e o caderno de estilos automáticos.
- *
- * O ODF guarda a formatação em **estilos**, não no texto: cada parágrafo com
- * formatação direta aponta um estilo automático que herda do estilo nomeado
- * dele e declara só a diferença. O caderno (`StyleBook`) dá um nome a cada
- * combinação e reaproveita o nome quando a mesma combinação volta — mil
- * parágrafos centralizados são um estilo só.
+ * O ODF guarda a formatação em estilos: cada parágrafo com formatação direta
+ * aponta um estilo automático que herda do nomeado. O `StyleBook` reaproveita o
+ * nome quando a mesma combinação volta.
  */
 
 /** Os caracteres que o XML 1.0 não aceita nem escapados. */
@@ -34,11 +29,10 @@ export function attr(name: string, value: string | number | null | undefined): s
 }
 
 /**
- * O texto de um trecho com o espaço que o ODF guarda: ele junta espaços em
- * sequência e descarta os do começo, então a sequência vira `text:s`, a
- * tabulação `text:tab` e a quebra `text:line-break`. O espaço que abre o trecho
- * também vira `text:s` — o trecho anterior pode ter terminado em espaço, e os
- * dois se juntariam num só.
+ * O ODF junta espaços em sequência e descarta os do começo: a sequência vira
+ * `text:s`, a tabulação `text:tab` e a quebra `text:line-break`. O espaço que
+ * abre o trecho também vira `text:s`, porque o anterior pode ter terminado em
+ * espaço.
  */
 export function odfText(text: string): string {
   let out = ''
@@ -147,7 +141,6 @@ export function odfColor(value: unknown): string | null {
   return NAMED_COLORS[text.replace(/[\s_-]/g, '')] ?? null
 }
 
-/** As fontes que os estilos citam: cada uma ganha a declaração dela no arquivo. */
 export class FontBook {
   private readonly names = new Set<string>()
 
@@ -172,7 +165,6 @@ export class FontBook {
   }
 }
 
-/** O que um trecho de texto diz, já com o vocabulário do ODF em mente. */
 export interface CharacterProps {
   fontFamily?: unknown
   fontSize?: unknown
@@ -189,7 +181,6 @@ export interface CharacterProps {
   mono?: boolean | undefined
 }
 
-/** Os atributos de `style:text-properties` — vazio quando o trecho não diz nada. */
 export function textProperties(props: CharacterProps, fonts: FontBook): string {
   const parts: string[] = []
   const font = props.mono === true ? 'Liberation Mono' : fonts.use(props.fontFamily)
@@ -246,7 +237,6 @@ export function textProperties(props: CharacterProps, fonts: FontBook): string {
   return parts.join('')
 }
 
-/** O que um estilo de caractere (ou a parte de texto de um de parágrafo) diz. */
 export function characterPropsOfStyle(format: StyleCharacterFormat | undefined): CharacterProps {
   if (format === undefined) return {}
   const vertical = format.verticalAlign?.toLowerCase()
@@ -265,7 +255,6 @@ export function characterPropsOfStyle(format: StyleCharacterFormat | undefined):
   }
 }
 
-/** O alinhamento do documento no vocabulário do ODF. */
 export function odfAlign(value: unknown): string | null {
   switch (typeof value === 'string' ? value.toLowerCase() : '') {
     case 'left':
@@ -285,7 +274,6 @@ export function odfAlign(value: unknown): string | null {
   }
 }
 
-/** O que um parágrafo diz, nas unidades do documento (mm e pt). */
 export interface ParagraphProps {
   align?: unknown
   marginLeftMm?: number | null
@@ -311,7 +299,6 @@ export interface ParagraphProps {
 
 const isSet = <T>(value: T | null | undefined): value is T => value !== null && value !== undefined
 
-/** Os atributos de `style:paragraph-properties` — vazio quando o parágrafo não diz nada. */
 export function paragraphProperties(props: ParagraphProps): string {
   const parts: string[] = []
   const align = odfAlign(props.align)
@@ -344,7 +331,6 @@ export function paragraphProperties(props: ParagraphProps): string {
   return parts.join('')
 }
 
-/** O que um estilo de parágrafo diz, traduzido. */
 export function paragraphPropsOfStyle(format: StyleParagraphFormat | undefined): ParagraphProps {
   if (format === undefined) return {}
   const spacing = format.lineSpacing
@@ -382,10 +368,7 @@ export function lineSpacingOfAttr(
   return { lineFactor: lineFactorOf(css, typeof fontFamily === 'string' ? fontFamily : null) }
 }
 
-/**
- * Os estilos automáticos de um arquivo do pacote (o `content.xml` ou o
- * `styles.xml`, que não enxergam os automáticos um do outro — daí o prefixo).
- */
+/** O `content.xml` e o `styles.xml` não enxergam os automáticos um do outro: daí o prefixo. */
 export class StyleBook {
   private readonly names = new Map<string, string>()
   private readonly parts: string[] = []
@@ -403,7 +386,6 @@ export class StyleBook {
     )
   }
 
-  /** Um estilo de lista, que é outro elemento. */
   list(body: string): string {
     return this.add(
       'L',

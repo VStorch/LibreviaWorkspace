@@ -1,17 +1,7 @@
 /**
- * Fórmula em texto → sequência de símbolos.
- *
- * Duas escolhas de idioma valem para todo o motor, e são as do Excel em
- * português:
- *
- * - **vírgula é decimal**: `=SOMA(1,5;2)` soma um e meio com dois;
- * - **ponto e vírgula separa argumentos**, justamente porque a vírgula já está
- *   ocupada. Aceitar os dois papéis para a vírgula tornaria `SOMA(1,5)`
- *   ambíguo — um argumento ou dois? — e a ambiguidade cairia sempre em cima de
- *   quem digitou um número decimal.
- *
- * O ponto também é aceito como decimal (`1.5`), porque não disputa papel com
- * nada e é o que sai ao colar de planilha estrangeira.
+ * Como no Excel em português, a vírgula é decimal e o ponto e vírgula separa
+ * argumentos: aceitar os dois papéis tornaria `SOMA(1,5)` ambíguo. O ponto
+ * também é decimal, porque é o que sai ao colar de planilha estrangeira.
  */
 
 import { ParseError } from './errors.js'
@@ -105,8 +95,7 @@ export function tokenize(formula: string): Token[] {
 
     const word = readWord(formula, at)
     if (word.length === 0) {
-      // A vírgula solta é quase sempre alguém separando argumentos com ela.
-      // Dizer só "não entendi" mandaria o usuário procurar o erro errado.
+      // A vírgula solta é quase sempre um separador de argumentos: a dica diz isso.
       const hint =
         char === ',' ? 'Use ponto e vírgula para separar argumentos: SOMA(A1;B1).' : `Não entendi "${char}".`
       throw new ParseError(hint, at)
@@ -166,12 +155,7 @@ function readNumber(formula: string, start: number): string {
   return formula.slice(start, at)
 }
 
-/**
- * Texto entre aspas, com `""` valendo uma aspa — a convenção do Excel.
- *
- * Devolve o conteúdo já sem as aspas: quem chama soma o que consumiu usando o
- * número de aspas duplicadas.
- */
+/** `""` vale uma aspa, como no Excel. Devolve o conteúdo já sem as aspas. */
 function readText(formula: string, start: number): Token {
   let at = start + 1
   let value = ''
@@ -199,12 +183,7 @@ function quotesIn(text: string): number {
   return count
 }
 
-/**
- * Palavra: nome de função ou referência.
- *
- * Aceita `$`, `!` e `.` porque `$A$1`, `Planilha1!A1` e `CONT.NÚM` são uma
- * palavra só. O nome de planilha entre apóstrofos entra inteiro, com espaços.
- */
+/** ``, `Planilha1!A1` e `CONT.NÚM` são uma palavra só; o nome entre apóstrofos entra inteiro. */
 function readWord(formula: string, start: number): string {
   let at = start
 

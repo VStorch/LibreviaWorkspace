@@ -1,13 +1,6 @@
 /**
- * Conferência da fórmula na hora de digitar.
- *
- * O avaliador devolve `#NOME?` e `#VALOR!` porque é o que a célula precisa
- * mostrar. Mas na hora de **digitar** o usuário merece a frase: quem escreveu
- * `=ABS(1;2)` não descobre pelo `#VALOR!` que o problema é o número de
- * argumentos, e vai procurar o erro no lugar errado.
- *
- * O Excel faz o mesmo — recusa a fórmula com uma caixa de aviso em vez de
- * aceitá-la e mostrar erro na célula.
+ * Na digitação a pessoa merece a frase, e não o `#VALOR!`: `=ABS(1;2)` tem
+ * argumentos demais. O Excel também recusa a fórmula com um aviso.
  */
 
 import { walk, type Node } from './ast.js'
@@ -21,7 +14,6 @@ export interface FormulaProblem {
   readonly position?: number
 }
 
-/** Devolve o problema, ou `null` quando a fórmula está boa. */
 export function checkFormula(formula: string): FormulaProblem | null {
   let node: Node
   try {
@@ -45,7 +37,7 @@ export function checkFormula(formula: string): FormulaProblem | null {
   return null
 }
 
-/** Quantos argumentos as preguiçosas aceitam. Elas não estão no catálogo. */
+/** As preguiçosas não estão no catálogo. */
 const LAZY_ARITY: Record<string, { min: number; max: number }> = {
   SE: { min: 2, max: 3 },
   IF: { min: 2, max: 3 },

@@ -1,17 +1,9 @@
 import type { DocumentComment, DocumentNode } from './model.js'
 
 /**
- * Quais comentários o documento tem agora.
- *
- * Mesmo desenho das seções (ver `resolveSections`): a loja guarda uma
- * **biblioteca** que só ganha entradas, e quem diz quais valem é o texto. A
- * conversa existe enquanto as pontas dela estão no documento; a resposta, enquanto
- * a conversa que ela responde existe. Assim o desfazer do editor — que só conhece
- * o texto — tira e devolve o comentário inteiro, cartão incluído, sem a loja
- * entrar no histórico.
- *
- * `outside` são as conversas que o arquivo ancora fora do corpo (cabeçalho, nota,
- * caixa de texto): o editor não tem as pontas delas, e elas valem assim mesmo.
+ * Como as seções (`resolveSections`): a biblioteca só ganha entradas, e o texto
+ * diz quais valem, para o desfazer tirar e devolver o comentário inteiro.
+ * `outside` são as conversas ancoradas fora do corpo, que valem sem pontas.
  */
 export function resolveComments(
   anchored: ReadonlySet<string>,
@@ -24,8 +16,8 @@ export function resolveComments(
     const known = exists.get(comment.id)
     if (known !== undefined) return known
     const parent = comment.parentId === undefined ? undefined : byId.get(comment.parentId)
-    // A resposta cujo comentário não está na biblioteca vira conversa própria,
-    // como o painel a mostra; o teto de profundidade só segura o ciclo.
+    // Resposta sem o comentário na biblioteca vira conversa própria; o teto de
+    // profundidade só segura o ciclo.
     const result =
       parent === undefined || depth > 100
         ? anchored.has(comment.id) || outside.has(comment.id)
@@ -48,7 +40,6 @@ export function threadRootOf(library: readonly DocumentComment[], id: string): s
   return current?.id ?? id
 }
 
-/** As pontas de comentário de um documento em JSON — o `cid` de cada uma. */
 export function commentAnchorIdsOfJson(doc: DocumentNode): Set<string> {
   const ids = new Set<string>()
   const walk = (node: DocumentNode): void => {
@@ -62,10 +53,7 @@ export function commentAnchorIdsOfJson(doc: DocumentNode): Set<string> {
   return ids
 }
 
-/**
- * As conversas sem ponta no texto quando o documento abriu: as que o arquivo
- * ancora fora do corpo. Ver `resolveComments`.
- */
+/** As que o arquivo ancora fora do corpo. */
 export function commentsOutsideOf(doc: DocumentNode, library: readonly DocumentComment[]): readonly string[] {
   const anchored = commentAnchorIdsOfJson(doc)
   return library
@@ -73,12 +61,7 @@ export function commentsOutsideOf(doc: DocumentNode, library: readonly DocumentC
     .map((comment) => comment.id)
 }
 
-/**
- * O id do comentário novo: o próximo número depois do maior da biblioteca.
- *
- * Da biblioteca, e não só dos que valem agora: o comentário desfeito volta com o
- * refazer, e o id dele não pode ter sido dado a outro no meio.
- */
+/** Da biblioteca inteira: o comentário desfeito volta com o refazer, e o id dele não pode ter ido a outro. */
 export function nextCommentId(library: readonly DocumentComment[]): string {
   let max = -1
   for (const comment of library) {
@@ -87,7 +70,7 @@ export function nextCommentId(library: readonly DocumentComment[]): string {
   return String(max + 1)
 }
 
-/** As iniciais do nome, como o Word as tira: a primeira letra de cada palavra, até três. */
+/** Como o Word: a primeira letra de cada palavra, até três. */
 export function initialsOf(author: string): string {
   return author
     .split(/\s+/)
@@ -97,7 +80,6 @@ export function initialsOf(author: string): string {
     .join('')
 }
 
-/** O texto da caixa do painel em parágrafos do comentário — uma linha, um parágrafo. */
 export function paragraphsOfText(text: string): string[] {
   return text.replace(/\r\n?/g, '\n').split('\n')
 }

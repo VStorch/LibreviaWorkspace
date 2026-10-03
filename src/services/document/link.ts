@@ -1,14 +1,8 @@
 import { ALLOWED_EXTERNAL_PROTOCOLS } from '@shared/constants.js'
 
 /**
- * Normaliza e valida o endereço de um link.
- *
- * Um documento pode vir de qualquer lugar, e `javascript:` num link é execução
- * de código disfarçada de texto. A allowlist de esquemas é a mesma que o
- * processo main aplica antes de abrir qualquer coisa no navegador do sistema —
- * esta função só evita que um endereço inválido chegue a ser gravado.
- *
- * Devolve `null` quando o endereço não pode ser aceito.
+ * `javascript:` num link é código disfarçado. O main aplica a mesma lista de
+ * esquemas antes de abrir; aqui só se evita gravar endereço inválido.
  */
 export function normalizeLinkUrl(input: string): string | null {
   const trimmed = input.trim()

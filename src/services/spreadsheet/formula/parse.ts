@@ -1,17 +1,10 @@
-/**
- * Símbolos → árvore.
- *
- * Analisador de precedência ascendente: uma tabela de precedência em vez de uma
- * função por nível. A tabela é a do Excel, e é ela que faz `=1+2*3` valer sete e
- * `=2^3^2` valer quinhentos e doze — potência associa à direita.
- */
+/** Precedência ascendente, com a tabela do Excel: `=1+2*3` vale sete. */
 
 import type { BinaryOperator, Node } from './ast.js'
 import { ParseError, isFormulaError, type FormulaError } from './errors.js'
 import { parseReference, type CellRef } from './references.js'
 import { TokenKind, tokenize, type Token } from './tokenize.js'
 
-/** Precedência dos operadores binários. Maior liga mais forte. */
 const PRECEDENCE: Record<BinaryOperator, number> = {
   '=': 1,
   '<>': 1,
@@ -30,12 +23,7 @@ const PRECEDENCE: Record<BinaryOperator, number> = {
 /** `2^3^2` é `2^(3^2)`, e não `(2^3)^2`. Só a potência associa à direita. */
 const RIGHT_ASSOCIATIVE = new Set<BinaryOperator>(['^'])
 
-/**
- * Analisa uma fórmula, com ou sem o `=` inicial.
- *
- * Lança `ParseError` com posição: a mensagem precisa dizer **onde** está o
- * problema, senão o usuário fica procurando parêntese numa fórmula longa.
- */
+/** Lança `ParseError` com posição, para a mensagem dizer **onde** está o problema. */
 export function parseFormula(formula: string): Node {
   const text = formula.startsWith('=') ? formula.slice(1) : formula
   const tokens = tokenize(text)
@@ -83,13 +71,7 @@ class Parser {
     return left
   }
 
-  /**
-   * Unário e sufixo `%`.
-   *
-   * No Excel o menos unário liga **mais forte** que a potência: `=-2^2` vale
-   * quatro, e não menos quatro como na matemática. A regra é estranha, mas é a
-   * que a planilha ao lado usa — e o resultado precisa bater com ela.
-   */
+  /** No Excel o menos unário liga mais forte que a potência: `=-2^2` vale quatro. */
   unary(): Node {
     const token = this.peek()
 
@@ -161,7 +143,6 @@ class Parser {
     return { kind: 'call', name: name.text, args }
   }
 
-  /** Uma referência, ou duas ligadas por `:` formando um intervalo. */
   reference(token: Token): Node {
     const from = this.cellRef(token)
 
@@ -172,14 +153,12 @@ class Parser {
     const end = this.expect(TokenKind.Reference, 'Depois de ":" falta uma célula.')
     const to = this.cellRef(end)
 
-    // Um intervalo vive numa planilha só. Aceitar `Plan1!A1:Plan2!B2` obrigaria
-    // a inventar o que ele significa; recusar diz ao usuário o que houve.
+    // Um intervalo vive numa planilha só: `Plan1!A1:Plan2!B2` é recusado.
     if (to.sheet !== undefined && to.sheet !== from.sheet) {
       throw new ParseError('Um intervalo não pode atravessar duas planilhas.', end.position)
     }
 
-    // O intervalo é guardado já ordenado: `B4:A1` e `A1:B4` são o mesmo
-    // retângulo, e quem lê a árvore não deveria precisar saber disso. O nome da
+    // Guardado já ordenado: `B4:A1` e `A1:B4` são o mesmo retângulo. O nome da
     // planilha fica só na primeira ponta, como o Excel escreve.
     const low = corner(from, to, Math.min)
     return {
@@ -231,12 +210,7 @@ function asError(token: Token): FormulaError {
   return token.text
 }
 
-/**
- * Canto do retângulo.
- *
- * O `$` acompanha a célula que ficou naquele canto: trocar a ordem de `B4:A1`
- * sem levar o `$` junto mudaria o que acontece ao copiar a fórmula.
- */
+/** O `$` acompanha a célula que ficou naquele canto, senão a cópia da fórmula mudaria. */
 function corner(from: CellRef, to: CellRef, pick: (a: number, b: number) => number): CellRef {
   const row = pick(from.row, to.row) === from.row ? from : to
   const column = pick(from.column, to.column) === from.column ? from : to

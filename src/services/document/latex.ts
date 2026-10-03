@@ -9,21 +9,11 @@ import {
 } from './mathml.js'
 
 /**
- * O LaTeX de uma equação em MathML — pelo Temml.
- *
- * O Temml escreve MathML Core, que é o que o Chromium desenha, e roda sem rede.
- * Três coisas dele não passam pelo filtro de `mathml.ts` como estão, e são
- * traduzidas aqui antes — o filtro continua o mesmo, e continua a última palavra:
- *
- * - o `menclose` do `\overline` e do `\underline` (fora do Core) vira o `mover` e
- *   o `munder` com o traço que `OmmlMath.cs` lê como `m:bar`;
- * - o `\boxed`, que é um `mrow` com borda no `style`, vira o `mrow` com a classe
- *   da caixa (`m:borderBox`) — o `style` o filtro joga fora;
- * - o pré-índice `{}_a^b X`, que é um índice de base vazia seguido da base, vira
- *   o `mmultiscripts` (`m:sPre`).
- *
- * O `semantics` com a anotação do LaTeX não é pedido (`annotate: false`), e o que
- * vier dentro de um é desembrulhado: a fonte mora no atributo `latex` do nó.
+ * O Temml escreve MathML Core e roda sem rede. Três coisas dele são traduzidas
+ * antes do filtro de `mathml.ts`: o `menclose` de `\overline` e `\underline` vira
+ * `mover`/`munder` (`m:bar`); o `\boxed` vira o `mrow` com a classe da caixa; e o
+ * pré-índice `{}_a^b X` vira `mmultiscripts` (`m:sPre`). A fonte mora no atributo
+ * `latex` do nó, e por isso o `semantics` é desembrulhado.
  */
 
 export type LatexResult =
@@ -40,8 +30,7 @@ export function latexToMathMl(latex: string, display: boolean): LatexResult {
       trust: false,
     })
   } catch (error) {
-    // O Temml lança `ParseError` com a posição; o resto (um `TypeError` num `a^`
-    // sem expoente, por exemplo) também é LaTeX que não fecha.
+    // Além do `ParseError` do Temml, um `TypeError` num `a^` também é LaTeX que não fecha.
     const message = error instanceof Error ? error.message : String(error)
     return { ok: false, error: message.replace(/^ParseError:\s*/, '').trim() }
   }
@@ -83,7 +72,6 @@ export function normalize(node: MathElement): MathElement {
   return { ...node, children }
 }
 
-/** O `semantics` vale pelo primeiro filho; a anotação sai. */
 function unwrap(child: MathChild): MathChild[] {
   if (typeof child === 'string') return [child]
   if (child.tag === 'annotation' || child.tag === 'annotation-xml') return []

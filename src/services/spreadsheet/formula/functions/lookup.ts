@@ -1,17 +1,10 @@
-/** Procura em tabelas. */
-
 import { FormulaError, isFormulaError } from '../errors.js'
 import { compare, toBoolean, type Scalar } from '../values.js'
 import { define, numberArg, rowsOf, single, type FunctionDefinition } from './kit.js'
 
 /**
- * Última posição cujo valor é menor ou igual ao procurado, num vetor crescente.
- *
- * É a busca "aproximada" do `PROCV` e do `CORRESP`. Ela pressupõe a coluna
- * ordenada e **não verifica** se está: numa coluna fora de ordem ela devolve
- * uma linha errada em silêncio. É a armadilha mais conhecida do Excel, e a
- * reproduzimos de propósito — o mesmo arquivo precisa dar o mesmo resultado nos
- * dois programas.
+ * A busca "aproximada" do `PROCV` e do `CORRESP`: pressupõe o vetor crescente e
+ * não confere, como no Excel, para o mesmo arquivo dar o mesmo resultado.
  */
 function approximate(values: readonly Scalar[], target: Scalar): number {
   let found = -1
@@ -29,13 +22,7 @@ function exact(values: readonly Scalar[], target: Scalar): number {
 }
 
 export const LOOKUP: readonly FunctionDefinition[] = [
-  /**
-   * `PROCV(procurado; tabela; coluna; [aproximado])`.
-   *
-   * O quarto argumento é **VERDADEIRO por padrão**, como no Excel. É um padrão
-   * ruim — quase todo uso real quer correspondência exata — mas mudá-lo faria a
-   * mesma planilha dar resultados diferentes aqui e lá.
-   */
+  /** O quarto argumento é VERDADEIRO por padrão, como no Excel, por pior que seja. */
   define(['PROCV', 'VLOOKUP'], 3, 4, (args) => {
     const target = single(args[0])
     if (isFormulaError(target)) return target
@@ -80,7 +67,7 @@ export const LOOKUP: readonly FunctionDefinition[] = [
     return table[wanted - 1]?.[at] ?? null
   }),
 
-  /** `CORRESP(procurado; vetor; [tipo])` — devolve a posição, não o valor. */
+  /** Devolve a posição, e não o valor. */
   define(['CORRESP', 'MATCH'], 2, 3, (args) => {
     const target = single(args[0])
     if (isFormulaError(target)) return target
@@ -90,7 +77,6 @@ export const LOOKUP: readonly FunctionDefinition[] = [
     const kind = args.length > 2 ? numberArg(args[2]) : 1
     if (isFormulaError(kind)) return kind
 
-    // O vetor pode ser uma linha ou uma coluna; achatar cobre os dois.
     const values = table.flatMap((row) => [...row])
 
     if (kind === 0) {
@@ -114,7 +100,6 @@ export const LOOKUP: readonly FunctionDefinition[] = [
     return found < 0 ? FormulaError.NA : found + 1
   }),
 
-  /** `ÍNDICE(intervalo; linha; [coluna])` — a célula numa posição do retângulo. */
   define(['ÍNDICE', 'INDICE', 'INDEX'], 2, 3, (args) => {
     const table = rowsOf(args[0])
     if (isFormulaError(table)) return table

@@ -1,32 +1,15 @@
 import { DocumentKind } from '@shared/types.js'
 import { translate, Language } from '@shared/i18n/index.js'
 
-/**
- * Conhecimento sobre formatos e caminhos, em forma pura.
- *
- * Esta camada não pode usar `node:path` (o linter impede): ela também roda no
- * renderer. As funções abaixo tratam separadores de Windows e de POSIX, porque
- * o mesmo caminho pode vir de um diálogo nativo ou de uma pasta de rede.
- */
+/** Sem `node:path`, porque também roda no renderer: separadores de Windows e de POSIX. */
 
-/**
- * Formatos que o aplicativo sabe abrir e salvar.
- *
- * `.sdoc` e `.ssheet` são os formatos internos: guardam o modelo inteiro, sem
- * perda nenhuma. `.docx` e `.xlsx` são os do Office, gravados por cima do
- * arquivo original. `.txt` continua de primeira classe, mas só carrega texto —
- * salvar nele descarta formatação, e por isso o aplicativo avisa antes.
- */
+/** `.txt` só carrega texto, e salvar nele descarta a formatação, com aviso antes. */
 export const DOCUMENT_EXTENSION = '.sdoc'
 export const SPREADSHEET_EXTENSION = '.ssheet'
 export const PLAIN_TEXT_EXTENSION = '.txt'
 export const WORD_EXTENSION = '.docx'
 export const EXCEL_EXTENSION = '.xlsx'
-/**
- * Os modelos do Word. Abrir um deles cria um documento novo, sem título, que
- * parte do pacote do modelo; o `.dotx` também é destino de "salvar como". O
- * `.dotm` só é aberto: as macros dele não viajam, e por isso ele não é destino.
- */
+/** O `.dotm` só é aberto: as macros dele não viajam, e por isso não é destino. */
 export const WORD_TEMPLATE_EXTENSION = '.dotx'
 export const WORD_MACRO_TEMPLATE_EXTENSION = '.dotm'
 export const SUPPORTED_EXTENSIONS = [
@@ -89,17 +72,9 @@ export function kindFromPath(path: string): DocumentKind {
     : DocumentKind.Document
 }
 
-/**
- * Garante que o destino tenha extensão que o aplicativo saiba gravar.
- *
- * No diálogo "salvar como" o usuário pode digitar um nome sem extensão, ou com
- * uma que ainda não suportamos. Gravar conteúdo de texto num arquivo chamado
- * `.docx` produziria um arquivo que o Word recusa a abrir — pior que anexar a
- * extensão certa.
- */
+/** Gravar texto num arquivo chamado `.docx` faria o Word o recusar. */
 export function ensureSupportedExtension(path: string, kind: DocumentKind = DocumentKind.Document): string {
-  // O `.dotm` abre, mas não é destino: gravado ali, sairia sem as macros que o
-  // nome promete — ver WORD_MACRO_TEMPLATE_EXTENSION.
+  // O `.dotm` não é destino: sairia sem as macros que o nome promete.
   if (isSupportedExtension(path) && extensionOf(path) !== WORD_MACRO_TEMPLATE_EXTENSION) return path
   // A extensão padrão depende do que está sendo salvo: uma planilha gravada
   // como `.sdoc` abriria como documento vazio na próxima vez.
@@ -113,10 +88,7 @@ export function defaultFileName(kind: DocumentKind, language: Language = Languag
     : `${translate(language, 'shell.file.untitledDocument')}${DOCUMENT_EXTENSION}`
 }
 
-/**
- * Título da janela: nome do arquivo, marcador de alteração e nome do app.
- * O `•` é o indicador de não salvo — mesma convenção de editores de código.
- */
+/** O `•` marca o não salvo, como nos editores de código. */
 export function buildWindowTitle(
   fileName: string | null,
   isDirty: boolean,

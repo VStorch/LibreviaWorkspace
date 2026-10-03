@@ -3,15 +3,8 @@ import { numberLists, LIST_TYPES, type ListInfo, type ListTreeReader } from './l
 import type { DocumentModel, DocumentNode } from './model.js'
 import { NoteKind, noteCounter } from './notes.js'
 
-/**
- * O que a exportação para HTML e para Markdown têm em comum.
- *
- * As duas partem do **modelo**, e não do HTML do editor: o HTML da tela traz
- * decorações, alças, marcas de revisão e atributos que só o editor entende, e
- * limpá-lo seria adivinhar. Do modelo sai um texto limpo, testável sem DOM.
- */
+/** Do **modelo**, e não do HTML do editor, que traz decorações e atributos que só o editor entende. */
 
-/** Um nó de nota, com o rótulo que o texto mostra e a âncora dele. */
 export interface ExportNote {
   readonly kind: NoteKind
   readonly label: string
@@ -20,13 +13,11 @@ export interface ExportNote {
   readonly body: readonly DocumentNode[]
 }
 
-/** A marca e o valor do contador de um item de lista. */
 export interface ExportListItem {
   readonly label: string
   readonly value: number
 }
 
-/** O documento já pronto para exportar e o que se contou nele. */
 export interface ExportSource {
   readonly doc: DocumentNode
   /** As notas, na ordem do texto; as de rodapé antes das de fim no rodapé da exportação. */
@@ -63,13 +54,8 @@ const MERGEABLE = new Set(['paragraph', 'heading'])
 const DROPPED = new Set(['commentStart', 'commentEnd'])
 
 /**
- * O documento com as revisões aceitas: o texto final.
- *
- * O excluído sai, o inserido fica como texto comum, a linha de tabela excluída
- * some e o parágrafo cuja marca foi excluída se junta ao seguinte — o mesmo que
- * "Aceitar todas" faria, sem passar pelo editor. Os comentários também saem: são
- * conversa sobre o documento, não o documento — salvo para o ODT (`keepComments`),
- * que os leva como anotações, como o `.docx` os leva.
+ * O que "Aceitar todas" faria, sem passar pelo editor. Os comentários saem,
+ * menos no ODT (`keepComments`), que os leva como anotações.
  */
 export function finalDocument(node: DocumentNode, keepComments = false): DocumentNode {
   let content = node.content === undefined ? undefined : finalChildren(node.content, keepComments)
@@ -116,13 +102,12 @@ function finalChildren(children: readonly DocumentNode[], keepComments: boolean)
   return merged
 }
 
-/** Percorre a árvore em pré-ordem — a ordem do texto. */
+/** Em pré-ordem, a ordem do texto. */
 export function walk(node: DocumentNode, visit: (node: DocumentNode) => void): void {
   visit(node)
   for (const child of node.content ?? []) walk(child, visit)
 }
 
-/** Aceita as revisões e conta notas e listas, uma vez, para quem exporta. */
 export function prepareExport(
   model: Pick<DocumentModel, 'doc' | 'notes'>,
   options: { readonly keepComments?: boolean } = {},
@@ -161,8 +146,7 @@ export function prepareExport(
     }
   })
 
-  // `numberLists` conta na mesma pré-ordem: a n-ésima lista e o n-ésimo item
-  // dele são os daqui.
+  // `numberLists` conta na mesma pré-ordem.
   const numbering = numberLists(doc, JSON_READER)
   const listOf = new Map<DocumentNode, ListInfo>()
   listNodes.forEach((node, index) => {
@@ -187,11 +171,7 @@ function linkHref(mark: Mark): string | null {
   return typeof href === 'string' ? href : null
 }
 
-/**
- * O endereço de um link, se for seguro pô-lo num arquivo que outro programa vai
- * abrir: âncora interna, ou um dos protocolos que o próprio editor abre. O resto
- * (`javascript:`, `file:`, `data:`) vira texto comum.
- */
+/** Âncora interna ou um protocolo que o editor abre; `javascript:`, `file:` e `data:` viram texto. */
 export function safeHref(mark: Mark): string | null {
   const href = linkHref(mark)?.trim()
   if (href === undefined || href === null || href === '') return null
@@ -238,10 +218,7 @@ export function tocLevelOf(node: DocumentNode): number {
   return match === null ? 1 : Math.max(1, Number(match[1]))
 }
 
-/**
- * Os parágrafos de linha do sumário, sem o número de página: na página web não
- * há página, e o número que o arquivo traz apontaria para lugar nenhum.
- */
+/** Sem o número de página: na página web ele apontaria para lugar nenhum. */
 export function withoutPageNumbers(content: readonly DocumentNode[]): DocumentNode[] {
   const kept = content.filter(
     (node) => !(node.type === 'field' && /^\s*PAGEREF\b/i.test(String(node.attrs?.['instr'] ?? ''))),
@@ -259,7 +236,6 @@ export function withoutPageNumbers(content: readonly DocumentNode[]): DocumentNo
   return kept
 }
 
-/** O título do arquivo exportado: o das propriedades, ou o nome sem a extensão. */
 export function exportTitle(model: Pick<DocumentModel, 'properties'>, fileName: string): string {
   const title = model.properties?.title?.trim()
   if (title !== undefined && title !== '') return title

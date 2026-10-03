@@ -1,34 +1,18 @@
 /**
- * Planilha → HTML de impressão.
- *
- * O documento imprime o HTML que o próprio editor produziu, e por um bom motivo:
- * o que sai no papel é literalmente o que estava na tela. A planilha não pode
- * fazer o mesmo. A grade só desenha as células visíveis — rolar uma planilha de
- * 10 mil linhas mantém cerca de 300 células no DOM — então imprimir o que está
- * lá renderizaria a janela, não a planilha.
- *
- * Por isso aqui o HTML é gerado a partir do **modelo**, com as mesmas funções de
- * formatação que a tela usa (`formatCell`). O que muda é a origem, não as
- * regras: a mesma célula sai igual nos dois lugares.
+ * Gerado do **modelo**, e não do DOM como no documento: a grade só desenha as
+ * células visíveis. As regras de formatação são as da tela (`formatCell`).
  */
 
 import { formatCell } from './format.js'
 import { cellRef, DEFAULT_COLUMN_WIDTH, type Cell, type Sheet } from './model.js'
 import { translate, Language } from '@shared/i18n/index.js'
 
-/** Até onde imprimir. */
 export interface PrintBounds {
   readonly rows: number
   readonly columns: number
 }
 
-/**
- * O retângulo que de fato tem conteúdo.
- *
- * Uma planilha nova tem mil linhas por vinte e seis colunas e nenhum dado.
- * Imprimir a grade inteira gastaria dezenas de páginas em branco — e o usuário
- * descobriria isso na bandeja da impressora.
- */
+/** Uma planilha nova tem mil linhas por vinte e seis colunas e nenhum dado. */
 export function usedBounds(sheet: Sheet): PrintBounds {
   let rows = 0
   let columns = 0
@@ -50,14 +34,7 @@ function indexOfColumn(letters: string): number {
   return index - 1
 }
 
-/**
- * Corpo da planilha em HTML.
- *
- * As linhas congeladas viram `<thead>`. Não é enfeite: o navegador repete o
- * `<thead>` no topo de cada página impressa, então o cabeçalho da tabela
- * reaparece na página 4 sem que ninguém tenha de programar isso. É a mesma
- * intenção de quem congelou a linha na tela.
- */
+/** As linhas congeladas viram `<thead>`, que o navegador repete no topo de cada página. */
 export function buildSheetHtml(sheet: Sheet, language: Language = Language.Portuguese): string {
   const bounds = usedBounds(sheet)
   if (bounds.rows === 0 || bounds.columns === 0) {
@@ -74,13 +51,8 @@ export function buildSheetHtml(sheet: Sheet, language: Language = Language.Portu
 }
 
 /**
- * Fonte menor conforme a planilha alarga — o "ajustar à página" do Excel.
- *
- * Doze colunas numa A4 em retrato dão cerca de cinquenta pixels cada. Em corpo
- * 11 nada cabe, e a quebra de linha começa a partir palavras no meio: "200" sai
- * como "20" e "0", que não é feio, é enganoso. Reduzir o corpo é o que evita
- * chegar nesse ponto, e é reversível pelo usuário — quem quiser o texto grande
- * põe a página em paisagem.
+ * O "ajustar à página" do Excel: em corpo 11, doze colunas numa A4 em retrato
+ * partiriam números no meio. Quem quiser o texto grande usa paisagem.
  */
 function fontSize(columns: number): number {
   if (columns <= 8) return 11
@@ -89,15 +61,7 @@ function fontSize(columns: number): number {
   return 7
 }
 
-/**
- * Larguras em **proporção**, não em pixels.
- *
- * Em pixels, uma planilha mais larga que a página sai com a última coluna
- * cortada na margem — foi o que aconteceu na primeira versão, e o usuário só
- * descobriria depois de imprimir. Convertendo para porcentagem do total, a
- * tabela sempre cabe na folha e as colunas guardam a proporção que tinham na
- * tela, que é o que o usuário ajustou arrastando.
- */
+/** Em proporção, e não em pixels, para a tabela caber na folha com as proporções da tela. */
 function columnWidths(sheet: Sheet, bounds: PrintBounds): string {
   const pixels = Array.from(
     { length: bounds.columns },
@@ -131,14 +95,7 @@ function cellHtml(cell: Cell | undefined): string {
   return style === '' ? `<td>${text}</td>` : `<td style="${style}">${text}</td>`
 }
 
-/**
- * Estilo direto na célula, e não classes.
- *
- * Cor e fundo são valores livres vindos do arquivo — uma classe por combinação
- * geraria uma folha de estilo do tamanho da planilha. Como este HTML existe por
- * alguns segundos dentro de uma janela oculta, o custo de estilo repetido é
- * pago em memória e não em manutenção.
- */
+/** Estilo direto, e não classes: cor e fundo são valores livres do arquivo. */
 function inlineStyle(cell: Cell | undefined): string {
   const style = cell?.style
   if (style === undefined) return ''
@@ -150,11 +107,8 @@ function inlineStyle(cell: Cell | undefined): string {
   if (style.color !== undefined) parts.push(`color:${cssColor(style.color)}`)
   if (style.background !== undefined) parts.push(`background:${cssColor(style.background)}`)
 
-  // Só o alinhamento escolhido, sem regra própria para número. O Excel joga
-  // número à direita por conta própria, e a tentação de fazer o mesmo aqui é
-  // grande — mas a grade **não** faz isso, e imprimir diferente do que está na
-  // tela quebra a única promessa que a impressão tem. Se um dia isso mudar,
-  // muda nos dois lugares.
+  // Sem regra própria para número, como a grade: o papel não pode sair
+  // diferente da tela.
   if (style.align !== undefined) parts.push(`text-align:${style.align}`)
 
   for (const side of style.borders ?? []) {
@@ -164,14 +118,7 @@ function inlineStyle(cell: Cell | undefined): string {
   return parts.join(';')
 }
 
-/**
- * Cor só em `#rrggbb`.
- *
- * O valor vem de um documento, que é dado não confiável: sem esta trava, uma
- * cor como `red;background:url(...)` sairia do atributo `style` e viraria outra
- * declaração. Aqui isso só renderizaria algo estranho, mas a disciplina é a
- * mesma em todo lugar onde conteúdo de arquivo vira marcação.
- */
+/** O valor vem do arquivo: sem a trava, `red;background:url(...)` viraria outra declaração. */
 function cssColor(value: string): string {
   return /^#[0-9a-fA-F]{6}$/.test(value) ? value : 'inherit'
 }
@@ -184,12 +131,7 @@ function escapeHtml(text: string): string {
     .replaceAll('"', '&quot;')
 }
 
-/**
- * Folha de estilo da planilha impressa.
- *
- * `break-inside: avoid` na linha impede que uma linha alta seja cortada ao meio
- * pela quebra de página, que é o defeito mais visível de tabela impressa.
- */
+/** `break-inside: avoid`: a linha alta não é cortada pela quebra de página. */
 export const SHEET_PRINT_CSS = `
 .sheet-print {
   border-collapse: collapse;
@@ -199,13 +141,8 @@ export const SHEET_PRINT_CSS = `
   /* O corpo real vem no atributo da tabela: depende da largura da planilha. */
   font-size: 11pt;
 }
-/* O texto quebra em vez de ser cortado: na tela dá para alargar a coluna, no
-   papel não, e conteúdo escondido no papel é perda silenciosa.
-
-   Mas quebra **entre palavras**, nunca dentro de uma: quebrar em qualquer ponto
-   parte "200" em "20" e "0" numa coluna estreita — e um número partido em duas
-   linhas não é feio, é enganoso. Uma palavra que não couber transborda a célula:
-   visível e estranho, que é melhor que invisível e errado. */
+/* O texto quebra em vez de ser cortado, porque no papel não dá para alargar a
+   coluna; mas só entre palavras, porque "200" partido em "20" e "0" engana. */
 .sheet-print td {
   border: 1px solid #d0d0d0;
   padding: 2px 5px;

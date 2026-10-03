@@ -1,10 +1,4 @@
-/**
- * Árvore da fórmula.
- *
- * Guardar a árvore, e não só o texto, é o que permite três coisas que o texto
- * não daria: avaliar sem reanalisar a cada recálculo, descobrir de quais células
- * a fórmula depende, e reescrever referências quando uma linha é inserida.
- */
+/** Guardar a árvore permite avaliar sem reanalisar, achar as dependências e reescrever referências. */
 
 import type { FormulaError } from './errors.js'
 import type { CellRef } from './references.js'
@@ -28,7 +22,6 @@ export type Node =
     }
   | { readonly kind: 'call'; readonly name: string; readonly args: readonly Node[] }
 
-/** Percorre a árvore inteira, incluindo a raiz. */
 export function* walk(node: Node): Generator<Node> {
   yield node
 

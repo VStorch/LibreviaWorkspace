@@ -1,12 +1,7 @@
 /**
- * Árvore → valor.
- *
- * O avaliador não conhece a planilha: ele pede os valores ao contexto. É o que
- * permite testá-lo com um punhado de células de mentira, e é o que deixa o
- * recálculo decidir a ordem sem que a avaliação precise saber que existe ordem.
- *
- * Erro aqui é **valor**, não exceção — `#DIV/0!` se propaga pela conta como um
- * número se propagaria. Só erro de escrita da fórmula lança.
+ * O avaliador pede os valores ao contexto e não conhece a planilha nem a ordem.
+ * Erro é **valor**, e não exceção: `#DIV/0!` se propaga pela conta. Só erro de
+ * escrita da fórmula lança.
  */
 
 import type { Node } from './ast.js'
@@ -16,14 +11,9 @@ import { compare, toBoolean, toNumber, toText, type Scalar } from './values.js'
 import { findFunction } from './functions/index.js'
 
 export interface EvalContext {
-  /** Valor já calculado de uma célula. Célula vazia devolve `null`. */
+  /** Célula vazia devolve `null`. */
   readonly valueAt: (ref: CellRef) => Scalar
-  /**
-   * O "agora" das funções de data.
-   *
-   * Injetado, e não lido do relógio: sem isso `HOJE()` tornaria todo teste
-   * dependente do dia em que roda.
-   */
+  /** Injetado, para `HOJE()` não prender os testes ao dia em que rodam. */
   readonly now: () => Date
 }
 
@@ -43,8 +33,7 @@ export function evaluate(node: Node, context: EvalContext): Scalar {
     case 'reference':
       return context.valueAt(node.ref)
 
-    // Um intervalo só faz sentido como argumento de função. Solto numa conta,
-    // o Excel tenta uma interseção implícita que quase ninguém usa de propósito.
+    // Solto numa conta, o Excel faria uma interseção implícita que quase ninguém usa.
     case 'range':
       return FormulaError.Value
 
@@ -113,7 +102,6 @@ function arithmetic(operator: string, left: Scalar, right: Scalar): Scalar {
     case '*':
       return finite(a * b)
     case '/':
-      // Divisão por zero é o erro que o usuário mais vê, e o que ele espera ver.
       return b === 0 ? FormulaError.Div0 : finite(a / b)
     case '^': {
       const power = a ** b
@@ -124,18 +112,12 @@ function arithmetic(operator: string, left: Scalar, right: Scalar): Scalar {
   }
 }
 
-/** Estouro vira `#NÚM!`: `Infinity` numa célula não diz nada a ninguém. */
+/** `Infinity` vira `#NÚM!`. */
 function finite(value: number): Scalar {
   return Number.isFinite(value) ? value : FormulaError.Num
 }
 
-/**
- * Três funções precisam receber os argumentos **sem avaliar**.
- *
- * `=SE(A1=0;"";1/A1)` não pode calcular `1/A1` quando A1 é zero: o ramo não
- * escolhido produziria `#DIV/0!` e a fórmula inteira erraria. O mesmo vale para
- * `SEERRO`, cujo propósito é justamente não deixar o erro passar adiante.
- */
+/** `=SE(A1=0;"";1/A1)` não pode calcular o ramo não escolhido. */
 const LAZY = new Set(['SE', 'IF', 'SEERRO', 'IFERROR', 'SENÃODISP', 'SEND', 'IFNA'])
 
 function call(node: { name: string; args: readonly Node[] }, context: EvalContext): Scalar {
@@ -150,8 +132,7 @@ function call(node: { name: string; args: readonly Node[] }, context: EvalContex
   const args: Argument[] = []
   for (const arg of node.args) {
     const value = argumentOf(arg, context)
-    // Erro em argumento contamina a chamada inteira — menos nas preguiçosas
-    // acima e nas que existem justamente para examinar o erro.
+    // Erro em argumento contamina a chamada, menos nas preguiçosas e nas que examinam erro.
     if (!definition.acceptsErrors && value.kind === 'value' && isFormulaError(value.value)) {
       return value.value
     }

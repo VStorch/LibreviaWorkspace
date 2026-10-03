@@ -9,17 +9,11 @@ import {
 } from './model.js'
 
 /**
- * As seções do documento, e a herança das faixas entre elas.
- *
- * O modelo guarda a última seção em `page` e as anteriores em `sections`, cada
- * uma só com as faixas que **declara** — é o que o arquivo diz, e é o que deixa
- * editar uma faixa sem ter de achar as cópias dela. Quem desenha precisa da
- * faixa que **vale** em cada seção, e é isto que este módulo resolve: a seção que
- * não declara um tipo usa o da anterior ("Vincular ao anterior" no Word), tipo
- * por tipo — capa, par e padrão herdam cada um por si.
+ * Cada seção guarda só as faixas que **declara**, como o arquivo. A que não
+ * declara um tipo usa o da anterior ("Vincular ao anterior" no Word), tipo por
+ * tipo: capa, par e padrão herdam cada um por si.
  */
 
-/** As chaves das seis faixas de uma seção. */
 export const BAND_KEYS = [
   'headerBand',
   'footerBand',
@@ -36,11 +30,8 @@ export function allSections(page: PageSetup, sections: readonly SectionSetup[] =
 }
 
 /**
- * As seções com as faixas herdadas já resolvidas.
- *
- * Da segunda em diante, faixa nula é herança; a primeira não tem de quem herdar,
- * e nula ali é "sem faixa". Uma faixa declarada e vazia **não** herda: é a folha
- * limpa que a pessoa quis, e fica vazia.
+ * Da segunda seção em diante, faixa nula herda; na primeira é "sem faixa". Faixa
+ * declarada e vazia não herda: é a folha limpa que a pessoa quis.
  */
 export function effectiveSections(page: PageSetup, sections: readonly SectionSetup[] = []): PageSetup[] {
   const resolved: PageSetup[] = []
@@ -59,7 +50,6 @@ export function effectiveSections(page: PageSetup, sections: readonly SectionSet
   return resolved
 }
 
-/** O id de seção que o bloco de primeiro nível encerra, se encerra uma. */
 export function sectionBreakOf(
   node: { readonly attrs?: Record<string, unknown> | null } | DocumentNode,
 ): string | null {
@@ -67,19 +57,13 @@ export function sectionBreakOf(
   return typeof value === 'string' && value.length > 0 ? value : null
 }
 
-/** O pedaço de nó que a procura da marca de seção precisa. */
 export interface SectionBlock {
   readonly attrs: Record<string, unknown>
   readonly isTextblock?: boolean
   descendants?: (callback: (node: SectionBlock) => boolean | void) => void
 }
 
-/**
- * A marca de seção que o bloco de primeiro nível carrega, se carrega.
- *
- * Quase sempre no próprio parágrafo; num item de lista, no parágrafo de dentro
- * — e aí a seção termina com a lista inteira, que é o bloco que a folha corta.
- */
+/** Num item de lista a marca está no parágrafo de dentro, e a seção termina com a lista inteira. */
 export function sectionBreakIn(block: SectionBlock): string | null {
   const own = sectionBreakOf(block)
   if (own !== null || block.isTextblock === true || block.descendants === undefined) return own
@@ -93,12 +77,9 @@ export function sectionBreakIn(block: SectionBlock): string | null {
 }
 
 /**
- * A seção de cada bloco de primeiro nível, como índice em `allSections`.
- *
- * O bloco pertence à seção da próxima marca — a dele mesmo ou a de um bloco
- * adiante —, porque a marca **fecha** a seção, como o `w:sectPr` no parágrafo.
- * Depois da última marca vem a seção do corpo. Marca de id desconhecido (um
- * parágrafo colado de outro documento) não é marca: a seção dela não existe.
+ * Índices em `allSections`. O bloco pertence à seção da próxima marca, porque
+ * a marca **fecha** a seção, como o `w:sectPr`. Marca de id desconhecido (de um
+ * parágrafo colado de outro documento) não conta.
  */
 export function blockSections(
   breaks: readonly (string | null)[],
@@ -121,13 +102,7 @@ export function samePaper(left: PageSetup, right: PageSetup): boolean {
   return left.size === right.size && left.orientation === right.orientation
 }
 
-/**
- * A seção começa em folha nova?
- *
- * "Próxima página", par e ímpar sempre; a contínua só quando o papel muda —
- * uma folha não troca de tamanho nem de orientação no meio, e o Word a trata
- * como próxima página.
- */
+/** "Próxima página", par e ímpar sempre; a contínua só quando o papel muda, como no Word. */
 export function startsNewSheet(section: PageSetup, previous: PageSetup | undefined): boolean {
   if (previous === undefined) return false
   const start = section.start ?? 'nextPage'
@@ -135,30 +110,18 @@ export function startsNewSheet(section: PageSetup, previous: PageSetup | undefin
   return true
 }
 
-/** A paridade que a primeira folha da seção exige. */
 export function parityOf(section: PageSetup): 'even' | 'odd' | null {
   return section.start === 'evenPage' ? 'even' : section.start === 'oddPage' ? 'odd' : null
 }
 
-/** O que uma folha desenhada precisa da seção dela. */
 export interface SheetSetup {
-  /**
-   * A configuração da seção, com `pageNumberStart` apontando o número da
-   * primeira folha da seção: é o que deixa `bandForPage` e `pageLabel`, que
-   * contam a partir de 1, darem a capa e o número certos em qualquer seção.
-   */
+  /** Com `pageNumberStart` no número da primeira folha da seção, para `bandForPage` e `pageLabel` acertarem. */
   readonly page: PageSetup
-  /** A folha, contando da primeira da seção (a partir de 1). */
+  /** Contando da primeira folha da seção, a partir de 1. */
   readonly inSection: number
 }
 
-/**
- * A configuração de cada folha desenhada.
- *
- * A folha em branco que a seção par ou ímpar pede já é da seção nova — o papel
- * e a faixa dela —, mas não é a capa: a primeira folha da seção é a que tem
- * texto.
- */
+/** A folha em branco da seção par ou ímpar já é da seção nova, mas não é a capa. */
 export function sheetSetups(
   effective: readonly PageSetup[],
   sheets: readonly Pick<SheetPlan, 'section' | 'number' | 'first' | 'blank'>[],
@@ -175,7 +138,6 @@ export function sheetSetups(
     previous = sheet.section
     inSection += 1
     const section = effective[sheet.section] ?? effective.at(-1)!
-    // A folha em branco não é a capa da seção: leva a faixa comum.
     result.push({
       page: { ...section, pageNumberStart: firstNumber, ...(sheet.blank ? { titlePage: false } : {}) },
       inSection,
@@ -184,7 +146,6 @@ export function sheetSetups(
   return result
 }
 
-/** A última seção e as anteriores, como o modelo as guarda. */
 export interface SectionList {
   readonly page: PageSetup
   readonly sections: readonly SectionSetup[]
@@ -199,11 +160,8 @@ export function freshSectionId(sections: readonly SectionSetup[]): string {
 }
 
 /**
- * Parte a seção `index` (em `allSections`) numa quebra nova.
- *
- * Como no Word: a seção de cima é uma cópia da que foi partida — papel,
- * margens, faixas e numeração —, e a de baixo continua sendo ela, agora
- * começando do jeito que a quebra pediu. O `w:type` é da seção que começa.
+ * Como no Word: a seção de cima é cópia da partida, e a de baixo continua sendo
+ * ela, começando como a quebra pediu. O `w:type` é da seção que começa.
  */
 export function withSectionBreak(
   list: SectionList,
@@ -235,13 +193,9 @@ export function withoutSection(list: SectionList, id: string): SectionList {
 }
 
 /**
- * Aplica o painel de configuração de página "nesta seção" ou "no documento todo".
- *
- * Na seção editada vale tudo o que o painel diz. No documento todo, as outras
- * recebem o papel, as margens, as distâncias das faixas, o formato do número e a
- * capa distinta — o reinício da numeração fica só onde foi pedido, que é o que
- * faz sentido numa seção e seria estranho em todas. "Pares e ímpares" é do
- * documento inteiro no Word, e vai a todas nos dois casos.
+ * No documento todo, as outras seções recebem papel, margens, distâncias das
+ * faixas, formato do número e capa distinta; o reinício da numeração fica só
+ * onde foi pedido. "Pares e ímpares" é do documento inteiro no Word.
  */
 export function withPageSetup(
   list: SectionList,
@@ -270,25 +224,20 @@ export function withPageSetup(
   return { page, sections }
 }
 
-/** As chaves das faixas de um lado: cabeçalho ou rodapé. */
 const KIND_KEYS = {
   header: ['headerBand', 'firstHeaderBand', 'evenHeaderBand'],
   footer: ['footerBand', 'firstFooterBand', 'evenFooterBand'],
 } as const satisfies Record<'header' | 'footer', readonly BandKey[]>
 
-/** O cabeçalho (ou rodapé) da seção vem da anterior: ela não declara nenhum dos três tipos. */
+/** A seção não declara nenhum dos três tipos daquele lado. */
 export function isLinkedToPrevious(section: PageSetup, index: number, kind: 'header' | 'footer'): boolean {
   return index > 0 && KIND_KEYS[kind].every((key) => section[key] === null || section[key] === undefined)
 }
 
 /**
- * "Vincular ao anterior" ligado ou desligado.
- *
- * Ligado, a seção deixa de declarar as faixas daquele lado, e passa a mostrar as
- * da anterior. Desligado, ela ganha uma cópia das que herdava — com os endereços
- * marcados com a seção dona (`s2~rId5:0:1`, a do corpo é `body`): a gravação cria
- * uma parte nova para a cópia (`SectionWriter.ApplyBands`), e editar uma não muda
- * a outra.
+ * Desligado, a seção ganha uma cópia das faixas que herdava, com endereços
+ * marcados pela seção dona (`s2~rId5:0:1`; a do corpo é `body`): a gravação
+ * cria uma parte nova para a cópia (`SectionWriter.ApplyBands`).
  */
 export function withBandsLinked<T extends PageSetup>(
   section: T,
@@ -304,7 +253,6 @@ export function withBandsLinked<T extends PageSetup>(
   return { ...section, ...changes }
 }
 
-/** A cópia da faixa herdada, com os endereços marcados pela seção que passa a ser dona dela. */
 function unlinkedCopy(band: Band | null, key: string): Band | null {
   if (band === null) return null
   const mark = (address: string | undefined): string | undefined =>
@@ -325,7 +273,6 @@ function unlinkedCopy(band: Band | null, key: string): Band | null {
   }
 }
 
-/** As colunas de uma seção, já em medidas: quantas, a largura de cada uma e o passo entre elas (mm). */
 export interface ColumnGeometry {
   readonly count: number
   readonly widthMm: number
@@ -335,12 +282,7 @@ export interface ColumnGeometry {
   readonly separator: boolean
 }
 
-/**
- * A coluna de texto da seção dividida em colunas iguais.
- *
- * Larguras diferentes (`widthsMm`) são desenhadas iguais — o arquivo as mantém,
- * e o inventário diz que a tela não as mostra.
- */
+/** Larguras diferentes (`widthsMm`) são desenhadas iguais; o arquivo as mantém e o inventário avisa. */
 export function columnGeometry(section: PageSetup): ColumnGeometry {
   const count = Math.max(1, Math.round(section.columns?.count ?? 1))
   const spaceMm = count > 1 ? Math.max(0, section.columns?.spaceMm ?? 12.7) : 0
@@ -355,12 +297,7 @@ export function columnGeometry(section: PageSetup): ColumnGeometry {
   }
 }
 
-/**
- * Colunas novas na seção `index` (em `allSections`) ou no documento todo.
- *
- * Sem as larguras diferentes que o arquivo trouxesse: o painel só conhece
- * colunas iguais, e a gravação então as iguala (`SectionWriter.ApplyColumns`).
- */
+/** O painel só conhece colunas iguais, e a gravação as iguala (`SectionWriter.ApplyColumns`). */
 export function withColumns(
   list: SectionList,
   index: number,
@@ -378,15 +315,9 @@ export function withColumns(
 }
 
 /**
- * As seções como o texto as ordena agora.
- *
- * A loja guarda uma **biblioteca** de seções por id, e é o texto que diz quais
- * valem e em que ordem: as marcas (`sectionBreak`) na ordem do corpo, e o
- * atributo `bodySection` do documento para a última, quando ela foi trocada por
- * uma quebra nova. Assim o desfazer, que só conhece o texto, desfaz também a
- * seção: a marca que some leva a seção junto, a que volta a traz de volta — a
- * configuração dela continua na biblioteca —, e a ordem nunca diverge da do
- * arquivo, que a gravação lê do corpo.
+ * A loja guarda uma **biblioteca** de seções por id, e o texto diz quais valem:
+ * as marcas na ordem do corpo e o atributo `bodySection` para a última. Assim o
+ * desfazer, que só conhece o texto, desfaz também a seção.
  */
 export interface ResolvedSections extends SectionList {
   readonly sections: readonly SectionSetup[]
@@ -394,7 +325,6 @@ export interface ResolvedSections extends SectionList {
   readonly bodyId: string | null
 }
 
-/** A configuração sem o id — é assim que a última seção vai ao modelo. */
 function withoutId(section: PageSetup): PageSetup {
   if (!('id' in section)) return section
   const { id: _id, ...rest } = section as SectionSetup
@@ -425,12 +355,7 @@ export function resolveSections(
   }
 }
 
-/**
- * Leva de volta à biblioteca as seções mudadas por um painel.
- *
- * Por id, e sem apagar nada: a entrada que o texto não usa mais pode voltar com
- * um desfazer.
- */
+/** Por id e sem apagar nada: a entrada que o texto não usa mais pode voltar com um desfazer. */
 export function storeSections(
   next: SectionList,
   bodyId: string | null,
@@ -464,14 +389,9 @@ export function marksOfJson(doc: DocumentNode): (string | null)[] {
 }
 
 /**
- * Uma quebra de seção nova na seção `index` (de `allSections`), como o desfazer
- * a entende: só **acrescenta** à biblioteca.
- *
- * A seção de cima é uma cópia da partida, com um id novo, e é esse id que vai na
- * marca nova. A de baixo muda de começo — e em vez de mudar a entrada dela, que
- * o desfazer não voltaria, ganha outra entrada com o começo novo: a marca que a
- * fecha passa a apontá-la (`rename`), ou, se ela é a última, o atributo do
- * documento (`bodyId`). As duas mudanças são do texto, e o desfazer as leva.
+ * Só **acrescenta** à biblioteca, para o desfazer funcionar. A seção de cima é
+ * cópia da partida com id novo; a de baixo ganha outra entrada com o começo
+ * novo, apontada pela marca que a fecha (`rename`) ou por `bodyId`.
  */
 export function planSectionBreak(
   resolved: ResolvedSections,
@@ -501,11 +421,8 @@ export function planSectionBreak(
 }
 
 /**
- * A exclusão da quebra que fecha a seção `index` — ou, na última, a que a abre.
- *
- * O trecho de cima passa à seção de baixo, como no Word. A de baixo recebe as
- * faixas que herdava da excluída: sem isso, se a excluída era a primeira, a de
- * baixo ficaria sem cabeçalho.
+ * Ou, na última seção, a quebra que a abre. O trecho de cima passa à seção de
+ * baixo, como no Word, e ela recebe as faixas que herdava da excluída.
  */
 export function planSectionDelete(
   resolved: ResolvedSections,

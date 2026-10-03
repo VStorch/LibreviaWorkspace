@@ -1,19 +1,13 @@
 /**
- * Onde a página termina.
+ * Recebe blocos **já medidos** pelo editor e devolve os pontos de corte, sem
+ * tocar no DOM.
  *
- * Recebe blocos **já medidos** e devolve os pontos de corte. Não toca no DOM:
- * quem mede é o editor, que é o único que sabe a altura real de cada bloco
- * depois da fonte carregar. Separar as duas coisas é o que torna a regra
- * testável — a medição precisa de um navegador, a decisão não.
- *
- * As posições são em **coordenadas de fluxo**: a altura que o bloco teria se o
- * documento fosse uma tira contínua, sem os vãos entre as folhas. É o que
- * resolve a realimentação — inserir os vãos muda o `offsetTop` de tudo que vem
- * depois, e recalcular sobre a nova medida entraria em laço. Em coordenadas de
- * fluxo o cálculo é um passo só, e quem desenha soma os vãos depois.
+ * As posições são em **coordenadas de fluxo**: a altura que o bloco teria numa
+ * tira contínua, sem os vãos entre as folhas. Inserir os vãos muda o
+ * `offsetTop` de tudo que vem depois; em coordenadas de fluxo o cálculo é um
+ * passo só, e quem desenha soma os vãos depois.
  */
 
-/** Um bloco de primeiro nível, medido na tela. */
 export interface MeasuredBlock {
   /** Topo em coordenadas de fluxo. */
   readonly top: number
@@ -22,12 +16,7 @@ export interface MeasuredBlock {
   readonly breakpoints: readonly number[]
   /** É o nó `pageBreak` — a quebra que a pessoa pediu com Ctrl+Enter. */
   readonly isPageBreak: boolean
-  /**
-   * A folha termina **depois** deste bloco.
-   *
-   * É a quebra que o Word gravou dentro do parágrafo. Diferente de
-   * `isPageBreak`, que é um bloco só dela.
-   */
+  /** A quebra que o Word gravou dentro do parágrafo: a folha termina depois do bloco. */
   readonly breakAfter: boolean
   /** `w:keepNext`: não pode ficar sozinho no pé da página. */
   readonly keepWithNext: boolean
@@ -38,11 +27,8 @@ export interface MeasuredBlock {
    */
   readonly keepLines?: boolean
   /**
-   * Os pontos de corte são linhas de parágrafo com controle de viúvas e órfãs
-   * (`w:widowControl`, ligado por padrão no Word): nenhuma linha fica sozinha
-   * no pé nem no topo da folha. Cortar depois da primeira linha deixaria a
-   * órfã, antes da última a viúva — são esses dois cortes que saem. Parágrafo
-   * de duas ou três linhas fica sem corte e anda inteiro, como no Word.
+   * `w:widowControl`, ligado por padrão no Word: os cortes depois da primeira
+   * linha e antes da última saem, e parágrafo de até três linhas anda inteiro.
    */
   readonly widowControl?: boolean
   /**
@@ -52,17 +38,12 @@ export interface MeasuredBlock {
    */
   readonly repeatHeight?: number
   /**
-   * Cortes que não são entre linhas de texto e por isso não passam pela regra
-   * de viúvas e órfãs: o pé da captura ancorada, onde o LibreOffice deixa a
-   * linha vazia do parágrafo descer para a folha seguinte enquanto o quadro
-   * fica. Já estão também em `breakpoints`.
+   * Cortes fora da regra de viúvas e órfãs: o pé da captura ancorada, onde o
+   * LibreOffice deixa a linha vazia do parágrafo descer enquanto o quadro fica.
+   * Já estão também em `breakpoints`.
    */
   readonly freeBreakpoints?: readonly number[]
-  /**
-   * Quanto do pé do bloco pode passar da folha: a linha vazia do parágrafo de
-   * uma captura ancorada. Medido no LibreOffice, ela entra na margem de baixo
-   * em vez de levar o quadro — ou ela mesma — para a folha seguinte.
-   */
+  /** A linha vazia do parágrafo de uma captura ancorada, que o LibreOffice deixa entrar na margem de baixo. */
   readonly hangingBottom?: number
   /**
    * A seção do bloco: o índice dela em `SectionFlow[]`. Ausente é a primeira —
@@ -75,14 +56,8 @@ export interface MeasuredBlock {
   readonly notes?: readonly MeasuredNote[]
 }
 
-/**
- * Uma nota de rodapé, medida no corpo dela.
- *
- * A altura não depende da paginação — o corpo é medido na largura da coluna de
- * texto, fora do fluxo —, e por isso reservá-la não realimenta a medida.
- */
+/** A altura não depende da paginação: o corpo é medido fora do fluxo, na largura da coluna. */
 export interface MeasuredNote {
-  /** Quem desenha a nota sabe achá-la por aqui. */
   readonly id: string
   /** O pé da linha da referência, em coordenadas de fluxo. */
   readonly at: number
@@ -98,19 +73,10 @@ export interface NoteSlice {
   readonly toLine: number
 }
 
-/**
- * O que a paginação precisa saber de uma seção.
- *
- * As medidas já em pixels de tela e já descontadas as faixas: é a altura útil da
- * folha da seção, a mesma conta de `contentHeightMm`.
- */
+/** Medidas em pixels de tela, já sem as faixas: a altura útil de `contentHeightMm`. */
 export interface SectionFlow {
   readonly height: number
-  /**
-   * A seção abre folha nova: "próxima página", par, ímpar — e também a contínua
-   * cujo papel ou orientação difere da anterior, que o Word trata como próxima
-   * página, já que uma folha não muda de tamanho no meio.
-   */
+  /** Também a contínua com outro papel ou orientação, que o Word trata como próxima página. */
   readonly newSheet: boolean
   /** A folha que abre a seção precisa ter número par ou ímpar (`w:type` evenPage/oddPage). */
   readonly parity: 'even' | 'odd' | null
@@ -121,12 +87,10 @@ export interface SectionFlow {
 }
 
 /**
- * Onde um bloco de seção com colunas foi posto.
- *
- * O editor continua sendo uma tira só; a coluna é desenhada **levantando** o
+ * O editor continua sendo uma tira só: a coluna é desenhada **levantando** o
  * primeiro bloco de cada coluna até o topo da região (`lift` negativo) e
- * deslocando para o lado todos os blocos dela. Depois da região, o bloco
- * seguinte desce até o pé da coluna mais alta (`lift` positivo).
+ * deslocando os blocos dela para o lado. Depois da região, o bloco seguinte
+ * desce até o pé da coluna mais alta (`lift` positivo).
  */
 export interface ColumnPlacement {
   readonly column: number
@@ -145,19 +109,16 @@ export interface ColumnRegion {
   readonly columns: number
 }
 
-/** Uma folha do documento, na ordem da pilha. */
 export interface SheetPlan {
   /** A seção que abre a folha — é dela o papel, a margem e a faixa. */
   readonly section: number
   /**
    * Folha em branco que o Word insere para a seção par ou ímpar cair na folha
-   * certa. Não recebe bloco nenhum; conta na numeração, e já tem o papel da
-   * seção que vem depois dela.
+   * certa. Conta na numeração e tem o papel da seção seguinte.
    */
   readonly blank: boolean
-  /** O número impresso na folha. */
   readonly number: number
-  /** É a primeira folha da seção — a da "Primeira página diferente". */
+  /** A folha da "Primeira página diferente". */
   readonly first: boolean
 }
 
@@ -194,24 +155,17 @@ function lineCount(note: MeasuredNote): number {
   return Math.max(note.lines.length, 1)
 }
 
-/**
- * Pontos de corte, em coordenadas de fluxo.
- *
- * Cada valor é onde uma página nova começa. Lista vazia é documento de uma
- * página só.
- */
+/** Cada valor é onde uma página nova começa; lista vazia é documento de uma página. */
 export function paginate(blocks: readonly MeasuredBlock[], pageHeight: number): number[] {
   return paginateSections(blocks, [{ height: pageHeight, newSheet: false, parity: null, restart: null }])
     .breaks
 }
 
 /**
- * Os cortes e as folhas de um documento com seções.
- *
- * A folha tem a altura da seção que a abre: é o papel dela. A seção que começa
- * em folha nova corta antes do primeiro bloco dela — a menos que a folha ainda
- * esteja vazia, e aí a folha passa a ser dela —, e a de página par ou ímpar
- * ganha antes uma folha em branco quando o número não bate, como no Word.
+ * A folha tem a altura da seção que a abre. A seção que começa em folha nova
+ * corta antes do primeiro bloco dela, a menos que a folha esteja vazia; a de
+ * página par ou ímpar ganha antes uma folha em branco quando o número não bate,
+ * como no Word.
  */
 export function paginateSections(
   blocks: readonly MeasuredBlock[],
@@ -267,13 +221,10 @@ export function paginateSections(
   open(firstSection)
   if (blocks.length === 0) return { breaks, sheets, placements, regions, notes, noteHeights }
 
-  // As notas de rodapé. A folha leva a nota cuja referência ela leva, no pé, e
-  // a conta de caber passa a ser texto + separador + notas. A nota longa segue
-  // a regra do Word: a linha da referência e pelo menos a primeira linha da
-  // nota ficam na mesma folha, e o resto continua no alto da área de notas da
-  // folha seguinte (`carry`).
+  // A folha leva a nota cuja referência ela leva. A nota longa segue o Word: a
+  // linha da referência e pelo menos a primeira linha da nota ficam na mesma
+  // folha, e o resto continua no alto da área de notas seguinte (`carry`).
   const footnotes = blocks.flatMap((block) => block.notes ?? [])
-  // A primeira nota que ainda não caiu em folha nenhuma.
   let nextNote = 0
   let carry: { note: MeasuredNote; from: number }[] = []
   const separator = noteFlow.separator
@@ -290,12 +241,8 @@ export function paginateSections(
 
   // O espaço que as notas pedem para a folha terminar em `at`: as novas
   // inteiras, menos a última, de que basta a primeira linha. Cresce com `at`, e
-  // é por isso que "o último corte que cabe" continua valendo.
-  //
-  // A continuação vem antes do texto, como no Word: ela pede o resto inteiro,
-  // até meia folha — a nota de várias folhas segue enchendo o pé das
-  // seguintes, sem tomar a folha toda do texto. Contada só pela primeira linha,
-  // ela andava uma linha por folha enquanto o texto ocupava o resto.
+  // por isso "o último corte que cabe" continua valendo. A continuação vem antes
+  // do texto, como no Word, e pede o resto inteiro até meia folha.
   const noteNeed = (at: number): number => {
     if (carry.length === 0 && (nextNote >= footnotes.length || footnotes[nextNote]!.at > at + 0.5)) return 0
     const fresh = pendingNotes(at).slice(carry.length)
@@ -368,18 +315,10 @@ export function paginateSections(
   let floor = 0
   let index = 0
 
-  // Sem teto de páginas, e por isso o laço precisa terminar sozinho. Ele
-  // termina: em cada volta, ou `index` avança, ou `floor` cresce estritamente
-  // para um topo de bloco ou um dos seus pontos de corte. Há uma quantidade
-  // finita dessas posições; um corte interno nunca permite voltar para trás.
-  //
-  // Havia um teto de quinhentas páginas, que parecia inofensivo e não era: ao
-  // ser alcançado, o laço simplesmente parava, e **todo o resto do documento
-  // ficava empilhado na última folha**. Uma altura de página perto de zero —
-  // margens absurdas, fonte que não carregou — dava quinhentas folhas em um
-  // documento de dez, e o que vinha depois desaparecia de vista. Perder conteúdo
-  // de vista é pior do que desenhar folhas demais, e quem protege da altura
-  // inválida é a guarda de `pageHeight` logo abaixo.
+  // Sem teto de páginas: em cada volta `index` avança ou `floor` cresce
+  // estritamente, e há uma quantidade finita dessas posições. Um teto pararia o
+  // laço e empilharia o resto do documento na última folha; quem protege da
+  // altura inválida é a guarda de `pageHeight`.
   while (index < blocks.length) {
     const block = blocks[index]!
 
@@ -413,10 +352,8 @@ export function paginateSections(
       continue
     }
 
-    // A quebra pedida à mão vale mesmo com a página pela metade, e é por isso
-    // que ela vem antes de qualquer conta de altura. O medidor anterior a
-    // ignorava, e num documento com capa e sumário a marca caía sempre no lugar
-    // errado — três páginas viravam uma.
+    // A quebra pedida à mão vale mesmo com a página pela metade, por isso vem
+    // antes de qualquer conta de altura.
     if (block.isPageBreak) {
       const after = block.top + block.height
       if (after > floor) {
@@ -478,9 +415,8 @@ export function paginateSections(
     }
 
     if (breakAt <= floor) {
-      // Sem corte disponível, o restante fica com a folha só para si.
-      // O layout aumenta esse papel para conter o bloco atômico; o próximo
-      // bloco continua abrindo uma folha nova, como antes.
+      // Sem corte disponível, o bloco atômico fica com a folha só para si, e o
+      // layout aumenta o papel para contê-lo.
       const used = bottom - pageStart
       pageStart = floor = bottom
       index += 1
@@ -510,13 +446,9 @@ export function paginateSections(
 
   /**
    * Distribui nas colunas desta folha os blocos da seção a partir de `start`, e
-   * devolve o primeiro que ficou de fora.
-   *
-   * Por bloco inteiro: a linha de um parágrafo não sobe para a coluna seguinte,
-   * ele vai todo — aproximação do Word, que corta entre linhas. A região termina
-   * com a seção, com a folha cheia ou com uma quebra de página. Antes de uma
-   * seção contínua na mesma folha as colunas são **equilibradas**, como no Word:
-   * a menor altura em que tudo cabe.
+   * devolve o primeiro que ficou de fora. Por bloco inteiro, aproximando o Word,
+   * que corta entre linhas. Antes de uma seção contínua na mesma folha as colunas
+   * são equilibradas, como no Word.
    */
   function layoutColumns(start: number, section: number, count: number): number {
     let end = start

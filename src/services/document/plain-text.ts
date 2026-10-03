@@ -1,15 +1,5 @@
 import type { DocumentNode } from './model.js'
 
-/**
- * Conversão entre o modelo do documento e texto puro.
- *
- * Existe para o `.txt` continuar sendo um formato de primeira classe: abrir um
- * arquivo de texto produz parágrafos comuns, e salvar como texto produz um
- * arquivo que qualquer programa lê. A perda de formatação nesse caminho é
- * inevitável — por isso `hasRichFormatting` avisa antes que ela aconteça.
- */
-
-/** Nós que representam um bloco e, portanto, uma linha no texto puro. */
 const BLOCK_TYPES = new Set([
   'paragraph',
   'heading',
@@ -41,8 +31,7 @@ export function documentToPlainText(doc: DocumentNode): string {
 function collectLines(node: DocumentNode, lines: string[]): void {
   if (BLOCK_TYPES.has(node.type)) {
     const text = collectInlineText(node)
-    // Células de tabela viram linhas próprias: sem colunas, é o melhor que o
-    // texto puro consegue representar sem inventar alinhamento.
+    // Sem colunas, cada célula vira uma linha.
     lines.push(text)
     if (node.type === 'tableCell' || node.type === 'tableHeader') return
   }
@@ -75,19 +64,13 @@ function collectInlineText(node: DocumentNode): string {
   return (node.content ?? []).map(collectInlineText).join('')
 }
 
-/**
- * O documento tem algo que o `.txt` não guarda?
- *
- * Serve para avisar antes de salvar, em vez de descobrir a perda depois. É
- * deliberadamente pessimista: na dúvida, avisa.
- */
+/** Pessimista: na dúvida, avisa antes de salvar. */
 export function hasRichFormatting(doc: DocumentNode): boolean {
   return anyNode(doc, (node) => {
     if (node.marks !== undefined && node.marks.length > 0) return true
 
     if (node.type !== 'doc' && node.type !== 'paragraph' && node.type !== 'text') return true
 
-    // Parágrafo com alinhamento, recuo ou espaçamento também é formatação.
     const attrs = node.attrs
     if (attrs === undefined) return false
     return Object.values(attrs).some((value) => value !== null && value !== undefined && value !== 0)

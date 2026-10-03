@@ -1,16 +1,9 @@
 import { MATH_BOX_CLASS, sanitizeMathMl, type MathChild, type MathElement } from './mathml.js'
 
 /**
- * O MathML de uma equação de volta a LaTeX.
- *
- * É o que dá fonte à equação que veio de um `.docx`: o sidecar desenha o OMML em
- * MathML (`OmmlMath.cs`), e o editor de equações precisa de texto para editar.
- * O alvo é o LaTeX que o Temml lê e que, lido de novo, dá a mesma estrutura —
- * fração, raiz, índices, n-ários, delimitadores, matrizes, acentos, funções —,
- * não o LaTeX mais bonito possível.
- *
- * Entra o MathML já filtrado (`sanitizeMathMl`): o da conversão do sidecar e o
- * do próprio Temml, que dizem a mesma coisa de jeitos um pouco diferentes.
+ * O editor de equações precisa de texto para editar a equação vinda do `.docx`.
+ * O alvo é o LaTeX que o Temml lê de volta com a mesma estrutura, e não o mais
+ * bonito. Entra o MathML já filtrado (`sanitizeMathMl`), do sidecar ou do Temml.
  */
 
 const GREEK: Readonly<Record<string, string>> = {
@@ -277,11 +270,7 @@ export function mathMlToLatex(tree: MathElement): string {
   return row(tree.children)
 }
 
-/**
- * O LaTeX de uma equação: o que ela guarda, ou — na que veio de um arquivo e
- * nunca passou pelo editor — o que sai do MathML dela. Vazio só quando nem o
- * MathML passa no filtro. É o que vai para o Markdown e para o texto copiado.
- */
+/** O que ela guarda, ou o que sai do MathML na que nunca passou pelo editor. */
 export function latexOfEquation(attrs: Readonly<Record<string, unknown>> | undefined): string {
   const latex = typeof attrs?.['latex'] === 'string' ? attrs['latex'].trim() : ''
   if (latex !== '') return latex
@@ -306,8 +295,6 @@ export function latexOfEquation(attrs: Readonly<Record<string, unknown>> | undef
           .trim()
   return annotated !== '' ? annotated : mathMlToLatex(tree).trim()
 }
-
-// --- a árvore ---------------------------------------------------------------
 
 function elements(children: readonly MathChild[]): MathElement[] {
   return children.filter((child): child is MathElement => typeof child !== 'string')
@@ -355,8 +342,6 @@ function naryOperator(node: MathElement): string | null {
   const text = textOf(inner).trim()
   return NARY.has(text) ? text : null
 }
-
-// --- a escrita ---------------------------------------------------------------
 
 /**
  * Junta os pedaços: depois de uma palavra de controle (`\alpha`) vem um espaço
@@ -555,8 +540,6 @@ function table(item: MathElement): string {
     .join(' \\\\ ')
 }
 
-// --- os delimitadores -------------------------------------------------------
-
 function delimiter(chr: string, side: 'left' | 'right'): string {
   switch (chr) {
     case '':
@@ -625,8 +608,6 @@ function fenced(item: MathElement): string {
   })
   return join([`\\left${delimiter(open, 'left')}`, ...parts, `\\right${delimiter(close, 'right')}`])
 }
-
-// --- as fichas ----------------------------------------------------------------
 
 function styledLetter(code: number): readonly [string, string] | null {
   for (const alphabet of ALPHABETS) {

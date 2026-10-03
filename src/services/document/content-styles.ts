@@ -1,12 +1,6 @@
 /**
- * Estilo do conteúdo do documento — **fonte única de verdade**.
- *
- * O mesmo texto é usado em dois lugares: injetado no editor e embutido no HTML
- * que gera o PDF. Se fossem duas folhas de estilo, elas divergiriam com o tempo
- * e o PDF deixaria de sair igual à tela.
- *
- * Por isso não usa variáveis CSS do aplicativo: precisa ser autossuficiente
- * dentro de um documento HTML isolado.
+ * O mesmo CSS vai ao editor e ao HTML que gera o PDF, para o papel sair igual à
+ * tela. Não usa variáveis CSS do aplicativo: precisa valer num HTML isolado.
  */
 import { DOCUMENT_FONT_CSS } from './fonts.js'
 
@@ -15,21 +9,12 @@ ${DOCUMENT_FONT_CSS}
 
 .page__content {
   outline: none;
-  /*
-    Coluna de caixas flexíveis, e não fluxo comum, por uma razão só: **as
-    margens não podem se juntar**. O CSS funde a margem de baixo de um bloco com
-    a de cima do seguinte e fica com a maior; o Word e o LibreOffice somam as
-    duas. Num documento em que cada parágrafo pede 14 pt depois e o seguinte
-    14 pt antes, a diferença é meia linha por junta — e ela se acumula até a
-    folha cortar noutro lugar.
-  */
+  /* Flex, e não fluxo comum, para as margens não se fundirem: o CSS fica com a
+     maior, e o Word e o LibreOffice somam as duas. */
   display: flex;
   flex-direction: column;
-  /* Pelo nome do documento: a regra @font-face acima resolve para a
-     empacotada. Crase nenhuma aqui dentro: isto mora num template literal.
-     No documento, a fonte, o tamanho e a entrelinha daqui (e os títulos logo
-     abaixo) são sobrepostos pelo CSS dos estilos (style-css.ts); valem sozinhos
-     só fora dele, na planilha impressa. */
+  /* No documento, o CSS dos estilos (style-css.ts) sobrepõe isto; vale sozinho
+     na planilha impressa. */
   font-family: 'Times New Roman', 'Liberation Serif', Georgia, serif;
   font-size: 12pt;
   line-height: 1.5;
@@ -38,16 +23,8 @@ ${DOCUMENT_FONT_CSS}
 
 .page__content > * + * { margin-top: 0.6em; }
 
-/*
-  O parágrafo vazio também ocupa uma linha.
-
-  No editor ele já ocupa: o ProseMirror põe um <br> invisível dentro para dar
-  onde pôr o cursor. No papel não há cursor, o serializador emite <p></p> e um
-  bloco sem conteúdo tem altura zero. As folhas eram recortadas pela medida da
-  tela e impressas sem essas linhas, então o papel subia o texto todo e a
-  primeira linha ia parar debaixo do cabeçalho. Este pedaço vazio de linha
-  devolve a altura sem devolver tinta.
-*/
+/* O parágrafo vazio ocupa uma linha: no papel não há o <br> que o ProseMirror
+   põe para o cursor, e sem isto o texto subiria. */
 .page__content :is(p, h1, h2, h3, h4, h5, h6, li):empty::before {
   content: '';
   display: inline-block;
@@ -65,16 +42,9 @@ ${DOCUMENT_FONT_CSS}
 
 .page__content a { color: #14538f; text-decoration: underline; }
 
-/*
-  O sumário. As entradas são parágrafos comuns com uma tabulação à direita e
-  pontinhos até o número — é o que o estilo "toc N" do Word declara. Não há
-  paradas de tabulação no editor, e esta é a aproximação: a linha da entrada vira
-  uma fileira flexível em que o número (o campo PAGEREF) encosta na margem e os
-  pontinhos preenchem o que sobra. A tabulação do texto, sozinha no fim da
-  entrada, deixa de ocupar lugar.
-
-  O link da entrada não se pinta de link: o Word também não o pinta.
-*/
+/* O sumário: o estilo "toc N" do Word pede tabulação à direita com pontinhos.
+   Sem paradas de tabulação no editor, a entrada vira uma fileira flexível. O
+   link da entrada não se pinta, como no Word. */
 .page__content .toc a { color: inherit; text-decoration: none; }
 .page__content .toc :is(p, h1, h2, h3, h4, h5, h6, a):has(> .field[data-field='pageref']) {
   display: flex;
@@ -93,17 +63,10 @@ ${DOCUMENT_FONT_CSS}
   padding: 0 0.2em;
 }
 
-/*
-  As equações (M11), desenhadas pelo MathML do Chromium. A fonte de matemática
-  é a do sistema: STIX Two Math não vem com o aplicativo (não havia cópia dela
-  sem baixar), e \`math\` é a família genérica que o Chromium resolve para a
-  fonte com tabela OpenType MATH que houver — Cambria Math no Windows, Noto Sans
-  Math ou DejaVu Math TeX Gyre no Linux.
-
-  A de exibição (\`m:oMathPara\`) é um bloco dentro do parágrafo, alinhado como o
-  arquivo pede; a caixa (\`m:borderBox\`) é um \`mrow\` com borda, que o MathML
-  Core não tem \`menclose\`.
-*/
+/* A fonte de matemática é a do sistema: \`math\` é a família genérica que o
+   Chromium resolve para a fonte com tabela OpenType MATH que houver. A caixa
+   (\`m:borderBox\`) é um \`mrow\` com borda, porque o MathML Core não tem
+   \`menclose\`. */
 .page__content .equacao math {
   font-family: 'STIX Two Math', 'Cambria Math', 'Noto Sans Math', 'DejaVu Math TeX Gyre', math;
 }
@@ -113,42 +76,23 @@ ${DOCUMENT_FONT_CSS}
 .page__content .equacao--exibicao math { display: inline math; math-style: normal; }
 .page__content .equacao .omml-caixa { border: 1px solid currentColor; padding: 0.1em; }
 
-/**
- * Sobrescrito e subscrito sem esticar a linha.
- *
- * O padrão do navegador — \`vertical-align: super\` com \`font-size: smaller\` — sobe
- * o glifo e **cresce a caixa da linha** com ele: a linha que tem um expoente fica
- * mais alta que as vizinhas, e num documento paginado ao vivo isso desloca a
- * quebra de página. O Word não faz isso. \`line-height: 0\` devolve a medida da
- * linha ao texto normal, que é o que a paginação precisa medir; o tamanho é
- * declarado em fração de propósito, porque \`smaller\` encolhe de novo a cada
- * expoente dentro de outro.
- */
+/* Sobrescrito e subscrito sem esticar a linha, como no Word: \`line-height: 0\`
+   devolve a medida da linha, e o tamanho em fração não encolhe de novo a cada
+   expoente aninhado. */
 .page__content sup,
 .page__content sub { font-size: 0.65em; line-height: 0; }
 
 .page__content img { max-width: 100%; height: auto; }
 
-/* Imagem sem parágrafo, alinhada por atributo próprio. O editor de hoje não a
-   produz — a imagem é conteúdo de linha, e quem a alinha é o parágrafo —, mas
-   o que foi salvo quando ela era um bloco ainda imprime assim. */
+/* Imagem como bloco, alinhada por atributo: só vem de rascunhos antigos. */
 .page__content img[data-align='center'] { display: block; margin-inline: auto; }
 .page__content img[data-align='right'] { display: block; margin-left: auto; }
 
-/*
-  A marca da lista é a que o documento declara, contada como o Word conta.
-
-  O contador do CSS recomeça a cada lista e só conhece um formato por vez; o
-  Word conta pela definição, compõe os níveis (%1.%2.) e continua a lista do
-  outro lado de um parágrafo. A marca vem pronta em --lista-marca — calculada em
-  list-numbering.ts e posta por decoração na tela e por atributo no papel.
-
-  Desenhada por um pseudo-elemento porque o marcador nativo não se posiciona — e
-  é justamente a distância (w:ind/@hanging) que faz o recuo pendente do Word. O
-  recuo da lista vem relativo ao da lista de fora (--lista-recuo): o ul aninhado
-  já começa dentro dela, e o recuo absoluto do arquivo somava os dois.
-  !important porque o nó pode trazer o recuo absoluto em estilo inline.
-*/
+/* A marca da lista vem pronta em --lista-marca (list-numbering.ts), contada
+   como o Word conta, e é desenhada por pseudo-elemento porque o marcador nativo
+   não se posiciona no recuo pendente (w:ind/@hanging). O recuo é relativo ao da
+   lista de fora (--lista-recuo); !important porque o nó pode trazer o absoluto
+   em estilo inline. */
 .page__content ul[data-list-indent],
 .page__content ol[data-list-indent] {
   padding-left: var(--lista-recuo) !important;
@@ -163,43 +107,18 @@ ${DOCUMENT_FONT_CSS}
   box-sizing: border-box;
   min-width: var(--lista-pendente, 0mm);
   margin-left: calc(-1 * var(--lista-pendente, 0mm));
-  /* A tabulação depois da marca. Quando a marca cabe no recuo pendente, a folga
-     some dentro dele e o texto começa onde o nível manda; quando não cabe (1.1.1.
-     num recuo de um quarto de polegada), o Word salta para a tabulação seguinte
-     em vez de colar o texto no número — aqui, ao menos meia letra de ar. */
+  /* Marca maior que o recuo pendente: o Word salta para a tabulação seguinte;
+     aqui, ao menos meia letra de ar. */
   padding-right: 0.5em;
   text-indent: 0;
   white-space: pre;
 }
 
-/*
-  A imagem ancorada ao parágrafo é um bloco, e não uma palavra.
-
-  Inline ela repousa sobre a linha de base e sobra por baixo a descida da
-  fonte, que o Word não cobra: medido no LibreOffice, o parágrafo de uma
-  captura ocupa a altura da captura. Com a descida, um documento de trinta
-  capturas fecha uma folha depois — e as folhas passam a cortar em outro lugar.
-
-  Pelo atributo, e não pela posição: o ProseMirror põe uma imagem vazia de
-  serviço ao lado da de verdade para dar onde pôr o cursor, e com ela nenhuma
-  imagem é filha única. A regra por posição valia no papel e não valia na tela,
-  que é justamente como as duas divergem.
-
-  E ela ocupa a coluna, não a caixa do parágrafo: no Word a ancorada não é
-  texto, posiciona-se pela coluna, e o recuo do parágrafo que a carrega não a
-  estreita. Sem descontar o recuo, uma captura de 140 mm dentro de um parágrafo
-  recuado 12,7 mm era espremida — e como a altura segue a largura, encurtava
-  junto, e a legenda seguinte passava a caber numa folha em que o LibreOffice já
-  não a punha.
-
-  Crase nenhuma aqui dentro: isto mora num template literal.
-*/
-/* Na tela quem fica no lugar da imagem, como filho do parágrafo, é o embrulho
-   do NodeView (.node-image), e a moldura das alças mora dentro dele. A regra
-   tem de pegar o embrulho: aplicada à moldura, que não é filha do parágrafo,
-   as duas regras de baixo não casavam com nada — e a paginação da tela só batia
-   com a do papel por acaso. A moldura encolhe à imagem para as alças ficarem
-   nos cantos dela, e não nos da coluna. */
+/* A imagem ancorada é um bloco do tamanho da coluna, como no Word: inline ela
+   cobraria a descida da fonte, e o recuo do parágrafo não a estreita. Pelo
+   atributo, e não pela posição, porque o ProseMirror põe uma imagem de serviço
+   ao lado. Na tela a regra pega o embrulho do NodeView (.node-image), filho do
+   parágrafo; a moldura encolhe à imagem para as alças ficarem nos cantos. */
 .page__content img[data-anchored],
 .page__content .node-image[data-anchored] {
   display: block;
@@ -212,46 +131,15 @@ ${DOCUMENT_FONT_CSS}
   width: fit-content;
 }
 
-/*
-  E a quebra de serviço do editor não abre linha depois dela.
-
-  O ProseMirror põe um BR no fim do bloco para dar onde pôr o cursor. Com a
-  imagem em bloco, esse BR cai numa linha própria e cobra a altura dela — na
-  tela, que é quem pagina, e não no papel, que não tem BR nenhum. Eram 18 px
-  por captura de diferença entre o que a tela mede e o que o papel imprime.
-*/
+/* O <br> de serviço do ProseMirror não abre linha depois da imagem em bloco:
+   o papel não tem esse <br>. */
 .page__content img[data-anchored] ~ br,
 .page__content img[data-anchored] ~ img.ProseMirror-separator,
 .page__content .node-image[data-anchored] ~ br,
 .page__content .node-image[data-anchored] ~ img.ProseMirror-separator { display: none !important; }
 
-/*
-  Mas o parágrafo dela tem uma linha, e a linha ocupa lugar.
-
-  No Word a captura ancorada é um quadro que flutua: o parágrafo continua sendo
-  um parágrafo, com a linha vazia dele, e o quadro empurra o que vem depois. Com
-  a captura ocupando a largura da coluna inteira, não sobra onde a linha caber ao
-  lado, e ela vai para baixo.
-
-  Medido no LibreOffice, no documento de evidências do corpus: entre duas
-  capturas encostadas uma na outra ele deixa 12 pt, que é exatamente a entrelinha
-  do parágrafo. Nós as encostávamos, e o erro se somava a cada captura — num
-  documento de trinta, folhas inteiras de diferença.
-
-  Isto foi medido antes e concluído ao contrário: a linha parecia sobrar. A
-  medida estava certa e a base, errada — a entrelinha saía 1,15 vez curta e a
-  captura 2% estreita, e os dois erros escondiam este. Com eles corrigidos, três
-  dos quatro documentos de evidências passam a cortar nas mesmas folhas.
-
-  Dentro do parágrafo, e não como margin-bottom. A margem parece mais natural e
-  chega a consertar uma folha do documento de quinze — no LibreOffice esta linha
-  pode passar para a folha seguinte enquanto o quadro fica, e a margem imita isso
-  porque não conta no pé da folha. Mas medido nos quatro documentos ela custa
-  caro: 5/5, 5/5 e 5/5 folhas iguais caem para 3/5, 1/5 e 0/5. Dentro do
-  parágrafo a linha conta sempre, e é o que mais se parece com o resultado.
-
-  Crase nenhuma aqui dentro: isto mora num template literal.
-*/
+/* O parágrafo da imagem ancorada mantém a linha dele por baixo da imagem,
+   dentro do parágrafo: é o que o LibreOffice mede entre duas capturas. */
 .page__content p:not([data-anchor-text]):has(> img[data-anchored])::after,
 .page__content p:not([data-anchor-text]):has(> .node-image[data-anchored])::after {
   content: '';
@@ -260,17 +148,8 @@ ${DOCUMENT_FONT_CSS}
 }
 
 
-/*
-  A marca de seção não ocupa linha.
-
-  No OOXML a seção termina num w:sectPr guardado dentro do w:pPr de um parágrafo
-  vazio: o parágrafo é a marca, e não uma linha de texto. O LibreOffice, que é
-  quem grava documentos assim, não lhe dá altura — o documento de evidências do
-  corpus tem sete seções de mesma geometria e seis marcas no meio do texto, e
-  cada uma valia uma linha aqui.
-
-  Continua no documento, e não some: é ela que a gravação devolve ao arquivo.
-*/
+/* A marca de seção (o parágrafo vazio que guarda o w:sectPr) não ocupa linha,
+   como no LibreOffice. Continua no documento: a gravação a devolve. */
 .page__content p[data-section-mark] {
   height: 0;
   margin: 0;
@@ -289,14 +168,12 @@ ${DOCUMENT_FONT_CSS}
   border-collapse: collapse;
   width: 100%;
   table-layout: fixed;
-  /* Sem margem própria, como no Word: o ar em volta da tabela é o espaço dos
-     parágrafos vizinhos. Os 0,8em de antes somavam uma linha a cada tabela. */
+  /* Sem margem própria, como no Word: o ar em volta é o dos parágrafos vizinhos. */
   margin: 0;
 }
 
-/* A margem de célula vem da tabela (--cell-margins, que o leitor resolve como o
-   Word); sem ela, a do modelo do editor — 60/120 twips, o TableNormal que ele
-   grava. */
+/* A margem de célula vem da tabela (--cell-margins); sem ela, 60/120 twips, o
+   TableNormal do Word. */
 .page__content th,
 .page__content td {
   border: 1px solid #9aa3ad;
@@ -313,56 +190,23 @@ ${DOCUMENT_FONT_CSS}
 `
 
 /**
- * Estilo só do editor: seleção de célula, alça de redimensionamento e a
- * representação visual da quebra de página. Nada disso existe no papel.
- */
-/**
- * O conteúdo no tema escuro.
- *
- * Mora **dentro** de `EDITOR_ONLY_CSS` de propósito, e é a decisão mais
- * importante deste arquivo desde que ele existe: o tema é como a tela desenha,
- * e o papel impresso é branco em qualquer tema. Uma regra escura em
- * `DOCUMENT_CONTENT_CSS` sairia no PDF, e o primeiro PDF preto exportado por
- * quem estava lendo no escuro seria um defeito difícil de rastrear até aqui.
- * `print-html.ts` monta o papel com `DOCUMENT_CONTENT_CSS + PRINT_ONLY_CSS`, e
- * nunca com este.
- *
- * ## O que troca de cor, e o que não
- *
- * Só troca o que o **documento não pediu**. `color: #111111` lá em cima não é
- * uma escolha do autor: é o preto padrão de quem não declarou cor nenhuma, e
- * padrão acompanha o tema. Já o que o autor pintou chega como estilo em linha,
- * que ganha de qualquer seletor daqui — então continua exatamente como estava,
- * sem uma linha de código para garanti-lo.
- *
- * Vale para a borda da tabela, o fundo do cabeçalho de tabela e a barra da
- * citação pelo mesmo motivo: são padrões nossos, não do arquivo.
- *
- * ## O caso que isto não resolve
- *
- * Um documento que declara o texto como preto — `w:color w:val="000000"` — fica
- * preto sobre papel escuro, e não se lê. É o preço de honrar a cor do autor:
- * em linha, ela ganha, e distinguir "o autor quis preto" de "o Word escreveu
- * preto por escrever" exigiria mexer no que `getHTML()` produz — que é
- * exatamente o que alimenta a gravação cirúrgica. Trocar legibilidade de um
- * caso incomum por risco no que o projeto existe para proteger não vale a
- * troca. Word e LibreOffice só gravam `w:color` quando alguém mudou a cor, de
- * modo que o corpo de um documento comum não declara nenhuma e acompanha o
- * tema normalmente.
+ * O tema escuro mora aqui, e nunca em `DOCUMENT_CONTENT_CSS`: o papel impresso é
+ * branco em qualquer tema. Só troca de cor o que o documento não pediu; a cor
+ * do autor vem em estilo inline e ganha. Um texto declarado preto fica preto
+ * sobre o papel escuro: distingui-lo exigiria mexer no HTML que alimenta a
+ * gravação cirúrgica.
  */
 const DARK_CONTENT_CSS = `
 :root[data-theme='dark'] .page__content {
   color: var(--text);
 }
 
-/* O papel. A mesma cor do resto das superfícies, para o documento não parecer
-   uma janela recortada dentro da casca. */
+/* A mesma cor das outras superfícies, para o papel não parecer recortado. */
 :root[data-theme='dark'] .paper {
   background: var(--surface);
 }
 
-/* Azul de link clareado pelo mesmo motivo que a ênfase: #14538f sobre papel
-   escuro dá 2.1:1. */
+/* #14538f sobre papel escuro dá 2.1:1. */
 :root[data-theme='dark'] .page__content a {
   color: var(--accent-document);
 }
@@ -386,11 +230,7 @@ const DARK_CONTENT_CSS = `
 }
 `
 
-/*
-  As notas (M11), na tela e no papel: a área no pé da folha, o separador e o
-  número no começo de cada nota. A altura do separador vem da paginação, no
-  próprio elemento; o traço fica no meio dele.
-*/
+/* A altura do separador vem da paginação; o traço fica no meio dele. */
 export const NOTES_CSS = `
 .paper-notes { position: absolute; }
 .paper-notes__separator { position: relative; }
@@ -403,34 +243,24 @@ export const NOTES_CSS = `
   border-top: 0.75pt solid #000000;
 }
 .paper-notes__separator--continued::after { width: 100%; }
-/* clip, e não hidden: a área recortada não rola nem quando o cursor anda nela. */
-/*
-  E flow-root, porque clip não isola a margem: sem isso a margem negativa da
-  continuação vaza do recorte e sobe a área inteira, por cima do texto.
-*/
+/* clip, e não hidden: a área não rola com o cursor. flow-root porque clip não
+   isola a margem negativa da continuação. */
 .paper-notes__slot { overflow: clip; display: flow-root; }
 .note-body { display: flex; flex-direction: column; }
 .note-number { vertical-align: super; font-size: 0.65em; line-height: 0; }
 `
 
+/** Só do editor: seleção de célula, alça de redimensionamento, quebra de página. */
 export const EDITOR_ONLY_CSS = `
-/*
-  O campo selecionado ganha o sombreado cinza do Word — é como se vê que aquele
-  número é calculado, e que F9 o atualiza. Só na tela: o papel não o mostra.
-*/
+/* O sombreado cinza do Word mostra que o número é calculado. Só na tela. */
 .page__content .field.ProseMirror-selectednode { background: #d9d9d9; outline: none; }
 
-/*
-  A referência de nota (M11): o número é decoração, contado pela ordem no texto
-  (ver note-ref.ts). No papel ele vem escrito no próprio elemento.
-*/
+/* O número é decoração, pela ordem no texto (note-ref.ts); no papel vem escrito. */
 .page__content .note-ref::after { content: attr(data-note-number); }
 .page__content .note-ref.ProseMirror-selectednode { background: #d9d9d9; outline: none; }
 
-/*
-  A equação selecionada ganha o sombreado do Word. A travada — com construção
-  que a tela não desenha — leva um traço por baixo, e a dica diz o que falta.
-*/
+/* A equação travada, com construção que a tela não desenha, leva um traço por
+   baixo, e a dica diz o que falta. */
 .page__content .equacao.ProseMirror-selectednode { background: #d9d9d9; outline: none; }
 .page__content .equacao--travada { text-decoration: underline dotted #b0b0b0; }
 
@@ -453,20 +283,9 @@ ${DARK_CONTENT_CSS}
   cursor: col-resize;
 }
 
-/*
-  A quebra de página não desenha nada.
-
-  Ela era uma linha tracejada escrita "QUEBRA DE PÁGINA" — a marca fazia sentido
-  quando a tela era uma tira contínua e a quebra não tinha efeito nenhum de se
-  ver. Agora a folha termina ali de verdade, e é isso que o Word e o LibreOffice
-  mostram na vista de impressão: nada. Na capa do modelo de manual a marca ainda
-  caía no meio do desenho, porque o título e o subtítulo moram em caixas
-  posicionadas e o fluxo ali é quase vazio.
-
-  Altura zero, sem margem: ela também não pode ocupar lugar na folha. Continua
-  selecionável — o contorno de nó selecionado a mostra — e continua sendo o que
-  se apaga com Backspace no começo da folha seguinte, como no Word.
-*/
+/* A quebra de página não desenha nada, como na vista de impressão do Word e do
+   LibreOffice: a folha termina ali. Continua selecionável e apagável com
+   Backspace no começo da folha seguinte. */
 .page__content .page-break {
   border: none;
   margin: 0;
@@ -475,14 +294,8 @@ ${DARK_CONTENT_CSS}
 
 .page__content .ProseMirror-selectednode { outline: 2px solid #1f5fa9; }
 
-/*
-  A moldura das alças de redimensionamento.
-
-  Em linha, como a imagem que ela envolve, e com line-height zero: sem isto a
-  linha de dentro da moldura cobraria a descida da fonte por baixo da imagem, e
-  a paginação mediria cada imagem alguns pixels mais alta do que o papel a
-  imprime.
-*/
+/* Em linha e sem entrelinha: sem isto a moldura cobraria a descida da fonte, e
+   a tela mediria a imagem mais alta que o papel. */
 .page__content .image-frame {
   display: inline-block;
   position: relative;
@@ -513,25 +326,9 @@ ${DARK_CONTENT_CSS}
 .page__content .image-frame__grip--sw { left: -5px; bottom: -5px; }
 .page__content .image-frame__grip--w { left: -5px; top: calc(50% - 5px); }
 
-/*
-  As marcas de formatação não podem mudar a medida da linha.
-
-  É a mesma lição do sobrescrito, e aqui ela custaria mais caro: a marca de
-  parágrafo aparece no fim de **todo** parágrafo, então um pixel de altura a mais
-  se soma em cada linha e a paginação inteira desliza. O estilo que vem com a
-  extensão oficial desenha as marcas com line-height 1em — daí o injectCSS: false
-  em editor-extensions.ts e este pedaço aqui.
-
-  Largura e altura zero, entrelinha zero: a caixa não ocupa lugar nenhum. O glifo
-  continua visível porque overflow é visível por padrão, e pousa na linha de base
-  porque é a linha de base interna que um inline-block de overflow visível
-  apresenta ao redor.
-
-  Só no editor: o papel não mostra marca de formatação, como no Word. Elas são
-  decoração do ProseMirror e por isso nem chegam ao HTML que gera o PDF.
-
-  Crase nenhuma aqui dentro: isto mora num template literal.
-*/
+/* As marcas de formatação não mudam a medida da linha: largura, altura e
+   entrelinha zero, com o glifo visível pelo overflow. Por isso injectCSS: false
+   em editor-extensions.ts. */
 .page__content .tiptap-invisible-character {
   width: 0;
   height: 0;
@@ -556,8 +353,7 @@ ${DARK_CONTENT_CSS}
 .page__content .tiptap-invisible-character--break::before { content: '¬'; }
 .page__content .tiptap-invisible-character--paragraph::before { content: '¶'; }
 
-/* A imagem de serviço que o ProseMirror põe ao lado da marca também não cobra
-   altura — é o mesmo cuidado que a imagem ancorada pediu mais acima. */
+/* A imagem de serviço ao lado da marca também não cobra altura. */
 .page__content .tiptap-invisible-character + img.ProseMirror-separator {
   width: 0 !important;
   height: 0 !important;
@@ -566,13 +362,7 @@ ${DARK_CONTENT_CSS}
 }
 `
 
-/**
- * Ajustes que só valem no papel.
- *
- * A quebra de página deixa de ser uma linha tracejada e passa a ser uma quebra
- * de verdade; e evitamos os defeitos clássicos de paginação — título órfão no
- * pé da página, linha de tabela partida ao meio, imagem cortada.
- */
+/** Só no papel: título órfão, linha de tabela partida e imagem cortada. */
 export const PRINT_ONLY_CSS = `
 .page__content [data-page-break] {
   break-after: page;
@@ -585,9 +375,7 @@ export const PRINT_ONLY_CSS = `
 .page__content h2,
 .page__content h3,
 .page__content h4,
-/* w:keepNext do documento: o bloco não fica sozinho no pé da página. É a
-   mesma regra que as marcas de fim de página usam na tela — se divergissem, a
-   marca cairia num lugar e o PDF quebraria noutro. */
+/* A mesma regra das marcas de fim de página da tela. */
 .page__content [data-keep-next] { break-after: avoid; }
 
 .page__content tr,
@@ -595,9 +383,8 @@ export const PRINT_ONLY_CSS = `
 
 .page__content thead { display: table-header-group; }
 
-/* Controle de alterações na marcação completa: como na tela (ver styles.css),
-   inserido sublinhado e excluído riscado, na cor do autor. Nos outros modos a
-   impressão já sai sem as marcas (ver print-source.ts). */
+/* Como na tela (styles.css); nos outros modos a impressão sai sem as marcas
+   (print-source.ts). */
 .page__content .revision-author-0 { --revision: #1f5fa9; }
 .page__content .revision-author-1 { --revision: #b3261e; }
 .page__content .revision-author-2 { --revision: #1a7a4c; }

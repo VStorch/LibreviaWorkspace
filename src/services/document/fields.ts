@@ -1,11 +1,6 @@
 /**
- * A gramática dos campos do Word que o editor sabe recalcular, sem editor.
- *
- * Uma instrução é a palavra do campo seguida de argumentos e de chaves:
- * `PAGEREF _Toc123 \h`, `SEQ Figura \* ARABIC`, `TOC \o "1-3" \h \z \u`. O
- * argumento pode vir entre aspas, e a chave `\*` leva o formato do número. Só o
- * que as referências usam está aqui; o resto da instrução é preservado como
- * veio — é ela que volta ao arquivo, e não o que se entendeu dela.
+ * `PAGEREF _Toc123 \h`, `SEQ Figura \* ARABIC`, `TOC \o "1-3" \h \z \u`. Só o que
+ * as referências usam; a instrução volta ao arquivo como veio.
  */
 
 /** A palavra do campo: `PAGEREF`, `REF`, `SEQ`, `TOC`… Maiúscula, como o Word a escreve. */
@@ -36,13 +31,7 @@ export function fieldSwitch(instr: string, name: string): string | null {
   return value === undefined || value.startsWith('\\') ? '' : value
 }
 
-/**
- * Os níveis de título que o sumário lista: o `\o "1-3"` do Word.
- *
- * Sem a chave, ou com ela vazia, vão os nove, que é o que o Word faz com `\o`
- * sozinho. O sumário sem `\o` nenhum (só `\t`, estilos escolhidos à mão) não é
- * reproduzido aqui, e cai nos três primeiros, que é o sumário padrão.
- */
+/** Sem `\o` ou com ele vazio, os nove, como no Word; o sumário só com `\t` cai nos três primeiros. */
 export function tocLevels(instr: string): { readonly from: number; readonly to: number } {
   const range = fieldSwitch(instr, 'o')
   if (range === null) return { from: 1, to: 3 }
@@ -92,7 +81,7 @@ function roman(value: number): string {
 }
 
 function alphabetic(value: number): string {
-  // A, B… Z, AA, BB…: é assim que o Word conta depois do Z.
+  // Depois do Z, o Word conta AA, BB…
   const letter = String.fromCharCode(65 + ((value - 1) % 26))
   return letter.repeat(Math.floor((value - 1) / 26) + 1)
 }
@@ -115,13 +104,7 @@ export function formatFieldNumber(value: number, instr: string): string {
   }
 }
 
-/**
- * Os números de uma sequência de campos `SEQ`, na ordem do documento.
- *
- * Cada identificador conta à parte (`SEQ Figura` e `SEQ Tabela`), sem diferença
- * entre maiúscula e minúscula, como no Word. `\r n` recomeça em `n`, `\c` repete
- * o último sem avançar.
- */
+/** Cada identificador conta à parte, sem caixa; `\r n` recomeça em `n`, `\c` repete o último. */
 export function sequenceNumbers(instructions: readonly string[]): string[] {
   const counters = new Map<string, number>()
   return instructions.map((instr) => {

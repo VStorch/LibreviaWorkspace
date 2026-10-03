@@ -1,15 +1,8 @@
-/** Funções de texto. */
-
 import { FormulaError, isFormulaError } from '../errors.js'
 import { toText } from '../values.js'
 import { VARIADIC, define, numberArg, textArg, valuesIn, type FunctionDefinition } from './kit.js'
 
-/**
- * Posições de texto no Excel começam em **um**, não em zero.
- *
- * Converter na entrada, e não espalhar `- 1` pelas funções, evita o erro de um
- * caractere que aparece só na borda.
- */
+/** Posições do Excel começam em um; converter na entrada evita o erro de um caractere. */
 function start(position: number): number {
   return Math.trunc(position) - 1
 }
@@ -27,7 +20,7 @@ export const TEXT: readonly FunctionDefinition[] = [
 
   define(['NÚM.CARACT', 'NUM.CARACT', 'LEN'], 1, 1, (args) => {
     const text = textArg(args[0])
-    // Conta pontos de código, e não unidades UTF-16: um emoji é um caractere.
+    // Pontos de código: um emoji é um caractere.
     return isFormulaError(text) ? text : [...text].length
   }),
 
@@ -78,8 +71,7 @@ export const TEXT: readonly FunctionDefinition[] = [
 
   define(['ARRUMAR', 'TRIM'], 1, 1, (args) => {
     const text = textArg(args[0])
-    // ARRUMAR não só apara as pontas: ela também reduz espaços do meio a um só.
-    // É para isso que ela serve ao limpar dado colado de outro sistema.
+    // ARRUMAR também reduz os espaços do meio a um só.
     return isFormulaError(text) ? text : text.trim().replaceAll(/\s+/g, ' ')
   }),
 

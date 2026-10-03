@@ -1,15 +1,8 @@
 /**
- * Criar e modificar estilos — a folha nova, nunca a mesma alterada.
- *
- * A folha de estilos mora no store, fora dos nós (ver `model.ts`), e é pela
- * referência dela que o CSS da tela e do papel se regera: toda função aqui devolve
- * uma folha nova. Quem a grava no arquivo é `StyleWriter.cs`, que compara estilo a
- * estilo com o original e só mexe no `w:style` que mudou.
- *
- * O formulário de estilo é o do diálogo de parágrafo (`paragraph-format.ts`) mais
- * a fonte. Ele mostra o que o estilo **vale** — a cadeia resolvida — e grava no
- * estilo só o campo que a pessoa mudou: o resto continua herdado, e mudar o pai
- * depois continua alcançando o filho.
+ * Toda função devolve uma folha nova: é pela referência que o CSS se regera.
+ * `StyleWriter.cs` só mexe no `w:style` que mudou. O formulário mostra o que o
+ * estilo vale e grava só o campo mudado, para mudar o pai continuar alcançando o
+ * filho.
  */
 
 import { firstFontOf } from './line-metrics.js'
@@ -35,18 +28,11 @@ export function headingLevelOfStyle(style: StyleDefinition | undefined): number 
   return match === null ? null : Number(match[1])
 }
 
-/** A folha com o estilo posto (ou trocado) pelo id. */
 export function withStyle(sheet: StyleSheet, style: StyleDefinition): StyleSheet {
   return { ...sheet, styles: { ...sheet.styles, [style.id]: style } }
 }
 
-/**
- * O id de um estilo novo, a partir do nome.
- *
- * Como o Word faz: o nome sem acento, espaço nem pontuação (`Citação longa` →
- * `Citaolonga` no Word; aqui `Citacaolonga`, que se lê melhor), e um número no
- * fim quando já existe. O id nunca é mostrado — é o nome que aparece na tela.
- */
+/** Como o Word: sem acento, espaço nem pontuação, e um número no fim quando já existe. */
 export function newStyleId(sheet: StyleSheet, name: string): string {
   const base =
     name
@@ -81,10 +67,7 @@ export function createStyle(sheet: StyleSheet, input: NewStyle): { sheet: StyleS
   return { sheet: withStyle(sheet, style), id }
 }
 
-/**
- * Nome, pai e próximo. O nome só muda no estilo personalizado: o do embutido
- * (`heading 1`) é como o Word o reconhece, e trocá-lo desligaria o título.
- */
+/** O nome do estilo embutido (`heading 1`) não muda: é como o Word reconhece o título. */
 export function withIdentity(
   sheet: StyleSheet,
   id: string,
@@ -101,7 +84,7 @@ export function withIdentity(
   delete (rest as { basedOn?: string }).basedOn
   delete (rest as { next?: string }).next
   const name = style.custom && identity.name.trim() !== '' ? identity.name.trim() : style.name
-  // Herdar de si mesmo seria laço: o resolvedor o cortaria, e o estilo perderia a cadeia.
+  // Herdar de si mesmo seria laço, e o resolvedor cortaria a cadeia.
   const basedOn = identity.basedOn === id ? style.basedOn : identity.basedOn
   return withStyle(sheet, {
     ...rest,
@@ -111,7 +94,6 @@ export function withIdentity(
   })
 }
 
-/** O formulário de estilo: o de parágrafo mais a fonte. */
 export interface StyleDraft {
   readonly paragraph: ParagraphDraft
   /** Nome da fonte, ou vazio quando ninguém na cadeia diz. */
@@ -123,7 +105,6 @@ export interface StyleDraft {
   readonly underline: boolean
 }
 
-/** O que o estilo vale, no formulário. */
 export function styleDraftOf(sheet: StyleSheet, id: string): StyleDraft {
   const style = sheet.styles[id]
   const character =
@@ -139,12 +120,7 @@ export function styleDraftOf(sheet: StyleSheet, id: string): StyleDraft {
   }
 }
 
-/**
- * O formulário → o estilo, gravando só o que mudou em relação ao que ele valia.
- *
- * Campo igual continua como estava — declarado ou herdado. É o que faz "OK" sem
- * mudança não mexer em nada, e não prender ao filho o valor que vinha do pai.
- */
+/** Campo igual continua como estava, declarado ou herdado. */
 export function styleWithDraft(sheet: StyleSheet, id: string, draft: StyleDraft): StyleSheet {
   const style = sheet.styles[id]
   if (style === undefined) return sheet
@@ -197,9 +173,7 @@ export function styleWithDraft(sheet: StyleSheet, id: string, draft: StyleDraft)
 }
 
 /**
- * "Atualizar estilo a partir da seleção": o que o bloco vale passa a ser o que o
- * estilo diz. Só quando a pessoa pede — nunca sozinho, como o Word faz quando se
- * deixa.
+ * "Atualizar estilo a partir da seleção", só quando a pessoa pede.
  *
  * @param effective os atributos do bloco com o estilo por baixo (`effectiveAttrs`).
  */

@@ -1,18 +1,9 @@
 import { pageDimensionsMm, type DocumentNode, type PageSetup } from './model.js'
 import { bandForPage, pageLabel } from './band.js'
 
-/**
- * Um objeto que não está no fluxo do texto.
- *
- * Espelha `FloatDto` do sidecar. Medidas em milímetros porque são desenhadas em
- * dois lugares com resoluções diferentes — a tela e o papel — e converter uma
- * vez só na origem deixaria um dos dois arredondando de volta.
- */
+/** Espelha `FloatDto` do sidecar, em milímetros: tela e papel convertem cada um uma vez. */
 export interface FloatingObject {
-  /**
-   * `rule` é o filete: uma forma rasa e larga, com contorno e sem conteúdo, que
-   * é como o cabeçalho corporativo desenha a linha sob si.
-   */
+  /** `rule` é o filete sob o cabeçalho corporativo: forma rasa, com contorno e sem conteúdo. */
   readonly kind: 'image' | 'text' | 'rule'
   readonly src?: string | undefined
   readonly content?: DocumentNode[] | undefined
@@ -28,46 +19,19 @@ export interface FloatingObject {
   readonly vAlign?: string | undefined
   readonly behind: boolean
   readonly wrap: string
-  /**
-   * Deslocamento da peça dentro do desenho, somado depois de resolver a âncora.
-   *
-   * Vem de um grupo de formas: a âncora diz onde o grupo está, e cada peça tem
-   * a coordenada dela dentro dele. Somar depois é o que faz a conta funcionar
-   * tanto com deslocamento quanto com alinhamento declarado — no segundo caso
-   * quem resolve a origem é esta função, e não o arquivo.
-   */
+  /** A posição da peça dentro do grupo de formas, somada depois de resolver a âncora. */
   readonly dxMm?: number | undefined
   readonly dyMm?: number | undefined
-  /**
-   * Onde a caixa deste objeto mora no arquivo, quando ela é editável.
-   *
-   * Só objetos de faixa o trazem: os do corpo voltam pelo bloco que os ancora.
-   * A caixa é regenerada por inteiro quando o texto muda — digitar abre e fecha
-   * parágrafos, e endereçar parágrafo a parágrafo quebraria no primeiro Enter.
-   */
+  /** Só nos objetos de faixa; a caixa é regenerada inteira, porque digitar abre e fecha parágrafos. */
   readonly bid?: string | undefined
-  /**
-   * A moldura e o preenchimento da forma, quando dá para reproduzi-los.
-   *
-   * Cor sólida e traço sólido de uma espessura, que é o caso comum e é o que o
-   * CSS desenha. O que não cabe aqui não é desenhado e entra no inventário — e
-   * é só disso que o aviso "moldura e preenchimento de formas" passa a falar.
-   */
+  /** Só cor e traço sólidos; o resto não é desenhado e entra no inventário. */
   readonly fill?: string | undefined
   readonly line?: string | undefined
   readonly lineWidthPt?: number | undefined
   readonly dash?: boolean | undefined
 }
 
-/**
- * A moldura da forma em CSS, para a tela e o papel desenharem a mesma coisa.
- *
- * Compartilhada de propósito: dois desenhistas com a mesma regra escrita duas
- * vezes é como a tela e o papel divergem.
- *
- * Traço de espessura zero não é traço: o formato o usa para dizer "a mais fina
- * possível" quando há cor, e o leitor já resolve isso — aqui, zero é ausência.
- */
+/** Para a tela e o papel desenharem igual. Traço de espessura zero é ausência. */
 export function frameOf(object: FloatingObject): { background?: string; border?: string } {
   const frame: { background?: string; border?: string } = {}
 
@@ -92,18 +56,10 @@ export interface FloatingBox {
 }
 
 /**
- * Onde o objeto cai na folha.
- *
- * O OOXML dá a posição em relação a uma de várias origens por eixo — a margem, a
- * coluna, a página, o parágrafo — e a origem vertical mais comum é o parágrafo,
- * que só tem posição depois de paginar. Por isso a altura do parágrafo âncora
- * **dentro da folha** entra como parâmetro: é a única parte que este módulo não
- * consegue saber sozinho.
- *
- * A rotação sai como está, sem mexer nas medidas. O Word posiciona a caixa sem
- * girar e depois a gira em torno do centro, que é o que `transform: rotate()`
- * faz — girar as medidas aqui deslocaria o objeto por metade da diferença entre
- * largura e altura.
+ * A origem vertical mais comum é o parágrafo, que só tem posição depois de
+ * paginar: por isso `anchorTopMm` entra como parâmetro. A rotação sai como está,
+ * porque o Word posiciona a caixa sem girar e gira em torno do centro, como
+ * `transform: rotate()`.
  */
 export function placeFloating(object: FloatingObject, page: PageSetup, anchorTopMm: number): FloatingBox {
   const { width, height } = pageDimensionsMm(page)
@@ -171,8 +127,7 @@ function referenceH(
       return { start: 0, size: page.margins.left }
     case 'outsideMargin':
       return { start: width - page.margins.right, size: page.margins.right }
-    // `margin`, `column` e `character` caem na coluna de texto. Numa página de
-    // coluna única — todas as que o leitor produz hoje — as três coincidem.
+    // `margin`, `column` e `character` coincidem numa página de coluna única.
     default:
       return { start: columnLeft, size: columnWidth }
   }
@@ -191,15 +146,8 @@ export interface AnchoredFloat {
 }
 
 /**
- * Os objetos ancorados das faixas de uma folha.
- *
- * Repetem em toda folha, porque a faixa repete — e por isso não pertencem a
- * bloco nenhum. A âncora vertical deles se diz relativa ao "parágrafo", e o
- * parágrafo de uma faixa começa na distância que `w:pgMar` declara da borda do
- * papel: no alto para o cabeçalho, contada de baixo para o rodapé.
- *
- * Mora aqui, e não em quem desenha, porque a tela e o papel precisam do mesmo
- * número — é a razão de a conta de posição ser uma só.
+ * Repetem em toda folha, como a faixa. O "parágrafo" de uma faixa começa na
+ * distância que `w:pgMar` declara: do alto no cabeçalho, de baixo no rodapé.
  */
 export function bandFloatsOf(page: PageSetup, pageNumber: number): AnchoredFloat[] {
   const height = pageDimensionsMm(page).height
@@ -219,22 +167,14 @@ export function bandFloatsOf(page: PageSetup, pageNumber: number): AnchoredFloat
   ]
 }
 
-/**
- * Troca os marcadores de numeração pelo número desta folha.
- *
- * A caixa de texto do cabeçalho costuma trazer o campo `PAGE` do Word, e o
- * leitor o entrega como `{n}` — o mesmo marcador que o cabeçalho digitado à mão
- * já usa. Sem esta troca a folha sairia com as chaves escritas nela.
- */
+/** O leitor entrega o campo `PAGE` da caixa como `{n}`; sem a troca a folha sairia com as chaves. */
 function numbered(object: FloatingObject, pageNumber: string): FloatingObject {
   if (object.kind !== 'text' || object.content === undefined) return object
 
   const content = object.content.map((node) => replaceMarkers(node, pageNumber))
 
-  // A caixa que traz numeração deixa de ser editável, e é por isso que a troca
-  // acontece aqui: o que está na tela é o número desta folha, e devolvê-lo ao
-  // arquivo trocaria o campo `PAGE` por um número fixo — o cabeçalho passaria a
-  // dizer "3" em todas as folhas, e só se notaria na quarta.
+  // A caixa com numeração deixa de ser editável: devolver o número desta folha
+  // ao arquivo trocaria o campo `PAGE` por um número fixo.
   const marked = JSON.stringify(content) !== JSON.stringify(object.content)
 
   return { ...object, content, ...(marked ? { bid: undefined } : {}) }

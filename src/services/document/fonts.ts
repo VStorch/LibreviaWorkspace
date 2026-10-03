@@ -1,16 +1,6 @@
 /**
- * As fontes que viajam no instalador, e o nome pelo qual o documento as pede.
- *
- * Documento corporativo pede Calibri, Cambria, Arial, Times New Roman e Courier
- * New. Nenhuma existe num Linux limpo, e o que o Chromium põe no lugar tem
- * métrica própria: a linha quebra noutro ponto, e o documento de três páginas
- * vira quatro. Enquanto a paginação era só da exportação isso era um detalhe do
- * PDF; com a tela paginando, é o número que a pessoa lê na barra de status.
- *
- * As substitutas abaixo são **metricamente compatíveis** — cada glifo tem a
- * largura do glifo original, então a quebra cai no mesmo lugar. É o mesmo
- * conjunto que o LibreOffice usa para abrir documento do Word, e é o que torna
- * a comparação com ele uma comparação de verdade.
+ * Substitutas **metricamente compatíveis**: cada glifo tem a largura do
+ * original, então a linha quebra no mesmo lugar, como no LibreOffice.
  *
  * | Do documento    | Empacotada        | Licença  |
  * | --------------- | ----------------- | -------- |
@@ -20,17 +10,14 @@
  * | Times New Roman | Liberation Serif  | OFL 1.1  |
  * | Courier New     | Liberation Mono   | OFL 1.1  |
  *
- * O nome declarado no `@font-face` é o **da fonte original**. Assim um `w:rFonts
- * w:ascii="Calibri"` acha a substituta sem que ninguém precise reescrever o
- * documento — e se a máquina tiver a Calibri de verdade instalada, a pilha CSS
- * a prefere, porque o `local()` vem primeiro.
+ * O `@font-face` usa o nome **da fonte original**, então `w:ascii="Calibri"`
+ * acha a substituta, e a Calibri instalada vence pelo `local()`.
  */
 
 /** O esquema é servido pelo processo main; ver `src/main/fonts.ts`. */
 const SCHEME = 'librevia-font://fonts'
 
 interface Substitute {
-  /** Nome que o documento usa. */
   readonly declared: string
   /** Famílias instaladas que servem, quando existirem na máquina. */
   readonly local: readonly string[]
@@ -59,17 +46,9 @@ const FACES: readonly { suffix: string; weight: number; style: string; words: st
 ]
 
 /**
- * Os nomes pelos quais o sistema conhece **este corte** da família.
- *
  * `local()` casa por nome de fonte, e não de família: `local('Liberation Sans')`
- * dentro de uma regra de negrito acha a Liberation Sans **normal** e a serve
- * como se fosse negrito. Numa máquina com as Liberation instaladas — todo Linux
- * de escritório — era isso que apagava o negrito e o itálico de todo documento
- * importado: o PDF saía sem nenhum corte gordo embutido.
- *
- * Duas formas por família, porque as duas aparecem: o nome cheio, com as
- * palavras do corte separadas por espaço, e o nome PostScript, colado e com
- * hífen.
+ * numa regra de negrito serviria o corte normal. Nome cheio e PostScript, porque
+ * os dois aparecem.
  */
 function localNames(family: string, words: string): string[] {
   if (words === '') return [family]
@@ -77,17 +56,8 @@ function localNames(family: string, words: string): string[] {
 }
 
 /**
- * `@font-face` para as cinco famílias, quatro variantes cada.
- *
- * `local()` antes de `url()` de propósito: numa máquina que tem a fonte
- * original, usá-la é mais fiel do que a substituta — e ainda evita carregar
- * arquivo que não precisa. Mas o nome tem de ser o **do corte**, não o da
- * família: ver `localNames`.
- *
- * `font-display: block` porque a medida depende da fonte. Com o padrão `auto` o
- * Chromium desenha com a fonte de reserva enquanto carrega, o documento é
- * medido com a métrica errada e as páginas se recontam sozinhas um instante
- * depois — a tela pisca e o número muda na frente de quem está lendo.
+ * `font-display: block` porque a medida depende da fonte: com `auto`, o
+ * documento seria medido com a fonte de reserva e repaginado um instante depois.
  */
 export const DOCUMENT_FONT_CSS = SUBSTITUTES.flatMap((substitute) =>
   FACES.map(({ suffix, weight, style, words }) => {

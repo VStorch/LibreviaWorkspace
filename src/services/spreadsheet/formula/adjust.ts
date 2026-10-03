@@ -1,41 +1,20 @@
 /**
- * Reescrita de referências.
- *
- * Duas coisas mexem nas referências de uma fórmula, e mexem de formas
- * diferentes:
- *
- * - **copiar** a fórmula para outra célula desloca as referências relativas e
- *   deixa as absolutas onde estão. É para isso que o `$` existe;
- * - **inserir ou excluir** linha ou coluna desloca **todas**, inclusive as
- *   absolutas — porque a célula apontada de fato mudou de lugar. Referência
- *   para uma célula excluída vira `#REF!`.
- *
- * Sem isso, inserir uma linha moveria os dados e deixaria `SOMA(A1:A3)`
- * apontando para onde os dados não estão mais: um total errado, sem aviso
- * nenhum.
- *
- * A reescrita é feita sobre os **símbolos**, e não sobre a árvore: assim a
- * fórmula volta com o espaçamento, as maiúsculas e os parênteses que o usuário
- * digitou, e só as referências afetadas mudam.
+ * Copiar uma fórmula desloca só as referências relativas; inserir ou excluir
+ * linha ou coluna desloca todas, inclusive as absolutas, e a referência para
+ * uma célula excluída vira `#REF!`. A reescrita é feita sobre os símbolos, e não
+ * sobre a árvore, para a fórmula voltar como a pessoa a digitou.
  */
 
 import { FormulaError } from './errors.js'
 import { formatReference, parseReference, type CellRef } from './references.js'
 import { TokenKind, tokenize, type Token } from './tokenize.js'
 
-/** O que aconteceu com uma referência. */
 type Moved = CellRef | 'broken'
 
-/** Eixo da operação: as regras são as mesmas para linha e para coluna. */
 const Axis = { Row: 'row', Column: 'column' } as const
 type Axis = (typeof Axis)[keyof typeof Axis]
 
-/**
- * Desloca as referências relativas de uma fórmula copiada.
- *
- * Sair da planilha pela esquerda ou por cima vira `#REF!`, como no Excel:
- * copiar `=A1` para a coluna A não tem para onde apontar.
- */
+/** Sair da planilha pela esquerda ou por cima vira `#REF!`, como no Excel. */
 export function translateFormula(formula: string, rowDelta: number, columnDelta: number): string {
   return rewrite(formula, (ref) => {
     const row = ref.rowAbsolute ? ref.row : ref.row + rowDelta
@@ -46,27 +25,14 @@ export function translateFormula(formula: string, rowDelta: number, columnDelta:
   })
 }
 
-/**
- * Onde a linha ou coluna foi mexida, do ponto de vista da fórmula que está
- * sendo ajustada.
- *
- * As duas informações são necessárias porque uma referência sem nome de
- * planilha aponta para a planilha da **própria fórmula**: `=A1` numa fórmula da
- * aba "Resumo" não é afetada por uma linha inserida em "Dados", mas
- * `=Dados!A1` é — mesmo estando na mesma fórmula.
- */
+/** Referência sem nome de planilha aponta para a planilha da **própria fórmula**. */
 export interface AdjustTarget {
-  /** Nome da planilha onde a linha ou coluna foi inserida ou excluída. */
   readonly sheet: string
   /** A fórmula sendo ajustada mora nessa mesma planilha? */
   readonly own: boolean
 }
 
-/**
- * Ajusta as referências depois de inserir ou excluir linhas.
- *
- * `delta` positivo insere, negativo exclui.
- */
+/** `delta` positivo insere, negativo exclui. */
 export function adjustForRows(formula: string, at: number, delta: number, target: AdjustTarget): string {
   return adjust(formula, Axis.Row, at, delta, target)
 }
@@ -75,13 +41,7 @@ export function adjustForColumns(formula: string, at: number, delta: number, tar
   return adjust(formula, Axis.Column, at, delta, target)
 }
 
-/**
- * Troca o nome da planilha nas referências que a citam.
- *
- * Sem isso, renomear uma aba transformaria em `#REF!` toda fórmula que apontava
- * para ela — uma destruição em massa causada por um gesto que o usuário
- * considera cosmético.
- */
+/** Sem isto, renomear uma aba transformaria em `#REF!` toda fórmula que aponta para ela. */
 export function renameSheetInFormula(formula: string, from: string, to: string): string {
   const target = from.toUpperCase()
 
@@ -124,12 +84,8 @@ function movePoint(position: number, at: number, delta: number): number | null {
 }
 
 /**
- * As duas pontas de um intervalo, movidas juntas.
- *
- * Juntas porque excluir parte de um intervalo o **encolhe**: `A1:A5` com as
- * três primeiras linhas excluídas vira `A1:A2`. Tratar as pontas
- * separadamente transformaria a primeira em `#REF!` e destruiria a fórmula
- * inteira por uma exclusão que o Excel absorve sem reclamar.
+ * Juntas, porque excluir parte de um intervalo o **encolhe**: `A1:A5` sem as
+ * três primeiras linhas vira `A1:A2`, como no Excel.
  */
 function moveSpan(from: number, to: number, at: number, delta: number): { from: number; to: number } | null {
   if (delta > 0) {
@@ -147,12 +103,7 @@ function moveSpan(from: number, to: number, at: number, delta: number): { from: 
   return end < start ? null : { from: start, to: end }
 }
 
-/**
- * Percorre os símbolos trocando só as referências.
- *
- * Um intervalo chega como `referência : referência`, e as duas pontas vão
- * juntas para `onRange` — quem trata cada ponta por si erra a exclusão parcial.
- */
+/** As duas pontas de um intervalo vão juntas para `onRange`. */
 function rewrite(
   formula: string,
   onSingle: (ref: CellRef) => Moved,

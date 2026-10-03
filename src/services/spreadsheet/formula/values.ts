@@ -1,26 +1,14 @@
 /**
- * Valores de fórmula e as conversões entre eles.
- *
- * O tipo mais importante aqui é o **vazio**, representado por `null`. Célula
- * vazia não é zero nem texto vazio: em `MÉDIA(A1:A3)` com duas células
- * preenchidas o divisor é dois, e tratá-la como zero daria uma média errada
- * sem nenhum aviso. Ela vira zero só quando entra numa conta, que é o que o
- * Excel faz.
+ * `null` é a célula vazia, que não é zero nem texto vazio: em `MÉDIA(A1:A3)` com
+ * duas preenchidas o divisor é dois. Ela vira zero só dentro de uma conta, como
+ * no Excel.
  */
 
 import { FormulaError, isFormulaError } from './errors.js'
 
-/** Um valor de fórmula. `null` é célula vazia. */
 export type Scalar = number | string | boolean | FormulaError | null
 
-/**
- * Texto → número, para uso em contas.
- *
- * Aceita o formato brasileiro, porque é o que o usuário digitou na célula ao
- * lado. Texto que não é número vira `#VALOR!` — nunca zero: somar uma coluna
- * com "n/a" no meio e receber um total silenciosamente menor é pior que receber
- * um erro.
- */
+/** Aceita o formato brasileiro. Texto que não é número vira `#VALOR!`, nunca zero. */
 export function toNumber(value: Scalar): number | FormulaError {
   if (isFormulaError(value)) return value
   if (value === null) return 0
@@ -43,13 +31,7 @@ export function toText(value: Scalar): string | FormulaError {
   return value
 }
 
-/**
- * Número → texto dentro da fórmula.
- *
- * Usa ponto decimal, e não vírgula: este texto entra em concatenação e em
- * comparação, onde precisa ser o mesmo em qualquer máquina. A vírgula aparece
- * na exibição da célula, que é outra camada.
- */
+/** Ponto decimal: este texto entra em concatenação e comparação, iguais em qualquer máquina. */
 function formatNumber(value: number): string {
   return Number.isInteger(value) ? String(value) : String(Number(value.toPrecision(15)))
 }
@@ -67,16 +49,8 @@ export function toBoolean(value: Scalar): boolean | FormulaError {
 }
 
 /**
- * Ordem entre dois valores, para os operadores de comparação.
- *
- * Duas regras do Excel que surpreendem quem não as conhece:
- *
- * - **texto compara sem diferenciar maiúsculas**: `="a"="A"` é verdadeiro;
- * - **tipos diferentes nunca são iguais**: `=1="1"` é falso. Comparar por
- *   conversão faria `=A1=0` ser verdadeiro para uma célula de texto, e a conta
- *   toda passaria por um caminho errado.
- *
- * Entre tipos, a ordem é número < texto < booleano.
+ * Como no Excel: texto compara sem caixa (`="a"="A"`), tipos diferentes nunca
+ * são iguais (`=1="1"` é falso), e entre tipos número < texto < booleano.
  */
 export function compare(left: Scalar, right: Scalar): number {
   const a = left ?? blankLike(right)
@@ -93,12 +67,7 @@ export function compare(left: Scalar, right: Scalar): number {
   return rank(a) - rank(b)
 }
 
-/**
- * O vazio assume o tipo do outro lado.
- *
- * É o que faz `=A1=""` ser verdadeiro para célula vazia e `=A1=0` também — as
- * duas coisas que o usuário espera, e que o Excel entrega.
- */
+/** Por isso `=A1=""` e `=A1=0` são verdadeiros para célula vazia, como no Excel. */
 function blankLike(other: Scalar): Scalar {
   if (typeof other === 'string') return ''
   if (typeof other === 'boolean') return false
@@ -111,13 +80,7 @@ function rank(value: Scalar): number {
   return 2
 }
 
-/**
- * Critério de `SOMASE` e `CONT.SE`.
- *
- * Aceita `">10"`, `"<>0"`, `"São Paulo"` e curingas `*` e `?`. Sem os
- * comparadores, o critério só serviria para igualdade exata e as duas funções
- * perderiam a maior parte do uso real.
- */
+/** Aceita `">10"`, `"<>0"`, `"São Paulo"` e os curingas `*` e `?`. */
 export function matchesCriteria(value: Scalar, criteria: Scalar): boolean {
   if (typeof criteria !== 'string') return compare(value, criteria) === 0
 

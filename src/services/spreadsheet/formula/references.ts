@@ -1,17 +1,9 @@
-/**
- * Referências dentro de uma fórmula.
- *
- * O `$` não é enfeite: ele decide o que acontece ao copiar a fórmula para outra
- * célula. `A1` acompanha o deslocamento, `$A$1` não sai do lugar, e `A$1` e
- * `$A1` prendem só um eixo. Guardar essa informação no modelo é o que permite
- * copiar e preencher sem reescrever nada.
- */
+/** O `$` decide o que acontece ao copiar: `A1` acompanha, `` não sai, `A` e `` prendem um eixo. */
 
 import { columnIndex, columnName } from '../model.js'
 import { ParseError } from './errors.js'
 
 export interface CellRef {
-  /** Nome da planilha, quando a referência atravessa abas. */
   readonly sheet?: string | undefined
   readonly row: number
   readonly column: number
@@ -43,12 +35,7 @@ export function formatReference(ref: CellRef): string {
   return ref.sheet === undefined ? body : `${quoteSheet(ref.sheet)}!${body}`
 }
 
-/**
- * Nome de planilha que precisa de apóstrofos.
- *
- * Sem eles, `Vendas 2026!A1` se partiria no espaço e a fórmula deixaria de ser
- * lida de volta.
- */
+/** Sem apóstrofos, `Vendas 2026!A1` se partiria no espaço. */
 export function quoteSheet(name: string): string {
   return /^[\p{L}\p{N}_]+$/u.test(name) ? name : `'${name.replaceAll("'", "''")}'`
 }

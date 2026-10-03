@@ -1,32 +1,13 @@
 /**
- * Os estilos do documento, como **dado**.
+ * As definições de `word/styles.xml`, fora dos nós (ver `model.ts`).
  *
- * Um `.docx` de verdade não guarda a formatação no parágrafo: guarda o nome de
- * um estilo, e o estilo mora em `word/styles.xml`. Achatar essa cascata em cada
- * bloco mostraria o documento certo, mas sem estilos: renomear um, ou mudar o
- * "Corpo de texto" de uma vez, não seria possível.
- *
- * As definições atravessam o sidecar e chegam ao modelo **fora dos nós**. Fora
- * dos nós não é detalhe — é o que torna isto seguro: a impressão digital de um
- * bloco é feita do que está dentro dele, então nada aqui pode fazer a gravação
- * cirúrgica reescrever um bloco que ninguém tocou (ver
- * `src/main/sidecar/fingerprint.test.ts`).
- *
- * As unidades são as mesmas dos atributos do bloco — pontos, milímetros,
- * hexadecimal, `12pt` —, com uma exceção declarada: a **entrelinha**. O bloco
- * guarda o número que o CSS entende, que é o fator do arquivo já multiplicado
- * pela altura natural da fonte; aqui o fator vem cru, porque com herança a fonte
- * pode vir do próprio estilo e a multiplicação só pode acontecer depois de a
- * cascata ser resolvida. Quem multiplica é `line-metrics.ts`.
- *
- * A tela nasce daqui: `style-css.ts` resolve a cascata (`style-cascade.ts`) e
- * gera o CSS de cada estilo, e é esse texto que vai para o editor e para o PDF.
- * Mudar um número aqui muda a aparência — dos documentos que carregam a tabela.
+ * As unidades são as dos atributos do bloco, menos a **entrelinha**: aqui o fator
+ * vem cru, porque com herança a fonte pode vir do próprio estilo, e só depois de
+ * resolvida a cascata `line-metrics.ts` o multiplica pela altura natural.
  */
 
 import { Language, translate } from '@shared/i18n/index.js'
 
-/** Como a entrelinha é medida, do jeito que o arquivo a declara. */
 export type LineSpacing =
   /** Vezes a altura natural da linha (`w:lineRule="auto"`). */
   | { readonly kind: 'multiple'; readonly factor: number }
@@ -36,14 +17,9 @@ export type LineSpacing =
   | { readonly kind: 'atLeast'; readonly pt: number }
 
 /**
- * O que um estilo diz sobre o parágrafo.
- *
- * Todo campo é opcional, e a ausência tem significado: "este estilo não fala
- * disso", que é o silêncio pelo qual o valor herdado passa. Zero é outra coisa —
- * é o estilo dizendo "nenhum espaço aqui".
- *
- * `| undefined` explícito por causa de `exactOptionalPropertyTypes`: o objeto vem
- * do zod, que emite a chave com `undefined`, e sem isso ele não seria atribuível.
+ * Ausente é "este estilo não fala disso", e o herdado passa; zero é o estilo
+ * dizendo "nenhum espaço". `| undefined` porque o zod emite a chave com
+ * `undefined`, e `exactOptionalPropertyTypes` a recusaria.
  */
 export interface StyleParagraphFormat {
   readonly textAlign?: string | undefined
@@ -67,9 +43,8 @@ export interface StyleParagraphFormat {
   readonly background?: string | undefined
 }
 
-/** O que um estilo diz sobre o texto. */
 export interface StyleCharacterFormat {
-  /** Pilha de CSS, como o leitor a monta a partir da tabela de fontes. */
+  /** Pilha de CSS, montada a partir da tabela de fontes. */
   readonly fontFamily?: string | undefined
   /** Medida com unidade, como o atributo do bloco: `12pt`. */
   readonly fontSize?: string | undefined
@@ -90,7 +65,7 @@ export const StyleType = {
 } as const
 export type StyleType = (typeof StyleType)[keyof typeof StyleType]
 
-/** Um estilo do documento, como o arquivo o declara — sem herança resolvida. */
+/** Como o arquivo o declara, sem herança resolvida. */
 export interface StyleDefinition {
   /** O `w:styleId`: o que o parágrafo aponta. É traduzido (`Ttulo1` em português). */
   readonly id: string
@@ -112,14 +87,7 @@ export interface StyleDefinition {
   readonly character?: StyleCharacterFormat | undefined
 }
 
-/**
- * O `w:docDefaults` e os estilos marcados `w:default="1"`.
- *
- * Os padrões são a base sobre a qual todo estilo se aplica; os ids são o que vale
- * para o parágrafo que não aponta estilo nenhum. Sem eles não há como responder
- * "qual é o estilo deste parágrafo" num documento que chama o estilo padrão de
- * `Padro` — e é essa a pergunta do painel.
- */
+/** Sem os ids, um documento que chama o estilo padrão de `Padro` não diz qual é o estilo do parágrafo. */
 export interface StyleDefaults {
   readonly paragraph: StyleParagraphFormat
   readonly character: StyleCharacterFormat
@@ -129,19 +97,13 @@ export interface StyleDefaults {
 
 export interface StyleSheet {
   readonly defaults: StyleDefaults
-  /** Por id, que é o que o parágrafo aponta. */
   readonly styles: Readonly<Record<string, StyleDefinition>>
 }
 
 /**
- * A entrelinha 1,5 do CSS, em múltiplos da altura natural da linha.
- *
- * 1,5 ÷ 1,1499 (a altura da Liberation Serif, ver `line-metrics.ts`) = 1,3042. O
- * múltiplo do arquivo é medido sobre a altura da fonte, e não sobre o tamanho
- * dela; tratar um pelo outro encurtava cada linha em 15 %.
- *
- * Quatro casas, e não mais: o `w:line` vive numa grade de 240-avos (1,3042 × 240
- * = 313), e é nessa grade que o número volta do arquivo.
+ * 1,5 ÷ 1,1499 (a altura da Liberation Serif, ver `line-metrics.ts`): o múltiplo
+ * do arquivo é medido sobre a altura da fonte, e não sobre o tamanho. Quatro
+ * casas porque o `w:line` vive numa grade de 240-avos.
  */
 export const BODY_LINE_FACTOR = 1.3042
 
@@ -173,9 +135,8 @@ function heading(level: number): StyleDefinition {
 
   return {
     id: `Heading${level}`,
-    // O nome interno, em inglês e minúsculo, porque é assim que ele existe no
-    // arquivo: é por ele que o leitor e o escritor reconhecem um título em
-    // documento de qualquer idioma. Quem traduz para a tela é `styleLabelOf`.
+    // O nome interno, em inglês: é por ele que o leitor e o escritor reconhecem
+    // um título em documento de qualquer idioma.
     name: `heading ${level}`,
     type: StyleType.Paragraph,
     qFormat: true,
@@ -190,25 +151,18 @@ function heading(level: number): StyleDefinition {
 }
 
 /**
- * Os estilos dos **arquivos antigos** — a tela de antes dos estilos, em dado.
+ * Os estilos de um `.sdoc` anterior à versão 3: o CSS que o editor desenhava
+ * antes dos estilos (Times New Roman 12 pt, entrelinha 1,5) mais o padrão do
+ * navegador para os títulos. Um número diferente faz o documento antigo reabrir
+ * com outra paginação. `BuiltinStyles.cs` é comparado com esta tabela por
+ * `src/main/sidecar/builtin-styles.test.ts`.
  *
- * É a tabela que um `.sdoc` gravado antes da versão 3 do formato recebe ao ser
- * aberto, e a dos títulos que o escritor acrescenta a um DOCX que não os tem
- * (`BuiltinStyles.cs`, comparada com esta por
- * `src/main/sidecar/builtin-styles.test.ts`). Por isso ela não é um gosto: é o
- * CSS que o editor desenhava antes de desenhar a partir de estilos — Times New
- * Roman 12 pt, entrelinha 1,5, 0,6em antes e 1em depois — mais o padrão do
- * navegador para os títulos. Um número diferente daqui faz documento antigo
- * reabrir com outra paginação.
- *
- * O `#111111` do texto fica de fora de propósito: gravado como cor, ele voltaria
- * do arquivo como cor explícita em cada trecho reaberto.
+ * Sem o `#111111` do texto: gravado, ele voltaria como cor explícita.
  */
 export const LEGACY_STYLES: StyleSheet = {
   defaults: {
     paragraph: {},
-    // A fonte vai no padrão do documento, e não no `Normal`, porque é lá que o
-    // Word a procura — e é de lá que todo estilo a herda.
+    // No padrão do documento, e não no `Normal`: é lá que o Word procura a fonte.
     character: { fontFamily: 'Times New Roman', fontSize: '12pt' },
     paragraphStyleId: 'Normal',
     characterStyleId: 'DefaultParagraphFont',
@@ -298,13 +252,7 @@ function wordHeading(level: number): StyleDefinition {
   }
 }
 
-/**
- * Os estilos do documento novo: o padrão do Word 2013–2021.
- *
- * Calibri 11 pt, entrelinha 1,08, 8 pt depois — no padrão do documento, e não no
- * `Normal`, porque é assim que o Word o grava e é de lá que todo estilo o
- * herda. É a tabela que o pacote DOCX do documento novo grava (`docx.create`).
- */
+/** O padrão do Word 2013–2021: Calibri 11 pt, entrelinha 1,08, 8 pt depois. */
 export const BUILTIN_STYLES: StyleSheet = {
   defaults: {
     paragraph: { spaceAfter: 8, lineSpacing: { kind: 'multiple', factor: WORD_LINE_FACTOR } },
@@ -332,13 +280,8 @@ export const BUILTIN_STYLES: StyleSheet = {
 }
 
 /**
- * O nome interno dos títulos, traduzido para a tela.
- *
- * Só estes: são os nomes que **nós** gravamos, em inglês, porque é a forma que o
- * arquivo exige para que o Word reconheça um título. Mostrar "heading 1" num
- * programa em português seria mostrar o arquivo, e não o documento. O nome de
- * qualquer outro estilo é dado do documento e aparece como está — traduzir o que
- * o autor escreveu seria inventar.
+ * Só os títulos, cujo nome nós gravamos em inglês porque o Word exige. O nome de
+ * qualquer outro estilo é do documento e aparece como está.
  */
 const HEADING_LABELS: Readonly<Record<string, number>> = {
   'heading 1': 1,
@@ -349,7 +292,6 @@ const HEADING_LABELS: Readonly<Record<string, number>> = {
   'heading 6': 6,
 }
 
-/** Como o estilo se chama na tela. */
 export function styleLabelOf(style: StyleDefinition, language: Language = Language.Portuguese): string {
   const heading = HEADING_LABELS[style.name.toLowerCase()]
   return heading === undefined
@@ -358,16 +300,8 @@ export function styleLabelOf(style: StyleDefinition, language: Language = Langua
 }
 
 /**
- * Os estilos que o painel lista, na ordem em que ele os mostra.
- *
- * Os escondidos ficam de fora: `w:semiHidden` existe justamente para tirar da
- * lista o que é maquinaria do Word — `DefaultParagraphFont` e as dezenas de
- * variantes de tabela que todo documento do Word declara sem usar. Um painel com
- * elas é um painel que ninguém lê.
- *
- * A ordem é a do Word: primeiro a prioridade que o documento declara, e o nome
- * como critério de desempate — sem ele, dois estilos de mesma prioridade
- * trocariam de lugar entre uma abertura e outra.
+ * Sem os escondidos (`w:semiHidden` é a maquinaria do Word). Na ordem do Word:
+ * prioridade declarada, e o nome como desempate, para a ordem ser estável.
  */
 export function listedStyles(
   sheet: StyleSheet,
@@ -386,7 +320,6 @@ export function listedStyles(
     })
 }
 
-/** O bloco do cursor, no mínimo que responde "qual é o estilo dele". */
 export interface BlockStyleQuery {
   /** O tipo do nó do editor: `paragraph`, `heading`, `codeBlock`… */
   readonly type: string
@@ -397,16 +330,9 @@ export interface BlockStyleQuery {
 }
 
 /**
- * O estilo do bloco onde está o cursor — ou `null` quando não há resposta honesta.
- *
- * Três caminhos, e nessa ordem:
- *
- * 1. o `w:pStyle` que o bloco trouxe, **se o documento define esse estilo**. Um
- *    id que o documento não define é silêncio no Word, e seria mentira aqui;
- * 2. o título, pelo **nome interno** do estilo (`heading 3`), que é o critério do
- *    leitor e do escritor (`StyleResolver.HeadingLevelByName`). Pelo id não
- *    funcionaria: num documento em alemão o estilo se chama `berschrift3`;
- * 3. o estilo padrão de parágrafo, que é o que vale sem `w:pStyle`.
+ * O `w:pStyle` do bloco, se o documento define esse estilo; senão o título pelo
+ * nome interno (`heading 3`), porque num documento em alemão o id é
+ * `berschrift3`; senão o estilo padrão. `null` quando não há resposta honesta.
  */
 export function blockStyleOf(sheet: StyleSheet, block: BlockStyleQuery): StyleDefinition | null {
   const declared = block.styleId ?? null

@@ -1,11 +1,4 @@
-/**
- * Inserir e excluir linhas e colunas na pasta inteira.
- *
- * As operações de `edit.ts` mexem numa planilha só, porque é só de células que
- * elas tratam. Fórmula é outra história: uma linha inserida em "Dados" muda o
- * significado de `=Dados!A5` escrita em "Resumo". Por isso a operação estrutural
- * é da **pasta**, e não da planilha — e é por isso que ela vive aqui, e não lá.
- */
+/** Da **pasta**, e não da planilha: uma linha inserida em "Dados" muda `=Dados!A5` escrita em "Resumo". */
 
 import { adjustForColumns, adjustForRows, renameSheetInFormula } from './formula/adjust.js'
 import {
@@ -23,12 +16,6 @@ export type StructuralChange =
   | { readonly kind: 'insertColumns'; readonly at: number; readonly count: number }
   | { readonly kind: 'deleteColumns'; readonly at: number; readonly count: number }
 
-/**
- * Aplica a mudança e reescreve as referências de todas as planilhas.
- *
- * Sem a reescrita, inserir uma linha moveria os dados e deixaria `SOMA(A1:A3)`
- * apontando para onde eles não estão mais — um total errado, sem aviso.
- */
 export function applyStructuralChange(
   workbook: WorkbookModel,
   sheetIndex: number,
@@ -66,12 +53,7 @@ function shift(sheet: Sheet, change: StructuralChange): Sheet {
   }
 }
 
-/**
- * Renomeia uma planilha e conserta as fórmulas que a citam.
- *
- * Renomear é um gesto que o usuário considera cosmético; sem esta reescrita ele
- * transformaria em `#REF!` toda fórmula que apontava para a aba.
- */
+/** Sem a reescrita, renomear transformaria em `#REF!` toda fórmula que cita a aba. */
 export function renameSheet(workbook: WorkbookModel, sheetIndex: number, name: string): WorkbookModel {
   const target = workbook.sheets[sheetIndex]
   if (target === undefined || target.name === name) return workbook
@@ -84,13 +66,7 @@ export function renameSheet(workbook: WorkbookModel, sheetIndex: number, name: s
   return { ...workbook, sheets }
 }
 
-/**
- * O nome da próxima aba: "Planilha2", "Planilha3"…, pulando os já usados.
- *
- * Nome repetido quebraria a referência entre abas — `=Planilha2!A1` deixaria de
- * ter destino único —, e é por isso que a contagem não é simplesmente o total
- * de abas mais um: quem apagou a Planilha2 e criou outra teria duas.
- */
+/** Pula os nomes usados: quem apagou a Planilha2 e criou outra teria duas. */
 export function nextSheetName(workbook: WorkbookModel): string {
   const used = new Set(workbook.sheets.map((sheet) => sheet.name))
 

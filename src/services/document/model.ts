@@ -1,9 +1,6 @@
 /**
- * Modelo canônico do documento.
- *
- * `doc` é o JSON do ProseMirror — o mesmo que o Tiptap edita nativamente — e
- * `page` carrega o que não cabe no fluxo de texto. A separação existe porque o
- * DOCX é lido para estas duas partes, e o PDF é gerado a partir delas.
+ * `doc` é o JSON do ProseMirror, o mesmo que o Tiptap edita; `page` e o resto
+ * carregam o que não cabe no fluxo de texto.
  */
 
 import { NO_BANDS, type Band, type BandHeights } from './band.js'
@@ -33,66 +30,32 @@ export interface PageSetup {
   readonly size: PageSize
   readonly orientation: PageOrientation
   readonly margins: Margins
-  /**
-   * Cabeçalho e rodapé em texto simples, digitados pelo usuário. Aceitam `{n}`
-   * para o número da página e `{total}` para o total — a substituição acontece
-   * na hora de gerar o PDF, que é quando o número de páginas passa a existir.
-   */
+  /** Texto simples digitado pela pessoa; `{n}` e `{total}` são trocados ao gerar o PDF. */
   readonly header: string
   readonly footer: string
-  /**
-   * O cabeçalho real do documento importado, quando existe. **Manda na
-   * exibição**: um `.docx` corporativo traz logotipo e numeração que o campo
-   * de texto acima não representaria.
-   */
+  /** O cabeçalho do documento importado; quando existe, manda na exibição. */
   readonly headerBand: Band | null
   readonly footerBand: Band | null
   /**
-   * Faixas de primeira página e de páginas pares.
-   *
-   * Só existem quando o documento **liga** os interruptores correspondentes
-   * (`w:titlePg`, `w:evenAndOddHeaders`). O Word guarda as partes mesmo com eles
-   * desligados, e usá-las sem conferir poria o cabeçalho da capa em todas as
-   * páginas — ver `PageReader.HasTitlePage`.
+   * Só existem quando o documento liga `w:titlePg` ou `w:evenAndOddHeaders`: o
+   * Word guarda as partes mesmo com eles desligados — ver `PageReader.HasTitlePage`.
    */
   readonly firstHeaderBand: Band | null
   readonly firstFooterBand: Band | null
   readonly evenHeaderBand: Band | null
   readonly evenFooterBand: Band | null
-  /**
-   * Distância da faixa à borda do papel, em milímetros (`w:pgMar/@header`).
-   *
-   * É a origem vertical das âncoras de dentro do cabeçalho: elas se dizem
-   * relativas ao parágrafo, e o parágrafo do cabeçalho começa aqui.
-   */
+  /** `w:pgMar/@header`: a origem vertical das âncoras de dentro do cabeçalho. */
   readonly headerDistanceMm: number
   readonly footerDistanceMm: number
-  /**
-   * Numeração de página (`w:pgNumType`): o formato e o número da primeira folha.
-   *
-   * Opcionais, como os interruptores abaixo: o `.sdoc` gravado antes não os
-   * tem, e ausência quer dizer "decimal, a partir de 1" na tela e "não mexa" na
-   * gravação.
-   */
+  /** `w:pgNumType`. Ausente vale "decimal, a partir de 1" na tela e "não mexa" na gravação. */
   readonly pageNumberFormat?: PageNumberFormat | undefined
   readonly pageNumberStart?: number | null | undefined
-  /**
-   * "Primeira página diferente" (`w:titlePg`) e "Pares e ímpares diferentes"
-   * (`w:evenAndOddHeaders`). Ausentes, valem pelo que as faixas dizem: um
-   * rascunho de antes só trazia a faixa da capa quando o interruptor estava
-   * ligado.
-   */
+  /** `w:titlePg` e `w:evenAndOddHeaders`. Ausentes, valem pelo que as faixas dizem. */
   readonly titlePage?: boolean | null | undefined
   readonly evenAndOddHeaders?: boolean | null | undefined
-  /**
-   * Como a seção começa (`w:sectPr/w:type`). Ausente (rascunho de antes das
-   * seções) vale "próxima página" na tela e "não mexa" na gravação.
-   */
+  /** `w:sectPr/w:type`. Ausente vale "próxima página" na tela e "não mexa" na gravação. */
   readonly start?: SectionStart | undefined
-  /**
-   * As colunas da seção (`w:cols`). Ausente (rascunho de antes) é uma coluna na
-   * tela e "não mexa" na gravação.
-   */
+  /** `w:cols`. Ausente vale uma coluna na tela e "não mexa" na gravação. */
   readonly columns?: SectionColumns | undefined
 }
 
@@ -113,15 +76,10 @@ export const SECTION_STARTS = ['nextPage', 'continuous', 'evenPage', 'oddPage', 
 export type SectionStart = (typeof SECTION_STARTS)[number]
 
 /**
- * Uma seção antes da última.
- *
- * O `id` é o elo com o texto: o parágrafo que **encerra** a seção leva o mesmo
- * valor no atributo `sectionBreak`, como no OOXML o `w:sectPr` mora no parágrafo
- * que fecha a seção. A última seção é `DocumentModel.page` — a do corpo, que não
- * tem parágrafo.
- *
- * Cada seção traz só as faixas que **declara**; nula, da segunda em diante, é
- * "vincular ao anterior" — ver `effectiveSections`.
+ * O parágrafo que **encerra** a seção leva o mesmo `id` em `sectionBreak`, como
+ * no OOXML o `w:sectPr` mora no parágrafo que fecha a seção. A última seção é
+ * `DocumentModel.page`. Faixa nula, da segunda seção em diante, é "vincular ao
+ * anterior" — ver `effectiveSections`.
  */
 export interface SectionSetup extends PageSetup {
   readonly id: string
@@ -138,12 +96,8 @@ export const PAGE_NUMBER_FORMATS = [
 export type PageNumberFormat = (typeof PAGE_NUMBER_FORMATS)[number]
 
 /**
- * Nó do ProseMirror em forma serializável.
- *
- * As coleções são mutáveis de propósito: este tipo precisa ser aceito onde o
- * Tiptap espera `JSONContent`, e um array `readonly` não é atribuível a um
- * array comum. As propriedades continuam `readonly` — o que importa é não
- * reescrever o nó por engano.
+ * Coleções mutáveis porque o Tiptap espera `JSONContent`, e um array `readonly`
+ * não é atribuível a um comum.
  */
 export interface DocumentNode {
   readonly type: string
@@ -156,103 +110,52 @@ export interface DocumentNode {
 export interface DocumentModel {
   /** A última seção — a do corpo, e a única do documento de uma seção só. */
   readonly page: PageSetup
-  /**
-   * As seções antes da última, em ordem. Ausente é documento de uma seção. Fora
-   * dos nós pelo mesmo motivo dos estilos: mudar o papel de uma seção não pode
-   * fazer o parágrafo da marca parecer editado.
-   */
+  /** Antes da última, em ordem. Fora dos nós pelo mesmo motivo de `styles`. */
   readonly sections?: readonly SectionSetup[]
   readonly doc: DocumentNode
   /**
-   * Os estilos do documento — **fora dos nós**, e é isso que os torna seguros.
-   *
-   * A gravação cirúrgica decide o que preservar comparando a impressão digital de
-   * cada bloco com a que o leitor produziu, e ela é feita do que está dentro do
-   * nó. Um estilo guardado ali faria todo bloco parecer mudado, e o documento
-   * inteiro seria reescrito — exatamente o que este projeto existe para evitar.
-   *
-   * Ver `styles.ts`: é deles que nasce o CSS da tela e do PDF (`style-css.ts`).
+   * Fora dos nós: a impressão digital de um bloco é feita do que está dentro
+   * dele, e um estilo ali faria todo bloco parecer mudado na gravação cirúrgica.
    */
   readonly styles: StyleSheet
   /**
-   * Os blocos vieram **achatados**: cada um com a formatação efetiva — padrões,
-   * estilo e direta —, como o leitor os produzia antes de levar só a direta.
-   *
-   * É o rascunho gravado por uma versão anterior (formato `.sdoc` < 4). Na tela
-   * não faz diferença — o inline vence a regra do estilo, e o achatado já diz
-   * tudo —, mas na gravação faz: os blocos são comparados com uma leitura do
-   * original, e ela tem de ser achatada também, senão todo bloco pareceria mudado
-   * e o documento inteiro seria reescrito. Ausente é falso.
+   * Rascunho `.sdoc` < 4, com a formatação efetiva em cada bloco. A gravação o
+   * compara com uma leitura achatada do original, senão todo bloco pareceria mudado.
    */
   readonly flattened?: boolean
-  /**
-   * O rascunho é de antes das **referências** (formato `.sdoc` < 5): os nós não
-   * trazem marcador, campo, link interno nem sumário, que o leitor passou a
-   * produzir na versão 5. Mesmo motivo de `flattened`: a gravação compara com
-   * uma leitura do original feita como era então. Ausente é falso.
-   */
+  /** Rascunho `.sdoc` < 5: sem marcador, campo, link interno nem sumário nos nós. Mesmo motivo de `flattened`. */
   readonly beforeReferences?: boolean
-  /**
-   * O rascunho é de antes das **seções** (formato `.sdoc` < 6): os parágrafos
-   * que encerram seção não trazem `sectionBreak`. Mesmo motivo de `flattened`.
-   */
+  /** Rascunho `.sdoc` < 6: sem `sectionBreak`. Mesmo motivo de `flattened`. */
   readonly beforeSections?: boolean
   /**
-   * Os marcadores do arquivo que não viraram nó — entre linhas de tabela, soltos
-   * entre blocos, no cabeçalho ou numa caixa de texto. Existem, e continuam no
-   * arquivo; a referência que os cita não está quebrada, e "Atualizar campos"
-   * deixa o resultado dela como o Word o deixou.
+   * Marcadores do arquivo que não viraram nó — entre linhas de tabela, soltos
+   * entre blocos, no cabeçalho ou numa caixa. A referência que os cita não está
+   * quebrada, e "Atualizar campos" deixa o resultado dela como o Word deixou.
    */
   readonly outsideBookmarks?: readonly string[]
   /**
-   * Os comentários do arquivo. O corpo mora aqui, fora dos nós, pelo mesmo
-   * motivo dos estilos; no texto ficam só as pontas da âncora (`commentStart` e
-   * `commentEnd`, uma por conversa — a resposta não tem nó). Só os que o texto
-   * sustenta (`resolveComments`); o que não mudou volta ao arquivo byte a byte.
+   * O corpo mora fora dos nós, como `styles`; no texto ficam só as pontas da
+   * âncora, uma por conversa. Só os que o texto sustenta (`resolveComments`).
    */
   readonly comments?: readonly DocumentComment[]
-  /**
-   * O rascunho é de antes dos **comentários** (formato `.sdoc` < 7): os nós não
-   * trazem a âncora. Mesmo motivo de `flattened`.
-   */
+  /** Rascunho `.sdoc` < 7: sem a âncora nos nós. Mesmo motivo de `flattened`. */
   readonly beforeComments?: boolean
-  /**
-   * O documento grava controlando alterações — o `w:trackRevisions` do arquivo
-   *. Ausente é "não mexa": o arquivo fica como está.
-   */
+  /** `w:trackRevisions`. Ausente é "não mexa". */
   readonly trackChanges?: boolean
-  /**
-   * O rascunho é de antes das **revisões** (formato `.sdoc` < 8): os nós não
-   * trazem as marcas `insertion`/`deletion` nem a revisão de bloco. Mesmo motivo
-   * de `flattened`.
-   */
+  /** Rascunho `.sdoc` < 8: sem as marcas de revisão. Mesmo motivo de `flattened`. */
   readonly beforeRevisions?: boolean
   /**
-   * Como o documento numera as notas de rodapé e as de fim. Fora dos nós pelo
-   * mesmo motivo dos estilos; a referência (`noteRef`) não guarda número — ele
-   * é a ordem dela no documento. Ausente é a numeração do Word: 1, 2, 3 nas de
-   * rodapé e i, ii, iii nas de fim.
+   * Fora dos nós, como `styles`: o número de uma nota é a ordem da referência.
+   * Ausente é a numeração do Word: 1, 2, 3 nas de rodapé e i, ii, iii nas de fim.
    */
   readonly notes?: DocumentNotes
-  /**
-   * O rascunho é de antes das **notas** (formato `.sdoc` < 9): os nós não trazem
-   * o `noteRef`. Mesmo motivo de `flattened`.
-   */
+  /** Rascunho `.sdoc` < 9: sem `noteRef`. Mesmo motivo de `flattened`. */
   readonly beforeNotes?: boolean
-  /**
-   * O rascunho é de antes das **equações** (formato `.sdoc` < 11): os nós não
-   * trazem o `math`, e a equação ficava escondida no parágrafo. Mesmo motivo de
-   * `flattened`.
-   */
+  /** Rascunho `.sdoc` < 11: sem `math`. Mesmo motivo de `flattened`. */
   readonly beforeMath?: boolean
   /**
-   * As propriedades do documento — `docProps/core.xml` e parte de
-   * `docProps/app.xml`. Fora dos nós pelo mesmo motivo dos estilos.
-   *
-   * Na gravação em DOCX cada campo é um **remendo**: ausente é "deixe como está
-   * no arquivo", e a cadeia vazia é "apague". Por isso o rascunho de antes delas
-   * (`.sdoc` < 10) não precisa de marca: sem `properties`, nada em `docProps/`
-   * é tocado, e o pacote de origem guarda as do arquivo byte a byte.
+   * `docProps/core.xml` e parte de `app.xml`, fora dos nós. Na gravação cada
+   * campo é um remendo: ausente é "deixe como está", vazio é "apague".
    */
   readonly properties?: DocumentProperties
 }
@@ -354,7 +257,7 @@ export function pageDimensionsMm(page: PageSetup): { width: number; height: numb
     : { width: base.width, height: base.height }
 }
 
-/** Largura útil do texto: é ela que define a medida da moldura na tela. */
+/** A largura que define a moldura na tela. */
 export function contentWidthMm(page: PageSetup): number {
   const { width } = pageDimensionsMm(page)
   return width - page.margins.left - page.margins.right
@@ -367,13 +270,8 @@ export function contentHeightMm(page: PageSetup, bands: BandHeights = NO_BANDS):
 }
 
 /**
- * Onde a coluna de texto começa e termina na folha.
- *
- * A margem é um piso, não uma posição. Quando o cabeçalho é mais alto do que a
- * distância dele até a borda mais a margem de cima — e o cabeçalho corporativo
- * em grade quase sempre é — o Word e o LibreOffice **descem o corpo** até
- * debaixo dele. Sem isso a primeira linha do texto era escrita por cima da
- * última do cabeçalho, e o mesmo encontro acontecia no pé com o rodapé.
+ * A margem é um piso: quando o cabeçalho é mais alto que a distância dele até a
+ * borda mais a margem, o Word e o LibreOffice descem o corpo até debaixo dele.
  */
 export function contentInsetsMm(page: PageSetup, bands: BandHeights): { top: number; bottom: number } {
   return {
@@ -387,17 +285,11 @@ export function mmToPx(mm: number): number {
   return (mm * 96) / 25.4
 }
 
-/** O caminho de volta, para o que foi medido na tela e vai ser posto em mm. */
 export function pxToMm(px: number): number {
   return (px * 25.4) / 96
 }
 
-/**
- * Margem válida é a que deixa espaço útil.
- *
- * Sem este limite o usuário consegue pedir margens que somam mais que a página
- * — e o resultado seria uma área de texto de largura negativa.
- */
+/** Margens que somam mais que a página dariam área de texto negativa. */
 export function isValidMargins(page: PageSetup): boolean {
   const { width, height } = pageDimensionsMm(page)
   const values = [page.margins.top, page.margins.right, page.margins.bottom, page.margins.left]

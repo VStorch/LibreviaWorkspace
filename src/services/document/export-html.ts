@@ -16,22 +16,14 @@ import { styleSheetCss } from './style-css.js'
 import { cellBordersFromAttr, cellBordersToCss } from './table-format.js'
 
 /**
- * Exportação para HTML: uma página só, autocontida, sem script.
- *
- * Parte do modelo — ver `export-common.ts`. Os estilos de parágrafo e de
- * caractere viram as mesmas regras que a tela usa (`styleSheetCss`), e o bloco
- * leva o `data-style-id` que elas procuram; a formatação direta sai inline, como
- * no editor. As imagens vão embutidas em `data:`, as notas numa lista no fim com
- * o caminho de volta, as revisões já aceitas e os comentários de fora.
- *
- * Tudo o que vem do documento é escapado, e o CSS que vem de atributo passa por
- * `safeCss`: um `.docx` alheio não pode pôr script nem buscar nada na rede.
+ * Uma página autocontida e sem script. Os estilos viram as regras da tela
+ * (`styleSheetCss`) e a formatação direta sai inline. Tudo o que vem do
+ * documento é escapado, e o CSS de atributo passa por `safeCss`.
  */
 
 export interface HtmlExportOptions {
   /** O nome do arquivo de origem: o título quando as propriedades não têm um. */
   readonly fileName: string
-  /** `pt-BR`, `en`… */
   readonly lang: string
   /** Os textos que a página leva, na língua da interface. */
   readonly labels: HtmlExportLabels
@@ -47,7 +39,7 @@ export interface HtmlExportLabels {
 /** Como o renderizador resolve o `src` de uma imagem: `null` a omite. */
 export type ImageSource = (src: unknown) => string | null
 
-/** O renderizador por dentro — o Markdown o usa para a tabela que não cabe em GFM. */
+/** O Markdown o usa para a tabela que não cabe em GFM. */
 export interface HtmlRenderer {
   blocks(nodes: readonly DocumentNode[]): string
   inline(nodes: readonly DocumentNode[]): string
@@ -185,7 +177,6 @@ export function createHtmlRenderer(source: ExportSource, imageSrc: ImageSource):
       case 'tableOfContents':
         return contents(node)
       default:
-        // O bloco que esta exportação não conhece ainda leva o texto adiante.
         return node.content === undefined ? '' : blocks(node.content)
     }
   }
@@ -261,7 +252,6 @@ export function createHtmlRenderer(source: ExportSource, imageSrc: ImageSource):
     return `<${tag}${parts.join('')}>${blocks(node.content ?? [])}</${tag}>`
   }
 
-  /** O sumário: os títulos do arquivo, numa lista de links para os títulos. */
   function contents(node: DocumentNode): string {
     const children = node.content ?? []
     const head = Math.max(0, Number(node.attrs?.['head']) || 0)
@@ -285,8 +275,7 @@ export function createHtmlRenderer(source: ExportSource, imageSrc: ImageSource):
   function inlineNode(node: DocumentNode): string {
     const inner = inlineContent(node)
     if (inner === '') return ''
-    // A referência de nota já é sobrescrita: o `vertAlign` que o Word põe no
-    // trecho dela a subiria duas vezes.
+    // O `vertAlign` que o Word põe na referência de nota a subiria duas vezes.
     return node.type === 'noteRef' ? inner : wrapMarks(inner, node.marks ?? [])
   }
 
@@ -318,7 +307,6 @@ export function createHtmlRenderer(source: ExportSource, imageSrc: ImageSource):
       }
       case 'field':
         return escapeHtml(stringAttr(node.attrs?.['result']))
-      // A equação vai como o MathML filtrado — o navegador a desenha.
       case 'math':
         return mathHtml(node)
       case 'bookmarkStart': {
@@ -423,7 +411,7 @@ function textStyleCss(attrs: Record<string, unknown>): string {
   return declarations(pairs)
 }
 
-/** A formatação direta do bloco, como a extensão do editor a desenha (`block-format.ts`). */
+/** Como `block-format.ts` a desenha. */
 export function blockCss(attrs: Record<string, unknown>): string {
   const mm = (value: unknown): string | null => {
     const number = finiteNumber(value)
@@ -461,13 +449,7 @@ function declarations(pairs: ReadonlyArray<[string, unknown]>): string {
     .join('; ')
 }
 
-/**
- * Um valor de CSS vindo do documento, ou `null` se não for seguro.
- *
- * Só o vocabulário de cores, medidas e nomes de fonte: nada de `url(`, de
- * `expression`, de barra invertida ou de ponto e vírgula — o que buscaria algo na
- * rede ou fecharia a declaração para abrir outra.
- */
+/** Sem `url(`, `expression`, barra invertida nem ponto e vírgula. */
 export function safeCss(value: unknown): string | null {
   if (typeof value === 'number') return Number.isFinite(value) ? String(value) : null
   if (typeof value !== 'string') return null
@@ -478,7 +460,6 @@ export function safeCss(value: unknown): string | null {
   return text
 }
 
-/** As declarações de um texto `a: b; c: d`, só as seguras. */
 function safeDeclarations(css: string): string[] {
   return css
     .split(';')
@@ -518,7 +499,6 @@ function plainText(node: DocumentNode): string {
   return (node.content ?? []).map(plainText).join('')
 }
 
-/** As larguras da primeira linha, em pixels, quando toda célula as declara. */
 function columnWidths(row: DocumentNode | undefined): number[] | null {
   if (row === undefined) return null
   const widths: number[] = []
@@ -543,11 +523,7 @@ export function escapeHtml(text: string): string {
     .replaceAll("'", '&#39;')
 }
 
-/**
- * O MathML filtrado da equação, ou nada quando ele não passa no filtro. O
- * `display` sai do nó, e não do MathML: é ele que faz da equação de exibição um
- * bloco no navegador.
- */
+/** O `display` sai do nó, e não do MathML: é ele que faz da equação de exibição um bloco. */
 export function mathHtml(node: DocumentNode): string {
   const tree = sanitizeMathMl(typeof node.attrs?.['mathml'] === 'string' ? node.attrs['mathml'] : '')
   if (tree === null) return ''

@@ -46,21 +46,10 @@ import { cellBordersFromAttr, type CellBorder } from './table-format.js'
 import { zip, type Deflate, type ZipEntry } from './zip.js'
 
 /**
- * Exportação para ODT — o texto do OpenDocument.
- *
- * Feita aqui, e não no sidecar, porque o que dá trabalho no ODT já está pronto
- * deste lado: a cascata de estilos, a conta das listas como o Word conta e a
- * das notas moram em `@services/document`, e o pacote é só XML num ZIP. O
- * sidecar teria de refazer as três em C#.
- *
- * Parte do mesmo modelo das outras exportações (`export-common.ts`): revisões
- * aceitas, e os comentários — que aqui ficam — como anotações do ODF. Os estilos
- * nomeados do documento viram estilos nomeados do ODT, com a herança dele; a
- * formatação direta vira estilo automático que herda do nomeado. Cada seção tem
- * a página mestra dela, com tamanho, margens, cabeçalho e rodapé.
- *
- * Tudo o que vem do documento é escapado (`xml`), e só links seguros
- * (`safeHref`) viram link.
+ * Feita aqui, e não no sidecar, porque a cascata de estilos, a conta das listas
+ * e a das notas já moram em `@services/document`. Estilos nomeados viram estilos
+ * nomeados do ODT; a formatação direta, estilo automático que herda deles. Tudo
+ * o que vem do documento é escapado, e só links seguros viram link.
  */
 
 export interface OdtExportOptions {
@@ -133,8 +122,6 @@ export function exportOdt(model: OdtModel, options: OdtExportOptions = {}, defla
   return zip(odtEntries(model, options), deflate)
 }
 
-// --- imagens ------------------------------------------------------------------
-
 interface Picture {
   readonly path: string
   readonly mime: string
@@ -172,8 +159,6 @@ class PictureBook {
     return [...this.bySource.values()]
   }
 }
-
-// --- equações ------------------------------------------------------------------
 
 interface Formula {
   /** A pasta do objeto no pacote, `Object 1` — sem a barra do fim. */
@@ -245,8 +230,6 @@ export function pixelSizeOf(bytes: Uint8Array): { width: number; height: number 
   return null
 }
 
-// --- o escritor ---------------------------------------------------------------
-
 /** Para onde vai a quebra ou a página mestra pendente: o próximo bloco do fluxo. */
 interface Pending {
   breakBefore: 'page' | null
@@ -286,7 +269,6 @@ class OdtWriter {
     }
   }
 
-  /** O `content.xml`. */
   content(): string {
     const book = new StyleBook('')
     const pending: Pending = { breakBefore: null, master: null }
@@ -586,8 +568,6 @@ const OUTLINE_STYLE = `<text:outline-style style:name="Outline">${Array.from(
     `<text:outline-level-style text:level="${index + 1}" style:num-format=""><style:list-level-properties text:list-level-position-and-space-mode="label-alignment"><style:list-level-label-alignment text:label-followed-by="nothing"/></style:list-level-properties></text:outline-level-style>`,
 ).join('')}</text:outline-style>`
 
-// --- o renderizador -----------------------------------------------------------
-
 class Renderer {
   /** Dentro de célula, nota, caixa de texto ou faixa a quebra pendente espera. */
   private nested = 0
@@ -740,8 +720,6 @@ class Renderer {
       .join('')
   }
 
-  // --- listas -----------------------------------------------------------------
-
   private list(node: DocumentNode, depth: number): string {
     const styleName = depth === 1 ? this.listStyle(node) : null
     const ordered = node.type === 'orderedList'
@@ -794,8 +772,6 @@ class Renderer {
       .join('')
     return this.book.list(levels)
   }
-
-  // --- tabelas ----------------------------------------------------------------
 
   private table(node: DocumentNode): string {
     const rows = (node.content ?? []).filter((row) => row.type === 'tableRow')
@@ -881,8 +857,6 @@ class Renderer {
       '<table:covered-table-cell/>'.repeat(colspan - 1)
     )
   }
-
-  // --- texto ------------------------------------------------------------------
 
   inline(nodes: readonly DocumentNode[]): string {
     return nodes.map((node) => this.inlineNode(node)).join('')
@@ -1082,8 +1056,6 @@ class Renderer {
     )
   }
 
-  // --- imagens e objetos ------------------------------------------------------
-
   private image(node: DocumentNode): string {
     const picture = this.writer.pictures.add(node.attrs?.['src'])
     if (picture === null) return ''
@@ -1185,8 +1157,6 @@ class Renderer {
       `${position}${size}${attr('draw:z-index', number)}>${inner}</draw:frame>`
     )
   }
-
-  // --- faixas -----------------------------------------------------------------
 
   /**
    * O cabeçalho ou rodapé. A grade vira tabela; as três colunas, um parágrafo
@@ -1538,8 +1508,6 @@ function plainText(node: DocumentNode): string {
   if (node.type === 'hardBreak') return '\n'
   return (node.content ?? []).map(plainText).join('')
 }
-
-// --- metadados e manifesto ----------------------------------------------------
 
 function metaXml(model: OdtModel, options: OdtExportOptions): string {
   const properties = model.properties ?? {}

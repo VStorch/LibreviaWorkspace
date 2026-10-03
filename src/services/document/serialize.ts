@@ -120,9 +120,8 @@ export function serializeDocument(model: DocumentModel): string {
       version: SDOC_VERSION,
       page: model.page,
       doc: model.doc,
-      // No envelope, e não dentro do documento: é o mesmo lugar onde o sidecar os
-      // põe ao abrir um `.docx`, e é o que mantém os nós — e a impressão digital
-      // deles — como estavam.
+      // No envelope, como o sidecar os põe ao abrir um `.docx`: os nós, e a
+      // impressão digital deles, ficam como estavam.
       styles: model.styles,
       ...(model.flattened === true ? { flattened: true } : {}),
       ...(model.beforeReferences === true ? { beforeReferences: true } : {}),
@@ -143,13 +142,7 @@ export function serializeDocument(model: DocumentModel): string {
   )
 }
 
-/**
- * Lê um `.sdoc`.
- *
- * Um arquivo corrompido ou de versão futura precisa produzir uma frase que o
- * usuário entenda — não um erro de JSON. Perder o arquivo por não conseguir
- * explicar o problema seria o pior desfecho.
- */
+/** Arquivo corrompido ou de versão futura produz uma frase que a pessoa entenda, e não um erro de JSON. */
 export function parseDocument(text: string, language: Language = Language.Portuguese): DocumentModel {
   let raw: unknown
   try {
@@ -236,39 +229,21 @@ function migrate(doc: DocumentNode, version: number): DocumentNode {
 }
 
 /**
- * Os estilos de um arquivo que não os tinha.
- *
- * `LEGACY_STYLES` reproduzem a aparência com que o editor já desenhava o
- * documento — Times New Roman 12 pt, entrelinha 1,5, os títulos como estão hoje —,
- * então o arquivo antigo abre **idêntico**. Dar-lhe outro padrão seria mudar, sem
- * pedir, a paginação de um trabalho já entregue.
- *
- * Pela versão, e não pela presença do campo: um arquivo da versão 2 com um
- * `styles` qualquer não é um arquivo de estilos, é um arquivo remendado.
- *
- * E **não** `BUILTIN_STYLES`: esse é o padrão do documento novo (Calibri 11 pt,
- * entrelinha 1,08, 8 pt depois), e o arquivo da versão 2 foi escrito por um
- * editor que desenhava Times New Roman 12 pt com entrelinha 1,5 — é essa a
- * aparência que ele tem de reencontrar.
+ * `LEGACY_STYLES`, e não `BUILTIN_STYLES`: o arquivo antigo tem de reabrir com a
+ * paginação de antes. Pela versão, e não pela presença do campo: um arquivo da
+ * versão 2 com `styles` é um arquivo remendado.
  */
 function migrateStyles(styles: StyleSheet | undefined, version: number): StyleSheet {
   return version < 3 || styles === undefined ? LEGACY_STYLES : styles
 }
 
-/**
- * Nós que guardam texto e marcas, e não outros blocos: só neles a imagem, hoje
- * inline, tem lugar.
- */
+/** Só nos nós de texto a imagem inline tem lugar. */
 const TEXTBLOCKS = new Set(['paragraph', 'heading', 'codeBlock'])
 
 /**
- * Embrulha num parágrafo cada imagem que a versão 1 deixou solta num contêiner
- * de blocos — entre os parágrafos, numa célula, num item de lista.
- *
- * Sem isto a imagem abre e aparece, mas num documento que o schema não aceita:
- * o TipTap monta o conteúdo sem validar, e ela sobrevive por acaso até o
- * primeiro caminho que valide. Aqui ela ganha o lugar que o schema exige, e
- * nada do que ela era se perde.
+ * Embrulha num parágrafo cada imagem que a versão 1 deixou solta entre blocos.
+ * O Tiptap monta o conteúdo sem validar, e sem isto ela sobreviveria por acaso
+ * até o primeiro caminho que valide.
  */
 function wrapLooseImages(node: DocumentNode): DocumentNode {
   if (node.content === undefined || TEXTBLOCKS.has(node.type)) return node

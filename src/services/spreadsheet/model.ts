@@ -1,12 +1,4 @@
-/**
- * Modelo canônico da planilha.
- *
- * Espelha `document/model.ts`: dado puro e serializável, sem nada de React nem
- * de Electron. O leitor de XLSX escreve aqui e o motor de fórmulas lê daqui —
- * por isso o formato precisa ser estável.
- */
-
-/** Como o valor é exibido. O valor cru fica sempre separado da aparência. */
+/** O valor cru fica separado da aparência. */
 export const CellFormat = {
   General: 'general',
   Text: 'text',
@@ -32,14 +24,7 @@ export const BorderSide = {
 } as const
 export type BorderSide = (typeof BorderSide)[keyof typeof BorderSide]
 
-/**
- * Aparência de uma célula.
- *
- * Os opcionais trazem `| undefined` explícito porque este tipo precisa ser
- * atribuível ao que o zod infere em `serialize.ts` — sob
- * `exactOptionalPropertyTypes`, propriedade ausente e propriedade indefinida
- * não são a mesma coisa. Mesma acomodação de `LossInventory` e `BandPiece`.
- */
+/** `| undefined` explícito para ser atribuível ao que o zod infere, sob `exactOptionalPropertyTypes`. */
 export interface CellStyle {
   readonly bold?: boolean | undefined
   readonly italic?: boolean | undefined
@@ -53,31 +38,16 @@ export interface CellStyle {
   readonly borders?: readonly BorderSide[] | undefined
 }
 
-/** O dado cru de uma célula, sem aparência. */
 export type CellValue = string | number | boolean
 
-/**
- * O conteúdo de uma célula.
- *
- * `value` é o dado cru — número, texto ou booleano. `formula` guarda a fórmula
- * digitada, quando há; o valor calculado continua em `value`. Separar os dois
- * é o que permite reabrir a planilha sem recalcular tudo, e é como o XLSX
- * também guarda.
- */
+/** `value` guarda o valor calculado, e `formula` a fórmula: reabrir não exige recalcular, como no XLSX. */
 export interface Cell {
   readonly value?: CellValue | undefined
   readonly formula?: string | undefined
   readonly style?: CellStyle | undefined
 }
 
-/**
- * Células indexadas por referência A1.
- *
- * Mapa esparso, e não matriz: uma planilha de 10 mil linhas com trinta células
- * preenchidas ocupa trinta entradas. Matriz densa gastaria memória proporcional
- * à área, não ao conteúdo — e a área é o que o usuário rola, não o que ele
- * digita.
- */
+/** Esparso, e não matriz: dez mil linhas com trinta células preenchidas ocupam trinta entradas. */
 export type CellMap = Record<string, Cell>
 
 export interface Sheet {
@@ -120,14 +90,7 @@ export function createEmptyWorkbook(): WorkbookModel {
   return { sheets: [createSheet('Planilha1')], activeSheet: 0 }
 }
 
-// --- referências A1 --------------------------------------------------------
-
-/**
- * Índice de coluna → letra: 0 → A, 25 → Z, 26 → AA.
- *
- * A base 26 do Excel não tem zero: depois de Z vem AA, não BA. Por isso o
- * decremento antes de cada divisão.
- */
+/** 0 → A, 25 → Z, 26 → AA. A base 26 do Excel não tem zero, daí o decremento antes de cada divisão. */
 export function columnName(index: number): string {
   if (!Number.isInteger(index) || index < 0) return ''
 
@@ -151,7 +114,6 @@ export function columnIndex(name: string): number {
   return index - 1
 }
 
-/** Referência A1 de uma posição base zero. */
 export function cellRef(row: number, column: number): string {
   return `${columnName(column)}${row + 1}`
 }
@@ -171,13 +133,7 @@ export function getCell(sheet: Sheet, row: number, column: number): Cell | undef
   return sheet.cells[cellRef(row, column)]
 }
 
-/**
- * Devolve a planilha com uma célula alterada.
- *
- * Célula que fica sem valor, sem fórmula e sem estilo é **removida** do mapa em
- * vez de guardada vazia: senão apagar o conteúdo de uma área deixaria milhares
- * de entradas inúteis, e o arquivo cresceria a cada limpeza.
- */
+/** Célula sem valor, fórmula nem estilo sai do mapa, para o arquivo não crescer a cada limpeza. */
 export function setCell(sheet: Sheet, row: number, column: number, cell: Cell): Sheet {
   const ref = cellRef(row, column)
   const cells = { ...sheet.cells }

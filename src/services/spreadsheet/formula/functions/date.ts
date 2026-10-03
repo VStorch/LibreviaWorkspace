@@ -1,11 +1,4 @@
-/**
- * Funções de data.
- *
- * Datas são números de série contados de 1899-12-30, herança do Lotus 1-2-3 —
- * a explicação inteira está em `format.ts`, que é quem converte. Aqui só se
- * fazem contas com o número, o que é justamente a vantagem do formato: a
- * diferença entre duas datas é uma subtração.
- */
+/** Números de série a partir de 1899-12-30 (ver `format.ts`): a diferença entre datas é uma subtração. */
 
 import { dateToSerial, serialToDate } from '../../format.js'
 import { FormulaError, isFormulaError } from '../errors.js'
@@ -13,7 +6,6 @@ import { define, numberArg, type FunctionDefinition } from './kit.js'
 
 const MS_PER_DAY = 86_400_000
 
-/** Parte do dia já decorrida, que é a parte fracionária do número de série. */
 function timeFraction(date: Date): number {
   const midnight = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime()
   return (date.getTime() - midnight) / MS_PER_DAY
@@ -41,22 +33,21 @@ export const DATE: readonly FunctionDefinition[] = [
     const day = numberArg(args[2])
     if (isFormulaError(day)) return day
 
-    // Mês treze é janeiro do ano seguinte: o Date do JavaScript já normaliza,
-    // e o Excel faz o mesmo.
+    // Mês treze é janeiro do ano seguinte, no `Date` e no Excel.
     const date = new Date(Math.trunc(year), Math.trunc(month) - 1, Math.trunc(day))
     const serial = dateToSerial(date)
     return serial < 0 ? FormulaError.Num : serial
   }),
 
-  // getUTCFullYear e não getFullYear: serialToDate monta a data em UTC, e ler
-  // em fuso local devolveria o dia anterior a oeste de Greenwich.
+  // UTC, porque `serialToDate` monta a data em UTC; em fuso local a oeste de
+  // Greenwich viria o dia anterior.
   define(['ANO', 'YEAR'], 1, 1, (args) => partOf(numberArg(args[0]), (date) => date.getUTCFullYear())),
   define(['MÊS', 'MES', 'MONTH'], 1, 1, (args) =>
     partOf(numberArg(args[0]), (date) => date.getUTCMonth() + 1),
   ),
   define(['DIA', 'DAY'], 1, 1, (args) => partOf(numberArg(args[0]), (date) => date.getUTCDate())),
 
-  /** Dia da semana, com domingo valendo um — o padrão do Excel. */
+  /** Domingo vale um, como no Excel. */
   define(['DIA.DA.SEMANA', 'WEEKDAY'], 1, 2, (args) => {
     const day = partOf(numberArg(args[0]), (date) => date.getUTCDay())
     if (isFormulaError(day)) return day

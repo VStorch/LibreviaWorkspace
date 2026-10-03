@@ -1,20 +1,12 @@
-/** Funções de conta. */
-
 import { FormulaError, isFormulaError } from '../errors.js'
 import { matchesCriteria, type Scalar } from '../values.js'
 import { VARIADIC, define, numberArg, numbersIn, rowsOf, single, type FunctionDefinition } from './kit.js'
 
-/**
- * Arredondamento comercial: `,5` sobe, e sobe **para longe do zero**.
- *
- * O `Math.round` do JavaScript arredonda −2,5 para −2, porque sobe sempre para
- * cima. Numa planilha isso apareceria como um centavo de diferença em valores
- * negativos, que é o tipo de erro que só se descobre no fechamento do mês.
- */
+/** `,5` sobe para longe do zero, como no Excel; `Math.round` levaria −2,5 a −2. */
 function roundHalfAway(value: number, digits: number): number {
   const factor = 10 ** digits
   const scaled = value * factor
-  // A correção de precisão evita que 1,005 vire 1,00 por causa do binário.
+  // Sem a correção, 1,005 viraria 1,00 pelo binário.
   const corrected = Number(scaled.toPrecision(15))
   return (corrected < 0 ? -Math.round(-corrected) : Math.round(corrected)) / factor
 }
@@ -43,7 +35,6 @@ export const MATH: readonly FunctionDefinition[] = [
     if (isFormulaError(digits)) return digits
 
     const factor = 10 ** digits
-    // Para cima quer dizer para longe do zero, como no Excel.
     return (value < 0 ? -Math.ceil(-value * factor) : Math.ceil(value * factor)) / factor
   }),
 
@@ -85,8 +76,7 @@ export const MATH: readonly FunctionDefinition[] = [
     if (isFormulaError(divisor)) return divisor
     if (divisor === 0) return FormulaError.Div0
 
-    // O resto acompanha o sinal do divisor, como no Excel — e ao contrário do
-    // operador % do JavaScript, que acompanha o do dividendo.
+    // O resto acompanha o sinal do divisor, como no Excel, e não o do dividendo, como o `%`.
     return value - divisor * Math.floor(value / divisor)
   }),
 
@@ -107,13 +97,7 @@ export const MATH: readonly FunctionDefinition[] = [
     return Number.isFinite(result) ? result : FormulaError.Num
   }),
 
-  /**
-   * `SOMASE(intervalo; critério; [intervalo_soma])`.
-   *
-   * O terceiro argumento é deslocado a partir do canto do primeiro, e não lido
-   * como retângulo próprio — é assim que o Excel trata um intervalo de soma de
-   * tamanho diferente, e mudar isso daria total diferente no mesmo arquivo.
-   */
+  /** O intervalo de soma é deslocado a partir do canto do primeiro, como no Excel. */
   define(['SOMASE', 'SUMIF'], 2, 3, (args) => {
     const tested = rowsOf(args[0])
     if (isFormulaError(tested)) return tested

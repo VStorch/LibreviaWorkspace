@@ -1,14 +1,7 @@
-/**
- * Operações sobre um intervalo de células.
- *
- * Camada pura: recebe a planilha e devolve outra, sem tocar na original. É o
- * que permite testar formatação sem grid nenhum.
- */
-
 import { parseInput } from './format.js'
 import { cellRef, getCell, setCell, type BorderSide, type Cell, type CellStyle, type Sheet } from './model.js'
 
-/** Um retângulo de células, em coordenadas base zero e inclusivas. */
+/** Base zero e inclusivo. */
 export interface Range {
   readonly fromRow: number
   readonly fromColumn: number
@@ -36,7 +29,6 @@ export function describeRange(range: Range): string {
   return fromRow === toRow && fromColumn === toColumn ? start : `${start}:${cellRef(toRow, toColumn)}`
 }
 
-/** O ponto cai dentro do retângulo? */
 export function rangeContains(range: Range, row: number, column: number): boolean {
   const { fromRow, fromColumn, toRow, toColumn } = normalizeRange(range)
   return row >= fromRow && row <= toRow && column >= fromColumn && column <= toColumn
@@ -51,12 +43,7 @@ export function* cellsIn(range: Range): Generator<{ row: number; column: number 
   }
 }
 
-/**
- * Aplica uma mudança de estilo a todas as células do intervalo.
- *
- * A alteração é **mesclada** com o estilo existente, não substituída: pôr uma
- * célula em negrito não pode apagar a cor de fundo que ela já tinha.
- */
+/** Mescla com o estilo existente: o negrito não apaga o fundo. */
 export function applyStyle(sheet: Sheet, range: Range, change: Partial<CellStyle>): Sheet {
   let updated = sheet
 
@@ -70,13 +57,7 @@ export function applyStyle(sheet: Sheet, range: Range, change: Partial<CellStyle
   return updated
 }
 
-/**
- * Liga ou desliga um atributo booleano no intervalo inteiro.
- *
- * A regra é a das planilhas e dos editores: se **tudo** já está ligado,
- * desliga; senão, liga tudo. Alternar célula a célula deixaria a seleção
- * misturada e o botão sem significado.
- */
+/** Se tudo já está ligado, desliga; senão, liga tudo. */
 export function toggleStyle(sheet: Sheet, range: Range, key: 'bold' | 'italic' | 'underline'): Sheet {
   const allOn = [...cellsIn(range)].every(
     ({ row, column }) => getCell(sheet, row, column)?.style?.[key] === true,
@@ -85,12 +66,7 @@ export function toggleStyle(sheet: Sheet, range: Range, key: 'bold' | 'italic' |
   return applyStyle(sheet, range, { [key]: allOn ? undefined : true })
 }
 
-/**
- * Bordas do intervalo.
- *
- * `sides` vazio remove as bordas. Não há aqui a noção de "borda externa" — cada
- * célula recebe os mesmos lados, que é o que o modelo representa hoje.
- */
+/** `sides` vazio remove as bordas; cada célula recebe os mesmos lados. */
 export function applyBorders(sheet: Sheet, range: Range, sides: readonly BorderSide[]): Sheet {
   return applyStyle(sheet, range, { borders: sides.length === 0 ? undefined : [...sides] })
 }
@@ -109,21 +85,11 @@ export function clearContents(sheet: Sheet, range: Range): Sheet {
   return updated
 }
 
-/**
- * Grava numa célula o que foi digitado ou colado.
- *
- * O `=` inicial é o que distingue fórmula de texto, e é a única marca que
- * existe: o resto do conteúdo de uma fórmula é texto comum. O valor da fórmula
- * fica indefinido de propósito — quem o preenche é o recálculo, que sabe a
- * ordem certa de calcular.
- */
+/** O `=` inicial distingue fórmula de texto. O valor fica para o recálculo, que sabe a ordem. */
 export function writeText(sheet: Sheet, row: number, column: number, text: string): Sheet {
   const previous = getCell(sheet, row, column)
 
-  // O formato reconhecido na digitação não apaga o que o usuário escolheu à
-  // mão: quem já pintou a célula de moeda não quer perder isso ao redigitar.
-  // Atribuição condicional por causa de `exactOptionalPropertyTypes`: a
-  // propriedade ausente não é o mesmo que a propriedade indefinida.
+  // O formato reconhecido na digitação não apaga o escolhido à mão.
   const keepStyle = (cell: Cell, fallback?: Partial<CellStyle>): Cell => {
     const style = previous?.style ?? fallback
     return style === undefined ? cell : { ...cell, style }
@@ -135,14 +101,7 @@ export function writeText(sheet: Sheet, row: number, column: number, text: strin
   return setCell(sheet, row, column, keepStyle({ value: parsed.value }, parsed.style))
 }
 
-/**
- * Insere linhas antes da posição indicada, deslocando o que vem depois.
- *
- * A planilha **cresce** junto: sem isso, o conteúdo da última linha sairia da
- * área visível a cada inserção e continuaria no arquivo, invisível. Dado que
- * some da tela mas fica no arquivo é pior que dado apagado, porque ninguém
- * percebe.
- */
+/** A planilha cresce junto: senão a última linha sairia da área visível e continuaria no arquivo. */
 export function insertRows(sheet: Sheet, at: number, count = 1): Sheet {
   return count <= 0 ? sheet : shiftRows(sheet, at, count)
 }
@@ -214,12 +173,7 @@ function shiftColumns(sheet: Sheet, at: number, delta: number): Sheet {
   }
 }
 
-/**
- * A faixa congelada acompanha a operação quando ela acontece **dentro** dela.
- *
- * Inserir acima da linha congelada sem mexer aqui deslocaria o conteúdo e
- * deixaria o congelamento apontando para outra linha.
- */
+/** Inserir dentro da faixa congelada a desloca junto. */
 function shiftFrozen(frozen: number, at: number, delta: number): number {
   return at < frozen ? Math.max(at, frozen + delta) : frozen
 }
@@ -250,7 +204,6 @@ function positionOf(ref: string): { row: number; column: number } | null {
   return { row: Number.parseInt(match[2]!, 10) - 1, column: column - 1 }
 }
 
-/** Remove as chaves indefinidas para que o estilo vazio seja de fato vazio. */
 function clean(style: Record<string, unknown>): CellStyle {
   const result: Record<string, unknown> = {}
   for (const [key, value] of Object.entries(style)) {

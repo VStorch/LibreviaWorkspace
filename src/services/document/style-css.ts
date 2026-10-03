@@ -1,23 +1,11 @@
 /**
- * O CSS dos estilos do documento — a tela e o papel nascem dos estilos.
+ * Uma regra por estilo de parágrafo, com **todo** campo explícito (zero quando
+ * a cadeia cala), para não herdar a margem do `p` ou o negrito do `h1`. A
+ * formatação direta sai inline e vence qualquer seletor. Só os filhos diretos de
+ * `.page__content`: lista e célula têm regras próprias em `content-styles.ts`.
  *
- * Uma regra por estilo de parágrafo, já resolvida e com **todo** campo explícito
- * (zero quando a cadeia se cala): assim um estilo não herda por acidente a
- * margem que o navegador dá ao `p` ou o negrito que ele dá ao `h1`. A formatação
- * direta do bloco sai como CSS inline, que vence qualquer seletor — a última
- * camada da cascata do Word é a precedência do CSS, sem código.
- *
- * Só os filhos diretos de `.page__content`: parágrafo de lista e de célula têm
- * regras próprias em `content-styles.ts`, que ainda não vêm de estilo.
- *
- * Fica de fora o `w:contextualSpacing` ("não somar espaço entre parágrafos do
- * mesmo estilo"): o leitor achatado nunca o aplicou, e a paginação conferida
- * contra o corpus foi medida sem ele. Paridade antes de melhoria — ele volta ao
- * arquivo intacto, só não muda a tela.
- *
- * O texto vai, igual, para o editor e para o HTML do PDF; e vem **depois** de
- * `DOCUMENT_CONTENT_CSS`, cujas regras de corpo e de título passam a ser só o
- * que vale fora de um documento (a planilha impressa).
+ * `w:contextualSpacing` fica de fora: a paginação conferida contra o corpus foi
+ * medida sem ele, e ele volta intacto ao arquivo.
  */
 
 import { cssLineHeightOf, explicitCssLineHeightOf } from './line-metrics.js'
@@ -30,15 +18,13 @@ import {
 } from './style-cascade.js'
 import { StyleType, type StyleCharacterFormat, type StyleSheet } from './styles.js'
 
-/** Até onde o editor tem título: `h1`…`h6`. */
 const HEADING_LEVELS = 6
 
 export function styleSheetCss(sheet: StyleSheet): string {
   const base = resolveStyle(sheet, null)
   const rules = [
     `.page__content { ${declarations(characterCss(base)).join(' ')} }`,
-    // O espaço entre blocos que não são parágrafo (lista, tabela) é o antes do
-    // estilo padrão, como era o `* + *` de antes dos estilos.
+    // O espaço entre blocos que não são parágrafo é o antes do estilo padrão.
     `.page__content > * + * { margin-top: ${points(base.paragraph.spaceBefore)}; }`,
     rule('.page__content > p:not([data-style-id])', base),
   ]
@@ -48,14 +34,11 @@ export function styleSheetCss(sheet: StyleSheet): string {
     rules.push(rule(`.page__content > h${level}:not([data-style-id])`, style))
   }
 
-  // O id que o documento não define: o Word o desenha só com os padrões do
-  // documento, sem nem o estilo padrão. Antes das regras por id, que têm a
-  // mesma especificidade e por isso vencem por virem depois.
+  // O id que o documento não define: o Word o desenha só com os padrões. Antes
+  // das regras por id, que vencem por virem depois.
   rules.push(rule('.page__content > [data-style-id]', resolveStyle(sheet, '')))
 
-  // Os de caractere, em qualquer profundidade: o trecho mora dentro do parágrafo,
-  // da célula e do item de lista. Só o que a cadeia declara — o resto é do
-  // parágrafo em volta.
+  // Os de caractere, em qualquer profundidade, só com o que a cadeia declara.
   for (const style of Object.values(sheet.styles)) {
     if (style.type !== StyleType.Character) continue
     const css = declaredCharacterCss(resolveCharacterStyle(sheet, style.id))
@@ -72,10 +55,8 @@ export function styleSheetCss(sheet: StyleSheet): string {
     )
   }
 
-  // As mesmas regras para os parágrafos do sumário, que é um bloco no editor e
-  // parágrafos comuns no arquivo — com o estilo `toc 1`, `toc 2`… de cada nível.
-  // Repetidas no fim, e na mesma ordem, para que valha entre elas a precedência
-  // que vale entre as de cima.
+  // O sumário é um bloco no editor e parágrafos com `toc 1`, `toc 2`… no arquivo.
+  // Repetidas no fim, e na mesma ordem, para valer a mesma precedência.
   const inContents = rules
     .filter((text) => text.startsWith('.page__content > ') && !text.startsWith('.page__content > * + *'))
     .map((text) => text.replace('.page__content > ', '.page__content > [data-toc] > '))
@@ -122,13 +103,12 @@ function characterCss({ paragraph, character }: ResolvedStyle): Array<[string, s
     ['line-height', lineHeightOf(paragraph, family)],
   ]
   if (family !== null) css.unshift(['font-family', fontStackOf(family)])
-  // Sem cor declarada vale a do texto (`#111111`, de `content-styles.ts`): o
-  // "automático" do Word, que não é cor a gravar.
+  // Sem cor declarada vale o "automático" do Word, que não é cor a gravar.
   if (character.color !== undefined) css.push(['color', character.color])
   return css
 }
 
-/** Só o declarado, sem padrão nenhum: o que o estilo de caractere cala é do parágrafo. */
+/** O que o estilo de caractere cala é do parágrafo. */
 function declaredCharacterCss(character: StyleCharacterFormat): Array<[string, string]> {
   const css: Array<[string, string]> = []
   if (character.fontFamily !== undefined) css.push(['font-family', fontStackOf(character.fontFamily)])
@@ -159,16 +139,11 @@ function lineHeightOf(paragraph: ResolvedStyle['paragraph'], family: string | nu
     case 'exact':
       return `${spacing.pt}pt`
     case 'atLeast':
-      // Esta altura ou a natural, o que for maior.
       return `max(${spacing.pt}pt, ${explicitCssLineHeightOf(1, family)}em)`
   }
 }
 
-/**
- * A pilha que o CSS entende. O leitor já manda pilha (tem vírgula); o nome solto
- * das tabelas embutidas ganha aspas e uma família genérica — a `@font-face` de
- * `fonts.ts` já faz o nome do Word apontar para a substituta empacotada.
- */
+/** O nome solto das tabelas embutidas ganha aspas e uma família genérica. */
 function fontStackOf(family: string): string {
   if (family.includes(',')) return family
   const generic = /serif|times|roman|cambria|georgia|garamond/i.test(family) ? 'serif' : 'sans-serif'

@@ -15,34 +15,18 @@ import {
 import { frameOf, placeFloating, type FloatingObject } from './floating.js'
 
 /**
- * O papel montado a partir das mesmas páginas que a tela desenha.
- *
  * O editor entrega o documento **já dividido em páginas**, e cada uma vira uma
- * caixa do tamanho exato do papel. O Chromium não decide onde cortar: com
- * `@page { margin: 0 }` e uma caixa por folha, ele só empilha o que recebeu.
- * Deixá-lo paginar seria ter **dois paginadores que precisam concordar**, com
- * regras como "não deixar título sozinho no pé da página" escritas duas vezes —
- * e bastaria uma divergir para o PDF quebrar noutro lugar.
- *
- * O que se ganha além disso: cabeçalho e rodapé passam a ser DOM de verdade
- * dentro da página, em vez do `headerTemplate` do Chromium. O template roda num
- * contexto isolado, com escala própria — daí os fatores 0,75 e 0,6 codificados
- * em `services/pdf/page-setup.ts` — e desenha a **mesma** faixa em todas as
- * páginas, o que tornava impossível uma capa com cabeçalho próprio.
+ * caixa do tamanho do papel: com `@page { margin: 0 }`, o Chromium só empilha.
+ * Deixá-lo paginar seria ter dois paginadores que precisam concordar. As faixas
+ * são DOM dentro da página, e não o `headerTemplate` do Chromium, que desenha a
+ * mesma faixa em todas as páginas.
  */
 
-/** O corte no papel entre uma folha e a seguinte é dado; aqui só se empilha. */
 export interface PrintPage {
-  /** Número da folha, começando em 1. */
   readonly number: number
-  /** Os blocos daquela folha, no HTML que o editor produziu. */
   readonly html: string
-  /** Os objetos ancorados que caem nesta folha. */
   readonly floats: readonly PrintFloat[]
-  /**
-   * A seção da folha: papel, margens e faixas dela, com `pageNumberStart` no
-   * número da primeira folha da seção — ver `sheetSetups`.
-   */
+  /** Com `pageNumberStart` no número da primeira folha da seção — ver `sheetSetups`. */
   readonly setup: PageSetup
   /** A folha dentro da seção, a partir de 1: é o que decide a capa e o número. */
   readonly inSection: number
@@ -54,7 +38,6 @@ export interface PrintPage {
     readonly topMm: number
     readonly heightMm: number
   }[]
-  /** As áreas de notas desta folha, já com o HTML de cada nota e o recorte da tela. */
   readonly notes?: readonly PrintNoteArea[]
 }
 
@@ -73,14 +56,7 @@ export interface PrintNoteArea {
   }[]
 }
 
-/**
- * Um objeto ancorado, pronto para a conta de posição.
- *
- * O conteúdo da caixa de texto vem em HTML já serializado: quem tem o schema do
- * ProseMirror é o editor, e este módulo desenha o papel sem saber que ele
- * existe. A posição, essa é calculada aqui — pela mesma função que a tela usa,
- * que é o que garante que os dois desenhem no mesmo lugar.
- */
+/** O texto da caixa vem em HTML já serializado: quem tem o schema do ProseMirror é o editor. */
 export interface PrintFloat {
   readonly object: FloatingObject
   readonly anchorTopMm: number
@@ -88,12 +64,9 @@ export interface PrintFloat {
 }
 
 /**
- * Regras que só existem no papel paginado por nós.
- *
- * `@page` precisa ser gerado: tamanho e orientação vêm do documento, e uma
- * regra fixa numa folha de estilo compartilhada valeria para o papel errado.
- * A margem é zero **de propósito** — quem recua o texto é a caixa da página, e
- * pedir margem também ao `printToPDF` a contaria duas vezes.
+ * `@page` é gerado porque tamanho e orientação vêm do documento. A margem é
+ * zero: quem recua o texto é a caixa da página, e `printToPDF` a contaria duas
+ * vezes.
  */
 export function buildPagedCss(pages: readonly Pick<PrintPage, 'setup'>[]): string {
   // Um `@page` nomeado por papel: a folha em paisagem sai em paisagem no meio de
@@ -134,9 +107,7 @@ export function buildPagedCss(pages: readonly Pick<PrintPage, 'setup'>[]): strin
 .paper-floats { position: absolute; inset: 0; }
 .paper-floats--behind { z-index: 0; }
 .paper-floats--front { z-index: 2; }
-/* A caixa inclui o contorno: a extensão que o arquivo declara já o conta, e
-   somá-lo por fora esticaria a forma pela espessura do traço. Crase nenhuma
-   aqui dentro: isto mora num template literal. */
+/* A extensão que o arquivo declara já conta o contorno. */
 .paper-float { position: absolute; object-fit: contain; box-sizing: border-box; }
 .paper-float--text > * { margin: 0; }
 
@@ -151,8 +122,7 @@ export function buildPagedCss(pages: readonly Pick<PrintPage, 'setup'>[]): strin
   color: #222222;
 }
 
-/* Topo e base vêm em linha, do que o documento declara. Crase nenhuma
-   aqui dentro: isto mora num template literal. */
+/* Topo e base vêm em linha, do que o documento declara. */
 .paper-page__band--ruled { border-bottom: 1px solid #999999; padding-bottom: 2px; }
 .paper-page__band img { object-fit: contain; }
 /* O filete do cabeçalho: a forma tem altura zero, e o que se ve e o contorno. */
@@ -184,12 +154,8 @@ ${named}
 }
 
 /**
- * O documento já recortado em folhas, com o que a tela mediu.
- *
- * As alturas das faixas viajam junto porque o papel precisa da **mesma** conta
- * de margem que a tela fez: um cabeçalho mais alto que a margem de cima desce o
- * corpo, e se os dois medissem por conta própria a folha da tela e a do papel
- * começariam em alturas diferentes.
+ * As alturas das faixas viajam junto porque o papel precisa da mesma conta de
+ * margem que a tela fez: um cabeçalho mais alto que a margem desce o corpo.
  */
 export interface PagedDocument {
   readonly pages: readonly PrintPage[]
@@ -204,7 +170,6 @@ function paperName(size: { width: number; height: number }): string {
   return `folha-${Math.round(size.width * 10)}x${Math.round(size.height * 10)}`
 }
 
-/** As folhas, uma caixa cada. */
 export function buildPagedBody(paged: PagedDocument): string {
   const total = paged.pages.length
 
@@ -232,11 +197,8 @@ function renderPage(
     sheet.html +
     '</div>'
 
-  // A ordem no HTML é a ordem de empilhamento, junto com o `z-index`: o que fica
-  // atrás vem antes, o texto no meio, o que fica na frente por último. É a
-  // distinção que o `behindDoc` do OOXML faz para decoração de capa.
-  // Os objetos das faixas já vêm dentro de `sheet.floats`, com o texto das
-  // caixas serializado: quem conhece o schema do ProseMirror é o editor.
+  // A ordem no HTML é a ordem de empilhamento: o que fica atrás (`behindDoc`)
+  // vem antes, o texto no meio, o da frente por último.
   const floats = sheet.floats
 
   return (
@@ -267,11 +229,7 @@ function renderPage(
   )
 }
 
-/**
- * A área de notas, desenhada como na tela: o separador e cada nota recortada na
- * altura que a paginação lhe deu — a continuação sobe o corpo até a linha em
- * que a folha anterior parou.
- */
+/** A continuação sobe o corpo da nota até a linha em que a folha anterior parou. */
 function renderNotes(area: PrintNoteArea): string {
   const separator =
     area.separator === null
@@ -304,9 +262,7 @@ function renderFloats(floats: readonly PrintFloat[], page: PageSetup, behind: bo
       // Em torno do centro, como o Word gira: a caixa é posicionada sem girar e
       // o giro acontece depois.
       (box.rotation === 0 ? '' : `transform:rotate(${box.rotation}deg);`) +
-      // A mesma moldura da tela, pela mesma função: duas regras iguais escritas
-      // em dois lugares é como os dois desenhos divergem. As chaves já são os
-      // nomes das propriedades de CSS — `background` e `border`.
+      // A mesma moldura da tela, pela mesma função.
       Object.entries(frameOf(item.object))
         .map(([property, value]) => `${property}:${value};`)
         .join('')
@@ -348,13 +304,7 @@ function renderBand(
   )
 }
 
-/**
- * A grade do cabeçalho no papel.
- *
- * A mesma tabela que a tela desenha, a partir das mesmas células já resolvidas:
- * larguras, mesclagem e bordas vêm prontas do leitor, e nenhum dos dois refaz a
- * conta por conta própria — que é como tela e papel divergem.
- */
+/** Com as células já resolvidas pelo leitor, como a tela. */
 function renderGrid(band: Band, label: string, total: number): string {
   if (band.rows.length === 0) return ''
 
@@ -375,13 +325,7 @@ function renderGrid(band: Band, label: string, total: number): string {
   return `<table class="paper-page__grid"><tbody>${rows}</tbody></table>`
 }
 
-/**
- * As peças distribuídas em linhas, como o arquivo as quebrou.
- *
- * Vale para os três terços da faixa e para as células da grade: nos dois a
- * quebra vem do mesmo `linesOf`, e uma segunda versão desta marcação divergiria
- * da primeira no primeiro ajuste de estilo.
- */
+/** Para os três terços da faixa e para as células da grade. */
 function renderLines(pieces: readonly BandPiece[], label: string, total: number): string {
   return linesOf(pieces)
     .map(
@@ -411,8 +355,6 @@ function cellStyle(cell: BandCell): string {
 function renderPiece(piece: BandPiece, label: string, total: number): string {
   if (piece.kind === 'image') {
     if (piece.src === undefined) return ''
-    // Sem o fator de escala que o template do Chromium exigia: aqui a imagem
-    // está numa página de verdade e a medida do documento vale como está.
     const width = piece.width === undefined ? '' : `width:${piece.width}px;`
     return `<img src="${escapeHtml(piece.src)}" alt="" style="${width}" />`
   }

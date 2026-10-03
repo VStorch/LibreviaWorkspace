@@ -1,10 +1,6 @@
 /**
- * Ferramentas comuns às funções de fórmula.
- *
- * As regras de coerção não são as óbvias: dentro de um intervalo, texto e
- * booleano são **ignorados** por `SOMA`; passados direto como argumento, são
- * convertidos. Parece inconsistência, mas é o que o Excel faz — e é o que faz
- * sentido, porque uma coluna com um cabeçalho de texto ainda deve somar.
+ * Como no Excel, dentro de um intervalo texto e booleano são **ignorados** por
+ * `SOMA`, e passados direto são convertidos: a coluna com cabeçalho de texto soma.
  */
 
 import type { Argument, EvalContext } from '../evaluate.js'
@@ -12,16 +8,11 @@ import { FormulaError, isFormulaError } from '../errors.js'
 import { toNumber, toText, type Scalar } from '../values.js'
 
 export interface FunctionDefinition {
-  /** Nomes aceitos: o português primeiro, o inglês depois. */
+  /** O português primeiro, o inglês depois. */
   readonly names: readonly string[]
   readonly minArgs: number
   readonly maxArgs: number
-  /**
-   * Recebe argumentos com erro em vez de propagá-los.
-   *
-   * Vale só para quem existe para **examinar** o erro: sem isso `ÉERROS(A1)`
-   * nunca seria chamada, porque o erro de A1 viraria o resultado antes.
-   */
+  /** Só para quem examina o erro: sem isto `ÉERROS(A1)` nunca seria chamada. */
   readonly acceptsErrors: boolean
   readonly call: (args: readonly Argument[], context: EvalContext) => Scalar
 }
@@ -38,12 +29,7 @@ export function define(
 
 export const VARIADIC = Number.MAX_SAFE_INTEGER
 
-/**
- * Os números de um conjunto de argumentos, para as funções de agregação.
- *
- * Vazio é sempre ignorado, inclusive quando vem como referência solta: é o que
- * faz `MÉDIA(A1;A2)` com A1 vazia dividir por um, e não por dois.
- */
+/** Vazio é sempre ignorado: `MÉDIA(A1;A2)` com A1 vazia divide por um. */
 export function numbersIn(args: readonly Argument[]): number[] | FormulaError {
   const numbers: number[] = []
 
@@ -75,12 +61,7 @@ export function valuesIn(args: readonly Argument[]): Scalar[] {
   return values
 }
 
-/**
- * Um argumento que deveria ser um valor único.
- *
- * Intervalo aqui é erro de escrita: `=ARRED(A1:B2;2)` não quer dizer nada, e
- * devolver o primeiro da lista esconderia o engano.
- */
+/** Intervalo aqui é erro de escrita: `=ARRED(A1:B2;2)` não quer dizer nada. */
 export function single(arg: Argument | undefined): Scalar {
   if (arg === undefined) return null
   return arg.kind === 'value' ? arg.value : FormulaError.Value

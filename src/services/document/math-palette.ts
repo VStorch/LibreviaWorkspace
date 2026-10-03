@@ -2,23 +2,16 @@ import type { MessageKey } from '@shared/i18n/index.js'
 import { SPECIAL_CHARACTER_GROUPS } from './special-characters.js'
 import { latexOfSymbol } from './mathml-latex.js'
 
-/**
- * Os modelos do editor de equações: o que um clique põe no LaTeX.
- *
- * As estruturas são escritas aqui; as letras gregas e os operadores saem do
- * catálogo dos caracteres especiais (`special-characters.ts`) — os mesmos
- * caracteres, com os mesmos nomes, acrescidos do comando do LaTeX.
- */
+/** Letras gregas e operadores saem de `special-characters.ts`, com os mesmos nomes. */
 
 export interface MathTemplate {
-  /** O que entra no texto, já sem o marcador do cursor. */
   readonly latex: string
   /** Onde o cursor fica depois de entrar: no primeiro lugar a preencher. */
   readonly caret: number
-  /** O rótulo do botão: o desenho do modelo, em caracteres. */
+  /** O desenho do modelo, em caracteres. */
   readonly label: string
   readonly nameKey: MessageKey
-  /** O modelo preenchido — o que os testes conferem que o Temml lê. */
+  /** O que os testes conferem que o Temml lê. */
   readonly sample: string
 }
 
@@ -27,7 +20,6 @@ export interface MathTemplateGroup {
   readonly templates: readonly MathTemplate[]
 }
 
-/** O marcador do cursor no modelo. */
 const CARET = '@'
 
 function template(source: string, label: string, nameKey: MessageKey, sample: string): MathTemplate {

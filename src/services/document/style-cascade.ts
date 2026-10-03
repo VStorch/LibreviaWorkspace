@@ -1,14 +1,9 @@
 /**
- * A cascata dos estilos: o que um estilo **vale**, e não o que ele declara.
- *
- * A mesma ordem de `StyleResolver.cs` — padrões do documento, depois a cadeia de
- * `basedOn` do ancestral mais distante ao mais próximo —, porque é contra ele que
- * a tela vai ser comparada no dia em que o leitor parar de achatar: dois
- * resolvedores que discordam fazem o documento mudar de aparência ao reabrir.
- *
- * O que o sidecar ainda não resolve fica de fora daqui também, de propósito:
- * estilo de caractere (`w:rStyle`), o "inverte o herdado" das propriedades
- * liga/desliga, estilo de tabela e fontes de tema. Paridade antes de melhoria.
+ * A mesma ordem de `StyleResolver.cs`: padrões do documento, depois a cadeia de
+ * `basedOn` do ancestral mais distante ao mais próximo. Dois resolvedores que
+ * discordam mudam a aparência do documento ao reabrir. O que o sidecar não
+ * resolve fica de fora daqui também: `w:rStyle`, o "inverte o herdado" das
+ * propriedades liga/desliga, estilo de tabela e fontes de tema.
  */
 
 import { cssLineHeightOf } from './line-metrics.js'
@@ -33,12 +28,7 @@ const MAX_CHAIN_DEPTH = 16
 
 const cache = new WeakMap<StyleSheet, Map<string, ResolvedStyle>>()
 
-/**
- * O que o estilo vale — `null` é o estilo padrão de parágrafo.
- *
- * Um id que o documento não define resolve só os padrões, como no Word: o
- * parágrafo que aponta para o nada não herda de ninguém.
- */
+/** `null` é o estilo padrão. Um id que o documento não define resolve só os padrões, como no Word. */
 export function resolveStyle(sheet: StyleSheet, styleId: string | null): ResolvedStyle {
   let resolved = cache.get(sheet)
   if (resolved === undefined) {
@@ -81,9 +71,8 @@ function chainOf(sheet: StyleSheet, styleId: string | null): readonly StyleDefin
 }
 
 /**
- * Campo a campo, e só o que foi dito: o silêncio de um estilo deixa passar o
- * herdado. É o equivalente do `AttributeByAttribute` do C# — aqui antes, depois
- * e entrelinha já são campos separados, então o `w:spacing` que só redeclara o
+ * Campo a campo: o silêncio de um estilo deixa passar o herdado. Como antes,
+ * depois e entrelinha são campos separados, o `w:spacing` que só redeclara o
  * espaço não apaga a entrelinha.
  */
 function overlay<T extends object>(base: T, top: T | undefined): T {
@@ -95,12 +84,7 @@ function overlay<T extends object>(base: T, top: T | undefined): T {
   return merged as T
 }
 
-/**
- * O título de nível `level` sem estilo declarado: o do documento, pelo nome
- * interno, ou — quando ele não o define — o que o escritor vai acrescentar ao
- * gravar (`BuiltinStyles.cs`). Desenhar outra coisa seria mostrar um título que
- * o arquivo não vai ter.
- */
+/** Sem o estilo no documento, o que o escritor vai acrescentar ao gravar (`BuiltinStyles.cs`). */
 export function headingStyleOf(sheet: StyleSheet, level: number): ResolvedStyle {
   const name = `heading ${level}`
   const own = Object.values(sheet.styles).find(
@@ -116,29 +100,16 @@ export function headingStyleOf(sheet: StyleSheet, level: number): ResolvedStyle 
   }
 }
 
-/** O mínimo de um nó do editor que a cascata precisa. */
 export interface StyledBlock {
   readonly type: { readonly name: string } | string
   readonly attrs?: Readonly<Record<string, unknown>> | null | undefined
 }
 
 /**
- * Os atributos que o bloco **vale**: o estilo dele, com a formatação direta por
- * cima — nas unidades do nó.
- *
- * O leitor põe no bloco só o que o parágrafo declara, e o herdado chega à tela
- * pelo CSS dos estilos. Quem decide olhando atributo — a paginação, o diálogo
- * de parágrafo, o seletor de entrelinha — precisa do valor que se vê, e não do
- * que está escrito: um título cujo estilo manda "manter com o próximo" não traz
- * `keepNext` no nó.
- *
- * O estilo é escolhido como a regra do CSS o escolhe (`style-css.ts`): o id
- * declarado; o título sem id, pelo nome `heading N`; o resto, o padrão. Bloco
- * que não é parágrafo nem título volta como está — estilo de parágrafo não fala
- * de lista nem de tabela.
- *
- * Sem folha de estilos (`null`), os atributos crus: é o caso de quem ainda não
- * recebeu o documento, e inventar um padrão ali mudaria o que o diálogo mostra.
+ * O estilo do bloco com a formatação direta por cima, nas unidades do nó. Quem
+ * decide olhando atributo precisa do valor que se vê: um título cujo estilo
+ * manda "manter com o próximo" não traz `keepNext` no nó. Sem folha de estilos,
+ * os atributos crus.
  */
 export function effectiveAttrs(block: StyledBlock, sheet: StyleSheet | null): Record<string, unknown> {
   const attrs: Record<string, unknown> = { ...(block.attrs ?? {}) }
@@ -152,11 +123,7 @@ export function effectiveAttrs(block: StyledBlock, sheet: StyleSheet | null): Re
   return attrs
 }
 
-/**
- * O estilo que desenha o bloco, já resolvido — ou `null` quando o bloco não é
- * parágrafo nem título, ou não há folha de estilos. O mesmo critério da regra do
- * CSS: o id declarado; o título sem id, pelo nome `heading N`; o resto, o padrão.
- */
+/** O critério da regra do CSS: o id declarado; o título sem id, pelo nome `heading N`; o resto, o padrão. */
 export function blockStyleOfNode(block: StyledBlock, sheet: StyleSheet | null): ResolvedStyle | null {
   const type = typeof block.type === 'string' ? block.type : block.type.name
   if (sheet === null || (type !== 'paragraph' && type !== 'heading')) return null
@@ -169,14 +136,7 @@ export function blockStyleOfNode(block: StyledBlock, sheet: StyleSheet | null): 
     : resolveStyle(sheet, styleId)
 }
 
-/**
- * O que um estilo de caractere diz, com a herança dele — e **sem** os padrões
- * do documento.
- *
- * O trecho com estilo de caractere mora dentro de um parágrafo que já tem fonte,
- * tamanho e cor; os padrões por cima apagariam o que o estilo do parágrafo deu.
- * O estilo de caractere só fala do que ele (ou a cadeia dele) declara.
- */
+/** Sem os padrões do documento: por cima, eles apagariam o que o estilo do parágrafo deu ao trecho. */
 export function resolveCharacterStyle(sheet: StyleSheet, styleId: string): StyleCharacterFormat {
   let character: StyleCharacterFormat = {}
   for (const style of chainOf(sheet, styleId)) character = overlay(character, style.character)
@@ -205,13 +165,7 @@ export function styleAttrsOf({ paragraph, character }: ResolvedStyle): Record<st
   return attrs
 }
 
-/**
- * A entrelinha do estilo na forma do atributo do bloco: o número do CSS já
- * multiplicado pela altura natural da fonte, ou a medida em pontos.
- *
- * Nas duas medidas travadas, pontos — é como o leitor escreve `exact` e
- * `atLeast` no bloco, e como o diálogo os lê.
- */
+/** O número do CSS já multiplicado pela altura natural da fonte; `exact` e `atLeast` em pontos. */
 export function lineHeightAttrOf(spacing: LineSpacing | undefined, family: string | null): string {
   if (spacing === undefined) return cssLineHeightOf(1, family)
   if (spacing.kind === 'multiple') return cssLineHeightOf(usableFactor(spacing.factor), family)

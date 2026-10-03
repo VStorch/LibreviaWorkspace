@@ -1,12 +1,4 @@
-/**
- * Catálogo de funções.
- *
- * Cada função responde pelo nome em **português e em inglês**. O usuário digita
- * `SOMA`, quem colou de uma planilha estrangeira digita `SUM`, e as duas
- * funcionam. O XLSX guarda sempre o nome canônico em inglês, independente do
- * idioma de quem escreveu — quem traduz para lá e de lá é `interop.ts`, usando
- * a ordem desta lista.
- */
+/** Cada função responde em português e em inglês; o XLSX guarda o nome em inglês (`interop.ts`). */
 
 import { DATE } from './date.js'
 import { LOGICAL } from './logical.js'
@@ -23,19 +15,12 @@ const ALL: readonly FunctionDefinition[] = [...MATH, ...STATS, ...LOGICAL, ...TE
 const BY_NAME = new Map<string, FunctionDefinition>()
 for (const definition of ALL) {
   for (const name of definition.names) {
-    // Nome repetido é engano de quem escreveu o catálogo, e silenciar isso
-    // faria uma das duas funções sumir sem aviso.
     if (BY_NAME.has(name)) throw new Error(`Função duplicada no catálogo: ${name}`)
     BY_NAME.set(name, definition)
   }
 }
 
-/**
- * As preguiçosas moram no avaliador, mas precisam constar do catálogo.
- *
- * Guardadas com a mesma forma das outras — português primeiro, inglês por
- * último — porque a tradução para XLSX consulta as duas listas.
- */
+/** As preguiçosas moram no avaliador, mas a tradução para XLSX as consulta aqui. */
 const LAZY: readonly (readonly string[])[] = [
   ['SE', 'IF'],
   ['SEERRO', 'IFERROR'],
@@ -55,12 +40,7 @@ function lazyNames(name: string): readonly string[] | undefined {
   return LAZY.find((group) => group.includes(upper))
 }
 
-/**
- * O mesmo nome de função na outra língua.
- *
- * Nome desconhecido volta como veio: uma função que o motor não calcula ainda
- * precisa atravessar a ida e volta pelo arquivo sem ser desfigurada.
- */
+/** Nome desconhecido volta como veio, para atravessar o arquivo sem ser desfigurado. */
 export function localizedName(name: string, language: 'pt' | 'en'): string {
   const names = findFunction(name)?.names ?? lazyNames(name)
   if (names === undefined) return name

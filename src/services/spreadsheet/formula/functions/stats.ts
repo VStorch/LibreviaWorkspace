@@ -1,5 +1,3 @@
-/** Contagem, média e extremos. */
-
 import { FormulaError, isFormulaError } from '../errors.js'
 import { matchesCriteria } from '../values.js'
 import { VARIADIC, define, numbersIn, rowsOf, single, valuesIn, type FunctionDefinition } from './kit.js'
@@ -8,8 +6,7 @@ export const STATS: readonly FunctionDefinition[] = [
   define(['MÉDIA', 'MEDIA', 'AVERAGE'], 1, VARIADIC, (args) => {
     const numbers = numbersIn(args)
     if (isFormulaError(numbers)) return numbers
-    // Sem nenhum número não existe média. Devolver zero seria inventar um
-    // resultado que passaria despercebido num relatório.
+    // Sem número não há média; zero seria resultado inventado.
     if (numbers.length === 0) return FormulaError.Div0
 
     return numbers.reduce((total, value) => total + value, 0) / numbers.length
@@ -52,8 +49,7 @@ export const STATS: readonly FunctionDefinition[] = [
     let count = 0
     for (const line of tested) {
       for (const value of line) {
-        // Célula vazia não conta, nem quando o critério é "<>x": senão uma
-        // coluna com dez mil linhas em branco daria dez mil ocorrências.
+        // Célula vazia não conta, nem com o critério "<>x".
         if (value === null) continue
         if (matchesCriteria(value, criteria)) count++
       }

@@ -1,20 +1,13 @@
 /**
- * Os estilos de que o sumário e as legendas precisam: `TOC Heading`, `toc 1`…
- * `toc 9` e `caption`.
- *
- * O Word os tem embutidos e só os grava no arquivo quando alguém os usa — por isso
- * o documento que nunca teve sumário não os traz. Aqui eles entram na folha de
- * estilos na hora de inserir, com as medidas do Word 2013–2021, e a gravação os
- * acrescenta a `word/styles.xml` como qualquer estilo criado (`StyleWriter.cs`).
- *
- * O que manda é o **nome** interno, que não se traduz: o documento em português
- * chama o estilo de `Sumrio1` e o nomeia `toc 1`, e é esse que tem de ser usado,
- * e não um `TOC1` novo ao lado dele.
+ * O Word só grava `TOC Heading`, `toc 1`…`toc 9` e `caption` quando alguém os
+ * usa: eles entram na folha na hora de inserir, com as medidas do Word
+ * 2013–2021. Manda o **nome** interno: o documento em português chama de
+ * `Sumrio1` o estilo `toc 1`, e é ele que se usa.
  */
 
 import { StyleType, type StyleDefinition, type StyleSheet } from './styles.js'
 
-/** O recuo de cada nível do sumário: 11 pt, os 220 vinte-avos do Word. */
+/** 11 pt, os 220 vinte-avos do Word. */
 const TOC_INDENT_MM = 3.88
 
 function findByName(sheet: StyleSheet, name: string): StyleDefinition | undefined {
@@ -37,7 +30,6 @@ export interface EnsuredStyle {
   readonly id: string
 }
 
-/** O estilo com o nome dado, criado com a definição do Word se o documento não o tiver. */
 function ensure(
   sheet: StyleSheet,
   name: string,
@@ -56,7 +48,6 @@ const base = {
   custom: false,
 } as const
 
-/** O estilo da entrada de nível `level` (1 a 9): `toc N`. */
 export function ensureTocStyle(sheet: StyleSheet, level: number): EnsuredStyle {
   const normal = sheet.defaults.paragraphStyleId ?? undefined
   return ensure(sheet, `toc ${level}`, `TOC${level}`, (id) => ({

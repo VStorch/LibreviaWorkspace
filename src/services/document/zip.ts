@@ -1,15 +1,9 @@
 /**
- * Um escritor de ZIP mínimo, sem dependência — o que o pacote ODF precisa.
- *
- * O ODF exige o que um escritor genérico nem sempre garante: o `mimetype` como
- * **primeira** entrada, **sem compressão** e sem campo extra, para que quem
- * olha os primeiros bytes do arquivo leia o tipo dele ali mesmo. Escrever o
- * contêiner aqui é menos código do que domar uma biblioteca para isso, e deixa
- * a exportação pura: a compressão chega de fora (`zlib` no main), e sem ela
- * tudo sai guardado, o que continua sendo um ZIP válido.
+ * O ODF exige o `mimetype` como **primeira** entrada, sem compressão nem campo
+ * extra. A compressão chega de fora (`zlib` no main); sem ela tudo sai guardado,
+ * que ainda é um ZIP válido.
  */
 
-/** Uma entrada do pacote, na ordem em que vai para o arquivo. */
 export interface ZipEntry {
   readonly name: string
   readonly data: Uint8Array
@@ -17,7 +11,6 @@ export interface ZipEntry {
   readonly stored?: boolean
 }
 
-/** O `deflateRawSync` do Node, ou outro com o mesmo contrato. */
 export type Deflate = (data: Uint8Array) => Uint8Array
 
 const STORED = 0
@@ -50,12 +43,7 @@ function dosDateTime(date: Date): { time: number; date: number } {
   }
 }
 
-/**
- * O arquivo ZIP com as entradas na ordem dada.
- *
- * `deflate` ausente guarda tudo; a data é a de todas as entradas — fixa por
- * padrão, para que a mesma entrada produza os mesmos bytes nos testes.
- */
+/** `deflate` ausente guarda tudo; a data é fixa por padrão, para os mesmos bytes nos testes. */
 export function zip(
   entries: readonly ZipEntry[],
   deflate?: Deflate,
@@ -74,7 +62,6 @@ export function zip(
     let body = entry.data
     if (entry.stored !== true && deflate !== undefined) {
       const packed = deflate(entry.data)
-      // O que não encolhe vai guardado: menor, e mais rápido de abrir.
       if (packed.length < entry.data.length) {
         method = DEFLATED
         body = packed

@@ -14,18 +14,10 @@ import type { DocumentModel, DocumentNode } from './model.js'
 import { latexOfEquation } from './mathml-latex.js'
 
 /**
- * Exportação para Markdown: CommonMark com as tabelas e as notas do GFM.
- *
- * As imagens vão para uma **pasta irmã** (`relatorio_arquivos/`), referidas por
- * caminho relativo — como o "Salvar como página da Web" do Word. Embuti-las em
- * `data:` deixaria o texto ilegível no editor de texto, que é onde Markdown se
- * lê, e o GitHub e boa parte dos visualizadores recusam imagem em `data:`. Esta
- * função só devolve as imagens; quem grava é o processo main.
- *
- * O que o Markdown não tem vira o mais próximo que ele tem: a tabela com
- * células mescladas sai em HTML (que o CommonMark aceita no meio do texto), o
- * sobrescrito em `<sup>`, as notas de fim também em `[^n]`. Sublinhado, cor e
- * fonte se perdem — o Markdown não as conhece.
+ * CommonMark com as tabelas e as notas do GFM. As imagens vão para uma pasta
+ * irmã (`relatorio_arquivos/`), como o "Salvar como página da Web" do Word: em
+ * `data:` o texto ficaria ilegível, e muitos visualizadores as recusam. Tabela
+ * com mescla sai em HTML; sublinhado, cor e fonte se perdem.
  */
 
 export interface MarkdownExportOptions {
@@ -33,7 +25,6 @@ export interface MarkdownExportOptions {
   readonly assetFolder: string
 }
 
-/** Uma imagem a gravar na pasta, com o nome que o texto usa. */
 export interface MarkdownAsset {
   readonly name: string
   readonly mime: string
@@ -200,7 +191,6 @@ class MarkdownWriter {
       .join('<br>')
   }
 
-  /** O sumário: uma lista de links para os títulos, aninhada pelo nível. */
   private contents(node: DocumentNode): string {
     const children = node.content ?? []
     const head = Math.max(0, Number(node.attrs?.['head']) || 0)
@@ -318,9 +308,7 @@ class MarkdownWriter {
       }
       case 'field':
         return escapeMarkdown(String(node.attrs?.['result'] ?? ''))
-      // A equação vai em LaTeX entre cifrões — `$…$` no texto, `$$…$$` na linha
-      // dela quando é de exibição —, que é o que o Pandoc, o GitHub e os
-      // editores de Markdown leem. Sem LaTeX nenhum, vai o MathML como HTML.
+      // LaTeX entre cifrões, que o Pandoc e o GitHub leem; sem LaTeX, o MathML.
       case 'math':
         return mathMarkdown(node, mode)
       case 'bookmarkStart': {
@@ -366,15 +354,11 @@ function isSimpleTable(rows: readonly DocumentNode[]): boolean {
   })
 }
 
-/**
- * Escapa o que o Markdown leria como marcação no meio da linha. O começo da
- * linha (`#`, `>`, `-`, `1.`) é com `escapeLineStarts`, que sabe onde ela começa.
- */
+/** O começo da linha (`#`, `>`, `-`, `1.`) é com `escapeLineStarts`. */
 export function escapeMarkdown(text: string): string {
   return text.replace(/[\\`*_[\]<>~|$]/g, '\\$&').replace(/&(?=#?[a-z0-9]+;)/gi, '&amp;')
 }
 
-/** Escapa, em cada linha do parágrafo, o que no começo dela abriria outro bloco. */
 function escapeLineStarts(text: string): string {
   return text
     .split('\n')

@@ -1,14 +1,6 @@
 /**
- * Recálculo da pasta de trabalho.
- *
- * O problema não é calcular: é **em que ordem**. Se `A1` contém `=B1+1` e `B1`
- * contém `=C1*2`, calcular na ordem em que as células aparecem daria a A1 o
- * valor velho de B1 — e o erro apareceria só na segunda vez que alguém mexesse
- * na planilha, o que é o pior tipo de erro.
- *
- * A solução é a de sempre: montar o grafo de dependências e percorrê-lo em
- * ordem topológica. O que a ordem topológica não resolve é o ciclo, e é por isso
- * que a detecção dele vem junto, e não depois.
+ * O grafo de dependências é percorrido em ordem topológica, para `=B1+1` nunca
+ * ler o valor velho de B1. O ciclo é detectado no mesmo percurso.
  */
 
 import type { Cell, Sheet, WorkbookModel } from '../model.js'
@@ -19,7 +11,6 @@ import { tryParseFormula } from './parse.js'
 import type { CellRef } from './references.js'
 import type { Scalar } from './values.js'
 
-/** Uma célula com fórmula, já analisada. */
 interface FormulaCell {
   readonly sheet: number
   readonly row: number
@@ -32,21 +23,13 @@ interface FormulaCell {
 const key = (sheet: number, row: number, column: number): string => `${sheet}|${row}|${column}`
 
 /**
- * Posição → chave numérica do índice de valores.
- *
- * Chave numérica, e não a referência `"A1"`: uma fórmula como `SOMA(A1:A10000)`
- * faz dez mil leituras, e montar dez mil textos a cada uma custava mais que a
- * conta inteira. O limite de colunas é o do Excel, então a chave nunca colide.
+ * Chave numérica, e não `"A1"`: `SOMA(A1:A10000)` faz dez mil leituras. O
+ * limite de colunas é o do Excel, então a chave não colide.
  */
 const COLUMN_SPAN = 16_384
 const at = (row: number, column: number): number => row * COLUMN_SPAN + column
 
-/**
- * Recalcula todas as fórmulas e devolve a pasta com os valores atualizados.
- *
- * Planilhas sem fórmula voltam **como o mesmo objeto**: o React compara por
- * identidade, e recriá-las faria a grade inteira redesenhar a cada tecla.
- */
+/** Planilha sem fórmula volta como o mesmo objeto: o React compara por identidade. */
 export function recalculate(workbook: WorkbookModel, now: () => Date = () => new Date()): WorkbookModel {
   const cells = collect(workbook)
   if (cells.length === 0) return workbook
@@ -74,7 +57,6 @@ export function recalculate(workbook: WorkbookModel, now: () => Date = () => new
   return apply(workbook, results)
 }
 
-/** Valores de uma planilha por chave numérica, para leitura rápida. */
 function indexOf(sheet: Sheet): Map<number, Scalar> {
   const values = new Map<number, Scalar>()
 
@@ -112,14 +94,7 @@ function collect(workbook: WorkbookModel): FormulaCell[] {
   return cells
 }
 
-/**
- * O contexto de avaliação lê do índice, que já foi atualizado pelas fórmulas
- * calculadas antes desta.
- *
- * É o que faz a ordem topológica valer: quando `A1` pergunta por `B1`, ou `B1`
- * já foi calculada nesta passada e o índice tem o valor novo, ou ela não é
- * fórmula e o valor do arquivo é o definitivo.
- */
+/** Lê do índice, já atualizado pelas fórmulas calculadas antes desta. */
 function contextFor(
   own: number,
   index: readonly Map<number, Scalar>[],
@@ -138,25 +113,13 @@ function contextFor(
   }
 }
 
-/**
- * A qual planilha uma referência pertence.
- *
- * Sem nome, é a planilha da própria fórmula. Como o recálculo percorre a pasta
- * inteira, a "própria" muda a cada célula — por isso o contexto é montado por
- * planilha, e não uma vez só.
- */
+/** Sem nome, é a planilha da própria fórmula, que muda a cada célula. */
 function sheetIndexOf(ref: CellRef, byName: ReadonlyMap<string, number>, fallback: number): number | null {
   if (ref.sheet === undefined) return fallback
   return byName.get(ref.sheet.toUpperCase()) ?? null
 }
 
-/**
- * Ordem de cálculo, com os ciclos já marcados.
- *
- * Percurso em profundidade com pilha explícita, e não recursão: uma coluna de
- * dez mil fórmulas encadeadas estouraria a pilha do JavaScript, e o usuário
- * veria o aplicativo morrer sem explicação.
- */
+/** Pilha explícita, e não recursão: dez mil fórmulas encadeadas estourariam a pilha. */
 function order(cells: readonly FormulaCell[], byName: ReadonlyMap<string, number>): FormulaCell[] {
   const byKey = new Map<string, FormulaCell>()
   for (const cell of cells) byKey.set(key(cell.sheet, cell.row, cell.column), cell)
@@ -205,9 +168,8 @@ function order(cells: readonly FormulaCell[], byName: ReadonlyMap<string, number
     }
   }
 
-  // As circulares entram **primeiro**, já com o veredito. Nenhuma delas pode
-  // ser calculada, e pôr o veredito antes é o que faz quem depende de uma
-  // circular herdar o erro pela propagação normal, em vez de ler um valor velho.
+  // As circulares entram primeiro, já com o erro: quem depende delas o herda
+  // pela propagação normal, em vez de ler um valor velho.
   const broken: FormulaCell[] = []
   for (const at of circular) {
     const cell = byKey.get(at)
@@ -218,12 +180,8 @@ function order(cells: readonly FormulaCell[], byName: ReadonlyMap<string, number
 }
 
 /**
- * De quais **outras fórmulas** esta célula depende.
- *
- * Só as fórmulas importam para a ordem: depender de uma célula com número
- * digitado não impõe restrição nenhuma. Por isso os intervalos são cruzados
- * contra a lista de fórmulas em vez de percorridos célula a célula — senão
- * `SOMA(A1:A10000)` custaria dez mil passos para descobrir que depende de duas.
+ * Só as fórmulas impõem ordem. Os intervalos são cruzados contra a lista de
+ * fórmulas, senão `SOMA(A1:A10000)` custaria dez mil passos.
  */
 function dependenciesOf(
   cell: FormulaCell,
@@ -285,13 +243,7 @@ function referencesItself(cell: FormulaCell, byName: ReadonlyMap<string, number>
   return false
 }
 
-/**
- * Grava os valores calculados, preservando fórmula e formatação.
- *
- * Planilha cujo nenhum valor mudou volta como o **mesmo objeto**, e a pasta
- * também: o React compara por identidade, e recriá-las faria a grade inteira
- * redesenhar a cada tecla digitada em qualquer célula.
- */
+/** Planilha sem valor mudado volta como o mesmo objeto, e a pasta também. */
 function apply(
   workbook: WorkbookModel,
   results: readonly { cell: FormulaCell; value: Scalar }[],
@@ -303,9 +255,8 @@ function apply(
     const previous = sheet?.cells[cell.ref]
     if (sheet === undefined || previous === undefined) continue
 
-    // Fórmula nunca resulta em célula vazia: `=A1` sobre uma célula em branco
-    // vale zero, como no Excel. Deixar vazio faria a fórmula desaparecer do
-    // mapa esparso na próxima gravação, levando junto a própria fórmula.
+    // Como no Excel, `=A1` sobre célula em branco vale zero. Vazio tiraria a
+    // fórmula do mapa esparso na gravação seguinte.
     const calculated = value === null ? 0 : value
     if (calculated === previous.value) continue
 

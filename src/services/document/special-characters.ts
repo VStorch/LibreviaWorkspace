@@ -1,23 +1,14 @@
 /**
- * Catálogo de caracteres especiais.
- *
- * É o conjunto que o Word deixa à mão na aba "Símbolo" — o que se procura de
- * verdade num documento: aspas tipográficas, travessão, moeda,
- * matemática, letra grega e marca registrada. Uma tabela Unicode completa seria
- * mais completa e menos útil: quem precisa de ❡ sabe achá-lo.
- *
- * Cada caractere leva nome traduzido porque o nome é o que o leitor de tela
- * anuncia — um botão chamado "—" não diz nada a quem não o vê.
+ * O que o Word deixa à mão na aba "Símbolo", e não uma tabela Unicode completa.
+ * O nome traduzido é o que o leitor de tela anuncia.
  */
 
 import { Language, translate, type MessageKey } from '@shared/i18n/index.js'
 
 export interface SpecialCharacter {
-  /** O caractere em si, do jeito que entra no documento. */
   readonly char: string
-  /** Chave de tradução do nome. */
   readonly nameKey: MessageKey
-  /** Como ele se chama. Vira o nome acessível do botão e a dica do mouse. */
+  /** O nome acessível do botão e a dica do mouse. */
   readonly name: string
 }
 
@@ -59,8 +50,7 @@ const GROUPS_DEF: readonly GroupDef[] = [
       { char: '‰', nameKey: 'chars.punct.perMille' },
       { char: '¿', nameKey: 'chars.punct.invertedQuestion' },
       { char: '¡', nameKey: 'chars.punct.invertedExclamation' },
-      // Espaço inquebrável: é ele que impede "R$" de ficar no fim de uma linha e
-      // o valor na seguinte.
+      // Impede "R$" de ficar no fim de uma linha e o valor na seguinte.
       { char: '\u00a0', nameKey: 'chars.punct.nonBreakingSpace' },
     ],
   },
@@ -173,7 +163,6 @@ export function specialCharacterGroups(
 
 export const SPECIAL_CHARACTER_GROUPS: readonly SpecialCharacterGroup[] = specialCharacterGroups()
 
-/** Todos os caracteres do catálogo, na ordem em que aparecem. */
 export function allSpecialCharacters(language: Language = Language.Portuguese): readonly SpecialCharacter[] {
   return specialCharacterGroups(language).flatMap((group) => group.characters)
 }

@@ -1,18 +1,9 @@
 /**
- * O MathML de uma equação, lido e filtrado antes de chegar à tela.
- *
- * O MathML vem do sidecar (`OmmlMath.cs`), mas mora num atributo do nó — e o nó
- * mora no `.sdoc`, que é um arquivo que qualquer um edita à mão. Por isso ele
- * **nunca** vira HTML por `innerHTML`: é lido aqui por um analisador próprio,
- * estrito, que só reconhece elemento, atributo, texto e as entidades do XML, e
- * passado por uma lista do que pode existir — os elementos do MathML Core que a
- * conversão produz e os atributos de apresentação deles. Elemento fora da lista
- * cai com tudo o que tem dentro; atributo fora da lista cai sozinho. Não há
- * `href`, nem `style`, nem evento: nada que execute ou que busque coisa fora.
- *
- * Sem DOM, de propósito: o mesmo filtro serve à tela (que monta a árvore com
- * `createElementNS`), à exportação em HTML (que a escreve como texto escapado) e
- * aos testes, que não têm DOM neste projeto.
+ * O MathML mora num atributo do nó, que mora no `.sdoc`, que qualquer um edita
+ * à mão: por isso **nunca** passa por `innerHTML`. Um analisador próprio e
+ * estrito o lê, e só os elementos do MathML Core e os atributos de apresentação
+ * passam; sem `href`, `style` nem evento. Sem DOM, para servir à tela, à
+ * exportação e aos testes.
  */
 
 export const MATHML_NAMESPACE = 'http://www.w3.org/1998/Math/MathML'
@@ -101,13 +92,7 @@ const CLASSES = new Set([MATH_BOX_CLASS])
 const MAX_DEPTH = 128
 const MAX_NODES = 50_000
 
-/**
- * O MathML filtrado — ou `null` quando o texto não é um `math` bem formado.
- *
- * Bem formado no sentido estrito: comentário, CDATA, DOCTYPE, instrução de
- * processamento e entidade fora das cinco do XML recusam o texto inteiro, em vez
- * de serem adivinhados.
- */
+/** Comentário, CDATA, DOCTYPE, instrução de processamento e entidade desconhecida recusam o texto inteiro. */
 export function sanitizeMathMl(source: string): MathElement | null {
   const parsed = parseMathMl(source)
   if (parsed === null || parsed.tag !== 'math') return null
@@ -167,8 +152,6 @@ function escapeXml(text: string): string {
   )
 }
 
-// --- o analisador ------------------------------------------------------------
-
 const NAME = /^[A-Za-z_][\w.-]*(?::[A-Za-z_][\w.-]*)?/
 const NAMED_ENTITIES: Readonly<Record<string, string>> = {
   lt: '<',
@@ -184,11 +167,7 @@ interface Building {
   children: MathChild[]
 }
 
-/**
- * A árvore do texto, **sem** a lista: só para quem a ajeita antes de filtrar
- * (`latex.ts`, que traduz o que o Temml escreve fora do MathML Core). Quem
- * desenha usa `sanitizeMathMl`.
- */
+/** **Sem** a lista: só para quem a ajeita antes de filtrar (`latex.ts`). */
 export function parseMathMl(source: string): MathElement | null {
   const stack: Building[] = []
   let root: Building | null = null

@@ -1,13 +1,7 @@
 import { PageOrientation, PageSize, type PageSetup } from '@services/document/model.js'
 import { hasBandContent, type Band, type BandPiece } from '@services/document/band.js'
 
-/**
- * Tradução da configuração de página para as opções do `printToPDF`.
- *
- * O Chromium trabalha em **polegadas**; a interface e o modelo trabalham em
- * milímetros. Converter no lugar errado produz um PDF com margens
- * silenciosamente erradas, então a conversão mora aqui, sozinha e testada.
- */
+/** O Chromium trabalha em polegadas, e o modelo em milímetros: a conversão mora aqui. */
 
 export const MM_PER_INCH = 25.4
 
@@ -34,13 +28,7 @@ export interface PdfPrintOptions {
   readonly scale: number
 }
 
-/**
- * Espaço mínimo, em milímetros, para que o cabeçalho ou rodapé caiba.
- *
- * O Chromium desenha os dois *dentro* da margem e recorta o que passar. Com
- * margem apertada, o texto simplesmente não aparece — e o usuário não teria
- * como saber por quê.
- */
+/** O Chromium desenha cabeçalho e rodapé dentro da margem e recorta o que passar. */
 export const MIN_MARGIN_FOR_HEADER_MM = 12
 
 export function marginFitsHeaderOrFooter(marginMm: number): boolean {
@@ -56,14 +44,8 @@ function escapeHtml(text: string): string {
 }
 
 /**
- * Converte o texto do cabeçalho/rodapé no HTML que o Chromium espera.
- *
- * `{n}` vira o número da página e `{total}` o total — o Chromium substitui os
- * elementos com as classes `pageNumber` e `totalPages`. O texto do usuário é
- * escapado: ele não pode injetar marcação no template.
- *
- * A fonte precisa ser declarada explicitamente; sem isso o Chromium renderiza
- * o template em tamanho zero e nada aparece.
+ * O Chromium troca as classes `pageNumber` e `totalPages`. O texto é escapado, e
+ * a fonte é declarada porque sem ela o template sai em tamanho zero.
  */
 export function buildHeaderFooterTemplate(text: string): string {
   if (text.trim().length === 0) return '<span></span>'
@@ -81,15 +63,8 @@ export function buildHeaderFooterTemplate(text: string): string {
 }
 
 /**
- * Faixa preservada do documento → HTML do template do Chromium.
- *
- * A imagem entra como `data:` URI. O template do `printToPDF` roda num
- * contexto isolado que **não busca recurso externo nenhum** — logotipo por URL
- * simplesmente não apareceria. Embutido, aparece.
- *
- * A escala é reduzida de propósito: o Chromium renderiza o template com uma
- * escala própria, e um logotipo no tamanho declarado sai maior no papel do que
- * na tela.
+ * A imagem entra como `data:` URI porque o template não busca recurso externo,
+ * e a escala é reduzida porque o Chromium o desenha com escala própria.
  */
 export function buildBandTemplate(band: Band): string {
   const cell = (pieces: readonly BandPiece[], align: string): string =>
@@ -124,8 +99,6 @@ function pieceToHtml(piece: BandPiece): string {
     (piece.bold ? 'font-weight:700;' : '') +
     (piece.italic ? 'font-style:italic;' : '') +
     (piece.color === undefined ? '' : `color:${escapeHtml(piece.color)};`) +
-    // O tamanho declarado no documento é para a página inteira; no template do
-    // Chromium ele sai desproporcional, então entra reduzido.
     (piece.fontSize === undefined ? '' : `font-size:${scaleFontSize(piece.fontSize)};`)
 
   return `<span style="${style}">${escapeHtml(piece.text ?? '')}</span>`
@@ -136,7 +109,6 @@ function scaleFontSize(fontSize: string): string {
   return Number.isFinite(value) ? `${(value * 0.6).toFixed(1)}pt` : fontSize
 }
 
-/** Opções do diálogo nativo de impressão. */
 export interface NativePrintOptions {
   readonly pageSize: 'A4' | 'Letter'
   readonly landscape: boolean
@@ -144,13 +116,7 @@ export interface NativePrintOptions {
   readonly margins: { readonly marginType: 'custom' } & PdfMargins
 }
 
-/**
- * Opções para `webContents.print()`.
- *
- * Cuidado que custa caro: as margens do `print()` são em **pixels CSS**, e as
- * do `printToPDF()` em **polegadas**. Usar a conversão de um no outro produz
- * margens erradas por um fator de 96 — e o erro só aparece no papel.
- */
+/** As margens do `print()` são em pixels CSS, e as do `printToPDF()` em polegadas. */
 export function buildNativePrintOptions(page: PageSetup): NativePrintOptions {
   return {
     pageSize: page.size === PageSize.Letter ? 'Letter' : 'A4',
@@ -166,22 +132,15 @@ export function buildNativePrintOptions(page: PageSetup): NativePrintOptions {
   }
 }
 
-/** 1 polegada = 96 pixels CSS. */
 export function mmToPixels(mm: number): number {
   return (mm / MM_PER_INCH) * 96
 }
 
 /**
  * @param paged
- * O HTML já vem dividido em folhas do tamanho do papel (documento paginado).
- * Nesse caso o Chromium não decide nada: margem zero, tamanho vindo do `@page`
- * do próprio HTML e faixa nenhuma, porque quem desenha cabeçalho e rodapé é a
- * página. Pedir margem aqui **e** na caixa da página a contaria duas vezes, e
- * deixar `displayHeaderFooter` ligado poria a faixa do Chromium por cima da
- * nossa.
- *
- * A planilha continua no caminho antigo: ela imprime uma tabela contínua, e não
- * há folha recortada antes de chegar aqui.
+ * O HTML já vem em folhas do tamanho do papel: margem zero, tamanho do `@page`
+ * e sem a faixa do Chromium, que cairia por cima da nossa. A planilha não vem
+ * paginada.
  */
 export function buildPrintOptions(page: PageSetup, paged = false): PdfPrintOptions {
   if (paged) {
@@ -193,16 +152,13 @@ export function buildPrintOptions(page: PageSetup, paged = false): PdfPrintOptio
       displayHeaderFooter: false,
       headerTemplate: '',
       footerTemplate: '',
-      // Quem manda no tamanho é o `@page` que veio no HTML — o mesmo papel que
-      // a tela desenhou.
+      // O mesmo papel que a tela desenhou.
       preferCSSPageSize: true,
       scale: 1,
     }
   }
 
-  // A faixa preservada do documento manda: quando ela existe, é o cabeçalho
-  // real do arquivo, com logotipo e numeração. O texto digitado só vale para
-  // documentos criados aqui.
+  // A faixa preservada do documento manda; o texto digitado só vale sem ela.
   const headerBand = hasBandContent(page.headerBand) ? page.headerBand : null
   const footerBand = hasBandContent(page.footerBand) ? page.footerBand : null
 
