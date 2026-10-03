@@ -79,9 +79,8 @@ O modelo de pull request traz uma lista curta do que conferir.
 ## Princípios
 
 Por que um projeto pessoal se preocupa tanto com a forma do código? Porque um editor de
-documentos é grande e vive muito tempo. O Librevia tem cerca de 70 mil linhas, e a maior parte
-do trabalho nele não é escrever código novo: é **ler** código que já existe para mudar uma parte
-sem quebrar outra. Código fácil de ler é código barato de mudar.
+documentos é grande e vive muito tempo. A maior parte do trabalho nele não é escrever código
+novo: é **ler** código que já existe para mudar uma parte sem quebrar outra. Código fácil de ler é código barato de mudar.
 
 Os princípios abaixo são a forma de manter isso. Cada um vem com o que significa e com o lugar
 onde ele aparece no Librevia. As regras práticas das seções seguintes são a aplicação deles.
@@ -153,8 +152,8 @@ flowchart TB
 A regra que segura tudo é a **regra da dependência**: o código só pode depender de quem está
 **mais para dentro**. O centro não sabe que existe Electron, React ou disco. Por isso:
 
-- **as regras do negócio se testam sem nada em volta.** Os 1.386 testes de unidade rodam em
-  poucos segundos, sem abrir janela;
+- **as regras do negócio se testam sem nada em volta.** Os testes de unidade rodam em poucos
+  segundos, sem abrir janela;
 - **trocar um detalhe técnico não mexe no centro.** O cálculo das fórmulas não sabe se a
   planilha veio de um `.xlsx` ou de um `.ssheet`, nem se vai para a tela ou para o papel;
 - **os dados atravessam as fronteiras em formatos simples e validados**: objetos conferidos por
