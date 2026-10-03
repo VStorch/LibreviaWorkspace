@@ -1,7 +1,7 @@
 import type { DocumentComment, DocumentNode } from './model.js'
 
 /**
- * Quais comentários o documento tem agora (M10, fase 2).
+ * Quais comentários o documento tem agora.
  *
  * Mesmo desenho das seções (ver `resolveSections`): a loja guarda uma
  * **biblioteca** que só ganha entradas, e quem diz quais valem é o texto. A

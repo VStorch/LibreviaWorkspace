@@ -16,8 +16,8 @@ public sealed record SaveResult(
 /// Gravação cirúrgica: reescreve só o que o usuário tocou.
 /// </summary>
 /// <remarks>
-/// O desenho está em docs/02-docx-cirurgico.md. Em uma frase: a fidelidade não
-/// vem de entender o OOXML, vem de **não mexer** no que não foi editado.
+/// A fidelidade não vem de entender o OOXML, vem de **não mexer** no que não
+/// foi editado.
 ///
 /// Só `word/document.xml` é reescrito. Estilos, numeração, cabeçalhos,
 /// rodapés, mídia, comentários, notas, tema e configurações continuam
@@ -74,10 +74,11 @@ public static class DocxWriter
         // StyleWriter.Apply), e a mudança num existente vira perda declarada.
         StyleWriter.Apply(part, model.Styles, inventory, touched, additionsOnly: model.Flatten);
 
-        // O id de cada referência de nota (M11), antes do corpo: o run da
-        // referência o leva, e quem grava o run é o parágrafo. No rascunho de antes
-        // das notas o modelo não tem referência nenhuma, e as partes ficam como
-        // estão — a perda do parágrafo editado é declarada em NoteWhatWasInside.
+        // O id de cada referência de nota, antes do corpo: o run da referência
+        // o leva, e quem grava o run é o parágrafo. No rascunho de antes das
+        // notas o modelo não tem referência nenhuma, e as partes ficam como
+        // estão — a perda do parágrafo editado é declarada em
+        // NoteWhatWasInside.
         var notes = model.BeforeNotes ? null : NotesWriter.Plan(model.Doc, part);
 
         var numbering = new NumberingFactory(part, touched, inventory);
@@ -96,7 +97,7 @@ public static class DocxWriter
         body.RemoveAllChildren();
         foreach (var element in replacement) body.AppendChild(element);
 
-        // O corpo das notas (M11): só a nota que mudou, e só a parte que a guarda.
+        // O corpo das notas: só a nota que mudou, e só a parte que a guarda.
         // Antes dos comentários, que procuram as âncoras também nas notas.
         if (notes is not null)
         {
@@ -121,8 +122,8 @@ public static class DocxWriter
                 model.BeforeMath);
         }
 
-        // A numeração das notas (M11): só quando o modelo pede outra que a do
-        // pacote — o `.sdoc` reaberto e gravado como `.docx` não a perde mais.
+        // A numeração das notas: só quando o modelo pede outra que a do pacote
+        // — o `.sdoc` reaberto e gravado como `.docx` não a perde mais.
         NotesWriter.ApplyNumbering(part, model.Notes, touched);
 
         // O corpo dos comentários: o criado, o editado, o resolvido e o excluído —
@@ -130,9 +131,10 @@ public static class DocxWriter
         // comentários novos para não descartar as âncoras deles.
         CommentsWriter.Apply(part, model, inventory, touched);
 
-        // As pontas de comentário que a edição desemparelhou — ver MendCommentAnchors.
-        // No corpo e nas notas (M11): o comentário criado numa nota sai de lá com a
-        // referência, e o excluído leva as pontas que a nota preservada ainda tinha.
+        // As pontas de comentário que a edição desemparelhou — ver
+        // MendCommentAnchors. No corpo e nas notas: o comentário criado numa
+        // nota sai de lá com a referência, e o excluído leva as pontas que a
+        // nota preservada ainda tinha.
         var knownComments = (part.WordprocessingCommentsPart?.Comments?.Elements<Comment>() ?? [])
             .Select(comment => comment.Id?.Value).OfType<string>().ToHashSet(StringComparer.Ordinal);
         MendCommentAnchors(body, knownComments);
@@ -144,7 +146,7 @@ public static class DocxWriter
             touched.Add(notesPart.Uri.ToString().TrimStart('/'));
         }
 
-        // As revisões (M10): a movimentação que a edição partiu vira exclusão e
+        // As revisões: a movimentação que a edição partiu vira exclusão e
         // inserção, e cada revisão sai com um `w:id` só dela.
         MendMoves(body);
         Revisions.MakeIdsUnique(body, part);
@@ -185,7 +187,7 @@ public static class DocxWriter
         // continua saindo do arquivo original, byte a byte.
         touched.UnionWith(BandWriter.Apply(part, [.. model.Sections ?? [], model.Page], inventory, aliases));
 
-        // As propriedades (M11): só a parte em que algum campo mudou — ver
+        // As propriedades: só a parte em que algum campo mudou — ver
         // DocumentProperties. `docProps/custom.xml` nunca é tocado.
         DocumentProperties.Apply(document, model.Properties, touched);
 
@@ -193,7 +195,7 @@ public static class DocxWriter
         document.Dispose();
 
         // O rótulo do destino — documento ou modelo — e as macros do `.dotm` fora
-        // (M11). Depois da restauração, sobre os bytes finais: o resto do pacote
+        //. Depois da restauração, sobre os bytes finais: o resto do pacote
         // não muda por causa disto.
         var restored = RestoreUntouchedParts(original, buffer.ToArray(), touched);
         return (PackageKind.Retarget(restored, model.Template, inventory),
@@ -941,21 +943,22 @@ public static class DocxWriter
     /// usuário aprende a ignorar.
     /// </remarks>
     /// <param name="beforeComments">
-    /// O rascunho é de antes dos comentários (M10): os nós não trazem a âncora, e
-    /// reescrever o parágrafo a perde. Depois dele a âncora volta pelos nós — só a
-    /// referência que dividia o run com texto não tem como voltar.
+    /// O rascunho é de antes dos comentários: os nós não trazem a âncora, e
+    /// reescrever o parágrafo a perde. Depois dele a âncora volta pelos nós —
+    /// só a referência que dividia o run com texto não tem como voltar.
     /// </param>
     /// <param name="beforeRevisions">
-    /// O rascunho é de antes das revisões (M10): os nós não as trazem, e reescrever
-    /// o parágrafo perde o `w:ins` e o `w:del`. Depois dele elas voltam pelas
-    /// marcas — só a de formatação do trecho e a movimentação não voltam inteiras.
+    /// O rascunho é de antes das revisões: os nós não as trazem, e reescrever o
+    /// parágrafo perde o `w:ins` e o `w:del`. Depois dele elas voltam pelas
+    /// marcas — só a de formatação do trecho e a movimentação não voltam
+    /// inteiras.
     /// </param>
     /// <param name="beforeNotes">
-    /// O rascunho é de antes das notas (M11): os nós não trazem a referência, e
+    /// O rascunho é de antes das notas: os nós não trazem a referência, e
     /// reescrever o parágrafo a perde. Depois dele ela volta pelo `noteRef`.
     /// </param>
     /// <param name="beforeMath">
-    /// O rascunho é de antes das equações (M11): os nós não trazem o `math`, e
+    /// O rascunho é de antes das equações: os nós não trazem o `math`, e
     /// reescrever o parágrafo perde o `m:oMath`. Depois dele ela volta pelo nó.
     /// </param>
     private static void NoteWhatWasInside(

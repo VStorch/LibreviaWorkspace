@@ -35,8 +35,8 @@ function equacoesDo(xml: string): string[] {
 }
 
 /**
- * Equações (M11, fase 1): desenhadas pelo MathML, só para leitura, e devolvidas ao
- * arquivo com o OMML como veio — também quando se edita o texto ao lado.
+ * Equações: desenhadas pelo MathML, só para leitura, e devolvidas ao arquivo
+ * com o OMML como veio — também quando se edita o texto ao lado.
  */
 test.describe('equações', () => {
   let session: Session
@@ -128,7 +128,7 @@ test.describe('equações', () => {
     expect(texto).toContain('Fim.')
   })
 
-  // --- fase 2: o editor de equações ------------------------------------------
+  // --- o editor de equações --------------------------------------------------
 
   test('inserir pelo menu, digitar o LaTeX, desfazer e refazer; salvar em .docx e reabrir', async () => {
     const destino = join(pasta, 'nova.docx')
@@ -225,7 +225,7 @@ test.describe('equações', () => {
     await expect(editor.locator('.equacao').nth(0).locator('math msup mn')).toHaveText('3')
   })
 
-  // --- fase 3: exportações e integração ---------------------------------------
+  // --- exportações e integração ----------------------------------------------
 
   test('exportar em HTML, Markdown e ODT leva as equações', async () => {
     const origem = join(pasta, 'relatorio.docx')

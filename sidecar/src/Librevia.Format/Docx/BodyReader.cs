@@ -22,8 +22,8 @@ public sealed record Block(string Oid, OpenXmlElement Source, Node Extracted)
     /// </summary>
     /// <remarks>
     /// Não aparece na tela, e a gravação o devolve antes do bloco, byte a byte.
-    /// Antes daqui ele caía fora: o corpo é refeito a partir dos blocos, e o que
-    /// não era bloco não voltava — em silêncio, porque o marcador nem entra no
+    /// Sem isto ele cairia fora: o corpo é refeito a partir dos blocos, e o que
+    /// não é bloco não voltaria — em silêncio, porque o marcador nem entra no
     /// inventário.
     /// </remarks>
     public List<OpenXmlElement> Leading { get; } = [];
@@ -54,34 +54,34 @@ public sealed record Block(string Oid, OpenXmlElement Source, Node Extracted)
 /// isso que permite ser tolerante em vez de recusar o arquivo.
 /// </remarks>
 /// <param name="references">
-/// Lê marcadores, campos, links internos e sumário (M8). Desligado, a leitura é a
-/// de antes deles — a de referência para um rascunho daquela época (ver
+/// Lê marcadores, campos, links internos e sumário. Desligado, a leitura é a de
+/// antes deles — a de referência para um rascunho daquela época (ver
 /// <see cref="DocumentModelDto.BeforeReferences"/>).
 /// </param>
 /// <param name="sections">
-/// Marca com `sectionBreak` o parágrafo que encerra uma seção (M9). Desligado, é
-/// a leitura de antes das seções — a de referência para um rascunho daquela
-/// época (ver <see cref="DocumentModelDto.BeforeSections"/>).
+/// Marca com `sectionBreak` o parágrafo que encerra uma seção. Desligado, é a
+/// leitura de antes das seções — a de referência para um rascunho daquela época
+/// (ver <see cref="DocumentModelDto.BeforeSections"/>).
 /// </param>
 /// <param name="comments">
-/// Lê as âncoras de comentário como `commentStart`/`commentEnd` (M10). Desligado,
-/// é a leitura de antes delas — a de referência para um rascunho daquela época
-/// (ver <see cref="DocumentModelDto.BeforeComments"/>).
+/// Lê as âncoras de comentário como `commentStart`/`commentEnd`. Desligado, é a
+/// leitura de antes delas — a de referência para um rascunho daquela época (ver
+/// <see cref="DocumentModelDto.BeforeComments"/>).
 /// </param>
 /// <param name="revisions">
-/// Lê as revisões como marcas `insertion`/`deletion` e atributos de bloco (M10).
+/// Lê as revisões como marcas `insertion`/`deletion` e atributos de bloco.
 /// Desligado, é a leitura de antes delas: o inserido entra como texto comum e o
 /// excluído não entra — a de referência para um rascunho daquela época (ver
 /// <see cref="DocumentModelDto.BeforeRevisions"/>).
 /// </param>
 /// <param name="notes">
-/// Lê a referência de nota de rodapé ou de fim como o nó `noteRef`, com o corpo da
-/// nota dentro (M11). Desligado, é a leitura de antes delas — a de referência para
+/// Lê a referência de nota de rodapé ou de fim como o nó `noteRef`, com o corpo
+/// da nota dentro. Desligado, é a leitura de antes delas — a de referência para
 /// um rascunho daquela época (ver <see cref="DocumentModelDto.BeforeNotes"/>).
 /// </param>
 /// <param name="math">
 /// Lê a equação (`m:oMath`, `m:oMathPara`) como o nó `math`, com o OMML dentro
-/// (M11). Desligado, é a leitura de antes delas — a de referência para um
+///. Desligado, é a leitura de antes delas — a de referência para um
 /// rascunho daquela época (ver <see cref="DocumentModelDto.BeforeMath"/>).
 /// </param>
 public sealed class BodyReader(
@@ -579,8 +579,8 @@ public sealed class BodyReader(
             node.With("sectionBreak", sectionId);
         }
 
-        // A marca de parágrafo inserida ou excluída (M10): o Enter que a revisão
-        // pôs ou tirou. Aceitar a exclusão junta este parágrafo ao seguinte.
+        // A marca de parágrafo inserida ou excluída: o Enter que a revisão pôs
+        // ou tirou. Aceitar a exclusão junta este parágrafo ao seguinte.
         if (revisions && Revisions.BlockRevisionOf(direct?.ParagraphMarkRunProperties) is { } markRevision)
         {
             node.With("markRevision", markRevision);
@@ -838,9 +838,7 @@ public sealed class BodyReader(
     /// da máquina e não há altura honesta a declarar: fica `normal`, e quem
     /// mede é o navegador.
     ///
-    /// `exact` e `atLeast` dizem a altura em twips, e viram pontos. Antes daqui
-    /// as duas voltavam nulas, e um parágrafo com entrelinha travada em 9 pt
-    /// era desenhado com a do editor.
+    /// `exact` e `atLeast` dizem a altura em twips, e viram pontos.
     /// </remarks>
     /// <param name="decimals">
     /// Casas do múltiplo antes de multiplicar. Duas no bloco achatado, como
@@ -1013,9 +1011,10 @@ public sealed class BodyReader(
                 continue;
             }
 
-            // A referência de nota (M11): ReadRun a lê como `noteRef`. A marca
-            // própria (`w:customMarkFollows`) costuma vir no mesmo run, depois da
-            // referência; quando vem no run seguinte, ele é a marca, e não texto.
+            // A referência de nota: ReadRun a lê como `noteRef`. A marca
+            // própria (`w:customMarkFollows`) costuma vir no mesmo run, depois
+            // da referência; quando vem no run seguinte, ele é a marca, e não
+            // texto.
             if (notes && _textBoxDepth == 0 && element is Run noted && NoteReferenceOf(noted) is { } noteReference)
             {
                 var read = ReadRun(noted, inherited, hyperlink).ToList();
@@ -1041,8 +1040,8 @@ public sealed class BodyReader(
 
             switch (element)
             {
-                // A âncora do comentário (M10): as duas pontas viram nós sem
-                // largura, como as do marcador. A resposta não — ver `_replies`.
+                // A âncora do comentário: as duas pontas viram nós sem largura,
+                // como as do marcador. A resposta não — ver `_replies`.
                 case CommentRangeStart start when comments && _textBoxDepth == 0:
                     if (start.Id?.Value is { } startId && !_replies.Contains(startId))
                     {
@@ -1107,16 +1106,16 @@ public sealed class BodyReader(
                 case ProofError:
                     break;
 
-                // O comentário de caixa de texto e o do rascunho de antes do M10
-                // são preservados pelo XML original; o editor não os mostra.
-                // Invisibilidade, não perda.
+                // O comentário de caixa de texto e o do rascunho anterior aos
+                // comentários (`BeforeComments`) são preservados pelo XML
+                // original; o editor não os mostra. Invisibilidade, não perda.
                 case CommentRangeStart:
                 case CommentRangeEnd:
                     inventory.NoteInvisible(Inventory.Comments);
                     break;
 
-                // A revisão (M10): o trecho de dentro leva a marca dela, e a
-                // gravação o devolve embrulhado. Nas duas ordens em que o link e a
+                // A revisão: o trecho de dentro leva a marca dela, e a gravação
+                // o devolve embrulhado. Nas duas ordens em que o link e a
                 // revisão aparecem — a recursão desce em qualquer uma.
                 case InsertedRun or DeletedRun or MoveFromRun or MoveToRun when revisions:
                     _revision.Add(Revisions.MarkOf(element, MoveNameOf(element)));
@@ -1124,7 +1123,8 @@ public sealed class BodyReader(
                     _revision.RemoveAt(_revision.Count - 1);
                     break;
 
-                // A leitura de antes do M10, para o rascunho daquela época.
+                // O rascunho anterior às revisões (`BeforeRevisions`) lê o
+                // inserido como texto comum.
                 case InsertedRun inserted:
                     nodes.AddRange(ReadInline(inserted, inherited, hyperlink));
                     break;
@@ -1132,7 +1132,7 @@ public sealed class BodyReader(
                 case DeletedRun:
                     break;
 
-                // A equação (M11): um nó atômico com o OMML como veio — é ele que
+                // A equação: um nó atômico com o OMML como veio — é ele que
                 // volta ao arquivo — e o MathML que a tela desenha.
                 case OfficeMath or MathParagraph when math && _textBoxDepth == 0:
                     nodes.Add(ReadMath(element));
@@ -1523,7 +1523,7 @@ public sealed class BodyReader(
                         instruction.Append(code.Text);
                         break;
 
-                    // O campo excluído (M10): `w:delInstrText` e `w:delText`.
+                    // O campo excluído: `w:delInstrText` e `w:delText`.
                     case DeletedFieldCode code when !separated && revisions:
                         instruction.Append(code.Text);
                         break;
@@ -1610,8 +1610,8 @@ public sealed class BodyReader(
                     customMark = null;
                     break;
 
-                // A referência de nota (M11): o número não se guarda — ele é a
-                // ordem no documento —, e o corpo da nota vai dentro do nó.
+                // A referência de nota: o número não se guarda — ele é a ordem
+                // no documento —, e o corpo da nota vai dentro do nó.
                 case FootnoteReference or EndnoteReference when notes && _textBoxDepth == 0:
                 {
                     var noteRef = ReadNoteRef(element);
@@ -1635,7 +1635,7 @@ public sealed class BodyReader(
 
                     break;
 
-                // O texto excluído (M10): `w:delText` dentro de `w:del`.
+                // O texto excluído: `w:delText` dentro de `w:del`.
                 case DeletedText deleted when revisions:
                     if (deleted.Text.Length > 0)
                     {
@@ -1733,11 +1733,9 @@ public sealed class BodyReader(
     /// escrito dentro dela.
     /// </summary>
     /// <remarks>
-    /// Uma caixa de texto é conteúdo, não decoração. Antes daqui ela era
-    /// registrada no inventário e descartada, e um documento cujo título mora
-    /// dentro de uma caixa — a capa do modelo de manual é assim — abria sem
-    /// título nenhum. O aviso dizia "formas e caixas de texto", que descreve o
-    /// que aconteceu sem dizer o que sumiu.
+    /// Uma caixa de texto é conteúdo, não decoração: um documento cujo título
+    /// mora dentro de uma caixa — a capa do modelo de manual é assim — abriria
+    /// sem título nenhum se ela fosse descartada.
     ///
     /// O texto entra na linha onde a forma está ancorada, e não na posição da
     /// página em que o Word a desenha: não há layout flutuante aqui, e a
@@ -1904,8 +1902,7 @@ public sealed class BodyReader(
     /// Vale para a imagem no meio da linha (`wp:inline`) e também para a
     /// ancorada que está onde o fluxo já a poria — o jeito do LibreOffice
     /// gravar "imagem no próprio parágrafo". Quem separa as duas é
-    /// <see cref="AnchorReader.FlowsWithText"/>. Ver docs/01-corpus-docx.md,
-    /// Descoberta 3.
+    /// <see cref="AnchorReader.FlowsWithText"/>.
     /// </remarks>
     /// <summary>Os bytes da imagem como data URI, ou `null` se não houver.</summary>
     /// <remarks>
@@ -2160,7 +2157,7 @@ public sealed class BodyReader(
             var rowNode = Node.Of("tableRow");
             rowNode.Content = cells;
 
-            // A linha inserida ou excluída (M10), do `w:trPr`.
+            // A linha inserida ou excluída, do `w:trPr`.
             if (revisions && Revisions.BlockRevisionOf(row.TableRowProperties) is { } rowRevision)
             {
                 rowNode.With("rowRevision", rowRevision);

@@ -3,8 +3,8 @@ import { noteBody, parkNoteBody, placeNoteBody, subscribeNoteBodies } from './ex
 import { NOTE_SEPARATOR_PX, type NoteArea, type NoteAreaItem } from './usePagination.js'
 
 /**
- * A área de notas de uma folha (M11): o separador e as notas, cada uma com o
- * pedaço que a paginação deu a esta folha.
+ * A área de notas de uma folha: o separador e as notas, cada uma com o pedaço
+ * que a paginação deu a esta folha.
  *
  * O pedaço que começa na primeira linha mostra o **próprio** corpo editável da
  * nota (`note-view.ts`), recortado na altura que coube; a continuação, na folha

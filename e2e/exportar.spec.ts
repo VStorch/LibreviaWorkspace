@@ -6,8 +6,8 @@ import { launch, menu, stubDialogs, type Session } from './app.js'
 import { docxWithFootnote, entryOf } from './fixtures.js'
 
 /**
- * Arquivo → Exportar como → HTML…, Markdown… e ODT… (M11). Exportar escreve um arquivo
- * novo: o documento continua no caminho dele e sem alteração pendente.
+ * Arquivo → Exportar como → HTML…, Markdown… e ODT…. Exportar escreve um
+ * arquivo novo: o documento continua no caminho dele e sem alteração pendente.
  */
 test.describe('exportar como HTML, Markdown e ODT', () => {
   let session: Session

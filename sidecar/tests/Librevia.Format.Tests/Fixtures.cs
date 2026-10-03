@@ -9,9 +9,8 @@ namespace Librevia.Format.Tests;
 /// </summary>
 /// <remarks>
 /// O corpus real da empresa tem marca de cliente e capturas de sistemas
-/// internos — não entra no repositório
-/// (docs/01-corpus-docx.md). Estes fixtures reproduzem as **estruturas**
-/// catalogadas lá com conteúdo inventado.
+/// internos — não entra no repositório. Estes fixtures reproduzem as
+/// **estruturas** dele com conteúdo inventado.
 ///
 /// Construir em código em vez de guardar `.docx` tem uma vantagem que não é
 /// óbvia: o que o fixture contém fica legível na revisão. Um binário no git é
@@ -54,7 +53,7 @@ public static class Fixtures
     });
 
     /// <summary>
-    /// Uma conversa, um comentário resolvido e um de ponto (M10).
+    /// Uma conversa, um comentário resolvido e um de ponto.
     /// </summary>
     /// <remarks>
     /// Como o Word grava: a resposta abraça o mesmo trecho que o comentário que ela
@@ -148,7 +147,6 @@ public static class Fixtures
 
     /// <summary>
     /// Imagem ancorada e centralizada, do jeito que o LibreOffice grava.
-    /// Ver docs/01-corpus-docx.md, Descoberta 3.
     /// </summary>
     public static byte[] WithAnchoredImage() => Build((body, part) =>
     {
@@ -795,8 +793,8 @@ public static class Fixtures
     });
 
     /// <summary>
-    /// Colunas (M9): a primeira seção em duas colunas iguais com linha entre elas
-    /// e uma quebra de coluna; a do corpo em três de larguras diferentes.
+    /// Colunas: a primeira seção em duas colunas iguais com linha entre elas e
+    /// uma quebra de coluna; a do corpo em três de larguras diferentes.
     /// </summary>
     public static byte[] WithColumns() => Build((body, _) =>
     {
@@ -1678,10 +1676,11 @@ public static class Fixtures
     });
 
     /// <summary>
-    /// As referências do Word (M8), como ele as grava: sumário num controle de
-    /// conteúdo, títulos com os marcadores ocultos `_Toc…`, um marcador do autor
-    /// que começa num parágrafo e termina **entre** dois (no corpo), legenda com
-    /// `SEQ`, referência cruzada com `REF` e `PAGEREF`, e link interno.
+    /// As referências do Word, como ele as grava: sumário num controle de
+    /// conteúdo, títulos com os marcadores ocultos `_Toc…`, um marcador do
+    /// autor que começa num parágrafo e termina **entre** dois (no corpo),
+    /// legenda com `SEQ`, referência cruzada com `REF` e `PAGEREF`, e link
+    /// interno.
     /// </summary>
     /// <remarks>
     /// Em XML cru, e não montado pelo SDK: o que se testa aqui é justamente a forma

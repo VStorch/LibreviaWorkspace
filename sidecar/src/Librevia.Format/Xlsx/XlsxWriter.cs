@@ -6,8 +6,8 @@ namespace Librevia.Format.Xlsx;
 /// Modelo do aplicativo → XLSX, escrevendo **só o que mudou**.
 /// </summary>
 /// <remarks>
-/// O princípio é o mesmo da Fase 4: o que o usuário não editou volta como
-/// estava. A execução é diferente, e a diferença vem de uma medição.
+/// O princípio é o mesmo do DOCX: o que o usuário não editou volta como estava.
+/// A execução é diferente, e a diferença vem de uma medição.
 ///
 /// No DOCX, a preservação é feita à mão, parte por parte, porque a biblioteca
 /// regenerava tudo. No XLSX, o ClosedXML **preserva as partes que não modela** —

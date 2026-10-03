@@ -188,7 +188,7 @@ export const BlockFormat = Extension.create<BlockFormatOptions>({
           },
 
           /**
-           * A seção que termina neste parágrafo (M9): o id dela em `sections`.
+           * A seção que termina neste parágrafo: o id dela em `sections`.
            *
            * É o `w:sectPr` do OOXML, que mora no parágrafo que fecha a seção. A
            * configuração fica fora do nó, como os estilos; o id é só o elo. Não

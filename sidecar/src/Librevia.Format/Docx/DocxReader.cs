@@ -26,10 +26,11 @@ public sealed record DocumentModelDto(
     [property: JsonPropertyName("flatten")]
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     bool Flatten = false,
-    // O rascunho é de antes das referências (M8): os nós dele não trazem
-    // marcador, campo, link interno nem sumário. Como `Flatten`, só a gravação o
-    // lê — a leitura de referência tem de ser a de então, ou todo bloco com um
-    // marcador pareceria mudado e os `oid` depois de um sumário se desencontrariam.
+    // O rascunho é de antes das referências: os nós dele não trazem marcador,
+    // campo, link interno nem sumário. Como `Flatten`, só a gravação o lê — a
+    // leitura de referência tem de ser a de então, ou todo bloco com um
+    // marcador pareceria mudado e os `oid` depois de um sumário se
+    // desencontrariam.
     [property: JsonPropertyName("beforeReferences")]
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     bool BeforeReferences = false,
@@ -40,8 +41,8 @@ public sealed record DocumentModelDto(
     [property: JsonPropertyName("outsideBookmarks")]
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     List<string>? OutsideBookmarks = null,
-    // As seções antes da última (M9), em ordem — ver PageReader.ReadAll. Ausente
-    // é documento de uma seção só.
+    // As seções antes da última, em ordem — ver PageReader.ReadAll. Ausente é
+    // documento de uma seção só.
     [property: JsonPropertyName("sections")]
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     List<PageSetupDto>? Sections = null,
@@ -52,7 +53,7 @@ public sealed record DocumentModelDto(
     [property: JsonPropertyName("beforeSections")]
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     bool BeforeSections = false,
-    // Os comentários do documento (M10), fora dos nós — ver CommentsReader. Na
+    // Os comentários do documento, fora dos nós — ver CommentsReader. Na
     // gravação, ausente é "não mexa"; a lista é o que vale, e o que não mudou
     // volta byte a byte — ver CommentsWriter.
     [property: JsonPropertyName("comments")]
@@ -63,8 +64,8 @@ public sealed record DocumentModelDto(
     [property: JsonPropertyName("beforeComments")]
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     bool BeforeComments = false,
-    // O `w:trackRevisions` do `settings.xml` (M10). A leitura só o dá quando
-    // ligado; na gravação, ausente é "não mexa" — ver Revisions.ApplyTracking.
+    // O `w:trackRevisions` do `settings.xml`. A leitura só o dá quando ligado;
+    // na gravação, ausente é "não mexa" — ver Revisions.ApplyTracking.
     [property: JsonPropertyName("trackChanges")]
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     bool? TrackChanges = null,
@@ -74,8 +75,9 @@ public sealed record DocumentModelDto(
     [property: JsonPropertyName("beforeRevisions")]
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     bool BeforeRevisions = false,
-    // Como o documento numera as notas (M11), fora dos nós — ver NotesReader. A
-    // gravação só a escreve quando difere da do pacote (NotesWriter.ApplyNumbering).
+    // Como o documento numera as notas, fora dos nós — ver NotesReader. A
+    // gravação só a escreve quando difere da do pacote
+    // (NotesWriter.ApplyNumbering).
     [property: JsonPropertyName("notes")]
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     NotesDto? Notes = null,
@@ -90,12 +92,12 @@ public sealed record DocumentModelDto(
     [property: JsonPropertyName("beforeMath")]
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     bool BeforeMath = false,
-    // As propriedades do documento (M11), fora dos nós — ver DocumentProperties.
-    // Na gravação, cada campo é remendo: ausente é "não mexa".
+    // As propriedades do documento, fora dos nós — ver DocumentProperties. Na
+    // gravação, cada campo é remendo: ausente é "não mexa".
     [property: JsonPropertyName("properties")]
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     PropertiesDto? Properties = null,
-    // O destino é um modelo do Word (`.dotx`, M11). Só a gravação o lê: é o que
+    // O destino é um modelo do Word (`.dotx`). Só a gravação o lê: é o que
     // decide o rótulo da parte principal — ver PackageKind.Retarget.
     [property: JsonPropertyName("template")]
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
@@ -109,10 +111,9 @@ public sealed record OpenResult(
 /// Abre um DOCX e produz o que a tela precisa.
 /// </summary>
 /// <remarks>
-/// O pacote **não** fica guardado em lugar nenhum. O sidecar é sem estado por
-/// decisão de desenho (docs/02-docx-cirurgico.md): a gravação reabre os bytes
-/// originais que o processo main manteve. Guardar o pacote aqui quebraria a
-/// promessa da Fase 3.5 de que a morte do sidecar não custa o documento aberto.
+/// O pacote **não** fica guardado em lugar nenhum. O sidecar é sem estado: a
+/// gravação reabre os bytes originais que o processo main manteve. Guardar o
+/// pacote aqui faria a morte do sidecar custar o documento aberto.
 /// </remarks>
 public static class DocxReader
 {
@@ -134,7 +135,7 @@ public static class DocxReader
 
         var inventory = new Inventory();
         NoteWholeDocumentFeatures(part, inventory);
-        // O `.dotm` (M11): as macros não chegam a arquivo nenhum que sair daqui.
+        // O `.dotm`: as macros não chegam a arquivo nenhum que sair daqui.
         if (PackageKind.HasMacros(bytes)) inventory.NoteLoss(PackageKind.Macros);
 
         var (content, _) = new BodyReader(part, inventory, flatten).Read(body);
@@ -234,13 +235,13 @@ public static class DocxReader
     /// </remarks>
     private static void NoteWholeDocumentFeatures(MainDocumentPart part, Inventory inventory)
     {
-        // Os comentários não entram mais aqui: o painel os mostra (M10). Nem as
-        // notas: a referência virou `noteRef`, com o corpo dentro (M11).
+        // Os comentários não entram mais aqui: o painel os mostra. Nem as
+        // notas: a referência virou `noteRef`, com o corpo dentro.
 
-        // As revisões de texto não entram mais aqui: o editor as mostra (M10).
-        // Sobram as de estrutura, que ele não representa e a gravação de uma
-        // tabela ou seção editada perderia, e as de formatação, que só se perdem
-        // no parágrafo editado — ver DocxWriter.NoteWhatWasInside.
+        // As revisões de texto não entram mais aqui: o editor as mostra. Sobram
+        // as de estrutura, que ele não representa e a gravação de uma tabela ou
+        // seção editada perderia, e as de formatação, que só se perdem no
+        // parágrafo editado — ver DocxWriter.NoteWhatWasInside.
         var document = part.Document;
         if (document is null) return;
 

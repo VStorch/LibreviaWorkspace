@@ -4,13 +4,12 @@ using Librevia.Format.Docx;
 namespace Librevia.Format.Tests;
 
 /// <summary>
-/// Seções (M9): todas lidas, todas gravadas, e a que ninguém tocou volta byte a byte.
+/// Seções: todas lidas, todas gravadas, e a que ninguém tocou volta byte a
+/// byte.
 /// </summary>
 /// <remarks>
-/// O documento tinha uma configuração de página só, lida da primeira seção, e
-/// uma divergência entre seções virava perda declarada. Agora cada `w:sectPr` é
-/// uma seção do modelo: o de parágrafo com id (o `sectionBreak` do parágrafo que
-/// a encerra), o do corpo como `page`.
+/// Cada `w:sectPr` é uma seção do modelo: o de parágrafo com id (o
+/// `sectionBreak` do parágrafo que a encerra), o do corpo como `page`.
 /// </remarks>
 public class SectionsTests
 {

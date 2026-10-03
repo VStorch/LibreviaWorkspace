@@ -3,11 +3,11 @@ import { SPECIAL_CHARACTER_GROUPS } from './special-characters.js'
 import { latexOfSymbol } from './mathml-latex.js'
 
 /**
- * Os modelos do editor de equações (M11, fase 2): o que um clique põe no LaTeX.
+ * Os modelos do editor de equações: o que um clique põe no LaTeX.
  *
  * As estruturas são escritas aqui; as letras gregas e os operadores saem do
  * catálogo dos caracteres especiais (`special-characters.ts`) — os mesmos
- * caracteres, com os mesmos nomes, agora com o comando do LaTeX.
+ * caracteres, com os mesmos nomes, acrescidos do comando do LaTeX.
  */
 
 export interface MathTemplate {

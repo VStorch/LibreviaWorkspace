@@ -6,7 +6,7 @@ import { noteRefAround } from './note-ref.js'
 import { KEEP_SELECTION } from './zero-width.js'
 
 /**
- * Comentários (M10): as duas pontas da âncora como nós sem largura.
+ * Comentários: as duas pontas da âncora como nós sem largura.
  *
  * Mesmo desenho do marcador (ver bookmark.ts): no arquivo a âncora é um par
  * `w:commentRangeStart`/`w:commentRangeEnd` que pode atravessar parágrafos, e é
@@ -33,8 +33,8 @@ export function commentAnchorsOf(doc: ProseMirrorNode): Map<string, CommentAncho
   const anchors = new Map<string, CommentAnchor>()
   doc.descendants((node, pos) => {
     const kind = node.type.name
-    // Desce também no corpo das notas (M11): a conversa ancorada numa nota tem
-    // cartão como as outras, na altura do corpo, no pé da página.
+    // Desce também no corpo das notas: a conversa ancorada numa nota tem cartão
+    // como as outras, na altura do corpo, no pé da página.
     if (kind !== 'commentStart' && kind !== 'commentEnd') return true
     const cid = String(node.attrs['cid'] ?? '')
     const known = anchors.get(cid) ?? { cid, start: null, end: null }

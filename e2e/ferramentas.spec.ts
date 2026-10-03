@@ -191,9 +191,9 @@ test.describe('ferramentas do documento', () => {
   })
 
   test('o seletor de caracteres especiais também anda pelo teclado', async () => {
-    // O defeito que este teste cobre: nada recebia foco ao abrir o painel, então as
-    // setas moviam o cursor do texto, `Enter` partia o parágrafo e só o mouse
-    // inseria. Pior, o `Tab` saía do painel e caía no seletor "Estilo" da barra.
+    // Sem foco no painel, as setas moveriam o cursor do texto, `Enter` partiria
+    // o parágrafo e só o mouse inseriria; o `Tab` sairia do painel e cairia no
+    // seletor "Estilo" da barra.
     const editor = session.window.locator('.ProseMirror')
     await editor.click()
     await session.window.keyboard.type('Bom dia')

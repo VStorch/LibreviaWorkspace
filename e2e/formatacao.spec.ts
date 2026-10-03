@@ -61,7 +61,7 @@ test.describe('formatação do documento', () => {
     expect(corpo).toContain('w:vertAlign w:val="subscript"')
 
     // E nada no aviso: o inventário é o lugar onde uma formatação que não
-    // sabemos gravar tem de aparecer, e esta agora sabemos gravar.
+    // sabemos gravar tem de aparecer, e esta sabemos gravar.
     await expect(session.window.locator('.banner--notice')).toHaveCount(0)
   })
 

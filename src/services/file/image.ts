@@ -7,7 +7,7 @@
  *
  * SVG é recusado de propósito, mesmo sendo uma imagem legítima: é um documento
  * XML que pode carregar script, e embuti-lo num editor seria abrir XSS dentro
- * do próprio arquivo do usuário (ver docs/00-plano-tecnico.md §6.7).
+ * do próprio arquivo do usuário.
  */
 
 export const ALLOWED_IMAGE_MIME_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'] as const

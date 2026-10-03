@@ -9,7 +9,7 @@ using Cex = DocumentFormat.OpenXml.Office2021.Word.CommentsExt;
 namespace Librevia.Format.Docx;
 
 /// <summary>
-/// Os comentários do modelo → `word/comments.xml` e as partes que o acompanham (M10, fase 2).
+/// Os comentários do modelo → `word/comments.xml` e as partes que o acompanham.
 /// </summary>
 /// <remarks>
 /// Mesma regra do resto da gravação: só muda o que o usuário mudou. O modelo é
@@ -388,7 +388,7 @@ public static class CommentsWriter
     }
 
     /// <summary>
-    /// As partes em que o editor põe âncoras de comentário: o corpo e as notas (M11).
+    /// As partes em que o editor põe âncoras de comentário: o corpo e as notas.
     /// As faixas não — o editor não as tem.
     /// </summary>
     internal static IReadOnlyList<OpenXmlElement> AnchorRoots(MainDocumentPart part) =>

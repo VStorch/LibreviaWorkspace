@@ -65,18 +65,18 @@ export interface MeasuredBlock {
    */
   readonly hangingBottom?: number
   /**
-   * A seção do bloco (M9): o índice dela em `SectionFlow[]`. Ausente é a
-   * primeira — o documento de uma seção só.
+   * A seção do bloco: o índice dela em `SectionFlow[]`. Ausente é a primeira —
+   * o documento de uma seção só.
    */
   readonly section?: number
   /** `w:br w:type="column"`: a coluna termina depois deste bloco. */
   readonly columnBreakAfter?: boolean
-  /** As notas de rodapé cujas referências estão neste bloco (M11), na ordem do texto. */
+  /** As notas de rodapé cujas referências estão neste bloco, na ordem do texto. */
   readonly notes?: readonly MeasuredNote[]
 }
 
 /**
- * Uma nota de rodapé, medida no corpo dela (M11).
+ * Uma nota de rodapé, medida no corpo dela.
  *
  * A altura não depende da paginação — o corpo é medido na largura da coluna de
  * texto, fora do fluxo —, e por isso reservá-la não realimenta a medida.
@@ -121,7 +121,7 @@ export interface SectionFlow {
 }
 
 /**
- * Onde um bloco de seção com colunas foi posto (M9).
+ * Onde um bloco de seção com colunas foi posto.
  *
  * O editor continua sendo uma tira só; a coluna é desenhada **levantando** o
  * primeiro bloco de cada coluna até o topo da região (`lift` negativo) e
@@ -267,11 +267,11 @@ export function paginateSections(
   open(firstSection)
   if (blocks.length === 0) return { breaks, sheets, placements, regions, notes, noteHeights }
 
-  // As notas de rodapé (M11). A folha leva a nota cuja referência ela leva, no
-  // pé, e a conta de caber passa a ser texto + separador + notas. A nota longa
-  // segue a regra do Word: a linha da referência e pelo menos a primeira linha
-  // da nota ficam na mesma folha, e o resto continua no alto da área de notas
-  // da folha seguinte (`carry`).
+  // As notas de rodapé. A folha leva a nota cuja referência ela leva, no pé, e
+  // a conta de caber passa a ser texto + separador + notas. A nota longa segue
+  // a regra do Word: a linha da referência e pelo menos a primeira linha da
+  // nota ficam na mesma folha, e o resto continua no alto da área de notas da
+  // folha seguinte (`carry`).
   const footnotes = blocks.flatMap((block) => block.notes ?? [])
   // A primeira nota que ainda não caiu em folha nenhuma.
   let nextNote = 0

@@ -11,7 +11,7 @@ import { useT } from '../i18n.js'
  *
  * As duas listas ficam **separadas na tela**, e não numa só, porque são
  * problemas diferentes: uma diz "existe e você não vê", a outra diz "vai
- * sumir". Ver docs/02-docx-cirurgico.md.
+ * sumir".
  */
 export function InventoryBanner(): React.JSX.Element | null {
   const t = useT()

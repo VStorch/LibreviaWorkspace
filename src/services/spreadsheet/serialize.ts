@@ -7,7 +7,7 @@ import { DEFAULT_COLUMN_COUNT, DEFAULT_ROW_COUNT, createEmptyWorkbook, type Work
  * Formato interno `.ssheet`.
  *
  * Mesma ideia do `.sdoc`: o modelo gravado como está, num JSON. Serve para
- * salvar e reabrir **sem perda nenhuma** enquanto o XLSX não chega (Fase 7).
+ * salvar e reabrir **sem perda nenhuma** enquanto o XLSX não chega.
  *
  * O mapa de células é esparso também no arquivo — uma planilha de 10 mil linhas
  * com trinta valores gera trinta entradas, não dez mil linhas vazias.

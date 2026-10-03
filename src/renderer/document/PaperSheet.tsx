@@ -41,7 +41,7 @@ export function PaperSheet({
   section?: number
   /** As linhas entre colunas desta folha, em pixels da folha. */
   columnLines?: readonly { readonly leftPx: number; readonly topPx: number; readonly heightPx: number }[]
-  /** As notas de rodapé e de fim desta folha (M11). */
+  /** As notas de rodapé e de fim desta folha. */
   noteAreas?: readonly NoteArea[]
   /** Os objetos ancorados em blocos que caíram nesta folha. */
   floats: readonly PlacedFloat[]

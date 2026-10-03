@@ -5,7 +5,7 @@ using System.Xml.Linq;
 namespace Librevia.Format.Docx;
 
 /// <summary>
-/// A equação do Word (OMML, `m:oMath` e `m:oMathPara`) desenhada como MathML (M11).
+/// A equação do Word (OMML, `m:oMath` e `m:oMathPara`) desenhada como MathML.
 /// </summary>
 /// <remarks>
 /// Só para a **tela**: o arquivo continua guardando o OMML do jeito que veio, e é
@@ -534,7 +534,7 @@ public static partial class OmmlMath
 }
 
 /// <summary>
-/// O caminho de volta (M11, fase 2): o MathML de uma equação editada vira OMML.
+/// O caminho de volta: o MathML de uma equação editada vira OMML.
 /// </summary>
 /// <remarks>
 /// Só para a equação sem `omml` — a nova, ou a que a pessoa editou. A que veio do

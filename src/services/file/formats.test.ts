@@ -14,7 +14,6 @@ describe('fileNameFromPath', () => {
   it.each([
     ['/home/ana/relatorio.txt', 'relatorio.txt'],
     ['C:\\Users\\Ana\\relatorio.txt', 'relatorio.txt'],
-    // Pastas de rede são o caso que a Fase 1 precisa acertar.
     ['\\\\servidor\\setor\\ata.txt', 'ata.txt'],
     ['/mnt/rede/contratos/minuta final.txt', 'minuta final.txt'],
     ['sem-pasta.txt', 'sem-pasta.txt'],

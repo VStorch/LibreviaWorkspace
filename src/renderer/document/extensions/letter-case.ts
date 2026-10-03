@@ -4,9 +4,9 @@ import { Mark, mergeAttributes } from '@tiptap/core'
  * Maiúsculas e versalete.
  *
  * Não existem no StarterKit, e entraram porque o corpus real pediu: o documento
- * de 15 páginas usa `w:caps` e `w:smallCaps` 45 vezes (docs/01-corpus-docx.md).
- * Sem eles, esses trechos abririam sem a formatação e a gravação os devolveria
- * como texto comum — perda silenciosa, justamente o que a Fase 4 combate.
+ * de 15 páginas usa `w:caps` e `w:smallCaps` 45 vezes. Sem eles, esses trechos
+ * abririam sem a formatação e a gravação os devolveria como texto comum — perda
+ * silenciosa.
  *
  * São dois marks e não um atributo de `textStyle` porque no OOXML são duas
  * propriedades independentes, que podem estar ligadas ao mesmo tempo.

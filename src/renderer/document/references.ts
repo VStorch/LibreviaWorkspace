@@ -30,8 +30,8 @@ import { outlineBlocksOf } from './outline-blocks.js'
 import { drawnSheet, type PageLayout, type PageStart } from './usePagination.js'
 
 /**
- * O que as referências precisam saber além do documento: em que folha cada coisa
- * caiu (a paginação do M6), como a folha numera (M7) e os estilos.
+ * O que as referências precisam saber além do documento: em que folha cada
+ * coisa caiu, como a folha numera e os estilos.
  *
  * Lido na hora do comando, e não guardado: a paginação muda a cada linha
  * digitada, e um número de página calculado com a de antes é o erro que o
@@ -42,7 +42,7 @@ export interface ReferenceContext {
   readonly page: PageSetup
   /**
    * Todas as seções, com as faixas herdadas (`effectiveSections`): o número da
-   * folha sai no formato da seção dela (M9). Ausente, vale `page`.
+   * folha sai no formato da seção dela. Ausente, vale `page`.
    */
   readonly sections?: readonly PageSetup[]
   readonly styles: StyleSheet
@@ -104,7 +104,7 @@ export function sheetAt(doc: ProseMirrorNode, starts: readonly PageStart[], pos:
 
 /** O texto entre duas posições, com o resultado dos campos no lugar deles. */
 function textBetween(doc: ProseMirrorNode, from: number, to: number): string {
-  // Sem o corpo das notas (M11): ver `textBetweenWithoutNotes`.
+  // Sem o corpo das notas: ver `textBetweenWithoutNotes`.
   return textBetweenWithoutNotes(doc, from, to, ' ', (leaf) =>
     leaf.type.name === 'field' ? String(leaf.attrs['result'] ?? '') : '',
   )
@@ -221,7 +221,7 @@ export function updateFieldsIn(
       }
       case 'NOTEREF': {
         // O número da nota cuja referência o marcador cobre — o da tela, com os
-        // reinícios por folha e por seção (M11).
+        // reinícios por folha e por seção.
         const name = fieldArgument(instr) ?? ''
         const target = bookmarks.get(name)
         if (target === undefined) {

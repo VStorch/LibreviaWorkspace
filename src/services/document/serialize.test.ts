@@ -50,7 +50,6 @@ const richDocument: DocumentModel = {
 
 describe('ida e volta do formato interno', () => {
   it('preserva o documento inteiro', () => {
-    // Este é o critério de aceite da Fase 2: salvar e reabrir sem perda.
     const restored = parseDocument(serializeDocument(richDocument))
     expect(restored).toEqual(richDocument)
   })
@@ -69,8 +68,7 @@ describe('ida e volta do formato interno', () => {
   })
 
   it('abre documento gravado antes de existirem cabeçalho e rodapé', () => {
-    // Compatibilidade com os arquivos da Fase 2: acrescentar campo opcional
-    // não pode invalidar o que já está em disco.
+    // Acrescentar campo opcional não pode invalidar o que já está em disco.
     const anterior = JSON.stringify({
       format: 'sdoc',
       version: SDOC_VERSION,
@@ -123,8 +121,8 @@ describe('estilos no formato interno', () => {
   })
 
   it('marca como anterior às referências o arquivo de antes da versão 5', () => {
-    // Os nós de antes do M8 não trazem marcador nem campo, e a gravação em DOCX
-    // precisa comparar com a leitura daquela época.
+    // Os nós de antes da versão 5 não trazem marcador nem campo, e a gravação
+    // em DOCX precisa comparar com a leitura daquela época.
     const v4 = JSON.stringify({ ...JSON.parse(v2(BUILTIN_STYLES)), version: 4 })
     expect(parseDocument(v4).beforeReferences).toBe(true)
     expect(parseDocument(v4).flattened).toBeUndefined()
@@ -134,8 +132,9 @@ describe('estilos no formato interno', () => {
   })
 
   it('marca como anterior às seções o arquivo de antes da versão 6, e leva as seções na ida e volta', () => {
-    // O rascunho de antes do M9 não tem `sections` nem `sectionBreak`: a página
-    // dele é a do documento inteiro, e a gravação em DOCX segue o caminho de então.
+    // O rascunho de antes da versão 6 não tem `sections` nem `sectionBreak`: a
+    // página dele é a do documento inteiro, e a gravação em DOCX segue o
+    // caminho de então.
     const v5 = JSON.stringify({ ...JSON.parse(v2(BUILTIN_STYLES)), version: 5 })
     expect(parseDocument(v5).beforeSections).toBe(true)
     expect(parseDocument(v5).sections).toBeUndefined()
@@ -153,7 +152,7 @@ describe('estilos no formato interno', () => {
   })
 
   it('marca como anterior aos comentários o arquivo da versão 6, e leva os comentários na ida e volta', () => {
-    // O rascunho de antes do M10 não traz as pontas da âncora nos nós, e a
+    // O rascunho de antes da versão 7 não traz as pontas da âncora nos nós, e a
     // gravação em DOCX precisa compará-lo com a leitura daquela época.
     const v6 = JSON.stringify({ ...JSON.parse(v2(BUILTIN_STYLES)), version: 6 })
     expect(parseDocument(v6).beforeComments).toBe(true)

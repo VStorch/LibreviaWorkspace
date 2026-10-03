@@ -9,7 +9,7 @@ import {
 } from './mathml.js'
 
 /**
- * O LaTeX de uma equação em MathML (M11, fase 2) — pelo Temml.
+ * O LaTeX de uma equação em MathML — pelo Temml.
  *
  * O Temml escreve MathML Core, que é o que o Chromium desenha, e roda sem rede.
  * Três coisas dele não passam pelo filtro de `mathml.ts` como estão, e são

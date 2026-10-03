@@ -37,11 +37,10 @@ async function textoDoPdf(caminho: string): Promise<string> {
 }
 
 /**
- * Comentários (M10): lidos, mostrados ao lado da folha e devolvidos ao arquivo
- * quando o parágrafo que os ancora é editado (fase 1); criados, respondidos,
- * resolvidos e excluídos no painel, e gravados de volta (fase 2); o cursor em
- * volta das âncoras, recortar e colar, navegar, esconder o painel, o autor e o
- * papel (fase 3).
+ * Comentários: lidos, mostrados ao lado da folha e devolvidos ao arquivo quando
+ * o parágrafo que os ancora é editado; criados, respondidos, resolvidos e
+ * excluídos no painel, e gravados de volta; o cursor em volta das âncoras,
+ * recortar e colar, navegar, esconder o painel, o autor e o papel.
  */
 test.describe('comentários', () => {
   let session: Session

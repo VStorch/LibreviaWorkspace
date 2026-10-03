@@ -7,13 +7,12 @@ using OfficeMath = DocumentFormat.OpenXml.Math.OfficeMath;
 namespace Librevia.Format.Tests;
 
 /// <summary>
-/// Equações (M11, fase 1): lidas como nó `math`, desenhadas em MathML, devolvidas
-/// ao arquivo com o OMML como veio.
+/// Equações: lidas como nó `math`, desenhadas em MathML, devolvidas ao arquivo
+/// com o OMML como veio.
 /// </summary>
 /// <remarks>
-/// Antes desta fase o `m:oMath` caía no `default:` do leitor e sumia sem aviso ao
-/// editar o parágrafo. O OMML dos fixtures é escrito como o Word e o LibreOffice o
-/// gravam — o corpus não tem equação nenhuma.
+/// O OMML dos fixtures é escrito como o Word e o LibreOffice o gravam — o
+/// corpus não tem equação nenhuma.
 /// </remarks>
 public class MathTests
 {

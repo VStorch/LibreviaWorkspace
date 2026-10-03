@@ -9,12 +9,10 @@ namespace Librevia.Format.Docx;
 /// cima.
 /// </summary>
 /// <remarks>
-/// Antes daqui o `w:pPr` era montado do zero a cada bloco reescrito, e com ele
-/// iam embora o estilo do parágrafo, o espaçamento, a entrelinha, o fundo, o
-/// "manter com o próximo", a fonte da marca de parágrafo e — pior de tudo — o
-/// `w:sectPr` que fecha uma seção. O leitor lê todas essas coisas e o editor as
-/// mostra na tela; o escritor as apagava em silêncio ao gravar. Corrigir uma
-/// vírgula num título custava o título.
+/// Montar o `w:pPr` do zero a cada bloco reescrito levaria embora o estilo do
+/// parágrafo, o espaçamento, a entrelinha, o fundo, o "manter com o próximo", a
+/// fonte da marca de parágrafo e — pior de tudo — o `w:sectPr` que fecha uma
+/// seção. Corrigir uma vírgula num título custaria o título.
 ///
 /// A regra é a mesma da gravação cirúrgica, um nível abaixo: **parte-se do XML
 /// original** e só se sobrepõe o que o modelo de fato representa. O que o editor
@@ -701,7 +699,7 @@ internal sealed class ParagraphFormat(
     }
 
     /// <summary>
-    /// A marca de parágrafo inserida ou excluída (M10) — `markRevision` ↔
+    /// A marca de parágrafo inserida ou excluída — `markRevision` ↔
     /// `w:pPr/w:rPr/w:ins|w:del`. A do arquivo fica quando é a mesma.
     /// </summary>
     private static void ApplyMarkRevision(ParagraphProperties properties, Node node)

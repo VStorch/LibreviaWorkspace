@@ -3,7 +3,7 @@ import { NodeSelection, type EditorState } from '@tiptap/pm/state'
 import { DELETION, INSERTION } from './extensions/track-changes.js'
 
 /**
- * Inserir e trocar equação (M11, fase 2) — o que o editor de equações faz ao OK.
+ * Inserir e trocar equação — o que o editor de equações faz ao OK.
  *
  * As duas são uma transação só, e por isso um passo só de desfazer. Trocar é
  * substituir o nó inteiro (`replaceWith`), e não mexer nos atributos: com o

@@ -19,7 +19,7 @@ namespace Librevia.Format.Docx;
 /// </remarks>
 /// <param name="owner">
 /// A parte dona do relacionamento da imagem: o documento, ou a parte das notas
-/// quando a imagem está numa nota (M11).
+/// quando a imagem está numa nota.
 /// </param>
 internal sealed class ImageWriter(MainDocumentPart part, Inventory inventory, int usableWidthPx, OpenXmlPart? owner = null)
 {
@@ -322,11 +322,11 @@ internal sealed class ImageWriter(MainDocumentPart part, Inventory inventory, in
     /// De que tamanho a imagem entra no arquivo.
     /// </summary>
     /// <remarks>
-    /// A imagem que vem do `.docx` traz as duas medidas, porque o leitor as lê do
-    /// `wp:extent`: é o tamanho que o documento pede, que não precisa ser o do
-    /// arquivo. A que a pessoa insere pela barra de ferramentas não traz nenhuma,
-    /// e aí valem as do cabeçalho dos próprios bytes — antes daqui o escritor
-    /// chutava 600 × 450, e uma captura quadrada saía deitada.
+    /// A imagem que vem do `.docx` traz as duas medidas, porque o leitor as lê
+    /// do `wp:extent`: é o tamanho que o documento pede, que não precisa ser o
+    /// do arquivo. A que a pessoa insere pela barra de ferramentas não traz
+    /// nenhuma, e aí valem as do cabeçalho dos próprios bytes — um tamanho fixo
+    /// deitaria uma captura quadrada.
     ///
     /// O teto é a largura da coluna de texto. Uma captura de tela de 1920 px
     /// entraria com 50 cm de largura e o Word a desenharia estourando as duas

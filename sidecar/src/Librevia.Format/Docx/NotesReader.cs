@@ -7,7 +7,7 @@ using DocumentFormat.OpenXml.Wordprocessing;
 namespace Librevia.Format.Docx;
 
 /// <summary>
-/// Como o documento numera as notas — `w:footnotePr`/`w:endnotePr` (M11).
+/// Como o documento numera as notas — `w:footnotePr`/`w:endnotePr`.
 /// </summary>
 /// <param name="NumFmt">`w:numFmt`: `decimal`, `lowerRoman`, `upperLetter`, `chicago`…</param>
 /// <param name="Start">`w:numStart`: o número da primeira nota.</param>

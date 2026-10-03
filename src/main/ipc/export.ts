@@ -18,7 +18,7 @@ import { editorPreferences } from '../preferences.js'
 import { handle } from './registry.js'
 
 /**
- * Exportação para HTML, Markdown e ODT (M11).
+ * Exportação para HTML, Markdown e ODT.
  *
  * O renderer manda o documento serializado — o mesmo texto do salvar — e o main
  * monta o arquivo com as funções puras de `@services/document`. Escrever é um

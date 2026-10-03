@@ -16,7 +16,7 @@ import { styleSheetCss } from './style-css.js'
 import { cellBordersFromAttr, cellBordersToCss } from './table-format.js'
 
 /**
- * Exportação para HTML (M11): uma página só, autocontida, sem script.
+ * Exportação para HTML: uma página só, autocontida, sem script.
  *
  * Parte do modelo — ver `export-common.ts`. Os estilos de parágrafo e de
  * caractere viram as mesmas regras que a tela usa (`styleSheetCss`), e o bloco
@@ -318,7 +318,7 @@ export function createHtmlRenderer(source: ExportSource, imageSrc: ImageSource):
       }
       case 'field':
         return escapeHtml(stringAttr(node.attrs?.['result']))
-      // A equação (M11) vai como o MathML filtrado — o navegador a desenha.
+      // A equação vai como o MathML filtrado — o navegador a desenha.
       case 'math':
         return mathHtml(node)
       case 'bookmarkStart': {

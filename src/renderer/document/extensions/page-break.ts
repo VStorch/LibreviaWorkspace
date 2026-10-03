@@ -53,11 +53,10 @@ export const PageBreak = Node.create({
         () =>
         ({ commands }) =>
           // A quebra vem acompanhada do parágrafo que a sucede, e o cursor
-          // termina dentro dele. É o que o Word faz com Ctrl+Enter, e resolve um
-          // defeito que só ficou visível quando a tela passou a paginar:
+          // termina dentro dele. É o que o Word faz com Ctrl+Enter, e evita que
           // `insertContent` sozinho deixa o nó **selecionado**, e como ele é
-          // atômico a primeira tecla digitada o substitui — quem inseria a
-          // quebra e continuava escrevendo a apagava sem sinal nenhum.
+          // atômico a primeira tecla digitada o substituiria — quem inserisse a
+          // quebra e continuasse escrevendo a apagaria sem sinal nenhum.
           commands.insertContent([{ type: this.name }, { type: 'paragraph' }]),
     }
   },

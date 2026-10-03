@@ -8,10 +8,9 @@ import { ALLOWED_EXTERNAL_PROTOCOLS } from '@shared/constants.js'
 /**
  * Preferências obrigatórias de toda janela do aplicativo.
  *
- * O critério de aceite da Fase 0 é que o renderer não alcance o Node.js. São
- * estes quatro valores que garantem isso, e há teste travando cada um deles:
- * uma regressão aqui é silenciosa e catastrófica, então não confiamos na
- * revisão humana.
+ * O renderer não pode alcançar o Node.js. São estes quatro valores que garantem
+ * isso, e há teste travando cada um deles: uma regressão aqui é silenciosa e
+ * catastrófica, então não confiamos na revisão humana.
  */
 export const SECURE_WEB_PREFERENCES = {
   contextIsolation: true,

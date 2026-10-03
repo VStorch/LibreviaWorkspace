@@ -212,7 +212,8 @@ describe('cortes dentro de blocos', () => {
     })
 
     it('a folha termina na última linha que cabe, e não antes do parágrafo', () => {
-      // Antes daqui o parágrafo descia inteiro e deixava 300 de buraco na folha.
+      // Sem o corte, o parágrafo desceria inteiro e deixaria 300 de buraco na
+      // folha.
       expect(paginate([...stack([700]), paragraph(700)], 1000)).toEqual([1000])
     })
 

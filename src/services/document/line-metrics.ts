@@ -10,15 +10,15 @@
  * Por isso o atributo `lineHeight` do modelo **não** guarda o fator do Word:
  * guarda o número que o CSS entende, que é o fator já multiplicado pela altura
  * natural. O leitor (`BodyReader.LineHeightOf`) multiplica na entrada e o
- * gravador (`ParagraphFormat.ApplyLineHeight`) divide na saída, e as duas pontas
- * fecham. Quem não fechava era a interface: o diálogo de parágrafo tratava o
- * número do CSS como se fosse o do Word, então todo parágrafo de Calibri abria
- * como "Múltiplo 1,1499" e escolher "1,5" gravava 1,23 linha no arquivo — erro
- * de 15 a 22 %, dependendo da fonte.
+ * gravador (`ParagraphFormat.ApplyLineHeight`) divide na saída, e as duas
+ * pontas fecham. A interface também precisa da conversão: tratar o número do
+ * CSS como se fosse o do Word faria um parágrafo de Calibri abrir como
+ * "Múltiplo 1,1499", e escolher "1,5" gravaria 1,23 linha no arquivo — erro de
+ * 15 a 22 %, dependendo da fonte.
  *
- * A tabela mora aqui, e não só no C#, porque agora as duas conversões acontecem
- * nos dois lados: `line-metrics.test.ts` compara esta tabela com `LineMetrics.cs`
- * a cada execução, para que uma fonte acrescentada lá não fique faltando aqui.
+ * A tabela mora aqui, e não só no C#, porque as duas conversões acontecem nos
+ * dois lados: `line-metrics.test.ts` compara esta tabela com `LineMetrics.cs` a
+ * cada execução, para que uma fonte acrescentada lá não fique faltando aqui.
  *
  * Só as fontes que o instalador leva, e as que elas substituem. Para o resto não
  * há palpite honesto — a substituta depende da máquina.

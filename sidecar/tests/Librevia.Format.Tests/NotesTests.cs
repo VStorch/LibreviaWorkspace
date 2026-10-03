@@ -6,7 +6,7 @@ using static Librevia.Format.Tests.Roundtrip;
 namespace Librevia.Format.Tests;
 
 /// <summary>
-/// Notas de rodapé e de fim (M11, fase 1): lidas, preservadas, devolvidas ao arquivo.
+/// Notas de rodapé e de fim: lidas, preservadas, devolvidas ao arquivo.
 /// </summary>
 /// <remarks>
 /// A referência virou o nó `noteRef`, com o corpo da nota dentro. A impressão
@@ -122,7 +122,7 @@ public class NotesTests
         Assert.Equal("lowerRoman", model.Notes?.FootnotePr?.NumFmt);
         Assert.Equal(3, model.Notes?.FootnotePr?.Start);
 
-        // A nota deixou de ser invisível — e de travar o documento.
+        // A nota não é invisível — nem trava o documento.
         Assert.DoesNotContain(Inventory.Footnotes, result.Inventory.Invisible);
         Assert.DoesNotContain(Inventory.Endnotes, result.Inventory.Invisible);
         Assert.Empty(result.Inventory.Structural);
@@ -431,7 +431,7 @@ public class NotesTests
         Assert.Equal(PartsOf(original)["word/settings.xml"], PartsOf(bytes)["word/settings.xml"]);
     }
 
-    // --- fase 3: comentários nas notas e NOTEREF --------------------------------
+    // --- comentários nas notas e NOTEREF ---------------------------------------
 
     private static Node NodeOf(string type, params (string Name, string Value)[] attrs)
     {

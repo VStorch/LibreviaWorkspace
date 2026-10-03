@@ -4,7 +4,7 @@ import type { DocumentModel, DocumentNode } from './model.js'
 import { NoteKind, noteCounter } from './notes.js'
 
 /**
- * O que a exportação para HTML e para Markdown (M11) têm em comum.
+ * O que a exportação para HTML e para Markdown têm em comum.
  *
  * As duas partem do **modelo**, e não do HTML do editor: o HTML da tela traz
  * decorações, alças, marcas de revisão e atributos que só o editor entende, e

@@ -13,10 +13,10 @@ import { useT } from '../i18n.js'
  * aparece junto do botão: um aviso que não diz o que se perde é um aviso que se
  * fecha sem ler.
  *
- * "Não reproduz por inteiro", e não "não mostra": desde que o leitor passou a
- * trazer o texto de dentro das caixas, dizer que elas não aparecem seria falso
- * na metade dos casos — o texto aparece, a moldura e a posição não. Um aviso
- * que o usuário consegue desmentir olhando a tela é pior que nenhum.
+ * "Não reproduz por inteiro", e não "não mostra": o leitor traz o texto de
+ * dentro das caixas, e dizer que elas não aparecem seria falso na metade dos
+ * casos — o texto aparece, a moldura e a posição não. Um aviso que o usuário
+ * consegue desmentir olhando a tela é pior que nenhum.
  */
 export function ReadOnlyBanner(): React.JSX.Element | null {
   const t = useT()

@@ -5,7 +5,7 @@ import { isSupportedExtension } from '@services/file/formats.js'
 import { t } from '../i18n.js'
 import { editorPreferences } from '../preferences.js'
 
-/** Teto de leitura da Fase 1. Protege contra travar a interface com um arquivo enorme. */
+/** Teto de leitura: protege contra travar a interface com um arquivo enorme. */
 export const MAX_FILE_BYTES = 20 * 1024 * 1024
 
 /**

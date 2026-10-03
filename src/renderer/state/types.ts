@@ -19,9 +19,9 @@ export interface OpenFile {
   /** `null` enquanto o arquivo nunca foi gravado. */
   readonly path: string | null
   /**
-   * O modelo do Word de que o documento novo saiu (M11), enquanto ele não for
-   * gravado. Vai como origem na primeira gravação: é por ele que o main encontra
-   * o pacote do modelo para gravar por cima — nunca é destino.
+   * O modelo do Word de que o documento novo saiu, enquanto ele não for
+   * gravado. Vai como origem na primeira gravação: é por ele que o main
+   * encontra o pacote do modelo para gravar por cima — nunca é destino.
    */
   readonly origin?: string
   readonly name: string
@@ -227,7 +227,7 @@ export interface WorkspaceState {
   removeSheet: (index: number) => void
   openViaDialog: () => Promise<void>
   openRecent: (path: string) => Promise<void>
-  /** A galeria de "Novo a partir de modelo…" (M11) está aberta. */
+  /** A galeria de "Novo a partir de modelo…" está aberta. */
   templateGallery: boolean
   setTemplateGallery: (open: boolean) => void
   /**
@@ -252,8 +252,8 @@ export interface WorkspaceState {
 
   exportPdf: () => Promise<boolean>
   /**
-   * Exporta para HTML ou Markdown (M11) num arquivo novo. O documento continua
-   * no caminho dele e com o estado de alterado que tinha.
+   * Exporta para HTML ou Markdown num arquivo novo. O documento continua no
+   * caminho dele e com o estado de alterado que tinha.
    */
   exportDocument: (format: 'html' | 'markdown' | 'odt') => Promise<boolean>
   print: () => Promise<boolean>

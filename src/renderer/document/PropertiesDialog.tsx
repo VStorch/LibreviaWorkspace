@@ -21,7 +21,7 @@ const EDITABLE = [
 type EditableKey = (typeof EDITABLE)[number][0]
 
 /**
- * Arquivo → Propriedades (M11): o resumo que o Word guarda em `docProps/` e as
+ * Arquivo → Propriedades: o resumo que o Word guarda em `docProps/` e as
  * estatísticas do documento.
  *
  * O que se grava é um **remendo**: o campo que o arquivo não tinha e continuou

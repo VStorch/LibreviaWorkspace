@@ -46,7 +46,7 @@ import { cellBordersFromAttr, type CellBorder } from './table-format.js'
 import { zip, type Deflate, type ZipEntry } from './zip.js'
 
 /**
- * Exportação para ODT — o texto do OpenDocument (M11).
+ * Exportação para ODT — o texto do OpenDocument.
  *
  * Feita aqui, e não no sidecar, porque o que dá trabalho no ODT já está pronto
  * deste lado: a cascata de estilos, a conta das listas como o Word conta e a
@@ -183,9 +183,9 @@ interface Formula {
 }
 
 /**
- * As equações do pacote (M11, fase 3): cada uma é um objeto de fórmula embutido,
- * uma subpasta com o MathML — como o LibreOffice Math grava. Sem a imagem de
- * substituição (`ObjectReplacements/`): quem abre o arquivo desenha a fórmula.
+ * As equações do pacote: cada uma é um objeto de fórmula embutido, uma subpasta
+ * com o MathML — como o LibreOffice Math grava. Sem a imagem de substituição
+ * (`ObjectReplacements/`): quem abre o arquivo desenha a fórmula.
  */
 class FormulaBook {
   private readonly formulas: Formula[] = []
@@ -1106,7 +1106,7 @@ class Renderer {
     )
   }
 
-  /** A equação (M11, fase 3): um objeto de fórmula no texto, como um caractere. */
+  /** A equação: um objeto de fórmula no texto, como um caractere. */
   private formula(node: DocumentNode): string {
     const tree = sanitizeMathMl(typeof node.attrs?.['mathml'] === 'string' ? node.attrs['mathml'] : '')
     if (tree === null) return ''

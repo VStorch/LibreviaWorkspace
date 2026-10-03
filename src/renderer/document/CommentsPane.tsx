@@ -52,7 +52,7 @@ interface Composing {
 }
 
 /**
- * Os comentários do documento, numa coluna ao lado das folhas (M10).
+ * Os comentários do documento, numa coluna ao lado das folhas.
  *
  * `comments` são os que valem agora (`resolveComments`): o desfeito e o excluído
  * já não vêm. O cartão escolhido mostra as ações — responder, editar, resolver,

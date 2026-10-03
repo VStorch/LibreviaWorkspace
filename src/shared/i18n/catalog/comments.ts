@@ -1,7 +1,7 @@
 import type { Catalog } from '../message.js'
 
 /**
- * Comentários (M10): o painel ao lado da folha, e criar, responder, resolver.
+ * Comentários: o painel ao lado da folha, e criar, responder, resolver.
  *
  * Área própria porque o marco inteiro mora aqui — e as fases seguintes (criar,
  * responder, resolver) crescem a lista sem tocar as outras áreas.

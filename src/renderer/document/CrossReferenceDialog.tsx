@@ -12,7 +12,7 @@ import {
   type ReferenceContext,
 } from './references.js'
 
-/** O valor do seletor de tipo para cada tipo de nota (M11). */
+/** O valor do seletor de tipo para cada tipo de nota. */
 const NOTE_TYPES: Record<NoteKind, string> = {
   [NoteKind.Footnote]: 'note:footnote',
   [NoteKind.Endnote]: 'note:endnote',

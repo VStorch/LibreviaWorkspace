@@ -2,8 +2,8 @@ import { firstFontOf, lineFactorOf } from './line-metrics.js'
 import type { StyleCharacterFormat, StyleParagraphFormat } from './styles.js'
 
 /**
- * As peças miúdas da exportação para ODT (M11): escapar, medir, traduzir cor e
- * fonte, e o caderno de estilos automáticos.
+ * As peças miúdas da exportação para ODT: escapar, medir, traduzir cor e fonte,
+ * e o caderno de estilos automáticos.
  *
  * O ODF guarda a formatação em **estilos**, não no texto: cada parágrafo com
  * formatação direta aponta um estilo automático que herda do estilo nomeado

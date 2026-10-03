@@ -94,9 +94,10 @@ public sealed class Node
         switch (node)
         {
             case JsonObject o:
-                // A referência de nota (M11) vale pelo que aponta, e não pelo corpo da
-                // nota: editar a nota não pode fazer o parágrafo que a referencia
-                // parecer editado. Quem compara o corpo é NotesWriter, bloco a bloco.
+                // A referência de nota vale pelo que aponta, e não pelo corpo
+                // da nota: editar a nota não pode fazer o parágrafo que a
+                // referencia parecer editado. Quem compara o corpo é
+                // NotesWriter, bloco a bloco.
                 if (o["type"]?.GetValueKind() == JsonValueKind.String &&
                     o["type"]!.GetValue<string>() == "noteRef")
                 {
@@ -110,10 +111,10 @@ public sealed class Node
                     }
                 }
 
-                // A equação (M11) vale pelo OMML: o MathML, o LaTeX e a lista do que
-                // não se desenha saem dele, e mudam quando a conversão melhora — o
-                // parágrafo não pode parecer editado por isso.
-                // A nova ou editada (sem OMML) vale pelo MathML e pelo modo.
+                // A equação vale pelo OMML: o MathML, o LaTeX e a lista do que
+                // não se desenha saem dele, e mudam quando a conversão melhora
+                // — o parágrafo não pode parecer editado por isso. A nova ou
+                // editada (sem OMML) vale pelo MathML e pelo modo.
                 if (o["type"]?.GetValueKind() == JsonValueKind.String &&
                     o["type"]!.GetValue<string>() == "math" &&
                     o["attrs"] is JsonObject mathAttrs &&

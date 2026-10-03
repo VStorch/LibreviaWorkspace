@@ -18,11 +18,11 @@ import type { SerializedError } from './errors.js'
 /**
  * Contratos de IPC.
  *
- * Princípio de arquitetura (ver docs/00-plano-tecnico.md §4.5): esta fronteira é
- * **neutra em linguagem**. Só trafegam dados serializáveis — nunca objetos do
- * Node, Buffers compartilhados, classes ou tipos de bibliotecas de terceiros.
- * É isso que permite, no futuro, trocar um worker Node por um binário de outra
- * linguagem sem tocar no resto do aplicativo.
+ * Princípio de arquitetura: esta fronteira é **neutra em linguagem**. Só
+ * trafegam dados serializáveis — nunca objetos do Node, Buffers compartilhados,
+ * classes ou tipos de bibliotecas de terceiros. É isso que permite, no futuro,
+ * trocar um worker Node por um binário de outra linguagem sem tocar no resto do
+ * aplicativo.
  */
 
 /**
@@ -49,12 +49,12 @@ const loadedFileSchema = z.object({
   kind: documentKindSchema,
   content: z.string(),
   inventory: inventorySchema.optional(),
-  // O arquivo é um modelo do Word (M11): o renderer o abre como documento novo,
-  // sem título, e `path` vira só a origem do pacote — nunca destino de gravação.
+  // O arquivo é um modelo do Word: o renderer o abre como documento novo, sem
+  // título, e `path` vira só a origem do pacote — nunca destino de gravação.
   template: z.boolean().optional(),
 })
 
-/** Um modelo da galeria (M11): o embutido pelo id, o do usuário pelo caminho. */
+/** Um modelo da galeria: o embutido pelo id, o do usuário pelo caminho. */
 const templateEntrySchema = z.object({
   source: z.enum(['builtin', 'user']),
   id: z.string().min(1).max(4096),

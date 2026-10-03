@@ -8,12 +8,7 @@ import { launch, menu, stubDialogs, type Session } from './app.js'
 import { docxWithLongTable } from './fixtures.js'
 
 /**
- * O editor pagina ao vivo.
- *
- * Até aqui a tela era uma tira contínua com marcas tracejadas de estimativa, e
- * quem paginava de verdade era só a exportação — a decisão registrada no §6.3 do
- * plano. Agora o texto corre sobre folhas desenhadas, e o número de folhas
- * responde ao que se digita.
+ * O editor pagina ao vivo: o texto corre sobre folhas desenhadas.
  *
  * A contagem de folhas responde à digitação. Na tabela longa, também se
  * confere que a última linha está dentro do papel: contar folhas sozinho não
@@ -113,16 +108,13 @@ test.describe('paginação ao vivo', () => {
     await menu(session, 'insert-page-break')
     await session.window.keyboard.type('Segunda.')
 
-    // A numeração ao lado da folha é o que diz "isto é página 2", e antes daqui
-    // toda faixa recebia `pageNumber={1}` fixo.
+    // A numeração ao lado da folha é o que diz "isto é página 2".
     await expect(session.window.locator('.paper__number')).toHaveText(['1', '2'])
   })
 
   test('o papel sai com as mesmas folhas que a tela mostra', async () => {
-    // Havia dois paginadores que precisavam concordar: o nosso, na tela, e o do
-    // Chromium, na exportação. Concordar por coincidência é o que este teste
-    // recusa — agora o papel é montado a partir das folhas da tela, e o número
-    // não pode divergir.
+    // O papel é montado a partir das folhas da tela, e o número de páginas do
+    // PDF não pode divergir do da tela.
     const destino = join(pasta, 'saida.pdf')
     await stubDialogs(session.app, { save: destino, messageBox: 1 })
 

@@ -38,8 +38,8 @@ import { noteBodyOf, type NoteBody } from './extensions/note-view.js'
 export const SHEET_GUTTER_PX = 28
 
 /**
- * O separador entre o texto e as notas (M11): uma linha de 12 pt, com o traço
- * no meio — a altura do parágrafo do separador do Word.
+ * O separador entre o texto e as notas: uma linha de 12 pt, com o traço no meio
+ * — a altura do parágrafo do separador do Word.
  */
 export const NOTE_SEPARATOR_PX = 16
 
@@ -100,7 +100,7 @@ export interface PageLayout {
   readonly anchors: readonly BlockAnchor[]
   /**
    * Cada folha desenhada: a seção dela, o número impresso, se é a primeira da
-   * seção e se é a folha em branco que a seção par ou ímpar pediu (M9).
+   * seção e se é a folha em branco que a seção par ou ímpar pediu.
    */
   readonly sheets: readonly SheetPlan[]
   /** Largura de cada folha, em pixels: a folha em paisagem é mais larga. */
@@ -116,7 +116,7 @@ export interface PageLayout {
   readonly columnMoves: readonly ColumnMove[]
   /** As linhas entre colunas, nas seções que as pedem. */
   readonly columnLines: readonly ColumnLine[]
-  /** As áreas de notas (M11), por folha desenhada. */
+  /** As áreas de notas, por folha desenhada. */
   readonly noteAreas: readonly NoteArea[]
 }
 
@@ -284,9 +284,9 @@ export function usePagination(
    * quantidade a cada letra digitada, e a quebra pedida à mão chegava a
    * desaparecer.
    *
-   * A chave passou a ser a **posição** do nó no documento, e não o índice do
-   * bloco: um corte interno empurra uma linha de tabela ou um item de lista, e
-   * nenhum dos dois tem índice na lista de blocos de primeiro nível.
+   * A chave é a **posição** do nó no documento, e não o índice do bloco: um
+   * corte interno empurra uma linha de tabela ou um item de lista, e nenhum dos
+   * dois tem índice na lista de blocos de primeiro nível.
    */
   const applied = useRef(new Map<number, number>())
 
@@ -376,8 +376,8 @@ export function usePagination(
       const targets: CutTarget[] = []
       const origin = offsetTopOf(element)
 
-      // As notas (M11): as de rodapé vão com o bloco da referência; as de fim,
-      // depois do último bloco. `refIndex` é a ordem de `noteRefsOf`.
+      // As notas: as de rodapé vão com o bloco da referência; as de fim, depois
+      // do último bloco. `refIndex` é a ordem de `noteRefsOf`.
       const measuredNotes = new Map<string, MeasuredNote & { index: number }>()
       const endnotes: (MeasuredNote & { index: number })[] = []
       let refIndex = 0

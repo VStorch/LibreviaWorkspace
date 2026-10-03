@@ -5,7 +5,7 @@ using DocumentFormat.OpenXml.Wordprocessing;
 namespace Librevia.Format.Docx;
 
 /// <summary>
-/// As seções antes da última, levadas de volta ao arquivo (M9).
+/// As seções antes da última, levadas de volta ao arquivo.
 /// </summary>
 /// <remarks>
 /// No OOXML a seção termina num `w:sectPr` guardado no `w:pPr` do parágrafo que

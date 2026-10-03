@@ -25,9 +25,9 @@ import { LEGACY_STYLES, type StyleSheet } from './styles.js'
  * Formato interno `.sdoc`.
  *
  * É um JSON: o modelo do documento gravado como está. Não substitui o DOCX —
- * serve para que a Fase 2 possa salvar e reabrir **sem perda nenhuma**, o que
- * o `.txt` não permite. Imagens vão embutidas como data URI; se isso vier a
- * pesar, o container pode virar ZIP sem que nada fora deste arquivo mude.
+ * serve para salvar e reabrir **sem perda nenhuma**, o que o `.txt` não
+ * permite. Imagens vão embutidas como data URI; se isso vier a pesar, o
+ * container pode virar ZIP sem que nada fora deste arquivo mude.
  *
  * O campo `version` existe para que um arquivo gravado hoje continue legível
  * quando o modelo evoluir. Cada versão que muda a forma do documento ganha uma
@@ -45,34 +45,34 @@ import { LEGACY_STYLES, type StyleSheet } from './styles.js'
  *   uma leitura achatada do original. Os nós não são tocados: desachatar exigiria
  *   o `styles.xml` de cada um, e o achatado desenha igual.
  * - **5** — o leitor do `.docx` passou a produzir marcadores, campos, links
- *   internos e sumário (M8). O rascunho anterior não os tem nos nós, e a leitura
- *   o marca (`beforeReferences`) pelo mesmo motivo da versão 4.
- * - **6** — o documento passou a ter **seções** (M9): `sections` leva as
- *   anteriores à última, e o parágrafo que encerra cada uma leva `sectionBreak`.
- *   O rascunho anterior não tem nem uma coisa nem outra — a página dele é a do
+ *   internos e sumário. O rascunho anterior não os tem nos nós, e a leitura o
+ *   marca (`beforeReferences`) pelo mesmo motivo da versão 4.
+ * - **6** — o documento passou a ter **seções**: `sections` leva as anteriores
+ *   à última, e o parágrafo que encerra cada uma leva `sectionBreak`. O
+ *   rascunho anterior não tem nem uma coisa nem outra — a página dele é a do
  *   documento inteiro —, e a leitura o marca (`beforeSections`) pelo mesmo
  *   motivo da versão 4.
- * - **7** — o documento passou a ter **comentários** (M10): `comments` leva o
- *   corpo de cada um, e o texto leva as pontas da âncora (`commentStart` e
+ * - **7** — o documento passou a ter **comentários**: `comments` leva o corpo
+ *   de cada um, e o texto leva as pontas da âncora (`commentStart` e
  *   `commentEnd`). O rascunho anterior não tem as pontas, e a leitura o marca
  *   (`beforeComments`) pelo mesmo motivo da versão 4.
- * - **8** — o texto passou a levar as **revisões** (M10): as marcas `insertion` e
- *   `deletion`, a revisão da marca de parágrafo (`markRevision`) e a da linha de
- *   tabela (`rowRevision`); `trackChanges` é o interruptor do documento. O
+ * - **8** — o texto passou a levar as **revisões**: as marcas `insertion` e
+ *   `deletion`, a revisão da marca de parágrafo (`markRevision`) e a da linha
+ *   de tabela (`rowRevision`); `trackChanges` é o interruptor do documento. O
  *   rascunho anterior não as tem — o inserido era texto comum e o excluído não
  *   aparecia —, e a leitura o marca (`beforeRevisions`) pelo mesmo motivo da
  *   versão 4.
- * - **9** — o texto passou a levar as **notas** de rodapé e de fim (M11): a
+ * - **9** — o texto passou a levar as **notas** de rodapé e de fim: a
  *   referência é o nó `noteRef`, com o corpo da nota dentro, e `notes` leva a
- *   numeração do documento. O rascunho anterior não tem a referência, e a leitura
- *   o marca (`beforeNotes`) pelo mesmo motivo da versão 4.
- * - **10** — as **propriedades** do documento (M11): título, assunto, autor…,
- *   em `properties`. O rascunho anterior simplesmente não as tem, e não ganha
+ *   numeração do documento. O rascunho anterior não tem a referência, e a
+ *   leitura o marca (`beforeNotes`) pelo mesmo motivo da versão 4.
+ * - **10** — as **propriedades** do documento: título, assunto, autor…, em
+ *   `properties`. O rascunho anterior simplesmente não as tem, e não ganha
  *   marca: na gravação em DOCX a ausência é "deixe as do arquivo como estão".
- * - **11** — as **equações** (M11): o nó `math`, com o OMML do arquivo dentro e o
- *   MathML que a tela desenha. O rascunho anterior não tem o nó — a equação ficava
- *   escondida no parágrafo —, e a leitura o marca (`beforeMath`) pelo mesmo motivo
- *   da versão 4.
+ * - **11** — as **equações**: o nó `math`, com o OMML do arquivo dentro e o
+ *   MathML que a tela desenha. O rascunho anterior não tem o nó — a equação
+ *   ficava escondida no parágrafo —, e a leitura o marca (`beforeMath`) pelo
+ *   mesmo motivo da versão 4.
  */
 export const SDOC_FORMAT = 'sdoc'
 export const SDOC_VERSION = 11

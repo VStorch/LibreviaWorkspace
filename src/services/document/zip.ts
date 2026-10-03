@@ -1,5 +1,5 @@
 /**
- * Um escritor de ZIP mínimo, sem dependência — o que o pacote ODF (M11) precisa.
+ * Um escritor de ZIP mínimo, sem dependência — o que o pacote ODF precisa.
  *
  * O ODF exige o que um escritor genérico nem sempre garante: o `mimetype` como
  * **primeira** entrada, **sem compressão** e sem campo extra, para que quem

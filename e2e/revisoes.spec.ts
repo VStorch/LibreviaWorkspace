@@ -61,8 +61,8 @@ async function entradaZip(caminho: string, nome: string): Promise<string> {
 }
 
 /**
- * Controle de alterações (M10): a revisão aparece na tela, aceitar e rejeitar
- * mudam o texto, o que se digita com o controle ligado vira revisão, e o arquivo
+ * Controle de alterações: a revisão aparece na tela, aceitar e rejeitar mudam o
+ * texto, o que se digita com o controle ligado vira revisão, e o arquivo
  * gravado diz o mesmo — no Word e no LibreOffice.
  */
 test.describe('revisões', () => {

@@ -26,7 +26,7 @@ public sealed class Server(Stream input, Stream output)
                 Task.FromResult(Reply.Of(Docx.DocxReader.Read(binary.ToArray()))),
             // O binário são os bytes originais que o main guardou na abertura;
             // o modelo vem nos parâmetros. O sidecar não guarda nada entre um
-            // pedido e outro — ver docs/02-docx-cirurgico.md.
+            // pedido e outro.
             ["docx.save"] = static (request, binary, _) =>
             {
                 var model = request.Params.Deserialize<Docx.DocumentModelDto>(JsonOptions.Default)

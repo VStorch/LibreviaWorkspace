@@ -16,15 +16,15 @@ import { t } from '../../i18n.js'
 export const MATH_CLASS = 'equacao'
 
 /**
- * Uma equação do Word (`m:oMath`, ou `m:oMathPara` na de exibição) — M11, fase 1.
+ * Uma equação do Word (`m:oMath`, ou `m:oMathPara` na de exibição).
  *
  * Um nó atômico, como o campo: o cursor passa por ele de uma vez, o Backspace o
  * apaga inteiro e arrastar o leva junto. A identidade é o `omml`, o XML que o
  * arquivo trazia e que volta a ele na gravação; o resto sai dele no sidecar
- * (`OmmlMath.cs`): o `mathml` que a tela desenha, a lista `lossy` do que ela não
- * desenha e o `editable`, falso quando a lista não é vazia. O `latex` é a fonte da
- * edição (fase 2, `MathDialog.tsx`): a equação nova ou editada chega com `omml`
- * nulo, e o sidecar refaz o OMML a partir do MathML.
+ * (`OmmlMath.cs`): o `mathml` que a tela desenha, a lista `lossy` do que ela
+ * não desenha e o `editable`, falso quando a lista não é vazia. O `latex` é a
+ * fonte da edição: a equação nova ou editada chega com `omml` nulo, e o sidecar
+ * refaz o OMML a partir do MathML.
  *
  * A de exibição continua no parágrafo dela, porque é ali que o OOXML a guarda; é
  * o desenho que a põe num bloco, alinhado pelo `jc`. Para a paginação ela é uma
@@ -162,7 +162,7 @@ export function buildMath(element: MathElement, doc: Document): Element {
 
 /**
  * Abrir a equação no editor: o clique duplo nela, ou o Enter com ela selecionada
- * (M11, fase 2). Os dois chegam ao mesmo comando do menu, `EditEquation`, que é
+ *. Os dois chegam ao mesmo comando do menu, `EditEquation`, que é
  * quem decide se abre para editar ou só para ver.
  *
  * Extensão à parte, com prioridade alta, para o Enter dela vir antes do Enter

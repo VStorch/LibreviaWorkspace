@@ -1,17 +1,16 @@
 /**
  * Os estilos do documento, como **dado**.
  *
- * Um `.docx` de verdade não guarda a formatação no parágrafo: guarda o nome de um
- * estilo, e o estilo mora em `word/styles.xml`. Até aqui o leitor resolvia essa
- * cascata no sidecar e achatava o resultado em cada bloco — a tela mostrava o
- * documento certo, mas o documento não tinha estilos: renomear um, ou mudar o
- * "Corpo de texto" de uma vez, não era possível nem em teoria.
+ * Um `.docx` de verdade não guarda a formatação no parágrafo: guarda o nome de
+ * um estilo, e o estilo mora em `word/styles.xml`. Achatar essa cascata em cada
+ * bloco mostraria o documento certo, mas sem estilos: renomear um, ou mudar o
+ * "Corpo de texto" de uma vez, não seria possível.
  *
- * Esta é a primeira metade do caminho: as definições atravessam o sidecar e
- * chegam ao modelo, **fora dos nós**. Fora dos nós não é detalhe — é o que faz
- * esta entrega ser segura: a impressão digital de um bloco é feita do que está
- * dentro dele, então nada aqui pode fazer a gravação cirúrgica reescrever um
- * bloco que ninguém tocou (ver `src/main/sidecar/fingerprint.test.ts`).
+ * As definições atravessam o sidecar e chegam ao modelo **fora dos nós**. Fora
+ * dos nós não é detalhe — é o que torna isto seguro: a impressão digital de um
+ * bloco é feita do que está dentro dele, então nada aqui pode fazer a gravação
+ * cirúrgica reescrever um bloco que ninguém tocou (ver
+ * `src/main/sidecar/fingerprint.test.ts`).
  *
  * As unidades são as mesmas dos atributos do bloco — pontos, milímetros,
  * hexadecimal, `12pt` —, com uma exceção declarada: a **entrelinha**. O bloco

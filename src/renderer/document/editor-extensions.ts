@@ -207,21 +207,21 @@ export function buildEditorExtensions(
     Caps,
     SmallCaps,
     PageBreak,
-    // Referências (M8): as duas pontas de cada marcador, e os comandos, o clique
-    // no link interno e a colagem sem marcador repetido. Ver bookmark.ts.
+    // Referências: as duas pontas de cada marcador, e os comandos, o clique no
+    // link interno e a colagem sem marcador repetido. Ver bookmark.ts.
     BookmarkStart,
     BookmarkEnd,
     Bookmarks,
-    // Comentários (M10): as pontas da âncora, o realce do trecho e a colagem
-    // sem âncora repetida. Ver comment.ts.
+    // Comentários: as pontas da âncora, o realce do trecho e a colagem sem
+    // âncora repetida. Ver comment.ts.
     CommentStart,
     CommentEnd,
     Comments.configure({ isKnown: options.isKnownComment }),
-    // Notas de rodapé e de fim (M11): a referência com o corpo da nota dentro,
+    // Notas de rodapé e de fim: a referência com o corpo da nota dentro,
     // numerada pela ordem no texto. Ver note-ref.ts.
     NoteRef.configure({ notes: options.notes }),
-    // Controle de alterações (M10): as marcas de inserção e exclusão e a
-    // revisão da marca de parágrafo e da linha. Ver track-changes.ts.
+    // Controle de alterações: as marcas de inserção e exclusão e a revisão da
+    // marca de parágrafo e da linha. Ver track-changes.ts.
     ...TrackChanges,
     // Como a janela mostra as alterações, e o cursor fora do que ela esconde.
     // Antes do controle do que se digita: o Backspace passa pelo escondido antes.
@@ -238,15 +238,15 @@ export function buildEditorExtensions(
     // sumário como bloco. Ver field.ts e table-of-contents.ts.
     Field,
     TableOfContents,
-    // As equações (M11): o OMML do arquivo, desenhado pelo MathML, e o clique
-    // duplo e o Enter que as abrem no editor. Ver math.ts.
+    // As equações: o OMML do arquivo, desenhado pelo MathML, e o clique duplo e
+    // o Enter que as abrem no editor. Ver math.ts.
     MathNode,
     MathEditing,
     // Guarda os vãos entre as folhas. Quem os calcula é `usePagination`; aqui
     // fica só o lugar onde eles vivem, para acompanharem a edição sem que o
     // documento saiba que existem.
     Pagination,
-    // A caixa de texto de cada seção, quando ela difere da base (M9).
+    // A caixa de texto de cada seção, quando ela difere da base.
     SectionGeometry,
     SectionMarks,
     SearchReplace.configure({ onStatusChange: onSearchStatusChange }),

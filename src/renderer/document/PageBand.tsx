@@ -44,10 +44,9 @@ export function PageBand({
    * Distância da faixa até a borda do papel, que o arquivo declara em
    * `w:pgMar/@header` e `@footer`.
    *
-   * Era um valor fixo de 4 mm no CSS. Enquanto o cabeçalho só precisava caber
-   * na margem, a diferença era invisível; agora que a altura dele empurra o
-   * corpo para baixo, desenhar num lugar e contar de outro faria a conta e o
-   * desenho discordarem — e o corpo desceria demais ou de menos.
+   * A altura do cabeçalho empurra o corpo para baixo, e desenhar num lugar e
+   * contar de outro faria a conta e o desenho discordarem — e o corpo desceria
+   * demais ou de menos.
    */
   offsetPx: number
   /**
@@ -157,9 +156,8 @@ const renderPiece =
       )
     }
 
-    // O total existia só depois de exportar, e a faixa mostrava um marcador no
-    // lugar dele. Agora a tela pagina, então o número é o de verdade — e é ele
-    // que a pessoa confere antes de imprimir.
+    // A tela pagina, então o total é o de verdade — e é ele que a pessoa
+    // confere antes de imprimir.
     const text = pieceText(piece, pageLabel, totalPages)
 
     const style: React.CSSProperties = {

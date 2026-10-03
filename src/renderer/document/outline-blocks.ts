@@ -14,7 +14,7 @@ export function outlineBlocksOf(doc: ProseMirrorNode): OutlineBlock[] {
 
   doc.descendants((node, pos) => {
     if (!node.isTextblock) return true
-    // Sem o corpo das notas (M11), que mora dentro da referência.
+    // Sem o corpo das notas, que mora dentro da referência.
     blocks.push({
       type: node.type.name,
       attrs: node.attrs,

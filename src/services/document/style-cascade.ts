@@ -126,11 +126,11 @@ export interface StyledBlock {
  * Os atributos que o bloco **vale**: o estilo dele, com a formatação direta por
  * cima — nas unidades do nó.
  *
- * O leitor passou a pôr no bloco só o que o parágrafo declara, e o herdado chega
- * à tela pelo CSS dos estilos. Quem decide olhando atributo — a paginação, o
- * diálogo de parágrafo, o seletor de entrelinha — precisa do valor que se vê, e
- * não do que está escrito: um título cujo estilo manda "manter com o próximo" não
- * traz `keepNext` no nó.
+ * O leitor põe no bloco só o que o parágrafo declara, e o herdado chega à tela
+ * pelo CSS dos estilos. Quem decide olhando atributo — a paginação, o diálogo
+ * de parágrafo, o seletor de entrelinha — precisa do valor que se vê, e não do
+ * que está escrito: um título cujo estilo manda "manter com o próximo" não traz
+ * `keepNext` no nó.
  *
  * O estilo é escolhido como a regra do CSS o escolhe (`style-css.ts`): o id
  * declarado; o título sem id, pelo nome `heading N`; o resto, o padrão. Bloco

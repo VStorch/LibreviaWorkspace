@@ -73,10 +73,8 @@ test.describe('cabeçalho em grade', () => {
   })
 
   test('o texto do cabeçalho é digitável e volta para o arquivo', async () => {
-    // A faixa era desenho: o que voltava para o `.docx` era sempre a parte
-    // original, e quem via um título errado no cabeçalho não tinha onde clicar.
-    // Agora tem — e só o `w:t` daquela peça é reescrito: a tabela, as bordas e
-    // a mesclagem seguem byte a byte.
+    // O título do cabeçalho é editável, e só o `w:t` daquela peça é reescrito:
+    // a tabela, as bordas e a mesclagem seguem byte a byte.
     const titulo = session.window
       .locator('.band--header .band__text')
       .filter({ hasText: 'Título do documento' })

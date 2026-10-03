@@ -9,12 +9,10 @@ import { launch, menu, stubDialogs, type Session } from './app.js'
 import { docxWithLongTable, docxWithStretchedImage, docxWithTable, entryOf } from './fixtures.js'
 
 /**
- * Tabelas e imagens editáveis — o marco M4.
+ * Tabelas e imagens editáveis.
  *
- * Os comandos do TableKit existiam desde que a tabela passou a ser lida do
- * `.docx`, e não tinham interface nenhuma: a barra inseria uma 3 × 3 fixa e mais
- * nada. Aqui se confere o caminho que a pessoa usa — o menu "Tabela", o botão
- * direito dentro da célula, o diálogo de propriedades e as alças da imagem.
+ * Confere o caminho que a pessoa usa — o menu "Tabela", o botão direito dentro
+ * da célula, o diálogo de propriedades e as alças da imagem.
  */
 test.describe('tabelas e imagens editáveis', () => {
   let session: Session

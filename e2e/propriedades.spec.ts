@@ -12,7 +12,7 @@ import {
 } from './fixtures.js'
 
 /**
- * Arquivo → Propriedades (M11): título, assunto, autor… lidos de `docProps/`,
+ * Arquivo → Propriedades: título, assunto, autor… lidos de `docProps/`,
  * editados no diálogo e gravados só na parte que mudou.
  */
 test.describe('propriedades do documento', () => {

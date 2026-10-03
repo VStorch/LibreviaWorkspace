@@ -1,18 +1,16 @@
 /**
  * A tabela única dos atalhos de teclado.
  *
- * Antes daqui havia duas listas que não se conheciam: o mapa de teclado do
- * editor, no renderer, e os aceleradores do menu nativo, declarados um a um no
- * main. Como acelerador de menu é registrado no processo main e **intercepta a
- * tecla antes de o renderer vê-la**, toda vez que as duas listas se cruzavam o
- * atalho do editor simplesmente parava de existir — sem erro, sem aviso. Foram
- * três colisões descobertas assim, uma de cada vez, e a última ("Ampliar" comendo
- * o `Ctrl+Shift+=` do sobrescrito) foi a que custou a troca de tecla.
+ * O acelerador do menu nativo é registrado no processo main e **intercepta a
+ * tecla antes de o renderer vê-la**. Com duas listas — o mapa de teclado do
+ * editor e os aceleradores do menu —, toda vez que elas se cruzassem o atalho
+ * do editor pararia de existir, sem erro nem aviso.
  *
- * Agora cada tecla é declarada uma vez, dizendo **quem a atende** e **o que ela
- * faz**; o menu e o editor leem daqui. Não é documentação: é a origem das duas
- * formas — o acelerador do Electron e a chave do `prosemirror-keymap` — e o teste
- * ao lado falha se duas entradas pedirem a mesma tecla para donos diferentes.
+ * Por isso cada tecla é declarada uma vez, dizendo **quem a atende** e **o que
+ * ela faz**; o menu e o editor leem daqui. Não é documentação: é a origem das
+ * duas formas — o acelerador do Electron e a chave do `prosemirror-keymap` — e
+ * o teste ao lado falha se duas entradas pedirem a mesma tecla para donos
+ * diferentes.
  *
  * ## Entradas reservadas
  *
@@ -132,7 +130,7 @@ export const SHORTCUTS = {
     does: 'Marcador…',
   },
   insertTable: { owner: ShortcutOwner.Menu, key: { mod: true, key: 'F12' }, does: 'Inserir tabela…' },
-  /** `Ctrl+Alt+F` e `Ctrl+Alt+D`: os do Word para as notas de rodapé e de fim (M11). */
+  /** `Ctrl+Alt+F` e `Ctrl+Alt+D`: os do Word para as notas de rodapé e de fim. */
   insertFootnote: {
     owner: ShortcutOwner.Menu,
     key: { mod: true, alt: true, key: 'F' },
@@ -144,8 +142,8 @@ export const SHORTCUTS = {
     does: 'Nota de fim',
   },
   /**
-   * `Alt+=`, o do Word para inserir equação (M11). Sem `Ctrl`, como o `F9`: é a
-   * tecla que quem vem do Word já tem nos dedos, e nenhuma outra entrada a usa.
+   * `Alt+=`, o do Word para inserir equação. Sem `Ctrl`, como o `F9`: é a tecla
+   * que quem vem do Word já tem nos dedos, e nenhuma outra entrada a usa.
    */
   insertEquation: {
     owner: ShortcutOwner.Menu,
@@ -212,7 +210,7 @@ export const SHORTCUTS = {
    * padrão: `Ctrl+-` não colide com nada.
    */
   zoomIn: { owner: ShortcutOwner.Menu, key: { mod: true, key: 'numadd' }, does: 'Ampliar' },
-  /** Os dois deixaram de ser papéis do Electron: o zoom agora é da folha. */
+  /** Não são papéis do Electron: o zoom é da folha. */
   zoomOut: { owner: ShortcutOwner.Menu, key: { mod: true, key: '-' }, does: 'Reduzir' },
   zoomReset: { owner: ShortcutOwner.Menu, key: { mod: true, key: '0' }, does: 'Zoom 100 %' },
   /**

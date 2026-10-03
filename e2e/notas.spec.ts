@@ -8,10 +8,10 @@ import { launch, menu, stubDialogs, type Session } from './app.js'
 import { docxWithFootnote, docxWithLongFootnote, docxWithManyFootnotes, entryOf } from './fixtures.js'
 
 /**
- * Notas de rodapé e de fim (M11, fase 1): lidas, numeradas e preservadas.
+ * Notas de rodapé e de fim: lidas, numeradas e preservadas.
  *
- * A referência é um nó com o corpo da nota dentro. Editar o parágrafo que a leva
- * não a perde mais — e por isso o documento com nota deixou de abrir travado.
+ * A referência é um nó com o corpo da nota dentro. Editar o parágrafo que a
+ * leva não a perde — e por isso o documento com nota não abre travado.
  */
 test.describe('notas de rodapé', () => {
   let session: Session
@@ -67,8 +67,8 @@ test.describe('notas de rodapé', () => {
 })
 
 /**
- * Notas de rodapé e de fim (M11, fase 2): o corpo se edita no pé da página, e as
- * notas ocupam a folha — a tela e o papel cortam no mesmo lugar.
+ * Notas de rodapé e de fim: o corpo se edita no pé da página, e as notas ocupam
+ * a folha — a tela e o papel cortam no mesmo lugar.
  */
 test.describe('notas no pé da página', () => {
   let session: Session

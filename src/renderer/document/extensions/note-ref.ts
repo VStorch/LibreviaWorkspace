@@ -8,7 +8,7 @@ import { sectionBreakIn, type SectionBlock } from '@services/document/sections.j
 import { noteRefView } from './note-view.js'
 
 /**
- * Notas de rodapé e de fim (M11): a referência como nó, com o corpo dentro.
+ * Notas de rodapé e de fim: a referência como nó, com o corpo dentro.
  *
  * Um nó em linha e atômico, mas **com conteúdo**: os blocos da nota (`block+`).
  * Atômico porque o corpo não se edita no texto — ele tem um editor próprio, no

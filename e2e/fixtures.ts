@@ -94,10 +94,10 @@ export async function docxWithComment(options: { leadingTable?: boolean } = {}):
 }
 
 /**
- * Documento com um pouco de cada revisão que o editor lê (M10): inserção e
- * exclusão no segundo parágrafo, a marca de parágrafo inserida, um trecho movido
- * e uma linha de tabela excluída. Com `leadingTable`, a mesma tabela de abertura
- * de `docxWithComment`.
+ * Documento com um pouco de cada revisão que o editor lê: inserção e exclusão
+ * no segundo parágrafo, a marca de parágrafo inserida, um trecho movido e uma
+ * linha de tabela excluída. Com `leadingTable`, a mesma tabela de abertura de
+ * `docxWithComment`.
  */
 export async function docxWithTrackedChange(options: { leadingTable?: boolean } = {}): Promise<Buffer> {
   const table = options.leadingTable === true ? LEADING_TABLE : ''
@@ -132,10 +132,10 @@ export async function docxWithTrackedChange(options: { leadingTable?: boolean } 
 /**
  * Documento com uma célula inserida por revisão (`w:cellIns`).
  *
- * É o que trava a edição desde que a nota de rodapé deixou de travar (M11): a
- * revisão de estrutura o editor não representa, e a gravação da tabela editada a
- * perderia. Com `leadingTable`, a tabela revisada abre o documento — é onde o
- * cursor está, e onde os comandos do menu Tabela têm onde agir.
+ * É o que trava a edição: a revisão de estrutura o editor não representa, e a
+ * gravação da tabela editada a perderia. Com `leadingTable`, a tabela revisada
+ * abre o documento — é onde o cursor está, e onde os comandos do menu Tabela
+ * têm onde agir.
  */
 export async function docxWithCellRevision(options: { leadingTable?: boolean } = {}): Promise<Buffer> {
   const revised = LEADING_TABLE.replace(
@@ -157,8 +157,8 @@ export async function docxWithCellRevision(options: { leadingTable?: boolean } =
 /**
  * Documento com uma nota de rodapé no segundo parágrafo.
  *
- * Travava a edição até o M11, quando a referência virou nó com o corpo da nota
- * dentro. Com `leadingTable`, a mesma tabela de abertura de `docxWithComment`.
+ * Não trava a edição: a referência é nó, com o corpo da nota dentro. Com
+ * `leadingTable`, a mesma tabela de abertura de `docxWithComment`.
  */
 export async function docxWithFootnote(options: { leadingTable?: boolean } = {}): Promise<Buffer> {
   const table = options.leadingTable === true ? LEADING_TABLE : ''
@@ -209,10 +209,10 @@ export const EQUATION_BEFORE = 'A área do círculo é '
 export const EQUATION_AFTER = ' para todo raio.'
 
 /**
- * Documento com equações (M11): uma em linha (πr²) no meio da frase, uma de
- * exibição centrada (a de Bhaskara) e uma travada — a caixa sem o lado de cima,
- * que a tela não desenha. O namespace `m` vai em cada equação, como o
- * LibreOffice o declara.
+ * Documento com equações: uma em linha (πr²) no meio da frase, uma de exibição
+ * centrada (a de Bhaskara) e uma travada — a caixa sem o lado de cima, que a
+ * tela não desenha. O namespace `m` vai em cada equação, como o LibreOffice o
+ * declara.
  */
 export async function docxWithEquations(): Promise<Buffer> {
   const inline =
@@ -239,7 +239,7 @@ export async function docxWithEquations(): Promise<Buffer> {
   ])
 }
 
-/** As propriedades de `docxWithProperties`, como o Word as grava (M11). */
+/** As propriedades de `docxWithProperties`, como o Word as grava. */
 export const PROPERTIES_CORE =
   `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n` +
   `<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:dcmitype="http://purl.org/dc/dcmitype/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">` +
@@ -259,7 +259,7 @@ export const PROPERTIES_CUSTOM =
   `<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/custom-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes">` +
   `<property fmtid="{D5CDD505-2E9C-101B-9397-08002B2CF9AE}" pid="2" name="Cliente"><vt:lpwstr>XPTO</vt:lpwstr></property></Properties>`
 
-/** Documento com `docProps/core.xml`, `app.xml` e `custom.xml` (M11). */
+/** Documento com `docProps/core.xml`, `app.xml` e `custom.xml`. */
 export async function docxWithProperties(): Promise<Buffer> {
   const docProps = (name: string, type: string): string =>
     `<Override PartName="/docProps/${name}.xml" ContentType="application/vnd.openxmlformats-${type}+xml"/>`
@@ -295,7 +295,7 @@ const W15 = 'http://schemas.microsoft.com/office/word/2012/wordml'
 
 /**
  * Uma conversa (comentário e resposta) e um comentário resolvido, como o Word
- * grava (M10).
+ * grava.
  *
  * A resposta abraça o mesmo trecho que o comentário, com as pontas logo depois
  * das dele; `commentsExtended.xml` liga as duas pelo `w14:paraId` e marca o
@@ -448,8 +448,8 @@ export async function docxWithDescribedImage(): Promise<Buffer> {
 }
 
 /**
- * Tabela com a aparência que o editor passou a representar: sombreamento e borda
- * de célula, célula mesclada na horizontal e linha de cabeçalho repetida.
+ * Tabela com a aparência que o editor representa: sombreamento e borda de
+ * célula, célula mesclada na horizontal e linha de cabeçalho repetida.
  *
  * Cada uma vira atributo do nó (`shading`, `borders`, `colspan`, `colwidth`) ou
  * tipo de nó (`tableHeader`), e cada uma é uma chance de o schema devolver o nó
@@ -587,7 +587,7 @@ export async function docxWithPageNumbering(): Promise<Buffer> {
 }
 
 /**
- * Três seções (M9): retrato, paisagem e retrato de novo, começando em ímpar.
+ * Três seções: retrato, paisagem e retrato de novo, começando em ímpar.
  *
  * A primeira declara o rodapé "Página {PAGE}" e numera em romanos; as outras não
  * declaram faixa nenhuma e **herdam** a dela ("Vincular ao anterior"). A
@@ -634,7 +634,7 @@ export async function docxWithSections(): Promise<Buffer> {
 }
 
 /**
- * Colunas (M9): uma seção em duas colunas, com linha entre elas, seguida de uma
+ * Colunas: uma seção em duas colunas, com linha entre elas, seguida de uma
  * seção contínua de uma coluna — as duas colunas se equilibram antes dela.
  */
 export async function docxWithColumns(): Promise<Buffer> {
@@ -1223,7 +1223,7 @@ export async function docxWithDirectOverStyles(): Promise<Buffer> {
 }
 
 /**
- * As referências do Word (M8), na forma exata em que ele as grava.
+ * As referências do Word, na forma exata em que ele as grava.
  *
  * Sumário num controle de conteúdo, com o campo `TOC` abrindo num parágrafo e
  * fechando noutro e um `PAGEREF` dentro de cada link; títulos com os marcadores
@@ -1304,9 +1304,9 @@ export async function docxWithLongTable(rows = 80, header = false): Promise<Buff
 }
 
 /**
- * Um documento longo com uma nota de rodapé por parágrafo (M11, fase 2): as
- * notas tiram altura das folhas e empurram linhas para a seguinte. Papel A4,
- * margens e fonte declaradas, para a conta de folhas valer também no LibreOffice.
+ * Um documento longo com uma nota de rodapé por parágrafo: as notas tiram
+ * altura das folhas e empurram linhas para a seguinte. Papel A4, margens e
+ * fonte declaradas, para a conta de folhas valer também no LibreOffice.
  */
 export async function docxWithManyFootnotes(count = 24): Promise<Buffer> {
   const text =

@@ -8,7 +8,7 @@ import { launch, menu, stubDialogs, type Session } from './app.js'
 import { docxWithColumns, docxWithSections, entryOf } from './fixtures.js'
 
 /**
- * Seções (M9): cada folha com o papel, a faixa e o número da sua seção.
+ * Seções: cada folha com o papel, a faixa e o número da sua seção.
  *
  * O documento tem retrato (romanos), paisagem (reinicia em 1) e retrato de novo
  * começando em página ímpar — o Word insere uma folha em branco antes dela, já

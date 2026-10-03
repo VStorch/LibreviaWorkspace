@@ -17,8 +17,8 @@ const pasta = (...sheets: Sheet[]): WorkbookModel => ({ sheets, activeSheet: 0 }
 
 describe('inserir linha', () => {
   it('estica o intervalo da fórmula junto com os dados', () => {
-    // O defeito que a Fase 5 deixou em aberto: os dados desciam e a fórmula
-    // continuava somando o lugar antigo, dando um total errado sem aviso.
+    // Sem o ajuste, os dados desciam e a fórmula continuava somando o lugar
+    // antigo, dando um total errado sem aviso.
     const depois = applyStructuralChange(pasta(planilha()), 0, { kind: 'insertRows', at: 1, count: 1 })
 
     expect(getCell(depois.sheets[0]!, 0, 2)?.formula).toBe('=SOMA(A1:A4)')

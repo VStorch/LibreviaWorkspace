@@ -8,9 +8,9 @@ namespace Librevia.Format.Docx;
 /// Leitura dos atributos de um nó do editor, com a unidade já convertida.
 /// </summary>
 /// <remarks>
-/// Ficava dentro de <see cref="ParagraphWriter"/>, e passou a viver sozinho
-/// quando a montagem do `w:pPr` saiu de lá: os dois escritores leem os mesmos
-/// atributos, e duas cópias das mesmas conversões é como as unidades divergem.
+/// Mora fora de <see cref="ParagraphWriter"/> porque os dois escritores leem os
+/// mesmos atributos, e duas cópias das mesmas conversões é como as unidades
+/// divergem.
 /// </remarks>
 internal static class Attr
 {

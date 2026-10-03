@@ -40,7 +40,7 @@ export function PageSetupPanel({
   readonly onClose: () => void
   /** As seções que o texto usa agora; ausente, a página da loja é a única. */
   readonly resolved?: ResolvedSections
-  /** A seção do cursor, em `allSections` (M9): é ela que o painel mostra. */
+  /** A seção do cursor, em `allSections`: é ela que o painel mostra. */
   readonly sectionIndex?: number
 }): React.JSX.Element {
   const t = useT()

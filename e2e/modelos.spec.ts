@@ -9,7 +9,7 @@ import { launch, menu, stubDialogs, type Session } from './app.js'
 import { entryOf } from './fixtures.js'
 
 /**
- * Modelos do Word (M11): Arquivo → Novo a partir de modelo…, abrir um `.dotx` e
+ * Modelos do Word: Arquivo → Novo a partir de modelo…, abrir um `.dotx` e
  * salvar como modelo.
  *
  * O documento criado a partir de um modelo é novo e sem título: "salvar" pergunta

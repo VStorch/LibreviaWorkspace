@@ -17,7 +17,7 @@ import { t } from '../i18n.js'
 import { useWorkspace } from '../state/workspace.js'
 
 /**
- * Inserir e excluir quebra de seção (M9).
+ * Inserir e excluir quebra de seção.
  *
  * A quebra mora em dois lugares: o id no parágrafo que fecha a seção (a marca,
  * como o `w:sectPr` do OOXML) e a configuração na biblioteca de seções da loja.

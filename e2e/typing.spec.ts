@@ -5,8 +5,8 @@ import { launch, menu, type Session } from './app.js'
  * Lançar uma coluna de números sem parar entre eles.
  *
  * O grid espera 70 ms fixos depois do Enter antes de mover o foco para baixo, e
- * quem digita continuadamente acerta essa janela: a tecla chegava enquanto ele
- * ainda apontava para a célula anterior, e `1200` abaixo de `980` virava `200`.
+ * quem digita continuadamente acerta essa janela: a tecla pode chegar enquanto
+ * ele ainda aponta para a célula anterior, e `1200` abaixo de `980` vira `200`.
  * Perda silenciosa — o erro só aparece quando a soma não bate.
  *
  * Os testes de unidade não alcançam isto: o defeito não está em nenhuma função
@@ -14,7 +14,7 @@ import { launch, menu, type Session } from './app.js'
  * aqui, com teclado de verdade e o intervalo de uma digitação normal.
  *
  * A entrada pela barra de fórmulas — o caminho que os outros testes usam — não
- * passava por essa janela, que é o motivo de o defeito ter durado tanto.
+ * passa por essa janela.
  */
 test.describe('digitação contínua na planilha', () => {
   let session: Session

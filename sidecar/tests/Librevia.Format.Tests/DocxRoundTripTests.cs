@@ -6,7 +6,8 @@ using Librevia.Format.Docx;
 namespace Librevia.Format.Tests;
 
 /// <summary>
-/// A prova da Fase 4: editar um documento não pode custar o que não foi editado.
+/// A promessa da gravação cirúrgica: editar um documento não pode custar o que
+/// não foi editado.
 /// </summary>
 public class DocxRoundTripTests
 {
@@ -35,9 +36,8 @@ public class DocxRoundTripTests
     [Fact]
     public void EditingOneParagraphKeepsCommentsOnTheOthers()
     {
-        // Este é *o* teste da Fase 4. Se ele falhar, a estratégia de edição
-        // cirúrgica não está funcionando e voltamos ao problema do §6.1:
-        // o usuário corrige uma vírgula e perde os comentários dos revisores.
+        // Se este teste falhar, a gravação cirúrgica não está funcionando: o
+        // usuário corrige uma vírgula e perde os comentários dos revisores.
         var original = Fixtures.WithComment();
         var model = Clone(Open(original));
 
@@ -106,8 +106,7 @@ public class DocxRoundTripTests
     [Fact]
     public void EditingAParagraphThatCarriesACommentKeepsTheAnchor()
     {
-        // Até o M10 a perda era real e declarada. Agora a âncora é nó do
-        // parágrafo e volta com ele — ver CommentsTests.
+        // A âncora é nó do parágrafo e volta com ele — ver CommentsTests.
         var original = Fixtures.WithComment();
         var model = Clone(Open(original));
 
@@ -647,8 +646,8 @@ public class DocxRoundTripTests
     [Fact]
     public void ReadsKeepLines()
     {
-        // A paginação passou a cortar parágrafos entre linhas; o que pediu para
-        // não ser cortado precisa chegar ao editor dizendo isso.
+        // A paginação corta parágrafos entre linhas; o que pediu para não ser
+        // cortado precisa chegar ao editor dizendo isso.
         var model = Open(Fixtures.WithKeepLines());
 
         Assert.True(BlockContaining(model, "Linhas juntas").Attrs!["keepLines"]!.GetValue<bool>());
@@ -708,7 +707,7 @@ public class DocxRoundTripTests
     [Fact]
     public void CommentsAreNeitherInvisibleNorLost()
     {
-        // Desde o M10 o painel os mostra: nem aviso de invisível, nem de perda.
+        // O painel os mostra: nem aviso de invisível, nem de perda.
         var result = DocxReader.Read(Fixtures.WithComment());
 
         Assert.DoesNotContain("comentários", result.Inventory.Invisible);
@@ -718,7 +717,7 @@ public class DocxRoundTripTests
     [Fact]
     public void TrackedChangesNoLongerLockOrWarn()
     {
-        // M10: a revisão de texto virou marca do editor — nem invisível, nem trava.
+        // A revisão de texto é marca do editor — nem invisível, nem trava.
         var result = DocxReader.Read(Fixtures.WithTrackedChanges());
 
         Assert.Empty(result.Inventory.Invisible);
@@ -731,9 +730,9 @@ public class DocxRoundTripTests
     {
         // É esta lista que decide se o documento abre em somente leitura. Ela é
         // subconjunto da invisibilidade: o recurso continua no arquivo, e só
-        // some se o usuário editar justamente o bloco que o ancora.
-        // O comentário saiu dela no M10, e a revisão de texto também; ficou a de
-        // estrutura (célula inserida, excluída ou mesclada).
+        // some se o usuário editar justamente o bloco que o ancora. Comentário
+        // e revisão de texto não entram nela; a revisão de estrutura (célula
+        // inserida, excluída ou mesclada) entra.
         var comentado = DocxReader.Read(Fixtures.WithComment()).Inventory;
         var revisado = DocxReader.Read(Fixtures.WithInsertedCell()).Inventory;
 
@@ -1065,10 +1064,9 @@ public class DocxRoundTripTests
     [Fact]
     public void CaixaDeTextoViraObjetoComOTextoDentro()
     {
-        // Uma caixa é um fluxo de texto próprio, posicionado na folha. Antes ela
-        // ia inteira para o inventário e sumia da tela; depois passou a ter o
-        // texto despejado na linha da âncora, o que mostrava o conteúdo mas
-        // emendava título e subtítulo numa frase só.
+        // Uma caixa é um fluxo de texto próprio, posicionado na folha. Despejar
+        // o texto na linha da âncora mostraria o conteúdo, mas emendaria título
+        // e subtítulo numa frase só.
         var floats = FloatsOf(Open(Fixtures.WithTextBoxes()).Doc.Content![0]);
 
         Assert.Equal(2, floats.Count);
@@ -1160,9 +1158,8 @@ public class DocxRoundTripTests
     [Fact]
     public void CaixaDeTextoNaoTravaMaisODocumento()
     {
-        // A trava existia porque editar o parágrafo âncora apagava a forma.
-        // Agora ela é copiada, e travar o documento inteiro deixou de proteger
-        // de coisa alguma — a capa passa a ser editável, que é o que se espera
+        // Editar o parágrafo âncora copia a forma, então travar o documento não
+        // protegeria de coisa alguma — a capa é editável, que é o que se espera
         // de um editor de texto.
         //
         // O aviso continua, e é honesto: esta caixa não declara preenchimento
@@ -1313,9 +1310,8 @@ public class DocxRoundTripTests
     [Fact]
     public void OTextoDigitadoNoRodapeVoltaParaOArquivo()
     {
-        // A faixa era desenho, não edição, e o que voltava para o arquivo era
-        // sempre a parte original. Agora o que se digita nela volta — mas só o
-        // `w:t` da peça editada, e nada mais.
+        // O que se digita na faixa volta ao arquivo — mas só o `w:t` da peça
+        // editada, e nada mais.
         var original = Fixtures.WithFooterOfThreeLines();
         var model = Clone(Open(original));
 
@@ -1527,8 +1523,9 @@ public class DocxRoundTripTests
     [Fact]
     public void ORascunhoAchatadoEComparadoComALeituraAchatada()
     {
-        // O rascunho gravado antes do M5/E3 traz blocos achatados. Comparados com
-        // a leitura que só leva o direto, todos pareceriam mudados.
+        // O rascunho anterior à versão 4 do `.sdoc` traz blocos achatados.
+        // Comparados com a leitura que só leva o direto, todos pareceriam
+        // mudados.
         var original = Fixtures.WithStyles();
         var flat = Clone(OpenFlat(original));
 

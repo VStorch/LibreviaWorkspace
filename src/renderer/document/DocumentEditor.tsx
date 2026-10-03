@@ -107,7 +107,7 @@ export function DocumentEditor(): React.JSX.Element {
   useLeaveReadingOnEscape(reading)
 
   const pageRef = useRef<HTMLDivElement>(null)
-  // O depósito dos corpos de nota que ainda não têm folha (M11, `note-view.ts`).
+  // O depósito dos corpos de nota que ainda não têm folha.
   const notePoolRef = useRef<HTMLDivElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const zoom = useEffectiveZoom()
@@ -515,7 +515,7 @@ export function DocumentEditor(): React.JSX.Element {
   useEffect(() => setEstimatedPages(layout.pages), [layout.pages, setEstimatedPages])
 
   // A folha de cada nota de rodapé, para a numeração que reinicia a cada página
-  // (M11): ela só existe depois de paginar. Transação sem mudança no texto.
+  //: ela só existe depois de paginar. Transação sem mudança no texto.
   const notesSetup = useWorkspace((state) => state.notes)
   useEffect(() => {
     if (editor === null || editor.isDestroyed) return

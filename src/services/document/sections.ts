@@ -9,7 +9,7 @@ import {
 } from './model.js'
 
 /**
- * As seções do documento (M9), e a herança das faixas entre elas.
+ * As seções do documento, e a herança das faixas entre elas.
  *
  * O modelo guarda a última seção em `page` e as anteriores em `sections`, cada
  * uma só com as faixas que **declara** — é o que o arquivo diz, e é o que deixa

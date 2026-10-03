@@ -6,7 +6,7 @@ using Librevia.Format.Docx;
 namespace Librevia.Format.Tests;
 
 /// <summary>
-/// Referências (M8): marcadores, links internos, campos e sumário.
+/// Referências: marcadores, links internos, campos e sumário.
 /// </summary>
 /// <remarks>
 /// O documento é o de <see cref="Fixtures.WithReferences"/>, que tem a forma exata
@@ -142,9 +142,9 @@ public class ReferencesTests
     [Fact]
     public void RascunhoDeAntesDasReferenciasContinuaReconhecido()
     {
-        // O rascunho gravado antes do M8 não tem marcador nem link interno nos
-        // nós. Comparado com a leitura nova, todo parágrafo marcado seria
-        // reescrito; com a leitura de então, nada muda.
+        // O rascunho anterior à versão 5 do `.sdoc` não tem marcador nem link
+        // interno nos nós. Comparado com a leitura nova, todo parágrafo marcado
+        // seria reescrito; com a leitura de então, nada muda.
         var original = Fixtures.WithReferences();
         var legacy = Roundtrip.Clone(new DocumentModelDto(
             Roundtrip.Open(original).Page,
@@ -335,7 +335,7 @@ public class ReferencesTests
         Assert.Contains("campo calculado num parágrafo que você editou", result.Inventory.Lost);
     }
 
-    // --- revisão do M8 -------------------------------------------------------
+    // --- campos que não viram nó ---------------------------------------------
 
     [Theory]
     [InlineData("<w:fldChar w:fldCharType=\"begin\"><w:ffData><w:name w:val=\"Texto1\"/><w:enabled/></w:ffData></w:fldChar>", " FORMTEXT ")]

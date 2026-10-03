@@ -40,7 +40,7 @@ test.describe('capa editável', () => {
     await stubDialogs(session.app, { open: origem, save: destino, messageBox: 1 })
     await menu(session, 'open')
 
-    // O documento não abre travado: a forma deixou de ser motivo de cadeado.
+    // O documento não abre travado: a forma não é motivo de cadeado.
     await expect(session.window.locator('.readonly-banner')).toHaveCount(0)
 
     const caixa = session.window.locator('.paper-float--text').filter({ hasText: 'Título da capa' })

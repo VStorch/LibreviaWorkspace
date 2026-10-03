@@ -4,9 +4,9 @@ import type { EditorView } from '@tiptap/pm/view'
  * As linhas de um parágrafo, como o navegador as quebrou.
  *
  * É o que deixa a folha terminar **no meio** de um parágrafo, como no Word: o
- * paginador só corta onde lhe dizem que dá, e até aqui ninguém dizia nada sobre
- * parágrafos — um parágrafo de meia página que não cabia descia inteiro, e a
- * folha de cima ficava com um buraco que o Word e o PDF do LibreOffice não têm.
+ * paginador só corta onde lhe dizem que dá. Sem as linhas, um parágrafo de meia
+ * página que não cabe desceria inteiro, e a folha de cima ficaria com um buraco
+ * que o Word e o PDF do LibreOffice não têm.
  *
  * A medida vem dos retângulos de texto (`Range.getClientRects()`), um por
  * pedaço de linha. O retângulo cobre a área de conteúdo da fonte, e não a caixa

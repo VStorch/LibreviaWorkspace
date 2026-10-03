@@ -51,14 +51,14 @@ export const IpcChannel = {
   /** Gera o PDF e grava no destino escolhido pelo usuário. */
   PrintExportPdf: 'print:export-pdf',
   /**
-   * Exporta o documento para HTML ou Markdown (M11) num arquivo novo. O
-   * documento em edição continua no caminho dele, com o estado que tinha.
+   * Exporta o documento para HTML ou Markdown num arquivo novo. O documento em
+   * edição continua no caminho dele, com o estado que tinha.
    */
   FileExport: 'file:export',
   /**
-   * Modelos (M11): a galeria — os que vêm com o aplicativo e os da pasta do
-   * usuário —, criar um documento a partir de um deles, procurar um `.dotx`
-   * qualquer e abrir a pasta de modelos no gerenciador de arquivos.
+   * Modelos: a galeria — os que vêm com o aplicativo e os da pasta do usuário
+   * —, criar um documento a partir de um deles, procurar um `.dotx` qualquer e
+   * abrir a pasta de modelos no gerenciador de arquivos.
    */
   TemplateList: 'template:list',
   TemplateOpen: 'template:open',

@@ -117,11 +117,10 @@ function buildTableSubmenu(): MenuItemConstructorOptions[] {
 }
 
 /**
- * Menu da Fase 1.
+ * Menu do aplicativo.
  *
- * Só entram itens que funcionam. Impressão (Fase 3), formatação (Fase 2) e
- * localizar/substituir (Fase 2) aparecerão junto com suas fases — um item de
- * menu desabilitado ou que não faz nada é pior que a ausência dele.
+ * Só entram itens que funcionam: um item de menu desabilitado ou que não faz
+ * nada é pior que a ausência dele.
  */
 async function buildTemplate(): Promise<MenuItemConstructorOptions[]> {
   const macAppMenu: MenuItemConstructorOptions[] = isMac
@@ -483,7 +482,7 @@ async function buildTemplate(): Promise<MenuItemConstructorOptions[]> {
       ],
     },
     {
-      // O controle de alterações (M10): aceitar, rejeitar e andar entre elas.
+      // O controle de alterações: aceitar, rejeitar e andar entre elas.
       label: t('menu.review'),
       submenu: [
         {

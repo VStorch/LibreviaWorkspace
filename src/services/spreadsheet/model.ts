@@ -2,8 +2,8 @@
  * Modelo canônico da planilha.
  *
  * Espelha `document/model.ts`: dado puro e serializável, sem nada de React nem
- * de Electron. A Fase 7 vai mapear XLSX para cá, e o motor de fórmulas da Fase
- * 6 vai ler daqui — por isso o formato precisa ser estável antes da interface.
+ * de Electron. O leitor de XLSX escreve aqui e o motor de fórmulas lê daqui —
+ * por isso o formato precisa ser estável.
  */
 
 /** Como o valor é exibido. O valor cru fica sempre separado da aparência. */

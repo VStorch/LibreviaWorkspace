@@ -1,8 +1,8 @@
 import type { Catalog } from '../message.js'
 
 /**
- * Controle de alterações (M10): o menu Revisão e o que o botão direito oferece
- * sobre uma alteração.
+ * Controle de alterações: o menu Revisão e o que o botão direito oferece sobre
+ * uma alteração.
  *
  * Área própria pelo mesmo motivo da dos comentários: a fase seguinte (controlar
  * o que se digita) cresce a lista sem tocar as outras áreas.

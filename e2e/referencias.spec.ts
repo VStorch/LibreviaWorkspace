@@ -9,8 +9,8 @@ import { launch, menu, stubDialogs, type Session } from './app.js'
 import { docxWithNamedStyles, docxWithReferences, entryOf } from './fixtures.js'
 
 /**
- * Referências (M8): painel de navegação, marcadores, sumário, legendas e
- * referências cruzadas.
+ * Referências: painel de navegação, marcadores, sumário, legendas e referências
+ * cruzadas.
  *
  * A preferência é mudada por `window.api.preferences.set`, e não pelo menu
  * nativo, pelo mesmo motivo de `exibir.spec.ts`: o Playwright não alcança o menu

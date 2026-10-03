@@ -154,8 +154,7 @@ internal static class BandWriter
             // Contra o texto que a tela mostra, e não contra o do arquivo: o
             // campo `PAGE` sai do leitor como `{n}`, e comparar com o XML diria
             // que a caixa mudou sempre — a gravação trocaria o campo por um
-            // `{n}` literal, que foi o que o cabeçalho do corpus passou a
-            // mostrar no lugar do número da página.
+            // `{n}` literal no lugar do número da página.
             if (HeaderReader.BoxTextOf(box, inventory, fonts) == PlainTextOf(content)) continue;
 
             // Caixa com campo dentro não é reescrita nem quando o texto mudou:
@@ -174,7 +173,7 @@ internal static class BandWriter
                 inventory.NoteLoss("marcador numa caixa de cabeçalho que você editou");
             }
 
-            // Nem revisão: a faixa não as leva como marca (M10).
+            // Nem revisão: a faixa não as leva como marca.
             if (box.Descendants<InsertedRun>().Any() || box.Descendants<DeletedRun>().Any() ||
                 box.Descendants<MoveFromRun>().Any() || box.Descendants<MoveToRun>().Any())
             {

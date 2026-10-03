@@ -9,10 +9,10 @@ const MAX_ALT_LENGTH = 300
 /**
  * Propriedades da imagem: texto alternativo e alinhamento.
  *
- * O texto alternativo é acessibilidade de verdade — vai para `wp:docPr/@descr`, é
- * o que um leitor de tela anuncia no lugar da imagem, e é o campo que o Word
- * chama de "Texto Alt". Até aqui o editor escrevia nele o **nome do arquivo**, que
- * é melhor que nada e não é uma descrição.
+ * O texto alternativo é acessibilidade de verdade — vai para `wp:docPr/@descr`,
+ * é o que um leitor de tela anuncia no lugar da imagem, e é o campo que o Word
+ * chama de "Texto Alt". O **nome do arquivo** seria melhor que nada, mas não é
+ * uma descrição.
  *
  * O tamanho não está aqui de propósito: ele se resolve arrastando as alças da
  * própria imagem, que é onde se espera mexer nele.

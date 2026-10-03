@@ -2,9 +2,8 @@
  * Estilo do conteúdo do documento — **fonte única de verdade**.
  *
  * O mesmo texto é usado em dois lugares: injetado no editor e embutido no HTML
- * que gera o PDF. Se fossem duas folhas de estilo, elas divergiriam com o
- * tempo e o PDF deixaria de sair igual à tela — o risco registrado em
- * docs/00-plano-tecnico.md §6.3.
+ * que gera o PDF. Se fossem duas folhas de estilo, elas divergiriam com o tempo
+ * e o PDF deixaria de sair igual à tela.
  *
  * Por isso não usa variáveis CSS do aplicativo: precisa ser autossuficiente
  * dentro de um documento HTML isolado.

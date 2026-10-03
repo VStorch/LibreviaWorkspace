@@ -2,7 +2,7 @@ import { formatNumber } from './list-numbering.js'
 import type { DocumentNotes, NoteNumbering } from './model.js'
 
 /**
- * A numeração das notas de rodapé e de fim (M11).
+ * A numeração das notas de rodapé e de fim.
  *
  * O número não mora na referência (`noteRef`): é a ordem dela no documento, e
  * guardado ele envelheceria na primeira nota inserida antes. Quem o desenha — a

@@ -23,8 +23,8 @@ export const PLAIN_TEXT_EXTENSION = '.txt'
 export const WORD_EXTENSION = '.docx'
 export const EXCEL_EXTENSION = '.xlsx'
 /**
- * Os modelos do Word (M11). Abrir um deles cria um documento novo, sem título,
- * que parte do pacote do modelo; o `.dotx` também é destino de "salvar como". O
+ * Os modelos do Word. Abrir um deles cria um documento novo, sem título, que
+ * parte do pacote do modelo; o `.dotx` também é destino de "salvar como". O
  * `.dotm` só é aberto: as macros dele não viajam, e por isso ele não é destino.
  */
 export const WORD_TEMPLATE_EXTENSION = '.dotx'

@@ -35,7 +35,7 @@ function windowOf(event: IpcMainInvokeEvent): BrowserWindow {
 /**
  * Valida, lê e passa a considerar o caminho autorizado para gravação.
  *
- * O modelo do Word (M11) é a exceção: abre como documento novo, sem título, e o
+ * O modelo do Word é a exceção: abre como documento novo, sem título, e o
  * caminho dele **não** é autorizado — nada grava por cima do modelo a partir
  * daqui. Os bytes dele ficam guardados como o original do documento novo (ver
  * `openDocx`), e o renderer manda o caminho de volta só como origem.

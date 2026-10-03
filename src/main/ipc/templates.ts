@@ -14,7 +14,7 @@ import { loadFile } from './file.js'
 import { handle } from './registry.js'
 
 /**
- * Modelos do Word (M11): a galeria e o que ela abre.
+ * Modelos do Word: a galeria e o que ela abre.
  *
  * Duas fontes. Os modelos que vêm com o aplicativo moram em
  * `resources/templates`, ao lado das fontes e do dicionário, com nome e

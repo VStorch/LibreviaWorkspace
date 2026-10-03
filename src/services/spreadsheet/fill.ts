@@ -7,8 +7,7 @@
  * fechamento do mês, quando os números não batessem.
  *
  * O deslocamento é o mesmo do Excel: referência relativa acompanha, referência
- * com `$` fica onde está. Quem faz isso é `translateFormula`, que já existia
- * desde a Fase 6 e só não tinha quem a chamasse.
+ * com `$` fica onde está. Quem faz isso é `translateFormula`.
  */
 
 import { normalizeRange, type Range } from './edit.js'

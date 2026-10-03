@@ -6,8 +6,7 @@ import { useT } from '../i18n.js'
  * Abas da pasta de trabalho.
  *
  * Renomear é por duplo clique, como em toda planilha — e o nome é validado:
- * duas abas com o mesmo nome quebrariam a referência entre abas que o motor de
- * fórmulas da Fase 6 vai precisar.
+ * duas abas com o mesmo nome quebrariam a referência entre abas nas fórmulas.
  */
 export function SheetTabs({
   workbook,

@@ -8,12 +8,11 @@ import { docxWithHeaderGrid, entryOf } from './fixtures.js'
 /**
  * O documento que nasceu no editor, salvo como `.docx`.
  *
- * Antes era recusado: a gravação cirúrgica pressupõe um original, e o documento
- * novo não tem. Agora o sidecar cria um pacote mínimo que faz esse papel, e toda
- * gravação parte dele — inclusive a segunda, para que o arquivo não some uma
- * camada por Ctrl+S. O teste percorre o caminho inteiro — diálogo, sidecar
- * publicado, disco — porque é nas fronteiras entre eles que esse tipo de ligação
- * se perde.
+ * A gravação cirúrgica pressupõe um original, e o documento novo não tem: o
+ * sidecar cria um pacote mínimo que faz esse papel, e toda gravação parte dele
+ * — inclusive a segunda, para que o arquivo não some uma camada por Ctrl+S. O
+ * teste percorre o caminho inteiro — diálogo, sidecar publicado, disco — porque
+ * é nas fronteiras entre eles que esse tipo de ligação se perde.
  */
 test.describe('documento novo em .docx', () => {
   let session: Session

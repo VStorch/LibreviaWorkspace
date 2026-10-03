@@ -1,7 +1,7 @@
 import { MATH_BOX_CLASS, sanitizeMathMl, type MathChild, type MathElement } from './mathml.js'
 
 /**
- * O MathML de uma equação de volta a LaTeX (M11, fase 2).
+ * O MathML de uma equação de volta a LaTeX.
  *
  * É o que dá fonte à equação que veio de um `.docx`: o sidecar desenha o OMML em
  * MathML (`OmmlMath.cs`), e o editor de equações precisa de texto para editar.
@@ -278,9 +278,9 @@ export function mathMlToLatex(tree: MathElement): string {
 }
 
 /**
- * O LaTeX de uma equação (M11, fase 3): o que ela guarda, ou — na que veio de um
- * arquivo e nunca passou pelo editor — o que sai do MathML dela. Vazio só quando
- * nem o MathML passa no filtro. É o que vai para o Markdown e para o texto copiado.
+ * O LaTeX de uma equação: o que ela guarda, ou — na que veio de um arquivo e
+ * nunca passou pelo editor — o que sai do MathML dela. Vazio só quando nem o
+ * MathML passa no filtro. É o que vai para o Markdown e para o texto copiado.
  */
 export function latexOfEquation(attrs: Readonly<Record<string, unknown>> | undefined): string {
   const latex = typeof attrs?.['latex'] === 'string' ? attrs['latex'].trim() : ''

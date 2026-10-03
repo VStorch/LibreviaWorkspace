@@ -63,8 +63,8 @@ test.describe('menu Exibir', () => {
         return getComputedStyle(node).backgroundColor
       })
 
-    // Sem casar com um valor exato: o que importa é que o papel deixou de ser
-    // branco, e não qual cinza foi escolhido.
+    // Sem casar com um valor exato: o que importa é que o papel não é branco, e
+    // não qual cinza foi escolhido.
     expect(paper).not.toBe('rgb(255, 255, 255)')
 
     await setPreference(session, { theme: 'light' })

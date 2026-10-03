@@ -24,7 +24,7 @@ import { revisionViewOf } from './revision-view.js'
 import { drawsNoteNumber, noteRefAround } from './note-ref.js'
 
 /**
- * O corpo da nota, editável no pé da página (M11, fase 2).
+ * O corpo da nota, editável no pé da página.
  *
  * O padrão do exemplo de notas do ProseMirror: a referência (`noteRef`) é
  * desenhada por esta vista, e o corpo dela ganha um `EditorView` próprio, com o

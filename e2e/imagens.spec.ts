@@ -12,11 +12,10 @@ import { docxWithAnchoredScreenshot, docxWithIndentedScreenshot, docxWithStretch
  * A imagem sai do tamanho que o documento pediu.
  *
  * `wp:extent` diz de que tamanho a imagem é **na página**, e esse tamanho não
- * precisa ter a proporção do arquivo. Só a largura chegava até aqui: a altura
- * ficava por conta do navegador, que a tira da proporção natural do arquivo —
- * então imagem esticada de propósito voltava ao quadrado, e até os bytes
- * decodificarem a caixa media zero, bem no momento em que a paginação mede a
- * folha.
+ * precisa ter a proporção do arquivo. Deixar a altura por conta do navegador,
+ * que a tira da proporção natural do arquivo, faria a imagem esticada de
+ * propósito voltar ao quadrado, e até os bytes decodificarem a caixa mediria
+ * zero, bem no momento em que a paginação mede a folha.
  */
 test.describe('imagens do documento', () => {
   let session: Session

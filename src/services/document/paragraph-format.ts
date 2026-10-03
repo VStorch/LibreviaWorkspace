@@ -361,7 +361,7 @@ function lineHeightOf(draft: ParagraphDraft, attrs: Record<string, unknown>): st
     const css = numberOf(current)
     if (css !== null && css > 0 && lineFactorOf(css, fontStack) === 1) return String(current)
 
-    // Havia medida declarada, e agora a escolha é simples. Aqui **não** vale
+    // Havia medida declarada, e a escolha é simples. Aqui **não** vale
     // `normal`: é o único valor que o gravador não grava, e o `w:line` antigo
     // ficaria de pé — a entrelinha da pessoa perdida em silêncio.
     return explicitCssLineHeightOf(1, fontStack)

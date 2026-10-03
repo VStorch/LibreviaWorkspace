@@ -8,10 +8,10 @@ namespace Librevia.Format.Docx;
 /// </summary>
 /// <remarks>
 /// Um `.dotx` é um `.docx` com outro rótulo em `[Content_Types].xml` — o mesmo
-/// `word/document.xml`, os mesmos estilos, cabeçalhos e tema. O documento criado a
-/// partir de um modelo (M11) parte dos bytes do modelo, e é a gravação que troca o
-/// rótulo para o do destino: gravado como `.docx` com o rótulo de modelo, o Word
-/// recusa o arquivo.
+/// `word/document.xml`, os mesmos estilos, cabeçalhos e tema. O documento
+/// criado a partir de um modelo parte dos bytes do modelo, e é a gravação que
+/// troca o rótulo para o do destino: gravado como `.docx` com o rótulo de
+/// modelo, o Word recusa o arquivo.
 ///
 /// O `.dotm` leva macros (VBA). Elas não viajam: o aplicativo não as executa nem as
 /// edita, e um `.docx` com `vbaProject.bin` é inválido. Saem o projeto, os dados

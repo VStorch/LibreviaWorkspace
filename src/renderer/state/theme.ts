@@ -9,12 +9,11 @@ const DARK_QUERY = '(prefers-color-scheme: dark)'
  *
  * A escolha explícita decide sozinha. **Só** `system` consulta a mídia.
  *
- * A primeira versão disto deixava a consulta decidir sempre, contando com o
- * `nativeTheme.themeSource` que o main escreve para fazer
- * `prefers-color-scheme` mudar junto. É o arranjo mais bonito dos dois e não
- * funcionou: o teste de ponta a ponta pediu o tema escuro e o `data-theme`
- * continuou `light`. Bonito e não verificado perde para direto e conferido —
- * uma escolha explícita agora não depende de o Chromium propagar nada.
+ * Deixar a consulta decidir sempre, contando com o `nativeTheme.themeSource`
+ * que o main escreve para fazer `prefers-color-scheme` mudar junto, não
+ * funciona: o teste de ponta a ponta pede o tema escuro e o `data-theme`
+ * continua `light`. Assim, uma escolha explícita não depende de o Chromium
+ * propagar nada.
  *
  * O `themeSource` continua sendo escrito no main, e continua valendo: é ele que
  * põe menu de contexto, barra de rolagem e janela na cor certa, e é ele que faz

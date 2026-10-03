@@ -163,9 +163,9 @@ describe('formatação de parágrafo', () => {
   })
 
   it('o fator mínimo cabe na faixa do gravador', () => {
-    // 0,51 era lido como medida de CSS e virava 0,42 de fator em Calibri — fora de
-    // (0,5; 4), o que o gravador registra como perda e não escreve. Agora o número
-    // do diálogo é o do Word, e o mínimo é mínimo de verdade.
+    // Lido como medida de CSS, 0,51 viraria 0,42 de fator em Calibri — fora de
+    // (0,5; 4), o que o gravador registra como perda e não escreve. O número do
+    // diálogo é o do Word, e o mínimo é mínimo de verdade.
     const attrs = paragraphAttrsFrom(
       {
         ...DEFAULT_PARAGRAPH_DRAFT,

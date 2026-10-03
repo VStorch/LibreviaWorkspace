@@ -14,8 +14,8 @@ namespace Librevia.Format.Docx;
 /// inteiro, e não da seção, e por isso é a única que toca outra parte.
 ///
 /// Cada um só é escrito quando o modelo diz algo **diferente** do que o arquivo
-/// já diz. Campo nulo (o `.sdoc` de antes desta fase) não diz nada: o arquivo
-/// fica como está. E o `w:pgNumType` só perde os atributos que o painel conhece —
+/// já diz. Campo nulo (o `.sdoc` que não o grava) não diz nada: o arquivo fica
+/// como está. E o `w:pgNumType` só perde os atributos que o painel conhece —
 /// `w:chapStyle` e companhia, que o editor não mostra, continuam lá.
 /// </remarks>
 internal static class PageNumbering

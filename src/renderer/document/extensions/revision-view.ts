@@ -13,9 +13,9 @@ import { RevisionView } from '@shared/types.js'
 import { DELETION, INSERTION, ZERO_WIDTH, blockRevisionOf } from './track-changes.js'
 
 /**
- * Controle de alterações (M10, fase 3): como a janela mostra as alterações.
+ * Controle de alterações: como a janela mostra as alterações.
  *
- * - **Marcação completa**: tudo à vista, como a fase 1 desenha.
+ * - **Marcação completa**: tudo à vista.
  * - **Marcação simples**: o texto final — o excluído some, o inserido fica sem
  *   marca — e uma barra na margem ao lado do parágrafo alterado.
  * - **Sem marcação**: o texto final, limpo.

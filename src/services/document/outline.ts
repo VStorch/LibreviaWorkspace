@@ -1,8 +1,8 @@
 /**
  * A estrutura do documento: os títulos, cada um no seu nível.
  *
- * É o que o painel de navegação lista e, no M8, o que o sumário numera. O nível é
- * o **efetivo**, como o Word o decide: o do nó `heading` (que o leitor reconhece
+ * É o que o painel de navegação lista e o que o sumário numera. O nível é o
+ * **efetivo**, como o Word o decide: o do nó `heading` (que o leitor reconhece
  * pelo nome `heading N` do estilo) ou o `outlineLevel` que a cascata de estilos
  * dá ao parágrafo. Um estilo "Capítulo" criado pelo autor com nível 1 na
  * estrutura é título para o Word — e tem de ser para o painel também, senão o

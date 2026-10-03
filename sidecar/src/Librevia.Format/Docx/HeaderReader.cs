@@ -401,10 +401,10 @@ public static class HeaderReader
     /// </summary>
     /// <remarks>
     /// Um cabeçalho corporativo costuma ser um **grupo de formas**: o logotipo,
-    /// a caixa do título, a do número da página. Antes daqui todas recebiam a
-    /// caixa do grupo inteiro — o logotipo de 48 × 10,5 mm era esticado para os
-    /// 177 × 17 mm da faixa toda — e as caixas de texto não saíam, porque só as
-    /// imagens eram procuradas: o título do documento sumia do cabeçalho.
+    /// a caixa do título, a do número da página. Dar a todas a caixa do grupo
+    /// inteiro esticaria o logotipo de 48 × 10,5 mm para os 177 × 17 mm da
+    /// faixa toda, e procurar só imagens tiraria o título do documento do
+    /// cabeçalho.
     /// </remarks>
     private static IEnumerable<FloatDto> ReadAnchoredDrawing(
         OpenXmlElement drawing,
@@ -489,9 +489,8 @@ public static class HeaderReader
     /// <remarks>
     /// Não é o texto do XML. O campo `PAGE` sai daqui como `{n}`, e é esse o
     /// texto que o modelo carrega — comparar com o do arquivo diria que a caixa
-    /// mudou toda vez, e a gravação trocaria o campo por um `{n}` literal. Era
-    /// exatamente o que o cabeçalho do corpus passou a mostrar: uma chave e um
-    /// ene no lugar do número da página.
+    /// mudou toda vez, e a gravação trocaria o campo por um `{n}` literal: uma
+    /// chave e um ene no lugar do número da página.
     /// </remarks>
     internal static string BoxTextOf(TextBoxContent box, Inventory inventory, FontTable fonts) =>
         string.Join(

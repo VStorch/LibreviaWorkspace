@@ -14,7 +14,7 @@ import type { DocumentModel, DocumentNode } from './model.js'
 import { latexOfEquation } from './mathml-latex.js'
 
 /**
- * Exportação para Markdown (M11): CommonMark com as tabelas e as notas do GFM.
+ * Exportação para Markdown: CommonMark com as tabelas e as notas do GFM.
  *
  * As imagens vão para uma **pasta irmã** (`relatorio_arquivos/`), referidas por
  * caminho relativo — como o "Salvar como página da Web" do Word. Embuti-las em
@@ -318,8 +318,8 @@ class MarkdownWriter {
       }
       case 'field':
         return escapeMarkdown(String(node.attrs?.['result'] ?? ''))
-      // A equação (M11) vai em LaTeX entre cifrões — `$…$` no texto, `$$…$$` na
-      // linha dela quando é de exibição —, que é o que o Pandoc, o GitHub e os
+      // A equação vai em LaTeX entre cifrões — `$…$` no texto, `$$…$$` na linha
+      // dela quando é de exibição —, que é o que o Pandoc, o GitHub e os
       // editores de Markdown leem. Sem LaTeX nenhum, vai o MathML como HTML.
       case 'math':
         return mathMarkdown(node, mode)

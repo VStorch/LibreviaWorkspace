@@ -58,10 +58,11 @@ export function createFileActions(set: SetWorkspace, get: GetWorkspace, ctx: Wor
   }
 
   /**
-   * Quem modificou, quando e a revisão (M11), no estado e portanto no que vai ao
+   * Quem modificou, quando e a revisão, no estado e portanto no que vai ao
    * disco — ver `stampProperties`. Só quando o documento mudou, ou quando nunca
-   * foi gravado: o arquivo aberto e salvo sem edição volta com `docProps/` byte a
-   * byte. Fica no estado mesmo que a gravação falhe: é só a data da tentativa.
+   * foi gravado: o arquivo aberto e salvo sem edição volta com `docProps/` byte
+   * a byte. Fica no estado mesmo que a gravação falhe: é só a data da
+   * tentativa.
    */
   function stampForSave(): void {
     const state = get()
@@ -230,8 +231,8 @@ export function createFileActions(set: SetWorkspace, get: GetWorkspace, ctx: Wor
         window.api.file.save({
           path: chosen.path,
           content: encodeFor(chosen.path),
-          // O documento criado a partir de um modelo (M11) ainda não tem caminho:
-          // a origem é o modelo, e é sobre o pacote dele que a gravação parte.
+          // O documento criado a partir de um modelo ainda não tem caminho: a
+          // origem é o modelo, e é sobre o pacote dele que a gravação parte.
           origin: file.origin ?? file.path,
         }),
       )
@@ -288,8 +289,8 @@ export function createFileActions(set: SetWorkspace, get: GetWorkspace, ctx: Wor
  */
 function interpret(opened: OpenedFile): LoadedFile {
   const kind = kindFromPath(opened.path)
-  // O modelo do Word (M11) abre como documento novo: sem caminho, para que
-  // "salvar" pergunte o destino e nunca grave por cima do modelo.
+  // O modelo do Word abre como documento novo: sem caminho, para que "salvar"
+  // pergunte o destino e nunca grave por cima do modelo.
   const file: OpenFile =
     opened.template === true
       ? { path: null, name: opened.name, kind, origin: opened.path }

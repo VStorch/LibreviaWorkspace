@@ -62,7 +62,7 @@ export function createPrintActions(
       html: buildPrintHtml(
         buildPagedBody(paged),
         // O `<title>` é o que o Chromium grava como Title do PDF: o título das
-        // propriedades (M11), quando há um. Autor, assunto e palavras-chave o
+        // propriedades, quando há um. Autor, assunto e palavras-chave o
         // `printToPDF` não grava, e sem biblioteca de PDF não há como pô-los.
         state.properties?.title?.trim() || name,
         styleSheetCss(state.styles) + buildPagedCss(paged.pages),
@@ -78,9 +78,9 @@ export function createPrintActions(
   /**
    * Rejeita o pedido de impressão quando não há editor ativo.
    *
-   * Devolver `false` em silêncio era o defeito: o usuário clicava em "Exportar
-   * para PDF" e nada acontecia — nem papel, nem aviso, nem pista. Um menu que
-   * não faz nada é pior que um menu ausente.
+   * Devolver `false` em silêncio faria o clique em "Exportar para PDF" não dar
+   * em nada — nem papel, nem aviso, nem pista. Um menu que não faz nada é pior
+   * que um menu ausente.
    */
   function refuse(): false {
     set({

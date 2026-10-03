@@ -102,7 +102,7 @@ test.describe('exportar PDF', () => {
  * importa aqui — "chegou tinta no papel?" — sem trazer um interpretador de PDF
  * para dentro do teste.
  *
- * Arquivo ausente conta zero, que é exatamente o defeito antigo.
+ * Arquivo ausente conta zero: PDF sem texto é a falha que se quer pegar.
  */
 async function glyphRuns(path: string): Promise<number> {
   const bytes = await readFile(path).catch(() => null)

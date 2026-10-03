@@ -337,10 +337,10 @@ public class DocxWriteBackTests
     public void BlocoColadoComOMesmoOidNaoDuplicaOMarcador()
     {
         // `oid` repetido é bloco colado, e o XML original é de **um** deles. A
-        // partir da segunda ocorrência o bloco já era gerado do zero; o que ainda
-        // vinha do original era o que o escritor copia de lá — objeto ancorado e,
-        // agora, marcador. Copiado duas vezes, o documento fica com dois
-        // marcadores de mesmo id, que é âncora ambígua para quem os cita.
+        // partir da segunda ocorrência o bloco é gerado do zero; o que ainda
+        // vem do original é o que o escritor copia de lá — objeto ancorado e
+        // marcador. Copiado duas vezes, o documento fica com dois marcadores de
+        // mesmo id, que é âncora ambígua para quem os cita.
         var original = Fixtures.WithBookmarkAroundParagraph();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
         model.Doc.Content!.Insert(1, BlockOf(model, 0));
@@ -422,11 +422,10 @@ public class DocxWriteBackTests
     [Fact]
     public void ListaDentroDeCelulaSobreviveAEdicaoDaCelula()
     {
-        // O leitor só junta parágrafos numerados numa lista no laço do corpo, e
-        // a tabela chamava o escritor sempre sem contexto de lista — o que ele
-        // lia como "este parágrafo deixou de ser item" e apagava o `w:numPr`.
-        // Corrigir uma palavra na célula tirava os marcadores, sem nada no
-        // inventário.
+        // O leitor só junta parágrafos numerados numa lista no laço do corpo.
+        // Chamado sem contexto de lista, o escritor leria "este parágrafo
+        // deixou de ser item" e apagaria o `w:numPr`: corrigir uma palavra na
+        // célula tiraria os marcadores, sem nada no inventário.
         var original = Fixtures.WithListInsideTableCell();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
 
@@ -1292,9 +1291,9 @@ public class DocxWriteBackTests
     [Fact]
     public void PapelForaDeA4NaoEArredondadoAoSalvar()
     {
-        // O modelo só nomeia A4 e Carta, e a gravação regravava `w:pgSz` em todo
-        // save: um documento em A5 virava A4 por ter recebido uma correção de
-        // vírgula. Agora o `w:sectPr` só é tocado quando a página mudou.
+        // O modelo só nomeia A4 e Carta: regravar `w:pgSz` em todo save faria
+        // um documento em A5 virar A4 por uma correção de vírgula. O `w:sectPr`
+        // só é tocado quando a página mudou.
         var original = Fixtures.WithCustomPaper();
         var (saved, _) = Roundtrip.Save(original, Roundtrip.Clone(Roundtrip.Open(original)));
 

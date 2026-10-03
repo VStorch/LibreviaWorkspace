@@ -2,8 +2,7 @@
  * Operações sobre um intervalo de células.
  *
  * Camada pura: recebe a planilha e devolve outra, sem tocar na original. É o
- * que permite testar formatação sem grid nenhum — e é onde o desfazer da Fase 8
- * vai se apoiar.
+ * que permite testar formatação sem grid nenhum.
  */
 
 import { parseInput } from './format.js'

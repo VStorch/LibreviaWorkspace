@@ -45,7 +45,7 @@ export const bandPieceSchema = z.object({
  * quase todo cabeçalho corporativo.
  *
  * O texto das peças que têm endereço é editável; todo o resto da parte OOXML
- * volta intacto para o arquivo. Ver docs/02-docx-cirurgico.md.
+ * volta intacto para o arquivo.
  */
 /**
  * Um nó do documento, do jeito que o editor o entende.
@@ -139,17 +139,17 @@ export const pageSetupSchema = z.object({
     bottom: z.number(),
     left: z.number(),
   }),
-  // Acrescentados na Fase 3. Opcionais para que documentos gravados antes
-  // continuem abrindo — acréscimo compatível não exige nova versão de formato.
+  // Opcionais para que documentos gravados sem eles continuem abrindo —
+  // acréscimo compatível não exige nova versão de formato.
   header: z.string().max(500).default(''),
   footer: z.string().max(500).default(''),
-  // Acrescentados na Fase 4, pelo mesmo motivo. Quando existem, mandam na
-  // exibição: são o cabeçalho real do documento, e o texto acima é o que o
-  // usuário digitou num documento criado aqui.
+  // Opcionais pelo mesmo motivo. Quando existem, mandam na exibição: são o
+  // cabeçalho real do documento, e o texto acima é o que o usuário digitou num
+  // documento criado aqui.
   headerBand: bandSchema.nullable().default(null),
   footerBand: bandSchema.nullable().default(null),
   // Primeira página e páginas pares, quando o documento pede. Opcionais pelo
-  // mesmo motivo dos anteriores: `.sdoc` gravado antes daqui não os tem.
+  // mesmo motivo dos anteriores: `.sdoc` gravado sem eles continua abrindo.
   firstHeaderBand: bandSchema.nullable().default(null),
   firstFooterBand: bandSchema.nullable().default(null),
   evenHeaderBand: bandSchema.nullable().default(null),
@@ -162,13 +162,13 @@ export const pageSetupSchema = z.object({
    */
   headerDistanceMm: z.number().default(12.5),
   footerDistanceMm: z.number().default(12.5),
-  // Numeração de página e os interruptores das faixas (M7). Opcionais pelo
-  // mesmo motivo: ausentes, a gravação não mexe no que o arquivo diz.
+  // Numeração de página e os interruptores das faixas. Opcionais pelo mesmo
+  // motivo: ausentes, a gravação não mexe no que o arquivo diz.
   pageNumberFormat: z.enum(['decimal', 'lowerRoman', 'upperRoman', 'lowerLetter', 'upperLetter']).optional(),
   pageNumberStart: z.number().int().min(0).max(32767).nullable().optional(),
   titlePage: z.boolean().nullable().optional(),
   evenAndOddHeaders: z.boolean().nullable().optional(),
-  // Como a seção começa (M9). Opcional pelo mesmo motivo.
+  // Como a seção começa. Opcional pelo mesmo motivo.
   start: z.enum(['nextPage', 'continuous', 'evenPage', 'oddPage', 'nextColumn']).optional(),
   columns: z
     .object({
@@ -186,7 +186,7 @@ export const sectionSetupSchema = pageSetupSchema.extend({
 })
 
 /**
- * Um comentário do documento (M10) — ver `DocumentComment`.
+ * Um comentário do documento — ver `DocumentComment`.
  *
  * Validado na entrada, como os estilos: vem de um arquivo alheio e vai parar no
  * `.sdoc` do usuário. Os tetos só seguram o arquivo patológico; um comentário de
@@ -205,7 +205,7 @@ export const documentCommentSchema = z.object({
 })
 
 /**
- * Como o documento numera as notas (M11) — `w:footnotePr`/`w:endnotePr`. Vai ao
+ * Como o documento numera as notas — `w:footnotePr`/`w:endnotePr`. Vai ao
  * `.sdoc`, e por isso é conferido na entrada, como os comentários.
  */
 const notePrSchema = z.object({
@@ -221,8 +221,8 @@ export const documentNotesSchema = z.object({
 })
 
 /**
- * As propriedades do documento (M11) — `docProps/core.xml` e `docProps/app.xml`.
- * Vão ao `.sdoc` e ao arquivo do usuário, e por isso são conferidas na entrada.
+ * As propriedades do documento — `docProps/core.xml` e `docProps/app.xml`. Vão
+ * ao `.sdoc` e ao arquivo do usuário, e por isso são conferidas na entrada.
  */
 const propertyText = z.string().max(2_000).optional()
 
@@ -250,8 +250,8 @@ export const documentPropertiesSchema = z.object({
  * aviso que volta para ele. Três definições divergiriam, e a divergência
  * apareceria como um menu marcado que o editor não obedece.
  *
- * Os `default` são o que permite abrir uma instalação antiga: o arquivo gravado
- * antes desta versão não tem chave nenhuma destas.
+ * Os `default` são o que permite abrir o arquivo de uma instalação antiga, que
+ * não tem chave nenhuma destas.
  */
 export const editorPreferencesSchema = z.object({
   spellcheck: z.boolean().default(true),

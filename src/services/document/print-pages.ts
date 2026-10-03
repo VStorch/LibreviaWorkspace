@@ -17,16 +17,12 @@ import { frameOf, placeFloating, type FloatingObject } from './floating.js'
 /**
  * O papel montado a partir das mesmas páginas que a tela desenha.
  *
- * Até aqui havia **dois paginadores que precisavam concordar**: o nosso, na
- * tela, e o do Chromium, na exportação. A regra de "não deixar título sozinho no
- * pé da página" estava escrita duas vezes — uma em JavaScript e outra em CSS —
- * sem nada que forçasse a sincronia, e os dois arquivos comentavam esse risco um
- * para o outro. Bastava uma divergir para o PDF quebrar noutro lugar.
- *
- * Agora o editor entrega o documento **já dividido em páginas**, e cada uma vira
- * uma caixa do tamanho exato do papel. O Chromium deixa de decidir onde cortar:
- * com `@page { margin: 0 }` e uma caixa por folha, ele só empilha o que
- * recebeu. Some o paginador duplicado, e com ele a categoria inteira de defeito.
+ * O editor entrega o documento **já dividido em páginas**, e cada uma vira uma
+ * caixa do tamanho exato do papel. O Chromium não decide onde cortar: com
+ * `@page { margin: 0 }` e uma caixa por folha, ele só empilha o que recebeu.
+ * Deixá-lo paginar seria ter **dois paginadores que precisam concordar**, com
+ * regras como "não deixar título sozinho no pé da página" escritas duas vezes —
+ * e bastaria uma divergir para o PDF quebrar noutro lugar.
  *
  * O que se ganha além disso: cabeçalho e rodapé passam a ser DOM de verdade
  * dentro da página, em vez do `headerTemplate` do Chromium. O template roda num
@@ -44,8 +40,8 @@ export interface PrintPage {
   /** Os objetos ancorados que caem nesta folha. */
   readonly floats: readonly PrintFloat[]
   /**
-   * A seção da folha (M9): papel, margens e faixas dela, com `pageNumberStart`
-   * no número da primeira folha da seção — ver `sheetSetups`.
+   * A seção da folha: papel, margens e faixas dela, com `pageNumberStart` no
+   * número da primeira folha da seção — ver `sheetSetups`.
    */
   readonly setup: PageSetup
   /** A folha dentro da seção, a partir de 1: é o que decide a capa e o número. */
@@ -58,7 +54,7 @@ export interface PrintPage {
     readonly topMm: number
     readonly heightMm: number
   }[]
-  /** As áreas de notas desta folha (M11), já com o HTML de cada nota e o recorte da tela. */
+  /** As áreas de notas desta folha, já com o HTML de cada nota e o recorte da tela. */
   readonly notes?: readonly PrintNoteArea[]
 }
 

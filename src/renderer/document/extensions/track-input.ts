@@ -6,7 +6,7 @@ import type { EditorView } from '@tiptap/pm/view'
 import { DELETION, INSERTION, ZERO_WIDTH, blockRevisionOf } from './track-changes.js'
 
 /**
- * Controle de alterações (M10, fase 2): o que se digita com o controle ligado.
+ * Controle de alterações: o que se digita com o controle ligado.
  *
  * A transação é reescrita **antes** de ser aplicada (`dispatchTransaction`): sai
  * uma transação só, com a seleção certa e um passo de desfazer. A regra, para
@@ -224,7 +224,7 @@ function planDeletion(doc: ProseMirrorNode, from: number, to: number, author: st
     }
 
     // A célula inteira sem a linha inteira é coluna: o Word não a controla por
-    // aqui, e a fase 1 já trava o documento com revisão de célula.
+    // aqui, e o documento com revisão de célula já abre travado.
     if ((node.type.name === 'tableCell' || node.type.name === 'tableHeader') && whole) {
       untracked = true
       return false
@@ -633,7 +633,7 @@ function plainTextOf(fragment: Fragment): string {
  * não pelo navegador: apagando sozinho ele mexe também no trecho excluído
  * vizinho (o espaço do começo vira `&nbsp;`), e a releitura da tela devolvia
  * esse trecho como texto novo — inserido de volta. Exportado para o corpo da
- * nota (M11), que é outro `EditorView` e não tem os plugins do editor.
+ * nota, que é outro `EditorView` e não tem os plugins do editor.
  */
 export function trackedDeleteKey(view: EditorView, event: KeyboardEvent, isTracking: () => boolean): boolean {
   if (view.composing) return false

@@ -8,7 +8,7 @@ using DocumentFormat.OpenXml.Packaging;
 namespace Librevia.Format.Docx;
 
 /// <summary>
-/// As propriedades do documento (M11): `docProps/core.xml` e parte de
+/// As propriedades do documento: `docProps/core.xml` e parte de
 /// `docProps/app.xml`, como o Word as mostra em Arquivo → Propriedades.
 /// </summary>
 /// <remarks>

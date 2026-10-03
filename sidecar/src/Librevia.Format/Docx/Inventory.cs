@@ -39,9 +39,8 @@ public sealed class Inventory
     /// caixa de texto.
     /// </summary>
     /// <remarks>
-    /// Saiu da lista estrutural no M10, como a moldura das formas antes dele: a
-    /// âncora do corpo virou nó, e editar o parágrafo que a leva devolve as pontas
-    /// ao arquivo — a do comentário e as das respostas.
+    /// Não é estrutural: a âncora do corpo é nó, e editar o parágrafo que a
+    /// leva devolve as pontas ao arquivo — a do comentário e as das respostas.
     /// </remarks>
     public const string Comments = "comentários";
     /// <summary>
@@ -49,10 +48,9 @@ public sealed class Inventory
     /// mesclada, mudança de numeração, de seção ou de tabela.
     /// </summary>
     /// <remarks>
-    /// Era "controle de alterações", e travava todo documento revisado. No M10 o
-    /// `w:ins` e o `w:del` de texto viraram marca, a de parágrafo e a de linha
-    /// viraram atributo, e sobrou isto — o que a gravação de uma tabela ou seção
-    /// editada perderia.
+    /// O `w:ins` e o `w:del` de texto são marcas, e as revisões de parágrafo e
+    /// de linha são atributos; sobra isto — o que a gravação de uma tabela ou
+    /// seção editada perderia.
     /// </remarks>
     public const string StructureRevisions = "revisões de estrutura";
 
@@ -63,12 +61,11 @@ public sealed class Inventory
     public const string FormatRevisions = "revisões de formatação";
     /// <summary>
     /// A referência de nota que o editor não leva como nó — a de dentro de uma
-    /// caixa de texto, e a do rascunho de antes do M11.
+    /// caixa de texto, e a do rascunho anterior às notas (`BeforeNotes`).
     /// </summary>
     /// <remarks>
-    /// Saiu da lista estrutural no M11, como o comentário no M10: a referência do
-    /// corpo virou `noteRef`, e editar o parágrafo que a leva a devolve ao arquivo
-    /// com o corpo da nota.
+    /// Não é estrutural: a referência do corpo é `noteRef`, e editar o
+    /// parágrafo que a leva a devolve ao arquivo com o corpo da nota.
     /// </remarks>
     public const string Footnotes = "notas de rodapé";
     public const string Endnotes = "notas de fim";
@@ -84,24 +81,20 @@ public sealed class Inventory
     /// sombra, três dimensões, canto arredondado, e a forma que não declara
     /// preenchimento nem contorno e os herda de um tema que não resolvemos.
     ///
-    /// É só disso que este aviso fala. Antes ele saía em toda forma, tivesse ela
-    /// decoração ou não — e nos quatro documentos de evidências do corpus as
-    /// caixas declaram `a:noFill` e linha de espessura zero, de modo que ele
-    /// apontava para uma perda que não existia. Aviso que aparece sempre é aviso
-    /// que se aprende a ignorar em duas semanas.
+    /// É só disso que este aviso fala, e não de toda forma: caixas que declaram
+    /// `a:noFill` e linha de espessura zero não perdem nada, e aviso que
+    /// aparece sempre é aviso que se aprende a ignorar em duas semanas.
     ///
-    /// Por isso este rótulo saiu da lista estrutural: desde que os objetos
-    /// ancorados passaram a ser copiados do XML original para o parágrafo
-    /// reescrito, editar o parágrafo não os apaga mais — e travar o documento
-    /// inteiro deixou de proteger de coisa alguma.
+    /// Não é estrutural: os objetos ancorados são copiados do XML original para
+    /// o parágrafo reescrito, e editar o parágrafo não os apaga.
     /// </remarks>
     public const string Shapes = "moldura e preenchimento de formas";
     public const string ContentControls = "controles de conteúdo";
     /// <summary>
-    /// A equação com alguma construção que a tela não desenha (M11). Ela aparece
-    /// travada, com o que deu para desenhar, e o OMML volta ao arquivo inteiro —
-    /// por isso não é estrutural. A de dentro de uma caixa de texto também: não é
-    /// desenhada, e volta com o XML da caixa.
+    /// A equação com alguma construção que a tela não desenha. Ela aparece
+    /// travada, com o que deu para desenhar, e o OMML volta ao arquivo inteiro
+    /// — por isso não é estrutural. A de dentro de uma caixa de texto também:
+    /// não é desenhada, e volta com o XML da caixa.
     /// </summary>
     public const string Equations = "equações";
 

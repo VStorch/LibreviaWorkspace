@@ -11,7 +11,7 @@ import {
 } from './extensions/track-changes.js'
 
 /**
- * Aceitar, rejeitar e andar entre as alterações (M10, controle de alterações).
+ * Aceitar, rejeitar e andar entre as alterações.
  *
  * Cada comando é uma transação comum do editor: o desfazer devolve a revisão como
  * estava — e fora do controle (`SKIP_TRACKING`): aceitar não é uma edição nova a

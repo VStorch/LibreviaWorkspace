@@ -38,10 +38,10 @@ internal sealed class TableWriter(
     /// </summary>
     /// <remarks>
     /// Linha ou célula **removida** leva embora a largura, a mesclagem e o
-    /// sombreamento que estavam no arquivo. Linha ou célula **inserida no meio**
-    /// é igualmente grave, e antes daqui saía calada: a estrutura de uma linha
-    /// passa a valer para a de baixo, e o `w:vMerge` fora de lugar é justamente o
-    /// caso em que o Word acusa tabela corrompida.
+    /// sombreamento que estavam no arquivo. Linha ou célula **inserida no
+    /// meio** é igualmente grave: a estrutura de uma linha passa a valer para a
+    /// de baixo, e o `w:vMerge` fora de lugar é justamente o caso em que o Word
+    /// acusa tabela corrompida.
     /// </remarks>
     private const string ShiftedStructure =
         "largura, mesclagem ou sombreamento de parte de uma tabela que você editou";
@@ -185,7 +185,7 @@ internal sealed class TableWriter(
     }
 
     /// <summary>
-    /// A linha inserida ou excluída (M10): `w:ins`/`w:del` no fim do `w:trPr`, antes
+    /// A linha inserida ou excluída: `w:ins`/`w:del` no fim do `w:trPr`, antes
     /// só do `w:trPrChange`.
     /// </summary>
     private static void ApplyRowRevision(TableRow row, System.Text.Json.Nodes.JsonNode? wanted)
@@ -306,10 +306,8 @@ internal sealed class TableWriter(
         }
 
         // O `w:tc` tem de **terminar** em `w:p`, e não só conter um: o Word
-        // recusa o documento que não o faça. Desde que a leitura entrega a tabela
-        // aninhada, a célula pode terminar em `w:tbl` — no schema do editor ela
-        // aceita qualquer bloco —, e até aqui isso escapava só porque o original
-        // trazia o parágrafo vazio do fim.
+        // recusa o documento que não o faça. Com tabela aninhada, a célula pode
+        // terminar em `w:tbl` — no schema do editor ela aceita qualquer bloco.
         if (cell.LastChild is not Paragraph) cell.AppendChild(new Paragraph());
         return cell;
     }

@@ -15,8 +15,8 @@ const HAS_XMLLINT = (() => {
 })()
 
 /**
- * O pacote ODT com equações (M11, fase 3) é XML bem formado parte por parte —
- * aqui, e não junto da exportação, porque só o processo main tem o `xmllint`.
+ * O pacote ODT com equações é XML bem formado parte por parte — aqui, e não
+ * junto da exportação, porque só o processo main tem o `xmllint`.
  */
 describe('o ODT com equações', () => {
   const model: DocumentModel = {

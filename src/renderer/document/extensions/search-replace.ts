@@ -75,18 +75,18 @@ function collectIn(root: ProseMirrorNode, base: number, term: string, caseSensit
     // O separador de um caractere para nós folha mantém o comprimento do texto
     // alinhado com as posições do documento.
     //
-    // O texto excluído por uma revisão (M10) não é achado: vira um caractere que
-    // nunca casa, do mesmo comprimento — ver `textWithoutDeletions`.
-    // A equação (M11) também é esse caractere: o que ela diz não é texto do
-    // parágrafo, e um espaço no lugar dela casaria com "a b" em volta dela.
+    // O texto excluído por uma revisão não é achado: vira um caractere que
+    // nunca casa, do mesmo comprimento — ver `textWithoutDeletions`. A equação
+    // também é esse caractere: o que ela diz não é texto do parágrafo, e um
+    // espaço no lugar dela casaria com "a b" em volta dela.
     const text = textWithoutDeletions(node, undefined, searchLeaf, '\u0000')
 
     for (const occurrence of findOccurrences(text, term, caseSensitive)) {
       matches.push({ from: pos + 1 + occurrence.start, to: pos + 1 + occurrence.end })
     }
 
-    // O corpo das notas (M11) é do documento e se busca também; a referência
-    // ocupa no texto do parágrafo o lugar dela, sem o corpo.
+    // O corpo das notas é do documento e se busca também; a referência ocupa no
+    // texto do parágrafo o lugar dela, sem o corpo.
     node.forEach((child, childOffset) => {
       if (child.type.name === 'noteRef') {
         matches.push(...collectIn(child, pos + 1 + childOffset + 1, term, caseSensitive))

@@ -8,8 +8,8 @@ using static Librevia.Format.Tests.Roundtrip;
 namespace Librevia.Format.Tests;
 
 /// <summary>
-/// Equações (M11, fase 2): a nova ou editada chega sem OMML, só com o MathML, e o
-/// OMML sai dele (OmmlMath.ToOmml).
+/// Equações: a nova ou editada chega sem OMML, só com o MathML, e o OMML sai
+/// dele (OmmlMath.ToOmml).
 /// </summary>
 public class MathEditTests
 {
@@ -179,7 +179,7 @@ public class MathEditTests
         Display,
         LibreOffice,
         TwoLines,
-        // As construções que a fase 1 desenha e os fixtures não trazem.
+        // As construções que a tela desenha e os fixtures não trazem.
         $"<w:p><m:oMath><m:sPre><m:sub>{R("a")}</m:sub><m:sup>{R("b")}</m:sup><m:e>{R("X")}</m:e></m:sPre>" +
         $"""<m:acc><m:accPr><m:chr m:val="⃗"/></m:accPr><m:e>{R("v")}</m:e></m:acc>""" +
         $"""<m:bar><m:barPr><m:pos m:val="top"/></m:barPr><m:e>{R("AB")}</m:e></m:bar>""" +

@@ -109,7 +109,7 @@ export const SHELL = {
   'shell.home.openFile': { pt: 'Abrir arquivo', en: 'Open file' },
   'shell.home.fromTemplate': { pt: 'A partir de modelo', en: 'From template' },
 
-  // Galeria de modelos (M11)
+  // Galeria de modelos
   'shell.template.title': { pt: 'Novo a partir de modelo', en: 'New from template' },
   'shell.template.builtin': { pt: 'Modelos do Librevia', en: 'Librevia templates' },
   'shell.template.user': { pt: 'Meus modelos', en: 'My templates' },

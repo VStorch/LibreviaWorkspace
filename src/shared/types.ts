@@ -10,7 +10,7 @@ export type DocumentKind = (typeof DocumentKind)[keyof typeof DocumentKind]
 
 /**
  * O que o documento tem e o aplicativo não dá conta — em duas categorias que
- * **não** são o mesmo problema (ver docs/02-docx-cirurgico.md).
+ * **não** são o mesmo problema.
  *
  * `invisible`: continua no arquivo depois de salvar, mas não aparece na tela.
  * `lost`: some de verdade ao salvar.
@@ -50,11 +50,11 @@ export interface LoadedFile {
   readonly content: string
   /** Presente só quando o arquivo veio de um formato do Office. */
   readonly inventory?: LossInventory
-  /** O arquivo é um modelo do Word (M11): abre como documento novo — ver `ipc.ts`. */
+  /** O arquivo é um modelo do Word: abre como documento novo — ver `ipc.ts`. */
   readonly template?: boolean
 }
 
-/** Um modelo da galeria (M11). */
+/** Um modelo da galeria. */
 export interface TemplateEntry {
   readonly source: 'builtin' | 'user'
   /** O nome do arquivo no embutido; o caminho no do usuário. */
@@ -88,7 +88,7 @@ export interface RecentFile {
 export const MenuCommand = {
   NewDocument: 'new-document',
   NewSpreadsheet: 'new-spreadsheet',
-  /** Arquivo → Novo a partir de modelo… (M11): a galeria de modelos. */
+  /** Arquivo → Novo a partir de modelo…: a galeria de modelos. */
   NewFromTemplate: 'new-from-template',
   Open: 'open',
   OpenRecent: 'open-recent',
@@ -98,10 +98,10 @@ export const MenuCommand = {
   CloseFile: 'close-file',
   FindReplace: 'find-replace',
   ExportPdf: 'export-pdf',
-  /** Arquivo → Exportar como → HTML… e Markdown… (M11). */
+  /** Arquivo → Exportar como → HTML… e Markdown…. */
   ExportHtml: 'export-html',
   ExportMarkdown: 'export-markdown',
-  /** Arquivo → Exportar como → ODT… (M11). */
+  /** Arquivo → Exportar como → ODT…. */
   ExportOdt: 'export-odt',
   Print: 'print',
   PrintPreview: 'print-preview',
@@ -109,7 +109,7 @@ export const MenuCommand = {
   /** Abre o diálogo de parágrafo — espaçamento, entrelinha, recuo, alinhamento. */
   ParagraphSetup: 'paragraph-setup',
   InsertPageBreak: 'insert-page-break',
-  /** Quebra de seção no cursor (M9), pelo começo da seção nova. */
+  /** Quebra de seção no cursor, pelo começo da seção nova. */
   InsertSectionNextPage: 'insert-section-next-page',
   InsertSectionContinuous: 'insert-section-continuous',
   InsertSectionEvenPage: 'insert-section-even-page',
@@ -129,11 +129,11 @@ export const MenuCommand = {
   PasteWithoutFormat: 'paste-without-format',
   /** Abre o diálogo de contagem de palavras. */
   WordCount: 'word-count',
-  /** Arquivo → Propriedades: título, assunto, autor… e as estatísticas (M11). */
+  /** Arquivo → Propriedades: título, assunto, autor… e as estatísticas. */
   DocumentProperties: 'document-properties',
   /** Abre o seletor de caracteres especiais. */
   SpecialCharacter: 'special-character',
-  /** Equação em linha e em destaque, com o editor de equações aberto (M11, fase 2). */
+  /** Equação em linha e em destaque, com o editor de equações aberto. */
   InsertEquation: 'insert-equation',
   InsertDisplayEquation: 'insert-display-equation',
   /** Abre a equação selecionada no editor — o clique duplo e o Enter chegam aqui. */
@@ -142,15 +142,15 @@ export const MenuCommand = {
   ImageProperties: 'image-properties',
   /** Marcadores: adicionar, ir para e excluir. */
   InsertBookmark: 'insert-bookmark',
-  /** Comentário na seleção, ou no cursor (M10). */
+  /** Comentário na seleção, ou no cursor. */
   InsertComment: 'insert-comment',
-  /** Nota de rodapé e nota de fim no cursor, com o cursor já no corpo dela (M11). */
+  /** Nota de rodapé e nota de fim no cursor, com o cursor já no corpo dela. */
   InsertFootnote: 'insert-footnote',
   InsertEndnote: 'insert-endnote',
   /** Vai à próxima conversa (ou à anterior), pela ordem do texto, e a escolhe no painel. */
   NextComment: 'next-comment',
   PreviousComment: 'previous-comment',
-  /** Revisão (M10): aceitar ou rejeitar a alteração no cursor, ou todas. */
+  /** Revisão: aceitar ou rejeitar a alteração no cursor, ou todas. */
   AcceptChange: 'accept-change',
   RejectChange: 'reject-change',
   AcceptAllChanges: 'accept-all-changes',
@@ -308,12 +308,13 @@ export interface EditorPreferences {
    */
   readonly navigationPane: boolean
   /**
-   * O painel de comentários ao lado das folhas, e o realce dos trechos (M10).
-   * Escondido, os comentários continuam no documento e no arquivo — é só a tela.
+   * O painel de comentários ao lado das folhas, e o realce dos trechos.
+   * Escondido, os comentários continuam no documento e no arquivo — é só a
+   * tela.
    */
   readonly commentsPane: boolean
   /**
-   * O nome que assina os comentários novos (M10). Vazio no arquivo, o main põe o
+   * O nome que assina os comentários novos. Vazio no arquivo, o main põe o
    * usuário do sistema — ver `load()` em `src/main/preferences.ts`.
    */
   readonly authorName: string

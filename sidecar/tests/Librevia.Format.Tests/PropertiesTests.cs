@@ -6,8 +6,9 @@ using static Librevia.Format.Tests.Roundtrip;
 namespace Librevia.Format.Tests;
 
 /// <summary>
-/// As propriedades do documento (M11): `docProps/core.xml` e `docProps/app.xml`
-/// lidas, e gravadas só quando algum campo mudou — com o resto da parte intacto.
+/// As propriedades do documento: `docProps/core.xml` e `docProps/app.xml`
+/// lidas, e gravadas só quando algum campo mudou — com o resto da parte
+/// intacto.
 /// </summary>
 public class PropertiesTests
 {

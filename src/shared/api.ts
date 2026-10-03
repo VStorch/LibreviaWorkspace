@@ -35,7 +35,7 @@ export interface AppApi {
     chooseSavePath: Call<typeof IpcChannel.FileChooseSavePath>
     autosave: Call<typeof IpcChannel.FileAutosave>
   }
-  /** Modelos do Word (M11). */
+  /** Modelos do Word. */
   readonly template: {
     list: Call<typeof IpcChannel.TemplateList>
     open: Call<typeof IpcChannel.TemplateOpen>
@@ -59,7 +59,7 @@ export interface AppApi {
   }
   readonly print: {
     exportPdf: Call<typeof IpcChannel.PrintExportPdf>
-    /** HTML ou Markdown (M11). */
+    /** HTML ou Markdown. */
     exportDocument: Call<typeof IpcChannel.FileExport>
     dialog: Call<typeof IpcChannel.PrintDialog>
     preview: Call<typeof IpcChannel.PrintPreview>

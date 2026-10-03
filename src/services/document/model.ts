@@ -2,9 +2,8 @@
  * Modelo canônico do documento.
  *
  * `doc` é o JSON do ProseMirror — o mesmo que o Tiptap edita nativamente — e
- * `page` carrega o que não cabe no fluxo de texto. A separação existe porque a
- * Fase 4 vai mapear DOCX para estas duas partes, e a Fase 3 vai gerar o PDF a
- * partir delas.
+ * `page` carrega o que não cabe no fluxo de texto. A separação existe porque o
+ * DOCX é lido para estas duas partes, e o PDF é gerado a partir delas.
  */
 
 import { NO_BANDS, type Band, type BandHeights } from './band.js'
@@ -114,7 +113,7 @@ export const SECTION_STARTS = ['nextPage', 'continuous', 'evenPage', 'oddPage', 
 export type SectionStart = (typeof SECTION_STARTS)[number]
 
 /**
- * Uma seção antes da última (M9).
+ * Uma seção antes da última.
  *
  * O `id` é o elo com o texto: o parágrafo que **encerra** a seção leva o mesmo
  * valor no atributo `sectionBreak`, como no OOXML o `w:sectPr` mora no parágrafo
@@ -158,9 +157,9 @@ export interface DocumentModel {
   /** A última seção — a do corpo, e a única do documento de uma seção só. */
   readonly page: PageSetup
   /**
-   * As seções antes da última, em ordem (M9). Ausente é documento de uma seção.
-   * Fora dos nós pelo mesmo motivo dos estilos: mudar o papel de uma seção não
-   * pode fazer o parágrafo da marca parecer editado.
+   * As seções antes da última, em ordem. Ausente é documento de uma seção. Fora
+   * dos nós pelo mesmo motivo dos estilos: mudar o papel de uma seção não pode
+   * fazer o parágrafo da marca parecer editado.
    */
   readonly sections?: readonly SectionSetup[]
   readonly doc: DocumentNode
@@ -189,8 +188,8 @@ export interface DocumentModel {
   /**
    * O rascunho é de antes das **referências** (formato `.sdoc` < 5): os nós não
    * trazem marcador, campo, link interno nem sumário, que o leitor passou a
-   * produzir no M8. Mesmo motivo de `flattened`: a gravação compara com uma
-   * leitura do original feita como era então. Ausente é falso.
+   * produzir na versão 5. Mesmo motivo de `flattened`: a gravação compara com
+   * uma leitura do original feita como era então. Ausente é falso.
    */
   readonly beforeReferences?: boolean
   /**
@@ -206,7 +205,7 @@ export interface DocumentModel {
    */
   readonly outsideBookmarks?: readonly string[]
   /**
-   * Os comentários do arquivo (M10). O corpo mora aqui, fora dos nós, pelo mesmo
+   * Os comentários do arquivo. O corpo mora aqui, fora dos nós, pelo mesmo
    * motivo dos estilos; no texto ficam só as pontas da âncora (`commentStart` e
    * `commentEnd`, uma por conversa — a resposta não tem nó). Só os que o texto
    * sustenta (`resolveComments`); o que não mudou volta ao arquivo byte a byte.
@@ -219,7 +218,7 @@ export interface DocumentModel {
   readonly beforeComments?: boolean
   /**
    * O documento grava controlando alterações — o `w:trackRevisions` do arquivo
-   * (M10). Ausente é "não mexa": o arquivo fica como está.
+   *. Ausente é "não mexa": o arquivo fica como está.
    */
   readonly trackChanges?: boolean
   /**
@@ -229,10 +228,10 @@ export interface DocumentModel {
    */
   readonly beforeRevisions?: boolean
   /**
-   * Como o documento numera as notas de rodapé e as de fim (M11). Fora dos nós
-   * pelo mesmo motivo dos estilos; a referência (`noteRef`) não guarda número —
-   * ele é a ordem dela no documento. Ausente é a numeração do Word: 1, 2, 3 nas
-   * de rodapé e i, ii, iii nas de fim.
+   * Como o documento numera as notas de rodapé e as de fim. Fora dos nós pelo
+   * mesmo motivo dos estilos; a referência (`noteRef`) não guarda número — ele
+   * é a ordem dela no documento. Ausente é a numeração do Word: 1, 2, 3 nas de
+   * rodapé e i, ii, iii nas de fim.
    */
   readonly notes?: DocumentNotes
   /**
@@ -247,7 +246,7 @@ export interface DocumentModel {
    */
   readonly beforeMath?: boolean
   /**
-   * As propriedades do documento (M11) — `docProps/core.xml` e parte de
+   * As propriedades do documento — `docProps/core.xml` e parte de
    * `docProps/app.xml`. Fora dos nós pelo mesmo motivo dos estilos.
    *
    * Na gravação em DOCX cada campo é um **remendo**: ausente é "deixe como está

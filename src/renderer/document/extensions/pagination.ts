@@ -146,8 +146,8 @@ export interface PageGapExtras {
   /** Cabeçalhos de tabela repetidos no alto das folhas em que a tabela continua. */
   readonly headers?: readonly RepeatedHeader[]
   /**
-   * O deslocamento lateral dos blocos postos em coluna (M9), pela posição do
-   * bloco. Translação, e não margem: mudar de coluna não pode mudar a altura.
+   * O deslocamento lateral dos blocos postos em coluna, pela posição do bloco.
+   * Translação, e não margem: mudar de coluna não pode mudar a altura.
    */
   readonly columns?: ReadonlyMap<number, number>
 }

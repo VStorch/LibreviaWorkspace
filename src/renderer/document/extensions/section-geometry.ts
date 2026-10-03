@@ -6,7 +6,7 @@ import type { SectionSetup } from '@services/document/model.js'
 import { blockSections, sectionBreakIn, type SectionBlock } from '@services/document/sections.js'
 
 /**
- * A caixa de texto de cada seção, na coluna única do editor (M9).
+ * A caixa de texto de cada seção, na coluna única do editor.
  *
  * O editor é um fluxo só, com a largura da seção base (a última). Um bloco de
  * outra seção — a de paisagem, a de margens diferentes — precisa quebrar as
@@ -123,7 +123,7 @@ export function setSectionBoxes(
 }
 
 /**
- * A estrutura das seções no texto (M9).
+ * A estrutura das seções no texto.
  *
  * `bodySection`, no documento, aponta a entrada da biblioteca que faz as vezes
  * da última seção depois de uma quebra nova — é atributo do documento para que o

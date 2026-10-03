@@ -9,7 +9,7 @@ interface Listing {
 }
 
 /**
- * Arquivo → Novo a partir de modelo… (M11).
+ * Arquivo → Novo a partir de modelo….
  *
  * Os modelos que vêm com o aplicativo e os da pasta do usuário, cada um com nome
  * e descrição — sem miniatura, que pediria renderizar o pacote só para mostrar.

@@ -90,12 +90,12 @@ internal sealed class TableGridWriter(Inventory inventory, int usableWidthPx)
     /// A largura das colunas que o editor não declarou, completada.
     /// </summary>
     /// <remarks>
-    /// O TableKit põe `colwidth` só na coluna arrastada, e depois de inserir uma
-    /// coluna a nova chega com `0` ou `null`. Antes daqui a grade parcial era
-    /// descartada inteira, e a largura que a pessoa arrastou não chegava ao
-    /// arquivo. A conta é a da tela: com a grade do arquivo no mesmo formato, a
-    /// coluna sem medida fica com a dela; sem isso, as sem medida dividem o que
-    /// sobra — da tabela do arquivo, ou da coluna de texto numa tabela nova.
+    /// O TableKit põe `colwidth` só na coluna arrastada, e depois de inserir
+    /// uma coluna a nova chega com `0` ou `null`. Descartar a grade parcial
+    /// faria a largura que a pessoa arrastou não chegar ao arquivo. A conta é a
+    /// da tela: com a grade do arquivo no mesmo formato, a coluna sem medida
+    /// fica com a dela; sem isso, as sem medida dividem o que sobra — da tabela
+    /// do arquivo, ou da coluna de texto numa tabela nova.
     /// </remarks>
     private List<int> Completed(List<int?> declared, List<long> grid)
     {

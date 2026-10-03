@@ -3,8 +3,8 @@
  *
  * Roda contra o **corpus real**, apontado por `LIBREVIA_CORPUS_DIR`, e é pulado
  * quando a variável não existe — os arquivos têm marca de cliente e capturas de
- * sistemas internos, então não entram no repositório (docs/01-corpus-docx.md).
- * O CI cobre as mesmas estruturas com fixtures sintéticos, do lado C#.
+ * sistemas internos, então não entram no repositório. O CI cobre as mesmas
+ * estruturas com fixtures sintéticos, do lado C#.
  */
 
 import { access, constants, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises'

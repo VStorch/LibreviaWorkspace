@@ -11,8 +11,8 @@ let target: BrowserWindow | null = null
 /**
  * Only native launch arguments can grant access to files outside recents.
  *
- * Os modelos do Word (M11) também: abrir um `.dotx` ou `.dotm` pela linha de
- * comando cria um documento novo a partir dele, como no Word.
+ * Os modelos do Word também: abrir um `.dotx` ou `.dotm` pela linha de comando
+ * cria um documento novo a partir dele, como no Word.
  */
 export function docxFromArguments(args: readonly string[], cwd: string): string | undefined {
   const path = args.find(

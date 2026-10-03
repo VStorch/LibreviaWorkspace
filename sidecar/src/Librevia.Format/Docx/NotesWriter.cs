@@ -6,7 +6,8 @@ using DocumentFormat.OpenXml.Wordprocessing;
 namespace Librevia.Format.Docx;
 
 /// <summary>
-/// O corpo das notas de rodapé e de fim volta para `footnotes.xml` e `endnotes.xml` (M11).
+/// O corpo das notas de rodapé e de fim volta para `footnotes.xml` e
+/// `endnotes.xml`.
 /// </summary>
 /// <remarks>
 /// A mesma aposta do corpo e das faixas: a nota cujo corpo não mudou não é tocada,

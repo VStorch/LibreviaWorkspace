@@ -34,7 +34,7 @@ export const EditorCommand = {
   ParagraphSetup: 'paragraph-setup',
   PasteWithoutFormat: 'paste-without-format',
   WordCount: 'word-count',
-  /** Arquivo → Propriedades (M11). */
+  /** Arquivo → Propriedades. */
   DocumentProperties: 'document-properties',
   SpecialCharacter: 'special-character',
   InsertEquation: 'insert-equation',

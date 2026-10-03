@@ -4,9 +4,8 @@ import { TableAction } from '@shared/table-actions.js'
 /**
  * O que cada ação de tabela faz no editor.
  *
- * Nenhuma delas é nossa: mesclar, dividir, inserir e remover linha ou coluna são
- * comandos do TableKit, que estavam instalados e sem interface nenhuma desde que
- * a tabela passou a ser lida do `.docx`. Aqui só se liga o id do menu ao comando.
+ * Nenhuma delas é nossa: mesclar, dividir, inserir e remover linha ou coluna
+ * são comandos do TableKit. Aqui só se liga o id do menu ao comando.
  *
  * As duas que abrem diálogo — inserir e propriedades — **não** estão aqui: elas
  * não mexem no documento, e quem as atende é o componente que desenha o diálogo.

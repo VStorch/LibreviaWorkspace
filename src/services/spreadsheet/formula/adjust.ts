@@ -12,8 +12,7 @@
  *
  * Sem isso, inserir uma linha moveria os dados e deixaria `SOMA(A1:A3)`
  * apontando para onde os dados não estão mais: um total errado, sem aviso
- * nenhum. É o defeito que a Fase 5 deixou em aberto ao ganhar o menu de
- * inserir e excluir.
+ * nenhum.
  *
  * A reescrita é feita sobre os **símbolos**, e não sobre a árvore: assim a
  * fórmula volta com o espaçamento, as maiúsculas e os parênteses que o usuário

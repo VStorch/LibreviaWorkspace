@@ -51,8 +51,8 @@ export function splitIntoPages(
 
   const cuts: PageStart[] = [{ blockIndex: 0 }, ...layout.pageStarts, { blockIndex: blocks.length }]
   const pages: PrintPage[] = []
-  // O número das notas (M11) é decoração na tela; no papel ele é escrito aqui,
-  // com os rótulos da tela — os reinícios por folha e por seção já contados.
+  // O número das notas é decoração na tela; no papel ele é escrito aqui, com os
+  // rótulos da tela — os reinícios por folha e por seção já contados.
   const screenLabels = noteLabelsOf(editor.state)
   const labelOf = new Map<ProseMirrorNode, string>()
   noteRefsOf(editor.state.doc).forEach(({ node }, index) => {
@@ -143,7 +143,7 @@ export function splitIntoPages(
 }
 
 /**
- * As notas da folha desenhada `sheet` (M11): as áreas que a tela pôs nela, com o
+ * As notas da folha desenhada `sheet`: as áreas que a tela pôs nela, com o
  * corpo de cada nota serializado do nó e o número escrito no começo — no papel
  * não há decoração para desenhá-lo.
  */
@@ -184,8 +184,8 @@ function notesForPrint(
 }
 
 /**
- * Os blocos em coluna saem no papel como na tela (M9): a largura de uma coluna,
- * o lado da coluna dela e o desvio vertical do primeiro de cada coluna — os
+ * Os blocos em coluna saem no papel como na tela: a largura de uma coluna, o
+ * lado da coluna dela e o desvio vertical do primeiro de cada coluna — os
  * mesmos números que a paginação da tela produziu.
  */
 function placeColumns(holder: HTMLElement, start: PageStart, end: PageStart, layout: PageLayout): void {

@@ -20,7 +20,7 @@ import type { FloatingObject } from './floating.js'
  *
  * Três colunas e um filete opcional. O texto das peças que trazem endereço é
  * editável, e volta para o `w:t` de onde veio; todo o resto da parte OOXML
- * volta intacto. Ver docs/02-docx-cirurgico.md.
+ * volta intacto.
  */
 export interface Band {
   readonly left: BandPiece[]

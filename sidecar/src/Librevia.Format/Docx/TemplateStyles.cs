@@ -30,9 +30,9 @@ internal static class TemplateStyles
     /// </summary>
     /// <remarks>
     /// Os estilos vêm do modelo, e não de uma tabela daqui, porque há dois
-    /// documentos novos: o que nasceu agora (Calibri) e o `.sdoc` antigo salvo
-    /// como DOCX pela primeira vez (Times). Com uma tabela só, um dos dois
-    /// reabriria com outra aparência.
+    /// documentos novos: o que nasceu no editor (Calibri) e o `.sdoc` antigo
+    /// salvo como DOCX pela primeira vez (Times). Com uma tabela só, um dos
+    /// dois reabriria com outra aparência.
     ///
     /// Só o que <see cref="BuiltinStyle"/> sabe gravar atravessa: é o que as
     /// duas tabelas do lado TS usam. Estilo criado pela pessoa é gravado pelo

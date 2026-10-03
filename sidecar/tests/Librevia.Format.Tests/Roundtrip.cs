@@ -32,12 +32,11 @@ internal static class Roundtrip
     /// gravação passa por este método: um documento fora do esquema é um
     /// documento que o Word recusa, e nenhuma assertiva sobre o modelo pega isso.
     ///
-    /// Foi o que aconteceu com o recuo. `indentation.Right = right > 0 ? ... :
-    /// null` tem tipo `string`, então o `null` virava `StringValue(null)` e o SDK
-    /// gravava `w:right=""` — atributo vazio, que o LibreOffice tolera e o Word
-    /// não. Os testes comparavam o modelo depois de reler, e reler um atributo
-    /// vazio devolve o mesmo modelo: o defeito era invisível para eles e visível
-    /// para quem abrisse o arquivo.
+    /// Um `null` atribuído a uma propriedade `string` do SDK vira
+    /// `StringValue(null)` e é gravado como `w:right=""` — atributo vazio, que
+    /// o LibreOffice tolera e o Word não. Reler um atributo vazio devolve o
+    /// mesmo modelo: o defeito seria invisível para os testes e visível para
+    /// quem abrisse o arquivo.
     /// </remarks>
     public static (byte[] Bytes, SaveResult Result) Save(byte[] original, DocumentModelDto model)
     {

@@ -11,8 +11,8 @@ const NOTE_STYLE: Record<NoteKind, string> = {
 }
 
 /**
- * Insere uma nota no cursor (M11): a referência no fim da seleção, como no Word,
- * e o cursor no corpo da nota, que começa com o espaço depois do número.
+ * Insere uma nota no cursor: a referência no fim da seleção, como no Word, e o
+ * cursor no corpo da nota, que começa com o espaço depois do número.
  *
  * O foco vai para o corpo quando ele chega à folha: antes de a paginação o pôr
  * no pé da página, ele mora num depósito escondido (ver `note-view.ts`).
@@ -64,9 +64,9 @@ export function noteAtCursor(editor: Editor): { pos: number; kind: NoteKind } | 
 }
 
 /**
- * Converte a nota de rodapé em nota de fim, ou o contrário (M11). A referência
- * perde o `nid`: a nota sai de uma parte do arquivo e a gravação a cria na outra,
- * com o mesmo corpo. O parágrafo com o estilo de um tipo passa ao do outro.
+ * Converte a nota de rodapé em nota de fim, ou o contrário. A referência perde
+ * o `nid`: a nota sai de uma parte do arquivo e a gravação a cria na outra, com
+ * o mesmo corpo. O parágrafo com o estilo de um tipo passa ao do outro.
  */
 export function convertNote(editor: Editor, pos: number): boolean {
   if (useWorkspace.getState().readOnly) return false

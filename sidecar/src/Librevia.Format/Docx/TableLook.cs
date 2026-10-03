@@ -12,11 +12,10 @@ namespace Librevia.Format.Docx;
 /// <remarks>
 /// ## Por que existe
 ///
-/// O editor **já** deixava a pessoa arrastar a divisória das colunas — a opção
-/// `resizable` do TableKit —, e a largura resultante morria no caminho: o
-/// gravador devolvia o `w:tblGrid` do arquivo por posição e o número novo não
-/// chegava a lugar nenhum. Era perda silenciosa, o defeito mais grave do
-/// projeto, e é o motivo desta classe.
+/// O editor deixa a pessoa arrastar a divisória das colunas — a opção
+/// `resizable` do TableKit. Se o gravador devolvesse o `w:tblGrid` do arquivo
+/// por posição, a largura nova morreria no caminho: perda silenciosa, o defeito
+/// mais grave do projeto.
 ///
 /// ## A regra que evita estrago
 ///

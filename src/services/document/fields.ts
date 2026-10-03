@@ -4,8 +4,8 @@
  * Uma instrução é a palavra do campo seguida de argumentos e de chaves:
  * `PAGEREF _Toc123 \h`, `SEQ Figura \* ARABIC`, `TOC \o "1-3" \h \z \u`. O
  * argumento pode vir entre aspas, e a chave `\*` leva o formato do número. Só o
- * que o M8 usa está aqui; o resto da instrução é preservado como veio — é ela
- * que volta ao arquivo, e não o que se entendeu dela.
+ * que as referências usam está aqui; o resto da instrução é preservado como
+ * veio — é ela que volta ao arquivo, e não o que se entendeu dela.
  */
 
 /** A palavra do campo: `PAGEREF`, `REF`, `SEQ`, `TOC`… Maiúscula, como o Word a escreve. */

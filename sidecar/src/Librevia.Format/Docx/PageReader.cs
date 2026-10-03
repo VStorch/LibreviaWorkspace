@@ -11,7 +11,7 @@ public sealed record PageSetupDto(
     [property: JsonPropertyName("headerBand")] BandDto? Header,
     [property: JsonPropertyName("footerBand")] BandDto? Footer,
     // Campos novos, e não uma troca de forma do par acima: um `.sdoc` gravado
-    // antes daqui não os tem, e como são opcionais continua abrindo.
+    // sem eles e como são opcionais continua abrindo.
     [property: JsonPropertyName("firstHeaderBand")] BandDto? FirstHeader = null,
     [property: JsonPropertyName("firstFooterBand")] BandDto? FirstFooter = null,
     [property: JsonPropertyName("evenHeaderBand")] BandDto? EvenHeader = null,
@@ -40,7 +40,7 @@ public sealed record PageSetupDto(
     [property: JsonPropertyName("pageNumberStart")] System.Text.Json.JsonElement PageNumberStart = default,
     [property: JsonPropertyName("titlePage")] bool? TitlePage = null,
     [property: JsonPropertyName("evenAndOddHeaders")] bool? EvenAndOddHeaders = null,
-    // Seções (M9). `Id` só existe nas seções anteriores à última: é o valor do
+    // Seções. `Id` só existe nas seções anteriores à última: é o valor do
     // atributo `sectionBreak` do parágrafo que carrega o `w:sectPr` delas. A
     // última é o `w:sectPr` do corpo, e não tem parágrafo nem id.
     [property: JsonPropertyName("id")] string? Id = null,

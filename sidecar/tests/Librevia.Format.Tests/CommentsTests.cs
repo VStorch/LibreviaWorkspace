@@ -5,12 +5,12 @@ using static Librevia.Format.Tests.Roundtrip;
 namespace Librevia.Format.Tests;
 
 /// <summary>
-/// Comentários (M10, fase 1): lidos, mostrados e devolvidos ao arquivo.
+/// Comentários: lidos, mostrados e devolvidos ao arquivo.
 /// </summary>
 /// <remarks>
-/// A âncora virou um par de nós no parágrafo, e o corpo do comentário mora fora
-/// dos nós. Editar o parágrafo comentado não perde mais nada — e por isso o
-/// comentário deixou de travar o documento.
+/// A âncora é um par de nós no parágrafo, e o corpo do comentário mora fora dos
+/// nós. Editar o parágrafo comentado não perde nada — e por isso o comentário
+/// não trava o documento.
 /// </remarks>
 public class CommentsTests
 {

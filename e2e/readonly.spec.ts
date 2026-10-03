@@ -15,11 +15,9 @@ import {
  * Somente leitura **graduado**, não ligado/desligado.
  *
  * Documento com revisão de estrutura (a célula inserida) abre travado, porque
- * editar a tabela a perde. O comentário e o controle de alterações travavam pelo
- * mesmo motivo até o M10, quando a âncora virou nó e a revisão virou marca, e a
- * nota de rodapé até o M11, quando a referência virou nó com o corpo dentro —
- * os três passaram a voltar ao arquivo. Documento comum abre editável,
- * porque travar tudo
+ * editar a tabela a perde. O comentário, a revisão de texto e a nota de rodapé
+ * não travam: a âncora e a referência são nós, a revisão é marca, e os três
+ * voltam ao arquivo. Documento comum abre editável, porque travar tudo
  * ensinaria o usuário a clicar "editar mesmo assim" sem ler — e aí a proteção
  * deixaria de proteger.
  */

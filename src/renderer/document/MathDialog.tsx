@@ -9,8 +9,7 @@ import { insertEquation, replaceEquation, type EquationTarget } from './math-com
 import { useT } from '../i18n.js'
 
 /**
- * O editor de equações (M11, fase 2): o LaTeX, a visualização ao vivo e os
- * modelos.
+ * O editor de equações: o LaTeX, a visualização ao vivo e os modelos.
  *
  * O LaTeX é a fonte; o Temml o desenha em MathML (`latex.ts`), que passa pelo
  * mesmo filtro da equação lida do arquivo antes de virar DOM. A equação que veio

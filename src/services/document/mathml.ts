@@ -1,5 +1,5 @@
 /**
- * O MathML de uma equação (M11), lido e filtrado antes de chegar à tela.
+ * O MathML de uma equação, lido e filtrado antes de chegar à tela.
  *
  * O MathML vem do sidecar (`OmmlMath.cs`), mas mora num atributo do nó — e o nó
  * mora no `.sdoc`, que é um arquivo que qualquer um edita à mão. Por isso ele

@@ -16,7 +16,7 @@ import {
 import { caretOf, selectInNote } from './extensions/note-view.js'
 
 /**
- * Criar, responder, editar, resolver e excluir comentários (M10, fase 2).
+ * Criar, responder, editar, resolver e excluir comentários.
  *
  * O desenho é o das seções (ver section-commands.ts): o comentário mora em dois
  * lugares — as pontas no texto e o corpo na biblioteca da loja —, e quem diz qual

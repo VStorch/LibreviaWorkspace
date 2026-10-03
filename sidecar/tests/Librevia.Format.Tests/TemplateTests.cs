@@ -6,7 +6,7 @@ using Librevia.Format.Docx;
 namespace Librevia.Format.Tests;
 
 /// <summary>
-/// Modelos do Word (M11): abrir um `.dotx` é abrir um `.docx` com outro rótulo, e a
+/// Modelos do Word: abrir um `.dotx` é abrir um `.docx` com outro rótulo, e a
 /// gravação escreve o rótulo do destino.
 /// </summary>
 /// <remarks>

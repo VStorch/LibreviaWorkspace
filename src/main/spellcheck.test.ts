@@ -51,12 +51,12 @@ describe('instalação do dicionário no perfil', () => {
   })
 
   it('repara o arquivo estragado na mesma execução', () => {
-    // O modo de falha que o QA reproduziu: um `.bdic` corrompido no perfil — de um
-    // download interrompido por uma versão antiga, ou de disco cheio — é apagado
-    // pelo Chromium, que então tentaria baixar. Numa máquina sem rede a sessão
-    // fica sem ortografia **sem avisar**, que é o defeito que este módulo existe
-    // para evitar. Conferir só o tamanho deixava o arquivo de pé até a próxima
-    // execução; a assinatura o repõe agora.
+    // Um `.bdic` corrompido no perfil — de um download interrompido por uma
+    // versão antiga, ou de disco cheio — é apagado pelo Chromium, que então
+    // tentaria baixar. Numa máquina sem rede a sessão fica sem ortografia **sem
+    // avisar**, que é o defeito que este módulo existe para evitar. Conferir só
+    // o tamanho deixaria o arquivo de pé até a próxima execução; a assinatura o
+    // repõe na hora.
     writeFileSync(instalado, 'lixo')
 
     expect(installBundledDictionary()).toBe(true)

@@ -9,13 +9,13 @@ import { app, protocol } from 'electron'
  * O documento corporativo pede Calibri, Cambria, Arial e Times New Roman, e
  * nenhuma delas existe num Linux limpo. Sem elas o Chromium substitui por conta
  * própria, as métricas mudam e a quebra de linha cai noutro lugar — o documento
- * de três páginas vira quatro. Com paginação ao vivo isso deixou de ser um
- * detalhe do PDF: é o número que a pessoa lê na barra de status.
+ * de três páginas vira quatro. Com paginação ao vivo isso não é um detalhe do
+ * PDF: é o número que a pessoa lê na barra de status.
  *
  * As substitutas são **metricamente compatíveis**: cada glifo ocupa a mesma
  * largura da fonte original, então a linha quebra no mesmo ponto. É o mesmo
- * conjunto que o LibreOffice usa para abrir documentos do Word, e é por isso que
- * a comparação com ele passa a fazer sentido.
+ * conjunto que o LibreOffice usa para abrir documentos do Word, e é por isso
+ * que a comparação com ele faz sentido.
  *
  * ## Por que um esquema próprio, e não `data:` nem `file:`
  *

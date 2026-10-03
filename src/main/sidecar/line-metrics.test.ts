@@ -19,9 +19,9 @@ import {
  */
 describe('contrato da altura natural da linha', () => {
   it('a tabela é a mesma que o sidecar usa', () => {
-    // O número tem de ser **um**: o leitor multiplica no C# e a interface divide
-    // aqui. Duas tabelas que discordem fazem "1,5" na tela virar outra coisa no
-    // arquivo, que é justamente o defeito que esta conversão veio corrigir.
+    // O número tem de ser **um**: o leitor multiplica no C# e a interface
+    // divide aqui. Duas tabelas que discordem fazem "1,5" na tela virar outra
+    // coisa no arquivo.
     const source = readFileSync(
       new URL('../../../sidecar/src/Librevia.Format/Docx/LineMetrics.cs', import.meta.url),
       'utf8',

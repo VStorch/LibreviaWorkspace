@@ -30,11 +30,9 @@ function getFilters() {
 /**
  * Os formatos em que cada tipo pode ser salvo, o nativo primeiro.
  *
- * Com a lista de abrir, o diálogo de salvar oferecia planilha do Excel a um
- * documento — e o `.docx` de um documento novo era recusado depois da escolha.
- * Agora o documento novo também grava em `.docx`, e a lista oferece só o que
- * de fato funciona para o que está aberto. O `.txt` continua na lista, com o
- * aviso de formatação perdida que vem antes da gravação.
+ * A lista de abrir ofereceria planilha do Excel a um documento; esta oferece só
+ * o que de fato funciona para o que está aberto. O `.txt` continua na lista,
+ * com o aviso de formatação perdida que vem antes da gravação.
  */
 function templateExtensions(): string[] {
   return [bare(WORD_TEMPLATE_EXTENSION), bare(WORD_MACRO_TEMPLATE_EXTENSION)]
@@ -45,7 +43,7 @@ function getSaveFilters(kind: DocumentKind) {
     ? [
         { name: t('dialog.filter.document'), extensions: [bare(DOCUMENT_EXTENSION)] },
         { name: t('dialog.filter.wordDoc'), extensions: [bare(WORD_EXTENSION)] },
-        // O modelo (M11): o mesmo pacote, com o rótulo de modelo — ver PackageKind.
+        // O modelo: o mesmo pacote, com o rótulo de modelo — ver PackageKind.
         { name: t('dialog.filter.wordTemplate'), extensions: [bare(WORD_TEMPLATE_EXTENSION)] },
         { name: t('dialog.filter.plainText'), extensions: [bare(PLAIN_TEXT_EXTENSION)] },
       ]
@@ -72,7 +70,7 @@ export async function showOpenFileDialog(window: BrowserWindow): Promise<string 
   return result.canceled ? null : (result.filePaths[0] ?? null)
 }
 
-/** Procurar… da galeria de modelos (M11): só `.dotx` e `.dotm`. */
+/** Procurar… da galeria de modelos: só `.dotx` e `.dotm`. */
 export async function showTemplatePickerDialog(
   window: BrowserWindow,
   defaultPath: string,
@@ -150,7 +148,7 @@ const EXPORT_DIALOGS = {
   odt: { title: 'dialog.export.odtTitle', filter: 'dialog.filter.odt', extensions: ['odt'] },
 } as const
 
-/** Destino da exportação para HTML, Markdown ou ODT (M11): só a extensão do formato. */
+/** Destino da exportação para HTML, Markdown ou ODT: só a extensão do formato. */
 export async function showExportSaveDialog(
   window: BrowserWindow,
   suggestedName: string,

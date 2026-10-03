@@ -155,7 +155,7 @@ function asFingerprinted(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(asFingerprinted)
   if (value === null || typeof value !== 'object') return value
 
-  // A referência de nota (M11) vale pelo que aponta, e não pelo corpo da nota: a
+  // A referência de nota vale pelo que aponta, e não pelo corpo da nota: a
   // impressão digital do parágrafo vê só `kind`, `nid` e `mark`. O corpo é
   // comparado bloco a bloco por NotesWriter.
   const record = value as Record<string, unknown>
@@ -168,8 +168,8 @@ function asFingerprinted(value: unknown): unknown {
     })
   }
 
-  // A equação (M11) vale pelo OMML: o MathML, o LaTeX e a lista do que não se
-  // desenha saem dele no sidecar, e a impressão digital não os vê.
+  // A equação vale pelo OMML: o MathML, o LaTeX e a lista do que não se desenha
+  // saem dele no sidecar, e a impressão digital não os vê.
   if (record['type'] === 'math') {
     const attrs = (record['attrs'] ?? {}) as Record<string, unknown>
     return fingerprintEntries({ ...record, attrs: { omml: attrs['omml'] } })
@@ -299,7 +299,7 @@ describe.skipIf(!published)('impressão digital entre o editor e o sidecar', () 
   // ancorada, o espaçamento sempre declarado, o cabeçalho em grade.
   const documents: Array<[string, () => Promise<Buffer>]> = [
     ['parágrafos com comentário ancorado', docxWithComment],
-    // M10: a âncora vira nó, e a da resposta não — nos dois lados.
+    // A âncora vira nó, e a da resposta não — nos dois lados.
     ['conversa de comentários com resposta e resolvido', docxWithCommentThread],
     ['parágrafo sem nada em volta', docxWithoutExtras],
     ['imagem esticada no fluxo do texto', docxWithStretchedImage],
@@ -307,26 +307,26 @@ describe.skipIf(!published)('impressão digital entre o editor e o sidecar', () 
     ['espaçamento dos dois lados', docxWithSpacingOnBothSides],
     ['cabeçalho em grade', docxWithHeaderGrid],
     ['lista com marcador', docxWithBulletList],
-    // M7: níveis, texto composto, continuação e reinício.
+    // Níveis, texto composto, continuação e reinício.
     ['lista multinível com reinício', docxWithMultilevelList],
     ['tabela com tabela aninhada', docxWithTable],
     ['sobrescrito e subscrito', docxWithVerticalAlignment],
-    // Os atributos do M4: largura de coluna, sombreamento, borda, mesclagem
-    // horizontal e linha de cabeçalho na tabela; texto alternativo na imagem.
+    // Largura de coluna, sombreamento, borda, mesclagem horizontal e linha de
+    // cabeçalho na tabela; texto alternativo na imagem.
     ['tabela com sombreamento, borda e cabeçalho', docxWithStyledCells],
     ['imagem com texto alternativo', docxWithDescribedImage],
-    // M5: o bloco leva só a formatação direta, e o resto é dos estilos.
+    // O bloco leva só a formatação direta, e o resto é dos estilos.
     ['estilos nomeados', () => docxWithNamedStyles()],
     ['formatação direta por cima dos estilos', docxWithDirectOverStyles],
-    // M8: sumário, marcadores (inclusive os ocultos), campos e link interno.
+    // Sumário, marcadores (inclusive os ocultos), campos e link interno.
     ['referências do Word', () => docxWithReferences()],
-    // M9: três seções, com marca vazia, marca em parágrafo com texto e herança.
+    // Três seções, com marca vazia, marca em parágrafo com texto e herança.
     ['seções', docxWithSections],
-    // M10: inserção, exclusão, marca de parágrafo, movimentação e linha revisadas.
+    // Inserção, exclusão, marca de parágrafo, movimentação e linha revisadas.
     ['controle de alterações', () => docxWithTrackedChange()],
-    // M11: a referência de nota leva o corpo dentro, e a impressão digital não o vê.
+    // A referência de nota leva o corpo dentro, e a impressão digital não o vê.
     ['nota de rodapé', () => docxWithFootnote()],
-    // M11: a equação leva o OMML como identidade, e o MathML derivado não conta.
+    // A equação leva o OMML como identidade, e o MathML derivado não conta.
     ['equações em linha e de exibição', docxWithEquations],
   ]
 
@@ -386,12 +386,12 @@ describe.skipIf(!published)('impressão digital entre o editor e o sidecar', () 
   })
 
   it('a saída do diálogo de parágrafo é o que o arquivo recebe', async () => {
-    // A gravação passou a receber esta forma: `lineHeight` como medida de CSS,
-    // `textAlign` e o nível de recuo zerado (`indent: 0`). É o único caminho em que
-    // o editor **inventa** atributos de parágrafo em vez de devolver os que leu, e
-    // é onde o erro de entrelinha morava: o número do diálogo ia cru para o
-    // atributo, o gravador dividia pela altura natural da fonte e o arquivo
-    // recebia 1,23 linha onde a pessoa pediu 1,5.
+    // A gravação recebe esta forma: `lineHeight` como medida de CSS,
+    // `textAlign` e o nível de recuo zerado (`indent: 0`). É o único caminho em
+    // que o editor **inventa** atributos de parágrafo em vez de devolver os que
+    // leu, e é onde o erro de entrelinha aparece: se o número do diálogo for
+    // cru para o atributo, o gravador o divide pela altura natural da fonte e o
+    // arquivo recebe 1,23 linha onde a pessoa pediu 1,5.
     const bytes = await docxWithoutExtras()
     const opened = await client.request(SidecarMethod.DocxOpen, {}, new Uint8Array(bytes))
     const { model } = opened.result as OpenReply

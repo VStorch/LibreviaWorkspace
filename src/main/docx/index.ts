@@ -1,10 +1,8 @@
 /**
  * DOCX no processo main: conversa com o sidecar e guarda os bytes originais.
  *
- * Os bytes ficam **aqui**, e não no sidecar, por decisão de desenho
- * (docs/02-docx-cirurgico.md): o sidecar é sem estado, então a morte dele não
- * custa a capacidade de gravar cirurgicamente. Guardá-los lá quebraria a
- * promessa da Fase 3.5.
+ * Os bytes ficam **aqui**, e não no sidecar: o sidecar é sem estado, então a
+ * morte dele não custa a capacidade de gravar cirurgicamente.
  */
 
 import { readFile } from 'node:fs/promises'
@@ -29,10 +27,10 @@ import { editorPreferences } from '../preferences.js'
  * Os rótulos do inventário, já cortados nos limites do contrato de IPC.
  *
  * `ipc.ts` recusa mais de 50 rótulos por categoria e mais de 300 caracteres em
- * cada um, e o registro passou a executar esse schema também na resposta. Sem o
- * corte aqui, um documento patológico — dezenas de medidas inválidas distintas —
- * deixaria de abrir por causa do **aviso**, e não do conteúdo. Cortar a lista de
- * avisos é o desfecho certo; recusar o arquivo por causa dela, não.
+ * cada um, e o registro executa esse schema também na resposta. Sem o corte
+ * aqui, um documento patológico — dezenas de medidas inválidas distintas —
+ * deixaria de abrir por causa do **aviso**, e não do conteúdo. Cortar a lista
+ * de avisos é o desfecho certo; recusar o arquivo por causa dela, não.
  */
 const inventoryLabels = z
   .array(z.string())
@@ -63,11 +61,11 @@ const openResultSchema = z.object({
     outsideBookmarks: z.array(z.string().max(200)).max(10_000).optional(),
     // Conferidos aqui pelo mesmo motivo dos estilos: vão parar no `.sdoc`.
     comments: z.array(documentCommentSchema).max(100_000).optional(),
-    // O `w:trackRevisions` do arquivo (M10) — só presente quando ligado.
+    // O `w:trackRevisions` do arquivo — só presente quando ligado.
     trackChanges: z.boolean().optional(),
-    // A numeração das notas (M11), que vai parar no `.sdoc`.
+    // A numeração das notas, que vai parar no `.sdoc`.
     notes: documentNotesSchema.optional(),
-    // As propriedades do documento (M11), que também vão parar no `.sdoc`.
+    // As propriedades do documento, que também vão parar no `.sdoc`.
     properties: documentPropertiesSchema.optional(),
   }),
   inventory: inventorySchema,
@@ -162,9 +160,10 @@ export interface DocxTarget {
   readonly origin: string | null
   readonly destination: string
   /**
-   * O destino é um modelo do Word (`.dotx`, M11). O sidecar grava o rótulo de
-   * modelo na parte principal; sem isto, o de documento — inclusive no documento
-   * criado a partir de um modelo, cujo pacote de partida traz o rótulo de modelo.
+   * O destino é um modelo do Word (`.dotx`). O sidecar grava o rótulo de modelo
+   * na parte principal; sem isto, o de documento — inclusive no documento
+   * criado a partir de um modelo, cujo pacote de partida traz o rótulo de
+   * modelo.
    */
   readonly template?: boolean
 }
@@ -177,10 +176,10 @@ export interface DocxTarget {
  * envelope é descascado aqui para que o renderer não precise saber que DOCX
  * existe.
  *
- * O original só vale para o documento que saiu dele. Antes, qualquer gravação
- * em DOCX usava os bytes guardados, e um documento novo criado depois de abrir
- * um `.docx` sairia com os cabeçalhos, os estilos e as notas do outro arquivo.
- * Agora a origem do documento em edição precisa ser o caminho do original.
+ * O original só vale para o documento que saiu dele: a origem do documento em
+ * edição precisa ser o caminho do original. Sem isso, um documento novo criado
+ * depois de abrir um `.docx` sairia com os cabeçalhos, os estilos e as notas do
+ * outro arquivo.
  */
 export async function saveDocx(
   client: SidecarClient,
@@ -230,7 +229,7 @@ export async function saveDocx(
       // E a numeração delas, que o sidecar só grava quando difere da do arquivo
       // de destino — é o que um rascunho levado para .docx precisa.
       ...(model.notes === undefined ? {} : { notes: model.notes }),
-      // As propriedades (M11) são um remendo: o campo ausente fica como está no
+      // As propriedades são um remendo: o campo ausente fica como está no
       // arquivo, e o sidecar só regrava `docProps/core.xml` ou `app.xml` quando
       // algum campo difere — ver PropertiesWriter.
       ...(model.properties === undefined ? {} : { properties: model.properties }),

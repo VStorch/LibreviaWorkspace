@@ -7,7 +7,7 @@ using DocumentFormat.OpenXml.Wordprocessing;
 namespace Librevia.Format.Docx;
 
 /// <summary>
-/// As marcas de revisão (M10): `w:ins`, `w:del` e a movimentação, nos dois sentidos.
+/// As marcas de revisão: `w:ins`, `w:del` e a movimentação, nos dois sentidos.
 /// </summary>
 /// <remarks>
 /// No editor a revisão de texto é marca do trecho — `insertion` e `deletion` —, com
@@ -263,9 +263,9 @@ public static class Revisions
     /// </summary>
     /// <remarks>
     /// O id que o arquivo deu fica enquanto for único; o repetido (um parágrafo
-    /// revisado que a pessoa partiu em dois) e o ausente ganham um número acima do
-    /// maior `w:id` do pacote — de revisão, de comentário ou de marcador, que o
-    /// esquema trata como um espaço só. As notas (M11) entram na mesma conta: a
+    /// revisado que a pessoa partiu em dois) e o ausente ganham um número acima
+    /// do maior `w:id` do pacote — de revisão, de comentário ou de marcador,
+    /// que o esquema trata como um espaço só. As notas entram na mesma conta: a
     /// revisão escrita numa nota editada sai sem id, e o id é único no pacote.
     /// </remarks>
     public static void MakeIdsUnique(Body body, MainDocumentPart part)

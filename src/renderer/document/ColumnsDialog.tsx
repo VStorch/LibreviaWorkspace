@@ -5,7 +5,7 @@ import { useT } from '../i18n.js'
 import { commitSections, resolvedOf, sectionAtCursor } from './section-commands.js'
 
 /**
- * Formatar → Colunas (M9): quantas, o espaço entre elas e a linha separadora, na
+ * Formatar → Colunas: quantas, o espaço entre elas e a linha separadora, na
  * seção do cursor ou no documento todo — como a configuração de página.
  */
 export function ColumnsDialog({

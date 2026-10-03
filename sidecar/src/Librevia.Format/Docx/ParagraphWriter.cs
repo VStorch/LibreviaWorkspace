@@ -15,7 +15,7 @@ namespace Librevia.Format.Docx;
 /// </summary>
 /// <remarks>
 /// O que este arquivo não souber gerar é perda de verdade, e por isso ele é o
-/// lugar mais perigoso da Fase 4. A edição cirúrgica reduz o estrago: blocos
+/// lugar mais perigoso da gravação. A edição cirúrgica reduz o estrago: blocos
 /// intactos nunca passam por aqui — vão direto do arquivo original para o novo.
 /// </remarks>
 public sealed class ParagraphWriter
@@ -23,8 +23,8 @@ public sealed class ParagraphWriter
     private readonly MainDocumentPart _part;
 
     /// <summary>
-    /// A parte dona dos relacionamentos do que se grava — o link e a imagem nova.
-    /// É o documento, menos na nota (M11): o `r:id` do link de uma nota é de
+    /// A parte dona dos relacionamentos do que se grava — o link e a imagem
+    /// nova. É o documento, menos na nota: o `r:id` do link de uma nota é de
     /// `footnotes.xml.rels`, e apontado no do documento ele não existiria.
     /// </summary>
     private readonly OpenXmlPart _owner;
@@ -45,8 +45,8 @@ public sealed class ParagraphWriter
     private readonly ImageWriter _images;
 
     /// <summary>
-    /// Os marcadores vêm do modelo (M8). Desligado — o rascunho de antes deles —,
-    /// os do parágrafo original são copiados para o reescrito, como eram.
+    /// Os marcadores vêm do modelo. Desligado — o rascunho de antes deles —, os
+    /// do parágrafo original são copiados para o reescrito, como eram.
     /// </summary>
     private readonly bool _references;
 
@@ -349,7 +349,8 @@ public sealed class ParagraphWriter
         var images = ImageWriter.FlowingImagesOf(original);
         foreach (var child in node.Content ?? [])
         {
-            // A revisão do trecho (M10) embrulha o que ele escreveu — ver Revisions.Wrap.
+            // A revisão do trecho embrulha o que ele escreveu — ver
+            // Revisions.Wrap.
             var written = WriteInline(child, images);
             foreach (var element in Revisions.HasRevision(child) ? Revisions.Wrap([.. written], child.Marks) : written)
             {
@@ -486,9 +487,9 @@ public sealed class ParagraphWriter
                 yield return new BookmarkEnd { Id = Attr.String(node, "bid") ?? "0" };
                 break;
 
-            // As pontas do comentário (M10), e com elas as das respostas, que o
-            // editor não leva como nó: no Word a conversa inteira abraça o mesmo
-            // trecho, e a resposta sem âncora fica órfã.
+            // As pontas do comentário, e com elas as das respostas, que o
+            // editor não leva como nó: no Word a conversa inteira abraça o
+            // mesmo trecho, e a resposta sem âncora fica órfã.
             case "commentStart":
                 _comments ??= new CommentAnchors(_part);
                 foreach (var id in _comments.Thread(Attr.String(node, "cid") ?? "0"))
@@ -513,15 +514,15 @@ public sealed class ParagraphWriter
                 foreach (var element in WriteField(node)) yield return element;
                 break;
 
-            // A referência de nota (M11): o corpo vai para a parte das notas — ver
+            // A referência de nota: o corpo vai para a parte das notas — ver
             // NotesWriter —, e aqui fica o run com o id.
             case "noteRef":
                 yield return WriteNoteReference(node);
                 break;
 
-            // A equação (M11): o OMML como veio. A nova ou editada não tem OMML, e
-            // ele sai do MathML (OmmlMath.ToOmml); sem nenhum dos dois, é defeito —
-            // declarado, e não um `m:oMath` inventado.
+            // A equação: o OMML como veio. A nova ou editada não tem OMML, e
+            // ele sai do MathML (OmmlMath.ToOmml); sem nenhum dos dois, é
+            // defeito — declarado, e não um `m:oMath` inventado.
             case "math":
                 if (MathOf(node) is { } math) yield return math;
                 else _inventory.NoteLoss("equação que não pôde ser gravada");
@@ -1069,7 +1070,7 @@ public sealed class ParagraphWriter
         public CommentAnchors(MainDocumentPart part)
         {
             _replies = CommentsReader.RepliesOf(part);
-            // O corpo e as notas (M11): o parágrafo da nota também leva âncora.
+            // O corpo e as notas: o parágrafo da nota também leva âncora.
             var roots = CommentsWriter.AnchorRoots(part);
             _ranged = roots.SelectMany(root => root.Descendants<CommentRangeStart>())
                 .Select(start => start.Id?.Value).OfType<string>().ToHashSet(StringComparer.Ordinal);

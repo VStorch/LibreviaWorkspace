@@ -6,13 +6,13 @@ using static Librevia.Format.Tests.Roundtrip;
 namespace Librevia.Format.Tests;
 
 /// <summary>
-/// Controle de alterações (M10, fase 1): lido, mostrado, devolvido ao arquivo.
+/// Controle de alterações: lido, mostrado, devolvido ao arquivo.
 /// </summary>
 /// <remarks>
-/// A revisão de texto virou marca do editor (`insertion`/`deletion`), a da marca
-/// de parágrafo e a da linha viraram atributo do bloco. Editar o parágrafo revisado
-/// devolve o `w:ins` e o `w:del` com os mesmos ids — e por isso a revisão deixou de
-/// travar o documento.
+/// A revisão de texto é marca do editor (`insertion`/`deletion`), a da marca de
+/// parágrafo e a da linha são atributos do bloco. Editar o parágrafo revisado
+/// devolve o `w:ins` e o `w:del` com os mesmos ids — e por isso a revisão não
+/// trava o documento.
 /// </remarks>
 public class RevisionsTests
 {
@@ -233,8 +233,8 @@ public class RevisionsTests
         Assert.Contains("inserido", xml, StringComparison.Ordinal);
     }
 
-    // O que a leitura de antes do M10 dava: o inserido como texto comum, e nem
-    // o excluído nem a movimentação.
+    // O que a leitura do rascunho anterior às revisões (`BeforeRevisions`) dá:
+    // o inserido como texto comum, e nem o excluído nem a movimentação.
     private static void Legacy(Node node)
     {
         node.Attrs?.Remove("markRevision");
@@ -266,8 +266,9 @@ public class RevisionsTests
     [Fact]
     public void RascunhoAntigoEditadoDeclaraAMovimentacaoEAFormatacao()
     {
-        // O rascunho de antes do M10 não traz revisão nenhuma: reescrever o
-        // parágrafo da movimentação ou o da formatação revisada as perde.
+        // O rascunho anterior às revisões (`BeforeRevisions`) não traz revisão
+        // nenhuma: reescrever o parágrafo da movimentação ou o da formatação
+        // revisada as perde.
         var original = WithRevisions();
         var model = Clone(Open(original));
         Legacy(model.Doc);

@@ -5,7 +5,7 @@ import { canJoin } from '@tiptap/pm/transform'
 import { CharacterCount } from '@tiptap/extensions'
 
 /**
- * Controle de alterações (M10, fase 1): ler, mostrar, aceitar e rejeitar.
+ * Controle de alterações: ler, mostrar, aceitar e rejeitar.
  *
  * A revisão de texto é marca do trecho — `insertion` e `deletion` —, com o autor,
  * a data como o arquivo a escreveu e o `w:id` original (`rid`). As duas não se
@@ -18,7 +18,7 @@ import { CharacterCount } from '@tiptap/extensions'
  * do bloco, como no arquivo.
  *
  * Aceitar e rejeitar são transações comuns do editor: o desfazer as devolve. O
- * controle do que se digita (fase 2) mora em track-input.ts.
+ * controle do que se digita mora em track-input.ts.
  */
 
 export const INSERTION = 'insertion'
@@ -86,8 +86,8 @@ export function revisionChangesOf(doc: ProseMirrorNode): RevisionChange[] {
 
 /**
  * As alterações dentro de `parent`, cujo conteúdo começa em `base`. Desce nos
- * corpos de nota (M11): o que se controla numa nota é alteração do documento,
- * e aceitar ou rejeitar todas não pode deixá-la para trás.
+ * corpos de nota: o que se controla numa nota é alteração do documento, e
+ * aceitar ou rejeitar todas não pode deixá-la para trás.
  */
 function collectChanges(parent: ProseMirrorNode, base: number, changes: RevisionChange[]): void {
   parent.descendants((node, relative) => {
@@ -330,9 +330,9 @@ export function textWithoutDeletions(
   let text = ''
   let first = true
   node.descendants((child) => {
-    // A nota (M11) é um nó só no texto do parágrafo: a busca precisa do
-    // comprimento dela nas posições, e o corpo não está na tela para ser achado.
-    // Na contagem ela entra — o Word conta as notas —, separada do texto em volta.
+    // A nota é um nó só no texto do parágrafo: a busca precisa do comprimento
+    // dela nas posições, e o corpo não está na tela para ser achado. Na
+    // contagem ela entra — o Word conta as notas —, separada do texto em volta.
     if (child.type.name === 'noteRef') {
       if (hide !== undefined) text += hide.repeat(child.nodeSize)
       else {
@@ -385,7 +385,7 @@ export const CountWithoutDeletions = CharacterCount.extend({
 })
 
 /**
- * O texto de um nó folha na contagem de caracteres: a equação (M11) não tem
+ * O texto de um nó folha na contagem de caracteres: a equação não tem
  * caracteres — é uma palavra, contada à parte, e nenhum caractere.
  */
 export function characterLeaf(leaf: ProseMirrorNode): string {
@@ -393,8 +393,8 @@ export function characterLeaf(leaf: ProseMirrorNode): string {
 }
 
 /**
- * As equações do trecho (M11), que contam uma palavra cada, como no Word. No texto
- * da contagem ela é um espaço — o LaTeX de uma ou o marcador "[equação]" inflariam
+ * As equações do trecho, que contam uma palavra cada, como no Word. No texto da
+ * contagem ela é um espaço — o LaTeX de uma ou o marcador "[equação]" inflariam
  * a conta de palavras com o que ninguém escreveu.
  */
 function equationsIn(node: ProseMirrorNode): number {
