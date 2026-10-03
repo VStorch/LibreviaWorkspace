@@ -796,6 +796,11 @@ Deixar os outros dois de fora daria a impressão de estar em dia sem estar.
 
 ## 📐 Regras do código
 
+As regras abaixo aplicam três ideias, descritas com exemplos no
+[CONTRIBUTING](CONTRIBUTING.md#princípios): **Clean Code**, código que se entende na primeira
+leitura; **Clean Architecture**, regras do negócio que não dependem de detalhes técnicos; e
+**SOLID**, cinco princípios para que cada parte mude por um motivo só.
+
 ### Fronteiras entre as camadas
 
 1. **`src/services/` e `src/shared/` não importam `electron`, `react` nem `node:*`.** São

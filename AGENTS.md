@@ -50,6 +50,9 @@ Teste só o que a mudança tocou. Rodar a suíte inteira a cada passo é desperd
 
 ## Estilo
 
+- Siga os [princípios do CONTRIBUTING](CONTRIBUTING.md#princípios): Clean Code (nomes claros,
+  funções pequenas, sem números mágicos, sem duplicação), Clean Architecture (dependências só para
+  dentro; regra de negócio em `src/services/`, sem Electron nem React) e SOLID.
 - Identificadores em **inglês**. Comentários, mensagens ao usuário e nomes de teste em
   **português**.
 - Comentários explicam **por quê**, não o quê, e acompanham a densidade do código em volta.
