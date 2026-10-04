@@ -226,24 +226,50 @@ export function slicePageBlocks(
 ): ProseMirrorNode[] {
   const fragments: ProseMirrorNode[] = []
   for (let index = start.blockIndex; index <= end.blockIndex && index < blocks.length; index++) {
-    const block = blocks[index]!
-    // Cortado entre linhas, no caractere em que a tela pôs o espaçador.
-    const textFrom = index === start.blockIndex ? start.offset : undefined
-    const textTo = index === end.blockIndex ? end.offset : undefined
-    if (block.isTextblock && (textFrom !== undefined || textTo !== undefined)) {
-      if (textTo === 0) break
-      fragments.push(block.cut(textFrom ?? 0, textTo ?? block.content.size))
-      continue
-    }
-    const from = index === start.blockIndex ? (start.childIndex ?? 0) : 0
-    const to = index === end.blockIndex ? (end.childIndex ?? 0) : block.childCount
-    if (index === end.blockIndex && to === 0) break
-    const repeatHeader = index === start.blockIndex && start.repeatHeader === true
-    fragments.push(
-      from === 0 && to === block.childCount ? block : partialBlock(block, from, to, repeatHeader),
-    )
+    const fragment = sliceBlock(blocks[index]!, index, start, end)
+    if (fragment === null) break
+    fragments.push(fragment)
   }
   return fragments
+}
+
+/** `null` quando o corte cai antes do primeiro conteúdo do bloco: a folha acabou. */
+function sliceBlock(
+  block: ProseMirrorNode,
+  index: number,
+  start: PageStart,
+  end: PageStart,
+): ProseMirrorNode | null {
+  const textFrom = index === start.blockIndex ? start.offset : undefined
+  const textTo = index === end.blockIndex ? end.offset : undefined
+  if (block.isTextblock && (textFrom !== undefined || textTo !== undefined)) {
+    return sliceTextblock(block, textFrom, textTo)
+  }
+  return sliceChildren(block, index, start, end)
+}
+
+function sliceChildren(
+  block: ProseMirrorNode,
+  index: number,
+  start: PageStart,
+  end: PageStart,
+): ProseMirrorNode | null {
+  const first = index === start.blockIndex
+  const last = index === end.blockIndex
+  const from = first ? (start.childIndex ?? 0) : 0
+  const to = last ? (end.childIndex ?? 0) : block.childCount
+  if (last && to === 0) return null
+  if (from === 0 && to === block.childCount) return block
+  return partialBlock(block, from, to, first && start.repeatHeader === true)
+}
+
+/** Cortado entre linhas, no caractere em que a tela pôs o espaçador. */
+function sliceTextblock(
+  block: ProseMirrorNode,
+  textFrom: number | undefined,
+  textTo: number | undefined,
+): ProseMirrorNode | null {
+  return textTo === 0 ? null : block.cut(textFrom ?? 0, textTo ?? block.content.size)
 }
 
 /** Os filhos `[from, to)`, com o cabeçalho da tabela repetido; a lista numerada continua a contagem. */

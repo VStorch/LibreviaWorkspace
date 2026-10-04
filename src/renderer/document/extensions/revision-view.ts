@@ -233,8 +233,7 @@ export const RevisionViewExtension = Extension.create({
  * como tachado: apaga-se aqui só o que se vê.
  */
 function deleteVisibleKey(view: EditorView, event: KeyboardEvent): boolean {
-  if (event.key !== 'Backspace' && event.key !== 'Delete') return false
-  if (event.ctrlKey || event.metaKey || event.altKey || event.shiftKey || view.composing) return false
+  if (!isPlainDeleteKey(view, event)) return false
   const mode = revisionViewOf(view.state)
   const { selection } = view.state
   if (mode === RevisionView.All || !(selection instanceof TextSelection)) return false
@@ -242,20 +241,32 @@ function deleteVisibleKey(view: EditorView, event: KeyboardEvent): boolean {
     view.dispatch(deleteVisible(view.state.tr, selection.from, selection.to, mode).scrollIntoView())
     return true
   }
-  const backward = event.key === 'Backspace'
+  return deleteVisibleCharacter(view, selection, mode, event.key === 'Backspace')
+}
+
+function isPlainDeleteKey(view: EditorView, event: KeyboardEvent): boolean {
+  if (event.key !== 'Backspace' && event.key !== 'Delete') return false
+  return !(event.ctrlKey || event.metaKey || event.altKey || event.shiftKey || view.composing)
+}
+
+function deleteVisibleCharacter(
+  view: EditorView,
+  selection: TextSelection,
+  mode: RevisionView,
+  backward: boolean,
+): boolean {
   const $cursor = selection.$head
-  const start = $cursor.start()
-  const offset = visibleOffset($cursor, mode, backward)
-  const $at = view.state.doc.resolve(start + offset)
+  const at = $cursor.start() + visibleOffset($cursor, mode, backward)
+  const $at = view.state.doc.resolve(at)
   const node = backward ? $at.nodeBefore : $at.nodeAfter
   if (node === null || !node.isText || node.text === undefined) {
     // Na borda do bloco, o juntar de parágrafos segue o caminho de sempre.
-    if (start + offset !== $cursor.pos)
-      view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, start + offset)))
+    if (at !== $cursor.pos)
+      view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, at)))
     return false
   }
   const size = characterSize(node.text, backward)
-  const from = backward ? start + offset - size : start + offset
+  const from = backward ? at - size : at
   view.dispatch(view.state.tr.delete(from, from + size).scrollIntoView())
   return true
 }

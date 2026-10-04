@@ -169,7 +169,6 @@ class DeletionPlanner {
   visit(node: ProseMirrorNode, pos: number): boolean {
     if (this.untracked) return false
     const end = pos + node.nodeSize
-    const whole = pos >= this.from && end <= this.to
 
     if (node.isInline) {
       this.inline(node, pos, end)
@@ -181,7 +180,11 @@ class DeletionPlanner {
       return true
     }
 
-    if (node.type.name === 'tableRow' && whole) {
+    return pos >= this.from && end <= this.to ? this.wholeBlock(node, pos, end) : true
+  }
+
+  private wholeBlock(node: ProseMirrorNode, pos: number, end: number): boolean {
+    if (node.type.name === 'tableRow') {
       const revision = blockRevisionOf(node.attrs['rowRevision'])
       if (isOwnBlockInsertion(node.attrs['rowRevision'], this.author)) this.plan.drops.push([pos, end])
       else if (revision?.kind !== 'del') this.plan.rows.push(pos)
@@ -190,12 +193,12 @@ class DeletionPlanner {
 
     // A célula inteira sem a linha inteira é coluna: o Word não a controla por
     // aqui, e o documento com revisão de célula já abre travado.
-    if ((node.type.name === 'tableCell' || node.type.name === 'tableHeader') && whole) {
+    if (node.type.name === 'tableCell' || node.type.name === 'tableHeader') {
       this.untracked = true
       return false
     }
 
-    if (node.isBlock && node.isLeaf && whole) {
+    if (node.isBlock && node.isLeaf) {
       this.plan.drops.push([pos, end])
       return false
     }
@@ -328,6 +331,32 @@ function copyExtras(from: Transaction, to: Transaction): void {
   if (from.scrolledIntoView) to.scrollIntoView()
 }
 
+/** Devolve quanto o documento encolheu. */
+function deleteForReal(tracked: Transaction, from: number, to: number): number {
+  const sizeBefore = tracked.doc.content.size
+  tracked.delete(from, to)
+  return sizeBefore - tracked.doc.content.size
+}
+
+function insertTracked(tracked: Transaction, to: number, slice: Slice, revision: Revision): void {
+  const before = tracked.steps.length
+  // A marca de parágrafo do documento controlado, e não a do original.
+  const $at = tracked.doc.resolve(to)
+  const tail: unknown = $at.parent.isTextblock ? $at.parent.attrs['markRevision'] : undefined
+  tracked.replace(to, to, slice)
+  if (tracked.steps.length === before) return
+
+  const mapping = tracked.mapping.slice(before)
+  const end = mapping.map(to, 1)
+  markInserted(tracked, mapping.map(to, -1), end, revision)
+  const $end = tracked.doc.resolve(end)
+  if (slice.openEnd > 0 && tail !== undefined && $end.parent.isTextblock && $end.depth > 0) {
+    if ($end.parent.attrs['markRevision'] !== tail) {
+      tracked.setNodeMarkup($end.before(), undefined, { ...$end.parent.attrs, markRevision: tail })
+    }
+  }
+}
+
 /** Pura: recebe o estado de antes e devolve outra transação sobre ele. */
 export function trackTransaction(
   tr: Transaction,
@@ -343,59 +372,29 @@ export function trackTransaction(
   tr.steps.forEach((step: Step, index) => {
     const doc = tr.docs[index]!
     const map = step.getMap()
-
-    if (!(step instanceof ReplaceStep) || onlyAnchors(step, doc)) {
+    const passThrough = (): void => {
       const mapped = step.map(kept.mapping())
       if (mapped !== null) tracked.maybeStep(mapped)
       kept.advance(map)
-      return
     }
+
+    if (!(step instanceof ReplaceStep) || onlyAnchors(step, doc)) return passThrough()
 
     const from = kept.map(step.from, -1)
     let to = kept.map(step.to, 1)
+    const deletes = step.to > step.from
 
     // Na composição, o que sai sai de verdade; só o que entra é marcado.
-    let plan: DeletionPlan | null = null
-    if (step.to > step.from && options.composing !== true) {
-      plan = planDeletion(tracked.doc, from, to, author)
-      if (plan === null) {
-        const mapped = step.map(kept.mapping())
-        if (mapped !== null) tracked.maybeStep(mapped)
-        kept.advance(map)
-        return
-      }
-    }
+    const tracksDeletion = deletes && options.composing !== true
+    const plan = tracksDeletion ? planDeletion(tracked.doc, from, to, author) : null
+    if (tracksDeletion && plan === null) return passThrough()
 
-    let removed = 0
-    if (plan !== null) {
-      removed = applyDeletion(tracked, plan, revision)
-    } else if (step.to > step.from) {
-      const sizeBefore = tracked.doc.content.size
-      tracked.delete(from, to)
-      removed = sizeBefore - tracked.doc.content.size
-    }
-    to -= removed
+    if (plan !== null) to -= applyDeletion(tracked, plan, revision)
+    else if (deletes) to -= deleteForReal(tracked, from, to)
 
     // O que entra vai depois do que ficou excluído, como no Word.
-    const slice = step.slice
-    if (slice.size > 0 && !(step.to > step.from && onlyEmptyBlocks(slice))) {
-      const before = tracked.steps.length
-      // A marca de parágrafo do documento controlado, e não a do original.
-      const $at = tracked.doc.resolve(to)
-      const tail: unknown = $at.parent.isTextblock ? $at.parent.attrs['markRevision'] : undefined
-      tracked.replace(to, to, slice)
-      if (tracked.steps.length > before) {
-        const mapping = tracked.mapping.slice(before)
-        const end = mapping.map(to, 1)
-        markInserted(tracked, mapping.map(to, -1), end, revision)
-        const $end = tracked.doc.resolve(end)
-        if (slice.openEnd > 0 && tail !== undefined && $end.parent.isTextblock && $end.depth > 0) {
-          const pos = $end.before()
-          if ($end.parent.attrs['markRevision'] !== tail) {
-            tracked.setNodeMarkup(pos, undefined, { ...$end.parent.attrs, markRevision: tail })
-          }
-        }
-      }
+    if (step.slice.size > 0 && !(deletes && onlyEmptyBlocks(step.slice))) {
+      insertTracked(tracked, to, step.slice, revision)
     }
 
     kept.advance(map, { from: step.from, to: step.to, size: to - from })

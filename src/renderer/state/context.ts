@@ -3,7 +3,7 @@ import { AppError, type SerializedError } from '@shared/errors.js'
 import { DiscardChoice } from '@shared/types.js'
 import type { IpcResult } from '@shared/ipc.js'
 import type { DocumentModel } from '@services/document/model.js'
-import { serializeDocument } from '@services/document/serialize.js'
+import { onlyDefined, onlyNonEmpty, onlyTrue, serializeDocument } from '@services/document/serialize.js'
 import { commentAnchorIdsOfJson, commentsOutsideOf, resolveComments } from '@services/document/comments.js'
 import { marksOfJson, resolveSections } from '@services/document/sections.js'
 import { serializeWorkbook } from '@services/spreadsheet/serialize.js'
@@ -117,19 +117,19 @@ function modelOf(state: WorkspaceState, read: WorkspaceState['initialDoc']): Doc
     page: resolved.page,
     doc,
     styles: state.styles,
-    ...(state.flattened ? { flattened: true } : {}),
-    ...(state.beforeReferences ? { beforeReferences: true } : {}),
-    ...(resolved.sections.length > 0 ? { sections: [...resolved.sections] } : {}),
-    ...(state.beforeSections ? { beforeSections: true } : {}),
-    ...(state.outsideBookmarks.length > 0 ? { outsideBookmarks: state.outsideBookmarks } : {}),
-    ...(comments.length > 0 ? { comments } : {}),
-    ...(state.beforeComments ? { beforeComments: true } : {}),
-    ...(state.trackChanges === undefined ? {} : { trackChanges: state.trackChanges }),
-    ...(state.beforeRevisions ? { beforeRevisions: true } : {}),
-    ...(state.notes === undefined ? {} : { notes: state.notes }),
-    ...(state.beforeNotes ? { beforeNotes: true } : {}),
-    ...(state.beforeMath ? { beforeMath: true } : {}),
-    ...(state.properties === undefined ? {} : { properties: state.properties }),
+    ...onlyTrue('flattened', state.flattened),
+    ...onlyTrue('beforeReferences', state.beforeReferences),
+    ...onlyNonEmpty('sections', resolved.sections),
+    ...onlyTrue('beforeSections', state.beforeSections),
+    ...onlyNonEmpty('outsideBookmarks', state.outsideBookmarks),
+    ...onlyNonEmpty('comments', comments),
+    ...onlyTrue('beforeComments', state.beforeComments),
+    ...onlyDefined('trackChanges', state.trackChanges),
+    ...onlyTrue('beforeRevisions', state.beforeRevisions),
+    ...onlyDefined('notes', state.notes),
+    ...onlyTrue('beforeNotes', state.beforeNotes),
+    ...onlyTrue('beforeMath', state.beforeMath),
+    ...onlyDefined('properties', state.properties),
   }
 }
 

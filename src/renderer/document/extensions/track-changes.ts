@@ -1,7 +1,7 @@
 import { Extension, Mark, mergeAttributes } from '@tiptap/core'
 import type { Mark as ProseMirrorMark, Node as ProseMirrorNode } from '@tiptap/pm/model'
 import { TextSelection, type Transaction } from '@tiptap/pm/state'
-import { canJoin } from '@tiptap/pm/transform'
+import { canJoin, type Mapping } from '@tiptap/pm/transform'
 import { CharacterCount } from '@tiptap/extensions'
 
 /**
@@ -185,56 +185,58 @@ function effectOf(kind: ChangeKind, accept: boolean): Effect {
 
 /** As posições são as do documento em que a alteração foi achada, mapeadas desde `since`. */
 function settle(tr: Transaction, change: RevisionChange, accept: boolean, since: number): void {
-  const mapping = tr.mapping.slice(since)
-  const effect = effectOf(change.kind, accept)
+  SETTLERS[change.kind](tr, change, effectOf(change.kind, accept), tr.mapping.slice(since))
+}
 
-  switch (change.kind) {
-    case INSERTION:
-    case DELETION: {
-      const segments = change.segments
-        .map((segment) => ({ from: mapping.map(segment.from, 1), to: mapping.map(segment.to, -1) }))
-        .filter((segment) => segment.to > segment.from)
-      for (const segment of [...segments].reverse()) {
-        if (effect === 'drop') tr.delete(segment.from, segment.to)
-        else tr.removeMark(segment.from, segment.to, change.mark)
-      }
-      return
-    }
+type Settler = (tr: Transaction, change: RevisionChange, effect: Effect, mapping: Mapping) => void
 
-    case 'markInsertion':
-    case 'markDeletion': {
-      const end = mapping.map(change.from)
-      const paragraph = tr.doc.resolve(end).parent
-      const start = end - paragraph.nodeSize + 1
-      if (start < 0 || tr.doc.nodeAt(start) !== paragraph) return
-      tr.setNodeMarkup(start, undefined, { ...paragraph.attrs, markRevision: null })
-      // O Enter que sai junta os parágrafos, como no Word.
-      const after = start + paragraph.nodeSize
-      if (effect === 'drop' && after < tr.doc.content.size && canJoin(tr.doc, after)) tr.join(after)
-      return
-    }
-
-    case 'rowInsertion':
-    case 'rowDeletion': {
-      const from = mapping.map(change.from, 1)
-      const row = tr.doc.nodeAt(from)
-      if (row === null || row.type.name !== 'tableRow') return
-      if (effect === 'keep') {
-        tr.setNodeMarkup(from, undefined, { ...row.attrs, rowRevision: null })
-        return
-      }
-      const $row = tr.doc.resolve(from)
-      const table = $row.parent
-      // Tabela sem linha não existe.
-      if (table.childCount === 1) {
-        const tableStart = $row.before()
-        tr.delete(tableStart, tableStart + table.nodeSize)
-      } else {
-        tr.delete(from, from + row.nodeSize)
-      }
-      return
-    }
+const settleText: Settler = (tr, change, effect, mapping) => {
+  const segments = change.segments
+    .map((segment) => ({ from: mapping.map(segment.from, 1), to: mapping.map(segment.to, -1) }))
+    .filter((segment) => segment.to > segment.from)
+  for (const segment of [...segments].reverse()) {
+    if (effect === 'drop') tr.delete(segment.from, segment.to)
+    else tr.removeMark(segment.from, segment.to, change.mark)
   }
+}
+
+const settleParagraphMark: Settler = (tr, change, effect, mapping) => {
+  const end = mapping.map(change.from)
+  const paragraph = tr.doc.resolve(end).parent
+  const start = end - paragraph.nodeSize + 1
+  if (start < 0 || tr.doc.nodeAt(start) !== paragraph) return
+  tr.setNodeMarkup(start, undefined, { ...paragraph.attrs, markRevision: null })
+  // O Enter que sai junta os parágrafos, como no Word.
+  const after = start + paragraph.nodeSize
+  if (effect === 'drop' && after < tr.doc.content.size && canJoin(tr.doc, after)) tr.join(after)
+}
+
+const settleRow: Settler = (tr, change, effect, mapping) => {
+  const from = mapping.map(change.from, 1)
+  const row = tr.doc.nodeAt(from)
+  if (row === null || row.type.name !== 'tableRow') return
+  if (effect === 'keep') {
+    tr.setNodeMarkup(from, undefined, { ...row.attrs, rowRevision: null })
+    return
+  }
+  const $row = tr.doc.resolve(from)
+  const table = $row.parent
+  // Tabela sem linha não existe.
+  if (table.childCount === 1) {
+    const tableStart = $row.before()
+    tr.delete(tableStart, tableStart + table.nodeSize)
+  } else {
+    tr.delete(from, from + row.nodeSize)
+  }
+}
+
+const SETTLERS: Record<ChangeKind, Settler> = {
+  insertion: settleText,
+  deletion: settleText,
+  markInsertion: settleParagraphMark,
+  markDeletion: settleParagraphMark,
+  rowInsertion: settleRow,
+  rowDeletion: settleRow,
 }
 
 /** Devolve se havia alguma. */
@@ -290,29 +292,12 @@ export function textWithoutDeletions(
   node.descendants((child) => {
     // A nota é um nó só no texto do parágrafo; na contagem ela entra, como no Word.
     if (child.type.name === 'noteRef') {
-      if (hide !== undefined) text += hide.repeat(child.nodeSize)
-      else {
-        const inner = textWithoutDeletions(child, blockSeparator, leafText)
-        if (inner !== '') text += ` ${inner}`
-      }
+      text += noteText(child, blockSeparator, leafText, hide)
       return false
     }
-    const own = child.isText
-      ? isDeleted(child)
-        ? hide === undefined
-          ? ''
-          : hide.repeat(child.text?.length ?? 0)
-        : (child.text ?? '')
-      : child.isLeaf
-        ? typeof leafText === 'string'
-          ? leafText
-          : leafText(child)
-        : ''
-    if (
-      child.isBlock &&
-      ((child.isLeaf && own !== '') || child.isTextblock) &&
-      blockSeparator !== undefined
-    ) {
+    const own = ownText(child, leafText, hide)
+    const separated = child.isTextblock || (child.isLeaf && own !== '')
+    if (child.isBlock && separated && blockSeparator !== undefined) {
       if (first) first = false
       else text += blockSeparator
     }
@@ -320,6 +305,30 @@ export function textWithoutDeletions(
     return true
   })
   return text
+}
+
+function noteText(
+  note: ProseMirrorNode,
+  blockSeparator: string | undefined,
+  leafText: string | ((leaf: ProseMirrorNode) => string),
+  hide: string | undefined,
+): string {
+  if (hide !== undefined) return hide.repeat(note.nodeSize)
+  const inner = textWithoutDeletions(note, blockSeparator, leafText)
+  return inner === '' ? '' : ` ${inner}`
+}
+
+function ownText(
+  child: ProseMirrorNode,
+  leafText: string | ((leaf: ProseMirrorNode) => string),
+  hide: string | undefined,
+): string {
+  if (child.isText) {
+    if (!isDeleted(child)) return child.text ?? ''
+    return hide === undefined ? '' : hide.repeat(child.text?.length ?? 0)
+  }
+  if (!child.isLeaf) return ''
+  return typeof leafText === 'string' ? leafText : leafText(child)
 }
 
 export const CountWithoutDeletions = CharacterCount.extend({

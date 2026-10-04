@@ -1,5 +1,5 @@
 import { Extension, type CommandProps } from '@tiptap/core'
-import { Fragment, Slice, type Node as ProseMirrorNode } from '@tiptap/pm/model'
+import { Fragment, Slice, type Node as ProseMirrorNode, type Schema } from '@tiptap/pm/model'
 import { Plugin, PluginKey, type EditorState, type Transaction } from '@tiptap/pm/state'
 import { Decoration, DecorationSet } from '@tiptap/pm/view'
 import {
@@ -287,31 +287,34 @@ const applyLevels =
 
     const target = entryAt(tr, list.pos)
     if (target === null) return false
-    // Os níveis que não mudaram são copiados da definição de origem na gravação.
-    const abstractId = target.info.def.abstractId
-    const def: NumberingDef = {
-      key: freshKey(),
-      ...(abstractId === undefined ? {} : { abstractId }),
-      levels: levels.map((level) => ({ ...level })),
-    }
-
-    for (const entry of listEntries(tr.doc)) {
-      const inside = entry.pos >= target.pos && entry.pos < target.pos + target.node.nodeSize
-      if (!inside || entry.info.key !== target.info.key) continue
-      // O tipo do nó segue o nível, como o leitor faria ao reabrir.
-      const fmt = levels[entry.info.level]?.fmt ?? 'decimal'
-      const type = state.schema.nodes[fmt === 'bullet' || fmt === 'none' ? 'bulletList' : 'orderedList']
-      tr.setNodeMarkup(entry.pos, type, {
-        ...entry.node.attrs,
-        numId: null,
-        numbering: def,
-        marker: null,
-        indentMm: null,
-        hangingMm: null,
-      })
-    }
+    relabelList(tr, state.schema, target, levels)
     return true
   }
+
+/** O tipo do nó segue o nível, como o leitor faria ao reabrir. */
+function relabelList(tr: Transaction, schema: Schema, target: ListEntry, levels: readonly LevelDef[]): void {
+  // Os níveis que não mudaram são copiados da definição de origem na gravação.
+  const abstractId = target.info.def.abstractId
+  const def: NumberingDef = {
+    key: freshKey(),
+    ...(abstractId === undefined ? {} : { abstractId }),
+    levels: levels.map((level) => ({ ...level })),
+  }
+  const end = target.pos + target.node.nodeSize
+  for (const entry of listEntries(tr.doc)) {
+    if (entry.pos < target.pos || entry.pos >= end || entry.info.key !== target.info.key) continue
+    const fmt = levels[entry.info.level]?.fmt ?? 'decimal'
+    const type = schema.nodes[fmt === 'bullet' || fmt === 'none' ? 'bulletList' : 'orderedList']
+    tr.setNodeMarkup(entry.pos, type, {
+      ...entry.node.attrs,
+      numId: null,
+      numbering: def,
+      marker: null,
+      indentMm: null,
+      hangingMm: null,
+    })
+  }
+}
 
 export const ListNumbering = Extension.create({
   name: 'listNumbering',

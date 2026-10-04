@@ -923,15 +923,7 @@ class SheetStack {
   /** O desvio vertical das colunas entra no vão; o lateral é uma translação. */
   private placeColumns(): { columnShifts: Map<number, number>; columnMoves: ColumnMove[] } {
     const columnShifts = new Map<number, number>()
-    const blockTargets = new Map<number, CutTarget>()
-    for (const cut of this.measured.targets) {
-      if (
-        cut.line === undefined &&
-        cut.start.childIndex === undefined &&
-        !blockTargets.has(cut.start.blockIndex)
-      )
-        blockTargets.set(cut.start.blockIndex, cut)
-    }
+    const blockTargets = this.wholeBlockTargets()
     const columnMoves: ColumnMove[] = []
     for (const [index, placement] of this.plan.placements) {
       const node = blockTargets.get(index)?.nodes[0]
@@ -939,11 +931,7 @@ class SheetStack {
       const metrics = this.metricsOf(this.blocks[index]?.section ?? 0)
       const dx = placement.column * metrics.columnStepPx
       if (dx !== 0) columnShifts.set(node.position, dx)
-      if (placement.lift !== 0) {
-        this.gaps.set(node.position, (this.gaps.get(node.position) ?? 0) + placement.lift)
-        const distance = (this.written.get(node.position) ?? node.natural) + placement.lift
-        this.written.set(node.position, collapsed(distance, node.collapse ?? 0))
-      }
+      if (placement.lift !== 0) this.liftBlock(node, placement.lift)
       columnMoves.push({
         blockIndex: index,
         dx,
@@ -957,6 +945,22 @@ class SheetStack {
       })
     }
     return { columnShifts, columnMoves }
+  }
+
+  /** O primeiro corte de cada bloco que não começa no meio dele. */
+  private wholeBlockTargets(): Map<number, CutTarget> {
+    const blockTargets = new Map<number, CutTarget>()
+    for (const cut of this.measured.targets) {
+      const whole = cut.line === undefined && cut.start.childIndex === undefined
+      if (whole && !blockTargets.has(cut.start.blockIndex)) blockTargets.set(cut.start.blockIndex, cut)
+    }
+    return blockTargets
+  }
+
+  private liftBlock(node: CutTarget['nodes'][number], lift: number): void {
+    this.gaps.set(node.position, (this.gaps.get(node.position) ?? 0) + lift)
+    const distance = (this.written.get(node.position) ?? node.natural) + lift
+    this.written.set(node.position, collapsed(distance, node.collapse ?? 0))
   }
 
   private columnLines(): ColumnLine[] {

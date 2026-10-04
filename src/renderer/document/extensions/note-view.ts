@@ -357,53 +357,66 @@ export class NoteBody implements NodeView {
       return
     }
 
-    // Se um passo anterior não chegou lá fora, este cairia deslocado: o corpo
-    // volta ao que o documento tem, e perder uma tecla é melhor que escrever no
-    // lugar errado.
-    const at = this.getPos()
-    const current = at === undefined ? null : this.outer.state.doc.nodeAt(at)
-    if (at === undefined || current === null || !current.content.eq(this.view.state.doc.content)) {
-      if (current !== null) {
-        const { doc } = this.view.state
-        this.view.dispatch(
-          this.view.state.tr.replace(0, doc.content.size, current.slice(0)).setMeta(FROM_OUTSIDE, true),
-        )
-      }
-      return
-    }
+    const at = this.syncedPosition()
+    if (at === null) return
 
     // Aqui, e não no `dispatchTransaction` de fora: só aqui existe a seleção do corpo.
     const options = this.tracking()
-    let effective = tr
-    if (options !== null && shouldTrack(tr)) {
-      try {
-        effective = trackTransaction(tr, this.view.state, options.author(), new Date(), {
-          composing: this.view.composing,
-        })
-      } catch (error) {
-        // Melhor a edição sem controle que a edição perdida.
-        console.error(error)
-      }
-    }
-    const { state, transactions } = this.view.state.applyTransaction(effective)
+    const { state, transactions } = this.view.state.applyTransaction(this.trackedOrAsIs(tr, options))
     this.view.updateState(state)
     changed()
+    this.forwardOutside(transactions, at, { tracked: options !== null, source: tr })
+  }
 
+  /**
+   * Se um passo anterior não chegou lá fora, este cairia deslocado: o corpo
+   * volta ao que o documento tem, e perder uma tecla é melhor que escrever no
+   * lugar errado.
+   */
+  private syncedPosition(): number | null {
+    const at = this.getPos()
+    const current = at === undefined ? null : this.outer.state.doc.nodeAt(at)
+    if (at !== undefined && current !== null && current.content.eq(this.view.state.doc.content)) return at
+    if (current !== null) {
+      const { doc } = this.view.state
+      this.view.dispatch(
+        this.view.state.tr.replace(0, doc.content.size, current.slice(0)).setMeta(FROM_OUTSIDE, true),
+      )
+    }
+    return null
+  }
+
+  private trackedOrAsIs(tr: Transaction, options: TrackInputOptions | null): Transaction {
+    if (options === null || !shouldTrack(tr)) return tr
+    try {
+      return trackTransaction(tr, this.view.state, options.author(), new Date(), {
+        composing: this.view.composing,
+      })
+    } catch (error) {
+      // Melhor a edição sem controle que a edição perdida.
+      console.error(error)
+      return tr
+    }
+  }
+
+  private forwardOutside(
+    transactions: readonly Transaction[],
+    at: number,
+    { tracked, source }: { readonly tracked: boolean; readonly source: Transaction },
+  ): void {
     const outer = this.outer.state.tr
     const offset = StepMap.offset(at + 1)
-    for (const transaction of transactions) {
-      for (const step of transaction.steps) {
-        const mapped = step.map(offset)
-        if (mapped !== null) outer.step(mapped)
-      }
+    for (const step of transactions.flatMap((transaction) => transaction.steps)) {
+      const mapped = step.map(offset)
+      if (mapped !== null) outer.step(mapped)
     }
     if (!outer.docChanged) return
-    if (options !== null) outer.setMeta(SKIP_TRACKING, true)
+    if (tracked) outer.setMeta(SKIP_TRACKING, true)
     if (this.separateHistory) {
       this.separateHistory = false
       closeHistory(outer)
     }
-    if (tr.getMeta('addToHistory') === false) outer.setMeta('addToHistory', false)
+    if (source.getMeta('addToHistory') === false) outer.setMeta('addToHistory', false)
     this.outer.dispatch(outer)
   }
 

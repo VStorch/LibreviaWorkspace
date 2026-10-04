@@ -1,5 +1,5 @@
 import { Extension } from '@tiptap/core'
-import type { Node as ProseMirrorNode } from '@tiptap/pm/model'
+import type { Node as ProseMirrorNode, ResolvedPos } from '@tiptap/pm/model'
 import { Plugin, PluginKey, TextSelection, type EditorState, type Transaction } from '@tiptap/pm/state'
 import type { EditorView } from '@tiptap/pm/view'
 
@@ -25,6 +25,9 @@ export function textStartOf(doc: ProseMirrorNode, pos: number): number {
   return start
 }
 
+/** O `keyCode` das teclas que o método de entrada ainda está compondo. */
+const IME_PROCESS_KEY_CODE = 229
+
 /** A seleção posta de propósito entre as âncoras (ir ao comentário): digitar troca o texto e não leva o comentário. */
 export const KEEP_SELECTION = 'zeroWidthKeepSelection'
 
@@ -34,19 +37,8 @@ export function extendOverAnchors(state: EditorState): Transaction | null {
   if (!(selection instanceof TextSelection) || selection.empty) return null
   const { $from, $to } = selection
 
-  let before = $from.parent.childBefore($from.parentOffset)
-  let offset = $from.parentOffset
-  while (offset > 0 && isZeroWidthAnchor(before.node)) {
-    offset = before.offset
-    before = $from.parent.childBefore(offset)
-  }
-
-  let after = $to.parent.childAfter($to.parentOffset)
-  let end = $to.parentOffset
-  while (end < $to.parent.content.size && isZeroWidthAnchor(after.node)) {
-    end = after.offset + after.node!.nodeSize
-    after = $to.parent.childAfter(end)
-  }
+  const offset = offsetBeforeAnchors($from)
+  const end = offsetAfterAnchors($to)
 
   // Só o parágrafo que a seleção cobre inteiro leva as âncoras.
   const sameBlock = $from.sameParent($to)
@@ -60,19 +52,31 @@ export function extendOverAnchors(state: EditorState): Transaction | null {
   return state.tr.setSelection(TextSelection.create(state.doc, anchor, head))
 }
 
+function offsetBeforeAnchors($from: ResolvedPos): number {
+  let offset = $from.parentOffset
+  let before = $from.parent.childBefore(offset)
+  while (offset > 0 && isZeroWidthAnchor(before.node)) {
+    offset = before.offset
+    before = $from.parent.childBefore(offset)
+  }
+  return offset
+}
+
+function offsetAfterAnchors($to: ResolvedPos): number {
+  let end = $to.parentOffset
+  let after = $to.parent.childAfter(end)
+  while (end < $to.parent.content.size && isZeroWidthAnchor(after.node)) {
+    end = after.offset + after.node!.nodeSize
+    after = $to.parent.childAfter(end)
+  }
+  return end
+}
+
 /** Backspace e Delete passam por cima das âncoras; `null` sem âncora ali. */
 export function pastAnchors(state: EditorState, direction: -1 | 1): number | null {
   const { selection } = state
   if (!(selection instanceof TextSelection) || !selection.empty) return null
-  const $cursor = selection.$head
-  let pos = $cursor.pos
-  const limit = direction < 0 ? $cursor.start() : $cursor.end()
-  while (pos !== limit) {
-    const $pos = state.doc.resolve(pos)
-    if (!isZeroWidthAnchor(direction < 0 ? $pos.nodeBefore : $pos.nodeAfter)) break
-    pos += direction
-  }
-  return pos === $cursor.pos ? null : pos
+  return headPastAnchors(state, direction)
 }
 
 function headPastAnchors(state: EditorState, direction: -1 | 1): number | null {
@@ -87,6 +91,32 @@ function headPastAnchors(state: EditorState, direction: -1 | 1): number | null {
     pos += direction
   }
   return pos === $head.pos ? null : pos
+}
+
+/** O cursor ou a ponta da seleção pulam as âncoras antes de o navegador agir; a tecla segue adiante. */
+function moveOverAnchors(view: EditorView, event: KeyboardEvent): void {
+  if (event.shiftKey && (event.key === 'ArrowLeft' || event.key === 'ArrowRight')) {
+    // A ponta pula as âncoras antes de o navegador estendê-la.
+    const head = headPastAnchors(view.state, event.key === 'ArrowLeft' ? -1 : 1)
+    if (head === null) return
+    const anchor = view.state.selection.empty ? head : view.state.selection.anchor
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, anchor, head)))
+    return
+  }
+  if (event.key === 'Enter') {
+    // Enter com só âncoras antes do cursor: elas seguem com o texto.
+    const back = pastAnchors(view.state, -1)
+    if (back !== null && back === view.state.selection.$head.start()) moveCursor(view, back)
+    return
+  }
+  if (event.key !== 'Backspace' && event.key !== 'Delete') return
+  // Só o cursor anda; o resto segue do lugar novo.
+  const pos = pastAnchors(view.state, event.key === 'Backspace' ? -1 : 1)
+  if (pos !== null) moveCursor(view, pos)
+}
+
+function moveCursor(view: EditorView, pos: number): void {
+  view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, pos)))
 }
 
 /**
@@ -126,29 +156,9 @@ export const ZeroWidthAnchors = Extension.create({
 
         props: {
           handleKeyDown(view, event) {
-            if (event.isComposing || event.keyCode === 229) return false
+            if (event.isComposing || event.keyCode === IME_PROCESS_KEY_CODE) return false
             readPendingSelection(view)
-            if (event.shiftKey && (event.key === 'ArrowLeft' || event.key === 'ArrowRight')) {
-              // A ponta pula as âncoras antes de o navegador estendê-la.
-              const head = headPastAnchors(view.state, event.key === 'ArrowLeft' ? -1 : 1)
-              if (head !== null) {
-                const anchor = view.state.selection.empty ? head : view.state.selection.anchor
-                view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, anchor, head)))
-              }
-              return false
-            }
-            if (event.key === 'Enter') {
-              // Enter com só âncoras antes do cursor: elas seguem com o texto.
-              const back = pastAnchors(view.state, -1)
-              if (back !== null && back === view.state.selection.$head.start())
-                view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, back)))
-              return false
-            }
-            if (event.key !== 'Backspace' && event.key !== 'Delete') return false
-            const pos = pastAnchors(view.state, event.key === 'Backspace' ? -1 : 1)
-            // Só o cursor anda; o resto segue do lugar novo.
-            if (pos !== null)
-              view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, pos)))
+            moveOverAnchors(view, event)
             return false
           },
         },
