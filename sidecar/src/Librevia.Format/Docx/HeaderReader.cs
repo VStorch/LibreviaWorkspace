@@ -550,8 +550,7 @@ public static class HeaderReader
             (double?)transform?.Extents?.Cx?.Value ?? 0,
             (double?)transform?.Extents?.Cy?.Value ?? 0);
 
-    /// <summary>EMU → pixels CSS: 914400 por polegada, 96 px por polegada.</summary>
-    private static int Pixels(double emu) => (int)Math.Round(emu * 96 / 914400);
+    private static int Pixels(double emu) => (int)Math.Round(Unit.EmusToPixels(emu));
 
     private static int ColumnFor(
         double offset,
@@ -831,9 +830,8 @@ public static class HeaderReader
             ? null
             : "#" + value.TrimStart('#').ToLowerInvariant();
 
-    /// <summary><c>w:sz</c> vem em meios-pontos.</summary>
     private static string? SizeOf(string? halfPoints) =>
         double.TryParse(halfPoints, NumberStyles.Float, CultureInfo.InvariantCulture, out var value)
-            ? (value / 2).ToString("0.#", CultureInfo.InvariantCulture) + "pt"
+            ? Unit.HalfPointsToPoints(value).ToString("0.#", CultureInfo.InvariantCulture) + "pt"
             : null;
 }

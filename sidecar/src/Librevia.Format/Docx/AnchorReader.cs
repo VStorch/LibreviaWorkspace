@@ -50,7 +50,7 @@ public sealed record AnchoredPiece(
 /// </summary>
 public static class AnchorReader
 {
-    private const double EmusPerMillimeter = 914400 / 25.4;
+    private const double EmusPerMillimeter = Unit.EmusPerInch / Unit.MillimetersPerInch;
 
     private const double RotationUnitsPerDegree = 60000;
 

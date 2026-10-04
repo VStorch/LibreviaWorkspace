@@ -62,7 +62,7 @@ public sealed class ParagraphWriter
         var usable = usableWidthPx > 0 ? usableWidthPx : ImageWriter.DefaultWidthPx;
         _tables = new TableWriter(inventory, (node, original) => Write(node, null, original), usable, revisions);
         _images = new ImageWriter(part, inventory, usable, _owner);
-        _usableTwips = usable * 15;
+        _usableTwips = usable * Unit.TwipsPerPixel;
     }
 
     public IEnumerable<OpenXmlElement> Write(
@@ -834,7 +834,7 @@ public sealed class ParagraphWriter
             // `w:sz` é em meios-pontos, e a medida pode chegar em pixels, como o CSS a escreve.
             if (Attr.Points(size) is { } points && points > 0)
             {
-                var halfPoints = (int)Math.Round(points * 2);
+                var halfPoints = (int)Math.Round(points * Unit.HalfPointsPerPoint);
                 properties.FontSize = new FontSize
                 {
                     Val = halfPoints.ToString(CultureInfo.InvariantCulture),

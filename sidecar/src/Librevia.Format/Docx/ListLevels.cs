@@ -17,8 +17,8 @@ public static class ListLevels
     public const int Count = 9;
 
     /// <summary>Recuo por nível e marcador pendurado: as medidas do próprio Word.</summary>
-    public const int IndentStepTwips = 720;
-    public const int HangingTwips = 360;
+    public const int IndentStepTwips = Unit.IndentStepTwips;
+    public const int HangingTwips = IndentStepTwips / 2;
 
     /// <summary>Glifo da área de uso privado, com a fonte que o desenha, e a marca que a tela usa.</summary>
     private static readonly (char Glyph, string? Font, char Shown)[] Glyphs =
@@ -103,7 +103,7 @@ public static class ListLevels
         return level;
     }
 
-    public static double Mm(int twips) => Math.Round(twips / 1440.0 * 25.4, 2);
+    public static double Mm(int twips) => Math.Round(twips / (double)Unit.TwipsPerInch * Unit.MillimetersPerInch, 2);
 
     /// <summary>O nome OOXML do formato, como o `w:numFmt/@w:val` o grava.</summary>
     public static string FormatName(Level? definition) =>

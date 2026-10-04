@@ -779,7 +779,7 @@ public static class DocxWriter
             : shortSide;
 
         var millimeters = across - page.Margins.Left - page.Margins.Right;
-        return millimeters > 10 ? (int)Math.Round(millimeters / 25.4 * 96) : ImageWriter.DefaultWidthPx;
+        return millimeters > 10 ? (int)Math.Round(millimeters / Unit.MillimetersPerInch * Unit.PixelsPerInch) : ImageWriter.DefaultWidthPx;
     }
 
     internal static string? OidOf(Node node)

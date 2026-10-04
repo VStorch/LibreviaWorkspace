@@ -43,19 +43,18 @@ internal static class Attr
             : null;
 
     /// <summary>
-    /// 1 twip = 1/1440 de polegada. Arredonda para longe do zero, e não para o par
-    /// do .NET: o painel e o arquivo mostram a mesma medida.
+    /// Arredonda para longe do zero, e não para o par do .NET: o painel e o arquivo
+    /// mostram a mesma medida.
     /// </summary>
     public static int MmToTwips(double mm) =>
-        (int)Math.Round(mm * 1440 / 25.4, MidpointRounding.AwayFromZero);
+        (int)Math.Round(mm * Unit.TwipsPerInch / Unit.MillimetersPerInch, MidpointRounding.AwayFromZero);
 
     /// <inheritdoc cref="MmToTwips(double)"/>
     public static int? MmToTwips(double? mm) => mm is null ? null : MmToTwips(mm.Value);
 
     /// <summary>
-    /// Medida do CSS em pontos: o pixel vale três quartos de ponto (96 px contra
-    /// 72 pt por polegada). Unidade desconhecida volta <c>null</c>, para quem chamou
-    /// registrar a perda.
+    /// Medida do CSS em pontos. Unidade desconhecida volta <c>null</c>, para quem
+    /// chamou registrar a perda.
     /// </summary>
     public static double? Points(string? css)
     {
@@ -69,10 +68,10 @@ internal static class Attr
         return unit switch
         {
             "" or "pt" => value,
-            "px" => value * 0.75,
-            "in" => value * 72,
-            "cm" => value * 72 / 2.54,
-            "mm" => value * 72 / 25.4,
+            "px" => value * ((double)Unit.PointsPerInch / Unit.PixelsPerInch),
+            "in" => value * Unit.PointsPerInch,
+            "cm" => value * Unit.PointsPerInch / Unit.CentimetersPerInch,
+            "mm" => value * Unit.PointsPerInch / Unit.MillimetersPerInch,
             "pc" => value * 12,
             _ => null,
         };

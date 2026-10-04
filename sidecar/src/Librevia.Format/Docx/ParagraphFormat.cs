@@ -24,8 +24,6 @@ internal sealed class ParagraphFormat(
     bool flatten = false,
     bool revisions = true)
 {
-    private const int TwipsPerIndentLevel = 720;
-
     /// <summary>Ou <c>null</c> quando não há nada a dizer.</summary>
     /// <param name="list"><c>null</c> quando quem grava não sabe a numeração: o <c>w:numPr</c> do original fica.</param>
     public ParagraphProperties? Build(Node node, ParagraphWriter.ListPlacement? list, Paragraph? original)
@@ -139,7 +137,7 @@ internal sealed class ParagraphFormat(
         var level = Attr.Int(node, "indent") ?? 0;
         var measured = Attr.MmToTwips(Attr.Double(node, "indentMm"))
                        ?? (level > 0 ? StyleTwips(styles.StyleParagraphOf(properties).Indentation?.Left) : 0);
-        var left = measured + (level * TwipsPerIndentLevel);
+        var left = measured + (level * Unit.IndentStepTwips);
         var right = Attr.MmToTwips(Attr.Double(node, "indentRightMm")) ?? 0;
         var firstLine = Attr.MmToTwips(Attr.Double(node, "firstLineMm")) ?? 0;
 
@@ -388,8 +386,8 @@ internal sealed class ParagraphFormat(
         }
 
         // Vinte avos: exato até o décimo de ponto, a precisão do leitor.
-        if (before is not null) spacing.Before = Invariant((int)Math.Round(before.Value * 20));
-        if (after is not null) spacing.After = Invariant((int)Math.Round(after.Value * 20));
+        if (before is not null) spacing.Before = Invariant((int)Math.Round(before.Value * Unit.TwipsPerPoint));
+        if (after is not null) spacing.After = Invariant((int)Math.Round(after.Value * Unit.TwipsPerPoint));
         if (lineHeight is not null) ApplyLineHeight(spacing, lineHeight, Attr.String(node, "fontFamily") ?? MarkFontOf(properties));
     }
 
@@ -405,7 +403,7 @@ internal sealed class ParagraphFormat(
         {
             if (Attr.Points(value) is not { } points || points <= 0) return;
 
-            spacing.Line = Invariant((int)Math.Round(points * 20));
+            spacing.Line = Invariant((int)Math.Round(points * Unit.TwipsPerPoint));
 
             // "Pelo menos", e não "exatamente": `exact` corta o que não cabe.
             if (spacing.LineRule is null || spacing.LineRule.Value == LineSpacingRuleValues.Auto)
@@ -544,7 +542,7 @@ internal sealed class ParagraphFormat(
 
         if (Attr.Points(size) is { } points && points > 0)
         {
-            var halfPoints = Invariant((int)Math.Round(points * 2));
+            var halfPoints = Invariant((int)Math.Round(points * Unit.HalfPointsPerPoint));
             var declared = mark.GetFirstChild<FontSize>();
             if (declared is null) PutInOrder(mark, new FontSize { Val = halfPoints });
             else declared.Val = halfPoints;

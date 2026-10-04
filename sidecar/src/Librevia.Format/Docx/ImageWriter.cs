@@ -18,6 +18,9 @@ internal sealed class ImageWriter(MainDocumentPart part, Inventory inventory, in
     /// <summary>A4 retrato com margens de uma polegada.</summary>
     internal const int DefaultWidthPx = 624;
 
+    /// <summary>Sem altura no nó nem nos bytes, a proporção 4:3.</summary>
+    private const double DefaultHeightPerWidth = 0.75;
+
     /// <summary>
     /// Acima do maior <c>wp:docPr/@id</c> do documento: o ancorado preservado leva o
     /// dele, e repeti-lo o Word mostra como documento danificado. De instância,
@@ -89,9 +92,8 @@ internal sealed class ImageWriter(MainDocumentPart part, Inventory inventory, in
 
         var (widthPx, heightPx) = Dimensions(node, bytes);
 
-        // Pixels CSS → EMU: 914400 por polegada, 96 px por polegada.
-        var cx = (long)widthPx * 914400 / 96;
-        var cy = (long)heightPx * 914400 / 96;
+        var cx = widthPx * Unit.EmusPerPixel;
+        var cy = heightPx * Unit.EmusPerPixel;
 
         var id = NextDrawingId();
 
@@ -248,9 +250,9 @@ internal sealed class ImageWriter(MainDocumentPart part, Inventory inventory, in
         }
     }
 
-    private static int ToPx(long emu) => (int)Math.Round(emu * 96.0 / 914400);
+    private static int ToPx(long emu) => (int)Math.Round(Unit.EmusToPixels(emu));
 
-    private static long ToEmu(int px) => (long)px * 914400 / 96;
+    private static long ToEmu(int px) => px * Unit.EmusPerPixel;
 
     private uint NextDrawingId()
     {
@@ -277,9 +279,9 @@ internal sealed class ImageWriter(MainDocumentPart part, Inventory inventory, in
         var height = Attr.Int(node, "height")
                      ?? (measured is { } size && size.Width > 0
                          ? (int)Math.Round((double)width * size.Height / size.Width)
-                         : (int)Math.Round(width * 0.75));
+                         : (int)Math.Round(width * DefaultHeightPerWidth));
 
-        if (width <= 0 || height <= 0) return (DefaultWidthPx, (int)(DefaultWidthPx * 0.75));
+        if (width <= 0 || height <= 0) return (DefaultWidthPx, (int)(DefaultWidthPx * DefaultHeightPerWidth));
         if (width <= usableWidthPx) return (width, height);
 
         return (usableWidthPx, Math.Max(1, (int)Math.Round((double)height * usableWidthPx / width)));

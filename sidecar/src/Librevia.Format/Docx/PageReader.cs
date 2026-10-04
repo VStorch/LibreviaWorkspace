@@ -53,9 +53,11 @@ public sealed record MarginsDto(
 /// <summary><c>w:sectPr</c> → configuração de página.</summary>
 public static class PageReader
 {
-    private const double TwipsPerMillimeter = 1440 / 25.4;
+    private const double TwipsPerMillimeter = Unit.TwipsPerInch / Unit.MillimetersPerInch;
 
-    private const double EmusPerTwip = 914400.0 / 1440;
+    private const double EmusPerTwip = (double)Unit.EmusPerInch / Unit.TwipsPerInch;
+
+    private const int DefaultMarginTwips = Unit.TwipsPerInch;
 
     /// <summary>Meio milímetro: o mesmo A4 do LibreOffice e do Word difere no último twip.</summary>
     private const int PaperTolerance = 30;
@@ -148,7 +150,7 @@ public static class PageReader
 
         // É contra a largura da coluna que a faixa decide o terço de cada peça.
         var contentWidthEmus = Math.Max(
-            (widthTwips - (margin?.Left?.Value ?? 1440) - (margin?.Right?.Value ?? 1440)) * EmusPerTwip,
+            (widthTwips - (margin?.Left?.Value ?? DefaultMarginTwips) - (margin?.Right?.Value ?? DefaultMarginTwips)) * EmusPerTwip,
             1);
 
         // As faixas de capa e de página par vêm sempre: o Word guarda o `first`
@@ -167,10 +169,10 @@ public static class PageReader
             Size: NearestSize(widthTwips, heightTwips, landscape),
             Orientation: landscape ? "landscape" : "portrait",
             Margins: new MarginsDto(
-                Top: Millimeters(margin?.Top?.Value, 1440),
-                Right: Millimeters((int?)margin?.Right?.Value, 1440),
-                Bottom: Millimeters(margin?.Bottom?.Value, 1440),
-                Left: Millimeters((int?)margin?.Left?.Value, 1440)),
+                Top: Millimeters(margin?.Top?.Value, DefaultMarginTwips),
+                Right: Millimeters((int?)margin?.Right?.Value, DefaultMarginTwips),
+                Bottom: Millimeters(margin?.Bottom?.Value, DefaultMarginTwips),
+                Left: Millimeters((int?)margin?.Left?.Value, DefaultMarginTwips)),
             Header: Band(true, HeaderFooterValues.Default),
             Footer: Band(false, HeaderFooterValues.Default),
             FirstHeader: Band(true, HeaderFooterValues.First),
@@ -319,10 +321,10 @@ public static class PageReader
 
         return landscape == string.Equals(page.Orientation, "landscape", StringComparison.Ordinal)
                && string.Equals(NearestSize(widthTwips, heightTwips, landscape), page.Size, StringComparison.Ordinal)
-               && Millimeters(margin?.Top?.Value, 1440) == page.Margins.Top
-               && Millimeters((int?)margin?.Right?.Value, 1440) == page.Margins.Right
-               && Millimeters(margin?.Bottom?.Value, 1440) == page.Margins.Bottom
-               && Millimeters((int?)margin?.Left?.Value, 1440) == page.Margins.Left;
+               && Millimeters(margin?.Top?.Value, DefaultMarginTwips) == page.Margins.Top
+               && Millimeters((int?)margin?.Right?.Value, DefaultMarginTwips) == page.Margins.Right
+               && Millimeters(margin?.Bottom?.Value, DefaultMarginTwips) == page.Margins.Bottom
+               && Millimeters((int?)margin?.Left?.Value, DefaultMarginTwips) == page.Margins.Left;
     }
 
     /// <summary>Para a gravação preservar as medidas do arquivo enquanto são o papel que o modelo diz.</summary>

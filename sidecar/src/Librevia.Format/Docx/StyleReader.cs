@@ -237,16 +237,15 @@ public static class StyleReader
     }
 
     private static double? Millimeters(string? twips) =>
-        int.TryParse(twips, out var value) ? Math.Round(value * 25.4 / 1440, 2) : null;
+        int.TryParse(twips, out var value) ? Math.Round(Unit.TwipsToMillimeters(value), 2) : null;
 
     /// <summary>Twips → pontos com duas casas, exatas (1 twip = 0,05 pt): a medida vai e volta. Zero explícito conta.</summary>
     private static double? Points(string? twips) =>
-        int.TryParse(twips, out var value) && value >= 0 ? Math.Round(value / 20.0, 2) : null;
+        int.TryParse(twips, out var value) && value >= 0 ? Math.Round(Unit.TwipsToPoints(value), 2) : null;
 
-    /// <summary><c>w:sz</c> vem em meios-pontos.</summary>
     private static string? PointsCss(string? halfPoints) =>
         double.TryParse(halfPoints, out var value) && value > 0
-            ? RunReader.FormatPoints(value / 2)
+            ? RunReader.FormatPoints(Unit.HalfPointsToPoints(value))
             : null;
 
     /// <summary>Sem multiplicar; o múltiplo a quatro casas, a grade em que volta ao arquivo.</summary>
@@ -257,7 +256,7 @@ public static class StyleReader
         var rule = spacing!.LineRule?.Value;
         if (rule is not null && rule != LineSpacingRuleValues.Auto)
         {
-            var points = Math.Round(value / 20.0, 2);
+            var points = Math.Round(Unit.TwipsToPoints(value), 2);
             return rule == LineSpacingRuleValues.Exact
                 ? new LineSpacingDto("exact", Points: points)
                 : new LineSpacingDto("atLeast", Points: points);

@@ -100,11 +100,10 @@ public static class RunReader
         var color = ColorOf(properties.Color?.Val);
         if (color is not null) attributes["color"] = color;
 
-        // `w:sz` vem em meios-pontos.
         if (properties.FontSize?.Val is not null &&
             double.TryParse(properties.FontSize.Val.Value, out var halfPoints))
         {
-            attributes["fontSize"] = FormatPoints(halfPoints / 2);
+            attributes["fontSize"] = FormatPoints(Unit.HalfPointsToPoints(halfPoints));
         }
 
         // Com a substituta genérica atrás (FontTable).

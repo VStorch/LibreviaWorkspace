@@ -277,10 +277,10 @@ internal static class TemplateStyles
     }
 
     /// <summary>Pontos → meios-pontos (<c>w:sz</c>).</summary>
-    private static string HalfPoints(double points) => Invariant((int)Math.Round(points * 2));
+    private static string HalfPoints(double points) => Invariant((int)Math.Round(points * Unit.HalfPointsPerPoint));
 
     /// <summary>Pontos → twips (<c>w:spacing</c>).</summary>
-    private static string Twips(double points) => Invariant((int)Math.Round(points * 20));
+    private static string Twips(double points) => Invariant((int)Math.Round(points * Unit.TwipsPerPoint));
 
     private static string Invariant(int value) => value.ToString(CultureInfo.InvariantCulture);
 }

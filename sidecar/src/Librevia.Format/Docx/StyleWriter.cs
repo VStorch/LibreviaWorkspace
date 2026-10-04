@@ -284,7 +284,7 @@ internal static class StyleWriter
                 spacing.LineRule = LineSpacingRuleValues.Auto;
                 break;
             case { Points: { } points }:
-                spacing.Line = Invariant(Rounded(points * 20));
+                spacing.Line = Invariant(Rounded(points * Unit.TwipsPerPoint));
                 spacing.LineRule = value.Kind == "exact" ? LineSpacingRuleValues.Exact : LineSpacingRuleValues.AtLeast;
                 break;
         }
@@ -308,7 +308,7 @@ internal static class StyleWriter
         if (before.FontSize != after.FontSize)
         {
             var size = Attr.Points(after.FontSize) is { } points and > 0
-                ? new FontSize { Val = Invariant(Rounded(points * 2)) }
+                ? new FontSize { Val = Invariant(Rounded(points * Unit.HalfPointsPerPoint)) }
                 : null;
             Put(properties, "sz", size, RPrOrder);
         }
@@ -373,7 +373,7 @@ internal static class StyleWriter
         millimeters is { } mm ? new StringValue(Invariant(Attr.MmToTwips(mm))) : null;
 
     private static StringValue? PointsToTwips(double? points) =>
-        points is { } value ? new StringValue(Invariant(Rounded(value * 20))) : null;
+        points is { } value ? new StringValue(Invariant(Rounded(value * Unit.TwipsPerPoint))) : null;
 
     /// <summary>Para longe do zero, como <see cref="Attr.MmToTwips(double)"/>: 10,25 pt são 21 meios-pontos.</summary>
     private static int Rounded(double value) => (int)Math.Round(value, MidpointRounding.AwayFromZero);

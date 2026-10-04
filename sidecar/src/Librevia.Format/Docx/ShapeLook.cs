@@ -21,7 +21,7 @@ internal sealed record ShapeLook(
 
     internal bool Draws => Fill is not null || (Line is not null && LineWidthPt > 0);
 
-    private const double EmusPerPoint = 12700;
+    private const double EmusPerPoint = Unit.EmusPerPoint;
 
     /// <summary>
     /// Sobe até quem tem <c>spPr</c>: chega aqui a forma ou a caixa de dentro dela.

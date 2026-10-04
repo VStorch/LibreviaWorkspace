@@ -545,12 +545,11 @@ public sealed class BodyReader(
         return string.IsNullOrWhiteSpace(font) ? null : _fonts.Stack(font);
     }
 
-    /// <summary><c>w:sz</c> vem em meios-pontos.</summary>
     private static string? FontSizeOf(RunProperties properties)
     {
         var value = properties.FontSize?.Val?.Value;
         if (!double.TryParse(value, out var halfPoints) || halfPoints <= 0) return null;
-        var points = halfPoints / 2;
+        var points = Unit.HalfPointsToPoints(halfPoints);
         return points == Math.Floor(points)
             ? $"{(int)points}pt"
             : points.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture) + "pt";
@@ -567,7 +566,7 @@ public sealed class BodyReader(
 
     /// <summary>Twips → pontos. Zero **explícito** é "sem espaço antes", e não ausência.</summary>
     private static double? TwipsToPt(string? twips) =>
-        int.TryParse(twips, out var value) && value >= 0 ? Math.Round(value / 20.0, 1) : null;
+        int.TryParse(twips, out var value) && value >= 0 ? Math.Round(Unit.TwipsToPoints(value), 1) : null;
 
     /// <summary>
     /// Entrelinha em CSS. <c>w:line</c> com regra <c>auto</c> vem em 240-avos de **vez a
@@ -589,7 +588,7 @@ public sealed class BodyReader(
         {
             if (rule is not null && rule != LineSpacingRuleValues.Auto)
             {
-                return Math.Round(value / 20.0, 1)
+                return Math.Round(Unit.TwipsToPoints(value), 1)
                     .ToString("0.#", System.Globalization.CultureInfo.InvariantCulture) + "pt";
             }
 
@@ -685,7 +684,7 @@ public sealed class BodyReader(
     }
 
     private static double? TwipsToMm(string? twips) =>
-        int.TryParse(twips, out var value) ? Math.Round(value * 25.4 / 1440, 2) : null;
+        int.TryParse(twips, out var value) ? Math.Round(Unit.TwipsToMillimeters(value), 2) : null;
 
 
     private List<Node> ReadInline(
@@ -1510,7 +1509,7 @@ public sealed class BodyReader(
             // Deslocamento até 1 pt (635 EMU no corpus) é o zero que o LibreOffice grava.
             var offset = long.TryParse(vertical?.PositionOffset?.Text, out var emus) ? Math.Abs(emus) : 0;
             if ((from is null || from == Drawing.Wordprocessing.VerticalRelativePositionValues.Paragraph) &&
-                offset <= 12700)
+                offset <= Unit.EmusPerPoint)
             {
                 _topAnchored.Add(node);
             }
@@ -1531,10 +1530,9 @@ public sealed class BodyReader(
             var (across, down) = IsQuarterTurned(drawing) ? (tall, wide) : (wide, tall);
 
             // As duas medidas: sem a altura, a paginação mediria a folha sem a
-            // imagem, e a proporção seria a do arquivo. EMU → px: 914400 por
-            // polegada, 96 px por polegada.
-            node.With("width", (int)Math.Round(across * 96.0 / 914400));
-            node.With("height", (int)Math.Round(down * 96.0 / 914400));
+            // imagem, e a proporção seria a do arquivo.
+            node.With("width", (int)Math.Round(Unit.EmusToPixels(across)));
+            node.With("height", (int)Math.Round(Unit.EmusToPixels(down)));
         }
 
         return node;

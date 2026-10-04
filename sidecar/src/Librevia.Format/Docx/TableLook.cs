@@ -78,9 +78,6 @@ internal static class TableLook
             : null;
     }
 
-    /// <summary>1440 / 96.</summary>
-    private const int TwipsPerPixel = 15;
-
     private const double EighthsPerPoint = 8;
 
     /// <summary>Sem <c>w:sz</c>, meio ponto, como no Word.</summary>
@@ -88,9 +85,9 @@ internal static class TableLook
 
     private static readonly string[] Sides = ["top", "right", "bottom", "left"];
 
-    public static int ToPixels(long twips) => (int)Math.Round((double)twips / TwipsPerPixel);
+    public static int ToPixels(long twips) => (int)Math.Round((double)twips / Unit.TwipsPerPixel);
 
-    public static int ToTwips(int pixels) => pixels * TwipsPerPixel;
+    public static int ToTwips(int pixels) => pixels * Unit.TwipsPerPixel;
 
 
     /// <summary>Do <c>w:tblGrid</c>, que o Word usa e o editor espelha no <c>colgroup</c>; sem grade, lista vazia.</summary>
