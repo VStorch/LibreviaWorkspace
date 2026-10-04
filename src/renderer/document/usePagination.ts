@@ -1,5 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Editor } from '@tiptap/react'
+import type { Node as ProseMirrorNode } from '@tiptap/pm/model'
+import type { EditorView } from '@tiptap/pm/view'
 import {
   noteLineTop,
   noteSpan,
@@ -7,6 +9,7 @@ import {
   type MeasuredBlock,
   type MeasuredNote,
   type NoteSlice,
+  type PagePlan,
   type SectionFlow,
   type SheetPlan,
 } from '@services/document/paginate.js'
@@ -184,6 +187,22 @@ export interface PaginationOptions {
   readonly styles?: StyleSheet | null
 }
 
+const INITIAL_LAYOUT: PageLayout = {
+  pages: 1,
+  stackHeightPx: 0,
+  sheetTops: [0],
+  sheetHeights: [],
+  pageStarts: [],
+  anchors: [],
+  sheets: [{ section: 0, blank: false, number: 1, first: true }],
+  sheetWidths: [],
+  stackWidthPx: 0,
+  contentSheets: [0],
+  columnMoves: [],
+  columnLines: [],
+  noteAreas: [],
+}
+
 /**
  * A medição é convertida em **coordenadas de fluxo** antes de decidir: o
  * `offsetTop` já inclui os vãos aplicados, e subtraí-los devolve a altura da
@@ -199,67 +218,15 @@ export function usePagination(
   revision: number,
   { bands = [], paginated = true, styles = null }: PaginationOptions = {},
 ): PageLayout {
-  const [layout, setLayout] = useState<PageLayout>({
-    pages: 1,
-    stackHeightPx: 0,
-    sheetTops: [0],
-    sheetHeights: [],
-    pageStarts: [],
-    anchors: [],
-    sheets: [{ section: 0, blank: false, number: 1, first: true }],
-    sheetWidths: [],
-    stackWidthPx: 0,
-    contentSheets: [0],
-    columnMoves: [],
-    columnLines: [],
-    noteAreas: [],
-  })
-
-  /**
-   * Numa `ref`, porque o efeito é refeito a cada tecla e a leitura seguinte
-   * precisa descontar o que já foi empurrado. A chave é a **posição** do nó: um
-   * corte interno empurra linha de tabela ou item de lista, sem índice de bloco.
-   */
-  const applied = useRef(new Map<number, number>())
-
-  /** O vão **mais** a margem natural, que é o que o CSS lê; o vão é o que a conta desconta. */
-  const lastWritten = useRef(new Map<number, number>())
-
-  /** Os vãos entre linhas de parágrafo cortado, por posição do espaçador. */
-  const lastLines = useRef(new Map<number, number>())
-
-  /** O deslocamento lateral das colunas já aplicado, por posição do bloco. */
-  const lastColumns = useRef(new Map<number, number>())
-
-  /** Os cabeçalhos de tabela repetidos, comparados pelo que desenham. */
-  const lastHeaders = useRef('[]')
-
+  const [layout, setLayout] = useState<PageLayout>(INITIAL_LAYOUT)
+  const writeGaps = useGapWriter()
   const bandsKey = bands.map((band) => `${band.headerMm}:${band.footerMm}`).join('|')
 
   useEffect(() => {
     if (editor === null) return undefined
 
     const element = editor.view.dom as HTMLElement // alvo do observador de tamanho
-    // A margem é um piso: o cabeçalho mais alto a empurra para baixo.
-    const metrics: SectionMetrics[] = sections.map((setup, index) => {
-      const heights = bands[index] ?? NO_BANDS
-      const insets = contentInsetsMm(setup, heights)
-      const { width, height } = pageDimensionsMm(setup)
-      const columns = columnGeometry(setup)
-      return {
-        columns: columns.count,
-        columnStepPx: mmToPx(columns.stepMm),
-        columnWidthPx: mmToPx(columns.widthMm),
-        separator: columns.separator,
-        leftPx: mmToPx(setup.margins.left),
-        rightPx: mmToPx(setup.margins.right),
-        widthPx: mmToPx(width),
-        heightPx: mmToPx(height),
-        contentPx: mmToPx(contentHeightMm(setup, heights)),
-        topPx: mmToPx(insets.top),
-        bottomPx: mmToPx(insets.bottom),
-      }
-    })
+    const metrics = sectionMetricsOf(sections, bands)
     const metricsOf = (section: number): SectionMetrics => metrics[section] ?? metrics.at(-1)!
     const flows: SectionFlow[] = sections.map((setup, index) => ({
       height: metricsOf(index).contentPx,
@@ -268,6 +235,15 @@ export function usePagination(
       restart: setup.pageNumberStart ?? null,
       columns: metricsOf(index).columns,
     }))
+
+    const measureHidden = (): void => {
+      const measured = new DocumentMeasurer(editor, element, styles).measure(declared)
+      const result = layoutPages(measured, flows, metricsOf)
+      // No modo de leitura o mapa do aplicado esvazia junto, senão a medida
+      // seguinte descontaria um empurrão que não existe.
+      writeGaps(editor.view, paginated ? result.gaps : NO_PAGE_GAPS)
+      setLayout(result.layout)
+    }
 
     const measure = (): void => {
       // Os espaçadores entre linhas saem durante a medida: eles mudam onde as
@@ -280,529 +256,6 @@ export function usePagination(
       } finally {
         for (const gap of lineGapsInDom) gap.style.display = 'inline-block'
       }
-    }
-
-    const measureHidden = (): void => {
-      // Pelo **documento**, e não pelos filhos do DOM, que têm outros índices:
-      // `nodeDOM` liga um ao outro.
-      let accumulated = 0
-      const blocks: MeasuredBlock[] = []
-      const targets: CutTarget[] = []
-      const origin = offsetTopOf(element)
-
-      // As notas: as de rodapé vão com o bloco da referência; as de fim, depois
-      // do último bloco. `refIndex` é a ordem de `noteRefsOf`.
-      const measuredNotes = new Map<string, MeasuredNote & { index: number }>()
-      const endnotes: (MeasuredNote & { index: number })[] = []
-      let refIndex = 0
-
-      const marks: (string | null)[] = []
-      editor.state.doc.forEach((block) => marks.push(sectionBreakIn(block as unknown as SectionBlock)))
-      const sectionOfBlock = blockSections(marks, declared)
-
-      editor.state.doc.forEach((block, offset, blockIndex) => {
-        const section = sectionOfBlock[blockIndex] ?? 0
-        const dom = editor.view.nodeDOM(offset)
-        const node = dom instanceof HTMLElement ? dom : null
-        if (node === null) {
-          block.descendants((child) => {
-            if (child.type.name !== 'noteRef') return true
-            refIndex += 1
-            return false
-          })
-          blocks.push({
-            top: 0,
-            height: 0,
-            breakpoints: [],
-            isPageBreak: false,
-            breakAfter: false,
-            keepWithNext: false,
-            section,
-          })
-          return
-        }
-
-        accumulated += shiftOf(node)
-        const top = offsetTopOf(node) - origin - accumulated
-        const before = blocks.at(-1)
-        const previousDom = node.previousElementSibling
-        targets.push({
-          at: top,
-          start: { blockIndex },
-          nodes: [
-            {
-              position: offset,
-              natural: Math.max(top - (before === undefined ? 0 : before.top + before.height), 0),
-              // É com ela que uma margem de cima negativa se soma (`collapsed`).
-              collapse:
-                previousDom instanceof HTMLElement
-                  ? parseFloat(getComputedStyle(previousDom).marginBottom) || 0
-                  : 0,
-            },
-          ],
-        })
-
-        // Só as linhas da tabela externa: as aninhadas pertencem às células.
-        const table =
-          node instanceof HTMLTableElement ? node : node.querySelector<HTMLTableElement>(':scope > table')
-        const children =
-          table !== null
-            ? Array.from(table.rows)
-            : node.tagName === 'UL' || node.tagName === 'OL'
-              ? Array.from(node.children).filter(
-                  (child): child is HTMLElement => child instanceof HTMLElement && child.tagName === 'LI',
-                )
-              : // O sumário corta entre entradas, como a lista entre itens.
-                node.hasAttribute('data-toc')
-                ? Array.from(node.children).filter(
-                    (child): child is HTMLElement => child instanceof HTMLElement,
-                  )
-                : []
-        let internal = 0
-        const breakpoints: number[] = []
-        // O pé da linha da referência de nota que está dentro dela.
-        const childTops: number[] = []
-
-        // Parágrafo e título cortam entre linhas. As linhas medem a partir da
-        // borda do bloco, e o topo de fluxo dele já está em `top`.
-        const lines = block.isTextblock && children.length === 0 ? measureLines(editor.view, node) : null
-        if (lines !== null) {
-          lines.starts.forEach((start, index) => {
-            const at = top + start
-            breakpoints.push(at)
-            targets.push({
-              at,
-              start: { blockIndex },
-              nodes: [],
-              line: { resolve: () => lines.positionOf(index), block: offset },
-            })
-          })
-          internal = lines.shift
-        }
-
-        // A captura ancorada: a linha vazia depois do quadro (`::after` de 1lh)
-        // passa para a folha seguinte quando não cabe, como no LibreOffice.
-        const freeBreakpoints: number[] = []
-        let hangingBottom = 0
-        if (
-          lines !== null &&
-          node.querySelector(':scope > .node-image[data-anchored], :scope > img[data-anchored]') !== null
-        ) {
-          // Com texto, o corte entre o quadro e a linha é livre da regra de viúvas.
-          const first = lines.starts[0]
-          if (
-            first !== undefined &&
-            block.firstChild?.type.name === 'image' &&
-            block.firstChild.attrs['anchored'] === true
-          ) {
-            freeBreakpoints.push(top + first)
-          }
-          // Sem texto, a linha vazia pode sobrar no pé da folha.
-          const after = parseFloat(getComputedStyle(node, '::after').height)
-          if (Number.isFinite(after) && after > 0) hangingBottom = after
-        }
-
-        // Linhas de cabeçalho (`w:tblHeader`) no começo da tabela: cortar dentro
-        // delas, ou logo depois, deixaria o cabeçalho sozinho no pé.
-        const rows = table !== null ? Array.from(table.rows) : []
-        let headerRows = 0
-        while (
-          headerRows < rows.length - 1 &&
-          rows[headerRows]!.cells.length > 0 &&
-          Array.from(rows[headerRows]!.cells).every((cell) => cell.tagName === 'TH')
-        ) {
-          headerRows += 1
-        }
-        const lastHeader = rows[headerRows - 1]
-        const repeatHeight =
-          lastHeader === undefined
-            ? 0
-            : offsetTopOf(lastHeader) + lastHeader.offsetHeight - offsetTopOf(rows[0]!)
-
-        children.forEach((child, childIndex) => {
-          const cells = child instanceof HTMLTableRowElement ? Array.from(child.cells) : []
-          const shift = cells.length > 0 ? shiftOf(cells[0]!) : shiftOf(child)
-          // Padding aumenta a linha para baixo; margem já deslocou seu topo.
-          const at = offsetTopOf(child) - origin - accumulated - internal - (cells.length === 0 ? shift : 0)
-          childTops.push(at)
-          if (childIndex > headerRows) {
-            breakpoints.push(at)
-            targets.push({
-              at,
-              start: { blockIndex, childIndex },
-              nodes: (cells.length > 0 ? cells : [child]).map((target) => ({
-                position: editor.view.posAtDOM(target, 0) - 1,
-                natural:
-                  parseFloat(
-                    cells.length > 0
-                      ? getComputedStyle(target).paddingTop
-                      : getComputedStyle(target).marginTop,
-                  ) - shiftOf(target),
-              })),
-              ...(table !== null && repeatHeight > 0
-                ? {
-                    header: () =>
-                      repeatedHeader(editor, table, rows.slice(0, headerRows), cells[0]!, repeatHeight),
-                  }
-                : {}),
-            })
-          }
-          internal += shift
-        })
-        const effective = effectiveAttrs(block, styles)
-        const height = node.offsetHeight - internal
-
-        const blockNotes: MeasuredNote[] = []
-        block.descendants((child, pos) => {
-          if (child.type.name !== 'noteRef') return true
-          const index = refIndex++
-          const reference = editor.view.nodeDOM(offset + 1 + pos)
-          const body = noteBodyOf(reference)
-          if (body === undefined || !(reference instanceof HTMLElement)) return false
-          const at = referenceBottom(node, reference, top, height, {
-            lineStarts: lines?.starts ?? null,
-            children,
-            childTops,
-          })
-          const measured = { id: body.key, at, index, ...measureNote(body) }
-          measuredNotes.set(body.key, measured)
-          if (child.attrs['kind'] === NoteKind.Endnote) endnotes.push(measured)
-          else blockNotes.push(measured)
-          return false
-        })
-
-        blocks.push({
-          top,
-          height,
-          breakpoints,
-          isPageBreak: node.hasAttribute('data-page-break'),
-          breakAfter: node.hasAttribute('data-break-after'),
-          columnBreakAfter: node.hasAttribute('data-column-break'),
-          keepWithNext: effective['keepNext'] === true || /^H[1-6]$/.test(node.tagName),
-          keepLines: effective['keepLines'] === true,
-          widowControl: lines !== null && effective['widowControl'] !== false,
-          ...(repeatHeight > 0 ? { repeatHeight } : {}),
-          ...(freeBreakpoints.length > 0 ? { freeBreakpoints } : {}),
-          ...(hangingBottom > 0 ? { hangingBottom } : {}),
-          ...(blockNotes.length > 0 ? { notes: blockNotes } : {}),
-          section,
-        })
-        accumulated += internal
-      })
-
-      // As notas de fim entram no fluxo depois do último bloco, cortando entre linhas.
-      const textBottom = blocks.reduce((bottom, block) => Math.max(bottom, block.top + block.height), 0)
-      const lastSection = blocks.at(-1)?.section ?? 0
-      const endnoteBlocks: MeasuredBlock[] = []
-      let endnoteTop = textBottom + NOTE_SEPARATOR_PX
-      for (const note of endnotes) {
-        endnoteBlocks.push({
-          top: endnoteTop,
-          height: note.height,
-          breakpoints: note.lines.slice(1).map((line) => endnoteTop + line),
-          isPageBreak: false,
-          breakAfter: false,
-          keepWithNext: false,
-          section: lastSection,
-        })
-        endnoteTop += note.height
-      }
-
-      const plan = paginateSections([...blocks, ...endnoteBlocks], flows, { separator: NOTE_SEPARATOR_PX })
-      const breaks = plan.breaks
-      const contentSheets = plan.sheets.flatMap((sheet, index) => (sheet.blank ? [] : [index]))
-      const sheetOf = (content: number): SheetPlan => plan.sheets[contentSheets[content] ?? 0]!
-      // A altura desenhada de uma folha é a da tira mais os desvios das colunas.
-      const liftsBetween = (from: number, to: number): number => {
-        let sum = 0
-        for (const [index, placement] of plan.placements) {
-          const top = blocks[index]?.top
-          if (top !== undefined && top >= from && top < to) sum += placement.lift
-        }
-        return sum
-      }
-
-      // Vão = o que sobrou da folha + as duas margens + o espaço entre papéis.
-      // A margem escrita **substitui** a margem natural do bloco (a última
-      // declaração ganha), e por isso o valor escrito é o vão mais a margem
-      // natural; a conta de fluxo desconta só o vão.
-      const gaps = new Map<number, number>()
-      const written = new Map<number, number>()
-      const lineGaps = new Map<number, number>()
-      const headers: RepeatedHeader[] = []
-      let previous = 0
-      const pageStarts: PageStart[] = []
-      const sheetHeights: number[] = []
-      const noteAreas: NoteArea[] = []
-      const sheetStarts: number[] = []
-
-      // No pé da coluna de texto, ou logo depois do texto se a folha esticou.
-      const footnoteArea = (content: number, metrics: SectionMetrics, used: number): void => {
-        const slices = plan.notes[content] ?? []
-        const items = slices.flatMap((slice) => itemOf(slice))
-        if (items.length === 0) return
-        const height = plan.noteHeights[content] ?? 0
-        noteAreas.push({
-          sheet: contentSheets[content] ?? content,
-          kind: 'footnote',
-          topPx: metrics.topPx + Math.max(metrics.contentPx - height, used),
-          leftPx: metrics.leftPx,
-          widthPx: metrics.widthPx - metrics.leftPx - metrics.rightPx,
-          separator: items[0]!.fromLine > 0 ? 'continuation' : 'normal',
-          items,
-        })
-      }
-      const itemOf = (slice: NoteSlice): NoteAreaItem[] => {
-        const note = measuredNotes.get(slice.id)
-        if (note === undefined) return []
-        return [
-          {
-            key: slice.id,
-            index: note.index,
-            fromLine: slice.fromLine,
-            toLine: slice.toLine,
-            clipTopPx: noteLineTop(note, slice.fromLine),
-            heightPx: noteSpan(note, slice.fromLine, slice.toLine),
-          },
-        ]
-      }
-
-      // A lista e os cortes crescem juntos: cada folha custa uma consulta.
-      const internalAt = new Map<number, CutTarget>()
-      for (const target of targets) {
-        if (
-          (target.start.childIndex !== undefined || target.line !== undefined) &&
-          !internalAt.has(target.at)
-        ) {
-          internalAt.set(target.at, target)
-        }
-      }
-      let cursor = 0
-      const blockTargetFrom = (at: number): CutTarget | undefined => {
-        while (cursor < targets.length && (targets[cursor]!.at < at || targets[cursor]!.line !== undefined))
-          cursor++
-        return targets[cursor]
-      }
-
-      breaks.forEach((at, cut) => {
-        const ending = metricsOf(sheetOf(cut).section)
-        const opening = metricsOf(sheetOf(cut + 1).section)
-        const blanks = plan.sheets.slice((contentSheets[cut] ?? 0) + 1, contentSheets[cut + 1] ?? 0)
-        const internal = internalAt.get(at)
-        const position = internal?.line?.resolve() ?? null
-        // Linha não achada (DOM trocado no meio da medida): cede ao bloco seguinte.
-        const target =
-          internal !== undefined && (internal.line === undefined || position !== null)
-            ? internal
-            : blockTargetFrom(at)
-        // `hangingBottom` cabe na margem de baixo.
-        const span = at - previous + liftsBetween(previous, at)
-        const hung = Math.min(Math.max(span - ending.contentPx, 0), hangingAt(blocks, at))
-        const used = span - hung
-        const notesHeight = plan.noteHeights[cut] ?? 0
-        sheetStarts.push(previous)
-        footnoteArea(cut, ending, used)
-        sheetHeights.push(Math.max(ending.heightPx, used + notesHeight + ending.topPx + ending.bottomPx))
-        let skipped = 0
-        for (const blank of blanks) {
-          const height = metricsOf(blank.section).heightPx
-          sheetHeights.push(height)
-          skipped += height + SHEET_GUTTER_PX
-        }
-        const shift =
-          Math.max(ending.contentPx - used, notesHeight, 0) -
-          hung +
-          ending.bottomPx +
-          SHEET_GUTTER_PX +
-          skipped +
-          opening.topPx
-        if (target?.line !== undefined && position !== null) {
-          // O papel recorta o parágrafo no mesmo caractere.
-          pageStarts.push({ ...target.start, offset: position - target.line.block - 1 })
-          lineGaps.set(position, shift)
-        } else if (target !== undefined) {
-          // O cabeçalho repetido mora no vão; a conta de fluxo desconta os dois.
-          const header = target.header?.()
-          const extra = header !== undefined && header.height < opening.contentPx / 2 ? header.height : 0
-          if (header !== undefined && extra > 0) headers.push(header)
-          pageStarts.push(extra > 0 ? { ...target.start, repeatHeader: true } : target.start)
-          for (const node of target.nodes) {
-            gaps.set(node.position, shift + extra)
-            written.set(node.position, shift + extra + node.natural)
-          }
-          previous = at - extra
-          return
-        } else {
-          // Uma quebra explícita final ainda abre uma folha vazia.
-          pageStarts.push({ blockIndex: blocks.length })
-        }
-        previous = at
-      })
-
-      const last = metricsOf(sheetOf(breaks.length).section)
-      const bottom = endnoteBlocks.length > 0 ? endnoteTop : textBottom
-      const lastSpan = Math.max(bottom - previous, 0) + liftsBetween(previous, bottom + 1)
-      const lastHung = Math.min(Math.max(lastSpan - last.contentPx, 0), hangingAt(blocks, bottom))
-      const lastNotes = plan.noteHeights[breaks.length] ?? 0
-      sheetStarts.push(previous)
-      footnoteArea(breaks.length, last, lastSpan - lastHung)
-      sheetHeights.push(Math.max(last.heightPx, lastSpan - lastHung + lastNotes + last.topPx + last.bottomPx))
-
-      endnoteBlocks.forEach((block, position) => {
-        const note = endnotes[position]!
-        sheetStarts.forEach((start, content) => {
-          const end = breaks[content] ?? Number.POSITIVE_INFINITY
-          const visible = [block.top, ...block.breakpoints]
-            .map((at, line) => ({ at, line }))
-            .filter(({ at }) => at >= start - 0.5 && at < end - 0.5)
-          if (visible.length === 0) return
-          const fromLine = visible[0]!.line
-          const toLine = visible.at(-1)!.line + 1
-          const metrics = metricsOf(sheetOf(content).section)
-          const sheet = contentSheets[content] ?? content
-          const item: NoteAreaItem = {
-            key: note.id,
-            index: note.index,
-            fromLine,
-            toLine,
-            clipTopPx: noteLineTop(note, fromLine),
-            heightPx: noteSpan(note, fromLine, toLine),
-          }
-          const area = noteAreas.find(
-            (candidate) => candidate.sheet === sheet && candidate.kind === 'endnote',
-          )
-          if (area !== undefined) {
-            noteAreas[noteAreas.indexOf(area)] = { ...area, items: [...area.items, item] }
-            return
-          }
-          // A folha que só continua as notas não repete o separador.
-          const opens = position === 0 && fromLine === 0
-          noteAreas.push({
-            sheet,
-            kind: 'endnote',
-            topPx: metrics.topPx + (visible[0]!.at - start) - (opens ? NOTE_SEPARATOR_PX : 0),
-            leftPx: metrics.leftPx,
-            widthPx: metrics.widthPx - metrics.leftPx - metrics.rightPx,
-            separator: opens ? 'normal' : null,
-            items: [item],
-          })
-        })
-      })
-      // A seção par ou ímpar só pede a folha em branco antes de começar.
-      const sheets = plan.sheets.slice(0, sheetHeights.length)
-      const sheetWidths = sheets.map((sheet) => metricsOf(sheet.section).widthPx)
-      const sheetTops: number[] = []
-      let stackHeightPx = 0
-      for (const height of sheetHeights) {
-        sheetTops.push(stackHeightPx)
-        stackHeightPx += height + SHEET_GUTTER_PX
-      }
-
-      // O desvio vertical das colunas entra no vão; o lateral é uma translação.
-      const columnShifts = new Map<number, number>()
-      const blockTargets = new Map<number, CutTarget>()
-      for (const cut of targets) {
-        if (
-          cut.line === undefined &&
-          cut.start.childIndex === undefined &&
-          !blockTargets.has(cut.start.blockIndex)
-        )
-          blockTargets.set(cut.start.blockIndex, cut)
-      }
-      const columnMoves: ColumnMove[] = []
-      for (const [index, placement] of plan.placements) {
-        const node = blockTargets.get(index)?.nodes[0]
-        if (node === undefined) continue
-        const metrics = metricsOf(blocks[index]?.section ?? 0)
-        const dx = placement.column * metrics.columnStepPx
-        if (dx !== 0) columnShifts.set(node.position, dx)
-        if (placement.lift !== 0) {
-          gaps.set(node.position, (gaps.get(node.position) ?? 0) + placement.lift)
-          const distance = (written.get(node.position) ?? node.natural) + placement.lift
-          written.set(node.position, collapsed(distance, node.collapse ?? 0))
-        }
-        columnMoves.push({
-          blockIndex: index,
-          dx,
-          narrowerPx:
-            metrics.columns > 1
-              ? metrics.widthPx - metrics.leftPx - metrics.rightPx - metrics.columnWidthPx
-              : 0,
-          lift: placement.lift,
-          natural: node.natural,
-          collapse: node.collapse ?? 0,
-        })
-      }
-
-      const columnLines: ColumnLine[] = []
-      for (const region of plan.regions) {
-        const metrics = metricsOf(region.section)
-        if (!metrics.separator) continue
-        const sheet = contentSheets[region.sheet] ?? region.sheet
-        for (let column = 1; column < region.columns; column++) {
-          columnLines.push({
-            sheet,
-            leftPx:
-              metrics.leftPx +
-              column * metrics.columnStepPx -
-              (metrics.columnStepPx - metrics.columnWidthPx) / 2,
-            topPx: metrics.topPx + region.top,
-            heightPx: region.height,
-          })
-        }
-      }
-
-      // No modo de leitura o mapa do aplicado esvazia junto, senão a medida
-      // seguinte descontaria um empurrão que não existe.
-      const target = paginated ? gaps : EMPTY_GAPS
-      const targetWritten = paginated ? written : EMPTY_GAPS
-      const targetLines = paginated ? lineGaps : EMPTY_GAPS
-      const targetHeaders = paginated ? headers : []
-      const targetColumns = paginated ? columnShifts : EMPTY_GAPS
-      const headersKey = JSON.stringify(targetHeaders)
-
-      if (
-        !sameGaps(lastColumns.current, targetColumns) ||
-        !sameGaps(applied.current, target) ||
-        !sameGaps(lastWritten.current, targetWritten) ||
-        !sameGaps(lastLines.current, targetLines) ||
-        lastHeaders.current !== headersKey
-      ) {
-        lastHeaders.current = headersKey
-        applied.current = target
-        lastWritten.current = targetWritten
-        lastLines.current = targetLines
-        lastColumns.current = targetColumns
-        applyPageGaps(editor.view, targetWritten, target, {
-          lines: targetLines,
-          headers: targetHeaders,
-          columns: targetColumns,
-        })
-      }
-
-      setLayout({
-        pages: sheetHeights.length,
-        stackHeightPx: stackHeightPx - SHEET_GUTTER_PX,
-        sheetTops,
-        sheetHeights,
-        pageStarts,
-        anchors: anchorsFor(
-          blocks,
-          breaks,
-          (content) => ({
-            sheet: contentSheets[content] ?? content,
-            marginTopPx: metricsOf(sheetOf(content).section).topPx,
-          }),
-          (index) => plan.placements.get(index)?.lift ?? 0,
-        ),
-        sheets,
-        sheetWidths,
-        stackWidthPx: Math.max(0, ...sheetWidths),
-        contentSheets,
-        columnMoves,
-        columnLines,
-        noteAreas,
-      })
     }
 
     // Uma medida por quadro: digitar depressa dispararia dezenas por segundo.
@@ -823,9 +276,756 @@ export function usePagination(
       observer.disconnect()
       if (scheduled !== 0) cancelAnimationFrame(scheduled)
     }
-  }, [editor, sections, declared, revision, bandsKey, paginated, styles])
+  }, [editor, sections, declared, revision, bandsKey, paginated, styles, writeGaps])
 
   return layout
+}
+
+type MetricsOf = (section: number) => SectionMetrics
+
+/** A margem é um piso: o cabeçalho mais alto a empurra para baixo. */
+function sectionMetricsOf(sections: readonly PageSetup[], bands: readonly BandHeights[]): SectionMetrics[] {
+  return sections.map((setup, index) => {
+    const heights = bands[index] ?? NO_BANDS
+    const insets = contentInsetsMm(setup, heights)
+    const { width, height } = pageDimensionsMm(setup)
+    const columns = columnGeometry(setup)
+    return {
+      columns: columns.count,
+      columnStepPx: mmToPx(columns.stepMm),
+      columnWidthPx: mmToPx(columns.widthMm),
+      separator: columns.separator,
+      leftPx: mmToPx(setup.margins.left),
+      rightPx: mmToPx(setup.margins.right),
+      widthPx: mmToPx(width),
+      heightPx: mmToPx(height),
+      contentPx: mmToPx(contentHeightMm(setup, heights)),
+      topPx: mmToPx(insets.top),
+      bottomPx: mmToPx(insets.bottom),
+    }
+  })
+}
+
+/** O que a medida escreve no DOM, e o que a seguinte desconta. */
+interface PageGaps {
+  readonly gaps: ReadonlyMap<number, number>
+  /** O vão **mais** a margem natural, que é o que o CSS lê; o vão é o que a conta desconta. */
+  readonly written: ReadonlyMap<number, number>
+  /** Os vãos entre linhas de parágrafo cortado, por posição do espaçador. */
+  readonly lines: ReadonlyMap<number, number>
+  readonly headers: readonly RepeatedHeader[]
+  /** O deslocamento lateral das colunas, por posição do bloco. */
+  readonly columns: ReadonlyMap<number, number>
+}
+
+const NO_PAGE_GAPS: PageGaps = {
+  gaps: EMPTY_GAPS,
+  written: EMPTY_GAPS,
+  lines: EMPTY_GAPS,
+  headers: [],
+  columns: EMPTY_GAPS,
+}
+
+/**
+ * Numa `ref`, porque o efeito é refeito a cada tecla e a leitura seguinte
+ * precisa descontar o que já foi empurrado. A chave é a **posição** do nó: um
+ * corte interno empurra linha de tabela ou item de lista, sem índice de bloco.
+ */
+function useGapWriter(): (view: EditorView, next: PageGaps) => void {
+  const last = useRef<PageGaps>(NO_PAGE_GAPS)
+  /** Os cabeçalhos de tabela repetidos, comparados pelo que desenham. */
+  const lastHeaders = useRef('[]')
+
+  return useCallback((view: EditorView, next: PageGaps) => {
+    const headersKey = JSON.stringify(next.headers)
+    if (
+      sameGaps(last.current.columns, next.columns) &&
+      sameGaps(last.current.gaps, next.gaps) &&
+      sameGaps(last.current.written, next.written) &&
+      sameGaps(last.current.lines, next.lines) &&
+      lastHeaders.current === headersKey
+    )
+      return
+    lastHeaders.current = headersKey
+    last.current = next
+    applyPageGaps(view, next.written, next.gaps, {
+      lines: next.lines,
+      headers: next.headers,
+      columns: next.columns,
+    })
+  }, [])
+}
+
+type IndexedNote = MeasuredNote & { index: number }
+
+interface Measurement {
+  readonly blocks: readonly MeasuredBlock[]
+  readonly targets: readonly CutTarget[]
+  readonly measuredNotes: ReadonlyMap<string, IndexedNote>
+  /** Na ordem do documento; entram no fluxo depois do último bloco. */
+  readonly endnotes: readonly IndexedNote[]
+}
+
+/** Um bloco do documento e o elemento que o desenha. */
+interface DrawnBlock {
+  readonly block: ProseMirrorNode
+  readonly dom: HTMLElement
+  readonly offset: number
+  readonly blockIndex: number
+  readonly top: number
+}
+
+type MeasuredLines = NonNullable<ReturnType<typeof measureLines>>
+
+/**
+ * Pelo **documento**, e não pelos filhos do DOM, que têm outros índices:
+ * `nodeDOM` liga um ao outro. As notas de rodapé vão com o bloco da referência;
+ * as de fim, depois do último bloco. `refIndex` é a ordem de `noteRefsOf`.
+ */
+class DocumentMeasurer {
+  private accumulated = 0
+  private refIndex = 0
+  private readonly origin: number
+  private readonly blocks: MeasuredBlock[] = []
+  private readonly targets: CutTarget[] = []
+  private readonly measuredNotes = new Map<string, IndexedNote>()
+  private readonly endnotes: IndexedNote[] = []
+
+  constructor(
+    private readonly editor: Editor,
+    element: HTMLElement,
+    private readonly styles: StyleSheet | null,
+  ) {
+    this.origin = offsetTopOf(element)
+  }
+
+  measure(declared: readonly SectionSetup[]): Measurement {
+    const { doc } = this.editor.state
+    const marks: (string | null)[] = []
+    doc.forEach((block) => marks.push(sectionBreakIn(block as unknown as SectionBlock)))
+    const sectionOfBlock = blockSections(marks, declared)
+
+    doc.forEach((block, offset, blockIndex) => {
+      const section = sectionOfBlock[blockIndex] ?? 0
+      const dom = this.editor.view.nodeDOM(offset)
+      if (dom instanceof HTMLElement) this.measureBlock(block, dom, offset, blockIndex, section)
+      else this.skipUndrawn(block, section)
+    })
+
+    const { blocks, targets, measuredNotes, endnotes } = this
+    return { blocks, targets, measuredNotes, endnotes }
+  }
+
+  private skipUndrawn(block: ProseMirrorNode, section: number): void {
+    block.descendants((child) => {
+      if (child.type.name !== 'noteRef') return true
+      this.refIndex += 1
+      return false
+    })
+    this.blocks.push({
+      top: 0,
+      height: 0,
+      breakpoints: [],
+      isPageBreak: false,
+      breakAfter: false,
+      keepWithNext: false,
+      section,
+    })
+  }
+
+  private measureBlock(
+    block: ProseMirrorNode,
+    dom: HTMLElement,
+    offset: number,
+    blockIndex: number,
+    section: number,
+  ): void {
+    this.accumulated += shiftOf(dom)
+    const drawn: DrawnBlock = {
+      block,
+      dom,
+      offset,
+      blockIndex,
+      top: offsetTopOf(dom) - this.origin - this.accumulated,
+    }
+    this.pushBlockTarget(drawn)
+
+    // Só as linhas da tabela externa: as aninhadas pertencem às células.
+    const table =
+      dom instanceof HTMLTableElement ? dom : dom.querySelector<HTMLTableElement>(':scope > table')
+    const children = cutChildrenOf(dom, table)
+    const breakpoints: number[] = []
+    // O pé da linha da referência de nota que está dentro dela.
+    const childTops: number[] = []
+
+    // Parágrafo e título cortam entre linhas. As linhas medem a partir da
+    // borda do bloco, e o topo de fluxo dele já está em `top`.
+    const lines = block.isTextblock && children.length === 0 ? measureLines(this.editor.view, dom) : null
+    if (lines !== null) this.pushLineTargets(lines, drawn, breakpoints)
+    const capture = anchoredCaptureOf(drawn, lines)
+    const header = tableHeaderOf(table)
+    const internal =
+      lines !== null
+        ? lines.shift
+        : this.pushChildTargets(children, table, header, drawn, { breakpoints, childTops })
+
+    const effective = effectiveAttrs(block, this.styles)
+    const height = dom.offsetHeight - internal
+    const notes = this.measureNotes(drawn, height, { lineStarts: lines?.starts ?? null, children, childTops })
+
+    this.blocks.push({
+      top: drawn.top,
+      height,
+      breakpoints,
+      isPageBreak: dom.hasAttribute('data-page-break'),
+      breakAfter: dom.hasAttribute('data-break-after'),
+      columnBreakAfter: dom.hasAttribute('data-column-break'),
+      keepWithNext: effective['keepNext'] === true || /^H[1-6]$/.test(dom.tagName),
+      keepLines: effective['keepLines'] === true,
+      widowControl: lines !== null && effective['widowControl'] !== false,
+      ...(header.repeatHeight > 0 ? { repeatHeight: header.repeatHeight } : {}),
+      ...(capture.freeBreakpoints.length > 0 ? { freeBreakpoints: capture.freeBreakpoints } : {}),
+      ...(capture.hangingBottom > 0 ? { hangingBottom: capture.hangingBottom } : {}),
+      ...(notes.length > 0 ? { notes } : {}),
+      section,
+    })
+    this.accumulated += internal
+  }
+
+  private pushBlockTarget({ dom, offset, blockIndex, top }: DrawnBlock): void {
+    const before = this.blocks.at(-1)
+    const previousDom = dom.previousElementSibling
+    this.targets.push({
+      at: top,
+      start: { blockIndex },
+      nodes: [
+        {
+          position: offset,
+          natural: Math.max(top - (before === undefined ? 0 : before.top + before.height), 0),
+          // É com ela que uma margem de cima negativa se soma (`collapsed`).
+          collapse:
+            previousDom instanceof HTMLElement
+              ? parseFloat(getComputedStyle(previousDom).marginBottom) || 0
+              : 0,
+        },
+      ],
+    })
+  }
+
+  private pushLineTargets(lines: MeasuredLines, drawn: DrawnBlock, breakpoints: number[]): void {
+    lines.starts.forEach((start, index) => {
+      const at = drawn.top + start
+      breakpoints.push(at)
+      this.targets.push({
+        at,
+        start: { blockIndex: drawn.blockIndex },
+        nodes: [],
+        line: { resolve: () => lines.positionOf(index), block: drawn.offset },
+      })
+    })
+  }
+
+  /** Devolve o quanto os vãos aplicados dentro do bloco o esticaram. */
+  private pushChildTargets(
+    children: readonly HTMLElement[],
+    table: HTMLTableElement | null,
+    header: TableHeader,
+    drawn: DrawnBlock,
+    cuts: { readonly breakpoints: number[]; readonly childTops: number[] },
+  ): number {
+    let internal = 0
+    children.forEach((child, childIndex) => {
+      const cells = child instanceof HTMLTableRowElement ? Array.from(child.cells) : []
+      const shift = cells.length > 0 ? shiftOf(cells[0]!) : shiftOf(child)
+      // Padding aumenta a linha para baixo; margem já deslocou seu topo.
+      const at =
+        offsetTopOf(child) - this.origin - this.accumulated - internal - (cells.length === 0 ? shift : 0)
+      cuts.childTops.push(at)
+      if (childIndex > header.headerRows) {
+        cuts.breakpoints.push(at)
+        this.targets.push({
+          at,
+          start: { blockIndex: drawn.blockIndex, childIndex },
+          nodes: (cells.length > 0 ? cells : [child]).map((target) => ({
+            position: this.editor.view.posAtDOM(target, 0) - 1,
+            natural:
+              parseFloat(
+                cells.length > 0 ? getComputedStyle(target).paddingTop : getComputedStyle(target).marginTop,
+              ) - shiftOf(target),
+          })),
+          ...(table !== null && header.repeatHeight > 0
+            ? {
+                header: () =>
+                  repeatedHeader(
+                    this.editor,
+                    table,
+                    header.rows.slice(0, header.headerRows),
+                    cells[0]!,
+                    header.repeatHeight,
+                  ),
+              }
+            : {}),
+        })
+      }
+      internal += shift
+    })
+    return internal
+  }
+
+  private measureNotes(drawn: DrawnBlock, height: number, rows: ReferenceRows): MeasuredNote[] {
+    const notes: MeasuredNote[] = []
+    drawn.block.descendants((child, pos) => {
+      if (child.type.name !== 'noteRef') return true
+      const index = this.refIndex++
+      const reference = this.editor.view.nodeDOM(drawn.offset + 1 + pos)
+      const body = noteBodyOf(reference)
+      if (body === undefined || !(reference instanceof HTMLElement)) return false
+      const at = referenceBottom(drawn.dom, reference, drawn.top, height, rows)
+      const measured = { id: body.key, at, index, ...measureNote(body) }
+      this.measuredNotes.set(body.key, measured)
+      if (child.attrs['kind'] === NoteKind.Endnote) this.endnotes.push(measured)
+      else notes.push(measured)
+      return false
+    })
+    return notes
+  }
+}
+
+/** As linhas da tabela, os itens da lista ou as entradas do sumário: onde o bloco pode ser cortado. */
+function cutChildrenOf(dom: HTMLElement, table: HTMLTableElement | null): HTMLElement[] {
+  if (table !== null) return Array.from(table.rows)
+  if (dom.tagName === 'UL' || dom.tagName === 'OL') {
+    return Array.from(dom.children).filter(
+      (child): child is HTMLElement => child instanceof HTMLElement && child.tagName === 'LI',
+    )
+  }
+  // O sumário corta entre entradas, como a lista entre itens.
+  if (dom.hasAttribute('data-toc')) {
+    return Array.from(dom.children).filter((child): child is HTMLElement => child instanceof HTMLElement)
+  }
+  return []
+}
+
+/**
+ * A captura ancorada: a linha vazia depois do quadro (`::after` de 1lh) passa
+ * para a folha seguinte quando não cabe, como no LibreOffice.
+ */
+function anchoredCaptureOf(
+  { block, dom, top }: DrawnBlock,
+  lines: MeasuredLines | null,
+): { freeBreakpoints: number[]; hangingBottom: number } {
+  const freeBreakpoints: number[] = []
+  if (
+    lines === null ||
+    dom.querySelector(':scope > .node-image[data-anchored], :scope > img[data-anchored]') === null
+  )
+    return { freeBreakpoints, hangingBottom: 0 }
+  // Com texto, o corte entre o quadro e a linha é livre da regra de viúvas.
+  const first = lines.starts[0]
+  if (
+    first !== undefined &&
+    block.firstChild?.type.name === 'image' &&
+    block.firstChild.attrs['anchored'] === true
+  ) {
+    freeBreakpoints.push(top + first)
+  }
+  // Sem texto, a linha vazia pode sobrar no pé da folha.
+  const after = parseFloat(getComputedStyle(dom, '::after').height)
+  return { freeBreakpoints, hangingBottom: Number.isFinite(after) && after > 0 ? after : 0 }
+}
+
+interface TableHeader {
+  readonly rows: readonly HTMLTableRowElement[]
+  readonly headerRows: number
+  readonly repeatHeight: number
+}
+
+/**
+ * Linhas de cabeçalho (`w:tblHeader`) no começo da tabela: cortar dentro delas,
+ * ou logo depois, deixaria o cabeçalho sozinho no pé.
+ */
+function tableHeaderOf(table: HTMLTableElement | null): TableHeader {
+  const rows = table !== null ? Array.from(table.rows) : []
+  let headerRows = 0
+  while (
+    headerRows < rows.length - 1 &&
+    rows[headerRows]!.cells.length > 0 &&
+    Array.from(rows[headerRows]!.cells).every((cell) => cell.tagName === 'TH')
+  ) {
+    headerRows += 1
+  }
+  const lastHeader = rows[headerRows - 1]
+  const repeatHeight =
+    lastHeader === undefined ? 0 : offsetTopOf(lastHeader) + lastHeader.offsetHeight - offsetTopOf(rows[0]!)
+  return { rows, headerRows, repeatHeight }
+}
+
+function layoutPages(
+  measured: Measurement,
+  flows: readonly SectionFlow[],
+  metricsOf: MetricsOf,
+): { gaps: PageGaps; layout: PageLayout } {
+  // As notas de fim entram no fluxo depois do último bloco, cortando entre linhas.
+  const { blocks, endnotes } = measured
+  const textBottom = blocks.reduce((bottom, block) => Math.max(bottom, block.top + block.height), 0)
+  const lastSection = blocks.at(-1)?.section ?? 0
+  const endnoteBlocks: MeasuredBlock[] = []
+  let endnoteTop = textBottom + NOTE_SEPARATOR_PX
+  for (const note of endnotes) {
+    endnoteBlocks.push({
+      top: endnoteTop,
+      height: note.height,
+      breakpoints: note.lines.slice(1).map((line) => endnoteTop + line),
+      isPageBreak: false,
+      breakAfter: false,
+      keepWithNext: false,
+      section: lastSection,
+    })
+    endnoteTop += note.height
+  }
+
+  const plan = paginateSections([...blocks, ...endnoteBlocks], flows, { separator: NOTE_SEPARATOR_PX })
+  const stack = new SheetStack(plan, measured, metricsOf)
+  plan.breaks.forEach((at, cut) => stack.cutAt(at, cut))
+  stack.closeLast(endnoteBlocks.length > 0 ? endnoteTop : textBottom)
+  stack.placeEndnotes(endnoteBlocks)
+  return stack.result()
+}
+
+/**
+ * Vão = o que sobrou da folha + as duas margens + o espaço entre papéis. A
+ * margem escrita **substitui** a margem natural do bloco (a última declaração
+ * ganha), e por isso o valor escrito é o vão mais a margem natural; a conta de
+ * fluxo desconta só o vão.
+ */
+class SheetStack {
+  private readonly gaps = new Map<number, number>()
+  private readonly written = new Map<number, number>()
+  private readonly lineGaps = new Map<number, number>()
+  private readonly headers: RepeatedHeader[] = []
+  private previous = 0
+  private readonly pageStarts: PageStart[] = []
+  private readonly sheetHeights: number[] = []
+  private readonly noteAreas: NoteArea[] = []
+  private readonly sheetStarts: number[] = []
+  private readonly contentSheets: number[]
+  /** A lista e os cortes crescem juntos: cada folha custa uma consulta. */
+  private readonly internalAt = new Map<number, CutTarget>()
+  private cursor = 0
+
+  constructor(
+    private readonly plan: PagePlan,
+    private readonly measured: Measurement,
+    private readonly metricsOf: MetricsOf,
+  ) {
+    this.contentSheets = plan.sheets.flatMap((sheet, index) => (sheet.blank ? [] : [index]))
+    for (const target of measured.targets) {
+      if (
+        (target.start.childIndex !== undefined || target.line !== undefined) &&
+        !this.internalAt.has(target.at)
+      ) {
+        this.internalAt.set(target.at, target)
+      }
+    }
+  }
+
+  private get blocks(): readonly MeasuredBlock[] {
+    return this.measured.blocks
+  }
+
+  private sheetOf(content: number): SheetPlan {
+    return this.plan.sheets[this.contentSheets[content] ?? 0]!
+  }
+
+  /** A altura desenhada de uma folha é a da tira mais os desvios das colunas. */
+  private liftsBetween(from: number, to: number): number {
+    let sum = 0
+    for (const [index, placement] of this.plan.placements) {
+      const top = this.blocks[index]?.top
+      if (top !== undefined && top >= from && top < to) sum += placement.lift
+    }
+    return sum
+  }
+
+  private blockTargetFrom(at: number): CutTarget | undefined {
+    const { targets } = this.measured
+    while (
+      this.cursor < targets.length &&
+      (targets[this.cursor]!.at < at || targets[this.cursor]!.line !== undefined)
+    )
+      this.cursor++
+    return targets[this.cursor]
+  }
+
+  cutAt(at: number, cut: number): void {
+    const ending = this.metricsOf(this.sheetOf(cut).section)
+    const opening = this.metricsOf(this.sheetOf(cut + 1).section)
+    const blanks = this.plan.sheets.slice(
+      (this.contentSheets[cut] ?? 0) + 1,
+      this.contentSheets[cut + 1] ?? 0,
+    )
+    const internal = this.internalAt.get(at)
+    const position = internal?.line?.resolve() ?? null
+    // Linha não achada (DOM trocado no meio da medida): cede ao bloco seguinte.
+    const target =
+      internal !== undefined && (internal.line === undefined || position !== null)
+        ? internal
+        : this.blockTargetFrom(at)
+    // `hangingBottom` cabe na margem de baixo.
+    const span = at - this.previous + this.liftsBetween(this.previous, at)
+    const hung = Math.min(Math.max(span - ending.contentPx, 0), hangingAt(this.blocks, at))
+    const used = span - hung
+    const notesHeight = this.plan.noteHeights[cut] ?? 0
+    this.sheetStarts.push(this.previous)
+    this.footnoteArea(cut, ending, used)
+    this.sheetHeights.push(Math.max(ending.heightPx, used + notesHeight + ending.topPx + ending.bottomPx))
+    let skipped = 0
+    for (const blank of blanks) {
+      const height = this.metricsOf(blank.section).heightPx
+      this.sheetHeights.push(height)
+      skipped += height + SHEET_GUTTER_PX
+    }
+    const shift =
+      Math.max(ending.contentPx - used, notesHeight, 0) -
+      hung +
+      ending.bottomPx +
+      SHEET_GUTTER_PX +
+      skipped +
+      opening.topPx
+    this.previous = this.openSheet(at, target, position, shift, opening)
+  }
+
+  /** Devolve de onde a folha nova conta a altura. */
+  private openSheet(
+    at: number,
+    target: CutTarget | undefined,
+    position: number | null,
+    shift: number,
+    opening: SectionMetrics,
+  ): number {
+    if (target?.line !== undefined && position !== null) {
+      // O papel recorta o parágrafo no mesmo caractere.
+      this.pageStarts.push({ ...target.start, offset: position - target.line.block - 1 })
+      this.lineGaps.set(position, shift)
+      return at
+    }
+    if (target === undefined) {
+      // Uma quebra explícita final ainda abre uma folha vazia.
+      this.pageStarts.push({ blockIndex: this.blocks.length })
+      return at
+    }
+    // O cabeçalho repetido mora no vão; a conta de fluxo desconta os dois.
+    const header = target.header?.()
+    const extra = header !== undefined && header.height < opening.contentPx / 2 ? header.height : 0
+    if (header !== undefined && extra > 0) this.headers.push(header)
+    this.pageStarts.push(extra > 0 ? { ...target.start, repeatHeader: true } : target.start)
+    for (const node of target.nodes) {
+      this.gaps.set(node.position, shift + extra)
+      this.written.set(node.position, shift + extra + node.natural)
+    }
+    return at - extra
+  }
+
+  closeLast(bottom: number): void {
+    const content = this.plan.breaks.length
+    const last = this.metricsOf(this.sheetOf(content).section)
+    const lastSpan = Math.max(bottom - this.previous, 0) + this.liftsBetween(this.previous, bottom + 1)
+    const lastHung = Math.min(Math.max(lastSpan - last.contentPx, 0), hangingAt(this.blocks, bottom))
+    const lastNotes = this.plan.noteHeights[content] ?? 0
+    this.sheetStarts.push(this.previous)
+    this.footnoteArea(content, last, lastSpan - lastHung)
+    this.sheetHeights.push(
+      Math.max(last.heightPx, lastSpan - lastHung + lastNotes + last.topPx + last.bottomPx),
+    )
+  }
+
+  /** No pé da coluna de texto, ou logo depois do texto se a folha esticou. */
+  private footnoteArea(content: number, metrics: SectionMetrics, used: number): void {
+    const slices = this.plan.notes[content] ?? []
+    const items = slices.flatMap((slice) => this.itemOf(slice))
+    if (items.length === 0) return
+    const height = this.plan.noteHeights[content] ?? 0
+    this.noteAreas.push({
+      sheet: this.contentSheets[content] ?? content,
+      kind: 'footnote',
+      topPx: metrics.topPx + Math.max(metrics.contentPx - height, used),
+      leftPx: metrics.leftPx,
+      widthPx: metrics.widthPx - metrics.leftPx - metrics.rightPx,
+      separator: items[0]!.fromLine > 0 ? 'continuation' : 'normal',
+      items,
+    })
+  }
+
+  private itemOf(slice: NoteSlice): NoteAreaItem[] {
+    const note = this.measured.measuredNotes.get(slice.id)
+    if (note === undefined) return []
+    return [
+      {
+        key: slice.id,
+        index: note.index,
+        fromLine: slice.fromLine,
+        toLine: slice.toLine,
+        clipTopPx: noteLineTop(note, slice.fromLine),
+        heightPx: noteSpan(note, slice.fromLine, slice.toLine),
+      },
+    ]
+  }
+
+  placeEndnotes(endnoteBlocks: readonly MeasuredBlock[]): void {
+    endnoteBlocks.forEach((block, position) => {
+      const note = this.measured.endnotes[position]!
+      this.sheetStarts.forEach((start, content) => this.placeEndnote(block, note, position, start, content))
+    })
+  }
+
+  private placeEndnote(
+    block: MeasuredBlock,
+    note: IndexedNote,
+    position: number,
+    start: number,
+    content: number,
+  ): void {
+    const end = this.plan.breaks[content] ?? Number.POSITIVE_INFINITY
+    const visible = [block.top, ...block.breakpoints]
+      .map((at, line) => ({ at, line }))
+      .filter(({ at }) => at >= start - 0.5 && at < end - 0.5)
+    if (visible.length === 0) return
+    const fromLine = visible[0]!.line
+    const toLine = visible.at(-1)!.line + 1
+    const metrics = this.metricsOf(this.sheetOf(content).section)
+    const sheet = this.contentSheets[content] ?? content
+    const item: NoteAreaItem = {
+      key: note.id,
+      index: note.index,
+      fromLine,
+      toLine,
+      clipTopPx: noteLineTop(note, fromLine),
+      heightPx: noteSpan(note, fromLine, toLine),
+    }
+    const area = this.noteAreas.find((candidate) => candidate.sheet === sheet && candidate.kind === 'endnote')
+    if (area !== undefined) {
+      this.noteAreas[this.noteAreas.indexOf(area)] = { ...area, items: [...area.items, item] }
+      return
+    }
+    // A folha que só continua as notas não repete o separador.
+    const opens = position === 0 && fromLine === 0
+    this.noteAreas.push({
+      sheet,
+      kind: 'endnote',
+      topPx: metrics.topPx + (visible[0]!.at - start) - (opens ? NOTE_SEPARATOR_PX : 0),
+      leftPx: metrics.leftPx,
+      widthPx: metrics.widthPx - metrics.leftPx - metrics.rightPx,
+      separator: opens ? 'normal' : null,
+      items: [item],
+    })
+  }
+
+  /** O desvio vertical das colunas entra no vão; o lateral é uma translação. */
+  private placeColumns(): { columnShifts: Map<number, number>; columnMoves: ColumnMove[] } {
+    const columnShifts = new Map<number, number>()
+    const blockTargets = new Map<number, CutTarget>()
+    for (const cut of this.measured.targets) {
+      if (
+        cut.line === undefined &&
+        cut.start.childIndex === undefined &&
+        !blockTargets.has(cut.start.blockIndex)
+      )
+        blockTargets.set(cut.start.blockIndex, cut)
+    }
+    const columnMoves: ColumnMove[] = []
+    for (const [index, placement] of this.plan.placements) {
+      const node = blockTargets.get(index)?.nodes[0]
+      if (node === undefined) continue
+      const metrics = this.metricsOf(this.blocks[index]?.section ?? 0)
+      const dx = placement.column * metrics.columnStepPx
+      if (dx !== 0) columnShifts.set(node.position, dx)
+      if (placement.lift !== 0) {
+        this.gaps.set(node.position, (this.gaps.get(node.position) ?? 0) + placement.lift)
+        const distance = (this.written.get(node.position) ?? node.natural) + placement.lift
+        this.written.set(node.position, collapsed(distance, node.collapse ?? 0))
+      }
+      columnMoves.push({
+        blockIndex: index,
+        dx,
+        narrowerPx:
+          metrics.columns > 1
+            ? metrics.widthPx - metrics.leftPx - metrics.rightPx - metrics.columnWidthPx
+            : 0,
+        lift: placement.lift,
+        natural: node.natural,
+        collapse: node.collapse ?? 0,
+      })
+    }
+    return { columnShifts, columnMoves }
+  }
+
+  private columnLines(): ColumnLine[] {
+    const lines: ColumnLine[] = []
+    for (const region of this.plan.regions) {
+      const metrics = this.metricsOf(region.section)
+      if (!metrics.separator) continue
+      const sheet = this.contentSheets[region.sheet] ?? region.sheet
+      for (let column = 1; column < region.columns; column++) {
+        lines.push({
+          sheet,
+          leftPx:
+            metrics.leftPx +
+            column * metrics.columnStepPx -
+            (metrics.columnStepPx - metrics.columnWidthPx) / 2,
+          topPx: metrics.topPx + region.top,
+          heightPx: region.height,
+        })
+      }
+    }
+    return lines
+  }
+
+  result(): { gaps: PageGaps; layout: PageLayout } {
+    // A seção par ou ímpar só pede a folha em branco antes de começar.
+    const sheets = this.plan.sheets.slice(0, this.sheetHeights.length)
+    const sheetWidths = sheets.map((sheet) => this.metricsOf(sheet.section).widthPx)
+    const sheetTops: number[] = []
+    let stackHeightPx = 0
+    for (const height of this.sheetHeights) {
+      sheetTops.push(stackHeightPx)
+      stackHeightPx += height + SHEET_GUTTER_PX
+    }
+    const { columnShifts, columnMoves } = this.placeColumns()
+    const { contentSheets, plan } = this
+
+    return {
+      gaps: {
+        gaps: this.gaps,
+        written: this.written,
+        lines: this.lineGaps,
+        headers: this.headers,
+        columns: columnShifts,
+      },
+      layout: {
+        pages: this.sheetHeights.length,
+        stackHeightPx: stackHeightPx - SHEET_GUTTER_PX,
+        sheetTops,
+        sheetHeights: this.sheetHeights,
+        pageStarts: this.pageStarts,
+        anchors: anchorsFor(
+          this.blocks,
+          plan.breaks,
+          (content) => ({
+            sheet: contentSheets[content] ?? content,
+            marginTopPx: this.metricsOf(this.sheetOf(content).section).topPx,
+          }),
+          (index) => plan.placements.get(index)?.lift ?? 0,
+        ),
+        sheets,
+        sheetWidths,
+        stackWidthPx: Math.max(0, ...sheetWidths),
+        contentSheets,
+        columnMoves,
+        columnLines: this.columnLines(),
+        noteAreas: this.noteAreas,
+      },
+    }
+  }
 }
 
 /** A linha vazia da captura e o vão até o bloco que abre a folha seguinte. */

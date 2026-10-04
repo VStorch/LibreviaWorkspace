@@ -131,33 +131,12 @@
       "count": 1
     }
   },
-  "src/renderer/document/useEditorCommands.ts": {
-    "complexity": {
-      "count": 1
-    },
-    "max-lines-per-function": {
-      "count": 2
-    }
-  },
-  "src/renderer/document/usePagination.ts": {
-    "complexity": {
-      "count": 3
-    },
-    "max-lines-per-function": {
-      "count": 4
-    }
-  },
   "src/renderer/spreadsheet/SpreadsheetEditor.tsx": {
     "max-lines-per-function": {
       "count": 1
     }
   },
   "src/renderer/spreadsheet/SpreadsheetToolbar.tsx": {
-    "max-lines-per-function": {
-      "count": 1
-    }
-  },
-  "src/renderer/state/file-actions.ts": {
     "max-lines-per-function": {
       "count": 1
     }

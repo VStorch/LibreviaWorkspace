@@ -75,8 +75,8 @@ export interface EditorCommands {
 }
 
 /**
- * O somente leitura é conferido no `run`, e só nele. O `switch` é exaustivo: um
- * comando sem caso não compila.
+ * O somente leitura é conferido no `run`, e só nele. A tabela `COMMANDS` é
+ * exaustiva: um comando sem entrada não compila.
  */
 export function useEditorCommands(
   editor: Editor | null,
@@ -102,126 +102,10 @@ export function useEditorCommands(
         flushNoteSelection(editor.view)
       }
 
-      switch (command) {
-        case EditorCommand.FindReplace:
-          return setDialog('find', true)
-        case EditorCommand.PageSetup:
-          return setDialog('pageSetup', true)
-        case EditorCommand.ParagraphSetup:
-          return setDialog('paragraph', true)
-        case EditorCommand.WordCount:
-          return setDialog('wordCount', true)
-        case EditorCommand.DocumentProperties:
-          return setDialog('properties', true)
-        case EditorCommand.SpecialCharacter:
-          return setDialog('specialCharacter', true)
-        case EditorCommand.InsertEquation:
-        case EditorCommand.InsertDisplayEquation:
-          setEquationTarget({ kind: 'insert', display: command === EditorCommand.InsertDisplayEquation })
-          return setDialog('equation', true)
-        case EditorCommand.EditEquation: {
-          const pos = editor === null ? null : equationAtSelection(editor.state)
-          if (pos === null) return
-          setEquationTarget({ kind: 'edit', pos })
-          return setDialog('equation', true)
-        }
-        case EditorCommand.ImageProperties:
-          return setDialog('imageProperties', true)
-        case EditorCommand.InsertBookmark:
-          return setDialog('bookmark', true)
-        case EditorCommand.InsertComment:
-          if (editor !== null) insertComment(editor)
-          return
-        case EditorCommand.InsertFootnote:
-        case EditorCommand.InsertEndnote:
-          if (editor !== null)
-            insertNote(
-              editor,
-              command === EditorCommand.InsertFootnote ? NoteKind.Footnote : NoteKind.Endnote,
-            )
-          return
-        case EditorCommand.NextComment:
-        case EditorCommand.PreviousComment:
-          if (editor !== null) goToComment(editor, command === EditorCommand.NextComment ? 1 : -1)
-          return
-        case EditorCommand.AuthorName:
-          return setDialog('authorName', true)
-        case EditorCommand.AcceptChange:
-        case EditorCommand.RejectChange:
-          if (editor !== null) settleChange(editor, command === EditorCommand.AcceptChange)
-          return
-        case EditorCommand.AcceptAllChanges:
-        case EditorCommand.RejectAllChanges:
-          if (editor !== null) settleAll(editor, command === EditorCommand.AcceptAllChanges)
-          return
-        case EditorCommand.NextChange:
-        case EditorCommand.PreviousChange:
-          if (editor !== null) goToChange(editor, command === EditorCommand.NextChange ? 1 : -1)
-          return
-        case EditorCommand.ToggleTrackChanges:
-          return useWorkspace.getState().toggleTrackChanges()
-        case EditorCommand.InsertTableOfContents:
-          if (editor !== null) insertTableOfContents(editor, referenceContext())
-          return
-        case EditorCommand.UpdateTableOfContents:
-          if (editor !== null) updateTableOfContents(editor, referenceContext())
-          return
-        case EditorCommand.InsertCaption:
-          return setDialog('caption', true)
-        case EditorCommand.InsertCrossReference:
-          return setDialog('crossReference', true)
-        case EditorCommand.UpdateFields:
-          if (editor !== null) updateFields(editor, referenceContext())
-          return
-        case EditorCommand.PasteWithoutFormat:
-          void pasteWithoutFormat()
-          return
-        case EditorCommand.InsertPageBreak:
-          editor?.chain().focus().setPageBreak().run()
-          return
-        case EditorCommand.InsertSectionNextPage:
-          if (editor !== null) insertSectionBreak(editor, 'nextPage')
-          return
-        case EditorCommand.InsertSectionContinuous:
-          if (editor !== null) insertSectionBreak(editor, 'continuous')
-          return
-        case EditorCommand.InsertSectionEvenPage:
-          if (editor !== null) insertSectionBreak(editor, 'evenPage')
-          return
-        case EditorCommand.InsertSectionOddPage:
-          if (editor !== null) insertSectionBreak(editor, 'oddPage')
-          return
-        case EditorCommand.DeleteSectionBreak:
-          if (editor !== null) deleteSectionBreak(editor)
-          return
-        case EditorCommand.InsertColumnBreak:
-          if (editor !== null) insertColumnBreak(editor)
-          return
-        case EditorCommand.FormatColumns:
-          if (sectionEditsAllowed()) setDialog('columns', true)
-          return
-
-        case TableAction.Insert:
-          return setDialog('table', true)
-        case TableAction.Properties:
-          return setDialog('tableProperties', true)
-
-        case TableAction.RowBefore:
-        case TableAction.RowAfter:
-        case TableAction.DeleteRow:
-        case TableAction.ColumnBefore:
-        case TableAction.ColumnAfter:
-        case TableAction.DeleteColumn:
-        case TableAction.MergeCells:
-        case TableAction.SplitCell:
-        case TableAction.ToggleHeaderRow:
-        case TableAction.Delete:
-          if (editor !== null) runTableAction(editor, command)
-          return
-
-        default:
-          command satisfies never
-      }
+      COMMANDS[command](
+        { editor, setDialog, setEquationTarget, referenceContext, pasteWithoutFormat },
+        command,
+      )
     },
     [editor, readOnly, pasteWithoutFormat, referenceContext, setDialog],
   )
@@ -229,4 +113,101 @@ export function useEditorCommands(
   useEffect(() => onEditorCommand(run), [run])
 
   return { dialogs, setDialog, run, equationTarget }
+}
+
+interface CommandScope {
+  readonly editor: Editor | null
+  readonly setDialog: (dialog: keyof EditorDialogs, open: boolean) => void
+  readonly setEquationTarget: (target: EquationTarget) => void
+  readonly referenceContext: () => ReferenceContext
+  readonly pasteWithoutFormat: () => Promise<void>
+}
+
+type CommandHandler = (scope: CommandScope, command: EditorCommand) => void
+
+const openDialog =
+  (dialog: keyof EditorDialogs): CommandHandler =>
+  (scope) =>
+    scope.setDialog(dialog, true)
+
+const withEditor =
+  (action: (editor: Editor, scope: CommandScope, command: EditorCommand) => void): CommandHandler =>
+  (scope, command) => {
+    if (scope.editor !== null) action(scope.editor, scope, command)
+  }
+
+const insertEquation: CommandHandler = (scope, command) => {
+  scope.setEquationTarget({ kind: 'insert', display: command === EditorCommand.InsertDisplayEquation })
+  scope.setDialog('equation', true)
+}
+
+const editEquation: CommandHandler = (scope) => {
+  const pos = scope.editor === null ? null : equationAtSelection(scope.editor.state)
+  if (pos === null) return
+  scope.setEquationTarget({ kind: 'edit', pos })
+  scope.setDialog('equation', true)
+}
+
+const tableAction = withEditor((editor, _scope, command) => runTableAction(editor, command as TableAction))
+
+const COMMANDS: Readonly<Record<EditorCommand, CommandHandler>> = {
+  [EditorCommand.FindReplace]: openDialog('find'),
+  [EditorCommand.PageSetup]: openDialog('pageSetup'),
+  [EditorCommand.ParagraphSetup]: openDialog('paragraph'),
+  [EditorCommand.WordCount]: openDialog('wordCount'),
+  [EditorCommand.DocumentProperties]: openDialog('properties'),
+  [EditorCommand.SpecialCharacter]: openDialog('specialCharacter'),
+  [EditorCommand.InsertEquation]: insertEquation,
+  [EditorCommand.InsertDisplayEquation]: insertEquation,
+  [EditorCommand.EditEquation]: editEquation,
+  [EditorCommand.ImageProperties]: openDialog('imageProperties'),
+  [EditorCommand.InsertBookmark]: openDialog('bookmark'),
+  [EditorCommand.InsertComment]: withEditor((editor) => insertComment(editor)),
+  [EditorCommand.InsertFootnote]: withEditor((editor) => insertNote(editor, NoteKind.Footnote)),
+  [EditorCommand.InsertEndnote]: withEditor((editor) => insertNote(editor, NoteKind.Endnote)),
+  [EditorCommand.NextComment]: withEditor((editor) => goToComment(editor, 1)),
+  [EditorCommand.PreviousComment]: withEditor((editor) => goToComment(editor, -1)),
+  [EditorCommand.AuthorName]: openDialog('authorName'),
+  [EditorCommand.AcceptChange]: withEditor((editor) => settleChange(editor, true)),
+  [EditorCommand.RejectChange]: withEditor((editor) => settleChange(editor, false)),
+  [EditorCommand.AcceptAllChanges]: withEditor((editor) => settleAll(editor, true)),
+  [EditorCommand.RejectAllChanges]: withEditor((editor) => settleAll(editor, false)),
+  [EditorCommand.NextChange]: withEditor((editor) => goToChange(editor, 1)),
+  [EditorCommand.PreviousChange]: withEditor((editor) => goToChange(editor, -1)),
+  [EditorCommand.ToggleTrackChanges]: () => useWorkspace.getState().toggleTrackChanges(),
+  [EditorCommand.InsertTableOfContents]: withEditor((editor, scope) =>
+    insertTableOfContents(editor, scope.referenceContext()),
+  ),
+  [EditorCommand.UpdateTableOfContents]: withEditor((editor, scope) =>
+    updateTableOfContents(editor, scope.referenceContext()),
+  ),
+  [EditorCommand.InsertCaption]: openDialog('caption'),
+  [EditorCommand.InsertCrossReference]: openDialog('crossReference'),
+  [EditorCommand.UpdateFields]: withEditor((editor, scope) => {
+    updateFields(editor, scope.referenceContext())
+  }),
+  [EditorCommand.PasteWithoutFormat]: (scope) => void scope.pasteWithoutFormat(),
+  [EditorCommand.InsertPageBreak]: withEditor((editor) => editor.chain().focus().setPageBreak().run()),
+  [EditorCommand.InsertSectionNextPage]: withEditor((editor) => insertSectionBreak(editor, 'nextPage')),
+  [EditorCommand.InsertSectionContinuous]: withEditor((editor) => insertSectionBreak(editor, 'continuous')),
+  [EditorCommand.InsertSectionEvenPage]: withEditor((editor) => insertSectionBreak(editor, 'evenPage')),
+  [EditorCommand.InsertSectionOddPage]: withEditor((editor) => insertSectionBreak(editor, 'oddPage')),
+  [EditorCommand.DeleteSectionBreak]: withEditor((editor) => deleteSectionBreak(editor)),
+  [EditorCommand.InsertColumnBreak]: withEditor((editor) => insertColumnBreak(editor)),
+  [EditorCommand.FormatColumns]: (scope) => {
+    if (sectionEditsAllowed()) scope.setDialog('columns', true)
+  },
+
+  [TableAction.Insert]: openDialog('table'),
+  [TableAction.Properties]: openDialog('tableProperties'),
+  [TableAction.RowBefore]: tableAction,
+  [TableAction.RowAfter]: tableAction,
+  [TableAction.DeleteRow]: tableAction,
+  [TableAction.ColumnBefore]: tableAction,
+  [TableAction.ColumnAfter]: tableAction,
+  [TableAction.DeleteColumn]: tableAction,
+  [TableAction.MergeCells]: tableAction,
+  [TableAction.SplitCell]: tableAction,
+  [TableAction.ToggleHeaderRow]: tableAction,
+  [TableAction.Delete]: tableAction,
 }

@@ -155,25 +155,10 @@ function createSaveActions(
   function encodeFor(path: string): string {
     const { workbook } = get()
     if (workbook !== null) return serializeWorkbook(workbook)
-    if (!isPlainTextPath(path)) stampForSave()
+    if (!isPlainTextPath(path)) stampForSave(set, get)
 
     const model = ctx.currentModel()
     return isPlainTextPath(path) ? documentToPlainText(model.doc) : serializeDocument(model)
-  }
-
-  /**
-   * Só quando o documento mudou ou nunca foi gravado: aberto e salvo sem edição,
-   * `docProps/` volta byte a byte. Fica no estado mesmo se a gravação falhar.
-   */
-  function stampForSave(): void {
-    const state = get()
-    const stamped = stampProperties(state.properties, {
-      author: currentPreferences().authorName,
-      now: new Date(),
-      fresh: state.file?.path === null,
-      edited: state.isDirty,
-    })
-    if (stamped !== state.properties) set({ properties: stamped })
   }
 
   /** Nada se perde em silêncio. */
@@ -252,6 +237,21 @@ function createSaveActions(
       await get().refreshRecents()
     },
   }
+}
+
+/**
+ * Só quando o documento mudou ou nunca foi gravado: aberto e salvo sem edição,
+ * `docProps/` volta byte a byte. Fica no estado mesmo se a gravação falhar.
+ */
+function stampForSave(set: SetWorkspace, get: GetWorkspace): void {
+  const state = get()
+  const stamped = stampProperties(state.properties, {
+    author: currentPreferences().authorName,
+    now: new Date(),
+    fresh: state.file?.path === null,
+    edited: state.isDirty,
+  })
+  if (stamped !== state.properties) set({ properties: stamped })
 }
 
 /** `.xlsx` chega convertido no envelope do `.ssheet`: a extensão decide o editor. */
