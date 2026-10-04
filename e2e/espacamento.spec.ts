@@ -7,12 +7,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 /**
- * O espaço entre parágrafos soma, como no Word.
- *
- * O CSS funde a margem de baixo de um bloco com a de cima do seguinte e fica
- * com a maior; o Word e o LibreOffice somam as duas. Num documento em que cada
- * parágrafo pede 14 pt depois e o seguinte 14 pt antes, é meia linha por junta
- * — e ela se acumula até a folha cortar noutro lugar.
+ * O espaço entre parágrafos soma, como no Word e no LibreOffice; o CSS ficaria com a
+ * maior margem, meia linha a menos por junta de 14 pt com 14 pt.
  */
 test.describe('espaçamento entre parágrafos', () => {
   let session: Session

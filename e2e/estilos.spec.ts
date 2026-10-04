@@ -7,13 +7,8 @@ import { launch, menu, stubDialogs, type Session } from './app.js'
 import { docxWithNamedStyles, entryOf } from './fixtures.js'
 
 /**
- * O painel de estilos: ver, aplicar, modificar, criar e limpar.
- *
- * Responde na tela duas perguntas que o programa não sabia responder — quais
- * estilos o documento tem, e qual é o do parágrafo onde está o cursor — e deixa
- * agir sobre a resposta. O que se prova aqui é o que só o aplicativo inteiro
- * mostra: a tela mudando com o estilo, o desfazer, e o estilo modificado chegando
- * ao `.docx` e voltando dele.
+ * O painel de estilos: ver, aplicar, modificar, criar e limpar, com a tela mudando,
+ * o desfazer e o estilo modificado indo ao `.docx` e voltando.
  */
 test.describe('painel de estilos', () => {
   let session: Session
@@ -35,13 +30,11 @@ test.describe('painel de estilos', () => {
     await session.window.getByRole('button', { name: 'Estilos do documento' }).click()
     const panel = session.window.getByRole('dialog', { name: 'Estilos' })
 
-    // O parágrafo de um documento novo não aponta estilo nenhum: quem vale é o
-    // estilo padrão do documento, e é ele que o painel precisa nomear.
+    // O parágrafo do documento novo não aponta estilo: vale o padrão, e o painel o nomeia.
     await expect(panel).toContainText('Parágrafo do cursor: Normal')
     await expect(panel).toContainText('Título 1')
 
-    // Virar título muda a resposta **ao vivo**, sem fechar o painel: o cursor
-    // continua onde estava, e o seletor da barra devolve o foco ao documento.
+    // Virar título muda a resposta ao vivo, com o painel aberto.
     await session.window.getByRole('combobox', { name: 'Estilo' }).selectOption({ label: 'Título 1' })
     await expect(panel).toContainText('Parágrafo do cursor: Título 1')
   })
@@ -57,21 +50,17 @@ test.describe('painel de estilos', () => {
     await session.window.getByRole('button', { name: 'Estilos do documento' }).click()
     const panel = session.window.getByRole('dialog', { name: 'Estilos' })
 
-    // O estilo criado por quem escreveu o documento aparece pelo nome dele, e o
-    // título pelo nome interno traduzido — o id (`Ttulo1`) é do arquivo, não da
-    // tela.
+    // O estilo do autor aparece pelo nome, e o título pelo nome interno traduzido; o id `Ttulo1` é do arquivo.
     await expect(panel).toContainText('Citação recuada')
     await expect(panel).toContainText('Título 1')
 
-    // A maquinaria do Word fica fora da lista: o `w:semiHidden` existe para isso.
+    // A maquinaria do Word fica fora da lista, pelo `w:semiHidden`.
     await expect(panel).not.toContainText('Default Paragraph Font')
 
-    // O cursor abre no primeiro bloco, que é o título — e o estilo dele vem do
-    // arquivo, com id em português.
+    // O cursor abre no título, cujo estilo vem do arquivo com id em português.
     await expect(panel).toContainText('Parágrafo do cursor: Título 1')
 
-    // Só os de caractere: o filtro é o que torna legível a lista de um documento
-    // do Word, que declara dezenas.
+    // O filtro torna legível a lista de um documento do Word, que declara dezenas.
     await panel.getByRole('combobox', { name: 'Mostrar' }).selectOption('character')
     await expect(panel).not.toContainText('Citação recuada')
   })
@@ -114,8 +103,7 @@ test.describe('painel de estilos', () => {
     await panel.getByRole('spinbutton', { name: 'Tamanho (pt)' }).fill('20')
     await panel.getByRole('button', { name: 'OK' }).click()
 
-    // 20 pt em pixels de CSS: a regra do estilo foi regerada, e o parágrafo sem
-    // formatação direta a segue.
+    // 20 pt em pixels de CSS: a regra do estilo foi regerada.
     const size = await editor
       .locator('p')
       .first()
@@ -183,8 +171,7 @@ test.describe('painel de estilos', () => {
     await menu(session, 'open')
     const quote = editor.locator('[data-style-id="Citao"]')
     await expect(quote).toHaveText('Um trecho citado.')
-    // Com espera: o texto reaberto é o mesmo, e a medida podia cair no
-    // parágrafo do documento anterior no instante em que ele saía da tela.
+    // Com espera: a medida podia cair no parágrafo do documento anterior.
     await expect
       .poll(async () =>
         Number.parseFloat(await quote.evaluate((element) => getComputedStyle(element).fontSize)),
@@ -193,9 +180,7 @@ test.describe('painel de estilos', () => {
   })
 
   test('o texto importado segue o estilo: modificado, e de título a Normal', async () => {
-    // Mede o **trecho** — o elemento que envolve o texto —, e não o parágrafo:
-    // com a fonte do estilo presa numa marca do trecho, o parágrafo mudaria e o
-    // texto não.
+    // O trecho, e não o parágrafo: a fonte do estilo presa numa marca mudaria um e não o outro.
     const origem = join(folder, 'estilos.docx')
     await writeFile(origem, await docxWithNamedStyles())
     await stubDialogs(session.app, { open: origem, messageBox: 1 })
@@ -224,8 +209,7 @@ test.describe('painel de estilos', () => {
 
     expect((await look('Um trecho citado.'))?.size).toBeCloseTo(18 * (96 / 72), 0)
 
-    // O título do arquivo é negrito de 16 pt pelo estilo; trocado por Normal, o
-    // texto volta a 11 pt e sem negrito — nada do título ficou preso no trecho.
+    // Trocado por Normal, o título volta a 11 pt sem negrito: nada ficou preso no trecho.
     expect((await look('Relatório anual'))?.weight).toBe('700')
     await editor.getByText('Relatório anual').click()
     await session.window.getByRole('combobox', { name: 'Estilo' }).selectOption({ label: 'Normal' })
@@ -241,8 +225,7 @@ test.describe('painel de estilos', () => {
     const panel = session.window.getByRole('dialog', { name: 'Estilos' })
     await expect(panel.getByRole('button', { name: 'Fechar' })).toBeFocused()
 
-    // Sem a circulação, o Tab daqui caía no texto do documento — e dali o
-    // Escape não fechava mais o painel, porque quem escuta a tecla é ele.
+    // O Tab circula no painel, senão cairia no texto, onde o Escape não o fecha.
     await panel.press('Tab')
     await expect(panel.getByRole('combobox', { name: 'Mostrar' })).toBeFocused()
 

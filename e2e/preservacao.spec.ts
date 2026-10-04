@@ -6,22 +6,10 @@ import { launch, menu, stubDialogs, type Session } from './app.js'
 import { docxWithNamedStyles, docxWithTextBox } from './fixtures.js'
 
 /**
- * Abrir e salvar sem editar não pode mexer no arquivo.
- *
- * A gravação é cirúrgica: cada bloco carrega um `oid` do leitor, e o gravador
- * devolve o XML original de todo bloco cujo conteúdo não mudou. É isso que faz
- * comentário, revisão, caixa de texto e forma sobreviverem num documento que o
- * editor não sabe reproduzir.
- *
- * O caminho inteiro passa pelo ProseMirror, e é lá que ele quebrava: o `oid`
- * não estava declarado no schema e era descartado na travessia, e a comparação
- * que decide o que preservar reprovava blocos por diferenças de forma — atributo
- * nulo, ordem de chave, ordem de marca, texto partido por run. As duas coisas
- * juntas faziam **abrir e salvar** regenerar o documento inteiro em silêncio.
- *
- * Nenhum teste pegava: os do sidecar vão do leitor ao gravador sem passar pelo
- * editor, que é justamente o trecho onde a identidade se perdia. Este vai pelo
- * aplicativo montado, que é o único lugar onde a travessia existe de verdade.
+ * Abrir e salvar sem editar não mexe no arquivo: o gravador devolve o XML original
+ * de todo bloco que não mudou, pelo `oid`. O caminho passa pelo ProseMirror, onde o
+ * `oid` tem de estar no schema e as diferenças de forma não contam; os testes do
+ * sidecar não passam pelo editor.
  */
 test.describe('gravação cirúrgica', () => {
   let session: Session

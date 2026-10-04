@@ -5,15 +5,9 @@ import { expect, test } from '@playwright/test'
 import { launch, menu, type Session } from './app.js'
 
 /**
- * O menu "Exibir": tema, idioma e modo de leitura.
- *
- * Os três chegaram juntos e são a mesma preferência guardada no main, então o
- * que cada teste aqui confere é a **outra ponta** — que a tela obedece. O item
- * de menu marcado já é conferido pelo próprio Electron.
- *
- * A preferência é mudada por `window.api.preferences.set` e não pelo clique no
- * menu nativo: o menu do sistema não é do Chromium, e o Playwright não o
- * alcança. O caminho testado é o mesmo que o clique percorre depois do clique.
+ * O menu "Exibir": tema, idioma e modo de leitura, preferências guardadas no main;
+ * aqui se confere que a tela obedece. A preferência muda por
+ * `window.api.preferences.set`, porque o Playwright não alcança o menu nativo.
  */
 async function setPreference(session: Session, patch: Record<string, unknown>): Promise<void> {
   await session.window.evaluate(async (value) => {
@@ -54,8 +48,7 @@ test.describe('menu Exibir', () => {
     await setPreference(session, { theme: 'dark' })
     await expect(root).toHaveAttribute('data-theme', 'dark')
 
-    // O papel escurece junto. É o pedido de "modo escuro no conteúdo", e é o
-    // que distingue esta implementação de escurecer só as barras.
+    // O papel escurece junto, e não só as barras.
     const paper = await session.window
       .locator('.paper')
       .first()
@@ -63,8 +56,7 @@ test.describe('menu Exibir', () => {
         return getComputedStyle(node).backgroundColor
       })
 
-    // Sem casar com um valor exato: o que importa é que o papel não é branco, e
-    // não qual cinza foi escolhido.
+    // O papel não é branco, qualquer que seja o cinza.
     expect(paper).not.toBe('rgb(255, 255, 255)')
 
     await setPreference(session, { theme: 'light' })
@@ -91,15 +83,13 @@ test.describe('menu Exibir', () => {
   })
 
   test('o idioma troca a interface sem reabrir nada', async () => {
-    // A barra de ferramentas é o que a tela desenha a partir do catálogo; o
-    // menu nativo é conferido pelo main e não se alcança daqui.
+    // A barra vem do catálogo; o menu nativo o main confere.
     await setPreference(session, { language: 'en' })
 
     const acoes = session.window.locator('.ProseMirror')
     await expect(acoes).toBeVisible()
 
-    // O botão direito monta os rótulos de tabela pelo catálogo: em inglês eles
-    // saem em inglês, que é a prova de que a chave virou frase no idioma certo.
+    // Os rótulos do botão direito vêm do catálogo, no idioma escolhido.
     const idioma = await session.window.evaluate(() => document.documentElement.lang)
     expect(typeof idioma).toBe('string')
 
@@ -112,7 +102,7 @@ test.describe('menu Exibir', () => {
 
     await setPreference(session, { readingMode: true })
 
-    // O papel some: a rolagem passa a ser contínua, que foi o pedido.
+    // O papel some, e a rolagem é contínua.
     await expect(session.window.locator('.paper')).toHaveCount(0)
     await expect(session.window.locator('.statusbar')).toHaveCount(0)
     await expect(session.window.locator('.pages--reading')).toHaveCount(1)
@@ -145,17 +135,9 @@ test.describe('menu Exibir', () => {
 })
 
 /**
- * As três sobrevivem a fechar o aplicativo.
- *
- * Fica num `describe` próprio porque estes testes reaproveitam o mesmo
- * `userData` entre duas sessões — é a única forma de perguntar "e depois de
- * reabrir?" — e o `beforeEach` de cima cria um perfil novo a cada teste.
- *
- * Vale o teste: as três moram no mesmo arquivo que a ortografia, e a gravação é
- * a mesma linha de código. O que poderia quebrar não é a gravação, é a
- * **leitura** — o schema tem `default` para todas, e um `default` aplicado onde
- * deveria haver valor gravado devolveria o tema claro em português a cada
- * abertura, sem erro nenhum aparecer.
+ * As três sobrevivem a fechar o aplicativo: o schema tem `default` para todas, e um
+ * `default` no lugar do valor gravado voltaria ao tema claro em português sem erro.
+ * `describe` próprio, porque reaproveita o `userData` entre duas sessões.
  */
 test.describe('o que foi escolhido continua escolhido', () => {
   test('tema, idioma e modo de leitura voltam como estavam', async () => {

@@ -10,11 +10,8 @@ import { docxWithNamedStyles, docxWithReferences, entryOf } from './fixtures.js'
 
 /**
  * Referências: painel de navegação, marcadores, sumário, legendas e referências
- * cruzadas.
- *
- * A preferência é mudada por `window.api.preferences.set`, e não pelo menu
- * nativo, pelo mesmo motivo de `exibir.spec.ts`: o Playwright não alcança o menu
- * do sistema, e o caminho depois do clique é o mesmo.
+ * cruzadas. A preferência muda por `window.api.preferences.set`, porque o
+ * Playwright não alcança o menu nativo.
  */
 async function setPreference(session: Session, patch: Record<string, unknown>): Promise<void> {
   await session.window.evaluate(async (value) => {
@@ -70,8 +67,8 @@ test.describe('painel de navegação', () => {
   })
 
   test('no documento travado também leva ao título', async () => {
-    // A revisão de estrutura (a célula inserida) trava a edição. O título é o `Ttulo1` do Word em português, que
-    // o painel reconhece pelo nome interno `heading 1`.
+    // A célula inserida trava a edição. O título é o `Ttulo1` do Word em português,
+    // reconhecido pelo nome interno `heading 1`.
     const origem = join(folder, 'travado.docx')
     const p = (style: string, text: string): string =>
       `<w:p><w:pPr><w:pStyle w:val="${style}"/></w:pPr><w:r><w:t>${text}</w:t></w:r></w:p>`
@@ -103,10 +100,7 @@ test.describe('painel de navegação', () => {
   })
 })
 
-/**
- * Marcadores sem sumário nem campos: os dois ainda travavam o documento quando
- * este teste nasceu, e aqui o que se quer é editar.
- */
+/** Marcadores sem sumário nem campos. */
 const BOOKMARKS_BODY =
   '<w:p><w:pPr><w:pStyle w:val="Ttulo1"/></w:pPr><w:bookmarkStart w:id="0" w:name="_Toc100"/><w:r><w:t>Introdução</w:t></w:r><w:bookmarkEnd w:id="0"/></w:p>' +
   '<w:p><w:bookmarkStart w:id="1" w:name="Resumo"/><w:r><w:t xml:space="preserve">O resumo começa aqui </w:t></w:r></w:p>' +
@@ -292,22 +286,19 @@ test.describe('sumário', () => {
     await menu(session, 'insert-table-of-contents')
     const toc = editor.locator('.toc')
     await expect(toc).toContainText('Sumário')
-    // O número é o da folha em que o título caiu, depois de o sumário ocupar a
-    // primeira — o segundo passe da paginação.
+    // O número da folha em que o título caiu depois do sumário, do segundo passe da paginação.
     await expect(toc.locator('.field')).toHaveText(['2', '3'])
     await expect(toc.locator('a').first()).toHaveAttribute('href', /^#_Toc\d+$/)
 
-    // Um título novo, e "Atualizar sumário" o acrescenta.
-    // Pelo painel de navegação: leva o cursor ao título sem depender de onde o
-    // clique cai na folha.
+    // Um título novo, e "Atualizar sumário" o acrescenta. Pelo painel de navegação,
+    // que leva o cursor ao título.
     await setPreference(session, { navigationPane: true })
     await session.window
       .getByRole('navigation', { name: 'Navegação' })
       .getByRole('button', { name: /Escopo/ })
       .click()
     await session.window.keyboard.press('End')
-    // O `End` é do navegador, e o ProseMirror só o lê no `selectionchange`; uma
-    // pessoa nunca aperta a tecla seguinte no mesmo milissegundo, o teste sim.
+    // O ProseMirror lê o `End` no `selectionchange`, e o teste não espera como uma pessoa.
     await session.window.waitForTimeout(100)
     await session.window.keyboard.press('Enter')
     await session.window.keyboard.press('Control+Alt+1')
@@ -350,7 +341,7 @@ test.describe('sumário', () => {
     await menu(session, 'open')
     const editor = session.window.locator('.ProseMirror')
 
-    // Campos e sumário representados não travam mais o documento.
+    // Campos e sumário representados não travam o documento.
     await expect(editor).toHaveAttribute('contenteditable', 'true')
     await expect(session.window.locator('.banner--readonly')).toHaveCount(0)
     const toc = editor.locator('.toc')
@@ -363,8 +354,7 @@ test.describe('sumário', () => {
     const depois = await entryOf(destino, 'word/document.xml')
     const sumario = (xml: string): string => /<w:sdt>.*<\/w:sdt>/.exec(xml)?.[0] ?? ''
     expect(sumario(depois)).not.toBe('')
-    // Preservado sem ninguém pedir "Atualizar": o mesmo XML, peça por peça.
-    // A ordem dos atributos é a do SDK, que reserializa o corpo; o conteúdo não muda.
+    // Preservado sem "Atualizar": o mesmo XML, com os atributos na ordem do SDK.
     const normal = (xml: string): string =>
       sumario(xml)
         .replace(/ \/>/g, '/>')

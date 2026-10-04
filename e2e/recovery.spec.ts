@@ -3,13 +3,7 @@ import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
 import { launch, menu, type Session } from './app.js'
 
-/**
- * A promessa da recuperação só vale se for provada contra uma queda de verdade.
- *
- * Um teste que fechasse o aplicativo educadamente provaria outra coisa: o
- * caminho de saída limpa roda handlers, e é justamente o que não acontece quando
- * a máquina desliga ou o processo é morto. Por isso aqui é `SIGKILL`.
- */
+/** A recuperação provada contra uma queda de verdade: `SIGKILL`, sem handler de saída. */
 test.describe('recuperação depois de uma queda', () => {
   let session: Session
 
@@ -78,13 +72,7 @@ test.describe('recuperação depois de uma queda', () => {
   })
 })
 
-/**
- * O rascunho existe no disco?
- *
- * Conferido de fora, pelo caminho, e não perguntando ao aplicativo: se o teste
- * usasse a mesma API que o código sob teste, um erro no cálculo do caminho
- * passaria despercebido nos dois lados.
- */
+/** O rascunho existe no disco? Conferido pelo caminho, e não pela API sob teste. */
 async function draftOnDisk(session: Session): Promise<boolean> {
   try {
     await stat(join(session.userData, 'recuperacao', 'rascunho.json'))

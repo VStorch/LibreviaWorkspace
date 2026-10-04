@@ -2,19 +2,10 @@ import { expect, test, type Page } from '@playwright/test'
 import { launch, menu, type Session } from './app.js'
 
 /**
- * Lançar uma coluna de números sem parar entre eles.
- *
- * O grid espera 70 ms fixos depois do Enter antes de mover o foco para baixo, e
- * quem digita continuadamente acerta essa janela: a tecla pode chegar enquanto
- * ele ainda aponta para a célula anterior, e `1200` abaixo de `980` vira `200`.
- * Perda silenciosa — o erro só aparece quando a soma não bate.
- *
- * Os testes de unidade não alcançam isto: o defeito não está em nenhuma função
- * nossa, está no encontro do relógio do grid com o de quem digita. Por isso
- * aqui, com teclado de verdade e o intervalo de uma digitação normal.
- *
- * A entrada pela barra de fórmulas — o caminho que os outros testes usam — não
- * passa por essa janela.
+ * Lançar uma coluna de números sem parar: o grid espera 70 ms depois do Enter para
+ * descer o foco, e a tecla que chega nessa janela iria à célula anterior (`1200`
+ * abaixo de `980` vira `200`). Está no encontro do relógio do grid com o de quem
+ * digita, que teste de unidade não alcança. A barra de fórmulas não passa por ela.
  */
 test.describe('digitação contínua na planilha', () => {
   let session: Session

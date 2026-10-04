@@ -12,14 +12,9 @@ import {
 } from './fixtures.js'
 
 /**
- * Somente leitura **graduado**, não ligado/desligado.
- *
- * Documento com revisão de estrutura (a célula inserida) abre travado, porque
- * editar a tabela a perde. O comentário, a revisão de texto e a nota de rodapé
- * não travam: a âncora e a referência são nós, a revisão é marca, e os três
- * voltam ao arquivo. Documento comum abre editável, porque travar tudo
- * ensinaria o usuário a clicar "editar mesmo assim" sem ler — e aí a proteção
- * deixaria de proteger.
+ * Somente leitura graduado: a revisão de estrutura (a célula inserida) trava, porque
+ * editar a tabela a perde. Comentário, revisão de texto e nota não travam: voltam
+ * ao arquivo. Travar tudo ensinaria a clicar "editar mesmo assim" sem ler.
  */
 test.describe('somente leitura', () => {
   let session: Session
@@ -46,16 +41,13 @@ test.describe('somente leitura', () => {
     await expect(banner).toBeVisible()
     await expect(banner).toContainText('revisões de estrutura')
 
-    // Um aviso só: a faixa de inventário repetiria o motivo logo abaixo, e
-    // dois avisos dizendo a mesma coisa valem menos que um.
+    // Um aviso só: a faixa de inventário repetiria o motivo.
     await expect(session.window.locator('.banner--notice')).toBeHidden()
 
     const editor = session.window.locator('.ProseMirror')
     await expect(editor).toHaveAttribute('contenteditable', 'false')
 
-    // Travar o editor não pode marcar o documento como alterado: `setEditable`
-    // emite um update por padrão, e com ele todo arquivo aberto apareceria como
-    // "não salvo" antes de o usuário tocar em nada.
+    // `setEditable` emite um update por padrão, que não pode marcar o documento como alterado.
     await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
 
     // A trava é um padrão, não um cadeado: um clique e a edição volta.
@@ -69,13 +61,8 @@ test.describe('somente leitura', () => {
   })
 
   /**
-   * A trava vale para o que chega pelo menu, e não só para o teclado.
-   *
-   * O `contenteditable="false"` segura a digitação, mas os comandos do menu
-   * chamam o editor direto — e o editor obedece a comando mesmo travado. Inserir
-   * linha, excluir a tabela, sombrear pelas propriedades e inserir quebra de
-   * página funcionavam num documento aberto em somente leitura, e o status
-   * virava "Não salvo".
+   * A trava vale também para o menu: os comandos chamam o editor direto, e ele
+   * obedece mesmo com `contenteditable="false"`.
    */
   test('os comandos de edição do menu respeitam a trava', async () => {
     const target = join(folder, 'ata-com-tabela.docx')
@@ -100,8 +87,7 @@ test.describe('somente leitura', () => {
       await menu(session, command)
     }
 
-    // Os comandos que abrem diálogo de edição nem abrem: um diálogo que aceita e
-    // não aplica seria pior que nenhum.
+    // Os comandos com diálogo de edição nem o abrem.
     await menu(session, 'table-insert')
     await menu(session, 'table-properties')
     await menu(session, 'paragraph-setup')

@@ -1,16 +1,10 @@
 /**
- * Como subir o aplicativo num teste.
+ * Como subir o aplicativo num teste, isolado da instalação de quem desenvolve:
  *
- * Duas coisas precisam ser isoladas, senão os testes conversam entre si e com a
- * instalação real de quem está desenvolvendo:
- *
- * - **`userData` próprio por sessão de teste**: é onde moram os recentes e o
- *   rascunho de recuperação. Sem isolar, um teste apagaria os recentes do
- *   usuário — e a trava de instância única faria o segundo Electron desistir de
- *   subir porque o primeiro já tinha o mesmo diretório.
- * - **diálogos nativos**: `showOpenDialog` abre uma janela do sistema que nenhum
- *   teste consegue clicar. Eles são trocados por respostas fixas dentro do
- *   processo main, que é o único lugar onde isso é possível.
+ * - `userData` próprio por sessão, onde moram os recentes e o rascunho, também
+ *   por causa da trava de instância única;
+ * - diálogos nativos trocados por respostas fixas no processo main, porque nenhum
+ *   teste clica numa janela do sistema.
  */
 
 import { mkdtemp, rm } from 'node:fs/promises'
@@ -29,13 +23,9 @@ export interface Session {
 }
 
 /**
- * O executável empacotado, quando se quer testar o que de fato é distribuído.
- *
- * Sem a variável, os testes rodam sobre `out/` com o Electron de
- * desenvolvimento. Com ela — `LIBREVIA_E2E_BINARY=release/linux-unpacked/librevia`
- * — a mesma suíte roda contra o aplicativo instalado, que é onde caminhos de
- * recurso, asar e o binário do sidecar têm outra localização. É a diferença
- * entre "os testes passam" e "o instalador funciona".
+ * O executável empacotado (`LIBREVIA_E2E_BINARY=release/linux-unpacked/librevia`),
+ * onde recursos, asar e sidecar moram noutro lugar. Sem a variável, `out/` com o
+ * Electron de desenvolvimento.
  */
 const packaged = process.env['LIBREVIA_E2E_BINARY']
 
@@ -67,20 +57,14 @@ export async function launch(options: { userData?: string; file?: string } = {})
         await rm(userData, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 })
     },
     crash: async () => {
-      // SIGKILL não roda nenhum handler de saída: é a diferença entre "fechou" e
-      // "caiu", e a recuperação só vale para o segundo caso.
+      // SIGKILL não roda handler de saída: é queda, e não fechamento.
       app.process().kill('SIGKILL')
       await app.waitForEvent('close').catch(() => undefined)
     },
   }
 }
 
-/**
- * Troca os diálogos nativos por respostas fixas.
- *
- * Roda no processo main porque é lá que o `dialog` mora — o renderer não o
- * alcança, e é exatamente essa a garantia que o `contextIsolation` dá.
- */
+/** Troca os diálogos nativos por respostas fixas, no main, onde o `dialog` mora. */
 export async function stubDialogs(
   app: ElectronApplication,
   answers: { open?: string; save?: string; messageBox?: number },
@@ -100,12 +84,8 @@ export async function stubDialogs(
 }
 
 /**
- * Dispara um comando do menu nativo, que é como o aplicativo é operado.
- *
- * O IPC e as teclas do Playwright chegam à página por canais diferentes, e o
- * Chromium atende a entrada antes: a tecla digitada logo depois do comando
- * passava à frente dele (a primeira letra da nota ia para o texto). Uma volta
- * pela fila de tarefas da página deixa o comando, já entregue, rodar antes.
+ * Dispara um comando do menu nativo. O Chromium atende a entrada antes do IPC: uma
+ * volta pela fila de tarefas da página deixa o comando rodar antes da tecla seguinte.
  */
 export async function menu(session: Session, command: string): Promise<void> {
   await session.app.evaluate(({ BrowserWindow }, name) => {

@@ -6,17 +6,9 @@ import { launch, menu, stubDialogs, type Session } from './app.js'
 import { docxWithAnchoredTextBox, entryOf } from './fixtures.js'
 
 /**
- * A capa é editável.
- *
- * Num modelo de manual, o título e o subtítulo não estão no fluxo: moram em
- * caixas posicionadas na folha, desenhadas fora do `contenteditable`. Quem
- * abria o documento via o título na tela e não tinha onde clicar — e, antes
- * disso, nem editar o resto podia, porque a forma travava o documento inteiro
- * em somente leitura.
- *
- * O caminho de volta é o que este teste segura: o texto digitado na caixa vira
- * atributo do bloco âncora, atravessa o editor e o gravador, e o `w:txbxContent`
- * do arquivo sai com o texto novo — sem perder a caixa.
+ * A capa é editável: no modelo de manual, título e subtítulo moram em caixas
+ * posicionadas, fora do `contenteditable`. O texto digitado na caixa vira atributo
+ * do bloco âncora e sai no `w:txbxContent`, sem perder a caixa.
  */
 test.describe('capa editável', () => {
   let session: Session

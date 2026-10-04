@@ -6,15 +6,9 @@ import { launch, menu, stubDialogs, type Session } from './app.js'
 import { docxWithHeaderTextBox, entryOf } from './fixtures.js'
 
 /**
- * O cabeçalho que é um grupo de formas.
- *
- * A maioria do corpus é assim: o título não está num parágrafo do cabeçalho,
- * está dentro de uma caixa ancorada, ao lado do logotipo e do campo do número
- * da página. Quem via um título errado ali não tinha onde clicar.
- *
- * A caixa volta inteira, e não peça por peça: digitar dentro dela abre e fecha
- * parágrafos. Já o campo `PAGE` não volta de jeito nenhum — ele é calculado a
- * cada abertura, e escrever o marcador de volta o trocaria por um número fixo.
+ * O cabeçalho que é um grupo de formas, como a maioria do corpus: o título numa
+ * caixa ancorada. A caixa volta inteira, porque digitar nela abre e fecha
+ * parágrafos; o campo `PAGE` não volta, senão viraria número fixo.
  */
 test.describe('caixa de cabeçalho editável', () => {
   let session: Session

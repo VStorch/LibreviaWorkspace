@@ -2,11 +2,8 @@ import { expect, test, type Page } from '@playwright/test'
 import { launch, menu, type Session } from './app.js'
 
 /**
- * A alça de preenchimento leva a fórmula, não o resultado.
- *
- * Este é um teste de arraste de verdade, com o mouse: a lógica está coberta por
- * testes de unidade, mas eles não sabem se o evento certo do grid foi assinado.
- * `fillRange` existia e passava havia duas fases — só não tinha quem a chamasse.
+ * A alça de preenchimento leva a fórmula, e não o resultado: arraste com o mouse,
+ * porque o teste de unidade não sabe se o evento do grid foi assinado.
  */
 test.describe('alça de preenchimento', () => {
   let session: Session
@@ -61,12 +58,7 @@ async function write(window: Page, row: number, column: number, text: string): P
   await input.press('Enter')
 }
 
-/**
- * Arrasta o quadradinho do canto inferior direito da seleção.
- *
- * Ele fica na quina da célula selecionada, então o arraste começa alguns pixels
- * para dentro do canto — o mesmo gesto que o usuário faz.
- */
+/** Arrasta o quadradinho do canto da seleção, começando alguns pixels para dentro. */
 async function dragHandle(
   window: Page,
   fromRow: number,

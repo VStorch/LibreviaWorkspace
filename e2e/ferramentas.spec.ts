@@ -4,16 +4,10 @@ import { expect, test } from '@playwright/test'
 import { launch, menu, type Session } from './app.js'
 
 /**
- * As ferramentas do dia a dia, pelo aplicativo montado.
- *
- * Tudo aqui atravessa os dois processos, e é justamente a costura que teste de
- * unidade nenhum cobre: o menu de contexto nasce de um evento do `webContents`,
- * colar sem formatação depende da área de transferência do sistema, e a
- * ortografia depende de um dicionário que precisa estar em disco **antes** de o
- * Chromium perguntar por ele.
- *
- * `new-document` antes de tudo: sem arquivo aberto a tela é a inicial, e não há
- * editor onde clicar.
+ * As ferramentas do dia a dia pelo aplicativo montado, na costura entre os dois
+ * processos: o menu de contexto do `webContents`, a área de transferência do
+ * sistema e o dicionário que tem de estar em disco antes de o Chromium perguntar.
+ * `new-document` primeiro, porque a tela inicial não tem editor.
  */
 test.describe('ferramentas do documento', () => {
   let session: Session
@@ -45,9 +39,7 @@ test.describe('ferramentas do documento', () => {
   })
 
   test('o dicionário de português está instalado e o corretor, ligado', async () => {
-    // O modo de falha que este teste cobre é o silencioso: sem o dicionário no
-    // lugar certo, o corretor não marca nada e ninguém é avisado — e numa máquina
-    // sem rede é isso que acontecia, porque o Chromium baixaria o arquivo.
+    // Sem o dicionário no lugar, o corretor não marca nada, e ninguém é avisado.
     const corretor = await session.app.evaluate(({ session: electronSession }) => ({
       idiomas: electronSession.defaultSession.getSpellCheckerLanguages(),
       ligado: electronSession.defaultSession.isSpellCheckerEnabled(),
@@ -56,8 +48,7 @@ test.describe('ferramentas do documento', () => {
     expect(corretor.idiomas).toEqual(['pt-BR'])
     expect(corretor.ligado).toBe(true)
 
-    // O arquivo que o Chromium procura antes de pensar em baixar, com o tamanho
-    // do que viaja no instalador: se fosse o baixado, seria outro.
+    // O arquivo que o Chromium procura antes de baixar, com o tamanho do que viaja no instalador.
     const instalado = await stat(join(session.userData, 'Dictionaries', 'pt-BR-3-0.bdic'))
     const embutido = await stat(resolve('resources/dictionaries/pt-BR-3-0.bdic'))
     expect(instalado.size).toBe(embutido.size)
@@ -67,10 +58,8 @@ test.describe('ferramentas do documento', () => {
   })
 
   test('desligar a verificação ortográfica desliga o corretor e o campo', async () => {
-    // Pelo mesmo caminho que o item do menu nativo usa — o menu nativo em si
-    // nenhum teste consegue clicar.
-    // O tipo de `window.api` mora na declaração do renderer, que este projeto de
-    // TypeScript não inclui: daí o elenco, e não uma segunda declaração global.
+    // Pelo caminho do item do menu nativo, que teste nenhum clica. O tipo de
+    // `window.api` mora na declaração do renderer, fora deste projeto: daí o elenco.
     await session.window.evaluate(async () => {
       const api = (
         window as unknown as { api: { preferences: { set: (patch: unknown) => Promise<unknown> } } }
@@ -86,17 +75,12 @@ test.describe('ferramentas do documento', () => {
     ).toBe(false)
   })
 
-  // Marcar a palavra errada é trabalho do corretor do Chromium, e ele só o faz
-  // quando o quadro tem foco de verdade: numa janela que o gerenciador de janelas
-  // não trouxe para a frente — o caso de toda execução automatizada — a marcação
-  // não acontece de forma previsível, e o menu abre sem as sugestões. O caminho
-  // até elas está coberto pelos testes acima (dicionário no lugar, corretor
-  // ligado, campo pedindo verificação) e pelo menu de contexto, que é nosso.
+  // O Chromium só marca a palavra errada com o quadro em foco de verdade, o que a
+  // execução automatizada não garante. O caminho até as sugestões está coberto acima.
   test.skip('a palavra errada traz sugestão, dicionário e ignorar', async () => {
     const editor = session.window.locator('.ProseMirror')
     await editor.click()
-    // Em negrito para dar ao teste **onde clicar**: o parágrafo ocupa a coluna
-    // inteira e o centro dele cairia longe da palavra, alinhada à esquerda.
+    // Em negrito para ter onde clicar: o centro do parágrafo cairia longe da palavra.
     await session.window.keyboard.press('Control+b')
     await session.window.keyboard.type('abacaxxi')
     await session.window.keyboard.press('Control+b')
@@ -182,8 +166,7 @@ test.describe('ferramentas do documento', () => {
     // Uma marca por espaço e uma no fim do parágrafo.
     await expect(editor.locator('.tiptap-invisible-character')).not.toHaveCount(0)
 
-    // O motivo de todo o cuidado com o CSS das marcas: se elas tivessem altura, a
-    // linha cresceria e a quebra de página se deslocaria.
+    // Marca com altura cresceria a linha e deslocaria a quebra de página.
     await expect(paginas).toHaveText(antes ?? '')
 
     await session.window.getByRole('button', { name: /Marcas de formatação/ }).click()
@@ -191,9 +174,7 @@ test.describe('ferramentas do documento', () => {
   })
 
   test('o seletor de caracteres especiais também anda pelo teclado', async () => {
-    // Sem foco no painel, as setas moveriam o cursor do texto, `Enter` partiria
-    // o parágrafo e só o mouse inseriria; o `Tab` sairia do painel e cairia no
-    // seletor "Estilo" da barra.
+    // Sem foco no painel, as setas e o `Enter` iriam ao texto, e o `Tab` ao seletor "Estilo".
     const editor = session.window.locator('.ProseMirror')
     await editor.click()
     await session.window.keyboard.type('Bom dia')
@@ -208,8 +189,7 @@ test.describe('ferramentas do documento', () => {
     await session.window.keyboard.press('ArrowRight')
     await session.window.keyboard.press('Enter')
 
-    // Inseriu e **continuou no painel**: o foco não voltou para o texto, senão a
-    // seta seguinte andaria pelo documento.
+    // Inseriu e continuou no painel.
     await expect(dialogo).toBeVisible()
     await expect(editor).not.toHaveText('Bom dia')
     const depoisDoPrimeiro = await editor.textContent()
@@ -237,17 +217,14 @@ test.describe('ferramentas do documento', () => {
   })
 
   test('o Backspace desfaz só a substituição da autocorreção', async () => {
-    // A saída para texto técnico sem desligar nada: `--silent` volta a ser
-    // `--silent`. Quem trata a tecla é o `Keymap` do Tiptap, e o que a mantém de pé
-    // é o `undoable` que o embrulho da autocorreção preserva
-    // (ver `editor-extensions.ts`).
+    // `--silent` volta a ser `--silent`: o `Keymap` do Tiptap trata a tecla, e o
+    // `undoable` que o embrulho da autocorreção preserva a mantém (`editor-extensions.ts`).
     const editor = session.window.locator('.ProseMirror')
     await editor.click()
     await session.window.keyboard.type('rodar --')
     await expect(editor).toContainText('rodar —')
 
-    // Logo depois da substituição, e não três palavras adiante: é assim no Word, e
-    // é o que o plugin de regras de entrada guarda — uma correção, a última.
+    // Logo depois da substituição, como no Word: o plugin guarda só a última correção.
     await session.window.keyboard.press('Backspace')
     await session.window.keyboard.type('silent')
     await expect(editor).toContainText('rodar --silent')

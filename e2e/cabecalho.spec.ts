@@ -9,13 +9,8 @@ import { launch, menu, stubDialogs, type Session } from './app.js'
 import { docxWithHeaderGrid, entryOf } from './fixtures.js'
 
 /**
- * Cabeçalho em grade.
- *
- * A faixa de três colunas dá conta de texto, e é o que quase todo cabeçalho
- * corporativo precisa. A outra metade é uma tabela: logotipo numa célula
- * mesclada por várias linhas, título ao lado, numeração à direita. Espalhada
- * pelos terços, ela virava uma fileira de palavras que ainda transbordava sobre
- * a primeira linha do texto.
+ * Cabeçalho em grade: o corporativo é uma tabela, com o logotipo numa célula
+ * mesclada por várias linhas, o título ao lado e a numeração à direita.
  */
 test.describe('cabeçalho em grade', () => {
   let session: Session
@@ -55,9 +50,7 @@ test.describe('cabeçalho em grade', () => {
   })
 
   test('o corpo desce para debaixo do cabeçalho, sem se encontrar com ele', async () => {
-    // A margem de cima é um piso, não uma posição: quando o cabeçalho é mais
-    // alto que ela, o Word e o LibreOffice descem o corpo. Sem isso a primeira
-    // linha do texto era escrita por cima da última do cabeçalho.
+    // A margem de cima é um piso: com o cabeçalho mais alto, o Word e o LibreOffice descem o corpo.
     const medidas = await session.window.evaluate(() => {
       const banda = document.querySelector('.band--header') as HTMLElement | null
       const primeira = document.querySelector('.page__content > *') as HTMLElement | null

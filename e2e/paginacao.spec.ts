@@ -8,12 +8,9 @@ import { launch, menu, stubDialogs, type Session } from './app.js'
 import { docxWithLongTable } from './fixtures.js'
 
 /**
- * O editor pagina ao vivo: o texto corre sobre folhas desenhadas.
- *
- * A contagem de folhas responde à digitação. Na tabela longa, também se
- * confere que a última linha está dentro do papel: contar folhas sozinho não
- * detecta conteúdo desenhado além da borda. Não se fixa a fonte nem a linha
- * exata do corte, que variam conforme a máquina.
+ * O editor pagina ao vivo: a contagem de folhas responde à digitação, e a última
+ * linha da tabela longa fica dentro do papel. Fonte e linha exata do corte variam
+ * conforme a máquina, e não se fixam.
  */
 test.describe('paginação ao vivo', () => {
   let session: Session
@@ -51,9 +48,7 @@ test.describe('paginação ao vivo', () => {
   })
 
   test('a célula da tabela importada usa a margem do Word, e a tabela cabe nas folhas do papel', async () => {
-    // Sem `w:tblCellMar` o Word usa 0 em cima e embaixo; a margem fixa do editor
-    // (4 px) somava 8 px por linha, e as oitenta linhas iam para três folhas
-    // onde o LibreOffice usa duas.
+    // Sem `w:tblCellMar` o Word usa 0 em cima e embaixo: as oitenta linhas ocupam duas folhas, como no LibreOffice.
     const source = join(pasta, 'tabela-longa.docx')
     await writeFile(source, await docxWithLongTable())
     await stubDialogs(session.app, { open: source, messageBox: 1 })
@@ -74,8 +69,6 @@ test.describe('paginação ao vivo', () => {
   })
 
   test('a quebra de página pedida à mão abre folha nova', async () => {
-    // O medidor anterior ignorava o nó `pageBreak`: um documento com capa e
-    // sumário aparecia como uma folha só, por mais quebras que tivesse.
     await menu(session, 'new-document')
     await session.window.locator('.ProseMirror').click()
     await session.window.keyboard.type('Capa.')
@@ -90,9 +83,7 @@ test.describe('paginação ao vivo', () => {
     await menu(session, 'new-document')
     await session.window.locator('.ProseMirror').click()
 
-    // Parágrafos de sobra para estourar uma A4 com margens de 25 mm. Digitados
-    // pelo teclado, e não injetados no modelo: é a digitação que precisa fazer
-    // a folha nascer.
+    // Pelo teclado, e não no modelo: é a digitação que faz a folha nascer.
     for (let i = 0; i < 60; i++) {
       await session.window.keyboard.type(`Linha ${i} de um parágrafo qualquer para ocupar a folha.`)
       await session.window.keyboard.press('Enter')
@@ -113,8 +104,7 @@ test.describe('paginação ao vivo', () => {
   })
 
   test('o papel sai com as mesmas folhas que a tela mostra', async () => {
-    // O papel é montado a partir das folhas da tela, e o número de páginas do
-    // PDF não pode divergir do da tela.
+    // O número de páginas do PDF é o da tela.
     const destino = join(pasta, 'saida.pdf')
     await stubDialogs(session.app, { save: destino, messageBox: 1 })
 
@@ -126,10 +116,8 @@ test.describe('paginação ao vivo', () => {
     await menu(session, 'insert-page-break')
     await session.window.keyboard.type('Terceira folha.')
 
-    // Esperar as folhas, e não contá-las de uma vez: a paginação assenta num
-    // quadro depois da última tecla, e `count()` não repete a pergunta. Era
-    // esta linha que reprovava sob carga — a terceira folha ainda não existia —
-    // e passava sozinha, onde a máquina tem folga de sobra.
+    // Esperar as folhas, e não contá-las: a paginação assenta um quadro depois da
+    // última tecla, e `count()` não repete a pergunta.
     const folhas = session.window.locator('.paper')
     await expect(folhas).toHaveCount(3)
     const naTela = await folhas.count()
@@ -177,21 +165,17 @@ test.describe('paginação ao vivo', () => {
   })
 
   test('viúvas e órfãs: a órfã no pé leva o parágrafo inteiro para a folha seguinte', async () => {
-    // Trinta parágrafos de enchimento deixam lugar para uma linha só no pé: sem
-    // o controle, ela ficaria órfã; com ele, o parágrafo desce inteiro.
+    // O enchimento deixa uma linha só no pé: com o controle, o parágrafo desce inteiro.
     await paragrafoAtravessandoAFolha(session, 30, 100)
     await expect(session.window.locator('.paper')).toHaveCount(2)
     await expect.poll(() => linhasEmVoltaDoCorte(session)).toEqual({ antes: 0, depois: 0 })
   })
 
   test('viúvas e órfãs: o corte deixa ao menos duas linhas de cada lado', async () => {
-    // Vinte e oito: o parágrafo de cinco linhas cabe menos a última, e a quebra
-    // leva junto a penúltima para ela não abrir a folha sozinha. Sessão própria,
-    // e não um segundo documento na mesma: trocar de documento com o primeiro
-    // sujo abre o aviso de descartar, e o texto caía no documento de antes.
+    // Vinte e oito: a quebra leva a penúltima linha junto com a última. Sessão
+    // própria, porque trocar de documento com o primeiro sujo abre o aviso de descartar.
     await paragrafoAtravessandoAFolha(session, 28, 100)
-    // Em `toPass`, e não lido uma vez: sob carga a medida ainda assenta, e um
-    // corte de passagem não é o que a folha termina mostrando.
+    // Em `toPass`: sob carga a medida ainda assenta.
     await expect(async () => {
       const linhas = await linhasEmVoltaDoCorte(session)
       expect(linhas.antes).toBeGreaterThanOrEqual(2)
@@ -282,14 +266,11 @@ test.describe('paginação ao vivo', () => {
   })
 
   test('o corte entre linhas volta quando o texto acima dele encolhe', async () => {
-    // O espaçador já desenhado entrava na medida seguinte: fora de um começo de
-    // linha ele forçava a quebra ali, e o corte não voltava mais — sobravam
-    // linhas vazias no pé da folha.
+    // O espaçador já desenhado não entra na medida seguinte, senão o corte não volta.
     await paragrafoAtravessandoAFolha(session)
     await expect.poll(() => corteNaTela(session)).not.toBeNull()
     const original = await corteNaTela(session)
-    // Um passo de histórico à parte: digitado junto, o desfazer levaria o
-    // parágrafo inteiro com as palavras.
+    // Um passo de histórico à parte: junto, o desfazer levaria o parágrafo inteiro.
     await session.window.waitForTimeout(700)
 
     const inicioDoParagrafo = async (): Promise<void> => {
@@ -318,10 +299,9 @@ test.describe('paginação ao vivo', () => {
 })
 
 /**
- * Enche a folha com parágrafos curtos e depois escreve um parágrafo longo de
- * palavras numeradas (`p1 p2 …`), que atravessa o pé da folha. As palavras
- * únicas são o que deixa comparar o corte da tela com o do papel sem depender
- * da fonte da máquina.
+ * Enche a folha com parágrafos curtos e escreve um longo, de palavras numeradas
+ * (`p1 p2 …`), que atravessa o pé da folha: as palavras únicas comparam o corte da
+ * tela com o do papel sem depender da fonte.
  */
 async function paragrafoAtravessandoAFolha(session: Session, enchimento = 28, total = 160): Promise<void> {
   await menu(session, 'new-document')
@@ -334,10 +314,7 @@ async function paragrafoAtravessandoAFolha(session: Session, enchimento = 28, to
   await session.window.keyboard.insertText(palavras)
 }
 
-/**
- * Quantas linhas do parágrafo cortado ficam antes e depois do espaçador —
- * zero e zero quando nenhum parágrafo foi cortado.
- */
+/** Quantas linhas do parágrafo cortado ficam antes e depois do espaçador, zero e zero sem corte. */
 async function linhasEmVoltaDoCorte(session: Session): Promise<{ antes: number; depois: number }> {
   return session.window.evaluate(() => {
     const gap = document.querySelector('.ProseMirror .page-line-gap')
@@ -402,11 +379,8 @@ async function temPdftotext(): Promise<boolean> {
 }
 
 /**
- * Páginas de um PDF, contando os objetos `/Type /Page`.
- *
- * Sem biblioteca: o dado está no arquivo em texto claro, e trazer um leitor de
- * PDF inteiro para contar páginas seria desproporcional. `[^s]` no fim separa
- * `/Page` de `/Pages`, que é o nó da árvore e apareceria uma vez a mais.
+ * Páginas de um PDF pelos objetos `/Type /Page`, sem biblioteca; `[^s]` separa
+ * `/Page` de `/Pages`.
  */
 async function contarPaginas(caminho: string): Promise<number> {
   try {

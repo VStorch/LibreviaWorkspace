@@ -6,13 +6,8 @@ import { launch, menu, stubDialogs, type Session } from './app.js'
 import { docxWithHeaderGrid, entryOf } from './fixtures.js'
 
 /**
- * O documento que nasceu no editor, salvo como `.docx`.
- *
- * A gravação cirúrgica pressupõe um original, e o documento novo não tem: o
- * sidecar cria um pacote mínimo que faz esse papel, e toda gravação parte dele
- * — inclusive a segunda, para que o arquivo não some uma camada por Ctrl+S. O
- * teste percorre o caminho inteiro — diálogo, sidecar publicado, disco — porque
- * é nas fronteiras entre eles que esse tipo de ligação se perde.
+ * O documento nascido no editor, salvo como `.docx` sobre o pacote mínimo do sidecar,
+ * de onde toda gravação parte. Pelo caminho inteiro: diálogo, sidecar publicado, disco.
  */
 test.describe('documento novo em .docx', () => {
   let session: Session
@@ -66,15 +61,8 @@ test.describe('documento novo em .docx', () => {
   })
 
   test('o .sdoc que veio de um .docx com cabeçalho volta a .docx avisando da faixa', async () => {
-    // O caminho que o pacote mínimo abriu sem querer: o `.sdoc` guarda a faixa
-    // com os endereços das relações do `.docx` de origem, e reaberto do disco
-    // esse pacote não está mais aqui. A gravação parte do mínimo, que não tem
-    // nenhuma dessas relações — e procurar por uma delas derrubava o sidecar
-    // antes de gravar coisa alguma: nada no disco, "erro inesperado" na tela, e
-    // a perda da faixa nunca chegava a ser dita.
-    //
-    // A faixa não tem onde ser gravada, e isso é perda inevitável. O que este
-    // teste cobra é que o arquivo saia e que a perda apareça escrita.
+    // O `.sdoc` guarda a faixa com as relações do `.docx` de origem, que o pacote
+    // mínimo não tem: a faixa se perde, e o arquivo tem de sair com a perda escrita.
     const origem = join(folder, 'grade.docx')
     const rascunho = join(folder, 'grade.sdoc')
     const destino = join(folder, 'volta.docx')

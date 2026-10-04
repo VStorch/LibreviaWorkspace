@@ -6,15 +6,9 @@ import { launch, menu, stubDialogs, type Session } from './app.js'
 import { docxWithVerticalAlignment } from './fixtures.js'
 
 /**
- * Formatação de caractere e de parágrafo, pelo aplicativo montado.
- *
- * Três coisas que só existem juntas: o botão na barra, o comando do editor e o
- * que o sidecar grava. Os testes de unidade cobrem cada peça, e nenhum deles
- * cobre a costura — foi ali que o `oid` se perdia, e é ali que uma marca nova
- * também se perde: basta ela não estar no schema, ou não ter caso no gravador.
- *
- * O sobrescrito é a sentinela certa porque muda o **sentido** do texto: "cm3"
- * não é "cm³". Se ele voltar do arquivo, o caminho inteiro está de pé.
+ * Formatação de caractere e de parágrafo pela costura inteira: o botão, o comando
+ * do editor e o que o sidecar grava. O sobrescrito muda o sentido ("cm3" não é
+ * "cm³"): se ele volta do arquivo, o caminho está de pé.
  */
 test.describe('formatação do documento', () => {
   let session: Session
@@ -41,14 +35,11 @@ test.describe('formatação do documento', () => {
     const editor = session.window.locator('.ProseMirror')
     await expect(editor).toContainText('O ocupa')
 
-    // Na tela são `<sup>` e `<sub>` de verdade: é o que o navegador desenha
-    // acima e abaixo da linha, e o que a exportação para PDF leva consigo.
+    // Na tela, `<sup>` e `<sub>`, que o PDF também leva.
     await expect(editor.locator('sup')).toHaveText('3')
     await expect(editor.locator('sub')).toHaveText('2')
 
-    // Editar o parágrafo é o que obriga o gravador a reescrevê-lo — o caminho em
-    // que a perda aconteceria. Sem edição, o XML original voltaria intacto e o
-    // teste passaria sem provar nada.
+    // Editar obriga o gravador a reescrever o parágrafo, onde a perda aconteceria.
     await editor.click()
     await session.window.keyboard.press('End')
     await session.window.keyboard.type(' Mexido.')
@@ -60,8 +51,7 @@ test.describe('formatação do documento', () => {
     expect(corpo).toContain('w:vertAlign w:val="superscript"')
     expect(corpo).toContain('w:vertAlign w:val="subscript"')
 
-    // E nada no aviso: o inventário é o lugar onde uma formatação que não
-    // sabemos gravar tem de aparecer, e esta sabemos gravar.
+    // Nada no aviso: esta formatação o gravador sabe gravar.
     await expect(session.window.locator('.banner--notice')).toHaveCount(0)
   })
 
@@ -92,15 +82,13 @@ test.describe('formatação do documento', () => {
     const dialogo = session.window.getByRole('dialog', { name: 'Parágrafo' })
     await expect(dialogo).toBeVisible()
 
-    // Pelo papel, e não pelo rótulo: "À esquerda" também é uma opção do
-    // alinhamento, e o `label` que envolve o seletor carrega o texto das opções.
+    // Pelo papel: "À esquerda" também é opção do alinhamento, no `label` do seletor.
     await dialogo.getByRole('spinbutton', { name: 'Antes' }).fill('18')
     await dialogo.getByRole('spinbutton', { name: 'Esquerda' }).fill('20')
     await dialogo.getByRole('button', { name: 'Aplicar' }).click()
     await expect(dialogo).toBeHidden()
 
-    // Medida de verdade, e não atributo: o que importa é que o parágrafo de fato
-    // desceu e entrou — é assim que a paginação o verá.
+    // Medida de verdade, como a paginação a verá.
     const medidas = await editor
       .locator('p')
       .first()
@@ -125,11 +113,8 @@ test.describe('formatação do documento', () => {
     await dialogo.getByRole('combobox', { name: 'Entrelinha' }).selectOption('1.5')
     await dialogo.getByRole('button', { name: 'Aplicar' }).click()
 
-    // O múltiplo do Word é medido sobre a **altura natural da fonte**, e não sobre
-    // o tamanho dela: 1,5 linha em Calibri — a fonte que o estilo do documento
-    // novo dá ao parágrafo — é `line-height: 1.8311`. Enquanto o diálogo escrevia
-    // 1,5 direto no CSS, o arquivo recebia 1,23 linha; e enquanto media na fonte
-    // do bloco em vez da do estilo, 1,5 linha de Calibri saía 1,41.
+    // O múltiplo do Word é sobre a altura natural da fonte do estilo: 1,5 linha em
+    // Calibri é `line-height: 1.8311`.
     const proporcao = await editor
       .locator('p')
       .first()
@@ -140,7 +125,7 @@ test.describe('formatação do documento', () => {
 
     expect(proporcao).toBeCloseTo(1.8311, 2)
 
-    // E a barra mostra de volta o número do Word, que é o que a pessoa escolheu.
+    // E a barra mostra o número do Word.
     await expect(session.window.getByRole('combobox', { name: 'Espaçamento entre linhas' })).toHaveValue(
       '1.5',
     )
@@ -157,12 +142,7 @@ test.describe('formatação do documento', () => {
     await dialogo.getByRole('button', { name: 'Aplicar' }).click()
     await expect(dialogo).toBeHidden()
 
-    // O comando devolvia `false` quando não havia nada a mudar, e a cadeia inteira
-    // não rodava — o `focus()` com ela. Quem clicava em "Aplicar" tinha de clicar
-    // no texto de novo para continuar escrevendo.
-    // O foco volta no quadro seguinte ao fechamento, então é ele que se espera
-    // antes de digitar: é o que o teste quer provar, e digitar antes só mediria
-    // a velocidade do teste.
+    // "Aplicar" sem nada a mudar devolve o foco ao texto, no quadro seguinte ao fechamento.
     await expect(editor).toBeFocused()
     await session.window.keyboard.type(' Continua.')
     await expect(editor).toContainText('Sem mudança nenhuma. Continua.')

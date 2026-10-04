@@ -6,12 +6,8 @@ import { expect, test } from '@playwright/test'
 import { launch, menu, stubDialogs, type Session } from './app.js'
 
 /**
- * O PDF sai, e com tinta dentro.
- *
- * A exportação de planilha ficou quatro fases sem funcionar justamente porque
- * falhava **em silêncio**: `buildPrintRequest` devolvia `null`, ninguém era
- * avisado e nenhum arquivo aparecia. Um teste que só verificasse "não deu erro"
- * teria passado o tempo todo — por isso este vai ao disco.
+ * O PDF sai, e com tinta dentro: a exportação pode falhar em silêncio, sem erro e
+ * sem arquivo, e por isso o teste vai ao disco.
  */
 test.describe('exportar PDF', () => {
   let session: Session
@@ -57,11 +53,8 @@ test.describe('exportar PDF', () => {
   })
 
   test('a linha em branco continua ocupando uma linha no papel', async () => {
-    // No editor o parágrafo vazio ocupa uma linha porque o ProseMirror põe um
-    // <br> invisível dentro dele. O serializador do papel não põe, e um bloco
-    // sem conteúdo tem altura zero — então as folhas eram recortadas pela
-    // medida da tela e impressas sem essas linhas. O texto subia, e a primeira
-    // linha ia parar debaixo do cabeçalho.
+    // O parágrafo vazio tem uma linha no editor pelo <br> do ProseMirror, e no papel
+    // também: senão o texto sobe e a primeira linha vai para baixo do cabeçalho.
     const target = join(folder, 'linhas.pdf')
     await stubDialogs(session.app, { save: target, messageBox: 1 })
 
@@ -77,8 +70,7 @@ test.describe('exportar PDF', () => {
     await menu(session, 'export-pdf')
     await expect.poll(() => textTops(target), { timeout: 30_000 }).toHaveLength(3)
 
-    // Sem número mágico: o próprio documento dá a medida de um parágrafo, e a
-    // linha em branco tem de valer outro tanto.
+    // O próprio documento dá a medida de um parágrafo.
     const [alfa, beta, gama] = await textTops(target)
     const umParagrafo = beta! - alfa!
     expect(gama! - beta!).toBeGreaterThan(umParagrafo * 1.8)
@@ -94,15 +86,9 @@ test.describe('exportar PDF', () => {
 })
 
 /**
- * Quantas vezes o PDF manda desenhar texto.
- *
- * Não dá para procurar a palavra: o Chromium embute a fonte como subconjunto e
- * escreve o texto como identificadores de glifo (`<0003> Tj`), que só o mapa da
- * própria fonte traduz. Contar os operadores de texto responde a pergunta que
- * importa aqui — "chegou tinta no papel?" — sem trazer um interpretador de PDF
- * para dentro do teste.
- *
- * Arquivo ausente conta zero: PDF sem texto é a falha que se quer pegar.
+ * Quantas vezes o PDF manda desenhar texto. O Chromium escreve identificadores de
+ * glifo (`<0003> Tj`) da fonte embutida, e contar os operadores responde se chegou
+ * tinta, sem interpretador de PDF. Arquivo ausente conta zero.
  */
 async function glyphRuns(path: string): Promise<number> {
   const bytes = await readFile(path).catch(() => null)
@@ -133,13 +119,8 @@ async function glyphRuns(path: string): Promise<number> {
 }
 
 /**
- * A altura de cada linha de texto desenhada, na ordem em que o PDF as desenha.
- *
- * O texto em si é ilegível — o Chromium embute a fonte como subconjunto e
- * escreve identificadores de glifo. A **posição** não é: cada linha vem
- * precedida de uma matriz de texto `1 0 0 -1 x y Tm`, e é o `y` dela que diz
- * onde a linha caiu. É o bastante para perguntar "quanto desceu daqui para
- * ali" sem trazer um interpretador de PDF para dentro do teste.
+ * A altura de cada linha desenhada, na ordem do PDF: o `y` da matriz
+ * `1 0 0 -1 x y Tm` que precede cada linha.
  */
 async function textTops(path: string): Promise<number[]> {
   const bytes = await readFile(path).catch(() => null)

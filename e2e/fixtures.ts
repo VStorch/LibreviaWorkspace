@@ -1,14 +1,7 @@
 /**
- * Documentos `.docx` construídos em código, não versionados como binário.
- *
- * Mesmo princípio dos fixtures do sidecar: o que o documento contém fica
- * legível na revisão. Um `.docx` no git é uma caixa preta que ninguém confere —
- * e aqui o conteúdo é justamente o que está sendo testado.
- *
- * O ZIP é escrito à mão, com os arquivos **armazenados** e não comprimidos.
- * Sem compressão o formato é só cabeçalho, dados e um índice no fim: cabe em
- * meia página e não traz dependência nenhuma. O tamanho não importa — estes
- * documentos vivem alguns segundos dentro de uma pasta temporária.
+ * Documentos `.docx` montados em código, legíveis na revisão, como os fixtures do
+ * sidecar. O ZIP é escrito à mão com as entradas armazenadas, sem compressão: só
+ * cabeçalho, dados e índice, sem dependência.
  */
 
 import { Buffer } from 'node:buffer'
@@ -48,8 +41,7 @@ const COMMENTED_PARAGRAPH =
   `<w:commentRangeEnd w:id="1"/><w:r><w:commentReference w:id="1"/></w:r></w:p>`
 
 function documentXml(body: string): string {
-  // Os namespaces de desenho entram sempre: declarar só quando o corpo os usa
-  // faria cada fixture novo redescobrir por que o pacote não abre.
+  // Os namespaces de desenho entram sempre, para nenhum fixture novo nascer sem eles.
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:document xmlns:w="${W}" xmlns:mc="${MC}" xmlns:wp="${WP}" xmlns:a="${A}" xmlns:wps="${WPS}" mc:Ignorable="wps"><w:body>${body}<w:sectPr/></w:body></w:document>`
 }
@@ -72,11 +64,8 @@ const LEADING_TABLE = ((): string => {
 })()
 
 /**
- * Documento com um comentário ancorado no segundo parágrafo.
- *
- * Com `leadingTable`, uma tabela abre o documento: é onde o cursor está quando o
- * arquivo abre, e é o caso em que os comandos do menu Tabela têm onde agir num
- * documento travado.
+ * Um comentário ancorado no segundo parágrafo. Com `leadingTable`, uma tabela abre o
+ * documento, onde o cursor está e os comandos do menu Tabela agem.
  */
 export async function docxWithComment(options: { leadingTable?: boolean } = {}): Promise<Buffer> {
   const table = options.leadingTable === true ? LEADING_TABLE : ''
@@ -130,12 +119,8 @@ export async function docxWithTrackedChange(options: { leadingTable?: boolean } 
 }
 
 /**
- * Documento com uma célula inserida por revisão (`w:cellIns`).
- *
- * É o que trava a edição: a revisão de estrutura o editor não representa, e a
- * gravação da tabela editada a perderia. Com `leadingTable`, a tabela revisada
- * abre o documento — é onde o cursor está, e onde os comandos do menu Tabela
- * têm onde agir.
+ * Uma célula inserida por revisão (`w:cellIns`), que trava a edição: o editor não
+ * representa a revisão de estrutura. Com `leadingTable`, a tabela abre o documento.
  */
 export async function docxWithCellRevision(options: { leadingTable?: boolean } = {}): Promise<Buffer> {
   const revised = LEADING_TABLE.replace(
@@ -155,10 +140,8 @@ export async function docxWithCellRevision(options: { leadingTable?: boolean } =
 }
 
 /**
- * Documento com uma nota de rodapé no segundo parágrafo.
- *
- * Não trava a edição: a referência é nó, com o corpo da nota dentro. Com
- * `leadingTable`, a mesma tabela de abertura de `docxWithComment`.
+ * Uma nota de rodapé no segundo parágrafo, que não trava. Com `leadingTable`, a
+ * tabela de abertura de `docxWithComment`.
  */
 export async function docxWithFootnote(options: { leadingTable?: boolean } = {}): Promise<Buffer> {
   const table = options.leadingTable === true ? LEADING_TABLE : ''
@@ -294,12 +277,9 @@ const W14 = 'http://schemas.microsoft.com/office/word/2010/wordml'
 const W15 = 'http://schemas.microsoft.com/office/word/2012/wordml'
 
 /**
- * Uma conversa (comentário e resposta) e um comentário resolvido, como o Word
- * grava.
- *
- * A resposta abraça o mesmo trecho que o comentário, com as pontas logo depois
- * das dele; `commentsExtended.xml` liga as duas pelo `w14:paraId` e marca o
- * resolvido com `w15:done`.
+ * Comentário com resposta e comentário resolvido, como o Word grava: a resposta
+ * abraça o trecho do pai, e `commentsExtended.xml` liga as duas pelo `w14:paraId` e
+ * marca o resolvido com `w15:done`.
  */
 export async function docxWithCommentThread(): Promise<Buffer> {
   const comment = (id: string, author: string, paraId: string, text: string): string =>
@@ -356,12 +336,8 @@ export async function docxWithCommentThread(): Promise<Buffer> {
 }
 
 /**
- * Documento com uma caixa de texto ancorada.
- *
- * É o que a regeneração destrói: o editor mostra o texto de dentro, mas não
- * sabe redesenhar a forma, então um bloco reescrito volta para o arquivo sem
- * ela. Serve de sentinela para a gravação cirúrgica — se a caixa sobreviveu, o
- * XML original do bloco foi preservado.
+ * Uma caixa de texto ancorada, que o editor não redesenha: se ela sobrevive, o XML
+ * original do bloco foi preservado.
  */
 export async function docxWithTextBox(): Promise<Buffer> {
   const caixa =
@@ -384,11 +360,7 @@ export async function docxWithTextBox(): Promise<Buffer> {
 }
 
 /**
- * Um PNG quadrado de 4 × 4, do tamanho de um comentário.
- *
- * Quadrado de propósito: o documento que o usa pede uma caixa de 400 × 100, e é
- * a divergência entre a proporção do arquivo e a que o documento pede que o
- * teste observa.
+ * PNG de 4 × 4, quadrado para divergir da caixa de 400 × 100 que o documento pede.
  */
 const SQUARE_PNG = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAIAAAAmkwkpAAAADklEQVR4nGNwQAIMxHEAOEMMAfoZu1cAAAAASUVORK5CYII=',
@@ -406,12 +378,8 @@ const IMAGE_RELS = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 </Relationships>`
 
 /**
- * Documento com uma imagem esticada no fluxo do texto.
- *
- * O `.docx` diz em `wp:extent` de que tamanho a imagem é **na página**, e esse
- * tamanho não precisa ter a proporção do arquivo: quem arrasta um canto sem
- * travar a proporção estica a imagem, e o Word desenha esticado. Aqui um PNG
- * quadrado é declarado como 400 × 100 px — 3810000 × 952500 EMU.
+ * Imagem esticada no fluxo: o `wp:extent` dá o tamanho na página, sem a proporção do
+ * arquivo. O PNG quadrado é declarado como 400 × 100 px, 3810000 × 952500 EMU.
  */
 export async function docxWithStretchedImage(description?: string): Promise<Buffer> {
   const R = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships'
@@ -437,23 +405,15 @@ export async function docxWithStretchedImage(description?: string): Promise<Buff
   ])
 }
 
-/**
- * A mesma imagem, com texto alternativo (`wp:docPr/@descr`).
- *
- * É o `alt` do editor: o atributo novo precisa atravessar o schema sem que o
- * bloco seja dado como editado.
- */
+/** A mesma imagem, com o texto alternativo (`wp:docPr/@descr`) que atravessa o schema. */
 export async function docxWithDescribedImage(): Promise<Buffer> {
   return docxWithStretchedImage('Quadrado azul de teste')
 }
 
 /**
- * Tabela com a aparência que o editor representa: sombreamento e borda de
- * célula, célula mesclada na horizontal e linha de cabeçalho repetida.
- *
- * Cada uma vira atributo do nó (`shading`, `borders`, `colspan`, `colwidth`) ou
- * tipo de nó (`tableHeader`), e cada uma é uma chance de o schema devolver o nó
- * diferente do que o sidecar leu — e aí a tabela inteira seria regravada.
+ * Tabela com o que o editor representa: sombreamento e borda de célula, mesclagem
+ * horizontal e linha de cabeçalho, cada um um atributo ou tipo de nó que o schema
+ * pode devolver diferente.
  */
 export async function docxWithStyledCells(): Promise<Buffer> {
   const bordas =
@@ -480,11 +440,8 @@ export async function docxWithStyledCells(): Promise<Buffer> {
 }
 
 /**
- * Documento cujo cabeçalho é uma grade, como o cabeçalho corporativo do corpus.
- *
- * Duas linhas e três colunas, com a primeira coluna mesclada pelas duas linhas.
- * É a estrutura que, achatada em esquerda-centro-direita, virava uma fileira de
- * palavras por cima da primeira linha do texto.
+ * Cabeçalho em grade, como o corporativo do corpus: duas linhas e três colunas, a
+ * primeira mesclada pelas duas.
  */
 export async function docxWithHeaderGrid(): Promise<Buffer> {
   const borda =
@@ -501,8 +458,7 @@ export async function docxWithHeaderGrid(): Promise<Buffer> {
     `<w:tblGrid><w:gridCol w:w="2000"/><w:gridCol w:w="8000"/></w:tblGrid>` +
     `<w:tr>${celula('Selo', '2000', '<w:vMerge w:val="restart"/>')}${celula('Chamado 10001', '8000')}</w:tr>` +
     `<w:tr>${celula('', '2000', '<w:vMerge/>')}${celula('Título do documento', '8000')}</w:tr>` +
-    // Quatro linhas de propósito: assim a grade fica mais alta que a margem de
-    // cima, que é a situação em que o corpo tem de descer para debaixo dela.
+    // Quatro linhas: a grade passa da margem de cima, e o corpo tem de descer.
     `<w:tr>${celula('', '2000', '<w:vMerge/>')}${celula('Terceira linha do cabeçalho', '8000')}</w:tr>` +
     `<w:tr>${celula('', '2000', '<w:vMerge/>')}${celula('Quarta linha do cabeçalho', '8000')}</w:tr>` +
     `</w:tbl>`
@@ -543,10 +499,8 @@ export async function docxWithHeaderGrid(): Promise<Buffer> {
 }
 
 /**
- * Duas folhas com rodapé "Página {PAGE}" e `w:pgNumType` em romano a partir de 3.
- *
- * O rodapé tem texto próprio ("Página ") onde inserir campo, e o campo é um
- * `w:fldSimple` — como o Word grava o "Número da página" inserido pela faixa.
+ * Duas folhas com rodapé "Página {PAGE}" em `w:fldSimple`, como o Word grava o número
+ * inserido pela faixa, e `w:pgNumType` em romano a partir de 3.
  */
 export async function docxWithPageNumbering(): Promise<Buffer> {
   const footer = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -587,13 +541,9 @@ export async function docxWithPageNumbering(): Promise<Buffer> {
 }
 
 /**
- * Três seções: retrato, paisagem e retrato de novo, começando em ímpar.
- *
- * A primeira declara o rodapé "Página {PAGE}" e numera em romanos; as outras não
- * declaram faixa nenhuma e **herdam** a dela ("Vincular ao anterior"). A
- * segunda, em paisagem, termina num parágrafo com texto e reinicia a numeração
- * em 1; a terceira (a do corpo) começa em página ímpar — depois da folha 1 da
- * seção de paisagem, o Word insere uma folha em branco.
+ * Três seções: retrato com o rodapé "Página {PAGE}" em romanos; paisagem, herdando a
+ * faixa, terminada num parágrafo com texto e reiniciando em 1; e retrato começando
+ * em ímpar, onde o Word insere uma folha em branco.
  */
 export async function docxWithSections(): Promise<Buffer> {
   const footer = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -657,12 +607,8 @@ export async function docxWithColumns(): Promise<Buffer> {
 }
 
 /**
- * Documento com uma imagem **ancorada** no lugar do próprio parágrafo.
- *
- * É como o LibreOffice grava captura de tela: `wp:anchor` sem deslocamento
- * vertical, centralizada na coluna. Tratá-la como posição na folha fazia a
- * imagem deixar de ocupar altura — o texto se fechava por cima dela, e um
- * documento de trinta capturas encolhia de quinze folhas para quatro.
+ * Captura de tela ancorada no lugar do próprio parágrafo, como o LibreOffice grava:
+ * `wp:anchor` sem deslocamento vertical, centralizada, ocupando altura no fluxo.
  */
 export async function docxWithAnchoredScreenshot(): Promise<Buffer> {
   const R = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships'
@@ -693,20 +639,14 @@ export async function docxWithAnchoredScreenshot(): Promise<Buffer> {
 }
 
 /**
- * A mesma captura, dentro de um parágrafo **recuado**.
- *
- * O recuo do Word é uma medida — `w:ind/@left` —, e a captura ancorada não é
- * texto: no Word ela se posiciona pela coluna, e o recuo do parágrafo que a
- * carrega não a estreita. Enquanto ela era espremida, a altura encolhia junto,
- * e a legenda seguinte passava a caber numa folha em que o LibreOffice já não a
- * punha.
+ * A mesma captura num parágrafo recuado: no Word ela se posiciona pela coluna, e o
+ * recuo do parágrafo não a estreita.
  */
 export async function docxWithIndentedScreenshot(): Promise<Buffer> {
   const R = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships'
   const PIC = 'http://schemas.openxmlformats.org/drawingml/2006/picture'
 
-  // 3810000 EMU são 100,6 mm: cabem na coluna de 146,5 mm, mas não na caixa do
-  // parágrafo recuado meia polegada se o recuo a estreitar.
+  // 3810000 EMU são 100,6 mm: cabem na coluna de 146,5 mm, e não no parágrafo recuado.
   const imagem =
     `<w:p><w:pPr><w:ind w:left="720"/></w:pPr>` +
     `<w:r><w:drawing><wp:anchor distT="0" distB="0" distL="0" distR="0" simplePos="0" ` +
@@ -738,12 +678,8 @@ export async function docxWithIndentedScreenshot(): Promise<Buffer> {
 }
 
 /**
- * Capa como a do modelo de manual: o título mora numa caixa **posicionada**.
- *
- * `wp:anchor` com deslocamento de verdade e `wrapNone` — o texto não está no
- * fluxo, está numa posição da folha. É o caso em que a pessoa olha a capa,
- * quer trocar o título e não tem onde clicar, porque a caixa é desenhada fora
- * do `contenteditable`.
+ * Capa como a do modelo de manual: o título numa caixa posicionada (`wp:anchor` com
+ * deslocamento e `wrapNone`), desenhada fora do `contenteditable`.
  */
 export async function docxWithAnchoredTextBox(): Promise<Buffer> {
   const WPS = 'http://schemas.microsoft.com/office/word/2010/wordprocessingShape'
@@ -764,9 +700,7 @@ export async function docxWithAnchoredTextBox(): Promise<Buffer> {
     `<wps:bodyPr rot="0" vert="horz" wrap="square"/></wps:wsp>` +
     `</a:graphicData></a:graphic>` +
     `</wp:anchor></w:drawing></mc:Choice>` +
-    // O ramo de reserva é o VML antigo, como o Word grava: a mesma caixa
-    // escrita duas vezes. Salvar só uma deixaria o arquivo dizendo duas
-    // coisas, e qual delas aparece dependeria de quem abre.
+    // O ramo VML de reserva, como o Word grava: a mesma caixa duas vezes.
     `<mc:Fallback><w:pict xmlns:v="urn:schemas-microsoft-com:vml">` +
     `<v:shape id="Caixa" type="#_x0000_t202" style="position:absolute;width:299pt;height:159pt">` +
     `<v:textbox><w:txbxContent><w:p><w:r><w:t>Título da capa</w:t></w:r></w:p></w:txbxContent></v:textbox>` +
@@ -781,13 +715,9 @@ export async function docxWithAnchoredTextBox(): Promise<Buffer> {
 }
 
 /**
- * Cabeçalho num grupo de formas, como o corpus real o traz.
- *
- * Quatro dos seis documentos do corpus não têm o cabeçalho em parágrafos: têm
- * um grupo de formas ancorado, com o título dentro de uma caixa e o campo do
- * número da página dentro de outra. É a maioria dos casos, e é o caso em que a
- * caixa vem inteira — digitar dentro dela abre e fecha parágrafos, e endereçar
- * parágrafo a parágrafo quebraria no primeiro Enter.
+ * Cabeçalho num grupo de formas, como em quatro dos seis documentos do corpus: o
+ * título numa caixa e o número da página noutra. A caixa vem inteira, porque digitar
+ * nela abre e fecha parágrafos.
  */
 export async function docxWithHeaderTextBox(): Promise<Buffer> {
   const R = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships'
@@ -800,9 +730,7 @@ export async function docxWithHeaderTextBox(): Promise<Buffer> {
     `<wps:txbx><w:txbxContent>${dentro}</w:txbxContent></wps:txbx>` +
     `<wps:bodyPr/></wps:wsp>`
 
-  // A caixa da numeração traz o campo `PAGE`, que o leitor entrega como `{n}`.
-  // Ela não é editável: escrever o marcador de volta trocaria o campo por um
-  // número fixo, e o cabeçalho passaria a dizer a mesma folha em todas.
+  // A caixa da numeração traz `PAGE` como `{n}`, e não é editável: viraria número fixo.
   const numero =
     `<w:p><w:r><w:fldChar w:fldCharType="begin"/></w:r>` +
     `<w:r><w:instrText xml:space="preserve"> PAGE </w:instrText></w:r>` +
@@ -860,11 +788,8 @@ export async function docxWithHeaderTextBox(): Promise<Buffer> {
 }
 
 /**
- * Dois parágrafos que pedem espaço nos dois lados da junta.
- *
- * O Word e o LibreOffice **somam** o espaço depois de um com o espaço antes do
- * seguinte; o CSS funde as duas margens e fica com a maior. Meia linha por
- * junta, e ela se acumula até a folha cortar noutro lugar.
+ * Espaço dos dois lados da junta: o Word e o LibreOffice somam o depois de um com o
+ * antes do seguinte, e o CSS fica com a maior margem.
  */
 export async function docxWithSpacingOnBothSides(): Promise<Buffer> {
   const espacado = (antes: number, depois: number, texto: string): string =>
@@ -887,12 +812,8 @@ export async function docxWithSpacingOnBothSides(): Promise<Buffer> {
 }
 
 /**
- * Documento com sobrescrito e subscrito (`w:vertAlign`).
- *
- * A fórmula e o expoente — "H₂O" e "m²" — são o caso em que a formatação de
- * caractere muda o **sentido** do texto, e não só a aparência: "m2" não é "m²".
- * Enquanto o editor não tinha as duas marcas, o trecho abria na linha do texto e
- * voltava assim para o arquivo.
+ * Sobrescrito e subscrito (`w:vertAlign`), em que a formatação muda o sentido:
+ * "m2" não é "m²".
  */
 export async function docxWithVerticalAlignment(): Promise<Buffer> {
   const run = (align: string, texto: string): string =>
@@ -913,12 +834,8 @@ export async function docxWithVerticalAlignment(): Promise<Buffer> {
 }
 
 /**
- * Documento com uma lista de marcador declarada de verdade.
- *
- * A numeração mora em `word/numbering.xml`, e o parágrafo só aponta um `numId`.
- * É a estrutura em que a identidade do bloco é mais fácil de perder: no arquivo
- * a lista são parágrafos irmãos, e na árvore do editor é um elemento de verdade
- * com os itens dentro.
+ * Lista de marcador declarada em `word/numbering.xml`: no arquivo, parágrafos irmãos
+ * que apontam um `numId`; no editor, um elemento com os itens dentro.
  */
 export async function docxWithBulletList(): Promise<Buffer> {
   const item = (texto: string): string =>
@@ -1014,20 +931,15 @@ export async function docxWithMultilevelList(): Promise<Buffer> {
 }
 
 /**
- * Documento com uma tabela, e uma tabela dentro de uma célula dela.
- *
- * A célula é o único lugar do modelo em que um bloco mora dentro de outro, e a
- * tabela aninhada é a estrutura mais nova do leitor. Também é onde a impressão
- * digital tem mais como divergir sem ninguém notar: a largura da coluna, a
- * mesclagem e o estilo não viajam no modelo, e o que viaja atravessa dois níveis
- * de `content`.
+ * Uma tabela com outra dentro de uma célula, o único lugar em que um bloco mora em
+ * outro: largura, mesclagem e estilo não viajam no modelo, e o que viaja atravessa
+ * dois níveis de `content`.
  */
 export async function docxWithTable(): Promise<Buffer> {
   const cell = (text: string, width = 4500): string =>
     `<w:tc><w:tcPr><w:tcW w:w="${width}" w:type="dxa"/></w:tcPr>${paragraph(text)}</w:tc>`
 
-  // A célula que recebe a tabela de dentro termina em parágrafo: `w:tc` que
-  // termina em `w:tbl` é inválido para o Word.
+  // `w:tc` que termina em `w:tbl` é inválido para o Word.
   const inner =
     `<w:tbl><w:tblPr><w:tblStyle w:val="GradeInterna"/></w:tblPr>` +
     `<w:tblGrid><w:gridCol w:w="2000"/></w:tblGrid>` +
@@ -1060,8 +972,6 @@ export async function docxWithoutExtras(): Promise<Buffer> {
   ])
 }
 
-// --- ZIP mínimo, com entradas armazenadas ----------------------------------
-
 const CRC_TABLE = Array.from({ length: 256 }, (_, n) => {
   let c = n
   for (let k = 0; k < 8; k++) c = (c & 1) === 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1
@@ -1087,8 +997,7 @@ function zip(entries: Array<[string, string | Buffer]>): Buffer {
     const local = Buffer.alloc(30)
     local.writeUInt32LE(0x04034b50, 0)
     local.writeUInt16LE(20, 4) // versão mínima
-    // Método 0 = armazenado. Sem data: o conteúdo é o que importa, e uma data
-    // fixa deixa o fixture reprodutível byte a byte.
+    // Método 0 = armazenado. Sem data, para o fixture ser reprodutível.
     local.writeUInt32LE(checksum, 14)
     local.writeUInt32LE(data.length, 18)
     local.writeUInt32LE(data.length, 22)
@@ -1123,11 +1032,8 @@ function zip(entries: Array<[string, string | Buffer]>): Buffer {
 }
 
 /**
- * O conteúdo de uma parte de dentro de um `.docx`, sem descompactar em disco.
- *
- * O `.docx` que o aplicativo grava tem as entradas comprimidas; o que estes
- * fixtures produzem, não. O leitor cobre os dois porque é o mesmo teste que
- * escreve um e lê o outro.
+ * O conteúdo de uma parte do `.docx`, sem descompactar em disco. Lê entradas
+ * comprimidas, como as do aplicativo, e armazenadas, como as destes fixtures.
  */
 export async function entryOf(path: string, name: string): Promise<string> {
   const { readFile } = await import('node:fs/promises')
@@ -1155,13 +1061,9 @@ export async function entryOf(path: string, name: string): Promise<string> {
 }
 
 /**
- * Documento em português com estilos de verdade em `word/styles.xml`.
- *
- * É a forma do corpus real, e a que o painel de estilos existe para mostrar: o id
- * do estilo é **traduzido** (`Ttulo1`, sem acento, como o Word o grava) e o nome
- * interno não (`heading 1`). Um parágrafo aponta um estilo criado por quem
- * escreveu o documento (`Citao`), e é ele que tem de aparecer como o estilo do
- * cursor — nada disso está no parágrafo, está todo no arquivo de estilos.
+ * Estilos como no corpus: o id traduzido (`Ttulo1`, como o Word grava) e o nome
+ * interno não (`heading 1`), e um parágrafo no estilo do autor (`Citao`), que o
+ * painel mostra como o estilo do cursor.
  */
 export async function docxWithNamedStyles(extraParagraphs = ''): Promise<Buffer> {
   const styles = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -1204,11 +1106,9 @@ export async function docxWithNamedStyles(extraParagraphs = ''): Promise<Buffer>
 }
 
 /**
- * Os mesmos estilos, com formatação **direta** por cima deles: recuo zero que
- * desfaz o da citação, "manter com o próximo" desligado, espaço e entrelinha
- * declarados só em parte, e a fonte da marca de parágrafo. É o que o leitor passa
- * a levar para o bloco — e só isso —, então é aqui que a impressão digital dos
- * dois lados tem de continuar concordando.
+ * Os mesmos estilos com formatação direta por cima: recuo zero sobre a citação,
+ * "manter com o próximo" desligado, espaço e entrelinha em parte e a fonte da marca
+ * de parágrafo. É só isso que o bloco leva.
  */
 export async function docxWithDirectOverStyles(): Promise<Buffer> {
   const p = (props: string, text: string): string =>
@@ -1223,13 +1123,10 @@ export async function docxWithDirectOverStyles(): Promise<Buffer> {
 }
 
 /**
- * As referências do Word, na forma exata em que ele as grava.
- *
- * Sumário num controle de conteúdo, com o campo `TOC` abrindo num parágrafo e
- * fechando noutro e um `PAGEREF` dentro de cada link; títulos com os marcadores
- * ocultos `_Toc…`; um marcador do autor cuja ponta final mora **no corpo**, entre
- * dois parágrafos; legenda com `SEQ`; referência cruzada com `REF` e `PAGEREF`; e
- * link interno. É o mesmo documento de `Fixtures.WithReferences` do sidecar.
+ * As referências do Word como ele as grava, o mesmo documento de
+ * `Fixtures.WithReferences`: sumário num controle de conteúdo com `TOC` entre
+ * parágrafos e `PAGEREF` nos links, `_Toc…`, marcador com a ponta no corpo, `SEQ`,
+ * `REF` e link interno.
  */
 export const REFERENCES_BODY =
   '<w:sdt><w:sdtPr><w:id w:val="-1"/><w:docPartObj><w:docPartGallery w:val="Table of Contents"/><w:docPartUnique/></w:docPartObj></w:sdtPr><w:sdtEndPr/><w:sdtContent><w:p><w:pPr><w:pStyle w:val="CabealhodoSumrio"/></w:pPr><w:r><w:t>Sumário</w:t></w:r></w:p>' +
@@ -1278,8 +1175,7 @@ export async function docxWithReferences(body = REFERENCES_BODY): Promise<Buffer
 
 /** Tabela longa em A4 com margens de 25 mm: uma única estrutura, muitas folhas. */
 export async function docxWithLongTable(rows = 80, header = false): Promise<Buffer> {
-  // Com `header`, a primeira linha é de cabeçalho (`w:tblHeader`), a que o Word
-  // repete no alto de cada folha.
+  // Com `header`, a primeira linha é a que o Word repete no alto de cada folha.
   const table =
     '<w:tbl><w:tblPr/><w:tblGrid><w:gridCol w:w="9000"/></w:tblGrid>' +
     (header

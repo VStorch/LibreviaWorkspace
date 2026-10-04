@@ -8,12 +8,9 @@ import { launch, menu, stubDialogs, type Session } from './app.js'
 import { docxWithMultilevelList, entryOf } from './fixtures.js'
 
 /**
- * Listas multinível: a marca de cada item é a que o Word desenharia.
- *
- * O contador do CSS recomeça a cada lista e só conhece um formato; o documento
- * de teste tem o que ele não sabe fazer — o segundo nível compondo o primeiro
- * (`1.a)`), a lista que continua do outro lado de um parágrafo (`3.`) e um
- * reinício no mesmo documento (`10.`).
+ * Listas multinível com a marca que o Word desenharia: o segundo nível compõe o
+ * primeiro (`1.a)`), a lista continua depois de um parágrafo (`3.`) e reinicia (`10.`),
+ * o que o contador do CSS não faz.
  */
 test.describe('listas multinível', () => {
   let session: Session

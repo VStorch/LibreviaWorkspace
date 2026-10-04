@@ -8,17 +8,10 @@ import { expect, test } from '@playwright/test'
 import { launch, menu, type Session } from './app.js'
 
 /**
- * As fontes empacotadas chegam à tela.
- *
- * O documento pede Calibri, Cambria, Arial e Times New Roman; nenhuma existe num
- * Linux limpo, e o que o sistema põe no lugar tem métrica própria — a linha
- * quebra noutro ponto e a contagem de páginas muda. As substitutas viajam no
- * instalador e são servidas por um esquema próprio (`src/main/fonts.ts`).
- *
- * O teste carrega a fonte **pela URL**, e não pelo nome: quem programa costuma
- * ter as fontes do sistema instaladas, e aí a regra resolve pelo `local()` sem
- * nunca tocar no arquivo empacotado. O caminho que quebra na máquina do usuário
- * é justamente o que o `local()` esconde aqui.
+ * As fontes empacotadas chegam à tela: Calibri, Cambria, Arial e Times New Roman não
+ * existem num Linux limpo, e as substitutas viajam no instalador
+ * (`src/main/fonts.ts`). Carregadas pela URL, e não pelo nome, porque o `local()`
+ * esconderia o arquivo empacotado na máquina de quem programa.
  */
 test.describe('fontes empacotadas', () => {
   let session: Session

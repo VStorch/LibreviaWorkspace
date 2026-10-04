@@ -5,16 +5,9 @@ import { expect, test, type Page } from '@playwright/test'
 import { launch, menu, stubDialogs, type Session } from './app.js'
 
 /**
- * O caminho inteiro do `.xlsx`, num teste só.
- *
- * Vale mais que a soma dos testes de unidade que ele atravessa, porque nenhum
- * deles vê a cadeia completa: React → IPC → processo main → tradução de fórmula
- * → quadro binário → sidecar .NET → ClosedXML → disco, e a volta toda. Um erro
- * em qualquer elo aparece aqui, e só aqui.
- *
- * A planilha é criada pelo próprio aplicativo em vez de vir de um `.xlsx`
- * versionado: um binário no git é uma caixa preta que ninguém confere, e o
- * mesmo princípio dos fixtures do sidecar vale aqui.
+ * O caminho inteiro do `.xlsx`, que nenhum teste de unidade vê: React → IPC → main →
+ * tradução de fórmula → quadro binário → sidecar → ClosedXML → disco, e a volta. A
+ * planilha é criada pelo próprio aplicativo.
  */
 test.describe('planilha em .xlsx', () => {
   let session: Session
@@ -45,32 +38,25 @@ test.describe('planilha em .xlsx', () => {
 
     await menu(session, 'save-as')
     await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
-    // Conferido no disco, e não só na tela: se a gravação ainda estivesse em
-    // curso, o "fechar" logo abaixo abriria o aviso de descarte e o teste
-    // falharia três passos adiante, num lugar que não explica nada.
+    // No disco, e não só na tela: com a gravação em curso, fechar abriria o aviso de descarte.
     await expect.poll(() => exists(target), { timeout: 30_000 }).toBe(true)
 
-    // Fechar e reabrir de verdade: recarregar o modelo da memória não provaria
-    // que o arquivo em disco tem o que precisa ter.
+    // Fechar e reabrir: o modelo da memória não prova o que está no disco.
     await menu(session, 'close-file')
     await menu(session, 'open')
     await gridReady(session.window)
 
     await expect(cell(session.window, 2, 0)).toHaveText('37,5')
 
-    // O valor podia ter sido gravado como número solto. A fórmula na barra é o
-    // que prova que ela sobreviveu à ida e à volta — e que voltou em português.
+    // A fórmula na barra prova que ela voltou, e em português.
     await select(session.window, 2, 0)
     await expect(session.window.locator('.formula-bar__input')).toHaveValue('=A1*A2')
   })
 })
 
 /**
- * Uma célula da grade, pelas coordenadas base zero.
- *
- * O `revogr-overlay-selection` no caminho não é enfeite: os cabeçalhos de linha
- * usam o mesmo `revogr-data` e as mesmas coordenadas, então sem ele o seletor
- * casa primeiro com o número da linha — que não seleciona nada ao ser clicado.
+ * Uma célula da grade, pelas coordenadas base zero. O `revogr-overlay-selection`
+ * evita casar com o cabeçalho de linha, que usa as mesmas coordenadas.
  */
 function cell(window: Page, row: number, column: number) {
   return window
@@ -85,10 +71,7 @@ async function gridReady(window: Page): Promise<void> {
 }
 
 async function select(window: Page, row: number, column: number): Promise<void> {
-  // O clique repete até a seleção mover. A grade se redesenha depois de abrir o
-  // arquivo, e um clique só, disparado no meio disso, cai numa célula que já
-  // saiu do lugar — a seleção ficava em A1 e o teste reprovava três passos
-  // adiante, num lugar que não explica nada.
+  // O clique repete até a seleção mover: a grade se redesenha depois de abrir.
   await expect(async () => {
     await cell(window, row, column).click()
     await expect(window.locator('.formula-bar__ref')).toHaveText(reference(row, column), {

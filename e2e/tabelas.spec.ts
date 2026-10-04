@@ -9,10 +9,8 @@ import { launch, menu, stubDialogs, type Session } from './app.js'
 import { docxWithLongTable, docxWithStretchedImage, docxWithTable, entryOf } from './fixtures.js'
 
 /**
- * Tabelas e imagens editáveis.
- *
- * Confere o caminho que a pessoa usa — o menu "Tabela", o botão direito dentro
- * da célula, o diálogo de propriedades e as alças da imagem.
+ * Tabelas e imagens editáveis, pelo caminho da pessoa: o menu "Tabela", o botão
+ * direito na célula, o diálogo de propriedades e as alças da imagem.
  */
 test.describe('tabelas e imagens editáveis', () => {
   let session: Session
@@ -44,11 +42,8 @@ test.describe('tabelas e imagens editáveis', () => {
   })
 
   /**
-   * A tabela vem do arquivo, e não do comando de inserir, de propósito: o
-   * histórico junta numa entrada só as mudanças vizinhas feitas em menos de meio
-   * segundo, e uma tabela inserida logo antes da linha iria embora no mesmo
-   * desfazer. A tabela lida não é transação nenhuma, então o desfazer só tem a
-   * linha para voltar — que é o que este teste quer conferir.
+   * A tabela vem do arquivo: o histórico junta mudanças vizinhas de menos de meio
+   * segundo, e uma tabela inserida iria embora no mesmo desfazer da linha.
    */
   test('o botão direito dentro da tabela oferece as ações dela', async () => {
     const origem = join(pasta, 'tabela.docx')
@@ -79,16 +74,9 @@ test.describe('tabelas e imagens editáveis', () => {
     await expect.poll(linhas).toBe(2)
   })
 
-  /**
-   * O que se perde **ao gravar** aparece na mesma faixa do que se perde ao abrir.
-   *
-   * O sidecar registrava a perda, o processo main a devolvia, e o renderer só
-   * olhava o inventário na abertura: a mesclagem vertical feita na tela sumia do
-   * arquivo e a pessoa via "Salvo".
-   */
+  /** O que se perde ao gravar aparece na mesma faixa do que se perde ao abrir. */
   test('a perda na hora de salvar aparece na faixa de aviso', async () => {
-    // Gravar em `.docx` pede um `.docx` de origem: é sobre ele que o sidecar
-    // escreve. A tabela mesclada é inserida nele.
+    // Gravar em `.docx` pede um `.docx` de origem, onde a tabela mesclada entra.
     const origem = join(pasta, 'mesclada.docx')
     await writeFile(origem, await docxWithTable())
     await stubDialogs(session.app, { open: origem, messageBox: 1 })
@@ -159,8 +147,7 @@ test.describe('tabelas e imagens editáveis', () => {
     const caixa = await alça.boundingBox()
     if (caixa === null) throw new Error('a alça não apareceu')
 
-    // Muitos passos de propósito: se cada um virasse transação, o desfazer abaixo
-    // voltaria só o último pixel.
+    // Muitos passos: se cada um virasse transação, o desfazer voltaria só o último.
     await session.window.mouse.move(caixa.x + 5, caixa.y + 5)
     await session.window.mouse.down()
     await session.window.mouse.move(caixa.x - 95, caixa.y + 5, { steps: 20 })
@@ -247,16 +234,12 @@ test.describe('tabelas e imagens editáveis', () => {
     await expect(imagem).toBeVisible()
     await imagem.click()
 
-    // Pelo teclado, e não arrastando: o ponteiro para na borda da janela, e o
-    // tamanho dela decidiria se o teste chega ao teto. Cinquenta passos de oito
-    // pixels passam de qualquer coluna.
+    // Pelo teclado: o ponteiro para na borda da janela. Cinquenta passos de oito pixels passam de qualquer coluna.
     const alça = session.window.getByRole('button', { name: 'Redimensionar imagem pela borda da direita' })
     await alça.focus()
     for (let passo = 0; passo < 50; passo += 1) await session.window.keyboard.press('ArrowRight')
 
-    // O teto é a coluna, medida no parágrafo — e não no embrulho em linha do
-    // NodeView, cuja largura é zero e deixava o teto infinito. O CSS escondia o
-    // excesso na tela, mas a medida pedida ia ao arquivo.
+    // O teto é a coluna medida no parágrafo, e não no embrulho em linha do NodeView, de largura zero.
     const medidas = await session.window.evaluate(() => {
       const img = document.querySelector('.page__content .image-frame img') as HTMLImageElement
       return {
@@ -269,13 +252,8 @@ test.describe('tabelas e imagens editáveis', () => {
   })
 
   /**
-   * A imagem redimensionada continua no parágrafo dela, com o desenho dela.
-   *
-   * O editor tratava a imagem como bloco, e a que vem do `.docx` mora dentro de
-   * um parágrafo. A primeira mudança de atributo não cabia ali: o ProseMirror
-   * partia o parágrafo, a imagem descia para um novo e o original ficava vazio —
-   * dois blocos reescritos, o `wp:docPr` "Quadrado" trocado por "Imagem 2", o
-   * relacionamento trocado, e o desfazer sem efeito.
+   * A imagem do `.docx` mora num parágrafo: redimensioná-la não a parte para outro,
+   * nem troca o `wp:docPr` e o relacionamento, e o desfazer funciona.
    */
   test('redimensionar a imagem do arquivo não a tira do parágrafo', async () => {
     const origem = join(pasta, 'imagem.docx')

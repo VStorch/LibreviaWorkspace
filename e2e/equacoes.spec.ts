@@ -128,8 +128,6 @@ test.describe('equações', () => {
     expect(texto).toContain('Fim.')
   })
 
-  // --- o editor de equações --------------------------------------------------
-
   test('inserir pelo menu, digitar o LaTeX, desfazer e refazer; salvar em .docx e reabrir', async () => {
     const destino = join(pasta, 'nova.docx')
     await stubDialogs(session.app, { save: destino, open: destino, messageBox: 1 })
@@ -224,8 +222,6 @@ test.describe('equações', () => {
     await menu(session, 'open')
     await expect(editor.locator('.equacao').nth(0).locator('math msup mn')).toHaveText('3')
   })
-
-  // --- exportações e integração ----------------------------------------------
 
   test('exportar em HTML, Markdown e ODT leva as equações', async () => {
     const origem = join(pasta, 'relatorio.docx')
