@@ -280,15 +280,6 @@ export function contentInsetsMm(page: PageSetup, bands: BandHeights): { top: num
   }
 }
 
-/** Conversão CSS: 1 polegada = 96 px = 25,4 mm. */
-export function mmToPx(mm: number): number {
-  return (mm * 96) / 25.4
-}
-
-export function pxToMm(px: number): number {
-  return (px * 25.4) / 96
-}
-
 /** Margens que somam mais que a página dariam área de texto negativa. */
 export function isValidMargins(page: PageSetup): boolean {
   const { width, height } = pageDimensionsMm(page)

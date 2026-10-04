@@ -1,6 +1,7 @@
 import type { Editor } from '@tiptap/react'
 import { DOMSerializer, Fragment, Node as ProseMirrorNode } from '@tiptap/pm/model'
-import { pxToMm, type PageSetup } from '@services/document/model.js'
+import { type PageSetup } from '@services/document/model.js'
+import { pxToMm } from '@services/units.js'
 import { bandFloatsOf, floatsOf, type FloatingObject } from '@services/document/floating.js'
 import type { PrintFloat, PrintNoteArea, PrintPage } from '@services/document/print-pages.js'
 import { drawListsForPrint } from './extensions/list-numbering.js'

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { pxToMm, type PageSetup } from '@services/document/model.js'
+import { type PageSetup } from '@services/document/model.js'
+import { pxToMm } from '@services/units.js'
 import { type BandHeights } from '@services/document/band.js'
 
 /**

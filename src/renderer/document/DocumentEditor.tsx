@@ -9,12 +9,11 @@ import { styleSheetCss } from '@services/document/style-css.js'
 import { plainPasteContent } from '@services/document/paste.js'
 import {
   contentInsetsMm,
-  mmToPx,
   pageDimensionsMm,
-  pxToMm,
   type DocumentNode,
   type PageSetup,
 } from '@services/document/model.js'
+import { mmToPx, pxToMm } from '@services/units.js'
 import { editBandFloat, editBandPiece } from '@services/document/band.js'
 import {
   columnGeometry,

@@ -7,20 +7,9 @@ import {
   buildNativePrintOptions,
   buildPrintOptions,
   marginFitsHeaderOrFooter,
-  mmToInches,
 } from './page-setup.js'
 
 const withPage = (overrides: Partial<PageSetup>): PageSetup => ({ ...DEFAULT_PAGE_SETUP, ...overrides })
-
-describe('mmToInches', () => {
-  it.each([
-    [25.4, 1],
-    [12.7, 0.5],
-    [0, 0],
-  ])('converte %i mm em %f polegada', (mm, inches) => {
-    expect(mmToInches(mm)).toBeCloseTo(inches, 10)
-  })
-})
 
 describe('buildPrintOptions', () => {
   it('converte as margens de milímetros para polegadas', () => {

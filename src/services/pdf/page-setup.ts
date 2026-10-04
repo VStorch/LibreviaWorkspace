@@ -1,13 +1,6 @@
 import { PageOrientation, PageSize, type PageSetup } from '@services/document/model.js'
 import { hasBandContent, type Band, type BandPiece } from '@services/document/band.js'
-
-/** O Chromium trabalha em polegadas, e o modelo em milímetros: a conversão mora aqui. */
-
-export const MM_PER_INCH = 25.4
-
-export function mmToInches(mm: number): number {
-  return mm / MM_PER_INCH
-}
+import { mmToInches, mmToPx } from '@services/units.js'
 
 export interface PdfMargins {
   readonly top: number
@@ -124,16 +117,12 @@ export function buildNativePrintOptions(page: PageSetup): NativePrintOptions {
     printBackground: true,
     margins: {
       marginType: 'custom',
-      top: Math.round(mmToPixels(page.margins.top)),
-      bottom: Math.round(mmToPixels(page.margins.bottom)),
-      left: Math.round(mmToPixels(page.margins.left)),
-      right: Math.round(mmToPixels(page.margins.right)),
+      top: Math.round(mmToPx(page.margins.top)),
+      bottom: Math.round(mmToPx(page.margins.bottom)),
+      left: Math.round(mmToPx(page.margins.left)),
+      right: Math.round(mmToPx(page.margins.right)),
     },
   }
-}
-
-export function mmToPixels(mm: number): number {
-  return (mm / MM_PER_INCH) * 96
 }
 
 /**

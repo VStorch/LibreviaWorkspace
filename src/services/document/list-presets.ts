@@ -3,6 +3,7 @@
  * desce ao nível seguinte, que tem de estar definido.
  */
 
+import { twipsToMm } from '@services/units.js'
 import { LIST_LEVELS, defaultLevels, type LevelDef } from './list-numbering.js'
 
 export interface ListPreset {
@@ -12,7 +13,7 @@ export interface ListPreset {
   readonly levels: readonly LevelDef[]
 }
 
-const twipsToMm = (twips: number): number => Math.round((twips / 1440) * 25.4 * 100) / 100
+const twipsToRoundedMm = (twips: number): number => Math.round(twipsToMm(twips) * 100) / 100
 
 const levels = (build: (level: number) => Omit<LevelDef, 'start'> & { start?: number }): LevelDef[] =>
   Array.from({ length: LIST_LEVELS }, (_, level) => ({ start: 1, ...build(level) }))
@@ -47,8 +48,8 @@ export const LIST_PRESETS: readonly ListPreset[] = [
     levels: levels((level) => ({
       fmt: 'decimal',
       text: Array.from({ length: level + 1 }, (_, index) => `%${index + 1}.`).join(''),
-      indentMm: twipsToMm([360, 792, 1224, 1728, 2232, 2736, 3240, 3744, 4320][level]!),
-      hangingMm: twipsToMm([360, 432, 504, 648, 792, 936, 1080, 1224, 1440][level]!),
+      indentMm: twipsToRoundedMm([360, 792, 1224, 1728, 2232, 2736, 3240, 3744, 4320][level]!),
+      hangingMm: twipsToRoundedMm([360, 432, 504, 648, 792, 936, 1080, 1224, 1440][level]!),
     })),
   },
   {
@@ -58,8 +59,8 @@ export const LIST_PRESETS: readonly ListPreset[] = [
     levels: levels((level) => ({
       fmt: ['upperRoman', 'upperLetter', 'decimal', 'lowerLetter', 'lowerRoman'][level % 5]!,
       text: `%${level + 1}.`,
-      indentMm: twipsToMm(720 * (level + 1)),
-      hangingMm: twipsToMm(360),
+      indentMm: twipsToRoundedMm(720 * (level + 1)),
+      hangingMm: twipsToRoundedMm(360),
     })),
   },
   {
@@ -69,8 +70,8 @@ export const LIST_PRESETS: readonly ListPreset[] = [
     levels: levels((level) => ({
       fmt: ['decimal', 'lowerLetter', 'lowerRoman'][level % 3]!,
       text: `%${level + 1})`,
-      indentMm: twipsToMm(720 * (level + 1)),
-      hangingMm: twipsToMm(360),
+      indentMm: twipsToRoundedMm(720 * (level + 1)),
+      hangingMm: twipsToRoundedMm(360),
     })),
   },
   {
@@ -86,8 +87,8 @@ export const LIST_PRESETS: readonly ListPreset[] = [
     levels: levels((level) => ({
       fmt: 'bullet',
       text: ['➢', '▪', '•'][level % 3]!,
-      indentMm: twipsToMm(720 * (level + 1)),
-      hangingMm: twipsToMm(360),
+      indentMm: twipsToRoundedMm(720 * (level + 1)),
+      hangingMm: twipsToRoundedMm(360),
     })),
   },
   {
@@ -97,8 +98,8 @@ export const LIST_PRESETS: readonly ListPreset[] = [
     levels: levels((level) => ({
       fmt: 'bullet',
       text: '–',
-      indentMm: twipsToMm(720 * (level + 1)),
-      hangingMm: twipsToMm(360),
+      indentMm: twipsToRoundedMm(720 * (level + 1)),
+      hangingMm: twipsToRoundedMm(360),
     })),
   },
 ]

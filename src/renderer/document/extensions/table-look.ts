@@ -12,7 +12,7 @@ import {
   type CellLook,
   type TableDraft,
 } from '@services/document/table-format.js'
-import { mmToPx, pxToMm } from '@services/document/model.js'
+import { mmToPx, pxToMm, twipsToPx } from '@services/units.js'
 
 /**
  * O TableKit dá a estrutura, e nenhuma aparência. `applyTableDraft` escreve o
@@ -267,8 +267,7 @@ export function cellMarginsCss(value: unknown): string | null {
   if (typeof value !== 'string') return null
   const sides = value.trim().split(/\s+/).map(Number)
   if (sides.length !== 4 || sides.some((side) => !Number.isFinite(side) || side < 0)) return null
-  // Twips para pixels de CSS: 1440 por polegada, 96 px por polegada.
-  return sides.map((side) => `${Math.round((side / 15) * 100) / 100}px`).join(' ')
+  return sides.map((side) => `${Math.round(twipsToPx(side) * 100) / 100}px`).join(' ')
 }
 
 /** Sem descer em parágrafos: percorrer o texto a cada edição custaria o documento por tecla. */

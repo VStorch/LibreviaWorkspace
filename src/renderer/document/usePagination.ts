@@ -16,11 +16,11 @@ import type { StyleSheet } from '@services/document/styles.js'
 import {
   contentHeightMm,
   contentInsetsMm,
-  mmToPx,
   pageDimensionsMm,
   type PageSetup,
   type SectionSetup,
 } from '@services/document/model.js'
+import { mmToPx } from '@services/units.js'
 import { NO_BANDS, type BandHeights } from '@services/document/band.js'
 import {
   blockSections,

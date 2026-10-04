@@ -1,3 +1,4 @@
+import { pxToPt } from '@services/units.js'
 import { firstFontOf, lineFactorOf } from './line-metrics.js'
 import type { StyleCharacterFormat, StyleParagraphFormat } from './styles.js'
 
@@ -87,7 +88,7 @@ export function pointsOf(value: unknown): number | null {
   if (match === null) return null
   const number = Number(match[1])
   if (!(number > 0)) return null
-  return match[2]?.toLowerCase() === 'px' ? number * 0.75 : number
+  return match[2]?.toLowerCase() === 'px' ? pxToPt(number) : number
 }
 
 /** As cores com nome que o leitor pode trazer — as do realce do Word e as básicas do CSS. */

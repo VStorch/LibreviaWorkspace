@@ -1,3 +1,4 @@
+import { INDENT_STEP_MM, pxToMm } from '@services/units.js'
 import { hasBandContent, linesOf, plainBand, type Band, type BandPiece } from './band.js'
 import {
   imageData,
@@ -14,7 +15,6 @@ import type { ListInfo } from './list-numbering.js'
 import {
   contentWidthMm,
   pageDimensionsMm,
-  pxToMm,
   type DocumentModel,
   type DocumentNode,
   type PageSetup,
@@ -81,9 +81,6 @@ const NAMESPACES = [
 ].join(' ')
 
 const XML_HEAD = '<?xml version="1.0" encoding="UTF-8"?>\n'
-
-/** O passo do recuo por nível (`Ctrl+]`), o mesmo do gravador. */
-const INDENT_STEP_MM = 12.7
 
 /** A margem de célula padrão do Word: 0,19 cm dos lados, nada em cima e embaixo. */
 const CELL_PADDING =

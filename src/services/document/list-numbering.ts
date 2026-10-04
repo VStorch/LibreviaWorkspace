@@ -6,6 +6,8 @@
  * lista (`numbering`), como em `ListLevels.cs`.
  */
 
+import { INDENT_STEP_MM } from '@services/units.js'
+
 /** Um nível da definição: `w:lvl`. */
 export interface LevelDef {
   /** `w:numFmt`: `decimal`, `lowerLetter`, `upperRoman`, `bullet`, `none`… */
@@ -34,8 +36,7 @@ export interface NumberingDef {
 export const LIST_LEVELS = 9
 export const LIST_TYPES: readonly string[] = ['bulletList', 'orderedList']
 
-const INDENT_STEP_MM = 12.7
-const HANGING_MM = 6.35
+const HANGING_MM = INDENT_STEP_MM / 2
 
 const round2 = (value: number): number => Math.round(value * 100) / 100
 

@@ -9,6 +9,7 @@
  *   deslocamento do Word); no diálogo, uma escolha e uma medida positiva.
  */
 
+import { INDENT_STEP_MM } from '@services/units.js'
 import { cssLineHeightOf, explicitCssLineHeightOf, lineFactorOf } from './line-metrics.js'
 
 export const LineSpacingKind = {
@@ -61,9 +62,6 @@ export interface ParagraphDraft {
   /** Viúvas e órfãs: ligado quando nada diz o contrário, como no Word. */
   readonly widowControl: boolean
 }
-
-/** Meia polegada, em milímetros: o passo de recuo do OOXML (720 twips). */
-export const INDENT_STEP_MM = 12.7
 
 export const MAX_SPACING_PT = 600
 export const MAX_INDENT_MM = 200

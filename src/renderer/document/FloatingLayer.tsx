@@ -6,7 +6,8 @@ import {
   Node as ProseMirrorNode,
   type Schema,
 } from '@tiptap/pm/model'
-import { mmToPx, type DocumentNode, type PageSetup } from '@services/document/model.js'
+import { type DocumentNode, type PageSetup } from '@services/document/model.js'
+import { mmToPx } from '@services/units.js'
 import { frameOf, placeFloating, type FloatingObject } from '@services/document/floating.js'
 
 /**

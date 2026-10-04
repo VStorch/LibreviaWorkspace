@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
+import { INDENT_STEP_MM } from '@services/units.js'
 import { lineFactorOf } from './line-metrics.js'
 import {
   DEFAULT_PARAGRAPH_DRAFT,
   FirstLineKind,
-  INDENT_STEP_MM,
   LineSpacingKind,
   MAX_LINE_FACTOR,
   MIN_LINE_FACTOR,

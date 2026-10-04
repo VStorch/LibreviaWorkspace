@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import type { Editor } from '@tiptap/react'
 import type { MessageKey } from '@shared/i18n/index.js'
-import { contentWidthMm, mmToPx } from '@services/document/model.js'
+import { contentWidthMm } from '@services/document/model.js'
+import { mmToPx } from '@services/units.js'
 import {
   CELL_BORDER_SIDES,
   CellBorderStyle,
