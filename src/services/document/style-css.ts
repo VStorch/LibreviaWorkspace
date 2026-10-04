@@ -110,24 +110,30 @@ function characterCss({ paragraph, character }: ResolvedStyle): Array<[string, s
 
 /** O que o estilo de caractere cala é do parágrafo. */
 function declaredCharacterCss(character: StyleCharacterFormat): Array<[string, string]> {
-  const css: Array<[string, string]> = []
-  if (character.fontFamily !== undefined) css.push(['font-family', fontStackOf(character.fontFamily)])
-  if (character.fontSize !== undefined) css.push(['font-size', character.fontSize])
-  if (character.bold !== undefined) css.push(['font-weight', character.bold ? '700' : '400'])
-  if (character.italic !== undefined) css.push(['font-style', character.italic ? 'italic' : 'normal'])
-  if (character.underline === true || character.strike === true) {
-    const lines = [
-      character.underline === true ? 'underline' : '',
-      character.strike === true ? 'line-through' : '',
-    ]
-    css.push(['text-decoration', lines.filter((line) => line !== '').join(' ')])
-  }
-  if (character.allCaps !== undefined) css.push(['text-transform', character.allCaps ? 'uppercase' : 'none'])
-  if (character.smallCaps !== undefined)
-    css.push(['font-variant', character.smallCaps ? 'small-caps' : 'normal'])
-  if (character.color !== undefined) css.push(['color', character.color])
-  if (character.highlight !== undefined) css.push(['background-color', character.highlight])
-  return css
+  const declared: Array<[string, string | undefined]> = [
+    ['font-family', mapDefined(character.fontFamily, fontStackOf)],
+    ['font-size', character.fontSize],
+    ['font-weight', mapDefined(character.bold, (bold) => (bold ? '700' : '400'))],
+    ['font-style', mapDefined(character.italic, (italic) => (italic ? 'italic' : 'normal'))],
+    ['text-decoration', declaredDecoration(character)],
+    ['text-transform', mapDefined(character.allCaps, (caps) => (caps ? 'uppercase' : 'none'))],
+    ['font-variant', mapDefined(character.smallCaps, (small) => (small ? 'small-caps' : 'normal'))],
+    ['color', character.color],
+    ['background-color', character.highlight],
+  ]
+  return declared.filter((entry): entry is [string, string] => entry[1] !== undefined)
+}
+
+function mapDefined<T>(value: T | undefined, map: (value: T) => string): string | undefined {
+  return value === undefined ? undefined : map(value)
+}
+
+function declaredDecoration(character: StyleCharacterFormat): string | undefined {
+  const lines = [
+    character.underline === true ? 'underline' : '',
+    character.strike === true ? 'line-through' : '',
+  ].filter((line) => line !== '')
+  return lines.length === 0 ? undefined : lines.join(' ')
 }
 
 function lineHeightOf(paragraph: ResolvedStyle['paragraph'], family: string | null): string {

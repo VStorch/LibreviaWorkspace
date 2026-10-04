@@ -7,6 +7,7 @@ import {
   prepareExport,
   safeHref,
   type ExportSource,
+  type Mark,
 } from './export-common.js'
 import { fieldKind } from './fields.js'
 import type { FloatingObject } from './floating.js'
@@ -212,19 +213,23 @@ export function pixelSizeOf(bytes: Uint8Array): { width: number; height: number 
   if (bytes.length >= 10 && bytes[0] === 0x47 && bytes[1] === 0x49) {
     return { width: view.getUint16(6, true), height: view.getUint16(8, true) }
   }
-  if (bytes.length >= 4 && bytes[0] === 0xff && bytes[1] === 0xd8) {
-    let at = 2
-    while (at + 9 < bytes.length && bytes[at] === 0xff) {
-      const marker = bytes[at + 1]!
-      const length = view.getUint16(at + 2)
-      // SOF0 a SOF15, menos DHT (C4), JPG (C8) e DAC (CC).
-      if (marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc) {
-        return { width: view.getUint16(at + 7), height: view.getUint16(at + 5) }
-      }
-      at += 2 + length
-    }
+  if (bytes.length >= 4 && bytes[0] === 0xff && bytes[1] === 0xd8) return jpegSizeOf(bytes, view)
+  return null
+}
+
+function jpegSizeOf(bytes: Uint8Array, view: DataView): { width: number; height: number } | null {
+  let at = 2
+  while (at + 9 < bytes.length && bytes[at] === 0xff) {
+    if (isStartOfFrame(bytes[at + 1]!))
+      return { width: view.getUint16(at + 7), height: view.getUint16(at + 5) }
+    at += 2 + view.getUint16(at + 2)
   }
   return null
+}
+
+/** SOF0 a SOF15, menos DHT (C4), JPG (C8) e DAC (CC). */
+function isStartOfFrame(marker: number): boolean {
+  return marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc
 }
 
 /** Para onde vai a quebra ou a página mestra pendente: o próximo bloco do fluxo. */
@@ -275,20 +280,12 @@ class OdtWriter {
     const indexes = blockSections(top.map(sectionBreakInJson), known)
 
     const body: string[] = []
-    let at = 0
-    while (at < top.length) {
-      const index = indexes[at]!
-      const group: DocumentNode[] = []
-      while (at < top.length && indexes[at] === index) group.push(top[at++]!)
+    for (const { index, group } of sectionGroups(top, indexes)) {
       const section = this.sections[index] ?? this.model.page
       this.currentPage = section
       const first = body.length === 0
-      if (first || (section.start ?? 'nextPage') !== 'continuous') {
-        pending.master = {
-          name: masterName(index),
-          pageNumber: section.pageNumberStart ?? (first ? 1 : 'auto'),
-        }
-      }
+      if (first || (section.start ?? 'nextPage') !== 'continuous')
+        pending.master = sectionMaster(section, index, first)
       const inner = renderer.blocks(group)
       const columns = Math.round(section.columns?.count ?? 1)
       body.push(columns > 1 ? this.columnSection(book, section, inner) : inner)
@@ -384,8 +381,7 @@ class OdtWriter {
       const level = Number(node.attrs?.['level'])
       return Number.isInteger(level) && level >= 1 ? Math.min(level, 10) : 1
     }
-    const level = blockStyleOfNode(node, this.sheet)?.paragraph.outlineLevel
-    return level !== undefined && level >= 0 && level < 9 ? level + 1 : null
+    return odtOutlineLevel(blockStyleOfNode(node, this.sheet)?.paragraph.outlineLevel)
   }
 
   nextFrame(): number {
@@ -444,16 +440,10 @@ class OdtWriter {
       style.basedOn !== undefined && this.sheet.styles[style.basedOn]?.type === style.type
         ? this.styleNames.get(style.basedOn)
         : undefined
-    const outline = style.paragraph?.outlineLevel
     const head =
       `<style:style${attr('style:name', name)}${attr('style:display-name', style.name)}` +
       `${attr('style:family', character ? 'text' : 'paragraph')}${attr('style:parent-style-name', parent)}` +
-      (!character && outline !== undefined && outline >= 0 && outline < 9
-        ? attr('style:default-outline-level', outline + 1)
-        : '') +
-      (!character && style.next !== undefined && this.styleNames.has(style.next)
-        ? attr('style:next-style-name', this.styleNames.get(style.next))
-        : '') +
+      (character ? '' : this.paragraphStyleAttrs(style)) +
       '>'
     const paragraph = character ? '' : paragraphProperties(paragraphPropsOfStyle(style.paragraph))
     const text = textProperties(characterPropsOfStyle(style.character), this.fonts)
@@ -464,6 +454,62 @@ class OdtWriter {
       '</style:style>'
     )
   }
+
+  private paragraphStyleAttrs(style: StyleDefinition): string {
+    const outline = odtOutlineLevel(style.paragraph?.outlineLevel)
+    const outlineAttr = outline === null ? '' : attr('style:default-outline-level', outline)
+    const next = style.next === undefined ? undefined : this.styleNames.get(style.next)
+    return outlineAttr + (next === undefined ? '' : attr('style:next-style-name', next))
+  }
+}
+
+const WORD_OUTLINE_LEVELS = 9
+
+/** O Word conta os níveis de estrutura de 0 a 8 (o 9 é corpo de texto); o ODF, de 1 a 10. */
+function odtOutlineLevel(level: number | undefined): number | null {
+  return level !== undefined && level >= 0 && level < WORD_OUTLINE_LEVELS ? level + 1 : null
+}
+
+/** Os blocos seguidos da mesma seção. */
+function* sectionGroups(
+  top: readonly DocumentNode[],
+  indexes: readonly number[],
+): Generator<{ readonly index: number; readonly group: DocumentNode[] }> {
+  let at = 0
+  while (at < top.length) {
+    const index = indexes[at]!
+    const group: DocumentNode[] = []
+    while (at < top.length && indexes[at] === index) group.push(top[at++]!)
+    yield { index, group }
+  }
+}
+
+function sectionMaster(section: PageSetup, index: number, first: boolean): NonNullable<Pending['master']> {
+  return { name: masterName(index), pageNumber: section.pageNumberStart ?? (first ? 1 : 'auto') }
+}
+
+function paragraphPropsOfAttrs(attrs: Readonly<Record<string, unknown>>): ParagraphProps {
+  const indentLevel = finite(attrs['indent']) ?? 0
+  const indent = finite(attrs['indentMm'])
+  const hanging = finite(attrs['hangingMm'])
+  return {
+    align: attrs['textAlign'],
+    marginLeftMm:
+      indent !== null || indentLevel > 0 ? (indent ?? 0) + Math.max(0, indentLevel) * INDENT_STEP_MM : null,
+    marginRightMm: finite(attrs['indentRightMm']),
+    textIndentMm: hanging !== null && hanging > 0 ? -hanging : finite(attrs['firstLineMm']),
+    spaceBeforePt: finite(attrs['spaceBefore']),
+    spaceAfterPt: finite(attrs['spaceAfter']),
+    ...lineSpacingOfAttr(attrs['lineHeight'], attrs['fontFamily']),
+    keepNext: booleanOrUndefined(attrs['keepNext']),
+    keepLines: booleanOrUndefined(attrs['keepLines']),
+    widowControl: booleanOrUndefined(attrs['widowControl']),
+    background: attrs['background'],
+  }
+}
+
+function booleanOrUndefined(value: unknown): boolean | undefined {
+  return typeof value === 'boolean' ? value : undefined
 }
 
 /** A faixa tem o que desenhar — o texto, a grade, o filete ou só objetos ancorados. */
@@ -508,14 +554,18 @@ function numberFormat(fmt: string | undefined): string {
  */
 function pageLayoutXml(name: string, page: PageSetup): string {
   const { width, height } = pageDimensionsMm(page)
-  const hasHeader =
-    bandHasContent(page.headerBand ?? plainBand(page.header)) ||
-    (page.titlePage === true && bandHasContent(page.firstHeaderBand)) ||
-    (page.evenAndOddHeaders === true && bandHasContent(page.evenHeaderBand))
-  const hasFooter =
-    bandHasContent(page.footerBand ?? plainBand(page.footer)) ||
-    (page.titlePage === true && bandHasContent(page.firstFooterBand)) ||
-    (page.evenAndOddHeaders === true && bandHasContent(page.evenFooterBand))
+  const hasHeader = hasAnyBand(
+    page,
+    page.headerBand ?? plainBand(page.header),
+    page.firstHeaderBand,
+    page.evenHeaderBand,
+  )
+  const hasFooter = hasAnyBand(
+    page,
+    page.footerBand ?? plainBand(page.footer),
+    page.firstFooterBand,
+    page.evenFooterBand,
+  )
   const top = hasHeader ? Math.min(page.headerDistanceMm, page.margins.top) : page.margins.top
   const bottom = hasFooter ? Math.min(page.footerDistanceMm, page.margins.bottom) : page.margins.bottom
   const properties =
@@ -537,17 +587,25 @@ function pageLayoutXml(name: string, page: PageSetup): string {
   return `<style:page-layout${attr('style:name', name)}><style:page-layout-properties${properties}/>${header}${footer}</style:page-layout>`
 }
 
+function hasAnyBand(
+  page: PageSetup,
+  main: Band | null | undefined,
+  first: Band | null | undefined,
+  even: Band | null | undefined,
+): boolean {
+  return (
+    bandHasContent(main) ||
+    (page.titlePage === true && bandHasContent(first)) ||
+    (page.evenAndOddHeaders === true && bandHasContent(even))
+  )
+}
+
 /** Como as notas se numeram: o formato e o início do documento, e onde ficam. */
 function notesConfiguration(model: OdtModel): string {
   const one = (kind: 'footnote' | 'endnote'): string => {
     const numbering = kind === 'endnote' ? model.notes?.endnotePr : model.notes?.footnotePr
     const format = numbering?.numFmt ?? (kind === 'endnote' ? 'lowerRoman' : 'decimal')
-    const restart =
-      numbering?.restart === 'eachPage' && kind === 'footnote'
-        ? 'page'
-        : numbering?.restart === 'eachSect'
-          ? 'chapter'
-          : 'document'
+    const restart = noteRestart(kind, numbering?.restart)
     // O LibreOffice conta o início a partir de zero: 0 é "começa em 1".
     return (
       `<text:notes-configuration${attr('text:note-class', kind)}${attr('style:num-format', numberFormat(format) || '1')}` +
@@ -556,6 +614,11 @@ function notesConfiguration(model: OdtModel): string {
     )
   }
   return one('footnote') + one('endnote')
+}
+
+function noteRestart(kind: 'footnote' | 'endnote', restart: string | undefined): string {
+  if (restart === 'eachPage' && kind === 'footnote') return 'page'
+  return restart === 'eachSect' ? 'chapter' : 'document'
 }
 
 /** Os títulos sem número: o estilo de estrutura padrão do ODF numera, e o documento não pediu. */
@@ -656,35 +719,8 @@ class Renderer {
   private paragraphStyle(node: DocumentNode, extra: ParagraphProps): string {
     const attrs = node.attrs ?? {}
     const parent = this.writer.paragraphStyleName(node)
-    const indentLevel = finite(attrs['indent']) ?? 0
-    const indent = finite(attrs['indentMm'])
-    const hanging = finite(attrs['hangingMm'])
-    const props: ParagraphProps = {
-      align: attrs['textAlign'],
-      marginLeftMm:
-        indent !== null || indentLevel > 0 ? (indent ?? 0) + Math.max(0, indentLevel) * INDENT_STEP_MM : null,
-      marginRightMm: finite(attrs['indentRightMm']),
-      textIndentMm: hanging !== null && hanging > 0 ? -hanging : finite(attrs['firstLineMm']),
-      spaceBeforePt: finite(attrs['spaceBefore']),
-      spaceAfterPt: finite(attrs['spaceAfter']),
-      ...lineSpacingOfAttr(attrs['lineHeight'], attrs['fontFamily']),
-      keepNext: typeof attrs['keepNext'] === 'boolean' ? attrs['keepNext'] : undefined,
-      keepLines: typeof attrs['keepLines'] === 'boolean' ? attrs['keepLines'] : undefined,
-      widowControl: typeof attrs['widowControl'] === 'boolean' ? attrs['widowControl'] : undefined,
-      background: attrs['background'],
-      ...extra,
-    }
-    let master = ''
-    if (this.nested === 0) {
-      if (this.pending.breakBefore !== null) props.breakBefore = this.pending.breakBefore
-      if (this.pending.master !== null) {
-        master = attr('style:master-page-name', this.pending.master.name)
-        props.pageNumber = this.pending.master.pageNumber
-        props.breakBefore = null
-      }
-      this.pending.breakBefore = null
-      this.pending.master = null
-    }
+    const props: ParagraphProps = { ...paragraphPropsOfAttrs(attrs), ...extra }
+    const master = this.nested === 0 ? this.takePending(props) : ''
     const paragraph = paragraphProperties(props)
     const text = textProperties(
       { fontFamily: attrs['fontFamily'], fontSize: attrs['fontSize'] },
@@ -698,6 +734,20 @@ class Renderer {
       (paragraph === '' ? '' : `<style:paragraph-properties${paragraph}/>`) +
         (text === '' ? '' : `<style:text-properties${text}/>`),
     )
+  }
+
+  /** A quebra e a página mestra pendentes vão para o primeiro parágrafo do fluxo. */
+  private takePending(props: ParagraphProps): string {
+    const { breakBefore, master } = this.pending
+    this.pending.breakBefore = null
+    this.pending.master = null
+    if (master === null) {
+      if (breakBefore !== null) props.breakBefore = breakBefore
+      return ''
+    }
+    props.pageNumber = master.pageNumber
+    props.breakBefore = null
+    return attr('style:master-page-name', master.name)
   }
 
   private codeBlock(node: DocumentNode): string {
@@ -882,10 +932,14 @@ class Renderer {
       case 'commentEnd':
         return this.commentEnd(node)
       default:
-        return node.content === undefined
-          ? this.wrap(odfText(node.text ?? ''), node.marks ?? [])
-          : this.inline(node.content)
+        return this.otherInline(node)
     }
+  }
+
+  private otherInline(node: DocumentNode): string {
+    return node.content === undefined
+      ? this.wrap(odfText(node.text ?? ''), node.marks ?? [])
+      : this.inline(node.content)
   }
 
   /** Na faixa (e nas caixas dela), `{n}` e `{total}` são os campos de página. */
@@ -1278,29 +1332,38 @@ function gridWidths(grid: { columns: number; rows: (GridSlot | null)[][] }, widt
   for (const slots of grid.rows) {
     let column = 0
     for (const slot of slots) {
-      if (slot === null) {
-        column++
-        continue
+      if (slot !== null) {
+        const measured = slot.colspan === 1 && known[column] === null
+        const fraction = cellWidthFraction(slot)
+        if (fraction > 0 && measured) known[column] = fraction * width
+        else if (fraction > 0) spans.push({ column, span: slot.colspan, width: fraction * width })
       }
-      const fraction = (slot.node.attrs?.['cell'] as { width?: number } | undefined)?.width ?? 0
-      if (slot.colspan === 1 && known[column] === null && fraction > 0) known[column] = fraction * width
-      else if (fraction > 0) spans.push({ column, span: slot.colspan, width: fraction * width })
-      column += slot.colspan
+      column += slot?.colspan ?? 1
     }
   }
-  for (const { column, span, width: total } of spans) {
-    const range = known.slice(column, column + span)
-    const missing = range.filter((value) => value === null).length
-    if (missing === 0) continue
-    const rest = total - range.reduce<number>((sum, value) => sum + (value ?? 0), 0)
-    for (let index = column; index < column + span; index++) {
-      if (known[index] === null) known[index] = Math.max(1, rest / missing)
-    }
-  }
+  for (const span of spans) shareSpanWidth(known, span)
   const measured = known.reduce<number>((sum, value) => sum + (value ?? 0), 0)
   const unknown = known.filter((value) => value === null).length
   const share = unknown === 0 ? 0 : Math.max(1, (width - measured) / unknown)
   return known.map((value) => value ?? share)
+}
+
+function cellWidthFraction(slot: GridSlot): number {
+  return (slot.node.attrs?.['cell'] as { width?: number } | undefined)?.width ?? 0
+}
+
+/** A célula mesclada reparte o que sobra dela entre as colunas ainda sem medida. */
+function shareSpanWidth(
+  known: (number | null)[],
+  { column, span, width }: { column: number; span: number; width: number },
+): void {
+  const range = known.slice(column, column + span)
+  const missing = range.filter((value) => value === null).length
+  if (missing === 0) return
+  const rest = width - range.reduce<number>((sum, value) => sum + (value ?? 0), 0)
+  for (let index = column; index < column + span; index++) {
+    if (known[index] === null) known[index] = Math.max(1, rest / missing)
+  }
 }
 
 /** O texto da faixa, com `{n}` e `{total}` como os campos de página e de total. */
@@ -1351,18 +1414,26 @@ function listLevelXml(depth: number, info: ListInfo): string {
     const char = [...(level?.text ?? '')][0] ?? '•'
     return `<text:list-level-style-bullet${attr('text:level', depth)}${attr('text:bullet-char', char)}>${alignment}</text:list-level-style-bullet>`
   }
-  const text = level?.text ?? '%1.'
-  const placeholders = [...text.matchAll(/%(\d)/g)]
-  const firstAt = placeholders[0]?.index ?? text.length
-  const last = placeholders[placeholders.length - 1]
-  const prefix = placeholders.length === 0 ? text : text.slice(0, firstAt)
-  const suffix = last === undefined ? '' : text.slice(last.index + last[0].length)
-  const shown = Math.max(1, Math.min(placeholders.length, depth))
+  const { prefix, suffix, placeholders } = numberTextParts(level?.text ?? '%1.')
+  const shown = Math.max(1, Math.min(placeholders, depth))
   return (
     `<text:list-level-style-number${attr('text:level', depth)}${attr('style:num-prefix', prefix)}${attr('style:num-suffix', suffix)}` +
-    ` style:num-format="${placeholders.length === 0 ? '' : xml(numberFormat(fmt))}"` +
+    ` style:num-format="${placeholders === 0 ? '' : xml(numberFormat(fmt))}"` +
     `${shown > 1 ? attr('text:display-levels', shown) : ''}${attr('text:start-value', level?.start ?? 1)}>${alignment}</text:list-level-style-number>`
   )
+}
+
+/** O texto do nível do Word (`%1.%2)`) em prefixo, sufixo e quantos números mostra. */
+function numberTextParts(text: string): { prefix: string; suffix: string; placeholders: number } {
+  const found = [...text.matchAll(/%(\d)/g)]
+  const first = found[0]
+  const last = found[found.length - 1]
+  if (first === undefined || last === undefined) return { prefix: text, suffix: '', placeholders: 0 }
+  return {
+    prefix: text.slice(0, first.index),
+    suffix: text.slice(last.index + last[0].length),
+    placeholders: found.length,
+  }
 }
 
 interface GridSlot {
@@ -1519,7 +1590,6 @@ function manifestXml(pictures: readonly Picture[], formulas: readonly Formula[])
   )
 }
 
-type Mark = NonNullable<DocumentNode['marks']>[number]
 type MarkProps = (props: CharacterProps, attrs: Record<string, unknown>, on: boolean) => void
 
 const MARK_PROPS: ReadonlyMap<string, MarkProps> = new Map<string, MarkProps>([

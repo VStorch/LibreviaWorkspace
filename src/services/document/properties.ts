@@ -27,14 +27,29 @@ export function stampProperties(
 
   const when = w3cdtf(stamp.now)
   const author = stamp.author.trim()
-  const revision = Number.parseInt(current?.revision ?? '', 10)
 
   return {
     ...current,
-    ...(stamp.fresh && current?.created === undefined ? { created: when } : {}),
-    ...(stamp.fresh && author !== '' && (current?.creator ?? '') === '' ? { creator: author } : {}),
+    ...(stamp.fresh ? creationStamp(current, when, author) : {}),
     modified: when,
     ...(author === '' ? {} : { lastModifiedBy: author }),
-    revision: String(Number.isFinite(revision) && revision > 0 ? revision + 1 : 1),
+    revision: nextRevision(current?.revision),
   }
+}
+
+/** O documento novo ganha data e autor de criação, sem apagar os que já tiver. */
+function creationStamp(
+  current: DocumentProperties | undefined,
+  when: string,
+  author: string,
+): Partial<DocumentProperties> {
+  return {
+    ...(current?.created === undefined ? { created: when } : {}),
+    ...(author !== '' && (current?.creator ?? '') === '' ? { creator: author } : {}),
+  }
+}
+
+function nextRevision(revision: string | undefined): string {
+  const current = Number.parseInt(revision ?? '', 10)
+  return String(Number.isFinite(current) && current > 0 ? current + 1 : 1)
 }

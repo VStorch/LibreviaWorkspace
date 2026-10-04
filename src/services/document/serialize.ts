@@ -123,23 +123,39 @@ export function serializeDocument(model: DocumentModel): string {
       // No envelope, como o sidecar os põe ao abrir um `.docx`: os nós, e a
       // impressão digital deles, ficam como estavam.
       styles: model.styles,
-      ...(model.flattened === true ? { flattened: true } : {}),
-      ...(model.beforeReferences === true ? { beforeReferences: true } : {}),
-      ...(model.sections === undefined || model.sections.length === 0 ? {} : { sections: model.sections }),
-      ...(model.beforeSections === true ? { beforeSections: true } : {}),
-      ...(model.outsideBookmarks === undefined ? {} : { outsideBookmarks: model.outsideBookmarks }),
-      ...(model.comments === undefined || model.comments.length === 0 ? {} : { comments: model.comments }),
-      ...(model.beforeComments === true ? { beforeComments: true } : {}),
-      ...(model.trackChanges === undefined ? {} : { trackChanges: model.trackChanges }),
-      ...(model.beforeRevisions === true ? { beforeRevisions: true } : {}),
-      ...(model.notes === undefined ? {} : { notes: model.notes }),
-      ...(model.beforeNotes === true ? { beforeNotes: true } : {}),
-      ...(model.beforeMath === true ? { beforeMath: true } : {}),
-      ...(model.properties === undefined ? {} : { properties: model.properties }),
+      ...onlyTrue('flattened', model.flattened),
+      ...onlyTrue('beforeReferences', model.beforeReferences),
+      ...onlyNonEmpty('sections', model.sections),
+      ...onlyTrue('beforeSections', model.beforeSections),
+      ...onlyDefined('outsideBookmarks', model.outsideBookmarks),
+      ...onlyNonEmpty('comments', model.comments),
+      ...onlyTrue('beforeComments', model.beforeComments),
+      ...onlyDefined('trackChanges', model.trackChanges),
+      ...onlyTrue('beforeRevisions', model.beforeRevisions),
+      ...onlyDefined('notes', model.notes),
+      ...onlyTrue('beforeNotes', model.beforeNotes),
+      ...onlyTrue('beforeMath', model.beforeMath),
+      ...onlyDefined('properties', model.properties),
     },
     null,
     2,
   )
+}
+
+/** As marcas de documento antigo só existem ligadas: o arquivo novo não as carrega. */
+export function onlyTrue<K extends string>(key: K, value: boolean | undefined): Partial<Record<K, true>> {
+  return value === true ? ({ [key]: true } as Record<K, true>) : {}
+}
+
+export function onlyDefined<K extends string, V>(key: K, value: V | undefined): Partial<Record<K, V>> {
+  return value === undefined ? {} : ({ [key]: value } as Record<K, V>)
+}
+
+export function onlyNonEmpty<K extends string, V>(
+  key: K,
+  value: readonly V[] | undefined,
+): Partial<Record<K, V[]>> {
+  return value === undefined || value.length === 0 ? {} : ({ [key]: [...value] } as Record<K, V[]>)
 }
 
 /** Arquivo corrompido ou de versão futura produz uma frase que a pessoa entenda, e não um erro de JSON. */

@@ -550,38 +550,27 @@ function table(item: MathElement): string {
     .join(' \\\\ ')
 }
 
+const LATEX_DELIMITERS: Readonly<Record<string, string>> = {
+  '': '.',
+  '(': '(',
+  ')': ')',
+  '[': '[',
+  ']': ']',
+  '|': '|',
+  '/': '/',
+  '{': '\\{',
+  '}': '\\}',
+  '‖': '\\|',
+  '⟨': '\\langle',
+  '⟩': '\\rangle',
+  '⌊': '\\lfloor',
+  '⌋': '\\rfloor',
+  '⌈': '\\lceil',
+  '⌉': '\\rceil',
+}
+
 function delimiter(chr: string, side: 'left' | 'right'): string {
-  switch (chr) {
-    case '':
-      return '.'
-    case '(':
-    case ')':
-    case '[':
-    case ']':
-    case '|':
-    case '/':
-      return chr
-    case '{':
-      return '\\{'
-    case '}':
-      return '\\}'
-    case '‖':
-      return '\\|'
-    case '⟨':
-      return '\\langle'
-    case '⟩':
-      return '\\rangle'
-    case '⌊':
-      return '\\lfloor'
-    case '⌋':
-      return '\\rfloor'
-    case '⌈':
-      return '\\lceil'
-    case '⌉':
-      return '\\rceil'
-    default:
-      return side === 'left' ? '(' : ')'
-  }
+  return Object.hasOwn(LATEX_DELIMITERS, chr) ? LATEX_DELIMITERS[chr]! : side === 'left' ? '(' : ')'
 }
 
 function fenced(item: MathElement): string {

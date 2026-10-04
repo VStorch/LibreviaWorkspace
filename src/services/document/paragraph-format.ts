@@ -218,43 +218,31 @@ export function paragraphAttrsFrom(
   effective: Record<string, unknown> = attrs,
 ): ParagraphAttrs {
   const shown = paragraphDraftFrom(effective)
-  const kept = (name: string): unknown => attrs[name] ?? null
-  const same = <K extends keyof ParagraphDraft>(...keys: K[]): boolean =>
-    keys.every((key) => draft[key] === shown[key])
-
-  const firstLine = signedFirstLineMm(draft)
-
-  const indentSame = same('indentLeftMm')
+  const field = <T>(keys: readonly (keyof ParagraphDraft)[], name: string, changed: () => T): T | null =>
+    keys.every((key) => draft[key] === shown[key]) ? ((attrs[name] ?? null) as T | null) : changed()
+  const indentSame = draft.indentLeftMm === shown.indentLeftMm
 
   return {
-    textAlign: same('align')
-      ? (kept('textAlign') as TextAlignment | null)
-      : keptAlignment(draft.align, effective),
-    spaceBefore: same('spaceBefore')
-      ? (kept('spaceBefore') as number | null)
-      : clamp(round(draft.spaceBefore), 0, MAX_SPACING_PT),
-    spaceAfter: same('spaceAfter')
-      ? (kept('spaceAfter') as number | null)
-      : clamp(round(draft.spaceAfter), 0, MAX_SPACING_PT),
-    lineHeight: same('lineSpacingKind', 'lineSpacingValue')
-      ? (kept('lineHeight') as string | null)
-      : lineHeightOf(draft, effective),
-    indentMm: indentSame
-      ? (kept('indentMm') as number | null)
-      : measureOf(draft.indentLeftMm, effective, 'indentMm', 0),
-    indentRightMm: same('indentRightMm')
-      ? (kept('indentRightMm') as number | null)
-      : measureOf(draft.indentRightMm, effective, 'indentRightMm', 0),
-    firstLineMm: same('firstLineKind', 'firstLineMm')
-      ? (kept('firstLineMm') as number | null)
-      : measureOf(firstLine, effective, 'firstLineMm', -MAX_INDENT_MM),
-    keepNext: same('keepNext') ? (kept('keepNext') as boolean | null) : draft.keepNext ? true : false,
-    keepLines: same('keepLines') ? (kept('keepLines') as boolean | null) : draft.keepLines ? true : false,
-    widowControl: same('widowControl')
-      ? (kept('widowControl') as boolean | null)
-      : draft.widowControl
-        ? true
-        : false,
+    textAlign: field(['align'], 'textAlign', () => keptAlignment(draft.align, effective)),
+    spaceBefore: field(['spaceBefore'], 'spaceBefore', () =>
+      clamp(round(draft.spaceBefore), 0, MAX_SPACING_PT),
+    ),
+    spaceAfter: field(['spaceAfter'], 'spaceAfter', () => clamp(round(draft.spaceAfter), 0, MAX_SPACING_PT)),
+    lineHeight: field(['lineSpacingKind', 'lineSpacingValue'], 'lineHeight', () =>
+      lineHeightOf(draft, effective),
+    ),
+    indentMm: field(['indentLeftMm'], 'indentMm', () =>
+      measureOf(draft.indentLeftMm, effective, 'indentMm', 0),
+    ),
+    indentRightMm: field(['indentRightMm'], 'indentRightMm', () =>
+      measureOf(draft.indentRightMm, effective, 'indentRightMm', 0),
+    ),
+    firstLineMm: field(['firstLineKind', 'firstLineMm'], 'firstLineMm', () =>
+      measureOf(signedFirstLineMm(draft), effective, 'firstLineMm', -MAX_INDENT_MM),
+    ),
+    keepNext: field(['keepNext'], 'keepNext', () => draft.keepNext),
+    keepLines: field(['keepLines'], 'keepLines', () => draft.keepLines),
+    widowControl: field(['widowControl'], 'widowControl', () => draft.widowControl),
     indent: indentSame ? (numberOf(attrs['indent']) ?? 0) : 0,
   }
 }

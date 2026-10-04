@@ -43,8 +43,8 @@ export interface ResizeRequest {
 export function resizedImage(request: ResizeRequest): ImageSize {
   const { handle, start, deltaX, deltaY, maxWidth } = request
 
-  const horizontal = handle.includes('e') ? 1 : handle.includes('w') ? -1 : 0
-  const vertical = handle.includes('s') ? 1 : handle.includes('n') ? -1 : 0
+  const horizontal = axisDirection(handle, 'e', 'w')
+  const vertical = axisDirection(handle, 's', 'n')
 
   const ratio = start.height > 0 && start.width > 0 ? start.height / start.width : 0
   const locked = request.keepProportion && isCornerHandle(handle) && ratio > 0
@@ -57,23 +57,27 @@ export function resizedImage(request: ResizeRequest): ImageSize {
   if (horizontal === 0) width = locked ? height / ratio : start.width
   if (vertical === 0) height = locked ? width * ratio : start.height
 
-  const ceiling = Math.max(MIN_IMAGE_PX, maxWidth)
-  if (width > ceiling) {
-    width = ceiling
-    if (locked) height = width * ratio
-  }
+  const bounded = withinBounds({ width, height }, Math.max(MIN_IMAGE_PX, maxWidth), locked ? ratio : null)
+  return { width: Math.round(bounded.width), height: Math.round(bounded.height) }
+}
 
-  if (width < MIN_IMAGE_PX) {
-    width = MIN_IMAGE_PX
-    if (locked) height = width * ratio
-  }
+function axisDirection(handle: ResizeHandle, forward: string, backward: string): number {
+  if (handle.includes(forward)) return 1
+  return handle.includes(backward) ? -1 : 0
+}
 
+/** Entre o mínimo e a largura da coluna; com a proporção travada, o outro eixo acompanha. */
+function withinBounds(size: ImageSize, ceiling: number, ratio: number | null): ImageSize {
+  let { width, height } = size
+  if (width > ceiling || width < MIN_IMAGE_PX) {
+    width = Math.min(ceiling, Math.max(MIN_IMAGE_PX, width))
+    if (ratio !== null) height = width * ratio
+  }
   if (height < MIN_IMAGE_PX) {
     height = MIN_IMAGE_PX
-    if (locked) width = Math.min(ceiling, height / ratio)
+    if (ratio !== null) width = Math.min(ceiling, height / ratio)
   }
-
-  return { width: Math.round(width), height: Math.round(height) }
+  return { width, height }
 }
 
 /** Quando a coluna encolhe; senão o gravador encolheria a imagem sozinho e a tela mentiria. */

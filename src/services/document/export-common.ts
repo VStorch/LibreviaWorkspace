@@ -35,7 +35,7 @@ const JSON_READER: ListTreeReader<DocumentNode> = {
   childrenOf: (node) => node.content ?? [],
 }
 
-type Mark = NonNullable<DocumentNode['marks']>[number]
+export type Mark = NonNullable<DocumentNode['marks']>[number]
 
 const hasMark = (node: DocumentNode, type: string): boolean =>
   node.marks?.some((mark) => mark.type === type) ?? false
@@ -74,38 +74,68 @@ export function finalDocument(node: DocumentNode, keepComments = false): Documen
 }
 
 function finalChildren(children: readonly DocumentNode[], keepComments: boolean): DocumentNode[] {
-  const kept: DocumentNode[] = []
-  for (const child of children) {
-    if ((!keepComments && DROPPED.has(child.type)) || hasMark(child, 'deletion')) continue
-    if (child.type === 'tableRow' && blockRevisionKind(child.attrs?.['rowRevision']) === 'del') continue
-    kept.push(finalDocument(child, keepComments))
-  }
+  const kept = children
+    .filter((child) => survivesFinal(child, keepComments))
+    .map((child) => finalDocument(child, keepComments))
+  return mergeDeletedParagraphMarks(kept)
+}
 
-  // A marca de parágrafo excluída: o texto dele continua no parágrafo seguinte.
+function survivesFinal(child: DocumentNode, keepComments: boolean): boolean {
+  if (!keepComments && DROPPED.has(child.type)) return false
+  if (hasMark(child, 'deletion')) return false
+  return !(child.type === 'tableRow' && blockRevisionKind(child.attrs?.['rowRevision']) === 'del')
+}
+
+/** A marca de parágrafo excluída: o texto dele continua no parágrafo seguinte. */
+function mergeDeletedParagraphMarks(kept: readonly DocumentNode[]): DocumentNode[] {
   const merged: DocumentNode[] = []
   let pending: DocumentNode | null = null
   for (const child of kept) {
     if (pending !== null && MERGEABLE.has(child.type)) {
       merged.push({ ...child, content: [...(pending.content ?? []), ...(child.content ?? [])] })
       pending = null
-    } else {
-      if (pending !== null) merged.push(pending)
-      pending = null
-      if (MERGEABLE.has(child.type) && blockRevisionKind(child.attrs?.['markRevision']) === 'del') {
-        pending = child
-        continue
-      }
-      merged.push(child)
+      continue
     }
+    if (pending !== null) merged.push(pending)
+    pending = hasDeletedParagraphMark(child) ? child : null
+    if (pending === null) merged.push(child)
   }
   if (pending !== null) merged.push(pending)
   return merged
+}
+
+function hasDeletedParagraphMark(node: DocumentNode): boolean {
+  return MERGEABLE.has(node.type) && blockRevisionKind(node.attrs?.['markRevision']) === 'del'
 }
 
 /** Em pré-ordem, a ordem do texto. */
 export function walk(node: DocumentNode, visit: (node: DocumentNode) => void): void {
   visit(node)
   for (const child of node.content ?? []) walk(child, visit)
+}
+
+function exportNoteOf(
+  node: DocumentNode,
+  section: number,
+  ordinals: Record<NoteKind, number>,
+  label: ReturnType<typeof noteCounter>,
+): ExportNote {
+  const kind = node.attrs?.['kind'] === NoteKind.Endnote ? NoteKind.Endnote : NoteKind.Footnote
+  const mark = typeof node.attrs?.['mark'] === 'string' ? node.attrs['mark'] : null
+  ordinals[kind] += 1
+  return {
+    kind,
+    label: label({ kind, mark, section }),
+    id: `${kind === NoteKind.Endnote ? 'nota-fim' : 'nota-rodape'}-${ordinals[kind]}`,
+    body: node.content ?? [],
+  }
+}
+
+function internalTargetsOf(node: DocumentNode): string[] {
+  return (node.marks ?? [])
+    .map((mark) => linkHref(mark))
+    .filter((href): href is string => href?.startsWith('#') === true)
+    .map((href) => href.slice(1))
 }
 
 export function prepareExport(
@@ -125,25 +155,14 @@ export function prepareExport(
 
   walk(doc, (node) => {
     if (node.type === 'noteRef') {
-      const kind = node.attrs?.['kind'] === NoteKind.Endnote ? NoteKind.Endnote : NoteKind.Footnote
-      const mark = typeof node.attrs?.['mark'] === 'string' ? node.attrs['mark'] : null
-      ordinals[kind] += 1
-      const note: ExportNote = {
-        kind,
-        label: label({ kind, mark, section }),
-        id: `${kind === NoteKind.Endnote ? 'nota-fim' : 'nota-rodape'}-${ordinals[kind]}`,
-        body: node.content ?? [],
-      }
+      const note = exportNoteOf(node, section, ordinals, label)
       noteOf.set(node, note)
       notes.push(note)
     }
     if (typeof node.attrs?.['sectionBreak'] === 'string') section += 1
     if (LIST_TYPES.includes(node.type)) listNodes.push(node)
     if (node.type === 'listItem') itemNodes.push(node)
-    for (const mark of node.marks ?? []) {
-      const href = linkHref(mark)
-      if (href?.startsWith('#') === true) linkTargets.add(href.slice(1))
-    }
+    for (const target of internalTargetsOf(node)) linkTargets.add(target)
   })
 
   // `numberLists` conta na mesma pré-ordem.
@@ -212,6 +231,13 @@ export function imageExtension(mime: string): string {
 }
 
 /** O nível de um parágrafo do sumário, pelo estilo (`TOC2`, `toc 2`, `Sumário2`). */
+const MAX_EXPORTED_HEADING_LEVEL = 6
+
+/** HTML e Markdown só têm seis níveis de título. */
+export function exportHeadingLevel(node: DocumentNode): number {
+  return Math.min(MAX_EXPORTED_HEADING_LEVEL, Math.max(1, Number(node.attrs?.['level']) || 1))
+}
+
 export function tocLevelOf(node: DocumentNode): number {
   const style = node.attrs?.['styleId']
   const match = typeof style === 'string' ? /(\d)\s*$/.exec(style) : null

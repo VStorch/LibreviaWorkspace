@@ -193,47 +193,60 @@ export interface CellLook {
  * perderia a borda de baixo.
  */
 export function cellLookPatch(cell: CellLook, before: TableDraft, after: TableDraft): CellLook {
-  const styleChanged = after.borderStyle !== before.borderStyle
-  const widthChanged = after.borderWidthPt !== before.borderWidthPt
-  const colorChanged = after.borderColor.toLowerCase() !== before.borderColor.toLowerCase()
-  const sidesChanged = CELL_BORDER_SIDES.some((side) => after.sides[side] !== before.sides[side])
-
-  let borders = cell.borders
-  if (styleChanged || widthChanged || colorChanged || sidesChanged) {
-    const current = cellBordersFromAttr(cell.borders)
-    const next: Record<CellBorderSide, CellBorder | null> = { ...current }
-
-    for (const side of CELL_BORDER_SIDES) {
-      const was = before.sides[side]
-      const is = after.sides[side]
-      const existing = current[side]
-
-      if (was && !is) {
-        next[side] = null
-      } else if (!was && is) {
-        next[side] = {
-          style: after.borderStyle,
-          widthPt: after.borderWidthPt,
-          color: after.borderColor.toLowerCase(),
-        }
-      } else if (existing !== null) {
-        next[side] = {
-          style: styleChanged ? after.borderStyle : existing.style,
-          widthPt: widthChanged ? after.borderWidthPt : existing.widthPt,
-          color: colorChanged ? after.borderColor.toLowerCase() : existing.color,
-        }
-      }
-    }
-
-    borders = cellBordersToAttr(next)
+  return {
+    borders: patchedBorders(cell.borders, before, after),
+    shading: patchedShading(cell.shading, before, after),
   }
+}
 
-  const shadingChanged =
+interface BorderChanges {
+  readonly style: boolean
+  readonly width: boolean
+  readonly color: boolean
+}
+
+function patchedBorders(borders: string | null, before: TableDraft, after: TableDraft): string | null {
+  const changed: BorderChanges = {
+    style: after.borderStyle !== before.borderStyle,
+    width: after.borderWidthPt !== before.borderWidthPt,
+    color: after.borderColor.toLowerCase() !== before.borderColor.toLowerCase(),
+  }
+  const sidesChanged = CELL_BORDER_SIDES.some((side) => after.sides[side] !== before.sides[side])
+  if (!changed.style && !changed.width && !changed.color && !sidesChanged) return borders
+
+  const current = cellBordersFromAttr(borders)
+  const next: Record<CellBorderSide, CellBorder | null> = { ...current }
+  for (const side of CELL_BORDER_SIDES) {
+    const sides = { was: before.sides[side], is: after.sides[side] }
+    next[side] = patchedSide(current[side], sides, after, changed)
+  }
+  return cellBordersToAttr(next)
+}
+
+/** O lado ligado agora ganha a borda inteira do rascunho; o que já tinha muda só o que foi alterado. */
+function patchedSide(
+  existing: CellBorder | null,
+  sides: { readonly was: boolean; readonly is: boolean },
+  after: TableDraft,
+  changed: BorderChanges,
+): CellBorder | null {
+  if (sides.was && !sides.is) return null
+  const color = after.borderColor.toLowerCase()
+  if (!sides.was && sides.is) return { style: after.borderStyle, widthPt: after.borderWidthPt, color }
+  if (existing === null) return null
+  return {
+    style: changed.style ? after.borderStyle : existing.style,
+    widthPt: changed.width ? after.borderWidthPt : existing.widthPt,
+    color: changed.color ? color : existing.color,
+  }
+}
+
+function patchedShading(shading: string | null, before: TableDraft, after: TableDraft): string | null {
+  const changed =
     after.shaded !== before.shaded ||
     (after.shaded && after.shadingColor.toLowerCase() !== before.shadingColor.toLowerCase())
-  const shading = shadingChanged ? (after.shaded ? after.shadingColor.toLowerCase() : null) : cell.shading
-
-  return { borders, shading }
+  if (!changed) return shading
+  return after.shaded ? after.shadingColor.toLowerCase() : null
 }
 
 /**

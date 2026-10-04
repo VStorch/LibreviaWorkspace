@@ -183,36 +183,34 @@ export interface CharacterProps {
 }
 
 export function textProperties(props: CharacterProps, fonts: FontBook): string {
-  const parts: string[] = []
+  return fontAttrs(props, fonts) + decorationAttrs(props) + colorAttrs(props)
+}
+
+/** O ODF repete a fonte para o texto latino, o asiático e o complexo. */
+function everyScript(name: string, value: string): string {
+  const [, local] = name.split(':')
+  return attr(name, value) + attr(`style:${local}-asian`, value) + attr(`style:${local}-complex`, value)
+}
+
+function fontAttrs(props: CharacterProps, fonts: FontBook): string {
   const font = props.mono === true ? 'Liberation Mono' : fonts.use(props.fontFamily)
   if (props.mono === true) fonts.use('Liberation Mono')
-  if (font !== null) {
-    parts.push(attr('style:font-name', font), attr('style:font-name-complex', font))
-  }
   const size = pointsOf(props.fontSize)
-  if (size !== null) {
-    parts.push(
-      attr('fo:font-size', pt(size)),
-      attr('style:font-size-asian', pt(size)),
-      attr('style:font-size-complex', pt(size)),
-    )
-  }
-  if (props.bold !== undefined) {
-    const weight = props.bold ? 'bold' : 'normal'
-    parts.push(
-      attr('fo:font-weight', weight),
-      attr('style:font-weight-asian', weight),
-      attr('style:font-weight-complex', weight),
-    )
-  }
-  if (props.italic !== undefined) {
-    const style = props.italic ? 'italic' : 'normal'
-    parts.push(
-      attr('fo:font-style', style),
-      attr('style:font-style-asian', style),
-      attr('style:font-style-complex', style),
-    )
-  }
+  return (
+    (font === null ? '' : attr('style:font-name', font) + attr('style:font-name-complex', font)) +
+    (size === null ? '' : everyScript('fo:font-size', pt(size))) +
+    (props.bold === undefined ? '' : everyScript('fo:font-weight', props.bold ? 'bold' : 'normal')) +
+    (props.italic === undefined ? '' : everyScript('fo:font-style', props.italic ? 'italic' : 'normal'))
+  )
+}
+
+const TEXT_POSITION: Readonly<Record<string, string>> = {
+  super: ' style:text-position="super 58%"',
+  sub: ' style:text-position="sub 58%"',
+}
+
+function decorationAttrs(props: CharacterProps): string {
+  const parts: string[] = []
   if (props.underline !== undefined) {
     parts.push(
       props.underline
@@ -229,13 +227,17 @@ export function textProperties(props: CharacterProps, fonts: FontBook): string {
   }
   if (props.caps === true) parts.push(' fo:text-transform="uppercase"')
   if (props.smallCaps === true) parts.push(' fo:font-variant="small-caps"')
-  if (props.position === 'super') parts.push(' style:text-position="super 58%"')
-  if (props.position === 'sub') parts.push(' style:text-position="sub 58%"')
-  const color = odfColor(props.color)
-  if (color !== null) parts.push(attr('fo:color', color))
-  const background = odfColor(props.background)
-  if (background !== null) parts.push(attr('fo:background-color', background))
+  parts.push(TEXT_POSITION[props.position ?? ''] ?? '')
   return parts.join('')
+}
+
+function colorAttrs(props: CharacterProps): string {
+  const color = odfColor(props.color)
+  const background = odfColor(props.background)
+  return (
+    (color === null ? '' : attr('fo:color', color)) +
+    (background === null ? '' : attr('fo:background-color', background))
+  )
 }
 
 export function characterPropsOfStyle(format: StyleCharacterFormat | undefined): CharacterProps {

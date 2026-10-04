@@ -1,4 +1,5 @@
 import {
+  exportHeadingLevel,
   exportTitle,
   imageData,
   isSectionMarkOnly,
@@ -7,6 +8,7 @@ import {
   tocLevelOf,
   withoutPageNumbers,
   type ExportSource,
+  type Mark,
 } from './export-common.js'
 import { itemDrawAttrs, listDrawAttrs } from './list-numbering.js'
 import { mathMlToString, sanitizeMathMl } from './mathml.js'
@@ -166,14 +168,10 @@ class HtmlWriter implements HtmlRenderer {
 
   private block(node: DocumentNode): string {
     switch (node.type) {
-      case 'paragraph': {
-        if (isSectionMarkOnly(node)) return ''
-        return `<p${blockAttrs(node)}>${this.inlineOrBreak(node.content)}</p>`
-      }
-      case 'heading': {
-        const level = Math.min(6, Math.max(1, Number(node.attrs?.['level']) || 1))
-        return `<h${level}${blockAttrs(node)}>${this.inlineOrBreak(node.content)}</h${level}>`
-      }
+      case 'paragraph':
+        return this.paragraph(node)
+      case 'heading':
+        return this.heading(node)
       case 'bulletList':
       case 'orderedList':
         return this.list(node)
@@ -192,6 +190,16 @@ class HtmlWriter implements HtmlRenderer {
       default:
         return node.content === undefined ? '' : this.blocks(node.content)
     }
+  }
+
+  private paragraph(node: DocumentNode): string {
+    if (isSectionMarkOnly(node)) return ''
+    return `<p${blockAttrs(node)}>${this.inlineOrBreak(node.content)}</p>`
+  }
+
+  private heading(node: DocumentNode): string {
+    const level = exportHeadingLevel(node)
+    return `<h${level}${blockAttrs(node)}>${this.inlineOrBreak(node.content)}</h${level}>`
   }
 
   private inlineOrBreak(content: readonly DocumentNode[] | undefined): string {
@@ -365,7 +373,6 @@ function wrapMarks(inner: string, marks: NonNullable<DocumentNode['marks']>): st
   return html
 }
 
-type Mark = NonNullable<DocumentNode['marks']>[number]
 type MarkWrapper = (html: string, attrs: Record<string, unknown>, mark: Mark) => string
 
 const tagged =

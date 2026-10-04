@@ -1,4 +1,5 @@
 import {
+  exportHeadingLevel,
   imageData,
   imageExtension,
   isSectionMarkOnly,
@@ -8,6 +9,7 @@ import {
   withoutPageNumbers,
   type ExportNote,
   type ExportSource,
+  type Mark,
 } from './export-common.js'
 import { createHtmlRenderer, escapeHtml, mathHtml } from './export-html.js'
 import type { DocumentModel, DocumentNode } from './model.js'
@@ -48,6 +50,23 @@ interface OpenMark {
 
 /** A ordem de abertura: o link por fora, o sobrescrito por dentro. */
 const MARK_ORDER = ['link', 'bold', 'italic', 'strike', 'superscript', 'subscript']
+
+type MarkSyntax = Omit<OpenMark, 'at'>
+
+const SIMPLE_MARK_SYNTAX: Readonly<Record<string, MarkSyntax>> = {
+  bold: { key: 'bold', open: '**', close: '**' },
+  italic: { key: 'italic', open: '*', close: '*' },
+  strike: { key: 'strike', open: '~~', close: '~~' },
+  superscript: { key: 'sup', open: '<sup>', close: '</sup>' },
+  subscript: { key: 'sub', open: '<sub>', close: '</sub>' },
+}
+
+function linkSyntax(mark: Mark): MarkSyntax | null {
+  const href = safeHref(mark)
+  if (href === null) return null
+  const title = typeof mark.attrs?.['title'] === 'string' ? mark.attrs['title'] : ''
+  return { key: `link ${href}`, open: '[', close: `](${linkDestination(href, title)})` }
+}
 
 export function exportMarkdown(
   model: Pick<DocumentModel, 'doc' | 'notes'>,
@@ -111,22 +130,15 @@ class MarkdownWriter {
     switch (node.type) {
       case 'paragraph':
         return isSectionMarkOnly(node) ? '' : this.paragraph(node.content ?? [])
-      case 'heading': {
-        const level = Math.min(6, Math.max(1, Number(node.attrs?.['level']) || 1))
-        const text = this.inline(node.content ?? [], 'heading').trim()
-        if (text === '') return ''
-        // O `#` no fim seria lido como o fecho opcional do título.
-        return `${'#'.repeat(level)} ${text.replace(/#$/, '\\#')}`
-      }
+      case 'heading':
+        return this.heading(node)
       case 'bulletList':
       case 'orderedList':
         return this.list(node)
       case 'table':
         return this.table(node)
-      case 'blockquote': {
-        const inner = this.blocks(node.content ?? [])
-        return inner === '' ? '' : prefixLines(inner, '> ', '>')
-      }
+      case 'blockquote':
+        return this.blockquote(node)
       case 'codeBlock':
         return codeBlock(node)
       case 'horizontalRule':
@@ -138,6 +150,18 @@ class MarkdownWriter {
       default:
         return node.content === undefined ? '' : this.blocks(node.content)
     }
+  }
+
+  private heading(node: DocumentNode): string {
+    const text = this.inline(node.content ?? [], 'heading').trim()
+    if (text === '') return ''
+    // O `#` no fim seria lido como o fecho opcional do título.
+    return `${'#'.repeat(exportHeadingLevel(node))} ${text.replace(/#$/, '\\#')}`
+  }
+
+  private blockquote(node: DocumentNode): string {
+    const inner = this.blocks(node.content ?? [])
+    return inner === '' ? '' : prefixLines(inner, '> ', '>')
   }
 
   private paragraph(content: readonly DocumentNode[]): string {
@@ -262,30 +286,8 @@ class MarkdownWriter {
     for (const mark of node.marks ?? []) {
       const order = MARK_ORDER.indexOf(mark.type)
       if (order < 0 || mark.attrs?.['off'] === true) continue
-      switch (mark.type) {
-        case 'link': {
-          const href = safeHref(mark)
-          if (href === null) continue
-          const title = typeof mark.attrs?.['title'] === 'string' ? mark.attrs['title'] : ''
-          found.push({ order, key: `link ${href}`, open: '[', close: `](${linkDestination(href, title)})` })
-          break
-        }
-        case 'bold':
-          found.push({ order, key: 'bold', open: '**', close: '**' })
-          break
-        case 'italic':
-          found.push({ order, key: 'italic', open: '*', close: '*' })
-          break
-        case 'strike':
-          found.push({ order, key: 'strike', open: '~~', close: '~~' })
-          break
-        case 'superscript':
-          found.push({ order, key: 'sup', open: '<sup>', close: '</sup>' })
-          break
-        case 'subscript':
-          found.push({ order, key: 'sub', open: '<sub>', close: '</sub>' })
-          break
-      }
+      const syntax = mark.type === 'link' ? linkSyntax(mark) : SIMPLE_MARK_SYNTAX[mark.type]
+      if (syntax !== null && syntax !== undefined) found.push({ order, ...syntax })
     }
     return found.sort((a, b) => a.order - b.order).map(({ key, open, close }) => ({ key, open, close }))
   }
