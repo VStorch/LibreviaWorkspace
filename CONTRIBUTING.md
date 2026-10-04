@@ -227,17 +227,17 @@ fora):
 
 | Regra | Limite | O que mede |
 | --- | --- | --- |
-| `complexity` | 20 | caminhos possíveis pela função: cada `if`, `case`, `&&`, `??` e laço soma um |
+| `complexity` | 15 | caminhos possíveis pela função: cada `if`, `case`, `&&`, `??` e laço soma um |
 | `max-lines-per-function` | 80 | linhas de código, sem contar comentários e linhas em branco |
 | `max-depth` | 4 | blocos aninhados uns dentro dos outros |
 | `max-params` | 5 | parâmetros; acima disso, use um objeto de opções |
 
 Para comparar: a função típica do projeto tem complexidade 3 e 7 linhas.
 
-### Os limites sobem em degraus
+### Sem lista de exceções
 
 Nenhuma função passa dos limites, e não há lista de exceções: código acima deles reprova, e a
-saída é dividir a função. O próximo degrau é baixar a complexidade para 15.
+saída é dividir a função.
 
 ### Quando a exceção à regra é legítima
 

@@ -30,7 +30,7 @@ Teste só o que a mudança tocou. Rodar a suíte inteira a cada passo é desperd
 - **Fronteiras:** `src/services/` e `src/shared/` não importam `electron`, `react`, `node:*`,
   `@main/*` nem `@renderer/*`. O renderer não importa `electron`, `node:*` nem `@main/*`; fala com
   o main só por `window.api`. O preload só importa de `@shared`.
-- **Limites de função** (em `src/`, fora dos testes): `complexity` 20,
+- **Limites de função** (em `src/`, fora dos testes): `complexity` 15,
   `max-lines-per-function` 80, `max-depth` 4, `max-params` 5. Nenhuma função passa deles, e não
   há lista de exceções: acima do limite, divida a função.
 - **`eslint-disable`** só na linha, com o motivo escrito acima, e só quando a causa é externa

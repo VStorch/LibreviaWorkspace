@@ -93,7 +93,7 @@ export default tseslint.config(
     files: ['src/**/*.ts', 'src/**/*.tsx'],
     ignores: ['**/*.test.ts', '**/*.test.tsx'],
     rules: {
-      complexity: ['error', 20],
+      complexity: ['error', 15],
       'max-lines-per-function': ['error', { max: 80, skipBlankLines: true, skipComments: true }],
       'max-depth': ['error', 4],
       'max-params': ['error', 5],

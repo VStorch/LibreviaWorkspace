@@ -822,9 +822,9 @@ O `npm run verify` reprova o código se:
 
 - os tipos não fecharem (TypeScript estrito, com `noUncheckedIndexedAccess`);
 - as fronteiras acima forem violadas;
-- uma função nova passar dos limites de tamanho e complexidade (complexidade 20, 80 linhas,
-  4 níveis de aninhamento, 5 parâmetros); as que já passavam estão congeladas e só podem
-  melhorar — ver [CONTRIBUTING](CONTRIBUTING.md#tamanho-e-complexidade-das-funções);
+- uma função passar dos limites de tamanho e complexidade (complexidade 15, 80 linhas,
+  4 níveis de aninhamento, 5 parâmetros) — ver
+  [CONTRIBUTING](CONTRIBUTING.md#tamanho-e-complexidade-das-funções);
 - algum teste falhar, incluindo os que travam as opções de segurança da janela;
 - houver texto da interface fora do catálogo de traduções;
 - alguma dependência trouxer licença fora da lista permitida (MIT, BSD, Apache-2.0, ISC e
