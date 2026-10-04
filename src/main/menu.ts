@@ -3,7 +3,7 @@ import { APP_NAME } from '@shared/constants.js'
 import { LANGUAGES, LANGUAGE_NAMES, type MessageKey } from '@shared/i18n/index.js'
 import { SHORTCUTS, acceleratorOf } from '@shared/shortcuts.js'
 import { TABLE_ACTIONS, TableAction } from '@shared/table-actions.js'
-import { MenuCommand, RevisionView, Theme } from '@shared/types.js'
+import { MenuCommand, RevisionView, Theme, type EditorPreferences } from '@shared/types.js'
 import { showAboutDialog } from './dialogs.js'
 import { listRecentFiles } from './fs/recent.js'
 import { t } from './i18n.js'
@@ -65,7 +65,7 @@ async function buildRecentSubmenu(): Promise<MenuItemConstructorOptions[]> {
       click: () => dispatch(MenuCommand.OpenRecent, file.path),
     })),
     { type: 'separator' },
-    { label: t('menu.file.clearRecent'), click: () => dispatch(MenuCommand.ClearRecent) },
+    commandItem('menu.file.clearRecent', MenuCommand.ClearRecent),
   ]
 }
 
@@ -78,6 +78,54 @@ function themeItem(theme: Theme, key: MessageKey, chosen: Theme): MenuItemConstr
       updatePreferences({ theme })
     },
   }
+}
+
+function commandItem(
+  key: MessageKey,
+  command: MenuCommand,
+  accelerator?: string,
+): MenuItemConstructorOptions {
+  return {
+    label: t(key),
+    ...(accelerator === undefined ? {} : { accelerator }),
+    click: () => dispatch(command),
+  }
+}
+
+type BooleanPreference = {
+  [K in keyof EditorPreferences]: EditorPreferences[K] extends boolean ? K : never
+}[keyof EditorPreferences]
+
+function preferenceToggle(
+  key: MessageKey,
+  preference: BooleanPreference,
+  preferences: EditorPreferences,
+  accelerator?: string,
+): MenuItemConstructorOptions {
+  return {
+    label: t(key),
+    type: 'checkbox',
+    checked: preferences[preference],
+    ...(accelerator === undefined ? {} : { accelerator }),
+    click: () => {
+      updatePreferences({ [preference]: !preferences[preference] })
+    },
+  }
+}
+
+/** O zoom é da folha; o degrau é do renderer, que sabe quanto vale o "ajustar à largura". */
+function zoomItems(preferences: EditorPreferences): MenuItemConstructorOptions[] {
+  return [
+    commandItem('menu.view.resetZoom', MenuCommand.ZoomReset, acceleratorOf(SHORTCUTS.zoomReset)),
+    commandItem('menu.view.zoomIn', MenuCommand.ZoomIn, acceleratorOf(SHORTCUTS.zoomIn)),
+    commandItem('menu.view.zoomOut', MenuCommand.ZoomOut, acceleratorOf(SHORTCUTS.zoomOut)),
+    {
+      label: t('menu.view.zoomFitWidth'),
+      type: 'checkbox',
+      checked: preferences.zoomFit,
+      click: () => dispatch(MenuCommand.ZoomFitWidth),
+    },
+  ]
 }
 
 /** Os itens não se apagam fora de uma tabela: o main não sabe onde está o cursor. */
@@ -103,7 +151,25 @@ function buildTableSubmenu(): MenuItemConstructorOptions[] {
 
 /** Só entram itens que funcionam. */
 async function buildTemplate(): Promise<MenuItemConstructorOptions[]> {
-  const macAppMenu: MenuItemConstructorOptions[] = isMac
+  const preferences = editorPreferences()
+
+  return [
+    ...macAppMenu(),
+    fileMenu(await buildRecentSubmenu()),
+    editMenu(),
+    formatMenu(),
+    { label: t('menu.table'), submenu: buildTableSubmenu() },
+    insertMenu(),
+    referencesMenu(),
+    reviewMenu(),
+    { label: t('menu.view'), submenu: viewSubmenu(preferences) },
+    toolsMenu(preferences),
+    helpMenu(),
+  ]
+}
+
+function macAppMenu(): MenuItemConstructorOptions[] {
+  return isMac
     ? [
         {
           label: APP_NAME,
@@ -119,63 +185,28 @@ async function buildTemplate(): Promise<MenuItemConstructorOptions[]> {
         },
       ]
     : []
+}
 
-  const preferences = editorPreferences()
-
-  const viewSubmenu: MenuItemConstructorOptions[] = [
-    {
-      label: t('view.showToolbar'),
-      type: 'checkbox',
-      checked: preferences.showToolbar,
-      click: () => {
-        updatePreferences({ showToolbar: !preferences.showToolbar })
-      },
-    },
-    {
-      label: t('view.showStatusBar'),
-      type: 'checkbox',
-      checked: preferences.showStatusBar,
-      click: () => {
-        updatePreferences({ showStatusBar: !preferences.showStatusBar })
-      },
-    },
+function viewSubmenu(preferences: EditorPreferences): MenuItemConstructorOptions[] {
+  const items: MenuItemConstructorOptions[] = [
+    preferenceToggle('view.showToolbar', 'showToolbar', preferences),
+    preferenceToggle('view.showStatusBar', 'showStatusBar', preferences),
     { type: 'separator' },
-    {
-      label: t('view.reading'),
-      type: 'checkbox',
-      checked: preferences.readingMode,
-      accelerator: acceleratorOf(SHORTCUTS.readingMode),
-      click: () => {
-        updatePreferences({ readingMode: !preferences.readingMode })
-      },
-    },
+    preferenceToggle('view.reading', 'readingMode', preferences, acceleratorOf(SHORTCUTS.readingMode)),
     { type: 'separator' },
-    {
-      label: t('menu.view.formattingMarks'),
-      type: 'checkbox',
-      checked: preferences.invisibleCharacters,
-      accelerator: acceleratorOf(SHORTCUTS.formattingMarks),
-      click: () => {
-        updatePreferences({ invisibleCharacters: !preferences.invisibleCharacters })
-      },
-    },
-    {
-      label: t('menu.view.navigationPane'),
-      type: 'checkbox',
-      checked: preferences.navigationPane,
-      accelerator: acceleratorOf(SHORTCUTS.navigationPane),
-      click: () => {
-        updatePreferences({ navigationPane: !preferences.navigationPane })
-      },
-    },
-    {
-      label: t('menu.view.commentsPane'),
-      type: 'checkbox',
-      checked: preferences.commentsPane,
-      click: () => {
-        updatePreferences({ commentsPane: !preferences.commentsPane })
-      },
-    },
+    preferenceToggle(
+      'menu.view.formattingMarks',
+      'invisibleCharacters',
+      preferences,
+      acceleratorOf(SHORTCUTS.formattingMarks),
+    ),
+    preferenceToggle(
+      'menu.view.navigationPane',
+      'navigationPane',
+      preferences,
+      acceleratorOf(SHORTCUTS.navigationPane),
+    ),
+    preferenceToggle('menu.view.commentsPane', 'commentsPane', preferences),
     { type: 'separator' },
     {
       label: t('view.theme'),
@@ -198,28 +229,7 @@ async function buildTemplate(): Promise<MenuItemConstructorOptions[]> {
       })),
     },
     { type: 'separator' },
-    // O zoom é da folha; o degrau é do renderer, que sabe quanto vale o "ajustar à largura".
-    {
-      label: t('menu.view.resetZoom'),
-      accelerator: acceleratorOf(SHORTCUTS.zoomReset),
-      click: () => dispatch(MenuCommand.ZoomReset),
-    },
-    {
-      label: t('menu.view.zoomIn'),
-      accelerator: acceleratorOf(SHORTCUTS.zoomIn),
-      click: () => dispatch(MenuCommand.ZoomIn),
-    },
-    {
-      label: t('menu.view.zoomOut'),
-      accelerator: acceleratorOf(SHORTCUTS.zoomOut),
-      click: () => dispatch(MenuCommand.ZoomOut),
-    },
-    {
-      label: t('menu.view.zoomFitWidth'),
-      type: 'checkbox',
-      checked: preferences.zoomFit,
-      click: () => dispatch(MenuCommand.ZoomFitWidth),
-    },
+    ...zoomItems(preferences),
     { type: 'separator' },
     {
       role: 'togglefullscreen',
@@ -229,307 +239,218 @@ async function buildTemplate(): Promise<MenuItemConstructorOptions[]> {
   ]
 
   if (devServerUrl() !== null) {
-    viewSubmenu.push(
+    items.push(
       { type: 'separator' },
       { role: 'reload', label: t('menu.view.reload'), accelerator: acceleratorOf(SHORTCUTS.reload) },
       { role: 'toggleDevTools', label: t('menu.view.devTools') },
     )
   }
+  return items
+}
 
-  return [
-    ...macAppMenu,
-    {
-      label: t('menu.file'),
-      submenu: [
-        {
-          label: t('menu.file.newDocument'),
-          accelerator: acceleratorOf(SHORTCUTS.newDocument),
-          click: () => dispatch(MenuCommand.NewDocument),
+function fileMenu(recent: MenuItemConstructorOptions[]): MenuItemConstructorOptions {
+  return {
+    label: t('menu.file'),
+    submenu: [
+      commandItem('menu.file.newDocument', MenuCommand.NewDocument, acceleratorOf(SHORTCUTS.newDocument)),
+      commandItem(
+        'menu.file.newSpreadsheet',
+        MenuCommand.NewSpreadsheet,
+        acceleratorOf(SHORTCUTS.newSpreadsheet),
+      ),
+      commandItem('menu.file.newFromTemplate', MenuCommand.NewFromTemplate),
+      { type: 'separator' },
+      commandItem('menu.file.open', MenuCommand.Open, acceleratorOf(SHORTCUTS.open)),
+      { label: t('menu.file.openRecent'), submenu: recent },
+      { type: 'separator' },
+      commandItem('menu.file.save', MenuCommand.Save, acceleratorOf(SHORTCUTS.save)),
+      commandItem('menu.file.saveAs', MenuCommand.SaveAs, acceleratorOf(SHORTCUTS.saveAs)),
+      { type: 'separator' },
+      commandItem('menu.file.pageSetup', MenuCommand.PageSetup),
+      commandItem('menu.file.printPreview', MenuCommand.PrintPreview),
+      commandItem('menu.file.exportPdf', MenuCommand.ExportPdf),
+      {
+        label: t('menu.file.exportAs'),
+        submenu: [
+          commandItem('menu.file.exportHtml', MenuCommand.ExportHtml),
+          commandItem('menu.file.exportMarkdown', MenuCommand.ExportMarkdown),
+          commandItem('menu.file.exportOdt', MenuCommand.ExportOdt),
+        ],
+      },
+      commandItem('menu.file.properties', MenuCommand.DocumentProperties),
+      commandItem('menu.file.print', MenuCommand.Print, acceleratorOf(SHORTCUTS.print)),
+      { type: 'separator' },
+      commandItem('menu.file.close', MenuCommand.CloseFile, acceleratorOf(SHORTCUTS.closeFile)),
+      { role: 'quit', label: t('menu.file.quit') },
+    ],
+  }
+}
+
+function editMenu(): MenuItemConstructorOptions {
+  return {
+    label: t('menu.edit'),
+    submenu: [
+      { role: 'undo', label: t('menu.edit.undo') },
+      { role: 'redo', label: t('menu.edit.redo') },
+      { type: 'separator' },
+      { role: 'cut', label: t('menu.edit.cut') },
+      { role: 'copy', label: t('menu.edit.copy') },
+      { role: 'paste', label: t('menu.edit.paste') },
+      commandItem(
+        'menu.edit.pasteWithoutFormat',
+        MenuCommand.PasteWithoutFormat,
+        acceleratorOf(SHORTCUTS.pasteWithoutFormat),
+      ),
+      { role: 'selectAll', label: t('menu.edit.selectAll') },
+      { type: 'separator' },
+      commandItem('menu.edit.findReplace', MenuCommand.FindReplace, acceleratorOf(SHORTCUTS.findReplace)),
+    ],
+  }
+}
+
+function formatMenu(): MenuItemConstructorOptions {
+  return {
+    label: t('menu.format'),
+    submenu: [
+      commandItem('menu.format.paragraph', MenuCommand.ParagraphSetup),
+      commandItem('menu.format.image', MenuCommand.ImageProperties),
+      commandItem('menu.format.columns', MenuCommand.FormatColumns),
+    ],
+  }
+}
+
+function insertMenu(): MenuItemConstructorOptions {
+  return {
+    label: t('menu.insert'),
+    submenu: [
+      commandItem(
+        'menu.insert.pageBreak',
+        MenuCommand.InsertPageBreak,
+        acceleratorOf(SHORTCUTS.insertPageBreak),
+      ),
+      {
+        // A quebra de seção não se vê no texto, e por isso também se exclui pelo menu.
+        label: t('menu.insert.sectionBreak'),
+        submenu: [
+          commandItem('menu.insert.sectionNextPage', MenuCommand.InsertSectionNextPage),
+          commandItem('menu.insert.sectionContinuous', MenuCommand.InsertSectionContinuous),
+          commandItem('menu.insert.sectionEvenPage', MenuCommand.InsertSectionEvenPage),
+          commandItem('menu.insert.sectionOddPage', MenuCommand.InsertSectionOddPage),
+          { type: 'separator' },
+          commandItem('menu.insert.columnBreak', MenuCommand.InsertColumnBreak),
+          commandItem('menu.insert.deleteSectionBreak', MenuCommand.DeleteSectionBreak),
+        ],
+      },
+      commandItem('menu.insert.specialCharacter', MenuCommand.SpecialCharacter),
+      commandItem(
+        'menu.insert.equation',
+        MenuCommand.InsertEquation,
+        acceleratorOf(SHORTCUTS.insertEquation),
+      ),
+      commandItem('menu.insert.displayEquation', MenuCommand.InsertDisplayEquation),
+      { type: 'separator' },
+      commandItem(
+        'menu.insert.bookmark',
+        MenuCommand.InsertBookmark,
+        acceleratorOf(SHORTCUTS.insertBookmark),
+      ),
+      commandItem(
+        'menu.insert.footnote',
+        MenuCommand.InsertFootnote,
+        acceleratorOf(SHORTCUTS.insertFootnote),
+      ),
+      commandItem('menu.insert.endnote', MenuCommand.InsertEndnote, acceleratorOf(SHORTCUTS.insertEndnote)),
+      commandItem('menu.insert.comment', MenuCommand.InsertComment, acceleratorOf(SHORTCUTS.insertComment)),
+      commandItem('menu.insert.nextComment', MenuCommand.NextComment),
+      commandItem('menu.insert.previousComment', MenuCommand.PreviousComment),
+    ],
+  }
+}
+
+function referencesMenu(): MenuItemConstructorOptions {
+  return {
+    // O marcador fica em "Inserir", como no Word.
+    label: t('menu.references'),
+    submenu: [
+      commandItem('menu.references.tableOfContents', MenuCommand.InsertTableOfContents),
+      commandItem('menu.references.updateTableOfContents', MenuCommand.UpdateTableOfContents),
+      { type: 'separator' },
+      commandItem('menu.references.caption', MenuCommand.InsertCaption),
+      commandItem('menu.references.crossReference', MenuCommand.InsertCrossReference),
+      { type: 'separator' },
+      commandItem(
+        'menu.references.updateFields',
+        MenuCommand.UpdateFields,
+        acceleratorOf(SHORTCUTS.updateFields),
+      ),
+    ],
+  }
+}
+
+function reviewMenu(): MenuItemConstructorOptions {
+  return {
+    label: t('menu.review'),
+    submenu: [
+      {
+        label: t('revisions.track'),
+        type: 'checkbox',
+        checked: trackChangesOn,
+        accelerator: acceleratorOf(SHORTCUTS.trackChanges),
+        toolTip: t('revisions.trackHint'),
+        click: () => {
+          dispatch(MenuCommand.ToggleTrackChanges)
+          // Quem decide é o documento; sem resposta (somente leitura), a marca volta.
+          void refreshMenu()
         },
-        {
-          label: t('menu.file.newSpreadsheet'),
-          accelerator: acceleratorOf(SHORTCUTS.newSpreadsheet),
-          click: () => dispatch(MenuCommand.NewSpreadsheet),
+      },
+      {
+        label: t('revisions.show'),
+        submenu: [
+          revisionViewItem(RevisionView.All, 'revisions.show.all', MenuCommand.ShowAllMarkup),
+          revisionViewItem(RevisionView.Simple, 'revisions.show.simple', MenuCommand.ShowSimpleMarkup),
+          revisionViewItem(RevisionView.None, 'revisions.show.none', MenuCommand.ShowNoMarkup),
+          revisionViewItem(RevisionView.Original, 'revisions.show.original', MenuCommand.ShowOriginal),
+        ],
+      },
+      { type: 'separator' },
+      commandItem('revisions.accept', MenuCommand.AcceptChange),
+      commandItem('revisions.reject', MenuCommand.RejectChange),
+      { type: 'separator' },
+      commandItem('revisions.acceptAll', MenuCommand.AcceptAllChanges),
+      commandItem('revisions.rejectAll', MenuCommand.RejectAllChanges),
+      { type: 'separator' },
+      commandItem('revisions.next', MenuCommand.NextChange),
+      commandItem('revisions.previous', MenuCommand.PreviousChange),
+    ],
+  }
+}
+
+function toolsMenu(preferences: EditorPreferences): MenuItemConstructorOptions {
+  return {
+    label: t('menu.tools'),
+    submenu: [
+      preferenceToggle('menu.tools.spellcheck', 'spellcheck', preferences),
+      preferenceToggle('menu.tools.typography', 'typography', preferences),
+      { type: 'separator' },
+      commandItem('menu.tools.wordCount', MenuCommand.WordCount, acceleratorOf(SHORTCUTS.wordCount)),
+      commandItem('menu.tools.authorName', MenuCommand.AuthorName),
+    ],
+  }
+}
+
+function helpMenu(): MenuItemConstructorOptions {
+  return {
+    label: t('menu.help'),
+    submenu: [
+      {
+        label: t('menu.help.about'),
+        click: () => {
+          const window = focusedWindow()
+          if (window !== null) showAboutDialog(window, APP_NAME, app.getVersion())
         },
-        { label: t('menu.file.newFromTemplate'), click: () => dispatch(MenuCommand.NewFromTemplate) },
-        { type: 'separator' },
-        {
-          label: t('menu.file.open'),
-          accelerator: acceleratorOf(SHORTCUTS.open),
-          click: () => dispatch(MenuCommand.Open),
-        },
-        { label: t('menu.file.openRecent'), submenu: await buildRecentSubmenu() },
-        { type: 'separator' },
-        {
-          label: t('menu.file.save'),
-          accelerator: acceleratorOf(SHORTCUTS.save),
-          click: () => dispatch(MenuCommand.Save),
-        },
-        {
-          label: t('menu.file.saveAs'),
-          accelerator: acceleratorOf(SHORTCUTS.saveAs),
-          click: () => dispatch(MenuCommand.SaveAs),
-        },
-        { type: 'separator' },
-        { label: t('menu.file.pageSetup'), click: () => dispatch(MenuCommand.PageSetup) },
-        { label: t('menu.file.printPreview'), click: () => dispatch(MenuCommand.PrintPreview) },
-        { label: t('menu.file.exportPdf'), click: () => dispatch(MenuCommand.ExportPdf) },
-        {
-          label: t('menu.file.exportAs'),
-          submenu: [
-            { label: t('menu.file.exportHtml'), click: () => dispatch(MenuCommand.ExportHtml) },
-            { label: t('menu.file.exportMarkdown'), click: () => dispatch(MenuCommand.ExportMarkdown) },
-            { label: t('menu.file.exportOdt'), click: () => dispatch(MenuCommand.ExportOdt) },
-          ],
-        },
-        { label: t('menu.file.properties'), click: () => dispatch(MenuCommand.DocumentProperties) },
-        {
-          label: t('menu.file.print'),
-          accelerator: acceleratorOf(SHORTCUTS.print),
-          click: () => dispatch(MenuCommand.Print),
-        },
-        { type: 'separator' },
-        {
-          label: t('menu.file.close'),
-          accelerator: acceleratorOf(SHORTCUTS.closeFile),
-          click: () => dispatch(MenuCommand.CloseFile),
-        },
-        { role: 'quit', label: t('menu.file.quit') },
-      ],
-    },
-    {
-      label: t('menu.edit'),
-      submenu: [
-        { role: 'undo', label: t('menu.edit.undo') },
-        { role: 'redo', label: t('menu.edit.redo') },
-        { type: 'separator' },
-        { role: 'cut', label: t('menu.edit.cut') },
-        { role: 'copy', label: t('menu.edit.copy') },
-        { role: 'paste', label: t('menu.edit.paste') },
-        {
-          label: t('menu.edit.pasteWithoutFormat'),
-          accelerator: acceleratorOf(SHORTCUTS.pasteWithoutFormat),
-          click: () => dispatch(MenuCommand.PasteWithoutFormat),
-        },
-        { role: 'selectAll', label: t('menu.edit.selectAll') },
-        { type: 'separator' },
-        {
-          label: t('menu.edit.findReplace'),
-          accelerator: acceleratorOf(SHORTCUTS.findReplace),
-          click: () => dispatch(MenuCommand.FindReplace),
-        },
-      ],
-    },
-    {
-      label: t('menu.format'),
-      submenu: [
-        {
-          label: t('menu.format.paragraph'),
-          click: () => dispatch(MenuCommand.ParagraphSetup),
-        },
-        {
-          label: t('menu.format.image'),
-          click: () => dispatch(MenuCommand.ImageProperties),
-        },
-        {
-          label: t('menu.format.columns'),
-          click: () => dispatch(MenuCommand.FormatColumns),
-        },
-      ],
-    },
-    { label: t('menu.table'), submenu: buildTableSubmenu() },
-    {
-      label: t('menu.insert'),
-      submenu: [
-        {
-          label: t('menu.insert.pageBreak'),
-          accelerator: acceleratorOf(SHORTCUTS.insertPageBreak),
-          click: () => dispatch(MenuCommand.InsertPageBreak),
-        },
-        {
-          // A quebra de seção não se vê no texto, e por isso também se exclui pelo menu.
-          label: t('menu.insert.sectionBreak'),
-          submenu: [
-            {
-              label: t('menu.insert.sectionNextPage'),
-              click: () => dispatch(MenuCommand.InsertSectionNextPage),
-            },
-            {
-              label: t('menu.insert.sectionContinuous'),
-              click: () => dispatch(MenuCommand.InsertSectionContinuous),
-            },
-            {
-              label: t('menu.insert.sectionEvenPage'),
-              click: () => dispatch(MenuCommand.InsertSectionEvenPage),
-            },
-            {
-              label: t('menu.insert.sectionOddPage'),
-              click: () => dispatch(MenuCommand.InsertSectionOddPage),
-            },
-            { type: 'separator' },
-            {
-              label: t('menu.insert.columnBreak'),
-              click: () => dispatch(MenuCommand.InsertColumnBreak),
-            },
-            {
-              label: t('menu.insert.deleteSectionBreak'),
-              click: () => dispatch(MenuCommand.DeleteSectionBreak),
-            },
-          ],
-        },
-        {
-          label: t('menu.insert.specialCharacter'),
-          click: () => dispatch(MenuCommand.SpecialCharacter),
-        },
-        {
-          label: t('menu.insert.equation'),
-          accelerator: acceleratorOf(SHORTCUTS.insertEquation),
-          click: () => dispatch(MenuCommand.InsertEquation),
-        },
-        {
-          label: t('menu.insert.displayEquation'),
-          click: () => dispatch(MenuCommand.InsertDisplayEquation),
-        },
-        { type: 'separator' },
-        {
-          label: t('menu.insert.bookmark'),
-          accelerator: acceleratorOf(SHORTCUTS.insertBookmark),
-          click: () => dispatch(MenuCommand.InsertBookmark),
-        },
-        {
-          label: t('menu.insert.footnote'),
-          accelerator: acceleratorOf(SHORTCUTS.insertFootnote),
-          click: () => dispatch(MenuCommand.InsertFootnote),
-        },
-        {
-          label: t('menu.insert.endnote'),
-          accelerator: acceleratorOf(SHORTCUTS.insertEndnote),
-          click: () => dispatch(MenuCommand.InsertEndnote),
-        },
-        {
-          label: t('menu.insert.comment'),
-          accelerator: acceleratorOf(SHORTCUTS.insertComment),
-          click: () => dispatch(MenuCommand.InsertComment),
-        },
-        {
-          label: t('menu.insert.nextComment'),
-          click: () => dispatch(MenuCommand.NextComment),
-        },
-        {
-          label: t('menu.insert.previousComment'),
-          click: () => dispatch(MenuCommand.PreviousComment),
-        },
-      ],
-    },
-    {
-      // O marcador fica em "Inserir", como no Word.
-      label: t('menu.references'),
-      submenu: [
-        {
-          label: t('menu.references.tableOfContents'),
-          click: () => dispatch(MenuCommand.InsertTableOfContents),
-        },
-        {
-          label: t('menu.references.updateTableOfContents'),
-          click: () => dispatch(MenuCommand.UpdateTableOfContents),
-        },
-        { type: 'separator' },
-        {
-          label: t('menu.references.caption'),
-          click: () => dispatch(MenuCommand.InsertCaption),
-        },
-        {
-          label: t('menu.references.crossReference'),
-          click: () => dispatch(MenuCommand.InsertCrossReference),
-        },
-        { type: 'separator' },
-        {
-          label: t('menu.references.updateFields'),
-          accelerator: acceleratorOf(SHORTCUTS.updateFields),
-          click: () => dispatch(MenuCommand.UpdateFields),
-        },
-      ],
-    },
-    {
-      label: t('menu.review'),
-      submenu: [
-        {
-          label: t('revisions.track'),
-          type: 'checkbox',
-          checked: trackChangesOn,
-          accelerator: acceleratorOf(SHORTCUTS.trackChanges),
-          toolTip: t('revisions.trackHint'),
-          click: () => {
-            dispatch(MenuCommand.ToggleTrackChanges)
-            // Quem decide é o documento; sem resposta (somente leitura), a marca volta.
-            void refreshMenu()
-          },
-        },
-        {
-          label: t('revisions.show'),
-          submenu: [
-            revisionViewItem(RevisionView.All, 'revisions.show.all', MenuCommand.ShowAllMarkup),
-            revisionViewItem(RevisionView.Simple, 'revisions.show.simple', MenuCommand.ShowSimpleMarkup),
-            revisionViewItem(RevisionView.None, 'revisions.show.none', MenuCommand.ShowNoMarkup),
-            revisionViewItem(RevisionView.Original, 'revisions.show.original', MenuCommand.ShowOriginal),
-          ],
-        },
-        { type: 'separator' },
-        { label: t('revisions.accept'), click: () => dispatch(MenuCommand.AcceptChange) },
-        { label: t('revisions.reject'), click: () => dispatch(MenuCommand.RejectChange) },
-        { type: 'separator' },
-        { label: t('revisions.acceptAll'), click: () => dispatch(MenuCommand.AcceptAllChanges) },
-        { label: t('revisions.rejectAll'), click: () => dispatch(MenuCommand.RejectAllChanges) },
-        { type: 'separator' },
-        { label: t('revisions.next'), click: () => dispatch(MenuCommand.NextChange) },
-        { label: t('revisions.previous'), click: () => dispatch(MenuCommand.PreviousChange) },
-      ],
-    },
-    { label: t('menu.view'), submenu: viewSubmenu },
-    {
-      label: t('menu.tools'),
-      submenu: [
-        {
-          label: t('menu.tools.spellcheck'),
-          type: 'checkbox',
-          checked: preferences.spellcheck,
-          click: () => {
-            updatePreferences({ spellcheck: !preferences.spellcheck })
-          },
-        },
-        {
-          label: t('menu.tools.typography'),
-          type: 'checkbox',
-          checked: preferences.typography,
-          click: () => {
-            updatePreferences({ typography: !preferences.typography })
-          },
-        },
-        { type: 'separator' },
-        {
-          label: t('menu.tools.wordCount'),
-          accelerator: acceleratorOf(SHORTCUTS.wordCount),
-          click: () => dispatch(MenuCommand.WordCount),
-        },
-        {
-          label: t('menu.tools.authorName'),
-          click: () => dispatch(MenuCommand.AuthorName),
-        },
-      ],
-    },
-    {
-      label: t('menu.help'),
-      submenu: [
-        {
-          label: t('menu.help.about'),
-          click: () => {
-            const window = focusedWindow()
-            if (window !== null) showAboutDialog(window, APP_NAME, app.getVersion())
-          },
-        },
-      ],
-    },
-  ]
+      },
+    ],
+  }
 }
 
 export async function refreshMenu(): Promise<void> {

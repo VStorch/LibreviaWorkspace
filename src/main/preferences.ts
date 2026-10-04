@@ -109,23 +109,7 @@ export function applyStoredPreferences(): void {
 /** Remendo, e não o conjunto inteiro: quem clica em "marcas de formatação" não opina sobre ortografia. */
 export function updatePreferences(patch: EditorPreferencesPatch): EditorPreferences {
   const active = editorPreferences()
-  // Chave por chave: espalhar o remendo apagaria a chave presente com
-  // `undefined`. O nome apagado volta a ser o do sistema na hora.
-  const next: EditorPreferences = withAuthor({
-    spellcheck: patch.spellcheck ?? active.spellcheck,
-    invisibleCharacters: patch.invisibleCharacters ?? active.invisibleCharacters,
-    typography: patch.typography ?? active.typography,
-    language: patch.language ?? active.language,
-    theme: patch.theme ?? active.theme,
-    readingMode: patch.readingMode ?? active.readingMode,
-    showToolbar: patch.showToolbar ?? active.showToolbar,
-    showStatusBar: patch.showStatusBar ?? active.showStatusBar,
-    zoom: patch.zoom ?? active.zoom,
-    zoomFit: patch.zoomFit ?? active.zoomFit,
-    navigationPane: patch.navigationPane ?? active.navigationPane,
-    commentsPane: patch.commentsPane ?? active.commentsPane,
-    authorName: patch.authorName ?? active.authorName,
-  })
+  const next = mergedPreferences(active, patch)
 
   const spellcheckChanged = next.spellcheck !== active.spellcheck
   const themeChanged = next.theme !== active.theme
@@ -152,6 +136,26 @@ export function updatePreferences(patch: EditorPreferencesPatch): EditorPreferen
   for (const listener of listeners) listener(next)
 
   return next
+}
+
+function mergedPreferences(active: EditorPreferences, patch: EditorPreferencesPatch): EditorPreferences {
+  // Chave por chave: espalhar o remendo apagaria a chave presente com
+  // `undefined`. O nome apagado volta a ser o do sistema na hora.
+  return withAuthor({
+    spellcheck: patch.spellcheck ?? active.spellcheck,
+    invisibleCharacters: patch.invisibleCharacters ?? active.invisibleCharacters,
+    typography: patch.typography ?? active.typography,
+    language: patch.language ?? active.language,
+    theme: patch.theme ?? active.theme,
+    readingMode: patch.readingMode ?? active.readingMode,
+    showToolbar: patch.showToolbar ?? active.showToolbar,
+    showStatusBar: patch.showStatusBar ?? active.showStatusBar,
+    zoom: patch.zoom ?? active.zoom,
+    zoomFit: patch.zoomFit ?? active.zoomFit,
+    navigationPane: patch.navigationPane ?? active.navigationPane,
+    commentsPane: patch.commentsPane ?? active.commentsPane,
+    authorName: patch.authorName ?? active.authorName,
+  })
 }
 
 /** Um emissor, e não uma chamada a `refreshMenu`: o menu já importa este módulo. */

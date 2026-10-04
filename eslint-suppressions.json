@@ -1,19 +1,4 @@
 {
-  "src/main/docx/index.ts": {
-    "complexity": {
-      "count": 1
-    }
-  },
-  "src/main/menu.ts": {
-    "max-lines-per-function": {
-      "count": 1
-    }
-  },
-  "src/main/preferences.ts": {
-    "complexity": {
-      "count": 1
-    }
-  },
   "src/renderer/app/App.tsx": {
     "complexity": {
       "count": 1

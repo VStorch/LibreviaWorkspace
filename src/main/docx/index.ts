@@ -142,28 +142,7 @@ export async function saveDocx(
 
   const reply = await client.request(
     SidecarMethod.DocxSave,
-    // `flatten` escolhe a leitura de referência do sidecar para o rascunho
-    // achatado. Os estilos vão sempre, para chegarem a `word/styles.xml`.
-    {
-      page: model.page,
-      doc: model.doc,
-      ...(model.flattened ? { flatten: true } : {}),
-      ...(model.beforeReferences ? { beforeReferences: true } : {}),
-      ...(model.sections === undefined ? {} : { sections: model.sections }),
-      ...(model.beforeSections ? { beforeSections: true } : {}),
-      // A lista vazia é "todos excluídos"; no rascunho de antes deles, só a marca.
-      ...(model.beforeComments ? { beforeComments: true } : { comments: model.comments }),
-      ...(model.trackChanges === undefined ? {} : { trackChanges: model.trackChanges }),
-      ...(model.beforeRevisions ? { beforeRevisions: true } : {}),
-      ...(model.beforeNotes ? { beforeNotes: true } : {}),
-      ...(model.beforeMath ? { beforeMath: true } : {}),
-      // O sidecar só grava a numeração das notas e as propriedades quando diferem
-      // das do arquivo de destino.
-      ...(model.notes === undefined ? {} : { notes: model.notes }),
-      ...(model.properties === undefined ? {} : { properties: model.properties }),
-      ...(model.styles === undefined ? {} : { styles: model.styles }),
-      ...(target.template === true ? { template: true } : {}),
-    },
+    saveParamsOf(model, target),
     new Uint8Array(original),
   )
   const parsed = saveResultSchema.safeParse(reply.result)
@@ -174,21 +153,7 @@ export async function saveDocx(
   console.info(`[docx] preservados ${parsed.data.preservedBlocks}, reescritos ${parsed.data.rewrittenBlocks}`)
 
   const inventory = parsed.data.inventory
-  const foreignBandsPt = translate(Language.Portuguese, 'errors.docx.foreignBands')
-  const lost = inventory.lost.map((item) => (item === foreignBandsPt ? t('errors.docx.foreignBands') : item))
-  if (kept === null) {
-    // O sidecar já declara a mesma perda quando a relação não existia no pacote
-    // mínimo: a frase é uma só.
-    if (
-      [model.page, ...(Array.isArray(model.sections) ? model.sections : [])].some(hasForeignBands) &&
-      !lost.includes(t('errors.docx.foreignBands'))
-    )
-      lost.push(t('errors.docx.foreignBands'))
-    // Rede de proteção: um modelo com `oid` foi numerado contra um pacote que
-    // não está aqui, e sai o pacote mínimo. Dito em voz alta, porque perda calada
-    // é o pior defeito deste programa.
-    if (hasOid(model.doc)) lost.push(t('errors.docx.originPackage'))
-  }
+  const lost = lossesOf(inventory.lost, model, kept === null)
 
   return {
     bytes: reply.binary,
@@ -198,6 +163,52 @@ export async function saveDocx(
     // gravação.
     original,
   }
+}
+
+type SdocModel = ReturnType<typeof unwrapSdoc>
+
+function saveParamsOf(model: SdocModel, target: DocxTarget): Record<string, unknown> {
+  // `flatten` escolhe a leitura de referência do sidecar para o rascunho
+  // achatado. Os estilos vão sempre, para chegarem a `word/styles.xml`.
+  return {
+    page: model.page,
+    doc: model.doc,
+    ...(model.flattened ? { flatten: true } : {}),
+    ...(model.beforeReferences ? { beforeReferences: true } : {}),
+    ...(model.sections === undefined ? {} : { sections: model.sections }),
+    ...(model.beforeSections ? { beforeSections: true } : {}),
+    // A lista vazia é "todos excluídos"; no rascunho de antes deles, só a marca.
+    ...(model.beforeComments ? { beforeComments: true } : { comments: model.comments }),
+    ...(model.trackChanges === undefined ? {} : { trackChanges: model.trackChanges }),
+    ...(model.beforeRevisions ? { beforeRevisions: true } : {}),
+    ...(model.beforeNotes ? { beforeNotes: true } : {}),
+    ...(model.beforeMath ? { beforeMath: true } : {}),
+    // O sidecar só grava a numeração das notas e as propriedades quando diferem
+    // das do arquivo de destino.
+    ...(model.notes === undefined ? {} : { notes: model.notes }),
+    ...(model.properties === undefined ? {} : { properties: model.properties }),
+    ...(model.styles === undefined ? {} : { styles: model.styles }),
+    ...(target.template === true ? { template: true } : {}),
+  }
+}
+
+/** A frase do sidecar vem em português; a tela mostra a da língua escolhida. */
+function lossesOf(declared: readonly string[], model: SdocModel, fromMinimalPackage: boolean): string[] {
+  const foreignBandsPt = translate(Language.Portuguese, 'errors.docx.foreignBands')
+  const lost = declared.map((item) => (item === foreignBandsPt ? t('errors.docx.foreignBands') : item))
+  if (!fromMinimalPackage) return lost
+  // O sidecar já declara a mesma perda quando a relação não existia no pacote
+  // mínimo: a frase é uma só.
+  if (
+    [model.page, ...(Array.isArray(model.sections) ? model.sections : [])].some(hasForeignBands) &&
+    !lost.includes(t('errors.docx.foreignBands'))
+  )
+    lost.push(t('errors.docx.foreignBands'))
+  // Rede de proteção: um modelo com `oid` foi numerado contra um pacote que
+  // não está aqui, e sai o pacote mínimo. Dito em voz alta, porque perda calada
+  // é o pior defeito deste programa.
+  if (hasOid(model.doc)) lost.push(t('errors.docx.originPackage'))
+  return lost
 }
 
 /**
