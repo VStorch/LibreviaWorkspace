@@ -17,6 +17,7 @@ import type { SidecarClient } from '../sidecar/client.js'
 import { SidecarMethod } from '../sidecar/protocol.js'
 import { t } from '../i18n.js'
 import { editorPreferences } from '../preferences.js'
+import { MAX_NAME_LENGTH } from '@shared/limits.js'
 
 /**
  * `ipc.ts` recusa mais de 50 rótulos por categoria e mais de 300 caracteres em
@@ -44,7 +45,7 @@ const openResultSchema = z.object({
     sections: z.unknown().optional(),
     doc: z.unknown(),
     styles: styleSheetSchema,
-    outsideBookmarks: z.array(z.string().max(200)).max(10_000).optional(),
+    outsideBookmarks: z.array(z.string().max(MAX_NAME_LENGTH)).max(10_000).optional(),
     comments: z.array(documentCommentSchema).max(100_000).optional(),
     trackChanges: z.boolean().optional(),
     notes: documentNotesSchema.optional(),

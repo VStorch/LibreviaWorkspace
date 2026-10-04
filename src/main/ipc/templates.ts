@@ -12,6 +12,7 @@ import { normalizePath } from '../fs/paths.js'
 import { t } from '../i18n.js'
 import { loadFile } from './file.js'
 import { handle } from './registry.js'
+import { MAX_USER_TEMPLATES } from '@shared/limits.js'
 
 /**
  * Os embutidos moram em `resources/templates`; os do usuário em
@@ -86,7 +87,7 @@ async function userEntries(): Promise<TemplateEntry[]> {
 
   return names
     .sort((a, b) => a.localeCompare(b, 'pt-BR'))
-    .slice(0, 1000)
+    .slice(0, MAX_USER_TEMPLATES)
     .map((name) => ({
       source: 'user',
       id: join(folder, name),

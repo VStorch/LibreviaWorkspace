@@ -11,6 +11,7 @@ import { DocumentKind, type DraftSummary } from '@shared/types.js'
 import { MAX_TEXT_LENGTH } from '@shared/ipc.js'
 import { writeFileAtomic } from './atomic-write.js'
 import { t } from '../i18n.js'
+import { MAX_FILE_NAME_LENGTH } from '@shared/limits.js'
 
 /** O resumo, sem conteúdo, mora em `shared/types.ts`. */
 export interface Draft extends DraftSummary {
@@ -19,7 +20,7 @@ export interface Draft extends DraftSummary {
 
 const draftSchema = z.object({
   path: z.string().min(1).nullable(),
-  name: z.string().min(1).max(255),
+  name: z.string().min(1).max(MAX_FILE_NAME_LENGTH),
   kind: z.enum([DocumentKind.Document, DocumentKind.Spreadsheet]),
   content: z.string().max(MAX_TEXT_LENGTH),
   savedAt: z.number().int().positive(),

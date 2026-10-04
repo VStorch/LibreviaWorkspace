@@ -10,6 +10,7 @@ import { t } from '../i18n.js'
 import { handle } from './registry.js'
 import { setRevisionViewChecked, setTrackChangesChecked } from '../menu.js'
 import { externalFilesReady } from '../external-files.js'
+import { MAX_FONT_FAMILIES, MAX_FONT_FAMILY_LENGTH } from '@shared/limits.js'
 
 function windowOf(event: IpcMainInvokeEvent): BrowserWindow {
   const window = BrowserWindow.fromWebContents(event.sender)
@@ -47,7 +48,9 @@ export function registerWindowHandlers(): void {
 
   // Cortada nos limites do contrato: uma entrada absurda derrubaria a lista inteira.
   handle(IpcChannel.FontsList, async () => ({
-    families: (await listInstalledFontFamilies()).filter((family) => family.length <= 100).slice(0, 4000),
+    families: (await listInstalledFontFamilies())
+      .filter((family) => family.length <= MAX_FONT_FAMILY_LENGTH)
+      .slice(0, MAX_FONT_FAMILIES),
   }))
 
   handle(IpcChannel.WindowSetState, (payload, event) => {

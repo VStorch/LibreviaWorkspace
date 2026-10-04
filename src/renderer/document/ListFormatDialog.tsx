@@ -12,6 +12,7 @@ import {
 import { BULLET_MARKS, LIST_PRESETS, NUMBER_FORMATS, kindOfLevels } from '@services/document/list-presets.js'
 import { useT } from '../i18n.js'
 import { listEntries } from './extensions/list-numbering.js'
+import { MAX_START_NUMBER } from '@shared/limits.js'
 
 const FORMAT_LABELS: Record<(typeof NUMBER_FORMATS)[number], MessageKey> = {
   decimal: 'document.lists.fmtDecimal',
@@ -102,7 +103,7 @@ export function ListFormatDialog({
   }
 
   const start = Number(startValue)
-  const validStart = Number.isInteger(start) && start >= 0 && start <= 32767
+  const validStart = Number.isInteger(start) && start >= 0 && start <= MAX_START_NUMBER
 
   return (
     <div
@@ -265,7 +266,7 @@ export function ListStartDialog({
   const t = useT()
   const [value, setValue] = useState('1')
   const start = Number(value)
-  const valid = Number.isInteger(start) && start >= 0 && start <= 32767
+  const valid = Number.isInteger(start) && start >= 0 && start <= MAX_START_NUMBER
 
   function apply(): void {
     if (!valid) return

@@ -14,6 +14,14 @@ import {
 } from './schemas.js'
 import { DictionaryScope, EditCommand, MenuCommand, RevisionView } from './types.js'
 import type { SerializedError } from './errors.js'
+import {
+  MAX_FILE_NAME_LENGTH,
+  MAX_FONT_FAMILIES,
+  MAX_FONT_FAMILY_LENGTH,
+  MAX_NAME_LENGTH,
+  MAX_PATH_LENGTH,
+  MAX_USER_TEMPLATES,
+} from './limits.js'
 
 /**
  * Contratos de IPC.
@@ -55,8 +63,8 @@ const loadedFileSchema = z.object({
 /** Um modelo da galeria: o embutido pelo id, o do usuário pelo caminho. */
 const templateEntrySchema = z.object({
   source: z.enum(['builtin', 'user']),
-  id: z.string().min(1).max(4096),
-  name: z.string().max(255),
+  id: z.string().min(1).max(MAX_PATH_LENGTH),
+  name: z.string().max(MAX_FILE_NAME_LENGTH),
   description: z.string().max(500),
 })
 
@@ -130,14 +138,14 @@ export const ipcContracts = {
     request: emptyRequest,
     response: z.object({
       builtin: z.array(templateEntrySchema).max(100),
-      user: z.array(templateEntrySchema).max(1000),
+      user: z.array(templateEntrySchema).max(MAX_USER_TEMPLATES),
       folder: z.string(),
     }),
   },
   [IpcChannel.TemplateOpen]: {
     // Só o par fonte e id: o main confere o id contra a lista que ele mesmo
     // monta — o renderer não abre caminho arbitrário por aqui.
-    request: z.object({ source: z.enum(['builtin', 'user']), id: z.string().min(1).max(4096) }),
+    request: z.object({ source: z.enum(['builtin', 'user']), id: z.string().min(1).max(MAX_PATH_LENGTH) }),
     response: z.object({ file: loadedFileSchema }),
   },
   [IpcChannel.TemplateBrowse]: {
@@ -152,7 +160,7 @@ export const ipcContracts = {
     // O tipo viaja junto porque decide a extensão padrão: uma planilha gravada
     // como `.sdoc` abriria como documento vazio na próxima vez.
     request: z.object({
-      suggestedName: z.string().min(1).max(255),
+      suggestedName: z.string().min(1).max(MAX_FILE_NAME_LENGTH),
       kind: documentKindSchema.default('document'),
     }),
     response: saveResultSchema,
@@ -162,7 +170,7 @@ export const ipcContracts = {
     // recuperação vale mais, porque não há arquivo nenhum a que voltar.
     request: z.object({
       path: z.string().nullable(),
-      name: z.string().min(1).max(255),
+      name: z.string().min(1).max(MAX_FILE_NAME_LENGTH),
       kind: documentKindSchema,
       content: z.string().max(MAX_TEXT_LENGTH),
     }),
@@ -207,10 +215,12 @@ export const ipcContracts = {
     // Teto generoso e mesmo assim teto: uma máquina de gráfica passa de mil
     // famílias, e um nome de fonte não tem cem caracteres. O limite protege a
     // interface de uma saída de sistema estragada, não o uso legítimo.
-    response: z.object({ families: z.array(z.string().min(1).max(100)).max(4000) }),
+    response: z.object({
+      families: z.array(z.string().min(1).max(MAX_FONT_FAMILY_LENGTH)).max(MAX_FONT_FAMILIES),
+    }),
   },
   [IpcChannel.PrintExportPdf]: {
-    request: printRequestSchema.extend({ suggestedName: z.string().min(1).max(255) }),
+    request: printRequestSchema.extend({ suggestedName: z.string().min(1).max(MAX_FILE_NAME_LENGTH) }),
     response: saveResultSchema,
   },
   [IpcChannel.FileExport]: {
@@ -219,7 +229,7 @@ export const ipcContracts = {
       // O documento serializado, como no salvar: o main monta o arquivo a partir
       // do modelo, e não de um HTML pronto que o renderer pudesse ter trocado.
       content: z.string().max(MAX_TEXT_LENGTH),
-      suggestedName: z.string().min(1).max(255),
+      suggestedName: z.string().min(1).max(MAX_FILE_NAME_LENGTH),
     }),
     response: saveResultSchema,
   },
@@ -229,15 +239,15 @@ export const ipcContracts = {
     response: z.object({ printed: z.boolean() }),
   },
   [IpcChannel.PrintPreview]: {
-    request: printRequestSchema.extend({ title: z.string().max(255) }),
+    request: printRequestSchema.extend({ title: z.string().max(MAX_FILE_NAME_LENGTH) }),
     response: z.object({ opened: z.literal(true) }),
   },
   [IpcChannel.DialogConfirmDiscard]: {
-    request: z.object({ fileName: z.string().min(1).max(255) }),
+    request: z.object({ fileName: z.string().min(1).max(MAX_FILE_NAME_LENGTH) }),
     response: z.object({ choice: z.enum(['save', 'discard', 'cancel']) }),
   },
   [IpcChannel.DialogConfirmPlainText]: {
-    request: z.object({ fileName: z.string().min(1).max(255) }),
+    request: z.object({ fileName: z.string().min(1).max(MAX_FILE_NAME_LENGTH) }),
     response: z.object({ choice: z.enum(['keep-plain', 'save-as-document', 'cancel']) }),
   },
   [IpcChannel.WindowSetState]: {
@@ -280,11 +290,11 @@ export const ipcContracts = {
     response: z.object({ text: z.string().max(MAX_TEXT_LENGTH) }),
   },
   [IpcChannel.SpellReplaceWord]: {
-    request: z.object({ word: z.string().min(1).max(200) }),
+    request: z.object({ word: z.string().min(1).max(MAX_NAME_LENGTH) }),
     response: z.object({ replaced: z.literal(true) }),
   },
   [IpcChannel.SpellAddWord]: {
-    request: z.object({ word: z.string().min(1).max(200), scope: z.enum(DictionaryScope) }),
+    request: z.object({ word: z.string().min(1).max(MAX_NAME_LENGTH), scope: z.enum(DictionaryScope) }),
     // `false` quando o corretor recusou a palavra — está desligado, ou ela tem
     // caractere que o dicionário do usuário não aceita. Não é erro.
     response: z.object({ added: z.boolean() }),

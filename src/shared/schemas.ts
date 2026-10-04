@@ -1,7 +1,18 @@
 import { z } from 'zod'
 import type { DocumentNode } from '@services/document/model.js'
+import { MAX_ZOOM, MIN_ZOOM } from '@services/document/zoom.js'
 import { Language, LANGUAGES } from './i18n/language.js'
 import { Theme } from './types.js'
+import {
+  MAX_COLOR_LENGTH,
+  MAX_CSS_VALUE_LENGTH,
+  MAX_FIELD_LENGTH,
+  MAX_ID_LENGTH,
+  MAX_IMAGE_SIDE_PX,
+  MAX_NAME_LENGTH,
+  MAX_SECTION_COLUMNS,
+  MAX_START_NUMBER,
+} from './limits.js'
 
 /**
  * Schemas usados em mais de um lugar.
@@ -16,14 +27,14 @@ export const bandPieceSchema = z.object({
   text: z.string().max(1000).optional(),
   /** Data URI. Imagem de cabeçalho é pequena — um logotipo, não uma foto. */
   src: z.string().max(4_000_000).optional(),
-  width: z.number().int().positive().max(4000).optional(),
-  height: z.number().int().positive().max(4000).optional(),
+  width: z.number().int().positive().max(MAX_IMAGE_SIDE_PX).optional(),
+  height: z.number().int().positive().max(MAX_IMAGE_SIDE_PX).optional(),
   bold: z.boolean().default(false),
   italic: z.boolean().default(false),
-  color: z.string().max(32).optional(),
-  fontSize: z.string().max(16).optional(),
+  color: z.string().max(MAX_COLOR_LENGTH).optional(),
+  fontSize: z.string().max(MAX_CSS_VALUE_LENGTH).optional(),
   /** Pilha de CSS, como o leitor a resolveu. */
-  fontFamily: z.string().max(200).optional(),
+  fontFamily: z.string().max(MAX_NAME_LENGTH).optional(),
   /** A peça abre linha nova: no arquivo ela começa outro parágrafo. */
   line: z.boolean().optional(),
   /**
@@ -32,7 +43,7 @@ export const bandPieceSchema = z.object({
    * Sem declarar o campo, o zod o **descartaria em silêncio** — e o texto
    * digitado no cabeçalho voltaria para a tela e não para o `.docx`.
    */
-  pid: z.string().max(120).optional(),
+  pid: z.string().max(MAX_ID_LENGTH).optional(),
   /** O texto traz `{n}` ou `{total}` escritos no arquivo: é texto, e não campo. */
   literal: z.boolean().optional(),
 })
@@ -71,10 +82,10 @@ const bandFloatSchema = z.object({
    */
   content: z.array(documentNodeSchema).max(200).optional(),
   /** Onde a caixa mora no arquivo, quando o texto dela é editável. */
-  bid: z.string().max(120).optional(),
+  bid: z.string().max(MAX_ID_LENGTH).optional(),
   /** Moldura e preenchimento, quando o leitor soube reproduzi-los. */
-  fill: z.string().max(32).optional(),
-  line: z.string().max(32).optional(),
+  fill: z.string().max(MAX_COLOR_LENGTH).optional(),
+  line: z.string().max(MAX_COLOR_LENGTH).optional(),
   lineWidthPt: z.number().min(0).max(200).optional(),
   dash: z.boolean().optional(),
   widthMm: z.number(),
@@ -104,7 +115,7 @@ const bandCellSchema = z.object({
   width: z.number().min(0).max(1).default(0),
   span: z.number().int().min(1).max(32).default(1),
   rowSpan: z.number().int().min(1).max(32).default(1),
-  align: z.string().max(16).optional(),
+  align: z.string().max(MAX_CSS_VALUE_LENGTH).optional(),
   borders: z.string().max(4).default(''),
 })
 
@@ -160,24 +171,24 @@ export const pageSetupSchema = z.object({
   // Numeração de página e os interruptores das faixas. Opcionais pelo mesmo
   // motivo: ausentes, a gravação não mexe no que o arquivo diz.
   pageNumberFormat: z.enum(['decimal', 'lowerRoman', 'upperRoman', 'lowerLetter', 'upperLetter']).optional(),
-  pageNumberStart: z.number().int().min(0).max(32767).nullable().optional(),
+  pageNumberStart: z.number().int().min(0).max(MAX_START_NUMBER).nullable().optional(),
   titlePage: z.boolean().nullable().optional(),
   evenAndOddHeaders: z.boolean().nullable().optional(),
   // Como a seção começa. Opcional pelo mesmo motivo.
   start: z.enum(['nextPage', 'continuous', 'evenPage', 'oddPage', 'nextColumn']).optional(),
   columns: z
     .object({
-      count: z.number().int().min(1).max(45),
+      count: z.number().int().min(1).max(MAX_SECTION_COLUMNS),
       spaceMm: z.number().min(0).max(1000),
       separator: z.boolean(),
-      widthsMm: z.array(z.number()).max(45).optional(),
+      widthsMm: z.array(z.number()).max(MAX_SECTION_COLUMNS).optional(),
     })
     .optional(),
 })
 
 /** Uma seção antes da última: a configuração dela e o id da marca que a encerra. */
 export const sectionSetupSchema = pageSetupSchema.extend({
-  id: z.string().min(1).max(100),
+  id: z.string().min(1).max(MAX_FIELD_LENGTH),
 })
 
 /**
@@ -188,14 +199,14 @@ export const sectionSetupSchema = pageSetupSchema.extend({
  * verdade cabe com folga.
  */
 export const documentCommentSchema = z.object({
-  id: z.string().min(1).max(100),
-  parentId: z.string().max(100).optional(),
+  id: z.string().min(1).max(MAX_FIELD_LENGTH),
+  parentId: z.string().max(MAX_FIELD_LENGTH).optional(),
   author: z.string().max(1000),
-  initials: z.string().max(100).optional(),
-  date: z.string().max(100),
+  initials: z.string().max(MAX_FIELD_LENGTH).optional(),
+  date: z.string().max(MAX_FIELD_LENGTH),
   paragraphs: z.array(z.string().max(100_000)).max(1000),
   done: z.boolean(),
-  paraId: z.string().max(100).optional(),
+  paraId: z.string().max(MAX_FIELD_LENGTH).optional(),
   rich: z.boolean().optional(),
 })
 
@@ -204,10 +215,10 @@ export const documentCommentSchema = z.object({
  * `.sdoc`, e por isso é conferido na entrada, como os comentários.
  */
 const notePrSchema = z.object({
-  numFmt: z.string().max(100).optional(),
+  numFmt: z.string().max(MAX_FIELD_LENGTH).optional(),
   start: z.number().int().min(0).max(100_000).optional(),
-  restart: z.string().max(100).optional(),
-  pos: z.string().max(100).optional(),
+  restart: z.string().max(MAX_FIELD_LENGTH).optional(),
+  pos: z.string().max(MAX_FIELD_LENGTH).optional(),
 })
 
 export const documentNotesSchema = z.object({
@@ -229,9 +240,9 @@ export const documentPropertiesSchema = z.object({
   category: propertyText,
   description: z.string().max(100_000).optional(),
   lastModifiedBy: propertyText,
-  revision: z.string().max(100).optional(),
-  created: z.string().max(100).optional(),
-  modified: z.string().max(100).optional(),
+  revision: z.string().max(MAX_FIELD_LENGTH).optional(),
+  created: z.string().max(MAX_FIELD_LENGTH).optional(),
+  modified: z.string().max(MAX_FIELD_LENGTH).optional(),
   company: propertyText,
   manager: propertyText,
   totalTime: z.number().int().min(0).max(1_000_000_000).optional(),
@@ -261,11 +272,11 @@ export const editorPreferencesSchema = z.object({
   readingMode: z.boolean().default(false),
   showToolbar: z.boolean().default(true),
   showStatusBar: z.boolean().default(true),
-  zoom: z.number().int().min(50).max(200).default(100),
+  zoom: z.number().int().min(MIN_ZOOM).max(MAX_ZOOM).default(100),
   zoomFit: z.boolean().default(false),
   navigationPane: z.boolean().default(false),
   commentsPane: z.boolean().default(true),
-  authorName: z.string().max(200).default(''),
+  authorName: z.string().max(MAX_NAME_LENGTH).default(''),
 })
 
 /**
@@ -286,11 +297,11 @@ export const editorPreferencesPatchSchema = z.object({
   readingMode: z.boolean().optional(),
   showToolbar: z.boolean().optional(),
   showStatusBar: z.boolean().optional(),
-  zoom: z.number().int().min(50).max(200).optional(),
+  zoom: z.number().int().min(MIN_ZOOM).max(MAX_ZOOM).optional(),
   zoomFit: z.boolean().optional(),
   navigationPane: z.boolean().optional(),
   commentsPane: z.boolean().optional(),
-  authorName: z.string().max(200).optional(),
+  authorName: z.string().max(MAX_NAME_LENGTH).optional(),
 })
 
 /**
@@ -303,8 +314,8 @@ export const contextMenuTargetSchema = z.object({
   x: z.number().int().min(0).max(100_000),
   y: z.number().int().min(0).max(100_000),
   editable: z.boolean(),
-  misspelledWord: z.string().max(200),
-  dictionarySuggestions: z.array(z.string().max(200)).max(10),
+  misspelledWord: z.string().max(MAX_NAME_LENGTH),
+  dictionarySuggestions: z.array(z.string().max(MAX_NAME_LENGTH)).max(10),
   canCut: z.boolean(),
   canCopy: z.boolean(),
   canPaste: z.boolean(),
@@ -317,7 +328,7 @@ const lineSpacingSchema = z.discriminatedUnion('kind', [
 ])
 
 const styleParagraphSchema = z.object({
-  textAlign: z.string().max(16).optional(),
+  textAlign: z.string().max(MAX_CSS_VALUE_LENGTH).optional(),
   indentMm: z.number().optional(),
   indentRightMm: z.number().optional(),
   firstLineMm: z.number().optional(),
@@ -333,21 +344,21 @@ const styleParagraphSchema = z.object({
   // herda de `heading 1` e precisa desligar o nível herdado. Recusá-lo recusaria
   // a folha de estilos de todo documento com sumário do Word.
   outlineLevel: z.number().int().min(0).max(9).optional(),
-  background: z.string().max(32).optional(),
+  background: z.string().max(MAX_COLOR_LENGTH).optional(),
 })
 
 const styleCharacterSchema = z.object({
-  fontFamily: z.string().max(200).optional(),
-  fontSize: z.string().max(16).optional(),
+  fontFamily: z.string().max(MAX_NAME_LENGTH).optional(),
+  fontSize: z.string().max(MAX_CSS_VALUE_LENGTH).optional(),
   bold: z.boolean().optional(),
   italic: z.boolean().optional(),
   underline: z.boolean().optional(),
   strike: z.boolean().optional(),
   allCaps: z.boolean().optional(),
   smallCaps: z.boolean().optional(),
-  verticalAlign: z.string().max(16).optional(),
-  color: z.string().max(32).optional(),
-  highlight: z.string().max(32).optional(),
+  verticalAlign: z.string().max(MAX_CSS_VALUE_LENGTH).optional(),
+  color: z.string().max(MAX_COLOR_LENGTH).optional(),
+  highlight: z.string().max(MAX_COLOR_LENGTH).optional(),
 })
 
 /**
@@ -358,15 +369,15 @@ const styleCharacterSchema = z.object({
  * esconde nem recomenda nada, e não um documento inválido.
  */
 const styleDefinitionSchema = z.object({
-  id: z.string().min(1).max(120),
-  name: z.string().min(1).max(200),
+  id: z.string().min(1).max(MAX_ID_LENGTH),
+  name: z.string().min(1).max(MAX_NAME_LENGTH),
   type: z.enum(['paragraph', 'character']),
   qFormat: z.boolean().default(false),
   hidden: z.boolean().default(false),
   custom: z.boolean().default(false),
-  basedOn: z.string().max(120).optional(),
-  next: z.string().max(120).optional(),
-  link: z.string().max(120).optional(),
+  basedOn: z.string().max(MAX_ID_LENGTH).optional(),
+  next: z.string().max(MAX_ID_LENGTH).optional(),
+  link: z.string().max(MAX_ID_LENGTH).optional(),
   uiPriority: z.number().int().min(0).max(1000).optional(),
   paragraph: styleParagraphSchema.optional(),
   character: styleCharacterSchema.optional(),
@@ -388,12 +399,12 @@ export const styleSheetSchema = z.object({
     paragraph: styleParagraphSchema.default({}),
     character: styleCharacterSchema.default({}),
     /** O estilo que vale sem `w:pStyle`; `null` quando o documento não marca nenhum. */
-    paragraphStyleId: z.string().max(120).nullable().default(null),
-    characterStyleId: z.string().max(120).nullable().default(null),
+    paragraphStyleId: z.string().max(MAX_ID_LENGTH).nullable().default(null),
+    characterStyleId: z.string().max(MAX_ID_LENGTH).nullable().default(null),
   }),
   // O teto é a rede contra arquivo patológico, e não um limite de projeto: um
   // documento do Word com estilo para cada variante de tabela passa dos 400.
   styles: z
-    .record(z.string().max(120), styleDefinitionSchema)
+    .record(z.string().max(MAX_ID_LENGTH), styleDefinitionSchema)
     .refine((styles) => Object.keys(styles).length <= 4000, 'estilos demais'),
 })

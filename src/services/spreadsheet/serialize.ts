@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { AppError, ErrorCode } from '@shared/errors.js'
 import { translate, Language } from '@shared/i18n/index.js'
 import { DEFAULT_COLUMN_COUNT, DEFAULT_ROW_COUNT, createEmptyWorkbook, type WorkbookModel } from './model.js'
+import { MAX_COLOR_LENGTH } from '@shared/limits.js'
 
 export const SSHEET_FORMAT = 'ssheet'
 export const SSHEET_VERSION = 1
@@ -10,8 +11,8 @@ const cellStyleSchema = z.object({
   bold: z.boolean().optional(),
   italic: z.boolean().optional(),
   underline: z.boolean().optional(),
-  color: z.string().max(32).optional(),
-  background: z.string().max(32).optional(),
+  color: z.string().max(MAX_COLOR_LENGTH).optional(),
+  background: z.string().max(MAX_COLOR_LENGTH).optional(),
   align: z.enum(['left', 'center', 'right']).optional(),
   format: z.enum(['general', 'text', 'number', 'currency', 'percent', 'date']).optional(),
   decimals: z.number().int().min(0).max(10).optional(),
