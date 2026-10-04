@@ -295,13 +295,9 @@ class MarkdownWriter {
       case 'text':
         return escapeMarkdown((node.text ?? '').replace(/\r?\n/g, ' '))
       case 'hardBreak':
-        return mode === 'block' ? '\\\n' : mode === 'cell' ? '<br>' : ' '
-      case 'image': {
-        const alt = typeof node.attrs?.['alt'] === 'string' ? node.attrs['alt'] : ''
-        const path = this.imagePath(node.attrs?.['src'])
-        if (path === null) return escapeMarkdown(alt)
-        return `![${escapeMarkdown(alt)}](${path})`
-      }
+        return hardBreakMarkdown(mode)
+      case 'image':
+        return this.imageMarkdown(node)
       case 'noteRef': {
         const note = this.source.noteOf.get(node)
         return note === undefined ? '' : `[^${noteKey(note)}]`
@@ -311,15 +307,30 @@ class MarkdownWriter {
       // LaTeX entre cifrões, que o Pandoc e o GitHub leem; sem LaTeX, o MathML.
       case 'math':
         return mathMarkdown(node, mode)
-      case 'bookmarkStart': {
-        // Só os que algum link aponta: os outros seriam ruído no texto.
-        const name = String(node.attrs?.['name'] ?? '')
-        return this.source.linkTargets.has(name) ? `<a id="${escapeHtml(name)}"></a>` : ''
-      }
+      case 'bookmarkStart':
+        return this.bookmarkAnchor(node)
       default:
         return node.content === undefined ? '' : this.inline(node.content, mode)
     }
   }
+
+  private imageMarkdown(node: DocumentNode): string {
+    const alt = typeof node.attrs?.['alt'] === 'string' ? node.attrs['alt'] : ''
+    const path = this.imagePath(node.attrs?.['src'])
+    if (path === null) return escapeMarkdown(alt)
+    return `![${escapeMarkdown(alt)}](${path})`
+  }
+
+  /** Só os que algum link aponta: os outros seriam ruído no texto. */
+  private bookmarkAnchor(node: DocumentNode): string {
+    const name = String(node.attrs?.['name'] ?? '')
+    return this.source.linkTargets.has(name) ? `<a id="${escapeHtml(name)}"></a>` : ''
+  }
+}
+
+function hardBreakMarkdown(mode: Mode): string {
+  if (mode === 'block') return '\\\n'
+  return mode === 'cell' ? '<br>' : ' '
 }
 
 function mathMarkdown(node: DocumentNode, mode: Mode): string {

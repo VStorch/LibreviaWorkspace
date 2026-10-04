@@ -7,9 +7,9 @@
 
 import { firstFontOf } from './line-metrics.js'
 import {
-  FirstLineKind,
   LineSpacingKind,
   paragraphDraftFrom,
+  signedFirstLineMm,
   type ParagraphDraft,
 } from './paragraph-format.js'
 import { resolveCharacterStyle, resolveStyle, styleAttrsOf } from './style-cascade.js'
@@ -126,41 +126,11 @@ export function styleWithDraft(sheet: StyleSheet, id: string, draft: StyleDraft)
   if (style === undefined) return sheet
 
   const shown = styleDraftOf(sheet, id)
-  const before = shown.paragraph
-  const after = draft.paragraph
-  const paragraph: Record<string, unknown> = { ...style.paragraph }
-  const character: Record<string, unknown> = { ...style.character }
-
-  if (style.type === StyleType.Paragraph) {
-    if (after.align !== before.align) paragraph['textAlign'] = after.align
-    if (after.spaceBefore !== before.spaceBefore) paragraph['spaceBefore'] = after.spaceBefore
-    if (after.spaceAfter !== before.spaceAfter) paragraph['spaceAfter'] = after.spaceAfter
-    if (
-      after.lineSpacingKind !== before.lineSpacingKind ||
-      after.lineSpacingValue !== before.lineSpacingValue
-    ) {
-      paragraph['lineSpacing'] = lineSpacingOf(after)
-    }
-    if (after.indentLeftMm !== before.indentLeftMm) paragraph['indentMm'] = after.indentLeftMm
-    if (after.indentRightMm !== before.indentRightMm) paragraph['indentRightMm'] = after.indentRightMm
-    if (after.firstLineKind !== before.firstLineKind || after.firstLineMm !== before.firstLineMm) {
-      paragraph['firstLineMm'] =
-        after.firstLineKind === FirstLineKind.None
-          ? 0
-          : after.firstLineKind === FirstLineKind.Hanging
-            ? -Math.abs(after.firstLineMm)
-            : Math.abs(after.firstLineMm)
-    }
-    if (after.keepNext !== before.keepNext) paragraph['keepNext'] = after.keepNext
-  }
-
-  if (draft.fontFamily !== shown.fontFamily && draft.fontFamily !== '')
-    character['fontFamily'] = draft.fontFamily
-  if (draft.fontSize !== shown.fontSize && draft.fontSize !== null)
-    character['fontSize'] = `${draft.fontSize}pt`
-  if (draft.bold !== shown.bold) character['bold'] = draft.bold
-  if (draft.italic !== shown.italic) character['italic'] = draft.italic
-  if (draft.underline !== shown.underline) character['underline'] = draft.underline
+  const paragraph =
+    style.type === StyleType.Paragraph
+      ? withParagraphChanges(style.paragraph, shown.paragraph, draft.paragraph)
+      : { ...style.paragraph }
+  const character = withCharacterChanges(style.character, shown, draft)
 
   const rest: StyleDefinition = { ...style }
   delete (rest as { paragraph?: unknown }).paragraph
@@ -170,6 +140,46 @@ export function styleWithDraft(sheet: StyleSheet, id: string, draft: StyleDraft)
     ...(Object.keys(paragraph).length === 0 ? {} : { paragraph: paragraph as StyleParagraphFormat }),
     ...(Object.keys(character).length === 0 ? {} : { character: character as StyleCharacterFormat }),
   })
+}
+
+function withParagraphChanges(
+  declared: StyleParagraphFormat | undefined,
+  before: ParagraphDraft,
+  after: ParagraphDraft,
+): Record<string, unknown> {
+  const paragraph: Record<string, unknown> = { ...declared }
+  if (after.align !== before.align) paragraph['textAlign'] = after.align
+  if (after.spaceBefore !== before.spaceBefore) paragraph['spaceBefore'] = after.spaceBefore
+  if (after.spaceAfter !== before.spaceAfter) paragraph['spaceAfter'] = after.spaceAfter
+  if (
+    after.lineSpacingKind !== before.lineSpacingKind ||
+    after.lineSpacingValue !== before.lineSpacingValue
+  ) {
+    paragraph['lineSpacing'] = lineSpacingOf(after)
+  }
+  if (after.indentLeftMm !== before.indentLeftMm) paragraph['indentMm'] = after.indentLeftMm
+  if (after.indentRightMm !== before.indentRightMm) paragraph['indentRightMm'] = after.indentRightMm
+  if (after.firstLineKind !== before.firstLineKind || after.firstLineMm !== before.firstLineMm) {
+    paragraph['firstLineMm'] = signedFirstLineMm(after)
+  }
+  if (after.keepNext !== before.keepNext) paragraph['keepNext'] = after.keepNext
+  return paragraph
+}
+
+function withCharacterChanges(
+  declared: StyleCharacterFormat | undefined,
+  shown: StyleDraft,
+  draft: StyleDraft,
+): Record<string, unknown> {
+  const character: Record<string, unknown> = { ...declared }
+  if (draft.fontFamily !== shown.fontFamily && draft.fontFamily !== '')
+    character['fontFamily'] = draft.fontFamily
+  if (draft.fontSize !== shown.fontSize && draft.fontSize !== null)
+    character['fontSize'] = `${draft.fontSize}pt`
+  if (draft.bold !== shown.bold) character['bold'] = draft.bold
+  if (draft.italic !== shown.italic) character['italic'] = draft.italic
+  if (draft.underline !== shown.underline) character['underline'] = draft.underline
+  return character
 }
 
 /**

@@ -1,6 +1,6 @@
 /** Nada de stack trace, caminho absoluto ou detalhe interno atravessa o IPC: o detalhe fica no log do main. */
 
-import { Language, translate } from './i18n/index.js'
+import { Language, translate, type MessageKey } from './i18n/index.js'
 
 export const ErrorCode = {
   InvalidRequest: 'INVALID_REQUEST',
@@ -62,6 +62,30 @@ export function toSerializedError(cause: unknown, language: Language = Language.
   }
 }
 
+const FILE_SYSTEM_ERRORS: ReadonlyMap<string, readonly [ErrorCode, MessageKey]> = new Map([
+  ['ENOENT', [ErrorCode.FileNotFound, 'errors.fs.fileNotFound']],
+  ['EACCES', [ErrorCode.PermissionDenied, 'errors.fs.permissionDenied']],
+  ['EPERM', [ErrorCode.PermissionDenied, 'errors.fs.permissionDenied']],
+  ['EISDIR', [ErrorCode.NotAFile, 'errors.fs.notAFile']],
+  ['EROFS', [ErrorCode.WriteFailed, 'errors.fs.readOnlyLocation']],
+  ['ENOSPC', [ErrorCode.WriteFailed, 'errors.fs.diskFull']],
+  // Diferente de disco cheio, e a diferença muda o que a pessoa faz: aqui o
+  // disco tem espaço, mas a cota dela na pasta de rede acabou.
+  ['EDQUOT', [ErrorCode.WriteFailed, 'errors.fs.quotaExceeded']],
+  ['ENAMETOOLONG', [ErrorCode.WriteFailed, 'errors.fs.nameTooLong']],
+  ['EBUSY', [ErrorCode.WriteFailed, 'errors.fs.fileInUse']],
+])
+
+/** Típicos de pasta de rede que caiu no meio da operação. */
+const NETWORK_ERRORS: ReadonlySet<string> = new Set([
+  'ENETDOWN',
+  'ENETUNREACH',
+  'EHOSTDOWN',
+  'EHOSTUNREACH',
+  'ESTALE',
+  'ETIMEDOUT',
+])
+
 /** Sem isto, uma pasta de rede fora do ar mostraria "EBUSY" na tela. */
 export function fromFileSystemError(
   cause: unknown,
@@ -69,44 +93,13 @@ export function fromFileSystemError(
   language: Language = Language.Portuguese,
 ): AppError {
   const code = typeof cause === 'object' && cause !== null ? (cause as { code?: string }).code : undefined
+  const known = code === undefined ? undefined : FILE_SYSTEM_ERRORS.get(code)
+  if (known !== undefined) return new AppError(known[0], translate(language, known[1]))
 
-  switch (code) {
-    case 'ENOENT':
-      return new AppError(ErrorCode.FileNotFound, translate(language, 'errors.fs.fileNotFound'))
-    case 'EACCES':
-    case 'EPERM':
-      return new AppError(ErrorCode.PermissionDenied, translate(language, 'errors.fs.permissionDenied'))
-    case 'EISDIR':
-      return new AppError(ErrorCode.NotAFile, translate(language, 'errors.fs.notAFile'))
-    case 'EROFS':
-      return new AppError(ErrorCode.WriteFailed, translate(language, 'errors.fs.readOnlyLocation'))
-    case 'ENOSPC':
-      return new AppError(ErrorCode.WriteFailed, translate(language, 'errors.fs.diskFull'))
-    case 'EDQUOT':
-      // Diferente de disco cheio, e a diferença muda o que a pessoa faz: aqui o
-      // disco tem espaço, mas a cota dela na pasta de rede acabou.
-      return new AppError(ErrorCode.WriteFailed, translate(language, 'errors.fs.quotaExceeded'))
-    case 'ENAMETOOLONG':
-      return new AppError(ErrorCode.WriteFailed, translate(language, 'errors.fs.nameTooLong'))
-    case 'EBUSY':
-      return new AppError(ErrorCode.WriteFailed, translate(language, 'errors.fs.fileInUse'))
-    // Típicos de pasta de rede que caiu no meio da operação.
-    case 'ENETDOWN':
-    case 'ENETUNREACH':
-    case 'EHOSTDOWN':
-    case 'EHOSTUNREACH':
-    case 'ESTALE':
-    case 'ETIMEDOUT':
-      return new AppError(
-        operation === 'leitura' ? ErrorCode.ReadFailed : ErrorCode.WriteFailed,
-        translate(language, 'errors.fs.networkTimeout'),
-      )
-    default:
-      return new AppError(
-        operation === 'leitura' ? ErrorCode.ReadFailed : ErrorCode.WriteFailed,
-        operation === 'leitura'
-          ? translate(language, 'errors.fs.readFailed')
-          : translate(language, 'errors.fs.writeFailed'),
-      )
+  const reading = operation === 'leitura'
+  const failed = reading ? ErrorCode.ReadFailed : ErrorCode.WriteFailed
+  if (code !== undefined && NETWORK_ERRORS.has(code)) {
+    return new AppError(failed, translate(language, 'errors.fs.networkTimeout'))
   }
+  return new AppError(failed, translate(language, reading ? 'errors.fs.readFailed' : 'errors.fs.writeFailed'))
 }

@@ -171,19 +171,45 @@ export function parseDocument(text: string, language: Language = Language.Portug
     page,
     doc: migrate(parsed.data.doc, parsed.data.version),
     styles: migrateStyles(parsed.data.styles, parsed.data.version),
-    ...(parsed.data.version < 4 || parsed.data.flattened === true ? { flattened: true } : {}),
-    ...(parsed.data.version < 5 || parsed.data.beforeReferences === true ? { beforeReferences: true } : {}),
+    ...legacyFlagsOf(parsed.data),
     ...(sections.length > 0 ? { sections } : {}),
-    ...(parsed.data.version < 6 || parsed.data.beforeSections === true ? { beforeSections: true } : {}),
-    ...(parsed.data.outsideBookmarks === undefined ? {} : { outsideBookmarks: parsed.data.outsideBookmarks }),
-    ...(parsed.data.comments === undefined ? {} : { comments: parsed.data.comments.map(commentOf) }),
-    ...(parsed.data.version < 7 || parsed.data.beforeComments === true ? { beforeComments: true } : {}),
-    ...(parsed.data.trackChanges === undefined ? {} : { trackChanges: parsed.data.trackChanges }),
-    ...(parsed.data.version < 8 || parsed.data.beforeRevisions === true ? { beforeRevisions: true } : {}),
-    ...(parsed.data.notes === undefined ? {} : { notes: notesOf(parsed.data.notes) }),
-    ...(parsed.data.version < 9 || parsed.data.beforeNotes === true ? { beforeNotes: true } : {}),
-    ...(parsed.data.version < 11 || parsed.data.beforeMath === true ? { beforeMath: true } : {}),
-    ...(parsed.data.properties === undefined ? {} : { properties: propertiesOf(parsed.data.properties) }),
+    ...optionalPartsOf(parsed.data),
+  }
+}
+
+type SdocData = z.infer<typeof sdocSchema>
+
+/** Cada marca de arquivo antigo e a versão do `.sdoc` que trouxe o recurso. */
+const LEGACY_FLAGS = [
+  ['flattened', 4],
+  ['beforeReferences', 5],
+  ['beforeSections', 6],
+  ['beforeComments', 7],
+  ['beforeRevisions', 8],
+  ['beforeNotes', 9],
+  ['beforeMath', 11],
+] as const
+
+type LegacyFlag = (typeof LEGACY_FLAGS)[number][0]
+
+function legacyFlagsOf(data: SdocData): Partial<Pick<DocumentModel, LegacyFlag>> {
+  return Object.fromEntries(
+    LEGACY_FLAGS.filter(([flag, since]) => data.version < since || data[flag] === true).map(([flag]) => [
+      flag,
+      true,
+    ]),
+  )
+}
+
+function optionalPartsOf(
+  data: SdocData,
+): Pick<DocumentModel, 'outsideBookmarks' | 'comments' | 'trackChanges' | 'notes' | 'properties'> {
+  return {
+    ...(data.outsideBookmarks === undefined ? {} : { outsideBookmarks: data.outsideBookmarks }),
+    ...(data.comments === undefined ? {} : { comments: data.comments.map(commentOf) }),
+    ...(data.trackChanges === undefined ? {} : { trackChanges: data.trackChanges }),
+    ...(data.notes === undefined ? {} : { notes: notesOf(data.notes) }),
+    ...(data.properties === undefined ? {} : { properties: propertiesOf(data.properties) }),
   }
 }
 

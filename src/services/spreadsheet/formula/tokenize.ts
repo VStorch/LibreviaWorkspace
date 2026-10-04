@@ -37,84 +37,89 @@ const FALSE_WORDS = new Set(['FALSO', 'FALSE'])
 /** Erros que o usuário pode digitar literalmente, como `=SEERRO(A1;#N/D)`. */
 const ERROR_LITERALS = ['#DIV/0!', '#VALOR!', '#REF!', '#NOME?', '#NÚM!', '#N/D', '#CIRC!']
 
+const WHITESPACE: ReadonlySet<string> = new Set([' ', '\t', '\n', '\r'])
+
+const PUNCTUATION: ReadonlyMap<string, TokenKind> = new Map([
+  ['(', TokenKind.Open],
+  [')', TokenKind.Close],
+  [';', TokenKind.Separator],
+])
+
+interface ReadToken {
+  readonly token: Token
+  /** O texto da fórmula consumido, que difere do token nas aspas dobradas e nas maiúsculas. */
+  readonly length: number
+}
+
 export function tokenize(formula: string): Token[] {
   const tokens: Token[] = []
   let at = 0
 
   while (at < formula.length) {
-    const char = formula[at]!
-
-    if (char === ' ' || char === '\t' || char === '\n' || char === '\r') {
+    if (WHITESPACE.has(formula[at]!)) {
       at++
       continue
     }
-
-    if (char === '(') {
-      tokens.push({ kind: TokenKind.Open, text: '(', position: at++ })
-      continue
-    }
-    if (char === ')') {
-      tokens.push({ kind: TokenKind.Close, text: ')', position: at++ })
-      continue
-    }
-    if (char === ';') {
-      tokens.push({ kind: TokenKind.Separator, text: ';', position: at++ })
-      continue
-    }
-
-    if (char === '"') {
-      const token = readText(formula, at)
-      tokens.push(token)
-      at += token.text.length + quotesIn(token.text) + 2
-      continue
-    }
-
-    if (char === '#') {
-      const literal = ERROR_LITERALS.find((error) => formula.startsWith(error, at))
-      if (literal === undefined) throw new ParseError(`Erro desconhecido em "${formula.slice(at)}".`, at)
-      tokens.push({ kind: TokenKind.Error, text: literal, position: at })
-      at += literal.length
-      continue
-    }
-
-    // O número vem antes da referência: um dígito nunca começa referência, e
-    // ler ao contrário faria `1e3` virar `1` seguido de `e3`.
-    if (isDigit(char) || ((char === ',' || char === '.') && isDigit(formula[at + 1]))) {
-      const text = readNumber(formula, at)
-      tokens.push({ kind: TokenKind.Number, text, position: at })
-      at += text.length
-      continue
-    }
-
-    const operator = OPERATORS.find((candidate) => formula.startsWith(candidate, at))
-    if (operator !== undefined) {
-      tokens.push({ kind: TokenKind.Operator, text: operator, position: at })
-      at += operator.length
-      continue
-    }
-
-    const word = readWord(formula, at)
-    if (word.length === 0) {
-      // A vírgula solta é quase sempre um separador de argumentos: a dica diz isso.
-      const hint =
-        char === ',' ? 'Use ponto e vírgula para separar argumentos: SOMA(A1;B1).' : `Não entendi "${char}".`
-      throw new ParseError(hint, at)
-    }
-
-    const upper = word.toUpperCase()
-    if (TRUE_WORDS.has(upper) || FALSE_WORDS.has(upper)) {
-      tokens.push({ kind: TokenKind.Boolean, text: upper, position: at })
-    } else if (formula[at + word.length] === '(') {
-      tokens.push({ kind: TokenKind.Name, text: upper, position: at })
-    } else {
-      // Sobrou referência. Se não for uma, o analisador reclama com posição.
-      tokens.push({ kind: TokenKind.Reference, text: word, position: at })
-    }
-    at += word.length
-    continue
+    const { token, length } = readToken(formula, at)
+    tokens.push(token)
+    at += length
   }
 
   return tokens
+}
+
+function readToken(formula: string, at: number): ReadToken {
+  const char = formula[at]!
+
+  const punctuation = PUNCTUATION.get(char)
+  if (punctuation !== undefined) return whole({ kind: punctuation, text: char, position: at })
+
+  if (char === '"') {
+    const token = readText(formula, at)
+    return { token, length: token.text.length + quotesIn(token.text) + 2 }
+  }
+
+  if (char === '#') {
+    const literal = ERROR_LITERALS.find((error) => formula.startsWith(error, at))
+    if (literal === undefined) throw new ParseError(`Erro desconhecido em "${formula.slice(at)}".`, at)
+    return whole({ kind: TokenKind.Error, text: literal, position: at })
+  }
+
+  // O número vem antes da referência: um dígito nunca começa referência, e
+  // ler ao contrário faria `1e3` virar `1` seguido de `e3`.
+  if (isDigit(char) || ((char === ',' || char === '.') && isDigit(formula[at + 1]))) {
+    return whole({ kind: TokenKind.Number, text: readNumber(formula, at), position: at })
+  }
+
+  const operator = OPERATORS.find((candidate) => formula.startsWith(candidate, at))
+  if (operator !== undefined) return whole({ kind: TokenKind.Operator, text: operator, position: at })
+
+  return readWordToken(formula, at)
+}
+
+function whole(token: Token): ReadToken {
+  return { token, length: token.text.length }
+}
+
+function readWordToken(formula: string, at: number): ReadToken {
+  const char = formula[at]!
+  const word = readWord(formula, at)
+  if (word.length === 0) {
+    // A vírgula solta é quase sempre um separador de argumentos: a dica diz isso.
+    const hint =
+      char === ',' ? 'Use ponto e vírgula para separar argumentos: SOMA(A1;B1).' : `Não entendi "${char}".`
+    throw new ParseError(hint, at)
+  }
+
+  const upper = word.toUpperCase()
+  if (TRUE_WORDS.has(upper) || FALSE_WORDS.has(upper)) {
+    return { token: { kind: TokenKind.Boolean, text: upper, position: at }, length: word.length }
+  }
+  if (formula[at + word.length] === '(') {
+    return { token: { kind: TokenKind.Name, text: upper, position: at }, length: word.length }
+  }
+  // Sobrou referência. Se não for uma, o analisador reclama com posição.
+  return whole({ kind: TokenKind.Reference, text: word, position: at })
 }
 
 function isDigit(char: string | undefined): boolean {

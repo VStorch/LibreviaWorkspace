@@ -172,19 +172,222 @@ export function paginateSections(
   sections: readonly SectionFlow[],
   noteFlow: NoteFlow = { separator: 0 },
 ): PagePlan {
-  const breaks: number[] = []
-  const sheets: SheetPlan[] = []
-  const flowOf = (section: number): SectionFlow =>
-    sections[section] ?? sections.at(-1) ?? { height: 0, newSheet: false, parity: null, restart: null }
-  const sectionOf = (block: MeasuredBlock | undefined, fallback: number): number => block?.section ?? fallback
+  return new Paginator(blocks, sections, noteFlow.separator).run()
+}
 
-  // A folha nova da seção `section`: numerada a partir da anterior, ou do
-  // reinício quando é a primeira da seção. A paridade só vale para a primeira
-  // folha de uma seção que a pede, e nunca para a primeira do documento.
-  const open = (section: number): void => {
-    const previous = sheets.at(-1)
+interface PendingNote {
+  readonly note: MeasuredNote
+  readonly from: number
+}
+
+type ColumnFill = ReturnType<typeof fillColumns>
+
+const sectionOf = (block: MeasuredBlock | undefined, fallback: number): number => block?.section ?? fallback
+
+class Paginator {
+  private readonly breaks: number[] = []
+  private readonly sheets: SheetPlan[] = []
+  private readonly placements = new Map<number, ColumnPlacement>()
+  private readonly regions: ColumnRegion[] = []
+  private readonly notes: NoteSlice[][] = []
+  private readonly noteHeights: number[] = []
+
+  /**
+   * O bloco que desceu até o pé da região de colunas: se a folha acabar
+   * justamente antes dele, a descida não vale — quem o põe no lugar é o corte.
+   */
+  private pendingLift: number | null = null
+
+  /**
+   * A folha leva a nota cuja referência ela leva. A nota longa segue o Word: a
+   * linha da referência e pelo menos a primeira linha da nota ficam na mesma
+   * folha, e o resto continua no alto da área de notas seguinte (`carry`).
+   */
+  private readonly footnotes: readonly MeasuredNote[]
+  private nextNote = 0
+  private carry: PendingNote[] = []
+
+  private current: number
+  private pageHeight: number
+
+  /**
+   * `pageStart` é de onde a folha conta a altura; `floor`, o último corte.
+   * Só diferem quando a folha abre com o cabeçalho repetido de uma tabela: a
+   * conta começa acima do corte, pela altura do cabeçalho, mas nada pode voltar
+   * para antes do corte.
+   */
+  private pageStart = 0
+  private floor = 0
+
+  constructor(
+    private readonly blocks: readonly MeasuredBlock[],
+    private readonly sections: readonly SectionFlow[],
+    private readonly separator: number,
+  ) {
+    this.footnotes = blocks.flatMap((block) => block.notes ?? [])
+    this.current = sectionOf(blocks[0], 0)
+    this.pageHeight = this.flowOf(this.current).height
+  }
+
+  /**
+   * Sem teto de páginas: em cada volta o índice avança ou `floor` cresce
+   * estritamente, e há uma quantidade finita dessas posições. Um teto pararia o
+   * laço e empilharia o resto do documento na última folha; quem protege da
+   * altura inválida é a guarda de `pageHeight`.
+   */
+  run(): PagePlan {
+    this.open(this.current)
+    if (this.blocks.length === 0) return this.plan()
+
+    let index = 0
+    while (index < this.blocks.length) index = this.step(index)
+    this.closeNotes()
+    return this.plan()
+  }
+
+  private plan(): PagePlan {
+    const { breaks, sheets, placements, regions, notes, noteHeights } = this
+    return { breaks, sheets, placements, regions, notes, noteHeights }
+  }
+
+  private flowOf(section: number): SectionFlow {
+    return (
+      this.sections[section] ??
+      this.sections.at(-1) ?? { height: 0, newSheet: false, parity: null, restart: null }
+    )
+  }
+
+  /** Devolve o próximo bloco a avaliar, que é o mesmo quando a folha virou antes dele. */
+  private step(index: number): number {
+    const block = this.blocks[index]!
+    const section = this.enterSection(block)
+
+    if (this.pageHeight <= 0) return index + 1
+
+    // Seção com colunas: os blocos dela, inteiros, vão para as colunas desta
+    // folha; o que não couber abre a folha seguinte.
+    const columns = this.flowOf(section).columns ?? 1
+    if (columns > 1 && !block.isPageBreak) return this.layoutColumns(index, section, columns)
+
+    // A quebra pedida à mão vale mesmo com a página pela metade, por isso vem
+    // antes de qualquer conta de altura.
+    if (block.isPageBreak) {
+      const after = block.top + block.height
+      if (after > this.floor) this.cutAndRestart(after, this.current)
+      return index + 1
+    }
+
+    const bottom = block.top + block.height
+    if (
+      bottom - this.pageStart + this.noteNeed(bottom) <=
+      this.pageHeight + Math.min(block.hangingBottom ?? 0, this.pageHeight / 2)
+    ) {
+      // A quebra que o parágrafo carrega vale depois dele — e não vale se não
+      // houver mais nada, senão o documento fecha com uma folha em branco.
+      if (block.breakAfter && index + 1 < this.blocks.length) this.cutAndRestart(bottom, this.current)
+      return index + 1
+    }
+
+    if (this.breakInside(block)) return index
+    return this.breakBefore(index, block)
+  }
+
+  /**
+   * A seção nova que começa em folha nova corta antes do primeiro bloco dela.
+   * Com a folha ainda vazia — a seção anterior terminou numa quebra de página —,
+   * não há o que cortar: a folha passa a ser da seção nova.
+   */
+  private enterSection(block: MeasuredBlock): number {
+    const section = sectionOf(block, this.current)
+    if (section === this.current) return section
+    this.current = section
+    if (!this.flowOf(section).newSheet) return section
+    if (block.top > this.floor) {
+      this.cutAndRestart(block.top, section)
+    } else {
+      this.retarget(section)
+      this.pageHeight = this.flowOf(section).height
+    }
+    return section
+  }
+
+  private breakInside(block: MeasuredBlock): boolean {
+    const breakpoint = usableBreakpoints(block, this.pageHeight)
+      .filter((at) => at > this.floor && at - this.pageStart + this.noteNeed(at) <= this.pageHeight)
+      .at(-1)
+    if (breakpoint === undefined) return false
+    this.cut(breakpoint, this.current)
+    this.floor = breakpoint
+    // Cabeçalho maior que meia folha não se repete: repeti-lo deixaria a
+    // folha sem lugar para a linha que ele apresenta.
+    const repeat = block.repeatHeight ?? 0
+    this.pageStart = repeat > 0 && repeat < this.pageHeight / 2 ? breakpoint - repeat : breakpoint
+    return true
+  }
+
+  /**
+   * Nenhuma linha, item ou linha de tabela cabe: a quebra vai para **antes** do
+   * bloco que estouraria.
+   */
+  private breakBefore(index: number, block: MeasuredBlock): number {
+    const { at, opening } = this.keptTogetherStart(index, block)
+    if (at <= this.floor) {
+      // Sem corte disponível, o bloco atômico fica com a folha só para si, e o
+      // layout aumenta o papel para contê-lo.
+      const bottom = block.top + block.height
+      const used = bottom - this.pageStart
+      this.pageStart = this.floor = bottom
+      if (index + 1 < this.blocks.length) this.cut(bottom, this.current, used)
+      return index + 1
+    }
+    this.cutAndRestart(at, opening)
+    return index
+  }
+
+  /** Um título sozinho no pé da página desce junto com o que ele apresenta. */
+  private keptTogetherStart(index: number, block: MeasuredBlock): { at: number; opening: number } {
+    let at = block.top
+    let opening = this.current
+    for (let candidate = index; candidate > 0; candidate--) {
+      const previous = this.blocks[candidate - 1]
+      if (previous === undefined || !previous.keepWithNext) break
+      if (previous.top <= this.floor) break
+      // Não atravessa a quebra de seção que abre folha: o título da seção de
+      // cima não desce para a folha da seção de baixo.
+      const previousSection = sectionOf(previous, this.current)
+      if (previousSection !== this.current && this.flowOf(this.current).newSheet) break
+      at = previous.top
+      opening = previousSection
+    }
+    return { at, opening }
+  }
+
+  /**
+   * A última folha fecha com as notas que sobraram; a nota que ainda não coube
+   * continua em folhas só de notas, depois do texto.
+   */
+  private closeNotes(): void {
+    const end = this.blocks.reduce((bottom, block) => Math.max(bottom, block.top + block.height), 0)
+    let used = Math.max(end - this.pageStart, 0)
+    for (;;) {
+      this.settleNotes(Number.POSITIVE_INFINITY, used)
+      if (this.carry.length === 0 || this.pageHeight <= 0) break
+      this.breaks.push(end)
+      this.open(this.current)
+      this.pageStart = this.floor = end
+      used = 0
+    }
+  }
+
+  /**
+   * A folha nova da seção `section`: numerada a partir da anterior, ou do
+   * reinício quando é a primeira da seção. A paridade só vale para a primeira
+   * folha de uma seção que a pede, e nunca para a primeira do documento.
+   */
+  private open(section: number): void {
+    const previous = this.sheets.at(-1)
     const first = previous === undefined || previous.section !== section
-    const flow = flowOf(section)
+    const flow = this.flowOf(section)
     let number = first && flow.restart !== null ? flow.restart : (previous?.number ?? 0) + 1
     if (
       previous !== undefined &&
@@ -192,68 +395,73 @@ export function paginateSections(
       flow.parity !== null &&
       (number % 2 === 0) !== (flow.parity === 'even')
     ) {
-      sheets.push({ section, blank: true, number, first: false })
+      this.sheets.push({ section, blank: true, number, first: false })
       number += 1
     }
-    sheets.push({ section, blank: false, number, first })
+    this.sheets.push({ section, blank: false, number, first })
   }
 
-  // A folha que acabou de abrir, vazia, passa a ser da seção que começa nela:
-  // refeita, com a numeração e a paridade da seção nova.
-  const retarget = (section: number): void => {
-    const last = sheets.at(-1)
+  /**
+   * A folha que acabou de abrir, vazia, passa a ser da seção que começa nela:
+   * refeita, com a numeração e a paridade da seção nova.
+   */
+  private retarget(section: number): void {
+    const last = this.sheets.at(-1)
     if (last === undefined || last.section === section) return
-    sheets.pop()
-    while (sheets.at(-1)?.blank === true) sheets.pop()
-    open(section)
+    this.sheets.pop()
+    while (this.sheets.at(-1)?.blank === true) this.sheets.pop()
+    this.open(section)
   }
 
-  const placements = new Map<number, ColumnPlacement>()
-  const regions: ColumnRegion[] = []
-  // O bloco que desceu até o pé da região de colunas: se a folha acabar
-  // justamente antes dele, a descida não vale — quem o põe no lugar é o corte.
-  let pendingLift: number | null = null
+  private cut(at: number, section: number, used = at - this.pageStart): void {
+    if (this.pendingLift !== null && at <= this.blocks[this.pendingLift]!.top)
+      this.placements.delete(this.pendingLift)
+    this.pendingLift = null
+    this.settleNotes(at, used)
+    this.breaks.push(at)
+    this.open(section)
+    this.pageHeight = this.flowOf(section).height
+  }
 
-  const notes: NoteSlice[][] = []
-  const noteHeights: number[] = []
+  private cutAndRestart(at: number, section: number): void {
+    this.cut(at, section)
+    this.pageStart = this.floor = at
+  }
 
-  const firstSection = sectionOf(blocks[0], 0)
-  open(firstSection)
-  if (blocks.length === 0) return { breaks, sheets, placements, regions, notes, noteHeights }
-
-  // A folha leva a nota cuja referência ela leva. A nota longa segue o Word: a
-  // linha da referência e pelo menos a primeira linha da nota ficam na mesma
-  // folha, e o resto continua no alto da área de notas seguinte (`carry`).
-  const footnotes = blocks.flatMap((block) => block.notes ?? [])
-  let nextNote = 0
-  let carry: { note: MeasuredNote; from: number }[] = []
-  const separator = noteFlow.separator
-
-  // As notas que a folha levaria se terminasse em `at`: as que continuam da
-  // anterior e as das referências até ali.
-  const pendingNotes = (at: number): { note: MeasuredNote; from: number }[] => {
-    const list = [...carry]
-    for (let next = nextNote; next < footnotes.length && footnotes[next]!.at <= at + 0.5; next++) {
-      list.push({ note: footnotes[next]!, from: 0 })
+  /**
+   * As notas que a folha levaria se terminasse em `at`: as que continuam da
+   * anterior e as das referências até ali.
+   */
+  private pendingNotes(at: number): PendingNote[] {
+    const list = [...this.carry]
+    for (
+      let next = this.nextNote;
+      next < this.footnotes.length && this.footnotes[next]!.at <= at + 0.5;
+      next++
+    ) {
+      list.push({ note: this.footnotes[next]!, from: 0 })
     }
     return list
   }
 
-  // O espaço que as notas pedem para a folha terminar em `at`: as novas
-  // inteiras, menos a última, de que basta a primeira linha. Cresce com `at`, e
-  // por isso "o último corte que cabe" continua valendo. A continuação vem antes
-  // do texto, como no Word, e pede o resto inteiro até meia folha.
-  const noteNeed = (at: number): number => {
+  /**
+   * O espaço que as notas pedem para a folha terminar em `at`: as novas
+   * inteiras, menos a última, de que basta a primeira linha. Cresce com `at`, e
+   * por isso "o último corte que cabe" continua valendo. A continuação vem antes
+   * do texto, como no Word, e pede o resto inteiro até meia folha.
+   */
+  private noteNeed(at: number): number {
+    const { carry, footnotes, nextNote } = this
     if (carry.length === 0 && (nextNote >= footnotes.length || footnotes[nextNote]!.at > at + 0.5)) return 0
-    const fresh = pendingNotes(at).slice(carry.length)
+    const fresh = this.pendingNotes(at).slice(carry.length)
     let carried = 0
     for (const item of carry) carried += noteSpan(item.note, item.from, lineCount(item.note))
     const first = carry[0]
     let need =
-      separator +
+      this.separator +
       (first === undefined
         ? 0
-        : Math.max(Math.min(carried, pageHeight / 2), noteSpan(first.note, first.from, first.from + 1)))
+        : Math.max(Math.min(carried, this.pageHeight / 2), noteSpan(first.note, first.from, first.from + 1)))
     fresh.forEach((item, position) => {
       need +=
         position === fresh.length - 1
@@ -263,19 +471,22 @@ export function paginateSections(
     return need
   }
 
-  // Fecha a folha que termina em `at` com `used` de texto: as notas que cabem
-  // vão inteiras, a primeira que não cabe é cortada entre linhas, e o resto
-  // continua na folha seguinte.
-  const settleNotes = (at: number, used: number): void => {
-    const list = pendingNotes(at)
-    while (nextNote < footnotes.length && footnotes[nextNote]!.at <= at + 0.5) nextNote += 1
-    carry = []
+  /**
+   * Fecha a folha que termina em `at` com `used` de texto: as notas que cabem
+   * vão inteiras, a primeira que não cabe é cortada entre linhas, e o resto
+   * continua na folha seguinte.
+   */
+  private settleNotes(at: number, used: number): void {
+    const list = this.pendingNotes(at)
+    while (this.nextNote < this.footnotes.length && this.footnotes[this.nextNote]!.at <= at + 0.5)
+      this.nextNote += 1
+    this.carry = []
     const placed: NoteSlice[] = []
-    let room = pageHeight - used - separator
+    let room = this.pageHeight - used - this.separator
     let height = 0
     for (const item of list) {
-      if (carry.length > 0) {
-        carry.push(item)
+      if (this.carry.length > 0) {
+        this.carry.push(item)
         continue
       }
       const total = lineCount(item.note)
@@ -290,237 +501,112 @@ export function paginateSections(
         room -= span
         height += span
       }
-      if (to < total) carry.push({ note: item.note, from: to })
+      if (to < total) this.carry.push({ note: item.note, from: to })
     }
-    notes[breaks.length] = placed
-    noteHeights[breaks.length] = placed.length > 0 ? height + separator : 0
+    this.notes[this.breaks.length] = placed
+    this.noteHeights[this.breaks.length] = placed.length > 0 ? height + this.separator : 0
   }
-
-  let current = firstSection
-  let pageHeight = flowOf(firstSection).height
-  const cut = (at: number, section: number, used = at - pageStart): void => {
-    if (pendingLift !== null && at <= blocks[pendingLift]!.top) placements.delete(pendingLift)
-    pendingLift = null
-    settleNotes(at, used)
-    breaks.push(at)
-    open(section)
-    pageHeight = flowOf(section).height
-  }
-
-  // `pageStart` é de onde a folha conta a altura; `floor`, o último corte.
-  // Só diferem quando a folha abre com o cabeçalho repetido de uma tabela: a
-  // conta começa acima do corte, pela altura do cabeçalho, mas nada pode voltar
-  // para antes do corte.
-  let pageStart = 0
-  let floor = 0
-  let index = 0
-
-  // Sem teto de páginas: em cada volta `index` avança ou `floor` cresce
-  // estritamente, e há uma quantidade finita dessas posições. Um teto pararia o
-  // laço e empilharia o resto do documento na última folha; quem protege da
-  // altura inválida é a guarda de `pageHeight`.
-  while (index < blocks.length) {
-    const block = blocks[index]!
-
-    // A seção nova que começa em folha nova corta antes do primeiro bloco
-    // dela. Com a folha ainda vazia — a seção anterior terminou numa quebra de
-    // página —, não há o que cortar: a folha passa a ser da seção nova.
-    const section = sectionOf(block, current)
-    if (section !== current) {
-      current = section
-      if (flowOf(section).newSheet) {
-        if (block.top > floor) {
-          cut(block.top, section)
-          pageStart = floor = block.top
-        } else {
-          retarget(section)
-          pageHeight = flowOf(section).height
-        }
-      }
-    }
-
-    if (pageHeight <= 0) {
-      index += 1
-      continue
-    }
-
-    // Seção com colunas: os blocos dela, inteiros, vão para as colunas desta
-    // folha; o que não couber abre a folha seguinte.
-    const columns = flowOf(section).columns ?? 1
-    if (columns > 1 && !block.isPageBreak) {
-      index = layoutColumns(index, section, columns)
-      continue
-    }
-
-    // A quebra pedida à mão vale mesmo com a página pela metade, por isso vem
-    // antes de qualquer conta de altura.
-    if (block.isPageBreak) {
-      const after = block.top + block.height
-      if (after > floor) {
-        cut(after, current)
-        pageStart = floor = after
-      }
-
-      index += 1
-      continue
-    }
-
-    const bottom = block.top + block.height
-    if (
-      bottom - pageStart + noteNeed(bottom) <=
-      pageHeight + Math.min(block.hangingBottom ?? 0, pageHeight / 2)
-    ) {
-      index += 1
-      // A quebra que o parágrafo carrega vale depois dele — e não vale se não
-      // houver mais nada, senão o documento fecha com uma folha em branco.
-      if (block.breakAfter && index < blocks.length) {
-        cut(bottom, current)
-        pageStart = floor = bottom
-      }
-
-      continue
-    }
-
-    const breakpoint = usableBreakpoints(block, pageHeight)
-      .filter((at) => at > floor && at - pageStart + noteNeed(at) <= pageHeight)
-      .at(-1)
-    if (breakpoint !== undefined) {
-      cut(breakpoint, current)
-      floor = breakpoint
-      // Cabeçalho maior que meia folha não se repete: repeti-lo deixaria a
-      // folha sem lugar para a linha que ele apresenta.
-      const repeat = block.repeatHeight ?? 0
-      pageStart = repeat > 0 && repeat < pageHeight / 2 ? breakpoint - repeat : breakpoint
-      continue
-    }
-
-    // Nenhuma linha, item ou linha de tabela cabe: a quebra vai para **antes**
-    // do bloco que estouraria.
-    let breakAt = block.top
-    let opening = current
-
-    // Um título sozinho no pé da página desce junto com o que ele apresenta.
-    let candidate = index
-    while (candidate > 0) {
-      const previous = blocks[candidate - 1]
-      if (previous === undefined || !previous.keepWithNext) break
-      if (previous.top <= floor) break
-      // Não atravessa a quebra de seção que abre folha: o título da seção de
-      // cima não desce para a folha da seção de baixo.
-      const previousSection = sectionOf(previous, current)
-      if (previousSection !== current && flowOf(current).newSheet) break
-      candidate -= 1
-      breakAt = previous.top
-      opening = previousSection
-    }
-
-    if (breakAt <= floor) {
-      // Sem corte disponível, o bloco atômico fica com a folha só para si, e o
-      // layout aumenta o papel para contê-lo.
-      const used = bottom - pageStart
-      pageStart = floor = bottom
-      index += 1
-      if (index < blocks.length) cut(bottom, current, used)
-      continue
-    }
-
-    cut(breakAt, opening)
-    pageStart = floor = breakAt
-    // `index` não avança: o mesmo bloco é reavaliado na página nova.
-  }
-
-  // A última folha fecha com as notas que sobraram; a nota que ainda não coube
-  // continua em folhas só de notas, depois do texto.
-  const end = blocks.reduce((bottom, block) => Math.max(bottom, block.top + block.height), 0)
-  let used = Math.max(end - pageStart, 0)
-  for (;;) {
-    settleNotes(Number.POSITIVE_INFINITY, used)
-    if (carry.length === 0 || pageHeight <= 0) break
-    breaks.push(end)
-    open(current)
-    pageStart = floor = end
-    used = 0
-  }
-
-  return { breaks, sheets, placements, regions, notes, noteHeights }
 
   /**
    * Distribui nas colunas desta folha os blocos da seção a partir de `start`, e
    * devolve o primeiro que ficou de fora. Por bloco inteiro, aproximando o Word,
-   * que corta entre linhas. Antes de uma seção contínua na mesma folha as colunas
-   * são equilibradas, como no Word.
+   * que corta entre linhas.
    */
-  function layoutColumns(start: number, section: number, count: number): number {
+  private layoutColumns(start: number, section: number, count: number): number {
+    const { blocks } = this
     let end = start
     while (end < blocks.length && sectionOf(blocks[end], section) === section) end += 1
 
     const first = blocks[start]!
-    const offset = first.top - pageStart
+    const offset = first.top - this.pageStart
     // As notas da região saem da altura das colunas; a área delas fica embaixo,
     // na largura da folha (limitação declarada: o Word as põe sob cada coluna).
     const last = blocks[end - 1]!
-    const available = pageHeight - offset - noteNeed(last.top + last.height)
+    const available = this.pageHeight - offset - this.noteNeed(last.top + last.height)
     // A região que começa no meio da folha e não comporta nem o primeiro bloco
     // vai para a folha seguinte.
     if (offset > 0 && first.height > available) {
-      cut(first.top, section)
-      pageStart = floor = first.top
+      this.cutAndRestart(first.top, section)
       return start
     }
 
-    let fill = fillColumns(blocks, start, end, available, count)
+    const fill = this.columnFill(start, end, available, count, section)
+    const height = this.placeColumns(fill, offset)
+    this.regions.push({ sheet: this.breaks.length, top: offset, height, section, columns: count })
+    return this.leaveColumns(fill, end, section, offset + height)
+  }
+
+  /** Antes de uma seção contínua na mesma folha as colunas são equilibradas, como no Word. */
+  private columnFill(
+    start: number,
+    end: number,
+    available: number,
+    count: number,
+    section: number,
+  ): ColumnFill {
+    const { blocks } = this
+    const fill = fillColumns(blocks, start, end, available, count)
     const next = blocks[end]
     const balances =
-      fill.stop === end && !fill.forced && next !== undefined && !flowOf(sectionOf(next, section)).newSheet
-    if (balances) {
-      let low = Math.max(...blocks.slice(start, end).map((block) => block.height), 1)
-      let high = available
-      for (let step = 0; step < 24 && high - low > 0.5; step++) {
-        const middle = (low + high) / 2
-        const trial = fillColumns(blocks, start, end, middle, count)
-        if (trial.stop === end) high = middle
-        else low = middle
-      }
-      fill = fillColumns(blocks, start, end, high, count)
-    }
+      fill.stop === end &&
+      !fill.forced &&
+      next !== undefined &&
+      !this.flowOf(sectionOf(next, section)).newSheet
+    if (!balances) return fill
 
-    // O primeiro bloco de cada coluna sobe até o topo da região; os outros a
-    // acompanham, porque a tira continua a mesma dentro da coluna.
+    let low = Math.max(...blocks.slice(start, end).map((block) => block.height), 1)
+    let high = available
+    for (let step = 0; step < 24 && high - low > 0.5; step++) {
+      const middle = (low + high) / 2
+      const trial = fillColumns(blocks, start, end, middle, count)
+      if (trial.stop === end) high = middle
+      else low = middle
+    }
+    return fillColumns(blocks, start, end, high, count)
+  }
+
+  /**
+   * O primeiro bloco de cada coluna sobe até o topo da região; os outros a
+   * acompanham, porque a tira continua a mesma dentro da coluna. Devolve a
+   * altura da coluna mais alta.
+   */
+  private placeColumns(fill: ColumnFill, offset: number): number {
     let height = 0
     for (const column of fill.columns) {
-      const top = blocks[column.from]!
-      const last = blocks[column.to - 1]!
+      const top = this.blocks[column.from]!
+      const last = this.blocks[column.to - 1]!
       height = Math.max(height, last.top + last.height - top.top)
-      const drawn = top.top - pageStart
+      const drawn = top.top - this.pageStart
       const lift = column.index === 0 ? 0 : offset - drawn
       for (let at = column.from; at < column.to; at++) {
-        placements.set(at, { column: column.index, lift: at === column.from ? lift : 0 })
+        this.placements.set(at, { column: column.index, lift: at === column.from ? lift : 0 })
       }
-      pageStart -= lift
+      this.pageStart -= lift
     }
-    regions.push({ sheet: breaks.length, top: offset, height, section, columns: count })
+    return height
+  }
 
+  /** @param regionBottom o pé da região de colunas, a contar do topo da folha. */
+  private leaveColumns(fill: ColumnFill, end: number, section: number, regionBottom: number): number {
     const stop = fill.stop
-    const after = blocks[stop]
+    const after = this.blocks[stop]
     if (after === undefined) return stop
 
+    const lastPlaced = this.blocks[stop - 1]!
     if (fill.forced || stop < end) {
       // Folha cheia, ou quebra de página ou de coluna na última coluna.
-      const lastPlaced = blocks[stop - 1]!
       const at = fill.forced ? lastPlaced.top + lastPlaced.height : after.top
-      cut(at, sectionOf(after, section))
-      pageStart = floor = at
+      this.cutAndRestart(at, sectionOf(after, section))
       return stop
     }
 
     // A seção acabou nesta folha: o bloco seguinte desce ao pé da coluna mais
     // alta, com o espaço natural que ele já tinha acima de si.
-    const lastPlaced = blocks[stop - 1]!
     const gap = Math.max(after.top - (lastPlaced.top + lastPlaced.height), 0)
-    const lift = offset + height + gap - (after.top - pageStart)
-    placements.set(stop, { column: 0, lift })
-    pageStart -= lift
-    pendingLift = stop
+    const lift = regionBottom + gap - (after.top - this.pageStart)
+    this.placements.set(stop, { column: 0, lift })
+    this.pageStart -= lift
+    this.pendingLift = stop
     return stop
   }
 }

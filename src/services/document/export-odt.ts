@@ -862,22 +862,11 @@ class Renderer {
   private inlineNode(node: DocumentNode): string {
     switch (node.type) {
       case 'text':
-        // Na faixa (e nas caixas dela), `{n}` e `{total}` são os campos de página.
-        return this.wrap(
-          this.nested > 0 && this.inBand ? bandText(node.text ?? '') : odfText(node.text ?? ''),
-          node.marks ?? [],
-        )
+        return this.text(node)
       case 'hardBreak':
         return '<text:line-break/>'
-      case 'image': {
-        const frame = this.image(node)
-        return frame === ''
-          ? ''
-          : this.wrap(
-              frame,
-              (node.marks ?? []).filter((mark) => mark.type === 'link'),
-            )
-      }
+      case 'image':
+        return this.inlineImage(node)
       case 'noteRef':
         return this.note(node)
       case 'field':
@@ -886,18 +875,12 @@ class Renderer {
         return this.wrap(this.formula(node), node.marks ?? [])
       case 'bookmarkStart':
         return this.bookmarkStart(node)
-      case 'bookmarkEnd': {
-        const name = this.bookmarkNames.get(String(node.attrs?.['bid'] ?? ''))
-        return name === undefined ? '' : `<text:bookmark-end${attr('text:name', name)}/>`
-      }
+      case 'bookmarkEnd':
+        return this.bookmarkEnd(node)
       case 'commentStart':
         return this.commentStart(node)
-      case 'commentEnd': {
-        const id = String(node.attrs?.['cid'] ?? '')
-        return this.openComments.has(id)
-          ? `<office:annotation-end${attr('office:name', annotationName(id))}/>`
-          : ''
-      }
+      case 'commentEnd':
+        return this.commentEnd(node)
       default:
         return node.content === undefined
           ? this.wrap(odfText(node.text ?? ''), node.marks ?? [])
@@ -905,62 +888,39 @@ class Renderer {
     }
   }
 
+  /** Na faixa (e nas caixas dela), `{n}` e `{total}` são os campos de página. */
+  private text(node: DocumentNode): string {
+    const text = node.text ?? ''
+    return this.wrap(this.nested > 0 && this.inBand ? bandText(text) : odfText(text), node.marks ?? [])
+  }
+
+  private inlineImage(node: DocumentNode): string {
+    const frame = this.image(node)
+    if (frame === '') return ''
+    return this.wrap(
+      frame,
+      (node.marks ?? []).filter((mark) => mark.type === 'link'),
+    )
+  }
+
+  private bookmarkEnd(node: DocumentNode): string {
+    const name = this.bookmarkNames.get(String(node.attrs?.['bid'] ?? ''))
+    return name === undefined ? '' : `<text:bookmark-end${attr('text:name', name)}/>`
+  }
+
+  private commentEnd(node: DocumentNode): string {
+    const id = String(node.attrs?.['cid'] ?? '')
+    return this.openComments.has(id)
+      ? `<office:annotation-end${attr('office:name', annotationName(id))}/>`
+      : ''
+  }
+
   /** O trecho com as marcas dele: um `text:span` com estilo automático, e o link por fora. */
   private wrap(inner: string, marks: NonNullable<DocumentNode['marks']>): string {
     if (inner === '') return ''
-    const props: CharacterProps = {}
-    let characterStyle: string | null = null
-    let href: string | null = null
-    for (const mark of marks) {
-      const attrs = mark.attrs ?? {}
-      const on = attrs['off'] !== true
-      switch (mark.type) {
-        case 'bold':
-          props.bold = on
-          break
-        case 'italic':
-          props.italic = on
-          break
-        case 'underline':
-          props.underline = on
-          break
-        case 'strike':
-          props.strike = on
-          break
-        case 'code':
-          props.mono = true
-          break
-        case 'superscript':
-          props.position = 'super'
-          break
-        case 'subscript':
-          props.position = 'sub'
-          break
-        case 'caps':
-          props.caps = true
-          break
-        case 'smallCaps':
-          props.smallCaps = true
-          break
-        case 'highlight':
-          props.background = odfColor(attrs['color']) ?? '#ffff00'
-          break
-        case 'charStyle':
-          characterStyle = this.writer.characterStyleName(attrs['styleId'])
-          break
-        case 'textStyle':
-          if (attrs['color'] !== undefined) props.color = attrs['color']
-          if (attrs['backgroundColor'] !== undefined) props.background = attrs['backgroundColor']
-          if (attrs['fontFamily'] !== undefined) props.fontFamily = attrs['fontFamily']
-          if (attrs['fontSize'] !== undefined) props.fontSize = attrs['fontSize']
-          break
-        case 'link':
-          href = safeHref(mark)
-          break
-        default:
-          break
-      }
-    }
+    const { props, charStyle, href } = characterFormatOf(marks)
+    const characterStyle =
+      charStyle === null ? null : this.writer.characterStyleName(charStyle.attrs?.['styleId'])
     let out = inner
     const text = textProperties(props, this.writer.fonts)
     if (text !== '') {
@@ -1102,57 +1062,42 @@ class Renderer {
     if (object.kind === 'rule') return ''
     const picture = object.kind === 'image' ? this.writer.pictures.add(object.src) : null
     if (object.kind === 'image' && picture === null) return ''
-    const horizontalRel = RELATIVE[object.hFrom] ?? 'paragraph'
-    const verticalRel = RELATIVE[object.vFrom] ?? 'paragraph'
-    const hAlign = ['left', 'center', 'right', 'inside', 'outside'].includes(object.hAlign ?? '')
-      ? object.hAlign!
-      : null
-    const vAlign =
-      object.vAlign === 'center'
-        ? 'middle'
-        : ['top', 'bottom'].includes(object.vAlign ?? '')
-          ? object.vAlign!
-          : null
-    const wrap = object.behind ? 'run-through' : (WRAP[object.wrap] ?? 'parallel')
-    const style = this.book.style(
-      'graphic',
-      'fr',
-      '',
-      `<style:graphic-properties${attr('style:wrap', wrap)}${object.behind ? ' style:run-through="background"' : ' style:run-through="foreground"'}` +
-        `${attr('style:horizontal-pos', hAlign ?? 'from-left')}${attr('style:horizontal-rel', horizontalRel)}` +
-        `${attr('style:vertical-pos', vAlign ?? 'from-top')}${attr('style:vertical-rel', verticalRel)}` +
-        // Sem preenchimento declarado é transparente: o padrão do LibreOffice pinta de azul.
-        (odfColor(object.fill) === null
-          ? ' fo:background-color="transparent" draw:fill="none"'
-          : `${attr('fo:background-color', odfColor(object.fill))} draw:fill="solid"${attr('draw:fill-color', odfColor(object.fill))}`) +
-        `${attr('fo:border', object.line !== undefined && odfColor(object.line) !== null ? `${Math.max(0.25, object.lineWidthPt ?? 0.75)}pt solid ${odfColor(object.line)}` : 'none')}` +
-        ' fo:padding="0mm"/>',
-    )
+    const { hAlign, vAlign } = floatAlignments(object)
+    const style = this.book.style('graphic', 'fr', '', floatGraphicProperties(object, hAlign, vAlign))
     const x = (object.hOffsetMm ?? 0) + (object.dxMm ?? 0)
     const y = (object.vOffsetMm ?? 0) + (object.dyMm ?? 0)
     const number = this.writer.nextFrame()
     const position = `${hAlign === null ? attr('svg:x', mm(x)) : ''}${vAlign === null ? attr('svg:y', mm(y)) : ''}`
-    const width = attr('svg:width', mm(Math.max(1, object.widthMm)))
-    const height = mm(Math.max(1, object.heightMm))
-    let size = `${width}${attr('svg:height', height)}`
-    let inner: string
-    if (picture !== null) {
-      inner = `<draw:image${attr('xlink:href', picture.path)} xlink:type="simple" xlink:show="embed" xlink:actuate="onLoad"/>`
-    } else {
-      this.nested++
-      this.noteless++
-      const blocks = this.blocks(object.content ?? [])
-      this.noteless--
-      this.nested--
-      // A caixa cresce com o texto, como no Word: a altura dada é o mínimo, e a
-      // fonte substituta um pouco maior não esconde o que não coube.
-      size = width
-      inner = `<draw:text-box${attr('fo:min-height', height)}>${blocks === '' ? '<text:p/>' : blocks}</draw:text-box>`
-    }
+    const { size, inner } = this.floatingBody(object, picture)
     return (
       `<draw:frame${attr('draw:style-name', style)}${attr('draw:name', `Frame${number}`)} text:anchor-type="paragraph"` +
       `${position}${size}${attr('draw:z-index', number)}>${inner}</draw:frame>`
     )
+  }
+
+  private floatingBody(
+    object: FloatingObject,
+    picture: { path: string } | null,
+  ): { size: string; inner: string } {
+    const width = attr('svg:width', mm(Math.max(1, object.widthMm)))
+    const height = mm(Math.max(1, object.heightMm))
+    if (picture !== null) {
+      return {
+        size: `${width}${attr('svg:height', height)}`,
+        inner: `<draw:image${attr('xlink:href', picture.path)} xlink:type="simple" xlink:show="embed" xlink:actuate="onLoad"/>`,
+      }
+    }
+    this.nested++
+    this.noteless++
+    const blocks = this.blocks(object.content ?? [])
+    this.noteless--
+    this.nested--
+    // A caixa cresce com o texto, como no Word: a altura dada é o mínimo, e a
+    // fonte substituta um pouco maior não esconde o que não coube.
+    return {
+      size: width,
+      inner: `<draw:text-box${attr('fo:min-height', height)}>${blocks === '' ? '<text:p/>' : blocks}</draw:text-box>`,
+    }
   }
 
   /**
@@ -1571,5 +1516,82 @@ function manifestXml(pictures: readonly Picture[], formulas: readonly Formula[])
       )
       .join('') +
     '</manifest:manifest>'
+  )
+}
+
+type Mark = NonNullable<DocumentNode['marks']>[number]
+type MarkProps = (props: CharacterProps, attrs: Record<string, unknown>, on: boolean) => void
+
+const MARK_PROPS: ReadonlyMap<string, MarkProps> = new Map<string, MarkProps>([
+  ['bold', (props, _attrs, on) => (props.bold = on)],
+  ['italic', (props, _attrs, on) => (props.italic = on)],
+  ['underline', (props, _attrs, on) => (props.underline = on)],
+  ['strike', (props, _attrs, on) => (props.strike = on)],
+  ['code', (props) => (props.mono = true)],
+  ['superscript', (props) => (props.position = 'super')],
+  ['subscript', (props) => (props.position = 'sub')],
+  ['caps', (props) => (props.caps = true)],
+  ['smallCaps', (props) => (props.smallCaps = true)],
+  ['highlight', (props, attrs) => (props.background = odfColor(attrs['color']) ?? '#ffff00')],
+  ['textStyle', textStyleProps],
+])
+
+function textStyleProps(props: CharacterProps, attrs: Record<string, unknown>): void {
+  if (attrs['color'] !== undefined) props.color = attrs['color']
+  if (attrs['backgroundColor'] !== undefined) props.background = attrs['backgroundColor']
+  if (attrs['fontFamily'] !== undefined) props.fontFamily = attrs['fontFamily']
+  if (attrs['fontSize'] !== undefined) props.fontSize = attrs['fontSize']
+}
+
+interface CharacterFormat {
+  readonly props: CharacterProps
+  readonly charStyle: Mark | null
+  readonly href: string | null
+}
+
+function characterFormatOf(marks: readonly Mark[]): CharacterFormat {
+  const props: CharacterProps = {}
+  let charStyle: Mark | null = null
+  let href: string | null = null
+  for (const mark of marks) {
+    const attrs = mark.attrs ?? {}
+    if (mark.type === 'charStyle') charStyle = mark
+    else if (mark.type === 'link') href = safeHref(mark)
+    else MARK_PROPS.get(mark.type)?.(props, attrs, attrs['off'] !== true)
+  }
+  return { props, charStyle, href }
+}
+
+function floatAlignments(object: FloatingObject): { hAlign: string | null; vAlign: string | null } {
+  const hAlign = ['left', 'center', 'right', 'inside', 'outside'].includes(object.hAlign ?? '')
+    ? object.hAlign!
+    : null
+  const vAlign =
+    object.vAlign === 'center'
+      ? 'middle'
+      : ['top', 'bottom'].includes(object.vAlign ?? '')
+        ? object.vAlign!
+        : null
+  return { hAlign, vAlign }
+}
+
+function floatGraphicProperties(
+  object: FloatingObject,
+  hAlign: string | null,
+  vAlign: string | null,
+): string {
+  const wrap = object.behind ? 'run-through' : (WRAP[object.wrap] ?? 'parallel')
+  const fill = odfColor(object.fill)
+  const line = object.line === undefined ? null : odfColor(object.line)
+  return (
+    `<style:graphic-properties${attr('style:wrap', wrap)}${object.behind ? ' style:run-through="background"' : ' style:run-through="foreground"'}` +
+    `${attr('style:horizontal-pos', hAlign ?? 'from-left')}${attr('style:horizontal-rel', RELATIVE[object.hFrom] ?? 'paragraph')}` +
+    `${attr('style:vertical-pos', vAlign ?? 'from-top')}${attr('style:vertical-rel', RELATIVE[object.vFrom] ?? 'paragraph')}` +
+    // Sem preenchimento declarado é transparente: o padrão do LibreOffice pinta de azul.
+    (fill === null
+      ? ' fo:background-color="transparent" draw:fill="none"'
+      : `${attr('fo:background-color', fill)} draw:fill="solid"${attr('draw:fill-color', fill)}`) +
+    `${attr('fo:border', line !== null ? `${Math.max(0.25, object.lineWidthPt ?? 0.75)}pt solid ${line}` : 'none')}` +
+    ' fo:padding="0mm"/>'
   )
 }

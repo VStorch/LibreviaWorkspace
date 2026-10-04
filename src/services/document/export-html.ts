@@ -144,30 +144,43 @@ body { margin: 0; color: #111111; }
 `
 
 export function createHtmlRenderer(source: ExportSource, imageSrc: ImageSource): HtmlRenderer {
-  function blocks(nodes: readonly DocumentNode[]): string {
+  return new HtmlWriter(source, imageSrc)
+}
+
+class HtmlWriter implements HtmlRenderer {
+  constructor(
+    private readonly source: ExportSource,
+    private readonly imageSrc: ImageSource,
+  ) {}
+
+  blocks(nodes: readonly DocumentNode[]): string {
     return nodes
-      .map(block)
+      .map((node) => this.block(node))
       .filter((html) => html !== '')
       .join('\n')
   }
 
-  function block(node: DocumentNode): string {
+  inline(nodes: readonly DocumentNode[]): string {
+    return nodes.map((node) => this.inlineNode(node)).join('')
+  }
+
+  private block(node: DocumentNode): string {
     switch (node.type) {
       case 'paragraph': {
         if (isSectionMarkOnly(node)) return ''
-        return `<p${blockAttrs(node)}>${inlineOrBreak(node.content)}</p>`
+        return `<p${blockAttrs(node)}>${this.inlineOrBreak(node.content)}</p>`
       }
       case 'heading': {
         const level = Math.min(6, Math.max(1, Number(node.attrs?.['level']) || 1))
-        return `<h${level}${blockAttrs(node)}>${inlineOrBreak(node.content)}</h${level}>`
+        return `<h${level}${blockAttrs(node)}>${this.inlineOrBreak(node.content)}</h${level}>`
       }
       case 'bulletList':
       case 'orderedList':
-        return list(node)
+        return this.list(node)
       case 'table':
-        return table(node)
+        return this.table(node)
       case 'blockquote':
-        return `<blockquote>\n${blocks(node.content ?? [])}\n</blockquote>`
+        return `<blockquote>\n${this.blocks(node.content ?? [])}\n</blockquote>`
       case 'codeBlock':
         return `<pre><code>${escapeHtml(plainText(node))}</code></pre>`
       case 'horizontalRule':
@@ -175,34 +188,24 @@ export function createHtmlRenderer(source: ExportSource, imageSrc: ImageSource):
       case 'pageBreak':
         return '<div class="page-break"></div>'
       case 'tableOfContents':
-        return contents(node)
+        return this.contents(node)
       default:
-        return node.content === undefined ? '' : blocks(node.content)
+        return node.content === undefined ? '' : this.blocks(node.content)
     }
   }
 
-  function inlineOrBreak(content: readonly DocumentNode[] | undefined): string {
-    const html = inline(content ?? [])
+  private inlineOrBreak(content: readonly DocumentNode[] | undefined): string {
+    const html = this.inline(content ?? [])
     // O parágrafo vazio ocupa uma linha, como no documento.
     return html === '' ? '<br>' : html
   }
 
-  function blockAttrs(node: DocumentNode): string {
-    const attrs = node.attrs ?? {}
-    const style = attrs['styleId']
-    const parts: string[] = []
-    if (typeof style === 'string' && style !== '') parts.push(` data-style-id="${escapeHtml(style)}"`)
-    const css = blockCss(attrs)
-    if (css !== '') parts.push(` style="${escapeHtml(css)}"`)
-    return parts.join('')
-  }
-
-  function list(node: DocumentNode): string {
-    const info = source.listOf.get(node)
+  private list(node: DocumentNode): string {
+    const info = this.source.listOf.get(node)
     const ordered = node.type === 'orderedList'
     const tag = ordered ? 'ol' : 'ul'
     const items = (node.content ?? []).filter((child) => child.type === 'listItem')
-    const first = items[0] === undefined ? undefined : source.itemOf.get(items[0])
+    const first = items[0] === undefined ? undefined : this.source.itemOf.get(items[0])
     const attrs: string[] = []
     if (ordered && first !== undefined && first.value !== 1) attrs.push(` start="${first.value}"`)
     if (info !== undefined) {
@@ -210,101 +213,72 @@ export function createHtmlRenderer(source: ExportSource, imageSrc: ImageSource):
         attrs.push(value === '' ? ` ${name}` : ` ${name}="${escapeHtml(value)}"`)
       }
     }
-    const body = items
-      .map((item) => {
-        const label = source.itemOf.get(item)?.label
-        const drawn =
-          label === undefined
-            ? ''
-            : Object.entries(itemDrawAttrs(label))
-                .map(([name, value]) => ` ${name}="${escapeHtml(value)}"`)
-                .join('')
-        return `<li${drawn}>${blocks(item.content ?? [])}</li>`
-      })
-      .join('\n')
+    const body = items.map((item) => this.listItem(item)).join('\n')
     return `<${tag}${attrs.join('')}>\n${body}\n</${tag}>`
   }
 
-  function table(node: DocumentNode): string {
+  private listItem(item: DocumentNode): string {
+    const label = this.source.itemOf.get(item)?.label
+    const drawn =
+      label === undefined
+        ? ''
+        : Object.entries(itemDrawAttrs(label))
+            .map(([name, value]) => ` ${name}="${escapeHtml(value)}"`)
+            .join('')
+    return `<li${drawn}>${this.blocks(item.content ?? [])}</li>`
+  }
+
+  private table(node: DocumentNode): string {
     const rows = (node.content ?? []).filter((row) => row.type === 'tableRow')
     const widths = columnWidths(rows[0])
     const colgroup =
       widths === null
         ? ''
         : `<colgroup>${widths.map((width) => `<col style="width: ${width}px">`).join('')}</colgroup>`
-    const body = rows.map((row) => `<tr>${(row.content ?? []).map(cell).join('')}</tr>`).join('\n')
+    const body = rows
+      .map((row) => `<tr>${(row.content ?? []).map((cell) => this.cell(cell)).join('')}</tr>`)
+      .join('\n')
     return `<table>${colgroup}\n${body}\n</table>`
   }
 
-  function cell(node: DocumentNode): string {
+  private cell(node: DocumentNode): string {
     const tag = node.type === 'tableHeader' ? 'th' : 'td'
-    const attrs = node.attrs ?? {}
-    const parts: string[] = []
-    const colspan = positive(attrs['colspan'])
-    const rowspan = positive(attrs['rowspan'])
-    if (colspan !== null && colspan > 1) parts.push(` colspan="${colspan}"`)
-    if (rowspan !== null && rowspan > 1) parts.push(` rowspan="${rowspan}"`)
-    const css: string[] = []
-    css.push(...safeDeclarations(cellBordersToCss(cellBordersFromAttr(attrs['borders']))))
-    const shading = safeCss(attrs['shading'])
-    if (shading !== null) css.push(`background-color: ${shading}`)
-    if (css.length > 0) parts.push(` style="${escapeHtml(css.join('; '))}"`)
-    return `<${tag}${parts.join('')}>${blocks(node.content ?? [])}</${tag}>`
+    return `<${tag}${cellAttrs(node.attrs ?? {})}>${this.blocks(node.content ?? [])}</${tag}>`
   }
 
-  function contents(node: DocumentNode): string {
+  private contents(node: DocumentNode): string {
     const children = node.content ?? []
     const head = Math.max(0, Number(node.attrs?.['head']) || 0)
-    const title = blocks(children.slice(0, head))
+    const title = this.blocks(children.slice(0, head))
     const entries = children
       .slice(head)
       .map((entry) => {
         const level = tocLevelOf(entry)
         const indent = level > 1 ? ` style="margin-left: ${(level - 1) * 1.5}em"` : ''
-        return `<li${indent}>${inline(withoutPageNumbers(entry.content ?? []))}</li>`
+        return `<li${indent}>${this.inline(withoutPageNumbers(entry.content ?? []))}</li>`
       })
       .join('\n')
     const nav = `<nav class="sumario"><ul>\n${entries}\n</ul></nav>`
     return title === '' ? nav : `${title}\n${nav}`
   }
 
-  function inline(nodes: readonly DocumentNode[]): string {
-    return nodes.map(inlineNode).join('')
-  }
-
-  function inlineNode(node: DocumentNode): string {
-    const inner = inlineContent(node)
+  private inlineNode(node: DocumentNode): string {
+    const inner = this.inlineContent(node)
     if (inner === '') return ''
     // O `vertAlign` que o Word põe na referência de nota a subiria duas vezes.
     return node.type === 'noteRef' ? inner : wrapMarks(inner, node.marks ?? [])
   }
 
-  function inlineContent(node: DocumentNode): string {
+  private inlineContent(node: DocumentNode): string {
     switch (node.type) {
       case 'text':
         return escapeHtml(node.text ?? '')
       case 'hardBreak':
         return '<br>'
-      case 'image': {
-        const src = imageSrc(node.attrs?.['src'])
-        const alt = stringAttr(node.attrs?.['alt'])
-        if (src === null) return alt === '' ? '' : escapeHtml(alt)
-        const parts = [`<img src="${escapeHtml(src)}" alt="${escapeHtml(alt)}"`]
-        const title = stringAttr(node.attrs?.['title'])
-        if (title !== '') parts.push(` title="${escapeHtml(title)}"`)
-        const width = positive(node.attrs?.['width'])
-        const height = positive(node.attrs?.['height'])
-        if (width !== null) parts.push(` width="${width}"`)
-        if (height !== null) parts.push(` height="${height}"`)
-        if (node.attrs?.['anchored'] === true) parts.push(' style="display: block"')
-        return `${parts.join('')}>`
-      }
-      case 'noteRef': {
-        const note = source.noteOf.get(node)
-        if (note === undefined) return ''
-        const kind = note.kind === NoteKind.Endnote ? ' data-kind="endnote"' : ''
-        return `<sup class="nota-ref"${kind}><a href="#${note.id}" id="ref-${note.id}">${escapeHtml(note.label)}</a></sup>`
-      }
+      case 'image':
+        return this.image(node)
+      case 'noteRef':
+        return this.noteRef(node)
       case 'field':
         return escapeHtml(stringAttr(node.attrs?.['result']))
       case 'math':
@@ -314,11 +288,55 @@ export function createHtmlRenderer(source: ExportSource, imageSrc: ImageSource):
         return name === '' ? '' : `<a id="${escapeHtml(name)}"></a>`
       }
       default:
-        return node.content === undefined ? escapeHtml(node.text ?? '') : inline(node.content)
+        return node.content === undefined ? escapeHtml(node.text ?? '') : this.inline(node.content)
     }
   }
 
-  return { blocks, inline }
+  private image(node: DocumentNode): string {
+    const src = this.imageSrc(node.attrs?.['src'])
+    const alt = stringAttr(node.attrs?.['alt'])
+    if (src === null) return alt === '' ? '' : escapeHtml(alt)
+    const parts = [`<img src="${escapeHtml(src)}" alt="${escapeHtml(alt)}"`]
+    const title = stringAttr(node.attrs?.['title'])
+    if (title !== '') parts.push(` title="${escapeHtml(title)}"`)
+    const width = positive(node.attrs?.['width'])
+    const height = positive(node.attrs?.['height'])
+    if (width !== null) parts.push(` width="${width}"`)
+    if (height !== null) parts.push(` height="${height}"`)
+    if (node.attrs?.['anchored'] === true) parts.push(' style="display: block"')
+    return `${parts.join('')}>`
+  }
+
+  private noteRef(node: DocumentNode): string {
+    const note = this.source.noteOf.get(node)
+    if (note === undefined) return ''
+    const kind = note.kind === NoteKind.Endnote ? ' data-kind="endnote"' : ''
+    return `<sup class="nota-ref"${kind}><a href="#${note.id}" id="ref-${note.id}">${escapeHtml(note.label)}</a></sup>`
+  }
+}
+
+function blockAttrs(node: DocumentNode): string {
+  const attrs = node.attrs ?? {}
+  const style = attrs['styleId']
+  const parts: string[] = []
+  if (typeof style === 'string' && style !== '') parts.push(` data-style-id="${escapeHtml(style)}"`)
+  const css = blockCss(attrs)
+  if (css !== '') parts.push(` style="${escapeHtml(css)}"`)
+  return parts.join('')
+}
+
+function cellAttrs(attrs: Record<string, unknown>): string {
+  const parts: string[] = []
+  const colspan = positive(attrs['colspan'])
+  const rowspan = positive(attrs['rowspan'])
+  if (colspan !== null && colspan > 1) parts.push(` colspan="${colspan}"`)
+  if (rowspan !== null && rowspan > 1) parts.push(` rowspan="${rowspan}"`)
+  const css: string[] = []
+  css.push(...safeDeclarations(cellBordersToCss(cellBordersFromAttr(attrs['borders']))))
+  const shading = safeCss(attrs['shading'])
+  if (shading !== null) css.push(`background-color: ${shading}`)
+  if (css.length > 0) parts.push(` style="${escapeHtml(css.join('; '))}"`)
+  return parts.join('')
 }
 
 function notesSection(source: ExportSource, renderer: HtmlRenderer, labels: HtmlExportLabels): string {
@@ -347,57 +365,74 @@ function wrapMarks(inner: string, marks: NonNullable<DocumentNode['marks']>): st
   return html
 }
 
-function wrapMark(html: string, mark: NonNullable<DocumentNode['marks']>[number]): string {
-  const attrs = mark.attrs ?? {}
-  const off = attrs['off'] === true
-  switch (mark.type) {
-    case 'bold':
-      return off ? `<span style="font-weight: 400">${html}</span>` : `<strong>${html}</strong>`
-    case 'italic':
-      return off ? `<span style="font-style: normal">${html}</span>` : `<em>${html}</em>`
-    case 'underline':
-      return off ? `<span style="text-decoration: none">${html}</span>` : `<u>${html}</u>`
-    case 'strike':
-      return off ? `<span style="text-decoration: none">${html}</span>` : `<s>${html}</s>`
-    case 'code':
-      return `<code>${html}</code>`
-    case 'superscript':
-      return `<sup>${html}</sup>`
-    case 'subscript':
-      return `<sub>${html}</sub>`
-    case 'caps':
-      return `<span style="text-transform: uppercase">${html}</span>`
-    case 'smallCaps':
-      return `<span style="font-variant: small-caps">${html}</span>`
-    case 'highlight': {
-      const color = safeCss(attrs['color'])
-      return color === null
-        ? `<mark>${html}</mark>`
-        : `<mark style="background-color: ${escapeHtml(color)}">${html}</mark>`
-    }
-    case 'charStyle': {
-      const id = attrs['styleId']
-      return typeof id === 'string' && id !== ''
-        ? `<span data-char-style="${escapeHtml(id)}">${html}</span>`
-        : html
-    }
-    case 'textStyle': {
-      const css = textStyleCss(attrs)
-      return css === '' ? html : `<span style="${escapeHtml(css)}">${html}</span>`
-    }
-    case 'link': {
-      const href = safeHref(mark)
-      if (href === null) return html
-      const title =
-        typeof attrs['title'] === 'string' && attrs['title'] !== ''
-          ? ` title="${escapeHtml(attrs['title'])}"`
-          : ''
-      const external = href.startsWith('#') ? '' : ' rel="noopener noreferrer"'
-      return `<a href="${escapeHtml(href)}"${title}${external}>${html}</a>`
-    }
-    default:
-      return html
-  }
+type Mark = NonNullable<DocumentNode['marks']>[number]
+type MarkWrapper = (html: string, attrs: Record<string, unknown>, mark: Mark) => string
+
+const tagged =
+  (tag: string): MarkWrapper =>
+  (html) =>
+    `<${tag}>${html}</${tag}>`
+
+const styled =
+  (css: string): MarkWrapper =>
+  (html) =>
+    `<span style="${css}">${html}</span>`
+
+/** A marca desligada (`off`) desfaz a do estilo, e não some. */
+const toggled =
+  (tag: string, offCss: string): MarkWrapper =>
+  (html, attrs, mark) =>
+    attrs['off'] === true ? styled(offCss)(html, attrs, mark) : tagged(tag)(html, attrs, mark)
+
+const MARK_WRAPPERS: ReadonlyMap<string, MarkWrapper> = new Map<string, MarkWrapper>([
+  ['bold', toggled('strong', 'font-weight: 400')],
+  ['italic', toggled('em', 'font-style: normal')],
+  ['underline', toggled('u', 'text-decoration: none')],
+  ['strike', toggled('s', 'text-decoration: none')],
+  ['code', tagged('code')],
+  ['superscript', tagged('sup')],
+  ['subscript', tagged('sub')],
+  ['caps', styled('text-transform: uppercase')],
+  ['smallCaps', styled('font-variant: small-caps')],
+  ['highlight', highlightHtml],
+  ['charStyle', charStyleHtml],
+  ['textStyle', textStyleHtml],
+  ['link', linkHtml],
+])
+
+function wrapMark(html: string, mark: Mark): string {
+  const wrap = MARK_WRAPPERS.get(mark.type)
+  return wrap === undefined ? html : wrap(html, mark.attrs ?? {}, mark)
+}
+
+function highlightHtml(html: string, attrs: Record<string, unknown>): string {
+  const color = safeCss(attrs['color'])
+  return color === null
+    ? `<mark>${html}</mark>`
+    : `<mark style="background-color: ${escapeHtml(color)}">${html}</mark>`
+}
+
+function charStyleHtml(html: string, attrs: Record<string, unknown>): string {
+  const id = attrs['styleId']
+  return typeof id === 'string' && id !== ''
+    ? `<span data-char-style="${escapeHtml(id)}">${html}</span>`
+    : html
+}
+
+function textStyleHtml(html: string, attrs: Record<string, unknown>): string {
+  const css = textStyleCss(attrs)
+  return css === '' ? html : `<span style="${escapeHtml(css)}">${html}</span>`
+}
+
+function linkHtml(html: string, attrs: Record<string, unknown>, mark: Mark): string {
+  const href = safeHref(mark)
+  if (href === null) return html
+  const title =
+    typeof attrs['title'] === 'string' && attrs['title'] !== ''
+      ? ` title="${escapeHtml(attrs['title'])}"`
+      : ''
+  const external = href.startsWith('#') ? '' : ' rel="noopener noreferrer"'
+  return `<a href="${escapeHtml(href)}"${title}${external}>${html}</a>`
 }
 
 function textStyleCss(attrs: Record<string, unknown>): string {

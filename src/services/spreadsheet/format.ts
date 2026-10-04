@@ -16,8 +16,15 @@ export function formatCell(cell: Cell | undefined): string {
   const numeric = typeof value === 'number' ? value : Number(value)
   if (!Number.isFinite(numeric)) return String(value)
 
-  const decimals = cell.style?.decimals
+  return formatNumeric(value, numeric, format, cell.style?.decimals)
+}
 
+function formatNumeric(
+  value: CellValue,
+  numeric: number,
+  format: CellFormat,
+  decimals: number | undefined,
+): string {
   switch (format) {
     case CellFormat.Currency:
       return numeric.toLocaleString(LOCALE, {

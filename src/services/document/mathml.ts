@@ -169,91 +169,123 @@ interface Building {
 
 /** **Sem** a lista: só para quem a ajeita antes de filtrar (`latex.ts`). */
 export function parseMathMl(source: string): MathElement | null {
-  const stack: Building[] = []
-  let root: Building | null = null
-  let count = 0
-  let i = 0
+  return new MathMlParser(source).parse()
+}
 
-  while (i < source.length) {
-    if (source[i] !== '<') {
-      const end = source.indexOf('<', i)
-      const raw = source.slice(i, end === -1 ? source.length : end)
-      const text = decode(raw)
-      if (text === null) return null
-      const parent = stack.at(-1)
-      if (parent === undefined) {
-        // Fora do elemento raiz só cabe espaço.
-        if (raw.trim() !== '') return null
-      } else if (text !== '') {
-        parent.children.push(text)
-      }
-      i = end === -1 ? source.length : end
-      continue
+/** Cada leitura devolve `false` (ou `null`) diante de XML que não é o MathML esperado. */
+class MathMlParser {
+  private readonly stack: Building[] = []
+  private root: Building | null = null
+  private count = 0
+  private at = 0
+
+  constructor(private readonly source: string) {}
+
+  parse(): MathElement | null {
+    while (this.at < this.source.length) {
+      if (!this.readNext()) return null
     }
-
-    if (source.startsWith('</', i)) {
-      const match = NAME.exec(source.slice(i + 2))
-      const open = stack.pop()
-      if (match === null || open === undefined || match[0] !== open.tag) return null
-      i += 2 + match[0].length
-      while (/\s/.test(source[i] ?? '')) i++
-      if (source[i] !== '>') return null
-      i++
-      continue
-    }
-
-    const match = NAME.exec(source.slice(i + 1))
-    // `<!`, `<?` e o que mais não for nome de elemento: recusado.
-    if (match === null) return null
-    i += 1 + match[0].length
-
-    const attrs: Record<string, string> = {}
-    for (;;) {
-      const space = /^\s*/.exec(source.slice(i))![0].length
-      i += space
-      if (source.startsWith('/>', i) || source[i] === '>') break
-      if (space === 0) return null
-      const name = NAME.exec(source.slice(i))
-      if (name === null) return null
-      i += name[0].length
-      const equals = /^\s*=\s*/.exec(source.slice(i))
-      if (equals === null) return null
-      i += equals[0].length
-      const quote = source[i]
-      if (quote !== '"' && quote !== "'") return null
-      const close = source.indexOf(quote, i + 1)
-      if (close === -1) return null
-      const value = decode(source.slice(i + 1, close))
-      if (value === null || value.includes('<')) return null
-      // O namespace é o do MathML ou nenhum; o resto da declaração cai.
-      if (name[0] === 'xmlns' && value !== MATHML_NAMESPACE) return null
-      if (!name[0].startsWith('xmlns')) attrs[name[0]] = value
-      i = close + 1
-    }
-
-    const element: Building = { tag: match[0], attrs, children: [] }
-    // Só nomes sem prefixo: o MathML que a conversão escreve usa o namespace padrão.
-    if (element.tag.includes(':')) return null
-    if (++count > MAX_NODES) return null
-
-    const parent = stack.at(-1)
-    if (parent === undefined) {
-      if (root !== null) return null
-      root = element
-    } else {
-      parent.children.push(element)
-    }
-
-    if (source.startsWith('/>', i)) {
-      i += 2
-      continue
-    }
-    i++
-    stack.push(element)
-    if (stack.length > MAX_DEPTH) return null
+    return this.stack.length === 0 ? this.root : null
   }
 
-  return stack.length === 0 ? root : null
+  private readNext(): boolean {
+    if (this.source[this.at] !== '<') return this.readText()
+    return this.source.startsWith('</', this.at) ? this.readClose() : this.readOpen()
+  }
+
+  private readText(): boolean {
+    const end = this.source.indexOf('<', this.at)
+    const raw = this.source.slice(this.at, end === -1 ? this.source.length : end)
+    const text = decode(raw)
+    if (text === null) return false
+    const parent = this.stack.at(-1)
+    if (parent === undefined) {
+      // Fora do elemento raiz só cabe espaço.
+      if (raw.trim() !== '') return false
+    } else if (text !== '') {
+      parent.children.push(text)
+    }
+    this.at = end === -1 ? this.source.length : end
+    return true
+  }
+
+  private readClose(): boolean {
+    const match = NAME.exec(this.source.slice(this.at + 2))
+    const open = this.stack.pop()
+    if (match === null || open === undefined || match[0] !== open.tag) return false
+    this.at += 2 + match[0].length
+    while (/\s/.test(this.source[this.at] ?? '')) this.at++
+    if (this.source[this.at] !== '>') return false
+    this.at++
+    return true
+  }
+
+  private readOpen(): boolean {
+    const match = NAME.exec(this.source.slice(this.at + 1))
+    // `<!`, `<?` e o que mais não for nome de elemento: recusado.
+    if (match === null) return false
+    this.at += 1 + match[0].length
+
+    const attrs = this.readAttributes()
+    if (attrs === null) return false
+    const element: Building = { tag: match[0], attrs, children: [] }
+    // Só nomes sem prefixo: o MathML que a conversão escreve usa o namespace padrão.
+    if (element.tag.includes(':')) return false
+    if (++this.count > MAX_NODES) return false
+    if (!this.attach(element)) return false
+
+    if (this.source.startsWith('/>', this.at)) {
+      this.at += 2
+      return true
+    }
+    this.at++
+    this.stack.push(element)
+    return this.stack.length <= MAX_DEPTH
+  }
+
+  private attach(element: Building): boolean {
+    const parent = this.stack.at(-1)
+    if (parent !== undefined) {
+      parent.children.push(element)
+      return true
+    }
+    if (this.root !== null) return false
+    this.root = element
+    return true
+  }
+
+  private readAttributes(): Record<string, string> | null {
+    const attrs: Record<string, string> = {}
+    for (;;) {
+      const space = /^\s*/.exec(this.source.slice(this.at))![0].length
+      this.at += space
+      if (this.source.startsWith('/>', this.at) || this.source[this.at] === '>') return attrs
+      if (space === 0) return null
+      const attribute = this.readAttribute()
+      if (attribute === null) return null
+      const [name, value] = attribute
+      // O namespace é o do MathML ou nenhum; o resto da declaração cai.
+      if (name === 'xmlns' && value !== MATHML_NAMESPACE) return null
+      if (!name.startsWith('xmlns')) attrs[name] = value
+    }
+  }
+
+  private readAttribute(): readonly [string, string] | null {
+    const name = NAME.exec(this.source.slice(this.at))
+    if (name === null) return null
+    this.at += name[0].length
+    const equals = /^\s*=\s*/.exec(this.source.slice(this.at))
+    if (equals === null) return null
+    this.at += equals[0].length
+    const quote = this.source[this.at]
+    if (quote !== '"' && quote !== "'") return null
+    const close = this.source.indexOf(quote, this.at + 1)
+    if (close === -1) return null
+    const value = decode(this.source.slice(this.at + 1, close))
+    if (value === null || value.includes('<')) return null
+    this.at = close + 1
+    return [name[0], value]
+  }
 }
 
 /** Texto com as entidades do XML resolvidas — ou `null` diante de uma que não existe. */

@@ -301,6 +301,10 @@ export interface ParagraphProps {
 const isSet = <T>(value: T | null | undefined): value is T => value !== null && value !== undefined
 
 export function paragraphProperties(props: ParagraphProps): string {
+  return [...measureProperties(props), ...flowProperties(props), ...decorationProperties(props)].join('')
+}
+
+function measureProperties(props: ParagraphProps): string[] {
   const parts: string[] = []
   const align = odfAlign(props.align)
   if (align !== null) parts.push(attr('fo:text-align', align))
@@ -312,6 +316,11 @@ export function paragraphProperties(props: ParagraphProps): string {
   if (isSet(props.lineAtLeastPt)) parts.push(attr('style:line-height-at-least', pt(props.lineAtLeastPt)))
   else if (isSet(props.lineFactor))
     parts.push(attr('fo:line-height', `${Math.round(props.lineFactor * 100)}%`))
+  return parts
+}
+
+function flowProperties(props: ParagraphProps): string[] {
+  const parts: string[] = []
   if (props.keepNext !== undefined) parts.push(attr('fo:keep-with-next', props.keepNext ? 'always' : 'auto'))
   if (props.keepLines !== undefined) parts.push(attr('fo:keep-together', props.keepLines ? 'always' : 'auto'))
   if (props.widowControl !== undefined) {
@@ -323,13 +332,18 @@ export function paragraphProperties(props: ParagraphProps): string {
   if (props.contextualSpacing !== undefined) {
     parts.push(attr('style:contextual-spacing', props.contextualSpacing ? 'true' : 'false'))
   }
+  return parts
+}
+
+function decorationProperties(props: ParagraphProps): string[] {
+  const parts: string[] = []
   const background = odfColor(props.background)
   if (background !== null) parts.push(attr('fo:background-color', background))
   if (isSet(props.pageNumber)) parts.push(attr('style:page-number', props.pageNumber))
   if (isSet(props.borderBottom)) {
     parts.push(attr('fo:border-bottom', props.borderBottom), attr('fo:padding-bottom', '0.5mm'))
   }
-  return parts.join('')
+  return parts
 }
 
 export function paragraphPropsOfStyle(format: StyleParagraphFormat | undefined): ParagraphProps {

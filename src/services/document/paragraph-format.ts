@@ -198,6 +198,14 @@ function lineSpacingOf(
       }
 }
 
+/** O deslocamento vira recuo negativo, como o `w:hanging` do Word. */
+export function signedFirstLineMm(draft: ParagraphDraft): number {
+  if (draft.firstLineKind === FirstLineKind.None) return 0
+  return draft.firstLineKind === FirstLineKind.Hanging
+    ? -Math.abs(draft.firstLineMm)
+    : Math.abs(draft.firstLineMm)
+}
+
 /**
  * `effective` é o que o bloco vale com o estilo por baixo (`effectiveAttrs`), e
  * é dele que o formulário nasceu. Grupo de campos igual ao da abertura devolve o
@@ -214,12 +222,7 @@ export function paragraphAttrsFrom(
   const same = <K extends keyof ParagraphDraft>(...keys: K[]): boolean =>
     keys.every((key) => draft[key] === shown[key])
 
-  const firstLine =
-    draft.firstLineKind === FirstLineKind.None
-      ? 0
-      : draft.firstLineKind === FirstLineKind.Hanging
-        ? -Math.abs(draft.firstLineMm)
-        : Math.abs(draft.firstLineMm)
+  const firstLine = signedFirstLineMm(draft)
 
   const indentSame = same('indentLeftMm')
 

@@ -408,59 +408,57 @@ function base(node: MathElement | undefined): string {
 const nodeOf = (item: MathElement): string => node(item)
 
 function node(item: MathElement): string {
-  const args = elements(item.children)
-  switch (item.tag) {
-    case 'math':
-    case 'mstyle':
-    case 'mpadded':
-    case 'merror':
-      return row(item.children)
-    case 'semantics':
-      return args[0] === undefined ? '' : node(args[0])
-    case 'mrow':
-      if (item.attrs['class']?.split(/\s+/).includes(MATH_BOX_CLASS) === true)
-        return `\\boxed{${row(item.children)}}`
-      if (isFenced(item)) return fenced(item)
-      return row(item.children)
-    case 'mi':
-      return identifier(item)
-    case 'mn':
-      return number(textOf(item))
-    case 'mo':
-      return operator(textOf(item))
-    case 'mtext':
-    case 'ms':
-      return `\\text{${escapeText(textOf(item))}}`
-    case 'mspace':
-      return SPACES[item.attrs['width'] ?? ''] ?? ''
-    case 'mfrac':
-      return /^0(?:\.0*)?(?:px|pt|em)?$/.test(item.attrs['linethickness'] ?? '')
-        ? `\\genfrac{}{}{0pt}{}${group(args[0])}${group(args[1])}`
-        : `\\frac${group(args[0])}${group(args[1])}`
-    case 'msqrt':
-      return `\\sqrt{${row(item.children)}}`
-    case 'mroot':
-      return `\\sqrt[${group(args[1]).slice(1, -1)}]${group(args[0])}`
-    case 'msub':
-    case 'msup':
-    case 'msubsup':
-      return scripted(item.tag, args)
-    case 'munder':
-    case 'mover':
-    case 'munderover':
-      return limits(item, args)
-    case 'mmultiscripts':
-      return prescripts(args)
-    case 'mtable':
-      return `\\begin{matrix}${table(item)}\\end{matrix}`
-    case 'mphantom':
-      return `\\phantom{${row(item.children)}}`
-    case 'none':
-    case 'mprescripts':
-      return ''
-    default:
-      return row(item.children)
-  }
+  const write = WRITERS.get(item.tag) ?? childrenRow
+  return write(item, elements(item.children))
+}
+
+type Writer = (item: MathElement, args: readonly MathElement[]) => string
+
+const childrenRow: Writer = (item) => row(item.children)
+const nothing: Writer = () => ''
+const textWriter: Writer = (item) => `\\text{${escapeText(textOf(item))}}`
+const scriptedWriter: Writer = (item, args) => scripted(item.tag as 'msub' | 'msup' | 'msubsup', args)
+
+const WRITERS: ReadonlyMap<string, Writer> = new Map<string, Writer>([
+  ['math', childrenRow],
+  ['mstyle', childrenRow],
+  ['mpadded', childrenRow],
+  ['merror', childrenRow],
+  ['semantics', (_item, args) => (args[0] === undefined ? '' : node(args[0]))],
+  ['mrow', mrow],
+  ['mi', identifier],
+  ['mn', (item) => number(textOf(item))],
+  ['mo', (item) => operator(textOf(item))],
+  ['mtext', textWriter],
+  ['ms', textWriter],
+  ['mspace', (item) => SPACES[item.attrs['width'] ?? ''] ?? ''],
+  ['mfrac', fraction],
+  ['msqrt', (item) => `\\sqrt{${row(item.children)}}`],
+  ['mroot', (_item, args) => `\\sqrt[${group(args[1]).slice(1, -1)}]${group(args[0])}`],
+  ['msub', scriptedWriter],
+  ['msup', scriptedWriter],
+  ['msubsup', scriptedWriter],
+  ['munder', limits],
+  ['mover', limits],
+  ['munderover', limits],
+  ['mmultiscripts', (_item, args) => prescripts(args)],
+  ['mtable', (item) => `\\begin{matrix}${table(item)}\\end{matrix}`],
+  ['mphantom', (item) => `\\phantom{${row(item.children)}}`],
+  ['none', nothing],
+  ['mprescripts', nothing],
+])
+
+function mrow(item: MathElement): string {
+  if (item.attrs['class']?.split(/\s+/).includes(MATH_BOX_CLASS) === true)
+    return `\\boxed{${row(item.children)}}`
+  if (isFenced(item)) return fenced(item)
+  return row(item.children)
+}
+
+function fraction(item: MathElement, args: readonly MathElement[]): string {
+  return /^0(?:\.0*)?(?:px|pt|em)?$/.test(item.attrs['linethickness'] ?? '')
+    ? `\\genfrac{}{}{0pt}{}${group(args[0])}${group(args[1])}`
+    : `\\frac${group(args[0])}${group(args[1])}`
 }
 
 function scripted(tag: 'msub' | 'msup' | 'msubsup', args: readonly MathElement[]): string {
@@ -480,13 +478,11 @@ function scripted(tag: 'msub' | 'msup' | 'msubsup', args: readonly MathElement[]
 function limits(item: MathElement, args: readonly MathElement[]): string {
   const [first, second, third] = args
   if (first === undefined) return ''
-  const nary = naryOperator(first)
-  const name = functionName(first)
   const under = item.tag === 'mover' ? undefined : second
   const over = item.tag === 'munder' ? undefined : item.tag === 'mover' ? second : third
 
-  if (nary !== null || (name !== null && FUNCTIONS.has(name))) {
-    const head = nary !== null ? (SYMBOLS[nary] ?? nary) : `\\${name ?? ''}`
+  const head = largeOperatorHead(first)
+  if (head !== null) {
     return join([
       head,
       '\\limits',
@@ -498,18 +494,32 @@ function limits(item: MathElement, args: readonly MathElement[]): string {
   if (item.tag === 'munderover') {
     return `\\stackrel${group(over)}{\\underset${group(under)}${group(first)}}`
   }
+  return item.tag === 'munder' ? underMark(item, first, under!) : overMark(first, over!)
+}
 
-  const mark = unwrapped(item.tag === 'mover' ? over! : under!)
+/** O operador grande ou a função que leva limites, como `\sum` e `\lim`. */
+function largeOperatorHead(first: MathElement): string | null {
+  const nary = naryOperator(first)
+  if (nary !== null) return SYMBOLS[nary] ?? nary
+  const name = functionName(first)
+  return name !== null && FUNCTIONS.has(name) ? `\\${name}` : null
+}
+
+function underMark(item: MathElement, first: MathElement, under: MathElement): string {
+  const mark = unwrapped(under)
   const chr = mark.tag === 'mo' ? textOf(mark) : null
   const stretchy = mark.attrs['stretchy'] === 'true'
   const body = group(first)
+  if (chr === '⏟' && stretchy) return `\\underbrace${body}`
+  if (chr === '‾' && (stretchy || item.attrs['accentunder'] === 'true')) return `\\underline${body}`
+  return `\\underset${group(under)}${body}`
+}
 
-  if (item.tag === 'munder') {
-    if (chr === '⏟' && stretchy) return `\\underbrace${body}`
-    if (chr === '‾' && (stretchy || item.attrs['accentunder'] === 'true')) return `\\underline${body}`
-    return `\\underset${group(under)}${body}`
-  }
-
+function overMark(first: MathElement, over: MathElement): string {
+  const mark = unwrapped(over)
+  const chr = mark.tag === 'mo' ? textOf(mark) : null
+  const stretchy = mark.attrs['stretchy'] === 'true'
+  const body = group(first)
   if (chr === '⏞' && stretchy) return `\\overbrace${body}`
   if ((chr === '‾' || chr === '¯') && stretchy) return `\\overline${body}`
   if (chr !== null && !stretchy && ACCENTS[chr] !== undefined) return `${ACCENTS[chr]}${body}`

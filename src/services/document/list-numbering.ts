@@ -184,98 +184,21 @@ export function numberLists<N>(root: N, reader: ListTreeReader<N>): ListNumberin
   const labels: string[] = []
   const values: number[] = []
   const counters = new Map<string, Counter>()
-  const byNumId = definitionsByNumId(root, reader)
   let fresh = 0
-
-  const resolve = (node: N, parent: ListInfo | null): ListInfo => {
-    const kind = reader.typeOf(node)
-    const attrs = reader.attrsOf(node)
-    const own = parseNumbering(attrs['numbering'])
-    const declared = positiveInt(attrs['numId'])
-    const levelAttr = finite(attrs['level'])
-    const level = Math.min(
-      LIST_LEVELS - 1,
-      Math.max(0, levelAttr ?? (parent === null ? 0 : parent.level + 1)),
-    )
-
-    // A mesma ordem de decisão do gravador (`DocxWriter.Flatten`): a definição
-    // própria; a da lista de fora quando é a mesma numeração, ou quando esta não
-    // tem nenhuma e é do mesmo tipo; a de outra lista com o mesmo `numId`; e a
-    // padrão, contando sozinha.
-    let def: NumberingDef
-    let numId = declared
-    if (own !== null) {
-      def = own
-    } else if (
-      parent !== null &&
-      ((declared !== null && declared === parent.numId) || (declared === null && parent.kind === kind))
-    ) {
-      def = parent.def
-      numId = parent.numId
-    } else if (declared !== null && byNumId.has(declared)) {
-      def = byNumId.get(declared)!
-    } else {
-      def = {
-        key: declared !== null ? `num${declared}` : `nova${fresh++}`,
-        levels: defaultLevels(kind),
-      }
-    }
-
-    const levelDef = def.levels[level] ?? defaultLevels(kind)[level]!
-    const parentIndentMm = parent?.indentMm ?? 0
-    return {
-      kind,
-      level,
-      key: def.key,
-      numId,
-      def,
-      indentMm: finite(attrs['indentMm']) ?? levelDef.indentMm ?? round2(INDENT_STEP_MM * (level + 1)),
-      hangingMm: finite(attrs['hangingMm']) ?? levelDef.hangingMm ?? 0,
-      parentIndentMm,
-    }
-  }
-
-  const labelOf = (list: ListInfo): string => {
-    const counter = counters.get(list.key) ?? { counts: [], started: new Set<number>() }
-    counters.set(list.key, counter)
-    const { counts, started } = counter
-    const level = list.level
-    const levels = list.def.levels
-    const own = levels[level] ?? defaultLevels(list.kind)[level]!
-
-    if (counts[level] === undefined) {
-      // O reinício do `w:num` vale na primeira vez que o nível aparece; depois
-      // dela, quem reinicia o nível é o item de cima, e ele volta ao `w:start`.
-      const override = started.has(level) ? undefined : list.def.overrides?.[String(level)]
-      counts[level] = (override ?? own.start ?? 1) - 1
-    }
-    started.add(level)
-    counts[level] = counts[level]! + 1
-    values.push(counts[level])
-    // `w:lvlRestart` ausente: o item de um nível zera os de baixo.
-    for (let deeper = level + 1; deeper < LIST_LEVELS; deeper++) counts[deeper] = undefined
-
-    if (own.fmt === 'bullet') return own.text
-    if (own.fmt === 'none') return ''
-
-    return own.text.replace(/%([1-9])/g, (_match, digit: string) => {
-      const index = Number(digit) - 1
-      if (index > level) return ''
-      const source = levels[index] ?? own
-      const value = counts[index] ?? source.start ?? 1
-      const fmt = own.legal === true && index < level ? 'decimal' : source.fmt
-      return formatNumber(value, fmt)
-    })
+  const context: ListContext<N> = {
+    reader,
+    byNumId: definitionsByNumId(root, reader),
+    freshKey: () => `nova${fresh++}`,
   }
 
   const visit = (node: N, parent: ListInfo | null): void => {
     const type = reader.typeOf(node)
     if (LIST_TYPES.includes(type)) {
-      const info = resolve(node, parent)
+      const info = resolveList(node, parent, context)
       lists.push(info)
       for (const child of reader.childrenOf(node)) {
         if (reader.typeOf(child) === 'listItem') {
-          labels.push(labelOf(info))
+          labels.push(nextLabel(info, counters, values))
           for (const inner of reader.childrenOf(child)) visit(inner, info)
         } else {
           visit(child, info)
@@ -284,12 +207,102 @@ export function numberLists<N>(root: N, reader: ListTreeReader<N>): ListNumberin
       return
     }
     // Fora de lista (uma tabela, uma célula), a lista de fora não vale mais.
-    const context = type === 'listItem' ? parent : null
-    for (const child of reader.childrenOf(node)) visit(child, context)
+    const outer = type === 'listItem' ? parent : null
+    for (const child of reader.childrenOf(node)) visit(child, outer)
   }
 
   visit(root, null)
   return { lists, labels, values }
+}
+
+interface ListContext<N> {
+  readonly reader: ListTreeReader<N>
+  readonly byNumId: ReadonlyMap<number, NumberingDef>
+  readonly freshKey: () => string
+}
+
+function resolveList<N>(node: N, parent: ListInfo | null, context: ListContext<N>): ListInfo {
+  const kind = context.reader.typeOf(node)
+  const attrs = context.reader.attrsOf(node)
+  const levelAttr = finite(attrs['level'])
+  const level = Math.min(LIST_LEVELS - 1, Math.max(0, levelAttr ?? (parent === null ? 0 : parent.level + 1)))
+  const { def, numId } = definitionOf(
+    parseNumbering(attrs['numbering']),
+    positiveInt(attrs['numId']),
+    kind,
+    parent,
+    context,
+  )
+
+  const levelDef = def.levels[level] ?? defaultLevels(kind)[level]!
+  return {
+    kind,
+    level,
+    key: def.key,
+    numId,
+    def,
+    indentMm: finite(attrs['indentMm']) ?? levelDef.indentMm ?? round2(INDENT_STEP_MM * (level + 1)),
+    hangingMm: finite(attrs['hangingMm']) ?? levelDef.hangingMm ?? 0,
+    parentIndentMm: parent?.indentMm ?? 0,
+  }
+}
+
+/**
+ * A mesma ordem de decisão do gravador (`DocxWriter.Flatten`): a definição
+ * própria; a da lista de fora quando é a mesma numeração, ou quando esta não tem
+ * nenhuma e é do mesmo tipo; a de outra lista com o mesmo `numId`; e a padrão,
+ * contando sozinha.
+ */
+function definitionOf<N>(
+  own: NumberingDef | null,
+  declared: number | null,
+  kind: string,
+  parent: ListInfo | null,
+  context: ListContext<N>,
+): { def: NumberingDef; numId: number | null } {
+  if (own !== null) return { def: own, numId: declared }
+  if (
+    parent !== null &&
+    ((declared !== null && declared === parent.numId) || (declared === null && parent.kind === kind))
+  ) {
+    return { def: parent.def, numId: parent.numId }
+  }
+  const shared = declared === null ? undefined : context.byNumId.get(declared)
+  if (shared !== undefined) return { def: shared, numId: declared }
+  const key = declared !== null ? `num${declared}` : context.freshKey()
+  return { def: { key, levels: defaultLevels(kind) }, numId: declared }
+}
+
+function nextLabel(list: ListInfo, counters: Map<string, Counter>, values: number[]): string {
+  const counter = counters.get(list.key) ?? { counts: [], started: new Set<number>() }
+  counters.set(list.key, counter)
+  const { counts, started } = counter
+  const level = list.level
+  const own = list.def.levels[level] ?? defaultLevels(list.kind)[level]!
+
+  if (counts[level] === undefined) {
+    // O reinício do `w:num` vale na primeira vez que o nível aparece; depois
+    // dela, quem reinicia o nível é o item de cima, e ele volta ao `w:start`.
+    const override = started.has(level) ? undefined : list.def.overrides?.[String(level)]
+    counts[level] = (override ?? own.start ?? 1) - 1
+  }
+  started.add(level)
+  counts[level] = counts[level]! + 1
+  values.push(counts[level])
+  // `w:lvlRestart` ausente: o item de um nível zera os de baixo.
+  for (let deeper = level + 1; deeper < LIST_LEVELS; deeper++) counts[deeper] = undefined
+
+  if (own.fmt === 'bullet') return own.text
+  if (own.fmt === 'none') return ''
+
+  return own.text.replace(/%([1-9])/g, (_match, digit: string) => {
+    const index = Number(digit) - 1
+    if (index > level) return ''
+    const source = list.def.levels[index] ?? own
+    const value = counts[index] ?? source.start ?? 1
+    const fmt = own.legal === true && index < level ? 'decimal' : source.fmt
+    return formatNumber(value, fmt)
+  })
 }
 
 /** A definição de cada `numId` que alguma lista do documento traz. */
