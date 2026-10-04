@@ -3,12 +3,7 @@ import { DEFAULT_PAGE_SETUP, type PageSetup } from './model.js'
 import { editBandFloat, editBandPiece, type Band, type BandPiece } from './band.js'
 import type { FloatingObject } from './floating.js'
 
-/**
- * O texto digitado na faixa entra na configuração de página.
- *
- * A faixa não mora no documento do editor: ela é a parte OOXML preservada, e
- * vive em `page`. Quem a edita mexe aqui, e é daqui que o gravador a lê.
- */
+/** O texto digitado na faixa entra em `page`, de onde o gravador o lê. */
 describe('editBandPiece', () => {
   const piece = (text: string, pid?: string): BandPiece => ({
     kind: 'text',
@@ -70,13 +65,7 @@ describe('editBandPiece', () => {
   })
 })
 
-/**
- * O texto de uma caixa da faixa entra na configuração de página.
- *
- * O cabeçalho corporativo não é feito de parágrafos soltos: é um grupo de
- * formas, e o título mora dentro de uma caixa. Ela vem inteira porque digitar
- * dentro dela abre e fecha parágrafos.
- */
+/** O texto de uma caixa da faixa entra em `page`, a caixa inteira. */
 describe('editBandFloat', () => {
   const caixa = (bid: string | undefined, text: string): FloatingObject => ({
     kind: 'text',

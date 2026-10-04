@@ -20,9 +20,7 @@ describe('onde a coluna de texto começa e termina', () => {
   })
 
   it('cabeçalho mais alto que a margem empurra o corpo para baixo', () => {
-    // O caso do cabeçalho corporativo em grade: quatro linhas e um logotipo.
-    // Sem isto, a primeira linha do texto era escrita por cima da última do
-    // cabeçalho — as duas se encontravam por oito milímetros no corpus.
+    // O cabeçalho corporativo em grade, quatro linhas e um logotipo, passa da margem.
     const inset = contentInsetsMm(page, { headerMm: 23, footerMm: 0 })
 
     expect(inset.top).toBe(35.5)

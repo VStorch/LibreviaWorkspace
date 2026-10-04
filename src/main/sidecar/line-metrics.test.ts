@@ -6,16 +6,9 @@ import {
 } from '@services/document/line-metrics.js'
 
 /**
- * A altura natural da linha, com os dois lados de verdade.
- *
- * O número é usado nas duas pontas: o leitor multiplica por ele no C#
- * (`BodyReader.LineHeightOf`) e a interface divide por ele aqui
- * (`paragraph-format.ts`). Duas tabelas que discordem fazem "1,5 linha" na tela
- * virar outra coisa no arquivo — o erro de 15 a 22 % que a conversão veio
- * corrigir —, e o pior é que nenhum teste de um lado só pegaria.
- *
- * Fica em `src/main` porque só aqui há Node: `src/services` é compilado também
- * para a web, e lá não existe `node:fs` para ler o arquivo do sidecar.
+ * A altura natural da linha, com os dois lados de verdade: o leitor multiplica por
+ * ela no C# (`BodyReader.LineHeightOf`) e a interface divide (`paragraph-format.ts`).
+ * Fica em `src/main`, o único lugar com `node:fs`.
  */
 describe('contrato da altura natural da linha', () => {
   it('a tabela é a mesma que o sidecar usa', () => {

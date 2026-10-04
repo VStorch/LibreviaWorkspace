@@ -10,9 +10,7 @@ import {
 
 describe('lista de fontes', () => {
   it('as do documento vêm primeiro', () => {
-    // Quem abre um arquivo alheio procura a fonte **dele**. Enterrada no meio de
-    // trezentas instaladas, a fonte do documento é tão inacessível quanto antes,
-    // quando a lista tinha sete nomes fixos.
+    // Quem abre um arquivo alheio procura a fonte dele, e não no meio de trezentas.
     const ordered = orderFontFamilies(['Arial', 'Zapfino'], ['Garamond'])
 
     expect(ordered[0]).toBe('Garamond')
@@ -26,8 +24,7 @@ describe('lista de fontes', () => {
   })
 
   it('lista vazia do sistema não esvazia o seletor', () => {
-    // Sistema sem `fontconfig` devolve nada, e isso não é erro: a barra continua
-    // oferecendo o que o instalador garante, que é o que ela oferecia antes.
+    // Sistema sem `fontconfig` não é erro: a barra oferece o que o instalador garante.
     expect(orderFontFamilies([])).toEqual([...GUARANTEED_FONT_FAMILIES])
   })
 

@@ -3,17 +3,9 @@ import { IpcChannel } from '@shared/ipc-channels.js'
 import { ErrorCode } from '@shared/errors.js'
 
 /**
- * O que o registro promete, cobrado nas duas direções.
- *
- * O pedido vem do renderer e é tratado como não confiável — isso o registro já
- * fazia. A **resposta** vem de casa, e por muito tempo ninguém a conferia: o
- * `response` de cada canal era tipo em tempo de compilação e mais nada. Um
- * handler que devolvesse a forma errada — nome de fonte vazio saído do `fc-list`,
- * campo esquecido depois de um refatoramento — chegava inteiro à interface, e o
- * defeito aparecia longe da causa.
- *
- * O `ipcMain` é falsificado porque não há Electron aqui: o que interessa é a
- * função que o registro entrega a ele.
+ * O registro cobra nas duas direções: o pedido do renderer não é confiável, e a
+ * resposta de casa também é conferida, para a forma errada não chegar à interface
+ * longe da causa. O `ipcMain` é falsificado, porque não há Electron aqui.
  */
 const { handlers } = vi.hoisted(() => ({
   handlers: new Map<string, (event: unknown, payload: unknown) => Promise<unknown>>(),

@@ -2,11 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { linesOf, type BandPiece } from './band.js'
 
 /**
- * Cada parágrafo do cabeçalho ou do rodapé é uma linha.
- *
- * O rodapé do modelo de manual tem três — endereço, autoria e data. Emendados,
- * viravam uma frase que atravessava a folha, enquanto o LibreOffice mostrava as
- * três empilhadas e centradas.
+ * Cada parágrafo da faixa é uma linha, como as três do rodapé do modelo de manual,
+ * empilhadas e centradas no LibreOffice.
  */
 describe('linesOf', () => {
   const piece = (text: string, line = false): BandPiece => ({

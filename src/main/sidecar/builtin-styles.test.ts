@@ -9,20 +9,13 @@ import {
 } from '@services/document/styles.js'
 
 /**
- * Os estilos dos arquivos antigos, com os dois lados de verdade.
+ * Os estilos dos arquivos antigos, com os dois lados de verdade: o sidecar
+ * acrescenta os títulos ao DOCX que não os tem (`BuiltinStyles.cs`) e o leitor do
+ * `.sdoc` os dá a todo arquivo anterior à versão 3 (`LEGACY_STYLES`). Uma medida
+ * mudada de um lado só muda a paginação de quem não editou nada.
  *
- * A tabela existe duas vezes, e tem de existir: o sidecar acrescenta os títulos
- * dela ao DOCX que não os tem (`BuiltinStyles.cs`) e o leitor do `.sdoc` a dá a
- * todo arquivo gravado antes da versão 3 do formato (`LEGACY_STYLES`). Uma medida mudada de um
- * lado só não quebra nada visível na hora — e é justamente aí que está o perigo:
- * o documento passa a abrir com uma aparência e a ser gravado com outra, e a
- * paginação muda no arquivo de alguém que não editou nada.
- *
- * Mesmo espírito de `line-metrics.test.ts`: o C# é lido como texto, porque o que
- * precisa ser comparado são os **números**, e não o comportamento.
- *
- * Fica em `src/main` porque só aqui há Node: `src/services` é compilado também
- * para a web, e lá não existe `node:fs` para ler o arquivo do sidecar.
+ * O C# é lido como texto, porque o que se compara são números. Fica em `src/main`,
+ * o único lugar com `node:fs`.
  */
 describe('contrato dos estilos dos arquivos antigos', () => {
   const source = readFileSync(
@@ -38,23 +31,20 @@ describe('contrato dos estilos dos arquivos antigos', () => {
   })
 
   it('os padrões do documento são os mesmos', () => {
-    // A fonte e o tamanho moram no `w:docDefaults`, e não no `Normal`: é de lá
-    // que todo estilo os herda, e é lá que o Word os procura.
+    // Fonte e tamanho moram no `w:docDefaults`, de onde todo estilo herda.
     expect(LEGACY_STYLES.defaults.character).toEqual({
       fontFamily: constantText(source, 'BodyFont'),
       fontSize: `${constantNumber(source, 'BodySizePt')}pt`,
     })
     expect(LEGACY_STYLES.defaults.paragraph).toEqual({})
 
-    // O `w:default="1"` de cada tipo: é ele que responde qual estilo vale num
-    // parágrafo sem `w:pStyle`.
+    // O `w:default="1"` responde qual estilo vale sem `w:pStyle`.
     expect(LEGACY_STYLES.defaults.paragraphStyleId).toBe(defaultIdOf(source, false))
     expect(LEGACY_STYLES.defaults.characterStyleId).toBe(defaultIdOf(source, true))
   })
 
   it('a entrelinha do corpo é o mesmo fator nos dois lados', () => {
-    // O número que o `w:line` recebe nasce daqui. Divergente, o documento novo
-    // sairia do editor com uma entrelinha e voltaria do arquivo com outra.
+    // Divergente, o documento sairia do editor com uma entrelinha e voltaria com outra.
     expect(constantNumber(source, 'BodyLineFactor')).toBe(BODY_LINE_FACTOR)
   })
 })
@@ -82,12 +72,8 @@ function defaultIdOf(source: string, character: boolean): string | null {
 }
 
 /**
- * Cada `new(...)` da tabela, como texto.
- *
- * Por varredura de parênteses, e não por expressão regular: as entradas ocupam
- * mais de uma linha, e uma expressão que casasse com a primeira `)` cortaria a
- * entrada no meio sem reclamar — um teste que compara metade dos dados é pior do
- * que nenhum.
+ * Cada `new(...)` da tabela, por varredura de parênteses: as entradas têm várias
+ * linhas, e uma expressão regular cortaria na primeira `)` sem reclamar.
  */
 function entriesOf(source: string): string[] {
   const start = source.indexOf('BuiltinStyle[] All =')
@@ -122,13 +108,7 @@ function entriesOf(source: string): string[] {
 
 type Argument = string | number | boolean
 
-/**
- * Os argumentos de uma entrada, por nome.
- *
- * Os dois primeiros são posicionais — o id e o nome, na ordem do construtor —, e
- * o resto vem nomeado. É a forma em que a tabela do C# está escrita, e ela é
- * legível justamente por isso.
- */
+/** Os argumentos de uma entrada: id e nome posicionais, o resto nomeado. */
 function argumentsOf(entry: string): Record<string, Argument> {
   const parts: string[] = []
   let current = ''
@@ -173,8 +153,7 @@ function valueOf(text: string): Argument {
   if (text.startsWith('"')) return text.slice(1, -1)
   if (text === 'true') return true
   if (text === 'false') return false
-  // A entrelinha do corpo é declarada como constante no próprio arquivo, e é
-  // comparada em teste próprio: aqui vale o número que ela carrega.
+  // A entrelinha do corpo é constante do arquivo, comparada em teste próprio.
   if (text === 'BodyLineFactor') return BODY_LINE_FACTOR
   const number = Number(text)
   if (Number.isNaN(number)) throw new Error(`valor que o teste não sabe ler: ${text}`)
@@ -213,11 +192,9 @@ function parseTable(source: string): Record<string, StyleDefinition> {
       name: String(args['Name']),
       type: args['Character'] === true ? 'character' : 'paragraph',
       qFormat: args['QFormat'] === true,
-      // Os dois jeitos de esconder um estilo da galeria contam como um só no
-      // modelo: a pergunta que o painel faz é "isto aparece na lista?".
+      // Os dois jeitos de esconder da galeria são um só no modelo.
       hidden: args['Hidden'] === true || args['SemiHidden'] === true,
-      // A tabela é a dos estilos embutidos do Word; nenhum deles é criado por
-      // quem escreveu o documento.
+      // Estilos embutidos do Word.
       custom: false,
       ...text(args, 'BasedOn', 'basedOn'),
       ...text(args, 'Next', 'next'),

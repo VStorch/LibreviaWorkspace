@@ -153,12 +153,7 @@ describe('objetos ancorados das faixas', () => {
   })
 })
 
-/**
- * A moldura da forma em CSS.
- *
- * A decoração é desenhada, e o aviso "moldura e preenchimento de formas" fala
- * só do que sobra — e não de toda caixa de texto.
- */
+/** A moldura da forma em CSS; o aviso fala só do que sobra. */
 describe('frameOf', () => {
   const caixa = (extra: Partial<FloatingObject>): FloatingObject => ({
     kind: 'text',

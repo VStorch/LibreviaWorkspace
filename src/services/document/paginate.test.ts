@@ -9,9 +9,7 @@ import {
   noteSpan,
 } from './paginate.js'
 
-/**
- * Blocos empilhados de altura fixa, na ordem — o formato que o editor mede.
- */
+/** Blocos empilhados de altura fixa, na ordem, como o editor os mede. */
 function stack(
   heights: readonly number[],
   marks: { pageBreak?: number[]; breakAfter?: number[]; keepNext?: number[] } = {},
@@ -37,14 +35,11 @@ describe('paginação', () => {
   })
 
   it('quebra antes do bloco que estouraria a página', () => {
-    // Três blocos de 400 numa página de 1000: o terceiro não cabe, e a quebra
-    // cai no topo dele — nunca no meio.
+    // A quebra cai no topo do bloco que não cabe, nunca no meio.
     expect(paginate(stack([400, 400, 400]), 1000)).toEqual([800])
   })
 
   it('a quebra pedida à mão vale com a página pela metade', () => {
-    // O medidor anterior ignorava o nó `pageBreak`: num documento com capa e
-    // sumário, as três páginas apareciam como uma só.
     const blocos = stack([100, 10, 100], { pageBreak: [1] })
     expect(paginate(blocos, 1000)).toEqual([110])
   })
@@ -56,40 +51,31 @@ describe('paginação', () => {
   })
 
   it('título não fica sozinho no pé da página', () => {
-    // O bloco 2 é um título que estoura junto com o parágrafo dele: os dois
-    // descem. É o `break-after: avoid` que a exportação aplica, e sem isto a
-    // marca da tela cai um bloco depois de onde o PDF quebra.
+    // O título que estoura desce com o parágrafo dele, como o `break-after: avoid` do PDF.
     const blocos = stack([600, 200, 100, 300], { keepNext: [2] })
     expect(paginate(blocos, 1000)).toEqual([800])
   })
 
   it('um título não arrasta a página inteira atrás de si', () => {
-    // Todos os três pedem para ficar com o seguinte. O terceiro estoura, puxa o
-    // segundo junto — e a corrente para no primeiro, que já está no topo da
-    // página: descer todo mundo deixaria a folha em branco.
+    // A corrente para no primeiro, já no topo: descer todos deixaria a folha em branco.
     const blocos = stack([400, 400, 400], { keepNext: [0, 1, 2] })
     expect(paginate(blocos, 1000)).toEqual([400])
   })
 
   it('bloco mais alto que a página fica com a folha só para si', () => {
-    // Uma captura de tela grande não tem onde ser cortada: ela abre folha nova,
-    // transborda, e o que vem depois abre outra. Sem o segundo corte o
-    // parágrafo seguinte encostaria embaixo do transbordo, fora do papel.
+    // A imagem maior que a folha abre uma, transborda, e o que vem depois abre outra.
     const blocos = stack([100, 3000, 100])
     expect(paginate(blocos, 1000)).toEqual([100, 3100])
   })
 
   it('bloco gigante no fim do documento não cria folha em branco', () => {
-    // O contrapeso: sem nada depois dele, o segundo corte abriria uma página
-    // vazia no fim.
+    // Sem nada depois, nenhuma página vazia no fim.
     const blocos = stack([100, 3000])
     expect(paginate(blocos, 1000)).toEqual([100])
   })
 
   it('a quebra que o parágrafo carrega termina a folha depois dele', () => {
-    // `w:br w:type="page"` dentro de um `w:r`: o Word grava assim quando a
-    // quebra encerra o parágrafo. Vira propriedade do bloco, porque um nó de
-    // bloco em posição de linha é inválido no editor.
+    // `w:br w:type="page"` dentro de um `w:r` vira propriedade do bloco.
     const blocos = stack([100, 100, 100], { breakAfter: [1] })
     expect(paginate(blocos, 1000)).toEqual([200])
   })
@@ -100,8 +86,7 @@ describe('paginação', () => {
   })
 
   it('altura de página inválida não quebra nada', () => {
-    // Margens que somam mais que o papel produzem altura negativa. Sem esta
-    // guarda o laço rodaria até o teto de páginas a cada tecla digitada.
+    // Margens maiores que o papel dão altura negativa, e o laço não pode rodar sem fim.
     expect(paginate(stack([100, 100]), 0)).toEqual([])
     expect(paginate(stack([100, 100]), -50)).toEqual([])
   })
@@ -113,10 +98,7 @@ describe('paginação', () => {
   })
 
   it('documento com mais de quinhentas folhas não empilha o resto na última', () => {
-    // Havia um teto de quinhentas páginas: alcançado, o laço parava e todo o
-    // resto do documento ficava amontoado na última folha, fora da vista. Uma
-    // altura de página pequena — margens absurdas, fonte que não carregou — o
-    // alcançava num documento comum.
+    // Sem teto de páginas: uma folha baixa num documento comum não amontoa o resto na última.
     const blocos = stack(Array.from({ length: 700 }, () => 100))
     const cortes = paginate(blocos, 100)
 
@@ -125,8 +107,7 @@ describe('paginação', () => {
   })
 
   it('bloco mais alto que a folha fica com ela só para si, mesmo aos milhares', () => {
-    // O outro caminho pelo qual o laço avança. Se ele não avançasse, a paginação
-    // travaria a cada tecla digitada — é por isso que o teto existia.
+    // O laço também avança por aqui, senão travaria a cada tecla.
     const blocos = stack(Array.from({ length: 600 }, () => 300))
     expect(paginate(blocos, 100)).toHaveLength(599)
   })
@@ -146,8 +127,7 @@ describe('cortes dentro de blocos', () => {
   })
 
   it('o cabeçalho repetido ocupa a folha seguinte', () => {
-    // Linhas de 100, cabeçalho de 100: a segunda folha abre com o cabeçalho e
-    // cabe só mais nove linhas — o corte seguinte vem 100 antes.
+    // Linhas e cabeçalho de 100: a segunda folha repete o cabeçalho e cabe uma linha a menos.
     const rows = Array.from({ length: 24 }, (_, index) => (index + 1) * 100)
     expect(paginate([splittable(2500, rows, { repeatHeight: 100 })], 1000)).toEqual([1000, 1900])
   })
@@ -212,8 +192,7 @@ describe('cortes dentro de blocos', () => {
     })
 
     it('a folha termina na última linha que cabe, e não antes do parágrafo', () => {
-      // Sem o corte, o parágrafo desceria inteiro e deixaria 300 de buraco na
-      // folha.
+      // Sem o corte, o parágrafo desceria inteiro e deixaria 300 de buraco.
       expect(paginate([...stack([700]), paragraph(700)], 1000)).toEqual([1000])
     })
 
@@ -261,8 +240,7 @@ describe('cortes dentro de blocos', () => {
     })
 
     it('o pé da captura ancorada corta mesmo com o controle de viúvas', () => {
-      // Quadro de 900 e a linha vazia dele (50) numa folha de 1000 que já tem
-      // 60: a linha desce e o quadro fica, como no LibreOffice.
+      // Quadro de 900 e a linha vazia dele (50), a partir de 60: a linha desce e o quadro fica, como no LibreOffice.
       const captura: MeasuredBlock = {
         top: 60,
         height: 950,
@@ -277,9 +255,8 @@ describe('cortes dentro de blocos', () => {
     })
 
     it('a linha vazia da captura sobra no pé da folha em vez de descer', () => {
-      // Quadro de 900 + linha de 50 a partir de 60: passa 10 da folha, e cabe,
-      // porque a linha vazia entra na margem de baixo. O bloco seguinte abre a
-      // folha nova.
+      // Quadro de 900 + linha de 50 a partir de 60: a linha vazia entra na margem de
+      // baixo, e o bloco seguinte abre a folha nova.
       const captura = { ...stack([950])[0]!, top: 60, hangingBottom: 50 }
       const depois = { ...stack([100])[0]!, top: 1010 }
       expect(paginate([...stack([60]), captura, depois], 1000)).toEqual([1010])

@@ -7,20 +7,10 @@ import { buildEditorExtensions } from '../editor-extensions.js'
 import { uniqueOids } from './block-identity.js'
 
 /**
- * A identidade do bloco é única no documento.
- *
- * O `oid` é o que decide o que **não** reescrever ao salvar: o bloco que o
- * carrega volta para o `.docx` como o XML original. Dois blocos com o mesmo
- * `oid` é o pior caso possível — o gravador preserva o XML do primeiro e
- * regenera o segundo, e o segundo perde o que o editor não sabe reproduzir.
- *
- * Era o que o Enter fazia: dividir um parágrafo entregava os dois lados com o
- * `oid` do original, e o lado **não editado** voltava regenerado — foi assim que
- * o marcador de um parágrafo dividido desapareceu do arquivo.
- *
- * Sem `Editor` do Tiptap, que precisa de DOM: o schema sai das extensões reais e
- * o Enter é o `splitBlock` do ProseMirror, que é exatamente o comando que a tecla
- * dispara.
+ * A identidade do bloco é única: com dois blocos de mesmo `oid`, o gravador preserva
+ * o XML do primeiro e regenera o segundo. O Enter divide o parágrafo, e o lado novo
+ * não leva o `oid`. Sem o `Editor` do Tiptap, que precisa de DOM: o Enter é o
+ * `splitBlock` do ProseMirror.
  */
 
 const schema = getSchema(buildEditorExtensions(() => {}))

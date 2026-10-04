@@ -6,19 +6,9 @@ import { AppError } from '@shared/errors.js'
 import { writeFileAtomic } from './atomic-write.js'
 
 /**
- * Três testes abaixo afirmam coisas que só existem em POSIX.
- *
- * No Windows o `chmod` do Node não escreve permissão nenhuma: ele liga e
- * desliga o atributo de somente leitura, e `stat` devolve 0o666 para qualquer
- * arquivo gravável — daí `expected 438 to be 416`. Em diretório ele não faz
- * efeito algum: a pasta continua gravável, a gravação dá certo e o teste que
- * espera falha não vê falha nenhuma. Não é o `writeFileAtomic` que muda de
- * comportamento; é a permissão que não existe do outro lado, e forçar uma
- * asserção equivalente exigiria mexer em ACL, que não é o que este módulo faz.
- *
- * O que eles protegem — não estreitar o acesso de um arquivo compartilhado, e
- * não destruir o original quando a gravação falha — continua coberto no Linux,
- * que é onde a permissão significa alguma coisa.
+ * Três testes só valem em POSIX: no Windows o `chmod` do Node só liga o somente
+ * leitura, `stat` devolve 0o666 e diretório continua gravável. A proteção que eles
+ * cobrem é coberta no Linux.
  */
 const emPosix = process.platform !== 'win32'
 

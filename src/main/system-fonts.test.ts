@@ -2,16 +2,9 @@ import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 /**
- * A lista de fontes do sistema, nos três caminhos que ninguém cobria: a falha, o
- * tempo esgotado e a escolha de plataforma.
- *
- * O caso que motivou o teste é o silencioso: `fc-list` estourando o tempo durante
- * uma reconstrução do cache do fontconfig devolvia lista vazia — e a lista vazia
- * ficava em cache pela sessão inteira, então a barra abria sem fonte nenhuma até o
- * aplicativo ser reiniciado.
- *
- * `execFile` é falsificado no estilo de callback, que é como o `promisify` do
- * módulo o consome.
+ * A lista de fontes do sistema na falha, no tempo esgotado e na escolha de
+ * plataforma. A lista vazia de um `fc-list` que estourou o tempo não fica em cache.
+ * `execFile` é falsificado no estilo de callback, como o `promisify` o consome.
  */
 const { calls, next } = vi.hoisted(() => ({
   calls: [] as Array<{ file: string; args: readonly string[] }>,

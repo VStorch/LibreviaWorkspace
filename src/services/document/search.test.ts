@@ -36,10 +36,8 @@ describe('findOccurrences', () => {
   })
 
   it('mantém as posições alinhadas quando a letra muda de tamanho em minúsculas', () => {
-    // `'İ'.toLowerCase()` tem duas unidades, não uma. Enquanto a busca comparava
-    // o texto inteiro em minúsculas, tudo o que vinha depois de um `İ` voltava
-    // com a posição deslocada: o destaque caía sobre a palavra errada e o
-    // "substituir tudo" comia uma letra do vizinho.
+    // `'İ'.toLowerCase()` tem duas unidades: comparar o texto inteiro em minúsculas
+    // deslocaria as posições seguintes.
     const texto = 'İstanbul tem contrato'
     const [ocorrencia] = findOccurrences(texto, 'contrato')
 

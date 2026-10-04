@@ -1,10 +1,7 @@
 /**
- * O caminho que o processo main percorre de verdade ao abrir e salvar `.docx`.
- *
- * Roda contra o **corpus real**, apontado por `LIBREVIA_CORPUS_DIR`, e é pulado
- * quando a variável não existe — os arquivos têm marca de cliente e capturas de
- * sistemas internos, então não entram no repositório. O CI cobre as mesmas
- * estruturas com fixtures sintéticos, do lado C#.
+ * O caminho do processo main ao abrir e salvar `.docx`, contra o corpus de
+ * `LIBREVIA_CORPUS_DIR`, que não entra no repositório; pulado sem a variável. O CI
+ * cobre as mesmas estruturas com os fixtures do sidecar.
  */
 
 import { access, constants, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises'
@@ -91,8 +88,7 @@ describe.skipIf(documents.length === 0)('corpus real', () => {
   })
 
   it.each(documents)('salva %s sem reescrever nada quando nada foi editado', async (path) => {
-    // Abrir e salvar por reflexo é o caso mais comum de todos, e precisa custar
-    // zero: cada bloco reescrito é uma chance de perder o que não entendemos.
+    // Abrir e salvar por reflexo custa zero.
     forgetOpenedDocx()
     const opened = await openDocx(client, path)
     const saved = await saveDocx(client, opened.content, { origin: path, destination: path })
@@ -119,8 +115,7 @@ describe.skipIf(documents.length === 0)('corpus real', () => {
   })
 
   it('não empresta o pacote aberto a um documento de outra origem', async () => {
-    // O documento novo criado depois de abrir um `.docx` não é aquele arquivo:
-    // gravado sobre os bytes dele, sairia com os cabeçalhos e as notas do outro.
+    // O documento novo depois de abrir um `.docx` não grava sobre os bytes dele.
     const path = documents[0]!
     forgetOpenedDocx()
     await openDocx(client, path)
@@ -136,10 +131,8 @@ describe.skipIf(documents.length === 0)('corpus real', () => {
 })
 
 /**
- * O documento que nasceu no editor, salvo em `.docx`.
- *
- * Não depende do corpus: o pacote de partida é o que o sidecar cria. Depende do
- * sidecar publicado, como `sidecar-real.test.ts`.
+ * O documento nascido no editor salvo em `.docx`, sobre o pacote que o sidecar cria.
+ * Depende do sidecar publicado, e não do corpus.
  */
 describe.skipIf(!published)('documento novo em .docx', () => {
   it('grava sobre o pacote mínimo e o texto volta ao reabrir', async () => {
@@ -153,9 +146,7 @@ describe.skipIf(!published)('documento novo em .docx', () => {
     expect(parts.has('word/numbering.xml')).toBe(false)
     expect(saved.inventory.lost).toEqual([])
 
-    // O original que segue adiante é o pacote mínimo, e não os bytes gravados:
-    // é o que faz a gravação seguinte repetir a mesma conta em vez de somar à
-    // anterior (ver as cinco gravações, abaixo).
+    // O original que segue é o pacote mínimo, e não os bytes gravados.
     const keptParts = await listParts(saved.original)
     expect(keptParts.get('word/document.xml')!.toString('utf8')).not.toContain('Texto do documento novo.')
   })
@@ -171,19 +162,14 @@ describe.skipIf(!published)('documento novo em .docx', () => {
       destination,
     })
 
-    // Mesmo pacote de partida e mesmo conteúdo têm de dar os mesmos bytes. Se a
-    // gravação partisse do que ela mesma gravou, a segunda sairia com uma camada
-    // a mais do que a primeira.
+    // Mesmo pacote e mesmo conteúdo, mesmos bytes.
     expect(Buffer.compare(second.original, first.original)).toBe(0)
     expect(Buffer.compare(Buffer.from(second.bytes), Buffer.from(first.bytes))).toBe(0)
   })
 
   it('gravar cinco vezes o mesmo documento novo não acumula partes', async () => {
-    // O original de um documento novo é o **pacote mínimo**, e não os bytes que
-    // acabaram de ser gravados. Com os bytes gravados no lugar dele, cada
-    // gravação partia do pacote da anterior e somava o que já estava lá: uma
-    // definição de numeração por gravação, e uma cópia da imagem por gravação —
-    // o arquivo crescia sozinho só porque a pessoa aperta Ctrl+S.
+    // Partindo sempre do pacote mínimo, gravar de novo não soma numeração nem imagem
+    // ao que já estava lá.
     const destination = '/tmp/novo-cinco-vezes.docx'
     forgetOpenedDocx()
 
@@ -204,16 +190,14 @@ describe.skipIf(!published)('documento novo em .docx', () => {
       })
     }
 
-    // Nem pode passar vazio: a lista e a imagem têm de estar mesmo no pacote.
+    // E não passa vazio: a lista e a imagem estão no pacote.
     expect(counted[0]).toEqual({ media: 1, numbering: 1 })
     expect(counted).toEqual(counted.map(() => counted[0]))
   })
 
   it('declara a perda do pacote de origem quando o modelo tem oid e o original não está aqui', async () => {
-    // Rede de proteção do defeito mais grave que este caminho pode ter: um
-    // modelo com `oid` foi numerado contra um pacote `.docx`, e gravá-lo sem ele
-    // deixa para trás estilos, notas e comentários daquele arquivo. Se acontecer,
-    // a pessoa tem de ler isso na tela.
+    // Um modelo com `oid` gravado sem o pacote dele perde estilos, notas e
+    // comentários: a pessoa tem de ler isso na tela.
     forgetOpenedDocx()
     const content = JSON.stringify({
       page,
@@ -236,8 +220,7 @@ describe.skipIf(!published)('documento novo em .docx', () => {
   })
 
   it('avisa quando as faixas de um .docx de origem não têm onde ser gravadas', async () => {
-    // O `.sdoc` que um dia foi `.docx` traz as faixas do arquivo de origem, e
-    // elas só se gravam editando o pacote de onde saíram.
+    // O `.sdoc` que foi `.docx` traz as faixas do arquivo de origem.
     const content = JSON.stringify({
       page: { ...page, headerBand: { left: [], center: [], right: [], rule: true, rows: [] } },
       doc: { type: 'doc', content: [] },
@@ -250,13 +233,9 @@ describe.skipIf(!published)('documento novo em .docx', () => {
 })
 
 /**
- * O caminho com que o pacote original é reconhecido.
- *
- * O caminho vem de dois lugares — o diálogo nativo, na abertura, e o `origin` que
- * o renderer devolve, na gravação — e os dois têm de bater. Enquanto um era
- * guardado cru e o outro chegava normalizado, um `.docx` aberto podia ser gravado
- * por cima do pacote mínimo: todo `oid` descartado, e com ele os estilos, as
- * notas e os comentários do arquivo.
+ * O caminho que reconhece o pacote original vem do diálogo, na abertura, e do
+ * `origin` do renderer, na gravação: os dois têm de bater, senão o `.docx` aberto é
+ * gravado sobre o pacote mínimo.
  */
 describe.skipIf(!published)('o caminho do pacote original', () => {
   let directory = ''
@@ -278,12 +257,7 @@ describe.skipIf(!published)('o caminho do pacote original', () => {
     return path
   }
 
-  /**
-   * O mesmo arquivo, escrito de outro jeito.
-   *
-   * Sem `join`, que já normalizaria: o que se quer aqui é justamente a cadeia
-   * crua, a que `resolve` reduz ao caminho de sempre.
-   */
+  /** O mesmo arquivo escrito de outro jeito, sem `join`, que já normalizaria. */
   function detoured(path: string): string {
     return `${directory}/.//${path.slice(directory.length + 1)}`
   }
@@ -314,13 +288,11 @@ describe.skipIf(!published)('o caminho do pacote original', () => {
   })
 
   it('reata o original recuperado por um caminho escrito de outro jeito', async () => {
-    // A recuperação depois de uma queda relê os bytes do disco, e o caminho que
-    // ela recebe é o do rascunho — não o do diálogo.
+    // A recuperação relê os bytes do disco pelo caminho do rascunho.
     const path = await docxOnDisk('recuperado.docx')
     forgetOpenedDocx()
 
-    // O modelo vem do rascunho, e não de uma abertura: é por isso que a
-    // recuperação existe. Aqui ele vem de uma leitura que é logo esquecida.
+    // O modelo vem do rascunho; aqui, de uma leitura logo esquecida.
     const opened = await openDocx(client, path)
     forgetOpenedDocx()
 
@@ -332,7 +304,7 @@ describe.skipIf(!published)('o caminho do pacote original', () => {
   })
 })
 
-/** Read ZIP entries from the central directory, including entries with data descriptors. */
+/** As entradas do ZIP pelo diretório central, também as que têm descritor de dados. */
 async function listParts(zip: Buffer): Promise<Map<string, Buffer>> {
   let end = -1
   for (let at = zip.length - 22; at >= Math.max(0, zip.length - 65_557); at--) {

@@ -1,43 +1,17 @@
 /**
- * O contrato da impressão digital, com os dois lados de verdade.
+ * O contrato da impressão digital, com os dois lados de verdade: o documento é lido
+ * pelo sidecar publicado, atravessa o schema montado com as extensões reais do
+ * editor e volta ao sidecar. O schema reescreve o modelo (materializa atributos,
+ * funde textos, ordena marcas, descarta o desconhecido), e uma diferença que só
+ * aparece nessa costura regenera o documento sem falhar em lugar nenhum.
  *
- * A gravação cirúrgica só funciona se o bloco que volta do editor for
- * **reconhecido** como o mesmo que o leitor produziu. Quem decide é
- * `Node.Fingerprint()`, no sidecar, comparando o que ele leu com o que o editor
- * devolveu — e entre uma coisa e outra o modelo atravessa o schema do
- * ProseMirror, que o reescreve: materializa todo atributo declarado, funde nós de
- * texto vizinhos com as mesmas marcas, ordena as marcas pela posição delas no
- * schema e descarta o que não conhece.
+ * Dois critérios: zero blocos reescritos, e as duas árvores iguais no que a
+ * impressão digital compara, porque só o número deixaria passar o que o schema e a
+ * impressão digital ignorassem juntos.
  *
- * Os testes de cada lado não pegam isso. `DocxRoundTripTests` clona o modelo pelo
- * JSON — fiel ao transporte, e cego ao schema; os testes do editor não têm
- * sidecar. Uma diferença que apareça só na costura faz a gravação regenerar o
- * documento inteiro **sem falhar em lugar nenhum**, que é o risco nº 1 do plano
- * técnico: o arquivo sai parecido e perde tudo o que não sabemos escrever.
- *
- * Aqui os dois lados se encontram: o documento é lido pelo sidecar publicado,
- * passa pelo schema montado com as extensões reais do editor, e volta ao sidecar
- * para ser gravado. São dois critérios, e o segundo é que dá sentido ao primeiro:
- * **zero blocos reescritos**, e as duas árvores **iguais** no subconjunto que a
- * impressão digital compara. Só o número deixaria passar a perda que o schema e a
- * impressão digital ignorassem juntos — foi comparando as árvores que se
- * descobriu que o editor devolve `colspan` e `rowspan` em toda célula, o que
- * fazia toda tabela ser regenerada ao salvar.
- *
- * Sem `Editor` do Tiptap, e não por preguiça: ele precisa de DOM, e não há
- * happy-dom nem jsdom instalados neste projeto — trazer um só para este teste
- * seria uma dependência a mais para vigiar. O que o `Editor` faz com um modelo
- * recebido em `content` é exatamente `Node.fromJSON` sobre o schema das
- * extensões (ver `createDocument` do Tiptap), e o que `getJSON()` devolve é o
- * `toJSON()` do documento — os dois passos que estão aqui.
- *
- * A lista de extensões é carregada por caminho em variável, e não por `import`
- * comum, por causa das fronteiras que o projeto leva a sério: `tsconfig.node.json`
- * não conhece `src/renderer` — o processo main não tem DOM —, e um `import`
- * estático o obrigaria a conhecer. O caminho em variável mantém a verificação de
- * tipos de cada camada como está e ainda usa, em tempo de execução, as extensões
- * **de verdade** do editor: uma lista copiada aqui envelheceria em silêncio, que
- * é exatamente o defeito que este teste existe para pegar.
+ * Sem o `Editor` do Tiptap, que precisa de DOM: o que ele faz com `content` é
+ * `Node.fromJSON` sobre o schema, e `getJSON()` é o `toJSON()`. As extensões vêm
+ * por caminho em variável porque `tsconfig.node.json` não conhece `src/renderer`.
  */
 
 import { access, constants } from 'node:fs/promises'
@@ -99,14 +73,7 @@ const schema = getSchema(buildEditorExtensions(() => {}))
 
 const inflate = promisify(inflateRaw)
 
-/**
- * O `word/document.xml` de dentro do `.docx` gravado, sem descompactar em disco.
- *
- * Varre os cabeçalhos locais do ZIP, que é o mesmo caminho de `formatacao.spec.ts`
- * e por que motivo: trazer uma biblioteca de ZIP para ler um arquivo num teste
- * seria dependência a mais para auditar num aplicativo que se orgulha de ter
- * poucas.
- */
+/** O `word/document.xml` do `.docx` gravado, pelos cabeçalhos locais do ZIP, sem biblioteca. */
 async function documentXmlOf(zip: Uint8Array): Promise<string> {
   const bytes = Buffer.from(zip)
 
@@ -134,30 +101,16 @@ function throughEditor(doc: unknown): unknown {
 }
 
 /**
- * O modelo reduzido ao que a impressão digital compara.
- *
- * É o espelho de `Node.Fingerprint()` no sidecar (`Nodes.cs`), e escrito à mão
- * de propósito: se os dois fossem o mesmo código, um erro no normalizador
- * cancelaria a si mesmo nos dois lados e o teste passaria em cima de uma perda.
- *
- * As quatro normalizações são as de lá, e cada uma é diferença **de forma**:
- * o `oid` é identidade e não conteúdo; atributo nulo é o mesmo que atributo
- * ausente, porque o ProseMirror materializa todo atributo do schema; a ordem das
- * marcas é do schema num lado e do `w:rPr` no outro; e nós de texto vizinhos com
- * as mesmas marcas são um só texto para o ProseMirror.
- *
- * O que ela **não** apaga é o que este teste existe para pegar: um atributo que
- * o leitor emite e o schema não conhece desaparece de um lado só, e a comparação
- * acusa. Comparar o modelo com ele mesmo depois de duas idas pelo schema não
- * acusava nada — a segunda ida não tem mais nada a perder.
+ * O modelo reduzido ao que a impressão digital compara. Espelho de
+ * `Node.Fingerprint()` (`Nodes.cs`) escrito à mão, para que um erro no normalizador
+ * não se cancele nos dois lados. Um atributo que o schema não conhece some de um
+ * lado só, e a comparação acusa.
  */
 function asFingerprinted(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(asFingerprinted)
   if (value === null || typeof value !== 'object') return value
 
-  // A referência de nota vale pelo que aponta, e não pelo corpo da nota: a
-  // impressão digital do parágrafo vê só `kind`, `nid` e `mark`. O corpo é
-  // comparado bloco a bloco por NotesWriter.
+  // A referência de nota vale pelo que aponta (`kind`, `nid`, `mark`); o corpo NotesWriter compara.
   const record = value as Record<string, unknown>
   if (record['type'] === 'noteRef') {
     const attrs = (record['attrs'] ?? {}) as Record<string, unknown>
@@ -168,8 +121,7 @@ function asFingerprinted(value: unknown): unknown {
     })
   }
 
-  // A equação vale pelo OMML: o MathML, o LaTeX e a lista do que não se desenha
-  // saem dele no sidecar, e a impressão digital não os vê.
+  // A equação vale pelo OMML: MathML, LaTeX e lista saem dele no sidecar.
   if (record['type'] === 'math') {
     const attrs = (record['attrs'] ?? {}) as Record<string, unknown>
     return fingerprintEntries({ ...record, attrs: { omml: attrs['omml'] } })
@@ -281,11 +233,8 @@ async function openSaveAndCount(bytes: Buffer): Promise<SaveReply & { readonly b
 }
 
 /**
- * Os `w:sectPr` do documento, em ordem.
- *
- * O `word/document.xml` inteiro é serializado de novo pelo SDK — é a única parte
- * que a gravação sempre escreve —, e ele fecha o elemento vazio com `" />"`. O
- * espaço é a única diferença de escrita; qualquer outra é mudança de verdade.
+ * Os `w:sectPr` do documento, em ordem. O SDK fecha o elemento vazio com `" />"`, a
+ * única diferença de escrita.
  */
 function sectionsOf(xml: string): string[] {
   return (xml.match(/<w:sectPr[ >][\s\S]*?<\/w:sectPr>/g) ?? []).map((section) =>
@@ -294,9 +243,7 @@ function sectionsOf(xml: string): string[] {
 }
 
 describe.skipIf(!published)('impressão digital entre o editor e o sidecar', () => {
-  // Um caso por estrutura do corpus, porque cada uma tem um jeito próprio de
-  // divergir: o texto partido em runs, a imagem no fluxo, a caixa de texto
-  // ancorada, o espaçamento sempre declarado, o cabeçalho em grade.
+  // Um caso por estrutura do corpus, porque cada uma diverge de um jeito.
   const documents: Array<[string, () => Promise<Buffer>]> = [
     ['parágrafos com comentário ancorado', docxWithComment],
     // A âncora vira nó, e a da resposta não — nos dois lados.
@@ -339,9 +286,7 @@ describe.skipIf(!published)('impressão digital entre o editor e o sidecar', () 
   })
 
   it('abrir e salvar um documento de seções devolve cada w:sectPr byte a byte', async () => {
-    // A configuração de cada seção mora fora dos nós; a marca é só o id no
-    // parágrafo. Aberto e gravado sem editar, nenhum `w:sectPr` pode mudar — nem
-    // o do corpo, que agora é a última seção, e não a primeira.
+    // Aberto e gravado sem editar, nenhum `w:sectPr` muda, nem o do corpo, que é a última seção.
     const bytes = await docxWithSections()
     const result = await openSaveAndCount(bytes)
 
@@ -350,10 +295,7 @@ describe.skipIf(!published)('impressão digital entre o editor e o sidecar', () 
   })
 
   it.each(documents)('o modelo de %s volta do schema como o sidecar o leu', async (_name, build) => {
-    // O número acima diz que a comparação passou; este diz **por que** —
-    // comparando as duas árvores pelo mesmo subconjunto que a impressão digital
-    // usa. Sem isto, uma perda que o schema e a impressão digital ignorassem
-    // igualmente passava pelos dois: o contador daria zero e nada seria pego.
+    // O contador diz que passou; a comparação das árvores diz por quê.
     const bytes = await build()
     const opened = await client.request(SidecarMethod.DocxOpen, {}, new Uint8Array(bytes))
     const { model } = opened.result as OpenReply
@@ -362,9 +304,8 @@ describe.skipIf(!published)('impressão digital entre o editor e o sidecar', () 
   })
 
   it('o corpo da nota volta do schema como o sidecar o leu', async () => {
-    // A impressão digital do parágrafo não vê o corpo da nota; quem o compara é
-    // NotesWriter, bloco a bloco — e um atributo que o schema perdesse ali faria a
-    // nota ser reescrita a cada gravação.
+    // O corpo da nota NotesWriter compara bloco a bloco: um atributo perdido no schema
+    // reescreveria a nota a cada gravação.
     const bytes = await docxWithFootnote()
     const opened = await client.request(SidecarMethod.DocxOpen, {}, new Uint8Array(bytes))
     const { model } = opened.result as OpenReply
@@ -386,12 +327,9 @@ describe.skipIf(!published)('impressão digital entre o editor e o sidecar', () 
   })
 
   it('a saída do diálogo de parágrafo é o que o arquivo recebe', async () => {
-    // A gravação recebe esta forma: `lineHeight` como medida de CSS,
-    // `textAlign` e o nível de recuo zerado (`indent: 0`). É o único caminho em
-    // que o editor **inventa** atributos de parágrafo em vez de devolver os que
-    // leu, e é onde o erro de entrelinha aparece: se o número do diálogo for
-    // cru para o atributo, o gravador o divide pela altura natural da fonte e o
-    // arquivo recebe 1,23 linha onde a pessoa pediu 1,5.
+    // O único caminho em que o editor inventa atributos de parágrafo: `lineHeight` como
+    // medida de CSS, `textAlign` e `indent: 0`. O fator do diálogo não vai cru ao
+    // atributo, senão o gravador o divide pela altura natural da fonte.
     const bytes = await docxWithoutExtras()
     const opened = await client.request(SidecarMethod.DocxOpen, {}, new Uint8Array(bytes))
     const { model } = opened.result as OpenReply
@@ -420,20 +358,15 @@ describe.skipIf(!published)('impressão digital entre o editor e o sidecar', () 
     )
     const result = saved.result as SaveReply & { inventory: { lost: string[] } }
 
-    // Um bloco reescrito — o que passou pelo diálogo — e nenhuma perda: entrelinha
-    // fora da faixa que o gravador aceita viraria linha no inventário e nada no
-    // arquivo, sem ninguém avisar.
+    // Um bloco reescrito e nenhuma perda: entrelinha fora da faixa iria ao inventário.
     expect(result.rewrittenBlocks).toBe(1)
     expect(result.inventory.lost).toEqual([])
 
-    // O número no arquivo, que é o que o Word lê: `w:line` em 240-avos, com
-    // `w:lineRule="auto"`. 1,5 linha são 360. Com o diálogo escrevendo o fator cru
-    // no atributo, o gravador dividia 1,5 pela altura natural da fonte e gravava
-    // 313 — 1,3 linha, e ninguém era avisado.
+    // `w:line` em 240-avos com `w:lineRule="auto"`: 1,5 linha são 360.
     const xml = await documentXmlOf(saved.binary)
     expect(xml).toContain('w:line="360"')
 
-    // E a prova da ida e volta: reabrir devolve ao diálogo o que ele escolheu.
+    // E reabrir devolve ao diálogo o que ele escolheu.
     const reopened = await client.request(SidecarMethod.DocxOpen, {}, saved.binary)
     const back = (reopened.result as OpenReply).model.doc as {
       content: Array<{ attrs: Record<string, unknown> }>
@@ -447,9 +380,7 @@ describe.skipIf(!published)('impressão digital entre o editor e o sidecar', () 
   })
 
   it('o diálogo de parágrafo aplicado sem mudança não reescreve bloco nenhum', async () => {
-    // O bloco carrega só o direto, e o diálogo abre com o que se vê — estilo por
-    // baixo. "OK" sem mexer em nada não pode transformar o herdado em direto: cada
-    // bloco mudaria de forma, e o documento inteiro seria reescrito ao salvar.
+    // "OK" sem mexer não transforma o herdado do estilo em direto.
     const bytes = await docxWithDirectOverStyles()
     const opened = await client.request(SidecarMethod.DocxOpen, {}, new Uint8Array(bytes))
     const { model } = opened.result as OpenReply
@@ -473,8 +404,7 @@ describe.skipIf(!published)('impressão digital entre o editor e o sidecar', () 
   })
 
   it('cada bloco do modelo chega ao editor com identidade', async () => {
-    // O `oid` é o que liga o bloco da tela ao `w:p` do arquivo. Sem ele não há
-    // gravação cirúrgica nenhuma, e a comparação acima não teria o que comparar.
+    // O `oid` liga o bloco da tela ao `w:p` do arquivo.
     const bytes = await docxWithComment()
     const opened = await client.request(SidecarMethod.DocxOpen, {}, new Uint8Array(bytes))
     const { model } = opened.result as OpenReply

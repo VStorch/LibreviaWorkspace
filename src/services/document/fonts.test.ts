@@ -19,10 +19,8 @@ describe('regras @font-face', () => {
   })
 
   it('o local() de cada corte nomeia o corte, e não a família', () => {
-    // `local()` casa por nome de fonte, não de família: `local('Liberation
-    // Sans')` dentro da regra de negrito acha a normal e a serve como se fosse
-    // negrito. Numa máquina com as Liberation instaladas — todo Linux de
-    // escritório — era isso que apagava o negrito de todo documento importado.
+    // `local()` casa por nome de fonte: `local('Liberation Sans')` na regra de negrito
+    // serviria a normal como negrito onde as Liberation estão instaladas.
     const negrito = DOCUMENT_FONT_CSS.split('@font-face').find(
       (regra) => regra.includes("font-family: 'Arial'") && regra.includes('font-weight: 700'),
     )

@@ -1,14 +1,7 @@
 /**
- * Ponta a ponta contra o sidecar .NET de verdade.
- *
- * É o único teste que prova que os dois lados do protocolo concordam. Os testes
- * de `protocol.test.ts` e `FrameIoTests.cs` verificam cada lado contra a sua
- * própria ideia do formato — e duas ideias erradas do mesmo jeito passariam nos
- * dois. Só o binário real fecha essa brecha.
- *
- * Depende de `npm run sidecar:build`, que o `npm run verify` roda antes dos
- * testes. Fora disso o teste falha em vez de ser pulado: pular em silêncio é
- * como uma verificação deixa de existir sem ninguém notar.
+ * Ponta a ponta contra o sidecar .NET de verdade: `protocol.test.ts` e
+ * `FrameIoTests.cs` conferem cada lado contra a própria ideia do formato.
+ * Depende de `npm run sidecar:build`, e falha sem ele em vez de ser pulado.
  */
 
 import { Buffer } from 'node:buffer'

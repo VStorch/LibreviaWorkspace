@@ -4,17 +4,9 @@ import { LANGUAGES } from './language.js'
 import { format, type Entry, type Message } from './message.js'
 
 /**
- * O contrato do catálogo.
- *
- * Existe porque a varredura que traduz a interface é grande e mecânica, e o
- * compilador só cobre metade dela: ele exige que `Entry` tenha `pt` e `en`, e
- * não enxerga nada do que está **dentro** das duas frases. Os erros que
- * sobram são justamente os silenciosos — o `{count}` que ficou só numa das
- * línguas, o plural traduzido como singular, a chave repetida entre duas
- * áreas que o espalhamento engole sem avisar.
- *
- * Cada caso aqui é um desses, e todos já apareceram em projetos que fizeram
- * esta mesma migração.
+ * O contrato do catálogo, além do que o compilador cobre: o `{count}` que ficou numa
+ * língua só, o plural traduzido como singular, a chave repetida entre áreas que o
+ * espalhamento engole.
  */
 
 function placeholders(text: string): string[] {

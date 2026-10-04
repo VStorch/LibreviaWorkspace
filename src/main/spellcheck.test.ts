@@ -8,11 +8,8 @@ import { DICTIONARY_FOLDER, dictionaryFileName, hasBdictSignature } from '@servi
 const raiz = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 
 /**
- * Um perfil de usuário de mentira, para o caminho de instalação do dicionário.
- *
- * `app.getPath('userData')` é a única coisa de que `installBundledDictionary`
- * precisa do Electron — e `app.isPackaged` falso, que é o que faz o arquivo
- * embutido ser procurado na árvore do projeto.
+ * Um perfil de mentira: `installBundledDictionary` só precisa de
+ * `app.getPath('userData')` e de `app.isPackaged` falso.
  */
 const perfil = mkdtempSync(join(tmpdir(), 'librevia-spell-'))
 
@@ -51,12 +48,8 @@ describe('instalação do dicionário no perfil', () => {
   })
 
   it('repara o arquivo estragado na mesma execução', () => {
-    // Um `.bdic` corrompido no perfil — de um download interrompido por uma
-    // versão antiga, ou de disco cheio — é apagado pelo Chromium, que então
-    // tentaria baixar. Numa máquina sem rede a sessão fica sem ortografia **sem
-    // avisar**, que é o defeito que este módulo existe para evitar. Conferir só
-    // o tamanho deixaria o arquivo de pé até a próxima execução; a assinatura o
-    // repõe na hora.
+    // O Chromium apaga o `.bdic` corrompido e tenta baixar: sem rede, a ortografia some
+    // sem aviso. A assinatura o repõe na hora.
     writeFileSync(instalado, 'lixo')
 
     expect(installBundledDictionary()).toBe(true)

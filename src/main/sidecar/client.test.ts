@@ -1,10 +1,7 @@
 /**
- * Testes do cliente contra processos de verdade.
- *
- * Os cenários de falha usam sidecars de mentira escritos em Node: é a única
- * forma de provocar de propósito o que um sidecar real faz por acidente —
- * morrer no meio, emudecer, cuspir lixo. O sidecar .NET verdadeiro é exercitado
- * em `sidecar-real.test.ts`.
+ * O cliente contra processos de verdade. As falhas usam sidecars de mentira em Node,
+ * que morrem, emudecem e cospem lixo de propósito; o .NET verdadeiro está em
+ * `sidecar-real.test.ts`.
  */
 
 import { mkdtemp, writeFile, chmod } from 'node:fs/promises'
@@ -16,24 +13,11 @@ import { SidecarClient } from './client.js'
 import { SidecarMethod, encodeFrame } from './protocol.js'
 
 /**
- * O sidecar de mentira é um script com shebang, e só POSIX o executa direto.
- *
- * O Windows não tem shebang: o `spawn` de um `.sh` devolve EFTYPE — "isto não é
- * uma imagem executável". Trocar por um `.cmd` não resolveria, porque o Node
- * recusa `.bat` e `.cmd` sem `shell: true`, e o cliente spawna com
- * `shell: false` de propósito; e alargar o resolvedor para aceitar argumentos
- * afrouxaria justamente o contrato que o wrapper existe para preservar — um
- * caminho só, sem argumentos, como o binário .NET de verdade.
- *
- * O que estes testes provam — decodificar quadros, expirar, subir de novo
- * depois de uma queda — é lógica sem plataforma nenhuma, e roda no Linux. O que
- * é de plataforma continua coberto no Windows: `sidecar-real.test.ts` conversa
- * com o `.exe` publicado, e o job do instalador exercita o aplicativo
- * empacotado.
- *
- * O portão vale só para quem precisa do processo **vivo**. Quem não precisa —
- * o executável que não existe, e os que encerram o cliente antes de pedir
- * qualquer coisa — continua rodando nos dois sistemas.
+ * O sidecar de mentira é um script com shebang, que só POSIX executa: no Windows o
+ * `spawn` dá EFTYPE, o Node recusa `.cmd` sem `shell: true`, e aceitar argumentos
+ * afrouxaria o contrato. A lógica testada não tem plataforma; a do Windows é coberta
+ * por `sidecar-real.test.ts` e pelo job do instalador. Só os testes que precisam do
+ * processo vivo dependem disto.
  */
 const sidecarDeMentiraSobe = process.platform !== 'win32'
 
@@ -50,8 +34,7 @@ async function fakeSidecar(source: string): Promise<SidecarClient> {
   await writeFile(script, source, 'utf8')
   await chmod(script, 0o755)
 
-  // O cliente executa um caminho só, sem argumentos — como fará com o binário
-  // .NET. O wrapper existe para caber nesse contrato sem afrouxá-lo no teste.
+  // O cliente executa um caminho só, sem argumentos, como o binário .NET.
   const wrapper = join(directory, 'run.sh')
   await writeFile(wrapper, `#!/bin/sh\nexec "${process.execPath}" "${script}"\n`, 'utf8')
   await chmod(wrapper, 0o755)
@@ -110,8 +93,7 @@ describe.runIf(sidecarDeMentiraSobe)('conversa normal', () => {
   })
 
   it('mantém pedidos simultâneos separados, mesmo respondidos fora de ordem', async () => {
-    // Sem correlação por id, a resposta de um pedido chegaria para outro — e o
-    // usuário veria o documento errado sem nenhum erro aparecer.
+    // Sem correlação por id, a resposta de um pedido iria a outro, sem erro.
     const client = await fakeSidecar(`${RESPONDER}
       const pending = []
       function __handle(request) {
@@ -155,8 +137,7 @@ describe('o sidecar morre — o documento não pode morrer junto', () => {
   })
 
   it.runIf(sidecarDeMentiraSobe)('não deixa o pedido pendurado para sempre quando o sidecar emudece', async () => {
-    // É o pior caso para o usuário: sem timeout, a janela congela e a única
-    // saída é matar o aplicativo — perdendo o que não foi salvo.
+    // Sem timeout, a janela congela e só resta matar o aplicativo.
     const client = await fakeSidecar(`${RESPONDER}
       function __handle() { /* nunca responde */ }
     `)
@@ -177,8 +158,7 @@ describe('o sidecar morre — o documento não pode morrer junto', () => {
 
     await expect(client.request(SidecarMethod.Echo, {})).rejects.toThrow()
 
-    // O processo novo começa do zero, então `primeiro` volta a ser true e ele
-    // morre de novo; o que importa é que houve uma segunda tentativa real.
+    // O processo novo morre de novo; importa que houve uma segunda tentativa.
     const segundo = await codeOf(client.request(SidecarMethod.Echo, {}))
     expect(segundo).toBe(ErrorCode.SidecarFailed)
   })
@@ -189,8 +169,7 @@ describe('o sidecar morre — o documento não pode morrer junto', () => {
     `)
 
     await expect(client.request(SidecarMethod.Echo, {}, undefined, 200)).rejects.toThrow()
-    // Se o processo tivesse sobrevivido ao timeout, o segundo pedido cairia no
-    // mesmo laço travado. Ele precisa começar limpo.
+    // O segundo pedido começa limpo, e não no laço travado.
     await expect(client.request(SidecarMethod.Echo, {}, undefined, 200)).rejects.toThrow()
   })
 
@@ -268,7 +247,7 @@ describe('encerramento', () => {
 
 describe('encodeFrame no formato que o sidecar espera', () => {
   it('põe os tamanhos em big-endian nos primeiros 8 bytes', () => {
-    // Este é o contrato que o C# lê. Se mudar aqui e não lá, tudo quebra.
+    // O contrato que o C# lê.
     const frame = encodeFrame({ a: 1 }, new Uint8Array([1, 2, 3]))
     const view = new DataView(frame.buffer, frame.byteOffset)
 
