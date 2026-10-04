@@ -44,18 +44,12 @@ const KEYBOARD_STEP = 8
  * a imagem, que numa célula é a da célula.
  */
 export function ImageNodeView({ node, selected, editor, getPos }: NodeViewProps): React.JSX.Element {
-  const t = useT()
   const frame = useRef<HTMLSpanElement>(null)
   const [dragged, setDragged] = useState<ImageSize | null>(null)
 
   const attributeSize = sizeOf(node.attrs)
   const size = dragged ?? attributeSize
   const editable = editor.isEditable
-
-  function maxWidth(): number {
-    const available = containingBlockOf(frame.current)?.clientWidth ?? 0
-    return available > MIN_IMAGE_PX ? available : Number.MAX_SAFE_INTEGER
-  }
 
   /** `setNodeAttribute`, e não `updateAttributes`: este substituiria a folha, e a seleção e as alças sumiriam. */
   function resize(next: ImageSize): void {
@@ -67,82 +61,23 @@ export function ImageNodeView({ node, selected, editor, getPos }: NodeViewProps)
     })
   }
 
-  function startResize(handle: ResizeHandle, event: React.PointerEvent): void {
-    if (!editable) return
-
-    // O tamanho que está na tela, já que o atributo pode faltar; com zoom, as
-    // medidas voltam divididas pela escala.
-    const image = frame.current?.querySelector('img') ?? null
-    const scale = screenScaleOf(image)
-    const measured = image?.getBoundingClientRect()
-    const start = attributeSize ?? {
-      width: Math.round((measured?.width ?? MIN_IMAGE_PX * scale) / scale),
-      height: Math.round((measured?.height ?? MIN_IMAGE_PX * scale) / scale),
-    }
-
-    const originX = event.clientX
-    const originY = event.clientY
-    const ceiling = maxWidth()
-    let last = start
-
-    const target = event.currentTarget as HTMLElement
-    target.setPointerCapture(event.pointerId)
-
-    const move = (moved: PointerEvent): void => {
-      last = resizedImage({
-        handle,
-        start,
-        deltaX: (moved.clientX - originX) / scale,
-        deltaY: (moved.clientY - originY) / scale,
-        // Nos cantos a proporção trava e o `Shift` solta, como no Word.
-        keepProportion: !moved.shiftKey,
-        maxWidth: ceiling,
-      })
-      setDragged(last)
-    }
-
-    const finish = (): void => {
-      target.removeEventListener('pointermove', move)
-      target.removeEventListener('pointerup', finish)
-      target.removeEventListener('pointercancel', finish)
-
-      // A única transação do gesto.
-      setDragged(null)
-      if (last.width !== start.width || last.height !== start.height) {
-        resize(last)
-      }
-    }
-
-    target.addEventListener('pointermove', move)
-    target.addEventListener('pointerup', finish)
-    target.addEventListener('pointercancel', finish)
-    event.preventDefault()
-  }
-
   function nudge(handle: ResizeHandle, event: React.KeyboardEvent): void {
     if (!editable || attributeSize === null) return
-
-    const steps: Record<string, [number, number]> = {
-      ArrowLeft: [-KEYBOARD_STEP, 0],
-      ArrowRight: [KEYBOARD_STEP, 0],
-      ArrowUp: [0, -KEYBOARD_STEP],
-      ArrowDown: [0, KEYBOARD_STEP],
-    }
-
-    const step = steps[event.key]
+    const step = KEYBOARD_STEPS[event.key]
     if (step === undefined) return
     event.preventDefault()
     event.stopPropagation()
 
-    const next = resizedImage({
-      handle,
-      start: attributeSize,
-      deltaX: step[0],
-      deltaY: step[1],
-      keepProportion: !event.shiftKey,
-      maxWidth: maxWidth(),
-    })
-    resize(next)
+    resize(
+      resizedImage({
+        handle,
+        start: attributeSize,
+        deltaX: step[0],
+        deltaY: step[1],
+        keepProportion: !event.shiftKey,
+        maxWidth: maxWidthOf(frame.current),
+      }),
+    )
   }
 
   const alt = typeof node.attrs['alt'] === 'string' ? (node.attrs['alt'] as string) : ''
@@ -166,28 +101,123 @@ export function ImageNodeView({ node, selected, editor, getPos }: NodeViewProps)
       />
 
       {/* Só para quem pode editar, e só na imagem selecionada. */}
-      {editable &&
-        selected &&
-        RESIZE_HANDLES.map((handle) => (
-          <button
-            key={handle}
-            type="button"
-            className={`image-frame__grip image-frame__grip--${handle}`}
-            style={{ cursor: HANDLE_CURSORS[handle] }}
-            contentEditable={false}
-            aria-label={t('document.image.resizeLabel', { handle: t(HANDLE_KEYS[handle]) })}
-            title={
-              isCornerHandle(handle)
-                ? t('document.image.resizeCornerHint')
-                : t('document.image.resizeEdgeHint')
-            }
-            onPointerDown={(event) => startResize(handle, event)}
-            onKeyDown={(event) => nudge(handle, event)}
-            // Sem isto o `mousedown` tiraria a seleção e as alças antes do arrasto.
-            onMouseDown={(event) => event.preventDefault()}
-          />
-        ))}
+      {editable && selected && (
+        <ResizeHandles
+          onStart={(handle, event) =>
+            dragResize({
+              handle,
+              event,
+              frame: frame.current,
+              attributeSize,
+              onPreview: setDragged,
+              onCommit: resize,
+            })
+          }
+          onNudge={nudge}
+        />
+      )}
     </NodeViewWrapper>
+  )
+}
+
+const KEYBOARD_STEPS: Readonly<Record<string, readonly [number, number]>> = {
+  ArrowLeft: [-KEYBOARD_STEP, 0],
+  ArrowRight: [KEYBOARD_STEP, 0],
+  ArrowUp: [0, -KEYBOARD_STEP],
+  ArrowDown: [0, KEYBOARD_STEP],
+}
+
+function maxWidthOf(frame: HTMLSpanElement | null): number {
+  const available = containingBlockOf(frame)?.clientWidth ?? 0
+  return available > MIN_IMAGE_PX ? available : Number.MAX_SAFE_INTEGER
+}
+
+interface DragResize {
+  readonly handle: ResizeHandle
+  readonly event: React.PointerEvent
+  readonly frame: HTMLSpanElement | null
+  readonly attributeSize: ImageSize | null
+  /** O tamanho durante o gesto; `null` ao terminar. */
+  readonly onPreview: (size: ImageSize | null) => void
+  readonly onCommit: (size: ImageSize) => void
+}
+
+function dragResize({ handle, event, frame, attributeSize, onPreview, onCommit }: DragResize): void {
+  // O tamanho que está na tela, já que o atributo pode faltar; com zoom, as
+  // medidas voltam divididas pela escala.
+  const image = frame?.querySelector('img') ?? null
+  const scale = screenScaleOf(image)
+  const measured = image?.getBoundingClientRect()
+  const start = attributeSize ?? {
+    width: Math.round((measured?.width ?? MIN_IMAGE_PX * scale) / scale),
+    height: Math.round((measured?.height ?? MIN_IMAGE_PX * scale) / scale),
+  }
+
+  const originX = event.clientX
+  const originY = event.clientY
+  const ceiling = maxWidthOf(frame)
+  let last = start
+
+  const target = event.currentTarget as HTMLElement
+  target.setPointerCapture(event.pointerId)
+
+  const move = (moved: PointerEvent): void => {
+    last = resizedImage({
+      handle,
+      start,
+      deltaX: (moved.clientX - originX) / scale,
+      deltaY: (moved.clientY - originY) / scale,
+      // Nos cantos a proporção trava e o `Shift` solta, como no Word.
+      keepProportion: !moved.shiftKey,
+      maxWidth: ceiling,
+    })
+    onPreview(last)
+  }
+
+  const finish = (): void => {
+    target.removeEventListener('pointermove', move)
+    target.removeEventListener('pointerup', finish)
+    target.removeEventListener('pointercancel', finish)
+
+    // A única transação do gesto.
+    onPreview(null)
+    if (last.width !== start.width || last.height !== start.height) onCommit(last)
+  }
+
+  target.addEventListener('pointermove', move)
+  target.addEventListener('pointerup', finish)
+  target.addEventListener('pointercancel', finish)
+  event.preventDefault()
+}
+
+function ResizeHandles({
+  onStart,
+  onNudge,
+}: {
+  onStart: (handle: ResizeHandle, event: React.PointerEvent) => void
+  onNudge: (handle: ResizeHandle, event: React.KeyboardEvent) => void
+}): React.JSX.Element {
+  const t = useT()
+  return (
+    <>
+      {RESIZE_HANDLES.map((handle) => (
+        <button
+          key={handle}
+          type="button"
+          className={`image-frame__grip image-frame__grip--${handle}`}
+          style={{ cursor: HANDLE_CURSORS[handle] }}
+          contentEditable={false}
+          aria-label={t('document.image.resizeLabel', { handle: t(HANDLE_KEYS[handle]) })}
+          title={
+            isCornerHandle(handle) ? t('document.image.resizeCornerHint') : t('document.image.resizeEdgeHint')
+          }
+          onPointerDown={(event) => onStart(handle, event)}
+          onKeyDown={(event) => onNudge(handle, event)}
+          // Sem isto o `mousedown` tiraria a seleção e as alças antes do arrasto.
+          onMouseDown={(event) => event.preventDefault()}
+        />
+      ))}
+    </>
   )
 }
 

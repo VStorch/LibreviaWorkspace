@@ -22,8 +22,6 @@ export function FindReplacePanel({ editor, status, onClose }: FindReplacePanelPr
   // Fechar a busca precisa apagar os destaques, senão eles ficam na tela.
   useEffect(() => () => void editor.commands.clearSearch(), [editor])
 
-  const noMatches = term.length > 0 && status.total === 0
-
   return (
     <div className="findbar" role="search">
       <input
@@ -40,32 +38,7 @@ export function FindReplacePanel({ editor, status, onClose }: FindReplacePanelPr
         }}
       />
 
-      <span className={noMatches ? 'findbar__count findbar__count--empty' : 'findbar__count'}>
-        {term.length === 0
-          ? ''
-          : noMatches
-            ? t('document.findReplace.noMatches')
-            : t('document.findReplace.matchCount', { current: status.current, total: status.total })}
-      </span>
-
-      <button
-        type="button"
-        className="btn"
-        onClick={() => editor.commands.goToMatch(-1)}
-        disabled={status.total === 0}
-        title={t('document.findReplace.previousMatch')}
-      >
-        ↑
-      </button>
-      <button
-        type="button"
-        className="btn"
-        onClick={() => editor.commands.goToMatch(1)}
-        disabled={status.total === 0}
-        title={t('document.findReplace.nextMatch')}
-      >
-        ↓
-      </button>
+      <MatchNavigation editor={editor} status={status} term={term} />
 
       <input
         type="text"
@@ -106,5 +79,48 @@ export function FindReplacePanel({ editor, status, onClose }: FindReplacePanelPr
         ✕
       </button>
     </div>
+  )
+}
+
+function MatchNavigation({
+  editor,
+  status,
+  term,
+}: {
+  editor: Editor
+  status: SearchStatus
+  term: string
+}): React.JSX.Element {
+  const t = useT()
+  const noMatches = term.length > 0 && status.total === 0
+  return (
+    <>
+      <span className={noMatches ? 'findbar__count findbar__count--empty' : 'findbar__count'}>
+        {term.length === 0
+          ? ''
+          : noMatches
+            ? t('document.findReplace.noMatches')
+            : t('document.findReplace.matchCount', { current: status.current, total: status.total })}
+      </span>
+
+      <button
+        type="button"
+        className="btn"
+        onClick={() => editor.commands.goToMatch(-1)}
+        disabled={status.total === 0}
+        title={t('document.findReplace.previousMatch')}
+      >
+        ↑
+      </button>
+      <button
+        type="button"
+        className="btn"
+        onClick={() => editor.commands.goToMatch(1)}
+        disabled={status.total === 0}
+        title={t('document.findReplace.nextMatch')}
+      >
+        ↓
+      </button>
+    </>
   )
 }

@@ -1,8 +1,13 @@
 import { useState } from 'react'
 import type { Editor } from '@tiptap/react'
-import { allSections, withColumns } from '@services/document/sections.js'
+import { DEFAULT_COLUMN_SPACING_MM, allSections, withColumns } from '@services/document/sections.js'
+import { DialogActions } from '../components/DialogActions.js'
 import { useT } from '../i18n.js'
 import { commitSections, resolvedOf, sectionAtCursor } from './section-commands.js'
+import { SectionScopeChoice, type SectionScope } from './SectionScopeChoice.js'
+
+const MAX_COLUMNS = 12
+const MAX_SPACING_MM = 100
 
 /** Na seção do cursor ou no documento todo, como a configuração de página. */
 export function ColumnsDialog({
@@ -17,11 +22,12 @@ export function ColumnsDialog({
   const [index] = useState(() => sectionAtCursor(editor))
   const current = allSections(page, sections)[index] ?? page
   const [count, setCount] = useState(current.columns?.count ?? 1)
-  const [spaceMm, setSpaceMm] = useState(current.columns?.spaceMm ?? 12.7)
+  const [spaceMm, setSpaceMm] = useState(current.columns?.spaceMm ?? DEFAULT_COLUMN_SPACING_MM)
   const [separator, setSeparator] = useState(current.columns?.separator ?? false)
-  const [scope, setScope] = useState<'section' | 'document'>('section')
+  const [scope, setScope] = useState<SectionScope>('section')
 
-  const valid = Number.isInteger(count) && count >= 1 && count <= 12 && spaceMm >= 0 && spaceMm <= 100
+  const valid =
+    Number.isInteger(count) && count >= 1 && count <= MAX_COLUMNS && spaceMm >= 0 && spaceMm <= MAX_SPACING_MM
 
   function apply(): void {
     if (!valid) return
@@ -46,7 +52,7 @@ export function ColumnsDialog({
           <input
             type="number"
             min={1}
-            max={12}
+            max={MAX_COLUMNS}
             step={1}
             value={count}
             autoFocus
@@ -58,7 +64,7 @@ export function ColumnsDialog({
           <input
             type="number"
             min={0}
-            max={100}
+            max={MAX_SPACING_MM}
             step={0.5}
             value={spaceMm}
             disabled={count <= 1}
@@ -75,32 +81,13 @@ export function ColumnsDialog({
         />
         {t('document.columns.separator')}
       </label>
-      {sections.length > 0 && (
-        <div className="popover__row">
-          {(['section', 'document'] as const).map((choice) => (
-            <label key={choice} className="popover__check">
-              <input
-                type="radio"
-                name="columns-scope"
-                checked={scope === choice}
-                onChange={() => setScope(choice)}
-              />
-              {t(
-                choice === 'section' ? 'document.pageSetup.thisSection' : 'document.pageSetup.wholeDocument',
-              )}
-            </label>
-          ))}
-        </div>
-      )}
-      <div className="popover__actions">
-        <span className="popover__spacer" />
-        <button type="button" className="btn" onClick={onClose}>
-          {t('document.common.cancel')}
-        </button>
-        <button type="button" className="btn btn--primary" disabled={!valid} onClick={apply}>
-          {t('document.common.apply')}
-        </button>
-      </div>
+      {sections.length > 0 && <SectionScopeChoice name="columns-scope" scope={scope} onChange={setScope} />}
+      <DialogActions
+        confirmLabel={t('document.common.apply')}
+        onConfirm={apply}
+        onCancel={onClose}
+        disabled={!valid}
+      />
     </div>
   )
 }

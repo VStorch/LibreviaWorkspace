@@ -11,6 +11,9 @@ import {
 import { useLanguage, useT } from '../i18n.js'
 import { useWorkspace } from '../state/workspace.js'
 import { StyleDialog, type StyleDialogMode } from './StyleDialog.js'
+import { cycleFocus } from '../components/focus-trap.js'
+
+const STYLE_PANEL_STOPS = 'select, ul[tabindex], input, button:not(:disabled), li[tabindex="0"]'
 
 /**
  * Aplicar e limpar são transações do editor (`style-commands.ts`); modificar e
@@ -34,32 +37,99 @@ export function StylesPanel({
   const [filter, setFilter] = useState<'all' | StyleType>('all')
   const panel = useRef<HTMLDivElement>(null)
 
-  /** Sem a circulação, `Tab` a partir de "Fechar" cairia no texto, e `Escape` não fecharia mais. */
-  function onPanelKeyDown(event: React.KeyboardEvent<HTMLDivElement>): void {
-    if (event.key === 'Escape') {
-      onClose()
-      return
-    }
+  const current = blockStyleOf(sheet, useCursorBlock(editor))
+  const styles = listedStyles(sheet, language).filter((style) => filter === 'all' || style.type === filter)
+  const chosen = selected === null ? undefined : sheet.styles[selected]
 
-    if (event.key !== 'Tab') return
-
-    const stops = [
-      ...(panel.current?.querySelectorAll<HTMLElement>(
-        'select, ul[tabindex], input, button:not(:disabled), li[tabindex="0"]',
-      ) ?? []),
-    ]
-    if (stops.length === 0) return
-
-    const current = stops.indexOf(event.target as HTMLElement)
-    const next = stops[(current + (event.shiftKey ? -1 : 1) + stops.length) % stops.length]
-    if (next === undefined) return
-
-    event.preventDefault()
-    next.focus()
+  if (editing !== null) {
+    return (
+      <StyleEditing
+        editor={editor}
+        sheet={sheet}
+        mode={editing}
+        onCancel={() => setEditing(null)}
+        onDone={(next, id) => {
+          setStyles(next)
+          setSelected(id)
+          setEditing(null)
+        }}
+      />
+    )
   }
 
-  // Ao vivo: o cursor anda com o painel aberto.
-  const block = useEditorState({
+  return (
+    <div
+      ref={panel}
+      className="popover"
+      role="dialog"
+      aria-label={t('document.styles.title')}
+      onKeyDown={(event) => {
+        if (event.key === 'Escape') onClose()
+        else if (event.key === 'Tab') cycleFocus(panel.current, event, STYLE_PANEL_STOPS)
+      }}
+    >
+      <p className="popover__hint">
+        {current === null
+          ? t('document.styles.noCurrent')
+          : t('document.styles.current', { style: styleLabelOf(current, language) })}
+      </p>
+
+      <StyleFilter filter={filter} onFilter={setFilter} />
+
+      <StyleList
+        styles={styles}
+        sheet={sheet}
+        currentId={current?.id ?? null}
+        selected={selected}
+        onSelect={setSelected}
+        onApply={(style) => {
+          if (!readOnly) applyStyle(editor, style)
+        }}
+      />
+
+      {readOnly ? (
+        <p className="popover__hint">{t('document.styles.readOnly')}</p>
+      ) : (
+        chosen === undefined && <p className="popover__hint">{t('document.styles.select')}</p>
+      )}
+
+      <StyleActions
+        editor={editor}
+        readOnly={readOnly}
+        chosen={chosen}
+        currentId={current?.id ?? null}
+        onEdit={setEditing}
+        onClose={onClose}
+      />
+    </div>
+  )
+}
+
+function StyleEditing(props: React.ComponentProps<typeof StyleDialog>): React.JSX.Element {
+  const t = useT()
+  return (
+    <div
+      className="popover popover--wide"
+      role="dialog"
+      aria-label={t('document.styles.title')}
+      onKeyDown={(event) => {
+        if (event.key === 'Escape') props.onCancel()
+      }}
+    >
+      <StyleDialog {...props} />
+    </div>
+  )
+}
+
+function applyStyle(editor: Editor, style: StyleDefinition): void {
+  const chain = editor.chain().focus()
+  if (style.type === StyleType.Character) chain.applyCharacterStyle(style.id).run()
+  else chain.applyParagraphStyle(style.id).run()
+}
+
+/** Ao vivo: o cursor anda com o painel aberto. */
+function useCursorBlock(editor: Editor): { type: string; styleId: string | null; level: number | null } {
+  return useEditorState({
     editor,
     selector: ({ editor: current }) => {
       const parent = current.state.selection.$from.parent
@@ -72,148 +142,140 @@ export function StylesPanel({
       }
     },
   })
+}
 
-  const current = blockStyleOf(sheet, block)
-  const styles = listedStyles(sheet, language).filter((style) => filter === 'all' || style.type === filter)
-  const chosen = selected === null ? undefined : sheet.styles[selected]
+function StyleFilter({
+  filter,
+  onFilter,
+}: {
+  filter: 'all' | StyleType
+  onFilter: (filter: 'all' | StyleType) => void
+}): React.JSX.Element {
+  const t = useT()
+  return (
+    <div className="popover__row">
+      <label className="popover__field">
+        <span>{t('document.styles.show')}</span>
+        <select
+          aria-label={t('document.styles.show')}
+          value={filter}
+          onChange={(event) => onFilter(event.target.value as 'all' | StyleType)}
+        >
+          <option value="all">{t('document.styles.all')}</option>
+          <option value={StyleType.Paragraph}>{t('document.styles.paragraphFilter')}</option>
+          <option value={StyleType.Character}>{t('document.styles.characterFilter')}</option>
+        </select>
+      </label>
+    </div>
+  )
+}
 
-  function apply(): void {
-    if (chosen === undefined || readOnly) return
-    const chain = editor.chain().focus()
-    if (chosen.type === StyleType.Character) chain.applyCharacterStyle(chosen.id).run()
-    else chain.applyParagraphStyle(chosen.id).run()
-  }
+function StyleList({
+  styles,
+  sheet,
+  currentId,
+  selected,
+  onSelect,
+  onApply,
+}: {
+  styles: readonly StyleDefinition[]
+  sheet: StyleSheet
+  currentId: string | null
+  selected: string | null
+  onSelect: (id: string) => void
+  onApply: (style: StyleDefinition) => void
+}): React.JSX.Element {
+  const t = useT()
+  const language = useLanguage()
+  return (
+    // Focalizável, para a lista rolar pelo teclado; clique duplo já aplica.
+    <ul className="styles-list" tabIndex={0} aria-label={t('document.styleAndFont.documentStyles')}>
+      {styles.length === 0 && <li className="styles-list__empty">{t('document.styles.empty')}</li>}
+      {styles.map((style) => (
+        <li
+          key={style.id}
+          className={[
+            'styles-list__item',
+            style.id === currentId ? 'styles-list__item--current' : '',
+            style.id === selected ? 'styles-list__item--selected' : '',
+          ]
+            .filter((name) => name !== '')
+            .join(' ')}
+          aria-selected={style.id === selected}
+          onClick={() => onSelect(style.id)}
+          onDoubleClick={() => {
+            onSelect(style.id)
+            onApply(style)
+          }}
+          // A marca visual sozinha não diz nada a quem não vê a tela.
+          aria-current={style.id === currentId ? 'true' : undefined}
+        >
+          <span className="styles-list__name">{styleLabelOf(style, language)}</span>
+          <span className="styles-list__meta">{describe(style, sheet, language, t)}</span>
+        </li>
+      ))}
+    </ul>
+  )
+}
 
-  if (editing !== null) {
-    return (
-      <div
-        ref={panel}
-        className="popover popover--wide"
-        role="dialog"
-        aria-label={t('document.styles.title')}
-        onKeyDown={(event) => {
-          if (event.key === 'Escape') setEditing(null)
+function StyleActions({
+  editor,
+  readOnly,
+  chosen,
+  currentId,
+  onEdit,
+  onClose,
+}: {
+  editor: Editor
+  readOnly: boolean
+  chosen: StyleDefinition | undefined
+  currentId: string | null
+  onEdit: (mode: StyleDialogMode) => void
+  onClose: () => void
+}): React.JSX.Element {
+  const t = useT()
+  return (
+    <div className="popover__actions">
+      <button
+        type="button"
+        className="btn"
+        disabled={readOnly || chosen === undefined}
+        onClick={() => {
+          if (chosen !== undefined && !readOnly) applyStyle(editor, chosen)
         }}
       >
-        <StyleDialog
-          editor={editor}
-          sheet={sheet}
-          mode={editing}
-          onCancel={() => setEditing(null)}
-          onDone={(next, id) => {
-            setStyles(next)
-            setSelected(id)
-            setEditing(null)
-          }}
-        />
-      </div>
-    )
-  }
-
-  return (
-    <div
-      ref={panel}
-      className="popover"
-      role="dialog"
-      aria-label={t('document.styles.title')}
-      onKeyDown={onPanelKeyDown}
-    >
-      <p className="popover__hint">
-        {current === null
-          ? t('document.styles.noCurrent')
-          : t('document.styles.current', { style: styleLabelOf(current, language) })}
-      </p>
-
-      <div className="popover__row">
-        <label className="popover__field">
-          <span>{t('document.styles.show')}</span>
-          <select
-            aria-label={t('document.styles.show')}
-            value={filter}
-            onChange={(event) => setFilter(event.target.value as 'all' | StyleType)}
-          >
-            <option value="all">{t('document.styles.all')}</option>
-            <option value={StyleType.Paragraph}>{t('document.styles.paragraphFilter')}</option>
-            <option value={StyleType.Character}>{t('document.styles.characterFilter')}</option>
-          </select>
-        </label>
-      </div>
-
-      {/* Focalizável, para a lista rolar pelo teclado; clique duplo já aplica. */}
-      <ul className="styles-list" tabIndex={0} aria-label={t('document.styleAndFont.documentStyles')}>
-        {styles.length === 0 && <li className="styles-list__empty">{t('document.styles.empty')}</li>}
-        {styles.map((style) => (
-          <li
-            key={style.id}
-            className={[
-              'styles-list__item',
-              style.id === current?.id ? 'styles-list__item--current' : '',
-              style.id === selected ? 'styles-list__item--selected' : '',
-            ]
-              .filter((name) => name !== '')
-              .join(' ')}
-            aria-selected={style.id === selected}
-            onClick={() => setSelected(style.id)}
-            onDoubleClick={() => {
-              setSelected(style.id)
-              if (readOnly) return
-              const chain = editor.chain().focus()
-              if (style.type === StyleType.Character) chain.applyCharacterStyle(style.id).run()
-              else chain.applyParagraphStyle(style.id).run()
-            }}
-            // A marca visual sozinha não diz nada a quem não vê a tela.
-            aria-current={style.id === current?.id ? 'true' : undefined}
-          >
-            <span className="styles-list__name">{styleLabelOf(style, language)}</span>
-            <span className="styles-list__meta">{describe(style, sheet, language, t)}</span>
-          </li>
-        ))}
-      </ul>
-
-      {readOnly ? (
-        <p className="popover__hint">{t('document.styles.readOnly')}</p>
-      ) : (
-        chosen === undefined && <p className="popover__hint">{t('document.styles.select')}</p>
-      )}
-
-      <div className="popover__actions">
-        <button type="button" className="btn" disabled={readOnly || chosen === undefined} onClick={apply}>
-          {t('document.styles.apply')}
-        </button>
-        <button
-          type="button"
-          className="btn"
-          disabled={readOnly || chosen === undefined}
-          onClick={() => chosen !== undefined && setEditing({ kind: 'modify', id: chosen.id })}
-        >
-          {t('document.styles.modify')}
-        </button>
-        <button
-          type="button"
-          className="btn"
-          disabled={readOnly}
-          onClick={() =>
-            setEditing({
-              kind: 'create',
-              basedOn: chosen?.type === StyleType.Paragraph ? chosen.id : (current?.id ?? null),
-            })
-          }
-        >
-          {t('document.styles.create')}
-        </button>
-        <button
-          type="button"
-          className="btn"
-          disabled={readOnly}
-          onClick={() => editor.chain().focus().clearDirectFormatting().run()}
-        >
-          {t('document.styles.clearFormatting')}
-        </button>
-        <span className="popover__spacer" />
-        <button type="button" className="btn btn--primary" autoFocus onClick={onClose}>
-          {t('document.common.close')}
-        </button>
-      </div>
+        {t('document.styles.apply')}
+      </button>
+      <button
+        type="button"
+        className="btn"
+        disabled={readOnly || chosen === undefined}
+        onClick={() => chosen !== undefined && onEdit({ kind: 'modify', id: chosen.id })}
+      >
+        {t('document.styles.modify')}
+      </button>
+      <button
+        type="button"
+        className="btn"
+        disabled={readOnly}
+        onClick={() =>
+          onEdit({ kind: 'create', basedOn: chosen?.type === StyleType.Paragraph ? chosen.id : currentId })
+        }
+      >
+        {t('document.styles.create')}
+      </button>
+      <button
+        type="button"
+        className="btn"
+        disabled={readOnly}
+        onClick={() => editor.chain().focus().clearDirectFormatting().run()}
+      >
+        {t('document.styles.clearFormatting')}
+      </button>
+      <span className="popover__spacer" />
+      <button type="button" className="btn btn--primary" autoFocus onClick={onClose}>
+        {t('document.common.close')}
+      </button>
     </div>
   )
 }

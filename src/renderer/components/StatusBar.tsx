@@ -14,8 +14,6 @@ export function StatusBar(): React.JSX.Element {
   // Planilha não tem página, palavra nem caractere: mostrar isso ali seria
   // informação falsa ocupando o lugar da verdadeira.
   const sheet = state.workbook?.sheets[state.workbook.activeSheet]
-  const zoom = useEffectiveZoom()
-  const zoomFit = usePreferences((preferences) => preferences.preferences.zoomFit)
 
   return (
     <footer className="statusbar">
@@ -46,47 +44,7 @@ export function StatusBar(): React.JSX.Element {
               {t('revisions.trackOn')}
             </span>
           )}
-          {/* O zoom da folha, os mesmos comandos do menu Exibir. */}
-          <span className="statusbar__zoom" role="group" aria-label={t('shell.statusBar.zoomLevel')}>
-            <button
-              type="button"
-              className="statusbar__zoom-button"
-              aria-label={t('shell.statusBar.zoomOut')}
-              title={t('shell.statusBar.zoomOut')}
-              disabled={zoom <= MIN_ZOOM}
-              onClick={() => void runZoomCommand(MenuCommand.ZoomOut)}
-            >
-              −
-            </button>
-            <button
-              type="button"
-              className="statusbar__zoom-level"
-              title={t('shell.statusBar.zoomLevel')}
-              onClick={() => void runZoomCommand(MenuCommand.ZoomReset)}
-            >
-              {zoom}%
-            </button>
-            <button
-              type="button"
-              className="statusbar__zoom-button"
-              aria-label={t('shell.statusBar.zoomIn')}
-              title={t('shell.statusBar.zoomIn')}
-              disabled={zoom >= MAX_ZOOM}
-              onClick={() => void runZoomCommand(MenuCommand.ZoomIn)}
-            >
-              +
-            </button>
-            <button
-              type="button"
-              className={`statusbar__zoom-button${zoomFit ? ' statusbar__zoom-button--active' : ''}`}
-              aria-pressed={zoomFit}
-              aria-label={t('shell.statusBar.zoomFitWidth')}
-              title={t('shell.statusBar.zoomFitWidth')}
-              onClick={() => void runZoomCommand(MenuCommand.ZoomFitWidth)}
-            >
-              ↔
-            </button>
-          </span>
+          <ZoomControls />
         </>
       ) : (
         <>
@@ -107,5 +65,54 @@ export function StatusBar(): React.JSX.Element {
             : t('shell.statusBar.saved')}
       </span>
     </footer>
+  )
+}
+
+/** O zoom da folha, os mesmos comandos do menu Exibir. */
+function ZoomControls(): React.JSX.Element {
+  const t = useT()
+  const zoom = useEffectiveZoom()
+  const zoomFit = usePreferences((preferences) => preferences.preferences.zoomFit)
+  return (
+    <span className="statusbar__zoom" role="group" aria-label={t('shell.statusBar.zoomLevel')}>
+      <button
+        type="button"
+        className="statusbar__zoom-button"
+        aria-label={t('shell.statusBar.zoomOut')}
+        title={t('shell.statusBar.zoomOut')}
+        disabled={zoom <= MIN_ZOOM}
+        onClick={() => void runZoomCommand(MenuCommand.ZoomOut)}
+      >
+        −
+      </button>
+      <button
+        type="button"
+        className="statusbar__zoom-level"
+        title={t('shell.statusBar.zoomLevel')}
+        onClick={() => void runZoomCommand(MenuCommand.ZoomReset)}
+      >
+        {zoom}%
+      </button>
+      <button
+        type="button"
+        className="statusbar__zoom-button"
+        aria-label={t('shell.statusBar.zoomIn')}
+        title={t('shell.statusBar.zoomIn')}
+        disabled={zoom >= MAX_ZOOM}
+        onClick={() => void runZoomCommand(MenuCommand.ZoomIn)}
+      >
+        +
+      </button>
+      <button
+        type="button"
+        className={`statusbar__zoom-button${zoomFit ? ' statusbar__zoom-button--active' : ''}`}
+        aria-pressed={zoomFit}
+        aria-label={t('shell.statusBar.zoomFitWidth')}
+        title={t('shell.statusBar.zoomFitWidth')}
+        onClick={() => void runZoomCommand(MenuCommand.ZoomFitWidth)}
+      >
+        ↔
+      </button>
+    </span>
   )
 }

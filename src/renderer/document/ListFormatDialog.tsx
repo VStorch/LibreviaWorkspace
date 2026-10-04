@@ -76,7 +76,6 @@ export function ListFormatDialog({
         })),
   )
   const [level, setLevel] = useState(current?.info.level ?? 0)
-  const [startValue, setStartValue] = useState('1')
 
   const own = levels[level]!
   const preview = previewOf(levels)
@@ -97,14 +96,6 @@ export function ListFormatDialog({
     onClose()
   }
 
-  function numberingAction(run: () => boolean): void {
-    run()
-    onClose()
-  }
-
-  const start = Number(startValue)
-  const validStart = Number.isInteger(start) && start >= 0 && start <= MAX_START_NUMBER
-
   return (
     <div
       className="popover popover--wide"
@@ -114,133 +105,15 @@ export function ListFormatDialog({
         if (event.key === 'Escape') onClose()
       }}
     >
-      <fieldset className="popover__fieldset">
-        <legend>{t('document.lists.gallery')}</legend>
-        <div className="list-gallery">
-          {LIST_PRESETS.map((preset) => (
-            <button
-              key={preset.id}
-              type="button"
-              className="btn list-gallery__item"
-              aria-pressed={JSON.stringify(preset.levels) === JSON.stringify(levels)}
-              onClick={() => setLevels(preset.levels.map((entry) => ({ ...entry })))}
-            >
-              {t(preset.labelKey as MessageKey)}
-            </button>
-          ))}
-        </div>
-      </fieldset>
+      <ListGallery levels={levels} onPick={setLevels} />
 
-      <div className="popover__row">
-        <label className="popover__field popover__field--narrow">
-          <span>{t('document.lists.level')}</span>
-          <select value={level} onChange={(event) => setLevel(Number(event.target.value))}>
-            {Array.from({ length: LIST_LEVELS }, (_, index) => (
-              <option key={index} value={index}>
-                {index + 1}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label className="popover__field">
-          <span>{t('document.lists.numberFormat')}</span>
-          <select value={own.fmt} onChange={(event) => changeFormat(event.target.value)}>
-            {NUMBER_FORMATS.map((fmt) => (
-              <option key={fmt} value={fmt}>
-                {t(FORMAT_LABELS[fmt])}
-              </option>
-            ))}
-            {!(NUMBER_FORMATS as readonly string[]).includes(own.fmt) && (
-              <option value={own.fmt}>{own.fmt}</option>
-            )}
-          </select>
-        </label>
-
-        {bullet ? (
-          <label className="popover__field popover__field--narrow">
-            <span>{t('document.lists.marker')}</span>
-            <select value={own.text} onChange={(event) => update({ text: event.target.value })}>
-              {[...new Set([...BULLET_MARKS, own.text])].map((mark) => (
-                <option key={mark} value={mark}>
-                  {mark}
-                </option>
-              ))}
-            </select>
-          </label>
-        ) : (
-          <label className="popover__field">
-            <span>{t('document.lists.levelText')}</span>
-            <input
-              type="text"
-              value={own.text}
-              disabled={own.fmt === 'none'}
-              title={t('document.lists.levelTextHint')}
-              onChange={(event) => update({ text: event.target.value })}
-            />
-          </label>
-        )}
-
-        {!bullet && (
-          <label className="popover__field popover__field--narrow">
-            <span>{t('document.lists.startAt')}</span>
-            <input
-              type="number"
-              min={0}
-              value={own.start}
-              onChange={(event) =>
-                update({ start: Math.max(0, Math.round(Number(event.target.value) || 0)) })
-              }
-            />
-          </label>
-        )}
-      </div>
+      <LevelFields level={level} own={own} onLevel={setLevel} onUpdate={update} onFormat={changeFormat} />
 
       <p className="popover__hint" aria-label={t('document.lists.preview')}>
         {t('document.lists.preview')}: <span className="list-preview">{preview.join('  ')}</span>
       </p>
 
-      <fieldset className="popover__fieldset">
-        <legend>{t('document.lists.numbering')}</legend>
-        {ordered ? (
-          <div className="popover__row">
-            <button
-              type="button"
-              className="btn"
-              onClick={() => numberingAction(() => editor.chain().focus().restartListNumbering(1).run())}
-            >
-              {t('document.lists.restart')}
-            </button>
-            <button
-              type="button"
-              className="btn"
-              onClick={() => numberingAction(() => editor.chain().focus().continueListNumbering().run())}
-            >
-              {t('document.lists.continue')}
-            </button>
-            <label className="popover__field popover__field--narrow">
-              <span>{t('document.lists.startAt')}</span>
-              <input
-                type="number"
-                min={0}
-                aria-label={t('document.lists.setStartTitle')}
-                value={startValue}
-                onChange={(event) => setStartValue(event.target.value)}
-              />
-            </label>
-            <button
-              type="button"
-              className="btn"
-              disabled={!validStart}
-              onClick={() => numberingAction(() => editor.chain().focus().restartListNumbering(start).run())}
-            >
-              {t('document.lists.setStartApply')}
-            </button>
-          </div>
-        ) : (
-          <p className="popover__hint">{t('document.lists.notInList')}</p>
-        )}
-      </fieldset>
+      <NumberingActions editor={editor} ordered={ordered} onDone={onClose} />
 
       <div className="popover__actions">
         <span className="popover__spacer" />
@@ -252,6 +125,180 @@ export function ListFormatDialog({
         </button>
       </div>
     </div>
+  )
+}
+
+function ListGallery({
+  levels,
+  onPick,
+}: {
+  levels: readonly LevelDef[]
+  onPick: (levels: LevelDef[]) => void
+}): React.JSX.Element {
+  const t = useT()
+  return (
+    <fieldset className="popover__fieldset">
+      <legend>{t('document.lists.gallery')}</legend>
+      <div className="list-gallery">
+        {LIST_PRESETS.map((preset) => (
+          <button
+            key={preset.id}
+            type="button"
+            className="btn list-gallery__item"
+            aria-pressed={JSON.stringify(preset.levels) === JSON.stringify(levels)}
+            onClick={() => onPick(preset.levels.map((entry) => ({ ...entry })))}
+          >
+            {t(preset.labelKey as MessageKey)}
+          </button>
+        ))}
+      </div>
+    </fieldset>
+  )
+}
+
+function LevelFields({
+  level,
+  own,
+  onLevel,
+  onUpdate,
+  onFormat,
+}: {
+  level: number
+  own: LevelDef
+  onLevel: (level: number) => void
+  onUpdate: (change: Partial<LevelDef>) => void
+  onFormat: (fmt: string) => void
+}): React.JSX.Element {
+  const t = useT()
+  const bullet = own.fmt === 'bullet'
+  return (
+    <div className="popover__row">
+      <label className="popover__field popover__field--narrow">
+        <span>{t('document.lists.level')}</span>
+        <select value={level} onChange={(event) => onLevel(Number(event.target.value))}>
+          {Array.from({ length: LIST_LEVELS }, (_, index) => (
+            <option key={index} value={index}>
+              {index + 1}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      <label className="popover__field">
+        <span>{t('document.lists.numberFormat')}</span>
+        <select value={own.fmt} onChange={(event) => onFormat(event.target.value)}>
+          {NUMBER_FORMATS.map((fmt) => (
+            <option key={fmt} value={fmt}>
+              {t(FORMAT_LABELS[fmt])}
+            </option>
+          ))}
+          {!(NUMBER_FORMATS as readonly string[]).includes(own.fmt) && (
+            <option value={own.fmt}>{own.fmt}</option>
+          )}
+        </select>
+      </label>
+
+      {bullet ? (
+        <label className="popover__field popover__field--narrow">
+          <span>{t('document.lists.marker')}</span>
+          <select value={own.text} onChange={(event) => onUpdate({ text: event.target.value })}>
+            {[...new Set([...BULLET_MARKS, own.text])].map((mark) => (
+              <option key={mark} value={mark}>
+                {mark}
+              </option>
+            ))}
+          </select>
+        </label>
+      ) : (
+        <label className="popover__field">
+          <span>{t('document.lists.levelText')}</span>
+          <input
+            type="text"
+            value={own.text}
+            disabled={own.fmt === 'none'}
+            title={t('document.lists.levelTextHint')}
+            onChange={(event) => onUpdate({ text: event.target.value })}
+          />
+        </label>
+      )}
+
+      {!bullet && (
+        <label className="popover__field popover__field--narrow">
+          <span>{t('document.lists.startAt')}</span>
+          <input
+            type="number"
+            min={0}
+            value={own.start}
+            onChange={(event) =>
+              onUpdate({ start: Math.max(0, Math.round(Number(event.target.value) || 0)) })
+            }
+          />
+        </label>
+      )}
+    </div>
+  )
+}
+
+/** Valem na hora, sem o Aplicar: são da lista do cursor, e não da definição. */
+function NumberingActions({
+  editor,
+  ordered,
+  onDone,
+}: {
+  editor: Editor
+  ordered: boolean
+  onDone: () => void
+}): React.JSX.Element {
+  const t = useT()
+  const [startValue, setStartValue] = useState('1')
+  const start = Number(startValue)
+  const validStart = Number.isInteger(start) && start >= 0 && start <= MAX_START_NUMBER
+  const act = (run: () => boolean): void => {
+    run()
+    onDone()
+  }
+  return (
+    <fieldset className="popover__fieldset">
+      <legend>{t('document.lists.numbering')}</legend>
+      {ordered ? (
+        <div className="popover__row">
+          <button
+            type="button"
+            className="btn"
+            onClick={() => act(() => editor.chain().focus().restartListNumbering(1).run())}
+          >
+            {t('document.lists.restart')}
+          </button>
+          <button
+            type="button"
+            className="btn"
+            onClick={() => act(() => editor.chain().focus().continueListNumbering().run())}
+          >
+            {t('document.lists.continue')}
+          </button>
+          <label className="popover__field popover__field--narrow">
+            <span>{t('document.lists.startAt')}</span>
+            <input
+              type="number"
+              min={0}
+              aria-label={t('document.lists.setStartTitle')}
+              value={startValue}
+              onChange={(event) => setStartValue(event.target.value)}
+            />
+          </label>
+          <button
+            type="button"
+            className="btn"
+            disabled={!validStart}
+            onClick={() => act(() => editor.chain().focus().restartListNumbering(start).run())}
+          >
+            {t('document.lists.setStartApply')}
+          </button>
+        </div>
+      ) : (
+        <p className="popover__hint">{t('document.lists.notInList')}</p>
+      )}
+    </fieldset>
   )
 }
 

@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import type { Editor } from '@tiptap/react'
 import { SPECIAL_CHARACTER_GROUPS, type SpecialCharacter } from '@services/document/special-characters.js'
 import { useT } from '../i18n.js'
+import { cycleFocus } from '../components/focus-trap.js'
 
 /**
  * O foco **entra no painel** ao abrir, e o `Tab` **fica dentro** dele: senão as
@@ -31,42 +32,10 @@ export function SpecialCharsDialog({
     editor.chain().insertContent(character.char).run()
   }
 
-  /** O passo vertical é o número de colunas medido no DOM: a grade é fluida. */
-  function onKeyDown(event: React.KeyboardEvent<HTMLDivElement>): void {
-    const sideways = event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0
-    const updown = event.key === 'ArrowDown' ? 1 : event.key === 'ArrowUp' ? -1 : 0
-    if (sideways === 0 && updown === 0) return
-
-    const buttons = [...(host.current?.querySelectorAll<HTMLButtonElement>('button[data-char]') ?? [])]
-    const current = buttons.indexOf(event.target as HTMLButtonElement)
-    if (current === -1) return
-
-    const offset = sideways === 0 ? updown * columnsAround(buttons, current) : sideways
-    const target = buttons[current + offset]
-    if (target === undefined) return
-
-    event.preventDefault()
-    target.focus()
-  }
-
   /** No elemento de fora, para o `Escape` valer com o foco no "Fechar". */
   function onPanelKeyDown(event: React.KeyboardEvent<HTMLDivElement>): void {
-    if (event.key === 'Escape') {
-      onClose()
-      return
-    }
-
-    if (event.key !== 'Tab') return
-
-    const stops = [...(panel.current?.querySelectorAll<HTMLButtonElement>('button') ?? [])]
-    if (stops.length === 0) return
-
-    const current = stops.indexOf(event.target as HTMLButtonElement)
-    const next = stops[(current + (event.shiftKey ? -1 : 1) + stops.length) % stops.length]
-    if (next === undefined) return
-
-    event.preventDefault()
-    next.focus()
+    if (event.key === 'Escape') onClose()
+    else if (event.key === 'Tab') cycleFocus(panel.current, event, 'button')
   }
 
   return (
@@ -77,7 +46,7 @@ export function SpecialCharsDialog({
       aria-label={t('document.specialChars.title')}
       onKeyDown={onPanelKeyDown}
     >
-      <div ref={host} className="chars" onKeyDown={onKeyDown}>
+      <div ref={host} className="chars" onKeyDown={(event) => moveAmongCharacters(host.current, event)}>
         {SPECIAL_CHARACTER_GROUPS.map((group) => {
           const groupLabel = t(group.labelKey)
           return (
@@ -127,4 +96,22 @@ function columnsAround(buttons: readonly HTMLButtonElement[], current: number): 
   const top = reference.offsetTop
   const row = buttons.filter((button) => button.offsetTop === top)
   return Math.max(1, row.length)
+}
+
+/** O passo vertical é o número de colunas medido no DOM: a grade é fluida. */
+function moveAmongCharacters(host: HTMLDivElement | null, event: React.KeyboardEvent<HTMLDivElement>): void {
+  const sideways = event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0
+  const updown = event.key === 'ArrowDown' ? 1 : event.key === 'ArrowUp' ? -1 : 0
+  if (sideways === 0 && updown === 0) return
+
+  const buttons = [...(host?.querySelectorAll<HTMLButtonElement>('button[data-char]') ?? [])]
+  const current = buttons.indexOf(event.target as HTMLButtonElement)
+  if (current === -1) return
+
+  const offset = sideways === 0 ? updown * columnsAround(buttons, current) : sideways
+  const target = buttons[current + offset]
+  if (target === undefined) return
+
+  event.preventDefault()
+  target.focus()
 }

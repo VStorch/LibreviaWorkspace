@@ -22,6 +22,7 @@ import {
   type ResolvedSections,
 } from '@services/document/sections.js'
 import { commitSections } from './section-commands.js'
+import { SectionScopeChoice } from './SectionScopeChoice.js'
 import { useT } from '../i18n.js'
 import { useWorkspace } from '../state/workspace.js'
 
@@ -54,28 +55,7 @@ export function PageSetupPanel({
   const [scope, setScope] = useState<'section' | 'document'>('section')
   // Ver `withBandsLinked`.
   const sectionKey = sections[index]?.id ?? 'body'
-  // "Número da página" e "Total de páginas" entram no último campo que teve o cursor, como no Word.
-  const lastField = useRef<{ field: 'header' | 'footer'; at: number }>({ field: 'footer', at: -1 })
-
-  function remember(field: 'header' | 'footer', input: HTMLInputElement): void {
-    lastField.current = { field, at: input.selectionStart ?? input.value.length }
-  }
-
-  function insertField(token: string): void {
-    const { field, at } = lastField.current
-    const text = draft[field]
-    const where = at < 0 || at > text.length ? text.length : at
-    setDraft({ ...draft, [field]: text.slice(0, where) + token + text.slice(where) })
-    lastField.current = { field, at: where + token.length }
-  }
-
   const valid = isValidMargins(draft)
-  const { width, height } = pageDimensionsMm(draft)
-
-  const usesHeaderOrFooter = draft.header.trim().length > 0 || draft.footer.trim().length > 0
-  const needsRoomWarning =
-    usesHeaderOrFooter &&
-    (!marginFitsHeaderOrFooter(draft.margins.top) || !marginFitsHeaderOrFooter(draft.margins.bottom))
 
   function apply(): void {
     if (!valid) return
@@ -103,202 +83,17 @@ export function PageSetupPanel({
         if (event.key === 'Enter') apply()
       }}
     >
-      <div className="popover__row">
-        <label className="popover__field">
-          <span>{t('document.pageSetup.size')}</span>
-          <select
-            aria-label={t('document.pageSetup.size')}
-            value={draft.size}
-            onChange={(event) => setDraft({ ...draft, size: event.target.value as PageSize })}
-          >
-            <option value={PageSize.A4}>A4 (210 × 297 mm)</option>
-            <option value={PageSize.Letter}>{t('document.pageSetup.letter')}</option>
-          </select>
-        </label>
+      <PaperFields draft={draft} setDraft={setDraft} />
 
-        <label className="popover__field">
-          <span>{t('document.pageSetup.orientation')}</span>
-          <select
-            aria-label={t('document.pageSetup.orientation')}
-            value={draft.orientation}
-            onChange={(event) => setDraft({ ...draft, orientation: event.target.value as PageOrientation })}
-          >
-            <option value={PageOrientation.Portrait}>{t('document.pageSetup.portrait')}</option>
-            <option value={PageOrientation.Landscape}>{t('document.pageSetup.landscape')}</option>
-          </select>
-        </label>
-      </div>
+      <MarginFields draft={draft} setDraft={setDraft} />
 
-      <fieldset className="popover__fieldset">
-        <legend>{t('document.pageSetup.margins')}</legend>
-        <div className="popover__row">
-          {MARGIN_FIELDS.map(({ key, labelKey }) => (
-            <label key={key} className="popover__field popover__field--narrow">
-              <span>{t(labelKey)}</span>
-              <input
-                type="number"
-                min={0}
-                max={100}
-                step={1}
-                value={draft.margins[key]}
-                onChange={(event) =>
-                  setDraft({
-                    ...draft,
-                    margins: { ...draft.margins, [key]: Number(event.target.value) },
-                  })
-                }
-              />
-            </label>
-          ))}
-        </div>
-      </fieldset>
+      <BandFields draft={draft} setDraft={setDraft} index={index} onLink={link} />
 
-      <fieldset className="popover__fieldset">
-        <legend>{t('document.pageSetup.headerAndFooter')}</legend>
+      <PageNumberingFields draft={draft} setDraft={setDraft} />
 
-        <label className="popover__field">
-          <span>{t('document.pageSetup.header')}</span>
-          <input
-            type="text"
-            value={draft.header}
-            placeholder={t('document.pageSetup.headerPlaceholder')}
-            maxLength={500}
-            onChange={(event) => setDraft({ ...draft, header: event.target.value })}
-            onSelect={(event) => remember('header', event.currentTarget)}
-          />
-        </label>
+      <PageSummary draft={draft} valid={valid} />
 
-        <label className="popover__field">
-          <span>{t('document.pageSetup.footer')}</span>
-          <input
-            type="text"
-            value={draft.footer}
-            placeholder={t('document.pageSetup.footerPlaceholder')}
-            maxLength={500}
-            onChange={(event) => setDraft({ ...draft, footer: event.target.value })}
-            onSelect={(event) => remember('footer', event.currentTarget)}
-          />
-        </label>
-
-        <div className="popover__row">
-          <button type="button" className="btn" onClick={() => insertField('{n}')}>
-            {t('document.pageSetup.insertPageNumber')}
-          </button>
-          <button type="button" className="btn" onClick={() => insertField('{total}')}>
-            {t('document.pageSetup.insertTotalPages')}
-          </button>
-        </div>
-
-        <p className="popover__hint">{t('document.pageSetup.hint', { n: '{n}', total: '{total}' })}</p>
-
-        {/* Desvinculada, a seção ganha uma cópia própria das faixas da anterior. */}
-        {index > 0 &&
-          (['header', 'footer'] as const).map((kind) => (
-            <label key={kind} className="popover__check">
-              <input
-                type="checkbox"
-                checked={isLinkedToPrevious(draft, index, kind)}
-                onChange={(event) => link(kind, event.target.checked)}
-              />
-              {t(kind === 'header' ? 'document.pageSetup.linkHeader' : 'document.pageSetup.linkFooter')}
-            </label>
-          ))}
-
-        <label className="popover__check">
-          <input
-            type="checkbox"
-            checked={usesTitlePage(draft)}
-            onChange={(event) => setDraft({ ...draft, titlePage: event.target.checked })}
-          />
-          {t('document.pageSetup.titlePage')}
-        </label>
-        <label className="popover__check">
-          <input
-            type="checkbox"
-            checked={usesEvenAndOdd(draft)}
-            onChange={(event) => setDraft({ ...draft, evenAndOddHeaders: event.target.checked })}
-          />
-          {t('document.pageSetup.evenAndOdd')}
-        </label>
-
-        {/* O Chromium recorta o excedente da margem: apertada, as faixas somem. */}
-        {needsRoomWarning && (
-          <p className="popover__error">
-            {t('document.pageSetup.marginWarning', { min: MIN_MARGIN_FOR_HEADER_MM })}
-          </p>
-        )}
-      </fieldset>
-
-      <fieldset className="popover__fieldset">
-        <legend>{t('document.pageSetup.pageNumbering')}</legend>
-        <div className="popover__row">
-          <label className="popover__field">
-            <span>{t('document.pageSetup.pageNumberFormat')}</span>
-            <select
-              value={draft.pageNumberFormat ?? 'decimal'}
-              onChange={(event) =>
-                setDraft({ ...draft, pageNumberFormat: event.target.value as PageSetup['pageNumberFormat'] })
-              }
-            >
-              {PAGE_NUMBER_FORMATS.map((format) => (
-                <option key={format} value={format}>
-                  {t(`document.pageSetup.pageFormat.${format}`)}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="popover__field popover__field--narrow">
-            <span>{t('document.pageSetup.pageNumberStart')}</span>
-            <input
-              type="number"
-              min={0}
-              value={draft.pageNumberStart ?? ''}
-              placeholder="1"
-              onChange={(event) => {
-                const value = event.target.value.trim()
-                const number = Math.round(Number(value))
-                setDraft({
-                  ...draft,
-                  pageNumberStart: value === '' || !Number.isFinite(number) ? null : Math.max(0, number),
-                })
-              }}
-            />
-          </label>
-        </div>
-      </fieldset>
-
-      <p className={valid ? 'popover__hint' : 'popover__error'}>
-        {valid
-          ? t('document.pageSetup.pageSummary', {
-              width,
-              height,
-              contentWidth: contentWidthMm(draft).toFixed(0),
-            })
-          : t('document.pageSetup.marginsError')}
-      </p>
-
-      {sections.length > 0 && (
-        <fieldset className="popover__fieldset">
-          <legend>{t('document.pageSetup.applyTo')}</legend>
-          <div className="popover__row">
-            {(['section', 'document'] as const).map((choice) => (
-              <label key={choice} className="popover__check">
-                <input
-                  type="radio"
-                  name="page-setup-scope"
-                  checked={scope === choice}
-                  onChange={() => setScope(choice)}
-                />
-                {t(
-                  choice === 'section'
-                    ? 'document.pageSetup.thisSection'
-                    : 'document.pageSetup.wholeDocument',
-                )}
-              </label>
-            ))}
-          </div>
-        </fieldset>
-      )}
+      {sections.length > 0 && <ScopeFields scope={scope} setScope={setScope} />}
 
       <div className="popover__actions">
         <button type="button" className="btn" onClick={() => setDraft(DEFAULT_PAGE_SETUP)}>
@@ -313,5 +108,260 @@ export function PageSetupPanel({
         </button>
       </div>
     </div>
+  )
+}
+
+interface DraftProps {
+  readonly draft: PageSetup
+  readonly setDraft: (draft: PageSetup) => void
+}
+
+function PaperFields({ draft, setDraft }: DraftProps): React.JSX.Element {
+  const t = useT()
+  return (
+    <div className="popover__row">
+      <label className="popover__field">
+        <span>{t('document.pageSetup.size')}</span>
+        <select
+          aria-label={t('document.pageSetup.size')}
+          value={draft.size}
+          onChange={(event) => setDraft({ ...draft, size: event.target.value as PageSize })}
+        >
+          <option value={PageSize.A4}>A4 (210 × 297 mm)</option>
+          <option value={PageSize.Letter}>{t('document.pageSetup.letter')}</option>
+        </select>
+      </label>
+
+      <label className="popover__field">
+        <span>{t('document.pageSetup.orientation')}</span>
+        <select
+          aria-label={t('document.pageSetup.orientation')}
+          value={draft.orientation}
+          onChange={(event) => setDraft({ ...draft, orientation: event.target.value as PageOrientation })}
+        >
+          <option value={PageOrientation.Portrait}>{t('document.pageSetup.portrait')}</option>
+          <option value={PageOrientation.Landscape}>{t('document.pageSetup.landscape')}</option>
+        </select>
+      </label>
+    </div>
+  )
+}
+
+function MarginFields({ draft, setDraft }: DraftProps): React.JSX.Element {
+  const t = useT()
+  return (
+    <fieldset className="popover__fieldset">
+      <legend>{t('document.pageSetup.margins')}</legend>
+      <div className="popover__row">
+        {MARGIN_FIELDS.map(({ key, labelKey }) => (
+          <label key={key} className="popover__field popover__field--narrow">
+            <span>{t(labelKey)}</span>
+            <input
+              type="number"
+              min={0}
+              max={100}
+              step={1}
+              value={draft.margins[key]}
+              onChange={(event) =>
+                setDraft({
+                  ...draft,
+                  margins: { ...draft.margins, [key]: Number(event.target.value) },
+                })
+              }
+            />
+          </label>
+        ))}
+      </div>
+    </fieldset>
+  )
+}
+
+interface BandFieldsProps extends DraftProps {
+  /** Em `allSections`: a primeira seção não tem anterior a que se vincular. */
+  readonly index: number
+  readonly onLink: (kind: 'header' | 'footer', linked: boolean) => void
+}
+
+function BandFields({ draft, setDraft, index, onLink }: BandFieldsProps): React.JSX.Element {
+  const t = useT()
+  // "Número da página" e "Total de páginas" entram no último campo que teve o cursor, como no Word.
+  const lastField = useRef<{ field: 'header' | 'footer'; at: number }>({ field: 'footer', at: -1 })
+
+  function onRemember(field: 'header' | 'footer', input: HTMLInputElement): void {
+    lastField.current = { field, at: input.selectionStart ?? input.value.length }
+  }
+
+  function onInsertField(token: string): void {
+    const { field, at } = lastField.current
+    const text = draft[field]
+    const where = at < 0 || at > text.length ? text.length : at
+    setDraft({ ...draft, [field]: text.slice(0, where) + token + text.slice(where) })
+    lastField.current = { field, at: where + token.length }
+  }
+
+  return (
+    <fieldset className="popover__fieldset">
+      <legend>{t('document.pageSetup.headerAndFooter')}</legend>
+
+      <label className="popover__field">
+        <span>{t('document.pageSetup.header')}</span>
+        <input
+          type="text"
+          value={draft.header}
+          placeholder={t('document.pageSetup.headerPlaceholder')}
+          maxLength={500}
+          onChange={(event) => setDraft({ ...draft, header: event.target.value })}
+          onSelect={(event) => onRemember('header', event.currentTarget)}
+        />
+      </label>
+
+      <label className="popover__field">
+        <span>{t('document.pageSetup.footer')}</span>
+        <input
+          type="text"
+          value={draft.footer}
+          placeholder={t('document.pageSetup.footerPlaceholder')}
+          maxLength={500}
+          onChange={(event) => setDraft({ ...draft, footer: event.target.value })}
+          onSelect={(event) => onRemember('footer', event.currentTarget)}
+        />
+      </label>
+
+      <div className="popover__row">
+        <button type="button" className="btn" onClick={() => onInsertField('{n}')}>
+          {t('document.pageSetup.insertPageNumber')}
+        </button>
+        <button type="button" className="btn" onClick={() => onInsertField('{total}')}>
+          {t('document.pageSetup.insertTotalPages')}
+        </button>
+      </div>
+
+      <p className="popover__hint">{t('document.pageSetup.hint', { n: '{n}', total: '{total}' })}</p>
+
+      <BandOptions draft={draft} setDraft={setDraft} index={index} onLink={onLink} />
+    </fieldset>
+  )
+}
+
+function PageNumberingFields({ draft, setDraft }: DraftProps): React.JSX.Element {
+  const t = useT()
+  return (
+    <fieldset className="popover__fieldset">
+      <legend>{t('document.pageSetup.pageNumbering')}</legend>
+      <div className="popover__row">
+        <label className="popover__field">
+          <span>{t('document.pageSetup.pageNumberFormat')}</span>
+          <select
+            value={draft.pageNumberFormat ?? 'decimal'}
+            onChange={(event) =>
+              setDraft({ ...draft, pageNumberFormat: event.target.value as PageSetup['pageNumberFormat'] })
+            }
+          >
+            {PAGE_NUMBER_FORMATS.map((format) => (
+              <option key={format} value={format}>
+                {t(`document.pageSetup.pageFormat.${format}`)}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="popover__field popover__field--narrow">
+          <span>{t('document.pageSetup.pageNumberStart')}</span>
+          <input
+            type="number"
+            min={0}
+            value={draft.pageNumberStart ?? ''}
+            placeholder="1"
+            onChange={(event) => {
+              const value = event.target.value.trim()
+              const number = Math.round(Number(value))
+              setDraft({
+                ...draft,
+                pageNumberStart: value === '' || !Number.isFinite(number) ? null : Math.max(0, number),
+              })
+            }}
+          />
+        </label>
+      </div>
+    </fieldset>
+  )
+}
+
+function ScopeFields({
+  scope,
+  setScope,
+}: {
+  scope: 'section' | 'document'
+  setScope: (scope: 'section' | 'document') => void
+}): React.JSX.Element {
+  const t = useT()
+  return (
+    <fieldset className="popover__fieldset">
+      <legend>{t('document.pageSetup.applyTo')}</legend>
+      <SectionScopeChoice name="page-setup-scope" scope={scope} onChange={setScope} />
+    </fieldset>
+  )
+}
+
+function BandOptions({ draft, setDraft, index, onLink }: BandFieldsProps): React.JSX.Element {
+  const t = useT()
+  const usesHeaderOrFooter = draft.header.trim().length > 0 || draft.footer.trim().length > 0
+  const needsRoomWarning =
+    usesHeaderOrFooter &&
+    (!marginFitsHeaderOrFooter(draft.margins.top) || !marginFitsHeaderOrFooter(draft.margins.bottom))
+  return (
+    <>
+      {/* Desvinculada, a seção ganha uma cópia própria das faixas da anterior. */}
+      {index > 0 &&
+        (['header', 'footer'] as const).map((kind) => (
+          <label key={kind} className="popover__check">
+            <input
+              type="checkbox"
+              checked={isLinkedToPrevious(draft, index, kind)}
+              onChange={(event) => onLink(kind, event.target.checked)}
+            />
+            {t(kind === 'header' ? 'document.pageSetup.linkHeader' : 'document.pageSetup.linkFooter')}
+          </label>
+        ))}
+
+      <label className="popover__check">
+        <input
+          type="checkbox"
+          checked={usesTitlePage(draft)}
+          onChange={(event) => setDraft({ ...draft, titlePage: event.target.checked })}
+        />
+        {t('document.pageSetup.titlePage')}
+      </label>
+      <label className="popover__check">
+        <input
+          type="checkbox"
+          checked={usesEvenAndOdd(draft)}
+          onChange={(event) => setDraft({ ...draft, evenAndOddHeaders: event.target.checked })}
+        />
+        {t('document.pageSetup.evenAndOdd')}
+      </label>
+
+      {/* O Chromium recorta o excedente da margem: apertada, as faixas somem. */}
+      {needsRoomWarning && (
+        <p className="popover__error">
+          {t('document.pageSetup.marginWarning', { min: MIN_MARGIN_FOR_HEADER_MM })}
+        </p>
+      )}
+    </>
+  )
+}
+
+function PageSummary({ draft, valid }: { draft: PageSetup; valid: boolean }): React.JSX.Element {
+  const t = useT()
+  const { width, height } = pageDimensionsMm(draft)
+  return (
+    <p className={valid ? 'popover__hint' : 'popover__error'}>
+      {valid
+        ? t('document.pageSetup.pageSummary', {
+            width,
+            height,
+            contentWidth: contentWidthMm(draft).toFixed(0),
+          })
+        : t('document.pageSetup.marginsError')}
+    </p>
   )
 }

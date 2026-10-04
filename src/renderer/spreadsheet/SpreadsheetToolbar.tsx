@@ -33,139 +33,165 @@ const ALL_SIDES: readonly BorderSide[] = ['top', 'right', 'bottom', 'left']
  * Age sobre a **seleção**. O botão acende quando *toda* a seleção tem o estilo,
  * a mesma regra do clique; os controles são os da barra do documento.
  */
-export function SpreadsheetToolbar({
-  sheet,
-  range,
-  onChange,
-}: {
-  sheet: Sheet
-  range: Range
-  onChange: (sheet: Sheet) => void
-}): React.JSX.Element {
+export function SpreadsheetToolbar(props: ToolbarGroupProps): React.JSX.Element {
   const t = useT()
-  const style = styleOfSelection(sheet, range)
-
-  const toggle = (key: 'bold' | 'italic' | 'underline') => () => onChange(toggleStyle(sheet, range, key))
-  const set = (change: Partial<CellStyle>) => () => onChange(applyStyle(sheet, range, change))
-
   return (
     <div className="toolbar" role="toolbar" aria-label={t('spreadsheet.toolbar.label')}>
       {/* A referência da seleção mora na barra de fórmulas, como no Excel. */}
-      <ToolbarGroup label={t('spreadsheet.toolbar.textFormat')}>
-        <ToolbarButton
-          icon="bold"
-          label={t('spreadsheet.toolbar.bold')}
-          shortcut="Ctrl+B"
-          active={style.bold === true}
-          onClick={toggle('bold')}
-        />
-        <ToolbarButton
-          icon="italic"
-          label={t('spreadsheet.toolbar.italic')}
-          shortcut="Ctrl+I"
-          active={style.italic === true}
-          onClick={toggle('italic')}
-        />
-        <ToolbarButton
-          icon="underline"
-          label={t('spreadsheet.toolbar.underline')}
-          shortcut="Ctrl+U"
-          active={style.underline === true}
-          onClick={toggle('underline')}
-        />
-        <ColorControl
-          icon="text-color"
-          label={t('spreadsheet.toolbar.textColor')}
-          value={style.color ?? '#000000'}
-          onChange={(value) => onChange(applyStyle(sheet, range, { color: value }))}
-          onClear={() => onChange(applyStyle(sheet, range, { color: undefined }))}
-        />
-        <ColorControl
-          icon="fill-color"
-          label={t('spreadsheet.toolbar.fillColor')}
-          value={style.background ?? '#ffffff'}
-          onChange={(value) => onChange(applyStyle(sheet, range, { background: value }))}
-          onClear={() => onChange(applyStyle(sheet, range, { background: undefined }))}
-        />
-      </ToolbarGroup>
-
+      <TextFormatGroup {...props} />
       <ToolbarSeparator />
-
-      <ToolbarGroup label={t('spreadsheet.toolbar.alignment')}>
-        <ToolbarButton
-          icon="align-left"
-          label={t('spreadsheet.toolbar.alignLeft')}
-          active={style.align === 'left'}
-          onClick={set({ align: 'left' })}
-        />
-        <ToolbarButton
-          icon="align-center"
-          label={t('spreadsheet.toolbar.alignCenter')}
-          active={style.align === 'center'}
-          onClick={set({ align: 'center' })}
-        />
-        <ToolbarButton
-          icon="align-right"
-          label={t('spreadsheet.toolbar.alignRight')}
-          active={style.align === 'right'}
-          onClick={set({ align: 'right' })}
-        />
-      </ToolbarGroup>
-
+      <AlignmentGroup {...props} />
       <ToolbarSeparator />
-
-      <ToolbarGroup label={t('spreadsheet.toolbar.numberGroup')}>
-        <ToolbarSelect
-          label={t('spreadsheet.toolbar.numberFormat')}
-          value={style.format ?? CellFormat.General}
-          options={numberFormats(t)}
-          onChange={(value) => onChange(applyStyle(sheet, range, { format: value }))}
-          width={124}
-        />
-        <ToolbarButton
-          icon="decimal-less"
-          label={t('spreadsheet.toolbar.decreaseDecimals')}
-          onClick={set({ decimals: Math.max(0, (style.decimals ?? 2) - 1) })}
-        />
-        <ToolbarButton
-          icon="decimal-more"
-          label={t('spreadsheet.toolbar.increaseDecimals')}
-          onClick={set({ decimals: Math.min(10, (style.decimals ?? 0) + 1) })}
-        />
-      </ToolbarGroup>
-
+      <NumberGroup {...props} />
       <ToolbarSeparator />
-
-      <ToolbarGroup label={t('spreadsheet.toolbar.borders')}>
-        <ToolbarButton
-          icon="borders-all"
-          label={t('spreadsheet.toolbar.allBorders')}
-          onClick={() => onChange(applyBorders(sheet, range, ALL_SIDES))}
-        />
-        <ToolbarButton
-          icon="borders-none"
-          label={t('spreadsheet.toolbar.noBorders')}
-          onClick={() => onChange(applyBorders(sheet, range, []))}
-        />
-      </ToolbarGroup>
-
+      <BorderGroup {...props} />
       <ToolbarSeparator />
-
-      <ToolbarGroup label={t('spreadsheet.toolbar.panes')}>
-        {/* Tudo acima e à esquerda da seleção fica preso, como no Excel. */}
-        <ToolbarButton
-          icon="freeze"
-          label={t('spreadsheet.toolbar.freeze')}
-          onClick={() => onChange({ ...sheet, frozenRows: range.fromRow, frozenColumns: range.fromColumn })}
-        />
-        <ToolbarButton
-          icon="unfreeze"
-          label={t('spreadsheet.toolbar.unfreeze')}
-          disabled={sheet.frozenRows === 0 && sheet.frozenColumns === 0}
-          onClick={() => onChange({ ...sheet, frozenRows: 0, frozenColumns: 0 })}
-        />
-      </ToolbarGroup>
+      <PaneGroup {...props} />
     </div>
+  )
+}
+
+interface ToolbarGroupProps {
+  readonly sheet: Sheet
+  readonly range: Range
+  readonly onChange: (sheet: Sheet) => void
+}
+
+function TextFormatGroup({ sheet, range, onChange }: ToolbarGroupProps): React.JSX.Element {
+  const t = useT()
+  const style = styleOfSelection(sheet, range)
+  const toggle = (key: 'bold' | 'italic' | 'underline') => () => onChange(toggleStyle(sheet, range, key))
+  return (
+    <ToolbarGroup label={t('spreadsheet.toolbar.textFormat')}>
+      <ToolbarButton
+        icon="bold"
+        label={t('spreadsheet.toolbar.bold')}
+        shortcut="Ctrl+B"
+        active={style.bold === true}
+        onClick={toggle('bold')}
+      />
+      <ToolbarButton
+        icon="italic"
+        label={t('spreadsheet.toolbar.italic')}
+        shortcut="Ctrl+I"
+        active={style.italic === true}
+        onClick={toggle('italic')}
+      />
+      <ToolbarButton
+        icon="underline"
+        label={t('spreadsheet.toolbar.underline')}
+        shortcut="Ctrl+U"
+        active={style.underline === true}
+        onClick={toggle('underline')}
+      />
+      <ColorControl
+        icon="text-color"
+        label={t('spreadsheet.toolbar.textColor')}
+        value={style.color ?? '#000000'}
+        onChange={(value) => onChange(applyStyle(sheet, range, { color: value }))}
+        onClear={() => onChange(applyStyle(sheet, range, { color: undefined }))}
+      />
+      <ColorControl
+        icon="fill-color"
+        label={t('spreadsheet.toolbar.fillColor')}
+        value={style.background ?? '#ffffff'}
+        onChange={(value) => onChange(applyStyle(sheet, range, { background: value }))}
+        onClear={() => onChange(applyStyle(sheet, range, { background: undefined }))}
+      />
+    </ToolbarGroup>
+  )
+}
+
+function AlignmentGroup({ sheet, range, onChange }: ToolbarGroupProps): React.JSX.Element {
+  const t = useT()
+  const style = styleOfSelection(sheet, range)
+  const set = (change: Partial<CellStyle>) => () => onChange(applyStyle(sheet, range, change))
+  return (
+    <ToolbarGroup label={t('spreadsheet.toolbar.alignment')}>
+      <ToolbarButton
+        icon="align-left"
+        label={t('spreadsheet.toolbar.alignLeft')}
+        active={style.align === 'left'}
+        onClick={set({ align: 'left' })}
+      />
+      <ToolbarButton
+        icon="align-center"
+        label={t('spreadsheet.toolbar.alignCenter')}
+        active={style.align === 'center'}
+        onClick={set({ align: 'center' })}
+      />
+      <ToolbarButton
+        icon="align-right"
+        label={t('spreadsheet.toolbar.alignRight')}
+        active={style.align === 'right'}
+        onClick={set({ align: 'right' })}
+      />
+    </ToolbarGroup>
+  )
+}
+
+function NumberGroup({ sheet, range, onChange }: ToolbarGroupProps): React.JSX.Element {
+  const t = useT()
+  const style = styleOfSelection(sheet, range)
+  const set = (change: Partial<CellStyle>) => () => onChange(applyStyle(sheet, range, change))
+  return (
+    <ToolbarGroup label={t('spreadsheet.toolbar.numberGroup')}>
+      <ToolbarSelect
+        label={t('spreadsheet.toolbar.numberFormat')}
+        value={style.format ?? CellFormat.General}
+        options={numberFormats(t)}
+        onChange={(value) => onChange(applyStyle(sheet, range, { format: value }))}
+        width={124}
+      />
+      <ToolbarButton
+        icon="decimal-less"
+        label={t('spreadsheet.toolbar.decreaseDecimals')}
+        onClick={set({ decimals: Math.max(0, (style.decimals ?? 2) - 1) })}
+      />
+      <ToolbarButton
+        icon="decimal-more"
+        label={t('spreadsheet.toolbar.increaseDecimals')}
+        onClick={set({ decimals: Math.min(10, (style.decimals ?? 0) + 1) })}
+      />
+    </ToolbarGroup>
+  )
+}
+
+function BorderGroup({ sheet, range, onChange }: ToolbarGroupProps): React.JSX.Element {
+  const t = useT()
+  return (
+    <ToolbarGroup label={t('spreadsheet.toolbar.borders')}>
+      <ToolbarButton
+        icon="borders-all"
+        label={t('spreadsheet.toolbar.allBorders')}
+        onClick={() => onChange(applyBorders(sheet, range, ALL_SIDES))}
+      />
+      <ToolbarButton
+        icon="borders-none"
+        label={t('spreadsheet.toolbar.noBorders')}
+        onClick={() => onChange(applyBorders(sheet, range, []))}
+      />
+    </ToolbarGroup>
+  )
+}
+
+function PaneGroup({ sheet, range, onChange }: ToolbarGroupProps): React.JSX.Element {
+  const t = useT()
+  return (
+    <ToolbarGroup label={t('spreadsheet.toolbar.panes')}>
+      {/* Tudo acima e à esquerda da seleção fica preso, como no Excel. */}
+      <ToolbarButton
+        icon="freeze"
+        label={t('spreadsheet.toolbar.freeze')}
+        onClick={() => onChange({ ...sheet, frozenRows: range.fromRow, frozenColumns: range.fromColumn })}
+      />
+      <ToolbarButton
+        icon="unfreeze"
+        label={t('spreadsheet.toolbar.unfreeze')}
+        disabled={sheet.frozenRows === 0 && sheet.frozenColumns === 0}
+        onClick={() => onChange({ ...sheet, frozenRows: 0, frozenColumns: 0 })}
+      />
+    </ToolbarGroup>
   )
 }
 

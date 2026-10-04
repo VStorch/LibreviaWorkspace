@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { Editor } from '@tiptap/react'
 import { MAX_TABLE_COLUMNS, MAX_TABLE_ROWS, isValidTableSize } from '@services/document/table-format.js'
+import { DialogActions } from '../../components/DialogActions.js'
 import { useT } from '../../i18n.js'
 
 export function TableDialog({
@@ -16,7 +17,6 @@ export function TableDialog({
   const [headerRow, setHeaderRow] = useState(true)
 
   const valid = isValidTableSize(rows, columns)
-  const keepFocus = (event: React.MouseEvent): void => event.preventDefault()
 
   function insert(): void {
     if (!valid) return
@@ -76,21 +76,13 @@ export function TableDialog({
           : t('document.tableDialog.hintInvalid', { maxRows: MAX_TABLE_ROWS, maxCols: MAX_TABLE_COLUMNS })}
       </p>
 
-      <div className="popover__actions">
-        <span className="popover__spacer" />
-        <button type="button" className="btn" onMouseDown={keepFocus} onClick={onClose}>
-          {t('document.common.cancel')}
-        </button>
-        <button
-          type="button"
-          className="btn btn--primary"
-          onMouseDown={keepFocus}
-          onClick={insert}
-          disabled={!valid}
-        >
-          {t('document.tableDialog.insert')}
-        </button>
-      </div>
+      <DialogActions
+        confirmLabel={t('document.tableDialog.insert')}
+        onConfirm={insert}
+        onCancel={onClose}
+        disabled={!valid}
+        keepEditorFocus
+      />
     </div>
   )
 }

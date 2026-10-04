@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { MenuCommand } from '@shared/types.js'
 import { buildWindowTitle } from '@services/file/formats.js'
+import type { WorkbookModel } from '@services/spreadsheet/model.js'
 import { ErrorBanner } from '../components/ErrorBanner.js'
 import { InventoryBanner } from '../components/InventoryBanner.js'
 import { ReadOnlyBanner } from '../components/ReadOnlyBanner.js'
@@ -32,59 +33,37 @@ async function runMenuCommand(command: MenuCommand, path: string | undefined): P
   const revisionView = revisionViewOfCommand(command)
   if (revisionView !== null) return setRevisionView(revisionView)
 
-  switch (command) {
-    case MenuCommand.NewDocument:
-      return workspace.newDocument()
-    case MenuCommand.NewFromTemplate:
-      return workspace.setTemplateGallery(true)
-    case MenuCommand.Open:
-      return workspace.openViaDialog()
-    case MenuCommand.OpenRecent:
-      if (path !== undefined) await workspace.openRecent(path)
-      return
-    case MenuCommand.ClearRecent:
-      return workspace.clearRecents()
-    case MenuCommand.Save:
-      await workspace.save()
-      return
-    case MenuCommand.SaveAs:
-      await workspace.saveAs()
-      return
-    case MenuCommand.CloseFile:
-      return workspace.closeFile()
-    case MenuCommand.SaveAndExit: {
-      // Só fecha se a gravação der certo.
-      if (await workspace.save()) await window.api.window.close({})
-      return
-    }
+  await MENU_ACTIONS[command]?.(workspace, path)
+}
 
-    case MenuCommand.ExportPdf:
-      await workspace.exportPdf()
-      return
-    case MenuCommand.ExportHtml:
-      await workspace.exportDocument('html')
-      return
-    case MenuCommand.ExportMarkdown:
-      await workspace.exportDocument('markdown')
-      return
-    case MenuCommand.ExportOdt:
-      await workspace.exportDocument('odt')
-      return
-    case MenuCommand.Print:
-      await workspace.print()
-      return
-    case MenuCommand.PrintPreview:
-      return workspace.printPreview()
+type Workspace = ReturnType<typeof useWorkspace.getState>
+type MenuAction = (workspace: Workspace, path: string | undefined) => Promise<unknown> | unknown
 
-    case MenuCommand.ZoomIn:
-    case MenuCommand.ZoomOut:
-    case MenuCommand.ZoomReset:
-    case MenuCommand.ZoomFitWidth:
-      return runZoomCommand(command)
-
-    case MenuCommand.NewSpreadsheet:
-      return useWorkspace.getState().newSpreadsheet()
-  }
+const MENU_ACTIONS: Partial<Record<MenuCommand, MenuAction>> = {
+  [MenuCommand.NewDocument]: (workspace) => workspace.newDocument(),
+  [MenuCommand.NewSpreadsheet]: (workspace) => workspace.newSpreadsheet(),
+  [MenuCommand.NewFromTemplate]: (workspace) => workspace.setTemplateGallery(true),
+  [MenuCommand.Open]: (workspace) => workspace.openViaDialog(),
+  [MenuCommand.OpenRecent]: (workspace, path) =>
+    path === undefined ? undefined : workspace.openRecent(path),
+  [MenuCommand.ClearRecent]: (workspace) => workspace.clearRecents(),
+  [MenuCommand.Save]: (workspace) => workspace.save(),
+  [MenuCommand.SaveAs]: (workspace) => workspace.saveAs(),
+  [MenuCommand.CloseFile]: (workspace) => workspace.closeFile(),
+  // Só fecha se a gravação der certo.
+  [MenuCommand.SaveAndExit]: async (workspace) => {
+    if (await workspace.save()) await window.api.window.close({})
+  },
+  [MenuCommand.ExportPdf]: (workspace) => workspace.exportPdf(),
+  [MenuCommand.ExportHtml]: (workspace) => workspace.exportDocument('html'),
+  [MenuCommand.ExportMarkdown]: (workspace) => workspace.exportDocument('markdown'),
+  [MenuCommand.ExportOdt]: (workspace) => workspace.exportDocument('odt'),
+  [MenuCommand.Print]: (workspace) => workspace.print(),
+  [MenuCommand.PrintPreview]: (workspace) => workspace.printPreview(),
+  [MenuCommand.ZoomIn]: () => runZoomCommand(MenuCommand.ZoomIn),
+  [MenuCommand.ZoomOut]: () => runZoomCommand(MenuCommand.ZoomOut),
+  [MenuCommand.ZoomReset]: () => runZoomCommand(MenuCommand.ZoomReset),
+  [MenuCommand.ZoomFitWidth]: () => runZoomCommand(MenuCommand.ZoomFitWidth),
 }
 
 export function App(): React.JSX.Element {
@@ -93,17 +72,41 @@ export function App(): React.JSX.Element {
   // O editor é recarregado a cada documento, sem estado residual.
   const generation = useWorkspace((state) => state.generation)
   const workbook = useWorkspace((state) => state.workbook)
-  const updateSheet = useWorkspace((state) => state.updateSheet)
-  const changeStructure = useWorkspace((state) => state.changeStructure)
-  // Uma ação por seletor: um objeto novo a cada chamada faria o React entrar em laço.
-  const selectSheet = useWorkspace((state) => state.selectSheet)
-  const addSheet = useWorkspace((state) => state.addSheet)
-  const renameSheet = useWorkspace((state) => state.renameSheet)
-  const removeSheet = useWorkspace((state) => state.removeSheet)
-  const readOnly = useWorkspace((state) => state.readOnly)
   const reading = useReadingMode()
   const showStatusBar = usePreferences((state) => state.preferences.showStatusBar)
 
+  useWorkspaceLifecycle()
+  useWindowStateSync()
+
+  // Azul de documento, verde de planilha: ver `--accent` no CSS.
+  return (
+    <div
+      className={['app', workbook === null ? '' : 'app--spreadsheet', reading ? 'app--reading' : '']
+        .filter((name) => name !== '')
+        .join(' ')}
+    >
+      <ErrorBanner />
+      <RecoveryBanner />
+      <ReadOnlyBanner />
+      <InventoryBanner />
+      <div className="app__body">
+        {workbook !== null ? (
+          <WorkbookView workbook={workbook} generation={generation} />
+        ) : hasFile ? (
+          <DocumentEditor key={generation} />
+        ) : (
+          <HomePage />
+        )}
+      </div>
+      {/* Contagem de palavras e número de páginas são ferramentas de quem escreve. */}
+      {hasFile && !reading && showStatusBar && <StatusBar />}
+      {templateGallery && <TemplateGallery />}
+    </div>
+  )
+}
+
+/** Recentes, recuperação, preferências, tema, autosave e o menu do main. */
+function useWorkspaceLifecycle(): void {
   useEffect(() => {
     void useWorkspace.getState().refreshRecents()
     void useWorkspace.getState().checkRecovery()
@@ -132,7 +135,10 @@ export function App(): React.JSX.Element {
     void window.api.window.ready({})
     return unsubscribe
   }, [])
+}
 
+/** O título da janela e o estado que o menu do main mostra. */
+function useWindowStateSync(): void {
   useEffect(() => {
     // Só quando o título ou o "não salvo" mudam, e não a cada tecla.
     let lastTitle = ''
@@ -171,45 +177,39 @@ export function App(): React.JSX.Element {
       unsubscribe()
     }
   }, [])
+}
 
-  // Azul de documento, verde de planilha: ver `--accent` no CSS.
+function WorkbookView({
+  workbook,
+  generation,
+}: {
+  workbook: WorkbookModel
+  generation: number
+}): React.JSX.Element {
+  const updateSheet = useWorkspace((state) => state.updateSheet)
+  const changeStructure = useWorkspace((state) => state.changeStructure)
+  // Uma ação por seletor: um objeto novo a cada chamada faria o React entrar em laço.
+  const selectSheet = useWorkspace((state) => state.selectSheet)
+  const addSheet = useWorkspace((state) => state.addSheet)
+  const renameSheet = useWorkspace((state) => state.renameSheet)
+  const removeSheet = useWorkspace((state) => state.removeSheet)
+  const readOnly = useWorkspace((state) => state.readOnly)
   return (
-    <div
-      className={['app', workbook === null ? '' : 'app--spreadsheet', reading ? 'app--reading' : '']
-        .filter((name) => name !== '')
-        .join(' ')}
-    >
-      <ErrorBanner />
-      <RecoveryBanner />
-      <ReadOnlyBanner />
-      <InventoryBanner />
-      <div className="app__body">
-        {workbook !== null ? (
-          <div className="workbook">
-            <SpreadsheetEditor
-              key={`${generation}-${workbook.activeSheet}`}
-              sheet={workbook.sheets[workbook.activeSheet]!}
-              onChange={updateSheet}
-              onStructure={changeStructure}
-              readOnly={readOnly}
-            />
-            <SheetTabs
-              workbook={workbook}
-              onSelect={selectSheet}
-              onAdd={addSheet}
-              onRename={renameSheet}
-              onRemove={removeSheet}
-            />
-          </div>
-        ) : hasFile ? (
-          <DocumentEditor key={generation} />
-        ) : (
-          <HomePage />
-        )}
-      </div>
-      {/* Contagem de palavras e número de páginas são ferramentas de quem escreve. */}
-      {hasFile && !reading && showStatusBar && <StatusBar />}
-      {templateGallery && <TemplateGallery />}
+    <div className="workbook">
+      <SpreadsheetEditor
+        key={`${generation}-${workbook.activeSheet}`}
+        sheet={workbook.sheets[workbook.activeSheet]!}
+        onChange={updateSheet}
+        onStructure={changeStructure}
+        readOnly={readOnly}
+      />
+      <SheetTabs
+        workbook={workbook}
+        onSelect={selectSheet}
+        onAdd={addSheet}
+        onRename={renameSheet}
+        onRemove={removeSheet}
+      />
     </div>
   )
 }

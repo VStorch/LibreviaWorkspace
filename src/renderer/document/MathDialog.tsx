@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from 'react'
 import type { Editor } from '@tiptap/react'
 import { latexToMathMl } from '@services/document/latex.js'
 import { mathMlToLatex } from '@services/document/mathml-latex.js'
@@ -28,57 +28,13 @@ export function MathDialog({
   const t = useT()
 
   // Lido uma vez, ao abrir.
-  const [initial] = useState(() => {
-    if (target.kind === 'insert') {
-      return {
-        latex: '',
-        display: target.display,
-        lossy: [] as string[],
-        locked: false,
-        mathml: null as MathElement | null,
-      }
-    }
-    const node = editor.state.doc.nodeAt(target.pos)
-    const lossy = (node?.attrs['lossy'] as string[] | undefined) ?? []
-    const tree = sanitizeMathMl(String(node?.attrs['mathml'] ?? ''))
-    const stored = String(node?.attrs['latex'] ?? '')
-    return {
-      latex: stored !== '' ? stored : tree === null ? '' : mathMlToLatex(tree),
-      display: node?.attrs['display'] === true,
-      lossy,
-      locked: node?.attrs['editable'] === false || lossy.length > 0,
-      mathml: tree,
-    }
-  })
-
-  const [latex, setLatex] = useState(initial.latex)
-  const [display, setDisplay] = useState(initial.display)
-  const textarea = useRef<HTMLTextAreaElement>(null)
-  const preview = useRef<HTMLDivElement>(null)
-  const pendingCaret = useRef<number | null>(null)
+  const [initial] = useState(() => initialEquation(editor, target))
 
   const viewOnly = readOnly || initial.locked
+  const { latex, setLatex, textarea, insertTemplate } = useEquationSource(initial.latex, viewOnly)
+  const [display, setDisplay] = useState(initial.display)
   const result = useMemo(() => (latex.trim() === '' ? null : latexToMathMl(latex, display)), [latex, display])
   const shown = initial.locked ? initial.mathml : result?.ok === true ? result.tree : null
-
-  // Nó a nó, como no documento: nada de innerHTML.
-  useLayoutEffect(() => {
-    const host = preview.current
-    if (host === null) return
-    host.replaceChildren(...(shown === null ? [] : [buildMath(shown, document)]))
-  }, [shown])
-
-  useLayoutEffect(() => {
-    const caret = pendingCaret.current
-    if (caret === null || textarea.current === null) return
-    pendingCaret.current = null
-    textarea.current.focus()
-    textarea.current.setSelectionRange(caret, caret)
-  }, [latex])
-
-  useEffect(() => {
-    if (!viewOnly) textarea.current?.focus()
-  }, [viewOnly])
 
   function close(): void {
     onClose()
@@ -95,14 +51,6 @@ export function MathDialog({
       else replaceEquation(editor, target.pos, content)
     }
     close()
-  }
-
-  function insertTemplate(template: MathTemplate): void {
-    const area = textarea.current
-    const start = area?.selectionStart ?? latex.length
-    const end = area?.selectionEnd ?? latex.length
-    pendingCaret.current = start + template.caret
-    setLatex(latex.slice(0, start) + template.latex + latex.slice(end))
   }
 
   const error = result !== null && !result.ok ? result.error : null
@@ -122,12 +70,7 @@ export function MathDialog({
         }
       }}
     >
-      {initial.locked && (
-        <p className="popover__hint">
-          {t('document.math.dialog.locked', { constructs: initial.lossy.join(', ') })}
-        </p>
-      )}
-      {readOnly && !initial.locked && <p className="popover__hint">{t('document.math.dialog.readOnly')}</p>}
+      <EquationNotice locked={initial.locked} lossy={initial.lossy} readOnly={readOnly} />
 
       {!initial.locked && (
         <label className="popover__field">
@@ -144,6 +87,195 @@ export function MathDialog({
         </label>
       )}
 
+      <EquationPreview shown={shown} error={error} />
+
+      {!viewOnly && <EquationTools display={display} onDisplay={setDisplay} onInsert={insertTemplate} />}
+
+      <EquationActions
+        viewOnly={viewOnly}
+        canCommit={result !== null && result.ok}
+        onClose={close}
+        onCommit={commit}
+      />
+    </div>
+  )
+}
+
+interface InitialEquation {
+  readonly latex: string
+  readonly display: boolean
+  readonly lossy: readonly string[]
+  readonly locked: boolean
+  readonly mathml: MathElement | null
+}
+
+function initialEquation(editor: Editor, target: EquationTarget): InitialEquation {
+  if (target.kind === 'insert') {
+    return {
+      latex: '',
+      display: target.display,
+      lossy: [] as string[],
+      locked: false,
+      mathml: null as MathElement | null,
+    }
+  }
+  const node = editor.state.doc.nodeAt(target.pos)
+  const lossy = (node?.attrs['lossy'] as string[] | undefined) ?? []
+  const tree = sanitizeMathMl(String(node?.attrs['mathml'] ?? ''))
+  const stored = String(node?.attrs['latex'] ?? '')
+  return {
+    latex: stored !== '' ? stored : tree === null ? '' : mathMlToLatex(tree),
+    display: node?.attrs['display'] === true,
+    lossy,
+    locked: node?.attrs['editable'] === false || lossy.length > 0,
+    mathml: tree,
+  }
+}
+
+/** Nó a nó, como no documento: nada de innerHTML. */
+function useMathPreview(shown: MathElement | null): RefObject<HTMLDivElement | null> {
+  const preview = useRef<HTMLDivElement>(null)
+  useLayoutEffect(() => {
+    const host = preview.current
+    if (host === null) return
+    host.replaceChildren(...(shown === null ? [] : [buildMath(shown, document)]))
+  }, [shown])
+  return preview
+}
+
+interface EquationSource {
+  readonly latex: string
+  readonly setLatex: (latex: string) => void
+  readonly textarea: RefObject<HTMLTextAreaElement | null>
+  /** O modelo entra na seleção, e o cursor fica onde se escreve em seguida. */
+  readonly insertTemplate: (template: MathTemplate) => void
+}
+
+function useEquationSource(initial: string, viewOnly: boolean): EquationSource {
+  const [latex, setLatex] = useState(initial)
+  const textarea = useRef<HTMLTextAreaElement>(null)
+  const pendingCaret = useRef<number | null>(null)
+
+  useLayoutEffect(() => {
+    const caret = pendingCaret.current
+    if (caret === null || textarea.current === null) return
+    pendingCaret.current = null
+    textarea.current.focus()
+    textarea.current.setSelectionRange(caret, caret)
+  }, [latex])
+
+  useEffect(() => {
+    if (!viewOnly) textarea.current?.focus()
+  }, [viewOnly])
+
+  function insertTemplate(template: MathTemplate): void {
+    const area = textarea.current
+    const start = area?.selectionStart ?? latex.length
+    const end = area?.selectionEnd ?? latex.length
+    pendingCaret.current = start + template.caret
+    setLatex(latex.slice(0, start) + template.latex + latex.slice(end))
+  }
+
+  return { latex, setLatex, textarea, insertTemplate }
+}
+
+function MathPalette({ onInsert }: { onInsert: (template: MathTemplate) => void }): React.JSX.Element {
+  const t = useT()
+  return (
+    <div className="chars equation__palette" aria-label={t('document.math.dialog.palette')} role="group">
+      {MATH_PALETTE.map((group) => {
+        const groupLabel = t(group.labelKey)
+        return (
+          <section key={group.labelKey} className="chars__group">
+            <h3 className="chars__label">{groupLabel}</h3>
+            <div className="chars__grid equation__grid" role="group" aria-label={groupLabel}>
+              {group.templates.map((template) => {
+                const name = t(template.nameKey)
+                return (
+                  <button
+                    key={template.latex}
+                    type="button"
+                    className="chars__char equation__template"
+                    aria-label={name}
+                    title={`${name} — ${template.latex.trim()}`}
+                    onClick={() => onInsert(template)}
+                  >
+                    {template.label}
+                  </button>
+                )
+              })}
+            </div>
+          </section>
+        )
+      })}
+    </div>
+  )
+}
+
+function EquationActions({
+  viewOnly,
+  canCommit,
+  onClose,
+  onCommit,
+}: {
+  viewOnly: boolean
+  canCommit: boolean
+  onClose: () => void
+  onCommit: () => void
+}): React.JSX.Element {
+  const t = useT()
+  return (
+    <div className="popover__actions">
+      <span className="popover__spacer" />
+      {viewOnly ? (
+        <button type="button" className="btn btn--primary" onClick={onClose}>
+          {t('document.common.close')}
+        </button>
+      ) : (
+        <>
+          <button type="button" className="btn" onClick={onClose}>
+            {t('document.common.cancel')}
+          </button>
+          <button type="button" className="btn btn--primary" disabled={!canCommit} onClick={onCommit}>
+            {t('document.math.dialog.ok')}
+          </button>
+        </>
+      )}
+    </div>
+  )
+}
+
+function EquationNotice({
+  locked,
+  lossy,
+  readOnly,
+}: {
+  locked: boolean
+  lossy: readonly string[]
+  readOnly: boolean
+}): React.JSX.Element {
+  const t = useT()
+  return (
+    <>
+      {locked && (
+        <p className="popover__hint">{t('document.math.dialog.locked', { constructs: lossy.join(', ') })}</p>
+      )}
+      {readOnly && !locked && <p className="popover__hint">{t('document.math.dialog.readOnly')}</p>}
+    </>
+  )
+}
+
+function EquationPreview({
+  shown,
+  error,
+}: {
+  shown: MathElement | null
+  error: string | null
+}): React.JSX.Element {
+  const t = useT()
+  const preview = useMathPreview(shown)
+  return (
+    <>
       <div className="equation__preview" aria-label={t('document.math.dialog.preview')} role="img">
         <div ref={preview} />
         {shown === null && error === null && (
@@ -155,70 +287,28 @@ export function MathDialog({
           {t('document.math.dialog.error', { message: error })}
         </p>
       )}
+    </>
+  )
+}
 
-      {!viewOnly && (
-        <>
-          <label className="popover__check">
-            <input type="checkbox" checked={display} onChange={(event) => setDisplay(event.target.checked)} />
-            {t('document.math.dialog.display')}
-          </label>
+function EquationTools({
+  display,
+  onDisplay,
+  onInsert,
+}: {
+  display: boolean
+  onDisplay: (display: boolean) => void
+  onInsert: (template: MathTemplate) => void
+}): React.JSX.Element {
+  const t = useT()
+  return (
+    <>
+      <label className="popover__check">
+        <input type="checkbox" checked={display} onChange={(event) => onDisplay(event.target.checked)} />
+        {t('document.math.dialog.display')}
+      </label>
 
-          <div
-            className="chars equation__palette"
-            aria-label={t('document.math.dialog.palette')}
-            role="group"
-          >
-            {MATH_PALETTE.map((group) => {
-              const groupLabel = t(group.labelKey)
-              return (
-                <section key={group.labelKey} className="chars__group">
-                  <h3 className="chars__label">{groupLabel}</h3>
-                  <div className="chars__grid equation__grid" role="group" aria-label={groupLabel}>
-                    {group.templates.map((template) => {
-                      const name = t(template.nameKey)
-                      return (
-                        <button
-                          key={template.latex}
-                          type="button"
-                          className="chars__char equation__template"
-                          aria-label={name}
-                          title={`${name} — ${template.latex.trim()}`}
-                          onClick={() => insertTemplate(template)}
-                        >
-                          {template.label}
-                        </button>
-                      )
-                    })}
-                  </div>
-                </section>
-              )
-            })}
-          </div>
-        </>
-      )}
-
-      <div className="popover__actions">
-        <span className="popover__spacer" />
-        {viewOnly ? (
-          <button type="button" className="btn btn--primary" onClick={close}>
-            {t('document.common.close')}
-          </button>
-        ) : (
-          <>
-            <button type="button" className="btn" onClick={close}>
-              {t('document.common.cancel')}
-            </button>
-            <button
-              type="button"
-              className="btn btn--primary"
-              disabled={result === null || !result.ok}
-              onClick={commit}
-            >
-              {t('document.math.dialog.ok')}
-            </button>
-          </>
-        )}
-      </div>
-    </div>
+      <MathPalette onInsert={onInsert} />
+    </>
   )
 }

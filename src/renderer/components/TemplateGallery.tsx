@@ -13,28 +13,7 @@ export function TemplateGallery(): React.JSX.Element {
   const t = useT()
   const close = useWorkspace((state) => state.setTemplateGallery)
   const newFromTemplate = useWorkspace((state) => state.newFromTemplate)
-  const showError = useWorkspace((state) => state.showError)
-  const [listing, setListing] = useState<Listing | null>(null)
-  const [selected, setSelected] = useState<TemplateEntry | null>(null)
-
-  useEffect(() => {
-    let alive = true
-    void window.api.template.list({}).then(
-      (result) => {
-        if (!alive) return
-        if (!result.ok) {
-          showError(result.error)
-          return
-        }
-        setListing(result.data)
-        setSelected(result.data.builtin[0] ?? null)
-      },
-      () => undefined,
-    )
-    return () => {
-      alive = false
-    }
-  }, [showError])
+  const { listing, selected, setSelected } = useTemplateListing()
 
   async function create(template: TemplateEntry | null): Promise<void> {
     // Fecha antes: o aviso e o diálogo de procurar ficam por cima.
@@ -42,24 +21,15 @@ export function TemplateGallery(): React.JSX.Element {
     await newFromTemplate(template === null ? null : { source: template.source, id: template.id })
   }
 
-  function item(entry: TemplateEntry): React.JSX.Element {
-    const active = selected?.source === entry.source && selected.id === entry.id
-    return (
-      <li key={`${entry.source}:${entry.id}`}>
-        <button
-          type="button"
-          role="option"
-          aria-selected={active}
-          className={active ? 'templates__item templates__item--active' : 'templates__item'}
-          onClick={() => setSelected(entry)}
-          onDoubleClick={() => void create(entry)}
-        >
-          <span className="templates__name">{entry.name}</span>
-          <span className="templates__description">{entry.description}</span>
-        </button>
-      </li>
-    )
-  }
+  const item = (entry: TemplateEntry): React.JSX.Element => (
+    <TemplateItem
+      key={`${entry.source}:${entry.id}`}
+      entry={entry}
+      active={selected?.source === entry.source && selected.id === entry.id}
+      onSelect={() => setSelected(entry)}
+      onCreate={() => void create(entry)}
+    />
+  )
 
   return (
     <div className="templates__backdrop">
@@ -120,5 +90,64 @@ export function TemplateGallery(): React.JSX.Element {
         </div>
       </div>
     </div>
+  )
+}
+
+function useTemplateListing(): {
+  listing: Listing | null
+  selected: TemplateEntry | null
+  setSelected: (entry: TemplateEntry) => void
+} {
+  const showError = useWorkspace((state) => state.showError)
+  const [listing, setListing] = useState<Listing | null>(null)
+  const [selected, setSelected] = useState<TemplateEntry | null>(null)
+
+  useEffect(() => {
+    let alive = true
+    void window.api.template.list({}).then(
+      (result) => {
+        if (!alive) return
+        if (!result.ok) {
+          showError(result.error)
+          return
+        }
+        setListing(result.data)
+        setSelected(result.data.builtin[0] ?? null)
+      },
+      () => undefined,
+    )
+    return () => {
+      alive = false
+    }
+  }, [showError])
+
+  return { listing, selected, setSelected }
+}
+
+function TemplateItem({
+  entry,
+  active,
+  onSelect,
+  onCreate,
+}: {
+  entry: TemplateEntry
+  active: boolean
+  onSelect: () => void
+  onCreate: () => void
+}): React.JSX.Element {
+  return (
+    <li>
+      <button
+        type="button"
+        role="option"
+        aria-selected={active}
+        className={active ? 'templates__item templates__item--active' : 'templates__item'}
+        onClick={onSelect}
+        onDoubleClick={onCreate}
+      >
+        <span className="templates__name">{entry.name}</span>
+        <span className="templates__description">{entry.description}</span>
+      </button>
+    </li>
   )
 }

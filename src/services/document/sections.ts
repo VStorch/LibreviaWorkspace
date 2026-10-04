@@ -7,6 +7,10 @@ import {
   type SectionSetup,
   type SectionStart,
 } from './model.js'
+import { INDENT_STEP_MM } from '@services/units.js'
+
+/** Meia polegada, o espaço entre colunas que o Word sugere. */
+export const DEFAULT_COLUMN_SPACING_MM = INDENT_STEP_MM
 
 /**
  * Cada seção guarda só as faixas que **declara**, como o arquivo. A que não
@@ -285,7 +289,7 @@ export interface ColumnGeometry {
 /** Larguras diferentes (`widthsMm`) são desenhadas iguais; o arquivo as mantém e o inventário avisa. */
 export function columnGeometry(section: PageSetup): ColumnGeometry {
   const count = Math.max(1, Math.round(section.columns?.count ?? 1))
-  const spaceMm = count > 1 ? Math.max(0, section.columns?.spaceMm ?? 12.7) : 0
+  const spaceMm = count > 1 ? Math.max(0, section.columns?.spaceMm ?? DEFAULT_COLUMN_SPACING_MM) : 0
   const content = contentWidthMm(section)
   const widthMm = Math.max((content - spaceMm * (count - 1)) / count, 1)
   return {

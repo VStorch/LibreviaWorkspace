@@ -8,6 +8,31 @@ import { PageBand } from './PageBand.js'
 import { NoteAreaView } from './NoteArea.js'
 import type { NoteArea } from './usePagination.js'
 
+export interface PaperSheetProps {
+  readonly page: PageSetup
+  /** A partir de 1. */
+  readonly pageNumber: number
+  readonly totalPages: number
+  readonly topPx: number
+  /** A pilha tem a largura da folha mais larga. */
+  readonly leftPx?: number
+  /** É por ela que a altura das faixas é medida (`useBandHeights`). */
+  readonly section?: number
+  /** Em pixels da folha. */
+  readonly columnLines?: readonly {
+    readonly leftPx: number
+    readonly topPx: number
+    readonly heightPx: number
+  }[]
+  readonly noteAreas?: readonly NoteArea[]
+  readonly floats: readonly PlacedFloat[]
+  readonly schema: Schema
+  /** Ausentes no documento travado: nada recebe o cursor. */
+  readonly onEditFloat?: ((source: FloatSource, content: DocumentNode[]) => void) | undefined
+  readonly onEditBandPiece?: ((pid: string, text: string) => void) | undefined
+  readonly onEditBandBox?: ((bid: string, content: DocumentNode[]) => void) | undefined
+}
+
 /** Fora do `contenteditable`: no papel estas peças moram na margem, sem empurrar o texto. */
 export function PaperSheet({
   page,
@@ -23,26 +48,7 @@ export function PaperSheet({
   onEditFloat,
   onEditBandPiece,
   onEditBandBox,
-}: {
-  page: PageSetup
-  /** A partir de 1. */
-  pageNumber: number
-  totalPages: number
-  topPx: number
-  /** A pilha tem a largura da folha mais larga. */
-  leftPx?: number
-  /** É por ela que a altura das faixas é medida (`useBandHeights`). */
-  section?: number
-  /** Em pixels da folha. */
-  columnLines?: readonly { readonly leftPx: number; readonly topPx: number; readonly heightPx: number }[]
-  noteAreas?: readonly NoteArea[]
-  floats: readonly PlacedFloat[]
-  schema: Schema
-  /** Ausentes no documento travado: nada recebe o cursor. */
-  onEditFloat?: ((source: FloatSource, content: DocumentNode[]) => void) | undefined
-  onEditBandPiece?: ((pid: string, text: string) => void) | undefined
-  onEditBandBox?: ((bid: string, content: DocumentNode[]) => void) | undefined
-}): React.JSX.Element {
+}: PaperSheetProps): React.JSX.Element {
   const { width, height } = pageDimensionsMm(page)
   const bandFloats = bandFloatsOf(page, pageNumber)
   const editFloat = onEditFloat === undefined ? {} : { onEdit: onEditFloat }

@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from 'react'
 import { useEditorState, type Editor } from '@tiptap/react'
 import type { DocumentComment } from '@services/document/model.js'
 import { useLanguage, useT } from '../i18n.js'
@@ -67,28 +67,71 @@ export function CommentsPane({
   readonly leftPx: number
 }): React.JSX.Element {
   const t = useT()
-  const language = useLanguage()
   const readOnly = useWorkspace((state) => state.readOnly)
   const draft = useWorkspace((state) => state.commentDraft)
   const paneRef = useRef<HTMLElement>(null)
   const listRef = useRef<HTMLOListElement>(null)
   const threads = useMemo(() => threadsOf(comments), [comments])
-  const [tops, setTops] = useState<ReadonlyMap<string, number>>(new Map())
   // A conversa em foco mora no realce: o Próximo do menu a escolhe sem passar pelo painel.
   const active = useEditorState({
     editor,
     selector: ({ editor: current }) => commentsKey.getState(current.state)?.active ?? null,
   })
-  const setActive = (cid: string | null): void => {
-    editor.view.dispatch(focusComment(editor.state.tr, { active: cid }))
-  }
   const [composing, setComposing] = useState<Composing | null>(null)
+  useThreadState(editor, draft, threads, setComposing)
+  const tops = useCommentTops(editor, threads, paneRef)
+  useStackedCards(listRef)
 
+  const ordered = useMemo(() => {
+    const anchored = threads.filter((thread) => tops.has(thread.root.id))
+    anchored.sort((left, right) => tops.get(left.root.id)! - tops.get(right.root.id)!)
+    return [...anchored, ...threads.filter((thread) => !tops.has(thread.root.id))]
+  }, [threads, tops])
+
+  const state: CardState = {
+    editor,
+    active,
+    draft,
+    readOnly,
+    composing,
+    setComposing,
+    outside,
+    choose: (cid) => {
+      setComposing(null)
+      if (active === cid) editor.view.dispatch(focusComment(editor.state.tr, { active: null }))
+      else showComment(editor, cid, false)
+    },
+    setActive: (cid) => editor.view.dispatch(focusComment(editor.state.tr, { active: cid })),
+  }
+
+  return (
+    <aside
+      ref={paneRef}
+      className="comments-pane"
+      style={{ left: `${leftPx + COMMENTS_PANE_OFFSET_PX}px` }}
+      aria-label={t('comments.pane.title')}
+    >
+      <ol ref={listRef} className="comments-pane__list">
+        {ordered.map((thread) => (
+          <CommentCard key={thread.root.id} thread={thread} top={tops.get(thread.root.id)} state={state} />
+        ))}
+      </ol>
+    </aside>
+  )
+}
+
+/** O rascunho, o foco e as conversas resolvidas, levados ao realce do editor. */
+function useThreadState(
+  editor: Editor,
+  draft: string | null,
+  threads: readonly Thread[],
+  setComposing: (composing: Composing | null) => void,
+): void {
   useEffect(() => {
     if (draft === null) return
     setComposing(null)
     editor.view.dispatch(focusComment(editor.state.tr, { active: draft }))
-  }, [editor, draft])
+  }, [editor, draft, setComposing])
 
   // O rascunho cujas pontas o desfazer levou não espera mais texto.
   useEffect(() => {
@@ -101,7 +144,15 @@ export function CommentsPane({
     const resolved = new Set(threads.filter((thread) => thread.root.done).map((thread) => thread.root.id))
     editor.view.dispatch(focusComment(editor.state.tr, { resolved }))
   }, [editor, threads])
+}
 
+/** A altura de cada trecho comentado, em pixels do painel. */
+function useCommentTops(
+  editor: Editor,
+  threads: readonly Thread[],
+  paneRef: RefObject<HTMLElement | null>,
+): ReadonlyMap<string, number> {
+  const [tops, setTops] = useState<ReadonlyMap<string, number>>(new Map())
   useEffect(() => {
     const host = paneRef.current?.parentElement
     if (host === null || host === undefined) return
@@ -145,9 +196,12 @@ export function CommentsPane({
       observer.disconnect()
       if (scheduled !== 0) cancelAnimationFrame(scheduled)
     }
-  }, [editor, threads])
+  }, [editor, threads, paneRef])
+  return tops
+}
 
-  // Depois do desenho: a altura de um cartão só existe depois dele.
+/** Depois do desenho: a altura de um cartão só existe depois dele. */
+function useStackedCards(listRef: RefObject<HTMLOListElement | null>): void {
   useLayoutEffect(() => {
     let bottom = 0
     for (const card of Array.from(listRef.current?.children ?? [])) {
@@ -158,31 +212,178 @@ export function CommentsPane({
       bottom = top + card.offsetHeight + GAP_PX
     }
   })
+}
 
-  const ordered = useMemo(() => {
-    const anchored = threads.filter((thread) => tops.has(thread.root.id))
-    anchored.sort((left, right) => tops.get(left.root.id)! - tops.get(right.root.id)!)
-    return [...anchored, ...threads.filter((thread) => !tops.has(thread.root.id))]
-  }, [threads, tops])
+interface CardState {
+  readonly editor: Editor
+  readonly active: string | null
+  readonly draft: string | null
+  readonly readOnly: boolean
+  readonly composing: Composing | null
+  readonly setComposing: (composing: Composing | null) => void
+  readonly outside: ReadonlySet<string>
+  readonly choose: (cid: string) => void
+  readonly setActive: (cid: string | null) => void
+}
 
-  function choose(cid: string): void {
-    setComposing(null)
-    if (active === cid) editor.view.dispatch(focusComment(editor.state.tr, { active: null }))
-    else showComment(editor, cid, false)
-  }
+function CommentCard({
+  thread,
+  top,
+  state,
+}: {
+  thread: Thread
+  top: number | undefined
+  state: CardState
+}): React.JSX.Element {
+  const t = useT()
+  const { root } = thread
+  const isActive = state.active === root.id
+  const isDraft = state.draft === root.id
+  const collapsed = root.done && !isActive
+  return (
+    <li
+      data-y={top ?? ''}
+      data-cid={root.id}
+      className={`comment-card${isActive ? ' comment-card--active' : ''}${root.done ? ' comment-card--done' : ''}`}
+      role="button"
+      tabIndex={0}
+      aria-pressed={isActive}
+      aria-label={t('comments.card.label', { author: root.author || t('comments.card.unknownAuthor') })}
+      onClick={() => {
+        if (!isDraft) state.choose(root.id)
+      }}
+      onKeyDown={(event) => {
+        if (event.target !== event.currentTarget) return
+        if (event.key !== 'Enter' && event.key !== ' ') return
+        event.preventDefault()
+        state.choose(root.id)
+      }}
+    >
+      {collapsed ? (
+        <div className="comment-card__head">
+          <span className="comment-card__author">{root.author || t('comments.card.unknownAuthor')}</span>
+          <span className="comment-card__badge">{t('comments.card.resolved')}</span>
+        </div>
+      ) : isDraft ? (
+        <DraftCard root={root} editor={state.editor} />
+      ) : (
+        <OpenThread thread={thread} state={state} />
+      )}
+      {isActive && !isDraft && !state.readOnly && state.composing === null && (
+        <ThreadActions root={root} state={state} />
+      )}
+    </li>
+  )
+}
 
-  const date = (value: string): string => {
-    const parsed = value === '' ? Number.NaN : Date.parse(value)
-    return Number.isNaN(parsed)
-      ? ''
-      : new Date(parsed).toLocaleString(language, { dateStyle: 'short', timeStyle: 'short' })
-  }
+function DraftCard({ root, editor }: { root: DocumentComment; editor: Editor }): React.JSX.Element {
+  const t = useT()
+  return (
+    <>
+      <div className="comment-card__head">
+        <span className="comment-card__author">{root.author || t('comments.card.unknownAuthor')}</span>
+      </div>
+      <CommentComposer
+        initial=""
+        submitLabel={t('comments.action.post')}
+        placeholder={t('comments.editor.placeholder')}
+        onSubmit={(text) => {
+          if (text.trim() === '') cancelNewComment(editor, root.id)
+          else editComment(root.id, text)
+        }}
+        onCancel={() => cancelNewComment(editor, root.id)}
+      />
+    </>
+  )
+}
 
-  const body = (comment: DocumentComment): React.JSX.Element => (
+function OpenThread({ thread, state }: { thread: Thread; state: CardState }): React.JSX.Element {
+  const t = useT()
+  const { root, replies } = thread
+  const { composing, setComposing } = state
+  const canEditReplies = state.active === root.id && !root.done && !state.readOnly && composing === null
+  return (
+    <>
+      <CommentBody comment={root} state={state} />
+      {root.done && <p className="comment-card__note">{t('comments.card.resolved')}</p>}
+      {state.outside.has(root.id) && <p className="comment-card__note">{t('comments.card.unanchored')}</p>}
+      {replies.length > 0 && (
+        <ol className="comment-card__replies" aria-label={t('comments.card.replies')}>
+          {replies.map((reply) => (
+            <li key={reply.id}>
+              <CommentBody comment={reply} state={state} />
+              {canEditReplies && (
+                <div className="comment-card__actions">
+                  <CardAction
+                    label={t('comments.action.edit')}
+                    run={() => setComposing({ kind: 'edit', id: reply.id })}
+                  />
+                </div>
+              )}
+            </li>
+          ))}
+        </ol>
+      )}
+      {composing?.kind === 'reply' && composing.id === root.id && (
+        <CommentComposer
+          initial=""
+          submitLabel={t('comments.action.reply')}
+          placeholder={t('comments.reply.placeholder')}
+          onSubmit={(text) => {
+            setComposing(null)
+            if (text.trim() !== '') replyToComment(root.id, text)
+          }}
+          onCancel={() => setComposing(null)}
+        />
+      )}
+    </>
+  )
+}
+
+function ThreadActions({ root, state }: { root: DocumentComment; state: CardState }): React.JSX.Element {
+  const t = useT()
+  return (
+    <div className="comment-card__actions">
+      {!root.done && (
+        <CardAction
+          label={t('comments.action.reply')}
+          run={() => state.setComposing({ kind: 'reply', id: root.id })}
+        />
+      )}
+      {!root.done && (
+        <CardAction
+          label={t('comments.action.edit')}
+          run={() => state.setComposing({ kind: 'edit', id: root.id })}
+        />
+      )}
+      <CardAction
+        label={t(root.done ? 'comments.action.reopen' : 'comments.action.resolve')}
+        run={() => setCommentDone(root.id, !root.done)}
+      />
+      <CardAction
+        label={t('comments.action.delete')}
+        run={() => {
+          state.setActive(null)
+          deleteCommentThread(state.editor, root.id)
+        }}
+      />
+    </div>
+  )
+}
+
+function CommentBody({ comment, state }: { comment: DocumentComment; state: CardState }): React.JSX.Element {
+  const t = useT()
+  const language = useLanguage()
+  const { composing, setComposing } = state
+  const parsed = comment.date === '' ? Number.NaN : Date.parse(comment.date)
+  const date = Number.isNaN(parsed)
+    ? ''
+    : new Date(parsed).toLocaleString(language, { dateStyle: 'short', timeStyle: 'short' })
+  return (
     <>
       <div className="comment-card__head">
         <span className="comment-card__author">{comment.author || t('comments.card.unknownAuthor')}</span>
-        <span className="comment-card__date">{date(comment.date)}</span>
+        <span className="comment-card__date">{date}</span>
       </div>
       {composing?.kind === 'edit' && composing.id === comment.id ? (
         <CommentComposer
@@ -204,9 +405,11 @@ export function CommentsPane({
       {comment.rich === true && <p className="comment-card__note">{t('comments.card.rich')}</p>}
     </>
   )
+}
 
-  /** O clique no botão não escolhe o cartão. */
-  const action = (label: string, run: () => void): React.JSX.Element => (
+/** O clique no botão não escolhe o cartão. */
+function CardAction({ label, run }: { label: string; run: () => void }): React.JSX.Element {
+  return (
     <button
       type="button"
       className="comment-card__action"
@@ -217,124 +420,6 @@ export function CommentsPane({
     >
       {label}
     </button>
-  )
-
-  return (
-    <aside
-      ref={paneRef}
-      className="comments-pane"
-      style={{ left: `${leftPx + COMMENTS_PANE_OFFSET_PX}px` }}
-      aria-label={t('comments.pane.title')}
-    >
-      <ol ref={listRef} className="comments-pane__list">
-        {ordered.map(({ root, replies }) => {
-          const isActive = active === root.id
-          const isDraft = draft === root.id
-          const collapsed = root.done && !isActive
-          return (
-            <li
-              key={root.id}
-              data-y={tops.get(root.id) ?? ''}
-              data-cid={root.id}
-              className={`comment-card${isActive ? ' comment-card--active' : ''}${root.done ? ' comment-card--done' : ''}`}
-              role="button"
-              tabIndex={0}
-              aria-pressed={isActive}
-              aria-label={t('comments.card.label', {
-                author: root.author || t('comments.card.unknownAuthor'),
-              })}
-              onClick={() => {
-                if (!isDraft) choose(root.id)
-              }}
-              onKeyDown={(event) => {
-                if (event.target !== event.currentTarget) return
-                if (event.key !== 'Enter' && event.key !== ' ') return
-                event.preventDefault()
-                choose(root.id)
-              }}
-            >
-              {collapsed ? (
-                <div className="comment-card__head">
-                  <span className="comment-card__author">
-                    {root.author || t('comments.card.unknownAuthor')}
-                  </span>
-                  <span className="comment-card__badge">{t('comments.card.resolved')}</span>
-                </div>
-              ) : isDraft ? (
-                <>
-                  <div className="comment-card__head">
-                    <span className="comment-card__author">
-                      {root.author || t('comments.card.unknownAuthor')}
-                    </span>
-                  </div>
-                  <CommentComposer
-                    initial=""
-                    submitLabel={t('comments.action.post')}
-                    placeholder={t('comments.editor.placeholder')}
-                    onSubmit={(text) => {
-                      if (text.trim() === '') cancelNewComment(editor, root.id)
-                      else editComment(root.id, text)
-                    }}
-                    onCancel={() => cancelNewComment(editor, root.id)}
-                  />
-                </>
-              ) : (
-                <>
-                  {body(root)}
-                  {root.done && <p className="comment-card__note">{t('comments.card.resolved')}</p>}
-                  {outside.has(root.id) && (
-                    <p className="comment-card__note">{t('comments.card.unanchored')}</p>
-                  )}
-                  {replies.length > 0 && (
-                    <ol className="comment-card__replies" aria-label={t('comments.card.replies')}>
-                      {replies.map((reply) => (
-                        <li key={reply.id}>
-                          {body(reply)}
-                          {isActive && !root.done && !readOnly && composing === null && (
-                            <div className="comment-card__actions">
-                              {action(t('comments.action.edit'), () =>
-                                setComposing({ kind: 'edit', id: reply.id }),
-                              )}
-                            </div>
-                          )}
-                        </li>
-                      ))}
-                    </ol>
-                  )}
-                  {composing?.kind === 'reply' && composing.id === root.id && (
-                    <CommentComposer
-                      initial=""
-                      submitLabel={t('comments.action.reply')}
-                      placeholder={t('comments.reply.placeholder')}
-                      onSubmit={(text) => {
-                        setComposing(null)
-                        if (text.trim() !== '') replyToComment(root.id, text)
-                      }}
-                      onCancel={() => setComposing(null)}
-                    />
-                  )}
-                </>
-              )}
-              {isActive && !isDraft && !readOnly && composing === null && (
-                <div className="comment-card__actions">
-                  {!root.done &&
-                    action(t('comments.action.reply'), () => setComposing({ kind: 'reply', id: root.id }))}
-                  {!root.done &&
-                    action(t('comments.action.edit'), () => setComposing({ kind: 'edit', id: root.id }))}
-                  {action(t(root.done ? 'comments.action.reopen' : 'comments.action.resolve'), () =>
-                    setCommentDone(root.id, !root.done),
-                  )}
-                  {action(t('comments.action.delete'), () => {
-                    setActive(null)
-                    deleteCommentThread(editor, root.id)
-                  })}
-                </div>
-              )}
-            </li>
-          )
-        })}
-      </ol>
-    </aside>
   )
 }
 

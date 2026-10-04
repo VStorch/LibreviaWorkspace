@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import type { Editor } from '@tiptap/react'
 import { NoteKind } from '@services/document/notes.js'
+import { DialogActions } from '../components/DialogActions.js'
 import { useT } from '../i18n.js'
 import { noteLabelsOf } from './extensions/note-ref.js'
 import {
@@ -31,18 +32,12 @@ export function CrossReferenceDialog({
   const [labels] = useState(() =>
     captionLabels(editor.state.doc, [t('references.caption.figure'), t('references.caption.table')]),
   )
-  // `heading`, `bookmark`, `note:<tipo>` ou `caption:<rótulo>`: um valor só para o seletor.
   const [type, setType] = useState('heading')
   const [key, setKey] = useState<string | null>(null)
   const [show, setShow] = useState<CrossReferenceShow>('text')
   const [link, setLink] = useState(true)
 
-  const kind: CrossReferenceKind =
-    type === 'heading' || type === 'bookmark'
-      ? { type }
-      : type === NOTE_TYPES[NoteKind.Footnote] || type === NOTE_TYPES[NoteKind.Endnote]
-        ? { type: 'note', kind: type === NOTE_TYPES[NoteKind.Endnote] ? NoteKind.Endnote : NoteKind.Footnote }
-        : { type: 'caption', label: type.slice('caption:'.length) }
+  const kind = kindOf(type)
   const targets = useMemo(
     () => crossReferenceTargets(editor.state.doc, context().styles, kind, noteLabelsOf(editor.state)),
     [type],
@@ -65,29 +60,16 @@ export function CrossReferenceDialog({
         if (event.key === 'Escape') onClose()
       }}
     >
-      <label className="popover__field">
-        <span>{t('references.crossRef.type')}</span>
-        <select
-          value={type}
-          onChange={(event) => {
-            const next = event.target.value
-            setType(next)
-            setKey(null)
-            if (next.startsWith('note:')) setShow(show === 'page' ? 'page' : 'number')
-            else if (next !== type && show === 'number') setShow('text')
-          }}
-        >
-          <option value="heading">{t('references.crossRef.heading')}</option>
-          <option value="bookmark">{t('references.crossRef.bookmark')}</option>
-          <option value={NOTE_TYPES[NoteKind.Footnote]}>{t('references.crossRef.footnote')}</option>
-          <option value={NOTE_TYPES[NoteKind.Endnote]}>{t('references.crossRef.endnote')}</option>
-          {labels.map((label) => (
-            <option key={label} value={`caption:${label}`}>
-              {label}
-            </option>
-          ))}
-        </select>
-      </label>
+      <TargetTypeSelect
+        value={type}
+        labels={labels}
+        onChange={(next) => {
+          setType(next)
+          setKey(null)
+          if (next.startsWith('note:')) setShow(show === 'page' ? 'page' : 'number')
+          else if (next !== type && show === 'number') setShow('text')
+        }}
+      />
 
       <label className="popover__field">
         <span>{t('references.crossRef.target')}</span>
@@ -101,30 +83,82 @@ export function CrossReferenceDialog({
       </label>
       {targets.length === 0 && <p className="popover__hint">{t('references.crossRef.empty')}</p>}
 
-      <label className="popover__field">
-        <span>{t('references.crossRef.show')}</span>
-        <select value={show} onChange={(event) => setShow(event.target.value as CrossReferenceShow)}>
-          {kind.type !== 'note' && <option value="text">{t('references.crossRef.showText')}</option>}
-          {kind.type === 'caption' && <option value="number">{t('references.crossRef.showNumber')}</option>}
-          {kind.type === 'note' && <option value="number">{t('references.crossRef.showNoteNumber')}</option>}
-          <option value="page">{t('references.crossRef.showPage')}</option>
-        </select>
-      </label>
+      <ShowSelect kind={kind} value={show} onChange={setShow} />
 
       <label className="popover__check">
         <input type="checkbox" checked={link} onChange={(event) => setLink(event.target.checked)} />
         {t('references.crossRef.link')}
       </label>
 
-      <div className="popover__actions">
-        <span className="popover__spacer" />
-        <button type="button" className="btn" onClick={onClose}>
-          {t('document.common.cancel')}
-        </button>
-        <button type="button" className="btn btn--primary" disabled={chosen === null} onClick={insert}>
-          {t('references.insert')}
-        </button>
-      </div>
+      <DialogActions
+        confirmLabel={t('references.insert')}
+        onConfirm={insert}
+        onCancel={onClose}
+        disabled={chosen === null}
+      />
     </div>
+  )
+}
+
+/** `heading`, `bookmark`, `note:<tipo>` ou `caption:<rótulo>`: um valor só para o seletor. */
+function kindOf(type: string): CrossReferenceKind {
+  if (type === 'heading' || type === 'bookmark') return { type }
+  if (type === NOTE_TYPES[NoteKind.Footnote] || type === NOTE_TYPES[NoteKind.Endnote]) {
+    return {
+      type: 'note',
+      kind: type === NOTE_TYPES[NoteKind.Endnote] ? NoteKind.Endnote : NoteKind.Footnote,
+    }
+  }
+  return { type: 'caption', label: type.slice('caption:'.length) }
+}
+
+function TargetTypeSelect({
+  value,
+  labels,
+  onChange,
+}: {
+  value: string
+  labels: readonly string[]
+  onChange: (type: string) => void
+}): React.JSX.Element {
+  const t = useT()
+  return (
+    <label className="popover__field">
+      <span>{t('references.crossRef.type')}</span>
+      <select value={value} onChange={(event) => onChange(event.target.value)}>
+        <option value="heading">{t('references.crossRef.heading')}</option>
+        <option value="bookmark">{t('references.crossRef.bookmark')}</option>
+        <option value={NOTE_TYPES[NoteKind.Footnote]}>{t('references.crossRef.footnote')}</option>
+        <option value={NOTE_TYPES[NoteKind.Endnote]}>{t('references.crossRef.endnote')}</option>
+        {labels.map((label) => (
+          <option key={label} value={`caption:${label}`}>
+            {label}
+          </option>
+        ))}
+      </select>
+    </label>
+  )
+}
+
+function ShowSelect({
+  kind,
+  value,
+  onChange,
+}: {
+  kind: CrossReferenceKind
+  value: CrossReferenceShow
+  onChange: (show: CrossReferenceShow) => void
+}): React.JSX.Element {
+  const t = useT()
+  return (
+    <label className="popover__field">
+      <span>{t('references.crossRef.show')}</span>
+      <select value={value} onChange={(event) => onChange(event.target.value as CrossReferenceShow)}>
+        {kind.type !== 'note' && <option value="text">{t('references.crossRef.showText')}</option>}
+        {kind.type === 'caption' && <option value="number">{t('references.crossRef.showNumber')}</option>}
+        {kind.type === 'note' && <option value="number">{t('references.crossRef.showNoteNumber')}</option>}
+        <option value="page">{t('references.crossRef.showPage')}</option>
+      </select>
+    </label>
   )
 }

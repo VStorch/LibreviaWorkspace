@@ -15,6 +15,7 @@ import {
   type CellBorderSide,
   type TableDraft,
 } from '@services/document/table-format.js'
+import { DialogActions } from '../../components/DialogActions.js'
 import { useT } from '../../i18n.js'
 import { applyTableDraft, tablePlacementAt } from '../extensions/table-look.js'
 import { useWorkspace } from '../../state/workspace.js'
@@ -56,7 +57,6 @@ export function TablePropertiesDialog({
   )
 
   const valid = isValidTableDraft(draft)
-  const keepFocus = (event: React.MouseEvent): void => event.preventDefault()
 
   const change = <K extends keyof TableDraft>(key: K, value: TableDraft[K]): void =>
     setDraft({ ...draft, [key]: value })
@@ -78,6 +78,55 @@ export function TablePropertiesDialog({
         if (event.key === 'Enter') apply()
       }}
     >
+      <BorderFields draft={draft} onChange={change} />
+
+      <ShadingFields draft={draft} onChange={change} />
+
+      <label className="popover__check">
+        <input
+          type="checkbox"
+          checked={draft.headerRow}
+          onChange={(event) => change('headerRow', event.target.checked)}
+        />
+        <span>{t('document.tableProperties.repeatHeader')}</span>
+      </label>
+
+      <p className={valid ? 'popover__hint' : 'popover__error'}>
+        {valid ? t('document.tableProperties.hintValid') : t('document.tableProperties.hintInvalid')}
+      </p>
+
+      <DialogActions
+        confirmLabel={t('document.common.apply')}
+        onConfirm={apply}
+        onCancel={onClose}
+        disabled={!valid}
+        keepEditorFocus
+      >
+        <button
+          type="button"
+          className="btn"
+          onClick={() => setDraft({ ...DEFAULT_TABLE_DRAFT, columnWidthMm: draft.columnWidthMm })}
+        >
+          {t('document.common.restoreDefaults')}
+        </button>
+      </DialogActions>
+    </div>
+  )
+}
+
+type TableDraftChange = <K extends keyof TableDraft>(key: K, value: TableDraft[K]) => void
+
+/** A largura das colunas e a borda: estilo, espessura, cor e lados. */
+function BorderFields({
+  draft,
+  onChange,
+}: {
+  draft: TableDraft
+  onChange: TableDraftChange
+}): React.JSX.Element {
+  const t = useT()
+  return (
+    <>
       <div className="popover__row">
         <label className="popover__field popover__field--narrow">
           <span>{t('document.tableProperties.columnWidth')}</span>
@@ -88,7 +137,7 @@ export function TablePropertiesDialog({
             step={1}
             value={draft.columnWidthMm ?? ''}
             autoFocus
-            onChange={(event) => change('columnWidthMm', Number(event.target.value))}
+            onChange={(event) => onChange('columnWidthMm', Number(event.target.value))}
           />
         </label>
 
@@ -97,7 +146,7 @@ export function TablePropertiesDialog({
           <select
             aria-label={t('document.tableProperties.borderStyle')}
             value={draft.borderStyle}
-            onChange={(event) => change('borderStyle', event.target.value as CellBorderStyle)}
+            onChange={(event) => onChange('borderStyle', event.target.value as CellBorderStyle)}
           >
             {BORDER_STYLE_KEYS.map((style) => (
               <option key={style.value} value={style.value}>
@@ -115,7 +164,7 @@ export function TablePropertiesDialog({
             max={MAX_BORDER_PT}
             step={0.25}
             value={draft.borderWidthPt}
-            onChange={(event) => change('borderWidthPt', Number(event.target.value))}
+            onChange={(event) => onChange('borderWidthPt', Number(event.target.value))}
           />
         </label>
 
@@ -124,7 +173,7 @@ export function TablePropertiesDialog({
           <input
             type="color"
             value={draft.borderColor}
-            onChange={(event) => change('borderColor', event.target.value)}
+            onChange={(event) => onChange('borderColor', event.target.value)}
           />
         </label>
       </div>
@@ -135,69 +184,44 @@ export function TablePropertiesDialog({
             <input
               type="checkbox"
               checked={draft.sides[side]}
-              onChange={(event) => change('sides', { ...draft.sides, [side]: event.target.checked })}
+              onChange={(event) => onChange('sides', { ...draft.sides, [side]: event.target.checked })}
             />
             <span>{t(SIDE_LABEL_KEYS[side])}</span>
           </label>
         ))}
       </div>
+    </>
+  )
+}
 
-      <div className="popover__row">
-        <label className="popover__check">
-          <input
-            type="checkbox"
-            checked={draft.shaded}
-            onChange={(event) => change('shaded', event.target.checked)}
-          />
-          <span>{t('document.tableProperties.shading')}</span>
-        </label>
-
-        <label className="popover__field popover__field--narrow">
-          <span>{t('document.tableProperties.shadingColor')}</span>
-          <input
-            type="color"
-            value={draft.shadingColor}
-            disabled={!draft.shaded}
-            onChange={(event) => change('shadingColor', event.target.value)}
-          />
-        </label>
-      </div>
-
+function ShadingFields({
+  draft,
+  onChange,
+}: {
+  draft: TableDraft
+  onChange: TableDraftChange
+}): React.JSX.Element {
+  const t = useT()
+  return (
+    <div className="popover__row">
       <label className="popover__check">
         <input
           type="checkbox"
-          checked={draft.headerRow}
-          onChange={(event) => change('headerRow', event.target.checked)}
+          checked={draft.shaded}
+          onChange={(event) => onChange('shaded', event.target.checked)}
         />
-        <span>{t('document.tableProperties.repeatHeader')}</span>
+        <span>{t('document.tableProperties.shading')}</span>
       </label>
 
-      <p className={valid ? 'popover__hint' : 'popover__error'}>
-        {valid ? t('document.tableProperties.hintValid') : t('document.tableProperties.hintInvalid')}
-      </p>
-
-      <div className="popover__actions">
-        <button
-          type="button"
-          className="btn"
-          onClick={() => setDraft({ ...DEFAULT_TABLE_DRAFT, columnWidthMm: draft.columnWidthMm })}
-        >
-          {t('document.common.restoreDefaults')}
-        </button>
-        <span className="popover__spacer" />
-        <button type="button" className="btn" onMouseDown={keepFocus} onClick={onClose}>
-          {t('document.common.cancel')}
-        </button>
-        <button
-          type="button"
-          className="btn btn--primary"
-          onMouseDown={keepFocus}
-          onClick={apply}
-          disabled={!valid}
-        >
-          {t('document.common.apply')}
-        </button>
-      </div>
+      <label className="popover__field popover__field--narrow">
+        <span>{t('document.tableProperties.shadingColor')}</span>
+        <input
+          type="color"
+          value={draft.shadingColor}
+          disabled={!draft.shaded}
+          onChange={(event) => onChange('shadingColor', event.target.value)}
+        />
+      </label>
     </div>
   )
 }

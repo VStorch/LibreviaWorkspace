@@ -4,6 +4,8 @@ import type { DocumentProperties } from '@services/document/model.js'
 import type { MessageKey } from '@shared/i18n/index.js'
 import { useLanguage, useT } from '../i18n.js'
 import { useWorkspace } from '../state/workspace.js'
+import { DialogActions } from '../components/DialogActions.js'
+import { MAX_DESCRIPTION_LENGTH, MAX_PROPERTY_LENGTH } from '@shared/limits.js'
 import { tally } from './WordCountDialog.js'
 
 /** Na ordem do Word. */
@@ -33,9 +35,7 @@ export function PropertiesDialog({
   readonly onClose: () => void
 }): React.JSX.Element {
   const t = useT()
-  const language = useLanguage()
   const properties = useWorkspace((state) => state.properties)
-  const pages = useWorkspace((state) => state.pageCount)
   const setProperties = useWorkspace((state) => state.setProperties)
   const [values, setValues] = useState<Record<EditableKey, string>>(
     () =>
@@ -45,22 +45,9 @@ export function PropertiesDialog({
       >,
   )
 
-  const counts = useEditorState({
-    editor,
-    selector: ({ editor: current }) => tally(current, current.state.doc),
-  })
-
   function save(): void {
-    let next: Record<string, unknown> = { ...properties }
-    let changed = false
-    for (const [key] of EDITABLE) {
-      const before = properties?.[key]
-      const value = values[key]
-      if (value === (before ?? '')) continue
-      next = { ...next, [key]: value }
-      changed = true
-    }
-    if (changed) setProperties(next as DocumentProperties)
+    const next = patchOf(properties, values)
+    if (next !== null) setProperties(next)
     close()
   }
 
@@ -68,6 +55,91 @@ export function PropertiesDialog({
     onClose()
     requestAnimationFrame(() => editor.view.focus())
   }
+
+  return (
+    <div
+      className="popover popover--wide properties"
+      role="dialog"
+      aria-label={t('document.properties.title.dialog')}
+      onKeyDown={(event) => {
+        if (event.key === 'Escape') close()
+      }}
+    >
+      <SummaryFields values={values} onChange={setValues} onSubmit={save} />
+
+      <Statistics editor={editor} />
+
+      <DialogActions confirmLabel={t('document.common.apply')} onConfirm={save} onCancel={close} />
+    </div>
+  )
+}
+
+/** `null` quando nada mudou. */
+function patchOf(
+  properties: DocumentProperties | undefined,
+  values: Record<EditableKey, string>,
+): DocumentProperties | null {
+  let next: Record<string, unknown> = { ...properties }
+  let changed = false
+  for (const [key] of EDITABLE) {
+    const value = values[key]
+    if (value === (properties?.[key] ?? '')) continue
+    next = { ...next, [key]: value }
+    changed = true
+  }
+  return changed ? (next as DocumentProperties) : null
+}
+
+function SummaryFields({
+  values,
+  onChange,
+  onSubmit,
+}: {
+  values: Record<EditableKey, string>
+  onChange: (values: Record<EditableKey, string>) => void
+  onSubmit: () => void
+}): React.JSX.Element {
+  const t = useT()
+  return (
+    <fieldset className="popover__fieldset">
+      <legend>{t('document.properties.summary')}</legend>
+      {EDITABLE.map(([key, label], index) => (
+        <label key={key} className="popover__field properties__field">
+          <span>{t(label)}</span>
+          {key === 'description' ? (
+            <textarea
+              rows={3}
+              value={values[key]}
+              maxLength={MAX_DESCRIPTION_LENGTH}
+              onChange={(event) => onChange({ ...values, [key]: event.target.value })}
+            />
+          ) : (
+            <input
+              type="text"
+              value={values[key]}
+              maxLength={MAX_PROPERTY_LENGTH}
+              autoFocus={index === 0}
+              onChange={(event) => onChange({ ...values, [key]: event.target.value })}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') onSubmit()
+              }}
+            />
+          )}
+        </label>
+      ))}
+    </fieldset>
+  )
+}
+
+function Statistics({ editor }: { editor: Editor }): React.JSX.Element {
+  const t = useT()
+  const language = useLanguage()
+  const properties = useWorkspace((state) => state.properties)
+  const pages = useWorkspace((state) => state.pageCount)
+  const counts = useEditorState({
+    editor,
+    selector: ({ editor: current }) => tally(current, current.state.doc),
+  })
 
   const date = (value: string | undefined): string => {
     const parsed = value === undefined || value === '' ? Number.NaN : Date.parse(value)
@@ -98,65 +170,18 @@ export function PropertiesDialog({
   ]
 
   return (
-    <div
-      className="popover popover--wide properties"
-      role="dialog"
-      aria-label={t('document.properties.title.dialog')}
-      onKeyDown={(event) => {
-        if (event.key === 'Escape') close()
-      }}
-    >
-      <fieldset className="popover__fieldset">
-        <legend>{t('document.properties.summary')}</legend>
-        {EDITABLE.map(([key, label], index) => (
-          <label key={key} className="popover__field properties__field">
-            <span>{t(label)}</span>
-            {key === 'description' ? (
-              <textarea
-                rows={3}
-                value={values[key]}
-                maxLength={100_000}
-                onChange={(event) => setValues({ ...values, [key]: event.target.value })}
-              />
-            ) : (
-              <input
-                type="text"
-                value={values[key]}
-                maxLength={2_000}
-                autoFocus={index === 0}
-                onChange={(event) => setValues({ ...values, [key]: event.target.value })}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter') save()
-                }}
-              />
-            )}
-          </label>
-        ))}
-      </fieldset>
-
-      <fieldset className="popover__fieldset">
-        <legend>{t('document.properties.statistics')}</legend>
-        <table className="counts">
-          <tbody>
-            {info.map(([label, value]) => (
-              <tr key={label}>
-                <th scope="row">{t(label)}</th>
-                <td>{value}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </fieldset>
-
-      <div className="popover__actions">
-        <span className="popover__spacer" />
-        <button type="button" className="btn" onClick={close}>
-          {t('document.common.cancel')}
-        </button>
-        <button type="button" className="btn btn--primary" onClick={save}>
-          {t('document.common.apply')}
-        </button>
-      </div>
-    </div>
+    <fieldset className="popover__fieldset">
+      <legend>{t('document.properties.statistics')}</legend>
+      <table className="counts">
+        <tbody>
+          {info.map(([label, value]) => (
+            <tr key={label}>
+              <th scope="row">{t(label)}</th>
+              <td>{value}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </fieldset>
   )
 }

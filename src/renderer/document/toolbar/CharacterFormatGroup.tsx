@@ -7,23 +7,7 @@ import { focusChain } from './focus-chain.js'
 
 export function CharacterFormatGroup({ editor }: { readonly editor: Editor }): React.JSX.Element {
   const t = useT()
-  const active = useEditorState({
-    editor,
-    selector: ({ editor: current }) => ({
-      // O que aparece, com o estilo por baixo.
-      bold: markVisiblyOn(current.state.tr, current.storage.paragraphCommands.styles, 'bold'),
-      italic: markVisiblyOn(current.state.tr, current.storage.paragraphCommands.styles, 'italic'),
-      underline: markVisiblyOn(current.state.tr, current.storage.paragraphCommands.styles, 'underline'),
-      strike: markVisiblyOn(current.state.tr, current.storage.paragraphCommands.styles, 'strike'),
-      superscript: current.isActive('superscript'),
-      subscript: current.isActive('subscript'),
-      caps: current.isActive('caps'),
-      smallCaps: current.isActive('smallCaps'),
-      color: String(current.getAttributes('textStyle')['color'] ?? '#000000'),
-      background: String(current.getAttributes('textStyle')['backgroundColor'] ?? '#ffff00'),
-      highlight: String(current.getAttributes('highlight')['color'] ?? '#ffff00'),
-    }),
-  })
+  const active = useEditorState({ editor, selector: ({ editor: current }) => activeFormatOf(current) })
 
   const chain = () => focusChain(editor)
 
@@ -85,6 +69,35 @@ export function CharacterFormatGroup({ editor }: { readonly editor: Editor }): R
         onClick={() => chain().toggleSmallCaps().run()}
       />
 
+      <ColorControls editor={editor} active={active} />
+    </ToolbarGroup>
+  )
+}
+
+/** O que aparece, com o estilo por baixo. */
+function activeFormatOf(current: Editor) {
+  return {
+    bold: markVisiblyOn(current.state.tr, current.storage.paragraphCommands.styles, 'bold'),
+    italic: markVisiblyOn(current.state.tr, current.storage.paragraphCommands.styles, 'italic'),
+    underline: markVisiblyOn(current.state.tr, current.storage.paragraphCommands.styles, 'underline'),
+    strike: markVisiblyOn(current.state.tr, current.storage.paragraphCommands.styles, 'strike'),
+    superscript: current.isActive('superscript'),
+    subscript: current.isActive('subscript'),
+    caps: current.isActive('caps'),
+    smallCaps: current.isActive('smallCaps'),
+    color: String(current.getAttributes('textStyle')['color'] ?? '#000000'),
+    background: String(current.getAttributes('textStyle')['backgroundColor'] ?? '#ffff00'),
+    highlight: String(current.getAttributes('highlight')['color'] ?? '#ffff00'),
+  }
+}
+
+type ActiveFormat = ReturnType<typeof activeFormatOf>
+
+function ColorControls({ editor, active }: { editor: Editor; active: ActiveFormat }): React.JSX.Element {
+  const t = useT()
+  const chain = () => focusChain(editor)
+  return (
+    <>
       <ColorControl
         icon="text-color"
         label={t('document.characterFormat.textColor')}
@@ -107,6 +120,6 @@ export function CharacterFormatGroup({ editor }: { readonly editor: Editor }): R
         onChange={(value) => chain().setHighlight({ color: value }).run()}
         onClear={() => chain().unsetHighlight().run()}
       />
-    </ToolbarGroup>
+    </>
   )
 }
