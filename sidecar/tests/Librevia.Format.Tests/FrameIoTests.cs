@@ -33,8 +33,7 @@ public class FrameIoTests
     [Fact]
     public async Task PreservesBytesThatLookLikeLineEndings()
     {
-        // Um protocolo delimitado por \n se despedaçaria aqui. DOCX é ZIP:
-        // contém 0x0a, 0x0d e 0x00 o tempo todo.
+        // DOCX é ZIP, cheio de 0x0a, 0x0d e 0x00: um protocolo delimitado por \n se despedaçaria.
         var binary = new byte[] { 0x0a, 0x0d, 0x1a, 0x00, 0x50, 0x4b, 0x03, 0x04 };
         var encoded = await EncodeAsync(new { }, binary);
 
@@ -46,9 +45,7 @@ public class FrameIoTests
     [Fact]
     public async Task ReassemblesFrameDeliveredOneByteAtATime()
     {
-        // Um pipe entrega o que quiser em cada leitura. Assumir que uma leitura
-        // traz a mensagem inteira é o bug clássico desta integração, e ele só
-        // aparece com documento grande.
+        // Um pipe entrega quanto quiser a cada leitura, e só documento grande mostra isso.
         var binary = new byte[] { 1, 2, 3, 4, 5 };
         var encoded = await EncodeAsync(new { id = 7 }, binary);
 
@@ -97,8 +94,7 @@ public class FrameIoTests
     [Fact]
     public async Task ClosedStreamMeansShutdownNotError()
     {
-        // stdin fechado é como o main pede para encerrar. Precisa ser uma saída
-        // limpa, não uma exceção.
+        // stdin fechado é o pedido de encerrar: saída limpa, e não exceção.
         var frame = await FrameIo.ReadAsync(new MemoryStream([]), CancellationToken.None);
 
         Assert.Null(frame);
@@ -107,7 +103,7 @@ public class FrameIoTests
     [Fact]
     public async Task RejectsAbsurdBinaryLengthWithoutAllocating()
     {
-        // Sem este teto, um cabeçalho mentiroso nos faria reservar gigabytes.
+        // Um cabeçalho mentiroso não reserva gigabytes.
         var header = new byte[Frame.HeaderBytes];
         System.Buffers.Binary.BinaryPrimitives.WriteUInt32BigEndian(
             header.AsSpan(4), Frame.MaxBinaryBytes + 1u);

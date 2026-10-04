@@ -21,7 +21,6 @@ public class XlsxReadTests
     {
         var sheet = XlsxFixtures.Sheet(XlsxFixtures.Model(XlsxFixtures.Sales()), "Vendas");
 
-        // O ClosedXML entrega sem o `=`; o modelo do aplicativo guarda com.
         Assert.Equal("=B2*C2", sheet.Cells["D2"].Formula);
         Assert.Equal("=SUM(D2:D3)", sheet.Cells["D5"].Formula);
     }
@@ -93,7 +92,7 @@ public class XlsxReadTests
     {
         var sheet = XlsxFixtures.Sheet(XlsxFixtures.Model(XlsxFixtures.Sales()), "Vendas");
 
-        // O mapa é esparso: guardar célula vazia faria o arquivo crescer à toa.
+        // O mapa é esparso.
         Assert.False(sheet.Cells.ContainsKey("Z99"));
     }
 
@@ -119,13 +118,10 @@ public class XlsxInventoryTests
     [Fact]
     public void PlanilhaComumNaoGeraAviso()
     {
-        // Um aviso que aparece em todo arquivo é um aviso que o usuário aprende
-        // a fechar sem ler.
+        // Aviso em todo arquivo se aprende a fechar sem ler.
         var result = XlsxReader.Read(XlsxFixtures.Sales());
 
-        // Comparar as frases, e não só `IsEmpty`, porque a falha precisa dizer
-        // **qual** aviso apareceu — foi assim que o comentário fantasma do
-        // ClosedXML se identificou.
+        // As frases, e não `IsEmpty`, para a falha dizer qual aviso apareceu.
         Assert.Equal(string.Empty, string.Join(" | ", result.Inventory.Invisible.Concat(result.Inventory.Lost)));
     }
 }
@@ -142,8 +138,7 @@ public class XlsxSurgicalTests
     [Fact]
     public void GravarSemEditarNaoEscreveNenhumaCelula()
     {
-        // É a medida que dá sentido à palavra "cirúrgico": se gravar sem editar
-        // já reescrevesse tudo, não haveria preservação nenhuma.
+        // Gravar sem editar não reescreve nada.
         var (_, report) = SaveUnchanged(XlsxFixtures.Sales());
 
         Assert.Equal(0, report.CellsWritten);
@@ -154,11 +149,8 @@ public class XlsxSurgicalTests
     [Fact]
     public void ModeloQueVemPeloJsonTambemPreserva()
     {
-        // O aplicativo não entrega um `WorkbookDto`: entrega JSON, e é essa a
-        // única forma que chega aqui em produção. Sem a conversão de escalares,
-        // cada valor voltaria como `JsonElement`, nenhuma célula pareceria igual
-        // à do arquivo, e a gravação reescreveria a planilha inteira — apagando
-        // justamente o que a cirurgia existe para preservar.
+        // Em produção chega JSON: sem a conversão de escalares, cada valor seria
+        // `JsonElement` e nenhuma célula pareceria igual.
         var original = XlsxFixtures.Sales();
         var json = System.Text.Json.JsonSerializer.Serialize(
             XlsxFixtures.Model(original), Protocol.JsonOptions.Default);
@@ -187,8 +179,7 @@ public class XlsxSurgicalTests
     [Fact]
     public void PreservaOQueOModeloNaoRepresenta()
     {
-        // B2 tem fonte de 14 pontos, que o modelo do aplicativo não carrega.
-        // Editar a célula ao lado não pode levá-la junto.
+        // B2 tem fonte de 14 pt, que o modelo não carrega.
         var original = XlsxFixtures.Sales();
         var model = XlsxFixtures.Model(original);
         XlsxFixtures.Sheet(model, "Vendas").Cells["A2"].Value = "Outro nome";
@@ -203,8 +194,7 @@ public class XlsxSurgicalTests
     [Fact]
     public void PreservaParteDoPacoteQueNaoConhece()
     {
-        // Gráfico e tabela dinâmica vivem em partes próprias, e sobrevivem pelo
-        // mesmo mecanismo que esta.
+        // Gráfico e tabela dinâmica vivem em partes próprias, como esta.
         var original = XlsxFixtures.WithForeignPart(XlsxFixtures.Sales(), "<catalogo>NAO-PERCA</catalogo>");
         var model = XlsxFixtures.Model(original);
         XlsxFixtures.Sheet(model, "Vendas").Cells["A2"].Value = "Editado";
@@ -217,9 +207,7 @@ public class XlsxSurgicalTests
     [Fact]
     public void PreservaFiltroMesclagemFormatoCondicionalEValidacao()
     {
-        // A decisão de projeto é preservar sem oferecer interface. Ela só vale
-        // como promessa se sobreviver a uma **edição**: preservar num arquivo
-        // que ninguém tocou não prova nada.
+        // Preservar sem oferecer interface só vale se sobreviver a uma edição.
         var original = XlsxFixtures.WithUnmodeledFeatures();
         var model = XlsxFixtures.Model(original);
         XlsxFixtures.Sheet(model, "Dados").Cells["B2"].Value = 1500d;
@@ -304,8 +292,7 @@ public class XlsxSurgicalTests
     [Fact]
     public void TrocarNomesEntreDuasAbasNaoColide()
     {
-        // Dar a uma aba o nome que a outra ainda tem é erro do ClosedXML, e
-        // trocar dois nomes é um caso perfeitamente normal.
+        // O ClosedXML recusa o nome que outra aba ainda tem.
         var original = XlsxFixtures.Sales();
         var model = XlsxFixtures.Model(original);
         model.Sheets[0].Name = "Resumo";
@@ -387,8 +374,7 @@ public class NumberFormatTests
     [InlineData("\"R$\" #,##0.00", "currency", 2)]
     [InlineData("[$R$-416]#,##0.00", "currency", 2)]
     [InlineData("0.0%", "percent", 1)]
-    // Data não tem casa decimal: a máscara não pede nenhuma, e `0` diria que o
-    // usuário escolheu zero casas — coisa diferente de não haver escolha.
+    // Data não tem casas: `0` diria que se escolheu zero casas.
     [InlineData("dd/mm/yyyy", "date", null)]
     [InlineData("#,##0", "number", 0)]
     [InlineData("@", "text", null)]
@@ -423,10 +409,7 @@ public class NumberFormatTests
     [InlineData("Geral")]
     public void GeralPorExtensoNaoViraData(string mask)
     {
-        // O LibreOffice grava a máscara `General` por extenso em vez de deixar o
-        // código embutido zero. O "a" de Gener**a**l é o mesmo "a" de
-        // `dd/mm/aaaa` — e sem tratamento a coluna de quantidades de toda
-        // planilha vinda do LibreOffice abria cheia de datas de 1900.
+        // O LibreOffice grava `General` por extenso, e o "a" dele não é o de `dd/mm/aaaa`.
         using var book = new XLWorkbook();
         var cell = book.Worksheets.Add("P").Cell("A1");
         cell.Style.NumberFormat.Format = mask;
@@ -470,8 +453,7 @@ public class UnitTests
     [Fact]
     public void LarguraPadraoDaOitentaQuatroPixels()
     {
-        // 8,43 caracteres é a largura padrão de toda planilha, e ela vale 64
-        // pixels. Errar a conta deixa toda coluna com a largura errada.
+        // 8,43 caracteres, a largura padrão, valem 64 pixels.
         Assert.Equal(64, Units.WidthToPixels(8.43));
     }
 

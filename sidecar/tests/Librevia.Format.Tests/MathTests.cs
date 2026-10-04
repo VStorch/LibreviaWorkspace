@@ -7,13 +7,9 @@ using OfficeMath = DocumentFormat.OpenXml.Math.OfficeMath;
 namespace Librevia.Format.Tests;
 
 /// <summary>
-/// Equações: lidas como nó `math`, desenhadas em MathML, devolvidas ao arquivo
-/// com o OMML como veio.
+/// Equações: lidas como nó <c>math</c>, desenhadas em MathML e devolvidas com o OMML
+/// como veio. O OMML dos fixtures é o que o Word e o LibreOffice gravam.
 /// </summary>
-/// <remarks>
-/// O OMML dos fixtures é escrito como o Word e o LibreOffice o gravam — o
-/// corpus não tem equação nenhuma.
-/// </remarks>
 public class MathTests
 {
     internal const string W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
@@ -103,8 +99,6 @@ public class MathTests
 
     private static string Convert(string inner) =>
         OmmlMath.Convert($"<m:oMath xmlns:m=\"{Mns}\" xmlns:w=\"{W}\">{inner}</m:oMath>").MathMl;
-
-    // --- a conversão, construção a construção --------------------------------
 
     [Theory]
     [InlineData("<m:f><m:num><m:r><m:t>a</m:t></m:r></m:num><m:den><m:r><m:t>b</m:t></m:r></m:den></m:f>",
@@ -199,8 +193,6 @@ public class MathTests
         Assert.All(drawn, node => Assert.True(Flag(node, "editable")));
     }
 
-    // --- a leitura -----------------------------------------------------------
-
     [Fact]
     public void LeAEquacaoEmLinhaEADeExibicao()
     {
@@ -247,8 +239,6 @@ public class MathTests
         Assert.DoesNotContain(Inventory.Equations, result.Inventory.Invisible);
     }
 
-    // --- a gravação ----------------------------------------------------------
-
     [Fact]
     public void AbrirESalvarDevolveCadaEquacaoComoVeio()
     {
@@ -276,7 +266,7 @@ public class MathTests
 
         var xml = XmlOf(bytes);
         Assert.Contains("A área do círculo é ", xml);
-        // Escrita como entrou: sem o `xmlns:w` que o OuterXml declara em cada `w:rPr`.
+        // Sem o `xmlns:w` que o OuterXml declara em cada `w:rPr`.
         Assert.DoesNotContain("<w:rPr xmlns:w=", xml);
         // A equação volta no mesmo lugar: entre os dois trechos de texto.
         var reread = Open(bytes);
@@ -287,8 +277,7 @@ public class MathTests
     [Fact]
     public void OMathMLDerivadoNaoMudaAImpressaoDigital()
     {
-        // O MathML, o LaTeX e a lista saem do OMML: uma conversão melhor numa versão
-        // futura não pode fazer o parágrafo parecer editado.
+        // MathML, LaTeX e lista saem do OMML: uma conversão melhor não pode fazer o parágrafo parecer editado.
         var original = WithMath();
         var model = Clone(Open(original));
         foreach (var equation in Equations(model))
@@ -317,7 +306,7 @@ public class MathTests
     public void RascunhoDeAntesDasEquacoesDeclaraAPerdaAoEditar()
     {
         var original = WithMath();
-        // O modelo como o leitor de antes das equações o dava: sem `math`.
+        // O modelo de antes das equações: sem `math`.
         List<Node> content;
         using (var stream = new MemoryStream(original))
         using (var document = WordprocessingDocument.Open(stream, false))

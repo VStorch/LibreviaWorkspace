@@ -6,13 +6,10 @@ using static Librevia.Format.Tests.Roundtrip;
 namespace Librevia.Format.Tests;
 
 /// <summary>
-/// Notas de rodapé e de fim: lidas, preservadas, devolvidas ao arquivo.
+/// Notas de rodapé e de fim: o nó <c>noteRef</c> leva o corpo da nota, a impressão
+/// digital do parágrafo vê só para onde ela aponta, e a parte das notas só é tocada
+/// quando alguma mudou.
 /// </summary>
-/// <remarks>
-/// A referência virou o nó `noteRef`, com o corpo da nota dentro. A impressão
-/// digital do parágrafo vê só para onde ela aponta — editar a nota não reescreve o
-/// parágrafo —, e a parte das notas só é tocada quando alguma nota mudou.
-/// </remarks>
 public class NotesTests
 {
     private const string W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
@@ -161,8 +158,7 @@ public class NotesTests
 
         var before = XmlOf(original, "word/footnotes.xml");
         var after = XmlOf(bytes, "word/footnotes.xml");
-        // A parte foi gravada pelo SDK, que fecha o elemento vazio com " />": é a
-        // única diferença de escrita na nota que ninguém tocou.
+        // O SDK fecha o elemento vazio com " />": a única diferença na nota intocada.
         Assert.Equal(NoteXml(before, "footnote", "2"), NoteXml(after, "footnote", "2").Replace(" />", "/>"));
         Assert.Equal(NoteXml(before, "footnote", "-1"), NoteXml(after, "footnote", "-1").Replace(" />", "/>"));
 
@@ -231,8 +227,7 @@ public class NotesTests
     [Fact]
     public void ReferenciaMovidaLevaANotaParaOMesmoLugarNaParte()
     {
-        // O LibreOffice casa nota e referência pela ordem na parte: movida a
-        // referência (recortar e colar), a nota muda de lugar com ela.
+        // O LibreOffice casa nota e referência pela ordem na parte.
         var original = WithNotes();
         var model = Clone(Open(original));
         var first = NoteRef(model, "footnote", "1");
@@ -245,8 +240,7 @@ public class NotesTests
         var (bytes, result) = Save(original, model);
         Assert.Empty(result.Inventory.Lost);
 
-        // Renumeradas pela ordem do texto, como o Word grava: a que passou a vir
-        // primeiro é a 1, e cada corpo segue a sua referência.
+        // Renumeradas pela ordem do texto, como o Word grava.
         var after = XmlOf(bytes, "word/footnotes.xml");
         Assert.Contains("Nota de marca própria", NoteXml(after, "footnote", "1"));
         Assert.Contains("Fonte: ata anterior", NoteXml(after, "footnote", "2"));
@@ -266,8 +260,7 @@ public class NotesTests
 
         var (bytes, _) = Save(original, model);
 
-        // A cópia ganha nota própria, com o mesmo texto; os ids seguem a ordem do
-        // texto (`NotesWriter.InTextOrder`), e a cópia, no primeiro parágrafo, vem antes.
+        // A cópia ganha nota própria, e vem antes por estar no primeiro parágrafo.
         var after = XmlOf(bytes, "word/footnotes.xml");
         var copies = new[] { "1", "2", "3" }.Select(id => NoteXml(after, "footnote", id))
             .Where(note => note.Contains("Fonte: ata anterior.", StringComparison.Ordinal)).ToList();
@@ -349,7 +342,7 @@ public class NotesTests
     public void RascunhoDeAntesDasNotasDeclaraAPerdaENaoMexeNasPartes()
     {
         var original = WithNotes();
-        // O modelo como o leitor de antes das notas o dava: sem `noteRef`.
+        // O modelo de antes das notas: sem `noteRef`.
         List<Node> content;
         using (var stream = new MemoryStream(original))
         using (var document = WordprocessingDocument.Open(stream, false))
@@ -375,8 +368,7 @@ public class NotesTests
     [Fact]
     public void NumeracaoDoModeloQueOPacoteNaoTemEGravada()
     {
-        // O `.sdoc` reaberto guarda a numeração no modelo; o pacote em que ele é
-        // gravado como `.docx` não a tem — e ela não pode se perder.
+        // O pacote do `.sdoc` gravado como `.docx` não tem a numeração do modelo.
         var original = WithNotes();
         var model = Open(original);
         Assert.Equal(3, model.Notes?.FootnotePr?.Start);
@@ -431,8 +423,6 @@ public class NotesTests
         Assert.Equal(PartsOf(original)["word/settings.xml"], PartsOf(bytes)["word/settings.xml"]);
     }
 
-    // --- comentários nas notas e NOTEREF ---------------------------------------
-
     private static Node NodeOf(string type, params (string Name, string Value)[] attrs)
     {
         var node = new Node { Type = type, Attrs = [] };
@@ -445,9 +435,8 @@ public class NotesTests
             .Select(match => $"{match.Groups[1].Value}:{match.Groups[2].Value}")];
 
     /// <summary>
-    /// O validador do SDK, menos o falso positivo da âncora de comentário numa nota:
-    /// ele procura `comments.xml` entre as relações da parte das notas, e o Word não
-    /// a relaciona ali — o comentário mora na parte do documento.
+    /// O validador do SDK, menos um falso positivo: ele procura <c>comments.xml</c>
+    /// entre as relações da parte das notas, e o Word o relaciona à do documento.
     /// </summary>
     private static void AssertSchemaButCommentsInNotes(byte[] docx)
     {

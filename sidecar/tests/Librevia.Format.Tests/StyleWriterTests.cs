@@ -50,8 +50,7 @@ public class StyleWriterTests
 
         var saved = Roundtrip.Save(original, model);
 
-        // O corpo não mudou: nenhum bloco foi reescrito, e o texto do documento
-        // é o mesmo de antes, byte a byte.
+        // O corpo não mudou: nenhum bloco reescrito.
         Assert.Equal(0, saved.Result.RewrittenBlocks);
         Assert.Equal(Roundtrip.PartsOf(original)["word/document.xml"], Roundtrip.PartsOf(saved.Bytes)["word/document.xml"]);
 
@@ -126,10 +125,8 @@ public class StyleWriterTests
     [Fact]
     public void RascunhoAntigoSoAcrescentaEstilos()
     {
-        // Os estilos de um rascunho da versão 2 foram inventados na migração: a
-        // diferença deles para os do arquivo não é obra da pessoa, e gravá-la
-        // reescreveria os estilos verdadeiros. O estilo novo entra; a mudança num
-        // existente fica fora do arquivo e é declarada.
+        // Os estilos do rascunho da versão 2 foram inventados na migração: o estilo
+        // novo entra, e a mudança num existente fica fora do arquivo, com aviso.
         var original = Fixtures.WithStyles();
         var novo = new StyleDefinitionDto(
             "Destaque", "Destaque", "paragraph", QFormat: true, Hidden: false, Custom: true,

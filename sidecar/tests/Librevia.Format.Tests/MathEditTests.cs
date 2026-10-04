@@ -16,10 +16,9 @@ public class MathEditTests
     private static readonly XNamespace M = OmmlMath.M;
 
     /// <summary>
-    /// A forma de um OMML, para comparar estrutura: o nome de cada construção com
-    /// os argumentos entre parênteses, o texto dos runs vizinhos fundido (o Word e
-    /// este escritor partem os runs em lugares diferentes) e as propriedades que
-    /// mudam o desenho — o caractere do n-ário, do acento e dos delimitadores.
+    /// A forma de um OMML: cada construção com os argumentos, o texto dos runs
+    /// vizinhos fundido (o Word e este escritor partem em lugares diferentes) e os
+    /// caracteres de n-ário, acento e delimitador.
     /// </summary>
     private static string Shape(XElement element)
     {
@@ -69,8 +68,6 @@ public class MathEditTests
         Shape(XElement.Parse(OmmlMath.ToOmml(mathMl, display, null)!));
 
     private const string Ns = "xmlns=\"http://www.w3.org/1998/Math/MathML\"";
-
-    // --- construção a construção --------------------------------------------
 
     [Theory]
     // O Temml: fração e raiz (com a escora `mspace` dentro).
@@ -171,8 +168,6 @@ public class MathEditTests
         Assert.Null(OmmlMath.ToOmml("<p>x</p>", false, null));
     }
 
-    // --- ida e volta: OMML → MathML → OMML -----------------------------------
-
     public static TheoryData<string> Fixtures() =>
     [
         Inline,
@@ -222,8 +217,6 @@ public class MathEditTests
             .Select(math => math.OuterXml).ToList();
     }
 
-    // --- gravação ------------------------------------------------------------
-
     /// <summary>Um MathML com todas as construções do mapa, como o Temml as escreve.</summary>
     private static readonly string Everything =
         $"<math {Ns}><mrow>" +
@@ -257,7 +250,6 @@ public class MathEditTests
     public void AEquacaoNovaGravaOmmlValido(bool display)
     {
         var original = WithMath(MathTestsPlain);
-        // Save confere o documento com o OpenXmlValidator.
         var (bytes, result) = Save(original, WithNewEquation(original, Everything, display, display ? "left" : null));
 
         Assert.Empty(result.Inventory.Lost);
@@ -326,8 +318,7 @@ public class MathEditTests
     [Fact]
     public void TrocarAEquacaoComOControleLigadoGravaExclusaoEInsercao()
     {
-        // O editor troca a equação como exclusão da antiga e inserção da nova (ver
-        // `track-input.ts`): as duas viajam no mesmo parágrafo, com as marcas.
+        // O editor troca a equação como exclusão e inserção (`track-input.ts`), no mesmo parágrafo.
         var original = WithMath();
         var model = Clone(Open(original));
         var old = Equations(model)[0];

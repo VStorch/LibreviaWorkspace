@@ -6,14 +6,10 @@ using static Librevia.Format.Tests.Roundtrip;
 namespace Librevia.Format.Tests;
 
 /// <summary>
-/// Controle de alterações: lido, mostrado, devolvido ao arquivo.
+/// Controle de alterações: a revisão de texto é marca (<c>insertion</c>/<c>deletion</c>),
+/// a da marca de parágrafo e a da linha são atributos do bloco. O parágrafo revisado
+/// e editado devolve <c>w:ins</c> e <c>w:del</c> com os mesmos ids, e não trava.
 /// </summary>
-/// <remarks>
-/// A revisão de texto é marca do editor (`insertion`/`deletion`), a da marca de
-/// parágrafo e a da linha são atributos do bloco. Editar o parágrafo revisado
-/// devolve o `w:ins` e o `w:del` com os mesmos ids — e por isso a revisão não
-/// trava o documento.
-/// </remarks>
 public class RevisionsTests
 {
     private const string Date = "2026-03-01T10:00:00Z";
@@ -266,9 +262,7 @@ public class RevisionsTests
     [Fact]
     public void RascunhoAntigoEditadoDeclaraAMovimentacaoEAFormatacao()
     {
-        // O rascunho anterior às revisões (`BeforeRevisions`) não traz revisão
-        // nenhuma: reescrever o parágrafo da movimentação ou o da formatação
-        // revisada as perde.
+        // O rascunho de antes das revisões não as traz: reescrever o parágrafo as perde.
         var original = WithRevisions();
         var model = Clone(Open(original));
         Legacy(model.Doc);

@@ -5,13 +5,9 @@ using static Librevia.Format.Tests.Roundtrip;
 namespace Librevia.Format.Tests;
 
 /// <summary>
-/// Comentários: lidos, mostrados e devolvidos ao arquivo.
+/// Comentários: a âncora é um par de nós no parágrafo, e o corpo mora fora dos nós.
+/// O parágrafo comentado e editado não perde nada, e não trava.
 /// </summary>
-/// <remarks>
-/// A âncora é um par de nós no parágrafo, e o corpo do comentário mora fora dos
-/// nós. Editar o parágrafo comentado não perde nada — e por isso o comentário
-/// não trava o documento.
-/// </remarks>
 public class CommentsTests
 {
     private static List<string> Anchors(DocumentModelDto model) =>
@@ -161,9 +157,7 @@ public class CommentsTests
     [Fact]
     public void ORascunhoDeAntesDosComentariosAindaDeclaraAPerda()
     {
-        // O rascunho `.sdoc` < 7 não tem as âncoras nos nós. A leitura de
-        // referência dele também não as dá — nada muda sem edição —, e reescrever
-        // o parágrafo comentado continua perdendo a âncora, como antes.
+        // O `.sdoc` < 7 não tem as âncoras nos nós, nem a leitura de referência dele.
         var original = Fixtures.WithComment();
         var model = Clone(Open(original)) with { BeforeComments = true };
         foreach (var node in Walk(model.Doc).ToList())

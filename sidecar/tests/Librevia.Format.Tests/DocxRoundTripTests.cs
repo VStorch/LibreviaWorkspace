@@ -11,8 +11,7 @@ namespace Librevia.Format.Tests;
 /// </summary>
 public class DocxRoundTripTests
 {
-    // Os quatro passos do caminho — abrir, clonar, gravar, conferir — moram em
-    // Roundtrip: esta classe e DocxWriteBackTests usam os mesmos.
+    // Os passos do caminho moram em Roundtrip, comuns a DocxWriteBackTests.
     private static DocumentModelDto Open(byte[] bytes) => Roundtrip.Open(bytes);
 
     private static DocumentModelDto OpenFlat(byte[] bytes) => Roundtrip.OpenFlat(bytes);
@@ -31,13 +30,9 @@ public class DocxRoundTripTests
 
     private static Dictionary<string, byte[]> PartsOf(byte[] docx) => Roundtrip.PartsOf(docx);
 
-    // --- o critério de aceite ----------------------------------------------
-
     [Fact]
     public void EditingOneParagraphKeepsCommentsOnTheOthers()
     {
-        // Se este teste falhar, a gravação cirúrgica não está funcionando: o
-        // usuário corrige uma vírgula e perde os comentários dos revisores.
         var original = Fixtures.WithComment();
         var model = Clone(Open(original));
 
@@ -73,8 +68,7 @@ public class DocxRoundTripTests
     [Fact]
     public void SavingWithoutEditingRewritesNothing()
     {
-        // Abrir e salvar sem mexer é o caso mais comum de todos — clicar em
-        // salvar por reflexo. Precisa custar zero.
+        // Abrir e salvar sem mexer, o caso mais comum, custa zero.
         var original = Fixtures.WithComment();
         var (_, result) = Save(original, Clone(Open(original)));
 
@@ -86,7 +80,6 @@ public class DocxRoundTripTests
     [Fact]
     public void OnlyTheDocumentBodyPartChanges()
     {
-        // A promessa em uma linha: nada fora de word/document.xml é tocado.
         var original = Fixtures.WithAnchoredImage();
         var model = Clone(Open(original));
         EditFirstTextContaining(model, "Antes", "Texto novo.");
@@ -106,7 +99,7 @@ public class DocxRoundTripTests
     [Fact]
     public void EditingAParagraphThatCarriesACommentKeepsTheAnchor()
     {
-        // A âncora é nó do parágrafo e volta com ele — ver CommentsTests.
+        // A âncora volta com o parágrafo; ver CommentsTests.
         var original = Fixtures.WithComment();
         var model = Clone(Open(original));
 
@@ -120,8 +113,6 @@ public class DocxRoundTripTests
         Assert.Contains("<w:commentReference w:id=\"1\"", body, StringComparison.Ordinal);
     }
 
-    // --- extração ------------------------------------------------------------
-
     [Fact]
     public void ReadsHeadingsAlignmentAndText()
     {
@@ -134,10 +125,7 @@ public class DocxRoundTripTests
     [Fact]
     public void ImagemAncoradaSaiDoFluxo()
     {
-        // No Word um objeto ancorado não empurra o texto: mora numa posição da
-        // folha. Lido como bloco, a marca vertical de 28,6 cm da capa entrava
-        // como faixa deitada de página inteira e empurrava tudo para baixo — a
-        // contagem de páginas ia junto.
+        // No Word o objeto ancorado mora numa posição da folha e não empurra o texto.
         var model = Open(Fixtures.WithAnchoredImage());
 
         Assert.DoesNotContain(Walk(model.Doc), n => n.Type == "image");
@@ -154,43 +142,33 @@ public class DocxRoundTripTests
     [Fact]
     public void AncoradaOndeOFluxoAPoriaContinuaNoFluxo()
     {
-        // `wp:anchor` não quer dizer "fora do fluxo". É assim que o LibreOffice
-        // grava imagem no próprio parágrafo: ancorada, sem deslocamento,
-        // centralizada na coluna. Tirá-la do fluxo fazia trinta capturas de tela
-        // deixarem de ocupar altura — o texto se fechava por cima delas, o
-        // documento encolhia de doze folhas para quatro e as imagens acabavam
-        // empilhadas umas sobre as outras.
+        // O LibreOffice grava a imagem no próprio parágrafo como `wp:anchor` sem
+        // deslocamento, centralizada: ela ocupa altura no fluxo.
         var model = Open(Fixtures.WithAnchoredImageInTheFlow());
 
         var image = Assert.Single(Walk(model.Doc).Where(n => n.Type == "image"));
         Assert.Equal(554, image.Attrs!["width"]!.GetValue<int>());
 
-        // E não sobrou nenhuma cópia como objeto posicionado.
         Assert.All(model.Doc.Content!, block => Assert.Empty(FloatsOf(block)));
     }
 
     [Fact]
     public void ImagemNoFluxoContinuaSendoBloco()
     {
-        // O contrapeso: `wp:inline` é imagem no meio da linha, e deve mesmo
-        // ocupar lugar. Tirar as duas do fluxo esvaziaria o documento.
+        // `wp:inline` ocupa lugar na linha.
         var model = Open(Fixtures.WithInlineImage());
 
         var image = Assert.Single(Walk(model.Doc).Where(n => n.Type == "image"));
         Assert.Equal(554, image.Attrs!["width"]!.GetValue<int>());
 
-        // A altura junto com a largura. Sem ela o navegador reserva zero até os
-        // bytes decodificarem — e a paginação mede a folha uma vez, antes disso.
+        // Sem a altura o navegador reserva zero até decodificar, e a paginação mede antes.
         Assert.Equal(277, image.Attrs["height"]!.GetValue<int>());
     }
 
     [Fact]
     public void ImagemReescritaMantemOTamanhoQueTinha()
     {
-        // O parágrafo da imagem foi editado, então ele é regravado do modelo em
-        // vez de copiado. Enquanto a altura não chegava, o escritor chutava três
-        // quartos da largura: a imagem voltava para o arquivo com outra forma,
-        // sem ninguém ter tocado nela.
+        // O parágrafo editado é regravado do modelo, e a imagem guarda a forma.
         var original = Fixtures.WithInlineImage();
         var model = Clone(Open(original));
 
@@ -207,11 +185,8 @@ public class DocxRoundTripTests
     [Fact]
     public void AListaHerdaOEspacamentoDosParagrafosDela()
     {
-        // No arquivo a lista não existe como bloco: são parágrafos numerados,
-        // cada um com o seu espaçamento. Na árvore do editor ela é um elemento
-        // de verdade, e elemento sem espaçamento declarado recebe o do editor —
-        // o mesmo que o parágrafo importado já não recebe. Num documento com
-        // seis listas isso somava quinze milímetros de ar que o Word não tem.
+        // No arquivo a lista são parágrafos numerados, cada um com seu espaçamento;
+        // o elemento da lista no editor não pode somar o espaçamento padrão.
         var model = Open(Fixtures.WithBulletList());
         var list = Walk(model.Doc).First(n => n.Type == "bulletList");
 
@@ -232,9 +207,6 @@ public class DocxRoundTripTests
     [Fact]
     public void ReadsSuperscriptAndSubscript()
     {
-        // `w:vertAlign` era lido como nada: a fórmula "H2O" e o expoente "m2"
-        // abriam na linha do texto, e voltavam assim para o arquivo. Perda
-        // silenciosa, que é o defeito que esta suíte existe para pegar.
         var model = Open(Fixtures.WithVerticalAlignment());
         var marks = Walk(model.Doc).SelectMany(n => n.Marks ?? []).Select(m => m.Type).ToList();
 
@@ -245,10 +217,8 @@ public class DocxRoundTripTests
     [Fact]
     public void SavingVerticalAlignmentWithoutEditingRewritesNothing()
     {
-        // O outro lado da leitura: ler um recurso novo não pode fazer o modelo
-        // divergir do arquivo. Se divergisse, abrir e salvar um documento com
-        // expoente reescreveria o parágrafo inteiro — e com ele iria tudo o que
-        // este gravador não sabe reproduzir.
+        // Ler um recurso novo não pode fazer o modelo divergir do arquivo, senão
+        // abrir e salvar reescreve o parágrafo.
         var original = Fixtures.WithVerticalAlignment();
         var (_, result) = Save(original, Clone(Open(original)));
 
@@ -278,18 +248,15 @@ public class DocxRoundTripTests
     [Fact]
     public void ReadsColumnWidthsShadingAndHeaderRow()
     {
-        // As três chegavam ao editor como nada: a largura de coluna só existia no
-        // `w:tblGrid`, e o botão de redimensionar do TableKit escrevia a medida
-        // nova num atributo que ninguém lia — perda silenciosa na gravação.
+        // A largura de coluna vem do `w:tblGrid`, que o TableKit redimensiona.
         var table = Walk(Open(Fixtures.WithStyledTable()).Doc).First(n => n.Type == "table");
         var header = table.Content![0].Content![0];
 
-        // `w:tblHeader` é a linha que o Word repete no alto de cada página, e é
-        // isso que o editor chama de linha de cabeçalho.
+        // `w:tblHeader` é a linha que o Word repete no alto de cada página.
         Assert.Equal("tableHeader", header.Type);
         Assert.Equal("tableCell", table.Content[1].Content![0].Type);
 
-        // 4000 twips são 267 px do CSS, e 5000 são 333 — 15 twips por pixel.
+        // 15 twips por pixel: 4000 são 267 px.
         Assert.Equal("[267]", header.Attrs!["colwidth"]!.ToJsonString());
         Assert.Equal("[333]", table.Content[0].Content![1].Attrs!["colwidth"]!.ToJsonString());
         Assert.Equal("#d9d9d9", header.Attrs["shading"]!.GetValue<string>());
@@ -298,13 +265,11 @@ public class DocxRoundTripTests
     [Fact]
     public void ReadsCellBordersInTheCanonicalForm()
     {
-        // O texto do atributo é comparado com o que o editor devolve, então ele
-        // tem uma escrita só: lado, estilo, espessura em pontos e cor.
+        // Uma escrita só, comparada com a do editor: lado, estilo, espessura em pontos e cor.
         var model = Open(Fixtures.WithPatternedCell());
         var cell = Walk(model.Doc).First(n => n.Type == "tableCell");
 
-        // 24 oitavos de ponto são 3 pt; `thickThinSmallGap` não existe no CSS e é
-        // aproximado para linha simples — e a trama de 25%, para a cor lisa.
+        // 24 oitavos de ponto são 3 pt; `thickThinSmallGap` vira linha simples, e a trama, cor lisa.
         Assert.Equal("top:single,3,#000000", cell.Attrs!["borders"]!.GetValue<string>());
         Assert.Equal("#ffff00", cell.Attrs["shading"]!.GetValue<string>());
     }
@@ -312,8 +277,7 @@ public class DocxRoundTripTests
     [Fact]
     public void ReadsImageAlternativeText()
     {
-        // `wp:docPr/@descr` é o texto alternativo, e é o que um leitor de tela lê
-        // no lugar da imagem. Sem esta leitura ele voltava vazio para o arquivo.
+        // `wp:docPr/@descr` é o que o leitor de tela lê no lugar da imagem.
         var image = Walk(Open(Fixtures.WithDescribedImage()).Doc).First(n => n.Type == "image");
 
         Assert.Equal("Organograma da diretoria", image.Attrs!["alt"]!.GetValue<string>());
@@ -322,8 +286,7 @@ public class DocxRoundTripTests
     [Fact]
     public void FlattensIdenticalSectionsWithoutReportingLoss()
     {
-        // Sete seções idênticas são artefato do LibreOffice, não intenção do
-        // autor. Avisar sobre elas encheria a tela de ruído em documento normal.
+        // Sete seções idênticas são artefato do LibreOffice, e não pedem aviso.
         var result = DocxReader.Read(Fixtures.WithIdenticalSections());
 
         Assert.Equal("A4", result.Model.Page.Size);
@@ -339,8 +302,6 @@ public class DocxRoundTripTests
         Assert.Equal("portrait", page.Orientation);
         Assert.Equal(25.4, page.Margins.Top, 1);
     }
-
-    // --- estilos ------------------------------------------------------------
 
     /// <summary>`word/document.xml` de dentro do pacote.</summary>
     private static string MainDocumentXml(byte[] bytes)
@@ -397,13 +358,9 @@ public class DocxRoundTripTests
         Walk(node).Where(n => n.Type == "text").SelectMany(n => n.Marks ?? []).ToList();
 
     /// <summary>
-    /// O primeiro bloco que contém o texto dado.
+    /// O primeiro bloco com o texto. Filtra por tipo porque <c>Walk</c> inclui a raiz,
+    /// que casaria com qualquer busca.
     /// </summary>
-    /// <remarks>
-    /// Filtra por tipo de bloco de propósito: `Walk` inclui a raiz, e sem o
-    /// filtro o `doc` inteiro casaria com qualquer busca — o teste passaria a
-    /// medir o documento todo em vez do parágrafo.
-    /// </remarks>
     private static Node BlockContaining(DocumentModelDto model, string needle) =>
         Walk(model.Doc)
             .Where(n => n.Type is "paragraph" or "heading")
@@ -412,9 +369,7 @@ public class DocxRoundTripTests
     [Fact]
     public void ResolvesFormattingThatLivesOnlyInTheStyle()
     {
-        // O caso que doeu na tela: `Heading1` no corpus real não é um título
-        // grande, é uma barra vermelha com texto branco. Nada disso está no
-        // parágrafo — ler só a formatação direta perdia tudo.
+        // O `Heading1` do corpus é uma barra vermelha de texto branco, toda no estilo.
         var model = OpenFlat(Fixtures.WithStyles());
         var banner = FirstOfType(model, "paragraph");
 
@@ -431,7 +386,6 @@ public class DocxRoundTripTests
     [Fact]
     public void FollowsTheBasedOnChain()
     {
-        // `Corpo` herda a fonte de `Base` e só acrescenta o alinhamento.
         var model = OpenFlat(Fixtures.WithStyles());
         var body = BlockContaining(model, "Texto do corpo");
 
@@ -451,9 +405,7 @@ public class DocxRoundTripTests
     [Fact]
     public void ParagraphMarkFormattingDoesNotReachTheRuns()
     {
-        // `w:rPr` dentro de `w:pPr` formata a marca de parágrafo — o "¶" — e
-        // não o texto. Aplicá-la aos runs punha negrito em parágrafos inteiros
-        // que no Word aparecem normais.
+        // `w:rPr` em `w:pPr` formata a marca de parágrafo, e não o texto.
         var model = Open(Fixtures.WithStyles());
         var paragraph = BlockContaining(model, "negrito");
 
@@ -463,10 +415,7 @@ public class DocxRoundTripTests
     [Fact]
     public void PutsTheFontOnTheBlockAndNotOnlyOnTheRuns()
     {
-        // A altura da linha nasce da fonte **do elemento**, não do texto dentro
-        // dele. Sem a fonte no bloco, um parágrafo de 10 pt continuava ocupando
-        // os 12 pt que a folha do editor declara — e um título de 10 pt virava
-        // uma barra alta demais, porque o editor desenha títulos em 22 pt.
+        // A altura da linha nasce da fonte do elemento, e não do texto dentro dele.
         var model = OpenFlat(Fixtures.WithStyles());
         var banner = FirstOfType(model, "paragraph");
 
@@ -477,9 +426,7 @@ public class DocxRoundTripTests
     [Fact]
     public void ParagraphWithoutAStyleStillGetsTheDefaultOne()
     {
-        // O estilo marcado `w:default="1"` vale para quem não declara
-        // `w:pStyle`. Sem consultá-lo, o texto do corpo de um documento inteiro
-        // chegava só com os `docDefaults` — quer dizer, quase sem formatação.
+        // O estilo `w:default="1"` vale para quem não declara `w:pStyle`.
         var model = OpenFlat(Fixtures.WithLineMetrics());
         var first = BlockContaining(model, "estilo padrão");
 
@@ -489,19 +436,14 @@ public class DocxRoundTripTests
     [Fact]
     public void TheParagraphMarkGivesTheBlockItsFont()
     {
-        // A marca de parágrafo continua fora dos runs — pô-la ali punha negrito
-        // em parágrafo que não tem. Mas é com ela que o Word mede a linha, e o
-        // bloco precisa dela: um parágrafo vazio de Verdana 10 pt ocupava os
-        // 12 pt do padrão do editor, meia linha a mais, em cada parágrafo.
+        // É com a marca de parágrafo que o Word mede a linha, também a do parágrafo vazio.
         var model = Open(Fixtures.WithLineMetrics());
         var marked = BlockContaining(model, "Verdana");
 
         Assert.Equal("Verdana", marked.Attrs!["fontFamily"]!.GetValue<string>());
         Assert.Equal("10pt", marked.Attrs["fontSize"]!.GetValue<string>());
 
-        // E continua fora dos runs: o texto segue com a fonte do estilo — que no
-        // bloco desenhado pelos estilos nem aparece no trecho, e na leitura
-        // achatada aparece inteira.
+        // E ela continua fora dos runs.
         Assert.DoesNotContain(MarksOf(marked), m => m.Type == "textStyle");
         var flat = BlockContaining(OpenFlat(Fixtures.WithLineMetrics()), "Verdana");
         var run = MarksOf(flat).Single(m => m.Type == "textStyle");
@@ -511,19 +453,12 @@ public class DocxRoundTripTests
     [Fact]
     public void SilenceAboutSpacingMeansSingleAndZero()
     {
-        // Arquivo calado não está pedindo o padrão de quem o abre: está dizendo
-        // zero de espaço e espaçamento simples. Enquanto os atributos ficavam
-        // ausentes, o `margin-top` e o `line-height` que o editor traz para o
-        // documento em branco reapareciam em cada parágrafo importado — mais de
-        // uma página de ar num documento de meia centena de parágrafos.
+        // Arquivo calado diz zero de espaço e espaçamento simples, e não o padrão do editor.
         var model = OpenFlat(Fixtures.WithLineMetrics());
         var first = BlockContaining(model, "estilo padrão");
 
-        // Espaçamento simples sai como número, e não como `normal`: é a altura
-        // natural da fonte do editor. O Chromium arredonda o `normal` dele para
-        // pixel inteiro — 15 px onde o LibreOffice usa 15,33 —, e são 2 % por
-        // linha, o bastante para um documento de quinze folhas fechar em
-        // dezesseis.
+        // Simples sai como número, a altura natural da fonte: o Chromium arredonda o
+        // `normal` para pixel inteiro.
         Assert.Equal("1.1499", first.Attrs!["lineHeight"]!.GetValue<string>());
         Assert.Equal(0, first.Attrs["spaceBefore"]!.GetValue<double>());
         Assert.Equal(0, first.Attrs["spaceAfter"]!.GetValue<double>());
@@ -532,43 +467,33 @@ public class DocxRoundTripTests
     [Fact]
     public void ReadsLineSpacingThatIsLockedInPoints()
     {
-        // `exact` e `atLeast` dizem a altura em twips. As duas voltavam nulas, e
-        // um parágrafo com entrelinha travada era desenhado com a do editor.
+        // `exact` e `atLeast` dizem a altura em twips.
         var model = Open(Fixtures.WithLineMetrics());
 
         Assert.Equal("9pt", BlockContaining(model, "travada").Attrs!["lineHeight"]!.GetValue<string>());
 
-        // O múltiplo do OOXML é sobre a altura **natural** da fonte, e não sobre
-        // o tamanho dela: uma vez e meia de Liberation Serif são 1,7248 em, e
-        // não 1,5. É o que o Word e o LibreOffice calculam.
+        // O múltiplo é sobre a altura natural: uma vez e meia de Liberation Serif é 1,7248 em.
         Assert.Equal("1.7248", BlockContaining(model, "uma vez e meia").Attrs!["lineHeight"]!.GetValue<string>());
     }
 
     [Fact]
     public void OMultiploDaEntrelinhaEVezAAlturaDaFonte()
     {
-        // A conta do Word: "1,13 linha" não é 1,13 vez o tamanho da fonte, é
-        // 1,13 vez o que a fonte pede para uma linha simples. Em Arial isso são
-        // 1,1499 em, e a diferença — 13 % por linha — é o que fazia o documento
-        // caber em menos folhas aqui do que no LibreOffice.
+        // "1,13 linha" é 1,13 vez a linha simples da fonte, que em Arial é 1,1499 em.
         var model = Open(Fixtures.WithLineMetrics());
 
-        // 271/240 a quatro casas (1,1292), que é a grade do arquivo: o bloco que
-        // só leva o direto não arredonda o múltiplo a centésimos, como o achatado.
+        // 271/240 a quatro casas (1,1292), a grade do arquivo, sobre 1,1499.
         Assert.Equal("1.2985", BlockContaining(model, "Arial e um pouco mais").Attrs!["lineHeight"]!.GetValue<string>());
     }
 
     [Fact]
     public void FonteQueNaoVaiNoInstaladorAindaRespeitaOMultiplo()
     {
-        // A substituta depende da máquina de quem abre. Sem múltiplo declarado o
-        // leitor sai da frente e deixa o navegador medir; com múltiplo não dá
-        // para sair — aplicá-lo sobre o tamanho da fonte erra por 15 % —, e
-        // vale o palpite de 1,15, que é a altura de quase toda fonte latina.
+        // Fonte desconhecida com múltiplo declarado: o palpite de 1,15, a altura de
+        // quase toda fonte latina, porque sobre o tamanho da fonte erra 15 %.
         var model = Open(Fixtures.WithLineMetrics());
 
-        // 271/240 a quatro casas (1,1292), que é a grade do arquivo: o bloco que
-        // só leva o direto não arredonda o múltiplo a centésimos, como o achatado.
+        // 271/240 sobre o palpite de 1,15.
         Assert.Equal("1.2985", BlockContaining(model, "fonte que ninguém tem").Attrs!["lineHeight"]!.GetValue<string>());
         Assert.Equal("normal", BlockContaining(model, "Verdana de dez").Attrs!["lineHeight"]!.GetValue<string>());
     }
@@ -576,17 +501,13 @@ public class DocxRoundTripTests
     [Fact]
     public void AFonteAusenteCaiNaSubstitutaDoTipoCerto()
     {
-        // O documento nomeia fontes que a máquina de quem abre pode não ter. Sem
-        // dizer de que tipo elas são, o navegador cai na próxima da pilha, e a
-        // pilha do editor termina em serifa: a capa do modelo de manual, que
-        // pede Segoe UI, saía com o título em Times enquanto o LibreOffice o
-        // desenha sem serifa. `word/fontTable.xml` é quem diz o tipo.
+        // `word/fontTable.xml` diz o tipo da fonte que pode faltar, para a pilha do CSS.
         var model = Open(Fixtures.WithMissingFont());
 
         var titulo = MarksOf(BlockContaining(model, "Título da capa")).Single(m => m.Type == "textStyle");
         Assert.Equal("Segoe UI, sans-serif", titulo.Attrs!["fontFamily"]!.GetValue<string>());
 
-        // Fonte que a tabela não declara não ganha pilha inventada.
+        // Sem tipo declarado, sem pilha inventada.
         var outro = MarksOf(BlockContaining(model, "Sem tipo")).Single(m => m.Type == "textStyle");
         Assert.Equal("Fonte Fantasma", outro.Attrs!["fontFamily"]!.GetValue<string>());
     }
@@ -594,8 +515,7 @@ public class DocxRoundTripTests
     [Fact]
     public void SoONomeDaFonteVoltaParaOArquivo()
     {
-        // `w:rFonts` guarda o nome de uma fonte, não uma pilha de CSS. Escrever
-        // a pilha inteira gravaria uma fonte chamada "Segoe UI, sans-serif".
+        // `w:rFonts` guarda o nome, e não a pilha: senão a fonte seria "Segoe UI, sans-serif".
         var original = Fixtures.WithMissingFont();
         var model = Clone(Open(original));
 
@@ -611,9 +531,7 @@ public class DocxRoundTripTests
     [Fact]
     public void ReadsKeepWithNext()
     {
-        // Diz que o bloco não fica sozinho no pé da página. A marca de fim de
-        // página e a folha de impressão usam o mesmo sinal — se divergissem, a
-        // marca cairia num lugar e o PDF quebraria noutro.
+        // A marca de fim de página e a impressão usam o mesmo sinal, senão cortariam em lugares diferentes.
         var model = Open(Fixtures.WithKeepNext());
         var kept = BlockContaining(model, "Rótulo");
 
@@ -624,8 +542,7 @@ public class DocxRoundTripTests
     [Fact]
     public void PutsTheTopAnchoredImageBeforeTheText()
     {
-        // Ancorada ao topo do parágrafo: o quadro vem antes do texto, como o Word
-        // e o LibreOffice o desenham, qualquer que seja a posição do run.
+        // O quadro ancorado ao topo vem antes do texto, como o Word e o LibreOffice o desenham.
         var model = Open(Fixtures.WithTextAroundTopAnchoredImage());
         var paragraph = model.Doc.Content!.Single(node => node.Type == "paragraph");
 
@@ -646,8 +563,6 @@ public class DocxRoundTripTests
     [Fact]
     public void ReadsKeepLines()
     {
-        // A paginação corta parágrafos entre linhas; o que pediu para não ser
-        // cortado precisa chegar ao editor dizendo isso.
         var model = Open(Fixtures.WithKeepLines());
 
         Assert.True(BlockContaining(model, "Linhas juntas").Attrs!["keepLines"]!.GetValue<bool>());
@@ -657,7 +572,7 @@ public class DocxRoundTripTests
     [Fact]
     public void ReadsWidowControlOnlyWhenTurnedOff()
     {
-        // Ligado é o padrão do Word: só o parágrafo que o desliga diz alguma coisa.
+        // Ligado é o padrão do Word: só o que o desliga diz alguma coisa.
         var model = Open(Fixtures.WithKeepLines());
 
         Assert.False(BlockContaining(model, "Viúva permitida").Attrs!["widowControl"]!.GetValue<bool>());
@@ -667,17 +582,14 @@ public class DocxRoundTripTests
     [Fact]
     public void TreatsLeadingTabsAsCentering()
     {
-        // No corpus, o primeiro título de cada documento vem alinhado à
-        // esquerda com tabulações até uma parada centralizada. No Word ele
-        // aparece no meio; no HTML a tabulação colapsa e o título encostava à
-        // esquerda, destoando dos títulos vizinhos.
+        // No corpus o título vem alinhado à esquerda com tabulações até uma parada
+        // centralizada; no HTML a tabulação colapsa.
         var model = Open(Fixtures.WithTabCentering());
         var centered = BlockContaining(model, "Centralizado por tabulação");
 
         Assert.Equal("center", centered.Attrs!["textAlign"]!.GetValue<string>());
 
-        // As tabulações saem **deste** parágrafo: viraram posicionamento, não
-        // conteúdo. A do outro parágrafo, no meio da linha, continua lá.
+        // As tabulações deste parágrafo viram posicionamento; a do meio da linha fica.
         var text = string.Concat(Walk(centered).Where(n => n.Type == "text").Select(n => n.Text));
         Assert.Equal("Centralizado por tabulação", text);
     }
@@ -685,8 +597,7 @@ public class DocxRoundTripTests
     [Fact]
     public void LeavesTabsInTheMiddleOfALineAlone()
     {
-        // A regra só vale para tabulação no começo da linha. "Esquerda [tab]
-        // meio" é outra coisa, e centralizar o parágrafo inteiro o quebraria.
+        // Só a tabulação do começo da linha: "esquerda [tab] meio" é outra coisa.
         var model = Open(Fixtures.WithTabCentering());
         var inline = BlockContaining(model, "Esquerda");
 
@@ -696,13 +607,11 @@ public class DocxRoundTripTests
     [Fact]
     public void SurvivesAStyleThatInheritsFromItself()
     {
-        // Documento é dado não confiável: uma cadeia circular não pode travar.
+        // Documento é dado não confiável: cadeia circular não trava.
         var model = Open(Fixtures.WithCircularStyle());
 
         Assert.Contains("Texto.", TextOf(model), StringComparison.Ordinal);
     }
-
-    // --- inventário ---------------------------------------------------------
 
     [Fact]
     public void CommentsAreNeitherInvisibleNorLost()
@@ -717,7 +626,7 @@ public class DocxRoundTripTests
     [Fact]
     public void TrackedChangesNoLongerLockOrWarn()
     {
-        // A revisão de texto é marca do editor — nem invisível, nem trava.
+        // A revisão de texto é marca do editor: nem invisível, nem trava.
         var result = DocxReader.Read(Fixtures.WithTrackedChanges());
 
         Assert.Empty(result.Inventory.Invisible);
@@ -728,26 +637,21 @@ public class DocxRoundTripTests
     [Fact]
     public void RevisaoDeEstruturaEEstruturalEComentarioNao()
     {
-        // É esta lista que decide se o documento abre em somente leitura. Ela é
-        // subconjunto da invisibilidade: o recurso continua no arquivo, e só
-        // some se o usuário editar justamente o bloco que o ancora. Comentário
-        // e revisão de texto não entram nela; a revisão de estrutura (célula
-        // inserida, excluída ou mesclada) entra.
+        // A lista que decide o somente leitura é subconjunto da invisibilidade:
+        // comentário e revisão de texto não entram, a revisão de estrutura entra.
         var comentado = DocxReader.Read(Fixtures.WithComment()).Inventory;
         var revisado = DocxReader.Read(Fixtures.WithInsertedCell()).Inventory;
 
         Assert.DoesNotContain(Inventory.Comments, comentado.Structural);
         Assert.Contains(Inventory.StructureRevisions, revisado.Structural);
-        // Subconjunto, não lista paralela: tudo que é estrutural também é
-        // invisível, senão o aviso de tela deixaria de mencioná-lo.
+        // Tudo que é estrutural é invisível, senão o aviso deixaria de mencioná-lo.
         Assert.All(revisado.Structural, item => Assert.Contains(item, revisado.Invisible));
     }
 
     [Fact]
     public void DocumentoComumNaoAbreEmSomenteLeitura()
     {
-        // Somente leitura por padrão em documento normal travaria o uso do dia
-        // a dia — e o usuário aprenderia a clicar "editar mesmo assim" sem ler.
+        // Somente leitura em documento normal ensinaria a clicar "editar mesmo assim" sem ler.
         var result = DocxReader.Read(Fixtures.Simple());
 
         Assert.Empty(result.Inventory.Structural);
@@ -756,9 +660,7 @@ public class DocxRoundTripTests
     [Fact]
     public void ImagemAncoradaNaoEEstrutural()
     {
-        // Perda de **aparência**, não de conteúdo: a imagem aparece na tela e
-        // volta para o arquivo. Travar a edição por causa dela seria o mesmo
-        // que travar por nada, já que quase todo documento do corpus tem uma.
+        // Perda de aparência, e não de conteúdo: quase todo documento do corpus tem uma.
         var result = DocxReader.Read(Fixtures.WithAnchoredImage());
 
         Assert.Empty(result.Inventory.Structural);
@@ -767,11 +669,8 @@ public class DocxRoundTripTests
     [Fact]
     public void DesenhoAncoradoNoCabecalhoNaoEspremeEmTresColunas()
     {
-        // A faixa é uma grade de três colunas, e é o bastante para texto. Um
-        // desenho ancorado traz posição de verdade e pode vir girado: a marca
-        // lateral do corpus é uma faixa de 28,6 mm **em pé**, que não entra numa
-        // banda de 10 mm de altura — espremida ali, era desenhada deitada e no
-        // terço errado.
+        // Desenho ancorado na faixa vai como objeto, com posição e giro: a marca
+        // lateral do corpus fica em pé, 28,6 mm numa banda de 10 mm.
         var page = DocxReader.Read(Fixtures.WithAnchoredHeaderLogo(4563177)).Model.Page;
 
         Assert.Empty(page.Header!.Left);
@@ -786,8 +685,7 @@ public class DocxRoundTripTests
     [Fact]
     public void ODeslocamentoNegativoDoCabecalhoSobreviveComSinal()
     {
-        // É como uma marca sai para fora da coluna pela esquerda. Lida sem
-        // sinal, ela atravessaria para o outro lado da página.
+        // Marca que sai da coluna pela esquerda: o sinal conta.
         var page = DocxReader.Read(Fixtures.WithAnchoredHeaderLogo(-1123950)).Model.Page;
 
         var marca = Assert.Single(page.Header!.Floats!);
@@ -797,10 +695,8 @@ public class DocxRoundTripTests
     [Fact]
     public void CabecalhoEmGradeSaiComoGrade()
     {
-        // Três colunas bastam para texto e não bastam para isto: o cabeçalho
-        // corporativo do corpus é uma tabela com o logotipo mesclado por três
-        // linhas, o título ao lado e a numeração à direita. Achatado nos terços,
-        // virava uma fileira de palavras por cima da primeira linha do texto.
+        // O cabeçalho corporativo do corpus é uma tabela, com o logotipo mesclado em
+        // três linhas: três colunas não bastam.
         var page = DocxReader.Read(Fixtures.WithHeaderGrid()).Model.Page;
         var rows = page.Header!.Rows!;
 
@@ -817,16 +713,12 @@ public class DocxRoundTripTests
     [Fact]
     public void ACelulaMescladaCresceEmVezDeDeixarBuracos()
     {
-        // No OOXML a mesclagem vertical não é altura: a célula de cima diz
-        // `restart` e as de baixo aparecem como células vazias. Desenhadas como
-        // células de verdade, elas abririam uma faixa em branco por linha
-        // debaixo do logotipo.
+        // A mesclagem vertical do OOXML é `restart` em cima e células vazias embaixo.
         var rows = DocxReader.Read(Fixtures.WithHeaderGrid()).Model.Page.Header!.Rows!;
 
         Assert.Equal(3, rows[0].Cells[0].RowSpan);
         Assert.Equal("image", rows[0].Cells[0].Pieces[0].Kind);
 
-        // E as linhas de baixo não têm mais a célula do logotipo.
         Assert.Equal(2, rows[1].Cells.Count);
         Assert.Equal(3, rows[2].Cells.Count);
     }
@@ -834,10 +726,8 @@ public class DocxRoundTripTests
     [Fact]
     public void AGradeTrazLarguraJuntoEBordaResolvida()
     {
-        // A largura é fração da grade, e não twips: quem desenha não sabe quanto
-        // vale um twip na folha. A borda vem resolvida porque no OOXML cada lado
-        // sai de três lugares — a célula, a moldura, a linha interna — e refazer
-        // essa conta na tela e outra vez no papel é como os dois divergem.
+        // Largura em fração da grade, porque quem desenha não sabe quanto vale um twip;
+        // a borda vem resolvida, porque cada lado sai de três lugares no OOXML.
         var rows = DocxReader.Read(Fixtures.WithHeaderGrid()).Model.Page.Header!.Rows!;
 
         Assert.Equal(0.2, rows[0].Cells[0].Width, 3);
@@ -851,11 +741,7 @@ public class DocxRoundTripTests
     [Fact]
     public void OGrupoDoCabecalhoSaiPecaPorPeca()
     {
-        // A âncora diz onde o grupo está; `a:chOff`/`a:chExt` dizem em que régua
-        // as coordenadas de dentro foram escritas. Sem desembrulhar, cada peça
-        // recebia a caixa do grupo inteiro — o logotipo de 48 mm era esticado
-        // para os 177 mm da faixa toda — e as caixas de texto não saíam de lugar
-        // nenhum, porque só se procurava imagem: o título do documento sumia.
+        // A âncora dá o lugar do grupo, e `a:chOff`/`a:chExt` a régua de dentro.
         var page = DocxReader.Read(Fixtures.WithHeaderGroup()).Model.Page;
         var floats = page.Header!.Floats!;
 
@@ -880,23 +766,17 @@ public class DocxRoundTripTests
     [Fact]
     public void ADistanciaDaFaixaAteABordaEhLida()
     {
-        // É a origem vertical das âncoras de dentro da faixa: elas se dizem
-        // relativas ao parágrafo, e o parágrafo do cabeçalho começa aqui. Sem
-        // esta medida não há de onde contar.
+        // A origem vertical das âncoras da faixa, que se dizem relativas ao parágrafo.
         var page = DocxReader.Read(Fixtures.WithAnchoredHeaderLogo(0)).Model.Page;
 
         Assert.Equal(12.5, page.HeaderDistanceMm, 1);
     }
 
-    // --- quebra de página ---------------------------------------------------
-
     [Fact]
     public void QuebraDentroDoParagrafoViraPropriedadeDoBloco()
     {
-        // Emiti-la como nó ali dentro poria um bloco em posição de linha, que o
-        // editor não aceita — e, serializado, um `<div>` dentro de `<p>` faz o
-        // analisador de HTML desalojar o `div`: 15 blocos viram 17 elementos, os
-        // índices deixam de casar e o papel corta noutro lugar que a tela.
+        // Nó de bloco dentro da linha o editor não aceita, e `<div>` em `<p>` o HTML
+        // desaloja: os índices deixariam de casar com o papel.
         var model = Open(Fixtures.WithBreakInsideParagraph());
 
         var blocos = model.Doc.Content!;
@@ -907,9 +787,7 @@ public class DocxRoundTripTests
     [Fact]
     public void AQuebraDoParagrafoVoltaAoArquivoAoEditar()
     {
-        // O parágrafo intocado volta pelo XML original e a quebra vem junto. O
-        // caso que precisa de gravador é o editado: sem escrever a quebra de
-        // volta, ela sumiria em silêncio.
+        // O editado precisa escrever a quebra de volta; o intocado a traz no XML original.
         var bytes = Fixtures.WithBreakInsideParagraph();
         var model = Clone(Open(bytes));
         Assert.True(EditFirstTextContaining(model, "Fim da", "Outro texto."));
@@ -920,20 +798,13 @@ public class DocxRoundTripTests
         Assert.True(reaberto.Doc.Content![0].Attrs!["breakAfter"]!.GetValue<bool>());
     }
 
-    // --- cabeçalho por página -----------------------------------------------
-
     [Fact]
     public void OCabecalhoPadraoNaoDependeDaOrdemDeGravacao()
     {
-        // O `w:type` era ignorado: percorria-se as referências na ordem do XML e
-        // ficava a primeira não vazia. Neste fixture o `first` vem antes, então
-        // o cabeçalho da capa apareceria no documento inteiro — e qual apareceria
-        // dependia de como o Word gravou, não do que o documento diz.
+        // O que vale é o `w:type`, e não a ordem das referências no XML.
         var bytes = Fixtures.WithFirstPageHeader(titlePage: true);
 
-        // A armadilha, afirmada aqui para não depender de quem lê o fixture: a
-        // referência `first` vem **antes** da `default` no XML, e não está
-        // vazia. Pela ordem, "Capa" ganharia.
+        // A armadilha: a referência `first`, não vazia, vem antes da `default`.
         var xml = MainDocumentXml(bytes);
         Assert.InRange(
             xml.IndexOf("w:type=\"first\"", StringComparison.Ordinal),
@@ -954,10 +825,8 @@ public class DocxRoundTripTests
     [Fact]
     public void SemTitlePgOCabecalhoDaCapaNaoEhUsado()
     {
-        // O Word guarda a parte `first` mesmo com o interruptor desligado —
-        // quatro dos seis documentos do corpus são assim. Ela vem, para aparecer
-        // se a pessoa ligar o interruptor; mas vem com ele desligado, e quem
-        // desenha não a usa (`bandForPage`).
+        // O Word guarda a parte `first` com o interruptor desligado (quatro dos seis
+        // documentos do corpus): ela vem, desligada, e quem desenha não a usa.
         var page = DocxReader.Read(Fixtures.WithFirstPageHeader(titlePage: false)).Model.Page;
 
         Assert.False(page.TitlePage);
@@ -965,19 +834,12 @@ public class DocxRoundTripTests
         Assert.Equal("Miolo", TextOfBand(page.Header));
     }
 
-    // --- impressão digital --------------------------------------------------
-
-    // O leitor e o editor descrevem o mesmo bloco de formas diferentes. Cada
-    // teste abaixo fixa uma dessas diferenças como "não é edição" — sem isso a
-    // gravação cirúrgica regenera o documento inteiro achando que o usuário
-    // mexeu em tudo. Medido: `modelo-de-manual.docx` aberto e salvo sem
-    // edição nenhuma preservava 2 dos 15 blocos.
-
+    // O leitor e o editor descrevem o mesmo bloco de formas diferentes: cada teste
+    // abaixo fixa uma delas como "não é edição".
     [Fact]
     public void AtributoNuloEAusenteSaoAMesmaCoisa()
     {
-        // O ProseMirror materializa todo atributo do schema, inclusive os que o
-        // documento não menciona, e devolve `null` neles.
+        // O ProseMirror materializa todo atributo do schema, com `null`.
         var doLeitor = Node.Of("paragraph").With("fontSize", "12pt");
         var doEditor = Node.Of("paragraph").With("fontSize", "12pt").With("styleId", null);
 
@@ -987,9 +849,7 @@ public class DocxRoundTripTests
     [Fact]
     public void AOrdemDasChavesNaoContaComoEdicao()
     {
-        // `JsonObject` guarda a ordem de inserção, e os dois lados montam os
-        // atributos em ordens diferentes. Sozinha, esta diferença reprovava
-        // todos os blocos — foi a última a aparecer e a que escondia as outras.
+        // `JsonObject` guarda a ordem de inserção, que difere entre os dois lados.
         var doLeitor = Node.Of("paragraph").With("lineHeight", 1.16).With("fontSize", "12pt");
         var doEditor = Node.Of("paragraph").With("fontSize", "12pt").With("lineHeight", 1.16);
 
@@ -999,8 +859,7 @@ public class DocxRoundTripTests
     [Fact]
     public void AOrdemDasMarcasNaoContaComoEdicao()
     {
-        // Negrito antes ou depois da cor é a mesma formatação; o ProseMirror
-        // ordena as marcas pela posição delas no schema.
+        // O ProseMirror ordena as marcas pela posição no schema.
         var doLeitor = new Node { Type = "text", Text = "Acme", Marks = [Mark.Of("bold"), Mark.Of("textStyle", "color", "#404040")] };
         var doEditor = new Node { Type = "text", Text = "Acme", Marks = [Mark.Of("textStyle", "color", "#404040"), Mark.Of("bold")] };
 
@@ -1010,8 +869,7 @@ public class DocxRoundTripTests
     [Fact]
     public void TextoVizinhoComAsMesmasMarcasEUmTextoSo()
     {
-        // O leitor emite um nó por `w:r`: "Acme® Software" chega partido
-        // quando o `®` tem `rPr` próprio, ainda que igual ao do vizinho.
+        // O leitor emite um nó por `w:r`: "Acme® Software" chega partido.
         var doLeitor = Node.Of(
             "paragraph",
             new Node { Type = "text", Text = "Acme" },
@@ -1024,9 +882,7 @@ public class DocxRoundTripTests
     [Fact]
     public void TextoVizinhoComMarcasDiferentesNaoSeFunde()
     {
-        // O contrapeso: fundir sem olhar as marcas apagaria a diferença entre
-        // "Acme" em negrito e "® Software" sem negrito, e a comparação
-        // deixaria de perceber uma edição de formatação de verdade.
+        // Fundir sem olhar as marcas esconderia uma edição de formatação.
         var negrito = Node.Of(
             "paragraph",
             new Node { Type = "text", Text = "Acme", Marks = [Mark.Of("bold")] },
@@ -1039,9 +895,7 @@ public class DocxRoundTripTests
     [Fact]
     public void EdicaoDeVerdadeContinuaSendoVista()
     {
-        // Toda normalização acima afrouxa a comparação. Se afrouxar demais, a
-        // gravação preserva o XML antigo de um bloco que o usuário mudou — que
-        // é perda de dados, e pior que regenerar.
+        // Afrouxar demais preserva o XML de um bloco mudado, o que é perda de dados.
         var antes = Node.Of("paragraph", new Node { Type = "text", Text = "Sumário" });
         var depois = Node.Of("paragraph", new Node { Type = "text", Text = "Sumario" });
 
@@ -1051,22 +905,17 @@ public class DocxRoundTripTests
     [Fact]
     public void OidNaoEntraNaComparacao()
     {
-        // Identidade não é conteúdo: dois blocos iguais em posições diferentes
-        // do documento têm `oid` diferente e o mesmo texto.
+        // Identidade não é conteúdo.
         var primeiro = Node.Of("paragraph", new Node { Type = "text", Text = "Texto" }).With("oid", "b1");
         var segundo = Node.Of("paragraph", new Node { Type = "text", Text = "Texto" }).With("oid", "b9");
 
         Assert.Equal(primeiro.Fingerprint(), segundo.Fingerprint());
     }
 
-    // --- formas e caixas de texto -------------------------------------------
-
     [Fact]
     public void CaixaDeTextoViraObjetoComOTextoDentro()
     {
-        // Uma caixa é um fluxo de texto próprio, posicionado na folha. Despejar
-        // o texto na linha da âncora mostraria o conteúdo, mas emendaria título
-        // e subtítulo numa frase só.
+        // A caixa é um fluxo de texto próprio: na linha, título e subtítulo se emendariam.
         var floats = FloatsOf(Open(Fixtures.WithTextBoxes()).Doc.Content![0]);
 
         Assert.Equal(2, floats.Count);
@@ -1078,8 +927,7 @@ public class DocxRoundTripTests
     [Fact]
     public void CaixaDeTextoNaoEntraDuasVezes()
     {
-        // O Word grava a mesma caixa em DrawingML e no VML de reserva. Ler os
-        // dois ramos criaria dois objetos no mesmo lugar, um sobre o outro.
+        // DrawingML e VML de reserva: um ramo só, senão dois objetos no mesmo lugar.
         var floats = FloatsOf(Open(Fixtures.WithTextBoxes()).Doc.Content![0]);
 
         Assert.Single(floats.Where(item => TextOfFloat(item) == "Título do manual"));
@@ -1088,17 +936,11 @@ public class DocxRoundTripTests
     [Fact]
     public void CaixaDeTextoSobreviveAEdicaoDoParagrafoAncora()
     {
-        // O escritor não sabe gerar uma forma do zero. O que ele tem é o XML
-        // original do bloco, e copiar dele os objetos ancorados é o mesmo
-        // remédio da gravação cirúrgica aplicado a um pedaço do parágrafo.
-        // Sem isto, editar a capa do modelo de manual apagava o título e o
-        // subtítulo, que moram em caixas de texto.
+        // O escritor não gera forma do zero: copia os objetos ancorados do XML original do bloco.
         var original = Fixtures.WithTextBoxes();
         var model = Clone(Open(original));
 
-        // Digitar no parágrafo, e não apagar o `oid`: é assim que a edição
-        // chega de verdade. O `oid` é justamente o fio que leva de volta ao XML
-        // original — sem ele o bloco é novo, e não há de onde copiar a forma.
+        // Editar o texto, e não apagar o `oid`, que é o fio até o XML original.
         var paragraph = Walk(model.Doc).First(n => n.Type == "paragraph");
         paragraph.Content = [new Node { Type = "text", Text = "Capa" }];
 
@@ -1112,9 +954,7 @@ public class DocxRoundTripTests
     [Fact]
     public void TextoDigitadoNaCaixaVoltaParaOArquivo()
     {
-        // A capa do modelo de manual é feita de caixas: o título e o subtítulo
-        // não estão no fluxo. Deixar a caixa editável na tela sem esta volta
-        // seria pior do que não deixar editar — o texto novo sumiria ao salvar.
+        // O título e o subtítulo da capa moram em caixas: o texto novo tem de voltar.
         var original = Fixtures.WithTextBoxes();
         var model = Clone(Open(original));
 
@@ -1131,18 +971,14 @@ public class DocxRoundTripTests
         Assert.Contains(depois, item => TextOfFloat(item) == "Subtítulo do manual");
         Assert.DoesNotContain(depois, item => TextOfFloat(item) == "Título do manual");
 
-        // O ramo de reserva vai junto. O Word grava a mesma caixa duas vezes, e
-        // escrever só a que este leitor consulta deixaria o arquivo dizendo
-        // duas coisas — qual delas aparece dependeria de quem abre.
+        // O ramo de reserva também, senão o arquivo diz duas coisas.
         Assert.DoesNotContain("Título do manual", MainDocumentXml(bytes), StringComparison.Ordinal);
     }
 
     [Fact]
     public void CaixaNaoEditadaNaoEReescrita()
     {
-        // O remédio da gravação cirúrgica, um nível abaixo: a caixa em que
-        // ninguém tocou segue com o XML que tinha — moldura, preenchimento e
-        // formatação que este escritor não sabe reproduzir.
+        // A caixa em que ninguém tocou segue com o XML que tinha.
         var original = Fixtures.WithTextBoxes();
         var model = Clone(Open(original));
 
@@ -1158,14 +994,8 @@ public class DocxRoundTripTests
     [Fact]
     public void CaixaDeTextoNaoTravaMaisODocumento()
     {
-        // Editar o parágrafo âncora copia a forma, então travar o documento não
-        // protegeria de coisa alguma — a capa é editável, que é o que se espera
-        // de um editor de texto.
-        //
-        // O aviso continua, e é honesto: esta caixa não declara preenchimento
-        // nem contorno, e sem declaração a forma herda os do tema — que não
-        // sabemos resolver. Dizer que não há moldura poria uma caixa branca
-        // onde o documento pede uma azul.
+        // Editável, porque editar a âncora copia a forma. O aviso fica: sem
+        // declaração, a forma herda moldura e preenchimento do tema.
         var result = DocxReader.Read(Fixtures.WithTextBoxes());
 
         Assert.Contains(Inventory.Shapes, result.Inventory.Invisible);
@@ -1175,11 +1005,7 @@ public class DocxRoundTripTests
     [Fact]
     public void CaixaSemMolduraNaoAvisaMolduraNenhuma()
     {
-        // O aviso saía em toda caixa de texto, tivesse ela decoração ou não.
-        // Nos quatro documentos de evidências do corpus as caixas declaram
-        // `a:noFill` e linha de espessura zero: não há moldura, e o aviso
-        // apontava para uma perda que não existia. Aviso que aparece sempre é
-        // aviso que se aprende a ignorar.
+        // Caixa sem decoração não pede aviso.
         var result = DocxReader.Read(Fixtures.WithDecoratedTextBoxes());
 
         Assert.DoesNotContain(Inventory.Shapes, result.Inventory.Invisible);
@@ -1199,8 +1025,7 @@ public class DocxRoundTripTests
     [Fact]
     public void OGradienteContinuaSendoAvisado()
     {
-        // O aviso não some por decreto: ele passa a falar só do que sobra.
-        // Gradiente, textura, sombra e canto arredondado continuam aqui.
+        // O aviso passa a falar só do que sobra: gradiente, textura, sombra, canto arredondado.
         var result = DocxReader.Read(Fixtures.WithGradientTextBox());
 
         Assert.Contains(Inventory.Shapes, result.Inventory.Invisible);
@@ -1209,28 +1034,21 @@ public class DocxRoundTripTests
     [Fact]
     public void OCabecalhoTrazAFonteQueODocumentoPede()
     {
-        // Sem ela o cabeçalho herda a fonte do editor: o título do documento de
-        // evidências pede Calibri e saía em Times, com serifa, enquanto o
-        // LibreOffice o desenha sem — a primeira coisa que se vê ao abrir.
+        // Sem ela o cabeçalho herdaria a fonte do editor.
         var floats = Open(Fixtures.WithHeaderGroup()).Page.Header!.Floats;
         var titulo = floats.Single(item => item.Kind == "text");
 
         var marca = titulo.Content!.Single().Content!.Single().Marks!
             .Single(m => m.Type == "textStyle");
 
-        // Sem pilha porque o fixture não declara a família em `fontTable.xml`;
-        // o nome basta, e a regra `@font-face` do editor o serve com a fonte
-        // metricamente compatível que o instalador leva.
+        // Sem pilha: o fixture não declara a família, e a `@font-face` do editor serve a Calibri.
         Assert.Equal("Calibri", marca.Attrs!["fontFamily"]!.GetValue<string>());
     }
 
     [Fact]
     public void OFileteDoCabecalhoEDesenhado()
     {
-        // No arquivo ele é uma forma de altura zero com contorno, dentro do
-        // mesmo grupo do logotipo — nem imagem nem caixa de texto, e por isso
-        // era descartado. É a linha que corre sob o cabeçalho, e a única coisa
-        // que o LibreOffice desenhava ali e nós não.
+        // O filete é uma forma de altura zero com contorno, no grupo do logotipo.
         var floats = Open(Fixtures.WithHeaderGroup()).Page.Header!.Floats;
 
         var filete = Assert.Single(floats.Where(item => item.Kind == "rule"));
@@ -1241,14 +1059,8 @@ public class DocxRoundTripTests
     [Fact]
     public void AListaTrazAMarcaEOsRecuosQueODocumentoPede()
     {
-        // O CSS escolheria a bolinha e a encostaria no texto. O documento diz o
-        // caractere e as duas distâncias — onde o texto começa e quanto o
-        // marcador fica antes dele —, e é isso que faz o item sair no lugar em
-        // que o LibreOffice o desenha.
-        //
-        // O caractere vem da área de uso privado do Unicode, que é como o Word
-        // grava os glifos de Symbol e de Wingdings. Servido como está, aparece
-        // a caixinha de caractere ausente.
+        // O documento diz o caractere e as duas distâncias, onde o texto começa e quanto
+        // o marcador fica antes dele; o caractere da área de uso privado vem traduzido.
         var model = Open(Fixtures.WithBulletList());
         var lista = model.Doc.Content!.Single(node => node.Type == "bulletList");
 
@@ -1260,10 +1072,7 @@ public class DocxRoundTripTests
     [Fact]
     public void CadaParagrafoDoRodapeAbreUmaLinha()
     {
-        // Cabeçalho e rodapé são feitos de parágrafos, e um parágrafo é uma
-        // linha. Sem a marca, o rodapé de três linhas do modelo de manual — o
-        // endereço, a autoria e a data — saía como uma frase só, emendada na
-        // largura da folha, enquanto o LibreOffice mostrava as três empilhadas.
+        // Cada parágrafo da faixa é uma linha.
         var page = Open(Fixtures.WithFooterOfThreeLines()).Page;
 
         var pieces = page.Footer!.Center;
@@ -1276,15 +1085,12 @@ public class DocxRoundTripTests
     [Fact]
     public void CadaPecaDaFaixaSabeDeOndeVeio()
     {
-        // O endereço é o que torna a faixa editável sem deixar de ser
-        // cirúrgica: a gravação escreve no `w:t` daquela peça e não olha para o
-        // resto do cabeçalho, que ela não saberia gerar de novo.
+        // O endereço deixa a gravação escrever no `w:t` da peça sem regerar a faixa.
         var pieces = Open(Fixtures.WithFooterOfThreeLines()).Page.Footer!.Center;
 
         Assert.Equal(3, pieces.Count);
         Assert.Equal(3, pieces.Select(piece => piece.Pid).Distinct().Count());
 
-        // Um parágrafo por linha, na ordem em que estão no arquivo.
         foreach (var (piece, at) in pieces.Select((piece, at) => (piece, at)))
         {
             Assert.EndsWith($":{at}:0", piece.Pid);
@@ -1294,9 +1100,7 @@ public class DocxRoundTripTests
     [Fact]
     public void PecaSemTextoProprioNaoRecebeEndereco()
     {
-        // Número de página e tabulação aparecem na faixa mas não têm `w:t` onde
-        // escrever. Dar endereço a elas faria a digitação apagar o campo — o
-        // rodapé passaria a dizer um número fixo, e só se notaria na página 2.
+        // Sem `w:t`, sem endereço: digitar ali apagaria o campo.
         var pieces = Open(Fixtures.WithFooterOfPageNumber()).Page.Footer!.Left;
 
         var text = Assert.Single(pieces, piece => piece.Kind == PieceDto.KindText);
@@ -1310,8 +1114,7 @@ public class DocxRoundTripTests
     [Fact]
     public void OTextoDigitadoNoRodapeVoltaParaOArquivo()
     {
-        // O que se digita na faixa volta ao arquivo — mas só o `w:t` da peça
-        // editada, e nada mais.
+        // Só o `w:t` da peça editada muda.
         var original = Fixtures.WithFooterOfThreeLines();
         var model = Clone(Open(original));
 
@@ -1328,10 +1131,7 @@ public class DocxRoundTripTests
     [Fact]
     public void RodapeNaoEditadoNaoEReescrito()
     {
-        // A aposta da gravação cirúrgica, um andar acima: parte que ninguém
-        // tocou volta byte a byte. Sem isto, abrir e salvar reserializaria
-        // `word/footer1.xml` inteiro — e o SDK reescreve tudo o que materializa,
-        // mesmo sem alteração nenhuma.
+        // A parte que ninguém tocou volta byte a byte, e não reserializada pelo SDK.
         var original = Fixtures.WithFooterOfThreeLines();
         var model = Clone(Open(original));
 
@@ -1343,10 +1143,8 @@ public class DocxRoundTripTests
     [Fact]
     public void OCampoDoRodapeSobreviveAEdicaoDaLinha()
     {
-        // O número de página não tem `w:t` onde escrever, e por isso não tem
-        // endereço. O texto ao lado dele tem — mas fundido com a tabulação
-        // perdeu o rastro, e nesse caso a gravação não escreve nada: melhor a
-        // linha inteira não ser editável do que o campo virar um número fixo.
+        // O texto fundido com a tabulação perdeu o rastro: a gravação não escreve nada,
+        // antes que o campo vire número fixo.
         var original = Fixtures.WithFooterOfPageNumber();
         var model = Clone(Open(original));
 
@@ -1364,10 +1162,7 @@ public class DocxRoundTripTests
     [Fact]
     public void OTextoDigitadoNaCaixaDoCabecalhoVoltaParaOArquivo()
     {
-        // O cabeçalho corporativo do corpus não é feito de parágrafos soltos: é
-        // um grupo de formas, e o título mora dentro de uma caixa. Sem esta
-        // volta, quatro dos seis documentos do corpus teriam um cabeçalho que se
-        // vê e não se edita.
+        // O título do cabeçalho corporativo mora numa caixa dentro de um grupo de formas.
         var original = Fixtures.WithHeaderGroup();
         var model = Clone(Open(original));
 
@@ -1381,8 +1176,7 @@ public class DocxRoundTripTests
 
         Assert.Equal("EVIDÊNCIAS DE HOMOLOGAÇÃO", voltou.Content![0].Content![0].Text);
 
-        // O grupo segue inteiro: o logotipo e o filete não são coisas que este
-        // escritor saiba gerar de novo.
+        // O grupo segue inteiro: logotipo e filete o escritor não gera.
         Assert.Contains(reopened.Floats!, item => item.Kind == "image");
         Assert.Contains(reopened.Floats!, item => item.Kind == "rule");
     }
@@ -1400,13 +1194,8 @@ public class DocxRoundTripTests
     [Fact]
     public void OEspacoDeclaradoNaoApagaAEntrelinhaDoEstilo()
     {
-        // No OOXML os atributos de `w:spacing` são propriedades independentes:
-        // um parágrafo que declara só `w:after` não está dizendo que a
-        // entrelinha do estilo dele não vale. Substituindo o elemento inteiro,
-        // ela sumia — e no documento de evidências do corpus, onde cada
-        // parágrafo redeclara apenas o espaço, toda linha saía 1,15 vez mais
-        // curta do que no LibreOffice. A diferença ia se somando até a folha
-        // cortar noutro lugar.
+        // Os atributos de `w:spacing` são independentes: declarar só `w:after` não
+        // apaga a entrelinha do estilo.
         var blocks = OpenFlat(Fixtures.WithStyleSpacingAndDirectMargins()).Doc.Content!;
 
         // 276/240 em Arial de 10 pt: 1,15 × a altura natural da fonte.
@@ -1417,14 +1206,10 @@ public class DocxRoundTripTests
     [Fact]
     public void ORecuoDoParagrafoEAMedidaQueODocumentoPede()
     {
-        // O nível do editor vale 2,5em — a 10 pt são 25 pt, e não os 36 pt que
-        // 720 twips pedem. Enquanto era só o nível, o parágrafo recuado saía
-        // 30% mais estreito do que no LibreOffice, e a captura dentro dele
-        // encolhia junto.
+        // O nível do editor vale 2,5em, 25 pt a 10 pt, e não os 36 pt de 720 twips.
         var blocks = OpenFlat(Fixtures.WithStyleSpacingAndDirectMargins()).Doc.Content!;
 
-        // 720 twips = meia polegada = 12,7 mm; o recuo pendente vem com o sinal
-        // trocado, porque é `text-indent` negativo.
+        // 720 twips = 12,7 mm; o pendente vem negativo, porque é `text-indent`.
         Assert.Equal(12.7, blocks[0].Attrs!["indentMm"]!.GetValue<double>());
         Assert.Equal(1.06, blocks[0].Attrs!["indentRightMm"]!.GetValue<double>());
         Assert.Equal(-6.35, blocks[0].Attrs!["firstLineMm"]!.GetValue<double>());
@@ -1441,12 +1226,10 @@ public class DocxRoundTripTests
         var original = Fixtures.WithStyleSpacingAndDirectMargins();
         var model = Clone(Open(original));
 
-        // Um bloco editado é reescrito do zero: é aí que a medida tem de
-        // sobreviver, e não no que a gravação cirúrgica preserva intacto.
+        // O bloco editado é reescrito do zero.
         model.Doc.Content![0].Content![0].Text = "Outro texto no mesmo recuo.";
 
-        // Relido achatado: o recuo herdado do estilo tem de continuar valendo
-        // no arquivo, e o bloco só leva o que o parágrafo declara.
+        // Relido achatado, o recuo herdado do estilo continua valendo.
         var reopened = OpenFlat(Save(original, model).Bytes).Doc.Content![0];
         Assert.Equal(12.7, reopened.Attrs!["indentMm"]!.GetValue<double>());
         Assert.Equal(-6.35, reopened.Attrs!["firstLineMm"]!.GetValue<double>());
@@ -1455,13 +1238,12 @@ public class DocxRoundTripTests
     [Fact]
     public void OTrechoLevaSoOQueDifereDoEstilo()
     {
-        // A faixa é Arial 10 pt, negrito e branca pelo estilo: o trecho sem
-        // formatação própria não leva nada disso — senão modificar o estilo não
-        // mudaria o texto na tela.
+        // O trecho sem formatação própria não leva a do estilo, senão modificar o
+        // estilo não mudaria a tela.
         var banner = FirstOfType(Open(Fixtures.WithStyles()), "paragraph");
         Assert.Empty(MarksOf(banner));
 
-        // A leitura achatada continua levando tudo, para o rascunho antigo.
+        // A leitura achatada, do rascunho antigo, leva tudo.
         var flat = FirstOfType(OpenFlat(Fixtures.WithStyles()), "paragraph");
         Assert.Contains(MarksOf(flat), m => m.Type == "bold");
     }
@@ -1469,9 +1251,7 @@ public class DocxRoundTripTests
     [Fact]
     public void OBlocoLevaSoOQueOParagrafoDeclara()
     {
-        // O herdado vem do CSS dos estilos; o bloco leva só o direto, no valor
-        // efetivo — o `w:spacing` que só redeclara o espaço não traz a entrelinha,
-        // e o recuo pendente do estilo fica no estilo.
+        // O bloco leva só o direto, no valor efetivo; o herdado vem do CSS dos estilos.
         var blocks = Open(Fixtures.WithStyleSpacingAndDirectMargins()).Doc.Content!;
 
         var first = blocks[0].Attrs!;
@@ -1483,7 +1263,6 @@ public class DocxRoundTripTests
         Assert.False(first.ContainsKey("fontFamily"));
         Assert.Equal(0, first["indent"]!.GetValue<int>());
 
-        // Trocar o recuo da esquerda leva só ele.
         var moved = blocks[1].Attrs!;
         Assert.Equal(25.4, moved["indentMm"]!.GetValue<double>());
         Assert.False(moved.ContainsKey("firstLineMm"));
@@ -1498,16 +1277,13 @@ public class DocxRoundTripTests
         Assert.False(banner.Attrs!.ContainsKey("background"));
         Assert.False(banner.Attrs.ContainsKey("textAlign"));
         Assert.Equal("Faixa", banner.Attrs["styleId"]!.GetValue<string>());
-        // E o que o estilo diz chega pelos estilos do modelo.
         Assert.Equal("#943634", model.Styles!.Styles["Faixa"].Paragraph!.Background);
     }
 
     [Fact]
     public void OEditadoGravaAEntrelinhaNaFonteDoEstiloESomaONivelAoRecuoDoEstilo()
     {
-        // O bloco não traz a fonte (é do estilo, Arial) nem o recuo (720 twips):
-        // o gravador os busca no estilo. Sem isso, 1,5 linha virava outro número
-        // no arquivo e o nível trocava o recuo do estilo em vez de somar a ele.
+        // Fonte e recuo do estilo o gravador busca no estilo.
         var original = Fixtures.WithStyleSpacingAndDirectMargins();
         var model = Clone(Open(original));
         var block = model.Doc.Content![0];
@@ -1523,9 +1299,7 @@ public class DocxRoundTripTests
     [Fact]
     public void ORascunhoAchatadoEComparadoComALeituraAchatada()
     {
-        // O rascunho anterior à versão 4 do `.sdoc` traz blocos achatados.
-        // Comparados com a leitura que só leva o direto, todos pareceriam
-        // mudados.
+        // O rascunho de antes do `.sdoc` 4 traz blocos achatados.
         var original = Fixtures.WithStyles();
         var flat = Clone(OpenFlat(original));
 
@@ -1539,19 +1313,15 @@ public class DocxRoundTripTests
     [Fact]
     public void AMarcaDeSecaoNaoEUmaLinhaDeTexto()
     {
-        // No OOXML a seção termina num `w:sectPr` guardado dentro do `w:pPr` de
-        // um parágrafo vazio: o parágrafo **é** a marca. O LibreOffice não lhe
-        // dá altura nenhuma, e é ele quem grava documentos assim — o de
-        // evidências do corpus tem seis marcas no meio do texto, e cada uma
-        // valia uma linha aqui.
+        // A marca de seção é um parágrafo vazio com `w:sectPr`, e o LibreOffice não
+        // lhe dá altura.
         var original = Fixtures.WithSectionMarkInTheMiddle();
         var model = Clone(Open(original));
 
         var mark = model.Doc.Content![1];
         Assert.True(mark.Attrs!["sectionMark"]!.GetValue<bool>());
 
-        // E continua no arquivo: é ela que carrega a seção, e sem ela as seções
-        // do documento sumiriam.
+        // E continua no arquivo, porque carrega a seção.
         var saved = Save(original, model);
         Assert.Equal(3, saved.Result.PreservedBlocks);
         Assert.True(Open(saved.Bytes).Doc.Content![1].Attrs!["sectionMark"]!.GetValue<bool>());
@@ -1560,11 +1330,8 @@ public class DocxRoundTripTests
     [Fact]
     public void OParagrafoQueAncoraEQuebraContinuaParagrafo()
     {
-        // Um parágrafo sem texto, só com a marca da capa e a quebra, virava o nó
-        // `pageBreak`. O nó de quebra mora no vão entre duas folhas, e o objeto
-        // ancorado nele caía na folha de baixo: a marca vertical da capa
-        // aparecia no topo da segunda folha, enquanto o LibreOffice a desenhava
-        // na primeira, correndo pela lateral.
+        // A marca da capa ancorada no parágrafo da quebra fica na folha de cima: o nó
+        // de quebra mora entre as folhas.
         var model = Open(Fixtures.WithBreakOnAnchorParagraph());
 
         var capa = model.Doc.Content![0];
@@ -1576,8 +1343,7 @@ public class DocxRoundTripTests
     [Fact]
     public void QuebraSozinhaContinuaSendoNoDeQuebra()
     {
-        // Sem nada ancorado nele, o parágrafo que só tem a quebra segue virando
-        // o nó de quebra: ali ele não tem o que segurar na folha de cima.
+        // Sem nada ancorado, o parágrafo só com a quebra é o nó de quebra.
         var model = Open(Fixtures.WithLonePageBreak());
 
         Assert.Contains(model.Doc.Content!, node => node.Type == "pageBreak");
@@ -1586,9 +1352,7 @@ public class DocxRoundTripTests
     [Fact]
     public void OGiroViajaEmGrausSemMexerNasMedidas()
     {
-        // O Word posiciona a caixa sem girar e depois a gira em torno do centro
-        // — o mesmo que `transform: rotate()`. Trocar largura por altura aqui
-        // deslocaria o objeto por metade da diferença entre as duas.
+        // O Word posiciona sem girar e gira em torno do centro, como `transform: rotate()`.
         var model = Open(Fixtures.WithRotatedImage());
 
         var image = Assert.Single(FloatsOf(model.Doc.Content![0]));
@@ -1600,23 +1364,19 @@ public class DocxRoundTripTests
     [Fact]
     public void AAncoraViajaComOrigemEDeslocamento()
     {
-        // Não são resolvidos aqui: a origem vertical mais comum é o parágrafo, e
-        // parágrafo só tem posição depois de paginar. Quem desenha faz a conta.
+        // A origem mais comum é o parágrafo, que só tem posição depois de paginar.
         var image = Assert.Single(FloatsOf(Open(Fixtures.WithRotatedImage()).Doc.Content![0]));
 
         Assert.Equal("column", image.GetProperty("hFrom").GetString());
         Assert.Equal("paragraph", image.GetProperty("vFrom").GetString());
     }
 
-    // --- arquivos problemáticos ---------------------------------------------
-
     [Theory]
     [InlineData("não é um zip")]
     [InlineData("PK zip truncado")]
     public void RejectsGarbageWithAReadableMessage(string garbage)
     {
-        // Documento é dado não confiável (spec): qualquer entrada vira frase,
-        // nunca processo derrubado.
+        // Documento é dado não confiável: vira frase, e nunca derruba o processo.
         var problem = Assert.Throws<DocxException>(
             () => DocxReader.Read(System.Text.Encoding.UTF8.GetBytes(garbage)));
 

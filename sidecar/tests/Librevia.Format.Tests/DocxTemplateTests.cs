@@ -6,15 +6,9 @@ using Librevia.Format.Docx;
 namespace Librevia.Format.Tests;
 
 /// <summary>
-/// O documento novo salvo como `.docx`.
+/// O documento novo salvo como <c>.docx</c>: o pacote de <see cref="DocxTemplate"/>
+/// faz o papel de original, e o defeito dele todo documento novo herdaria.
 /// </summary>
-/// <remarks>
-/// A gravação cirúrgica pressupõe um original, e um documento novo não tem. O
-/// pacote que <see cref="DocxTemplate"/> cria faz esse papel: ele é o "original"
-/// que segue pelo <see cref="DocxWriter"/> de sempre. Se ele nascer fora do
-/// esquema, ou com uma aparência diferente da tela, todo documento novo herda o
-/// defeito — por isso os testes olham o pacote antes de olhar o conteúdo.
-/// </remarks>
 public class DocxTemplateTests
 {
     private static PageSetupDto A4() =>
@@ -28,8 +22,6 @@ public class DocxTemplateTests
         return node;
     }
 
-    // --- o pacote -----------------------------------------------------------
-
     [Fact]
     public void PacoteNovoPassaPeloValidadorSemErro()
     {
@@ -39,9 +31,7 @@ public class DocxTemplateTests
     [Fact]
     public void PacoteNovoTemAsPartesMinimasENaoTemNumeracao()
     {
-        // A numeração nasce quando a primeira lista pede (NumberingFactory): um
-        // `numbering.xml` vazio aqui seria uma parte a mais para o Word conferir
-        // sem nada dentro.
+        // A numeração nasce com a primeira lista (NumberingFactory).
         var parts = Roundtrip.PartsOf(DocxTemplate.Create(A4())).Keys.Order(StringComparer.Ordinal);
 
         Assert.Equal(
@@ -56,9 +46,7 @@ public class DocxTemplateTests
     [Fact]
     public void PacoteNovoEDeterministico()
     {
-        // Código no lugar de um binário embutido existe para isto: o mesmo pedido
-        // dá os mesmos bytes, e uma diferença no pacote aparece no teste, e não
-        // numa data de compressão.
+        // O mesmo pedido dá os mesmos bytes.
         Assert.Equal(DocxTemplate.Create(A4()), DocxTemplate.Create(A4()));
     }
 
@@ -73,7 +61,6 @@ public class DocxTemplateTests
         Assert.Contains("w:top=\"567\"", xml, StringComparison.Ordinal);
         Assert.Contains("w:left=\"2268\"", xml, StringComparison.Ordinal);
 
-        // E o leitor devolve o que foi pedido.
         var reopened = Roundtrip.Open(DocxTemplate.Create(page)).Page;
         Assert.Equal("Letter", reopened.Size);
         Assert.Equal("landscape", reopened.Orientation);
@@ -85,8 +72,7 @@ public class DocxTemplateTests
         var bytes = DocxTemplate.Create(A4());
         var styles = Roundtrip.XmlOf(bytes, "word/styles.xml");
 
-        // Sem tema no pacote, a fonte do padrão precisa ser nome, e não
-        // referência a um tema que não existe.
+        // Sem tema no pacote, a fonte vai por nome.
         Assert.Contains("w:ascii=\"Times New Roman\"", styles, StringComparison.Ordinal);
         Assert.DoesNotContain("asciiTheme", styles, StringComparison.Ordinal);
 
@@ -113,21 +99,17 @@ public class DocxTemplateTests
             StringComparison.Ordinal);
     }
 
-    // --- a aparência --------------------------------------------------------
-
     [Fact]
     public void EstilosDoPacoteReproduzemATelaDoDocumentoNovo()
     {
-        // O editor desenha o documento novo com o CSS de content-styles.ts —
-        // Times New Roman 12 pt, entrelinha 1,5, 0,6em antes e 1em depois — e
-        // os títulos com os tamanhos dele. Reaberto, o arquivo tem de dizer o
-        // mesmo, senão salvar em DOCX muda a paginação do que a pessoa escreveu.
+        // Sem folha de estilos, o pacote leva a tabela de BuiltinStyles; reaberto,
+        // tem de dizer o mesmo, senão a paginação muda.
         var model = new DocumentModelDto(A4(), Node.Of("doc",
             Text("heading", "Título", ("level", 1)),
             Text("paragraph", "Corpo do texto.")));
 
         var (saved, _) = Roundtrip.Save(DocxTemplate.Create(A4()), model);
-        // Achatado: a pergunta é o que o arquivo **vale**, estilo incluído.
+        // Achatado: o que o arquivo vale, estilo incluído.
         var blocks = Roundtrip.OpenFlat(saved).Doc.Content!;
 
         var heading = blocks[0];
@@ -140,14 +122,10 @@ public class DocxTemplateTests
         Assert.StartsWith("Times New Roman", paragraph.Attrs["fontFamily"]!.GetValue<string>(), StringComparison.Ordinal);
         Assert.Equal(7.2, paragraph.Attrs["spaceBefore"]!.GetValue<double>());
         Assert.Equal(12, paragraph.Attrs["spaceAfter"]!.GetValue<double>());
-        // O leitor arredonda o múltiplo do arquivo a centésimos antes de
-        // multiplicar pela altura da fonte: 313/240 vira 1,30, e 1,30 × 1,1499 dá
-        // 1,4949. Seis centésimos de ponto por linha — abaixo do que a tela mede.
+        // O leitor arredonda 313/240 a 1,30 antes de multiplicar por 1,1499: 1,4949.
         Assert.InRange(double.Parse(paragraph.Attrs["lineHeight"]!.GetValue<string>(),
             System.Globalization.CultureInfo.InvariantCulture), 1.49, 1.51);
     }
-
-    // --- ida e volta --------------------------------------------------------
 
     [Fact]
     public void DocumentoNovoVaiEVoltaComTituloListaTabelaEImagem()
@@ -168,7 +146,7 @@ public class DocxTemplateTests
 
         var (saved, result) = Roundtrip.Save(DocxTemplate.Create(A4()), model);
 
-        // Nenhum bloco tem `oid`: tudo é novo, nada é preservado, nada se perde.
+        // Nenhum bloco tem `oid`: tudo é novo.
         Assert.Equal(0, result.PreservedBlocks);
         Assert.Empty(result.Inventory.Lost);
         Assert.Contains("word/numbering.xml", Roundtrip.PartsOf(saved).Keys);
@@ -189,8 +167,7 @@ public class DocxTemplateTests
     [Fact]
     public void SegundaGravacaoSobreOPacoteGravadoFunciona()
     {
-        // Depois da primeira gravação, os bytes gravados viram o original. A
-        // segunda passa pelo mesmo caminho do `.docx` aberto do disco.
+        // Depois da primeira gravação, os bytes gravados viram o original.
         var first = new DocumentModelDto(A4(), Node.Of("doc", Text("paragraph", "Versão um.")));
         var (saved, _) = Roundtrip.Save(DocxTemplate.Create(A4()), first);
 
@@ -205,9 +182,7 @@ public class DocxTemplateTests
     [Fact]
     public void CabecalhoDeTextoSimplesDoDocumentoNovoChegaAoArquivo()
     {
-        // O documento novo tem cabeçalho e rodapé de texto simples, com `{n}` no
-        // lugar do número da página. Sem esta ponte eles sumiam ao salvar em
-        // DOCX — e em silêncio, que é o pior jeito.
+        // Cabeçalho e rodapé de texto simples, com `{n}` no lugar do número.
         var page = A4() with { HeaderText = "Relatório anual", FooterText = "Página {n} de {total}" };
         var model = new DocumentModelDto(page, Node.Of("doc", Text("paragraph", "Corpo.")));
 
@@ -220,7 +195,7 @@ public class DocxTemplateTests
         Assert.Contains("Relatório anual", Roundtrip.XmlOf(saved, header), StringComparison.Ordinal);
         Assert.Contains("NUMPAGES", Roundtrip.XmlOf(saved, footer), StringComparison.Ordinal);
 
-        // Mudou o texto depois da primeira gravação: a parte é reescrita.
+        // Texto mudado depois da primeira gravação: a parte é reescrita.
         var edited = model with { Page = page with { HeaderText = "Relatório revisto" } };
         var (again, _) = Roundtrip.Save(saved, edited);
         Assert.Contains("Relatório revisto", Roundtrip.XmlOf(again, header), StringComparison.Ordinal);
@@ -229,29 +204,19 @@ public class DocxTemplateTests
     [Fact]
     public void FaixaDeOutroPacoteNaoDerrubaAGravacaoEEntraNoInventario()
     {
-        // O `.sdoc` que um dia foi `.docx` guarda a faixa com os ids de relação do
-        // pacote de origem — `rId5:0:0` é o endereço de uma peça dentro de
-        // `word/header1.xml` daquele arquivo. Reaberto do disco, o original não
-        // está mais aqui e a gravação parte do pacote mínimo, que não tem relação
-        // nenhuma dessas: procurar por uma delas estourava
-        // `ArgumentOutOfRangeException`, nada era gravado e a pessoa lia "erro
-        // inesperado ao processar o documento" no lugar do arquivo salvo.
-        //
-        // A faixa se perde, e isso é inevitável: não existe parte onde escrevê-la.
-        // O que não se aceita é perder o salvamento inteiro, nem perder a faixa em
-        // silêncio — por isso o arquivo sai e a perda é dita no inventário.
+        // O `.sdoc` que foi `.docx` guarda a faixa com ids de relação do pacote de
+        // origem (`rId5:0:0`), que o pacote mínimo não tem: a faixa se perde, com
+        // aviso, e o arquivo sai.
         var band = new BandDto(
             [new PieceDto("text", "Cabeçalho do arquivo de origem", Pid: "rId5:0:0")],
             [],
             [],
             true,
-            // A caixa de texto do cabeçalho corporativo passa pelo mesmo caminho,
-            // por outro endereço: `rId5#0`, e nenhuma relação para resolvê-lo.
+            // A caixa de texto do cabeçalho corporativo, pelo endereço `rId5#0`.
             [new FloatDto(
                 "text", null, [], 0, 0, 0, "column", 0, null, "paragraph", 0, null, false, "none",
                 BoxId: "rId5#0")],
-            // A grade do cabeçalho de evidências: as peças dela moram nas células,
-            // e são as que o modelo do QA traz.
+            // As peças da grade do cabeçalho de evidências moram nas células.
             [new BandRowDto([new BandCellDto(
                 [new PieceDto("text", "Chamado 10001", Pid: "rId5:1:0")], 1, 1, 1, null, "tlbr")])]);
 
@@ -270,14 +235,10 @@ public class DocxTemplateTests
             name => name.StartsWith("word/header", StringComparison.Ordinal));
     }
 
-    // --- o estilo de título -------------------------------------------------
-
     [Fact]
     public void TituloNovoNumDocxComTtulo1SaiComoTtulo1()
     {
-        // No Word em português o id do estilo é `Ttulo1`; o nome é que continua
-        // `heading 1`. Escrever `Heading1` apontava um estilo que o documento não
-        // define, e o título saía com a cara do Normal.
+        // No Word em português o id é `Ttulo1`, e o nome continua `heading 1`.
         var original = WithLocalizedHeadingStyle();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
 
@@ -290,7 +251,7 @@ public class DocxTemplateTests
         Assert.Contains("<w:pStyle w:val=\"Ttulo1\"", Roundtrip.XmlOf(saved), StringComparison.Ordinal);
         Assert.DoesNotContain("Heading1", Roundtrip.XmlOf(saved), StringComparison.Ordinal);
 
-        // Os estilos do documento não foram tocados: o estilo já existia.
+        // O estilo já existia: os estilos do documento não são tocados.
         Assert.Equal(Roundtrip.PartsOf(original)["word/styles.xml"], Roundtrip.PartsOf(saved)["word/styles.xml"]);
 
         var heading = Roundtrip.Open(saved).Doc.Content![0];
@@ -301,9 +262,8 @@ public class DocxTemplateTests
     [Fact]
     public void TituloNovoSemEstiloNoPacoteLevaADefinicaoDoModelo()
     {
-        // O pacote não define título nenhum: a definição vem do modelo de
-        // documento novo, e `word/styles.xml` passa a ser parte tocada — senão a
-        // restauração byte a byte a desfaria e o título apontaria o vazio.
+        // O pacote não define título: a definição vem do modelo do documento novo, e
+        // `word/styles.xml` vira parte tocada.
         var original = WithLocalizedHeadingStyle();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
         model.Doc.Content![0] = Text("heading", "Subtítulo", ("level", 2));
@@ -324,10 +284,7 @@ public class DocxTemplateTests
     [Fact]
     public void TituloDeOutroPacoteNaoApontaEstiloQueEstePacoteNaoDefine()
     {
-        // O `.sdoc` que veio de um `.docx` em português carrega `styleId =
-        // "Ttulo1"`. Salvo depois como `.docx`, ele vai para o pacote mínimo, que
-        // não define esse estilo: o id era mantido às cegas e o título saía com a
-        // cara do Normal no Word, sem nada disso no inventário.
+        // O `.sdoc` de um `.docx` em português leva `Ttulo1`, que o pacote mínimo não define.
         var model = new DocumentModelDto(A4(), Node.Of("doc",
             Text("heading", "Título vindo de fora", ("level", 1), ("styleId", "Ttulo1"))));
 
@@ -346,10 +303,7 @@ public class DocxTemplateTests
     [Fact]
     public void TituloRebaixadoPerdeOEstiloReconhecidoSoPeloNome()
     {
-        // `Überschrift1` não se parece com título nenhum pelo id, e o leitor passou
-        // a reconhecê-lo pelo nome (`heading 1`). O rebaixamento olhava só o id:
-        // na tela o bloco virava parágrafo e no arquivo continuava título — e
-        // voltava título ao reabrir. Tela e arquivo têm de dizer a mesma coisa.
+        // `Überschrift1` se reconhece pelo nome: tela e arquivo dizem o mesmo ao rebaixá-lo.
         var original = WithHeadingNamedOnly();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
 
@@ -369,11 +323,7 @@ public class DocxTemplateTests
     [Fact]
     public void DocxComTituloLocalizadoPeloNomeAbreESalvaSemReescreverNada()
     {
-        // Abrir e salvar sem editar é o caso mais comum, e o reconhecimento do
-        // título pelo nome mudou o que o leitor devolve neste arquivo: era
-        // `paragraph`, virou `heading`. Se o escritor discordasse do leitor, esse
-        // bloco seria reescrito — e cada reescrita é uma chance de perder o que o
-        // editor não entende.
+        // O título reconhecido pelo nome não pode fazer o escritor discordar do leitor.
         var original = WithHeadingNamedOnly();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
 
@@ -421,13 +371,9 @@ public class DocxTemplateTests
     }
 
     /// <summary>
-    /// Um DOCX cujo título só se reconhece pelo nome do estilo.
+    /// Título que só se reconhece pelo <c>w:name</c>: <c>Überschrift1</c> é o id do
+    /// Word em alemão, e o nome é <c>heading 1</c> em qualquer idioma.
     /// </summary>
-    /// <remarks>
-    /// `Überschrift1` é o id que o Word em alemão dá ao título 1, e ele não se
-    /// parece com `heading`, `titulo` nem `ttulo`. O que o identifica é o
-    /// `w:name`, que é `heading 1` em qualquer idioma.
-    /// </remarks>
     private static byte[] WithHeadingNamedOnly()
     {
         using var buffer = new MemoryStream();

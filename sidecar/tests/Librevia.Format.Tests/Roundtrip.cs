@@ -9,14 +9,10 @@ using Librevia.Format.Docx;
 namespace Librevia.Format.Tests;
 
 /// <summary>
-/// O caminho que um documento faz num teste: abrir, mexer, gravar, conferir.
+/// O caminho de um documento num teste: abrir, mexer, gravar, conferir. O
+/// <c>Clone</c> pelo JSON mostra o modelo como o editor o devolve, com todo
+/// atributo materializado.
 /// </summary>
-/// <remarks>
-/// Mora fora das classes de teste porque são duas a usá-lo — a da promessa
-/// central e a dos defeitos de gravação —, e porque o `Clone` pelo JSON não é
-/// conveniência: é o único jeito de o teste ver o modelo como o editor o
-/// devolve, com todo atributo materializado.
-/// </remarks>
 internal static class Roundtrip
 {
     public static DocumentModelDto Open(byte[] bytes) => DocxReader.Read(bytes).Model;
@@ -25,19 +21,10 @@ internal static class Roundtrip
     public static DocumentModelDto OpenFlat(byte[] bytes) => DocxReader.Read(bytes, flatten: true).Model;
 
     /// <summary>
-    /// Grava — e **confere o esquema** do que foi gravado.
+    /// Grava e confere o esquema: o Word recusa o documento fora dele, e nenhuma
+    /// assertiva sobre o modelo pega isso, como o <c>w:right=""</c> que o LibreOffice
+    /// tolera.
     /// </summary>
-    /// <remarks>
-    /// A conferência mora aqui, e não em um teste só, porque todo teste de
-    /// gravação passa por este método: um documento fora do esquema é um
-    /// documento que o Word recusa, e nenhuma assertiva sobre o modelo pega isso.
-    ///
-    /// Um `null` atribuído a uma propriedade `string` do SDK vira
-    /// `StringValue(null)` e é gravado como `w:right=""` — atributo vazio, que
-    /// o LibreOffice tolera e o Word não. Reler um atributo vazio devolve o
-    /// mesmo modelo: o defeito seria invisível para os testes e visível para
-    /// quem abrisse o arquivo.
-    /// </remarks>
     public static (byte[] Bytes, SaveResult Result) Save(byte[] original, DocumentModelDto model)
     {
         var saved = DocxWriter.Write(original, model);
@@ -62,7 +49,7 @@ internal static class Roundtrip
         Assert.Fail($"O documento gravado está fora do esquema OOXML:\n{report}");
     }
 
-    /// <summary>Clona pelo JSON — é como o modelo viaja de verdade.</summary>
+    /// <summary>Clona pelo JSON, como o modelo viaja.</summary>
     public static DocumentModelDto Clone(DocumentModelDto model) =>
         JsonSerializer.Deserialize<DocumentModelDto>(
             JsonSerializer.Serialize(model, DocxJson.Options), DocxJson.Options)!;
@@ -104,7 +91,7 @@ internal static class Roundtrip
             StringComparer.Ordinal);
     }
 
-    /// <summary>O XML de uma parte, como texto — é nele que se procura o atributo.</summary>
+    /// <summary>O XML de uma parte, como texto.</summary>
     public static string XmlOf(byte[] docx, string part = "word/document.xml") =>
         Encoding.UTF8.GetString(PartsOf(docx)[part]);
 }

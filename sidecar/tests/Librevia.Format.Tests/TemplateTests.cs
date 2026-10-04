@@ -6,14 +6,10 @@ using Librevia.Format.Docx;
 namespace Librevia.Format.Tests;
 
 /// <summary>
-/// Modelos do Word: abrir um `.dotx` é abrir um `.docx` com outro rótulo, e a
-/// gravação escreve o rótulo do destino.
+/// Modelos do Word: o <c>.dotx</c> é um <c>.docx</c> com outro rótulo, e a gravação
+/// escreve o do destino. Com o rótulo errado, o Word recusa o <c>.docx</c> e abre o
+/// <c>.dotx</c> como documento comum.
 /// </summary>
-/// <remarks>
-/// O documento criado a partir de um modelo parte dos bytes do modelo. Gravado como
-/// `.docx` com o rótulo de modelo, o Word recusa o arquivo — e gravado como `.dotx`
-/// com o rótulo de documento, o Word o abre como documento comum.
-/// </remarks>
 public class TemplateTests
 {
     private static string ContentTypes(byte[] bytes) => Entry(bytes, "[Content_Types].xml")!;

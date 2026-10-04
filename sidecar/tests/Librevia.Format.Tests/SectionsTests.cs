@@ -4,23 +4,16 @@ using Librevia.Format.Docx;
 namespace Librevia.Format.Tests;
 
 /// <summary>
-/// Seções: todas lidas, todas gravadas, e a que ninguém tocou volta byte a
-/// byte.
+/// Seções: todas lidas, todas gravadas, e a que ninguém tocou volta byte a byte.
+/// Cada <c>w:sectPr</c> é uma seção: o de parágrafo com id, no <c>sectionBreak</c>
+/// do parágrafo que a encerra, e o do corpo como <c>page</c>.
 /// </summary>
-/// <remarks>
-/// Cada `w:sectPr` é uma seção do modelo: o de parágrafo com id (o
-/// `sectionBreak` do parágrafo que a encerra), o do corpo como `page`.
-/// </remarks>
 public class SectionsTests
 {
     /// <summary>
-    /// Os `w:sectPr` do corpo, em ordem, como texto.
+    /// Os <c>w:sectPr</c> do corpo, sem as declarações de namespace: o SDK declara
+    /// <c>r:</c> no elemento, porque o fixture não o declara na raiz.
     /// </summary>
-    /// <remarks>
-    /// Sem as declarações de namespace: o fixture não declara `r:` na raiz, e o
-    /// SDK o declara no próprio elemento ao gravar. O documento real (Word,
-    /// LibreOffice) declara tudo na raiz, e ali o texto sai igual.
-    /// </remarks>
     private static List<string> SectionXmlOf(byte[] docx) =>
         [.. Regex.Matches(Roundtrip.XmlOf(docx), "<w:sectPr[ >].*?</w:sectPr>", RegexOptions.Singleline)
             .Select(match => Regex.Replace(match.Value, " xmlns:\\w+=\"[^\"]*\"", string.Empty))];
@@ -48,7 +41,7 @@ public class SectionsTests
         Assert.True(PageReader.TryStartOf(model.Page, out var start));
         Assert.Equal(1, start);
 
-        // Divergir já não é perda: a seção existe no modelo.
+        // Divergir não é perda: a seção existe no modelo.
         Assert.DoesNotContain(result.Inventory.Lost, message => message.Contains("seções", StringComparison.Ordinal));
     }
 
@@ -58,7 +51,7 @@ public class SectionsTests
         var model = Roundtrip.Open(Fixtures.WithThreeSections());
 
         Assert.NotNull(model.Sections![0].Header);
-        // A do meio e a última não declaram cabeçalho: herdam — nulo, e não cópia.
+        // A do meio e a última herdam o cabeçalho: nulo, e não cópia.
         Assert.Null(model.Sections[1].Header);
         Assert.Null(model.Page.Header);
     }
@@ -68,8 +61,7 @@ public class SectionsTests
     {
         var model = Roundtrip.Open(Fixtures.WithThreeSections());
 
-        // A marca vazia continua marca (sem altura), e o parágrafo com texto
-        // também encerra seção.
+        // A marca vazia continua marca, e o parágrafo com texto também encerra seção.
         Assert.True(Holder(model, "s1").Attrs!.ContainsKey("sectionMark"));
         Assert.Equal("Segunda seção, que termina aqui.",
             string.Concat(Roundtrip.Walk(Holder(model, "s2")).Select(node => node.Text)));
@@ -200,8 +192,7 @@ public class SectionsTests
     [Fact]
     public void RascunhoDeAntesDasSecoesGravaComoAntes()
     {
-        // O `.sdoc` < 6 não traz `sectionBreak` nem `sections`: a leitura de
-        // referência também não, e nenhum bloco parece mudado.
+        // O `.sdoc` < 6 não traz `sectionBreak` nem `sections`, e nenhum bloco parece mudado.
         var original = Fixtures.WithThreeSections();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
         foreach (var node in Roundtrip.Walk(model.Doc)) node.Attrs?.Remove("sectionBreak");
@@ -315,10 +306,8 @@ public class SectionsTests
     [Fact]
     public void DesvincularDeNovoASecaoQueJaTemParteNaoEscreveNaParteErrada()
     {
-        // Desvinculada e gravada, a seção passa a ter parte própria. Vinculada e
-        // desvinculada de novo na mesma sessão, a cópia volta a apontar a parte
-        // da anterior (`s2~rId…`): ela precisa de outra parte, e não da própria
-        // de antes — senão o texto de cima iria parar no cabeçalho da seção.
+        // Vinculada e desvinculada de novo, a cópia aponta a parte da anterior
+        // (`s2~rId…`): precisa de outra, senão o texto iria ao cabeçalho de cima.
         var original = Fixtures.WithThreeSections();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
         var inherited = model.Sections![0].Header!;
@@ -343,9 +332,7 @@ public class SectionsTests
     [Fact]
     public void MarcaSemSecaoNoModeloSaiDoArquivoComAvisoESemDeslocarAsOutras()
     {
-        // O desfazer devolve a marca `s2` ao texto sem a seção dela: o arquivo não
-        // pode guardar uma seção que a tela não mostra, nem contar as seguintes
-        // a partir dela.
+        // O desfazer devolve a marca `s2` sem a seção: o arquivo não guarda seção que a tela não mostra.
         var original = Fixtures.WithThreeSections();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
         model = model with { Sections = [model.Sections![0]] };
@@ -362,8 +349,7 @@ public class SectionsTests
     [Fact]
     public void SecaoQuePassaADeclararAFaixaHerdadaApontaAMesmaParte()
     {
-        // Excluída a primeira quebra, a seção de baixo recebe as faixas que
-        // herdava: sem referência no arquivo, ela aponta a parte delas.
+        // Excluída a primeira quebra, a seção de baixo aponta as faixas que herdava.
         var original = Fixtures.WithThreeSections();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
         model.Sections![1] = model.Sections[1] with { Header = model.Sections[0].Header };
@@ -377,10 +363,8 @@ public class SectionsTests
     [Fact]
     public void RenomearAMarcaDaSecaoPartidaNaoReescreveOParagrafo()
     {
-        // Inserir uma quebra renomeia a marca da seção partida (ver
-        // `planSectionBreak`): o parágrafo que a fecha não foi tocado, e tem de
-        // voltar preservado — com formas e caixas que o escritor não refaria —,
-        // recebendo só a configuração da entrada nova.
+        // Inserir uma quebra renomeia a marca da seção partida (`planSectionBreak`):
+        // o parágrafo que a fecha volta preservado, só com a configuração nova.
         var original = Fixtures.WithThreeSections();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
         Holder(model, "s2").With("sectionBreak", "n5");

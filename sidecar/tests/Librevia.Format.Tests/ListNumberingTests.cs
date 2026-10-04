@@ -50,7 +50,7 @@ public class ListNumberingTests
     [Fact]
     public void OutraNumeracaoNoMesmoNivelEOutraLista()
     {
-        // Juntadas, "Dez" era contado como item de "Três" — 4, e não 10.
+        // Juntadas, "Dez" seria item de "Três": 4, e não 10.
         var lists = ListsOf(Roundtrip.Open(Fixtures.WithMultilevelList()));
         Assert.Equal(6, IntOf(lists[3], "numId"));
         Assert.Single(lists[3].Content!);
@@ -69,9 +69,7 @@ public class ListNumberingTests
     [Fact]
     public void ListaReiniciadaGanhaNumComStartOverrideDaMesmaDefinicao()
     {
-        // "Reiniciar em 1" no editor: a lista perde o `numId` e leva a definição
-        // de onde saiu com o reinício. O Word grava exatamente isto — um `w:num`
-        // novo, da mesma definição abstrata, com `w:startOverride`.
+        // "Reiniciar em 1": um `w:num` novo da mesma definição, com `w:startOverride`, como o Word.
         var original = Fixtures.WithMultilevelList();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
         var third = ListsOf(model)[2];
@@ -96,8 +94,7 @@ public class ListNumberingTests
     [Fact]
     public void ItemDescidoComTabVaiAoNivelDeBaixoSemReescreverOParagrafo()
     {
-        // O item não muda — muda a lista em volta. Devolvido como veio, voltava
-        // ao nível 0 ao reabrir.
+        // Muda a lista em volta, e não o item; devolvido como veio, voltaria ao nível 0.
         var original = Fixtures.WithBulletList();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
         var list = ListsOf(model)[0];
@@ -116,8 +113,7 @@ public class ListNumberingTests
     [Fact]
     public void CadaListaNovaGanhaDefinicaoPropriaComOsNiveisDoWord()
     {
-        // Com uma definição só para todas, a segunda lista nova continuava a conta
-        // da primeira ao reabrir no Word: 1, 2 e 3 onde a tela mostrou 1, 2 e 1.
+        // Com uma definição só, a segunda lista nova continuaria a conta da primeira no Word.
         var original = Fixtures.Simple();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
         Node Item(string text) => Node.Of("listItem", Node.Of("paragraph", new Node { Type = "text", Text = text }));
@@ -170,8 +166,7 @@ public class ListNumberingTests
     [Fact]
     public void ListaComDefinicaoDaGaleriaSaiComOsNiveisDela()
     {
-        // A definição escolhida no editor (galeria, lista colada de outro
-        // documento) é gravada como veio — e volta igual.
+        // A definição escolhida no editor (galeria, lista colada) volta igual.
         var original = Fixtures.Simple();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
 
@@ -205,8 +200,7 @@ public class ListNumberingTests
     [Fact]
     public void ListaColadaComNumIdQueODestinoUsaParaOutraCoisaGanhaNumeracaoPropria()
     {
-        // A lista vem de outro documento com `numId` 5 e marcadores; aqui o 5 é a
-        // numeração decimal de "Um, Dois, Três". Gravada no 5, trocaria de marca.
+        // A lista de outro documento traz o `numId` 5, que aqui é outra numeração.
         var original = Fixtures.WithMultilevelList();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
         var definition = new JsonObject { ["key"] = "a7", ["abstractId"] = 7, ["levels"] = ListLevels.Defaults("bulletList") };

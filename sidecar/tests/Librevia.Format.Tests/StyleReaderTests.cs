@@ -4,16 +4,9 @@ using Librevia.Format.Docx;
 namespace Librevia.Format.Tests;
 
 /// <summary>
-/// Os estilos como dado: o que o leitor extrai, e nas unidades de quem vai usar.
+/// Os estilos como dado, nas unidades de quem os usa (pontos, milímetros, <c>12pt</c>),
+/// com a entrelinha em forma bruta e a herança sem resolver.
 /// </summary>
-/// <remarks>
-/// A tela ainda não desenha a partir disto — o leitor continua achatando a
-/// formatação em cada bloco. O que estes testes protegem é o **contrato**: as
-/// unidades (pontos, milímetros, `12pt`), a entrelinha em forma bruta e o fato de
-/// a herança **não** ser resolvida aqui. Uma unidade trocada só apareceria na
-/// entrega em que a tela passa a nascer dos estilos, e aí como "o documento abriu
-/// diferente" — longe da causa.
-/// </remarks>
 public class StyleReaderTests
 {
     private static StyleSheetDto Read(byte[] bytes)
@@ -28,8 +21,7 @@ public class StyleReaderTests
     {
         var sheet = Read(Fixtures.WithStyles());
 
-        // O `w:docDefaults` é a base de toda a cascata, e é dele que a fonte do
-        // documento vem — não do `Normal`.
+        // A fonte do documento vem do `w:docDefaults`, e não do `Normal`.
         Assert.Equal("Calibri", sheet.Defaults.Character.FontFamily);
         Assert.Equal("11pt", sheet.Defaults.Character.FontSize);
     }
@@ -42,8 +34,7 @@ public class StyleReaderTests
         Assert.Equal("Faixa", faixa.Name);
         Assert.Equal("paragraph", faixa.Type);
         Assert.Equal("center", faixa.Paragraph!.TextAlign);
-        // Hexadecimal com `#`, como o atributo do bloco — e minúsculo, para que
-        // duas escritas da mesma cor não pareçam duas cores.
+        // Com `#` e minúsculo, para duas escritas da mesma cor não parecerem duas.
         Assert.Equal("#943634", faixa.Paragraph.Background);
         Assert.Equal("Arial", faixa.Character!.FontFamily);
         Assert.Equal("10pt", faixa.Character.FontSize);
@@ -54,11 +45,8 @@ public class StyleReaderTests
     [Fact]
     public void HerancaNaoEResolvidaAqui()
     {
-        // `Corpo` herda de `Base`, que é Arial 10 pt. O estilo tem de sair daqui
-        // dizendo **só o que ele diz**: resolver a cascata no sidecar é o que a
-        // entrega seguinte faz no TS, onde a altura da linha de cada fonte já é
-        // conhecida. Resolvido aqui, o `basedOn` perderia o sentido e mudar o
-        // estilo pai deixaria de mudar os filhos.
+        // `Corpo` diz só o que ele diz: a cascata se resolve no TS, onde se conhece a
+        // altura da linha de cada fonte, e mudar o pai continua mudando os filhos.
         var sheet = Read(Fixtures.WithStyles());
         var body = sheet.Styles["Corpo"];
 
@@ -73,8 +61,7 @@ public class StyleReaderTests
         var normal = Read(Fixtures.WithStyleSpacingAndDirectMargins()).Styles["Normal"];
         var paragraph = normal.Paragraph!;
 
-        // Zero explícito é preservado: "sem espaço antes" é uma instrução do
-        // documento, e descartá-la deixaria a margem do editor reaparecer.
+        // Zero explícito é instrução do documento, e não some.
         Assert.Equal(0, paragraph.SpaceBefore);
         Assert.Equal(7, paragraph.SpaceAfter);
         Assert.Equal(12.7, paragraph.IndentMm);
@@ -82,9 +69,7 @@ public class StyleReaderTests
         // Deslocamento é recuo negativo de primeira linha, como no `text-indent`.
         Assert.Equal(-6.35, paragraph.FirstLineMm);
 
-        // **Forma bruta**: 276/240 = 1,15 vez a altura natural da linha, e não o
-        // número do CSS. A multiplicação depende da fonte, e a fonte pode vir do
-        // estilo — quem multiplica é `line-metrics.ts`.
+        // Forma bruta: a multiplicação depende da fonte, e quem a faz é `line-metrics.ts`.
         Assert.Equal("multiple", paragraph.LineSpacing!.Kind);
         Assert.Equal(1.15, paragraph.LineSpacing.Factor);
         Assert.Null(paragraph.LineSpacing.Points);
@@ -93,9 +78,7 @@ public class StyleReaderTests
     [Fact]
     public void EstiloDeTabelaEDeNumeracaoFicamDeFora()
     {
-        // O modelo do documento só representa estilo de parágrafo e de caractere.
-        // Nada se perde: `word/styles.xml` volta ao arquivo byte a byte pela
-        // gravação cirúrgica — estes estilos só não aparecem no painel.
+        // Só estilo de parágrafo e de caractere; os outros voltam em `word/styles.xml` intocado.
         var sheet = Read(DocxTemplate.Create(Page()));
 
         Assert.DoesNotContain("TableNormal", sheet.Styles.Keys);
@@ -108,17 +91,14 @@ public class StyleReaderTests
     [Fact]
     public void PacoteDoDocumentoNovoVoltaComATabelaDeDados()
     {
-        // O outro lado do teste de contrato de `src/main/sidecar/builtin-styles.test.ts`:
-        // lá o `BUILTIN_STYLES` do TS é comparado com a tabela do C#; aqui a
-        // tabela do C# é comparada com o **arquivo** que ela gera. Com os dois, uma
-        // medida só existe em um lugar — e o documento novo abre como foi gravado.
+        // O outro lado de `builtin-styles.test.ts`, que compara `LEGACY_STYLES` com a
+        // tabela do C#: aqui a tabela é comparada com o arquivo que ela gera.
         var sheet = Read(DocxTemplate.Create(Page()));
 
         Assert.Equal(BuiltinStyles.All.Length, sheet.Styles.Count);
         Assert.Equal("Normal", sheet.Defaults.ParagraphStyleId);
         Assert.Equal("DefaultParagraphFont", sheet.Defaults.CharacterStyleId);
-        // A fonte do padrão volta com a substituta genérica atrás, porque o
-        // pacote declara em `word/fontTable.xml` que a Times New Roman é serifada.
+        // A substituta genérica vem atrás, porque `word/fontTable.xml` declara a Times serifada.
         Assert.StartsWith(BuiltinStyles.BodyFont, sheet.Defaults.Character.FontFamily!, StringComparison.Ordinal);
         Assert.Equal("12pt", sheet.Defaults.Character.FontSize);
 
@@ -153,8 +133,7 @@ public class StyleReaderTests
     [Fact]
     public void DocumentoSemEstiloNenhumNaoQuebraALeitura()
     {
-        // Um `.docx` sem `word/styles.xml` é raro, mas existe — e a resposta certa
-        // é uma folha de estilos vazia, não uma exceção.
+        // Sem `word/styles.xml`, uma folha vazia, e não exceção.
         var sheet = Read(Fixtures.Simple());
 
         Assert.Empty(sheet.Styles);

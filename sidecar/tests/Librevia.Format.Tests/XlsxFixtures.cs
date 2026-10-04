@@ -3,21 +3,13 @@ using Librevia.Format.Xlsx;
 
 namespace Librevia.Format.Tests;
 
-/// <summary>
-/// Planilhas de teste construídas em código, pelo mesmo motivo dos fixtures de
-/// documento: o que elas contêm fica legível na revisão, e um binário no git é
-/// uma caixa preta que ninguém confere.
-/// </summary>
+/// <summary>Planilhas de teste montadas em código, legíveis na revisão.</summary>
 public static class XlsxFixtures
 {
     /// <summary>
-    /// Planilha de vendas com fórmula, moeda, data e uma segunda aba.
+    /// Vendas com fórmula, moeda, data e uma segunda aba. A fonte de 14 pt em B2 é o
+    /// que o modelo não representa, e prova a preservação.
     /// </summary>
-    /// <remarks>
-    /// A fonte de 14 pontos em B2 não é enfeite: é o atributo que o modelo do
-    /// aplicativo **não** representa, e é ele que prova que a gravação
-    /// cirúrgica preserva o que não foi editado.
-    /// </remarks>
     public static byte[] Sales()
     {
         using var book = new XLWorkbook();
@@ -61,15 +53,9 @@ public static class XlsxFixtures
     }
 
     /// <summary>
-    /// Planilha com o que o modelo do aplicativo **não** representa: filtro,
-    /// mesclagem, formatação condicional e validação de dados.
+    /// O que o modelo não representa e a gravação preserva: filtro, mesclagem,
+    /// formatação condicional e validação de dados.
     /// </summary>
-    /// <remarks>
-    /// A decisão de projeto é preservar sem oferecer interface: uma tela de
-    /// filtro é trabalho de sobra, e perder o filtro de quem já tem um é dano
-    /// certo. Este fixture é o que transforma essa decisão em promessa
-    /// verificável.
-    /// </remarks>
     public static byte[] WithUnmodeledFeatures()
     {
         using var book = new XLWorkbook();
@@ -106,13 +92,9 @@ public static class XlsxFixtures
     }
 
     /// <summary>
-    /// Acrescenta ao pacote uma parte que o ClosedXML não modela.
+    /// Uma parte que o ClosedXML não modela: se ela sobrevive, gráficos e tabelas
+    /// dinâmicas, que também têm parte própria, sobrevivem.
     /// </summary>
-    /// <remarks>
-    /// É o teste que separa "preserva" de "regenera": se esta parte sobrevive a
-    /// uma gravação, gráficos e tabelas dinâmicas — que também vivem em partes
-    /// próprias — sobrevivem pelo mesmo mecanismo.
-    /// </remarks>
     public static byte[] WithForeignPart(byte[] original, string content)
     {
         using var source = new MemoryStream(original, writable: false);
