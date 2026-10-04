@@ -1,25 +1,14 @@
 /**
- * Encontra frase em portugues ainda presa no codigo.
- *
- * A traducao da interface e uma varredura grande e mecanica, e o compilador so
- * cobre metade dela: ele garante que toda chave existe nos dois idiomas, e nao
- * tem como saber que a frase nunca virou chave. Este script e a outra metade -
- * ele conta o que falta, e por isso o progresso da varredura e um numero em vez
- * de uma impressao.
+ * Encontra frase em portugues presa no codigo, fora do catalogo. O compilador
+ * garante que toda chave existe nos dois idiomas, e nao sabe da frase que nunca
+ * virou chave.
  *
  *   node scripts/untranslated.mjs          lista tudo, sai 1 se houver algo
  *   node scripts/untranslated.mjs --count  so o numero
  *
- * ## O que ele olha, e o que nao
- *
- * Comentario e removido antes de qualquer coisa: o repositorio comenta em
- * portugues de proposito, e isso nao muda. `*.test.ts` e `e2e/` ficam de fora
- * pelo mesmo motivo - descricao de teste e portugues por regra.
- *
- * O que sobra e string com letra acentuada ou com palavra de funcao portuguesa,
- * que e um sinal forte de frase escrita para uma pessoa ler. Da falso positivo
- * (um nome de fonte, uma chave de formato) e por isso existe a lista de
- * excecoes no fim - cada uma com o motivo escrito.
+ * Comentarios, `*.test.ts` e `e2e/` ficam de fora: sao em portugues por regra. O
+ * resto e string com letra acentuada ou palavra de funcao portuguesa; os falsos
+ * positivos vao para a lista de excecoes, com o motivo.
  */
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, relative, sep } from 'node:path'
@@ -30,21 +19,12 @@ const SRC = join(ROOT, 'src')
 /** Pastas que a varredura nao entra. */
 const SKIP_DIRS = new Set(['node_modules', 'out', 'dist', 'release', '.git'])
 
-/**
- * Arquivos isentos, com o motivo.
- *
- * Isencao e divida, nao permissao: cada linha aqui e uma frase que a pessoa que
- * escolheu ingles ainda vai ler em portugues.
- */
+/** Arquivos isentos, com o motivo. Isencao e frase que quem escolheu ingles le em portugues. */
 const EXEMPT = new Map([
-  // O catalogo E o portugues. Procurar frases em portugues nele acharia todas.
   ['src/shared/i18n', 'o catalogo guarda as duas linguas de proposito'],
-  // Nomes de funcao de planilha (SOMA, PROCV). Sao sintaxe que o arquivo .xlsx
-  // guarda, e nao texto de interface - traduzi-los quebraria as formulas.
+  // SOMA e PROCV sao sintaxe que o .xlsx guarda: traduzi-los quebraria as formulas.
   ['src/services/spreadsheet/formula', 'nome de funcao e sintaxe, nao interface'],
-  // O campo `does:` da tabela de atalhos e documentacao: nenhum codigo o
-  // renderiza. Confirmado por busca - nada le `.does`. Se um dia alguem
-  // mostrar a tabela de atalhos na tela, tire daqui antes.
+  // Nenhum codigo renderiza `.does`. Se a tabela de atalhos for para a tela, tire daqui.
   ['src/shared/shortcuts.ts', 'o campo does e documentacao, nao vai para a tela'],
   ['src/main/context-menu.ts', 'log tecnico de IPC no terminal do main, nao vai para a tela'],
   ['src/main/sidecar/index.ts', 'log tecnico de subida do sidecar no terminal do main, nao vai para a tela'],
@@ -98,8 +78,7 @@ for (const file of walk(SRC)) {
   const lines = source.split('\n')
 
   lines.forEach((line, index) => {
-    // Uma linha que ja chama o tradutor nao esta pendente, mesmo que traga
-    // portugues junto - o argumento de `t()` e a chave, nao a frase.
+    // A linha que ja chama `t()` nao esta pendente: o argumento e a chave.
     if (/\bt\(\s*['"]/.test(line)) return
 
     const quoted = [...line.matchAll(/(['"`])((?:\\.|(?!\1)[^\\\n])*)\1/g)].map((m) => m[2])

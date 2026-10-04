@@ -1,16 +1,8 @@
 /**
- * Gera `THIRD-PARTY-NOTICES.md` — o que vai junto com o instalador.
- *
- * Cobre os **três** conjuntos que de fato são distribuídos, e não só o primeiro:
- *
- *  1. dependências npm de produção;
- *  2. o próprio Electron, que é `devDependency` no `package.json` mas viaja
- *     inteiro dentro do instalador — junto com Chromium e Node.js;
- *  3. os pacotes NuGet ligados ao sidecar .NET, que é publicado self-contained e
- *     por isso leva o runtime junto.
- *
- * O portão `licenses:check` olha só o conjunto 1. Deixar os outros dois de fora
- * do arquivo de avisos daria a impressão de conformidade sem a conformidade.
+ * Gera `THIRD-PARTY-NOTICES.md` com os três conjuntos distribuídos: as dependências
+ * npm de produção, o Electron (com Chromium e Node.js), que é `devDependency` mas
+ * viaja no instalador, e os pacotes NuGet do sidecar self-contained. O portão
+ * `licenses:check` olha só o primeiro.
  */
 
 import { execFileSync } from 'node:child_process'
@@ -24,11 +16,8 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const require = createRequire(import.meta.url)
 
 function npmPackages() {
-  // O próprio JS do license-checker, rodado por este Node — e não `npx`. No
-  // Windows `npx` é `npx.cmd`, e `execFile` sem shell não executa um `.cmd`:
-  // era o `spawnSync npx ENOENT` que derrubava o instalador lá. Resolver pelo
-  // `require` acha o pacote onde quer que o npm o tenha içado, e dispensa
-  // shell — que traria de volta o problema de caminho com espaço.
+  // O JS do license-checker por este Node, e não `npx`: no Windows é `npx.cmd`, que
+  // `execFile` sem shell não executa. O `require` acha o pacote onde o npm o içou.
   const checker = require.resolve('license-checker-rseidelsohn/bin/license-checker-rseidelsohn.js')
 
   const json = execFileSync(
@@ -56,11 +45,8 @@ function electronRuntime() {
 }
 
 /**
- * As fontes empacotadas.
- *
- * Escritas à mão, e não lidas de `resources/fonts/`: o que interessa ao aviso é
- * a **família** e quem a assina, não os vinte arquivos de variante. A conferência
- * de que os arquivos existem é do teste `src/services/document/fonts.test.ts`.
+ * As fontes empacotadas, por família e quem a assina; `fonts.test.ts` confere que os
+ * arquivos existem.
  */
 function bundledFonts() {
   return [

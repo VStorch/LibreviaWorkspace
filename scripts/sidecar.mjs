@@ -1,10 +1,7 @@
 #!/usr/bin/env node
 /**
- * Build e portão de licenças do sidecar .NET.
- *
- * Existe como script Node, e não como linha de `npm scripts`, por dois motivos:
- * o Windows é plataforma-alvo e citação de shell quebra lá; e o
- * portão de licenças precisa de lógica de verdade, não de um `grep`.
+ * Build e portão de licenças do sidecar .NET, em Node porque a citação de shell
+ * quebra no Windows e o portão precisa de lógica.
  *
  *   node scripts/sidecar.mjs build [--all]   publica o binário
  *   node scripts/sidecar.mjs licenses        reprova licença fora da allowlist
@@ -61,14 +58,8 @@ function build(all) {
 }
 
 /**
- * Verifica o grafo NuGet resolvido.
- *
- * A regra dura: **ausência de expressão SPDX reprova.** Um pacote que só
- * informa `licenseUrl` está apontando para um texto que ninguém leu — foi assim
- * que a Six Labors trocou Apache-2.0 por licença própria a partir da versão 2
- * de `SixLabors.Fonts`, que é dependência transitiva do ClosedXML. Aceitar
- * "não declarou" como "deve estar tudo bem" seria abrir justamente o buraco que
- * este portão existe para fechar.
+ * Verifica o grafo NuGet resolvido: sem expressão SPDX, reprova. `licenseUrl` aponta
+ * um texto que muda, como a licença de `SixLabors.Fonts`, dependência do ClosedXML.
  */
 function licenses() {
   if (!nugetAssetsExist()) {

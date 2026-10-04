@@ -1,10 +1,6 @@
 /**
- * Licenças dos pacotes NuGet resolvidos, lidas do cache local.
- *
- * Mora separado porque tem dois consumidores que não podem divergir: o portão
- * que reprova o build (`sidecar.mjs licenses`) e o arquivo de avisos que vai
- * junto com o instalador (`notices.mjs`). Se cada um lesse por conta própria, um
- * dia o portão aprovaria um pacote que o aviso não menciona.
+ * Licenças dos pacotes NuGet resolvidos, lidas do cache local, para o portão
+ * (`sidecar.mjs licenses`) e o aviso (`notices.mjs`) não divergirem.
  */
 
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
@@ -69,13 +65,8 @@ function findNuspec(packageFolders, name, version) {
 }
 
 /**
- * Só expressão SPDX conta.
- *
- * Licença publicada como arquivo em vez de expressão é tratada como não
- * declarada — e isso não é rigor gratuito: `SixLabors.Fonts` é Apache-2.0 na
- * 1.0.0 e licença própria da 2.x em diante, publicada como arquivo. Aceitar
- * "não declarou" como "deve estar tudo bem" abriria o buraco que o portão
- * existe para fechar.
+ * Só expressão SPDX conta: `SixLabors.Fonts` é Apache-2.0 na 1.0.0 e licença
+ * própria, publicada como arquivo, da 2.x em diante.
  */
 function licenseOf(nuspecPath) {
   const xml = readFileSync(nuspecPath, 'utf8')

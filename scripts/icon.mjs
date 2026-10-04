@@ -1,13 +1,7 @@
 /**
- * Gera o ícone do aplicativo — um PNG escrito à mão, sem dependência nenhuma.
- *
- * É um **provisório assumido**: quadrado de canto arredondado com um "L" claro.
- * Existe porque o instalador precisa de um ícone e porque um ícone de verdade é
- * trabalho de quem desenha, não de quem programa. Trocar é só substituir
- * `build/icon.png` por um PNG de 512×512.
- *
- * Escrever o PNG à mão em vez de instalar uma biblioteca de imagem: o formato
- * mínimo são três blocos e um CRC, e `node:zlib` já faz a única parte difícil.
+ * Gera o ícone provisório do aplicativo, um PNG escrito à mão: quadrado de canto
+ * arredondado com um "L" claro. Trocar é substituir `build/icon.png` por um PNG de
+ * 512×512. O formato mínimo são três blocos e um CRC, e `node:zlib` comprime.
  */
 
 import { deflateSync } from 'node:zlib'
