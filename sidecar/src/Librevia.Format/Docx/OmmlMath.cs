@@ -5,28 +5,19 @@ using System.Xml.Linq;
 namespace Librevia.Format.Docx;
 
 /// <summary>
-/// A equação do Word (OMML, `m:oMath` e `m:oMathPara`) desenhada como MathML.
+/// OMML → MathML, só para a **tela**: o OMML volta ao arquivo como veio
+/// (ParagraphWriter), e o que a conversão não desenha vai para
+/// <see cref="Converted.Lossy"/>, travando a equação. O alvo é o MathML Core do
+/// Chromium: a caixa vira <c>mrow</c> com classe, e negrito, script e duplo vêm do
+/// alfabeto matemático do Unicode, no lugar do <c>mathvariant</c>.
 /// </summary>
-/// <remarks>
-/// Só para a **tela**: o arquivo continua guardando o OMML do jeito que veio, e é
-/// ele que volta na gravação — ver ParagraphWriter. Por isso a conversão pode ser
-/// aproximada sem custar nada ao documento: o que ela não sabe desenhar vai para
-/// <see cref="Converted.Lossy"/>, a equação fica travada na tela, e o OMML segue
-/// intacto.
-///
-/// O alvo é o MathML Core do Chromium, e não o MathML 3 inteiro: sem `menclose`,
-/// sem `mlabeledtr`, sem `mathvariant` além de `normal`. A caixa vira `mrow` com
-/// classe (a borda é do CSS), e o negrito, o script e o duplo vêm dos caracteres
-/// alfanuméricos matemáticos do Unicode — é o que o Core recomenda no lugar do
-/// `mathvariant`.
-/// </remarks>
 public static partial class OmmlMath
 {
     public static readonly XNamespace M = "http://schemas.openxmlformats.org/officeDocument/2006/math";
     private static readonly XNamespace W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
     private static readonly XNamespace Ml = "http://www.w3.org/1998/Math/MathML";
 
-    /// <summary>A classe da caixa (`m:borderBox`): a borda é desenhada pelo CSS.</summary>
+    /// <summary>A borda de <c>m:borderBox</c> é desenhada pelo CSS.</summary>
     public const string BoxClass = "omml-caixa";
 
     /// <param name="MathMl">O `math` inteiro, serializado.</param>
@@ -35,7 +26,6 @@ public static partial class OmmlMath
     /// <param name="Lossy">As construções que a tela não desenha, pelo nome OMML (`m:foo`).</param>
     public sealed record Converted(string MathMl, bool Display, string? Jc, IReadOnlyList<string> Lossy);
 
-    /// <summary>Converte o OuterXml de um `m:oMath` ou de um `m:oMathPara`.</summary>
     public static Converted Convert(string omml)
     {
         XElement root;
@@ -61,8 +51,7 @@ public static partial class OmmlMath
                 converter.Lose(other);
             }
 
-            // A de várias linhas (Shift+Enter no Word) é um `m:oMath` por linha:
-            // vira uma tabela de uma coluna, alinhada como o parágrafo pede.
+            // A de várias linhas (Shift+Enter no Word) vira uma tabela de uma coluna, com o alinhamento do parágrafo.
             var lines = root.Elements(M + "oMath").ToList();
             body = lines.Count == 1
                 ? converter.Row(lines[0])
@@ -83,11 +72,11 @@ public static partial class OmmlMath
     private static string Empty(bool display) =>
         new XElement(Ml + "math", new XAttribute("display", display ? "block" : "inline")).ToString(SaveOptions.DisableFormatting);
 
-    /// <summary>O `m:val` do filho `name` de uma propriedade — e nulo quando ele não está lá.</summary>
+    /// <summary>Nulo quando o filho não está lá.</summary>
     private static string? Val(XElement? properties, string name) =>
         properties?.Element(M + name)?.Attribute(M + "val")?.Value;
 
-    /// <summary>O liga-desliga do OMML: presente sem valor é ligado.</summary>
+    /// <summary>Presente sem valor é ligado.</summary>
     private static bool On(XElement? properties, string name, bool absent = false)
     {
         var element = properties?.Element(M + name);
@@ -103,7 +92,7 @@ public static partial class OmmlMath
             Lossy.Add((element.Name.Namespace == M ? "m:" : element.Name.Namespace == W ? "w:" : string.Empty) +
                       element.Name.LocalName);
 
-        /// <summary>O conteúdo de um argumento (`m:e`, `m:num`…) num `mrow` — os scripts pedem um filho só.</summary>
+        /// <summary>Num <c>mrow</c>: os scripts pedem um filho só.</summary>
         public XElement Row(XElement? container) => new(Ml + "mrow", container is null ? [] : Children(container));
 
         private IEnumerable<XElement> Children(XElement container)
@@ -114,7 +103,7 @@ public static partial class OmmlMath
                 {
                     switch (child.Name.LocalName)
                     {
-                        // A revisão dentro da equação: o inserido aparece, o excluído não.
+                        // O inserido aparece, o excluído não.
                         case "ins":
                             foreach (var inner in Children(child)) yield return inner;
                             break;
@@ -135,7 +124,6 @@ public static partial class OmmlMath
                     continue;
                 }
 
-                // As propriedades (`m:fPr`, `m:ctrlPr`…) são lidas por quem as tem.
                 if (child.Name.LocalName.EndsWith("Pr", StringComparison.Ordinal)) continue;
 
                 foreach (var element in Element(child)) yield return element;
@@ -239,8 +227,7 @@ public static partial class OmmlMath
                     yield return new XElement(Ml + "mover", Arg("e"), Arg("lim"));
                     break;
 
-                // A função (`sin`, `log`…): o nome, o "aplicação de função" invisível
-                // e o argumento.
+                // O nome, a "aplicação de função" invisível e o argumento.
                 case "func":
                     yield return new XElement(Ml + "mrow", Arg("fName"), Mo("⁡"), Arg("e"));
                     break;
@@ -250,8 +237,7 @@ public static partial class OmmlMath
                     break;
 
                 case "borderBox":
-                    // Só a caixa inteira: lados escondidos e riscos o CSS de um `mrow`
-                    // não diz, e a equação fica travada.
+                    // Lados escondidos e riscos o CSS de um `mrow` não diz: a equação trava.
                     if (properties is not null && properties.Elements().Any(child =>
                             child.Name.LocalName is "hideTop" or "hideBot" or "hideLeft" or "hideRight" or
                                 "strikeH" or "strikeV" or "strikeBLTR" or "strikeTLBR" && On(properties, child.Name.LocalName)))
@@ -280,17 +266,14 @@ public static partial class OmmlMath
                     yield return On(properties, "show", absent: true) ? phantom : new XElement(Ml + "mphantom", phantom);
                     break;
 
-                // O argumento solto só aparece dentro de uma construção que não
-                // sabemos desenhar (as conhecidas leem os seus por `Arg`): o
-                // conteúdo dele segue, e a lista fica só com a construção — antes
-                // ela dizia `m:e` ao lado do que de fato faltava.
+                // O argumento solto só aparece dentro de uma construção desconhecida: o
+                // conteúdo segue, e a lista fica com a construção.
                 case "e" or "num" or "den" or "sub" or "sup" or "deg" or "lim" or "fName" or "mr":
                     foreach (var inner in Children(element)) yield return inner;
                     break;
 
                 default:
-                    // O que não sabemos desenhar: o conteúdo dos argumentos, para a
-                    // equação não sumir da tela, e a construção na lista.
+                    // O conteúdo segue, para a equação não sumir, e a construção vai à lista.
                     Lose(element);
                     foreach (var inner in Children(element)) yield return inner;
                     break;
@@ -326,8 +309,7 @@ public static partial class OmmlMath
 
         private XElement Delimited(XElement element, XElement? properties)
         {
-            // Ausente é o padrão; o valor vazio é "sem delimitador" — é como o Word
-            // grava o colchete de um lado só.
+            // Ausente é o padrão; vazio é "sem delimitador", o colchete de um lado só do Word.
             var open = properties?.Element(M + "begChr") is { } begin ? begin.Attribute(M + "val")?.Value ?? string.Empty : "(";
             var close = properties?.Element(M + "endChr") is { } end ? end.Attribute(M + "val")?.Value ?? string.Empty : ")";
             var separator = properties?.Element(M + "sepChr") is { } sep ? sep.Attribute(M + "val")?.Value ?? string.Empty : "|";
@@ -352,7 +334,6 @@ public static partial class OmmlMath
         private static XElement Mo(string text, bool? stretchy = null) =>
             new(Ml + "mo", stretchy is null ? null : new XAttribute("stretchy", stretchy.Value ? "true" : "false"), text);
 
-        /// <summary>O acento combinante do OMML no caractere que fica sozinho em cima da base.</summary>
         private static string Spacing(string chr) => chr switch
         {
             "̀" => "`",
@@ -370,12 +351,8 @@ public static partial class OmmlMath
             _ => chr,
         };
 
-        // --- o texto ---------------------------------------------------------
 
-        /// <summary>
-        /// O texto de um `m:r` em fichas: número (`mn`), identificador (`mi`) e
-        /// operador (`mo`); o texto normal (`m:nor`) inteiro num `mtext`.
-        /// </summary>
+        /// <summary>Número (<c>mn</c>), identificador (<c>mi</c>) e operador (<c>mo</c>); o <c>m:nor</c> num <c>mtext</c>.</summary>
         private static IEnumerable<XElement> Run(XElement run)
         {
             var text = string.Concat(run.Elements(M + "t").Select(t => t.Value));
@@ -421,9 +398,8 @@ public static partial class OmmlMath
 
                 if (Rune.IsLetter(rune) && rune.Value != '∞')
                 {
-                    // Reto (o nome de função, o texto `p`) ou de outro alfabeto: as
-                    // letras seguidas são um identificador só. Itálico simples: uma
-                    // letra por `mi`, que o MathML inclina sozinho.
+                    // Reto ou de outro alfabeto, as letras seguidas são um identificador;
+                    // itálico simples, uma letra por `mi`, que o MathML inclina sozinho.
                     if (plain && !upright)
                     {
                         yield return new XElement(Ml + "mi", rune.ToString());
@@ -456,10 +432,7 @@ public static partial class OmmlMath
             }
         }
 
-        /// <summary>
-        /// A letra ou o algarismo no alfabeto matemático do Unicode (U+1D400…), que
-        /// é como o MathML Core faz negrito, script, fraktur e duplo.
-        /// </summary>
+        /// <summary>O alfabeto matemático do Unicode (U+1D400…) é como o MathML Core faz negrito, script e duplo.</summary>
         internal static string Styled(Rune rune, string? style, string script)
         {
             var c = rune.Value;
@@ -484,8 +457,7 @@ public static partial class OmmlMath
                     _ => 0x1D5A0,
                 },
                 "monospace" => 0x1D670,
-                // Romano: o itálico simples e o reto ficam como estão — o `mi`
-                // inclina a letra sozinho, e `mathvariant="normal"` a endireita.
+                // Romano: o `mi` inclina sozinho, e `mathvariant="normal"` endireita.
                 _ => (bold, italic) switch
                 {
                     (true, true) => 0x1D468,
@@ -510,7 +482,7 @@ public static partial class OmmlMath
             return char.ConvertFromUtf32(start + (upper ? c - 'A' : 26 + c - 'a'));
         }
 
-        /// <summary>As letras que o Unicode já tinha no bloco Letterlike e deixou de fora do alfabeto.</summary>
+        /// <summary>As letras que o Unicode já tinha no bloco Letterlike.</summary>
         private static int? Hole(string script, bool bold, int c) => (script, bold) switch
         {
             ("script", false) => c switch
@@ -534,28 +506,16 @@ public static partial class OmmlMath
 }
 
 /// <summary>
-/// O caminho de volta: o MathML de uma equação editada vira OMML.
+/// MathML → OMML, só para a equação sem <c>omml</c> (nova ou editada). Aceita o MathML
+/// de <see cref="Convert"/> e o do Temml, que diferem no detalhe (o corpo do
+/// somatório, o embrulho da função); o que não reconhece segue como conteúdo.
 /// </summary>
-/// <remarks>
-/// Só para a equação sem `omml` — a nova, ou a que a pessoa editou. A que veio do
-/// arquivo e não mudou continua voltando como entrou (ver ParagraphWriter.MathOf).
-///
-/// A entrada são duas famílias de MathML: a que <see cref="Convert"/> produz e a
-/// do Temml, que o editor usa para desenhar o LaTeX. As duas dizem a mesma coisa
-/// de jeitos um pouco diferentes — o somatório do Temml leva o corpo como irmão, o
-/// nosso num `mrow`; a função do Temml embrulha o nome com o U+2061 num `mrow` —,
-/// e o mapa aceita as duas. O que ele não reconhece segue como o conteúdo, para a
-/// equação não perder texto.
-/// </remarks>
 public static partial class OmmlMath
 {
-    /// <summary>A fonte das fichas, como o Word as grava.</summary>
+    /// <summary>Como o Word grava.</summary>
     private const string MathFont = "Cambria Math";
 
-    /// <summary>
-    /// O `m:oMath` (ou o `m:oMathPara`, na de exibição) de um MathML — nulo quando
-    /// o texto não é um `math` bem formado.
-    /// </summary>
+    /// <summary>Nulo quando o texto não é um <c>math</c> bem formado.</summary>
     public static string? ToOmml(string mathMl, bool display, string? jc)
     {
         XElement root;
@@ -573,8 +533,7 @@ public static partial class OmmlMath
         var writer = new Writer();
         var children = root.Elements().Where(child => child.Name.LocalName != "annotation").ToList();
 
-        // As linhas da de exibição (ver Convert): a tabela de uma coluna com o
-        // alinhamento declarado é o `m:oMathPara` de vários `m:oMath`.
+        // A tabela de uma coluna é o `m:oMathPara` de várias linhas (ver Convert).
         List<XElement> lines;
         if (display && children.Count == 1 && Unwrapped(children[0]) is { } table &&
             table.Name.LocalName == "mtable" && table.Attribute("columnalign") is not null &&
@@ -606,7 +565,6 @@ public static partial class OmmlMath
         return result.ToString(SaveOptions.DisableFormatting);
     }
 
-    /// <summary>O `mrow` de um filho só, sem o embrulho.</summary>
     private static XElement Unwrapped(XElement element)
     {
         while (element.Name.LocalName == "mrow" && element.Attribute("class") is null && element.Elements().Count() == 1)
@@ -617,16 +575,11 @@ public static partial class OmmlMath
         return element;
     }
 
-    /// <summary>Os operadores de n-ário: somatório, integrais, produtório, uniões…</summary>
     private const string NaryChars = "∑∏∐∫∬∭∮∯∰⋀⋁⋂⋃⨀⨁⨂⨄⨆";
 
-    /// <summary>
-    /// Onde termina o corpo de um n-ário do Temml, que vem como irmão: no primeiro
-    /// operador de relação ou de soma do mesmo nível.
-    /// </summary>
+    /// <summary>O corpo de um n-ário do Temml vem como irmão, até o primeiro operador de relação ou soma.</summary>
     private const string BodyStops = "=+-−±∓<>≤≥≠≈≡∼≃≅∝→←↔⇒⇐⇔∈∉⊂⊃⊆⊇,;";
 
-    /// <summary>Os acentos de um caractere (o do MathML) e o combinante que o OMML guarda.</summary>
     private static readonly Dictionary<string, string> Accents = new(StringComparer.Ordinal)
     {
         ["^"] = "̂", ["ˆ"] = "̂", ["̂"] = "̂",
@@ -638,15 +591,13 @@ public static partial class OmmlMath
         ["˘"] = "̆", ["̆"] = "̆",
     };
 
-    /// <summary>As letras e os algarismos dos alfabetos matemáticos do Unicode, de volta ao ASCII.</summary>
     private static readonly Dictionary<int, (char Plain, string? Script, string? Style)> Alphabets = BuildAlphabets();
 
     private static Dictionary<int, (char, string?, string?)> BuildAlphabets()
     {
         var map = new Dictionary<int, (char, string?, string?)>();
         string[] scripts = ["roman", "script", "fraktur", "double-struck", "sans-serif", "monospace"];
-        // O estilo mais simples primeiro: o alfabeto que não distingue o negrito
-        // (o duplo, por exemplo) fica sem `m:sty`.
+        // O estilo mais simples primeiro: o alfabeto sem negrito fica sem `m:sty`.
         string?[] styles = [null, "p", "b", "bi"];
         foreach (var script in scripts)
         {
@@ -662,8 +613,7 @@ public static partial class OmmlMath
             }
         }
 
-        // O itálico do romano, que o Convert não usa (o `mi` inclina sozinho), mas
-        // o `\mathit` do Temml usa; o `h` dele mora no bloco Letterlike.
+        // O itálico do romano, que só o `\mathit` do Temml usa.
         for (var c = 'A'; c <= 'Z'; c++) map.TryAdd(0x1D434 + (c - 'A'), (c, null, "i"));
         for (var c = 'a'; c <= 'z'; c++) map.TryAdd(0x1D44E + (c - 'a'), (c, null, "i"));
         map.TryAdd(0x210E, ('h', null, "i"));
@@ -672,7 +622,6 @@ public static partial class OmmlMath
 
     private sealed class Writer
     {
-        /// <summary>O conteúdo de um `mrow` (ou de qualquer argumento) em elementos OMML.</summary>
         public List<XElement> Row(XElement? container)
         {
             var output = new List<XElement>();
@@ -687,11 +636,10 @@ public static partial class OmmlMath
             return output;
         }
 
-        /// <summary>Um argumento (`m:e`, `m:num`…) com o elemento que o MathML põe no lugar dele.</summary>
         private List<XElement> Arg(string name, XElement? content) =>
             [new XElement(M + name, Argument(content))];
 
-        /// <summary>O elemento de um argumento — um `mrow` é o grupo; qualquer outro, um item só.</summary>
+        /// <summary>Um <c>mrow</c> é o grupo; qualquer outro, um item só.</summary>
         private List<XElement> Argument(XElement? content)
         {
             var output = new List<XElement>();
@@ -699,10 +647,7 @@ public static partial class OmmlMath
             return output;
         }
 
-        /// <summary>
-        /// Os filhos de um nível, sem os espaços e com a função do Temml aberta: o
-        /// `mrow` que termina no U+2061 é o nome da função, e o argumento é o irmão.
-        /// </summary>
+        /// <summary>O <c>mrow</c> do Temml que termina no U+2061 é o nome da função, e o argumento é o irmão.</summary>
         private static List<XElement> Flatten(IEnumerable<XElement> children)
         {
             var items = new List<XElement>();
@@ -713,15 +658,14 @@ public static partial class OmmlMath
                 if (name is "mstyle" or "mpadded" or "merror" or "semantics")
                 {
                     var inner = name == "semantics" ? child.Elements().Take(1) : child.Elements();
-                    // O `mpadded` de um filho só é o `\mathrm{abc}` do Temml: segue inteiro.
+                    // O `mpadded` de um filho só é o `\mathrm{abc}` do Temml.
                     items.AddRange(Flatten(inner));
                     continue;
                 }
 
                 if (name == "mrow" && child.Attribute("class") is null && !Fenced(child))
                 {
-                    // O embrulho de um filho só (o `\sum` de exibição do Temml vem
-                    // num `mrow`) não é grupo: o filho fica no nível de cima.
+                    // O embrulho de um filho só não é grupo.
                     var significant = child.Elements().Where(e => e.Name.LocalName != "mspace").ToList();
                     if (significant.Count == 1 || (significant.Count > 0 && IsApply(significant[^1])))
                     {
@@ -742,8 +686,7 @@ public static partial class OmmlMath
             {
                 var item = items[i];
 
-                // O n-ário: o corpo é o `mrow` seguinte (o nosso) ou os irmãos até
-                // o próximo operador de relação ou de soma (o do Temml).
+                // O corpo do n-ário é o `mrow` seguinte (o nosso) ou os irmãos (o do Temml).
                 if (NaryOf(item) is { } nary)
                 {
                     var body = new List<XElement>();
@@ -766,7 +709,6 @@ public static partial class OmmlMath
                     continue;
                 }
 
-                // A função: o nome, o U+2061, e o argumento.
                 if (i + 1 < items.Count && IsApply(items[i + 1]))
                 {
                     var name = Argument(item);
@@ -788,7 +730,7 @@ public static partial class OmmlMath
 
                 if (IsApply(item) || IsInvisible(item)) continue;
 
-                // O pré-índice do Temml: `{}_a^b X` é um índice de base vazia seguido da base.
+                // `{}_a^b X` do Temml: o índice de base vazia seguido da base.
                 if (item.Name.LocalName is "msub" or "msup" or "msubsup" && EmptyBase(item) && i + 1 < items.Count)
                 {
                     var scripts = item.Elements().ToList();
@@ -905,7 +847,7 @@ public static partial class OmmlMath
                         new XElement(M + "e", Row(element)));
                     break;
 
-                // O que não conhecemos: o conteúdo, para nada sumir.
+                // O desconhecido segue como conteúdo.
                 default:
                     foreach (var inner in Row(element)) yield return inner;
                     break;
@@ -998,7 +940,6 @@ public static partial class OmmlMath
                 }));
         }
 
-        /// <summary>O `mrow` entre delimitadores: o primeiro ou o último filho é um `mo` de cerca.</summary>
         private static bool Fenced(XElement row)
         {
             if (row.Name.LocalName != "mrow") return false;
@@ -1020,8 +961,7 @@ public static partial class OmmlMath
                 .Take(children.Count - (IsFence(children[0]) ? 1 : 0) - (IsFence(children[^1]) ? 1 : 0))
                 .ToList();
 
-            // Os separadores: o nosso (`separator`) e o `\middle` do Temml, que é
-            // um `mo` esticável sem ser cerca.
+            // O nosso `separator` e o `\middle` do Temml, um `mo` esticável sem ser cerca.
             var arguments = new List<List<XElement>> { new() };
             string? separator = null;
             foreach (var child in inner)
@@ -1053,7 +993,6 @@ public static partial class OmmlMath
                 }));
         }
 
-        /// <summary>O operador de n-ário de um elemento: o `mo` sozinho, ou com limites.</summary>
         private static XElement? NaryOf(XElement element)
         {
             var name = element.Name.LocalName;
@@ -1119,12 +1058,8 @@ public static partial class OmmlMath
 
         private static bool Stretchy(XElement mo) => mo.Attribute("stretchy")?.Value == "true";
 
-        // --- as fichas -------------------------------------------------------
 
-        /// <summary>
-        /// A ficha (`mi`, `mn`, `mo`, `mtext`) num `m:r` — fundida com o anterior
-        /// quando as propriedades são as mesmas, como o Word escreve.
-        /// </summary>
+        /// <summary>Fundida com a anterior quando as propriedades são as mesmas, como o Word escreve.</summary>
         private static void AddToken(List<XElement> output, XElement token)
         {
             var text = token.Value;
@@ -1166,8 +1101,7 @@ public static partial class OmmlMath
 
                 if (!styledAlphabet && token.Name.LocalName == "mi")
                 {
-                    // O `mi` de uma letra é itálico; o de várias, ou o com
-                    // `mathvariant="normal"`, é reto — o `m:sty p` do Word.
+                    // `mi` de várias letras, ou `mathvariant="normal"`, é o `m:sty p` do Word.
                     var upright = token.Attribute("mathvariant")?.Value == "normal" ||
                                   (token.Attribute("mathvariant") is null && plain.ToString().EnumerateRunes().Count() > 1);
                     var variant = token.Attribute("mathvariant")?.Value;
@@ -1180,7 +1114,7 @@ public static partial class OmmlMath
                 }
                 else if (styledAlphabet && style == "i")
                 {
-                    // O itálico simples é o padrão do Word: não precisa ser dito.
+                    // O itálico é o padrão do Word.
                     style = null;
                 }
             }

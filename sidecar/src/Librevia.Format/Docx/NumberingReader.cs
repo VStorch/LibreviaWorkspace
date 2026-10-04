@@ -4,18 +4,9 @@ using DocumentFormat.OpenXml.Wordprocessing;
 
 namespace Librevia.Format.Docx;
 
-/// <summary>
-/// A lista de um parágrafo: que tipo, em que nível, com que marca e recuo.
-/// </summary>
-/// <param name="NumberingId">
-/// O `w:numId` do arquivo. Vai para o nó da lista e volta na gravação: é o que
-/// mantém a lista editada apontando a mesma numeração, com a mesma marca e a
-/// mesma contagem.
-/// </param>
-/// <param name="Definition">
-/// Os nove níveis da numeração, com a chave da contagem e o reinício do
-/// `w:num` — ver <see cref="ListLevels"/>.
-/// </param>
+/// <summary>A lista de um parágrafo: tipo, nível, marca e recuo.</summary>
+/// <param name="NumberingId">O <c>w:numId</c>, que volta na gravação para a lista editada manter a numeração.</param>
+/// <param name="Definition">Os nove níveis, a chave da contagem e o reinício — ver <see cref="ListLevels"/>.</param>
 public sealed record ListStyle(
     string Kind,
     int NumberingId,
@@ -26,23 +17,11 @@ public sealed record ListStyle(
     JsonObject Definition);
 
 /// <summary>
-/// Decide se um parágrafo numerado é lista com marcador ou lista ordenada, e
-/// com que definição ele é contado e desenhado.
+/// O parágrafo aponta um <c>numId</c>, que aponta um <c>abstractNumId</c>, que guarda o
+/// formato por nível. No Word conta a definição abstrata: o "Reiniciar em 1" cria um
+/// <c>w:num</c> **com** <c>w:startOverride</c>, contagem à parte. A chave (<c>a7</c>,
+/// <c>n12</c>) diz qual das duas vale.
 /// </summary>
-/// <remarks>
-/// O caminho é indireto de propósito no OOXML: o parágrafo aponta um `numId`,
-/// que aponta um `abstractNumId`, que guarda um formato por nível. Ler o
-/// formato direto do parágrafo não é possível — ele simplesmente não está lá.
-///
-/// ## A chave da contagem
-///
-/// No Word quem conta é a definição abstrata, e não o `w:num`: dois `w:num` que
-/// apontam o mesmo `w:abstractNum` continuam a mesma contagem — é por isso que
-/// o "Reiniciar em 1" do Word cria um `w:num` novo **com** `w:startOverride`, e
-/// não um `w:num` novo e só. O `w:num` com reinício (ou com nível próprio em
-/// `w:lvlOverride/w:lvl`) é contagem à parte. A chave (`a7`, `n12`) diz qual das
-/// duas vale, e a tela conta por ela.
-/// </remarks>
 public sealed class NumberingReader(MainDocumentPart part)
 {
     private readonly Dictionary<int, JsonObject> _definitions = [];
@@ -53,10 +32,7 @@ public sealed class NumberingReader(MainDocumentPart part)
         var numId = numbering?.NumberingId?.Val?.Value;
         if (numId is null or 0) return null;
 
-        // `numId` que o `numbering.xml` não define (ou cuja definição abstrata
-        // sumiu) não numera nada no Word: o parágrafo aparece sem marca. Tratado
-        // como lista, a tela inventava a numeração padrão — e a gravação criava
-        // uma definição e reescrevia parágrafos que ninguém tocou.
+        // `numId` que o `numbering.xml` não define não numera nada no Word.
         var instance = InstanceOf(numId.Value);
         if (instance is null || AbstractOf(instance) is null) return null;
 
@@ -73,23 +49,14 @@ public sealed class NumberingReader(MainDocumentPart part)
             DefinitionOf(numId.Value));
     }
 
-    /// <summary>
-    /// A definição de um `numId` do arquivo, como o leitor a entregaria; nula
-    /// quando o arquivo não a define.
-    /// </summary>
-    /// <remarks>É com ela que a gravação confere se o `numId` que o nó traz ainda é o dele.</remarks>
+    /// <summary>Nula quando o arquivo não a define; a gravação confere com ela o <c>numId</c> do nó.</summary>
     internal JsonObject? FileDefinitionOf(int numId) =>
         InstanceOf(numId) is { } instance && AbstractOf(instance) is not null ? DefinitionOf(numId) : null;
 
     /// <summary>
-    /// Os nove níveis de uma definição abstrata, com os que faltam preenchidos.
+    /// Os que faltam seguem o primeiro nível da **definição**, e não do parágrafo:
+    /// senão a gravação criaria uma duplicada.
     /// </summary>
-    /// <remarks>
-    /// O preenchimento segue o primeiro nível da **definição**, e não o parágrafo
-    /// que a pediu: lida por um item com marcador e por outro numerado, a mesma
-    /// definição dava dois conjuntos de níveis — e a gravação, que compara níveis
-    /// para reaproveitar a definição, criava uma duplicada.
-    /// </remarks>
     internal static JsonArray LevelsOf(AbstractNum? abstractNum)
     {
         var first = abstractNum?.Elements<Level>().FirstOrDefault(level => (level.LevelIndex?.Value ?? 0) == 0);
@@ -103,13 +70,7 @@ public sealed class NumberingReader(MainDocumentPart part)
         return levels;
     }
 
-    /// <summary>
-    /// A definição inteira de um `w:num`, como o nó da lista a leva.
-    /// </summary>
-    /// <remarks>
-    /// Clonada a cada pedido: o mesmo `numId` aparece em várias listas, e um
-    /// `JsonNode` só pode ter um pai.
-    /// </remarks>
+    /// <summary>Clonada a cada pedido: um <c>JsonNode</c> só pode ter um pai.</summary>
     private JsonObject DefinitionOf(int numId)
     {
         if (!_definitions.TryGetValue(numId, out var cached))
@@ -138,7 +99,7 @@ public sealed class NumberingReader(MainDocumentPart part)
 
             if (levelOverride.Level is { } replaced)
             {
-                // Nível inteiro trocado no `w:num`: é outra lista, com outra marca.
+                // Nível trocado no `w:num` é outra lista.
                 levels[index] = LevelJson(replaced);
                 ownLevels = true;
             }
@@ -172,17 +133,12 @@ public sealed class NumberingReader(MainDocumentPart part)
             TwipsOf(level.PreviousParagraphProperties?.Indentation?.Hanging?.Value),
             level.IsLegalNumberingStyle is { } legal && (legal.Val?.Value ?? true));
 
-        // O que a tela não desenha mas a gravação precisa para recriar o nível
-        // noutro arquivo (lista colada): alinhamento, o que vem depois do número
-        // e o reinício. Só quando foge do padrão, para não engordar toda lista.
+        // O que a gravação precisa para recriar o nível noutro arquivo, só quando foge do padrão.
         if (level.LevelJustification?.Val?.InnerText is { } jc && jc is not ("left" or "start")) json["jc"] = jc;
         if (level.LevelSuffix?.Val?.InnerText is { } suff && suff != "tab") json["suff"] = suff;
         if (level.LevelRestart?.Val?.Value is { } restart) json["restart"] = restart;
 
-        // A formatação do número (cor, tamanho, negrito) e o estilo ligado ao
-        // nível não cabem na definição: a gravação que precisar recriar o nível
-        // sem o original avisa a perda. A fonte do marcador não conta — ela sai
-        // do próprio glifo (`ListLevels.GlyphOf`).
+        // Formatação do número e estilo do nível não cabem: a gravação que precisar recriar avisa.
         var numberFormatting = level.NumberingSymbolRunProperties?.ChildElements
             .Any(child => child is not RunFonts) ?? false;
         if (numberFormatting || level.ParagraphStyleIdInLevel is not null)
@@ -209,14 +165,9 @@ public sealed class NumberingReader(MainDocumentPart part)
             .FirstOrDefault(candidate => candidate.NumberID?.Value == numId);
 
     /// <summary>
-    /// A definição abstrata que de fato tem os níveis.
+    /// A lista presa a <c>w:numStyleLink</c> não tem nível: os níveis moram na definição
+    /// com o mesmo <c>w:styleLink</c>.
     /// </summary>
-    /// <remarks>
-    /// Uma lista presa a um estilo de numeração (`w:numStyleLink`) não tem nível
-    /// nenhum: os níveis moram na definição que declara o mesmo estilo em
-    /// `w:styleLink`. Sem seguir o elo, a lista "Lista numerada" do Word abria
-    /// com marcador.
-    /// </remarks>
     private AbstractNum? AbstractOf(NumberingInstance? instance)
     {
         var numbering = part.NumberingDefinitionsPart?.Numbering;
@@ -240,17 +191,13 @@ public sealed class NumberingReader(MainDocumentPart part)
         var format = definition?.NumberingFormat?.Val;
         if (format is null) return "bulletList";
 
-        // "none" também não é ordenada: é numeração desligada naquele nível.
+        // "none" é numeração desligada naquele nível.
         return format.Value == NumberFormatValues.Bullet || format.Value == NumberFormatValues.None
             ? "bulletList"
             : "orderedList";
     }
 
-    /// <summary>A marca do nível, como um caractere que qualquer fonte desenha.</summary>
-    /// <remarks>
-    /// Só a lista com marcador: a ordenada tem `%1.` e afins, que é uma gramática
-    /// de contagem, e quem a resolve é `list-numbering.ts`.
-    /// </remarks>
+    /// <summary>Só na lista com marcador; o <c>%1.</c> da ordenada é de <c>list-numbering.ts</c>.</summary>
     private static string? MarkerOf(Level? definition)
     {
         if (definition?.NumberingFormat?.Val?.Value != NumberFormatValues.Bullet) return null;
@@ -259,14 +206,7 @@ public sealed class NumberingReader(MainDocumentPart part)
         return string.IsNullOrEmpty(text) ? null : ListLevels.Shown(text);
     }
 
-    /// <summary>
-    /// Uma medida de recuo do nível, em milímetros.
-    /// </summary>
-    /// <remarks>
-    /// `w:ind/@left` é onde o **texto** do item começa; `@hanging` é quanto o
-    /// marcador fica antes dele. Sem as duas o item sai colado na margem e a
-    /// marca encostada na primeira letra.
-    /// </remarks>
+    /// <summary><c>@left</c> é onde o texto começa; <c>@hanging</c>, quanto o marcador fica antes.</summary>
     private static double? TwipsOf(string? value)
     {
         if (value is null || !int.TryParse(value, out var twips) || twips <= 0) return null;

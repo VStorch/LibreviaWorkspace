@@ -4,22 +4,11 @@ using DocumentFormat.OpenXml;
 namespace Librevia.Format.Docx;
 
 /// <summary>
-/// A moldura e o preenchimento de uma forma, quando dá para reproduzi-los.
+/// A moldura e o preenchimento de uma forma, quando o CSS sabe desenhá-los: cor
+/// sólida, traço sólido ou tracejado. Gradiente, textura, imagem, sombra, 3D e
+/// geometria que não é retângulo saem com <see cref="Complete"/> falso, e só isso
+/// vai ao aviso.
 /// </summary>
-/// <remarks>
-/// O aviso "moldura e preenchimento de formas" saía em todo documento que
-/// tivesse uma caixa de texto, tivesse ela decoração ou não. Nos quatro
-/// documentos de evidências do corpus as caixas declaram `a:noFill` e linha de
-/// espessura zero — não há moldura nenhuma, e o aviso apontava para uma perda
-/// que não existia. Um aviso que aparece sempre é um aviso que se aprende a
-/// ignorar, e aí ele deixa de proteger do que importa.
-///
-/// O que se lê aqui é o caso comum e é o que o CSS sabe desenhar: cor sólida,
-/// traço sólido de uma espessura, tracejado. O que sobra —
-/// gradiente, textura, imagem de fundo, sombra, três dimensões, e qualquer
-/// geometria que não seja um retângulo — sai como <see cref="Complete"/> falso,
-/// e é só disso que o inventário passa a falar.
-/// </remarks>
 internal sealed record ShapeLook(
     string? Fill,
     string? Line,
@@ -30,20 +19,14 @@ internal sealed record ShapeLook(
     /// <summary>Forma sem decoração declarada, e sem nada a avisar.</summary>
     internal static readonly ShapeLook Plain = new(null, null, 0, false, true);
 
-    /// <summary>Há alguma coisa a desenhar?</summary>
     internal bool Draws => Fill is not null || (Line is not null && LineWidthPt > 0);
 
-    /// <summary>1 pt = 12700 EMU.</summary>
     private const double EmusPerPoint = 12700;
 
     /// <summary>
-    /// A decoração da forma que contém este elemento.
+    /// Sobe até quem tem <c>spPr</c>: chega aqui a forma ou a caixa de dentro dela.
+    /// O grupo não engana, porque o dele é <c>grpSpPr</c>.
     /// </summary>
-    /// <remarks>
-    /// Sobe pelos ancestrais até achar quem tem `spPr`: o leitor chega aqui
-    /// tanto com a forma na mão quanto com a caixa de texto de dentro dela. O
-    /// grupo não confunde a busca porque a propriedade dele chama `grpSpPr`.
-    /// </remarks>
     internal static ShapeLook Of(OpenXmlElement element)
     {
         var properties = PropertiesOf(element);
@@ -72,14 +55,9 @@ internal sealed record ShapeLook(
     }
 
     /// <summary>
-    /// O preenchimento, e se sabemos qual é.
+    /// Sem <c>a:noFill</c> nem <c>a:solidFill</c> a forma herda o preenchimento do
+    /// tema, que não sabemos qual é: o caso vai ao aviso.
     /// </summary>
-    /// <remarks>
-    /// Ausência de declaração **não** é ausência de preenchimento: sem `a:noFill`
-    /// nem `a:solidFill`, a forma herda o preenchimento do estilo dela, que vem
-    /// do tema. Não sabemos qual é, e dizer que não há poria uma caixa branca
-    /// onde o documento pede uma azul — então o caso entra no aviso.
-    /// </remarks>
     private static (string? Color, bool Known) FillOf(OpenXmlElement properties)
     {
         foreach (var child in properties.ChildElements)
@@ -124,9 +102,7 @@ internal sealed record ShapeLook(
                 case "solidFill":
                     var color = ColorOf(child);
 
-                    // Espessura zero com cor é o traço mais fino que o formato
-                    // sabe pedir, e não a ausência dele: é assim que o filete do
-                    // cabeçalho do corpus é gravado.
+                    // Espessura zero com cor é o traço mais fino, e não a ausência dele.
                     return (color, width > 0 ? width : 0.75, dashed, color is not null);
 
                 case "gradFill":
@@ -138,14 +114,7 @@ internal sealed record ShapeLook(
         return (null, 0, false, false);
     }
 
-    /// <summary>
-    /// A forma é um retângulo — a única que este desenhista sabe fazer.
-    /// </summary>
-    /// <remarks>
-    /// Sem `a:prstGeom` nem `a:custGeom` a forma é retangular por omissão. Com
-    /// `custGeom` ou com um `prstGeom` de outro tipo, desenhar um retângulo
-    /// mudaria o desenho, e é disso que o aviso passa a falar.
-    /// </remarks>
+    /// <summary>Sem <c>a:prstGeom</c> nem <c>a:custGeom</c>, a forma é retangular.</summary>
     private static bool IsRectangle(OpenXmlElement properties)
     {
         foreach (var child in properties.ChildElements)
@@ -163,13 +132,7 @@ internal sealed record ShapeLook(
             || (child.LocalName == "effectLst" && child.HasChildren)
             || child.LocalName == "effectDag");
 
-    /// <summary>
-    /// A cor de um preenchimento sólido, quando ela está escrita no arquivo.
-    /// </summary>
-    /// <remarks>
-    /// `a:schemeClr` aponta para o tema, e resolver o tema é outro trabalho:
-    /// devolve nulo, e a forma entra no aviso em vez de sair com a cor errada.
-    /// </remarks>
+    /// <summary><c>a:schemeClr</c> aponta o tema: nulo, e a forma vai ao aviso.</summary>
     private static string? ColorOf(OpenXmlElement fill)
     {
         var srgb = fill.ChildElements.FirstOrDefault(child => child.LocalName == "srgbClr");

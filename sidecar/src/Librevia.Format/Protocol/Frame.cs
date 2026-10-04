@@ -1,44 +1,31 @@
 namespace Librevia.Format.Protocol;
 
 /// <summary>
-/// Um quadro do protocolo: JSON mais um bloco de bytes crus.
-/// </summary>
-/// <remarks>
-/// O formato está descrito em <c>src/main/sidecar/protocol.ts</c>, que é o outro
-/// lado desta mesma conversa. Os dois arquivos precisam mudar juntos.
-///
+/// Um quadro do protocolo: JSON mais um bloco de bytes crus. O outro lado é
+/// <c>src/main/sidecar/protocol.ts</c>: mudam juntos.
 /// <code>
 ///   offset 0   uint32 BE   bytes de JSON
 ///   offset 4   uint32 BE   bytes de binário
 ///   offset 8   ...         JSON em UTF-8
 ///   depois     ...         binário cru
 /// </code>
-///
-/// O binário viaja fora do JSON porque base64 custaria 33% a mais sobre
-/// documentos de até 20 MB — e isso apareceria no tempo de abrir cada arquivo.
-/// </remarks>
+/// O binário vai fora do JSON porque base64 custaria um terço a mais.
+/// </summary>
 public readonly record struct Frame(ReadOnlyMemory<byte> Json, ReadOnlyMemory<byte> Binary)
 {
     public const int HeaderBytes = 8;
 
     /// <summary>
-    /// Tetos de sanidade, espelhando os do lado TypeScript. Protegem contra um
-    /// cabeçalho mentiroso nos fazer alocar gigabytes.
+    /// Os tetos do lado TypeScript, contra um cabeçalho que peça gigabytes. O do JSON
+    /// é largo porque as imagens do DOCX vão nele como data URI.
     /// </summary>
-    /// <remarks>
-    /// O teto do JSON é generoso porque o modelo de um DOCX carrega as imagens
-    /// como data URI, e base64 infla o arquivo em um terço.
-    /// </remarks>
     public const int MaxJsonBytes = 64 * 1024 * 1024;
     public const int MaxBinaryBytes = 64 * 1024 * 1024;
 }
 
 public static class FrameIo
 {
-    /// <summary>
-    /// Lê um quadro inteiro, ou devolve <c>null</c> quando o fluxo termina de
-    /// forma limpa (o main fechou o stdin — é assim que pedimos para encerrar).
-    /// </summary>
+    /// <summary>Nulo quando o main fecha o stdin, que é o pedido de encerrar.</summary>
     public static async Task<Frame?> ReadAsync(Stream input, CancellationToken cancellation)
     {
         var header = new byte[Frame.HeaderBytes];
@@ -88,16 +75,11 @@ public static class FrameIo
             await output.WriteAsync(binary, cancellation).ConfigureAwait(false);
         }
 
-        // Sem o flush o quadro pode ficar preso no buffer e o main espera para
-        // sempre por uma resposta que já foi escrita.
+        // Sem o flush, o main espera por uma resposta presa no buffer.
         await output.FlushAsync(cancellation).ConfigureAwait(false);
     }
 
-    /// <summary>
-    /// Preenche <paramref name="destination"/> por completo. Um pipe entrega o
-    /// que quiser em cada leitura: assumir que uma leitura traz a mensagem
-    /// inteira é o bug clássico desta integração.
-    /// </summary>
+    /// <summary>Um pipe entrega quanto quiser a cada leitura.</summary>
     private static async Task<bool> ReadExactlyOrEofAsync(
         Stream input,
         Memory<byte> destination,

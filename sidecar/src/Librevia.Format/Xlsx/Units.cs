@@ -1,24 +1,12 @@
 namespace Librevia.Format.Xlsx;
 
 /// <summary>
-/// As três unidades que a planilha mistura.
+/// A coluna do XLSX conta caracteres da fonte padrão, a linha conta pontos, e a
+/// tela, pixels.
 /// </summary>
-/// <remarks>
-/// Largura de coluna no XLSX é contada em **caracteres** — quantos dígitos da
-/// fonte padrão cabem —, altura de linha em **pontos**, e a tela trabalha em
-/// pixels. Trocar uma pela outra não quebra nada visivelmente: só deixa a
-/// coluna com a largura errada, que é o tipo de defeito que ninguém associa a
-/// uma conversão de unidade.
-/// </remarks>
 public static class Units
 {
-    /// <summary>
-    /// Largura do dígito mais largo da fonte padrão, em pixels.
-    /// </summary>
-    /// <remarks>
-    /// Sete pixels é o valor do Calibri 11, que é a fonte padrão de toda
-    /// planilha nova desde 2007. O formato define a conta em função dela.
-    /// </remarks>
+    /// <summary>O dígito mais largo do Calibri 11, a fonte padrão desde 2007, em pixels.</summary>
     private const double MaxDigitWidth = 7.0;
 
     /// <summary>Caracteres → pixels. A largura padrão 8,43 dá 64 pixels.</summary>

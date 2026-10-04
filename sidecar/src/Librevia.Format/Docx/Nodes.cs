@@ -4,10 +4,7 @@ using System.Text.Json.Serialization;
 
 namespace Librevia.Format.Docx;
 
-/// <summary>
-/// Nó do ProseMirror em forma serializável — o espelho de `DocumentNode` em
-/// <c>src/services/document/model.ts</c>. Os dois precisam mudar juntos.
-/// </summary>
+/// <summary>O espelho de <c>DocumentNode</c> em <c>src/services/document/model.ts</c>: mudam juntos.</summary>
 public sealed class Node
 {
     [JsonPropertyName("type")]
@@ -35,43 +32,17 @@ public sealed class Node
     }
 
     /// <summary>
-    /// Forma normalizada usada para decidir se o usuário mexeu no bloco.
-    /// </summary>
-    /// <remarks>
-    /// Compara o que o leitor produziu com o que volta do editor. Os dois
-    /// descrevem o mesmo bloco de jeitos diferentes, e as diferenças abaixo são
-    /// **de forma, não de conteúdo** — tratá-las como edição faz a gravação
-    /// cirúrgica regenerar o documento inteiro em silêncio, que é o risco nº 1
-    /// do plano técnico.
-    ///
-    /// Medido em <c>modelo-de-manual.docx</c>, abrindo e salvando sem
-    /// editar nada: dos 15 blocos, batiam 2. Cada normalização foi acrescentada
-    /// olhando o que ainda sobrava — 2 → 9 → 11 → 15.
-    ///
+    /// A forma que decide se o usuário mexeu no bloco. Leitor e editor descrevem o
+    /// mesmo bloco de jeitos diferentes, e estas diferenças são **de forma**:
     /// <list type="number">
-    /// <item><b>identidade</b>: o <c>oid</c> é quem o bloco é, não o que ele diz.</item>
-    /// <item><b>atributo nulo</b>: o ProseMirror materializa <b>todo</b> atributo
-    /// declarado no schema, inclusive os que o documento não menciona, e devolve
-    /// <c>null</c> neles; o leitor simplesmente não os escreve. Ausente e nulo
-    /// são a mesma afirmação — "o documento não diz nada sobre isto".</item>
-    /// <item><b>ordem das marcas</b>: o ProseMirror ordena as marcas pela posição
-    /// delas no schema, o leitor as emite na ordem em que leu o <c>w:rPr</c>.
-    /// Negrito antes ou depois da cor é a mesma formatação.</item>
-    /// <item><b>texto vizinho</b>: o leitor emite um nó por <c>w:r</c>, porque é
-    /// assim que o arquivo está escrito — "Acme® Software" chega partido
-    /// quando o <c>®</c> tem <c>rPr</c> próprio, ainda que igual ao do vizinho.
-    /// O ProseMirror funde nós de texto com marcas iguais; é invariante do
-    /// modelo dele, não escolha nossa.</item>
-    /// <item><b>ordem das chaves</b>: <c>JsonObject</c> preserva a ordem de
-    /// inserção, e os dois lados montam os atributos em ordens diferentes —
-    /// <c>{lineHeight, fontSize}</c> de um lado, <c>{fontSize, lineHeight}</c>
-    /// do outro. Sozinha, esta diferença já reprovava <b>todos</b> os blocos, e
-    /// por isso as outras normalizações não mostravam efeito até esta entrar.</item>
+    /// <item>o <c>oid</c> é identidade, e não conteúdo;</item>
+    /// <item>atributo nulo é ausente: o ProseMirror materializa todo atributo do schema;</item>
+    /// <item>a ordem das marcas é a do schema de um lado e a do <c>w:rPr</c> do outro;</item>
+    /// <item>texto vizinho de marcas iguais: o ProseMirror funde, o leitor emite um por <c>w:r</c>;</item>
+    /// <item>a ordem das chaves do <c>JsonObject</c>.</item>
     /// </list>
-    ///
-    /// Vale só para a comparação. O que vai para a tela continua separado por
-    /// run, e quem grava é o XML original — não isto.
-    /// </remarks>
+    /// Só para a comparação: quem grava é o XML original.
+    /// </summary>
     public string Fingerprint()
     {
         var clone = JsonSerializer.SerializeToNode(this, DocxJson.Options)!;
@@ -79,7 +50,6 @@ public sealed class Node
         return Canonical(clone)!.ToJsonString();
     }
 
-    /// <summary>Mesma árvore, chaves em ordem estável.</summary>
     private static JsonNode? Canonical(JsonNode? node) => node switch
     {
         JsonObject o => new JsonObject(
@@ -94,10 +64,7 @@ public sealed class Node
         switch (node)
         {
             case JsonObject o:
-                // A referência de nota vale pelo que aponta, e não pelo corpo
-                // da nota: editar a nota não pode fazer o parágrafo que a
-                // referencia parecer editado. Quem compara o corpo é
-                // NotesWriter, bloco a bloco.
+                // A referência de nota vale pelo que aponta: o corpo NotesWriter compara à parte.
                 if (o["type"]?.GetValueKind() == JsonValueKind.String &&
                     o["type"]!.GetValue<string>() == "noteRef")
                 {
@@ -111,10 +78,7 @@ public sealed class Node
                     }
                 }
 
-                // A equação vale pelo OMML: o MathML, o LaTeX e a lista do que
-                // não se desenha saem dele, e mudam quando a conversão melhora
-                // — o parágrafo não pode parecer editado por isso. A nova ou
-                // editada (sem OMML) vale pelo MathML e pelo modo.
+                // A equação vale pelo OMML, de que o resto sai; a nova (sem OMML), pelo MathML e pelo modo.
                 if (o["type"]?.GetValueKind() == JsonValueKind.String &&
                     o["type"]!.GetValue<string>() == "math" &&
                     o["attrs"] is JsonObject mathAttrs &&
@@ -130,10 +94,7 @@ public sealed class Node
                 if (o["attrs"] is JsonObject attrs)
                 {
                     attrs.Remove("oid");
-                    // A marca de seção também é identidade, e não conteúdo: o id
-                    // muda quando uma quebra nova parte a seção (ver
-                    // `planSectionBreak`), e o parágrafo que a fecha continua o
-                    // mesmo. Quem cuida do `w:sectPr` dele é SectionWriter.
+                    // A marca de seção é identidade: o id muda quando uma quebra nova parte a seção.
                     attrs.Remove("sectionBreak");
                     foreach (var entry in attrs.ToList())
                     {
@@ -153,13 +114,11 @@ public sealed class Node
         }
     }
 
-    /// <summary>Marcas em ordem estável, para negrito-antes-de-cor não diferir de cor-antes-de-negrito.</summary>
     private static void SortMarks(JsonArray marks)
     {
         foreach (var mark in marks) Normalize(mark);
 
-        // Cópia e reinserção: `JsonArray` não ordena no lugar, e um nó só pode
-        // ter um pai — daí o `DeepClone` antes de limpar.
+        // `JsonArray` não ordena no lugar, e um nó só tem um pai: daí o `DeepClone`.
         var sorted = marks
             .Select(mark => mark?.DeepClone())
             .OrderBy(

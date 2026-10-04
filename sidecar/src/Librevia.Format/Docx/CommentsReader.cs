@@ -8,46 +8,35 @@ using DocumentFormat.OpenXml.Wordprocessing;
 namespace Librevia.Format.Docx;
 
 /// <summary>
-/// Um comentário do arquivo, como o painel o mostra.
+/// Um comentário como o painel o mostra. Fora dos nós, como os estilos: o corpo
+/// mora em <c>word/comments.xml</c>, e o parágrafo leva só as pontas da âncora.
 /// </summary>
-/// <remarks>
-/// Fora dos nós pelo mesmo motivo dos estilos: o corpo do comentário mora em
-/// `word/comments.xml`, e o que o parágrafo leva são só as duas pontas da âncora
-/// (`commentStart`/`commentEnd`). Nesta fase o corpo é só de leitura — a gravação
-/// não o toca, e a parte volta ao arquivo byte a byte.
-/// </remarks>
 public sealed record CommentDto(
     [property: JsonPropertyName("id")] string Id,
     [property: JsonPropertyName("author")] string Author,
     [property: JsonPropertyName("date")] string Date,
     [property: JsonPropertyName("paragraphs")] List<string> Paragraphs,
     [property: JsonPropertyName("done")] bool Done,
-    // A resposta aponta o comentário que responde — `w15:paraIdParent` traduzido
-    // para o id dele. Ausente é o comentário que abre a conversa.
+    // `w15:paraIdParent` traduzido para o id do pai; ausente no que abre a conversa.
     [property: JsonPropertyName("parentId")]
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     string? ParentId = null,
     [property: JsonPropertyName("initials")]
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     string? Initials = null,
-    // O `w14:paraId` do último parágrafo: é por ele que `commentsExtended.xml`
-    // liga a resposta e o "resolvido" ao comentário.
+    // O `w14:paraId` do último parágrafo, por onde `commentsExtended.xml` liga resposta e "resolvido".
     [property: JsonPropertyName("paraId")]
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     string? ParaId = null,
-    // O corpo tem o que o texto simples não mostra — formatação, imagem, campo,
-    // link. Continua no arquivo; o painel só avisa.
+    // Formatação, imagem, campo ou link que o texto simples não mostra: fica no arquivo, e o painel avisa.
     [property: JsonPropertyName("rich")]
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     bool Rich = false);
 
 /// <summary>
-/// `word/comments.xml` e `word/commentsExtended.xml` → os comentários do painel.
+/// <c>word/comments.xml</c> e <c>word/commentsExtended.xml</c> → os comentários do
+/// painel. O malformado sai com o que deu para ler.
 /// </summary>
-/// <remarks>
-/// Best-effort, como o resto da leitura: um comentário malformado sai com o que
-/// deu para ler, e nunca impede o documento de abrir.
-/// </remarks>
 public static class CommentsReader
 {
     public static List<CommentDto>? Read(MainDocumentPart part)
@@ -81,13 +70,9 @@ public static class CommentsReader
     }
 
     /// <summary>
-    /// As respostas de cada comentário, pelo id — na ordem do arquivo.
+    /// As respostas de cada comentário, na ordem do arquivo. A resposta não vira nó:
+    /// a âncora dela é a do pai, e a gravação a devolve ao lado dela.
     /// </summary>
-    /// <remarks>
-    /// A resposta não vira nó no editor: a âncora dela é a mesma do comentário que
-    /// ela responde, e duas pontas por conversa bastam. Quem lê as pula (ver
-    /// BodyReader) e quem grava as devolve ao lado das do comentário.
-    /// </remarks>
     public static Dictionary<string, List<string>> RepliesOf(MainDocumentPart part)
     {
         var replies = new Dictionary<string, List<string>>(StringComparer.Ordinal);

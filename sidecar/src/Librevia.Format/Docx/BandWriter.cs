@@ -5,44 +5,18 @@ using DocumentFormat.OpenXml.Wordprocessing;
 namespace Librevia.Format.Docx;
 
 /// <summary>
-/// O texto digitado no cabeçalho ou no rodapé volta para a parte que o guarda.
+/// O texto digitado na faixa volta a **um <c>w:t</c> por peça editada**: moldura,
+/// tabela, logotipo e campo <c>PAGE</c> seguem byte a byte. Comparar a faixa inteira
+/// seria regeneração disfarçada. Parte sem texto mudado nem entra na lista de
+/// graváveis.
 /// </summary>
-/// <remarks>
-/// A gravação cirúrgica deixava `word/header1.xml` intacto porque ninguém o
-/// abria; a faixa era desenho, não edição. Abrir a edição não muda a aposta —
-/// muda só o que conta como "tocado". O que se escreve aqui é **um `w:t` por
-/// peça editada**, e nada mais: a moldura, a tabela, o logotipo, o campo `PAGE`
-/// e o parágrafo que os carrega seguem byte a byte como estavam.
-///
-/// É por isso que o endereço da peça existe. Comparar a faixa inteira não daria
-/// para decidir o que mudou — ela é uma projeção com perda, e a volta seria uma
-/// regeneração disfarçada de edição, que é justamente o que este projeto não
-/// faz.
-///
-/// Parte cujo texto não mudou **não é tocada**, e nem sequer entra na lista de
-/// partes graváveis: o SDK reserializa toda parte cujo DOM tipado foi
-/// materializado, e sair diferente sem intenção é a porta por onde a fidelidade
-/// escapa em silêncio.
-/// </remarks>
 internal static class BandWriter
 {
-    /// <summary>
-    /// A faixa que veio de um `.docx` que não está mais aqui.
-    /// </summary>
-    /// <remarks>
-    /// Mesma frase que o processo `main` usa quando o modelo traz faixas e não há
-    /// pacote de origem nenhum: é a mesma perda, e duas redações dela seriam dois
-    /// avisos na tela para um só problema.
-    /// </remarks>
+    /// <summary>A mesma frase do main: é a mesma perda.</summary>
     private const string ForeignBands = "cabeçalho e rodapé do arquivo .docx de origem";
 
-    /// <summary>
-    /// Aplica o texto editado das faixas e devolve os caminhos que mudaram.
-    /// </summary>
-    /// <param name="sections">
-    /// Todas as seções: cada uma traz só as faixas que declara, e duas que
-    /// apontam a mesma parte trazem o mesmo texto — ver PageReader.ReadAll.
-    /// </param>
+    /// <summary>Devolve os caminhos que mudaram.</summary>
+    /// <param name="sections">Duas seções que apontam a mesma parte trazem o mesmo texto (PageReader.ReadAll).</param>
     internal static HashSet<string> Apply(
         MainDocumentPart part,
         IReadOnlyList<PageSetupDto?> sections,
@@ -53,9 +27,7 @@ internal static class BandWriter
         var bands = sections.OfType<PageSetupDto>().SelectMany(BandsOf).ToList();
         if (bands.Count == 0) return touched;
 
-        // Endereço → texto que se quer ali. Um mesmo cabeçalho aparece em várias
-        // folhas mas é um só no arquivo, e o modelo o traz uma vez por papel:
-        // se dois papéis apontarem para a mesma parte, o texto é o mesmo.
+        // Endereço → texto; a parte é uma só no arquivo.
         var wanted = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (var band in bands)
         {
@@ -66,8 +38,7 @@ internal static class BandWriter
             }
         }
 
-        // O mesmo, um nível acima: o cabeçalho corporativo não é feito de
-        // parágrafos soltos, e o título dele mora dentro de uma caixa.
+        // O mesmo para as caixas, onde mora o título.
         var boxes = new Dictionary<string, List<Node>>(StringComparer.Ordinal);
         foreach (var band in bands)
         {
@@ -89,19 +60,14 @@ internal static class BandWriter
 
         foreach (var relationship in relationships)
         {
-            // A relação não existe neste pacote: a faixa foi lida de um `.docx`
-            // e o que está aqui é o pacote mínimo — o `.sdoc` reaberto do disco.
-            // Não há parte onde escrever, e a gravação segue sem ela; dita, porque
-            // perda calada é o pior defeito que este programa pode ter.
+            // Sem a relação (o `.sdoc` reaberto num pacote mínimo), não há onde escrever: dito, e não calado.
             if (BandNav.PartOf(part, relationship) is not { } target)
             {
                 inventory.NoteLoss(ForeignBands);
                 continue;
             }
 
-            // A mesma tabela de fontes do leitor, e não outra: é ela que decide
-            // se dois runs vizinhos são a mesma peça, e uma fusão diferente aqui
-            // daria outra numeração de peças — o texto iria para a peça errada.
+            // A mesma tabela de fontes do leitor: outra fusão de runs daria outra numeração de peças.
             var changed = ApplyTo(
                 target.Root,
                 wanted.Where(entry => Relationship(entry.Key) == relationship),
@@ -124,15 +90,7 @@ internal static class BandWriter
         return touched;
     }
 
-    /// <summary>
-    /// Regenera as caixas cujo texto mudou, e só essas.
-    /// </summary>
-    /// <remarks>
-    /// A caixa vem inteira porque digitar dentro dela abre e fecha parágrafos:
-    /// um endereço por parágrafo quebraria no primeiro Enter. Caixa cujo texto
-    /// não mudou não é tocada — o XML dela segue como estava, com a moldura, o
-    /// preenchimento e o giro que este escritor não sabe reproduzir.
-    /// </remarks>
+    /// <summary>Só as caixas cujo texto mudou, inteiras; as outras seguem com moldura e giro.</summary>
     private static bool ApplyBoxes(
         OpenXmlPartRootElement root,
         IEnumerable<KeyValuePair<string, List<Node>>> wanted,
@@ -151,29 +109,22 @@ internal static class BandWriter
 
             var box = boxes[at.Box];
 
-            // Contra o texto que a tela mostra, e não contra o do arquivo: o
-            // campo `PAGE` sai do leitor como `{n}`, e comparar com o XML diria
-            // que a caixa mudou sempre — a gravação trocaria o campo por um
-            // `{n}` literal no lugar do número da página.
+            // Contra o texto da tela, com `{n}`: contra o XML a caixa mudaria sempre.
             if (HeaderReader.BoxTextOf(box, inventory, fonts) == PlainTextOf(content)) continue;
 
-            // Caixa com campo dentro não é reescrita nem quando o texto mudou:
-            // regenerá-la apagaria o campo, e um cabeçalho que deixa de contar
-            // páginas é pior do que um título que não se pôde corrigir.
+            // Caixa com campo não é reescrita: um cabeçalho que deixa de contar páginas é pior.
             if (HasField(box))
             {
                 inventory.NoteLoss("texto de uma caixa de cabeçalho com campo calculado");
                 continue;
             }
 
-            // O leitor de faixa não traz marcador para o modelo: reescrita, a caixa
-            // o perde. Não é motivo para recusar o texto novo — é para avisar.
+            // Reescrita, a caixa perde o marcador: avisa-se.
             if (box.Descendants<BookmarkStart>().Any())
             {
                 inventory.NoteLoss("marcador numa caixa de cabeçalho que você editou");
             }
 
-            // Nem revisão: a faixa não as leva como marca.
             if (box.Descendants<InsertedRun>().Any() || box.Descendants<DeletedRun>().Any() ||
                 box.Descendants<MoveFromRun>().Any() || box.Descendants<MoveToRun>().Any())
             {
@@ -186,7 +137,7 @@ internal static class BandWriter
                 foreach (var element in writer.Write(block)) box.AppendChild(element);
             }
 
-            // `w:txbxContent` vazio invalida o documento para o Word.
+            // `w:txbxContent` vazio invalida o documento.
             if (!box.HasChildren) box.AppendChild(new Paragraph());
             touched = true;
         }
@@ -200,7 +151,6 @@ internal static class BandWriter
         || box.Descendants<FieldCode>().Any()
         || box.Descendants<SimpleField>().Any();
 
-    /// <summary>O texto de um conteúdo de caixa, na mesma forma que o do arquivo.</summary>
     private static string PlainTextOf(List<Node> content) =>
         string.Join("\n", content.Select(node => string.Concat(Texts(node))));
 
@@ -250,12 +200,7 @@ internal static class BandWriter
         wanted[piece.Pid] = piece.Text ?? string.Empty;
     }
 
-    /// <summary>
-    /// O endereço da faixa desvinculada (`s2~rId5:0:1`) com a relação da parte
-    /// que a gravação criou para ela — ver SectionWriter.ApplyBands. Endereço
-    /// comum passa como está; o desvinculado sem parte não é escrito em lugar
-    /// nenhum, e se diz.
-    /// </summary>
+    /// <summary>A faixa desvinculada (<c>s2~rId5:0:1</c>) com a relação que a gravação criou (SectionWriter.ApplyBands).</summary>
     private static string? Translate(
         string? address,
         Func<string, string> relationshipOf,
@@ -277,9 +222,7 @@ internal static class BandWriter
     private static string Relationship(string address) =>
         BandNav.Parse(address) is { } parsed ? parsed.RelationshipId : string.Empty;
 
-    /// <summary>
-    /// Escreve numa parte o que mudou nela. Devolve se alguma coisa mudou mesmo.
-    /// </summary>
+    /// <summary>Devolve se algo mudou mesmo.</summary>
     private static bool ApplyTo(
         OpenXmlPartRootElement root,
         IEnumerable<KeyValuePair<string, string>> wanted,
@@ -317,13 +260,7 @@ internal static class BandWriter
         return true;
     }
 
-    /// <summary>
-    /// O ramo de reserva repete a mesma caixa em VML.
-    /// </summary>
-    /// <remarks>
-    /// Escrever só no ramo que vale deixaria o arquivo dizendo duas coisas, e
-    /// qual delas aparece depende de quem abre.
-    /// </remarks>
+    /// <summary>O ramo de reserva em VML repete a caixa: escrever num só deixaria o arquivo dizendo duas coisas.</summary>
     private static void Mirror(OpenXmlPartRootElement root)
     {
         foreach (var alternate in root.Descendants<AlternateContent>().ToList())
@@ -333,30 +270,18 @@ internal static class BandWriter
     }
 
     /// <summary>
-    /// O texto novo entra no primeiro `w:t` da peça; os demais esvaziam.
+    /// O texto no primeiro <c>w:t</c> da peça, e os demais esvaziam: a contagem de runs,
+    /// e com ela o endereço, fica estável. <c>xml:space="preserve"</c> sempre.
     /// </summary>
-    /// <remarks>
-    /// A peça pode ter saído de vários runs — o Word pica uma frase de mesmo
-    /// estilo em pedaços — e o leitor os fundiu numa peça só. Esvaziar em vez de
-    /// remover mantém a contagem de runs, e com ela o endereço, estável de uma
-    /// gravação para a seguinte.
-    ///
-    /// `xml:space="preserve"` sempre: sem ele o Word come o espaço da ponta, e
-    /// "Manual do " voltaria como "Manual do" colado no que vem depois.
-    /// </remarks>
     private static void Rewrite(List<Text> source, string text, bool literal)
     {
-        // A peça que já trazia `{n}` escrito no arquivo continua texto.
         var segments = literal ? [new FieldTokens.Segment(null, text)] : FieldTokens.Split(text);
         source[0].Text = segments[0].Text;
         source[0].Space = SpaceProcessingModeValues.Preserve;
 
         for (var index = 1; index < source.Count; index++) source[index].Text = string.Empty;
 
-        // "Inserir número da página" dentro de uma peça: o texto chega com `{n}`
-        // e `{total}` onde a pessoa os pôs, e cada um vira um campo de verdade
-        // logo depois do run da peça, com a mesma formatação dele. Escrito como
-        // texto, o rodapé do Word passaria a mostrar "{n}" em todas as folhas.
+        // `{n}` e `{total}` viram campos logo depois do run da peça, com a mesma formatação.
         if (segments.Count == 1 || source[0].Parent is not Run anchor) return;
 
         OpenXmlElement last = anchor;
@@ -372,7 +297,6 @@ internal static class BandWriter
         }
     }
 
-    /// <summary>Um run com a formatação de outro e este texto.</summary>
     private static Run RunLike(Run model, string text)
     {
         var run = new Run();

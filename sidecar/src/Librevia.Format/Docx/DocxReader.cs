@@ -5,100 +5,66 @@ using DocumentFormat.OpenXml.Wordprocessing;
 namespace Librevia.Format.Docx;
 
 /// <summary>
-/// O modelo do documento como o editor o entende.
+/// Os estilos ficam **fora** dos nós, pela impressão digital. Anuláveis porque o
+/// escritor não os usa: <c>word/styles.xml</c> volta byte a byte.
 /// </summary>
-/// <remarks>
-/// Os estilos ficam **fora** dos nós de propósito: a impressão digital de um
-/// bloco é feita do que está nele, e um estilo dentro do nó faria todo bloco
-/// parecer mudado na gravação seguinte — o documento inteiro reescrito para nada.
-///
-/// Anuláveis porque o escritor não os usa: um modelo que volta do editor para ser
-/// gravado não precisa carregá-los, e `word/styles.xml` volta ao arquivo byte a
-/// byte pela gravação cirúrgica. Quem os preenche é a leitura.
-/// </remarks>
 public sealed record DocumentModelDto(
     [property: JsonPropertyName("page")] PageSetupDto Page,
     [property: JsonPropertyName("doc")] Node Doc,
     [property: JsonPropertyName("styles")] StyleSheetDto? Styles = null,
-    // Os blocos vieram achatados — rascunho gravado antes de o leitor passar a
-    // levar só a formatação direta. Só a gravação o lê: é o que escolhe a leitura
-    // de referência com que os blocos do modelo são comparados.
+    // Rascunho achatado: só a gravação o lê, para escolher a leitura de referência.
     [property: JsonPropertyName("flatten")]
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     bool Flatten = false,
-    // O rascunho é de antes das referências: os nós dele não trazem marcador,
-    // campo, link interno nem sumário. Como `Flatten`, só a gravação o lê — a
-    // leitura de referência tem de ser a de então, ou todo bloco com um
-    // marcador pareceria mudado e os `oid` depois de um sumário se
-    // desencontrariam.
+    // Rascunho anterior às referências (`.sdoc` < 5): só a gravação o lê, como `Flatten`.
     [property: JsonPropertyName("beforeReferences")]
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     bool BeforeReferences = false,
-    // Os marcadores do arquivo que não viraram nó — entre linhas de tabela, soltos
-    // entre blocos, em cabeçalho, rodapé ou caixa de texto. Só a leitura os dá: o
-    // editor precisa saber que existem para não tratar como quebrada a
-    // referência que os cita (F9 escreveria "Erro! Indicador não definido.").
+    // Os que não viraram nó: o editor precisa saber que existem, senão o F9 daria "Erro! Indicador não definido.".
     [property: JsonPropertyName("outsideBookmarks")]
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     List<string>? OutsideBookmarks = null,
-    // As seções antes da última, em ordem — ver PageReader.ReadAll. Ausente é
-    // documento de uma seção só.
+    // Ver PageReader.ReadAll. Ausente é uma seção só.
     [property: JsonPropertyName("sections")]
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     List<PageSetupDto>? Sections = null,
-    // O rascunho é de antes das seções (formato `.sdoc` < 6): os parágrafos que
-    // encerram seção não trazem `sectionBreak`, e a gravação segue o caminho de
-    // então — a página vai só para o `w:sectPr` do corpo. Mesmo motivo de
-    // `BeforeReferences`.
+    // Rascunho anterior às seções (`.sdoc` < 6): a página vai só ao `w:sectPr` do corpo.
     [property: JsonPropertyName("beforeSections")]
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     bool BeforeSections = false,
-    // Os comentários do documento, fora dos nós — ver CommentsReader. Na
-    // gravação, ausente é "não mexa"; a lista é o que vale, e o que não mudou
-    // volta byte a byte — ver CommentsWriter.
+    // Ver CommentsReader e CommentsWriter. Na gravação, ausente é "não mexa".
     [property: JsonPropertyName("comments")]
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     List<CommentDto>? Comments = null,
-    // O rascunho é de antes dos comentários (formato `.sdoc` < 7): os nós não
-    // trazem `commentStart`/`commentEnd`. Mesmo motivo de `BeforeReferences`.
+    // Rascunho anterior aos comentários (`.sdoc` < 7).
     [property: JsonPropertyName("beforeComments")]
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     bool BeforeComments = false,
-    // O `w:trackRevisions` do `settings.xml`. A leitura só o dá quando ligado;
-    // na gravação, ausente é "não mexa" — ver Revisions.ApplyTracking.
+    // Só quando ligado; na gravação, ausente é "não mexa" (Revisions.ApplyTracking).
     [property: JsonPropertyName("trackChanges")]
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     bool? TrackChanges = null,
-    // O rascunho é de antes das revisões (formato `.sdoc` < 8): os nós não trazem
-    // `insertion`/`deletion` nem a revisão de bloco. Mesmo motivo de
-    // `BeforeReferences`.
+    // Rascunho anterior às revisões (`.sdoc` < 8).
     [property: JsonPropertyName("beforeRevisions")]
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     bool BeforeRevisions = false,
-    // Como o documento numera as notas, fora dos nós — ver NotesReader. A
-    // gravação só a escreve quando difere da do pacote
-    // (NotesWriter.ApplyNumbering).
+    // Ver NotesReader; gravada só quando difere (NotesWriter.ApplyNumbering).
     [property: JsonPropertyName("notes")]
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     NotesDto? Notes = null,
-    // O rascunho é de antes das notas (formato `.sdoc` < 9): os nós não trazem o
-    // `noteRef`. Mesmo motivo de `BeforeReferences`.
+    // Rascunho anterior às notas (`.sdoc` < 9).
     [property: JsonPropertyName("beforeNotes")]
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     bool BeforeNotes = false,
-    // O rascunho é de antes das equações (formato `.sdoc` < 11): os nós não trazem
-    // o `math`, e a equação ficava escondida no parágrafo. Mesmo motivo de
-    // `BeforeReferences`.
+    // Rascunho anterior às equações (`.sdoc` < 11).
     [property: JsonPropertyName("beforeMath")]
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     bool BeforeMath = false,
-    // As propriedades do documento, fora dos nós — ver DocumentProperties. Na
-    // gravação, cada campo é remendo: ausente é "não mexa".
+    // Ver DocumentProperties; cada campo é remendo.
     [property: JsonPropertyName("properties")]
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     PropertiesDto? Properties = null,
-    // O destino é um modelo do Word (`.dotx`). Só a gravação o lê: é o que
-    // decide o rótulo da parte principal — ver PackageKind.Retarget.
+    // Decide o rótulo da parte principal — ver PackageKind.Retarget.
     [property: JsonPropertyName("template")]
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     bool Template = false);
@@ -108,21 +74,12 @@ public sealed record OpenResult(
     [property: JsonPropertyName("inventory")] Inventory Inventory);
 
 /// <summary>
-/// Abre um DOCX e produz o que a tela precisa.
+/// O pacote **não** fica guardado: a gravação reabre os bytes que o main manteve, e
+/// a morte do sidecar não custa o documento aberto.
 /// </summary>
-/// <remarks>
-/// O pacote **não** fica guardado em lugar nenhum. O sidecar é sem estado: a
-/// gravação reabre os bytes originais que o processo main manteve. Guardar o
-/// pacote aqui faria a morte do sidecar custar o documento aberto.
-/// </remarks>
 public static class DocxReader
 {
-    /// <param name="flatten">
-    /// Leva a formatação **efetiva** a todo bloco, como antes de os estilos
-    /// virarem CSS. É o que a gravação usa para o rascunho antigo (ver
-    /// <see cref="DocxWriter"/>), e o que os testes da cascata usam para ver o
-    /// resultado dela num lugar só.
-    /// </param>
+    /// <param name="flatten">A formatação **efetiva** em todo bloco: a leitura do rascunho antigo e dos testes da cascata.</param>
     public static OpenResult Read(byte[] bytes, bool flatten = false)
     {
         using var stream = new MemoryStream(bytes, writable: false);
@@ -135,7 +92,7 @@ public static class DocxReader
 
         var inventory = new Inventory();
         NoteWholeDocumentFeatures(part, inventory);
-        // O `.dotm`: as macros não chegam a arquivo nenhum que sair daqui.
+        // As macros do `.dotm` não chegam a arquivo nenhum que sair daqui.
         if (PackageKind.HasMacros(bytes)) inventory.NoteLoss(PackageKind.Macros);
 
         var (content, _) = new BodyReader(part, inventory, flatten).Read(body);
@@ -192,9 +149,7 @@ public static class DocxReader
         return outside.Count == 0 ? null : outside;
     }
 
-    /// <summary>
-    /// Abre e indexa os blocos — o que a gravação cirúrgica precisa.
-    /// </summary>
+    /// <summary>O que a gravação cirúrgica precisa.</summary>
     public static (WordprocessingDocument Document, MainDocumentPart Part, List<Block> Blocks) Index(
         Stream stream,
         Inventory inventory)
@@ -217,31 +172,18 @@ public static class DocxReader
         }
         catch (Exception problem) when (problem is not DocxException)
         {
-            // Documento é dado não confiável (spec). Qualquer coisa que a
-            // biblioteca lance vira uma frase, nunca um processo derrubado.
+            // Documento é dado não confiável: o que a biblioteca lance vira frase, e não processo derrubado.
             throw new DocxException(
                 "Não foi possível abrir este arquivo. Ele pode estar danificado ou não ser um documento do Word.",
                 problem);
         }
     }
 
-    /// <summary>
-    /// Recursos que existem no pacote inteiro, não num bloco específico.
-    /// </summary>
-    /// <remarks>
-    /// São detectados aqui, e não no corpo, porque vivem em partes separadas.
-    /// Todos são <b>invisibilidade</b>: a gravação cirúrgica copia essas partes
-    /// intactas, então nada disso se perde — só não aparece na tela.
-    /// </remarks>
+    /// <summary>Em partes separadas, e todos invisibilidade: a gravação copia as partes intactas.</summary>
     private static void NoteWholeDocumentFeatures(MainDocumentPart part, Inventory inventory)
     {
-        // Os comentários não entram mais aqui: o painel os mostra. Nem as
-        // notas: a referência virou `noteRef`, com o corpo dentro.
-
-        // As revisões de texto não entram mais aqui: o editor as mostra. Sobram
-        // as de estrutura, que ele não representa e a gravação de uma tabela ou
-        // seção editada perderia, e as de formatação, que só se perdem no
-        // parágrafo editado — ver DocxWriter.NoteWhatWasInside.
+        // Sobram as revisões de estrutura, que a gravação de uma tabela ou seção editada
+        // perderia, e as de formatação, que se perdem no parágrafo editado.
         var document = part.Document;
         if (document is null) return;
 

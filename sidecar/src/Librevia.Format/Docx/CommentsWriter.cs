@@ -9,25 +9,18 @@ using Cex = DocumentFormat.OpenXml.Office2021.Word.CommentsExt;
 namespace Librevia.Format.Docx;
 
 /// <summary>
-/// Os comentários do modelo → `word/comments.xml` e as partes que o acompanham.
-/// </summary>
-/// <remarks>
-/// Mesma regra do resto da gravação: só muda o que o usuário mudou. O modelo é
-/// comparado com o arquivo comentário a comentário, e o que não mudou fica com o
-/// XML de origem — sem diferença nenhuma, as partes voltam byte a byte (ver
-/// <c>DocxWriter.RestoreUntouchedParts</c>).
+/// Comparado comentário a comentário: o que não mudou fica com o XML de origem.
 /// <list type="bullet">
-/// <item>o editado é reescrito com o texto novo, guardando a formatação do primeiro parágrafo e o `w14:paraId`;</item>
-/// <item>o novo recebe o id do modelo (outro só se o pacote já usa aquele) e um `w14:paraId` inédito;</item>
-/// <item>o que ficou sem âncora no pacote sai, com as respostas — é assim que se exclui uma conversa;</item>
-/// <item>resolvido e resposta vão para `commentsExtended.xml`; autor novo, para `people.xml`.</item>
+/// <item>o editado é reescrito, com a formatação do primeiro parágrafo e o <c>w14:paraId</c>;</item>
+/// <item>o novo recebe o id do modelo (outro, se já usado) e um <c>w14:paraId</c> inédito;</item>
+/// <item>o que ficou sem âncora sai, com as respostas;</item>
+/// <item>resolvido e resposta vão a <c>commentsExtended.xml</c>; autor novo, a <c>people.xml</c>.</item>
 /// </list>
-/// Roda depois de o corpo ser montado e antes de <c>MendCommentAnchors</c>, que
-/// precisa conhecer os comentários novos para não descartar as pontas deles.
-/// </remarks>
+/// Antes de <c>MendCommentAnchors</c>, que precisa conhecer os comentários novos.
+/// </summary>
 public static class CommentsWriter
 {
-    /// <summary>O comentário com formatação cujo texto mudou: o painel só edita texto simples.</summary>
+    /// <summary>O painel só edita texto simples.</summary>
     public const string RichEdited = "formatação de um comentário que você editou";
 
     private const string W14Ns = "http://schemas.microsoft.com/office/word/2010/wordml";
@@ -44,8 +37,7 @@ public static class CommentsWriter
     public static void Apply(
         MainDocumentPart part, DocumentModelDto model, Inventory inventory, HashSet<string> touched)
     {
-        // O rascunho de antes dos comentários não traz as âncoras nos nós, e o
-        // modelo sem a lista é o de quem não fala de comentário: nada a fazer.
+        // Rascunho anterior aos comentários, ou modelo que não fala deles: nada a fazer.
         if (model.BeforeComments || model.Comments is not { } wanted) return;
         var document = part.Document;
         if (document is null) return;
@@ -64,8 +56,7 @@ public static class CommentsWriter
         var ids = new HashSet<string>(originals.Keys, StringComparer.Ordinal);
         ids.UnionWith(wanted.Select(comment => comment.Id));
 
-        // Modelo ↔ arquivo, pelo id. O mesmo id com outro `paraId` é colisão: o
-        // comentário do modelo é outro, e ganha número novo.
+        // Pelo id; o mesmo id com outro `paraId` é outro comentário, e ganha número novo.
         var entries = new List<Entry>();
         var byModelId = new Dictionary<string, Entry>(StringComparer.Ordinal);
         foreach (var wish in wanted)
@@ -88,16 +79,14 @@ public static class CommentsWriter
             byModelId[wish.Id] = entry;
         }
 
-        // A resposta nova não tem nó no editor: as pontas dela vão ao lado das do
-        // comentário que ela responde, como o Word as grava.
+        // A resposta nova não tem nó: as pontas vão ao lado das do comentário, como o Word grava.
         foreach (var entry in entries.Where(entry => entry.Original is null && entry.Model.ParentId is not null))
         {
             var rootId = byModelId.TryGetValue(entry.Model.ParentId!, out var root) ? root.Id : entry.Model.ParentId!;
             AddReplyAnchors(AnchorRoots(part), rootId, entry.Id);
         }
 
-        // Quem fica: o comentário com âncora em alguma parte do pacote, e a
-        // resposta cujo comentário fica.
+        // Fica o comentário com âncora em alguma parte, e a resposta cujo comentário fica.
         var anchored = AnchoredIds(part);
         var kept = entries.Where(entry => anchored.Contains(entry.Id)).ToList();
         var keptIds = kept.Select(entry => entry.Id).ToHashSet(StringComparer.Ordinal);
@@ -112,7 +101,6 @@ public static class CommentsWriter
             .Where(comment => !keptOriginals.Contains(comment) &&
                               (!anchored.Contains(comment.Id!.Value!) || byModelId.ContainsKey(comment.Id!.Value!)))
             .ToHashSet();
-        // A resposta do arquivo cujo comentário saiu vai junto.
         foreach (var comment in originals.Values)
         {
             if (LastParaId(comment) is { } paraId &&
@@ -131,7 +119,6 @@ public static class CommentsWriter
 
         var prunedParaIds = pruned.Select(LastParaId).OfType<string>().ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        // O texto: o editado reescrito, o novo acrescentado, o que saiu removido.
         var news = kept.Where(entry => entry.Original is null).ToList();
         var extended = new List<(string ParaId, bool Done, string? Parent)>();
         var noted = false;
@@ -161,8 +148,7 @@ public static class CommentsWriter
             if (done == entry.Model.Done) continue;
             if (entry.ParaId is null)
             {
-                // O comentário de antes do Word 2013 não tem `paraId`: ganha um para
-                // o resolvido ter onde morar.
+                // O de antes do Word 2013 não tem `paraId`: ganha um para o resolvido.
                 entry.ParaId = NewParaId(paraIds);
                 original.Elements<Paragraph>().LastOrDefault()?.SetAttribute(
                     new OpenXmlAttribute("w14", "paraId", W14Ns, entry.ParaId));
@@ -180,8 +166,7 @@ public static class CommentsWriter
 
             foreach (var entry in news)
             {
-                // O comentário com formatação que chega sem o original — o rascunho
-                // gravado num pacote novo — sai com o texto simples do painel.
+                // Sem o original (rascunho num pacote novo), o formatado sai com o texto simples.
                 if (entry.Model.Rich && !noted)
                 {
                     inventory.NoteLoss(RichEdited);
@@ -220,7 +205,6 @@ public static class CommentsWriter
         WriteExtensible(part, news, durable, removedDurable);
         WritePeople(part, news);
 
-        // Só a parte que de fato mudou entra na lista de graváveis.
         foreach (var owned in CommentParts(part))
         {
             var now = owned.RootElement?.OuterXml;
@@ -232,10 +216,7 @@ public static class CommentsWriter
         }
     }
 
-    /// <summary>
-    /// O comentário pai precisa de `paraId` para a resposta apontá-lo — o de antes
-    /// do Word 2013 ganha um aqui.
-    /// </summary>
+    /// <summary>A resposta aponta o <c>paraId</c> do pai.</summary>
     private static string? EnsureParaId(
         Entry owner, HashSet<string> paraIds, List<(string ParaId, bool Done, string? Parent)> extended)
     {
@@ -259,18 +240,14 @@ public static class CommentsWriter
         return root;
     }
 
-    /// <summary>Declara `w14` no elemento de cima, para o `paraId` não repetir o `xmlns` em cada parágrafo.</summary>
+    /// <summary>No elemento de cima, para não repetir o <c>xmlns</c> em cada parágrafo.</summary>
     private static void DeclareW14(OpenXmlElement element)
     {
         var root = element.Ancestors<Comments>().FirstOrDefault() ?? element as Comments;
         if (root is not null && root.LookupNamespace("w14") is null) root.AddNamespaceDeclaration("w14", W14Ns);
     }
 
-    /// <summary>
-    /// O texto do painel em parágrafos: tabulação e quebra de linha voltam como o
-    /// leitor as achou. O primeiro leva a marca do comentário (`w:annotationRef`),
-    /// e o último o `w14:paraId`.
-    /// </summary>
+    /// <summary>O primeiro leva o <c>w:annotationRef</c>, e o último o <c>w14:paraId</c>.</summary>
     private static List<Paragraph> ParagraphsOf(
         IReadOnlyList<string> lines, ParagraphProperties? properties, string? paraId)
     {
@@ -320,10 +297,9 @@ public static class CommentsWriter
         return run;
     }
 
-    /// <summary>As pontas da resposta logo depois das do comentário — começo com começo, fim com fim.</summary>
+    /// <summary>Começo com começo, fim com fim.</summary>
     private static void AddReplyAnchors(IReadOnlyList<OpenXmlElement> roots, string rootId, string replyId)
     {
-        // A conversa mora numa parte só — o corpo ou uma das notas.
         var document = roots.FirstOrDefault(root =>
             root.Descendants<CommentRangeStart>().Any(element => element.Id?.Value == rootId) ||
             root.Descendants<CommentReference>().Any(element => element.Id?.Value == rootId));
@@ -359,7 +335,6 @@ public static class CommentsWriter
             new CommentReference { Id = replyId }));
     }
 
-    /// <summary>Os comentários com alguma ponta no pacote — corpo, faixas e notas.</summary>
     private static HashSet<string> AnchoredIds(MainDocumentPart part)
     {
         var roots = new List<OpenXmlElement?> { part.Document };
@@ -387,10 +362,7 @@ public static class CommentsWriter
         return ids;
     }
 
-    /// <summary>
-    /// As partes em que o editor põe âncoras de comentário: o corpo e as notas.
-    /// As faixas não — o editor não as tem.
-    /// </summary>
+    /// <summary>O corpo e as notas; as faixas o editor não tem.</summary>
     internal static IReadOnlyList<OpenXmlElement> AnchorRoots(MainDocumentPart part) =>
         new OpenXmlElement?[] { part.Document, part.FootnotesPart?.Footnotes, part.EndnotesPart?.Endnotes }
             .OfType<OpenXmlElement>().ToList();
@@ -408,7 +380,7 @@ public static class CommentsWriter
         }
     }
 
-    /// <summary>`w15:done` e `w15:paraIdParent`; a entrada do comentário que saiu sai junto.</summary>
+    /// <summary><c>w15:done</c> e <c>w15:paraIdParent</c>.</summary>
     private static void WriteExtended(
         MainDocumentPart part, List<(string ParaId, bool Done, string? Parent)> changes, HashSet<string> pruned)
     {
@@ -433,12 +405,12 @@ public static class CommentsWriter
                 root.AppendChild(entry);
             }
 
-            // "1" e "0", como o Word grava — o SDK escreveria "true".
+            // "1" e "0", como o Word grava.
             entry.Done = new OnOffValue { InnerText = done ? "1" : "0" };
         }
     }
 
-    /// <summary>`w16cid:commentId` — só quando o pacote já tem a parte. Devolve os `durableId` que saíram.</summary>
+    /// <summary>Só quando o pacote já tem a parte. Devolve os <c>durableId</c> que saíram.</summary>
     private static HashSet<string> WriteIds(
         MainDocumentPart part, List<Entry> news, HashSet<string> pruned, out Dictionary<string, string> durable)
     {
@@ -468,7 +440,7 @@ public static class CommentsWriter
         return removed;
     }
 
-    /// <summary>`w16cex:commentExtensible` — só quando o pacote já tem a parte.</summary>
+    /// <summary>Só quando o pacote já tem a parte.</summary>
     private static void WriteExtensible(
         MainDocumentPart part, List<Entry> news, Dictionary<string, string> durable, HashSet<string> removed)
     {
@@ -494,7 +466,7 @@ public static class CommentsWriter
         }
     }
 
-    /// <summary>O autor de comentário novo em `people.xml`, como o Word o registra.</summary>
+    /// <summary>Como o Word registra.</summary>
     private static void WritePeople(MainDocumentPart part, List<Entry> news)
     {
         var authors = news.Select(entry => entry.Model.Author).Where(author => author.Length > 0)
@@ -531,7 +503,6 @@ public static class CommentsWriter
             part.WordCommentsExtensiblePart, part.WordprocessingPeoplePart,
         }.OfType<OpenXmlPart>();
 
-    /// <summary>O XML de cada parte de comentário antes da gravação, pelo caminho.</summary>
     private static Dictionary<string, string> Snapshot(MainDocumentPart part) =>
         CommentParts(part)
             .Where(owned => owned.RootElement is not null)
@@ -541,7 +512,7 @@ public static class CommentsWriter
     private static string? LastParaId(Comment comment) =>
         comment.Elements<Paragraph>().LastOrDefault()?.ParagraphId?.Value;
 
-    /// <summary>Todo `w14:paraId` do pacote: o novo não pode repetir nenhum.</summary>
+    /// <summary>O novo não pode repetir nenhum.</summary>
     private static HashSet<string> ParaIdsOf(MainDocumentPart part)
     {
         var roots = new List<OpenXmlElement?> { part.Document, part.WordprocessingCommentsPart?.Comments };
@@ -556,7 +527,7 @@ public static class CommentsWriter
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
     }
 
-    /// <summary>`w14:paraId` válido: oito dígitos hexadecimais, abaixo de 0x80000000.</summary>
+    /// <summary>Oito dígitos hexadecimais, abaixo de 0x80000000.</summary>
     private static bool IsParaId(string value) =>
         value.Length == 8 &&
         int.TryParse(value, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var number) &&
@@ -581,7 +552,7 @@ public static class CommentsWriter
         return next.ToString(CultureInfo.InvariantCulture);
     }
 
-    /// <summary>As iniciais do nome, como o Word as tira: a primeira letra de cada palavra.</summary>
+    /// <summary>Como o Word: a primeira letra de cada palavra.</summary>
     internal static string InitialsOf(string author) =>
         string.Concat(author.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(3)
             .Select(word => char.ToUpperInvariant(word[0])));

@@ -3,10 +3,7 @@ using System.Text.Json.Serialization;
 
 namespace Librevia.Format.Xlsx;
 
-/// <summary>
-/// Espelho de <c>WorkbookModel</c> em <c>src/services/spreadsheet/model.ts</c>.
-/// Os dois precisam mudar juntos.
-/// </summary>
+/// <summary>Espelho de <c>WorkbookModel</c> em <c>src/services/spreadsheet/model.ts</c>: mudam juntos.</summary>
 public sealed class WorkbookDto
 {
     [JsonPropertyName("sheets")]
@@ -59,25 +56,14 @@ public sealed class CellDto
     [JsonPropertyName("style")]
     public CellStyleDto? Style { get; set; }
 
-    /// <summary>
-    /// Igualdade por conteúdo, para a gravação decidir o que mudou.
-    /// </summary>
-    /// <remarks>
-    /// É o mesmo princípio da impressão digital do DOCX: sem uma comparação
-    /// confiável, a gravação reescreveria todas as células e apagaria em
-    /// silêncio a formatação que o leitor não representa.
-    /// </remarks>
+    /// <summary>Por conteúdo: é o que poupa as células que a pessoa não mexeu.</summary>
     public bool SameAs(CellDto? other) =>
         other is not null
         && Equals(Normalize(Value), Normalize(other.Value))
         && Formula == other.Formula
         && CellStyleDto.Same(Style, other.Style);
 
-    /// <summary>
-    /// Inteiro guardado como <c>double</c> e como <c>long</c> são o mesmo
-    /// número, mas não são iguais para o <c>Equals</c> — e a diferença sobrevive
-    /// à ida e volta pelo JSON.
-    /// </summary>
+    /// <summary>O inteiro em <c>double</c> e em <c>long</c> difere no <c>Equals</c>, mesmo depois do JSON.</summary>
     private static object? Normalize(object? value) => value switch
     {
         null => null,
@@ -88,14 +74,9 @@ public sealed class CellDto
 }
 
 /// <summary>
-/// Valor de célula como <c>double</c>, <c>string</c>, <c>bool</c> ou nada.
+/// Valor de célula como <c>double</c>, <c>string</c>, <c>bool</c> ou nada. Sem ele,
+/// <c>object?</c> vira <c>JsonElement</c>, que não converte para número.
 /// </summary>
-/// <remarks>
-/// Sem isto, desserializar em <c>object?</c> produz um <c>JsonElement</c>, que
-/// não é nenhum dos três e não converte para número — a gravação quebraria na
-/// primeira célula que viesse do aplicativo. O leitor produz os tipos certos
-/// direto do ClosedXML; é só o caminho de volta, pelo JSON, que precisa disto.
-/// </remarks>
 internal sealed class ScalarConverter : JsonConverter<object?>
 {
     public override object? Read(ref Utf8JsonReader reader, Type type, JsonSerializerOptions options)
@@ -112,8 +93,7 @@ internal sealed class ScalarConverter : JsonConverter<object?>
                 return reader.GetDouble();
             case JsonTokenType.StartObject:
             case JsonTokenType.StartArray:
-                // Nada disso cabe numa célula. Pular é preciso: parar em cima do
-                // token deixaria o resto do JSON desalinhado.
+                // Sem pular, o resto do JSON sairia desalinhado.
                 reader.Skip();
                 return null;
             default:
@@ -201,7 +181,7 @@ public sealed class CellStyleDto
     }
 }
 
-/// <summary>Resultado da leitura: modelo mais o que não damos conta.</summary>
+    /// <summary>O modelo e o que não damos conta.</summary>
 public sealed record XlsxOpenResult(
     [property: JsonPropertyName("workbook")] WorkbookDto Workbook,
     [property: JsonPropertyName("inventory")] Docx.Inventory Inventory);

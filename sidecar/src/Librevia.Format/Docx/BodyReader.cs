@@ -16,74 +16,33 @@ namespace Librevia.Format.Docx;
 public sealed record Block(string Oid, OpenXmlElement Source, Node Extracted)
 {
     /// <summary>
-    /// O que o corpo guarda **antes** do bloco e não é bloco: um marcador solto
-    /// entre dois parágrafos (o Word grava assim o fim de um marcador que termina
-    /// depois de uma tabela), um controle de conteúdo que o leitor não conhece.
+    /// O que o corpo guarda **antes** do bloco e não é bloco — um marcador solto
+    /// depois de uma tabela, um controle de conteúdo desconhecido. A gravação o
+    /// devolve antes do bloco, byte a byte; sem isto ele cairia fora em silêncio.
     /// </summary>
-    /// <remarks>
-    /// Não aparece na tela, e a gravação o devolve antes do bloco, byte a byte.
-    /// Sem isto ele cairia fora: o corpo é refeito a partir dos blocos, e o que
-    /// não é bloco não voltaria — em silêncio, porque o marcador nem entra no
-    /// inventário.
-    /// </remarks>
     public List<OpenXmlElement> Leading { get; } = [];
 
     /// <summary>O mesmo, depois do último bloco do corpo.</summary>
     public List<OpenXmlElement> Trailing { get; } = [];
 
-    /// <summary>
-    /// Os parágrafos seguintes que o bloco também é — o sumário sem controle de
-    /// conteúdo, cujo campo abre no primeiro parágrafo e fecha num dos de baixo.
-    /// </summary>
+    /// <summary>O sumário sem controle de conteúdo, cujo campo fecha num dos parágrafos de baixo.</summary>
     public List<OpenXmlElement> Continuation { get; } = [];
 
-    /// <summary>
-    /// Há campo no bloco que o leitor mostrou só pelo resultado: reescrito, ele
-    /// vira texto comum.
-    /// </summary>
+    /// <summary>Campo mostrado só pelo resultado: reescrito, vira texto comum.</summary>
     public bool UnrepresentedField { get; init; }
 }
 
 /// <summary>
-/// Corpo do documento → nós do editor.
+/// Corpo do documento → nós do editor, **de mão única**: alimenta a tela e o PDF,
+/// nunca a gravação, que parte do XML original (<see cref="DocxWriter"/>). Por
+/// isso um erro aqui é cosmético, e a leitura pode ser tolerante.
 /// </summary>
 /// <remarks>
-/// Extração **best-effort e de mão única**: o que sai daqui alimenta a tela e o
-/// PDF, nunca a gravação. Quem grava é <see cref="DocxWriter"/>, a partir do
-/// XML original. Por isso um erro aqui é cosmético, não perda de dados — e é
-/// isso que permite ser tolerante em vez de recusar o arquivo.
+/// Cada interruptor desligado reproduz a leitura de antes do recurso, a de
+/// referência para o rascunho daquela época (<see cref="DocumentModelDto.BeforeReferences"/>,
+/// <c>BeforeSections</c>, <c>BeforeComments</c>, <c>BeforeRevisions</c>,
+/// <c>BeforeNotes</c>, <c>BeforeMath</c>).
 /// </remarks>
-/// <param name="references">
-/// Lê marcadores, campos, links internos e sumário. Desligado, a leitura é a de
-/// antes deles — a de referência para um rascunho daquela época (ver
-/// <see cref="DocumentModelDto.BeforeReferences"/>).
-/// </param>
-/// <param name="sections">
-/// Marca com `sectionBreak` o parágrafo que encerra uma seção. Desligado, é a
-/// leitura de antes das seções — a de referência para um rascunho daquela época
-/// (ver <see cref="DocumentModelDto.BeforeSections"/>).
-/// </param>
-/// <param name="comments">
-/// Lê as âncoras de comentário como `commentStart`/`commentEnd`. Desligado, é a
-/// leitura de antes delas — a de referência para um rascunho daquela época (ver
-/// <see cref="DocumentModelDto.BeforeComments"/>).
-/// </param>
-/// <param name="revisions">
-/// Lê as revisões como marcas `insertion`/`deletion` e atributos de bloco.
-/// Desligado, é a leitura de antes delas: o inserido entra como texto comum e o
-/// excluído não entra — a de referência para um rascunho daquela época (ver
-/// <see cref="DocumentModelDto.BeforeRevisions"/>).
-/// </param>
-/// <param name="notes">
-/// Lê a referência de nota de rodapé ou de fim como o nó `noteRef`, com o corpo
-/// da nota dentro. Desligado, é a leitura de antes delas — a de referência para
-/// um rascunho daquela época (ver <see cref="DocumentModelDto.BeforeNotes"/>).
-/// </param>
-/// <param name="math">
-/// Lê a equação (`m:oMath`, `m:oMathPara`) como o nó `math`, com o OMML dentro
-///. Desligado, é a leitura de antes delas — a de referência para um
-/// rascunho daquela época (ver <see cref="DocumentModelDto.BeforeMath"/>).
-/// </param>
 public sealed class BodyReader(
     MainDocumentPart part,
     Inventory inventory,
@@ -95,79 +54,47 @@ public sealed class BodyReader(
     bool notes = true,
     bool math = true)
 {
-    /// <summary>Uma nota lida: o `w:footnote`/`w:endnote` do arquivo e os blocos dele.</summary>
+    /// <summary>O <c>w:footnote</c>/<c>w:endnote</c> e os blocos dele.</summary>
     public sealed record NoteRead(OpenXmlElement Source, List<Block> Blocks);
 
-    /// <summary>
-    /// As notas que o corpo referencia, pelo endereço (`fn:3`, `en:1`) — o que a
-    /// gravação compara com o corpo de cada `noteRef` do modelo. A nota que nada
-    /// no corpo referencia não entra: a gravação não a vê, e ela fica como está.
-    /// </summary>
+    /// <summary>Pelo endereço (<c>fn:3</c>, <c>en:1</c>). A nota que o corpo não referencia fica como está.</summary>
     public Dictionary<string, NoteRead> Notes { get; } = new(StringComparer.Ordinal);
 
-    /// <summary>
-    /// Quem lê o corpo das notas: outra instância, porque a nota é lida no meio de
-    /// um parágrafo do corpo, e o estado do parágrafo em leitura (os objetos
-    /// ancorados, as marcas de revisão em volta) não pode ser o da nota.
-    /// </summary>
+    /// <summary>Outra instância: o estado do parágrafo em leitura não pode ser o da nota.</summary>
     private BodyReader? _noteReader;
 
-    /// <summary>
-    /// A parte dona dos relacionamentos do que se lê — imagem e link. É o
-    /// documento, menos na leitura de uma nota, cujas imagens moram em
-    /// `footnotes.xml.rels`.
-    /// </summary>
+    /// <summary>A parte dona dos relacionamentos: o documento, ou <c>footnotes.xml</c> na leitura de uma nota.</summary>
     private OpenXmlPart _owner = part;
 
-    /// <summary>
-    /// O endereço dos blocos em leitura: nulo no corpo (`b1`, `b2`…), o da nota
-    /// (`fn:3`) na leitura de uma nota, cujos blocos saem `fn:3/p1`, `fn:3/p2`…
-    /// </summary>
+    /// <summary>Nulo no corpo (<c>b1</c>…); <c>fn:3</c> na nota, cujos blocos saem <c>fn:3/p1</c>…</summary>
     private string? _oidPrefix;
 
-    /// <summary>
-    /// As marcas de revisão do trecho em leitura: a de cada `w:ins`/`w:del` que o
-    /// envolve, de fora para dentro.
-    /// </summary>
+    /// <summary>A de cada <c>w:ins</c>/<c>w:del</c> em volta, de fora para dentro.</summary>
     private readonly List<Mark> _revision = [];
 
     /// <summary>O nome da movimentação de cada `w:moveFrom`/`w:moveTo` — ver <see cref="MoveNamesOf"/>.</summary>
     private Dictionary<OpenXmlElement, string>? _moveNames;
 
     /// <summary>
-    /// Os comentários que são resposta a outro: as pontas deles não viram nó.
+    /// As pontas das respostas não viram nó: o editor leva uma âncora por conversa,
+    /// igual na abertura e na leitura de referência, e a impressão digital fica estável.
     /// </summary>
-    /// <remarks>
-    /// A âncora da resposta é a mesma da conversa, e o editor leva uma só por
-    /// conversa. Pular aqui vale igual na abertura e na leitura de referência da
-    /// gravação, e é isso que mantém a impressão digital estável.
-    /// </remarks>
     private readonly HashSet<string> _replies = comments
         ? CommentsReader.RepliesOf(part).Values.SelectMany(ids => ids).ToHashSet(StringComparer.Ordinal)
         : [];
 
-    /// <summary>
-    /// Os comentários com `w:commentRangeEnd` no corpo. O que não tem é comentário
-    /// de ponto — só a referência —, e é ela que vira o `commentEnd` dele.
-    /// </summary>
+    /// <summary>O comentário sem <c>w:commentRangeEnd</c> é de ponto: a referência vira o <c>commentEnd</c>.</summary>
     private readonly HashSet<string> _rangeEnds = comments
         ? new OpenXmlElement?[] { part.Document, part.FootnotesPart?.Footnotes, part.EndnotesPart?.Endnotes }
             .SelectMany(root => root?.Descendants<CommentRangeEnd>() ?? [])
             .Select(end => end.Id?.Value).OfType<string>().ToHashSet(StringComparer.Ordinal)
         : [];
 
-    /// <summary>
-    /// Lendo o texto de uma caixa? A âncora de comentário ali não vira nó: a caixa
-    /// não é reescrita a partir do modelo, e o painel não teria onde apontá-la.
-    /// </summary>
+    /// <summary>Na caixa de texto a âncora não vira nó: a caixa não é reescrita do modelo.</summary>
     private int _textBoxDepth;
 
-    /// <summary>
-    /// O id de cada `w:sectPr` de parágrafo, o mesmo que PageReader dá à seção.
-    /// </summary>
+    /// <summary>O mesmo id que <see cref="PageReader"/> dá à seção.</summary>
     private Dictionary<SectionProperties, string> _sectionIds = new(ReferenceEqualityComparer.Instance);
-
-    /// <summary>Passo de recuo do Word: meia polegada.</summary>
 
     private readonly NumberingReader _numbering = new(part);
     private readonly StyleResolver _styles = new(part);
@@ -175,64 +102,30 @@ public sealed class BodyReader(
     private int _nextId = 1;
 
     /// <summary>
-    /// Já saiu conteúdo no parágrafo que está sendo lido?
+    /// Decide se uma caixa de texto abre linha nova: as caixas de um parágrafo estão
+    /// em <c>w:r</c> diferentes, e nenhuma vê o que a anterior escreveu.
     /// </summary>
-    /// <remarks>
-    /// Existe por uma razão só: decidir se uma caixa de texto abre linha nova.
-    /// As caixas de um mesmo parágrafo estão em `w:r` diferentes, então nenhuma
-    /// delas consegue ver o que a anterior escreveu — e a resposta precisa
-    /// atravessar essa fronteira.
-    /// </remarks>
     private bool _paragraphHasContent;
 
     /// <summary>
-    /// Os trechos do parágrafo em leitura levam só o que difere do estilo?
+    /// Só no parágrafo solto do corpo, que o CSS dos estilos desenha. Lista, célula,
+    /// caixa e rascunho antigo levam a formatação inteira.
     /// </summary>
-    /// <remarks>
-    /// Só no parágrafo que o CSS dos estilos desenha — o solto no corpo, lido sem
-    /// achatar. O de lista, de célula, de caixa de texto e o do rascunho antigo
-    /// continuam com a formatação inteira em cada trecho: ali nenhuma regra de
-    /// estilo chega para preencher o que faltasse.
-    /// </remarks>
     private bool _directRuns;
 
-    /// <summary>
-    /// Objetos ancorados encontrados no parágrafo que está sendo lido.
-    /// </summary>
-    /// <remarks>
-    /// São descobertos no meio da leitura de linha, mas pertencem ao **bloco**:
-    /// não ocupam lugar no fluxo, e a posição deles é dada em relação à página,
-    /// à margem ou ao próprio parágrafo. Acumulam aqui e são anexados ao nó do
-    /// parágrafo no fim, que é onde quem desenha vai procurá-los.
-    /// </remarks>
+    /// <summary>Descobertos na leitura de linha, mas do **bloco**: anexados ao nó do parágrafo no fim.</summary>
     private readonly List<FloatDto> _paragraphFloats = [];
 
-    /// <summary>
-    /// As capturas ancoradas ao **topo do parágrafo** lidas no parágrafo corrente
-    /// — ver <see cref="TopAnchoredFirst"/>.
-    /// </summary>
+    /// <summary>Ver <see cref="TopAnchoredFirst"/>.</summary>
     private readonly HashSet<Node> _topAnchored = new(ReferenceEqualityComparer.Instance);
 
-    /// <summary>
-    /// O bloco em leitura tem campo que o nó `field` não representou.
-    /// </summary>
-    /// <remarks>
-    /// É o que decide, na gravação, se reescrever o bloco perde um campo: o que
-    /// virou nó volta ao arquivo como campo, e o que ficou só no texto não. Ver
-    /// <see cref="Block.UnrepresentedField"/>.
-    /// </remarks>
+    /// <summary>Reescrever o bloco perderia o campo que não virou nó — ver <see cref="Block.UnrepresentedField"/>.</summary>
     private bool _unrepresentedField;
 
     /// <summary>
-    /// Percorre o corpo produzindo a árvore do editor e, em paralelo, a lista
-    /// plana de blocos com identidade.
+    /// A árvore e a lista de blocos saem juntas porque os blocos **apontam para nós
+    /// da árvore**: um item de lista é um <c>w:p</c> no arquivo e um <c>listItem</c> aninhado.
     /// </summary>
-    /// <remarks>
-    /// As duas saem juntas porque os blocos **apontam para nós de dentro da
-    /// árvore**: um item de lista é um `w:p` no arquivo e um `listItem`
-    /// aninhado na árvore. Montar a árvore primeiro e procurar os blocos depois
-    /// exigiria adivinhar essa correspondência.
-    /// </remarks>
     public (List<Node> Content, List<Block> Blocks) Read(Body body)
     {
         if (sections) _sectionIds = PageReader.SectionIds(body);
@@ -240,14 +133,9 @@ public sealed class BodyReader(
     }
 
     /// <summary>
-    /// O corpo de uma nota, como blocos com endereço próprio (`fn:3/p1`…).
+    /// Achatado, como a lista e a célula. O run do <c>w:footnoteRef</c>, o número do
+    /// começo da nota, não vira nó: quem o refaz é a gravação.
     /// </summary>
-    /// <remarks>
-    /// Achatado, como o item de lista e a célula: as regras dos estilos alcançam o
-    /// parágrafo solto no corpo, e não o de dentro de uma nota. O run do
-    /// `w:footnoteRef` — o número que o Word desenha no começo da nota — não vira
-    /// nó: quem o refaz é a gravação.
-    /// </remarks>
     private (List<Node> Content, List<Block> Blocks) ReadNote(OpenXmlElement note, string address, OpenXmlPart owner)
     {
         _owner = owner;
@@ -261,11 +149,10 @@ public sealed class BodyReader(
         var content = new List<Node>();
         var blocks = new List<Block>();
 
-        // Parágrafos numerados consecutivos viram uma lista só; a pilha guarda
-        // as listas abertas, uma por nível de aninhamento.
+        // Parágrafos numerados consecutivos viram uma lista só; uma lista aberta por nível.
         var openLists = new List<(Node List, string Kind, int Level, int NumId)>();
 
-        // O que não é bloco espera pelo próximo — ver Block.Leading.
+        // Ver Block.Leading.
         var loose = new List<OpenXmlElement>();
 
         void Add(Block block)
@@ -280,8 +167,7 @@ public sealed class BodyReader(
         {
             var element = elements[at];
 
-            // O sumário: um bloco só, dentro ou fora de controle de conteúdo — ver
-            // ReadTableOfContents.
+            // Ver ReadTableOfContents.
             if (references && TableOfContentsAt(elements, at) is { } toc)
             {
                 openLists.Clear();
@@ -297,10 +183,7 @@ public sealed class BodyReader(
             {
                 case Paragraph paragraph:
                 {
-                    // Só o parágrafo solto no corpo deixa de ser achatado: é ele
-                    // que as regras dos estilos alcançam (`.page__content > p`).
-                    // O item de lista e o parágrafo de célula têm regras próprias
-                    // em `content-styles.ts`, e continuam levando o efetivo.
+                    // Só o parágrafo solto no corpo deixa de ser achatado (`.page__content > p`).
                     var numbered = _numbering.ListKindOf(paragraph.ParagraphProperties);
                     var node = ReadParagraph(paragraph, flat: flatten || _oidPrefix is not null || numbered is not null);
                     var list = node.Type == "pageBreak" ? null : numbered;
@@ -319,9 +202,7 @@ public sealed class BodyReader(
                         openLists.RemoveAt(openLists.Count - 1);
                     }
 
-                    // No mesmo nível, outra numeração é outra lista — ainda que do
-                    // mesmo tipo. Juntadas, a segunda passava a ser contada pela
-                    // primeira, e a tela numerava diferente do Word.
+                    // No mesmo nível, outra numeração é outra lista, como no Word.
                     if (openLists.Count > 0 && openLists[^1].Level == level &&
                         (openLists[^1].Kind != kind || openLists[^1].NumId != list.NumberingId))
                     {
@@ -335,44 +216,30 @@ public sealed class BodyReader(
                         var parent = openLists.Count > 0 ? openLists[^1] : default;
                         var depth = openLists.Count;
 
-                        // A marca e o recuo são do nível, e não do parágrafo: é
-                        // a lista que os desenha. Sem eles a bolinha do CSS
-                        // aparece no lugar do quadrado que o documento pede, e
-                        // o item sai colado na margem.
-                        // O `numId` viaja no nó da lista porque é o que a
-                        // gravação precisa para continuar apontando a **mesma**
-                        // numeração do arquivo. Sem ele o escritor gravava
-                        // `w:numId w:val="0"` — que no formato quer dizer "sem
-                        // numeração" — e a lista voltava como parágrafos comuns.
+                        // A marca e o recuo são do nível. O `numId` viaja no nó: sem
+                        // ele o escritor gravaria `w:numId w:val="0"`, "sem numeração".
                         listNode.With("numId", list.NumberingId);
 
                         if (list.Marker is { } marker) listNode.With("marker", marker);
 
-                        // O `start` que o editor materializa em toda lista numerada.
-                        // Não conta nada — quem conta é a definição —, mas entra na
-                        // impressão digital do item de fora quando a lista é
-                        // aninhada, e ausente de um lado só o item era reescrito.
+                        // O `start` que o editor materializa em toda lista numerada:
+                        // entra na impressão digital do item de fora.
                         if (kind == "orderedList") listNode.With("start", 1);
                         if (list.IndentMm is { } indent) listNode.With("indentMm", indent);
                         if (list.HangingMm is { } hanging) listNode.With("hangingMm", hanging);
 
-                        // A definição inteira só onde a numeração muda: a sublista
-                        // da mesma numeração a encontra na lista de fora, e repeti-la
-                        // em cada nível só engordaria o documento.
+                        // A definição só onde a numeração muda.
                         if (depth == 0 || parent.NumId != list.NumberingId)
                         {
                             listNode.With("numbering", list.Definition);
                         }
 
-                        // O nível do arquivo, quando a árvore não o diz sozinha: a
-                        // lista que começa no nível 2, sem 0 e 1 antes, mora no
-                        // topo da árvore — e sem isto voltava ao arquivo no nível 0,
-                        // com outra marca e outra conta.
+                        // A lista que começa no nível 2 mora no topo da árvore: sem
+                        // isto voltaria ao arquivo no nível 0.
                         if (level != (depth == 0 ? 0 : parent.Level + 1)) listNode.With("level", level);
 
                         if (depth > 0)
                         {
-                            // Lista aninhada mora dentro do último item da de fora.
                             var parentItems = parent.List.Content!;
                             (parentItems[^1].Content ??= []).Add(listNode);
                         }
@@ -384,17 +251,14 @@ public sealed class BodyReader(
                         openLists.Add((listNode, kind, level, list.NumberingId));
                     }
 
-                    // O id fica no `listItem`, não no parágrafo: é o item que
-                    // corresponde a um `w:p` do arquivo.
+                    // No `listItem`: é o item que corresponde a um `w:p`.
                     var item = Node.Of("listItem");
                     item.Content = [node];
                     openLists[^1].List.Content!.Add(item);
                     CarrySpacing(openLists[^1].List, node);
                     Add(NewBlock(element, item));
 
-                    // A seção termina neste item, como no Word: a lista fecha
-                    // aqui, e o item seguinte abre outra, com a mesma numeração —
-                    // senão a tela só mudaria de seção depois da lista inteira.
+                    // A seção termina no item, como no Word: o seguinte abre outra lista.
                     if (node.Attrs?.ContainsKey("sectionBreak") == true) openLists.Clear();
                     break;
                 }
@@ -409,7 +273,6 @@ public sealed class BodyReader(
                 }
 
                 case SectionProperties:
-                    // Configuração de página: sai do fluxo e vira `page`.
                     break;
 
                 default:
@@ -419,30 +282,19 @@ public sealed class BodyReader(
             }
         }
 
-        // O que sobrou depois do último bloco fica com ele. Sem bloco nenhum não
-        // há onde pendurar — e o corpo sem parágrafo não tem marcador a guardar.
+        // O que sobrou depois do último bloco fica com ele.
         if (blocks.Count > 0) blocks[^1].Trailing.AddRange(loose);
 
-        // O ProseMirror recusa um documento sem nenhum bloco.
         if (content.Count == 0) content.Add(Node.Of("paragraph"));
 
         return (content, blocks);
     }
 
     /// <summary>
-    /// A lista herda o espaçamento dos parágrafos das pontas.
+    /// Na árvore a lista é um elemento e receberia o espaçamento do editor: num
+    /// documento com seis listas, quinze milímetros a mais. Antes do primeiro item
+    /// vale o espaço de antes dele; depois do último, o de depois, como no Word.
     /// </summary>
-    /// <remarks>
-    /// No arquivo a lista não existe como bloco: o que existe são parágrafos com
-    /// numeração, cada um com o seu espaçamento. Na árvore do editor a lista é
-    /// um elemento de verdade, e um elemento sem espaçamento declarado recebe o
-    /// do editor — o mesmo `0.6em` que o parágrafo importado já não recebe. Num
-    /// documento com seis listas isso somava quinze milímetros de ar que o Word
-    /// não tem, o bastante para empurrar a última imagem para uma folha nova.
-    ///
-    /// Antes do primeiro item vale o espaço de antes dele; depois do último,
-    /// o de depois — que é o que o Word desenha.
-    /// </remarks>
     private static void CarrySpacing(Node list, Node paragraph)
     {
         if (paragraph.Attrs is not { } attrs) return;
@@ -464,15 +316,12 @@ public sealed class BodyReader(
         return block;
     }
 
-    // --- parágrafos ---------------------------------------------------------
 
     private Node ReadParagraph(Paragraph paragraph, bool flat)
     {
         var direct = paragraph.ParagraphProperties;
 
-        // Formatação efetiva: padrões do documento, estilo e formatação direta.
-        // Ler só a direta é o que fazia um documento cheio de estilos abrir
-        // praticamente sem formatação.
+        // Formatação efetiva: padrões, estilo e direta.
         var (effective, inheritedRun) = _styles.Resolve(direct);
 
         _paragraphHasContent = false;
@@ -483,39 +332,19 @@ public sealed class BodyReader(
         var content = ReadInline(paragraph, inheritedRun);
         _directRuns = outer;
 
-        // Uma quebra de página sozinha no parágrafo é o nó `pageBreak`, não um
-        // parágrafo vazio com uma quebra dentro.
-        //
-        // **Menos** quando o parágrafo ancora alguma coisa. O nó de quebra mora
-        // no vão entre duas folhas, e um objeto ancorado nele cai na folha de
-        // baixo; o parágrafo do arquivo está na de cima, antes da quebra. Foi
-        // assim que a marca vertical da capa do modelo de manual apareceu no
-        // topo da segunda folha em vez de correr pela lateral da primeira,
-        // enquanto o LibreOffice a desenhava na capa.
-        //
-        // Preservado o parágrafo, a quebra vira propriedade dele — o mesmo
-        // caminho da quebra no meio do texto, logo abaixo.
+        // Uma quebra de página sozinha é o nó `pageBreak`, **menos** quando o
+        // parágrafo ancora algo: o objeto cairia na folha de baixo. Aí a quebra
+        // vira propriedade do parágrafo.
         if (content.Count == 1 && content[0].Type == "pageBreak" && _paragraphFloats.Count == 0)
         {
             return content[0];
         }
 
-        // Quebra **no meio** de um parágrafo: `w:br w:type="page"` dentro de um
-        // `w:r`, que é como o Word grava "a partir daqui é outra página" sem
-        // fechar o parágrafo.
-        //
-        // Emiti-la ali dentro punha um nó de bloco em posição de linha — inválido
-        // no editor, e caro de um jeito difícil de rastrear: serializado, um
-        // `<div>` dentro de `<p>` faz o analisador de HTML fechar o parágrafo e
-        // desalojar o `div`, e um documento de 15 blocos vira 17 elementos. Os
-        // índices deixam de casar e o papel corta em lugar diferente da tela.
-        //
-        // Vira uma propriedade do bloco: a folha termina **depois** deste
-        // parágrafo. É aproximação quando ainda há texto depois da quebra dentro
-        // do mesmo parágrafo — esse texto desce junto em vez de abrir a página —
-        // e é exato no caso comum, que é a quebra encerrando o parágrafo.
+        // A quebra no meio do parágrafo (`w:br w:type="page"` num `w:r`) vira
+        // propriedade do bloco: como nó em posição de linha seria inválido, e no
+        // HTML desalinharia os índices entre tela e papel. Exato quando a quebra
+        // encerra o parágrafo; aproximado quando há texto depois dela.
         var breakAfter = content.RemoveAll(child => child.Type == "pageBreak") > 0;
-        // A quebra de coluna, pelo mesmo caminho: a coluna termina depois do bloco.
         var columnBreakAfter = content.RemoveAll(child => child.Type == "columnBreak") > 0;
         TopAnchoredFirst(content);
 
@@ -528,8 +357,7 @@ public sealed class BodyReader(
 
         WithFloats(node);
 
-        // O identificador do estilo viaja junto para que a gravação de um
-        // parágrafo editado continue apontando o estilo original.
+        // Para o parágrafo editado continuar apontando o estilo original.
         if (direct?.ParagraphStyleId?.Val?.Value is { Length: > 0 } styleId)
         {
             node.With("styleId", styleId);
@@ -537,9 +365,7 @@ public sealed class BodyReader(
 
         var alignment = AlignmentOf(effective);
 
-        // Tabulações no começo da linha são um posicionador, não texto: o autor
-        // alinha à esquerda e usa `Tab` para cair numa parada centralizada. Ver
-        // TabAlignmentOf.
+        // Tabulações no começo da linha posicionam, não são texto — ver TabAlignmentOf.
         var viaTabs = TabAlignmentOf(effective, content);
         if (viaTabs is not null)
         {
@@ -553,34 +379,20 @@ public sealed class BodyReader(
         if (flat) Flattened(node, alignment, effective, direct, inheritedRun);
         else DirectOnly(node, viaTabs, effective, direct, inheritedRun);
 
-        // O parágrafo que só carrega a marca de seção não é uma linha de texto.
-        //
-        // No OOXML a seção termina num `w:sectPr` guardado dentro do `w:pPr` de
-        // um parágrafo vazio: o parágrafo **é** a marca. O LibreOffice não lhe
-        // dá altura nenhuma, e é ele quem grava documentos assim — o de
-        // evidências do corpus tem sete seções, todas com a mesma geometria, e
-        // seis marcas espalhadas pelo meio do texto. Cada uma valia uma linha
-        // aqui, e o texto ia descendo folha após folha.
-        //
-        // A marca continua no modelo, e não é descartada: é ela que a gravação
-        // devolve ao arquivo, e sem ela as seções do documento sumiriam.
+        // O parágrafo vazio que guarda o `w:sectPr` **é** a marca de seção, sem
+        // altura, como no LibreOffice. Continua no modelo: a gravação o devolve.
         if (direct?.SectionProperties is not null && content.Count == 0)
         {
             node.With("sectionMark", true);
         }
 
-        // A seção que termina aqui: o parágrafo leva o id dela, e a configuração
-        // mora fora dos nós, em `sections` — como os estilos, para que mudar o
-        // papel de uma seção não faça o parágrafo parecer editado. O id é o elo:
-        // apagar a marca solta a seção, e o trecho passa à de baixo, que é o que
-        // o Word faz ao excluir uma quebra de seção.
+        // A configuração mora fora dos nós, em `sections`; o id é o elo.
         if (direct?.SectionProperties is { } marked && _sectionIds.TryGetValue(marked, out var sectionId))
         {
             node.With("sectionBreak", sectionId);
         }
 
-        // A marca de parágrafo inserida ou excluída: o Enter que a revisão pôs
-        // ou tirou. Aceitar a exclusão junta este parágrafo ao seguinte.
+        // A marca de parágrafo revisada: aceitar a exclusão junta este ao seguinte.
         if (revisions && Revisions.BlockRevisionOf(direct?.ParagraphMarkRunProperties) is { } markRevision)
         {
             node.With("markRevision", markRevision);
@@ -589,17 +401,11 @@ public sealed class BodyReader(
         node.Content = content.Count == 0 ? null : content;
         return node;
     }
-
     /// <summary>
-    /// A formatação **efetiva** no bloco: padrões, estilo e direta, achatados.
+    /// Padrões, estilo e direta, achatados: onde as regras dos estilos não chegam
+    /// (lista, célula) e no modo <c>flatten</c>, a leitura de referência do rascunho
+    /// achatado.
     /// </summary>
-    /// <remarks>
-    /// Continua valendo onde as regras dos estilos não chegam — item de lista e
-    /// célula — e no modo <c>flatten</c>, que é a leitura de referência de um
-    /// rascunho gravado antes de o bloco carregar só a formatação direta: ali os
-    /// nós vieram achatados, e compará-los com uma leitura que não achata faria
-    /// todo bloco parecer mudado.
-    /// </remarks>
     private void Flattened(
         Node node,
         string? alignment,
@@ -610,100 +416,56 @@ public sealed class BodyReader(
         if (alignment is not null) node.With("textAlign", alignment);
 
 
-        // Zero, sempre. O nível é do editor — `Ctrl+]` trabalha em passos, e um
-        // passo vale 2,5em, que a 10 pt são 25 pt e não os 36 pt que 720 twips
-        // pedem. O recuo do arquivo vem logo abaixo, na medida em que ele o
-        // declara; escrever os dois somava um recuo que ninguém pediu.
-        //
-        // Continua sendo escrito porque o editor declara `indent` com padrão 0 e
-        // devolve o atributo em todo parágrafo: omiti-lo aqui fazia os dois
-        // lados descreverem o mesmo bloco de formas diferentes, e a comparação
-        // que decide o que preservar na gravação dizia "mudou" em bloco que
-        // ninguém tocou.
+        // Zero, sempre: o recuo do arquivo vem em milímetros logo abaixo, e o
+        // editor devolve `indent` em todo parágrafo, então omiti-lo faria o bloco
+        // parecer mudado.
         node.With("indent", 0);
 
-        // O recuo **em milímetros**, que é como o arquivo o declara. Enquanto
-        // era só o nível, todo parágrafo recuado saía 30% mais estreito do que
-        // no LibreOffice, e a captura dentro dele encolhia junto: era o que
-        // deixava a legenda caber na folha em que o LibreOffice já não a punha.
+        // Em milímetros, como o arquivo declara.
         Measure(node, "indentMm", effective.Indentation?.Left?.Value);
         Measure(node, "indentRightMm", effective.Indentation?.Right?.Value);
 
-        // A primeira linha, que anda para os dois lados: `w:firstLine` a empurra
-        // e `w:hanging` a puxa. É o mesmo `text-indent` do CSS, e é o que faz o
-        // parágrafo pendurado ter a primeira linha fora do recuo das demais.
+        // `w:firstLine` empurra e `w:hanging` puxa: o mesmo `text-indent` do CSS.
         var firstLine = TwipsToMm(effective.Indentation?.FirstLine?.Value);
         var hanging = TwipsToMm(effective.Indentation?.Hanging?.Value);
         if (firstLine is > 0) node.With("firstLineMm", firstLine.Value);
         else if (hanging is > 0) node.With("firstLineMm", -hanging.Value);
 
-        // O fundo do parágrafo é o que transforma `Heading1` numa barra
-        // colorida neste corpus — sem ele o título vira texto solto.
+        // É o fundo que faz o `Heading1` do corpus virar barra colorida.
         if (ShadingOf(effective) is { } background) node.With("background", background);
 
-        // Espaçamento e entrelinha são **sempre** escritos, como o recuo e pela
-        // mesma razão: silêncio no arquivo não significa "use o seu padrão",
-        // significa zero. Enquanto ficavam ausentes, o `margin-top: 0.6em` e o
-        // `line-height: 1.5` do editor — que existem para o documento em branco
-        // — reapareciam em cada parágrafo importado. Num documento de 48
-        // parágrafos isso somava mais de uma página de ar que o Word não tem, e
-        // era o que fazia a imagem seguinte descer para a folha de baixo.
+        // **Sempre** escritos: silêncio no arquivo é zero, e não o padrão do editor.
         var spacing = effective.SpacingBetweenLines;
         node.With("spaceBefore", TwipsToPt(spacing?.Before?.Value) ?? 0);
         node.With("spaceAfter", TwipsToPt(spacing?.After?.Value) ?? 0);
-        // A entrelinha depende da fonte com que a linha é medida, e é a marca
-        // do parágrafo que a diz — a mesma que dá altura ao parágrafo vazio.
+        // A fonte que mede a linha é a da marca do parágrafo.
         var markFont = _styles.ResolveMark(inheritedRun, direct).RunFonts?.Ascii?.Value;
         node.With("lineHeight", LineHeightOf(spacing, LineMetrics.Of(markFont)));
 
-        // A fonte **do bloco**, e não só a dos runs. A altura da linha nasce da
-        // fonte do próprio elemento: sem isto, um parágrafo de 10 pt dentro de
-        // um bloco que o CSS declara com 12 pt continua ocupando 12 pt de
-        // altura — e um `Heading1` de 10 pt vira uma barra alta demais, porque
-        // o editor desenha títulos em 22 pt.
-        //
-        // Vem da **marca de parágrafo** (`w:pPr/w:rPr`), e não do estilo só: é
-        // ela que o Word usa para medir a linha e para dar altura ao parágrafo
-        // vazio. Sem ela, um parágrafo vazio de Verdana 10 pt ocupava os 12 pt
-        // do padrão do editor — meia linha a mais, vinte vezes no documento.
+        // A fonte **do bloco**, da marca de parágrafo (`w:pPr/w:rPr`): a altura da
+        // linha nasce da fonte do elemento, e é a marca que dá altura ao
+        // parágrafo vazio, como no Word.
         var mark = _styles.ResolveMark(inheritedRun, direct);
         if (FontOf(mark) is { } font) node.With("fontFamily", font);
         if (FontSizeOf(mark) is { } size) node.With("fontSize", size);
 
-        // "Manter com o próximo": o parágrafo não fica sozinho no pé da página.
-        // É o que faz um rótulo descer junto com a imagem que ele apresenta —
-        // e sem ler isto a quebra estimada cai um bloco depois da real.
         if (RunReader.IsOn(effective.KeepNext)) node.With("keepNext", true);
 
-        // "Manter linhas juntas": a paginação corta parágrafos entre linhas, e
-        // este é o parágrafo que pediu para não ser cortado.
         if (RunReader.IsOn(effective.KeepLines)) node.With("keepLines", true);
 
-        // Viúvas e órfãs: ligado quando o arquivo cala, como o Word faz — então
-        // só o desligado vale ser dito.
+        // Ligado quando o arquivo cala, como no Word: só o desligado se diz.
         if (effective.WidowControl is { } widow && !RunReader.IsOn(widow)) node.With("widowControl", false);
     }
 
     /// <summary>
-    /// Só a formatação **direta** no bloco; o herdado vem do CSS dos estilos.
+    /// Só a formatação **direta**; o herdado vem do CSS dos estilos.
     /// </summary>
     /// <remarks>
-    /// A regra é uma só, campo a campo: o arquivo declara a propriedade no
-    /// `w:pPr` do parágrafo (ou na marca, `w:pPr/w:rPr`, para a fonte)? Então o
-    /// bloco leva o valor **efetivo** dela, calculado como no achatamento; se
-    /// cala, o bloco cala, e quem desenha é `style-css.ts`. Levar o efetivo, e
-    /// não o atributo cru, é o que mantém a tela igual à de antes: o `w:ind` e o
-    /// `w:spacing` se fundem atributo a atributo com os do estilo, e o valor que
-    /// sai da fusão é o que o achatamento mostrava.
-    ///
-    /// Zero declarado **é** declaração: um `w:ind w:left="0"` desfaz o recuo do
-    /// estilo, e omiti-lo traria o recuo de volta pela regra do estilo.
-    ///
-    /// Duas exceções derivam de outra coisa que não o `w:pPr`, e por isso podem
-    /// aparecer sem declaração direta: o alinhamento por tabulação
-    /// (<see cref="TabAlignmentOf"/>), que nasce do conteúdo; e a entrelinha
-    /// quando a fonte da marca é direta — o múltiplo é medido sobre a altura
-    /// natural da fonte, e a regra do estilo o mede com a fonte do estilo.
+    /// O arquivo declara a propriedade no <c>w:pPr</c> (ou na marca, para a fonte)?
+    /// O bloco leva o valor **efetivo** dela, como no achatamento; se cala, o bloco
+    /// cala. Zero declarado é declaração. Duas exceções: o alinhamento por
+    /// tabulação (<see cref="TabAlignmentOf"/>) e a entrelinha com a fonte da marca
+    /// direta, que se mede sobre a fonte dela.
     /// </remarks>
     private void DirectOnly(
         Node node,
@@ -718,12 +480,10 @@ public sealed class BodyReader(
             node.With("textAlign", alignment);
         }
 
-        // O nível de `Ctrl+]`, zero pelo mesmo motivo do achatamento: o editor
-        // declara `indent` com padrão 0 e o devolve em todo parágrafo.
+        // Zero pelo mesmo motivo do achatamento.
         node.With("indent", 0);
 
-        // Recuo negativo sai como zero, que é o que o achatamento mostrava: o
-        // bloco não desenha recuo para fora da margem.
+        // Recuo negativo sai como zero: o bloco não desenha para fora da margem.
         var indentation = direct?.Indentation;
         if (indentation?.Left is not null) Declared(node, "indentMm", effective.Indentation?.Left?.Value);
         if (indentation?.Right is not null) Declared(node, "indentRightMm", effective.Indentation?.Right?.Value);
@@ -736,8 +496,7 @@ public sealed class BodyReader(
 
         if (direct?.Shading is not null)
         {
-            // `w:shd` sem cor sobre um estilo com fundo apaga o fundo do estilo:
-            // sem dizê-lo, a regra do estilo o pintaria de volta.
+            // `w:shd` sem cor sobre estilo com fundo apaga o fundo: senão a regra o pintaria.
             if (ShadingOf(effective) is { } background) node.With("background", background);
             else if (ShadingOf(_styles.StyleParagraphOf(direct)) is not null) node.With("background", "transparent");
         }
@@ -768,8 +527,7 @@ public sealed class BodyReader(
             node.With("fontSize", size);
         }
 
-        // Ligado ou desligado, se o parágrafo diz: `w:keepNext w:val="0"` existe
-        // para desfazer o do estilo.
+        // `w:keepNext w:val="0"` existe para desfazer o do estilo.
         if (direct?.KeepNext is not null) node.With("keepNext", RunReader.IsOn(effective.KeepNext));
         if (direct?.KeepLines is not null) node.With("keepLines", RunReader.IsOn(effective.KeepLines));
         if (direct?.WidowControl is not null) node.With("widowControl", RunReader.IsOn(effective.WidowControl));
@@ -787,7 +545,7 @@ public sealed class BodyReader(
         return string.IsNullOrWhiteSpace(font) ? null : _fonts.Stack(font);
     }
 
-    /// <summary>`w:sz` vem em meios-pontos: 20 significa 10 pt.</summary>
+    /// <summary><c>w:sz</c> vem em meios-pontos.</summary>
     private static string? FontSizeOf(RunProperties properties)
     {
         var value = properties.FontSize?.Val?.Value;
@@ -798,55 +556,29 @@ public sealed class BodyReader(
             : points.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture) + "pt";
     }
 
-    /// <summary>Fundo do parágrafo, quando é cor de verdade.</summary>
     private static string? ShadingOf(ParagraphProperties properties)
     {
         var fill = properties.Shading?.Fill?.Value;
         if (string.IsNullOrWhiteSpace(fill)) return null;
         if (fill.Equals("auto", StringComparison.OrdinalIgnoreCase)) return null;
-        // "FFFFFF" explícito é branco de verdade; só "auto" significa "sem cor".
+        // "FFFFFF" é branco de verdade; só "auto" é "sem cor".
         return "#" + fill.TrimStart('#').ToLowerInvariant();
     }
 
-    /// <summary>
-    /// Espaçamento em twips → pontos, que é a unidade da interface.
-    /// </summary>
-    /// <remarks>
-    /// Zero **explícito** é preservado, e não tratado como ausente: "sem espaço
-    /// antes" é uma instrução do documento. Descartá-lo deixaria a margem
-    /// padrão do editor reaparecer, e o texto sairia mais arejado que no Word.
-    /// </remarks>
+    /// <summary>Twips → pontos. Zero **explícito** é "sem espaço antes", e não ausência.</summary>
     private static double? TwipsToPt(string? twips) =>
         int.TryParse(twips, out var value) && value >= 0 ? Math.Round(value / 20.0, 1) : null;
 
     /// <summary>
-    /// Entrelinha, já em CSS. `w:line` com regra `auto` vem em 240-avos: 271
-    /// significa 1,13 vez a altura natural da linha.
+    /// Entrelinha em CSS. <c>w:line</c> com regra <c>auto</c> vem em 240-avos de **vez a
+    /// altura natural**, e não do tamanho da fonte. Sai número sempre que se sabe a
+    /// fonte, inclusive no simples, porque o Chromium arredonda <c>normal</c> para
+    /// pixel inteiro; com fonte desconhecida, <c>normal</c>. <c>exact</c> e
+    /// <c>atLeast</c> viram pontos.
     /// </summary>
-    /// <remarks>
-    /// **Vez a altura natural**, e não vez o tamanho da fonte: é a diferença
-    /// entre 12,98 pt e 11,3 pt numa linha de Arial 10 pt, e é o que fazia um
-    /// documento caber em menos folhas aqui do que no LibreOffice.
-    ///
-    /// Por isso sai número sempre que se sabe qual arquivo de fonte o navegador
-    /// vai usar, inclusive no espaçamento simples — que seria `normal` em CSS,
-    /// mas cujo cálculo o Chromium arredonda para pixel inteiro: 15 px onde o
-    /// LibreOffice usa 15,33. São 2 % por linha, o bastante para um documento
-    /// de quinze folhas fechar em dezesseis.
-    ///
-    /// Quando a fonte não é uma das que o instalador leva, a substituta depende
-    /// da máquina e não há altura honesta a declarar: fica `normal`, e quem
-    /// mede é o navegador.
-    ///
-    /// `exact` e `atLeast` dizem a altura em twips, e viram pontos.
-    /// </remarks>
     /// <param name="decimals">
-    /// Casas do múltiplo antes de multiplicar. Duas no bloco achatado, como
-    /// sempre foi — mudar faria o rascunho antigo parecer editado. Quatro no
-    /// bloco que só leva o direto: é a grade de 240-avos em que o múltiplo volta
-    /// ao arquivo, e a mesma com que <see cref="StyleReader"/> entrega o do
-    /// estilo — sem isso a entrelinha direta e a herdada seriam medidas em
-    /// grades diferentes.
+    /// Duas no bloco achatado, como sempre foi; quatro no que leva só o direto, a
+    /// grade de 240-avos em que <see cref="StyleReader"/> também entrega o do estilo.
     /// </param>
     private static string LineHeightOf(SpacingBetweenLines? spacing, double? natural, int decimals = 2)
     {
@@ -863,7 +595,7 @@ public sealed class BodyReader(
 
             var factor = Math.Round(value / 240.0, decimals);
 
-            // Fora dessa faixa é lixo do arquivo, e não pedido de espaçamento.
+            // Fora dessa faixa é lixo do arquivo.
             if (factor is > 0.5 and < 4) return Multiple(factor, natural);
         }
 
@@ -871,16 +603,9 @@ public sealed class BodyReader(
     }
 
     /// <summary>
-    /// O múltiplo já resolvido na altura da fonte.
+    /// Com fonte desconhecida e múltiplo declarado, o palpite de 1,15: a altura de
+    /// quase toda fonte latina e das substitutas do LibreOffice.
     /// </summary>
-    /// <remarks>
-    /// Fonte que o instalador não leva cai numa substituta que depende da
-    /// máquina. Sem múltiplo declarado, quem mede melhor é o navegador, e o
-    /// leitor sai da frente com `normal`. Com múltiplo declarado não dá para
-    /// sair da frente — aplicá-lo sobre o tamanho da fonte erra por 15 % —, e
-    /// então vale o palpite de 1,15: é a altura de quase toda fonte latina, e a
-    /// das substitutas que o LibreOffice escolhe.
-    /// </remarks>
     private static string Multiple(double factor, double? natural)
     {
         if (natural is not null) return Text(Math.Round(factor * natural.Value, 4));
@@ -891,24 +616,13 @@ public sealed class BodyReader(
         value.ToString("0.####", System.Globalization.CultureInfo.InvariantCulture);
 
     /// <summary>
-    /// Nível do título a partir do estilo do parágrafo.
+    /// <c>Heading1</c>, <c>heading 1</c> e o <c>Ttulo1</c> do LibreOffice, sem acento
+    /// porque o id do estilo não os aceita.
     /// </summary>
-    /// <remarks>
-    /// O corpus usa `Heading1`; o Word também grava `heading 1` e o LibreOffice
-    /// `Ttulo1` (sem acento, porque o id do estilo não os aceita). Aceitar as
-    /// três formas custa uma linha e evita que todo título vire texto normal.
-    /// </remarks>
     private static int? HeadingLevelOf(ParagraphProperties? properties) =>
         HeadingLevelOfStyle(properties?.ParagraphStyleId?.Val?.Value);
 
-    /// <summary>
-    /// O mesmo, a partir do identificador de estilo cru.
-    /// </summary>
-    /// <remarks>
-    /// Visível para <see cref="ParagraphFormat"/>: quem grava precisa saber se o
-    /// estilo que o modelo carrega já é um estilo de título, para não trocar o
-    /// `Ttulo1` do documento por um `Heading1` que ele não define.
-    /// </remarks>
+    /// <summary>Para <see cref="ParagraphFormat"/> não trocar o <c>Ttulo1</c> do documento por um <c>Heading1</c>.</summary>
     internal static int? HeadingLevelOfStyle(string? style)
     {
         if (string.IsNullOrEmpty(style)) return null;
@@ -928,20 +642,10 @@ public sealed class BodyReader(
     }
 
     /// <summary>
-    /// Alinhamento que o autor obteve com tabulações, e não com `w:jc`.
+    /// No corpus, o primeiro título vem com <c>w:jc</c> à esquerda, tabulações e uma
+    /// parada centralizada: no HTML a tabulação colapsaria. Só dispara quando a
+    /// linha **começa** com tabulação.
     /// </summary>
-    /// <remarks>
-    /// No corpus real, o primeiro título de cada documento vem assim: `w:jc` em
-    /// `left`, três tabulações e uma **parada de tabulação centralizada** no
-    /// meio da coluna. No Word o texto é centralizado naquela parada; no HTML a
-    /// tabulação vira espaço em branco que colapsa, e o título encosta à
-    /// esquerda enquanto os títulos vizinhos — que usam `w:jc` de verdade —
-    /// aparecem centralizados.
-    ///
-    /// Reproduzir paradas de tabulação em HTML exigiria medir texto e posicionar
-    /// à mão. Esta é a aproximação honesta: **só** dispara quando a linha
-    /// *começa* com tabulação, então "esquerda [tab] centro" continua intacto.
-    /// </remarks>
     private static string? TabAlignmentOf(ParagraphProperties properties, List<Node> content)
     {
         if (content.Count == 0 || content[0].Type != "text" || content[0].Text != "\t") return null;
@@ -965,7 +669,6 @@ public sealed class BodyReader(
         return "left";
     }
 
-    /// <summary>Anexa ao bloco os objetos ancorados que o parágrafo trouxe.</summary>
     private Node WithFloats(Node node)
     {
         if (_paragraphFloats.Count > 0)
@@ -976,17 +679,14 @@ public sealed class BodyReader(
         return node;
     }
 
-    /// <summary>Escreve a medida no nó quando ela existe e não é zero.</summary>
     private static void Measure(Node node, string name, string? twips)
     {
         if (TwipsToMm(twips) is { } value and > 0) node.With(name, value);
     }
 
-    /// <summary>1 twip = 1/1440 de polegada.</summary>
     private static double? TwipsToMm(string? twips) =>
         int.TryParse(twips, out var value) ? Math.Round(value * 25.4 / 1440, 2) : null;
 
-    // --- conteúdo em linha --------------------------------------------------
 
     private List<Node> ReadInline(
         OpenXmlElement container,
@@ -1000,9 +700,7 @@ public sealed class BodyReader(
         {
             var element = children[index];
 
-            // O campo inteiro vira um nó — ver ReadField. O que não couber no nó
-            // segue pelo caminho de sempre, run a run, e é esse caminho que o
-            // registra no inventário.
+            // O campo inteiro vira nó (ReadField); o que não couber segue run a run e vai ao inventário.
             if (references && element is Run begin && IsFieldBegin(begin) &&
                 ReadField(children, index, inherited, hyperlink) is { } field)
             {
@@ -1011,10 +709,7 @@ public sealed class BodyReader(
                 continue;
             }
 
-            // A referência de nota: ReadRun a lê como `noteRef`. A marca
-            // própria (`w:customMarkFollows`) costuma vir no mesmo run, depois
-            // da referência; quando vem no run seguinte, ele é a marca, e não
-            // texto.
+            // A marca própria (`w:customMarkFollows`) no run seguinte é a marca, e não texto.
             if (notes && _textBoxDepth == 0 && element is Run noted && NoteReferenceOf(noted) is { } noteReference)
             {
                 var read = ReadRun(noted, inherited, hyperlink).ToList();
@@ -1040,8 +735,7 @@ public sealed class BodyReader(
 
             switch (element)
             {
-                // A âncora do comentário: as duas pontas viram nós sem largura,
-                // como as do marcador. A resposta não — ver `_replies`.
+                // As pontas viram nós sem largura, como as do marcador; a resposta não (`_replies`).
                 case CommentRangeStart start when comments && _textBoxDepth == 0:
                     if (start.Id?.Value is { } startId && !_replies.Contains(startId))
                     {
@@ -1058,9 +752,7 @@ public sealed class BodyReader(
 
                     break;
 
-                // O run da referência é a marca que o Word desenha no texto; a
-                // gravação o refaz junto com o `commentEnd`. Só o comentário de
-                // ponto, que não tem `w:commentRangeEnd`, ganha o fim aqui.
+                // A gravação refaz o run da referência com o `commentEnd`; só o comentário de ponto ganha o fim aqui.
                 case Run reference when comments && ReferenceOnly(reference) is { } referenced:
                     if (_textBoxDepth == 0 && !_replies.Contains(referenced) && !_rangeEnds.Contains(referenced))
                     {
@@ -1077,11 +769,8 @@ public sealed class BodyReader(
                     nodes.AddRange(ReadInline(link, inherited, HyperlinkTargetOf(link) ?? hyperlink));
                     break;
 
-                // O marcador é um par de pontos no texto, e cada ponta vira um nó
-                // sem largura: é assim que ele sobrevive à edição do parágrafo e
-                // chega ao diálogo de marcadores, ao link interno e à referência
-                // cruzada. Os ocultos (`_Toc…`, `_Ref…`, `_GoBack`) entram também —
-                // o sumário e as referências do Word apontam para eles.
+                // As pontas viram nós sem largura e sobrevivem à edição do
+                // parágrafo; os ocultos entram também, porque o Word os cita.
                 case BookmarkStart start when references:
                     nodes.Add(Node.Of("bookmarkStart")
                         .With("name", start.Name?.Value ?? string.Empty)
@@ -1092,9 +781,7 @@ public sealed class BodyReader(
                     nodes.Add(Node.Of("bookmarkEnd").With("bid", end.Id?.Value ?? string.Empty));
                     break;
 
-                // O campo simples que o nó não representa (ver ReadSimpleField):
-                // o texto de dentro não aparece, e o bloco não pode ser reescrito
-                // sem perdê-lo.
+                // O campo simples que o nó não representa (ReadSimpleField).
                 case SimpleField:
                     inventory.NoteInvisible(Inventory.Fields);
                     _unrepresentedField = true;
@@ -1106,17 +793,14 @@ public sealed class BodyReader(
                 case ProofError:
                     break;
 
-                // O comentário de caixa de texto e o do rascunho anterior aos
-                // comentários (`BeforeComments`) são preservados pelo XML
-                // original; o editor não os mostra. Invisibilidade, não perda.
+                // O da caixa de texto e o do rascunho anterior aos comentários
+                // voltam pelo XML original: invisibilidade, não perda.
                 case CommentRangeStart:
                 case CommentRangeEnd:
                     inventory.NoteInvisible(Inventory.Comments);
                     break;
 
-                // A revisão: o trecho de dentro leva a marca dela, e a gravação
-                // o devolve embrulhado. Nas duas ordens em que o link e a
-                // revisão aparecem — a recursão desce em qualquer uma.
+                // O trecho leva a marca da revisão, em qualquer ordem com o link.
                 case InsertedRun or DeletedRun or MoveFromRun or MoveToRun when revisions:
                     _revision.Add(Revisions.MarkOf(element, MoveNameOf(element)));
                     nodes.AddRange(ReadInline(element, inherited, hyperlink));
@@ -1132,14 +816,12 @@ public sealed class BodyReader(
                 case DeletedRun:
                     break;
 
-                // A equação: um nó atômico com o OMML como veio — é ele que
-                // volta ao arquivo — e o MathML que a tela desenha.
+                // O OMML volta ao arquivo; o MathML é o que a tela desenha.
                 case OfficeMath or MathParagraph when math && _textBoxDepth == 0:
                     nodes.Add(ReadMath(element));
                     break;
 
-                // A de dentro de uma caixa de texto fica no XML da caixa, que volta
-                // com ela; a tela não a desenha.
+                // A de dentro de uma caixa volta com o XML da caixa.
                 case OfficeMath or MathParagraph when math:
                     inventory.NoteInvisible(Inventory.Equations);
                     break;
@@ -1154,15 +836,10 @@ public sealed class BodyReader(
     }
 
     /// <summary>
-    /// O nó `math` de um `m:oMath` ou `m:oMathPara`.
+    /// O <c>omml</c> é a identidade: a impressão digital só vê ele, porque o MathML
+    /// muda quando a conversão melhora. O que a conversão não desenha é
+    /// invisibilidade, e não perda.
     /// </summary>
-    /// <remarks>
-    /// O `omml` é a identidade da equação: a impressão digital só vê ele (ver
-    /// Node.Fingerprint), porque o resto — o MathML, a lista do que não se
-    /// desenha — sai do OMML e muda quando a conversão melhora, sem que a
-    /// equação tenha mudado. O que a conversão não desenha é invisibilidade, e
-    /// não perda: o OMML volta inteiro na gravação.
-    /// </remarks>
     private Node ReadMath(OpenXmlElement element)
     {
         var omml = element.OuterXml;
@@ -1180,7 +857,7 @@ public sealed class BodyReader(
         return node;
     }
 
-    /// <summary>O id do comentário quando o run só traz a referência a ele — e nulo nos outros.</summary>
+    /// <summary>Nulo quando o run traz mais que a referência.</summary>
     internal static string? ReferenceOnly(Run run)
     {
         string? id = null;
@@ -1194,15 +871,13 @@ public sealed class BodyReader(
         return id;
     }
 
-    /// <summary>A referência de nota de rodapé ou de fim que o run traz, quando traz.</summary>
     internal static OpenXmlElement? NoteReferenceOf(Run run) =>
         run.ChildElements.FirstOrDefault(child => child is FootnoteReference or EndnoteReference);
 
-    /// <summary>`w:customMarkFollows`: a referência não é numerada, e a marca é o texto que vem depois.</summary>
+    /// <summary><c>w:customMarkFollows</c>: a marca é o texto que vem depois.</summary>
     internal static bool IsCustomMark(OpenXmlElement reference) =>
         (reference as FootnoteEndnoteReferenceType)?.CustomMarkFollows?.Value == true;
 
-    /// <summary>O `noteRef` de uma referência, com o corpo da nota dentro.</summary>
     private Node ReadNoteRef(OpenXmlElement reference)
     {
         var endnote = reference is EndnoteReference;
@@ -1228,10 +903,7 @@ public sealed class BodyReader(
         return node;
     }
 
-    /// <summary>
-    /// O nome da movimentação que abraça o run de `w:moveFrom`/`w:moveTo`: ele mora
-    /// no `w:moveFromRangeStart`/`w:moveToRangeStart`, e não no run.
-    /// </summary>
+    /// <summary>Mora no <c>w:moveFromRangeStart</c>/<c>w:moveToRangeStart</c>, e não no run.</summary>
     private string? MoveNameOf(OpenXmlElement revision)
     {
         if (revision is not (MoveFromRun or MoveToRun)) return null;
@@ -1270,14 +942,12 @@ public sealed class BodyReader(
         return names;
     }
 
-    /// <summary>As marcas de revisão em volta, para o nó que não é texto (a quebra de linha).</summary>
+    /// <summary>Para o nó que não é texto, como a quebra de linha.</summary>
     private List<Mark>? RevisionMarks() => _revision.Count == 0 ? null : [.. _revision];
 
     private List<Mark>? MarksOfRun(Run run, RunProperties inherited, string? hyperlink)
     {
-        // O herdado vai junto para que o "desligado" direto sobre um estilo que
-        // liga vire marca — a tela desenha o estilo, e sem ela o trecho voltaria
-        // negrito. O rascunho antigo não as conhece, e a leitura dele não as dá.
+        // O herdado vai junto para o "desligado" direto virar marca; o rascunho antigo não as conhece.
         var marks = RunReader.MarksOf(
             _styles.ResolveRun(inherited, run.RunProperties),
             hyperlink,
@@ -1285,9 +955,7 @@ public sealed class BodyReader(
             flatten ? null : inherited,
             directOnly: _directRuns);
 
-        // O estilo de caractere do trecho (`w:rStyle`). A leitura não o resolve —
-        // quem o desenha é o CSS dos estilos, como no parágrafo —, e a marca é o
-        // que o faz voltar ao arquivo.
+        // `w:rStyle`: quem desenha é o CSS dos estilos, e a marca o faz voltar ao arquivo.
         if (!flatten && run.RunProperties?.RunStyle?.Val?.Value is { Length: > 0 } characterStyle)
         {
             (marks ??= []).Add(Mark.Of("charStyle", "styleId", characterStyle));
@@ -1298,20 +966,14 @@ public sealed class BodyReader(
         return marks;
     }
 
-    // --- sumário ------------------------------------------------------------
 
     private sealed record TableOfContentsRead(Node Node, List<OpenXmlElement> Continuation);
 
     /// <summary>
-    /// O sumário que começa em <paramref name="at"/>, ou nulo.
+    /// Um <c>w:sdt</c> "Table of Contents", como o Word e o LibreOffice gravam, ou os
+    /// próprios parágrafos, quando o campo <c>TOC</c> abre no primeiro e fecha num dos
+    /// de baixo (<see cref="Block.Continuation"/>).
     /// </summary>
-    /// <remarks>
-    /// Duas formas. A do Word e do LibreOffice é um `w:sdt` com a galeria "Table
-    /// of Contents", e ele é o bloco. A antiga, sem controle de conteúdo, são os
-    /// próprios parágrafos: o campo `TOC` abre no primeiro e fecha num dos de
-    /// baixo, e o bloco é o grupo inteiro — o primeiro é a fonte e os outros a
-    /// continuação (<see cref="Block.Continuation"/>).
-    /// </remarks>
     private TableOfContentsRead? TableOfContentsAt(List<OpenXmlElement> elements, int at)
     {
         if (elements[at] is SdtBlock sdt)
@@ -1324,8 +986,7 @@ public sealed class BodyReader(
 
         if (elements[at] is not Paragraph first || TocBegin(first) is null) return null;
 
-        // O grupo vai até o parágrafo em que o campo fecha. Um bloco que não é
-        // parágrafo no caminho desfaz o grupo: o sumário não atravessa tabela.
+        // Até o parágrafo em que o campo fecha; o sumário não atravessa tabela.
         var depth = 0;
         for (var index = at; index < elements.Count; index++)
         {
@@ -1346,10 +1007,7 @@ public sealed class BodyReader(
         return null;
     }
 
-    /// <summary>
-    /// O primeiro campo do parágrafo, quando é um `TOC` de primeiro nível: o índice
-    /// do run que o abre, o do separador e a instrução.
-    /// </summary>
+    /// <summary>O índice do run que abre o <c>TOC</c> de primeiro nível, o do separador e a instrução.</summary>
     private static (int Begin, int Separate, string Instruction)? TocBegin(Paragraph paragraph)
     {
         var children = paragraph.ChildElements.ToList();
@@ -1376,26 +1034,16 @@ public sealed class BodyReader(
     }
 
     /// <summary>
-    /// Os parágrafos de um sumário → o nó `tableOfContents`.
+    /// O campo <c>TOC</c> sai dos parágrafos e vai para o nó; o que sobra são parágrafos
+    /// comuns, editáveis à mão como no Word. <c>head</c> conta os parágrafos antes do
+    /// campo. O campo que não fecha no último parágrafo não é representado.
     /// </summary>
-    /// <remarks>
-    /// O campo `TOC` sai dos parágrafos e vai para o nó: a instrução num atributo,
-    /// e as três peças do começo e a do fim somem do texto. O que sobra são
-    /// parágrafos comuns — o título, as entradas com o link para o `_Toc` do
-    /// título e o `PAGEREF` do número da página — lidos como qualquer outro, e é
-    /// assim que a pessoa pode corrigir uma entrada à mão, como no Word.
-    ///
-    /// `head` conta os parágrafos antes do campo (o "Sumário" do Word mora dentro
-    /// do controle de conteúdo, mas fora do campo). O campo tem de fechar no
-    /// último parágrafo; outra forma não é representada, e o sumário fica como
-    /// estava — preservado e fora da tela.
-    /// </remarks>
     private Node? ReadTableOfContents(List<Paragraph> paragraphs, bool sdt)
     {
         var head = paragraphs.FindIndex(paragraph => paragraph.Descendants<FieldChar>().Any());
         if (head < 0 || TocBegin(paragraphs[head]) is not { } begin) return null;
 
-        // O fim que casa com o começo, contando os campos de dentro (os PAGEREF).
+        // Contando os PAGEREF de dentro.
         var depth = 0;
         FieldChar? end = null;
         var endParagraph = -1;
@@ -1422,8 +1070,7 @@ public sealed class BodyReader(
         var endIndex = paragraphs[endParagraph].ChildElements.ToList().IndexOf(endRun);
         var clones = paragraphs.Select(paragraph => (Paragraph)paragraph.CloneNode(true)).ToList();
 
-        // O fim antes do começo: no sumário de um parágrafo só, tirar o começo
-        // primeiro deslocaria o índice do fim.
+        // O fim antes do começo, para o índice valer no sumário de um parágrafo só.
         clones[endParagraph].ChildElements[endIndex].Remove();
         var opening = clones[head].ChildElements.Skip(begin.Begin).Take(begin.Separate - begin.Begin + 1).ToList();
         foreach (var piece in opening) piece.Remove();
@@ -1444,13 +1091,12 @@ public sealed class BodyReader(
         return toc;
     }
 
-    // --- campos -------------------------------------------------------------
 
-    /// <summary>O run só abre um campo complexo — `w:fldChar` de início e nada mais.</summary>
+    /// <summary>Só o <c>w:fldChar</c> de início.</summary>
     private static bool IsFieldBegin(Run run) =>
         FieldCharOf(run) is { } mark && mark.FieldCharType?.Value == FieldCharValues.Begin;
 
-    /// <summary>O `w:fldChar` do run, quando é a única coisa que ele carrega.</summary>
+    /// <summary>Quando é a única coisa que o run carrega.</summary>
     private static FieldChar? FieldCharOf(Run run)
     {
         var content = run.ChildElements.Where(child => child is not RunProperties).ToList();
@@ -1460,28 +1106,15 @@ public sealed class BodyReader(
     private sealed record ReadFieldResult(Node Node, int Last);
 
     /// <summary>
-    /// Um campo complexo inteiro — início, instrução, separador, resultado e fim —
-    /// como um nó `field` com a instrução e o texto do resultado.
+    /// Um campo complexo inteiro como nó <c>field</c>, para sobreviver à edição do
+    /// parágrafo. Só o caso sem perda: um contêiner, um run por peça, resultado de
+    /// texto e tabulação, sem campo aninhado. Fora disso devolve nulo, e o campo é
+    /// lido pelo resultado. A formatação é a do primeiro run do resultado.
     /// </summary>
-    /// <remarks>
-    /// É o que deixa o campo sobreviver à edição do parágrafo: antes ele era lido
-    /// só pelo resultado, como texto comum, e reescrever o parágrafo gravava o
-    /// número da página como se a pessoa o tivesse digitado — por isso o
-    /// documento com campo abria travado.
-    ///
-    /// Só o caso que o nó representa sem perda: tudo no mesmo contêiner, um run
-    /// por peça, resultado feito de texto e tabulação, sem campo dentro de campo.
-    /// Fora disso (o sumário que abre num parágrafo e fecha noutro, a imagem
-    /// vinculada, o campo aninhado) devolve nulo, e o campo segue lido como antes.
-    /// A formatação do nó é a do primeiro run do resultado — a que o Word dá ao
-    /// resultado inteiro quando o atualiza.
-    /// </remarks>
     private ReadFieldResult? ReadField(List<OpenXmlElement> siblings, int start, RunProperties inherited, string? hyperlink)
     {
-        // O que o nó não carrega fica fora dele: o formulário (`w:ffData` do
-        // FORMTEXT e do FORMCHECKBOX), os dados binários (`w:fldData`), a trava
-        // (`w:fldLock`) e o "atualizar ao abrir" (`w:dirty`). Regravado pelo nó, o
-        // campo voltava sem eles — e em silêncio.
+        // O que o nó não carrega (`w:ffData`, `w:fldData`, `w:fldLock`, `w:dirty`)
+        // fica fora dele: regravado pelo nó, o campo voltaria sem isso.
         if (FieldCharOf((Run)siblings[start]) is { } opening &&
             (opening.HasChildren || opening.FieldLock is not null || opening.Dirty is not null))
         {
@@ -1523,7 +1156,6 @@ public sealed class BodyReader(
                         instruction.Append(code.Text);
                         break;
 
-                    // O campo excluído: `w:delInstrText` e `w:delText`.
                     case DeletedFieldCode code when !separated && revisions:
                         instruction.Append(code.Text);
                         break;
@@ -1552,15 +1184,10 @@ public sealed class BodyReader(
         return null;
     }
 
-    /// <summary>
-    /// `w:fldSimple`: a instrução num atributo e o resultado nos runs de dentro.
-    /// Vira o mesmo nó do campo complexo, e é na forma complexa que volta ao
-    /// arquivo se o parágrafo for reescrito — as duas são o mesmo campo para o
-    /// Word.
-    /// </summary>
+    /// <summary><c>w:fldSimple</c>: o mesmo nó, que volta na forma complexa, a mesma para o Word.</summary>
     private Node? ReadSimpleField(SimpleField field, RunProperties inherited, string? hyperlink)
     {
-        // A trava e os dados do campo simples, pelo mesmo motivo de ReadField.
+        // Pelo mesmo motivo de ReadField.
         if (field.FieldLock is not null || field.Dirty is not null || field.GetFirstChild<FieldData>() is not null)
         {
             return null;
@@ -1598,7 +1225,6 @@ public sealed class BodyReader(
     {
         var marks = MarksOfRun(run, inherited, hyperlink);
 
-        // A referência de marca própria espera o texto que vem depois dela.
         Node? customMark = null;
 
         foreach (var element in run.ChildElements)
@@ -1610,8 +1236,7 @@ public sealed class BodyReader(
                     customMark = null;
                     break;
 
-                // A referência de nota: o número não se guarda — ele é a ordem
-                // no documento —, e o corpo da nota vai dentro do nó.
+                // O número é a ordem no documento; o corpo da nota vai dentro do nó.
                 case FootnoteReference or EndnoteReference when notes && _textBoxDepth == 0:
                 {
                     var noteRef = ReadNoteRef(element);
@@ -1621,8 +1246,7 @@ public sealed class BodyReader(
                     break;
                 }
 
-                // O número no começo do corpo da nota: o Word o desenha, e a
-                // gravação o refaz — ver NotesWriter.
+                // O Word desenha o número do corpo, e a gravação o refaz (NotesWriter).
                 case FootnoteReferenceMark or EndnoteReferenceMark when _oidPrefix is not null:
                     break;
 
@@ -1635,7 +1259,6 @@ public sealed class BodyReader(
 
                     break;
 
-                // O texto excluído: `w:delText` dentro de `w:del`.
                 case DeletedText deleted when revisions:
                     if (deleted.Text.Length > 0)
                     {
@@ -1650,10 +1273,8 @@ public sealed class BodyReader(
                     break;
 
                 case Break br:
-                    // A quebra de coluna vira propriedade do bloco, como a de
-                    // página (ver ReadParagraph). No rascunho de antes das seções
-                    // ela era uma quebra de linha, e a leitura de referência dele
-                    // continua assim.
+                    // A quebra de coluna vira propriedade do bloco, como a de página;
+                    // no rascunho de antes das seções era quebra de linha.
                     if (br.Type is not null && br.Type.Value == BreakValues.Page)
                     {
                         yield return Node.Of("pageBreak");
@@ -1676,21 +1297,13 @@ public sealed class BodyReader(
                     break;
 
                 case Picture picture:
-                    // VML antigo. No corpus só aparece nos cabeçalhos, mas um
-                    // documento do Word 2003 traz imagens assim no corpo.
+                    // VML: um documento do Word 2003 traz imagens assim no corpo.
                     foreach (var node in ReadShape(picture)) yield return node;
                     break;
 
                 case AlternateContent alternate:
-                    // Word grava a mesma forma duas vezes: `mc:Choice` em
-                    // DrawingML e `mc:Fallback` no VML que o Word 2007 entendia.
-                    // São o mesmo conteúdo, então lê-se um ramo só — ler os dois
-                    // faria cada caixa de texto aparecer em dobro na tela.
-                    //
-                    // Nada de inventário aqui: quem sabe se a forma tem moldura
-                    // que não reproduzimos é quem a lê, mais abaixo. Este aviso
-                    // era dado a toda forma, imagem inclusive, e por isso
-                    // aparecia em todo documento que tivesse uma caixa.
+                    // O `mc:Choice` e o `mc:Fallback` são o mesmo conteúdo: lê-se um
+                    // ramo só, senão cada caixa apareceria em dobro.
                     var branch = (OpenXmlElement?)alternate.GetFirstChild<AlternateContentChoice>()
                                  ?? alternate.GetFirstChild<AlternateContentFallback>();
                     if (branch is not null)
@@ -1704,17 +1317,14 @@ public sealed class BodyReader(
                 case LastRenderedPageBreak:
                     break;
 
-                // A referência que divide o run com texto: rara, e a gravação a
-                // declara se o parágrafo for reescrito (ver DocxWriter).
+                // A referência que divide o run com texto: rara, e a gravação a declara.
                 case CommentReference when comments:
                     break;
 
                 case FieldChar:
                 case FieldCode:
-                    // O campo que o nó `field` não representa — ver ReadField. O
-                    // texto que o Word deixou em cache vem no run seguinte, e é o
-                    // que a tela mostra; reescrito, o parágrafo o gravaria como
-                    // texto comum, e é por isso que o campo trava o documento.
+                    // O campo que o nó não representa: o resultado em cache vem no run
+                    // seguinte, e reescrito viraria texto comum.
                     inventory.NoteInvisible(Inventory.Fields);
                     _unrepresentedField = true;
                     break;
@@ -1726,44 +1336,17 @@ public sealed class BodyReader(
         }
     }
 
-    // --- formas e caixas de texto -------------------------------------------
 
     /// <summary>
-    /// Forma → o que dela cabe numa linha de texto: a imagem e o que estiver
-    /// escrito dentro dela.
+    /// A imagem e o texto de dentro da forma. Uma caixa de texto é conteúdo: a capa
+    /// do modelo de manual guarda o título numa. Sem âncora, o texto entra na linha
+    /// em que a forma está, a melhor aproximação sem paginar.
     /// </summary>
-    /// <remarks>
-    /// Uma caixa de texto é conteúdo, não decoração: um documento cujo título
-    /// mora dentro de uma caixa — a capa do modelo de manual é assim — abriria
-    /// sem título nenhum se ela fosse descartada.
-    ///
-    /// O texto entra na linha onde a forma está ancorada, e não na posição da
-    /// página em que o Word a desenha: não há layout flutuante aqui, e a
-    /// escolha é entre o texto no lugar aproximado ou o texto em lugar nenhum.
-    /// A âncora é a melhor aproximação que existe sem paginar.
-    ///
-    /// O inventário continua marcando a forma — a moldura, a posição e o
-    /// preenchimento realmente não aparecem, e a gravação cirúrgica ainda perde
-    /// a forma inteira se o parágrafo âncora for editado. É isso que mantém o
-    /// documento em somente leitura.
-    /// </remarks>
     private IEnumerable<Node> ReadShape(OpenXmlElement shape)
     {
-        // Ancorado é objeto **fora do fluxo**: no Word ele não empurra o texto,
-        // mora numa posição da folha e pode até ficar atrás dela. Lê-lo como
-        // bloco no meio do texto punha a marca vertical da capa como uma faixa
-        // deitada de página inteira, empurrando tudo para baixo — e a contagem
-        // de páginas ia junto.
-        //
-        // Sai do fluxo e vira propriedade do parágrafo âncora. O que continua
-        // aqui é o objeto **no fluxo** (`wp:inline`), que é imagem no meio da
-        // linha e deve mesmo ocupar lugar.
-        //
-        // Nem todo ancorado tem posição de verdade. É assim que o LibreOffice
-        // grava "imagem no próprio parágrafo": ancorada ao parágrafo, sem
-        // deslocamento, centralizada na coluna. Tirar essas do fluxo encolheu um
-        // documento de trinta capturas de doze folhas para quatro, com as
-        // imagens empilhadas umas sobre as outras. Ver AnchorReader.FlowsWithText.
+        // Ancorado sai do fluxo e vira propriedade do parágrafo âncora, como no
+        // Word; `wp:inline` fica no fluxo. Menos o ancorado que o LibreOffice põe
+        // onde o fluxo já o poria — ver AnchorReader.FlowsWithText.
         if (AnchorReader.AnchorOf(shape) is { } anchor && !AnchorReader.FlowsWithText(anchor))
         {
             foreach (var floating in DescribeAnchored(shape, anchor)) _paragraphFloats.Add(floating);
@@ -1776,14 +1359,11 @@ public sealed class BodyReader(
             yield return image;
         }
 
-        // Caixa de texto sem âncora é rara e não tem posição própria: o texto
-        // dela entra na linha, que é onde estaria de qualquer modo.
+        // Caixa sem âncora não tem posição própria: o texto entra na linha.
         foreach (var node in ReadTextBoxesInline(shape)) yield return node;
     }
 
-    /// <summary>
-    /// O que um desenho ancorado carrega: uma imagem, uma caixa de texto, ou nada.
-    /// </summary>
+    /// <summary>Uma imagem, uma caixa de texto, ou nada.</summary>
     private IEnumerable<FloatDto> DescribeAnchored(
         OpenXmlElement shape,
         Drawing.Wordprocessing.Anchor anchor)
@@ -1796,9 +1376,7 @@ public sealed class BodyReader(
 
         foreach (var box in OutermostTextBoxes(shape))
         {
-            // A moldura e o preenchimento da caixa, quando dá para desenhá-los.
-            // Só o que sobrar entra no inventário: um aviso que aparece em todo
-            // documento com caixa de texto é um aviso que se aprende a ignorar.
+            // Só o que não se desenha entra no inventário.
             var look = ShapeLook.Of(box);
             if (!look.Complete) inventory.NoteInvisible(Inventory.Shapes);
 
@@ -1822,14 +1400,7 @@ public sealed class BodyReader(
         }
     }
 
-    /// <summary>
-    /// Um parágrafo de dentro de uma caixa, com a formatação dele resolvida.
-    /// </summary>
-    /// <remarks>
-    /// A caixa é um fluxo de texto próprio, então os parágrafos dela são
-    /// parágrafos de verdade — e não linhas emendadas, como eram quando o texto
-    /// era despejado na linha do parágrafo âncora.
-    /// </remarks>
+    /// <summary>A caixa é um fluxo próprio: os parágrafos dela são parágrafos, e não linhas emendadas.</summary>
     private Node ReadParagraphOf(Paragraph paragraph)
     {
         var (effective, inheritedRun) = _styles.Resolve(paragraph.ParagraphProperties);
@@ -1847,14 +1418,12 @@ public sealed class BodyReader(
         return node;
     }
 
-    /// <summary>Caixas de texto sem âncora: o conteúdo entra na linha.</summary>
+    /// <summary>Sem âncora, o conteúdo entra na linha.</summary>
     private IEnumerable<Node> ReadTextBoxesInline(OpenXmlElement shape)
     {
         foreach (var box in OutermostTextBoxes(shape))
         {
-            // Aqui o texto entra na linha e a caixa não é desenhada em lugar
-            // nenhum: qualquer moldura que ela tenha se perde de vista, e é
-            // disso que o aviso fala.
+            // A caixa não é desenhada: a moldura dela se perde de vista, e o aviso fala disso.
             var look = ShapeLook.Of(box);
             if (!look.Complete || look.Draws) inventory.NoteInvisible(Inventory.Shapes);
 
@@ -1882,33 +1451,13 @@ public sealed class BodyReader(
     }
 
     /// <summary>
-    /// As caixas de texto mais externas de <paramref name="root"/>.
+    /// Para na primeira caixa de cada ramo: a de dentro é alcançada pela recursão
+    /// de <see cref="ReadInline"/>, e as duas rotas escreveriam o texto duas vezes.
     /// </summary>
-    /// <remarks>
-    /// Para na primeira caixa de cada ramo em vez de usar
-    /// <c>Descendants</c>: uma caixa dentro de outra é alcançada pela recursão
-    /// de <see cref="ReadInline"/>, e as duas rotas juntas escreveriam o texto
-    /// de dentro duas vezes.
-    /// </remarks>
     private static IEnumerable<TextBoxContent> OutermostTextBoxes(OpenXmlElement root) =>
         TextBoxNav.Outermost(root);
 
-    // --- imagens ------------------------------------------------------------
-
-    /// <summary>
-    /// Imagem → nó com data URI.
-    /// </summary>
-    /// <remarks>
-    /// Vale para a imagem no meio da linha (`wp:inline`) e também para a
-    /// ancorada que está onde o fluxo já a poria — o jeito do LibreOffice
-    /// gravar "imagem no próprio parágrafo". Quem separa as duas é
-    /// <see cref="AnchorReader.FlowsWithText"/>.
-    /// </remarks>
-    /// <summary>Os bytes da imagem como data URI, ou `null` se não houver.</summary>
-    /// <remarks>
-    /// Separado de <see cref="ReadImage"/> porque o objeto ancorado precisa dos
-    /// bytes sem o nó: ele não vira bloco no fluxo, vira posição na folha.
-    /// </remarks>
+    /// <summary>Separado de <see cref="ReadImage"/>: o objeto ancorado precisa dos bytes sem o nó.</summary>
     private string? ImageSourceOf(OpenXmlElement drawing)
     {
         var blip = drawing.Descendants<Drawing.Blip>().FirstOrDefault();
@@ -1929,21 +1478,9 @@ public sealed class BodyReader(
     }
 
     /// <summary>
-    /// A captura ancorada ao parágrafo vai para o começo dele.
+    /// A captura ancorada ao topo do parágrafo vai para o começo dele, como o Word e
+    /// o LibreOffice a desenham; ancorada à linha, fica onde está.
     /// </summary>
-    /// <remarks>
-    /// A âncora diz "no alto do parágrafo" (deslocamento vertical zero a partir
-    /// dele), e o run do desenho pode estar em qualquer ponto da frase: no corpus,
-    /// "Múltiplos" + captura + " Registros do InfPercurso OK". O Word e o
-    /// LibreOffice põem o quadro no topo e o texto embaixo; desenhá-lo na ordem
-    /// dos runs deixava uma linha de texto acima do quadro — 22 pt a mais na
-    /// folha, e as folhas seguintes cortando uma captura antes.
-    ///
-    /// A ordem dentro do parágrafo não muda o desenho do Word para a âncora
-    /// relativa ao parágrafo, e o parágrafo que ninguém edita volta do original,
-    /// byte a byte. Ancorada à **linha** fica onde está: aí o lugar do run é a
-    /// posição.
-    /// </remarks>
     private void TopAnchoredFirst(List<Node> content)
     {
         if (_topAnchored.Count == 0) return;
@@ -1953,28 +1490,24 @@ public sealed class BodyReader(
         content.InsertRange(0, moved);
     }
 
+    /// <summary>
+    /// A imagem em linha (<c>wp:inline</c>) e a ancorada onde o fluxo já a poria —
+    /// ver <see cref="AnchorReader.FlowsWithText"/>.
+    /// </summary>
     private Node? ReadImage(OpenXmlElement drawing)
     {
         if (ImageSourceOf(drawing) is not { } src) return null;
 
         var node = Node.Of("image").With("src", src);
 
-        // Ancorada ao parágrafo, ainda que no lugar em que o fluxo já a poria.
-        //
-        // A diferença é de altura, e ela conta: o parágrafo que **ancora** uma
-        // imagem ocupa a linha dele além da imagem, e o que a traz no meio da
-        // frase ocupa só a imagem. Medido no LibreOffice: 11,55 pt entre duas
-        // capturas seguidas de um documento de evidências, que é exatamente uma
-        // linha de Arial 10 pt.
+        // Ancorada ao parágrafo, ainda que no lugar do fluxo: o parágrafo que ancora
+        // ocupa a linha dele além da imagem (11,55 pt medidos no LibreOffice).
         if (AnchorReader.AnchorOf(drawing) is { } anchor)
         {
             node.With("anchored", true);
             var vertical = anchor.GetFirstChild<Drawing.Wordprocessing.VerticalPosition>();
             var from = vertical?.RelativeFrom?.Value;
-            // Só no topo do parágrafo: deslocamento zero — até 1 pt, que é o
-            // arredondamento com que o LibreOffice grava o zero (635 EMU no
-            // corpus). Deslocado para baixo, o quadro pode ter texto acima dele,
-            // e o run fica onde está.
+            // Deslocamento até 1 pt (635 EMU no corpus) é o zero que o LibreOffice grava.
             var offset = long.TryParse(vertical?.PositionOffset?.Text, out var emus) ? Math.Abs(emus) : 0;
             if ((from is null || from == Drawing.Wordprocessing.VerticalRelativePositionValues.Paragraph) &&
                 offset <= 12700)
@@ -1983,12 +1516,8 @@ public sealed class BodyReader(
             }
         }
 
-        // O texto alternativo, que é o que um leitor de tela lê no lugar da
-        // imagem. Mora no `wp:docPr/@descr` e chega ao editor como o `alt` do
-        // `<img>` — os dois existem para a mesma pessoa. Só quando há algo
-        // escrito: `descr=""` é o padrão de quem nunca preencheu o campo, e
-        // emiti-lo como atributo faria toda imagem divergir do que o editor
-        // devolve.
+        // O texto alternativo (`wp:docPr/@descr`) vira o `alt`; `descr=""` é o padrão
+        // de quem nunca o preencheu, e não vira atributo.
         var properties = drawing.Descendants<Drawing.Wordprocessing.DocProperties>().FirstOrDefault();
         if (properties?.Description?.Value is { Length: > 0 } description)
         {
@@ -1998,23 +1527,12 @@ public sealed class BodyReader(
         var extent = drawing.Descendants<Drawing.Wordprocessing.Extent>().FirstOrDefault();
         if (extent?.Cx?.Value is { } wide && extent.Cy?.Value is { } tall && wide > 0 && tall > 0)
         {
-            // `wp:extent` mede a imagem antes de girar. Num quarto de volta o
-            // que ocupa a largura da página é a altura dela, e usar `cx` põe na
-            // linha uma imagem deitada com a medida do lado comprido: a marca
-            // vertical de 28,58 cm da capa do modelo de manual chegava como
-            // 1080 px de largura numa coluna de 734 px, tomava a página inteira
-            // e empurrava o resto para baixo.
+            // `wp:extent` mede antes de girar: num quarto de volta, largura e altura trocam.
             var (across, down) = IsQuarterTurned(drawing) ? (tall, wide) : (wide, tall);
 
-            // As duas medidas, e não só a largura. A altura faltando tinha três
-            // consequências, todas silenciosas: o navegador reservava zero até a
-            // imagem decodificar, e a paginação media a folha sem ela; a
-            // proporção passava a ser a do arquivo, e não a que o documento
-            // pede, então imagem esticada de propósito voltava ao natural; e na
-            // gravação o escritor chutava três quartos da largura, o que dava
-            // outro tamanho ao que ninguém tinha tocado.
-            //
-            // EMU → pixels CSS: 914400 EMU por polegada, 96 px por polegada.
+            // As duas medidas: sem a altura, a paginação mediria a folha sem a
+            // imagem, e a proporção seria a do arquivo. EMU → px: 914400 por
+            // polegada, 96 px por polegada.
             node.With("width", (int)Math.Round(across * 96.0 / 914400));
             node.With("height", (int)Math.Round(down * 96.0 / 914400));
         }
@@ -2023,15 +1541,9 @@ public sealed class BodyReader(
     }
 
     /// <summary>
-    /// A imagem está girada perto de um quarto de volta, para um lado ou para
-    /// o outro?
+    /// <c>a:rot</c> vem em 60000 avos de grau, e pode ser negativo. Só o quarto de
+    /// volta troca largura e altura.
     /// </summary>
-    /// <remarks>
-    /// `a:rot` vem em 60000 avos de grau e pode ser negativo. Só o quarto de
-    /// volta interessa aqui, porque é o único ângulo em que largura e altura
-    /// trocam de papel; um giro pequeno mantém a medida aproximadamente igual e
-    /// não vale a conta do retângulo envolvente.
-    /// </remarks>
     internal static bool IsQuarterTurned(OpenXmlElement drawing)
     {
         var rotation = drawing.Descendants<Drawing.Transform2D>().FirstOrDefault()?.Rotation?.Value;
@@ -2045,9 +1557,7 @@ public sealed class BodyReader(
     {
         var id = link.Id?.Value;
 
-        // O link para um lugar do próprio documento não tem relacionamento: tem
-        // `w:anchor`, o nome do marcador. No editor ele é um `#nome`, que é o
-        // que um link de página faz, e a gravação desfaz o caminho.
+        // O link interno tem `w:anchor`, e não relacionamento: no editor vira `#nome`.
         if (string.IsNullOrEmpty(id))
         {
             return references && link.Anchor?.Value is { Length: > 0 } anchor ? "#" + anchor : null;
@@ -2064,42 +1574,31 @@ public sealed class BodyReader(
         }
     }
 
-    // --- tabelas ------------------------------------------------------------
 
     private Node ReadTable(Table table)
     {
         var rows = new List<Node>();
 
-        // A largura de cada coluna vem da grade da tabela, uma vez só: é ela que
-        // o Word usa para desenhar e é ela que o editor espelha no `colgroup`.
+        // A grade da tabela, que o Word usa e o editor espelha no `colgroup`.
         var grid = TableLook.GridWidths(table);
 
         foreach (var row in table.Elements<TableRow>())
         {
             var cells = new List<Node>();
 
-            // `w:tblHeader` é a linha que o Word repete no alto de cada página, e
-            // é exatamente o que o editor chama de linha de cabeçalho. Sem esta
-            // leitura ela chegava como linha comum, e ligar a linha de cabeçalho
-            // na tela de um documento que já a tinha a **desligava** no arquivo.
-            // Presente sem `w:val` já é "sim"; só `w:val="false"` nega.
+            // `w:tblHeader` é a linha de cabeçalho do editor; presente sem `w:val` já é "sim".
             var repeat = row.TableRowProperties?.GetFirstChild<TableHeader>();
             var header = repeat is not null
                          && !(repeat.Val is { } declared && declared.Value == OnOffOnlyValues.Off);
 
-            // A linha pode começar colunas adiante — `w:gridBefore`, comum em
-            // formulário e em documento convertido de PDF. Sem pular essas
-            // colunas, cada célula ganhava a largura da coluna à esquerda da dela.
+            // `w:gridBefore`: a linha pode começar colunas adiante.
             var column = row.TableRowProperties?.GetFirstChild<GridBefore>()?.Val?.Value is > 0 and var before
                 ? before
                 : 0;
 
             foreach (var cell in row.Elements<TableCell>())
             {
-                // Tabela dentro de tabela é comum em documento de formulário, e
-                // ler só os parágrafos a fazia desaparecer da tela — com o texto
-                // dentro dela. O `tableCell` do editor aceita bloco, e a tabela
-                // aninhada é um bloco.
+                // A tabela aninhada é um bloco, e o `tableCell` do editor aceita bloco.
                 var contents = new List<Node>();
                 foreach (var child in cell.ChildElements)
                 {
@@ -2117,25 +1616,16 @@ public sealed class BodyReader(
                 var node = Node.Of(header ? "tableHeader" : "tableCell");
                 node.Content = contents;
 
-                // Os dois são **sempre** escritos, pelo mesmo motivo do `indent`
-                // do parágrafo: o editor declara `colspan` e `rowspan` com padrão
-                // 1 e devolve os dois em toda célula. Omitidos aqui, os dois lados
-                // descreviam a mesma célula de formas diferentes e a comparação
-                // que decide o que preservar dizia "mudou" em tabela que ninguém
-                // tocou — toda tabela era regenerada ao salvar, e nada falhava.
+                // **Sempre** escritos: o editor devolve `colspan` e `rowspan` em toda
+                // célula, e omiti-los faria toda tabela ser regenerada.
                 var span = cell.TableCellProperties?.GridSpan?.Val?.Value;
                 var spanned = span is > 1 ? span.Value : 1;
                 node.With("colspan", spanned);
 
-                // O modelo do editor não representa mesclagem vertical: ela fica
-                // no `w:vMerge` do arquivo, que a gravação devolve ao lugar.
+                // Mesclagem vertical fica no `w:vMerge` do arquivo.
                 node.With("rowspan", 1);
 
-                // A largura das colunas que esta célula ocupa, na forma que o
-                // TableKit usa: uma medida por coluna da grade, em pixels do CSS.
-                // Enquanto ela não era lida, arrastar a divisória escrevia o
-                // número novo no modelo e o gravador devolvia a grade antiga ao
-                // arquivo — perda silenciosa.
+                // Uma medida por coluna, em pixels do CSS, como o TableKit usa.
                 if (grid.Count >= column + spanned)
                 {
                     var widths = new JsonArray();
@@ -2145,9 +1635,7 @@ public sealed class BodyReader(
 
                 column += spanned;
 
-                // Sombreamento e bordas da célula. Só quando o arquivo os declara:
-                // atributo ausente e atributo nulo são a mesma afirmação, e é a
-                // que mantém a impressão digital igual à do editor.
+                // Só quando o arquivo os declara: ausente e nulo são a mesma afirmação.
                 if (TableLook.Shading(cell.TableCellProperties) is { } fill) node.With("shading", fill);
                 if (TableLook.Borders(cell.TableCellProperties) is { } borders) node.With("borders", borders);
 
@@ -2157,7 +1645,6 @@ public sealed class BodyReader(
             var rowNode = Node.Of("tableRow");
             rowNode.Content = cells;
 
-            // A linha inserida ou excluída, do `w:trPr`.
             if (revisions && Revisions.BlockRevisionOf(row.TableRowProperties) is { } rowRevision)
             {
                 rowNode.With("rowRevision", rowRevision);
@@ -2169,8 +1656,7 @@ public sealed class BodyReader(
         var tableNode = Node.Of("table");
         tableNode.Content = rows;
 
-        // A margem de célula que o Word usa nesta tabela, para a tela medir a
-        // linha como o papel. Só leitura: o `w:tblPr` original volta como estava.
+        // Para a tela medir a linha como o papel; o `w:tblPr` volta como estava.
         tableNode.With("cellMargins", string.Join(' ', TableLook.CellMargins(table, part)));
         return tableNode;
     }

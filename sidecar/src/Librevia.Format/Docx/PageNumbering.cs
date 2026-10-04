@@ -5,19 +5,11 @@ using DocumentFormat.OpenXml.Wordprocessing;
 namespace Librevia.Format.Docx;
 
 /// <summary>
-/// A numeração de página e os interruptores das faixas, levados ao arquivo.
+/// Numeração de página e interruptores das faixas: <c>w:sectPr/w:pgNumType</c>,
+/// <c>w:sectPr/w:titlePg</c> e <c>w:settings/w:evenAndOddHeaders</c>, este do
+/// documento inteiro. Só se escreve o que difere do arquivo; nulo não diz nada, e
+/// <c>w:pgNumType</c> guarda os atributos que o painel não conhece.
 /// </summary>
-/// <remarks>
-/// Três lugares diferentes no OOXML para uma caixa só do painel: o formato e o
-/// início moram em `w:sectPr/w:pgNumType`, a capa distinta em `w:sectPr/w:titlePg`
-/// e as páginas pares em `w:settings/w:evenAndOddHeaders` — esta é do documento
-/// inteiro, e não da seção, e por isso é a única que toca outra parte.
-///
-/// Cada um só é escrito quando o modelo diz algo **diferente** do que o arquivo
-/// já diz. Campo nulo (o `.sdoc` que não o grava) não diz nada: o arquivo fica
-/// como está. E o `w:pgNumType` só perde os atributos que o painel conhece —
-/// `w:chapStyle` e companhia, que o editor não mostra, continuam lá.
-/// </remarks>
 internal static class PageNumbering
 {
     public static void Apply(
@@ -39,17 +31,14 @@ internal static class PageNumbering
             }
         }
 
-        // Pares e ímpares é do documento: quem o leva é a última seção, e as
-        // anteriores (`documentWide` falso) não o tocam.
+        // Pares e ímpares é do documento: só a última seção o leva.
         if (documentWide && page.EvenAndOddHeaders is { } even && even != PageReader.EvenAndOddOf(part))
         {
             var settingsPart = part.DocumentSettingsPart ?? part.AddNewPart<DocumentSettingsPart>();
             var settings = settingsPart.Settings ??= new Settings();
             settings.RemoveAllChildren<EvenAndOddHeaders>();
 
-            // Sem lugar no `w:settings` — a ordem dele é sequência rígida —, a
-            // parte não é gravada e o aviso fica: marcar a parte como mudada
-            // gravaria um `settings.xml` que não diz o que a tela mostra.
+            // `w:settings` é sequência rígida: sem lugar, a parte não é gravada e o aviso fica.
             if (even && !settings.AddChild(new EvenAndOddHeaders(), throwOnError: false))
             {
                 inventory.NoteLoss("\"Pares e ímpares diferentes\" (o arquivo não aceitou o interruptor)");
@@ -69,8 +58,7 @@ internal static class PageNumbering
         var format = PageReader.PageNumberFormats.Contains(page.PageNumberFormat) ? page.PageNumberFormat : "decimal";
         var sameFormat = format == PageReader.PageNumberFormatOf(section);
 
-        // Início ausente no modelo (rascunho de antes) é "não mexa": escolher só
-        // o formato não pode apagar o `w:start` que o arquivo já tinha.
+        // Início ausente é "não mexa": trocar o formato não apaga o `w:start`.
         var knowsStart = PageReader.TryStartOf(page, out var start);
         var sameStart = !knowsStart || start == existing?.Start?.Value;
         if (sameFormat && sameStart) return;

@@ -1,13 +1,9 @@
 namespace Librevia.Format.Docx;
 
 /// <summary>
-/// `{n}` e `{total}` no texto de uma faixa: os campos PAGE e NUMPAGES.
+/// <c>{n}</c> e <c>{total}</c> no texto de uma faixa: os campos PAGE e NUMPAGES. A
+/// mesma gramática para o que se digita e o que <c>HeaderReader.TextOf</c> devolve.
 /// </summary>
-/// <remarks>
-/// A mesma gramática do cabeçalho de texto simples (`PlainBandWriter`) e do que o
-/// leitor devolve para o campo (`HeaderReader.TextOf`): uma só, para que o que se
-/// digita e o que se lê sejam a mesma coisa.
-/// </remarks>
 internal static class FieldTokens
 {
     /// <summary>Um trecho de texto, precedido do campo que o abre (nulo no primeiro).</summary>

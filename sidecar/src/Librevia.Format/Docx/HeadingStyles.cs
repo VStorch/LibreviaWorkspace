@@ -4,32 +4,15 @@ using DocumentFormat.OpenXml.Wordprocessing;
 namespace Librevia.Format.Docx;
 
 /// <summary>
-/// O estilo de título que **este** documento define para cada nível.
+/// Pelo <c>w:name</c>, que não se traduz (<c>heading 1</c>), e com o id que o documento
+/// deu (<c>Ttulo1</c> num Word em português). Sem estilo de título, a definição vem
+/// de <see cref="TemplateStyles"/>, e <c>word/styles.xml</c> passa a ser parte tocada.
 /// </summary>
-/// <remarks>
-/// O escritor gravava `"Heading" + nível`, sem conferir se o estilo existia. Num
-/// Word em português o id é `Ttulo1` — o id é traduzido, e sem acento —, e o
-/// título criado aqui dentro apontava um estilo que o documento não define: no
-/// Word ele saía com a cara do Normal.
-///
-/// O que não se traduz é o **nome**: `heading 1` em qualquer idioma, porque é o
-/// nome interno que o Word usa para reconhecer os títulos embutidos. Então o
-/// estilo é escolhido pelo `w:name`, e o id é o que o documento tiver dado a ele.
-///
-/// Quando o documento não tem estilo de título nenhum, a definição vem do modelo
-/// de documento novo (<see cref="TemplateStyles"/>) e `word/styles.xml` passa a
-/// ser parte tocada — sem isso a restauração byte a byte da gravação cirúrgica
-/// desfaria a cópia, e o título apontaria o vazio.
-/// </remarks>
-/// <param name="touched">
-/// As partes que a gravação pode alterar, ou <c>null</c> para só consultar —
-/// quem grava dentro de uma caixa de texto do cabeçalho não copia estilo nenhum.
-/// </param>
+/// <param name="touched"><c>null</c> para só consultar, como na caixa de texto do cabeçalho.</param>
 internal sealed class HeadingStyles(MainDocumentPart part, HashSet<string>? touched)
 {
     private readonly Dictionary<int, string> _chosen = [];
 
-    /// <summary>O id do estilo a gravar no `w:pStyle` de um título.</summary>
     public string IdFor(int level)
     {
         if (_chosen.TryGetValue(level, out var known)) return known;
@@ -39,24 +22,10 @@ internal sealed class HeadingStyles(MainDocumentPart part, HashSet<string>? touc
         return chosen;
     }
 
-    /// <summary>
-    /// O nível de título que **este** pacote dá ao estilo, pelo nome dele.
-    /// </summary>
-    /// <remarks>
-    /// O mesmo critério do leitor (<c>StyleResolver.HeadingLevelByName</c>): um
-    /// `Überschrift1` de nome `heading 1` é título para os dois lados. Com dois
-    /// critérios diferentes, o título que a pessoa rebaixa a parágrafo na tela
-    /// continuaria título no arquivo e voltaria título ao reabrir.
-    /// </remarks>
+    /// <summary>O critério do leitor (<c>StyleResolver.HeadingLevelByName</c>), para o título rebaixado não voltar título.</summary>
     public int? LevelByName(string? styleId) => LevelOfName(Definition(styleId)?.StyleName?.Val?.Value);
 
-    /// <summary>O pacote define um estilo de parágrafo com este id?</summary>
-    /// <remarks>
-    /// Um `w:pStyle` que aponta id inexistente é silêncio: o Word desenha o
-    /// parágrafo como Normal. Por isso o id que o modelo carrega só vale quando
-    /// este pacote o define — o `.sdoc` que veio de um `.docx` em português traz
-    /// `Ttulo1`, e o pacote mínimo não tem esse estilo.
-    /// </remarks>
+    /// <summary>Um <c>w:pStyle</c> com id inexistente o Word desenha como Normal.</summary>
     public bool Defines(string? styleId) => Definition(styleId) is not null;
 
     private Style? Definition(string? styleId) =>
@@ -67,10 +36,7 @@ internal sealed class HeadingStyles(MainDocumentPart part, HashSet<string>? touc
                     style.StyleId?.Value == styleId &&
                     (style.Type is null || style.Type.Value == StyleValues.Paragraph));
 
-    /// <summary>
-    /// O nível de um estilo pelo nome dele: `heading 1` a `heading 6`, sem
-    /// importar maiúsculas — o LibreOffice grava `Heading 1`.
-    /// </summary>
+    /// <summary><c>heading 1</c> a <c>heading 6</c>, sem caixa: o LibreOffice grava <c>Heading 1</c>.</summary>
     public static int? LevelOfName(string? name)
     {
         if (name is null) return null;
@@ -93,18 +59,9 @@ internal sealed class HeadingStyles(MainDocumentPart part, HashSet<string>? touc
     private string? Copied(int level) => CopyOf(BuiltinStyles.Heading(level), $"Heading{level}_");
 
     /// <summary>
-    /// O id a gravar para um estilo que o bloco aponta e que não é título.
+    /// O que o pacote não define é procurado pelo nome interno, e senão a definição
+    /// embutida é copiada. Id que nem o embutido conhece volta como veio.
     /// </summary>
-    /// <remarks>
-    /// O que o pacote define fica como está. O que ele não define — o bloco que
-    /// veio de outro documento, ou do documento novo, apontando `ListParagraph`
-    /// num pacote que não o tem — é procurado pelo nome interno, e, se nem assim
-    /// existir, a definição embutida é copiada para `word/styles.xml`. Sem a
-    /// cópia o `w:pStyle` apontaria o vazio, e o Word desenharia o Normal.
-    ///
-    /// Id que nem o modelo embutido conhece volta como veio: não há de onde
-    /// tirar a definição, e trocá-lo por outro seria inventar estilo.
-    /// </remarks>
     public string IdForDeclared(string declared)
     {
         if (Defines(declared)) return declared;
@@ -142,17 +99,14 @@ internal sealed class HeadingStyles(MainDocumentPart part, HashSet<string>? touc
 
         var style = TemplateStyles.Of(builtin);
 
-        // Um `Heading1` que não se chama `heading 1` é estilo de outra coisa, e
-        // não pode ser sobrescrito: o estilo copiado ganha um id que ninguém usa.
+        // Um `Heading1` com outro nome é outro estilo: a cópia ganha um id livre.
         var id = style.StyleId!.Value!;
         for (var suffix = 2; ids.Contains(id); suffix++) id = $"{collisionPrefix}{suffix}";
         style.StyleId = id;
-        // O padrão do pacote já existe; dois `w:default` confundem o Word.
+        // Dois `w:default` confundem o Word.
         style.Default = null;
 
-        // A cadeia do modelo parte do `Normal`. Num documento que chama o estilo
-        // padrão de outro jeito, herdar de um id que não existe é herdar de nada,
-        // e o SDK acusa a referência pendurada.
+        // Herdar de um `Normal` que não existe seria uma referência pendurada.
         var normal = styles.Elements<Style>()
             .FirstOrDefault(candidate =>
                 candidate.Type?.Value == StyleValues.Paragraph && candidate.Default?.Value == true)

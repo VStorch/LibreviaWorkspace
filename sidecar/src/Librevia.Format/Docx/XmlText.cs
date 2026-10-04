@@ -5,21 +5,10 @@ using DocumentFormat.OpenXml.Wordprocessing;
 namespace Librevia.Format.Docx;
 
 /// <summary>
-/// O texto de um nó do editor → os filhos de um `w:r`.
+/// O texto de um nó → os filhos de um <c>w:r</c>. O XML 1.0 não representa a
+/// maioria dos caracteres de controle, nem escapados: a tabulação vira <c>w:tab</c>,
+/// <c>\n</c> e o <c>\u000B</c> da quebra manual do Word viram <c>w:br</c>, e o resto sai.
 /// </summary>
-/// <remarks>
-/// Não é frescura de formato: o XML 1.0 **não tem** como representar a maioria
-/// dos caracteres de controle, nem escapados. Um `\u0001` colado de um terminal
-/// — ou um `\u000B` que qualquer editor de texto do Windows produz — derrubava a
-/// gravação inteira no serializador, com uma mensagem sobre XML inválido que não
-/// dizia nada a quem só queria salvar o documento. Perder o arquivo por causa de
-/// um caractere invisível é o pior negócio possível.
-///
-/// Os que têm significado voltam a tê-lo: a tabulação é `w:tab`, e a quebra de
-/// linha — tanto `\n` como o `\u000B` que o Word usa para "quebra de linha
-/// manual" — é `w:br`. O resto é descartado, porque não existe nada a escrever
-/// no lugar e o usuário não vê diferença.
-/// </remarks>
 internal static class XmlText
 {
     public static IEnumerable<OpenXmlElement> Of(string? text)
@@ -33,8 +22,7 @@ internal static class XmlText
         {
             if (pending.Length == 0) return;
 
-            // `xml:space="preserve"` senão o Word engole espaço no começo e no
-            // fim, e frases coladas aparecem sem separação.
+            // Sem `preserve` o Word engole os espaços das pontas.
             elements.Add(new Text(pending.ToString()) { Space = SpaceProcessingModeValues.Preserve });
             pending.Clear();
         }
@@ -73,13 +61,9 @@ internal static class XmlText
     }
 
     /// <summary>
-    /// O caractere pode existir num documento XML 1.0?
+    /// Par substituto só vale inteiro: a metade de um emoji cortado faria um arquivo
+    /// que não se reabre.
     /// </summary>
-    /// <remarks>
-    /// Um par substituto é válido junto e inválido separado: o emoji passa, a
-    /// metade de emoji que sobrou de um corte de string, não. Escrevê-la geraria
-    /// um arquivo que nem nós conseguiríamos reabrir.
-    /// </remarks>
     private static bool IsAllowed(string text, int index)
     {
         var letter = text[index];

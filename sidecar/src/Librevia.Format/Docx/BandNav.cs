@@ -5,31 +5,20 @@ using DocumentFormat.OpenXml.Wordprocessing;
 namespace Librevia.Format.Docx;
 
 /// <summary>
-/// A travessia dos parágrafos de um cabeçalho ou rodapé, uma só.
+/// Leitor e escritor percorrem os mesmos parágrafos na mesma ordem: é ela que dá o
+/// endereço de cada peça. O ramo de reserva do <c>mc:AlternateContent</c> fica de fora,
+/// porque repete o conteúdo; o espelhamento escreve nele depois.
 /// </summary>
-/// <remarks>
-/// Leitor e escritor precisam ver os mesmos parágrafos na mesma ordem: é essa
-/// ordem que dá o endereço de cada peça editável, e dois percursos parecidos
-/// escritos em dois arquivos é como o texto digitado numa linha acaba noutra.
-/// Mesmo remédio de <see cref="TextBoxNav"/>, um andar acima.
-///
-/// O ramo de reserva do `mc:AlternateContent` fica de fora porque repete o
-/// mesmo conteúdo: contá-lo dobraria os índices e desalinharia tudo depois
-/// dele. Quem escreve nele é o espelhamento, depois, a partir do ramo que vale.
-/// </remarks>
 internal static class BandNav
 {
-    /// <summary>Os parágrafos da parte, na ordem que dá o endereço.</summary>
     internal static List<Paragraph> ParagraphsOf(OpenXmlElement root) =>
         root.Descendants<Paragraph>()
             .Where(paragraph => !paragraph.Ancestors<AlternateContentFallback>().Any())
             .ToList();
 
-    /// <summary>O endereço de cada parágrafo, para o leitor carimbar as peças.</summary>
     internal static Dictionary<Paragraph, int> IndexOf(OpenXmlElement root)
     {
-        // Identidade, e não igualdade: dois parágrafos com o mesmo texto são
-        // dois endereços diferentes, e é o objeto que o leitor tem em mãos.
+        // Identidade, e não igualdade: dois parágrafos de mesmo texto são dois endereços.
         var index = new Dictionary<Paragraph, int>(
             (IEqualityComparer<Paragraph>)ReferenceEqualityComparer.Instance);
 
@@ -39,21 +28,9 @@ internal static class BandNav
     }
 
     /// <summary>
-    /// A parte apontada por uma relação, e a raiz dela.
+    /// Nulo quando a relação não existe **neste** pacote, como no <c>.sdoc</c> reaberto num
+    /// pacote mínimo: perda declarada, e não um <c>ArgumentOutOfRangeException</c>.
     /// </summary>
-    /// <remarks>
-    /// Cabeçalho e rodapé são partes irmãs com o mesmo formato por dentro; quem
-    /// escreve o texto de volta não precisa saber qual das duas está olhando.
-    ///
-    /// Devolve nulo quando a relação não existe **neste** pacote, e não deixa a
-    /// exceção escapar. O `.sdoc` que um dia foi `.docx` traz as faixas do
-    /// arquivo de origem com os ids de relação daquele pacote; reaberto do disco,
-    /// a gravação parte do pacote mínimo, que não tem nenhuma delas. Procurar
-    /// pela lista, e não por `GetPartById`, é o que separa "esta faixa não tem
-    /// onde ser gravada" — perda declarada, e a gravação segue — de um
-    /// `ArgumentOutOfRangeException` que não grava nada e chega ao usuário como
-    /// erro interno.
-    /// </remarks>
     internal static (OpenXmlPart Owner, OpenXmlPartRootElement Root)? PartOf(
         MainDocumentPart part,
         string relationshipId)
@@ -73,36 +50,16 @@ internal static class BandNav
         };
     }
 
-    /// <summary>
-    /// O caminho da parte dentro do pacote, como o zip o nomeia.
-    /// </summary>
-    /// <remarks>
-    /// A URI da parte vem com barra na frente — `/word/header1.xml` — e a
-    /// entrada do zip não. É por este nome que a gravação decide o que devolver
-    /// intacto, então errar a barra devolveria o cabeçalho antigo por cima do
-    /// texto recém-digitado, sem erro nenhum.
-    /// </remarks>
+    /// <summary>Sem a barra da URI: é pelo nome do zip que a gravação decide o que devolver intacto.</summary>
     internal static string PathOf(OpenXmlPart part) => part.Uri.OriginalString.TrimStart('/');
 
-    /// <summary>
-    /// As caixas de texto da parte, na ordem que dá o endereço.
-    /// </summary>
-    /// <remarks>
-    /// O cabeçalho corporativo do corpus não é feito de parágrafos: é um grupo
-    /// de formas, e o título mora dentro de uma caixa. Ela não cabe na conta de
-    /// peças — a caixa inteira é regenerada quando o texto muda, porque digitar
-    /// pode abrir e fechar parágrafos dentro dela.
-    ///
-    /// Caixa dentro de caixa fica de fora: o conteúdo da de dentro já vai junto
-    /// com o da de fora, e contá-la duas vezes desalinharia os endereços.
-    /// </remarks>
+    /// <summary>A caixa inteira é regenerada quando muda; caixa dentro de caixa vai com a de fora.</summary>
     internal static List<TextBoxContent> BoxesOf(OpenXmlElement root) =>
         root.Descendants<TextBoxContent>()
             .Where(box => !box.Ancestors<AlternateContentFallback>().Any())
             .Where(box => !box.Ancestors<TextBoxContent>().Any())
             .ToList();
 
-    /// <summary>O endereço de cada caixa, para o leitor carimbar os objetos.</summary>
     internal static Dictionary<TextBoxContent, int> BoxIndexOf(OpenXmlElement root)
     {
         var index = new Dictionary<TextBoxContent, int>(
@@ -113,17 +70,9 @@ internal static class BandNav
         return index;
     }
 
-    /// <summary>
-    /// O endereço de uma caixa: a relação e a caixa dentro dela.
-    /// </summary>
-    /// <remarks>
-    /// Separador diferente do endereço de peça de propósito: são duas coisas
-    /// que não se substituem, e confundi-las escreveria um parágrafo inteiro
-    /// dentro de um `w:t`.
-    /// </remarks>
+    /// <summary>Outro separador: confundir com o endereço de peça escreveria um parágrafo num <c>w:t</c>.</summary>
     internal static string BoxAddress(string relationshipId, int box) => $"{relationshipId}#{box}";
 
-    /// <summary>Desmonta o endereço de uma caixa.</summary>
     internal static (string RelationshipId, int Box)? ParseBox(string? address)
     {
         if (string.IsNullOrEmpty(address)) return null;
@@ -135,11 +84,11 @@ internal static class BandNav
         return (parts[0], box);
     }
 
-    /// <summary>O endereço de uma peça: a relação, o parágrafo e a peça nele.</summary>
+    /// <summary>A relação, o parágrafo e a peça nele.</summary>
     internal static string Address(string relationshipId, int paragraph, int piece) =>
         $"{relationshipId}:{paragraph}:{piece}";
 
-    /// <summary>Desmonta o endereço. Devolve `null` para qualquer coisa fora do formato.</summary>
+    /// <summary>Nulo para qualquer coisa fora do formato.</summary>
     internal static (string RelationshipId, int Paragraph, int Piece)? Parse(string? address)
     {
         if (string.IsNullOrEmpty(address)) return null;

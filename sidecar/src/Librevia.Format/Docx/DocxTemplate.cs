@@ -8,41 +8,20 @@ using DocumentFormat.OpenXml.Wordprocessing;
 
 namespace Librevia.Format.Docx;
 
-/// <summary>
-/// O pacote de um documento que nasceu aqui dentro.
-/// </summary>
-/// <remarks>
-/// A gravação cirúrgica pressupõe um original: ela parte dos bytes do arquivo e
-/// troca só o que foi editado. Um documento novo não tem arquivo, e por isso não
-/// podia ser salvo em DOCX. Este pacote faz o papel do original — o documento
-/// segue pelo <see cref="DocxWriter"/> de sempre, e como nenhum bloco tem `oid`,
-/// todos são gravados como novos.
-///
-/// Escrito em código, e não embutido como binário, por duas razões: o mesmo
-/// pedido dá os mesmos bytes (as datas do zip são fixas e o `core.xml` não leva
-/// data nenhuma), e cada parte passa pelo validador do SDK nos testes. Um `.docx`
-/// guardado nos recursos seria uma caixa-preta que ninguém revisa.
-///
-/// O mínimo, e só o mínimo: sem tema (a fonte vai por nome nos `docDefaults`),
-/// sem `numbering.xml` (o <see cref="NumberingFactory"/> o cria quando a primeira
-/// lista pede) e sem nome de autor em `docProps/core.xml` — o arquivo não carrega
-/// quem o escreveu a não ser que a pessoa o diga.
-/// </remarks>
-/// <summary>O pedido de `docx.create`: a página e os estilos do documento.</summary>
+/// <summary>O pedido de <c>docx.create</c>: a página e os estilos do documento.</summary>
 public sealed record DocxCreateDto(
     [property: JsonPropertyName("page")] PageSetupDto Page,
     [property: JsonPropertyName("styles")] StyleSheetDto? Styles = null);
 
+/// <summary>
+/// O pacote que faz o papel de original para o documento nascido no editor: sem
+/// <c>oid</c>, todo bloco é gravado como novo. O mínimo: sem tema (a fonte vai nos
+/// <c>docDefaults</c>), sem <c>numbering.xml</c> (o <see cref="NumberingFactory"/>
+/// o cria) e sem autor em <c>docProps/core.xml</c>.
+/// </summary>
 public static class DocxTemplate
 {
-    /// <summary>
-    /// A data de toda entrada do zip: a menor que o formato aceita.
-    /// </summary>
-    /// <remarks>
-    /// Com a hora da gravação, dois pacotes iguais saíam com bytes diferentes, e
-    /// o teste de determinismo não teria como distinguir uma mudança de conteúdo
-    /// de uma mudança de relógio.
-    /// </remarks>
+    /// <summary>A menor data do zip, para o mesmo pedido dar os mesmos bytes.</summary>
     private static readonly DateTimeOffset ZipEpoch = new(1980, 1, 1, 0, 0, 0, TimeSpan.Zero);
 
     public static byte[] Create(PageSetupDto page, StyleSheetDto? styles = null)
@@ -50,8 +29,7 @@ public static class DocxTemplate
         using var buffer = new MemoryStream();
         using (var document = WordprocessingDocument.Create(buffer, WordprocessingDocumentType.Document))
         {
-            // Ids fixos em toda relação: os que o SDK sorteia mudariam os bytes
-            // a cada pacote.
+            // Ids fixos: os que o SDK sorteia mudariam os bytes.
             var main = document.AddNewPart<MainDocumentPart>(
                 "application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml", "rId1");
 
@@ -84,14 +62,9 @@ public static class DocxTemplate
     }
 
     /// <summary>
-    /// O `w:sectPr` do corpo: papel, margens e distâncias da faixa.
+    /// Pela mesma conta da gravação (<c>DocxWriter.ApplyPageSetup</c>); cabeçalho,
+    /// rodapé e medianiz, que ela não escreve, o esquema exige.
     /// </summary>
-    /// <remarks>
-    /// Pelo mesmo caminho da gravação (<c>DocxWriter.ApplyPageSetup</c>), para
-    /// que o papel do pacote novo e o do pacote regravado sejam a mesma conta. Os
-    /// três atributos que ele não escreve — cabeçalho, rodapé e medianiz — são
-    /// obrigatórios no esquema e entram aqui.
-    /// </remarks>
     private static SectionProperties Section(PageSetupDto page)
     {
         var section = new SectionProperties(
@@ -106,11 +79,10 @@ public static class DocxTemplate
         return section;
     }
 
-    /// <remarks>
-    /// `compatibilityMode` 15 é o Word 2013 em diante: sem ele o Word abre o
-    /// arquivo em modo de compatibilidade e desenha com as regras de 2007. A
-    /// parada de tabulação padrão é a do Word em português, 1,25 cm.
-    /// </remarks>
+    /// <summary>
+    /// Sem <c>compatibilityMode</c> 15 o Word abre em modo de compatibilidade, com as
+    /// regras de 2007. A tabulação padrão é a do Word em português, 1,25 cm.
+    /// </summary>
     private static Settings Settings() => new(
         new DefaultTabStop { Val = 708 },
         new CharacterSpacingControl { Val = CharacterSpacingValues.DoNotCompress },
@@ -125,11 +97,7 @@ public static class DocxTemplate
         Font(TemplateStyles.BodyFont, FontFamilyValues.Roman, "02020603050405020304"),
         Font(TemplateStyles.BandFont, FontFamilyValues.Swiss, "020F0502020204030204"));
 
-    /// <remarks>
-    /// O `panose` é o que deixa outro programa escolher a substituta certa quando
-    /// a fonte falta — a Liberation Serif no lugar da Times, a Carlito no lugar
-    /// da Calibri.
-    /// </remarks>
+    /// <summary>O <c>panose</c> deixa outro programa achar a substituta, como a Carlito para a Calibri.</summary>
     private static Font Font(string name, FontFamilyValues family, string panose) => new(
         new Panose1Number { Val = panose },
         new FontCharSet { Val = "00" },
@@ -139,11 +107,7 @@ public static class DocxTemplate
         Name = name,
     };
 
-    /// <remarks>
-    /// Escrito à mão porque o SDK não tem DOM tipado para esta parte. O autor
-    /// fica vazio de propósito; o Word preenche o dele ao salvar, se a pessoa
-    /// quiser.
-    /// </remarks>
+    /// <summary>À mão: o SDK não tem DOM tipado para esta parte. Sem autor, de propósito.</summary>
     private const string CoreXml =
         "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>" +
         "<cp:coreProperties xmlns:cp=\"http://schemas.openxmlformats.org/package/2006/metadata/core-properties\" " +

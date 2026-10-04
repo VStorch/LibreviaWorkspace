@@ -8,15 +8,9 @@ using DocumentFormat.OpenXml.Packaging;
 namespace Librevia.Format.Docx;
 
 /// <summary>
-/// As propriedades do documento: `docProps/core.xml` e parte de
-/// `docProps/app.xml`, como o Word as mostra em Arquivo → Propriedades.
+/// <c>docProps/core.xml</c> e parte de <c>docProps/app.xml</c>. Cada campo é um
+/// remendo: nulo deixa o arquivo como está, e vazio apaga. <c>TotalTime</c> só é lido.
 /// </summary>
-/// <remarks>
-/// Na gravação, cada campo é um **remendo**: nulo é "deixe como está no arquivo"
-/// e a cadeia vazia é "apague". Assim o rascunho de antes delas (sem
-/// `properties`) e o campo que a tela não conhece nunca apagam o que o arquivo
-/// tem. `TotalTime` só é lido: o editor não mede tempo de edição.
-/// </remarks>
 public sealed record PropertiesDto(
     [property: JsonPropertyName("title")]
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
@@ -59,9 +53,8 @@ public sealed record PropertiesDto(
     int? TotalTime = null);
 
 /// <summary>
-/// Lê e grava as propriedades pelo XML cru das duas partes — e não pelo
-/// `PackageProperties` do SDK, que reserializa `core.xml` inteiro e descarta o
-/// que não conhece.
+/// Pelo XML cru: o <c>PackageProperties</c> do SDK reserializa <c>core.xml</c> e
+/// descarta o que não conhece.
 /// </summary>
 internal static class DocumentProperties
 {
@@ -73,7 +66,6 @@ internal static class DocumentProperties
     private static readonly XNamespace Ep = "http://schemas.openxmlformats.org/officeDocument/2006/extended-properties";
     private static readonly XNamespace Vt = "http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes";
 
-    /// <summary>Os campos de `core.xml`, cada um com o elemento que o guarda.</summary>
     private static readonly (XName Name, Func<PropertiesDto, string?> Get)[] CoreFields =
     [
         (Dc + "title", p => p.Title),
@@ -101,8 +93,7 @@ internal static class DocumentProperties
         var app = Load(document.ExtendedFilePropertiesPart)?.Root;
         if (core is null && app is null) return null;
 
-        // O elemento vazio é o mesmo que ausente: o modelo não o leva, e a gravação
-        // não o vê como "apague" — o `<dc:creator/>` do pacote novo fica onde está.
+        // Vazio é ausente, e não "apague": o `<dc:creator/>` do pacote novo fica.
         string? Text(XElement? root, XName name) =>
             root?.Element(name)?.Value is { Length: > 0 } value ? value : null;
 
@@ -130,11 +121,7 @@ internal static class DocumentProperties
         return read == new PropertiesDto() ? null : read;
     }
 
-    /// <summary>
-    /// Leva ao pacote os campos que diferem dele. A parte que não muda não é
-    /// regravada — e volta ao disco byte a byte por `RestoreUntouchedParts`; a que
-    /// muda mantém todo elemento que o editor não conhece.
-    /// </summary>
+    /// <summary>Só a parte que muda é regravada, com o que o editor não conhece.</summary>
     public static void Apply(WordprocessingDocument document, PropertiesDto? model, HashSet<string> touched)
     {
         if (model is null) return;
@@ -146,8 +133,7 @@ internal static class DocumentProperties
             if (corePart is null)
             {
                 corePart = document.AddCoreFilePropertiesPart();
-                // A relação nova mora em `_rels/.rels`, que de outro modo voltaria
-                // como estava — sem ela.
+                // A relação nova mora em `_rels/.rels`, que voltaria sem ela.
                 touched.Add("_rels/.rels");
             }
 
@@ -170,7 +156,7 @@ internal static class DocumentProperties
         }
     }
 
-    /// <returns>Se algum campo mudou — só então a parte é gravada.</returns>
+    /// <returns>Se algum campo mudou.</returns>
     private static bool Patch(
         ref XDocument? xml,
         (XName Name, Func<PropertiesDto, string?> Get)[] fields,
@@ -201,8 +187,7 @@ internal static class DocumentProperties
                 element = new XElement(name);
                 if (name.Namespace == DcTerms)
                 {
-                    // `dcterms:created`/`modified` sem o tipo o Word lê como texto,
-                    // e não como data.
+                    // Sem o tipo, o Word lê `dcterms:created` como texto, e não como data.
                     EnsurePrefix(root, "xsi", Xsi);
                     EnsurePrefix(root, "dcterms", DcTerms);
                     element.SetAttributeValue(Xsi + "type", "dcterms:W3CDTF");
@@ -242,12 +227,10 @@ internal static class DocumentProperties
             new XAttribute("xmlns", Ep.NamespaceName),
             new XAttribute(XNamespace.Xmlns + "vt", Vt.NamespaceName)));
 
-    /// <summary>O XML da parte, ou nulo quando ela falta ou não se deixa ler.</summary>
-    /// <remarks>
-    /// Parte malformada não recusa o documento: as propriedades são acessórias, e
-    /// o que não se lê não se grava — a gravação a trata como ausente só se algum
-    /// campo for mudado.
-    /// </remarks>
+    /// <summary>
+    /// Nulo quando a parte falta ou está malformada: as propriedades são acessórias, e
+    /// não recusam o documento.
+    /// </summary>
     private static XDocument? Load(OpenXmlPart? part)
     {
         if (part is null) return null;
@@ -267,8 +250,7 @@ internal static class DocumentProperties
 
     private static void Save(OpenXmlPart part, XDocument xml)
     {
-        // A declaração à mão: o XmlWriter a escreveria com `utf-8` minúsculo, e a
-        // do Word e a do LibreOffice dizem `UTF-8`.
+        // O XmlWriter escreveria `utf-8`; o Word e o LibreOffice escrevem `UTF-8`.
         var standalone = xml.Declaration?.Standalone is { Length: > 0 } value ? value : "yes";
         using var stream = part.GetStream(FileMode.Create, FileAccess.Write);
         var declaration = Encoding.UTF8.GetBytes(

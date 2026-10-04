@@ -9,38 +9,20 @@ using WordDrawing = DocumentFormat.OpenXml.Drawing.Wordprocessing;
 namespace Librevia.Format.Docx;
 
 /// <summary>
-/// Imagem do editor → `w:drawing` no fluxo do texto.
+/// Imagem do editor → <c>w:drawing</c> no fluxo: decodifica o data URI, escolhe o tipo
+/// de parte, mede os bytes e converte em EMU.
 /// </summary>
-/// <remarks>
-/// Saiu de <see cref="ParagraphWriter"/> porque é a única responsabilidade dele
-/// que tem contas próprias: decodificar o data URI, escolher o tipo de parte,
-/// medir o cabeçalho dos bytes e converter pixel em EMU. Trinta linhas de árvore
-/// de DrawingML no meio do escritor de parágrafo escondiam as duas coisas.
-/// </remarks>
-/// <param name="owner">
-/// A parte dona do relacionamento da imagem: o documento, ou a parte das notas
-/// quando a imagem está numa nota.
-/// </param>
+/// <param name="owner">O documento, ou a parte das notas.</param>
 internal sealed class ImageWriter(MainDocumentPart part, Inventory inventory, int usableWidthPx, OpenXmlPart? owner = null)
 {
-    /// <summary>A coluna de uma A4 retrato com margens de uma polegada.</summary>
+    /// <summary>A4 retrato com margens de uma polegada.</summary>
     internal const int DefaultWidthPx = 624;
 
     /// <summary>
-    /// O próximo `wp:docPr/@id`, contado a partir do maior que o documento já
-    /// usa. Zero quer dizer "ainda não olhei o documento".
+    /// Acima do maior <c>wp:docPr/@id</c> do documento: o ancorado preservado leva o
+    /// dele, e repeti-lo o Word mostra como documento danificado. De instância,
+    /// porque o servidor atende várias gravações no mesmo processo.
     /// </summary>
-    /// <remarks>
-    /// De instância, e não `static`: o servidor atende várias gravações no mesmo
-    /// processo, e um contador compartilhado fazia o id da imagem depender de
-    /// quantas requisições já tinham passado — e o `++` sobre um campo estático
-    /// nem é atômico. Cada gravação tem o seu ImageWriter, e o id volta a ser
-    /// função do documento.
-    ///
-    /// Começa acima do maior `wp:docPr/@id` de `word/document.xml` porque o
-    /// desenho ancorado que a gravação preserva leva o id dele junto: repeti-lo é
-    /// o que o Word mostra como documento danificado.
-    /// </remarks>
     private uint _nextDrawingId;
 
     public Run? Write(Node node)
@@ -52,9 +34,7 @@ internal sealed class ImageWriter(MainDocumentPart part, Inventory inventory, in
             return null;
         }
 
-        // Sem a vírgula não há onde o cabeçalho termina, e o recorte estourava o
-        // fim da string: um `src="data:image/png"` truncado derrubava o save
-        // inteiro em vez de custar só a imagem.
+        // Sem a vírgula, o recorte estouraria a string: a imagem truncada custa só a imagem.
         var comma = source.IndexOf(',', StringComparison.Ordinal);
         if (comma < 0)
         {
@@ -81,8 +61,7 @@ internal sealed class ImageWriter(MainDocumentPart part, Inventory inventory, in
             return null;
         }
 
-        // No OpenXml 3.x `ImagePartType` é classe estática de `PartTypeInfo`,
-        // e não mais um enum.
+        // No OpenXml 3.x `ImagePartType` é classe, e não enum.
         PartTypeInfo imageType;
         switch (contentType)
         {
@@ -116,9 +95,7 @@ internal sealed class ImageWriter(MainDocumentPart part, Inventory inventory, in
 
         var id = NextDrawingId();
 
-        // O texto alternativo, que é o que um leitor de tela lê no lugar da
-        // imagem. O `descr` só é escrito quando há algo escrito: `descr=""` em
-        // toda imagem seria ruído no arquivo e diferença no modelo.
+        // `descr` só quando há algo escrito.
         var description = Attr.String(node, "alt");
 
         return new Run(new DocumentFormat.OpenXml.Wordprocessing.Drawing(
@@ -160,16 +137,9 @@ internal sealed class ImageWriter(MainDocumentPart part, Inventory inventory, in
     }
 
     /// <summary>
-    /// Os desenhos do parágrafo original que o leitor entregou ao editor como
-    /// imagem do parágrafo, na ordem do arquivo.
+    /// Os <c>w:drawing</c> filhos diretos de <c>w:r</c> com imagem que corre com o texto, na
+    /// ordem do arquivo; o ancorado com posição é copiado por outro caminho.
     /// </summary>
-    /// <remarks>
-    /// São os `w:drawing` filhos diretos de um `w:r` — o que está numa caixa de
-    /// texto é conteúdo da caixa — que trazem uma imagem e correm com o texto: o
-    /// `wp:inline` e o ancorado que o fluxo poria no mesmo lugar. O ancorado com
-    /// posição de verdade não entra, porque ele vai para os objetos do
-    /// parágrafo e é copiado inteiro por outro caminho.
-    /// </remarks>
     public static List<DocumentFormat.OpenXml.Wordprocessing.Drawing> FlowingImagesOf(OpenXmlElement? original)
     {
         if (original is null) return [];
@@ -182,22 +152,11 @@ internal sealed class ImageWriter(MainDocumentPart part, Inventory inventory, in
     }
 
     /// <summary>
-    /// A imagem que já estava no arquivo volta com o desenho dela, e não com um
-    /// desenho novo.
+    /// A imagem do arquivo volta com o desenho dela: recorte, efeito, borda e nome
+    /// ficam, e só tamanho e texto alternativo mudam. O par é achado pelo conteúdo, e
+    /// cada desenho serve a uma imagem só.
     /// </summary>
-    /// <remarks>
-    /// Redimensionar uma imagem lida do `.docx` a regravava como se fosse nova:
-    /// outro `wp:docPr` — "Imagem 2" no lugar do nome e do id que o documento
-    /// dava —, outra parte de imagem com outro relacionamento, e tudo o que este
-    /// escritor não sabe gerar ia embora sem aviso: recorte, efeito, borda,
-    /// posição do ancorado. O que a pessoa muda numa imagem é o tamanho e o texto
-    /// alternativo, e é só isso que muda aqui; o resto é o XML original.
-    ///
-    /// O par é achado pelo conteúdo, e não pela posição: a imagem que a pessoa
-    /// apagou não pode emprestar o desenho dela para a vizinha. Cada desenho
-    /// serve a uma imagem só — o que foi usado sai da lista.
-    /// </remarks>
-    /// <returns>O `w:r` com o desenho original ajustado, ou <c>null</c> quando nenhum confere.</returns>
+    /// <returns>O <c>w:r</c> com o desenho ajustado, ou <c>null</c> quando nenhum confere.</returns>
     public Run? Reuse(Node node, List<DocumentFormat.OpenXml.Wordprocessing.Drawing> candidates)
     {
         var source = Attr.String(node, "src");
@@ -213,8 +172,7 @@ internal sealed class ImageWriter(MainDocumentPart part, Inventory inventory, in
         Resize(drawing, Attr.Int(node, "width"), Attr.Int(node, "height"));
         Describe(drawing, Attr.String(node, "alt"));
 
-        // Só a formatação do run vai junto: o texto que dividia o `w:r` com a
-        // imagem já chegou ao editor como texto, e é de lá que ele volta.
+        // Só a formatação do run vai junto: o texto vizinho volta pelo editor.
         var run = new Run();
         if (original.Parent is Run { RunProperties: { } properties })
         {
@@ -225,7 +183,7 @@ internal sealed class ImageWriter(MainDocumentPart part, Inventory inventory, in
         return run;
     }
 
-    /// <summary>O data URI da imagem do desenho, na mesma forma que o leitor o monta.</summary>
+    /// <summary>Na mesma forma que o leitor monta.</summary>
     private string? SourceOf(OpenXmlElement drawing)
     {
         var relationshipId = drawing.Descendants<Drawing.Blip>().FirstOrDefault()?.Embed?.Value;
@@ -240,14 +198,9 @@ internal sealed class ImageWriter(MainDocumentPart part, Inventory inventory, in
     }
 
     /// <summary>
-    /// O tamanho novo, no `wp:extent` e no `a:ext` da figura — e só quando mudou.
+    /// Só quando mudou, comparado em pixels: reconverter o que ninguém tocou mudaria o
+    /// EMU. No quarto de volta, largura e altura voltam a trocar.
     /// </summary>
-    /// <remarks>
-    /// Comparado em pixels, que é a unidade do editor: reconverter a medida que
-    /// ninguém tocou mudaria o EMU original por arredondamento, e o arquivo
-    /// diferiria sem ninguém ter pedido. No quarto de volta o leitor trocou
-    /// largura e altura, e a conta volta a trocá-las.
-    /// </remarks>
     private void Resize(OpenXmlElement drawing, int? width, int? height)
     {
         if (width is not > 0 || height is not > 0) return;
@@ -277,13 +230,7 @@ internal sealed class ImageWriter(MainDocumentPart part, Inventory inventory, in
         }
     }
 
-    /// <summary>
-    /// O texto alternativo no `wp:docPr` — e no `pic:cNvPr` quando ele também o traz.
-    /// </summary>
-    /// <remarks>
-    /// O leitor só entrega o `alt` quando há algo escrito, então a ausência dele
-    /// diante de um `descr` preenchido é a pessoa que apagou o texto.
-    /// </remarks>
+    /// <summary>A ausência do <c>alt</c> diante de um <c>descr</c> preenchido é a pessoa que o apagou.</summary>
     private static void Describe(OpenXmlElement drawing, string? alt)
     {
         var wanted = string.IsNullOrEmpty(alt) ? null : alt;
@@ -319,19 +266,9 @@ internal sealed class ImageWriter(MainDocumentPart part, Inventory inventory, in
     }
 
     /// <summary>
-    /// De que tamanho a imagem entra no arquivo.
+    /// A do <c>.docx</c> traz as medidas do <c>wp:extent</c>; a inserida, as do cabeçalho dos
+    /// bytes. O teto é a coluna de texto, na proporção.
     /// </summary>
-    /// <remarks>
-    /// A imagem que vem do `.docx` traz as duas medidas, porque o leitor as lê
-    /// do `wp:extent`: é o tamanho que o documento pede, que não precisa ser o
-    /// do arquivo. A que a pessoa insere pela barra de ferramentas não traz
-    /// nenhuma, e aí valem as do cabeçalho dos próprios bytes — um tamanho fixo
-    /// deitaria uma captura quadrada.
-    ///
-    /// O teto é a largura da coluna de texto. Uma captura de tela de 1920 px
-    /// entraria com 50 cm de largura e o Word a desenharia estourando as duas
-    /// margens; encolhida na proporção, ela cabe onde a pessoa a viu caber.
-    /// </remarks>
     private (int Width, int Height) Dimensions(Node node, byte[] bytes)
     {
         var measured = ImageSize.Of(bytes);

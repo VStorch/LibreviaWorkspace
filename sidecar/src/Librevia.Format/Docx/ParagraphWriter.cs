@@ -11,60 +11,38 @@ using WordDrawing = DocumentFormat.OpenXml.Drawing.Wordprocessing;
 namespace Librevia.Format.Docx;
 
 /// <summary>
-/// Nó do editor → OOXML. Só roda para blocos que o usuário **editou**.
+/// Nó do editor → OOXML, só para blocos **editados**: o que este arquivo não sabe
+/// gerar é perda de verdade.
 /// </summary>
-/// <remarks>
-/// O que este arquivo não souber gerar é perda de verdade, e por isso ele é o
-/// lugar mais perigoso da gravação. A edição cirúrgica reduz o estrago: blocos
-/// intactos nunca passam por aqui — vão direto do arquivo original para o novo.
-/// </remarks>
 public sealed class ParagraphWriter
 {
     private readonly MainDocumentPart _part;
 
-    /// <summary>
-    /// A parte dona dos relacionamentos do que se grava — o link e a imagem
-    /// nova. É o documento, menos na nota: o `r:id` do link de uma nota é de
-    /// `footnotes.xml.rels`, e apontado no do documento ele não existiria.
-    /// </summary>
+    /// <summary>O documento, ou <c>footnotes.xml</c> na nota: o <c>r:id</c> do link de uma nota é dela.</summary>
     private readonly OpenXmlPart _owner;
 
-    /// <summary>O run de cada referência de nota do corpo original — ver NotesWriter.ReferenceRunsOf.</summary>
+    /// <summary>Ver NotesWriter.ReferenceRunsOf.</summary>
     private Dictionary<string, Run>? _noteRuns;
 
     private readonly Inventory _inventory;
     private readonly ParagraphFormat _format;
     private readonly StyleResolver _styles;
 
-    /// <summary>
-    /// O que o estilo do parágrafo em gravação dá aos runs — ver
-    /// <see cref="DropWhatRepeatsTheStyle"/>.
-    /// </summary>
+    /// <summary>Ver <see cref="DropWhatRepeatsTheStyle"/>.</summary>
     private RunProperties _paragraphRun = new();
     private readonly TableWriter _tables;
     private readonly ImageWriter _images;
 
-    /// <summary>
-    /// Os marcadores vêm do modelo. Desligado — o rascunho de antes deles —, os
-    /// do parágrafo original são copiados para o reescrito, como eram.
-    /// </summary>
+    /// <summary>Desligado, no rascunho anterior aos marcadores, os do parágrafo original são copiados.</summary>
     private readonly bool _references;
 
-    /// <summary>
-    /// O que as pontas do comentário precisam do arquivo original — ver
-    /// <see cref="CommentAnchors"/>. Lido na primeira ponta, antes de o corpo ser
-    /// trocado: quem grava o cabeçalho nunca chega a precisar.
-    /// </summary>
+    /// <summary>Lido na primeira ponta, antes de o corpo ser trocado — ver <see cref="CommentAnchors"/>.</summary>
     private CommentAnchors? _comments;
 
-    /// <summary>A largura da coluna de texto em vinte-avos de ponto: 1 px do CSS são 15.</summary>
+    /// <summary>Em vinte-avos de ponto: 1 px do CSS são 15.</summary>
     private readonly int _usableTwips;
 
-    /// <param name="usableWidthPx">
-    /// A largura da coluna de texto, em pixels do CSS. É o teto de uma imagem
-    /// que chega sem medida: maior do que isso, o Word a desenha estourando a
-    /// margem.
-    /// </param>
+    /// <param name="usableWidthPx">O teto, em pixels do CSS, da imagem que chega sem medida.</param>
     internal ParagraphWriter(
         MainDocumentPart part,
         Inventory inventory,
@@ -87,9 +65,6 @@ public sealed class ParagraphWriter
         _usableTwips = usable * 15;
     }
 
-    /// <param name="original">
-    /// O parágrafo como estava no arquivo, quando existe.
-    /// </param>
     public IEnumerable<OpenXmlElement> Write(
         Node node,
         ListPlacement? list = null,
@@ -115,11 +90,7 @@ public sealed class ParagraphWriter
                 yield return _tables.Write(node, original as Table);
                 break;
 
-            // A imagem que a pessoa insere pela barra de ferramentas é um bloco,
-            // e não um trecho de linha: no OOXML não existe imagem fora de
-            // parágrafo, então ela viaja dentro de um. Sem este caso ela caía no
-            // ramo de baixo — parágrafo vazio e um aviso de perda — e desaparecia
-            // do documento ao salvar.
+            // A imagem inserida pela barra é um bloco do editor, e no OOXML viaja dentro de um parágrafo.
             case "image":
             {
                 var image = _images.Write(node);
@@ -129,12 +100,7 @@ public sealed class ParagraphWriter
                     break;
                 }
 
-                // O alinhamento da imagem é o `w:jc` do parágrafo que a carrega —
-                // no OOXML não existe "imagem centralizada", existe parágrafo
-                // centralizado com uma imagem dentro. A imagem lida de um `.docx`
-                // já vem dentro de um parágrafo, e ali quem alinha é o próprio
-                // parágrafo; este caso é o da imagem inserida pela barra, que é um
-                // bloco do editor e não tem parágrafo seu.
+                // Quem alinha é o `w:jc` do parágrafo: no OOXML não há imagem centralizada.
                 var aligned = new Paragraph(image);
                 if (ParagraphFormat.JustificationOf(Attr.String(node, "align")) is { } justification)
                 {
@@ -160,8 +126,7 @@ public sealed class ParagraphWriter
                 break;
 
             default:
-                // Um bloco que não sabemos gerar não pode virar nada em
-                // silêncio: vira parágrafo vazio e entra no inventário.
+                // O que não sabemos gerar vira parágrafo vazio e entra no inventário, nunca em silêncio.
                 _inventory.NoteLoss($"bloco do tipo \"{node.Type}\"");
                 yield return new Paragraph();
                 break;
@@ -169,54 +134,27 @@ public sealed class ParagraphWriter
     }
 
     /// <summary>Numeração herdada do documento, para itens de lista.</summary>
-    /// <param name="Kind">
-    /// `bulletList` ou `orderedList`. Viaja junto porque uma sublista só pode
-    /// herdar a numeração da lista de fora quando é do mesmo tipo: herdada às
-    /// cegas, uma sublista numerada dentro de uma com marcador sai com marcador.
-    /// </param>
+    /// <param name="Kind">A sublista só herda a numeração da de fora quando é do mesmo tipo.</param>
     public sealed record ListContext(string Kind, int NumberingId, int Level);
 
     /// <summary>
-    /// O que quem chama sabe sobre a numeração do parágrafo.
+    /// Três estados: o corpo sabe que o parágrafo **é** item (o contexto), que **não
+    /// é** (<c>null</c>, e o <c>w:numPr</c> do original sai), e a tabela **não sabe** (sem
+    /// embrulho, e o <c>w:numPr</c> fica).
     /// </summary>
-    /// <remarks>
-    /// São três estados, e não dois. O corpo sabe que o parágrafo **é** item de
-    /// lista — o embrulho com o contexto dentro; sabe que **não é** — o embrulho
-    /// com <c>null</c> dentro, e aí o `w:numPr` do original tem de sair, senão o
-    /// parágrafo continua numerado depois de a pessoa ter tirado a lista; e a
-    /// tabela **não sabe** — nem embrulho, e aí o `w:numPr` do original fica.
-    ///
-    /// O terceiro caso não existia, e a célula pagava por isso: a detecção de
-    /// lista mora no laço do corpo, nunca dentro da célula, de modo que a tabela
-    /// chamava o escritor sempre sem contexto. Corrigir uma palavra numa tabela
-    /// tirava os marcadores da lista que estava na célula, sem nada no inventário.
-    /// </remarks>
     public readonly record struct ListPlacement(ListContext? List);
 
     /// <summary>
-    /// Os objetos ancorados do parágrafo original seguem no parágrafo reescrito.
+    /// Os objetos ancorados do original seguem no parágrafo reescrito, como a
+    /// gravação cirúrgica faz com o bloco inteiro: este escritor não os gera. Só o
+    /// <c>w:r</c> que **é** o desenho; um run com texto repetiria a frase e vai ao
+    /// inventário.
     /// </summary>
-    /// <remarks>
-    /// A capa do modelo de manual é uma forma só: título e subtítulo moram em
-    /// caixas de texto ancoradas, e a marca lateral é uma imagem posicionada.
-    /// Nada disso este escritor sabe gerar do zero — o que ele tem é o XML
-    /// original, e copiá-lo é o mesmo remédio que a gravação cirúrgica usa para
-    /// o bloco inteiro, aplicado a um pedaço dele.
-    ///
-    /// Sem isto, editar o parágrafo que ancora uma forma a apagava, e era esse
-    /// risco que mantinha o documento inteiro em somente leitura.
-    ///
-    /// Só o `w:r` que **é** o desenho: um run que também traga texto seria
-    /// copiado com o texto junto, e a frase apareceria duas vezes. Esse caso
-    /// continua entrando no inventário como perda.
-    /// </remarks>
     private void CarryAnchored(Paragraph paragraph, Node node, OpenXmlElement? original)
     {
         if (original is null) return;
 
-        // O ancorado que corre com o texto chegou ao editor como imagem do
-        // parágrafo, e é por ela que ele volta. Copiá-lo aqui também punha duas
-        // imagens no arquivo — e trazia de volta a que a pessoa tivesse apagado.
+        // O ancorado que corre com o texto volta como imagem do parágrafo; copiado aqui, viria duas vezes.
         var flowing = ImageWriter.FlowingImagesOf(original);
 
         foreach (var run in original.Elements<Run>())
@@ -230,23 +168,10 @@ public sealed class ParagraphWriter
     }
 
     /// <summary>
-    /// O que a pessoa digitou dentro de uma caixa volta para o `w:txbxContent`.
+    /// O texto digitado numa caixa volta ao <c>w:txbxContent</c>. Caixa sem mudança
+    /// não é tocada. Se a contagem não bater, nada é escrito: um texto trocado de
+    /// caixa é pior que um perdido.
     /// </summary>
-    /// <remarks>
-    /// A capa do modelo de manual é feita disto: título e subtítulo moram em
-    /// caixas, e sem esta volta a caixa seria editável na tela e voltaria com o
-    /// texto antigo no arquivo — pior do que não deixar editar.
-    ///
-    /// Caixa cujo texto não mudou **não é tocada**: o XML dela segue como
-    /// estava, com a moldura, o preenchimento e a formatação que este escritor
-    /// não sabe reproduzir. É a mesma aposta da gravação cirúrgica, um nível
-    /// abaixo.
-    ///
-    /// Se a contagem não bater — um desenho que não pôde ser copiado, uma caixa
-    /// que o leitor viu e o escritor não — nada é escrito: acertar a caixa
-    /// errada poria o subtítulo dentro do título, e um texto perdido é menos
-    /// grave do que um texto trocado de lugar.
-    /// </remarks>
     private void ApplyBoxText(Paragraph paragraph, Node node)
     {
         var wanted = BoxContentsOf(node);
@@ -272,7 +197,7 @@ public sealed class ParagraphWriter
                 foreach (var element in Write(block)) box.AppendChild(element);
             }
 
-            // `w:txbxContent` vazio invalida o documento para o Word.
+            // `w:txbxContent` vazio invalida o documento.
             if (!box.HasChildren) box.AppendChild(new Paragraph());
             touched = true;
         }
@@ -285,7 +210,6 @@ public sealed class ParagraphWriter
         }
     }
 
-    /// <summary>O conteúdo das caixas de texto do bloco, na ordem do modelo.</summary>
     private static List<List<Node>> BoxContentsOf(Node node)
     {
         var contents = new List<List<Node>>();
@@ -308,19 +232,16 @@ public sealed class ParagraphWriter
         return contents;
     }
 
-    /// <summary>O texto de um conteúdo de caixa, na mesma forma que o do arquivo.</summary>
     private static string PlainTextOf(List<Node> content) =>
         string.Join("\n", content.Select(TextOfNode));
 
     private static string TextOfNode(Node node) =>
         node.Text ?? string.Concat((node.Content ?? []).Select(TextOfNode));
 
-    /// <summary>O run carrega um objeto ancorado e mais nada que se escreva.</summary>
-    /// <remarks>
-    /// Pelos filhos diretos, e não por `Descendants`: o texto de dentro de uma
-    /// caixa também é `w:t`, e procurá-lo em profundidade rejeitava justamente
-    /// os runs que existem para ser copiados.
-    /// </remarks>
+    /// <summary>
+    /// Pelos filhos diretos: o texto de uma caixa também é <c>w:t</c>, e em
+    /// profundidade rejeitaria justamente os runs a copiar.
+    /// </summary>
     internal static bool IsAnchoredOnly(Run run) =>
         run.Descendants<WordDrawing.Anchor>().Any() && !run.Elements<Text>().Any();
 
@@ -328,15 +249,12 @@ public sealed class ParagraphWriter
     {
         var paragraph = new Paragraph();
 
-        // O `w:pPr` sai de ParagraphFormat, que parte do original: o estilo, o
-        // espaçamento, a entrelinha, o fundo, a marca de parágrafo e o `w:sectPr`
-        // do arquivo sobrevivem à edição porque ninguém os reescreve.
+        // O `w:pPr` parte do original (ParagraphFormat): estilo, espaçamento, marca e `w:sectPr` sobrevivem.
         if (_format.Build(node, list, original) is { } properties)
         {
             paragraph.ParagraphProperties = properties;
         }
 
-        // Os marcadores que abriam o parágrafo abrem o parágrafo reescrito.
         foreach (var mark in _references ? [] : Bookmarks(original, leading: true))
         {
             paragraph.AppendChild(mark.CloneNode(true));
@@ -344,13 +262,11 @@ public sealed class ParagraphWriter
 
         _paragraphRun = _styles.Resolve(paragraph.ParagraphProperties).Run;
 
-        // As imagens que já estavam no parágrafo voltam com o desenho original —
-        // ver ImageWriter.Reuse.
+        // As imagens que já estavam voltam com o desenho original — ver ImageWriter.Reuse.
         var images = ImageWriter.FlowingImagesOf(original);
         foreach (var child in node.Content ?? [])
         {
-            // A revisão do trecho embrulha o que ele escreveu — ver
-            // Revisions.Wrap.
+            // Ver Revisions.Wrap.
             var written = WriteInline(child, images);
             foreach (var element in Revisions.HasRevision(child) ? Revisions.Wrap([.. written], child.Marks) : written)
             {
@@ -361,10 +277,7 @@ public sealed class ParagraphWriter
         MergeAnchorLinks(paragraph);
         Revisions.MergeNeighbours(paragraph);
 
-        // A quebra volta para onde estava: no fim do parágrafo, dentro de um
-        // `w:r`. O leitor a transformou em propriedade do bloco para não pôr um
-        // nó de bloco em posição de linha; aqui ela desfaz o caminho. Sem isto,
-        // editar o parágrafo que carrega a quebra a apagaria em silêncio.
+        // A quebra volta ao fim do parágrafo, num `w:r`, de onde o leitor a tirou.
         if (Attr.Bool(node, "breakAfter"))
         {
             paragraph.AppendChild(new Run(new Break { Type = BreakValues.Page }));
@@ -384,38 +297,9 @@ public sealed class ParagraphWriter
     }
 
     /// <summary>
-    /// Os marcadores do parágrafo original, separados pelo lado em que estavam.
+    /// Links vizinhos para o mesmo marcador viram um só <c>w:hyperlink</c>, como o
+    /// Word grava a entrada do sumário.
     /// </summary>
-    /// <remarks>
-    /// `w:bookmarkStart` e `w:bookmarkEnd` são o destino da referência cruzada, da
-    /// entrada de índice e do link interno do documento — e o modelo do editor não
-    /// os representa. Reescrevendo o parágrafo só a partir do modelo, eles
-    /// desapareciam do arquivo: quem os citava passava a apontar para o vazio, e
-    /// nada disso chegava ao inventário. É a mesma solução dos objetos ancorados:
-    /// o que o editor não sabe dizer vem do XML original.
-    ///
-    /// Pelo lado em que estavam, e não todos juntos num canto: um marcador que
-    /// abraça o parágrafo tem o começo antes do texto e o fim depois dele, e
-    /// levar os dois para o mesmo lado encurtaria o trecho marcado até o vazio.
-    /// A posição **dentro** do texto não sobrevive — o modelo não diz onde o
-    /// marcador começava no meio da frase —, e é a perda que resta: o marcador
-    /// continua existindo e continua neste parágrafo.
-    ///
-    /// Marcador é conteúdo de nível de run, então ele cabe em qualquer ponto do
-    /// `w:p` depois do `w:pPr`.
-    /// </remarks>
-    /// <param name="leading">
-    /// Verdadeiro para os que vinham antes de qualquer conteúdo, falso para os
-    /// demais.
-    /// </param>
-    /// <summary>
-    /// Links vizinhos para o mesmo marcador viram um só `w:hyperlink`.
-    /// </summary>
-    /// <remarks>
-    /// No editor o link é marca de cada trecho, e o campo é um nó à parte: a
-    /// entrada do sumário (texto, tabulação e o PAGEREF) saía em dois links
-    /// seguidos. O Word grava um só, e é o que o leitor dele espera ao clicar.
-    /// </remarks>
     private static void MergeAnchorLinks(Paragraph paragraph)
     {
         Hyperlink? previous = null;
@@ -438,6 +322,12 @@ public sealed class ParagraphWriter
         }
     }
 
+    /// <summary>
+    /// Os marcadores do original, que o modelo não representa: sem eles, quem os cita
+    /// apontaria para o vazio. Pelo lado em que estavam, para o trecho marcado não
+    /// encolher; a posição no meio da frase é o que se perde.
+    /// </summary>
+    /// <param name="leading">Os que vinham antes de qualquer conteúdo.</param>
     private static IEnumerable<OpenXmlElement> Bookmarks(Paragraph? original, bool leading)
     {
         if (original is null) yield break;
@@ -473,8 +363,7 @@ public sealed class ParagraphWriter
                 yield return new Run(new Break { Type = BreakValues.Page });
                 break;
 
-            // As duas pontas do marcador, com o id e o nome que o arquivo tinha —
-            // ou que o editor deu ao marcador novo.
+            // O id e o nome do arquivo, ou os que o editor deu ao marcador novo.
             case "bookmarkStart":
                 yield return new BookmarkStart
                 {
@@ -487,9 +376,7 @@ public sealed class ParagraphWriter
                 yield return new BookmarkEnd { Id = Attr.String(node, "bid") ?? "0" };
                 break;
 
-            // As pontas do comentário, e com elas as das respostas, que o
-            // editor não leva como nó: no Word a conversa inteira abraça o
-            // mesmo trecho, e a resposta sem âncora fica órfã.
+            // As pontas das respostas vão junto: no Word a conversa inteira abraça o trecho.
             case "commentStart":
                 _comments ??= new CommentAnchors(_part);
                 foreach (var id in _comments.Thread(Attr.String(node, "cid") ?? "0"))
@@ -514,15 +401,12 @@ public sealed class ParagraphWriter
                 foreach (var element in WriteField(node)) yield return element;
                 break;
 
-            // A referência de nota: o corpo vai para a parte das notas — ver
-            // NotesWriter —, e aqui fica o run com o id.
+            // O corpo vai para a parte das notas (NotesWriter); aqui fica o run com o id.
             case "noteRef":
                 yield return WriteNoteReference(node);
                 break;
 
-            // A equação: o OMML como veio. A nova ou editada não tem OMML, e
-            // ele sai do MathML (OmmlMath.ToOmml); sem nenhum dos dois, é
-            // defeito — declarado, e não um `m:oMath` inventado.
+            // O OMML como veio; a nova ou editada o tira do MathML (OmmlMath.ToOmml).
             case "math":
                 if (MathOf(node) is { } math) yield return math;
                 else _inventory.NoteLoss("equação que não pôde ser gravada");
@@ -549,11 +433,7 @@ public sealed class ParagraphWriter
     private const string WordprocessingNamespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
     private const string MathNamespace = "http://schemas.openxmlformats.org/officeDocument/2006/math";
 
-    /// <summary>
-    /// A equação editada sai do MathML, que não guarda cor nem fonte das fichas:
-    /// se o parágrafo do arquivo tinha uma equação formatada por dentro e ela não
-    /// voltou como veio, a formatação se perdeu — e isso se diz uma vez.
-    /// </summary>
+    /// <summary>O MathML não guarda cor nem fonte das fichas: a formatação de dentro se perde, e isso se diz uma vez.</summary>
     private void NoteEditedMathFormatting(Node paragraph, OpenXmlElement? original)
     {
         if (original is null || paragraph.Content is not { } content) return;
@@ -571,7 +451,6 @@ public sealed class ParagraphWriter
         }
     }
 
-    /// <summary>A equação tem fichas com formatação além da fonte de matemática e do itálico?</summary>
     private static bool FormattedInside(OpenXmlElement equation) =>
         equation.Descendants<RunProperties>().Any(properties => properties.ChildElements.Any(child => child switch
         {
@@ -582,7 +461,7 @@ public sealed class ParagraphWriter
 
     private const string MathFontName = "Cambria Math";
 
-    /// <summary>O `m:oMath` ou `m:oMathPara` guardado no nó, de volta a elemento — ou nulo.</summary>
+    /// <summary>Ou nulo.</summary>
     internal static OpenXmlElement? MathOf(Node node)
     {
         var omml = Attr.String(node, "omml") is { Length: > 0 } kept
@@ -602,9 +481,7 @@ public sealed class ParagraphWriter
                 _ => null,
             };
 
-            // O OuterXml lido declara o `w:` em cada `w:rPr` de dentro, porque a
-            // equação saiu do documento sozinha; de volta a ele, a declaração da
-            // raiz basta, e a equação sai escrita como entrou.
+            // A declaração do `w:` da raiz basta: a equação sai escrita como entrou.
             foreach (var element in math?.Descendants() ?? [])
             {
                 foreach (var (prefix, uri) in element.NamespaceDeclarations.ToList())
@@ -624,11 +501,7 @@ public sealed class ParagraphWriter
         }
     }
 
-    /// <summary>
-    /// O run da referência de nota: o `w:rPr` do run original (o estilo, o
-    /// sobrescrito), e na nota nova o do Word. A marca própria
-    /// (`w:customMarkFollows`) vem no mesmo run, logo depois da referência.
-    /// </summary>
+    /// <summary>O <c>w:rPr</c> do run original, ou o do Word na nota nova; a marca própria vem logo depois.</summary>
     private Run WriteNoteReference(Node node)
     {
         var endnote = Attr.String(node, "kind") == NotesWriter.Endnote;
@@ -655,7 +528,6 @@ public sealed class ParagraphWriter
         return run;
     }
 
-    /// <summary>As marcas do nó → o `w:rPr` do run e o destino do link, se houver.</summary>
     private (RunProperties Properties, string? Hyperlink) FormatOf(Node node)
     {
         var properties = new RunProperties();
@@ -665,8 +537,7 @@ public sealed class ParagraphWriter
         {
             switch (mark.Type)
             {
-                // `off` é o trecho desligando o que o estilo do parágrafo liga —
-                // ver RunReader.Off.
+                // `off` desliga o que o estilo do parágrafo liga — ver RunReader.Off.
                 case "bold": properties.Bold = IsOff(mark) ? new Bold { Val = false } : new Bold(); break;
                 case "italic": properties.Italic = IsOff(mark) ? new Italic { Val = false } : new Italic(); break;
                 case "strike": properties.Strike = IsOff(mark) ? new Strike { Val = false } : new Strike(); break;
@@ -679,11 +550,7 @@ public sealed class ParagraphWriter
                     };
                     break;
 
-                // Uma propriedade só para os dois, com valores que se excluem —
-                // é assim no OOXML, e é assim no editor, onde as duas marcas se
-                // excluem uma à outra. Enquanto não estavam aqui, o expoente
-                // sobrevivia à leitura e morria na gravação: o trecho voltava
-                // para a linha do texto e o aviso saía no inventário.
+                // Uma propriedade só, `w:vertAlign`, de valores que se excluem, como no editor.
                 case "superscript":
                     properties.VerticalTextAlignment = new VerticalTextAlignment
                     {
@@ -718,7 +585,7 @@ public sealed class ParagraphWriter
                     ApplyTextStyle(properties, mark);
                     break;
 
-                // A revisão não é formatação: ela embrulha o run — ver WriteParagraph.
+                // Ela embrulha o run — ver WriteParagraph.
                 case Revisions.Insertion:
                 case Revisions.Deletion:
                     break;
@@ -739,13 +606,10 @@ public sealed class ParagraphWriter
         var (properties, hyperlink) = FormatOf(node);
         if (properties.HasChildren) run.RunProperties = properties;
 
-        // O texto entra peça por peça: tabulação é `w:tab`, quebra de linha é
-        // `w:br`, e caractere de controle não existe no XML 1.0 — escrevê-lo
-        // derrubava a gravação inteira. Ver XmlText.
+        // Tabulação é `w:tab`, quebra é `w:br`, e caractere de controle não existe no XML 1.0 (XmlText).
         var pieces = XmlText.Of(node.Text).ToList();
         if (pieces.Count == 0)
         {
-            // Run sem nada dentro é inválido para o Word.
             pieces.Add(new Text(string.Empty) { Space = SpaceProcessingModeValues.Preserve });
         }
 
@@ -754,20 +618,16 @@ public sealed class ParagraphWriter
         return Linked([run], hyperlink);
     }
 
-    /// <summary>Os runs, dentro de um `w:hyperlink` quando há destino.</summary>
     private IEnumerable<OpenXmlElement> Linked(List<Run> runs, string? hyperlink)
     {
         if (hyperlink is null) return runs;
 
-        // O link para um marcador do próprio documento: `w:anchor`, sem
-        // relacionamento. `w:history` é o que o Word grava em todo link que ele
-        // mesmo cria.
+        // O link interno: `w:anchor`, sem relacionamento; `w:history`, como o Word grava.
         if (hyperlink.StartsWith('#'))
         {
             return [new Hyperlink(runs) { Anchor = hyperlink[1..], History = true }];
         }
 
-        // `w:hyperlink` embrulha o run — não cabe dentro dele.
         Uri target;
         try
         {
@@ -783,10 +643,7 @@ public sealed class ParagraphWriter
         return [new Hyperlink(runs) { Id = relationship.Id }];
     }
 
-    /// <summary>
-    /// Um campo: início, instrução, separador, resultado e fim, cada um no seu
-    /// run e todos com a formatação do nó — a forma em que o Word o grava.
-    /// </summary>
+    /// <summary>Cada peça no seu run, com a formatação do nó, como o Word grava.</summary>
     private IEnumerable<OpenXmlElement> WriteField(Node node)
     {
         var (properties, hyperlink) = FormatOf(node);
@@ -814,16 +671,10 @@ public sealed class ParagraphWriter
     }
 
     /// <summary>
-    /// O sumário: os parágrafos do nó com o campo `TOC` em volta, dentro do
-    /// controle de conteúdo quando o original tinha um — ver BodyReader.ReadTableOfContents.
+    /// Os parágrafos com o campo <c>TOC</c> em volta, no controle de conteúdo se havia um.
+    /// O título volta com o <c>w:pPr</c> original; as entradas não, porque "Atualizar
+    /// sumário" as refaz. A entrada sem parada ganha a do Word, à direita com pontinhos.
     /// </summary>
-    /// <remarks>
-    /// O título (antes de `head`) volta com o `w:pPr` original. As entradas, não:
-    /// "Atualizar sumário" as refaz, e o parágrafo de índice `n` pode não ser mais
-    /// o de índice `n` do arquivo. A entrada que traz número de página e não tem
-    /// parada de tabulação ganha a do Word — à direita, na margem, com pontinhos —,
-    /// sem a qual o número cairia colado ao texto.
-    /// </remarks>
     private IEnumerable<OpenXmlElement> WriteTableOfContents(Node node, OpenXmlElement? original)
     {
         var children = node.Content ?? [];
@@ -866,8 +717,7 @@ public sealed class ParagraphWriter
             yield break;
         }
 
-        // As propriedades do controle de conteúdo são as do original; o sumário
-        // novo ganha as que o Word dá ao dele.
+        // As propriedades do original; o sumário novo ganha as do Word.
         var sdt = new SdtBlock();
         if (original is SdtBlock previous && previous.SdtProperties is { } kept)
         {
@@ -886,7 +736,6 @@ public sealed class ParagraphWriter
         yield return sdt;
     }
 
-    /// <summary>A parada de tabulação do número da página, na entrada que não tem nenhuma.</summary>
     private void WithPageTab(Paragraph paragraph)
     {
         if (!paragraph.Descendants<FieldCode>().Any(code => code.Text.Contains("PAGEREF", StringComparison.OrdinalIgnoreCase)))
@@ -904,8 +753,7 @@ public sealed class ParagraphWriter
             Position = _usableTwips,
         });
 
-        // Na ordem do esquema: depois do estilo, da numeração e das bordas, antes do
-        // espaçamento. `InsertAfter` do último que vem antes, ou no começo.
+        // Na ordem do esquema: depois do estilo, da numeração e das bordas, antes do espaçamento.
         var before = properties.ChildElements.LastOrDefault(child =>
             child is ParagraphStyleId or KeepNext or KeepLines or PageBreakBefore or FrameProperties
                 or WidowControl or NumberingProperties or SuppressLineNumbers or ParagraphBorders or Shading);
@@ -914,22 +762,12 @@ public sealed class ParagraphWriter
     }
 
     /// <summary>
-    /// Tira do run o que o estilo do parágrafo já lhe dá.
+    /// As marcas chegam achatadas, com o estilo dentro: gravadas de volta, desligariam
+    /// o parágrafo do estilo. Só o que coincide sai; marca ausente não vira "desligado".
     /// </summary>
-    /// <remarks>
-    /// As marcas do editor chegam achatadas — o leitor põe em cada trecho a fonte,
-    /// o tamanho e o negrito do estilo —, e gravá-las de volta como formatação
-    /// direta repetia o estilo em cada `w:r` do bloco editado. O arquivo abria
-    /// igual, mas desligado do estilo: mudar a fonte do Normal no Word não
-    /// alcançava mais o parágrafo que alguém tinha corrigido aqui.
-    ///
-    /// Só o que coincide sai. Marca ausente não vira "desligado" explícito: na tela
-    /// o trecho sem marca mostra o estilo, e é o estilo que ele continua a ter.
-    /// </remarks>
     private static void DropWhatRepeatsTheStyle(RunProperties properties, RunProperties style)
     {
-        // Ligado ou desligado, o que coincide com o estilo sai: o "desligado"
-        // num estilo que não liga nada não diz nada.
+        // Ligado ou desligado, o que coincide sai.
         if (properties.Bold is not null && RunReader.IsOn(properties.Bold) == RunReader.IsOn(style.Bold))
         {
             properties.Bold = null;
@@ -979,9 +817,7 @@ public sealed class ParagraphWriter
             else _inventory.NoteLoss($"cor de texto \"{color}\"");
         }
 
-        // O fundo de um trecho de texto: no editor é `backgroundColor`, no
-        // arquivo é o mesmo `w:shd` do realce. Enquanto ficava de fora, pintar o
-        // fundo de uma palavra não chegava ao documento.
+        // `backgroundColor` no editor é o mesmo `w:shd` do realce no arquivo.
         if (Attr.MarkString(mark, "backgroundColor") is { } background)
         {
             ApplyHighlight(properties, background);
@@ -995,9 +831,7 @@ public sealed class ParagraphWriter
 
         if (Attr.MarkString(mark, "fontSize") is { } size)
         {
-            // `w:sz` é em meios-pontos, e a medida pode chegar em pixels: o
-            // editor grava `font-size` como o CSS o escreve, e um `16px` lido
-            // como "16 pt" engordava o texto em um terço.
+            // `w:sz` é em meios-pontos, e a medida pode chegar em pixels, como o CSS a escreve.
             if (Attr.Points(size) is { } points && points > 0)
             {
                 var halfPoints = (int)Math.Round(points * 2);
@@ -1012,9 +846,7 @@ public sealed class ParagraphWriter
             }
         }
 
-        // A entrelinha é propriedade do parágrafo no OOXML: não existe `w:line`
-        // dentro de um `w:rPr`. Quem a grava é ParagraphFormat, a partir do
-        // atributo do bloco; aplicada a um trecho só, ela não tem para onde ir.
+        // A entrelinha é do parágrafo (ParagraphFormat): num trecho não tem para onde ir.
         if (Attr.MarkString(mark, "lineHeight") is { } lineHeight)
         {
             _inventory.NoteLoss($"entrelinha de um trecho de texto (\"{lineHeight}\")");
@@ -1022,14 +854,9 @@ public sealed class ParagraphWriter
     }
 
     /// <summary>
-    /// Fundo de texto, como `w:shd`.
+    /// Sempre hexadecimal de seis dígitos: <c>rgb(...)</c> faria o Word declarar o
+    /// documento danificado, e um nome de cor sairia preto.
     /// </summary>
-    /// <remarks>
-    /// Hexadecimal de seis dígitos, sempre: o editor guarda a cor como o CSS a
-    /// escreve — `rgb(255, 0, 0)`, `#f00`, `red` — e o atributo do OOXML não
-    /// aceita nenhuma dessas formas. `rgb(...)` no lugar fazia o Word declarar o
-    /// documento danificado; um nome de cor era aceito e desenhado como preto.
-    /// </remarks>
     private void ApplyHighlight(RunProperties properties, string color)
     {
         if (ColorValue.Hex(color) is not { } hex)
@@ -1047,30 +874,22 @@ public sealed class ParagraphWriter
     }
 
     /// <summary>
-    /// O que o arquivo original sabe das âncoras de comentário.
+    /// As respostas de cada conversa, os comentários com trecho (inventar um
+    /// <c>w:commentRangeEnd</c> no de ponto seria errado) e o run de cada referência.
     /// </summary>
-    /// <remarks>
-    /// As respostas de cada conversa, os comentários que tinham trecho (o de ponto
-    /// só tem a referência, e ganhar um `w:commentRangeEnd` sem começo seria
-    /// inventar) e o run de cada referência — devolvido como estava, com o estilo
-    /// de caractere que o Word ou o LibreOffice lhe deram.
-    /// </remarks>
     private sealed class CommentAnchors
     {
         private readonly Dictionary<string, List<string>> _replies;
         private readonly HashSet<string> _ranged;
         private readonly Dictionary<string, Run> _references = new(StringComparer.Ordinal);
 
-        /// <summary>
-        /// Os começos já gravados nesta gravação. O comentário criado no editor não
-        /// está no original, e é o começo dele que diz que ele tem trecho.
-        /// </summary>
+        /// <summary>O comentário criado no editor não está no original: é o começo dele que diz que tem trecho.</summary>
         private readonly HashSet<string> _started = new(StringComparer.Ordinal);
 
         public CommentAnchors(MainDocumentPart part)
         {
             _replies = CommentsReader.RepliesOf(part);
-            // O corpo e as notas: o parágrafo da nota também leva âncora.
+            // O parágrafo da nota também leva âncora.
             var roots = CommentsWriter.AnchorRoots(part);
             _ranged = roots.SelectMany(root => root.Descendants<CommentRangeStart>())
                 .Select(start => start.Id?.Value).OfType<string>().ToHashSet(StringComparer.Ordinal);
@@ -1080,7 +899,6 @@ public sealed class ParagraphWriter
             }
         }
 
-        /// <summary>O comentário e as respostas dele, na ordem do arquivo.</summary>
         public IEnumerable<string> Thread(string id) => [id, .. _replies.GetValueOrDefault(id) ?? []];
 
         public void Start(string id) => _started.Add(id);

@@ -3,99 +3,37 @@ using System.Text.Json.Serialization;
 namespace Librevia.Format.Docx;
 
 /// <summary>
-/// O que o documento tem e nós não damos conta — separado em categorias que
-/// **não** são o mesmo problema.
+/// <b>Invisível</b>: continua no arquivo, mas não aparece na tela. <b>Perda</b>:
+/// some ao salvar, e só o que estava num bloco editado. <b>Estrutural</b>: o
+/// invisível que some se o bloco que o ancora for editado; decide o somente
+/// leitura. Misturadas, viram um aviso que se aprende a ignorar.
 /// </summary>
 /// <remarks>
-/// <b>Invisibilidade</b>: continua no arquivo depois de salvar, mas não aparece
-/// na tela. O usuário precisa saber para não achar que sumiu.
-///
-/// <b>Perda</b>: some de verdade ao salvar. É o aviso grave, e a edição
-/// cirúrgica torna esta lista curta — só entra o que estava dentro de um bloco
-/// que o usuário editou.
-///
-/// <b>Estrutural</b>: um subconjunto da invisibilidade. São os recursos que
-/// somem se — e só se — o usuário editar justamente o bloco que os ancora.
-/// Comentário, revisão e nota de rodapé caem aqui; posicionamento de imagem e
-/// decoração, não. A diferença decide se o documento abre em somente leitura,
-/// que é a proteção mais forte contra perda de dados.
-///
-/// Misturar as categorias produz um aviso genérico que o usuário aprende a
-/// ignorar em duas semanas, e aí ele deixa de proteger de qualquer coisa.
+/// Os rótulos são constantes porque a classificação é feita **por rótulo**: uma
+/// frase mudada num leitor deixaria de casar e o documento abriria editável.
 /// </remarks>
 public sealed class Inventory
 {
-    /// <summary>
-    /// Rótulos cujo desaparecimento é perda de conteúdo, não de aparência.
-    /// </summary>
-    /// <remarks>
-    /// Constantes, e não literais espalhados pelos leitores, porque a
-    /// classificação é feita **por rótulo**: uma frase mudada num leitor
-    /// deixaria de casar com esta lista e o documento passaria a abrir editável
-    /// sem que ninguém percebesse. Sendo constantes, o compilador não deixa.
-    /// </remarks>
-    /// <summary>
-    /// Comentário que o editor não leva como nó — o de cabeçalho, de nota ou de
-    /// caixa de texto.
-    /// </summary>
-    /// <remarks>
-    /// Não é estrutural: a âncora do corpo é nó, e editar o parágrafo que a
-    /// leva devolve as pontas ao arquivo — a do comentário e as das respostas.
-    /// </remarks>
+    /// <summary>O de cabeçalho, de nota ou de caixa de texto, que o editor não leva como nó.</summary>
     public const string Comments = "comentários";
-    /// <summary>
-    /// A revisão que o editor não representa: célula inserida, excluída ou
-    /// mesclada, mudança de numeração, de seção ou de tabela.
-    /// </summary>
-    /// <remarks>
-    /// O `w:ins` e o `w:del` de texto são marcas, e as revisões de parágrafo e
-    /// de linha são atributos; sobra isto — o que a gravação de uma tabela ou
-    /// seção editada perderia.
-    /// </remarks>
+    /// <summary>A revisão que o editor não representa: célula, numeração, seção ou tabela.</summary>
     public const string StructureRevisions = "revisões de estrutura";
 
-    /// <summary>
-    /// `w:rPrChange` e `w:pPrChange`: a formatação de antes da revisão. Voltam
-    /// byte a byte no parágrafo intocado; no editado, a do trecho se perde.
-    /// </summary>
+    /// <summary><c>w:rPrChange</c> e <c>w:pPrChange</c>: no parágrafo editado, a do trecho se perde.</summary>
     public const string FormatRevisions = "revisões de formatação";
-    /// <summary>
-    /// A referência de nota que o editor não leva como nó — a de dentro de uma
-    /// caixa de texto, e a do rascunho anterior às notas (`BeforeNotes`).
-    /// </summary>
-    /// <remarks>
-    /// Não é estrutural: a referência do corpo é `noteRef`, e editar o
-    /// parágrafo que a leva a devolve ao arquivo com o corpo da nota.
-    /// </remarks>
+    /// <summary>A de dentro de uma caixa de texto e a do rascunho anterior às notas (<c>BeforeNotes</c>).</summary>
     public const string Footnotes = "notas de rodapé";
     public const string Endnotes = "notas de fim";
     public const string Fields = "campos calculados (como sumário e número de página)";
     public const string HeaderFields = "campos calculados no cabeçalho";
     /// <summary>
-    /// A **moldura** da forma, e não o conteúdo dela.
+    /// A **moldura** que o CSS não faz: gradiente, textura, sombra, três dimensões,
+    /// canto arredondado, ou a herdada de um tema que não resolvemos (ver
+    /// <see cref="ShapeLook"/>).
     /// </summary>
-    /// <remarks>
-    /// O texto de dentro e a posição são desenhados. A borda e o preenchimento
-    /// também, quando são de cor sólida — ver <see cref="ShapeLook"/>. Sobra o
-    /// que o CSS não faz por um retângulo: gradiente, textura, imagem de fundo,
-    /// sombra, três dimensões, canto arredondado, e a forma que não declara
-    /// preenchimento nem contorno e os herda de um tema que não resolvemos.
-    ///
-    /// É só disso que este aviso fala, e não de toda forma: caixas que declaram
-    /// `a:noFill` e linha de espessura zero não perdem nada, e aviso que
-    /// aparece sempre é aviso que se aprende a ignorar em duas semanas.
-    ///
-    /// Não é estrutural: os objetos ancorados são copiados do XML original para
-    /// o parágrafo reescrito, e editar o parágrafo não os apaga.
-    /// </remarks>
     public const string Shapes = "moldura e preenchimento de formas";
     public const string ContentControls = "controles de conteúdo";
-    /// <summary>
-    /// A equação com alguma construção que a tela não desenha. Ela aparece
-    /// travada, com o que deu para desenhar, e o OMML volta ao arquivo inteiro
-    /// — por isso não é estrutural. A de dentro de uma caixa de texto também:
-    /// não é desenhada, e volta com o XML da caixa.
-    /// </summary>
+    /// <summary>A equação com construção que a tela não desenha: aparece travada, e o OMML volta inteiro.</summary>
     public const string Equations = "equações";
 
     private static readonly HashSet<string> StructuralLabels = new(StringComparer.Ordinal)
@@ -113,11 +51,9 @@ public sealed class Inventory
     [JsonPropertyName("lost")]
     public IReadOnlyCollection<string> Lost => _lost;
 
-    /// <summary>Subconjunto de <see cref="Invisible"/>: o que se perde se o bloco for editado.</summary>
     [JsonPropertyName("structural")]
     public IReadOnlyCollection<string> Structural => _structural;
 
-    /// <summary>Registra uma frase já escrita para o usuário.</summary>
     public void NoteInvisible(string message)
     {
         _invisible.Add(message);
@@ -127,15 +63,9 @@ public sealed class Inventory
     public void NoteLoss(string message) => _lost.Add(message);
 
     /// <summary>
-    /// Registra a partir do nome de um elemento OOXML, traduzindo — ou
-    /// engolindo, quando não vale aviso.
+    /// Separado de <see cref="NoteInvisible"/>: a regra "nome desconhecido em
+    /// minúscula é ruído" engoliria as frases em português.
     /// </summary>
-    /// <remarks>
-    /// Separado de <see cref="NoteInvisible"/> de propósito. Quando os dois
-    /// eram o mesmo método, a regra "nome desconhecido em minúscula é ruído do
-    /// formato" engolia também as frases em português — e o inventário voltava
-    /// vazio para documentos que tinham o que avisar.
-    /// </remarks>
     public void NoteInvisibleElement(string elementName)
     {
         var label = Describe(elementName);
@@ -143,18 +73,11 @@ public sealed class Inventory
     }
 
     /// <summary>
-    /// Traduz nome de elemento OOXML para algo que o usuário reconheça — ou
-    /// devolve <c>null</c> para o que não merece aviso nenhum.
+    /// Ou <c>null</c> para o ruído: <c>w:bidi</c>, <c>w:textDirection</c> e <c>w:formProt</c>
+    /// estão em toda seção gravada pelo LibreOffice.
     /// </summary>
-    /// <remarks>
-    /// A lista de silêncio importa tanto quanto a de tradução. `w:bidi`,
-    /// `w:textDirection` e `w:formProt` aparecem em toda seção gravada pelo
-    /// LibreOffice — e o corpus inteiro foi gravado por ele. Avisar sobre eles
-    /// encheria a tela de ruído em documentos perfeitamente normais.
-    /// </remarks>
     private static string? Describe(string what) => what switch
     {
-        // Ruído do LibreOffice e do próprio formato: nada a dizer ao usuário.
         "bidi" or "textDirection" or "formProt" or "docGrid" or "rPr" or "pPr" => null,
         "proofErr" or "lastRenderedPageBreak" or "bookmarkStart" or "bookmarkEnd" => null,
         "sectPr" or "tabs" or "spacing" or "ind" or "jc" or "widowControl" => null,
@@ -165,9 +88,7 @@ public sealed class Inventory
         "endnoteReference" => Endnotes,
         "fldChar" or "fldSimple" or "instrText" or "campo calculado" => Fields,
         "pict" or "object" or "AlternateContent" => Shapes,
-        // Desenho e marcação inteligente aparecem, respectivamente, como imagem
-        // e como texto comum: o conteúdo continua na tela, então não são
-        // estruturais.
+        // Desenho e marcação inteligente aparecem como imagem e texto: não são estruturais.
         "drawing" => "desenhos",
         "smartTag" => "marcações inteligentes",
         "sdt" or "sdtBlock" => ContentControls,

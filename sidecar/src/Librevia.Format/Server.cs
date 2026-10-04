@@ -5,28 +5,20 @@ using Librevia.Format.Protocol;
 namespace Librevia.Format;
 
 /// <summary>
-/// O laço stdio: lê um quadro, atende, responde. Um pedido por vez.
+/// O laço stdio, um pedido por vez: a pessoa abre um arquivo de cada vez, e prazo e
+/// cancelamento são do lado TypeScript, que derruba o processo.
 /// </summary>
-/// <remarks>
-/// Serial de propósito. Paralelizar aqui traria concorrência para dentro de um
-/// processo cujo trabalho é mexer em documento — e o ganho seria nenhum, porque
-/// o usuário abre um arquivo de cada vez. Quem cuida de prazo e de cancelamento
-/// é o lado TypeScript, que derruba o processo se ele demorar.
-/// </remarks>
 public sealed class Server(Stream input, Stream output)
 {
     private readonly Dictionary<string, Func<Request, ReadOnlyMemory<byte>, CancellationToken, Task<Reply>>>
         _handlers = new(StringComparer.Ordinal)
         {
             ["health"] = static (_, _, _) => Task.FromResult(Reply.Of(Health())),
-            // Existe para provar, de ponta a ponta, que binário grande atravessa
-            // inteiro. Não toca em disco e não guarda estado.
+            // Prova que binário grande atravessa inteiro.
             ["diagnostics.echo"] = static (_, binary, _) => Task.FromResult(new Reply(null, binary)),
             ["docx.open"] = static (_, binary, _) =>
                 Task.FromResult(Reply.Of(Docx.DocxReader.Read(binary.ToArray()))),
-            // O binário são os bytes originais que o main guardou na abertura;
-            // o modelo vem nos parâmetros. O sidecar não guarda nada entre um
-            // pedido e outro.
+            // O binário são os bytes originais guardados pelo main; o sidecar não guarda estado.
             ["docx.save"] = static (request, binary, _) =>
             {
                 var model = request.Params.Deserialize<Docx.DocumentModelDto>(JsonOptions.Default)
@@ -34,9 +26,6 @@ public sealed class Server(Stream input, Stream output)
                 var (bytes, result) = Docx.DocxWriter.Write(binary.ToArray(), model);
                 return Task.FromResult(new Reply(result, bytes));
             },
-            // O pacote mínimo de um documento que nasceu no editor: é ele que faz
-            // o papel de original na primeira gravação em DOCX. Recebe a
-            // configuração de página e os estilos, e devolve só binário — ver DocxTemplate.
             ["docx.create"] = static (request, _, _) =>
             {
                 var create = request.Params.Deserialize<Docx.DocxCreateDto>(JsonOptions.Default)
@@ -45,9 +34,7 @@ public sealed class Server(Stream input, Stream output)
             },
             ["xlsx.open"] = static (_, binary, _) =>
                 Task.FromResult(Reply.Of(Xlsx.XlsxReader.Read(binary.ToArray()))),
-            // Mesmo contrato do docx.save: os bytes originais entram pelo
-            // binário e o modelo pelos parâmetros. Binário vazio quer dizer
-            // planilha nova, sem original para preservar.
+            // Binário vazio é planilha nova, sem original.
             ["xlsx.save"] = static (request, binary, _) =>
             {
                 var model = request.Params.Deserialize<Xlsx.WorkbookDto>(JsonOptions.Default)
@@ -78,14 +65,11 @@ public sealed class Server(Stream input, Stream output)
             }
             catch (InvalidDataException problem)
             {
-                // Fluxo corrompido: não há como saber onde o próximo quadro
-                // começa, então sair é mais honesto que adivinhar. O main
-                // percebe a saída e sobe um processo limpo no próximo pedido.
+                // Sem saber onde começa o próximo quadro, sair; o main sobe outro processo.
                 await Console.Error.WriteLineAsync($"quadro inválido: {problem.Message}").ConfigureAwait(false);
                 return;
             }
 
-            // stdin fechado — é assim que o main pede para encerrar.
             if (frame is null)
             {
                 return;
@@ -118,7 +102,6 @@ public sealed class Server(Stream input, Stream output)
         }
         catch (Docx.DocxException problem)
         {
-            // Já traz frase pronta para o usuário — não vira "erro inesperado".
             await RespondErrorAsync(
                 request?.Id ?? 0,
                 new ErrorPayload("DOCX_INVALID", problem.Message),
@@ -133,8 +116,7 @@ public sealed class Server(Stream input, Stream output)
         }
         catch (Exception problem) when (problem is not OperationCanceledException)
         {
-            // Qualquer falha inesperada vira uma resposta, nunca um processo
-            // morto em silêncio: o main precisa de algo para mostrar ao usuário.
+            // O main precisa de uma resposta para mostrar, e não de um processo morto.
             await Console.Error.WriteLineAsync(problem.ToString()).ConfigureAwait(false);
             await RespondErrorAsync(
                 request?.Id ?? 0,
@@ -160,8 +142,7 @@ public sealed class Server(Stream input, Stream output)
     private static HealthResult Health() => new(
         Name: "Librevia.Format",
         Version: typeof(Server).Assembly.GetName().Version?.ToString() ?? "0.0.0",
-        // Reportar as versões das bibliotecas OOXML deixa de ser curiosidade
-        // quando um documento abre errado só numa máquina.
+        // Para o documento que abre errado numa máquina só.
         Runtime: string.Join(' ',
             Environment.Version.ToString(),
             $"OpenXml={VersionOf("DocumentFormat.OpenXml")}",

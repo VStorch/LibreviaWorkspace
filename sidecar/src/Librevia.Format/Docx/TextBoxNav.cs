@@ -4,24 +4,12 @@ using DocumentFormat.OpenXml.Wordprocessing;
 namespace Librevia.Format.Docx;
 
 /// <summary>
-/// Como se chega às caixas de texto de um parágrafo, e em que ordem.
+/// Leitor e escritor veem as mesmas caixas na mesma ordem: o texto volta ao
+/// <c>w:txbxContent</c> pela posição na lista de objetos do bloco.
 /// </summary>
-/// <remarks>
-/// Leitor e escritor precisam ver **as mesmas caixas na mesma ordem**: o modelo
-/// entrega os objetos de um bloco numa lista, e é por posição nessa lista que o
-/// texto digitado volta para o `w:txbxContent` certo. Duas travessias parecidas
-/// escritas em dois arquivos divergiriam, e a divergência escreveria o subtítulo
-/// dentro do título.
-/// </remarks>
 internal static class TextBoxNav
 {
-    /// <summary>
-    /// As caixas mais externas de um desenho.
-    /// </summary>
-    /// <remarks>
-    /// Caixa dentro de caixa aparece: o conteúdo da de dentro já é lido junto
-    /// com o da de fora, e descê-la de novo a mostraria duas vezes.
-    /// </remarks>
+    /// <summary>Caixa dentro de caixa já é lida com a de fora, e não desce de novo.</summary>
     internal static IEnumerable<TextBoxContent> Outermost(OpenXmlElement root)
     {
         foreach (var child in root.ChildElements)
@@ -37,25 +25,17 @@ internal static class TextBoxNav
     }
 
     /// <summary>
-    /// O ramo que vale de um `mc:AlternateContent`.
+    /// O Word grava a forma em <c>mc:Choice</c> (DrawingML) e em <c>mc:Fallback</c>
+    /// (VML): um ramo só, senão a caixa aparece em dobro.
     /// </summary>
-    /// <remarks>
-    /// O Word grava a mesma forma duas vezes — `mc:Choice` em DrawingML e
-    /// `mc:Fallback` no VML antigo. Um ramo só, ou cada caixa aparece em dobro.
-    /// </remarks>
     internal static OpenXmlElement? BranchOf(AlternateContent alternate) =>
         (OpenXmlElement?)alternate.GetFirstChild<AlternateContentChoice>()
         ?? alternate.GetFirstChild<AlternateContentFallback>();
 
     /// <summary>
-    /// As caixas dos desenhos **posicionados** do parágrafo, na ordem do arquivo.
+    /// A mesma peneira do leitor: a caixa de desenho no fluxo é lida na linha e não
+    /// entra na contagem, senão desloca as outras.
     /// </summary>
-    /// <remarks>
-    /// A mesma peneira que o leitor usa para decidir o que vira objeto na folha:
-    /// desenho ancorado que não está onde o fluxo já o poria. Caixa de desenho
-    /// no fluxo tem o texto lido na linha, não vira objeto, e não pode entrar
-    /// nesta contagem sob pena de deslocar todas as outras.
-    /// </remarks>
     internal static IEnumerable<TextBoxContent> AnchoredBoxesOf(OpenXmlElement paragraph)
     {
         foreach (var run in paragraph.Elements<Run>())
@@ -73,20 +53,9 @@ internal static class TextBoxNav
     }
 
     /// <summary>
-    /// O ramo de reserva repete o texto do ramo que vale.
+    /// O ramo VML repete o texto do que vale, senão o arquivo diz duas coisas e cada
+    /// programa lê uma. A forma VML fica, porque é a moldura de quem lê esse ramo.
     /// </summary>
-    /// <remarks>
-    /// O Word grava a mesma caixa duas vezes, em DrawingML e no VML antigo.
-    /// Escrever só numa deixaria o arquivo dizendo duas coisas, e qual delas
-    /// aparece depende de quem abre.
-    ///
-    /// Só o texto: a forma do VML fica como está, porque é ela que dá a moldura
-    /// para quem lê o ramo antigo.
-    ///
-    /// Mora aqui porque são dois os escritores que precisam dela — o do corpo e
-    /// o da faixa — e porque o espelho tem de seguir a mesma travessia que
-    /// escolheu o ramo que vale.
-    /// </remarks>
     internal static void MirrorFallback(AlternateContent alternate)
     {
         var choice = alternate.GetFirstChild<AlternateContentChoice>();
@@ -111,14 +80,7 @@ internal static class TextBoxNav
     internal static IEnumerable<Paragraph> ParagraphsOf(TextBoxContent box) =>
         box.Descendants<Paragraph>().Where(p => p.Ancestors<TextBoxContent>().First() == box);
 
-    /// <summary>
-    /// O texto de uma caixa, para comparar com o que voltou do editor.
-    /// </summary>
-    /// <remarks>
-    /// Comparar texto é o que deixa a caixa **não editada** intocada: o XML dela
-    /// segue byte a byte, com a moldura, o preenchimento e a formatação que este
-    /// escritor não sabe reproduzir.
-    /// </remarks>
+    /// <summary>A caixa de texto igual não é regravada, e guarda o que o escritor não reproduz.</summary>
     internal static string TextOf(TextBoxContent box) =>
         string.Join("\n", ParagraphsOf(box).Select(p => string.Concat(p.Descendants<Text>().Select(t => t.Text))));
 }

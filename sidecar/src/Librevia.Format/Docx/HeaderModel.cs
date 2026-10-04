@@ -3,24 +3,10 @@ using System.Text.Json.Serialization;
 namespace Librevia.Format.Docx;
 
 /// <summary>
-/// Cabeçalho ou rodapé em forma exibível.
+/// **De mão única**: a parte OOXML original volta intacta, e daqui sai só o que a
+/// tela e o PDF desenham. Três colunas e filete opcional, como o cabeçalho
+/// corporativo; o desenho ancorado vai em <c>Floats</c>, com a conta de posição do corpo.
 /// </summary>
-/// <remarks>
-/// **De mão única.** O que vai para o arquivo é a parte OOXML original, copiada
-/// intacta pela gravação cirúrgica; daqui sai só o que a tela e o PDF precisam
-/// desenhar. É isso que torna esta extração barata: um erro aqui é cosmético,
-/// não perda de dados.
-///
-/// O modelo é uma **faixa de três colunas com filete opcional** — esquerda,
-/// centro, direita — que é como o Word sempre pensou cabeçalho e como quase todo
-/// cabeçalho corporativo é montado. É o bastante para o texto.
-///
-/// O que **não** cabe em três colunas é o desenho ancorado: ele traz posição de
-/// verdade e pode vir girado, e a marca lateral do corpus é uma faixa de 28,6 mm
-/// em pé — não entra numa banda de 10 mm de altura. Esses saem em `Floats`, com
-/// a mesma descrição dos objetos ancorados do corpo, e são desenhados pela mesma
-/// conta de posição.
-/// </remarks>
 public sealed record BandDto(
     [property: JsonPropertyName("left")] List<PieceDto> Left,
     [property: JsonPropertyName("center")] List<PieceDto> Center,
@@ -41,35 +27,22 @@ public sealed record BandDto(
         && (Rows is null || Rows.Count == 0);
 }
 
-/// <summary>Uma linha da grade do cabeçalho.</summary>
 public sealed record BandRowDto(
     [property: JsonPropertyName("cells")] List<BandCellDto> Cells);
 
 /// <summary>
-/// Uma célula da grade: o que está escrito nela e o retângulo que ela ocupa.
+/// O logotipo numa célula mesclada, o título ao lado. As bordas vêm como as iniciais
+/// dos lados (<c>t</c>, <c>l</c>, <c>b</c>, <c>r</c>), já resolvidas: tela e papel não refazem a conta.
 /// </summary>
-/// <remarks>
-/// A grade é a outra metade do cabeçalho corporativo, e a que não cabia em três
-/// colunas. No corpus real ela traz o logotipo numa célula mesclada por quatro
-/// linhas, o título ao lado e a numeração à direita — e achatada em esquerda,
-/// centro e direita virava uma sopa de palavras por cima do texto.
-///
-/// As bordas vêm como as iniciais dos lados que existem — `t`, `l`, `b`, `r`.
-/// Não é economia de bytes: é que o OOXML resolve cada lado por três caminhos
-/// (a borda da célula, a da tabela, a interna), e o resultado dessa conta é um
-/// sim ou não por lado. Guardar a conta feita evita refazê-la em dois
-/// desenhistas diferentes, que é como tela e papel divergem.
-/// </remarks>
 public sealed record BandCellDto(
     [property: JsonPropertyName("pieces")] List<PieceDto> Pieces,
-    /// <summary>Fração da largura da grade, de 0 a 1.</summary>
+    /// <summary>De 0 a 1.</summary>
     [property: JsonPropertyName("width")] double Width,
     [property: JsonPropertyName("span")] int Span,
     [property: JsonPropertyName("rowSpan")] int RowSpan,
     [property: JsonPropertyName("align")] string? Align,
     [property: JsonPropertyName("borders")] string Borders);
 
-/// <summary>Um pedaço do cabeçalho: texto, imagem ou número de página.</summary>
 public sealed record PieceDto(
     [property: JsonPropertyName("kind")] string Kind,
     [property: JsonPropertyName("text")] string? Text = null,
@@ -80,43 +53,16 @@ public sealed record PieceDto(
     [property: JsonPropertyName("italic")] bool Italic = false,
     [property: JsonPropertyName("color")] string? Color = null,
     [property: JsonPropertyName("fontSize")] string? FontSize = null,
-    /// <summary>
-    /// A fonte, já como pilha de CSS.
-    /// </summary>
-    /// <remarks>
-    /// Sem ela o cabeçalho herda a fonte do editor: o título do documento de
-    /// evidências pede Calibri e saía em Times, com serifa, enquanto o
-    /// LibreOffice o desenha sem — a primeira coisa que se vê ao abrir.
-    /// </remarks>
+    /// <summary>Já como pilha de CSS.</summary>
     [property: JsonPropertyName("fontFamily")] string? FontFamily = null,
-    /// <summary>
-    /// A peça abre linha nova.
-    /// </summary>
-    /// <remarks>
-    /// Cabeçalho e rodapé são feitos de parágrafos, e um parágrafo é uma linha.
-    /// Sem esta marca, o rodapé de três linhas do modelo de manual — endereço,
-    /// autoria e data — saía como uma frase só, emendada na largura da folha,
-    /// enquanto o LibreOffice mostrava as três empilhadas.
-    /// </remarks>
+    /// <summary>Cada parágrafo do cabeçalho é uma linha.</summary>
     [property: JsonPropertyName("line")] bool Line = false,
     /// <summary>
-    /// Onde esta peça mora no arquivo: a relação, o parágrafo e a peça nele.
+    /// A relação, o parágrafo e a peça: a gravação escreve **só no <c>w:t</c> dela**. Número
+    /// de página, imagem e cache de campo não têm <c>w:t</c> e não são editáveis.
     /// </summary>
-    /// <remarks>
-    /// É o que torna a faixa editável sem deixar de ser cirúrgica. O modelo da
-    /// faixa é uma projeção com perda — tabulação vira espaço, campo vira
-    /// marcador, run vizinho de mesmo estilo se funde — então comparar o texto
-    /// inteiro para decidir o que mudou erraria. Com o endereço, a gravação
-    /// escreve **só no `w:t` daquela peça** e não olha para o resto.
-    ///
-    /// Peça sem endereço não é editável, e é de propósito: número de página,
-    /// imagem e texto em cache de campo não têm `w:t` próprio onde escrever, e
-    /// digitar por cima deles apagaria o campo.
-    /// </remarks>
     [property: JsonPropertyName("pid")] string? Pid = null,
-    /// <summary>
-    /// O texto traz `{n}` ou `{total}` escritos no arquivo — é texto, e não campo.
-    /// </summary>
+    /// <summary>O texto traz <c>{n}</c> ou <c>{total}</c> escritos: é texto, e não campo.</summary>
     [property: JsonPropertyName("literal")]
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     bool Literal = false)

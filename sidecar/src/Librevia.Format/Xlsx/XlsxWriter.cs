@@ -3,23 +3,10 @@ using ClosedXML.Excel;
 namespace Librevia.Format.Xlsx;
 
 /// <summary>
-/// Modelo do aplicativo → XLSX, escrevendo **só o que mudou**.
+/// Modelo → XLSX, escrevendo só o que mudou. O ClosedXML preserva as partes que não
+/// modela, mas regenera a planilha: a gravação relê o original e toca só as células
+/// que mudaram, para não apagar o que o modelo não representa.
 /// </summary>
-/// <remarks>
-/// O princípio é o mesmo do DOCX: o que o usuário não editou volta como estava.
-/// A execução é diferente, e a diferença vem de uma medição.
-///
-/// No DOCX, a preservação é feita à mão, parte por parte, porque a biblioteca
-/// regenerava tudo. No XLSX, o ClosedXML **preserva as partes que não modela** —
-/// uma parte de XML personalizada injetada à mão sobrevive à ida e volta. O que
-/// ele regenera é a planilha em si.
-///
-/// Então o risco aqui não é o pacote: é a célula. Escrever todas as células a
-/// cada gravação apagaria fonte, tamanho, alinhamento vertical, recuo e
-/// bordas diagonais — tudo que o modelo do aplicativo não representa. Por isso a
-/// gravação relê o arquivo original com o mesmo leitor, compara célula a célula,
-/// e só toca no que de fato mudou.
-/// </remarks>
 public static class XlsxWriter
 {
     public sealed record Result(int Sheets, int CellsWritten, int CellsCleared, int CellsPreserved);
@@ -31,9 +18,7 @@ public static class XlsxWriter
             throw new XlsxException("Não há nada para gravar: a planilha ficou sem abas.");
         }
 
-        // O fluxo de origem precisa viver até o `SaveAs`: o ClosedXML guarda
-        // referência a ele e só lê as partes que faltam na hora de gravar.
-        // Fechá-lo antes derruba a gravação com "Cannot access a closed Stream".
+        // O ClosedXML lê as partes que faltam no `SaveAs`: fechado antes, "Cannot access a closed Stream".
         using var source = new MemoryStream(original ?? [], writable: false);
         using var book = Open(source, original is not null && original.Length > 0);
         var before = original is null ? null : XlsxReader.Read(original).Workbook;
@@ -50,8 +35,7 @@ public static class XlsxWriter
             var sheet = book.Worksheet(index + 1);
             var previous = before?.Sheets.ElementAtOrDefault(index);
 
-            // A aba comparada é a de mesma **posição**, não a de mesmo nome:
-            // renomear uma aba não pode fazer o conteúdo dela parecer novo.
+            // Pela posição, e não pelo nome: aba renomeada não é aba nova.
             var (w, c, p) = SyncCells(sheet, wanted, previous);
             written += w;
             cleared += c;
@@ -83,7 +67,6 @@ public static class XlsxWriter
         }
     }
 
-    /// <summary>Acerta quantidade, ordem e nome das abas.</summary>
     private static void SyncSheets(XLWorkbook book, WorkbookDto model)
     {
         while (book.Worksheets.Count > model.Sheets.Count)
@@ -93,13 +76,11 @@ public static class XlsxWriter
 
         while (book.Worksheets.Count < model.Sheets.Count)
         {
-            // Nome provisório: o acerto de nomes vem logo abaixo, e usar o nome
-            // final aqui esbarraria numa aba que ainda não foi renomeada.
+            // Provisório: o nome final pode ainda ser o de outra aba.
             book.Worksheets.Add($"__nova{book.Worksheets.Count + 1}");
         }
 
-        // Renomear em duas passadas: dar a uma aba o nome que outra ainda tem é
-        // um erro do ClosedXML, e trocar duas abas de nome é um caso normal.
+        // Em duas passadas: o ClosedXML recusa o nome que outra aba ainda tem.
         for (var index = 0; index < model.Sheets.Count; index++)
         {
             var sheet = book.Worksheet(index + 1);
@@ -141,9 +122,7 @@ public static class XlsxWriter
             {
                 if (wanted.Cells.ContainsKey(reference)) continue;
 
-                // Some do modelo quer dizer apagada pelo usuário. Limpar
-                // conteúdo e formato, e não a célula inteira, evita mexer no que
-                // é da linha ou da coluna.
+                // Conteúdo e formato, e não a célula: o da linha e o da coluna ficam.
                 sheet.Cell(reference).Clear(XLClearOptions.Contents | XLClearOptions.NormalFormats);
                 cleared++;
             }
@@ -179,8 +158,7 @@ public static class XlsxWriter
                 target.Value = flag;
                 break;
             case string text:
-                // Texto que começa com `=` sem ser fórmula precisa ir como
-                // texto, senão o Excel o interpreta ao reabrir.
+                // Senão o Excel interpreta o `=` ao reabrir.
                 target.SetValue(text);
                 break;
             default:
@@ -189,14 +167,7 @@ public static class XlsxWriter
         }
     }
 
-    /// <summary>
-    /// Aplica só os atributos que mudaram.
-    /// </summary>
-    /// <remarks>
-    /// Escrever o estilo inteiro apagaria o que o modelo não carrega: nome e
-    /// tamanho da fonte, alinhamento vertical, recuo, quebra de texto. O usuário
-    /// perderia a aparência de uma célula por ter mudado a cor dela.
-    /// </remarks>
+    /// <summary>Só os atributos que mudaram: o estilo inteiro apagaria fonte, recuo e quebra.</summary>
     private static void WriteStyle(IXLCell target, CellStyleDto? style, CellStyleDto? before)
     {
         var wanted = style ?? new CellStyleDto();

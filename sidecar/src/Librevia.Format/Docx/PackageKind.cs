@@ -4,23 +4,12 @@ using System.Xml.Linq;
 namespace Librevia.Format.Docx;
 
 /// <summary>
-/// Documento ou modelo: o tipo do pacote, dito pelo tipo de conteúdo da parte principal.
+/// Documento ou modelo, pelo tipo de conteúdo da parte principal. Um <c>.dotx</c> é
+/// um <c>.docx</c> com outro rótulo, e o Word recusa o <c>.docx</c> com rótulo de
+/// modelo. As macros do <c>.dotm</c> saem, com aviso: o aplicativo não as executa, e
+/// um <c>.docx</c> com <c>vbaProject.bin</c> é inválido. Mexe só no rótulo e nas
+/// macros; o resto do zip sai como entrou.
 /// </summary>
-/// <remarks>
-/// Um `.dotx` é um `.docx` com outro rótulo em `[Content_Types].xml` — o mesmo
-/// `word/document.xml`, os mesmos estilos, cabeçalhos e tema. O documento
-/// criado a partir de um modelo parte dos bytes do modelo, e é a gravação que
-/// troca o rótulo para o do destino: gravado como `.docx` com o rótulo de
-/// modelo, o Word recusa o arquivo.
-///
-/// O `.dotm` leva macros (VBA). Elas não viajam: o aplicativo não as executa nem as
-/// edita, e um `.docx` com `vbaProject.bin` é inválido. Saem o projeto, os dados
-/// dele e as personalizações de teclado e barra que só existem em pacote com macro
-/// — e a perda é declarada, nunca calada.
-///
-/// Trabalha nos bytes do zip, depois da gravação cirúrgica: as partes que não são
-/// do rótulo nem das macros saem como entraram.
-/// </remarks>
 public static class PackageKind
 {
     public const string DocumentMain =
@@ -58,10 +47,7 @@ public static class PackageKind
         return main is not null && MainContentType(archive, main) is MacroDocumentMain or MacroTemplateMain;
     }
 
-    /// <summary>
-    /// Devolve o pacote com o rótulo de documento ou de modelo, sem as macros.
-    /// </summary>
-    /// <returns>Os mesmos bytes quando já estava certo — nada a mexer.</returns>
+    /// <summary>Com o rótulo pedido e sem macros; os mesmos bytes quando já estava certo.</summary>
     public static byte[] Retarget(byte[] bytes, bool template, Inventory inventory)
     {
         using var archive = new ZipArchive(new MemoryStream(bytes, writable: false), ZipArchiveMode.Read);
@@ -78,8 +64,7 @@ public static class PackageKind
 
         if (current is MacroDocumentMain or MacroTemplateMain)
         {
-            // As relações de macro saem de toda parte que as tenha (o projeto aponta
-            // os dados dele), e as partes apontadas saem do pacote.
+            // O projeto aponta os dados dele: as relações de macro saem de toda parte.
             foreach (var entry in archive.Entries.Where(entry => entry.FullName.EndsWith(".rels", StringComparison.Ordinal)))
             {
                 var rels = ReadXml(archive, entry.FullName)!;
@@ -99,14 +84,12 @@ public static class PackageKind
                 rewritten[entry.FullName] = rels;
             }
 
-            // As relações das partes que saíram saem junto com elas.
             foreach (var part in dropped.ToList()) dropped.Add(RelsOf(part));
             inventory.NoteLoss(Macros);
         }
 
         foreach (var name in rewritten.Keys.Where(dropped.Contains).ToList()) rewritten.Remove(name);
 
-        // O rótulo da parte principal, e as declarações das partes que saíram.
         var labeled = false;
         foreach (var over in types.Root!.Elements(ContentTypes + "Override").ToList())
         {
@@ -122,8 +105,7 @@ public static class PackageKind
             }
         }
 
-        // Rotulada pelo padrão da extensão (o SDK faz isso no pacote de uma parte
-        // só): ganha uma declaração própria, que vale mais que o padrão.
+        // O SDK rotula o pacote de uma parte só pela extensão: a declaração própria vale mais.
         if (!labeled)
         {
             types.Root.Add(new XElement(
@@ -137,8 +119,7 @@ public static class PackageKind
         foreach (var fallback in types.Root.Elements(ContentTypes + "Default").ToList())
         {
             var extension = (string?)fallback.Attribute("Extension") ?? string.Empty;
-            // O padrão que o SDK põe no `.xml` do pacote de uma parte só é o rótulo
-            // da principal: troca junto, para que nenhum rótulo antigo sobre.
+            // Esse padrão é o rótulo da principal, e troca junto.
             if ((string?)fallback.Attribute("ContentType") is DocumentMain or TemplateMain or MacroDocumentMain or MacroTemplateMain)
             {
                 fallback.SetAttributeValue("ContentType", wanted);

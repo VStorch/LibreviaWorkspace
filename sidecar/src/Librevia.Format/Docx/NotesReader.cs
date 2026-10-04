@@ -37,12 +37,8 @@ public sealed record NotesDto(
     NotePrDto? EndnotePr = null);
 
 /// <summary>
-/// Lê a numeração das notas: a do `w:sectPr` do corpo vence a do `settings.xml`.
+/// A numeração das notas: a do <c>w:sectPr</c> do corpo vence a do <c>settings.xml</c>.
 /// </summary>
-/// <remarks>
-/// A tela numera as referências por ela. Na gravação, o arquivo a guarda como
-/// estava, a menos que o modelo peça outra — ver NotesWriter.ApplyNumbering.
-/// </remarks>
 internal static class NotesReader
 {
     public static NotesDto? Read(MainDocumentPart part, Body body)
@@ -71,7 +67,7 @@ internal static class NotesReader
             section.Pos ?? document.Pos);
     }
 
-    /// <summary>Os quatro filhos que importam, pelo nome local — os dois tipos de nota têm os mesmos.</summary>
+    /// <summary>Pelo nome local: os dois tipos de nota têm os mesmos filhos.</summary>
     private static NotePrDto? Describe(OpenXmlElement? properties)
     {
         if (properties is null) return null;

@@ -5,23 +5,13 @@ using DocumentFormat.OpenXml.Wordprocessing;
 namespace Librevia.Format.Docx;
 
 /// <summary>
-/// A definição de uma lista como o editor a leva: nove níveis, cada um com
-/// formato, texto, início e recuo.
+/// A lista como o editor a leva: nove níveis com formato, texto, início e recuo.
+/// Espelho de <c>NumberingDef</c>/<c>LevelDef</c> em <c>list-numbering.ts</c>: mudam
+/// juntos. Mora no nó para viajar com ele (colar, <c>.sdoc</c>, desfazer), e por
+/// isso entra na impressão digital: leitor e editor a produzem idêntica.
+/// O marcador vai traduzido (<c>•</c>, e não o glifo da Symbol); <see cref="GlyphOf"/>
+/// faz a volta.
 /// </summary>
-/// <remarks>
-/// É o espelho de `list-numbering.ts` (`NumberingDef`/`LevelDef`), e os dois
-/// precisam mudar juntos. Mora no **nó da lista**, e não num catálogo à parte
-/// como os estilos, por uma razão prática: o nó viaja sozinho — colado de outro
-/// documento, gravado no `.sdoc`, desfeito e refeito — e a numeração tem de ir
-/// com ele. O custo é que a definição entra na impressão digital do item de fora
-/// quando a lista é aninhada; por isso leitor e editor a produzem idêntica, e o
-/// editor nunca a reescreve sozinho.
-///
-/// A marca da lista com marcador vai **traduzida** (`•`, e não o `` da fonte
-/// Symbol): é o que a tela desenha. A volta ao glifo e à fonte que o Word espera
-/// é de <see cref="GlyphOf"/>, e as duas tabelas são a mesma lida nos dois
-/// sentidos.
-/// </remarks>
 public static class ListLevels
 {
     public const int Count = 9;
@@ -43,15 +33,9 @@ public static class ListLevels
     ];
 
     /// <summary>
-    /// A marca de um `w:lvlText` de marcador, como qualquer fonte a desenha.
+    /// O Word grava os marcadores da Symbol e da Wingdings na área de uso privado,
+    /// que fora dessas fontes é a caixinha de caractere ausente. O desconhecido vira bolinha.
     /// </summary>
-    /// <remarks>
-    /// O Word grava os glifos das fontes Symbol e Wingdings na área de uso
-    /// privado do Unicode. Servido como está, aparece a caixinha de caractere
-    /// ausente; trocado pelo equivalente de verdade, aparece a marca que o
-    /// documento pede — e não a bolinha que o CSS escolhe sozinho. O que a
-    /// tabela não conhece vira bolinha: é o que há de mais neutro.
-    /// </remarks>
     public static string Shown(string text) => string.Concat(text.Select(letter =>
     {
         foreach (var (glyph, font, shown) in Glyphs)
@@ -82,10 +66,9 @@ public static class ListLevels
     }
 
     /// <summary>
-    /// Os níveis que o Word dá a uma lista nova: 1. a. i. na numerada, e • o ▪
-    /// na com marcador, repetidos de três em três.
+    /// Os níveis do Word para lista nova (1. a. i. e • o ▪), iguais a
+    /// <c>defaultLevels</c> em <c>list-numbering.ts</c>.
     /// </summary>
-    /// <remarks>Iguais a `defaultLevels` em `list-numbering.ts`: a tela desenha a lista nova com eles.</remarks>
     public static JsonArray Defaults(string kind)
     {
         var bullet = string.Equals(kind, "bulletList", StringComparison.Ordinal);
@@ -126,13 +109,7 @@ public static class ListLevels
     public static string FormatName(Level? definition) =>
         definition?.NumberingFormat?.Val?.InnerText is { Length: > 0 } name ? name : "decimal";
 
-    /// <summary>
-    /// Um nível do OOXML, montado de volta da definição do editor.
-    /// </summary>
-    /// <remarks>
-    /// Formato que o SDK não conhece vira decimal: gravar um valor fora da
-    /// enumeração faria o Word recusar o arquivo inteiro.
-    /// </remarks>
+    /// <summary>Formato que o SDK não conhece vira decimal: o Word recusaria o arquivo.</summary>
     public static Level ToOpenXml(JsonObject? source, int index, string kind, Inventory? inventory = null)
     {
         var fallback = (JsonObject)Defaults(kind)[index]!;
@@ -176,8 +153,7 @@ public static class ListLevels
             },
         };
 
-        // Nível recriado sem o original: a formatação própria do número e o
-        // estilo ligado ficaram no documento de onde a lista veio.
+        // Sem o original, o formato do número e o estilo ligado ficaram no documento de origem.
         if (level["extra"]?.GetValue<bool>() == true)
         {
             inventory?.NoteLoss("formatação própria do número de uma lista (fonte, cor ou estilo do nível)");
@@ -190,8 +166,7 @@ public static class ListLevels
 
         if (font is not null)
         {
-            // A marca do Word vem da área de uso privado, e só a fonte dela a
-            // desenha. Sem declarar a fonte aparece a caixinha de caractere ausente.
+            // O glifo da área de uso privado só a fonte dele desenha.
             definition.NumberingSymbolRunProperties = new NumberingSymbolRunProperties(new RunFonts
             {
                 Ascii = font,
@@ -210,10 +185,8 @@ public static class ListLevels
         node is JsonValue value && value.TryGetValue<double>(out var number) ? number : null;
 
     /// <summary>
-    /// O formato pelo nome OOXML — qualquer um que o esquema conheça, e não só os
-    /// que a tela desenha: `ordinal`, `chineseCounting` e companhia voltam como
-    /// vieram. Nome fora do esquema vira decimal, com aviso: gravá-lo faria o
-    /// Word recusar o arquivo inteiro.
+    /// Qualquer nome do esquema, não só os que a tela desenha. Fora dele, decimal com
+    /// aviso: o Word recusaria o arquivo.
     /// </summary>
     private static NumberFormatValues FormatOf(string name, Inventory? inventory)
     {

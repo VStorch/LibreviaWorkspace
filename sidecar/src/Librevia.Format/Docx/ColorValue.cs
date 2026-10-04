@@ -3,34 +3,16 @@ using System.Globalization;
 namespace Librevia.Format.Docx;
 
 /// <summary>
-/// Cor do CSS → hexadecimal de seis dígitos, que é a única forma que o OOXML
-/// entende.
+/// Cor do CSS → hexadecimal de seis dígitos, a única forma do OOXML. O alfa sai:
+/// o OOXML não tem texto transparente. Cor que não se converte volta <c>null</c>,
+/// e quem chamou registra a perda.
 /// </summary>
-/// <remarks>
-/// O editor guarda cor como o CSS a escreve, e o CSS tem cinco jeitos de dizer
-/// vermelho. O Word tem um: `FF0000`. Enquanto o valor ia direto para o
-/// atributo, um `rgb(255, 0, 0)` — que é o que o navegador devolve ao ler uma
-/// cor de um `style` — virava `w:color w:val="rgb(255, 0, 0)"`, e o Word abria o
-/// documento como danificado. O nome `red`, mais discreto, era aceito e
-/// desenhado como preto.
-///
-/// O canal alfa é descartado de propósito: o OOXML não tem transparência de
-/// texto, e aproximá-la sobre um fundo que não conhecemos seria inventar uma cor
-/// que ninguém pediu. Cor que não dá para converter volta <c>null</c>, e quem
-/// chamou registra a perda — nunca grava um valor inválido no arquivo.
-/// </remarks>
 internal static class ColorValue
 {
     /// <summary>
-    /// As cores que o CSS nomeia e aparecem em documento de verdade.
+    /// As 16 do HTML, as cinzas e as dos temas do Word; o resto das 148 do CSS vai
+    /// ao aviso.
     /// </summary>
-    /// <remarks>
-    /// As 148 do CSS não cabem aqui sem virar tabela de dados. Estas são as 16
-    /// do HTML original — as que as barras de ferramentas oferecem — mais as
-    /// cinzas e as que o Word usa nos seus próprios temas. O resto cai no
-    /// inventário, que é honesto: melhor avisar que a cor se perdeu do que
-    /// gravar um palpite.
-    /// </remarks>
     private static readonly Dictionary<string, string> Named = new(StringComparer.OrdinalIgnoreCase)
     {
         ["black"] = "000000",
@@ -70,8 +52,7 @@ internal static class ColorValue
 
         var value = css.Trim();
 
-        // "auto" e "transparent" não são cores: são a ausência de uma. Gravá-las
-        // como preto poria cor onde o documento não pedia nenhuma.
+        // Ausência de cor: como preto poria cor onde não há.
         if (value.Equals("auto", StringComparison.OrdinalIgnoreCase) ||
             value.Equals("none", StringComparison.OrdinalIgnoreCase) ||
             value.Equals("inherit", StringComparison.OrdinalIgnoreCase) ||
@@ -85,13 +66,7 @@ internal static class ColorValue
         if (value.StartsWith('#')) return FromHex(value[1..]);
         if (value.StartsWith("rgb", StringComparison.OrdinalIgnoreCase)) return FromRgb(value);
 
-        // Já pode ser o hexadecimal do próprio OOXML, sem cerquilha — e é só essa
-        // forma que passa: seis dígitos, que é como o Word os grava.
-        //
-        // A forma curta aqui aceitaria qualquer palavra que por acaso seja
-        // hexadecimal: `fade` virava FFAADD, uma cor errada no lugar do aviso de
-        // que a cor se perdeu. Nome fora da tabela devolve `null`, e quem chamou
-        // registra a perda.
+        // Só os seis dígitos do OOXML: na forma curta, `fade` viraria FFAADD.
         return value.Length == 6 ? FromHex(value) : null;
     }
 
@@ -99,8 +74,7 @@ internal static class ColorValue
     {
         if (!digits.All(Uri.IsHexDigit)) return null;
 
-        // `#rgb` é a forma curta: cada dígito vale por dois. O alfa de `#rrggbbaa`
-        // e de `#rgba` é descartado com o resto da transparência.
+        // O alfa de `#rrggbbaa` e `#rgba` sai.
         return digits.Length switch
         {
             3 or 4 => string.Concat(digits[..3].Select(digit => new string(digit, 2))).ToUpperInvariant(),
@@ -116,8 +90,6 @@ internal static class ColorValue
         var close = value.LastIndexOf(')');
         if (open < 0 || close < open) return null;
 
-        // Vírgula ou espaço separam os canais, e a barra separa o alfa: as duas
-        // gramáticas do CSS moderno, tratadas como uma.
         var parts = value[(open + 1)..close]
             .Split([',', ' ', '/'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         if (parts.Length < 3) return null;

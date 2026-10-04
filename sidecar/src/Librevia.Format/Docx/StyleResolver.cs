@@ -5,36 +5,20 @@ using DocumentFormat.OpenXml.Wordprocessing;
 namespace Librevia.Format.Docx;
 
 /// <summary>
-/// Resolve a formatação efetiva de um parágrafo: padrões do documento, estilo
-/// (com a cadeia de heranças) e formatação direta, nessa ordem.
+/// Padrões do documento, estilo (com a cadeia) e direta, nessa ordem: no corpus
+/// quase todo parágrafo tem <c>w:pStyle</c>, e o <c>Heading1</c> é uma barra vermelha que
+/// mora em <c>styles.xml</c>. É a leitura achatada (lista, célula, rascunho antigo).
 /// </summary>
-/// <remarks>
-/// Sem isto, um documento que usa estilos abre praticamente sem formatação —
-/// e é o caso do corpus real, onde quase todo parágrafo tem `w:pStyle`. O
-/// exemplo que doeu: `Heading1` neste corpus não é um título grande, é uma
-/// **barra vermelha com texto branco em Arial 10 pt**. Nada disso está no
-/// parágrafo; está todo em `styles.xml`.
-///
-/// O editor não tem noção de estilo. Então resolvemos aqui e emitimos valores
-/// concretos — é o que permite a tela mostrar o documento como ele é.
-/// </remarks>
 public sealed class StyleResolver
 {
-    /// <summary>Teto de segurança contra `basedOn` circular.</summary>
+    /// <summary>Contra <c>basedOn</c> circular.</summary>
     private const int MaxChainDepth = 16;
 
     private readonly Dictionary<string, Style> _byId;
     private readonly ParagraphPropertiesBaseStyle? _defaultParagraph;
     private readonly RunPropertiesBaseStyle? _defaultRun;
 
-    /// <summary>
-    /// O estilo marcado `w:default="1"`, que vale para o parágrafo sem `w:pStyle`.
-    /// </summary>
-    /// <remarks>
-    /// Sem consultá-lo, um parágrafo sem estilo declarado ficava só com os
-    /// `docDefaults` — e num documento onde o corpo do texto mora todo no
-    /// estilo `Normal`, isso é abrir o arquivo sem a formatação dele.
-    /// </remarks>
+    /// <summary>O <c>w:default="1"</c>, para o parágrafo sem <c>w:pStyle</c>.</summary>
     private readonly string? _defaultParagraphStyleId;
     private readonly Dictionary<string, (ParagraphProperties P, RunProperties R)> _cache = new(StringComparer.Ordinal);
 
@@ -57,20 +41,14 @@ public sealed class StyleResolver
     }
 
     /// <summary>
-    /// O nível de título do estilo pelo nome dele, quando o id não o diz.
+    /// O id é traduzido e o nome não (<c>Überschrift1</c> é <c>heading 1</c>): o mesmo
+    /// critério de <see cref="HeadingStyles"/>.
     /// </summary>
-    /// <remarks>
-    /// O id é traduzido e o nome não: `Überschrift1` continua se chamando
-    /// `heading 1`. É o mesmo critério com que o escritor escolhe o estilo
-    /// (<see cref="HeadingStyles"/>) — se só um lado o usasse, o título gravado
-    /// voltaria parágrafo ao reabrir.
-    /// </remarks>
     public int? HeadingLevelByName(string? styleId) =>
         styleId is not null && _byId.TryGetValue(styleId, out var style)
             ? HeadingStyles.LevelOfName(style.StyleName?.Val?.Value)
             : null;
 
-    /// <summary>Propriedades efetivas do parágrafo e dos seus runs.</summary>
     public (ParagraphProperties Paragraph, RunProperties Run) Resolve(ParagraphProperties? direct)
     {
         var styleId = direct?.ParagraphStyleId?.Val?.Value;
@@ -81,24 +59,14 @@ public sealed class StyleResolver
 
         if (direct is not null) Overlay(mergedParagraph, direct);
 
-        // `w:rPr` dentro de `w:pPr` formata **a marca de parágrafo**, não os
-        // runs — é a formatação que o Word usa para o texto digitado no fim da
-        // linha. Aplicá-la aos runs põe negrito em parágrafos que não têm.
+        // `w:pPr/w:rPr` formata a marca de parágrafo, e não os runs.
         return (mergedParagraph, mergedRun);
     }
 
-    /// <summary>
-    /// O que o estilo do parágrafo vale, **sem** a formatação direta por cima.
-    /// </summary>
-    /// <remarks>
-    /// Só para consulta — é a instância do cache. Serve ao leitor que não achata,
-    /// para saber se um silêncio direto (um `w:shd` sem cor) está desfazendo
-    /// alguma coisa do estilo.
-    /// </remarks>
+    /// <summary>Sem a direta: para o leitor saber se um silêncio direto desfaz algo do estilo.</summary>
     public ParagraphProperties StyleParagraphOf(ParagraphProperties? direct) =>
         FromStyle(direct?.ParagraphStyleId?.Val?.Value).Item1;
 
-    /// <summary>Propriedades efetivas de um run: estilo do parágrafo + diretas.</summary>
     public RunProperties ResolveRun(RunProperties inherited, RunProperties? direct)
     {
         var merged = (RunProperties)inherited.CloneNode(true);
@@ -106,15 +74,7 @@ public sealed class StyleResolver
         return merged;
     }
 
-    /// <summary>
-    /// A formatação da **marca de parágrafo**: o estilo com `w:pPr/w:rPr` por cima.
-    /// </summary>
-    /// <remarks>
-    /// Continua fora dos runs — pô-la ali põe negrito em parágrafo que não tem.
-    /// Mas ela não é decoração invisível: é a fonte com que o Word mede a linha
-    /// e dá altura ao parágrafo vazio, e é isso que <see cref="BodyReader"/>
-    /// leva para o bloco.
-    /// </remarks>
+    /// <summary>A fonte com que o Word mede a linha e dá altura ao parágrafo vazio.</summary>
     public RunProperties ResolveMark(RunProperties inherited, ParagraphProperties? direct)
     {
         var merged = (RunProperties)inherited.CloneNode(true);
@@ -130,12 +90,10 @@ public sealed class StyleResolver
         var paragraph = new ParagraphProperties();
         var run = new RunProperties();
 
-        // Padrões do documento primeiro: é a base sobre a qual tudo se aplica.
         if (_defaultParagraph is not null) Overlay(paragraph, _defaultParagraph);
         if (_defaultRun is not null) Overlay(run, _defaultRun);
 
-        // Do ancestral mais distante para o mais próximo, para que o mais
-        // próximo tenha a última palavra.
+        // Do ancestral mais distante ao mais próximo, que tem a última palavra.
         foreach (var style in ChainOf(styleId ?? _defaultParagraphStyleId))
         {
             if (style.StyleParagraphProperties is not null) Overlay(paragraph, style.StyleParagraphProperties);
@@ -165,25 +123,10 @@ public sealed class StyleResolver
     }
 
     /// <summary>
-    /// Elementos cujos atributos são propriedades **independentes**.
+    /// A regra do OOXML é substituir a propriedade inteira; estes quatro mesclam
+    /// atributo a atributo: o parágrafo que declara só <c>w:after="0"</c> não apaga a
+    /// entrelinha do estilo.
     /// </summary>
-    /// <remarks>
-    /// A regra geral do OOXML é substituir a propriedade inteira, e é o que
-    /// vale para a maioria: um `w:b` sem `w:val` quer dizer negrito, e mesclar
-    /// atributos com um `w:b w:val="false"` herdado o manteria desligado.
-    ///
-    /// Estes quatro são a exceção, e não uma exceção pequena. `w:spacing` traz
-    /// o espaço antes, o depois e a entrelinha no mesmo elemento: um parágrafo
-    /// que declara só `w:after="0"` **não** está dizendo que a entrelinha do
-    /// estilo dele não vale. Substituir o elemento inteiro a apagava, e o
-    /// documento de evidências do corpus é feito disso — o estilo `BodyText`
-    /// pede entrelinha 276 e cada parágrafo redeclara apenas o espaço. Cada
-    /// linha saía 1,15 vez mais curta do que no LibreOffice, e a diferença ia
-    /// se somando até a folha cortar noutro lugar.
-    ///
-    /// Pela mesma razão `w:ind` (esquerda, direita, primeira linha, pendente),
-    /// `w:rFonts` (a fonte latina, a complexa, a asiática) e `w:lang`.
-    /// </remarks>
     private static readonly HashSet<string> AttributeByAttribute = new(StringComparer.Ordinal)
     {
         "spacing",
@@ -192,15 +135,7 @@ public sealed class StyleResolver
         "lang",
     };
 
-    /// <summary>
-    /// Copia as propriedades de <paramref name="source"/> por cima de
-    /// <paramref name="target"/>, substituindo as de mesmo nome.
-    /// </summary>
-    /// <remarks>
-    /// Por nome de elemento, e não por propriedade tipada: assim não é preciso
-    /// enumerar as dezenas de propriedades do OOXML, e o que ainda não sabemos
-    /// ler atravessa junto sem esforço.
-    /// </remarks>
+    /// <summary>Por nome de elemento: o que ainda não sabemos ler atravessa junto.</summary>
     private static void Overlay(OpenXmlElement target, OpenXmlElement source)
     {
         foreach (var incoming in source.ChildElements)

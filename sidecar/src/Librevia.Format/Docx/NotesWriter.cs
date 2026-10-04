@@ -6,21 +6,11 @@ using DocumentFormat.OpenXml.Wordprocessing;
 namespace Librevia.Format.Docx;
 
 /// <summary>
-/// O corpo das notas de rodapé e de fim volta para `footnotes.xml` e
-/// `endnotes.xml`.
+/// A nota cujo corpo não mudou não é tocada, e a parte sem nota mudada volta byte a
+/// byte; na nota editada, só o parágrafo editado é reescrito. O número é a ordem
+/// da referência; o <c>nid</c> é o <c>w:id</c>. Nota nova ou repetida ganha id acima do
+/// maior; a que perdeu a referência sai, como no Word.
 /// </summary>
-/// <remarks>
-/// A mesma aposta do corpo e das faixas: a nota cujo corpo não mudou não é tocada,
-/// e a parte em que nenhuma nota mudou nem entra na lista de graváveis — volta
-/// byte a byte (ver DocxWriter.RestoreUntouchedParts). Na nota editada, só o
-/// parágrafo editado é reescrito; os outros voltam como estavam.
-///
-/// O número da nota não mora em lugar nenhum do modelo: é a ordem da referência
-/// no documento. O que mora é o `nid`, o `w:id` que casa a referência com o
-/// corpo. A nota nova (`nid` nulo) e a repetida (a referência colada duas vezes)
-/// ganham um id acima do maior da parte; a nota cuja referência sumiu do texto
-/// sai da parte, como no Word.
-/// </remarks>
 internal static class NotesWriter
 {
     private const string W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
@@ -28,19 +18,17 @@ internal static class NotesWriter
     public const string Footnote = "footnote";
     public const string Endnote = "endnote";
 
-    /// <summary>O endereço de uma nota: `fn:3`, `en:1`. Os blocos dela são `fn:3/p1`…</summary>
+    /// <summary><c>fn:3</c>, <c>en:1</c>; os blocos dela são <c>fn:3/p1</c>…</summary>
     public static string Address(bool endnote, string id) => (endnote ? "en:" : "fn:") + id;
 
-    /// <summary>Uma referência do modelo e a nota que ela vai apontar no arquivo.</summary>
-    /// <param name="Fresh">A nota não existe no arquivo: será criada com <paramref name="Id"/>.</param>
-    /// <param name="Original">O id que a nota tinha no arquivo, quando a renumeração o trocou.</param>
+    /// <param name="Fresh">A nota será criada com <paramref name="Id"/>.</param>
+    /// <param name="Original">O id que tinha no arquivo, quando a renumeração o trocou.</param>
     public sealed record Wanted(Node Reference, bool Endnote, string Id, bool Fresh, string? Original = null)
     {
-        /// <summary>O id pelo qual a nota é achada no arquivo original.</summary>
         public string Source => Original ?? Id;
     }
 
-    /// <summary>A nota normal (não o separador) com este id, quando a parte a tem.</summary>
+    /// <summary>A nota normal, e não o separador.</summary>
     public static OpenXmlElement? NoteOf(MainDocumentPart part, bool endnote, string id) =>
         NotesIn(part, endnote).FirstOrDefault(note => IsNormal(note) && IdOf(note) == id);
 
@@ -49,21 +37,13 @@ internal static class NotesWriter
             ? part.EndnotesPart?.Endnotes?.Elements<DocumentFormat.OpenXml.Wordprocessing.Endnote>() ?? []
             : (IEnumerable<FootnoteEndnoteType>?)part.FootnotesPart?.Footnotes?.Elements<DocumentFormat.OpenXml.Wordprocessing.Footnote>() ?? [];
 
-    /// <summary>Separador, separador de continuação e aviso de continuação não são notas do texto.</summary>
     private static bool IsNormal(FootnoteEndnoteType note) =>
         note.Type?.Value is null || note.Type.Value == FootnoteEndnoteValues.Normal;
 
     private static string? IdOf(FootnoteEndnoteType note) =>
         note.Id?.Value.ToString(CultureInfo.InvariantCulture);
 
-    /// <summary>
-    /// Decide o id de cada referência do modelo, antes de o corpo ser gravado.
-    /// </summary>
-    /// <remarks>
-    /// Antes porque o run da referência leva o id, e quem o grava é o parágrafo.
-    /// A referência que ganha id novo muda de `nid` no modelo — e o parágrafo que
-    /// a leva passa a ser reescrito, que é o certo: a referência dele mudou.
-    /// </remarks>
+    /// <summary>Antes do corpo, porque o run da referência leva o id; o parágrafo com id novo é reescrito.</summary>
     public static List<Wanted> Plan(Node doc, MainDocumentPart part)
     {
         var wanted = new List<Wanted>();
@@ -94,15 +74,10 @@ internal static class NotesWriter
     }
 
     /// <summary>
-    /// Ids na ordem do texto, como o Word grava — quando uma referência movida a
-    /// tirou dela.
+    /// O LibreOffice dá às referências as notas na ordem dos ids: a nota movida
+    /// apareceria com o corpo de outra. O arquivo que já vinha fora de ordem e a
+    /// gravação que não moveu nada ficam como estão.
     /// </summary>
-    /// <remarks>
-    /// O LibreOffice ignora o `w:id` e dá às referências, na ordem do texto, as
-    /// notas na ordem dos ids: a nota movida (recortar e colar) aparecia com o
-    /// corpo de outra. O arquivo que já vinha fora de ordem e a gravação que não
-    /// moveu nada ficam como estão — renumerar reescreveria os parágrafos à toa.
-    /// </remarks>
     private static List<Wanted> InTextOrder(List<Wanted> wanted, MainDocumentPart part)
     {
         var result = new List<Wanted>(wanted);
@@ -110,8 +85,7 @@ internal static class NotesWriter
         {
             if (!Ascending(OriginalOrder(part, endnote))) continue;
             var mine = result.Select((entry, index) => (entry, index)).Where(pair => pair.entry.Endnote == endnote).ToList();
-            // A nota nova também conta: inserida antes das outras, ela ganha o maior id
-            // e quebra a ordem do mesmo jeito que uma movida.
+            // A nota nova ganha o maior id e quebra a ordem como uma movida.
             if (Ascending(mine.Select(pair => pair.entry.Id))) continue;
 
             var next = NotesIn(part, endnote).Where(note => !IsNormal(note))
@@ -140,7 +114,6 @@ internal static class NotesWriter
         return true;
     }
 
-    /// <summary>Os ids das notas na ordem em que o corpo do arquivo as referencia.</summary>
     private static IEnumerable<string> OriginalOrder(MainDocumentPart part, bool endnote) =>
         (part.Document?.Body?.Descendants<Run>() ?? [])
             .Select(BodyReader.NoteReferenceOf)
@@ -155,7 +128,7 @@ internal static class NotesWriter
             ? max
             : 0L;
 
-    /// <summary>Os `noteRef` do documento, em ordem — sem descer no corpo de nenhum.</summary>
+    /// <summary>Sem descer no corpo de nenhum.</summary>
     private static IEnumerable<Node> ReferencesIn(Node node)
     {
         foreach (var child in node.Content ?? [])
@@ -170,12 +143,9 @@ internal static class NotesWriter
         }
     }
 
-    /// <summary>
-    /// Grava o corpo das notas que mudaram, cria as novas e tira as que perderam a
-    /// referência. Devolve quantos blocos de nota foram reescritos.
-    /// </summary>
-    /// <param name="read">As notas que a leitura de referência achou no corpo — ver BodyReader.Notes.</param>
-    /// <param name="writerFor">O escritor de parágrafos dono dos relacionamentos de cada parte.</param>
+    /// <summary>Devolve quantos blocos de nota foram reescritos.</summary>
+    /// <param name="read">As notas da leitura de referência — ver BodyReader.Notes.</param>
+    /// <param name="writerFor">O escritor dono dos relacionamentos de cada parte.</param>
     public static int Apply(
         MainDocumentPart part,
         List<Wanted> wanted,
@@ -199,12 +169,8 @@ internal static class NotesWriter
                 .Select(entry => entry.Value.Source)
                 .ToList();
 
-            // O LibreOffice casa a nota com a referência pela ordem em que as notas
-            // aparecem na parte, e não pelo id: a nota movida no texto (recortar e
-            // colar) tem de mudar de lugar na parte também, como o Word as grava.
-            // Comparada com a ordem das referências no corpo original, e não com a
-            // da parte: um arquivo que já vinha fora de ordem e não foi mexido volta
-            // byte a byte.
+            // O LibreOffice casa pela ordem na parte: a nota movida muda de lugar ali
+            // também, comparada com a ordem do corpo original.
             var inOrder = read.Keys
                 .Where(key => key.StartsWith(prefix, StringComparison.Ordinal))
                 .Select(key => key[prefix.Length..])
@@ -278,17 +244,13 @@ internal static class NotesWriter
         return rewritten;
     }
 
-    /// <summary>`word/footnotes.xml` → `word/_rels/footnotes.xml.rels`.</summary>
     private static string RelationshipsPathOf(string path)
     {
         var slash = path.LastIndexOf('/');
         return slash < 0 ? $"_rels/{path}.rels" : $"{path[..slash]}/_rels/{path[(slash + 1)..]}.rels";
     }
 
-    /// <summary>
-    /// O corpo da nota no modelo é o do arquivo? Os mesmos blocos, na mesma ordem,
-    /// cada um com a impressão digital que a leitura deu — a comparação do corpo.
-    /// </summary>
+    /// <summary>Os mesmos blocos, na mesma ordem, com a mesma impressão digital.</summary>
     private static bool Unchanged(BodyReader.NoteRead original, Node reference, NumberingFactory numbering)
     {
         var doc = Node.Of("doc");
@@ -305,10 +267,7 @@ internal static class NotesWriter
         return true;
     }
 
-    /// <summary>
-    /// Refaz o corpo de uma nota: o parágrafo que não mudou volta como estava, o
-    /// editado é reescrito. Devolve quantos blocos foram reescritos.
-    /// </summary>
+    /// <summary>Devolve quantos blocos foram reescritos.</summary>
     private static int Rebuild(
         BodyReader.NoteRead original,
         Node reference,
@@ -347,7 +306,7 @@ internal static class NotesWriter
             }
         }
 
-        // O que a nota apagada levava entre os blocos — um marcador — vai com ela.
+        // O que a nota apagada levava entre os blocos vai com ela.
         if (elements.Count == 0) elements.Add(new Paragraph());
 
         var source = original.Source;
@@ -356,10 +315,7 @@ internal static class NotesWriter
         return rewritten;
     }
 
-    /// <summary>
-    /// O número no começo da nota (`w:footnoteRef`): o primeiro parágrafo tem de
-    /// trazê-lo, e o leitor não o deu ao modelo.
-    /// </summary>
+    /// <summary>O primeiro parágrafo tem de trazer o <c>w:footnoteRef</c>, que o leitor não deu ao modelo.</summary>
     private static void EnsureReferenceMark(OpenXmlElement note, Run mark, bool endnote)
     {
         var paragraph = note.Elements<Paragraph>().FirstOrDefault();
@@ -375,7 +331,7 @@ internal static class NotesWriter
         else paragraph.PrependChild(run);
     }
 
-    /// <summary>O run do `w:footnoteRef` da parte, para copiar — ou um no estilo do Word.</summary>
+    /// <summary>O da parte, ou um no estilo do Word.</summary>
     private static Run ReferenceMarkRun(OpenXmlElement root, MainDocumentPart part, bool endnote)
     {
         var existing = root.Descendants<Run>().FirstOrDefault(run =>
@@ -393,11 +349,7 @@ internal static class NotesWriter
             endnote ? new EndnoteReferenceMark() : new FootnoteReferenceMark());
     }
 
-    /// <summary>
-    /// O `w:rPr` da referência que nasce no editor: o estilo de caractere do Word
-    /// quando o documento o define, e o sobrescrito direto quando não — sem ele, o
-    /// número sairia na linha do texto.
-    /// </summary>
+    /// <summary>O estilo de caractere do Word quando o documento o define; senão, sobrescrito direto.</summary>
     public static RunProperties ReferenceProperties(MainDocumentPart part, bool endnote)
     {
         var style = endnote ? "EndnoteReference" : "FootnoteReference";
@@ -406,7 +358,6 @@ internal static class NotesWriter
             : new RunProperties(new VerticalTextAlignment { Val = VerticalPositionValues.Superscript });
     }
 
-    /// <summary>A nota nova com o estilo de texto de nota, quando o documento o tem e o parágrafo não traz outro.</summary>
     private static void StyleNewNote(OpenXmlElement note, MainDocumentPart part, bool endnote)
     {
         var style = endnote ? "EndnoteText" : "FootnoteText";
@@ -423,10 +374,7 @@ internal static class NotesWriter
         part.StyleDefinitionsPart?.Styles?.Elements<Style>()
             .Any(style => string.Equals(style.StyleId?.Value, styleId, StringComparison.Ordinal)) == true;
 
-    /// <summary>
-    /// A parte das notas — criada, com os separadores que o Word exige, quando o
-    /// documento ainda não tem nenhuma nota deste tipo.
-    /// </summary>
+    /// <summary>Criada, com os separadores que o Word exige, quando o documento não tem nota deste tipo.</summary>
     private static OpenXmlPart PartFor(MainDocumentPart part, bool endnote, HashSet<string> touched)
     {
         if (endnote && part.EndnotesPart is { Endnotes: not null } endnotes) return endnotes;
@@ -464,10 +412,7 @@ internal static class NotesWriter
         return note;
     }
 
-    /// <summary>
-    /// `w:footnotePr` no `settings.xml`, apontando os dois separadores — é assim
-    /// que o Word os acha. Só quando a parte nasceu agora e o arquivo não os aponta.
-    /// </summary>
+    /// <summary>É assim que o Word acha os separadores; só na parte nova.</summary>
     private static void DeclareSeparators(MainDocumentPart part, bool endnote, HashSet<string> touched)
     {
         var settingsPart = part.DocumentSettingsPart ?? part.AddNewPart<DocumentSettingsPart>();
@@ -493,15 +438,9 @@ internal static class NotesWriter
     }
 
     /// <summary>
-    /// Grava a numeração das notas (`w:footnotePr`/`w:endnotePr`) quando a do modelo
-    /// difere da que o pacote declara. Igual, nada se toca: o `settings.xml` do
-    /// arquivo aberto e salvo volta byte a byte.
+    /// Só quando difere do pacote. Vai ao <c>settings.xml</c> e ao último <c>w:sectPr</c>,
+    /// se ele também a declara, porque é ele que vence. Ausência não apaga.
     /// </summary>
-    /// <remarks>
-    /// Vai para o `settings.xml`, que vale para o documento todo; e, se o último
-    /// `w:sectPr` também declara a numeração — é ela que vence na leitura —, para
-    /// ele também. Modelo sem numeração não apaga a do pacote: ausência não é pedido.
-    /// </remarks>
     public static void ApplyNumbering(MainDocumentPart part, NotesDto? wanted, HashSet<string> touched)
     {
         if (wanted is null) return;
@@ -552,11 +491,11 @@ internal static class NotesWriter
         touched.Add(settingsPart.Uri.ToString().TrimStart('/'));
     }
 
-    /// <summary>A numeração ausente é a do Word: só os campos declarados contam.</summary>
+    /// <summary>Ausente é a do Word.</summary>
     private static bool Differs(NotePrDto? wanted, NotePrDto? current) =>
         (wanted ?? new NotePrDto()) != (current ?? new NotePrDto());
 
-    /// <summary>Os ids das notas separadoras da parte (`-1` e `0`, no Word), que o `w:footnotePr` aponta.</summary>
+    /// <summary><c>-1</c> e <c>0</c> no Word.</summary>
     private static IEnumerable<long> SpecialIds(OpenXmlElement? notes) =>
         notes?.ChildElements.OfType<FootnoteEndnoteType>()
             .Where(note => note.Type?.Value is { } type &&
@@ -564,10 +503,7 @@ internal static class NotesWriter
             .Select(note => note.Id?.Value ?? 0)
             .ToList() ?? [];
 
-    /// <summary>
-    /// Troca `w:pos`, `w:numFmt`, `w:numStart` e `w:numRestart` pelos do modelo, na
-    /// ordem do esquema — antes das referências às separadoras.
-    /// </summary>
+    /// <summary>Na ordem do esquema, antes das referências às separadoras.</summary>
     private static void SetNumbering(OpenXmlCompositeElement properties, NotePrDto? wanted, Func<OpenXmlElement> position)
     {
         string[] names = ["pos", "numFmt", "numStart", "numRestart"];
@@ -592,10 +528,7 @@ internal static class NotesWriter
         }
     }
 
-    /// <summary>
-    /// O run de cada referência de nota do corpo original, pelo endereço — é dele
-    /// que o parágrafo reescrito copia o `w:rPr` (o estilo, o sobrescrito).
-    /// </summary>
+    /// <summary>O parágrafo reescrito copia o <c>w:rPr</c> deles.</summary>
     public static Dictionary<string, Run> ReferenceRunsOf(MainDocumentPart part)
     {
         var runs = new Dictionary<string, Run>(StringComparer.Ordinal);

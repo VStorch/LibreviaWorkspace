@@ -6,44 +6,21 @@ using DocumentFormat.OpenXml.Wordprocessing;
 namespace Librevia.Format.Docx;
 
 /// <summary>
-/// A aparência da tabela nos dois sentidos: `w:tblGrid`, `w:tcBorders` e `w:shd`
-/// ↔ atributos do nó do editor.
+/// <c>w:tblGrid</c>, <c>w:tcBorders</c> e <c>w:shd</c> ↔ atributos do nó. Cada propriedade é
+/// **projetada** na leitura e comparada na gravação: igual à do original, o XML não
+/// é tocado, e o estilo exótico volta byte a byte. Só a célula formatada é
+/// reescrita, com a aproximação no inventário.
 /// </summary>
-/// <remarks>
-/// ## Por que existe
-///
-/// O editor deixa a pessoa arrastar a divisória das colunas — a opção
-/// `resizable` do TableKit. Se o gravador devolvesse o `w:tblGrid` do arquivo
-/// por posição, a largura nova morreria no caminho: perda silenciosa, o defeito
-/// mais grave do projeto.
-///
-/// ## A regra que evita estrago
-///
-/// Toda propriedade daqui é **projetada** do XML para o modelo na leitura e
-/// comparada de volta na gravação. Quando a projeção do original e o atributo do
-/// modelo são iguais, o gravador **não toca** no XML: o `w:tcBorders` com
-/// `thickThinSmallGap`, o `w:shd` com trama de 25% e o `w:tblGrid` com medida
-/// que não fecha em pixel inteiro voltam byte a byte. Só a célula que a pessoa
-/// formatou é reescrita — e é só nela que a aproximação de um estilo exótico
-/// aparece, com a linha correspondente no inventário.
-/// </remarks>
 internal static class TableLook
 {
-    /// <summary>Margem de célula do Word quando nada a declara: 0 em cima e embaixo, 0,075" dos lados.</summary>
+    /// <summary>O padrão do Word: 0 em cima e embaixo, 0,075" dos lados.</summary>
     private static readonly int[] WordCellMargins = [0, 108, 0, 108];
 
     /// <summary>
-    /// A margem de célula que vale na tabela, em twips — cima, direita, baixo,
-    /// esquerda.
+    /// Em twips (cima, direita, baixo, esquerda), na ordem do Word: a tabela, o
+    /// estilo e os estilos-base, o estilo padrão e 0/108. Com a medida fixa do
+    /// editor, uma tabela de oitenta linhas ganhava uma folha.
     /// </summary>
-    /// <remarks>
-    /// Lado a lado, na ordem do Word: o `w:tblCellMar` da própria tabela, o do
-    /// estilo dela e dos estilos em que ele se baseia, o do estilo de tabela
-    /// padrão e, calando todos, 0/108. Enquanto a tela usava a medida fixa do
-    /// editor (4 × 8 px), cada linha de tabela importada saía 8 px mais alta que
-    /// no papel do Word e do LibreOffice — numa tabela de oitenta linhas, uma
-    /// folha a mais.
-    /// </remarks>
     public static int[] CellMargins(Table table, DocumentFormat.OpenXml.Packaging.MainDocumentPart part)
     {
         var sides = new int?[4];
@@ -61,7 +38,7 @@ internal static class TableLook
 
     private static void FillFromChain(int?[] sides, List<Style> styles, string? styleId)
     {
-        // Um teto de voltas contra `w:basedOn` circular, que arquivo quebrado tem.
+        // Contra `w:basedOn` circular.
         for (var hops = 0; styleId is not null && hops < 16; hops++)
         {
             var style = styles.FirstOrDefault(candidate => candidate.StyleId?.Value == styleId);
@@ -82,7 +59,7 @@ internal static class TableLook
                      ?? Twips(margins.StartMargin?.Width?.Value, margins.StartMargin?.Type?.Value);
     }
 
-    /// <summary>Só `dxa` (ou sem tipo) é medida; `nil` é zero; porcentagem não se aplica a margem.</summary>
+    /// <summary>Só <c>dxa</c> (ou sem tipo) é medida; <c>nil</c> é zero; porcentagem não vale em margem.</summary>
     private static int? Twips(string? width, TableWidthUnitValues? type)
     {
         if (type == TableWidthUnitValues.Nil) return 0;
@@ -101,13 +78,12 @@ internal static class TableLook
             : null;
     }
 
-    /// <summary>1 pixel do CSS = 15 twips (1440/96).</summary>
+    /// <summary>1440 / 96.</summary>
     private const int TwipsPerPixel = 15;
 
-    /// <summary>`w:sz` mede em oitavos de ponto.</summary>
     private const double EighthsPerPoint = 8;
 
-    /// <summary>Espessura do `w:val` sem `w:sz`: meio ponto, como no Word.</summary>
+    /// <summary>Sem <c>w:sz</c>, meio ponto, como no Word.</summary>
     private const int DefaultBorderEighths = 4;
 
     private static readonly string[] Sides = ["top", "right", "bottom", "left"];
@@ -116,18 +92,8 @@ internal static class TableLook
 
     public static int ToTwips(int pixels) => pixels * TwipsPerPixel;
 
-    // --- leitura ------------------------------------------------------------
 
-    /// <summary>
-    /// A largura de cada coluna da grade, em pixels do CSS.
-    /// </summary>
-    /// <remarks>
-    /// Do `w:tblGrid`, e não do `w:tcW` de cada célula: é a grade que o Word usa
-    /// para desenhar a tabela de largura fixa, e é a grade que o editor espelha
-    /// no `colgroup`. Tabela sem grade devolve lista vazia — e aí o modelo não
-    /// declara largura nenhuma, que é o mesmo que dizer "deixe o navegador
-    /// decidir".
-    /// </remarks>
+    /// <summary>Do <c>w:tblGrid</c>, que o Word usa e o editor espelha no <c>colgroup</c>; sem grade, lista vazia.</summary>
     public static List<int> GridWidths(Table table)
     {
         var widths = new List<int>();
@@ -141,7 +107,7 @@ internal static class TableLook
         return widths;
     }
 
-    /// <summary>O `w:shd` da célula como `#rrggbb`, ou `null` quando não há sombreamento.</summary>
+    /// <summary>Ou <c>null</c> sem sombreamento.</summary>
     public static string? Shading(TableCellProperties? properties)
     {
         var fill = properties?.Shading?.Fill?.Value;
@@ -151,10 +117,7 @@ internal static class TableLook
         return "#" + fill.ToLowerInvariant();
     }
 
-    /// <summary>
-    /// O `w:tcBorders` no texto canônico do atributo — o mesmo que
-    /// <c>table-format.ts</c> escreve.
-    /// </summary>
+    /// <summary>No texto canônico que <c>table-format.ts</c> escreve.</summary>
     public static string? Borders(TableCellProperties? properties)
     {
         var borders = properties?.TableCellBorders;
@@ -190,15 +153,7 @@ internal static class TableLook
         return $"{style},{points.ToString("0.##", CultureInfo.InvariantCulture)},{color}";
     }
 
-    /// <summary>
-    /// Estilo do OOXML → estilo que o CSS desenha.
-    /// </summary>
-    /// <remarks>
-    /// O OOXML tem vinte e tantos; o CSS desenha cinco. Os que não têm
-    /// equivalente viram `single`, que é a linha que eles todos são de longe. A
-    /// aproximação **não** custa nada enquanto a pessoa não formatar a célula:
-    /// até lá o XML original é que volta para o arquivo.
-    /// </remarks>
+    /// <summary>O CSS desenha cinco dos vinte e tantos; o resto vira <c>single</c>, aproximação que só custa na célula formatada.</summary>
     private static string StyleOf(BorderValues? value)
     {
         if (value is null) return "single";
@@ -209,7 +164,6 @@ internal static class TableLook
         return "single";
     }
 
-    /// <summary>Se este estilo volta ao arquivo como veio, ou se a gravação o aproxima.</summary>
     private static bool IsExact(BorderValues? value) =>
         value is null
         || value == BorderValues.Nil
@@ -219,9 +173,7 @@ internal static class TableLook
         || value == BorderValues.Dotted
         || value == BorderValues.Dashed;
 
-    /// <summary>
-    /// `w:color` → `#rrggbb`. `auto` vira preto, que é o que o Word desenha.
-    /// </summary>
+    /// <summary><c>auto</c> é preto, como o Word desenha.</summary>
     private static string ColorOf(string? value)
     {
         if (value is null || value.Length != 6) return "#000000";
@@ -230,19 +182,14 @@ internal static class TableLook
             : "#000000";
     }
 
-    // --- gravação -----------------------------------------------------------
 
-    /// <summary>
-    /// Escreve o `w:shd` que o modelo pede, se ele mudou.
-    /// </summary>
+    /// <summary>Se ele mudou.</summary>
     /// <returns>Se o elemento foi reescrito.</returns>
     public static bool ApplyShading(TableCellProperties properties, string? model, Inventory inventory)
     {
         if (string.Equals(Shading(properties), model, StringComparison.Ordinal)) return false;
 
-        // Trama — `w:shd w:val="pct25"` e companhia — não tem representação no
-        // modelo: o que a tela mostra é a cor de preenchimento. Trocar a cor de
-        // uma célula assim achata a trama, e é isto que o aviso diz.
+        // A trama (`pct25`…) não tem representação: trocar a cor a achata, e o aviso diz isso.
         var previous = properties.Shading?.Val?.Value;
         if (previous is not null && previous != ShadingPatternValues.Clear && previous != ShadingPatternValues.Nil)
         {
@@ -264,18 +211,11 @@ internal static class TableLook
         return true;
     }
 
-    /// <summary>Escreve o `w:tcBorders` que o modelo pede, se ele mudou.</summary>
-    /// <remarks>
-    /// Lado a lado, dentro do elemento que a célula já tem — e não um
-    /// `w:tcBorders` novo no lugar dele. O modelo só conhece os quatro lados; a
-    /// diagonal (`w:tl2br`, `w:tr2bl`), as bordas internas, o `w:start`/`w:end`
-    /// e, dentro de um lado, o `w:space`, a sombra e a cor de tema não têm onde
-    /// morar nele. Trocar o elemento inteiro os apagava sem aviso quando a pessoa
-    /// mudava um lado só, porque a conferência de perda olhava apenas os quatro.
-    ///
-    /// O lado cuja descrição não mudou não é tocado, nem aproximado: é o XML
-    /// original que fica. No lado que mudou, só o campo que mudou é reescrito.
-    /// </remarks>
+    /// <summary>
+    /// Lado a lado, no elemento que a célula já tem: diagonal, internas e
+    /// <c>w:space</c> não existem no modelo. O lado sem mudança não é tocado; no que
+    /// mudou, só o campo que mudou.
+    /// </summary>
     public static bool ApplyBorders(TableCellProperties properties, string? model, Inventory inventory)
     {
         if (string.Equals(Borders(properties), model, StringComparison.Ordinal)) return false;
@@ -315,15 +255,13 @@ internal static class TableLook
             Update(current, target);
         }
 
-        // Trocar uma borda de estilo que a tela só aproxima achata o estilo — é
-        // isto que o aviso diz, e só para o lado que de fato mudou.
+        // Só para o lado que de fato mudou.
         if (approximated) inventory.NoteLoss("estilo de borda de uma célula que você formatou");
 
         properties.TableCellBorders = borders.HasChildren ? borders : null;
         return true;
     }
 
-    /// <summary>O atributo do modelo, lado a lado: estilo, espessura e cor.</summary>
     private static Dictionary<string, string[]> ParseSides(string? model)
     {
         var sides = new Dictionary<string, string[]>(StringComparer.Ordinal);
@@ -340,11 +278,7 @@ internal static class TableLook
         return sides;
     }
 
-    /// <summary>
-    /// Pelos acessores com tipo, e nunca por `AppendChild`: o `w:tcBorders` é uma
-    /// **sequência** — topo, esquerda, baixo, direita, internas, diagonais —, e
-    /// anexado fora dela o documento sai do esquema e o Word o recusa.
-    /// </summary>
+    /// <summary>Pelos acessores com tipo: o <c>w:tcBorders</c> é uma sequência, e fora dela o Word recusa.</summary>
     private static void SetSide(TableCellBorders borders, string side, BorderType? border)
     {
         switch (side)
@@ -356,13 +290,7 @@ internal static class TableLook
         }
     }
 
-    /// <summary>
-    /// O lado que já existe, com só o que mudou reescrito.
-    /// </summary>
-    /// <remarks>
-    /// A cor de tema sai quando a cor muda: no Word ela vence o `w:color`, e o
-    /// lado continuaria com a cor antiga. O `w:space`, a sombra e o quadro ficam.
-    /// </remarks>
+    /// <summary>A cor de tema sai quando a cor muda, porque no Word ela vence o <c>w:color</c>.</summary>
     private static void Update(BorderType border, string[] target)
     {
         var (style, width, color) = (target[0], target[1], target[2]);
@@ -388,10 +316,7 @@ internal static class TableLook
         _ => BorderValues.Single,
     };
 
-    /// <remarks>
-    /// O `w:sz` é obrigatório em faixa: zero faz o Word ignorar a borda, e acima
-    /// de 255 oitavos o documento sai fora do esquema.
-    /// </remarks>
+    /// <remarks>Zero faz o Word ignorar a borda, e acima de 255 oitavos sai do esquema.</remarks>
     private static uint SizeOf(string width)
     {
         var points = double.TryParse(width, NumberStyles.Float, CultureInfo.InvariantCulture, out var value)

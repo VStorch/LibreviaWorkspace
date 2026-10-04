@@ -5,13 +5,9 @@ using System.Text.Json.Nodes;
 namespace Librevia.Format.Docx;
 
 /// <summary>
-/// Leitura dos atributos de um nó do editor, com a unidade já convertida.
+/// Os atributos de um nó do editor, já na unidade do OOXML. Uma cópia só das
+/// conversões para os dois escritores.
 /// </summary>
-/// <remarks>
-/// Mora fora de <see cref="ParagraphWriter"/> porque os dois escritores leem os
-/// mesmos atributos, e duas cópias das mesmas conversões é como as unidades
-/// divergem.
-/// </remarks>
 internal static class Attr
 {
     public static bool Bool(Node node, string name) =>
@@ -31,14 +27,7 @@ internal static class Attr
         return value.GetValueKind() == JsonValueKind.Number ? value.GetValue<double>() : null;
     }
 
-    /// <summary>
-    /// O atributo cru, para o que não é escalar.
-    /// </summary>
-    /// <remarks>
-    /// A largura das colunas chega como lista de números (`colwidth`), e não há
-    /// como lê-la pelos acessores de cima sem inventar uma conversão. Devolver o
-    /// `JsonNode` deixa a interpretação com quem sabe o que espera.
-    /// </remarks>
+    /// <summary>O atributo cru, para o que não é escalar, como a lista <c>colwidth</c>.</summary>
     public static JsonNode? Node(Node node, string name) =>
         node.Attrs is not null && node.Attrs.TryGetValue(name, out var value) ? value : null;
 
@@ -54,14 +43,9 @@ internal static class Attr
             : null;
 
     /// <summary>
-    /// 1 twip = 1/1440 de polegada.
+    /// 1 twip = 1/1440 de polegada. Arredonda para longe do zero, e não para o par
+    /// do .NET: o painel e o arquivo mostram a mesma medida.
     /// </summary>
-    /// <remarks>
-    /// Arredonda para longe do zero, e não para o par, que é o padrão do .NET. A
-    /// conversão morava em dois lugares com os dois arredondamentos — aqui e na
-    /// margem da página —, e duas respostas para o mesmo milímetro é como a
-    /// medida que o painel mostra deixa de ser a que o arquivo tem.
-    /// </remarks>
     public static int MmToTwips(double mm) =>
         (int)Math.Round(mm * 1440 / 25.4, MidpointRounding.AwayFromZero);
 
@@ -69,15 +53,10 @@ internal static class Attr
     public static int? MmToTwips(double? mm) => mm is null ? null : MmToTwips(mm.Value);
 
     /// <summary>
-    /// Uma medida do CSS em pontos, que é a unidade do OOXML.
+    /// Medida do CSS em pontos: o pixel vale três quartos de ponto (96 px contra
+    /// 72 pt por polegada). Unidade desconhecida volta <c>null</c>, para quem chamou
+    /// registrar a perda.
     /// </summary>
-    /// <remarks>
-    /// O pixel do CSS vale três quartos de ponto — 96 px por polegada contra 72
-    /// pt. Enquanto a conversão não existia, `font-size: 16px` era lido como
-    /// "16" e voltava para o arquivo como 16 pt: um terço maior do que a pessoa
-    /// escolheu. Unidade que não sabemos converter devolve <c>null</c>, para
-    /// quem chamou registrar a perda em vez de inventar um número.
-    /// </remarks>
     public static double? Points(string? css)
     {
         if (string.IsNullOrWhiteSpace(css)) return null;

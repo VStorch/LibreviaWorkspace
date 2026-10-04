@@ -5,19 +5,10 @@ using DocumentFormat.OpenXml.Wordprocessing;
 namespace Librevia.Format.Docx;
 
 /// <summary>
-/// O cabeçalho e o rodapé de texto simples, levados ao arquivo.
+/// A linha de texto de "Configurar página" (com <c>{n}</c> e <c>{total}</c>) levada
+/// ao DOCX. A parte gerada é reconhecida pelo id da relação, que é nosso; cabeçalho
+/// de fora volta do leitor como faixa, e a faixa manda, como no PDF.
 /// </summary>
-/// <remarks>
-/// O documento novo não tem faixa preservada: tem uma linha de texto em
-/// "Configurar página", com `{n}` e `{total}` no lugar dos números, que o PDF
-/// desenha centralizada em Calibri 9 pt (`src/services/pdf/page-setup.ts`). Sem
-/// esta ponte, salvar o documento novo em DOCX apagava as duas linhas sem aviso.
-///
-/// A parte gerada aqui é reconhecida pelo id da relação, que é nosso. É isso que
-/// permite regravá-la quando a pessoa muda o texto e apagá-la quando o texto
-/// some, sem nunca pôr a mão no cabeçalho de um documento que veio de fora: esse
-/// volta do leitor como faixa, e a faixa manda — como no PDF.
-/// </remarks>
 internal static class PlainBandWriter
 {
     private const string HeaderId = "LibreviaHeader";
@@ -32,9 +23,7 @@ internal static class PlainBandWriter
     {
         var added = false;
 
-        // Faixa com conteúdo manda, como no PDF — e é o caso do DOCX reaberto,
-        // cujo cabeçalho (inclusive o que nasceu aqui) volta do leitor como faixa.
-        // Aí a linha de texto nem é olhada, e muito menos apaga a parte.
+        // A faixa com conteúdo manda, também a que nasceu aqui e voltou do leitor.
         if (page.Header is not { IsEmpty: false })
         {
             added |= ApplyOne<HeaderReference, HeaderPart>(part, section, Meaningful(page.HeaderText), HeaderId,
@@ -47,8 +36,7 @@ internal static class PlainBandWriter
                 "rodapé", inventory, touched, content => new Footer(content));
         }
 
-        // Só quando entrou referência nova: reordenar as de um documento alheio
-        // seria mexer no que ninguém pediu.
+        // A ordem de um documento alheio só muda quando entrou referência nova.
         if (added) Reorder(section);
     }
 
@@ -72,8 +60,7 @@ internal static class PlainBandWriter
 
         if (text is null)
         {
-            // O texto sumiu e a parte é nossa: ela sai junto, senão o arquivo
-            // continuaria imprimindo o que a tela já não mostra.
+            // A parte é nossa: sai com o texto, senão imprimiria o que a tela não mostra.
             if (existing?.Id?.Value == ownId)
             {
                 existing.Remove();
@@ -85,9 +72,7 @@ internal static class PlainBandWriter
 
         if (existing is not null && existing.Id?.Value != ownId)
         {
-            // O documento tem cabeçalho próprio que o leitor não soube mostrar.
-            // Trocá-lo pela linha de texto seria perder o dele; ignorar a linha
-            // em silêncio, perder a da pessoa. Fica o dele, e o aviso.
+            // Cabeçalho próprio que o leitor não mostra: fica o dele, com aviso.
             inventory?.NoteLoss($"{label} de texto simples: o documento já tem um {label} próprio");
             return false;
         }
@@ -102,8 +87,7 @@ internal static class PlainBandWriter
                 return false;
             }
 
-            // Pela assinatura, e não pelo XML: o da parte lida traz declarações
-            // de espaço de nomes que o parágrafo montado aqui não tem.
+            // A parte lida traz declarações de espaço de nomes que a montada não tem.
             if (Signature(current) == Signature(paragraph)) return false;
 
             current.RemoveAllChildren();
@@ -120,7 +104,6 @@ internal static class PlainBandWriter
         return true;
     }
 
-    /// <summary>O texto e os campos, na ordem — o que a linha de texto simples diz.</summary>
     private static string Signature(OpenXmlElement element) => string.Concat(element.Descendants().Select(child =>
         child switch
         {
@@ -129,9 +112,7 @@ internal static class PlainBandWriter
             _ => string.Empty,
         }));
 
-    /// <summary>
-    /// A linha como o PDF a desenha: centralizada, Calibri 9 pt, cinza.
-    /// </summary>
+    /// <summary>Como o PDF a desenha: centralizada, Calibri 9 pt, cinza.</summary>
     private static Paragraph Paragraph(string text)
     {
         var paragraph = new Paragraph(new ParagraphProperties(
@@ -169,12 +150,9 @@ internal static class PlainBandWriter
         new Text(text) { Space = SpaceProcessingModeValues.Preserve });
 
     /// <summary>
-    /// As referências abrem o `w:sectPr`, cabeçalhos antes dos rodapés.
+    /// O esquema põe as referências antes do papel; cabeçalhos antes de rodapés é a
+    /// ordem do Word.
     /// </summary>
-    /// <remarks>
-    /// O esquema exige que venham antes do papel; a ordem entre elas é do Word, que
-    /// é quem mais estranha um arquivo diferente do que ele mesmo grava.
-    /// </remarks>
     private static void Reorder(SectionProperties section)
     {
         var references = section.Elements<HeaderReference>().Cast<OpenXmlElement>()

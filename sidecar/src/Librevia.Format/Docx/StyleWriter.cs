@@ -6,39 +6,22 @@ using DocumentFormat.OpenXml.Wordprocessing;
 namespace Librevia.Format.Docx;
 
 /// <summary>
-/// Grava de volta os estilos que o modelo mudou ou criou.
+/// Os estilos do original são relidos pelo <see cref="StyleReader"/> e comparados
+/// registro a registro: sem diferença, <c>word/styles.xml</c> volta byte a byte. O
+/// que mudou é alterado **no lugar**, campo a campo. Estilo novo entra no fim com
+/// <c>w:customStyle</c>; nenhum é excluído, porque uma parte que o editor não abre pode
+/// apontá-lo; e só o personalizado muda de nome.
 /// </summary>
-/// <remarks>
-/// A mesma regra da gravação cirúrgica, um andar acima: o que não mudou não é
-/// tocado. As definições do original são relidas pelo <see cref="StyleReader"/> —
-/// a mesma leitura que produziu o modelo — e comparadas estilo a estilo pela
-/// igualdade dos registros, que é a impressão digital da definição. Sem nenhuma
-/// diferença, `word/styles.xml` não entra nas partes tocadas e volta byte a byte.
-///
-/// O estilo que mudou é alterado **no lugar**, campo a campo: só o que o modelo
-/// representa e que de fato mudou é sobreposto ou removido. O resto do `w:style`
-/// — `w:rsid`, `w:tblStylePr`, borda, tabulação, idioma, fonte de tema do campo
-/// que ninguém mexeu — fica como estava, assim como `w:latentStyles` e os estilos
-/// de tabela e de numeração, que o modelo nem enxerga.
-///
-/// Estilo novo entra no fim, com `w:customStyle`. Nenhum estilo é excluído: um
-/// estilo que sumiu do modelo pode ainda ser apontado por uma parte que o editor
-/// não abre (cabeçalho, nota, comentário). E só o personalizado muda de nome — o
-/// nome do embutido (`heading 1`) é como o Word o reconhece.
-/// </remarks>
 internal static class StyleWriter
 {
-    /// <summary>A cópia com efeitos que o Word 2010 grava ao lado, e que não regravamos.</summary>
+    /// <summary>A cópia que o Word 2010 grava ao lado, e que não regravamos.</summary>
     internal const string StaleEffects = "estilos com efeitos do Word 2010 (stylesWithEffects.xml)";
 
     /// <returns>Se alguma coisa foi gravada.</returns>
     /// <param name="additionsOnly">
-    /// Rascunho antigo (blocos achatados): só acrescenta o estilo que o pacote
-    /// não tem. Os estilos de um rascunho da versão 2 foram **inventados** na
-    /// migração (`LEGACY_STYLES`), e não lidos deste arquivo; compará-los com os
-    /// do original e gravar a diferença reescreveria em Times os estilos
-    /// verdadeiros do documento. A mudança num estilo existente é declarada como
-    /// perda, e não gravada.
+    /// Rascunho achatado: só o estilo que o pacote não tem. Os estilos da versão 2
+    /// foram inventados na migração (<c>LEGACY_STYLES</c>), e gravá-los reescreveria em
+    /// Times os verdadeiros; a mudança num existente é declarada como perda.
     /// </param>
     public static bool Apply(
         MainDocumentPart part,
@@ -108,8 +91,7 @@ internal static class StyleWriter
         styles.Save();
         touched.Add(definitions.Uri.OriginalString.TrimStart('/'));
 
-        // A cópia antiga fica com as definições de antes. O Word lê `styles.xml`;
-        // só leitor muito antigo prefere a outra, e é disso que o aviso fala.
+        // O Word lê `styles.xml`; só leitor muito antigo prefere a cópia, e o aviso fala disso.
         if (part.StylesWithEffectsPart is not null) inventory.NoteInvisible(StaleEffects);
         return true;
     }
@@ -117,7 +99,7 @@ internal static class StyleWriter
     private static bool SameStyles(StyleSheetDto current, StyleSheetDto wanted) =>
         wanted.Styles.All(entry => current.Styles.TryGetValue(entry.Key, out var before) && before == entry.Value);
 
-    /// <summary>O primeiro `w:style` com o id — o mesmo que o leitor e o resolvedor usam.</summary>
+    /// <summary>O primeiro <c>w:style</c> com o id, como o leitor e o resolvedor.</summary>
     private static Style? StyleOf(Styles styles, string id) =>
         styles.Elements<Style>().FirstOrDefault(style => style.StyleId?.Value == id);
 
@@ -129,9 +111,7 @@ internal static class StyleWriter
         StyleSheetDto current,
         Inventory inventory)
     {
-        // O nome do embutido é como o Word o reconhece (`heading 1`): não muda, e
-        // quem pediu fica sabendo — a interface já não oferece, então chegar aqui
-        // é modelo vindo de outro lugar.
+        // O nome do embutido (`heading 1`) não muda; a interface não o oferece, e quem pediu fica sabendo.
         if (before.Name != after.Name)
         {
             if (before.Custom) element.StyleName = new StyleName { Val = after.Name };
@@ -156,10 +136,7 @@ internal static class StyleWriter
         Character(run, before.Character ?? new StyleCharacterDto(), after.Character ?? new StyleCharacterDto());
         if (!run.HasChildren) element.StyleRunProperties = null;
 
-        // O estilo de caractere ligado (`w:link`) é a outra metade do mesmo
-        // estilo: o Word o aplica ao trecho quando se escolhe o estilo de
-        // parágrafo numa parte da linha. Com fonte diferente, as duas metades
-        // divergiriam.
+        // O `w:link` é a outra metade do estilo: com fonte diferente, as duas divergiriam.
         if (after.Link is { } link && current.Styles.TryGetValue(link, out var linked) &&
             linked.Type == "character" && StyleOf(styles, link) is { } partner)
         {
@@ -175,12 +152,11 @@ internal static class StyleWriter
         {
             Type = definition.Type == "character" ? StyleValues.Character : StyleValues.Paragraph,
             StyleId = definition.Id,
-            // "1", e não o "true" que o SDK escreve: é a forma que o Word grava.
+            // "1", como o Word grava, e não o "true" do SDK.
             CustomStyle = new OnOffValue { InnerText = "1" },
         };
 
-        // A ordem é a do esquema: nome, herança, seguinte, ligado, prioridade,
-        // qFormat, e só então as propriedades.
+        // Na ordem do esquema: nome, herança, seguinte, ligado, prioridade, qFormat, propriedades.
         style.AppendChild(new StyleName { Val = definition.Name });
         if (definition.BasedOn is not null) style.AppendChild(new BasedOn { Val = definition.BasedOn });
         if (definition.Next is not null) style.AppendChild(new NextParagraphStyle { Val = definition.Next });
@@ -205,9 +181,8 @@ internal static class StyleWriter
         return style;
     }
 
-    // --- parágrafo ------------------------------------------------------------
 
-    /// <summary>Só os campos que mudaram; nulo remove o que o arquivo dizia.</summary>
+    /// <summary>Só os campos que mudaram; nulo remove.</summary>
     private static void Paragraph(OpenXmlElement properties, StyleParagraphDto before, StyleParagraphDto after)
     {
         if (before.TextAlign != after.TextAlign)
@@ -219,8 +194,7 @@ internal static class StyleWriter
             before.FirstLineMm != after.FirstLineMm)
         {
             var indentation = properties.GetFirstChild<Indentation>() ?? new Indentation();
-            // As medidas em caracteres (`*Chars`) vencem a em twips no Word: sem
-            // tirá-las, a mudança não apareceria em lugar nenhum.
+            // As medidas em caracteres (`*Chars`) vencem os twips no Word: saem.
             if (before.IndentMm != after.IndentMm)
             {
                 indentation.Left = Twips(after.IndentMm);
@@ -252,7 +226,7 @@ internal static class StyleWriter
             before.LineSpacing != after.LineSpacing)
         {
             var spacing = properties.GetFirstChild<SpacingBetweenLines>() ?? new SpacingBetweenLines();
-            // Em linhas e o automático do HTML vencem os twips, como no recuo.
+            // Linhas e o automático do HTML vencem os twips, como no recuo.
             if (before.SpaceBefore != after.SpaceBefore)
             {
                 spacing.Before = PointsToTwips(after.SpaceBefore);
@@ -316,7 +290,6 @@ internal static class StyleWriter
         }
     }
 
-    // --- caractere ------------------------------------------------------------
 
     private static void Character(OpenXmlElement properties, StyleCharacterDto before, StyleCharacterDto after)
     {
@@ -326,7 +299,7 @@ internal static class StyleWriter
             var family = ParagraphFormat.FirstFont(after.FontFamily);
             fonts.Ascii = family;
             fonts.HighAnsi = family;
-            // A fonte de tema venceria a declarada: o Word a lê primeiro.
+            // A fonte de tema venceria a declarada.
             fonts.AsciiTheme = null;
             fonts.HighAnsiTheme = null;
             Put(properties, "rFonts", fonts.HasAttributes ? fonts : null, RPrOrder);
@@ -374,8 +347,7 @@ internal static class StyleWriter
             Put(properties, "color", color, RPrOrder);
         }
 
-        // O realce é lido do `w:highlight` nomeado ou do `w:shd`; volta como
-        // `w:shd`, que guarda qualquer cor, e o nomeado sai para não vencê-lo.
+        // Volta como `w:shd`, que guarda qualquer cor; o `w:highlight` nomeado sai para não vencê-lo.
         if (before.Highlight != after.Highlight)
         {
             properties.GetFirstChild<Highlight>()?.Remove();
@@ -383,9 +355,8 @@ internal static class StyleWriter
         }
     }
 
-    // --- peças ----------------------------------------------------------------
 
-    /// <summary>Ligado sem `w:val`, desligado com `w:val="0"`, silêncio sem elemento.</summary>
+    /// <summary>Ligado sem <c>w:val</c>, desligado com <c>w:val="0"</c>, silêncio sem elemento.</summary>
     private static T? Toggle<T>(bool? value) where T : OnOffType, new() => value switch
     {
         null => null,
@@ -404,20 +375,12 @@ internal static class StyleWriter
     private static StringValue? PointsToTwips(double? points) =>
         points is { } value ? new StringValue(Invariant(Rounded(value * 20))) : null;
 
-    /// <summary>
-    /// Para longe do zero, e não para o par, como o resto do escritor
-    /// (<see cref="Attr.MmToTwips(double)"/>): 10,25 pt são 21 meios-pontos, e o
-    /// arredondamento do .NET daria 20 — um tamanho que ninguém escolheu.
-    /// </summary>
+    /// <summary>Para longe do zero, como <see cref="Attr.MmToTwips(double)"/>: 10,25 pt são 21 meios-pontos.</summary>
     private static int Rounded(double value) => (int)Math.Round(value, MidpointRounding.AwayFromZero);
 
     private static string Invariant(int value) => value.ToString(CultureInfo.InvariantCulture);
 
-    /// <summary>
-    /// Troca o filho de nome <paramref name="name"/> por <paramref name="child"/>
-    /// (nulo remove), na posição que o esquema manda. O próprio filho já no lugar
-    /// — alterado por dentro — fica onde está.
-    /// </summary>
+    /// <summary>Nulo remove; na posição do esquema; o filho já no lugar fica onde está.</summary>
     private static void Put(OpenXmlElement parent, string name, OpenXmlElement? child, string[] order)
     {
         var old = parent.ChildElements.FirstOrDefault(element => element.LocalName == name);
@@ -436,7 +399,6 @@ internal static class StyleWriter
         else parent.InsertBefore(child, next);
     }
 
-    /// <summary>A sequência do `w:pPr`, como o esquema a fixa.</summary>
     private static readonly string[] PPrOrder =
     [
         "pStyle", "keepNext", "keepLines", "pageBreakBefore", "framePr", "widowControl", "numPr",
@@ -446,7 +408,7 @@ internal static class StyleWriter
         "textAlignment", "textboxTightWrap", "outlineLvl", "divId", "cnfStyle", "rPr", "sectPr", "pPrChange",
     ];
 
-    /// <summary>A sequência do `w:rPr` — a mesma da marca de parágrafo.</summary>
+    /// <summary>A mesma da marca de parágrafo.</summary>
     private static readonly string[] RPrOrder =
     [
         "rStyle", "rFonts", "b", "bCs", "i", "iCs", "caps", "smallCaps", "strike", "dstrike", "outline", "shadow",

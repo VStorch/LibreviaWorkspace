@@ -6,40 +6,16 @@ using DocumentFormat.OpenXml.Wordprocessing;
 namespace Librevia.Format.Docx;
 
 /// <summary>
-/// A grade de colunas da tabela gravada — `w:tblGrid`, `w:tblW`, `w:tblLayout` e
-/// o `w:tcW` de cada célula.
+/// <c>w:tblGrid</c>, <c>w:tblW</c>, <c>w:tblLayout</c> e o <c>w:tcW</c> de cada célula. **Só
+/// reescreve quando muda**: twip→pixel arredonda, e a coluna cujo pixel não mudou
+/// volta com o twip original. <c>w:tblW</c> em twips com layout fixo faz o Word
+/// desenhar a largura pedida, como o <c>table-layout: fixed</c> da tela.
 /// </summary>
-/// <remarks>
-/// Saiu de <see cref="TableWriter"/> porque é a parte da tabela que faz conta:
-/// completar a largura que o editor não declarou, casar pixel com twip e decidir
-/// se a grade do arquivo ainda serve. Misturada à cópia por posição de linhas e
-/// células, as duas lógicas se escondiam uma na outra.
-///
-/// O editor já deixava arrastar a divisória das colunas, e o número novo morria
-/// aqui: o `w:tblGrid` voltava do arquivo por posição e ninguém o comparava com o
-/// modelo. Era perda silenciosa.
-///
-/// **Só reescreve quando muda.** A conversão twip→pixel arredonda — 2000 twips
-/// são 133,33 px —, então regravar a grade a cada salvamento mexeria na medida
-/// de uma tabela que ninguém tocou. Igual ao que o arquivo tem, o XML original
-/// volta intacto; e a coluna cujo pixel não mudou volta com o twip original.
-///
-/// Com a grade vem `w:tblW` em twips e `w:tblLayout` fixo: é o par que faz o Word
-/// desenhar a largura pedida em vez de redistribuir as colunas pelo conteúdo —
-/// que é o que a tela faz, com `table-layout: fixed`.
-/// </remarks>
 internal sealed class TableGridWriter(Inventory inventory, int usableWidthPx)
 {
-    /// <summary>
-    /// A coluna mais estreita que a conta de "o que sobra" pode dar à coluna sem
-    /// medida: doze milímetros e pouco. Abaixo disso — a tabela já ocupava a
-    /// coluna de texto inteira e alguém inseriu mais uma — a coluna nova ganha a
-    /// média das outras, que é mais perto do que o Word faz do que um fio de um
-    /// pixel.
-    /// </summary>
+    /// <summary>Doze milímetros e pouco; abaixo disso, a coluna nova ganha a média das outras.</summary>
     private const int MinSharePx = 48;
 
-    /// <summary>Largura de coluna mudada numa tabela cuja primeira linha não cobre a grade.</summary>
     internal const string PartialGridLoss =
         "largura de coluna de uma tabela com linhas que não ocupam todas as colunas";
 
@@ -51,11 +27,8 @@ internal sealed class TableGridWriter(Inventory inventory, int usableWidthPx)
         var declared = DeclaredWidths(rows, columns);
         var grid = original is null ? [] : GridTwips(original);
 
-        // A primeira linha do arquivo não cobre a grade toda — `w:gridBefore`,
-        // `w:gridAfter` —, e a grade que o modelo descreve é só um pedaço da do
-        // arquivo. Regravá-la com menos colunas mudava a forma da tabela na
-        // primeira correção de texto. A grade do arquivo fica; se a largura mudou
-        // de fato, a mudança não chega, e o aviso diz isso.
+        // A primeira linha não cobre a grade (`w:gridBefore`, `w:gridAfter`): a do
+        // arquivo fica, e a mudança de largura vai ao aviso.
         if (original is not null && grid.Count > 0 && IsPartial(original, grid.Count))
         {
             var offset = GridBeforeOf(original);
@@ -68,12 +41,9 @@ internal sealed class TableGridWriter(Inventory inventory, int usableWidthPx)
 
         if (declared.All(width => width is null))
         {
-            // Nada declarado e a grade do arquivo ainda cabe: é ela que vale.
             if (grid.Count == columns) return;
 
-            // Tabela recém-inserida: o editor não declara largura nenhuma, e o
-            // esquema quer a grade. Colunas iguais na coluna de texto é o que o
-            // Word faz ao inserir.
+            // Tabela recém-inserida: colunas iguais na coluna de texto, como o Word.
             var total = grid.Count > 0 ? (int)grid.Sum() : TableLook.ToTwips(usableWidthPx);
             WriteGrid(table, [.. Enumerable.Repeat((long)Math.Max(1, total / columns), columns)]);
             return;
@@ -87,16 +57,10 @@ internal sealed class TableGridWriter(Inventory inventory, int usableWidthPx)
     }
 
     /// <summary>
-    /// A largura das colunas que o editor não declarou, completada.
+    /// O TableKit põe <c>colwidth</c> só na coluna arrastada, e a inserida chega com
+    /// <c>0</c> ou <c>null</c>. A conta é a da tela: a sem medida fica com a do arquivo, ou
+    /// divide o que sobra.
     /// </summary>
-    /// <remarks>
-    /// O TableKit põe `colwidth` só na coluna arrastada, e depois de inserir
-    /// uma coluna a nova chega com `0` ou `null`. Descartar a grade parcial
-    /// faria a largura que a pessoa arrastou não chegar ao arquivo. A conta é a
-    /// da tela: com a grade do arquivo no mesmo formato, a coluna sem medida
-    /// fica com a dela; sem isso, as sem medida dividem o que sobra — da tabela
-    /// do arquivo, ou da coluna de texto numa tabela nova.
-    /// </remarks>
     private List<int> Completed(List<int?> declared, List<long> grid)
     {
         if (grid.Count == declared.Count)
@@ -116,14 +80,9 @@ internal sealed class TableGridWriter(Inventory inventory, int usableWidthPx)
     }
 
     /// <summary>
-    /// Pixel → twip, devolvendo o twip original a cada coluna cujo pixel não mudou.
+    /// Pelo índice com o mesmo número de colunas; com outro, na ordem: a inserida é
+    /// medida nova e a apagada é pulada.
     /// </summary>
-    /// <remarks>
-    /// Com o mesmo número de colunas, pelo índice. Com outro — coluna inserida ou
-    /// apagada —, o índice já não aponta para a mesma coluna do arquivo, e a conta
-    /// anda na ordem: a coluna que casa com a próxima original leva o twip dela; a
-    /// inserida é medida nova e não consome original nenhuma; a apagada é pulada.
-    /// </remarks>
     private static List<long> Matched(List<int> widths, List<long> grid)
     {
         if (widths.Count == grid.Count)
@@ -178,15 +137,7 @@ internal sealed class TableGridWriter(Inventory inventory, int usableWidthPx)
         table.InsertAfter(grid, properties);
     }
 
-    /// <summary>
-    /// A largura declarada em cada célula, que é o outro lugar de onde o Word
-    /// tira a medida: deixada com o número antigo, ela contradiz a grade nova e o
-    /// Word escolhe uma das duas sem avisar.
-    /// </summary>
-    /// <remarks>
-    /// Só nas linhas que cobrem a grade inteira: numa linha de outro formato não
-    /// há como saber a que colunas cada célula corresponde.
-    /// </remarks>
+    /// <summary>O <c>w:tcW</c> antigo contradiria a grade nova. Só nas linhas que cobrem a grade inteira.</summary>
     private static void WriteCellWidths(Table table, List<Node> rows, List<long> twips)
     {
         var built = table.Elements<TableRow>().ToList();
@@ -213,14 +164,7 @@ internal sealed class TableGridWriter(Inventory inventory, int usableWidthPx)
         }
     }
 
-    /// <summary>
-    /// A largura que o modelo declara para cada coluna da grade, lida da primeira
-    /// linha; <c>null</c> na coluna sem medida.
-    /// </summary>
-    /// <remarks>
-    /// Da primeira linha porque é de lá que o editor também a lê para desenhar o
-    /// `colgroup` — ver `updateColumns` do TableKit.
-    /// </remarks>
+    /// <summary>Da primeira linha, como o TableKit lê para o <c>colgroup</c>; <c>null</c> na coluna sem medida.</summary>
     private static List<int?> DeclaredWidths(List<Node> rows, int columns)
     {
         var widths = new List<int?>(columns);
@@ -243,10 +187,9 @@ internal sealed class TableGridWriter(Inventory inventory, int usableWidthPx)
 
     private static int SpanOf(Node cell) => Attr.Int(cell, "colspan") is > 1 and var span ? span : 1;
 
-    /// <summary>Quantas colunas de grade a tabela tem, somando os `colspan`.</summary>
     private static int Columns(List<Node> rows) => (rows.FirstOrDefault()?.Content ?? []).Sum(SpanOf);
 
-    /// <summary>A grade do arquivo em twips, como está escrita; vazia se alguma medida não se lê.</summary>
+    /// <summary>Vazia se alguma medida não se lê.</summary>
     private static List<long> GridTwips(Table original)
     {
         var widths = new List<long>();
@@ -259,11 +202,7 @@ internal sealed class TableGridWriter(Inventory inventory, int usableWidthPx)
         return widths;
     }
 
-    /// <summary>
-    /// A primeira linha do arquivo deixa colunas da grade de fora — pula algumas
-    /// no começo (`w:gridBefore`), deixa outras no fim (`w:gridAfter`) ou tem
-    /// menos células do que a grade? O modelo não representa nenhum dos três.
-    /// </summary>
+    /// <summary>O modelo não representa <c>w:gridBefore</c>, <c>w:gridAfter</c> nem linha com menos células.</summary>
     private static bool IsPartial(Table original, int gridColumns)
     {
         var row = original.Elements<TableRow>().FirstOrDefault();
@@ -275,7 +214,6 @@ internal sealed class TableGridWriter(Inventory inventory, int usableWidthPx)
         return GridBeforeOf(original) > 0 || after > 0 || spans != gridColumns;
     }
 
-    /// <summary>Quantas colunas a primeira linha do arquivo pula antes da primeira célula.</summary>
     private static int GridBeforeOf(Table original) =>
         original.Elements<TableRow>().FirstOrDefault()?.TableRowProperties?.GetFirstChild<GridBefore>()?.Val?.Value
             is > 0 and var before

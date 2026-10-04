@@ -5,21 +5,14 @@ using Anchor = DocumentFormat.OpenXml.Drawing.Wordprocessing;
 
 namespace Librevia.Format.Docx;
 
-/// <summary>
-/// Um objeto que não está no fluxo do texto: imagem ou caixa ancorada.
-/// </summary>
-/// <remarks>
-/// Medidas em milímetros, e não em pixels, porque quem as consome desenha em
-/// dois lugares com resoluções diferentes — a tela e o papel. Converter uma vez
-/// aqui deixaria um dos dois arredondando de volta.
-/// </remarks>
+/// <summary>Em milímetros: tela e papel desenham em resoluções diferentes, e cada um converte uma vez.</summary>
 public sealed record FloatDto(
     [property: JsonPropertyName("kind")] string Kind,
     [property: JsonPropertyName("src")] string? Src,
     [property: JsonPropertyName("content")] List<Node>? Content,
     [property: JsonPropertyName("widthMm")] double WidthMm,
     [property: JsonPropertyName("heightMm")] double HeightMm,
-    /// <summary>Graus, sentido horário, como o CSS espera.</summary>
+    /// <summary>Graus, sentido horário, como o CSS.</summary>
     [property: JsonPropertyName("rotation")] double Rotation,
     [property: JsonPropertyName("hFrom")] string HorizontalFrom,
     [property: JsonPropertyName("hOffsetMm")] double? HorizontalOffsetMm,
@@ -27,41 +20,21 @@ public sealed record FloatDto(
     [property: JsonPropertyName("vFrom")] string VerticalFrom,
     [property: JsonPropertyName("vOffsetMm")] double? VerticalOffsetMm,
     [property: JsonPropertyName("vAlign")] string? VerticalAlign,
-    /// <summary>Atrás do texto: decoração de capa, marca d'água.</summary>
+    /// <summary>Decoração de capa, marca d'água.</summary>
     [property: JsonPropertyName("behind")] bool Behind,
     [property: JsonPropertyName("wrap")] string Wrap,
-    /// <summary>
-    /// Deslocamento da peça dentro do desenho, somado depois de resolver a
-    /// âncora. Vem de um grupo de formas: a âncora posiciona o grupo, e cada
-    /// peça tem a sua coordenada dentro dele.
-    /// </summary>
+    /// <summary>A posição da peça dentro do grupo, somada depois de resolver a âncora.</summary>
     [property: JsonPropertyName("dxMm")] double DxMm = 0,
     [property: JsonPropertyName("dyMm")] double DyMm = 0,
-    /// <summary>
-    /// Onde a caixa deste objeto mora, quando ela é editável.
-    /// </summary>
-    /// <remarks>
-    /// Só objetos de faixa o trazem: os do corpo voltam pelo parágrafo que os
-    /// ancora, que já tem o `oid`. A caixa é regenerada por inteiro quando o
-    /// texto muda — digitar abre e fecha parágrafos dentro dela, e endereçar
-    /// parágrafo a parágrafo quebraria na primeira tecla Enter.
-    /// </remarks>
+    /// <summary>Só nos objetos de faixa; a caixa é regenerada inteira, porque digitar abre e fecha parágrafos.</summary>
     [property: JsonPropertyName("bid")] string? BoxId = null,
-    /// <summary>
-    /// A moldura e o preenchimento da forma, quando dá para reproduzi-los.
-    /// </summary>
-    /// <remarks>
-    /// Cor sólida e traço sólido de uma espessura, que é o caso comum e é o que
-    /// o CSS desenha. O que não cabe aqui — gradiente, textura, sombra, canto
-    /// arredondado — não é desenhado e entra no inventário; ver
-    /// <see cref="ShapeLook"/>.
-    /// </remarks>
+    /// <summary>Só cor e traço sólidos; o resto vai ao inventário (<see cref="ShapeLook"/>).</summary>
     [property: JsonPropertyName("fill")] string? Fill = null,
     [property: JsonPropertyName("line")] string? Line = null,
     [property: JsonPropertyName("lineWidthPt")] double LineWidthPt = 0,
     [property: JsonPropertyName("dash")] bool Dash = false);
 
-/// <summary>Uma peça de dentro de um desenho, na régua da página.</summary>
+    /// <summary>Na régua da página.</summary>
 public sealed record AnchoredPiece(
     OpenXmlElement Shape,
     double DxEmus,
@@ -71,52 +44,26 @@ public sealed record AnchoredPiece(
     double Rotation);
 
 /// <summary>
-/// `wp:anchor` → onde o objeto cai na folha.
+/// <c>wp:anchor</c> → origem e deslocamento por eixo, sem resolver: a origem mais
+/// comum é o parágrafo, que só tem posição depois de paginar. A rotação sai em
+/// graus e não mexe nas medidas, como o Word e o <c>transform: rotate()</c>.
 /// </summary>
-/// <remarks>
-/// O OOXML posiciona um objeto ancorado em relação a **quatro** origens
-/// possíveis por eixo — a margem, a coluna, a página e o parágrafo — e a origem
-/// vertical mais comum é justamente a que só existe depois de paginar. Por isso
-/// nada é resolvido aqui: este leitor entrega a origem e o deslocamento, e quem
-/// desenha faz a conta, porque só ele sabe em que folha o parágrafo âncora caiu.
-///
-/// A rotação sai em graus e **não** é aplicada às medidas. O Word posiciona a
-/// caixa sem girar e depois a gira em torno do centro, que é exatamente o que
-/// `transform: rotate()` faz — mexer nas medidas aqui desalinharia as duas.
-/// </remarks>
 public static class AnchorReader
 {
     private const double EmusPerMillimeter = 914400 / 25.4;
 
-    /// <summary>60000 avos de grau é a unidade de `a:rot`.</summary>
     private const double RotationUnitsPerDegree = 60000;
 
-    /// <summary>Meio centímetro de folga: posição de verdade está longe disso.</summary>
     private const double FlowToleranceMm = 2;
 
-    /// <summary>O desenho é ancorado, e não uma imagem no meio da linha?</summary>
     public static Anchor.Anchor? AnchorOf(OpenXmlElement drawing) =>
         drawing.Descendants<Anchor.Anchor>().FirstOrDefault();
 
     /// <summary>
-    /// O objeto ancorado está onde o fluxo o poria de qualquer jeito?
+    /// <c>wp:anchor</c> não é "fora do fluxo": o LibreOffice grava assim a imagem no
+    /// próprio parágrafo. Tem posição de verdade quem não anda com o parágrafo, se
+    /// afasta dele, fica atrás do texto ou usa <c>wrapNone</c>; o resto é bloco.
     /// </summary>
-    /// <remarks>
-    /// `wp:anchor` não quer dizer "fora do fluxo". É assim que o LibreOffice
-    /// grava **imagem no próprio parágrafo**: ancorada ao parágrafo, sem
-    /// deslocamento vertical, centralizada na coluna e com a largura dela. Um
-    /// documento de trinta capturas de tela é feito só disso.
-    ///
-    /// Tratar essas como posição na folha é o pior dos dois mundos: elas deixam
-    /// de ocupar altura, o texto se fecha por cima, o documento encolhe de doze
-    /// folhas para quatro e as imagens acabam empilhadas umas sobre as outras.
-    ///
-    /// A pergunta que separa os dois casos não é o modo de contorno sozinho, é
-    /// **onde o objeto está**: quem não anda com o parágrafo, quem se afasta
-    /// dele, quem fica atrás do texto ou quem deixa o texto passar por baixo
-    /// (`wrapNone`) tem posição de verdade. O resto está no lugar em que o
-    /// fluxo já o poria, e é como bloco que ele é desenhado certo.
-    /// </remarks>
     public static bool FlowsWithText(Anchor.Anchor anchor)
     {
         if (anchor.BehindDoc?.Value == true) return false;
@@ -131,15 +78,13 @@ public static class AnchorReader
             return false;
         }
 
-        // "No alto da página", "no meio da margem": alinhamento vertical é
-        // posição declarada, e não segue o parágrafo.
+        // Alinhamento vertical é posição declarada.
         if (vertical?.VerticalAlignment is not null) return false;
         if (Math.Abs(OffsetMillimeters(vertical?.PositionOffset?.Text) ?? 0) > FlowToleranceMm) return false;
 
         var horizontal = anchor.GetFirstChild<Anchor.HorizontalPosition>();
 
-        // Alinhado na coluna é onde o parágrafo já o poria — inclusive
-        // centralizado, que é como a imagem de largura inteira é gravada.
+        // Alinhado na coluna é onde o parágrafo já o poria.
         if (horizontal?.HorizontalAlignment is not null) return true;
 
         var side = horizontal?.RelativeFrom?.Value;
@@ -185,28 +130,13 @@ public static class AnchorReader
     }
 
     /// <summary>
-    /// As peças de dentro de um desenho ancorado, cada uma na sua caixa.
+    /// A âncora diz onde está o grupo; <c>a:chOff</c> e <c>a:chExt</c> dão a régua das
+    /// coordenadas de dentro. O desenho de peça única sai com deslocamento zero.
     /// </summary>
-    /// <remarks>
-    /// Um cabeçalho corporativo costuma ser **um grupo de formas**: o logotipo,
-    /// a caixa do título, a do número da página e um par de filetes, cada um com
-    /// coordenada própria dentro do grupo. A âncora diz onde o grupo está e que
-    /// tamanho ele tem; `a:chOff` e `a:chExt` dizem em que régua as coordenadas
-    /// de dentro foram escritas.
-    ///
-    /// Sem desembrulhar, cada peça recebia a caixa do grupo inteiro: o logotipo
-    /// de 48 × 10,5 mm era esticado para os 177 × 17 mm da faixa toda, e as
-    /// caixas de texto — o título do documento entre elas — não saíam de lugar
-    /// nenhum, porque quem lia só procurava imagens.
-    ///
-    /// Desenho de peça única cai aqui também, e sai com deslocamento zero: o
-    /// `a:off` dele é a origem, e a conta dá a caixa da própria âncora.
-    /// </remarks>
     public static List<AnchoredPiece> PiecesOf(Anchor.Anchor anchor)
     {
         var extent = anchor.Descendants<Anchor.Extent>().FirstOrDefault();
-        // `a:xfrm` de grupo é outro elemento: só ele carrega `a:chOff`/`a:chExt`,
-        // que é a régua em que as coordenadas de dentro foram escritas.
+        // Só o `a:xfrm` de grupo carrega `a:chOff`/`a:chExt`.
         var group = anchor.Descendants<Drawing.TransformGroup>().FirstOrDefault();
 
         var (scaleX, scaleY) = (1.0, 1.0);
@@ -245,22 +175,13 @@ public static class AnchorReader
         return pieces;
     }
 
-    /// <summary>Imagens e caixas de texto, na ordem em que o arquivo as traz.</summary>
     private static IEnumerable<OpenXmlElement> Shapes(Anchor.Anchor anchor) =>
         anchor.Descendants<OpenXmlElement>()
             .Where(element =>
                 element is Drawing.Pictures.Picture
                     or DocumentFormat.OpenXml.Office2010.Word.DrawingShape.WordprocessingShape);
 
-    /// <summary>
-    /// Como o texto se comporta em volta.
-    /// </summary>
-    /// <remarks>
-    /// Só o nome do modo, sem interpretá-lo: quem desenha decide o que consegue
-    /// reproduzir. Hoje todos são desenhados por cima ou por baixo, sem o texto
-    /// contornar — dizer o modo mesmo assim deixa a diferença registrada no
-    /// modelo, em vez de perdida no leitor.
-    /// </remarks>
+    /// <summary>Só o nome do modo, sem interpretar: quem desenha decide o que reproduz.</summary>
     internal static string WrapOf(Anchor.Anchor anchor)
     {
         if (anchor.GetFirstChild<Anchor.WrapNone>() is not null) return "none";
@@ -287,9 +208,7 @@ public static class AnchorReader
     private static double Millimeters(long? emus) =>
         emus is null ? 0 : Math.Round(emus.Value / EmusPerMillimeter, 2);
 
-    /// <summary>
-    /// O deslocamento pode ser negativo — é como o objeto sai para a margem.
-    /// </summary>
+    /// <summary>Negativo é o objeto saindo para a margem.</summary>
     private static double? OffsetMillimeters(string? text) =>
         long.TryParse(text, out var emus) ? Math.Round(emus / EmusPerMillimeter, 2) : null;
 }
