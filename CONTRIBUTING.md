@@ -100,7 +100,7 @@ quem escreveu. Não é uma regra só, mas um conjunto de hábitos:
 | **Sem efeito escondido** | uma função chamada `formatCell` não grava nada no disco; o nome promete, e o corpo cumpre | a lógica pura em `src/services/` não toca disco, rede nem tela |
 | **Erro tratado de propósito** | o erro tem tipo e mensagem que a pessoa entende, em vez de uma exceção genérica engolida ou propagada sem contexto | `AppError` com `ErrorCode`; na planilha, erro é valor (`#DIV/0!`) e se propaga sem derrubar o cálculo |
 | **Sem duplicação** | a mesma regra escrita em dois lugares diverge na primeira mudança feita às pressas | os rótulos de `Inventory.cs` são constantes; os textos da interface vivem num catálogo só |
-| **Deixe melhor do que encontrou** | ao mexer num arquivo, arrume o que estiver ao alcance — um nome ruim, uma função grande da lista de exceções | `npm run lint:prune` registra cada função antiga que foi corrigida |
+| **Deixe melhor do que encontrou** | ao mexer num arquivo, arrume o que estiver ao alcance — um nome ruim, um comentário que só repete o código | o lint de tamanho e complexidade não tem lista de exceções |
 | **Formatação que ninguém discute** | o formatador decide espaços e quebras, e a revisão fala do que importa | Prettier, conferido no CI |
 
 #### Quando um comentário ainda cabe
@@ -236,17 +236,8 @@ Para comparar: a função típica do projeto tem complexidade 3 e 7 linhas.
 
 ### Os limites sobem em degraus
 
-Quando os limites entraram, 76 funções já passavam deles. Em vez de reescrevê-las de uma vez,
-elas foram **congeladas** em `eslint-suppressions.json`, que guarda quantas exceções cada arquivo
-tem. A regra passa a valer assim:
-
-- **código novo** acima do limite reprova;
-- uma função antiga que **piora** também reprova, porque o arquivo passa a ter mais exceções do
-  que o registrado;
-- quem **corrige** uma função da lista roda `npm run lint:prune`, que tira a exceção do arquivo.
-  Sem isso o lint reclama de uma exceção que não existe mais.
-
-A meta é baixar a complexidade para 15 quando a lista estiver menor.
+Nenhuma função passa dos limites, e não há lista de exceções: código acima deles reprova, e a
+saída é dividir a função. O próximo degrau é baixar a complexidade para 15.
 
 ### Quando a exceção à regra é legítima
 

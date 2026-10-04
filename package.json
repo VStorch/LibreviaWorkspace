@@ -22,7 +22,6 @@
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "lint:prune": "eslint . --prune-suppressions",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest run",

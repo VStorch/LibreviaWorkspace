@@ -89,10 +89,7 @@ export default tseslint.config(
 
   {
     // Tamanho e complexidade de função. Os limites saíram da medição do código
-    // (p95 de complexidade 13, de linhas 44, de parâmetros 4) e sobem em degraus:
-    // o que já passava deles está congelado em `eslint-suppressions.json`, e só
-    // código novo — ou piorado — reprova. Ao corrigir uma função da lista, rode
-    // `npm run lint:prune` para tirá-la de lá.
+    // (p95 de complexidade 13, de linhas 44, de parâmetros 4).
     files: ['src/**/*.ts', 'src/**/*.tsx'],
     ignores: ['**/*.test.ts', '**/*.test.tsx'],
     rules: {

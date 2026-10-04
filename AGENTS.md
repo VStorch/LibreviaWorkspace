@@ -31,9 +31,8 @@ Teste só o que a mudança tocou. Rodar a suíte inteira a cada passo é desperd
   `@main/*` nem `@renderer/*`. O renderer não importa `electron`, `node:*` nem `@main/*`; fala com
   o main só por `window.api`. O preload só importa de `@shared`.
 - **Limites de função** (em `src/`, fora dos testes): `complexity` 20,
-  `max-lines-per-function` 80, `max-depth` 4, `max-params` 5. As violações antigas estão
-  congeladas em `eslint-suppressions.json`. Não acrescente entradas lá para fazer código novo
-  passar; divida a função. Ao corrigir uma função da lista, rode `npm run lint:prune`.
+  `max-lines-per-function` 80, `max-depth` 4, `max-params` 5. Nenhuma função passa deles, e não
+  há lista de exceções: acima do limite, divida a função.
 - **`eslint-disable`** só na linha, com o motivo escrito acima, e só quando a causa é externa
   (por exemplo, assinatura de callback do ProseMirror).
 - **IPC:** todo canal tem esquema Zod em `src/shared/`.

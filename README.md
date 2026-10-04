@@ -685,7 +685,6 @@ npm run dev
 | `npm run sidecar:test` | testes do sidecar (.NET) |
 | `npm run e2e` | build e testes de ponta a ponta no aplicativo montado |
 | `npm run lint` | lint, incluindo as fronteiras entre as camadas |
-| `npm run lint:prune` | tira de `eslint-suppressions.json` as exceções de funções já corrigidas |
 | `npm run i18n:check` | procura texto da interface fora do catálogo de traduções |
 | `npm run verify` | **o mesmo que o CI roda**: tipos, lint, testes dos dois lados, licenças e traduções |
 | `npm run dist` | instaladores AppImage e `.deb` em `release/` |
