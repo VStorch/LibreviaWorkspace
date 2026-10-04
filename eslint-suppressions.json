@@ -106,45 +106,6 @@
       "count": 1
     }
   },
-  "src/renderer/document/editor-extensions.ts": {
-    "max-lines-per-function": {
-      "count": 1
-    }
-  },
-  "src/renderer/document/extensions/block-format.ts": {
-    "max-lines-per-function": {
-      "count": 1
-    }
-  },
-  "src/renderer/document/extensions/revision-view.ts": {
-    "complexity": {
-      "count": 1
-    },
-    "max-lines-per-function": {
-      "count": 1
-    }
-  },
-  "src/renderer/document/extensions/track-input.ts": {
-    "complexity": {
-      "count": 2
-    }
-  },
-  "src/renderer/document/print-source.ts": {
-    "complexity": {
-      "count": 1
-    },
-    "max-lines-per-function": {
-      "count": 1
-    }
-  },
-  "src/renderer/document/references.ts": {
-    "complexity": {
-      "count": 1
-    },
-    "max-lines-per-function": {
-      "count": 1
-    }
-  },
   "src/renderer/document/toolbar/CharacterFormatGroup.tsx": {
     "max-lines-per-function": {
       "count": 1
@@ -196,17 +157,7 @@
       "count": 1
     }
   },
-  "src/renderer/state/context.ts": {
-    "max-lines-per-function": {
-      "count": 1
-    }
-  },
   "src/renderer/state/file-actions.ts": {
-    "max-lines-per-function": {
-      "count": 1
-    }
-  },
-  "src/renderer/state/print-actions.ts": {
     "max-lines-per-function": {
       "count": 1
     }

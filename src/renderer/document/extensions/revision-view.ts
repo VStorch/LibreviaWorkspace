@@ -8,9 +8,9 @@ import {
   type EditorState,
   type Transaction,
 } from '@tiptap/pm/state'
-import { Decoration, DecorationSet } from '@tiptap/pm/view'
+import { Decoration, DecorationSet, type EditorView } from '@tiptap/pm/view'
 import { RevisionView } from '@shared/types.js'
-import { DELETION, INSERTION, ZERO_WIDTH, blockRevisionOf } from './track-changes.js'
+import { DELETION, INSERTION, ZERO_WIDTH, blockRevisionOf, characterSize } from './track-changes.js'
 
 /**
  * Marcação completa: tudo à vista. Simples: o texto final, com uma barra na
@@ -218,98 +218,109 @@ export const RevisionViewExtension = Extension.create({
         props: {
           attributes: (state) => ({ class: `revisions-${revisionViewOf(state)}` }),
           decorations: (state) => revisionViewKey.getState(state)?.decorations ?? null,
-          // Com algo escondido, o navegador levaria junto o excluído ou o reapareceria como
-          // tachado: apaga-se aqui só o que se vê.
-          handleKeyDown(view, event) {
-            if (event.key !== 'Backspace' && event.key !== 'Delete') return false
-            if (event.ctrlKey || event.metaKey || event.altKey || event.shiftKey || view.composing)
-              return false
-            const mode = revisionViewOf(view.state)
-            const { selection } = view.state
-            if (mode === RevisionView.All || !(selection instanceof TextSelection)) return false
-            if (!selection.empty) {
-              view.dispatch(deleteVisible(view.state.tr, selection.from, selection.to, mode).scrollIntoView())
-              return true
-            }
-            const backward = event.key === 'Backspace'
-            const $cursor = selection.$head
-            const start = $cursor.start()
-            let offset = $cursor.parentOffset
-            for (let moved = true; moved;) {
-              moved = false
-              for (const run of hiddenRuns($cursor.parent, mode)) {
-                if (backward ? run.to === offset : run.from === offset) {
-                  offset = backward ? run.from : run.to
-                  moved = true
-                }
-              }
-              const index = backward ? offset - 1 : offset
-              const child =
-                index >= 0 && index < $cursor.parent.content.size ? $cursor.parent.childAfter(index) : null
-              if (child?.node !== null && child?.node !== undefined && ZERO_WIDTH.has(child.node.type.name)) {
-                offset += backward ? -1 : 1
-                moved = true
-              }
-            }
-            const $at = view.state.doc.resolve(start + offset)
-            const node = backward ? $at.nodeBefore : $at.nodeAfter
-            if (node === null || !node.isText || node.text === undefined) {
-              // Na borda do bloco, o juntar de parágrafos segue o caminho de sempre.
-              if (start + offset !== $cursor.pos)
-                view.dispatch(
-                  view.state.tr.setSelection(TextSelection.create(view.state.doc, start + offset)),
-                )
-              return false
-            }
-            const text = node.text
-            const unit = backward ? text.charCodeAt(text.length - 1) : text.charCodeAt(0)
-            const surrogate = backward ? unit >= 0xdc00 && unit <= 0xdfff : unit >= 0xd800 && unit <= 0xdbff
-            const size = surrogate && text.length > 1 ? 2 : 1
-            const from = backward ? start + offset - size : start + offset
-            view.dispatch(view.state.tr.delete(from, from + size).scrollIntoView())
-            return true
-          },
-          // Digitar sobre seleção com escondido: o navegador apagaria tudo antes do
-          // `handleTextInput`, e a tecla para no `beforeinput`.
-          handleDOMEvents: {
-            beforeinput(view, event) {
-              const input = event as InputEvent
-              const mode = revisionViewOf(view.state)
-              const { selection } = view.state
-              if (mode === RevisionView.All || selection.empty || view.composing) return false
-              if (input.inputType !== 'insertText' || input.data === null) return false
-              event.preventDefault()
-              const tr = deleteVisible(view.state.tr, selection.from, selection.to, mode)
-              tr.insertText(input.data, tr.mapping.map(selection.from, -1))
-              view.dispatch(tr.scrollIntoView())
-              return true
-            },
-          },
-          handleTextInput(view, from, to, text) {
-            const mode = revisionViewOf(view.state)
-            if (mode === RevisionView.All || from === to || view.composing) return false
-            const tr = deleteVisible(view.state.tr, from, to, mode)
-            const at = tr.mapping.map(from, -1)
-            tr.insertText(text, at)
-            view.dispatch(tr.scrollIntoView())
-            return true
-          },
+          handleKeyDown: deleteVisibleKey,
+          handleDOMEvents: { beforeinput: typeOverHidden },
+          handleTextInput: replaceVisible,
         },
-        // A seleção que caiu no escondido sai para a borda, no sentido em que andava.
-        appendTransaction(transactions, oldState, newState) {
-          const mode = revisionViewOf(newState)
-          if (mode === RevisionView.All) return null
-          if (
-            !transactions.some(
-              (tr) => tr.selectionSet || tr.docChanged || tr.getMeta(revisionViewKey) !== undefined,
-            )
-          )
-            return null
-          const dir = newState.selection.head >= oldState.selection.head ? 1 : -1
-          const selection = visibleSelection(newState.doc, newState.selection, mode, dir)
-          return selection === null ? null : newState.tr.setSelection(selection)
-        },
+        appendTransaction: visibleSelectionAfter,
       }),
     ]
   },
 })
+
+/**
+ * Com algo escondido, o navegador levaria junto o excluído ou o reapareceria
+ * como tachado: apaga-se aqui só o que se vê.
+ */
+function deleteVisibleKey(view: EditorView, event: KeyboardEvent): boolean {
+  if (event.key !== 'Backspace' && event.key !== 'Delete') return false
+  if (event.ctrlKey || event.metaKey || event.altKey || event.shiftKey || view.composing) return false
+  const mode = revisionViewOf(view.state)
+  const { selection } = view.state
+  if (mode === RevisionView.All || !(selection instanceof TextSelection)) return false
+  if (!selection.empty) {
+    view.dispatch(deleteVisible(view.state.tr, selection.from, selection.to, mode).scrollIntoView())
+    return true
+  }
+  const backward = event.key === 'Backspace'
+  const $cursor = selection.$head
+  const start = $cursor.start()
+  const offset = visibleOffset($cursor, mode, backward)
+  const $at = view.state.doc.resolve(start + offset)
+  const node = backward ? $at.nodeBefore : $at.nodeAfter
+  if (node === null || !node.isText || node.text === undefined) {
+    // Na borda do bloco, o juntar de parágrafos segue o caminho de sempre.
+    if (start + offset !== $cursor.pos)
+      view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, start + offset)))
+    return false
+  }
+  const size = characterSize(node.text, backward)
+  const from = backward ? start + offset - size : start + offset
+  view.dispatch(view.state.tr.delete(from, from + size).scrollIntoView())
+  return true
+}
+
+/** O cursor depois de pular, no sentido da tecla, o escondido e as marcas de largura zero. */
+function visibleOffset($cursor: ResolvedPos, mode: RevisionView, backward: boolean): number {
+  let offset = $cursor.parentOffset
+  for (let moved = true; moved;) {
+    moved = false
+    for (const run of hiddenRuns($cursor.parent, mode)) {
+      if (backward ? run.to === offset : run.from === offset) {
+        offset = backward ? run.from : run.to
+        moved = true
+      }
+    }
+    const index = backward ? offset - 1 : offset
+    const child = index >= 0 && index < $cursor.parent.content.size ? $cursor.parent.childAfter(index) : null
+    if (child?.node !== null && child?.node !== undefined && ZERO_WIDTH.has(child.node.type.name)) {
+      offset += backward ? -1 : 1
+      moved = true
+    }
+  }
+  return offset
+}
+
+/**
+ * Digitar sobre seleção com escondido: o navegador apagaria tudo antes do
+ * `handleTextInput`, e a tecla para no `beforeinput`.
+ */
+function typeOverHidden(view: EditorView, event: Event): boolean {
+  const input = event as InputEvent
+  const mode = revisionViewOf(view.state)
+  const { selection } = view.state
+  if (mode === RevisionView.All || selection.empty || view.composing) return false
+  if (input.inputType !== 'insertText' || input.data === null) return false
+  event.preventDefault()
+  const tr = deleteVisible(view.state.tr, selection.from, selection.to, mode)
+  tr.insertText(input.data, tr.mapping.map(selection.from, -1))
+  view.dispatch(tr.scrollIntoView())
+  return true
+}
+
+function replaceVisible(view: EditorView, from: number, to: number, text: string): boolean {
+  const mode = revisionViewOf(view.state)
+  if (mode === RevisionView.All || from === to || view.composing) return false
+  const tr = deleteVisible(view.state.tr, from, to, mode)
+  const at = tr.mapping.map(from, -1)
+  tr.insertText(text, at)
+  view.dispatch(tr.scrollIntoView())
+  return true
+}
+
+/** A seleção que caiu no escondido sai para a borda, no sentido em que andava. */
+function visibleSelectionAfter(
+  transactions: readonly Transaction[],
+  oldState: EditorState,
+  newState: EditorState,
+): Transaction | null {
+  const mode = revisionViewOf(newState)
+  if (mode === RevisionView.All) return null
+  if (
+    !transactions.some((tr) => tr.selectionSet || tr.docChanged || tr.getMeta(revisionViewKey) !== undefined)
+  )
+    return null
+  const dir = newState.selection.head >= oldState.selection.head ? 1 : -1
+  const selection = visibleSelection(newState.doc, newState.selection, mode, dir)
+  return selection === null ? null : newState.tr.setSelection(selection)
+}

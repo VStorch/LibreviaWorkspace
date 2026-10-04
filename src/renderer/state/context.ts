@@ -8,7 +8,7 @@ import { commentAnchorIdsOfJson, commentsOutsideOf, resolveComments } from '@ser
 import { marksOfJson, resolveSections } from '@services/document/sections.js'
 import { serializeWorkbook } from '@services/spreadsheet/serialize.js'
 import { t } from '../i18n.js'
-import type { DocumentSource, LoadedFile, WorkspaceState } from './types.js'
+import type { DocumentSource, LoadedFile, OpenFile, WorkspaceState } from './types.js'
 
 export type SetWorkspace = StoreApi<WorkspaceState>['setState']
 export type GetWorkspace = StoreApi<WorkspaceState>['getState']
@@ -54,39 +54,7 @@ export function createWorkspaceContext(set: SetWorkspace, get: GetWorkspace): Wo
 
   function currentModel(): DocumentModel {
     const state = get()
-    // As seções que o texto usa, na ordem dele (`resolveSections`); o atributo do documento não vai ao arquivo.
-    const read = documentSource?.readDoc() ?? state.initialDoc
-    const resolved = resolveSections(
-      marksOfJson(read),
-      read.attrs?.['bodySection'],
-      state.page,
-      state.sections,
-    )
-    const { bodySection: _bodySection, ...docAttrs } = read.attrs ?? {}
-    void _bodySection
-    const doc = read.attrs === undefined ? read : { ...read, attrs: docAttrs }
-    // Só os comentários que o texto sustenta; o rascunho anterior a eles vai como veio.
-    const comments = state.beforeComments
-      ? state.comments
-      : resolveComments(commentAnchorIdsOfJson(read), state.comments, new Set(state.commentsOutside))
-    return {
-      page: resolved.page,
-      doc,
-      styles: state.styles,
-      ...(state.flattened ? { flattened: true } : {}),
-      ...(state.beforeReferences ? { beforeReferences: true } : {}),
-      ...(resolved.sections.length > 0 ? { sections: [...resolved.sections] } : {}),
-      ...(state.beforeSections ? { beforeSections: true } : {}),
-      ...(state.outsideBookmarks.length > 0 ? { outsideBookmarks: state.outsideBookmarks } : {}),
-      ...(comments.length > 0 ? { comments } : {}),
-      ...(state.beforeComments ? { beforeComments: true } : {}),
-      ...(state.trackChanges === undefined ? {} : { trackChanges: state.trackChanges }),
-      ...(state.beforeRevisions ? { beforeRevisions: true } : {}),
-      ...(state.notes === undefined ? {} : { notes: state.notes }),
-      ...(state.beforeNotes ? { beforeNotes: true } : {}),
-      ...(state.beforeMath ? { beforeMath: true } : {}),
-      ...(state.properties === undefined ? {} : { properties: state.properties }),
-    }
+    return modelOf(state, documentSource?.readDoc() ?? state.initialDoc)
   }
 
   function currentContent(): string {
@@ -118,35 +86,7 @@ export function createWorkspaceContext(set: SetWorkspace, get: GetWorkspace): Wo
     // Vale também na recuperação: o conteúdo já está na tela, e o autosave o grava de novo.
     void forgetDraft()
 
-    set((state) => ({
-      file,
-      workbook,
-      page: model.page,
-      initialDoc: model.doc,
-      styles: model.styles,
-      flattened: model.flattened === true,
-      beforeReferences: model.beforeReferences === true,
-      sections: model.sections ?? [],
-      beforeSections: model.beforeSections === true,
-      outsideBookmarks: model.outsideBookmarks ?? [],
-      comments: model.comments ?? [],
-      commentsOutside: commentsOutsideOf(model.doc, model.comments ?? []),
-      commentDraft: null,
-      beforeComments: model.beforeComments === true,
-      trackChanges: model.trackChanges,
-      beforeRevisions: model.beforeRevisions === true,
-      notes: model.notes,
-      beforeNotes: model.beforeNotes === true,
-      beforeMath: model.beforeMath === true,
-      properties: model.properties,
-      generation: state.generation + 1,
-      isDirty: false,
-      error: null,
-      // O aviso e a trava são deste arquivo, e morrem com ele.
-      notice: null,
-      savedLoss: null,
-      readOnly: false,
-    }))
+    set((state) => loadedState(file, model, workbook, state.generation))
   }
 
   return {
@@ -160,5 +100,73 @@ export function createWorkspaceContext(set: SetWorkspace, get: GetWorkspace): Wo
     setSource: (source) => {
       documentSource = source
     },
+  }
+}
+
+function modelOf(state: WorkspaceState, read: WorkspaceState['initialDoc']): DocumentModel {
+  // As seções que o texto usa, na ordem dele (`resolveSections`); o atributo do documento não vai ao arquivo.
+  const resolved = resolveSections(marksOfJson(read), read.attrs?.['bodySection'], state.page, state.sections)
+  const { bodySection: _bodySection, ...docAttrs } = read.attrs ?? {}
+  void _bodySection
+  const doc = read.attrs === undefined ? read : { ...read, attrs: docAttrs }
+  // Só os comentários que o texto sustenta; o rascunho anterior a eles vai como veio.
+  const comments = state.beforeComments
+    ? state.comments
+    : resolveComments(commentAnchorIdsOfJson(read), state.comments, new Set(state.commentsOutside))
+  return {
+    page: resolved.page,
+    doc,
+    styles: state.styles,
+    ...(state.flattened ? { flattened: true } : {}),
+    ...(state.beforeReferences ? { beforeReferences: true } : {}),
+    ...(resolved.sections.length > 0 ? { sections: [...resolved.sections] } : {}),
+    ...(state.beforeSections ? { beforeSections: true } : {}),
+    ...(state.outsideBookmarks.length > 0 ? { outsideBookmarks: state.outsideBookmarks } : {}),
+    ...(comments.length > 0 ? { comments } : {}),
+    ...(state.beforeComments ? { beforeComments: true } : {}),
+    ...(state.trackChanges === undefined ? {} : { trackChanges: state.trackChanges }),
+    ...(state.beforeRevisions ? { beforeRevisions: true } : {}),
+    ...(state.notes === undefined ? {} : { notes: state.notes }),
+    ...(state.beforeNotes ? { beforeNotes: true } : {}),
+    ...(state.beforeMath ? { beforeMath: true } : {}),
+    ...(state.properties === undefined ? {} : { properties: state.properties }),
+  }
+}
+
+/** O estado de um arquivo recém-aberto; sem arquivo, o da tela inicial. */
+export function loadedState(
+  file: OpenFile | null,
+  model: DocumentModel,
+  workbook: LoadedFile['workbook'],
+  generation: number,
+): Partial<WorkspaceState> {
+  return {
+    file,
+    workbook,
+    page: model.page,
+    initialDoc: model.doc,
+    styles: model.styles,
+    flattened: model.flattened === true,
+    beforeReferences: model.beforeReferences === true,
+    sections: model.sections ?? [],
+    beforeSections: model.beforeSections === true,
+    outsideBookmarks: model.outsideBookmarks ?? [],
+    comments: model.comments ?? [],
+    commentsOutside: commentsOutsideOf(model.doc, model.comments ?? []),
+    commentDraft: null,
+    beforeComments: model.beforeComments === true,
+    trackChanges: model.trackChanges,
+    beforeRevisions: model.beforeRevisions === true,
+    notes: model.notes,
+    beforeNotes: model.beforeNotes === true,
+    beforeMath: model.beforeMath === true,
+    properties: model.properties,
+    generation: generation + 1,
+    isDirty: false,
+    error: null,
+    // O aviso e a trava são deste arquivo, e morrem com ele.
+    notice: null,
+    savedLoss: null,
+    readOnly: false,
   }
 }

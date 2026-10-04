@@ -131,31 +131,8 @@ export function updateFieldsIn(
   // O cursor recém-movido pode estar só no DOM: sem isto a transação o puxaria de volta.
   flushSelection(editor)
   const { state } = editor
-  const doc = state.doc
-
-  const fields: Array<{ pos: number; node: ProseMirrorNode; kind: string }> = []
-  doc.descendants((node, pos) => {
-    if (node.type.name === 'field') fields.push({ pos, node, kind: fieldKind(String(node.attrs['instr'])) })
-    return true
-  })
-
-  const sequences = fields.filter((field) => field.kind === 'SEQ')
-  const numbers = sequenceNumbers(sequences.map((field) => String(field.node.attrs['instr'])))
-  const sequenceResult = new Map(sequences.map((field, index) => [field.pos, numbers[index]!]))
-
-  // A referência lê o marcador **depois** das sequências: "Figura 1" que virou "Figura 2".
-  const updatedSequenceDoc = (() => {
-    const tr = state.tr
-    for (const [pos, result] of sequenceResult) tr.setNodeAttribute(pos, 'result', result)
-    return tr.doc
-  })()
-
-  const bookmarks = new Map(bookmarksOf(updatedSequenceDoc).map((bookmark) => [bookmark.name, bookmark]))
-  const missing = context.t('references.field.missingBookmark')
-  // O marcador fora dos nós não está perdido: fica o resultado que o Word calculou.
-  const outside = new Set(context.outsideBookmarks ?? [])
-  const sheets = context.layout.pages
-  const noteLabels = noteLabelsOf(state)
+  const fields = fieldsOf(state.doc)
+  const scan = scanFields(state, fields, context)
 
   const tr = state.tr
   let changed = 0
@@ -165,66 +142,117 @@ export function updateFieldsIn(
     if (field.pos < from || field.pos >= to) continue
     if (!kinds.has(field.kind)) continue
 
-    const instr = String(field.node.attrs['instr'])
-    let result: string | null = null
-
-    switch (field.kind) {
-      case 'SEQ':
-        result = fieldSwitch(instr, 'h') !== null ? '' : (sequenceResult.get(field.pos) ?? null)
-        break
-      case 'REF': {
-        const name = fieldArgument(instr) ?? ''
-        const target = bookmarks.get(name)
-        if (target === undefined) {
-          result = outside.has(name) ? null : missing
-          break
-        }
-        const text = textBetween(updatedSequenceDoc, target.pos + 1, target.end ?? target.pos + 1)
-        // `\# 0`: só o número do texto citado, a referência "só o número" do Word.
-        result = fieldSwitch(instr, '#') === null ? text : (/(\d+)(?!.*\d)/.exec(text)?.[1] ?? text)
-        break
-      }
-      case 'NOTEREF': {
-        // O número da tela, com os reinícios por folha e por seção.
-        const name = fieldArgument(instr) ?? ''
-        const target = bookmarks.get(name)
-        if (target === undefined) {
-          result = outside.has(name) ? null : missing
-          break
-        }
-        result = noteNumberIn(doc, noteLabels, target.pos, target.end ?? target.pos)
-        break
-      }
-      case 'PAGEREF': {
-        const name = fieldArgument(instr) ?? ''
-        const target = bookmarks.get(name)
-        if (target === undefined) {
-          result = outside.has(name) ? null : missing
-          break
-        }
-        result = sheetLabel(context, sheetAt(doc, context.layout.pageStarts, target.pos))
-        pageDependent = true
-        break
-      }
-      case 'PAGE':
-        result = sheetLabel(context, sheetAt(doc, context.layout.pageStarts, field.pos))
-        pageDependent = true
-        break
-      case 'NUMPAGES':
-        result = String(sheets)
-        pageDependent = true
-        break
-      default:
-        break
-    }
-
-    if (result === null || result === field.node.attrs['result']) continue
-    tr.setNodeAttribute(field.pos, 'result', result)
+    const update = resultOf(field, scan)
+    if (update.pageDependent) pageDependent = true
+    if (update.result === null || update.result === field.node.attrs['result']) continue
+    tr.setNodeAttribute(field.pos, 'result', update.result)
     changed += 1
   }
 
   if (changed > 0) editor.view.dispatch(tr)
   return { changed, pageDependent }
+}
+
+interface FieldAt {
+  readonly pos: number
+  readonly node: ProseMirrorNode
+  readonly kind: string
+}
+
+interface FieldScan {
+  readonly doc: ProseMirrorNode
+  /** O documento com as sequências já renumeradas, de onde a referência lê o texto. */
+  readonly sequenced: ProseMirrorNode
+  readonly sequenceResult: ReadonlyMap<number, string>
+  readonly bookmarks: ReadonlyMap<string, ReturnType<typeof bookmarksOf>[number]>
+  readonly missing: string
+  /** O marcador fora dos nós não está perdido: fica o resultado que o Word calculou. */
+  readonly outside: ReadonlySet<string>
+  readonly noteLabels: readonly string[]
+  readonly context: ReferenceContext
+}
+
+interface FieldResult {
+  /** `null` deixa o campo como está. */
+  readonly result: string | null
+  readonly pageDependent: boolean
+}
+
+function fieldsOf(doc: ProseMirrorNode): FieldAt[] {
+  const fields: FieldAt[] = []
+  doc.descendants((node, pos) => {
+    if (node.type.name === 'field') fields.push({ pos, node, kind: fieldKind(String(node.attrs['instr'])) })
+    return true
+  })
+  return fields
+}
+
+function scanFields(
+  state: Editor['state'],
+  fields: readonly FieldAt[],
+  context: ReferenceContext,
+): FieldScan {
+  const sequences = fields.filter((field) => field.kind === 'SEQ')
+  const numbers = sequenceNumbers(sequences.map((field) => String(field.node.attrs['instr'])))
+  const sequenceResult = new Map(sequences.map((field, index) => [field.pos, numbers[index]!]))
+
+  // A referência lê o marcador **depois** das sequências: "Figura 1" que virou "Figura 2".
+  const sequencing = state.tr
+  for (const [pos, result] of sequenceResult) sequencing.setNodeAttribute(pos, 'result', result)
+  const sequenced = sequencing.doc
+
+  return {
+    doc: state.doc,
+    sequenced,
+    sequenceResult,
+    bookmarks: new Map(bookmarksOf(sequenced).map((bookmark) => [bookmark.name, bookmark])),
+    missing: context.t('references.field.missingBookmark'),
+    outside: new Set(context.outsideBookmarks ?? []),
+    noteLabels: noteLabelsOf(state),
+    context,
+  }
+}
+
+const unpaged = (result: string | null): FieldResult => ({ result, pageDependent: false })
+
+function resultOf(field: FieldAt, scan: FieldScan): FieldResult {
+  const instr = String(field.node.attrs['instr'])
+  const { context } = scan
+  switch (field.kind) {
+    case 'SEQ':
+      return unpaged(fieldSwitch(instr, 'h') !== null ? '' : (scan.sequenceResult.get(field.pos) ?? null))
+    case 'REF':
+    case 'NOTEREF':
+    case 'PAGEREF':
+      return referenceResult(field.kind, instr, scan)
+    case 'PAGE':
+      return {
+        result: sheetLabel(context, sheetAt(scan.doc, context.layout.pageStarts, field.pos)),
+        pageDependent: true,
+      }
+    case 'NUMPAGES':
+      return { result: String(context.layout.pages), pageDependent: true }
+    default:
+      return unpaged(null)
+  }
+}
+
+function referenceResult(kind: 'REF' | 'NOTEREF' | 'PAGEREF', instr: string, scan: FieldScan): FieldResult {
+  const name = fieldArgument(instr) ?? ''
+  const target = scan.bookmarks.get(name)
+  if (target === undefined) return unpaged(scan.outside.has(name) ? null : scan.missing)
+
+  if (kind === 'REF') {
+    const text = textBetween(scan.sequenced, target.pos + 1, target.end ?? target.pos + 1)
+    // `\# 0`: só o número do texto citado, a referência "só o número" do Word.
+    return unpaged(fieldSwitch(instr, '#') === null ? text : (/(\d+)(?!.*\d)/.exec(text)?.[1] ?? text))
+  }
+  if (kind === 'NOTEREF') {
+    // O número da tela, com os reinícios por folha e por seção.
+    return unpaged(noteNumberIn(scan.doc, scan.noteLabels, target.pos, target.end ?? target.pos))
+  }
+  const sheet = sheetAt(scan.doc, scan.context.layout.pageStarts, target.pos)
+  return { result: sheetLabel(scan.context, sheet), pageDependent: true }
 }
 
 /**

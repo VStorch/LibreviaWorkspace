@@ -461,3 +461,10 @@ export const BlockRevisions = Extension.create({
 })
 
 export const TrackChanges = [Insertion, Deletion, BlockRevisions] as const
+
+/** Um caractere inteiro: o par substituto de um emoji conta como um. */
+export function characterSize(text: string, backward: boolean): number {
+  const unit = backward ? text.charCodeAt(text.length - 1) : text.charCodeAt(0)
+  const surrogate = backward ? unit >= 0xdc00 && unit <= 0xdfff : unit >= 0xd800 && unit <= 0xdbff
+  return surrogate && text.length > 1 ? 2 : 1
+}

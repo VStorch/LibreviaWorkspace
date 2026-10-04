@@ -7,7 +7,7 @@ import { SHEET_PRINT_CSS, buildSheetHtml } from '@services/spreadsheet/print-htm
 import { t } from '../i18n.js'
 import { currentPreferences } from './preferences.js'
 import type { GetWorkspace, SetWorkspace, WorkspaceContext } from './context.js'
-import type { WorkspaceState } from './types.js'
+import type { DocumentSource, WorkspaceState } from './types.js'
 
 interface PrintRequest {
   readonly html: string
@@ -22,43 +22,7 @@ export function createPrintActions(
   get: GetWorkspace,
   ctx: WorkspaceContext,
 ): PrintActions {
-  /** O documento entrega o HTML do editor; a planilha é gerada do modelo, porque a grade só desenha as células visíveis. */
-  function buildRequest(): PrintRequest | null {
-    const state = get()
-    const name = state.file?.name ?? t('shell.print.defaultDocumentName')
-
-    const { workbook } = state
-    if (workbook !== null) {
-      const sheet = workbook.sheets[workbook.activeSheet]
-      if (sheet === undefined) return null
-
-      return {
-        html: buildPrintHtml(buildSheetHtml(sheet, currentPreferences().language), name, SHEET_PRINT_CSS),
-        page: state.page,
-        // A grade é uma tabela contínua que o Chromium reparte.
-        paged: false,
-      }
-    }
-
-    const source = ctx.source()
-    if (source === null) return null
-
-    // O pedido leva o papel da primeira seção, que a impressora nativa oferece como padrão.
-    const paged = source.readPages()
-    const page = paged.pages[0]?.setup ?? effectiveSections(state.page, state.sections)[0]!
-
-    return {
-      html: buildPrintHtml(
-        buildPagedBody(paged),
-        // O `<title>` vira o Title do PDF; autor e assunto o `printToPDF` não grava.
-        state.properties?.title?.trim() || name,
-        styleSheetCss(state.styles) + buildPagedCss(paged.pages),
-        false,
-      ),
-      page,
-      paged: true,
-    }
-  }
+  const buildRequest = (): PrintRequest | null => printRequestOf(get(), ctx.source())
 
   /** Devolver `false` em silêncio faria "Exportar para PDF" não dar em nada. */
   function refuse(): false {
@@ -120,5 +84,41 @@ export function createPrintActions(
 
       await ctx.call(() => window.api.print.preview({ ...request, title: get().file?.name ?? 'Documento' }))
     },
+  }
+}
+
+/** O documento entrega o HTML do editor; a planilha é gerada do modelo, porque a grade só desenha as células visíveis. */
+function printRequestOf(state: WorkspaceState, source: DocumentSource | null): PrintRequest | null {
+  const name = state.file?.name ?? t('shell.print.defaultDocumentName')
+
+  const { workbook } = state
+  if (workbook !== null) {
+    const sheet = workbook.sheets[workbook.activeSheet]
+    if (sheet === undefined) return null
+
+    return {
+      html: buildPrintHtml(buildSheetHtml(sheet, currentPreferences().language), name, SHEET_PRINT_CSS),
+      page: state.page,
+      // A grade é uma tabela contínua que o Chromium reparte.
+      paged: false,
+    }
+  }
+
+  if (source === null) return null
+
+  // O pedido leva o papel da primeira seção, que a impressora nativa oferece como padrão.
+  const paged = source.readPages()
+  const page = paged.pages[0]?.setup ?? effectiveSections(state.page, state.sections)[0]!
+
+  return {
+    html: buildPrintHtml(
+      buildPagedBody(paged),
+      // O `<title>` vira o Title do PDF; autor e assunto o `printToPDF` não grava.
+      state.properties?.title?.trim() || name,
+      styleSheetCss(state.styles) + buildPagedCss(paged.pages),
+      false,
+    ),
+    page,
+    paged: true,
   }
 }

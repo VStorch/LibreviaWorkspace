@@ -10,7 +10,13 @@ import { recalculate } from '@services/spreadsheet/formula/recalc.js'
 import { defaultFileName, isPlainTextPath, kindFromPath } from '@services/file/formats.js'
 import { hasReportableLoss, locksEditing, lostOnSave } from '@services/file/inventory.js'
 import { currentPreferences } from './preferences.js'
-import { toSerialized, type GetWorkspace, type SetWorkspace, type WorkspaceContext } from './context.js'
+import {
+  loadedState,
+  toSerialized,
+  type GetWorkspace,
+  type SetWorkspace,
+  type WorkspaceContext,
+} from './context.js'
 import type { LoadedFile, OpenFile, WorkspaceState } from './types.js'
 
 interface OpenedFile {
@@ -39,50 +45,21 @@ type FileActions = Pick<
 >
 
 export function createFileActions(set: SetWorkspace, get: GetWorkspace, ctx: WorkspaceContext): FileActions {
-  /** Planilha não passa pelo caminho de texto: não tem formatação a perder. */
-  function encodeFor(path: string): string {
-    const { workbook } = get()
-    if (workbook !== null) return serializeWorkbook(workbook)
-    if (!isPlainTextPath(path)) stampForSave()
+  return { ...createOpenActions(set, get, ctx), ...createSaveActions(set, get, ctx) }
+}
 
-    const model = ctx.currentModel()
-    return isPlainTextPath(path) ? documentToPlainText(model.doc) : serializeDocument(model)
-  }
+type OpenActions = Pick<
+  FileActions,
+  | 'refreshRecents'
+  | 'clearRecents'
+  | 'newDocument'
+  | 'newSpreadsheet'
+  | 'openViaDialog'
+  | 'openRecent'
+  | 'newFromTemplate'
+>
 
-  /**
-   * Só quando o documento mudou ou nunca foi gravado: aberto e salvo sem edição,
-   * `docProps/` volta byte a byte. Fica no estado mesmo se a gravação falhar.
-   */
-  function stampForSave(): void {
-    const state = get()
-    const stamped = stampProperties(state.properties, {
-      author: currentPreferences().authorName,
-      now: new Date(),
-      fresh: state.file?.path === null,
-      edited: state.isDirty,
-    })
-    if (stamped !== state.properties) set({ properties: stamped })
-  }
-
-  /** Nada se perde em silêncio. */
-  async function confirmPlainTextLoss(path: string, fileName: string): Promise<PlainTextAnswer> {
-    const { workbook } = get()
-    if (workbook !== null || !isPlainTextPath(path)) return 'proceed'
-    if (!hasRichFormatting(ctx.currentModel().doc)) return 'proceed'
-
-    const answer = await ctx.call(() => window.api.dialog.confirmPlainText({ fileName }))
-    if (answer === null || answer.choice === PlainTextChoice.Cancel) return 'cancel'
-    return answer.choice === PlainTextChoice.SaveAsDocument ? 'chooseAnother' : 'proceed'
-  }
-
-  /** O rascunho não vale mais; o que a gravação perdeu vai à faixa, e a que não perdeu nada apaga o aviso anterior. */
-  async function afterSave(file: OpenFile, inventory: LossInventory | undefined): Promise<void> {
-    const lost = lostOnSave(inventory)
-    set({ file, isDirty: false, savedLoss: lost.length > 0 ? lost : null })
-    await ctx.forgetDraft()
-    await get().refreshRecents()
-  }
-
+function createOpenActions(set: SetWorkspace, get: GetWorkspace, ctx: WorkspaceContext): OpenActions {
   async function openFile(fetch: () => Promise<OpenedFile | null>): Promise<boolean> {
     const opened = await fetch()
     if (opened === null) return false
@@ -166,7 +143,59 @@ export function createFileActions(set: SetWorkspace, get: GetWorkspace, ctx: Wor
         return data.file
       })
     },
+  }
+}
 
+function createSaveActions(
+  set: SetWorkspace,
+  get: GetWorkspace,
+  ctx: WorkspaceContext,
+): Pick<FileActions, 'save' | 'saveAs' | 'closeFile'> {
+  /** Planilha não passa pelo caminho de texto: não tem formatação a perder. */
+  function encodeFor(path: string): string {
+    const { workbook } = get()
+    if (workbook !== null) return serializeWorkbook(workbook)
+    if (!isPlainTextPath(path)) stampForSave()
+
+    const model = ctx.currentModel()
+    return isPlainTextPath(path) ? documentToPlainText(model.doc) : serializeDocument(model)
+  }
+
+  /**
+   * Só quando o documento mudou ou nunca foi gravado: aberto e salvo sem edição,
+   * `docProps/` volta byte a byte. Fica no estado mesmo se a gravação falhar.
+   */
+  function stampForSave(): void {
+    const state = get()
+    const stamped = stampProperties(state.properties, {
+      author: currentPreferences().authorName,
+      now: new Date(),
+      fresh: state.file?.path === null,
+      edited: state.isDirty,
+    })
+    if (stamped !== state.properties) set({ properties: stamped })
+  }
+
+  /** Nada se perde em silêncio. */
+  async function confirmPlainTextLoss(path: string, fileName: string): Promise<PlainTextAnswer> {
+    const { workbook } = get()
+    if (workbook !== null || !isPlainTextPath(path)) return 'proceed'
+    if (!hasRichFormatting(ctx.currentModel().doc)) return 'proceed'
+
+    const answer = await ctx.call(() => window.api.dialog.confirmPlainText({ fileName }))
+    if (answer === null || answer.choice === PlainTextChoice.Cancel) return 'cancel'
+    return answer.choice === PlainTextChoice.SaveAsDocument ? 'chooseAnother' : 'proceed'
+  }
+
+  /** O rascunho não vale mais; o que a gravação perdeu vai à faixa, e a que não perdeu nada apaga o aviso anterior. */
+  async function afterSave(file: OpenFile, inventory: LossInventory | undefined): Promise<void> {
+    const lost = lostOnSave(inventory)
+    set({ file, isDirty: false, savedLoss: lost.length > 0 ? lost : null })
+    await ctx.forgetDraft()
+    await get().refreshRecents()
+  }
+
+  return {
     save: async () => {
       const file = get().file
       if (file === null) return false
@@ -218,36 +247,7 @@ export function createFileActions(set: SetWorkspace, get: GetWorkspace, ctx: Wor
     closeFile: async () => {
       if (!(await ctx.ensureChangesHandled())) return
 
-      const empty = createEmptyDocument()
-      set((state) => ({
-        file: null,
-        workbook: null,
-        page: empty.page,
-        initialDoc: empty.doc,
-        styles: empty.styles,
-        flattened: false,
-        beforeReferences: false,
-        sections: [],
-        beforeSections: false,
-        outsideBookmarks: [],
-        comments: [],
-        commentsOutside: [],
-        commentDraft: null,
-        beforeComments: false,
-        trackChanges: undefined,
-        beforeRevisions: false,
-        notes: undefined,
-        beforeNotes: false,
-        beforeMath: false,
-        properties: undefined,
-        generation: state.generation + 1,
-        isDirty: false,
-        error: null,
-        notice: null,
-        savedLoss: null,
-        readOnly: false,
-      }))
-
+      set((state) => loadedState(null, createEmptyDocument(), null, state.generation))
       await ctx.forgetDraft()
       await get().refreshRecents()
     },

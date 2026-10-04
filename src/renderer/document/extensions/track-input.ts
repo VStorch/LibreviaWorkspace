@@ -1,9 +1,9 @@
 import { Extension } from '@tiptap/core'
-import { Fragment, Slice, type Mark, type Node as ProseMirrorNode } from '@tiptap/pm/model'
+import { Fragment, Slice, type Mark, type Node as ProseMirrorNode, type ResolvedPos } from '@tiptap/pm/model'
 import { Plugin, PluginKey, TextSelection, type EditorState, type Transaction } from '@tiptap/pm/state'
 import { Mapping, ReplaceStep, StepMap, canJoin, type Step } from '@tiptap/pm/transform'
 import type { EditorView } from '@tiptap/pm/view'
-import { DELETION, INSERTION, ZERO_WIDTH, blockRevisionOf } from './track-changes.js'
+import { DELETION, INSERTION, ZERO_WIDTH, blockRevisionOf, characterSize } from './track-changes.js'
 
 /**
  * A transação é reescrita **antes** de ser aplicada (`dispatchTransaction`): uma
@@ -148,60 +148,79 @@ function paragraphMarkTaken(
 
 /** `null` quando a exclusão não tem controle, como numa coluna de tabela. */
 function planDeletion(doc: ProseMirrorNode, from: number, to: number, author: string): DeletionPlan | null {
-  const plan: DeletionPlan = { marks: [], drops: [], paragraphMarks: [], joins: [], rows: [] }
-  const taken = new Set<number>()
-  let untracked = false
+  const planner = new DeletionPlanner(doc, from, to, author)
+  doc.nodesBetween(from, to, (node, pos) => planner.visit(node, pos))
+  return planner.untracked ? null : planner.plan
+}
 
-  doc.nodesBetween(from, to, (node, pos) => {
-    if (untracked) return false
+class DeletionPlanner {
+  readonly plan: DeletionPlan = { marks: [], drops: [], paragraphMarks: [], joins: [], rows: [] }
+  untracked = false
+  private readonly taken = new Set<number>()
+
+  constructor(
+    private readonly doc: ProseMirrorNode,
+    private readonly from: number,
+    private readonly to: number,
+    private readonly author: string,
+  ) {}
+
+  /** O retorno é o do `nodesBetween`: descer ou não aos filhos. */
+  visit(node: ProseMirrorNode, pos: number): boolean {
+    if (this.untracked) return false
     const end = pos + node.nodeSize
-    const whole = pos >= from && end <= to
+    const whole = pos >= this.from && end <= this.to
 
     if (node.isInline) {
-      const start = Math.max(pos, from)
-      const stop = Math.min(end, to)
-      if (stop <= start || ZERO_WIDTH.has(node.type.name) || hasMark(node, DELETION)) return false
-      if (isOwnInsertion(node, author)) plan.drops.push([start, stop])
-      else plan.marks.push([start, stop])
+      this.inline(node, pos, end)
       return false
     }
 
     if (node.isTextblock) {
-      const owner = paragraphMarkTaken(doc, node, pos, from, to)
-      if (owner !== null && !taken.has(owner)) {
-        taken.add(owner)
-        const block = doc.nodeAt(owner)!
-        const after = owner + block.nodeSize
-        const revision = blockRevisionOf(block.attrs['markRevision'])
-        if (isOwnBlockInsertion(block.attrs['markRevision'], author) && canJoin(doc, after))
-          plan.joins.push(owner)
-        else if (revision?.kind !== 'del') plan.paragraphMarks.push(owner)
-      }
+      this.paragraphMark(node, pos)
       return true
     }
 
     if (node.type.name === 'tableRow' && whole) {
       const revision = blockRevisionOf(node.attrs['rowRevision'])
-      if (isOwnBlockInsertion(node.attrs['rowRevision'], author)) plan.drops.push([pos, end])
-      else if (revision?.kind !== 'del') plan.rows.push(pos)
+      if (isOwnBlockInsertion(node.attrs['rowRevision'], this.author)) this.plan.drops.push([pos, end])
+      else if (revision?.kind !== 'del') this.plan.rows.push(pos)
       return false
     }
 
     // A célula inteira sem a linha inteira é coluna: o Word não a controla por
     // aqui, e o documento com revisão de célula já abre travado.
     if ((node.type.name === 'tableCell' || node.type.name === 'tableHeader') && whole) {
-      untracked = true
+      this.untracked = true
       return false
     }
 
     if (node.isBlock && node.isLeaf && whole) {
-      plan.drops.push([pos, end])
+      this.plan.drops.push([pos, end])
       return false
     }
     return true
-  })
+  }
 
-  return untracked ? null : plan
+  private inline(node: ProseMirrorNode, pos: number, end: number): void {
+    const start = Math.max(pos, this.from)
+    const stop = Math.min(end, this.to)
+    if (stop <= start || ZERO_WIDTH.has(node.type.name) || hasMark(node, DELETION)) return
+    if (isOwnInsertion(node, this.author)) this.plan.drops.push([start, stop])
+    else this.plan.marks.push([start, stop])
+  }
+
+  private paragraphMark(node: ProseMirrorNode, pos: number): void {
+    const owner = paragraphMarkTaken(this.doc, node, pos, this.from, this.to)
+    if (owner === null || this.taken.has(owner)) return
+    this.taken.add(owner)
+    const block = this.doc.nodeAt(owner)!
+    const after = owner + block.nodeSize
+    const revision = blockRevisionOf(block.attrs['markRevision'])
+    if (isOwnBlockInsertion(block.attrs['markRevision'], this.author) && canJoin(this.doc, after))
+      this.plan.joins.push(owner)
+    else if (revision?.kind !== 'del') this.plan.paragraphMarks.push(owner)
+  }
 }
 
 /** Devolve quantas posições saíram de verdade. */
@@ -558,26 +577,32 @@ export function trackedDeleteKey(view: EditorView, event: KeyboardEvent, isTrack
   if (event.metaKey || event.altKey || event.shiftKey) return false
   const { selection } = view.state
   if (!selection.empty) return false
-  const $cursor = selection.$head
   const backward = event.key === 'Backspace'
 
   // A palavra também: o navegador refaria o `<del>` vizinho como tachado comum.
-  if (event.ctrlKey) {
-    if (!isTracking() && !hasRevisionInside($cursor.parent)) return false
-    const range = wordRangeAt($cursor.parent, $cursor.parentOffset, backward)
-    if (range === null) return false
-    const start = $cursor.start()
-    view.dispatch(view.state.tr.delete(start + range[0], start + range[1]).scrollIntoView())
-    return true
-  }
+  if (event.ctrlKey) return deleteWord(view, selection.$head, backward, isTracking)
   if (!isTracking()) return false
+  return deleteCharacter(view, selection.$head, backward)
+}
+
+function deleteWord(
+  view: EditorView,
+  $cursor: ResolvedPos,
+  backward: boolean,
+  isTracking: () => boolean,
+): boolean {
+  if (!isTracking() && !hasRevisionInside($cursor.parent)) return false
+  const range = wordRangeAt($cursor.parent, $cursor.parentOffset, backward)
+  if (range === null) return false
+  const start = $cursor.start()
+  view.dispatch(view.state.tr.delete(start + range[0], start + range[1]).scrollIntoView())
+  return true
+}
+
+function deleteCharacter(view: EditorView, $cursor: ResolvedPos, backward: boolean): boolean {
   const node = backward ? $cursor.nodeBefore : $cursor.nodeAfter
   if (node === null || !node.isText || node.text === undefined) return false
-  // Um caractere inteiro: o par substituto de um emoji vai junto.
-  const text = node.text
-  const unit = backward ? text.charCodeAt(text.length - 1) : text.charCodeAt(0)
-  const surrogate = backward ? unit >= 0xdc00 && unit <= 0xdfff : unit >= 0xd800 && unit <= 0xdbff
-  const size = surrogate && text.length > 1 ? 2 : 1
+  const size = characterSize(node.text, backward)
   const from = backward ? $cursor.pos - size : $cursor.pos
   view.dispatch(view.state.tr.delete(from, from + size).scrollIntoView())
   return true

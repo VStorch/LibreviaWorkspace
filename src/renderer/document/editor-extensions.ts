@@ -68,48 +68,7 @@ export function buildEditorExtensions(
   options: EditorToolOptions = {},
 ): Extensions {
   return [
-    StarterKit.configure({
-      link: false,
-      undoRedo: { depth: 200 },
-      // Sem o parágrafo vazio depois do título: o corpus termina em `Heading1`, e
-      // gravar sem editar acrescentaria um `<w:p/>`.
-      trailingNode: { notAfter: ['paragraph', 'heading'] },
-    }),
-
-    DocumentLink.configure({
-      // Os links abrem no navegador do sistema, depois da lista de esquemas do main.
-      openOnClick: false,
-      autolink: true,
-      HTMLAttributes: { rel: 'noopener noreferrer' },
-    }),
-
-    TextStyle,
-    Color,
-    BackgroundColor,
-    FontFamily,
-    FontSize,
-    LineHeight,
-
-    // Marcas, e não atributo de `textStyle`: no OOXML são um `w:vertAlign`, de valores que se excluem.
-    Superscript,
-    Subscript,
-
-    Highlight.configure({ multicolor: true }),
-    TextAlign.configure({ types: ['heading', 'paragraph'] }),
-
-    DocumentImage.configure({
-      // Em linha, como no arquivo: no OOXML não há imagem fora de parágrafo, e
-      // como bloco a primeira mudança de atributo partiria o parágrafo.
-      inline: true,
-      // Data URI, validado no main, que recusa SVG.
-      allowBase64: true,
-    }),
-
-    TableKit.configure({
-      table: { resizable: true, allowTableNodeSelection: true },
-    }),
-    TableLook,
-    ZoomedColumnResize,
+    ...contentExtensions(),
 
     // A contagem sem o texto excluído por uma revisão, como no Word.
     CountWithoutDeletions,
@@ -171,6 +130,54 @@ export function buildEditorExtensions(
     SearchReplace.configure({ onStatusChange: onSearchStatusChange }),
     // Prioridade alta: decide `Ctrl+E`, disputado com a marca de código.
     WordShortcuts,
+  ]
+}
+
+/** O texto, a formatação, a imagem e a tabela; o resto é do editor de documento. */
+function contentExtensions(): Extensions {
+  return [
+    StarterKit.configure({
+      link: false,
+      undoRedo: { depth: 200 },
+      // Sem o parágrafo vazio depois do título: o corpus termina em `Heading1`, e
+      // gravar sem editar acrescentaria um `<w:p/>`.
+      trailingNode: { notAfter: ['paragraph', 'heading'] },
+    }),
+
+    DocumentLink.configure({
+      // Os links abrem no navegador do sistema, depois da lista de esquemas do main.
+      openOnClick: false,
+      autolink: true,
+      HTMLAttributes: { rel: 'noopener noreferrer' },
+    }),
+
+    TextStyle,
+    Color,
+    BackgroundColor,
+    FontFamily,
+    FontSize,
+    LineHeight,
+
+    // Marcas, e não atributo de `textStyle`: no OOXML são um `w:vertAlign`, de valores que se excluem.
+    Superscript,
+    Subscript,
+
+    Highlight.configure({ multicolor: true }),
+    TextAlign.configure({ types: ['heading', 'paragraph'] }),
+
+    DocumentImage.configure({
+      // Em linha, como no arquivo: no OOXML não há imagem fora de parágrafo, e
+      // como bloco a primeira mudança de atributo partiria o parágrafo.
+      inline: true,
+      // Data URI, validado no main, que recusa SVG.
+      allowBase64: true,
+    }),
+
+    TableKit.configure({
+      table: { resizable: true, allowTableNodeSelection: true },
+    }),
+    TableLook,
+    ZoomedColumnResize,
   ]
 }
 

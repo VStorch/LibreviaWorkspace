@@ -30,27 +30,11 @@ export function splitIntoPages(
   layout: PageLayout,
   sections: readonly PageSetup[],
 ): PrintPage[] {
-  const serializer = DOMSerializer.fromSchema(editor.schema)
-
-  // O serializador não vê as decorações que desenham a numeração na tela.
-  const blocks = drawListsForPrint(editor.state.doc)
-  const view = revisionViewOf(editor.state)
-  const offsets: number[] = []
-  editor.state.doc.forEach((_node: ProseMirrorNode, offset: number) => {
-    offsets.push(offset)
-  })
-
-  const cuts: PageStart[] = [{ blockIndex: 0 }, ...layout.pageStarts, { blockIndex: blocks.length }]
+  const context = printContextOf(editor, layout)
+  const cuts: PageStart[] = [{ blockIndex: 0 }, ...layout.pageStarts, { blockIndex: context.blocks.length }]
   const pages: PrintPage[] = []
-  // Na tela o número das notas é decoração; aqui é escrito com os rótulos da tela.
-  const screenLabels = noteLabelsOf(editor.state)
-  const labelOf = new Map<ProseMirrorNode, string>()
-  noteRefsOf(editor.state.doc).forEach(({ node }, index) => {
-    const label = screenLabels[index]
-    if (label !== undefined) labelOf.set(node, label)
-  })
   const setups = sheetSetups(sections, layout.sheets)
-  const setupOf = (drawn: number): { setup: PageSetup; inSection: number } => {
+  const setupOf = (drawn: number): SheetSetup => {
     const found = setups[drawn]
     return found === undefined
       ? { setup: sections.at(-1)!, inSection: drawn + 1 }
@@ -58,9 +42,6 @@ export function splitIntoPages(
   }
 
   for (let cut = 0; cut < cuts.length - 1; cut++) {
-    const start = cuts[cut]!
-    const end = cuts[cut + 1]!
-
     // As folhas em branco da seção par ou ímpar levam só a faixa, como no Word.
     const drawn = drawnSheet(layout, cut)
     while (pages.length < drawn) {
@@ -73,58 +54,112 @@ export function splitIntoPages(
         blank: true,
       })
     }
-    const sheet = setupOf(pages.length)
-
-    const holder = document.createElement('div')
-    // O recorte primeiro, nos índices da tela; o modo depois.
-    const fragments = blocksForView(slicePageBlocks(blocks, start, end), view)
-    holder.appendChild(serializer.serializeFragment(Fragment.fromArray(fragments)))
-    // Os comentários não vão ao papel, como no Word com a marcação desligada.
-    for (const anchor of holder.querySelectorAll('[data-comment-start], [data-comment-end]')) anchor.remove()
-    numberNotesForPrint(holder, printedNoteLabels(fragments, labelOf))
-    // A mesma marca da decoração da tela: a captura com texto não ganha a linha de 1lh.
-    for (const paragraph of holder.querySelectorAll('p')) {
-      if (
-        paragraph.querySelector(':scope > img[data-anchored]') !== null &&
-        (paragraph.textContent ?? '').trim() !== ''
-      ) {
-        paragraph.setAttribute('data-anchor-text', '')
-      }
-    }
-    placeColumns(holder, start, end, layout)
-    markSplitParagraphs(
-      holder,
-      start,
-      end,
-      end.offset !== undefined && isJustified(editor, offsets[end.blockIndex]),
-    )
-
-    pages.push({
-      number: pages.length + 1,
-      html: holder.innerHTML,
-      floats: [
-        ...anchoredFloats(
-          blocks,
-          layout,
-          start.blockIndex + (isInternalStart(start) ? 1 : 0),
-          end.blockIndex + (isInternalStart(end) ? 1 : 0),
-          editor,
-        ),
-        ...bandFloats(sheet.setup, sheet.inSection, editor),
-      ],
-      notes: notesForPrint(editor, layout, pages.length, view, screenLabels),
-      columnLines: layout.columnLines
-        .filter((line) => line.sheet === pages.length)
-        .map((line) => ({
-          leftMm: pxToMm(line.leftPx),
-          topMm: pxToMm(line.topPx),
-          heightMm: pxToMm(line.heightPx),
-        })),
-      ...sheet,
-    })
+    pages.push(contentPage(context, cuts[cut]!, cuts[cut + 1]!, pages.length, setupOf(pages.length)))
   }
 
   return pages
+}
+
+interface SheetSetup {
+  readonly setup: PageSetup
+  readonly inSection: number
+}
+
+interface PrintContext {
+  readonly editor: Editor
+  readonly layout: PageLayout
+  readonly serializer: DOMSerializer
+  /** Com a numeração das listas escrita: o serializador não vê as decorações da tela. */
+  readonly blocks: readonly ProseMirrorNode[]
+  readonly view: RevisionView
+  readonly offsets: readonly number[]
+  /** Na tela o número das notas é decoração; aqui é escrito com os rótulos da tela. */
+  readonly screenLabels: readonly string[]
+  readonly labelOf: ReadonlyMap<ProseMirrorNode, string>
+}
+
+function printContextOf(editor: Editor, layout: PageLayout): PrintContext {
+  const offsets: number[] = []
+  editor.state.doc.forEach((_node: ProseMirrorNode, offset: number) => {
+    offsets.push(offset)
+  })
+  const screenLabels = noteLabelsOf(editor.state)
+  const labelOf = new Map<ProseMirrorNode, string>()
+  noteRefsOf(editor.state.doc).forEach(({ node }, index) => {
+    const label = screenLabels[index]
+    if (label !== undefined) labelOf.set(node, label)
+  })
+  return {
+    editor,
+    layout,
+    serializer: DOMSerializer.fromSchema(editor.schema),
+    blocks: drawListsForPrint(editor.state.doc),
+    view: revisionViewOf(editor.state),
+    offsets,
+    screenLabels,
+    labelOf,
+  }
+}
+
+/** @param sheet o índice da folha entre as desenhadas, as em branco incluídas. */
+function contentPage(
+  context: PrintContext,
+  start: PageStart,
+  end: PageStart,
+  sheet: number,
+  setup: SheetSetup,
+): PrintPage {
+  const { editor, layout, blocks } = context
+  return {
+    number: sheet + 1,
+    html: pageHtml(context, start, end),
+    floats: [
+      ...anchoredFloats(
+        blocks,
+        layout,
+        start.blockIndex + (isInternalStart(start) ? 1 : 0),
+        end.blockIndex + (isInternalStart(end) ? 1 : 0),
+        editor,
+      ),
+      ...bandFloats(setup.setup, setup.inSection, editor),
+    ],
+    notes: notesForPrint(editor, layout, sheet, context.view, context.screenLabels),
+    columnLines: layout.columnLines
+      .filter((line) => line.sheet === sheet)
+      .map((line) => ({
+        leftMm: pxToMm(line.leftPx),
+        topMm: pxToMm(line.topPx),
+        heightMm: pxToMm(line.heightPx),
+      })),
+    ...setup,
+  }
+}
+
+function pageHtml(context: PrintContext, start: PageStart, end: PageStart): string {
+  const holder = document.createElement('div')
+  // O recorte primeiro, nos índices da tela; o modo depois.
+  const fragments = blocksForView(slicePageBlocks(context.blocks, start, end), context.view)
+  holder.appendChild(context.serializer.serializeFragment(Fragment.fromArray(fragments)))
+  // Os comentários não vão ao papel, como no Word com a marcação desligada.
+  for (const anchor of holder.querySelectorAll('[data-comment-start], [data-comment-end]')) anchor.remove()
+  numberNotesForPrint(holder, printedNoteLabels(fragments, context.labelOf))
+  // A mesma marca da decoração da tela: a captura com texto não ganha a linha de 1lh.
+  for (const paragraph of holder.querySelectorAll('p')) {
+    if (
+      paragraph.querySelector(':scope > img[data-anchored]') !== null &&
+      (paragraph.textContent ?? '').trim() !== ''
+    ) {
+      paragraph.setAttribute('data-anchor-text', '')
+    }
+  }
+  placeColumns(holder, start, end, context.layout)
+  markSplitParagraphs(
+    holder,
+    start,
+    end,
+    end.offset !== undefined && isJustified(context.editor, context.offsets[end.blockIndex]),
+  )
+  return holder.innerHTML
 }
 
 /** No papel não há decoração: o número é escrito no começo do corpo. */
@@ -203,23 +238,31 @@ export function slicePageBlocks(
     const from = index === start.blockIndex ? (start.childIndex ?? 0) : 0
     const to = index === end.blockIndex ? (end.childIndex ?? 0) : block.childCount
     if (index === end.blockIndex && to === 0) break
-    if (from === 0 && to === block.childCount) {
-      fragments.push(block)
-    } else {
-      const children: ProseMirrorNode[] = []
-      block.forEach((child, _offset, childIndex) => {
-        const repeated =
-          index === start.blockIndex && start.repeatHeader === true && isHeaderRow(block, childIndex)
-        if (repeated || (childIndex >= from && childIndex < to)) children.push(child)
-      })
-      const attrs =
-        block.type.name === 'orderedList'
-          ? { ...block.attrs, start: Number(block.attrs.start ?? 1) + from }
-          : block.attrs
-      fragments.push(block.type.create(attrs, Fragment.fromArray(children), block.marks))
-    }
+    const repeatHeader = index === start.blockIndex && start.repeatHeader === true
+    fragments.push(
+      from === 0 && to === block.childCount ? block : partialBlock(block, from, to, repeatHeader),
+    )
   }
   return fragments
+}
+
+/** Os filhos `[from, to)`, com o cabeçalho da tabela repetido; a lista numerada continua a contagem. */
+function partialBlock(
+  block: ProseMirrorNode,
+  from: number,
+  to: number,
+  repeatHeader: boolean,
+): ProseMirrorNode {
+  const children: ProseMirrorNode[] = []
+  block.forEach((child, _offset, childIndex) => {
+    const repeated = repeatHeader && isHeaderRow(block, childIndex)
+    if (repeated || (childIndex >= from && childIndex < to)) children.push(child)
+  })
+  const attrs =
+    block.type.name === 'orderedList'
+      ? { ...block.attrs, start: Number(block.attrs.start ?? 1) + from }
+      : block.attrs
+  return block.type.create(attrs, Fragment.fromArray(children), block.marks)
 }
 
 /**
