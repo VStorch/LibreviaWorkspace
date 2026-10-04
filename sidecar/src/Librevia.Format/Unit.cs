@@ -21,7 +21,6 @@ public static class Unit
 
     /// <summary>Meia polegada: o passo de recuo do Word.</summary>
     public const int IndentStepTwips = TwipsPerInch / 2;
-    public const double IndentStepMillimeters = MillimetersPerInch / 2;
 
     public static double TwipsToPoints(double twips) => twips / TwipsPerPoint;
 

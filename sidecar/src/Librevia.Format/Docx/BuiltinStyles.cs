@@ -87,7 +87,7 @@ public static class BuiltinStyles
             SizePt: 8, Bold: true, BeforePt: 4.8, AfterPt: 18.75, OutlineLevel: 5),
         new(
             "ListParagraph", "List Paragraph", BasedOn: "Normal", UiPriority: 34, QFormat: true,
-            IndentMm: Unit.IndentStepMillimeters, ContextualSpacing: true),
+            IndentMm: 12.7, ContextualSpacing: true),
         new(
             "Hyperlink", "Hyperlink", Character: true, BasedOn: "DefaultParagraphFont",
             UiPriority: 99, UnhideWhenUsed: true, Color: "#0563c1", Underline: true),
