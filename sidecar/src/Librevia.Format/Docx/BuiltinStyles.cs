@@ -1,8 +1,7 @@
 namespace Librevia.Format.Docx;
 
 /// <summary>
-/// Um estilo em **dados**, nas unidades do editor; a conversão para OOXML é de
-/// <see cref="TemplateStyles"/>.
+/// A style as **data**, in editor units; converting to OOXML is <see cref="TemplateStyles"/>'s job.
 /// </summary>
 public sealed record BuiltinStyle(
     string Id,
@@ -32,32 +31,31 @@ public sealed record BuiltinStyle(
     bool KeepLines = false);
 
 /// <summary>
-/// O CSS que o editor desenhava antes dos estilos, em dados: os títulos que o
-/// escritor acrescenta a um DOCX sem eles e os estilos do <c>.sdoc</c> anterior à versão
-/// 3. É a <c>LEGACY_STYLES</c> do lado TS, comparada por
-/// <c>src/main/sidecar/builtin-styles.test.ts</c>. Estilos de tabela e de numeração
-/// ficam em <see cref="TemplateStyles"/>.
+/// The CSS the editor drew before styles, as data: the headings the writer adds to a DOCX without
+/// them and the styles of a <c>.sdoc</c> before version 3. It is the TS side's
+/// <c>LEGACY_STYLES</c>, compared by <c>src/main/sidecar/builtin-styles.test.ts</c>. Table and
+/// numbering styles live in <see cref="TemplateStyles"/>.
 /// </summary>
 public static class BuiltinStyles
 {
     public const string BodyFont = "Times New Roman";
 
-    /// <summary>Em pontos (<c>font-size: 12pt</c>).</summary>
+    /// <summary>In points (<c>font-size: 12pt</c>).</summary>
     public const double BodySizePt = 12;
 
-    /// <summary>A da faixa de texto simples (<c>page-setup.ts</c>).</summary>
+    /// <summary>The plain text band's (<c>page-setup.ts</c>).</summary>
     public const string BandFont = "Calibri";
 
     /// <summary>
-    /// 1,5 ÷ 1,1499 (Liberation Serif, <see cref="LineMetrics"/>), a quatro casas: a
-    /// grade de 240-avos do <c>w:line</c>.
+    /// 1.5 ÷ 1.1499 (Liberation Serif, <see cref="LineMetrics"/>), to four decimals: the
+    /// <c>w:line</c> 240ths grid.
     /// </summary>
     public const double BodyLineFactor = 1.3042;
 
     /// <summary>
-    /// Na ordem de <c>word/styles.xml</c>. Antes e depois do título são as margens do
-    /// navegador; "manter com o próximo" só nos quatro primeiros. O <c>#111111</c> do
-    /// texto fica de fora: voltaria como cor explícita.
+    /// In <c>word/styles.xml</c> order. A heading's space before and after are the browser's
+    /// margins; "keep with next" only on the first four. The text's <c>#111111</c> is left out: it
+    /// would come back as an explicit color.
     /// </summary>
     public static readonly BuiltinStyle[] All =
     [
@@ -93,7 +91,7 @@ public static class BuiltinStyles
             UiPriority: 99, UnhideWhenUsed: true, Color: "#0563c1", Underline: true),
     ];
 
-    /// <summary>Pelo nome interno (<see cref="HeadingStyles.LevelOfName"/>).</summary>
+    /// <summary>By internal name (<see cref="HeadingStyles.LevelOfName"/>).</summary>
     public static int HeadingLevels =>
         All.Count(style => style.Name.StartsWith("heading ", StringComparison.Ordinal));
 

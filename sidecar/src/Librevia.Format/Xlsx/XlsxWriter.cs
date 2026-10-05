@@ -3,9 +3,9 @@ using ClosedXML.Excel;
 namespace Librevia.Format.Xlsx;
 
 /// <summary>
-/// Modelo → XLSX, escrevendo só o que mudou. O ClosedXML preserva as partes que não
-/// modela, mas regenera a planilha: a gravação relê o original e toca só as células
-/// que mudaram, para não apagar o que o modelo não representa.
+/// Model → XLSX, writing only what changed. ClosedXML preserves the parts it does not model, but
+/// regenerates the sheet: saving rereads the original and touches only the cells that changed, so
+/// nothing the model does not represent is erased.
 /// </summary>
 public static class XlsxWriter
 {
@@ -18,7 +18,8 @@ public static class XlsxWriter
             throw new XlsxException("Não há nada para gravar: a planilha ficou sem abas.");
         }
 
-        // O ClosedXML lê as partes que faltam no `SaveAs`: fechado antes, "Cannot access a closed Stream".
+        // ClosedXML reads the missing parts during `SaveAs`: closed earlier, "Cannot access a
+        // closed Stream".
         using var source = new MemoryStream(original ?? [], writable: false);
         using var book = Open(source, original is not null && original.Length > 0);
         var before = original is null ? null : XlsxReader.Read(original).Workbook;
@@ -35,7 +36,7 @@ public static class XlsxWriter
             var sheet = book.Worksheet(index + 1);
             var previous = before?.Sheets.ElementAtOrDefault(index);
 
-            // Pela posição, e não pelo nome: aba renomeada não é aba nova.
+            // By position, not by name: a renamed tab is not a new tab.
             var (w, c, p) = SyncCells(sheet, wanted, previous);
             written += w;
             cleared += c;
@@ -76,11 +77,11 @@ public static class XlsxWriter
 
         while (book.Worksheets.Count < model.Sheets.Count)
         {
-            // Provisório: o nome final pode ainda ser o de outra aba.
+            // Temporary: the final name may still belong to another tab.
             book.Worksheets.Add($"__nova{book.Worksheets.Count + 1}");
         }
 
-        // Em duas passadas: o ClosedXML recusa o nome que outra aba ainda tem.
+        // In two passes: ClosedXML refuses a name another tab still has.
         for (var index = 0; index < model.Sheets.Count; index++)
         {
             var sheet = book.Worksheet(index + 1);
@@ -122,7 +123,7 @@ public static class XlsxWriter
             {
                 if (wanted.Cells.ContainsKey(reference)) continue;
 
-                // Conteúdo e formato, e não a célula: o da linha e o da coluna ficam.
+                // Content and format, not the cell: the row's and column's stay.
                 sheet.Cell(reference).Clear(XLClearOptions.Contents | XLClearOptions.NormalFormats);
                 cleared++;
             }
@@ -158,7 +159,7 @@ public static class XlsxWriter
                 target.Value = flag;
                 break;
             case string text:
-                // Senão o Excel interpreta o `=` ao reabrir.
+                // Otherwise Excel interprets the `=` on reopen.
                 target.SetValue(text);
                 break;
             default:
@@ -167,7 +168,9 @@ public static class XlsxWriter
         }
     }
 
-    /// <summary>Só os atributos que mudaram: o estilo inteiro apagaria fonte, recuo e quebra.</summary>
+    /// <summary>
+    /// Only the attributes that changed: the whole style would erase font, indent and wrap.
+    /// </summary>
     private static void WriteStyle(IXLCell target, CellStyleDto? style, CellStyleDto? before)
     {
         var wanted = style ?? new CellStyleDto();

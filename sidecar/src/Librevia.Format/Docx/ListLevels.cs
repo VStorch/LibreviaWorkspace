@@ -5,22 +5,23 @@ using DocumentFormat.OpenXml.Wordprocessing;
 namespace Librevia.Format.Docx;
 
 /// <summary>
-/// A lista como o editor a leva: nove níveis com formato, texto, início e recuo.
-/// Espelho de <c>NumberingDef</c>/<c>LevelDef</c> em <c>list-numbering.ts</c>: mudam
-/// juntos. Mora no nó para viajar com ele (colar, <c>.sdoc</c>, desfazer), e por
-/// isso entra na impressão digital: leitor e editor a produzem idêntica.
-/// O marcador vai traduzido (<c>•</c>, e não o glifo da Symbol); <see cref="GlyphOf"/>
-/// faz a volta.
+/// A list as the editor carries it: nine levels with format, text, start and indent. Mirrors
+/// <c>NumberingDef</c>/<c>LevelDef</c> in <c>list-numbering.ts</c>: they change together. It lives
+/// on the node to travel with it (paste, <c>.sdoc</c>, undo), so it enters the fingerprint: reader
+/// and editor produce it identically. The marker goes translated (<c>•</c>, not the Symbol glyph);
+/// <see cref="GlyphOf"/> converts back.
 /// </summary>
 public static class ListLevels
 {
     public const int Count = 9;
 
-    /// <summary>Recuo por nível e marcador pendurado: as medidas do próprio Word.</summary>
+    /// <summary>Indent per level and hanging marker: Word's own measures.</summary>
     public const int IndentStepTwips = Unit.IndentStepTwips;
     public const int HangingTwips = IndentStepTwips / 2;
 
-    /// <summary>Glifo da área de uso privado, com a fonte que o desenha, e a marca que a tela usa.</summary>
+    /// <summary>
+    /// A private use area glyph, the font that draws it, and the mark the screen uses.
+    /// </summary>
     private static readonly (char Glyph, string? Font, char Shown)[] Glyphs =
     [
         ('', "Symbol", '•'),
@@ -33,8 +34,8 @@ public static class ListLevels
     ];
 
     /// <summary>
-    /// O Word grava os marcadores da Symbol e da Wingdings na área de uso privado,
-    /// que fora dessas fontes é a caixinha de caractere ausente. O desconhecido vira bolinha.
+    /// Word writes Symbol and Wingdings bullets in the private use area, which outside those fonts
+    /// is the missing-character box. An unknown one becomes a dot.
     /// </summary>
     public static string Shown(string text) => string.Concat(text.Select(letter =>
     {
@@ -51,7 +52,7 @@ public static class ListLevels
         };
     }));
 
-    /// <summary>O glifo e a fonte que o Word espera para uma marca da tela.</summary>
+    /// <summary>The glyph and font Word expects for a screen mark.</summary>
     public static (string Text, string? Font) GlyphOf(string shown)
     {
         if (shown.Length == 1)
@@ -66,8 +67,8 @@ public static class ListLevels
     }
 
     /// <summary>
-    /// Os níveis do Word para lista nova (1. a. i. e • o ▪), iguais a
-    /// <c>defaultLevels</c> em <c>list-numbering.ts</c>.
+    /// Word's levels for a new list (1. a. i. and • o ▪), the same as <c>defaultLevels</c> in
+    /// <c>list-numbering.ts</c>.
     /// </summary>
     public static JsonArray Defaults(string kind)
     {
@@ -105,11 +106,13 @@ public static class ListLevels
 
     public static double Mm(int twips) => Math.Round(twips / (double)Unit.TwipsPerInch * Unit.MillimetersPerInch, 2);
 
-    /// <summary>O nome OOXML do formato, como o `w:numFmt/@w:val` o grava.</summary>
+    /// <summary>The OOXML format name, as `w:numFmt/@w:val` writes it.</summary>
     public static string FormatName(Level? definition) =>
         definition?.NumberingFormat?.Val?.InnerText is { Length: > 0 } name ? name : "decimal";
 
-    /// <summary>Formato que o SDK não conhece vira decimal: o Word recusaria o arquivo.</summary>
+    /// <summary>
+    /// A format the SDK does not know becomes decimal: Word would refuse the file.
+    /// </summary>
     public static Level ToOpenXml(JsonObject? source, int index, string kind, Inventory? inventory = null)
     {
         var fallback = (JsonObject)Defaults(kind)[index]!;
@@ -153,7 +156,8 @@ public static class ListLevels
             },
         };
 
-        // Sem o original, o formato do número e o estilo ligado ficaram no documento de origem.
+        // Without the original, the number format and the linked style stayed in the source
+        // document.
         if (level["extra"]?.GetValue<bool>() == true)
         {
             inventory?.NoteLoss("formatação própria do número de uma lista (fonte, cor ou estilo do nível)");
@@ -166,7 +170,7 @@ public static class ListLevels
 
         if (font is not null)
         {
-            // O glifo da área de uso privado só a fonte dele desenha.
+            // Only its own font draws a private use area glyph.
             definition.NumberingSymbolRunProperties = new NumberingSymbolRunProperties(new RunFonts
             {
                 Ascii = font,
@@ -185,8 +189,8 @@ public static class ListLevels
         node is JsonValue value && value.TryGetValue<double>(out var number) ? number : null;
 
     /// <summary>
-    /// Qualquer nome do esquema, não só os que a tela desenha. Fora dele, decimal com
-    /// aviso: o Word recusaria o arquivo.
+    /// Any schema name, not only those the screen draws. Outside it, decimal with a warning: Word
+    /// would refuse the file.
     /// </summary>
     private static NumberFormatValues FormatOf(string name, Inventory? inventory)
     {

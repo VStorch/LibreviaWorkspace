@@ -5,23 +5,24 @@ using DocumentFormat.OpenXml.Wordprocessing;
 namespace Librevia.Format.Docx;
 
 /// <summary>
-/// As seções antes da última. No modelo o parágrafo que encerra a seção leva
-/// <c>sectionBreak</c>, e a configuração mora em <c>sections</c>. O preservado volta com o
-/// <c>w:sectPr</c> dele, regravado só no que difere; o reescrito o recebe de volta só
-/// se ainda leva a marca; a marca nova ganha uma cópia do <c>w:sectPr</c> da seção que
-/// partiu, com as referências de faixa.
+/// Sections before the last. In the model the paragraph closing a section carries
+/// <c>sectionBreak</c>, and the setup lives in <c>sections</c>. A preserved paragraph goes back
+/// with its <c>w:sectPr</c>, rewritten only where it differs; a rewritten one gets it back only if
+/// it still carries the mark; a new mark gets a copy of the split section's <c>w:sectPr</c>, with
+/// the band references.
 /// </summary>
 internal static class SectionWriter
 {
-    /// <param name="Existing">Nulo na marca nova.</param>
+    /// <param name="Existing">Null for a new mark.</param>
     internal sealed record Break(Paragraph Holder, SectionProperties? Existing, string Id);
 
-    /// <summary>Ou nula.</summary>
-    /// <param name="node">Para o item de lista, o parágrafo de dentro.</param>
-    /// <param name="paragraphs">Os <c>w:p</c> que o bloco produziu.</param>
-    /// <param name="kept">O bloco voltou byte a byte.</param>
-    /// <param name="used">O parágrafo partido ou colado leva a marca repetida.</param>
-    /// <param name="known">Marca de id que o modelo não configura não é quebra, e o <c>w:sectPr</c> dela sai.</param>
+    /// <summary>Or null.</summary>
+    /// <param name="node">For a list item, the inner paragraph.</param>
+    /// <param name="paragraphs">The <c>w:p</c>s the block produced.</param>
+    /// <param name="kept">The block went back byte for byte.</param>
+    /// <param name="used">A split or pasted paragraph carries the repeated mark.</param>
+    /// <param name="known">A mark whose id the model does not configure is not a break, and its
+    /// <c>w:sectPr</c> goes.</param>
     public static Break? Mark(
         Node node,
         List<Paragraph> paragraphs,
@@ -35,7 +36,8 @@ internal static class SectionWriter
         var id = node.Type is "paragraph" or "heading" ? Attr.String(node, "sectionBreak") : null;
         if (id is not null && (!known.Contains(id) || !used.Add(id)))
         {
-            // Sem seção no modelo, o `w:sectPr` sai, e se diz: a tela não a mostra.
+            // Without a section in the model, the `w:sectPr` goes, and that is said: the screen
+            // does not show it.
             if (paragraphs.Any(p => p.ParagraphProperties?.SectionProperties is not null))
             {
                 inventory.NoteLoss("quebra de seção sem configuração no documento (a seção foi unida à seguinte)");
@@ -47,7 +49,8 @@ internal static class SectionWriter
 
         if (kept)
         {
-            // A marca não entra na impressão digital; sem marca, a quebra saiu, e o trecho passa à seção de baixo.
+            // The mark does not enter the fingerprint; without a mark, the break went away, and the
+            // range passes to the section below.
             var holder = paragraphs.FirstOrDefault(p => p.ParagraphProperties?.SectionProperties is not null);
             if (id is null)
             {
@@ -58,7 +61,8 @@ internal static class SectionWriter
             return new Break(holder ?? paragraphs[^1], holder?.ParagraphProperties?.SectionProperties, id);
         }
 
-        // O reescrito traz o `w:sectPr` pela cópia do `w:pPr`: volta ao último pedaço só se a marca continua.
+        // A rewritten paragraph brings the `w:sectPr` through the copied `w:pPr`: it goes back to
+        // the last piece only if the mark remains.
         SectionProperties? carried = null;
         foreach (var paragraph in paragraphs)
         {
@@ -74,7 +78,8 @@ internal static class SectionWriter
         return new Break(last, carried, id);
     }
 
-    /// <returns>Os endereços de faixa desvinculada (<c>id~rIdN</c>) e a relação da parte nova de cada um.</returns>
+    /// <returns>The unlinked band addresses (<c>id~rIdN</c>) and each one's new part
+    /// relationship.</returns>
     public static Dictionary<string, string> Apply(
         MainDocumentPart part,
         List<Break> breaks,
@@ -104,7 +109,7 @@ internal static class SectionWriter
                 breaks[index] = mark with { Existing = section };
             }
 
-            // A marca sem configuração fica com a da seção que copiou.
+            // A mark without setup keeps that of the section it copied.
             if (!byId.TryGetValue(mark.Id, out var setup)) continue;
 
             if (!PageReader.Matches(section, setup)) DocxWriter.ApplyPageSetup(section, setup);
@@ -127,7 +132,9 @@ internal static class SectionWriter
         return aliases;
     }
 
-    /// <summary>As partes de faixa que nenhuma seção aponta mais saem, senão cada gravação deixaria uma cópia.</summary>
+    /// <summary>
+    /// Band parts no section points to anymore go, or every save would leave a copy.
+    /// </summary>
     private static void DropOrphans(MainDocumentPart part, HashSet<string> replaced)
     {
         if (replaced.Count == 0) return;
@@ -143,12 +150,14 @@ internal static class SectionWriter
             }
             catch (ArgumentOutOfRangeException)
             {
-                // A relação já não existia.
+                // The relationship no longer existed.
             }
         }
     }
 
-    /// <summary>Só o que difere e o painel conhece; o modelo sem larguras diferentes as iguala.</summary>
+    /// <summary>
+    /// Only what differs and the panel knows; a model without unequal widths equalizes them.
+    /// </summary>
     public static void ApplyColumns(SectionProperties section, PageSetupDto page)
     {
         if (page.Columns is not { } wanted) return;
@@ -179,17 +188,17 @@ internal static class SectionWriter
     }
 
     /// <summary>
-    /// Desvincular copia a faixa da anterior, ainda apontando a parte de lá; o editor
-    /// marca o endereço com a seção dona (<c>s2~rId5:0:1</c>), e aqui a marca vira parte nova.
+    /// Unlinking copies the previous band, still pointing to its part; the editor tags the address
+    /// with the owning section (<c>s2~rId5:0:1</c>), and here the tag becomes a new part.
     /// </summary>
     public const char UnlinkedSeparator = '~';
 
     private static string KeyOf(PageSetupDto setup) => setup.Id ?? "body";
 
     /// <summary>
-    /// "Vincular ao anterior", tipo por tipo: faixa nula da segunda seção em diante é
-    /// herança, e a referência sai; presente sem referência é desvinculada, e a parte
-    /// anterior é copiada com imagens e links.
+    /// "Link to previous", kind by kind: a null band from the second section on is inheritance, and
+    /// the reference goes; present without a reference means unlinked, and the previous part is
+    /// copied with images and links.
     /// </summary>
     private static void ApplyBands(
         MainDocumentPart part,
@@ -225,7 +234,8 @@ internal static class SectionWriter
             var source = UnlinkedSource(band, key);
             if (source is null)
             {
-                // A herdada que a seção passou a declarar (a de cima foi excluída) aponta a mesma parte.
+                // An inherited band the section started declaring (the one above was deleted)
+                // points to the same part.
                 if (references.Count == 0 && SharedRelationship(band) is { } shared && PartExists(part, shared))
                 {
                     AddReference(section, header, type, shared);
@@ -234,7 +244,8 @@ internal static class SectionWriter
                 continue;
             }
 
-            // Sempre uma parte nova, copiada da herdada: a que a seção já aponta pode ser a de antes.
+            // Always a new part, copied from the inherited one: the one the section already points
+            // to may be the previous one.
             var relationship = source[(key.Length + 1)..];
             if (CloneBandPart(part, relationship, header) is not { } fresh) continue;
             foreach (var reference in references)
@@ -253,7 +264,7 @@ internal static class SectionWriter
         HeaderFooterReferenceType added = header
             ? new HeaderReference { Type = type, Id = id }
             : new FooterReference { Type = type, Id = id };
-        // Na ordem do esquema: cabeçalhos antes dos rodapés, abrindo o `w:sectPr`.
+        // In schema order: headers before footers, opening the `w:sectPr`.
         var after = section.ChildElements
             .Where(child => header ? child is HeaderReference : child is HeaderReference or FooterReference)
             .LastOrDefault();
@@ -291,7 +302,7 @@ internal static class SectionWriter
         return null;
     }
 
-    /// <summary>Com as mesmas imagens e links.</summary>
+    /// <summary>With the same images and links.</summary>
     private static string? CloneBandPart(MainDocumentPart part, string relationship, bool header)
     {
         if (string.IsNullOrEmpty(relationship)) return null;
@@ -321,14 +332,14 @@ internal static class SectionWriter
         return part.GetIdOfPart(target);
     }
 
-    /// <summary>Só quando difere do arquivo; ausente é "não mexa".</summary>
+    /// <summary>Only when it differs from the file; absent means "leave alone".</summary>
     public static void ApplyStart(SectionProperties section, PageSetupDto page)
     {
         if (page.Start is not { } start || !PageReader.SectionStarts.Contains(start)) return;
         if (start == PageReader.StartOf(section)) return;
 
         section.RemoveAllChildren<SectionType>();
-        // "Próxima página" é o padrão: sem elemento, como o Word grava.
+        // "Next page" is the default: no element, as Word writes it.
         if (start == "nextPage") return;
 
         section.AddChild(new SectionType { Val = ValueOf(start) }, throwOnError: false);

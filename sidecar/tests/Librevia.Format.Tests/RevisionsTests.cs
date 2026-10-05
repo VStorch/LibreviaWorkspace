@@ -6,15 +6,15 @@ using static Librevia.Format.Tests.Roundtrip;
 namespace Librevia.Format.Tests;
 
 /// <summary>
-/// Controle de alterações: a revisão de texto é marca (<c>insertion</c>/<c>deletion</c>),
-/// a da marca de parágrafo e a da linha são atributos do bloco. O parágrafo revisado
-/// e editado devolve <c>w:ins</c> e <c>w:del</c> com os mesmos ids, e não trava.
+/// Track changes: a text revision is a mark (<c>insertion</c>/<c>deletion</c>), the paragraph
+/// mark's and the row's are block attributes. A revised and edited paragraph returns <c>w:ins</c>
+/// and <c>w:del</c> with the same ids, and does not lock.
 /// </summary>
 public class RevisionsTests
 {
     private const string Date = "2026-03-01T10:00:00Z";
 
-    /// <summary>Um pouco de cada revisão que o editor lê.</summary>
+    /// <summary>A bit of every revision the editor reads.</summary>
     private static byte[] WithRevisions() => Fixtures.BuildFromXml(
         $"""
         <w:p><w:r><w:t>Intocado.</w:t></w:r></w:p>
@@ -32,8 +32,8 @@ public class RevisionsTests
         string.Empty);
 
     /// <summary>
-    /// O XML com os atributos em ordem: o SDK grava os dele na ordem do esquema,
-    /// e o fixture foi escrito à mão.
+    /// The XML with attributes in order: the SDK writes its own in schema order, and the fixture
+    /// was written by hand.
     /// </summary>
     private static string Canonical(string xml)
     {
@@ -74,12 +74,12 @@ public class RevisionsTests
         Assert.Equal("12", AttrOf(MarkOf(both, Revisions.Insertion), "rid"));
         Assert.Equal("13", AttrOf(MarkOf(both, Revisions.Deletion), "rid"));
 
-        // O link por fora da revisão.
+        // The link outside the revision.
         var link = TextNode(model, "link inserido");
         Assert.NotNull(MarkOf(link, "link"));
         Assert.Equal("15", AttrOf(MarkOf(link, Revisions.Insertion), "rid"));
 
-        // Revisão de texto não trava nem avisa; a de formatação só avisa.
+        // Text revisions neither lock nor warn; formatting ones only warn.
         Assert.Empty(result.Inventory.Structural);
         Assert.Equal([Inventory.FormatRevisions], result.Inventory.Invisible);
     }
@@ -145,7 +145,7 @@ public class RevisionsTests
         Assert.Matches("<w:del w:author=\"Bruno\"[^>]* w:id=\"11\"><w:r><w:delText xml:space=\"preserve\"> excluído</w:delText>", xml);
         Assert.Matches("<w:ins w:author=\"Ana\" w:id=\"12\"><w:del w:author=\"Bruno\" w:id=\"13\"><w:r><w:delText", xml);
 
-        // E volta a abrir com as mesmas marcas.
+        // And it opens again with the same marks.
         var reopened = Open(saved);
         Assert.Equal("10", AttrOf(MarkOf(TextNode(reopened, "inserido"), Revisions.Insertion), "rid"));
         Assert.Equal("11", AttrOf(MarkOf(TextNode(reopened, " excluído"), Revisions.Deletion), "rid"));
@@ -203,8 +203,8 @@ public class RevisionsTests
         var original = WithRevisions();
         var model = Clone(Open(original));
 
-        // O que "Aceitar tudo" faz no editor: a inserção fica, a exclusão sai, a
-        // linha excluída sai, e a marca de parágrafo deixa de ser revisão.
+        // What "Accept all" does in the editor: the insertion stays, the deletion goes, the deleted
+        // row goes, and the paragraph mark stops being a revision.
         static void Accept(Node node)
         {
             node.Attrs?.Remove("markRevision");
@@ -229,8 +229,8 @@ public class RevisionsTests
         Assert.Contains("inserido", xml, StringComparison.Ordinal);
     }
 
-    // O que a leitura do rascunho anterior às revisões (`BeforeRevisions`) dá:
-    // o inserido como texto comum, e nem o excluído nem a movimentação.
+    // What reading a draft older than revisions (`BeforeRevisions`) gives: insertions as plain
+    // text, and neither deletions nor moves.
     private static void Legacy(Node node)
     {
         node.Attrs?.Remove("markRevision");
@@ -262,7 +262,7 @@ public class RevisionsTests
     [Fact]
     public void RascunhoAntigoEditadoDeclaraAMovimentacaoEAFormatacao()
     {
-        // O rascunho de antes das revisões não as traz: reescrever o parágrafo as perde.
+        // A draft from before revisions does not carry them: rewriting the paragraph loses them.
         var original = WithRevisions();
         var model = Clone(Open(original));
         Legacy(model.Doc);

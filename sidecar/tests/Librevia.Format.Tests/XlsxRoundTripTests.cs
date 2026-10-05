@@ -39,7 +39,7 @@ public class XlsxReadTests
         var sheet = XlsxFixtures.Sheet(XlsxFixtures.Model(XlsxFixtures.Sales()), "Vendas");
         var cell = sheet.Cells["E2"];
 
-        // 15/03/2026 na contagem que começa em 1899-12-30.
+        // 15/03/2026 in the count starting at 1899-12-30.
         Assert.Equal(46096d, Assert.IsType<double>(cell.Value));
         Assert.Equal("date", cell.Style!.Format);
     }
@@ -66,7 +66,7 @@ public class XlsxReadTests
     {
         var sheet = XlsxFixtures.Sheet(XlsxFixtures.Model(XlsxFixtures.Sales()), "Vendas");
 
-        // 20 caracteres na fonte padrão dão 145 pixels.
+        // 20 characters in the default font give 145 pixels.
         Assert.Equal(145d, sheet.ColumnWidths[0]);
     }
 
@@ -92,7 +92,7 @@ public class XlsxReadTests
     {
         var sheet = XlsxFixtures.Sheet(XlsxFixtures.Model(XlsxFixtures.Sales()), "Vendas");
 
-        // O mapa é esparso.
+        // The map is sparse.
         Assert.False(sheet.Cells.ContainsKey("Z99"));
     }
 
@@ -118,17 +118,17 @@ public class XlsxInventoryTests
     [Fact]
     public void PlanilhaComumNaoGeraAviso()
     {
-        // Aviso em todo arquivo se aprende a fechar sem ler.
+        // A warning on every file is learned to be closed without reading.
         var result = XlsxReader.Read(XlsxFixtures.Sales());
 
-        // As frases, e não `IsEmpty`, para a falha dizer qual aviso apareceu.
+        // The sentences, not `IsEmpty`, so the failure says which warning appeared.
         Assert.Equal(string.Empty, string.Join(" | ", result.Inventory.Invisible.Concat(result.Inventory.Lost)));
     }
 }
 
 public class XlsxSurgicalTests
 {
-    /// <summary>Grava o modelo tal como foi lido, sem editar nada.</summary>
+    /// <summary>Saves the model as it was read, without editing anything.</summary>
     private static (byte[] Bytes, XlsxWriter.Result Report) SaveUnchanged(byte[] original)
     {
         var model = XlsxFixtures.Model(original);
@@ -138,7 +138,7 @@ public class XlsxSurgicalTests
     [Fact]
     public void GravarSemEditarNaoEscreveNenhumaCelula()
     {
-        // Gravar sem editar não reescreve nada.
+        // Saving without editing rewrites nothing.
         var (_, report) = SaveUnchanged(XlsxFixtures.Sales());
 
         Assert.Equal(0, report.CellsWritten);
@@ -149,8 +149,8 @@ public class XlsxSurgicalTests
     [Fact]
     public void ModeloQueVemPeloJsonTambemPreserva()
     {
-        // Em produção chega JSON: sem a conversão de escalares, cada valor seria
-        // `JsonElement` e nenhuma célula pareceria igual.
+        // In production JSON arrives: without the scalar conversion, every value would be a
+        // `JsonElement` and no cell would look equal.
         var original = XlsxFixtures.Sales();
         var json = System.Text.Json.JsonSerializer.Serialize(
             XlsxFixtures.Model(original), Protocol.JsonOptions.Default);
@@ -179,7 +179,7 @@ public class XlsxSurgicalTests
     [Fact]
     public void PreservaOQueOModeloNaoRepresenta()
     {
-        // B2 tem fonte de 14 pt, que o modelo não carrega.
+        // B2 has a 14 pt font, which the model does not carry.
         var original = XlsxFixtures.Sales();
         var model = XlsxFixtures.Model(original);
         XlsxFixtures.Sheet(model, "Vendas").Cells["A2"].Value = "Outro nome";
@@ -194,7 +194,7 @@ public class XlsxSurgicalTests
     [Fact]
     public void PreservaParteDoPacoteQueNaoConhece()
     {
-        // Gráfico e tabela dinâmica vivem em partes próprias, como esta.
+        // Charts and pivot tables live in their own parts, like this one.
         var original = XlsxFixtures.WithForeignPart(XlsxFixtures.Sales(), "<catalogo>NAO-PERCA</catalogo>");
         var model = XlsxFixtures.Model(original);
         XlsxFixtures.Sheet(model, "Vendas").Cells["A2"].Value = "Editado";
@@ -207,7 +207,7 @@ public class XlsxSurgicalTests
     [Fact]
     public void PreservaFiltroMesclagemFormatoCondicionalEValidacao()
     {
-        // Preservar sem oferecer interface só vale se sobreviver a uma edição.
+        // Preserving without offering UI only counts if it survives an edit.
         var original = XlsxFixtures.WithUnmodeledFeatures();
         var model = XlsxFixtures.Model(original);
         XlsxFixtures.Sheet(model, "Dados").Cells["B2"].Value = 1500d;
@@ -292,7 +292,7 @@ public class XlsxSurgicalTests
     [Fact]
     public void TrocarNomesEntreDuasAbasNaoColide()
     {
-        // O ClosedXML recusa o nome que outra aba ainda tem.
+        // ClosedXML refuses a name another tab still has.
         var original = XlsxFixtures.Sales();
         var model = XlsxFixtures.Model(original);
         model.Sheets[0].Name = "Resumo";
@@ -374,7 +374,7 @@ public class NumberFormatTests
     [InlineData("\"R$\" #,##0.00", "currency", 2)]
     [InlineData("[$R$-416]#,##0.00", "currency", 2)]
     [InlineData("0.0%", "percent", 1)]
-    // Data não tem casas: `0` diria que se escolheu zero casas.
+    // A date has no decimals: `0` would say zero decimals were chosen.
     [InlineData("dd/mm/yyyy", "date", null)]
     [InlineData("#,##0", "number", 0)]
     [InlineData("@", "text", null)]
@@ -393,7 +393,7 @@ public class NumberFormatTests
     [Fact]
     public void ColchetesNaoViramData()
     {
-        // O `d` de `[$R$-416]` faria a coluna de preços virar datas de 1900.
+        // A bracketed `[$R$-416]` must not turn a price column into 1900 dates.
         using var book = new XLWorkbook();
         var cell = book.Worksheets.Add("P").Cell("A1");
         cell.Style.NumberFormat.Format = "[$R$-416]#,##0.00";
@@ -409,7 +409,7 @@ public class NumberFormatTests
     [InlineData("Geral")]
     public void GeralPorExtensoNaoViraData(string mask)
     {
-        // O LibreOffice grava `General` por extenso, e o "a" dele não é o de `dd/mm/aaaa`.
+        // LibreOffice writes `General` in full, and its "a" is not the one in `dd/mm/aaaa`.
         using var book = new XLWorkbook();
         var cell = book.Worksheets.Add("P").Cell("A1");
         cell.Style.NumberFormat.Format = mask;
@@ -423,7 +423,7 @@ public class NumberFormatTests
     [Fact]
     public void BarraInvertidaNaoViraData()
     {
-        // `\d` é a letra d escapada, não o dia do mês.
+        // `\d` is an escaped letter d, not the day of the month.
         using var book = new XLWorkbook();
         var cell = book.Worksheets.Add("P").Cell("A1");
         cell.Style.NumberFormat.Format = "0.00\\ \"un\"";
@@ -437,7 +437,7 @@ public class NumberFormatTests
     [Fact]
     public void HoraNaoViraData()
     {
-        // Um valor que é só hora mostrado como data daria 31/12/1899.
+        // A time-only value shown as a date would give 31/12/1899.
         using var book = new XLWorkbook();
         var cell = book.Worksheets.Add("P").Cell("A1");
         cell.Style.NumberFormat.NumberFormatId = 20;
@@ -453,7 +453,7 @@ public class UnitTests
     [Fact]
     public void LarguraPadraoDaOitentaQuatroPixels()
     {
-        // 8,43 caracteres, a largura padrão, valem 64 pixels.
+        // 8.43 characters, the default width, are 64 pixels.
         Assert.Equal(64, Units.WidthToPixels(8.43));
     }
 

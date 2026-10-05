@@ -5,8 +5,8 @@ using static Librevia.Format.Tests.Roundtrip;
 namespace Librevia.Format.Tests;
 
 /// <summary>
-/// Comentários: a âncora é um par de nós no parágrafo, e o corpo mora fora dos nós.
-/// O parágrafo comentado e editado não perde nada, e não trava.
+/// Comments: the anchor is a pair of nodes in the paragraph, and the body lives outside the nodes.
+/// A commented and edited paragraph loses nothing, and does not lock.
 /// </summary>
 public class CommentsTests
 {
@@ -37,13 +37,13 @@ public class CommentsTests
         Assert.True(comments[4].Rich);
         Assert.False(comments[0].Rich);
 
-        // Uma âncora por conversa: a resposta não vira nó. O de ponto só tem o fim.
+        // One anchor per thread: a reply does not become a node. A point comment only has the end.
         Assert.Equal(
             ["commentStart:0", "commentEnd:0", "commentStart:2", "commentEnd:2", "commentEnd:3", "commentStart:4",
              "commentEnd:4"],
             Anchors(result.Model));
 
-        // Mostrado no painel, o comentário não é aviso nem trava.
+        // Shown in the pane, a comment is neither a warning nor a lock.
         Assert.DoesNotContain(Inventory.Comments, result.Inventory.Invisible);
         Assert.Empty(result.Inventory.Structural);
     }
@@ -62,8 +62,8 @@ public class CommentsTests
         Assert.Equal(2, result.RewrittenBlocks);
         Assert.Empty(result.Inventory.Lost);
 
-        // A conversa inteira volta abraçando o mesmo trecho, na ordem do Word; o
-        // de ponto volta sem `w:commentRangeEnd`, que ele nunca teve.
+        // The whole thread comes back embracing the same range, in Word's order; a point comment
+        // comes back without `w:commentRangeEnd`, which it never had.
         Assert.Equal(
             ["commentRangeStart:0", "commentRangeStart:1", "commentRangeEnd:0", "commentReference:0",
              "commentRangeEnd:1", "commentReference:1",
@@ -72,13 +72,13 @@ public class CommentsTests
             MarkersOf(XmlOf(saved)));
         Assert.Contains("treze mil", XmlOf(saved), StringComparison.Ordinal);
 
-        // O corpo dos comentários não mudou: as partes voltam byte a byte.
+        // The comment bodies did not change: the parts go back byte for byte.
         var before = PartsOf(original);
         var after = PartsOf(saved);
         Assert.Equal(before["word/comments.xml"], after["word/comments.xml"]);
         Assert.Equal(before["word/commentsExtended.xml"], after["word/commentsExtended.xml"]);
 
-        // E reaberto, o arquivo dá as mesmas âncoras.
+        // And reopened, the file gives the same anchors.
         Assert.Equal(Anchors(Open(original)), Anchors(Open(saved)));
     }
 
@@ -99,8 +99,8 @@ public class CommentsTests
     [Fact]
     public void ApagarOFimDoTrechoDeixaOComentarioNoPontoDoComeco()
     {
-        // O editor apaga o fim com o texto e deixa o começo: um começo sem fim faz
-        // o LibreOffice descartar a conversa inteira.
+        // The editor deletes the end with the text and leaves the start: a start without an end
+        // makes LibreOffice drop the whole thread.
         var original = Fixtures.WithCommentThread();
         var model = Clone(Open(original));
         Assert.True(RemoveFirst(model.Doc, "commentEnd", "0"));
@@ -118,8 +118,8 @@ public class CommentsTests
     [Fact]
     public void ORascunhoGravadoNumPacoteNovoLevaOsComentarios()
     {
-        // O rascunho reaberto e gravado num pacote sem comentários: as partes
-        // nascem, e a conversa volta inteira — com a resposta ao lado.
+        // A reopened draft saved into a package without comments: the parts are created, and the
+        // thread comes back whole, with the reply beside it.
         var original = Fixtures.WithCommentThread();
         var model = Clone(Open(original));
 
@@ -131,7 +131,7 @@ public class CommentsTests
         Assert.Equal("0", reopened[1].ParentId);
         Assert.True(reopened[2].Done);
         Assert.Equal(["Conferir o valor."], reopened[0].Paragraphs);
-        // O de formatação sai com o texto simples, e a perda é dita.
+        // A formatted one goes out as plain text, and the loss is stated.
         Assert.Equal([CommentsWriter.RichEdited], result.Inventory.Lost);
     }
 
@@ -157,7 +157,7 @@ public class CommentsTests
     [Fact]
     public void ORascunhoDeAntesDosComentariosAindaDeclaraAPerda()
     {
-        // O `.sdoc` < 7 não tem as âncoras nos nós, nem a leitura de referência dele.
+        // A `.sdoc` < 7 has no anchors in the nodes, nor does its reference reading.
         var original = Fixtures.WithComment();
         var model = Clone(Open(original)) with { BeforeComments = true };
         foreach (var node in Walk(model.Doc).ToList())
@@ -177,7 +177,7 @@ public class CommentsTests
     private static Node AnchorNode(string type, string cid) =>
         new() { Type = type, Attrs = new() { ["cid"] = System.Text.Json.Nodes.JsonValue.Create(cid) } };
 
-    /// <summary>O primeiro parágrafo cujo texto contém <paramref name="needle"/>.</summary>
+    /// <summary>The first paragraph whose text contains <paramref name="needle"/>.</summary>
     private static Node ParagraphWith(DocumentModelDto model, string needle) =>
         Walk(model.Doc).First(node => node.Type == "paragraph" &&
                                       (node.Content ?? []).Any(child => child.Text?.Contains(needle, StringComparison.Ordinal) == true));
@@ -248,7 +248,7 @@ public class CommentsTests
 
         var reopened = DocxReader.Read(saved).Model.Comments!;
         Assert.Equal(["Valor conferido.", "Segunda linha."], reopened[0].Paragraphs);
-        // O `paraId` é o mesmo: a resposta continua apontando para ele.
+        // The `paraId` is the same: the reply still points to it.
         Assert.Equal("10000000", reopened[0].ParaId);
         Assert.Equal("0", reopened[1].ParentId);
         Assert.Equal(["Conferido."], reopened[1].Paragraphs);

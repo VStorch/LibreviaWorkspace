@@ -3,37 +3,43 @@ using System.Text.Json.Serialization;
 namespace Librevia.Format.Docx;
 
 /// <summary>
-/// <b>Invisível</b>: continua no arquivo, mas não aparece na tela. <b>Perda</b>:
-/// some ao salvar, e só o que estava num bloco editado. <b>Estrutural</b>: o
-/// invisível que some se o bloco que o ancora for editado; decide o somente
-/// leitura. Misturadas, viram um aviso que se aprende a ignorar.
+/// <b>Invisible</b>: stays in the file but does not show on screen. <b>Lost</b>: disappears on
+/// save, and only what was in an edited block. <b>Structural</b>: invisible content that disappears
+/// if the block anchoring it is edited; it decides read-only. Mixed together, they become a warning
+/// people learn to ignore.
 /// </summary>
 /// <remarks>
-/// Os rótulos são constantes porque a classificação é feita **por rótulo**: uma
-/// frase mudada num leitor deixaria de casar e o documento abriria editável.
+/// The labels are constants because classification is done **by label**: a sentence changed in one
+/// reader would stop matching and the document would open editable.
 /// </remarks>
 public sealed class Inventory
 {
-    /// <summary>O de cabeçalho, de nota ou de caixa de texto, que o editor não leva como nó.</summary>
+    /// <summary>
+    /// In headers, notes or text boxes, which the editor does not carry as nodes.
+    /// </summary>
     public const string Comments = "comentários";
-    /// <summary>A revisão que o editor não representa: célula, numeração, seção ou tabela.</summary>
+    /// <summary>
+    /// A revision the editor does not represent: cell, numbering, section or table.
+    /// </summary>
     public const string StructureRevisions = "revisões de estrutura";
 
-    /// <summary><c>w:rPrChange</c> e <c>w:pPrChange</c>: no parágrafo editado, a do trecho se perde.</summary>
+    /// <c>w:rPrChange</c> and <c>w:pPrChange</c>: in an edited paragraph, the range's is lost.
     public const string FormatRevisions = "revisões de formatação";
-    /// <summary>A de dentro de uma caixa de texto e a do rascunho anterior às notas (<c>BeforeNotes</c>).</summary>
+    /// <summary>Inside a text box and in a draft older than notes (<c>BeforeNotes</c>).</summary>
     public const string Footnotes = "notas de rodapé";
     public const string Endnotes = "notas de fim";
     public const string Fields = "campos calculados (como sumário e número de página)";
     public const string HeaderFields = "campos calculados no cabeçalho";
     /// <summary>
-    /// A **moldura** que o CSS não faz: gradiente, textura, sombra, três dimensões,
-    /// canto arredondado, ou a herdada de um tema que não resolvemos (ver
-    /// <see cref="ShapeLook"/>).
+    /// A **frame** CSS cannot do: gradient, texture, shadow, 3D, rounded corner, or one inherited
+    /// from a theme we do not resolve (see <see cref="ShapeLook"/>).
     /// </summary>
     public const string Shapes = "moldura e preenchimento de formas";
     public const string ContentControls = "controles de conteúdo";
-    /// <summary>A equação com construção que a tela não desenha: aparece travada, e o OMML volta inteiro.</summary>
+    /// <summary>
+    /// An equation with a construct the screen does not draw: it shows locked, and the OMML goes
+    /// back whole.
+    /// </summary>
     public const string Equations = "equações";
 
     private static readonly HashSet<string> StructuralLabels = new(StringComparer.Ordinal)
@@ -63,8 +69,8 @@ public sealed class Inventory
     public void NoteLoss(string message) => _lost.Add(message);
 
     /// <summary>
-    /// Separado de <see cref="NoteInvisible"/>: a regra "nome desconhecido em
-    /// minúscula é ruído" engoliria as frases em português.
+    /// Separate from <see cref="NoteInvisible"/>: the rule "an unknown lowercase name is noise"
+    /// would swallow the Portuguese sentences.
     /// </summary>
     public void NoteInvisibleElement(string elementName)
     {
@@ -73,8 +79,8 @@ public sealed class Inventory
     }
 
     /// <summary>
-    /// Ou <c>null</c> para o ruído: <c>w:bidi</c>, <c>w:textDirection</c> e <c>w:formProt</c>
-    /// estão em toda seção gravada pelo LibreOffice.
+    /// Or <c>null</c> for noise: <c>w:bidi</c>, <c>w:textDirection</c> and <c>w:formProt</c> are in
+    /// every section LibreOffice writes.
     /// </summary>
     private static string? Describe(string what) => what switch
     {
@@ -88,7 +94,7 @@ public sealed class Inventory
         "endnoteReference" => Endnotes,
         "fldChar" or "fldSimple" or "instrText" or "campo calculado" => Fields,
         "pict" or "object" or "AlternateContent" => Shapes,
-        // Desenho e marcação inteligente aparecem como imagem e texto: não são estruturais.
+        // Drawings and smart tags show as image and text: they are not structural.
         "drawing" => "desenhos",
         "smartTag" => "marcações inteligentes",
         "sdt" or "sdtBlock" => ContentControls,

@@ -8,8 +8,8 @@ using DocumentFormat.OpenXml.Wordprocessing;
 namespace Librevia.Format.Docx;
 
 /// <summary>
-/// Um comentário como o painel o mostra. Fora dos nós, como os estilos: o corpo
-/// mora em <c>word/comments.xml</c>, e o parágrafo leva só as pontas da âncora.
+/// A comment as the pane shows it. Outside the nodes, like styles: the body lives in
+/// <c>word/comments.xml</c>, and the paragraph only carries the anchor ends.
 /// </summary>
 public sealed record CommentDto(
     [property: JsonPropertyName("id")] string Id,
@@ -17,26 +17,26 @@ public sealed record CommentDto(
     [property: JsonPropertyName("date")] string Date,
     [property: JsonPropertyName("paragraphs")] List<string> Paragraphs,
     [property: JsonPropertyName("done")] bool Done,
-    // `w15:paraIdParent` traduzido para o id do pai; ausente no que abre a conversa.
+    // `w15:paraIdParent` translated to the parent's id; absent on the one opening the thread.
     [property: JsonPropertyName("parentId")]
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     string? ParentId = null,
     [property: JsonPropertyName("initials")]
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     string? Initials = null,
-    // O `w14:paraId` do último parágrafo, por onde `commentsExtended.xml` liga resposta e "resolvido".
+    // The last paragraph's `w14:paraId`, through which `commentsExtended.xml` links replies and
+    // "resolved".
     [property: JsonPropertyName("paraId")]
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     string? ParaId = null,
-    // Formatação, imagem, campo ou link que o texto simples não mostra: fica no arquivo, e o painel avisa.
+    // Formatting, an image, a field or a link plain text does not show: it stays in the file, and
+    // the pane warns.
     [property: JsonPropertyName("rich")]
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     bool Rich = false);
 
-/// <summary>
-/// <c>word/comments.xml</c> e <c>word/commentsExtended.xml</c> → os comentários do
-/// painel. O malformado sai com o que deu para ler.
-/// </summary>
+/// <c>word/comments.xml</c> and <c>word/commentsExtended.xml</c> → the pane's comments. A malformed
+/// one comes out with whatever could be read.
 public static class CommentsReader
 {
     public static List<CommentDto>? Read(MainDocumentPart part)
@@ -70,8 +70,8 @@ public static class CommentsReader
     }
 
     /// <summary>
-    /// As respostas de cada comentário, na ordem do arquivo. A resposta não vira nó:
-    /// a âncora dela é a do pai, e a gravação a devolve ao lado dela.
+    /// Each comment's replies, in file order. A reply does not become a node: its anchor is the
+    /// parent's, and saving returns it next to it.
     /// </summary>
     public static Dictionary<string, List<string>> RepliesOf(MainDocumentPart part)
     {
@@ -88,7 +88,10 @@ public static class CommentsReader
 
     internal sealed record ThreadEntry(bool Done, string? Parent);
 
-    /// <summary>`w15:done` e `w15:paraIdParent`, pelo `paraId` do comentário — o pai já traduzido para id.</summary>
+    /// <summary>
+    /// `w15:done` and `w15:paraIdParent`, by the comment's `paraId`, with the parent already
+    /// translated to an id.
+    /// </summary>
     internal static Dictionary<string, ThreadEntry> ThreadsOf(MainDocumentPart part)
     {
         var entries = part.WordprocessingCommentsExPart?.CommentsEx?.Elements<W15.CommentEx>().ToList() ?? [];

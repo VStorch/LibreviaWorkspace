@@ -5,29 +5,30 @@ using DocumentFormat.OpenXml.Wordprocessing;
 namespace Librevia.Format.Docx;
 
 /// <summary>
-/// A lista feita aqui ganha a **sua** definição: no Word conta a abstrata, e duas
-/// listas que a dividissem continuariam a contagem uma da outra. A que traz
-/// definição (reiniciada, colada, da galeria) nasce dela; a outra, dos níveis
-/// padrão (<c>ListLevels.Defaults</c>). <c>word/numbering.xml</c> só é tocado quando há
-/// lista nova.
+/// A list made here gets **its own** definition: Word counts by the abstract one, and two lists
+/// sharing it would continue each other's count. One carrying a definition (restarted, pasted, from
+/// the gallery) is born from it; others from the default levels (<c>ListLevels.Defaults</c>).
+/// <c>word/numbering.xml</c> is only touched when there is a new list.
 /// </summary>
 internal sealed class NumberingFactory(MainDocumentPart part, HashSet<string> touched, Inventory? inventory = null)
 {
     private readonly NumberingReader _reader = new(part);
 
-    /// <summary>Pela chave: duas listas com a mesma chave são a mesma contagem e o mesmo <c>w:num</c>.</summary>
+    /// <summary>
+    /// By key: two lists with the same key are the same count and the same <c>w:num</c>.
+    /// </summary>
     private readonly Dictionary<string, int> _created = new(StringComparer.Ordinal);
     private HashSet<int>? _declared;
 
-    /// <param name="kind"><c>bulletList</c> ou <c>orderedList</c>.</param>
-    /// <param name="declared">O do arquivo, ou herdado da lista de fora.</param>
-    /// <param name="definition">A que o nó traz (<c>numbering</c>).</param>
+    /// <param name="kind"><c>bulletList</c> or <c>orderedList</c>.</param>
+    /// <param name="declared">The file's, or inherited from the outer list.</param>
+    /// <param name="definition">The one the node carries (<c>numbering</c>).</param>
     public int NumberingIdFor(string kind, int? declared, JsonObject? definition = null)
     {
         var key = definition?["key"]?.GetValue<string>();
 
-        // O do arquivo vale se ainda existe e é a **mesma** numeração: a lista colada
-        // traz um `numId` que aqui pode ser outro.
+        // The file's applies if it still exists and is the **same** numbering: a pasted list
+        // carries a `numId` that may be another one here.
         if (declared is > 0 && Defined().Contains(declared.Value) && SameAsFile(declared.Value, definition))
         {
             return declared.Value;
@@ -59,7 +60,7 @@ internal sealed class NumberingFactory(MainDocumentPart part, HashSet<string> to
         var definitions = part.NumberingDefinitionsPart;
         if (definitions is null)
         {
-            // Documento sem lista não tem a parte.
+            // A document without lists has no such part.
             definitions = part.AddNewPart<NumberingDefinitionsPart>();
             definitions.Numbering = new Numbering();
         }
@@ -76,7 +77,7 @@ internal sealed class NumberingFactory(MainDocumentPart part, HashSet<string> to
 
         var instance = new NumberingInstance(new AbstractNumId { Val = abstractId }) { NumberID = numberId };
 
-        // O reinício é do `w:num`, como o Word grava.
+        // The restart belongs to `w:num`, as Word writes it.
         if (definition?["overrides"] is JsonObject overrides)
         {
             foreach (var (name, value) in overrides.OrderBy(entry => entry.Key, StringComparer.Ordinal))
@@ -99,7 +100,9 @@ internal sealed class NumberingFactory(MainDocumentPart part, HashSet<string> to
         return numberId;
     }
 
-    /// <summary>Só quando é **a mesma**, pelos níveis: o <c>abstractId</c> colado pode ser outro aqui.</summary>
+    /// <summary>
+    /// Only when it is **the same**, by levels: a pasted <c>abstractId</c> may be another one here.
+    /// </summary>
     private static int? Reusable(Numbering numbering, JsonObject? definition, JsonArray? levels)
     {
         if (levels is null || SourceOf(numbering, definition) is not { } found) return null;
@@ -115,7 +118,7 @@ internal sealed class NumberingFactory(MainDocumentPart part, HashSet<string> to
 
     private int AddAbstract(Numbering numbering, string kind, JsonObject? definition, JsonArray? levels)
     {
-        // Os níveis que não mudaram vêm do original, com fonte, cor e estilo do número.
+        // Unchanged levels come from the original, with the number's font, color and style.
         var source = SourceOf(numbering, definition);
         var original = source?.Elements<Level>()
             .Where(level => level.LevelIndex?.Value is >= 0 and < ListLevels.Count)
@@ -144,7 +147,7 @@ internal sealed class NumberingFactory(MainDocumentPart part, HashSet<string> to
             abstractNum.AppendChild(ListLevels.ToOpenXml(wanted, level, kind, inventory));
         }
 
-        // Sequência: os `w:abstractNum` antes dos `w:num`.
+        // Sequence: the `w:abstractNum`s before the `w:num`s.
         var lastAbstract = numbering.Elements<AbstractNum>().LastOrDefault();
         if (lastAbstract is not null) numbering.InsertAfter(abstractNum, lastAbstract);
         else

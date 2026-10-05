@@ -4,12 +4,14 @@ using DocumentFormat.OpenXml.Wordprocessing;
 namespace Librevia.Format.Docx;
 
 /// <summary>
-/// Leitor e escritor veem as mesmas caixas na mesma ordem: o texto volta ao
-/// <c>w:txbxContent</c> pela posição na lista de objetos do bloco.
+/// Reader and writer see the same boxes in the same order: text goes back to <c>w:txbxContent</c>
+/// by its position in the block's object list.
 /// </summary>
 internal static class TextBoxNav
 {
-    /// <summary>Caixa dentro de caixa já é lida com a de fora, e não desce de novo.</summary>
+    /// <summary>
+    /// A box inside a box is already read with the outer one, and is not descended into again.
+    /// </summary>
     internal static IEnumerable<TextBoxContent> Outermost(OpenXmlElement root)
     {
         foreach (var child in root.ChildElements)
@@ -25,16 +27,16 @@ internal static class TextBoxNav
     }
 
     /// <summary>
-    /// O Word grava a forma em <c>mc:Choice</c> (DrawingML) e em <c>mc:Fallback</c>
-    /// (VML): um ramo só, senão a caixa aparece em dobro.
+    /// Word writes the shape in <c>mc:Choice</c> (DrawingML) and in <c>mc:Fallback</c> (VML): one
+    /// branch only, or the box appears twice.
     /// </summary>
     internal static OpenXmlElement? BranchOf(AlternateContent alternate) =>
         (OpenXmlElement?)alternate.GetFirstChild<AlternateContentChoice>()
         ?? alternate.GetFirstChild<AlternateContentFallback>();
 
     /// <summary>
-    /// A mesma peneira do leitor: a caixa de desenho no fluxo é lida na linha e não
-    /// entra na contagem, senão desloca as outras.
+    /// The same sieve as the reader: a drawing box in the flow is read in the line and does not
+    /// enter the count, or it would shift the others.
     /// </summary>
     internal static IEnumerable<TextBoxContent> AnchoredBoxesOf(OpenXmlElement paragraph)
     {
@@ -53,8 +55,9 @@ internal static class TextBoxNav
     }
 
     /// <summary>
-    /// O ramo VML repete o texto do que vale, senão o arquivo diz duas coisas e cada
-    /// programa lê uma. A forma VML fica, porque é a moldura de quem lê esse ramo.
+    /// The VML branch repeats the text of the one that counts, or the file says two things and each
+    /// program reads one. The VML shape stays, because it is the frame for whoever reads that
+    /// branch.
     /// </summary>
     internal static void MirrorFallback(AlternateContent alternate)
     {
@@ -76,11 +79,13 @@ internal static class TextBoxNav
         }
     }
 
-    /// <summary>Os parágrafos que são da caixa, e não de uma caixa de dentro.</summary>
+    /// <summary>Paragraphs belonging to the box, not to a box inside it.</summary>
     internal static IEnumerable<Paragraph> ParagraphsOf(TextBoxContent box) =>
         box.Descendants<Paragraph>().Where(p => p.Ancestors<TextBoxContent>().First() == box);
 
-    /// <summary>A caixa de texto igual não é regravada, e guarda o que o escritor não reproduz.</summary>
+    /// <summary>
+    /// An equal text box is not rewritten, and keeps what the writer does not reproduce.
+    /// </summary>
     internal static string TextOf(TextBoxContent box) =>
         string.Join("\n", ParagraphsOf(box).Select(p => string.Concat(p.Descendants<Text>().Select(t => t.Text))));
 }

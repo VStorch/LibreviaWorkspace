@@ -33,7 +33,7 @@ public class FrameIoTests
     [Fact]
     public async Task PreservesBytesThatLookLikeLineEndings()
     {
-        // DOCX é ZIP, cheio de 0x0a, 0x0d e 0x00: um protocolo delimitado por \n se despedaçaria.
+        // DOCX is ZIP, full of 0x0a, 0x0d and 0x00: a newline-delimited protocol would fall apart.
         var binary = new byte[] { 0x0a, 0x0d, 0x1a, 0x00, 0x50, 0x4b, 0x03, 0x04 };
         var encoded = await EncodeAsync(new { }, binary);
 
@@ -45,7 +45,7 @@ public class FrameIoTests
     [Fact]
     public async Task ReassemblesFrameDeliveredOneByteAtATime()
     {
-        // Um pipe entrega quanto quiser a cada leitura, e só documento grande mostra isso.
+        // A pipe delivers as much as it wants per read, and only large documents show it.
         var binary = new byte[] { 1, 2, 3, 4, 5 };
         var encoded = await EncodeAsync(new { id = 7 }, binary);
 
@@ -94,7 +94,7 @@ public class FrameIoTests
     [Fact]
     public async Task ClosedStreamMeansShutdownNotError()
     {
-        // stdin fechado é o pedido de encerrar: saída limpa, e não exceção.
+        // A closed stdin is the request to shut down: a clean exit, not an exception.
         var frame = await FrameIo.ReadAsync(new MemoryStream([]), CancellationToken.None);
 
         Assert.Null(frame);
@@ -103,7 +103,7 @@ public class FrameIoTests
     [Fact]
     public async Task RejectsAbsurdBinaryLengthWithoutAllocating()
     {
-        // Um cabeçalho mentiroso não reserva gigabytes.
+        // A lying header does not reserve gigabytes.
         var header = new byte[Frame.HeaderBytes];
         System.Buffers.Binary.BinaryPrimitives.WriteUInt32BigEndian(
             header.AsSpan(4), Frame.MaxBinaryBytes + 1u);
@@ -123,7 +123,7 @@ public class FrameIoTests
                 CancellationToken.None));
     }
 
-    /// <summary>Entrega poucos bytes por leitura, como um pipe real faz.</summary>
+    /// <summary>Delivers a few bytes per read, as a real pipe does.</summary>
     private sealed class DripStream(byte[] content, int chunkSize) : MemoryStream(content)
     {
         public override int Read(Span<byte> destination) =>

@@ -3,19 +3,19 @@ using System.Buffers.Binary;
 namespace Librevia.Format.Docx;
 
 /// <summary>
-/// O tamanho de uma imagem pelo cabeçalho dos bytes, para o <c>wp:extent</c> da
-/// imagem inserida, que chega sem medida. PNG, GIF, BMP e JPEG, sem biblioteca.
+/// An image's size from its header bytes, for the <c>wp:extent</c> of an inserted image, which
+/// arrives without a measure. PNG, GIF, BMP and JPEG, without a library.
 /// </summary>
 internal static class ImageSize
 {
-    /// <summary>Largura e altura em pixels, ou <c>null</c> se o cabeçalho não disser.</summary>
+    /// <summary>Width and height in pixels, or <c>null</c> if the header does not say.</summary>
     public static (int Width, int Height)? Of(byte[] bytes)
     {
         var span = bytes.AsSpan();
 
         if (span.Length > 24 && span[..8].SequenceEqual((byte[])[0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]))
         {
-            // `IHDR` é sempre o primeiro pedaço: dois inteiros de 32 bits em ordem de rede.
+            // `IHDR` is always the first chunk: two 32-bit integers in network order.
             return (
                 (int)BinaryPrimitives.ReadUInt32BigEndian(span[16..20]),
                 (int)BinaryPrimitives.ReadUInt32BigEndian(span[20..24]));
@@ -23,7 +23,7 @@ internal static class ImageSize
 
         if (span.Length > 10 && (span[..6].SequenceEqual("GIF87a"u8) || span[..6].SequenceEqual("GIF89a"u8)))
         {
-            // O GIF guarda a medida em little-endian.
+            // GIF stores the size little-endian.
             return (
                 BinaryPrimitives.ReadUInt16LittleEndian(span[6..8]),
                 BinaryPrimitives.ReadUInt16LittleEndian(span[8..10]));
@@ -31,7 +31,7 @@ internal static class ImageSize
 
         if (span.Length > 26 && span[0] == 0x42 && span[1] == 0x4D)
         {
-            // Altura negativa diz que as linhas vêm de cima para baixo.
+            // A negative height says the rows come top-down.
             return (
                 BinaryPrimitives.ReadInt32LittleEndian(span[18..22]),
                 Math.Abs(BinaryPrimitives.ReadInt32LittleEndian(span[22..26])));
@@ -40,7 +40,7 @@ internal static class ImageSize
         return span.Length > 3 && span[0] == 0xFF && span[1] == 0xD8 ? Jpeg(span) : null;
     }
 
-    /// <summary>O JPEG é uma fila de segmentos; a medida está no <c>SOFn</c>.</summary>
+    /// <summary>JPEG is a queue of segments; the size is in <c>SOFn</c>.</summary>
     private static (int Width, int Height)? Jpeg(ReadOnlySpan<byte> span)
     {
         var index = 2;
@@ -55,7 +55,7 @@ internal static class ImageSize
             var marker = span[index + 1];
             var length = BinaryPrimitives.ReadUInt16BigEndian(span[(index + 2)..(index + 4)]);
 
-            // `DHT`, `JPG` e `DAC` estão na faixa dos `SOF`, mas não são moldura.
+            // `DHT`, `JPG` and `DAC` are in the `SOF` range, but are not frames.
             if (marker is >= 0xC0 and <= 0xCF && marker is not (0xC4 or 0xC8 or 0xCC))
             {
                 return (

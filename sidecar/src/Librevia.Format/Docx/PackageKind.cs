@@ -4,11 +4,10 @@ using System.Xml.Linq;
 namespace Librevia.Format.Docx;
 
 /// <summary>
-/// Documento ou modelo, pelo tipo de conteúdo da parte principal. Um <c>.dotx</c> é
-/// um <c>.docx</c> com outro rótulo, e o Word recusa o <c>.docx</c> com rótulo de
-/// modelo. As macros do <c>.dotm</c> saem, com aviso: o aplicativo não as executa, e
-/// um <c>.docx</c> com <c>vbaProject.bin</c> é inválido. Mexe só no rótulo e nas
-/// macros; o resto do zip sai como entrou.
+/// Document or template, by the main part's content type. A <c>.dotx</c> is a <c>.docx</c> with
+/// another label, and Word refuses a <c>.docx</c> labeled as a template. <c>.dotm</c> macros go,
+/// with a warning: the app does not run them, and a <c>.docx</c> with <c>vbaProject.bin</c> is
+/// invalid. Only touches the label and the macros; the rest of the zip goes out as it came in.
 /// </summary>
 public static class PackageKind
 {
@@ -19,7 +18,7 @@ public static class PackageKind
     public const string MacroDocumentMain = "application/vnd.ms-word.document.macroEnabled.main+xml";
     public const string MacroTemplateMain = "application/vnd.ms-word.template.macroEnabledTemplate.main+xml";
 
-    /// <summary>A frase da perda das macros, na abertura e na gravação.</summary>
+    /// <summary>The macro loss sentence, on open and on save.</summary>
     public const string Macros = "macros (VBA) do modelo";
 
     private static readonly XNamespace ContentTypes =
@@ -30,7 +29,7 @@ public static class PackageKind
     private const string OfficeDocument =
         "http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument";
 
-    /// <summary>As relações que só existem em pacote com macro.</summary>
+    /// <summary>Relationships that only exist in a macro package.</summary>
     private static readonly HashSet<string> MacroRelationships = new(StringComparer.Ordinal)
     {
         "http://schemas.microsoft.com/office/2006/relationships/vbaProject",
@@ -39,7 +38,7 @@ public static class PackageKind
         "http://schemas.microsoft.com/office/2006/relationships/attachedToolbars",
     };
 
-    /// <summary>O pacote traz macros — o `.dotm` (ou um `.docm` renomeado).</summary>
+    /// <summary>The package has macros: a `.dotm` (or a renamed `.docm`).</summary>
     public static bool HasMacros(byte[] bytes)
     {
         using var archive = new ZipArchive(new MemoryStream(bytes, writable: false), ZipArchiveMode.Read);
@@ -47,7 +46,9 @@ public static class PackageKind
         return main is not null && MainContentType(archive, main) is MacroDocumentMain or MacroTemplateMain;
     }
 
-    /// <summary>Com o rótulo pedido e sem macros; os mesmos bytes quando já estava certo.</summary>
+    /// <summary>
+    /// With the requested label and without macros; the same bytes when it was already right.
+    /// </summary>
     public static byte[] Retarget(byte[] bytes, bool template, Inventory inventory)
     {
         using var archive = new ZipArchive(new MemoryStream(bytes, writable: false), ZipArchiveMode.Read);
@@ -64,7 +65,7 @@ public static class PackageKind
 
         if (current is MacroDocumentMain or MacroTemplateMain)
         {
-            // O projeto aponta os dados dele: as relações de macro saem de toda parte.
+            // The project points to its data: macro relationships go from every part.
             foreach (var entry in archive.Entries.Where(entry => entry.FullName.EndsWith(".rels", StringComparison.Ordinal)))
             {
                 var rels = ReadXml(archive, entry.FullName)!;
@@ -105,7 +106,7 @@ public static class PackageKind
             }
         }
 
-        // O SDK rotula o pacote de uma parte só pela extensão: a declaração própria vale mais.
+        // The SDK labels a single-part package by extension only: an explicit declaration wins.
         if (!labeled)
         {
             types.Root.Add(new XElement(
@@ -114,12 +115,12 @@ public static class PackageKind
                 new XAttribute("ContentType", wanted)));
         }
 
-        // O padrão do `.bin` é o do projeto VBA: só sai quando não sobra `.bin` nenhum.
+        // The `.bin` default is the VBA project's: it only goes when no `.bin` remains.
         var remaining = archive.Entries.Select(entry => entry.FullName).Where(name => !dropped.Contains(name)).ToList();
         foreach (var fallback in types.Root.Elements(ContentTypes + "Default").ToList())
         {
             var extension = (string?)fallback.Attribute("Extension") ?? string.Empty;
-            // Esse padrão é o rótulo da principal, e troca junto.
+            // That default is the main part's label, and changes along.
             if ((string?)fallback.Attribute("ContentType") is DocumentMain or TemplateMain or MacroDocumentMain or MacroTemplateMain)
             {
                 fallback.SetAttributeValue("ContentType", wanted);
@@ -158,7 +159,7 @@ public static class PackageKind
         return result.ToArray();
     }
 
-    /// <summary>A parte principal, pela relação `officeDocument` do pacote.</summary>
+    /// <summary>The main part, through the package's `officeDocument` relationship.</summary>
     private static string? MainPartName(ZipArchive archive)
     {
         var rels = ReadXml(archive, "_rels/.rels");
@@ -191,7 +192,9 @@ public static class PackageKind
         return XDocument.Load(stream);
     }
 
-    /// <summary>A pasta da parte dona de um `.rels` (`word/_rels/document.xml.rels` → `word`).</summary>
+    /// <summary>
+    /// The folder of the part owning a `.rels` (`word/_rels/document.xml.rels` → `word`).
+    /// </summary>
     private static string OwnerOf(string rels)
     {
         var folder = rels[..Math.Max(0, rels.LastIndexOf("_rels/", StringComparison.Ordinal))].TrimEnd('/');
@@ -204,7 +207,9 @@ public static class PackageKind
         return slash < 0 ? $"_rels/{part}.rels" : $"{part[..slash]}/_rels/{part[(slash + 1)..]}.rels";
     }
 
-    /// <summary>O alvo de uma relação, relativo à pasta da dona, como nome de entrada do zip.</summary>
+    /// <summary>
+    /// A relationship target, relative to the owner's folder, as a zip entry name.
+    /// </summary>
     private static string Resolve(string folder, string target)
     {
         if (target.StartsWith('/')) return target.TrimStart('/');

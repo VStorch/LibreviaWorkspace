@@ -7,10 +7,10 @@ using DocumentFormat.OpenXml.Wordprocessing;
 namespace Librevia.Format.Docx;
 
 /// <summary>
-/// Tabela → <c>w:tbl</c>, **por posição**: cada <c>w:tblPr</c>, <c>w:tblGrid</c>,
-/// <c>w:trPr</c> e <c>w:tcPr</c> do arquivo volta ao lugar, e só os parágrafos são
-/// regravados. Linha ou coluna no fim ganha estrutura nova; inserir no meio ou
-/// remover desfaz a correspondência, e isso vai ao inventário.
+/// Table → <c>w:tbl</c>, **by position**: each file <c>w:tblPr</c>, <c>w:tblGrid</c>, <c>w:trPr</c>
+/// and <c>w:tcPr</c> goes back in place, and only paragraphs are rewritten. A row or column at the
+/// end gets new structure; inserting in the middle or removing breaks the correspondence, and that
+/// goes to the inventory.
 /// </summary>
 internal sealed class TableWriter(
     Inventory inventory,
@@ -19,14 +19,13 @@ internal sealed class TableWriter(
     bool revisions = true)
 {
     /// <summary>
-    /// Removida, a linha leva largura, mesclagem e sombreamento; inserida no meio,
-    /// desloca a estrutura, e o <c>w:vMerge</c> fora de lugar faz o Word acusar tabela
-    /// corrompida.
+    /// Removed, a row takes width, merging and shading along; inserted in the middle, it shifts the
+    /// structure, and a misplaced <c>w:vMerge</c> makes Word report a corrupt table.
     /// </summary>
     private const string ShiftedStructure =
         "largura, mesclagem ou sombreamento de parte de uma tabela que você editou";
 
-    /// <summary>O gravador ainda não a escreve.</summary>
+    /// <summary>The writer does not write it yet.</summary>
     internal const string VerticalMergeLoss = "mesclagem vertical de células feita no editor";
 
     private readonly TableGridWriter _grid = new(inventory, usableWidthPx);
@@ -35,7 +34,7 @@ internal sealed class TableWriter(
     {
         var table = new Table();
 
-        // Antes da primeira linha: propriedades, grade e a revisão da tabela.
+        // Before the first row: properties, grid and the table revision.
         var interleaved = Interleaved<TableRow>(original);
         foreach (var setting in Strays(interleaved, -1)) table.AppendChild(setting.CloneNode(true));
         if (original is null) table.AppendChild(DefaultProperties());
@@ -43,7 +42,8 @@ internal sealed class TableWriter(
         var originalRows = original?.Elements<TableRow>().ToList() ?? [];
         var rows = node.Content ?? [];
 
-        // O modelo não carrega identidade de linha: com contagens diferentes, não há como saber onde mudou.
+        // The model carries no row identity: with different counts, there is no knowing where it
+        // changed.
         var aligned = original is null || originalRows.Count == rows.Count;
         if (!aligned) inventory.NoteLoss(ShiftedStructure);
 
@@ -53,7 +53,7 @@ internal sealed class TableWriter(
             foreach (var between in Strays(interleaved, index)) table.AppendChild(between.CloneNode(true));
         }
 
-        // O que vinha depois de uma linha que não existe mais fecha a tabela.
+        // What came after a row that no longer exists closes the table.
         for (var index = rows.Count; index < originalRows.Count; index++)
         {
             foreach (var orphan in Strays(interleaved, index)) table.AppendChild(orphan.CloneNode(true));
@@ -64,9 +64,9 @@ internal sealed class TableWriter(
     }
 
     /// <summary>
-    /// Os filhos que não são <typeparamref name="T"/>, pela posição: <c>-1</c> antes do
-    /// primeiro, <c>n</c> depois do de índice <c>n</c>. Entre as linhas moram marcadores,
-    /// <c>w:sdt</c> e revisões, que não podem ir todos para o começo.
+    /// Children that are not <typeparamref name="T"/>, by position: <c>-1</c> before the first,
+    /// <c>n</c> after the one at index <c>n</c>. Bookmarks, <c>w:sdt</c> and revisions live between
+    /// rows, and cannot all go to the start.
     /// </summary>
     private static Dictionary<int, List<OpenXmlElement>> Interleaved<T>(OpenXmlElement? parent)
         where T : OpenXmlElement
@@ -93,9 +93,12 @@ internal sealed class TableWriter(
     private static List<OpenXmlElement> Strays(Dictionary<int, List<OpenXmlElement>> map, int position) =>
         map.TryGetValue(position, out var found) ? found : [];
 
-    /// <summary>A tabela criada aqui; a largura e o <c>w:tblLayout</c> vêm com a grade (<see cref="TableGridWriter"/>).</summary>
+    /// <summary>
+    /// A table created here; width and <c>w:tblLayout</c> come with the grid (<see
+    /// cref="TableGridWriter"/>).
+    /// </summary>
     private static TableProperties DefaultProperties() => new(
-        // Na ordem do esquema, senão o Word recusa o documento.
+        // In schema order, or Word refuses the document.
         new TableBorders(
             new TopBorder { Val = BorderValues.Single, Size = 4 },
             new LeftBorder { Val = BorderValues.Single, Size = 4 },
@@ -104,12 +107,12 @@ internal sealed class TableWriter(
             new InsideHorizontalBorder { Val = BorderValues.Single, Size = 4 },
             new InsideVerticalBorder { Val = BorderValues.Single, Size = 4 }));
 
-    /// <param name="tableAligned">Falso: a estrutura desta linha pode ser de outra.</param>
+    /// <param name="tableAligned">False: this row's structure may belong to another.</param>
     private TableRow WriteRow(Node rowNode, TableRow? original, bool tableAligned)
     {
         var row = new TableRow();
 
-        // `w:trPr` traz a altura e o `w:tblHeader`; `w:tblPrEx`, as exceções da linha.
+        // `w:trPr` carries the height and `w:tblHeader`; `w:tblPrEx`, the row's exceptions.
         var interleaved = Interleaved<TableCell>(original);
         foreach (var setting in Strays(interleaved, -1)) row.AppendChild(setting.CloneNode(true));
 
@@ -133,13 +136,13 @@ internal sealed class TableWriter(
             foreach (var orphan in Strays(interleaved, index)) row.AppendChild(orphan.CloneNode(true));
         }
 
-        // Linha toda de `tableHeader` é o `w:tblHeader`.
+        // A row made entirely of `tableHeader` is `w:tblHeader`.
         ApplyHeader(row, cells.Count > 0 && cells.All(cell => cell.Type == "tableHeader"));
         if (revisions) ApplyRowRevision(row, Attr.Node(rowNode, "rowRevision"));
         return row;
     }
 
-    /// <summary><c>w:ins</c>/<c>w:del</c> no fim do <c>w:trPr</c>, antes só do <c>w:trPrChange</c>.</summary>
+    /// <c>w:ins</c>/<c>w:del</c> at the end of <c>w:trPr</c>, only before <c>w:trPrChange</c>.
     private static void ApplyRowRevision(TableRow row, System.Text.Json.Nodes.JsonNode? wanted)
     {
         var properties = row.TableRowProperties;
@@ -160,12 +163,14 @@ internal sealed class TableWriter(
         if (!properties.HasChildren) properties.Remove();
     }
 
-    /// <summary>Só quando o estado muda: o <c>w:trPr</c> traz também a altura e a revisão.</summary>
+    /// <summary>
+    /// Only when the state changes: <c>w:trPr</c> also carries height and revision.
+    /// </summary>
     private static void ApplyHeader(TableRow row, bool wanted)
     {
         var properties = row.TableRowProperties;
         var current = properties?.GetFirstChild<TableHeader>();
-        // Presente sem `w:val` já é "sim".
+        // Present without `w:val` already means "yes".
         var declared = current is not null && !IsOff(current);
         if (declared == wanted) return;
 
@@ -178,7 +183,7 @@ internal sealed class TableWriter(
             row.TableRowProperties = properties;
         }
 
-        // Antes da revisão, que fecha o `w:trPr` no esquema.
+        // Before the revision, which closes `w:trPr` in the schema.
         var revision = properties.ChildElements.FirstOrDefault(child =>
             child is Inserted or Deleted or TableRowPropertiesChange);
         if (revision is null) properties.AppendChild(new TableHeader());
@@ -191,7 +196,7 @@ internal sealed class TableWriter(
     private static List<OpenXmlElement> ChildrenOf(OpenXmlElement? element) =>
         element is null ? [] : [.. element.ChildElements];
 
-    /// <param name="aligned">Se esta é de fato a célula do arquivo nesta posição.</param>
+    /// <param name="aligned">Whether this really is the file's cell at this position.</param>
     private TableCell WriteCell(Node cellNode, TableCell? original, bool aligned)
     {
         var cell = new TableCell();
@@ -200,18 +205,20 @@ internal sealed class TableWriter(
                          ?? new TableCellProperties();
         var span = Attr.Int(cellNode, "colspan");
 
-        // Só o que o modelo representa (`colspan`, sombreamento, bordas): `w:vMerge`,
-        // margem interna e alinhamento vertical ficam.
+        // Only what the model represents (`colspan`, shading, borders): `w:vMerge`, cell margins
+        // and vertical alignment stay.
         if (span is > 1) properties.GridSpan = new GridSpan { Val = span };
         else if (properties.GridSpan is not null) properties.GridSpan = null;
 
-        // Mesclagem vertical deslocada faz o Word acusar tabela corrompida: sai, e a perda já foi declarada.
+        // A shifted vertical merge makes Word report a corrupt table: it goes, and the loss was
+        // already declared.
         if (!aligned) properties.RemoveAllChildren<VerticalMerge>();
 
-        // A mesclagem vertical feita na tela vira `rowspan`, que este gravador não escreve: vai ao inventário.
+        // A vertical merge made on screen becomes `rowspan`, which this writer does not write: it
+        // goes to the inventory.
         if (Attr.Int(cellNode, "rowspan") is > 1) inventory.NoteLoss(VerticalMergeLoss);
 
-        // Só quando diferem do arquivo — ver TableLook.
+        // Only when they differ from the file; see TableLook.
         TableLook.ApplyShading(properties, Attr.String(cellNode, "shading"), inventory);
         TableLook.ApplyBorders(properties, Attr.String(cellNode, "borders"), inventory);
 
@@ -220,7 +227,7 @@ internal sealed class TableWriter(
         var children = ChildrenOf(original);
         var blocks = children.Where(child => child is Paragraph or Table).ToList();
 
-        // Um controle de conteúdo ou um campo entre os parágrafos voltaria como nada.
+        // A content control or a field between paragraphs would come back as nothing.
         if (children.Any(child => child is not (Paragraph or Table or TableCellProperties)))
         {
             inventory.NoteLoss("conteúdo especial de uma célula que você editou");
@@ -235,7 +242,7 @@ internal sealed class TableWriter(
             foreach (var element in writeBlock(child, source)) cell.AppendChild(element);
         }
 
-        // O `w:tc` tem de **terminar** em `w:p`, e a tabela aninhada pode terminar em `w:tbl`.
+        // A `w:tc` must **end** in a `w:p`, and a nested table may end in a `w:tbl`.
         if (cell.LastChild is not Paragraph) cell.AppendChild(new Paragraph());
         return cell;
     }

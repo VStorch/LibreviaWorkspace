@@ -3,12 +3,12 @@ using Librevia.Format.Xlsx;
 
 namespace Librevia.Format.Tests;
 
-/// <summary>Planilhas de teste montadas em código, legíveis na revisão.</summary>
+/// <summary>Test spreadsheets built in code, readable in review.</summary>
 public static class XlsxFixtures
 {
     /// <summary>
-    /// Vendas com fórmula, moeda, data e uma segunda aba. A fonte de 14 pt em B2 é o
-    /// que o modelo não representa, e prova a preservação.
+    /// Sales with a formula, currency, a date and a second tab. The 14 pt font in B2 is what the
+    /// model does not represent, and proves preservation.
     /// </summary>
     public static byte[] Sales()
     {
@@ -53,8 +53,8 @@ public static class XlsxFixtures
     }
 
     /// <summary>
-    /// O que o modelo não representa e a gravação preserva: filtro, mesclagem,
-    /// formatação condicional e validação de dados.
+    /// What the model does not represent and saving preserves: filter, merge, conditional
+    /// formatting and data validation.
     /// </summary>
     public static byte[] WithUnmodeledFeatures()
     {
@@ -78,7 +78,7 @@ public static class XlsxFixtures
         return stream.ToArray();
     }
 
-    /// <summary>Planilha com células mescladas, para o inventário ter o que dizer.</summary>
+    /// <summary>A sheet with merged cells, so the inventory has something to say.</summary>
     public static byte[] WithMerge()
     {
         using var book = new XLWorkbook();
@@ -92,8 +92,8 @@ public static class XlsxFixtures
     }
 
     /// <summary>
-    /// Uma parte que o ClosedXML não modela: se ela sobrevive, gráficos e tabelas
-    /// dinâmicas, que também têm parte própria, sobrevivem.
+    /// A part ClosedXML does not model: if it survives, charts and pivot tables, which also have
+    /// their own parts, survive.
     /// </summary>
     public static byte[] WithForeignPart(byte[] original, string content)
     {
@@ -124,7 +124,9 @@ public static class XlsxFixtures
         return reader.ReadToEnd();
     }
 
-    /// <summary>Lê um pacote e devolve só o modelo, que é o que os testes olham.</summary>
+    /// <summary>
+    /// Reads a package and returns only the model, which is what the tests look at.
+    /// </summary>
     public static WorkbookDto Model(byte[] bytes) => XlsxReader.Read(bytes).Workbook;
 
     public static SheetDto Sheet(WorkbookDto workbook, string name) =>

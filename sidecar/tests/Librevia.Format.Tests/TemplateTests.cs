@@ -6,15 +6,17 @@ using Librevia.Format.Docx;
 namespace Librevia.Format.Tests;
 
 /// <summary>
-/// Modelos do Word: o <c>.dotx</c> é um <c>.docx</c> com outro rótulo, e a gravação
-/// escreve o do destino. Com o rótulo errado, o Word recusa o <c>.docx</c> e abre o
-/// <c>.dotx</c> como documento comum.
+/// Word templates: a <c>.dotx</c> is a <c>.docx</c> with another label, and saving writes the
+/// destination's. With the wrong label, Word refuses the <c>.docx</c> and opens the <c>.dotx</c> as
+/// a regular document.
 /// </summary>
 public class TemplateTests
 {
     private static string ContentTypes(byte[] bytes) => Entry(bytes, "[Content_Types].xml")!;
 
-    /// <summary>O rótulo declarado para `word/document.xml` — a declaração própria vale mais que o padrão.</summary>
+    /// <summary>
+    /// The label declared for `word/document.xml`: an explicit declaration beats the default.
+    /// </summary>
     private static string? MainType(byte[] bytes)
     {
         var types = System.Xml.Linq.XDocument.Parse(ContentTypes(bytes).TrimStart('\uFEFF'));
@@ -35,8 +37,8 @@ public class TemplateTests
     private static byte[] AsTemplate(byte[] docx) => PackageKind.Retarget(docx, template: true, new Inventory());
 
     /// <summary>
-    /// Um `.dotm` mínimo: o pacote do <paramref name="docx"/> com projeto VBA, os
-    /// dados dele e o rótulo de modelo com macro.
+    /// A minimal `.dotm`: the <paramref name="docx"/> package with a VBA project, its data and the
+    /// macro-enabled template label.
     /// </summary>
     private static byte[] AsMacroTemplate(byte[] docx)
     {
@@ -112,7 +114,7 @@ public class TemplateTests
 
         Assert.Equal(PackageKind.DocumentMain, MainType(bytes));
         Assert.DoesNotContain(PackageKind.TemplateMain, ContentTypes(bytes), StringComparison.Ordinal);
-        // Fora o rótulo, as partes do modelo saem como estavam.
+        // Apart from the label, the template parts go out as they were.
         Assert.Equal(Entry(dotx, "word/styles.xml"), Entry(bytes, "word/styles.xml"));
         Assert.Equal(Entry(dotx, "word/comments.xml"), Entry(bytes, "word/comments.xml"));
     }
@@ -127,7 +129,7 @@ public class TemplateTests
         Assert.Equal(0, result.RewrittenBlocks);
         Assert.Equal(PackageKind.TemplateMain, MainType(bytes));
 
-        // E o modelo gravado volta a abrir com o mesmo conteúdo.
+        // And the saved template opens again with the same content.
         Assert.Equal(Roundtrip.TextOf(Roundtrip.Open(docx)), Roundtrip.TextOf(Roundtrip.Open(bytes)));
     }
 
@@ -147,7 +149,7 @@ public class TemplateTests
         var dotm = AsMacroTemplate(Fixtures.WithComment());
         Assert.True(PackageKind.HasMacros(dotm));
 
-        // Declarada já na abertura: quem abre sabe antes de editar.
+        // Declared right on open: whoever opens knows before editing.
         var opened = DocxReader.Read(dotm);
         Assert.Contains(PackageKind.Macros, opened.Inventory.Lost);
 

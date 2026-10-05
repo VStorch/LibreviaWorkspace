@@ -9,21 +9,21 @@ using Librevia.Format.Docx;
 namespace Librevia.Format.Tests;
 
 /// <summary>
-/// O caminho de um documento num teste: abrir, mexer, gravar, conferir. O
-/// <c>Clone</c> pelo JSON mostra o modelo como o editor o devolve, com todo
-/// atributo materializado.
+/// A document's path in a test: open, change, save, check. <c>Clone</c> through JSON shows the
+/// model as the editor returns it, with every attribute materialized.
 /// </summary>
 internal static class Roundtrip
 {
     public static DocumentModelDto Open(byte[] bytes) => DocxReader.Read(bytes).Model;
 
-    /// <summary>A leitura achatada: cada bloco com a formatação efetiva, estilo incluído.</summary>
+    /// <summary>
+    /// The flattened reading: each block with its effective formatting, style included.
+    /// </summary>
     public static DocumentModelDto OpenFlat(byte[] bytes) => DocxReader.Read(bytes, flatten: true).Model;
 
     /// <summary>
-    /// Grava e confere o esquema: o Word recusa o documento fora dele, e nenhuma
-    /// assertiva sobre o modelo pega isso, como o <c>w:right=""</c> que o LibreOffice
-    /// tolera.
+    /// Saves and checks the schema: Word refuses a document outside it, and no assertion on the
+    /// model catches that, like the <c>w:right=""</c> LibreOffice tolerates.
     /// </summary>
     public static (byte[] Bytes, SaveResult Result) Save(byte[] original, DocumentModelDto model)
     {
@@ -32,7 +32,7 @@ internal static class Roundtrip
         return saved;
     }
 
-    /// <summary>O documento gravado passa pelo validador do SDK sem um erro.</summary>
+    /// <summary>The saved document passes the SDK validator without a single error.</summary>
     public static void AssertSchema(byte[] docx)
     {
         using var stream = new MemoryStream(docx.ToArray());
@@ -49,7 +49,7 @@ internal static class Roundtrip
         Assert.Fail($"O documento gravado está fora do esquema OOXML:\n{report}");
     }
 
-    /// <summary>Clona pelo JSON, como o modelo viaja.</summary>
+    /// <summary>Clones through JSON, as the model travels.</summary>
     public static DocumentModelDto Clone(DocumentModelDto model) =>
         JsonSerializer.Deserialize<DocumentModelDto>(
             JsonSerializer.Serialize(model, DocxJson.Options), DocxJson.Options)!;
@@ -91,7 +91,7 @@ internal static class Roundtrip
             StringComparer.Ordinal);
     }
 
-    /// <summary>O XML de uma parte, como texto.</summary>
+    /// <summary>A part's XML, as text.</summary>
     public static string XmlOf(byte[] docx, string part = "word/document.xml") =>
         Encoding.UTF8.GetString(PartsOf(docx)[part]);
 }

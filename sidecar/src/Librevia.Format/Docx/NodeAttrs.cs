@@ -5,8 +5,8 @@ using System.Text.Json.Nodes;
 namespace Librevia.Format.Docx;
 
 /// <summary>
-/// Os atributos de um nó do editor, já na unidade do OOXML. Uma cópia só das
-/// conversões para os dois escritores.
+/// An editor node's attributes, already in OOXML units. A single copy of the conversions for both
+/// writers.
 /// </summary>
 internal static class Attr
 {
@@ -27,7 +27,7 @@ internal static class Attr
         return value.GetValueKind() == JsonValueKind.Number ? value.GetValue<double>() : null;
     }
 
-    /// <summary>O atributo cru, para o que não é escalar, como a lista <c>colwidth</c>.</summary>
+    /// <summary>The raw attribute, for what is not scalar, like the <c>colwidth</c> list.</summary>
     public static JsonNode? Node(Node node, string name) =>
         node.Attrs is not null && node.Attrs.TryGetValue(name, out var value) ? value : null;
 
@@ -43,8 +43,8 @@ internal static class Attr
             : null;
 
     /// <summary>
-    /// Arredonda para longe do zero, e não para o par do .NET: o painel e o arquivo
-    /// mostram a mesma medida.
+    /// Rounds away from zero, not to even as .NET does: the panel and the file show the same
+    /// measure.
     /// </summary>
     public static int MmToTwips(double mm) =>
         (int)Math.Round(mm * Unit.TwipsPerInch / Unit.MillimetersPerInch, MidpointRounding.AwayFromZero);
@@ -53,8 +53,8 @@ internal static class Attr
     public static int? MmToTwips(double? mm) => mm is null ? null : MmToTwips(mm.Value);
 
     /// <summary>
-    /// Medida do CSS em pontos. Unidade desconhecida volta <c>null</c>, para quem
-    /// chamou registrar a perda.
+    /// A CSS measure in points. An unknown unit returns <c>null</c>, so the caller records the
+    /// loss.
     /// </summary>
     public static double? Points(string? css)
     {

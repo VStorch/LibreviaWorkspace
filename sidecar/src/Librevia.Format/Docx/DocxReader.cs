@@ -5,66 +5,67 @@ using DocumentFormat.OpenXml.Wordprocessing;
 namespace Librevia.Format.Docx;
 
 /// <summary>
-/// Os estilos ficam **fora** dos nós, pela impressão digital. Anuláveis porque o
-/// escritor não os usa: <c>word/styles.xml</c> volta byte a byte.
+/// Styles stay **outside** the nodes, because of the fingerprint. Nullable because the writer does
+/// not use them: <c>word/styles.xml</c> goes back byte for byte.
 /// </summary>
 public sealed record DocumentModelDto(
     [property: JsonPropertyName("page")] PageSetupDto Page,
     [property: JsonPropertyName("doc")] Node Doc,
     [property: JsonPropertyName("styles")] StyleSheetDto? Styles = null,
-    // Rascunho achatado: só a gravação o lê, para escolher a leitura de referência.
+    // A flattened draft: only saving reads it, to choose the reference reading.
     [property: JsonPropertyName("flatten")]
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     bool Flatten = false,
-    // Rascunho anterior às referências (`.sdoc` < 5): só a gravação o lê, como `Flatten`.
+    // A draft older than references (`.sdoc` < 5): only saving reads it, like `Flatten`.
     [property: JsonPropertyName("beforeReferences")]
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     bool BeforeReferences = false,
-    // Os que não viraram nó: o editor precisa saber que existem, senão o F9 daria "Erro! Indicador não definido.".
+    // Those that did not become nodes: the editor must know they exist, or F9 would give "Erro!
+    // Indicador não definido.".
     [property: JsonPropertyName("outsideBookmarks")]
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     List<string>? OutsideBookmarks = null,
-    // Ver PageReader.ReadAll. Ausente é uma seção só.
+    // See PageReader.ReadAll. Absent means a single section.
     [property: JsonPropertyName("sections")]
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     List<PageSetupDto>? Sections = null,
-    // Rascunho anterior às seções (`.sdoc` < 6): a página vai só ao `w:sectPr` do corpo.
+    // A draft older than sections (`.sdoc` < 6): the page only goes to the body's `w:sectPr`.
     [property: JsonPropertyName("beforeSections")]
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     bool BeforeSections = false,
-    // Ver CommentsReader e CommentsWriter. Na gravação, ausente é "não mexa".
+    // See CommentsReader and CommentsWriter. When saving, absent means "leave alone".
     [property: JsonPropertyName("comments")]
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     List<CommentDto>? Comments = null,
-    // Rascunho anterior aos comentários (`.sdoc` < 7).
+    // A draft older than comments (`.sdoc` < 7).
     [property: JsonPropertyName("beforeComments")]
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     bool BeforeComments = false,
-    // Só quando ligado; na gravação, ausente é "não mexa" (Revisions.ApplyTracking).
+    // Only when on; when saving, absent means "leave alone" (Revisions.ApplyTracking).
     [property: JsonPropertyName("trackChanges")]
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     bool? TrackChanges = null,
-    // Rascunho anterior às revisões (`.sdoc` < 8).
+    // A draft older than revisions (`.sdoc` < 8).
     [property: JsonPropertyName("beforeRevisions")]
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     bool BeforeRevisions = false,
-    // Ver NotesReader; gravada só quando difere (NotesWriter.ApplyNumbering).
+    // See NotesReader; written only when it differs (NotesWriter.ApplyNumbering).
     [property: JsonPropertyName("notes")]
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     NotesDto? Notes = null,
-    // Rascunho anterior às notas (`.sdoc` < 9).
+    // A draft older than notes (`.sdoc` < 9).
     [property: JsonPropertyName("beforeNotes")]
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     bool BeforeNotes = false,
-    // Rascunho anterior às equações (`.sdoc` < 11).
+    // A draft older than equations (`.sdoc` < 11).
     [property: JsonPropertyName("beforeMath")]
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     bool BeforeMath = false,
-    // Ver DocumentProperties; cada campo é remendo.
+    // See DocumentProperties; each field is a patch.
     [property: JsonPropertyName("properties")]
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     PropertiesDto? Properties = null,
-    // Decide o rótulo da parte principal — ver PackageKind.Retarget.
+    // Decides the main part's content type; see PackageKind.Retarget.
     [property: JsonPropertyName("template")]
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     bool Template = false);
@@ -74,12 +75,13 @@ public sealed record OpenResult(
     [property: JsonPropertyName("inventory")] Inventory Inventory);
 
 /// <summary>
-/// O pacote **não** fica guardado: a gravação reabre os bytes que o main manteve, e
-/// a morte do sidecar não custa o documento aberto.
+/// The package is **not** kept: saving reopens the bytes main kept, and a sidecar crash does not
+/// cost the open document.
 /// </summary>
 public static class DocxReader
 {
-    /// <param name="flatten">A formatação **efetiva** em todo bloco: a leitura do rascunho antigo e dos testes da cascata.</param>
+    /// <param name="flatten">The **effective** formatting on every block: the reading for old
+    /// drafts and for the cascade tests.</param>
     public static OpenResult Read(byte[] bytes, bool flatten = false)
     {
         using var stream = new MemoryStream(bytes, writable: false);
@@ -92,7 +94,7 @@ public static class DocxReader
 
         var inventory = new Inventory();
         NoteWholeDocumentFeatures(part, inventory);
-        // As macros do `.dotm` não chegam a arquivo nenhum que sair daqui.
+        // `.dotm` macros reach no file that leaves here.
         if (PackageKind.HasMacros(bytes)) inventory.NoteLoss(PackageKind.Macros);
 
         var (content, _) = new BodyReader(part, inventory, flatten).Read(body);
@@ -115,7 +117,7 @@ public static class DocxReader
             inventory);
     }
 
-    /// <summary>Os nomes de marcador do pacote que não estão entre os nós lidos.</summary>
+    /// <summary>The package's bookmark names that are not among the read nodes.</summary>
     private static List<string>? OutsideBookmarksOf(MainDocumentPart part, Node doc)
     {
         var read = new HashSet<string>(StringComparer.Ordinal);
@@ -149,7 +151,7 @@ public static class DocxReader
         return outside.Count == 0 ? null : outside;
     }
 
-    /// <summary>O que a gravação cirúrgica precisa.</summary>
+    /// <summary>What the surgical save needs.</summary>
     public static (WordprocessingDocument Document, MainDocumentPart Part, List<Block> Blocks) Index(
         Stream stream,
         Inventory inventory)
@@ -172,18 +174,19 @@ public static class DocxReader
         }
         catch (Exception problem) when (problem is not DocxException)
         {
-            // Documento é dado não confiável: o que a biblioteca lance vira frase, e não processo derrubado.
+            // A document is untrusted data: whatever the library throws becomes a sentence, not a
+            // crashed process.
             throw new DocxException(
                 "Não foi possível abrir este arquivo. Ele pode estar danificado ou não ser um documento do Word.",
                 problem);
         }
     }
 
-    /// <summary>Em partes separadas, e todos invisibilidade: a gravação copia as partes intactas.</summary>
+    /// <summary>In separate parts, and all invisibility: saving copies the parts intact.</summary>
     private static void NoteWholeDocumentFeatures(MainDocumentPart part, Inventory inventory)
     {
-        // Sobram as revisões de estrutura, que a gravação de uma tabela ou seção editada
-        // perderia, e as de formatação, que se perdem no parágrafo editado.
+        // What remains are structural revisions, which saving an edited table or section would
+        // lose, and formatting ones, lost in the edited paragraph.
         var document = part.Document;
         if (document is null) return;
 
@@ -202,5 +205,5 @@ public static class DocxReader
     }
 }
 
-/// <summary>Falha com frase pronta para o usuário.</summary>
+/// <summary>Fails with a sentence ready for the user.</summary>
 public sealed class DocxException(string message, Exception? inner = null) : Exception(message, inner);

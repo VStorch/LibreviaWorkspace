@@ -5,8 +5,8 @@ using Librevia.Format.Docx;
 namespace Librevia.Format.Tests;
 
 /// <summary>
-/// Numeração de página: `w:pgNumType`, `w:titlePg`, `w:evenAndOddHeaders` e o
-/// campo inserido numa faixa vinda do Word.
+/// Page numbering: `w:pgNumType`, `w:titlePg`, `w:evenAndOddHeaders` and a field inserted in a band
+/// from Word.
 /// </summary>
 public class PageNumberingTests
 {
@@ -67,7 +67,7 @@ public class PageNumberingTests
         Assert.True(page.EvenAndOddHeaders);
         Assert.Contains("w:evenAndOddHeaders", Roundtrip.XmlOf(saved, "word/settings.xml"), StringComparison.Ordinal);
 
-        // E desligar volta a tirar, sem deixar `w:pgNumType` vazio para trás.
+        // And turning it off removes it again, without leaving an empty `w:pgNumType` behind.
         var back = Roundtrip.Clone(Roundtrip.Open(saved));
         back = back with
         {
@@ -93,7 +93,7 @@ public class PageNumberingTests
         Assert.Matches("Folha .*w:fldSimple w:instr=\" PAGE \".* de .*w:fldSimple w:instr=\" NUMPAGES \"", xml);
         Assert.DoesNotContain("{n}", xml, StringComparison.Ordinal);
 
-        // Relido, o campo é número de página, e não o "1" que ficou em cache.
+        // Reread, the field is a page number, not the cached "1".
         var reread = Roundtrip.Open(saved).Page.Footer!;
         var kinds = reread.Left.Concat(reread.Center).Concat(reread.Right).Select(piece => piece.Kind).ToList();
         Assert.Single(kinds, kind => kind == PieceDto.KindPageNumber);

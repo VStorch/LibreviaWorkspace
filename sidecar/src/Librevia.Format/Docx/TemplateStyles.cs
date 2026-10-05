@@ -4,8 +4,8 @@ using DocumentFormat.OpenXml.Wordprocessing;
 namespace Librevia.Format.Docx;
 
 /// <summary>
-/// O <c>word/styles.xml</c> do documento novo. Os números moram na tabela de dados
-/// (<see cref="BuiltinStyles"/>); estilos de tabela e de numeração são montados aqui.
+/// The new document's <c>word/styles.xml</c>. The numbers live in the data table (<see
+/// cref="BuiltinStyles"/>); table and numbering styles are built here.
 /// </summary>
 internal static class TemplateStyles
 {
@@ -16,9 +16,9 @@ internal static class TemplateStyles
     public const string BandFont = BuiltinStyles.BandFont;
 
     /// <summary>
-    /// Os estilos do modelo, ou a tabela de <see cref="BuiltinStyles"/>: o documento
-    /// nascido no editor é Calibri, e o <c>.sdoc</c> antigo, Times. Estilo criado pela
-    /// pessoa é do <see cref="StyleWriter"/>.
+    /// The template's styles, or the <see cref="BuiltinStyles"/> table: a document born in the
+    /// editor is Calibri, and an old <c>.sdoc</c>, Times. A style the user created belongs to <see
+    /// cref="StyleWriter"/>.
     /// </summary>
     public static Styles Create(StyleSheetDto? sheet = null)
     {
@@ -35,13 +35,15 @@ internal static class TemplateStyles
         var styles = new Styles(
             new DocDefaults(
                 new RunPropertiesDefault(new RunPropertiesBaseStyle(
-                    // Os quatro atributos: sem tema, o acento e a escrita asiática cairiam noutra fonte.
+                    // All four attributes: without a theme, accents and Asian scripts would fall
+                    // into another font.
                     new RunFonts { Ascii = font, HighAnsi = font, EastAsia = font, ComplexScript = font },
                     new FontSize { Val = bodySize },
                     new FontSizeComplexScript { Val = bodySize })),
                 paragraphDefault));
 
-        // `TableNormal` e `NoList` são os padrões do pacote, e o Word os espera antes do resto.
+        // `TableNormal` and `NoList` are the package defaults, and Word expects them before the
+        // rest.
         var table = sheet is null ? BuiltinStyles.All : [.. sheet.Styles.Values.Select(style => FromSheet(style, sheet.Defaults))];
         var packageDefaults = false;
         var grid = false;
@@ -89,7 +91,7 @@ internal static class TemplateStyles
             Link: style.Link,
             UiPriority: style.UiPriority,
             QFormat: style.QFormat,
-            // O modelo junta `w:hidden` e `w:semiHidden`; o Word declara a maquinaria assim.
+            // The model merges `w:hidden` and `w:semiHidden`; Word declares its machinery this way.
             SemiHidden: style.Hidden,
             UnhideWhenUsed: style.Hidden,
             Default: style.Id == (character ? defaults.CharacterStyleId : defaults.ParagraphStyleId),
@@ -127,7 +129,10 @@ internal static class TemplateStyles
 
     public static int HeadingLevels => BuiltinStyles.HeadingLevels;
 
-    /// <summary>Na ordem que o esquema fixa, senão o Word recusa: o <c>OpenXmlValidator</c> confere nos testes.</summary>
+    /// <summary>
+    /// In the order the schema fixes, or Word refuses: <c>OpenXmlValidator</c> checks it in the
+    /// tests.
+    /// </summary>
     public static Style Of(BuiltinStyle style)
     {
         var result = new Style
@@ -177,7 +182,8 @@ internal static class TemplateStyles
     {
         var properties = new StyleRunProperties();
 
-        // Também na escrita complexa: senão árabe ou hebraico no título sairiam sem negrito.
+        // Also for complex scripts: otherwise Arabic or Hebrew in a heading would come out without
+        // bold.
         if (style.Bold)
         {
             properties.AppendChild(new Bold());
@@ -215,7 +221,7 @@ internal static class TemplateStyles
         if (after is { } afterPt) spacing.After = Twips(afterPt);
         if (factor is { } lineFactor)
         {
-            // 240-avos da altura natural, como `ParagraphFormat.ApplyLineHeight`.
+            // 240ths of the natural height, like `ParagraphFormat.ApplyLineHeight`.
             spacing.Line = Invariant((int)Math.Round(lineFactor * 240));
             spacing.LineRule = LineSpacingRuleValues.Auto;
         }
@@ -223,7 +229,9 @@ internal static class TemplateStyles
         return spacing;
     }
 
-    /// <summary>A margem da célula é o <c>padding: 4px 8px</c> do CSS: 3 pt em cima e embaixo, 6 pt dos lados.</summary>
+    /// <summary>
+    /// The cell margin is CSS's <c>padding: 4px 8px</c>: 3 pt top and bottom, 6 pt on the sides.
+    /// </summary>
     private static Style TableNormal() => new(
         new StyleName { Val = "Normal Table" },
         new UIPriority { Val = 99 },
@@ -276,10 +284,10 @@ internal static class TemplateStyles
         };
     }
 
-    /// <summary>Pontos → meios-pontos (<c>w:sz</c>).</summary>
+    /// <summary>Points → half-points (<c>w:sz</c>).</summary>
     private static string HalfPoints(double points) => Invariant((int)Math.Round(points * Unit.HalfPointsPerPoint));
 
-    /// <summary>Pontos → twips (<c>w:spacing</c>).</summary>
+    /// <summary>Points → twips (<c>w:spacing</c>).</summary>
     private static string Twips(double points) => Invariant((int)Math.Round(points * Unit.TwipsPerPoint));
 
     private static string Invariant(int value) => value.ToString(CultureInfo.InvariantCulture);

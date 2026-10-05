@@ -6,9 +6,8 @@ using static Librevia.Format.Tests.Roundtrip;
 namespace Librevia.Format.Tests;
 
 /// <summary>
-/// Notas de rodapé e de fim: o nó <c>noteRef</c> leva o corpo da nota, a impressão
-/// digital do parágrafo vê só para onde ela aponta, e a parte das notas só é tocada
-/// quando alguma mudou.
+/// Footnotes and endnotes: the <c>noteRef</c> node carries the note body, the paragraph fingerprint
+/// only sees where it points, and the notes part is only touched when one changed.
 /// </summary>
 public class NotesTests
 {
@@ -43,7 +42,9 @@ public class NotesTests
         """<w:footnotePr><w:numFmt w:val="lowerRoman"/><w:numStart w:val="3"/><w:footnote w:id="-1"/><w:footnote w:id="0"/></w:footnotePr>""" +
         """<w:endnotePr><w:endnote w:id="-1"/><w:endnote w:id="0"/></w:endnotePr>""";
 
-    /// <summary>Um documento com duas notas de rodapé (uma de marca própria) e uma de fim, como o Word grava.</summary>
+    /// <summary>
+    /// A document with two footnotes (one with its own mark) and an endnote, as Word writes them.
+    /// </summary>
     internal static byte[] WithNotes()
     {
         var ns = $"xmlns:w=\"{W}\"";
@@ -93,7 +94,7 @@ public class NotesTests
             .TakeWhile(node => node.Type != "noteRef")
             .Where(node => node.Type == "text").Select(node => node.Text)).StartsWith(startsWith, StringComparison.Ordinal));
 
-    /// <summary>O `w:footnote`/`w:endnote` de id dado, no XML gravado.</summary>
+    /// <summary>The `w:footnote`/`w:endnote` with the given id, in the saved XML.</summary>
     private static string NoteXml(string xml, string kind, string id) =>
         Regex.Match(xml, $"""<w:{kind} [^>]*w:id="{id}"[^>]*>.*?</w:{kind}>""", RegexOptions.Singleline).Value;
 
@@ -115,11 +116,11 @@ public class NotesTests
 
         Assert.Equal(" Ao fim.", string.Concat(Walk(NoteRef(model, "endnote", "1")).Select(node => node.Text)));
 
-        // A numeração do documento, fora dos nós.
+        // The document numbering, outside the nodes.
         Assert.Equal("lowerRoman", model.Notes?.FootnotePr?.NumFmt);
         Assert.Equal(3, model.Notes?.FootnotePr?.Start);
 
-        // A nota não é invisível — nem trava o documento.
+        // A note is not invisible, nor does it lock the document.
         Assert.DoesNotContain(Inventory.Footnotes, result.Inventory.Invisible);
         Assert.DoesNotContain(Inventory.Endnotes, result.Inventory.Invisible);
         Assert.Empty(result.Inventory.Structural);
@@ -152,13 +153,13 @@ public class NotesTests
 
         var (bytes, result) = Save(original, model);
 
-        // A nota mudou; o parágrafo que a referencia, não.
+        // The note changed; the paragraph referencing it did not.
         Assert.Equal(1, result.RewrittenBlocks);
         Assert.Empty(result.Inventory.Lost);
 
         var before = XmlOf(original, "word/footnotes.xml");
         var after = XmlOf(bytes, "word/footnotes.xml");
-        // O SDK fecha o elemento vazio com " />": a única diferença na nota intocada.
+        // The SDK closes an empty element with " />": the only difference in the untouched note.
         Assert.Equal(NoteXml(before, "footnote", "2"), NoteXml(after, "footnote", "2").Replace(" />", "/>"));
         Assert.Equal(NoteXml(before, "footnote", "-1"), NoteXml(after, "footnote", "-1").Replace(" />", "/>"));
 
@@ -180,7 +181,7 @@ public class NotesTests
     {
         var original = WithNotes();
         var model = Clone(Open(original));
-        // Duas inserções novas, sem `rid`: uma na nota de rodapé, outra no corpo.
+        // Two new insertions, without `rid`: one in the footnote, another in the body.
         var paragraph = NoteRef(model, "footnote", "1").Content![0];
         paragraph.Content!.Add(new Node
         {
@@ -227,7 +228,7 @@ public class NotesTests
     [Fact]
     public void ReferenciaMovidaLevaANotaParaOMesmoLugarNaParte()
     {
-        // O LibreOffice casa nota e referência pela ordem na parte.
+        // LibreOffice matches note and reference by order in the part.
         var original = WithNotes();
         var model = Clone(Open(original));
         var first = NoteRef(model, "footnote", "1");
@@ -240,7 +241,7 @@ public class NotesTests
         var (bytes, result) = Save(original, model);
         Assert.Empty(result.Inventory.Lost);
 
-        // Renumeradas pela ordem do texto, como o Word grava.
+        // Renumbered in text order, as Word writes them.
         var after = XmlOf(bytes, "word/footnotes.xml");
         Assert.Contains("Nota de marca própria", NoteXml(after, "footnote", "1"));
         Assert.Contains("Fonte: ata anterior", NoteXml(after, "footnote", "2"));
@@ -260,7 +261,7 @@ public class NotesTests
 
         var (bytes, _) = Save(original, model);
 
-        // A cópia ganha nota própria, e vem antes por estar no primeiro parágrafo.
+        // The copy gets its own note, and comes first for being in the first paragraph.
         var after = XmlOf(bytes, "word/footnotes.xml");
         var copies = new[] { "1", "2", "3" }.Select(id => NoteXml(after, "footnote", id))
             .Where(note => note.Contains("Fonte: ata anterior.", StringComparison.Ordinal)).ToList();
@@ -288,7 +289,7 @@ public class NotesTests
         Assert.Matches("""<w:r><w:rPr><w:rStyle w:val="FootnoteReference" ?/></w:rPr><w:footnoteReference w:id="1" ?/></w:r>""", xml);
         Assert.Matches("""<w:footnoteReference w:customMarkFollows="(1|true)" w:id="2" ?/><w:t[^>]*>\*</w:t>""", xml);
 
-        // As notas não mudaram: a parte volta byte a byte.
+        // The notes did not change: the part goes back byte for byte.
         Assert.Equal(PartsOf(original)["word/footnotes.xml"], PartsOf(bytes)["word/footnotes.xml"]);
 
         var reread = Open(bytes);
@@ -342,7 +343,7 @@ public class NotesTests
     public void RascunhoDeAntesDasNotasDeclaraAPerdaENaoMexeNasPartes()
     {
         var original = WithNotes();
-        // O modelo de antes das notas: sem `noteRef`.
+        // The model from before notes: no `noteRef`.
         List<Node> content;
         using (var stream = new MemoryStream(original))
         using (var document = WordprocessingDocument.Open(stream, false))
@@ -368,7 +369,7 @@ public class NotesTests
     [Fact]
     public void NumeracaoDoModeloQueOPacoteNaoTemEGravada()
     {
-        // O pacote do `.sdoc` gravado como `.docx` não tem a numeração do modelo.
+        // The package of a `.sdoc` saved as `.docx` does not have the model's numbering.
         var original = WithNotes();
         var model = Open(original);
         Assert.Equal(3, model.Notes?.FootnotePr?.Start);
@@ -435,8 +436,8 @@ public class NotesTests
             .Select(match => $"{match.Groups[1].Value}:{match.Groups[2].Value}")];
 
     /// <summary>
-    /// O validador do SDK, menos um falso positivo: ele procura <c>comments.xml</c>
-    /// entre as relações da parte das notas, e o Word o relaciona à do documento.
+    /// The SDK validator, minus one false positive: it looks for <c>comments.xml</c> among the
+    /// notes part's relationships, and Word relates it to the document's.
     /// </summary>
     private static void AssertSchemaButCommentsInNotes(byte[] docx)
     {
@@ -451,7 +452,7 @@ public class NotesTests
         Assert.Empty(errors);
     }
 
-    /// <summary>O documento de notas com um comentário novo no trecho da primeira nota de rodapé.</summary>
+    /// <summary>The notes document with a new comment in the range of the first footnote.</summary>
     private static (byte[] Original, byte[] Saved) WithCommentInNote()
     {
         var original = WithNotes();
@@ -468,7 +469,7 @@ public class NotesTests
     {
         var (_, saved) = WithCommentInNote();
 
-        // As pontas e a referência na nota, e não no corpo.
+        // The ends and the reference in the note, not in the body.
         Assert.Equal(["commentRangeStart:0", "commentRangeEnd:0", "commentReference:0"],
             CommentMarkers(NoteXml(XmlOf(saved, "word/footnotes.xml"), "footnote", "1")));
         Assert.Empty(CommentMarkers(XmlOf(saved)));

@@ -13,9 +13,8 @@ public sealed record SaveResult(
     [property: JsonPropertyName("rewrittenBlocks")] int RewrittenBlocks);
 
 /// <summary>
-/// Gravação cirúrgica: a fidelidade vem de **não mexer** no que não foi editado.
-/// Só <c>word/document.xml</c> é reescrito; o resto das partes muda só se a pessoa
-/// as mudou.
+/// Surgical save: fidelity comes from **not touching** what was not edited. Only
+/// <c>word/document.xml</c> is rewritten; other parts only change if the user changed them.
 /// </summary>
 public static class DocxWriter
 {
@@ -23,7 +22,7 @@ public static class DocxWriter
     {
         var inventory = new Inventory();
 
-        // Uma cópia gravável: `original` são os bytes guardados pelo main na abertura.
+        // A writable copy: `original` is the bytes main kept on open.
         using var buffer = new MemoryStream();
         buffer.Write(original, 0, original.Length);
         buffer.Position = 0;
@@ -34,8 +33,8 @@ public static class DocxWriter
         var body = part.Document?.Body
                    ?? throw new DocxException("O arquivo original está vazio ou danificado.");
 
-        // Reindexa os mesmos bytes, com o mesmo leitor que produziu o modelo: os
-        // ids saem iguais, e o rascunho achatado é comparado com leitura achatada.
+        // Reindexes the same bytes with the same reader that produced the model: ids come out
+        // equal, and a flattened draft is compared with a flattened reading.
         var reader = new BodyReader(
             part,
             new Inventory(),
@@ -51,14 +50,15 @@ public static class DocxWriter
 
         var section = body.Elements<SectionProperties>().LastOrDefault();
 
-        // As partes fora de `word/document.xml` que esta gravação pode mexer; só cresce quando algo muda.
+        // Parts outside `word/document.xml` this save may touch; it only grows when something
+        // changes.
         var touched = new HashSet<string>(StringComparer.Ordinal);
 
-        // Os estilos antes do corpo, para o bloco achar o estilo novo. No rascunho
-        // antigo, só os que o pacote não tem (ver StyleWriter.Apply).
+        // Styles before the body, so a block finds a new style. In an old draft, only those the
+        // package lacks (see StyleWriter.Apply).
         StyleWriter.Apply(part, model.Styles, inventory, touched, additionsOnly: model.Flatten);
 
-        // O id de cada referência de nota antes do corpo, porque o run da referência o leva.
+        // Each note reference's id before the body, because the reference run carries it.
         var notes = model.BeforeNotes ? null : NotesWriter.Plan(model.Doc, part);
 
         var numbering = new NumberingFactory(part, touched, inventory);
@@ -77,7 +77,7 @@ public static class DocxWriter
         body.RemoveAllChildren();
         foreach (var element in replacement) body.AppendChild(element);
 
-        // Só a nota que mudou. Antes dos comentários, que procuram âncoras também nas notas.
+        // Only the note that changed. Before comments, which also look for anchors in notes.
         if (notes is not null)
         {
             rewritten += NotesWriter.Apply(
@@ -101,13 +101,13 @@ public static class DocxWriter
                 model.BeforeMath);
         }
 
-        // Só quando o modelo pede outra numeração que a do pacote.
+        // Only when the model asks for numbering other than the package's.
         NotesWriter.ApplyNumbering(part, model.Notes, touched);
 
-        // Antes do conserto das pontas, que precisa conhecer os comentários novos.
+        // Before mending anchor ends, which needs to know the new comments.
         CommentsWriter.Apply(part, model, inventory, touched);
 
-        // As pontas que a edição desemparelhou, no corpo e nas notas — ver MendCommentAnchors.
+        // Ends the edit left unpaired, in the body and the notes; see MendCommentAnchors.
         var knownComments = (part.WordprocessingCommentsPart?.Comments?.Elements<Comment>() ?? [])
             .Select(comment => comment.Id?.Value).OfType<string>().ToHashSet(StringComparer.Ordinal);
         MendCommentAnchors(body, knownComments);
@@ -119,18 +119,18 @@ public static class DocxWriter
             touched.Add(notesPart.Uri.ToString().TrimStart('/'));
         }
 
-        // A movimentação partida vira exclusão e inserção, cada revisão com um `w:id` só dela.
+        // A split move becomes a deletion and an insertion, each revision with its own `w:id`.
         MendMoves(body);
         Revisions.MakeIdsUnique(body, part);
         Revisions.ApplyTracking(part, model.TrackChanges, touched, inventory);
 
         body.AppendChild(section is null ? new SectionProperties() : section);
 
-        // Só se a página mudou: o modelo só conhece A4 e Carta. Ver PageReader.Matches.
+        // Only if the page changed: the model only knows A4 and Letter. See PageReader.Matches.
         var current = body.Elements<SectionProperties>().Last();
         if (!PageReader.Matches(current, model.Page)) ApplyPageSetup(current, model.Page);
 
-        // As seções antes da última, pelas marcas que o corpo levou (ver SectionWriter).
+        // Sections before the last, by the marks the body carried (see SectionWriter).
         var aliases = new Dictionary<string, string>(StringComparer.Ordinal);
         if (!model.BeforeSections)
         {
@@ -139,42 +139,42 @@ public static class DocxWriter
             aliases = SectionWriter.Apply(part, breaks, current, model, inventory, touched);
         }
 
-        // O documento novo; no que veio de fora a faixa manda. Ver PlainBandWriter.
+        // The new document; in one from outside, the band wins. See PlainBandWriter.
         PlainBandWriter.Apply(part, current, model.Page, inventory, touched);
 
         PageNumbering.Apply(part, current, model.Page, touched, inventory);
 
-        // Só as partes de faixa que mudaram entram na lista de graváveis.
+        // Only band parts that changed enter the writable list.
         touched.UnionWith(BandWriter.Apply(part, [.. model.Sections ?? [], model.Page], inventory, aliases));
 
-        // `docProps/custom.xml` nunca é tocado.
+        // `docProps/custom.xml` is never touched.
         DocumentProperties.Apply(document, model.Properties, touched);
 
         part.Document!.Save();
         document.Dispose();
 
-        // O rótulo do destino e as macros do `.dotm`, sobre os bytes finais.
+        // The destination content type and `.dotm` macros, on the final bytes.
         var restored = RestoreUntouchedParts(original, buffer.ToArray(), touched);
         return (PackageKind.Retarget(restored, model.Template, inventory),
             new SaveResult(inventory, preserved, rewritten));
     }
 
     /// <summary>
-    /// As partes que a gravação pode alterar; a de faixa em que se digitou entra
-    /// por fora, uma a uma, para não reserializar um cabeçalho que ninguém abriu.
+    /// Parts saving may change; a band part someone typed into enters separately, one by one, so a
+    /// header nobody opened is not reserialized.
     /// </summary>
     private static readonly HashSet<string> Writable = new(StringComparer.Ordinal)
     {
         "word/document.xml",
-        // Imagem ou link inseridos num bloco editado.
+        // An image or link inserted in an edited block.
         "word/_rels/document.xml.rels",
         "[Content_Types].xml",
     };
 
     /// <summary>
-    /// O SDK **reserializa toda parte cujo DOM tipado foi lido**, mesmo sem mudança:
-    /// basta ler <c>NumberingDefinitionsPart.Numbering</c> para <c>numbering.xml</c>
-    /// sair diferente. A invariante é imposta aqui.
+    /// The SDK **reserializes every part whose typed DOM was read**, even without changes: reading
+    /// <c>NumberingDefinitionsPart.Numbering</c> is enough for <c>numbering.xml</c> to come out
+    /// different. The invariant is enforced here.
     /// </summary>
     private static byte[] RestoreUntouchedParts(byte[] original, byte[] produced, HashSet<string> edited)
     {
@@ -220,17 +220,17 @@ public static class DocxWriter
     }
 
     /// <summary>
-    /// O editor apaga uma ponta junto com o texto, e o parágrafo preservado guarda
-    /// a dele; o LibreOffice descarta a conversa ou recusa o arquivo. Então:
+    /// The editor deletes one end along with the text, and the preserved paragraph keeps its own;
+    /// LibreOffice drops the thread or refuses the file. So:
     /// <list type="bullet">
-    /// <item>âncora de comentário que o pacote não tem sai;</item>
-    /// <item>começo sem fim nem referência vira comentário de ponto;</item>
-    /// <item>fim sem começo sai, e fica a referência;</item>
-    /// <item>trecho sem referência ganha uma logo depois do fim.</item>
+    /// <item>a comment anchor the package does not have goes;</item>
+    /// <item>a start without end or reference becomes a point comment;</item>
+    /// <item>an end without a start goes, and the reference stays;</item>
+    /// <item>a range without a reference gets one right after its end.</item>
     /// </list>
-    /// Só elementos de largura zero: o parágrafo preservado continua preservado.
+    /// Only zero-width elements: a preserved paragraph stays preserved.
     /// </summary>
-    /// <returns>Se mudou algo; a parte das notas só é gravada então.</returns>
+    /// <returns>Whether anything changed; the notes part is only written then.</returns>
     private static bool MendCommentAnchors(OpenXmlElement body, HashSet<string> known)
     {
         var changed = false;
@@ -242,7 +242,7 @@ public static class DocxWriter
         void Remove(OpenXmlElement element)
         {
             changed = true;
-            // Sozinha no run, a referência leva o run junto.
+            // Alone in its run, the reference takes the run along.
             if (element is CommentReference && element.Parent is Run run && BodyReader.ReferenceOnly(run) is not null)
             {
                 run.Remove();
@@ -300,9 +300,9 @@ public static class DocxWriter
     }
 
     /// <summary>
-    /// O parágrafo reescrito leva o trecho movido como <c>w:del</c>/<c>w:ins</c> e perde
-    /// as pontas; o par incompleto vira exclusão e inserção dos dois lados, e as
-    /// pontas soltas saem (a perda já foi declarada em NoteWhatWasInside).
+    /// A rewritten paragraph carries the moved range as <c>w:del</c>/<c>w:ins</c> and loses the
+    /// ends; an incomplete pair becomes a deletion and an insertion on both sides, and loose ends
+    /// go (the loss was already declared in NoteWhatWasInside).
     /// </summary>
     private static void MendMoves(Body body)
     {
@@ -427,11 +427,12 @@ public static class DocxWriter
         {
             var oid = OidOf(slot.Identity);
 
-            // `oid` repetido é bloco colado: o XML original é de **um** deles. Da
-            // segunda ocorrência em diante o bloco é novo.
+            // A repeated `oid` is a pasted block: the original XML belongs to **one** of them. From
+            // the second occurrence on the block is new.
             var first = oid is not null && used.Add(oid);
 
-            // O que o corpo guardava antes deste bloco volta antes dele (Block.Leading), só na primeira ocorrência.
+            // What the body kept before this block goes back before it (Block.Leading), only on the
+            // first occurrence.
             var owner = first && index.TryGetValue(oid!, out var known) ? known : null;
             if (owner is not null)
             {
@@ -466,7 +467,8 @@ public static class DocxWriter
             }
         }
 
-        // O marcador solto vai com o bloco apagado, como no Word; outra coisa não se apaga em silêncio.
+        // A loose bookmark goes with the deleted block, as in Word; nothing else is deleted
+        // silently.
         foreach (var block in index.Values.Where(block => !used.Contains(block.Oid)))
         {
             if (block.Leading.Concat(block.Trailing).Any(loose => loose is not (BookmarkStart or BookmarkEnd)))
@@ -483,9 +485,9 @@ public static class DocxWriter
     }
 
     /// <summary>
-    /// O Word grava entre parágrafos o fim do marcador que termina depois de uma
-    /// tabela. Apagado o bloco que o guardava, a ponta que sobrou volta junto do
-    /// bloco da outra, e o marcador encolhe até o que sobrou dele, como no Word.
+    /// Word writes between paragraphs the end of a bookmark that ends after a table. Once the block
+    /// holding it is deleted, the remaining end goes back next to the other's block, and the
+    /// bookmark shrinks to what is left of it, as in Word.
     /// </summary>
     private static void MatchLooseBookmarks(List<OpenXmlElement> elements, IEnumerable<Block> deleted)
     {
@@ -516,8 +518,8 @@ public static class DocxWriter
     }
 
     /// <summary>
-    /// O Word recusa dois <c>w:bookmarkStart</c> de mesmo id. Quem cede é o bloco
-    /// gerado agora; entre dois gerados fica o primeiro, como o Word resolve.
+    /// Word refuses two <c>w:bookmarkStart</c>s with the same id. The block generated now yields;
+    /// between two generated ones the first stays, as Word resolves it.
     /// </summary>
     private static void UniqueBookmarks(List<OpenXmlElement> elements, HashSet<OpenXmlElement> generated)
     {
@@ -525,7 +527,7 @@ public static class DocxWriter
         var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var ends = new HashSet<string>(StringComparer.Ordinal);
 
-        // O maior id do corpo inteiro, inclusive os que o modelo não conhece.
+        // The highest id in the whole body, including those the model does not know.
         var highest = elements
             .SelectMany(element => Starts(element).Select(start => start.Id?.Value)
                 .Concat(Ends(element).Select(end => end.Id?.Value)))
@@ -548,7 +550,7 @@ public static class DocxWriter
         var renamed = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (var element in elements.Where(generated.Contains))
         {
-            // Na ordem do documento, para o fim achar o começo renumerado.
+            // In document order, so the end finds the renumbered start.
             foreach (var mark in element.Descendants().Prepend(element).ToList())
             {
                 if (mark is BookmarkStart start)
@@ -556,7 +558,7 @@ public static class DocxWriter
                     var id = start.Id?.Value ?? string.Empty;
                     var name = start.Name?.Value ?? string.Empty;
 
-                    // Nome repetido é cópia colada: sai, com a ponta final.
+                    // A repeated name is a pasted copy: it goes, with its end.
                     if (!names.Add(name))
                     {
                         dropped.Add(id);
@@ -564,7 +566,7 @@ public static class DocxWriter
                         continue;
                     }
 
-                    // Só o id repetido é de outro documento: ganha um id novo.
+                    // Only a repeated id comes from another document: it gets a new id.
                     if (!ids.Add(id))
                     {
                         var fresh = (++highest).ToString(System.Globalization.CultureInfo.InvariantCulture);
@@ -595,8 +597,9 @@ public static class DocxWriter
             element is BookmarkEnd end ? [end] : element.Descendants<BookmarkEnd>();
     }
 
-    /// <summary>O XML original quando o conteúdo não mudou, o reescrito quando mudou. Devolve se foi preservado.</summary>
-    /// <param name="owner">O bloco do arquivo com o mesmo `oid`, na primeira ocorrência dele.</param>
+    /// <summary>The original XML when the content did not change, the rewritten one when it did.
+    /// Returns whether it was preserved.</summary>
+    /// <param name="owner">The file block with the same `oid`, on its first occurrence.</param>
     internal static bool BuildSlot(
         Slot slot,
         Block? owner,
@@ -610,8 +613,8 @@ public static class DocxWriter
     {
         if (owner is not null && SameContent(slot, owner))
         {
-            // Tab e "Reiniciar numeração" mudam a lista em volta, e não o item:
-            // só o `w:numPr` é trocado, o resto volta como veio.
+            // Tab and "Restart numbering" change the surrounding list, not the item: only `w:numPr`
+            // is replaced, and the rest goes back as it came.
             if (slot.List is { } list && owner.Source is Paragraph paragraph && !Points(paragraph, list))
             {
                 elements.Add(Renumbered(paragraph, list));
@@ -623,10 +626,12 @@ public static class DocxWriter
             return true;
         }
 
-        // O original ainda dá ao parágrafo reescrito os objetos ancorados que este escritor não gera.
+        // The original still gives the rewritten paragraph the anchored objects this writer does
+        // not generate.
         var source = owner?.Source;
 
-        // Aqui se sabe se o parágrafo é item de lista; numa célula, não (ParagraphWriter.ListPlacement).
+        // Here it is known whether the paragraph is a list item; in a cell, it is not
+        // (ParagraphWriter.ListPlacement).
         var placement = new ParagraphWriter.ListPlacement(slot.List);
 
         foreach (var element in writer.Write(slot.Content, placement, source)) elements.Add(element);
@@ -635,21 +640,21 @@ public static class DocxWriter
         return false;
     }
 
-    /// <summary>Ver OwnContent.</summary>
+    /// <summary>See OwnContent.</summary>
     private static bool SameContent(Slot slot, Block owner) =>
         string.Equals(
             OwnContent(owner.Extracted).Fingerprint(),
             OwnContent(slot.Identity).Fingerprint(),
             StringComparison.Ordinal);
 
-    /// <summary>O mesmo conteúdo, e o item de lista na mesma numeração — ver BuildSlot.</summary>
+    /// <summary>The same content, and a list item in the same numbering; see BuildSlot.</summary>
     internal static bool Preservable(Slot slot, Block owner) =>
         SameContent(slot, owner) &&
         !(slot.List is { } list && owner.Source is Paragraph paragraph && !Points(paragraph, list));
 
     /// <summary>
-    /// O item sem as sublistas: no arquivo elas são os parágrafos seguintes, e
-    /// comparadas com elas o item de cima seria reescrito a cada Tab num de baixo.
+    /// The item without its sublists: in the file they are the following paragraphs, and compared
+    /// with them the item above would be rewritten on every Tab in one below.
     /// </summary>
     private static Node OwnContent(Node node)
     {
@@ -680,12 +685,12 @@ public static class DocxWriter
     }
 
     /// <summary>
-    /// No editor a lista tem itens dentro; no OOXML são parágrafos irmãos, e o
-    /// <c>oid</c> mora no <c>listItem</c>.
+    /// In the editor a list has items inside; in OOXML they are sibling paragraphs, and the
+    /// <c>oid</c> lives on the <c>listItem</c>.
     /// </summary>
     /// <param name="Identity">
-    /// O nó extraído na abertura: para um item, o <c>listItem</c>, e não o parágrafo,
-    /// senão nada seria preservado.
+    /// The node extracted on open: for an item, the <c>listItem</c>, not the paragraph, or nothing
+    /// would be preserved.
     /// </param>
     internal sealed record Slot(Node Identity, Node Content, ParagraphWriter.ListContext? List);
 
@@ -701,22 +706,22 @@ public static class DocxWriter
                 case "bulletList":
                 case "orderedList":
                 {
-                    // O nível do arquivo; senão, um abaixo da lista de fora.
+                    // The file's level; otherwise, one below the outer list.
                     var level = Math.Clamp(
                         Attr.Int(node, "level") ?? (inherited?.Level ?? -1) + 1, 0, ListLevels.Count - 1);
                     var definition = Attr.Node(node, "numbering") as System.Text.Json.Nodes.JsonObject;
 
-                    // A numeração de fora só serve à de dentro do mesmo tipo, e só quando a
-                    // de dentro não trouxe definição própria, a do reinício.
+                    // The outer numbering only serves an inner list of the same kind, and only when
+                    // the inner one did not bring its own definition, the restart's.
                     var fromParent = inherited is { } outer
                                      && definition is null
                                      && string.Equals(outer.Kind, node.Type, StringComparison.Ordinal)
                         ? (int?)outer.NumberingId
                         : null;
 
-                    // O `numId` do arquivo, o da lista de fora, ou uma definição nova
-                    // (lista nascida aqui ou colada de outro documento). Nunca zero, que
-                    // no formato é "sem numeração".
+                    // The file's `numId`, the outer list's, or a new definition (a list born here
+                    // or pasted from another document). Never zero, which in the format means "no
+                    // numbering".
                     var numberingId = numbering.NumberingIdFor(
                         node.Type, NumberingOf(node) ?? fromParent, definition);
 
@@ -750,7 +755,7 @@ public static class DocxWriter
 
                 case "blockquote":
                 {
-                    // Sem citação no OOXML: vira recuo, como no Word.
+                    // No quote in OOXML: it becomes an indent, as in Word.
                     foreach (var child in node.Content ?? [])
                     {
                         yield return new Slot(child, child, inherited);
@@ -769,7 +774,9 @@ public static class DocxWriter
     private static int? NumberingOf(Node list) =>
         Attr.Int(list, "numId") is { } numId && numId > 0 ? numId : null;
 
-    /// <summary>O teto da imagem sem medida: uma captura de 1920 px passaria das duas margens.</summary>
+    /// <summary>
+    /// The ceiling for an image without a measure: a 1920 px screenshot would pass both margins.
+    /// </summary>
     private static int UsableWidthPx(PageSetupDto page)
     {
         var (shortSide, longSide) = PageReader.MillimetersOfPaper(page.Size);
@@ -789,10 +796,9 @@ public static class DocxWriter
     }
 
     /// <summary>
-    /// A **perda de verdade**, detectada por comparação: o aviso diz "você editou
-    /// um parágrafo que tinha um comentário ancorado". Cada <c>before…</c> é o
-    /// rascunho anterior ao recurso, cujos nós não o trazem e cujo parágrafo
-    /// reescrito o perde.
+    /// The **real loss**, detected by comparison: the warning says "you edited a paragraph that had
+    /// an anchored comment". Each <c>before…</c> is the draft older than the feature, whose nodes
+    /// do not carry it and whose rewritten paragraph loses it.
     /// </summary>
     private static void NoteWhatWasInside(
         Block block, Inventory inventory, bool beforeComments, bool beforeRevisions, bool beforeNotes, bool beforeMath)
@@ -807,7 +813,7 @@ public static class DocxWriter
             inventory.NoteLoss("comentário ancorado num parágrafo que você editou");
         }
 
-        // No rascunho antigo também a movimentação e a de formatação se perdem.
+        // In an old draft moves and formatting revisions are lost too.
         if (beforeRevisions &&
             (original.Descendants<InsertedRun>().Any() || original.Descendants<DeletedRun>().Any() ||
              original.Descendants<MoveFromRun>().Any() || original.Descendants<MoveToRun>().Any() ||
@@ -817,7 +823,7 @@ public static class DocxWriter
             inventory.NoteLoss("marcas de revisão num parágrafo que você editou");
         }
 
-        // A imagem dentro de revisão não leva a marca: volta como conteúdo aceito.
+        // An image inside a revision does not carry the mark: it goes back as accepted content.
         if (!beforeRevisions &&
             original.Descendants().Any(element =>
                 element is InsertedRun or DeletedRun or MoveFromRun or MoveToRun &&
@@ -827,7 +833,8 @@ public static class DocxWriter
             inventory.NoteLoss("imagem dentro de uma revisão num parágrafo que você editou (ficou como aceita)");
         }
 
-        // A formatação de antes da revisão mora no `w:rPr`, que a gravação refaz das marcas.
+        // Formatting from before the revision lives in `w:rPr`, which saving rebuilds from the
+        // marks.
         if (!beforeRevisions && original.Descendants<RunPropertiesChange>().Any(change => change.Parent?.Parent is Run))
         {
             inventory.NoteLoss("revisão de formatação num parágrafo que você editou");
@@ -855,13 +862,14 @@ public static class DocxWriter
             inventory.NoteLoss("equação num parágrafo que você editou");
         }
 
-        // O campo que virou nó volta como campo; perde-se o mostrado só pelo resultado.
+        // A field that became a node goes back as a field; one shown only by its result is lost.
         if (block.UnrepresentedField)
         {
             inventory.NoteLoss("campo calculado num parágrafo que você editou");
         }
 
-        // O ancorado é copiado do original; sobra o VML (`w:pict`) e o desenho num run com texto.
+        // Anchored objects are copied from the original; what is left is VML (`w:pict`) and a
+        // drawing in a run with text.
         if (original.Descendants<Picture>().Any() ||
             original.Elements<Run>().Any(run =>
                 run.Descendants<WordDrawing.Anchor>().Any() && !ParagraphWriter.IsAnchoredOnly(run)))
@@ -883,7 +891,7 @@ public static class DocxWriter
         }
         else if (PreservedPaper(size, page.Size) is { } measured)
         {
-            // O papel continua o que o modelo diz: um A5 não vira A4 por uma mudança de margem.
+            // The paper stays what the model says: an A5 does not become A4 over a margin change.
             (shortSide, longSide) = measured;
         }
 
@@ -904,7 +912,7 @@ public static class DocxWriter
         margin.Right = (uint)Math.Max(0, Attr.MmToTwips(page.Margins.Right));
     }
 
-    /// <summary>Quando ainda correspondem ao papel que o modelo nomeia.</summary>
+    /// <summary>When they still match the paper the model names.</summary>
     private static (uint Short, uint Long)? PreservedPaper(
         DocumentFormat.OpenXml.Wordprocessing.PageSize size,
         string wanted)

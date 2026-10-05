@@ -5,9 +5,9 @@ using DocumentFormat.OpenXml.Wordprocessing;
 namespace Librevia.Format.Docx;
 
 /// <summary>
-/// A linha de texto de "Configurar página" (com <c>{n}</c> e <c>{total}</c>) levada
-/// ao DOCX. A parte gerada é reconhecida pelo id da relação, que é nosso; cabeçalho
-/// de fora volta do leitor como faixa, e a faixa manda, como no PDF.
+/// The "Page setup" text line (with <c>{n}</c> and <c>{total}</c>) taken to the DOCX. The generated
+/// part is recognized by the relationship id, which is ours; a header from outside comes back from
+/// the reader as a band, and the band wins, as in the PDF.
 /// </summary>
 internal static class PlainBandWriter
 {
@@ -23,7 +23,7 @@ internal static class PlainBandWriter
     {
         var added = false;
 
-        // A faixa com conteúdo manda, também a que nasceu aqui e voltou do leitor.
+        // A band with content wins, including one born here that came back from the reader.
         if (page.Header is not { IsEmpty: false })
         {
             added |= ApplyOne<HeaderReference, HeaderPart>(part, section, Meaningful(page.HeaderText), HeaderId,
@@ -36,13 +36,13 @@ internal static class PlainBandWriter
                 "rodapé", inventory, touched, content => new Footer(content));
         }
 
-        // A ordem de um documento alheio só muda quando entrou referência nova.
+        // Someone else's document only changes order when a new reference came in.
         if (added) Reorder(section);
     }
 
     private static string? Meaningful(string? text) => string.IsNullOrWhiteSpace(text) ? null : text;
 
-    /// <returns>Se uma referência nova entrou no `w:sectPr`.</returns>
+    /// <returns>Whether a new reference entered the `w:sectPr`.</returns>
     private static bool ApplyOne<TReference, TPart>(
         MainDocumentPart part,
         SectionProperties section,
@@ -60,7 +60,8 @@ internal static class PlainBandWriter
 
         if (text is null)
         {
-            // A parte é nossa: sai com o texto, senão imprimiria o que a tela não mostra.
+            // The part is ours: it goes with the text, or it would print what the screen does not
+            // show.
             if (existing?.Id?.Value == ownId)
             {
                 existing.Remove();
@@ -72,7 +73,7 @@ internal static class PlainBandWriter
 
         if (existing is not null && existing.Id?.Value != ownId)
         {
-            // Cabeçalho próprio que o leitor não mostra: fica o dele, com aviso.
+            // A header of its own that the reader does not show: its own stays, with a warning.
             inventory?.NoteLoss($"{label} de texto simples: o documento já tem um {label} próprio");
             return false;
         }
@@ -87,7 +88,7 @@ internal static class PlainBandWriter
                 return false;
             }
 
-            // A parte lida traz declarações de espaço de nomes que a montada não tem.
+            // The read part carries namespace declarations the built one lacks.
             if (Signature(current) == Signature(paragraph)) return false;
 
             current.RemoveAllChildren();
@@ -112,7 +113,7 @@ internal static class PlainBandWriter
             _ => string.Empty,
         }));
 
-    /// <summary>Como o PDF a desenha: centralizada, Calibri 9 pt, cinza.</summary>
+    /// <summary>As the PDF draws it: centered, Calibri 9 pt, grey.</summary>
     private static Paragraph Paragraph(string text)
     {
         var paragraph = new Paragraph(new ParagraphProperties(
@@ -150,8 +151,7 @@ internal static class PlainBandWriter
         new Text(text) { Space = SpaceProcessingModeValues.Preserve });
 
     /// <summary>
-    /// O esquema põe as referências antes do papel; cabeçalhos antes de rodapés é a
-    /// ordem do Word.
+    /// The schema puts references before the paper; headers before footers is Word's order.
     /// </summary>
     private static void Reorder(SectionProperties section)
     {

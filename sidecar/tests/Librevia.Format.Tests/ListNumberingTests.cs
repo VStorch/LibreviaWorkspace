@@ -5,9 +5,9 @@ using Librevia.Format.Docx;
 namespace Librevia.Format.Tests;
 
 /// <summary>
-/// Listas multinível: a definição que o leitor entrega à tela e o que a gravação
-/// faz com ela — nada, quando nada mudou; um `w:num` novo, quando a lista
-/// recomeça; uma definição por lista, quando a lista nasceu no editor.
+/// Multilevel lists: the definition the reader hands the screen and what saving does with it:
+/// nothing, when nothing changed; a new `w:num`, when the list restarts; one definition per list,
+/// when the list was born in the editor.
 /// </summary>
 public class ListNumberingTests
 {
@@ -26,7 +26,7 @@ public class ListNumberingTests
     {
         var lists = ListsOf(Roundtrip.Open(Fixtures.WithMultilevelList()));
 
-        // Um, a sublista, Três (mesmo `numId`, do outro lado do parágrafo) e Dez.
+        // One, the sublist, Three (same `numId`, across the paragraph) and Ten.
         Assert.Equal(4, lists.Count);
 
         var first = DefinitionOf(lists[0]);
@@ -34,14 +34,14 @@ public class ListNumberingTests
         Assert.Equal("lowerLetter", first["levels"]![1]!["fmt"]!.GetValue<string>());
         Assert.Equal("%1.%2)", first["levels"]![1]!["text"]!.GetValue<string>());
 
-        // A sublista é da mesma numeração: acha a definição na lista de fora.
+        // The sublist has the same numbering: it finds the definition in the outer list.
         Assert.Null(AttrOf(lists[1], "numbering"));
         Assert.Equal(5, IntOf(lists[1], "numId"));
 
-        // O mesmo `numId` depois do parágrafo continua a mesma conta.
+        // The same `numId` after the paragraph continues the same count.
         Assert.Equal("a3", DefinitionOf(lists[2])["key"]!.GetValue<string>());
 
-        // O `w:num` com reinício conta à parte, a partir de 10.
+        // The `w:num` with a restart counts on its own, from 10.
         var restarted = DefinitionOf(lists[3]);
         Assert.Equal("n6", restarted["key"]!.GetValue<string>());
         Assert.Equal(10, restarted["overrides"]!["0"]!.GetValue<int>());
@@ -50,7 +50,7 @@ public class ListNumberingTests
     [Fact]
     public void OutraNumeracaoNoMesmoNivelEOutraLista()
     {
-        // Juntadas, "Dez" seria item de "Três": 4, e não 10.
+        // Joined, "Dez" would be an item of "Três": 4, not 10.
         var lists = ListsOf(Roundtrip.Open(Fixtures.WithMultilevelList()));
         Assert.Equal(6, IntOf(lists[3], "numId"));
         Assert.Single(lists[3].Content!);
@@ -69,7 +69,7 @@ public class ListNumberingTests
     [Fact]
     public void ListaReiniciadaGanhaNumComStartOverrideDaMesmaDefinicao()
     {
-        // "Reiniciar em 1": um `w:num` novo da mesma definição, com `w:startOverride`, como o Word.
+        // "Restart at 1": a new `w:num` of the same definition, with `w:startOverride`, as in Word.
         var original = Fixtures.WithMultilevelList();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
         var third = ListsOf(model)[2];
@@ -94,7 +94,8 @@ public class ListNumberingTests
     [Fact]
     public void ItemDescidoComTabVaiAoNivelDeBaixoSemReescreverOParagrafo()
     {
-        // Muda a lista em volta, e não o item; devolvido como veio, voltaria ao nível 0.
+        // It changes the surrounding list, not the item; returned as it came, it would go back to
+        // level 0.
         var original = Fixtures.WithBulletList();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
         var list = ListsOf(model)[0];
@@ -113,7 +114,8 @@ public class ListNumberingTests
     [Fact]
     public void CadaListaNovaGanhaDefinicaoPropriaComOsNiveisDoWord()
     {
-        // Com uma definição só, a segunda lista nova continuaria a conta da primeira no Word.
+        // With a single definition, the second new list would continue the first one's count in
+        // Word.
         var original = Fixtures.Simple();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
         Node Item(string text) => Node.Of("listItem", Node.Of("paragraph", new Node { Type = "text", Text = text }));
@@ -129,7 +131,7 @@ public class ListNumberingTests
         Assert.Contains("w:numFmt w:val=\"lowerLetter\"", numbering, StringComparison.Ordinal);
         Assert.Contains("w:numFmt w:val=\"lowerRoman\"", numbering, StringComparison.Ordinal);
 
-        // E os níveis que voltam são os padrão que a tela desenhou.
+        // And the levels that come back are the defaults the screen drew.
         var reopened = ListsOf(Roundtrip.Open(saved));
         Assert.Equal(2, reopened.Count);
         Assert.True(JsonNode.DeepEquals(ListLevels.Defaults("orderedList"), DefinitionOf(reopened[0])["levels"]));
@@ -141,8 +143,8 @@ public class ListNumberingTests
     [Fact]
     public void ListasNovasComAMesmaChaveSaoUmaNumeracaoSo()
     {
-        // "Continuar numeração" entre duas listas que ainda não foram gravadas: a
-        // chave é o que as junta, e as duas têm de sair no mesmo `w:num`.
+        // "Continue numbering" between two lists not saved yet: the key is what joins them, and
+        // both must come out in the same `w:num`.
         var original = Fixtures.Simple();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
         var definition = new JsonObject { ["key"] = "nova-junta", ["levels"] = ListLevels.Defaults("orderedList") };
@@ -166,7 +168,7 @@ public class ListNumberingTests
     [Fact]
     public void ListaComDefinicaoDaGaleriaSaiComOsNiveisDela()
     {
-        // A definição escolhida no editor (galeria, lista colada) volta igual.
+        // A definition chosen in the editor (gallery, pasted list) comes back the same.
         var original = Fixtures.Simple();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
 
@@ -200,7 +202,7 @@ public class ListNumberingTests
     [Fact]
     public void ListaColadaComNumIdQueODestinoUsaParaOutraCoisaGanhaNumeracaoPropria()
     {
-        // A lista de outro documento traz o `numId` 5, que aqui é outra numeração.
+        // A list from another document carries `numId` 5, which here is another numbering.
         var original = Fixtures.WithMultilevelList();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
         var definition = new JsonObject { ["key"] = "a7", ["abstractId"] = 7, ["levels"] = ListLevels.Defaults("bulletList") };
@@ -233,8 +235,8 @@ public class ListNumberingTests
     [Fact]
     public void NivelNaoMudadoECopiadoDoOriginalAoRecriarADefinicao()
     {
-        // A galeria mexeu só no nível 2: o nível 1 volta do arquivo como estava —
-        // à direita, em vermelho, `ordinal` —, e não reconstruído do que a tela sabe.
+        // The gallery only touched level 2: level 1 comes back from the file as it was
+        // (right-aligned, red, `ordinal`), not rebuilt from what the screen knows.
         var original = Fixtures.WithRichNumbering();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
         var list = ListsOf(model)[0];
@@ -259,8 +261,8 @@ public class ListNumberingTests
     [Fact]
     public void NivelRecriadoSemOriginalLevaAlinhamentoEFormatoEAvisaOQueFicou()
     {
-        // Colado de outro documento: não há `w:lvl` para copiar. O que a definição
-        // leva volta (à direita, `ordinal`); a cor do número, não — e se avisa.
+        // Pasted from another document: there is no `w:lvl` to copy. What the definition carries
+        // comes back (right-aligned, `ordinal`); the number color does not, and a warning goes out.
         var original = Fixtures.Simple();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
         var levels = ListLevels.Defaults("orderedList");

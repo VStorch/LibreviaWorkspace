@@ -5,9 +5,9 @@ using DocumentFormat.OpenXml.Wordprocessing;
 namespace Librevia.Format.Docx;
 
 /// <summary>
-/// Leitor e escritor percorrem os mesmos parágrafos na mesma ordem: é ela que dá o
-/// endereço de cada peça. O ramo de reserva do <c>mc:AlternateContent</c> fica de fora,
-/// porque repete o conteúdo; o espelhamento escreve nele depois.
+/// Reader and writer walk the same paragraphs in the same order: that order gives each piece its
+/// address. The fallback branch of <c>mc:AlternateContent</c> is left out because it repeats the
+/// content; mirroring writes into it afterwards.
 /// </summary>
 internal static class BandNav
 {
@@ -18,7 +18,7 @@ internal static class BandNav
 
     internal static Dictionary<Paragraph, int> IndexOf(OpenXmlElement root)
     {
-        // Identidade, e não igualdade: dois parágrafos de mesmo texto são dois endereços.
+        // Identity, not equality: two paragraphs with the same text are two addresses.
         var index = new Dictionary<Paragraph, int>(
             (IEqualityComparer<Paragraph>)ReferenceEqualityComparer.Instance);
 
@@ -28,8 +28,8 @@ internal static class BandNav
     }
 
     /// <summary>
-    /// Nulo quando a relação não existe **neste** pacote, como no <c>.sdoc</c> reaberto num
-    /// pacote mínimo: perda declarada, e não um <c>ArgumentOutOfRangeException</c>.
+    /// Null when the relationship does not exist in **this** package, as with a <c>.sdoc</c>
+    /// reopened in a minimal package: a declared loss, not an <c>ArgumentOutOfRangeException</c>.
     /// </summary>
     internal static (OpenXmlPart Owner, OpenXmlPartRootElement Root)? PartOf(
         MainDocumentPart part,
@@ -50,10 +50,14 @@ internal static class BandNav
         };
     }
 
-    /// <summary>Sem a barra da URI: é pelo nome do zip que a gravação decide o que devolver intacto.</summary>
+    /// <summary>
+    /// Without the URI slash: saving decides by zip entry name what to return untouched.
+    /// </summary>
     internal static string PathOf(OpenXmlPart part) => part.Uri.OriginalString.TrimStart('/');
 
-    /// <summary>A caixa inteira é regenerada quando muda; caixa dentro de caixa vai com a de fora.</summary>
+    /// <summary>
+    /// A box is regenerated whole when it changes; a box inside a box goes with the outer one.
+    /// </summary>
     internal static List<TextBoxContent> BoxesOf(OpenXmlElement root) =>
         root.Descendants<TextBoxContent>()
             .Where(box => !box.Ancestors<AlternateContentFallback>().Any())
@@ -70,7 +74,10 @@ internal static class BandNav
         return index;
     }
 
-    /// <summary>Outro separador: confundir com o endereço de peça escreveria um parágrafo num <c>w:t</c>.</summary>
+    /// <summary>
+    /// A different separator: confusing it with a piece address would write a paragraph into a
+    /// <c>w:t</c>.
+    /// </summary>
     internal static string BoxAddress(string relationshipId, int box) => $"{relationshipId}#{box}";
 
     internal static (string RelationshipId, int Box)? ParseBox(string? address)
@@ -84,11 +91,11 @@ internal static class BandNav
         return (parts[0], box);
     }
 
-    /// <summary>A relação, o parágrafo e a peça nele.</summary>
+    /// <summary>The relationship, the paragraph and the piece in it.</summary>
     internal static string Address(string relationshipId, int paragraph, int piece) =>
         $"{relationshipId}:{paragraph}:{piece}";
 
-    /// <summary>Nulo para qualquer coisa fora do formato.</summary>
+    /// <summary>Null for anything outside the format.</summary>
     internal static (string RelationshipId, int Paragraph, int Piece)? Parse(string? address)
     {
         if (string.IsNullOrEmpty(address)) return null;

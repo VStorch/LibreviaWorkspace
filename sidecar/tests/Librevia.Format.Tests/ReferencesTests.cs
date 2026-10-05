@@ -6,8 +6,8 @@ using Librevia.Format.Docx;
 namespace Librevia.Format.Tests;
 
 /// <summary>
-/// Referências: marcadores, links internos, campos e sumário, na forma exata do
-/// Word (<see cref="Fixtures.WithReferences"/>).
+/// References: bookmarks, internal links, fields and tables of contents, in Word's exact form (<see
+/// cref="Fixtures.WithReferences"/>).
 /// </summary>
 public class ReferencesTests
 {
@@ -35,7 +35,7 @@ public class ReferencesTests
 
         Assert.Equal(0, result.RewrittenBlocks);
         Assert.Empty(result.Inventory.Lost);
-        // O corpo elemento por elemento, com o `w:bookmarkEnd` solto entre dois parágrafos.
+        // The body element by element, with the `w:bookmarkEnd` loose between two paragraphs.
         Assert.Equal(BodyXml(original), BodyXml(saved));
 
         var before = Roundtrip.PartsOf(original);
@@ -57,7 +57,8 @@ public class ReferencesTests
         Assert.Contains(("Resumo", "1"), starts);
         Assert.Contains(("_Ref200", "3"), starts);
 
-        // A ponta entre dois parágrafos não é nó: fica com o bloco seguinte e volta antes dele.
+        // The end between two paragraphs is not a node: it stays with the next block and goes back
+        // before it.
         Assert.DoesNotContain(NodesOf(model, "bookmarkEnd"), node => AttrOf(node, "bid") == "1");
     }
 
@@ -81,7 +82,7 @@ public class ReferencesTests
         var model = Roundtrip.Clone(Roundtrip.Open(original));
         Assert.True(Roundtrip.EditFirstTextContaining(model, "Veja o ", ". Confira o "));
 
-        // Um marcador novo no parágrafo editado, como o diálogo o insere.
+        // A new bookmark in the edited paragraph, as the dialog inserts it.
         var edited = Roundtrip.Walk(model.Doc).First(node =>
             node.Content?.Any(child => child.Text == ". Confira o ") == true);
         edited.Content!.Insert(0, Node.Of("bookmarkStart").With("name", "Novo").With("bid", "9"));
@@ -93,7 +94,7 @@ public class ReferencesTests
         Assert.Equal(1, result.RewrittenBlocks);
         Assert.Matches("<w:bookmarkStart (w:id=\"9\" w:name=\"Novo\"|w:name=\"Novo\" w:id=\"9\") ?/>", xml);
         Assert.Contains("w:anchor=\"Resumo\"", xml, StringComparison.Ordinal);
-        // O link interno não ganha relacionamento.
+        // An internal link gets no relationship.
         Assert.DoesNotContain("relationships/hyperlink", Roundtrip.XmlOf(saved, "word/_rels/document.xml.rels"),
             StringComparison.Ordinal);
 
@@ -104,7 +105,7 @@ public class ReferencesTests
     [Fact]
     public void MarcadorApagadoDoParagrafoNaoVolta()
     {
-        // O marcador excluído pelo diálogo não volta do original.
+        // A bookmark deleted by the dialog does not come back from the original.
         var original = Fixtures.WithReferences();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
         var heading = Roundtrip.Walk(model.Doc).First(node =>
@@ -134,7 +135,7 @@ public class ReferencesTests
     [Fact]
     public void RascunhoDeAntesDasReferenciasContinuaReconhecido()
     {
-        // O rascunho de antes do `.sdoc` 5 não tem marcador nem link interno nos nós.
+        // A draft from before `.sdoc` 5 has no bookmarks or internal links in the nodes.
         var original = Fixtures.WithReferences();
         var legacy = Roundtrip.Clone(new DocumentModelDto(
             Roundtrip.Open(original).Page,
@@ -149,7 +150,7 @@ public class ReferencesTests
     [Fact]
     public void MarcadorEntreLinhasDeTabelaEditadaContinuaNoLugar()
     {
-        // O Word põe as pontas do marcador que abraça linhas em `w:tbl` e `w:tr`.
+        // Word puts the ends of a bookmark embracing rows in `w:tbl` and `w:tr`.
         const string cell = "<w:tc><w:tcPr><w:tcW w:w=\"4500\" w:type=\"dxa\"/></w:tcPr><w:p><w:r><w:t>{0}</w:t></w:r></w:p></w:tc>";
         var body =
             "<w:tbl><w:tblPr><w:tblW w:w=\"9000\" w:type=\"dxa\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"4500\"/><w:gridCol w:w=\"4500\"/></w:tblGrid>" +
@@ -183,7 +184,7 @@ public class ReferencesTests
         Assert.Contains(fields, field => Instruction(field) == "REF _Ref200 \\h" && AttrOf(field, "result") == "Figura 1");
         Assert.Contains(fields, field => Instruction(field) == "PAGEREF _Ref200 \\h");
 
-        // Representados, os campos e o sumário deixam de travar o documento.
+        // Once represented, fields and the table of contents stop locking the document.
         Assert.Empty(opened.Inventory.Structural);
     }
 
@@ -198,12 +199,12 @@ public class ReferencesTests
         Assert.True(toc.Attrs!["sdt"]!.GetValue<bool>());
         Assert.Equal(4, toc.Content!.Count);
 
-        // A entrada: o link para o `_Toc` do título, com o PAGEREF dentro.
+        // The entry: the link to the heading's `_Toc`, with the PAGEREF inside.
         var entry = toc.Content[1];
         var pageRef = Assert.Single(entry.Content!, node => node.Type == "field");
         Assert.Equal("PAGEREF _Toc100 \\h", Instruction(pageRef));
         Assert.Contains(pageRef.Marks!, mark => mark.Type == "link");
-        // As peças do campo TOC saíram do texto: nenhum `field` com TOC dentro.
+        // The TOC field pieces left the text: no `field` with TOC inside.
         Assert.DoesNotContain(NodesOf(model, "field"), field => Instruction(field).StartsWith("TOC", StringComparison.Ordinal));
     }
 
@@ -242,7 +243,7 @@ public class ReferencesTests
         Assert.Empty(result.Inventory.Lost);
         var reopened = Roundtrip.Open(saved);
         Assert.Contains(NodesOf(reopened, "field"), field => Instruction(field) == "SEQ Figura \\* ARABIC");
-        // O marcador `_Ref` da legenda continua em volta do número.
+        // The caption's `_Ref` bookmark still surrounds the number.
         Assert.Contains(NodesOf(reopened, "bookmarkStart"), node => AttrOf(node, "name") == "_Ref200");
     }
 
@@ -251,7 +252,7 @@ public class ReferencesTests
     {
         var body = Fixtures.ReferencesBody;
         var inner = body[(body.IndexOf("<w:sdtContent>", StringComparison.Ordinal) + "<w:sdtContent>".Length)..body.IndexOf("</w:sdtContent>", StringComparison.Ordinal)];
-        // Sem o título, que fora do controle de conteúdo é parágrafo comum.
+        // Without the title, which outside the content control is a regular paragraph.
         inner = inner[(inner.IndexOf("</w:p>", StringComparison.Ordinal) + "</w:p>".Length)..];
         var bare = inner + body[(body.IndexOf("</w:sdt>", StringComparison.Ordinal) + "</w:sdt>".Length)..];
         var original = Fixtures.BuildFromXml(bare, Fixtures.ReferencesStyles);
@@ -275,7 +276,8 @@ public class ReferencesTests
     [Fact]
     public void SumarioNovoGanhaControleDeConteudoEParadaDeTabulacao()
     {
-        // O que o editor manda ao inserir um sumário: o nó sem `oid`, com as entradas.
+        // What the editor sends when inserting a table of contents: the node without `oid`, with
+        // its entries.
         var original = Fixtures.WithReferences();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
         var entry = Node.Of("paragraph").With("styleId", "Sumrio1");
@@ -302,7 +304,8 @@ public class ReferencesTests
     [Fact]
     public void CampoAninhadoContinuaTravandoEPerdeAoEditar()
     {
-        // Campo dentro de campo não cabe no nó: fica o resultado, o documento travado e o aviso.
+        // A field inside a field does not fit in the node: the result stays, with the document
+        // locked and a warning.
         const string nested =
             "<w:p><w:r><w:t xml:space=\"preserve\">Antes </w:t></w:r><w:r><w:fldChar w:fldCharType=\"begin\"/></w:r>" +
             "<w:r><w:instrText xml:space=\"preserve\"> IF </w:instrText></w:r><w:r><w:fldChar w:fldCharType=\"begin\"/></w:r>" +
@@ -354,8 +357,8 @@ public class ReferencesTests
     [Fact]
     public void MarcadorColadoComIdRepetidoGanhaIdNovoEFica()
     {
-        // O parágrafo colado traz um marcador de nome novo com id já usado, até um
-        // que o modelo não conhece.
+        // The pasted paragraph carries a bookmark with a new name and an id already in use, even
+        // one the model does not know.
         var body =
             "<w:tbl><w:tblPr/><w:tblGrid><w:gridCol w:w=\"9000\"/></w:tblGrid><w:tr><w:tc><w:p><w:r><w:t>A</w:t></w:r></w:p></w:tc></w:tr>" +
             "<w:bookmarkStart w:id=\"7\" w:name=\"Linha\"/><w:tr><w:tc><w:p><w:r><w:t>B</w:t></w:r></w:p></w:tc></w:tr><w:bookmarkEnd w:id=\"7\"/></w:tbl>" +
@@ -389,7 +392,7 @@ public class ReferencesTests
     [Fact]
     public void BlocoApagadoComOFimDoMarcadorDevolveOFimDepoisDoComeco()
     {
-        // O fim do "Resumo" mora antes do título "Escopo", e não some com ele.
+        // The end of "Resumo" lives before the "Escopo" heading, and does not vanish with it.
         var original = Fixtures.WithReferences();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
         model.Doc.Content!.RemoveAll(node => node.Type == "heading" && Roundtrip.Walk(node).Any(n => n.Text == "Escopo"));

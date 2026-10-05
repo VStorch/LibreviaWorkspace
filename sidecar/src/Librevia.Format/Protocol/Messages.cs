@@ -6,9 +6,9 @@ namespace Librevia.Format.Protocol;
 public sealed record Request(int Id, string Method, JsonElement Params);
 
 /// <summary>
-/// Erro para o usuário, com a regra de <c>src/shared/errors.ts</c>: sem stack trace
-/// nem caminho absoluto. <see cref="Message"/> é a frase da tela; <see cref="Detail"/>
-/// vai só ao log do main.
+/// An error for the user, with the rule of <c>src/shared/errors.ts</c>: no stack trace or absolute
+/// path. <see cref="Message"/> is the on-screen sentence; <see cref="Detail"/> only goes to the
+/// main log.
 /// </summary>
 public sealed record ErrorPayload(
     [property: JsonPropertyName("code")] string Code,

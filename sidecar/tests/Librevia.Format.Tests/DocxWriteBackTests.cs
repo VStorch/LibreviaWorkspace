@@ -6,16 +6,16 @@ using Librevia.Format.Docx;
 namespace Librevia.Format.Tests;
 
 /// <summary>
-/// O que a gravação faz com o bloco que foi editado, onde a perda acontece; o que
-/// ninguém tocou é de <see cref="DocxRoundTripTests"/>.
+/// What saving does to an edited block, where loss happens; what nobody touched belongs to <see
+/// cref="DocxRoundTripTests"/>.
 /// </summary>
 public class DocxWriteBackTests
 {
     private static Node BlockOf(DocumentModelDto model, int index) => model.Doc.Content![index];
 
     /// <summary>
-    /// Todo fixture nasce dentro do esquema OOXML, para que
-    /// <see cref="Roundtrip.AssertSchema"/> nunca acuse o escritor por um defeito do teste.
+    /// Every fixture is born inside the OOXML schema, so <see cref="Roundtrip.AssertSchema"/> never
+    /// blames the writer for a test defect.
     /// </summary>
     [Fact]
     public void TodoFixtureNasceDentroDoEsquema()
@@ -29,7 +29,7 @@ public class DocxWriteBackTests
         {
             var bytes = (byte[])factory.Invoke(null, null)!;
 
-            // Fixture que não é pacote é imagem, como `SquarePng`.
+            // A fixture that is not a package is an image, like `SquarePng`.
             if (bytes.Length < 2 || bytes[0] != 'P' || bytes[1] != 'K') continue;
 
             try
@@ -48,7 +48,7 @@ public class DocxWriteBackTests
     [Fact]
     public void EditarParagrafoPreservaEstiloEspacamentoEFundo()
     {
-        // Corrigir uma vírgula no título não toca o resto do `w:pPr`.
+        // Fixing a comma in the heading does not touch the rest of `w:pPr`.
         var original = Fixtures.WithFormattedParagraph();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
 
@@ -57,7 +57,7 @@ public class DocxWriteBackTests
         var (saved, result) = Roundtrip.Save(original, model);
         var xml = Roundtrip.XmlOf(saved);
 
-        // O estilo do documento, e não um nome inventado a partir do nível.
+        // The document's style, not a name invented from the level.
         Assert.Contains("<w:pStyle w:val=\"Ttulo1\"", xml, StringComparison.Ordinal);
         Assert.DoesNotContain("Heading1", xml, StringComparison.Ordinal);
 
@@ -69,7 +69,7 @@ public class DocxWriteBackTests
         Assert.Contains("<w:sz w:val=\"20\"", xml, StringComparison.Ordinal);
         Assert.Contains("w:ascii=\"Arial\"", xml, StringComparison.Ordinal);
 
-        // O que o editor nem conhece atravessa: a borda e a tabulação.
+        // What the editor does not even know passes through: the border and the tab.
         Assert.Contains("w:pBdr", xml, StringComparison.Ordinal);
         Assert.Contains("w:pos=\"4500\"", xml, StringComparison.Ordinal);
 
@@ -80,7 +80,7 @@ public class DocxWriteBackTests
     [Fact]
     public void ParagrafoQueDeixouDeSerTituloPerdeOEstiloDeTitulo()
     {
-        // Preservar o `styleId` não deixa cara de título no que virou parágrafo.
+        // Keeping the `styleId` does not leave a heading look on what became a paragraph.
         var original = Fixtures.WithFormattedParagraph();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
 
@@ -100,8 +100,8 @@ public class DocxWriteBackTests
     [Fact]
     public void OBlocoEditadoNaoRepeteOEstiloNosRunsNemNoPPr()
     {
-        // As marcas do trecho da faixa vêm do estilo `Faixa`, e gravá-las como direto
-        // repetiria o estilo em cada `w:r`.
+        // The band run's marks come from the `Faixa` style, and writing them as direct would repeat
+        // the style in every `w:r`.
         var original = Fixtures.WithStyles();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
         Assert.True(Roundtrip.EditFirstTextContaining(model, "Informações", "Dados"));
@@ -109,7 +109,7 @@ public class DocxWriteBackTests
         var saved = Roundtrip.Save(original, model);
         Assert.Equal(1, saved.Result.RewrittenBlocks);
 
-        // Só o bloco editado; os outros voltam byte a byte.
+        // Only the edited block; the others go back byte for byte.
         var all = Roundtrip.XmlOf(saved.Bytes);
         var start = all.IndexOf("<w:p>", StringComparison.Ordinal);
         var xml = all[start..(all.IndexOf("</w:p>", start, StringComparison.Ordinal) + 6)];
@@ -125,7 +125,8 @@ public class DocxWriteBackTests
     [Fact]
     public void TrechoSemNegritoNumEstiloNegritoSegueOQueATelaMostra()
     {
-        // A regra do estilo dá negrito ao bloco: `w:b w:val="0"` faria o arquivo divergir da tela.
+        // The style rule makes the block bold: `w:b w:val="0"` would make the file diverge from the
+        // screen.
         var original = Fixtures.WithStyles();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
         var text = BlockOf(model, 0).Content![0];
@@ -139,7 +140,7 @@ public class DocxWriteBackTests
     [Fact]
     public void ODesligadoSobreOEstiloVaiEVoltaDoArquivo()
     {
-        // A marca com `off` é `w:b w:val="0"`, e relida vira a mesma marca.
+        // A mark with `off` is `w:b w:val="0"`, and reread it becomes the same mark.
         var original = Fixtures.WithStyles();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
         var text = BlockOf(model, 0).Content![0];
@@ -155,7 +156,7 @@ public class DocxWriteBackTests
         Assert.Contains(marks, mark => mark.Type == "bold" && mark.Attrs?["off"]?.GetValue<bool>() == true);
         Assert.Contains(marks, mark => mark.Type == "charStyle");
 
-        // O rascunho antigo não conhece nem uma nem outra.
+        // An old draft knows neither.
         Assert.DoesNotContain(
             Roundtrip.OpenFlat(saved).Doc.Content![0].Content![0].Marks!,
             mark => mark.Type == "charStyle" || mark.Attrs?.ContainsKey("off") == true);
@@ -164,7 +165,8 @@ public class DocxWriteBackTests
     [Fact]
     public void FormatacaoLimpaSaiDoArquivo()
     {
-        // O direto que sumiu do nó foi limpo por alguém e sai; borda e tabulação ficam.
+        // Direct formatting that left the node was cleared by someone and goes; border and tab
+        // stay.
         var original = Fixtures.WithFormattedParagraph();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
         var attrs = BlockOf(model, 0).Attrs!;
@@ -187,7 +189,8 @@ public class DocxWriteBackTests
     [Fact]
     public void NoWordEmPortuguesOTituloApontaTtulo1()
     {
-        // O id é traduzido, e o nome `heading 1` não: `word/styles.xml` volta intocado.
+        // The id is translated, and the name `heading 1` is not: `word/styles.xml` goes back
+        // untouched.
         var original = DocxTemplateTests.WithLocalizedHeadingStyle();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
         var paragraph = BlockOf(model, 0);
@@ -206,7 +209,7 @@ public class DocxWriteBackTests
     [Fact]
     public void EstiloQueOPacoteNaoTemECopiadoDoModeloEmbutido()
     {
-        // `ListParagraph` veio do documento novo, e este pacote não o define.
+        // `ListParagraph` came from the new document, and this package does not define it.
         var original = DocxTemplateTests.WithLocalizedHeadingStyle();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
         BlockOf(model, 0).With("styleId", "ListParagraph");
@@ -217,14 +220,14 @@ public class DocxWriteBackTests
 
         Assert.Contains("w:styleId=\"ListParagraph\"", styles, StringComparison.Ordinal);
         Assert.Contains("<w:pStyle w:val=\"ListParagraph\" />", Roundtrip.XmlOf(saved), StringComparison.Ordinal);
-        // E o parágrafo sem estilo, que ninguém tocou, não ganha `w:pStyle`.
+        // And the unstyled paragraph nobody touched does not gain a `w:pStyle`.
         Assert.Single(System.Text.RegularExpressions.Regex.Matches(Roundtrip.XmlOf(saved), "<w:pStyle"));
     }
 
     [Fact]
     public void DiminuirORecuoAteZeroChegaAoArquivo()
     {
-        // O recuo zerado sai do `w:pPr`, e o parágrafo volta ao recuo do estilo.
+        // A zeroed indent leaves `w:pPr`, and the paragraph goes back to the style's indent.
         var original = Fixtures.WithFormattedParagraph();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
 
@@ -241,7 +244,7 @@ public class DocxWriteBackTests
     [Fact]
     public void RecuoNegativoDoArquivoSobreviveAEdicao()
     {
-        // O leitor só emite recuo positivo: o negativo que ninguém tocou fica.
+        // The reader only emits positive indents: a negative one nobody touched stays.
         var original = Fixtures.WithNegativeIndent();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
 
@@ -255,8 +258,8 @@ public class DocxWriteBackTests
     [Fact]
     public void RecuoAusenteNaoViraAtributoVazio()
     {
-        // O `null` de um `string` vira `StringValue(null)`, e o SDK grava `w:right=""`,
-        // que o Word recusa.
+        // A `string`'s `null` becomes `StringValue(null)`, and the SDK writes `w:right=""`, which
+        // Word refuses.
         var original = Fixtures.WithFormattedParagraph();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
 
@@ -271,7 +274,8 @@ public class DocxWriteBackTests
     [Fact]
     public void MarcadorDoParagrafoSobreviveAEdicaoDoTexto()
     {
-        // O marcador é destino de referência cruzada, índice e link interno, e o modelo não o representa.
+        // A bookmark is the target of cross-references, indexes and internal links, and the model
+        // does not represent it.
         var original = Fixtures.WithBookmarkAroundParagraph();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
 
@@ -289,8 +293,8 @@ public class DocxWriteBackTests
     [Fact]
     public void BlocoColadoComOMesmoOidNaoDuplicaOMarcador()
     {
-        // `oid` repetido é bloco colado: do segundo em diante não se copia o marcador,
-        // senão dois marcadores teriam o mesmo id.
+        // A repeated `oid` is a pasted block: from the second one on the bookmark is not copied, or
+        // two bookmarks would share an id.
         var original = Fixtures.WithBookmarkAroundParagraph();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
         model.Doc.Content!.Insert(1, BlockOf(model, 0));
@@ -304,7 +308,7 @@ public class DocxWriteBackTests
     [Fact]
     public void ItemDeListaEditadoContinuaApontandoAMesmaNumeracao()
     {
-        // `w:numId w:val="0"` quer dizer "sem numeração".
+        // `w:numId w:val="0"` means "no numbering".
         var original = Fixtures.WithBulletList();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
 
@@ -315,7 +319,7 @@ public class DocxWriteBackTests
         Assert.Contains("<w:numId w:val=\"1\"", Roundtrip.XmlOf(saved), StringComparison.Ordinal);
         Assert.DoesNotContain("<w:numId w:val=\"0\"", Roundtrip.XmlOf(saved), StringComparison.Ordinal);
 
-        // E continua lista ao reabrir.
+        // And it is still a list on reopen.
         var reopened = Roundtrip.Open(saved);
         var list = Assert.Single(Roundtrip.Walk(reopened.Doc).Where(node => node.Type == "bulletList"));
         Assert.Equal(2, list.Content!.Count);
@@ -324,7 +328,7 @@ public class DocxWriteBackTests
     [Fact]
     public void ListaCriadaNoEditorGanhaNumeracaoNoArquivo()
     {
-        // Documento sem lista não tem `word/numbering.xml`: a parte é criada.
+        // A document without lists has no `word/numbering.xml`: the part is created.
         var original = Fixtures.Simple();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
 
@@ -365,7 +369,7 @@ public class DocxWriteBackTests
     [Fact]
     public void ListaDentroDeCelulaSobreviveAEdicaoDaCelula()
     {
-        // Sem contexto de lista, o escritor leria que o parágrafo deixou de ser item.
+        // Without list context, the writer would read that the paragraph stopped being an item.
         var original = Fixtures.WithListInsideTableCell();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
 
@@ -382,7 +386,7 @@ public class DocxWriteBackTests
     [Fact]
     public void ListaColadaDeOutroDocumentoGanhaNumeracaoQueODestinoDefine()
     {
-        // A lista colada traz o `numId` do documento de origem, que este não define.
+        // A pasted list carries the source document's `numId`, which this one does not define.
         var original = Fixtures.Simple();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
 
@@ -400,7 +404,7 @@ public class DocxWriteBackTests
     [Fact]
     public void SublistaOrdenadaDentroDeListaComMarcadorSaiNumerada()
     {
-        // A sublista numerada dentro de uma com marcador não herda o `numId` de fora.
+        // A numbered sublist inside a bulleted one does not inherit the outer `numId`.
         var original = Fixtures.WithBulletList();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
 
@@ -423,7 +427,7 @@ public class DocxWriteBackTests
     [Fact]
     public void ImagemInseridaPelaBarraSobreviveAoSalvar()
     {
-        // A imagem da barra de ferramentas é um bloco e chega sem medida.
+        // A toolbar image is a block and arrives without a measure.
         var original = Fixtures.Simple();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
 
@@ -436,7 +440,7 @@ public class DocxWriteBackTests
         Assert.Contains("w:drawing", Roundtrip.XmlOf(saved), StringComparison.Ordinal);
         Assert.Contains(Roundtrip.PartsOf(saved).Keys, name => name.Contains("image", StringComparison.Ordinal));
 
-        // A medida sai do cabeçalho do PNG, 4 × 4.
+        // The measure comes from the PNG header, 4 × 4.
         var image = Assert.Single(Roundtrip.Walk(Roundtrip.Open(saved).Doc).Where(node => node.Type == "image"));
         Assert.Equal(4, image.Attrs!["width"]!.GetValue<int>());
         Assert.Equal(4, image.Attrs["height"]!.GetValue<int>());
@@ -460,7 +464,7 @@ public class DocxWriteBackTests
         var width = image.Attrs!["width"]!.GetValue<int>();
         var height = image.Attrs["height"]!.GetValue<int>();
 
-        // Cabe na coluna de uma A4 com margens de 2,5 cm, com a proporção de 2 para 1.
+        // Fits the column of an A4 with 2.5 cm margins, at a 2:1 ratio.
         Assert.InRange(width, 500, 650);
         Assert.InRange((double)width / height, 1.9, 2.1);
     }
@@ -468,7 +472,7 @@ public class DocxWriteBackTests
     [Fact]
     public void ImagemComDataUriSemVirgulaNaoDerrubaAGravacao()
     {
-        // `data:image/png` sem vírgula: uma imagem não pode derrubar a gravação.
+        // `data:image/png` without a comma: one image must not bring the save down.
         var original = Fixtures.Simple();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
 
@@ -483,8 +487,8 @@ public class DocxWriteBackTests
     [Fact]
     public void IdDeDesenhoNaoDependeDeQuantasGravacoesJaAconteceram()
     {
-        // O id não depende de quantas gravações o processo já fez nem colide com o do
-        // arquivo, o que o Word mostra como documento danificado.
+        // The id depends neither on how many saves the process has done nor collides with the
+        // file's, which Word shows as a damaged document.
         var original = Fixtures.WithInlineImage(1001);
 
         var first = DrawingIdsOf(original);
@@ -496,7 +500,7 @@ public class DocxWriteBackTests
         Assert.All(first, id => Assert.True(int.Parse(id) >= 1001));
     }
 
-    /// <summary>Os `wp:docPr/@id` do documento gravado com uma imagem nova.</summary>
+    /// <summary>The `wp:docPr/@id`s of the document saved with a new image.</summary>
     private static List<string> DrawingIdsOf(byte[] original)
     {
         var model = Roundtrip.Clone(Roundtrip.Open(original));
@@ -533,7 +537,7 @@ public class DocxWriteBackTests
         var original = Fixtures.WithNestedTable();
         var model = Roundtrip.Open(original);
 
-        // Primeiro na tela: o texto da tabela de dentro chega ao editor.
+        // First on screen: the inner table's text reaches the editor.
         Assert.Contains("Dentro da tabela de dentro", Roundtrip.TextOf(model), StringComparison.Ordinal);
 
         var edited = Roundtrip.Clone(model);
@@ -549,7 +553,7 @@ public class DocxWriteBackTests
     [Fact]
     public void CelulaQueTerminaEmTabelaGanhaParagrafoNoFim()
     {
-        // A célula do editor pode terminar na tabela aninhada; o `w:tc` do Word tem de terminar em `w:p`.
+        // An editor cell may end in a nested table; Word's `w:tc` must end in a `w:p`.
         var original = Fixtures.WithNestedTable();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
 
@@ -565,7 +569,7 @@ public class DocxWriteBackTests
     [Fact]
     public void LinhaInseridaNoMeioRegistraPerdaEDescartaAMesclagem()
     {
-        // Linha inserida desalinha as posições e levaria o `w:vMerge` à linha errada.
+        // An inserted row misaligns positions and would take `w:vMerge` to the wrong row.
         var original = Fixtures.WithStyledTable();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
 
@@ -587,7 +591,7 @@ public class DocxWriteBackTests
     [Fact]
     public void LarguraDeColunaArrastadaChegaAoArquivo()
     {
-        // A divisória arrastada no TableKit chega ao `w:tblGrid`.
+        // The divider dragged in TableKit reaches `w:tblGrid`.
         var original = Fixtures.WithTable();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
 
@@ -600,20 +604,20 @@ public class DocxWriteBackTests
 
         var xml = Roundtrip.XmlOf(Roundtrip.Save(original, model).Bytes);
 
-        // 15 twips por pixel.
+        // 15 twips per pixel.
         Assert.Contains("<w:gridCol w:w=\"3000\" /><w:gridCol w:w=\"6000\" />", xml, StringComparison.Ordinal);
 
-        // A largura da célula acompanha, senão contradiz a grade e o Word escolhe uma.
+        // The cell width follows, or it contradicts the grid and Word picks one.
         Assert.Contains("w:tcW w:w=\"3000\"", xml, StringComparison.Ordinal);
 
-        // O Word honra a grade como a tela com `table-layout: fixed`.
+        // Word honors the grid like the screen with `table-layout: fixed`.
         Assert.Contains("w:tblLayout w:type=\"fixed\"", xml, StringComparison.Ordinal);
     }
 
     [Fact]
     public void EditarTextoDaCelulaNaoMexeNaGradeDeColunas()
     {
-        // Twip→pixel arredonda (4675 twips são 311,67 px): a grade não redimensionada fica.
+        // Twip→pixel rounds (4675 twips is 311.67 px): an unresized grid stays.
         var original = Fixtures.WithTable();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
 
@@ -628,7 +632,8 @@ public class DocxWriteBackTests
     [Fact]
     public void TabelaInseridaNaTelaNasceComGradeDeColunas()
     {
-        // O esquema exige `w:tblGrid`: colunas iguais na coluna de texto, como o Word ao inserir.
+        // The schema requires `w:tblGrid`: equal columns across the text column, as Word does on
+        // insert.
         var original = Fixtures.Simple();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
 
@@ -643,14 +648,14 @@ public class DocxWriteBackTests
 
         Assert.Contains("<w:tblGrid>", xml, StringComparison.Ordinal);
 
-        // Linha toda de `tableHeader` é a que se repete no alto de cada página.
+        // A row made entirely of `tableHeader` is the one that repeats at the top of each page.
         Assert.Contains("w:tblHeader", xml, StringComparison.Ordinal);
     }
 
     [Fact]
     public void LinhaDeCabecalhoDesligadaSaiDoArquivo()
     {
-        // O `w:trPr` traz altura e revisão também: desligar a bandeira não o leva.
+        // `w:trPr` also carries height and revision: turning the flag off does not take it along.
         var original = Fixtures.WithStyledTable();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
 
@@ -683,17 +688,18 @@ public class DocxWriteBackTests
 
         Assert.Contains("w:fill=\"D9D9D9\"", xml, StringComparison.Ordinal);
 
-        // 1,5 pt são 12 oitavos, a unidade do `w:sz`.
+        // 1.5 pt is 12 eighths, the `w:sz` unit.
         Assert.Contains("<w:top w:val=\"double\" w:color=\"FF0000\" w:sz=\"12\" />", xml, StringComparison.Ordinal);
 
-        // Só `w:nil` remove a borda que a tabela pediu.
+        // Only `w:nil` removes a border the table asked for.
         Assert.Contains("w:bottom w:val=\"nil\"", xml, StringComparison.Ordinal);
     }
 
     [Fact]
     public void CelulaNaoFormatadaConservaTramaEEstiloExotico()
     {
-        // Enquanto ninguém formata a célula, a trama e a borda exótica voltam do XML original.
+        // As long as nobody formats the cell, the pattern and the exotic border come back from the
+        // original XML.
         var original = Fixtures.WithPatternedCell();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
 
@@ -710,7 +716,7 @@ public class DocxWriteBackTests
     [Fact]
     public void LarguraArrastadaNumaTabelaNovaChegaAoArquivo()
     {
-        // O TableKit põe `colwidth` só na coluna arrastada.
+        // TableKit only puts `colwidth` on the dragged column.
         var original = Fixtures.Simple();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
 
@@ -731,7 +737,7 @@ public class DocxWriteBackTests
 
         var xml = Roundtrip.XmlOf(Roundtrip.Save(original, model).Bytes);
 
-        // 300 px são 4500 twips; as outras dividem o que sobra da coluna de texto.
+        // 300 px is 4500 twips; the others share what is left of the text column.
         var grid = Regex.Matches(xml, "<w:gridCol w:w=\"(\\d+)\"").Select(match => match.Groups[1].Value).ToList();
         Assert.Equal(3, grid.Count);
         Assert.Equal("4500", grid[0]);
@@ -741,7 +747,7 @@ public class DocxWriteBackTests
     [Fact]
     public void ArrastarUmaColunaNaoMexeNaMedidaDasOutras()
     {
-        // A vizinha que ninguém tocou não passa por `px × 15` (2000 twips são 133,33 px).
+        // A neighbour nobody touched does not go through `px × 15` (2000 twips is 133.33 px).
         var original = Fixtures.WithThreeColumns();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
 
@@ -759,7 +765,7 @@ public class DocxWriteBackTests
     [Fact]
     public void ColunaInseridaRecalculaAGrade()
     {
-        // Depois de inserir coluna, o TableKit deixa a célula nova sem largura.
+        // After inserting a column, TableKit leaves the new cell without a width.
         var original = Fixtures.WithThreeColumns();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
 
@@ -781,7 +787,7 @@ public class DocxWriteBackTests
     [Fact]
     public void CabecalhoLigadoNumaLinhaComRevisaoFicaAntesDaRevisao()
     {
-        // No `w:trPr` a revisão (`w:ins`, `w:del`, `w:trPrChange`) fecha a sequência.
+        // In `w:trPr` the revision (`w:ins`, `w:del`, `w:trPrChange`) closes the sequence.
         var original = Fixtures.WithInsertedRow();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
 
@@ -798,14 +804,14 @@ public class DocxWriteBackTests
     [Fact]
     public void LinhaQueNaoCobreAGradeNaoEncolheAGrade()
     {
-        // Com `w:gridBefore`, a grade do modelo tem de ter as colunas do arquivo.
+        // With `w:gridBefore`, the model grid must have the file's columns.
         var original = Fixtures.WithGridBefore();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
 
         var table = model.Doc.Content!.First(block => block.Type == "table");
         var recuada = table.Content![0].Content![0];
 
-        // A célula recuada tem a largura da segunda coluna da grade, 3000 twips.
+        // The indented cell has the width of the grid's second column, 3000 twips.
         Assert.Equal(200, recuada.Attrs!["colwidth"]![0]!.GetValue<int>());
 
         Assert.True(Roundtrip.EditFirstTextContaining(model, "Cheia A", "Cheia corrigida"));
@@ -821,7 +827,7 @@ public class DocxWriteBackTests
     [Fact]
     public void LarguraQueNaoCabeNaGradeDoArquivoEntraNoInventario()
     {
-        // Grade que o modelo não descreve inteira: a do arquivo fica, com aviso.
+        // A grid the model does not fully describe: the file's stays, with a warning.
         var original = Fixtures.WithGridBefore();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
 
@@ -839,7 +845,8 @@ public class DocxWriteBackTests
     [Fact]
     public void FormatarUmLadoConservaOQueOModeloNaoRepresenta()
     {
-        // Pôr a borda de baixo não apaga diagonal, borda interna, `w:space` nem cor de tema.
+        // Adding the bottom border does not erase the diagonal, inner border, `w:space` or theme
+        // color.
         var original = Fixtures.WithRichCellBorders();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
 
@@ -861,7 +868,7 @@ public class DocxWriteBackTests
     [Fact]
     public void TrocarACorDoLadoTiraACorDeTemaDele()
     {
-        // A cor de tema vence o `w:color` no Word, e sai com a troca de cor; o `w:space` fica.
+        // A theme color beats `w:color` in Word, and goes with the color change; `w:space` stays.
         var original = Fixtures.WithRichCellBorders();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
 
@@ -880,7 +887,7 @@ public class DocxWriteBackTests
     [Fact]
     public void FormatarACelulaDaTramaRegistraAPerda()
     {
-        // Trocar a aparência da célula apaga a trama e o estilo exótico, com aviso.
+        // Changing the cell look erases the pattern and the exotic style, with a warning.
         var original = Fixtures.WithPatternedCell();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
 
@@ -899,7 +906,7 @@ public class DocxWriteBackTests
     [Fact]
     public void MesclagemVerticalFeitaNaTelaEntraNoInventario()
     {
-        // O `rowspan` do TableKit ainda não vira `w:vMerge`: o mínimo é dizer.
+        // TableKit's `rowspan` does not become `w:vMerge` yet: the least is to say so.
         var original = Fixtures.WithTable();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
 
@@ -929,7 +936,7 @@ public class DocxWriteBackTests
 
         Assert.Contains("descr=\"Organograma da diretoria\"", xml, StringComparison.Ordinal);
 
-        // No OOXML a imagem centralizada é um parágrafo centralizado com ela dentro.
+        // In OOXML a centered image is a centered paragraph with the image inside.
         Assert.Contains("w:jc w:val=\"center\"", xml, StringComparison.Ordinal);
 
         var back = Roundtrip.Open(saved);
@@ -940,8 +947,8 @@ public class DocxWriteBackTests
     [Fact]
     public void RedimensionarImagemDoArquivoMantemODesenhoOriginal()
     {
-        // Redimensionar muda só o tamanho: o `wp:docPr`, a parte de imagem e o que o
-        // escritor não gera (efeito, recorte, borda) ficam.
+        // Resizing changes only the size: `wp:docPr`, the image part and what the writer does not
+        // generate (effect, crop, border) stay.
         var original = Fixtures.WithInlineImage(7);
         var model = Roundtrip.Clone(Roundtrip.Open(original));
         var image = Roundtrip.Walk(model.Doc).Single(node => node.Type == "image");
@@ -958,7 +965,7 @@ public class DocxWriteBackTests
         Assert.Contains($"r:embed=\"{embed}\"", xml, StringComparison.Ordinal);
         Assert.Single(Roundtrip.PartsOf(saved).Keys, name => name.EndsWith(".png", StringComparison.Ordinal));
 
-        // 300 × 150 px são 2857500 × 1428750 EMU, no `wp:extent` e no `a:ext`.
+        // 300 × 150 px is 2857500 × 1428750 EMU, in `wp:extent` and in `a:ext`.
         Assert.Equal(2, Regex.Matches(xml, "cx=\"2857500\" cy=\"1428750\"").Count);
 
         Assert.Equal(
@@ -970,7 +977,8 @@ public class DocxWriteBackTests
     [Fact]
     public void ImagemAncoradaNoFluxoNaoSeDuplicaAoEditarOParagrafo()
     {
-        // A imagem ancorada no fluxo chega como imagem do parágrafo: o `w:r` original não vem junto.
+        // An anchored image in the flow arrives as a paragraph image: the original `w:r` does not
+        // come along.
         var original = Fixtures.WithAnchoredImageInTheFlow();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
         var image = Roundtrip.Walk(model.Doc).Single(node => node.Type == "image");
@@ -985,7 +993,7 @@ public class DocxWriteBackTests
     [Fact]
     public void MarcadorEntreLinhasContinuaEntreAsLinhas()
     {
-        // Os filhos que não são linha ficam no lugar.
+        // Children that are not rows stay in place.
         var original = Fixtures.WithBookmarkBetweenRows();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
 
@@ -1005,7 +1013,7 @@ public class DocxWriteBackTests
     [Fact]
     public void CorDoCssViraHexadecimalDeSeisDigitos()
     {
-        // O Word dá por danificado `rgb(255, 0, 0)`, e desenha nome de cor como preto.
+        // Word reports `rgb(255, 0, 0)` as damaged, and draws color names as black.
         var original = Fixtures.Simple();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
 
@@ -1048,7 +1056,7 @@ public class DocxWriteBackTests
         Assert.Contains("w:vertAlign w:val=\"subscript\"", xml, StringComparison.Ordinal);
         Assert.Empty(result.Inventory.Lost);
 
-        // E o documento relido traz as duas marcas.
+        // And the reread document carries both marks.
         var reread = Roundtrip.Walk(Roundtrip.Open(saved).Doc)
             .SelectMany(node => node.Marks ?? [])
             .Select(mark => mark.Type)
@@ -1083,7 +1091,7 @@ public class DocxWriteBackTests
     [Fact]
     public void NomeDeCorForaDaTabelaNaoViraHexadecimal()
     {
-        // `fade` é hexadecimal válido, mas não cor.
+        // `fade` is valid hex, but not a color.
         var original = Fixtures.Simple();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
 
@@ -1119,7 +1127,7 @@ public class DocxWriteBackTests
             },
         ];
 
-        // 16 px são 12 pt, e `w:sz` é em meios-pontos.
+        // 16 px is 12 pt, and `w:sz` is in half-points.
         Assert.Contains(
             "w:sz w:val=\"24\"",
             Roundtrip.XmlOf(Roundtrip.Save(original, model).Bytes),
@@ -1129,7 +1137,8 @@ public class DocxWriteBackTests
     [Fact]
     public void CaractereDeControleNaoDerrubaAGravacao()
     {
-        // `\u0001` não existe no XML 1.0, nem escapado; `\u000B` e `\n` são quebra, e a tabulação, `w:tab`.
+        // `\u0001` does not exist in XML 1.0, not even escaped; `\u000B` and `\n` are breaks, and
+        // the tab is `w:tab`.
         var original = Fixtures.Simple();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
 
@@ -1151,7 +1160,7 @@ public class DocxWriteBackTests
     [Fact]
     public void PapelForaDeA4NaoEArredondadoAoSalvar()
     {
-        // O modelo só nomeia A4 e Carta: o `w:sectPr` só muda quando a página muda.
+        // The model only names A4 and Letter: `w:sectPr` only changes when the page changes.
         var original = Fixtures.WithCustomPaper();
         var (saved, _) = Roundtrip.Save(original, Roundtrip.Clone(Roundtrip.Open(original)));
 
@@ -1163,7 +1172,7 @@ public class DocxWriteBackTests
     [Fact]
     public void PapelQueOModeloNaoNomeiaEAvisadoComoInvisivel()
     {
-        // O painel mostra A4 para um A5: o aviso diz que a tela aproxima.
+        // The panel shows A4 for an A5: the warning says the screen approximates.
         var inventory = DocxReader.Read(Fixtures.WithCustomPaper()).Inventory;
 
         Assert.Contains(inventory.Invisible, message => message.Contains("papel", StringComparison.Ordinal));
@@ -1221,14 +1230,14 @@ public class DocxWriteBackTests
         var (saved, _) = Roundtrip.Save(original, model);
         var xml = Roundtrip.XmlOf(saved);
         Assert.Matches("<w:widowControl w:val=\"(0|false)\"", xml);
-        // O parágrafo comum continua calado, ligado pelo padrão.
+        // A regular paragraph stays silent, on by default.
         Assert.Equal(1, xml.Split("w:widowControl").Length - 1);
     }
 
     [Fact]
     public void KeepsTheTableCellMarginsWhenTheTableIsEdited()
     {
-        // `cellMargins` é só leitura: o `w:tblCellMar` do arquivo volta como estava.
+        // `cellMargins` is read-only: the file's `w:tblCellMar` goes back as it was.
         var original = Fixtures.WithCellMargins();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
 
@@ -1243,7 +1252,8 @@ public class DocxWriteBackTests
     [Fact]
     public void TopAnchoredImageKeepsItsTextWhenTheParagraphIsEdited()
     {
-        // O quadro foi para o começo do parágrafo no editor, e gravado continua um só, ancorado.
+        // The frame moved to the start of the paragraph in the editor, and once saved it is still a
+        // single anchored one.
         var original = Fixtures.WithTextAroundTopAnchoredImage();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
 

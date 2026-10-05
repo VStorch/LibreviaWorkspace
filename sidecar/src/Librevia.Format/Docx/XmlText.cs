@@ -5,9 +5,9 @@ using DocumentFormat.OpenXml.Wordprocessing;
 namespace Librevia.Format.Docx;
 
 /// <summary>
-/// O texto de um nó → os filhos de um <c>w:r</c>. O XML 1.0 não representa a
-/// maioria dos caracteres de controle, nem escapados: a tabulação vira <c>w:tab</c>,
-/// <c>\n</c> e o <c>\u000B</c> da quebra manual do Word viram <c>w:br</c>, e o resto sai.
+/// A node's text → the children of a <c>w:r</c>. XML 1.0 cannot represent most control characters,
+/// not even escaped: a tab becomes <c>w:tab</c>, <c>\n</c> and Word's manual line break
+/// <c>\u000B</c> become <c>w:br</c>, and the rest goes.
 /// </summary>
 internal static class XmlText
 {
@@ -22,7 +22,7 @@ internal static class XmlText
         {
             if (pending.Length == 0) return;
 
-            // Sem `preserve` o Word engole os espaços das pontas.
+            // Without `preserve` Word swallows the spaces at the ends.
             elements.Add(new Text(pending.ToString()) { Space = SpaceProcessingModeValues.Preserve });
             pending.Clear();
         }
@@ -38,7 +38,7 @@ internal static class XmlText
                     break;
 
                 case '\r':
-                    // `\r\n` é uma quebra só: a do `\n` que vem a seguir.
+                    // `\r\n` is a single break: the `\n` that follows provides it.
                     if (index + 1 < text.Length && text[index + 1] == '\n') break;
                     Flush();
                     elements.Add(new Break());
@@ -61,8 +61,8 @@ internal static class XmlText
     }
 
     /// <summary>
-    /// Par substituto só vale inteiro: a metade de um emoji cortado faria um arquivo
-    /// que não se reabre.
+    /// A surrogate pair only counts whole: half of a cut emoji would make a file that does not
+    /// reopen.
     /// </summary>
     private static bool IsAllowed(string text, int index)
     {

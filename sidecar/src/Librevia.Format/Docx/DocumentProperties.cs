@@ -7,10 +7,8 @@ using DocumentFormat.OpenXml.Packaging;
 
 namespace Librevia.Format.Docx;
 
-/// <summary>
-/// <c>docProps/core.xml</c> e parte de <c>docProps/app.xml</c>. Cada campo é um
-/// remendo: nulo deixa o arquivo como está, e vazio apaga. <c>TotalTime</c> só é lido.
-/// </summary>
+/// <c>docProps/core.xml</c> and part of <c>docProps/app.xml</c>. Each field is a patch: null leaves
+/// the file as it is, and empty clears it. <c>TotalTime</c> is read only.
 public sealed record PropertiesDto(
     [property: JsonPropertyName("title")]
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
@@ -53,8 +51,8 @@ public sealed record PropertiesDto(
     int? TotalTime = null);
 
 /// <summary>
-/// Pelo XML cru: o <c>PackageProperties</c> do SDK reserializa <c>core.xml</c> e
-/// descarta o que não conhece.
+/// Through the raw XML: the SDK's <c>PackageProperties</c> reserializes <c>core.xml</c> and drops
+/// what it does not know.
 /// </summary>
 internal static class DocumentProperties
 {
@@ -86,14 +84,14 @@ internal static class DocumentProperties
         (Ep + "Manager", p => p.Manager),
     ];
 
-    /// <summary>Nulo quando o pacote não tem nenhuma das duas partes, ou nenhum campo nelas.</summary>
+    /// <summary>Null when the package has neither part, or no field in them.</summary>
     public static PropertiesDto? Read(WordprocessingDocument document)
     {
         var core = Load(document.CoreFilePropertiesPart)?.Root;
         var app = Load(document.ExtendedFilePropertiesPart)?.Root;
         if (core is null && app is null) return null;
 
-        // Vazio é ausente, e não "apague": o `<dc:creator/>` do pacote novo fica.
+        // Empty means absent, not "clear": the new package's `<dc:creator/>` stays.
         string? Text(XElement? root, XName name) =>
             root?.Element(name)?.Value is { Length: > 0 } value ? value : null;
 
@@ -121,7 +119,9 @@ internal static class DocumentProperties
         return read == new PropertiesDto() ? null : read;
     }
 
-    /// <summary>Só a parte que muda é regravada, com o que o editor não conhece.</summary>
+    /// <summary>
+    /// Only the part that changes is rewritten, with what the editor does not know.
+    /// </summary>
     public static void Apply(WordprocessingDocument document, PropertiesDto? model, HashSet<string> touched)
     {
         if (model is null) return;
@@ -133,7 +133,7 @@ internal static class DocumentProperties
             if (corePart is null)
             {
                 corePart = document.AddCoreFilePropertiesPart();
-                // A relação nova mora em `_rels/.rels`, que voltaria sem ela.
+                // The new relationship lives in `_rels/.rels`, which would come back without it.
                 touched.Add("_rels/.rels");
             }
 
@@ -156,7 +156,7 @@ internal static class DocumentProperties
         }
     }
 
-    /// <returns>Se algum campo mudou.</returns>
+    /// <returns>Whether any field changed.</returns>
     private static bool Patch(
         ref XDocument? xml,
         (XName Name, Func<PropertiesDto, string?> Get)[] fields,
@@ -187,7 +187,7 @@ internal static class DocumentProperties
                 element = new XElement(name);
                 if (name.Namespace == DcTerms)
                 {
-                    // Sem o tipo, o Word lê `dcterms:created` como texto, e não como data.
+                    // Without the type, Word reads `dcterms:created` as text, not as a date.
                     EnsurePrefix(root, "xsi", Xsi);
                     EnsurePrefix(root, "dcterms", DcTerms);
                     element.SetAttributeValue(Xsi + "type", "dcterms:W3CDTF");
@@ -228,8 +228,8 @@ internal static class DocumentProperties
             new XAttribute(XNamespace.Xmlns + "vt", Vt.NamespaceName)));
 
     /// <summary>
-    /// Nulo quando a parte falta ou está malformada: as propriedades são acessórias, e
-    /// não recusam o documento.
+    /// Null when the part is missing or malformed: properties are accessory, and do not refuse the
+    /// document.
     /// </summary>
     private static XDocument? Load(OpenXmlPart? part)
     {
@@ -250,7 +250,7 @@ internal static class DocumentProperties
 
     private static void Save(OpenXmlPart part, XDocument xml)
     {
-        // O XmlWriter escreveria `utf-8`; o Word e o LibreOffice escrevem `UTF-8`.
+        // XmlWriter would write `utf-8`; Word and LibreOffice write `UTF-8`.
         var standalone = xml.Declaration?.Standalone is { Length: > 0 } value ? value : "yes";
         using var stream = part.GetStream(FileMode.Create, FileAccess.Write);
         var declaration = Encoding.UTF8.GetBytes(

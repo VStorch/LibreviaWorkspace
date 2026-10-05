@@ -8,17 +8,17 @@ using static Librevia.Format.Tests.Roundtrip;
 namespace Librevia.Format.Tests;
 
 /// <summary>
-/// Equações: a nova ou editada chega sem OMML, só com o MathML, e o OMML sai
-/// dele (OmmlMath.ToOmml).
+/// Equations: a new or edited one arrives without OMML, only with MathML, and the OMML comes from
+/// it (OmmlMath.ToOmml).
 /// </summary>
 public class MathEditTests
 {
     private static readonly XNamespace M = OmmlMath.M;
 
     /// <summary>
-    /// A forma de um OMML: cada construção com os argumentos, o texto dos runs
-    /// vizinhos fundido (o Word e este escritor partem em lugares diferentes) e os
-    /// caracteres de n-ário, acento e delimitador.
+    /// The shape of an OMML: each construct with its arguments, the text of neighbouring runs
+    /// merged (Word and this writer split in different places) and the n-ary, accent and delimiter
+    /// characters.
     /// </summary>
     private static string Shape(XElement element)
     {
@@ -70,7 +70,7 @@ public class MathEditTests
     private const string Ns = "xmlns=\"http://www.w3.org/1998/Math/MathML\"";
 
     [Theory]
-    // O Temml: fração e raiz (com a escora `mspace` dentro).
+    // Temml: fraction and root (with the `mspace` strut inside).
     [InlineData("<mfrac><mi>a</mi><mi>b</mi></mfrac><mo>+</mo><msqrt><mrow><mi>x</mi><mspace width=\"0pt\" height=\"0.5em\"/></mrow></msqrt>",
         "f(num(\"a\")den(\"b\"))\"+\"rad(deg()e(\"x\"))")]
     [InlineData("<mroot><mrow><mi>x</mi></mrow><mn>3</mn></mroot>", "rad(deg(\"3\")e(\"x\"))")]
@@ -78,17 +78,17 @@ public class MathEditTests
     [InlineData("<msub><mi>x</mi><mi>i</mi></msub>", "sSub(e(\"x\")sub(\"i\"))")]
     [InlineData("<msup><mi>x</mi><mn>2</mn></msup>", "sSup(e(\"x\")sup(\"2\"))")]
     [InlineData("<msubsup><mi>x</mi><mi>i</mi><mn>2</mn></msubsup>", "sSubSup(e(\"x\")sub(\"i\")sup(\"2\"))")]
-    // O pré-índice: o nosso `mmultiscripts` e o `{}_a^b X` do Temml.
+    // The prescript: our `mmultiscripts` and Temml's `{}_a^b X`.
     [InlineData("<mmultiscripts><mi>X</mi><mprescripts/><mi>a</mi><mi>b</mi></mmultiscripts>", "sPre(sub(\"a\")sup(\"b\")e(\"X\"))")]
     [InlineData("<mrow><msubsup><mrow></mrow><mi>a</mi><mi>b</mi></msubsup><mi>X</mi></mrow>", "sPre(sub(\"a\")sup(\"b\")e(\"X\"))")]
-    // O n-ário do Temml, com o corpo como irmão até o próximo operador.
+    // Temml's n-ary, with the body as a sibling up to the next operator.
     [InlineData("<mrow><msubsup><mo movablelimits=\"false\">∑</mo><mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow><mi>n</mi></msubsup><msub><mi>x</mi><mi>i</mi></msub><mo>=</mo><mi>y</mi></mrow>",
         "nary[∑](sub(\"i=1\")sup(\"n\")e(sSub(e(\"x\")sub(\"i\"))))\"=y\"")]
     [InlineData("<mrow><mrow><munderover><mo movablelimits=\"false\">∏</mo><mi>k</mi><mi>m</mi></munderover></mrow><mi>a</mi></mrow>",
         "nary[∏](sub(\"k\")sup(\"m\")e(\"a\"))")]
     [InlineData("<mrow><msubsup><mo movablelimits=\"false\">∫</mo><mn>0</mn><mn>1</mn></msubsup><mi>f</mi><mspace width=\"0.1667em\"/><mi>d</mi><mi>x</mi></mrow>",
         "nary[∫](sub(\"0\")sup(\"1\")e(\"fdx\"))")]
-    // Os delimitadores, com separador.
+    // Delimiters, with a separator.
     [InlineData("<mrow><mo fence=\"true\" stretchy=\"true\">(</mo><mi>x</mi><mo stretchy=\"true\" form=\"infix\">|</mo><mi>y</mi><mo fence=\"true\" stretchy=\"true\">)</mo></mrow>",
         "d[()](e(\"x\")e(\"y\"))")]
     [InlineData("<mrow><mo fence=\"true\">{</mo><mi>x</mi><mo fence=\"true\"></mo></mrow>", "d[{](e(\"x\"))")]
@@ -97,7 +97,7 @@ public class MathEditTests
     [InlineData("<mrow><mo fence=\"true\">(</mo><mtable><mtr><mtd><mi>a</mi></mtd><mtd><mi>b</mi></mtd></mtr><mtr><mtd><mi>c</mi></mtd><mtd><mi>d</mi></mtd></mtr></mtable><mo fence=\"true\">)</mo></mrow>",
         "d[()](e(m(mr(e(\"a\")e(\"b\"))mr(e(\"c\")e(\"d\")))))")]
     [InlineData("<mtable><mtr><mtd><mi>a</mi></mtd></mtr><mtr><mtd><mi>b</mi></mtd></mtr></mtable>", "eqArr(e(\"a\")e(\"b\"))")]
-    // Acentos, barra, chave por cima e por baixo, limites.
+    // Accents, bar, overbrace and underbrace, limits.
     [InlineData("<mover><mi>x</mi><mo stretchy=\"false\">ˆ</mo></mover>", "acc[̂](e(\"x\"))")]
     [InlineData("<mover><mi>v</mi><mo stretchy=\"false\">→</mo></mover>", "acc[⃗](e(\"v\"))")]
     [InlineData("<mover><mi>a</mi><mo stretchy=\"false\">˙</mo></mover>", "acc[̇](e(\"a\"))")]
@@ -109,11 +109,11 @@ public class MathEditTests
     [InlineData("<mover><mrow><mi>a</mi></mrow><mo stretchy=\"true\">⏞</mo></mover>", "groupChr[⏞top](e(\"a\"))")]
     [InlineData("<munder><mi>lim</mi><mrow><mi>n</mi><mo>→</mo><mi>∞</mi></mrow></munder>", "limLow(e(\"lim\")lim(\"n→∞\"))")]
     [InlineData("<mover><mi>b</mi><mi>a</mi></mover>", "limUpp(e(\"b\")lim(\"a\"))")]
-    // A função: a do Temml (o nome com o U+2061 num `mrow`) e a nossa.
+    // Functions: Temml's (the name with U+2061 in an `mrow`) and ours.
     [InlineData("<mrow><mrow><mi>sin</mi><mo>⁡</mo><mspace width=\"0.1667em\"/></mrow><mi>x</mi></mrow>", "func(fName(\"sin\")e(\"x\"))")]
     [InlineData("<mrow><mrow><mi mathvariant=\"normal\">log</mi></mrow><mo>⁡</mo><mrow><mi>z</mi></mrow></mrow>", "func(fName(\"log\")e(\"z\"))")]
     [InlineData("<mrow><munder><mi>lim</mi><mi>x</mi></munder><mo>⁡</mo><mspace width=\"0.1667em\"/><mi>f</mi></mrow>", "func(fName(limLow(e(\"lim\")lim(\"x\")))e(\"f\"))")]
-    // A caixa, e o texto.
+    // The box, and the text.
     [InlineData("<mrow class=\"omml-caixa\"><mi>z</mi></mrow>", "borderBox(e(\"z\"))")]
     [InlineData("<mi>a</mi><mtext> se </mtext><mi>b</mi>", "\"a se b\"")]
     public void ConverteCadaConstrucao(string inner, string expected)
@@ -174,7 +174,7 @@ public class MathEditTests
         Display,
         LibreOffice,
         TwoLines,
-        // As construções que a tela desenha e os fixtures não trazem.
+        // Constructs the screen draws and the fixtures do not carry.
         $"<w:p><m:oMath><m:sPre><m:sub>{R("a")}</m:sub><m:sup>{R("b")}</m:sup><m:e>{R("X")}</m:e></m:sPre>" +
         $"""<m:acc><m:accPr><m:chr m:val="⃗"/></m:accPr><m:e>{R("v")}</m:e></m:acc>""" +
         $"""<m:bar><m:barPr><m:pos m:val="top"/></m:barPr><m:e>{R("AB")}</m:e></m:bar>""" +
@@ -208,7 +208,9 @@ public class MathEditTests
         }
     }
 
-    /// <summary>Os `m:oMathPara` (a de exibição é comparada inteira, linhas incluídas).</summary>
+    /// <summary>
+    /// The `m:oMathPara`s (a display equation is compared whole, lines included).
+    /// </summary>
     private static List<string> ParasOf(byte[] docx)
     {
         using var stream = new MemoryStream(docx);
@@ -217,7 +219,7 @@ public class MathEditTests
             .Select(math => math.OuterXml).ToList();
     }
 
-    /// <summary>Um MathML com todas as construções do mapa, como o Temml as escreve.</summary>
+    /// <summary>A MathML with every construct in the map, as Temml writes them.</summary>
     private static readonly string Everything =
         $"<math {Ns}><mrow>" +
         "<mfrac><mi>a</mi><mi>b</mi></mfrac><msqrt><mi>x</mi></msqrt><mroot><mi>x</mi><mn>3</mn></mroot>" +
@@ -261,7 +263,7 @@ public class MathEditTests
         if (display) Assert.Matches("<m:oMathPara[^>]*><m:oMathParaPr><m:jc m:val=\"left\" ?/></m:oMathParaPr>", xml);
         else Assert.DoesNotContain("oMathPara", xml);
 
-        // Reaberta, a equação desenha o que foi gravado.
+        // Reopened, the equation draws what was saved.
         var reread = Equations(Open(bytes)).Single();
         Assert.Equal("true", reread.Attrs!["editable"]!.ToJsonString());
         Assert.Contains("<mfrac>", reread.Attrs!["mathml"]!.GetValue<string>());
@@ -293,7 +295,7 @@ public class MathEditTests
             "<m:oMath><m:r><w:rPr><w:rFonts w:ascii=\"Arial\" w:hAnsi=\"Arial\"/></w:rPr><m:t>y</m:t></m:r></m:oMath></w:p>";
         var original = WithMath(colored);
 
-        // Sem editar a equação, nada se perde, mesmo reescrevendo o parágrafo.
+        // Without editing the equation nothing is lost, even when rewriting the paragraph.
         var untouched = Clone(Open(original));
         untouched.Doc.Content![0].Content!.Add(new Node { Type = "text", Text = " fim" });
         Assert.Empty(Save(original, untouched).Result.Inventory.Lost);
@@ -318,7 +320,8 @@ public class MathEditTests
     [Fact]
     public void TrocarAEquacaoComOControleLigadoGravaExclusaoEInsercao()
     {
-        // O editor troca a equação como exclusão e inserção (`track-input.ts`), no mesmo parágrafo.
+        // The editor replaces the equation as a deletion and an insertion (`track-input.ts`), in
+        // the same paragraph.
         var original = WithMath();
         var model = Clone(Open(original));
         var old = Equations(model)[0];

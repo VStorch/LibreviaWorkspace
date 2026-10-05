@@ -3,7 +3,9 @@ using System.Text.Json.Serialization;
 
 namespace Librevia.Format.Xlsx;
 
-/// <summary>Espelho de <c>WorkbookModel</c> em <c>src/services/spreadsheet/model.ts</c>: mudam juntos.</summary>
+/// <summary>
+/// Mirrors <c>WorkbookModel</c> in <c>src/services/spreadsheet/model.ts</c>: they change together.
+/// </summary>
 public sealed class WorkbookDto
 {
     [JsonPropertyName("sheets")]
@@ -18,11 +20,11 @@ public sealed class SheetDto
     [JsonPropertyName("name")]
     public required string Name { get; set; }
 
-    /// <summary>Mapa esparso por referência A1, como no modelo do aplicativo.</summary>
+    /// <summary>A sparse map by A1 reference, as in the app model.</summary>
     [JsonPropertyName("cells")]
     public Dictionary<string, CellDto> Cells { get; init; } = [];
 
-    /// <summary>Larguras em pixels, por índice de coluna base zero.</summary>
+    /// <summary>Widths in pixels, by zero-based column index.</summary>
     [JsonPropertyName("columnWidths")]
     public Dictionary<int, double> ColumnWidths { get; init; } = [];
 
@@ -44,26 +46,28 @@ public sealed class SheetDto
 
 public sealed class CellDto
 {
-    /// <summary>Número, texto ou booleano. Data é número de série.</summary>
+    /// <summary>Number, text or boolean. A date is a serial number.</summary>
     [JsonPropertyName("value")]
     [JsonConverter(typeof(ScalarConverter))]
     public object? Value { get; set; }
 
-    /// <summary>Fórmula com o <c>=</c> inicial, já no idioma do aplicativo.</summary>
+    /// <summary>With the leading <c>=</c>, already in the app's language.</summary>
     [JsonPropertyName("formula")]
     public string? Formula { get; set; }
 
     [JsonPropertyName("style")]
     public CellStyleDto? Style { get; set; }
 
-    /// <summary>Por conteúdo: é o que poupa as células que a pessoa não mexeu.</summary>
+    /// <summary>By content: that is what spares the cells the user did not touch.</summary>
     public bool SameAs(CellDto? other) =>
         other is not null
         && Equals(Normalize(Value), Normalize(other.Value))
         && Formula == other.Formula
         && CellStyleDto.Same(Style, other.Style);
 
-    /// <summary>O inteiro em <c>double</c> e em <c>long</c> difere no <c>Equals</c>, mesmo depois do JSON.</summary>
+    /// <summary>
+    /// An integer as <c>double</c> and as <c>long</c> differ in <c>Equals</c>, even after JSON.
+    /// </summary>
     private static object? Normalize(object? value) => value switch
     {
         null => null,
@@ -74,8 +78,8 @@ public sealed class CellDto
 }
 
 /// <summary>
-/// Valor de célula como <c>double</c>, <c>string</c>, <c>bool</c> ou nada. Sem ele,
-/// <c>object?</c> vira <c>JsonElement</c>, que não converte para número.
+/// A cell value as <c>double</c>, <c>string</c>, <c>bool</c> or nothing. Without it, <c>object?</c>
+/// becomes a <c>JsonElement</c>, which does not convert to a number.
 /// </summary>
 internal sealed class ScalarConverter : JsonConverter<object?>
 {
@@ -93,7 +97,7 @@ internal sealed class ScalarConverter : JsonConverter<object?>
                 return reader.GetDouble();
             case JsonTokenType.StartObject:
             case JsonTokenType.StartArray:
-                // Sem pular, o resto do JSON sairia desalinhado.
+                // Without skipping, the rest of the JSON would come out misaligned.
                 reader.Skip();
                 return null;
             default:
@@ -138,11 +142,11 @@ public sealed class CellStyleDto
     [JsonPropertyName("background")]
     public string? Background { get; set; }
 
-    /// <summary>left, center ou right.</summary>
+    /// <summary>left, center or right.</summary>
     [JsonPropertyName("align")]
     public string? Align { get; set; }
 
-    /// <summary>general, text, number, currency, percent ou date.</summary>
+    /// <summary>general, text, number, currency, percent or date.</summary>
     [JsonPropertyName("format")]
     public string? Format { get; set; }
 
@@ -181,10 +185,10 @@ public sealed class CellStyleDto
     }
 }
 
-    /// <summary>O modelo e o que não damos conta.</summary>
+    /// <summary>The model and what we cannot handle.</summary>
 public sealed record XlsxOpenResult(
     [property: JsonPropertyName("workbook")] WorkbookDto Workbook,
     [property: JsonPropertyName("inventory")] Docx.Inventory Inventory);
 
-/// <summary>Erro de planilha com frase pronta para o usuário.</summary>
+/// <summary>A spreadsheet error with a sentence ready for the user.</summary>
 public sealed class XlsxException(string message) : Exception(message);

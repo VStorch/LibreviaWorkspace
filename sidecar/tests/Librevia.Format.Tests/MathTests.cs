@@ -7,15 +7,15 @@ using OfficeMath = DocumentFormat.OpenXml.Math.OfficeMath;
 namespace Librevia.Format.Tests;
 
 /// <summary>
-/// Equações: lidas como nó <c>math</c>, desenhadas em MathML e devolvidas com o OMML
-/// como veio. O OMML dos fixtures é o que o Word e o LibreOffice gravam.
+/// Equations: read as a <c>math</c> node, drawn in MathML and returned with the OMML as it came.
+/// The fixtures' OMML is what Word and LibreOffice write.
 /// </summary>
 public class MathTests
 {
     internal const string W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
     internal const string Mns = "http://schemas.openxmlformats.org/officeDocument/2006/math";
 
-    /// <summary>O `m:r` do Word: a fonte de matemática no `w:rPr`, o estilo no `m:rPr`.</summary>
+    /// <summary>Word's `m:r`: the math font in `w:rPr`, the style in `m:rPr`.</summary>
     internal static string R(string text, string? sty = null) =>
         "<m:r>" + (sty is null ? string.Empty : $"""<m:rPr><m:sty m:val="{sty}"/></m:rPr>""") +
         """<w:rPr><w:rFonts w:ascii="Cambria Math" w:hAnsi="Cambria Math"/></w:rPr>""" +
@@ -23,13 +23,13 @@ public class MathTests
 
     internal const string Ctrl = """<m:ctrlPr><w:rPr><w:rFonts w:ascii="Cambria Math" w:hAnsi="Cambria Math"/><w:i/></w:rPr></m:ctrlPr>""";
 
-    /// <summary>πr² no meio da frase, como o Word grava a equação em linha.</summary>
+    /// <summary>πr² mid-sentence, as Word writes an inline equation.</summary>
     internal static readonly string Inline =
         """<w:p><w:r><w:t xml:space="preserve">A área é </w:t></w:r>""" +
         $"<m:oMath>{R("π")}<m:sSup><m:sSupPr>{Ctrl}</m:sSupPr><m:e>{R("r")}</m:e><m:sup>{R("2")}</m:sup></m:sSup></m:oMath>" +
         """<w:r><w:t xml:space="preserve"> e acabou.</w:t></w:r></w:p>""";
 
-    /// <summary>A fórmula de Bhaskara em exibição, centrada, como o Word a grava.</summary>
+    /// <summary>The quadratic formula in display mode, centered, as Word writes it.</summary>
     internal static readonly string Display =
         """<w:p><m:oMathPara><m:oMathParaPr><m:jc m:val="center"/></m:oMathParaPr><m:oMath>""" +
         R("x") + R("=") +
@@ -38,8 +38,8 @@ public class MathTests
         "</m:oMath></m:oMathPara></w:p>";
 
     /// <summary>
-    /// Como o LibreOffice grava: `m:sty` sempre explícito, o somatório com os
-    /// liga-desliga declarados, o delimitador com o separador vazio.
+    /// As LibreOffice writes it: `m:sty` always explicit, the sum with its toggles declared, the
+    /// delimiter with an empty separator.
     /// </summary>
     internal static readonly string LibreOffice =
         """<w:p><w:r><w:t xml:space="preserve">Soma </w:t></w:r><m:oMath>""" +
@@ -50,13 +50,13 @@ public class MathTests
         $"<m:e>{R("y", "i")}</m:e></m:d>" +
         "</m:oMath></w:p>";
 
-    /// <summary>A caixa sem o lado de cima: o CSS de um `mrow` não a desenha.</summary>
+    /// <summary>A box without its top side: a CSS `mrow` cannot draw it.</summary>
     internal static readonly string Lossy =
         """<w:p><w:r><w:t xml:space="preserve">Caixa </w:t></w:r><m:oMath>""" +
         $"""<m:borderBox><m:borderBoxPr><m:hideTop m:val="1"/></m:borderBoxPr><m:e>{R("z")}</m:e></m:borderBox>""" +
         "</m:oMath></w:p>";
 
-    /// <summary>Duas linhas numa equação de exibição (Shift+Enter no Word).</summary>
+    /// <summary>Two lines in a display equation (Shift+Enter in Word).</summary>
     internal static readonly string TwoLines =
         """<w:p><m:oMathPara><m:oMathParaPr><m:jc m:val="left"/></m:oMathParaPr>""" +
         $"<m:oMath>{R("a")}{R("=")}{R("1")}</m:oMath><m:oMath>{R("b")}{R("=")}{R("2")}</m:oMath>" +
@@ -212,12 +212,12 @@ public class MathTests
         Assert.StartsWith("<m:oMathPara", Attr(display, "omml"));
         Assert.Contains("<msqrt><mrow><mi>Δ</mi></mrow></msqrt>", Attr(display, "mathml"));
 
-        // A de duas linhas é um nó só, com uma linha por `m:oMath`.
+        // The two-line one is a single node, with one line per `m:oMath`.
         var lines = equations[4];
         Assert.Contains("""<mtable columnalign="left"><mtr>""", Attr(lines, "mathml"));
         Assert.Equal(2, Attr(lines, "mathml")!.Split("<mtr>").Length - 1);
 
-        // O texto em volta continua sendo texto.
+        // The surrounding text stays text.
         Assert.Contains("A área é ", TextOf(result.Model));
         Assert.Contains(" e acabou.", TextOf(result.Model));
     }
@@ -266,9 +266,9 @@ public class MathTests
 
         var xml = XmlOf(bytes);
         Assert.Contains("A área do círculo é ", xml);
-        // Sem o `xmlns:w` que o OuterXml declara em cada `w:rPr`.
+        // Without the `xmlns:w` OuterXml declares on each `w:rPr`.
         Assert.DoesNotContain("<w:rPr xmlns:w=", xml);
-        // A equação volta no mesmo lugar: entre os dois trechos de texto.
+        // The equation comes back in the same place: between the two text runs.
         var reread = Open(bytes);
         var paragraph = reread.Doc.Content!.Single(block => Walk(block).Any(node => node.Text == "A área do círculo é "));
         Assert.Equal(["text", "math", "text"], paragraph.Content!.Select(node => node.Type));
@@ -277,7 +277,8 @@ public class MathTests
     [Fact]
     public void OMathMLDerivadoNaoMudaAImpressaoDigital()
     {
-        // MathML, LaTeX e lista saem do OMML: uma conversão melhor não pode fazer o parágrafo parecer editado.
+        // MathML, LaTeX and the list come from the OMML: a better conversion must not make the
+        // paragraph look edited.
         var original = WithMath();
         var model = Clone(Open(original));
         foreach (var equation in Equations(model))
@@ -306,7 +307,7 @@ public class MathTests
     public void RascunhoDeAntesDasEquacoesDeclaraAPerdaAoEditar()
     {
         var original = WithMath();
-        // O modelo de antes das equações: sem `math`.
+        // The model from before equations: no `math`.
         List<Node> content;
         using (var stream = new MemoryStream(original))
         using (var document = WordprocessingDocument.Open(stream, false))

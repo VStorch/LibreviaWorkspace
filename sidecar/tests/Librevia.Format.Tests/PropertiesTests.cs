@@ -5,10 +5,8 @@ using static Librevia.Format.Tests.Roundtrip;
 
 namespace Librevia.Format.Tests;
 
-/// <summary>
-/// <c>docProps/core.xml</c> e <c>docProps/app.xml</c>: gravadas só quando algum campo
-/// muda, com o resto da parte intacto.
-/// </summary>
+/// <c>docProps/core.xml</c> and <c>docProps/app.xml</c>: written only when some field changes, with
+/// the rest of the part intact.
 public class PropertiesTests
 {
     private const string Core =
@@ -32,7 +30,7 @@ public class PropertiesTests
         """<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/custom-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes">""" +
         """<property fmtid="{D5CDD505-2E9C-101B-9397-08002B2CF9AE}" pid="2" name="Cliente"><vt:lpwstr>XPTO</vt:lpwstr></property></Properties>""";
 
-    /// <summary>O documento simples com as três partes de propriedades, como o Word as grava.</summary>
+    /// <summary>The simple document with the three property parts, as Word writes them.</summary>
     private static byte[] WithProperties()
     {
         using var buffer = new MemoryStream();
@@ -82,7 +80,7 @@ public class PropertiesTests
         var original = WithProperties();
         var before = PartsOf(original);
 
-        // O modelo como a leitura o deu, propriedades incluídas, e também sem elas.
+        // The model as reading gave it, properties included, and also without them.
         foreach (var model in new[] { Clone(Open(original)), Clone(Open(original)) with { Properties = null } })
         {
             var after = PartsOf(Save(original, model).Bytes);

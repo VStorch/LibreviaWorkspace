@@ -4,7 +4,9 @@ using System.Text.Json.Serialization;
 
 namespace Librevia.Format.Docx;
 
-/// <summary>O espelho de <c>DocumentNode</c> em <c>src/services/document/model.ts</c>: mudam juntos.</summary>
+/// <summary>
+/// Mirrors <c>DocumentNode</c> in <c>src/services/document/model.ts</c>: they change together.
+/// </summary>
 public sealed class Node
 {
     [JsonPropertyName("type")]
@@ -32,16 +34,17 @@ public sealed class Node
     }
 
     /// <summary>
-    /// A forma que decide se o usuário mexeu no bloco. Leitor e editor descrevem o
-    /// mesmo bloco de jeitos diferentes, e estas diferenças são **de forma**:
+    /// The shape that decides whether the user touched the block. Reader and editor describe the
+    /// same block differently, and these differences are **of shape**:
     /// <list type="number">
-    /// <item>o <c>oid</c> é identidade, e não conteúdo;</item>
-    /// <item>atributo nulo é ausente: o ProseMirror materializa todo atributo do schema;</item>
-    /// <item>a ordem das marcas é a do schema de um lado e a do <c>w:rPr</c> do outro;</item>
-    /// <item>texto vizinho de marcas iguais: o ProseMirror funde, o leitor emite um por <c>w:r</c>;</item>
-    /// <item>a ordem das chaves do <c>JsonObject</c>.</item>
+    /// <item>the <c>oid</c> is identity, not content;</item>
+    /// <item>a null attribute is absent: ProseMirror materializes every schema attribute;</item>
+    /// <item>mark order is the schema's on one side and the <c>w:rPr</c>'s on the other;</item>
+    /// <item>neighbouring text with equal marks: ProseMirror merges, the reader emits one per
+    /// <c>w:r</c>;</item>
+    /// <item>the key order of the <c>JsonObject</c>.</item>
     /// </list>
-    /// Só para a comparação: quem grava é o XML original.
+    /// Only for comparison: saving writes the original XML.
     /// </summary>
     public string Fingerprint()
     {
@@ -64,7 +67,8 @@ public sealed class Node
         switch (node)
         {
             case JsonObject o:
-                // A referência de nota vale pelo que aponta: o corpo NotesWriter compara à parte.
+                // A note reference is identified by what it points to: NotesWriter compares the
+                // body separately.
                 if (o["type"]?.GetValueKind() == JsonValueKind.String &&
                     o["type"]!.GetValue<string>() == "noteRef")
                 {
@@ -78,7 +82,8 @@ public sealed class Node
                     }
                 }
 
-                // A equação vale pelo OMML, de que o resto sai; a nova (sem OMML), pelo MathML e pelo modo.
+                // An equation is identified by its OMML, from which the rest derives; a new one
+                // (without OMML), by its MathML and mode.
                 if (o["type"]?.GetValueKind() == JsonValueKind.String &&
                     o["type"]!.GetValue<string>() == "math" &&
                     o["attrs"] is JsonObject mathAttrs &&
@@ -94,7 +99,8 @@ public sealed class Node
                 if (o["attrs"] is JsonObject attrs)
                 {
                     attrs.Remove("oid");
-                    // A marca de seção é identidade: o id muda quando uma quebra nova parte a seção.
+                    // The section mark is identity: the id changes when a new break splits the
+                    // section.
                     attrs.Remove("sectionBreak");
                     foreach (var entry in attrs.ToList())
                     {
@@ -118,7 +124,7 @@ public sealed class Node
     {
         foreach (var mark in marks) Normalize(mark);
 
-        // `JsonArray` não ordena no lugar, e um nó só tem um pai: daí o `DeepClone`.
+        // `JsonArray` does not sort in place, and a node has a single parent: hence `DeepClone`.
         var sorted = marks
             .Select(mark => mark?.DeepClone())
             .OrderBy(

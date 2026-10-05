@@ -4,17 +4,19 @@ using DocumentFormat.OpenXml.Wordprocessing;
 
 namespace Librevia.Format.Docx;
 
-/// <summary>Formatação de caractere do OOXML → marcas do editor.</summary>
+/// <summary>OOXML character formatting → editor marks.</summary>
 public static class RunReader
 {
-    /// <summary><c>&lt;w:b/&gt;</c> liga, <c>&lt;w:b w:val="false"/&gt;</c> desliga: a presença não basta.</summary>
+    /// <c>&lt;w:b/&gt;</c> turns on, <c>&lt;w:b w:val="false"/&gt;</c> turns off: presence is not
+    /// enough.
     public static bool IsOn(OnOffType? toggle) =>
         toggle is not null && (toggle.Val is null || toggle.Val.Value);
 
-    /// <param name="inherited">Com ele, o que o estilo liga e o run desliga sai como <see cref="Off"/>.</param>
+    /// <param name="inherited">With it, what the style turns on and the run turns off comes out as
+    /// <see cref="Off"/>.</param>
     /// <param name="directOnly">
-    /// No parágrafo desenhado pelos estilos, só sai marca do que **difere** do
-    /// herdado, como no escritor (<c>ParagraphWriter.DropWhatRepeatsTheStyle</c>).
+    /// On a paragraph drawn by styles, only marks that **differ** from the inherited ones come out,
+    /// as in the writer (<c>ParagraphWriter.DropWhatRepeatsTheStyle</c>).
     /// </param>
     public static List<Mark>? MarksOf(
         RunProperties? properties,
@@ -43,8 +45,8 @@ public static class RunReader
             if (IsOn(properties.Caps) && !IsOn(from?.Caps)) marks.Add(Mark.Of("caps"));
             if (IsOn(properties.SmallCaps) && !IsOn(from?.SmallCaps)) marks.Add(Mark.Of("smallCaps"));
 
-            // `baseline` é o normal. Emitido mesmo quando repete o estilo, como o
-            // realce: o CSS dos estilos não os desenha.
+            // `baseline` is normal. Emitted even when it repeats the style, like highlight: the
+            // style CSS does not draw them.
             var vertical = properties.VerticalTextAlignment?.Val;
             if (vertical is not null)
             {
@@ -52,7 +54,7 @@ public static class RunReader
                 else if (vertical.Value == VerticalPositionValues.Subscript) marks.Add(Mark.Of("subscript"));
             }
 
-            // `w:u` carrega o estilo do sublinhado, e "none" desliga.
+            // `w:u` carries the underline style, and "none" turns it off.
             if (IsUnderlined(properties)) { if (from is null || !IsUnderlined(from)) marks.Add(Mark.Of("underline")); }
             else if (inherited is not null && IsUnderlined(inherited)) marks.Add(Off("underline"));
 
@@ -64,7 +66,7 @@ public static class RunReader
 
             var style = TextStyleOf(properties, fonts);
 
-            // Campo a campo: a cor que repete o estilo sai, o tamanho que difere fica.
+            // Field by field: a color repeating the style goes, a size that differs stays.
             if (style?.Attrs is { } attributes && from is not null && TextStyleOf(from, fonts)?.Attrs is { } baseline)
             {
                 foreach (var (name, value) in baseline)
@@ -90,7 +92,10 @@ public static class RunReader
     private static bool IsUnderlined(RunProperties properties) =>
         properties.Underline?.Val is not null && properties.Underline.Val.Value != UnderlineValues.None;
 
-    /// <summary>O trecho que o autor tirou do negrito de um título: <c>font-weight: 400</c> na tela, <c>w:b w:val="0"</c> no arquivo.</summary>
+    /// <summary>
+    /// A range the author un-bolded in a heading: <c>font-weight: 400</c> on screen, <c>w:b
+    /// w:val="0"</c> in the file.
+    /// </summary>
     public static Mark Off(string type) => Mark.Of(type, "off", true);
 
     private static Mark? TextStyleOf(RunProperties properties, FontTable? fonts)
@@ -106,23 +111,23 @@ public static class RunReader
             attributes["fontSize"] = FormatPoints(Unit.HalfPointsToPoints(halfPoints));
         }
 
-        // Com a substituta genérica atrás (FontTable).
+        // With the generic substitute behind it (FontTable).
         var font = properties.RunFonts?.Ascii?.Value ?? properties.RunFonts?.HighAnsi?.Value;
         if (!string.IsNullOrWhiteSpace(font)) attributes["fontFamily"] = fonts?.Stack(font) ?? font;
 
         return attributes.Count == 0 ? null : new Mark { Type = "textStyle", Attrs = attributes };
     }
 
-    /// <summary>Pública para <see cref="StyleReader"/>: a mesma medida no estilo e no trecho.</summary>
+    /// <summary>
+    /// Public for <see cref="StyleReader"/>: the same measure in the style and in the run.
+    /// </summary>
     public static string FormatPoints(double points) =>
         points == Math.Floor(points)
             ? $"{(int)points}pt"
             : points.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture) + "pt";
 
-    /// <summary>
-    /// <c>w:highlight</c> traz nome, <c>w:shd</c> traz hexadecimal. Pelo elemento, para
-    /// servir aos três <c>w:rPr</c> do OOXML (trecho, estilo, padrão).
-    /// </summary>
+    /// <c>w:highlight</c> carries a name, <c>w:shd</c> a hex value. By element, to serve OOXML's
+    /// three <c>w:rPr</c>s (run, style, default).
     public static string? HighlightOf(OpenXmlElement properties)
     {
         var highlight = properties.GetFirstChild<Highlight>()?.Val;
@@ -134,17 +139,19 @@ public static class RunReader
         return ColorOf(properties.GetFirstChild<Shading>()?.Fill);
     }
 
-    /// <summary>Ou <c>null</c> quando não é cor.</summary>
+    /// <summary>Or <c>null</c> when it is not a color.</summary>
     public static string? ColorOf(StringValue? value) =>
         IsRealColor(value?.Value) ? "#" + value!.Value!.TrimStart('#').ToLowerInvariant() : null;
 
-    /// <summary>"auto" não é cor: ignorá-lo evita gravar preto onde não se pediu.</summary>
+    /// <summary>
+    /// "auto" is not a color: ignoring it avoids writing black where none was asked for.
+    /// </summary>
     private static bool IsRealColor(string? value) =>
         !string.IsNullOrWhiteSpace(value) &&
         !value.Equals("auto", StringComparison.OrdinalIgnoreCase) &&
         !value.Equals("none", StringComparison.OrdinalIgnoreCase);
 
-    /// <summary>Os valores do Word.</summary>
+    /// <summary>Word's values.</summary>
     private static string NamedHighlight(string name) => name.ToLowerInvariant() switch
     {
         "yellow" => "#ffff00",

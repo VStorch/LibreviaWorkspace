@@ -5,8 +5,8 @@ using Librevia.Format.Protocol;
 namespace Librevia.Format;
 
 /// <summary>
-/// O laço stdio, um pedido por vez: a pessoa abre um arquivo de cada vez, e prazo e
-/// cancelamento são do lado TypeScript, que derruba o processo.
+/// The stdio loop, one request at a time: people open one file at a time, and timeouts and
+/// cancellation belong to the TypeScript side, which kills the process.
 /// </summary>
 public sealed class Server(Stream input, Stream output)
 {
@@ -14,11 +14,11 @@ public sealed class Server(Stream input, Stream output)
         _handlers = new(StringComparer.Ordinal)
         {
             ["health"] = static (_, _, _) => Task.FromResult(Reply.Of(Health())),
-            // Prova que binário grande atravessa inteiro.
+            // Proves a large binary gets through whole.
             ["diagnostics.echo"] = static (_, binary, _) => Task.FromResult(new Reply(null, binary)),
             ["docx.open"] = static (_, binary, _) =>
                 Task.FromResult(Reply.Of(Docx.DocxReader.Read(binary.ToArray()))),
-            // O binário são os bytes originais guardados pelo main; o sidecar não guarda estado.
+            // The binary is the original bytes main kept; the sidecar keeps no state.
             ["docx.save"] = static (request, binary, _) =>
             {
                 var model = request.Params.Deserialize<Docx.DocumentModelDto>(JsonOptions.Default)
@@ -34,7 +34,7 @@ public sealed class Server(Stream input, Stream output)
             },
             ["xlsx.open"] = static (_, binary, _) =>
                 Task.FromResult(Reply.Of(Xlsx.XlsxReader.Read(binary.ToArray()))),
-            // Binário vazio é planilha nova, sem original.
+            // An empty binary is a new spreadsheet, without an original.
             ["xlsx.save"] = static (request, binary, _) =>
             {
                 var model = request.Params.Deserialize<Xlsx.WorkbookDto>(JsonOptions.Default)
@@ -65,7 +65,7 @@ public sealed class Server(Stream input, Stream output)
             }
             catch (InvalidDataException problem)
             {
-                // Sem saber onde começa o próximo quadro, sair; o main sobe outro processo.
+                // Without knowing where the next frame starts, exit; main starts another process.
                 await Console.Error.WriteLineAsync($"quadro inválido: {problem.Message}").ConfigureAwait(false);
                 return;
             }
@@ -116,7 +116,7 @@ public sealed class Server(Stream input, Stream output)
         }
         catch (Exception problem) when (problem is not OperationCanceledException)
         {
-            // O main precisa de uma resposta para mostrar, e não de um processo morto.
+            // Main needs a response to show, not a dead process.
             await Console.Error.WriteLineAsync(problem.ToString()).ConfigureAwait(false);
             await RespondErrorAsync(
                 request?.Id ?? 0,
@@ -142,7 +142,7 @@ public sealed class Server(Stream input, Stream output)
     private static HealthResult Health() => new(
         Name: "Librevia.Format",
         Version: typeof(Server).Assembly.GetName().Version?.ToString() ?? "0.0.0",
-        // Para o documento que abre errado numa máquina só.
+        // For the document that opens wrong on a single machine.
         Runtime: string.Join(' ',
             Environment.Version.ToString(),
             $"OpenXml={VersionOf("DocumentFormat.OpenXml")}",

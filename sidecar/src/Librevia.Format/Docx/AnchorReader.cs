@@ -5,14 +5,16 @@ using Anchor = DocumentFormat.OpenXml.Drawing.Wordprocessing;
 
 namespace Librevia.Format.Docx;
 
-/// <summary>Em milímetros: tela e papel desenham em resoluções diferentes, e cada um converte uma vez.</summary>
+/// <summary>
+/// In millimetres: screen and paper draw at different resolutions, and each converts once.
+/// </summary>
 public sealed record FloatDto(
     [property: JsonPropertyName("kind")] string Kind,
     [property: JsonPropertyName("src")] string? Src,
     [property: JsonPropertyName("content")] List<Node>? Content,
     [property: JsonPropertyName("widthMm")] double WidthMm,
     [property: JsonPropertyName("heightMm")] double HeightMm,
-    /// <summary>Graus, sentido horário, como o CSS.</summary>
+    /// <summary>Degrees, clockwise, as in CSS.</summary>
     [property: JsonPropertyName("rotation")] double Rotation,
     [property: JsonPropertyName("hFrom")] string HorizontalFrom,
     [property: JsonPropertyName("hOffsetMm")] double? HorizontalOffsetMm,
@@ -20,21 +22,25 @@ public sealed record FloatDto(
     [property: JsonPropertyName("vFrom")] string VerticalFrom,
     [property: JsonPropertyName("vOffsetMm")] double? VerticalOffsetMm,
     [property: JsonPropertyName("vAlign")] string? VerticalAlign,
-    /// <summary>Decoração de capa, marca d'água.</summary>
+    /// <summary>Cover decoration, watermark.</summary>
     [property: JsonPropertyName("behind")] bool Behind,
     [property: JsonPropertyName("wrap")] string Wrap,
-    /// <summary>A posição da peça dentro do grupo, somada depois de resolver a âncora.</summary>
+    /// <summary>The piece's position inside the group, added after resolving the anchor.</summary>
     [property: JsonPropertyName("dxMm")] double DxMm = 0,
     [property: JsonPropertyName("dyMm")] double DyMm = 0,
-    /// <summary>Só nos objetos de faixa; a caixa é regenerada inteira, porque digitar abre e fecha parágrafos.</summary>
+    /// <summary>
+    /// Band objects only; the box is regenerated whole, because typing opens and closes paragraphs.
+    /// </summary>
     [property: JsonPropertyName("bid")] string? BoxId = null,
-    /// <summary>Só cor e traço sólidos; o resto vai ao inventário (<see cref="ShapeLook"/>).</summary>
+    /// <summary>
+    /// Solid color and stroke only; the rest goes to the inventory (<see cref="ShapeLook"/>).
+    /// </summary>
     [property: JsonPropertyName("fill")] string? Fill = null,
     [property: JsonPropertyName("line")] string? Line = null,
     [property: JsonPropertyName("lineWidthPt")] double LineWidthPt = 0,
     [property: JsonPropertyName("dash")] bool Dash = false);
 
-    /// <summary>Na régua da página.</summary>
+    /// <summary>On the page ruler.</summary>
 public sealed record AnchoredPiece(
     OpenXmlElement Shape,
     double DxEmus,
@@ -43,11 +49,9 @@ public sealed record AnchoredPiece(
     double HeightEmus,
     double Rotation);
 
-/// <summary>
-/// <c>wp:anchor</c> → origem e deslocamento por eixo, sem resolver: a origem mais
-/// comum é o parágrafo, que só tem posição depois de paginar. A rotação sai em
-/// graus e não mexe nas medidas, como o Word e o <c>transform: rotate()</c>.
-/// </summary>
+/// <c>wp:anchor</c> → origin and offset per axis, unresolved: the most common origin is the
+/// paragraph, which only has a position after pagination. Rotation comes out in degrees and does
+/// not touch the measures, as in Word and <c>transform: rotate()</c>.
 public static class AnchorReader
 {
     private const double EmusPerMillimeter = Unit.EmusPerInch / Unit.MillimetersPerInch;
@@ -59,11 +63,9 @@ public static class AnchorReader
     public static Anchor.Anchor? AnchorOf(OpenXmlElement drawing) =>
         drawing.Descendants<Anchor.Anchor>().FirstOrDefault();
 
-    /// <summary>
-    /// <c>wp:anchor</c> não é "fora do fluxo": o LibreOffice grava assim a imagem no
-    /// próprio parágrafo. Tem posição de verdade quem não anda com o parágrafo, se
-    /// afasta dele, fica atrás do texto ou usa <c>wrapNone</c>; o resto é bloco.
-    /// </summary>
+    /// <c>wp:anchor</c> does not mean "out of the flow": LibreOffice writes an image in its own
+    /// paragraph that way. Only an object that does not move with the paragraph, moves away from
+    /// it, sits behind the text or uses <c>wrapNone</c> has a real position; the rest is a block.
     public static bool FlowsWithText(Anchor.Anchor anchor)
     {
         if (anchor.BehindDoc?.Value == true) return false;
@@ -78,13 +80,13 @@ public static class AnchorReader
             return false;
         }
 
-        // Alinhamento vertical é posição declarada.
+        // Vertical alignment is a declared position.
         if (vertical?.VerticalAlignment is not null) return false;
         if (Math.Abs(OffsetMillimeters(vertical?.PositionOffset?.Text) ?? 0) > FlowToleranceMm) return false;
 
         var horizontal = anchor.GetFirstChild<Anchor.HorizontalPosition>();
 
-        // Alinhado na coluna é onde o parágrafo já o poria.
+        // Aligned in the column is where the paragraph would already put it.
         if (horizontal?.HorizontalAlignment is not null) return true;
 
         var side = horizontal?.RelativeFrom?.Value;
@@ -130,13 +132,13 @@ public static class AnchorReader
     }
 
     /// <summary>
-    /// A âncora diz onde está o grupo; <c>a:chOff</c> e <c>a:chExt</c> dão a régua das
-    /// coordenadas de dentro. O desenho de peça única sai com deslocamento zero.
+    /// The anchor says where the group is; <c>a:chOff</c> and <c>a:chExt</c> give the ruler for the
+    /// inner coordinates. A single-piece drawing comes out with zero offset.
     /// </summary>
     public static List<AnchoredPiece> PiecesOf(Anchor.Anchor anchor)
     {
         var extent = anchor.Descendants<Anchor.Extent>().FirstOrDefault();
-        // Só o `a:xfrm` de grupo carrega `a:chOff`/`a:chExt`.
+        // Only a group `a:xfrm` carries `a:chOff`/`a:chExt`.
         var group = anchor.Descendants<Drawing.TransformGroup>().FirstOrDefault();
 
         var (scaleX, scaleY) = (1.0, 1.0);
@@ -181,7 +183,9 @@ public static class AnchorReader
                 element is Drawing.Pictures.Picture
                     or DocumentFormat.OpenXml.Office2010.Word.DrawingShape.WordprocessingShape);
 
-    /// <summary>Só o nome do modo, sem interpretar: quem desenha decide o que reproduz.</summary>
+    /// <summary>
+    /// Only the mode name, uninterpreted: whoever draws decides what to reproduce.
+    /// </summary>
     internal static string WrapOf(Anchor.Anchor anchor)
     {
         if (anchor.GetFirstChild<Anchor.WrapNone>() is not null) return "none";
@@ -208,7 +212,7 @@ public static class AnchorReader
     private static double Millimeters(long? emus) =>
         emus is null ? 0 : Math.Round(emus.Value / EmusPerMillimeter, 2);
 
-    /// <summary>Negativo é o objeto saindo para a margem.</summary>
+    /// <summary>Negative means the object reaching into the margin.</summary>
     private static double? OffsetMillimeters(string? text) =>
         long.TryParse(text, out var emus) ? Math.Round(emus / EmusPerMillimeter, 2) : null;
 }

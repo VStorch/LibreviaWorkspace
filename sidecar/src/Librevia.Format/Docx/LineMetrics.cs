@@ -1,16 +1,15 @@
 namespace Librevia.Format.Docx;
 
 /// <summary>
-/// A altura natural da linha, em múltiplos do tamanho da fonte:
-/// <c>(ascender - descender + lineGap) / unitsPerEm</c> da tabela <c>hhea</c>, a
-/// conta do Word, do LibreOffice e do <c>line-height: normal</c>. O múltiplo do
-/// OOXML é sobre ela, e dizê-la em número evita que o Chromium a arredonde para
-/// pixel inteiro. Só as fontes que o instalador leva e as que elas substituem: para
-/// as outras, a substituta depende da máquina.
+/// The natural line height, in multiples of the font size: <c>(ascender - descender + lineGap) /
+/// unitsPerEm</c> from the <c>hhea</c> table, the math of Word, LibreOffice and <c>line-height:
+/// normal</c>. The OOXML multiple is relative to it, and stating it as a number keeps Chromium from
+/// rounding it to a whole pixel. Only the fonts the installer ships and the ones they substitute:
+/// for others, the substitute depends on the machine.
 /// </summary>
 internal static class LineMetrics
 {
-    /// <summary>A fonte do editor quando o documento não diz outra.</summary>
+    /// <summary>The editor font when the document names none.</summary>
     private const double LiberationSerif = 1.1499;
 
     private static readonly Dictionary<string, double> Known = new(StringComparer.OrdinalIgnoreCase)
@@ -28,7 +27,7 @@ internal static class LineMetrics
         ["Caladea"] = 1.15,
     };
 
-    /// <summary>Nula quando não se sabe que arquivo de fonte o navegador vai usar.</summary>
+    /// <summary>Null when it is unknown which font file the browser will use.</summary>
     public static double? Of(string? font) =>
         string.IsNullOrWhiteSpace(font)
             ? LiberationSerif

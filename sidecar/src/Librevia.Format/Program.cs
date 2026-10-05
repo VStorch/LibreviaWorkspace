@@ -1,12 +1,12 @@
 using Librevia.Format;
 
-// O stdout carrega os quadros: texto perdido nele os corromperia, então vai ao stderr.
+// stdout carries the frames: stray text in it would corrupt them, so it goes to stderr.
 var frameStream = Console.OpenStandardOutput();
 Console.SetOut(Console.Error);
 
 using var lifetime = new CancellationTokenSource();
 
-// Sem parar o laço, a resposta pela metade chegaria como quadro corrompido.
+// Without stopping the loop, a half-written response would arrive as a corrupt frame.
 Console.CancelKeyPress += (_, eventArgs) =>
 {
     eventArgs.Cancel = true;

@@ -6,11 +6,9 @@ using DocumentFormat.OpenXml.Wordprocessing;
 
 namespace Librevia.Format.Docx;
 
-/// <summary>
-/// Como o documento numera as notas — `w:footnotePr`/`w:endnotePr`.
-/// </summary>
+/// <summary>How the document numbers notes: `w:footnotePr`/`w:endnotePr`.</summary>
 /// <param name="NumFmt">`w:numFmt`: `decimal`, `lowerRoman`, `upperLetter`, `chicago`…</param>
-/// <param name="Start">`w:numStart`: o número da primeira nota.</param>
+/// <param name="Start">`w:numStart`: the first note's number.</param>
 /// <param name="Restart">`w:numRestart`: `continuous`, `eachSect`, `eachPage`.</param>
 /// <param name="Pos">`w:pos`: `pageBottom`, `beneathText`, `sectEnd`, `docEnd`.</param>
 public sealed record NotePrDto(
@@ -27,7 +25,7 @@ public sealed record NotePrDto(
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     string? Pos = null);
 
-/// <summary>A numeração das notas de rodapé e das de fim, fora dos nós — como os estilos.</summary>
+/// <summary>Footnote and endnote numbering, outside the nodes, like styles.</summary>
 public sealed record NotesDto(
     [property: JsonPropertyName("footnotePr")]
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
@@ -36,9 +34,7 @@ public sealed record NotesDto(
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     NotePrDto? EndnotePr = null);
 
-/// <summary>
-/// A numeração das notas: a do <c>w:sectPr</c> do corpo vence a do <c>settings.xml</c>.
-/// </summary>
+/// <summary>The body's <c>w:sectPr</c> numbering beats <c>settings.xml</c>'s.</summary>
 internal static class NotesReader
 {
     public static NotesDto? Read(MainDocumentPart part, Body body)
@@ -67,7 +63,7 @@ internal static class NotesReader
             section.Pos ?? document.Pos);
     }
 
-    /// <summary>Pelo nome local: os dois tipos de nota têm os mesmos filhos.</summary>
+    /// <summary>By local name: both note kinds have the same children.</summary>
     private static NotePrDto? Describe(OpenXmlElement? properties)
     {
         if (properties is null) return null;

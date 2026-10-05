@@ -6,15 +6,16 @@ using DocumentFormat.OpenXml.Wordprocessing;
 namespace Librevia.Format.Docx;
 
 /// <summary>
-/// Entrelinha como o arquivo a declara: múltiplo ou pontos. Quem multiplica pela
-/// altura natural da fonte é o lado TS (<c>line-metrics.ts</c>), depois da cascata.
+/// Line spacing as the file declares it: a multiple or points. The TS side (<c>line-metrics.ts</c>)
+/// multiplies by the font's natural height, after the cascade.
 /// </summary>
 public sealed record LineSpacingDto(
     [property: JsonPropertyName("kind")] string Kind,
     [property: JsonPropertyName("factor")] double? Factor = null,
     [property: JsonPropertyName("pt")] double? Points = null);
 
-/// <summary><c>null</c> é "o estilo não fala disso", e deixa o herdado passar; zero é "nenhum espaço".</summary>
+/// <c>null</c> means "the style does not say", and lets the inherited value through; zero means "no
+/// space".
 public sealed record StyleParagraphDto(
     [property: JsonPropertyName("textAlign")] string? TextAlign = null,
     [property: JsonPropertyName("indentMm")] double? IndentMm = null,
@@ -44,7 +45,7 @@ public sealed record StyleCharacterDto(
     [property: JsonPropertyName("color")] string? Color = null,
     [property: JsonPropertyName("highlight")] string? Highlight = null);
 
-/// <summary>Como o arquivo o declara.</summary>
+/// <summary>As the file declares it.</summary>
 public sealed record StyleDefinitionDto(
     [property: JsonPropertyName("id")] string Id,
     [property: JsonPropertyName("name")] string Name,
@@ -59,7 +60,7 @@ public sealed record StyleDefinitionDto(
     [property: JsonPropertyName("paragraph")] StyleParagraphDto? Paragraph = null,
     [property: JsonPropertyName("character")] StyleCharacterDto? Character = null);
 
-/// <summary>O <c>w:docDefaults</c>, e quem vale quando o parágrafo não diz estilo.</summary>
+/// <c>w:docDefaults</c>, and the style that applies when a paragraph names none.
 public sealed record StyleDefaultsDto(
     [property: JsonPropertyName("paragraph")] StyleParagraphDto Paragraph,
     [property: JsonPropertyName("character")] StyleCharacterDto Character,
@@ -70,13 +71,10 @@ public sealed record StyleSheetDto(
     [property: JsonPropertyName("defaults")] StyleDefaultsDto Defaults,
     [property: JsonPropertyName("styles")] Dictionary<string, StyleDefinitionDto> Styles);
 
-/// <summary>
-/// <c>word/styles.xml</c> como **dado**, sem herança, nas unidades do editor (a
-/// entrelinha é a exceção, ver <see cref="LineSpacingDto"/>); a cascata é do lado
-/// TS. Ficam de fora estilos de tabela e de numeração, os latentes, tabulações,
-/// bordas, moldura, idioma e <c>w:rsid</c>: <c>styles.xml</c> volta intocado, e eles
-/// só não aparecem no painel.
-/// </summary>
+/// <c>word/styles.xml</c> as **data**, without inheritance, in editor units (line spacing is the
+/// exception, see <see cref="LineSpacingDto"/>); the cascade is on the TS side. Left out: table and
+/// numbering styles, latent ones, tabs, borders, frame, language and <c>w:rsid</c>:
+/// <c>styles.xml</c> goes back untouched, and they just do not show in the panel.
 public static class StyleReader
 {
     private const int MaxStyles = 4000;
@@ -94,7 +92,7 @@ public static class StyleReader
         {
             if (style.StyleId?.Value is not { Length: > 0 } id) continue;
             if (KindOf(style.Type?.Value) is not { } kind) continue;
-            // Id repetido: vale o primeiro, como no resolvedor.
+            // A repeated id: the first wins, as in the resolver.
             if (definitions.ContainsKey(id) || definitions.Count >= MaxStyles) continue;
 
             definitions[id] = Definition(style, id, kind, fonts);
@@ -115,7 +113,9 @@ public static class StyleReader
         return new StyleSheetDto(defaults, definitions);
     }
 
-    /// <summary>Só parágrafo e caractere; tipo ausente é parágrafo, como diz o esquema.</summary>
+    /// <summary>
+    /// Only paragraph and character; a missing type is paragraph, as the schema says.
+    /// </summary>
     private static string? KindOf(StyleValues? type)
     {
         if (type is null) return "paragraph";
@@ -126,7 +126,7 @@ public static class StyleReader
 
     private static StyleDefinitionDto Definition(Style style, string id, string kind, FontTable fonts)
     {
-        // Sem `w:name`, o id.
+        // Without `w:name`, the id.
         var name = style.StyleName?.Val?.Value is { Length: > 0 } declared ? declared : id;
 
         return new StyleDefinitionDto(
@@ -134,7 +134,8 @@ public static class StyleReader
             name,
             kind,
             QFormat: IsOn(style.PrimaryStyle),
-            // `w:hidden` esconde sempre e `w:semiHidden` até ser usado: o painel pergunta só se aparece.
+            // `w:hidden` always hides and `w:semiHidden` until used: the panel only asks whether it
+            // shows.
             Hidden: IsOn(style.StyleHidden) || IsOn(style.SemiHidden),
             Custom: style.CustomStyle?.Value == true,
             BasedOn: Text(style.BasedOn?.Val?.Value),
@@ -145,7 +146,10 @@ public static class StyleReader
             Character: CharacterOf(style.StyleRunProperties, fonts));
     }
 
-    /// <summary>Por <c>GetFirstChild</c>: estilo, padrão e parágrafo têm três classes para a mesma lista.</summary>
+    /// <summary>
+    /// Through <c>GetFirstChild</c>: style, defaults and paragraph have three classes for the same
+    /// list.
+    /// </summary>
     private static StyleParagraphDto? ParagraphOf(OpenXmlElement? properties)
     {
         if (properties is null) return null;
@@ -169,7 +173,8 @@ public static class StyleReader
             Background: ShadingOf(properties.GetFirstChild<Shading>()),
             WidowControl: Toggle(properties.GetFirstChild<WidowControl>()));
 
-        // "Não declara nada que eu saiba ler" e "não existe" dão no mesmo para quem herda.
+        // "Declares nothing I can read" and "does not exist" amount to the same for whoever
+        // inherits.
         return dto == new StyleParagraphDto() ? null : dto;
     }
 
@@ -182,12 +187,12 @@ public static class StyleReader
         var underline = properties.GetFirstChild<Underline>()?.Val;
 
         var dto = new StyleCharacterDto(
-            // Com a substituta genérica atrás, como no leitor do corpo.
+            // With the generic substitute behind it, as in the body reader.
             FontFamily: string.IsNullOrWhiteSpace(font) ? null : fonts.Stack(font),
             FontSize: PointsCss(properties.GetFirstChild<FontSize>()?.Val?.Value),
             Bold: Toggle(properties.GetFirstChild<Bold>()),
             Italic: Toggle(properties.GetFirstChild<Italic>()),
-            // `w:u` carrega o estilo do risco, e `none` desliga.
+            // `w:u` carries the line style, and `none` turns it off.
             Underline: underline is null ? null : underline.Value != UnderlineValues.None,
             Strike: Toggle(properties.GetFirstChild<Strike>()),
             AllCaps: Toggle(properties.GetFirstChild<Caps>()),
@@ -199,13 +204,13 @@ public static class StyleReader
         return dto == new StyleCharacterDto() ? null : dto;
     }
 
-    /// <summary>Ausente é silêncio: desligar o negrito do pai não é o mesmo que não falar dele.</summary>
+    /// <summary>
+    /// Absent is silence: turning off the parent's bold is not the same as not mentioning it.
+    /// </summary>
     private static bool? Toggle(OnOffType? toggle) => toggle is null ? null : RunReader.IsOn(toggle);
 
-    /// <summary>
-    /// <c>w:qFormat</c>, <c>w:hidden</c> e <c>w:semiHidden</c> têm tipo próprio: ler a presença
-    /// faria <c>w:semiHidden w:val="off"</c> esconder o estilo.
-    /// </summary>
+    /// <c>w:qFormat</c>, <c>w:hidden</c> and <c>w:semiHidden</c> have their own type: reading
+    /// presence would make <c>w:semiHidden w:val="off"</c> hide the style.
     private static bool IsOn(OnOffOnlyType? toggle) =>
         toggle is not null && (toggle.Val is null || toggle.Val.Value == OnOffOnlyValues.On);
 
@@ -228,7 +233,7 @@ public static class StyleReader
         return null;
     }
 
-    /// <summary><c>w:firstLine</c> empurra, <c>w:hanging</c> puxa.</summary>
+    /// <c>w:firstLine</c> pushes, <c>w:hanging</c> pulls.
     private static double? FirstLineOf(Indentation? indentation)
     {
         if (Millimeters(indentation?.FirstLine?.Value) is { } firstLine and > 0) return firstLine;
@@ -239,7 +244,10 @@ public static class StyleReader
     private static double? Millimeters(string? twips) =>
         int.TryParse(twips, out var value) ? Math.Round(Unit.TwipsToMillimeters(value), 2) : null;
 
-    /// <summary>Twips → pontos com duas casas, exatas (1 twip = 0,05 pt): a medida vai e volta. Zero explícito conta.</summary>
+    /// <summary>
+    /// Twips → points with two exact decimals (1 twip = 0.05 pt): the measure round-trips. An
+    /// explicit zero counts.
+    /// </summary>
     private static double? Points(string? twips) =>
         int.TryParse(twips, out var value) && value >= 0 ? Math.Round(Unit.TwipsToPoints(value), 2) : null;
 
@@ -248,7 +256,9 @@ public static class StyleReader
             ? RunReader.FormatPoints(Unit.HalfPointsToPoints(value))
             : null;
 
-    /// <summary>Sem multiplicar; o múltiplo a quatro casas, a grade em que volta ao arquivo.</summary>
+    /// <summary>
+    /// Unmultiplied; the multiple to four decimals, the grid it goes back to the file on.
+    /// </summary>
     private static LineSpacingDto? LineSpacingOf(SpacingBetweenLines? spacing)
     {
         if (!int.TryParse(spacing?.Line?.Value, out var value) || value <= 0) return null;
@@ -265,6 +275,6 @@ public static class StyleReader
         return new LineSpacingDto("multiple", Factor: Math.Round(value / 240.0, 4));
     }
 
-    /// <summary>"auto" não é cor.</summary>
+    /// <summary>"auto" is not a color.</summary>
     private static string? ShadingOf(Shading? shading) => RunReader.ColorOf(shading?.Fill);
 }

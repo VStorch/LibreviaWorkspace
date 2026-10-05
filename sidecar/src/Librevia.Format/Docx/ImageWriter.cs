@@ -9,22 +9,22 @@ using WordDrawing = DocumentFormat.OpenXml.Drawing.Wordprocessing;
 namespace Librevia.Format.Docx;
 
 /// <summary>
-/// Imagem do editor → <c>w:drawing</c> no fluxo: decodifica o data URI, escolhe o tipo
-/// de parte, mede os bytes e converte em EMU.
+/// Editor image → a flowing <c>w:drawing</c>: decodes the data URI, picks the part type, measures
+/// the bytes and converts to EMU.
 /// </summary>
-/// <param name="owner">O documento, ou a parte das notas.</param>
+/// <param name="owner">The document, or the notes part.</param>
 internal sealed class ImageWriter(MainDocumentPart part, Inventory inventory, int usableWidthPx, OpenXmlPart? owner = null)
 {
-    /// <summary>A4 retrato com margens de uma polegada.</summary>
+    /// <summary>A4 portrait with one-inch margins.</summary>
     internal const int DefaultWidthPx = 624;
 
-    /// <summary>Sem altura no nó nem nos bytes, a proporção 4:3.</summary>
+    /// <summary>Without a height on the node or in the bytes, a 4:3 ratio.</summary>
     private const double DefaultHeightPerWidth = 0.75;
 
     /// <summary>
-    /// Acima do maior <c>wp:docPr/@id</c> do documento: o ancorado preservado leva o
-    /// dele, e repeti-lo o Word mostra como documento danificado. De instância,
-    /// porque o servidor atende várias gravações no mesmo processo.
+    /// Above the document's highest <c>wp:docPr/@id</c>: a preserved anchored object keeps its own,
+    /// and Word shows a repeated one as a damaged document. Per instance, because the server
+    /// handles several saves in the same process.
     /// </summary>
     private uint _nextDrawingId;
 
@@ -37,7 +37,8 @@ internal sealed class ImageWriter(MainDocumentPart part, Inventory inventory, in
             return null;
         }
 
-        // Sem a vírgula, o recorte estouraria a string: a imagem truncada custa só a imagem.
+        // Without the comma, slicing would overflow the string: a truncated image only costs the
+        // image.
         var comma = source.IndexOf(',', StringComparison.Ordinal);
         if (comma < 0)
         {
@@ -64,7 +65,7 @@ internal sealed class ImageWriter(MainDocumentPart part, Inventory inventory, in
             return null;
         }
 
-        // No OpenXml 3.x `ImagePartType` é classe, e não enum.
+        // In OpenXml 3.x `ImagePartType` is a class, not an enum.
         PartTypeInfo imageType;
         switch (contentType)
         {
@@ -97,7 +98,7 @@ internal sealed class ImageWriter(MainDocumentPart part, Inventory inventory, in
 
         var id = NextDrawingId();
 
-        // `descr` só quando há algo escrito.
+        // `descr` only when something is written.
         var description = Attr.String(node, "alt");
 
         return new Run(new DocumentFormat.OpenXml.Wordprocessing.Drawing(
@@ -139,8 +140,8 @@ internal sealed class ImageWriter(MainDocumentPart part, Inventory inventory, in
     }
 
     /// <summary>
-    /// Os <c>w:drawing</c> filhos diretos de <c>w:r</c> com imagem que corre com o texto, na
-    /// ordem do arquivo; o ancorado com posição é copiado por outro caminho.
+    /// Direct <c>w:drawing</c> children of <c>w:r</c> with an image flowing with the text, in file
+    /// order; anchored ones with a position are copied another way.
     /// </summary>
     public static List<DocumentFormat.OpenXml.Wordprocessing.Drawing> FlowingImagesOf(OpenXmlElement? original)
     {
@@ -154,11 +155,11 @@ internal sealed class ImageWriter(MainDocumentPart part, Inventory inventory, in
     }
 
     /// <summary>
-    /// A imagem do arquivo volta com o desenho dela: recorte, efeito, borda e nome
-    /// ficam, e só tamanho e texto alternativo mudam. O par é achado pelo conteúdo, e
-    /// cada desenho serve a uma imagem só.
+    /// A file image goes back with its drawing: crop, effect, border and name stay, and only size
+    /// and alt text change. The pair is found by content, and each drawing serves a single image.
     /// </summary>
-    /// <returns>O <c>w:r</c> com o desenho ajustado, ou <c>null</c> quando nenhum confere.</returns>
+    /// <returns>The <c>w:r</c> with the adjusted drawing, or <c>null</c> when none
+    /// matches.</returns>
     public Run? Reuse(Node node, List<DocumentFormat.OpenXml.Wordprocessing.Drawing> candidates)
     {
         var source = Attr.String(node, "src");
@@ -174,7 +175,7 @@ internal sealed class ImageWriter(MainDocumentPart part, Inventory inventory, in
         Resize(drawing, Attr.Int(node, "width"), Attr.Int(node, "height"));
         Describe(drawing, Attr.String(node, "alt"));
 
-        // Só a formatação do run vai junto: o texto vizinho volta pelo editor.
+        // Only the run formatting goes along: the neighbouring text comes back through the editor.
         var run = new Run();
         if (original.Parent is Run { RunProperties: { } properties })
         {
@@ -185,7 +186,7 @@ internal sealed class ImageWriter(MainDocumentPart part, Inventory inventory, in
         return run;
     }
 
-    /// <summary>Na mesma forma que o leitor monta.</summary>
+    /// <summary>In the same shape the reader builds.</summary>
     private string? SourceOf(OpenXmlElement drawing)
     {
         var relationshipId = drawing.Descendants<Drawing.Blip>().FirstOrDefault()?.Embed?.Value;
@@ -200,8 +201,8 @@ internal sealed class ImageWriter(MainDocumentPart part, Inventory inventory, in
     }
 
     /// <summary>
-    /// Só quando mudou, comparado em pixels: reconverter o que ninguém tocou mudaria o
-    /// EMU. No quarto de volta, largura e altura voltam a trocar.
+    /// Only when it changed, compared in pixels: reconverting what nobody touched would change the
+    /// EMU. On a quarter turn, width and height swap back.
     /// </summary>
     private void Resize(OpenXmlElement drawing, int? width, int? height)
     {
@@ -232,7 +233,9 @@ internal sealed class ImageWriter(MainDocumentPart part, Inventory inventory, in
         }
     }
 
-    /// <summary>A ausência do <c>alt</c> diante de um <c>descr</c> preenchido é a pessoa que o apagou.</summary>
+    /// <summary>
+    /// An absent <c>alt</c> against a filled <c>descr</c> is the user having cleared it.
+    /// </summary>
     private static void Describe(OpenXmlElement drawing, string? alt)
     {
         var wanted = string.IsNullOrEmpty(alt) ? null : alt;
@@ -268,8 +271,8 @@ internal sealed class ImageWriter(MainDocumentPart part, Inventory inventory, in
     }
 
     /// <summary>
-    /// A do <c>.docx</c> traz as medidas do <c>wp:extent</c>; a inserida, as do cabeçalho dos
-    /// bytes. O teto é a coluna de texto, na proporção.
+    /// A <c>.docx</c> image carries the <c>wp:extent</c> measures; an inserted one, those of the
+    /// byte header. The ceiling is the text column, keeping the ratio.
     /// </summary>
     private (int Width, int Height) Dimensions(Node node, byte[] bytes)
     {

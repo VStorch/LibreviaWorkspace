@@ -5,10 +5,10 @@ using DocumentFormat.OpenXml.Wordprocessing;
 namespace Librevia.Format.Docx;
 
 /// <summary>
-/// Numeração de página e interruptores das faixas: <c>w:sectPr/w:pgNumType</c>,
-/// <c>w:sectPr/w:titlePg</c> e <c>w:settings/w:evenAndOddHeaders</c>, este do
-/// documento inteiro. Só se escreve o que difere do arquivo; nulo não diz nada, e
-/// <c>w:pgNumType</c> guarda os atributos que o painel não conhece.
+/// Page numbering and band switches: <c>w:sectPr/w:pgNumType</c>, <c>w:sectPr/w:titlePg</c> and
+/// <c>w:settings/w:evenAndOddHeaders</c>, the latter document-wide. Only what differs from the file
+/// is written; null says nothing, and <c>w:pgNumType</c> keeps the attributes the panel does not
+/// know.
 /// </summary>
 internal static class PageNumbering
 {
@@ -31,14 +31,15 @@ internal static class PageNumbering
             }
         }
 
-        // Pares e ímpares é do documento: só a última seção o leva.
+        // Odd and even is document-wide: only the last section carries it.
         if (documentWide && page.EvenAndOddHeaders is { } even && even != PageReader.EvenAndOddOf(part))
         {
             var settingsPart = part.DocumentSettingsPart ?? part.AddNewPart<DocumentSettingsPart>();
             var settings = settingsPart.Settings ??= new Settings();
             settings.RemoveAllChildren<EvenAndOddHeaders>();
 
-            // `w:settings` é sequência rígida: sem lugar, a parte não é gravada e o aviso fica.
+            // `w:settings` is a strict sequence: without a slot, the part is not written and the
+            // warning stays.
             if (even && !settings.AddChild(new EvenAndOddHeaders(), throwOnError: false))
             {
                 inventory.NoteLoss("\"Pares e ímpares diferentes\" (o arquivo não aceitou o interruptor)");
@@ -58,7 +59,7 @@ internal static class PageNumbering
         var format = PageReader.PageNumberFormats.Contains(page.PageNumberFormat) ? page.PageNumberFormat : "decimal";
         var sameFormat = format == PageReader.PageNumberFormatOf(section);
 
-        // Início ausente é "não mexa": trocar o formato não apaga o `w:start`.
+        // A missing start means "leave alone": changing the format does not erase `w:start`.
         var knowsStart = PageReader.TryStartOf(page, out var start);
         var sameStart = !knowsStart || start == existing?.Start?.Value;
         if (sameFormat && sameStart) return;

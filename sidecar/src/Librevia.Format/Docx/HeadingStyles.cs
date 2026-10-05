@@ -4,11 +4,11 @@ using DocumentFormat.OpenXml.Wordprocessing;
 namespace Librevia.Format.Docx;
 
 /// <summary>
-/// Pelo <c>w:name</c>, que não se traduz (<c>heading 1</c>), e com o id que o documento
-/// deu (<c>Ttulo1</c> num Word em português). Sem estilo de título, a definição vem
-/// de <see cref="TemplateStyles"/>, e <c>word/styles.xml</c> passa a ser parte tocada.
+/// By <c>w:name</c>, which is not translated (<c>heading 1</c>), and with the id the document gave
+/// (<c>Ttulo1</c> in Portuguese Word). Without a heading style, the definition comes from <see
+/// cref="TemplateStyles"/>, and <c>word/styles.xml</c> becomes a touched part.
 /// </summary>
-/// <param name="touched"><c>null</c> para só consultar, como na caixa de texto do cabeçalho.</param>
+/// <param name="touched"><c>null</c> to only query, as for the header text box.</param>
 internal sealed class HeadingStyles(MainDocumentPart part, HashSet<string>? touched)
 {
     private readonly Dictionary<int, string> _chosen = [];
@@ -22,10 +22,13 @@ internal sealed class HeadingStyles(MainDocumentPart part, HashSet<string>? touc
         return chosen;
     }
 
-    /// <summary>O critério do leitor (<c>StyleResolver.HeadingLevelByName</c>), para o título rebaixado não voltar título.</summary>
+    /// <summary>
+    /// The reader's criterion (<c>StyleResolver.HeadingLevelByName</c>), so a demoted heading does
+    /// not come back as a heading.
+    /// </summary>
     public int? LevelByName(string? styleId) => LevelOfName(Definition(styleId)?.StyleName?.Val?.Value);
 
-    /// <summary>Um <c>w:pStyle</c> com id inexistente o Word desenha como Normal.</summary>
+    /// <summary>Word draws a <c>w:pStyle</c> with a nonexistent id as Normal.</summary>
     public bool Defines(string? styleId) => Definition(styleId) is not null;
 
     private Style? Definition(string? styleId) =>
@@ -36,7 +39,7 @@ internal sealed class HeadingStyles(MainDocumentPart part, HashSet<string>? touc
                     style.StyleId?.Value == styleId &&
                     (style.Type is null || style.Type.Value == StyleValues.Paragraph));
 
-    /// <summary><c>heading 1</c> a <c>heading 6</c>, sem caixa: o LibreOffice grava <c>Heading 1</c>.</summary>
+    /// <c>heading 1</c> to <c>heading 6</c>, case-insensitive: LibreOffice writes <c>Heading 1</c>.
     public static int? LevelOfName(string? name)
     {
         if (name is null) return null;
@@ -59,8 +62,8 @@ internal sealed class HeadingStyles(MainDocumentPart part, HashSet<string>? touc
     private string? Copied(int level) => CopyOf(BuiltinStyles.Heading(level), $"Heading{level}_");
 
     /// <summary>
-    /// O que o pacote não define é procurado pelo nome interno, e senão a definição
-    /// embutida é copiada. Id que nem o embutido conhece volta como veio.
+    /// What the package does not define is looked up by internal name, and otherwise the builtin
+    /// definition is copied. An id even the builtin set does not know comes back as it came.
     /// </summary>
     public string IdForDeclared(string declared)
     {
@@ -99,14 +102,14 @@ internal sealed class HeadingStyles(MainDocumentPart part, HashSet<string>? touc
 
         var style = TemplateStyles.Of(builtin);
 
-        // Um `Heading1` com outro nome é outro estilo: a cópia ganha um id livre.
+        // A `Heading1` with another name is another style: the copy gets a free id.
         var id = style.StyleId!.Value!;
         for (var suffix = 2; ids.Contains(id); suffix++) id = $"{collisionPrefix}{suffix}";
         style.StyleId = id;
-        // Dois `w:default` confundem o Word.
+        // Two `w:default`s confuse Word.
         style.Default = null;
 
-        // Herdar de um `Normal` que não existe seria uma referência pendurada.
+        // Inheriting from a `Normal` that does not exist would be a dangling reference.
         var normal = styles.Elements<Style>()
             .FirstOrDefault(candidate =>
                 candidate.Type?.Value == StyleValues.Paragraph && candidate.Default?.Value == true)

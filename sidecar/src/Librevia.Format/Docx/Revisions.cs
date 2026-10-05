@@ -7,10 +7,9 @@ using DocumentFormat.OpenXml.Wordprocessing;
 namespace Librevia.Format.Docx;
 
 /// <summary>
-/// A revisão de texto é marca do trecho, com autor, data e <c>w:id</c>; a data viaja
-/// como o arquivo a escreveu, sem <c>DateTime</c>, que lhe daria fuso ou segundos. A
-/// da marca de parágrafo e a da linha são atributos do bloco (<c>markRevision</c>,
-/// <c>rowRevision</c>).
+/// A text revision is a range mark, with author, date and <c>w:id</c>; the date travels as the file
+/// wrote it, without a <c>DateTime</c>, which would give it a time zone or seconds. The paragraph
+/// mark's and the row's are block attributes (<c>markRevision</c>, <c>rowRevision</c>).
 /// </summary>
 public static class Revisions
 {
@@ -19,13 +18,13 @@ public static class Revisions
 
     private const string W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
 
-    /// <summary>Como está no arquivo, ou nulo.</summary>
+    /// <summary>As in the file, or null.</summary>
     public static string? AttributeOf(OpenXmlElement element, string localName) =>
         element.GetAttributes()
             .FirstOrDefault(attribute => attribute.LocalName == localName && attribute.NamespaceUri == W)
             .Value;
 
-    /// <summary>Pelas propriedades tipadas do SDK, na ordem do esquema; a data como texto.</summary>
+    /// <summary>Through the SDK's typed properties, in schema order; the date as text.</summary>
     internal static void Stamp(OpenXmlElement element, string? id, string? author, string? date)
     {
         var when = date is null ? null : new DateTimeValue { InnerText = date };
@@ -65,7 +64,7 @@ public static class Revisions
         return new Mark { Type = type, Attrs = attrs.Count > 0 ? attrs : null };
     }
 
-    /// <summary>Movimentação vira exclusão ou inserção.</summary>
+    /// <summary>A move becomes a deletion or an insertion.</summary>
     public static JsonObject? BlockRevisionOf(OpenXmlElement? properties)
     {
         var revision = properties?.ChildElements.FirstOrDefault(IsBlockRevision);
@@ -85,9 +84,9 @@ public static class Revisions
         revision.LocalName is "del" or "moveFrom" ? "del" : "ins";
 
     /// <summary>
-    /// A do arquivo fica quando é a mesma (tipo e id), com o que o modelo não leva.
-    /// <paramref name="insert"/> põe o elemento no lugar do esquema, que difere entre
-    /// <c>w:rPr</c> e <c>w:trPr</c>.
+    /// The file's stays when it is the same (kind and id), with what the model does not carry.
+    /// <paramref name="insert"/> places the element at its schema slot, which differs between
+    /// <c>w:rPr</c> and <c>w:trPr</c>.
     /// </summary>
     public static void ApplyBlock(OpenXmlElement properties, JsonNode? wanted, Action<OpenXmlElement> insert)
     {
@@ -113,8 +112,8 @@ public static class Revisions
         node.Marks?.Any(mark => mark.Type is Insertion or Deletion) == true;
 
     /// <summary>
-    /// O link fica por fora: <c>w:hyperlink</c> pode conter <c>w:ins</c>, e não o contrário.
-    /// Os vizinhos iguais se fundem em <see cref="MergeNeighbours"/>.
+    /// The link stays outside: <c>w:hyperlink</c> may contain <c>w:ins</c>, not the other way
+    /// around. Equal neighbours merge in <see cref="MergeNeighbours"/>.
     /// </summary>
     public static IEnumerable<OpenXmlElement> Wrap(List<OpenXmlElement> elements, List<Mark>? marks)
     {
@@ -198,7 +197,9 @@ public static class Revisions
         }
     }
 
-    /// <summary>Mesmo id, autor e data, como o Word grava; desce nos links e nas revisões aninhadas.</summary>
+    /// <summary>
+    /// Same id, author and date, as Word writes; descends into links and nested revisions.
+    /// </summary>
     public static void MergeNeighbours(OpenXmlElement parent)
     {
         OpenXmlElement? previous = null;
@@ -232,9 +233,9 @@ public static class Revisions
         AttributeOf(a, "date") == AttributeOf(b, "date");
 
     /// <summary>
-    /// O id do arquivo fica enquanto único; o repetido (parágrafo partido) e o ausente
-    /// ganham um acima do maior <c>w:id</c> do pacote, que revisão, comentário e marcador
-    /// dividem. As notas entram na mesma conta.
+    /// The file's id stays while unique; a repeated one (split paragraph) or a missing one gets one
+    /// above the package's highest <c>w:id</c>, which revisions, comments and bookmarks share.
+    /// Notes enter the same count.
     /// </summary>
     public static void MakeIdsUnique(Body body, MainDocumentPart part)
     {
@@ -293,7 +294,7 @@ public static class Revisions
         part.DocumentSettingsPart?.Settings?.GetFirstChild<TrackRevisions>() is { } track &&
         !(track.Val is { } value && !value.Value);
 
-    /// <summary>Só quando difere do arquivo.</summary>
+    /// <summary>Only when it differs from the file.</summary>
     public static void ApplyTracking(MainDocumentPart part, bool? wanted, HashSet<string> touched, Inventory inventory)
     {
         if (wanted is not { } track || track == TrackingOf(part)) return;

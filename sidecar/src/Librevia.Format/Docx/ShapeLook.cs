@@ -4,10 +4,9 @@ using DocumentFormat.OpenXml;
 namespace Librevia.Format.Docx;
 
 /// <summary>
-/// A moldura e o preenchimento de uma forma, quando o CSS sabe desenhá-los: cor
-/// sólida, traço sólido ou tracejado. Gradiente, textura, imagem, sombra, 3D e
-/// geometria que não é retângulo saem com <see cref="Complete"/> falso, e só isso
-/// vai ao aviso.
+/// A shape's frame and fill, when CSS can draw them: solid color, solid or dashed stroke. Gradient,
+/// texture, image, shadow, 3D and non-rectangular geometry come out with <see cref="Complete"/>
+/// false, and only that goes to the warning.
 /// </summary>
 internal sealed record ShapeLook(
     string? Fill,
@@ -16,7 +15,7 @@ internal sealed record ShapeLook(
     bool Dashed,
     bool Complete)
 {
-    /// <summary>Forma sem decoração declarada, e sem nada a avisar.</summary>
+    /// <summary>A shape without declared decoration, and nothing to warn about.</summary>
     internal static readonly ShapeLook Plain = new(null, null, 0, false, true);
 
     internal bool Draws => Fill is not null || (Line is not null && LineWidthPt > 0);
@@ -24,8 +23,8 @@ internal sealed record ShapeLook(
     private const double EmusPerPoint = Unit.EmusPerPoint;
 
     /// <summary>
-    /// Sobe até quem tem <c>spPr</c>: chega aqui a forma ou a caixa de dentro dela.
-    /// O grupo não engana, porque o dele é <c>grpSpPr</c>.
+    /// Goes up to whoever has <c>spPr</c>: either the shape or its inner box arrives here. A group
+    /// does not mislead, because its own is <c>grpSpPr</c>.
     /// </summary>
     internal static ShapeLook Of(OpenXmlElement element)
     {
@@ -55,8 +54,8 @@ internal sealed record ShapeLook(
     }
 
     /// <summary>
-    /// Sem <c>a:noFill</c> nem <c>a:solidFill</c> a forma herda o preenchimento do
-    /// tema, que não sabemos qual é: o caso vai ao aviso.
+    /// Without <c>a:noFill</c> or <c>a:solidFill</c> the shape inherits the theme fill, which we do
+    /// not know: the case goes to the warning.
     /// </summary>
     private static (string? Color, bool Known) FillOf(OpenXmlElement properties)
     {
@@ -86,7 +85,7 @@ internal sealed record ShapeLook(
     {
         var line = properties.ChildElements.FirstOrDefault(child => child.LocalName == "ln");
 
-        // Sem `a:ln` a forma herda o contorno do estilo, como o preenchimento.
+        // Without `a:ln` the shape inherits the style outline, like the fill.
         if (line is null) return (null, 0, false, false);
 
         var width = Points(Attribute(line, "w"));
@@ -102,7 +101,7 @@ internal sealed record ShapeLook(
                 case "solidFill":
                     var color = ColorOf(child);
 
-                    // Espessura zero com cor é o traço mais fino, e não a ausência dele.
+                    // Zero width with a color is the thinnest stroke, not its absence.
                     return (color, width > 0 ? width : 0.75, dashed, color is not null);
 
                 case "gradFill":
@@ -114,7 +113,7 @@ internal sealed record ShapeLook(
         return (null, 0, false, false);
     }
 
-    /// <summary>Sem <c>a:prstGeom</c> nem <c>a:custGeom</c>, a forma é retangular.</summary>
+    /// <summary>Without <c>a:prstGeom</c> or <c>a:custGeom</c>, the shape is rectangular.</summary>
     private static bool IsRectangle(OpenXmlElement properties)
     {
         foreach (var child in properties.ChildElements)
@@ -132,7 +131,7 @@ internal sealed record ShapeLook(
             || (child.LocalName == "effectLst" && child.HasChildren)
             || child.LocalName == "effectDag");
 
-    /// <summary><c>a:schemeClr</c> aponta o tema: nulo, e a forma vai ao aviso.</summary>
+    /// <c>a:schemeClr</c> points to the theme: null, and the shape goes to the warning.
     private static string? ColorOf(OpenXmlElement fill)
     {
         var srgb = fill.ChildElements.FirstOrDefault(child => child.LocalName == "srgbClr");

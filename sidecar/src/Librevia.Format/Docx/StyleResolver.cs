@@ -5,20 +5,20 @@ using DocumentFormat.OpenXml.Wordprocessing;
 namespace Librevia.Format.Docx;
 
 /// <summary>
-/// Padrões do documento, estilo (com a cadeia) e direta, nessa ordem: no corpus
-/// quase todo parágrafo tem <c>w:pStyle</c>, e o <c>Heading1</c> é uma barra vermelha que
-/// mora em <c>styles.xml</c>. É a leitura achatada (lista, célula, rascunho antigo).
+/// Document defaults, style (with its chain) and direct formatting, in that order: in the corpus
+/// almost every paragraph has <c>w:pStyle</c>, and <c>Heading1</c> is a red bar that lives in
+/// <c>styles.xml</c>. This is the flattened reading (lists, cells, old drafts).
 /// </summary>
 public sealed class StyleResolver
 {
-    /// <summary>Contra <c>basedOn</c> circular.</summary>
+    /// <summary>Against a circular <c>basedOn</c>.</summary>
     private const int MaxChainDepth = 16;
 
     private readonly Dictionary<string, Style> _byId;
     private readonly ParagraphPropertiesBaseStyle? _defaultParagraph;
     private readonly RunPropertiesBaseStyle? _defaultRun;
 
-    /// <summary>O <c>w:default="1"</c>, para o parágrafo sem <c>w:pStyle</c>.</summary>
+    /// <c>w:default="1"</c>, for a paragraph without <c>w:pStyle</c>.
     private readonly string? _defaultParagraphStyleId;
     private readonly Dictionary<string, (ParagraphProperties P, RunProperties R)> _cache = new(StringComparer.Ordinal);
 
@@ -41,8 +41,8 @@ public sealed class StyleResolver
     }
 
     /// <summary>
-    /// O id é traduzido e o nome não (<c>Überschrift1</c> é <c>heading 1</c>): o mesmo
-    /// critério de <see cref="HeadingStyles"/>.
+    /// The id is translated and the name is not (<c>Überschrift1</c> is <c>heading 1</c>): the same
+    /// criterion as <see cref="HeadingStyles"/>.
     /// </summary>
     public int? HeadingLevelByName(string? styleId) =>
         styleId is not null && _byId.TryGetValue(styleId, out var style)
@@ -59,11 +59,14 @@ public sealed class StyleResolver
 
         if (direct is not null) Overlay(mergedParagraph, direct);
 
-        // `w:pPr/w:rPr` formata a marca de parágrafo, e não os runs.
+        // `w:pPr/w:rPr` formats the paragraph mark, not the runs.
         return (mergedParagraph, mergedRun);
     }
 
-    /// <summary>Sem a direta: para o leitor saber se um silêncio direto desfaz algo do estilo.</summary>
+    /// <summary>
+    /// Without direct formatting: so the reader knows whether a direct silence undoes something
+    /// from the style.
+    /// </summary>
     public ParagraphProperties StyleParagraphOf(ParagraphProperties? direct) =>
         FromStyle(direct?.ParagraphStyleId?.Val?.Value).Item1;
 
@@ -74,7 +77,9 @@ public sealed class StyleResolver
         return merged;
     }
 
-    /// <summary>A fonte com que o Word mede a linha e dá altura ao parágrafo vazio.</summary>
+    /// <summary>
+    /// The font Word measures the line with and gives an empty paragraph its height.
+    /// </summary>
     public RunProperties ResolveMark(RunProperties inherited, ParagraphProperties? direct)
     {
         var merged = (RunProperties)inherited.CloneNode(true);
@@ -93,7 +98,7 @@ public sealed class StyleResolver
         if (_defaultParagraph is not null) Overlay(paragraph, _defaultParagraph);
         if (_defaultRun is not null) Overlay(run, _defaultRun);
 
-        // Do ancestral mais distante ao mais próximo, que tem a última palavra.
+        // From the farthest ancestor to the nearest, which has the last word.
         foreach (var style in ChainOf(styleId ?? _defaultParagraphStyleId))
         {
             if (style.StyleParagraphProperties is not null) Overlay(paragraph, style.StyleParagraphProperties);
@@ -123,9 +128,8 @@ public sealed class StyleResolver
     }
 
     /// <summary>
-    /// A regra do OOXML é substituir a propriedade inteira; estes quatro mesclam
-    /// atributo a atributo: o parágrafo que declara só <c>w:after="0"</c> não apaga a
-    /// entrelinha do estilo.
+    /// The OOXML rule is to replace the whole property; these four merge attribute by attribute: a
+    /// paragraph declaring only <c>w:after="0"</c> does not erase the style's line spacing.
     /// </summary>
     private static readonly HashSet<string> AttributeByAttribute = new(StringComparer.Ordinal)
     {
@@ -135,7 +139,7 @@ public sealed class StyleResolver
         "lang",
     };
 
-    /// <summary>Por nome de elemento: o que ainda não sabemos ler atravessa junto.</summary>
+    /// <summary>By element name: what we cannot read yet passes through.</summary>
     private static void Overlay(OpenXmlElement target, OpenXmlElement source)
     {
         foreach (var incoming in source.ChildElements)

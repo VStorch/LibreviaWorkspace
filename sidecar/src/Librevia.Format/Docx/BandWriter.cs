@@ -5,18 +5,18 @@ using DocumentFormat.OpenXml.Wordprocessing;
 namespace Librevia.Format.Docx;
 
 /// <summary>
-/// O texto digitado na faixa volta a **um <c>w:t</c> por peça editada**: moldura,
-/// tabela, logotipo e campo <c>PAGE</c> seguem byte a byte. Comparar a faixa inteira
-/// seria regeneração disfarçada. Parte sem texto mudado nem entra na lista de
-/// graváveis.
+/// Text typed in a band goes back to **one <c>w:t</c> per edited piece**: frame, table, logo and
+/// <c>PAGE</c> field stay byte for byte. Comparing the whole band would be regeneration in
+/// disguise. A part without changed text does not even enter the writable list.
 /// </summary>
 internal static class BandWriter
 {
-    /// <summary>A mesma frase do main: é a mesma perda.</summary>
+    /// <summary>The same sentence as main: it is the same loss.</summary>
     private const string ForeignBands = "cabeçalho e rodapé do arquivo .docx de origem";
 
-    /// <summary>Devolve os caminhos que mudaram.</summary>
-    /// <param name="sections">Duas seções que apontam a mesma parte trazem o mesmo texto (PageReader.ReadAll).</param>
+    /// <summary>Returns the paths that changed.</summary>
+    /// <param name="sections">Two sections pointing to the same part carry the same text
+    /// (PageReader.ReadAll).</param>
     internal static HashSet<string> Apply(
         MainDocumentPart part,
         IReadOnlyList<PageSetupDto?> sections,
@@ -27,7 +27,7 @@ internal static class BandWriter
         var bands = sections.OfType<PageSetupDto>().SelectMany(BandsOf).ToList();
         if (bands.Count == 0) return touched;
 
-        // Endereço → texto; a parte é uma só no arquivo.
+        // Address → text; the part is unique in the file.
         var wanted = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (var band in bands)
         {
@@ -38,7 +38,7 @@ internal static class BandWriter
             }
         }
 
-        // O mesmo para as caixas, onde mora o título.
+        // The same for boxes, where the title lives.
         var boxes = new Dictionary<string, List<Node>>(StringComparer.Ordinal);
         foreach (var band in bands)
         {
@@ -60,14 +60,16 @@ internal static class BandWriter
 
         foreach (var relationship in relationships)
         {
-            // Sem a relação (o `.sdoc` reaberto num pacote mínimo), não há onde escrever: dito, e não calado.
+            // Without the relationship (a `.sdoc` reopened in a minimal package) there is nowhere
+            // to write: said, not silenced.
             if (BandNav.PartOf(part, relationship) is not { } target)
             {
                 inventory.NoteLoss(ForeignBands);
                 continue;
             }
 
-            // A mesma tabela de fontes do leitor: outra fusão de runs daria outra numeração de peças.
+            // The reader's font table: merging runs differently would number the pieces
+            // differently.
             var changed = ApplyTo(
                 target.Root,
                 wanted.Where(entry => Relationship(entry.Key) == relationship),
@@ -90,7 +92,7 @@ internal static class BandWriter
         return touched;
     }
 
-    /// <summary>Só as caixas cujo texto mudou, inteiras; as outras seguem com moldura e giro.</summary>
+    /// <summary>Only boxes whose text changed, whole; the others keep frame and rotation.</summary>
     private static bool ApplyBoxes(
         OpenXmlPartRootElement root,
         IEnumerable<KeyValuePair<string, List<Node>>> wanted,
@@ -109,17 +111,17 @@ internal static class BandWriter
 
             var box = boxes[at.Box];
 
-            // Contra o texto da tela, com `{n}`: contra o XML a caixa mudaria sempre.
+            // Against the screen text, with `{n}`: against the XML the box would always differ.
             if (HeaderReader.BoxTextOf(box, inventory, fonts) == PlainTextOf(content)) continue;
 
-            // Caixa com campo não é reescrita: um cabeçalho que deixa de contar páginas é pior.
+            // A box with a field is not rewritten: a header that stops counting pages is worse.
             if (HasField(box))
             {
                 inventory.NoteLoss("texto de uma caixa de cabeçalho com campo calculado");
                 continue;
             }
 
-            // Reescrita, a caixa perde o marcador: avisa-se.
+            // Rewritten, the box loses its bookmark: a warning goes out.
             if (box.Descendants<BookmarkStart>().Any())
             {
                 inventory.NoteLoss("marcador numa caixa de cabeçalho que você editou");
@@ -137,7 +139,7 @@ internal static class BandWriter
                 foreach (var element in writer.Write(block)) box.AppendChild(element);
             }
 
-            // `w:txbxContent` vazio invalida o documento.
+            // An empty `w:txbxContent` invalidates the document.
             if (!box.HasChildren) box.AppendChild(new Paragraph());
             touched = true;
         }
@@ -200,7 +202,10 @@ internal static class BandWriter
         wanted[piece.Pid] = piece.Text ?? string.Empty;
     }
 
-    /// <summary>A faixa desvinculada (<c>s2~rId5:0:1</c>) com a relação que a gravação criou (SectionWriter.ApplyBands).</summary>
+    /// <summary>
+    /// An unlinked band (<c>s2~rId5:0:1</c>) with the relationship saving created
+    /// (SectionWriter.ApplyBands).
+    /// </summary>
     private static string? Translate(
         string? address,
         Func<string, string> relationshipOf,
@@ -222,7 +227,7 @@ internal static class BandWriter
     private static string Relationship(string address) =>
         BandNav.Parse(address) is { } parsed ? parsed.RelationshipId : string.Empty;
 
-    /// <summary>Devolve se algo mudou mesmo.</summary>
+    /// <summary>Returns whether something really changed.</summary>
     private static bool ApplyTo(
         OpenXmlPartRootElement root,
         IEnumerable<KeyValuePair<string, string>> wanted,
@@ -260,7 +265,10 @@ internal static class BandWriter
         return true;
     }
 
-    /// <summary>O ramo de reserva em VML repete a caixa: escrever num só deixaria o arquivo dizendo duas coisas.</summary>
+    /// <summary>
+    /// The VML fallback branch repeats the box: writing only one would leave the file saying two
+    /// things.
+    /// </summary>
     private static void Mirror(OpenXmlPartRootElement root)
     {
         foreach (var alternate in root.Descendants<AlternateContent>().ToList())
@@ -270,8 +278,8 @@ internal static class BandWriter
     }
 
     /// <summary>
-    /// O texto no primeiro <c>w:t</c> da peça, e os demais esvaziam: a contagem de runs,
-    /// e com ela o endereço, fica estável. <c>xml:space="preserve"</c> sempre.
+    /// The text goes in the piece's first <c>w:t</c>, and the others are emptied: the run count,
+    /// and the address with it, stays stable. Always <c>xml:space="preserve"</c>.
     /// </summary>
     private static void Rewrite(List<Text> source, string text, bool literal)
     {
@@ -281,7 +289,7 @@ internal static class BandWriter
 
         for (var index = 1; index < source.Count; index++) source[index].Text = string.Empty;
 
-        // `{n}` e `{total}` viram campos logo depois do run da peça, com a mesma formatação.
+        // `{n}` and `{total}` become fields right after the piece's run, with the same formatting.
         if (segments.Count == 1 || source[0].Parent is not Run anchor) return;
 
         OpenXmlElement last = anchor;

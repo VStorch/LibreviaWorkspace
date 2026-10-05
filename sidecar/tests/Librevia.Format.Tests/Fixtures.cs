@@ -5,12 +5,12 @@ using DocumentFormat.OpenXml.Wordprocessing;
 namespace Librevia.Format.Tests;
 
 /// <summary>
-/// Documentos de teste montados em código, legíveis na revisão. Reproduzem as
-/// estruturas do corpus, que não entra no repositório, com conteúdo inventado.
+/// Test documents built in code, readable in review. They reproduce the structures of the corpus,
+/// which is not in the repository, with invented content.
 /// </summary>
 public static class Fixtures
 {
-    /// <summary>Documento simples com três parágrafos.</summary>
+    /// <summary>A simple document with three paragraphs.</summary>
     public static byte[] Simple() => Build((body, _) =>
     {
         body.AppendChild(Paragraph("Primeiro parágrafo.", style: "Heading1"));
@@ -18,7 +18,7 @@ public static class Fixtures
         body.AppendChild(Paragraph("Terceiro parágrafo."));
     });
 
-    /// <summary>Um comentário ancorado no segundo parágrafo.</summary>
+    /// <summary>A comment anchored on the second paragraph.</summary>
     public static byte[] WithComment() => Build((body, part) =>
     {
         var comments = part.AddNewPart<WordprocessingCommentsPart>();
@@ -43,9 +43,9 @@ public static class Fixtures
     });
 
     /// <summary>
-    /// Uma conversa, um comentário resolvido e um de ponto, como o Word grava: a
-    /// resposta abraça o trecho do pai, e <c>commentsExtended.xml</c> liga as duas pelo
-    /// <c>w14:paraId</c>. O de ponto só tem a referência.
+    /// A thread, a resolved comment and a point comment, as Word writes them: the reply embraces
+    /// the parent's range, and <c>commentsExtended.xml</c> links both through <c>w14:paraId</c>.
+    /// The point comment only has the reference.
     /// </summary>
     public static byte[] WithCommentThread() => Build((body, part) =>
     {
@@ -107,7 +107,7 @@ public static class Fixtures
         body.AppendChild(point);
     });
 
-    /// <summary>Documento com controle de alterações no segundo parágrafo.</summary>
+    /// <summary>A document with tracked changes in the second paragraph.</summary>
     public static byte[] WithTrackedChanges() => Build((body, _) =>
     {
         body.AppendChild(Paragraph("Parágrafo intocado."));
@@ -131,7 +131,7 @@ public static class Fixtures
         body.AppendChild(Paragraph("Outro parágrafo intocado."));
     });
 
-    /// <summary>Imagem ancorada e centralizada, como o LibreOffice grava.</summary>
+    /// <summary>An anchored, centered image, as LibreOffice writes it.</summary>
     public static byte[] WithAnchoredImage() => Build((body, part) =>
     {
         var image = part.AddImagePart(ImagePartType.Png);
@@ -141,15 +141,15 @@ public static class Fixtures
         }
 
         body.AppendChild(Paragraph("Antes da imagem."));
-        // Com posição de verdade: fora da coluna, e o texto passa por baixo.
+        // With a real position: outside the column, and the text runs underneath.
         body.AppendChild(new Paragraph(new Run(
             AnchoredDrawing(part.GetIdOfPart(image), placed: true))));
         body.AppendChild(Paragraph("Depois da imagem."));
     });
 
     /// <summary>
-    /// Logotipo ancorado à direita no cabeçalho. A posição mora na âncora, e o
-    /// <c>a:off</c> do desenho é zero, como em todo desenho de peça única.
+    /// A logo anchored to the right in the header. The position lives in the anchor, and the
+    /// drawing's <c>a:off</c> is zero, as in every single-piece drawing.
     /// </summary>
     public static byte[] WithAnchoredHeaderLogo(long horizontalOffsetEmus) => Build(
         (body, _) => body.AppendChild(Paragraph("Corpo.")),
@@ -201,8 +201,8 @@ public static class Fixtures
         });
 
     /// <summary>
-    /// Quebra de página no fim de um <c>w:r</c>, dentro do parágrafo, distinta da que
-    /// ocupa um parágrafo só dela.
+    /// A page break at the end of a <c>w:r</c>, inside the paragraph, distinct from one that takes
+    /// a paragraph of its own.
     /// </summary>
     public static byte[] WithBreakInsideParagraph() => Build((body, _) =>
     {
@@ -213,7 +213,7 @@ public static class Fixtures
         body.AppendChild(Paragraph("Começo da segunda."));
     });
 
-    /// <summary>Rodapé de três parágrafos centralizados, como o do modelo de manual.</summary>
+    /// <summary>A footer of three centered paragraphs, like the manual template's.</summary>
     public static byte[] WithFooterOfThreeLines() => Build(
         (body, _) => body.AppendChild(Paragraph("Corpo do documento.")),
         (section, part) =>
@@ -240,8 +240,8 @@ public static class Fixtures
         });
 
     /// <summary>
-    /// Rodapé com texto, tabulação e o campo <c>PAGE</c>: só o texto tem <c>w:t</c>
-    /// onde escrever.
+    /// A footer with text, a tab and the <c>PAGE</c> field: only the text has a <c>w:t</c> to write
+    /// into.
     /// </summary>
     public static byte[] WithFooterOfPageNumber() => Build(
         (body, _) => body.AppendChild(Paragraph("Corpo do documento.")),
@@ -268,7 +268,7 @@ public static class Fixtures
             });
         });
 
-    /// <summary>Quebra de página sozinha num parágrafo.</summary>
+    /// <summary>A lone page break in a paragraph.</summary>
     public static byte[] WithLonePageBreak() => Build((body, _) =>
     {
         body.AppendChild(Paragraph("Primeira página."));
@@ -277,8 +277,8 @@ public static class Fixtures
     });
 
     /// <summary>
-    /// Três cabeçalhos, com o <c>first</c> antes do <c>default</c> no XML: o que vale é
-    /// o tipo, e não a ordem de gravação.
+    /// Three headers, with <c>first</c> before <c>default</c> in the XML: the type counts, not the
+    /// write order.
     /// </summary>
     public static byte[] WithFirstPageHeader(bool titlePage) => Build(
         (body, _) => body.AppendChild(Paragraph("Corpo do documento.")),
@@ -290,9 +290,8 @@ public static class Fixtures
         });
 
     /// <summary>
-    /// Cabeçalho em grade, como o corporativo do corpus: quatro colunas e três linhas,
-    /// o logotipo mesclado verticalmente na primeira e duas colunas unidas por
-    /// <c>w:gridSpan</c> à direita.
+    /// A grid header, like the corpus corporate one: four columns and three rows, the logo merged
+    /// vertically in the first and two columns joined by <c>w:gridSpan</c> on the right.
     /// </summary>
     public static byte[] WithHeaderGrid() => Build(
         (body, _) => body.AppendChild(Paragraph("Corpo do documento.")),
@@ -331,7 +330,7 @@ public static class Fixtures
                 TextCell("Título do documento", "6000"),
                 TextCell("30/07/2026", "2000", span: 2)));
 
-            // Sem a borda de baixo, duas linhas do arquivo viram uma moldura só.
+            // Without the bottom border, two file rows become a single frame.
             var sem = TextCell("Página", "1000");
             sem.TableCellProperties!.AppendChild(
                 new TableCellBorders(new BottomBorder { Val = BorderValues.Nil }));
@@ -380,7 +379,7 @@ public static class Fixtures
     }
 
     /// <summary>
-    /// Fonte que a máquina pode não ter, com o tipo declarado em <c>word/fontTable.xml</c>.
+    /// A font the machine may lack, with its kind declared in <c>word/fontTable.xml</c>.
     /// </summary>
     public static byte[] WithMissingFont() => Build((body, part) =>
     {
@@ -396,7 +395,7 @@ public static class Fixtures
             new Text("Título da capa") { Space = SpaceProcessingModeValues.Preserve }));
         body.AppendChild(paragraph);
 
-        // Fonte que a tabela não declara: nada a inventar, sai como está.
+        // A font the table does not declare: nothing to invent, it goes out as is.
         var outro = new Paragraph();
         outro.AppendChild(new Run(
             new RunProperties(new RunFonts { Ascii = "Fonte Fantasma", HighAnsi = "Fonte Fantasma" }),
@@ -405,8 +404,8 @@ public static class Fixtures
     });
 
     /// <summary>
-    /// Cabeçalho que é um grupo de formas, logotipo e caixa de título: a âncora dá
-    /// posição e tamanho do grupo, e <c>a:chOff</c>/<c>a:chExt</c> a régua de dentro.
+    /// A header that is a shape group, logo and title box: the anchor gives the group's position
+    /// and size, and <c>a:chOff</c>/<c>a:chExt</c> the inner ruler.
     /// </summary>
     public static byte[] WithHeaderGroup() => Build(
         (body, _) => body.AppendChild(Paragraph("Corpo do documento.")),
@@ -490,7 +489,7 @@ public static class Fixtures
             });
         });
 
-    /// <summary>Um cabeçalho novo com uma linha de texto; devolve o `r:id`.</summary>
+    /// <summary>A new header with a line of text; returns the `r:id`.</summary>
     private static string Header(MainDocumentPart part, string text)
     {
         var header = part.AddNewPart<HeaderPart>();
@@ -500,8 +499,8 @@ public static class Fixtures
     }
 
     /// <summary>
-    /// Título e subtítulo em duas caixas ancoradas no mesmo parágrafo, como a capa do
-    /// modelo de manual; cada uma em <c>mc:Choice</c> e em <c>mc:Fallback</c>.
+    /// Title and subtitle in two boxes anchored on the same paragraph, like the manual template
+    /// cover; each in <c>mc:Choice</c> and in <c>mc:Fallback</c>.
     /// </summary>
     public static byte[] WithTextBoxes() => Build((body, _) =>
     {
@@ -513,17 +512,17 @@ public static class Fixtures
     });
 
     /// <summary>
-    /// Três caixas: sem decoração (como as do corpus, <c>a:noFill</c> e linha zero),
-    /// com uma que se desenha e com uma que não.
+    /// Three boxes: undecorated (like the corpus ones, <c>a:noFill</c> and zero line), one that can
+    /// be drawn and one that cannot.
     /// </summary>
     public static byte[] WithDecoratedTextBoxes() => Build((body, _) =>
     {
-        // Sem moldura, como as caixas do cabeçalho do corpus.
+        // No frame, like the corpus header boxes.
         body.AppendChild(new Paragraph(new Run(TextBoxShape(
             "Sem moldura",
             """<a:noFill/><a:ln w="0"><a:noFill/></a:ln>"""))));
 
-        // Preenchimento e traço sólidos: o que o CSS desenha.
+        // Solid fill and stroke: what CSS draws.
         body.AppendChild(new Paragraph(new Run(TextBoxShape(
             "Com moldura",
             """
@@ -534,7 +533,7 @@ public static class Fixtures
         body.AppendChild(Paragraph("Corpo do documento."));
     });
 
-    /// <summary>Caixa com preenchimento em gradiente, que não sabemos desenhar.</summary>
+    /// <summary>A box with a gradient fill, which we cannot draw.</summary>
     public static byte[] WithGradientTextBox() => Build((body, _) =>
     {
         body.AppendChild(new Paragraph(new Run(TextBoxShape(
@@ -548,8 +547,8 @@ public static class Fixtures
     });
 
     /// <summary>
-    /// A marca vertical da capa: imagem ancorada girada um quarto de volta. O
-    /// <c>wp:extent</c> mede a imagem deitada, 28,58 × 8,01 cm.
+    /// The cover's vertical mark: an anchored image rotated a quarter turn. <c>wp:extent</c>
+    /// measures the image lying down, 28.58 × 8.01 cm.
     /// </summary>
     public static byte[] WithRotatedImage() => Build((body, part) =>
     {
@@ -569,8 +568,8 @@ public static class Fixtures
     });
 
     /// <summary>
-    /// Como o modelo de manual encerra a capa: um parágrafo só com a marca
-    /// posicionada e o <c>w:br</c> da folha seguinte.
+    /// How the manual template ends its cover: a paragraph with only the positioned mark and the
+    /// <c>w:br</c> to the next sheet.
     /// </summary>
     public static byte[] WithBreakOnAnchorParagraph() => Build((body, part) =>
     {
@@ -595,8 +594,8 @@ public static class Fixtures
     });
 
     /// <summary>
-    /// Texto, captura ancorada ao topo do parágrafo e mais texto, no mesmo
-    /// parágrafo, como no corpus.
+    /// Text, a capture anchored to the top of the paragraph and more text, in the same paragraph,
+    /// as in the corpus.
     /// </summary>
     public static byte[] WithTextAroundTopAnchoredImage() => Build((body, part) =>
     {
@@ -613,8 +612,8 @@ public static class Fixtures
     });
 
     /// <summary>
-    /// Imagem que o LibreOffice ancora no lugar do próprio parágrafo: sem deslocamento,
-    /// centralizada e com a largura da coluna, como num documento de capturas de tela.
+    /// An image LibreOffice anchors in its own paragraph's place: no offset, centered and
+    /// column-wide, as in a screenshot document.
     /// </summary>
     public static byte[] WithAnchoredImageInTheFlow() => Build((body, part) =>
     {
@@ -629,13 +628,15 @@ public static class Fixtures
         body.AppendChild(Paragraph("Depois da captura."));
     });
 
-    /// <summary>Sete seções <c>continuous</c> de geometria idêntica, como o LibreOffice grava.</summary>
+    /// <summary>
+    /// Seven <c>continuous</c> sections with identical geometry, as LibreOffice writes them.
+    /// </summary>
     public static byte[] WithIdenticalSections() => Build((body, _) =>
     {
         for (var i = 1; i <= 6; i++)
         {
             var paragraph = Paragraph($"Trecho {i}.");
-            // A mesma geometria da seção final que `Build` acrescenta.
+            // The same geometry as the final section `Build` adds.
             paragraph.ParagraphProperties = new ParagraphProperties(
                 new SectionProperties(
                     new SectionType { Val = SectionMarkValues.Continuous },
@@ -647,7 +648,7 @@ public static class Fixtures
         body.AppendChild(Paragraph("Fim."));
     });
 
-    /// <summary>Duas seções que divergem: a primeira em paisagem.</summary>
+    /// <summary>Two diverging sections: the first in landscape.</summary>
     public static byte[] WithDivergentSections() => Build((body, _) =>
     {
         var paragraph = Paragraph("Trecho em paisagem.");
@@ -662,9 +663,9 @@ public static class Fixtures
     });
 
     /// <summary>
-    /// Três seções: a primeira declara cabeçalho e numeração em romanos; a do
-    /// meio, contínua, herda o cabeçalho; a última (do corpo) começa em página
-    /// ímpar, em paisagem, e reinicia a numeração em 1.
+    /// Three sections: the first declares a header and Roman numbering; the middle one, continuous,
+    /// inherits the header; the last (the body's) starts on an odd page, in landscape, and restarts
+    /// numbering at 1.
     /// </summary>
     public static byte[] WithThreeSections() => Build((body, part) =>
     {
@@ -703,8 +704,8 @@ public static class Fixtures
     });
 
     /// <summary>
-    /// Colunas: a primeira seção em duas colunas iguais com linha entre elas e
-    /// uma quebra de coluna; a do corpo em três de larguras diferentes.
+    /// Columns: the first section in two equal columns with a line between them and a column break;
+    /// the body's in three of different widths.
     /// </summary>
     public static byte[] WithColumns() => Build((body, _) =>
     {
@@ -732,9 +733,8 @@ public static class Fixtures
     });
 
     /// <summary>
-    /// Formatação nos estilos, como no corpus: <c>Faixa</c> é o <c>Heading1</c> dele
-    /// (fundo vermelho, texto branco, Arial 10 pt, centralizado), e <c>Corpo</c> herda
-    /// de <c>Base</c>.
+    /// Formatting in styles, as in the corpus: <c>Faixa</c> is its <c>Heading1</c> (red background,
+    /// white text, Arial 10 pt, centered), and <c>Corpo</c> inherits from <c>Base</c>.
     /// </summary>
     public static byte[] WithStyles() => Build((body, part) =>
     {
@@ -771,21 +771,21 @@ public static class Fixtures
         body.AppendChild(Paragraph("Informações Gerais", style: "Faixa"));
         body.AppendChild(Paragraph("Texto do corpo.", style: "Corpo"));
 
-        // Formatação direta tem de vencer o estilo.
+        // Direct formatting must beat the style.
         var overridden = Paragraph("Alinhado à direita.", style: "Corpo");
         overridden.ParagraphProperties!.AppendChild(new Justification { Val = JustificationValues.Right });
         body.AppendChild(overridden);
 
-        // `w:rPr` dentro de `w:pPr` formata a marca de parágrafo, não os runs.
+        // `w:rPr` inside `w:pPr` formats the paragraph mark, not the runs.
         var marked = Paragraph("Não deve ficar em negrito.", style: "Corpo");
         marked.ParagraphProperties!.AppendChild(new ParagraphMarkRunProperties(new Bold()));
         body.AppendChild(marked);
     });
 
     /// <summary>
-    /// A medida da linha: o corpo sem <c>w:pStyle</c> no estilo <c>w:default="1"</c>, a
-    /// fonte da marca de parágrafo (<c>w:pPr/w:rPr</c>), com que o Word mede a linha, e
-    /// entrelinhas declaradas ou não.
+    /// Line measurement: a body without <c>w:pStyle</c> in the <c>w:default="1"</c> style, the
+    /// paragraph mark font (<c>w:pPr/w:rPr</c>) Word measures the line with, and declared or
+    /// undeclared line spacing.
     /// </summary>
     public static byte[] WithLineMetrics() => Build((body, part) =>
     {
@@ -800,10 +800,10 @@ public static class Fixtures
                 new StyleRunProperties(new FontSize { Val = "24" }))
             { Type = StyleValues.Paragraph, StyleId = "Normal", Default = true });
 
-        // Sem `w:pStyle`: só o estilo padrão diz que isto é 12 pt.
+        // Without `w:pStyle`: only the default style says this is 12 pt.
         body.AppendChild(Paragraph("Herda o estilo padrão."));
 
-        // A marca de parágrafo manda na altura da linha, e diverge do estilo.
+        // The paragraph mark rules line height, and differs from the style.
         var marked = Paragraph("Verdana de dez pontos.");
         marked.ParagraphProperties = new ParagraphProperties(
             new ParagraphMarkRunProperties(
@@ -811,26 +811,26 @@ public static class Fixtures
                 new FontSize { Val = "20" }));
         body.AppendChild(marked);
 
-        // Entrelinha travada em 9 pt.
+        // Line spacing fixed at 9 pt.
         var exact = Paragraph("Entrelinha travada.");
         exact.ParagraphProperties = new ParagraphProperties(
             new SpacingBetweenLines { Line = "180", LineRule = LineSpacingRuleValues.Exact });
         body.AppendChild(exact);
 
-        // Uma vez e meia, que é o outro valor que aparece na prática.
+        // One and a half, the other value seen in practice.
         var loose = Paragraph("Entrelinha de uma vez e meia.");
         loose.ParagraphProperties = new ParagraphProperties(
             new SpacingBetweenLines { Line = "360", LineRule = LineSpacingRuleValues.Auto });
         body.AppendChild(loose);
 
-        // 271/240 em Arial, o múltiplo e a fonte mais comuns do corpus.
+        // 271/240 in Arial, the corpus's most common multiple and font.
         var multiple = Paragraph("Arial e um pouco mais de linha.");
         multiple.ParagraphProperties = new ParagraphProperties(
             new SpacingBetweenLines { Line = "271", LineRule = LineSpacingRuleValues.Auto },
             new ParagraphMarkRunProperties(new RunFonts { Ascii = "Arial" }));
         body.AppendChild(multiple);
 
-        // Fonte que o instalador não leva: a substituta depende da máquina.
+        // A font the installer does not ship: the substitute depends on the machine.
         var unknown = Paragraph("Numa fonte que ninguém tem.");
         unknown.ParagraphProperties = new ParagraphProperties(
             new SpacingBetweenLines { Line = "271", LineRule = LineSpacingRuleValues.Auto },
@@ -839,8 +839,8 @@ public static class Fixtures
     });
 
     /// <summary>
-    /// Estilo com entrelinha 276 e recuo, e parágrafos que redeclaram só
-    /// <c>w:before</c> e <c>w:after</c>, como o documento de evidências do corpus.
+    /// A style with 276 line spacing and an indent, and paragraphs redeclaring only <c>w:before</c>
+    /// and <c>w:after</c>, like the corpus evidence document.
     /// </summary>
     public static byte[] WithStyleSpacingAndDirectMargins() => Build((body, part) =>
     {
@@ -860,21 +860,21 @@ public static class Fixtures
                 new StyleRunProperties(new RunFonts { Ascii = "Arial" }, new FontSize { Val = "20" }))
             { Type = StyleValues.Paragraph, StyleId = "Normal", Default = true });
 
-        // Só o espaço; a entrelinha e o recuo continuam sendo os do estilo.
+        // Only the space; line spacing and indent stay the style's.
         var paragraph = Paragraph("Herda a entrelinha e o recuo do estilo.");
         paragraph.ParagraphProperties = new ParagraphProperties(
             new SpacingBetweenLines { Before = "0", After = "0" });
         body.AppendChild(paragraph);
 
-        // Este troca o recuo da esquerda e mantém o resto.
+        // This one changes the left indent and keeps the rest.
         var moved = Paragraph("Troca só o recuo da esquerda.");
         moved.ParagraphProperties = new ParagraphProperties(new Indentation { Left = "1440" });
         body.AppendChild(moved);
     });
 
     /// <summary>
-    /// Marca de seção no meio do texto, como o LibreOffice grava: o <c>w:sectPr</c> no
-    /// <c>w:pPr</c> de um parágrafo vazio.
+    /// A section mark in the middle of the text, as LibreOffice writes it: <c>w:sectPr</c> in the
+    /// <c>w:pPr</c> of an empty paragraph.
     /// </summary>
     public static byte[] WithSectionMarkInTheMiddle() => Build((body, _) =>
     {
@@ -889,7 +889,9 @@ public static class Fixtures
         body.AppendChild(Paragraph("Depois da marca."));
     });
 
-    /// <summary>Um parágrafo que não se corta entre linhas, e um que desliga o controle de viúvas.</summary>
+    /// <summary>
+    /// A paragraph that does not break between lines, and one that turns widow control off.
+    /// </summary>
     public static byte[] WithKeepLines() => Build((body, _) =>
     {
         var kept = Paragraph("Linhas juntas.");
@@ -903,7 +905,7 @@ public static class Fixtures
         body.AppendChild(Paragraph("Comum."));
     });
 
-    /// <summary>Um parágrafo que pede para ficar com o seguinte, outro que não.</summary>
+    /// <summary>A paragraph that asks to stay with the next, another that does not.</summary>
     public static byte[] WithKeepNext() => Build((body, _) =>
     {
         var kept = Paragraph("Rótulo da imagem:");
@@ -914,8 +916,8 @@ public static class Fixtures
     });
 
     /// <summary>
-    /// Alinhado à esquerda e centralizado por tabulação, como no corpus: <c>w:jc</c>
-    /// <c>left</c> e uma parada centralizada no meio da coluna.
+    /// Left-aligned and centered by a tab, as in the corpus: <c>w:jc</c> <c>left</c> and a centered
+    /// stop in the middle of the column.
     /// </summary>
     public static byte[] WithTabCentering() => Build((body, _) =>
     {
@@ -926,7 +928,7 @@ public static class Fixtures
         centered.AppendChild(new Run(new TabChar(), new TabChar(), new Text("Centralizado por tabulação")));
         body.AppendChild(centered);
 
-        // Tabulação no meio da linha não é posicionamento de parágrafo.
+        // A tab mid-line is not paragraph positioning.
         var inline = new Paragraph();
         inline.ParagraphProperties = new ParagraphProperties(
             new Tabs(new TabStop { Val = TabStopValues.Center, Position = 4153 }),
@@ -935,7 +937,7 @@ public static class Fixtures
         body.AppendChild(inline);
     });
 
-    /// <summary>Estilo que herda de si mesmo — não pode travar o leitor.</summary>
+    /// <summary>A style inheriting from itself: it must not hang the reader.</summary>
     public static byte[] WithCircularStyle() => Build((body, part) =>
     {
         var styles = part.AddNewPart<StyleDefinitionsPart>();
@@ -948,7 +950,7 @@ public static class Fixtures
         body.AppendChild(Paragraph("Texto.", style: "A"));
     });
 
-    /// <summary>Versalete e maiúsculas — 45 ocorrências no corpus.</summary>
+    /// <summary>Small caps and all caps: 45 occurrences in the corpus.</summary>
     public static byte[] WithSmallCaps() => Build((body, _) =>
     {
         var paragraph = new Paragraph();
@@ -957,7 +959,7 @@ public static class Fixtures
         body.AppendChild(paragraph);
     });
 
-    /// <summary>Sobrescrito e subscrito: a fórmula e a nota de referência.</summary>
+    /// <summary>Superscript and subscript: the formula and the reference note.</summary>
     public static byte[] WithVerticalAlignment() => Build((body, _) =>
     {
         var paragraph = new Paragraph();
@@ -973,8 +975,8 @@ public static class Fixtures
     });
 
     /// <summary>
-    /// Duas tabelas: uma com `w:tblCellMar` próprio só em cima, outra calada — que
-    /// herda do estilo padrão de tabela (60 twips embaixo) e do Word (108 dos lados).
+    /// Two tables: one with its own `w:tblCellMar` only on top, another silent one, which inherits
+    /// from the default table style (60 twips below) and from Word (108 on the sides).
     /// </summary>
     public static byte[] WithCellMargins() => Build((body, part) =>
     {
@@ -1004,7 +1006,7 @@ public static class Fixtures
     {
         body.AppendChild(Paragraph("Antes da tabela."));
 
-        // O esquema exige `w:tblGrid` em toda tabela.
+        // The schema requires `w:tblGrid` in every table.
         var table = new Table(
             new TableProperties(new TableBorders(
                 new TopBorder { Val = BorderValues.Single, Size = 4 },
@@ -1026,7 +1028,7 @@ public static class Fixtures
         body.AppendChild(Paragraph("Depois da tabela."));
     });
 
-    /// <summary>Lista com marcador, com a numeração declarada de verdade.</summary>
+    /// <summary>A bullet list, with its numbering really declared.</summary>
     public static byte[] WithBulletList() => Build((body, part) =>
     {
         AddBulletNumbering(part);
@@ -1038,9 +1040,9 @@ public static class Fixtures
     });
 
     /// <summary>
-    /// Lista numerada de dois níveis: o segundo compõe o primeiro (<c>%1.%2)</c>), a
-    /// lista continua depois de um parágrafo comum (o mesmo <c>numId</c>), e um segundo
-    /// <c>w:num</c> com <c>w:startOverride</c> conta a partir de 10.
+    /// A two-level numbered list: the second composes the first (<c>%1.%2)</c>), the list continues
+    /// after a regular paragraph (the same <c>numId</c>), and a second <c>w:num</c> with
+    /// <c>w:startOverride</c> counts from 10.
     /// </summary>
     public static byte[] WithMultilevelList() => Build((body, part) =>
     {
@@ -1075,8 +1077,8 @@ public static class Fixtures
     });
 
     /// <summary>
-    /// Lista com marcador dentro de uma célula, onde o editor vê parágrafos comuns: o
-    /// <c>w:numPr</c> tem de sobreviver.
+    /// A bullet list inside a cell, where the editor sees regular paragraphs: the <c>w:numPr</c>
+    /// must survive.
     /// </summary>
     public static byte[] WithListInsideTableCell() => Build((body, part) =>
     {
@@ -1094,8 +1096,8 @@ public static class Fixtures
     });
 
     /// <summary>
-    /// Recuo negativo, que o leitor não emite: o modelo volta dizendo zero sobre um
-    /// recuo que existe.
+    /// A negative indent, which the reader does not emit: the model comes back saying zero over an
+    /// indent that exists.
     /// </summary>
     public static byte[] WithNegativeIndent() => Build((body, _) =>
     {
@@ -1105,7 +1107,7 @@ public static class Fixtures
     });
 
     /// <summary>
-    /// Tabela com um marcador entre duas linhas, filho legítimo de <c>w:tbl</c>.
+    /// A table with a bookmark between two rows, a legitimate child of <c>w:tbl</c>.
     /// </summary>
     public static byte[] WithBookmarkBetweenRows() => Build((body, _) =>
     {
@@ -1122,8 +1124,8 @@ public static class Fixtures
 
 
     /// <summary>
-    /// Parágrafo abraçado por um marcador, destino de referência cruzada, índice e
-    /// link interno, que o editor não representa.
+    /// A paragraph embraced by a bookmark, the target of cross-references, indexes and internal
+    /// links, which the editor does not represent.
     /// </summary>
     public static byte[] WithBookmarkAroundParagraph() => Build((body, _) =>
     {
@@ -1137,8 +1139,8 @@ public static class Fixtures
     });
 
     /// <summary>
-    /// Parágrafo com tudo o que o <c>w:pPr</c> diz: o que a tela mostra (estilo,
-    /// espaçamento, entrelinha, fundo, fonte da marca) e o que não (borda, tabulação).
+    /// A paragraph with everything <c>w:pPr</c> says: what the screen shows (style, spacing, line
+    /// spacing, background, mark font) and what it does not (border, tab).
     /// </summary>
     public static byte[] WithFormattedParagraph() => Build((body, part) =>
     {
@@ -1178,8 +1180,8 @@ public static class Fixtures
     });
 
     /// <summary>
-    /// Tabela com o que o modelo não representa: estilo, largura, grade, cabeçalho que
-    /// se repete, sombreamento e mesclagem vertical.
+    /// A table with what the model does not represent: style, width, grid, repeated header, shading
+    /// and vertical merge.
     /// </summary>
     public static byte[] WithStyledTable() => Build((body, _) =>
     {
@@ -1215,8 +1217,8 @@ public static class Fixtures
     });
 
     /// <summary>
-    /// Trama de sombreamento (<c>pct25</c>) e borda <c>thickThinSmallGap</c>, que a tela
-    /// aproxima por cor lisa e linha simples.
+    /// A shading pattern (<c>pct25</c>) and a <c>thickThinSmallGap</c> border, which the screen
+    /// approximates with a flat color and a single line.
     /// </summary>
     public static byte[] WithPatternedCell() => Build((body, _) =>
     {
@@ -1237,9 +1239,8 @@ public static class Fixtures
     });
 
     /// <summary>
-    /// Célula com as bordas que o modelo não representa: diagonal, borda
-    /// interna, `w:space` e cor de tema num lado, e o `w:nil` de baixo que o Word
-    /// grava o tempo todo.
+    /// A cell with borders the model does not represent: diagonal, inner border, `w:space` and a
+    /// theme color on one side, and the bottom `w:nil` Word writes all the time.
     /// </summary>
     public static byte[] WithRichCellBorders() => Build((body, _) =>
     {
@@ -1270,8 +1271,8 @@ public static class Fixtures
     });
 
     /// <summary>
-    /// Tabela cuja primeira linha não cobre a grade: começa uma coluna adiante
-    /// (`w:gridBefore`), como em formulário e em documento convertido de PDF.
+    /// A table whose first row does not cover the grid: it starts one column ahead
+    /// (`w:gridBefore`), as in forms and documents converted from PDF.
     /// </summary>
     public static byte[] WithGridBefore() => Build((body, _) =>
     {
@@ -1297,8 +1298,8 @@ public static class Fixtures
     });
 
     /// <summary>
-    /// Tabela de três colunas de larguras diferentes, com medidas que não são
-    /// múltiplo de 15 twips — o pixel do CSS. 2000 twips são 133,33 px.
+    /// A three-column table of different widths, with measures that are not multiples of 15 twips,
+    /// the CSS pixel. 2000 twips is 133.33 px.
     /// </summary>
     public static byte[] WithThreeColumns() => Build((body, _) =>
     {
@@ -1324,8 +1325,8 @@ public static class Fixtures
     });
 
     /// <summary>
-    /// Tabela cuja primeira linha foi inserida com o controle de alterações
-    /// ligado: o `w:ins` mora no fim do `w:trPr`.
+    /// A table whose first row was inserted with tracking on: the `w:ins` lives at the end of
+    /// `w:trPr`.
     /// </summary>
     public static byte[] WithInsertedRow() => Build((body, _) =>
     {
@@ -1349,8 +1350,8 @@ public static class Fixtures
     });
 
     /// <summary>
-    /// Tabela com uma célula inserida pelo controle de alterações (`w:cellIns`):
-    /// revisão de estrutura, que o editor não representa.
+    /// A table with a cell inserted by tracking (`w:cellIns`): a structure revision the editor does
+    /// not represent.
     /// </summary>
     public static byte[] WithInsertedCell() => BuildFromXml(
         """
@@ -1361,7 +1362,7 @@ public static class Fixtures
         """,
         string.Empty);
 
-    /// <summary>Tabela dentro de uma célula de outra tabela.</summary>
+    /// <summary>A table inside a cell of another table.</summary>
     public static byte[] WithNestedTable() => Build((body, _) =>
     {
         var inner = new Table(
@@ -1374,14 +1375,14 @@ public static class Fixtures
             new TableGrid(new GridColumn { Width = "9350" }));
         var cell = new TableCell(Paragraph("Antes da aninhada"));
         cell.AppendChild(inner);
-        // `w:tc` não pode terminar em tabela: o Word exige um parágrafo depois.
+        // A `w:tc` cannot end in a table: Word requires a paragraph after it.
         cell.AppendChild(Paragraph("Depois da aninhada"));
         outer.AppendChild(new TableRow(cell));
 
         body.AppendChild(outer);
     });
 
-    /// <summary>Papel A5, que o modelo do editor não nomeia.</summary>
+    /// <summary>A5 paper, which the editor model does not name.</summary>
     public static byte[] WithCustomPaper() => Build(
         (body, _) => body.AppendChild(Paragraph("Meia folha.")),
         (section, _) =>
@@ -1391,7 +1392,7 @@ public static class Fixtures
             size.Height = 11907U;
         });
 
-    /// <summary>Um PNG de 4 × 4, para provar que a medida sai do cabeçalho dele.</summary>
+    /// <summary>A 4 × 4 PNG, to prove the measure comes from its header.</summary>
     public static byte[] SquarePng() => Convert.FromBase64String(
         "iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAIAAAAmkwkpAAAADklEQVR4nGNwQAIMxHEAOEMMAfoZu1cAAAAASUVORK5CYII=");
 
@@ -1409,9 +1410,7 @@ public static class Fixtures
         return paragraph;
     }
 
-    /// <summary>
-    /// Numeração com um marcador: o quadrado da Wingdings, na área de uso privado.
-    /// </summary>
+    /// <summary>Bullet numbering: the Wingdings square, in the private use area.</summary>
     private static void AddBulletNumbering(MainDocumentPart part)
     {
         var level = new Level(
@@ -1428,7 +1427,7 @@ public static class Fixtures
             new NumberingInstance(new AbstractNumId { Val = 1 }) { NumberID = 1 });
     }
 
-    /// <summary>No arquivo, item de lista é parágrafo que aponta uma numeração.</summary>
+    /// <summary>In the file, a list item is a paragraph pointing to a numbering.</summary>
     private static Paragraph NumberedParagraph(string text, int numId, int level = 0)
     {
         var paragraph = Paragraph(text);
@@ -1440,8 +1439,8 @@ public static class Fixtures
     }
 
     /// <summary>
-    /// Um parágrafo, a seção decorada por quem pede e um <c>settings.xml</c> mínimo,
-    /// para conferir que a gravação não o toca.
+    /// A paragraph, the section decorated by the caller and a minimal <c>settings.xml</c>, to check
+    /// that saving does not touch it.
     /// </summary>
     public static byte[] WithSection(Action<SectionProperties> decorate) => Build(
         (body, part) =>
@@ -1453,7 +1452,7 @@ public static class Fixtures
         },
         (section, _) => decorate(section));
 
-    /// <summary>Um rodapé padrão com o parágrafo dado — para campos e textos de faixa.</summary>
+    /// <summary>A default footer with the given paragraph, for band fields and texts.</summary>
     public static byte[] WithFooter(Paragraph paragraph) => Build(
         (body, _) => body.AppendChild(Paragraph("Corpo do documento.")),
         (section, part) =>
@@ -1465,8 +1464,8 @@ public static class Fixtures
         });
 
     /// <summary>
-    /// Parágrafos numerados por um `numId` que o `numbering.xml` não define — o
-    /// Word os mostra sem marca nenhuma.
+    /// Paragraphs numbered by a `numId` that `numbering.xml` does not define: Word shows them
+    /// without any marker.
     /// </summary>
     public static byte[] WithDanglingNumbering() => Build((body, part) =>
     {
@@ -1477,8 +1476,8 @@ public static class Fixtures
     });
 
     /// <summary>
-    /// Lista cujo nível 0 tem o que a definição do editor não leva: número à
-    /// direita, em vermelho, e formato `ordinal`.
+    /// A list whose level 0 has what the editor definition does not carry: a right-aligned number,
+    /// in red, with the `ordinal` format.
     /// </summary>
     public static byte[] WithRichNumbering() => Build((body, part) =>
     {
@@ -1506,10 +1505,10 @@ public static class Fixtures
     });
 
     /// <summary>
-    /// As referências como o Word as grava, em XML cru: sumário num controle de
-    /// conteúdo, títulos com <c>_Toc…</c>, marcador que termina entre dois parágrafos,
-    /// <c>SEQ</c>, <c>REF</c>, <c>PAGEREF</c> e link interno, com campo partido em cinco
-    /// runs, dentro de link e entre parágrafos.
+    /// References as Word writes them, in raw XML: a table of contents in a content control,
+    /// headings with <c>_Toc…</c>, a bookmark ending between two paragraphs, <c>SEQ</c>,
+    /// <c>REF</c>, <c>PAGEREF</c> and an internal link, with a field split across five runs, inside
+    /// a link and between paragraphs.
     /// </summary>
     public static byte[] WithReferences() => BuildFromXml(ReferencesBody, ReferencesStyles);
 
@@ -1540,7 +1539,7 @@ public static class Fixtures
         <w:style w:type="character" w:styleId="Hyperlink"><w:name w:val="Hyperlink"/><w:basedOn w:val="Fontepargpadro"/><w:uiPriority w:val="99"/><w:unhideWhenUsed/><w:rPr><w:color w:val="0563C1"/><w:u w:val="single"/></w:rPr></w:style>
         """;
 
-    /// <summary>Um pacote com o corpo e os estilos dados em XML.</summary>
+    /// <summary>A package with the given body and styles in XML.</summary>
     internal static byte[] BuildFromXml(string body, string styles)
     {
         const string ns = "xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"";
@@ -1563,8 +1562,8 @@ public static class Fixtures
     private static byte[] Build(Action<Body, MainDocumentPart> fill) => Build(fill, null);
 
     /// <param name="decorate">
-    /// Recebe o `w:sectPr` já montado, para o fixture acrescentar referências de
-    /// cabeçalho ou interruptores de seção.
+    /// Receives the already built `w:sectPr`, so the fixture can add band references or section
+    /// switches.
     /// </param>
     private static byte[] Build(
         Action<Body, MainDocumentPart> fill,
@@ -1583,7 +1582,8 @@ public static class Fixtures
                 new PageMargin { Top = 1440, Bottom = 1440, Left = 1440U, Right = 1440U });
             decorate?.Invoke(section, part);
 
-            // O `w:sectPr` abre pelas referências de faixa: senão o fixture sai fora do esquema.
+            // `w:sectPr` opens with band references: otherwise the fixture falls outside the
+            // schema.
             var references = section.ChildElements
                 .Where(child => child is HeaderReference or FooterReference)
                 .ToList();
@@ -1602,8 +1602,7 @@ public static class Fixtures
     }
 
     /// <summary>
-    /// Uma caixa de texto do jeito que o Word grava: o mesmo texto em
-    /// DrawingML e no VML de reserva.
+    /// A text box the way Word writes it: the same text in DrawingML and in the VML fallback.
     /// </summary>
     private static OpenXmlElement TextBoxShape(string text, string decoration = "")
     {
@@ -1659,14 +1658,14 @@ public static class Fixtures
             </mc:AlternateContent>
             """;
 
-        // Pelo XML completo: `InnerXml` perderia o elemento que envolve os ramos.
+        // Through the full XML: `InnerXml` would lose the element wrapping the branches.
         return new AlternateContent(xml);
     }
 
-    /// <summary>Imagem **no fluxo** (`wp:inline`): ocupa lugar na linha.</summary>
+    /// <summary>An image **in the flow** (`wp:inline`): it takes room in the line.</summary>
     /// <param name="docPrId">
-    /// O `wp:docPr/@id` do desenho que já está no arquivo. O fixture o escolhe
-    /// porque é com ele que o id de uma imagem nova não pode colidir.
+    /// The `wp:docPr/@id` of the drawing already in the file. The fixture picks it because a new
+    /// image's id must not collide with it.
     /// </param>
     public static byte[] WithInlineImage(uint docPrId = 1) => Build((body, part) =>
     {
@@ -1679,7 +1678,7 @@ public static class Fixtures
         body.AppendChild(new Paragraph(new Run(InlineDrawing(part.GetIdOfPart(image), docPrId))));
     });
 
-    /// <summary>Imagem no fluxo **com texto alternativo** (`wp:docPr/@descr`).</summary>
+    /// <summary>An image in the flow **with alt text** (`wp:docPr/@descr`).</summary>
     public static byte[] WithDescribedImage() => Build((body, part) =>
     {
         var image = part.AddImagePart(ImagePartType.Png);
@@ -1727,8 +1726,8 @@ public static class Fixtures
     }
 
     /// <param name="placed">
-    /// Fora do fluxo, como a marca da capa. Com <c>false</c>, a imagem que o
-    /// LibreOffice ancora onde o fluxo já a poria.
+    /// Out of the flow, like the cover mark. With <c>false</c>, the image LibreOffice anchors where
+    /// the flow would already place it.
     /// </param>
     private static OpenXmlElement AnchoredDrawing(
         string relationshipId,
@@ -1787,7 +1786,7 @@ public static class Fixtures
         return drawing;
     }
 
-    /// <summary>PNG 1×1 transparente, o menor válido.</summary>
+    /// <summary>A transparent 1×1 PNG, the smallest valid one.</summary>
     private static byte[] TinyPng() => Convert.FromBase64String(
         "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==");
 }

@@ -10,34 +10,32 @@ public sealed record PageSetupDto(
     [property: JsonPropertyName("margins")] MarginsDto Margins,
     [property: JsonPropertyName("headerBand")] BandDto? Header,
     [property: JsonPropertyName("footerBand")] BandDto? Footer,
-    // Campos novos e opcionais, para o `.sdoc` gravado sem eles continuar abrindo.
+    // New, optional fields, so a `.sdoc` saved without them keeps opening.
     [property: JsonPropertyName("firstHeaderBand")] BandDto? FirstHeader = null,
     [property: JsonPropertyName("firstFooterBand")] BandDto? FirstFooter = null,
     [property: JsonPropertyName("evenHeaderBand")] BandDto? EvenHeader = null,
     [property: JsonPropertyName("evenFooterBand")] BandDto? EvenFooter = null,
-    /// <summary><c>w:pgMar/@header</c> e <c>@footer</c>: a origem vertical das âncoras de dentro da faixa.</summary>
+    /// <c>w:pgMar/@header</c> and <c>@footer</c>: the vertical origin for anchors inside the band.
     [property: JsonPropertyName("headerDistanceMm")] double HeaderDistanceMm = 12.5,
     [property: JsonPropertyName("footerDistanceMm")] double FooterDistanceMm = 12.5,
-    // A faixa de texto simples do documento novo, com `{n}` e `{total}` (PlainBandWriter).
+    // The new document's plain text band, with `{n}` and `{total}` (PlainBandWriter).
     [property: JsonPropertyName("header")] string? HeaderText = null,
     [property: JsonPropertyName("footer")] string? FooterText = null,
-    // `w:pgNumType` e os interruptores das faixas: ausente é "não mexa", e não "desligue".
+    // `w:pgNumType` and the band switches: absent means "leave alone", not "turn off".
     [property: JsonPropertyName("pageNumberFormat")] string? PageNumberFormat = null,
-    // Ausente é "não mexa no `w:start`"; nulo é "sem início". `JsonElement` distingue os dois.
+    // Absent means "leave `w:start` alone"; null means "no start". `JsonElement` tells them apart.
     [property: JsonPropertyName("pageNumberStart")] System.Text.Json.JsonElement PageNumberStart = default,
     [property: JsonPropertyName("titlePage")] bool? TitlePage = null,
     [property: JsonPropertyName("evenAndOddHeaders")] bool? EvenAndOddHeaders = null,
-    // `Id` só nas seções antes da última: o `sectionBreak` do parágrafo que as encerra.
+    // `Id` only on sections before the last: the `sectionBreak` of the paragraph closing them.
     [property: JsonPropertyName("id")] string? Id = null,
-    // `w:sectPr/w:type`. Ausente é "não mexa".
+    // `w:sectPr/w:type`. Absent means "leave alone".
     [property: JsonPropertyName("start")] string? Start = null,
-    // `w:cols`. Ausente é "não mexa".
+    // `w:cols`. Absent means "leave alone".
     [property: JsonPropertyName("columns")] ColumnsDto? Columns = null);
 
-/// <summary>
-/// <c>w:cols</c>. Larguras diferentes vêm em <c>WidthsMm</c>: a tela desenha iguais, e o
-/// arquivo as mantém enquanto o número de colunas não mudar.
-/// </summary>
+/// <c>w:cols</c>. Unequal widths come in <c>WidthsMm</c>: the screen draws them equal, and the file
+/// keeps them as long as the column count does not change.
 public sealed record ColumnsDto(
     [property: JsonPropertyName("count")] int Count,
     [property: JsonPropertyName("spaceMm")] double SpaceMm,
@@ -50,7 +48,7 @@ public sealed record MarginsDto(
     [property: JsonPropertyName("bottom")] double Bottom,
     [property: JsonPropertyName("left")] double Left);
 
-/// <summary><c>w:sectPr</c> → configuração de página.</summary>
+/// <c>w:sectPr</c> → page setup.
 public static class PageReader
 {
     private const double TwipsPerMillimeter = Unit.TwipsPerInch / Unit.MillimetersPerInch;
@@ -59,17 +57,19 @@ public static class PageReader
 
     private const int DefaultMarginTwips = Unit.TwipsPerInch;
 
-    /// <summary>Meio milímetro: o mesmo A4 do LibreOffice e do Word difere no último twip.</summary>
+    /// <summary>
+    /// Half a millimetre: the same A4 from LibreOffice and Word differs in the last twip.
+    /// </summary>
     private const int PaperTolerance = 30;
 
-    /// <summary>Em twips, numa tabela só, para um A4 não ter duas larguras.</summary>
+    /// <summary>In twips, in a single table, so A4 does not have two widths.</summary>
     private static readonly (string Name, uint Short, uint Long)[] Papers =
     [
         ("A4", 11906U, 16838U),
         ("Letter", 12240U, 15840U),
     ];
 
-    /// <summary>A4 para um nome que a tabela não tem.</summary>
+    /// <summary>A4 for a name the table does not have.</summary>
     public static (uint Short, uint Long) TwipsOfPaper(string name)
     {
         foreach (var paper in Papers)
@@ -87,9 +87,9 @@ public static class PageReader
     }
 
     /// <summary>
-    /// A última seção é a "página" do modelo; as anteriores vêm em ordem, com o id
-    /// que o leitor põe no parágrafo que as encerra (<see cref="SectionIds"/>). Cada
-    /// uma leva só as faixas que **declara**: a herança é de quem desenha.
+    /// The last section is the model's "page"; the earlier ones come in order, with the id the
+    /// reader puts on the paragraph closing them (<see cref="SectionIds"/>). Each carries only the
+    /// bands it **declares**: inheritance belongs to whoever draws.
     /// </summary>
     public static (PageSetupDto Page, List<PageSetupDto>? Sections) ReadAll(
         Body body,
@@ -99,7 +99,8 @@ public static class PageReader
         var all = body.Descendants<SectionProperties>().ToList();
         if (all.Count == 0) return (Default(), null);
 
-        // O documento sem `w:sectPr` no corpo é inválido, mas acontece: a última de parágrafo faz as vezes.
+        // A document without `w:sectPr` in the body is invalid, but it happens: the last paragraph
+        // one stands in.
         var ids = SectionIds(body);
         var earlier = new List<PageSetupDto>();
         for (var index = 0; index < all.Count - 1; index++)
@@ -115,7 +116,8 @@ public static class PageReader
         return (page, earlier.Count == 0 ? null : earlier);
     }
 
-    /// <summary><c>s1</c>, <c>s2</c>…, posicional como o <c>oid</c>: a leitura de referência reproduz os ids.</summary>
+    /// <c>s1</c>, <c>s2</c>…, positional like the <c>oid</c>: the reference reading reproduces the
+    /// ids.
     public static Dictionary<SectionProperties, string> SectionIds(Body body)
     {
         var ids = new Dictionary<SectionProperties, string>(ReferenceEqualityComparer.Instance);
@@ -126,7 +128,7 @@ public static class PageReader
 
     private static PageSetupDto ReadOne(SectionProperties section, MainDocumentPart part, Inventory inventory, int index)
     {
-        // A tela mostra decimal e o arquivo continua pedindo o dele: avisa-se.
+        // The screen shows decimal and the file keeps asking for its own: a warning goes out.
         if (section.GetFirstChild<PageNumberType>()?.Format?.InnerText is { } pageFormat &&
             !PageNumberFormats.Contains(pageFormat))
         {
@@ -137,27 +139,29 @@ public static class PageReader
         var margin = section.GetFirstChild<PageMargin>();
 
         var landscape = size?.Orient is not null && size.Orient.Value == PageOrientationValues.Landscape;
-        // Sem `w:pgSz`, as medidas do primeiro papel da tabela.
+        // Without `w:pgSz`, the measures of the table's first paper.
         var widthTwips = (double?)size?.Width?.Value ?? Papers[0].Short;
         var heightTwips = (double?)size?.Height?.Value ?? Papers[0].Long;
 
-        // Papel fora de A4 e Carta aparece como o mais próximo, e o arquivo mantém a medida: invisibilidade.
+        // A paper other than A4 and Letter shows as the nearest, and the file keeps the measure:
+        // invisibility.
         if (!IsKnownPaper(widthTwips, heightTwips))
         {
             inventory.NoteInvisible(
                 "o tamanho do papel deste documento não é A4 nem Carta (ele é preservado no arquivo)");
         }
 
-        // É contra a largura da coluna que a faixa decide o terço de cada peça.
+        // The band decides each piece's third against the column width.
         var contentWidthEmus = Math.Max(
             (widthTwips - (margin?.Left?.Value ?? DefaultMarginTwips) - (margin?.Right?.Value ?? DefaultMarginTwips)) * EmusPerTwip,
             1);
 
-        // As faixas de capa e de página par vêm sempre: o Word guarda o `first`
-        // mesmo com `w:titlePg` desligado, e é ele que volta quando se liga.
+        // Title page and even page bands always come: Word keeps `first` even with `w:titlePg` off,
+        // and that is what comes back when it is turned on.
         BandDto? Band(bool header, HeaderFooterValues type)
         {
-            // Da segunda seção em diante, ausente é herdada; declarada vazia é folha limpa.
+            // From the second section on, absent means inherited; declared empty means a blank
+            // sheet.
             if (index > 0 && !Declares(section, header, type)) return null;
             var band = header
                 ? HeaderReader.Read(section, part, inventory, type, contentWidthEmus)
@@ -199,7 +203,9 @@ public static class PageReader
             !string.IsNullOrEmpty(reference.Id?.Value));
     }
 
-    /// <summary>Com os padrões da especificação: uma coluna, 720 twips entre elas, sem linha.</summary>
+    /// <summary>
+    /// With the specification defaults: one column, 720 twips between them, no line.
+    /// </summary>
     public static ColumnsDto ColumnsOf(SectionProperties section, Inventory? inventory = null)
     {
         var columns = section.GetFirstChild<Columns>();
@@ -226,7 +232,7 @@ public static class PageReader
 
     public static readonly string[] SectionStarts = ["nextPage", "continuous", "evenPage", "oddPage", "nextColumn"];
 
-    /// <summary>"nextPage" quando falta, o padrão da especificação.</summary>
+    /// <summary>"nextPage" when missing, the specification default.</summary>
     public static string StartOf(SectionProperties section)
     {
         var name = section.GetFirstChild<SectionType>()?.Val?.InnerText;
@@ -236,7 +242,7 @@ public static class PageReader
     public static System.Text.Json.JsonElement StartElement(int? start) =>
         System.Text.Json.JsonSerializer.SerializeToElement(start);
 
-    /// <summary><c>false</c> quando o campo está ausente.</summary>
+    /// <c>false</c> when the field is absent.
     public static bool TryStartOf(PageSetupDto page, out int? start)
     {
         start = null;
@@ -255,7 +261,10 @@ public static class PageReader
     public static readonly string[] PageNumberFormats =
         ["decimal", "lowerRoman", "upperRoman", "lowerLetter", "upperLetter"];
 
-    /// <summary>Formato que o editor não desenha vira decimal na tela e volta intacto ao arquivo.</summary>
+    /// <summary>
+    /// A format the editor does not draw becomes decimal on screen and goes back intact to the
+    /// file.
+    /// </summary>
     public static string PageNumberFormatOf(SectionProperties section)
     {
         var name = section.GetFirstChild<PageNumberType>()?.Format?.InnerText;
@@ -268,21 +277,21 @@ public static class PageReader
     /// <inheritdoc cref="UsesEvenAndOdd(MainDocumentPart)"/>
     public static bool EvenAndOddOf(MainDocumentPart part) => UsesEvenAndOdd(part);
 
-    /// <summary>Presente sem <c>w:val</c> é ligado, como todo interruptor do OOXML.</summary>
+    /// <summary>Present without <c>w:val</c> means on, like every OOXML switch.</summary>
     private static bool HasTitlePage(SectionProperties section)
     {
         var flag = section.GetFirstChild<TitlePage>();
         return flag is not null && (flag.Val?.Value ?? true);
     }
 
-    /// <summary>Mora em <c>settings.xml</c>: no Word é escolha do documento inteiro.</summary>
+    /// <summary>It lives in <c>settings.xml</c>: in Word it is a document-wide choice.</summary>
     private static bool UsesEvenAndOdd(MainDocumentPart part)
     {
         var flag = part.DocumentSettingsPart?.Settings?.GetFirstChild<EvenAndOddHeaders>();
         return flag is not null && (flag.Val?.Value ?? true);
     }
 
-    /// <summary>O modelo distingue "não tem" de "tem e está vazia".</summary>
+    /// <summary>The model tells "does not have" from "has and is empty".</summary>
     private static BandDto? NullIfEmpty(BandDto band) => band.IsEmpty ? null : band;
 
     private static double Millimeters(int? twips, int fallback) =>
@@ -298,7 +307,9 @@ public static class PageReader
             && Math.Abs(longSide - paper.Long) <= PaperTolerance);
     }
 
-    /// <summary>Pelo lado que atravessa a folha, o que separa A4 de Carta; empate fica com o primeiro.</summary>
+    /// <summary>
+    /// By the side crossing the sheet, which separates A4 from Letter; a tie goes to the first.
+    /// </summary>
     private static string NearestSize(double widthTwips, double heightTwips, bool landscape)
     {
         var across = landscape ? heightTwips : widthTwips;
@@ -306,8 +317,8 @@ public static class PageReader
     }
 
     /// <summary>
-    /// Para não regravar o <c>w:sectPr</c> de quem não mexeu na página: um A5 viraria A4
-    /// por uma correção de vírgula. Nas unidades do modelo, que dão a resolução da mudança.
+    /// So the <c>w:sectPr</c> of someone who did not touch the page is not rewritten: an A5 would
+    /// become A4 over a comma fix. In model units, which give the change its resolution.
     /// </summary>
     public static bool Matches(SectionProperties section, PageSetupDto page)
     {
@@ -315,7 +326,7 @@ public static class PageReader
         var margin = section.GetFirstChild<PageMargin>();
 
         var landscape = size?.Orient is not null && size.Orient.Value == PageOrientationValues.Landscape;
-        // Sem `w:pgSz`, as medidas do primeiro papel da tabela.
+        // Without `w:pgSz`, the measures of the table's first paper.
         var widthTwips = (double?)size?.Width?.Value ?? Papers[0].Short;
         var heightTwips = (double?)size?.Height?.Value ?? Papers[0].Long;
 
@@ -327,7 +338,9 @@ public static class PageReader
                && Millimeters((int?)margin?.Left?.Value, DefaultMarginTwips) == page.Margins.Left;
     }
 
-    /// <summary>Para a gravação preservar as medidas do arquivo enquanto são o papel que o modelo diz.</summary>
+    /// <summary>
+    /// So saving keeps the file's measures as long as they are the paper the model names.
+    /// </summary>
     public static string NameOfPaper(uint? widthTwips, uint? heightTwips, bool landscape) =>
         NearestSize(widthTwips ?? Papers[0].Short, heightTwips ?? Papers[0].Long, landscape);
 

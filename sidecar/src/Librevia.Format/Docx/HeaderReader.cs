@@ -8,19 +8,18 @@ using WordDrawing = DocumentFormat.OpenXml.Drawing.Wordprocessing;
 namespace Librevia.Format.Docx;
 
 /// <summary>
-/// Cabeçalho e rodapé → faixa de três colunas. O conteúdo costuma ser um **grupo
-/// de formas**; em vez de posicionar cada peça, ela vai para o terço em que cai
-/// na largura, que é o que o cabeçalho corporativo é: esquerda, meio e logotipo à
-/// direita.
+/// Header and footer → a three-column band. The content is usually a **group of shapes**; instead
+/// of positioning each piece, it goes to the third it falls in across the width, which is what a
+/// corporate header is: left, middle and logo on the right.
 /// </summary>
 public static class HeaderReader
 {
-    /// <summary>Forma sem texto, larga e baixa: é filete, não caixa.</summary>
+    /// <summary>A shape without text, wide and low: a rule, not a box.</summary>
     private const double RuleAspectRatio = 20;
 
     /// <summary>
-    /// Pelo <c>w:type</c>: na ordem do XML, o documento com capa podia exibir o
-    /// cabeçalho da capa em todas as páginas.
+    /// By <c>w:type</c>: in XML order, a document with a title page could show the title page
+    /// header on every page.
     /// </summary>
     public static BandDto Read(
         SectionProperties section,
@@ -46,7 +45,7 @@ public static class HeaderReader
             inventory,
             contentWidthEmus);
 
-    /// <summary>Sem <c>w:type</c> é <c>default</c>, como diz a especificação.</summary>
+    /// <summary>Without <c>w:type</c> it is <c>default</c>, as the specification says.</summary>
     private static bool Matches(EnumValue<HeaderFooterValues>? declared, HeaderFooterValues wanted) =>
         (declared?.Value ?? HeaderFooterValues.Default) == wanted;
 
@@ -80,7 +79,7 @@ public static class HeaderReader
             if (root is null || owner is null) continue;
 
             var band = Build(root, owner, inventory, contentWidthEmus, new FontTable(part), id);
-            // Mais de uma referência do mesmo tipo: vale a que tem conteúdo.
+            // More than one reference of the same type: the one with content wins.
             if (!band.IsEmpty) return band;
         }
 
@@ -95,10 +94,10 @@ public static class HeaderReader
         FontTable fonts,
         string relationshipId)
     {
-        // O endereço de cada parágrafo: é por ele que a edição acha o `w:t` a escrever.
+        // Each paragraph's address: editing finds the `w:t` to write by it.
         var naming = new Naming(relationshipId, BandNav.IndexOf(root));
 
-        // O mesmo para as caixas, onde mora o título do cabeçalho corporativo.
+        // The same for boxes, where the corporate header title lives.
         var boxes = new Boxing(relationshipId, BandNav.BoxIndexOf(root));
 
         var columns = new List<PieceDto>[3];
@@ -107,12 +106,12 @@ public static class HeaderReader
         var floats = new List<FloatDto>();
         var rule = false;
 
-        // A grade primeiro: os passes dos terços não podem vê-la duas vezes.
+        // The grid first: the thirds passes must not see it twice.
         var rows = ReadGrid(root, owner, inventory, fonts, naming);
 
         foreach (var paragraph in root.Descendants<Paragraph>())
         {
-            // Os parágrafos da caixa vão com a forma, para herdar a posição.
+            // Box paragraphs go with the shape, to inherit its position.
             if (paragraph.Ancestors<TextBoxContent>().Any()) continue;
             if (paragraph.Ancestors<Table>().Any()) continue;
 
@@ -127,11 +126,12 @@ public static class HeaderReader
 
         foreach (var drawing in root.Descendants<DocumentFormat.OpenXml.Wordprocessing.Drawing>())
         {
-            // O fallback VML repete o conteúdo.
+            // The VML fallback repeats the content.
             if (drawing.Ancestors<AlternateContentFallback>().Any()) continue;
             if (drawing.Ancestors<Table>().Any()) continue;
 
-            // O ancorado tem posição de verdade e pode vir girado: sai como objeto, e não como peça de coluna.
+            // An anchored object has a real position and may come rotated: it goes out as an
+            // object, not as a column piece.
             if (AnchorReader.AnchorOf(drawing) is { } anchor)
             {
                 foreach (var item in ReadAnchoredDrawing(drawing, owner, anchor, inventory, fonts, boxes))
@@ -149,8 +149,8 @@ public static class HeaderReader
 
 
     /// <summary>
-    /// A mesclagem vertical do OOXML é <c>restart</c> em cima e <c>w:vMerge</c> vazio
-    /// embaixo: aqui as de baixo somem e a de cima cresce, como o HTML entende.
+    /// OOXML vertical merging is <c>restart</c> on top and an empty <c>w:vMerge</c> below: here the
+    /// lower ones disappear and the top one grows, as HTML understands it.
     /// </summary>
     private static List<BandRowDto> ReadGrid(
         OpenXmlPartRootElement root,
@@ -167,7 +167,7 @@ public static class HeaderReader
             var total = ColumnWidths(table).Sum();
             if (total <= 0) total = 1;
 
-            // A célula aberta em cada coluna, para a continuação saber a quem somar.
+            // The open cell in each column, so a continuation knows whom to add to.
             var open = new Dictionary<int, BandCellDto>();
             var built = new List<List<BandCellDto>>();
             var trs = table.Elements<TableRow>().ToList();
@@ -183,7 +183,7 @@ public static class HeaderReader
                     var span = properties?.GridSpan?.Val?.Value ?? 1;
                     var merge = properties?.VerticalMerge;
 
-                    // `w:vMerge` sem `w:val` ou com `continue` é a célula de baixo.
+                    // `w:vMerge` without `w:val` or with `continue` is the lower cell.
                     if (merge is not null && merge.Val?.Value != MergedCellValues.Restart)
                     {
                         if (open.TryGetValue(column, out var above))
@@ -256,8 +256,8 @@ public static class HeaderReader
     }
 
     /// <summary>
-    /// A borda da célula, a externa da tabela no lado externo, a interna no outro;
-    /// <c>nil</c> na célula apaga o risco da tabela.
+    /// The cell's border, the table's outer one on the outer side, the inner one on the other;
+    /// <c>nil</c> on the cell erases the table's line.
     /// </summary>
     private static string BordersOf(
         TableCell cell,
@@ -272,7 +272,7 @@ public static class HeaderReader
         if (Drawn(own?.TopBorder, firstRow ? table?.TopBorder : table?.InsideHorizontalBorder)) sides += "t";
         if (Drawn(own?.LeftBorder, firstColumn ? table?.LeftBorder : table?.InsideVerticalBorder)) sides += "l";
         if (Drawn(own?.BottomBorder, lastRow ? table?.BottomBorder : table?.InsideHorizontalBorder)) sides += "b";
-        // A direita usa a externa: na dúvida, desenha-se demais, e não de menos.
+        // The right side uses the outer one: when in doubt, draw too much rather than too little.
         if (Drawn(own?.RightBorder, table?.RightBorder)) sides += "r";
 
         return sides;
@@ -285,7 +285,7 @@ public static class HeaderReader
         return style != BorderValues.None && style != BorderValues.Nil;
     }
 
-    /// <summary>Imagens e texto, nessa ordem.</summary>
+    /// <summary>Images and text, in that order.</summary>
     private static List<PieceDto> ReadCellPieces(
         TableCell cell,
         OpenXmlPart owner,
@@ -309,7 +309,7 @@ public static class HeaderReader
         return pieces;
     }
 
-    /// <summary>A primeira peça abre linha só quando já há algo antes.</summary>
+    /// <summary>The first piece opens a line only when something already precedes it.</summary>
     private static IEnumerable<PieceDto> OpeningALine(List<PieceDto> pieces, bool after)
     {
         for (var index = 0; index < pieces.Count; index++)
@@ -343,8 +343,8 @@ public static class HeaderReader
     }
 
     /// <summary>
-    /// Cada peça do grupo na caixa dela: a caixa do grupo esticaria o logotipo, e
-    /// procurar só imagens tiraria o título do cabeçalho.
+    /// Each group piece in its own box: the group box would stretch the logo, and looking only for
+    /// images would drop the header title.
     /// </summary>
     private static IEnumerable<FloatDto> ReadAnchoredDrawing(
         OpenXmlElement drawing,
@@ -384,7 +384,8 @@ public static class HeaderReader
 
             if (content.Count > 0)
             {
-                // Só a forma de uma caixa só é editável: com duas, não se saberia para qual voltar o texto.
+                // Only a single-box shape is editable: with two, there would be no knowing where
+                // the text goes back.
                 var address = inside.Count == 1 ? boxes.Of(inside[0]) : null;
 
                 var look = ShapeLook.Of(piece.Shape);
@@ -401,7 +402,7 @@ public static class HeaderReader
                 continue;
             }
 
-            // O filete sob o cabeçalho: um par de formas de altura zero no grupo do logotipo.
+            // The rule under the header: a pair of zero-height shapes in the logo group.
             if (IsRule(piece)) yield return AnchorReader.Describe(anchor, "rule", null, null, piece);
         }
 
@@ -417,8 +418,8 @@ public static class HeaderReader
     }
 
     /// <summary>
-    /// Como a tela o mostra, com o <c>PAGE</c> como <c>{n}</c>: comparado com o XML, a
-    /// caixa mudaria sempre e o campo viraria <c>{n}</c> literal.
+    /// As the screen shows it, with <c>PAGE</c> as <c>{n}</c>: compared with the XML, the box would
+    /// always differ and the field would become a literal <c>{n}</c>.
     /// </summary>
     internal static string BoxTextOf(TextBoxContent box, Inventory inventory, FontTable fonts) =>
         string.Join(
@@ -457,7 +458,9 @@ public static class HeaderReader
         };
     }
 
-    /// <summary>Larga, rasa, de altura zero e com contorno: sem traço é espaço reservado.</summary>
+    /// <summary>
+    /// Wide, flat, zero-height and outlined: without a stroke it is reserved space.
+    /// </summary>
     private static bool IsRule(AnchoredPiece piece)
     {
         if (piece.WidthEmus <= 0) return false;
@@ -490,7 +493,8 @@ public static class HeaderReader
         FontTable fonts,
         Naming naming)
     {
-        // A posição na página vem da âncora: o `a:off` de um desenho de peça única é zero.
+        // The position on the page comes from the anchor: the `a:off` of a single-piece drawing is
+        // zero.
         var anchor = drawing.Descendants<WordDrawing.Anchor>().FirstOrDefault();
         var horizontal = anchor?.GetFirstChild<WordDrawing.HorizontalPosition>();
         var anchorOffset = long.TryParse(horizontal?.PositionOffset?.Text, out var emus)
@@ -561,7 +565,7 @@ public static class HeaderReader
         string? anchorAlign,
         double contentWidthEmus)
     {
-        // Alinhamento declarado já diz o terço.
+        // A declared alignment already gives the third.
         if (anchorAlign is not null)
         {
             return anchorAlign switch
@@ -574,7 +578,8 @@ public static class HeaderReader
 
         if (anchorOffset is not null && contentWidthEmus > 0)
         {
-            // No grupo, a coordenada é do espaço do grupo: a soma erra dentro dele, nunca o terço da página.
+            // In a group, the coordinate is in group space: the sum errs inside it, never on the
+            // page third.
             return ThirdOf((anchorOffset.Value + offset - origin + width / 2) / contentWidthEmus);
         }
 
@@ -601,15 +606,18 @@ public static class HeaderReader
     }
 
 
-    /// <summary>O valor em cache entre <c>separate</c> e <c>end</c> não vai junto: daria "{n}5".</summary>
+    /// <summary>
+    /// The cached value between <c>separate</c> and <c>end</c> does not come along: it would give
+    /// "{n}5".
+    /// </summary>
     private sealed class FieldState
     {
         public bool InCachedResult;
     }
 
     /// <summary>
-    /// O rastro é o caminho de volta da edição, sem refazer a fusão de runs. Peça
-    /// sem <c>w:t</c> (número, imagem, tabulação) não é editável.
+    /// The trace is the way back for editing, without redoing the run merge. A piece without
+    /// <c>w:t</c> (number, image, tab) is not editable.
     /// </summary>
     internal sealed record TracedPiece(PieceDto Piece, List<Text> Source);
 
@@ -638,7 +646,8 @@ public static class HeaderReader
         {
             var piece = traced[at].Piece;
 
-            // Em branco não se desenha, mas o descarte é aqui: o endereço é a posição na travessia.
+            // Blank pieces are not drawn, but they are dropped here: the address is the position in
+            // the walk.
             if (piece.Kind == PieceDto.KindText && string.IsNullOrWhiteSpace(piece.Text)) continue;
 
             pieces.Add(naming is null || traced[at].Source.Count == 0
@@ -655,8 +664,8 @@ public static class HeaderReader
         var field = new FieldState();
         Collect(paragraph, pieces, field, inventory, fonts);
 
-        // Junta textos vizinhos de mesmo estilo, que o Word pica em runs; uma
-        // equação no meio separa.
+        // Joins neighbouring texts with the same style, which Word chops into runs; an equation in
+        // the middle separates them.
         var order = new Dictionary<OpenXmlElement, int>(ReferenceEqualityComparer.Instance);
         foreach (var element in paragraph.Descendants()) order[element] = order.Count;
         var equations = paragraph.Descendants()
@@ -677,7 +686,7 @@ public static class HeaderReader
                 previous.Color == piece.Color && previous.FontSize == piece.FontSize &&
                 previous.FontFamily == piece.FontFamily)
             {
-                // Com peça sem rastro (a tabulação é `w:tab`), a fusão apaga o rastro das duas.
+                // With a piece without a trace (a tab is `w:tab`), merging erases both traces.
                 var source = merged[^1].Source.Count == 0 || traced.Source.Count == 0
                     ? new List<Text>()
                     : [.. merged[^1].Source, .. traced.Source];
@@ -689,14 +698,16 @@ public static class HeaderReader
             merged.Add(traced);
         }
 
-        // Texto que já traz `{n}` escrito é texto, e não campo.
+        // Text that already has `{n}` written is text, not a field.
         return [.. merged.Select(traced =>
             traced.Piece.Kind == PieceDto.KindText && FieldTokens.Contains(traced.Piece.Text)
                 ? traced with { Piece = traced.Piece with { Literal = true } }
                 : traced)];
     }
 
-    /// <summary>Pela primeira palavra: <c>PAGEREF</c> e <c>SECTIONPAGES</c> também contêm "PAGE".</summary>
+    /// <summary>
+    /// By the first word: <c>PAGEREF</c> and <c>SECTIONPAGES</c> also contain "PAGE".
+    /// </summary>
     private static string? FieldKindOf(string instruction)
     {
         var word = instruction.Trim().Split((char[]?)null, 2, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
@@ -719,7 +730,7 @@ public static class HeaderReader
         {
             switch (element)
             {
-                // Os desenhos têm passe próprio, com posição.
+                // Drawings have their own pass, with position.
                 case DocumentFormat.OpenXml.Wordprocessing.Drawing:
                 case Picture:
                 case AlternateContent:
@@ -734,7 +745,8 @@ public static class HeaderReader
 
                     break;
 
-                // O `w:fldSimple` do "Número da página" do Word: sem este caso viria o número em cache.
+                // Word's "Page Number" `w:fldSimple`: without this case the cached number would
+                // come.
                 case SimpleField simple:
                 {
                     if (FieldKindOf(simple.Instruction?.Value ?? string.Empty) is { } simpleKind)
@@ -765,7 +777,7 @@ public static class HeaderReader
                     Collect(run, pieces, field, StyleOf(run.RunProperties, fonts), inventory, fonts);
                     break;
 
-                // A equação da faixa fica no arquivo, e o aviso diz que existe.
+                // An equation in a band stays in the file, and the warning says it exists.
                 case DocumentFormat.OpenXml.Math.OfficeMath:
                 case DocumentFormat.OpenXml.Math.Paragraph:
                     inventory.NoteInvisible(Inventory.Equations);
@@ -818,7 +830,7 @@ public static class HeaderReader
         FontSize: SizeOf(properties?.FontSize?.Val?.Value),
         FontFamily: FamilyOf(properties, fonts));
 
-    /// <summary>Sem ela, o cabeçalho herdaria a fonte do editor.</summary>
+    /// <summary>Without it, the header would inherit the editor font.</summary>
     private static string? FamilyOf(RunProperties? properties, FontTable fonts)
     {
         var font = properties?.RunFonts?.Ascii?.Value ?? properties?.RunFonts?.HighAnsi?.Value;

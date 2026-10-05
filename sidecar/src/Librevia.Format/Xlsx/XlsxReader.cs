@@ -4,13 +4,13 @@ using Librevia.Format.Docx;
 namespace Librevia.Format.Xlsx;
 
 /// <summary>
-/// XLSX → modelo: valor, fórmula e alguns atributos de aparência; o resto vai ao
-/// inventário. A fórmula sai como está no arquivo (nomes em inglês, vírgula), e o
-/// analisador do lado TypeScript a traduz.
+/// XLSX → model: values, formulas and a few appearance attributes; the rest goes to the inventory.
+/// A formula comes out as stored in the file (English names, commas), and the TypeScript parser
+/// translates it.
 /// </summary>
 public static class XlsxReader
 {
-    /// <summary>Uma coluna inteira formatada conta um milhão de células "usadas".</summary>
+    /// <summary>A whole formatted column counts a million "used" cells.</summary>
     private const int MaxCellsPerSheet = 200_000;
 
     public static XlsxOpenResult Read(byte[] bytes)
@@ -59,7 +59,7 @@ public static class XlsxReader
         var used = sheet.LastCellUsed();
         if (used is not null)
         {
-            // Uma tela de folga além do conteúdo.
+            // One screen of room beyond the content.
             dto.RowCount = Math.Clamp(used.Address.RowNumber + 30, 1000, 1_000_000);
             dto.ColumnCount = Math.Clamp(used.Address.ColumnNumber + 5, 26, 16_384);
         }
@@ -93,7 +93,7 @@ public static class XlsxReader
 
         if (cell.HasFormula)
         {
-            // O ClosedXML entrega a fórmula sem o `=`.
+            // ClosedXML delivers the formula without the `=`.
             dto.Formula = "=" + cell.FormulaA1;
         }
 
@@ -110,7 +110,7 @@ public static class XlsxReader
         { IsNumber: true } value => value.GetNumber(),
         { IsDateTime: true } value => value.GetDateTime().ToOADate(),
         { IsTimeSpan: true } value => value.GetTimeSpan().TotalDays,
-        // Como texto, o mesmo formato do motor de fórmulas para `#DIV/0!` e companhia.
+        // As text, the same format as the formula engine for `#DIV/0!` and friends.
         { IsError: true } value => value.GetError().ToString(),
         { IsText: true } value => value.GetText(),
         _ => null,
@@ -153,8 +153,8 @@ public static class XlsxReader
     }
 
     /// <summary>
-    /// Cor de tema e indexada dependem da paleta, que o modelo não leva: nada, e não
-    /// preto. O preto da fonte também sai, por ser o implícito de toda célula.
+    /// Theme and indexed colors depend on the palette, which the model does not carry: nothing, not
+    /// black. The font's black also goes, since it is every cell's implicit color.
     /// </summary>
     private static string? HexOf(XLColor color, bool skipBlack)
     {
@@ -194,8 +194,8 @@ public static class XlsxReader
     }
 
     /// <summary>
-    /// O que a aba tem e a tela não mostra. É invisível, e não perda: o ClosedXML
-    /// grava de volta o que não mexemos.
+    /// What the sheet has and the screen does not show. It is invisible, not lost: ClosedXML writes
+    /// back what we do not touch.
     /// </summary>
     private static void NoteSheetWide(IXLWorksheet sheet, Inventory inventory)
     {
@@ -223,7 +223,7 @@ public static class XlsxReader
         {
             inventory.NoteInvisible("filtros");
         }
-        // `CellsUsed(Comments)` devolve também as células com conteúdo sem comentário.
+        // `CellsUsed(Comments)` also returns cells with content and no comment.
         if (sheet.CellsUsed(XLCellsUsedOptions.Comments, cell => cell.HasComment).Any())
         {
             inventory.NoteInvisible("comentários nas células");
@@ -238,7 +238,7 @@ public static class XlsxReader
     {
         if (book.DefinedNames.Any())
         {
-            // O motor não conhece nomes definidos.
+            // The engine does not know defined names.
             inventory.NoteInvisible("intervalos nomeados (fórmulas que os usam não são calculadas)");
         }
     }

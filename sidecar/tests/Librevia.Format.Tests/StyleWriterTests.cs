@@ -6,8 +6,8 @@ using Librevia.Format.Docx;
 namespace Librevia.Format.Tests;
 
 /// <summary>
-/// A gravação dos estilos: só o `w:style` que mudou muda, e o resto do pacote
-/// continua sendo o que era.
+/// Saving styles: only the `w:style` that changed changes, and the rest of the package stays what
+/// it was.
 /// </summary>
 public class StyleWriterTests
 {
@@ -20,7 +20,7 @@ public class StyleWriterTests
     private static StyleSheetDto WithStyle(StyleSheetDto sheet, StyleDefinitionDto style) =>
         sheet with { Styles = new Dictionary<string, StyleDefinitionDto>(sheet.Styles) { [style.Id] = style } };
 
-    /// <summary>Cada `w:style` do XML, pelo id.</summary>
+    /// <summary>Each `w:style` in the XML, by id.</summary>
     private static Dictionary<string, string> StylesOf(string xml) =>
         Regex.Matches(xml, "<w:style [^>]*w:styleId=\"([^\"]+)\"[^>]*>.*?</w:style>", RegexOptions.Singleline)
             .ToDictionary(match => match.Groups[1].Value, match => match.Value);
@@ -50,17 +50,17 @@ public class StyleWriterTests
 
         var saved = Roundtrip.Save(original, model);
 
-        // O corpo não mudou: nenhum bloco reescrito.
+        // The body did not change: no block rewritten.
         Assert.Equal(0, saved.Result.RewrittenBlocks);
         Assert.Equal(Roundtrip.PartsOf(original)["word/document.xml"], Roundtrip.PartsOf(saved.Bytes)["word/document.xml"]);
 
-        // Em `styles.xml`, só o `w:style` da faixa difere.
+        // In `styles.xml`, only the band's `w:style` differs.
         var before = StylesOf(Roundtrip.XmlOf(original, "word/styles.xml"));
         var after = StylesOf(Roundtrip.XmlOf(saved.Bytes, "word/styles.xml"));
         Assert.Equal(before.Keys.Order(), after.Keys.Order());
         Assert.Equal(["Faixa"], before.Keys.Where(id => before[id] != after[id]));
 
-        // E a ida e volta pelo leitor devolve o que o modelo pediu.
+        // And the round trip through the reader returns what the model asked for.
         Assert.Equal(model.Styles!.Styles["Faixa"], Roundtrip.Open(saved.Bytes).Styles!.Styles["Faixa"]);
     }
 
@@ -125,8 +125,8 @@ public class StyleWriterTests
     [Fact]
     public void RascunhoAntigoSoAcrescentaEstilos()
     {
-        // Os estilos do rascunho da versão 2 foram inventados na migração: o estilo
-        // novo entra, e a mudança num existente fica fora do arquivo, com aviso.
+        // Version 2 draft styles were invented in the migration: the new style goes in, and a
+        // change to an existing one stays out of the file, with a warning.
         var original = Fixtures.WithStyles();
         var novo = new StyleDefinitionDto(
             "Destaque", "Destaque", "paragraph", QFormat: true, Hidden: false, Custom: true,
@@ -151,8 +151,8 @@ public class StyleWriterTests
     [Fact]
     public void MeioPontoArredondaParaLongeDoZeroEMedidaEmLinhasSai()
     {
-        // `w:beforeLines` vence `w:before` no Word: sem tirá-lo, o espaço novo não
-        // apareceria em lugar nenhum.
+        // `w:beforeLines` beats `w:before` in Word: without removing it, the new space would show
+        // nowhere.
         byte[] original;
         using (var buffer = new MemoryStream())
         {

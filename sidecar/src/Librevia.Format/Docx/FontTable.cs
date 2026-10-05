@@ -4,9 +4,8 @@ using DocumentFormat.OpenXml.Wordprocessing;
 namespace Librevia.Format.Docx;
 
 /// <summary>
-/// A família genérica de cada fonte (<c>w:family</c> de <c>word/fontTable.xml</c>),
-/// para a substituta de uma fonte que falta, como Segoe UI ou Aptos, não cair na
-/// serifa do fim da pilha.
+/// Each font's generic family (<c>w:family</c> in <c>word/fontTable.xml</c>), so the substitute for
+/// a missing font, like Segoe UI or Aptos, does not fall into the serif at the end of the stack.
 /// </summary>
 public sealed class FontTable
 {
@@ -24,7 +23,7 @@ public sealed class FontTable
         }
     }
 
-    /// <summary>A fonte pedida e a substituta genérica, para o CSS.</summary>
+    /// <summary>The requested font and the generic substitute, for CSS.</summary>
     public string Stack(string name)
     {
         var trimmed = name.Trim();

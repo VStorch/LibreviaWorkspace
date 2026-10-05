@@ -1,8 +1,8 @@
 namespace Librevia.Format;
 
 /// <summary>
-/// O OOXML mede em twips (vigésimos de ponto), meios-pontos e EMUs; a tela, em
-/// pixels do CSS, 96 por polegada.
+/// OOXML measures in twips (twentieths of a point), half-points and EMUs; the screen, in CSS
+/// pixels, 96 per inch.
 /// </summary>
 public static class Unit
 {
@@ -19,7 +19,7 @@ public static class Unit
     public const long EmusPerPoint = EmusPerInch / PointsPerInch;
     public const long EmusPerPixel = EmusPerInch / PixelsPerInch;
 
-    /// <summary>Meia polegada: o passo de recuo do Word.</summary>
+    /// <summary>Half an inch: Word's indent step.</summary>
     public const int IndentStepTwips = TwipsPerInch / 2;
 
     public static double TwipsToPoints(double twips) => twips / TwipsPerPoint;

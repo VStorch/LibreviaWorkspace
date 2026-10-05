@@ -8,20 +8,20 @@ using DocumentFormat.OpenXml.Wordprocessing;
 
 namespace Librevia.Format.Docx;
 
-/// <summary>O pedido de <c>docx.create</c>: a página e os estilos do documento.</summary>
+/// <summary>The <c>docx.create</c> request: the document's page and styles.</summary>
 public sealed record DocxCreateDto(
     [property: JsonPropertyName("page")] PageSetupDto Page,
     [property: JsonPropertyName("styles")] StyleSheetDto? Styles = null);
 
 /// <summary>
-/// O pacote que faz o papel de original para o documento nascido no editor: sem
-/// <c>oid</c>, todo bloco é gravado como novo. O mínimo: sem tema (a fonte vai nos
-/// <c>docDefaults</c>), sem <c>numbering.xml</c> (o <see cref="NumberingFactory"/>
-/// o cria) e sem autor em <c>docProps/core.xml</c>.
+/// The package that plays the original for a document born in the editor: without <c>oid</c>, every
+/// block is written as new. The minimum: no theme (the font goes in <c>docDefaults</c>), no
+/// <c>numbering.xml</c> (<see cref="NumberingFactory"/> creates it) and no author in
+/// <c>docProps/core.xml</c>.
 /// </summary>
 public static class DocxTemplate
 {
-    /// <summary>A menor data do zip, para o mesmo pedido dar os mesmos bytes.</summary>
+    /// <summary>The earliest zip date, so the same request gives the same bytes.</summary>
     private static readonly DateTimeOffset ZipEpoch = new(1980, 1, 1, 0, 0, 0, TimeSpan.Zero);
 
     public static byte[] Create(PageSetupDto page, StyleSheetDto? styles = null)
@@ -29,7 +29,7 @@ public static class DocxTemplate
         using var buffer = new MemoryStream();
         using (var document = WordprocessingDocument.Create(buffer, WordprocessingDocumentType.Document))
         {
-            // Ids fixos: os que o SDK sorteia mudariam os bytes.
+            // Fixed ids: the ones the SDK draws at random would change the bytes.
             var main = document.AddNewPart<MainDocumentPart>(
                 "application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml", "rId1");
 
@@ -62,8 +62,8 @@ public static class DocxTemplate
     }
 
     /// <summary>
-    /// Pela mesma conta da gravação (<c>DocxWriter.ApplyPageSetup</c>); cabeçalho,
-    /// rodapé e medianiz, que ela não escreve, o esquema exige.
+    /// By the same math as saving (<c>DocxWriter.ApplyPageSetup</c>); header, footer and gutter,
+    /// which it does not write, are required by the schema.
     /// </summary>
     private static SectionProperties Section(PageSetupDto page)
     {
@@ -80,8 +80,8 @@ public static class DocxTemplate
     }
 
     /// <summary>
-    /// Sem <c>compatibilityMode</c> 15 o Word abre em modo de compatibilidade, com as
-    /// regras de 2007. A tabulação padrão é a do Word em português, 1,25 cm.
+    /// Without <c>compatibilityMode</c> 15 Word opens in compatibility mode, with 2007 rules. The
+    /// default tab stop is Portuguese Word's, 1.25 cm.
     /// </summary>
     private static Settings Settings() => new(
         new DefaultTabStop { Val = 708 },
@@ -97,7 +97,7 @@ public static class DocxTemplate
         Font(TemplateStyles.BodyFont, FontFamilyValues.Roman, "02020603050405020304"),
         Font(TemplateStyles.BandFont, FontFamilyValues.Swiss, "020F0502020204030204"));
 
-    /// <summary>O <c>panose</c> deixa outro programa achar a substituta, como a Carlito para a Calibri.</summary>
+    /// <c>panose</c> lets another program find the substitute, like Carlito for Calibri.
     private static Font Font(string name, FontFamilyValues family, string panose) => new(
         new Panose1Number { Val = panose },
         new FontCharSet { Val = "00" },
@@ -107,7 +107,7 @@ public static class DocxTemplate
         Name = name,
     };
 
-    /// <summary>À mão: o SDK não tem DOM tipado para esta parte. Sem autor, de propósito.</summary>
+    /// <summary>By hand: the SDK has no typed DOM for this part. No author, on purpose.</summary>
     private const string CoreXml =
         "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>" +
         "<cp:coreProperties xmlns:cp=\"http://schemas.openxmlformats.org/package/2006/metadata/core-properties\" " +
@@ -115,7 +115,7 @@ public static class DocxTemplate
         "xmlns:dcmitype=\"http://purl.org/dc/dcmitype/\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\">" +
         "<dc:creator></dc:creator></cp:coreProperties>";
 
-    /// <summary>Reembala o zip com a mesma data em toda entrada.</summary>
+    /// <summary>Repacks the zip with the same date on every entry.</summary>
     private static byte[] WithFixedDates(byte[] package)
     {
         using var source = new ZipArchive(new MemoryStream(package), ZipArchiveMode.Read);

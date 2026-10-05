@@ -5,17 +5,16 @@ using DocumentFormat.OpenXml.Wordprocessing;
 namespace Librevia.Format.Docx;
 
 /// <summary>
-/// O <c>w:pPr</c> do parágrafo editado: **parte-se do original** e só se sobrepõe o
-/// que o modelo representa. Montado do zero, levaria estilo, espaçamento, fundo e
-/// o <c>w:sectPr</c> que fecha a seção; o que o editor não conhece atravessa intacto.
+/// The edited paragraph's <c>w:pPr</c>: it **starts from the original** and only overrides what the
+/// model represents. Built from scratch, it would take style, spacing, background and the
+/// <c>w:sectPr</c> closing the section; what the editor does not know passes through intact.
 /// </summary>
 /// <remarks>
-/// No parágrafo solto do corpo o nó traz só o direto, e é a verdade inteira: o que
-/// sumiu dele foi limpo e sai do arquivo. Lista, célula e rascunho antigo
-/// (<paramref name="flatten"/>) chegam achatados, e ali ausência não diz nada. Em
-/// qualquer caso, o que só repete o estilo não é gravado onde o original não o
-/// declarava; <paramref name="styles"/> diz o que o estilo vale para a entrelinha
-/// e o recuo por nível.
+/// On a loose body paragraph the node carries only direct formatting, and it is the whole truth:
+/// what left it was cleared and leaves the file. Lists, cells and old drafts (<paramref
+/// name="flatten"/>) arrive flattened, and there absence says nothing. Either way, what only
+/// repeats the style is not written where the original did not declare it; <paramref
+/// name="styles"/> says what the style is worth for line spacing and per-level indent.
 /// </remarks>
 internal sealed class ParagraphFormat(
     Inventory inventory,
@@ -24,8 +23,9 @@ internal sealed class ParagraphFormat(
     bool flatten = false,
     bool revisions = true)
 {
-    /// <summary>Ou <c>null</c> quando não há nada a dizer.</summary>
-    /// <param name="list"><c>null</c> quando quem grava não sabe a numeração: o <c>w:numPr</c> do original fica.</param>
+    /// <summary>Or <c>null</c> when there is nothing to say.</summary>
+    /// <param name="list"><c>null</c> when the caller does not know the numbering: the original
+    /// <c>w:numPr</c> stays.</param>
     public ParagraphProperties? Build(Node node, ParagraphWriter.ListPlacement? list, Paragraph? original)
     {
         var properties = original?.ParagraphProperties?.CloneNode(true) as ParagraphProperties
@@ -33,7 +33,7 @@ internal sealed class ParagraphFormat(
 
         ApplyStyle(properties, node);
 
-        // O nó é a verdade inteira só no parágrafo solto lido sem achatar.
+        // The node is the whole truth only on a loose paragraph read without flattening.
         var direct = !flatten &&
                      list is { List: null } &&
                      original?.ParagraphProperties?.NumberingProperties is null;
@@ -54,8 +54,8 @@ internal sealed class ParagraphFormat(
         DropWhatRepeatsTheStyle(properties, original?.ParagraphProperties, style);
         DropMarkThatRepeatsTheStyle(properties, original?.ParagraphProperties, styles.Resolve(properties).Run);
 
-        // A numeração vem do contexto. Sem embrulho (célula, caixa) é "não sei", e
-        // o `w:numPr` do original fica; com embrulho vazio é "deixou de ser item".
+        // Numbering comes from the context. Without a wrapper (cell, box) it means "unknown", and
+        // the original `w:numPr` stays; with an empty wrapper it means "stopped being an item".
         if (list is { } placement)
         {
             properties.NumberingProperties = placement.List is not { } context
@@ -69,10 +69,10 @@ internal sealed class ParagraphFormat(
     }
 
     /// <summary>
-    /// O <c>styleId</c> que o modelo carrega, e não um recalculado do nível, que
-    /// trocaria o <c>Ttulo1</c> do LibreOffice por um <c>Heading1</c> que o documento não
-    /// define. O nível só manda no parágrafo que virou título aqui, pelo id do estilo
-    /// <c>heading N</c> (<see cref="HeadingStyles"/>). E só vale o id que **este** pacote define.
+    /// The <c>styleId</c> the model carries, not one recomputed from the level, which would replace
+    /// LibreOffice's <c>Ttulo1</c> with a <c>Heading1</c> the document does not define. The level
+    /// only rules on a paragraph that became a heading here, through the <c>heading N</c> style id
+    /// (<see cref="HeadingStyles"/>). And only an id **this** package defines counts.
     /// </summary>
     private void ApplyStyle(ParagraphProperties properties, Node node)
     {
@@ -90,7 +90,8 @@ internal sealed class ParagraphFormat(
             return;
         }
 
-        // Título que deixou de ser título não aponta mais o estilo de título, pelo id e pelo nome.
+        // A heading that stopped being one no longer points to the heading style, by id and by
+        // name.
         if (declared is null ||
             BodyReader.HeadingLevelOfStyle(declared) is not null ||
             headings.LevelByName(declared) is not null)
@@ -104,7 +105,9 @@ internal sealed class ParagraphFormat(
         NoteUndefined(id);
     }
 
-    /// <summary>O Word desenha o Normal para estilo que o pacote não define: a perda vai ao inventário.</summary>
+    /// <summary>
+    /// Word draws Normal for a style the package does not define: the loss goes to the inventory.
+    /// </summary>
     private void NoteUndefined(string id)
     {
         if (!headings.Defines(id)) inventory.NoteLoss($"estilo \"{id}\", que o documento não define");
@@ -116,7 +119,9 @@ internal sealed class ParagraphFormat(
         properties.Justification = justification;
     }
 
-    /// <summary>Ou <c>null</c> sem alinhamento pedido. Público porque a imagem em bloco também o usa.</summary>
+    /// <summary>
+    /// Or <c>null</c> without a requested alignment. Public because block images use it too.
+    /// </summary>
     public static Justification? JustificationOf(string? align) => align switch
     {
         null => null,
@@ -127,13 +132,13 @@ internal sealed class ParagraphFormat(
     };
 
     /// <remarks>
-    /// A medida do arquivo, e o nível de <c>Ctrl+]</c> somado a ela. Sem recuo no modelo
-    /// é **afirmação** (o <c>Ctrl+[</c> até o fim). O recuo negativo nunca chega ao
-    /// editor, e por isso fica.
+    /// The file's measure, plus the <c>Ctrl+]</c> level. No indent on the model is an **assertion**
+    /// (the <c>Ctrl+[</c> all the way). A negative indent never reaches the editor, so it stays.
     /// </remarks>
     private void ApplyIndentation(ParagraphProperties properties, Node node)
     {
-        // Sem medida direta, o recuo que o parágrafo tem é o do estilo, e o nível soma a ele.
+        // Without a direct measure, the paragraph's indent is the style's, and the level adds to
+        // it.
         var level = Attr.Int(node, "indent") ?? 0;
         var measured = Attr.MmToTwips(Attr.Double(node, "indentMm"))
                        ?? (level > 0 ? StyleTwips(styles.StyleParagraphOf(properties).Indentation?.Left) : 0);
@@ -154,24 +159,24 @@ internal sealed class ParagraphFormat(
             properties.Indentation = indentation;
         }
 
-        // `Twips(...)`: o ternário sobre `string` gravaria `w:right=""`, que o Word recusa.
+        // `Twips(...)`: a ternary on `string` would write `w:right=""`, which Word refuses.
         indentation.Left = Twips(left > 0 ? left : null);
         indentation.Right = Twips(right > 0 ? right : null);
 
-        // Um atributo só, com o sinal decidindo qual.
+        // A single attribute, with the sign deciding which.
         indentation.FirstLine = Twips(firstLine > 0 ? firstLine : null);
         indentation.Hanging = Twips(firstLine < 0 ? -firstLine : null);
     }
 
     /// <summary>
-    /// Só o que o modelo representa; bordas, tabulações e <c>w:sectPr</c> ninguém pode
-    /// ter limpado. O <c>w:shd</c> "transparente" do nó é o sem cor do original, e fica.
+    /// Only what the model represents; nobody can have cleared borders, tabs or <c>w:sectPr</c>.
+    /// The node's "transparent" <c>w:shd</c> is the original's colorless one, and it stays.
     /// </summary>
     private static void ClearWhatWasCleared(ParagraphProperties properties, Node node)
     {
         bool Absent(string name) => Attr.Node(node, name) is null;
 
-        // O leitor sempre leva o `w:pStyle`: sem ele no nó, foi tirado.
+        // The reader always carries `w:pStyle`: without it on the node, it was removed.
         if (node.Type != "heading" && Absent("styleId")) properties.ParagraphStyleId = null;
 
         if (Absent("textAlign")) properties.Justification = null;
@@ -230,7 +235,9 @@ internal sealed class ParagraphFormat(
         }
     }
 
-    /// <summary>Só o que o original **não** declarava; o declarado foi escolha de quem escreveu.</summary>
+    /// <summary>
+    /// Only what the original did **not** declare; what was declared was the author's choice.
+    /// </summary>
     private static void DropWhatRepeatsTheStyle(
         ParagraphProperties properties,
         ParagraphProperties? original,
@@ -294,7 +301,7 @@ internal sealed class ParagraphFormat(
             properties.KeepLines = null;
         }
 
-        // O estilo que cala controla viúvas: é o padrão do Word.
+        // A silent style keeps widow control: it is Word's default.
         if (original?.WidowControl is null && properties.WidowControl is { } widow &&
             RunReader.IsOn(widow) == (style.WidowControl is null || RunReader.IsOn(style.WidowControl)))
         {
@@ -327,7 +334,7 @@ internal sealed class ParagraphFormat(
         if (!mark.HasChildren) properties.ParagraphMarkRunProperties = null;
     }
 
-    /// <summary>O Word desenha a medida ausente como zero.</summary>
+    /// <summary>Word draws a missing measure as zero.</summary>
     private static bool SameTwips(StringValue? a, StringValue? b) =>
         a is not null && string.Equals(a.Value ?? "0", b?.Value ?? "0", StringComparison.Ordinal);
 
@@ -339,7 +346,9 @@ internal sealed class ParagraphFormat(
             ? twips
             : 0;
 
-    /// <summary>Zero no bloco desfaz o recuo do estilo: sem o atributo, o Word voltaria a recuar.</summary>
+    /// <summary>
+    /// Zero on the block undoes the style's indent: without the attribute, Word would indent again.
+    /// </summary>
     private static void ApplyExplicitZeros(ParagraphProperties properties, Node node)
     {
         var left = Attr.Double(node, "indentMm") is 0 && (Attr.Int(node, "indent") ?? 0) == 0;
@@ -357,16 +366,18 @@ internal sealed class ParagraphFormat(
     {
         if (indentation is null) return;
 
-        // Zero explícito: apagar o atributo traria o recuo do estilo de volta.
+        // Explicit zero: deleting the attribute would bring the style's indent back.
         if (IsPositive(indentation.Left)) indentation.Left = "0";
         if (IsPositive(indentation.Right)) indentation.Right = "0";
 
-        // `w:firstLine` e `w:hanging`: aqui zerar é remover.
+        // `w:firstLine` and `w:hanging`: here zeroing means removing.
         if (IsPositive(indentation.FirstLine)) indentation.FirstLine = null;
         if (IsPositive(indentation.Hanging)) indentation.Hanging = null;
     }
 
-    /// <summary>O que não é twip inteiro (<c>0.5in</c>) devolve falso e fica onde está.</summary>
+    /// <summary>
+    /// Something that is not a whole twip (<c>0.5in</c>) returns false and stays where it is.
+    /// </summary>
     private static bool IsPositive(StringValue? measure) =>
         int.TryParse(measure?.Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var twips)
         && twips > 0;
@@ -385,15 +396,15 @@ internal sealed class ParagraphFormat(
             properties.SpacingBetweenLines = spacing;
         }
 
-        // Vinte avos: exato até o décimo de ponto, a precisão do leitor.
+        // Twentieths: exact to a tenth of a point, the reader's precision.
         if (before is not null) spacing.Before = Invariant((int)Math.Round(before.Value * Unit.TwipsPerPoint));
         if (after is not null) spacing.After = Invariant((int)Math.Round(after.Value * Unit.TwipsPerPoint));
         if (lineHeight is not null) ApplyLineHeight(spacing, lineHeight, Attr.String(node, "fontFamily") ?? MarkFontOf(properties));
     }
 
     /// <summary>
-    /// O inverso de <c>BodyReader.LineHeightOf</c>: 240-avos da altura natural da
-    /// fonte do parágrafo. <c>normal</c> não é convertido: é o silêncio do arquivo.
+    /// The inverse of <c>BodyReader.LineHeightOf</c>: 240ths of the paragraph font's natural
+    /// height. <c>normal</c> is not converted: it is the file's silence.
     /// </summary>
     private void ApplyLineHeight(SpacingBetweenLines spacing, string value, string? fontStack)
     {
@@ -405,7 +416,7 @@ internal sealed class ParagraphFormat(
 
             spacing.Line = Invariant((int)Math.Round(points * Unit.TwipsPerPoint));
 
-            // "Pelo menos", e não "exatamente": `exact` corta o que não cabe.
+            // "At least", not "exactly": `exact` clips what does not fit.
             if (spacing.LineRule is null || spacing.LineRule.Value == LineSpacingRuleValues.Auto)
             {
                 spacing.LineRule = LineSpacingRuleValues.AtLeast;
@@ -432,7 +443,9 @@ internal sealed class ParagraphFormat(
         spacing.LineRule = LineSpacingRuleValues.Auto;
     }
 
-    /// <summary>A do estilo com a marca original por cima: a mesma com que o leitor multiplicou.</summary>
+    /// <summary>
+    /// The style's with the original mark on top: the same one the reader multiplied with.
+    /// </summary>
     private string? MarkFontOf(ParagraphProperties properties) =>
         styles.ResolveMark(styles.Resolve(properties).Run, properties).RunFonts?.Ascii?.Value;
 
@@ -440,7 +453,7 @@ internal sealed class ParagraphFormat(
     {
         if (Attr.String(node, "background") is not { } background) return;
 
-        // O `w:shd` sem cor já está no clone.
+        // The colorless `w:shd` is already in the clone.
         if (background.Equals("transparent", StringComparison.OrdinalIgnoreCase)) return;
 
         if (ColorValue.Hex(background) is not { } fill)
@@ -453,8 +466,8 @@ internal sealed class ParagraphFormat(
     }
 
     /// <remarks>
-    /// Desligar é apagar o elemento, só quando estava ligado: <c>w:val="false"</c> existe
-    /// para desligar o do estilo.
+    /// Turning off means deleting the element, only when it was on: <c>w:val="false"</c> exists to
+    /// turn off the style's.
     /// </remarks>
     private static void ApplyKeepNext(ParagraphProperties properties, Node node, bool direct)
     {
@@ -464,7 +477,7 @@ internal sealed class ParagraphFormat(
             return;
         }
 
-        // No nó direto, `false` desfaz o do estilo, e só o desligado explícito o diz.
+        // On a direct node, `false` undoes the style's, and only an explicit off says so.
         if (direct && Attr.Node(node, "keepNext") is not null)
         {
             properties.KeepNext = new KeepNext { Val = false };
@@ -475,8 +488,7 @@ internal sealed class ParagraphFormat(
     }
 
     /// <remarks>
-    /// No Word vale **ligado** quando nada diz: o ligado só é escrito quando desfaz um
-    /// desligado.
+    /// In Word it is **on** when nothing says otherwise: on is only written when it undoes an off.
     /// </remarks>
     private static void ApplyWidowControl(ParagraphProperties properties, Node node, bool direct)
     {
@@ -495,7 +507,7 @@ internal sealed class ParagraphFormat(
         if (properties.WidowControl is { } widow && !RunReader.IsOn(widow)) properties.WidowControl = new WidowControl();
     }
 
-    /// <remarks>A mesma regra do <see cref="ApplyKeepNext"/>, para `w:keepLines`.</remarks>
+    /// <remarks>The same rule as <see cref="ApplyKeepNext"/>, for `w:keepLines`.</remarks>
     private static void ApplyKeepLines(ParagraphProperties properties, Node node, bool direct)
     {
         if (Attr.Bool(node, "keepLines"))
@@ -513,7 +525,10 @@ internal sealed class ParagraphFormat(
         if (RunReader.IsOn(properties.KeepLines)) properties.KeepLines = null;
     }
 
-    /// <summary>A fonte da marca de parágrafo (<c>w:pPr/w:rPr</c>), que mede a linha; o resto da marca fica.</summary>
+    /// <summary>
+    /// The paragraph mark font (<c>w:pPr/w:rPr</c>), which measures the line; the rest of the mark
+    /// stays.
+    /// </summary>
     private void ApplyMark(ParagraphProperties properties, Node node)
     {
         var font = Attr.String(node, "fontFamily");
@@ -553,7 +568,7 @@ internal sealed class ParagraphFormat(
         }
     }
 
-    /// <summary><c>markRevision</c> ↔ <c>w:pPr/w:rPr/w:ins|w:del</c>; a do arquivo fica quando é a mesma.</summary>
+    /// <c>markRevision</c> ↔ <c>w:pPr/w:rPr/w:ins|w:del</c>; the file's stays when it is the same.
     private static void ApplyMarkRevision(ParagraphProperties properties, Node node)
     {
         var wanted = Attr.Node(node, "markRevision");
@@ -570,8 +585,8 @@ internal sealed class ParagraphFormat(
     }
 
     /// <summary>
-    /// O OOXML é sequência: <c>w:sz</c> depois de <c>w:u</c> invalida o documento. A marca de
-    /// parágrafo é a única que o SDK não expõe tipada.
+    /// OOXML is a sequence: <c>w:sz</c> after <c>w:u</c> invalidates the document. The paragraph
+    /// mark is the only one the SDK does not expose typed.
     /// </summary>
     private static readonly string[] MarkOrder =
     [
@@ -586,7 +601,7 @@ internal sealed class ParagraphFormat(
     {
         var rank = Array.IndexOf(MarkOrder, child.LocalName);
 
-        // O desconhecido vai para o fim, onde extensão de fornecedor se declara.
+        // Unknown elements go to the end, where vendor extensions declare themselves.
         var next = mark.ChildElements.FirstOrDefault(existing =>
         {
             var other = Array.IndexOf(MarkOrder, existing.LocalName);
@@ -597,7 +612,7 @@ internal sealed class ParagraphFormat(
         else mark.InsertBefore(child, next);
     }
 
-    /// <summary>O <c>w:rFonts</c> guarda um nome, e o leitor entrega uma pilha.</summary>
+    /// <c>w:rFonts</c> stores a name, and the reader delivers a stack.
     internal static string? FirstFont(string? stack)
     {
         if (stack is null) return null;
@@ -605,13 +620,13 @@ internal sealed class ParagraphFormat(
         return first.Length > 0 ? first : null;
     }
 
-    /// <summary>Formata, sem a vírgula de nenhuma região: serve a twips, meios-pontos e 240-avos.</summary>
+    /// <summary>
+    /// Formats without any locale's comma: works for twips, half-points and 240ths.
+    /// </summary>
     private static string Invariant(int value) => value.ToString(CultureInfo.InvariantCulture);
 
-    /// <summary>
-    /// <c>StringValue?</c>: o <c>null</c> apaga o atributo. Um ternário sobre <c>string</c>
-    /// gravaria <c>w:ind w:right=""</c>, fora do esquema.
-    /// </summary>
+    /// <c>StringValue?</c>: <c>null</c> deletes the attribute. A ternary on <c>string</c> would
+    /// write <c>w:ind w:right=""</c>, outside the schema.
     private static StringValue? Twips(int? value) =>
         value is null ? null : new StringValue(Invariant(value.Value));
 }

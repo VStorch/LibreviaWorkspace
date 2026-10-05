@@ -1,12 +1,10 @@
 namespace Librevia.Format.Docx;
 
-/// <summary>
-/// <c>{n}</c> e <c>{total}</c> no texto de uma faixa: os campos PAGE e NUMPAGES. A
-/// mesma gramática para o que se digita e o que <c>HeaderReader.TextOf</c> devolve.
-/// </summary>
+/// <c>{n}</c> and <c>{total}</c> in a band's text: the PAGE and NUMPAGES fields. The same grammar
+/// for what is typed and what <c>HeaderReader.TextOf</c> returns.
 internal static class FieldTokens
 {
-    /// <summary>Um trecho de texto, precedido do campo que o abre (nulo no primeiro).</summary>
+    /// <summary>A text run, preceded by the field that opens it (null for the first).</summary>
     public sealed record Segment(string? Field, string Text);
 
     public static bool Contains(string? text) =>

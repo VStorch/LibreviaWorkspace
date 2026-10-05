@@ -3,15 +3,14 @@ using System.Globalization;
 namespace Librevia.Format.Docx;
 
 /// <summary>
-/// Cor do CSS → hexadecimal de seis dígitos, a única forma do OOXML. O alfa sai:
-/// o OOXML não tem texto transparente. Cor que não se converte volta <c>null</c>,
-/// e quem chamou registra a perda.
+/// CSS color → six-digit hex, OOXML's only form. Alpha is dropped: OOXML has no transparent text. A
+/// color that does not convert returns <c>null</c>, and the caller records the loss.
 /// </summary>
 internal static class ColorValue
 {
     /// <summary>
-    /// As 16 do HTML, as cinzas e as dos temas do Word; o resto das 148 do CSS vai
-    /// ao aviso.
+    /// The 16 HTML colors, the greys and Word's theme colors; the rest of CSS's 148 go to the
+    /// warning.
     /// </summary>
     private static readonly Dictionary<string, string> Named = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -45,14 +44,14 @@ internal static class ColorValue
         ["whitesmoke"] = "F5F5F5",
     };
 
-    /// <summary>O hexadecimal de seis dígitos, ou <c>null</c> se não der.</summary>
+    /// <summary>Six-digit hex, or <c>null</c> if it cannot be done.</summary>
     public static string? Hex(string? css)
     {
         if (string.IsNullOrWhiteSpace(css)) return null;
 
         var value = css.Trim();
 
-        // Ausência de cor: como preto poria cor onde não há.
+        // No color: black would add color where there is none.
         if (value.Equals("auto", StringComparison.OrdinalIgnoreCase) ||
             value.Equals("none", StringComparison.OrdinalIgnoreCase) ||
             value.Equals("inherit", StringComparison.OrdinalIgnoreCase) ||
@@ -66,7 +65,7 @@ internal static class ColorValue
         if (value.StartsWith('#')) return FromHex(value[1..]);
         if (value.StartsWith("rgb", StringComparison.OrdinalIgnoreCase)) return FromRgb(value);
 
-        // Só os seis dígitos do OOXML: na forma curta, `fade` viraria FFAADD.
+        // Only OOXML's six digits: in short form, `fade` would become FFAADD.
         return value.Length == 6 ? FromHex(value) : null;
     }
 
@@ -74,7 +73,7 @@ internal static class ColorValue
     {
         if (!digits.All(Uri.IsHexDigit)) return null;
 
-        // O alfa de `#rrggbbaa` e `#rgba` sai.
+        // The alpha of `#rrggbbaa` and `#rgba` is dropped.
         return digits.Length switch
         {
             3 or 4 => string.Concat(digits[..3].Select(digit => new string(digit, 2))).ToUpperInvariant(),
@@ -83,7 +82,9 @@ internal static class ColorValue
         };
     }
 
-    /// <summary>`rgb(255, 0, 0)` e `rgba(255 0 0 / 50%)`, que é o que o navegador devolve.</summary>
+    /// <summary>
+    /// `rgb(255, 0, 0)` and `rgba(255 0 0 / 50%)`, which is what the browser returns.
+    /// </summary>
     private static string? FromRgb(string value)
     {
         var open = value.IndexOf('(', StringComparison.Ordinal);

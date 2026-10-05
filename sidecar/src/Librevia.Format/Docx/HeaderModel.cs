@@ -3,9 +3,9 @@ using System.Text.Json.Serialization;
 namespace Librevia.Format.Docx;
 
 /// <summary>
-/// **De mão única**: a parte OOXML original volta intacta, e daqui sai só o que a
-/// tela e o PDF desenham. Três colunas e filete opcional, como o cabeçalho
-/// corporativo; o desenho ancorado vai em <c>Floats</c>, com a conta de posição do corpo.
+/// **One way**: the original OOXML part goes back intact, and only what screen and PDF draw comes
+/// out of here. Three columns and an optional rule, like a corporate header; anchored drawings go
+/// in <c>Floats</c>, with the body's position math.
 /// </summary>
 public sealed record BandDto(
     [property: JsonPropertyName("left")] List<PieceDto> Left,
@@ -31,12 +31,12 @@ public sealed record BandRowDto(
     [property: JsonPropertyName("cells")] List<BandCellDto> Cells);
 
 /// <summary>
-/// O logotipo numa célula mesclada, o título ao lado. As bordas vêm como as iniciais
-/// dos lados (<c>t</c>, <c>l</c>, <c>b</c>, <c>r</c>), já resolvidas: tela e papel não refazem a conta.
+/// The logo in a merged cell, the title beside it. Borders come as side initials (<c>t</c>,
+/// <c>l</c>, <c>b</c>, <c>r</c>), already resolved: screen and paper do not redo the math.
 /// </summary>
 public sealed record BandCellDto(
     [property: JsonPropertyName("pieces")] List<PieceDto> Pieces,
-    /// <summary>De 0 a 1.</summary>
+    /// <summary>From 0 to 1.</summary>
     [property: JsonPropertyName("width")] double Width,
     [property: JsonPropertyName("span")] int Span,
     [property: JsonPropertyName("rowSpan")] int RowSpan,
@@ -53,16 +53,18 @@ public sealed record PieceDto(
     [property: JsonPropertyName("italic")] bool Italic = false,
     [property: JsonPropertyName("color")] string? Color = null,
     [property: JsonPropertyName("fontSize")] string? FontSize = null,
-    /// <summary>Já como pilha de CSS.</summary>
+    /// <summary>Already as a CSS stack.</summary>
     [property: JsonPropertyName("fontFamily")] string? FontFamily = null,
-    /// <summary>Cada parágrafo do cabeçalho é uma linha.</summary>
+    /// <summary>Each header paragraph is a line.</summary>
     [property: JsonPropertyName("line")] bool Line = false,
     /// <summary>
-    /// A relação, o parágrafo e a peça: a gravação escreve **só no <c>w:t</c> dela**. Número
-    /// de página, imagem e cache de campo não têm <c>w:t</c> e não são editáveis.
+    /// The relationship, the paragraph and the piece: saving writes **only into its <c>w:t</c>**.
+    /// Page numbers, images and field caches have no <c>w:t</c> and are not editable.
     /// </summary>
     [property: JsonPropertyName("pid")] string? Pid = null,
-    /// <summary>O texto traz <c>{n}</c> ou <c>{total}</c> escritos: é texto, e não campo.</summary>
+    /// <summary>
+    /// The text has <c>{n}</c> or <c>{total}</c> written: it is text, not a field.
+    /// </summary>
     [property: JsonPropertyName("literal")]
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     bool Literal = false)

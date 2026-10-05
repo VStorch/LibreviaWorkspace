@@ -1,23 +1,23 @@
 namespace Librevia.Format.Protocol;
 
 /// <summary>
-/// Um quadro do protocolo: JSON mais um bloco de bytes crus. O outro lado é
-/// <c>src/main/sidecar/protocol.ts</c>: mudam juntos.
+/// A protocol frame: JSON plus a block of raw bytes. The other side is
+/// <c>src/main/sidecar/protocol.ts</c>: they change together.
 /// <code>
-///   offset 0   uint32 BE   bytes de JSON
-///   offset 4   uint32 BE   bytes de binário
-///   offset 8   ...         JSON em UTF-8
-///   depois     ...         binário cru
+///   offset 0   uint32 BE   JSON byte count
+///   offset 4   uint32 BE   binary byte count
+///   offset 8   ...         UTF-8 JSON
+///   then       ...         raw binary
 /// </code>
-/// O binário vai fora do JSON porque base64 custaria um terço a mais.
+/// The binary goes outside the JSON because base64 would cost a third more.
 /// </summary>
 public readonly record struct Frame(ReadOnlyMemory<byte> Json, ReadOnlyMemory<byte> Binary)
 {
     public const int HeaderBytes = 8;
 
     /// <summary>
-    /// Os tetos do lado TypeScript, contra um cabeçalho que peça gigabytes. O do JSON
-    /// é largo porque as imagens do DOCX vão nele como data URI.
+    /// The TypeScript side's caps, against a header asking for gigabytes. The JSON one is generous
+    /// because DOCX images travel in it as data URIs.
     /// </summary>
     public const int MaxJsonBytes = 64 * 1024 * 1024;
     public const int MaxBinaryBytes = 64 * 1024 * 1024;
@@ -25,7 +25,7 @@ public readonly record struct Frame(ReadOnlyMemory<byte> Json, ReadOnlyMemory<by
 
 public static class FrameIo
 {
-    /// <summary>Nulo quando o main fecha o stdin, que é o pedido de encerrar.</summary>
+    /// <summary>Null when main closes stdin, which is the request to shut down.</summary>
     public static async Task<Frame?> ReadAsync(Stream input, CancellationToken cancellation)
     {
         var header = new byte[Frame.HeaderBytes];
@@ -75,11 +75,11 @@ public static class FrameIo
             await output.WriteAsync(binary, cancellation).ConfigureAwait(false);
         }
 
-        // Sem o flush, o main espera por uma resposta presa no buffer.
+        // Without the flush, main waits for a response stuck in the buffer.
         await output.FlushAsync(cancellation).ConfigureAwait(false);
     }
 
-    /// <summary>Um pipe entrega quanto quiser a cada leitura.</summary>
+    /// <summary>A pipe delivers as much as it wants on each read.</summary>
     private static async Task<bool> ReadExactlyOrEofAsync(
         Stream input,
         Memory<byte> destination,

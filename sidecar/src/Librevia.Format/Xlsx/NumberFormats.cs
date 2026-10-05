@@ -4,15 +4,14 @@ using ClosedXML.Excel;
 namespace Librevia.Format.Xlsx;
 
 /// <summary>
-/// Máscaras do XLSX ↔ os seis formatos do aplicativo, pela **intenção**, e não pela
-/// máscara: uma moeda desconhecida vale mais como moeda que como geral.
+/// XLSX masks ↔ the app's six formats, by **intent**, not by mask: an unknown currency is worth
+/// more as currency than as general.
 /// </summary>
 public static class NumberFormats
 {
     /// <summary>
-    /// Por máscara: são meia dúzia numa planilha de centenas de milhares de células.
-    /// O teto segura o arquivo com uma máscara por célula. Concorrente porque os
-    /// testes rodam em paralelo.
+    /// By mask: there are half a dozen in a sheet of hundreds of thousands of cells. The cap holds
+    /// a file with one mask per cell. Concurrent because tests run in parallel.
     /// </summary>
     private static readonly System.Collections.Concurrent.ConcurrentDictionary<
         (string Code, int Id), (string? Format, int? Decimals)> Known = new();
@@ -36,13 +35,13 @@ public static class NumberFormats
             return FromBuiltin(numberFormatId);
         }
 
-        // "General" antes de qualquer heurística: o "a" de General é o de `dd/mm/aaaa`.
+        // "General" before any heuristic: the "a" in General is the one in `dd/mm/aaaa`.
         if (IsGeneral(code))
         {
             return (null, null);
         }
 
-        // Os literais saem uma vez só.
+        // Literals go once.
         var mask = WithoutLiterals(code);
         return (KindOf(code, mask), DecimalsOf(mask));
     }
@@ -52,7 +51,7 @@ public static class NumberFormats
             section.Trim().Equals("General", StringComparison.OrdinalIgnoreCase)
             || section.Trim().Equals("Geral", StringComparison.OrdinalIgnoreCase));
 
-    /// <summary>Os embutidos do OOXML que aparecem na prática; o resto é geral.</summary>
+    /// <summary>OOXML builtins that appear in practice; the rest is general.</summary>
     private static (string? Format, int? Decimals) FromBuiltin(int id) => id switch
     {
         0 => (null, null),
@@ -65,7 +64,7 @@ public static class NumberFormats
         14 or 15 or 16 or 17 or 22 => ("date", null),
         5 or 6 or 37 or 38 or 41 or 42 => ("currency", 0),
         7 or 8 or 39 or 40 or 43 or 44 => ("currency", 2),
-        // Horas: o aplicativo não tem formato de hora, e "data" mostraria a data errada.
+        // Hours: the app has no time format, and "date" would show the wrong date.
         18 or 19 or 20 or 21 or 45 or 46 or 47 => (null, null),
         49 => ("text", null),
         _ => (null, null),
@@ -75,7 +74,7 @@ public static class NumberFormats
     {
         if (mask.Contains('y') || mask.Contains('a') || mask.Contains('d') || mask.Contains('M'))
         {
-            // `m` sozinho é minuto; com dia ou ano, é mês.
+            // `m` alone is minutes; with day or year, it is month.
             if (mask.Contains('y') || mask.Contains('a') || mask.Contains('d')) return "date";
         }
 
@@ -87,10 +86,10 @@ public static class NumberFormats
         return null;
     }
 
-    /// <summary>Os zeros depois do ponto, que é sempre o decimal da máscara.</summary>
+    /// <summary>The zeros after the dot, which is always the mask's decimal.</summary>
     private static int? DecimalsOf(string mask)
     {
-        // A primeira seção (positivo) é a que se vê quase sempre.
+        // The first section (positive) is the one almost always seen.
         var first = mask.Split(';')[0];
         var dot = first.LastIndexOf('.');
         if (dot < 0) return first.Contains('0') || first.Contains('#') ? 0 : null;
@@ -105,7 +104,10 @@ public static class NumberFormats
         return digits;
     }
 
-    /// <summary>Aspas, colchetes e barra invertida: sem isso o <c>d</c> de <c>[sidecar/src/Librevia.Format/Docx/RunReader.cshmtBc416]</c> seria data.</summary>
+    /// <summary>
+    /// Quotes, brackets and backslash: what they enclose is not mask, so <c>[$R$-416]</c> is not a
+    /// date.
+    /// </summary>
     private static string WithoutLiterals(string code)
     {
         var clean = new System.Text.StringBuilder(code.Length);
@@ -146,7 +148,7 @@ public static class NumberFormats
         return clean.ToString();
     }
 
-    /// <summary>A moeda sai em reais: o formato do modelo não guarda qual é.</summary>
+    /// <summary>Currency comes out in reais: the model's format does not keep which one.</summary>
     public static string? Mask(string? format, int? decimals)
     {
         var places = Math.Clamp(decimals ?? DefaultDecimals(format), 0, 10);
@@ -170,13 +172,13 @@ public static class NumberFormats
         _ => 0,
     };
 
-    /// <summary>Para comparar sem regravar.</summary>
+    /// <summary>To compare without rewriting.</summary>
     public static bool Matches(IXLNumberFormat existing, string? format, int? decimals)
     {
         var (readFormat, readDecimals) = Read(existing);
         if (readFormat != format) return false;
 
-        // Casas indefinidas casam com o padrão do outro lado.
+        // Undefined decimals match the other side's default.
         var a = decimals ?? DefaultDecimals(format);
         var b = readDecimals ?? DefaultDecimals(readFormat);
         return format is null || a == b;
