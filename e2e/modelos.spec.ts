@@ -9,11 +9,10 @@ import { launch, menu, stubDialogs, type Session } from './app.js'
 import { entryOf } from './fixtures.js'
 
 /**
- * Modelos do Word: Arquivo → Novo a partir de modelo…, abrir um `.dotx` e
- * salvar como modelo.
+ * Word templates: File → New from template…, opening a `.dotx` and saving as template.
  *
- * O documento criado a partir de um modelo é novo e sem título: "salvar" pergunta
- * o destino, o `.docx` sai com o rótulo de documento, e o modelo fica como estava.
+ * A document created from a template is new and untitled: "save" asks for the destination, the
+ * `.docx` goes out with the document label, and the template stays as it was.
  */
 test.describe('modelos', () => {
   let session: Session
@@ -45,8 +44,8 @@ test.describe('modelos', () => {
     await galeria.getByRole('button', { name: 'Criar' }).click()
     await expect(galeria).toHaveCount(0)
 
-    // Os estilos e o rodapé do modelo chegaram: títulos são `h1`, e a faixa traz
-    // o número da página.
+    // The template's styles and footer arrived: headings are `h1`, and the band carries the page
+    // number.
     await expect(texto(session)).toContainText('[Título do relatório]')
     await expect(texto(session).locator('h1').first()).toHaveText('1 Introdução')
     await expect(session.window.locator('.band--footer').last()).toContainText('Página')
@@ -65,7 +64,7 @@ test.describe('modelos', () => {
     expect(tipos).not.toContain(MODELO)
     expect(await entryOf(destino, 'word/document.xml')).toContain('3 Conclusão final')
 
-    // O LibreOffice abre o resultado.
+    // LibreOffice opens the result.
     if (await temSoffice()) {
       const copia = join(pasta, 'lo.docx')
       await copyFile(destino, copia)
@@ -75,7 +74,7 @@ test.describe('modelos', () => {
       expect(await existe(join(pasta, 'lo.pdf'))).toBe(true)
     }
 
-    // E o próprio aplicativo também, agora como documento comum.
+    // And so does the app itself, now as a regular document.
     await stubDialogs(session.app, { open: destino })
     await menu(session, 'open')
     await expect(texto(session)).toContainText('3 Conclusão final')
@@ -97,7 +96,7 @@ test.describe('modelos', () => {
     expect(tipos).not.toContain(DOCUMENTO)
     const antes = await hash(modelo)
 
-    // Reaberto, o modelo vira documento novo: "salvar" pergunta o destino.
+    // Reopened, the template becomes a new document: "save" asks for the destination.
     const derivado = join(pasta, 'derivado.docx')
     await stubDialogs(session.app, { open: modelo, save: derivado })
     await menu(session, 'open')

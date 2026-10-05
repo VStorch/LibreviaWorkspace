@@ -8,12 +8,11 @@ import { launch, menu, stubDialogs, type Session } from './app.js'
 import { docxWithColumns, docxWithSections, entryOf } from './fixtures.js'
 
 /**
- * Seções: cada folha com o papel, a faixa e o número da sua seção.
+ * Sections: each sheet with its section's paper, band and number.
  *
- * O documento tem retrato (romanos), paisagem (reinicia em 1) e retrato de novo
- * começando em página ímpar — o Word insere uma folha em branco antes dela, já
- * com o papel da seção nova. As duas últimas seções não declaram rodapé, e
- * herdam o da primeira.
+ * The document has portrait (Roman), landscape (restarting at 1) and portrait again starting on an
+ * odd page; Word inserts a blank sheet before it, already with the new section's paper. The last
+ * two sections declare no footer, and inherit the first one's.
  */
 test.describe('seções', () => {
   let session: Session
@@ -43,21 +42,21 @@ test.describe('seções', () => {
       .locator('.paper')
       .evaluateAll((papeis) => papeis.map((papel) => papel.getBoundingClientRect()))
 
-    // A segunda folha é mais larga que alta; as outras, retrato.
+    // The second sheet is wider than tall; the others, portrait.
     expect(folhas[0]!.width).toBeLessThan(folhas[0]!.height)
     expect(folhas[1]!.width).toBeGreaterThan(folhas[1]!.height)
     expect(folhas[2]!.width).toBeLessThan(folhas[2]!.height)
-    // Centradas na pilha: a de retrato começa mais à direita que a de paisagem.
+    // Centered in the stack: the portrait one starts further right than the landscape one.
     expect(folhas[0]!.left).toBeGreaterThan(folhas[1]!.left)
 
-    // O texto da seção de paisagem ocupa a largura dela, e não a do retrato.
+    // The landscape section's text takes its width, not the portrait one's.
     const paisagem = session.window.locator('.ProseMirror p', { hasText: 'Folha em paisagem.' })
     const caixa = await paisagem.boundingBox()
     expect(caixa!.x).toBeLessThan(folhas[0]!.left)
     expect(caixa!.y).toBeGreaterThan(folhas[1]!.top)
     expect(caixa!.y).toBeLessThan(folhas[1]!.bottom)
 
-    // A terceira folha é a em branco; o retrato outra vez abre a quarta.
+    // The third sheet is the blank one; portrait again opens the fourth.
     const retrato = await session.window
       .locator('.ProseMirror p', { hasText: 'Retrato outra vez' })
       .boundingBox()
@@ -111,7 +110,7 @@ test.describe('seções', () => {
     await menu(session, 'insert-section-next-page')
     await expect(session.window.locator('.paper')).toHaveCount(2)
 
-    // O cursor está na seção de baixo: "nesta seção" vira só ela.
+    // The cursor is in the lower section: "this section" means only that one.
     await session.window.locator('.ProseMirror p', { hasText: 'Em paisagem.' }).click()
     await menu(session, 'page-setup')
     const painel = session.window.getByRole('dialog', { name: 'Configuração de página' })
@@ -129,7 +128,7 @@ test.describe('seções', () => {
     expect(corpo).toMatch(/<w:p>(?:(?!<\/w:p>).)*<w:sectPr(?:(?!<\/w:sectPr>).)*w:h="16838"/)
     expect(corpo).toMatch(/<w:sectPr(?:(?!<\/w:sectPr>).)*w:orient="landscape"(?:(?!<w:sectPr).)*<\/w:body>/)
 
-    // Excluída a quebra, o trecho de cima assume o formato do de baixo, como no Word.
+    // With the break deleted, the range above takes the format of the one below, as in Word.
     await menu(session, 'delete-section-break')
     await expect.poll(() => orientacoes(session)).toEqual(['paisagem'])
   })
@@ -144,7 +143,7 @@ test.describe('seções', () => {
     await vinculo.uncheck()
     await painel.getByRole('button', { name: 'Aplicar' }).click()
 
-    // A cópia é da seção de paisagem: editá-la não muda o rodapé da primeira.
+    // The copy is the landscape section's: editing it does not change the first one's footer.
     const peca = session.window.locator('.band--footer .band__text').nth(1)
     await peca.click()
     await session.window.keyboard.press('Home')
@@ -176,7 +175,7 @@ test.describe('seções', () => {
 
     const caixa = (texto: string) =>
       session.window.locator('.ProseMirror p', { hasText: texto }).boundingBox()
-    // Seis parágrafos em duas colunas equilibradas: três de cada lado.
+    // Six paragraphs in two balanced columns: three on each side.
     await expect
       .poll(async () => (await caixa('Parágrafo 4'))!.x)
       .toBeGreaterThan((await caixa('Parágrafo 1'))!.x + 100)
@@ -184,7 +183,8 @@ test.describe('seções', () => {
     const quarto = (await caixa('Parágrafo 4'))!
     expect(Math.abs(quarto.y - primeiro.y)).toBeLessThan(2)
     expect(quarto.width).toBeLessThan(primeiro.width + 1)
-    // O texto da seção de baixo desce ao pé da coluna mais alta, e ocupa a folha toda.
+    // The lower section's text moves down to the foot of the tallest column, and takes the whole
+    // sheet.
     const terceiro = (await caixa('Parágrafo 3'))!
     const depois = (await caixa('Depois das colunas'))!
     expect(depois.y).toBeGreaterThan(terceiro.y + terceiro.height - 1)
@@ -230,8 +230,8 @@ test.describe('seções', () => {
   })
 
   test('desfazer a quebra de seção desfaz a seção, na tela e no arquivo', async () => {
-    // A seção mora na biblioteca da loja, e é o texto que diz se ela vale: o
-    // desfazer tira a marca e, com ela, a seção e o começo que a de baixo ganhou.
+    // The section lives in the store library, and the text says whether it counts: undo removes the
+    // mark and, with it, the section and the start the lower one gained.
     await menu(session, 'new-document')
     await session.window.locator('.ProseMirror').click()
     await session.window.keyboard.type('Antes.')
@@ -254,8 +254,8 @@ test.describe('seções', () => {
   })
 
   test('o rascunho de antes das seções recusa quebra e colunas dizendo por quê', async () => {
-    // Gravado pelo caminho de então, ele não levaria a quebra ao arquivo: a
-    // mudança apareceria na tela e sumiria no .docx.
+    // Saved along the old path, it would not take the break to the file: the change would show on
+    // screen and vanish from the .docx.
     const rascunho = join(pasta, 'antigo.sdoc')
     await writeFile(
       rascunho,
@@ -315,7 +315,7 @@ async function temPoppler(): Promise<boolean> {
   }
 }
 
-/** A orientação de cada folha do PDF, pelo tamanho que o `pdfinfo` declara. */
+/** Each PDF sheet's orientation, by the size `pdfinfo` reports. */
 async function tamanhos(caminho: string): Promise<string[]> {
   try {
     const { stdout } = await promisify(execFile)('pdfinfo', ['-f', '1', '-l', '99', caminho])

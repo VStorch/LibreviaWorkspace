@@ -7,7 +7,7 @@ import { expect, test } from '@playwright/test'
 import { launch, menu, stubDialogs, type Session } from './app.js'
 import { docxWithCommentThread, entryOf } from './fixtures.js'
 
-/** Clica num item do menu nativo, pelo rótulo do menu e do item. */
+/** Clicks a native menu item, by menu and item label. */
 async function clickMenuItem(session: Session, menuLabel: string, itemLabel: string): Promise<void> {
   await session.app.evaluate(
     ({ Menu }, [top, item]) => {
@@ -37,10 +37,9 @@ async function textoDoPdf(caminho: string): Promise<string> {
 }
 
 /**
- * Comentários: lidos, mostrados ao lado da folha e devolvidos ao arquivo quando
- * o parágrafo que os ancora é editado; criados, respondidos, resolvidos e
- * excluídos no painel, e gravados de volta; o cursor em volta das âncoras,
- * recortar e colar, navegar, esconder o painel, o autor e o papel.
+ * Comments: read, shown beside the sheet and returned to the file when the paragraph anchoring them
+ * is edited; created, replied to, resolved and deleted in the pane, and saved back; the cursor
+ * around anchors, cut and paste, navigation, hiding the pane, the author and paper.
  */
 test.describe('comentários', () => {
   let session: Session
@@ -66,19 +65,19 @@ test.describe('comentários', () => {
     await expect(editor).toHaveAttribute('contenteditable', 'true')
     await expect(session.window.locator('.banner--readonly')).toBeHidden()
 
-    // Uma conversa por cartão: a resposta mora dentro do da pergunta.
+    // One thread per card: the reply lives inside the question's.
     const cartoes = session.window.locator('.comment-card')
     await expect(cartoes).toHaveCount(2)
     const conversa = cartoes.filter({ hasText: 'Conferir o valor.' })
     await expect(conversa).toContainText('Ana')
     await expect(conversa.locator('.comment-card__replies')).toContainText('Conferido na planilha.')
 
-    // A resolvida vem recolhida: o autor e o aviso, sem o texto.
+    // A resolved one comes collapsed: author and notice, without the text.
     const resolvida = cartoes.filter({ hasText: 'Resolvido' })
     await expect(resolvida).toContainText('Carla')
     await expect(resolvida).not.toContainText('Trocar o título.')
 
-    // Na altura do trecho que comenta.
+    // At the height of the range it comments.
     const trecho = editor.locator('.comment-range').first()
     await expect(trecho).toHaveText('doze mil reais')
     await expect
@@ -88,11 +87,10 @@ test.describe('comentários', () => {
       })
       .toBeLessThan(30)
 
-    // Clicar no cartão seleciona o trecho e o realça.
+    // Clicking the card selects and highlights the range.
     await conversa.click()
     await expect(editor.locator('.comment-range--active')).toHaveText('doze mil reais')
 
-    // Editar o parágrafo comentado e gravar.
     await editor.getByText('por ano.').click()
     await session.window.keyboard.press('End')
     await session.window.keyboard.type(' Revisado.')
@@ -107,7 +105,7 @@ test.describe('comentários', () => {
       expect(corpo).toContain(`<w:commentReference w:id="${id}"`)
     }
 
-    // Reaberto, o cartão continua lá, com a resposta.
+    // Reopened, the card is still there, with the reply.
     await menu(session, 'open')
     await expect(editor).toContainText('Revisado.')
     await expect(cartoes).toHaveCount(2)
@@ -125,7 +123,7 @@ test.describe('comentários', () => {
     const cartoes = session.window.locator('.comment-card')
     await expect(cartoes).toHaveCount(2)
 
-    // Novo comentário sobre "Fim.": o cartão abre com a caixa de texto em foco.
+    // A new comment on "Fim.": the card opens with the text box focused.
     await editor.getByText('Fim.').click()
     await session.window.keyboard.press('End')
     await session.window.keyboard.press('Shift+Home')
@@ -138,14 +136,13 @@ test.describe('comentários', () => {
     await expect(cartoes.filter({ hasText: 'Revisar o fim.' })).toBeVisible()
     await expect(editor.locator('.comment-range').filter({ hasText: 'Fim.' })).toHaveCount(1)
 
-    // Esc desiste do cartão novo, e as pontas saem com ele.
+    // Esc gives up the new card, and its ends go with it.
     await editor.getByText('Ata da reunião').click()
     await menu(session, 'insert-comment')
     await expect(caixa).toBeFocused()
     await session.window.keyboard.press('Escape')
     await expect(cartoes).toHaveCount(3)
 
-    // Responder e resolver a conversa da Ana.
     const conversa = cartoes.filter({ hasText: 'Conferir o valor.' })
     await conversa.click()
     await conversa.getByRole('button', { name: 'Responder' }).click()
@@ -155,14 +152,13 @@ test.describe('comentários', () => {
     await conversa.getByRole('button', { name: 'Resolver' }).click()
     await expect(conversa).toHaveClass(/comment-card--done/)
 
-    // Excluir a conversa resolvida da Carla.
     const resolvida = cartoes.filter({ hasText: 'Carla' })
     await resolvida.click()
     await resolvida.getByRole('button', { name: 'Excluir' }).click()
     await expect(cartoes).toHaveCount(2)
     await expect(cartoes.filter({ hasText: 'Carla' })).toHaveCount(0)
 
-    // Desfazer a exclusão devolve o cartão; refazer o tira de novo.
+    // Undoing the deletion brings the card back; redoing removes it again.
     await editor.click()
     await session.window.keyboard.press('Control+Z')
     await expect(cartoes).toHaveCount(3)
@@ -179,7 +175,7 @@ test.describe('comentários', () => {
     expect(await entryOf(origem, 'word/commentsExtended.xml')).toMatch(/w15:paraId="10000000" w15:done="1"/)
     expect(await entryOf(origem, 'word/document.xml')).not.toContain('w:id="2"')
 
-    // O rascunho guarda o mesmo estado, e o .docx gravado dele também.
+    // The draft keeps the same state, and so does the .docx saved from it.
     await menu(session, 'save-as')
     await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
     await stubDialogs(session.app, { open: rascunho, save: destino })
@@ -212,7 +208,7 @@ test.describe('comentários', () => {
     const cartoes = session.window.locator('.comment-card')
     await expect(cartoes).toHaveCount(2)
 
-    // Comentário de ponto no fim de "Fim.": só o `commentEnd`, encostado no fim.
+    // A point comment at the end of "Fim.": only the `commentEnd`, touching the end.
     await editor.getByText('Fim.').click()
     await session.window.keyboard.press('End')
     await menu(session, 'insert-comment')
@@ -221,7 +217,7 @@ test.describe('comentários', () => {
     await session.window.getByRole('button', { name: 'Comentar' }).click()
     await expect(cartoes).toHaveCount(3)
 
-    // Só o último caractere selecionado não é o parágrafo: apagá-lo deixa o comentário.
+    // Selecting only the last character is not the paragraph: deleting it keeps the comment.
     await editor.getByText('Fim.').click()
     await session.window.keyboard.press('End')
     await session.window.keyboard.press('Shift+ArrowLeft')
@@ -230,7 +226,8 @@ test.describe('comentários', () => {
     await expect(cartoes).toHaveCount(3)
     await session.window.keyboard.type('.')
 
-    // `End` e `Shift+Home` depressa selecionam a linha, e um `Backspace` só a apaga.
+    // `End` and `Shift+Home` in quick succession select the line, and a single `Backspace` deletes
+    // it.
     await editor.getByText('Fim.').click()
     await session.window.keyboard.press('End')
     await session.window.keyboard.press('Shift+Home')
@@ -238,8 +235,8 @@ test.describe('comentários', () => {
     await session.window.keyboard.type('Novo')
     await expect(editor.locator('p').last()).toHaveText('Novo')
 
-    // Sem seleção, o `Backspace` passa por cima da âncora — o fim do comentário
-    // da Carla — e apaga o caractere, e a conversa fica.
+    // Without a selection, `Backspace` skips over the anchor (the end of Carla's comment) and
+    // deletes the character, and the thread stays.
     await editor.getByText('Título provisório').click()
     await session.window.keyboard.press('End')
     await session.window.keyboard.press('Backspace')
@@ -264,7 +261,7 @@ test.describe('comentários', () => {
     await session.window.keyboard.press('Control+X')
     await expect(carla).toHaveCount(0)
 
-    // Colada no fim, volta com o cartão.
+    // Pasted at the end, it comes back with the card.
     await editor.getByText('Fim.').click()
     await session.window.keyboard.press('End')
     await session.window.keyboard.press('Enter')
@@ -272,7 +269,7 @@ test.describe('comentários', () => {
     await expect(carla).toHaveCount(1)
     await expect(editor.locator('[data-comment-start][data-cid="2"]')).toHaveCount(1)
 
-    // Copiada e colada de novo, o texto se repete e a conversa não.
+    // Copied and pasted again, the text repeats and the thread does not.
     await editor.getByText('Título provisório').click()
     await session.window.keyboard.press('Home')
     await session.window.keyboard.press('Shift+End')
@@ -302,7 +299,7 @@ test.describe('comentários', () => {
     const ativo = session.window.locator('.comment-card--active')
     await expect(session.window.locator('.comment-card')).toHaveCount(2)
 
-    // A resposta do Bruno tem pontas próprias no arquivo, mas não é conversa.
+    // Bruno's reply has its own ends in the file, but is not a thread.
     await menu(session, 'next-comment')
     await expect(ativo).toContainText('Ana')
     await expect(editor.locator('.comment-range--active')).toHaveText('doze mil reais')
@@ -313,7 +310,7 @@ test.describe('comentários', () => {
     await menu(session, 'previous-comment')
     await expect(ativo).toContainText('Carla')
 
-    // O cursor foi junto: o que se digita cai no trecho escolhido.
+    // The cursor went along: what is typed lands in the chosen range.
     await expect(editor).toBeFocused()
   })
 
@@ -342,12 +339,12 @@ test.describe('comentários', () => {
     expect(corpo).toContain('<w:commentRangeStart w:id="2"')
     expect(await entryOf(origem, 'word/comments.xml')).toContain('Conferir o valor.')
 
-    // A preferência fica: reaberto o documento, o painel continua escondido.
+    // The preference sticks: with the document reopened, the pane stays hidden.
     await menu(session, 'open')
     await expect(editor).toContainText('Revisado.')
     await expect(painel).toHaveCount(0)
 
-    // Inserir um comentário traz o painel de volta.
+    // Inserting a comment brings the pane back.
     await editor.getByText('Fim.').click()
     await menu(session, 'insert-comment')
     await expect(painel).toHaveCount(1)
@@ -388,7 +385,7 @@ test.describe('comentários', () => {
     await session.window.getByRole('button', { name: 'Comentar' }).click()
     await expect(cartoes.filter({ hasText: 'Assinado.' })).toContainText('Zé da Silva')
 
-    // A resposta do Bruno, editada no cartão da Ana.
+    // Bruno's reply, edited in Ana's card.
     const conversa = cartoes.filter({ hasText: 'Conferir o valor.' })
     await conversa.click()
     const respostas = conversa.locator('.comment-card__replies')

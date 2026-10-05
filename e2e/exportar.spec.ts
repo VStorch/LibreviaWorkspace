@@ -6,8 +6,8 @@ import { launch, menu, stubDialogs, type Session } from './app.js'
 import { docxWithFootnote, entryOf } from './fixtures.js'
 
 /**
- * Arquivo → Exportar como → HTML…, Markdown… e ODT…. Exportar escreve um
- * arquivo novo: o documento continua no caminho dele e sem alteração pendente.
+ * File → Export as → HTML…, Markdown… and ODT…. Exporting writes a new file: the document stays at
+ * its path and without pending changes.
  */
 test.describe('exportar como HTML, Markdown e ODT', () => {
   let session: Session
@@ -25,7 +25,7 @@ test.describe('exportar como HTML, Markdown e ODT', () => {
 
   const lido = (path: string) => () => readFile(path, 'utf8').catch(() => '')
 
-  /** Os nomes das entradas do ZIP, pelo diretório central, na ordem do arquivo. */
+  /** The ZIP entry names, from the central directory, in file order. */
   const entradas = (zip: Buffer): string[] => {
     const fim = zip.lastIndexOf(Buffer.from([0x50, 0x4b, 0x05, 0x06]))
     const nomes: string[] = []
@@ -66,7 +66,7 @@ test.describe('exportar como HTML, Markdown e ODT', () => {
     expect(texto).toContain('Ata da reunião de terça.\n\nSegundo parágrafo, com uma nota.[^1]')
     expect(texto).toContain('[^1]: Fonte: ata anterior.')
 
-    // O documento continua sendo o .docx, limpo, e o arquivo de origem intacto.
+    // The document is still the .docx, clean, and the source file intact.
     await expect(session.window).toHaveTitle(/^ata\.docx/)
     await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
     expect((await stat(origem)).mtimeMs).toBe(antes)
@@ -92,7 +92,7 @@ test.describe('exportar como HTML, Markdown e ODT', () => {
       )
       .toBeGreaterThan(0)
 
-    // O `mimetype` abre o pacote, guardado, e as partes estão todas lá.
+    // `mimetype` opens the package, stored, and all the parts are there.
     const pacote = await readFile(odt)
     expect(pacote.subarray(30, 38).toString()).toBe('mimetype')
     expect(pacote.subarray(38, 77).toString()).toBe('application/vnd.oasis.opendocument.text')

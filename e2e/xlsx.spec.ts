@@ -5,9 +5,9 @@ import { expect, test, type Page } from '@playwright/test'
 import { launch, menu, stubDialogs, type Session } from './app.js'
 
 /**
- * O caminho inteiro do `.xlsx`, que nenhum teste de unidade vê: React → IPC → main →
- * tradução de fórmula → quadro binário → sidecar → ClosedXML → disco, e a volta. A
- * planilha é criada pelo próprio aplicativo.
+ * The whole `.xlsx` path, which no unit test sees: React → IPC → main → formula translation →
+ * binary frame → sidecar → ClosedXML → disk, and back. The spreadsheet is created by the app
+ * itself.
  */
 test.describe('planilha em .xlsx', () => {
   let session: Session
@@ -38,25 +38,26 @@ test.describe('planilha em .xlsx', () => {
 
     await menu(session, 'save-as')
     await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
-    // No disco, e não só na tela: com a gravação em curso, fechar abriria o aviso de descarte.
+    // On disk, not just on screen: with the save in progress, closing would open the discard
+    // prompt.
     await expect.poll(() => exists(target), { timeout: 30_000 }).toBe(true)
 
-    // Fechar e reabrir: o modelo da memória não prova o que está no disco.
+    // Close and reopen: the in-memory model does not prove what is on disk.
     await menu(session, 'close-file')
     await menu(session, 'open')
     await gridReady(session.window)
 
     await expect(cell(session.window, 2, 0)).toHaveText('37,5')
 
-    // A fórmula na barra prova que ela voltou, e em português.
+    // The formula in the bar proves it came back, and in Portuguese.
     await select(session.window, 2, 0)
     await expect(session.window.locator('.formula-bar__input')).toHaveValue('=A1*A2')
   })
 })
 
 /**
- * Uma célula da grade, pelas coordenadas base zero. O `revogr-overlay-selection`
- * evita casar com o cabeçalho de linha, que usa as mesmas coordenadas.
+ * A grid cell, by zero-based coordinates. `revogr-overlay-selection` avoids matching the row
+ * header, which uses the same coordinates.
  */
 function cell(window: Page, row: number, column: number) {
   return window
@@ -64,14 +65,14 @@ function cell(window: Page, row: number, column: number) {
     .first()
 }
 
-/** A grade só desenha as células depois de montar; clicar antes não seleciona. */
+/** The grid only draws cells after mounting; clicking earlier selects nothing. */
 async function gridReady(window: Page): Promise<void> {
   await expect(window.locator('revo-grid')).toBeVisible()
   await expect(cell(window, 0, 0)).toBeVisible()
 }
 
 async function select(window: Page, row: number, column: number): Promise<void> {
-  // O clique repete até a seleção mover: a grade se redesenha depois de abrir.
+  // The click repeats until the selection moves: the grid redraws after opening.
   await expect(async () => {
     await cell(window, row, column).click()
     await expect(window.locator('.formula-bar__ref')).toHaveText(reference(row, column), {
@@ -80,7 +81,7 @@ async function select(window: Page, row: number, column: number): Promise<void> 
   }).toPass({ timeout: 15_000 })
 }
 
-/** Seleciona a célula e escreve nela pela barra de fórmulas. */
+/** Selects the cell and writes into it through the formula bar. */
 async function write(window: Page, row: number, column: number, text: string): Promise<void> {
   await select(window, row, column)
   const input = window.locator('.formula-bar__input')

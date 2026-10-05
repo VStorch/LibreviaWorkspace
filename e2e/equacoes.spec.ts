@@ -25,18 +25,18 @@ async function temPdftotext(): Promise<boolean> {
   }
 }
 
-/** Os `m:oMath`/`m:oMathPara` do XML, na ordem — o que tem de voltar como veio. */
+/** The XML's `m:oMath`/`m:oMathPara`, in order: what must come back as it came. */
 function equacoesDo(xml: string): string[] {
-  // O `word/document.xml` inteiro é serializado de novo pelo SDK, que fecha o
-  // elemento vazio com " />": é a única diferença de escrita.
+  // The whole `word/document.xml` is reserialized by the SDK, which closes an empty element with "
+  // />": the only difference in writing.
   return (xml.match(/<m:oMath(?:Para)?[ >][\s\S]*?<\/m:oMath(?:Para)?>/g) ?? []).map((math) =>
     math.replaceAll(' />', '/>'),
   )
 }
 
 /**
- * Equações: desenhadas pelo MathML, só para leitura, e devolvidas ao arquivo
- * com o OMML como veio — também quando se edita o texto ao lado.
+ * Equations: drawn from MathML, read-only, and returned to the file with the OMML as it came, also
+ * when editing the text beside them.
  */
 test.describe('equações', () => {
   let session: Session
@@ -67,14 +67,14 @@ test.describe('equações', () => {
     const equacoes = editor.locator('.equacao')
     await expect(equacoes).toHaveCount(3)
 
-    // A em linha: dentro da frase, na altura do texto.
+    // The inline one: inside the sentence, at text height.
     const emLinha = equacoes.nth(0)
     await expect(emLinha.locator('math msup')).toHaveCount(1)
     const caixaEmLinha = await emLinha.boundingBox()
     expect(caixaEmLinha!.width).toBeGreaterThan(10)
     expect(caixaEmLinha!.height).toBeLessThan(40)
 
-    // A de exibição: um bloco da largura da coluna, com a fração e a raiz.
+    // The display one: a column-wide block, with the fraction and the root.
     const exibicao = equacoes.nth(1)
     await expect(exibicao).toHaveClass(/equacao--exibicao/)
     await expect(exibicao.locator('math mfrac msqrt')).toHaveCount(1)
@@ -83,7 +83,7 @@ test.describe('equações', () => {
     expect(caixaExibicao!.width).toBeGreaterThan(caixaEditor!.width * 0.8)
     expect(caixaExibicao!.height).toBeGreaterThan(caixaEmLinha!.height)
 
-    // A travada diz o que a tela não desenha.
+    // A locked one says what the screen does not draw.
     const travada = equacoes.nth(2)
     await expect(travada).toHaveClass(/equacao--travada/)
     await expect(travada).toHaveAttribute('title', /m:borderBox/)
@@ -119,9 +119,9 @@ test.describe('equações', () => {
     await menu(session, 'export-pdf')
     await expect.poll(() => textoDoPdf(destino), { timeout: 30_000 }).toContain('para todo raio')
     const texto = await textoDoPdf(destino)
-    // O π da área, o Δ e a raiz de Bhaskara vêm das equações — o texto em volta
-    // não os tem. O π e o Δ saem no itálico matemático (U+1D70B, U+1D6E5), que é
-    // como o `mi` de uma letra só os desenha.
+    // The area's π, the Δ and the quadratic formula's root come from the equations; the surrounding
+    // text lacks them. π and Δ come out in mathematical italic (U+1D70B, U+1D6E5), which is how a
+    // one-letter `mi` draws them.
     expect(texto).toMatch(/[π𝜋]/u)
     expect(texto).toMatch(/[Δ𝛥]/u)
     expect(texto).toContain('√')
@@ -135,7 +135,7 @@ test.describe('equações', () => {
     const editor = session.window.locator('.pages__column .ProseMirror')
     await editor.click()
     await session.window.keyboard.type('Área: ')
-    // Passado o intervalo do histórico, o texto é um passo e a equação é outro.
+    // Past the history interval, the text is one step and the equation another.
     await session.window.waitForTimeout(700)
 
     await menu(session, 'insert-equation')
@@ -152,7 +152,7 @@ test.describe('equações', () => {
     await expect(equacao.locator('math mfrac')).toHaveCount(1)
     await expect(equacao.locator('math msqrt')).toHaveCount(1)
 
-    // Um passo de desfazer por OK.
+    // One undo step per OK.
     await session.window.keyboard.press('Control+z')
     await expect(editor.locator('.equacao')).toHaveCount(0)
     await expect(editor).toContainText('Área:')
@@ -187,14 +187,14 @@ test.describe('equações', () => {
     const estadoAntes = await estado.textContent()
     const dialogo = session.window.getByRole('dialog', { name: 'Equação', exact: true })
 
-    // O LaTeX sai do MathML da equação do arquivo; cancelar deixa tudo como estava.
+    // LaTeX comes from the file equation's MathML; canceling leaves everything as it was.
     await equacoes.nth(0).dblclick()
     await expect(dialogo.locator('textarea')).toHaveValue(/\\pi\s*r\^\{2\}/)
     await dialogo.getByRole('button', { name: 'Cancelar' }).click()
     await expect(dialogo).toHaveCount(0)
     await expect(estado).toHaveText(estadoAntes ?? '')
 
-    // Selecionada, o Enter também abre.
+    // Selected, Enter also opens it.
     await equacoes.nth(0).click()
     await session.window.keyboard.press('Enter')
     await expect(dialogo).toHaveCount(1)
@@ -203,7 +203,7 @@ test.describe('equações', () => {
     await expect(equacoes.nth(0).locator('math msup mn')).toHaveText('3')
     await expect(equacoes).toHaveCount(3)
 
-    // A travada lista só a construção que falta, e não abre para editar.
+    // A locked one lists only the missing construct, and does not open for editing.
     await equacoes.nth(2).dblclick()
     await expect(dialogo).toContainText('m:borderBox')
     await expect(dialogo).not.toContainText('m:e')
@@ -216,7 +216,7 @@ test.describe('equações', () => {
     expect(depois).toHaveLength(3)
     expect(depois[0]).toContain('<m:sSup>')
     expect(depois[0]).toMatch(/<m:t>3<\/m:t>/)
-    // As outras duas voltam como vieram.
+    // The other two come back as they came.
     expect(depois.slice(1)).toEqual(antes.slice(1))
 
     await menu(session, 'open')
@@ -246,7 +246,7 @@ test.describe('equações', () => {
     await menu(session, 'export-markdown')
     await expect.poll(lido(markdown), { timeout: 15_000 }).toContain(EQUATION_AFTER.trim())
     const texto = await readFile(markdown, 'utf8')
-    // O LaTeX sai do MathML das equações do arquivo, que não o guardam.
+    // LaTeX comes from the MathML of the file's equations, which do not store it.
     expect(texto).toMatch(/A área do círculo é \$\\pi\s*r\^\{2\}\$ para todo raio\./)
     expect(texto).toMatch(/^\$\$x\s*=.*\\frac\{.*\\Delta.*\$\$$/m)
 
@@ -278,13 +278,13 @@ test.describe('equações', () => {
       .poll(() => session.app.evaluate(({ clipboard }) => clipboard.readText()))
       .toMatch(/\\pi\s*r\^\{2\}/)
 
-    // Colada no fim do documento, é a mesma equação, com o OMML que veio do arquivo.
+    // Pasted at the end of the document, it is the same equation, with the OMML from the file.
     await session.window.keyboard.press('ControlOrMeta+End')
     await session.window.keyboard.press('ControlOrMeta+v')
     await expect(equacoes).toHaveCount(4)
     await expect(equacoes.nth(3)).toHaveAttribute('data-omml', omml ?? '')
 
-    // O MathML de uma página da Web: equação nova, sem OMML, com o LaTeX tirado dele.
+    // MathML from a web page: a new equation, without OMML, with LaTeX derived from it.
     await session.app.evaluate(({ clipboard }) => {
       clipboard.write({
         text: 'a/b',

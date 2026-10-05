@@ -2,8 +2,8 @@ import { expect, test, type Page } from '@playwright/test'
 import { launch, menu, type Session } from './app.js'
 
 /**
- * A alça de preenchimento leva a fórmula, e não o resultado: arraste com o mouse,
- * porque o teste de unidade não sabe se o evento do grid foi assinado.
+ * The fill handle carries the formula, not the result: drag with the mouse, because a unit test
+ * cannot know whether the grid event was subscribed.
  */
 test.describe('alça de preenchimento', () => {
   let session: Session
@@ -30,7 +30,7 @@ test.describe('alça de preenchimento', () => {
 
     await dragHandle(session.window, 0, 2, 1, 2)
 
-    // Copiar o texto exibido daria 20 aqui. A fórmula deslocada dá 60.
+    // Copying the displayed text would give 20 here. The shifted formula gives 60.
     await expect(cell(session.window, 1, 2)).toHaveText('60')
 
     await select(session.window, 1, 2)
@@ -58,7 +58,7 @@ async function write(window: Page, row: number, column: number, text: string): P
   await input.press('Enter')
 }
 
-/** Arrasta o quadradinho do canto da seleção, começando alguns pixels para dentro. */
+/** Drags the small square at the selection corner, starting a few pixels inside. */
 async function dragHandle(
   window: Page,
   fromRow: number,

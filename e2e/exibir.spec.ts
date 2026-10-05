@@ -5,9 +5,9 @@ import { expect, test } from '@playwright/test'
 import { launch, menu, type Session } from './app.js'
 
 /**
- * O menu "Exibir": tema, idioma e modo de leitura, preferências guardadas no main;
- * aqui se confere que a tela obedece. A preferência muda por
- * `window.api.preferences.set`, porque o Playwright não alcança o menu nativo.
+ * The "View" menu: theme, language and reading mode, preferences kept in main; here we check the
+ * screen obeys. Preferences change through `window.api.preferences.set`, because Playwright cannot
+ * reach the native menu.
  */
 async function setPreference(session: Session, patch: Record<string, unknown>): Promise<void> {
   await session.window.evaluate(async (value) => {
@@ -48,7 +48,7 @@ test.describe('menu Exibir', () => {
     await setPreference(session, { theme: 'dark' })
     await expect(root).toHaveAttribute('data-theme', 'dark')
 
-    // O papel escurece junto, e não só as barras.
+    // The paper darkens too, not just the toolbars.
     const paper = await session.window
       .locator('.paper')
       .first()
@@ -56,7 +56,7 @@ test.describe('menu Exibir', () => {
         return getComputedStyle(node).backgroundColor
       })
 
-    // O papel não é branco, qualquer que seja o cinza.
+    // The paper is not white, whatever the grey.
     expect(paper).not.toBe('rgb(255, 255, 255)')
 
     await setPreference(session, { theme: 'light' })
@@ -83,13 +83,13 @@ test.describe('menu Exibir', () => {
   })
 
   test('o idioma troca a interface sem reabrir nada', async () => {
-    // A barra vem do catálogo; o menu nativo o main confere.
+    // The toolbar comes from the catalog; main checks the native menu.
     await setPreference(session, { language: 'en' })
 
     const acoes = session.window.locator('.ProseMirror')
     await expect(acoes).toBeVisible()
 
-    // Os rótulos do botão direito vêm do catálogo, no idioma escolhido.
+    // Right-click labels come from the catalog, in the chosen language.
     const idioma = await session.window.evaluate(() => document.documentElement.lang)
     expect(typeof idioma).toBe('string')
 
@@ -102,7 +102,7 @@ test.describe('menu Exibir', () => {
 
     await setPreference(session, { readingMode: true })
 
-    // O papel some, e a rolagem é contínua.
+    // The paper goes away, and scrolling is continuous.
     await expect(session.window.locator('.paper')).toHaveCount(0)
     await expect(session.window.locator('.statusbar')).toHaveCount(0)
     await expect(session.window.locator('.pages--reading')).toHaveCount(1)
@@ -128,16 +128,16 @@ test.describe('menu Exibir', () => {
 
     await session.window.keyboard.press('Escape')
 
-    // O papel volta, e com ele a edição.
+    // The paper comes back, and with it editing.
     await expect(session.window.locator('.pages--reading')).toHaveCount(0)
     await expect(session.window.locator('.paper')).not.toHaveCount(0)
   })
 })
 
 /**
- * As três sobrevivem a fechar o aplicativo: o schema tem `default` para todas, e um
- * `default` no lugar do valor gravado voltaria ao tema claro em português sem erro.
- * `describe` próprio, porque reaproveita o `userData` entre duas sessões.
+ * All three survive closing the app: the schema has a `default` for each, and a `default` in place
+ * of the saved value would fall back to the light theme in Portuguese without any error. Its own
+ * `describe`, because it reuses `userData` across two sessions.
  */
 test.describe('o que foi escolhido continua escolhido', () => {
   test('tema, idioma e modo de leitura voltam como estavam', async () => {
@@ -155,7 +155,7 @@ test.describe('o que foi escolhido continua escolhido', () => {
       await expect(session.window.locator('html')).toHaveAttribute('data-theme', 'dark')
       await session.close()
 
-      // Mesmo perfil, processo novo: é o que "reabrir o aplicativo" quer dizer.
+      // Same profile, new process: that is what "reopening the app" means.
       session = await launch({ userData })
 
       const guardado = await session.window.evaluate(async () => {
@@ -172,7 +172,7 @@ test.describe('o que foi escolhido continua escolhido', () => {
         data: { theme: 'dark', language: 'en', readingMode: true },
       })
 
-      // E a tela obedece ao que foi lido, sem ninguém tocar em nada.
+      // And the screen obeys what was read, without anyone touching anything.
       await expect(session.window.locator('html')).toHaveAttribute('data-theme', 'dark')
     } finally {
       await session.close()

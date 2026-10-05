@@ -6,8 +6,8 @@ import { launch, menu, stubDialogs, type Session } from './app.js'
 import { docxWithHeaderGrid, entryOf } from './fixtures.js'
 
 /**
- * O documento nascido no editor, salvo como `.docx` sobre o pacote mínimo do sidecar,
- * de onde toda gravação parte. Pelo caminho inteiro: diálogo, sidecar publicado, disco.
+ * A document born in the editor, saved as `.docx` over the sidecar's minimal package, which every
+ * save starts from. Along the whole path: dialog, published sidecar, disk.
  */
 test.describe('documento novo em .docx', () => {
   let session: Session
@@ -41,14 +41,14 @@ test.describe('documento novo em .docx', () => {
     await menu(session, 'save-as')
     await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
 
-    // O título aponta um estilo que o pacote define — e não um nome solto.
+    // The heading points to a style the package defines, not a loose name.
     const corpo = await entryOf(destino, 'word/document.xml')
     expect(corpo).toContain('<w:pStyle w:val="Heading1"')
     expect(corpo).toContain('Primeiro parágrafo.')
     expect(await entryOf(destino, 'word/styles.xml')).toContain('w:styleId="Heading1"')
 
-    // A segunda gravação vai ao mesmo arquivo sem perguntar nada: o caminho
-    // ficou autorizado, e ela parte do mesmo pacote mínimo da primeira.
+    // The second save goes to the same file without asking: the path was authorized, and it starts
+    // from the same minimal package as the first.
     await session.window.keyboard.type(' Segunda gravação.')
     await expect(session.window.locator('.statusbar__state')).not.toHaveText('Salvo')
     await menu(session, 'save')
@@ -61,8 +61,8 @@ test.describe('documento novo em .docx', () => {
   })
 
   test('o .sdoc que veio de um .docx com cabeçalho volta a .docx avisando da faixa', async () => {
-    // O `.sdoc` guarda a faixa com as relações do `.docx` de origem, que o pacote
-    // mínimo não tem: a faixa se perde, e o arquivo tem de sair com a perda escrita.
+    // The `.sdoc` keeps the band with the source `.docx` relationships, which the minimal package
+    // lacks: the band is lost, and the file must go out with the loss stated.
     const origem = join(folder, 'grade.docx')
     const rascunho = join(folder, 'grade.sdoc')
     const destino = join(folder, 'volta.docx')
@@ -76,8 +76,8 @@ test.describe('documento novo em .docx', () => {
     await menu(session, 'save-as')
     await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
 
-    // Reabrir do disco é o que apaga o original: o aplicativo guarda os bytes do
-    // `.docx` na abertura, e quem abre o `.sdoc` não os tem.
+    // Reopening from disk is what drops the original: the app keeps the `.docx` bytes on open, and
+    // whoever opens the `.sdoc` does not have them.
     await stubDialogs(session.app, { open: rascunho })
     await menu(session, 'close-file')
     await expect(session.window.locator('.home')).toBeVisible()
@@ -88,12 +88,12 @@ test.describe('documento novo em .docx', () => {
     await menu(session, 'save-as')
     await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
 
-    // Aviso de perda, e não faixa de erro: o `role="alert"` é do ErrorBanner.
+    // A loss notice, not an error banner: `role="alert"` belongs to ErrorBanner.
     const aviso = session.window.locator('.banner--notice')
     await expect(aviso).toContainText('cabeçalho e rodapé do arquivo .docx de origem')
     await expect(session.window.getByRole('alert')).toHaveCount(0)
 
-    // E o arquivo existe mesmo, com o corpo dentro.
+    // And the file really exists, with the body inside.
     expect(await entryOf(destino, 'word/document.xml')).toContain('Primeira linha do corpo.')
   })
 })

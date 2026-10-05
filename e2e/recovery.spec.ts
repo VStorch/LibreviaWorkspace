@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
 import { launch, menu, type Session } from './app.js'
 
-/** A recuperação provada contra uma queda de verdade: `SIGKILL`, sem handler de saída. */
+/** Recovery proven against a real crash: `SIGKILL`, without exit handlers. */
 test.describe('recuperação depois de uma queda', () => {
   let session: Session
 
@@ -20,7 +20,7 @@ test.describe('recuperação depois de uma queda', () => {
     await session.window.locator('.ProseMirror').click()
     await session.window.keyboard.type('Ata da reunião de terça')
 
-    // O autosave é por relógio, de oito em oito segundos.
+    // Autosave runs on a timer, every eight seconds.
     await expect
       .poll(async () => draftOnDisk(session), { timeout: 20_000, message: 'o rascunho não foi gravado' })
       .toBe(true)
@@ -28,8 +28,8 @@ test.describe('recuperação depois de uma queda', () => {
     const { userData } = session
     await session.crash()
 
-    // Mesma pasta de dados: é o que faz a segunda sessão encontrar o rascunho
-    // da primeira, como aconteceria com o mesmo usuário na mesma máquina.
+    // Same data folder: that is what makes the second session find the first one's draft, as would
+    // happen with the same user on the same machine.
     session = await launch({ userData })
 
     const banner = session.window.locator('.banner--recovery')
@@ -39,8 +39,8 @@ test.describe('recuperação depois de uma queda', () => {
     await banner.getByRole('button', { name: 'Recuperar' }).click()
 
     await expect(session.window.locator('.ProseMirror')).toContainText('Ata da reunião de terça')
-    // Recuperado é diferente do que está no disco: marcar como salvo faria o
-    // usuário fechar a janela achando que estava tudo guardado.
+    // Recovered content differs from what is on disk: marking it saved would let the user close the
+    // window thinking everything was kept.
     await expect(session.window.locator('.statusbar__state')).toContainText('Não salvo')
   })
 
@@ -63,8 +63,7 @@ test.describe('recuperação depois de uma queda', () => {
   })
 
   test('sessão limpa não mostra aviso nenhum', async () => {
-    // Um aviso que aparece em toda abertura é um aviso que o usuário aprende a
-    // fechar sem ler.
+    // A warning that appears on every launch is one the user learns to close without reading.
     session = await launch()
 
     await session.window.waitForTimeout(2000)
@@ -72,7 +71,7 @@ test.describe('recuperação depois de uma queda', () => {
   })
 })
 
-/** O rascunho existe no disco? Conferido pelo caminho, e não pela API sob teste. */
+/** Is the draft on disk? Checked by path, not through the API under test. */
 async function draftOnDisk(session: Session): Promise<boolean> {
   try {
     await stat(join(session.userData, 'recuperacao', 'rascunho.json'))

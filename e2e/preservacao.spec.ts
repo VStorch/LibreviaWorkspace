@@ -6,10 +6,10 @@ import { launch, menu, stubDialogs, type Session } from './app.js'
 import { docxWithNamedStyles, docxWithTextBox } from './fixtures.js'
 
 /**
- * Abrir e salvar sem editar não mexe no arquivo: o gravador devolve o XML original
- * de todo bloco que não mudou, pelo `oid`. O caminho passa pelo ProseMirror, onde o
- * `oid` tem de estar no schema e as diferenças de forma não contam; os testes do
- * sidecar não passam pelo editor.
+ * Opening and saving without editing does not touch the file: the writer returns the original XML
+ * of every block that did not change, through its `oid`. The path goes through ProseMirror, where
+ * `oid` must be in the schema and shape differences do not count; the sidecar tests do not go
+ * through the editor.
  */
 test.describe('gravação cirúrgica', () => {
   let session: Session
@@ -37,18 +37,16 @@ test.describe('gravação cirúrgica', () => {
     await menu(session, 'save-as')
     await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
 
-    // A caixa é a sentinela: o editor mostra o texto de dentro, mas não sabe
-    // redesenhar a forma. Se ela voltou, o XML original do bloco foi preservado
-    // — que é a única coisa que este teste precisa saber.
+    // The box is the sentinel: the editor shows the text inside, but cannot redraw the shape. If it
+    // came back, the block's original XML was preserved, which is all this test needs to know.
     const corpo = await corpoDoDocumento(destino)
     expect(corpo).toContain('txbxContent')
     expect(corpo).toContain('Título na caixa')
   })
 
   test('documento que termina num título volta sem parágrafo vazio acrescentado', async () => {
-    // O Tiptap acrescentava um parágrafo vazio depois do último título, e gravar
-    // sem editar punha um `<w:p/>` novo no fim do arquivo — os quatro documentos
-    // de evidências do corpus terminam assim.
+    // Tiptap added an empty paragraph after the last heading, and saving without editing put a new
+    // `<w:p/>` at the end of the file; the four corpus evidence documents end that way.
     const origem = join(folder, 'titulo-no-fim.docx')
     const destino = join(folder, 'titulo-no-fim-saida.docx')
     const final = '<w:p><w:pPr><w:pStyle w:val="Ttulo1"/></w:pPr><w:r><w:t>Título final</w:t></w:r></w:p>'
@@ -67,15 +65,14 @@ test.describe('gravação cirúrgica', () => {
   })
 })
 
-/** Conteúdo de `word/document.xml` dentro do `.docx`, sem descompactar em disco. */
+/** The content of `word/document.xml` inside the `.docx`, without unpacking to disk. */
 async function corpoDoDocumento(caminho: string): Promise<string> {
   const { promisify } = await import('node:util')
   const { inflateRaw } = await import('node:zlib')
   const inflate = promisify(inflateRaw)
   const zip = await readFile(caminho)
 
-  // Varredura dos cabeçalhos locais do zip: o suficiente para achar uma parte
-  // pelo nome, e sem trazer dependência nova para os testes.
+  // A sweep of the zip local headers: enough to find a part by name, without a new test dependency.
   for (let i = 0; i + 30 <= zip.length; i++) {
     if (zip.readUInt32LE(i) !== 0x04034b50) continue
 

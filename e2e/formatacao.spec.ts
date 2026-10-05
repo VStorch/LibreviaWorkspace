@@ -6,9 +6,9 @@ import { launch, menu, stubDialogs, type Session } from './app.js'
 import { docxWithVerticalAlignment } from './fixtures.js'
 
 /**
- * Formatação de caractere e de parágrafo pela costura inteira: o botão, o comando
- * do editor e o que o sidecar grava. O sobrescrito muda o sentido ("cm3" não é
- * "cm³"): se ele volta do arquivo, o caminho está de pé.
+ * Character and paragraph formatting across the whole seam: the button, the editor command and what
+ * the sidecar writes. Superscript changes the meaning ("cm3" is not "cm³"): if it comes back from
+ * the file, the path holds.
  */
 test.describe('formatação do documento', () => {
   let session: Session
@@ -35,11 +35,11 @@ test.describe('formatação do documento', () => {
     const editor = session.window.locator('.ProseMirror')
     await expect(editor).toContainText('O ocupa')
 
-    // Na tela, `<sup>` e `<sub>`, que o PDF também leva.
+    // On screen, `<sup>` and `<sub>`, which the PDF also carries.
     await expect(editor.locator('sup')).toHaveText('3')
     await expect(editor.locator('sub')).toHaveText('2')
 
-    // Editar obriga o gravador a reescrever o parágrafo, onde a perda aconteceria.
+    // Editing forces the writer to rewrite the paragraph, where the loss would happen.
     await editor.click()
     await session.window.keyboard.press('End')
     await session.window.keyboard.type(' Mexido.')
@@ -51,7 +51,7 @@ test.describe('formatação do documento', () => {
     expect(corpo).toContain('w:vertAlign w:val="superscript"')
     expect(corpo).toContain('w:vertAlign w:val="subscript"')
 
-    // Nada no aviso: esta formatação o gravador sabe gravar.
+    // Nothing in the notice: the writer knows how to write this formatting.
     await expect(session.window.locator('.banner--notice')).toHaveCount(0)
   })
 
@@ -82,13 +82,13 @@ test.describe('formatação do documento', () => {
     const dialogo = session.window.getByRole('dialog', { name: 'Parágrafo' })
     await expect(dialogo).toBeVisible()
 
-    // Pelo papel: "À esquerda" também é opção do alinhamento, no `label` do seletor.
+    // By role: "Left" is also an alignment option, in the picker's `label`.
     await dialogo.getByRole('spinbutton', { name: 'Antes' }).fill('18')
     await dialogo.getByRole('spinbutton', { name: 'Esquerda' }).fill('20')
     await dialogo.getByRole('button', { name: 'Aplicar' }).click()
     await expect(dialogo).toBeHidden()
 
-    // Medida de verdade, como a paginação a verá.
+    // A real measure, as pagination will see it.
     const medidas = await editor
       .locator('p')
       .first()
@@ -97,7 +97,7 @@ test.describe('formatação do documento', () => {
         return { antes: estilo.marginTop, recuo: estilo.paddingLeft }
       })
 
-    // 18 pt em pixels de CSS, e 20 mm idem.
+    // 18 pt in CSS pixels, and 20 mm likewise.
     expect(Number.parseFloat(medidas.antes)).toBeCloseTo(18 * (96 / 72), 0)
     expect(Number.parseFloat(medidas.recuo)).toBeCloseTo(20 * (96 / 25.4), 0)
   })
@@ -113,8 +113,8 @@ test.describe('formatação do documento', () => {
     await dialogo.getByRole('combobox', { name: 'Entrelinha' }).selectOption('1.5')
     await dialogo.getByRole('button', { name: 'Aplicar' }).click()
 
-    // O múltiplo do Word é sobre a altura natural da fonte do estilo: 1,5 linha em
-    // Calibri é `line-height: 1.8311`.
+    // Word's multiple is over the natural height of the style font: 1.5 lines in Calibri is
+    // `line-height: 1.8311`.
     const proporcao = await editor
       .locator('p')
       .first()
@@ -125,7 +125,7 @@ test.describe('formatação do documento', () => {
 
     expect(proporcao).toBeCloseTo(1.8311, 2)
 
-    // E a barra mostra o número do Word.
+    // And the toolbar shows Word's number.
     await expect(session.window.getByRole('combobox', { name: 'Espaçamento entre linhas' })).toHaveValue(
       '1.5',
     )
@@ -142,14 +142,14 @@ test.describe('formatação do documento', () => {
     await dialogo.getByRole('button', { name: 'Aplicar' }).click()
     await expect(dialogo).toBeHidden()
 
-    // "Aplicar" sem nada a mudar devolve o foco ao texto, no quadro seguinte ao fechamento.
+    // "Apply" with nothing to change returns focus to the text, in the frame after closing.
     await expect(editor).toBeFocused()
     await session.window.keyboard.type(' Continua.')
     await expect(editor).toContainText('Sem mudança nenhuma. Continua.')
   })
 })
 
-/** Conteúdo de `word/document.xml` dentro do `.docx`, sem descompactar em disco. */
+/** The content of `word/document.xml` inside the `.docx`, without unpacking to disk. */
 async function corpoDoDocumento(caminho: string): Promise<string> {
   const { promisify } = await import('node:util')
   const { inflateRaw } = await import('node:zlib')

@@ -6,9 +6,9 @@ import { launch, menu, stubDialogs, type Session } from './app.js'
 import { docxWithHeaderTextBox, entryOf } from './fixtures.js'
 
 /**
- * O cabeçalho que é um grupo de formas, como a maioria do corpus: o título numa
- * caixa ancorada. A caixa volta inteira, porque digitar nela abre e fecha
- * parágrafos; o campo `PAGE` não volta, senão viraria número fixo.
+ * A header that is a shape group, like most of the corpus: the title in an anchored box. The box
+ * comes back whole, because typing in it opens and closes paragraphs; the `PAGE` field does not, or
+ * it would become a fixed number.
  */
 test.describe('caixa de cabeçalho editável', () => {
   let session: Session
@@ -50,15 +50,14 @@ test.describe('caixa de cabeçalho editável', () => {
     expect(cabecalho).toContain('EVIDÊNCIAS DE HOMOLOGAÇÃO')
     expect(cabecalho).not.toContain('EVIDÊNCIAS DO ROTEIRO')
 
-    // O grupo segue inteiro, com o campo que este escritor não sabe gerar.
+    // The group stays whole, with the field this writer cannot generate.
     expect(cabecalho).toContain('PAGE')
     expect(cabecalho).toContain('fldChar')
   })
 
   test('a caixa do número da página não recebe o cursor', async () => {
-    // O que se vê nela é o número desta folha; o que está no arquivo é um
-    // campo. Devolvê-lo como texto faria o cabeçalho dizer "1" em todas as
-    // folhas, e só se notaria na segunda.
+    // What shows in it is this sheet's number; what is in the file is a field. Returning it as text
+    // would make the header say "1" on every sheet, and it would only be noticed on the second.
     const numero = session.window.locator('.paper-float--text').filter({ hasText: /^1$/ })
     await expect(numero).toHaveCount(1)
     await expect(numero).not.toHaveClass(/paper-float--edit/)

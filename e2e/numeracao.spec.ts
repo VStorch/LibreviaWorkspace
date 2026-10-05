@@ -8,8 +8,8 @@ import { launch, menu, stubDialogs, type Session } from './app.js'
 import { docxWithPageNumbering, entryOf } from './fixtures.js'
 
 /**
- * Numeração de página: o número de cada folha com o início e o formato que o
- * documento pede, o campo inserido pela pessoa e os interruptores das faixas.
+ * Page numbering: each sheet's number with the start and format the document asks for, the field
+ * the user inserted, and the band switches.
  */
 test.describe('numeração de página', () => {
   let session: Session
@@ -82,7 +82,7 @@ test.describe('numeração de página', () => {
     await painel.getByLabel('Começar em').fill('1')
     await painel.getByRole('button', { name: 'Aplicar' }).click()
 
-    // Capa sem rodapé; a folha 2 é a página II — par, e sem rodapé par próprio.
+    // A title page without a footer; sheet 2 is page II, even, and without its own even footer.
     await expect.poll(() => rodapes(session)).toEqual([])
 
     const destino = join(pasta, 'saida.docx')

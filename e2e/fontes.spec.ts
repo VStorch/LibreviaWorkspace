@@ -1,17 +1,15 @@
 /// <reference lib="dom" />
-// O corpo de `evaluate` roda no renderer, mas é compilado no escopo do Node,
-// que não conhece `document` nem `FontFace`. A referência vale só para este
-// arquivo — pôr DOM no `tsconfig` do Node deixaria o processo main achar que
-// tem janela.
+// The `evaluate` body runs in the renderer, but is compiled in Node's scope, which knows neither
+// `document` nor `FontFace`. The reference only applies to this file: putting DOM in Node's
+// `tsconfig` would make main think it has a window.
 
 import { expect, test } from '@playwright/test'
 import { launch, menu, type Session } from './app.js'
 
 /**
- * As fontes empacotadas chegam à tela: Calibri, Cambria, Arial e Times New Roman não
- * existem num Linux limpo, e as substitutas viajam no instalador
- * (`src/main/fonts.ts`). Carregadas pela URL, e não pelo nome, porque o `local()`
- * esconderia o arquivo empacotado na máquina de quem programa.
+ * Bundled fonts reach the screen: Calibri, Cambria, Arial and Times New Roman do not exist on a
+ * clean Linux, and the substitutes ship in the installer (`src/main/fonts.ts`). Loaded by URL, not
+ * by name, because `local()` would hide the bundled file on the developer's machine.
  */
 test.describe('fontes empacotadas', () => {
   let session: Session
@@ -50,9 +48,8 @@ test.describe('fontes empacotadas', () => {
   })
 
   test('o esquema não serve arquivo de fora da pasta de fontes', async () => {
-    // O pedido nasce do CSS, e o CSS pode vir de um documento que qualquer um
-    // escreveu. `../` normalizado é a forma clássica de sair de uma pasta que se
-    // acreditava fechada.
+    // The request comes from CSS, and CSS may come from a document anyone wrote. A normalized `../`
+    // is the classic way out of a folder believed closed.
     const vazou = await session.window.evaluate(async () => {
       try {
         const face = new FontFace(

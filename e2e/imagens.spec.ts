@@ -1,5 +1,5 @@
 /// <reference lib="dom" />
-// O corpo de `evaluate` roda no renderer, mas é compilado no escopo do Node.
+// The `evaluate` body runs in the renderer, but is compiled in Node's scope.
 
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -9,9 +9,9 @@ import { launch, menu, stubDialogs, type Session } from './app.js'
 import { docxWithAnchoredScreenshot, docxWithIndentedScreenshot, docxWithStretchedImage } from './fixtures.js'
 
 /**
- * A imagem sai do tamanho que o documento pediu: `wp:extent` dá o tamanho na
- * página, sem a proporção do arquivo, e a caixa não pode medir zero até os bytes
- * decodificarem, que é quando a paginação mede.
+ * An image comes out at the size the document asked for: `wp:extent` gives the size on the page,
+ * without the file's ratio, and the box must not measure zero until the bytes decode, which is when
+ * pagination measures.
  */
 test.describe('imagens do documento', () => {
   let session: Session
@@ -33,7 +33,7 @@ test.describe('imagens do documento', () => {
     await stubDialogs(session.app, { open: origem, messageBox: 1 })
 
     await menu(session, 'open')
-    // `img[src]`: o ProseMirror põe um <img> vazio ao lado de todo nó atômico.
+    // `img[src]`: ProseMirror puts an empty <img> next to every atomic node.
     const imagem = session.window.locator('.page__content img[src^="data:"]')
     await expect(imagem).toBeVisible()
 
@@ -43,15 +43,15 @@ test.describe('imagens do documento', () => {
       return { largura: box.width, altura: box.height, natural: img.naturalWidth === img.naturalHeight }
     })
 
-    // O arquivo é quadrado; o documento pede quatro por um.
+    // The file is square; the document asks for four by one.
     expect(caixa.natural).toBe(true)
     expect(caixa.largura / caixa.altura).toBeCloseTo(4, 1)
     expect(caixa.largura).toBeCloseTo(400, 0)
   })
 
   test('a imagem ancorada no lugar do parágrafo ocupa altura no texto', async () => {
-    // O LibreOffice grava a captura de tela ancorada ao parágrafo, sem deslocamento e
-    // centralizada: ela ocupa altura no fluxo.
+    // LibreOffice writes a screenshot anchored to the paragraph, without offset and centered: it
+    // takes height in the flow.
     const origem = join(pasta, 'captura.docx')
     await writeFile(origem, await docxWithAnchoredScreenshot())
     await stubDialogs(session.app, { open: origem, messageBox: 1 })
@@ -73,15 +73,15 @@ test.describe('imagens do documento', () => {
       }
     })
 
-    // Nenhuma cópia posicionada, e o parágrafo seguinte começa depois dela.
+    // No positioned copy, and the next paragraph starts after it.
     expect(medidas.flutuantes).toBe(0)
     expect(medidas.seguinte).toBeGreaterThanOrEqual(medidas.fim - 1)
   })
 
   test('o parágrafo da captura ocupa a altura dela mais uma linha', async () => {
-    // A imagem é bloco, e não palavra: inline sobraria a descida da fonte, que o Word
-    // não cobra. A linha vazia do parágrafo o Word cobra, porque o quadro ocupa a
-    // coluna e ela desce; o LibreOffice deixa uma entrelinha entre duas capturas.
+    // The image is a block, not a word: inline, the font descender would be left over, which Word
+    // does not charge. Word does charge the paragraph's empty line, because the frame takes the
+    // column and the line moves down; LibreOffice leaves one line height between two screenshots.
     const origem = join(pasta, 'altura.docx')
     await writeFile(origem, await docxWithAnchoredScreenshot())
     await stubDialogs(session.app, { open: origem, messageBox: 1 })
@@ -92,7 +92,7 @@ test.describe('imagens do documento', () => {
 
     const medidas = await session.window.evaluate(() => {
       const img = document.querySelector('.page__content img[src^="data:"]') as HTMLImageElement
-      // O parágrafo, e não o pai direto, que é a moldura das alças do NodeView.
+      // The paragraph, not the direct parent, which is the NodeView handle frame.
       const bloco = img.closest('p') as HTMLElement
       return {
         sobra: bloco.getBoundingClientRect().height - img.getBoundingClientRect().height,
@@ -100,12 +100,13 @@ test.describe('imagens do documento', () => {
       }
     })
 
-    // Uma linha, e não a descida da fonte: a sobra é a entrelinha do parágrafo.
+    // One line, not the font descender: what is left over is the paragraph's line height.
     expect(medidas.sobra).toBeCloseTo(medidas.entrelinha, 0)
   })
 
   test('a captura ocupa a coluna mesmo dentro de um parágrafo recuado', async () => {
-    // No Word a captura ancorada se posiciona pela coluna, e o recuo não a estreita.
+    // In Word an anchored screenshot positions itself by the column, and the indent does not narrow
+    // it.
     const origem = join(pasta, 'recuo.docx')
     await writeFile(origem, await docxWithIndentedScreenshot())
     await stubDialogs(session.app, { open: origem, messageBox: 1 })
@@ -119,17 +120,17 @@ test.describe('imagens do documento', () => {
       const legenda = document.querySelector('.page__content p') as HTMLElement
       return {
         imagem: img.getBoundingClientRect().width,
-        // O NodeView põe a medida no estilo, para vencer o `height: auto` da folha.
+        // The NodeView puts the measure in the style, to beat the sheet's `height: auto`.
         pedida: Number.parseFloat(img.style.width),
-        // O recuo é preenchimento: a caixa do parágrafo continua sendo a coluna.
+        // The indent is padding: the paragraph box is still the column.
         recuoDaLegenda: Number.parseFloat(getComputedStyle(legenda).paddingLeft),
       }
     })
 
-    // 3810000 EMU são 400 px, a largura que o arquivo pede.
+    // 3810000 EMU is 400 px, the width the file asks for.
     expect(medidas.imagem).toBeCloseTo(medidas.pedida, 0)
 
-    // E o recuo continua existindo para o texto: meia polegada são 48 px.
+    // And the indent still exists for the text: half an inch is 48 px.
     expect(medidas.recuoDaLegenda).toBeCloseTo(48, 0)
   })
 })

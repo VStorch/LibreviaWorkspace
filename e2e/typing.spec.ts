@@ -2,10 +2,10 @@ import { expect, test, type Page } from '@playwright/test'
 import { launch, menu, type Session } from './app.js'
 
 /**
- * Lançar uma coluna de números sem parar: o grid espera 70 ms depois do Enter para
- * descer o foco, e a tecla que chega nessa janela iria à célula anterior (`1200`
- * abaixo de `980` vira `200`). Está no encontro do relógio do grid com o de quem
- * digita, que teste de unidade não alcança. A barra de fórmulas não passa por ela.
+ * Entering a column of numbers nonstop: the grid waits 70 ms after Enter to move focus down, and a
+ * key arriving in that window would go to the previous cell (`1200` below `980` becomes `200`). It
+ * lies where the grid's clock meets the typist's, which a unit test cannot reach. The formula bar
+ * does not go through it.
  */
 test.describe('digitação contínua na planilha', () => {
   let session: Session
@@ -26,8 +26,8 @@ test.describe('digitação contínua na planilha', () => {
     await cell(session.window, 0, 0).click()
 
     for (const valor of valores) {
-      // 60 ms por tecla é digitação rápida de teclado numérico, e nenhuma pausa
-      // entre o Enter e o número seguinte — que é como se lança uma coluna.
+      // 60 ms per key is fast keypad typing, with no pause between Enter and the next number, which
+      // is how a column is entered.
       await session.window.keyboard.type(valor, { delay: 60 })
       await session.window.keyboard.press('Enter')
     }

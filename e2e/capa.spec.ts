@@ -6,9 +6,9 @@ import { launch, menu, stubDialogs, type Session } from './app.js'
 import { docxWithAnchoredTextBox, entryOf } from './fixtures.js'
 
 /**
- * A capa é editável: no modelo de manual, título e subtítulo moram em caixas
- * posicionadas, fora do `contenteditable`. O texto digitado na caixa vira atributo
- * do bloco âncora e sai no `w:txbxContent`, sem perder a caixa.
+ * The cover is editable: in the manual template, title and subtitle live in positioned boxes,
+ * outside the `contenteditable`. Text typed in the box becomes an attribute of the anchor block and
+ * goes out in `w:txbxContent`, without losing the box.
  */
 test.describe('capa editável', () => {
   let session: Session
@@ -32,7 +32,7 @@ test.describe('capa editável', () => {
     await stubDialogs(session.app, { open: origem, save: destino, messageBox: 1 })
     await menu(session, 'open')
 
-    // O documento não abre travado: a forma não é motivo de cadeado.
+    // The document does not open locked: the shape is no reason for a lock.
     await expect(session.window.locator('.readonly-banner')).toHaveCount(0)
 
     const caixa = session.window.locator('.paper-float--text').filter({ hasText: 'Título da capa' })
@@ -42,8 +42,8 @@ test.describe('capa editável', () => {
     await session.window.keyboard.press('ControlOrMeta+a')
     await session.window.keyboard.type('Título trocado')
 
-    // O texto sai da caixa quando ela perde o foco: só então o atributo do
-    // bloco muda, para não redesenhar a folha debaixo do cursor.
+    // Text leaves the box when it loses focus: only then does the block attribute change, so the
+    // sheet is not redrawn under the cursor.
     await session.window.locator('.ProseMirror').click()
     await expect(session.window.locator('.paper-float--text')).toContainText('Título trocado')
 

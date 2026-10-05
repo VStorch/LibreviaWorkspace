@@ -6,8 +6,8 @@ import { expect, test } from '@playwright/test'
 import { launch, menu, stubDialogs, type Session } from './app.js'
 
 /**
- * O PDF sai, e com tinta dentro: a exportação pode falhar em silêncio, sem erro e
- * sem arquivo, e por isso o teste vai ao disco.
+ * The PDF comes out, with ink inside: exporting can fail silently, without an error and without a
+ * file, so the test goes to disk.
  */
 test.describe('exportar PDF', () => {
   let session: Session
@@ -53,8 +53,8 @@ test.describe('exportar PDF', () => {
   })
 
   test('a linha em branco continua ocupando uma linha no papel', async () => {
-    // O parágrafo vazio tem uma linha no editor pelo <br> do ProseMirror, e no papel
-    // também: senão o texto sobe e a primeira linha vai para baixo do cabeçalho.
+    // An empty paragraph has a line in the editor through ProseMirror's <br>, and on paper too:
+    // otherwise the text rises and the first line goes under the header.
     const target = join(folder, 'linhas.pdf')
     await stubDialogs(session.app, { save: target, messageBox: 1 })
 
@@ -70,7 +70,7 @@ test.describe('exportar PDF', () => {
     await menu(session, 'export-pdf')
     await expect.poll(() => textTops(target), { timeout: 30_000 }).toHaveLength(3)
 
-    // O próprio documento dá a medida de um parágrafo.
+    // The document itself gives the measure of a paragraph.
     const [alfa, beta, gama] = await textTops(target)
     const umParagrafo = beta! - alfa!
     expect(gama! - beta!).toBeGreaterThan(umParagrafo * 1.8)
@@ -86,9 +86,9 @@ test.describe('exportar PDF', () => {
 })
 
 /**
- * Quantas vezes o PDF manda desenhar texto. O Chromium escreve identificadores de
- * glifo (`<0003> Tj`) da fonte embutida, e contar os operadores responde se chegou
- * tinta, sem interpretador de PDF. Arquivo ausente conta zero.
+ * How many times the PDF draws text. Chromium writes glyph ids (`<0003> Tj`) of the embedded font,
+ * and counting operators tells whether ink arrived, without a PDF interpreter. A missing file
+ * counts zero.
  */
 async function glyphRuns(path: string): Promise<number> {
   const bytes = await readFile(path).catch(() => null)
@@ -110,7 +110,7 @@ async function glyphRuns(path: string): Promise<number> {
     try {
       text += inflateSync(bytes.subarray(from, end)).toString('latin1')
     } catch {
-      // Fluxo que não é conteúdo comprimido — fonte embutida, imagem. Segue.
+      // A stream that is not compressed content (embedded font, image). Move on.
     }
     at = end + 'endstream'.length
   }
@@ -119,8 +119,8 @@ async function glyphRuns(path: string): Promise<number> {
 }
 
 /**
- * A altura de cada linha desenhada, na ordem do PDF: o `y` da matriz
- * `1 0 0 -1 x y Tm` que precede cada linha.
+ * The height of each drawn line, in PDF order: the `y` of the `1 0 0 -1 x y Tm` matrix preceding
+ * each line.
  */
 async function textTops(path: string): Promise<number[]> {
   const bytes = await readFile(path).catch(() => null)
@@ -142,7 +142,7 @@ async function textTops(path: string): Promise<number[]> {
     try {
       text += inflateSync(bytes.subarray(from, end)).toString('latin1')
     } catch {
-      // Fluxo que não é conteúdo comprimido — fonte embutida, imagem. Segue.
+      // A stream that is not compressed content (embedded font, image). Move on.
     }
     at = end + 'endstream'.length
   }

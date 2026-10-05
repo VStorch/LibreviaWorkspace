@@ -12,8 +12,8 @@ import {
 } from './fixtures.js'
 
 /**
- * Arquivo → Propriedades: título, assunto, autor… lidos de `docProps/`,
- * editados no diálogo e gravados só na parte que mudou.
+ * File → Properties: title, subject, author… read from `docProps/`, edited in the dialog and
+ * written only to the part that changed.
  */
 test.describe('propriedades do documento', () => {
   let session: Session
@@ -58,7 +58,7 @@ test.describe('propriedades do documento', () => {
     await expect(titulo).toBeFocused()
     await expect(dialogo.getByRole('textbox', { name: 'Autor(es)' })).toHaveValue('Ana Lima')
     await expect(dialogo.getByRole('textbox', { name: 'Empresa' })).toHaveValue('ACME')
-    // Só lidos: quem gravou por último, a revisão, o tempo e as estatísticas.
+    // Read only: last saved by, revision, time and statistics.
     await expect(dialogo.getByRole('row', { name: /Modificado por/ })).toContainText('Bia')
     await expect(dialogo.getByRole('row', { name: /Revisão/ })).toContainText('7')
     await expect(dialogo.getByRole('row', { name: /Tempo total de edição/ })).toContainText('42 min')
@@ -73,8 +73,8 @@ test.describe('propriedades do documento', () => {
     await menu(session, 'save')
     await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
 
-    // Só `core.xml` muda: os campos editados e o carimbo da gravação. O que o
-    // editor não conhece fica; `app.xml` e `custom.xml` voltam byte a byte.
+    // Only `core.xml` changes: the edited fields and the save stamp. What the editor does not know
+    // stays; `app.xml` and `custom.xml` go back byte for byte.
     const core = await entryOf(origem, 'docProps/core.xml')
     expect(core).toContain('<dc:title>Relatório revisto</dc:title>')
     expect(core).toContain('<cp:keywords>contas; auditoria</cp:keywords>')
@@ -93,8 +93,8 @@ test.describe('propriedades do documento', () => {
     await expect(dialogo.getByRole('textbox', { name: 'Assunto' })).toHaveValue('Contas')
   })
   test('o título das propriedades é o Title do PDF', async () => {
-    // O Chromium grava o `<title>` da página como Title do PDF. Autor, assunto e
-    // palavras-chave o `printToPDF` não grava.
+    // Chromium writes the page `<title>` as the PDF Title. `printToPDF` does not write author,
+    // subject and keywords.
     const alvo = join(pasta, 'ata.pdf')
     await stubDialogs(session.app, { save: alvo, messageBox: 1 })
     await menu(session, 'new-document')
@@ -111,7 +111,7 @@ test.describe('propriedades do documento', () => {
       const pdf = await readFile(alvo).catch(() => Buffer.alloc(0))
       return /\/Title \(([^)]*)\)/.exec(pdf.toString('latin1'))?.[1] ?? ''
     }
-    // ASCII de propósito: fora dele o Chromium grava o título em UTF-16.
+    // ASCII on purpose: outside it Chromium writes the title in UTF-16.
     await expect.poll(titulo, { timeout: 30_000 }).toBe('Ata de reuniao')
   })
 })

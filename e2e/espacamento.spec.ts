@@ -7,8 +7,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 /**
- * O espaço entre parágrafos soma, como no Word e no LibreOffice; o CSS ficaria com a
- * maior margem, meia linha a menos por junta de 14 pt com 14 pt.
+ * Space between paragraphs adds up, as in Word and LibreOffice; CSS would keep the larger margin,
+ * half a line less per 14 pt/14 pt joint.
  */
 test.describe('espaçamento entre parágrafos', () => {
   let session: Session
@@ -39,7 +39,7 @@ test.describe('espaçamento entre parágrafos', () => {
       return depois.top - antes.bottom
     })
 
-    // 14,15 pt de cada lado, em pixels de CSS: 2 × 14,15 × 96/72.
+    // 14.15 pt on each side, in CSS pixels: 2 × 14.15 × 96/72.
     expect(distancia).toBeCloseTo(2 * 14.15 * (96 / 72), 0)
   })
 })

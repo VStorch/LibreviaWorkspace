@@ -12,9 +12,9 @@ import {
 } from './fixtures.js'
 
 /**
- * Somente leitura graduado: a revisão de estrutura (a célula inserida) trava, porque
- * editar a tabela a perde. Comentário, revisão de texto e nota não travam: voltam
- * ao arquivo. Travar tudo ensinaria a clicar "editar mesmo assim" sem ler.
+ * Graduated read-only: a structure revision (the inserted cell) locks, because editing the table
+ * loses it. Comments, text revisions and notes do not lock: they go back to the file. Locking
+ * everything would teach people to click "edit anyway" without reading.
  */
 test.describe('somente leitura', () => {
   let session: Session
@@ -41,16 +41,16 @@ test.describe('somente leitura', () => {
     await expect(banner).toBeVisible()
     await expect(banner).toContainText('revisões de estrutura')
 
-    // Um aviso só: a faixa de inventário repetiria o motivo.
+    // A single warning: the inventory banner would repeat the reason.
     await expect(session.window.locator('.banner--notice')).toBeHidden()
 
     const editor = session.window.locator('.ProseMirror')
     await expect(editor).toHaveAttribute('contenteditable', 'false')
 
-    // `setEditable` emite um update por padrão, que não pode marcar o documento como alterado.
+    // `setEditable` emits an update by default, which must not mark the document as modified.
     await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
 
-    // A trava é um padrão, não um cadeado: um clique e a edição volta.
+    // The lock is a default, not a padlock: one click and editing comes back.
     await banner.getByRole('button', { name: 'Editar mesmo assim' }).click()
     await expect(banner).toBeHidden()
     await expect(editor).toHaveAttribute('contenteditable', 'true')
@@ -61,8 +61,8 @@ test.describe('somente leitura', () => {
   })
 
   /**
-   * A trava vale também para o menu: os comandos chamam o editor direto, e ele
-   * obedece mesmo com `contenteditable="false"`.
+   * The lock also applies to the menu: commands call the editor directly, and it obeys even with
+   * `contenteditable="false"`.
    */
   test('os comandos de edição do menu respeitam a trava', async () => {
     const target = join(folder, 'ata-com-tabela.docx')
@@ -87,13 +87,13 @@ test.describe('somente leitura', () => {
       await menu(session, command)
     }
 
-    // Os comandos com diálogo de edição nem o abrem.
+    // Commands with an editing dialog do not even open it.
     await menu(session, 'table-insert')
     await menu(session, 'table-properties')
     await menu(session, 'paragraph-setup')
     await menu(session, 'special-character')
 
-    // A contagem de palavras não edita nada, e continua valendo.
+    // Word count edits nothing, and still works.
     await menu(session, 'word-count')
     await expect(session.window.getByRole('dialog', { name: /Contagem de palavras/ })).toBeVisible()
 

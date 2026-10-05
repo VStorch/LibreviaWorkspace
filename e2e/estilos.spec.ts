@@ -7,8 +7,8 @@ import { launch, menu, stubDialogs, type Session } from './app.js'
 import { docxWithNamedStyles, entryOf } from './fixtures.js'
 
 /**
- * O painel de estilos: ver, aplicar, modificar, criar e limpar, com a tela mudando,
- * o desfazer e o estilo modificado indo ao `.docx` e voltando.
+ * The styles pane: view, apply, modify, create and clear, with the screen changing, undo, and the
+ * modified style going to the `.docx` and back.
  */
 test.describe('painel de estilos', () => {
   let session: Session
@@ -30,11 +30,11 @@ test.describe('painel de estilos', () => {
     await session.window.getByRole('button', { name: 'Estilos do documento' }).click()
     const panel = session.window.getByRole('dialog', { name: 'Estilos' })
 
-    // O parágrafo do documento novo não aponta estilo: vale o padrão, e o painel o nomeia.
+    // A new document paragraph points to no style: the default applies, and the pane names it.
     await expect(panel).toContainText('Parágrafo do cursor: Normal')
     await expect(panel).toContainText('Título 1')
 
-    // Virar título muda a resposta ao vivo, com o painel aberto.
+    // Becoming a heading changes the answer live, with the pane open.
     await session.window.getByRole('combobox', { name: 'Estilo' }).selectOption({ label: 'Título 1' })
     await expect(panel).toContainText('Parágrafo do cursor: Título 1')
   })
@@ -50,17 +50,18 @@ test.describe('painel de estilos', () => {
     await session.window.getByRole('button', { name: 'Estilos do documento' }).click()
     const panel = session.window.getByRole('dialog', { name: 'Estilos' })
 
-    // O estilo do autor aparece pelo nome, e o título pelo nome interno traduzido; o id `Ttulo1` é do arquivo.
+    // The author's style shows by name, and the heading by its translated internal name; the
+    // `Ttulo1` id belongs to the file.
     await expect(panel).toContainText('Citação recuada')
     await expect(panel).toContainText('Título 1')
 
-    // A maquinaria do Word fica fora da lista, pelo `w:semiHidden`.
+    // Word's machinery stays out of the list, through `w:semiHidden`.
     await expect(panel).not.toContainText('Default Paragraph Font')
 
-    // O cursor abre no título, cujo estilo vem do arquivo com id em português.
+    // The cursor opens on the heading, whose style comes from the file with a Portuguese id.
     await expect(panel).toContainText('Parágrafo do cursor: Título 1')
 
-    // O filtro torna legível a lista de um documento do Word, que declara dezenas.
+    // The filter makes a Word document's list readable, since it declares dozens.
     await panel.getByRole('combobox', { name: 'Mostrar' }).selectOption('character')
     await expect(panel).not.toContainText('Citação recuada')
   })
@@ -98,12 +99,12 @@ test.describe('painel de estilos', () => {
       .click()
     await panel.getByRole('button', { name: 'Modificar…' }).click()
 
-    // O embutido não muda de nome: é por ele que o Word o reconhece.
+    // A builtin style is not renamed: Word recognizes it by its name.
     await expect(panel.getByRole('textbox', { name: 'Nome' })).toBeDisabled()
     await panel.getByRole('spinbutton', { name: 'Tamanho (pt)' }).fill('20')
     await panel.getByRole('button', { name: 'OK' }).click()
 
-    // 20 pt em pixels de CSS: a regra do estilo foi regerada.
+    // 20 pt in CSS pixels: the style rule was regenerated.
     const size = await editor
       .locator('p')
       .first()
@@ -164,14 +165,14 @@ test.describe('painel de estilos', () => {
     await menu(session, 'save')
     await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
 
-    // Só o estilo mudou no arquivo: o parágrafo continua só apontando para ele.
+    // Only the style changed in the file: the paragraph still only points to it.
     expect(await entryOf(origem, 'word/styles.xml')).toContain('<w:sz w:val="36"')
     expect(await entryOf(origem, 'word/document.xml')).not.toContain('w:sz')
 
     await menu(session, 'open')
     const quote = editor.locator('[data-style-id="Citao"]')
     await expect(quote).toHaveText('Um trecho citado.')
-    // Com espera: a medida podia cair no parágrafo do documento anterior.
+    // With waiting: the measure could land on the previous document's paragraph.
     await expect
       .poll(async () =>
         Number.parseFloat(await quote.evaluate((element) => getComputedStyle(element).fontSize)),
@@ -180,7 +181,8 @@ test.describe('painel de estilos', () => {
   })
 
   test('o texto importado segue o estilo: modificado, e de título a Normal', async () => {
-    // O trecho, e não o parágrafo: a fonte do estilo presa numa marca mudaria um e não o outro.
+    // The run, not the paragraph: the style font stuck in a mark would change one and not the
+    // other.
     const origem = join(folder, 'estilos.docx')
     await writeFile(origem, await docxWithNamedStyles())
     await stubDialogs(session.app, { open: origem, messageBox: 1 })
@@ -209,7 +211,7 @@ test.describe('painel de estilos', () => {
 
     expect((await look('Um trecho citado.'))?.size).toBeCloseTo(18 * (96 / 72), 0)
 
-    // Trocado por Normal, o título volta a 11 pt sem negrito: nada ficou preso no trecho.
+    // Switched to Normal, the heading goes back to 11 pt without bold: nothing stuck in the run.
     expect((await look('Relatório anual'))?.weight).toBe('700')
     await editor.getByText('Relatório anual').click()
     await session.window.getByRole('combobox', { name: 'Estilo' }).selectOption({ label: 'Normal' })
@@ -225,7 +227,7 @@ test.describe('painel de estilos', () => {
     const panel = session.window.getByRole('dialog', { name: 'Estilos' })
     await expect(panel.getByRole('button', { name: 'Fechar' })).toBeFocused()
 
-    // O Tab circula no painel, senão cairia no texto, onde o Escape não o fecha.
+    // Tab cycles in the pane, or it would land in the text, where Escape does not close it.
     await panel.press('Tab')
     await expect(panel.getByRole('combobox', { name: 'Mostrar' })).toBeFocused()
 

@@ -1,5 +1,5 @@
 /// <reference lib="dom" />
-// O corpo de `evaluate` roda no renderer, mas é compilado no escopo do Node.
+// The `evaluate` body runs in the renderer, but is compiled in Node's scope.
 
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -9,8 +9,8 @@ import { launch, menu, stubDialogs, type Session } from './app.js'
 import { docxWithLongTable, docxWithStretchedImage, docxWithTable, entryOf } from './fixtures.js'
 
 /**
- * Tabelas e imagens editáveis, pelo caminho da pessoa: o menu "Tabela", o botão
- * direito na célula, o diálogo de propriedades e as alças da imagem.
+ * Editable tables and images, along the user's path: the "Table" menu, right click on a cell, the
+ * properties dialog and the image handles.
  */
 test.describe('tabelas e imagens editáveis', () => {
   let session: Session
@@ -42,8 +42,8 @@ test.describe('tabelas e imagens editáveis', () => {
   })
 
   /**
-   * A tabela vem do arquivo: o histórico junta mudanças vizinhas de menos de meio
-   * segundo, e uma tabela inserida iria embora no mesmo desfazer da linha.
+   * The table comes from the file: history merges neighbouring changes less than half a second
+   * apart, and an inserted table would go away in the same undo as the row.
    */
   test('o botão direito dentro da tabela oferece as ações dela', async () => {
     const origem = join(pasta, 'tabela.docx')
@@ -65,18 +65,18 @@ test.describe('tabelas e imagens editáveis', () => {
     await session.window.getByRole('menuitem', { name: 'Inserir linha abaixo' }).click()
     await expect.poll(linhas).toBe(3)
 
-    // O menu de contexto devolve o foco ao editor depois de fechar; o atalho só
-    // chega ao histórico quando ele já voltou.
+    // The context menu returns focus to the editor after closing; the shortcut only reaches the
+    // history once focus is back.
     await expect(session.window.locator('.page__content[contenteditable="true"]')).toBeFocused()
 
-    // Uma ação, um desfazer: o comando do TableKit é uma transação só.
+    // One action, one undo: the TableKit command is a single transaction.
     await session.window.keyboard.press('Control+z')
     await expect.poll(linhas).toBe(2)
   })
 
-  /** O que se perde ao gravar aparece na mesma faixa do que se perde ao abrir. */
+  /** What is lost on save shows in the same banner as what is lost on open. */
   test('a perda na hora de salvar aparece na faixa de aviso', async () => {
-    // Gravar em `.docx` pede um `.docx` de origem, onde a tabela mesclada entra.
+    // Saving to `.docx` needs a source `.docx`, where the merged table goes in.
     const origem = join(pasta, 'mesclada.docx')
     await writeFile(origem, await docxWithTable())
     await stubDialogs(session.app, { open: origem, messageBox: 1 })
@@ -147,13 +147,13 @@ test.describe('tabelas e imagens editáveis', () => {
     const caixa = await alça.boundingBox()
     if (caixa === null) throw new Error('a alça não apareceu')
 
-    // Muitos passos: se cada um virasse transação, o desfazer voltaria só o último.
+    // Many steps: if each became a transaction, undo would only bring back the last.
     await session.window.mouse.move(caixa.x + 5, caixa.y + 5)
     await session.window.mouse.down()
     await session.window.mouse.move(caixa.x - 95, caixa.y + 5, { steps: 20 })
     await session.window.mouse.up()
 
-    // Canto com a proporção travada: 400 × 100 vira 300 × 75.
+    // A corner with the ratio locked: 400 × 100 becomes 300 × 75.
     await expect.poll(async () => Math.round((await imagem.boundingBox())?.width ?? 0)).toBe(300)
     const altura = Math.round((await imagem.boundingBox())?.height ?? 0)
     expect(altura).toBe(75)
@@ -179,8 +179,8 @@ test.describe('tabelas e imagens editáveis', () => {
     const caixa = await alça.boundingBox()
     if (caixa === null) throw new Error('a alça não apareceu')
 
-    // 150 px de tela a 150 % são 100 px de documento: 400 × 100 vira 300 × 75,
-    // exatamente como o mesmo gesto em 100 % com 100 px.
+    // 150 screen px at 150 % are 100 document px: 400 × 100 becomes 300 × 75, exactly like the same
+    // gesture at 100 % with 100 px.
     await session.window.mouse.move(caixa.x + 5, caixa.y + 5)
     await session.window.mouse.down()
     await session.window.mouse.move(caixa.x - 145, caixa.y + 5, { steps: 20 })
@@ -192,7 +192,7 @@ test.describe('tabelas e imagens editáveis', () => {
         (img as HTMLImageElement).offsetHeight,
       ])
     await expect.poll(medida).toEqual([300, 75])
-    // Na tela, a imagem gravada aparece ampliada pelo zoom.
+    // On screen, the saved image shows enlarged by the zoom.
     expect(Math.round((await imagem.boundingBox())!.width)).toBe(450)
   })
 
@@ -210,7 +210,7 @@ test.describe('tabelas e imagens editáveis', () => {
     const antes = await largura()
     const caixa = (await célula.boundingBox())!
 
-    // A divisória é a borda direita da célula; o plugin a acha passando o mouse.
+    // The divider is the cell's right border; the plugin finds it on hover.
     const x = caixa.x + caixa.width - 2
     const y = caixa.y + caixa.height / 2
     await session.window.mouse.move(x - 20, y)
@@ -219,7 +219,7 @@ test.describe('tabelas e imagens editáveis', () => {
     await session.window.mouse.move(x - 150, y, { steps: 10 })
     await session.window.mouse.up()
 
-    // 150 px de tela a 150 % são 100 px de documento (sem a conversão, 150).
+    // 150 screen px at 150 % are 100 document px (150 without the conversion).
     await expect.poll(async () => antes - (await largura())).toBeGreaterThanOrEqual(98)
     expect(antes - (await largura())).toBeLessThanOrEqual(102)
   })
@@ -234,12 +234,14 @@ test.describe('tabelas e imagens editáveis', () => {
     await expect(imagem).toBeVisible()
     await imagem.click()
 
-    // Pelo teclado: o ponteiro para na borda da janela. Cinquenta passos de oito pixels passam de qualquer coluna.
+    // By keyboard: the pointer stops at the window edge. Fifty steps of eight pixels pass any
+    // column.
     const alça = session.window.getByRole('button', { name: 'Redimensionar imagem pela borda da direita' })
     await alça.focus()
     for (let passo = 0; passo < 50; passo += 1) await session.window.keyboard.press('ArrowRight')
 
-    // O teto é a coluna medida no parágrafo, e não no embrulho em linha do NodeView, de largura zero.
+    // The ceiling is the column measured on the paragraph, not on the NodeView's zero-width inline
+    // wrapper.
     const medidas = await session.window.evaluate(() => {
       const img = document.querySelector('.page__content .image-frame img') as HTMLImageElement
       return {
@@ -252,8 +254,8 @@ test.describe('tabelas e imagens editáveis', () => {
   })
 
   /**
-   * A imagem do `.docx` mora num parágrafo: redimensioná-la não a parte para outro,
-   * nem troca o `wp:docPr` e o relacionamento, e o desfazer funciona.
+   * A `.docx` image lives in a paragraph: resizing it does not split it into another, nor replace
+   * the `wp:docPr` and the relationship, and undo works.
    */
   test('redimensionar a imagem do arquivo não a tira do parágrafo', async () => {
     const origem = join(pasta, 'imagem.docx')
@@ -267,7 +269,7 @@ test.describe('tabelas e imagens editáveis', () => {
     const topo = (await imagem.boundingBox())?.y ?? 0
     await imagem.click()
 
-    // Pelo teclado: cada seta é um passo, e as alças continuam lá depois dele.
+    // By keyboard: each arrow is a step, and the handles are still there after it.
     const alça = session.window.getByRole('button', {
       name: 'Redimensionar imagem pelo canto inferior direito',
     })
@@ -278,7 +280,7 @@ test.describe('tabelas e imagens editáveis', () => {
     await session.window.keyboard.press('ArrowLeft')
     await expect.poll(async () => Math.round((await imagem.boundingBox())?.width ?? 0)).toBe(384)
 
-    // A imagem não desce: nenhum parágrafo vazio apareceu em cima dela.
+    // The image does not move down: no empty paragraph appeared above it.
     expect(Math.round((await imagem.boundingBox())?.y ?? 0)).toBe(Math.round(topo))
     await expect(session.window.locator('.page__content p')).toHaveCount(2)
 
@@ -290,7 +292,7 @@ test.describe('tabelas e imagens editáveis', () => {
     expect(xml.match(/<w:p[ >]/g)).toHaveLength(antes.match(/<w:p[ >]/g)?.length ?? -1)
     expect(xml).toMatch(/<wp:docPr id="1" name="Quadrado"\s*\/>/)
     expect(xml).toContain('r:embed="rId9"')
-    // 384 × 96 px, na proporção 4 : 1 do arquivo.
+    // 384 × 96 px, at the file's 4:1 ratio.
     expect(xml).toMatch(/<wp:extent cx="3657600" cy="914400"\s*\/>/)
   })
 
@@ -317,11 +319,11 @@ test.describe('tabelas e imagens editáveis', () => {
     const antes = await entryOf(origem, 'word/document.xml')
     const xml = await entryOf(destino, 'word/document.xml')
     expect(xml.match(/<w:p[ >]/g)).toHaveLength(antes.match(/<w:p[ >]/g)?.length ?? -1)
-    // O `w:jc` mora no parágrafo que tem a imagem, e o desenho é o de antes.
+    // `w:jc` lives on the paragraph holding the image, and the drawing is the previous one.
     expect(xml).toMatch(/<w:p><w:pPr>(?:(?!<\/w:pPr>).)*<w:jc w:val="center"\s*\/><\/w:pPr><w:r><w:drawing>/)
     expect(xml).toMatch(/<wp:docPr id="1" name="Quadrado" descr="Novo texto"\s*\/>/)
 
-    // E um Ctrl+Z desfaz o gesto inteiro — texto e alinhamento juntos.
+    // And one Ctrl+Z undoes the whole gesture, text and alignment together.
     await session.window.keyboard.press('Control+z')
     await expect(imagem).toHaveAttribute('alt', 'Original')
     await expect(session.window.locator('.page__content p').first()).not.toHaveCSS('text-align', 'center')

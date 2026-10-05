@@ -9,9 +9,9 @@ import { launch, menu, stubDialogs, type Session } from './app.js'
 import { docxWithNamedStyles, docxWithReferences, entryOf } from './fixtures.js'
 
 /**
- * Referências: painel de navegação, marcadores, sumário, legendas e referências
- * cruzadas. A preferência muda por `window.api.preferences.set`, porque o
- * Playwright não alcança o menu nativo.
+ * References: navigation pane, bookmarks, table of contents, captions and cross-references.
+ * Preferences change through `window.api.preferences.set`, because Playwright cannot reach the
+ * native menu.
  */
 async function setPreference(session: Session, patch: Record<string, unknown>): Promise<void> {
   await session.window.evaluate(async (value) => {
@@ -53,12 +53,12 @@ test.describe('painel de navegação', () => {
 
     const entries = pane.getByRole('button', { name: /^Nível/ })
     await expect(entries).toHaveText(['Capítulo um', 'Seção dois'])
-    // O cursor está no fim do segundo título: é a seção dele que se destaca.
+    // The cursor is at the end of the second heading: its section is highlighted.
     await expect(entries.nth(1)).toHaveAttribute('aria-current', 'location')
 
     await entries.nth(0).click()
     await expect(entries.nth(0)).toHaveAttribute('aria-current', 'location')
-    // O cursor foi para o título: digitar escreve nele.
+    // The cursor went to the heading: typing writes into it.
     await session.window.keyboard.type('>')
     await expect(session.window.locator('.ProseMirror h1')).toHaveText('>Capítulo um')
 
@@ -67,8 +67,8 @@ test.describe('painel de navegação', () => {
   })
 
   test('no documento travado também leva ao título', async () => {
-    // A célula inserida trava a edição. O título é o `Ttulo1` do Word em português,
-    // reconhecido pelo nome interno `heading 1`.
+    // The inserted cell locks editing. The heading is Portuguese Word's `Ttulo1`, recognized by the
+    // internal name `heading 1`.
     const origem = join(folder, 'travado.docx')
     const p = (style: string, text: string): string =>
       `<w:p><w:pPr><w:pStyle w:val="${style}"/></w:pPr><w:r><w:t>${text}</w:t></w:r></w:p>`
@@ -94,13 +94,13 @@ test.describe('painel de navegação', () => {
 
     await entries.nth(1).click()
     await expect(entries.nth(1)).toHaveAttribute('aria-current', 'location')
-    // Rolou até o título, que estava folhas abaixo.
+    // It scrolled to the heading, which was sheets below.
     await expect(session.window.locator('.ProseMirror h1', { hasText: 'Conclusão' })).toBeInViewport()
     await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
   })
 })
 
-/** Marcadores sem sumário nem campos. */
+/** Bookmarks without a table of contents or fields. */
 const BOOKMARKS_BODY =
   '<w:p><w:pPr><w:pStyle w:val="Ttulo1"/></w:pPr><w:bookmarkStart w:id="0" w:name="_Toc100"/><w:r><w:t>Introdução</w:t></w:r><w:bookmarkEnd w:id="0"/></w:p>' +
   '<w:p><w:bookmarkStart w:id="1" w:name="Resumo"/><w:r><w:t xml:space="preserve">O resumo começa aqui </w:t></w:r></w:p>' +
@@ -134,7 +134,7 @@ test.describe('marcadores', () => {
     await menu(session, 'insert-bookmark')
     const dialog = session.window.getByRole('dialog', { name: 'Marcadores' })
     const list = dialog.getByRole('listbox', { name: 'Marcadores do documento' })
-    // O oculto do sumário só aparece com a caixa marcada.
+    // The table of contents' hidden bookmark only shows with the box checked.
     await expect(list.getByRole('option')).toHaveText(['Resumo'])
     await dialog.getByLabel('Marcadores ocultos').check()
     await expect(list.getByRole('option')).toHaveText(['_Toc100', 'Resumo'])
@@ -145,7 +145,7 @@ test.describe('marcadores', () => {
     await session.window.keyboard.type('>')
     await expect(editor.locator('p', { hasText: 'começa aqui' })).toHaveText('>O resumo começa aqui ')
 
-    // Um marcador novo sobre o ponto final do último parágrafo.
+    // A new bookmark over the last paragraph's full stop.
     const last = editor.locator('p', { hasText: 'e a conclusão' })
     await last.dblclick({ position: { x: 5, y: 5 } })
     await session.window.keyboard.press('End')
@@ -157,7 +157,7 @@ test.describe('marcadores', () => {
     await dialog.getByRole('button', { name: 'Adicionar' }).click()
     await expect(dialog).toHaveCount(0)
 
-    // Excluir não fecha o diálogo, e o `Esc` continua sendo dele.
+    // Deleting does not close the dialog, and `Esc` still belongs to it.
     await menu(session, 'insert-bookmark')
     await dialog.getByLabel('Nome do marcador').fill('Descartavel')
     await dialog.getByRole('button', { name: 'Adicionar' }).click()
@@ -174,7 +174,7 @@ test.describe('marcadores', () => {
     const corpo = await entryOf(destino, 'word/document.xml')
     expect(corpo).toMatch(/w:name="Conclusao"/)
     expect(corpo).not.toMatch(/Descartavel/)
-    // O oculto do título e a ponta que mora no corpo, entre dois parágrafos.
+    // The heading's hidden bookmark and the end living in the body, between two paragraphs.
     expect(corpo).toMatch(/w:name="_Toc100"/)
     expect(corpo).toMatch(/<\/w:p><w:bookmarkEnd w:id="1" ?\/>/)
     expect(corpo).toMatch(/w:anchor="Resumo"/)
@@ -203,7 +203,8 @@ test.describe('marcadores', () => {
     await menu(session, 'open')
     const editor = session.window.locator('.ProseMirror')
 
-    // Cursor no fim do último parágrafo, sem seleção: o link leva o texto do título.
+    // Cursor at the end of the last paragraph, without a selection: the link takes the heading
+    // text.
     await editor.locator('p', { hasText: 'e a conclusão' }).click()
     await session.window.keyboard.press('End')
     await session.window.getByRole('button', { name: 'Link' }).click()
@@ -221,7 +222,7 @@ test.describe('marcadores', () => {
   })
 })
 
-/** O texto de uma página do PDF, pelo `pdftotext` do sistema — nulo sem ele. */
+/** The text of a PDF page, through the system `pdftotext`; null without it. */
 async function textoDaPagina(caminho: string, pagina: number): Promise<string | null> {
   try {
     const { stdout } = await promisify(execFile)('pdftotext', [
@@ -280,25 +281,26 @@ test.describe('sumário', () => {
     await session.window.keyboard.type('Escopo')
     await expect(session.window.locator('.paper')).toHaveCount(3)
 
-    // O sumário entra antes do bloco do cursor, na primeira folha.
+    // The table of contents goes in before the cursor's block, on the first sheet.
     await editor.locator('p', { hasText: 'Capa.' }).click()
     await session.window.keyboard.press('Home')
     await menu(session, 'insert-table-of-contents')
     const toc = editor.locator('.toc')
     await expect(toc).toContainText('Sumário')
-    // O número da folha em que o título caiu depois do sumário, do segundo passe da paginação.
+    // The sheet number the heading fell on after the table of contents, from pagination's second
+    // pass.
     await expect(toc.locator('.field')).toHaveText(['2', '3'])
     await expect(toc.locator('a').first()).toHaveAttribute('href', /^#_Toc\d+$/)
 
-    // Um título novo, e "Atualizar sumário" o acrescenta. Pelo painel de navegação,
-    // que leva o cursor ao título.
+    // A new heading, and "Update table" adds it. Through the navigation pane, which takes the
+    // cursor to the heading.
     await setPreference(session, { navigationPane: true })
     await session.window
       .getByRole('navigation', { name: 'Navegação' })
       .getByRole('button', { name: /Escopo/ })
       .click()
     await session.window.keyboard.press('End')
-    // O ProseMirror lê o `End` no `selectionchange`, e o teste não espera como uma pessoa.
+    // ProseMirror reads `End` on `selectionchange`, and the test does not wait like a person.
     await session.window.waitForTimeout(100)
     await session.window.keyboard.press('Enter')
     await session.window.keyboard.press('Control+Alt+1')
@@ -308,7 +310,7 @@ test.describe('sumário', () => {
     await expect(toc.locator('p', { hasText: 'Conclusão' })).toHaveCount(1)
     await expect(toc.locator('.field')).toHaveText(['2', '3', '3'])
 
-    // O papel: a mesma primeira folha, com as entradas e os números.
+    // Paper: the same first sheet, with the entries and numbers.
     await menu(session, 'export-pdf')
     await expect.poll(() => pdfPronto(pdf), { timeout: 30_000 }).toBe(true)
     const primeira = await textoDaPagina(pdf, 1)
@@ -341,7 +343,7 @@ test.describe('sumário', () => {
     await menu(session, 'open')
     const editor = session.window.locator('.ProseMirror')
 
-    // Campos e sumário representados não travam o documento.
+    // Represented fields and table of contents do not lock the document.
     await expect(editor).toHaveAttribute('contenteditable', 'true')
     await expect(session.window.locator('.banner--readonly')).toHaveCount(0)
     const toc = editor.locator('.toc')
@@ -354,7 +356,7 @@ test.describe('sumário', () => {
     const depois = await entryOf(destino, 'word/document.xml')
     const sumario = (xml: string): string => /<w:sdt>.*<\/w:sdt>/.exec(xml)?.[0] ?? ''
     expect(sumario(depois)).not.toBe('')
-    // Preservado sem "Atualizar": o mesmo XML, com os atributos na ordem do SDK.
+    // Preserved without "Update": the same XML, with attributes in SDK order.
     const normal = (xml: string): string =>
       sumario(xml)
         .replace(/ \/>/g, '/>')
@@ -386,7 +388,7 @@ test.describe('legendas e referências cruzadas', () => {
     const editor = session.window.locator('.ProseMirror')
     await expect(editor).toContainText('Como mostra a Figura 1')
 
-    // Uma legenda nova logo abaixo de "Escopo", antes da Figura 1 do arquivo.
+    // A new caption right below "Escopo", before the file's Figure 1.
     await setPreference(session, { navigationPane: true })
     await session.window
       .getByRole('navigation', { name: 'Navegação' })
@@ -399,14 +401,14 @@ test.describe('legendas e referências cruzadas', () => {
     await legenda.getByRole('button', { name: 'Inserir' }).click()
     await expect(editor.locator('p', { hasText: 'Fluxo' })).toHaveText('Figura 1 — Fluxo')
 
-    // F9 com o cursor parado: o documento inteiro. A legenda do arquivo vira 2,
-    // e a referência a ela acompanha.
+    // F9 with the cursor collapsed: the whole document. The file's caption becomes 2, and the
+    // reference to it follows.
     await menu(session, 'update-fields')
     await expect(editor.locator('p', { hasText: 'Arquitetura' })).toHaveText('Figura 2 — Arquitetura')
     await expect(editor).toContainText('Como mostra a Figura 2, na página 1')
 
-    // Referências cruzadas no fim do último parágrafo: o número da figura do
-    // arquivo e o texto de um título.
+    // Cross-references at the end of the last paragraph: the number of the file's figure and the
+    // text of a heading.
     await editor.locator('p', { hasText: 'Veja o' }).click()
     await session.window.keyboard.press('End')
     await session.window.waitForTimeout(100)
@@ -431,7 +433,7 @@ test.describe('legendas e referências cruzadas', () => {
     expect(corpo.match(/SEQ Figura/g)).toHaveLength(2)
     expect(corpo).toMatch(/REF _Ref\d+ \\h/)
     expect(corpo).toMatch(/REF _Ref200 \\h/)
-    // O número novo da figura do arquivo foi para o resultado do campo.
+    // The file figure's new number went into the field result.
     expect(corpo).toMatch(/<w:t[^>]*>Figura 2<\/w:t>/)
   })
 
@@ -442,7 +444,7 @@ test.describe('legendas e referências cruzadas', () => {
     await menu(session, 'open')
     const editor = session.window.locator('.ProseMirror')
 
-    // A seleção natural da linha: do fim ao começo, com o teclado.
+    // The natural line selection: from end to start, with the keyboard.
     await editor.locator('p', { hasText: 'Arquitetura' }).click()
     await session.window.keyboard.press('End')
     await session.window.waitForTimeout(100)

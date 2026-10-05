@@ -1,15 +1,15 @@
 /// <reference lib="dom" />
-// O corpo de `evaluate` roda no renderer, mas é compilado no escopo do Node.
+// The `evaluate` body runs in the renderer, but is compiled in Node's scope.
 
 import { existsSync } from 'node:fs'
 import { expect, test } from '@playwright/test'
 import { launch, menu, stubDialogs, type Session } from './app.js'
 
 /**
- * Objetos ancorados desenhados na posição da folha: no Word não empurram o texto e
- * podem ficar atrás dele. O modelo de manual do corpus traz duas caixas
- * posicionadas, uma imagem girada e um objeto atrás do texto. O corpus não entra no
- * repositório: sem `LIBREVIA_CORPUS_DOC`, os testes são pulados.
+ * Anchored objects drawn at their sheet position: in Word they do not push the text and may sit
+ * behind it. The corpus manual template has two positioned boxes, a rotated image and an object
+ * behind the text. The corpus is not in the repository: without `LIBREVIA_CORPUS_DOC`, the tests
+ * are skipped.
  */
 const MODELO = process.env['LIBREVIA_CORPUS_DOC'] ?? ''
 
@@ -26,7 +26,8 @@ test.describe('objetos ancorados', () => {
     await stubDialogs(session.app, { open: MODELO, messageBox: 1 })
     await menu(session, 'open')
     await expect(session.window.locator('.ProseMirror')).toBeVisible()
-    // A posição depende da folha em que o parágrafo âncora caiu, e só existe depois da medição.
+    // The position depends on the sheet the anchor paragraph fell on, and only exists after
+    // measuring.
     await expect(session.window.locator('.paper-float').first()).toBeVisible()
   })
 
@@ -52,13 +53,13 @@ test.describe('objetos ancorados', () => {
     })
 
     expect(caixa).not.toBeNull()
-    // Girada, a marca é uma faixa estreita à esquerda, antes da coluna de texto.
+    // Rotated, the mark is a narrow band on the left, before the text column.
     expect(caixa!.largura).toBeLessThan(caixa!.larguraFolha / 2)
     expect(caixa!.esquerda).toBeLessThan(caixa!.larguraFolha / 4)
   })
 
   test('o objeto de trás fica atrás do texto', async () => {
-    // `behindDoc` é decoração de capa e marca d'água: por cima, cobriria o texto.
+    // `behindDoc` is cover decoration and watermark: on top, it would cover the text.
     const ordem = await session.window.evaluate(() => {
       const atras = document.querySelector('.paper-floats--behind') as HTMLElement | null
       const coluna = document.querySelector('.pages__column') as HTMLElement | null
@@ -74,7 +75,7 @@ test.describe('objetos ancorados', () => {
   })
 
   test('as marcas do cabeçalho e do rodapé giram como no arquivo', async () => {
-    // Desenhos ancorados na faixa, girados um quarto de volta: 28,6 mm em pé numa banda de 10 mm.
+    // Drawings anchored in the band, rotated a quarter turn: 28.6 mm standing in a 10 mm band.
     const giradas = await session.window.evaluate(
       () =>
         Array.from(document.querySelectorAll('.paper-float'))
@@ -82,12 +83,12 @@ test.describe('objetos ancorados', () => {
           .filter((transform) => transform !== 'none').length,
     )
 
-    // A marca do corpo, a do cabeçalho e a do rodapé — em cada folha.
+    // The body's mark, the header's and the footer's, on every sheet.
     expect(giradas).toBeGreaterThanOrEqual(3)
   })
 
   test('as marcas da faixa repetem em toda folha', async () => {
-    // A faixa repete, e o que está ancorado nela também: pertence à página.
+    // The band repeats, and so does what is anchored in it: it belongs to the page.
     const porFolha = await session.window.evaluate(() =>
       Array.from(document.querySelectorAll('.paper-bands')).map(
         (banda) => banda.querySelectorAll('.paper-float').length,
@@ -99,7 +100,7 @@ test.describe('objetos ancorados', () => {
   })
 
   test('os objetos não ocupam lugar no fluxo do texto', async () => {
-    // O parágrafo que ancora a marca de 286 mm continua com altura de linha.
+    // The paragraph anchoring the 286 mm mark keeps its line height.
     const alturas = await session.window.evaluate(() =>
       Array.from(document.querySelectorAll('.page__content > *')).map(
         (node) => (node as HTMLElement).offsetHeight,

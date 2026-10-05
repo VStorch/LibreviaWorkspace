@@ -8,9 +8,9 @@ import { launch, menu, stubDialogs, type Session } from './app.js'
 import { docxWithMultilevelList, entryOf } from './fixtures.js'
 
 /**
- * Listas multinível com a marca que o Word desenharia: o segundo nível compõe o
- * primeiro (`1.a)`), a lista continua depois de um parágrafo (`3.`) e reinicia (`10.`),
- * o que o contador do CSS não faz.
+ * Multilevel lists with the label Word would draw: the second level composes the first (`1.a)`),
+ * the list continues after a paragraph (`3.`) and restarts (`10.`), which a CSS counter does not
+ * do.
  */
 test.describe('listas multinível', () => {
   let session: Session
@@ -44,7 +44,7 @@ test.describe('listas multinível', () => {
     await abrirMultinivel()
     await expect.poll(() => marcas(session)).toEqual(['1.', '1.a)', '1.b)', '2.', '3.', '10.'])
 
-    // E é a marca que se vê: o `::before` do parágrafo desenha a do item.
+    // And it is the visible label: the paragraph's `::before` draws the item's.
     const desenhada = await session.window
       .locator('.ProseMirror li[data-label] > p')
       .nth(1)
@@ -77,8 +77,8 @@ test.describe('listas multinível', () => {
   })
 
   /**
-   * Grava, e abre uma **cópia** do que foi gravado: reaberto o próprio arquivo,
-   * nada garantiria que a tela veio do disco, e não do documento que já estava ali.
+   * Saves, and opens a **copy** of what was saved: reopening the file itself would not guarantee
+   * the screen came from disk rather than from the document already there.
    */
   async function salvarEReabrir(): Promise<string> {
     const destino = join(pasta, `saida-${Date.now()}.docx`)
@@ -137,8 +137,8 @@ test.describe('listas multinível', () => {
       .getByRole('dialog', { name: 'Definir valor inicial' })
       .getByRole('button', { name: 'Definir' })
       .click()
-    // O resto da numeração 5 passa a contar sozinho, como no Word: a lista de
-    // cima virou outro `w:num`, com reinício.
+    // The rest of numbering 5 counts on its own, as in Word: the list above became another `w:num`,
+    // with a restart.
     await expect.poll(() => marcas(session)).toEqual(['5.', '5.a)', '5.b)', '6.', '1.', '10.'])
 
     await salvarEReabrir()

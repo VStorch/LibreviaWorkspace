@@ -17,7 +17,7 @@ async function temSoffice(): Promise<boolean> {
   }
 }
 
-/** Uma entrada de um ZIP comum (comprimido), como o LibreOffice grava o `.odt`. */
+/** An entry of a regular (compressed) ZIP, as LibreOffice writes the `.odt`. */
 async function temPdftotext(): Promise<boolean> {
   try {
     await promisify(execFile)('pdftotext', ['-v'])
@@ -38,7 +38,7 @@ async function textoDoPdf(caminho: string): Promise<string> {
 
 async function entradaZip(caminho: string, nome: string): Promise<string> {
   const zip = await readFile(caminho)
-  // O diretório central no fim: cada entrada diz onde começa o cabeçalho local.
+  // The central directory at the end: each entry says where its local header starts.
   const fim = zip.lastIndexOf(Buffer.from([0x50, 0x4b, 0x05, 0x06]))
   let posicao = zip.readUInt32LE(fim + 16)
   const total = zip.readUInt16LE(fim + 10)
@@ -61,9 +61,9 @@ async function entradaZip(caminho: string, nome: string): Promise<string> {
 }
 
 /**
- * Controle de alterações: a revisão aparece na tela, aceitar e rejeitar mudam o
- * texto, o que se digita com o controle ligado vira revisão, e o arquivo
- * gravado diz o mesmo — no Word e no LibreOffice.
+ * Track changes: the revision shows on screen, accepting and rejecting change the text, what is
+ * typed with tracking on becomes a revision, and the saved file says the same, in Word and in
+ * LibreOffice.
  */
 test.describe('revisões', () => {
   let session: Session
@@ -130,7 +130,7 @@ test.describe('revisões', () => {
     const corpo = await entryOf(origem, 'word/document.xml')
     expect(corpo).not.toContain('<w:delText xml:space="preserve"> Trecho excluído.')
     expect(corpo).toContain('Trecho excluído.')
-    // A inserção do mesmo parágrafo continua revisão, com o id que tinha.
+    // The same paragraph's insertion is still a revision, with the id it had.
     expect(corpo).toMatch(/<w:ins [^>]*w:id="1"/)
   })
 
@@ -141,7 +141,7 @@ test.describe('revisões', () => {
     await stubDialogs(session.app, { open: origem, messageBox: 1 })
     await menu(session, 'open')
 
-    // Editar o parágrafo revisado: ele é reescrito, e as revisões vêm das marcas.
+    // Editing the revised paragraph: it is rewritten, and revisions come from the marks.
     const editor = session.window.locator('.ProseMirror')
     await editor.getByText('Segundo parágrafo,').click()
     await session.window.keyboard.press('Home')
@@ -155,7 +155,7 @@ test.describe('revisões', () => {
       timeout: 120_000,
     })
     const conteudo = await entradaZip(join(pasta, 'copia.odt'), 'content.xml')
-    // Inserção, exclusão, marca de parágrafo, movimentação (dois lados) e linha.
+    // Insertion, deletion, paragraph mark, move (both sides) and row.
     const regioes = conteudo.match(/<text:changed-region/g) ?? []
     expect(regioes.length).toBeGreaterThanOrEqual(4)
   })
@@ -173,7 +173,7 @@ test.describe('revisões', () => {
     await menu(session, 'toggle-track-changes')
     await expect(indicador).toBeVisible()
 
-    // O Backspace guarda o ponto como excluído; o que se digita depois é inserção.
+    // Backspace keeps the full stop as deleted; what is typed afterwards is an insertion.
     await session.window.keyboard.press('End')
     await session.window.keyboard.press('Backspace')
     await session.window.keyboard.type(' e novo')
@@ -200,7 +200,7 @@ test.describe('revisões', () => {
       expect((conteudo.match(/<text:changed-region/g) ?? []).length).toBeGreaterThanOrEqual(2)
     }
 
-    // Reaberto, as marcas e o controle continuam; aceitar tudo limpa o texto.
+    // Reopened, the marks and the switch remain; accepting all cleans the text.
     await menu(session, 'open')
     await expect(editor.locator('ins.revision')).toHaveText(' e novo')
     await expect(editor.locator('del.revision')).toHaveText('.')
@@ -209,7 +209,7 @@ test.describe('revisões', () => {
     await expect(editor.locator('ins.revision, del.revision, [data-revision]')).toHaveCount(0)
     await expect(editor).toContainText('Texto antigo e novo')
 
-    // O rascunho guarda o interruptor.
+    // The draft keeps the switch.
     await stubDialogs(session.app, { save: rascunho, open: rascunho })
     await menu(session, 'save-as')
     await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
@@ -233,7 +233,7 @@ test.describe('revisões', () => {
     const segundo = editor.locator('p', { hasText: 'Segundo parágrafo' })
     await expect(excluido).toBeVisible()
 
-    // Marcação simples: o excluído e a linha excluída somem, a barra aparece.
+    // Simple markup: deletions and the deleted row vanish, the bar appears.
     await menu(session, 'show-simple-markup')
     await expect(editor).toHaveClass(/revisions-simple/)
     await expect(excluido).toBeHidden()
@@ -241,8 +241,8 @@ test.describe('revisões', () => {
     await expect(inserido).toBeVisible()
     await expect(segundo).toHaveClass(/revision-changed/)
 
-    // O cursor não entra no excluído escondido: o que se digita no fim e depois
-    // de duas setas cai no texto que se vê.
+    // The cursor does not enter hidden deleted text: what is typed at the end and after two arrow
+    // presses lands in the visible text.
     await inserido.click()
     await session.window.keyboard.press('End')
     await session.window.keyboard.type('!')
@@ -252,7 +252,7 @@ test.describe('revisões', () => {
     await expect(segundo).toContainText('revisadaZ.!', { useInnerText: true })
     await expect(excluido).toHaveText('Trecho excluído.')
 
-    // Sem marcação: o inserido fica como texto comum, sem barra.
+    // No markup: the insertion stays as plain text, without a bar.
     await menu(session, 'show-no-markup')
     await expect(excluido).toBeHidden()
     expect(await inserido.evaluate((element) => getComputedStyle(element).textDecorationLine)).toBe('none')
@@ -267,7 +267,7 @@ test.describe('revisões', () => {
       expect(texto).not.toContain('Linha excluída')
     }
 
-    // Original: o inserido some, o excluído volta, e o editor não aceita digitação.
+    // Original: the insertion vanishes, the deletion comes back, and the editor refuses typing.
     await menu(session, 'show-original')
     await expect(inserido).toBeHidden()
     await expect(excluido).toBeVisible()
@@ -290,7 +290,7 @@ test.describe('revisões', () => {
     await session.window.keyboard.insertText('Fica.')
     await expect(session.window.locator('.paper')).toHaveCount(2)
 
-    // Tudo menos a última linha, excluído com o controle ligado.
+    // Everything but the last line, deleted with tracking on.
     await menu(session, 'toggle-track-changes')
     await session.window.keyboard.press('Home')
     await session.window.keyboard.press('Control+Shift+Home')

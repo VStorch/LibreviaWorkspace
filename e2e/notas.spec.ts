@@ -8,10 +8,10 @@ import { launch, menu, stubDialogs, type Session } from './app.js'
 import { docxWithFootnote, docxWithLongFootnote, docxWithManyFootnotes, entryOf } from './fixtures.js'
 
 /**
- * Notas de rodapé e de fim: lidas, numeradas e preservadas.
+ * Footnotes and endnotes: read, numbered and preserved.
  *
- * A referência é um nó com o corpo da nota dentro. Editar o parágrafo que a
- * leva não a perde — e por isso o documento com nota não abre travado.
+ * The reference is a node with the note body inside. Editing the paragraph carrying it does not
+ * lose it, which is why a document with notes does not open locked.
  */
 test.describe('notas de rodapé', () => {
   let session: Session
@@ -36,7 +36,7 @@ test.describe('notas de rodapé', () => {
     const editor = session.window.locator('.pages__column .ProseMirror')
     await expect(editor).toHaveAttribute('contenteditable', 'true')
     await expect(editor.locator('sup.note-ref')).toHaveAttribute('data-note-number', '1')
-    // A nota aparece no pé da primeira folha, com o número dela.
+    // The note shows at the foot of the first sheet, with its number.
     const nota = session.window.locator('.paper-notes .note-body')
     await expect(nota).toContainText('Fonte: ata anterior.')
     await expect(nota.locator('.note-number')).toHaveText('1')
@@ -49,8 +49,8 @@ test.describe('notas de rodapé', () => {
     await menu(session, 'save')
     await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
 
-    // O parágrafo foi reescrito com a referência; a nota, que ninguém tocou,
-    // continua no arquivo, com os separadores.
+    // The paragraph was rewritten with the reference; the note, which nobody touched, stays in the
+    // file, with the separators.
     const corpo = await entryOf(origem, 'word/document.xml')
     expect(corpo).toContain('Revisto: Segundo parágrafo')
     expect(corpo).toMatch(/<w:footnoteReference w:id="1" ?\/>/)
@@ -67,8 +67,8 @@ test.describe('notas de rodapé', () => {
 })
 
 /**
- * Notas de rodapé e de fim: o corpo se edita no pé da página, e as notas ocupam
- * a folha — a tela e o papel cortam no mesmo lugar.
+ * Footnotes and endnotes: the body is edited at the foot of the page, and notes take room on the
+ * sheet, so screen and paper break at the same place.
  */
 test.describe('notas no pé da página', () => {
   let session: Session
@@ -95,19 +95,19 @@ test.describe('notas no pé da página', () => {
 
     await expect(texto(session).locator('sup.note-ref')).toHaveAttribute('data-note-number', '1')
     await expect(notas(session)).toHaveCount(1)
-    // O cursor já está no corpo da nota.
+    // The cursor is already in the note body.
     await expect(notas(session)).toBeFocused()
     await session.window.keyboard.type('Fonte: livro de atas.')
     await expect(notas(session)).toContainText('Fonte: livro de atas.')
     await expect(notas(session).locator('.note-number')).toHaveText('1')
 
-    // Um histórico só: desfazer dentro da nota desfaz no documento.
+    // A single history: undoing inside the note undoes in the document.
     await session.window.keyboard.press('Control+z')
     await expect(notas(session)).not.toContainText('Fonte: livro de atas.')
     await session.window.keyboard.press('Control+y')
     await expect(notas(session)).toContainText('Fonte: livro de atas.')
 
-    // Clicar no número volta à referência; a seguinte, no fim, é a 2.
+    // Clicking the number goes back to the reference; the next one, at the end, is 2.
     await notas(session).locator('.note-number').click()
     await expect(texto(session)).toBeFocused()
     await session.window.keyboard.press('End')
@@ -133,7 +133,7 @@ test.describe('notas no pé da página', () => {
     await session.window.keyboard.type('Nota que sai.')
     await expect(notas(session)).toHaveCount(2)
 
-    // Backspace logo depois da referência apaga a referência e a nota.
+    // Backspace right after the reference deletes the reference and the note.
     await notas(session).nth(1).locator('.note-number').click()
     await session.window.keyboard.press('Backspace')
     await expect(texto(session).locator('sup.note-ref')).toHaveCount(1)
@@ -165,16 +165,16 @@ test.describe('notas no pé da página', () => {
     await expect(notas(session)).toHaveCount(24)
     const naTela = await folhas.count()
     expect(naTela).toBeGreaterThan(2)
-    // Toda folha com referência tem a área de notas, no pé.
+    // Every sheet with a reference has the notes area, at the foot.
     await expect(session.window.locator('.paper-notes--footnote')).toHaveCount(naTela)
 
     await menu(session, 'export-pdf')
     await expect.poll(() => paginasDoPdf(pdf), { timeout: 30_000 }).toBe(naTela)
-    // A nota 1 sai no papel, na primeira folha.
+    // Note 1 comes out on paper, on the first sheet.
     const { stdout } = await promisify(execFile)('pdftotext', ['-f', '1', '-l', '1', pdf, '-'])
     expect(stdout).toContain('Nota 1.')
 
-    // E o LibreOffice, com o mesmo arquivo, chega ao mesmo número de folhas.
+    // And LibreOffice, with the same file, reaches the same sheet count.
     if (await temSoffice()) {
       const copia = join(pasta, 'lo.docx')
       await copyFile(origem, copia)
@@ -198,7 +198,7 @@ test.describe('notas no pé da página', () => {
     await session.window.keyboard.press('End')
     await session.window.keyboard.type(' Novo')
     await expect(notas(session).locator('ins')).toHaveText(' Novo')
-    // O Backspace controlado deixa o excluído no lugar, riscado.
+    // A tracked Backspace leaves the deleted text in place, struck through.
     await session.window.keyboard.press('End')
     for (let vez = 0; vez < ' Novo'.length; vez++) await session.window.keyboard.press('ArrowLeft')
     await session.window.keyboard.press('Backspace')
@@ -218,12 +218,12 @@ test.describe('notas no pé da página', () => {
     await expect(area).toHaveCount(1)
     await expect(area.locator('.note-body')).toContainText('Ao fim do documento.')
     await expect(area.locator('.note-number')).toHaveText('i')
-    // Logo abaixo do texto, e não no pé da folha.
+    // Right below the text, not at the foot of the sheet.
     const paragrafo = await texto(session).locator('p').first().boundingBox()
     const caixa = await area.boundingBox()
     expect(caixa!.y - (paragrafo!.y + paragrafo!.height)).toBeLessThan(60)
 
-    // A busca acha o texto da nota.
+    // Search finds the note text.
     await menu(session, 'find-replace')
     await session.window.keyboard.type('fim do documento')
     await expect(area.locator('.search-hit')).toHaveCount(1)
@@ -289,7 +289,7 @@ test.describe('notas no pé da página', () => {
       })
       return { folhas, blocos, recortes }
     })
-    // Cada recorte dentro de uma folha, sem cobrir parágrafo nenhum do texto.
+    // Each slice within a sheet, without covering any text paragraph.
     for (const recorte of geometria.recortes) {
       expect(
         geometria.folhas.some((folha) => recorte.top >= folha.top && recorte.bottom <= folha.bottom),
@@ -298,7 +298,7 @@ test.describe('notas no pé da página', () => {
         expect(recorte.bottom <= bloco.top + 1 || recorte.top >= bloco.bottom - 1).toBe(true)
       }
     }
-    // A continuação começa onde a primeira folha parou e vai até o fim da nota.
+    // The continuation starts where the first sheet stopped and goes to the end of the note.
     const [primeira, continuacao] = geometria.recortes
     const numero = (linha: string): number => Number(/Linha (\d+)/.exec(linha)?.[1] ?? -1)
     expect(numero(continuacao!.primeira)).toBe(numero(primeira!.ultima) + 1)
@@ -325,7 +325,7 @@ test.describe('notas no pé da página', () => {
     }
     await session.window.keyboard.type('Fim da nota.')
     await expect(session.window.locator('.paper-notes__slot--continued').first()).toBeAttached()
-    // O corpo vivo; as continuações são cópias dele.
+    // The live body; continuations are copies of it.
     const nota = session.window.locator('.paper-notes__slot:not(.paper-notes__slot--continued) > .note-body')
     await expect(nota).toBeFocused()
     await expect(texto(session).locator('p').first()).toHaveText('Corpo')
@@ -341,7 +341,7 @@ test.describe('notas no pé da página', () => {
     await menu(session, 'insert-footnote')
     await session.window.keyboard.type('Nota')
     await expect(notas(session)).toBeFocused()
-    // O texto da nota e depois a nota.
+    // The note text, then the note.
     await session.window.keyboard.press('Control+z')
     await session.window.keyboard.press('Control+z')
     await expect(notas(session)).toHaveCount(0)
@@ -375,7 +375,7 @@ test.describe('notas no pé da página', () => {
   })
 
   test('comentário novo dentro da nota é recusado, e o texto fica como estava', async () => {
-    // O LibreOffice não abre o .docx com `w:commentReference` em `footnotes.xml`.
+    // LibreOffice does not open a .docx with `w:commentReference` in `footnotes.xml`.
     await menu(session, 'new-document')
     await texto(session).click()
     await session.window.keyboard.type('Ata')
@@ -411,7 +411,7 @@ test.describe('notas no pé da página', () => {
     const paragrafo = texto(session).locator('p', { hasText: 'Ver nota' })
     await expect(paragrafo).toHaveText('Ver nota 1')
 
-    // Uma nota nova antes da citada: o F9 passa a citar o 2.
+    // A new note before the cited one: F9 now cites 2.
     await texto(session).locator('p').first().click()
     await session.window.keyboard.press('Home')
     await menu(session, 'insert-footnote')
@@ -428,7 +428,7 @@ test.describe('notas no pé da página', () => {
     await stubDialogs(session.app, { open: origem, save: destino, messageBox: 1 })
     await menu(session, 'open')
     await expect(notas(session)).toHaveCount(2)
-    // Editar uma nota antes, e voltar ao texto.
+    // Editing an earlier note, and going back to the text.
     await notas(session).first().click()
     await session.window.keyboard.press('End')
     await session.window.keyboard.type(' Editada.')
