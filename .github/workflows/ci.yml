@@ -6,9 +6,9 @@ on:
   pull_request:
 
 jobs:
-  # Linux e Windows são as duas plataformas-alvo. O sidecar .NET
-  # sobe um processo filho e resolve caminhos de arquivo — duas coisas que se
-  # comportam diferente nos dois sistemas, e que só um runner de verdade pega.
+  # Linux and Windows are the two target platforms. The .NET sidecar starts a child process and
+  # resolves file paths, two things that behave differently on each system and that only a real
+  # runner catches.
   verify:
     strategy:
       fail-fast: false
@@ -41,27 +41,25 @@ jobs:
       - name: Testes do sidecar (.NET)
         run: npm run sidecar:test
 
-      # Precisa vir antes dos testes: o teste de ponta a ponta conversa com o
-      # binário publicado de verdade, que é o único que prova que os dois lados
-      # do protocolo concordam.
+      # Must come before the tests: the end-to-end test talks to the real published binary, the only
+      # one that proves both sides of the protocol agree.
       - name: Publicar sidecar
         run: npm run sidecar:build
 
       - name: Testes
         run: npm test
 
-      # Portão de licenças: o build falha se qualquer dependência transitiva
-      # trouxer licença fora da allowlist.
+      # License gate: the build fails if any transitive dependency brings a license outside the
+      # allowlist.
       - name: Licenças (npm)
         run: npm run licenses:check
 
       - name: Licenças (NuGet)
         run: npm run sidecar:licenses
 
-  # Os testes de ponta a ponta rodam contra o aplicativo **empacotado**, e não
-  # contra `out/`: é a única forma de provar que caminhos de recurso, asar e o
-  # binário do sidecar continuam onde o código espera depois de empacotar. Job
-  # separado porque empacotar leva minutos, e o `verify` precisa ser rápido.
+  # End-to-end tests run against the **packaged** app, not `out/`: the only way to prove that
+  # resource paths, asar and the sidecar binary are still where the code expects after packaging. A
+  # separate job because packaging takes minutes, and `verify` must be fast.
   instalador:
     strategy:
       fail-fast: false
@@ -90,7 +88,7 @@ jobs:
         if: runner.os == 'Windows'
         run: npm run dist:win
 
-      # Sem display não sobe janela nenhuma; o `xvfb-run` dá um ao runner.
+      # Without a display no window starts; `xvfb-run` gives the runner one.
       - name: Ponta a ponta sobre o pacote (Linux)
         if: runner.os == 'Linux'
         run: xvfb-run --auto-servernum npm run test:e2e
@@ -112,8 +110,8 @@ jobs:
             release/*.exe
           if-no-files-found: error
 
-  # O instalador precisa dos dois binários, e quem publica é uma máquina só:
-  # este job prova que a publicação cruzada funciona.
+  # The installer needs both binaries, and a single machine publishes them: this job proves cross
+  # publishing works.
   publicacao-cruzada:
     runs-on: ubuntu-latest
     steps:

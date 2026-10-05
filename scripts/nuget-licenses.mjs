@@ -1,6 +1,6 @@
 /**
- * Licenças dos pacotes NuGet resolvidos, lidas do cache local, para o portão
- * (`sidecar.mjs licenses`) e o aviso (`notices.mjs`) não divergirem.
+ * Licenses of the resolved NuGet packages, read from the local cache, so the gate (`sidecar.mjs
+ * licenses`) and the notices (`notices.mjs`) do not diverge.
  */
 
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
@@ -27,7 +27,7 @@ export function nugetAssetsExist() {
   return existsSync(assetsPath)
 }
 
-/** `[{ name, version, license }]`, ordenado. `license` é `null` quando não declarada. */
+/** `[{ name, version, license }]`, sorted. `license` is `null` when undeclared. */
 export function collectNuGetLicenses() {
   const assets = JSON.parse(readFileSync(assetsPath, 'utf8'))
   const packageFolders = Object.keys(assets.packageFolders ?? {})
@@ -54,7 +54,7 @@ export function collectNuGetLicenses() {
 
 function findNuspec(packageFolders, name, version) {
   for (const folder of packageFolders) {
-    // O cache do NuGet usa nomes em minúsculas.
+    // The NuGet cache uses lowercase names.
     const directory = join(folder, name.toLowerCase(), version.toLowerCase())
     if (!existsSync(directory)) continue
 
@@ -65,8 +65,8 @@ function findNuspec(packageFolders, name, version) {
 }
 
 /**
- * Só expressão SPDX conta: `SixLabors.Fonts` é Apache-2.0 na 1.0.0 e licença
- * própria, publicada como arquivo, da 2.x em diante.
+ * Only an SPDX expression counts: `SixLabors.Fonts` is Apache-2.0 in 1.0.0 and its own license,
+ * published as a file, from 2.x on.
  */
 function licenseOf(nuspecPath) {
   const xml = readFileSync(nuspecPath, 'utf8')

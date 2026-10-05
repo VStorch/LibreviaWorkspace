@@ -2,9 +2,9 @@ import js from '@eslint/js'
 import tseslint from 'typescript-eslint'
 
 /**
- * Além das regras usuais, este arquivo torna as fronteiras da arquitetura
- * verificáveis pelo linter. A regra de ouro do plano — "services/ não importa
- * electron nem react" — vira erro de build em vez de recomendação em documento.
+ * Besides the usual rules, this file makes the architecture boundaries checkable by the linter. The
+ * golden rule, "services/ does not import electron or react", becomes a build error instead of a
+ * recommendation in a document.
  */
 export default tseslint.config(
   { ignores: ['out/**', 'dist/**', 'node_modules/**', 'sidecar/**', 'resources/**', '.nix/**', '*.csv'] },
@@ -22,8 +22,8 @@ export default tseslint.config(
   },
 
   {
-    // Camada de lógica pura: precisa rodar tanto no main quanto no renderer,
-    // e ser testável sem Electron. Qualquer import daqui a quebraria.
+    // The pure logic layer: it must run in both main and renderer, and be testable without
+    // Electron. Any import from here would break that.
     files: ['src/services/**/*.ts', 'src/shared/**/*.ts'],
     rules: {
       'no-restricted-imports': [
@@ -63,7 +63,7 @@ export default tseslint.config(
   },
 
   {
-    // O preload é encaminhador: só electron e os contratos compartilhados.
+    // The preload is a forwarder: only electron and the shared contracts.
     files: ['src/preload/**/*.ts'],
     rules: {
       'no-restricted-imports': [
@@ -81,15 +81,15 @@ export default tseslint.config(
   },
 
   {
-    // O processo main não tem outro canal de diagnóstico: o que ele registra na
-    // subida é o que sobra para investigar "abre errado só naquela máquina".
+    // Main has no other diagnostic channel: what it logs on startup is what is left to investigate
+    // "opens wrong only on that machine".
     files: ['src/main/**/*.ts'],
     rules: { 'no-console': ['warn', { allow: ['info', 'warn', 'error'] }] },
   },
 
   {
-    // Tamanho e complexidade de função. Os limites saíram da medição do código
-    // (p95 de complexidade 13, de linhas 44, de parâmetros 4).
+    // Function size and complexity. The limits came from measuring the code (p95 complexity 13,
+    // lines 44, parameters 4).
     files: ['src/**/*.ts', 'src/**/*.tsx'],
     ignores: ['**/*.test.ts', '**/*.test.tsx'],
     rules: {
@@ -106,9 +106,8 @@ export default tseslint.config(
   },
 
   {
-    // Scripts de build: rodam no Node direto, fora do bundle, e falam com o
-    // usuário pelo terminal — `console` ali é a interface, não um resto de
-    // depuração esquecido.
+    // Build scripts: they run on Node directly, outside the bundle, and talk to the user through
+    // the terminal; `console` there is the interface, not leftover debugging.
     files: ['scripts/**/*.mjs'],
     languageOptions: {
       globals: { process: 'readonly', console: 'readonly', Buffer: 'readonly' },

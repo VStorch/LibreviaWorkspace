@@ -1,14 +1,13 @@
 /**
- * Encontra frase em portugues presa no codigo, fora do catalogo. O compilador
- * garante que toda chave existe nos dois idiomas, e nao sabe da frase que nunca
- * virou chave.
+ * Finds Portuguese sentences stuck in code, outside the catalog. The compiler guarantees every key
+ * exists in both languages, and knows nothing of a sentence that never became a key.
  *
- *   node scripts/untranslated.mjs          lista tudo, sai 1 se houver algo
- *   node scripts/untranslated.mjs --count  so o numero
+ *   node scripts/untranslated.mjs          lists everything, exits 1 if anything is found
+ *   node scripts/untranslated.mjs --count  only the number
  *
- * Comentarios, `*.test.ts` e `e2e/` ficam de fora: sao em portugues por regra. O
- * resto e string com letra acentuada ou palavra de funcao portuguesa; os falsos
- * positivos vao para a lista de excecoes, com o motivo.
+ * Comments, `*.test.ts` and `e2e/` are skipped: comments are in English and test names in
+ * Portuguese, by rule. The rest is strings with an accented letter or a Portuguese function word;
+ * false positives go to the exemption list, with the reason.
  */
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, relative, sep } from 'node:path'
@@ -16,22 +15,25 @@ import { join, relative, sep } from 'node:path'
 const ROOT = process.cwd()
 const SRC = join(ROOT, 'src')
 
-/** Pastas que a varredura nao entra. */
+/** Folders the scan does not enter. */
 const SKIP_DIRS = new Set(['node_modules', 'out', 'dist', 'release', '.git'])
 
-/** Arquivos isentos, com o motivo. Isencao e frase que quem escolheu ingles le em portugues. */
+/**
+ * Exempt files, with the reason. An exemption is a sentence that someone who chose English reads in
+ * Portuguese.
+ */
 const EXEMPT = new Map([
   ['src/shared/i18n', 'o catalogo guarda as duas linguas de proposito'],
-  // SOMA e PROCV sao sintaxe que o .xlsx guarda: traduzi-los quebraria as formulas.
+  // SOMA and PROCV are syntax the .xlsx stores: translating them would break the formulas.
   ['src/services/spreadsheet/formula', 'nome de funcao e sintaxe, nao interface'],
-  // Nenhum codigo renderiza `.does`. Se a tabela de atalhos for para a tela, tire daqui.
+  // No code renders `.does`. If the shortcut table ever reaches the screen, remove this.
   ['src/shared/shortcuts.ts', 'o campo does e documentacao, nao vai para a tela'],
   ['src/main/context-menu.ts', 'log tecnico de IPC no terminal do main, nao vai para a tela'],
   ['src/main/sidecar/index.ts', 'log tecnico de subida do sidecar no terminal do main, nao vai para a tela'],
   ['src/main/spellcheck.ts', 'logs tecnicos do corretor no terminal do main, nao vao para a tela'],
 ])
 
-/** Palavras que denunciam uma frase portuguesa mesmo sem acento. */
+/** Words that give away a Portuguese sentence even without accents. */
 const PT_WORDS =
   /\b(de|da|do|das|dos|para|com|sem|nao|nenhum|nenhuma|salvar|abrir|fechar|arquivo|pagina|linha|coluna|tabela|imagem|texto|erro|aviso)\b/i
 
@@ -45,7 +47,7 @@ function walk(dir, out = []) {
   return out
 }
 
-/** Tira comentario de bloco e de linha, preservando a contagem de linhas. */
+/** Strips block and line comments, keeping the line count. */
 function stripComments(source) {
   return source
     .replace(/\/\*[\s\S]*?\*\//g, (block) => block.replace(/[^\n]/g, ' '))
@@ -78,7 +80,7 @@ for (const file of walk(SRC)) {
   const lines = source.split('\n')
 
   lines.forEach((line, index) => {
-    // A linha que ja chama `t()` nao esta pendente: o argumento e a chave.
+    // A line already calling `t()` is not pending: the argument is the key.
     if (/\bt\(\s*['"]/.test(line)) return
 
     const quoted = [...line.matchAll(/(['"`])((?:\\.|(?!\1)[^\\\n])*)\1/g)].map((m) => m[2])

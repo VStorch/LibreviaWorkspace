@@ -6,35 +6,33 @@ directories:
   output: release
   buildResources: build
 
-# Só o que o aplicativo precisa para rodar. O código-fonte, os testes e o
-# projeto .NET ficam de fora: eles não são executados no destino, e cada
-# megabyte a mais é um megabyte que o instalador carrega por nada.
+# Only what the app needs to run. Source, tests and the .NET project stay out: they do not run on
+# the target, and every extra megabyte is one the installer carries for nothing.
 files:
   - out/**
   - package.json
   - '!**/*.map'
 
-# As fontes vão junto do sidecar, e pelo mesmo motivo de estarem fora do asar:
-# o Chromium as carrega por URL, e uma URL não alcança arquivo dentro de um
-# pacote compactado. São 7,2 MB e não são enfeite — sem elas a quebra de linha
-# muda e o documento pagina diferente na máquina de quem instala.
+# Fonts go along with the sidecar, outside the asar for the same reason: Chromium loads them by URL,
+# and a URL cannot reach a file inside a packed archive. They are 7.2 MB and not decoration: without
+# them line breaks change and the document paginates differently on the installer's machine.
 #
-# O dicionário de português sai do asar pelo mesmo motivo prático: ele é copiado
-# para o perfil do usuário na primeira execução, e copiar de dentro de um pacote
-# compactado exigiria descompactá-lo. São 3,8 MB que compram ortografia sem rede.
+# The Portuguese dictionary leaves the asar for the same practical reason: it is copied to the user
+# profile on first run, and copying from inside a packed archive would require unpacking it. 3.8 MB
+# that buy offline spelling.
 #
-# O sidecar não entra no asar: ele é um executável, e um executável dentro de
-# um arquivo compactado não pode ser lançado. Cada plataforma leva só o seu
-# binário — os 126 MB do outro não serviriam para nada no destino.
+# The sidecar does not go in the asar: it is an executable, and an executable inside a packed
+# archive cannot be launched. Each platform carries only its own binary; the other one's 126 MB
+# would be useless on the target.
 #
-# O destino é `resources/sidecar/<rid>` **dentro** de `resources/`, porque é ali
-# que `sidecarPathIn` procura a partir de `process.resourcesPath`.
+# The destination is `resources/sidecar/<rid>` **inside** `resources/`, because that is where
+# `sidecarPathIn` looks from `process.resourcesPath`.
 linux:
   category: Office
   synopsis: Suíte de documentos e planilhas, offline
-  # Sem isto o ambiente gráfico não liga a janela aberta ao ícone da barra de
-  # tarefas, e o aplicativo aparece como uma entrada genérica sem nome. O nome
-  # do arquivo `.desktop` vem do `package.json`, que é onde o builder o procura.
+  # Without this the desktop does not link the open window to the taskbar icon, and the app shows as
+  # a generic, nameless entry. The `.desktop` file name comes from `package.json`, which is where
+  # the builder looks.
   syncDesktopName: true
   target:
     - AppImage
@@ -45,19 +43,18 @@ linux:
       filter: ['!*.pdb']
     - from: resources/fonts
       to: resources/fonts
-    # O dicionário de português. Viaja pela mesma razão das fontes — a máquina de
-    # destino não tem nenhum — e é copiado para o perfil do usuário na primeira
-    # execução, porque é lá que o corretor do Chromium o procura antes de tentar
-    # baixá-lo. Ver src/main/spellcheck.ts.
+    # The Portuguese dictionary. It ships for the same reason as the fonts (the target machine has
+    # none) and is copied to the user profile on first run, because that is where Chromium's
+    # spellchecker looks before trying to download it. See src/main/spellcheck.ts.
     - from: resources/dictionaries
       to: resources/dictionaries
       filter: ['*.bdic']
-    # Os modelos da galeria — ver src/main/ipc/templates.ts.
+    # The gallery templates; see src/main/ipc/templates.ts.
     - from: resources/templates
       to: resources/templates
       filter: ['*.dotx']
     - THIRD-PARTY-NOTICES.md
-  # Extensões que o aplicativo abre, para o gerenciador de arquivos oferecê-lo.
+  # Extensions the app opens, so the file manager offers it.
   mimeTypes:
     - application/vnd.openxmlformats-officedocument.wordprocessingml.document
     - application/vnd.openxmlformats-officedocument.wordprocessingml.template
@@ -83,22 +80,21 @@ win:
       filter: ['!*.pdb']
     - from: resources/fonts
       to: resources/fonts
-    # O dicionário de português. Viaja pela mesma razão das fontes — a máquina de
-    # destino não tem nenhum — e é copiado para o perfil do usuário na primeira
-    # execução, porque é lá que o corretor do Chromium o procura antes de tentar
-    # baixá-lo. Ver src/main/spellcheck.ts.
+    # The Portuguese dictionary. It ships for the same reason as the fonts (the target machine has
+    # none) and is copied to the user profile on first run, because that is where Chromium's
+    # spellchecker looks before trying to download it. See src/main/spellcheck.ts.
     - from: resources/dictionaries
       to: resources/dictionaries
       filter: ['*.bdic']
-    # Os modelos da galeria — ver src/main/ipc/templates.ts.
+    # The gallery templates; see src/main/ipc/templates.ts.
     - from: resources/templates
       to: resources/templates
       filter: ['*.dotx']
     - THIRD-PARTY-NOTICES.md
 
 nsis:
-  # Instalação por usuário: em máquina corporativa nem todo mundo tem
-  # administrador, e exigir elevação transformaria "instalar" em "abrir chamado".
+  # Per-user install: on corporate machines not everyone is an administrator, and requiring
+  # elevation would turn "install" into "open a ticket".
   oneClick: false
   perMachine: false
   allowToChangeInstallationDirectory: true
@@ -106,12 +102,12 @@ nsis:
   createStartMenuShortcut: true
 
 deb:
-  # Endereço `.internal` de propósito: é o TLD reservado para uso interno, e
-  # dizer isso é mais honesto que inventar um domínio público que não existe.
-  # Troque pelo endereço da empresa antes de distribuir de verdade.
+  # A `.internal` address on purpose: it is the TLD reserved for internal use, and saying so is more
+  # honest than inventing a public domain that does not exist. Replace it with the company address
+  # before distributing for real.
   maintainer: Librevia <librevia@librevia.internal>
-  # `libnotify` e companhia são as dependências habituais de um Electron em
-  # Debian/Ubuntu; sem elas o pacote instala e o aplicativo não abre.
+  # `libnotify` and friends are an Electron app's usual dependencies on Debian/Ubuntu; without them
+  # the package installs and the app does not open.
   depends:
     - libgtk-3-0
     - libnotify4
@@ -122,6 +118,6 @@ deb:
     - libatspi2.0-0
     - libsecret-1-0
 
-# Nada de assinatura por enquanto: não há certificado, e assinar com um
-# autoassinado dá mais aviso do que garantia.
+# No signing for now: there is no certificate, and signing with a self-signed one gives more
+# warnings than guarantees.
 publish: null

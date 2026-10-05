@@ -21,8 +21,8 @@ export default defineConfig({
     resolve: { alias },
     plugins: [externalizeDepsPlugin()],
     build: {
-      // `sandbox: true` exige preload em CommonJS: preloads sandboxed não
-      // suportam ESM. Por isso a saída aqui é .cjs, e não .mjs.
+      // `sandbox: true` requires a CommonJS preload: sandboxed preloads do not support ESM. Hence
+      // the .cjs output here, not .mjs.
       rollupOptions: {
         input: { index: resolve('src/preload/index.ts') },
         output: { format: 'cjs', entryFileNames: '[name].cjs' },

@@ -1,8 +1,7 @@
 /**
- * Gera `THIRD-PARTY-NOTICES.md` com os três conjuntos distribuídos: as dependências
- * npm de produção, o Electron (com Chromium e Node.js), que é `devDependency` mas
- * viaja no instalador, e os pacotes NuGet do sidecar self-contained. O portão
- * `licenses:check` olha só o primeiro.
+ * Generates `THIRD-PARTY-NOTICES.md` with the three distributed sets: production npm dependencies,
+ * Electron (with Chromium and Node.js), which is a `devDependency` but ships in the installer, and
+ * the self-contained sidecar's NuGet packages. The `licenses:check` gate only looks at the first.
  */
 
 import { execFileSync } from 'node:child_process'
@@ -16,8 +15,8 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const require = createRequire(import.meta.url)
 
 function npmPackages() {
-  // O JS do license-checker por este Node, e não `npx`: no Windows é `npx.cmd`, que
-  // `execFile` sem shell não executa. O `require` acha o pacote onde o npm o içou.
+  // license-checker's JS through this Node, not `npx`: on Windows it is `npx.cmd`, which `execFile`
+  // without a shell does not run. `require` finds the package where npm hoisted it.
   const checker = require.resolve('license-checker-rseidelsohn/bin/license-checker-rseidelsohn.js')
 
   const json = execFileSync(
@@ -44,10 +43,7 @@ function electronRuntime() {
   return manifest.version
 }
 
-/**
- * As fontes empacotadas, por família e quem a assina; `fonts.test.ts` confere que os
- * arquivos existem.
- */
+/** The bundled fonts, by family and who signs them; `fonts.test.ts` checks the files exist. */
 function bundledFonts() {
   return [
     ['Carlito (substitui Calibri)', 'OFL-1.1', 'https://github.com/googlefonts/carlito'],

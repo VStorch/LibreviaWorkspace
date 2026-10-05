@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 /**
- * Build e portão de licenças do sidecar .NET, em Node porque a citação de shell
- * quebra no Windows e o portão precisa de lógica.
+ * Build and license gate for the .NET sidecar, in Node because shell quoting breaks on Windows and
+ * the gate needs logic.
  *
- *   node scripts/sidecar.mjs build [--all]   publica o binário
- *   node scripts/sidecar.mjs licenses        reprova licença fora da allowlist
+ *   node scripts/sidecar.mjs build [--all]   publishes the binary
+ *   node scripts/sidecar.mjs licenses        fails on a license outside the allowlist
  */
 
 import { spawnSync } from 'node:child_process'
@@ -51,15 +51,15 @@ function build(all) {
       rid,
       '--output',
       join(root, 'resources', 'sidecar', rid),
-      // Sem restauração de rede depois da primeira: o projeto é offline.
+      // No network restore after the first: the project is offline.
       '--nologo',
     ])
   }
 }
 
 /**
- * Verifica o grafo NuGet resolvido: sem expressão SPDX, reprova. `licenseUrl` aponta
- * um texto que muda, como a licença de `SixLabors.Fonts`, dependência do ClosedXML.
+ * Checks the resolved NuGet graph: without an SPDX expression, it fails. `licenseUrl` points to
+ * text that changes, like the license of `SixLabors.Fonts`, a ClosedXML dependency.
  */
 function licenses() {
   if (!nugetAssetsExist()) {

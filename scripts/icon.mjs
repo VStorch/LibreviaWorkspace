@@ -1,7 +1,7 @@
 /**
- * Gera o ícone provisório do aplicativo, um PNG escrito à mão: quadrado de canto
- * arredondado com um "L" claro. Trocar é substituir `build/icon.png` por um PNG de
- * 512×512. O formato mínimo são três blocos e um CRC, e `node:zlib` comprime.
+ * Generates the app's provisional icon, a hand-written PNG: a rounded square with a light "L". To
+ * replace it, swap `build/icon.png` for a 512×512 PNG. The minimal format is three chunks and a
+ * CRC, and `node:zlib` compresses.
  */
 
 import { deflateSync } from 'node:zlib'
@@ -10,10 +10,10 @@ import { dirname, resolve } from 'node:path'
 
 const SIZE = 512
 const RADIUS = 96
-const BACKGROUND = [26, 58, 92] // azul-ardósia
+const BACKGROUND = [26, 58, 92] // slate blue
 const MARK = [244, 246, 249]
 
-/** O "L", em fração do lado: haste vertical e pé horizontal. */
+/** The "L", as a fraction of the side: vertical stem and horizontal foot. */
 const STEM = { x: 0.34, y: 0.24, w: 0.1, h: 0.52 }
 const FOOT = { x: 0.34, y: 0.66, w: 0.32, h: 0.1 }
 
@@ -21,7 +21,7 @@ function inside(x, y, box) {
   return x >= box.x * SIZE && x < (box.x + box.w) * SIZE && y >= box.y * SIZE && y < (box.y + box.h) * SIZE
 }
 
-/** Canto arredondado: fora do raio, o pixel é transparente. */
+/** Rounded corner: outside the radius, the pixel is transparent. */
 function opaque(x, y) {
   const corners = [
     [RADIUS, RADIUS],
@@ -43,7 +43,7 @@ function opaque(x, y) {
 }
 
 function pixels() {
-  // Uma linha de filtro (0 = nenhum) antes de cada linha de pixels, como o PNG pede.
+  // A filter byte (0 = none) before each pixel row, as PNG requires.
   const raw = Buffer.alloc(SIZE * (SIZE * 4 + 1))
   let at = 0
 
@@ -88,9 +88,9 @@ function png() {
   const header = Buffer.alloc(13)
   header.writeUInt32BE(SIZE, 0)
   header.writeUInt32BE(SIZE, 4)
-  header[8] = 8 // bits por canal
+  header[8] = 8 // bits per channel
   header[9] = 6 // RGBA
-  // profundidade, filtro e entrelaçamento ficam em zero: o básico do formato.
+  // depth, filter and interlace stay at zero: the format's basics.
 
   return Buffer.concat([
     Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
