@@ -42,13 +42,13 @@ describe('placeBookmark e removeBookmark', () => {
       ['Novo', '3'],
     ])
 
-    // O mesmo nome outra vez: continua um só.
+    // The same name again: still a single one.
     placeBookmark(tr, 'Novo')
     expect(bookmarksOf(tr.doc).filter((bookmark) => bookmark.name === 'Novo')).toHaveLength(1)
 
     expect(removeBookmark(tr, 'Velho')).toBe(true)
     expect(bookmarksOf(tr.doc).map((bookmark) => bookmark.name)).toEqual(['Novo'])
-    // O texto fica.
+    // The text stays.
     expect(tr.doc.textContent).toBe('abcdef')
   })
 })
@@ -94,14 +94,14 @@ describe('withoutRepeatedBookmarks', () => {
 describe('seleção de uma linha inteira', () => {
   it('leva junto os marcadores encostados no começo e no fim do texto', () => {
     const doc = docOf([start('_Ref1', '1'), text('Figura 1'), end('1')])
-    // O começo do texto é a posição 2 (depois do marcador); o fim, 10.
+    // The text starts at position 2 (after the bookmark); it ends at 10.
     let state = EditorState.create({ doc })
     state = state.apply(state.tr.setSelection(TextSelection.create(state.doc, 2, 10)))
     const extended = extendOverAnchors(state)
     expect(extended).not.toBeNull()
     expect([extended!.selection.from, extended!.selection.to]).toEqual([1, 11])
 
-    // No meio do texto, nada muda.
+    // In the middle of the text, nothing changes.
     state = state.apply(state.tr.setSelection(TextSelection.create(state.doc, 3, 5)))
     expect(extendOverAnchors(state)).toBeNull()
   })
@@ -109,10 +109,10 @@ describe('seleção de uma linha inteira', () => {
   it('o pedaço que só encosta numa ponta não leva a âncora dali', () => {
     const doc = docOf([start('_Ref1', '1'), text('Figura 1'), end('1')])
     let state = EditorState.create({ doc })
-    // Shift+← do fim: só o "1".
+    // Shift+← from the end: only the "1".
     state = state.apply(state.tr.setSelection(TextSelection.create(state.doc, 10, 9)))
     expect(extendOverAnchors(state)).toBeNull()
-    // Ctrl+Shift+→ do começo: só "Figura".
+    // Ctrl+Shift+→ from the start: only "Figura".
     state = state.apply(state.tr.setSelection(TextSelection.create(state.doc, 2, 8)))
     expect(extendOverAnchors(state)).toBeNull()
   })

@@ -1,23 +1,26 @@
 /**
- * O corretor é o do Chromium, no main (`src/main/spellcheck.ts`). Um nome de
- * arquivo diferente do que ele procura o faria tentar baixar o dicionário, e
- * offline não haveria verificação nem aviso.
+ * The spellchecker is Chromium's, in main (`src/main/spellcheck.ts`). A file name other than the
+ * one it looks for would make it try to download the dictionary, and offline there would be no
+ * checking and no warning.
  */
 
 export const SPELL_LANGUAGE = 'pt-BR'
 
-/** A revisão do formato binário, e não do dicionário: o Chromium a põe no nome que procura. */
+/** The binary format revision, not the dictionary's: Chromium puts it in the name it looks for. */
 export const DICTIONARY_REVISION = '3-0'
 
-/** Pasta que o Chromium abre dentro do diretório de dados do usuário. */
+/** The folder Chromium opens inside the user data directory. */
 export const DICTIONARY_FOLDER = 'Dictionaries'
 
-/** O Chromium procura `<idioma>-<revisão>.bdic` na pasta local antes de baixar. */
+/** Chromium looks for `<language>-<revision>.bdic` in the local folder before downloading. */
 export function dictionaryFileName(language: string = SPELL_LANGUAGE): string {
   return `${language}-${DICTIONARY_REVISION}.bdic`
 }
 
-/** Um `.bdic` inválido o Chromium apaga e tenta baixar: conferir em teste vira falha de build. */
+/**
+ * Chromium deletes an invalid `.bdic` and tries to download: checking it in a test turns that into
+ * a build failure.
+ */
 export function hasBdictSignature(bytes: Uint8Array): boolean {
   if (bytes.length < 4) return false
   return bytes[0] === 0x42 && bytes[1] === 0x44 && bytes[2] === 0x69 && bytes[3] === 0x63

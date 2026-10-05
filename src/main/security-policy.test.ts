@@ -7,8 +7,8 @@ import {
 } from './security-policy.js'
 
 describe('SECURE_WEB_PREFERENCES', () => {
-  // Este bloco existe para que afrouxar o isolamento seja impossível de fazer
-  // por acidente: quem mudar qualquer um destes valores quebra o build.
+  // This block makes loosening the isolation impossible by accident: changing any of these values
+  // breaks the build.
   it.each([
     ['contextIsolation', true],
     ['nodeIntegration', false],

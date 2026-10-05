@@ -22,8 +22,8 @@ describe('redimensionar imagem pelas alças', () => {
       maxWidth: wide,
     })
 
-    // A proporção travada faz a altura acompanhar a largura mesmo sem o
-    // ponteiro ter subido ou descido: é o eixo horizontal que manda.
+    // A locked ratio makes the height follow the width even when the pointer did not move
+    // vertically: the horizontal axis rules.
     expect(size).toEqual({ width: 500, height: 375 })
   })
 
@@ -54,8 +54,7 @@ describe('redimensionar imagem pelas alças', () => {
   })
 
   it('a alça de borda mexe numa medida só, mesmo com a proporção pedida', () => {
-    // A alça do meio existe justamente para esticar num eixo: travar a
-    // proporção nela a tornaria igual à do canto.
+    // The middle handle exists to stretch one axis: locking the ratio on it would make it a corner.
     const size = resizedImage({
       handle: ResizeHandle.East,
       start,
@@ -82,8 +81,8 @@ describe('redimensionar imagem pelas alças', () => {
   })
 
   it('a imagem não passa da coluna de texto', () => {
-    // Sem o teto, o gravador encolheria a imagem por conta própria ao salvar — e
-    // o que a tela mostra deixaria de ser o que o arquivo tem.
+    // Without the ceiling, the writer would shrink the image on its own when saving, and the screen
+    // would no longer show what the file has.
     const size = resizedImage({
       handle: ResizeHandle.SouthEast,
       start,
@@ -97,8 +96,8 @@ describe('redimensionar imagem pelas alças', () => {
   })
 
   it('a imagem não encolhe até não dar para pegar de volta', () => {
-    // Abaixo do mínimo as oito alças se sobrepõem, e crescer de volta só seria
-    // possível desfazendo um arrasto que a pessoa não terminou.
+    // Below the minimum the eight handles overlap, and growing back would only be possible by
+    // undoing an unfinished drag.
     const size = resizedImage({
       handle: ResizeHandle.SouthEast,
       start,
@@ -112,8 +111,8 @@ describe('redimensionar imagem pelas alças', () => {
   })
 
   it('o tamanho sai em pixel inteiro', () => {
-    // O número vai para o atributo do nó, e um valor com casas decimais mudaria
-    // a cada quadro por ruído de ponto flutuante — a paginação remede em todos.
+    // The number goes into the node attribute, and a value with decimals would change every frame
+    // from floating-point noise, making pagination remeasure everything.
     const size = resizedImage({
       handle: ResizeHandle.SouthEast,
       start: { width: 401, height: 297 },

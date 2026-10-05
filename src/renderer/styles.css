@@ -1,12 +1,12 @@
 /*
-  Toda cor, sombra e canto arredondado sai das variáveis daqui de cima, para a
-  mesma coisa não parecer duas conforme o editor aberto.
-*/
+ * Every color, shadow and rounded corner comes from the variables up here, so the same thing does
+ * not look like two depending on the editor open.
+ */
 
 :root {
   --bg: #f5f6f8;
   --surface: #ffffff;
-  /* Fundo em que o papel e a grade repousam: mais escuro que o resto da casca. */
+  /* The background paper and grid rest on: darker than the rest of the shell. */
   --sunken: #eceef1;
   --border: #e2e5ea;
   --border-strong: #c7ced6;
@@ -15,9 +15,9 @@
   --muted: #6b7280;
 
   /*
-    Documento azul e planilha verde, como Word e Excel, Writer e Calc: é como a
-    pessoa sabe onde está. A casca troca `--accent` pela classe do `.app`.
-  */
+   * Documents blue and spreadsheets green, like Word and Excel, Writer and Calc: that is how people
+   * know where they are. The shell swaps `--accent` through the `.app` class.
+   */
   --accent: var(--accent-document);
   --accent-soft: var(--accent-document-soft);
   --accent-line: var(--accent-document-line);
@@ -30,7 +30,7 @@
   --accent-spreadsheet-soft: #e3f1e9;
   --accent-spreadsheet-line: #b0d9c3;
 
-  /* Estados. Vermelho é erro; âmbar pede atenção; azul apenas informa. */
+  /* States. Red is error; amber asks for attention; blue only informs. */
   --danger-bg: #fdecea;
   --danger-border: #f3c2bd;
   --danger-text: #91231a;
@@ -44,21 +44,21 @@
   --info-border: #a9c7e8;
   --info-text: #16395c;
 
-  /* Cores que seriam fixas, e por isso viram variáveis que o tema alcança. */
+  /* Colors that would be fixed, and so become variables the theme reaches. */
 
-  /* No escuro a ênfase clareia, e o texto por cima dela escurece junto. */
+  /* In dark mode the emphasis lightens, and the text on it darkens along. */
   --on-accent: #ffffff;
 
-  /* No escuro a mistura é com o papel, e não com o branco. */
+  /* In dark mode the mix is with the paper, not with white. */
   --selection-mix: #ffffff;
 
-  /* O destaque do "Localizar" é do aplicativo, e não do documento. */
+  /* The "Find" highlight belongs to the app, not to the document. */
   --search-hit: #ffe9a8;
   --search-hit-current: #ffb938;
   --comment-hit: #fbeecb;
   --comment-hit-active: #f5d77e;
 
-  /* O filete de forma sem cor declarada acompanha o tema. */
+  /* A shape rule without a declared color follows the theme. */
   --rule: #000000;
 
   --radius: 10px;
@@ -71,14 +71,13 @@
 }
 
 /*
-  O tema escuro é só variáveis. `data-theme` é escrito pelo renderer a partir da
-  consulta de mídia, que obedece ao `nativeTheme.themeSource` (`state/theme.ts`).
-  O papel escurece sem inverter; a cor que o documento escolheu continua dele
-  (`content-styles.ts`); e nada disto entra no arquivo.
-*/
+ * The dark theme is only variables. The renderer writes `data-theme` from the media query, which
+ * obeys `nativeTheme.themeSource` (`state/theme.ts`). The paper darkens without inverting; a color
+ * the document chose stays its own (`content-styles.ts`); and none of this goes into the file.
+ */
 :root[data-theme='dark'] {
   --bg: #16181c;
-  /* Mais claro que o fundo, como no tema claro. */
+  /* Lighter than the background, as in the light theme. */
   --surface: #1e2126;
   --sunken: #101215;
   --border: #2c3138;
@@ -87,7 +86,7 @@
   --text: #e4e7ea;
   --muted: #9aa3ad;
 
-  /* #1f5fa9 dá 2.4:1 sobre este fundo: a ênfase clareia, mantendo azul e verde. */
+  /* #1f5fa9 gives 2.4:1 on this background: the emphasis lightens, keeping blue and green. */
   --accent-document: #6ba5e7;
   --accent-document-soft: #1c2a3a;
   --accent-document-line: #2f4a68;
@@ -110,9 +109,9 @@
   --info-text: #a8c9ec;
 
   /*
-    Branco sobre #6ba5e7 dá 2.6:1, e o quase-preto 8.9:1. A seleção mistura com
-    o papel escuro, o "localizar" vira âmbar escuro, e o filete é o próprio texto.
-  */
+   * White on #6ba5e7 gives 2.6:1, near-black 8.9:1. The selection mixes with the dark paper, "find"
+   * becomes dark amber, and the rule is the text itself.
+   */
   --on-accent: #10151b;
   --selection-mix: #1e2126;
   --search-hit: #4a3a12;
@@ -121,7 +120,7 @@
   --comment-hit-active: #6b5520;
   --rule: #e4e7ea;
 
-  /* Sobre fundo escuro a sombra some: a separação vem da borda. */
+  /* On a dark background shadows vanish: separation comes from the border. */
   --shadow-sm: 0 1px 2px rgb(0 0 0 / 40%);
   --shadow-md: 0 4px 12px rgb(0 0 0 / 45%);
   --shadow-lg: 0 12px 32px rgb(0 0 0 / 55%);
@@ -158,7 +157,7 @@ button {
   color: inherit;
 }
 
-/* `:focus-visible`: o anel é para quem chega pelo teclado. */
+/* `:focus-visible`: the ring is for keyboard users. */
 :where(button, input, select, textarea, [tabindex]):focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
@@ -166,9 +165,9 @@ button {
 }
 
 /*
-  A do sistema disputaria atenção com os dados da planilha. A borda
-  transparente com `background-clip` dá folga sem encolher a área de clique.
-*/
+ * The system one would compete with the spreadsheet data. A transparent border with
+ * `background-clip` adds room without shrinking the click area.
+ */
 ::-webkit-scrollbar {
   width: 12px;
   height: 12px;
@@ -250,7 +249,7 @@ button {
   background: rgb(0 0 0 / 8%);
 }
 
-/* Informa, não alarma: o documento abriu. */
+/* Informs, does not alarm: the document opened. */
 .banner--notice {
   background: var(--notice-bg);
   border-bottom-color: var(--notice-border);
@@ -261,7 +260,7 @@ button {
   margin-top: 6px;
 }
 
-/* Âmbar de atenção, e não vermelho: nada quebrou. */
+/* Attention amber, not red: nothing broke. */
 .banner--readonly {
   background: var(--warn-bg);
   border-bottom-color: var(--warn-border);
@@ -273,7 +272,7 @@ button {
   border-color: var(--warn-text);
 }
 
-/* Azul de informação: há trabalho de volta. */
+/* Information blue: there is work to get back. */
 .banner--recovery {
   background: var(--info-bg);
   border-bottom-color: var(--info-border);
@@ -301,7 +300,7 @@ button {
   filter: brightness(1.15);
 }
 
-/* Descartar apaga trabalho: não compete em peso visual com recuperar. */
+/* Discarding deletes work: it does not compete in visual weight with recovering. */
 .banner__action--quiet {
   background: none;
   color: inherit;
@@ -374,7 +373,7 @@ button {
   box-shadow: none;
 }
 
-/* Na cor do editor que o botão abre. */
+/* In the color of the editor the button opens. */
 .tile__icon {
   display: flex;
   align-items: center;
@@ -395,7 +394,7 @@ button {
   color: var(--accent-spreadsheet);
 }
 
-/* Abrir não escolhe tipo: quem decide é o arquivo. */
+/* Opening does not pick a kind: the file decides. */
 .tile__icon--neutral {
   background: var(--bg);
   color: var(--muted);
@@ -507,7 +506,10 @@ button {
   background: var(--surface);
   font-size: 12px;
   color: var(--muted);
-  /* A contagem muda a cada tecla, e dígitos de larguras diferentes fariam o número tremer. */
+  /*
+   * The count changes on every key press, and digits of different widths would make the number
+   * shake.
+   */
   font-variant-numeric: tabular-nums;
 }
 
@@ -633,7 +635,7 @@ button {
   background: var(--hover);
 }
 
-/* A seção do cursor. O leitor de tela ouve o mesmo pelo `aria-current`. */
+/* The cursor's section. Screen readers get the same through `aria-current`. */
 .nav-pane__entry--current {
   background: var(--accent-soft);
   box-shadow: inset 3px 0 0 var(--accent);
@@ -650,11 +652,11 @@ button {
   padding: 28px 24px 60px;
   display: flex;
   justify-content: center;
-  /* Sem isto o `stretch` do flex cortaria a folha na altura do contêiner. */
+  /* Otherwise flex `stretch` would cut the sheet at the container height. */
   align-items: flex-start;
 }
 
-/* Folhas, faixas e texto são três camadas na mesma origem: o texto corre como um fluxo só. */
+/* Sheets, bands and text are three layers on the same origin: the text runs as a single flow. */
 .pages {
   position: relative;
   flex-shrink: 0;
@@ -665,12 +667,15 @@ button {
   flex-shrink: 0;
 }
 
-/* Na leitura não há zoom nem papel: o invólucro some do layout. */
+/* Reading has no zoom or paper: the wrapper leaves the layout. */
 .pages-zoom--reading {
   display: contents;
 }
 
-/* Atrás do texto, e não em volta: envolvê-lo exigiria partir o texto, e a seleção saberia da página. */
+/*
+ * Behind the text, not around it: wrapping it would require splitting the text, and the selection
+ * would know about pages.
+ */
 .paper {
   position: absolute;
   left: 0;
@@ -686,7 +691,7 @@ button {
   outline: 1px dashed #b7791f;
 }
 
-/* O número no canto da folha, como o Writer mostra na régua lateral. */
+/* The number in the sheet corner, as Writer shows on the side ruler. */
 .paper__number {
   position: absolute;
   right: -34px;
@@ -696,7 +701,7 @@ button {
   user-select: none;
 }
 
-/* Duas camadas, como o `behindDoc` do OOXML. Nenhuma recebe clique: o cursor pertence ao texto. */
+/* Two layers, like OOXML's `behindDoc`. Neither takes clicks: the cursor belongs to the text. */
 .paper-floats {
   position: absolute;
   inset: 0;
@@ -710,7 +715,7 @@ button {
   z-index: 2;
 }
 
-/* Acima da coluna de texto, que cobre a folha inteira e apanharia o clique da caixa do cabeçalho. */
+/* Above the text column, which covers the whole sheet and would catch the header box click. */
 .paper-floats--band-behind {
   z-index: 2;
 }
@@ -721,11 +726,11 @@ button {
 .paper-float {
   position: absolute;
   object-fit: contain;
-  /* A extensão que o arquivo declara já inclui o contorno. */
+  /* The extent the file declares already includes the outline. */
   box-sizing: border-box;
 }
 
-/* O filete do cabeçalho: a forma tem altura zero, e o que se vê é o contorno. */
+/* The header rule: the shape has zero height, and what shows is the outline. */
 .paper-float--rule {
   border-top: 1px solid var(--rule);
 }
@@ -734,14 +739,14 @@ button {
   margin: 0;
 }
 
-/* Sem isto o cursor não chegaria ao título da capa, que não está no fluxo. */
+/* Otherwise the cursor could not reach the cover title, which is not in the flow. */
 .paper-float--edit {
   pointer-events: auto;
   cursor: text;
   outline: none;
 }
 
-/* No papel a moldura não existe. */
+/* On paper the frame does not exist. */
 .paper-float--edit:hover {
   outline: 1px dashed var(--border-strong);
   outline-offset: 2px;
@@ -759,23 +764,23 @@ button {
   pointer-events: none;
 }
 
-/* A margem de baixo nasce do vão que a paginação empurra. */
+/* The bottom margin comes from the gap pagination pushes. */
 .pages__column {
   position: relative;
-  /* A ordem que o OOXML pede. */
+  /* The order OOXML asks for. */
   z-index: 1;
 }
 
-/* Dentro da margem, como no papel. Só as peças de texto com endereço recebem clique. */
+/* Inside the margin, as on paper. Only text pieces with an address take clicks. */
 .band {
   position: absolute;
-  /* O `z-index: 1` da coluna vale para a folha inteira e apanharia o clique da peça. */
+  /* The column's `z-index: 1` applies to the whole sheet and would catch the piece's click. */
   z-index: 2;
-  /* Laterais do tamanho do conteúdo: em três terços iguais, um título grande quebraria. */
+  /* Sides sized to content: in three equal thirds, a long title would wrap. */
   display: grid;
   grid-template-columns: auto 1fr auto;
   align-items: center;
-  /* Só entre as colunas: a altura da faixa empurra o corpo, e o espaço viraria margem. */
+  /* Only between columns: the band height pushes the body, and the space would become margin. */
   column-gap: 12px;
   pointer-events: none;
   user-select: none;
@@ -783,7 +788,7 @@ button {
   line-height: 1.2;
 }
 
-/* `top` e `bottom` vêm em linha, de `w:pgMar/@header` e `@footer`. */
+/* `top` and `bottom` come inline, from `w:pgMar/@header` and `@footer`. */
 
 .band--ruled.band--header {
   padding-bottom: 3px;
@@ -795,7 +800,7 @@ button {
   border-top: 1px solid var(--border-strong);
 }
 
-/* Cada parágrafo do arquivo é uma linha: num flex, um `br` não gera caixa. */
+/* Each file paragraph is a line: in a flex container, a `br` creates no box. */
 .band__cell {
   display: flex;
   flex-direction: column;
@@ -810,7 +815,7 @@ button {
   gap: 6px;
 }
 
-/* `min-width` porque uma peça esvaziada não teria onde clicar. */
+/* `min-width` because an emptied piece would have nowhere to click. */
 .band__text {
   pointer-events: auto;
   user-select: text;
@@ -837,7 +842,7 @@ button {
   align-items: flex-end;
 }
 
-/* A moldura do cabeçalho atravessa os três terços. */
+/* The header frame crosses the three thirds. */
 .band__grid {
   grid-column: 1 / -1;
   width: 100%;
@@ -846,7 +851,7 @@ button {
 }
 
 .band__grid td {
-  /* Como o Word: 1,9 mm nos lados (`w:tblCellMar`). */
+  /* As in Word: 1.9 mm on the sides (`w:tblCellMar`). */
   padding: 0 1.9mm;
   vertical-align: middle;
   overflow-wrap: break-word;
@@ -870,7 +875,7 @@ button {
   background: var(--search-hit-current);
 }
 
-/* A impressão sai do JSON e não vê esta decoração. */
+/* Printing comes from the JSON and does not see this decoration. */
 .comment-range {
   background: var(--comment-hit);
 }
@@ -883,7 +888,7 @@ button {
   background: var(--comment-hit-active);
 }
 
-/* Como "Todas as marcações" do Word; as seis cores se repetem a partir do sétimo autor. */
+/* Like Word's "All Markup"; the six colors repeat from the seventh author on. */
 .revision-author-0 {
   --revision: #1f5fa9;
 }
@@ -915,7 +920,7 @@ button {
   text-decoration-color: var(--revision);
 }
 
-/* O Enter inserido ou excluído, sem mexer na altura da linha. */
+/* An inserted or deleted Enter, without changing the line height. */
 .ProseMirror [data-revision]::after {
   content: '¶';
   color: var(--revision);
@@ -939,7 +944,7 @@ button {
   text-decoration: line-through;
 }
 
-/* Fora da marcação completa o que sai não ocupa lugar: a paginação mede a tela. */
+/* Outside all markup what goes away takes no space: pagination measures the screen. */
 .ProseMirror:is(.revisions-simple, .revisions-none) del.revision,
 .ProseMirror.revisions-original ins.revision,
 .ProseMirror .revision-hidden {
@@ -955,7 +960,7 @@ button {
   content: none;
 }
 
-/* A linha alterada guarda a barra só na marcação simples. */
+/* A changed row keeps its bar only in simple markup. */
 .ProseMirror:is(.revisions-none, .revisions-original) tr[data-revision] {
   box-shadow: none;
 }
@@ -982,7 +987,7 @@ button {
   background: #b3261e;
 }
 
-/* Dentro da pilha, para o zoom escalar junto. */
+/* Inside the stack, so zoom scales it along. */
 .comments-pane {
   position: absolute;
   top: 0;
@@ -1067,7 +1072,7 @@ button {
   margin-top: 6px;
 }
 
-/* Links discretos, como na margem do Word. */
+/* Discreet links, as in Word's margin. */
 .comment-card__actions {
   display: flex;
   flex-wrap: wrap;
@@ -1124,7 +1129,7 @@ button {
   margin-top: 4px;
 }
 
-/* `row-gap` maior: em janela estreita as linhas precisam se distinguir. */
+/* A larger `row-gap`: in a narrow window the rows need to stand apart. */
 .toolbar {
   display: flex;
   flex-wrap: wrap;
@@ -1136,7 +1141,7 @@ button {
   border-bottom: 1px solid var(--border);
 }
 
-/* O grupo não se parte: ou cabe inteiro na linha, ou desce inteiro. */
+/* A group does not split: it either fits whole on the line or wraps whole. */
 .tgroup {
   display: flex;
   flex-wrap: nowrap;
@@ -1189,7 +1194,7 @@ button {
   border-color: var(--border-strong);
 }
 
-/* O seletor nativo fica invisível por cima do ícone, que mostra a cor atual, como no Word. */
+/* The native picker sits invisible over the icon, which shows the current color, as in Word. */
 .tcolor {
   display: inline-flex;
   align-items: center;
@@ -1225,7 +1230,7 @@ button {
   width: 16px;
   height: 4px;
   border-radius: 1px;
-  /* Senão a cor igual à do fundo sumiria. */
+  /* Otherwise a color equal to the background would vanish. */
   box-shadow: inset 0 0 0 1px rgb(0 0 0 / 15%);
 }
 
@@ -1345,7 +1350,7 @@ button {
   font: inherit;
 }
 
-/* Como no Word; o diálogo é alto e rola dentro da janela. */
+/* As in Word; the dialog is tall and scrolls inside the window. */
 .properties__field {
   flex-direction: row;
   align-items: baseline;
@@ -1382,7 +1387,7 @@ button {
   padding: 0 4px;
 }
 
-/* "Manter com o próximo" é uma frase, e não uma etiqueta. */
+/* "Keep with next" is a sentence, not a label. */
 .popover__check {
   display: flex;
   align-items: center;
@@ -1454,7 +1459,7 @@ button {
   flex-direction: column;
 }
 
-/* A aba ativa é a folha branca sobre a tira, com um fio de cor junto à grade. */
+/* The active tab is the white sheet over the strip, with a colored line next to the grid. */
 .tabs {
   display: flex;
   align-items: stretch;
@@ -1603,7 +1608,7 @@ button {
   text-overflow: ellipsis;
 }
 
-/* O revogrid traz cores próprias. */
+/* Revogrid brings its own colors. */
 .sheet revo-grid {
   flex: 1;
   min-height: 0;
@@ -1632,7 +1637,7 @@ button {
   --rg-theme-shadow: var(--shadow-md);
 }
 
-/* Números alinhados, como na barra de status. */
+/* Aligned digits, as in the status bar. */
 .sheet revo-grid .rgCell {
   font-variant-numeric: tabular-nums;
 }
@@ -1667,13 +1672,13 @@ button {
   color: var(--accent);
 }
 
-/* "Colar" apagado explica por que não colou. */
+/* A greyed-out "Paste" explains why it did not paste. */
 .ctx-menu__item:disabled {
   color: var(--muted);
   cursor: default;
 }
 
-/* Como no Word. */
+/* As in Word. */
 .ctx-menu__item--suggestion {
   font-weight: 600;
 }
@@ -1711,7 +1716,7 @@ button {
   font-weight: 400;
 }
 
-/* O catálogo inteiro passaria da janela em tela pequena. */
+/* The whole catalog would overflow the window on a small screen. */
 .chars {
   display: flex;
   flex-direction: column;
@@ -1751,7 +1756,7 @@ button {
   border-color: var(--accent-line);
 }
 
-/* Casas mais largas que as dos caracteres: "sin" e "2×2" não cabem em 30px. */
+/* Wider slots than the characters': "sin" and "2×2" do not fit in 30px. */
 .equation__source {
   width: 100%;
   box-sizing: border-box;
@@ -1789,7 +1794,7 @@ button {
   font-size: 14px;
 }
 
-/* Um `.docx` do Word declara dezenas de estilos. */
+/* A Word `.docx` declares dozens of styles. */
 .styles-list {
   margin: 0;
   padding: 0;
@@ -1813,12 +1818,12 @@ button {
   border-bottom: none;
 }
 
-/* A cor sozinha não é informação: o leitor de tela ouve o `aria-current`. */
+/* Color alone is not information: screen readers get `aria-current`. */
 .styles-list__item--current {
   background: var(--accent-soft);
 }
 
-/* Contorno, para não se confundir com o fundo do "do cursor". */
+/* An outline, so it is not confused with the "at cursor" background. */
 .styles-list__item {
   cursor: pointer;
 }
@@ -1843,9 +1848,9 @@ button {
 }
 
 /*
-  Some tudo o que não é o documento. A coluna tem `70ch`, o meio da faixa de 45
-  a 75 caracteres em que se lê melhor, medido na fonte do documento.
-*/
+ * Everything that is not the document goes away. The column is `70ch`, the middle of the 45 to 75
+ * character range that reads best, measured in the document font.
+ */
 .reading-hint {
   position: fixed;
   top: 16px;
@@ -1919,7 +1924,7 @@ button {
   pointer-events: none;
 }
 
-/* Acima da coluna de texto, que cobre também o pé da folha: a nota se edita. */
+/* Above the text column, which also covers the sheet foot: the note is editable. */
 .paper-notes {
   pointer-events: auto;
   z-index: 2;
@@ -1929,7 +1934,7 @@ button {
   cursor: text;
 }
 
-/* Transparentes, e não escondidos: a nota nova recebe o foco aqui antes de ir para o pé da folha. */
+/* Transparent, not hidden: a new note gets focus here before moving to the sheet foot. */
 .note-pool {
   position: absolute;
   top: 0;
@@ -1937,7 +1942,7 @@ button {
   pointer-events: none;
 }
 
-/* No modo de leitura não há folha: as notas vêm depois do texto, numa lista. */
+/* Reading mode has no sheets: notes come after the text, in a list. */
 .note-pool--reading {
   position: static;
   opacity: 1;
@@ -1952,7 +1957,7 @@ button {
   overflow-y: auto;
 }
 
-/* Por cima de tudo, também da tela inicial: a galeria abre sem documento. */
+/* Above everything, home screen included: the gallery opens without a document. */
 .templates__backdrop {
   position: fixed;
   inset: 0;

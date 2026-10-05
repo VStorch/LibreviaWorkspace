@@ -14,9 +14,8 @@ describe('caracteres sem espaço', () => {
   })
 
   it('desconta também o espaço inquebrável que vem do Word', () => {
-    // `\u00a0` chega em data, em número e antes de unidade. Contá-lo como
-    // caractere de texto daria um total maior que o do Word, sem nada na tela
-    // que explicasse a diferença.
+    // `\u00a0` appears in dates, numbers and before units. Counting it as a text character would give a
+    // larger total than Word's, with nothing on screen to explain the difference.
     expect(charactersWithoutSpaces('12\u00a0kg')).toBe(4)
   })
 
@@ -32,8 +31,7 @@ describe('parágrafos', () => {
       content: [paragrafo('Primeira'), paragrafo(''), paragrafo('Segunda')],
     }
 
-    // Enter batido para abrir espaço não é conteúdo — e o Word também não o
-    // conta.
+    // An Enter pressed to make room is not content, and Word does not count it either.
     expect(countParagraphs(doc)).toBe(2)
   })
 
@@ -70,9 +68,8 @@ describe('parágrafos', () => {
   })
 
   it('a marca de seção não é um parágrafo do texto', () => {
-    // No OOXML a seção termina num `w:sectPr` guardado dentro de um parágrafo
-    // vazio: é estrutura do arquivo, e o documento de evidências do corpus tem
-    // seis dessas marcas no meio do texto.
+    // In OOXML a section ends in a `w:sectPr` kept inside an empty paragraph: file structure, and
+    // the corpus evidence document has six such marks in the middle of the text.
     const doc: DocumentNode = {
       type: 'doc',
       content: [paragrafo('Texto'), { type: 'paragraph', attrs: { sectionMark: true } }],

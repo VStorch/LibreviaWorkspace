@@ -20,8 +20,8 @@ import {
 
 describe('borda e sombreamento de célula', () => {
   it('célula sem nada declarado abre o diálogo sem lado marcado', () => {
-    // Célula nova: os dois atributos nulos. O diálogo mostra nenhum lado declarado, e
-    // "Restaurar padrão" oferece os quatro.
+    // A new cell: both attributes null. The dialog shows no declared side, and "Reset" offers all
+    // four.
     expect(tableDraftFrom({ borders: null, shading: null })).toEqual({
       ...DEFAULT_TABLE_DRAFT,
       sides: { top: false, right: false, bottom: false, left: false },
@@ -29,7 +29,7 @@ describe('borda e sombreamento de célula', () => {
   })
 
   it('o texto do atributo tem uma escrita só', () => {
-    // Uma escrita só para a impressão digital: `0,50 pt` e `0.5 pt` regenerariam a tabela.
+    // A single spelling for the fingerprint: `0,50 pt` and `0.5 pt` would regenerate the table.
     const borders = withBorderOnSides(NO_CELL_BORDERS, ['top', 'bottom'], {
       style: CellBorderStyle.Double,
       widthPt: 1.5,
@@ -40,7 +40,7 @@ describe('borda e sombreamento de célula', () => {
   })
 
   it('sem lado declarado o atributo é nulo, e não texto vazio', () => {
-    // Ausente e nulo dizem o mesmo; texto vazio diria "há borda, sem lado".
+    // Absent and null say the same; an empty string would say "there is a border, with no side".
     expect(cellBordersToAttr(NO_CELL_BORDERS)).toBeNull()
   })
 
@@ -50,19 +50,19 @@ describe('borda e sombreamento de célula', () => {
   })
 
   it('texto estragado não derruba a célula', () => {
-    // Atributo de HTML colado ou de outra versão: no pior caso, a célula sem borda.
+    // An attribute from pasted HTML or another version: at worst, a cell without borders.
     expect(cellBordersFromAttr('lixo')).toEqual(NO_CELL_BORDERS)
     expect(cellBordersFromAttr(42)).toEqual(NO_CELL_BORDERS)
     expect(cellBordersFromAttr('top:enfeite,1,#000000')).toEqual(NO_CELL_BORDERS)
   })
 
   it('cor fora do formato do arquivo volta ao preto', () => {
-    // `w:color` só aceita seis dígitos; `rgb(…)` o Word dá por danificado.
+    // `w:color` only accepts six digits; Word reports `rgb(…)` as damaged.
     expect(cellBordersFromAttr('top:single,1,rgb(0,0,0)').top?.color).toBe('#000000')
   })
 
   it('borda apagada de propósito vira largura zero no CSS', () => {
-    // `w:val="nil"` apaga a borda da tabela, que reapareceria em `border-collapse`.
+    // `w:val="nil"` erases the table border, which would reappear under `border-collapse`.
     const borders = withBorderOnSides(NO_CELL_BORDERS, ['bottom'], {
       style: CellBorderStyle.None,
       widthPt: 0.5,
@@ -83,7 +83,7 @@ describe('borda e sombreamento de célula', () => {
   })
 
   it('lado desmarcado no diálogo volta a nulo, e não a borda apagada', () => {
-    // "Sem opinião" deixa a borda da tabela valer, "apagada" a remove: ausência e `w:nil`.
+    // "No opinion" lets the table border apply, "erased" removes it: absence and `w:nil`.
     const cell = { borders: 'top:single,0.5,#000000;right:single,0.5,#000000', shading: null }
     const before = tableDraftFrom(cell)
     const after = { ...before, sides: { ...before.sides, right: false } }
@@ -115,14 +115,14 @@ describe('borda e sombreamento de célula', () => {
   })
 
   it('quatro lados, nem mais nem menos', () => {
-    // Os lados do `w:tcBorders`.
+    // The `w:tcBorders` sides.
     expect(CELL_BORDER_SIDES).toEqual(['top', 'right', 'bottom', 'left'])
   })
 })
 
 describe('largura das colunas como a tela as desenha', () => {
   it('tabela sem largura declarada divide a coluna de texto em partes iguais', () => {
-    // Como `table-layout: fixed` com `width: 100%`, a tabela recém-inserida.
+    // Like `table-layout: fixed` with `width: 100%`, a freshly inserted table.
     expect(resolvedColumnWidths([null, null, null], 600)).toEqual([200, 200, 200])
   })
 
@@ -131,19 +131,20 @@ describe('largura das colunas como a tela as desenha', () => {
   })
 
   it('largura declarada em todas passa inteira', () => {
-    // A tabela mais larga que a coluna é decisão de quem arrastou, e o Word a desenha assim.
+    // A table wider than the column is the decision of whoever dragged it, and Word draws it that
+    // way.
     expect(resolvedColumnWidths([400, 500], 600)).toEqual([400, 500])
   })
 
   it('coluna nunca fica com medida que o gravador descarta', () => {
-    // Largura zero ou negativa faria o gravador descartar a grade.
+    // A zero or negative width would make the writer drop the grid.
     expect(resolvedColumnWidths([null, null], 1).every((width) => width >= 1)).toBe(true)
   })
 })
 
 describe('validação do formulário de tabela', () => {
   it('espessura fora da faixa do arquivo não passa', () => {
-    // `w:sz` mede em oitavos de ponto e cabe num byte: até 31 pt.
+    // `w:sz` measures eighths of a point and fits in a byte: up to 31 pt.
     expect(isValidTableDraft({ ...DEFAULT_TABLE_DRAFT, borderWidthPt: 0 })).toBe(false)
     expect(isValidTableDraft({ ...DEFAULT_TABLE_DRAFT, borderWidthPt: MAX_BORDER_PT + 1 })).toBe(false)
     expect(isValidTableDraft({ ...DEFAULT_TABLE_DRAFT, borderWidthPt: Number.NaN })).toBe(false)
@@ -159,7 +160,7 @@ describe('validação do formulário de tabela', () => {
   })
 
   it('tamanho de tabela tem teto, e não é purismo', () => {
-    // Cada célula é um parágrafo medido: mil por mil travaria o editor.
+    // Each cell is a measured paragraph: a thousand by a thousand would freeze the editor.
     expect(isValidTableSize(3, 3)).toBe(true)
     expect(isValidTableSize(0, 3)).toBe(false)
     expect(isValidTableSize(2.5, 3)).toBe(false)
@@ -169,8 +170,8 @@ describe('validação do formulário de tabela', () => {
 })
 
 describe('o diálogo aplica só o que a pessoa mexeu', () => {
-  // O Word grava `w:val="nil"` o tempo todo, e o rascunho usa a primeira borda para
-  // os quatro lados: trocar o sombreamento não pode apagar a borda de baixo.
+  // Word writes `w:val="nil"` all the time, and the draft uses the first border for all four sides:
+  // changing the shading must not erase the bottom border.
   const cell = { borders: 'top:none,0.5,#000000;bottom:single,1.5,#ff0000', shading: null }
   const before = tableDraftFrom(cell)
 
@@ -207,8 +208,8 @@ describe('o diálogo aplica só o que a pessoa mexeu', () => {
   })
 
   it('em outra célula da seleção, o que mudou vale e o resto dela fica', () => {
-    // O rascunho nasce da célula do cursor; a vizinha selecionada tem bordas
-    // próprias, e só o campo alterado chega a ela.
+    // The draft comes from the cursor's cell; the selected neighbour has its own borders, and only
+    // the changed field reaches it.
     const vizinha = { borders: 'right:dotted,2,#00ff00', shading: '#eeeeee' }
     const after = { ...before, borderWidthPt: 1 }
 

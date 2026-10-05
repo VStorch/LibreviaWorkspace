@@ -7,8 +7,8 @@ import { useWorkspace } from '../state/workspace.js'
 import { textWithoutDeletions } from './extensions/track-changes.js'
 
 /**
- * Duas colunas, documento e seleção: a pergunta costuma ser sobre **este
- * trecho**. Palavras e caracteres vêm do `CharacterCount`, como na barra de status.
+ * Two columns, document and selection: the question is usually about **this passage**. Words and
+ * characters come from `CharacterCount`, as in the status bar.
  */
 export function WordCountDialog({
   editor,
@@ -20,14 +20,14 @@ export function WordCountDialog({
   const t = useT()
   const pages = useWorkspace((state) => state.pageCount)
 
-  // Ao vivo: o texto pode mudar com o diálogo aberto.
+  // Live: the text may change with the dialog open.
   const counts = useEditorState({
     editor,
     selector: ({ editor: current }) => {
       const { from, to, empty } = current.state.selection
       return {
         document: tally(current, current.state.doc),
-        // `doc.cut` devolve o nó que o `CharacterCount` aceita.
+        // `doc.cut` returns the node `CharacterCount` accepts.
         selection: empty ? null : tally(current, current.state.doc.cut(from, to)),
       }
     },
@@ -71,7 +71,7 @@ export function WordCountDialog({
             document={counts.document.paragraphs}
             selection={counts.selection?.paragraphs}
           />
-          {/* Páginas só do documento: "meia página selecionada" seria número inventado. */}
+          {/* Pages only for the document: "half a page selected" would be an invented number. */}
           <Row label={t('document.wordCount.pages')} document={pages} selection={undefined} />
         </tbody>
       </table>
@@ -99,7 +99,7 @@ export function tally(editor: Editor, node: ProseMirrorNode): Tally {
   return {
     words: storage.words({ node }),
     characters: storage.characters({ node }),
-    // O mesmo texto que o `CharacterCount` mede, para "com" menos "sem" espaços dar os espaços.
+    // The same text `CharacterCount` measures, so "with" minus "without" spaces gives the spaces.
     charactersNoSpaces: charactersWithoutSpaces(textWithoutDeletions(node, undefined, ' ')),
     paragraphs: countParagraphs(node.toJSON() as DocumentNode),
   }
@@ -118,7 +118,7 @@ function Row({
     <tr>
       <th scope="row">{label}</th>
       <td>{document.toLocaleString('pt-BR')}</td>
-      {/* "Nada selecionado" não é "zero palavras". */}
+      {/* "Nothing selected" is not "zero words". */}
       <td>{selection === undefined ? '—' : selection.toLocaleString('pt-BR')}</td>
     </tr>
   )

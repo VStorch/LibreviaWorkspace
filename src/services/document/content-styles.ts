@@ -1,6 +1,6 @@
 /**
- * O mesmo CSS vai ao editor e ao HTML que gera o PDF, para o papel sair igual à
- * tela. Não usa variáveis CSS do aplicativo: precisa valer num HTML isolado.
+ * The same CSS goes to the editor and to the HTML that renders the PDF, so paper matches the
+ * screen. No app CSS variables: it must work in a standalone HTML.
  */
 import { DOCUMENT_FONT_CSS } from './fonts.js'
 
@@ -190,11 +190,10 @@ ${DOCUMENT_FONT_CSS}
 `
 
 /**
- * O tema escuro mora aqui, e nunca em `DOCUMENT_CONTENT_CSS`: o papel impresso é
- * branco em qualquer tema. Só troca de cor o que o documento não pediu; a cor
- * do autor vem em estilo inline e ganha. Um texto declarado preto fica preto
- * sobre o papel escuro: distingui-lo exigiria mexer no HTML que alimenta a
- * gravação cirúrgica.
+ * The dark theme lives here, never in `DOCUMENT_CONTENT_CSS`: printed paper is white in any theme.
+ * Only what the document did not ask for changes color; the author's color comes inline and wins. A
+ * text declared black stays black on dark paper: telling it apart would mean changing the HTML that
+ * feeds the surgical save.
  */
 const DARK_CONTENT_CSS = `
 :root[data-theme='dark'] .page__content {
@@ -230,7 +229,7 @@ const DARK_CONTENT_CSS = `
 }
 `
 
-/* A altura do separador vem da paginação; o traço fica no meio dele. */
+/* The separator height comes from pagination; the line sits in its middle. */
 export const NOTES_CSS = `
 .paper-notes { position: absolute; }
 .paper-notes__separator { position: relative; }
@@ -250,7 +249,7 @@ export const NOTES_CSS = `
 .note-number { vertical-align: super; font-size: 0.65em; line-height: 0; }
 `
 
-/** Só do editor: seleção de célula, alça de redimensionamento, quebra de página. */
+/** Editor only: cell selection, resize handle, page break. */
 export const EDITOR_ONLY_CSS = `
 /* O sombreado cinza do Word mostra que o número é calculado. Só na tela. */
 .page__content .field.ProseMirror-selectednode { background: #d9d9d9; outline: none; }
@@ -362,7 +361,7 @@ ${DARK_CONTENT_CSS}
 }
 `
 
-/** Só no papel: título órfão, linha de tabela partida e imagem cortada. */
+/** Paper only: orphan heading, split table row and cropped image. */
 export const PRINT_ONLY_CSS = `
 .page__content [data-page-break] {
   break-after: page;

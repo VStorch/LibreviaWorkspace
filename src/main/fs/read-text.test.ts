@@ -27,8 +27,8 @@ describe('readTextFile', () => {
   })
 
   it('remove o BOM de UTF-8', async () => {
-    // É o que o Bloco de Notas do Windows grava — e o BOM apareceria como um
-    // caractere invisível no começo do documento.
+    // What Windows Notepad writes, and the BOM would show as an invisible character at the start of
+    // the document.
     const bytes = Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), Buffer.from('Ata', 'utf8')])
     const path = await writeBytes('bom-utf8.txt', bytes)
 
@@ -51,8 +51,8 @@ describe('readTextFile', () => {
   })
 
   it('recusa conteúdo binário', async () => {
-    // Abrir um executável por engano encheria o editor de lixo — e salvá-lo
-    // destruiria o arquivo.
+    // Opening an executable by mistake would fill the editor with garbage, and saving it would
+    // destroy the file.
     const path = await writeBytes('binario.txt', Buffer.from([0x7f, 0x45, 0x4c, 0x46, 0x00, 0x01]))
 
     await expect(readTextFile(path)).rejects.toMatchObject({ code: 'NOT_TEXT_FILE' })

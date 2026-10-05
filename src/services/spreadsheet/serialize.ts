@@ -28,7 +28,7 @@ const cellSchema = z.object({
   style: cellStyleSchema.optional(),
 })
 
-/** As chaves saem do JSON como texto: `z.coerce` as devolve a número. */
+/** Keys come out of JSON as text: `z.coerce` turns them back into numbers. */
 const dimensionsSchema = z.record(z.coerce.number().int().nonnegative(), z.number().positive().max(4000))
 
 const sheetSchema = z.object({
@@ -57,7 +57,7 @@ export function serializeWorkbook(model: WorkbookModel): string {
   )
 }
 
-/** Arquivo corrompido ou de versão futura produz uma frase, e não um erro de JSON. */
+/** A corrupt file or one from a future version gives a sentence, not a JSON error. */
 export function parseWorkbook(text: string, language: Language = Language.Portuguese): WorkbookModel {
   let raw: unknown
   try {
@@ -75,7 +75,7 @@ export function parseWorkbook(text: string, language: Language = Language.Portug
     throw new AppError(ErrorCode.UnsupportedFormat, translate(language, 'spreadsheet.error.newerVersion'))
   }
 
-  // Aba ativa fora do intervalo não impede a leitura.
+  // An out-of-range active tab does not stop reading.
   const activeSheet = parsed.data.activeSheet < parsed.data.sheets.length ? parsed.data.activeSheet : 0
 
   return { sheets: parsed.data.sheets, activeSheet }

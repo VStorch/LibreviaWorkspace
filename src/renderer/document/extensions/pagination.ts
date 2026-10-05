@@ -4,10 +4,9 @@ import { Decoration, DecorationSet, type EditorView } from '@tiptap/pm/view'
 import { LINE_GAP_CLASS } from '../line-boxes.js'
 
 /**
- * O bloco que abre uma folha ganha uma margem do tamanho do que sobrou da
- * anterior, mais as margens e o vão entre papéis. Como **decoração**, e não
- * elemento: um espaçador de verdade entraria na seleção, no `Ctrl+A` e no que se
- * copia.
+ * The block opening a sheet gets a margin the size of what was left of the previous one, plus the
+ * margins and the gap between papers. As a **decoration**, not an element: a real spacer would
+ * enter the selection, `Ctrl+A` and what gets copied.
  */
 export const paginationKey = new PluginKey<DecorationSet>('pagination')
 
@@ -24,7 +23,8 @@ export const Pagination = Extension.create({
             const next = transaction.getMeta(paginationKey) as DecorationSet | undefined
             if (next !== undefined) return next
 
-            // Até a medição chegar, as decorações acompanham a edição, senão as folhas piscariam.
+            // Until the measurement arrives, decorations follow editing, or the sheets would
+            // flicker.
             return current.map(transaction.mapping, transaction.doc)
           },
         },
@@ -32,7 +32,7 @@ export const Pagination = Extension.create({
           decorations: (state) => paginationKey.getState(state),
         },
       }),
-      // A captura ancorada com texto: a linha de 1lh (`content-styles.ts`) não se soma.
+      // An anchored capture with text: its 1lh line (`content-styles.ts`) does not add up.
       new Plugin({
         props: {
           decorations: (state) => {
@@ -50,7 +50,7 @@ export const Pagination = Extension.create({
   },
 })
 
-/** Fora do histórico: desfazer volta o que a pessoa escreveu, e não onde a página caiu. */
+/** Outside the history: undo brings back what the user wrote, not where the page fell. */
 export function applyPageGaps(
   view: EditorView,
   written: ReadonlyMap<number, number>,
@@ -59,7 +59,7 @@ export function applyPageGaps(
 ): void {
   const decorations: Decoration[] = []
 
-  // O cabeçalho repetido é cópia num widget: fora da seleção e da edição.
+  // The repeated header is a copy in a widget: outside selection and editing.
   for (const header of headers) {
     if (header.position <= 0 || header.position > view.state.doc.content.size) continue
     decorations.push(
@@ -71,9 +71,9 @@ export function applyPageGaps(
     )
   }
 
-  // No corte entre linhas, o espaçador tem a largura da linha e vem antes do
-  // primeiro caractere da que abre a folha: a de cima termina onde já terminava,
-  // com a mesma justificação. `vertical-align: top` não soma a descendente ao vão.
+  // On a break between lines, the spacer is as wide as the line and comes before the first
+  // character of the line opening the sheet: the line above ends where it already ended, with the
+  // same justification. `vertical-align: top` does not add the descender to the gap.
   for (const [position, gap] of lines) {
     if (gap <= 0 || position <= 0 || position > view.state.doc.content.size) continue
     decorations.push(
@@ -93,7 +93,7 @@ export function applyPageGaps(
       )
     }
 
-    // O desvio das colunas pode ser negativo; só o zero não se escreve.
+    // Column offsets can be negative; only zero is not written.
     const gap = written.get(offset)
     if (gap === undefined || (gap === 0 && !gaps.has(offset))) return
 
@@ -113,23 +113,23 @@ export function applyPageGaps(
   )
 }
 
-/** O que a paginação empurra além dos vãos entre blocos. */
+/** What pagination pushes beyond the gaps between blocks. */
 export interface PageGapExtras {
-  /** Pela posição do primeiro caractere da linha. */
+  /** By the position of the line's first character. */
   readonly lines?: ReadonlyMap<number, number>
   readonly headers?: readonly RepeatedHeader[]
-  /** Translação, e não margem: mudar de coluna não muda a altura. */
+  /** A translation, not a margin: changing column does not change the height. */
   readonly columns?: ReadonlyMap<number, number>
 }
 
-/** As linhas de cabeçalho de uma tabela, repetidas no alto de uma folha. */
+/** A table's header rows, repeated at the top of a sheet. */
 export interface RepeatedHeader {
-  /** Início do conteúdo da primeira célula da linha que abre a folha. */
+  /** Start of the content of the first cell in the row opening the sheet. */
   readonly position: number
-  /** Com as colunas da original e só as linhas de cabeçalho. */
+  /** With the original's columns and only the header rows. */
   readonly html: string
   readonly height: number
-  /** A partir do canto do conteúdo da célula. */
+  /** From the corner of the cell content. */
   readonly offsetTop: number
   readonly offsetLeft: number
 }
@@ -148,7 +148,7 @@ function repeatedHeader(header: RepeatedHeader): HTMLElement {
   return element
 }
 
-/** `data-page-shift` é o que a medida desconta. */
+/** `data-page-shift` is what measuring subtracts. */
 function lineGap(gap: number): HTMLElement {
   const element = document.createElement('span')
   element.className = LINE_GAP_CLASS
@@ -159,7 +159,7 @@ function lineGap(gap: number): HTMLElement {
   return element
 }
 
-/** Captura ancorada **e** texto; ver `content-styles.ts`. */
+/** An anchored capture **and** text; see `content-styles.ts`. */
 export const ANCHOR_TEXT_ATTR = 'data-anchor-text'
 
 export function hasAnchoredImageAndText(node: {

@@ -6,7 +6,7 @@ import {
   type AppMode,
 } from './security-policy.js'
 
-/** Nega toda permissão de dispositivo: o app não precisa de nenhuma. */
+/** The app needs no device permissions. */
 export function applySessionPolicy(session: Session, mode: AppMode): void {
   const csp = buildContentSecurityPolicy(mode)
 
@@ -23,7 +23,7 @@ export function applySessionPolicy(session: Session, mode: AppMode): void {
   session.setPermissionCheckHandler(() => false)
 }
 
-/** `appOrigin` é o servidor de desenvolvimento, ou `null` em produção (`file:`). */
+/** `appOrigin` is the development server, or `null` in production (`file:`). */
 export function applyNavigationPolicy(contents: WebContents, appOrigin: string | null): void {
   contents.on('will-navigate', (event, url) => {
     if (!isAllowedNavigation(url, appOrigin)) event.preventDefault()
@@ -31,7 +31,7 @@ export function applyNavigationPolicy(contents: WebContents, appOrigin: string |
 
   contents.on('will-attach-webview', (event) => event.preventDefault())
 
-  // Nenhuma janela filha: links vão ao navegador do sistema, depois da lista de esquemas.
+  // No child windows: links go to the system browser, after the scheme allowlist.
   contents.setWindowOpenHandler(({ url }) => {
     if (isAllowedExternalUrl(url)) void shell.openExternal(url)
     return { action: 'deny' }

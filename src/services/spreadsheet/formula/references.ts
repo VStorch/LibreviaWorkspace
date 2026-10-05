@@ -1,4 +1,6 @@
-/** O `$` decide o que acontece ao copiar: `A1` acompanha, `` não sai, `A` e `` prendem um eixo. */
+/**
+ * The `$` decides what happens on copy: `A1` follows, `$A$1` stays, `$A1` and `A$1` pin one axis.
+ */
 
 import { columnIndex, columnName } from '../model.js'
 import { ParseError } from './errors.js'
@@ -11,7 +13,7 @@ export interface CellRef {
   readonly columnAbsolute: boolean
 }
 
-/** `Planilha1!$B$3` → referência. Devolve `null` se não for uma. */
+/** `Planilha1!$B$3` → reference. `null` if it is not one. */
 export function parseReference(text: string): CellRef | null {
   const { sheet, rest } = splitSheet(text)
   const match = /^(\$?)([A-Za-z]{1,3})(\$?)(\d{1,7})$/.exec(rest)
@@ -35,7 +37,7 @@ export function formatReference(ref: CellRef): string {
   return ref.sheet === undefined ? body : `${quoteSheet(ref.sheet)}!${body}`
 }
 
-/** Sem apóstrofos, `Vendas 2026!A1` se partiria no espaço. */
+/** Without apostrophes, `Vendas 2026!A1` would split at the space. */
 export function quoteSheet(name: string): string {
   return /^[\p{L}\p{N}_]+$/u.test(name) ? name : `'${name.replaceAll("'", "''")}'`
 }

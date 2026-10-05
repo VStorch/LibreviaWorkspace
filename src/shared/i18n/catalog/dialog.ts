@@ -29,7 +29,7 @@ export const DIALOG = {
   'dialog.filter.markdown': { pt: 'Markdown', en: 'Markdown' },
   'dialog.export.odtTitle': { pt: 'Exportar como ODT', en: 'Export as ODT' },
   'dialog.filter.odt': { pt: 'Texto do OpenDocument (ODT)', en: 'OpenDocument Text (ODT)' },
-  // O que vai dentro do arquivo exportado, na língua da interface.
+  // Written inside the exported file, in the UI language.
   'dialog.export.notes': { pt: 'Notas', en: 'Notes' },
   'dialog.export.backToText': { pt: 'Voltar ao texto', en: 'Back to text' },
   'dialog.image.title': { pt: 'Inserir imagem', en: 'Insert image' },

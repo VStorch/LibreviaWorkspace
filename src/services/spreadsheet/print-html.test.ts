@@ -9,9 +9,8 @@ function sheetWith(cells: Array<[number, number, Parameters<typeof setCell>[3]]>
 
 describe('usedBounds', () => {
   it('para no último dado, não no fim da grade', () => {
-    // Uma planilha nova tem mil linhas e nenhum dado. Imprimir a grade inteira
-    // gastaria dezenas de páginas em branco, e o usuário descobriria isso na
-    // bandeja da impressora.
+    // A new sheet has a thousand rows and no data. Printing the whole grid would waste dozens of
+    // blank pages, and the user would find out at the printer tray.
     const sheet = sheetWith([
       [0, 0, { value: 'Produto' }],
       [2, 3, { value: 10 }],
@@ -33,7 +32,7 @@ describe('buildSheetHtml', () => {
   it('formata a célula como na tela', () => {
     const sheet = sheetWith([[0, 0, { value: 12.5, style: { format: CellFormat.Currency } }]])
 
-    // O mesmo `formatCell` da grade: a célula não pode sair diferente no papel.
+    // The same `formatCell` as the grid: the cell must not look different on paper.
     expect(buildSheetHtml(sheet)).toContain('R$')
   })
 
@@ -49,17 +48,16 @@ describe('buildSheetHtml', () => {
   })
 
   it('não inventa alinhamento que a tela não faz', () => {
-    // O Excel joga número à direita por conta própria; a grade daqui não faz
-    // isso. Imprimir diferente do que está na tela quebra a única promessa que
-    // a impressão tem.
+    // Excel right-aligns numbers on its own; this grid does not. Printing differently from the
+    // screen breaks the only promise printing has.
     const sheet = sheetWith([[0, 0, { value: 42 }]])
 
     expect(buildSheetHtml(sheet)).not.toContain('text-align')
   })
 
   it('as linhas congeladas viram cabeçalho da tabela', () => {
-    // O navegador repete o `<thead>` no topo de cada página impressa. É o que
-    // quem congelou a linha na tela esperava que acontecesse no papel.
+    // The browser repeats `<thead>` at the top of each printed page. That is what someone who froze
+    // the row on screen expects on paper.
     const sheet: Sheet = {
       ...sheetWith([
         [0, 0, { value: 'Produto' }],
@@ -80,7 +78,7 @@ describe('buildSheetHtml', () => {
   })
 
   it('escapa o conteúdo da célula', () => {
-    // O texto vem de um documento, que é dado não confiável.
+    // The text comes from a document, which is untrusted data.
     const sheet = sheetWith([[0, 0, { value: '<script>alert(1)</script>' }]])
 
     expect(buildSheetHtml(sheet)).not.toContain('<script>')
@@ -88,8 +86,8 @@ describe('buildSheetHtml', () => {
   })
 
   it('recusa cor que não seja #rrggbb', () => {
-    // Sem a trava, uma "cor" com ponto e vírgula sairia do atributo `style` e
-    // viraria outra declaração.
+    // Without the guard, a "color" with a semicolon would leave the `style` attribute and become
+    // another declaration.
     const sheet = sheetWith([[0, 0, { value: 'x', style: { color: 'red;background:url(http://x)' } }]])
     const html = buildSheetHtml(sheet)
 
@@ -98,8 +96,8 @@ describe('buildSheetHtml', () => {
   })
 
   it('converte a largura das colunas em proporção', () => {
-    // Em pixels, uma planilha mais larga que a página sai com a última coluna
-    // cortada na margem — e o usuário só descobre depois de imprimir.
+    // In pixels, a sheet wider than the page comes out with the last column clipped at the margin,
+    // and the user only finds out after printing.
     const sheet: Sheet = { ...sheetWith([[0, 1, { value: 'x' }]]), columnWidths: { 0: 288, 1: 96 } }
     const html = buildSheetHtml(sheet)
 
@@ -109,8 +107,8 @@ describe('buildSheetHtml', () => {
   })
 
   it('encolhe a fonte conforme a planilha alarga', () => {
-    // Doze colunas numa A4 em retrato dão cerca de cinquenta pixels cada; em
-    // corpo 11 a quebra começa a partir números no meio.
+    // Twelve columns on portrait A4 give about fifty pixels each; at 11 pt numbers start breaking
+    // in the middle.
     const estreita = sheetWith([[0, 3, { value: 'x' }]])
     const larga = sheetWith([[0, 14, { value: 'x' }]])
 
@@ -119,8 +117,8 @@ describe('buildSheetHtml', () => {
   })
 
   it('não corta o texto que não cabe na coluna', () => {
-    // Na tela dá para alargar a coluna; no papel, não. Conteúdo escondido no
-    // papel é perda silenciosa.
+    // On screen the column can be widened; on paper it cannot. Content hidden on paper is silent
+    // loss.
     expect(SHEET_PRINT_CSS).not.toContain('text-overflow')
     expect(SHEET_PRINT_CSS).toContain('word-break')
   })

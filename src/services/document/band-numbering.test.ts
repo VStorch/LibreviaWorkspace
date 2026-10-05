@@ -23,7 +23,7 @@ describe('numeração de página', () => {
   it('a peça de texto mostra {n} e {total} com os números desta folha', () => {
     const piece = { kind: 'text' as const, text: 'Folha {n} de {total}', bold: false, italic: false }
     expect(pieceText(piece, 'iv', 9)).toBe('Folha iv de 9')
-    // Chaves escritas no arquivo são texto, e não campo.
+    // Braces written in the file are text, not a field.
     expect(pieceText({ ...piece, literal: true }, 'iv', 9)).toBe('Folha {n} de {total}')
   })
 

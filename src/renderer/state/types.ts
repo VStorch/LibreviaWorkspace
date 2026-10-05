@@ -15,81 +15,87 @@ import type { Sheet, WorkbookModel } from '@services/spreadsheet/model.js'
 import type { StructuralChange } from '@services/spreadsheet/structure.js'
 
 export interface OpenFile {
-  /** `null` enquanto o arquivo nunca foi gravado. */
+  /** `null` while the file was never saved. */
   readonly path: string | null
-  /** O modelo do Word de que o documento novo saiu: origem da primeira gravação, nunca destino. */
+  /**
+   * The Word template the new document came from: the origin of the first save, never a
+   * destination.
+   */
   readonly origin?: string
   readonly name: string
   readonly kind: DocumentKind
 }
 
-/** O aplicativo edita um arquivo por vez: `workbook` diz qual dos dois vale. */
+/** The app edits one file at a time: `workbook` says which of the two applies. */
 export interface LoadedFile {
   readonly file: OpenFile
   readonly model: DocumentModel
   readonly workbook: WorkbookModel | null
 }
 
-/** O HTML vem do próprio editor, para o PDF sair igual à tela. */
+/** The HTML comes from the editor itself, so the PDF matches the screen. */
 export interface DocumentSource {
   readonly readDoc: () => DocumentNode
   readonly readHtml: () => string
-  /** O papel sai daqui, e não de uma segunda paginação. */
+  /** Paper comes from here, not from a second pagination. */
   readonly readPages: () => PagedDocument
 }
 
 export interface WorkspaceState {
   file: OpenFile | null
   page: PageSetup
-  /** Não acompanha a digitação: o conteúdo ao vivo mora no editor. */
+  /** Does not follow typing: the live content lives in the editor. */
   initialDoc: DocumentNode
   styles: StyleSheet
-  /** Os blocos vieram achatados de um rascunho antigo — ver `DocumentModel.flattened`. */
+  /** Blocks came flattened from an old draft; see `DocumentModel.flattened`. */
   flattened: boolean
-  /** O rascunho é de antes das referências — ver `DocumentModel.beforeReferences`. */
+  /** The draft predates references; see `DocumentModel.beforeReferences`. */
   beforeReferences: boolean
-  /** As seções antes da última — ver `DocumentModel.sections`. Vazio é uma seção só. */
+  /** Sections before the last; see `DocumentModel.sections`. Empty means a single section. */
   sections: readonly SectionSetup[]
-  /** O rascunho é de antes das seções — ver `DocumentModel.beforeSections`. */
+  /** The draft predates sections; see `DocumentModel.beforeSections`. */
   beforeSections: boolean
-  /** Marcadores do arquivo fora dos nós — ver `DocumentModel.outsideBookmarks`. */
+  /** File bookmarks outside the nodes; see `DocumentModel.outsideBookmarks`. */
   outsideBookmarks: readonly string[]
-  /** Só ganha entradas: o texto diz quais valem (`resolveComments`), e o desfazer tira e devolve. */
+  /**
+   * Only gains entries: the text says which count (`resolveComments`), and undo removes and
+   * restores.
+   */
   comments: readonly DocumentComment[]
   /** As conversas ancoradas fora do corpo — ver `commentsOutsideOf`. */
   commentsOutside: readonly string[]
-  /** O comentário recém-inserido cuja caixa o painel abre. */
+  /** The just-inserted comment whose box the pane opens. */
   commentDraft: string | null
-  /** O rascunho é de antes dos comentários — ver `DocumentModel.beforeComments`. */
+  /** The draft predates comments; see `DocumentModel.beforeComments`. */
   beforeComments: boolean
-  /** O `w:trackRevisions` do arquivo — ver `DocumentModel.trackChanges`. */
+  /** The file's `w:trackRevisions`; see `DocumentModel.trackChanges`. */
   trackChanges: boolean | undefined
-  /** O rascunho é de antes das revisões — ver `DocumentModel.beforeRevisions`. */
+  /** The draft predates revisions; see `DocumentModel.beforeRevisions`. */
   beforeRevisions: boolean
-  /** A numeração das notas do documento — ver `DocumentModel.notes`. */
+  /** See `DocumentModel.notes`. */
   notes: DocumentNotes | undefined
-  /** O rascunho é de antes das notas — ver `DocumentModel.beforeNotes`. */
+  /** The draft predates notes; see `DocumentModel.beforeNotes`. */
   beforeNotes: boolean
-  /** O rascunho é de antes das equações — ver `DocumentModel.beforeMath`. */
+  /** The draft predates equations; see `DocumentModel.beforeMath`. */
   beforeMath: boolean
   properties: DocumentProperties | undefined
   workbook: WorkbookModel | null
-  /** Muda a cada novo/abrir: o editor é remontado, sem estado residual. */
+  /** Changes on every new/open: the editor is remounted, with no leftover state. */
   generation: number
   isDirty: boolean
   stats: { characters: number; words: number }
   pageCount: number
   recents: readonly RecentFile[]
   error: SerializedError | null
-  /** Não é falha: o arquivo abriu, e isto diz o que não vai aparecer. */
+  /** Not a failure: the file opened, and this says what will not show. */
   notice: LossInventory | null
-  /** O que a última gravação perdeu: o `notice` avisa o que **vai** se perder, e este o que **se perdeu**. */
+  /** What the last save lost: `notice` warns what **will** be lost, and this what **was** lost. */
   savedLoss: readonly string[] | null
-  /** Enquanto ele espera decisão, o autosave não escreve por cima dele. */
+  /** While it awaits a decision, autosave does not write over it. */
   pendingDraft: DraftSummary | null
-  /** Ligado sozinho quando há perda **estrutural**; a pessoa libera num clique. */
+  /** Turned on by itself when there is **structural** loss; the user unlocks with one click. */
   readOnly: boolean
-  /** Insistir a cada oito segundos encheria a tela de avisos. */
+  /** Retrying every eight seconds would fill the screen with warnings. */
   autosaveBroken: boolean
   busy: boolean
 
@@ -98,16 +104,16 @@ export interface WorkspaceState {
   setStats: (stats: { characters: number; words: number }) => void
   setPageCount: (pages: number) => void
   setPage: (page: PageSetup) => void
-  /** A configuração das seções ou a lista inteira. Como `setPage`, marca o documento. */
+  /** The sections' setup or the whole list. Like `setPage`, it marks the document. */
   setSections: (sections: readonly SectionSetup[]) => void
-  /** Fora do desfazer do editor, como os estilos; marca o documento. */
+  /** Outside the editor undo, like styles; marks the document. */
   setComments: (comments: readonly DocumentComment[]) => void
   setCommentDraft: (cid: string | null) => void
-  /** Sempre uma folha nova: é a referência nova que regera o CSS dos estilos. */
+  /** Always a new sheet: the new reference is what regenerates the style CSS. */
   setStyles: (styles: StyleSheet) => void
-  /** É do documento (`w:trackRevisions`), e não da pessoa: marca o documento. */
+  /** It belongs to the document (`w:trackRevisions`), not the person: marks the document. */
   toggleTrackChanges: () => void
-  /** Fora do desfazer do editor, como os estilos; marca o documento. */
+  /** Outside the editor undo, like styles; marks the document. */
   setProperties: (properties: DocumentProperties) => void
   dismissError: () => void
   dismissNotice: () => void
@@ -126,7 +132,7 @@ export interface WorkspaceState {
   openRecent: (path: string) => Promise<void>
   templateGallery: boolean
   setTemplateGallery: (open: boolean) => void
-  /** `null` procura um `.dotx`. Devolve se o documento novo chegou à tela. */
+  /** `null` browses for a `.dotx`. Returns whether the new document reached the screen. */
   newFromTemplate: (
     template: { readonly source: 'builtin' | 'user'; readonly id: string } | null,
   ) => Promise<boolean>
@@ -135,7 +141,7 @@ export interface WorkspaceState {
   closeFile: () => Promise<void>
   clearRecents: () => Promise<void>
 
-  /** Por relógio, e não por tecla. */
+  /** By timer, not by key press. */
   autosave: () => Promise<void>
   checkRecovery: () => Promise<void>
   recoverDraft: () => Promise<void>
@@ -143,7 +149,7 @@ export interface WorkspaceState {
   allowEditing: () => void
 
   exportPdf: () => Promise<boolean>
-  /** Num arquivo novo: o documento continua no caminho dele, com o estado de alterado que tinha. */
+  /** To a new file: the document stays at its path, with the modified state it had. */
   exportDocument: (format: 'html' | 'markdown' | 'odt') => Promise<boolean>
   print: () => Promise<boolean>
   printPreview: () => Promise<void>

@@ -6,13 +6,13 @@ import type { SectionSetup } from '@services/document/model.js'
 import { blockSections, sectionBreakIn, type SectionBlock } from '@services/document/sections.js'
 
 /**
- * O bloco de outra seção quebra as linhas na largura da folha dela e começa na
- * margem dela. Decoração, como os vãos (`pagination.ts`): `left` desloca sem
- * mexer no recuo, e a margem direita negativa alarga a caixa.
+ * A block from another section wraps lines at its sheet's width and starts at its margin. A
+ * decoration, like the gaps (`pagination.ts`): `left` shifts without touching the indent, and a
+ * negative right margin widens the box.
  */
 export interface SectionBox {
   readonly shiftPx: number
-  /** Negativo: mais larga. */
+  /** Negative means wider. */
   readonly narrowerPx: number
 }
 
@@ -24,7 +24,7 @@ interface SectionGeometryState {
 
 export const sectionGeometryKey = new PluginKey<SectionGeometryState>('sectionGeometry')
 
-/** Menos de meio pixel é arredondamento. */
+/** Less than half a pixel is rounding. */
 const TOLERANCE_PX = 0.5
 
 function decorate(
@@ -70,7 +70,7 @@ export const SectionGeometry = Extension.create({
             if (next !== undefined) {
               return { ...next, decorations: decorate(transaction.doc, next.boxes, next.declared) }
             }
-            // A marca entra e sai com a edição: refeito a cada mudança do documento.
+            // The mark comes and goes with editing: redone on every document change.
             if (!transaction.docChanged || current.boxes.length === 0) return current
             return { ...current, decorations: decorate(transaction.doc, current.boxes, current.declared) }
           },
@@ -83,7 +83,7 @@ export const SectionGeometry = Extension.create({
   },
 })
 
-/** Na ordem de `effectiveSections`. Fora do histórico. */
+/** In `effectiveSections` order. Outside the history. */
 export function setSectionBoxes(
   view: EditorView,
   boxes: readonly SectionBox[],
@@ -106,10 +106,9 @@ export function setSectionBoxes(
 }
 
 /**
- * `bodySection` aponta a entrada que faz as vezes da última seção, como atributo
- * do documento para o desfazer levá-lo (`planSectionBreak`). A marca não viaja
- * por colagem: duas marcas de um id seriam duas seções sem ordem, e o Word também
- * não copia a estrutura.
+ * `bodySection` points to the entry standing in for the last section, as a document attribute so
+ * undo carries it (`planSectionBreak`). The mark does not travel through paste: two marks with one
+ * id would be two unordered sections, and Word does not copy the structure either.
  */
 export const SectionMarks = Extension.create({
   name: 'sectionMarks',

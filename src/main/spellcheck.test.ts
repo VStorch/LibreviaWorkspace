@@ -8,8 +8,8 @@ import { DICTIONARY_FOLDER, dictionaryFileName, hasBdictSignature } from '@servi
 const raiz = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 
 /**
- * Um perfil de mentira: `installBundledDictionary` só precisa de
- * `app.getPath('userData')` e de `app.isPackaged` falso.
+ * A fake profile: `installBundledDictionary` only needs `app.getPath('userData')` and a false
+ * `app.isPackaged`.
  */
 const perfil = mkdtempSync(join(tmpdir(), 'librevia-spell-'))
 
@@ -26,15 +26,15 @@ afterAll(() => {
 
 describe('dicionário embutido', () => {
   it('existe em resources/dictionaries e está no formato do Chromium', () => {
-    // Mesmo motivo do teste das fontes (`src/main/fonts.test.ts`): sem ele a
-    // falha é silenciosa e só aparece na máquina de quem instalou — que não tem
-    // dicionário nenhum no perfil e, sem rede, fica sem corretor.
+    // Same reason as the fonts test (`src/main/fonts.test.ts`): without it the failure is silent
+    // and only shows on the installer's machine, which has no dictionary in the profile and,
+    // offline, ends up without a spellchecker.
     const arquivo = join(raiz, 'resources', DICTIONARY_FOLDER.toLowerCase(), dictionaryFileName())
     const conteudo = readFileSync(arquivo)
 
     expect(hasBdictSignature(conteudo)).toBe(true)
-    // Um dicionário de português inteiro tem alguns megabytes. O piso pega o caso
-    // de o arquivo ter virado um marcador de Git LFS ou um download interrompido.
+    // A full Portuguese dictionary is a few megabytes. The floor catches a file that became a Git
+    // LFS pointer or an interrupted download.
     expect(conteudo.byteLength).toBeGreaterThan(1_000_000)
   })
 })
@@ -48,8 +48,8 @@ describe('instalação do dicionário no perfil', () => {
   })
 
   it('repara o arquivo estragado na mesma execução', () => {
-    // O Chromium apaga o `.bdic` corrompido e tenta baixar: sem rede, a ortografia some
-    // sem aviso. A assinatura o repõe na hora.
+    // Chromium deletes a corrupt `.bdic` and tries to download: offline, spelling disappears
+    // without warning. The signature check restores it right away.
     writeFileSync(instalado, 'lixo')
 
     expect(installBundledDictionary()).toBe(true)

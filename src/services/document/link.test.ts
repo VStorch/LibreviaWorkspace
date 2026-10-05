@@ -25,7 +25,7 @@ describe('normalizeLinkUrl', () => {
     ['file:///etc/passwd', 'arquivo local'],
     ['vbscript:msgbox', 'script legado'],
   ])('recusa %s (%s)', (url) => {
-    // Um documento pode vir de qualquer lugar; link não pode virar execução.
+    // A document can come from anywhere; a link must not become execution.
     expect(normalizeLinkUrl(url)).toBeNull()
   })
 

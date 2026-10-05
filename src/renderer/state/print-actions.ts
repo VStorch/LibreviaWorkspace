@@ -24,7 +24,7 @@ export function createPrintActions(
 ): PrintActions {
   const buildRequest = (): PrintRequest | null => printRequestOf(get(), ctx.source())
 
-  /** Devolver `false` em silêncio faria "Exportar para PDF" não dar em nada. */
+  /** Returning `false` silently would make "Export to PDF" do nothing. */
   function refuse(): false {
     set({
       error: {
@@ -56,7 +56,7 @@ export function createPrintActions(
         return false
       }
 
-      // Exportar não é salvar: nada aqui muda `file` nem `isDirty`.
+      // Exporting is not saving: nothing here changes `file` or `isDirty`.
       const data = await ctx.call(() =>
         window.api.print.exportDocument({
           format,
@@ -87,7 +87,10 @@ export function createPrintActions(
   }
 }
 
-/** O documento entrega o HTML do editor; a planilha é gerada do modelo, porque a grade só desenha as células visíveis. */
+/**
+ * A document hands over the editor HTML; a spreadsheet is built from the model, because the grid
+ * only draws visible cells.
+ */
 function printRequestOf(state: WorkspaceState, source: DocumentSource | null): PrintRequest | null {
   const name = state.file?.name ?? t('shell.print.defaultDocumentName')
 
@@ -99,21 +102,21 @@ function printRequestOf(state: WorkspaceState, source: DocumentSource | null): P
     return {
       html: buildPrintHtml(buildSheetHtml(sheet, currentPreferences().language), name, SHEET_PRINT_CSS),
       page: state.page,
-      // A grade é uma tabela contínua que o Chromium reparte.
+      // The grid is a continuous table that Chromium splits.
       paged: false,
     }
   }
 
   if (source === null) return null
 
-  // O pedido leva o papel da primeira seção, que a impressora nativa oferece como padrão.
+  // The request carries the first section's paper, which the native printer offers as default.
   const paged = source.readPages()
   const page = paged.pages[0]?.setup ?? effectiveSections(state.page, state.sections)[0]!
 
   return {
     html: buildPrintHtml(
       buildPagedBody(paged),
-      // O `<title>` vira o Title do PDF; autor e assunto o `printToPDF` não grava.
+      // `<title>` becomes the PDF Title; `printToPDF` does not write author or subject.
       state.properties?.title?.trim() || name,
       styleSheetCss(state.styles) + buildPagedCss(paged.pages),
       false,

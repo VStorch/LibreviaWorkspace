@@ -1,4 +1,4 @@
-/** Precedência ascendente, com a tabela do Excel: `=1+2*3` vale sete. */
+/** Ascending precedence, with Excel's table: `=1+2*3` is seven. */
 
 import type { BinaryOperator, Node } from './ast.js'
 import { ParseError, isFormulaError, type FormulaError } from './errors.js'
@@ -20,10 +20,10 @@ const PRECEDENCE: Record<BinaryOperator, number> = {
   '^': 5,
 }
 
-/** `2^3^2` é `2^(3^2)`, e não `(2^3)^2`. Só a potência associa à direita. */
+/** `2^3^2` is `2^(3^2)`, not `(2^3)^2`. Only exponentiation is right-associative. */
 const RIGHT_ASSOCIATIVE = new Set<BinaryOperator>(['^'])
 
-/** Lança `ParseError` com posição, para a mensagem dizer **onde** está o problema. */
+/** Throws `ParseError` with a position, so the message says **where** the problem is. */
 export function parseFormula(formula: string): Node {
   const text = formula.startsWith('=') ? formula.slice(1) : formula
   const tokens = tokenize(text)
@@ -35,7 +35,7 @@ export function parseFormula(formula: string): Node {
   return node
 }
 
-/** Analisa sem lançar: devolve `null` quando a fórmula não fecha. */
+/** Returns `null` when the formula does not parse. */
 export function tryParseFormula(formula: string): Node | null {
   try {
     return parseFormula(formula)
@@ -71,7 +71,7 @@ class Parser {
     return left
   }
 
-  /** No Excel o menos unário liga mais forte que a potência: `=-2^2` vale quatro. */
+  /** In Excel unary minus binds tighter than exponentiation: `=-2^2` is four. */
   unary(): Node {
     const token = this.peek()
 
@@ -153,13 +153,13 @@ class Parser {
     const end = this.expect(TokenKind.Reference, 'Depois de ":" falta uma célula.')
     const to = this.cellRef(end)
 
-    // Um intervalo vive numa planilha só: `Plan1!A1:Plan2!B2` é recusado.
+    // A range lives on a single sheet: `Plan1!A1:Plan2!B2` is refused.
     if (to.sheet !== undefined && to.sheet !== from.sheet) {
       throw new ParseError('Um intervalo não pode atravessar duas planilhas.', end.position)
     }
 
-    // Guardado já ordenado: `B4:A1` e `A1:B4` são o mesmo retângulo. O nome da
-    // planilha fica só na primeira ponta, como o Excel escreve.
+    // Stored already ordered: `B4:A1` and `A1:B4` are the same rectangle. The sheet name stays only
+    // on the first end, as Excel writes it.
     const low = corner(from, to, Math.min)
     return {
       kind: 'range',
@@ -210,7 +210,10 @@ function asError(token: Token): FormulaError {
   return token.text
 }
 
-/** O `$` acompanha a célula que ficou naquele canto, senão a cópia da fórmula mudaria. */
+/**
+ * The `$` follows the cell that ended up in that corner, otherwise copying the formula would
+ * change.
+ */
 function corner(from: CellRef, to: CellRef, pick: (a: number, b: number) => number): CellRef {
   const row = pick(from.row, to.row) === from.row ? from : to
   const column = pick(from.column, to.column) === from.column ? from : to

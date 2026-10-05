@@ -2,7 +2,10 @@ import type { Node as ProseMirrorNode } from '@tiptap/pm/model'
 import type { OutlineBlock } from '@services/document/outline.js'
 import { textBetweenWithoutNotes } from './extensions/note-ref.js'
 
-/** Desce em tudo: o título numerado do Word é item de lista, e o de dentro de uma tabela também conta. */
+/**
+ * Descends into everything: Word's numbered heading is a list item, and one inside a table counts
+ * too.
+ */
 export function outlineBlocksOf(doc: ProseMirrorNode): OutlineBlock[] {
   const blocks: OutlineBlock[] = []
 

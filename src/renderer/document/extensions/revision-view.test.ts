@@ -22,7 +22,7 @@ function docOf(...blocks: Record<string, unknown>[]): ProseMirrorNode {
   return ProseMirrorNode.fromJSON(schema, { type: 'doc', content: blocks })
 }
 
-// "ab" + [cd excluído] + {ef inserido} + "gh": posições 1..9 no primeiro parágrafo.
+// "ab" + [cd deleted] + {ef inserted} + "gh": positions 1..9 in the first paragraph.
 const doc = docOf(
   {
     type: 'paragraph',
@@ -47,7 +47,7 @@ describe('o cursor fora do que o modo esconde', () => {
   it('dentro do excluído escondido, o cursor vai para a borda no sentido em que andava', () => {
     expect(visiblePosition(doc, 4, RevisionView.Simple, 1)).toBe(5)
     expect(visiblePosition(doc, 4, RevisionView.Simple, -1)).toBe(3)
-    // Nas bordas já está fora; e na marcação completa nada se esconde.
+    // At the edges it is already outside; and with all markup nothing is hidden.
     expect(visiblePosition(doc, 3, RevisionView.Simple, 1)).toBe(3)
     expect(visiblePosition(doc, 4, RevisionView.All, 1)).toBe(4)
   })
@@ -73,10 +73,10 @@ describe('o cursor fora do que o modo esconde', () => {
 describe('apagar o que se vê', () => {
   it('a seleção que passa pelo excluído escondido apaga só o resto', () => {
     const tr = EditorState.create({ doc }).tr
-    // "ab[cd]ef gh" de 1 a 9: sem marcação, "cd" não se vê e fica.
+    // "ab[cd]ef gh" from 1 to 9: without markup, "cd" is not visible and stays.
     deleteVisible(tr, 1, 9, RevisionView.None)
     expect(tr.doc.child(0).textContent).toBe('cd')
-    // Com tudo à vista, sai tudo.
+    // With everything visible, everything goes.
     const all = deleteVisible(EditorState.create({ doc }).tr, 1, 9, RevisionView.All)
     expect(all.doc.child(0).textContent).toBe('')
   })

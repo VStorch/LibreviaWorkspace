@@ -2,10 +2,9 @@ import { useWorkspace } from '../state/workspace.js'
 import { useT } from '../i18n.js'
 
 /**
- * Comentário, revisão e nota voltam intactos desde que não se edite o bloco que
- * os ancora: é padrão, e não cadeado, e a lista do que está em jogo fica junto do
- * botão. "Não reproduz por inteiro", e não "não mostra": o texto das caixas
- * aparece, a moldura e a posição não.
+ * Comments, revisions and notes come back intact as long as the block anchoring them is not edited:
+ * a default, not a lock, and the list of what is at stake sits next to the button. "Does not fully
+ * reproduce", not "does not show": text box contents appear, their frame and position do not.
  */
 export function ReadOnlyBanner(): React.JSX.Element | null {
   const t = useT()

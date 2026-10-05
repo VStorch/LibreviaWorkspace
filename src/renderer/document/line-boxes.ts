@@ -1,16 +1,16 @@
 import type { EditorView } from '@tiptap/pm/view'
 
 /**
- * O paginador só corta onde lhe dizem que dá: sem as linhas, um parágrafo de
- * meia página desceria inteiro. A medida vem de `Range.getClientRects()`, que
- * cobre a área da fonte, e não a caixa de linha; a fronteira entre duas linhas é
- * o ponto médio entre o pé de uma e o topo da outra.
+ * The paginator only breaks where it is told it can: without lines, a half-page paragraph would
+ * move down whole. The measure comes from `Range.getClientRects()`, which covers the font area, not
+ * the line box; the boundary between two lines is the midpoint between one's foot and the other's
+ * top.
  */
 export interface ParagraphLines {
-  /** Em pixels de CSS a partir do topo da borda do bloco, **sem** os vãos de página aplicados dentro dele. */
+  /** CSS pixels from the top of the block border, **without** the page gaps applied inside it. */
   readonly starts: readonly number[]
   readonly shift: number
-  /** Posição no documento do primeiro caractere da linha que `starts[index]` abre. */
+  /** Document position of the first character of the line `starts[index]` opens. */
   readonly positionOf: (index: number) => number | null
 }
 
@@ -19,10 +19,10 @@ export const LINE_GAP_CLASS = 'page-line-gap'
 interface Piece {
   readonly top: number
   readonly bottom: number
-  /** Em coordenadas de tela, para a busca do caractere que abre a linha. */
+  /** Screen coordinates, to search for the character opening the line. */
   readonly clientTop: number
   readonly node: Node
-  /** Acima de zero, a linha começa no meio do nó de texto. */
+  /** Above zero, the line starts in the middle of the text node. */
   readonly rectIndex: number
 }
 
@@ -34,7 +34,7 @@ interface Line {
 
 export function measureLines(view: EditorView, element: HTMLElement): ParagraphLines {
   const box = element.getBoundingClientRect()
-  // Com zoom (`transform`) o retângulo vem na escala da tela; a paginação conta em pixels de CSS.
+  // With zoom (`transform`) the rectangle comes at screen scale; pagination counts in CSS pixels.
   const scale = element.offsetHeight > 0 && box.height > 0 ? box.height / element.offsetHeight : 1
 
   const pieces: Piece[] = []
@@ -53,9 +53,9 @@ export function measureLines(view: EditorView, element: HTMLElement): ParagraphL
   const walker = document.createTreeWalker(element, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT, {
     acceptNode: (node) => {
       if (!(node instanceof HTMLElement)) return NodeFilter.FILTER_ACCEPT
-      // O vão de uma passada anterior é empurrão, e não linha.
+      // A gap from an earlier pass is a push, not a line.
       if (node.classList.contains(LINE_GAP_CLASS)) {
-        // Escondido pela medida (`usePagination`): não empurra nada.
+        // Hidden by measuring (`usePagination`): it pushes nothing.
         if (node.style.display !== 'none') shift += Number(node.dataset.pageShift ?? 0)
         return NodeFilter.FILTER_REJECT
       }
@@ -77,8 +77,8 @@ export function measureLines(view: EditorView, element: HTMLElement): ParagraphL
     Array.from(range.getClientRects()).forEach((rect, index) => push(rect, node, index))
   }
 
-  // Linha nova quando o **meio** do pedaço passa do pé da corrente: com entrelinha
-  // apertada as áreas se sobrepõem, e um sobrescrito tem outro topo na mesma linha.
+  // A new line when the **middle** of the piece passes the current one's foot: with tight line
+  // spacing the areas overlap, and a superscript has another top on the same line.
   const lines: Line[] = []
   for (const piece of pieces) {
     const current = lines.at(-1)
@@ -106,7 +106,10 @@ export function measureLines(view: EditorView, element: HTMLElement): ParagraphL
   }
 }
 
-/** Busca binária no nó de texto, só para o corte escolhido: medir é a cada quadro, cortar é raro. */
+/**
+ * Binary search in the text node, only for the chosen break: measuring happens every frame,
+ * breaking is rare.
+ */
 function positionOfLine(view: EditorView, first: Piece, range: Range): number | null {
   try {
     if (!(first.node instanceof Text) || first.rectIndex === 0) {
@@ -128,7 +131,7 @@ function positionOfLine(view: EditorView, first: Piece, range: Range): number | 
       range.setEnd(text, middle + 1)
       const rects = range.getClientRects()
       const rect = rects[rects.length - 1]
-      // O espaço que sobra no fim fica pendurado na linha de cima.
+      // Leftover space at the end hangs on the line above.
       if (rect !== undefined && rect.top > previousTop + 1) {
         found = middle
         high = middle - 1

@@ -24,17 +24,16 @@ import { revisionViewOf } from './revision-view.js'
 import { drawsNoteNumber, noteRefAround } from './note-ref.js'
 
 /**
- * O padrão de notas do ProseMirror: o corpo ganha um `EditorView` próprio, com o
- * nó como documento, e o que se digita vira passo do editor de fora, deslocado
- * para dentro (`pos + 1`) — um histórico só. O que muda por fora volta pela
- * diferença entre os corpos. O elemento do corpo mora fora do `contenteditable`
- * de fora: na área de notas da folha, ou num depósito escondido com a largura da
- * coluna, onde a paginação o mede; assim o IME trabalha num editor comum.
+ * ProseMirror's footnote pattern: the body gets its own `EditorView`, with the node as its
+ * document, and what is typed becomes a step of the outer editor, shifted inside (`pos + 1`): a
+ * single history. Outside changes come back through the difference between bodies. The body element
+ * lives outside the outer `contenteditable`: in the sheet's notes area, or in a hidden pool at
+ * column width, where pagination measures it; that way the IME works in a regular editor.
  */
 
 const FROM_OUTSIDE = 'noteBody:fromOutside'
 
-/** Clicar no número volta à referência. */
+/** Clicking the number goes back to the reference. */
 export const NOTE_NUMBER_CLASS = 'note-number'
 
 let counter = 0
@@ -42,7 +41,7 @@ const bodies = new Map<string, NoteBody>()
 const byReference = new WeakMap<Node, NoteBody>()
 const pools = new WeakMap<EditorView, HTMLElement>()
 const listeners = new Set<() => void>()
-/** Até o texto pegar o foco de volta — ver `activeNoteOf`. */
+/** Until the text takes focus back; see `activeNoteOf`. */
 const lastActive = new WeakMap<EditorView, NoteBody>()
 const watched = new WeakSet<EditorView>()
 
@@ -63,12 +62,14 @@ export function noteBody(key: string): NoteBody | undefined {
   return bodies.get(key)
 }
 
-/** Para refazer o "editável" quando o de fora muda. */
+/** To redo "editable" when the outer one changes. */
 export function noteBodiesOf(outer: EditorView): NoteBody[] {
   return [...bodies.values()].filter((body) => body.outer === outer)
 }
 
-/** Os corpos sem folha, inclusive no modo de leitura. Os que nasceram antes do depósito vão para lá agora. */
+/**
+ * Bodies without a sheet, including in reading mode. Those created before the pool move there now.
+ */
 export function setNotePool(outer: EditorView, pool: HTMLElement | null): void {
   if (pool === null) {
     pools.delete(outer)
@@ -102,7 +103,7 @@ export function placeNoteBody(body: NoteBody, slot: HTMLElement): void {
   }
 }
 
-/** Mudar o elemento de lugar tira o foco: ele espera o corpo chegar à folha nova. */
+/** Moving the element loses focus: it waits for the body to reach its new sheet. */
 function move(body: NoteBody, target: HTMLElement): void {
   const focused = body.view.hasFocus() || body.refocus
   target.appendChild(body.body)
@@ -118,14 +119,14 @@ function move(body: NoteBody, target: HTMLElement): void {
   body.view.focus()
 }
 
-/** A que tem o foco, ou a última que o teve: o clique no menu de contexto tira o foco do corpo. */
+/** The focused one, or the last that was: clicking the context menu takes focus from the body. */
 export function activeNoteOf(outer: EditorView): NoteBody | null {
   const body = lastActive.get(outer)
   if (body === undefined || bodies.get(body.key) !== body || body.position() === undefined) return null
   return body
 }
 
-/** Em posições do documento de fora. */
+/** In outer document positions. */
 export function caretOf(outer: EditorView): { from: number; to: number; note: NoteBody | null } {
   const note = activeNoteOf(outer)
   const at = note?.position()
@@ -138,8 +139,8 @@ export function caretOf(outer: EditorView): { from: number; to: number; note: No
 }
 
 /**
- * O texto fica com o cursor depois da referência, e o corpo seleciona o trecho;
- * `false` fora de nota. `focus` leva o teclado ao corpo (o Próximo do menu).
+ * The text keeps the cursor after the reference, and the body selects the range; `false` outside a
+ * note. `focus` takes the keyboard to the body (the menu's Next).
  */
 export function selectInNote(outer: EditorView, from: number, to: number, focus: boolean): boolean {
   const { doc } = outer.state
@@ -155,7 +156,7 @@ export function selectInNote(outer: EditorView, from: number, to: number, focus:
   return true
 }
 
-/** O corpo sem folha, no depósito, cede à referência. */
+/** A body without a sheet, in the pool, defers to the reference. */
 export function coordsInDocument(outer: EditorView, pos: number): { top: number; left: number } {
   const reference = noteRefAround(outer.state.doc, pos)
   if (reference === null) return outer.coordsAtPos(pos)
@@ -171,7 +172,7 @@ export function flushNoteSelection(outer: EditorView): void {
   for (const body of noteBodiesOf(outer)) if (body.view.hasFocus()) syncSelection(body.view)
 }
 
-/** API interna do ProseMirror. */
+/** ProseMirror internal API. */
 function syncSelection(view: EditorView): void {
   const observer = (view as unknown as { domObserver?: { forceFlush?: () => void; flush?: () => void } })
     .domObserver
@@ -193,10 +194,10 @@ export class NoteBody implements NodeView {
   readonly body: HTMLElement
   readonly view: EditorView
   readonly outer: EditorView
-  /** Foco pedido antes de o corpo ter folha: dado quando ele chega a uma. */
+  /** Focus requested before the body has a sheet: given when it gets one. */
   pendingFocus = false
   refocus = false
-  /** A nota recém-inserida e o que se digita nela se desfazem em dois tempos, como no Word. */
+  /** A newly inserted note and what is typed in it undo in two steps, as in Word. */
   separateHistory = false
   private node: ProseMirrorNode
   private label: string
@@ -230,14 +231,14 @@ export class NoteBody implements NodeView {
         dispatchTransaction: (tr) => this.dispatchInner(tr),
         editable: () => this.outer.editable,
         attributes: () => ({
-          // É pela classe do modo que o CSS esconde o excluído ou o inserido.
+          // CSS hides deleted or inserted text by the mode class.
           class: `page__content note-body revisions-${revisionViewOf(this.outer.state)}`,
           'data-note-kind': String(this.node.attrs['kind']),
           'data-note-key': this.key,
           spellcheck: this.outer.dom.getAttribute('spellcheck') ?? 'false',
         }),
         handleDOMEvents: {
-          // O desfazer do menu do Electron chega como `beforeinput`, e não como tecla.
+          // Undo from the Electron menu arrives as `beforeinput`, not as a key.
           beforeinput: (_view, event) => {
             const input = event as InputEvent
             if (input.inputType !== 'historyUndo' && input.inputType !== 'historyRedo') return false
@@ -246,7 +247,8 @@ export class NoteBody implements NodeView {
             else this.editor.commands.redo()
             return true
           },
-          // O `selectionchange` das setas às vezes chega ~20 ms depois, e a tecla seguinte leria a seleção de antes.
+          // The arrow keys' `selectionchange` sometimes arrives ~20 ms later, and the next key
+          // would read the old selection.
           keydown: (view) => {
             syncSelection(view)
             return false
@@ -279,7 +281,7 @@ export class NoteBody implements NodeView {
     return this.getPos()
   }
 
-  /** Na ordem do `renderHTML` do nó, para o HTML não divergir. */
+  /** In the node's `renderHTML` order, so the HTML does not diverge. */
   private render(): void {
     const { kind, nid, mark } = this.node.attrs as { kind: unknown; nid: unknown; mark: unknown }
     this.dom.className = 'note-ref'
@@ -306,7 +308,7 @@ export class NoteBody implements NodeView {
       if (type !== undefined) marks[key] = toggleMark(type)
     }
     return [
-      // Um histórico só, o do documento.
+      // A single history, the document's.
       keymap({ 'Mod-z': () => this.editor.commands.undo(), 'Mod-y': redo, 'Shift-Mod-z': redo, ...marks }),
       new Plugin({
         props: {
@@ -319,7 +321,7 @@ export class NoteBody implements NodeView {
     ]
   }
 
-  /** No começo do primeiro parágrafo, como o Word escreve. */
+  /** At the start of the first paragraph, as Word writes it. */
   private numberDecoration(doc: ProseMirrorNode): DecorationSet {
     if (this.numbers?.doc === doc && this.numbers.label === this.label) return this.numbers.set
     const label = this.label
@@ -360,7 +362,7 @@ export class NoteBody implements NodeView {
     const at = this.syncedPosition()
     if (at === null) return
 
-    // Aqui, e não no `dispatchTransaction` de fora: só aqui existe a seleção do corpo.
+    // Here, not in the outer `dispatchTransaction`: only here does the body selection exist.
     const options = this.tracking()
     const { state, transactions } = this.view.state.applyTransaction(this.trackedOrAsIs(tr, options))
     this.view.updateState(state)
@@ -369,9 +371,8 @@ export class NoteBody implements NodeView {
   }
 
   /**
-   * Se um passo anterior não chegou lá fora, este cairia deslocado: o corpo
-   * volta ao que o documento tem, e perder uma tecla é melhor que escrever no
-   * lugar errado.
+   * If an earlier step did not reach the outside, this one would land shifted: the body reverts to
+   * what the document has, and losing a key press beats writing in the wrong place.
    */
   private syncedPosition(): number | null {
     const at = this.getPos()
@@ -393,7 +394,7 @@ export class NoteBody implements NodeView {
         composing: this.view.composing,
       })
     } catch (error) {
-      // Melhor a edição sem controle que a edição perdida.
+      // Better an untracked edit than a lost one.
       console.error(error)
       return tr
     }
@@ -456,7 +457,7 @@ export class NoteBody implements NodeView {
     this.view.setProps({})
   }
 
-  /** O corpo ainda no depósito já recebe o foco, para o que se digita não ir parar no texto. */
+  /** A body still in the pool takes focus, so what is typed does not end up in the text. */
   reveal(): void {
     if (!this.body.isConnected) {
       this.pendingFocus = true
@@ -498,8 +499,8 @@ export class NoteBody implements NodeView {
   }
 
   destroy(): void {
-    // A nota com o cursor saiu do documento: o foco volta ao texto, numa
-    // microtask, porque o editor de fora ainda está no meio da atualização.
+    // The note with the cursor left the document: focus returns to the text in a microtask, because
+    // the outer editor is still mid-update.
     const focused = this.view.hasFocus() || this.refocus
     if (focused)
       queueMicrotask(() => {

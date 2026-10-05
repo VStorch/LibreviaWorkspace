@@ -19,7 +19,7 @@ export function FindReplacePanel({ editor, status, onClose }: FindReplacePanelPr
     editor.commands.setSearchTerm(term, caseSensitive)
   }, [editor, term, caseSensitive])
 
-  // Fechar a busca precisa apagar os destaques, senão eles ficam na tela.
+  // Closing the search must clear the highlights, or they stay on screen.
   useEffect(() => () => void editor.commands.clearSearch(), [editor])
 
   return (

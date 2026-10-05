@@ -8,8 +8,8 @@ import {
 } from '@shared/types.js'
 
 /**
- * Uma **cópia para desenhar**: o dono é o main (`src/main/preferences.ts`). Toda
- * mudança vai ao main e volta pelo aviso, para o menu e a barra dizerem o mesmo.
+ * A **copy for drawing**: main owns them (`src/main/preferences.ts`). Every change goes to main and
+ * comes back through the echo, so the menu and the toolbar agree.
  */
 interface PreferencesState {
   readonly preferences: EditorPreferences
@@ -21,21 +21,24 @@ export const usePreferences = create<PreferencesState>((set) => ({
   accept: (preferences) => set({ preferences }),
 }))
 
-/** Para quem não é componente, como as extensões do editor. */
+/** For non-components, such as editor extensions. */
 export function currentPreferences(): EditorPreferences {
   return usePreferences.getState().preferences
 }
 
-/** O estado local só muda quando o aviso volta: adiantar-se mostraria a marca antes de o corretor ligar. */
+/**
+ * Local state only changes when the echo comes back: getting ahead would show the check mark before
+ * the spellchecker is on.
+ */
 export async function setPreference(patch: EditorPreferencesPatch): Promise<void> {
   const result = await window.api.preferences.set(patch)
   if (result.ok) usePreferences.getState().accept(result.data)
 }
 
-/** Devolve a função de cancelamento. */
+/** Returns the unsubscribe function. */
 export function watchPreferences(): () => void {
   const stop = window.api.preferences.onChange((payload) => {
-    // A segunda ponta do zod, que o preload sandboxed não pode fazer.
+    // The second zod check, which the sandboxed preload cannot do.
     const parsed = pushContracts[IpcChannel.PreferencesChanged].safeParse(payload)
     if (parsed.success) usePreferences.getState().accept(parsed.data)
   })

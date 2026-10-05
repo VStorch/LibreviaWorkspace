@@ -1,9 +1,9 @@
 import { LineSpacingKind, type ParagraphDraft } from '@services/document/paragraph-format.js'
 
-/** Os grupos de campos recebem esta função: "Aplicar" precisa ver o rascunho inteiro. */
+/** Field groups receive this function: "Apply" needs to see the whole draft. */
 export type DraftChange = <K extends keyof ParagraphDraft>(key: K, value: ParagraphDraft[K]) => void
 
-/** Os três fatores comuns são opções prontas; "Múltiplo" é para o resto. */
+/** The three common factors are ready-made options; "Multiple" is for the rest. */
 export function lineSpacingChoice(draft: ParagraphDraft): string {
   if (draft.lineSpacingKind === LineSpacingKind.Single) return 'single'
   if (draft.lineSpacingKind === LineSpacingKind.AtLeast) return 'at-least'

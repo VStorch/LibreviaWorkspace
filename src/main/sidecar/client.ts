@@ -1,4 +1,4 @@
-/** O sidecar pode morrer a qualquer momento, e isso não pode custar o documento aberto. */
+/** The sidecar may die at any moment, and that must not cost the open document. */
 
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
 import { AppError, ErrorCode } from '@shared/errors.js'
@@ -13,7 +13,7 @@ import {
 } from './protocol.js'
 import { t } from '../i18n.js'
 
-/** Passou disso, algo travou, e travar em silêncio é pior que falhar rápido. */
+/** Past this, something is stuck, and hanging silently is worse than failing fast. */
 export const REQUEST_TIMEOUT_MS = 60_000
 export const HEALTH_TIMEOUT_MS = 10_000
 
@@ -33,7 +33,7 @@ interface Pending {
   readonly timer: NodeJS.Timeout
 }
 
-/** Por parâmetro, para testar contra um sidecar de mentira. */
+/** A parameter, to test against a fake sidecar. */
 export type ResolveExecutable = () => Promise<string>
 
 export class SidecarClient {
@@ -71,8 +71,8 @@ export class SidecarClient {
 
     const child = await this.#ensureStarted()
 
-    // `dispose()` pode acontecer enquanto o processo sobe: o pedido ficaria
-    // pendurado e o processo, órfão.
+    // `dispose()` may happen while the process starts: the request would hang and the process would
+    // be orphaned.
     if (this.#disposed) {
       this.#kill()
       throw new AppError(ErrorCode.SidecarUnavailable, died(), t('errors.sidecar.closedDuringRequest'))
@@ -83,7 +83,7 @@ export class SidecarClient {
     return new Promise<SidecarReply>((resolve, reject) => {
       const timer = setTimeout(() => {
         this.#pending.delete(id)
-        // Pode estar num laço infinito: derrubar garante que o próximo comece limpo.
+        // It may be in an infinite loop: killing it guarantees the next one starts clean.
         this.#kill()
         reject(new AppError(ErrorCode.SidecarTimeout, timedOut()))
       }, timeoutMs)
@@ -103,7 +103,6 @@ export class SidecarClient {
     })
   }
 
-/** Idempotente. */
   dispose(): void {
     this.#disposed = true
     this.#failAllPending(new AppError(ErrorCode.SidecarUnavailable, died(), 'aplicativo encerrando'))
@@ -115,7 +114,7 @@ export class SidecarClient {
     child.stdin.end()
     child.kill('SIGTERM')
 
-    // Se ignorar o SIGTERM, não fica pendurado segurando o encerramento do app.
+    // If it ignores SIGTERM, it does not hang around holding up the app shutdown.
     const forceKill = setTimeout(() => child.kill('SIGKILL'), SHUTDOWN_GRACE_MS)
     forceKill.unref()
     child.once('exit', () => clearTimeout(forceKill))
@@ -124,7 +123,7 @@ export class SidecarClient {
 
   async #ensureStarted(): Promise<ChildProcessWithoutNullStreams> {
     if (this.#child !== null) return this.#child
-    // Dois pedidos simultâneos com o processo caído não podem subir dois.
+    // Two simultaneous requests with the process down must not start two.
     this.#starting ??= this.#start().finally(() => {
       this.#starting = null
     })
@@ -141,7 +140,7 @@ export class SidecarClient {
     })
 
     child.stdout.on('data', (chunk: Buffer) => this.#onStdout(chunk))
-    // Diagnóstico nosso: fica no log, e nunca chega ao usuário.
+    // Our own diagnostics: they stay in the log and never reach the user.
     child.stderr.on('data', (chunk: Buffer) => {
       console.error('[sidecar]', chunk.toString('utf8').trimEnd())
     })
@@ -172,7 +171,7 @@ export class SidecarClient {
     try {
       frames = this.#reader.push(new Uint8Array(chunk))
     } catch (cause) {
-      // Fluxo corrompido: não dá para saber onde o próximo quadro começa.
+      // Corrupt stream: there is no way to know where the next frame starts.
       this.#kill()
       this.#failAllPending(
         cause instanceof AppError ? cause : new AppError(ErrorCode.SidecarFailed, died()),
@@ -193,7 +192,8 @@ export class SidecarClient {
         if (response.ok) {
           pending.resolve({ result: response.result, binary: frame.binary })
         } else {
-          // A frase já vem em português; o código vira SidecarFailed, com o detalhe no log.
+          // The sentence is already Portuguese; the code becomes SidecarFailed, with the detail in
+          // the log.
           pending.reject(
             new AppError(ErrorCode.SidecarFailed, response.error.message, response.error.code),
           )
@@ -204,7 +204,7 @@ export class SidecarClient {
 
   #settle(id: number, apply: (pending: Pending) => void): void {
     const pending = this.#pending.get(id)
-    // Já expirou, ou o sidecar inventou um id: não há a quem entregar.
+    // Already timed out, or the sidecar made up an id: nobody to deliver to.
     if (pending === undefined) return
 
     this.#pending.delete(id)

@@ -6,16 +6,16 @@ import { hiddenBookmarkName, nextBookmarkId } from '@services/document/bookmarks
 import { fieldArgument, fieldKind, fieldSwitch } from '@services/document/fields.js'
 
 /**
- * Dois nós, e não uma marca: o par `w:bookmarkStart`/`w:bookmarkEnd` atravessa
- * parágrafos e muitas vezes cobre um trecho vazio. O `bid` é o `w:id`. Os ocultos
- * (`_Toc…`, `_Ref…`) são iguais: o sumário e as referências do Word os citam.
+ * Two nodes, not a mark: the `w:bookmarkStart`/`w:bookmarkEnd` pair crosses paragraphs and often
+ * covers an empty range. `bid` is the `w:id`. Hidden ones (`_Toc…`, `_Ref…`) are the same: Word's
+ * table of contents and references cite them.
  */
 
 export interface BookmarkEntry {
   readonly name: string
   readonly bid: string
   readonly pos: number
-  /** Quando está no documento. */
+  /** When it is in the document. */
   readonly end: number | null
 }
 
@@ -35,7 +35,7 @@ export function bookmarksOf(doc: ProseMirrorNode): BookmarkEntry[] {
   return starts.map((start) => ({ ...start, end: ends.get(start.bid) ?? null }))
 }
 
-/** Também os das pontas finais, cuja ponta inicial pode estar noutra parte. */
+/** Also those of end nodes, whose start may be elsewhere. */
 function idsOf(doc: ProseMirrorNode): string[] {
   const ids: string[] = []
   doc.descendants((node) => {
@@ -47,7 +47,7 @@ function idsOf(doc: ProseMirrorNode): string[] {
   return ids
 }
 
-/** `false` quando ele não existe. */
+/** `false` when it does not exist. */
 export function goToBookmark(view: EditorView, name: string): boolean {
   const entry = bookmarksOf(view.state.doc).find((bookmark) => bookmark.name === name)
   if (entry === undefined) return false
@@ -65,9 +65,8 @@ export function goToBookmark(view: EditorView, name: string): boolean {
 }
 
 /**
- * Como o Word: o link e a referência cruzada a um título apontam para um `_Ref…`
- * em volta do texto, e o sumário para um `_Toc…`. Outro prefixo não serve:
- * "Atualizar sumário" recria os `_Toc`.
+ * As in Word: a link or cross-reference to a heading points to a `_Ref…` around the text, and the
+ * table of contents to a `_Toc…`. Another prefix will not do: "Update table" recreates the `_Toc`s.
  */
 export function ensureBlockBookmark(view: EditorView, pos: number, prefix: '_Ref' | '_Toc'): string | null {
   const block = view.state.doc.nodeAt(pos)
@@ -101,7 +100,7 @@ const bookmarkNode = (name: 'bookmarkStart' | 'bookmarkEnd') =>
     inline: true,
     atom: true,
     selectable: false,
-    // Não vai à área de transferência como texto nem conta palavra.
+    // It does not go to the clipboard as text and counts no words.
     renderText: () => '',
 
     addAttributes() {
@@ -137,7 +136,7 @@ export const BookmarkEnd = bookmarkNode('bookmarkEnd')
 declare module '@tiptap/core' {
   interface Commands<ReturnType> {
     bookmarks: {
-      /** O nome que já existe **muda de lugar**, como no Word. */
+      /** An existing name **moves**, as in Word. */
       setBookmark: (name: string) => ReturnType
       /** As duas pontas; o texto fica. */
       deleteBookmark: (name: string) => ReturnType
@@ -145,7 +144,7 @@ declare module '@tiptap/core' {
   }
 }
 
-/** De trás para a frente, para as posições valerem. */
+/** Back to front, so positions stay valid. */
 export function removeBookmark(tr: Transaction, name: string): boolean {
   const entry = bookmarksOf(tr.doc).find((bookmark) => bookmark.name === name)
   if (entry === undefined) return false
@@ -162,20 +161,20 @@ export function removeBookmark(tr: Transaction, name: string): boolean {
   return true
 }
 
-/** O que já tinha o nome sai antes: o marcador é um só. */
+/** Whatever already had the name goes first: the bookmark is unique. */
 export function placeBookmark(tr: Transaction, name: string): void {
   removeBookmark(tr, name)
   const { from, to } = tr.selection
   const bid = nextBookmarkId(idsOf(tr.doc))
   const schema = tr.doc.type.schema
-  // O fim primeiro: o começo deslocaria a posição dele.
+  // The end first: the start would shift its position.
   tr.insert(to, schema.nodes['bookmarkEnd']!.create({ bid }))
   tr.insert(from, schema.nodes['bookmarkStart']!.create({ name, bid }))
 }
 
-/** Dois de mesmo nome são âncora ambígua. O que foi **recortado** volta inteiro. */
+/** Two with the same name are an ambiguous anchor. What was **cut** comes back whole. */
 export function withoutRepeatedBookmarks(slice: Slice, doc: ProseMirrorNode, moving = false): Slice {
-  // Arrastar move: a origem sai na mesma transação.
+  // Dragging moves: the source goes away in the same transaction.
   if (moving) return slice
 
   const names = new Set<string>()
@@ -188,7 +187,8 @@ export function withoutRepeatedBookmarks(slice: Slice, doc: ProseMirrorNode, mov
   })
   if (names.size === 0 && ids.size === 0) return slice
 
-  // O nome repetido é cópia e sai; o id repetido é de outro documento e ganha um livre.
+  // A repeated name is a copy and goes; a repeated id comes from another document and gets a free
+  // one.
   const dropped = new Set<string>()
   const renamed = new Map<string, string>()
   const used = new Set(ids)
@@ -217,7 +217,7 @@ export function withoutRepeatedBookmarks(slice: Slice, doc: ProseMirrorNode, mov
           children.push(child.type.create({ ...child.attrs, bid: fresh }))
           return
         }
-        // Repetido, fecharia o marcador daqui no lugar errado.
+        // Repeated, it would close this bookmark in the wrong place.
         if (ids.has(bid)) return
       }
       children.push(child.isLeaf ? child : child.copy(strip(child.content)))
@@ -254,7 +254,7 @@ export const Bookmarks = Extension.create({
       new Plugin({
         key: new PluginKey('bookmarks'),
         props: {
-          /** Com `Ctrl`, como no Word, ou com clique simples no somente leitura. */
+          /** With `Ctrl`, as in Word, or with a plain click when read-only. */
           handleClick(view, pos, event) {
             if (!event.ctrlKey && !event.metaKey && view.editable) return false
             const $pos = view.state.doc.resolve(pos)
@@ -267,7 +267,7 @@ export const Bookmarks = Extension.create({
             return goToBookmark(view, href.slice(1))
           },
 
-          /** `\h` leva ao que cita, pelo mesmo gesto do link. */
+          /** `\h` leads to what it cites, with the same gesture as a link. */
           handleClickOn(view, _pos, node, _nodePos, event) {
             if (node.type.name !== 'field') return false
             if (!event.ctrlKey && !event.metaKey && view.editable) return false

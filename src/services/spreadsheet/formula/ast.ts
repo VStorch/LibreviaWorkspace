@@ -1,4 +1,7 @@
-/** Guardar a árvore permite avaliar sem reanalisar, achar as dependências e reescrever referências. */
+/**
+ * Keeping the tree allows evaluating without reparsing, finding dependencies and rewriting
+ * references.
+ */
 
 import type { FormulaError } from './errors.js'
 import type { CellRef } from './references.js'

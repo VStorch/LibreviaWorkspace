@@ -4,8 +4,8 @@ import { EditorCommand, asEditorCommand, runsWhileLocked } from './editor-comman
 
 describe('comandos do editor no somente leitura', () => {
   it('só a busca, a contagem, os marcadores, a navegação e abrir a equação rodam com o documento travado', () => {
-    // O diálogo de marcadores abre para "Ir para"; adicionar e excluir se apagam
-    // lá dentro. A equação abre para ser vista: o diálogo não grava travado.
+    // The bookmark dialog opens for "Go to"; add and delete grey out inside it. The equation opens
+    // for viewing: the dialog does not save while locked.
     const allowed = Object.values(EditorCommand).filter(runsWhileLocked)
     expect(allowed.sort()).toEqual(
       [

@@ -3,7 +3,7 @@ import { DEFAULT_PAGE_SETUP, type PageSetup } from './model.js'
 import { editBandFloat, editBandPiece, type Band, type BandPiece } from './band.js'
 import type { FloatingObject } from './floating.js'
 
-/** O texto digitado na faixa entra em `page`, de onde o gravador o lê. */
+/** Text typed in the band goes into `page`, where the writer reads it from. */
 describe('editBandPiece', () => {
   const piece = (text: string, pid?: string): BandPiece => ({
     kind: 'text',
@@ -33,8 +33,8 @@ describe('editBandPiece', () => {
   })
 
   it('alcança a peça esteja ela onde estiver na faixa', () => {
-    // Cabeçalho corporativo é uma tabela, e o texto que se quer trocar mora
-    // numa célula — não numa das três colunas.
+    // A corporate header is a table, and the text to change lives in a cell, not in one of the
+    // three columns.
     const page = setup({
       firstFooterBand: {
         ...band(),
@@ -49,8 +49,8 @@ describe('editBandPiece', () => {
   })
 
   it('devolve a mesma configuração quando não há o que trocar', () => {
-    // Um clique que não mudou nada não pode marcar o documento como alterado, e
-    // sair da peça sem digitar é o caso comum.
+    // A click that changed nothing must not mark the document as modified, and leaving the piece
+    // without typing is the common case.
     const page = setup({ headerBand: band(piece('Chamado 10001', 'rId5:0:0')) })
 
     expect(editBandPiece(page, 'rId5:0:0', 'Chamado 10001')).toBe(page)
@@ -58,14 +58,14 @@ describe('editBandPiece', () => {
   })
 
   it('não escreve em peça sem endereço', () => {
-    // Número de página e imagem não têm `w:t` onde guardar o que se digitasse.
+    // Page numbers and images have no `w:t` to hold typed text.
     const page = setup({ headerBand: band(piece('5')) })
 
     expect(editBandPiece(page, 'rId5:0:0', 'Outro')).toBe(page)
   })
 })
 
-/** O texto de uma caixa da faixa entra em `page`, a caixa inteira. */
+/** The whole box goes into `page`. */
 describe('editBandFloat', () => {
   const caixa = (bid: string | undefined, text: string): FloatingObject => ({
     kind: 'text',
@@ -98,9 +98,8 @@ describe('editBandFloat', () => {
   })
 
   it('não escreve em caixa sem endereço', () => {
-    // A caixa que traz numeração perde o endereço ao ter o marcador trocado: o
-    // que está na tela é o número desta folha, e devolvê-lo trocaria o campo
-    // `PAGE` por um número fixo.
+    // A box carrying numbering loses its address when its bullet changes: what is on screen is this
+    // sheet's number, and writing it back would replace the `PAGE` field with a fixed number.
     const page = setup([caixa(undefined, '3')])
 
     expect(editBandFloat(page, 'rId13#0', [])).toBe(page)

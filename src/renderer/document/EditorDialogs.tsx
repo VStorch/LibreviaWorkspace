@@ -49,7 +49,7 @@ const simple =
     <Dialog editor={context.editor} onClose={context.close(key)} />
   )
 
-/** Na ordem em que entram na árvore. */
+/** In the order they enter the tree. */
 const DIALOGS: readonly { key: DialogKey; render: (context: DialogContext) => React.JSX.Element }[] = [
   {
     key: 'find',
@@ -143,10 +143,10 @@ export function EditorContextMenu({
   return (
     <DocumentContextMenu
       target={target}
-      // Fora de uma tabela, "mesclar células" não tem o que mesclar.
+      // Outside a table, "merge cells" has nothing to merge.
       inTable={editor.isActive('table')}
       onTableAction={run}
-      // Como no Word, pelo botão direito sobre o item que se quer reiniciar.
+      // As in Word, by right-clicking the item to restart.
       inList={
         editor.isActive('orderedList') ? 'orderedList' : editor.isActive('bulletList') ? 'bulletList' : null
       }

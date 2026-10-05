@@ -9,10 +9,9 @@ import { insertEquation, replaceEquation, type EquationTarget } from './math-com
 import { useT } from '../i18n.js'
 
 /**
- * O LaTeX é a fonte; o Temml o desenha (`latex.ts`), pelo mesmo filtro da
- * equação do arquivo. A equação do `.docx` ganha LaTeX ao abrir
- * (`mathml-latex.ts`), e o OK sem mudança não toca o documento. A travada abre só
- * para ver.
+ * LaTeX is the source; Temml draws it (`latex.ts`), through the same filter as file equations. A
+ * `.docx` equation gets LaTeX on open (`mathml-latex.ts`), and OK without changes does not touch
+ * the document. A locked document opens it for viewing only.
  */
 export function MathDialog({
   editor,
@@ -27,7 +26,7 @@ export function MathDialog({
 }): React.JSX.Element {
   const t = useT()
 
-  // Lido uma vez, ao abrir.
+  // Read once, on open.
   const [initial] = useState(() => initialEquation(editor, target))
 
   const viewOnly = readOnly || initial.locked
@@ -38,7 +37,7 @@ export function MathDialog({
 
   function close(): void {
     onClose()
-    // Depois de o diálogo sair, para o foco não cair no corpo da janela.
+    // After the dialog leaves, so focus does not land on the window body.
     requestAnimationFrame(() => editor.view.focus())
   }
 
@@ -132,7 +131,7 @@ function initialEquation(editor: Editor, target: EquationTarget): InitialEquatio
   }
 }
 
-/** Nó a nó, como no documento: nada de innerHTML. */
+/** Node by node, as in the document: no innerHTML. */
 function useMathPreview(shown: MathElement | null): RefObject<HTMLDivElement | null> {
   const preview = useRef<HTMLDivElement>(null)
   useLayoutEffect(() => {
@@ -147,7 +146,7 @@ interface EquationSource {
   readonly latex: string
   readonly setLatex: (latex: string) => void
   readonly textarea: RefObject<HTMLTextAreaElement | null>
-  /** O modelo entra na seleção, e o cursor fica onde se escreve em seguida. */
+  /** The template enters the selection, and the cursor lands where one writes next. */
   readonly insertTemplate: (template: MathTemplate) => void
 }
 

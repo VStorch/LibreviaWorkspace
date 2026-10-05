@@ -2,9 +2,9 @@ import { formatNumber } from './list-numbering.js'
 import type { DocumentNotes, NoteNumbering } from './model.js'
 
 /**
- * O número não mora na referência: é a ordem dela no documento, contada com o
- * formato e o início de `w:footnotePr`/`w:endnotePr`. A referência de marca
- * própria (`w:customMarkFollows`) não entra na conta, como no Word.
+ * The number does not live in the reference: it is its order in the document, counted with the
+ * format and start of `w:footnotePr`/`w:endnotePr`. A reference with its own mark
+ * (`w:customMarkFollows`) is not counted, as in Word.
  */
 
 export const NoteKind = {
@@ -16,26 +16,26 @@ export type NoteKind = (typeof NoteKind)[keyof typeof NoteKind]
 export interface NoteReference {
   readonly kind: string
   readonly mark?: string | null
-  /** A seção da referência (o índice dela), para `numRestart` `eachSect`. */
+  /** The reference's section index, for `numRestart` `eachSect`. */
   readonly section?: number
-  /** Para `eachPage`. Sem paginação, como no modo de leitura, a conta segue contínua. */
+  /** For `eachPage`. Without pagination, as in reading mode, the count runs on. */
   readonly page?: number
 }
 
-/** O padrão do Word: 1, 2, 3 nas de rodapé; i, ii, iii nas de fim. */
+/** Word's default: 1, 2, 3 for footnotes; i, ii, iii for endnotes. */
 const DEFAULT_FORMAT: Record<NoteKind, string> = {
   [NoteKind.Footnote]: 'decimal',
   [NoteKind.Endnote]: 'lowerRoman',
 }
 
-/** `chicago`: *, †, ‡, § — e depois as mesmas, dobradas. */
+/** `chicago`: *, †, ‡, §, then the same doubled. */
 const CHICAGO = ['*', '†', '‡', '§']
 
 function numberingOf(kind: string, notes: DocumentNotes | undefined): NoteNumbering | undefined {
   return kind === NoteKind.Endnote ? notes?.endnotePr : notes?.footnotePr
 }
 
-/** `ordinal` a partir de 0; o reinício é de `noteCounter`. */
+/** `ordinal` from 0; restarting is `noteCounter`'s job. */
 export function noteLabel(kind: string, ordinal: number, notes?: DocumentNotes): string {
   const numbering = numberingOf(kind, notes)
   const value = (numbering?.start ?? 1) + ordinal
@@ -46,13 +46,13 @@ export function noteLabel(kind: string, ordinal: number, notes?: DocumentNotes):
     return CHICAGO[(value - 1) % CHICAGO.length]!.repeat(Math.floor((value - 1) / CHICAGO.length) + 1)
   }
   const text = formatNumber(value, format)
-  // `none` e `bullet` não servem de número: sai em decimal.
+  // `none` and `bullet` cannot number: decimal is used.
   return text === '' ? String(value) : text
 }
 
 /**
- * Chamada na ordem do texto. `numRestart` volta ao `numStart` na primeira nota
- * de cada seção ou de cada folha (só nas de rodapé, como no Word).
+ * Called in text order. `numRestart` goes back to `numStart` at the first note of each section or
+ * each sheet (footnotes only, as in Word).
  */
 export function noteCounter(notes?: DocumentNotes): (reference: NoteReference) => string {
   const last = new Map<string, { ordinal: number; section?: number; page?: number }>()

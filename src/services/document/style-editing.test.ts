@@ -27,7 +27,7 @@ describe('criar e modificar estilos', () => {
     })
     expect(sheet.styles[id]).toMatchObject({ custom: true, basedOn: 'Normal', next: 'Normal' })
     expect(sheet.styles[id]?.paragraph).toBeUndefined()
-    // Folha nova: a antiga continua como estava.
+    // A new sheet: the old one stays as it was.
     expect(BUILTIN_STYLES.styles[id]).toBeUndefined()
   })
 
@@ -53,9 +53,9 @@ describe('criar e modificar estilos', () => {
     })
     expect(changed.styles['Heading1']?.character?.fontSize).toBe('20pt')
     expect(changed.styles['Heading1']?.paragraph?.spaceAfter).toBe(6)
-    // A entrelinha não mudou: continua herdada do padrão do documento.
+    // The line spacing did not change: it is still inherited from the document default.
     expect(changed.styles['Heading1']?.paragraph?.lineSpacing).toBeUndefined()
-    // E a tela muda junto, pela regra do estilo.
+    // And the screen changes along, through the style rule.
     expect(styleSheetCss(changed)).toContain('font-size: 20pt;')
   })
 

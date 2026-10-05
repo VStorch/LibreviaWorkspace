@@ -7,8 +7,8 @@ import { textStartOf } from './extensions/zero-width.js'
 import { outlineBlocksOf } from './outline-blocks.js'
 
 /**
- * Clicar move o cursor e rola a folha: não muda o documento, e por isso vale no
- * somente leitura. O nível é o efetivo (`outline.ts`).
+ * Clicking moves the cursor and scrolls the sheet: it does not change the document, so it works
+ * when read-only. The level is the effective one (`outline.ts`).
  */
 export function NavigationPane({ editor }: { readonly editor: Editor }): React.JSX.Element {
   const sheet = useWorkspace((state) => state.styles)
@@ -23,11 +23,11 @@ export function NavigationPane({ editor }: { readonly editor: Editor }): React.J
   })
 
   function go(pos: number): void {
-    // A rolagem é do elemento: o `scrollIntoView` do ProseMirror deixaria o título
-    // no pé da janela. O foco vai direto à visão, porque o `focus` do Tiptap espera
-    // um quadro. O cursor vai depois das âncoras do começo do título.
+    // The element scrolls: ProseMirror's `scrollIntoView` would leave the heading at the bottom of
+    // the window. Focus goes straight to the view, because Tiptap's `focus` waits a frame. The
+    // cursor goes after the anchors at the start of the heading.
     const start = textStartOf(editor.state.doc, pos)
-    // O foco antes da seleção, para o cursor do navegador ir junto.
+    // Focus before selection, so the browser cursor follows.
     editor.view.focus()
     editor.commands.setTextSelection(start)
     const dom = editor.view.nodeDOM(pos)

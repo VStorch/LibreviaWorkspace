@@ -27,8 +27,8 @@ const del = (author: string, rid: string): Record<string, unknown> => ({
 })
 
 /**
- * "Texto [inserido][ excluído] fim." — com um marcador no meio do excluído —,
- * um parágrafo cuja marca foi inserida, e uma tabela com a primeira linha excluída.
+ * "Texto [inserido][ excluído] fim." with a bookmark in the middle of the deletion, a paragraph
+ * whose mark was inserted, and a table with its first row deleted.
  */
 const doc = ProseMirrorNode.fromJSON(schema, {
   type: 'doc',
@@ -153,7 +153,7 @@ describe('controle de alterações', () => {
     expect(revisionChangesOf(state.doc)).toEqual([])
     expect(firstText(state)).toBe('Texto inserido fim.')
     expect(state.doc.child(1).textContent).toBe('Partido')
-    // A linha excluída saiu; a outra fica.
+    // The deleted row went; the other stays.
     expect(state.doc.child(3).childCount).toBe(1)
     expect(state.doc.child(3).textContent).toBe('Fica')
 
@@ -180,7 +180,7 @@ describe('controle de alterações', () => {
     expect(adjacentChange(doc, insertion.to, 1)?.kind).toBe('deletion')
     const row = adjacentChange(doc, doc.content.size, -1)!
     expect(row.kind).toBe('rowDeletion')
-    // Escolhida, a linha põe o cursor dentro dela; a anterior não é ela de novo.
+    // Once chosen, the row puts the cursor inside it; the previous one is not the same row again.
     const inside = selectChange(EditorState.create({ schema, doc }).tr, row).selection.from
     expect(adjacentChange(doc, inside, -1)?.kind).not.toBe('rowDeletion')
     const state = EditorState.create({ schema, doc, selection: TextSelection.create(doc, 1) })

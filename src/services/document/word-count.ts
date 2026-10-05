@@ -1,16 +1,19 @@
 import type { DocumentNode } from './model.js'
 
-/** Palavras e caracteres vêm do `CharacterCount`, como na barra de status, para não haver dois números. */
+/**
+ * Words and characters come from `CharacterCount`, as in the status bar, so there are not two
+ * numbers.
+ */
 
-/** Todo espaço do Unicode, como o `\u00a0` que o Word põe em datas e números. */
+/** Every Unicode space, like the `\u00a0` Word puts in dates and numbers. */
 export function charactersWithoutSpaces(text: string): number {
   return [...text.replace(/\s|\u00a0/gu, '')].length
 }
 
-/** Lista, citação e célula **contêm** parágrafos: contá-los somaria cada linha duas vezes. */
+/** Lists, quotes and cells **contain** paragraphs: counting them would count each line twice. */
 const PARAGRAPH_TYPES = new Set(['paragraph', 'heading', 'codeBlock'])
 
-/** Como o Word, só linha com texto; a marca de seção, que é parágrafo vazio, também fica de fora. */
+/** As in Word, only lines with text; the section mark, an empty paragraph, is left out too. */
 export function countParagraphs(node: DocumentNode): number {
   let total = 0
 

@@ -4,7 +4,7 @@ import { MAX_TEXT_LENGTH, ipcContracts, pushContracts } from './ipc.js'
 
 describe('contratos de IPC', () => {
   it('define um contrato para cada canal invocável', () => {
-    // Um canal sem schema passaria payload não validada ao handler.
+    // A channel without a schema would pass unvalidated payloads to the handler.
     for (const channel of INVOCABLE_IPC_CHANNELS) {
       expect(ipcContracts[channel]).toBeDefined()
     }
@@ -22,8 +22,8 @@ describe('contratos de IPC', () => {
 
 describe('contratos do sentido main → renderer', () => {
   it('define um contrato para cada canal empurrado', () => {
-    // Sem schema, a mensagem chegaria ao renderer sem ninguém conferir a forma —
-    // e o renderer a descartaria em silêncio, que é o defeito mais caro daqui.
+    // Without a schema nobody would check the shape, and the renderer would drop the message
+    // silently, the costliest defect here.
     for (const channel of PUSH_IPC_CHANNELS) {
       expect(pushContracts[channel]).toBeDefined()
     }
@@ -56,8 +56,8 @@ describe('validação do alvo do menu de contexto', () => {
   })
 
   it('recusa coordenada negativa e lista de sugestões absurda', () => {
-    // O que chega aqui vira posição na tela e itens de menu: uma coordenada
-    // negativa põe o menu fora da janela, e trinta sugestões o fazem sair dela.
+    // This becomes a screen position and menu items: a negative coordinate puts the menu outside
+    // the window, and thirty suggestions overflow it.
     expect(schema.safeParse({ ...alvo, x: -1 }).success).toBe(false)
     expect(
       schema.safeParse({ ...alvo, dictionarySuggestions: Array.from({ length: 30 }, () => 'x') }).success,
@@ -69,7 +69,7 @@ describe('validação de prefs:set', () => {
   const schema = ipcContracts[IpcChannel.PreferencesSet].request
 
   it('aceita um remendo de uma chave só', () => {
-    // Quem clica em "marcas de formatação" não tem opinião sobre ortografia.
+    // Whoever toggles formatting marks has no opinion about spelling.
     expect(schema.parse({ invisibleCharacters: true })).toEqual({ invisibleCharacters: true })
   })
 
@@ -161,21 +161,19 @@ describe('validação de file:open-recent', () => {
 })
 
 describe('validação de fonts:list', () => {
-  // Quem executa este schema na resposta de verdade é `src/main/ipc/registry.ts`,
-  // e `registry.test.ts` prova que executa: um schema que ninguém roda é tipo em
-  // tempo de compilação, não proteção.
+  // `src/main/ipc/registry.ts` runs this schema on the real response, and `registry.test.ts` proves
+  // it: a schema nobody runs is a compile-time type, not protection.
   const schema = ipcContracts[IpcChannel.FontsList].response
 
   it('aceita a lista vazia', () => {
-    // Sistema sem `fontconfig` devolve nada, e isso não é erro: a barra segue
-    // com as fontes que o instalador leva.
+    // A system without `fontconfig` returns nothing, and that is not an error: the toolbar keeps
+    // the bundled fonts.
     expect(schema.safeParse({ families: [] }).success).toBe(true)
   })
 
   it('recusa nome vazio e lista absurda', () => {
-    // O que chega aqui é saída de programa do sistema. Ela é dado, não verdade:
-    // um nome vazio viraria opção invisível no seletor, e uma lista de cem mil
-    // entradas travaria a barra ao abrir.
+    // This is the output of a system program, data and not truth: an empty name would become an
+    // invisible option, and a list of a hundred thousand entries would freeze the toolbar.
     expect(schema.safeParse({ families: [''] }).success).toBe(false)
     expect(schema.safeParse({ families: Array.from({ length: 4001 }, () => 'Arial') }).success).toBe(false)
   })

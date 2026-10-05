@@ -1,14 +1,14 @@
 import { ALLOWED_EXTERNAL_PROTOCOLS } from '@shared/constants.js'
 
 /**
- * `javascript:` num link é código disfarçado. O main aplica a mesma lista de
- * esquemas antes de abrir; aqui só se evita gravar endereço inválido.
+ * `javascript:` in a link is disguised code. Main applies the same scheme list before opening; this
+ * only avoids saving an invalid address.
  */
 export function normalizeLinkUrl(input: string): string | null {
   const trimmed = input.trim()
   if (trimmed.length === 0) return null
 
-  // Endereço digitado sem esquema é o caso comum: "empresa.com.br".
+  // An address typed without a scheme is the common case: "empresa.com.br".
   const candidate = /^[a-z][a-z0-9+.-]*:/i.test(trimmed) ? trimmed : `https://${trimmed}`
 
   let parsed: URL

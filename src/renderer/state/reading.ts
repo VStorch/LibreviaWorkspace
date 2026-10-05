@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { setPreference, usePreferences } from './preferences.js'
 
-/** A preferência mora no main, que marca o item do menu "Exibir". */
+/** The preference lives in main, which checks the "View" menu item. */
 export function useReadingMode(): boolean {
   return usePreferences((state) => state.preferences.readingMode)
 }
@@ -11,8 +11,8 @@ export async function setReadingMode(readingMode: boolean): Promise<void> {
 }
 
 /**
- * Sem barras na tela, Esc é o que impede a pessoa de se sentir trancada. Só com
- * o modo ligado: fora dele, Esc é do painel ou diálogo aberto.
+ * Without toolbars on screen, Esc is what keeps the user from feeling locked in. Only with the mode
+ * on: outside it, Esc belongs to the open panel or dialog.
  */
 export function useLeaveReadingOnEscape(active: boolean): void {
   useEffect(() => {
@@ -24,7 +24,7 @@ export function useLeaveReadingOnEscape(active: boolean): void {
       void setReadingMode(false)
     }
 
-    // Na captura: o ProseMirror ainda recebe as teclas e consumiria o Esc.
+    // In the capture phase: ProseMirror still receives keys and would consume Esc.
     window.addEventListener('keydown', onKeyDown, true)
     return () => window.removeEventListener('keydown', onKeyDown, true)
   }, [active])

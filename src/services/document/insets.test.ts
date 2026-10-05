@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { contentHeightMm, contentInsetsMm, DEFAULT_PAGE_SETUP, PageSize, type PageSetup } from './model.js'
 
-/** A4 com as margens do corpus e as faixas a 12,5 mm da borda. */
+/** A4 with the corpus margins and bands 12.5 mm from the edge. */
 const page: PageSetup = {
   ...DEFAULT_PAGE_SETUP,
   size: PageSize.A4,
@@ -12,7 +12,7 @@ const page: PageSetup = {
 
 describe('onde a coluna de texto começa e termina', () => {
   it('faixa que cabe na margem não desloca nada', () => {
-    // 12,5 + 8 = 20,5 mm, dentro dos 25 da margem: o corpo fica onde estava.
+    // 12.5 + 8 = 20.5 mm, inside the 25 mm margin: the body stays where it was.
     const inset = contentInsetsMm(page, { headerMm: 8, footerMm: 8 })
 
     expect(inset.top).toBe(25)
@@ -20,7 +20,7 @@ describe('onde a coluna de texto começa e termina', () => {
   })
 
   it('cabeçalho mais alto que a margem empurra o corpo para baixo', () => {
-    // O cabeçalho corporativo em grade, quatro linhas e um logotipo, passa da margem.
+    // The corporate grid header, four rows and a logo, exceeds the margin.
     const inset = contentInsetsMm(page, { headerMm: 23, footerMm: 0 })
 
     expect(inset.top).toBe(35.5)
@@ -34,8 +34,8 @@ describe('onde a coluna de texto começa e termina', () => {
   })
 
   it('a altura útil desconta o que a faixa tomou', () => {
-    // 297 − 35,5 − 25: é essa altura que decide onde a folha quebra, e ela tem
-    // de ser a mesma na tela e no papel.
+    // 297 − 35.5 − 25: this height decides where the sheet breaks, and it must be the same on
+    // screen and paper.
     expect(contentHeightMm(page, { headerMm: 23, footerMm: 0 })).toBeCloseTo(236.5, 1)
     expect(contentHeightMm(page)).toBeCloseTo(247, 1)
   })

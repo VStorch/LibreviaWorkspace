@@ -3,7 +3,7 @@ import { MenuCommand } from '@shared/types.js'
 import { clampZoom, zoomIn, zoomOut } from '@services/document/zoom.js'
 import { currentPreferences, setPreference, usePreferences } from './preferences.js'
 
-/** Não é preferência: depende da janela. Quem mede é o editor. */
+/** Not a preference: it depends on the window. The editor measures it. */
 export const useFittedZoom = create<{ fitted: number }>(() => ({ fitted: 100 }))
 
 export function setFittedZoom(fitted: number): void {
@@ -17,7 +17,7 @@ export function useEffectiveZoom(): number {
   return fit ? fitted : zoom
 }
 
-/** Inclusive a partir do ajustado à largura. */
+/** Including from fit width. */
 export async function runZoomCommand(command: MenuCommand): Promise<void> {
   const preferences = currentPreferences()
   const now = preferences.zoomFit ? useFittedZoom.getState().fitted : preferences.zoom

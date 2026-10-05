@@ -6,8 +6,8 @@ describe('resolveStyle', () => {
   it('parte dos padrões do documento e deixa o mais próximo da cadeia com a última palavra', () => {
     const heading = resolveStyle(BUILTIN_STYLES, 'Heading1')
     expect(heading.character).toMatchObject({ fontFamily: 'Calibri', fontSize: '16pt', color: '#2f5496' })
-    // O depois do título (0) vence o do padrão (8); a entrelinha, que o título
-    // não declara, passa.
+    // The heading's space after (0) beats the default's (8); line spacing, which the heading does
+    // not declare, passes through.
     expect(heading.paragraph).toMatchObject({
       spaceBefore: 12,
       spaceAfter: 0,
@@ -49,8 +49,7 @@ describe('effectiveAttrs', () => {
       { type: 'heading', attrs: { level: 1, spaceAfter: 4, keepNext: null } },
       BUILTIN_STYLES,
     )
-    // "Manter com o próximo" não está no nó: vem do estilo, e é o que a
-    // paginação precisa ver.
+    // "Keep with next" is not on the node: it comes from the style, and pagination needs to see it.
     expect(attrs).toMatchObject({ keepNext: true, spaceBefore: 12, spaceAfter: 4, fontSize: '16pt' })
   })
 

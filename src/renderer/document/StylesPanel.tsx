@@ -16,9 +16,9 @@ import { cycleFocus } from '../components/focus-trap.js'
 const STYLE_PANEL_STOPS = 'select, ul[tabindex], input, button:not(:disabled), li[tabindex="0"]'
 
 /**
- * Aplicar e limpar são transações do editor (`style-commands.ts`); modificar e
- * criar trocam a folha do store, que vai a `word/styles.xml` (`StyleWriter.cs`).
- * Nenhum estilo é excluído. No somente leitura, só consulta.
+ * Applying and clearing are editor transactions (`style-commands.ts`); modifying and creating
+ * replace the store's sheet, which goes to `word/styles.xml` (`StyleWriter.cs`). No style is
+ * deleted. When read-only, browse only.
  */
 export function StylesPanel({
   editor,
@@ -127,7 +127,7 @@ function applyStyle(editor: Editor, style: StyleDefinition): void {
   else chain.applyParagraphStyle(style.id).run()
 }
 
-/** Ao vivo: o cursor anda com o painel aberto. */
+/** Live: the cursor moves with the panel open. */
 function useCursorBlock(editor: Editor): { type: string; styleId: string | null; level: number | null } {
   return useEditorState({
     editor,
@@ -188,7 +188,7 @@ function StyleList({
   const t = useT()
   const language = useLanguage()
   return (
-    // Focalizável, para a lista rolar pelo teclado; clique duplo já aplica.
+    // Focusable, so the list scrolls by keyboard; double click applies.
     <ul className="styles-list" tabIndex={0} aria-label={t('document.styleAndFont.documentStyles')}>
       {styles.length === 0 && <li className="styles-list__empty">{t('document.styles.empty')}</li>}
       {styles.map((style) => (
@@ -207,7 +207,7 @@ function StyleList({
             onSelect(style.id)
             onApply(style)
           }}
-          // A marca visual sozinha não diz nada a quem não vê a tela.
+          // The visual mark alone says nothing to someone who cannot see the screen.
           aria-current={style.id === currentId ? 'true' : undefined}
         >
           <span className="styles-list__name">{styleLabelOf(style, language)}</span>
@@ -280,7 +280,10 @@ function StyleActions({
   )
 }
 
-/** Só o que o estilo declara, e de quem herda: "12 pt" num estilo que herda o tamanho afirmaria o que o documento não diz. */
+/**
+ * Only what the style declares, and what it inherits from: "12 pt" on a style that inherits its
+ * size would claim what the document does not say.
+ */
 function describe(
   style: StyleDefinition,
   sheet: StyleSheet,
@@ -296,7 +299,7 @@ function describe(
   if (style.character?.fontSize !== undefined) parts.push(style.character.fontSize)
   if (style.character?.bold === true) parts.push(t('document.styles.bold'))
   if (style.basedOn !== undefined) {
-    // Pelo nome: num documento em português o id do pai é `Ttulo1`.
+    // By name: in a Portuguese document the parent's id is `Ttulo1`.
     const parent = sheet.styles[style.basedOn]
     parts.push(
       t('document.styles.basedOn', {

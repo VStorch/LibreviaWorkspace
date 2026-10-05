@@ -9,8 +9,8 @@ const pending: string[] = []
 let target: BrowserWindow | null = null
 
 /**
- * Só os argumentos de abertura nativos dão acesso a arquivo fora dos recentes.
- * Um `.dotx` ou `.dotm` pela linha de comando cria um documento novo, como no Word.
+ * Only native open arguments grant access to a file outside the recent list. A `.dotx` or `.dotm`
+ * from the command line creates a new document, as in Word.
  */
 export function docxFromArguments(args: readonly string[], cwd: string): string | undefined {
   const path = args.find(

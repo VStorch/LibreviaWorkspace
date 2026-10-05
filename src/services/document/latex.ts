@@ -9,11 +9,11 @@ import {
 } from './mathml.js'
 
 /**
- * O Temml escreve MathML Core e roda sem rede. Três coisas dele são traduzidas
- * antes do filtro de `mathml.ts`: o `menclose` de `\overline` e `\underline` vira
- * `mover`/`munder` (`m:bar`); o `\boxed` vira o `mrow` com a classe da caixa; e o
- * pré-índice `{}_a^b X` vira `mmultiscripts` (`m:sPre`). A fonte mora no atributo
- * `latex` do nó, e por isso o `semantics` é desembrulhado.
+ * Temml writes MathML Core and runs offline. Three of its outputs are translated before the
+ * `mathml.ts` filter: the `menclose` of `\overline` and `\underline` becomes `mover`/`munder`
+ * (`m:bar`); `\boxed` becomes the `mrow` with the box class; and the prescript `{}_a^b X` becomes
+ * `mmultiscripts` (`m:sPre`). The source lives in the node's `latex` attribute, so `semantics` is
+ * unwrapped.
  */
 
 export type LatexResult =
@@ -30,7 +30,7 @@ export function latexToMathMl(latex: string, display: boolean): LatexResult {
       trust: false,
     })
   } catch (error) {
-    // Além do `ParseError` do Temml, um `TypeError` num `a^` também é LaTeX que não fecha.
+    // Besides Temml's `ParseError`, a `TypeError` on `a^` is also LaTeX that does not close.
     const message = error instanceof Error ? error.message : String(error)
     return { ok: false, error: message.replace(/^ParseError:\s*/, '').trim() }
   }
@@ -46,7 +46,7 @@ function element(tag: string, attrs: Record<string, string>, children: readonly 
   return { tag, attrs, children }
 }
 
-/** O MathML do Temml no vocabulário que o filtro e o `OmmlMath.cs` conhecem. */
+/** Temml's MathML in the vocabulary the filter and `OmmlMath.cs` know. */
 export function normalize(node: MathElement): MathElement {
   const children = scripts(
     node.children.map((child) => (typeof child === 'string' ? child : normalize(child))).flatMap(unwrap),
@@ -82,7 +82,7 @@ function unwrap(child: MathChild): MathChild[] {
   return [child]
 }
 
-/** `{}_a^b X` — o índice de base vazia antes da base — em `mmultiscripts`. */
+/** `{}_a^b X`, the empty-base script before the base, into `mmultiscripts`. */
 function scripts(children: MathChild[]): MathChild[] {
   const result: MathChild[] = []
   for (let i = 0; i < children.length; i++) {

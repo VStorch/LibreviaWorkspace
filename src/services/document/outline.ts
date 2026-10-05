@@ -1,7 +1,7 @@
 /**
- * O nível é o **efetivo**, como o Word o decide: o do nó `heading` ou o
- * `outlineLevel` que a cascata dá ao parágrafo. Um estilo "Capítulo" com nível 1
- * na estrutura é título para o Word, e para o painel também.
+ * The level is the **effective** one, as Word decides it: the `heading` node's, or the
+ * `outlineLevel` the cascade gives the paragraph. A "Chapter" style with outline level 1 is a
+ * heading to Word, and to the pane as well.
  */
 
 import { resolveStyle } from './style-cascade.js'
@@ -15,16 +15,16 @@ export interface OutlineBlock {
 }
 
 export interface OutlineEntry {
-  /** De 1 a 9, como o Word mostra: o `outlineLevel` do arquivo mais um. */
+  /** 1 to 9, as Word shows it: the file's `outlineLevel` plus one. */
   readonly level: number
   readonly text: string
   readonly pos: number
 }
 
-/** O último nível que é título. `outlineLvl` 9 no arquivo é corpo de texto. */
+/** The deepest heading level. `outlineLvl` 9 in the file is body text. */
 const DEEPEST_LEVEL = 9
 
-/** O `heading` vale pelo `level` que traz, porque o estilo pode nem declarar nível. */
+/** A `heading` counts by its `level`, because the style may not declare a level at all. */
 export function outlineLevelOf(
   block: Pick<OutlineBlock, 'type' | 'attrs'>,
   sheet: StyleSheet | null,
@@ -43,7 +43,7 @@ export function outlineLevelOf(
     : null
 }
 
-/** O título vazio fica de fora, como no Word. */
+/** An empty heading is left out, as in Word. */
 export function outlineOf(blocks: readonly OutlineBlock[], sheet: StyleSheet | null): OutlineEntry[] {
   const entries: OutlineEntry[] = []
 
@@ -57,7 +57,7 @@ export function outlineOf(blocks: readonly OutlineBlock[], sheet: StyleSheet | n
   return entries
 }
 
-/** O último título que começa antes da posição; `-1` antes do primeiro. */
+/** The last heading starting before the position; `-1` before the first. */
 export function currentEntryIndex(entries: readonly OutlineEntry[], pos: number): number {
   let current = -1
   for (const [index, entry] of entries.entries()) {

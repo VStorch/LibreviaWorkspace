@@ -1,9 +1,9 @@
 import type { DocumentComment, DocumentNode } from './model.js'
 
 /**
- * Como as seções (`resolveSections`): a biblioteca só ganha entradas, e o texto
- * diz quais valem, para o desfazer tirar e devolver o comentário inteiro.
- * `outside` são as conversas ancoradas fora do corpo, que valem sem pontas.
+ * Like sections (`resolveSections`): the library only gains entries and the text says which ones
+ * count, so undo removes and restores the whole comment. `outside` are threads anchored outside the
+ * body, which count without ends.
  */
 export function resolveComments(
   anchored: ReadonlySet<string>,
@@ -16,8 +16,8 @@ export function resolveComments(
     const known = exists.get(comment.id)
     if (known !== undefined) return known
     const parent = comment.parentId === undefined ? undefined : byId.get(comment.parentId)
-    // Resposta sem o comentário na biblioteca vira conversa própria; o teto de
-    // profundidade só segura o ciclo.
+    // A reply whose comment is not in the library becomes its own thread; the depth cap only stops
+    // a cycle.
     const result =
       parent === undefined || depth > 100
         ? anchored.has(comment.id) || outside.has(comment.id)
@@ -28,7 +28,7 @@ export function resolveComments(
   return library.filter((comment) => check(comment, 0))
 }
 
-/** A conversa a que o comentário pertence: o id do que a abre. */
+/** The id of the comment that opens the thread. */
 export function threadRootOf(library: readonly DocumentComment[], id: string): string {
   const byId = new Map(library.map((comment) => [comment.id, comment]))
   let current = byId.get(id)
@@ -53,7 +53,7 @@ export function commentAnchorIdsOfJson(doc: DocumentNode): Set<string> {
   return ids
 }
 
-/** As que o arquivo ancora fora do corpo. */
+/** The ones the file anchors outside the body. */
 export function commentsOutsideOf(doc: DocumentNode, library: readonly DocumentComment[]): readonly string[] {
   const anchored = commentAnchorIdsOfJson(doc)
   return library
@@ -61,7 +61,10 @@ export function commentsOutsideOf(doc: DocumentNode, library: readonly DocumentC
     .map((comment) => comment.id)
 }
 
-/** Da biblioteca inteira: o comentário desfeito volta com o refazer, e o id dele não pode ter ido a outro. */
+/**
+ * From the whole library: an undone comment comes back with redo, and its id must not have gone to
+ * another.
+ */
 export function nextCommentId(library: readonly DocumentComment[]): string {
   let max = -1
   for (const comment of library) {
@@ -70,7 +73,7 @@ export function nextCommentId(library: readonly DocumentComment[]): string {
   return String(max + 1)
 }
 
-/** Como o Word: a primeira letra de cada palavra, até três. */
+/** As in Word: the first letter of each word, up to three. */
 export function initialsOf(author: string): string {
   return author
     .split(/\s+/)

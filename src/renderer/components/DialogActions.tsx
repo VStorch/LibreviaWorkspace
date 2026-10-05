@@ -1,10 +1,10 @@
 import type { ReactNode } from 'react'
 import { useT } from '../i18n.js'
 
-/** O clique não tira o foco do editor: o comando age sobre a seleção que havia. */
+/** The click does not take focus from the editor: the command acts on the existing selection. */
 const keepFocus = (event: React.MouseEvent): void => event.preventDefault()
 
-/** Cancelar e confirmar, à direita; `children` vai à esquerda. */
+/** Cancel and confirm on the right; `children` goes on the left. */
 export function DialogActions({
   confirmLabel,
   onConfirm,

@@ -1,13 +1,13 @@
 /**
- * O ODF exige o `mimetype` como **primeira** entrada, sem compressão nem campo
- * extra. A compressão chega de fora (`zlib` no main); sem ela tudo sai guardado,
- * que ainda é um ZIP válido.
+ * ODF requires `mimetype` as the **first** entry, uncompressed and without an extra field.
+ * Compression comes from outside (`zlib` in main); without it everything is stored, still a valid
+ * ZIP.
  */
 
 export interface ZipEntry {
   readonly name: string
   readonly data: Uint8Array
-  /** Guardada como está — o `mimetype` e as imagens, que já vêm comprimidas. */
+  /** Stored as is: `mimetype` and images, which come already compressed. */
   readonly stored?: boolean
 }
 
@@ -15,7 +15,7 @@ export type Deflate = (data: Uint8Array) => Uint8Array
 
 const STORED = 0
 const DEFLATED = 8
-/** Bit 11: nome em UTF-8. */
+/** Bit 11: UTF-8 name. */
 const UTF8_FLAG = 0x0800
 
 const CRC_TABLE = (() => {
@@ -34,7 +34,7 @@ export function crc32(data: Uint8Array): number {
   return (crc ^ 0xffffffff) >>> 0
 }
 
-/** Data e hora no formato do MS-DOS, que o ZIP usa; antes de 1980 não existe. */
+/** In MS-DOS format, which ZIP uses; nothing before 1980 exists. */
 function dosDateTime(date: Date): { time: number; date: number } {
   const year = Math.min(Math.max(date.getFullYear(), 1980), 2107)
   return {
@@ -43,7 +43,10 @@ function dosDateTime(date: Date): { time: number; date: number } {
   }
 }
 
-/** `deflate` ausente guarda tudo; a data é fixa por padrão, para os mesmos bytes nos testes. */
+/**
+ * Without `deflate` everything is stored; the date is fixed by default, for the same bytes in
+ * tests.
+ */
 export function zip(
   entries: readonly ZipEntry[],
   deflate?: Deflate,

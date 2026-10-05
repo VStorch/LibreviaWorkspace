@@ -1,63 +1,51 @@
 /**
- * A tabela única dos atalhos de teclado.
+ * The single table of keyboard shortcuts.
  *
- * O acelerador do menu nativo é registrado no processo main e **intercepta a
- * tecla antes de o renderer vê-la**. Com duas listas — o mapa de teclado do
- * editor e os aceleradores do menu —, toda vez que elas se cruzassem o atalho
- * do editor pararia de existir, sem erro nem aviso.
+ * Menu accelerators are registered in main and **intercept the key before the renderer sees it**.
+ * With two lists (the editor keymap and the menu accelerators), every overlap would silently kill
+ * the editor shortcut.
  *
- * Por isso cada tecla é declarada uma vez, dizendo **quem a atende** e **o que
- * ela faz**; o menu e o editor leem daqui. Não é documentação: é a origem das
- * duas formas — o acelerador do Electron e a chave do `prosemirror-keymap` — e
- * o teste ao lado falha se duas entradas pedirem a mesma tecla para donos
- * diferentes.
+ * So each key is declared once, saying **who handles it** and **what it does**; the menu and the
+ * editor read from here, and the test next door fails if two entries claim the same key for
+ * different owners.
  *
- * ## Entradas reservadas
+ * Some keys are not registered by us but by Tiptap extensions (`Ctrl+B`, headings on
+ * `Ctrl+Alt+1`…`6`, indent…). They are here on purpose, marked with `registeredBy`, to **reserve**
+ * the key: a future menu item on `Ctrl+B` hits the test, not a report months later that bold
+ * "sometimes doesn't work".
  *
- * Algumas teclas não são registradas por nós: vêm de extensões do Tiptap
- * (`Ctrl+B`, os títulos em `Ctrl+Alt+1`…`6`, o recuo…). Elas estão aqui de
- * propósito, marcadas em `registeredBy`, para **ocupar** a tecla: quem amanhã
- * quiser um item de menu em `Ctrl+B` descobre o choque no teste, e não meses
- * depois, pelo relato de que o negrito "às vezes não pega".
+ * Left out: Electron roles that keep their default accelerator (undo, copy, paste, select all,
+ * quit, full screen). Chromium handles them inside the editable field, so declaring `Ctrl+Z` as
+ * "menu" would invent a collision. Only roles whose accelerator we change (`reload`) and zoom are
+ * listed.
  *
- * ## O que não está aqui
- *
- * Os papéis prontos do Electron que mantêm o acelerador padrão — desfazer,
- * copiar, colar, selecionar tudo, sair, tela cheia. São
- * atendidos pelo próprio Chromium dentro do campo de edição, então declarar
- * `Ctrl+Z` como "do menu" inventaria uma colisão que não existe. Entram apenas
- * os papéis cujo acelerador nós trocamos (`reload`) e o zoom, que é nosso.
- *
- * Fora também o alinhamento em `Ctrl+Shift+L/E/R/J`, que a extensão `TextAlign`
- * dá por padrão: em desenvolvimento o item "Recarregar" cobre o `Ctrl+Shift+R`
- * dessa lista. É sobreposição de verdade, e inofensiva — o atalho que a interface
- * anuncia para alinhar à direita é o `Ctrl+R` do Word, atendido aqui —, mas
- * declará-la faria o teste de colisão acusar algo que não se quer mudar agora.
- * Mudar a tecla de um dos dois é decisão de produto, não de refatoração.
+ * Also left out: alignment on `Ctrl+Shift+L/E/R/J`, which `TextAlign` adds by default. In
+ * development "Reload" covers its `Ctrl+Shift+R`; the overlap is real and harmless, since the UI
+ * announces Word's `Ctrl+R` for right alignment, but declaring it would make the collision test
+ * flag something we do not want to change now.
  */
 
-/** Quem atende a tecla — e, portanto, quem a tira do outro. */
+/** Whoever handles the key takes it from the other. */
 export const ShortcutOwner = {
-  /** O mapa de teclado do editor, no renderer. */
   Editor: 'editor',
-  /** O acelerador de item de menu, registrado no processo main. */
   Menu: 'menu',
 } as const
 
 export type ShortcutOwner = (typeof ShortcutOwner)[keyof typeof ShortcutOwner]
 
 /**
- * A combinação em forma neutra, de onde saem as duas escritas.
+ * The key combination in a neutral form, from which both spellings derive.
  *
- * Quase todo atalho nosso usa o modificador de comando; a exceção são as teclas de
- * função que o Word usa sozinhas — o `F9` de atualizar campos —, e é só por elas
- * que `mod` pode faltar. A tecla vai pelo nome que o Electron usa (`B`, `=`, `[`,
- * `F10`, `Enter`, `numadd`), e nunca por um apelido: escrever `Plus` seria dizer
- * `Shift+=` com outro nome, e a colisão que se quer impossível voltaria a passar
- * em silêncio porque as duas grafias não se parecem.
+ * Almost every shortcut uses the command modifier; the exceptions are function keys Word uses
+ * alone, like `F9` to update fields, and only for them may `mod` be missing. The key goes by
+ * Electron's name (`B`, `=`, `[`, `F10`, `Enter`, `numadd`), never an alias: writing `Plus` would
+ * mean `Shift+=` under another name, and the collision would slip through because the spellings do
+ * not match.
  */
 export interface ShortcutKey {
-  /** `Ctrl` no Windows e no Linux, `Cmd` no macOS. Ausente só em tecla de função e no `Alt+=` do Word. */
+  /**
+   * `Ctrl` on Windows and Linux, `Cmd` on macOS. Missing only on function keys and Word's `Alt+=`.
+   */
   readonly mod?: true
   readonly shift?: true
   readonly alt?: true
@@ -67,29 +55,25 @@ export interface ShortcutKey {
 export interface Shortcut {
   readonly owner: ShortcutOwner
   readonly key: ShortcutKey
-  /** O que a tecla faz, na língua da interface. */
   readonly does: string
   /**
-   * Quem registra a tecla, quando não somos nós — a extensão do Tiptap ou o papel
-   * do Electron. Entrada com este campo está aqui só para reservar a combinação.
+   * Who registers the key when it is not us: the Tiptap extension or the Electron role. An entry
+   * with this field only reserves the combination.
    */
   readonly registeredBy?: string
 }
 
 /**
- * Cada atalho do aplicativo, uma vez.
- *
- * A chave do registro é o identificador com que o main e o editor pedem o atalho;
- * mudar uma tecla é mudar uma linha daqui, e as duas pontas acompanham.
+ * The registry key is the id main and the editor ask for; changing a key means changing one line
+ * here, and both ends follow.
  */
 export const SHORTCUTS = {
-  // ## Menu → Arquivo
+  // ## Menu → File
   newDocument: { owner: ShortcutOwner.Menu, key: { mod: true, key: 'N' }, does: 'Novo documento' },
   /**
-   * No Word `Ctrl+Shift+N` volta o parágrafo para corpo de texto. Aqui é do menu,
-   * e o menu ganha porque ganharia de todo jeito: o acelerador chega primeiro. O
-   * corpo de texto segue no `Ctrl+Alt+0` da extensão `Paragraph`, vizinho natural
-   * do `Ctrl+Alt+1`…`6` dos títulos.
+   * In Word `Ctrl+Shift+N` resets the paragraph to body text. Here the menu owns it, and the menu
+   * would win anyway: the accelerator arrives first. Body text stays on `Ctrl+Alt+0` from the
+   * `Paragraph` extension, next to the headings on `Ctrl+Alt+1`…`6`.
    */
   newSpreadsheet: {
     owner: ShortcutOwner.Menu,
@@ -102,11 +86,10 @@ export const SHORTCUTS = {
   print: { owner: ShortcutOwner.Menu, key: { mod: true, key: 'P' }, does: 'Imprimir…' },
   closeFile: { owner: ShortcutOwner.Menu, key: { mod: true, key: 'W' }, does: 'Fechar arquivo' },
 
-  // ## Menu → Editar
+  // ## Menu → Edit
   /**
-   * O Chromium já responde a `Ctrl+Shift+V` dentro de um campo editável, e o que
-   * ele faz não é o que o Word faz. O acelerador daqui chega primeiro, então passa
-   * a valer o nosso.
+   * Chromium already handles `Ctrl+Shift+V` in an editable field, and not the way Word does. This
+   * accelerator arrives first, so ours wins.
    */
   pasteWithoutFormat: {
     owner: ShortcutOwner.Menu,
@@ -115,22 +98,22 @@ export const SHORTCUTS = {
   },
   findReplace: { owner: ShortcutOwner.Menu, key: { mod: true, key: 'F' }, does: 'Localizar e substituir…' },
 
-  // ## Menu → Inserir
+  // ## Menu → Insert
   insertPageBreak: { owner: ShortcutOwner.Menu, key: { mod: true, key: 'Enter' }, does: 'Quebra de página' },
 
-  // ## Menu → Tabela
-  /** `Ctrl+Shift+F5`, o do Word para o diálogo de indicadores. */
+  // ## Menu → Table
+  /** Word's `Ctrl+Shift+F5` for the bookmark dialog. */
   insertBookmark: {
     owner: ShortcutOwner.Menu,
     key: { mod: true, shift: true, key: 'F5' },
     does: 'Marcador…',
   },
   /**
-   * `Ctrl+F12` é o do LibreOffice para inserir tabela. O Word não tem tecla para
-   * isto, e as letras livres com `Ctrl` já acabaram nesta tabela.
+   * `Ctrl+F12` is LibreOffice's insert table. Word has no key for it, and the free `Ctrl` letters
+   * ran out in this table.
    */
   insertTable: { owner: ShortcutOwner.Menu, key: { mod: true, key: 'F12' }, does: 'Inserir tabela…' },
-  /** Os do Word para as notas de rodapé e de fim. */
+  /** Word's keys for footnotes and endnotes. */
   insertFootnote: {
     owner: ShortcutOwner.Menu,
     key: { mod: true, alt: true, key: 'F' },
@@ -142,29 +125,26 @@ export const SHORTCUTS = {
     does: 'Nota de fim',
   },
   /**
-   * `Alt+=`, o do Word para inserir equação. Sem `Ctrl`, como o `F9`: é a tecla
-   * que quem vem do Word já tem nos dedos, e nenhuma outra entrada a usa.
+   * Word's `Alt+=` for inserting an equation. No `Ctrl`, like `F9`: it is the key Word users
+   * already know, and no other entry uses it.
    */
   insertEquation: {
     owner: ShortcutOwner.Menu,
     key: { alt: true, key: '=' },
     does: 'Equação',
   },
-  /** O do Word e o do LibreOffice para inserir comentário. */
+  /** Word's and LibreOffice's key for inserting a comment. */
   insertComment: {
     owner: ShortcutOwner.Menu,
     key: { mod: true, alt: true, key: 'M' },
     does: 'Comentário',
   },
 
-  // ## Menu → Exibir
+  // ## Menu → View
   /**
-   * `Ctrl+F11`, vizinho do `Ctrl+F10` das marcas de formatação.
-   *
-   * As duas são chaves do mesmo tipo — ligam e desligam um jeito de ver o
-   * documento — e ficar uma ao lado da outra é o que faz a segunda ser
-   * lembrada por quem já sabe a primeira. `F11` sozinho é a tela cheia do
-   * sistema, e não se mexe nele.
+   * `Ctrl+F11`, next to `Ctrl+F10` for formatting marks: both toggle a way of viewing the document,
+   * and sitting side by side makes the second easy to remember. `F11` alone is the system's full
+   * screen.
    */
   readingMode: {
     owner: ShortcutOwner.Menu,
@@ -172,9 +152,8 @@ export const SHORTCUTS = {
     does: 'Modo de leitura',
   },
   /**
-   * `Ctrl+F10`, e não o `Ctrl+*` do Word: `Ctrl+Shift+8` **é** o `Ctrl+*`, e é
-   * também a lista com marcadores logo abaixo nesta tabela. Quem se muda é o item
-   * novo, e `Ctrl+F10` é o que o LibreOffice usa para isto.
+   * `Ctrl+F10`, not Word's `Ctrl+*`: `Ctrl+Shift+8` **is** `Ctrl+*`, and it is also the bullet list
+   * below. The new item moves, and `Ctrl+F10` is what LibreOffice uses for this.
    */
   formattingMarks: {
     owner: ShortcutOwner.Menu,
@@ -182,8 +161,8 @@ export const SHORTCUTS = {
     does: 'Marcas de formatação',
   },
   /**
-   * `F9` sozinho, como no Word: atualiza os campos da seleção — ou do documento
-   * inteiro, com o cursor parado.
+   * `F9` alone, as in Word: updates the fields in the selection, or in the whole document when the
+   * cursor is collapsed.
    */
   updateFields: {
     owner: ShortcutOwner.Menu,
@@ -191,9 +170,8 @@ export const SHORTCUTS = {
     does: 'Atualizar campos',
   },
   /**
-   * `Ctrl+F5`: o `F5` é o Navegador do LibreOffice, e o `Ctrl` é o que toda tecla
-   * nossa leva. O `Ctrl+F` do Word abre o painel pela busca, e aqui ele já é o
-   * localizar e substituir.
+   * `Ctrl+F5`: `F5` is LibreOffice's Navigator, and every key of ours carries `Ctrl`. Word's
+   * `Ctrl+F` opens the pane through search, and here it is already find and replace.
    */
   navigationPane: {
     owner: ShortcutOwner.Menu,
@@ -201,29 +179,26 @@ export const SHORTCUTS = {
     does: 'Painel de navegação',
   },
   /**
-   * Ampliar sai do `Ctrl+Shift+=`, e não por capricho.
-   *
-   * O acelerador padrão do papel `zoomIn` é `CommandOrControl+Plus`, e no Electron
-   * "Plus" é a tecla do `=` **com Shift** — a mesma que liga o sobrescrito. Num
-   * editor de texto a formatação vem antes do zoom, então quem se muda é o zoom,
-   * para o `+` do teclado numérico, que não disputa com ninguém. Reduzir fica no
-   * padrão: `Ctrl+-` não colide com nada.
+   * Zoom in leaves `Ctrl+Shift+=` for a reason. The default accelerator of the `zoomIn` role is
+   * `CommandOrControl+Plus`, which in Electron is the `=` key **with Shift**, the same that toggles
+   * superscript. In a text editor formatting beats zoom, so zoom moves to the keypad `+`, which
+   * competes with nothing. Zoom out keeps the default: `Ctrl+-` collides with nothing.
    */
   zoomIn: { owner: ShortcutOwner.Menu, key: { mod: true, key: 'numadd' }, does: 'Ampliar' },
-  /** Não são papéis do Electron: o zoom é da folha. */
+  /** Not Electron roles: the zoom belongs to the sheet. */
   zoomOut: { owner: ShortcutOwner.Menu, key: { mod: true, key: '-' }, does: 'Reduzir' },
   zoomReset: { owner: ShortcutOwner.Menu, key: { mod: true, key: '0' }, does: 'Zoom 100 %' },
   /**
-   * `Ctrl+Shift+R` e não `Ctrl+R`: o padrão do papel `reload` engoliria o `Ctrl+R`
-   * de "alinhar à direita", e o atalho pareceria quebrado só na máquina de quem
-   * programa — o item só existe em desenvolvimento.
+   * `Ctrl+Shift+R`, not `Ctrl+R`: the `reload` role default would swallow `Ctrl+R` for right
+   * alignment, and the shortcut would look broken only on developers' machines, since the item
+   * exists only in development.
    */
   reload: { owner: ShortcutOwner.Menu, key: { mod: true, shift: true, key: 'R' }, does: 'Recarregar' },
 
-  // ## Menu → Revisão
+  // ## Menu → Review
   /**
-   * O mesmo atalho do Word. O `TextAlign` dá `Ctrl+Shift+E` ao centralizar, mas o
-   * acelerador chega primeiro — e centralizar segue no `Ctrl+E` do Word.
+   * Word's shortcut. `TextAlign` gives `Ctrl+Shift+E` to centering, but the accelerator arrives
+   * first, and centering stays on Word's `Ctrl+E`.
    */
   trackChanges: {
     owner: ShortcutOwner.Menu,
@@ -231,31 +206,28 @@ export const SHORTCUTS = {
     does: 'Controlar alterações',
   },
 
-  // ## Menu → Ferramentas
-  /** O mesmo atalho do Word. */
+  // ## Menu → Tools
   wordCount: {
     owner: ShortcutOwner.Menu,
     key: { mod: true, shift: true, key: 'G' },
     does: 'Contar palavras…',
   },
 
-  // ## Editor: alinhamento, como no Word e no Writer
+  // ## Editor: alignment, as in Word and Writer
   alignLeft: { owner: ShortcutOwner.Editor, key: { mod: true, key: 'L' }, does: 'Alinhar à esquerda' },
   /**
-   * `Ctrl+E` é do Word e da marca de código do Tiptap, que esta barra nem oferece.
-   * Centralizar ganha pela `priority` da extensão `WordShortcuts`; a marca de
-   * código continua alcançável pela regra de entrada de crase.
+   * `Ctrl+E` is Word's and also Tiptap's code mark, which this toolbar does not offer. Centering
+   * wins through the `WordShortcuts` extension `priority`; the code mark stays reachable through
+   * the backtick input rule.
    */
   alignCenter: { owner: ShortcutOwner.Editor, key: { mod: true, key: 'E' }, does: 'Centralizar' },
   alignRight: { owner: ShortcutOwner.Editor, key: { mod: true, key: 'R' }, does: 'Alinhar à direita' },
   alignJustify: { owner: ShortcutOwner.Editor, key: { mod: true, key: 'J' }, does: 'Justificar' },
 
   /**
-   * Entrelinha: `Ctrl+1` simples, `Ctrl+5` um e meio, `Ctrl+2` duplo.
-   *
-   * São os do Word, e é por isso que os títulos ficam no `Ctrl+Alt+1`…`6`: no Word
-   * `Ctrl+1` nunca foi "Título 1". A medida é dita em **linhas**, e quem traduz
-   * para a do CSS — que depende da altura natural da fonte — é `paragraph-format`.
+   * Line spacing: `Ctrl+1` single, `Ctrl+5` one and a half, `Ctrl+2` double. They are Word's, which
+   * is why headings sit on `Ctrl+Alt+1`…`6`. The measure is in **lines**, and `paragraph-format`
+   * translates it to CSS, which depends on the font's natural height.
    */
   lineHeightSingle: { owner: ShortcutOwner.Editor, key: { mod: true, key: '1' }, does: 'Entrelinha simples' },
   lineHeightOneAndHalf: {
@@ -266,11 +238,9 @@ export const SHORTCUTS = {
   lineHeightDouble: { owner: ShortcutOwner.Editor, key: { mod: true, key: '2' }, does: 'Entrelinha dupla' },
 
   /**
-   * Sobrescrito e subscrito, como no Word.
-   *
-   * O `=` sai pelo código da tecla, e não pelo caractere: com Shift o navegador
-   * informa `+`, e é o `prosemirror-keymap` que desfaz isso ao tentar o nome
-   * derivado do `keyCode`.
+   * Superscript and subscript, as in Word. The `=` goes by key code, not character: with Shift the
+   * browser reports `+`, and `prosemirror-keymap` undoes that by trying the name derived from
+   * `keyCode`.
    */
   superscript: {
     owner: ShortcutOwner.Editor,
@@ -279,7 +249,7 @@ export const SHORTCUTS = {
   },
   subscript: { owner: ShortcutOwner.Editor, key: { mod: true, key: '=' }, does: 'Subscrito' },
 
-  // ## Editor: reservados — quem registra é uma extensão, não nós
+  // ## Editor: reserved, registered by an extension, not by us
   bold: {
     owner: ShortcutOwner.Editor,
     key: { mod: true, key: 'B' },
@@ -364,7 +334,7 @@ export const SHORTCUTS = {
     does: 'Aumentar recuo',
     registeredBy: 'Indent',
   },
-  /** A saída para o teclado em que o `=` não é uma tecla só. */
+  /** For keyboards where `=` is not a single key. */
   superscriptAlternate: {
     owner: ShortcutOwner.Editor,
     key: { mod: true, key: '.' },
@@ -382,9 +352,9 @@ export const SHORTCUTS = {
 export type ShortcutId = keyof typeof SHORTCUTS
 
 /**
- * Os atalhos que o **nosso** mapa de teclado registra: do editor e sem
- * `registeredBy`. O tipo existe para que o mapa em `word-shortcuts` tenha de
- * tratar todos — acrescentar uma entrada aqui sem dar-lhe comando não compila.
+ * The shortcuts **our** keymap registers: editor-owned and without `registeredBy`. The type forces
+ * the map in `word-shortcuts` to handle all of them: adding an entry here without a command does
+ * not compile.
  */
 export type EditorShortcutId = {
   [Id in ShortcutId]: (typeof SHORTCUTS)[Id] extends { owner: 'editor'; registeredBy?: undefined }
@@ -403,34 +373,27 @@ function parts(key: ShortcutKey): {
   return { mod: key.mod === true, modifiers, key: key.key }
 }
 
-/** A tecla como o Electron a quer, para `accelerator` de item de menu. */
 export function acceleratorOf(shortcut: Shortcut): string {
   const { mod, modifiers, key } = parts(shortcut.key)
   return [...(mod ? ['CmdOrCtrl'] : []), ...modifiers, key].join('+')
 }
 
 /**
- * A tecla como o `prosemirror-keymap` a quer. Letra minúscula de propósito: para
- * ele `L` é a tecla que só sai com Shift, e o atalho nunca dispararia.
+ * Lowercase on purpose: to the keymap `L` is the key that needs Shift, and the shortcut would never
+ * fire.
  */
 export function editorKeyOf(shortcut: Shortcut): string {
   const { mod, modifiers, key } = parts(shortcut.key)
   return [...(mod ? ['Mod'] : []), ...modifiers, key.length === 1 ? key.toLowerCase() : key].join('-')
 }
 
-/**
- * A tecla como a barra de ferramentas a anuncia na dica do botão. Diz `Ctrl` em
- * todo sistema, como sempre disse: é o nome que o usuário deste aplicativo lê.
- */
+/** Says `Ctrl` on every system, as it always has: it is the name users of this app read. */
 export function shortcutHintOf(shortcut: Shortcut): string {
   const { mod, modifiers, key } = parts(shortcut.key)
   return [...(mod ? ['Ctrl'] : []), ...modifiers, key].join('+')
 }
 
-/**
- * A identidade da combinação, para comparar declarações entre si. É por ela que o
- * teste de colisão descobre que duas entradas pedem a mesma tecla.
- */
+/** The collision test uses it to find two entries claiming the same key. */
 export function canonicalKeyOf(key: ShortcutKey): string {
   const { mod, modifiers, key: name } = parts(key)
   return [...(mod ? ['Mod'] : []), ...modifiers, name.toLowerCase()].join('+')

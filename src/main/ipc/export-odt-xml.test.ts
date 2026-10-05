@@ -4,7 +4,7 @@ import { odtEntries } from '@services/document/export-odt.js'
 import { DEFAULT_PAGE_SETUP, type DocumentModel } from '@services/document/model.js'
 import { BUILTIN_STYLES } from '@services/document/styles.js'
 
-/** O `xmllint` do sistema, quando há. */
+/** The system `xmllint`, when there is one. */
 const HAS_XMLLINT = (() => {
   try {
     execFileSync('xmllint', ['--version'], { stdio: 'ignore' })
@@ -14,10 +14,7 @@ const HAS_XMLLINT = (() => {
   }
 })()
 
-/**
- * O pacote ODT com equações é XML bem formado parte por parte — aqui, e não
- * junto da exportação, porque só o processo main tem o `xmllint`.
- */
+/** Here, not next to the export, because only main has `xmllint`. */
 describe('o ODT com equações', () => {
   const model: DocumentModel = {
     page: DEFAULT_PAGE_SETUP,

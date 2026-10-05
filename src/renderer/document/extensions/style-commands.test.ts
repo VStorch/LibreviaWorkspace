@@ -14,7 +14,7 @@ import {
 
 const schema = getSchema(buildEditorExtensions(() => {}))
 
-/** Um título negrito pelo estilo: é onde o "desligado" tem de existir. */
+/** A heading bold by its style: that is where "off" has to exist. */
 const sheet: StyleSheet = {
   ...BUILTIN_STYLES,
   styles: {
@@ -49,7 +49,8 @@ describe('comandos de estilo', () => {
     expect(block.type.name).toBe('heading')
     expect(block.attrs).toMatchObject({ level: 1, styleId: 'Heading1', spaceAfter: null })
 
-    // E o padrão volta a parágrafo sem id — o que o leitor produz para o Normal.
+    // And the default goes back to a paragraph without id, which is what the reader produces for
+    // Normal.
     const back = run(after, (tr) => applyParagraphStyle(tr, sheet, 'Normal')).doc.firstChild!
     expect(back.type.name).toBe('paragraph')
     expect(back.attrs['styleId']).toBeNull()
@@ -93,7 +94,7 @@ describe('comandos de estilo', () => {
     const on = run(off, (tr) => toggleInheritedMark(tr, sheet, 'bold'))
     expect(on.doc.firstChild!.firstChild!.marks).toEqual([])
 
-    // Onde o estilo não liga, a alternância é a de sempre: quem a faz é o Tiptap.
+    // Where the style does not turn it on, toggling is the usual one, done by Tiptap.
     const plain = stateOf({ type: 'doc', content: [paragraph('Corpo')] }, 1, 6)
     expect(toggleInheritedMark(plain.tr, sheet, 'bold')).toBe(false)
   })
@@ -118,7 +119,7 @@ describe('comandos de estilo', () => {
     expect(after.doc.child(1).type.name).toBe('paragraph')
     expect(after.doc.child(1).attrs['styleId']).toBeNull()
 
-    // No meio do título, o Enter é o de sempre.
+    // In the middle of the heading, Enter is the usual one.
     expect(splitWithNextStyle(stateOf(state.doc.toJSON(), 2).tr, sheet)).toBe(false)
   })
 

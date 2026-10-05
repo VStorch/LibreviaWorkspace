@@ -4,10 +4,10 @@ import { usePreferences } from '../state/preferences.js'
 import { useT } from '../i18n.js'
 
 /**
- * **O texto é editável; a moldura não.** Cada peça com endereço do arquivo
- * recebe o cursor, e o que se digita volta ao `w:t` dela; o resto é desenho de
- * uma parte OOXML que volta intacta. `pointer-events: none` na faixa, para o
- * clique na margem não tirar o cursor do corpo.
+ * **The text is editable; the frame is not.** Each piece with a file address takes the cursor, and
+ * what is typed goes back to its `w:t`; the rest is the drawing of an OOXML part that goes back
+ * intact. `pointer-events: none` on the band, so a click in the margin does not pull the cursor out
+ * of the body.
  */
 export function PageBand({
   band,
@@ -20,14 +20,17 @@ export function PageBand({
 }: {
   band: Band
   kind: 'header' | 'footer'
-  /** No formato de `w:pgNumType`. */
+  /** In the `w:pgNumType` format. */
   pageLabel: string
   totalPages: number
-  /** Metade da margem: o cabeçalho corporativo é mais largo que a coluna de texto. */
+  /** Half the margin: a corporate header is wider than the text column. */
   insetPx: number
-  /** `w:pgMar/@header` e `@footer`: desenhar num lugar e contar de outro faria o corpo descer errado. */
+  /**
+   * `w:pgMar/@header` and `@footer`: drawing in one place and counting from another would push the
+   * body down wrongly.
+   */
   offsetPx: number
-  /** Ausente quando o documento está travado: nenhuma peça recebe o cursor. */
+  /** Absent when the document is locked: no piece takes the cursor. */
   onEdit?: ((pid: string, text: string) => void) | undefined
 }): React.JSX.Element {
   const t = useT()
@@ -41,7 +44,7 @@ export function PageBand({
         right: `${insetPx}px`,
         [kind === 'header' ? 'top' : 'bottom']: `${offsetPx}px`,
       }}
-      // `aria-label`, e não `aria-hidden`: a região tem conteúdo editável.
+      // `aria-label`, not `aria-hidden`: the region has editable content.
       role="group"
       aria-label={kind === 'header' ? t('document.band.header') : t('document.band.footer')}
     >
@@ -59,7 +62,7 @@ interface BandParts {
   onEdit?: ((pid: string, text: string) => void) | undefined
 }
 
-/** Uma tabela de verdade: o logotipo mora numa célula mesclada. As bordas vêm resolvidas do leitor. */
+/** A real table: the logo lives in a merged cell. Borders come resolved from the reader. */
 function BandGrid({ band, ...parts }: { band: Band } & BandParts): React.JSX.Element {
   return (
     <table className="band__grid">
@@ -125,7 +128,7 @@ const renderPiece =
       fontFamily: piece.fontFamily,
     }
 
-    // O número da página não tem `w:t` onde guardar o que se digitasse nele.
+    // The page number has no `w:t` to store typed text.
     if (piece.pid === undefined || onEdit === undefined) {
       return (
         <span key={index} style={style}>
@@ -147,9 +150,9 @@ const renderPiece =
   }
 
 /**
- * O texto sai no `blur`, e não a cada tecla: mudar a configuração de página
- * redesenha as folhas e levaria o cursor embora. A ortografia vale aqui como no
- * corpo; a preferência é lida da loja.
+ * Text goes out on `blur`, not on every key press: changing the page setup redraws the sheets and
+ * would take the cursor away. Spelling applies here as in the body; the preference is read from the
+ * store.
  */
 function BandText({
   pid,
@@ -160,7 +163,7 @@ function BandText({
 }: {
   pid: string
   text: string
-  /** Com `{n}` e `{total}`, que voltam ao arquivo como campo. */
+  /** With `{n}` and `{total}`, which go back to the file as fields. */
   raw: string
   style: React.CSSProperties
   onEdit: (pid: string, text: string) => void
@@ -186,7 +189,8 @@ function BandText({
       suppressContentEditableWarning
       role="textbox"
       spellCheck={spellcheck}
-      // Com o cursor dentro, os campos aparecem como `{n}` e `{total}`: o número desta folha viraria texto fixo.
+      // With the cursor inside, fields show as `{n}` and `{total}`: this sheet's number would
+      // become fixed text.
       onFocus={() => {
         if (host.current !== null && host.current.textContent !== raw) host.current.textContent = raw
       }}
@@ -195,7 +199,7 @@ function BandText({
         if (host.current !== null) host.current.textContent = text
         onEdit(pid, edited)
       }}
-      // Um `w:t` é uma linha só: Enter fecha a edição.
+      // A `w:t` is a single line: Enter ends editing.
       onKeyDown={(event) => {
         if (event.key === 'Enter') {
           event.preventDefault()
@@ -206,7 +210,7 @@ function BandText({
   )
 }
 
-/** Cada parágrafo do arquivo é uma linha: num flex, um `<br>` não gera caixa. */
+/** Each file paragraph is a line: in a flex container, a `<br>` creates no box. */
 function BandCellPieces({
   pieces,
   place,

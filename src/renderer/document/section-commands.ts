@@ -17,10 +17,9 @@ import { t } from '../i18n.js'
 import { useWorkspace } from '../state/workspace.js'
 
 /**
- * O id mora no parágrafo que fecha a seção, como o `w:sectPr`, e a configuração
- * na biblioteca da loja. Quem diz quais seções valem é o texto
- * (`resolveSections`): por isso a estrutura muda numa transação do editor, e o
- * desfazer volta a seção com o texto.
+ * The id lives in the paragraph closing the section, like `w:sectPr`, and the setup in the store's
+ * library. The text says which sections count (`resolveSections`): so structure changes in an
+ * editor transaction, and undo brings the section back with the text.
  */
 
 export function marksOfDoc(doc: ProseMirrorNode): (string | null)[] {
@@ -41,7 +40,7 @@ export function commitSections(next: SectionList, bodyId: string | null): void {
   store.setSections(stored.library)
 }
 
-/** Como índice em `allSections`. */
+/** As an index into `allSections`. */
 export function sectionAtCursor(
   editor: Editor,
   resolved: ResolvedSections = resolvedOf(editor.state.doc),
@@ -51,7 +50,10 @@ export function sectionAtCursor(
   return blockSections(marks, resolved.sections)[index] ?? resolved.sections.length
 }
 
-/** O rascunho anterior às seções (`.sdoc` < 6) não grava quebra, coluna nem vínculo: o comando recusa. */
+/**
+ * A draft older than sections (`.sdoc` < 6) cannot store breaks, columns or links: the command
+ * refuses.
+ */
 export function sectionEditsAllowed(): boolean {
   const store = useWorkspace.getState()
   if (!store.beforeSections) return true
@@ -59,7 +61,7 @@ export function sectionEditsAllowed(): boolean {
   return false
 }
 
-/** A marca não pode morar numa célula. */
+/** The mark cannot live in a cell. */
 function insideTable(editor: Editor): boolean {
   const { $from } = editor.state.selection
   for (let depth = $from.depth; depth > 0; depth--) {
@@ -68,7 +70,7 @@ function insideTable(editor: Editor): boolean {
   return false
 }
 
-/** A quebra vai depois da lista. */
+/** The break goes after the list. */
 function insideList(editor: Editor): boolean {
   const { $from } = editor.state.selection
   for (let depth = $from.depth; depth > 0; depth--) {
@@ -85,16 +87,15 @@ function renameMark(tr: Transaction, from: string, to: string): void {
 }
 
 /**
- * Como o Word: o parágrafo se parte, e a metade de cima fecha a seção nova,
- * cópia da partida. Num item de lista a lista se parte; numa tabela, a quebra vem
- * depois dela, num parágrafo próprio.
+ * As in Word: the paragraph splits, and the upper half closes the new section, a copy of the split
+ * one. In a list item the list splits; in a table, the break comes after it, in its own paragraph.
  */
 export function insertSectionBreak(editor: Editor, start: SectionStart): void {
   if (!sectionEditsAllowed()) return
   const store = useWorkspace.getState()
   const resolved = resolvedOf(editor.state.doc)
   const plan = planSectionBreak(resolved, store.sections, sectionAtCursor(editor, resolved), start)
-  // A biblioteca antes do texto: a marca nova precisa achar a seção quando a paginação medir.
+  // The library before the text: the new mark must find its section when pagination measures.
   store.setSections([...store.sections, ...plan.additions])
 
   const structure = (tr: Transaction): void => {
@@ -102,8 +103,8 @@ export function insertSectionBreak(editor: Editor, start: SectionStart): void {
     if (plan.bodyId !== null) tr.setDocAttribute('bodySection', plan.bodyId)
   }
 
-  // Num item a quebra fica no item, como no Word: a lista se parte depois do item
-  // de fora, e a segunda parte leva os mesmos atributos.
+  // In an item the break stays in the item, as in Word: the list splits after the outer item, and
+  // the second part takes the same attributes.
   const $cursor = editor.state.selection.$from
   if (
     !insideTable(editor) &&
@@ -148,7 +149,7 @@ export function insertSectionBreak(editor: Editor, start: SectionStart): void {
     .focus()
     .splitBlock()
     .command(({ tr }) => {
-      // A marca que o parágrafo já tinha fica com a metade de baixo, onde ele termina.
+      // The mark the paragraph already had stays with the lower half, where it ends.
       const $cursor = tr.selection.$from
       const lower = $cursor.before($cursor.depth)
       const upperNode = tr.doc.resolve(lower).nodeBefore
@@ -156,7 +157,7 @@ export function insertSectionBreak(editor: Editor, start: SectionStart): void {
       const upper = lower - upperNode.nodeSize
       const previous = upperNode.attrs['sectionBreak'] as string | null
       tr.setNodeAttribute(upper, 'sectionBreak', plan.upperId)
-      // Parágrafo vazio com marca é marca, como o leitor o entrega.
+      // An empty paragraph with a mark is a mark, as the reader delivers it.
       if (upperNode.content.size === 0) tr.setNodeAttribute(upper, 'sectionMark', true)
       if (previous !== null) tr.setNodeAttribute(lower, 'sectionBreak', previous)
       structure(tr)
@@ -165,7 +166,10 @@ export function insertSectionBreak(editor: Editor, start: SectionStart): void {
     .run()
 }
 
-/** `w:br w:type="column"`: propriedade do bloco (`columnBreakAfter`), como a quebra de página que o Word grava no parágrafo. */
+/**
+ * `w:br w:type="column"`: a block property (`columnBreakAfter`), like the page break Word stores in
+ * the paragraph.
+ */
 export function insertColumnBreak(editor: Editor): void {
   if (!sectionEditsAllowed() || insideTable(editor)) return
   editor
@@ -184,8 +188,8 @@ export function insertColumnBreak(editor: Editor): void {
 }
 
 /**
- * Ou, na última seção, a que a abre. Como no Word, o texto de cima passa ao
- * formato da seção de baixo, que recebe as faixas que herdava (`planSectionDelete`).
+ * Or, in the last section, the one opening it. As in Word, the text above takes the format of the
+ * section below, which gets the bands it inherited (`planSectionDelete`).
  */
 export function deleteSectionBreak(editor: Editor): boolean {
   if (!sectionEditsAllowed()) return false

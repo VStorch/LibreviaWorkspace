@@ -3,8 +3,8 @@ import { SPECIAL_CHARACTER_GROUPS, allSpecialCharacters } from './special-charac
 
 describe('catálogo de caracteres especiais', () => {
   it('nenhum caractere aparece duas vezes', () => {
-    // Duplicata é o defeito que passa desapercebido ao editar a lista à mão, e
-    // na tela ela vira dois botões idênticos em grupos diferentes.
+    // A duplicate is the defect that slips by when editing the list by hand, and on screen it
+    // becomes two identical buttons in different groups.
     const todos = allSpecialCharacters().map((item) => item.char)
     expect(new Set(todos).size).toBe(todos.length)
   })
@@ -23,8 +23,8 @@ describe('catálogo de caracteres especiais', () => {
 
   it('traz o que se procura num documento em português', () => {
     const todos = allSpecialCharacters().map((item) => item.char)
-    // Travessão, aspas tipográficas e o espaço inquebrável que segura "R$" junto
-    // do valor: os três motivos de abrir este seletor.
+    // Em dash, curly quotes and the non-breaking space that keeps "R$" next to the amount: the
+    // three reasons to open this picker.
     expect(todos).toContain('—')
     expect(todos).toContain('“')
     expect(todos).toContain('\u00a0')

@@ -1,14 +1,13 @@
 /**
- * O MathML mora num atributo do nó, que mora no `.sdoc`, que qualquer um edita
- * à mão: por isso **nunca** passa por `innerHTML`. Um analisador próprio e
- * estrito o lê, e só os elementos do MathML Core e os atributos de apresentação
- * passam; sem `href`, `style` nem evento. Sem DOM, para servir à tela, à
- * exportação e aos testes.
+ * MathML lives in a node attribute, which lives in the `.sdoc`, which anyone can edit by hand: so
+ * it **never** goes through `innerHTML`. A strict parser of our own reads it, and only MathML Core
+ * elements and presentation attributes pass; no `href`, `style` or events. No DOM, to serve the
+ * screen, the export and the tests.
  */
 
 export const MATHML_NAMESPACE = 'http://www.w3.org/1998/Math/MathML'
 
-/** A classe da caixa (`m:borderBox`) — ver `OmmlMath.BoxClass`. */
+/** `m:borderBox`; see `OmmlMath.BoxClass`. */
 export const MATH_BOX_CLASS = 'omml-caixa'
 
 export interface MathElement {
@@ -51,7 +50,7 @@ const ELEMENTS = new Set([
   'annotation',
 ])
 
-/** Os elementos que levam texto; nos outros, o texto entre filhos é só espaço do XML. */
+/** Elements that carry text; in the others, text between children is just XML whitespace. */
 const TOKENS = new Set(['mi', 'mn', 'mo', 'mtext', 'ms', 'annotation'])
 
 const ATTRIBUTES = new Set([
@@ -85,14 +84,14 @@ const ATTRIBUTES = new Set([
   'class',
 ])
 
-/** As classes que o CSS do editor conhece; outra qualquer não tem por que chegar. */
+/** Classes the editor CSS knows; no other has a reason to arrive. */
 const CLASSES = new Set([MATH_BOX_CLASS])
 
-/** Profundidade e tamanho máximos: o que passa disso não é equação, é ataque. */
+/** What goes past this is not an equation, it is an attack. */
 const MAX_DEPTH = 128
 const MAX_NODES = 50_000
 
-/** Comentário, CDATA, DOCTYPE, instrução de processamento e entidade desconhecida recusam o texto inteiro. */
+/** Comments, CDATA, DOCTYPE, processing instructions and unknown entities refuse the whole text. */
 export function sanitizeMathMl(source: string): MathElement | null {
   const parsed = parseMathMl(source)
   if (parsed === null || parsed.tag !== 'math') return null
@@ -127,7 +126,7 @@ function clean(element: MathElement): MathElement | null {
   return { tag: element.tag, attrs, children }
 }
 
-/** O MathML filtrado de volta a texto, escapado — para a exportação em HTML. */
+/** Escaped, for the HTML export. */
 export function mathMlToString(element: MathElement): string {
   const attrs = Object.entries(element.attrs)
     .map(([name, value]) => ` ${name}="${escapeXml(value)}"`)
@@ -139,7 +138,7 @@ export function mathMlToString(element: MathElement): string {
   return `<${element.tag}${namespace}${attrs}>${inner}</${element.tag}>`
 }
 
-/** O texto das fichas, na ordem — o que a equação "diz" para quem não a vê. */
+/** Token text in order: what the equation "says" to someone who cannot see it. */
 export function mathText(element: MathElement): string {
   return element.children
     .map((child) => (typeof child === 'string' ? child : child.tag === 'annotation' ? '' : mathText(child)))
@@ -167,12 +166,12 @@ interface Building {
   children: MathChild[]
 }
 
-/** **Sem** a lista: só para quem a ajeita antes de filtrar (`latex.ts`). */
+/** **Without** the allowlist: only for callers that tidy it before filtering (`latex.ts`). */
 export function parseMathMl(source: string): MathElement | null {
   return new MathMlParser(source).parse()
 }
 
-/** Cada leitura devolve `false` (ou `null`) diante de XML que não é o MathML esperado. */
+/** Each read returns `false` (or `null`) on XML that is not the expected MathML. */
 class MathMlParser {
   private readonly stack: Building[] = []
   private root: Building | null = null
@@ -200,7 +199,7 @@ class MathMlParser {
     if (text === null) return false
     const parent = this.stack.at(-1)
     if (parent === undefined) {
-      // Fora do elemento raiz só cabe espaço.
+      // Only whitespace fits outside the root element.
       if (raw.trim() !== '') return false
     } else if (text !== '') {
       parent.children.push(text)
@@ -222,14 +221,14 @@ class MathMlParser {
 
   private readOpen(): boolean {
     const match = NAME.exec(this.source.slice(this.at + 1))
-    // `<!`, `<?` e o que mais não for nome de elemento: recusado.
+    // `<!`, `<?` and anything else that is not an element name: refused.
     if (match === null) return false
     this.at += 1 + match[0].length
 
     const attrs = this.readAttributes()
     if (attrs === null) return false
     const element: Building = { tag: match[0], attrs, children: [] }
-    // Só nomes sem prefixo: o MathML que a conversão escreve usa o namespace padrão.
+    // Unprefixed names only: the MathML the conversion writes uses the default namespace.
     if (element.tag.includes(':')) return false
     if (++this.count > MAX_NODES) return false
     if (!this.attach(element)) return false
@@ -264,7 +263,7 @@ class MathMlParser {
       const attribute = this.readAttribute()
       if (attribute === null) return null
       const [name, value] = attribute
-      // O namespace é o do MathML ou nenhum; o resto da declaração cai.
+      // The namespace is MathML's or none; the rest of the declaration is dropped.
       if (name === 'xmlns' && value !== MATHML_NAMESPACE) return null
       if (!name.startsWith('xmlns')) attrs[name] = value
     }
@@ -288,7 +287,7 @@ class MathMlParser {
   }
 }
 
-/** Texto com as entidades do XML resolvidas — ou `null` diante de uma que não existe. */
+/** `null` on an entity that does not exist. */
 function decode(raw: string): string | null {
   let failed = false
   const text = raw.replace(/&(#x[0-9A-Fa-f]+|#[0-9]+|[A-Za-z]+);|&/g, (whole, entity: string | undefined) => {

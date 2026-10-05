@@ -22,8 +22,7 @@ describe('plainTextToDocument', () => {
   })
 
   it('nunca produz documento vazio', () => {
-    // O ProseMirror recusa um doc sem conteúdo; um arquivo vazio não pode
-    // derrubar o editor.
+    // ProseMirror refuses a doc without content; an empty file must not bring the editor down.
     expect(plainTextToDocument('').content).toEqual([{ type: 'paragraph' }])
   })
 })
@@ -90,7 +89,7 @@ describe('hasRichFormatting', () => {
     ['imagem', { type: 'image', attrs: { src: 'data:image/png;base64,AAA' } }],
     ['tabela', { type: 'table', content: [] }],
   ])('acusa formatação em %s', (_label, node) => {
-    // Pessimista de propósito: é o que dispara o aviso antes de salvar em .txt.
+    // Pessimistic on purpose: this triggers the warning before saving as .txt.
     expect(hasRichFormatting({ type: 'doc', content: [node as DocumentNode] })).toBe(true)
   })
 })

@@ -27,7 +27,7 @@ function getFilters() {
   ]
 }
 
-/** Só o que funciona para o que está aberto: a lista de abrir ofereceria planilha a um documento. */
+/** Only what works for what is open: the open list would offer a spreadsheet to a document. */
 function templateExtensions(): string[] {
   return [bare(WORD_TEMPLATE_EXTENSION), bare(WORD_MACRO_TEMPLATE_EXTENSION)]
 }
@@ -53,7 +53,7 @@ function getImageFilters() {
   ]
 }
 
-/** `null` se a pessoa cancelou. */
+/** `null` when canceled. */
 export async function showOpenFileDialog(window: BrowserWindow): Promise<string | null> {
   const result = await dialog.showOpenDialog(window, {
     title: t('dialog.open.title'),
@@ -88,13 +88,13 @@ export async function showSaveFileDialog(
     title: t('dialog.save.title'),
     defaultPath: suggestedName,
     filters: getSaveFilters(kind),
-    // O diálogo do sistema já avisa sobre sobrescrever.
+    // The system dialog already warns about overwriting.
     properties: ['createDirectory', 'showOverwriteConfirmation'],
   })
   return result.canceled ? null : (result.filePath ?? null)
 }
 
-/** "Cancelar" responde ao Esc e "Salvar" ao Enter: a tecla apertada por reflexo não perde trabalho. */
+/** "Cancel" answers Esc and "Save" answers Enter: a reflex key press loses no work. */
 export async function confirmDiscardChanges(window: BrowserWindow, fileName: string): Promise<DiscardChoice> {
   const { response } = await dialog.showMessageBox(window, {
     type: 'warning',
@@ -159,7 +159,7 @@ export async function showImagePickerDialog(window: BrowserWindow): Promise<stri
   return result.canceled ? null : (result.filePaths[0] ?? null)
 }
 
-/** O padrão oferecido é salvar como documento. */
+/** The default is saving as a document. */
 export async function confirmPlainTextSave(
   window: BrowserWindow,
   fileName: string,

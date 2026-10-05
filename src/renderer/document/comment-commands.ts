@@ -16,12 +16,12 @@ import {
 import { caretOf, selectInNote } from './extensions/note-view.js'
 
 /**
- * Como as seções: as pontas no texto e o corpo na biblioteca da loja. Inserir e
- * excluir são uma transação do editor cada, com desfazer; texto, resposta e
- * resolvido mudam só a loja, como os estilos.
+ * Like sections: the ends in the text and the body in the store's library. Insert and delete are
+ * one editor transaction each, with undo; text, reply and resolved only change the store, like
+ * styles.
  */
 
-/** O rascunho anterior aos comentários (`.sdoc` < 7) não os grava: o comando recusa. */
+/** A draft older than comments (`.sdoc` < 7) cannot store them: the command refuses. */
 export function commentEditsAllowed(): boolean {
   const store = useWorkspace.getState()
   if (store.readOnly) return false
@@ -44,17 +44,19 @@ function newComment(library: readonly DocumentComment[], parentId?: string): Doc
   }
 }
 
-/** Um cartão novo com a caixa aberta; vazio, ele desiste e leva as pontas (`cancelNewComment`). */
+/**
+ * A new card with the box open; empty, it gives up and takes the ends with it (`cancelNewComment`).
+ */
 export function insertComment(editor: Editor): void {
   if (!commentEditsAllowed()) return
   const store = useWorkspace.getState()
   const wasClean = !store.isDirty
   const comment = newComment(store.comments)
-  // A biblioteca antes do texto, como nas seções. Sem `focus()`: o foco do Tiptap
-  // chegaria depois e roubaria o da caixa do cartão.
+  // The library before the text, as with sections. No `focus()`: Tiptap's focus would arrive later
+  // and steal the card box's.
   const caret = caretOf(editor.view)
-  // Comentário novo dentro de nota é recusado: o LibreOffice não abre o .docx com
-  // `w:commentReference` em `footnotes.xml`.
+  // A new comment inside a note is refused: LibreOffice does not open a .docx with
+  // `w:commentReference` in `footnotes.xml`.
   if (caret.note !== null) {
     store.showError({ code: 'INTERNAL', message: t('comments.notInNote') })
     return
@@ -73,10 +75,10 @@ export function insertComment(editor: Editor): void {
   store.setCommentDraft(comment.id)
 }
 
-/** Desistir do cartão novo devolve o documento a salvo. */
+/** Giving up the new card brings the document back to saved. */
 let cleanBeforeDraft = false
 
-/** Fora do desfazer: refazer um comentário sem texto seria um cartão vazio. */
+/** Outside undo: redoing a comment without text would be an empty card. */
 export function cancelNewComment(editor: Editor, cid: string): void {
   const store = useWorkspace.getState()
   store.setCommentDraft(null)
@@ -86,7 +88,7 @@ export function cancelNewComment(editor: Editor, cid: string): void {
   cleanBeforeDraft = false
 }
 
-/** As pontas saem, e com elas o cartão e as respostas. */
+/** The ends go, and with them the card and the replies. */
 export function deleteCommentThread(editor: Editor, cid: string): void {
   if (!commentEditsAllowed()) return
   const tr = editor.state.tr
@@ -112,7 +114,7 @@ export function replyToComment(rootId: string, text: string): void {
   store.setComments([...store.comments, reply])
 }
 
-/** Vale para a conversa inteira. */
+/** Applies to the whole thread. */
 export function setCommentDone(rootId: string, done: boolean): void {
   if (!commentEditsAllowed()) return
   const store = useWorkspace.getState()
@@ -123,7 +125,7 @@ function showCommentsPane(): void {
   if (!currentPreferences().commentsPane) void setPreference({ commentsPane: true })
 }
 
-/** O cartão da conversa fica escolhido. Devolve se achou alguma. */
+/** The thread's card stays selected. Returns whether it found any. */
 export function goToComment(editor: Editor, direction: 1 | -1): boolean {
   const store = useWorkspace.getState()
   const anchors = commentAnchorsOf(editor.state.doc)
@@ -142,7 +144,7 @@ export function goToComment(editor: Editor, direction: 1 | -1): boolean {
   return true
 }
 
-/** No corpo da nota, quando é lá que ela está. `focus` leva o teclado ao trecho. */
+/** In the note body, when that is where it is. `focus` takes the keyboard to the range. */
 export function showComment(editor: Editor, cid: string, focus: boolean): void {
   const anchor = commentAnchorsOf(editor.state.doc).get(cid)
   const range = anchor === undefined ? null : commentSelectionOf(anchor)

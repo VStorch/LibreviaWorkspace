@@ -1,4 +1,4 @@
-/** Formatar na hora de exibir, e não ao digitar, como o XLSX: somar moeda não tropeça no "R$". */
+/** Formats on display, not on typing, as XLSX does: adding currency does not trip over "R$". */
 
 import { CellFormat, type Cell, type CellStyle, type CellValue } from './model.js'
 
@@ -51,15 +51,15 @@ function formatNumeric(
       })
 
     default:
-      // "Geral" não inventa separador de milhar, mas usa a vírgula decimal. Só
-      // número de verdade: "0012" guardado como texto perderia o zero.
+      // "General" does not invent a thousands separator, but uses the decimal comma. Only real
+      // numbers: "0012" stored as text would lose the zero.
       return typeof value === 'number'
         ? value.toLocaleString(LOCALE, { maximumFractionDigits: 10, useGrouping: false })
         : String(value)
   }
 }
 
-/** A partir de 1899-12-30: o Excel herdou do Lotus 1-2-3 o 1900 bissexto, que não é. */
+/** From 1899-12-30: Excel inherited from Lotus 1-2-3 the leap year 1900, which is not one. */
 const EXCEL_EPOCH = Date.UTC(1899, 11, 30)
 const MS_PER_DAY = 86_400_000
 
@@ -78,7 +78,10 @@ function formatDate(serial: number): string {
   return serialToDate(serial).toLocaleDateString(LOCALE, { timeZone: 'UTC' })
 }
 
-/** Número, percentual, moeda e data no formato brasileiro; o resto fica texto, nunca número aproximado. */
+/**
+ * Number, percent, currency and date in Brazilian format; the rest stays text, never an approximate
+ * number.
+ */
 export function parseInput(raw: string): { value: CellValue; style?: Partial<CellStyle> } {
   const text = raw.trim()
   if (text.length === 0) return { value: '' }
@@ -98,7 +101,7 @@ export function parseInput(raw: string): { value: CellValue; style?: Partial<Cel
   const date = parseBrazilianDate(text)
   if (date !== null) return { value: dateToSerial(date), style: { format: CellFormat.Date } }
 
-  // Zero à esquerda é intenção: matrícula, CEP, código. Vira texto.
+  // A leading zero is intent: IDs, postal codes, codes. It becomes text.
   if (!/^0\d/.test(text)) {
     const number = parseBrazilianNumber(text)
     if (number !== null) return { value: number }
@@ -108,9 +111,9 @@ export function parseInput(raw: string): { value: CellValue; style?: Partial<Cel
 }
 
 /**
- * `1.234` é mil duzentos e trinta e quatro, e `1234.56` colado de planilha
- * estrangeira é decimal: ponto seguido de exatamente três dígitos, em todos os
- * grupos, é separador de milhar; o resto é decimal.
+ * `1.234` is one thousand two hundred thirty-four, and `1234.56` pasted from a foreign spreadsheet
+ * is a decimal: a dot followed by exactly three digits, in every group, is a thousands separator;
+ * the rest is decimal.
  */
 export function parseBrazilianNumber(text: string): number | null {
   const trimmed = text.trim()
@@ -118,7 +121,7 @@ export function parseBrazilianNumber(text: string): number | null {
 
   let normalized: string
   if (trimmed.includes(',')) {
-    // Com vírgula não há dúvida: vírgula é decimal, ponto é milhar.
+    // With a comma there is no doubt: the comma is decimal, the dot is thousands.
     normalized = trimmed.replaceAll('.', '').replace(',', '.')
   } else if (/^-?\d{1,3}(\.\d{3})+$/.test(trimmed)) {
     normalized = trimmed.replaceAll('.', '')
@@ -140,7 +143,7 @@ function parseBrazilianDate(text: string): Date | null {
   const month = Number(match[2])
   let year = Number(match[3])
 
-  // Ano de dois dígitos: a mesma janela que o Excel usa.
+  // Two-digit years: the same window Excel uses.
   if (year < 100) year += year < 30 ? 2000 : 1900
 
   const date = new Date(year, month - 1, day)

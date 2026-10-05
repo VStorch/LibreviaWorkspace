@@ -2,21 +2,21 @@ import { copyFile, open, rename, stat, unlink, type FileHandle } from 'node:fs/p
 import { dirname, join } from 'node:path'
 import { fromFileSystemError } from '@shared/errors.js'
 
-/** Pastas de rede às vezes não implementam fsync, e isso não é falha de gravação. */
+/** Network folders sometimes do not implement fsync, and that is not a write failure. */
 const FSYNC_UNSUPPORTED = new Set(['EINVAL', 'ENOTSUP', 'EPERM', 'EBADF', 'EISDIR'])
 
 /**
- * Sem janela de perda:
+ * No window for loss:
  *
- *  1. temporário **na mesma pasta**, porque `rename()` entre volumes falha com
- *     EXDEV, como numa pasta de rede;
- *  2. fsync do temporário;
- *  3. cópia do atual para `.bak` (dispensável com `backup: false`, como no
- *     rascunho, reescrito a cada oito segundos);
- *  4. `rename` sobre o destino, a troca atômica;
- *  5. fsync da pasta, para a troca sobreviver a uma queda.
+ *  1. temp file **in the same folder**, because `rename()` across volumes fails with EXDEV, as on a
+ *     network folder;
+ *  2. fsync of the temp file;
+ *  3. copy of the current file to `.bak` (skipped with `backup: false`, as for the draft rewritten
+ *     every eight seconds);
+ *  4. `rename` over the destination, the atomic swap;
+ *  5. fsync of the folder, so the swap survives a crash.
  *
- * Se algo falhar, o temporário sai e o original fica como estava.
+ * If anything fails, the temp file goes away and the original stays as it was.
  */
 export async function writeFileAtomic(
   targetPath: string,
@@ -30,7 +30,7 @@ export async function writeFileAtomic(
   try {
     const existingMode = await modeOf(targetPath)
 
-    // 'wx' falha se o temporário já existir, de outra instância.
+    // 'wx' fails if the temp file already exists, from another instance.
     handle = await open(temporaryPath, 'wx', existingMode ?? 0o666)
     await (typeof data === 'string' ? handle.writeFile(data, 'utf8') : handle.writeFile(data))
     await syncIfSupported(handle)
@@ -50,7 +50,7 @@ export async function writeFileAtomic(
   }
 }
 
-/** Para salvar não alterar as permissões. */
+/** So saving does not change permissions. */
 async function modeOf(path: string): Promise<number | null> {
   try {
     return (await stat(path)).mode
@@ -68,14 +68,14 @@ async function syncIfSupported(handle: FileHandle): Promise<void> {
   }
 }
 
-/** Melhor esforço: o Windows não abre diretório para fsync, e rede nenhuma garante. */
+/** Best effort: Windows cannot open a directory for fsync, and no network guarantees it. */
 async function syncDirectory(directory: string): Promise<void> {
   let handle: FileHandle | undefined
   try {
     handle = await open(directory, 'r')
     await handle.sync()
   } catch {
-    // Melhor esforço: sem fsync da pasta, a troca já está feita.
+    // Best effort: without the folder fsync, the swap is already done.
   } finally {
     await handle?.close().catch(() => undefined)
   }

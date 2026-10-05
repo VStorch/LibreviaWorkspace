@@ -4,10 +4,9 @@ import { columnResizingPluginKey } from '@tiptap/pm/tables'
 import { screenScaleOf } from '../screen-scale.js'
 
 /**
- * O `columnResizing` mede o arrasto por `clientX`, que com zoom chega na escala
- * da tela: a 150 %, arrastar 30 px alargaria 45. Durante o gesto, o `clientX` de
- * cada evento vira `clientX / escala`, por ouvintes de captura na janela, que
- * correm antes dos do plugin.
+ * `columnResizing` measures the drag by `clientX`, which with zoom arrives at screen scale: at 150
+ * %, dragging 30 px would widen 45. During the gesture each event's `clientX` becomes `clientX /
+ * scale`, through capture listeners on the window, which run before the plugin's.
  */
 export const ZoomedColumnResize = Extension.create({
   name: 'zoomedColumnResize',

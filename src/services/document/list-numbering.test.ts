@@ -31,7 +31,7 @@ const doc = (...content: DocumentNode[]): DocumentNode => ({ type: 'doc', conten
 
 const labels = (root: DocumentNode): string[] => numberLists(root, reader).labels
 
-/** Definição "1. / 1.1." com o segundo nível em letra, como os manuais costumam ter. */
+/** "1. / 1.1." with the second level in letters, as manuals often have. */
 const outline: NumberingDef = {
   key: 'a3',
   abstractId: 3,

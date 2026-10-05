@@ -31,7 +31,7 @@ const JSON_READER: ListTreeReader<DocumentNode> = {
   childrenOf: (node) => node.content ?? [],
 }
 
-/** Pela mesma conta do documento: uma segunda gramática de `%1.%2.` divergiria do papel. */
+/** Through the document's own numbering: a second `%1.%2.` grammar would drift from the paper. */
 export function previewOf(levels: readonly LevelDef[]): string[] {
   const kind = kindOfLevels(levels)
   const numbering = { key: 'previa', levels }
@@ -50,7 +50,7 @@ export function previewOf(levels: readonly LevelDef[]): string[] {
   return numberLists({ type: 'doc', content: [nested!] }, JSON_READER).labels
 }
 
-/** Os níveis começam pelos da lista do cursor, como no Word. */
+/** The levels start from the cursor's list, as in Word. */
 export function ListFormatDialog({
   editor,
   onClose,
@@ -86,7 +86,7 @@ export function ListFormatDialog({
     setLevels((all) => all.map((entry, index) => (index === level ? { ...entry, ...change } : entry)))
 
   function changeFormat(fmt: string): void {
-    // Trocar número por marcador troca o texto: `%2.` num marcador desenharia "%2.".
+    // Switching from number to bullet switches the text: `%2.` on a bullet would draw "%2.".
     if (fmt === 'bullet') update({ fmt, text: bullet ? own.text : '•' })
     else update({ fmt, text: bullet || own.text === '' ? `%${level + 1}.` : own.text })
   }
@@ -239,7 +239,7 @@ function LevelFields({
   )
 }
 
-/** Valem na hora, sem o Aplicar: são da lista do cursor, e não da definição. */
+/** They apply immediately, without Apply: they belong to the cursor's list, not the definition. */
 function NumberingActions({
   editor,
   ordered,
@@ -302,7 +302,7 @@ function NumberingActions({
   )
 }
 
-/** Só o número, para quem veio pelo botão direito. */
+/** Just the number, for those who came through the right click. */
 export function ListStartDialog({
   editor,
   onClose,

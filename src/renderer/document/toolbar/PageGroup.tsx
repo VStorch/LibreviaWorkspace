@@ -12,7 +12,7 @@ interface PageGroupProps {
 export function PageGroup({ onOpenFind, onOpenPageSetup }: PageGroupProps): React.JSX.Element {
   const t = useT()
   const printPreview = useWorkspace((state) => state.printPreview)
-  // Do main: a barra e o menu "Exibir" mudam a mesma chave.
+  // From main: the toolbar and the "View" menu change the same key.
   const invisibleCharacters = usePreferences((state) => state.preferences.invisibleCharacters)
 
   return (

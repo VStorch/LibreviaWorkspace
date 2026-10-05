@@ -11,16 +11,16 @@ import {
 import { effectiveAttrs } from '@services/document/style-cascade.js'
 import type { StyleSheet } from '@services/document/styles.js'
 
-/** O formulário inteiro numa transação: oito em fila pediriam oito `Ctrl+Z`. */
+/** The whole form in one transaction: eight in a row would take eight `Ctrl+Z`. */
 
-/** No OOXML isto é propriedade do bloco. */
+/** In OOXML this is a block property. */
 const DEFAULT_TYPES: readonly string[] = ['paragraph', 'heading', 'bulletList', 'orderedList']
 
 export interface ParagraphCommandsOptions {
   types: string[]
 }
 
-/** No `storage`, e não nas opções: as extensões são montadas uma vez, e os estilos mudam a cada documento. */
+/** In `storage`, not options: extensions are mounted once, and styles change with each document. */
 export interface ParagraphCommandsStorage {
   styles: StyleSheet | null
 }
@@ -41,13 +41,16 @@ declare module '@tiptap/core' {
   interface Commands<ReturnType> {
     paragraphCommands: {
       setParagraphFormat: (draft: ParagraphDraft) => ReturnType
-      /** Para `Ctrl+1`, `Ctrl+2` e `Ctrl+5`, como o Word diz: a conversão em CSS depende da fonte de cada bloco. */
+      /**
+       * For `Ctrl+1`, `Ctrl+2` and `Ctrl+5`, as Word says: the CSS conversion depends on each
+       * block's font.
+       */
       setBlockLineHeight: (value: string) => ReturnType
     }
   }
 }
 
-/** O primeiro bloco, como no Word: uma média inventaria um número que não é de nenhum. */
+/** The first block, as in Word: an average would invent a number that belongs to none. */
 export function paragraphDraftAt(editor: Editor, types: readonly string[] = DEFAULT_TYPES): ParagraphDraft {
   const { from, to } = editor.state.selection
   let attrs: Record<string, unknown> | null = null
@@ -77,7 +80,7 @@ export const ParagraphCommands = Extension.create<ParagraphCommandsOptions, Para
     const effective = (node: ProseMirrorNode): Record<string, unknown> =>
       effectiveAttrs(node, this.storage.styles)
 
-    /** Por bloco: "1,5 linha" é 1,8311 em Calibri e 1,7249 em Times. */
+    /** Per block: "1.5 lines" is 1.8311 in Calibri and 1.7249 in Times. */
     const applyAttrs =
       (attrsOf: (node: ProseMirrorNode) => Record<string, unknown>) =>
       ({ state, tr, dispatch }: CommandProps): boolean => {
@@ -91,7 +94,7 @@ export const ParagraphCommands = Extension.create<ParagraphCommandsOptions, Para
           if (declared === undefined) return true
 
           for (const [name, value] of Object.entries(attrsOf(node))) {
-            // A lista não tem `textAlign`: o alinhamento é dos itens.
+            // A list has no `textAlign`: alignment belongs to the items.
             if (!(name in declared)) continue
             if (node.attrs[name] === value) continue
 
@@ -104,21 +107,21 @@ export const ParagraphCommands = Extension.create<ParagraphCommandsOptions, Para
 
         if (changed && dispatch !== undefined) dispatch(tr)
 
-        // "Já estava assim" é sucesso: `false` cortaria a cadeia, e o `focus()` com ela.
+        // "Already like that" is success: `false` would cut the chain, and `focus()` with it.
         return true
       }
 
     return {
       setParagraphFormat: (draft) =>
         applyAttrs((node) => ({ ...paragraphAttrsFrom(draft, node.attrs, effective(node)) })),
-      // Contra o valor efetivo: a fonte pode vir do estilo.
+      // Against the effective value: the font may come from the style.
       setBlockLineHeight: (value) =>
         applyAttrs((node) => ({ lineHeight: lineHeightAttrFrom(value, effective(node)) })),
     }
   },
 })
 
-/** Em linhas do Word; o simples volta vazio, a primeira opção da barra. */
+/** In Word lines; single comes back empty, the toolbar's first option. */
 export function blockLineHeightOf(editor: Editor, types: readonly string[] = DEFAULT_TYPES): string {
   const { from, to } = editor.state.selection
   let value: string | null = null

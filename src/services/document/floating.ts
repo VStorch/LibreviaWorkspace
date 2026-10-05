@@ -1,15 +1,15 @@
 import { pageDimensionsMm, type DocumentNode, type PageSetup } from './model.js'
 import { bandForPage, pageLabel } from './band.js'
 
-/** Espelha `FloatDto` do sidecar, em milímetros: tela e papel convertem cada um uma vez. */
+/** Mirrors the sidecar's `FloatDto`, in millimetres: screen and paper convert once each. */
 export interface FloatingObject {
-  /** `rule` é o filete sob o cabeçalho corporativo: forma rasa, com contorno e sem conteúdo. */
+  /** `rule` is the line under a corporate header: a flat shape with an outline and no content. */
   readonly kind: 'image' | 'text' | 'rule'
   readonly src?: string | undefined
   readonly content?: DocumentNode[] | undefined
   readonly widthMm: number
   readonly heightMm: number
-  /** Graus, sentido horário. */
+  /** Degrees, clockwise. */
   readonly rotation: number
   readonly hFrom: string
   readonly hOffsetMm?: number | undefined
@@ -19,19 +19,21 @@ export interface FloatingObject {
   readonly vAlign?: string | undefined
   readonly behind: boolean
   readonly wrap: string
-  /** A posição da peça dentro do grupo de formas, somada depois de resolver a âncora. */
+  /** The piece's position inside the shape group, added after resolving the anchor. */
   readonly dxMm?: number | undefined
   readonly dyMm?: number | undefined
-  /** Só nos objetos de faixa; a caixa é regenerada inteira, porque digitar abre e fecha parágrafos. */
+  /**
+   * Band objects only; the box is regenerated whole, because typing opens and closes paragraphs.
+   */
   readonly bid?: string | undefined
-  /** Só cor e traço sólidos; o resto não é desenhado e entra no inventário. */
+  /** Solid color and stroke only; the rest is not drawn and goes to the inventory. */
   readonly fill?: string | undefined
   readonly line?: string | undefined
   readonly lineWidthPt?: number | undefined
   readonly dash?: boolean | undefined
 }
 
-/** Para a tela e o papel desenharem igual. Traço de espessura zero é ausência. */
+/** So screen and paper draw the same. A zero-width stroke means none. */
 export function frameOf(object: FloatingObject): { background?: string; border?: string } {
   const frame: { background?: string; border?: string } = {}
 
@@ -45,7 +47,7 @@ export function frameOf(object: FloatingObject): { background?: string; border?:
   return frame
 }
 
-/** A caixa já resolvida, em milímetros da borda da folha. */
+/** In millimetres from the sheet edge. */
 export interface FloatingBox {
   readonly leftMm: number
   readonly topMm: number
@@ -56,10 +58,9 @@ export interface FloatingBox {
 }
 
 /**
- * A origem vertical mais comum é o parágrafo, que só tem posição depois de
- * paginar: por isso `anchorTopMm` entra como parâmetro. A rotação sai como está,
- * porque o Word posiciona a caixa sem girar e gira em torno do centro, como
- * `transform: rotate()`.
+ * The most common vertical origin is the paragraph, which only has a position after pagination, so
+ * `anchorTopMm` is a parameter. Rotation passes through as is, because Word positions the box
+ * unrotated and rotates around the center, like `transform: rotate()`.
  */
 export function placeFloating(object: FloatingObject, page: PageSetup, anchorTopMm: number): FloatingBox {
   const { width, height } = pageDimensionsMm(page)
@@ -67,8 +68,8 @@ export function placeFloating(object: FloatingObject, page: PageSetup, anchorTop
   const columnWidth = width - page.margins.left - page.margins.right
 
   const leftMm = (() => {
-    // Alinhamento manda sobre deslocamento: o OOXML traz um ou outro, nunca os
-    // dois, e quando há alinhamento o deslocamento não existe.
+    // Alignment beats offset: OOXML carries one or the other, never both, and with an alignment
+    // there is no offset.
     if (object.hAlign !== undefined) {
       const box = referenceH(object.hFrom, page, width, columnLeft, columnWidth)
       if (object.hAlign === 'center') return box.start + (box.size - object.widthMm) / 2
@@ -91,8 +92,8 @@ export function placeFloating(object: FloatingObject, page: PageSetup, anchorTop
         return height - page.margins.bottom + offset
       case 'margin':
         return page.margins.top + offset
-      // `paragraph` e `line` são a mesma coisa para nós: a linha exata dentro do
-      // parágrafo exigiria medir cada linha, e a diferença é de uma entrelinha.
+      // `paragraph` and `line` are the same to us: the exact line inside the paragraph would
+      // require measuring each line, and the difference is one line height.
       default:
         return anchorTopMm + offset
     }
@@ -108,7 +109,7 @@ export function placeFloating(object: FloatingObject, page: PageSetup, anchorTop
   }
 }
 
-/** A faixa horizontal a que o deslocamento se refere. */
+/** The horizontal band the offset refers to. */
 function referenceH(
   from: string,
   page: PageSetup,
@@ -127,27 +128,25 @@ function referenceH(
       return { start: 0, size: page.margins.left }
     case 'outsideMargin':
       return { start: width - page.margins.right, size: page.margins.right }
-    // `margin`, `column` e `character` coincidem numa página de coluna única.
+    // `margin`, `column` and `character` coincide on a single-column page.
     default:
       return { start: columnLeft, size: columnWidth }
   }
 }
 
-/** Os objetos que um bloco carrega, ou lista vazia. */
 export function floatsOf(attrs: Record<string, unknown> | null | undefined): FloatingObject[] {
   const raw = attrs?.['floats']
   return Array.isArray(raw) ? (raw as FloatingObject[]) : []
 }
 
-/** Um objeto e a altura de onde contar a âncora vertical dele. */
 export interface AnchoredFloat {
   readonly object: FloatingObject
   readonly anchorTopMm: number
 }
 
 /**
- * Repetem em toda folha, como a faixa. O "parágrafo" de uma faixa começa na
- * distância que `w:pgMar` declara: do alto no cabeçalho, de baixo no rodapé.
+ * They repeat on every sheet, like the band. A band's "paragraph" starts at the distance `w:pgMar`
+ * declares: from the top in the header, from the bottom in the footer.
  */
 export function bandFloatsOf(page: PageSetup, pageNumber: number): AnchoredFloat[] {
   const height = pageDimensionsMm(page).height
@@ -167,14 +166,17 @@ export function bandFloatsOf(page: PageSetup, pageNumber: number): AnchoredFloat
   ]
 }
 
-/** O leitor entrega o campo `PAGE` da caixa como `{n}`; sem a troca a folha sairia com as chaves. */
+/**
+ * The reader delivers the box's `PAGE` field as `{n}`; without the replacement the sheet would show
+ * the braces.
+ */
 function numbered(object: FloatingObject, pageNumber: string): FloatingObject {
   if (object.kind !== 'text' || object.content === undefined) return object
 
   const content = object.content.map((node) => replaceMarkers(node, pageNumber))
 
-  // A caixa com numeração deixa de ser editável: devolver o número desta folha
-  // ao arquivo trocaria o campo `PAGE` por um número fixo.
+  // A box with numbering stops being editable: writing this sheet's number back to the file would
+  // replace the `PAGE` field with a fixed number.
   const marked = JSON.stringify(content) !== JSON.stringify(object.content)
 
   return { ...object, content, ...(marked ? { bid: undefined } : {}) }

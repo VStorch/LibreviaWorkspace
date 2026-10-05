@@ -1,4 +1,4 @@
-/** Nada de stack trace, caminho absoluto ou detalhe interno atravessa o IPC: o detalhe fica no log do main. */
+/** No stack trace, absolute path or internal detail crosses IPC: details stay in the main log. */
 
 import { Language, translate, type MessageKey } from './i18n/index.js'
 
@@ -17,11 +17,11 @@ export const ErrorCode = {
   WriteFailed: 'WRITE_FAILED',
   NotTextFile: 'NOT_TEXT_FILE',
 
-  /** O serviço de formatos não pôde ser iniciado — instalação incompleta. */
+  /** Incomplete installation. */
   SidecarUnavailable: 'SIDECAR_UNAVAILABLE',
-  /** Demorou além do limite. O documento aberto continua intacto. */
+  /** The open document stays intact. */
   SidecarTimeout: 'SIDECAR_TIMEOUT',
-  /** Morreu no meio da operação, ou respondeu algo que não entendemos. */
+  /** Crashed mid-operation, or answered something we could not parse. */
   SidecarFailed: 'SIDECAR_FAILED',
 } as const
 
@@ -29,9 +29,9 @@ export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode]
 
 export interface SerializedError {
   readonly code: ErrorCode
-  /** Frase pronta para exibição, em português, sem jargão. */
+  /** Ready to show, without jargon. */
   readonly message: string
-  /** Detalhe opcional já higienizado (ex.: qual campo falhou na validação). */
+  /** Already sanitized (e.g. which field failed validation). */
   readonly detail?: string
 }
 
@@ -53,7 +53,6 @@ export class AppError extends Error {
   }
 }
 
-/** Converte qualquer valor lançado num erro seguro para cruzar o IPC. */
 export function toSerializedError(cause: unknown, language: Language = Language.Portuguese): SerializedError {
   if (cause instanceof AppError) return cause.toSerialized()
   return {
@@ -69,14 +68,14 @@ const FILE_SYSTEM_ERRORS: ReadonlyMap<string, readonly [ErrorCode, MessageKey]> 
   ['EISDIR', [ErrorCode.NotAFile, 'errors.fs.notAFile']],
   ['EROFS', [ErrorCode.WriteFailed, 'errors.fs.readOnlyLocation']],
   ['ENOSPC', [ErrorCode.WriteFailed, 'errors.fs.diskFull']],
-  // Diferente de disco cheio, e a diferença muda o que a pessoa faz: aqui o
-  // disco tem espaço, mas a cota dela na pasta de rede acabou.
+  // Unlike a full disk, and the difference changes what the user does: the disk has room, but their
+  // quota on the network share ran out.
   ['EDQUOT', [ErrorCode.WriteFailed, 'errors.fs.quotaExceeded']],
   ['ENAMETOOLONG', [ErrorCode.WriteFailed, 'errors.fs.nameTooLong']],
   ['EBUSY', [ErrorCode.WriteFailed, 'errors.fs.fileInUse']],
 ])
 
-/** Típicos de pasta de rede que caiu no meio da operação. */
+/** Typical of a network share that dropped mid-operation. */
 const NETWORK_ERRORS: ReadonlySet<string> = new Set([
   'ENETDOWN',
   'ENETUNREACH',
@@ -86,7 +85,7 @@ const NETWORK_ERRORS: ReadonlySet<string> = new Set([
   'ETIMEDOUT',
 ])
 
-/** Sem isto, uma pasta de rede fora do ar mostraria "EBUSY" na tela. */
+/** Otherwise a network share that went offline would show "EBUSY" on screen. */
 export function fromFileSystemError(
   cause: unknown,
   operation: 'leitura' | 'escrita',

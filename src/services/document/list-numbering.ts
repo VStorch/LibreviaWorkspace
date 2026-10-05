@@ -1,35 +1,34 @@
 /**
- * O Word conta **por definição** (`w:abstractNum`), e não por lista: duas listas
- * da mesma numeração separadas por um parágrafo continuam a contagem. Compõe os
- * níveis (`%1.%2.`) e tem formato e início por nível. Por isso a marca é
- * calculada aqui e entregue pronta, à tela e ao papel. A definição mora no nó da
- * lista (`numbering`), como em `ListLevels.cs`.
+ * Word counts **per definition** (`w:abstractNum`), not per list: two lists with the same numbering
+ * separated by a paragraph continue the count. Levels compose (`%1.%2.`) and each has its own
+ * format and start. So the label is computed here and handed over ready, to screen and paper. The
+ * definition lives on the list node (`numbering`), as in `ListLevels.cs`.
  */
 
 import { INDENT_STEP_MM } from '@services/units.js'
 
-/** Um nível da definição: `w:lvl`. */
+/** `w:lvl`. */
 export interface LevelDef {
   /** `w:numFmt`: `decimal`, `lowerLetter`, `upperRoman`, `bullet`, `none`… */
   readonly fmt: string
-  /** `w:lvlText`: `%1.%2.` na numerada; a marca já traduzida na com marcador. */
+  /** `w:lvlText`: `%1.%2.` when numbered; the already translated mark for bullets. */
   readonly text: string
   readonly start: number
   readonly indentMm?: number
   readonly hangingMm?: number
-  /** `w:isLgl`: os números de cima saem em decimal (1.1, e não I.a). */
+  /** `w:isLgl`: upper levels print in decimal (1.1, not I.a). */
   readonly legal?: boolean
 }
 
 export interface NumberingDef {
   /**
-   * `a7` é a definição abstrata 7, que várias listas continuam; `n12` é o
-   * `w:num` 12, com reinício próprio. Lista reiniciada no editor ganha chave nova.
+   * `a7` is abstract definition 7, which several lists continue; `n12` is `w:num` 12, with its own
+   * restart. A list restarted in the editor gets a new key.
    */
   readonly key: string
   readonly abstractId?: number
   readonly levels: readonly LevelDef[]
-  /** Nível → valor inicial (`w:lvlOverride/w:startOverride`). */
+  /** Level → start value (`w:lvlOverride/w:startOverride`). */
   readonly overrides?: Readonly<Record<string, number>>
 }
 
@@ -41,8 +40,8 @@ const HANGING_MM = INDENT_STEP_MM / 2
 const round2 = (value: number): number => Math.round(value * 100) / 100
 
 /**
- * Os níveis do Word para uma lista nova: 1. a. i. ou • o ▪, de três em três,
- * meia polegada por nível. Iguais a `ListLevels.Defaults`, com que a lista é gravada.
+ * Word's levels for a new list: 1. a. i. or • o ▪, cycling every three, half an inch per level. The
+ * same as `ListLevels.Defaults`, which writes the list.
  */
 export function defaultLevels(kind: string): LevelDef[] {
   const bullet = kind === 'bulletList'
@@ -57,7 +56,7 @@ export function defaultLevels(kind: string): LevelDef[] {
   }))
 }
 
-/** A definição do atributo `numbering`, ou `null` quando ele não tem forma de definição. */
+/** `null` when the attribute has no definition shape. */
 export function parseNumbering(value: unknown): NumberingDef | null {
   if (value === null || typeof value !== 'object') return null
   const raw = value as Record<string, unknown>
@@ -101,15 +100,18 @@ function roman(value: number): string {
 }
 
 /**
- * Letra do Word: depois do z vem aa, bb, cc — a letra repetida, e não a
- * sequência de colunas da planilha (aa, ab, ac).
+ * Word letters: after z comes aa, bb, cc, the repeated letter, not the spreadsheet column sequence
+ * (aa, ab, ac).
  */
 function letter(value: number): string {
   const index = (value - 1) % 26
   return String.fromCharCode(97 + index).repeat(Math.floor((value - 1) / 26) + 1)
 }
 
-/** Formato que o editor não desenha sai em decimal; a definição volta intacta ao arquivo. */
+/**
+ * A format the editor does not draw comes out in decimal; the definition goes back to the file
+ * intact.
+ */
 export function formatNumber(value: number, fmt: string): string {
   if (fmt === 'none' || fmt === 'bullet') return ''
   if (value <= 0 && fmt !== 'decimal' && fmt !== 'decimalZero') return String(value)
@@ -129,36 +131,32 @@ export function formatNumber(value: number, fmt: string): string {
   }
 }
 
-/** Como ler uma árvore — a do ProseMirror na tela, a do JSON nos testes. */
+/** The ProseMirror tree on screen, the JSON tree in tests. */
 export interface ListTreeReader<N> {
   typeOf(node: N): string
   attrsOf(node: N): Readonly<Record<string, unknown>>
   childrenOf(node: N): readonly N[]
 }
 
-/** O que a conta decide sobre uma lista. */
 export interface ListInfo {
   readonly kind: string
   readonly level: number
   readonly key: string
   readonly numId: number | null
   readonly def: NumberingDef
-  /** Onde o texto do item começa, a contar da margem. */
+  /** From the margin. */
   readonly indentMm: number
   readonly hangingMm: number
-  /** O recuo da lista de fora — o `<ul>` aninhado já começa depois dele. */
+  /** The nested `<ul>` already starts after it. */
   readonly parentIndentMm: number
 }
 
 export interface ListNumbering {
-  /** Uma entrada por lista, em ordem de documento (pré-ordem). */
+  /** One entry per list, in document order (pre-order). */
   readonly lists: ListInfo[]
-  /** A marca de cada item, em ordem de documento (pré-ordem). */
+  /** In document order (pre-order). */
   readonly labels: string[]
-  /**
-   * O valor do contador no nível de cada item, na mesma ordem de `labels`: o
-   * número que a exportação para HTML e Markdown põe no `start` da lista.
-   */
+  /** Same order as `labels`: the number the HTML and Markdown export put in the list `start`. */
   readonly values: number[]
 }
 
@@ -178,7 +176,10 @@ interface Counter {
   readonly started: Set<number>
 }
 
-/** Um passo só, em ordem de documento: o item depende de tudo o que veio antes com a mesma definição. */
+/**
+ * A single pass in document order: an item depends on everything before it with the same
+ * definition.
+ */
 export function numberLists<N>(root: N, reader: ListTreeReader<N>): ListNumbering {
   const lists: ListInfo[] = []
   const labels: string[] = []
@@ -206,7 +207,7 @@ export function numberLists<N>(root: N, reader: ListTreeReader<N>): ListNumberin
       }
       return
     }
-    // Fora de lista (uma tabela, uma célula), a lista de fora não vale mais.
+    // Outside a list (a table, a cell), the outer list no longer applies.
     const outer = type === 'listItem' ? parent : null
     for (const child of reader.childrenOf(node)) visit(child, outer)
   }
@@ -248,10 +249,9 @@ function resolveList<N>(node: N, parent: ListInfo | null, context: ListContext<N
 }
 
 /**
- * A mesma ordem de decisão do gravador (`DocxWriter.Flatten`): a definição
- * própria; a da lista de fora quando é a mesma numeração, ou quando esta não tem
- * nenhuma e é do mesmo tipo; a de outra lista com o mesmo `numId`; e a padrão,
- * contando sozinha.
+ * The writer's decision order (`DocxWriter.Flatten`): its own definition; the outer list's when it
+ * is the same numbering, or when this one has none and is the same kind; another list's with the
+ * same `numId`; and the default, counting alone.
  */
 function definitionOf<N>(
   own: NumberingDef | null,
@@ -281,15 +281,15 @@ function nextLabel(list: ListInfo, counters: Map<string, Counter>, values: numbe
   const own = list.def.levels[level] ?? defaultLevels(list.kind)[level]!
 
   if (counts[level] === undefined) {
-    // O reinício do `w:num` vale na primeira vez que o nível aparece; depois
-    // dela, quem reinicia o nível é o item de cima, e ele volta ao `w:start`.
+    // The `w:num` restart applies the first time the level appears; after that, the item above
+    // restarts the level, back to `w:start`.
     const override = started.has(level) ? undefined : list.def.overrides?.[String(level)]
     counts[level] = (override ?? own.start ?? 1) - 1
   }
   started.add(level)
   counts[level] = counts[level]! + 1
   values.push(counts[level])
-  // `w:lvlRestart` ausente: o item de um nível zera os de baixo.
+  // Without `w:lvlRestart`, an item resets the levels below it.
   for (let deeper = level + 1; deeper < LIST_LEVELS; deeper++) counts[deeper] = undefined
 
   if (own.fmt === 'bullet') return own.text
@@ -305,7 +305,7 @@ function nextLabel(list: ListInfo, counters: Map<string, Counter>, values: numbe
   })
 }
 
-/** A definição de cada `numId` que alguma lista do documento traz. */
+/** For each `numId` some list in the document carries. */
 function definitionsByNumId<N>(root: N, reader: ListTreeReader<N>): Map<number, NumberingDef> {
   const found = new Map<number, NumberingDef>()
   const walk = (node: N): void => {
@@ -322,9 +322,8 @@ function definitionsByNumId<N>(root: N, reader: ListTreeReader<N>): Map<number, 
 }
 
 /**
- * Em variáveis: o nó pode trazer o recuo absoluto do arquivo, e a regra em
- * `content-styles.ts` usa o relativo, porque o `<ul>` aninhado já começa dentro
- * da lista de fora.
+ * As variables: the node may carry the file's absolute indent, and the rule in `content-styles.ts`
+ * uses the relative one, because the nested `<ul>` already starts inside the outer list.
  */
 export function listDrawAttrs(info: ListInfo): Record<string, string> {
   const relative = round2(info.indentMm - info.parentIndentMm)
@@ -334,7 +333,9 @@ export function listDrawAttrs(info: ListInfo): Record<string, string> {
   }
 }
 
-/** A variável é o que o `::before` desenha: `attr()` no parágrafo de dentro leria o atributo errado. */
+/**
+ * `::before` draws the variable: `attr()` on the inner paragraph would read the wrong attribute.
+ */
 export function itemDrawAttrs(label: string): Record<string, string> {
   const quoted = label.replace(/["\\]/g, '\\$&').replace(/\n/g, ' ')
   return { 'data-label': label, style: `--lista-marca: "${quoted}"` }

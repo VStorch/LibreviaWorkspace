@@ -1,6 +1,6 @@
 /**
- * Gerado do **modelo**, e não do DOM como no documento: a grade só desenha as
- * células visíveis. As regras de formatação são as da tela (`formatCell`).
+ * Built from the **model**, not from the DOM as for documents: the grid only draws visible cells.
+ * Formatting rules are the screen's (`formatCell`).
  */
 
 import { formatCell } from './format.js'
@@ -12,7 +12,7 @@ export interface PrintBounds {
   readonly columns: number
 }
 
-/** Uma planilha nova tem mil linhas por vinte e seis colunas e nenhum dado. */
+/** A new sheet has a thousand rows by twenty-six columns and no data. */
 export function usedBounds(sheet: Sheet): PrintBounds {
   let rows = 0
   let columns = 0
@@ -34,7 +34,7 @@ function indexOfColumn(letters: string): number {
   return index - 1
 }
 
-/** As linhas congeladas viram `<thead>`, que o navegador repete no topo de cada página. */
+/** Frozen rows become `<thead>`, which the browser repeats at the top of each page. */
 export function buildSheetHtml(sheet: Sheet, language: Language = Language.Portuguese): string {
   const bounds = usedBounds(sheet)
   if (bounds.rows === 0 || bounds.columns === 0) {
@@ -51,8 +51,8 @@ export function buildSheetHtml(sheet: Sheet, language: Language = Language.Portu
 }
 
 /**
- * O "ajustar à página" do Excel: em corpo 11, doze colunas numa A4 em retrato
- * partiriam números no meio. Quem quiser o texto grande usa paisagem.
+ * Excel's "fit to page": at 11 pt, twelve columns on portrait A4 would break numbers in the middle.
+ * Whoever wants large text uses landscape.
  */
 function fontSize(columns: number): number {
   if (columns <= 8) return 11
@@ -61,7 +61,7 @@ function fontSize(columns: number): number {
   return 7
 }
 
-/** Em proporção, e não em pixels, para a tabela caber na folha com as proporções da tela. */
+/** Proportional, not pixels, so the table fits the sheet with the screen's proportions. */
 function columnWidths(sheet: Sheet, bounds: PrintBounds): string {
   const pixels = Array.from(
     { length: bounds.columns },
@@ -95,7 +95,7 @@ function cellHtml(cell: Cell | undefined): string {
   return style === '' ? `<td>${text}</td>` : `<td style="${style}">${text}</td>`
 }
 
-/** Estilo direto, e não classes: cor e fundo são valores livres do arquivo. */
+/** Inline style, not classes: color and background are free values from the file. */
 function inlineStyle(cell: Cell | undefined): string {
   const style = cell?.style
   if (style === undefined) return ''
@@ -107,8 +107,7 @@ function inlineStyle(cell: Cell | undefined): string {
   if (style.color !== undefined) parts.push(`color:${cssColor(style.color)}`)
   if (style.background !== undefined) parts.push(`background:${cssColor(style.background)}`)
 
-  // Sem regra própria para número, como a grade: o papel não pode sair
-  // diferente da tela.
+  // No rule of its own for numbers, like the grid: paper must not differ from the screen.
   if (style.align !== undefined) parts.push(`text-align:${style.align}`)
 
   for (const side of style.borders ?? []) {
@@ -118,7 +117,10 @@ function inlineStyle(cell: Cell | undefined): string {
   return parts.join(';')
 }
 
-/** O valor vem do arquivo: sem a trava, `red;background:url(...)` viraria outra declaração. */
+/**
+ * The value comes from the file: without the guard, `red;background:url(...)` would become another
+ * declaration.
+ */
 function cssColor(value: string): string {
   return /^#[0-9a-fA-F]{6}$/.test(value) ? value : 'inherit'
 }
@@ -131,7 +133,7 @@ function escapeHtml(text: string): string {
     .replaceAll('"', '&quot;')
 }
 
-/** `break-inside: avoid`: a linha alta não é cortada pela quebra de página. */
+/** `break-inside: avoid`: a tall row is not cut by the page break. */
 export const SHEET_PRINT_CSS = `
 .sheet-print {
   border-collapse: collapse;

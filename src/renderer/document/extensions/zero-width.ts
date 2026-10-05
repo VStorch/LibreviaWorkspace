@@ -4,8 +4,8 @@ import { Plugin, PluginKey, TextSelection, type EditorState, type Transaction } 
 import type { EditorView } from '@tiptap/pm/view'
 
 /**
- * Pontas de marcador e de comentário: atômicas, vazias e sem largura na tela,
- * mas uma posição para o ProseMirror. O que as trata como "não texto" mora aqui.
+ * Bookmark and comment ends: atomic, empty and zero-width on screen, but a position for
+ * ProseMirror. What treats them as "not text" lives here.
  */
 const ANCHORS = new Set(['bookmarkStart', 'bookmarkEnd', 'commentStart', 'commentEnd'])
 
@@ -13,7 +13,7 @@ export function isZeroWidthAnchor(node: ProseMirrorNode | null | undefined): boo
   return node !== null && node !== undefined && ANCHORS.has(node.type.name)
 }
 
-/** O começo do texto do bloco, depois das âncoras que o abrem. */
+/** The start of the block text, after the anchors that open it. */
 export function textStartOf(doc: ProseMirrorNode, pos: number): number {
   const block = doc.nodeAt(pos)
   let start = pos + 1
@@ -25,13 +25,16 @@ export function textStartOf(doc: ProseMirrorNode, pos: number): number {
   return start
 }
 
-/** O `keyCode` das teclas que o método de entrada ainda está compondo. */
+/** The `keyCode` of keys the input method is still composing. */
 const IME_PROCESS_KEY_CODE = 229
 
-/** A seleção posta de propósito entre as âncoras (ir ao comentário): digitar troca o texto e não leva o comentário. */
+/**
+ * A selection placed between anchors on purpose (go to comment): typing replaces the text and does
+ * not take the comment along.
+ */
 export const KEEP_SELECTION = 'zeroWidthKeepSelection'
 
-/** A seleção leva as âncoras encostadas nas pontas do texto. */
+/** The selection takes the anchors touching the text edges. */
 export function extendOverAnchors(state: EditorState): Transaction | null {
   const { selection } = state
   if (!(selection instanceof TextSelection) || selection.empty) return null
@@ -40,7 +43,7 @@ export function extendOverAnchors(state: EditorState): Transaction | null {
   const offset = offsetBeforeAnchors($from)
   const end = offsetAfterAnchors($to)
 
-  // Só o parágrafo que a seleção cobre inteiro leva as âncoras.
+  // Only a paragraph the selection fully covers takes the anchors.
   const sameBlock = $from.sameParent($to)
   const startCovered = offset === 0 && (!sameBlock || end === $to.parent.content.size)
   const endCovered = end === $to.parent.content.size && (!sameBlock || offset === 0)
@@ -72,7 +75,7 @@ function offsetAfterAnchors($to: ResolvedPos): number {
   return end
 }
 
-/** Backspace e Delete passam por cima das âncoras; `null` sem âncora ali. */
+/** Backspace and Delete skip over anchors; `null` without an anchor there. */
 export function pastAnchors(state: EditorState, direction: -1 | 1): number | null {
   const { selection } = state
   if (!(selection instanceof TextSelection) || !selection.empty) return null
@@ -93,10 +96,10 @@ function headPastAnchors(state: EditorState, direction: -1 | 1): number | null {
   return pos === $head.pos ? null : pos
 }
 
-/** O cursor ou a ponta da seleção pulam as âncoras antes de o navegador agir; a tecla segue adiante. */
+/** The cursor or the selection head skips anchors before the browser acts; the key goes on. */
 function moveOverAnchors(view: EditorView, event: KeyboardEvent): void {
   if (event.shiftKey && (event.key === 'ArrowLeft' || event.key === 'ArrowRight')) {
-    // A ponta pula as âncoras antes de o navegador estendê-la.
+    // The head skips anchors before the browser extends it.
     const head = headPastAnchors(view.state, event.key === 'ArrowLeft' ? -1 : 1)
     if (head === null) return
     const anchor = view.state.selection.empty ? head : view.state.selection.anchor
@@ -104,13 +107,13 @@ function moveOverAnchors(view: EditorView, event: KeyboardEvent): void {
     return
   }
   if (event.key === 'Enter') {
-    // Enter com só âncoras antes do cursor: elas seguem com o texto.
+    // Enter with only anchors before the cursor: they follow the text.
     const back = pastAnchors(view.state, -1)
     if (back !== null && back === view.state.selection.$head.start()) moveCursor(view, back)
     return
   }
   if (event.key !== 'Backspace' && event.key !== 'Delete') return
-  // Só o cursor anda; o resto segue do lugar novo.
+  // Only the cursor moves; the rest continues from the new place.
   const pos = pastAnchors(view.state, event.key === 'Backspace' ? -1 : 1)
   if (pos !== null) moveCursor(view, pos)
 }
@@ -120,9 +123,9 @@ function moveCursor(view: EditorView, pos: number): void {
 }
 
 /**
- * O Chrome dispara o `selectionchange` numa tarefa à parte, e a tecla seguinte
- * pode chegar antes: o Backspace agiria sobre o estado velho e apagaria a âncora,
- * e o comentário com ela. O `flush` faz o que o `selectionchange` faria.
+ * Chrome fires `selectionchange` in a separate task, and the next key may arrive first: Backspace
+ * would act on the old state and delete the anchor, and the comment with it. `flush` does what
+ * `selectionchange` would.
  */
 export function readPendingSelection(view: EditorView): void {
   const observer = (view as unknown as { domObserver?: { flush?: () => void } }).domObserver
@@ -130,13 +133,13 @@ export function readPendingSelection(view: EditorView): void {
 }
 
 /**
- * Backspace e Delete passam por cima das âncoras, que não se veem: apagá-las
- * seria um toque perdido que ainda leva o comentário. A seleção que chega à ponta
- * do texto de um parágrafo leva as âncoras encostadas ali.
+ * Backspace and Delete skip over anchors, which are invisible: deleting them would be a wasted key
+ * press that still takes the comment. A selection reaching the edge of a paragraph's text takes the
+ * anchors touching it.
  */
 export const ZeroWidthAnchors = Extension.create({
   name: 'zeroWidthAnchors',
-  // Antes do mapa de teclas do Tiptap, que trataria o Backspace com o estado velho.
+  // Before Tiptap's keymap, which would handle Backspace with the old state.
   priority: 1000,
 
   addProseMirrorPlugins() {
@@ -144,9 +147,8 @@ export const ZeroWidthAnchors = Extension.create({
       new Plugin({
         key: new PluginKey('zeroWidthAnchors'),
         /**
-         * O navegador põe o cursor dentro das âncoras: `Shift+Home` numa legenda
-         * deixaria o `_Ref` para trás. Estendida, a seleção leva a âncora com o
-         * texto, como no Word.
+         * The browser puts the cursor inside anchors: `Shift+Home` on a caption would leave the
+         * `_Ref` behind. Extended, the selection takes the anchor with the text, as in Word.
          */
         appendTransaction: (transactions, _old, state) =>
           transactions.some((tr) => tr.selectionSet) &&

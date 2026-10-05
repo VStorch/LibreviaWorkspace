@@ -1,16 +1,14 @@
 /**
- * **Bytes entram, JSON sai**, num quadro binário que as duas linguagens montam
- * sem framework:
+ * **Bytes in, JSON out**, in a binary frame both languages build without a framework:
  *
  * ```text
- *   offset 0   uint32 BE   bytes de JSON
- *   offset 4   uint32 BE   bytes de binário
- *   offset 8   ...         JSON em UTF-8
- *   depois     ...         binário cru
+ *   offset 0   uint32 BE   JSON byte count
+ *   offset 4   uint32 BE   binary byte count
+ *   offset 8   ...         UTF-8 JSON
+ *   then       ...         raw binary
  * ```
  *
- * O binário viaja fora do JSON: Base64 custaria 33% a mais em documentos de até
- * 20 MB.
+ * The binary travels outside the JSON: Base64 would cost 33% more on documents of up to 20 MB.
  */
 
 import { z } from 'zod'
@@ -20,8 +18,8 @@ import { t } from '../i18n.js'
 export const FRAME_HEADER_BYTES = 8
 
 /**
- * Contra um sidecar corrompido anunciando um quadro absurdo. O teto do JSON é
- * generoso porque as imagens do DOCX vão como data URI.
+ * Against a corrupt sidecar announcing an absurd frame. The JSON cap is generous because DOCX
+ * images travel as data URIs.
  */
 export const MAX_JSON_BYTES = 64 * 1024 * 1024
 export const MAX_BINARY_BYTES = 64 * 1024 * 1024
@@ -46,9 +44,9 @@ export function encodeFrame(json: unknown, binary: Uint8Array = EMPTY_BINARY): U
   return frame
 }
 
-/** Um pipe não preserva fronteiras: um quadro chega partido, e vários chegam juntos. */
+/** A pipe does not preserve boundaries: a frame arrives split, and several arrive together. */
 export class FrameReader {
-  // Anotado: `new Uint8Array(0)` inferiria um tipo mais estreito que os pedaços do pipe.
+  // Annotated: `new Uint8Array(0)` would infer a narrower type than the pipe chunks.
   #buffer: Uint8Array = EMPTY_BINARY
 
   push(chunk: Uint8Array): Frame[] {
@@ -81,7 +79,7 @@ export class FrameReader {
     if (this.#buffer.length < total) return undefined
 
     const jsonBytes = this.#buffer.subarray(FRAME_HEADER_BYTES, FRAME_HEADER_BYTES + jsonLength)
-    // Cópia: o binário sobrevive ao buffer, que será fatiado.
+    // A copy: the binary outlives the buffer, which will be sliced.
     const binary = this.#buffer.slice(FRAME_HEADER_BYTES + jsonLength, total)
     this.#buffer = this.#buffer.slice(total)
 
@@ -113,9 +111,9 @@ function concat(left: Uint8Array, right: Uint8Array): Uint8Array {
 
 
 /**
- * `health` prova que o processo sobe; `diagnostics.echo`, que o binário atravessa.
- * `docx.save` recebe os bytes originais, e não uma sessão, porque o sidecar é sem
- * estado. `docx.create` devolve o pacote mínimo do documento que nasceu no editor.
+ * `health` proves the process starts; `diagnostics.echo`, that the binary gets through. `docx.save`
+ * receives the original bytes, not a session, because the sidecar is stateless. `docx.create`
+ * returns the minimal package for a document born in the editor.
  */
 export const SidecarMethod = {
   Health: 'health',
@@ -135,7 +133,7 @@ export interface SidecarRequest {
   readonly params: unknown
 }
 
-/** O sidecar fala português com o usuário; o código do erro é dele. */
+/** The sidecar speaks Portuguese to the user; the error code is its own. */
 const sidecarErrorSchema = z.object({
   code: z.string().min(1).max(64),
   message: z.string().min(1).max(500),
@@ -146,7 +144,7 @@ const responseSchema = z.discriminatedUnion('ok', [
   z.object({
     id: z.number().int().nonnegative(),
     ok: z.literal(true),
-    // O .NET omite propriedade nula, e operação só com binário é o caso normal.
+    // .NET omits null properties, and a binary-only operation is the normal case.
     result: z.unknown().optional(),
   }),
   z.object({ id: z.number().int().nonnegative(), ok: z.literal(false), error: sidecarErrorSchema }),
@@ -154,7 +152,7 @@ const responseSchema = z.discriminatedUnion('ok', [
 
 export type SidecarResponse = z.infer<typeof responseSchema>
 
-/** O sidecar é outro processo: pode estar antigo, trocado ou corrompido. */
+/** The sidecar is another process: it may be old, swapped or corrupt. */
 export function parseResponse(json: unknown): SidecarResponse {
   const parsed = responseSchema.safeParse(json)
   if (!parsed.success) {

@@ -6,15 +6,15 @@ import { noteRefAround } from './note-ref.js'
 import { KEEP_SELECTION } from './zero-width.js'
 
 /**
- * Como o marcador (`bookmark.ts`): a âncora `w:commentRangeStart`/`End` atravessa
- * parágrafos, e é por ser nó que volta ao arquivo. O `cid` é o `w:id`. Uma âncora
- * por conversa: a resposta não tem nó. O comentário de ponto tem só o
- * `commentEnd`. O realce é decoração, e nunca vai ao JSON nem ao papel.
+ * Like bookmarks (`bookmark.ts`): the `w:commentRangeStart`/`End` anchor crosses paragraphs, and
+ * being a node is what brings it back to the file. `cid` is the `w:id`. One anchor per thread: a
+ * reply has no node. A point comment has only `commentEnd`. The highlight is a decoration, and
+ * never goes to the JSON or to paper.
  */
 
 export interface CommentAnchor {
   readonly cid: string
-  /** Quando está no documento. */
+  /** When it is in the document. */
   readonly start: number | null
   readonly end: number | null
 }
@@ -23,7 +23,7 @@ export function commentAnchorsOf(doc: ProseMirrorNode): Map<string, CommentAncho
   const anchors = new Map<string, CommentAnchor>()
   doc.descendants((node, pos) => {
     const kind = node.type.name
-    // Desce no corpo das notas: a conversa numa nota também tem cartão.
+    // Descends into note bodies: a thread in a note also has a card.
     if (kind !== 'commentStart' && kind !== 'commentEnd') return true
     const cid = String(node.attrs['cid'] ?? '')
     const known = anchors.get(cid) ?? { cid, start: null, end: null }
@@ -33,7 +33,7 @@ export function commentAnchorsOf(doc: ProseMirrorNode): Map<string, CommentAncho
   return anchors
 }
 
-/** O trecho entre as pontas; no comentário de ponto, o cursor na ponta. */
+/** The range between the ends; for a point comment, the cursor at the end. */
 export function commentSelectionOf(anchor: CommentAnchor): { readonly from: number; readonly to: number } {
   const from = anchor.start === null ? (anchor.end ?? 0) : anchor.start + 1
   const to = anchor.end ?? from
@@ -41,8 +41,8 @@ export function commentSelectionOf(anchor: CommentAnchor): { readonly from: numb
 }
 
 /**
- * `threads` são as conversas com cartão. A partir da conversa em foco, se o
- * cursor está nela; senão, do cursor; circular. `null` sem conversa no texto.
+ * `threads` are the threads with a card. From the focused thread if the cursor is in it, otherwise
+ * from the cursor; circular. `null` when the text has no thread.
  */
 export function adjacentComment(
   doc: ProseMirrorNode,
@@ -60,7 +60,7 @@ export function adjacentComment(
     }))
     .sort((left, right) => left.pos - right.pos)
   if (order.length === 0) return null
-  // A conversa em foco vale enquanto o cursor está no trecho dela.
+  // The focused thread holds while the cursor is in its range.
   const current = order.findIndex(
     (item) => item.cid === active && cursor >= item.pos && cursor <= item.end + 1,
   )
@@ -73,8 +73,8 @@ export function adjacentComment(
 }
 
 /**
- * Sem seleção, comentário de ponto, só o fim, como o Word grava. `range` vem de
- * uma nota (`caretOf`). `false` quando a seleção não cai em texto.
+ * Without a selection, a point comment, only the end, as Word writes it. `range` comes from a note
+ * (`caretOf`). `false` when the selection does not fall on text.
  */
 export function insertCommentAnchors(
   tr: Transaction,
@@ -89,20 +89,20 @@ export function insertCommentAnchors(
   const start = schema.nodes['commentStart']
   const end = schema.nodes['commentEnd']
   if (start === undefined || end === undefined) return false
-  // O fim primeiro: ele empurraria a posição do começo.
+  // The end first: it would push the start's position.
   tr.insert(to, end.create({ cid }))
   if (to > from) tr.insert(from, start.create({ cid }))
   return true
 }
 
-/** Devolve se havia alguma. */
+/** Returns whether there was any. */
 export function removeCommentAnchors(tr: Transaction, cid: string): boolean {
   const positions: number[] = []
   tr.doc.descendants((node, pos) => {
     if ((node.type.name === 'commentStart' || node.type.name === 'commentEnd') && node.attrs['cid'] === cid) {
       positions.push(pos)
     }
-    // O corpo da nota é filho de um nó em linha.
+    // A note body is the child of an inline node.
     return node.isBlock || node.type.name === 'noteRef'
   })
   for (const pos of positions.reverse()) tr.delete(pos, pos + 1)
@@ -116,7 +116,7 @@ const commentNode = (name: 'commentStart' | 'commentEnd') =>
     inline: true,
     atom: true,
     selectable: false,
-    // Não vai à área de transferência como texto nem conta palavra.
+    // It does not go to the clipboard as text and counts no words.
     renderText: () => '',
 
     addAttributes() {
@@ -158,13 +158,13 @@ export function focusComment(tr: Transaction, focus: Partial<CommentFocus>): Tra
   return tr.setMeta(commentsKey, focus)
 }
 
-/** O realce em foco e o trecho selecionado, à vista. */
+/** The highlight in focus and the range selected, in view. */
 export function selectComment(tr: Transaction, cid: string): Transaction {
   const next = focusComment(tr, { active: cid })
   const anchor = commentAnchorsOf(tr.doc).get(cid)
   if (anchor === undefined) return next
   const { from, to } = commentSelectionOf(anchor)
-  // Numa nota o trecho é escolhido no corpo (`selectInNote`), que tem editor próprio.
+  // In a note the range is selected in the body (`selectInNote`), which has its own editor.
   if (noteRefAround(tr.doc, from) !== null) return next
   return next
     .setSelection(TextSelection.create(tr.doc, from, to))
@@ -188,9 +188,9 @@ function decorate(doc: ProseMirrorNode, focus: CommentFocus): DecorationSet {
 }
 
 /**
- * A cópia de uma âncora seria a mesma conversa em dois lugares: sai. O que foi
- * **recortado** volta inteiro, ponta a ponta; o arrastado se move. `isKnown` tira
- * também a âncora de outro documento, sem corpo aqui.
+ * A copy of an anchor would be the same thread in two places: it goes. What was **cut** comes back
+ * whole, end to end; a dragged one moves. `isKnown` also drops an anchor from another document,
+ * with no body here.
  */
 export function withoutCommentAnchors(
   slice: Slice,

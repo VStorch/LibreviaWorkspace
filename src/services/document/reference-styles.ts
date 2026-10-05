@@ -1,13 +1,12 @@
 /**
- * O Word só grava `TOC Heading`, `toc 1`…`toc 9` e `caption` quando alguém os
- * usa: eles entram na folha na hora de inserir, com as medidas do Word
- * 2013–2021. Manda o **nome** interno: o documento em português chama de
- * `Sumrio1` o estilo `toc 1`, e é ele que se usa.
+ * Word only writes `TOC Heading`, `toc 1`…`toc 9` and `caption` when someone uses them: they enter
+ * the sheet on insertion, with Word 2013–2021 measures. The internal **name** rules: a Portuguese
+ * document calls the `toc 1` style `Sumrio1`, and that is the one used.
  */
 
 import { StyleType, type StyleDefinition, type StyleSheet } from './styles.js'
 
-/** 11 pt, os 220 vinte-avos do Word. */
+/** 11 pt, Word's 220 twentieths. */
 const TOC_INDENT_MM = 3.88
 
 function findByName(sheet: StyleSheet, name: string): StyleDefinition | undefined {
@@ -17,7 +16,7 @@ function findByName(sheet: StyleSheet, name: string): StyleDefinition | undefine
   )
 }
 
-/** Um id livre a partir do preferido: `TOC1`, `TOC1_2`… */
+/** `TOC1`, `TOC1_2`… */
 function freeId(sheet: StyleSheet, preferred: string): string {
   if (sheet.styles[preferred] === undefined) return preferred
   let suffix = 2
@@ -64,7 +63,7 @@ export function ensureTocStyle(sheet: StyleSheet, level: number): EnsuredStyle {
   }))
 }
 
-/** O título do sumário: `TOC Heading`, que herda do Título 1 e deixa de ser título (nível 9). */
+/** `TOC Heading`, which inherits from Heading 1 and stops being a heading (level 9). */
 export function ensureTocHeadingStyle(sheet: StyleSheet): EnsuredStyle {
   const heading = findByName(sheet, 'heading 1')?.id
   const normal = sheet.defaults.paragraphStyleId ?? undefined
@@ -80,7 +79,7 @@ export function ensureTocHeadingStyle(sheet: StyleSheet): EnsuredStyle {
   }))
 }
 
-/** A legenda: `caption`, em itálico de 9 pt, como a do Word. */
+/** `caption`, 9 pt italic, like Word's. */
 export function ensureCaptionStyle(sheet: StyleSheet): EnsuredStyle {
   const normal = sheet.defaults.paragraphStyleId ?? undefined
   return ensure(sheet, 'caption', 'Caption', (id) => ({

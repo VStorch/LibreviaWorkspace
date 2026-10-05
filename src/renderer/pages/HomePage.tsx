@@ -21,7 +21,7 @@ function RecentItem({ file }: { readonly file: RecentFile }): React.JSX.Element 
     <li>
       <button type="button" className="recent" onClick={() => void openRecent(file.path)}>
         <span className="recent__name">{file.name}</span>
-        {/* O caminho distingue arquivos de mesmo nome em pastas de rede. */}
+        {/* The path tells apart files with the same name on network shares. */}
         <span className="recent__path" title={file.path}>
           {file.path}
         </span>
@@ -31,7 +31,7 @@ function RecentItem({ file }: { readonly file: RecentFile }): React.JSX.Element 
   )
 }
 
-/** Duas folhas, verde atrás e azul à frente: a tela inicial é o único lugar para a marca. */
+/** Two sheets, green behind and blue in front: the home screen is the only place for the brand. */
 function BrandMark(): React.JSX.Element {
   return (
     <svg

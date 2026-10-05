@@ -25,7 +25,7 @@ export function registerWindowHandlers(): void {
     externalFilesReady(windowOf(event))
     return { applied: true as const }
   })
-  // O mesmo aviso do guarda de fechamento.
+  // The same prompt as the close guard.
   handle(IpcChannel.DialogConfirmDiscard, async (payload, event) => ({
     choice: await confirmDiscardChanges(windowOf(event), payload.fileName),
   }))
@@ -38,7 +38,7 @@ export function registerWindowHandlers(): void {
     const path = await showImagePickerDialog(windowOf(event))
     if (path === null) return { canceled: true as const }
 
-    // Assinatura de bytes conferida aqui, no main.
+    // Byte signature checked here, in main.
     return {
       canceled: false as const,
       dataUrl: await readImageAsDataUrl(path),
@@ -46,7 +46,7 @@ export function registerWindowHandlers(): void {
     }
   })
 
-  // Cortada nos limites do contrato: uma entrada absurda derrubaria a lista inteira.
+  // Cut to the contract limits: one absurd entry would sink the whole list.
   handle(IpcChannel.FontsList, async () => ({
     families: (await listInstalledFontFamilies())
       .filter((family) => family.length <= MAX_FONT_FAMILY_LENGTH)
@@ -60,7 +60,7 @@ export function registerWindowHandlers(): void {
     return { applied: true as const }
   })
 
-  // O renderer já resolveu as alterações pendentes.
+  // The renderer has already resolved pending changes.
   handle(IpcChannel.WindowClose, (_payload, event) => {
     closeWithoutGuard(windowOf(event))
     return { closing: true as const }

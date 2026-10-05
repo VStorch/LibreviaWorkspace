@@ -41,7 +41,7 @@ describe('seções', () => {
 
   it('o bloco é da seção da próxima marca; depois da última, da seção do corpo', () => {
     expect(blockSections([null, 's1', null, 's2', null], [first, second])).toEqual([0, 0, 1, 1, 2])
-    // Marca de id desconhecido (parágrafo colado de outro documento) não é marca.
+    // A mark with an unknown id (a paragraph pasted from another document) is not a mark.
     expect(blockSections(['x9', null], [first])).toEqual([1, 1])
   })
 
@@ -116,7 +116,7 @@ describe('seções', () => {
       'landscape',
       'landscape',
     ])
-    // O reinício da numeração fica só na seção em que foi pedido.
+    // The numbering restart stays only in the section where it was asked for.
     expect(all.page.pageNumberStart).toBeUndefined()
   })
 
@@ -134,8 +134,8 @@ describe('seções', () => {
   })
 
   it('o texto decide que seções valem e em que ordem; a biblioteca só guarda', () => {
-    // A ordem é a do corpo, e não a da biblioteca; a entrada que o texto não usa
-    // não vale — é a marca que um desfazer tirou, e pode voltar.
+    // Body order, not library order; an entry the text does not use does not count: it is the mark
+    // an undo removed, and it may come back.
     const extra = { ...second, id: 'n9' }
     const resolved = resolveSections(['s2', null, 's1'], null, DEFAULT_PAGE_SETUP, [first, second, extra])
     expect(resolved.sections.map((section) => section.id)).toEqual(['s2', 's1'])
@@ -155,19 +155,19 @@ describe('seções', () => {
   it('a quebra nova só acrescenta à biblioteca, e o desfazer volta tudo como era', () => {
     const library = [first]
     const before = resolveSections(['s1'], null, DEFAULT_PAGE_SETUP, library)
-    // Na última seção: a de baixo é uma entrada nova, apontada pelo documento.
+    // In the last section: the lower one is a new entry, pointed to by the document.
     const plan = planSectionBreak(before, library, 1, 'oddPage')
     expect(plan.rename).toBeNull()
     const grown = [...library, ...plan.additions]
     const after = resolveSections(['s1', plan.upperId], plan.bodyId, DEFAULT_PAGE_SETUP, grown)
     expect(after.sections.map((section) => section.id)).toEqual(['s1', plan.upperId])
     expect(after.page.start).toBe('oddPage')
-    // Desfeito o texto (sem a marca nova e sem o atributo), a biblioteca maior
-    // não muda nada: a última seção volta a começar como antes.
+    // With the text undone (no new mark and no attribute), the larger library changes nothing: the
+    // last section starts as before again.
     const undone = resolveSections(['s1'], null, DEFAULT_PAGE_SETUP, grown)
     expect(undone).toEqual(before)
 
-    // No meio: a marca que fecha a seção partida passa a apontar a entrada nova.
+    // In the middle: the mark closing the split section points to the new entry.
     const middle = planSectionBreak(before, library, 0, 'continuous')
     expect(middle.rename?.from).toBe('s1')
     expect(middle.bodyId).toBeNull()
@@ -179,7 +179,7 @@ describe('seções', () => {
     expect(plan.removeId).toBe('s1')
     expect(plan.next.sections.map((section) => [section.id, section.headerBand])).toEqual([['s2', header]])
     const stored = storeSections(plan.next, null, DEFAULT_PAGE_SETUP, [first, second])
-    // A entrada da excluída fica: o desfazer pode trazer a marca de volta.
+    // The deleted section's entry stays: undo may bring the mark back.
     expect(stored.library.map((section) => section.id)).toEqual(['s1', 's2'])
   })
 })

@@ -3,12 +3,15 @@ import { numberLists, LIST_TYPES, type ListInfo, type ListTreeReader } from './l
 import type { DocumentModel, DocumentNode } from './model.js'
 import { NoteKind, noteCounter } from './notes.js'
 
-/** Do **modelo**, e não do HTML do editor, que traz decorações e atributos que só o editor entende. */
+/**
+ * From the **model**, not the editor HTML, which carries decorations and attributes only the editor
+ * understands.
+ */
 
 export interface ExportNote {
   readonly kind: NoteKind
   readonly label: string
-  /** Âncora da nota (`nota-rodape-1`, `nota-fim-1`) — a da referência leva `ref-` antes. */
+  /** The note anchor (`nota-rodape-1`, `nota-fim-1`); the reference's has `ref-` in front. */
   readonly id: string
   readonly body: readonly DocumentNode[]
 }
@@ -20,12 +23,12 @@ export interface ExportListItem {
 
 export interface ExportSource {
   readonly doc: DocumentNode
-  /** As notas, na ordem do texto; as de rodapé antes das de fim no rodapé da exportação. */
+  /** In text order; footnotes before endnotes at the end of the export. */
   readonly notes: readonly ExportNote[]
   readonly noteOf: ReadonlyMap<DocumentNode, ExportNote>
   readonly listOf: ReadonlyMap<DocumentNode, ListInfo>
   readonly itemOf: ReadonlyMap<DocumentNode, ExportListItem>
-  /** Os marcadores que algum link interno aponta (`#nome`). */
+  /** Bookmarks some internal link points to (`#name`). */
   readonly linkTargets: ReadonlySet<string>
 }
 
@@ -50,17 +53,17 @@ const NEEDS_BLOCK = new Set(['tableCell', 'tableHeader', 'listItem', 'noteRef', 
 
 const MERGEABLE = new Set(['paragraph', 'heading'])
 
-/** Nós que não vão a nenhuma exportação: as pontas dos comentários. */
+/** Comment ends go to no export. */
 const DROPPED = new Set(['commentStart', 'commentEnd'])
 
 /**
- * O que "Aceitar todas" faria, sem passar pelo editor. Os comentários saem,
- * menos no ODT (`keepComments`), que os leva como anotações.
+ * What "Accept all" would do, without going through the editor. Comments are dropped, except in ODT
+ * (`keepComments`), which carries them as annotations.
  */
 export function finalDocument(node: DocumentNode, keepComments = false): DocumentNode {
   let content = node.content === undefined ? undefined : finalChildren(node.content, keepComments)
-  // Um bloco que o esquema não deixa vazio (a célula, o item, a nota) volta com
-  // um parágrafo quando tudo o que tinha era excluído.
+  // A block the schema does not allow empty (cell, item, note) gets a paragraph back when
+  // everything in it was deleted.
   if (content?.length === 0 && NEEDS_BLOCK.has(node.type)) content = [{ type: 'paragraph' }]
   const marks = node.marks?.filter((mark) => mark.type !== 'insertion')
   const { content: _content, marks: _marks, ...rest } = node
@@ -86,7 +89,7 @@ function survivesFinal(child: DocumentNode, keepComments: boolean): boolean {
   return !(child.type === 'tableRow' && blockRevisionKind(child.attrs?.['rowRevision']) === 'del')
 }
 
-/** A marca de parágrafo excluída: o texto dele continua no parágrafo seguinte. */
+/** A deleted paragraph mark: its text continues in the next paragraph. */
 function mergeDeletedParagraphMarks(kept: readonly DocumentNode[]): DocumentNode[] {
   const merged: DocumentNode[] = []
   let pending: DocumentNode | null = null
@@ -108,7 +111,7 @@ function hasDeletedParagraphMark(node: DocumentNode): boolean {
   return MERGEABLE.has(node.type) && blockRevisionKind(node.attrs?.['markRevision']) === 'del'
 }
 
-/** Em pré-ordem, a ordem do texto. */
+/** Pre-order, the text order. */
 export function walk(node: DocumentNode, visit: (node: DocumentNode) => void): void {
   visit(node)
   for (const child of node.content ?? []) walk(child, visit)
@@ -165,7 +168,7 @@ export function prepareExport(
     for (const target of internalTargetsOf(node)) linkTargets.add(target)
   })
 
-  // `numberLists` conta na mesma pré-ordem.
+  // `numberLists` counts in the same pre-order.
   const numbering = numberLists(doc, JSON_READER)
   const listOf = new Map<DocumentNode, ListInfo>()
   listNodes.forEach((node, index) => {
@@ -190,7 +193,10 @@ function linkHref(mark: Mark): string | null {
   return typeof href === 'string' ? href : null
 }
 
-/** Âncora interna ou um protocolo que o editor abre; `javascript:`, `file:` e `data:` viram texto. */
+/**
+ * An internal anchor or a protocol the editor opens; `javascript:`, `file:` and `data:` become
+ * text.
+ */
 export function safeHref(mark: Mark): string | null {
   const href = linkHref(mark)?.trim()
   if (href === undefined || href === null || href === '') return null
@@ -203,7 +209,7 @@ export function safeHref(mark: Mark): string | null {
   }
 }
 
-/** A imagem embutida, dividida em tipo e dados; `null` se não for imagem em `data:`. */
+/** `null` if it is not a `data:` image. */
 export function imageData(src: unknown): { readonly mime: string; readonly base64: string } | null {
   if (typeof src !== 'string') return null
   const match = /^data:(image\/[a-z0-9.+-]+);base64,([a-z0-9+/=\s]+)$/i.exec(src)
@@ -230,26 +236,26 @@ export function imageExtension(mime: string): string {
   return EXTENSIONS[mime] ?? 'bin'
 }
 
-/** O nível de um parágrafo do sumário, pelo estilo (`TOC2`, `toc 2`, `Sumário2`). */
 const MAX_EXPORTED_HEADING_LEVEL = 6
 
-/** HTML e Markdown só têm seis níveis de título. */
+/** HTML and Markdown only have six heading levels. */
 export function exportHeadingLevel(node: DocumentNode): number {
   return Math.min(MAX_EXPORTED_HEADING_LEVEL, Math.max(1, Number(node.attrs?.['level']) || 1))
 }
 
+/** By style: `TOC2`, `toc 2`, `Sumário2`. */
 export function tocLevelOf(node: DocumentNode): number {
   const style = node.attrs?.['styleId']
   const match = typeof style === 'string' ? /(\d)\s*$/.exec(style) : null
   return match === null ? 1 : Math.max(1, Number(match[1]))
 }
 
-/** Sem o número de página: na página web ele apontaria para lugar nenhum. */
+/** Without the page number: on a web page it would point nowhere. */
 export function withoutPageNumbers(content: readonly DocumentNode[]): DocumentNode[] {
   const kept = content.filter(
     (node) => !(node.type === 'field' && /^\s*PAGEREF\b/i.test(String(node.attrs?.['instr'] ?? ''))),
   )
-  // O tab que separava o título do número de página fica sobrando no fim.
+  // The tab that separated the title from the page number is left over at the end.
   while (kept.length > 0) {
     const last = kept[kept.length - 1]!
     if (last.type !== 'text' || (last.text ?? '').trimEnd() !== '') break
@@ -269,7 +275,7 @@ export function exportTitle(model: Pick<DocumentModel, 'properties'>, fileName: 
   return dot > 0 ? fileName.slice(0, dot) : fileName
 }
 
-/** O parágrafo que só carrega a marca de uma seção não tem texto a exportar. */
+/** A paragraph that only carries a section mark has no text to export. */
 export function isSectionMarkOnly(node: DocumentNode): boolean {
   return node.attrs?.['sectionMark'] === true && (node.content ?? []).length === 0
 }

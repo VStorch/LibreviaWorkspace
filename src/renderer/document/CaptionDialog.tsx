@@ -3,7 +3,7 @@ import type { Editor } from '@tiptap/react'
 import { useT } from '../i18n.js'
 import { captionLabels, insertCaption, type ReferenceContext } from './references.js'
 
-/** O número é um campo `SEQ` — ver `insertCaption`. */
+/** The number is a `SEQ` field; see `insertCaption`. */
 export function CaptionDialog({
   editor,
   context,

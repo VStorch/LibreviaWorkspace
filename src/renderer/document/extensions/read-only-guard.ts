@@ -2,9 +2,9 @@ import { Extension } from '@tiptap/core'
 import { Plugin, PluginKey } from '@tiptap/pm/state'
 
 /**
- * O `contenteditable="false"` só segura teclado e mouse; os comandos do Tiptap
- * não perguntam se o editor é editável. Último portão depois de
- * `useEditorCommands`: recusa só a transação que **muda o documento**.
+ * `contenteditable="false"` only holds back keyboard and mouse; Tiptap commands do not ask whether
+ * the editor is editable. The last gate after `useEditorCommands`: refuses only transactions that
+ * **change the document**.
  */
 export const ReadOnlyGuard = Extension.create({
   name: 'readOnlyGuard',

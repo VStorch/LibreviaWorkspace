@@ -6,9 +6,9 @@ import { t } from '../i18n.js'
 import { editorPreferences } from '../preferences.js'
 
 /**
- * O pedido é validado contra o schema do canal: o renderer comprometido por um
- * documento não pede operação que o contrato não prevê. A resposta também,
- * porque o main lê disco e saída de programa, e o schema é onde os limites estão.
+ * The request is validated against the channel schema: a renderer compromised by a document cannot
+ * ask for an operation the contract does not allow. The response too, because main reads disk and
+ * program output, and the schema is where the limits are.
  */
 export function handle<C extends InvocableIpcChannel>(
   channel: C,
@@ -33,7 +33,7 @@ export function handle<C extends InvocableIpcChannel>(
       const replied = contract.response.safeParse(data)
       if (!replied.success) {
         const field = replied.error.issues[0]?.path.join('.')
-        // Defeito nosso, e não de quem usa: `Internal`, com o detalhe no log.
+        // Our defect, not the user's: `Internal`, with the detail in the log.
         throw new AppError(
           ErrorCode.Internal,
           t('errors.ipc.unrecognizedEnd'),
@@ -41,7 +41,8 @@ export function handle<C extends InvocableIpcChannel>(
         )
       }
 
-      // A validada, e não a crua: o schema aplica padrão e descarta campo não declarado.
+      // The validated value, not the raw one: the schema applies defaults and drops undeclared
+      // fields.
       return { ok: true, data: replied.data as IpcResponse<C> }
     } catch (cause) {
       console.error(`[ipc] falha no canal ${channel}:`, cause)

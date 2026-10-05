@@ -86,8 +86,8 @@ describe('referência de nota', () => {
   })
 
   it('na colagem, o `<sup>` da referência é nota, e não a marca de sobrescrito', () => {
-    // Sem DOM no teste: a regra da nota precisa de prioridade acima da do
-    // sobrescrito, que também casa `sup` e, empatada, venceria por ser marca.
+    // No DOM in the test: the note rule needs a higher priority than superscript, which also
+    // matches `sup` and, on a tie, would win for being a mark.
     const noteRule = schema.nodes['noteRef']!.spec.parseDOM!.find((rule) => rule.tag?.startsWith('sup'))
     const supRules = (schema.marks['superscript']?.spec.parseDOM ?? []).filter(
       (rule) => 'tag' in rule && rule.tag === 'sup',
@@ -101,7 +101,7 @@ describe('referência de nota', () => {
 describe('o número no começo do corpo (M11)', () => {
   it('a nota de marca própria não ganha o número: a marca já está no corpo', () => {
     const refs = noteRefsOf(doc)
-    // A ordem do texto: 1, a do "*", a de fim e a 3.
+    // Text order: 1, the "*" one, the endnote and 3.
     expect(refs.map(({ node }) => drawsNoteNumber(node))).toEqual([true, false, true, true])
   })
 })

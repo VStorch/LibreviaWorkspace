@@ -12,10 +12,10 @@ export interface Entry {
   readonly en: Message
 }
 
-/** O formato de um catálogo. Usado com `satisfies`, para as chaves ficarem literais. */
+/** Used with `satisfies`, so the keys stay literal. */
 export type Catalog = Readonly<Record<string, Entry>>
 
-/** `count` também escolhe entre singular e plural. */
+/** `count` also picks singular or plural. */
 export type Vars = Readonly<Record<string, string | number>>
 
 export function format(entry: Entry, language: Language, vars?: Vars): string {
@@ -25,7 +25,7 @@ export function format(entry: Entry, language: Language, vars?: Vars): string {
   const text =
     typeof message === 'string'
       ? message
-      : // Em português e em inglês só o 1 é singular; o zero é plural.
+      : // In Portuguese and English only 1 is singular; zero is plural.
         count === 1
         ? message.one
         : message.other
@@ -35,9 +35,8 @@ export function format(entry: Entry, language: Language, vars?: Vars): string {
 }
 
 /**
- * Uma varredura só: um valor que contenha `{outra}`, como um nome de arquivo,
- * não é interpolado de novo. Buraco sem valor fica visível, para a falta
- * aparecer na tela.
+ * A single pass: a value that contains `{other}`, such as a file name, is not interpolated again. A
+ * placeholder without a value stays visible, so the gap shows on screen.
  */
 function interpolate(text: string, vars: Vars): string {
   return text.replace(/\{(\w+)\}/g, (whole, name: string) => {

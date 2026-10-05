@@ -5,17 +5,16 @@ import { canJoin, type Mapping } from '@tiptap/pm/transform'
 import { CharacterCount } from '@tiptap/extensions'
 
 /**
- * A revisão de texto é marca do trecho (`insertion`, `deletion`), com autor,
- * data e o `w:id` original (`rid`); as duas não se excluem: o `w:ins` que embrulha
- * um `w:del` é o texto que alguém inseriu e outro excluiu. A movimentação leva
- * `move` e `moveName` para voltar como era. Enter e linha de tabela são atributos
- * do bloco (`markRevision`, `rowRevision`), como no arquivo.
+ * A text revision is a range mark (`insertion`, `deletion`), with author, date and the original
+ * `w:id` (`rid`); the two are not exclusive: a `w:ins` wrapping a `w:del` is text one person
+ * inserted and another deleted. A move carries `move` and `moveName` to come back as it was. Enter
+ * and table rows are block attributes (`markRevision`, `rowRevision`), as in the file.
  */
 
 export const INSERTION = 'insertion'
 export const DELETION = 'deletion'
 
-/** As pontas sem largura de marcador e de comentário: não partem uma alteração. */
+/** Zero-width bookmark and comment ends: they do not split a change. */
 export const ZERO_WIDTH: ReadonlySet<string> = new Set([
   'bookmarkStart',
   'bookmarkEnd',
@@ -39,9 +38,9 @@ export interface RevisionChange {
   readonly to: number
   readonly author: string | null
   readonly date: string | null
-  /** Sem as pontas sem largura entre os pedaços. */
+  /** Without the zero-width ends between the pieces. */
   readonly segments: readonly { readonly from: number; readonly to: number }[]
-  /** Só nas alterações de texto. */
+  /** Only on text changes. */
   readonly mark?: ProseMirrorMark
 }
 
@@ -55,19 +54,22 @@ export function blockRevisionOf(value: unknown): BlockRevision | null {
   return kind === 'ins' || kind === 'del' ? (value as BlockRevision) : null
 }
 
-/** Mesmo autor e mesmo `rid` (o arquivo), ou mesmo autor sem `rid` (o editor). */
+/** Same author and same `rid` (the file), or same author without `rid` (the editor). */
 function sameRevision(a: ProseMirrorMark, b: ProseMirrorMark): boolean {
   return a.attrs['author'] === b.attrs['author'] && a.attrs['rid'] === b.attrs['rid']
 }
 
-/** Na ordem do texto. As pontas de marcador e de comentário no meio não partem o trecho e sobrevivem ao aceite. */
+/**
+ * In text order. Bookmark and comment ends in the middle do not split the range and survive
+ * acceptance.
+ */
 export function revisionChangesOf(doc: ProseMirrorNode): RevisionChange[] {
   const changes: RevisionChange[] = []
   collectChanges(doc, 0, changes)
   return changes.sort((a, b) => a.from - b.from || a.to - b.to)
 }
 
-/** Desce nos corpos de nota: aceitar todas não pode deixá-las para trás. */
+/** Descends into note bodies: accepting all must not leave them behind. */
 function collectChanges(parent: ProseMirrorNode, base: number, changes: RevisionChange[]): void {
   parent.descendants((node, relative) => {
     const pos = base + relative
@@ -143,7 +145,7 @@ function collectChanges(parent: ProseMirrorNode, base: number, changes: Revision
   })
 }
 
-/** O trecho que contém o cursor, senão a marca do parágrafo, senão a linha. */
+/** The range containing the cursor, else the paragraph mark, else the row. */
 export function changeAt(doc: ProseMirrorNode, pos: number): RevisionChange | null {
   const changes = revisionChangesOf(doc)
   const inline = changes.find(
@@ -175,7 +177,7 @@ export function changeAt(doc: ProseMirrorNode, pos: number): RevisionChange | nu
   return null
 }
 
-/** Rejeitar faz o contrário. */
+/** Rejecting does the opposite. */
 type Effect = 'keep' | 'drop'
 
 function effectOf(kind: ChangeKind, accept: boolean): Effect {
@@ -183,7 +185,7 @@ function effectOf(kind: ChangeKind, accept: boolean): Effect {
   return inserted === accept ? 'keep' : 'drop'
 }
 
-/** As posições são as do documento em que a alteração foi achada, mapeadas desde `since`. */
+/** Positions are those of the document where the change was found, mapped since `since`. */
 function settle(tr: Transaction, change: RevisionChange, accept: boolean, since: number): void {
   SETTLERS[change.kind](tr, change, effectOf(change.kind, accept), tr.mapping.slice(since))
 }
@@ -206,7 +208,7 @@ const settleParagraphMark: Settler = (tr, change, effect, mapping) => {
   const start = end - paragraph.nodeSize + 1
   if (start < 0 || tr.doc.nodeAt(start) !== paragraph) return
   tr.setNodeMarkup(start, undefined, { ...paragraph.attrs, markRevision: null })
-  // O Enter que sai junta os parágrafos, como no Word.
+  // An Enter that goes away joins the paragraphs, as in Word.
   const after = start + paragraph.nodeSize
   if (effect === 'drop' && after < tr.doc.content.size && canJoin(tr.doc, after)) tr.join(after)
 }
@@ -221,7 +223,7 @@ const settleRow: Settler = (tr, change, effect, mapping) => {
   }
   const $row = tr.doc.resolve(from)
   const table = $row.parent
-  // Tabela sem linha não existe.
+  // A table without rows does not exist.
   if (table.childCount === 1) {
     const tableStart = $row.before()
     tr.delete(tableStart, tableStart + table.nodeSize)
@@ -239,7 +241,7 @@ const SETTLERS: Record<ChangeKind, Settler> = {
   rowDeletion: settleRow,
 }
 
-/** Devolve se havia alguma. */
+/** Returns whether there was any. */
 export function settleChangeAt(tr: Transaction, pos: number, accept: boolean): boolean {
   const change = changeAt(tr.doc, pos)
   if (change === null) return false
@@ -247,7 +249,7 @@ export function settleChangeAt(tr: Transaction, pos: number, accept: boolean): b
   return true
 }
 
-/** Numa transação só: um desfazer devolve tudo. */
+/** In a single transaction: one undo brings everything back. */
 export function settleAllChanges(tr: Transaction, accept: boolean): boolean {
   const changes = revisionChangesOf(tr.doc)
   if (changes.length === 0) return false
@@ -258,7 +260,8 @@ export function settleAllChanges(tr: Transaction, accept: boolean): boolean {
 
 export function adjacentChange(doc: ProseMirrorNode, pos: number, direction: 1 | -1): RevisionChange | null {
   const changes = revisionChangesOf(doc)
-  // Para frente, a que começa no cursor vale, menos a que acaba nele (a recém-escolhida).
+  // Going forward, the one starting at the cursor counts, except the one ending there (the one just
+  // chosen).
   if (direction === 1) {
     return changes.find((change) => change.from > pos || (change.from === pos && change.to > pos)) ?? null
   }
@@ -280,7 +283,10 @@ function isDeleted(node: ProseMirrorNode): boolean {
   return node.marks.some((mark) => mark.type.name === DELETION)
 }
 
-/** Com `hide`, o excluído vira esse caractere repetido: a busca precisa das posições, e ele nunca casa. */
+/**
+ * With `hide`, deleted text becomes that repeated character: search needs the positions, and it
+ * never matches.
+ */
 export function textWithoutDeletions(
   node: ProseMirrorNode,
   blockSeparator: string | undefined,
@@ -290,7 +296,7 @@ export function textWithoutDeletions(
   let text = ''
   let first = true
   node.descendants((child) => {
-    // A nota é um nó só no texto do parágrafo; na contagem ela entra, como no Word.
+    // A note is a single node in the paragraph text; it counts, as in Word.
     if (child.type.name === 'noteRef') {
       text += noteText(child, blockSeparator, leafText, hide)
       return false
@@ -348,12 +354,12 @@ export const CountWithoutDeletions = CharacterCount.extend({
   },
 })
 
-/** A equação conta uma palavra, e nenhum caractere. */
+/** An equation counts as one word and no characters. */
 export function characterLeaf(leaf: ProseMirrorNode): string {
   return leaf.type.name === 'math' ? '' : ' '
 }
 
-/** Como no Word, uma palavra cada; no texto da contagem é um espaço. */
+/** As in Word, one word each; in the counted text it is a space. */
 function equationsIn(node: ProseMirrorNode): number {
   let count = node.type.name === 'math' && !isDeleted(node) ? 1 : 0
   node.descendants((child) => {
@@ -362,7 +368,7 @@ function equationsIn(node: ProseMirrorNode): number {
   return count
 }
 
-/** O mesmo nome cai sempre na mesma cor. */
+/** The same name always gets the same color. */
 export const AUTHOR_COLORS = 6
 
 export function authorColor(author: string | null): number {
@@ -388,10 +394,10 @@ const revisionAttributes = {
 function revisionMark(name: typeof INSERTION | typeof DELETION, tag: 'ins' | 'del') {
   return Mark.create({
     name,
-    // O texto digitado na ponta não é revisão do outro autor.
+    // Text typed at the edge is not the other author's revision.
     inclusive: false,
-    // Quando o navegador apaga por conta própria, o ProseMirror relê o DOM: sem
-    // esta regra o excluído voltaria sem marca. A colagem é limpa por `stripRevisions`.
+    // When the browser deletes on its own, ProseMirror rereads the DOM: without this rule the
+    // deletion would come back unmarked. Pasting is cleaned by `stripRevisions`.
     parseHTML: () => [
       {
         tag: `${tag}.revision`,
@@ -471,7 +477,7 @@ export const BlockRevisions = Extension.create({
 
 export const TrackChanges = [Insertion, Deletion, BlockRevisions] as const
 
-/** Um caractere inteiro: o par substituto de um emoji conta como um. */
+/** A whole character: an emoji's surrogate pair counts as one. */
 export function characterSize(text: string, backward: boolean): number {
   const unit = backward ? text.charCodeAt(text.length - 1) : text.charCodeAt(0)
   const surrogate = backward ? unit >= 0xdc00 && unit <= 0xdfff : unit >= 0xd800 && unit <= 0xdbff

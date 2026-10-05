@@ -37,16 +37,18 @@ import { applyPageGaps, type RepeatedHeader } from './extensions/pagination.js'
 import { LINE_GAP_CLASS, measureLines } from './line-boxes.js'
 import { noteBodyOf, type NoteBody } from './extensions/note-view.js'
 
-/** Espaço entre uma folha e a seguinte, como numa pilha de papel. */
+/** The space between one sheet and the next, like a stack of paper. */
 export const SHEET_GUTTER_PX = 28
 
-/** Uma linha de 12 pt com o traço no meio: o parágrafo do separador do Word. */
+/** A 12 pt line with the rule in the middle: Word's separator paragraph. */
 export const NOTE_SEPARATOR_PX = 16
 
 export interface NoteAreaItem {
-  /** O corpo na tela (`note-view.ts`). */
+  /** The body on screen (`note-view.ts`). */
   readonly key: string
-  /** A ordem da referência entre todas as do documento (`noteRefsOf`) — o papel acha o nó por ela. */
+  /**
+   * The reference's order among all of the document's (`noteRefsOf`); paper finds the node by it.
+   */
   readonly index: number
   readonly fromLine: number
   readonly toLine: number
@@ -55,13 +57,13 @@ export interface NoteAreaItem {
 }
 
 /**
- * A área de notas de uma folha: as de rodapé no pé da coluna de texto, as de
- * fim logo depois do último bloco (e nas folhas que vierem depois dele).
+ * A sheet's notes area: footnotes at the foot of the text column, endnotes right after the last
+ * block (and on the sheets after it).
  */
 export interface NoteArea {
   readonly sheet: number
   readonly kind: 'footnote' | 'endnote'
-  /** Em pixels da folha, já com o separador. */
+  /** Sheet pixels, separator included. */
   readonly topPx: number
   readonly leftPx: number
   readonly widthPx: number
@@ -69,54 +71,57 @@ export interface NoteArea {
   readonly items: readonly NoteAreaItem[]
 }
 
-/** Constante, para `sameGaps` comparar por valor. */
+/** A constant, so `sameGaps` compares by value. */
 const EMPTY_GAPS = new Map<number, number>()
 
 export interface PageLayout {
-  /** Quantas folhas desenhar — as em branco das seções par e ímpar incluídas. */
+  /** How many sheets to draw, blank sheets of even and odd sections included. */
   readonly pages: number
   readonly stackHeightPx: number
   readonly sheetTops: readonly number[]
   readonly sheetHeights: readonly number[]
-  /** Recortar a lista de blocos nestes pontos dá ao papel as mesmas folhas da tela. */
+  /** Slicing the block list at these points gives paper the same sheets as the screen. */
   readonly pageStarts: readonly PageStart[]
-  /** A posição de um objeto ancorado vem do parágrafo, que só tem posição depois de paginar. */
+  /**
+   * An anchored object's position comes from its paragraph, which only has a position after
+   * pagination.
+   */
   readonly anchors: readonly BlockAnchor[]
   readonly sheets: readonly SheetPlan[]
   readonly sheetWidths: readonly number[]
-  /** A da folha mais larga; as outras vão centradas. */
+  /** The widest sheet's; the others are centered. */
   readonly stackWidthPx: number
-  /** `pageStarts` conta só as folhas com conteúdo; as em branco ficam entre elas. */
+  /** `pageStarts` only counts sheets with content; blank ones sit between them. */
   readonly contentSheets: readonly number[]
-  /** O papel repete o mesmo desvio (`print-source.ts`). */
+  /** Paper repeats the same offset (`print-source.ts`). */
   readonly columnMoves: readonly ColumnMove[]
   readonly columnLines: readonly ColumnLine[]
   readonly noteAreas: readonly NoteArea[]
 }
 
-/** Um bloco de seção com colunas: o lado da coluna e o quanto subiu ou desceu. */
+/** A block in a section with columns: its column side and how much it moved up or down. */
 export interface ColumnMove {
   readonly blockIndex: number
   readonly dx: number
-  /** Quanto a coluna é mais estreita que a coluna de texto da folha. */
+  /** How much narrower the column is than the sheet's text column. */
   readonly narrowerPx: number
   readonly lift: number
-  /** O papel escreve margem natural mais desvio. */
+  /** Paper writes the natural margin plus the offset. */
   readonly natural: number
-  /** A margem de baixo do bloco anterior — ver `collapsed`. */
+  /** The previous block's bottom margin; see `collapsed`. */
   readonly collapse: number
 }
 
 /**
- * As margens verticais colapsam: positiva com positiva vale a maior, e uma
- * negativa se **soma** à positiva. Por isso a distância menor que a margem de
- * baixo do anterior só se obtém descontando-a.
+ * Vertical margins collapse: positive with positive takes the larger, and a negative one **adds**
+ * to the positive. So a distance smaller than the previous bottom margin is only reached by
+ * subtracting it.
  */
 export function collapsed(distance: number, previous: number): number {
   return distance >= previous ? distance : distance - previous
 }
 
-/** Uma linha entre colunas, em pixels da folha desenhada. */
+/** In drawn sheet pixels. */
 export interface ColumnLine {
   readonly sheet: number
   readonly leftPx: number
@@ -124,7 +129,7 @@ export interface ColumnLine {
   readonly heightPx: number
 }
 
-/** A folha desenhada em que cai a folha de conteúdo `index`. */
+/** The drawn sheet holding content sheet `index`. */
 export function drawnSheet(layout: PageLayout, index: number): number {
   return layout.contentSheets[index] ?? index
 }
@@ -145,15 +150,15 @@ interface SectionMetrics {
 
 export interface PageStart {
   readonly blockIndex: number
-  /** Índice da linha ou item que abre a folha, quando o corte é interno. */
+  /** Index of the row or item opening the sheet, when the break is internal. */
   readonly childIndex?: number
-  /** Posição dentro do conteúdo do parágrafo, a mesma que `Node.cut` recebe. */
+  /** Position inside the paragraph content, the same `Node.cut` takes. */
   readonly offset?: number
-  /** A folha abre com as linhas de cabeçalho da tabela repetidas. */
+  /** The sheet opens with the table header rows repeated. */
   readonly repeatHeader?: boolean
 }
 
-/** O corte cai dentro do bloco — o bloco começa na folha anterior. */
+/** The break falls inside the block: the block starts on the previous sheet. */
 export function isInternalStart(start: PageStart): boolean {
   return start.childIndex !== undefined || start.offset !== undefined
 }
@@ -162,28 +167,30 @@ interface CutTarget {
   readonly at: number
   readonly start: PageStart
   readonly nodes: readonly { position: number; natural: number; collapse?: number }[]
-  /** Resolvida só se o corte for escolhido. */
+  /** Resolved only if the break is chosen. */
   readonly line?: { readonly resolve: () => number | null; readonly block: number }
-  /** Corte entre linhas de tabela com cabeçalho: o que se repete no alto da folha. */
+  /** A break between rows of a table with a header: what repeats at the top of the sheet. */
   readonly header?: () => RepeatedHeader
 }
 
 export interface BlockAnchor {
   readonly pageIndex: number
-  /** Topo do bloco dentro da folha, em pixels, já incluída a margem superior. */
+  /** In pixels, top margin included. */
   readonly topPx: number
 }
 
-/** O que o editor passa à paginação além do documento e das seções. */
+/** What the editor passes to pagination besides the document and the sections. */
 export interface PaginationOptions {
   readonly bands?: readonly BandHeights[]
   /**
-   * O modo de leitura desliga só o empurrão no DOM: a conta continua, e imprimir
-   * de dentro dele sai com as mesmas folhas, porque as coordenadas de fluxo não
-   * dependem dos vãos aplicados.
+   * Reading mode only turns off the push in the DOM: the math continues, and printing from inside
+   * it yields the same sheets, because flow coordinates do not depend on applied gaps.
    */
   readonly paginated?: boolean
-  /** O "manter com o próximo" pode vir do estilo, e o bloco só carrega o que o parágrafo declara. */
+  /**
+   * "Keep with next" may come from the style, and the block only carries what the paragraph
+   * declares.
+   */
   readonly styles?: StyleSheet | null
 }
 
@@ -204,16 +211,15 @@ const INITIAL_LAYOUT: PageLayout = {
 }
 
 /**
- * A medição é convertida em **coordenadas de fluxo** antes de decidir: o
- * `offsetTop` já inclui os vãos aplicados, e subtraí-los devolve a altura da
- * tira contínua. Aplicar o resultado não muda a entrada da próxima medida, e o
- * laço assenta.
+ * The measurement is converted to **flow coordinates** before deciding: `offsetTop` already
+ * includes the applied gaps, and subtracting them gives back the continuous strip height. Applying
+ * the result does not change the next measurement's input, and the loop settles.
  */
 export function usePagination(
   editor: Editor | null,
-  /** Com as faixas herdadas resolvidas (`effectiveSections`); a última é a do corpo. */
+  /** With inherited bands resolved (`effectiveSections`); the last is the body's. */
   sections: readonly PageSetup[],
-  /** É pelo id que o bloco acha a sua seção. */
+  /** A block finds its section by id. */
   declared: readonly SectionSetup[],
   revision: number,
   { bands = [], paginated = true, styles = null }: PaginationOptions = {},
@@ -225,7 +231,7 @@ export function usePagination(
   useEffect(() => {
     if (editor === null) return undefined
 
-    const element = editor.view.dom as HTMLElement // alvo do observador de tamanho
+    const element = editor.view.dom as HTMLElement // the resize observer target
     const metrics = sectionMetricsOf(sections, bands)
     const metricsOf = (section: number): SectionMetrics => metrics[section] ?? metrics.at(-1)!
     const flows: SectionFlow[] = sections.map((setup, index) => ({
@@ -239,16 +245,16 @@ export function usePagination(
     const measureHidden = (): void => {
       const measured = new DocumentMeasurer(editor, element, styles).measure(declared)
       const result = layoutPages(measured, flows, metricsOf)
-      // No modo de leitura o mapa do aplicado esvazia junto, senão a medida
-      // seguinte descontaria um empurrão que não existe.
+      // In reading mode the applied map empties too, or the next measurement would subtract a push
+      // that does not exist.
       writeGaps(editor.view, paginated ? result.gaps : NO_PAGE_GAPS)
       setLayout(result.layout)
     }
 
     const measure = (): void => {
-      // Os espaçadores entre linhas saem durante a medida: eles mudam onde as
-      // linhas quebram, e a folha ficaria com linhas vazias no pé. O estilo volta
-      // no mesmo quadro, antes de o navegador desenhar.
+      // Line spacers are removed during measurement: they change where lines break, and the sheet
+      // would end up with empty lines at the foot. The style comes back in the same frame, before
+      // the browser paints.
       const lineGapsInDom = Array.from(element.querySelectorAll<HTMLElement>(`.${LINE_GAP_CLASS}`))
       for (const gap of lineGapsInDom) gap.style.display = 'none'
       try {
@@ -258,7 +264,7 @@ export function usePagination(
       }
     }
 
-    // Uma medida por quadro: digitar depressa dispararia dezenas por segundo.
+    // One measurement per frame: fast typing would trigger dozens per second.
     let scheduled = 0
     const schedule = (): void => {
       if (scheduled !== 0) return
@@ -283,7 +289,7 @@ export function usePagination(
 
 type MetricsOf = (section: number) => SectionMetrics
 
-/** A margem é um piso: o cabeçalho mais alto a empurra para baixo. */
+/** The margin is a floor: a taller header pushes it down. */
 function sectionMetricsOf(sections: readonly PageSetup[], bands: readonly BandHeights[]): SectionMetrics[] {
   return sections.map((setup, index) => {
     const heights = bands[index] ?? NO_BANDS
@@ -306,15 +312,18 @@ function sectionMetricsOf(sections: readonly PageSetup[], bands: readonly BandHe
   })
 }
 
-/** O que a medida escreve no DOM, e o que a seguinte desconta. */
+/** What measuring writes to the DOM, and what the next one subtracts. */
 interface PageGaps {
   readonly gaps: ReadonlyMap<number, number>
-  /** O vão **mais** a margem natural, que é o que o CSS lê; o vão é o que a conta desconta. */
+  /**
+   * The gap **plus** the natural margin, which is what CSS reads; the gap is what the math
+   * subtracts.
+   */
   readonly written: ReadonlyMap<number, number>
-  /** Os vãos entre linhas de parágrafo cortado, por posição do espaçador. */
+  /** Gaps between lines of a split paragraph, by spacer position. */
   readonly lines: ReadonlyMap<number, number>
   readonly headers: readonly RepeatedHeader[]
-  /** O deslocamento lateral das colunas, por posição do bloco. */
+  /** Lateral column offset, by block position. */
   readonly columns: ReadonlyMap<number, number>
 }
 
@@ -327,13 +336,13 @@ const NO_PAGE_GAPS: PageGaps = {
 }
 
 /**
- * Numa `ref`, porque o efeito é refeito a cada tecla e a leitura seguinte
- * precisa descontar o que já foi empurrado. A chave é a **posição** do nó: um
- * corte interno empurra linha de tabela ou item de lista, sem índice de bloco.
+ * In a `ref`, because the effect reruns on every key press and the next read must subtract what was
+ * already pushed. The key is the node **position**: an internal break pushes a table row or list
+ * item, which has no block index.
  */
 function useGapWriter(): (view: EditorView, next: PageGaps) => void {
   const last = useRef<PageGaps>(NO_PAGE_GAPS)
-  /** Os cabeçalhos de tabela repetidos, comparados pelo que desenham. */
+  /** Compared by what they draw. */
   const lastHeaders = useRef('[]')
 
   return useCallback((view: EditorView, next: PageGaps) => {
@@ -362,11 +371,11 @@ interface Measurement {
   readonly blocks: readonly MeasuredBlock[]
   readonly targets: readonly CutTarget[]
   readonly measuredNotes: ReadonlyMap<string, IndexedNote>
-  /** Na ordem do documento; entram no fluxo depois do último bloco. */
+  /** In document order; they enter the flow after the last block. */
   readonly endnotes: readonly IndexedNote[]
 }
 
-/** Um bloco do documento e o elemento que o desenha. */
+/** A document block and the element drawing it. */
 interface DrawnBlock {
   readonly block: ProseMirrorNode
   readonly dom: HTMLElement
@@ -378,9 +387,9 @@ interface DrawnBlock {
 type MeasuredLines = NonNullable<ReturnType<typeof measureLines>>
 
 /**
- * Pelo **documento**, e não pelos filhos do DOM, que têm outros índices:
- * `nodeDOM` liga um ao outro. As notas de rodapé vão com o bloco da referência;
- * as de fim, depois do último bloco. `refIndex` é a ordem de `noteRefsOf`.
+ * By the **document**, not the DOM children, which have other indexes: `nodeDOM` links one to the
+ * other. Footnotes go with their reference's block; endnotes, after the last block. `refIndex` is
+ * the `noteRefsOf` order.
  */
 class DocumentMeasurer {
   private accumulated = 0
@@ -450,16 +459,16 @@ class DocumentMeasurer {
     }
     this.pushBlockTarget(drawn)
 
-    // Só as linhas da tabela externa: as aninhadas pertencem às células.
+    // Only the outer table's rows: nested ones belong to cells.
     const table =
       dom instanceof HTMLTableElement ? dom : dom.querySelector<HTMLTableElement>(':scope > table')
     const children = cutChildrenOf(dom, table)
     const breakpoints: number[] = []
-    // O pé da linha da referência de nota que está dentro dela.
+    // The foot of the line of a note reference inside it.
     const childTops: number[] = []
 
-    // Parágrafo e título cortam entre linhas. As linhas medem a partir da
-    // borda do bloco, e o topo de fluxo dele já está em `top`.
+    // Paragraphs and headings break between lines. Lines measure from the block border, and its
+    // flow top is already in `top`.
     const lines = block.isTextblock && children.length === 0 ? measureLines(this.editor.view, dom) : null
     if (lines !== null) this.pushLineTargets(lines, drawn, breakpoints)
     const capture = anchoredCaptureOf(drawn, lines)
@@ -502,7 +511,7 @@ class DocumentMeasurer {
         {
           position: offset,
           natural: Math.max(top - (before === undefined ? 0 : before.top + before.height), 0),
-          // É com ela que uma margem de cima negativa se soma (`collapsed`).
+          // A negative top margin adds up with it (`collapsed`).
           collapse:
             previousDom instanceof HTMLElement
               ? parseFloat(getComputedStyle(previousDom).marginBottom) || 0
@@ -525,7 +534,7 @@ class DocumentMeasurer {
     })
   }
 
-  /** Devolve o quanto os vãos aplicados dentro do bloco o esticaram. */
+  /** Returns how much the gaps applied inside the block stretched it. */
   private pushChildTargets(
     children: readonly HTMLElement[],
     table: HTMLTableElement | null,
@@ -537,7 +546,7 @@ class DocumentMeasurer {
     children.forEach((child, childIndex) => {
       const cells = child instanceof HTMLTableRowElement ? Array.from(child.cells) : []
       const shift = cells.length > 0 ? shiftOf(cells[0]!) : shiftOf(child)
-      // Padding aumenta a linha para baixo; margem já deslocou seu topo.
+      // Padding grows the row downward; a margin already moved its top.
       const at =
         offsetTopOf(child) - this.origin - this.accumulated - internal - (cells.length === 0 ? shift : 0)
       cuts.childTops.push(at)
@@ -591,7 +600,7 @@ class DocumentMeasurer {
   }
 }
 
-/** As linhas da tabela, os itens da lista ou as entradas do sumário: onde o bloco pode ser cortado. */
+/** Table rows, list items or table of contents entries: where the block can be broken. */
 function cutChildrenOf(dom: HTMLElement, table: HTMLTableElement | null): HTMLElement[] {
   if (table !== null) return Array.from(table.rows)
   if (dom.tagName === 'UL' || dom.tagName === 'OL') {
@@ -599,7 +608,7 @@ function cutChildrenOf(dom: HTMLElement, table: HTMLTableElement | null): HTMLEl
       (child): child is HTMLElement => child instanceof HTMLElement && child.tagName === 'LI',
     )
   }
-  // O sumário corta entre entradas, como a lista entre itens.
+  // A table of contents breaks between entries, as a list between items.
   if (dom.hasAttribute('data-toc')) {
     return Array.from(dom.children).filter((child): child is HTMLElement => child instanceof HTMLElement)
   }
@@ -607,8 +616,8 @@ function cutChildrenOf(dom: HTMLElement, table: HTMLTableElement | null): HTMLEl
 }
 
 /**
- * A captura ancorada: a linha vazia depois do quadro (`::after` de 1lh) passa
- * para a folha seguinte quando não cabe, como no LibreOffice.
+ * An anchored capture: the empty line after the frame (a 1lh `::after`) moves to the next sheet
+ * when it does not fit, as in LibreOffice.
  */
 function anchoredCaptureOf(
   { block, dom, top }: DrawnBlock,
@@ -620,7 +629,7 @@ function anchoredCaptureOf(
     dom.querySelector(':scope > .node-image[data-anchored], :scope > img[data-anchored]') === null
   )
     return { freeBreakpoints, hangingBottom: 0 }
-  // Com texto, o corte entre o quadro e a linha é livre da regra de viúvas.
+  // With text, the break between frame and line is free from the widow rule.
   const first = lines.starts[0]
   if (
     first !== undefined &&
@@ -629,7 +638,7 @@ function anchoredCaptureOf(
   ) {
     freeBreakpoints.push(top + first)
   }
-  // Sem texto, a linha vazia pode sobrar no pé da folha.
+  // Without text, the empty line may be left at the foot of the sheet.
   const after = parseFloat(getComputedStyle(dom, '::after').height)
   return { freeBreakpoints, hangingBottom: Number.isFinite(after) && after > 0 ? after : 0 }
 }
@@ -641,8 +650,8 @@ interface TableHeader {
 }
 
 /**
- * Linhas de cabeçalho (`w:tblHeader`) no começo da tabela: cortar dentro delas,
- * ou logo depois, deixaria o cabeçalho sozinho no pé.
+ * Header rows (`w:tblHeader`) at the start of the table: breaking inside them, or right after,
+ * would leave the header alone at the foot.
  */
 function tableHeaderOf(table: HTMLTableElement | null): TableHeader {
   const rows = table !== null ? Array.from(table.rows) : []
@@ -665,7 +674,7 @@ function layoutPages(
   flows: readonly SectionFlow[],
   metricsOf: MetricsOf,
 ): { gaps: PageGaps; layout: PageLayout } {
-  // As notas de fim entram no fluxo depois do último bloco, cortando entre linhas.
+  // Endnotes enter the flow after the last block, breaking between lines.
   const { blocks, endnotes } = measured
   const textBottom = blocks.reduce((bottom, block) => Math.max(bottom, block.top + block.height), 0)
   const lastSection = blocks.at(-1)?.section ?? 0
@@ -693,10 +702,9 @@ function layoutPages(
 }
 
 /**
- * Vão = o que sobrou da folha + as duas margens + o espaço entre papéis. A
- * margem escrita **substitui** a margem natural do bloco (a última declaração
- * ganha), e por isso o valor escrito é o vão mais a margem natural; a conta de
- * fluxo desconta só o vão.
+ * Gap = what was left of the sheet + both margins + the space between papers. The written margin
+ * **replaces** the block's natural margin (the last declaration wins), so the written value is the
+ * gap plus the natural margin; the flow math subtracts only the gap.
  */
 class SheetStack {
   private readonly gaps = new Map<number, number>()
@@ -709,7 +717,7 @@ class SheetStack {
   private readonly noteAreas: NoteArea[] = []
   private readonly sheetStarts: number[] = []
   private readonly contentSheets: number[]
-  /** A lista e os cortes crescem juntos: cada folha custa uma consulta. */
+  /** The list and the breaks grow together: each sheet costs one lookup. */
   private readonly internalAt = new Map<number, CutTarget>()
   private cursor = 0
 
@@ -737,7 +745,7 @@ class SheetStack {
     return this.plan.sheets[this.contentSheets[content] ?? 0]!
   }
 
-  /** A altura desenhada de uma folha é a da tira mais os desvios das colunas. */
+  /** A sheet's drawn height is the strip's plus the column offsets. */
   private liftsBetween(from: number, to: number): number {
     let sum = 0
     for (const [index, placement] of this.plan.placements) {
@@ -766,12 +774,12 @@ class SheetStack {
     )
     const internal = this.internalAt.get(at)
     const position = internal?.line?.resolve() ?? null
-    // Linha não achada (DOM trocado no meio da medida): cede ao bloco seguinte.
+    // Line not found (DOM replaced mid-measurement): defer to the next block.
     const target =
       internal !== undefined && (internal.line === undefined || position !== null)
         ? internal
         : this.blockTargetFrom(at)
-    // `hangingBottom` cabe na margem de baixo.
+    // `hangingBottom` fits in the bottom margin.
     const span = at - this.previous + this.liftsBetween(this.previous, at)
     const hung = Math.min(Math.max(span - ending.contentPx, 0), hangingAt(this.blocks, at))
     const used = span - hung
@@ -795,7 +803,7 @@ class SheetStack {
     this.previous = this.openSheet(at, target, position, shift, opening)
   }
 
-  /** Devolve de onde a folha nova conta a altura. */
+  /** Returns where the new sheet counts its height from. */
   private openSheet(
     at: number,
     target: CutTarget | undefined,
@@ -804,17 +812,17 @@ class SheetStack {
     opening: SectionMetrics,
   ): number {
     if (target?.line !== undefined && position !== null) {
-      // O papel recorta o parágrafo no mesmo caractere.
+      // Paper slices the paragraph at the same character.
       this.pageStarts.push({ ...target.start, offset: position - target.line.block - 1 })
       this.lineGaps.set(position, shift)
       return at
     }
     if (target === undefined) {
-      // Uma quebra explícita final ainda abre uma folha vazia.
+      // A final explicit break still opens an empty sheet.
       this.pageStarts.push({ blockIndex: this.blocks.length })
       return at
     }
-    // O cabeçalho repetido mora no vão; a conta de fluxo desconta os dois.
+    // The repeated header lives in the gap; the flow math subtracts both.
     const header = target.header?.()
     const extra = header !== undefined && header.height < opening.contentPx / 2 ? header.height : 0
     if (header !== undefined && extra > 0) this.headers.push(header)
@@ -839,7 +847,7 @@ class SheetStack {
     )
   }
 
-  /** No pé da coluna de texto, ou logo depois do texto se a folha esticou. */
+  /** At the foot of the text column, or right after the text if the sheet stretched. */
   private footnoteArea(content: number, metrics: SectionMetrics, used: number): void {
     const slices = this.plan.notes[content] ?? []
     const items = slices.flatMap((slice) => this.itemOf(slice))
@@ -907,7 +915,7 @@ class SheetStack {
       this.noteAreas[this.noteAreas.indexOf(area)] = { ...area, items: [...area.items, item] }
       return
     }
-    // A folha que só continua as notas não repete o separador.
+    // A sheet that only continues notes does not repeat the separator.
     const opens = position === 0 && fromLine === 0
     this.noteAreas.push({
       sheet,
@@ -920,7 +928,7 @@ class SheetStack {
     })
   }
 
-  /** O desvio vertical das colunas entra no vão; o lateral é uma translação. */
+  /** The columns' vertical offset goes into the gap; the lateral one is a translation. */
   private placeColumns(): { columnShifts: Map<number, number>; columnMoves: ColumnMove[] } {
     const columnShifts = new Map<number, number>()
     const blockTargets = this.wholeBlockTargets()
@@ -947,7 +955,7 @@ class SheetStack {
     return { columnShifts, columnMoves }
   }
 
-  /** O primeiro corte de cada bloco que não começa no meio dele. */
+  /** Each block's first break that does not start in its middle. */
   private wholeBlockTargets(): Map<number, CutTarget> {
     const blockTargets = new Map<number, CutTarget>()
     for (const cut of this.measured.targets) {
@@ -985,7 +993,7 @@ class SheetStack {
   }
 
   result(): { gaps: PageGaps; layout: PageLayout } {
-    // A seção par ou ímpar só pede a folha em branco antes de começar.
+    // An even or odd section only asks for the blank sheet before starting.
     const sheets = this.plan.sheets.slice(0, this.sheetHeights.length)
     const sheetWidths = sheets.map((sheet) => this.metricsOf(sheet.section).widthPx)
     const sheetTops: number[] = []
@@ -1032,7 +1040,7 @@ class SheetStack {
   }
 }
 
-/** A linha vazia da captura e o vão até o bloco que abre a folha seguinte. */
+/** The capture's empty line and the gap to the block opening the next sheet. */
 function hangingAt(blocks: readonly MeasuredBlock[], at: number): number {
   const ending = blocks.filter((block) => block.height > 0 && block.top + block.height <= at + 0.5).at(-1)
   if (ending === undefined || (ending.hangingBottom ?? 0) <= 0) return 0
@@ -1042,13 +1050,13 @@ function hangingAt(blocks: readonly MeasuredBlock[], at: number): number {
 function sameGaps(left: ReadonlyMap<number, number>, right: ReadonlyMap<number, number>): boolean {
   if (left.size !== right.size) return false
   for (const [index, gap] of left) {
-    // Um pixel não vale uma transação: a medida oscila, e o documento tremeria.
+    // A pixel is not worth a transaction: the measure wobbles, and the document would shake.
     if (!right.has(index) || Math.abs(right.get(index)! - gap) > 0.5) return false
   }
   return true
 }
 
-/** Os cortes são fronteiras crescentes: uma varredura só. */
+/** Breaks are increasing boundaries: a single sweep. */
 function anchorsFor(
   blocks: readonly MeasuredBlock[],
   breaks: readonly number[],
@@ -1073,7 +1081,7 @@ function anchorsFor(
   return anchors
 }
 
-/** Soma as origens dos offsetParents: uma linha mede a partir da tabela. */
+/** Adds up the offsetParents' origins: a row measures from the table. */
 function offsetTopOf(node: HTMLElement): number {
   let top = 0
   let current: HTMLElement | null = node
@@ -1084,14 +1092,14 @@ function offsetTopOf(node: HTMLElement): number {
   return top
 }
 
-/** A decoração acompanha edições no modelo; a medida lê o empurrão já mapeado. */
+/** The decoration follows model edits; the measurement reads the already mapped push. */
 function shiftOf(node: HTMLElement): number {
   return Number(node.dataset.pageShift ?? 0)
 }
 
 /**
- * Uma cópia das linhas de cabeçalho sobre o vão da linha que abre a folha,
- * presa à primeira célula dela por margens negativas.
+ * A copy of the header rows over the gap of the row opening the sheet, pinned to its first cell by
+ * negative margins.
  */
 function repeatedHeader(
   editor: Editor,
@@ -1119,7 +1127,7 @@ function repeatedHeader(
   }
 }
 
-/** Sem seleção, busca, alça e vãos: copiados, apareceriam em cada folha. */
+/** No selection, search, handle or gaps: copied, they would show on every sheet. */
 function cleanHeaderRow(row: HTMLTableRowElement): string {
   const copy = row.cloneNode(true) as HTMLTableRowElement
   for (const transient of copy.querySelectorAll(
@@ -1145,7 +1153,7 @@ interface ReferenceRows {
   readonly childTops: readonly number[]
 }
 
-/** Até onde a folha precisa ir para levar a referência. */
+/** How far the sheet must go to take the reference along. */
 function referenceBottom(
   block: HTMLElement,
   reference: HTMLElement,
@@ -1156,7 +1164,7 @@ function referenceBottom(
   if (lineStarts !== null) {
     const box = block.getBoundingClientRect()
     const scale = block.offsetHeight > 0 && box.height > 0 ? box.height / block.offsetHeight : 1
-    // O pé do sobrescrito, e não o topo: ele sobe acima da linha dele.
+    // The superscript's foot, not its top: it rises above its line.
     const y = (reference.getBoundingClientRect().bottom - box.top) / scale - 1
     const next = lineStarts.find((start) => start > y)
     return top + (next ?? height)
@@ -1166,7 +1174,7 @@ function referenceBottom(
   return top + height
 }
 
-/** A altura do corpo da nota e o topo de cada linha dele, na largura em que está. */
+/** The note body's height and each line's top, at its current width. */
 function measureNote(body: NoteBody): { height: number; lines: number[] } {
   const element = body.body
   const height = element.offsetHeight
@@ -1184,7 +1192,7 @@ function measureNote(body: NoteBody): { height: number; lines: number[] } {
   const sorted = [...new Set(lines.map((line) => Math.round(line * 100) / 100))]
     .filter((line) => line >= 0 && line < height)
     .sort((left, right) => left - right)
-  // A primeira linha começa no topo do corpo: a margem de cima vai com ela.
+  // The first line starts at the body top: the top margin goes with it.
   sorted[0] = 0
   return { height, lines: sorted }
 }

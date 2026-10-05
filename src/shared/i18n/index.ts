@@ -7,7 +7,7 @@ export type { Catalog, Entry, Message, PluralMessage, Vars } from './message.js'
 export { MESSAGES } from './catalog/index.js'
 export type { MessageKey } from './catalog/index.js'
 
-/** O idioma é argumento, e não estado, para o main e o renderer usarem a mesma função. */
+/** The language is an argument, not state, so main and renderer share the same function. */
 export function translate(language: Language, key: MessageKey, vars?: Vars): string {
   return format(MESSAGES[key], language, vars)
 }

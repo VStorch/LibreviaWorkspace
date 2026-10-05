@@ -12,20 +12,19 @@ import {
 import { DictionaryScope } from '@shared/types.js'
 
 /**
- * Sem rede, nem na primeira execução. O Chromium procura o dicionário em
- * `Dictionaries/pt-BR-3-0.bdic` **antes** de baixar, e por isso o arquivo
- * embutido é copiado para lá. `setSpellCheckerDictionaryDownloadURL` continua a
- * ser download, e `setSpellCheckProvider` trocaria o corretor inteiro; o
- * endereço de download ainda aponta para um esquema nosso, como cinto de
- * segurança.
+ * Offline, even on first run. Chromium looks for the dictionary at `Dictionaries/pt-BR-3-0.bdic`
+ * **before** downloading, so the bundled file is copied there.
+ * `setSpellCheckerDictionaryDownloadURL` is still a download, and `setSpellCheckProvider` would
+ * replace the whole spellchecker; the download address still points to a scheme of ours, as a
+ * safety belt.
  */
 
 export const DICTIONARY_SCHEME = 'librevia-dict'
 
-/** O Chromium não tem lista de ignorados: "ignorar" é uma entrada desfeita ao sair. */
+/** Chromium has no ignore list: "ignore" is an entry removed on exit. */
 const sessionWords = new Set<string>()
 
-/** `app.getAppPath()` muda conforme o Electron é chamado; ver `src/main/fonts.ts`. */
+/** `app.getAppPath()` changes with how Electron is launched; see `src/main/fonts.ts`. */
 function bundledDictionaryPath(): string {
   const root = app.isPackaged
     ? process.resourcesPath
@@ -38,28 +37,28 @@ function installedDictionaryPath(): string {
 }
 
 /**
- * Idempotente. Precisa rodar antes de a sessão padrão existir. `false` deixa a
- * ortografia sem marcar nada, melhor que impedir o aplicativo de abrir.
+ * Idempotent. Must run before the default session exists. `false` leaves spelling marking nothing,
+ * better than keeping the app from opening.
  */
 export function installBundledDictionary(): boolean {
-  // No macOS o corretor é o do sistema, sem `.bdic`.
+  // On macOS the spellchecker is the system's, without `.bdic`.
   if (process.platform === 'darwin') return true
 
   const target = installedDictionaryPath()
 
   try {
-    // Estar lá não basta: um `.bdic` estragado o Chromium apaga e tenta baixar.
-    // Conferindo a assinatura, ele é reposto nesta execução.
+    // Being there is not enough: Chromium deletes a broken `.bdic` and tries to download. Checking
+    // the signature restores it in this run.
     if (hasInstalledSignature(target)) return true
     console.error(`[spellcheck] dicionário do perfil está corrompido e será reposto: ${target}`)
   } catch {
-    // Ainda não existe: é a primeira execução.
+    // Does not exist yet: first run.
   }
 
   try {
     const source = bundledDictionaryPath()
 
-    // Melhor descobrir no log do que ficar sem corretor sem saber por quê.
+    // Better to find out in the log than to be left without a spellchecker without knowing why.
     if (!hasBdictSignature(readFileSync(source))) {
       console.error(`[spellcheck] dicionário embutido não está no formato BDic: ${source}`)
       return false
@@ -74,7 +73,10 @@ export function installBundledDictionary(): boolean {
   }
 }
 
-/** Só os quatro primeiros bytes: roda a cada abertura, síncrono, e o dicionário tem megabytes. */
+/**
+ * Only the first four bytes: it runs synchronously on every start, and the dictionary has
+ * megabytes.
+ */
 function hasInstalledSignature(target: string): boolean {
   const handle = openSync(target, 'r')
   try {
@@ -86,7 +88,10 @@ function hasInstalledSignature(target: string): boolean {
   }
 }
 
-/** Chegar aqui é não ter achado o arquivo local: o aviso vai ao log, e o mesmo arquivo é servido. */
+/**
+ * Reaching here means the local file was not found: the warning goes to the log, and the same file
+ * is served.
+ */
 export function serveDictionary(): void {
   protocol.handle(DICTIONARY_SCHEME, async (request) => {
     console.warn(`[spellcheck] o corretor pediu o dicionário pela rede: ${request.url}`)
@@ -102,8 +107,8 @@ export function serveDictionary(): void {
 }
 
 /**
- * O endereço de download é definido **antes** do idioma, porque é o idioma que
- * dispara a procura pelo dicionário.
+ * The download address is set **before** the language, because the language triggers the search for
+ * the dictionary.
  */
 export function applySpellChecker(session: Session, enabled: boolean): void {
   try {
@@ -112,12 +117,13 @@ export function applySpellChecker(session: Session, enabled: boolean): void {
     if (enabled) session.setSpellCheckerLanguages([SPELL_LANGUAGE])
     session.setSpellCheckerEnabled(enabled)
   } catch (cause) {
-    // Sem corretor no Electron (ou no macOS sem o idioma), perde-se a ortografia, e não o aplicativo.
+    // Without a spellchecker in Electron (or on macOS without the language), spelling is lost, not
+    // the app.
     console.error('[spellcheck] o corretor não pôde ser configurado:', cause)
   }
 }
 
-/** `session` é o "ignorar": sai do dicionário ao encerrar. */
+/** `session` is "ignore": removed from the dictionary on exit. */
 export function rememberWord(session: Session, word: string, scope: DictionaryScope): boolean {
   const added = session.addWordToSpellCheckerDictionary(word)
   if (added && scope === DictionaryScope.Session) sessionWords.add(word)
@@ -129,7 +135,7 @@ export function forgetSessionWords(session: Session): void {
     try {
       session.removeWordFromSpellCheckerDictionary(word)
     } catch {
-      // Falhar em limpar o dicionário não pode atrasar o encerramento.
+      // Failing to clean the dictionary must not delay shutdown.
     }
   }
   sessionWords.clear()

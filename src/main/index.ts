@@ -17,18 +17,18 @@ import { checkSidecarHealth, disposeSidecar } from './sidecar/index.js'
 import { createMainWindow, devServerUrl } from './window.js'
 import { docxFromArguments, requestExternalFile } from './external-files.js'
 
-// Sandbox para todo renderer, inclusive a janela oculta de impressão. Antes de `app.whenReady()`.
+// Sandbox for every renderer, including the hidden print window. Before `app.whenReady()`.
 app.enableSandbox()
 app.setName(APP_NAME)
 
-// Também antes do `whenReady`: o esquema só ganha privilégio enquanto o Chromium monta a lista.
+// Also before `whenReady`: the scheme only gets privileges while Chromium builds the list.
 registerFontScheme()
 
-// O dicionário antes de tudo, síncrono: dentro do `whenReady` o corretor já
-// teria começado a baixar o dele, que sobrescreveria o embutido.
+// The dictionary first, synchronously: inside `whenReady` the spellchecker would already have
+// started downloading its own, which would overwrite the bundled one.
 installBundledDictionary()
 
-// Uma instância só: duas editando o mesmo arquivo perderiam dados.
+// A single instance: two editing the same file would lose data.
 if (!app.requestSingleInstanceLock()) {
   app.quit()
 } else {
@@ -60,7 +60,8 @@ if (!app.requestSingleInstanceLock()) {
     registerTemplateHandlers()
     registerWindowHandlers()
 
-    // O menu desenha as marcas pelas preferências, inclusive as mudadas pela barra.
+    // The menu draws its check marks from the preferences, including those changed from the
+    // toolbar.
     onPreferencesChanged(() => {
       void refreshMenu()
     })
@@ -68,7 +69,7 @@ if (!app.requestSingleInstanceLock()) {
 
     createMainWindow()
 
-    // Depois da janela: o aplicativo não espera o sidecar para aparecer.
+    // After the window: the app does not wait for the sidecar to appear.
     void checkSidecarHealth()
 
     app.on('activate', () => {
@@ -80,10 +81,10 @@ if (!app.requestSingleInstanceLock()) {
     if (process.platform !== 'darwin') app.quit()
   })
 
-  // `will-quit`: no macOS o app segue vivo sem janela.
+  // `will-quit`: on macOS the app stays alive without windows.
   app.on('will-quit', () => {
     disposeSidecar()
-    // Ignorar é para a sessão; adicionar ao dicionário é para sempre.
+    // Ignoring lasts for the session; adding to the dictionary is forever.
     forgetSessionWords(session.defaultSession)
   })
 }

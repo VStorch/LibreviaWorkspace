@@ -20,7 +20,7 @@ import { useT } from '../../i18n.js'
 import { applyTableDraft, tablePlacementAt } from '../extensions/table-look.js'
 import { useWorkspace } from '../../state/workspace.js'
 
-/** Só o que o gravador leva ao `.docx`. */
+/** Only what the writer takes to the `.docx`. */
 const BORDER_STYLE_KEYS: readonly { readonly value: CellBorderStyle; readonly labelKey: MessageKey }[] = [
   { value: CellBorderStyle.Single, labelKey: 'document.tableProperties.borderSingle' },
   { value: CellBorderStyle.Double, labelKey: 'document.tableProperties.borderDouble' },
@@ -37,9 +37,9 @@ const SIDE_LABEL_KEYS: Record<CellBorderSide, MessageKey> = {
 }
 
 /**
- * **Só o que o arquivo guarda**: `w:tblGrid`, `w:tcBorders`, `w:shd` e
- * `w:tblHeader`. Margem interna, direção do texto e alinhamento vertical o gravador
- * não leva, e oferecê-los prometeria o que se perde ao salvar.
+ * **Only what the file stores**: `w:tblGrid`, `w:tcBorders`, `w:shd` and `w:tblHeader`. The writer
+ * does not carry cell margins, text direction or vertical alignment, and offering them would
+ * promise what is lost on save.
  */
 export function TablePropertiesDialog({
   editor,
@@ -116,7 +116,7 @@ export function TablePropertiesDialog({
 
 type TableDraftChange = <K extends keyof TableDraft>(key: K, value: TableDraft[K]) => void
 
-/** A largura das colunas e a borda: estilo, espessura, cor e lados. */
+/** Column width and border: style, width, color and sides. */
 function BorderFields({
   draft,
   onChange,

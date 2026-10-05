@@ -2,9 +2,9 @@ import { Node } from '@tiptap/core'
 import { fieldKind } from '@services/document/fields.js'
 
 /**
- * A instrução é o que o campo **é**; o resultado, o que mostrou da última vez.
- * Como texto, o número da página viraria número digitado na primeira edição. O
- * resultado só muda com "Atualizar campos" (F9), em `references.ts`.
+ * The instruction is what the field **is**; the result, what it showed last time. As text, the page
+ * number would become a typed number on the first edit. The result only changes with "Update
+ * fields" (F9), in `references.ts`.
  */
 export const Field = Node.create({
   name: 'field',
@@ -30,7 +30,7 @@ export const Field = Node.create({
     return [
       'span',
       {
-        // Para o CSS: o `pageref` do sumário vai à direita com os pontinhos.
+        // For CSS: the table of contents `pageref` goes right with the dot leaders.
         'data-field': fieldKind(instr).toLowerCase(),
         'data-instr': instr,
         'data-result': result,

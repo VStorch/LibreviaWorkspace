@@ -8,11 +8,10 @@ const raiz = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 
 describe('fontes empacotadas', () => {
   it('todo arquivo declarado existe em resources/fonts', () => {
-    // O modo de falha sem este teste é silencioso e caro: a regra @font-face
-    // aponta para um arquivo que não viajou no instalador, o Chromium substitui
-    // por conta própria, e o documento pagina diferente na máquina de quem
-    // instala e na de quem programou — que tem as fontes do sistema e nunca vê
-    // o problema.
+    // Without this test the failure is silent and costly: the @font-face rule points to a file that
+    // did not ship in the installer, Chromium substitutes on its own, and the document paginates
+    // differently on the installer's machine than on the developer's, which has the system fonts
+    // and never sees it.
     const faltando = BUNDLED_FONT_FILES.filter(
       (arquivo) => !existsSync(join(raiz, 'resources', 'fonts', arquivo)),
     )

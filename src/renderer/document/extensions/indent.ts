@@ -1,8 +1,8 @@
 import { Extension, type CommandProps } from '@tiptap/core'
 
 /**
- * Em níveis, e não em CSS: a gravação o traduz para `w:ind`, que também anda em
- * passos. `Ctrl+]` e `Ctrl+[`, porque na lista o `Tab` aninha o item.
+ * In levels, not CSS: saving translates them to `w:ind`, which also moves in steps. `Ctrl+]` and
+ * `Ctrl+[`, because in a list `Tab` nests the item.
  */
 
 export const INDENT_STEP_EM = 2.5

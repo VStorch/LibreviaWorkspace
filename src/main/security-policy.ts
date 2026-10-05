@@ -1,8 +1,8 @@
 import { ALLOWED_EXTERNAL_PROTOCOLS } from '@shared/constants.js'
 
-/** Sem `electron`, para testar; `security.ts` a aplica. */
+/** Without `electron`, to be testable; `security.ts` applies it. */
 
-/** O renderer não alcança o Node.js. Há teste travando cada valor: a regressão aqui é silenciosa. */
+/** The renderer cannot reach Node.js. A test pins each value: a regression here is silent. */
 export const SECURE_WEB_PREFERENCES = {
   contextIsolation: true,
   nodeIntegration: false,
@@ -18,8 +18,8 @@ export const SECURE_WEB_PREFERENCES = {
 export type AppMode = 'development' | 'production'
 
 /**
- * `style-src` aceita 'unsafe-inline' porque o React aplica estilo inline. Em
- * desenvolvimento, o Vite injeta script e usa WebSocket para o HMR.
+ * `style-src` allows 'unsafe-inline' because React applies inline styles. In development Vite
+ * injects scripts and uses a WebSocket for HMR.
  */
 export function buildContentSecurityPolicy(mode: AppMode): string {
   const directives: Record<string, string> =
@@ -38,7 +38,7 @@ export function buildContentSecurityPolicy(mode: AppMode): string {
           'style-src': "'self' 'unsafe-inline'",
           'img-src': "'self' data: blob:",
           'font-src': "'self' data: librevia-font:",
-          // O aplicativo é offline.
+          // The app is offline.
           'connect-src': "'none'",
         }
 
@@ -56,7 +56,7 @@ export function buildContentSecurityPolicy(mode: AppMode): string {
     .join('; ')
 }
 
-/** Um link de documento só vai para o navegador do sistema se passar aqui. */
+/** A document link only goes to the system browser if it passes here. */
 export function isAllowedExternalUrl(rawUrl: string): boolean {
   let parsed: URL
   try {
@@ -67,7 +67,9 @@ export function isAllowedExternalUrl(rawUrl: string): boolean {
   return (ALLOWED_EXTERNAL_PROTOCOLS as readonly string[]).includes(parsed.protocol)
 }
 
-/** Só a própria origem: um link dentro de um documento não tira a janela do aplicativo. */
+/**
+ * Only the app's own origin: a link inside a document does not take the window away from the app.
+ */
 export function isAllowedNavigation(targetUrl: string, appOrigin: string | null): boolean {
   let target: URL
   try {

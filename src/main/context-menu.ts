@@ -4,21 +4,21 @@ import type { ContextMenuTarget } from '@shared/types.js'
 import { sendPush } from './window.js'
 
 /**
- * As sugestões do corretor só existem no evento `context-menu` do `webContents`.
- * O main diz o que havia debaixo do cursor, e o renderer desenha o menu com o
- * componente da planilha: um `Menu.popup()` nativo não ofereceria "colar sem
- * formatação" nem seria clicável pelo Playwright.
+ * Spellchecker suggestions only exist in the `webContents` `context-menu` event. Main reports what
+ * was under the cursor, and the renderer draws the menu with the spreadsheet component: a native
+ * `Menu.popup()` would offer neither "paste without formatting" nor be clickable by Playwright.
  */
 export function installContextMenu(contents: WebContents): void {
   contents.on('context-menu', (_event, params) => {
     const target: ContextMenuTarget = {
-      // Um clique na borda de uma janela redimensionada chega com fração.
+      // A click on the edge of a resized window arrives with a fraction.
       x: Math.max(0, Math.round(params.x)),
       y: Math.max(0, Math.round(params.y)),
       editable: params.isEditable,
-      // Palavra além do limite fica de fora inteira: um pedaço dela iria para o dicionário.
+      // A word past the limit is dropped whole: a fragment of it would go into the dictionary.
       misspelledWord: params.misspelledWord.length <= 200 ? params.misspelledWord : '',
-      // O Chromium manda cinco; o corte protege o menu, e sugestão fora do limite derrubaria o schema.
+      // Chromium sends five; the cut protects the menu, and a suggestion past the limit would fail
+      // the schema.
       dictionarySuggestions: params.dictionarySuggestions
         .filter((suggestion) => suggestion.length <= 200)
         .slice(0, 5),
@@ -27,7 +27,7 @@ export function installContextMenu(contents: WebContents): void {
       canPaste: params.editFlags.canPaste,
     }
 
-    // Ouvinte do Electron, sem `registry` para capturar: uma exceção derrubaria o main.
+    // An Electron listener, with no `registry` to catch: an exception would bring main down.
     try {
       sendPush(contents, IpcChannel.ContextMenuRequested, target)
     } catch (cause) {

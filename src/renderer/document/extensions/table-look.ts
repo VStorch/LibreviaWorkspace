@@ -15,9 +15,8 @@ import {
 import { mmToPx, pxToMm, twipsToPx } from '@services/units.js'
 
 /**
- * O TableKit dá a estrutura, e nenhuma aparência. `applyTableDraft` escreve o
- * formulário numa transação só: quatro pediriam quatro `Ctrl+Z` e quatro
- * remedições do documento.
+ * TableKit gives structure and no appearance. `applyTableDraft` writes the form in a single
+ * transaction: four would take four `Ctrl+Z` and four document remeasurements.
  */
 
 const CELL_TYPES: readonly string[] = ['tableCell', 'tableHeader']
@@ -25,9 +24,9 @@ const CELL_TYPES: readonly string[] = ['tableCell', 'tableHeader']
 declare module '@tiptap/core' {
   interface Commands<ReturnType> {
     tableLook: {
-      /** Com uma função, cada célula recebe o que ela devolve a partir do que tem. */
+      /** With a function, each cell gets what it returns from what it has. */
       setCellLook: (look: CellLook | ((current: CellLook) => CellLook)) => ReturnType
-      /** A grade inteira: o gravador descarta o `w:tblGrid` parcial. Ver `resolvedColumnWidths`. */
+      /** The whole grid: the writer drops a partial `w:tblGrid`. See `resolvedColumnWidths`. */
       setColumnWidths: (widths: readonly number[]) => ReturnType
     }
   }
@@ -36,11 +35,14 @@ declare module '@tiptap/core' {
 export const TableLook = Extension.create({
   name: 'tableLook',
 
-  /** Na tela, o `TableView` monta o próprio `<table>` sem os atributos: a decoração cai no embrulho dele. */
+  /**
+   * On screen, `TableView` builds its own `<table>` without the attributes: the decoration lands on
+   * its wrapper.
+   */
   addProseMirrorPlugins() {
     return [
       new Plugin({
-        // Refeitas só quando o documento muda, e não a cada seleção ou paginação.
+        // Redone only when the document changes, not on every selection or pagination.
         state: {
           init: (_config, state) => cellMarginDecorations(state.doc),
           apply: (transaction, current) =>
@@ -60,7 +62,7 @@ export const TableLook = Extension.create({
       {
         types: ['table'],
         attributes: {
-          /** Em twips, como o leitor a resolveu; sem ela, a margem do modelo do editor. */
+          /** In twips, as the reader resolved it; without it, the editor template's margin. */
           cellMargins: {
             default: null,
             parseHTML: () => null,
@@ -74,10 +76,11 @@ export const TableLook = Extension.create({
       {
         types: [...CELL_TYPES],
         attributes: {
-          /** Texto canônico — ver `table-format.ts`. */
+          /** Canonical text; see `table-format.ts`. */
           borders: {
             default: null,
-            // Sem `parseHTML`: a tabela colada de fora não ganha bordas que a origem não declarava.
+            // No `parseHTML`: a table pasted from outside does not get borders its source did not
+            // declare.
             parseHTML: () => null,
             renderHTML: (attributes: Record<string, unknown>) => {
               const css = cellBordersToCss(cellBordersFromAttr(attributes['borders']))
@@ -114,7 +117,8 @@ export const TableLook = Extension.create({
               }
               const next = typeof look === 'function' ? look(current) : look
 
-              // Regravar o mesmo valor ainda é edição, e a tabela inteira seria regravada.
+              // Writing the same value again is still an edit, and the whole table would be
+              // rewritten.
               if (next.borders !== current.borders) tr.setNodeAttribute(pos, 'borders', next.borders)
               if (next.shading !== current.shading) tr.setNodeAttribute(pos, 'shading', next.shading)
               touched = true
@@ -136,7 +140,8 @@ export const TableLook = Extension.create({
           const map = TableMap.get(found.node)
           if (map.width !== widths.length) return false
 
-          // Pela **grade**: a célula mesclada aparece várias vezes, e escrever nela por coluna sobrescreveria a medida.
+          // By the **grid**: a merged cell appears several times, and writing it per column would
+          // overwrite the measure.
           const written = new Set<number>()
 
           for (let column = 0; column < map.width; column += 1) {
@@ -179,10 +184,10 @@ function tableAt($pos: {
   return null
 }
 
-/** `null` fora de tabela: desabilita o item de menu. */
+/** `null` outside a table: greys out the menu item. */
 export interface TablePlacement {
   readonly draft: TableDraft
-  /** A grade resolvida, inclusive as colunas que o documento não declara. */
+  /** The resolved grid, including columns the document does not declare. */
   readonly columnWidths: readonly number[]
   readonly column: number
 }
@@ -198,7 +203,7 @@ export function tablePlacementAt(editor: Editor, contentWidthPx: number): TableP
   const map = TableMap.get(found.node)
   const rect = map.findCell(cell.pos - found.start)
 
-  // Da primeira linha, de onde o TableKit lê para o `colgroup`.
+  // From the first row, where TableKit reads the `colgroup` from.
   const declared: (number | null)[] = []
   const first = found.node.firstChild
   if (first !== null) {
@@ -239,18 +244,18 @@ function cellAt($pos: {
   return null
 }
 
-/** A linha de cabeçalho por último: `toggleHeaderRow` troca o tipo dos nós e invalida as posições. */
+/** The header row last: `toggleHeaderRow` changes the node types and invalidates positions. */
 export function applyTableDraft(editor: Editor, draft: TableDraft, contentWidthPx: number): boolean {
   const placement = tablePlacementAt(editor, contentWidthPx)
   if (placement === null) return false
 
   const chain = editor.chain().focus()
 
-  // Só o que a pessoa mexeu — ver `cellLookPatch`.
+  // Only what the user touched; see `cellLookPatch`.
   const opened = placement.draft
   chain.setCellLook((current) => cellLookPatch(current, opened, draft))
 
-  // Regravar a grade intocada declararia em pixels o que o arquivo media em twips.
+  // Rewriting the untouched grid would declare in pixels what the file measured in twips.
   if (draft.columnWidthMm !== null && draft.columnWidthMm !== opened.columnWidthMm) {
     const widths = [...placement.columnWidths]
     widths[placement.column] = Math.max(1, Math.round(mmToPx(draft.columnWidthMm)))
@@ -262,7 +267,7 @@ export function applyTableDraft(editor: Editor, draft: TableDraft, contentWidthP
   return chain.run()
 }
 
-/** `"0 108 0 108"` (twips) em `padding` de CSS; o que não for quatro números some. */
+/** `"0 108 0 108"` (twips) as CSS `padding`; anything that is not four numbers is dropped. */
 export function cellMarginsCss(value: unknown): string | null {
   if (typeof value !== 'string') return null
   const sides = value.trim().split(/\s+/).map(Number)
@@ -270,7 +275,10 @@ export function cellMarginsCss(value: unknown): string | null {
   return sides.map((side) => `${Math.round(twipsToPx(side) * 100) / 100}px`).join(' ')
 }
 
-/** Sem descer em parágrafos: percorrer o texto a cada edição custaria o documento por tecla. */
+/**
+ * Without descending into paragraphs: walking the text on every edit would cost the whole document
+ * per key press.
+ */
 function cellMarginDecorations(doc: ProseMirrorNode): DecorationSet {
   const decorations: Decoration[] = []
   doc.descendants((node, pos) => {

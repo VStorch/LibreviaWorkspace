@@ -31,8 +31,8 @@ describe('ida e volta do quadro', () => {
   })
 
   it('preserva bytes que pareceriam fim de linha ou fim de texto', () => {
-    // Um protocolo delimitado por \n se despedaçaria aqui. O nosso é por
-    // tamanho justamente para carregar DOCX, que é ZIP e contém de tudo.
+    // A newline-delimited protocol would fall apart here. Ours is length-prefixed precisely to
+    // carry DOCX, which is a ZIP and contains anything.
     const binary = new Uint8Array([0x0a, 0x0d, 0x1a, 0x00, 0x50, 0x4b, 0x03, 0x04])
     const [frame] = readAll([encodeFrame({}, binary)])
 
@@ -47,8 +47,8 @@ describe('ida e volta do quadro', () => {
 })
 
 describe('fronteiras de mensagem no pipe', () => {
-  // Um pipe não preserva fronteiras. Estes três casos são o bug clássico
-  // desta integração, e ele só aparece com documento grande.
+  // A pipe does not preserve boundaries. These three cases are this integration's classic bug, and
+  // it only shows with large documents.
 
   it('remonta um quadro partido byte a byte', () => {
     const complete = encodeFrame({ id: 7 }, new Uint8Array([1, 2, 3, 4, 5]))
@@ -98,7 +98,7 @@ describe('fronteiras de mensagem no pipe', () => {
 
 describe('defesa contra sidecar corrompido', () => {
   it('recusa quadro que anuncia binário absurdo, sem tentar alocar', () => {
-    // Sem este teto, um cabeçalho mentiroso nos faria reservar gigabytes.
+    // Without this cap, a lying header would make us reserve gigabytes.
     const header = new Uint8Array(FRAME_HEADER_BYTES)
     new DataView(header.buffer).setUint32(4, MAX_BINARY_BYTES + 1, false)
 
@@ -141,8 +141,8 @@ describe('parseResponse', () => {
     ['id negativo', { id: -1, ok: true, result: 1 }],
     ['não é objeto', 'ok'],
   ])('recusa resposta fora do contrato: %s', (_label, payload) => {
-    // O sidecar é outro processo: pode estar numa versão antiga ou corrompido.
-    // Confiar na forma do que ele devolve seria o erro de confiar no renderer.
+    // The sidecar is another process: it may be an old version or corrupt. Trusting the shape of
+    // what it returns would be the mistake of trusting the renderer.
     expect(() => parseResponse(payload)).toThrow(AppError)
     try {
       parseResponse(payload)

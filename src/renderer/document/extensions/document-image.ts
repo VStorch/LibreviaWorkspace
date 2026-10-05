@@ -6,18 +6,19 @@ import { ReactNodeViewRenderer } from '@tiptap/react'
 import { ImageNodeView } from '../ImageNodeView.js'
 
 /**
- * `wp:extent` não precisa ter a proporção do arquivo: o Word desenha esticado.
- * `width` e `height` sozinhos virariam `aspect-ratio: auto`, e a proporção do
- * arquivo ganharia; declarada sem `auto`, a caixa é reservada antes de a imagem
- * decodificar, que é quando a paginação mede. O `NodeView` dá lugar às alças; o
- * `renderHTML` vale na impressão.
+ * `wp:extent` need not have the file's ratio: Word draws it stretched. `width` and `height` alone
+ * would become `aspect-ratio: auto`, and the file's ratio would win; declared without `auto`, the
+ * box is reserved before the image decodes, which is when pagination measures. The `NodeView` makes
+ * room for the handles; `renderHTML` applies when printing.
  */
 export const DocumentImage = Image.extend({
   addAttributes() {
     return {
       ...this.parent?.(),
 
-      /** O parágrafo que ancora a imagem ocupa a linha dele além dela, como mede o LibreOffice. */
+      /**
+       * The paragraph anchoring the image takes its own line besides it, as LibreOffice measures.
+       */
       anchored: {
         default: null,
         parseHTML: (element: HTMLElement) => (element.hasAttribute('data-anchored') ? true : null),
@@ -25,7 +26,7 @@ export const DocumentImage = Image.extend({
           attributes['anchored'] === true ? { 'data-anchored': '' } : {},
       },
 
-      /** Só da imagem em bloco dos rascunhos antigos: no OOXML quem alinha é o `w:jc` do parágrafo. */
+      /** Only for block images in old drafts: in OOXML the paragraph's `w:jc` aligns. */
       align: {
         default: null,
         parseHTML: (element: HTMLElement) => element.getAttribute('data-align'),
@@ -40,7 +41,7 @@ export const DocumentImage = Image.extend({
 
   addNodeView() {
     return ReactNodeViewRenderer(ImageNodeView, {
-      // No elemento de fora, que é o filho do parágrafo: é ele que as regras da folha de estilo olham.
+      // On the outer element, the paragraph's child: that is what the stylesheet rules look at.
       attrs: ({ node }) => (node.attrs['anchored'] === true ? { 'data-anchored': '' } : {}),
     })
   },
@@ -60,11 +61,14 @@ export const DocumentImage = Image.extend({
 export interface PlacedImage {
   readonly node: ProseMirrorNode
   readonly pos: number
-  /** É ele que alinha a imagem lida do arquivo. */
+  /** It aligns an image read from the file. */
   readonly paragraphPos: number | null
 }
 
-/** Selecionada, ou no bloco do cursor: chegar pelas setas deixa o cursor no parágrafo. */
+/**
+ * Selected, or in the cursor's block: arriving with the arrow keys leaves the cursor in the
+ * paragraph.
+ */
 export function imageAt(editor: Editor): PlacedImage | null {
   const { selection } = editor.state
   const selected = (selection as { node?: ProseMirrorNode }).node
@@ -99,7 +103,9 @@ function isAligned(block: ProseMirrorNode): boolean {
   return block.type.name === 'paragraph' || block.type.name === 'heading'
 }
 
-/** O alinhamento vai para o **parágrafo** quando há um, e para a imagem quando ela é bloco solto. */
+/**
+ * Alignment goes to the **paragraph** when there is one, and to the image when it is a loose block.
+ */
 export function applyImageProperties(
   editor: Editor,
   placed: PlacedImage,
@@ -111,7 +117,7 @@ export function applyImageProperties(
     const node = tr.doc.nodeAt(placed.pos)
     if (node === null || node.type.name !== 'image') return false
 
-    // Passo de atributo: `setNodeMarkup` substituiria a folha e a seleção se perderia.
+    // An attribute step: `setNodeMarkup` would replace the leaf and the selection would be lost.
     tr.setNodeAttribute(placed.pos, 'alt', properties.alt === '' ? null : properties.alt)
     tr.setNodeAttribute(placed.pos, 'align', placed.paragraphPos === null ? properties.align : null)
     return true

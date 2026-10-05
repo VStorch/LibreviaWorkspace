@@ -18,7 +18,7 @@ const NOTE_TYPES: Record<NoteKind, string> = {
   [NoteKind.Endnote]: 'note:endnote',
 }
 
-/** Vira um campo `REF`, `NOTEREF` ou `PAGEREF` que o F9 recalcula — ver `insertCrossReference`. */
+/** Becomes a `REF`, `NOTEREF` or `PAGEREF` field that F9 recomputes; see `insertCrossReference`. */
 export function CrossReferenceDialog({
   editor,
   context,
@@ -100,7 +100,7 @@ export function CrossReferenceDialog({
   )
 }
 
-/** `heading`, `bookmark`, `note:<tipo>` ou `caption:<rótulo>`: um valor só para o seletor. */
+/** `heading`, `bookmark`, `note:<kind>` or `caption:<label>`: a single value for the picker. */
 function kindOf(type: string): CrossReferenceKind {
   if (type === 'heading' || type === 'bookmark') return { type }
   if (type === NOTE_TYPES[NoteKind.Footnote] || type === NOTE_TYPES[NoteKind.Endnote]) {

@@ -60,7 +60,7 @@ async function buildRecentSubmenu(): Promise<MenuItemConstructorOptions[]> {
   return [
     ...recent.map<MenuItemConstructorOptions>((file) => ({
       label: file.name,
-      // Dois arquivos de mesmo nome em pastas diferentes são comuns em rede.
+      // Two files with the same name in different folders are common on network shares.
       toolTip: file.path,
       click: () => dispatch(MenuCommand.OpenRecent, file.path),
     })),
@@ -113,7 +113,10 @@ function preferenceToggle(
   }
 }
 
-/** O zoom é da folha; o degrau é do renderer, que sabe quanto vale o "ajustar à largura". */
+/**
+ * The zoom belongs to the sheet; the step belongs to the renderer, which knows what "fit width" is
+ * worth.
+ */
 function zoomItems(preferences: EditorPreferences): MenuItemConstructorOptions[] {
   return [
     commandItem('menu.view.resetZoom', MenuCommand.ZoomReset, acceleratorOf(SHORTCUTS.zoomReset)),
@@ -128,7 +131,7 @@ function zoomItems(preferences: EditorPreferences): MenuItemConstructorOptions[]
   ]
 }
 
-/** Os itens não se apagam fora de uma tabela: o main não sabe onde está o cursor. */
+/** Items are not greyed out outside a table: main does not know where the cursor is. */
 function buildTableSubmenu(): MenuItemConstructorOptions[] {
   const items: MenuItemConstructorOptions[] = []
   let group = TABLE_ACTIONS[0]?.group
@@ -137,7 +140,7 @@ function buildTableSubmenu(): MenuItemConstructorOptions[] {
     if (action.group !== group) items.push({ type: 'separator' })
     group = action.group
 
-    // `TableAction` é um subconjunto de `MenuCommand`, com os mesmos valores.
+    // `TableAction` is a subset of `MenuCommand`, with the same values.
     const command: MenuCommand = action.id
     items.push({
       label: t(action.labelKey),
@@ -149,7 +152,7 @@ function buildTableSubmenu(): MenuItemConstructorOptions[] {
   return items
 }
 
-/** Só entram itens que funcionam. */
+/** Only items that work. */
 async function buildTemplate(): Promise<MenuItemConstructorOptions[]> {
   const preferences = editorPreferences()
 
@@ -218,7 +221,8 @@ function viewSubmenu(preferences: EditorPreferences): MenuItemConstructorOptions
     },
     {
       label: t('view.language'),
-      // Cada idioma escrito nele mesmo, fora do catálogo: quem procura "English" não acharia "Inglês".
+      // Each language written in itself, outside the catalog: someone looking for "English" would
+      // not find "Inglês".
       submenu: LANGUAGES.map<MenuItemConstructorOptions>((language) => ({
         label: LANGUAGE_NAMES[language],
         type: 'radio',
@@ -329,7 +333,7 @@ function insertMenu(): MenuItemConstructorOptions {
         acceleratorOf(SHORTCUTS.insertPageBreak),
       ),
       {
-        // A quebra de seção não se vê no texto, e por isso também se exclui pelo menu.
+        // A section break is invisible in the text, so it can also be deleted from the menu.
         label: t('menu.insert.sectionBreak'),
         submenu: [
           commandItem('menu.insert.sectionNextPage', MenuCommand.InsertSectionNextPage),
@@ -369,7 +373,7 @@ function insertMenu(): MenuItemConstructorOptions {
 
 function referencesMenu(): MenuItemConstructorOptions {
   return {
-    // O marcador fica em "Inserir", como no Word.
+    // The bookmark lives under "Insert", as in Word.
     label: t('menu.references'),
     submenu: [
       commandItem('menu.references.tableOfContents', MenuCommand.InsertTableOfContents),
@@ -399,7 +403,7 @@ function reviewMenu(): MenuItemConstructorOptions {
         toolTip: t('revisions.trackHint'),
         click: () => {
           dispatch(MenuCommand.ToggleTrackChanges)
-          // Quem decide é o documento; sem resposta (somente leitura), a marca volta.
+          // The document decides; without an answer (read-only), the check mark reverts.
           void refreshMenu()
         },
       },

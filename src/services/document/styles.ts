@@ -1,52 +1,52 @@
 /**
- * As definições de `word/styles.xml`, fora dos nós (ver `model.ts`).
+ * The `word/styles.xml` definitions, outside the nodes (see `model.ts`).
  *
- * As unidades são as dos atributos do bloco, menos a **entrelinha**: aqui o fator
- * vem cru, porque com herança a fonte pode vir do próprio estilo, e só depois de
- * resolvida a cascata `line-metrics.ts` o multiplica pela altura natural.
+ * Units are those of block attributes, except **line spacing**: here the factor is raw, because
+ * with inheritance the font may come from the style itself, and only after the cascade is resolved
+ * does `line-metrics.ts` multiply it by the natural height.
  */
 
 import { Language, translate } from '@shared/i18n/index.js'
 
 export type LineSpacing =
-  /** Vezes a altura natural da linha (`w:lineRule="auto"`). */
+  /** Times the natural line height (`w:lineRule="auto"`). */
   | { readonly kind: 'multiple'; readonly factor: number }
-  /** A altura é esta, e o que não couber é cortado (`w:lineRule="exact"`). */
+  /** Exactly this height, clipping what does not fit (`w:lineRule="exact"`). */
   | { readonly kind: 'exact'; readonly pt: number }
-  /** A altura é esta ou mais (`w:lineRule="atLeast"`). */
+  /** This height or more (`w:lineRule="atLeast"`). */
   | { readonly kind: 'atLeast'; readonly pt: number }
 
 /**
- * Ausente é "este estilo não fala disso", e o herdado passa; zero é o estilo
- * dizendo "nenhum espaço". `| undefined` porque o zod emite a chave com
- * `undefined`, e `exactOptionalPropertyTypes` a recusaria.
+ * Absent means "this style does not say", and the inherited value passes; zero is the style saying
+ * "no space". `| undefined` because zod emits the key with `undefined`, and
+ * `exactOptionalPropertyTypes` would refuse it.
  */
 export interface StyleParagraphFormat {
   readonly textAlign?: string | undefined
-  /** Recuo esquerdo em milímetros, como a régua da configuração de página. */
+  /** Left indent in millimetres, like the page setup ruler. */
   readonly indentMm?: number | undefined
   readonly indentRightMm?: number | undefined
-  /** Primeira linha: positiva entra, negativa sai (o deslocamento do Word). */
+  /** First line: positive goes in, negative goes out (Word's hanging). */
   readonly firstLineMm?: number | undefined
-  /** Espaço antes e depois, em pontos — como o Word os mostra. */
+  /** In points, as Word shows them. */
   readonly spaceBefore?: number | undefined
   readonly spaceAfter?: number | undefined
   readonly lineSpacing?: LineSpacing | undefined
   readonly keepNext?: boolean | undefined
   readonly keepLines?: boolean | undefined
-  /** Viúvas e órfãs (`w:widowControl`): ausente é ligado, como no Word. */
+  /** `w:widowControl`: absent means on, as in Word. */
   readonly widowControl?: boolean | undefined
   readonly pageBreakBefore?: boolean | undefined
   readonly contextualSpacing?: boolean | undefined
-  /** Nível na estrutura do documento, de 0 a 8 — o que faz de um estilo título; 9 é corpo de texto. */
+  /** Outline level 0 to 8, which makes a style a heading; 9 is body text. */
   readonly outlineLevel?: number | undefined
   readonly background?: string | undefined
 }
 
 export interface StyleCharacterFormat {
-  /** Pilha de CSS, montada a partir da tabela de fontes. */
+  /** A CSS stack, built from the font table. */
   readonly fontFamily?: string | undefined
-  /** Medida com unidade, como o atributo do bloco: `12pt`. */
+  /** A measure with a unit, like the block attribute: `12pt`. */
   readonly fontSize?: string | undefined
   readonly bold?: boolean | undefined
   readonly italic?: boolean | undefined
@@ -65,29 +65,32 @@ export const StyleType = {
 } as const
 export type StyleType = (typeof StyleType)[keyof typeof StyleType]
 
-/** Como o arquivo o declara, sem herança resolvida. */
+/** As the file declares it, without resolved inheritance. */
 export interface StyleDefinition {
-  /** O `w:styleId`: o que o parágrafo aponta. É traduzido (`Ttulo1` em português). */
+  /** `w:styleId`: what the paragraph points to. It is translated (`Ttulo1` in Portuguese). */
   readonly id: string
-  /** O `w:name`: o nome interno, que **não** se traduz (`heading 1` em qualquer idioma). */
+  /** `w:name`: the internal name, which is **not** translated (`heading 1` in any language). */
   readonly name: string
   readonly type: StyleType
-  /** Estilo recomendado, que o Word mostra na galeria (`w:qFormat`). */
+  /** A recommended style, which Word shows in the gallery (`w:qFormat`). */
   readonly qFormat: boolean
-  /** Escondido da lista — `w:hidden` (sempre) ou `w:semiHidden` (até ser usado). */
+  /** Hidden from the list: `w:hidden` (always) or `w:semiHidden` (until used). */
   readonly hidden: boolean
-  /** Criado por quem escreveu o documento, e não embutido no Word (`w:customStyle`). */
+  /** Created by the document's author, not built into Word (`w:customStyle`). */
   readonly custom: boolean
   readonly basedOn?: string | undefined
   readonly next?: string | undefined
-  /** O estilo de caractere ligado a este (`w:link`). */
+  /** `w:link`. */
   readonly link?: string | undefined
   readonly uiPriority?: number | undefined
   readonly paragraph?: StyleParagraphFormat | undefined
   readonly character?: StyleCharacterFormat | undefined
 }
 
-/** Sem os ids, um documento que chama o estilo padrão de `Padro` não diz qual é o estilo do parágrafo. */
+/**
+ * Without the ids, a document that calls the default style `Padro` does not say which style the
+ * paragraph has.
+ */
 export interface StyleDefaults {
   readonly paragraph: StyleParagraphFormat
   readonly character: StyleCharacterFormat
@@ -101,27 +104,26 @@ export interface StyleSheet {
 }
 
 /**
- * 1,5 ÷ 1,1499 (a altura da Liberation Serif, ver `line-metrics.ts`): o múltiplo
- * do arquivo é medido sobre a altura da fonte, e não sobre o tamanho. Quatro
- * casas porque o `w:line` vive numa grade de 240-avos.
+ * 1.5 ÷ 1.1499 (Liberation Serif's height, see `line-metrics.ts`): the file's multiple is measured
+ * against the font height, not the size. Four decimals because `w:line` lives on a 240ths grid.
  */
 export const BODY_LINE_FACTOR = 1.3042
 
 const HEADING_SIZES = ['22pt', '17pt', '14pt', '12pt', '10pt', '8pt'] as const
 
 /**
- * O antes do título é o `margin-top: 1em` do CSS (0,6em no `h5` e no `h6`, que
- * não têm regra própria), em pontos sobre o tamanho de cada um.
+ * The heading's space before is CSS's `margin-top: 1em` (0.6em on `h5` and `h6`, which have no rule
+ * of their own), in points over each one's size.
  */
 const HEADING_BEFORE = [22, 17, 14, 12, 6, 4.8] as const
 
 /**
- * O depois é a margem de baixo do navegador: 0,67em no `h1`, 0,83em no `h2`, 1em
- * no `h3`, 1,33em no `h4`, 1,67em e 2,33em nos dois últimos.
+ * The space after is the browser's bottom margin: 0.67em on `h1`, 0.83em on `h2`, 1em on `h3`,
+ * 1.33em on `h4`, 1.67em and 2.33em on the last two.
  */
 const HEADING_AFTER = [14.75, 14.1, 14, 15.95, 16.65, 18.75] as const
 
-/** "Manter com o próximo" é o `break-after: avoid` da impressão, que só os quatro primeiros têm. */
+/** "Keep with next" is print's `break-after: avoid`, which only the first four have. */
 const HEADING_KEEP_NEXT = 4
 
 function heading(level: number): StyleDefinition {
@@ -135,8 +137,7 @@ function heading(level: number): StyleDefinition {
 
   return {
     id: `Heading${level}`,
-    // O nome interno, em inglês: é por ele que o leitor e o escritor reconhecem
-    // um título em documento de qualquer idioma.
+    // The internal English name: reader and writer recognize a heading by it in any language.
     name: `heading ${level}`,
     type: StyleType.Paragraph,
     qFormat: true,
@@ -151,18 +152,17 @@ function heading(level: number): StyleDefinition {
 }
 
 /**
- * Os estilos de um `.sdoc` anterior à versão 3: o CSS que o editor desenhava
- * antes dos estilos (Times New Roman 12 pt, entrelinha 1,5) mais o padrão do
- * navegador para os títulos. Um número diferente faz o documento antigo reabrir
- * com outra paginação. `BuiltinStyles.cs` é comparado com esta tabela por
- * `src/main/sidecar/builtin-styles.test.ts`.
+ * The styles of a `.sdoc` before version 3: the CSS the editor drew before styles (Times New Roman
+ * 12 pt, 1.5 spacing) plus the browser default for headings. A different number makes the old
+ * document reopen with other pagination. `src/main/sidecar/builtin-styles.test.ts` compares
+ * `BuiltinStyles.cs` with this table.
  *
- * Sem o `#111111` do texto: gravado, ele voltaria como cor explícita.
+ * Without the text's `#111111`: once saved it would come back as an explicit color.
  */
 export const LEGACY_STYLES: StyleSheet = {
   defaults: {
     paragraph: {},
-    // No padrão do documento, e não no `Normal`: é lá que o Word procura a fonte.
+    // In the document defaults, not in `Normal`: that is where Word looks for the font.
     character: { fontFamily: 'Times New Roman', fontSize: '12pt' },
     paragraphStyleId: 'Normal',
     characterStyleId: 'DefaultParagraphFont',
@@ -176,8 +176,8 @@ export const LEGACY_STYLES: StyleSheet = {
       hidden: false,
       custom: false,
       paragraph: {
-        // 0,6em antes (`.page__content > * + *`) e 1em depois (o padrão do
-        // navegador para `p`), sobre 12 pt.
+        // 0.6em before (`.page__content > * + *`) and 1em after (the browser default for `p`), over
+        // 12 pt.
         spaceBefore: 7.2,
         spaceAfter: 12,
         lineSpacing: { kind: 'multiple', factor: BODY_LINE_FACTOR },
@@ -207,7 +207,7 @@ export const LEGACY_STYLES: StyleSheet = {
       custom: false,
       basedOn: 'Normal',
       uiPriority: 34,
-      // Meia polegada, que é o passo de recuo do OOXML (720 twips).
+      // Half an inch, the OOXML indent step (720 twips).
       paragraph: { indentMm: 12.7, contextualSpacing: true },
     },
     Hyperlink: {
@@ -225,12 +225,12 @@ export const LEGACY_STYLES: StyleSheet = {
 }
 
 /**
- * A entrelinha do Word 2013–2021, que o diálogo dele mostra como 1,08: 259 de
- * 240 avos, escrito como o leitor o devolve — a mesma grade de `BODY_LINE_FACTOR`.
+ * Word 2013–2021 line spacing, which its dialog shows as 1.08: 259 of 240ths, written as the reader
+ * returns it, on the same grid as `BODY_LINE_FACTOR`.
  */
 const WORD_LINE_FACTOR = 1.0792
 
-/** Tamanho, antes e cor de cada título do Word 2013–2021. */
+/** Size, space before and color of each Word 2013–2021 heading. */
 const WORD_HEADINGS = [
   { fontSize: '16pt', spaceBefore: 12, color: '#2f5496' },
   { fontSize: '13pt', spaceBefore: 2, color: '#2f5496' },
@@ -244,15 +244,15 @@ function wordHeading(level: number): StyleDefinition {
   const { spaceBefore, ...character } = WORD_HEADINGS[level - 1]!
   return {
     ...heading(level),
-    // Sem a Calibri Light do Word: ela não tem substituta livre de mesmas
-    // medidas, e um título medido com outra fonte quebra a linha noutro lugar.
-    // O título herda a Calibri, que a Carlito desenha igual.
+    // Without Word's Calibri Light: it has no free metric-compatible substitute, and a heading
+    // measured with another font breaks the line elsewhere. The heading inherits Calibri, which
+    // Carlito draws the same.
     paragraph: { spaceBefore, spaceAfter: 0, keepNext: true, keepLines: true, outlineLevel: level - 1 },
     character,
   }
 }
 
-/** O padrão do Word 2013–2021: Calibri 11 pt, entrelinha 1,08, 8 pt depois. */
+/** Word 2013–2021 default: Calibri 11 pt, 1.08 spacing, 8 pt after. */
 export const BUILTIN_STYLES: StyleSheet = {
   defaults: {
     paragraph: { spaceAfter: 8, lineSpacing: { kind: 'multiple', factor: WORD_LINE_FACTOR } },
@@ -280,8 +280,8 @@ export const BUILTIN_STYLES: StyleSheet = {
 }
 
 /**
- * Só os títulos, cujo nome nós gravamos em inglês porque o Word exige. O nome de
- * qualquer outro estilo é do documento e aparece como está.
+ * Only headings, whose name we write in English because Word requires it. Any other style's name
+ * belongs to the document and shows as is.
  */
 const HEADING_LABELS: Readonly<Record<string, number>> = {
   'heading 1': 1,
@@ -300,8 +300,8 @@ export function styleLabelOf(style: StyleDefinition, language: Language = Langua
 }
 
 /**
- * Sem os escondidos (`w:semiHidden` é a maquinaria do Word). Na ordem do Word:
- * prioridade declarada, e o nome como desempate, para a ordem ser estável.
+ * Without hidden ones (`w:semiHidden` is Word's machinery). In Word's order: declared priority,
+ * with the name as tiebreaker so the order is stable.
  */
 export function listedStyles(
   sheet: StyleSheet,
@@ -321,18 +321,17 @@ export function listedStyles(
 }
 
 export interface BlockStyleQuery {
-  /** O tipo do nó do editor: `paragraph`, `heading`, `codeBlock`… */
+  /** `paragraph`, `heading`, `codeBlock`… */
   readonly type: string
-  /** O `w:pStyle` que o bloco trouxe do arquivo, quando trouxe. */
+  /** The `w:pStyle` the block brought from the file, if any. */
   readonly styleId?: string | null | undefined
-  /** O nível, quando o bloco é um título. */
   readonly level?: number | null | undefined
 }
 
 /**
- * O `w:pStyle` do bloco, se o documento define esse estilo; senão o título pelo
- * nome interno (`heading 3`), porque num documento em alemão o id é
- * `berschrift3`; senão o estilo padrão. `null` quando não há resposta honesta.
+ * The block's `w:pStyle` if the document defines that style; otherwise the heading by internal name
+ * (`heading 3`), because in a German document the id is `berschrift3`; otherwise the default style.
+ * `null` when there is no honest answer.
  */
 export function blockStyleOf(sheet: StyleSheet, block: BlockStyleQuery): StyleDefinition | null {
   const declared = block.styleId ?? null

@@ -9,7 +9,10 @@ import type { WorkspaceState } from './types.js'
 
 export type { DocumentSource, WorkspaceState } from './types.js'
 
-/** Os campos e os ajustes de uma linha; o que tem regra mora nos grupos de ações, ligados por `context.ts`. */
+/**
+ * Fields and one-line setters; anything with rules lives in the action groups, wired by
+ * `context.ts`.
+ */
 export const useWorkspace = create<WorkspaceState>((set, get) => {
   const ctx = createWorkspaceContext(set, get)
   const empty = createEmptyDocument()

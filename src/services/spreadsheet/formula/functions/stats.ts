@@ -6,7 +6,7 @@ export const STATS: readonly FunctionDefinition[] = [
   define(['MÉDIA', 'MEDIA', 'AVERAGE'], 1, VARIADIC, (args) => {
     const numbers = numbersIn(args)
     if (isFormulaError(numbers)) return numbers
-    // Sem número não há média; zero seria resultado inventado.
+    // Without numbers there is no average; zero would be an invented result.
     if (numbers.length === 0) return FormulaError.Div0
 
     return numbers.reduce((total, value) => total + value, 0) / numbers.length
@@ -15,7 +15,7 @@ export const STATS: readonly FunctionDefinition[] = [
   define(['MÁXIMO', 'MAXIMO', 'MAX'], 1, VARIADIC, (args) => {
     const numbers = numbersIn(args)
     if (isFormulaError(numbers)) return numbers
-    // O Excel devolve zero para intervalo sem números, e não erro.
+    // Excel returns zero for a range without numbers, not an error.
     return numbers.length === 0 ? 0 : Math.max(...numbers)
   }),
 
@@ -25,13 +25,13 @@ export const STATS: readonly FunctionDefinition[] = [
     return numbers.length === 0 ? 0 : Math.min(...numbers)
   }),
 
-  /** Conta **números**. Texto e vazio não entram. */
+  /** Counts **numbers**. Text and empty cells are excluded. */
   define(['CONT.NÚM', 'CONT.NUM', 'COUNT'], 1, VARIADIC, (args) => {
     const numbers = numbersIn(args)
     return isFormulaError(numbers) ? numbers : numbers.length
   }),
 
-  /** Conta o que **não** está vazio, inclusive texto e erro. */
+  /** Counts what is **not** empty, text and errors included. */
   define(['CONT.VALORES', 'COUNTA'], 1, VARIADIC, (args) => {
     return valuesIn(args).filter((value) => value !== null && value !== '').length
   }),
@@ -49,7 +49,7 @@ export const STATS: readonly FunctionDefinition[] = [
     let count = 0
     for (const line of tested) {
       for (const value of line) {
-        // Célula vazia não conta, nem com o critério "<>x".
+        // An empty cell does not count, not even with the "<>x" criterion.
         if (value === null) continue
         if (matchesCriteria(value, criteria)) count++
       }

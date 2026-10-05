@@ -1,6 +1,6 @@
 /**
- * Na digitação a pessoa merece a frase, e não o `#VALOR!`: `=ABS(1;2)` tem
- * argumentos demais. O Excel também recusa a fórmula com um aviso.
+ * While typing the user deserves the sentence, not `#VALOR!`: `=ABS(1;2)` has too many arguments.
+ * Excel also refuses the formula with a warning.
  */
 
 import { walk, type Node } from './ast.js'
@@ -10,7 +10,7 @@ import { parseFormula } from './parse.js'
 
 export interface FormulaProblem {
   readonly message: string
-  /** Posição na fórmula, quando o problema é de escrita. */
+  /** Position in the formula, when the problem is in the writing. */
   readonly position?: number
 }
 
@@ -37,7 +37,7 @@ export function checkFormula(formula: string): FormulaProblem | null {
   return null
 }
 
-/** As preguiçosas não estão no catálogo. */
+/** Lazy functions are not in the catalog. */
 const LAZY_ARITY: Record<string, { min: number; max: number }> = {
   SE: { min: 2, max: 3 },
   IF: { min: 2, max: 3 },

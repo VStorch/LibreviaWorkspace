@@ -3,18 +3,17 @@ import { formatNumber } from './list-numbering.js'
 import type { FloatingObject } from './floating.js'
 
 /**
- * O cabeçalho ou rodapé preservado do documento. O texto das peças com endereço
- * é editável e volta para o `w:t` de onde veio; o resto da parte OOXML volta
- * intacto.
+ * A preserved header or footer. Text of pieces with an address is editable and goes back to the
+ * `w:t` it came from; the rest of the OOXML part goes back untouched.
  */
 export interface Band {
   readonly left: BandPiece[]
   readonly center: BandPiece[]
   readonly right: BandPiece[]
   readonly rule: boolean
-  /** O que não cabe em três colunas: desenho com posição de verdade, que pode vir girado. */
+  /** What does not fit in three columns: a drawing with a real position, possibly rotated. */
   readonly floats: FloatingObject[]
-  /** A grade, quando o cabeçalho é uma tabela: logotipo em célula mesclada, título ao lado. */
+  /** The grid, when the header is a table: logo in a merged cell, title beside it. */
   readonly rows: BandRow[]
 }
 
@@ -22,22 +21,21 @@ export interface BandRow {
   readonly cells: BandCell[]
 }
 
-/** Uma célula da grade: o que está escrito nela e o retângulo que ela ocupa. */
 export interface BandCell {
   readonly pieces: BandPiece[]
-  /** Fração da largura da grade, de 0 a 1. */
+  /** Fraction of the grid width, 0 to 1. */
   readonly width: number
   readonly span: number
   readonly rowSpan: number
   readonly align?: string | undefined
-  /** Iniciais dos lados com risco: `t`, `l`, `b`, `r`. */
+  /** Initials of the sides with a line: `t`, `l`, `b`, `r`. */
   readonly borders: string
 }
 
 export interface BandPiece {
   readonly kind: 'text' | 'image' | 'pageNumber' | 'totalPages'
-  // `| undefined` explícito por causa de `exactOptionalPropertyTypes`: este
-  // tipo precisa ser atribuível ao que o zod infere no schema compartilhado.
+  // Explicit `| undefined` because of `exactOptionalPropertyTypes`: this type must be assignable to
+  // what zod infers in the shared schema.
   readonly text?: string | undefined
   readonly src?: string | undefined
   readonly width?: number | undefined
@@ -46,23 +44,23 @@ export interface BandPiece {
   readonly italic: boolean
   readonly color?: string | undefined
   readonly fontSize?: string | undefined
-  /** Pilha de CSS, como o leitor a resolveu. */
+  /** A CSS font stack, as the reader resolved it. */
   readonly fontFamily?: string | undefined
-  /** Cabeçalho e rodapé são parágrafos, e cada parágrafo é uma linha. */
+  /** Headers and footers are paragraphs, and each paragraph is a line. */
   readonly line?: boolean | undefined
   /**
-   * Onde a peça mora no arquivo: a gravação escreve no `w:t` dela e não toca o
-   * resto do cabeçalho. Número de página, imagem e tabulação não têm endereço.
+   * Where the piece lives in the file: saving writes into its `w:t` and leaves the rest of the
+   * header alone. Page numbers, images and tabs have no address.
    */
   readonly pid?: string | undefined
   /**
-   * O texto do arquivo já trazia `{n}` ou `{total}` escritos. É texto: a tela não
-   * o troca pelo número, e a gravação não o transforma em campo.
+   * The file text already had `{n}` or `{total}` written. It is text: the screen does not replace
+   * it with the number, and saving does not turn it into a field.
    */
   readonly literal?: boolean | undefined
 }
 
-/** Compartilhada pela tela e pelo papel, para os dois desenhos não divergirem. */
+/** Shared by screen and paper, so the two drawings do not drift. */
 export function linesOf(pieces: readonly BandPiece[]): BandPiece[][] {
   const lines: BandPiece[][] = []
   for (const piece of pieces) {
@@ -73,7 +71,7 @@ export function linesOf(pieces: readonly BandPiece[]): BandPiece[][] {
   return lines
 }
 
-/** Medida na folha: só existe depois de desenhar. */
+/** Measured on the sheet: only exists after drawing. */
 export interface BandHeights {
   readonly headerMm: number
   readonly footerMm: number
@@ -82,9 +80,8 @@ export interface BandHeights {
 export const NO_BANDS: BandHeights = { headerMm: 0, footerMm: 0 }
 
 /**
- * A ordem é a do Word: a capa manda sobre a paridade, e a paridade sobre o
- * padrão. Faixa ausente cai no padrão; `hasBandContent` decide se a folha fica
- * limpa.
+ * Word's order: the title page beats parity, and parity beats the default. A missing band falls
+ * back to the default; `hasBandContent` decides whether the sheet stays blank.
  */
 export function bandForPage(page: PageSetup, sheet: number, kind: 'header' | 'footer'): Band | null {
   const first = kind === 'header' ? page.firstHeaderBand : page.firstFooterBand
@@ -93,36 +90,39 @@ export function bandForPage(page: PageSetup, sheet: number, kind: 'header' | 'fo
     (kind === 'header' ? page.headerBand : page.footerBand) ??
     plainBand(kind === 'header' ? page.header : page.footer)
 
-  // Ligado sem faixa própria quer dizer folha limpa, como no Word: é o uso de
-  // "Primeira página diferente" na capa sem número.
+  // Switched on without its own band means a blank sheet, as in Word: that is how "Different first
+  // page" gives a cover without a number.
   if (sheet === 1 && usesTitlePage(page)) return first
-  // A paridade é a do número impresso, e não a da folha: começando em 2, a
-  // primeira folha já é par.
+  // Parity follows the printed number, not the sheet: starting at 2, the first sheet is already
+  // even.
   if (usesEvenAndOdd(page) && pageNumberOf(page, sheet) % 2 === 0) return even
   return fallback
 }
 
-/** "Primeira página diferente": o que o documento diz, ou o que as faixas dão a entender. */
+/** "Different first page": what the document says, or what the bands imply. */
 export function usesTitlePage(page: PageSetup): boolean {
   return page.titlePage ?? (page.firstHeaderBand !== null || page.firstFooterBand !== null)
 }
 
-/** "Pares e ímpares diferentes", pelo mesmo critério. */
+/** "Different odd and even pages", by the same criterion. */
 export function usesEvenAndOdd(page: PageSetup): boolean {
   return page.evenAndOddHeaders ?? (page.evenHeaderBand !== null || page.evenFooterBand !== null)
 }
 
-/** O número impresso na folha `sheet` (a contar de 1): o início de `w:pgNumType` mais o avanço. */
+/** The number printed on sheet `sheet` (from 1): the `w:pgNumType` start plus the offset. */
 export function pageNumberOf(page: PageSetup, sheet: number): number {
   return (page.pageNumberStart ?? 1) + sheet - 1
 }
 
-/** O número da folha como o campo `PAGE` o escreve, no formato de `w:pgNumType`. */
+/** As the `PAGE` field writes it, in the `w:pgNumType` format. */
 export function pageLabel(page: PageSetup, sheet: number): string {
   return formatNumber(pageNumberOf(page, sheet), page.pageNumberFormat ?? 'decimal')
 }
 
-/** O texto pode trazer `{n}` e `{total}` até a gravação os transformar em campo (`BandWriter.Rewrite`). */
+/**
+ * The text may carry `{n}` and `{total}` until saving turns them into fields
+ * (`BandWriter.Rewrite`).
+ */
 export function pieceText(piece: BandPiece, label: string, total: number): string {
   if (piece.kind === 'pageNumber') return label
   if (piece.kind === 'totalPages') return String(total)
@@ -134,12 +134,12 @@ export function substituteFields(text: string, label: string, total: number): st
   return text.replaceAll('{n}', label).replaceAll('{total}', String(total))
 }
 
-/** Fonte da linha de texto simples: a de `TemplateStyles.BandFont`, que é a que o arquivo recebe. */
+/** `TemplateStyles.BandFont`, the font the file receives. */
 const PLAIN_BAND_FONT = 'Calibri, Carlito, sans-serif'
 
 /**
- * A linha de "Configurar página" como faixa, para a folha paginada a desenhar
- * como o arquivo a grava: centralizada, em 9 pt cinza.
+ * The "Page setup" line as a band, so the paginated sheet draws it as the file stores it: centered,
+ * 9 pt grey.
  */
 export function plainBand(text: string): Band | null {
   if (text.trim().length === 0) return null
@@ -155,9 +155,8 @@ export function plainBand(text: string): Band | null {
 }
 
 /**
- * No arquivo o cabeçalho é um só: trocar a peça atualiza todas as folhas, como
- * no Word. Devolve a mesma configuração quando nada muda, para não sujar o
- * documento.
+ * The file has a single header: changing the piece updates every sheet, as in Word. Returns the
+ * same setup when nothing changes, so the document is not marked dirty.
  */
 export function editBandPiece<T extends PageSetup>(page: T, pid: string, text: string): T {
   let changed = false
@@ -182,7 +181,7 @@ export function editBandPiece<T extends PageSetup>(page: T, pid: string, text: s
   return changed ? updated : page
 }
 
-/** A caixa vem inteira: digitar dentro dela abre e fecha parágrafos. */
+/** The whole box comes in: typing inside it opens and closes paragraphs. */
 export function editBandFloat<T extends PageSetup>(page: T, bid: string, content: DocumentNode[]): T {
   let changed = false
 
@@ -210,7 +209,7 @@ export function hasBandContent(band: Band | null): band is Band {
   )
 }
 
-/** As seis faixas: capa, pares e padrão, para cabeçalho e rodapé. */
+/** The six bands: title page, even and default, for header and footer. */
 function mapBands<T extends PageSetup>(page: T, transform: (band: Band) => Band): T {
   const at = (band: Band | null): Band | null => (band === null ? null : transform(band))
 
@@ -225,15 +224,15 @@ function mapBands<T extends PageSetup>(page: T, transform: (band: Band) => Band)
   }
 }
 
-/** Metade da margem: a faixa é mais larga que a coluna de texto, como no documento corporativo. */
+/** Half the margin: the band is wider than the text column, as in corporate documents. */
 export function bandInsetMm(page: PageSetup): number {
   return Math.min(page.margins.left, page.margins.right) / 2
 }
 
 /**
- * Sem o cursor numa faixa, o campo vai para o fim do rodapé, como no Word. Num
- * rodapé do arquivo sem texto editável devolve `null`: inventar um parágrafo na
- * parte do Word é o que a gravação cirúrgica não faz.
+ * Without the cursor in a band, the field goes to the end of the footer, as in Word. In a file
+ * footer without editable text it returns `null`: inventing a paragraph in Word's part is what the
+ * surgical save does not do.
  */
 export function appendPageField(page: PageSetup, token: '{n}' | '{total}'): PageSetup | null {
   const band = page.footerBand

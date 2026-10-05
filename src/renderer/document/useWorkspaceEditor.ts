@@ -10,12 +10,12 @@ import type { SearchStatus } from './extensions/search-replace.js'
 export interface WorkspaceEditor {
   readonly editor: Editor | null
   readonly searchStatus: SearchStatus
-  /** Sobe a cada edição de verdade: é o que faz a paginação medir de novo. */
+  /** Goes up on every real edit: that is what makes pagination measure again. */
   readonly contentRevision: number
   readonly touch: () => void
 }
 
-/** Da loja, e não das props: o editor é criado uma vez, e o resto chega pelos efeitos. */
+/** From the store, not props: the editor is created once, and the rest arrives through effects. */
 export function useWorkspaceEditor(): WorkspaceEditor {
   const initialDoc = useWorkspace((state) => state.initialDoc)
   const markDirty = useWorkspace((state) => state.markDirty)
@@ -32,12 +32,12 @@ export function useWorkspaceEditor(): WorkspaceEditor {
       isKnownComment: (cid) => useWorkspace.getState().comments.some((comment) => comment.id === cid),
       notes: () => useWorkspace.getState().notes,
       isTrackingChanges: () => useWorkspace.getState().trackChanges === true,
-      // O `w:author` é obrigatório: sem nome, um autor genérico, como no Word.
+      // `w:author` is mandatory: without a name, a generic author, as in Word.
       revisionAuthor: () => currentPreferences().authorName.trim() || translateNow('revisions.unknownAuthor'),
     }),
     content: initialDoc,
     onUpdate: ({ editor: current, transaction }) => {
-      // A paginação chega como transação: tratá-la como edição sujaria o documento.
+      // Pagination arrives as a transaction: treating it as an edit would mark the document dirty.
       if (isPaginationOnly(transaction)) return
 
       markDirty()

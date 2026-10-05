@@ -1,115 +1,89 @@
 /**
- * Nomes de canal IPC.
- *
- * Este arquivo é deliberadamente livre de dependências: ele é importado pelo
- * preload, que roda em contexto sandboxed e não pode carregar pacotes de
- * terceiros. Os schemas de validação ficam em `ipc.ts`, que só o main importa.
+ * Free of dependencies on purpose: the sandboxed preload imports it and cannot load third-party
+ * packages. The validation schemas live in `ipc.ts`, which only main imports.
  */
 export const IpcChannel = {
-  /** Abre o diálogo do sistema e carrega o arquivo escolhido. */
   FileOpen: 'file:open',
-  /** Carrega um recente ou um arquivo recebido pelo main via Explorer. */
+  /** A recent file, or one handed to main by the file manager. */
   FileOpenRecent: 'file:open-recent',
-  /** Grava sobre um caminho já autorizado nesta sessão. */
+  /** Writes over a path already authorized in this session. */
   FileSave: 'file:save',
   /**
-   * Abre o diálogo "salvar como" e apenas **autoriza** o destino escolhido,
-   * sem gravar. Separar escolha de gravação é o que permite avisar sobre perda
-   * de formatação antes de qualquer byte tocar o disco.
+   * Only **authorizes** the chosen destination, without writing. Separating the choice from the
+   * write is what allows warning about formatting loss before any byte reaches the disk.
    */
   FileChooseSavePath: 'file:choose-save-path',
 
   /**
-   * Guarda o que está na tela como rascunho de recuperação.
+   * Stores what is on screen as a recovery draft.
    *
-   * Não grava no arquivo do usuário: escrever por cima dele sozinho
-   * transformaria "não salvei" em "salvei sem querer".
+   * Never writes to the user's file: overwriting it unprompted would turn "I didn't save" into "I
+   * saved by accident".
    */
   FileAutosave: 'file:autosave',
 
-  /** Há rascunho de uma sessão que não terminou bem? Só os dados do aviso. */
+  /** Only the data the prompt needs. */
   RecoveryPeek: 'recovery:peek',
-  /** Devolve o conteúdo do rascunho e reata o vínculo com o arquivo original. */
+  /** Also restores the link to the original file. */
   RecoveryRestore: 'recovery:restore',
   RecoveryDiscard: 'recovery:discard',
 
   RecentList: 'recent:list',
   RecentClear: 'recent:clear',
 
-  /** Escolhe uma imagem no disco e devolve como data URI já validado. */
+  /** Returns an already validated data URI. */
   ImagePick: 'image:pick',
 
   /**
-   * As famílias de fonte instaladas na máquina.
-   *
-   * Vem do main porque descobri-las é executar programa do sistema, e o renderer
-   * não executa nada. Lista vazia é resposta legítima: num sistema sem
-   * `fontconfig` a barra segue com as fontes que o instalador leva.
+   * Comes from main because discovering fonts means running a system program, and the renderer runs
+   * nothing. An empty list is a valid answer: without `fontconfig` the toolbar keeps the bundled
+   * fonts.
    */
   FontsList: 'fonts:list',
 
-  /** Gera o PDF e grava no destino escolhido pelo usuário. */
   PrintExportPdf: 'print:export-pdf',
-  /**
-   * Exporta o documento para HTML ou Markdown num arquivo novo. O documento em
-   * edição continua no caminho dele, com o estado que tinha.
-   */
+  /** The document being edited keeps its path and its state. */
   FileExport: 'file:export',
-  /**
-   * Modelos: a galeria — os que vêm com o aplicativo e os da pasta do usuário
-   * —, criar um documento a partir de um deles, procurar um `.dotx` qualquer e
-   * abrir a pasta de modelos no gerenciador de arquivos.
-   */
   TemplateList: 'template:list',
   TemplateOpen: 'template:open',
   TemplateBrowse: 'template:browse',
   TemplateOpenFolder: 'template:open-folder',
   PrintDialog: 'print:dialog',
-  /** Gera o PDF e abre numa janela de visualização. */
   PrintPreview: 'print:preview',
 
-  /** Aviso nativo de alterações não salvas, reutilizado pelo renderer. */
   DialogConfirmDiscard: 'dialog:confirm-discard',
-  /** Aviso de que salvar em .txt descarta a formatação. */
   DialogConfirmPlainText: 'dialog:confirm-plain-text',
 
-  /** Informa ao main o título e o estado de alterações não salvas. */
   WindowSetState: 'window:set-state',
-  /** O renderer já assinou os comandos e pode receber arquivos do Explorer. */
+  /** The renderer has subscribed to the commands and can receive files from the file manager. */
   WindowReady: 'window:ready',
-  /** Pedido explícito de fechamento, já resolvido do lado do renderer. */
+  /** Already resolved on the renderer side. */
   WindowClose: 'window:close',
 
   PreferencesGet: 'prefs:get',
-  /** Liga ou desliga uma preferência. O main é quem guarda e quem aplica. */
+  /** Main stores and applies it. */
   PreferencesSet: 'prefs:set',
 
   /**
-   * Recortar, copiar e colar de verdade.
-   *
-   * O renderer não alcança a área de transferência do sistema — e não deve: quem
-   * a lê e escreve é o `webContents`, no main.
+   * The renderer cannot reach the system clipboard, and should not: `webContents`, in main, reads
+   * and writes it.
    */
   EditCommandRun: 'edit:command',
-  /** O texto da área de transferência, para colar sem formatação. */
   ClipboardReadText: 'clipboard:read-text',
 
-  /** Troca a palavra errada pela sugestão escolhida no menu de contexto. */
   SpellReplaceWord: 'spell:replace',
-  /** Guarda a palavra no dicionário — para sempre ou só nesta sessão. */
+  /** Forever, or only for this session. */
   SpellAddWord: 'spell:add-word',
 
-  /** Canal main → renderer: comandos disparados pelo menu nativo. */
   MenuCommand: 'menu:command',
-  /** Canal main → renderer: o botão direito foi clicado, e sobre o quê. */
   ContextMenuRequested: 'context-menu:requested',
-  /** Canal main → renderer: uma preferência mudou, venha de onde vier. */
+  /** Whatever its origin. */
   PreferencesChanged: 'prefs:changed',
 } as const
 
 export type IpcChannel = (typeof IpcChannel)[keyof typeof IpcChannel]
 
-/** Canais no sentido renderer → main. Ver `PUSH_IPC_CHANNELS` para o oposto. */
+/** See `PUSH_IPC_CHANNELS` for the other direction. */
 export const INVOCABLE_IPC_CHANNELS = [
   IpcChannel.FileOpen,
   IpcChannel.FileOpenRecent,
@@ -147,11 +121,8 @@ export const INVOCABLE_IPC_CHANNELS = [
 export type InvocableIpcChannel = (typeof INVOCABLE_IPC_CHANNELS)[number]
 
 /**
- * Canais no sentido main → renderer.
- *
- * Ficam listados à parte porque não têm handler: o main empurra, o renderer
- * escuta. A lista existe para que o tipo da API do renderer saiba distinguir os
- * dois sentidos.
+ * Listed apart because they have no handler: main pushes, the renderer listens. The list lets the
+ * renderer API type tell the two directions apart.
  */
 export const PUSH_IPC_CHANNELS = [
   IpcChannel.MenuCommand,

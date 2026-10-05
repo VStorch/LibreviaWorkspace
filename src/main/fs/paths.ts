@@ -5,12 +5,12 @@ import { isSupportedExtension } from '@services/file/formats.js'
 import { t } from '../i18n.js'
 import { editorPreferences } from '../preferences.js'
 
-/** Teto de leitura: protege contra travar a interface com um arquivo enorme. */
+/** Keeps a huge file from freezing the UI. */
 export const MAX_FILE_BYTES = 20 * 1024 * 1024
 
 /**
- * O renderer **não escolhe** o arquivo que o main lê ou grava: só entra aqui o
- * caminho escolhido num diálogo nativo. Vive enquanto o aplicativo estiver aberto.
+ * The renderer **does not choose** the file main reads or writes: only a path picked in a native
+ * dialog enters here. Lives as long as the app is open.
  */
 const authorizedPaths = new Set<string>()
 
@@ -36,12 +36,11 @@ export function assertPathAuthorized(path: string): string {
   return normalized
 }
 
-/** Para os testes. */
+/** For the tests. */
 export function resetAuthorizedPaths(): void {
   authorizedPaths.clear()
 }
 
-/** Valida que o caminho é legível, é um arquivo comum e cabe no limite. */
 export async function assertReadableFile(path: string): Promise<void> {
   if (!isAbsolute(path)) {
     throw new AppError(ErrorCode.InvalidRequest, t('errors.paths.invalidPath'))

@@ -1,6 +1,6 @@
 /**
- * Como no Excel, dentro de um intervalo texto e booleano são **ignorados** por
- * `SOMA`, e passados direto são convertidos: a coluna com cabeçalho de texto soma.
+ * As in Excel, inside a range text and booleans are **ignored** by `SOMA`, and passed directly they
+ * are converted: a column with a text header sums.
  */
 
 import type { Argument, EvalContext } from '../evaluate.js'
@@ -8,11 +8,11 @@ import { FormulaError, isFormulaError } from '../errors.js'
 import { toNumber, toText, type Scalar } from '../values.js'
 
 export interface FunctionDefinition {
-  /** O português primeiro, o inglês depois. */
+  /** Portuguese first, English after. */
   readonly names: readonly string[]
   readonly minArgs: number
   readonly maxArgs: number
-  /** Só para quem examina o erro: sem isto `ÉERROS(A1)` nunca seria chamada. */
+  /** Only for functions that inspect errors: otherwise `ÉERROS(A1)` would never be called. */
   readonly acceptsErrors: boolean
   readonly call: (args: readonly Argument[], context: EvalContext) => Scalar
 }
@@ -29,7 +29,7 @@ export function define(
 
 export const VARIADIC = Number.MAX_SAFE_INTEGER
 
-/** Vazio é sempre ignorado: `MÉDIA(A1;A2)` com A1 vazia divide por um. */
+/** Empty is always ignored: `MÉDIA(A1;A2)` with A1 empty divides by one. */
 export function numbersIn(args: readonly Argument[]): number[] | FormulaError {
   const numbers: number[] = []
 
@@ -51,7 +51,7 @@ export function numbersIn(args: readonly Argument[]): number[] | FormulaError {
   return numbers
 }
 
-/** Todos os valores, sem conversão — para contar e para procurar. */
+/** All values, unconverted: for counting and lookups. */
 export function valuesIn(args: readonly Argument[]): Scalar[] {
   const values: Scalar[] = []
   for (const arg of args) {
@@ -61,7 +61,7 @@ export function valuesIn(args: readonly Argument[]): Scalar[] {
   return values
 }
 
-/** Intervalo aqui é erro de escrita: `=ARRED(A1:B2;2)` não quer dizer nada. */
+/** A range here is a malformed formula: `=ARRED(A1:B2;2)` means nothing. */
 export function single(arg: Argument | undefined): Scalar {
   if (arg === undefined) return null
   return arg.kind === 'value' ? arg.value : FormulaError.Value
@@ -75,7 +75,7 @@ export function textArg(arg: Argument | undefined): string | FormulaError {
   return toText(single(arg))
 }
 
-/** O retângulo de um argumento de intervalo, ou o valor solto como 1×1. */
+/** A range argument's rectangle, or a loose value as 1×1. */
 export function rowsOf(arg: Argument | undefined): readonly (readonly Scalar[])[] | FormulaError {
   if (arg === undefined) return FormulaError.Value
   return arg.kind === 'range' ? arg.rows : [[arg.value]]

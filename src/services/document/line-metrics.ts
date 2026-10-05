@@ -1,20 +1,19 @@
 /**
- * O múltiplo do OOXML (`w:line` com `w:lineRule="auto"`) é medido sobre a
- * **altura natural da fonte** — `(ascender - descender + lineGap) / unitsPerEm`
- * da tabela `hhea` —, como no Word, no LibreOffice e no `line-height: normal`.
- * Por isso o atributo `lineHeight` guarda o número do CSS, já multiplicado: o
- * leitor multiplica, o gravador divide, e a interface converte para mostrar.
+ * The OOXML multiple (`w:line` with `w:lineRule="auto"`) is measured against the font's **natural
+ * height** (`(ascender - descender + lineGap) / unitsPerEm` from the `hhea` table), as in Word,
+ * LibreOffice and `line-height: normal`. So the `lineHeight` attribute stores the CSS number,
+ * already multiplied: the reader multiplies, the writer divides, and the UI converts for display.
  *
- * `line-metrics.test.ts` compara esta tabela com `LineMetrics.cs`. Só as fontes
- * do instalador e as que elas substituem: para o resto não há palpite honesto.
+ * `line-metrics.test.ts` compares this table with `LineMetrics.cs`. Only the installer's fonts and
+ * the ones they substitute: for the rest there is no honest guess.
  */
 
-/** A fonte do editor quando o documento não diz outra. */
+/** The editor font when the document names none. */
 export const DEFAULT_NATURAL_LINE_HEIGHT = 1.1499
 
 const LIBERATION_SERIF = DEFAULT_NATURAL_LINE_HEIGHT
 
-/** Nome da família → altura natural. As chaves comparam sem caixa nem espaço. */
+/** Keys compare ignoring case and spaces. */
 export const NATURAL_LINE_HEIGHTS: Readonly<Record<string, number>> = {
   arial: 1.1499,
   helvetica: 1.1499,
@@ -29,7 +28,10 @@ export const NATURAL_LINE_HEIGHTS: Readonly<Record<string, number>> = {
   caladea: 1.15,
 }
 
-/** A altura é a da primeira; a genérica só vale se ela faltar. Espelho de `ParagraphFormat.FirstFont`. */
+/**
+ * The height is the first font's; the generic one only counts if it is missing. Mirrors
+ * `ParagraphFormat.FirstFont`.
+ */
 export function firstFontOf(stack: string | null | undefined): string | null {
   if (typeof stack !== 'string') return null
   const first =
@@ -40,7 +42,7 @@ export function firstFontOf(stack: string | null | undefined): string | null {
   return first.length > 0 ? first : null
 }
 
-/** Espelho de `LineMetrics.Of`: pilha vazia é a fonte do editor; fonte desconhecida é `null`. */
+/** Mirrors `LineMetrics.Of`: an empty stack is the editor font; an unknown font is `null`. */
 export function naturalLineHeightOf(stack: string | null | undefined): number | null {
   const first = firstFontOf(stack)
   if (first === null) return DEFAULT_NATURAL_LINE_HEIGHT
@@ -48,8 +50,8 @@ export function naturalLineHeightOf(stack: string | null | undefined): number | 
 }
 
 /**
- * Espelha `BodyReader.Multiple`: com fonte desconhecida, o fator 1 sai como
- * `normal` e o resto pelo palpite de 1,15, o mesmo do gravador.
+ * Mirrors `BodyReader.Multiple`: with an unknown font, factor 1 becomes `normal` and the rest uses
+ * the 1.15 guess, the same as the writer.
  */
 export function cssLineHeightOf(factor: number, stack: string | null | undefined): string {
   const natural = naturalLineHeightOf(stack)
@@ -57,18 +59,24 @@ export function cssLineHeightOf(factor: number, stack: string | null | undefined
   return factor === 1 ? 'normal' : numberText(factor * DEFAULT_NATURAL_LINE_HEIGHT)
 }
 
-/** Para sobrescrever uma entrelinha declarada: `normal` o gravador não grava, e o `w:line` antigo ficaria. */
+/**
+ * To override a declared line spacing: the writer does not write `normal`, and the old `w:line`
+ * would stay.
+ */
 export function explicitCssLineHeightOf(factor: number, stack: string | null | undefined): string {
   return numberText(factor * (naturalLineHeightOf(stack) ?? DEFAULT_NATURAL_LINE_HEIGHT))
 }
 
-/** Ao centésimo, a precisão que sobrevive à ida e volta: sem isso "1,5" voltaria 1,4999. */
+/**
+ * To the hundredth, the precision that survives the round trip: otherwise "1.5" would come back as
+ * 1.4999.
+ */
 export function lineFactorOf(css: number, stack: string | null | undefined): number {
   const natural = naturalLineHeightOf(stack) ?? DEFAULT_NATURAL_LINE_HEIGHT
   return Math.round((css / natural) * 100) / 100
 }
 
-/** Quatro casas no máximo, sem zero à direita — a forma que o leitor escreve. */
+/** At most four decimals, no trailing zero: the form the reader writes. */
 function numberText(value: number): string {
   return String(Math.round(value * 10_000) / 10_000)
 }

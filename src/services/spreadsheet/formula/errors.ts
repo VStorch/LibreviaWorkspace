@@ -1,6 +1,6 @@
 /**
- * **Valores**, e não exceções: `=A1/0` produz `#DIV/0!` e não derruba o
- * recálculo. Os nomes são os do Excel em português.
+ * **Values**, not exceptions: `=A1/0` produces `#DIV/0!` and does not bring recalculation down. The
+ * names are Excel's in Portuguese.
  */
 
 export const FormulaError = {
@@ -10,7 +10,7 @@ export const FormulaError = {
   Name: '#NOME?',
   Num: '#NÚM!',
   NA: '#N/D',
-  /** O Excel não tem este erro: mostra zero e um aviso, e um zero silencioso é resultado errado. */
+  /** Excel lacks this error: it shows zero and a warning, and a silent zero is a wrong result. */
   Circular: '#CIRC!',
 } as const
 export type FormulaError = (typeof FormulaError)[keyof typeof FormulaError]

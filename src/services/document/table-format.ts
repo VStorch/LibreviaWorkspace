@@ -1,16 +1,15 @@
 /**
- * Borda e sombreamento viajam como **texto canônico** no nó da célula: a
- * impressão digital é o JSON do nó (ver `Nodes.cs`), e dois objetos que descrevem
- * a mesma célula de jeitos diferentes fariam toda tabela ser regenerada.
+ * Borders and shading travel as **canonical text** on the cell node: the fingerprint is the node's
+ * JSON (see `Nodes.cs`), and two objects describing the same cell differently would regenerate
+ * every table.
  *
- * Só `w:tcBorders` e `w:shd/@fill`. Estilo de borda que o CSS não desenha vira
- * `single` na leitura, e só a célula que a pessoa formatou é reescrita (ver
- * `TableLook.cs`).
+ * Only `w:tcBorders` and `w:shd/@fill`. A border style CSS cannot draw becomes `single` on read,
+ * and only the cell the user formatted is rewritten (see `TableLook.cs`).
  */
 
-/** Os estilos que o OOXML e o CSS desenham do mesmo jeito. */
+/** Styles OOXML and CSS draw the same way. */
 export const CellBorderStyle = {
-  /** Borda apagada de propósito — `w:val="nil"`, e não a ausência de borda. */
+  /** A border erased on purpose: `w:val="nil"`, not the absence of a border. */
   None: 'none',
   Single: 'single',
   Double: 'double',
@@ -24,24 +23,24 @@ export type CellBorderSide = (typeof CELL_BORDER_SIDES)[number]
 
 export interface CellBorder {
   readonly style: CellBorderStyle
-  /** Espessura em pontos. O OOXML mede em oitavos de ponto (`w:sz`). */
+  /** In points. OOXML measures eighths of a point (`w:sz`). */
   readonly widthPt: number
-  /** `#rrggbb` minúsculo. */
+  /** Lowercase `#rrggbb`. */
   readonly color: string
 }
 
-/** `null` num lado é "o documento não diz nada sobre este lado". */
+/** `null` on a side means "the document says nothing about this side". */
 export type CellBorders = { readonly [Side in CellBorderSide]: CellBorder | null }
 
 export const NO_CELL_BORDERS: CellBorders = { top: null, right: null, bottom: null, left: null }
 
-/** A espessura que o Word oferece, e o teto que o `w:sz` aceita (255 oitavos). */
+/** The width Word offers, and the ceiling `w:sz` accepts (255 eighths). */
 export const MIN_BORDER_PT = 0.25
 export const MAX_BORDER_PT = 31
 
 const HEX = /^#[0-9a-f]{6}$/
 
-/** Cor válida é a que o `w:color` aceita: seis dígitos hexadecimais. */
+/** What `w:color` accepts: six hex digits. */
 export function isCellColor(value: string): boolean {
   return HEX.test(value.toLowerCase())
 }
@@ -50,12 +49,12 @@ function isBorderStyle(value: string): value is CellBorderStyle {
   return (Object.values(CellBorderStyle) as string[]).includes(value)
 }
 
-/** Ponto decimal e sem zero à direita, como os dois lados escrevem: senão, duas impressões digitais. */
+/** Decimal point and no trailing zero, as both sides write it: otherwise two fingerprints. */
 function formatPt(value: number): string {
   return Number(value.toFixed(2)).toString()
 }
 
-/** O texto canônico do atributo, ou `null` quando não há lado nenhum a declarar. */
+/** `null` when there is no side to declare. */
 export function cellBordersToAttr(borders: CellBorders): string | null {
   const parts = CELL_BORDER_SIDES.flatMap((side) => {
     const border = borders[side]
@@ -90,7 +89,7 @@ export function cellBordersFromAttr(value: unknown): CellBorders {
   return borders
 }
 
-/** A mesma borda nos lados escolhidos, preservando os outros. */
+/** Preserving the other sides. */
 export function withBorderOnSides(
   borders: CellBorders,
   sides: readonly CellBorderSide[],
@@ -101,7 +100,10 @@ export function withBorderOnSides(
   return next
 }
 
-/** `none` vira `0`: `w:val="nil"` apaga a borda da tabela, que apareceria por baixo em `border-collapse`. */
+/**
+ * `none` becomes `0`: `w:val="nil"` erases the table border, which would show through under
+ * `border-collapse`.
+ */
 export function cellBordersToCss(borders: CellBorders): string {
   return CELL_BORDER_SIDES.flatMap((side) => {
     const border = borders[side]
@@ -112,20 +114,22 @@ export function cellBordersToCss(borders: CellBorders): string {
 }
 
 export interface TableDraft {
-  /** `null` é a coluna nunca medida, de tabela recém-inserida: aplicar não mexe na largura. */
+  /**
+   * `null` is a never-measured column of a freshly inserted table: applying leaves its width alone.
+   */
   readonly columnWidthMm: number | null
   readonly borderStyle: CellBorderStyle
   readonly borderWidthPt: number
   readonly borderColor: string
   readonly sides: { readonly [Side in CellBorderSide]: boolean }
-  /** Desligado é "sem sombreamento", que no arquivo é a ausência de `w:shd`. */
+  /** Off means "no shading", which in the file is the absence of `w:shd`. */
   readonly shaded: boolean
   readonly shadingColor: string
-  /** `w:tblHeader`: a linha se repete no alto de cada página. */
+  /** `w:tblHeader`: the row repeats at the top of each page. */
   readonly headerRow: boolean
 }
 
-/** Faixa de largura de coluna: menos de 5 mm não caberia um caractere. */
+/** Below 5 mm not even a character would fit. */
 export const MIN_COLUMN_WIDTH_MM = 5
 export const MAX_COLUMN_WIDTH_MM = 500
 
@@ -180,17 +184,16 @@ export function tableDraftFrom(attrs: {
   }
 }
 
-/** Borda e sombreamento de uma célula, como viajam no nó. */
+/** As they travel on the node. */
 export interface CellLook {
   readonly borders: string | null
   readonly shading: string | null
 }
 
 /**
- * Só os campos que a pessoa alterou, contados contra o rascunho **de abertura**.
- * O rascunho resume a célula numa borda só; aplicá-lo inteiro reescreveria os
- * quatro lados com o resumo, e a célula com `top: nil` e `bottom: single`
- * perderia a borda de baixo.
+ * Only the fields the user changed, compared against the **opening** draft. The draft sums the cell
+ * up as a single border; applying it whole would rewrite all four sides with the summary, and a
+ * cell with `top: nil` and `bottom: single` would lose its bottom border.
  */
 export function cellLookPatch(cell: CellLook, before: TableDraft, after: TableDraft): CellLook {
   return {
@@ -223,7 +226,10 @@ function patchedBorders(borders: string | null, before: TableDraft, after: Table
   return cellBordersToAttr(next)
 }
 
-/** O lado ligado agora ganha a borda inteira do rascunho; o que já tinha muda só o que foi alterado. */
+/**
+ * A side switched on gets the draft's whole border; one that already had a border changes only what
+ * was altered.
+ */
 function patchedSide(
   existing: CellBorder | null,
   sides: { readonly was: boolean; readonly is: boolean },
@@ -250,9 +256,8 @@ function patchedShading(shading: string | null, before: TableDraft, after: Table
 }
 
 /**
- * Como a tela desenha (`table-layout: fixed`): o que sobra é dividido entre as
- * colunas sem medida. Aplicar uma largura só deixaria as outras em zero, e o
- * gravador descarta grade parcial.
+ * As the screen draws (`table-layout: fixed`): what is left is shared among unmeasured columns.
+ * Applying a single width would leave the others at zero, and the writer drops a partial grid.
  */
 export function resolvedColumnWidths(declared: readonly (number | null)[], totalPx: number): number[] {
   const known = declared.filter((width): width is number => width !== null && width > 0)
@@ -265,7 +270,10 @@ export function resolvedColumnWidths(declared: readonly (number | null)[], total
   return declared.map((width) => (width !== null && width > 0 ? Math.round(width) : share))
 }
 
-/** Cada célula é um parágrafo medido pela paginação: mil por mil travaria o editor. */
+/**
+ * Each cell is a paragraph measured by pagination: a thousand by a thousand would freeze the
+ * editor.
+ */
 export const MAX_TABLE_ROWS = 100
 export const MAX_TABLE_COLUMNS = 40
 

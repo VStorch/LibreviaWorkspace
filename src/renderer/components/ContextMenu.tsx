@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 
-/** O que é comum a todo menu de contexto: caber na tela e fechar. Quem herda só escreve os itens. */
+/** What every context menu shares: fitting on screen and closing. Callers only write the items. */
 
 export interface MenuPosition {
   readonly x: number
@@ -16,7 +16,7 @@ export function ContextMenu({
   children,
 }: {
   readonly position: MenuPosition
-  /** O que o leitor de tela anuncia ao abrir. */
+  /** Announced by the screen reader on open. */
   readonly label: string
   readonly onClose: () => void
   readonly children: React.ReactNode
@@ -24,7 +24,7 @@ export function ContextMenu({
   const menu = useRef<HTMLDivElement>(null)
   const [placement, setPlacement] = useState<MenuPosition>(position)
 
-  // Só medindo depois de desenhar: a altura depende da fonte do sistema.
+  // Measured only after drawing: the height depends on the system font.
   useLayoutEffect(() => {
     const element = menu.current
     if (element === null) return
@@ -45,7 +45,7 @@ export function ContextMenu({
       if (event.key === 'Escape') onClose()
     }
 
-    // `pointerdown`, e não `click`, para fechar já ao pressionar em outro lugar.
+    // `pointerdown`, not `click`, to close as soon as the pointer goes down elsewhere.
     document.addEventListener('pointerdown', dismiss, true)
     document.addEventListener('keydown', onKey, true)
     window.addEventListener('resize', onClose)
@@ -78,7 +78,7 @@ export function ContextMenuItem({
   readonly children: React.ReactNode
   readonly onClick: () => void
   readonly disabled?: boolean
-  /** As sugestões do corretor o usam. */
+  /** Used by spellchecker suggestions. */
   readonly strong?: boolean
 }): React.JSX.Element {
   return (

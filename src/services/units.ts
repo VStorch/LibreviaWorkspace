@@ -1,11 +1,11 @@
-/** O CSS fixa 96 px por polegada; o OOXML mede em twips, a vigésima parte do ponto. */
+/** CSS fixes 96 px per inch; OOXML measures in twips, a twentieth of a point. */
 
 export const MM_PER_INCH = 25.4
 export const PT_PER_INCH = 72
 export const CSS_PX_PER_INCH = 96
 export const TWIPS_PER_INCH = 1440
 
-/** Meia polegada (720 twips): o passo de recuo do Word. */
+/** Half an inch (720 twips): Word's indent step. */
 export const INDENT_STEP_MM = MM_PER_INCH / 2
 
 export function mmToInches(mm: number): number {

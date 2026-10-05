@@ -10,7 +10,7 @@ import {
 
 describe('lista de fontes', () => {
   it('as do documento vêm primeiro', () => {
-    // Quem abre um arquivo alheio procura a fonte dele, e não no meio de trezentas.
+    // Someone opening another person's file looks for its font, not among three hundred.
     const ordered = orderFontFamilies(['Arial', 'Zapfino'], ['Garamond'])
 
     expect(ordered[0]).toBe('Garamond')
@@ -24,7 +24,8 @@ describe('lista de fontes', () => {
   })
 
   it('lista vazia do sistema não esvazia o seletor', () => {
-    // Sistema sem `fontconfig` não é erro: a barra oferece o que o instalador garante.
+    // A system without `fontconfig` is not an error: the toolbar offers what the installer
+    // guarantees.
     expect(orderFontFamilies([])).toEqual([...GUARANTEED_FONT_FAMILIES])
   })
 
@@ -35,8 +36,7 @@ describe('lista de fontes', () => {
   })
 
   it('as instaladas saem em ordem alfabética', () => {
-    // `fc-list` devolve na ordem do cache do fontconfig, que não é ordem nenhuma
-    // para quem lê a lista.
+    // `fc-list` returns fontconfig cache order, which is no order at all to a reader.
     const ordered = orderFontFamilies(['Ubuntu', 'DejaVu Sans', 'Noto Serif'])
     const extras = ordered.filter((family) => !GUARANTEED_FONT_FAMILIES.includes(family))
 
@@ -49,8 +49,8 @@ describe('lista de fontes', () => {
   })
 
   it('acha a fonte na marca do texto e no atributo do bloco', () => {
-    // O leitor emite a fonte nos dois lugares: a altura da linha nasce da fonte
-    // do elemento, não do que está escrito dentro dele.
+    // The reader emits the font in both places: line height comes from the element's font, not from
+    // what is written inside it.
     const doc = {
       type: 'doc',
       content: [
@@ -72,8 +72,8 @@ describe('lista de fontes', () => {
   })
 
   it('lê o registro do Windows sem repetir corte como família', () => {
-    // O registro guarda um arquivo por corte. Sem cortar o sufixo, o seletor
-    // ofereceria "Arial", "Arial Bold" e "Arial Italic" como três fontes.
+    // The registry stores one file per style. Without cutting the suffix, the picker would offer
+    // "Arial", "Arial Bold" and "Arial Italic" as three fonts.
     const output = [
       'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Fonts',
       '    Arial & Arial Bold & Arial Italic (TrueType)    REG_SZ    arial.ttf',

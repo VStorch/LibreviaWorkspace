@@ -4,7 +4,7 @@ import { formatReference } from './references.js'
 import { parseFormula, tryParseFormula } from './parse.js'
 import { walk, type Node } from './ast.js'
 
-/** A árvore como texto, para o teste falar da forma e não da estrutura. */
+/** The tree as text, so the test speaks about shape and not structure. */
 function show(node: Node): string {
   switch (node.kind) {
     case 'number':
@@ -45,13 +45,13 @@ describe('precedência', () => {
   })
 
   it('potência associa à direita', () => {
-    // 2^(3^2) = 512, e não (2^3)^2 = 64.
+    // 2^(3^2) = 512, not (2^3)^2 = 64.
     expect(tree('=2^3^2')).toBe('(2 ^ (3 ^ 2))')
   })
 
   it('menos unário liga mais forte que a potência, como no Excel', () => {
-    // =-2^2 dá 4 no Excel, e não -4 como na matemática. O resultado precisa
-    // bater com a planilha ao lado, não com o livro.
+    // =-2^2 is 4 in Excel, not -4 as in math. The result must match the spreadsheet next to it, not
+    // the textbook.
     expect(tree('=-2^2')).toBe('((-2) ^ 2)')
   })
 
@@ -107,8 +107,8 @@ describe('referências', () => {
   })
 
   it('normaliza o intervalo escrito ao contrário', () => {
-    // B4:A1 e A1:B4 são o mesmo retângulo; quem lê a árvore não deveria
-    // precisar saber em que ordem foi digitado.
+    // B4:A1 and A1:B4 are the same rectangle; whoever reads the tree should not need to know the
+    // typing order.
     expect(tree('=SOMA(B4:A1)')).toBe('SOMA(A1:B4)')
   })
 
@@ -154,8 +154,8 @@ describe('erros de escrita', () => {
   })
 
   it('aponta a vírgula usada como separador', () => {
-    // O erro mais provável de quem vem do Excel em inglês. Dizer só "não
-    // entendi" mandaria o usuário procurar no lugar errado.
+    // The most likely mistake of someone coming from English Excel. Saying only "did not
+    // understand" would send the user to look in the wrong place.
     expect(() => parseFormula('=SOMA(A1,B1)')).toThrow(/ponto e vírgula/i)
   })
 

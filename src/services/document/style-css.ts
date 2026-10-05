@@ -1,11 +1,11 @@
 /**
- * Uma regra por estilo de parágrafo, com **todo** campo explícito (zero quando
- * a cadeia cala), para não herdar a margem do `p` ou o negrito do `h1`. A
- * formatação direta sai inline e vence qualquer seletor. Só os filhos diretos de
- * `.page__content`: lista e célula têm regras próprias em `content-styles.ts`.
+ * One rule per paragraph style, with **every** field explicit (zero when the chain is silent), so
+ * nothing inherits the `p` margin or the `h1` bold. Direct formatting goes inline and beats any
+ * selector. Only direct children of `.page__content`: lists and cells have their own rules in
+ * `content-styles.ts`.
  *
- * `w:contextualSpacing` fica de fora: a paginação conferida contra o corpus foi
- * medida sem ele, e ele volta intacto ao arquivo.
+ * `w:contextualSpacing` is left out: pagination checked against the corpus was measured without it,
+ * and it goes back to the file intact.
  */
 
 import { cssLineHeightOf, explicitCssLineHeightOf } from './line-metrics.js'
@@ -24,7 +24,7 @@ export function styleSheetCss(sheet: StyleSheet): string {
   const base = resolveStyle(sheet, null)
   const rules = [
     `.page__content { ${declarations(characterCss(base)).join(' ')} }`,
-    // O espaço entre blocos que não são parágrafo é o antes do estilo padrão.
+    // The space between non-paragraph blocks is the default style's space before.
     `.page__content > * + * { margin-top: ${points(base.paragraph.spaceBefore)}; }`,
     rule('.page__content > p:not([data-style-id])', base),
   ]
@@ -34,11 +34,11 @@ export function styleSheetCss(sheet: StyleSheet): string {
     rules.push(rule(`.page__content > h${level}:not([data-style-id])`, style))
   }
 
-  // O id que o documento não define: o Word o desenha só com os padrões. Antes
-  // das regras por id, que vencem por virem depois.
+  // An id the document does not define: Word draws it with the defaults only. Before the per-id
+  // rules, which win by coming later.
   rules.push(rule('.page__content > [data-style-id]', resolveStyle(sheet, '')))
 
-  // Os de caractere, em qualquer profundidade, só com o que a cadeia declara.
+  // Character styles, at any depth, with only what the chain declares.
   for (const style of Object.values(sheet.styles)) {
     if (style.type !== StyleType.Character) continue
     const css = declaredCharacterCss(resolveCharacterStyle(sheet, style.id))
@@ -55,8 +55,8 @@ export function styleSheetCss(sheet: StyleSheet): string {
     )
   }
 
-  // O sumário é um bloco no editor e parágrafos com `toc 1`, `toc 2`… no arquivo.
-  // Repetidas no fim, e na mesma ordem, para valer a mesma precedência.
+  // The table of contents is a block in the editor and paragraphs with `toc 1`, `toc 2`… in the
+  // file. Repeated at the end, in the same order, for the same precedence.
   const inContents = rules
     .filter((text) => text.startsWith('.page__content > ') && !text.startsWith('.page__content > * + *'))
     .map((text) => text.replace('.page__content > ', '.page__content > [data-toc] > '))
@@ -103,12 +103,12 @@ function characterCss({ paragraph, character }: ResolvedStyle): Array<[string, s
     ['line-height', lineHeightOf(paragraph, family)],
   ]
   if (family !== null) css.unshift(['font-family', fontStackOf(family)])
-  // Sem cor declarada vale o "automático" do Word, que não é cor a gravar.
+  // Without a declared color Word's "automatic" applies, which is not a color to write.
   if (character.color !== undefined) css.push(['color', character.color])
   return css
 }
 
-/** O que o estilo de caractere cala é do parágrafo. */
+/** What the character style leaves unsaid belongs to the paragraph. */
 function declaredCharacterCss(character: StyleCharacterFormat): Array<[string, string]> {
   const declared: Array<[string, string | undefined]> = [
     ['font-family', mapDefined(character.fontFamily, fontStackOf)],
@@ -149,7 +149,7 @@ function lineHeightOf(paragraph: ResolvedStyle['paragraph'], family: string | nu
   }
 }
 
-/** O nome solto das tabelas embutidas ganha aspas e uma família genérica. */
+/** A bare name from the builtin tables gets quotes and a generic family. */
 function fontStackOf(family: string): string {
   if (family.includes(',')) return family
   const generic = /serif|times|roman|cambria|georgia|garamond/i.test(family) ? 'serif' : 'sans-serif'
@@ -168,7 +168,7 @@ function millimeters(value: number | undefined): string {
   return `${value ?? 0}mm`
 }
 
-/** O id vai entre aspas num seletor de atributo: só aspas e barra precisam de escape. */
+/** The id goes in quotes in an attribute selector: only quotes and backslash need escaping. */
 function attributeText(id: string): string {
   return id.replace(/["\\]/g, '\\$&')
 }

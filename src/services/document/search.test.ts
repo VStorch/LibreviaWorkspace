@@ -19,8 +19,7 @@ describe('findOccurrences', () => {
   })
 
   it('não devolve ocorrências sobrepostas', () => {
-    // Sem isso, "substituir tudo" reprocessaria o texto recém-escrito e
-    // poderia não terminar.
+    // Otherwise "replace all" would reprocess the newly written text and might never end.
     expect(findOccurrences('aaaa', 'aa')).toEqual([
       { start: 0, end: 2 },
       { start: 2, end: 4 },
@@ -36,8 +35,8 @@ describe('findOccurrences', () => {
   })
 
   it('mantém as posições alinhadas quando a letra muda de tamanho em minúsculas', () => {
-    // `'İ'.toLowerCase()` tem duas unidades: comparar o texto inteiro em minúsculas
-    // deslocaria as posições seguintes.
+    // `'İ'.toLowerCase()` has two code units: lowercasing the whole text would shift the following
+    // positions.
     const texto = 'İstanbul tem contrato'
     const [ocorrencia] = findOccurrences(texto, 'contrato')
 
@@ -53,9 +52,8 @@ describe('findOccurrences', () => {
   })
 
   it('trata acentuação como caractere comum', () => {
-    // "acao" não encontra "ação": normalizar acentos mudaria as posições e
-    // quebraria a substituição. Se um dia for desejado, precisa de mapa de
-    // índices — não de uma normalização ingênua.
+    // "acao" does not find "ação": normalizing accents would change positions and break
+    // replacement. If ever wanted, it needs an index map, not a naive normalization.
     expect(findOccurrences('ação', 'acao')).toEqual([])
     expect(findOccurrences('ação e ação', 'ação')).toHaveLength(2)
   })

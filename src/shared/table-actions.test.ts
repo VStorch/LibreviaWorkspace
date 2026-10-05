@@ -4,9 +4,8 @@ import { MenuCommand } from './types.js'
 
 describe('ações de tabela', () => {
   it('toda ação é também um comando de menu, com o mesmo nome', () => {
-    // O `App` repassa ao editor pelo nome. Uma ação que não estivesse em
-    // `MenuCommand` seria recusada pelo contrato zod do IPC, e o item do menu
-    // "Tabela" simplesmente não faria nada.
+    // `App` forwards to the editor by name. An action missing from `MenuCommand` would be refused
+    // by the IPC zod contract, and the "Table" menu item would do nothing.
     const commands = new Set<string>(Object.values(MenuCommand))
     for (const action of Object.values(TableAction)) expect(commands.has(action)).toBe(true)
   })
@@ -18,7 +17,7 @@ describe('ações de tabela', () => {
   })
 
   it('só inserir tabela vale fora de uma tabela', () => {
-    // É o que tira do menu de contexto os itens que não teriam o que fazer.
+    // This is what removes from the context menu the items with nothing to act on.
     expect(TABLE_ACTIONS.filter((action) => !action.needsTable).map((action) => action.id)).toEqual([
       TableAction.Insert,
     ])

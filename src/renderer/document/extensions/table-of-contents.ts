@@ -1,14 +1,14 @@
 import { Node } from '@tiptap/core'
 
-/** O padrão do Word: títulos 1 a 3, com link. */
+/** Word's default: headings 1 to 3, with links. */
 export const DEFAULT_TOC_INSTRUCTION = ' TOC \\o "1-3" \\h \\z \\u '
 
 /**
- * No arquivo é um campo `TOC`, quase sempre num `w:sdt`, cujo resultado são
- * parágrafos comuns com link para o `_Toc…` e um `PAGEREF`. O leitor tira o campo
- * dos parágrafos (`instr`); `head` conta os parágrafos antes dele, e `sdt` diz se
- * havia controle de conteúdo (`BodyReader.ReadTableOfContents`). As entradas são
- * editáveis, e "Atualizar sumário" as refaz (`references.ts`).
+ * In the file it is a `TOC` field, almost always in a `w:sdt`, whose result is plain paragraphs
+ * linking to the `_Toc…` and a `PAGEREF`. The reader takes the field from the paragraphs (`instr`);
+ * `head` counts the paragraphs before it, and `sdt` says whether there was a content control
+ * (`BodyReader.ReadTableOfContents`). Entries are editable, and "Update table" rebuilds them
+ * (`references.ts`).
  */
 export const TableOfContents = Node.create({
   name: 'tableOfContents',

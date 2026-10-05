@@ -28,7 +28,10 @@ import { gridPositionOf } from './grid-position.js'
 import { useFormatShortcuts } from './useFormatShortcuts.js'
 import { useTypeAhead } from './useTypeAhead.js'
 
-/** O grid trabalha com linhas de objeto, e o modelo é um mapa esparso por referência A1: a tradução mora aqui. */
+/**
+ * The grid works with object rows, and the model is a sparse map by A1 reference: the translation
+ * lives here.
+ */
 
 type GridRow = Record<string, string>
 
@@ -40,17 +43,17 @@ export function SpreadsheetEditor({
 }: {
   sheet: Sheet
   onChange: (sheet: Sheet) => void
-  /** Operação da **pasta**: uma linha inserida aqui muda `=Dados!A5` escrita em outra aba. */
+  /** A **workbook** operation: a row inserted here changes `=Dados!A5` written on another tab. */
   onStructure: (change: StructuralChange) => void
-  /** Ler e rolar continuam funcionando. */
+  /** Reading and scrolling keep working. */
   readOnly?: boolean
 }): React.JSX.Element {
   const showToolbar = usePreferences((state) => state.preferences.showToolbar)
-  // Para o handler não capturar um estado velho.
+  // So the handler does not capture an old state.
   const current = useRef(sheet)
   current.current = sheet
 
-  // Aqui, e não no grid: a barra de ferramentas precisa dela.
+  // Here, not in the grid: the toolbar needs it.
   const [range, setRange] = useState<Range>(() => singleCell(0, 0))
   const selection = useRef(range)
   selection.current = range
@@ -136,7 +139,8 @@ function useGridModel(sheet: Sheet, current: SheetRef): { columns: ColumnRegular
           name: columnName(index),
           size: sheet.columnWidths[index] ?? DEFAULT_COLUMN_WIDTH,
           resizable: true,
-          // O estilo vive no modelo: sobrevive ao salvar e à rolagem, que recria as células.
+          // The style lives in the model: it survives saving and scrolling, which recreates the
+          // cells.
           cellProperties: ({ rowIndex }) => ({
             style: cellStyleOf(current.current, rowIndex, index),
           }),
@@ -147,7 +151,7 @@ function useGridModel(sheet: Sheet, current: SheetRef): { columns: ColumnRegular
     [sheet],
   )
 
-  /** Uma linha por posição visível, gerada sob demanda do mapa esparso. */
+  /** One row per visible position, generated on demand from the sparse map. */
   const source = useMemo<GridRow[]>(() => {
     const rows: GridRow[] = []
     for (let row = 0; row < sheet.rowCount; row++) {
@@ -171,13 +175,13 @@ function useEditHandlers(
   handleEdit: (event: RevoGridCustomEvent<AfterEditEvent>) => void
   handleEditStart: (event: RevoGridCustomEvent<BeforeSaveDataDetails>) => void
 } {
-  /** Uma célula editada ou um intervalo colado, que chega com outra forma. */
+  /** An edited cell or a pasted range, which arrives in another shape. */
   const handleEdit = useCallback(
     (event: RevoGridCustomEvent<AfterEditEvent>) => {
       const detail = event.detail
       let updated = current.current
 
-      // `newRange` só existe na colagem; `data` os dois declaram.
+      // `newRange` only exists when pasting; both declare `data`.
       if ('newRange' in detail) {
         for (const [row, values] of Object.entries(detail.data)) {
           for (const [prop, value] of Object.entries(values as Record<string, unknown>)) {
@@ -190,13 +194,13 @@ function useEditHandlers(
 
       applyChange(updated)
 
-      // Colar e confirmar com o mouse não passam pelo Enter.
+      // Pasting and confirming with the mouse do not go through Enter.
       typeAhead.begin()
     },
     [applyChange, typeAhead],
   )
 
-  /** Mostra a **fórmula**: sair da célula sem querer gravaria o resultado por cima dela. */
+  /** Shows the **formula**: leaving the cell by accident would write the result over it. */
   const handleEditStart = useCallback((event: RevoGridCustomEvent<BeforeSaveDataDetails>) => {
     const detail = event.detail
     const column = Number.parseInt(String(detail.prop).slice(1), 10)
@@ -248,7 +252,7 @@ function useSelectionHandlers(
     setRange(normalizeRange({ fromRow: area.y, fromColumn: area.x, toRow: area.y1, toColumn: area.x1 }))
   }, [])
 
-  /** Sobre o modelo: o grid copiaria o texto exibido, que numa fórmula é o resultado. */
+  /** On the model: the grid would copy the displayed text, which for a formula is the result. */
   const handleAutofill = useCallback(
     (event: RevoGridCustomEvent<ChangedRange>) => {
       const { oldRange, newRange } = event.detail
@@ -279,11 +283,11 @@ function useSheetMenu(
 } {
   const [menu, setMenu] = useState<MenuPosition | null>(null)
 
-  /** Como no Excel: dentro da seleção age sobre ela; fora, sobre a célula clicada. */
+  /** As in Excel: inside the selection it acts on it; outside, on the clicked cell. */
   const handleContextMenu = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
     event.preventDefault()
 
-    // Cabeçalho e área vazia não trazem posição.
+    // Headers and empty areas carry no position.
     const position = gridPositionOf(event.nativeEvent)
     if (position !== null && !rangeContains(selection.current, position.row, position.column)) {
       setRange(singleCell(position.row, position.column))
@@ -297,7 +301,7 @@ function useSheetMenu(
   return { menu, handleContextMenu, closeMenu }
 }
 
-/** Grade, barras, menu e atalhos escrevem: todos passam por aqui, para nenhum escapar do somente leitura. */
+/** Grid, toolbars, menu and shortcuts write: all go through here, so none escapes read-only. */
 function useGuardedWrites(
   onChange: (sheet: Sheet) => void,
   onStructure: (change: StructuralChange) => void,

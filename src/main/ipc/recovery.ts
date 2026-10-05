@@ -1,4 +1,7 @@
-/** O rascunho é o que estava **na tela**, em formato interno mesmo quando a origem é `.docx` ou `.xlsx`. */
+/**
+ * The draft is what was **on screen**, in the internal format even when the source is `.docx` or
+ * `.xlsx`.
+ */
 
 import { stat } from 'node:fs/promises'
 import { IpcChannel } from '@shared/ipc-channels.js'
@@ -36,8 +39,8 @@ export function registerRecoveryHandlers(): void {
 }
 
 /**
- * A autorização de gravação e os bytes originais morreram com o processo. Se o
- * arquivo sumiu, o trabalho recuperado vira um "salvar como".
+ * The write authorization and the original bytes died with the process. If the file vanished, the
+ * recovered work becomes a "save as".
  */
 async function reattach(path: string): Promise<void> {
   if (!(await exists(path))) return

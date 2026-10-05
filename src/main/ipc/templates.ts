@@ -15,9 +15,8 @@ import { handle } from './registry.js'
 import { MAX_USER_TEMPLATES } from '@shared/limits.js'
 
 /**
- * Os embutidos moram em `resources/templates`; os do usuário em
- * `<userData>/Modelos`, onde "salvar como modelo" os deixa. Abrir passa pelo
- * mesmo `loadFile`.
+ * Builtin templates live in `resources/templates`; the user's in `<userData>/Modelos`, where "save
+ * as template" puts them. Opening goes through the same `loadFile`.
  */
 
 interface BuiltinTemplate {
@@ -26,7 +25,7 @@ interface BuiltinTemplate {
   readonly description: MessageKey
 }
 
-/** O documento em branco primeiro, como no Word. */
+/** The blank document first, as in Word. */
 const BUILTIN_TEMPLATES: readonly BuiltinTemplate[] = [
   {
     file: 'documento-em-branco.dotx',
@@ -50,7 +49,7 @@ const BUILTIN_TEMPLATES: readonly BuiltinTemplate[] = [
   },
 ]
 
-/** Como `fonts.ts`: empacotado é `process.resourcesPath`. */
+/** Like `fonts.ts`: packaged it is `process.resourcesPath`. */
 function builtinRoot(): string {
   const root = app.isPackaged
     ? process.resourcesPath
@@ -71,7 +70,7 @@ function builtinEntries(): TemplateEntry[] {
   }))
 }
 
-/** Sem descer em subpastas. */
+/** Without descending into subfolders. */
 async function userEntries(): Promise<TemplateEntry[]> {
   const folder = userTemplatesFolder()
   let names: string[]
@@ -81,7 +80,7 @@ async function userEntries(): Promise<TemplateEntry[]> {
       .filter((entry) => entry.isFile() && isWordTemplatePath(entry.name))
       .map((entry) => entry.name)
   } catch {
-    // Ninguém salvou modelo ainda.
+    // Nobody has saved a template yet.
     return []
   }
 
@@ -112,7 +111,7 @@ export function registerTemplateHandlers(): void {
   }))
 
   handle(IpcChannel.TemplateOpen, async (payload) => {
-    // O id precisa estar na lista que o próprio main monta.
+    // The id must be in the list main builds itself.
     if (payload.source === 'builtin') {
       const builtin = builtinEntries().find((entry) => entry.id === payload.id)
       if (builtin === undefined)
@@ -138,7 +137,7 @@ export function registerTemplateHandlers(): void {
   handle(IpcChannel.TemplateOpenFolder, async () => {
     const folder = userTemplatesFolder()
     await mkdir(folder, { recursive: true })
-    // `openPath` devolve a mensagem de erro, e não lança.
+    // `openPath` returns the error message instead of throwing.
     const problem = await shell.openPath(folder)
     if (problem !== '') console.warn(`[templates] ${problem}`)
     return { folder }

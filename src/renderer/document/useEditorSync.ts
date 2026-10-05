@@ -13,17 +13,17 @@ export interface EditorSyncState {
   readonly styles: StyleSheet
   readonly preferences: EditorPreferences
   readonly notePool: RefObject<HTMLDivElement | null>
-  /** A paginação mede de novo. */
+  /** Pagination measures again. */
   readonly touch: () => void
 }
 
-/** O editor já montado acompanha a loja e as preferências, sem ser recriado. */
+/** The mounted editor follows the store and the preferences without being recreated. */
 export function useEditorSync(editor: Editor | null, state: EditorSyncState): void {
   const { readOnly, reading, revisionView, styles, preferences, notePool, touch } = state
 
-  // `setEditable` no editor já montado, e com o segundo argumento: recriar o
-  // editor perderia cursor e histórico, e o update padrão marcaria todo arquivo
-  // aberto como "não salvo". O modo de leitura e o Original também travam a edição.
+  // `setEditable` on the mounted editor, with the second argument: recreating the editor would lose
+  // the cursor and the history, and the default update would mark every opened file as unsaved.
+  // Reading mode and Original also lock editing.
   const original = revisionView === RevisionView.Original
   useEffect(() => {
     editor?.setEditable(!readOnly && !reading && !original, false)
@@ -37,11 +37,12 @@ export function useEditorSync(editor: Editor | null, state: EditorSyncState): vo
     return () => setNotePool(view, null)
   }, [editor, notePool])
 
-  // Uma transação sem mudança no documento: a paginação mede de novo, e o escondido não ocupa lugar.
+  // A transaction without document changes: pagination measures again, and hidden text takes no
+  // space.
   useEffect(() => {
     if (editor === null || editor.isDestroyed || revisionViewOf(editor.state) === revisionView) return
     editor.view.dispatch(setRevisionViewMeta(editor.state.tr, revisionView))
-    // O CSS esconde pela classe do modo (`revisions-…`), que o corpo das notas também leva.
+    // CSS hides by the mode class (`revisions-…`), which note bodies also carry.
     for (const body of noteBodiesOf(editor.view)) body.refresh()
     touch()
   }, [editor, revisionView, touch])
@@ -51,19 +52,19 @@ export function useEditorSync(editor: Editor | null, state: EditorSyncState): vo
   }, [editor, styles])
 
   /**
-   * Escrito no elemento: o ProseMirror só lê os atributos ao criar a visão. O
-   * main liga o corretor na sessão; isto é a outra metade.
+   * Written on the element: ProseMirror only reads the attributes when creating the view. Main
+   * turns the spellchecker on in the session; this is the other half.
    */
   useEffect(() => {
     editor?.view.dom.setAttribute('spellcheck', preferences.spellcheck ? 'true' : 'false')
   }, [editor, preferences.spellcheck])
 
-  // A transação das marcas de formatação não muda o documento.
+  // The formatting marks transaction does not change the document.
   useEffect(() => {
     editor?.commands.showInvisibleCharacters(preferences.invisibleCharacters)
   }, [editor, preferences.invisibleCharacters])
 
-  // Sem o painel, sai só o realce: pontas e corpos ficam, e voltam ao arquivo.
+  // Without the pane, only the highlight goes: ends and bodies stay, and go back to the file.
   useEffect(() => {
     if (editor === null || editor.isDestroyed) return
     editor.view.dispatch(focusComment(editor.state.tr, { hidden: !preferences.commentsPane }))

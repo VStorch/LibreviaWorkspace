@@ -8,7 +8,7 @@ import {
   type StyleSheet,
 } from './styles.js'
 
-/** Um documento do Word em português: o id é traduzido, o nome interno não. */
+/** A Portuguese Word document: the id is translated, the internal name is not. */
 const portuguese: StyleSheet = {
   defaults: {
     paragraph: {},
@@ -54,18 +54,18 @@ describe('o estilo do bloco onde está o cursor', () => {
   })
 
   it('ignora um id que o documento não define', () => {
-    // No Word um `w:pStyle` pendurado é silêncio: o parágrafo sai como o padrão.
-    // Mostrar o id mesmo assim seria dizer que o documento tem um estilo que ele
-    // não tem — e é o caso do `.sdoc` que veio de um `.docx` e voltou ao pacote
-    // mínimo, que não define `Ttulo1`.
+    // In Word a dangling `w:pStyle` is silence: the paragraph comes out as the default. Showing the
+    // id anyway would claim the document has a style it does not, which is the case of a `.sdoc`
+    // that came from a `.docx` and went back to the minimal package, which does not define
+    // `Ttulo1`.
     const style = blockStyleOf(portuguese, { type: 'paragraph', styleId: 'Heading1' })
     expect(style?.id).toBe('Padro')
   })
 
   it('acha o título pelo nome interno, e não pelo id', () => {
-    // O id é traduzido e o nome não: é o mesmo critério do leitor e do escritor
-    // (`StyleResolver.HeadingLevelByName`). Pelo id, um título feito na tela
-    // ficaria sem estilo em todo documento que não fosse em inglês.
+    // The id is translated and the name is not: the same criterion as the reader and writer
+    // (`StyleResolver.HeadingLevelByName`). By id, a heading made on screen would lose its style in
+    // every non-English document.
     const style = blockStyleOf(portuguese, { type: 'heading', level: 1 })
     expect(style?.id).toBe('Ttulo1')
   })
@@ -91,15 +91,15 @@ describe('o estilo do bloco onde está o cursor', () => {
 
 describe('a lista que o painel mostra', () => {
   it('deixa de fora o que o documento esconde', () => {
-    // `w:semiHidden` existe para tirar da lista a maquinaria do Word — a fonte
-    // padrão do parágrafo e as dezenas de variantes de tabela que todo documento
-    // declara sem usar. Com elas, o painel é uma lista que ninguém lê.
+    // `w:semiHidden` exists to hide Word's machinery: the default paragraph font and the dozens of
+    // table variants every document declares without using. With them, the panel is a list nobody
+    // reads.
     expect(listedStyles(portuguese).map((style) => style.id)).toEqual(['Citao', 'Ttulo1', 'Padro'])
   })
 
   it('ordena pela prioridade que o documento declara', () => {
-    // A ordem do Word: prioridade primeiro. `Padro` não declara nenhuma, e vai
-    // para o fim — não para o começo, que é onde um `?? 0` o poria.
+    // Word's order: priority first. `Padro` declares none and goes to the end, not the start, which
+    // is where a `?? 0` would put it.
     const priorities = listedStyles(portuguese).map((style) => style.uiPriority ?? 100)
     expect(priorities).toEqual([...priorities].sort((left, right) => left - right))
   })
@@ -112,8 +112,8 @@ describe('a lista que o painel mostra', () => {
 
 describe('o nome do estilo na tela', () => {
   it('traduz o nome interno dos títulos', () => {
-    // `heading 1` é a forma que o arquivo exige para o Word reconhecer um título.
-    // Mostrá-la seria mostrar o arquivo, e não o documento.
+    // `heading 1` is the form the file needs for Word to recognize a heading. Showing it would show
+    // the file, not the document.
     const heading = BUILTIN_STYLES.styles['Heading1'] as StyleDefinition
     expect(styleLabelOf(heading)).toBe('Título 1')
   })

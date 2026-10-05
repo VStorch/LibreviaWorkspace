@@ -17,10 +17,10 @@ import {
 } from '@services/document/list-numbering.js'
 
 /**
- * Na tela, por **decoração**: gravar a marca no nó faria cada item parecer
- * editado quando uma lista acima muda. No papel, pelo atributo `listDraw`, só na
- * cópia serializada (`drawListsForPrint`), porque o serializador não vê
- * decorações. Os dois produzem os mesmos atributos.
+ * On screen, through **decorations**: storing the label on the node would make every item look
+ * edited when a list above changes. On paper, through the `listDraw` attribute, only on the
+ * serialized copy (`drawListsForPrint`), because the serializer does not see decorations. Both
+ * produce the same attributes.
  */
 
 export const PM_LIST_READER: ListTreeReader<ProseMirrorNode> = {
@@ -37,7 +37,7 @@ function decorationsOf(doc: ProseMirrorNode, numbering: ListCount): DecorationSe
   let list = 0
   let item = 0
 
-  // Pré-ordem, como `numberLists`; o item só conta quando é filho de lista.
+  // Pre-order, like `numberLists`; an item only counts as a list's child.
   const walk = (node: ProseMirrorNode, pos: number, parentIsList: boolean): void => {
     const isList = LIST_TYPES.includes(node.type.name)
     if (isList) {
@@ -54,7 +54,7 @@ function decorationsOf(doc: ProseMirrorNode, numbering: ListCount): DecorationSe
   return DecorationSet.create(doc, decorations)
 }
 
-/** Só o que tem lista dentro é reconstruído. */
+/** Only what contains a list is rebuilt. */
 export function drawListsForPrint(doc: ProseMirrorNode): ProseMirrorNode[] {
   const numbering = numberLists(doc, PM_LIST_READER)
   let list = 0
@@ -94,9 +94,8 @@ function hasList(node: ProseMirrorNode): boolean {
 }
 
 /**
- * A chave vem do documento de origem e pode existir aqui com outra definição.
- * Mesma chave com os mesmos níveis é cópia de dentro do documento, e continua,
- * como no Word.
+ * The key comes from the source document and may exist here with another definition. The same key
+ * with the same levels is a copy from within the document, and continues, as in Word.
  */
 export function renamePastedKeys(slice: Slice, doc: ProseMirrorNode): Slice {
   const existing = new Map<string, string>()
@@ -132,7 +131,7 @@ export function renamePastedKeys(slice: Slice, doc: ProseMirrorNode): Slice {
   return changed ? new Slice(Fragment.fromArray(content), slice.openStart, slice.openEnd) : slice
 }
 
-/** O nível do item, a contar de 1. */
+/** From 1. */
 export function listDepthAt(node: { depth: number; node: (depth: number) => ProseMirrorNode }): number {
   let depth = 0
   for (let level = node.depth; level > 0; level--) {
@@ -144,11 +143,11 @@ export function listDepthAt(node: { depth: number; node: (depth: number) => Pros
 declare module '@tiptap/core' {
   interface Commands<ReturnType> {
     listNumbering: {
-      /** "Reiniciar em 1" e "Definir valor inicial": a lista passa a contar à parte, a partir de `start`. */
+      /** "Restart at 1" and "Set numbering value": the list counts on its own from `start`. */
       restartListNumbering: (start?: number) => ReturnType
-      /** "Continuar numeração": a lista passa a contar com a anterior do mesmo tipo. */
+      /** "Continue numbering": the list counts along with the previous one of the same kind. */
       continueListNumbering: () => ReturnType
-      /** Troca os níveis da lista em que está o cursor — ou cria a lista com eles. */
+      /** Replaces the levels of the cursor's list, or creates the list with them. */
       applyListLevels: (kind: string, levels: readonly LevelDef[]) => ReturnType
     }
   }
@@ -181,12 +180,12 @@ function innermostList(state: EditorState): { pos: number; depth: number } | nul
   return null
 }
 
-/** Só até a gravação: o sidecar cria o `w:num`, e a chave passa a ser a dele (`n12`). */
+/** Only until saving: the sidecar creates the `w:num`, and the key becomes its own (`n12`). */
 function freshKey(): string {
   return `nova-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
 }
 
-/** As sublistas herdam o `numId` da de fora, e vão junto. */
+/** Sublists inherit the outer list's `numId` and go along. */
 function assignDefinition(
   tr: Transaction,
   target: ListEntry,
@@ -205,7 +204,7 @@ function entryAt(tr: Transaction, pos: number): ListEntry | null {
   return listEntries(tr.doc).find((entry) => entry.pos === pos) ?? null
 }
 
-/** Como o Word faz com "Reiniciar em 1" no meio de uma lista. */
+/** As Word does with "Restart at 1" in the middle of a list. */
 function splitAtCursor(state: EditorState, tr: Transaction, list: { pos: number; depth: number }): number {
   const { $from } = state.selection
   const index = $from.index(list.depth)
@@ -244,7 +243,7 @@ const continuePrevious =
     const current = entries.find((entry) => entry.pos === list.pos)
     if (current === undefined) return false
 
-    // A anterior do mesmo tipo, de preferência no mesmo nível, como o Word procura.
+    // The previous one of the same kind, preferably at the same level, as Word searches.
     const candidates = entries.filter(
       (entry) =>
         entry.pos < current.pos &&
@@ -256,7 +255,8 @@ const continuePrevious =
     if (previous === undefined || previous.info.key === current.info.key) return false
     if (dispatch === undefined) return true
 
-    // A lista nova ainda sem gravar ganha chave estável: a da conta vem da posição e mudaria.
+    // A new, unsaved list gets a stable key: the computed one comes from the position and would
+    // change.
     let def = previous.info.def
     if (def.key.startsWith('nova') && !def.key.startsWith('nova-')) {
       def = { ...def, key: freshKey() }
@@ -278,7 +278,7 @@ const applyLevels =
     if (!LIST_TYPES.includes(kind)) return false
     let list = innermostList(state)
     if (list === null) {
-      // Fora de lista, vira lista primeiro: um passo de desfazer para os dois.
+      // Outside a list, it becomes a list first: one undo step for both.
       if (!(kind === 'bulletList' ? commands.toggleBulletList() : commands.toggleOrderedList())) return false
       list = innermostList(state.apply(tr))
       if (list === null) return false
@@ -291,9 +291,9 @@ const applyLevels =
     return true
   }
 
-/** O tipo do nó segue o nível, como o leitor faria ao reabrir. */
+/** The node type follows the level, as the reader would do on reopen. */
 function relabelList(tr: Transaction, schema: Schema, target: ListEntry, levels: readonly LevelDef[]): void {
-  // Os níveis que não mudaram são copiados da definição de origem na gravação.
+  // Unchanged levels are copied from the source definition when saving.
   const abstractId = target.info.def.abstractId
   const def: NumberingDef = {
     key: freshKey(),
@@ -325,7 +325,10 @@ export const ListNumbering = Extension.create({
       {
         types: [...LIST_TYPES],
         attributes: {
-          /** Os nove níveis, a chave e o reinício. Em HTML vai como JSON, para copiar e colar levar a numeração. */
+          /**
+           * The nine levels, the key and the restart. In HTML it goes as JSON, so copy and paste
+           * carry the numbering.
+           */
           numbering: {
             default: null,
             parseHTML: (element) => {
@@ -342,7 +345,7 @@ export const ListNumbering = Extension.create({
                 ? {}
                 : { 'data-numbering': JSON.stringify(attributes['numbering']) },
           },
-          /** O nível do arquivo, quando a árvore não o diz sozinha (`w:ilvl`). */
+          /** The file's level, when the tree does not say it (`w:ilvl`). */
           level: {
             default: null,
             parseHTML: (element) => {
@@ -357,7 +360,7 @@ export const ListNumbering = Extension.create({
       {
         types: [...LIST_TYPES, 'listItem'],
         attributes: {
-          /** Só na cópia para o papel; nunca lido do HTML, senão o item pareceria editado. */
+          /** Only on the copy for paper; never read from HTML, or the item would look edited. */
           listDraw: {
             default: null,
             keepOnSplit: false,
@@ -382,7 +385,7 @@ export const ListNumbering = Extension.create({
 
   addKeyboardShortcuts() {
     return {
-      // O Word não passa do nono nível.
+      // Word does not go past the ninth level.
       Tab: ({ editor }) =>
         editor.isActive('listItem') && listDepthAt(editor.state.selection.$from) >= LIST_LEVELS,
     }

@@ -33,21 +33,22 @@ function windowOf(event: IpcMainInvokeEvent): BrowserWindow {
 }
 
 /**
- * O modelo do Word abre como documento novo, e o caminho dele **não** é
- * autorizado: nada grava por cima do modelo. `templateName` é o nome do
- * documento novo — o do modelo embutido, traduzido; ausente, o do arquivo.
+ * A Word template opens as a new document, and its path is **not** authorized: nothing writes over
+ * the template. `templateName` is the new document's name: the builtin template's, translated; when
+ * absent, the file's.
  */
 export async function loadFile(path: string, templateName?: string): Promise<LoadedFile> {
   await assertReadableFile(path)
 
-  // DOCX e XLSX viram formato interno aqui: o renderer nunca vê OOXML.
+  // DOCX and XLSX become the internal format here: the renderer never sees OOXML.
   const loaded = isWordPackagePath(path)
     ? await openDocx(sidecar(), path)
     : isExcelPath(path)
       ? await openXlsx(sidecar(), path)
       : { content: await readTextFile(path), inventory: undefined }
 
-  // Os bytes originais valem para **um** arquivo: senão a próxima gravação escreveria no pacote errado.
+  // The original bytes apply to **one** file: otherwise the next save would write into the wrong
+  // package.
   if (!isWordPackagePath(path)) forgetOpenedDocx()
   if (!isExcelPath(path)) forgetOpenedXlsx()
 
@@ -88,7 +89,8 @@ export function registerFileHandlers(): void {
   })
 
   handle(IpcChannel.FileOpenRecent, async (payload) => {
-    // O renderer não escolhe caminhos: só recentes ou pedidos do Explorer recebidos pelo main.
+    // The renderer does not choose paths: only recent files or file manager requests received by
+    // main.
     if (!isRemembered(payload.path) && !isExternalFileRequested(payload.path)) {
       throw new AppError(ErrorCode.PathNotAuthorized, t('errors.ipc.notInRecents'))
     }
@@ -102,7 +104,7 @@ export function registerFileHandlers(): void {
   handle(IpcChannel.FileSave, async (payload) => {
     const path = assertPathAuthorized(payload.path)
 
-    // `.docx` e `.xlsx` vão ao sidecar, que reescreve só o que foi tocado.
+    // `.docx` and `.xlsx` go to the sidecar, which rewrites only what was touched.
     const word = isWordPackagePath(path)
       ? await saveDocx(sidecar(), payload.content, {
           origin: payload.origin,
@@ -125,7 +127,7 @@ export function registerFileHandlers(): void {
     const chosen = await showSaveFileDialog(windowOf(event), payload.suggestedName, payload.kind)
     if (chosen === null) return { canceled: true as const }
 
-    // Só autoriza: a gravação é outra chamada, para o aviso de perda vir antes de escrever.
+    // Only authorizes: writing is another call, so the loss warning comes before writing.
     const path = authorizePath(ensureSupportedExtension(chosen, payload.kind))
     return { canceled: false as const, path, name: fileNameFromPath(path) }
   })

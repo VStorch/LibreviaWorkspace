@@ -30,14 +30,14 @@ function numberFormats(t: (key: MessageKey) => string) {
 const ALL_SIDES: readonly BorderSide[] = ['top', 'right', 'bottom', 'left']
 
 /**
- * Age sobre a **seleção**. O botão acende quando *toda* a seleção tem o estilo,
- * a mesma regra do clique; os controles são os da barra do documento.
+ * Acts on the **selection**. A button lights up when *all* of the selection has the style, the same
+ * rule as the click; the controls are the document toolbar's.
  */
 export function SpreadsheetToolbar(props: ToolbarGroupProps): React.JSX.Element {
   const t = useT()
   return (
     <div className="toolbar" role="toolbar" aria-label={t('spreadsheet.toolbar.label')}>
-      {/* A referência da seleção mora na barra de fórmulas, como no Excel. */}
+      {/* The selection reference lives in the formula bar, as in Excel. */}
       <TextFormatGroup {...props} />
       <ToolbarSeparator />
       <AlignmentGroup {...props} />
@@ -179,7 +179,7 @@ function PaneGroup({ sheet, range, onChange }: ToolbarGroupProps): React.JSX.Ele
   const t = useT()
   return (
     <ToolbarGroup label={t('spreadsheet.toolbar.panes')}>
-      {/* Tudo acima e à esquerda da seleção fica preso, como no Excel. */}
+      {/* Everything above and left of the selection is frozen, as in Excel. */}
       <ToolbarButton
         icon="freeze"
         label={t('spreadsheet.toolbar.freeze')}
@@ -195,7 +195,7 @@ function PaneGroup({ sheet, range, onChange }: ToolbarGroupProps): React.JSX.Ele
   )
 }
 
-/** Só o atributo em que todas as células concordam. */
+/** Only the attribute all cells agree on. */
 function styleOfSelection(sheet: Sheet, range: Range): CellStyle {
   const first = getCell(sheet, range.fromRow, range.fromColumn)?.style ?? {}
   const common: Record<string, unknown> = { ...first }

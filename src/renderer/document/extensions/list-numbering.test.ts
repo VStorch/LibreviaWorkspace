@@ -12,7 +12,7 @@ const item = (text: string, ...nested: unknown[]) => ({
   content: [{ type: 'paragraph', content: [{ type: 'text', text }] }, ...nested],
 })
 
-/** Os atributos que o nó põe no elemento, sem precisar de DOM. */
+/** The attributes the node puts on the element, without a DOM. */
 function renderedAttrs(node: ProseMirrorNode): Record<string, unknown> {
   const spec = node.type.spec.toDOM!(node) as DOMOutputSpec
   const attrs = Array.isArray(spec) ? spec[1] : null

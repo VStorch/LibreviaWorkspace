@@ -1,4 +1,6 @@
-/** Números de série a partir de 1899-12-30 (ver `format.ts`): a diferença entre datas é uma subtração. */
+/**
+ * Serial numbers from 1899-12-30 (see `format.ts`): the difference between dates is a subtraction.
+ */
 
 import { dateToSerial, serialToDate } from '../../format.js'
 import { FormulaError, isFormulaError } from '../errors.js'
@@ -33,21 +35,21 @@ export const DATE: readonly FunctionDefinition[] = [
     const day = numberArg(args[2])
     if (isFormulaError(day)) return day
 
-    // Mês treze é janeiro do ano seguinte, no `Date` e no Excel.
+    // Month thirteen is January of the next year, in `Date` and in Excel.
     const date = new Date(Math.trunc(year), Math.trunc(month) - 1, Math.trunc(day))
     const serial = dateToSerial(date)
     return serial < 0 ? FormulaError.Num : serial
   }),
 
-  // UTC, porque `serialToDate` monta a data em UTC; em fuso local a oeste de
-  // Greenwich viria o dia anterior.
+  // UTC, because `serialToDate` builds the date in UTC; in a local time zone west of Greenwich the
+  // previous day would come out.
   define(['ANO', 'YEAR'], 1, 1, (args) => partOf(numberArg(args[0]), (date) => date.getUTCFullYear())),
   define(['MÊS', 'MES', 'MONTH'], 1, 1, (args) =>
     partOf(numberArg(args[0]), (date) => date.getUTCMonth() + 1),
   ),
   define(['DIA', 'DAY'], 1, 1, (args) => partOf(numberArg(args[0]), (date) => date.getUTCDate())),
 
-  /** Domingo vale um, como no Excel. */
+  /** Sunday is one, as in Excel. */
   define(['DIA.DA.SEMANA', 'WEEKDAY'], 1, 2, (args) => {
     const day = partOf(numberArg(args[0]), (date) => date.getUTCDay())
     if (isFormulaError(day)) return day

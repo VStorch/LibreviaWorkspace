@@ -1,9 +1,9 @@
 import { MATH_BOX_CLASS, sanitizeMathMl, type MathChild, type MathElement } from './mathml.js'
 
 /**
- * O editor de equações precisa de texto para editar a equação vinda do `.docx`.
- * O alvo é o LaTeX que o Temml lê de volta com a mesma estrutura, e não o mais
- * bonito. Entra o MathML já filtrado (`sanitizeMathMl`), do sidecar ou do Temml.
+ * The equation editor needs text to edit an equation from a `.docx`. The target is LaTeX that Temml
+ * reads back with the same structure, not the prettiest one. Input is MathML already filtered
+ * (`sanitizeMathMl`), from the sidecar or from Temml.
  */
 
 const GREEK: Readonly<Record<string, string>> = {
@@ -136,7 +136,7 @@ const SYMBOLS: Readonly<Record<string, string>> = {
   '⌉': '\\rceil',
 }
 
-/** Os nomes de função do LaTeX: `\sin`, `\log`… — o Temml põe o U+2061 depois deles sozinho. */
+/** LaTeX function names: `\sin`, `\log`…; Temml adds U+2061 after them on its own. */
 const FUNCTIONS = new Set([
   'sin',
   'cos',
@@ -170,7 +170,7 @@ const FUNCTIONS = new Set([
   'Pr',
 ])
 
-/** Os n-ários: o somatório e companhia, que levam os limites por cima e por baixo. */
+/** N-ary operators: sums and friends, with limits above and below. */
 const NARY = new Set(['∑', '∏', '∐', '∫', '∬', '∭', '∮', '⋃', '⋂', '⋁', '⋀'])
 const INTEGRALS = new Set(['∫', '∬', '∭', '∮'])
 
@@ -210,7 +210,7 @@ const SPACES: Readonly<Record<string, string>> = {
   '-0.1667em': '\\!',
 }
 
-/** Os ambientes de matriz pelo par de delimitadores em volta. */
+/** Matrix environments by the surrounding delimiter pair. */
 const MATRICES: Readonly<Record<string, string>> = {
   '()': 'pmatrix',
   '[]': 'bmatrix',
@@ -219,7 +219,7 @@ const MATRICES: Readonly<Record<string, string>> = {
   '‖‖': 'Vmatrix',
 }
 
-/** Os alfabetos matemáticos do Unicode e o comando de cada um (U+1D400…). */
+/** Unicode math alphabets and their commands (U+1D400…). */
 const ALPHABETS: readonly { readonly start: number; readonly command: string; readonly digits?: boolean }[] =
   [
     { start: 0x1d400, command: '\\mathbf' },
@@ -236,7 +236,7 @@ const ALPHABETS: readonly { readonly start: number; readonly command: string; re
     { start: 0x1d7f6, command: '\\mathtt', digits: true },
   ]
 
-/** As letras que o Unicode já tinha no bloco Letterlike e deixou fora dos alfabetos. */
+/** Letters Unicode already had in the Letterlike block and left out of the alphabets. */
 const HOLES: Readonly<Record<string, readonly [string, string]>> = {
   ℎ: ['\\mathit', 'h'],
   ℬ: ['\\mathcal', 'B'],
@@ -261,7 +261,7 @@ const HOLES: Readonly<Record<string, readonly [string, string]>> = {
   ℤ: ['\\mathbb', 'Z'],
 }
 
-/** O comando LaTeX de um símbolo (`α` → `\alpha`), ou `null` quando ele não tem nome. */
+/** `α` → `\alpha`, or `null` when it has no name. */
 export function latexOfSymbol(char: string): string | null {
   return GREEK[char] ?? SYMBOLS[char] ?? null
 }
@@ -270,13 +270,16 @@ export function mathMlToLatex(tree: MathElement): string {
   return row(tree.children)
 }
 
-/** O que ela guarda, ou o que sai do MathML na que nunca passou pelo editor. */
+/**
+ * What the equation stores, or what comes from the MathML for one that never went through the
+ * editor.
+ */
 export function latexOfEquation(attrs: Readonly<Record<string, unknown>> | undefined): string {
   const latex = typeof attrs?.['latex'] === 'string' ? attrs['latex'].trim() : ''
   if (latex !== '') return latex
   const tree = sanitizeMathMl(typeof attrs?.['mathml'] === 'string' ? attrs['mathml'] : '')
   if (tree === null) return ''
-  // O LaTeX que veio junto (o `annotation` do KaTeX, da Wikipédia), quando há.
+  // The LaTeX that came along (KaTeX's `annotation`, from Wikipedia), when there is one.
   const semantics = tree.children.find(
     (child): child is MathElement => typeof child !== 'string' && child.tag === 'semantics',
   )
@@ -304,7 +307,6 @@ function textOf(node: MathElement): string {
   return node.children.map((child) => (typeof child === 'string' ? child : textOf(child))).join('')
 }
 
-/** O `mrow` de um filho só, sem o embrulho. */
 function unwrapped(node: MathElement): MathElement {
   let current = node
   while (current.tag === 'mrow' && current.attrs['class'] === undefined) {
@@ -344,8 +346,8 @@ function naryOperator(node: MathElement): string | null {
 }
 
 /**
- * Junta os pedaços: depois de uma palavra de controle (`\alpha`) vem um espaço
- * quando o pedaço seguinte começa com letra, senão `\alphax` seria outro comando.
+ * A control word (`\alpha`) is followed by a space when the next piece starts with a letter,
+ * otherwise `\alphax` would be another command.
  */
 function join(parts: readonly string[]): string {
   let result = ''
@@ -367,14 +369,14 @@ function row(children: readonly MathChild[]): string {
 
     if (isApply(item)) continue
     if (item.tag === 'mspace') {
-      // O espaço que o Temml põe em volta do nome de função não é da pessoa.
+      // The space Temml puts around a function name is not the user's.
       if (isApply(previous) || (next !== undefined && functionName(next) !== null)) continue
       parts.push(SPACES[item.attrs['width'] ?? ''] ?? '')
       continue
     }
 
-    // O nome seguido do U+2061 é função; o que o LaTeX não conhece por nome
-    // (o `sen` do português) vai por `\operatorname`, que traz o U+2061 junto.
+    // A name followed by U+2061 is a function; what LaTeX does not know by name (Portuguese `sen`)
+    // goes through `\operatorname`, which brings the U+2061 along.
     if (isApply(next)) {
       const name = functionName(item)
       if (name !== null) {
@@ -397,7 +399,7 @@ function group(node: MathElement | undefined): string {
   return `{${inner}}`
 }
 
-/** A base de um índice: sem chaves quando é uma ficha só. */
+/** Without braces when it is a single token. */
 function base(node: MathElement | undefined): string {
   if (node === undefined) return '{}'
   const written = group(node)
@@ -497,7 +499,7 @@ function limits(item: MathElement, args: readonly MathElement[]): string {
   return item.tag === 'munder' ? underMark(item, first, under!) : overMark(first, over!)
 }
 
-/** O operador grande ou a função que leva limites, como `\sum` e `\lim`. */
+/** A large operator or a function with limits, like `\sum` and `\lim`. */
 function largeOperatorHead(first: MathElement): string | null {
   const nary = naryOperator(first)
   if (nary !== null) return SYMBOLS[nary] ?? nary
@@ -523,8 +525,8 @@ function overMark(first: MathElement, over: MathElement): string {
   if (chr === '⏞' && stretchy) return `\\overbrace${body}`
   if ((chr === '‾' || chr === '¯') && stretchy) return `\\overline${body}`
   if (chr !== null && !stretchy && ACCENTS[chr] !== undefined) return `${ACCENTS[chr]}${body}`
-  // `\stackrel`, e não `\overset`: no Temml este vira `msup`, e o limite por
-  // cima (`m:limUpp`) voltaria como expoente.
+  // `\stackrel`, not `\overset`: Temml turns the latter into `msup`, and the upper limit
+  // (`m:limUpp`) would come back as an exponent.
   return `\\stackrel${group(over)}${body}`
 }
 
@@ -622,7 +624,7 @@ function styledLetter(code: number): readonly [string, string] | null {
   return null
 }
 
-/** As letras de alfabeto matemático (`𝐯`, `ℝ`) no comando de cada uma: `\mathbf{v}`, `\mathbb{R}`. */
+/** `𝐯`, `ℝ` → `\mathbf{v}`, `\mathbb{R}`. */
 function styled(text: string): string | null {
   const runs: { command: string; letters: string }[] = []
   for (const char of text) {

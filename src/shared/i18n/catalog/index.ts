@@ -12,7 +12,10 @@ import { SPREADSHEET } from './spreadsheet.js'
 import { TABLE } from './table.js'
 import { VIEW } from './view.js'
 
-/** O espalhamento é raso: chave repetida entre áreas some em silêncio, e o teste de contrato a acusa. */
+/**
+ * The spread is shallow: a key repeated across areas vanishes silently, and the contract test
+ * catches it.
+ */
 export const MESSAGES = {
   ...MENU,
   ...TABLE,
@@ -30,7 +33,7 @@ export const MESSAGES = {
 
 export type MessageKey = keyof typeof MESSAGES
 
-/** As áreas, por nome — o teste de contrato precisa delas separadas. */
+/** The contract test needs the areas apart. */
 export const AREAS: Readonly<Record<string, Readonly<Record<string, Entry>>>> = {
   menu: MENU,
   table: TABLE,

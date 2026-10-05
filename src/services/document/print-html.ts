@@ -1,15 +1,14 @@
 import { DOCUMENT_CONTENT_CSS, NOTES_CSS, PRINT_ONLY_CSS } from './content-styles.js'
 
 /**
- * O corpo vem do próprio editor (`editor.getHTML()`). Tamanho de página e
- * margens são do `printToPDF` (`@services/pdf/page-setup.ts`). `extraCss` é para
- * a planilha.
+ * The body comes from the editor itself (`editor.getHTML()`). Page size and margins belong to
+ * `printToPDF` (`@services/pdf/page-setup.ts`). `extraCss` is for spreadsheets.
  */
 export function buildPrintHtml(
   bodyHtml: string,
   title: string,
   extraCss = '',
-  /** O documento paginado **não** se envolve: cada folha traz o seu `.page__content`. */
+  /** A paginated document is **not** wrapped: each sheet brings its own `.page__content`. */
   wrapInContent = true,
 ): string {
   return `<!doctype html>

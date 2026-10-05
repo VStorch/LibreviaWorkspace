@@ -47,14 +47,14 @@ import { cellBordersFromAttr, type CellBorder } from './table-format.js'
 import { zip, type Deflate, type ZipEntry } from './zip.js'
 
 /**
- * Feita aqui, e não no sidecar, porque a cascata de estilos, a conta das listas
- * e a das notas já moram em `@services/document`. Estilos nomeados viram estilos
- * nomeados do ODT; a formatação direta, estilo automático que herda deles. Tudo
- * o que vem do documento é escapado, e só links seguros viram link.
+ * Done here, not in the sidecar, because the style cascade, list numbering and note numbering
+ * already live in `@services/document`. Named styles become ODT named styles; direct formatting, an
+ * automatic style inheriting from them. Everything from the document is escaped, and only safe
+ * links become links.
  */
 
 export interface OdtExportOptions {
-  /** O programa que gerou o arquivo, para o `meta:generator`. */
+  /** For `meta:generator`. */
   readonly generator?: string
 }
 
@@ -83,14 +83,14 @@ const NAMESPACES = [
 
 const XML_HEAD = '<?xml version="1.0" encoding="UTF-8"?>\n'
 
-/** A margem de célula padrão do Word: 0,19 cm dos lados, nada em cima e embaixo. */
+/** Word's default cell margin: 0.19 cm on the sides, nothing above and below. */
 const CELL_PADDING =
   ' fo:padding-left="1.9mm" fo:padding-right="1.9mm" fo:padding-top="0mm" fo:padding-bottom="0mm"'
 
-/** A borda da tabela que não declara a sua — a mesma fina da tela. */
+/** For a table that declares none: the same thin border as the screen. */
 const DEFAULT_BORDER = '0.5pt solid #000000'
 
-/** O pacote, entrada por entrada, na ordem do arquivo: o `mimetype` primeiro e guardado. */
+/** In file order: `mimetype` first and stored. */
 export function odtEntries(model: OdtModel, options: OdtExportOptions = {}): ZipEntry[] {
   const writer = new OdtWriter(model)
   const content = writer.content()
@@ -115,7 +115,7 @@ export function odtEntries(model: OdtModel, options: OdtExportOptions = {}): Zip
   return entries
 }
 
-/** O arquivo `.odt` pronto. Sem `deflate`, tudo sai guardado — ainda um pacote válido. */
+/** Without `deflate`, everything is stored, still a valid package. */
 export function exportOdt(model: OdtModel, options: OdtExportOptions = {}, deflate?: Deflate): Uint8Array {
   return zip(odtEntries(model, options), deflate)
 }
@@ -124,11 +124,11 @@ interface Picture {
   readonly path: string
   readonly mime: string
   readonly bytes: Uint8Array
-  /** Largura e altura em pixels, lidas do cabeçalho do arquivo, quando dá. */
+  /** Read from the file header, when possible. */
   readonly size: { readonly width: number; readonly height: number } | null
 }
 
-/** As imagens do pacote, uma vez cada — a mesma figura repetida é um arquivo só. */
+/** Each picture once: a repeated image is a single file. */
 class PictureBook {
   private readonly bySource = new Map<string, Picture>()
 
@@ -159,16 +159,16 @@ class PictureBook {
 }
 
 interface Formula {
-  /** A pasta do objeto no pacote, `Object 1` — sem a barra do fim. */
+  /** `Object 1`, without the trailing slash. */
   readonly path: string
-  /** O `content.xml` do objeto: o MathML da equação, que é o que o ODF guarda nele. */
+  /** The equation MathML, which is what ODF stores there. */
   readonly content: string
 }
 
 /**
- * As equações do pacote: cada uma é um objeto de fórmula embutido, uma subpasta
- * com o MathML — como o LibreOffice Math grava. Sem a imagem de substituição
- * (`ObjectReplacements/`): quem abre o arquivo desenha a fórmula.
+ * Each equation is an embedded formula object, a subfolder with the MathML, as LibreOffice Math
+ * writes it. Without the replacement image (`ObjectReplacements/`): whoever opens the file draws
+ * the formula.
  */
 class FormulaBook {
   private readonly formulas: Formula[] = []
@@ -186,9 +186,8 @@ class FormulaBook {
 }
 
 /**
- * O tamanho do quadro da equação, estimado: quem desenha a fórmula a ajusta, mas
- * o quadro precisa de um tamanho para a linha não pular quando ninguém desenha.
- * A largura sai do texto; a altura, de quantas coisas a equação empilha.
+ * Estimated: whoever draws the formula adjusts it, but the frame needs a size so the line does not
+ * jump when nobody draws. Width comes from the text; height from how much the equation stacks.
  */
 export function formulaSizeMm(tree: MathElement): { width: number; height: number } {
   const STACKED = new Set(['mfrac', 'munder', 'mover', 'munderover', 'mtable'])
@@ -204,7 +203,7 @@ export function formulaSizeMm(tree: MathElement): { width: number; height: numbe
   return { width: Math.max(3, Math.min(170, chars * 2.2 + 1)), height: Math.min(120, 5 + levels(tree) * 3.5) }
 }
 
-/** A largura e a altura gravadas no PNG, no GIF ou no JPEG; `null` nos outros. */
+/** Recorded in PNG, GIF or JPEG; `null` for the rest. */
 export function pixelSizeOf(bytes: Uint8Array): { width: number; height: number } | null {
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength)
   if (bytes.length >= 24 && bytes[0] === 0x89 && bytes[1] === 0x50) {
@@ -227,12 +226,12 @@ function jpegSizeOf(bytes: Uint8Array, view: DataView): { width: number; height:
   return null
 }
 
-/** SOF0 a SOF15, menos DHT (C4), JPG (C8) e DAC (CC). */
+/** SOF0 to SOF15, except DHT (C4), JPG (C8) and DAC (CC). */
 function isStartOfFrame(marker: number): boolean {
   return marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc
 }
 
-/** Para onde vai a quebra ou a página mestra pendente: o próximo bloco do fluxo. */
+/** Where the pending break or master page goes: the next block in the flow. */
 interface Pending {
   breakBefore: 'page' | null
   master: { readonly name: string; readonly pageNumber: number | 'auto' } | null
@@ -245,15 +244,15 @@ class OdtWriter {
   private readonly sheet: StyleSheet
   private readonly source: ExportSource
   private readonly sections: PageSetup[]
-  /** O nome ODF de cada estilo do documento, por id. */
+  /** By document style id. */
   private readonly styleNames = new Map<string, string>()
-  /** Os estilos de título que o documento não define e o arquivo precisa. */
+  /** Heading styles the document does not define and the file needs. */
   private readonly fallbackHeadings = new Map<number, string>()
   private frameCount = 0
   private tableCount = 0
   private sectionCount = 0
 
-  /** A seção em que o texto está — a largura da tabela sem larguras declaradas sai dela. */
+  /** The section the text is in: a table without declared widths takes its width from it. */
   currentPage: PageSetup
 
   constructor(readonly model: OdtModel) {
@@ -290,7 +289,7 @@ class OdtWriter {
       const columns = Math.round(section.columns?.count ?? 1)
       body.push(columns > 1 ? this.columnSection(book, section, inner) : inner)
     }
-    // O documento sem bloco nenhum ainda precisa da página mestra no primeiro parágrafo.
+    // A document without any block still needs the master page in the first paragraph.
     if (body.join('') === '' || pending.master !== null) body.push(renderer.emptyParagraph())
 
     return (
@@ -301,7 +300,7 @@ class OdtWriter {
     )
   }
 
-  /** O `styles.xml`: os estilos nomeados, as notas, as páginas e as faixas. */
+  /** Named styles, notes, pages and bands. */
   styles(): string {
     const book = new StyleBook('M')
     const pending: Pending = { breakBefore: null, master: null }
@@ -342,7 +341,7 @@ class OdtWriter {
     )
   }
 
-  /** O nome do estilo de parágrafo que o bloco aponta, como a cascata o escolhe. */
+  /** As the cascade picks it. */
   paragraphStyleName(node: DocumentNode): string {
     const id = node.attrs?.['styleId']
     if (
@@ -375,7 +374,7 @@ class OdtWriter {
     return this.sheet.styles[id]?.type === StyleType.Character ? (this.styleNames.get(id) ?? null) : null
   }
 
-  /** O nível de estrutura do bloco (1 a 9), ou `null` para o corpo de texto. */
+  /** 1 to 9, or `null` for body text. */
   outlineLevelOf(node: DocumentNode): number | null {
     if (node.type === 'heading') {
       const level = Number(node.attrs?.['level'])
@@ -392,7 +391,7 @@ class OdtWriter {
     return ++this.tableCount
   }
 
-  /** A seção de colunas: o ODF as põe num `text:section`, que pode começar no meio da folha. */
+  /** ODF puts columns in a `text:section`, which can start mid-sheet. */
   private columnSection(book: StyleBook, section: PageSetup, inner: string): string {
     const count = Math.max(1, Math.round(section.columns?.count ?? 1))
     const gap = Math.max(0, section.columns?.spaceMm ?? 12.7)
@@ -465,12 +464,12 @@ class OdtWriter {
 
 const WORD_OUTLINE_LEVELS = 9
 
-/** O Word conta os níveis de estrutura de 0 a 8 (o 9 é corpo de texto); o ODF, de 1 a 10. */
+/** Word counts outline levels from 0 to 8 (9 is body text); ODF from 1 to 10. */
 function odtOutlineLevel(level: number | undefined): number | null {
   return level !== undefined && level >= 0 && level < WORD_OUTLINE_LEVELS ? level + 1 : null
 }
 
-/** Os blocos seguidos da mesma seção. */
+/** Consecutive blocks of the same section. */
 function* sectionGroups(
   top: readonly DocumentNode[],
   indexes: readonly number[],
@@ -512,7 +511,7 @@ function booleanOrUndefined(value: unknown): boolean | undefined {
   return typeof value === 'boolean' ? value : undefined
 }
 
-/** A faixa tem o que desenhar — o texto, a grade, o filete ou só objetos ancorados. */
+/** Text, grid, rule or only anchored objects. */
 function bandHasContent(band: Band | null | undefined): band is Band {
   if (band === null || band === undefined) return false
   return band.floats.length > 0 || hasBandContent(band)
@@ -522,7 +521,7 @@ function masterName(index: number): string {
   return index === 0 ? 'Standard' : `Section${index + 1}`
 }
 
-/** A marca de seção que o bloco de primeiro nível carrega — a dele, ou a de um parágrafo de dentro. */
+/** Its own, or that of a paragraph inside it. */
 function sectionBreakInJson(node: DocumentNode): string | null {
   const own = sectionBreakOf(node)
   if (own !== null || node.type === 'paragraph' || node.type === 'heading') return own
@@ -548,9 +547,8 @@ function numberFormat(fmt: string | undefined): string {
 }
 
 /**
- * A folha da seção. O ODF mede a margem até o cabeçalho, e o Word até o texto:
- * com cabeçalho, a margem de cima é a distância dele, e a altura mínima dele
- * cobre o resto — o cabeçalho mais alto empurra o texto, como no Word.
+ * ODF measures the margin to the header, Word to the text: with a header, the top margin is its
+ * distance, and its minimum height covers the rest, so a taller header pushes the text, as in Word.
  */
 function pageLayoutXml(name: string, page: PageSetup): string {
   const { width, height } = pageDimensionsMm(page)
@@ -600,13 +598,13 @@ function hasAnyBand(
   )
 }
 
-/** Como as notas se numeram: o formato e o início do documento, e onde ficam. */
+/** Format, document start and position. */
 function notesConfiguration(model: OdtModel): string {
   const one = (kind: 'footnote' | 'endnote'): string => {
     const numbering = kind === 'endnote' ? model.notes?.endnotePr : model.notes?.footnotePr
     const format = numbering?.numFmt ?? (kind === 'endnote' ? 'lowerRoman' : 'decimal')
     const restart = noteRestart(kind, numbering?.restart)
-    // O LibreOffice conta o início a partir de zero: 0 é "começa em 1".
+    // LibreOffice counts the start from zero: 0 means "starts at 1".
     return (
       `<text:notes-configuration${attr('text:note-class', kind)}${attr('style:num-format', numberFormat(format) || '1')}` +
       `${attr('text:start-value', Math.max(0, (numbering?.start ?? 1) - 1))}` +
@@ -621,7 +619,10 @@ function noteRestart(kind: 'footnote' | 'endnote', restart: string | undefined):
   return restart === 'eachSect' ? 'chapter' : 'document'
 }
 
-/** Os títulos sem número: o estilo de estrutura padrão do ODF numera, e o documento não pediu. */
+/**
+ * Headings without numbers: the default ODF outline style numbers them, and the document did not
+ * ask for it.
+ */
 const OUTLINE_STYLE = `<text:outline-style style:name="Outline">${Array.from(
   { length: 10 },
   (_, index) =>
@@ -629,13 +630,13 @@ const OUTLINE_STYLE = `<text:outline-style style:name="Outline">${Array.from(
 ).join('')}</text:outline-style>`
 
 class Renderer {
-  /** Dentro de célula, nota, caixa de texto ou faixa a quebra pendente espera. */
+  /** Inside a cell, note, text box or band the pending break waits. */
   private nested = 0
-  /** Dentro de nota, faixa ou caixa de texto, onde não pode haver nota. */
+  /** Inside a note, band or text box, where notes are not allowed. */
   private noteless = 0
-  /** Renderizando os objetos de uma faixa, onde `{n}` é o número da página. */
+  /** Rendering band objects, where `{n}` is the page number. */
   private inBand = false
-  /** O que uma lista não pode conter (tabela) e sai logo depois dela. */
+  /** What a list cannot contain (tables), emitted right after it. */
   private hoisted: string[] = []
   private readonly bookmarkEnds = new Set<string>()
   private readonly bookmarkNames = new Map<string, string>()
@@ -690,12 +691,12 @@ class Renderer {
         this.pending.breakBefore = 'page'
         return ''
       default:
-        // O sumário, a citação e o bloco que esta exportação não conhece: o conteúdo.
+        // Table of contents, quote and blocks this export does not know: their content.
         return node.content === undefined ? '' : this.blocks(node.content)
     }
   }
 
-  /** Um parágrafo vazio, que leva o que estiver pendente. */
+  /** Carries whatever is pending. */
   emptyParagraph(): string {
     return `<text:p${attr('text:style-name', this.paragraphStyle({ type: 'paragraph' }, {}))}/>`
   }
@@ -715,7 +716,7 @@ class Renderer {
       : `<text:h${attr('text:style-name', style)}${attr('text:outline-level', level)}>${content}</text:h>`
   }
 
-  /** O estilo automático do bloco: o nomeado dele por baixo, a formatação direta por cima. */
+  /** The block's named style underneath, direct formatting on top. */
   private paragraphStyle(node: DocumentNode, extra: ParagraphProps): string {
     const attrs = node.attrs ?? {}
     const parent = this.writer.paragraphStyleName(node)
@@ -736,7 +737,7 @@ class Renderer {
     )
   }
 
-  /** A quebra e a página mestra pendentes vão para o primeiro parágrafo do fluxo. */
+  /** The pending break and master page go to the first paragraph in the flow. */
   private takePending(props: ParagraphProps): string {
     const { breakBefore, master } = this.pending
     this.pending.breakBefore = null
@@ -774,8 +775,8 @@ class Renderer {
     const body = items
       .map((item, index) => {
         const value = this.source.itemOf.get(item)?.value
-        // Todo item que abre lista numerada diz o número dele: o Word continua a
-        // contagem entre listas separadas, e o ODF recomeçaria do 1.
+        // Every item that opens a numbered list states its number: Word continues the count across
+        // separate lists, and ODF would restart at 1.
         const start = ordered && index === 0 && value !== undefined ? attr('text:start-value', value) : ''
         const inner = (item.content ?? [])
           .map((child) => {
@@ -784,7 +785,7 @@ class Renderer {
             }
             if (child.type === 'bulletList' || child.type === 'orderedList')
               return this.list(child, depth + 1)
-            // O ODF não deixa tabela dentro de item de lista: ela sai depois da lista.
+            // ODF does not allow a table inside a list item: it goes after the list.
             this.hoisted.push(this.block(child))
             return ''
           })
@@ -796,9 +797,8 @@ class Renderer {
   }
 
   /**
-   * O estilo da lista de fora, com um nível por profundidade: cada nível diz o
-   * que a conta (`numberLists`) decidiu para a primeira lista daquela
-   * profundidade — formato, texto do número, recuo.
+   * One level per depth: each level states what numbering (`numberLists`) decided for the first
+   * list at that depth: format, number text, indent.
    */
   private listStyle(node: DocumentNode): string {
     const byDepth = new Map<number, ListInfo>()
@@ -942,7 +942,7 @@ class Renderer {
       : this.inline(node.content)
   }
 
-  /** Na faixa (e nas caixas dela), `{n}` e `{total}` são os campos de página. */
+  /** In a band (and its boxes), `{n}` and `{total}` are page fields. */
   private text(node: DocumentNode): string {
     const text = node.text ?? ''
     return this.wrap(this.nested > 0 && this.inBand ? bandText(text) : odfText(text), node.marks ?? [])
@@ -969,7 +969,7 @@ class Renderer {
       : ''
   }
 
-  /** O trecho com as marcas dele: um `text:span` com estilo automático, e o link por fora. */
+  /** A `text:span` with an automatic style, and the link outside. */
   private wrap(inner: string, marks: NonNullable<DocumentNode['marks']>): string {
     if (inner === '') return ''
     const { props, charStyle, href } = characterFormatOf(marks)
@@ -1011,7 +1011,7 @@ class Renderer {
 
   private bookmarkStart(node: DocumentNode): string {
     const name = typeof node.attrs?.['name'] === 'string' ? node.attrs['name'] : ''
-    // Dois marcadores com o mesmo nome não abrem no LibreOffice: o segundo sai.
+    // Two bookmarks with the same name do not open in LibreOffice: the second goes.
     if (name === '' || this.usedBookmarks.has(name)) return ''
     this.usedBookmarks.add(name)
     const bid = String(node.attrs?.['bid'] ?? '')
@@ -1020,7 +1020,7 @@ class Renderer {
     return `<text:bookmark-start${attr('text:name', name)}/>`
   }
 
-  /** O comentário e as respostas dele, como anotações; a primeira cobre o trecho até a ponta final. */
+  /** The comment and its replies as annotations; the first spans the range up to the end anchor. */
   private commentStart(node: DocumentNode): string {
     const id = String(node.attrs?.['cid'] ?? '')
     const library = this.writer.model.comments ?? []
@@ -1051,7 +1051,7 @@ class Renderer {
 
   private note(node: DocumentNode): string {
     const note = this.source.noteOf.get(node)
-    // Nota não cabe em nota, nem em faixa, nem em caixa de texto: o ODF não deixa.
+    // ODF does not allow a note inside a note, a band or a text box.
     if (note === undefined || this.noteless > 0) return ''
     const endnote = note.kind === NoteKind.Endnote
     const custom = typeof node.attrs?.['mark'] === 'string' && node.attrs['mark'] !== ''
@@ -1089,7 +1089,7 @@ class Renderer {
     )
   }
 
-  /** A equação: um objeto de fórmula no texto, como um caractere. */
+  /** A formula object in the text, like a character. */
   private formula(node: DocumentNode): string {
     const tree = sanitizeMathMl(typeof node.attrs?.['mathml'] === 'string' ? node.attrs['mathml'] : '')
     if (tree === null) return ''
@@ -1111,7 +1111,7 @@ class Renderer {
     )
   }
 
-  /** O objeto flutuante, ancorado ao parágrafo na posição que o arquivo dá — o melhor que dá. */
+  /** Anchored to the paragraph at the position the file gives, as close as possible. */
   private floating(object: FloatingObject): string {
     if (object.kind === 'rule') return ''
     const picture = object.kind === 'image' ? this.writer.pictures.add(object.src) : null
@@ -1146,8 +1146,8 @@ class Renderer {
     const blocks = this.blocks(object.content ?? [])
     this.noteless--
     this.nested--
-    // A caixa cresce com o texto, como no Word: a altura dada é o mínimo, e a
-    // fonte substituta um pouco maior não esconde o que não coube.
+    // The box grows with the text, as in Word: the given height is the minimum, and a slightly
+    // larger fallback font does not hide what did not fit.
     return {
       size: width,
       inner: `<draw:text-box${attr('fo:min-height', height)}>${blocks === '' ? '<text:p/>' : blocks}</draw:text-box>`,
@@ -1155,9 +1155,8 @@ class Renderer {
   }
 
   /**
-   * O cabeçalho ou rodapé. A grade vira tabela; as três colunas, um parágrafo
-   * com tabulações de centro e de direita quando cada uma tem uma linha só, ou
-   * parágrafos alinhados quando têm mais.
+   * The grid becomes a table; the three columns become a paragraph with center and right tab stops
+   * when each has a single line, or aligned paragraphs when they have more.
    */
   band(band: Band, page: PageSetup, kind: 'header' | 'footer'): string {
     const width = contentWidthMm(page)
@@ -1182,7 +1181,7 @@ class Renderer {
       const content = ['left', 'center', 'right']
         .map((align) => columns.find((column) => column.align === align))
         .map((column) => (column === undefined ? '' : this.pieces(column.pieces)))
-      // Sem as tabulações do fim que não levam nada.
+      // Without trailing tabs that carry nothing.
       while (content.length > 1 && content[content.length - 1] === '') content.pop()
       parts.push(`<text:p${attr('text:style-name', style)}>${content.join('<text:tab/>')}</text:p>`)
     } else {
@@ -1200,8 +1199,8 @@ class Renderer {
         })
       })
     }
-    // Os objetos ancorados da faixa (a marca lateral, o número de página numa
-    // caixa) vão no primeiro parágrafo dela, fora da grade, com a posição na folha.
+    // The band's anchored objects (the side mark, a page number in a box) go in its first
+    // paragraph, outside the grid, positioned on the sheet.
     this.inBand = true
     const frames = band.floats.map((object) => this.floating(object)).join('')
     this.inBand = false
@@ -1322,9 +1321,8 @@ class Renderer {
 }
 
 /**
- * As larguras das colunas da grade do cabeçalho, em milímetros. A célula diz a
- * fração dela da largura; a de uma coluna só dá a largura da coluna, e a mesclada
- * reparte o que sobra entre as colunas que ninguém mediu.
+ * In millimetres. A cell states its fraction of the width; a single-column cell gives the column
+ * width, and a merged one shares what is left among the columns nobody measured.
  */
 function gridWidths(grid: { columns: number; rows: (GridSlot | null)[][] }, width: number): number[] {
   const known: (number | null)[] = Array.from({ length: grid.columns }, () => null)
@@ -1352,7 +1350,7 @@ function cellWidthFraction(slot: GridSlot): number {
   return (slot.node.attrs?.['cell'] as { width?: number } | undefined)?.width ?? 0
 }
 
-/** A célula mesclada reparte o que sobra dela entre as colunas ainda sem medida. */
+/** A merged cell shares what is left among the columns still unmeasured. */
 function shareSpanWidth(
   known: (number | null)[],
   { column, span, width }: { column: number; span: number; width: number },
@@ -1366,7 +1364,7 @@ function shareSpanWidth(
   }
 }
 
-/** O texto da faixa, com `{n}` e `{total}` como os campos de página e de total. */
+/** `{n}` and `{total}` as page and total fields. */
 function bandText(text: string): string {
   return text
     .split(/(\{n\}|\{total\})/)
@@ -1423,7 +1421,7 @@ function listLevelXml(depth: number, info: ListInfo): string {
   )
 }
 
-/** O texto do nível do Word (`%1.%2)`) em prefixo, sufixo e quantos números mostra. */
+/** Word's level text (`%1.%2)`) split into prefix, suffix and how many numbers it shows. */
 function numberTextParts(text: string): { prefix: string; suffix: string; placeholders: number } {
   const found = [...text.matchAll(/%(\d)/g)]
   const first = found[0]
@@ -1443,10 +1441,9 @@ interface GridSlot {
 }
 
 /**
- * A grade da tabela: o ODF quer uma posição por coluna em toda linha, com
- * `covered-table-cell` onde a célula de cima (ou da esquerda) se estende. A
- * célula estendida para a direita leva as cobertas dela junto (`cell`); aqui
- * só entram as cobertas pelas linhas de cima (`null`).
+ * ODF wants one slot per column in every row, with `covered-table-cell` where the cell above (or to
+ * the left) spans. A cell spanning right brings its covered cells along (`cell`); only cells
+ * covered by rows above appear here (`null`).
  */
 function tableGrid(rows: readonly DocumentNode[]): { columns: number; rows: (GridSlot | null)[][] } {
   const below: number[] = []
@@ -1474,7 +1471,7 @@ function tableGrid(rows: readonly DocumentNode[]): { columns: number; rows: (Gri
     out.push(slots)
     columns = Math.max(columns, column)
   }
-  // Toda linha com o mesmo número de posições.
+  // Every row with the same number of slots.
   for (const slots of out) {
     const width = slots.reduce((sum, slot) => sum + (slot === null ? 1 : slot.colspan), 0)
     for (let index = width; index < columns; index++) slots.push(null)
@@ -1482,7 +1479,7 @@ function tableGrid(rows: readonly DocumentNode[]): { columns: number; rows: (Gri
   return { columns, rows: out }
 }
 
-/** As larguras em milímetros, da primeira linha, quando cada célula as declara. */
+/** From the first row, when every cell declares one. */
 function columnWidthsMm(rows: readonly DocumentNode[], columns: number): number[] | null {
   const first = rows[0]
   if (first === undefined) return null
@@ -1499,7 +1496,7 @@ function columnWidthsMm(rows: readonly DocumentNode[], columns: number): number[
   return widths.length === columns ? widths : null
 }
 
-/** O tamanho da figura: o do documento, o do arquivo, ou um palpite, nessa ordem. */
+/** The document's, the file's, or a guess, in that order. */
 function sizeMm(
   width: number | null,
   height: number | null,
@@ -1657,7 +1654,7 @@ function floatGraphicProperties(
     `<style:graphic-properties${attr('style:wrap', wrap)}${object.behind ? ' style:run-through="background"' : ' style:run-through="foreground"'}` +
     `${attr('style:horizontal-pos', hAlign ?? 'from-left')}${attr('style:horizontal-rel', RELATIVE[object.hFrom] ?? 'paragraph')}` +
     `${attr('style:vertical-pos', vAlign ?? 'from-top')}${attr('style:vertical-rel', RELATIVE[object.vFrom] ?? 'paragraph')}` +
-    // Sem preenchimento declarado é transparente: o padrão do LibreOffice pinta de azul.
+    // Without a declared fill it is transparent: LibreOffice's default paints it blue.
     (fill === null
       ? ' fo:background-color="transparent" draw:fill="none"'
       : `${attr('fo:background-color', fill)} draw:fill="solid"${attr('draw:fill-color', fill)}`) +

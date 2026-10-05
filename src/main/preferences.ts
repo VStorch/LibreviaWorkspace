@@ -15,8 +15,8 @@ import { applySpellChecker } from './spellcheck.js'
 import { broadcastPush } from './window.js'
 
 /**
- * O main é o dono porque a ortografia é configuração de `session`. Todo caminho
- * de mudança passa por `updatePreferences`, que grava, aplica e avisa.
+ * Main owns them because spelling is a `session` setting. Every change goes through
+ * `updatePreferences`, which saves, applies and notifies.
  */
 
 interface PreferencesSchema {
@@ -30,7 +30,7 @@ function getStore(): Store<PreferencesSchema> {
     storeInstance = new Store<PreferencesSchema>({
       name: 'preferences',
       defaults: { preferences: DEFAULT_EDITOR_PREFERENCES },
-      // Um JSON corrompido não impede o aplicativo de abrir: preferência é conveniência.
+      // A corrupt JSON does not stop the app from opening: preferences are a convenience.
       clearInvalidConfig: true,
       ...(process.versions.electron ? {} : { cwd: process.cwd() }),
     })
@@ -38,7 +38,7 @@ function getStore(): Store<PreferencesSchema> {
   return storeInstance
 }
 
-/** Em memória; o arquivo é a cópia durável. */
+/** In memory; the file is the durable copy. */
 let current: EditorPreferences | null = null
 
 const listeners = new Set<(preferences: EditorPreferences) => void>()
@@ -47,14 +47,14 @@ function load(): EditorPreferences {
   return withAuthor(loadStored())
 }
 
-/** Sem autor, o usuário do sistema, como o Word faz na primeira vez. */
+/** Without an author, the system user, as Word does the first time. */
 function withAuthor(preferences: EditorPreferences): EditorPreferences {
   if (preferences.authorName.trim() !== '') return preferences
   let username = ''
   try {
     username = userInfo().username
   } catch {
-    // Sem conta no sistema (contêiner), o comentário sai sem autor.
+    // Without a system account (container), comments go out without an author.
   }
   return { ...preferences, authorName: username }
 }
@@ -66,13 +66,12 @@ function loadStored(): EditorPreferences {
     const store = getStore()
     const stored = store.get('preferences')
 
-    // Pelo schema: os `default` abrem o perfil gravado sem estas chaves.
+    // Through the schema: the `default`s open a profile saved without these keys.
     const parsed = editorPreferencesSchema.safeParse(stored)
     const preferences = parsed.success ? parsed.data : DEFAULT_EDITOR_PREFERENCES
 
-    // Na primeira execução o idioma vem do sistema operacional. A pergunta é "a
-    // chave foi gravada?", e o `default` apagaria essa distinção, por isso ela é
-    // lida do objeto cru.
+    // On first run the language comes from the operating system. The question is "was the key
+    // saved?", and the `default` would erase that distinction, so it is read from the raw object.
     if (declares(stored, 'language')) return preferences
     const locale = typeof electron.app?.getLocale === 'function' ? electron.app.getLocale() : 'pt-BR'
     return { ...preferences, language: languageFromLocale(locale) }
@@ -85,7 +84,7 @@ function declares(stored: unknown, key: string): boolean {
   return typeof stored === 'object' && stored !== null && key in stored
 }
 
-/** `nativeTheme.shouldUseDarkColors` muda sozinho quando a pessoa troca o tema do sistema. */
+/** `nativeTheme.shouldUseDarkColors` changes by itself when the user switches the system theme. */
 export function resolvedTheme(): ResolvedTheme {
   const preferences = editorPreferences()
   if (preferences.theme === Theme.Light) return 'light'
@@ -98,15 +97,15 @@ export function editorPreferences(): EditorPreferences {
   return current
 }
 
-/** Uma vez na inicialização, depois de `installBundledDictionary`. */
+/** Once at startup, after `installBundledDictionary`. */
 export function applyStoredPreferences(): void {
   const active = editorPreferences()
   if (electron.session?.defaultSession) applySpellChecker(electron.session.defaultSession, active.spellcheck)
-  // Antes de a janela abrir, para a primeira pintura já sair na cor certa.
+  // Before the window opens, so the first paint has the right colors.
   if (electron.nativeTheme) electron.nativeTheme.themeSource = active.theme
 }
 
-/** Remendo, e não o conjunto inteiro: quem clica em "marcas de formatação" não opina sobre ortografia. */
+/** A patch, not the whole set: whoever toggles formatting marks has no opinion about spelling. */
 export function updatePreferences(patch: EditorPreferencesPatch): EditorPreferences {
   const active = editorPreferences()
   const next = mergedPreferences(active, patch)
@@ -114,11 +113,11 @@ export function updatePreferences(patch: EditorPreferencesPatch): EditorPreferen
   const spellcheckChanged = next.spellcheck !== active.spellcheck
   const themeChanged = next.theme !== active.theme
 
-  // Sobre o próprio tipo, para a preferência nova não escapar de uma lista à mão.
+  // From the type itself, so a new preference cannot escape a hand-written list.
   const keys = Object.keys(next) as (keyof EditorPreferences)[]
   const unchanged = keys.every((key) => next[key] === active[key])
 
-  // Sem isto, reabrir o menu com o mesmo valor gravaria o arquivo e redesenharia o editor.
+  // Otherwise reopening the menu with the same value would save the file and redraw the editor.
   if (unchanged) return active
 
   current = next
@@ -128,10 +127,10 @@ export function updatePreferences(patch: EditorPreferencesPatch): EditorPreferen
     applySpellChecker(electron.session.defaultSession, next.spellcheck)
   }
 
-  // O renderer resolve `system` por `matchMedia`, que enxerga o `themeSource`.
+  // The renderer resolves `system` through `matchMedia`, which sees `themeSource`.
   if (themeChanged && electron.nativeTheme) electron.nativeTheme.themeSource = next.theme
 
-  // Sempre, inclusive para quem pediu: assim a barra e o menu mostram o mesmo.
+  // Always, including to the sender: the toolbar and the menu show the same thing.
   broadcastPush(IpcChannel.PreferencesChanged, next)
   for (const listener of listeners) listener(next)
 
@@ -139,8 +138,8 @@ export function updatePreferences(patch: EditorPreferencesPatch): EditorPreferen
 }
 
 function mergedPreferences(active: EditorPreferences, patch: EditorPreferencesPatch): EditorPreferences {
-  // Chave por chave: espalhar o remendo apagaria a chave presente com
-  // `undefined`. O nome apagado volta a ser o do sistema na hora.
+  // Key by key: spreading the patch would erase a key present with `undefined`. A cleared name
+  // falls back to the system user immediately.
   return withAuthor({
     spellcheck: patch.spellcheck ?? active.spellcheck,
     invisibleCharacters: patch.invisibleCharacters ?? active.invisibleCharacters,
@@ -158,7 +157,7 @@ function mergedPreferences(active: EditorPreferences, patch: EditorPreferencesPa
   })
 }
 
-/** Um emissor, e não uma chamada a `refreshMenu`: o menu já importa este módulo. */
+/** An emitter, not a call to `refreshMenu`: the menu already imports this module. */
 export function onPreferencesChanged(listener: (preferences: EditorPreferences) => void): void {
   listeners.add(listener)
 }

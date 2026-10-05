@@ -5,13 +5,13 @@ import { resolveComments } from '@services/document/comments.js'
 import { useWorkspace } from '../state/workspace.js'
 import { commentAnchorsOf } from './extensions/comment.js'
 
-/** Muda só quando um comentário entra ou sai. */
+/** Changes only when a comment comes in or goes out. */
 function anchorKey(editor: Editor | null): string {
   if (editor === null || editor.isDestroyed) return ''
   return [...commentAnchorsOf(editor.state.doc).keys()].sort().join('\u0000')
 }
 
-/** Redesenha só quando o conjunto de pontas muda, e não a cada letra — ver `resolveComments`. */
+/** Redraws only when the set of ends changes, not on every letter; see `resolveComments`. */
 export function useComments(editor: Editor | null): {
   readonly comments: readonly DocumentComment[]
   readonly outside: ReadonlySet<string>

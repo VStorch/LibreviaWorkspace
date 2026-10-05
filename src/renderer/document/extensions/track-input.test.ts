@@ -40,7 +40,7 @@ function stateOf(blocks: Record<string, unknown>[], cursor?: number, withHistory
   return cursor === undefined ? state : state.apply(state.tr.setSelection(TextSelection.create(doc, cursor)))
 }
 
-/** Aplica a transação com o controle ligado, como Ana. */
+/** Applies the transaction with tracking on, as Ana. */
 function track(state: EditorState, build: (tr: Transaction) => Transaction, options = {}): EditorState {
   const tracked = trackTransaction(build(state.tr), state, 'Ana', NOW, options)
   const next = state.apply(tracked)
@@ -48,7 +48,7 @@ function track(state: EditorState, build: (tr: Transaction) => Transaction, opti
   return next
 }
 
-/** O texto de cada parágrafo, com o excluído entre colchetes e o inserido entre chaves. */
+/** Each paragraph's text, with deletions in brackets and insertions in braces. */
 function shown(doc: ProseMirrorNode): string[] {
   const blocks: string[] = []
   doc.descendants((node) => {
@@ -95,7 +95,7 @@ describe('controle do que se digita', () => {
     state = track(state, (tr) => tr.delete(3, 4))
     expect(shown(state.doc)).toEqual(['ab[c]'])
     expect(state.selection.from).toBe(3)
-    // O seguinte exclui o anterior, e o trecho se junta.
+    // The next one deletes the previous, and the range merges.
     state = track(state, (tr) => tr.delete(2, 3))
     expect(shown(state.doc)).toEqual(['a[bc]'])
     expect(state.selection.from).toBe(2)
@@ -204,7 +204,7 @@ describe('controle do que se digita', () => {
     let state = initial
     let group: TrackGroup | null = null
     let time = 1_000
-    // Como o `dispatchTransaction` faz: reescreve e junta ao grupo.
+    // As `dispatchTransaction` does: rewrites and joins the group.
     const edit = (build: (tr: Transaction) => Transaction): void => {
       const original = build(state.tr).setTime((time += 100))
       const tracked = trackTransaction(original, state, 'Ana', NOW)
@@ -217,7 +217,7 @@ describe('controle do que se digita', () => {
     expect(shown(state.doc)).toEqual(['[abc]def'])
     expect(undoDepth(state)).toBe(1)
 
-    // O Delete, que deixa o cursor depois do excluído.
+    // Delete, which leaves the cursor after the deletion.
     state = state.apply(state.tr.setSelection(TextSelection.create(state.doc, 4)))
     time += 1_000
     edit((tr) => tr.delete(4, 5))
@@ -225,14 +225,14 @@ describe('controle do que se digita', () => {
     expect(shown(state.doc)).toEqual(['[abcde]f'])
     expect(undoDepth(state)).toBe(2)
 
-    // O Enter e o texto do parágrafo novo.
+    // Enter and the new paragraph's text.
     time += 1_000
     edit((tr) => tr.split(state.selection.from))
     edit((tr) => tr.insertText('x'))
     edit((tr) => tr.insertText('y'))
     expect(undoDepth(state)).toBe(3)
 
-    // E desfazer devolve cada grupo exatamente.
+    // And undo brings back each group exactly.
     for (let step = 0; step < 3; step++) undo(state, (tr) => (state = state.apply(tr)))
     expect(state.doc.eq(initial.doc)).toBe(true)
   })
@@ -295,7 +295,7 @@ describe('controle do que se digita', () => {
       kind: 'ins',
       author: 'Ana',
     })
-    // A linha inserida pelo próprio autor sai de verdade.
+    // A row inserted by the author themselves really goes.
     const last = state.doc.firstChild!.lastChild!
     state = track(state, (tr) => tr.delete(end, end + last.nodeSize))
     expect(state.doc.firstChild!.childCount).toBe(2)
@@ -325,7 +325,7 @@ describe('controle do que se digita', () => {
   })
 })
 
-/** Um gerador pequeno e determinístico, para o teste aleatório repetir igual. */
+/** A small deterministic generator, so the random test repeats the same. */
 function random(seed: number): () => number {
   let value = seed
   return () => {
@@ -345,9 +345,9 @@ function textPositions(doc: ProseMirrorNode): number[] {
 }
 
 /**
- * O texto depois de aceitar (ou rejeitar) tudo. Aceito, sem as quebras de
- * parágrafo: a edição sem controle junta blocos com os atributos do de cima, e a
- * marca de parágrafo que ela perde não é a referência certa.
+ * The text after accepting (or rejecting) everything. Accepted, without paragraph breaks: an
+ * untracked edit joins blocks with the upper one's attributes, and the paragraph mark it loses is
+ * not the right reference.
  */
 function settled(state: EditorState, accept: boolean): string {
   const tr = state.tr
@@ -362,7 +362,7 @@ describe('controle do que se digita — aleatório', () => {
     const pick = <T>(items: readonly T[]): T => items[Math.floor(next() * items.length)]!
     const words = ['a', 'bc', 'def', ' ', 'xyz']
 
-    /** Uma edição de um ou dois passos em posições de texto ao acaso. */
+    /** An edit of one or two steps at random text positions. */
     const edit = (tr: Transaction): Transaction => {
       const steps = 1 + Math.floor(next() * 2)
       for (let i = 0; i < steps; i++) {
@@ -371,13 +371,13 @@ describe('controle do que se digita — aleatório', () => {
         const b = pick(positions)
         const [from, to] = a <= b ? [a, b] : [b, a]
         const kind = next()
-        // Texto sem marca: o `insertText` herdaria a exclusão de onde cai, e a
-        // edição sem controle deixaria de ser a referência.
+        // Unmarked text: `insertText` would inherit the deletion where it lands, and the untracked
+        // edit would stop being the reference.
         if (kind < 0.35) tr.replaceWith(from, to, schema.text(pick(words)))
         else if (kind < 0.7 && to > from) tr.delete(from, to)
         else if (kind < 0.8) tr.split(from)
         else if (kind < 0.9) {
-          // A colagem de dois parágrafos no lugar do trecho.
+          // Pasting two paragraphs over the range.
           const pasted = [pick(words), pick(words)].map((word) =>
             schema.nodes['paragraph']!.create(null, schema.text(word)),
           )
@@ -413,8 +413,8 @@ describe('Ctrl+Backspace e Ctrl+Delete', () => {
     const block = stateOf([
       paragraph(text('one '), text('two', mark('deletion', 'Bia')), text(' three')),
     ]).doc.child(0)
-    // "one two three": o cursor no fim apaga "three"; antes de "three", o espaço
-    // e "two" (excluído, transparente) e chega a "one".
+    // "one two three": the cursor at the end deletes "three"; before "three", the space and "two"
+    // (deleted, transparent) and reaches "one".
     expect(wordRangeAt(block, 13, true)).toEqual([8, 13])
     expect(wordRangeAt(block, 8, true)).toEqual([0, 8])
     expect(wordRangeAt(block, 0, false)).toEqual([0, 8])

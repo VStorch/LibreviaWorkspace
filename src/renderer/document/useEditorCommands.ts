@@ -68,15 +68,15 @@ const CLOSED: EditorDialogs = {
 
 export interface EditorCommands {
   readonly dialogs: EditorDialogs
-  /** Sem passar pela trava: é para fechar e para a barra. */
+  /** Bypasses the lock: it is for closing and for the toolbar. */
   readonly setDialog: (dialog: keyof EditorDialogs, open: boolean) => void
   readonly run: (command: EditorCommand) => void
   readonly equationTarget: EquationTarget
 }
 
 /**
- * O somente leitura é conferido no `run`, e só nele. A tabela `COMMANDS` é
- * exaustiva: um comando sem entrada não compila.
+ * Read-only is checked in `run`, and only there. The `COMMANDS` table is exhaustive: a command
+ * without an entry does not compile.
  */
 export function useEditorCommands(
   editor: Editor | null,
@@ -95,8 +95,8 @@ export function useEditorCommands(
     (command: EditorCommand) => {
       if (readOnly && !runsWhileLocked(command)) return
 
-      // O cursor recém-movido pode estar só no DOM, e o comando do menu chega
-      // antes do `selectionchange`; a nota com foco tem a mesma demora.
+      // A cursor just moved may exist only in the DOM, and the menu command arrives before
+      // `selectionchange`; a focused note has the same delay.
       if (editor !== null) {
         flushSelection(editor)
         flushNoteSelection(editor.view)

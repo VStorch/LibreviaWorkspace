@@ -6,9 +6,12 @@ const SHORTCUTS: Record<string, 'bold' | 'italic' | 'underline' | undefined> = {
   u: 'underline',
 }
 
-/** No `document`: o foco vive dentro do grid, um web component, e o evento nem sempre sobe ao React. */
+/**
+ * On `document`: focus lives inside the grid, a web component, and the event does not always bubble
+ * to React.
+ */
 export function useFormatShortcuts(onToggle: (key: 'bold' | 'italic' | 'underline') => void): void {
-  // Montado uma vez: a grade renderiza a cada tecla.
+  // Mounted once: the grid renders on every key press.
   const toggle = useRef(onToggle)
   toggle.current = onToggle
 
@@ -16,7 +19,7 @@ export function useFormatShortcuts(onToggle: (key: 'bold' | 'italic' | 'underlin
     const shortcut = (event: KeyboardEvent): void => {
       if (!(event.ctrlKey || event.metaKey) || event.altKey) return
 
-      // Num campo de texto, o atalho é do campo.
+      // In a text field, the shortcut belongs to the field.
       if (event.target instanceof HTMLElement && event.target.closest('input, textarea') !== null) return
 
       const key = SHORTCUTS[event.key.toLowerCase()]

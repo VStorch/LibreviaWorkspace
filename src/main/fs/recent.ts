@@ -13,11 +13,11 @@ interface RecentSchema {
 const store = new Store<RecentSchema>({
   name: 'recent-files',
   defaults: { files: [] },
-  // Um JSON corrompido não impede o aplicativo de abrir.
+  // A corrupt JSON does not stop the app from opening.
   clearInvalidConfig: true,
 })
 
-/** Sem os arquivos que sumiram: em pasta de rede eles somem e voltam o tempo todo. */
+/** Without files that vanished: on network folders they vanish and come back all the time. */
 export async function listRecentFiles(): Promise<readonly RecentFile[]> {
   const stored = store.get('files')
   const existing = await Promise.all(
@@ -46,7 +46,7 @@ export function clearRecentFiles(): void {
   store.set('files', [])
 }
 
-/** Um caminho só pode ser aberto por atalho se já estiver entre os recentes. */
+/** A path can only be opened by shortcut if it is already among the recent files. */
 export function isRemembered(path: string): boolean {
   const normalized = normalizePath(path)
   return store.get('files').some((file) => file.path === normalized)

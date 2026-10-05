@@ -37,8 +37,8 @@ export const VIEW = {
     pt: { one: '{count} nota', other: '{count} notas' },
     en: { one: '{count} note', other: '{count} notes' },
   },
-  // O aviso que explica por que a nota não vai parar no .docx. Aparece uma vez,
-  // ao criar a primeira nota num arquivo do Office.
+  // Explains why the note does not reach the .docx. Shown once, when the first note is created in
+  // an Office file.
   'view.notes.sidecar': {
     pt: 'As notas ficam em {file}, ao lado do arquivo. O {ext} não é alterado.',
     en: 'Notes are kept in {file}, beside the file. The {ext} itself is not touched.',

@@ -3,9 +3,9 @@ import { IpcChannel } from '@shared/ipc-channels.js'
 import { ErrorCode } from '@shared/errors.js'
 
 /**
- * O registro cobra nas duas direções: o pedido do renderer não é confiável, e a
- * resposta de casa também é conferida, para a forma errada não chegar à interface
- * longe da causa. O `ipcMain` é falsificado, porque não há Electron aqui.
+ * The registry checks both directions: the renderer request is untrusted, and our own response is
+ * checked too, so a wrong shape does not reach the UI far from its cause. `ipcMain` is faked, since
+ * there is no Electron here.
  */
 const { handlers } = vi.hoisted(() => ({
   handlers: new Map<string, (event: unknown, payload: unknown) => Promise<unknown>>(),
@@ -21,10 +21,9 @@ vi.mock('electron', () => ({
 
 const { handle } = await import('./registry.js')
 
-/** Registra o canal com um handler de mentira e chama o que o `ipcMain` chamaria. */
 async function invoke(channel: IpcChannel, reply: unknown, payload: unknown = {}): Promise<unknown> {
-  // O tipo do handler é o do contrato; aqui o teste devolve de propósito o que o
-  // contrato não prevê, que é o caso a cobrir.
+  // The handler type is the contract's; here the test returns on purpose what the contract does not
+  // allow, which is the case to cover.
   handle(channel as never, (() => reply) as never)
   return handlers.get(channel)!({}, payload)
 }
@@ -38,8 +37,8 @@ describe('registro de IPC', () => {
   })
 
   it('recusa a resposta que o contrato do canal não prevê', async () => {
-    // Nome vazio é o que uma saída estragada do `fc-list` produz, e viraria opção
-    // invisível no seletor. O renderer recebe erro, e o log do main diz por quê.
+    // An empty name is what broken `fc-list` output produces, and would become an invisible option.
+    // The renderer gets an error, and the main log says why.
     const result = (await invoke(IpcChannel.FontsList, { families: [''] })) as {
       ok: boolean
       error?: { code: string }

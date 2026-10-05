@@ -7,8 +7,8 @@ import { textWithoutDeletions } from './track-changes.js'
 import { noteBodyOf } from './note-view.js'
 
 /**
- * O casamento é `@services/document/search.ts`. Por bloco, com `textBetween`:
- * "Ne**gr**ito" são três nós e uma palavra só.
+ * Matching is `@services/document/search.ts`. Per block, with `textBetween`: "Ne**gr**ito" is three
+ * nodes and a single word.
  */
 
 export interface SearchMatch {
@@ -18,7 +18,7 @@ export interface SearchMatch {
 
 export interface SearchStatus {
   readonly total: number
-  /** A partir de 1; zero sem ocorrência. */
+  /** From 1; zero without matches. */
   readonly current: number
 }
 
@@ -51,7 +51,7 @@ export const searchPluginKey = new PluginKey<SearchPluginState>('searchReplace')
 export function collectMatches(doc: ProseMirrorNode, term: string, caseSensitive: boolean): SearchMatch[] {
   if (term.length === 0) return []
   const matches = collectIn(doc, 0, term, caseSensitive)
-  // As notas entram na ordem do texto, entre as ocorrências em volta da referência.
+  // Notes enter in text order, between the matches around the reference.
   return matches.sort((left, right) => left.from - right.from)
 }
 
@@ -62,8 +62,8 @@ function collectIn(root: ProseMirrorNode, base: number, term: string, caseSensit
     const pos = base + offset
     if (!node.isTextblock) return true
 
-    // O separador de um caractere mantém o texto alinhado com as posições. O
-    // excluído e a equação viram um caractere que nunca casa (`textWithoutDeletions`).
+    // The one-character separator keeps the text aligned with positions. Deleted text and equations
+    // become a character that never matches (`textWithoutDeletions`).
     const text = textWithoutDeletions(node, undefined, searchLeaf, '\u0000')
 
     for (const occurrence of findOccurrences(text, term, caseSensitive)) {
@@ -170,9 +170,9 @@ export const SearchReplace = Extension.create<SearchReplaceOptions>({
   },
 
   addCommands() {
-    /** Para a ocorrência rolar até a área visível. */
+    /** So the match scrolls into view. */
     const revealMatch = (tr: Transaction, match: SearchMatch, view: EditorView): void => {
-      // Numa nota, o corpo seleciona a ocorrência depois da transação.
+      // In a note, the body selects the match after the transaction.
       const $from = tr.doc.resolve(match.from)
       for (let depth = $from.depth; depth > 0; depth--) {
         if ($from.node(depth).type.name !== 'noteRef') continue
@@ -234,7 +234,7 @@ export const SearchReplace = Extension.create<SearchReplaceOptions>({
 
           if (dispatch !== undefined) {
             tr.insertText(replacement, match.from, match.to)
-            // O índice fica: a próxima ocorrência assume a posição.
+            // The index stays: the next match takes the position.
             tr.setMeta(searchPluginKey, {})
             dispatch(tr)
           }
@@ -248,7 +248,7 @@ export const SearchReplace = Extension.create<SearchReplaceOptions>({
           if (pluginState === undefined || pluginState.matches.length === 0) return false
 
           if (dispatch !== undefined) {
-            // De trás para frente, para as posições valerem.
+            // Back to front, so positions stay valid.
             for (const match of [...pluginState.matches].reverse()) {
               tr.insertText(replacement, match.from, match.to)
             }

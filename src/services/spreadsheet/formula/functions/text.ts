@@ -2,7 +2,7 @@ import { FormulaError, isFormulaError } from '../errors.js'
 import { toText } from '../values.js'
 import { VARIADIC, define, numberArg, textArg, valuesIn, type FunctionDefinition } from './kit.js'
 
-/** Posições do Excel começam em um; converter na entrada evita o erro de um caractere. */
+/** Excel positions start at one; converting on input avoids the off-by-one. */
 function start(position: number): number {
   return Math.trunc(position) - 1
 }
@@ -20,7 +20,7 @@ export const TEXT: readonly FunctionDefinition[] = [
 
   define(['NÚM.CARACT', 'NUM.CARACT', 'LEN'], 1, 1, (args) => {
     const text = textArg(args[0])
-    // Pontos de código: um emoji é um caractere.
+    // Code points: an emoji is one character.
     return isFormulaError(text) ? text : [...text].length
   }),
 
@@ -71,7 +71,7 @@ export const TEXT: readonly FunctionDefinition[] = [
 
   define(['ARRUMAR', 'TRIM'], 1, 1, (args) => {
     const text = textArg(args[0])
-    // ARRUMAR também reduz os espaços do meio a um só.
+    // ARRUMAR also collapses inner spaces to one.
     return isFormulaError(text) ? text : text.trim().replaceAll(/\s+/g, ' ')
   }),
 
@@ -95,7 +95,7 @@ export const TEXT: readonly FunctionDefinition[] = [
     if (isFormulaError(from)) return from
     if (from < 1) return FormulaError.Value
 
-    // PROCURAR não diferencia maiúsculas — é LOCALIZAR que diferencia.
+    // PROCURAR is case-insensitive; LOCALIZAR is the one that is not.
     const at = haystack.toUpperCase().indexOf(needle.toUpperCase(), start(from))
     return at < 0 ? FormulaError.Value : at + 1
   }),
@@ -117,7 +117,7 @@ export const TEXT: readonly FunctionDefinition[] = [
     const text = textArg(args[0])
     if (isFormulaError(text)) return text
 
-    // Passa pela mesma leitura brasileira que a digitação na célula usa.
+    // Goes through the same Brazilian parsing as typing in a cell.
     const number = Number(
       text.includes(',') ? text.replaceAll('.', '').replace(',', '.') : text.replace(/\s/g, ''),
     )

@@ -1,22 +1,24 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 
 /**
- * Depois do Enter o grid espera 70 ms (`RESIZE_INTERVAL + 30`) antes de mover o
- * foco: quem digita sem parar acerta essa janela, e `1200` abaixo de `980` virava
- * `200`. A tecla é guardada e devolvida quando o foco chega, pelo
- * `beforekeydown` que a própria biblioteca oferece.
+ * After Enter the grid waits 70 ms (`RESIZE_INTERVAL + 30`) before moving focus: someone typing
+ * nonstop hits that window, and `1200` below `980` became `200`. The key is held and replayed when
+ * focus arrives, through the library's own `beforekeydown`.
  */
 export interface TypeAhead {
   readonly begin: () => void
   readonly settle: () => void
 }
 
-/** Para o commit que não move o foco, como confirmar clicando noutra célula. */
+/** For a commit that does not move focus, such as confirming by clicking another cell. */
 const WINDOW_MS = 250
 
 export function useTypeAhead(readOnly: boolean): TypeAhead {
   const typed = useRef<string[]>([])
-  /** Cada sobreposição de seleção do grid emite o mesmo `beforekeydown`: sem isto a tecla seria guardada várias vezes. */
+  /**
+   * Each grid selection overlay emits the same `beforekeydown`: without this the key would be held
+   * several times.
+   */
   const lastHeld = useRef<KeyboardEvent | null>(null)
   const open = useRef(false)
   const timer = useRef<number | null>(null)
@@ -29,7 +31,9 @@ export function useTypeAhead(readOnly: boolean): TypeAhead {
     }
   }, [])
 
-  /** Pelo `keydown` do grid, e não escrevendo na célula: uma definição só de "digitar por cima". */
+  /**
+   * Through the grid's `keydown`, not by writing into the cell: a single definition of "type over".
+   */
   const replay = useCallback(() => {
     const held = typed.current
     typed.current = []
@@ -42,7 +46,7 @@ export function useTypeAhead(readOnly: boolean): TypeAhead {
     }
   }, [readOnly])
 
-  // Indireção: trocar o temporizador a cada renderização o reiniciaria no meio da janela.
+  // Indirection: replacing the timer on every render would restart it mid-window.
   const replayRef = useRef(replay)
   replayRef.current = replay
 
@@ -62,7 +66,7 @@ export function useTypeAhead(readOnly: boolean): TypeAhead {
   }, [closeWindow])
 
   useEffect(() => {
-    /** Já no Enter de um editor de célula (`.edit-input-wrapper`, como `isEditInput`). */
+    /** Already on Enter in a cell editor (`.edit-input-wrapper`, like `isEditInput`). */
     const commit = (event: KeyboardEvent): void => {
       if (readOnly || !event.isTrusted) return
       if (event.key !== 'Enter' && event.key !== 'Tab') return
@@ -71,7 +75,7 @@ export function useTypeAhead(readOnly: boolean): TypeAhead {
       begin()
     }
 
-    // No `document`, onde o grid escuta o `keydown`, na mesma pilha da resposta.
+    // On `document`, where the grid listens for `keydown`, in the same stack as the response.
     const hold = (event: Event): void => {
       if (!open.current || readOnly) return
 
@@ -82,10 +86,10 @@ export function useTypeAhead(readOnly: boolean): TypeAhead {
         return
       }
       if (original.ctrlKey || original.metaKey || original.altKey) return
-      // Só caractere digitável: as setas continuam navegando.
+      // Only typeable characters: the arrow keys keep navigating.
       if (original.key.length !== 1) return
 
-      // Senão o grid a trataria na célula anterior: `1200` virava `9801200`.
+      // Otherwise the grid would handle it in the previous cell: `1200` became `9801200`.
       event.preventDefault()
       original.preventDefault()
       lastHeld.current = original

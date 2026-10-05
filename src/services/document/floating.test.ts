@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { bandFloatsOf, frameOf, placeFloating, type FloatingObject } from './floating.js'
 import { DEFAULT_PAGE_SETUP, PageSize, type PageSetup } from './model.js'
 
-/** A4 retrato com 30 mm nas laterais: a geometria da capa do corpus. */
+/** A4 portrait with 30 mm sides: the corpus cover geometry. */
 const page: PageSetup = {
   ...DEFAULT_PAGE_SETUP,
   size: PageSize.A4,
@@ -37,15 +37,14 @@ describe('posição de objeto ancorado', () => {
   })
 
   it('deslocamento negativo leva o objeto para fora da coluna', () => {
-    // É assim que a marca da capa sai para a margem: 126,65 mm à esquerda do
-    // começo da coluna. Tratar o valor como sem sinal a jogaria para o meio da
-    // página, sobre o texto.
+    // That is how the cover mark goes into the margin: 126.65 mm left of the column start. Treating
+    // the value as unsigned would throw it to the middle of the page, over the text.
     const box = placeFloating(object({ hFrom: 'column', hOffsetMm: -126.65 }), page, 0)
     expect(box.leftMm).toBeCloseTo(-96.65, 2)
   })
 
   it('centralizado usa a coluna de texto, não a folha', () => {
-    // Coluna de 150 mm começando em 30: um objeto de 50 mm centra em 80.
+    // A 150 mm column starting at 30: a 50 mm object centers at 80.
     const box = placeFloating(object({ hAlign: 'center', hOffsetMm: undefined }), page, 0)
     expect(box.leftMm).toBe(80)
   })
@@ -56,8 +55,8 @@ describe('posição de objeto ancorado', () => {
   })
 
   it('vertical a partir do parágrafo conta da altura dele na folha', () => {
-    // É a origem mais comum, e a única que este módulo não resolve sozinho: o
-    // parágrafo só tem posição depois de paginar.
+    // The most common origin, and the only one this module cannot resolve alone: the paragraph only
+    // has a position after pagination.
     const box = placeFloating(object({ vFrom: 'paragraph', vOffsetMm: 58.19 }), page, 40)
     expect(box.topMm).toBeCloseTo(98.19, 2)
   })
@@ -73,9 +72,9 @@ describe('posição de objeto ancorado', () => {
   })
 
   it('a rotação não mexe nas medidas', () => {
-    // O Word posiciona a caixa sem girar e depois a gira em torno do centro,
-    // que é o que `transform: rotate()` faz. Trocar largura por altura aqui
-    // deslocaria o objeto por metade da diferença entre as duas.
+    // Word positions the box unrotated and then rotates it around the center, which is what
+    // `transform: rotate()` does. Swapping width and height here would shift the object by half
+    // their difference.
     const box = placeFloating(object({ rotation: 270, widthMm: 285.76, heightMm: 80.14 }), page, 0)
 
     expect(box.widthMm).toBe(285.76)
@@ -84,10 +83,10 @@ describe('posição de objeto ancorado', () => {
   })
 
   it('a peça de um grupo soma o deslocamento dela depois de resolver a âncora', () => {
-    // Um cabeçalho corporativo é um grupo de formas: a âncora diz onde o grupo
-    // está, e cada peça tem a coordenada dela dentro dele. Somar depois é o que
-    // faz a conta valer também quando a âncora traz alinhamento em vez de
-    // deslocamento — aí quem resolve a origem é esta função, e não o arquivo.
+    // A corporate header is a group of shapes: the anchor says where the group is, and each piece
+    // has its coordinate inside it. Adding afterwards makes the math hold when the anchor carries
+    // an alignment instead of an offset, since then this function resolves the origin, not the
+    // file.
     const box = placeFloating(object({ hFrom: 'page', hOffsetMm: 31.75, dxMm: 129, dyMm: 6.9 }), page, 0)
 
     expect(box.leftMm).toBeCloseTo(160.75, 2)
@@ -95,9 +94,8 @@ describe('posição de objeto ancorado', () => {
   })
 
   it('a marca da capa cai na lateral esquerda, e não sobre o texto', () => {
-    // O caso completo do corpus, com os números do arquivo. Depois de girada em
-    // torno do centro, uma caixa de 285,76 × 80,14 mm posta em −96,65 mm ocupa
-    // de 6,2 a 86,3 mm — a faixa lateral, à esquerda da coluna de texto.
+    // The full corpus case, with the file's numbers. Rotated around its center, a 285.76 × 80.14 mm
+    // box placed at −96.65 mm spans 6.2 to 86.3 mm: the side band, left of the text column.
     const marca = object({
       rotation: 270,
       widthMm: 285.76,
@@ -139,8 +137,8 @@ describe('objetos ancorados das faixas', () => {
   }
 
   it('a caixa do cabeçalho recebe o número da folha em que está', () => {
-    // O campo `PAGE` do Word chega como `{n}` — o mesmo marcador do cabeçalho
-    // digitado à mão. Sem a troca, a folha sairia com as chaves escritas nela.
+    // Word's `PAGE` field arrives as `{n}`, the same marker as a hand-typed header. Without the
+    // replacement, the sheet would show the braces.
     const terceira = bandFloatsOf(withBand, 3)[0]!
     const texto = terceira.object.content![0]!.content![0]!.text
 
@@ -153,7 +151,7 @@ describe('objetos ancorados das faixas', () => {
   })
 })
 
-/** A moldura da forma em CSS; o aviso fala só do que sobra. */
+/** The shape frame in CSS; the warning covers only what is left. */
 describe('frameOf', () => {
   const caixa = (extra: Partial<FloatingObject>): FloatingObject => ({
     kind: 'text',
@@ -175,8 +173,8 @@ describe('frameOf', () => {
   })
 
   it('traço de espessura zero não é traço', () => {
-    // As caixas do cabeçalho do corpus declaram cor nenhuma e espessura zero:
-    // não há moldura, e desenhar uma poria uma borda que o documento não tem.
+    // The corpus header boxes declare no color and zero width: there is no frame, and drawing one
+    // would add a border the document does not have.
     expect(frameOf(caixa({ lineWidthPt: 0 }))).toEqual({})
     expect(frameOf(caixa({ line: '#000000', lineWidthPt: 0 }))).toEqual({})
   })

@@ -1,7 +1,4 @@
-/**
- * Pela assinatura de bytes, e não pela extensão. SVG é recusado: é XML que pode
- * carregar script.
- */
+/** By byte signature, not extension. SVG is refused: it is XML that can carry scripts. */
 
 export const ALLOWED_IMAGE_MIME_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'] as const
 export type AllowedImageMimeType = (typeof ALLOWED_IMAGE_MIME_TYPES)[number]

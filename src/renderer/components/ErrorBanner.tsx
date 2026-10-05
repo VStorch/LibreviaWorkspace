@@ -1,7 +1,10 @@
 import { useWorkspace } from '../state/workspace.js'
 import { useT } from '../i18n.js'
 
-/** Faixa, e não modal: a falha quase sempre é recuperável, e o modal forçaria uma resposta que a pessoa ainda não tem. */
+/**
+ * A banner, not a modal: the failure is almost always recoverable, and a modal would force an
+ * answer the user does not have yet.
+ */
 export function ErrorBanner(): React.JSX.Element | null {
   const t = useT()
   const error = useWorkspace((state) => state.error)

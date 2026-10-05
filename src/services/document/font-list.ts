@@ -1,6 +1,6 @@
-/** A ordem da lista e a leitura do que cada sistema devolve; quem pergunta é `src/main/system-fonts.ts`. */
+/** List order and parsing of what each system returns; `src/main/system-fonts.ts` asks. */
 
-/** As únicas com substituta metricamente compatível em qualquer máquina (ver `fonts.ts`). */
+/** The only ones with a metric-compatible substitute on any machine (see `fonts.ts`). */
 export const GUARANTEED_FONT_FAMILIES: readonly string[] = [
   'Calibri',
   'Cambria',
@@ -12,8 +12,8 @@ export const GUARANTEED_FONT_FAMILIES: readonly string[] = [
 const key = (family: string): string => family.trim().toLowerCase()
 
 /**
- * As do documento, as garantidas e as instaladas em ordem alfabética. Lista de
- * instaladas vazia é o sistema sem `fontconfig`, e não erro.
+ * The document's, the guaranteed ones and the installed ones alphabetically. An empty installed
+ * list is a system without `fontconfig`, not an error.
  */
 export function orderFontFamilies(
   installed: readonly string[],
@@ -32,7 +32,7 @@ export function orderFontFamilies(
   for (const family of inDocument) push(family)
   for (const family of GUARANTEED_FONT_FAMILIES) push(family)
 
-  // `fc-list` devolve na ordem do cache do fontconfig.
+  // `fc-list` returns fontconfig cache order.
   for (const family of [...installed].sort((left, right) => left.localeCompare(right, 'pt-BR'))) {
     push(family)
   }
@@ -40,13 +40,13 @@ export function orderFontFamilies(
   return ordered
 }
 
-/** O seletor conhece nomes, e o documento traz pilhas de CSS. */
+/** The picker knows names, and the document carries CSS stacks. */
 export function firstFamilyOf(stack: string): string {
   const first = stack.split(',')[0]?.trim() ?? ''
   return first.replace(/^['"]|['"]$/g, '')
 }
 
-/** A fonte mora na marca do texto e no atributo do bloco, e o leitor a emite nos dois. */
+/** The font lives in the text mark and in the block attribute, and the reader emits both. */
 export function familiesInDocument(doc: unknown): string[] {
   const found: string[] = []
   const seen = new Set<string>()
@@ -80,7 +80,7 @@ export function familiesInDocument(doc: unknown): string[] {
   return found
 }
 
-/** Uma família por linha; nomes separados por vírgula ("Nimbus Sans,Nimbus Sans L") ficam no primeiro. */
+/** One family per line; comma-separated names ("Nimbus Sans,Nimbus Sans L") keep the first. */
 export function parseFontconfigFamilies(output: string): string[] {
   const families = new Set<string>()
 
@@ -92,10 +92,12 @@ export function parseFontconfigFamilies(output: string): string[] {
   return [...families]
 }
 
-/** Os cortes que o Windows cola no nome. Só estes, e só no fim: "Arial Black" é família. */
+/**
+ * The styles Windows glues to the name. Only these, and only at the end: "Arial Black" is a family.
+ */
 const WINDOWS_STYLE_SUFFIXES = [' Bold Italic', ' Bold Oblique', ' Bold', ' Italic', ' Oblique', ' Regular']
 
-/** Cada linha é `    <nomes> (TrueType)    REG_SZ    arquivo.ttf`, com cortes separados por ` & `. */
+/** Each line is `    <names> (TrueType)    REG_SZ    file.ttf`, with styles separated by ` & `. */
 export function parseWindowsFontRegistry(output: string): string[] {
   const families = new Set<string>()
 
@@ -118,8 +120,8 @@ function stripStyleSuffix(name: string): string {
   for (const suffix of WINDOWS_STYLE_SUFFIXES) {
     if (name.toLowerCase().endsWith(suffix.toLowerCase())) {
       const base = name.slice(0, -suffix.length).trim()
-      // Só quando sobra nome: "Bold" sozinho é o nome da família, por estranho
-      // que pareça, e cortá-lo devolveria vazio.
+      // Only when a name remains: "Bold" alone is the family name, odd as it is, and cutting it
+      // would leave nothing.
       if (base.length > 0) return base
     }
   }

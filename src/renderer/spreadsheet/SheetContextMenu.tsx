@@ -11,7 +11,10 @@ import { useT } from '../i18n.js'
 
 export type { MenuPosition }
 
-/** A quantidade vem da seleção, como no Excel: com três linhas selecionadas, "inserir acima" insere três. */
+/**
+ * The count comes from the selection, as in Excel: with three rows selected, "insert above" inserts
+ * three.
+ */
 export function SheetContextMenu({
   sheet,
   range,

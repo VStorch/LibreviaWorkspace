@@ -2,9 +2,8 @@ import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 /**
- * A lista de fontes do sistema na falha, no tempo esgotado e na escolha de
- * plataforma. A lista vazia de um `fc-list` que estourou o tempo não fica em cache.
- * `execFile` é falsificado no estilo de callback, como o `promisify` o consome.
+ * The system font list on failure, on timeout and per platform. The empty list from an `fc-list`
+ * that timed out is not cached. `execFile` is faked in callback style, as `promisify` consumes it.
  */
 const { calls, next } = vi.hoisted(() => ({
   calls: [] as Array<{ file: string; args: readonly string[] }>,
@@ -49,15 +48,15 @@ describe('fontes instaladas', () => {
     next.push({ stdout: 'DejaVu Sans\nLiberation Serif\n' })
 
     expect(await listInstalledFontFamilies()).toEqual(['DejaVu Sans', 'Liberation Serif'])
-    // A segunda chamada não executa programa nenhum: montar a barra é frequente.
+    // The second call runs no program: building the toolbar is frequent.
     expect(await listInstalledFontFamilies()).toEqual(['DejaVu Sans', 'Liberation Serif'])
     expect(calls).toHaveLength(1)
     expect(calls[0]?.file).toBe('fc-list')
   })
 
   it('a falha não fica em cache', async () => {
-    // O ponto do teste: tempo esgotado é transitório, e guardar a lista vazia
-    // condenava a sessão inteira a ficar sem fontes.
+    // The point of the test: a timeout is transient, and caching the empty list condemned the whole
+    // session to no fonts.
     pretendPlatform('linux')
     next.push({ error: Object.assign(new Error('timeout'), { killed: true }) })
 
@@ -69,9 +68,8 @@ describe('fontes instaladas', () => {
   })
 
   it('no Windows chama o reg.exe do System32, pelo caminho absoluto', async () => {
-    // `reg` pelo nome simples é procurado no diretório do executável e no diretório
-    // atual antes do System32: um `reg.exe` plantado numa pasta gravável seria
-    // executado no lugar do do sistema.
+    // `reg` by its bare name is looked up in the executable's directory and the current directory
+    // before System32: a `reg.exe` planted in a writable folder would run instead of the system's.
     pretendPlatform('win32')
     process.env['SystemRoot'] = 'C:\\Windows'
     next.push({ stdout: '    Arial (TrueType)    REG_SZ    arial.ttf\n' })
@@ -79,12 +77,12 @@ describe('fontes instaladas', () => {
 
     expect(await listInstalledFontFamilies()).toEqual(['Arial'])
     expect(calls).toHaveLength(2)
-    // O separador é o da máquina que roda o teste — no Windows de verdade o
-    // `join` escreve com barra invertida. O que importa é o caminho completo.
+    // The separator is the test machine's: on real Windows `join` writes backslashes. What matters
+    // is the full path.
     const reg = join('C:\\Windows', 'System32', 'reg.exe')
     for (const call of calls) expect(call.file).toBe(reg)
-    // As duas chaves: a da máquina e a do usuário, que é onde o Windows 10 põe
-    // fonte instalada sem administrador.
+    // Both keys: the machine's and the user's, where Windows 10 puts fonts installed without admin
+    // rights.
     expect(calls[0]?.args[1]).toContain('HKLM')
     expect(calls[1]?.args[1]).toContain('HKCU')
   })

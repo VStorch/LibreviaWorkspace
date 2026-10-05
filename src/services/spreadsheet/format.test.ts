@@ -9,20 +9,19 @@ describe('formatCell', () => {
   })
 
   it('não inventa separador de milhar no formato geral', () => {
-    // O usuário digitou 1000 e espera ver 1000.
+    // The user typed 1000 and expects to see 1000.
     expect(formatCell({ value: 1000 })).toBe('1000')
   })
 
   it('usa vírgula decimal no formato geral', () => {
-    // O resultado de uma média cai quase sempre aqui: mostrar 147.43 num
-    // aplicativo brasileiro é o mesmo tipo de erro que mostrar a data ao
-    // contrário.
+    // The result of an average almost always lands here: showing 147.43 in a Brazilian app is the
+    // same kind of mistake as showing the date backwards.
     expect(formatCell({ value: 884.6 })).toBe('884,6')
     expect(formatCell({ value: 147.43333333333334 })).toBe('147,4333333333')
   })
 
   it('mas não converte texto que parece número, mesmo no geral', () => {
-    // Uma matrícula "0012" perderia o zero à esquerda se passasse por conversão.
+    // An ID "0012" would lose the leading zero if converted.
     expect(formatCell({ value: '0012' })).toBe('0012')
   })
 
@@ -31,7 +30,7 @@ describe('formatCell', () => {
   })
 
   it('formata percentual multiplicando por cem', () => {
-    // O valor guardado é 0,15 — o "15%" é aparência.
+    // The stored value is 0.15; "15%" is appearance.
     expect(formatCell({ value: 0.15, style: { format: CellFormat.Percent } })).toBe('15%')
   })
 
@@ -60,8 +59,8 @@ describe('datas', () => {
   })
 
   it('usa a mesma origem do Excel', () => {
-    // 1 de janeiro de 2026 é o número de série 46023 no Excel. A origem é
-    // 1899-12-30 por causa do bug de 1900 bissexto, herdado do Lotus 1-2-3.
+    // January 1, 2026 is serial number 46023 in Excel. The origin is 1899-12-30 because of the 1900
+    // leap year bug inherited from Lotus 1-2-3.
     expect(dateToSerial(new Date(2026, 0, 1))).toBe(46023)
   })
 
@@ -98,8 +97,8 @@ describe('parseInput', () => {
   })
 
   it('preserva zero à esquerda como texto', () => {
-    // Matrícula, CEP e código começam com zero. Virar número seria perda
-    // silenciosa de dado — e o usuário só descobriria ao imprimir.
+    // IDs, postal codes and codes start with zero. Turning them into numbers would be silent data
+    // loss, and the user would only find out when printing.
     expect(parseInput('0012').value).toBe('0012')
   })
 
@@ -109,7 +108,7 @@ describe('parseInput', () => {
   })
 
   it('recusa data impossível em vez de deslizar o mês', () => {
-    // 31/02 no JavaScript vira 3 de março se não for conferido.
+    // In JavaScript 31/02 becomes March 3 unless checked.
     expect(parseInput('31/02/2026').value).toBe('31/02/2026')
   })
 })
@@ -124,9 +123,9 @@ describe('parseBrazilianNumber', () => {
     ['1.234.567', 1234567],
     ['1.2', 1.2],
   ])('converte %s em %f', (text, expected) => {
-    // O ponto é ambíguo e a ambiguidade custa caro: no Brasil "1.234" é mil
-    // duzentos e trinta e quatro, mas "1234.56" colado de fora é decimal.
-    // Escolher um significado fixo erraria metade dos casos por mil vezes.
+    // The dot is ambiguous and the ambiguity is costly: in Brazil "1.234" is one thousand two
+    // hundred thirty-four, but "1234.56" pasted from elsewhere is a decimal. A fixed meaning would
+    // get half the cases wrong by a factor of a thousand.
     expect(parseBrazilianNumber(text)).toBe(expected)
   })
 

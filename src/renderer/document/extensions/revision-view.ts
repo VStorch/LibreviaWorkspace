@@ -13,11 +13,11 @@ import { RevisionView } from '@shared/types.js'
 import { DELETION, INSERTION, ZERO_WIDTH, blockRevisionOf, characterSize } from './track-changes.js'
 
 /**
- * Marcação completa: tudo à vista. Simples: o texto final, com uma barra na
- * margem do parágrafo alterado. Sem marcação: o texto final, limpo. Original: o
- * texto de antes, com o editor travado. Quem esconde é o CSS, pela classe
- * `revisions-<modo>`; o documento não muda. O cursor não cai no escondido: a
- * seleção é empurrada para a borda, e Backspace e Delete passam por cima dele.
+ * All markup: everything visible. Simple: the final text, with a bar in the margin of the changed
+ * paragraph. No markup: the final text, clean. Original: the earlier text, with the editor locked.
+ * CSS hides, through the `revisions-<mode>` class; the document does not change. The cursor does
+ * not land in hidden text: the selection is pushed to the edge, and Backspace and Delete skip over
+ * it.
  */
 
 interface ViewState {
@@ -31,7 +31,7 @@ export function revisionViewOf(state: EditorState): RevisionView {
   return revisionViewKey.getState(state)?.view ?? RevisionView.All
 }
 
-/** Sem mudar o documento. */
+/** Without changing the document. */
 export function setRevisionViewMeta(tr: Transaction, view: RevisionView): Transaction {
   return tr.setMeta(revisionViewKey, view)
 }
@@ -42,14 +42,14 @@ export function isHiddenInline(node: ProseMirrorNode, view: RevisionView): boole
   return node.marks.some((mark) => mark.type.name === name)
 }
 
-/** Marca de parágrafo ou linha. */
+/** A paragraph mark or a row. */
 function isHiddenRevision(value: unknown, view: RevisionView): boolean {
   if (view === RevisionView.All) return false
   const kind = blockRevisionOf(value)?.kind
   return view === RevisionView.Original ? kind === 'ins' : kind === 'del'
 }
 
-/** E há o que sumir. */
+/** And there is something to hide. */
 function allContentHidden(block: ProseMirrorNode, view: RevisionView): boolean {
   let hidden = false
   let visible = false
@@ -60,7 +60,9 @@ function allContentHidden(block: ProseMirrorNode, view: RevisionView): boolean {
   return hidden && !visible
 }
 
-/** A linha de tabela da revisão escondida, e o parágrafo cuja marca some com todo o texto. */
+/**
+ * A table row of a hidden revision, and a paragraph whose mark disappears along with all its text.
+ */
 export function isHiddenBlock(node: ProseMirrorNode, view: RevisionView): boolean {
   if (view === RevisionView.All) return false
   if (node.type.name === 'tableRow') return isHiddenRevision(node.attrs['rowRevision'], view)
@@ -68,7 +70,7 @@ export function isHiddenBlock(node: ProseMirrorNode, view: RevisionView): boolea
   return node.content.size === 0 || allContentHidden(node, view)
 }
 
-/** Em posições relativas ao bloco, atravessando as pontas sem largura entre os escondidos. */
+/** In block-relative positions, crossing zero-width ends between hidden runs. */
 export function hiddenRuns(block: ProseMirrorNode, view: RevisionView): { from: number; to: number }[] {
   const runs: { from: number; to: number }[] = []
   if (view === RevisionView.All || !block.isTextblock) return runs
@@ -88,10 +90,10 @@ export function hiddenRuns(block: ProseMirrorNode, view: RevisionView): { from: 
   return runs
 }
 
-/** No sentido `dir`, ou no outro sem saída. */
+/** In direction `dir`, or the other way when there is no exit. */
 export function visiblePosition(doc: ProseMirrorNode, pos: number, view: RevisionView, dir: 1 | -1): number {
   if (view === RevisionView.All) return pos
-  // A gangorra entre blocos escondidos se reconhece pela posição repetida, e não por um número de voltas.
+  // The seesaw between hidden blocks is recognized by a repeated position, not by a loop count.
   const seen = new Set<number>()
   while (!seen.has(pos)) {
     seen.add(pos)
@@ -113,7 +115,7 @@ export function visiblePosition(doc: ProseMirrorNode, pos: number, view: Revisio
   return pos
 }
 
-/** A mesma se não há, ou `null` sem saída. */
+/** The same one if there is none, or `null` when there is no exit. */
 function outOfHiddenBlock(
   doc: ProseMirrorNode,
   $pos: ResolvedPos,
@@ -131,7 +133,10 @@ function outOfHiddenBlock(
   return $pos.pos
 }
 
-/** O excluído escondido no meio não é apagado por uma seleção que passou por cima sem mostrá-lo. */
+/**
+ * Hidden deleted text in the middle is not erased by a selection that passed over it without
+ * showing it.
+ */
 export function deleteVisible(tr: Transaction, from: number, to: number, view: RevisionView): Transaction {
   const hidden: { from: number; to: number }[] = []
   tr.doc.nodesBetween(from, to, (node, pos) => {
@@ -151,7 +156,7 @@ export function deleteVisible(tr: Transaction, from: number, to: number, view: R
   return tr
 }
 
-/** `null` se já está fora. */
+/** `null` if already outside. */
 export function visibleSelection(
   doc: ProseMirrorNode,
   selection: Selection,
@@ -175,7 +180,7 @@ function buildDecorations(doc: ProseMirrorNode, view: RevisionView): DecorationS
     }
     if (!node.isTextblock) return true
     const classes: string[] = []
-    // Todo o texto escondido, a marca não: fica a linha vazia.
+    // All text hidden but not the mark: an empty line remains.
     if (node.content.size > 0 && allContentHidden(node, view)) classes.push('revision-blank')
     if (view === RevisionView.Simple && hasRevision(node)) classes.push('revision-changed')
     if (classes.length > 0) {
@@ -197,7 +202,7 @@ function hasRevision(block: ProseMirrorNode): boolean {
 
 export const RevisionViewExtension = Extension.create({
   name: 'revisionView',
-  // Antes de `track-input.ts`, que apagaria o escondido; depois de `zero-width.ts` (1000).
+  // Before `track-input.ts`, which would erase hidden text; after `zero-width.ts` (1000).
   priority: 900,
 
   addProseMirrorPlugins() {
@@ -229,8 +234,8 @@ export const RevisionViewExtension = Extension.create({
 })
 
 /**
- * Com algo escondido, o navegador levaria junto o excluído ou o reapareceria
- * como tachado: apaga-se aqui só o que se vê.
+ * With something hidden, the browser would take the deleted text along or bring it back as plain
+ * strikethrough: only what is visible is deleted here.
  */
 function deleteVisibleKey(view: EditorView, event: KeyboardEvent): boolean {
   if (!isPlainDeleteKey(view, event)) return false
@@ -260,7 +265,7 @@ function deleteVisibleCharacter(
   const $at = view.state.doc.resolve(at)
   const node = backward ? $at.nodeBefore : $at.nodeAfter
   if (node === null || !node.isText || node.text === undefined) {
-    // Na borda do bloco, o juntar de parágrafos segue o caminho de sempre.
+    // At the block edge, paragraph joining takes the usual path.
     if (at !== $cursor.pos)
       view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, at)))
     return false
@@ -271,7 +276,7 @@ function deleteVisibleCharacter(
   return true
 }
 
-/** O cursor depois de pular, no sentido da tecla, o escondido e as marcas de largura zero. */
+/** The cursor after skipping, in the key's direction, hidden text and zero-width marks. */
 function visibleOffset($cursor: ResolvedPos, mode: RevisionView, backward: boolean): number {
   let offset = $cursor.parentOffset
   for (let moved = true; moved;) {
@@ -293,8 +298,8 @@ function visibleOffset($cursor: ResolvedPos, mode: RevisionView, backward: boole
 }
 
 /**
- * Digitar sobre seleção com escondido: o navegador apagaria tudo antes do
- * `handleTextInput`, e a tecla para no `beforeinput`.
+ * Typing over a selection with hidden text: the browser would delete everything before
+ * `handleTextInput`, so the key stops at `beforeinput`.
  */
 function typeOverHidden(view: EditorView, event: Event): boolean {
   const input = event as InputEvent
@@ -319,7 +324,7 @@ function replaceVisible(view: EditorView, from: number, to: number, text: string
   return true
 }
 
-/** A seleção que caiu no escondido sai para a borda, no sentido em que andava. */
+/** A selection that landed in hidden text moves to the edge, in the direction it was going. */
 function visibleSelectionAfter(
   transactions: readonly Transaction[],
   oldState: EditorState,

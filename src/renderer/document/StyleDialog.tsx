@@ -21,9 +21,9 @@ export type StyleDialogMode =
   | { readonly kind: 'create'; readonly basedOn: string | null }
 
 /**
- * Mostra o que o estilo **vale** e grava só o que mudou (`styleWithDraft`). Os
- * campos de parágrafo são os do diálogo de parágrafo. "Atualizar a partir da
- * seleção" só preenche o formulário; nada muda até o OK.
+ * Shows what the style is **worth** and saves only what changed (`styleWithDraft`). The paragraph
+ * fields are the paragraph dialog's. "Update to match selection" only fills the form; nothing
+ * changes until OK.
  */
 export function StyleDialog({
   editor,

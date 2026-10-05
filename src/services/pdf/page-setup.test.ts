@@ -13,8 +13,7 @@ const withPage = (overrides: Partial<PageSetup>): PageSetup => ({ ...DEFAULT_PAG
 
 describe('buildPrintOptions', () => {
   it('converte as margens de milímetros para polegadas', () => {
-    // O Chromium trabalha em polegadas; errar aqui produz um PDF com margens
-    // silenciosamente erradas.
+    // Chromium works in inches; a mistake here produces a PDF with silently wrong margins.
     const options = buildPrintOptions(
       withPage({ margins: { top: 25.4, right: 12.7, bottom: 25.4, left: 50.8 } }),
     )
@@ -32,7 +31,7 @@ describe('buildPrintOptions', () => {
   })
 
   it('sempre imprime fundos', () => {
-    // Sem isso, destaque de texto e fundo de cabeçalho de tabela somem do PDF.
+    // Otherwise text highlight and table header backgrounds vanish from the PDF.
     expect(buildPrintOptions(DEFAULT_PAGE_SETUP).printBackground).toBe(true)
   })
 
@@ -53,15 +52,15 @@ describe('buildPrintOptions', () => {
   })
 
   it('deixa o tamanho de página vir das opções, não do CSS', () => {
-    // Duas fontes de verdade para a margem produziriam margem dobrada.
+    // Two sources of truth for the margin would double it.
     expect(buildPrintOptions(DEFAULT_PAGE_SETUP).preferCSSPageSize).toBe(false)
   })
 })
 
 describe('buildNativePrintOptions', () => {
   it('usa pixels nas margens, não polegadas', () => {
-    // A armadilha da fase: printToPDF quer polegadas e print() quer pixels.
-    // Trocar um pelo outro erra a margem por um fator de 96.
+    // The trap: printToPDF wants inches and print() wants pixels. Swapping them gets the margin
+    // wrong by a factor of 96.
     const options = buildNativePrintOptions(
       withPage({ margins: { top: 25.4, right: 25.4, bottom: 25.4, left: 25.4 } }),
     )
@@ -98,8 +97,8 @@ describe('buildHeaderFooterTemplate', () => {
   })
 
   it('declara a fonte explicitamente', () => {
-    // Sem tamanho de fonte declarado, o Chromium renderiza o template em
-    // tamanho zero e o cabeçalho simplesmente não aparece.
+    // Without a declared font size, Chromium renders the template at size zero and the header
+    // simply does not appear.
     expect(buildHeaderFooterTemplate('Relatório')).toMatch(/font-size:\s*9pt/)
   })
 
@@ -145,8 +144,7 @@ describe('faixa preservada do documento', () => {
   }
 
   it('manda na exibição quando existe, ignorando o texto digitado', () => {
-    // O cabeçalho do arquivo tem logotipo e numeração; o campo de texto não
-    // representaria nada disso.
+    // The file's header has a logo and numbering; the text field would represent none of that.
     const options = buildPrintOptions(withPage({ header: 'texto qualquer', headerBand: band }))
 
     expect(options.headerTemplate).toContain('RELATÓRIO INTERNO')
@@ -154,7 +152,7 @@ describe('faixa preservada do documento', () => {
   })
 
   it('embute a imagem, porque o template não busca recurso externo', () => {
-    // Logotipo por URL simplesmente não apareceria no PDF.
+    // A logo by URL would simply not appear in the PDF.
     expect(buildBandTemplate(band)).toContain('src="data:image/png;base64,AAAA"')
   })
 
@@ -191,8 +189,8 @@ describe('faixa preservada do documento', () => {
 
 describe('marginFitsHeaderOrFooter', () => {
   it('recusa margem apertada demais', () => {
-    // O Chromium desenha cabeçalho e rodapé dentro da margem e recorta o
-    // excedente: com margem pequena, o texto some sem aviso.
+    // Chromium draws header and footer inside the margin and clips the excess: with a small margin,
+    // the text vanishes without warning.
     expect(marginFitsHeaderOrFooter(MIN_MARGIN_FOR_HEADER_MM - 1)).toBe(false)
     expect(marginFitsHeaderOrFooter(MIN_MARGIN_FOR_HEADER_MM)).toBe(true)
     expect(marginFitsHeaderOrFooter(25)).toBe(true)

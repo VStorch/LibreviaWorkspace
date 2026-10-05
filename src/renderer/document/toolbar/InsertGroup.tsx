@@ -9,7 +9,7 @@ import { focusChain } from './focus-chain.js'
 interface InsertGroupProps {
   readonly editor: Editor
   readonly onOpenLink: () => void
-  /** O menu "Tabela" e o de contexto chegam aos mesmos diálogos, abertos de fora. */
+  /** The "Table" and context menus reach the same dialogs, opened from outside. */
   readonly onOpenTable: () => void
   readonly onOpenImageProperties: () => void
 }
@@ -35,7 +35,10 @@ export function InsertGroup({
 
   const readOnly = useWorkspace((state) => state.readOnly)
 
-  /** Na peça da faixa com o cursor, como `{n}`, que a gravação transforma em campo; senão, no fim do rodapé. */
+  /**
+   * In the band piece holding the cursor, as `{n}`, which saving turns into a field; otherwise at
+   * the end of the footer.
+   */
   function insertPageField(token: '{n}' | '{total}'): void {
     if (readOnly) return
     const focused = document.activeElement
@@ -60,9 +63,9 @@ export function InsertGroup({
 
   return (
     <ToolbarGroup label={t('document.insert.group')}>
-      {/* Excluir a tabela mora no menu "Tabela" e no botão direito. */}
+      {/* Deleting a table lives in the "Table" menu and the right click. */}
       <ToolbarButton icon="table" label={t('document.insert.table')} onClick={onOpenTable} />
-      {/* Com uma imagem selecionada, abre as propriedades dela. */}
+      {/* With an image selected, opens its properties. */}
       <ToolbarButton
         icon="image"
         label={active.onImage ? t('document.imageDialog.title') : t('document.insert.image')}

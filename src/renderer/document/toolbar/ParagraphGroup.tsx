@@ -9,7 +9,7 @@ import { lineHeights, withCurrent } from './toolbar-options.js'
 
 interface ParagraphGroupProps {
   readonly editor: Editor
-  /** O menu nativo também abre o parágrafo. */
+  /** The native menu also opens the paragraph dialog. */
   readonly paragraphOpen: boolean
   readonly onParagraphOpenChange: (open: boolean) => void
 }
@@ -28,7 +28,7 @@ export function ParagraphGroup({
       alignCenter: current.isActive({ textAlign: 'center' }),
       alignRight: current.isActive({ textAlign: 'right' }),
       alignJustify: current.isActive({ textAlign: 'justify' }),
-      // Do **bloco**, e não da marca de texto: no OOXML não existe `w:line` num `w:rPr`.
+      // From the **block**, not the text mark: OOXML has no `w:line` in a `w:rPr`.
       lineHeight: blockLineHeightOf(current),
     }),
   })
@@ -69,9 +69,9 @@ export function ParagraphGroup({
       <ToolbarSelect
         label={t('document.paragraph.lineSpacingLabel')}
         value={active.lineHeight}
-        // O atributo guarda `1.5`, e a tela escreve 1,5.
+        // The attribute stores `1.5`, and the screen writes 1,5.
         options={withCurrent(lineHeightOptions, active.lineHeight, (value) => value.replace('.', ','))}
-        // A conversão para o CSS é bloco a bloco, porque depende da fonte.
+        // The CSS conversion is per block, because it depends on the font.
         onChange={(value) => chain().setBlockLineHeight(value).run()}
         width={100}
       />

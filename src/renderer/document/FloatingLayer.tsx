@@ -11,10 +11,9 @@ import { mmToPx } from '@services/units.js'
 import { frameOf, placeFloating, type FloatingObject } from '@services/document/floating.js'
 
 /**
- * Fora do `contenteditable`: no Word os objetos ancorados não estão no fluxo, e
- * dentro dele ocupariam altura e seriam apagáveis. Duas camadas, como o
- * `behindDoc` do OOXML. A caixa de texto se edita no lugar: o título da capa é
- * feito disso.
+ * Outside the `contenteditable`: in Word anchored objects are not in the flow, and inside it they
+ * would take up height and be deletable. Two layers, like OOXML's `behindDoc`. A text box is edited
+ * in place: the cover title is made of one.
  */
 export function FloatingLayer({
   objects,
@@ -29,16 +28,18 @@ export function FloatingLayer({
   page: PageSetup
   schema: Schema
   behind: boolean
-  /** A da faixa fica acima da coluna de texto, que cobre a folha inteira e apanharia o clique. */
+  /**
+   * The band's sits above the text column, which covers the whole sheet and would catch the click.
+   */
   variant?: 'body' | 'band'
   onEdit?: ((source: FloatSource, content: DocumentNode[]) => void) | undefined
-  /** A faixa mora na configuração de página: volta pelo endereço da caixa. */
+  /** The band lives in the page setup: it goes back through the box address. */
   onEditBand?: ((bid: string, content: DocumentNode[]) => void) | undefined
 }): React.JSX.Element | null {
   const visible = objects.filter((item) => item.object.behind === behind)
   if (visible.length === 0) return null
 
-  // `aria-hidden` só enquanto nada ali é editável.
+  // `aria-hidden` only while nothing there is editable.
   const editable =
     (onEdit !== undefined && visible.some((item) => item.source !== undefined)) ||
     (onEditBand !== undefined && visible.some((item) => item.object.bid !== undefined))
@@ -93,9 +94,9 @@ function Floating({
     top: `${mmToPx(box.topMm)}px`,
     width: `${mmToPx(box.widthMm)}px`,
     height: `${mmToPx(box.heightMm)}px`,
-    // Em torno do centro, como o Word gira.
+    // Around the center, as Word rotates.
     ...(box.rotation === 0 ? {} : { transform: `rotate(${box.rotation}deg)` }),
-    // Por último, para não disputar com a posição.
+    // Last, so it does not compete with the position.
     ...frameOf(placed.object),
   }
 
@@ -107,7 +108,7 @@ function Floating({
     return <div className="paper-float paper-float--rule" style={style} />
   }
 
-  // A caixa que traz numeração perdeu o endereço ao trocar o marcador, e não é editável.
+  // A box with numbering lost its address when its bullet changed, and is not editable.
   const source = placed.source
   const bid = placed.object.bid
 
@@ -128,7 +129,7 @@ function Floating({
   )
 }
 
-/** Serializado para DOM, e não por `innerHTML`: o conteúdo vem do documento. */
+/** Serialized to DOM, not through `innerHTML`: the content comes from the document. */
 function FloatingText({
   style,
   content,
@@ -146,7 +147,7 @@ function FloatingText({
     const element = host.current
     if (element === null) return
 
-    // Com o foco, quem manda no DOM é o navegador: redesenhar levaria o cursor.
+    // With focus, the browser owns the DOM: redrawing would take the cursor away.
     if (element.contains(document.activeElement)) return
 
     element.replaceChildren()
@@ -155,11 +156,11 @@ function FloatingText({
       const serializer = DOMSerializer.fromSchema(schema)
       element.appendChild(serializer.serializeFragment(Fragment.fromArray(nodes)))
     } catch {
-      // A caixa que o schema não reconhece fica vazia, sem derrubar a página.
+      // A box the schema does not recognize stays empty, without bringing the page down.
     }
   }, [content, schema])
 
-  // No `blur`: o atributo redesenha a folha, e o cursor se perderia.
+  // On `blur`: the attribute redraws the sheet, and the cursor would be lost.
   const commit = (): void => {
     const element = host.current
     if (element === null || onEdit === undefined) return
@@ -169,7 +170,7 @@ function FloatingText({
       const blocks = (parsed.toJSON() as { content?: DocumentNode[] }).content ?? []
       onEdit(blocks)
     } catch {
-      // Nem sobrescreve o que estava lá com conteúdo vazio.
+      // Nor does it overwrite what was there with empty content.
     }
   }
 

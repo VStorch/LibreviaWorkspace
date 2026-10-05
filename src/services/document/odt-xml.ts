@@ -3,16 +3,16 @@ import { firstFontOf, lineFactorOf } from './line-metrics.js'
 import type { StyleCharacterFormat, StyleParagraphFormat } from './styles.js'
 
 /**
- * O ODF guarda a formatação em estilos: cada parágrafo com formatação direta
- * aponta um estilo automático que herda do nomeado. O `StyleBook` reaproveita o
- * nome quando a mesma combinação volta.
+ * ODF keeps formatting in styles: each paragraph with direct formatting points to an automatic
+ * style inheriting from the named one. `StyleBook` reuses the name when the same combination
+ * returns.
  */
 
-/** Os caracteres que o XML 1.0 não aceita nem escapados. */
+/** Characters XML 1.0 refuses even escaped. */
 // eslint-disable-next-line no-control-regex
 const INVALID_XML = /[\u0000-\u0008\u000B\u000C\u000E-\u001F￾￿]/g
 
-/** Texto de nó ou de atributo, escapado; o que o XML não aceita sai. */
+/** What XML refuses is dropped. */
 export function xml(text: string): string {
   return text
     .replace(INVALID_XML, '')
@@ -23,17 +23,16 @@ export function xml(text: string): string {
     .replaceAll("'", '&apos;')
 }
 
-/** ` nome="valor"`, ou nada quando não há valor. */
+/** ` name="value"`, or nothing when there is no value. */
 export function attr(name: string, value: string | number | null | undefined): string {
   if (value === null || value === undefined || value === '') return ''
   return ` ${name}="${xml(String(value))}"`
 }
 
 /**
- * O ODF junta espaços em sequência e descarta os do começo: a sequência vira
- * `text:s`, a tabulação `text:tab` e a quebra `text:line-break`. O espaço que
- * abre o trecho também vira `text:s`, porque o anterior pode ter terminado em
- * espaço.
+ * ODF collapses runs of spaces and drops leading ones: a run becomes `text:s`, a tab `text:tab` and
+ * a break `text:line-break`. A space opening the span also becomes `text:s`, because the previous
+ * span may have ended with a space.
  */
 export function odfText(text: string): string {
   let out = ''
@@ -64,7 +63,7 @@ export function odfText(text: string): string {
   return out
 }
 
-/** Milímetros com até três casas — o bastante para um centésimo de ponto. */
+/** Up to three decimals: enough for a hundredth of a point. */
 export function mm(value: number): string {
   return `${Math.round(value * 1000) / 1000}mm`
 }
@@ -73,14 +72,14 @@ export function pt(value: number): string {
   return `${Math.round(value * 100) / 100}pt`
 }
 
-/** Um número finito, ou `null` — o atributo vem do documento, e pode vir de tudo. */
+/** The attribute comes from the document and may hold anything. */
 export function finite(value: unknown): number | null {
   if (value === null || value === undefined || value === '' || typeof value === 'boolean') return null
   const number = Number(value)
   return Number.isFinite(number) ? number : null
 }
 
-/** `12pt`, `16px` ou `12` (pontos) → pontos. */
+/** `12pt`, `16px` or `12` (points) → points. */
 export function pointsOf(value: unknown): number | null {
   if (typeof value === 'number') return Number.isFinite(value) && value > 0 ? value : null
   if (typeof value !== 'string') return null
@@ -91,7 +90,7 @@ export function pointsOf(value: unknown): number | null {
   return match[2]?.toLowerCase() === 'px' ? pxToPt(number) : number
 }
 
-/** As cores com nome que o leitor pode trazer — as do realce do Word e as básicas do CSS. */
+/** Named colors the reader may bring: Word's highlight colors and the basic CSS ones. */
 const NAMED_COLORS: Readonly<Record<string, string>> = {
   black: '#000000',
   white: '#ffffff',
@@ -123,7 +122,7 @@ const NAMED_COLORS: Readonly<Record<string, string>> = {
   orange: '#ffa500',
 }
 
-/** A cor em `#rrggbb`, que é a única forma que o ODF aceita; `null` para o resto. */
+/** `#rrggbb`, the only form ODF accepts; `null` for the rest. */
 export function odfColor(value: unknown): string | null {
   if (typeof value !== 'string') return null
   const text = value.trim().toLowerCase()
@@ -145,7 +144,7 @@ export function odfColor(value: unknown): string | null {
 export class FontBook {
   private readonly names = new Set<string>()
 
-  /** O nome da fonte na pilha de CSS (`Calibri, Carlito, sans-serif` → `Calibri`). */
+  /** `Calibri, Carlito, sans-serif` → `Calibri`. */
   use(stack: unknown): string | null {
     if (typeof stack !== 'string') return null
     const name = firstFontOf(stack)
@@ -175,7 +174,7 @@ export interface CharacterProps {
   strike?: boolean | undefined
   caps?: boolean | undefined
   smallCaps?: boolean | undefined
-  /** `super` ou `sub`. */
+  /** `super` or `sub`. */
   position?: string | undefined
   color?: unknown
   background?: unknown
@@ -186,7 +185,7 @@ export function textProperties(props: CharacterProps, fonts: FontBook): string {
   return fontAttrs(props, fonts) + decorationAttrs(props) + colorAttrs(props)
 }
 
-/** O ODF repete a fonte para o texto latino, o asiático e o complexo. */
+/** ODF repeats the font for Latin, Asian and complex text. */
 function everyScript(name: string, value: string): string {
   const [, local] = name.split(':')
   return attr(name, value) + attr(`style:${local}-asian`, value) + attr(`style:${local}-complex`, value)
@@ -284,9 +283,9 @@ export interface ParagraphProps {
   textIndentMm?: number | null
   spaceBeforePt?: number | null
   spaceAfterPt?: number | null
-  /** Múltiplo da altura natural da linha. */
+  /** A multiple of the natural line height. */
   lineFactor?: number | null
-  /** Altura mínima em pontos — o `exact` e o `atLeast` do arquivo. */
+  /** Minimum height in points: the file's `exact` and `atLeast`. */
   lineAtLeastPt?: number | null
   keepNext?: boolean | undefined
   keepLines?: boolean | undefined
@@ -295,7 +294,7 @@ export interface ParagraphProps {
   breakAfter?: 'page' | 'column' | null
   contextualSpacing?: boolean | undefined
   background?: unknown
-  /** O número com que a página recomeça, com a página mestra da seção. */
+  /** The number the page restarts at, with the section's master page. */
   pageNumber?: number | 'auto' | null
   borderBottom?: string | null
 }
@@ -370,9 +369,8 @@ export function paragraphPropsOfStyle(format: StyleParagraphFormat | undefined):
 }
 
 /**
- * A entrelinha do atributo do bloco (`1.2422`, `normal`, `12pt`) como o ODF a
- * quer: o múltiplo da altura natural — o número do CSS dividido por ela — ou a
- * altura mínima em pontos.
+ * The block's line spacing attribute (`1.2422`, `normal`, `12pt`) as ODF wants it: the multiple of
+ * the natural height (the CSS number divided by it) or the minimum height in points.
  */
 export function lineSpacingOfAttr(
   value: unknown,
@@ -385,7 +383,7 @@ export function lineSpacingOfAttr(
   return { lineFactor: lineFactorOf(css, typeof fontFamily === 'string' ? fontFamily : null) }
 }
 
-/** O `content.xml` e o `styles.xml` não enxergam os automáticos um do outro: daí o prefixo. */
+/** `content.xml` and `styles.xml` do not see each other's automatic styles: hence the prefix. */
 export class StyleBook {
   private readonly names = new Map<string, string>()
   private readonly parts: string[] = []
@@ -393,7 +391,7 @@ export class StyleBook {
 
   constructor(private readonly prefix: string) {}
 
-  /** O nome do estilo com estes atributos e este corpo — o mesmo para a mesma combinação. */
+  /** The same name for the same combination. */
   style(family: string, letter: string, attrs: string, body: string): string {
     return this.add(
       letter,

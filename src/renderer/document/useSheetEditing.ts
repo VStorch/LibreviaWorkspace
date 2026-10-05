@@ -8,7 +8,7 @@ import { useWorkspace } from '../state/workspace.js'
 import type { FloatSource, PlacedFloat } from './FloatingLayer.js'
 import type { PageLayout } from './usePagination.js'
 
-/** A posição depende da folha em que o parágrafo âncora caiu. */
+/** The position depends on the sheet the anchor paragraph fell on. */
 export function useFloatsByPage(
   editor: Editor | null,
   layout: PageLayout,
@@ -29,7 +29,7 @@ export function useFloatsByPage(
 
       let slot = 0
       for (const object of floatsOf(node.attrs)) {
-        // É pela posição do bloco que o texto da caixa volta ao atributo de onde saiu.
+        // The block position is how the box text goes back to the attribute it came from.
         sheet.push({ object, anchorTopMm: pxToMm(anchor.topPx), source: { pos, index: slot } })
         slot += 1
       }
@@ -45,7 +45,7 @@ export interface SheetEditing {
   readonly onEditBandBox: (bid: string, content: DocumentNode[]) => void
 }
 
-/** Vazio no somente leitura: a folha não oferece edição. */
+/** Empty when read-only: the sheet offers no editing. */
 export function useSheetEditing(
   editor: Editor | null,
   readOnly: boolean,
@@ -53,7 +53,10 @@ export function useSheetEditing(
   const setPage = useWorkspace((state) => state.setPage)
   const setSections = useWorkspace((state) => state.setSections)
 
-  /** Uma transação comum: entra no histórico, suja o documento e chega ao gravador pelo `getJSON()`. */
+  /**
+   * An ordinary transaction: it enters history, marks the document dirty and reaches the writer
+   * through `getJSON()`.
+   */
   const onEditFloat = useCallback(
     (source: FloatSource, content: DocumentNode[]) => {
       if (editor === null || readOnly) return
@@ -74,10 +77,10 @@ export function useSheetEditing(
     [editor, readOnly],
   )
 
-  /** A faixa mora em `page`, e não no documento do editor: por isso `setPage`, e não transação. */
+  /** The band lives in `page`, not in the editor document: hence `setPage`, not a transaction. */
   const editAllSections = useCallback(
     (change: <T extends PageSetup>(section: T) => T) => {
-      // Da loja: várias peças podem sair do foco em sequência.
+      // From the store: several pieces may lose focus in a row.
       const state = useWorkspace.getState()
       const page = change(state.page)
       if (page !== state.page) setPage(page)
@@ -87,7 +90,7 @@ export function useSheetEditing(
     [setPage, setSections],
   )
 
-  // A quebra de seção copia as referências, e a mesma parte mora nas duas seções.
+  // A section break copies the references, and the same part lives in both sections.
   const onEditBandPiece = useCallback(
     (pid: string, text: string) => {
       if (!readOnly) editAllSections((section) => editBandPiece(section, pid, text))
@@ -95,7 +98,7 @@ export function useSheetEditing(
     [readOnly, editAllSections],
   )
 
-  /** A caixa vem inteira: digitar dentro dela abre e fecha parágrafos. */
+  /** The whole box comes in: typing inside it opens and closes paragraphs. */
   const onEditBandBox = useCallback(
     (bid: string, content: DocumentNode[]) => {
       if (!readOnly) editAllSections((section) => editBandFloat(section, bid, content))

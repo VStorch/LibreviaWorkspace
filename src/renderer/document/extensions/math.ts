@@ -12,16 +12,15 @@ import {
 import { latexOfEquation } from '@services/document/mathml-latex.js'
 import { t } from '../../i18n.js'
 
-/** O CSS dela está em `content-styles.ts`. */
+/** Its CSS is in `content-styles.ts`. */
 export const MATH_CLASS = 'equacao'
 
 /**
- * `m:oMath` ou `m:oMathPara`, atômico como o campo. A identidade é o `omml`, que
- * volta ao arquivo; o `mathml`, a lista `lossy` e o `editable` saem dele no
- * sidecar (`OmmlMath.cs`). O `latex` é a fonte da edição: a equação editada chega
- * com `omml` nulo, e o sidecar o refaz do MathML. A de exibição fica no
- * parágrafo, como no OOXML. O MathML passa sempre por `sanitizeMathMl` e vira DOM
- * por `createElementNS`, nunca por `innerHTML`.
+ * `m:oMath` or `m:oMathPara`, atomic like a field. The identity is `omml`, which goes back to the
+ * file; `mathml`, the `lossy` list and `editable` come from it in the sidecar (`OmmlMath.cs`).
+ * `latex` is the editing source: an edited equation arrives with a null `omml`, and the sidecar
+ * rebuilds it from the MathML. A display equation stays in the paragraph, as in OOXML. MathML
+ * always goes through `sanitizeMathMl` and becomes DOM via `createElementNS`, never `innerHTML`.
  */
 export const MathNode = Node.create({
   name: 'math',
@@ -33,9 +32,10 @@ export const MathNode = Node.create({
 
   addAttributes() {
     return {
-      // O `data-omml` vazio é o da equação que não veio de arquivo: volta a ser nulo.
+      // An empty `data-omml` belongs to an equation that did not come from a file: it goes back to
+      // null.
       omml: { default: null, parseHTML: (element) => element.getAttribute('data-omml') || null },
-      // Nulo fica o do `getAttrs` da regra, do `math` colado de fora.
+      // Null comes from the rule's `getAttrs`, for `math` pasted from outside.
       mathml: { default: '', parseHTML: (element) => element.getAttribute('data-mathml') },
       latex: { default: '', parseHTML: (element) => element.getAttribute('data-latex') },
       display: {
@@ -49,12 +49,13 @@ export const MathNode = Node.create({
     }
   },
 
-  // O embrulho é o que o editor copia; o `math` solto vem de fora e vira equação nova.
+  // The wrapper is what the editor copies; a loose `math` comes from outside and becomes a new
+  // equation.
   parseHTML() {
     return [{ tag: 'span[data-math]' }, { tag: 'math', getAttrs: pastedMathAttrs }]
   },
 
-  // Um elemento pronto: o MathML filtrado é montado nó a nó, para a tela, a impressão e a cópia.
+  // A ready element: the filtered MathML is built node by node, for screen, print and copy.
   renderHTML({ node }) {
     return renderMath(node, document)
   },
@@ -64,18 +65,18 @@ export const MathNode = Node.create({
   },
 })
 
-/** O LaTeX, guardado ou tirado do MathML, ou o marcador quando nem isso dá. */
+/** The stored LaTeX or the one derived from MathML, or the placeholder when neither works. */
 export function plainTextOf(node: ProseMirrorNode): string {
   const latex = latexOfEquation(node.attrs)
   return latex === '' ? t('document.math.placeholder') : latex
 }
 
-/** `false` quando o MathML não passa no filtro. */
+/** `false` when the MathML does not pass the filter. */
 export function pastedMathAttrs(element: HTMLElement): Record<string, unknown> | false {
   return mathAttrsOfMarkup(new XMLSerializer().serializeToString(element))
 }
 
-/** Sem OMML, com o LaTeX tirado do MathML. */
+/** Without OMML, with LaTeX derived from MathML. */
 export function mathAttrsOfMarkup(markup: string): Record<string, unknown> | false {
   const tree = sanitizeMathMl(markup)
   if (tree === null) return false
@@ -130,7 +131,7 @@ export function renderMath(node: ProseMirrorNode, doc: Document): HTMLElement {
   return wrapper
 }
 
-/** Também a visualização do editor de equações. */
+/** Also the equation editor preview. */
 export function buildMath(element: MathElement, doc: Document): Element {
   const built = doc.createElementNS(MATHML_NAMESPACE, element.tag)
   for (const [name, value] of Object.entries(element.attrs)) built.setAttribute(name, value)
@@ -141,9 +142,9 @@ export function buildMath(element: MathElement, doc: Document): Element {
 }
 
 /**
- * O clique duplo e o Enter chegam a `EditEquation`, que decide se abre para
- * editar ou só para ver. Prioridade alta, para o Enter vir antes do que parte o
- * parágrafo, sem mexer na ordem do esquema.
+ * Double click and Enter reach `EditEquation`, which decides whether to open for editing or
+ * viewing. High priority, so Enter comes before the paragraph split, without touching the schema
+ * order.
  */
 export const MathEditing = Extension.create({
   name: 'mathEditing',
@@ -164,11 +165,11 @@ export const MathEditing = Extension.create({
       new Plugin({
         key: new PluginKey('mathEditing'),
         props: {
-          // A assinatura é a do ProseMirror, e não nossa.
+          // The signature is ProseMirror's, not ours.
           // eslint-disable-next-line max-params
           handleDoubleClickOn(view, _pos, node, nodePos, _event, direct) {
             if (!direct || node.type.name !== 'math') return false
-            // A posição do nó: na metade direita, o clique cai depois da equação.
+            // The node position: on the right half, the click lands after the equation.
             view.dispatch(view.state.tr.setSelection(NodeSelection.create(view.state.doc, nodePos)))
             emitEditorCommand(EditorCommand.EditEquation)
             return true

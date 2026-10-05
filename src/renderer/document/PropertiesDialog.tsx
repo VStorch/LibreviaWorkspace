@@ -8,7 +8,7 @@ import { DialogActions } from '../components/DialogActions.js'
 import { MAX_DESCRIPTION_LENGTH, MAX_PROPERTY_LENGTH } from '@shared/limits.js'
 import { tally } from './WordCountDialog.js'
 
-/** Na ordem do Word. */
+/** In Word's order. */
 const EDITABLE = [
   ['title', 'document.properties.title'],
   ['subject', 'document.properties.subject'],
@@ -23,9 +23,8 @@ const EDITABLE = [
 type EditableKey = (typeof EDITABLE)[number][0]
 
 /**
- * Grava um **remendo**: o campo que não existia e ficou vazio fica ausente; o que
- * foi apagado vira cadeia vazia. Datas, autor da última gravação e revisão são só
- * lidos (`stampProperties`).
+ * Saves a **patch**: a field that did not exist and stayed empty stays absent; one that was cleared
+ * becomes an empty string. Dates, last saved by and revision are read only (`stampProperties`).
  */
 export function PropertiesDialog({
   editor,
@@ -74,7 +73,7 @@ export function PropertiesDialog({
   )
 }
 
-/** `null` quando nada mudou. */
+/** `null` when nothing changed. */
 function patchOf(
   properties: DocumentProperties | undefined,
   values: Record<EditableKey, string>,

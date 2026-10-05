@@ -51,13 +51,16 @@ import { TableLook } from './extensions/table-look.js'
 import { WordShortcuts } from './extensions/word-shortcuts.js'
 
 export interface EditorToolOptions {
-  /** Uma função, consultada a cada regra: as regras nascem com o editor, e a preferência muda com ele no ar. */
+  /**
+   * A function, queried on each rule: the rules are created with the editor, and the preference
+   * changes while it is running.
+   */
   readonly isTypographyEnabled?: () => boolean
-  /** Só o estado inicial; depois quem manda é o comando. */
+  /** Only the initial state; afterwards the command rules. */
   readonly invisibleCharactersVisible?: boolean
-  /** Se a conversa está na biblioteca de comentários — ver `withoutCommentAnchors`. */
+  /** Whether the thread is in the comment library; see `withoutCommentAnchors`. */
   readonly isKnownComment?: (cid: string) => boolean
-  /** Consultado a cada transação. */
+  /** Queried on each transaction. */
   readonly isTrackingChanges?: () => boolean
   readonly revisionAuthor?: () => string
   readonly notes?: () => DocumentNotes | undefined
@@ -70,20 +73,21 @@ export function buildEditorExtensions(
   return [
     ...contentExtensions(),
 
-    // A contagem sem o texto excluído por uma revisão, como no Word.
+    // Counting without text deleted by a revision, as in Word.
     CountWithoutDeletions,
 
-    // O somente leitura vale para comando, e não só para o teclado.
+    // Read-only applies to commands, not just to the keyboard.
     ReadOnlyGuard,
 
-    // `injectCSS: false`: o estilo da extensão usa `line-height: 1em`, e uma marca
-    // que mude a medida da linha desloca a quebra de página (ver `content-styles.ts`).
+    // `injectCSS: false`: the extension style uses `line-height: 1em`, and a mark that changes the
+    // line height shifts the page break (see `content-styles.ts`).
     InvisibleCharacters.configure({
       visible: options.invisibleCharactersVisible ?? false,
       injectCSS: false,
       builders: [
         new SpaceCharacter(),
-        // A tabulação, que a extensão não traz e é o que se procura quando o alinhamento saiu errado.
+        // The tab, which the extension lacks and is what one looks for when alignment came out
+        // wrong.
         new InvisibleCharacter({ type: 'tab', predicate: (char) => char === '\t' }),
         new ParagraphNode(),
         new HardBreakNode(),
@@ -93,13 +97,13 @@ export function buildEditorExtensions(
     guardedTypography(options.isTypographyEnabled ?? (() => true)),
 
     Indent,
-    // O formulário inteiro numa transação, para desfazer não pedir oito `Ctrl+Z`.
+    // The whole form in one transaction, so undo does not take eight `Ctrl+Z`.
     ParagraphCommands,
     StyleCommands,
     CharacterStyle,
     BlockFormat,
     ListNumbering,
-    // Sem a identidade do bloco, a gravação cirúrgica regeneraria o documento inteiro.
+    // Without block identity, the surgical save would regenerate the whole document.
     BlockIdentity,
     Caps,
     SmallCaps,
@@ -112,7 +116,7 @@ export function buildEditorExtensions(
     Comments.configure({ isKnown: options.isKnownComment }),
     NoteRef.configure({ notes: options.notes }),
     ...TrackChanges,
-    // Antes do controle do que se digita: o Backspace passa pelo escondido antes.
+    // Before input tracking: Backspace goes through the hidden text first.
     RevisionViewExtension,
     TrackInput.configure({
       isTracking: options.isTrackingChanges ?? (() => false),
@@ -123,29 +127,29 @@ export function buildEditorExtensions(
     TableOfContents,
     MathNode,
     MathEditing,
-    // Só guarda os vãos que `usePagination` calcula, para acompanharem a edição.
+    // Only keeps the gaps `usePagination` computes, so they follow editing.
     Pagination,
     SectionGeometry,
     SectionMarks,
     SearchReplace.configure({ onStatusChange: onSearchStatusChange }),
-    // Prioridade alta: decide `Ctrl+E`, disputado com a marca de código.
+    // High priority: it decides `Ctrl+E`, contested by the code mark.
     WordShortcuts,
   ]
 }
 
-/** O texto, a formatação, a imagem e a tabela; o resto é do editor de documento. */
+/** Text, formatting, images and tables; the rest belongs to the document editor. */
 function contentExtensions(): Extensions {
   return [
     StarterKit.configure({
       link: false,
       undoRedo: { depth: 200 },
-      // Sem o parágrafo vazio depois do título: o corpus termina em `Heading1`, e
-      // gravar sem editar acrescentaria um `<w:p/>`.
+      // No empty paragraph after a heading: the corpus ends in `Heading1`, and saving without
+      // editing would add a `<w:p/>`.
       trailingNode: { notAfter: ['paragraph', 'heading'] },
     }),
 
     DocumentLink.configure({
-      // Os links abrem no navegador do sistema, depois da lista de esquemas do main.
+      // Links open in the system browser, after main's scheme allowlist.
       openOnClick: false,
       autolink: true,
       HTMLAttributes: { rel: 'noopener noreferrer' },
@@ -158,7 +162,8 @@ function contentExtensions(): Extensions {
     FontSize,
     LineHeight,
 
-    // Marcas, e não atributo de `textStyle`: no OOXML são um `w:vertAlign`, de valores que se excluem.
+    // Marks, not a `textStyle` attribute: in OOXML they are one `w:vertAlign`, with mutually
+    // exclusive values.
     Superscript,
     Subscript,
 
@@ -166,10 +171,10 @@ function contentExtensions(): Extensions {
     TextAlign.configure({ types: ['heading', 'paragraph'] }),
 
     DocumentImage.configure({
-      // Em linha, como no arquivo: no OOXML não há imagem fora de parágrafo, e
-      // como bloco a primeira mudança de atributo partiria o parágrafo.
+      // Inline, as in the file: OOXML has no image outside a paragraph, and as a block the first
+      // attribute change would split the paragraph.
       inline: true,
-      // Data URI, validado no main, que recusa SVG.
+      // A data URI validated in main, which refuses SVG.
       allowBase64: true,
     }),
 
@@ -182,10 +187,10 @@ function contentExtensions(): Extensions {
 }
 
 /**
- * Sem `<-`, `->` e `3 x 4`, que o Word não tem em português e atrapalham texto
- * técnico. Embrulhada, e não configurada, porque as regras do Tiptap nascem com
- * o editor: devolver `null` é "não houve correção". O `undoable` é preservado
- * para o Backspace logo depois desfazer só a substituição, como no Word.
+ * Without `<-`, `->` and `3 x 4`, which Word lacks in Portuguese and which get in the way of
+ * technical text. Wrapped, not configured, because Tiptap's rules are created with the editor:
+ * returning `null` means "no correction happened". `undoable` is kept so Backspace right after
+ * undoes only the replacement, as in Word.
  */
 function guardedTypography(enabled: () => boolean): Extensions[number] {
   return Typography.configure({
@@ -199,7 +204,7 @@ function guardedTypography(enabled: () => boolean): Extensions[number] {
           new InputRule({
             find: rule.find,
             handler: (props) => (enabled() ? rule.handler(props) : null),
-            // É o que faz o Backspace desfazer a substituição.
+            // That is what makes Backspace undo the replacement.
             undoable: rule.undoable,
           }),
       )
@@ -208,9 +213,9 @@ function guardedTypography(enabled: () => boolean): Extensions[number] {
 }
 
 /**
- * O padrão da extensão poria `target`, `rel` e `class` em toda marca, que o
- * `w:hyperlink` não tem: a impressão digital divergiria e todo parágrafo com link
- * seria reescrito. No HTML eles continuam, por `HTMLAttributes`.
+ * The extension default would put `target`, `rel` and `class` on every mark, which `w:hyperlink`
+ * lacks: the fingerprint would diverge and every paragraph with a link would be rewritten. In HTML
+ * they remain, through `HTMLAttributes`.
  */
 const DocumentLink = Link.extend({
   addAttributes() {

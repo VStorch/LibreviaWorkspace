@@ -22,62 +22,51 @@ import {
 import { LEGACY_STYLES, type StyleSheet } from './styles.js'
 
 /**
- * Formato interno `.sdoc`.
+ * The internal `.sdoc` format.
  *
- * É um JSON: o modelo do documento gravado como está. Não substitui o DOCX —
- * serve para salvar e reabrir **sem perda nenhuma**, o que o `.txt` não
- * permite. Imagens vão embutidas como data URI; se isso vier a pesar, o
- * container pode virar ZIP sem que nada fora deste arquivo mude.
+ * It is JSON: the document model saved as is. It does not replace DOCX; it saves and reopens **with
+ * no loss at all**, which `.txt` cannot. Images are embedded as data URIs; if that gets heavy, the
+ * container can become a ZIP without anything outside this file changing.
  *
- * O campo `version` existe para que um arquivo gravado hoje continue legível
- * quando o modelo evoluir. Cada versão que muda a forma do documento ganha uma
- * migração em `migrate`, aplicada na leitura:
+ * `version` keeps a file saved today readable as the model evolves. Each version that changes the
+ * document shape gets a migration in `migrate`, applied on read:
  *
- * - **2** — a imagem deixou de ser bloco e passou a morar dentro do parágrafo,
- *   como no Word. Editá-la como bloco partia o parágrafo em volta.
- * - **3** — o documento passou a carregar os seus **estilos** (`styles.ts`). Um
- *   arquivo da versão 2 não os tem, e recebe `LEGACY_STYLES` na leitura: são a
- *   aparência que o editor já desenhava, medida por medida, para que o documento
- *   antigo abra idêntico.
- * - **4** — o bloco passou a carregar só a formatação **direta**; o herdado vem
- *   dos estilos. Os blocos de um arquivo anterior continuam achatados, e a
- *   leitura os marca (`flattened`) para que a gravação em DOCX os compare com
- *   uma leitura achatada do original. Os nós não são tocados: desachatar exigiria
- *   o `styles.xml` de cada um, e o achatado desenha igual.
- * - **5** — o leitor do `.docx` passou a produzir marcadores, campos, links
- *   internos e sumário. O rascunho anterior não os tem nos nós, e a leitura o
- *   marca (`beforeReferences`) pelo mesmo motivo da versão 4.
- * - **6** — o documento passou a ter **seções**: `sections` leva as anteriores
- *   à última, e o parágrafo que encerra cada uma leva `sectionBreak`. O
- *   rascunho anterior não tem nem uma coisa nem outra — a página dele é a do
- *   documento inteiro —, e a leitura o marca (`beforeSections`) pelo mesmo
- *   motivo da versão 4.
- * - **7** — o documento passou a ter **comentários**: `comments` leva o corpo
- *   de cada um, e o texto leva as pontas da âncora (`commentStart` e
- *   `commentEnd`). O rascunho anterior não tem as pontas, e a leitura o marca
- *   (`beforeComments`) pelo mesmo motivo da versão 4.
- * - **8** — o texto passou a levar as **revisões**: as marcas `insertion` e
- *   `deletion`, a revisão da marca de parágrafo (`markRevision`) e a da linha
- *   de tabela (`rowRevision`); `trackChanges` é o interruptor do documento. O
- *   rascunho anterior não as tem — o inserido era texto comum e o excluído não
- *   aparecia —, e a leitura o marca (`beforeRevisions`) pelo mesmo motivo da
- *   versão 4.
- * - **9** — o texto passou a levar as **notas** de rodapé e de fim: a
- *   referência é o nó `noteRef`, com o corpo da nota dentro, e `notes` leva a
- *   numeração do documento. O rascunho anterior não tem a referência, e a
- *   leitura o marca (`beforeNotes`) pelo mesmo motivo da versão 4.
- * - **10** — as **propriedades** do documento: título, assunto, autor…, em
- *   `properties`. O rascunho anterior simplesmente não as tem, e não ganha
- *   marca: na gravação em DOCX a ausência é "deixe as do arquivo como estão".
- * - **11** — as **equações**: o nó `math`, com o OMML do arquivo dentro e o
- *   MathML que a tela desenha. O rascunho anterior não tem o nó — a equação
- *   ficava escondida no parágrafo —, e a leitura o marca (`beforeMath`) pelo
- *   mesmo motivo da versão 4.
+ * - **2**: the image stopped being a block and moved inside the paragraph, as in Word. Editing it
+ *   as a block split the surrounding paragraph.
+ * - **3**: the document carries its **styles** (`styles.ts`). A version 2 file has none and gets
+ *   `LEGACY_STYLES` on read: the look the editor already drew, measure by measure, so the old
+ *   document opens identical.
+ * - **4**: a block carries only **direct** formatting; the inherited part comes from the styles.
+ *   Blocks from an older file stay flattened, and reading marks them (`flattened`) so saving to
+ *   DOCX compares them with a flattened reading of the original. The nodes are untouched:
+ *   unflattening would need each one's `styles.xml`, and the flattened form draws the same.
+ * - **5**: the `.docx` reader produces bookmarks, fields, internal links and tables of contents. An
+ *   older draft lacks them in the nodes, and reading marks it (`beforeReferences`) for the same
+ *   reason as version 4.
+ * - **6**: the document has **sections**: `sections` holds the ones before the last, and the
+ *   paragraph closing each one carries `sectionBreak`. An older draft has neither (its page is the
+ *   whole document's), and reading marks it (`beforeSections`) for the same reason as version 4.
+ * - **7**: the document has **comments**: `comments` holds each body, and the text holds the anchor
+ *   ends (`commentStart` and `commentEnd`). An older draft has no ends, and reading marks it
+ *   (`beforeComments`) for the same reason as version 4.
+ * - **8**: the text carries **revisions**: the `insertion` and `deletion` marks, the paragraph mark
+ *   revision (`markRevision`) and the table row one (`rowRevision`); `trackChanges` is the document
+ *   switch. An older draft has none (insertions were plain text and deletions did not show), and
+ *   reading marks it (`beforeRevisions`) for the same reason as version 4.
+ * - **9**: the text carries footnotes and endnotes: the reference is the `noteRef` node, with the
+ *   note body inside, and `notes` holds the document numbering. An older draft has no references,
+ *   and reading marks it (`beforeNotes`) for the same reason as version 4.
+ * - **10**: the document **properties** (title, subject, author…) in `properties`. An older draft
+ *   simply lacks them and gets no flag: when saving to DOCX their absence means "leave the file's
+ *   as they are".
+ * - **11**: **equations**: the `math` node, with the file's OMML inside and the MathML the screen
+ *   draws. An older draft has no node (the equation was hidden in the paragraph), and reading marks
+ *   it (`beforeMath`) for the same reason as version 4.
  */
 export const SDOC_FORMAT = 'sdoc'
 export const SDOC_VERSION = 11
 
-/** O conteúdo é validado só na forma; a estrutura fina é do ProseMirror. */
+/** Content is only validated in shape; the fine structure is ProseMirror's. */
 const documentNodeSchema: z.ZodType<DocumentNode> = z.looseObject({
   type: z.string(),
 })
@@ -87,29 +76,29 @@ const sdocSchema = z.object({
   version: z.number().int().positive(),
   page: pageSetupSchema,
   doc: documentNodeSchema,
-  // Opcional porque a versão 2 não tem estilos: quem decide o que fazer com a
-  // ausência é `migrate`, e não o schema.
+  // Optional because version 2 has no styles: `migrate` decides what to do with their absence, not
+  // the schema.
   styles: styleSheetSchema.optional(),
-  // Só presente quando verdadeiro — ver `DocumentModel.flattened`.
+  // Only present when true; see `DocumentModel.flattened`.
   flattened: z.boolean().optional(),
-  // Só presente quando verdadeiro — ver `DocumentModel.beforeReferences`.
+  // Only present when true; see `DocumentModel.beforeReferences`.
   beforeReferences: z.boolean().optional(),
-  // Ver `DocumentModel.sections` e `beforeSections`.
+  // See `DocumentModel.sections` and `beforeSections`.
   sections: z.array(sectionSetupSchema).max(10_000).optional(),
   beforeSections: z.boolean().optional(),
   outsideBookmarks: z.array(z.string()).optional(),
-  // Ver `DocumentModel.comments` e `beforeComments`.
+  // See `DocumentModel.comments` and `beforeComments`.
   comments: z.array(documentCommentSchema).max(100_000).optional(),
   beforeComments: z.boolean().optional(),
-  // Ver `DocumentModel.trackChanges` e `beforeRevisions`.
+  // See `DocumentModel.trackChanges` and `beforeRevisions`.
   trackChanges: z.boolean().optional(),
   beforeRevisions: z.boolean().optional(),
-  // Ver `DocumentModel.notes` e `beforeNotes`.
+  // See `DocumentModel.notes` and `beforeNotes`.
   notes: documentNotesSchema.optional(),
   beforeNotes: z.boolean().optional(),
-  // Ver `DocumentModel.beforeMath`.
+  // See `DocumentModel.beforeMath`.
   beforeMath: z.boolean().optional(),
-  // Ver `DocumentModel.properties`.
+  // See `DocumentModel.properties`.
   properties: documentPropertiesSchema.optional(),
 })
 
@@ -120,8 +109,8 @@ export function serializeDocument(model: DocumentModel): string {
       version: SDOC_VERSION,
       page: model.page,
       doc: model.doc,
-      // No envelope, como o sidecar os põe ao abrir um `.docx`: os nós, e a
-      // impressão digital deles, ficam como estavam.
+      // In the envelope, as the sidecar puts them when opening a `.docx`: the nodes, and their
+      // fingerprints, stay as they were.
       styles: model.styles,
       ...onlyTrue('flattened', model.flattened),
       ...onlyTrue('beforeReferences', model.beforeReferences),
@@ -142,7 +131,7 @@ export function serializeDocument(model: DocumentModel): string {
   )
 }
 
-/** As marcas de documento antigo só existem ligadas: o arquivo novo não as carrega. */
+/** Old-document flags only exist when on: a new file does not carry them. */
 export function onlyTrue<K extends string>(key: K, value: boolean | undefined): Partial<Record<K, true>> {
   return value === true ? ({ [key]: true } as Record<K, true>) : {}
 }
@@ -158,7 +147,10 @@ export function onlyNonEmpty<K extends string, V>(
   return value === undefined || value.length === 0 ? {} : ({ [key]: [...value] } as Record<K, V[]>)
 }
 
-/** Arquivo corrompido ou de versão futura produz uma frase que a pessoa entenda, e não um erro de JSON. */
+/**
+ * A corrupt file or one from a future version gives a sentence the user understands, not a JSON
+ * error.
+ */
 export function parseDocument(text: string, language: Language = Language.Portuguese): DocumentModel {
   let raw: unknown
   try {
@@ -176,8 +168,8 @@ export function parseDocument(text: string, language: Language = Language.Portug
     throw new AppError(ErrorCode.UnsupportedFormat, translate(language, 'errors.document.newerVersion'))
   }
 
-  // Margens inválidas não impedem a leitura: o documento é recuperado com a
-  // configuração padrão, porque o texto do usuário vale mais que o layout.
+  // Invalid margins do not stop reading: the document is recovered with the default setup, because
+  // the user's text is worth more than the layout.
   const page = isValidMargins(parsed.data.page) ? parsed.data.page : DEFAULT_PAGE_SETUP
   const sections = (parsed.data.sections ?? []).map((section) =>
     isValidMargins(section) ? section : { ...DEFAULT_PAGE_SETUP, id: section.id },
@@ -195,7 +187,7 @@ export function parseDocument(text: string, language: Language = Language.Portug
 
 type SdocData = z.infer<typeof sdocSchema>
 
-/** Cada marca de arquivo antigo e a versão do `.sdoc` que trouxe o recurso. */
+/** Each old-file flag and the `.sdoc` version that brought the feature. */
 const LEGACY_FLAGS = [
   ['flattened', 4],
   ['beforeReferences', 5],
@@ -229,14 +221,14 @@ function optionalPartsOf(
   }
 }
 
-/** As propriedades sem as chaves ausentes — `exactOptionalPropertyTypes`. */
+/** Without absent keys, for `exactOptionalPropertyTypes`. */
 export function propertiesOf(raw: z.infer<typeof documentPropertiesSchema>): DocumentProperties {
   return Object.fromEntries(
     Object.entries(raw).filter(([, value]) => value !== undefined),
   ) as DocumentProperties
 }
 
-/** A numeração das notas sem as chaves ausentes — `exactOptionalPropertyTypes`. */
+/** Without absent keys, for `exactOptionalPropertyTypes`. */
 export function notesOf(raw: z.infer<typeof documentNotesSchema>): DocumentNotes {
   const numbering = (pr: NonNullable<typeof raw.footnotePr>): NoteNumbering => ({
     ...(pr.numFmt === undefined ? {} : { numFmt: pr.numFmt }),
@@ -250,7 +242,7 @@ export function notesOf(raw: z.infer<typeof documentNotesSchema>): DocumentNotes
   }
 }
 
-/** O comentário do envelope sem as chaves ausentes — `exactOptionalPropertyTypes`. */
+/** Without absent keys, for `exactOptionalPropertyTypes`. */
 export function commentOf(raw: z.infer<typeof documentCommentSchema>): DocumentComment {
   return {
     id: raw.id,
@@ -265,27 +257,25 @@ export function commentOf(raw: z.infer<typeof documentCommentSchema>): DocumentC
   }
 }
 
-/** Traz um documento gravado por uma versão anterior do formato para a atual. */
 function migrate(doc: DocumentNode, version: number): DocumentNode {
   return version < 2 ? wrapLooseImages(doc) : doc
 }
 
 /**
- * `LEGACY_STYLES`, e não `BUILTIN_STYLES`: o arquivo antigo tem de reabrir com a
- * paginação de antes. Pela versão, e não pela presença do campo: um arquivo da
- * versão 2 com `styles` é um arquivo remendado.
+ * `LEGACY_STYLES`, not `BUILTIN_STYLES`: the old file must reopen with its old pagination. By
+ * version, not by the field's presence: a version 2 file with `styles` is a patched file.
  */
 function migrateStyles(styles: StyleSheet | undefined, version: number): StyleSheet {
   return version < 3 || styles === undefined ? LEGACY_STYLES : styles
 }
 
-/** Só nos nós de texto a imagem inline tem lugar. */
+/** Inline images only belong in text nodes. */
 const TEXTBLOCKS = new Set(['paragraph', 'heading', 'codeBlock'])
 
 /**
- * Embrulha num parágrafo cada imagem que a versão 1 deixou solta entre blocos.
- * O Tiptap monta o conteúdo sem validar, e sem isto ela sobreviveria por acaso
- * até o primeiro caminho que valide.
+ * Wraps in a paragraph each image version 1 left loose between blocks. Tiptap builds content
+ * without validating, and without this the image would survive by chance until the first path that
+ * validates.
  */
 function wrapLooseImages(node: DocumentNode): DocumentNode {
   if (node.content === undefined || TEXTBLOCKS.has(node.type)) return node

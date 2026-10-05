@@ -1,7 +1,7 @@
 /**
- * O caminho do processo main ao abrir e salvar `.docx`, contra o corpus de
- * `LIBREVIA_CORPUS_DIR`, que não entra no repositório; pulado sem a variável. O CI
- * cobre as mesmas estruturas com os fixtures do sidecar.
+ * Main's path when opening and saving `.docx`, against the corpus in `LIBREVIA_CORPUS_DIR`, which
+ * is not in the repository; skipped without the variable. CI covers the same structures with the
+ * sidecar fixtures.
  */
 
 import { access, constants, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises'
@@ -47,11 +47,11 @@ function newDocument(text: string): string {
   })
 }
 
-/** Um PNG de um pixel, o menor que o escritor de imagem aceita. */
+/** A one-pixel PNG, the smallest the image writer accepts. */
 const onePixelPng =
   'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFAAH/q842iQAAAABJRU5ErkJggg=='
 
-/** Documento novo com uma lista e uma imagem — as duas partes que se acumulam. */
+/** A list and an image, the two parts that accumulate. */
 function newDocumentWithListAndImage(text: string): string {
   return JSON.stringify({
     page,
@@ -88,7 +88,7 @@ describe.skipIf(documents.length === 0)('corpus real', () => {
   })
 
   it.each(documents)('salva %s sem reescrever nada quando nada foi editado', async (path) => {
-    // Abrir e salvar por reflexo custa zero.
+    // Opening and saving by reflex costs nothing.
     forgetOpenedDocx()
     const opened = await openDocx(client, path)
     const saved = await saveDocx(client, opened.content, { origin: path, destination: path })
@@ -115,7 +115,7 @@ describe.skipIf(documents.length === 0)('corpus real', () => {
   })
 
   it('não empresta o pacote aberto a um documento de outra origem', async () => {
-    // O documento novo depois de abrir um `.docx` não grava sobre os bytes dele.
+    // A new document after opening a `.docx` does not write over its bytes.
     const path = documents[0]!
     forgetOpenedDocx()
     await openDocx(client, path)
@@ -131,8 +131,8 @@ describe.skipIf(documents.length === 0)('corpus real', () => {
 })
 
 /**
- * O documento nascido no editor salvo em `.docx`, sobre o pacote que o sidecar cria.
- * Depende do sidecar publicado, e não do corpus.
+ * A document born in the editor saved as `.docx`, over the package the sidecar creates. Depends on
+ * the published sidecar, not on the corpus.
  */
 describe.skipIf(!published)('documento novo em .docx', () => {
   it('grava sobre o pacote mínimo e o texto volta ao reabrir', async () => {
@@ -146,7 +146,7 @@ describe.skipIf(!published)('documento novo em .docx', () => {
     expect(parts.has('word/numbering.xml')).toBe(false)
     expect(saved.inventory.lost).toEqual([])
 
-    // O original que segue é o pacote mínimo, e não os bytes gravados.
+    // The original kept is the minimal package, not the saved bytes.
     const keptParts = await listParts(saved.original)
     expect(keptParts.get('word/document.xml')!.toString('utf8')).not.toContain('Texto do documento novo.')
   })
@@ -162,14 +162,14 @@ describe.skipIf(!published)('documento novo em .docx', () => {
       destination,
     })
 
-    // Mesmo pacote e mesmo conteúdo, mesmos bytes.
+    // Same package and same content, same bytes.
     expect(Buffer.compare(second.original, first.original)).toBe(0)
     expect(Buffer.compare(Buffer.from(second.bytes), Buffer.from(first.bytes))).toBe(0)
   })
 
   it('gravar cinco vezes o mesmo documento novo não acumula partes', async () => {
-    // Partindo sempre do pacote mínimo, gravar de novo não soma numeração nem imagem
-    // ao que já estava lá.
+    // Always starting from the minimal package, saving again adds no numbering or image to what was
+    // there.
     const destination = '/tmp/novo-cinco-vezes.docx'
     forgetOpenedDocx()
 
@@ -190,14 +190,14 @@ describe.skipIf(!published)('documento novo em .docx', () => {
       })
     }
 
-    // E não passa vazio: a lista e a imagem estão no pacote.
+    // And it is not empty: the list and the image are in the package.
     expect(counted[0]).toEqual({ media: 1, numbering: 1 })
     expect(counted).toEqual(counted.map(() => counted[0]))
   })
 
   it('declara a perda do pacote de origem quando o modelo tem oid e o original não está aqui', async () => {
-    // Um modelo com `oid` gravado sem o pacote dele perde estilos, notas e
-    // comentários: a pessoa tem de ler isso na tela.
+    // A model with `oid` saved without its package loses styles, notes and comments: the user has
+    // to read that on screen.
     forgetOpenedDocx()
     const content = JSON.stringify({
       page,
@@ -220,7 +220,7 @@ describe.skipIf(!published)('documento novo em .docx', () => {
   })
 
   it('avisa quando as faixas de um .docx de origem não têm onde ser gravadas', async () => {
-    // O `.sdoc` que foi `.docx` traz as faixas do arquivo de origem.
+    // A `.sdoc` that was a `.docx` carries the source file's headers and footers.
     const content = JSON.stringify({
       page: { ...page, headerBand: { left: [], center: [], right: [], rule: true, rows: [] } },
       doc: { type: 'doc', content: [] },
@@ -233,9 +233,9 @@ describe.skipIf(!published)('documento novo em .docx', () => {
 })
 
 /**
- * O caminho que reconhece o pacote original vem do diálogo, na abertura, e do
- * `origin` do renderer, na gravação: os dois têm de bater, senão o `.docx` aberto é
- * gravado sobre o pacote mínimo.
+ * The path that recognizes the original package comes from the dialog on open and from the
+ * renderer's `origin` on save: they must match, or the opened `.docx` is written over the minimal
+ * package.
  */
 describe.skipIf(!published)('o caminho do pacote original', () => {
   let directory = ''
@@ -245,7 +245,7 @@ describe.skipIf(!published)('o caminho do pacote original', () => {
   })
   afterAll(() => rm(directory, { recursive: true, force: true }))
 
-  /** Um `.docx` de verdade no disco, gravado pelo próprio escritor. */
+  /** Written by the writer itself. */
   async function docxOnDisk(name: string): Promise<string> {
     const path = join(directory, name)
     forgetOpenedDocx()
@@ -257,7 +257,7 @@ describe.skipIf(!published)('o caminho do pacote original', () => {
     return path
   }
 
-  /** O mesmo arquivo escrito de outro jeito, sem `join`, que já normalizaria. */
+  /** The same file spelled differently, without `join`, which would normalize it. */
   function detoured(path: string): string {
     return `${directory}/.//${path.slice(directory.length + 1)}`
   }
@@ -288,11 +288,11 @@ describe.skipIf(!published)('o caminho do pacote original', () => {
   })
 
   it('reata o original recuperado por um caminho escrito de outro jeito', async () => {
-    // A recuperação relê os bytes do disco pelo caminho do rascunho.
+    // Recovery rereads the bytes from disk through the draft's path.
     const path = await docxOnDisk('recuperado.docx')
     forgetOpenedDocx()
 
-    // O modelo vem do rascunho; aqui, de uma leitura logo esquecida.
+    // The model comes from the draft; here, from a read that is forgotten right away.
     const opened = await openDocx(client, path)
     forgetOpenedDocx()
 
@@ -304,7 +304,7 @@ describe.skipIf(!published)('o caminho do pacote original', () => {
   })
 })
 
-/** As entradas do ZIP pelo diretório central, também as que têm descritor de dados. */
+/** Through the central directory, including entries with a data descriptor. */
 async function listParts(zip: Buffer): Promise<Map<string, Buffer>> {
   let end = -1
   for (let at = zip.length - 22; at >= Math.max(0, zip.length - 65_557); at--) {

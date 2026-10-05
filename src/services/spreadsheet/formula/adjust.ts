@@ -1,8 +1,7 @@
 /**
- * Copiar uma fórmula desloca só as referências relativas; inserir ou excluir
- * linha ou coluna desloca todas, inclusive as absolutas, e a referência para
- * uma célula excluída vira `#REF!`. A reescrita é feita sobre os símbolos, e não
- * sobre a árvore, para a fórmula voltar como a pessoa a digitou.
+ * Copying a formula shifts only relative references; inserting or deleting a row or column shifts
+ * all of them, absolute ones included, and a reference to a deleted cell becomes `#REF!`. The
+ * rewrite works on tokens, not on the tree, so the formula comes back as the user typed it.
  */
 
 import { FormulaError } from './errors.js'
@@ -14,7 +13,7 @@ type Moved = CellRef | 'broken'
 const Axis = { Row: 'row', Column: 'column' } as const
 type Axis = (typeof Axis)[keyof typeof Axis]
 
-/** Sair da planilha pela esquerda ou por cima vira `#REF!`, como no Excel. */
+/** Leaving the sheet to the left or the top becomes `#REF!`, as in Excel. */
 export function translateFormula(formula: string, rowDelta: number, columnDelta: number): string {
   return rewrite(formula, (ref) => {
     const row = ref.rowAbsolute ? ref.row : ref.row + rowDelta
@@ -25,14 +24,14 @@ export function translateFormula(formula: string, rowDelta: number, columnDelta:
   })
 }
 
-/** Referência sem nome de planilha aponta para a planilha da **própria fórmula**. */
+/** A reference without a sheet name points to the **formula's own** sheet. */
 export interface AdjustTarget {
   readonly sheet: string
-  /** A fórmula sendo ajustada mora nessa mesma planilha? */
+  /** Does the formula being adjusted live on that same sheet? */
   readonly own: boolean
 }
 
-/** `delta` positivo insere, negativo exclui. */
+/** A positive `delta` inserts, a negative one deletes. */
 export function adjustForRows(formula: string, at: number, delta: number, target: AdjustTarget): string {
   return adjust(formula, Axis.Row, at, delta, target)
 }
@@ -41,7 +40,7 @@ export function adjustForColumns(formula: string, at: number, delta: number, tar
   return adjust(formula, Axis.Column, at, delta, target)
 }
 
-/** Sem isto, renomear uma aba transformaria em `#REF!` toda fórmula que aponta para ela. */
+/** Otherwise renaming a tab would turn every formula pointing to it into `#REF!`. */
 export function renameSheetInFormula(formula: string, from: string, to: string): string {
   const target = from.toUpperCase()
 
@@ -73,23 +72,23 @@ function adjust(formula: string, axis: Axis, at: number, delta: number, target: 
   )
 }
 
-/** Uma posição sozinha: some se estava na faixa excluída. */
+/** A lone position: gone if it was in the deleted band. */
 function movePoint(position: number, at: number, delta: number): number | null {
   if (position < at) return position
   if (delta > 0) return position + delta
 
   const removed = -delta
-  // Dentro da faixa excluída não sobra para onde apontar.
+  // Inside the deleted band there is nowhere left to point.
   return position < at + removed ? null : position + delta
 }
 
 /**
- * Juntas, porque excluir parte de um intervalo o **encolhe**: `A1:A5` sem as
- * três primeiras linhas vira `A1:A2`, como no Excel.
+ * Together, because deleting part of a range **shrinks** it: `A1:A5` without its first three rows
+ * becomes `A1:A2`, as in Excel.
  */
 function moveSpan(from: number, to: number, at: number, delta: number): { from: number; to: number } | null {
   if (delta > 0) {
-    // Inserir dentro do intervalo o estica; inserir depois não o toca.
+    // Inserting inside the range stretches it; inserting after it leaves it alone.
     return { from: from >= at ? from + delta : from, to: to >= at ? to + delta : to }
   }
 
@@ -99,11 +98,11 @@ function moveSpan(from: number, to: number, at: number, delta: number): { from: 
   const start = from >= after ? from + delta : from >= at ? at : from
   const end = to >= after ? to + delta : to >= at ? at - 1 : to
 
-  // O intervalo inteiro caiu na faixa excluída.
+  // The whole range fell in the deleted band.
   return end < start ? null : { from: start, to: end }
 }
 
-/** As duas pontas de um intervalo vão juntas para `onRange`. */
+/** Both ends of a range go together to `onRange`. */
 function rewrite(
   formula: string,
   onSingle: (ref: CellRef) => Moved,
@@ -116,7 +115,7 @@ function rewrite(
   try {
     tokens = tokenize(body)
   } catch {
-    // Fórmula que nem chega a ser lida não tem referência para ajustar.
+    // A formula that cannot even be read has no reference to adjust.
     return formula
   }
 
@@ -149,8 +148,8 @@ function rewrite(
       continue
     }
 
-    // Sem tratamento de intervalo, cada ponta anda por si — que é o certo para
-    // a cópia, onde o deslocamento é o mesmo dos dois lados.
+    // Without range handling, each end moves on its own, which is right for copying, where the
+    // shift is the same on both sides.
     const moved = onSingle(ref)
     result += body.slice(cursor, token.position)
     result += textOf(moved)
@@ -160,7 +159,7 @@ function rewrite(
   return prefix + result + body.slice(cursor)
 }
 
-/** A segunda ponta de um intervalo nunca repete o nome da planilha. */
+/** The second end of a range never repeats the sheet name. */
 function textOf(moved: Moved, dropSheet = false): string {
   if (moved === 'broken') return FormulaError.Ref
   return formatReference(dropSheet ? { ...moved, sheet: undefined } : moved)

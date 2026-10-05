@@ -25,8 +25,8 @@ describe('fromXlsxFormula', () => {
   })
 
   it('deixa a matriz literal como está', () => {
-    // O aplicativo não calcula matriz. Traduzir o que não se entende estragaria
-    // um arquivo que continuaria bom se ficasse quieto.
+    // The app does not compute arrays. Translating what it does not understand would spoil a file
+    // that would stay fine if left alone.
     expect(fromXlsxFormula('=SUM({1,2;3,4})')).toBe('=SOMA({1,2;3,4})')
   })
 
@@ -35,7 +35,7 @@ describe('fromXlsxFormula', () => {
   })
 
   it('não confunde célula chamada como função', () => {
-    // `SOMA` sem parêntese colado é referência, não chamada.
+    // `SOMA` without an attached parenthesis is a reference, not a call.
     expect(fromXlsxFormula('=SUM(SUM1,B1)')).toBe('=SOMA(SUM1;B1)')
   })
 
@@ -76,9 +76,9 @@ describe('toXlsxFormula', () => {
 })
 
 describe('ida e volta', () => {
-  // A gravação cirúrgica compara a fórmula que sai com a que estava no arquivo.
-  // Se a ida e volta mudasse qualquer coisa, abrir e salvar sem editar
-  // reescreveria todas as células — e apagaria o que o modelo não representa.
+  // The surgical save compares the outgoing formula with the one in the file. If the round trip
+  // changed anything, opening and saving without editing would rewrite every cell and erase what
+  // the model does not represent.
   it.each([
     '=SUM(D2:D3)',
     '=B2*C2',

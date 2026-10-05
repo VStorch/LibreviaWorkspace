@@ -43,8 +43,8 @@ describe('rascunho de recuperação', () => {
   })
 
   it('não deixa cópia .bak para trás', async () => {
-    // O rascunho é reescrito de oito em oito segundos: guardar a versão
-    // anterior de cada uma delas dobraria a escrita sem proteger nada.
+    // The draft is rewritten every eight seconds: keeping the previous version of each would double
+    // the writes without protecting anything.
     await writeDraft(SAMPLE)
     await writeDraft(SAMPLE)
 
@@ -52,16 +52,16 @@ describe('rascunho de recuperação', () => {
   })
 
   it('o resumo não carrega o conteúdo', async () => {
-    // Um `.sdoc` com imagens embutidas tem dezenas de megabytes, e o aviso só
-    // precisa do nome e da hora para o usuário decidir.
+    // A `.sdoc` with embedded images is tens of megabytes, and the prompt only needs the name and
+    // time.
     await writeDraft({ ...SAMPLE, content: 'x'.repeat(100_000) })
 
     expect(await readDraftSummary()).not.toHaveProperty('content')
   })
 
   it('rascunho corrompido conta como ausente', async () => {
-    // Ele existe para salvar o dia depois de uma queda. Um erro de leitura dele
-    // viraria uma segunda falha em cima de quem acabou de perder trabalho.
+    // It exists to save the day after a crash. A read error in it would be a second failure on top
+    // of someone who just lost work.
     await mkdir(join(directory, 'recuperacao'), { recursive: true })
     await writeFile(join(directory, 'recuperacao', 'rascunho.json'), '{ isto não é json')
 
@@ -87,8 +87,7 @@ describe('rascunho de recuperação', () => {
   })
 
   it('trabalho que nunca foi gravado também tem rascunho', async () => {
-    // É justamente o caso em que a recuperação vale mais: não há arquivo
-    // nenhum a que voltar.
+    // Exactly the case where recovery matters most: there is no file to go back to.
     await writeDraft({ ...SAMPLE, path: null, name: 'Documento sem título.sdoc' })
 
     expect((await readDraft())?.path).toBeNull()

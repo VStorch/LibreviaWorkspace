@@ -5,7 +5,7 @@ import { evaluate, type EvalContext } from './evaluate.js'
 import { parseFormula } from './parse.js'
 import type { Scalar } from './values.js'
 
-/** Contexto de mentira: um punhado de células e um relógio parado. */
+/** A fake context: a handful of cells and a stopped clock. */
 function context(cells: Record<string, Scalar> = {}): EvalContext {
   return {
     valueAt: (ref) => cells[cellRef(ref.row, ref.column)] ?? null,
@@ -57,8 +57,8 @@ describe('erros se propagam', () => {
   })
 
   it('ÉERROS enxerga o erro em vez de propagá-lo', () => {
-    // Sem tratamento especial, o erro do argumento viraria o resultado antes de
-    // a função ser chamada — e ÉERROS nunca poderia responder VERDADEIRO.
+    // Without special handling, the argument's error would become the result before the function is
+    // called, and ÉERROS could never answer TRUE.
     expect(calc('=ÉERROS(1/0)')).toBe(true)
     expect(calc('=ÉERROS(1)')).toBe(false)
   })
@@ -66,8 +66,8 @@ describe('erros se propagam', () => {
 
 describe('SE não avalia o ramo descartado', () => {
   it('não estoura na divisão do ramo não escolhido', () => {
-    // O caso que motiva a avaliação preguiçosa: com A1 zero, calcular 1/A1
-    // produziria #DIV/0! mesmo o usuário tendo protegido a fórmula.
+    // The case behind lazy evaluation: with A1 at zero, computing 1/A1 would produce #DIV/0! even
+    // though the user guarded the formula.
     expect(calc('=SE(A1=0;"";1/A1)', { A1: 0 })).toBe('')
     expect(calc('=SE(A1=0;"";1/A1)', { A1: 4 })).toBe(0.25)
   })
@@ -83,8 +83,8 @@ describe('células vazias', () => {
   })
 
   it('não entram na média', () => {
-    // Se vazio virasse zero, a média de 10 e 20 com uma célula vazia no meio
-    // daria 10 em vez de 15 — errado, e sem nenhum aviso.
+    // If empty became zero, the average of 10 and 20 with an empty cell between would be 10 instead
+    // of 15: wrong, and without any warning.
     expect(calc('=MÉDIA(A1:A3)', { A1: 10, A3: 20 })).toBe(15)
   })
 
@@ -105,8 +105,8 @@ describe('comparação', () => {
   })
 
   it('tipos diferentes nunca são iguais', () => {
-    // =1="1" é falso no Excel. Comparar por conversão faria uma coluna de texto
-    // passar por um caminho de decisão que não é o dela.
+    // =1="1" is false in Excel. Comparing by conversion would send a text column down a decision
+    // path that is not its own.
     expect(calc('=1="1"')).toBe(false)
   })
 
@@ -117,7 +117,7 @@ describe('comparação', () => {
 
 describe('texto em conta', () => {
   it('dentro de intervalo é ignorado', () => {
-    // Uma coluna com cabeçalho de texto ainda deve somar.
+    // A column with a text header must still sum.
     expect(calc('=SOMA(A1:A3)', { A1: 'total', A2: 10, A3: 20 })).toBe(30)
   })
 
@@ -164,8 +164,8 @@ describe('intervalos', () => {
 
 describe('arredondamento', () => {
   it('meio sobe para longe do zero, nos dois sinais', () => {
-    // O Math.round do JavaScript levaria -2,5 para -2, e a diferença de um
-    // centavo apareceria só no fechamento do mês.
+    // JavaScript's Math.round would take -2.5 to -2, and the one-cent difference would only show at
+    // month end.
     expect(calc('=ARRED(2,5;0)')).toBe(3)
     expect(calc('=ARRED(-2,5;0)')).toBe(-3)
   })
@@ -184,7 +184,7 @@ describe('arredondamento', () => {
   })
 
   it('RESTO acompanha o sinal do divisor, como no Excel', () => {
-    // O operador % do JavaScript daria -1 aqui.
+    // JavaScript's % operator would give -1 here.
     expect(calc('=RESTO(-1;3)')).toBe(2)
   })
 })
@@ -205,7 +205,7 @@ describe('agregação com critério', () => {
   })
 
   it('CONT.SE não conta as vazias com critério de diferença', () => {
-    // Sem isso, uma coluna de dez mil linhas em branco daria dez mil.
+    // Otherwise a column of ten thousand blank rows would count ten thousand.
     expect(calc('=CONT.SE(A1:A9;"<>norte")', tabela)).toBe(2)
   })
 })
@@ -222,8 +222,8 @@ describe('procura', () => {
   })
 
   it('PROCV aproximado é o padrão, como no Excel', () => {
-    // Sem o quarto argumento o Excel procura aproximado. É um padrão ruim, mas
-    // mudá-lo faria a mesma planilha dar resultados diferentes nos dois.
+    // Without the fourth argument Excel searches approximately. It is a bad default, but changing
+    // it would make the same spreadsheet give different results in each.
     expect(calc('=PROCV(7;A1:B3;2)', tabela)).toBe('cinco')
   })
 
@@ -263,7 +263,7 @@ describe('texto', () => {
 
 describe('datas', () => {
   it('HOJE vem do contexto, e não do relógio', () => {
-    // Sem injetar o "agora", todo teste de data quebraria no dia seguinte.
+    // Without injecting "now", every date test would break the next day.
     expect(calc('=ANO(HOJE())')).toBe(2026)
     expect(calc('=MÊS(HOJE())')).toBe(8)
     expect(calc('=DIA(HOJE())')).toBe(15)
@@ -280,8 +280,8 @@ describe('datas', () => {
 
 describe('lógica', () => {
   it('E e OU não param no primeiro resultado', () => {
-    // O Excel avalia todos os argumentos: parar cedo devolveria FALSO aqui e
-    // #DIV/0! lá, para a mesma planilha.
+    // Excel evaluates every argument: stopping early would return FALSE here and #DIV/0! there, for
+    // the same spreadsheet.
     expect(calc('=E(FALSO;1/0)')).toBe(FormulaError.Div0)
     expect(calc('=OU(VERDADEIRO;1/0)')).toBe(FormulaError.Div0)
   })

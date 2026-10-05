@@ -12,8 +12,8 @@ describe('nomes de coluna', () => {
     [701, 'ZZ'],
     [702, 'AAA'],
   ])('coluna %i é %s', (index, name) => {
-    // A base 26 do Excel não tem zero: depois de Z vem AA, não BA. É o erro
-    // clássico aqui, e ele só aparece na coluna 26.
+    // Excel's base 26 has no zero: after Z comes AA, not BA. The classic mistake here, and it only
+    // shows at column 26.
     expect(columnName(index)).toBe(name)
   })
 
@@ -61,8 +61,8 @@ describe('escrita de célula', () => {
   })
 
   it('remove a célula que ficou sem nada', () => {
-    // Apagar uma área não pode deixar milhares de entradas vazias no arquivo:
-    // ele cresceria a cada limpeza, sem o usuário entender por quê.
+    // Clearing an area must not leave thousands of empty entries in the file: it would grow with
+    // every clear, without the user understanding why.
     const withValue = setCell(createSheet('S'), 0, 0, { value: 'x' })
     const cleared = setCell(withValue, 0, 0, { value: '' })
 
@@ -70,7 +70,7 @@ describe('escrita de célula', () => {
   })
 
   it('mantém a célula que só tem formatação', () => {
-    // Fundo amarelo sem texto é conteúdo: o usuário pintou de propósito.
+    // A yellow background without text is content: the user painted it on purpose.
     const painted = setCell(createSheet('S'), 0, 0, { style: { background: '#ffff00' } })
 
     expect(Object.keys(painted.cells)).toEqual(['A1'])

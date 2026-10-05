@@ -7,12 +7,11 @@ import { useT } from '../i18n.js'
 import { useWorkspace } from '../state/workspace.js'
 import { NoteKind } from '@services/document/notes.js'
 
-/** O que o botão direito oferece sobre uma lista. */
 export type ListAction = 'restart' | 'continue' | 'setStart' | 'format'
 
 export interface DocumentContextMenuProps {
   readonly target: ContextMenuTarget
-  /** Só então as ações dela aparecem. */
+  /** Only then do its actions appear. */
   readonly inTable: boolean
   readonly onTableAction: (action: TableAction) => void
   readonly inList: 'bulletList' | 'orderedList' | null
@@ -20,17 +19,17 @@ export interface DocumentContextMenuProps {
   readonly onClose: () => void
   readonly onPasteWithoutFormat: () => void
   readonly onNewComment: () => void
-  /** `null` fora de alteração. */
+  /** `null` outside a revision. */
   readonly onRevision: ((accept: boolean) => void) | null
-  /** `null` longe de nota (`noteAtCursor`). */
+  /** `null` away from a note (`noteAtCursor`). */
   readonly noteKind: NoteKind | null
   readonly onConvertNote: () => void
 }
 
 /**
- * Na ordem do Word: as sugestões do corretor primeiro, depois a área de
- * transferência. Os dados e as ações são do main, onde estão o corretor e o
- * `webContents`; colar sem formatação é a exceção e fica no editor.
+ * In Word's order: spellchecker suggestions first, then the clipboard. The data and actions belong
+ * to main, where the spellchecker and `webContents` are; paste without formatting is the exception
+ * and stays in the editor.
  */
 export function DocumentContextMenu(props: DocumentContextMenuProps): React.JSX.Element {
   const { target, inTable, inList, onRevision, noteKind, onClose } = props
@@ -41,9 +40,7 @@ export function DocumentContextMenu(props: DocumentContextMenuProps): React.JSX.
   return (
     <ContextMenu position={target} label={t('document.contextMenu.label')} onClose={onClose}>
       {target.misspelledWord !== '' && <SpellingItems target={target} act={act} onClose={onClose} />}
-
       <ClipboardItems {...props} act={act} readOnly={readOnly} />
-
       {onRevision !== null && !readOnly && (
         <>
           <ContextMenuSeparator />
@@ -55,7 +52,6 @@ export function DocumentContextMenu(props: DocumentContextMenuProps): React.JSX.
           </ContextMenuItem>
         </>
       )}
-
       {noteKind !== null && !readOnly && (
         <>
           <ContextMenuSeparator />
@@ -68,12 +64,10 @@ export function DocumentContextMenu(props: DocumentContextMenuProps): React.JSX.
           </ContextMenuItem>
         </>
       )}
-
       {inList !== null && !readOnly && (
         <ListItems inList={inList} onListAction={props.onListAction} onClose={onClose} />
       )}
-
-      {/* "Inserir tabela" fica de fora: tabela dentro de tabela mora no menu "Tabela". */}
+      {/* "Insert table" is left out: a table inside a table lives in the "Table" menu. */}
       {inTable && !readOnly && <TableItems onTableAction={props.onTableAction} onClose={onClose} />}
     </ContextMenu>
   )
@@ -81,7 +75,7 @@ export function DocumentContextMenu(props: DocumentContextMenuProps): React.JSX.
 
 type MenuAction = (run: () => Promise<IpcResult<unknown>>) => () => void
 
-/** Toda ação fecha o menu, inclusive quando falha, para o erro ficar visível. */
+/** Every action closes the menu, even when it fails, so the error is visible. */
 function useMenuAction(onClose: () => void): MenuAction {
   const showError = useWorkspace((state) => state.showError)
   return (run) => () => {
@@ -110,7 +104,7 @@ function SpellingItems({
   return (
     <>
       {target.dictionarySuggestions.length === 0 ? (
-        // Um item apagado, e não nenhum: senão pareceria que o menu quebrou.
+        // A greyed-out item, not none: otherwise the menu would look broken.
         <ContextMenuItem disabled onClick={onClose}>
           {t('document.contextMenu.noSuggestions')}
         </ContextMenuItem>
@@ -125,9 +119,7 @@ function SpellingItems({
           </ContextMenuItem>
         ))
       )}
-
       <ContextMenuSeparator />
-
       <ContextMenuItem
         onClick={act(() =>
           window.api.spell.addWord({ word: target.misspelledWord, scope: DictionaryScope.Permanent }),
@@ -135,7 +127,7 @@ function SpellingItems({
       >
         {t('document.contextMenu.addToDictionary')}
       </ContextMenuItem>
-      {/* "Ignorar" vale até fechar o aplicativo: o Chromium não tem lista de ignorados. */}
+      {/* "Ignore" lasts until the app closes: Chromium has no ignore list. */}
       <ContextMenuItem
         onClick={act(() =>
           window.api.spell.addWord({ word: target.misspelledWord, scope: DictionaryScope.Session }),
@@ -143,7 +135,6 @@ function SpellingItems({
       >
         {t('document.contextMenu.ignoreSession')}
       </ContextMenuItem>
-
       <ContextMenuSeparator />
     </>
   )
@@ -184,8 +175,7 @@ function ClipboardItems({
       >
         {t('menu.edit.pasteWithoutFormat')}
       </ContextMenuItem>
-
-      {/* Logo depois da área de transferência, como o "Novo comentário" do Word. */}
+      {/* Right after the clipboard, like Word's "New comment". */}
       <ContextMenuSeparator />
       <ContextMenuItem disabled={readOnly} onClick={closing(onClose, onNewComment)}>
         {t('comments.new')}
@@ -194,7 +184,7 @@ function ClipboardItems({
   )
 }
 
-/** Reiniciar e continuar só fazem sentido em lista numerada. */
+/** Restart and continue only make sense in a numbered list. */
 function ListItems({
   inList,
   onListAction,

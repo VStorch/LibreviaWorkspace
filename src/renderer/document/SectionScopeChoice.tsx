@@ -2,13 +2,13 @@ import { useT } from '../i18n.js'
 
 export type SectionScope = 'section' | 'document'
 
-/** "Nesta seção" ou "no documento todo", como no Word. */
+/** "This section" or "whole document", as in Word. */
 export function SectionScopeChoice({
   name,
   scope,
   onChange,
 }: {
-  /** O grupo dos botões de rádio. */
+  /** The radio button group. */
   readonly name: string
   readonly scope: SectionScope
   readonly onChange: (scope: SectionScope) => void

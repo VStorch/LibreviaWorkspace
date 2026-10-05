@@ -1,7 +1,6 @@
 /**
- * Como o DOCX, os bytes originais moram aqui. A fórmula é traduzida **aqui**
- * (`SUM(A1,B1)` ↔ `SOMA(A1;B1)`), e não no sidecar: o analisador já existe do
- * lado TypeScript.
+ * Like DOCX, the original bytes live here. Formulas are translated **here** (`SUM(A1,B1)` ↔
+ * `SOMA(A1;B1)`), not in the sidecar: the parser already exists on the TypeScript side.
  */
 
 import { readFile } from 'node:fs/promises'
@@ -47,7 +46,7 @@ export function forgetOpenedXlsx(): void {
   openedOriginal = null
 }
 
-/** Ver `adoptDocxOriginal`. */
+/** See `adoptDocxOriginal`. */
 export async function adoptXlsxOriginal(path: string): Promise<boolean> {
   try {
     openedOriginal = { path, bytes: await readFile(path) }
@@ -71,7 +70,7 @@ export async function openXlsx(client: SidecarClient, path: string): Promise<Ope
     throw fromFileSystemError(cause, 'leitura', editorPreferences().language)
   }
 
-  // Os dois tempos dizem se a demora foi do sidecar ou da conversão.
+  // The two timings say whether the delay was the sidecar's or the conversion's.
   const startedAt = Date.now()
   const reply = await client.request(SidecarMethod.XlsxOpen, {}, new Uint8Array(bytes))
   const readAt = Date.now()
@@ -100,7 +99,10 @@ export interface SavedXlsx {
   readonly inventory: LossInventory
 }
 
-/** Sem original, o sidecar monta um pacote novo: uma planilha é grade, valor e fórmula, sem nada a perder. */
+/**
+ * Without an original, the sidecar builds a new package: a spreadsheet is grid, values and
+ * formulas, with nothing to lose.
+ */
 export async function saveXlsx(client: SidecarClient, ssheetContent: string): Promise<SavedXlsx> {
   const model = translate(readSsheet(ssheetContent), toXlsxFormula)
   const original = openedOriginal?.bytes
@@ -152,7 +154,7 @@ function translateSheet(sheet: Sheet, convert: (formula: string) => string): She
   return { ...sheet, cells }
 }
 
-/** Invisibilidade, e não perda: a fórmula volta intacta, mas a célula mostra `#NOME?`. */
+/** Invisibility, not loss: the formula comes back intact, but the cell shows `#NOME?`. */
 function withUncalculated(inventory: LossInventory, model: WorkbookModel): LossInventory {
   const unknown = new Set<string>()
 
@@ -180,7 +182,7 @@ function functionsIn(formula: string): string[] {
       .filter((token) => token.kind === TokenKind.Name)
       .map((token) => token.text)
   } catch {
-    // A célula já vai mostrar o erro.
+    // The cell will already show the error.
     return []
   }
 }

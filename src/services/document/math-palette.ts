@@ -2,16 +2,16 @@ import type { MessageKey } from '@shared/i18n/index.js'
 import { SPECIAL_CHARACTER_GROUPS } from './special-characters.js'
 import { latexOfSymbol } from './mathml-latex.js'
 
-/** Letras gregas e operadores saem de `special-characters.ts`, com os mesmos nomes. */
+/** Greek letters and operators come from `special-characters.ts`, with the same names. */
 
 export interface MathTemplate {
   readonly latex: string
-  /** Onde o cursor fica depois de entrar: no primeiro lugar a preencher. */
+  /** Where the cursor lands after inserting: the first slot to fill. */
   readonly caret: number
-  /** O desenho do modelo, em caracteres. */
+  /** The template drawn in characters. */
   readonly label: string
   readonly nameKey: MessageKey
-  /** O que os testes conferem que o Temml lê. */
+  /** Tests check that Temml reads it. */
   readonly sample: string
 }
 
@@ -75,7 +75,7 @@ const FUNCTIONS: readonly MathTemplate[] = [
   template('\\lim_{@} ', 'lim', 'document.math.template.lim', '\\lim_{x \\to 0} f'),
 ]
 
-/** Os operadores e relações que o catálogo de caracteres não traz. */
+/** Operators and relations the character catalog lacks. */
 const EXTRA_OPERATORS: readonly { readonly char: string; readonly nameKey: MessageKey }[] = [
   { char: '⋅', nameKey: 'document.math.symbol.cdot' },
   { char: '→', nameKey: 'document.math.symbol.to' },
@@ -91,14 +91,14 @@ const EXTRA_OPERATORS: readonly { readonly char: string; readonly nameKey: Messa
   { char: '∇', nameKey: 'document.math.symbol.nabla' },
 ]
 
-/** Os caracteres de um grupo do catálogo que têm nome no LaTeX, como modelos. */
+/** The catalog characters with a LaTeX name, as templates. */
 function symbols(
   characters: readonly { readonly char: string; readonly nameKey: MessageKey }[],
 ): MathTemplate[] {
   return characters.flatMap((character) => {
     const command = latexOfSymbol(character.char)
     if (command === null || !command.startsWith('\\')) return []
-    // O espaço depois do comando: `\alpha` seguido de `x` seria `\alphax`.
+    // The space after the command: `\alpha` followed by `x` would be `\alphax`.
     const latex = `${command} `
     return [
       { latex, caret: latex.length, label: character.char, nameKey: character.nameKey, sample: command },

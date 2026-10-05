@@ -17,17 +17,15 @@ import {
 } from './limits.js'
 
 /**
- * Schemas usados em mais de um lugar.
- *
- * A configuração de página é validada tanto ao ler um `.sdoc` do disco quanto
- * ao receber um pedido de impressão do renderer. Duas definições divergiriam,
- * e a divergência apareceria como margem errada no papel.
+ * Shared schemas. Page setup is validated both when reading a `.sdoc` from disk and when receiving
+ * a print request from the renderer; two definitions would drift, and the drift would show as a
+ * wrong margin on paper.
  */
 
 export const bandPieceSchema = z.object({
   kind: z.enum(['text', 'image', 'pageNumber', 'totalPages']),
   text: z.string().max(1000).optional(),
-  /** Data URI. Imagem de cabeçalho é pequena — um logotipo, não uma foto. */
+  /** A header image is small: a logo, not a photo. */
   src: z.string().max(4_000_000).optional(),
   width: z.number().int().positive().max(MAX_IMAGE_SIDE_PX).optional(),
   height: z.number().int().positive().max(MAX_IMAGE_SIDE_PX).optional(),
@@ -35,57 +33,48 @@ export const bandPieceSchema = z.object({
   italic: z.boolean().default(false),
   color: z.string().max(MAX_COLOR_LENGTH).optional(),
   fontSize: z.string().max(MAX_CSS_VALUE_LENGTH).optional(),
-  /** Pilha de CSS, como o leitor a resolveu. */
+  /** A CSS font stack, as the reader resolved it. */
   fontFamily: z.string().max(MAX_NAME_LENGTH).optional(),
-  /** A peça abre linha nova: no arquivo ela começa outro parágrafo. */
+  /** The piece starts a new line: in the file it begins another paragraph. */
   line: z.boolean().optional(),
   /**
-   * Onde a peça mora no arquivo: a relação, o parágrafo e a peça nele.
+   * Where the piece lives in the file: the relationship, the paragraph and the piece in it.
    *
-   * Sem declarar o campo, o zod o **descartaria em silêncio** — e o texto
-   * digitado no cabeçalho voltaria para a tela e não para o `.docx`.
+   * Without declaring the field, zod would **drop it silently**, and text typed in the header would
+   * return to the screen but not to the `.docx`.
    */
   pid: z.string().max(MAX_ID_LENGTH).optional(),
-  /** O texto traz `{n}` ou `{total}` escritos no arquivo: é texto, e não campo. */
+  /** The file has `{n}` or `{total}` written as text, not as a field. */
   literal: z.boolean().optional(),
 })
 
 /**
- * Um nó do documento, do jeito que o editor o entende.
- *
- * Conferido só até "é um nó", de propósito. Quem de fato valida é o serializador
- * do ProseMirror, que constrói a partir do schema do editor e **só emite o que
- * ele conhece** — é essa a barreira que impede um documento de mandar marcação
- * para dentro da página. Repetir a lista de tipos de nó aqui a duplicaria num
- * lugar onde ela não pode ser conferida contra o editor, e a cópia mais velha
- * das duas passaria a mandar.
+ * Checked only as far as "is a node", on purpose. The real validation is the ProseMirror
+ * serializer, which builds from the editor schema and **only emits what it knows**: that is the
+ * barrier that keeps a document from injecting markup into the page. Repeating the node type list
+ * here would duplicate it where it cannot be checked against the editor, and the older copy would
+ * win.
  */
 const documentNodeSchema = z.custom<DocumentNode>(
   (value) => typeof value === 'object' && value !== null && typeof (value as DocumentNode).type === 'string',
 )
 
 /**
- * Objeto ancorado dentro da faixa.
- *
- * Aberto de propósito: a geometria vem do arquivo e quem a interpreta é
- * `services/document/floating.ts`. Validar campo a campo aqui obrigaria a
- * duplicar essa interpretação no esquema.
+ * Left open on purpose: the geometry comes from the file and `services/document/floating.ts`
+ * interprets it. Validating field by field here would duplicate that interpretation.
  */
 const bandFloatSchema = z.object({
   kind: z.enum(['image', 'text', 'rule']),
   src: z.string().optional(),
   /**
-   * O texto de uma caixa, em nós do documento.
-   *
-   * Aberto como o resto deste esquema, e pela mesma razão: quem o interpreta é
-   * o serializador do editor, que só emite o que o schema dele conhece. Sem
-   * declarar o campo, o zod o **descartaria em silêncio** — e a caixa do título
-   * do cabeçalho apareceria na folha com o tamanho certo e vazia por dentro.
+   * Open like the rest of this schema, for the same reason: the editor serializer interprets it and
+   * only emits what its schema knows. Without the field, zod would **drop it silently**, and the
+   * header title box would appear on the sheet at the right size and empty.
    */
   content: z.array(documentNodeSchema).max(200).optional(),
-  /** Onde a caixa mora no arquivo, quando o texto dela é editável. */
+  /** Where the box lives in the file, when its text is editable. */
   bid: z.string().max(MAX_ID_LENGTH).optional(),
-  /** Moldura e preenchimento, quando o leitor soube reproduzi-los. */
+  /** Border and fill, when the reader could reproduce them. */
   fill: z.string().max(MAX_COLOR_LENGTH).optional(),
   line: z.string().max(MAX_COLOR_LENGTH).optional(),
   lineWidthPt: z.number().min(0).max(200).optional(),
@@ -106,11 +95,9 @@ const bandFloatSchema = z.object({
 })
 
 /**
- * Uma célula da grade do cabeçalho.
- *
- * `borders` são as iniciais dos lados que têm risco — `t`, `l`, `b`, `r` — já
- * resolvidos pelo leitor: no OOXML cada lado vem por três caminhos, e refazer
- * essa conta em dois desenhistas é como tela e papel divergem.
+ * `borders` lists the initials of the sides with a line (`t`, `l`, `b`, `r`), already resolved by
+ * the reader: in OOXML each side comes through three paths, and redoing that in two renderers is
+ * how screen and paper drift apart.
  */
 const bandCellSchema = z.object({
   pieces: z.array(bandPieceSchema).max(40).default([]),
@@ -122,11 +109,9 @@ const bandCellSchema = z.object({
 })
 
 /**
- * Cabeçalho ou rodapé vindo de um documento do Word.
- *
- * Três colunas e um filete — o modelo que o Word sempre usou, e que cobre
- * quase todo cabeçalho corporativo. O texto das peças que têm endereço é
- * editável; todo o resto da parte OOXML volta intacto para o arquivo.
+ * A header or footer from a Word document. Three columns and a rule, the layout Word always used,
+ * which covers almost every corporate header. Pieces with an address are editable; the rest of the
+ * OOXML part goes back to the file untouched.
  */
 export const bandSchema = z.object({
   left: z.array(bandPieceSchema).max(20).default([]),
@@ -149,34 +134,32 @@ export const pageSetupSchema = z.object({
     bottom: z.number(),
     left: z.number(),
   }),
-  // Opcionais para que documentos gravados sem eles continuem abrindo —
-  // acréscimo compatível não exige nova versão de formato.
+  // Optional so documents saved without them keep opening: a compatible addition needs no new
+  // format version.
   header: z.string().max(500).default(''),
   footer: z.string().max(500).default(''),
-  // Opcionais pelo mesmo motivo. Quando existem, mandam na exibição: são o
-  // cabeçalho real do documento, e o texto acima é o que o usuário digitou num
-  // documento criado aqui.
+  // Optional for the same reason. When present they win on screen: they are the document's real
+  // header, and the text above is what the user typed in a document created here.
   headerBand: bandSchema.nullable().default(null),
   footerBand: bandSchema.nullable().default(null),
-  // Primeira página e páginas pares, quando o documento pede. Opcionais pelo
-  // mesmo motivo dos anteriores: `.sdoc` gravado sem eles continua abrindo.
+  // First page and even pages, when the document asks for them. Optional for the same reason.
   firstHeaderBand: bandSchema.nullable().default(null),
   firstFooterBand: bandSchema.nullable().default(null),
   evenHeaderBand: bandSchema.nullable().default(null),
   evenFooterBand: bandSchema.nullable().default(null),
   /**
-   * Origem vertical das âncoras de dentro do cabeçalho: elas se dizem relativas
-   * ao parágrafo, e o parágrafo do cabeçalho começa aqui.
+   * Vertical origin for anchors inside the header: they are relative to the paragraph, and the
+   * header paragraph starts here.
    */
   headerDistanceMm: z.number().default(12.5),
   footerDistanceMm: z.number().default(12.5),
-  // Numeração de página e os interruptores das faixas. Opcionais pelo mesmo
-  // motivo: ausentes, a gravação não mexe no que o arquivo diz.
+  // Page numbering and band switches. Optional for the same reason: when absent, saving leaves what
+  // the file says.
   pageNumberFormat: z.enum(['decimal', 'lowerRoman', 'upperRoman', 'lowerLetter', 'upperLetter']).optional(),
   pageNumberStart: z.number().int().min(0).max(MAX_START_NUMBER).nullable().optional(),
   titlePage: z.boolean().nullable().optional(),
   evenAndOddHeaders: z.boolean().nullable().optional(),
-  // Como a seção começa. Opcional pelo mesmo motivo.
+  // Optional for the same reason.
   start: z.enum(['nextPage', 'continuous', 'evenPage', 'oddPage', 'nextColumn']).optional(),
   columns: z
     .object({
@@ -188,17 +171,14 @@ export const pageSetupSchema = z.object({
     .optional(),
 })
 
-/** Uma seção antes da última: a configuração dela e o id da marca que a encerra. */
+/** A section before the last one: its setup and the id of the mark that closes it. */
 export const sectionSetupSchema = pageSetupSchema.extend({
   id: z.string().min(1).max(MAX_FIELD_LENGTH),
 })
 
 /**
- * Um comentário do documento — ver `DocumentComment`.
- *
- * Validado na entrada, como os estilos: vem de um arquivo alheio e vai parar no
- * `.sdoc` do usuário. Os tetos só seguram o arquivo patológico; um comentário de
- * verdade cabe com folga.
+ * See `DocumentComment`. Validated on input, like the styles: it comes from someone else's file and
+ * ends up in the user's `.sdoc`. The caps only stop pathological files.
  */
 export const documentCommentSchema = z.object({
   id: z.string().min(1).max(MAX_FIELD_LENGTH),
@@ -213,8 +193,7 @@ export const documentCommentSchema = z.object({
 })
 
 /**
- * Como o documento numera as notas — `w:footnotePr`/`w:endnotePr`. Vai ao
- * `.sdoc`, e por isso é conferido na entrada, como os comentários.
+ * `w:footnotePr`/`w:endnotePr`. Goes into the `.sdoc`, so it is checked on input, like comments.
  */
 const notePrSchema = z.object({
   numFmt: z.string().max(MAX_FIELD_LENGTH).optional(),
@@ -229,8 +208,8 @@ export const documentNotesSchema = z.object({
 })
 
 /**
- * As propriedades do documento — `docProps/core.xml` e `docProps/app.xml`. Vão
- * ao `.sdoc` e ao arquivo do usuário, e por isso são conferidas na entrada.
+ * `docProps/core.xml` and `docProps/app.xml`. They go into the `.sdoc` and the user's file, so they
+ * are checked on input.
  */
 const propertyText = z.string().max(MAX_PROPERTY_LENGTH).optional()
 
@@ -251,24 +230,19 @@ export const documentPropertiesSchema = z.object({
 })
 
 /**
- * As preferências de edição, validadas.
+ * Lives here, not in the IPC contract, because the same schema serves three places: reading the
+ * file where main stores them, the renderer request and the echo back. Three definitions would
+ * drift, and the drift would show as a checked menu item the editor ignores.
  *
- * Mora aqui, e não no contrato de IPC, porque o mesmo schema serve em três
- * pontos: a leitura do arquivo onde o main as guarda, o pedido do renderer e o
- * aviso que volta para ele. Três definições divergiriam, e a divergência
- * apareceria como um menu marcado que o editor não obedece.
- *
- * Os `default` são o que permite abrir o arquivo de uma instalação antiga, que
- * não tem chave nenhuma destas.
+ * The `default`s let an old installation's file open, which has none of these keys.
  */
 export const editorPreferencesSchema = z.object({
   spellcheck: z.boolean().default(true),
   invisibleCharacters: z.boolean().default(false),
   typography: z.boolean().default(true),
-  // O `default` aqui é só a rede de segurança do parse. Na primeira execução
-  // quem escolhe é o sistema operacional, e isso acontece em
-  // `src/main/preferences.ts`, que sabe distinguir "chave ausente" de "chave
-  // gravada com este valor" — distinção que um `default` apaga.
+  // The `default` is only the parse safety net. On first run the operating system decides, in
+  // `src/main/preferences.ts`, which can tell "missing key" from "key saved with this value", a
+  // distinction a `default` erases.
   language: z.enum(LANGUAGES).default(Language.Portuguese),
   theme: z.enum([Theme.System, Theme.Light, Theme.Dark]).default(Theme.System),
   readingMode: z.boolean().default(false),
@@ -282,13 +256,12 @@ export const editorPreferencesSchema = z.object({
 })
 
 /**
- * O remendo: uma ou mais chaves, e **só** as que vieram.
+ * One or more keys, and **only** those sent.
  *
- * Escrito à mão em vez de `editorPreferencesSchema.partial()`, e o teste de
- * contrato existe por causa disto: `.partial()` torna as chaves opcionais mas
- * **mantém os `default`**, então um pedido de "mostrar marcas" voltaria do
- * parse com as outras chaves preenchidas com o padrão — e desligar a ortografia
- * seria desfeito no clique seguinte em qualquer outra chave.
+ * Written by hand instead of `editorPreferencesSchema.partial()`, and the contract test exists
+ * because of it: `.partial()` makes keys optional but **keeps the `default`s**, so a "show marks"
+ * request would come back from the parse with the other keys filled with defaults, and turning
+ * spelling off would be undone by the next click on any other key.
  */
 export const editorPreferencesPatchSchema = z.object({
   spellcheck: z.boolean().optional(),
@@ -307,10 +280,8 @@ export const editorPreferencesPatchSchema = z.object({
 })
 
 /**
- * O que o Chromium conta sobre o ponto onde o botão direito foi clicado.
- *
- * Os tetos não são burocracia: `dictionarySuggestions` alimenta itens de menu, e
- * uma lista longa sairia da tela. O Chromium manda cinco.
+ * What Chromium reports about the right-click point. `dictionarySuggestions` feeds menu items, and
+ * a long list would leave the screen; Chromium sends five.
  */
 export const contextMenuTargetSchema = z.object({
   x: z.number().int().min(0).max(100_000),
@@ -342,9 +313,9 @@ const styleParagraphSchema = z.object({
   widowControl: z.boolean().optional(),
   pageBreakBefore: z.boolean().optional(),
   contextualSpacing: z.boolean().optional(),
-  // 9 é "corpo de texto": o nível que o Word grava no estilo `TOC Heading`, que
-  // herda de `heading 1` e precisa desligar o nível herdado. Recusá-lo recusaria
-  // a folha de estilos de todo documento com sumário do Word.
+  // 9 is "body text": the level Word writes in the `TOC Heading` style, which inherits from
+  // `heading 1` and must switch the inherited level off. Refusing it would refuse the stylesheet of
+  // every Word document with a table of contents.
   outlineLevel: z.number().int().min(0).max(9).optional(),
   background: z.string().max(MAX_COLOR_LENGTH).optional(),
 })
@@ -364,11 +335,9 @@ const styleCharacterSchema = z.object({
 })
 
 /**
- * Um estilo.
- *
- * Os três interruptores têm padrão porque são derivados da presença de um
- * elemento no arquivo: um `.sdoc` editado à mão sem eles é um estilo que não
- * esconde nem recomenda nada, e não um documento inválido.
+ * The three switches have defaults because they derive from the presence of an element in the file:
+ * a hand-edited `.sdoc` without them is a style that neither hides nor recommends anything, not an
+ * invalid document.
  */
 const styleDefinitionSchema = z.object({
   id: z.string().min(1).max(MAX_ID_LENGTH),
@@ -386,26 +355,23 @@ const styleDefinitionSchema = z.object({
 })
 
 /**
- * Os estilos do documento, validados.
+ * They cross IPC both ways: from the sidecar when opening a `.docx` and back inside the `.sdoc`
+ * when saving. Same schema at both points because it is the same data, and a malformed style must
+ * not reach the screen.
  *
- * Atravessam o IPC em dois sentidos: chegam do sidecar ao abrir um `.docx` e
- * voltam do renderer dentro do `.sdoc` ao salvar. O mesmo schema nos dois pontos
- * porque é o mesmo dado — e porque estilo malformado não pode virar tela.
- *
- * Nada aqui é `strict`: um `w:pPr` de estilo tem dezenas de propriedades, e o
- * leitor lê as que sabe. Recusar o documento por causa de uma chave nova seria
- * trocar uma tela incompleta por nenhuma tela.
+ * Nothing here is `strict`: a style `w:pPr` has dozens of properties and the reader reads the ones
+ * it knows. Refusing the document over a new key would trade an incomplete screen for no screen.
  */
 export const styleSheetSchema = z.object({
   defaults: z.object({
     paragraph: styleParagraphSchema.default({}),
     character: styleCharacterSchema.default({}),
-    /** O estilo que vale sem `w:pStyle`; `null` quando o documento não marca nenhum. */
+    /** The style that applies without `w:pStyle`; `null` when the document marks none. */
     paragraphStyleId: z.string().max(MAX_ID_LENGTH).nullable().default(null),
     characterStyleId: z.string().max(MAX_ID_LENGTH).nullable().default(null),
   }),
-  // O teto é a rede contra arquivo patológico, e não um limite de projeto: um
-  // documento do Word com estilo para cada variante de tabela passa dos 400.
+  // A net against pathological files, not a design limit: a Word document with a style for every
+  // table variant passes 400.
   styles: z
     .record(z.string().max(MAX_ID_LENGTH), styleDefinitionSchema)
     .refine((styles) => Object.keys(styles).length <= 4000, 'estilos demais'),

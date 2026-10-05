@@ -1,4 +1,4 @@
-/** Sem `electron`: a raiz chega por parâmetro, para testar. */
+/** Without `electron`: the root comes as a parameter, to be testable. */
 
 import { access, constants } from 'node:fs/promises'
 import { join } from 'node:path'
@@ -9,7 +9,7 @@ export const SIDECAR_EXECUTABLE = 'Librevia.Format'
 
 const unavailable = (): string => t('errors.sidecar.serviceNotFound')
 
-/** Só os dois alvos publicados: outro par diz que não há binário, em vez de procurar um. */
+/** Only the two published targets: any other pair reports no binary instead of looking for one. */
 export function runtimeIdentifier(
   platform: NodeJS.Platform = process.platform,
   arch: string = process.arch,
@@ -36,7 +36,7 @@ export function sidecarPathIn(root: string, platform: NodeJS.Platform = process.
   return join(root, 'resources', 'sidecar', rid, sidecarFileName(platform))
 }
 
-/** `LIBREVIA_SIDECAR_PATH` vence, para os testes usarem um sidecar de mentira. */
+/** `LIBREVIA_SIDECAR_PATH` wins, so tests can use a fake sidecar. */
 export async function locateSidecarIn(root: string): Promise<string> {
   const override = process.env['LIBREVIA_SIDECAR_PATH']
   const candidate = override !== undefined && override !== '' ? override : sidecarPathIn(root)

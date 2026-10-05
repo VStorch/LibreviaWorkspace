@@ -17,7 +17,7 @@ const cell = (value: string, attrs: Record<string, unknown> = {}): DocumentNode 
 })
 const item = (...content: DocumentNode[]): DocumentNode => ({ type: 'listItem', content })
 
-/** Um documento com tudo o que a exportação trata. */
+/** Everything the export handles. */
 const RICH: DocumentNode = {
   type: 'doc',
   content: [
@@ -177,7 +177,7 @@ describe('exportHtml', () => {
       '<li id="nota-rodape-1"><a href="#ref-nota-rodape-1" title="Voltar ao texto">1</a>',
     )
     expect(output).toContain('<p>Nota um</p>')
-    // A de fim conta à parte, em romanos minúsculos, como no Word.
+    // Endnotes count apart, in lowercase Roman numerals, as in Word.
     expect(output).toContain('href="#nota-fim-1" id="ref-nota-fim-1">i</a>')
     expect(output).toContain('<section class="notas" aria-label="Notas">')
   })
@@ -386,7 +386,7 @@ describe('as equações (M11, fase 3)', () => {
       },
       { assetFolder: 'x' },
     ).markdown
-    // Sem LaTeX guardado (a equação veio de um arquivo), ele sai do MathML.
+    // Without stored LaTeX (the equation came from a file), it comes from MathML.
     expect(markdown).toBe('Custa \\$5 e $x^2$.\n\nLogo\n$$\\frac{a}{b}$$\nfim\n')
   })
 

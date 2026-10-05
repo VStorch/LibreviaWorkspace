@@ -21,13 +21,13 @@ import { revisionViewOfCommand, setRevisionView, useRevisionView } from '../stat
 import { useWorkspace } from '../state/workspace.js'
 import { t } from '../i18n.js'
 
-/** O teto de trabalho que uma queda pode custar; menos pesaria em documento grande. */
+/** The most work a crash can cost; less would weigh on large documents. */
 const AUTOSAVE_INTERVAL_MS = 8_000
 
 async function runMenuCommand(command: MenuCommand, path: string | undefined): Promise<void> {
   const workspace = useWorkspace.getState()
 
-  // Os comandos do editor, reconhecidos pelo nome: o App não tem referência a ele.
+  // Editor commands, recognized by name: App holds no reference to the editor.
   const editorCommand = asEditorCommand(command)
   if (editorCommand !== null) return emitEditorCommand(editorCommand)
   const revisionView = revisionViewOfCommand(command)
@@ -50,7 +50,7 @@ const MENU_ACTIONS: Partial<Record<MenuCommand, MenuAction>> = {
   [MenuCommand.Save]: (workspace) => workspace.save(),
   [MenuCommand.SaveAs]: (workspace) => workspace.saveAs(),
   [MenuCommand.CloseFile]: (workspace) => workspace.closeFile(),
-  // Só fecha se a gravação der certo.
+  // Only closes if the save succeeds.
   [MenuCommand.SaveAndExit]: async (workspace) => {
     if (await workspace.save()) await window.api.window.close({})
   },
@@ -69,7 +69,7 @@ const MENU_ACTIONS: Partial<Record<MenuCommand, MenuAction>> = {
 export function App(): React.JSX.Element {
   const hasFile = useWorkspace((state) => state.file !== null)
   const templateGallery = useWorkspace((state) => state.templateGallery)
-  // O editor é recarregado a cada documento, sem estado residual.
+  // The editor is remounted for each document, with no leftover state.
   const generation = useWorkspace((state) => state.generation)
   const workbook = useWorkspace((state) => state.workbook)
   const reading = useReadingMode()
@@ -78,7 +78,7 @@ export function App(): React.JSX.Element {
   useWorkspaceLifecycle()
   useWindowStateSync()
 
-  // Azul de documento, verde de planilha: ver `--accent` no CSS.
+  // Blue for documents, green for spreadsheets: see `--accent` in the CSS.
   return (
     <div
       className={['app', workbook === null ? '' : 'app--spreadsheet', reading ? 'app--reading' : '']
@@ -98,28 +98,28 @@ export function App(): React.JSX.Element {
           <HomePage />
         )}
       </div>
-      {/* Contagem de palavras e número de páginas são ferramentas de quem escreve. */}
+      {/* Word count and page number are tools for writing. */}
       {hasFile && !reading && showStatusBar && <StatusBar />}
       {templateGallery && <TemplateGallery />}
     </div>
   )
 }
 
-/** Recentes, recuperação, preferências, tema, autosave e o menu do main. */
+/** Recent files, recovery, preferences, theme, autosave and the main menu. */
 function useWorkspaceLifecycle(): void {
   useEffect(() => {
     void useWorkspace.getState().refreshRecents()
     void useWorkspace.getState().checkRecovery()
   }, [])
 
-  // A cópia das preferências que a tela desenha; o dono é o main.
+  // The copy of the preferences the screen draws; main owns them.
   useEffect(() => watchPreferences(), [])
 
-  // Inclusive quando quem mudou o tema foi o sistema operacional.
+  // Including when the operating system changed the theme.
   useTheme()
 
   useEffect(() => {
-    // Por relógio, e não por tecla: o autosave serializa o documento inteiro.
+    // By timer, not by key press: autosave serializes the whole document.
     const timer = setInterval(() => {
       void useWorkspace.getState().autosave()
     }, AUTOSAVE_INTERVAL_MS)
@@ -131,16 +131,16 @@ function useWorkspaceLifecycle(): void {
     const unsubscribe = window.api.menu.onCommand(({ command, path }) => {
       commands = commands.then(() => runMenuCommand(command, path)).catch(console.error)
     })
-    // Assina antes de pedir ao main os arquivos escolhidos no Explorer.
+    // Subscribes before asking main for files picked in the file manager.
     void window.api.window.ready({})
     return unsubscribe
   }, [])
 }
 
-/** O título da janela e o estado que o menu do main mostra. */
+/** The window title and the state main's menu shows. */
 function useWindowStateSync(): void {
   useEffect(() => {
-    // Só quando o título ou o "não salvo" mudam, e não a cada tecla.
+    // Only when the title or the unsaved flag change, not on every key press.
     let lastTitle = ''
     let lastDirty: boolean | null = null
     let lastTracking: boolean | null = null
@@ -150,7 +150,7 @@ function useWindowStateSync(): void {
       const state = useWorkspace.getState()
       const untitled = t('shell.file.untitled')
       const title = state.file?.name ?? untitled
-      // É do documento: com planilha aberta, desligado.
+      // It belongs to the document: off with a spreadsheet open.
       const trackChanges = state.workbook === null && state.trackChanges === true
       const revisionView = useRevisionView.getState().view
       if (
@@ -188,7 +188,7 @@ function WorkbookView({
 }): React.JSX.Element {
   const updateSheet = useWorkspace((state) => state.updateSheet)
   const changeStructure = useWorkspace((state) => state.changeStructure)
-  // Uma ação por seletor: um objeto novo a cada chamada faria o React entrar em laço.
+  // One action per selector: a new object on each call would send React into a loop.
   const selectSheet = useWorkspace((state) => state.selectSheet)
   const addSheet = useWorkspace((state) => state.addSheet)
   const renameSheet = useWorkspace((state) => state.renameSheet)

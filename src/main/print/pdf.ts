@@ -8,8 +8,8 @@ import { buildNativePrintOptions, buildPrintOptions } from '@services/pdf/page-s
 import { t } from '../i18n.js'
 
 /**
- * O próprio Chromium gera o PDF numa janela oculta, com **JavaScript
- * desligado**: o HTML vem do documento, e virar PDF não exige executar nada.
+ * Chromium itself renders the PDF in a hidden window with **JavaScript off**: the HTML comes from
+ * the document, and turning it into a PDF needs nothing executed.
  */
 async function withRenderWindow<T>(html: string, run: (contents: WebContents) => Promise<T>): Promise<T> {
   const temporaryPath = join(app.getPath('temp'), `librevia-print-${randomUUID()}.html`)
@@ -49,7 +49,7 @@ export async function renderPdf(html: string, page: PageSetup, paged = false): P
   return withRenderWindow(html, async (contents) => contents.printToPDF(buildPrintOptions(page, paged)))
 }
 
-/** `false` quando a pessoa cancela: cancelar não é erro. */
+/** `false` when canceled: canceling is not an error. */
 export async function printDocument(html: string, page: PageSetup): Promise<boolean> {
   return withRenderWindow(
     html,
@@ -60,7 +60,7 @@ export async function printDocument(html: string, page: PageSetup): Promise<bool
             resolve(true)
             return
           }
-          // O Chromium usa a mesma via para "cancelado" e para falha real.
+          // Chromium uses the same path for "canceled" and for a real failure.
           if (reason === 'cancelled' || reason === 'canceled') {
             resolve(false)
             return
@@ -71,7 +71,7 @@ export async function printDocument(html: string, page: PageSetup): Promise<bool
   )
 }
 
-/** Mostra o **PDF já gerado**, e não outra renderização: é onde as páginas quebram de verdade. */
+/** Shows the **already rendered PDF**, not another rendering: that is where pages really break. */
 export async function openPdfPreview(parent: BrowserWindow, pdf: Buffer, title: string): Promise<void> {
   const temporaryPath = join(app.getPath('temp'), `librevia-preview-${randomUUID()}.pdf`)
   await writeFile(temporaryPath, pdf)

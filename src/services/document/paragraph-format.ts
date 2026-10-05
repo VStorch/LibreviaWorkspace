@@ -1,25 +1,24 @@
 /**
- * A tradução entre o que o bloco guarda e o que o diálogo de parágrafo mostra.
+ * Translation between what the block stores and what the paragraph dialog shows.
  *
- * - A entrelinha é um campo só, como o CSS a escreve (`normal`, `1.8311`,
- *   `14pt`), e no diálogo são duas perguntas: o tipo e o quanto. O número do CSS
- *   **não** é o fator do Word: já vem multiplicado pela altura natural da fonte
- *   (ver `line-metrics.ts`).
- * - O recuo de primeira linha é um número com sinal (`text-indent` negativo é o
- *   deslocamento do Word); no diálogo, uma escolha e uma medida positiva.
+ * - Line spacing is a single field, as CSS writes it (`normal`, `1.8311`, `14pt`), and two
+ *   questions in the dialog: the kind and the amount. The CSS number is **not** Word's factor: it
+ *   is already multiplied by the font's natural height (see `line-metrics.ts`).
+ * - First-line indent is a signed number (negative `text-indent` is Word's hanging); in the
+ *   dialog, a choice and a positive measure.
  */
 
 import { INDENT_STEP_MM } from '@services/units.js'
 import { cssLineHeightOf, explicitCssLineHeightOf, lineFactorOf } from './line-metrics.js'
 
 export const LineSpacingKind = {
-  /** A altura que a própria fonte pede — o silêncio do arquivo. */
+  /** The height the font itself asks for: the file's silence. */
   Single: 'single',
-  /** Múltiplo da altura natural: 1,15, 1,5, duplo. */
+  /** A multiple of the natural height: 1.15, 1.5, double. */
   Multiple: 'multiple',
   /**
-   * "Pelo menos" (`w:lineRule="atLeast"`), e não "exatamente": `exact` corta o
-   * que não cabe na altura, e perder meia linha é perder conteúdo.
+   * "At least" (`w:lineRule="atLeast"`), not "exactly": `exact` clips what does not fit, and losing
+   * half a line is losing content.
    */
   AtLeast: 'at-least',
 } as const
@@ -43,31 +42,31 @@ export const TextAlignment = {
 
 export type TextAlignment = (typeof TextAlignment)[keyof typeof TextAlignment]
 
-/** Já em números, nunca em texto de `<input>`. */
+/** Already numbers, never `<input>` text. */
 export interface ParagraphDraft {
   readonly align: TextAlignment
-  /** Pontos, como o Word os mostra. */
+  /** Points, as Word shows them. */
   readonly spaceBefore: number
   readonly spaceAfter: number
   readonly lineSpacingKind: LineSpacingKind
-  /** Fator quando o tipo é múltiplo; pontos quando é "pelo menos". */
+  /** A factor when the kind is multiple; points when it is "at least". */
   readonly lineSpacingValue: number
-  /** Milímetros, como a régua da configuração de página. */
+  /** Millimetres, like the page setup ruler. */
   readonly indentLeftMm: number
   readonly indentRightMm: number
   readonly firstLineKind: FirstLineKind
   readonly firstLineMm: number
   readonly keepNext: boolean
   readonly keepLines: boolean
-  /** Viúvas e órfãs: ligado quando nada diz o contrário, como no Word. */
+  /** Widow and orphan control: on unless something says otherwise, as in Word. */
   readonly widowControl: boolean
 }
 
 export const MAX_SPACING_PT = 600
 export const MAX_INDENT_MM = 200
 /**
- * O gravador recusa fator fora de `(0,5; 4)` e registra perda (ver
- * `ParagraphFormat.ApplyLineHeight`); o diálogo não oferece o que ele não escreve.
+ * The writer refuses factors outside `(0.5; 4)` and records a loss (see
+ * `ParagraphFormat.ApplyLineHeight`); the dialog does not offer what it cannot write.
  */
 export const MIN_LINE_FACTOR = 0.51
 export const MAX_LINE_FACTOR = 3.99
@@ -88,9 +87,8 @@ export const DEFAULT_PARAGRAPH_DRAFT: ParagraphDraft = {
 }
 
 /**
- * Valor nulo apaga o atributo. O diálogo escreve só o que a pessoa mudou em
- * relação ao que se vê: transformar herdado em direto desligaria o bloco do
- * estilo sem ninguém pedir.
+ * A null value clears the attribute. The dialog writes only what the user changed relative to what
+ * is visible: turning inherited into direct would detach the block from its style unasked.
  */
 export interface ParagraphAttrs {
   readonly textAlign: TextAlignment | null
@@ -104,8 +102,8 @@ export interface ParagraphAttrs {
   readonly keepLines: boolean | null
   readonly widowControl: boolean | null
   /**
-   * O recuo em passos de `Ctrl+]`. O gravador soma medida e nível; quando o
-   * recuo muda pelo diálogo, o nível é zerado para não somar duas vezes.
+   * Indent in `Ctrl+]` steps. The writer adds measure and level; when the dialog changes the
+   * indent, the level is reset so it does not count twice.
    */
   readonly indent: number
 }
@@ -113,7 +111,7 @@ export interface ParagraphAttrs {
 const clamp = (value: number, min: number, max: number): number =>
   Number.isFinite(value) ? Math.min(Math.max(value, min), max) : min
 
-/** A precisão com que o leitor entrega a medida. */
+/** The precision the reader delivers. */
 const round = (value: number): number => Math.round(value * 10) / 10
 
 function numberOf(value: unknown): number | null {
@@ -122,7 +120,7 @@ function numberOf(value: unknown): number | null {
   return Number.isFinite(parsed) ? parsed : null
 }
 
-/** Atributos crus, porque um bloco importado traz medidas que nenhum campo do diálogo criou. */
+/** Raw attributes, because an imported block carries measures no dialog field created. */
 export function paragraphDraftFrom(attrs: Record<string, unknown>): ParagraphDraft {
   const firstLine = numberOf(attrs['firstLineMm']) ?? 0
   const indentLevel = numberOf(attrs['indent']) ?? 0
@@ -132,7 +130,7 @@ export function paragraphDraftFrom(attrs: Record<string, unknown>): ParagraphDra
     spaceBefore: clamp(round(numberOf(attrs['spaceBefore']) ?? 0), 0, MAX_SPACING_PT),
     spaceAfter: clamp(round(numberOf(attrs['spaceAfter']) ?? 0), 0, MAX_SPACING_PT),
     ...lineSpacingOf(attrs['lineHeight'], fontStackOf(attrs)),
-    // O nível de `Ctrl+]` entra como medida, para o campo mostrar o recuo que se vê.
+    // The `Ctrl+]` level enters as a measure, so the field shows the visible indent.
     indentLeftMm: clamp(
       round((numberOf(attrs['indentMm']) ?? 0) + indentLevel * INDENT_STEP_MM),
       0,
@@ -183,8 +181,8 @@ function lineSpacingOf(
   }
 
   const css = numberOf(value)
-  // O número do atributo é medida de CSS, e o do diálogo é linha do Word: um
-  // parágrafo de Calibri sem entrelinha declarada chega como 1,2207 e é "Simples".
+  // The attribute number is a CSS measure, and the dialog's is Word's line: a Calibri paragraph
+  // without declared spacing arrives as 1.2207 and is "Single".
   const factor = css === null || css <= 0 ? 1 : lineFactorOf(css, fontStack)
 
   return factor === 1
@@ -198,7 +196,7 @@ function lineSpacingOf(
       }
 }
 
-/** O deslocamento vira recuo negativo, como o `w:hanging` do Word. */
+/** Hanging becomes a negative indent, like Word's `w:hanging`. */
 export function signedFirstLineMm(draft: ParagraphDraft): number {
   if (draft.firstLineKind === FirstLineKind.None) return 0
   return draft.firstLineKind === FirstLineKind.Hanging
@@ -207,10 +205,10 @@ export function signedFirstLineMm(draft: ParagraphDraft): number {
 }
 
 /**
- * `effective` é o que o bloco vale com o estilo por baixo (`effectiveAttrs`), e
- * é dele que o formulário nasceu. Grupo de campos igual ao da abertura devolve o
- * atributo cru intocado; diferente vira formatação direta. Zero só vira atributo
- * quando desfaz algo do estilo.
+ * `effective` is the block's value with the style underneath (`effectiveAttrs`), which the form was
+ * built from. A field group equal to the opening one returns the raw attribute untouched; a
+ * different one becomes direct formatting. Zero only becomes an attribute when it undoes something
+ * from the style.
  */
 export function paragraphAttrsFrom(
   draft: ParagraphDraft,
@@ -247,7 +245,7 @@ export function paragraphAttrsFrom(
   }
 }
 
-/** Zero é ausência, a não ser que o estilo recue: aí é um zero explícito que o desfaz. */
+/** Zero means absent, unless the style indents: then it is an explicit zero that undoes it. */
 function measureOf(
   value: number,
   effective: Record<string, unknown>,
@@ -259,13 +257,16 @@ function measureOf(
   return inherited === 0 ? null : 0
 }
 
-/** "À esquerda" só é escrito quando algo declara outro alinhamento: apagar deixaria o estilo voltar. */
+/**
+ * "Left" is only written when something declares another alignment: clearing it would let the style
+ * come back.
+ */
 function keptAlignment(align: TextAlignment, effective: Record<string, unknown>): TextAlignment | null {
   const declared = typeof effective['textAlign'] === 'string' ? effective['textAlign'] : null
   return align === TextAlignment.Left && declared === null ? null : align
 }
 
-/** A fonte dá a altura natural da linha, e o que já estava escrito decide o espaçamento simples. */
+/** The font gives the natural line height, and what was already written decides single spacing. */
 function lineHeightOf(draft: ParagraphDraft, attrs: Record<string, unknown>): string {
   if (draft.lineSpacingKind === LineSpacingKind.AtLeast) {
     return `${clamp(round(draft.lineSpacingValue), 1, MAX_SPACING_PT)}pt`
@@ -276,24 +277,27 @@ function lineHeightOf(draft: ParagraphDraft, attrs: Record<string, unknown>): st
   if (draft.lineSpacingKind === LineSpacingKind.Single) {
     const current = attrs['lineHeight']
 
-    // O simples do arquivo é o silêncio dele: trocar por número reescreveria o
-    // bloco sem mudar nada do que se vê.
+    // The file's single spacing is its silence: replacing it with a number would rewrite the block
+    // without changing anything visible.
     if (current === null || current === undefined || current === '') return 'normal'
     if (typeof current === 'string' && current.toLowerCase() === 'normal') return 'normal'
 
-    // Já era o fator 1, na forma do leitor: fica como está.
+    // Already factor 1, in the reader's form: keep it.
     const css = numberOf(current)
     if (css !== null && css > 0 && lineFactorOf(css, fontStack) === 1) return String(current)
 
-    // Havia medida declarada: `normal` não serve, porque o gravador não o grava
-    // e o `w:line` antigo ficaria de pé.
+    // A measure was declared: `normal` will not do, because the writer does not write it and the
+    // old `w:line` would stay.
     return explicitCssLineHeightOf(1, fontStack)
   }
 
   return cssLineHeightOf(clamp(draft.lineSpacingValue, MIN_LINE_FACTOR, MAX_LINE_FACTOR), fontStack)
 }
 
-/** Para a barra e os atalhos `Ctrl+1`, `Ctrl+5` e `Ctrl+2`, que falam em linha, como o Word: `''` é simples. */
+/**
+ * For the toolbar and the `Ctrl+1`, `Ctrl+5` and `Ctrl+2` shortcuts, which speak in lines, as Word
+ * does: `''` is single.
+ */
 export function lineSpacingChoiceOf(attrs: Record<string, unknown>): string {
   const spacing = lineSpacingOf(attrs['lineHeight'], fontStackOf(attrs))
 
@@ -312,7 +316,7 @@ export function lineHeightAttrFrom(choice: string, attrs: Record<string, unknown
   return lineHeightOf({ ...DEFAULT_PARAGRAPH_DRAFT, ...spacing }, attrs)
 }
 
-/** Só os números podem sair de faixa: o resto é escolha fechada. */
+/** Only the numbers can go out of range: the rest is a closed choice. */
 export function isValidParagraphDraft(draft: ParagraphDraft): boolean {
   const inRange = (value: number, min: number, max: number): boolean =>
     Number.isFinite(value) && value >= min && value <= max

@@ -1,7 +1,6 @@
 /**
- * O cliente contra processos de verdade. As falhas usam sidecars de mentira em Node,
- * que morrem, emudecem e cospem lixo de propósito; o .NET verdadeiro está em
- * `sidecar-real.test.ts`.
+ * The client against real processes. Failures use fake Node sidecars that die, go silent and spit
+ * garbage on purpose; the real .NET one is in `sidecar-real.test.ts`.
  */
 
 import { mkdtemp, writeFile, chmod } from 'node:fs/promises'
@@ -13,11 +12,10 @@ import { SidecarClient } from './client.js'
 import { SidecarMethod, encodeFrame } from './protocol.js'
 
 /**
- * O sidecar de mentira é um script com shebang, que só POSIX executa: no Windows o
- * `spawn` dá EFTYPE, o Node recusa `.cmd` sem `shell: true`, e aceitar argumentos
- * afrouxaria o contrato. A lógica testada não tem plataforma; a do Windows é coberta
- * por `sidecar-real.test.ts` e pelo job do instalador. Só os testes que precisam do
- * processo vivo dependem disto.
+ * The fake sidecar is a script with a shebang, which only POSIX runs: on Windows `spawn` gives
+ * EFTYPE, Node refuses `.cmd` without `shell: true`, and accepting arguments would loosen the
+ * contract. The logic under test has no platform; Windows is covered by `sidecar-real.test.ts` and
+ * the installer job. Only the tests that need a live process depend on this.
  */
 const sidecarDeMentiraSobe = process.platform !== 'win32'
 
@@ -27,14 +25,13 @@ afterEach(() => {
   for (const client of clients.splice(0)) client.dispose()
 })
 
-/** Escreve um sidecar de mentira e devolve um cliente já apontado para ele. */
 async function fakeSidecar(source: string): Promise<SidecarClient> {
   const directory = await mkdtemp(join(tmpdir(), 'librevia-sidecar-'))
   const script = join(directory, 'fake.mjs')
   await writeFile(script, source, 'utf8')
   await chmod(script, 0o755)
 
-  // O cliente executa um caminho só, sem argumentos, como o binário .NET.
+  // The client runs a single path without arguments, like the .NET binary.
   const wrapper = join(directory, 'run.sh')
   await writeFile(wrapper, `#!/bin/sh\nexec "${process.execPath}" "${script}"\n`, 'utf8')
   await chmod(wrapper, 0o755)
@@ -93,7 +90,7 @@ describe.runIf(sidecarDeMentiraSobe)('conversa normal', () => {
   })
 
   it('mantém pedidos simultâneos separados, mesmo respondidos fora de ordem', async () => {
-    // Sem correlação por id, a resposta de um pedido iria a outro, sem erro.
+    // Without correlation by id, one request's response would go to another, without error.
     const client = await fakeSidecar(`${RESPONDER}
       const pending = []
       function __handle(request) {
@@ -137,7 +134,7 @@ describe('o sidecar morre — o documento não pode morrer junto', () => {
   })
 
   it.runIf(sidecarDeMentiraSobe)('não deixa o pedido pendurado para sempre quando o sidecar emudece', async () => {
-    // Sem timeout, a janela congela e só resta matar o aplicativo.
+    // Without a timeout, the window freezes and the only way out is killing the app.
     const client = await fakeSidecar(`${RESPONDER}
       function __handle() { /* nunca responde */ }
     `)
@@ -158,7 +155,7 @@ describe('o sidecar morre — o documento não pode morrer junto', () => {
 
     await expect(client.request(SidecarMethod.Echo, {})).rejects.toThrow()
 
-    // O processo novo morre de novo; importa que houve uma segunda tentativa.
+    // The new process dies again; what matters is that there was a second attempt.
     const segundo = await codeOf(client.request(SidecarMethod.Echo, {}))
     expect(segundo).toBe(ErrorCode.SidecarFailed)
   })
@@ -169,7 +166,7 @@ describe('o sidecar morre — o documento não pode morrer junto', () => {
     `)
 
     await expect(client.request(SidecarMethod.Echo, {}, undefined, 200)).rejects.toThrow()
-    // O segundo pedido começa limpo, e não no laço travado.
+    // The second request starts clean, not in the stuck loop.
     await expect(client.request(SidecarMethod.Echo, {}, undefined, 200)).rejects.toThrow()
   })
 
@@ -247,7 +244,7 @@ describe('encerramento', () => {
 
 describe('encodeFrame no formato que o sidecar espera', () => {
   it('põe os tamanhos em big-endian nos primeiros 8 bytes', () => {
-    // O contrato que o C# lê.
+    // The contract the C# side reads.
     const frame = encodeFrame({ a: 1 }, new Uint8Array([1, 2, 3]))
     const view = new DataView(frame.buffer, frame.byteOffset)
 

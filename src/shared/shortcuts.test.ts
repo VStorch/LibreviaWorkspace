@@ -10,12 +10,9 @@ import {
 } from './shortcuts.js'
 
 /**
- * Quem pede a mesma tecla que outro.
- *
- * A colisão que interessa é a de donos diferentes: acelerador de menu é registrado
- * no main e intercepta a tecla antes de o renderer vê-la, então o atalho do editor
- * morre calado. Devolver a lista, em vez de apenas sim ou não, é o que faz a falha
- * dizer qual tecla e quais atalhos.
+ * Menu accelerators are registered in main and intercept the key before the renderer sees it, so
+ * the editor shortcut dies silently. Returning the list, rather than yes or no, makes the failure
+ * say which key and which shortcuts.
  */
 function crossOwnerCollisions(table: Readonly<Record<string, Shortcut>>): string[] {
   const byKey = new Map<string, { id: string; owner: string }[]>()
@@ -31,17 +28,16 @@ function crossOwnerCollisions(table: Readonly<Record<string, Shortcut>>): string
 
 describe('tabela de atalhos', () => {
   it('não declara a mesma tecla para donos diferentes', () => {
-    // A regressão que se quer impossível: um acelerador de menu novo em cima de
-    // uma tecla do editor apaga o atalho do editor sem erro nenhum.
+    // The regression to rule out: a new menu accelerator on an editor key erases the editor
+    // shortcut without any error.
     expect(crossOwnerCollisions(SHORTCUTS)).toEqual([])
   })
 
   it('acusa a colisão quando ela existe — o teste acima não passa por vazio', () => {
     const collisions = crossOwnerCollisions({
       superscript: SHORTCUTS.superscript,
-      // O "Ampliar" de antes, no `CommandOrControl+Plus` que o Electron traduz
-      // para a tecla do `=` com Shift: a colisão que só apareceu pelo relato de
-      // que o sobrescrito havia parado de funcionar.
+      // The old "Zoom in", on `CommandOrControl+Plus`, which Electron maps to Shift+`=`: a
+      // collision found only when superscript was reported broken.
       zoomIn: { owner: ShortcutOwner.Menu, key: { mod: true, shift: true, key: '=' }, does: 'Ampliar' },
     })
 
@@ -54,8 +50,8 @@ describe('tabela de atalhos', () => {
   })
 
   it('escreve o acelerador do menu como o Electron o espera', () => {
-    // Fixados um a um: estas são as teclas que o aplicativo tem hoje, e a tabela
-    // não pode tê-las mudado ao juntá-las num lugar só.
+    // Pinned one by one: these are the keys the app has today, and gathering them in one table must
+    // not have changed them.
     expect(acceleratorOf(SHORTCUTS.newDocument)).toBe('CmdOrCtrl+N')
     expect(acceleratorOf(SHORTCUTS.newSpreadsheet)).toBe('CmdOrCtrl+Shift+N')
     expect(acceleratorOf(SHORTCUTS.open)).toBe('CmdOrCtrl+O')
@@ -73,8 +69,8 @@ describe('tabela de atalhos', () => {
   })
 
   it('escreve a tecla do editor com a letra minúscula que o prosemirror-keymap exige', () => {
-    // Com `L` maiúsculo o keymap entenderia "a tecla que só sai com Shift", e o
-    // atalho nunca dispararia.
+    // With an uppercase `L` the keymap would read "the key that needs Shift", and the shortcut
+    // would never fire.
     expect(editorKeyOf(SHORTCUTS.alignLeft)).toBe('Mod-l')
     expect(editorKeyOf(SHORTCUTS.alignCenter)).toBe('Mod-e')
     expect(editorKeyOf(SHORTCUTS.alignRight)).toBe('Mod-r')

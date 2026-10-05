@@ -1,4 +1,6 @@
-/** Em pixels do CSS, os mesmos dos atributos do nó; o gravador converte em EMU (`ImageWriter.cs`). */
+/**
+ * In CSS pixels, the same as the node attributes; the writer converts to EMU (`ImageWriter.cs`).
+ */
 
 export const ResizeHandle = {
   NorthWest: 'nw',
@@ -14,7 +16,7 @@ export type ResizeHandle = (typeof ResizeHandle)[keyof typeof ResizeHandle]
 
 export const RESIZE_HANDLES: readonly ResizeHandle[] = Object.values(ResizeHandle)
 
-/** Alça de canto mexe nas duas medidas; a de borda, numa só. */
+/** A corner handle changes both measures; an edge handle, one. */
 export function isCornerHandle(handle: ResizeHandle): boolean {
   return handle.length === 2
 }
@@ -24,22 +26,28 @@ export interface ImageSize {
   readonly height: number
 }
 
-/** Abaixo disso as oito alças se sobrepõem e não há como crescer de volta. */
+/** Below this the eight handles overlap and there is no way to grow back. */
 export const MIN_IMAGE_PX = 24
 
 export interface ResizeRequest {
   readonly handle: ResizeHandle
-  /** O tamanho quando o gesto começou, e não o do quadro anterior: o arrasto é medido do início. */
+  /**
+   * The size when the gesture started, not the previous frame's: the drag is measured from the
+   * start.
+   */
   readonly start: ImageSize
   readonly deltaX: number
   readonly deltaY: number
-  /** Nos cantos, travada por padrão e o `Shift` solta, como no Word; nas bordas, nunca. */
+  /** Locked by default on corners and released by `Shift`, as in Word; never on edges. */
   readonly keepProportion: boolean
-  /** Largura da coluna de texto. A imagem não passa dela, como no Word. */
+  /** The text column width. The image does not exceed it, as in Word. */
   readonly maxWidth: number
 }
 
-/** Inteiro: um atributo com `342.7188` mudaria a cada quadro por ruído e a paginação remediria. */
+/**
+ * Integers: an attribute like `342.7188` would change every frame from noise and pagination would
+ * remeasure.
+ */
 export function resizedImage(request: ResizeRequest): ImageSize {
   const { handle, start, deltaX, deltaY, maxWidth } = request
 
@@ -52,7 +60,7 @@ export function resizedImage(request: ResizeRequest): ImageSize {
   let width = start.width + horizontal * deltaX
   let height = start.height + vertical * deltaY
 
-  // Na alça travada manda a largura, o eixo que a coluna limita.
+  // On a locked handle the width rules, the axis the column limits.
   if (locked) height = width * ratio
   if (horizontal === 0) width = locked ? height / ratio : start.width
   if (vertical === 0) height = locked ? width * ratio : start.height
@@ -66,7 +74,7 @@ function axisDirection(handle: ResizeHandle, forward: string, backward: string):
   return handle.includes(backward) ? -1 : 0
 }
 
-/** Entre o mínimo e a largura da coluna; com a proporção travada, o outro eixo acompanha. */
+/** Between the minimum and the column width; with the ratio locked, the other axis follows. */
 function withinBounds(size: ImageSize, ceiling: number, ratio: number | null): ImageSize {
   let { width, height } = size
   if (width > ceiling || width < MIN_IMAGE_PX) {
@@ -80,7 +88,10 @@ function withinBounds(size: ImageSize, ceiling: number, ratio: number | null): I
   return { width, height }
 }
 
-/** Quando a coluna encolhe; senão o gravador encolheria a imagem sozinho e a tela mentiria. */
+/**
+ * When the column shrinks; otherwise the writer would shrink the image on its own and the screen
+ * would lie.
+ */
 export function fittedImage(size: ImageSize, maxWidth: number): ImageSize {
   if (size.width <= maxWidth || size.width <= 0) return size
 

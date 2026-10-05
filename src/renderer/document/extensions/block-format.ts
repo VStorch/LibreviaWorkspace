@@ -1,25 +1,27 @@
 import { Extension, type Attributes } from '@tiptap/core'
 
 /**
- * No OOXML fundo, espaçamento e entrelinha são do **parágrafo**, e não estilo de
- * texto como no Tiptap: no corpus, o `Heading1` é uma barra vermelha com texto
- * branco. No parágrafo do corpo só vem a formatação direta, e o inline vence a
- * regra do estilo; na lista, na célula e no rascunho antigo os valores chegam
- * já resolvidos, porque ali nenhuma regra de estilo alcança.
+ * In OOXML background, spacing and line height belong to the **paragraph**, not to a text style as
+ * in Tiptap: in the corpus, `Heading1` is a red bar with white text. A body paragraph only carries
+ * direct formatting, and inline beats the style rule; in lists, cells and old drafts the values
+ * arrive already resolved, because no style rule reaches there.
  */
 
 export interface BlockFormatOptions {
   types: string[]
 }
 
-// Zero é "sem espaço antes", uma instrução do documento.
+// Zero means "no space before", an instruction from the document.
 const pointsToCss = (value: unknown): string | null => {
   if (value === null || value === undefined) return null
   const points = Number(value)
   return Number.isFinite(points) && points >= 0 ? `${points}pt` : null
 }
 
-/** O zero conta: é o parágrafo desfazendo o recuo do estilo. `Number(null)` é zero, daí a conferência antes. */
+/**
+ * Zero counts: it is the paragraph undoing the style's indent. `Number(null)` is zero, hence the
+ * check first.
+ */
 const declaredMeasure = (value: unknown): number | null => {
   if (value === null || value === undefined || value === '') return null
   const measure = Number(value)
@@ -36,15 +38,15 @@ const BLOCK_ATTRIBUTES: Attributes = {
     },
   },
 
-  /** `w:lvlText`, muitas vezes na área de uso privado, como o Word grava Symbol e Wingdings. */
+  /** `w:lvlText`, often in the private use area, as Word writes Symbol and Wingdings. */
   marker: {
     default: null,
     parseHTML: (element) => element.getAttribute('data-marker'),
     renderHTML: (attributes) => {
       const value = attributes['marker']
       if (typeof value !== 'string' || value.length === 0) return {}
-      // Variável, e não `list-style-type`: o `::before` do item é o único jeito de
-      // controlar a distância até o texto. Aspas simples, porque o valor entra numa string de CSS.
+      // A variable, not `list-style-type`: the item's `::before` is the only way to control the
+      // distance to the text. Single quotes, because the value goes into a CSS string.
       return {
         'data-marker': value,
         style: `--marca: '${value.replace(/['\\]/g, '\\$&')}'`,
@@ -52,13 +54,14 @@ const BLOCK_ATTRIBUTES: Attributes = {
     },
   },
 
-  /** `w:ind/@left` do nível. */
+  /** The level's `w:ind/@left`. */
   indentMm: {
     default: null,
     parseHTML: (element) => element.getAttribute('data-indent-mm'),
     renderHTML: (attributes) => {
       const value = declaredMeasure(attributes['indentMm'])
-      // Também como variável: a imagem ancorada se posiciona pela coluna, e desconta o recuo por ela.
+      // Also a variable: an anchored image positions itself by the column and subtracts the indent
+      // through it.
       return value !== null && value >= 0
         ? {
             'data-indent-mm': String(value),
@@ -68,7 +71,7 @@ const BLOCK_ATTRIBUTES: Attributes = {
     },
   },
 
-  /** `w:ind/@right`: estreita a coluna e muda onde a linha quebra. */
+  /** `w:ind/@right`: narrows the column and changes where the line breaks. */
   indentRightMm: {
     default: null,
     parseHTML: (element) => element.getAttribute('data-indent-right-mm'),
@@ -83,7 +86,9 @@ const BLOCK_ATTRIBUTES: Attributes = {
     },
   },
 
-  /** Positivo é `w:firstLine` e negativo é `w:hanging`, a mesma medida com o sinal trocado. */
+  /**
+   * Positive is `w:firstLine` and negative is `w:hanging`, the same measure with the sign flipped.
+   */
   firstLineMm: {
     default: null,
     parseHTML: (element) => element.getAttribute('data-first-line-mm'),
@@ -93,7 +98,7 @@ const BLOCK_ATTRIBUTES: Attributes = {
     },
   },
 
-  /** `w:ind/@hanging` do nível: a distância do marcador até o texto. */
+  /** The level's `w:ind/@hanging`: the distance from the marker to the text. */
   hangingMm: {
     default: null,
     parseHTML: (element) => element.getAttribute('data-hanging-mm'),
@@ -105,7 +110,7 @@ const BLOCK_ATTRIBUTES: Attributes = {
     },
   },
 
-  /** O parágrafo vazio que guarda o `w:sectPr` **é** a marca, e o LibreOffice não lhe dá altura. */
+  /** The empty paragraph holding `w:sectPr` **is** the mark, and LibreOffice gives it no height. */
   sectionMark: {
     default: null,
     parseHTML: (element) => element.hasAttribute('data-section-mark') || null,
@@ -113,8 +118,8 @@ const BLOCK_ATTRIBUTES: Attributes = {
   },
 
   /**
-   * O id da seção em `sections` que termina aqui, como o `w:sectPr` no OOXML.
-   * Não passa adiante no Enter: a marca repetida faria duas seções com o mesmo id.
+   * The id in `sections` of the section ending here, like `w:sectPr` in OOXML. Not carried over on
+   * Enter: a repeated mark would make two sections with the same id.
    */
   sectionBreak: {
     default: null,
@@ -144,7 +149,7 @@ const BLOCK_ATTRIBUTES: Attributes = {
     },
   },
 
-  /** A altura da linha nasce da fonte do elemento, e não da do texto dentro dele. */
+  /** Line height comes from the element's font, not from the text inside it. */
   fontFamily: {
     default: null,
     parseHTML: (element) => element.style.fontFamily || null,
@@ -163,7 +168,9 @@ const BLOCK_ATTRIBUTES: Attributes = {
     },
   },
 
-  /** O simples do Word é a altura que a fonte pede, que no CSS é `normal`: nenhum fator o imita. */
+  /**
+   * Word's single is the height the font asks for, which in CSS is `normal`: no factor imitates it.
+   */
   lineHeight: {
     default: null,
     parseHTML: (element) => element.style.lineHeight || null,
@@ -177,8 +184,8 @@ const BLOCK_ATTRIBUTES: Attributes = {
   },
 
   /**
-   * Um `w:br w:type="page"` gravado **dentro** do parágrafo: como nó, ficaria em posição de
-   * linha, inválido no schema, e desalinharia os índices entre tela e papel.
+   * A `w:br w:type="page"` stored **inside** the paragraph: as a node it would sit at line
+   * position, invalid in the schema, and misalign indexes between screen and paper.
    */
   breakAfter: {
     default: null,
@@ -186,7 +193,7 @@ const BLOCK_ATTRIBUTES: Attributes = {
     renderHTML: (attributes) => (attributes['breakAfter'] === true ? { 'data-break-after': '' } : {}),
   },
 
-  /** `w:br w:type="column"`, pelo mesmo motivo de `breakAfter`; não passa adiante no Enter. */
+  /** `w:br w:type="column"`, for the same reason as `breakAfter`; not carried over on Enter. */
   columnBreakAfter: {
     default: null,
     keepOnSplit: false,
@@ -194,28 +201,31 @@ const BLOCK_ATTRIBUTES: Attributes = {
     renderHTML: (attributes) => (attributes['columnBreakAfter'] === true ? { 'data-column-break': '' } : {}),
   },
 
-  /** `w:keepNext`: não muda a aparência; a marca de fim de página e a exportação o usam. */
+  /** `w:keepNext`: does not change the look; the page end mark and the export use it. */
   keepNext: {
     default: null,
     parseHTML: (element) => element.hasAttribute('data-keep-next') || null,
     renderHTML: (attributes) => (attributes['keepNext'] === true ? { 'data-keep-next': '' } : {}),
   },
 
-  /** `w:keepLines`. `false` é o parágrafo desfazendo o que o estilo liga. */
+  /** `w:keepLines`. `false` is the paragraph undoing what the style turns on. */
   keepLines: {
     default: null,
     parseHTML: (element) => element.hasAttribute('data-keep-lines') || null,
     renderHTML: (attributes) => (attributes['keepLines'] === true ? { 'data-keep-lines': '' } : {}),
   },
 
-  /** `w:widowControl`: ausente é ligado, como no Word. */
+  /** `w:widowControl`: absent means on, as in Word. */
   widowControl: {
     default: null,
     parseHTML: (element) => (element.hasAttribute('data-widows-allowed') ? false : null),
     renderHTML: (attributes) => (attributes['widowControl'] === false ? { 'data-widows-allowed': '' } : {}),
   },
 
-  /** Não muda a tela: o parágrafo editado continua apontando o estilo original ao gravar. */
+  /**
+   * Does not change the screen: the edited paragraph still points to the original style when
+   * saving.
+   */
   styleId: {
     default: null,
     parseHTML: (element) => element.getAttribute('data-style-id'),
@@ -227,7 +237,10 @@ const BLOCK_ATTRIBUTES: Attributes = {
 }
 
 const LIST_ATTRIBUTES: Attributes = {
-  /** `w:numId`: sem ele o gravador escreveria `w:numId w:val="0"`, que no OOXML é "sem numeração". */
+  /**
+   * `w:numId`: without it the writer would write `w:numId w:val="0"`, which in OOXML means "no
+   * numbering".
+   */
   numId: {
     default: null,
     parseHTML: (element) => {
@@ -245,15 +258,15 @@ export const BlockFormat = Extension.create<BlockFormatOptions>({
   name: 'blockFormat',
 
   addOptions() {
-    // A lista não existe como bloco no arquivo, mas na árvore do editor existe,
-    // e sem espaçamento declarado receberia o do editor.
+    // The list is not a block in the file, but it is in the editor tree, and without declared
+    // spacing it would get the editor's.
     return { types: ['paragraph', 'heading', 'bulletList', 'orderedList'] }
   },
 
   addGlobalAttributes() {
     return [
       { types: this.options.types, attributes: BLOCK_ATTRIBUTES },
-      // Só nas listas, as únicas com numeração.
+      // Only on lists, the only ones with numbering.
       { types: ['bulletList', 'orderedList'], attributes: LIST_ATTRIBUTES },
     ]
   },

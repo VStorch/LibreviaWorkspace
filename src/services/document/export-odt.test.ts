@@ -5,7 +5,7 @@ import { odfText, xml } from './odt-xml.js'
 import { BUILTIN_STYLES } from './styles.js'
 import { crc32, zip } from './zip.js'
 
-/** Um PNG de 2 × 3 pixels, só o cabeçalho — o bastante para medir. */
+/** A 2 × 3 pixel PNG, header only: enough to measure. */
 const PNG = (() => {
   const bytes = new Uint8Array(33)
   bytes.set([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13, 0x49, 0x48, 0x44, 0x52])
@@ -23,7 +23,7 @@ const cell = (value: string, attrs: Record<string, unknown> = {}): DocumentNode 
   content: [paragraph(text(value))],
 })
 
-/** Um documento com tudo o que a exportação trata — também o do teste de ponta a ponta. */
+/** Everything the export handles; also used by the end-to-end test. */
 export const RICH_ODT_MODEL: DocumentModel = {
   page: { ...DEFAULT_PAGE_SETUP, header: 'Relatório — página {n} de {total}' },
   sections: [
@@ -168,7 +168,7 @@ export const RICH_ODT_MODEL: DocumentModel = {
   },
 }
 
-/** As entradas de um ZIP, lidas pelo diretório central — os dados como estão no arquivo. */
+/** Read through the central directory, with the data as stored. */
 function unzip(bytes: Uint8Array): Map<string, { data: Uint8Array; method: number; extra: number }> {
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength)
   let end = bytes.length - 22
@@ -195,7 +195,7 @@ function unzip(bytes: Uint8Array): Map<string, { data: Uint8Array; method: numbe
 
 const decode = (bytes: Uint8Array | undefined): string => new TextDecoder().decode(bytes)
 
-/** Um "deflate" de mentira, que só encolhe: o que se testa é o contêiner, não a compressão. */
+/** A fake "deflate" that only shrinks: what is under test is the container, not the compression. */
 const shrink = (data: Uint8Array): Uint8Array => data.subarray(0, 1)
 
 describe('zip', () => {
@@ -221,7 +221,7 @@ describe('zip', () => {
 })
 
 describe('exportOdt', () => {
-  // Guardado, para que o teste leia o XML sem descomprimir.
+  // Stored, so the test reads the XML without decompressing.
   const bytes = exportOdt(RICH_ODT_MODEL)
   const entries = unzip(bytes)
   const read = (name: string): string => decode(entries.get(name)?.data)
@@ -280,7 +280,7 @@ describe('exportOdt', () => {
     expect(content).toContain('<office:annotation office:name="__Annotation__9">')
     expect(content).toContain('<office:annotation-end office:name="__Annotation__9"/>')
     expect(content).toContain('<text:p>Feito</text:p>')
-    // A revisão sai aceita.
+    // The revision comes out accepted.
     expect(content).not.toContain('removido')
     expect(content).toContain('<text:s/>inserido')
   })
@@ -321,9 +321,9 @@ describe('exportOdt', () => {
   it('mescla as células com cobertas e põe a imagem no pacote', () => {
     expect(content).toContain('table:number-columns-spanned="2"')
     expect(content).toContain('table:number-rows-spanned="2"')
-    // A nota de dentro da célula continua nota.
+    // A note inside a cell stays a note.
     expect(content).toMatch(/<table:table-cell[^>]*><text:p[^>]*>C<text:note [^>]*>.*Nota na célula/)
-    // Linha 1: A (2 colunas) + coberta + B; linha 2: C, D e a coberta de B.
+    // Row 1: A (2 columns) + covered + B; row 2: C, D and B's covered cell.
     expect(content.match(/<table:covered-table-cell\/>/g)).toHaveLength(2)
     expect(content).toContain('fo:border-top="1.5pt double #ff0000"')
     expect(content).toContain('<draw:image xlink:href="Pictures/image1.png"')
@@ -341,7 +341,7 @@ describe('exportOdt', () => {
     expect(styles).toContain('<style:master-page style:name="Standard" style:page-layout-name="pm1">')
     expect(styles).toContain('fo:page-width="210mm" fo:page-height="297mm"')
     expect(styles).toContain('fo:margin-left="30mm"')
-    // O cabeçalho de texto simples, centralizado por tabulação, com os campos de página.
+    // The plain text header, centered by tab stops, with the page fields.
     const header = /<style:header>(.*?)<\/style:header>/.exec(styles)?.[1] ?? ''
     expect(header).toMatch(/^<text:p text:style-name="MP\d+"><text:tab\/>/)
     expect(header).toContain('Relatório — página </text:span>')
@@ -391,7 +391,7 @@ describe('as equações no ODT (M11, fase 3)', () => {
       /<draw:frame draw:style-name="fr\d+" draw:name="Equation\d+" text:anchor-type="as-char" svg:width="[\d.]+mm" svg:height="[\d.]+mm" draw:z-index="\d+"><draw:object xlink:href="\.\/Object 1" xlink:type="simple" xlink:show="embed" xlink:actuate="onLoad"\/><svg:desc>x\^2<\/svg:desc><\/draw:frame>/,
     )
     expect(content).toContain('xlink:href="./Object 2"')
-    // A que não passa no filtro não deixa objeto nem texto.
+    // One that fails the filter leaves no object and no text.
     expect(content).not.toContain('Object 3')
     expect(content).not.toContain('script')
     expect(read('Object 1/content.xml')).toBe(
@@ -400,7 +400,7 @@ describe('as equações no ODT (M11, fase 3)', () => {
     expect(read('Object 2/content.xml')).toContain(
       'display="block"><mfrac><mi>a</mi><mi>b</mi></mfrac></math>',
     )
-    // O LaTeX que vai na descrição sai do MathML quando a equação não o guarda.
+    // The LaTeX in the description comes from MathML when the equation does not store it.
     expect(content).toContain('<svg:desc>\\frac{a}{b}</svg:desc>')
   })
 

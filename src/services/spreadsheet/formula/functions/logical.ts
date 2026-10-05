@@ -1,11 +1,11 @@
-/** `SE` e `SEERRO` recebem os argumentos sem avaliar e moram no avaliador. */
+/** `SE` and `SEERRO` receive their arguments unevaluated and live in the evaluator. */
 
 import type { Argument } from '../evaluate.js'
 import { FormulaError, isFormulaError } from '../errors.js'
 import { toBoolean, type Scalar } from '../values.js'
 import { VARIADIC, define, single, valuesIn, type FunctionDefinition } from './kit.js'
 
-/** Como no Excel, avaliam todos os argumentos: `=E(FALSO;1/0)` é `#DIV/0!`. */
+/** As in Excel, they evaluate every argument: `=E(FALSO;1/0)` is `#DIV/0!`. */
 function fold(
   args: readonly Argument[],
   combine: (a: boolean, b: boolean) => boolean,
@@ -15,7 +15,7 @@ function fold(
   let seen = false
 
   for (const value of valuesIn(args)) {
-    // Vazio dentro de intervalo é ignorado, como no Excel.
+    // Empty inside a range is ignored, as in Excel.
     if (value === null) continue
 
     const flag = toBoolean(value)
@@ -36,7 +36,7 @@ export const LOGICAL: readonly FunctionDefinition[] = [
     return isFormulaError(flag) ? flag : !flag
   }),
 
-  // As quatro examinam o argumento em vez de usá-lo, então recebem o erro.
+  // These four inspect the argument instead of using it, so they receive the error.
   define(['ÉERROS', 'EERROS', 'ISERROR'], 1, 1, (args) => isFormulaError(single(args[0])), true),
   define(['É.NÃO.DISP', 'ENAODISP', 'ISNA'], 1, 1, (args) => single(args[0]) === FormulaError.NA, true),
   define(['ÉNÚM', 'ENUM', 'ISNUMBER'], 1, 1, (args) => typeof single(args[0]) === 'number', true),

@@ -4,8 +4,8 @@ import { useLanguage, useT } from '../i18n.js'
 import { useWorkspace } from '../state/workspace.js'
 
 /**
- * Enquanto a faixa estiver na tela o autosave **não escreve**: ignorá-la não
- * custa nada. A data é o que decide entre o rascunho e o arquivo em disco.
+ * While the banner is on screen autosave **does not write**: ignoring it costs nothing. The date is
+ * what decides between the draft and the file on disk.
  */
 export function RecoveryBanner(): React.JSX.Element | null {
   const t = useT()
@@ -43,7 +43,7 @@ export function RecoveryBanner(): React.JSX.Element | null {
   )
 }
 
-/** Tempo relativo perto e data absoluta longe: "há 26 dias" não ajuda a decidir. */
+/** Relative time when recent and an absolute date when old: "26 days ago" does not help decide. */
 function when(savedAt: number, t: (key: MessageKey, vars?: Vars) => string, language: Language): string {
   const minutes = Math.round((Date.now() - savedAt) / 60_000)
   if (minutes < 1) return t('shell.recovery.justNow')

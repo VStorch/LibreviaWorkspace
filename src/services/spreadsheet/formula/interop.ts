@@ -1,13 +1,13 @@
 /**
- * O XLSX guarda nomes de função em inglês, vírgula entre argumentos e ponto
- * decimal; o aplicativo mostra o dialeto do Excel em português. A tradução é
- * **caractere a caractere**, e não pela árvore: a gravação cirúrgica só reescreve
- * a célula cuja fórmula mudou, e reconstruir normalizaria espaços e maiúsculas.
+ * XLSX stores English function names, commas between arguments and decimal points; the app shows
+ * Excel's Portuguese dialect. Translation is **character by character**, not through the tree: the
+ * surgical save only rewrites a cell whose formula changed, and rebuilding would normalize spaces
+ * and case.
  */
 
 import { localizedName } from './functions/index.js'
 
-/** Erros escritos dentro da fórmula, como em `=SEERRO(A1;#N/D)`. */
+/** Errors written inside the formula, as in `=SEERRO(A1;#N/D)`. */
 const ERROR_PAIRS: readonly (readonly [string, string])[] = [
   ['#DIV/0!', '#DIV/0!'],
   ['#VALOR!', '#VALUE!'],
@@ -19,18 +19,18 @@ const ERROR_PAIRS: readonly (readonly [string, string])[] = [
 
 interface Dialect {
   readonly language: 'pt' | 'en'
-  /** Separadores decimais aceitos na origem. */
+  /** Decimal separators accepted in the source. */
   readonly decimalsIn: string
   /** Separador decimal a escrever. */
   readonly decimalOut: string
-  /** Separador de argumentos: o da origem, depois o do destino. */
+  /** The source's, then the destination's. */
   readonly separator: readonly [string, string]
   readonly errors: ReadonlyMap<string, string>
 }
 
 const TO_APP: Dialect = {
   language: 'pt',
-  // No arquivo a vírgula sempre separa argumentos, nunca é decimal.
+  // In the file the comma always separates arguments and is never decimal.
   decimalsIn: '.',
   decimalOut: ',',
   separator: [',', ';'],
@@ -39,19 +39,19 @@ const TO_APP: Dialect = {
 
 const TO_FILE: Dialect = {
   language: 'en',
-  // Os dois, porque o ponto é o que sai ao colar de planilha estrangeira.
+  // Both, because the dot is what comes from pasting a foreign spreadsheet.
   decimalsIn: '.,',
   decimalOut: '.',
   separator: [';', ','],
   errors: new Map(ERROR_PAIRS),
 }
 
-/** Fórmula lida do XLSX, no dialeto do aplicativo. */
+/** Read from XLSX, in the app's dialect. */
 export function fromXlsxFormula(formula: string): string {
   return convert(formula, TO_APP)
 }
 
-/** Fórmula do aplicativo, no dialeto do arquivo. */
+/** From the app, in the file's dialect. */
 export function toXlsxFormula(formula: string): string {
   return convert(formula, TO_FILE)
 }
@@ -63,8 +63,8 @@ function convert(formula: string, dialect: Dialect): string {
   while (at < formula.length) {
     const char = formula[at]!
 
-    // Texto entre aspas e nome de planilha entre apóstrofos passam intactos:
-    // uma vírgula ali dentro é conteúdo, não separador.
+    // Quoted text and apostrophe-quoted sheet names pass intact: a comma inside them is content,
+    // not a separator.
     if (char === '"' || char === "'") {
       const end = closingAt(formula, at, char)
       out += formula.slice(at, end)
@@ -72,7 +72,7 @@ function convert(formula: string, dialect: Dialect): string {
       continue
     }
 
-    // Matriz literal `{1,2;3,4}`: o aplicativo não a entende, e ela passa intacta.
+    // A literal array `{1,2;3,4}`: the app does not understand it, and it passes intact.
     if (char === '{') {
       const end = formula.indexOf('}', at)
       const stop = end === -1 ? formula.length : end + 1
@@ -105,7 +105,8 @@ function convert(formula: string, dialect: Dialect): string {
 
     const word = readWord(formula, at)
     if (word.length > 0) {
-      // Só é função com o parêntese colado, como no analisador: uma célula chamada `SOMA` não é.
+      // Only a function with the parenthesis attached, as in the parser: a cell named `SOMA` is not
+      // one.
       out += formula[at + word.length] === '(' ? localizedName(word, dialect.language) : word
       at += word.length
       continue
@@ -118,7 +119,10 @@ function convert(formula: string, dialect: Dialect): string {
   return out
 }
 
-/** Já depois do fechamento. A aspa duplicada (`""`) não fecha, e o apóstrofo segue a mesma convenção. */
+/**
+ * Already past the closing quote. A doubled quote (`""`) does not close, and the apostrophe follows
+ * the same convention.
+ */
 function closingAt(formula: string, start: number, quote: string): number {
   let at = start + 1
   while (at < formula.length) {
@@ -131,7 +135,7 @@ function closingAt(formula: string, start: number, quote: string): number {
     }
     at++
   }
-  // Aspa sem fechar: copia o resto em vez de inventar um fechamento.
+  // An unclosed quote: copy the rest instead of inventing a closing.
   return formula.length
 }
 
@@ -148,7 +152,7 @@ function isDigit(char: string | undefined): boolean {
   return char !== undefined && char >= '0' && char <= '9'
 }
 
-/** Número inteiro ou decimal, com expoente. Espelha o do analisador. */
+/** Integer or decimal, with exponent. Mirrors the parser's. */
 function readNumber(formula: string, start: number, decimals: string): string {
   let at = start
   let seenSeparator = false
@@ -190,7 +194,7 @@ function rewriteDecimal(number: string, dialect: Dialect): string {
   return number
 }
 
-/** O mesmo conjunto do analisador: `$`, `!` e `.` fazem parte de ``, `Plan1!A1` e `CONT.NÚM`. */
+/** The same set as the parser: `$`, `!` and `.` belong to `$A$1`, `Plan1!A1` and `CONT.NÚM`. */
 function readWord(formula: string, start: number): string {
   let at = start
   while (at < formula.length && /[\p{L}\p{N}_$.!]/u.test(formula[at]!)) at++

@@ -1,8 +1,8 @@
 /**
- * Substitutas **metricamente compatíveis**: cada glifo tem a largura do
- * original, então a linha quebra no mesmo lugar, como no LibreOffice.
+ * **Metric-compatible** substitutes: each glyph has the original's width, so lines break in the
+ * same place, as in LibreOffice.
  *
- * | Do documento    | Empacotada        | Licença  |
+ * | Document        | Bundled           | License  |
  * | --------------- | ----------------- | -------- |
  * | Calibri         | Carlito           | OFL 1.1  |
  * | Cambria         | Caladea           | OFL 1.1  |
@@ -10,18 +10,18 @@
  * | Times New Roman | Liberation Serif  | OFL 1.1  |
  * | Courier New     | Liberation Mono   | OFL 1.1  |
  *
- * O `@font-face` usa o nome **da fonte original**, então `w:ascii="Calibri"`
- * acha a substituta, e a Calibri instalada vence pelo `local()`.
+ * `@font-face` uses the **original** font's name, so `w:ascii="Calibri"` finds the substitute, and
+ * an installed Calibri wins through `local()`.
  */
 
-/** O esquema é servido pelo processo main; ver `src/main/fonts.ts`. */
+/** Main serves the scheme; see `src/main/fonts.ts`. */
 const SCHEME = 'librevia-font://fonts'
 
 interface Substitute {
   readonly declared: string
-  /** Famílias instaladas que servem, quando existirem na máquina. */
+  /** Installed families that will do, when present. */
   readonly local: readonly string[]
-  /** Prefixo dos arquivos empacotados. */
+  /** Prefix of the bundled files. */
   readonly file: string
 }
 
@@ -46,9 +46,8 @@ const FACES: readonly { suffix: string; weight: number; style: string; words: st
 ]
 
 /**
- * `local()` casa por nome de fonte, e não de família: `local('Liberation Sans')`
- * numa regra de negrito serviria o corte normal. Nome cheio e PostScript, porque
- * os dois aparecem.
+ * `local()` matches by font name, not family: `local('Liberation Sans')` in a bold rule would serve
+ * the regular face. Full name and PostScript name, because both occur.
  */
 function localNames(family: string, words: string): string[] {
   if (words === '') return [family]
@@ -56,8 +55,8 @@ function localNames(family: string, words: string): string[] {
 }
 
 /**
- * `font-display: block` porque a medida depende da fonte: com `auto`, o
- * documento seria medido com a fonte de reserva e repaginado um instante depois.
+ * `font-display: block` because measuring depends on the font: with `auto`, the document would be
+ * measured with the fallback font and repaginated a moment later.
  */
 export const DOCUMENT_FONT_CSS = SUBSTITUTES.flatMap((substitute) =>
   FACES.map(({ suffix, weight, style, words }) => {
@@ -74,7 +73,7 @@ export const DOCUMENT_FONT_CSS = SUBSTITUTES.flatMap((substitute) =>
   }),
 ).join('\n')
 
-/** Os arquivos que precisam existir em `resources/fonts/`. */
+/** The files that must exist in `resources/fonts/`. */
 export const BUNDLED_FONT_FILES: readonly string[] = [
   ...new Set(
     SUBSTITUTES.flatMap((substitute) => FACES.map(({ suffix }) => `${substitute.file}-${suffix}.ttf`)),

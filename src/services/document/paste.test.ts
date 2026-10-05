@@ -3,8 +3,8 @@ import { plainPasteContent } from './paste.js'
 
 describe('colar sem formatação', () => {
   it('uma linha vira texto puro, e não parágrafo novo', () => {
-    // Inserir um parágrafo aqui partiria a frase em duas — e colar o nome de uma
-    // cidade dentro de um endereço é o caso comum.
+    // Inserting a paragraph here would split the sentence in two, and pasting a city name into an
+    // address is the common case.
     expect(plainPasteContent('São Paulo')).toEqual([{ type: 'text', text: 'São Paulo' }])
   })
 
@@ -26,20 +26,19 @@ describe('colar sem formatação', () => {
   })
 
   it('a quebra do fim não deixa parágrafo vazio sobrando', () => {
-    // Texto copiado de terminal, de célula de planilha e de tabela vem com ela.
+    // Text copied from a terminal, a spreadsheet cell or a table comes with one.
     expect(plainPasteContent('só isto\n')).toEqual([{ type: 'text', text: 'só isto' }])
   })
 
   it('caractere de controle não entra no documento', () => {
-    // Um `\u0000` vindo de arquivo binário deixaria o documento impossível de
-    // salvar; `\v` é como célula de Excel separa linha.
+    // A `\u0000` from a binary file would make the document impossible to save; `\v` is how an
+    // Excel cell separates lines.
     expect(plainPasteContent('a\u0000b')).toEqual([{ type: 'text', text: 'ab' }])
     expect(plainPasteContent('a\vb')).toHaveLength(2)
   })
 
   it('tabulação continua no texto', () => {
-    // Ela é conteúdo: uma tabela colada como texto perde o alinhamento se a
-    // tabulação sumir.
+    // It is content: a table pasted as text loses its alignment if the tab disappears.
     expect(plainPasteContent('a\tb')).toEqual([{ type: 'text', text: 'a\tb' }])
   })
 

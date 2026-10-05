@@ -39,7 +39,7 @@ describe('nomes', () => {
 
 describe('número de argumentos', () => {
   it('reclama de argumento a mais', () => {
-    // Sem isso o usuário veria só #VALOR! e procuraria o erro no lugar errado.
+    // Otherwise the user would only see #VALOR! and look for the mistake in the wrong place.
     expect(checkFormula('=ABS(1;2)')?.message).toMatch(/no máximo 1 argumento/i)
   })
 

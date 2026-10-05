@@ -16,16 +16,16 @@ interface DocumentToolbarProps {
   readonly onOpenFind: () => void
   readonly onOpenPageSetup: () => void
   readonly onOpenStyles: () => void
-  /** O menu nativo também abre o parágrafo. */
+  /** The native menu also opens the paragraph dialog. */
   readonly paragraphOpen: boolean
   readonly onParagraphOpenChange: (open: boolean) => void
-  /** O menu nativo e o de contexto também os abrem: o estado mora acima. */
+  /** The native and context menus also open them: the state lives above. */
   readonly onOpenTable: () => void
   readonly onOpenImageProperties: () => void
   readonly onOpenListFormat: () => void
 }
 
-/** Só a ordem dos grupos e os diálogos; cada grupo observa no editor só o que desenha. */
+/** Only the group order and the dialogs; each group watches only what it draws. */
 export function DocumentToolbar({
   editor,
   onOpenFind,

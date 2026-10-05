@@ -39,7 +39,7 @@ const doc = ProseMirrorNode.fromJSON(schema, {
 
 describe('sheetAt', () => {
   it('conta as folhas que começam antes da posição', () => {
-    // A segunda folha abre no terceiro bloco; a terceira, no meio do quarto.
+    // The second sheet opens at the third block; the third, in the middle of the fourth.
     const starts = [{ blockIndex: 2 }, { blockIndex: 3, offset: 2 }]
     let third = 0
     let fourth = 0
@@ -67,7 +67,7 @@ describe('destinos das referências', () => {
   })
 })
 
-/** Um editor de mentira: o estado e o `dispatch`, que é tudo o que as funções usam. */
+/** A fake editor: the state and `dispatch`, which is all these functions use. */
 function fakeEditor(json: unknown): { editor: Editor; fields: () => string[] } {
   let state = EditorState.create({ doc: ProseMirrorNode.fromJSON(schema, json) })
   const editor = {
@@ -138,8 +138,8 @@ describe('atualizar campos', () => {
     })
     expect(updateFields(editor, contextWith({})).changed).toBe(0)
 
-    // A paginação muda depois — o alvo passaria para a folha 2 —, e o passe não
-    // pode reescrever o campo que o F9 deixou como estava.
+    // Pagination changes afterwards (the target would move to sheet 2), and the pass must not
+    // rewrite the field F9 left as it was.
     settlePageFields(editor, contextWith({ pageStarts: [{ blockIndex: 0 }] }))
     expect(fields()).toEqual(['1'])
   })
@@ -203,7 +203,7 @@ describe('referência cruzada a uma nota (M11)', () => {
     host.forEach((child) => kinds.push(child.type.name))
     expect(kinds.slice(-3)).toEqual(['bookmarkStart', 'noteRef', 'bookmarkEnd'])
 
-    // Uma nota nova antes: o F9 passa a citar o 3.
+    // A new note before it: F9 now cites 3.
     editor.view.dispatch(editor.state.tr.insert(1, ProseMirrorNode.fromJSON(schema, footnote('Zero.'))))
     updateFields(editor, contextWith({}))
     expect(fields()).toEqual(['3'])

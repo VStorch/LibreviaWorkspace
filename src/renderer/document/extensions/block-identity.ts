@@ -2,11 +2,10 @@ import { Extension } from '@tiptap/core'
 import { Plugin, PluginKey, type Transaction } from '@tiptap/pm/state'
 
 /**
- * O `oid` que o leitor carimba em cada bloco (`BodyReader.NewBlock`) decide o que
- * a gravação **não** reescreve (`DocxWriter.OidOf`). O ProseMirror descarta
- * atributo fora do schema: sem esta extensão a gravação viraria regeneração
- * completa, em silêncio. Vai também ao HTML (`data-oid`), para atravessar
- * recortar, colar e desfazer.
+ * The `oid` the reader stamps on each block (`BodyReader.NewBlock`) decides what saving does
+ * **not** rewrite (`DocxWriter.OidOf`). ProseMirror drops attributes outside the schema: without
+ * this extension saving would silently become a full regeneration. It also goes into the HTML
+ * (`data-oid`), to survive cut, paste and undo.
  */
 
 export interface BlockIdentityOptions {
@@ -14,9 +13,9 @@ export interface BlockIdentityOptions {
 }
 
 /**
- * Dois blocos com o mesmo `oid` (o Enter e a colagem duplicam) fariam o gravador
- * regenerar o segundo. O primeiro fica com a identidade, e o novo nasce sem.
- * Só quando há o que corrigir, e sem descer dentro do parágrafo.
+ * Two blocks with the same `oid` (Enter and paste duplicate it) would make the writer regenerate
+ * the second. The first keeps the identity, and the new one starts without it. Only when there is
+ * something to fix, and without descending into paragraphs.
  */
 export function uniqueOids(): Plugin {
   return new Plugin({
@@ -55,7 +54,8 @@ export const BlockIdentity = Extension.create<BlockIdentityOptions>({
   },
 
   addOptions() {
-    // Os nós em que `BodyReader` chama `NewBlock`; o item de lista é um `w:p`, e o sumário, o `w:sdt`.
+    // The nodes where `BodyReader` calls `NewBlock`; a list item is a `w:p`, and the table of
+    // contents a `w:sdt`.
     return { types: ['paragraph', 'heading', 'pageBreak', 'listItem', 'table', 'tableOfContents'] }
   },
 
@@ -74,9 +74,9 @@ export const BlockIdentity = Extension.create<BlockIdentityOptions>({
           },
 
           /**
-           * Imagem ou caixa fora do fluxo, dado opaco como o `oid`. Nos mesmos nós:
-           * o parágrafo com imagem e quebra de página vira `pageBreak`. Não vai ao
-           * HTML: quem desenha lê do modelo.
+           * An image or box outside the flow, opaque data like `oid`. On the same nodes: a
+           * paragraph with an image and a page break becomes `pageBreak`. Not in the HTML: whoever
+           * draws reads it from the model.
            */
           floats: {
             default: null,

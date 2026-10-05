@@ -8,7 +8,7 @@ interface Listing {
   readonly user: readonly TemplateEntry[]
 }
 
-/** Sem miniatura, que pediria renderizar o pacote só para mostrar. */
+/** No thumbnails, which would require rendering the package just to show it. */
 export function TemplateGallery(): React.JSX.Element {
   const t = useT()
   const close = useWorkspace((state) => state.setTemplateGallery)
@@ -16,7 +16,7 @@ export function TemplateGallery(): React.JSX.Element {
   const { listing, selected, setSelected } = useTemplateListing()
 
   async function create(template: TemplateEntry | null): Promise<void> {
-    // Fecha antes: o aviso e o diálogo de procurar ficam por cima.
+    // Closes first: the warning and the browse dialog go on top.
     close(false)
     await newFromTemplate(template === null ? null : { source: template.source, id: template.id })
   }

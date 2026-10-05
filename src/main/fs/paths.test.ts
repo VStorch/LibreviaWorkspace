@@ -24,8 +24,8 @@ afterEach(async () => {
 
 describe('autorização de caminhos', () => {
   it('recusa um caminho que nunca foi escolhido pelo usuário', () => {
-    // Este é o controle central: mesmo que o renderer seja comprometido por um
-    // documento malicioso, ele não consegue mandar o main gravar em /etc.
+    // The central control: even if a malicious document compromises the renderer, it cannot make
+    // main write to /etc.
     expect(() => assertPathAuthorized('/etc/passwd')).toThrow(/recusada/i)
   })
 
@@ -41,9 +41,9 @@ describe('autorização de caminhos', () => {
     const path = join(directory, 'ata.txt')
     authorizePath(path)
 
-    // O mesmo arquivo escrito de outro jeito continua autorizado…
+    // The same file spelled differently stays authorized…
     expect(isPathAuthorized(join(directory, 'sub', '..', 'ata.txt'))).toBe(true)
-    // …e um vizinho alcançado por ".." continua recusado.
+    // …and a neighbor reached through ".." stays refused.
     expect(isPathAuthorized(join(directory, '..', 'outro.txt'))).toBe(false)
   })
 
@@ -70,9 +70,8 @@ describe('assertReadableFile', () => {
   })
 
   it('recusa extensão que o aplicativo não abre', async () => {
-    // `.ods` é outro formato, não uma variação: abri-lo como `.xlsx` daria erro
-    // de arquivo corrompido, que manda o usuário procurar o problema no lugar
-    // errado.
+    // `.ods` is another format, not a variant: opening it as `.xlsx` would give a corrupt file
+    // error, sending the user to look for the problem in the wrong place.
     const path = join(directory, 'planilha.ods')
     await writeFile(path, 'x')
 

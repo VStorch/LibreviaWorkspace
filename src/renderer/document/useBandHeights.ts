@@ -4,18 +4,18 @@ import { pxToMm } from '@services/units.js'
 import { type BandHeights } from '@services/document/band.js'
 
 /**
- * A única parte da conta de margem que nenhum arquivo diz. Medida na primeira
- * folha de cada seção e arredondada a um décimo de milímetro, porque a medida
- * oscila e cada oscilação repaginaria o documento.
+ * The only part of the margin math no file states. Measured on the first sheet of each section and
+ * rounded to a tenth of a millimetre, because the measure wobbles and every wobble would repaginate
+ * the document.
  *
- * @param sheets Que seção abre cada folha: muda quando uma seção ganha ou perde folhas.
+ * @param sheets Which section opens each sheet: changes when a section gains or loses sheets.
  */
 export function useBandHeights(sections: readonly PageSetup[], revision: number, sheets = ''): BandHeights[] {
   const [bands, setBands] = useState<BandHeights[]>([])
   const last = useRef<BandHeights[]>([])
 
   useEffect(() => {
-    // Sem `setState` quando nada mudou: na digitação rápida o React desistiria (erro 185).
+    // No `setState` when nothing changed: with fast typing React would give up (error 185).
     const measure = (): void => {
       const next = measureBands(sections.length)
       if (sameBands(last.current, next)) return

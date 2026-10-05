@@ -1,6 +1,8 @@
 import { getCell, type Sheet } from '@services/spreadsheet/model.js'
 
-/** Na hora de desenhar: a rolagem recria as células, e um estilo guardado no DOM sumiria com elas. */
+/**
+ * At draw time: scrolling recreates the cells, and a style kept in the DOM would vanish with them.
+ */
 export function cellStyleOf(sheet: Sheet, row: number, column: number): Record<string, string> {
   const style = getCell(sheet, row, column)?.style
   if (style === undefined) return {}

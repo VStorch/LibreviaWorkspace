@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest'
 import { currentEntryIndex, outlineLevelOf, outlineOf, type OutlineBlock } from './outline.js'
 import { BUILTIN_STYLES, StyleType, type StyleSheet } from './styles.js'
 
-/** A folha do Word com um estilo do autor que é título, e o `TOC Heading` que desliga o nível. */
+/**
+ * Word's sheet with an author style that is a heading, and `TOC Heading` switching the level off.
+ */
 const SHEET: StyleSheet = {
   ...BUILTIN_STYLES,
   styles: {
@@ -50,7 +52,7 @@ describe('outlineLevelOf', () => {
 
   it('o parágrafo vale pelo nível que a cascata de estilos lhe dá', () => {
     expect(outlineLevelOf({ type: 'paragraph', attrs: { styleId: 'Capitulo' } }, SHEET)).toBe(1)
-    // O nível do próprio estilo vence o herdado.
+    // The style's own level beats the inherited one.
     expect(outlineLevelOf({ type: 'paragraph', attrs: { styleId: 'Secao' } }, SHEET)).toBe(2)
   })
 

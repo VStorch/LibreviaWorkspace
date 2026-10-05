@@ -6,15 +6,14 @@ import {
 } from '@services/document/line-metrics.js'
 
 /**
- * A altura natural da linha, com os dois lados de verdade: o leitor multiplica por
- * ela no C# (`BodyReader.LineHeightOf`) e a interface divide (`paragraph-format.ts`).
- * Fica em `src/main`, o único lugar com `node:fs`.
+ * The natural line height, with both real sides: the reader multiplies by it in C#
+ * (`BodyReader.LineHeightOf`) and the UI divides (`paragraph-format.ts`). Lives in `src/main`, the
+ * only place with `node:fs`.
  */
 describe('contrato da altura natural da linha', () => {
   it('a tabela é a mesma que o sidecar usa', () => {
-    // O número tem de ser **um**: o leitor multiplica no C# e a interface
-    // divide aqui. Duas tabelas que discordem fazem "1,5" na tela virar outra
-    // coisa no arquivo.
+    // The number must be **one**: the reader multiplies in C# and the UI divides here. Two tables
+    // that disagree turn "1.5" on screen into something else in the file.
     const source = readFileSync(
       new URL('../../../sidecar/src/Librevia.Format/Docx/LineMetrics.cs', import.meta.url),
       'utf8',

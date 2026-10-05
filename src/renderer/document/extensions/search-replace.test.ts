@@ -36,7 +36,7 @@ describe('localizar nas notas (M11)', () => {
       'ata',
       'ata',
     ])
-    // A da nota fica entre a de antes e a de depois da referência.
+    // The note's match falls between the ones before and after the reference.
     const reference = 1 + 'ata antes'.length
     expect(matches[0]!.from).toBeLessThan(reference)
     expect(matches[1]!.from).toBeGreaterThan(reference)

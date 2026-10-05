@@ -39,9 +39,9 @@ export function PageSetupPanel({
   resolved,
 }: {
   readonly onClose: () => void
-  /** Ausente, a página da loja é a única. */
+  /** When absent, the store's page is the only one. */
   readonly resolved?: ResolvedSections
-  /** Em `allSections`. */
+  /** Into `allSections`. */
   readonly sectionIndex?: number
 }): React.JSX.Element {
   const t = useT()
@@ -51,9 +51,9 @@ export function PageSetupPanel({
   const all = allSections(page, sections)
   const index = Math.min(Math.max(sectionIndex, 0), all.length - 1)
   const [draft, setDraft] = useState<PageSetup>(all[index] ?? page)
-  // "Nesta seção" ou "no documento todo", como no Word.
+  // "This section" or "whole document", as in Word.
   const [scope, setScope] = useState<'section' | 'document'>('section')
-  // Ver `withBandsLinked`.
+  // See `withBandsLinked`.
   const sectionKey = sections[index]?.id ?? 'body'
   const valid = isValidMargins(draft)
 
@@ -77,7 +77,7 @@ export function PageSetupPanel({
       className="popover popover--wide"
       role="dialog"
       aria-label={t('document.pageSetup.title')}
-      // `Esc` fecha e `Enter` aplica, como no diálogo de parágrafo.
+      // `Esc` closes and `Enter` applies, like the paragraph dialog.
       onKeyDown={(event) => {
         if (event.key === 'Escape') onClose()
         if (event.key === 'Enter') apply()
@@ -177,14 +177,14 @@ function MarginFields({ draft, setDraft }: DraftProps): React.JSX.Element {
 }
 
 interface BandFieldsProps extends DraftProps {
-  /** Em `allSections`: a primeira seção não tem anterior a que se vincular. */
+  /** Into `allSections`: the first section has no previous one to link to. */
   readonly index: number
   readonly onLink: (kind: 'header' | 'footer', linked: boolean) => void
 }
 
 function BandFields({ draft, setDraft, index, onLink }: BandFieldsProps): React.JSX.Element {
   const t = useT()
-  // "Número da página" e "Total de páginas" entram no último campo que teve o cursor, como no Word.
+  // "Page number" and "Total pages" go into the last field that had the cursor, as in Word.
   const lastField = useRef<{ field: 'header' | 'footer'; at: number }>({ field: 'footer', at: -1 })
 
   function onRemember(field: 'header' | 'footer', input: HTMLInputElement): void {
@@ -310,7 +310,7 @@ function BandOptions({ draft, setDraft, index, onLink }: BandFieldsProps): React
     (!marginFitsHeaderOrFooter(draft.margins.top) || !marginFitsHeaderOrFooter(draft.margins.bottom))
   return (
     <>
-      {/* Desvinculada, a seção ganha uma cópia própria das faixas da anterior. */}
+      {/* When unlinked, the section gets its own copy of the previous section's bands. */}
       {index > 0 &&
         (['header', 'footer'] as const).map((kind) => (
           <label key={kind} className="popover__check">
@@ -322,7 +322,6 @@ function BandOptions({ draft, setDraft, index, onLink }: BandFieldsProps): React
             {t(kind === 'header' ? 'document.pageSetup.linkHeader' : 'document.pageSetup.linkFooter')}
           </label>
         ))}
-
       <label className="popover__check">
         <input
           type="checkbox"
@@ -339,8 +338,7 @@ function BandOptions({ draft, setDraft, index, onLink }: BandFieldsProps): React
         />
         {t('document.pageSetup.evenAndOdd')}
       </label>
-
-      {/* O Chromium recorta o excedente da margem: apertada, as faixas somem. */}
+      {/* Chromium clips what exceeds the margin: when tight, the bands disappear. */}
       {needsRoomWarning && (
         <p className="popover__error">
           {t('document.pageSetup.marginWarning', { min: MIN_MARGIN_FOR_HEADER_MM })}

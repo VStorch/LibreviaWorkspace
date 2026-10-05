@@ -1,8 +1,10 @@
-/** A lista de fontes não mora aqui: depende da máquina e do documento (`useFontFamilies`). */
+/**
+ * The font list does not live here: it depends on the machine and the document (`useFontFamilies`).
+ */
 
 import type { MessageKey } from '@shared/i18n/index.js'
 
-/** Os do Word. */
+/** Word's. */
 export const FONT_SIZES = [
   '8',
   '9',
@@ -21,7 +23,7 @@ export const FONT_SIZES = [
   '72',
 ] as const
 
-/** Em linhas do Word, e não em CSS; vazio é "Simples". */
+/** In Word lines, not CSS; empty means "Single". */
 export function lineHeights(t: (key: MessageKey) => string): readonly { value: string; label: string }[] {
   return [
     { value: '', label: t('document.paragraph.spacingSingle') },
@@ -31,7 +33,9 @@ export function lineHeights(t: (key: MessageKey) => string): readonly { value: s
   ]
 }
 
-/** Um `<select>` sem a opção do próprio valor mostra a primeira, e a barra mentiria. */
+/**
+ * A `<select>` without its own value as an option shows the first one, and the toolbar would lie.
+ */
 export function withCurrent(
   options: readonly { readonly value: string; readonly label: string }[],
   current: string,

@@ -2,11 +2,11 @@ import { FormulaError, isFormulaError } from '../errors.js'
 import { matchesCriteria, type Scalar } from '../values.js'
 import { VARIADIC, define, numberArg, numbersIn, rowsOf, single, type FunctionDefinition } from './kit.js'
 
-/** `,5` sobe para longe do zero, como no Excel; `Math.round` levaria −2,5 a −2. */
+/** `.5` rounds away from zero, as in Excel; `Math.round` would take −2.5 to −2. */
 function roundHalfAway(value: number, digits: number): number {
   const factor = 10 ** digits
   const scaled = value * factor
-  // Sem a correção, 1,005 viraria 1,00 pelo binário.
+  // Without the correction, 1.005 would become 1.00 through binary.
   const corrected = Number(scaled.toPrecision(15))
   return (corrected < 0 ? -Math.round(-corrected) : Math.round(corrected)) / factor
 }
@@ -55,7 +55,7 @@ export const MATH: readonly FunctionDefinition[] = [
 
   define(['INT'], 1, 1, (args) => {
     const value = numberArg(args[0])
-    // INT arredonda para baixo de verdade: INT(-2,5) é -3, e não -2.
+    // INT really rounds down: INT(-2.5) is -3, not -2.
     return isFormulaError(value) ? value : Math.floor(value)
   }),
 
@@ -76,7 +76,7 @@ export const MATH: readonly FunctionDefinition[] = [
     if (isFormulaError(divisor)) return divisor
     if (divisor === 0) return FormulaError.Div0
 
-    // O resto acompanha o sinal do divisor, como no Excel, e não o do dividendo, como o `%`.
+    // The remainder follows the divisor's sign, as in Excel, not the dividend's, as `%` does.
     return value - divisor * Math.floor(value / divisor)
   }),
 
@@ -97,7 +97,7 @@ export const MATH: readonly FunctionDefinition[] = [
     return Number.isFinite(result) ? result : FormulaError.Num
   }),
 
-  /** O intervalo de soma é deslocado a partir do canto do primeiro, como no Excel. */
+  /** The sum range is shifted from the first one's corner, as in Excel. */
   define(['SOMASE', 'SUMIF'], 2, 3, (args) => {
     const tested = rowsOf(args[0])
     if (isFormulaError(tested)) return tested

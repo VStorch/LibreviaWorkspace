@@ -1,7 +1,7 @@
 /**
- * O zoom é um `transform`: só o que vem da tela chega multiplicado. Quem converte
- * gesto em medida divide por isto. Lido do elemento, para valer com qualquer
- * transformação no caminho.
+ * Zoom is a `transform`: only what comes from the screen arrives multiplied. Whoever converts a
+ * gesture into a measure divides by this. Read from the element, to hold with any transform along
+ * the way.
  */
 export function screenScaleOf(element: HTMLElement | null): number {
   if (element === null || element.offsetWidth <= 0) return 1

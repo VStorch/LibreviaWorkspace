@@ -6,8 +6,8 @@ import { useWorkspace } from '../state/workspace.js'
 import { bookmarksOf, goToBookmark } from './extensions/bookmark.js'
 
 /**
- * O nome que já existe **move** o marcador, como no Word. Os ocultos ficam fora
- * da lista até a caixa ser marcada. No somente leitura só "Ir para" funciona.
+ * An existing name **moves** the bookmark, as in Word. Hidden ones stay out of the list until the
+ * box is checked. When read-only only "Go to" works.
  */
 export function BookmarkDialog({
   editor,
@@ -39,7 +39,7 @@ export function BookmarkDialog({
     if (readOnly || !valid) return
     editor.commands.setBookmark(name)
     onClose()
-    // Depois de o diálogo sair: o campo desmontado levaria o foco junto.
+    // After the dialog leaves: the unmounted field would take focus with it.
     requestAnimationFrame(() => editor.view.focus())
   }
 
@@ -86,10 +86,10 @@ export function BookmarkDialog({
         readOnly={readOnly}
         onAdd={add}
         onDelete={() => {
-          // O diálogo continua aberto, e o `Esc` é dele.
+          // The dialog stays open, and `Esc` belongs to it.
           editor.commands.deleteBookmark(name)
           setName('')
-          // O botão se apaga, e o foco cairia no corpo da janela, longe do `Esc`.
+          // The button greys out, and focus would land on the window body, away from `Esc`.
           input.current?.focus()
         }}
         onGoTo={() => {

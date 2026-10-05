@@ -30,7 +30,7 @@ export function StyleAndFontGroup({
           level: typeof level === 'number' ? level : null,
         }
       })(),
-      // O nome, e não a pilha de CSS que vem do documento.
+      // The name, not the CSS stack the document carries.
       fontFamily: firstFamilyOf(String(current.getAttributes('textStyle')['fontFamily'] ?? '')),
       fontSize: String(current.getAttributes('textStyle')['fontSize'] ?? '').replace('pt', ''),
     }),
@@ -38,7 +38,7 @@ export function StyleAndFontGroup({
 
   const sheet = useWorkspace((state) => state.styles)
   const language = useLanguage()
-  // Os estilos **do documento**, pelo nome da tela; título ↔ parágrafo pelo nome `heading N`.
+  // The **document's** styles, by screen name; heading ↔ paragraph by the name `heading N`.
   const styles = useMemo(
     () =>
       listedStyles(sheet, language)

@@ -1,8 +1,8 @@
 import { Mark, mergeAttributes } from '@tiptap/core'
 
 /**
- * Pedidos pelo corpus: um documento de 15 páginas usa `w:caps` e `w:smallCaps` 45
- * vezes. Dois marks, porque no OOXML são propriedades independentes.
+ * Asked for by the corpus: a 15-page document uses `w:caps` and `w:smallCaps` 45 times. Two marks,
+ * because in OOXML they are independent properties.
  */
 
 declare module '@tiptap/core' {

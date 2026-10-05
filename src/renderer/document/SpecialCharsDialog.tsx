@@ -5,9 +5,9 @@ import { useT } from '../i18n.js'
 import { cycleFocus } from '../components/focus-trap.js'
 
 /**
- * O foco **entra no painel** ao abrir, e o `Tab` **fica dentro** dele: senão as
- * setas andariam pelo documento, e o `Tab` cairia no seletor "Estilo" da barra,
- * onde a seta seguinte trocaria o estilo do parágrafo.
+ * Focus **enters the panel** on open, and `Tab` **stays inside** it: otherwise the arrows would
+ * move through the document, and `Tab` would land on the toolbar's "Style" picker, where the next
+ * arrow would change the paragraph style.
  */
 export function SpecialCharsDialog({
   editor,
@@ -20,19 +20,19 @@ export function SpecialCharsDialog({
   const panel = useRef<HTMLDivElement>(null)
   const host = useRef<HTMLDivElement>(null)
 
-  // No primeiro caractere, e não no "Fechar": quem abriu quer inserir.
+  // On the first character, not on "Close": whoever opened it wants to insert.
   useEffect(() => {
     host.current?.querySelector<HTMLButtonElement>('button[data-char]')?.focus()
   }, [])
 
   function insert(character: SpecialCharacter): void {
-    // Insere e continua no painel: quem abre costuma querer dois ou três
-    // caracteres. Sem foco no editor a inserção cai no lugar certo, porque a
-    // seleção do ProseMirror avança a cada uma.
+    // Inserts and stays in the panel: people usually want two or three characters. Without focus on
+    // the editor the insertion lands in the right place, because the ProseMirror selection advances
+    // each time.
     editor.chain().insertContent(character.char).run()
   }
 
-  /** No elemento de fora, para o `Escape` valer com o foco no "Fechar". */
+  /** On the outer element, so `Escape` works with focus on "Close". */
   function onPanelKeyDown(event: React.KeyboardEvent<HTMLDivElement>): void {
     if (event.key === 'Escape') onClose()
     else if (event.key === 'Tab') cycleFocus(panel.current, event, 'button')
@@ -61,12 +61,13 @@ export function SpecialCharsDialog({
                       type="button"
                       className="chars__char"
                       data-char={character.char}
-                      // Um botão chamado "—" não diz nada a quem não o vê.
+                      // A button called "—" says nothing to someone who cannot see it.
                       aria-label={charName}
                       title={charName}
                       onClick={() => insert(character)}
                     >
-                      {/* O espaço inquebrável não desenha nada: sem marcador, o botão pareceria quebrado. */}
+                      {/* A non-breaking space draws nothing: without a marker, the button would look broken.
+                       */}
                       {character.char === '\u00a0' ? '␣' : character.char}
                     </button>
                   )
@@ -88,7 +89,7 @@ export function SpecialCharsDialog({
   )
 }
 
-/** A conta sai da posição desenhada: a grade é fluida. */
+/** Computed from the drawn position: the grid is fluid. */
 function columnsAround(buttons: readonly HTMLButtonElement[], current: number): number {
   const reference = buttons[current]
   if (reference === undefined) return 1
@@ -98,7 +99,7 @@ function columnsAround(buttons: readonly HTMLButtonElement[], current: number): 
   return Math.max(1, row.length)
 }
 
-/** O passo vertical é o número de colunas medido no DOM: a grade é fluida. */
+/** The vertical step is the column count measured in the DOM: the grid is fluid. */
 function moveAmongCharacters(host: HTMLDivElement | null, event: React.KeyboardEvent<HTMLDivElement>): void {
   const sideways = event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0
   const updown = event.key === 'ArrowDown' ? 1 : event.key === 'ArrowUp' ? -1 : 0

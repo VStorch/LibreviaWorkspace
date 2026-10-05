@@ -3,8 +3,8 @@ import { compare, toBoolean, type Scalar } from '../values.js'
 import { define, numberArg, rowsOf, single, type FunctionDefinition } from './kit.js'
 
 /**
- * A busca "aproximada" do `PROCV` e do `CORRESP`: pressupõe o vetor crescente e
- * não confere, como no Excel, para o mesmo arquivo dar o mesmo resultado.
+ * The "approximate" lookup of `PROCV` and `CORRESP`: assumes an ascending vector and does not
+ * check, as in Excel, so the same file gives the same result.
  */
 function approximate(values: readonly Scalar[], target: Scalar): number {
   let found = -1
@@ -22,7 +22,7 @@ function exact(values: readonly Scalar[], target: Scalar): number {
 }
 
 export const LOOKUP: readonly FunctionDefinition[] = [
-  /** O quarto argumento é VERDADEIRO por padrão, como no Excel, por pior que seja. */
+  /** The fourth argument defaults to TRUE, as in Excel, however bad that is. */
   define(['PROCV', 'VLOOKUP'], 3, 4, (args) => {
     const target = single(args[0])
     if (isFormulaError(target)) return target
@@ -67,7 +67,7 @@ export const LOOKUP: readonly FunctionDefinition[] = [
     return table[wanted - 1]?.[at] ?? null
   }),
 
-  /** Devolve a posição, e não o valor. */
+  /** Returns the position, not the value. */
   define(['CORRESP', 'MATCH'], 2, 3, (args) => {
     const target = single(args[0])
     if (isFormulaError(target)) return target
@@ -89,7 +89,7 @@ export const LOOKUP: readonly FunctionDefinition[] = [
       return at < 0 ? FormulaError.NA : at + 1
     }
 
-    // Tipo negativo: vetor decrescente, primeiro valor maior ou igual.
+    // Negative type: descending vector, first value greater than or equal.
     let found = -1
     for (let at = 0; at < values.length; at++) {
       const value = values[at] ?? null
@@ -112,7 +112,7 @@ export const LOOKUP: readonly FunctionDefinition[] = [
     const wantedColumn = Math.trunc(column)
     if (wantedRow < 1 || wantedColumn < 1) return FormulaError.Value
 
-    // Vetor de uma coluna com índice único: ÍNDICE(A1:A9;3) é a terceira célula.
+    // A one-column vector with a single index: ÍNDICE(A1:A9;3) is the third cell.
     const line = table[wantedRow - 1]
     if (line === undefined || wantedColumn > line.length) return FormulaError.Ref
 

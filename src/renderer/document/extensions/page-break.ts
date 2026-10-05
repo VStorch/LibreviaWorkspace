@@ -2,9 +2,9 @@ import { Node, mergeAttributes } from '@tiptap/core'
 import { t } from '../../i18n.js'
 
 /**
- * Não desenha nada: a folha termina ali, como na vista de impressão do Word e do
- * LibreOffice. Continua selecionável e apagável com Backspace no começo da folha
- * seguinte. No DOCX vira `<w:br w:type="page"/>`.
+ * Draws nothing: the sheet ends there, as in Word's and LibreOffice's print view. Still selectable
+ * and deletable with Backspace at the start of the next sheet. In DOCX it becomes `<w:br
+ * w:type="page"/>`.
  */
 declare module '@tiptap/core' {
   interface Commands<ReturnType> {
@@ -40,8 +40,8 @@ export const PageBreak = Node.create({
       setPageBreak:
         () =>
         ({ commands }) =>
-          // Com o parágrafo seguinte e o cursor dentro dele, como o Ctrl+Enter do
-          // Word: o nó atômico selecionado seria substituído pela primeira tecla.
+          // With the following paragraph and the cursor in it, like Word's Ctrl+Enter: a selected
+          // atomic node would be replaced by the first key press.
           commands.insertContent([{ type: this.name }, { type: 'paragraph' }]),
     }
   },

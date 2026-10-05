@@ -18,7 +18,7 @@ export function plainTextToDocument(text: string): DocumentNode {
       : { type: 'paragraph', content: [{ type: 'text', text: line }] },
   )
 
-  // Um documento do ProseMirror não pode ser vazio.
+  // A ProseMirror document cannot be empty.
   return { type: 'doc', content: paragraphs.length > 0 ? paragraphs : [{ type: 'paragraph' }] }
 }
 
@@ -31,7 +31,7 @@ export function documentToPlainText(doc: DocumentNode): string {
 function collectLines(node: DocumentNode, lines: string[]): void {
   if (BLOCK_TYPES.has(node.type)) {
     const text = collectInlineText(node)
-    // Sem colunas, cada célula vira uma linha.
+    // Without columns, each cell becomes a line.
     lines.push(text)
     if (node.type === 'tableCell' || node.type === 'tableHeader') return
   }
@@ -64,7 +64,7 @@ function collectInlineText(node: DocumentNode): string {
   return (node.content ?? []).map(collectInlineText).join('')
 }
 
-/** Pessimista: na dúvida, avisa antes de salvar. */
+/** Pessimistic: when in doubt, warn before saving. */
 export function hasRichFormatting(doc: DocumentNode): boolean {
   return anyNode(doc, (node) => {
     if (node.marks !== undefined && node.marks.length > 0) return true

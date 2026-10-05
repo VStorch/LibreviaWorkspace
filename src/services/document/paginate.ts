@@ -1,108 +1,108 @@
 /**
- * Recebe blocos **já medidos** pelo editor e devolve os pontos de corte, sem
- * tocar no DOM.
+ * Takes blocks **already measured** by the editor and returns the break points, without touching
+ * the DOM.
  *
- * As posições são em **coordenadas de fluxo**: a altura que o bloco teria numa
- * tira contínua, sem os vãos entre as folhas. Inserir os vãos muda o
- * `offsetTop` de tudo que vem depois; em coordenadas de fluxo o cálculo é um
- * passo só, e quem desenha soma os vãos depois.
+ * Positions are in **flow coordinates**: the height the block would have on a continuous strip,
+ * without the gaps between sheets. Inserting the gaps changes the `offsetTop` of everything after;
+ * in flow coordinates the computation is a single pass, and the renderer adds the gaps afterwards.
  */
 
 export interface MeasuredBlock {
-  /** Topo em coordenadas de fluxo. */
+  /** In flow coordinates. */
   readonly top: number
   readonly height: number
-  /** Topos de linhas/itens onde a página pode recomeçar; vazio é atômico. */
+  /** Tops of lines/items where a page may restart; empty means atomic. */
   readonly breakpoints: readonly number[]
-  /** É o nó `pageBreak` — a quebra que a pessoa pediu com Ctrl+Enter. */
+  /** The `pageBreak` node, the break the user asked for with Ctrl+Enter. */
   readonly isPageBreak: boolean
-  /** A quebra que o Word gravou dentro do parágrafo: a folha termina depois do bloco. */
+  /** A break Word stored inside the paragraph: the sheet ends after the block. */
   readonly breakAfter: boolean
-  /** `w:keepNext`: não pode ficar sozinho no pé da página. */
+  /** `w:keepNext`: cannot stay alone at the foot of the page. */
   readonly keepWithNext: boolean
   /**
-   * `w:keepLines`: as linhas do parágrafo não se separam. Os pontos de corte
-   * continuam medidos, e só valem se o parágrafo sozinho for maior que a folha —
-   * aí não há como mantê-lo junto, e o Word também o corta.
+   * `w:keepLines`: the paragraph's lines stay together. The break points are still measured, and
+   * only apply if the paragraph alone is taller than the sheet: then it cannot be kept together,
+   * and Word breaks it too.
    */
   readonly keepLines?: boolean
   /**
-   * `w:widowControl`, ligado por padrão no Word: os cortes depois da primeira
-   * linha e antes da última saem, e parágrafo de até três linhas anda inteiro.
+   * `w:widowControl`, on by default in Word: breaks after the first line and before the last are
+   * dropped, and paragraphs of up to three lines move whole.
    */
   readonly widowControl?: boolean
   /**
-   * Altura das linhas de cabeçalho da tabela (`w:tblHeader`), que se repetem
-   * no alto de cada folha em que a tabela continua: a folha nova tem esse
-   * tanto a menos para o resto da tabela.
+   * Height of the table header rows (`w:tblHeader`), which repeat at the top of each sheet the
+   * table continues on: the new sheet has that much less for the rest of the table.
    */
   readonly repeatHeight?: number
   /**
-   * Cortes fora da regra de viúvas e órfãs: o pé da captura ancorada, onde o
-   * LibreOffice deixa a linha vazia do parágrafo descer enquanto o quadro fica.
-   * Já estão também em `breakpoints`.
+   * Breaks outside the widow and orphan rule: the foot of an anchored capture, where LibreOffice
+   * lets the paragraph's empty line move down while the frame stays. Also in `breakpoints`.
    */
   readonly freeBreakpoints?: readonly number[]
-  /** A linha vazia do parágrafo de uma captura ancorada, que o LibreOffice deixa entrar na margem de baixo. */
-  readonly hangingBottom?: number
   /**
-   * A seção do bloco: o índice dela em `SectionFlow[]`. Ausente é a primeira —
-   * o documento de uma seção só.
+   * The empty line of an anchored capture's paragraph, which LibreOffice lets into the bottom
+   * margin.
    */
+  readonly hangingBottom?: number
+  /** Index into `SectionFlow[]`. Absent means the first, a single-section document. */
   readonly section?: number
-  /** `w:br w:type="column"`: a coluna termina depois deste bloco. */
+  /** `w:br w:type="column"`: the column ends after this block. */
   readonly columnBreakAfter?: boolean
-  /** As notas de rodapé cujas referências estão neste bloco, na ordem do texto. */
+  /** Footnotes whose references are in this block, in text order. */
   readonly notes?: readonly MeasuredNote[]
 }
 
-/** A altura não depende da paginação: o corpo é medido fora do fluxo, na largura da coluna. */
+/**
+ * The height does not depend on pagination: the body is measured outside the flow, at column width.
+ */
 export interface MeasuredNote {
   readonly id: string
-  /** O pé da linha da referência, em coordenadas de fluxo. */
+  /** The foot of the reference's line, in flow coordinates. */
   readonly at: number
   readonly height: number
-  /** O topo de cada linha do corpo, a partir do topo dele; a primeira é 0. */
+  /** Relative to the body top; the first is 0. */
   readonly lines: readonly number[]
 }
 
-/** O pedaço de uma nota que cai numa folha: as linhas `[fromLine, toLine)`. */
+/** Lines `[fromLine, toLine)`. */
 export interface NoteSlice {
   readonly id: string
   readonly fromLine: number
   readonly toLine: number
 }
 
-/** Medidas em pixels de tela, já sem as faixas: a altura útil de `contentHeightMm`. */
+/** Screen pixels, bands excluded: the usable height from `contentHeightMm`. */
 export interface SectionFlow {
   readonly height: number
-  /** Também a contínua com outro papel ou orientação, que o Word trata como próxima página. */
+  /**
+   * Also a continuous section with another paper or orientation, which Word treats as next page.
+   */
   readonly newSheet: boolean
-  /** A folha que abre a seção precisa ter número par ou ímpar (`w:type` evenPage/oddPage). */
+  /** `w:type` evenPage/oddPage. */
   readonly parity: 'even' | 'odd' | null
-  /** O número que a primeira folha da seção recebe (`w:pgNumType/@w:start`). */
+  /** `w:pgNumType/@w:start`. */
   readonly restart: number | null
-  /** Quantas colunas (`w:cols`). Ausente é uma. */
+  /** `w:cols`. Absent means one. */
   readonly columns?: number
 }
 
 /**
- * O editor continua sendo uma tira só: a coluna é desenhada **levantando** o
- * primeiro bloco de cada coluna até o topo da região (`lift` negativo) e
- * deslocando os blocos dela para o lado. Depois da região, o bloco seguinte
- * desce até o pé da coluna mais alta (`lift` positivo).
+ * The editor is still a single strip: a column is drawn by **lifting** each column's first block to
+ * the region top (negative `lift`) and shifting its blocks sideways. After the region, the next
+ * block moves down to the foot of the tallest column (positive `lift`).
  */
 export interface ColumnPlacement {
   readonly column: number
-  /** Deslocamento vertical a somar ao vão do bloco, em pixels. */
+  /** In pixels, added to the block's gap. */
   readonly lift: number
 }
 
-/** Uma faixa de colunas numa folha: é nela que a linha separadora é desenhada. */
+/** The separator line is drawn in it. */
 export interface ColumnRegion {
-  /** A folha de conteúdo (índice entre as que têm texto). */
+  /** Index among sheets with text. */
   readonly sheet: number
-  /** Topo da região, a contar do topo da coluna de texto da folha. */
+  /** Relative to the top of the sheet's text column. */
   readonly top: number
   readonly height: number
   readonly section: number
@@ -110,43 +110,41 @@ export interface ColumnRegion {
 }
 
 export interface SheetPlan {
-  /** A seção que abre a folha — é dela o papel, a margem e a faixa. */
+  /** Its paper, margins and bands apply. */
   readonly section: number
   /**
-   * Folha em branco que o Word insere para a seção par ou ímpar cair na folha
-   * certa. Conta na numeração e tem o papel da seção seguinte.
+   * A blank sheet Word inserts so an even or odd section lands on the right sheet. It counts in the
+   * numbering and has the next section's paper.
    */
   readonly blank: boolean
   readonly number: number
-  /** A folha da "Primeira página diferente". */
+  /** The "Different first page" sheet. */
   readonly first: boolean
 }
 
-/** Os cortes, e as folhas que eles produzem (as em branco incluídas). */
+/** Including blank sheets. */
 export interface PagePlan {
   readonly breaks: number[]
   readonly sheets: SheetPlan[]
-  /** Os blocos postos em coluna, por índice; os outros não têm entrada. */
+  /** By index; other blocks have no entry. */
   readonly placements: Map<number, ColumnPlacement>
   readonly regions: ColumnRegion[]
-  /** As notas de rodapé de cada folha de conteúdo (índice entre as com texto). */
+  /** Per content sheet (index among sheets with text). */
   readonly notes: NoteSlice[][]
-  /** A altura da área de notas de cada folha de conteúdo, com o separador; 0 sem nota. */
+  /** Per content sheet, separator included; 0 without notes. */
   readonly noteHeights: number[]
 }
 
-/** O que a paginação precisa saber das notas, além dos blocos. */
 export interface NoteFlow {
-  /** A altura do separador entre o texto e as notas. */
   readonly separator: number
 }
 
-/** O topo da linha `line` da nota; a linha depois da última é o pé dela. */
+/** The line after the last is the note's foot. */
 export function noteLineTop(note: Pick<MeasuredNote, 'height' | 'lines'>, line: number): number {
   return line >= note.lines.length ? note.height : (note.lines[line] ?? 0)
 }
 
-/** A altura das linhas `[from, to)` da nota. */
+/** Lines `[from, to)`. */
 export function noteSpan(note: Pick<MeasuredNote, 'height' | 'lines'>, from: number, to: number): number {
   return noteLineTop(note, to) - noteLineTop(note, from)
 }
@@ -155,17 +153,16 @@ function lineCount(note: MeasuredNote): number {
   return Math.max(note.lines.length, 1)
 }
 
-/** Cada valor é onde uma página nova começa; lista vazia é documento de uma página. */
+/** Each value is where a new page starts; an empty list is a one-page document. */
 export function paginate(blocks: readonly MeasuredBlock[], pageHeight: number): number[] {
   return paginateSections(blocks, [{ height: pageHeight, newSheet: false, parity: null, restart: null }])
     .breaks
 }
 
 /**
- * A folha tem a altura da seção que a abre. A seção que começa em folha nova
- * corta antes do primeiro bloco dela, a menos que a folha esteja vazia; a de
- * página par ou ímpar ganha antes uma folha em branco quando o número não bate,
- * como no Word.
+ * A sheet has the height of the section opening it. A section starting on a new sheet breaks before
+ * its first block, unless the sheet is empty; an even or odd section first gets a blank sheet when
+ * the number does not match, as in Word.
  */
 export function paginateSections(
   blocks: readonly MeasuredBlock[],
@@ -193,15 +190,15 @@ class Paginator {
   private readonly noteHeights: number[] = []
 
   /**
-   * O bloco que desceu até o pé da região de colunas: se a folha acabar
-   * justamente antes dele, a descida não vale — quem o põe no lugar é o corte.
+   * A block moved down to the foot of a column region: if the sheet ends right before it, the move
+   * does not apply, since the break places it.
    */
   private pendingLift: number | null = null
 
   /**
-   * A folha leva a nota cuja referência ela leva. A nota longa segue o Word: a
-   * linha da referência e pelo menos a primeira linha da nota ficam na mesma
-   * folha, e o resto continua no alto da área de notas seguinte (`carry`).
+   * A sheet carries the notes whose references it carries. Long notes follow Word: the reference
+   * line and at least the note's first line share a sheet, and the rest continues at the top of the
+   * next notes area (`carry`).
    */
   private readonly footnotes: readonly MeasuredNote[]
   private nextNote = 0
@@ -211,10 +208,9 @@ class Paginator {
   private pageHeight: number
 
   /**
-   * `pageStart` é de onde a folha conta a altura; `floor`, o último corte.
-   * Só diferem quando a folha abre com o cabeçalho repetido de uma tabela: a
-   * conta começa acima do corte, pela altura do cabeçalho, mas nada pode voltar
-   * para antes do corte.
+   * `pageStart` is where the sheet counts height from; `floor`, the last break. They only differ
+   * when the sheet opens with a repeated table header: the count starts above the break, by the
+   * header height, but nothing may move back before the break.
    */
   private pageStart = 0
   private floor = 0
@@ -230,10 +226,9 @@ class Paginator {
   }
 
   /**
-   * Sem teto de páginas: em cada volta o índice avança ou `floor` cresce
-   * estritamente, e há uma quantidade finita dessas posições. Um teto pararia o
-   * laço e empilharia o resto do documento na última folha; quem protege da
-   * altura inválida é a guarda de `pageHeight`.
+   * No page cap: on each round the index advances or `floor` grows strictly, and there are finitely
+   * many such positions. A cap would stop the loop and pile the rest of the document on the last
+   * sheet; the `pageHeight` guard protects against an invalid height.
    */
   run(): PagePlan {
     this.open(this.current)
@@ -257,20 +252,19 @@ class Paginator {
     )
   }
 
-  /** Devolve o próximo bloco a avaliar, que é o mesmo quando a folha virou antes dele. */
+  /** The same block again when the sheet turned before it. */
   private step(index: number): number {
     const block = this.blocks[index]!
     const section = this.enterSection(block)
 
     if (this.pageHeight <= 0) return index + 1
 
-    // Seção com colunas: os blocos dela, inteiros, vão para as colunas desta
-    // folha; o que não couber abre a folha seguinte.
+    // A section with columns: its blocks go whole into this sheet's columns; what does not fit
+    // opens the next sheet.
     const columns = this.flowOf(section).columns ?? 1
     if (columns > 1 && !block.isPageBreak) return this.layoutColumns(index, section, columns)
 
-    // A quebra pedida à mão vale mesmo com a página pela metade, por isso vem
-    // antes de qualquer conta de altura.
+    // A manual break applies even with the page half full, so it comes before any height math.
     if (block.isPageBreak) {
       const after = block.top + block.height
       if (after > this.floor) this.cutAndRestart(after, this.current)
@@ -282,8 +276,8 @@ class Paginator {
       bottom - this.pageStart + this.noteNeed(bottom) <=
       this.pageHeight + Math.min(block.hangingBottom ?? 0, this.pageHeight / 2)
     ) {
-      // A quebra que o parágrafo carrega vale depois dele — e não vale se não
-      // houver mais nada, senão o documento fecha com uma folha em branco.
+      // A break the paragraph carries applies after it, and not when nothing follows, or the
+      // document would end with a blank sheet.
       if (block.breakAfter && index + 1 < this.blocks.length) this.cutAndRestart(bottom, this.current)
       return index + 1
     }
@@ -293,9 +287,9 @@ class Paginator {
   }
 
   /**
-   * A seção nova que começa em folha nova corta antes do primeiro bloco dela.
-   * Com a folha ainda vazia — a seção anterior terminou numa quebra de página —,
-   * não há o que cortar: a folha passa a ser da seção nova.
+   * A new section starting on a new sheet breaks before its first block. If the sheet is still
+   * empty (the previous section ended in a page break), there is nothing to break: the sheet
+   * becomes the new section's.
    */
   private enterSection(block: MeasuredBlock): number {
     const section = sectionOf(block, this.current)
@@ -318,22 +312,19 @@ class Paginator {
     if (breakpoint === undefined) return false
     this.cut(breakpoint, this.current)
     this.floor = breakpoint
-    // Cabeçalho maior que meia folha não se repete: repeti-lo deixaria a
-    // folha sem lugar para a linha que ele apresenta.
+    // A header taller than half a sheet does not repeat: repeating it would leave no room for the
+    // row it introduces.
     const repeat = block.repeatHeight ?? 0
     this.pageStart = repeat > 0 && repeat < this.pageHeight / 2 ? breakpoint - repeat : breakpoint
     return true
   }
 
-  /**
-   * Nenhuma linha, item ou linha de tabela cabe: a quebra vai para **antes** do
-   * bloco que estouraria.
-   */
+  /** No line, item or table row fits: the break goes **before** the block that would overflow. */
   private breakBefore(index: number, block: MeasuredBlock): number {
     const { at, opening } = this.keptTogetherStart(index, block)
     if (at <= this.floor) {
-      // Sem corte disponível, o bloco atômico fica com a folha só para si, e o
-      // layout aumenta o papel para contê-lo.
+      // With no break available, an atomic block keeps the sheet to itself, and the layout enlarges
+      // the paper to hold it.
       const bottom = block.top + block.height
       const used = bottom - this.pageStart
       this.pageStart = this.floor = bottom
@@ -344,7 +335,7 @@ class Paginator {
     return index
   }
 
-  /** Um título sozinho no pé da página desce junto com o que ele apresenta. */
+  /** A heading alone at the foot of the page moves down with what it introduces. */
   private keptTogetherStart(index: number, block: MeasuredBlock): { at: number; opening: number } {
     let at = block.top
     let opening = this.current
@@ -352,8 +343,8 @@ class Paginator {
       const previous = this.blocks[candidate - 1]
       if (previous === undefined || !previous.keepWithNext) break
       if (previous.top <= this.floor) break
-      // Não atravessa a quebra de seção que abre folha: o título da seção de
-      // cima não desce para a folha da seção de baixo.
+      // Does not cross a section break that opens a sheet: the upper section's heading does not
+      // move to the lower section's sheet.
       const previousSection = sectionOf(previous, this.current)
       if (previousSection !== this.current && this.flowOf(this.current).newSheet) break
       at = previous.top
@@ -363,8 +354,8 @@ class Paginator {
   }
 
   /**
-   * A última folha fecha com as notas que sobraram; a nota que ainda não coube
-   * continua em folhas só de notas, depois do texto.
+   * The last sheet closes with the remaining notes; a note that still did not fit continues on
+   * notes-only sheets after the text.
    */
   private closeNotes(): void {
     const end = this.blocks.reduce((bottom, block) => Math.max(bottom, block.top + block.height), 0)
@@ -380,9 +371,8 @@ class Paginator {
   }
 
   /**
-   * A folha nova da seção `section`: numerada a partir da anterior, ou do
-   * reinício quando é a primeira da seção. A paridade só vale para a primeira
-   * folha de uma seção que a pede, e nunca para a primeira do documento.
+   * Numbered from the previous sheet, or from the restart when it is the section's first. Parity
+   * only applies to the first sheet of a section that asks for it, never to the document's first.
    */
   private open(section: number): void {
     const previous = this.sheets.at(-1)
@@ -402,8 +392,8 @@ class Paginator {
   }
 
   /**
-   * A folha que acabou de abrir, vazia, passa a ser da seção que começa nela:
-   * refeita, com a numeração e a paridade da seção nova.
+   * The sheet that just opened, still empty, becomes the starting section's: redone with the new
+   * section's numbering and parity.
    */
   private retarget(section: number): void {
     const last = this.sheets.at(-1)
@@ -428,10 +418,7 @@ class Paginator {
     this.pageStart = this.floor = at
   }
 
-  /**
-   * As notas que a folha levaria se terminasse em `at`: as que continuam da
-   * anterior e as das referências até ali.
-   */
+  /** The ones carried over from the previous sheet and those of references up to `at`. */
   private pendingNotes(at: number): PendingNote[] {
     const list = [...this.carry]
     for (
@@ -445,10 +432,9 @@ class Paginator {
   }
 
   /**
-   * O espaço que as notas pedem para a folha terminar em `at`: as novas
-   * inteiras, menos a última, de que basta a primeira linha. Cresce com `at`, e
-   * por isso "o último corte que cabe" continua valendo. A continuação vem antes
-   * do texto, como no Word, e pede o resto inteiro até meia folha.
+   * New notes whole, except the last, which only needs its first line. Grows with `at`, so "the
+   * last break that fits" still holds. The continuation comes before the text, as in Word, and asks
+   * for the whole rest up to half a sheet.
    */
   private noteNeed(at: number): number {
     const { carry, footnotes, nextNote } = this
@@ -472,9 +458,8 @@ class Paginator {
   }
 
   /**
-   * Fecha a folha que termina em `at` com `used` de texto: as notas que cabem
-   * vão inteiras, a primeira que não cabe é cortada entre linhas, e o resto
-   * continua na folha seguinte.
+   * Notes that fit go whole, the first that does not is cut between lines, and the rest continues
+   * on the next sheet.
    */
   private settleNotes(at: number, used: number): void {
     const list = this.pendingNotes(at)
@@ -492,8 +477,8 @@ class Paginator {
       const total = lineCount(item.note)
       let to = item.from
       while (to < total && noteSpan(item.note, item.from, to + 1) <= room + 0.5) to += 1
-      // Pelo menos uma linha na folha que não levou nenhuma: é o que faz a nota
-      // maior que a folha terminar, uma folha por vez.
+      // At least one line on a sheet that got none: that is what lets a note taller than the sheet
+      // end, one sheet at a time.
       if (to === item.from && placed.length === 0) to += 1
       if (to > item.from) {
         const span = noteSpan(item.note, item.from, to)
@@ -508,9 +493,8 @@ class Paginator {
   }
 
   /**
-   * Distribui nas colunas desta folha os blocos da seção a partir de `start`, e
-   * devolve o primeiro que ficou de fora. Por bloco inteiro, aproximando o Word,
-   * que corta entre linhas.
+   * Returns the first block left out. Whole blocks only, approximating Word, which breaks between
+   * lines.
    */
   private layoutColumns(start: number, section: number, count: number): number {
     const { blocks } = this
@@ -519,12 +503,11 @@ class Paginator {
 
     const first = blocks[start]!
     const offset = first.top - this.pageStart
-    // As notas da região saem da altura das colunas; a área delas fica embaixo,
-    // na largura da folha (limitação declarada: o Word as põe sob cada coluna).
+    // The region's notes come out of the column height; their area sits below, at sheet width (a
+    // declared limitation: Word puts them under each column).
     const last = blocks[end - 1]!
     const available = this.pageHeight - offset - this.noteNeed(last.top + last.height)
-    // A região que começa no meio da folha e não comporta nem o primeiro bloco
-    // vai para a folha seguinte.
+    // A region starting mid-sheet that cannot hold even its first block moves to the next sheet.
     if (offset > 0 && first.height > available) {
       this.cutAndRestart(first.top, section)
       return start
@@ -536,7 +519,7 @@ class Paginator {
     return this.leaveColumns(fill, end, section, offset + height)
   }
 
-  /** Antes de uma seção contínua na mesma folha as colunas são equilibradas, como no Word. */
+  /** Before a continuous section on the same sheet the columns are balanced, as in Word. */
   private columnFill(
     start: number,
     end: number,
@@ -566,9 +549,8 @@ class Paginator {
   }
 
   /**
-   * O primeiro bloco de cada coluna sobe até o topo da região; os outros a
-   * acompanham, porque a tira continua a mesma dentro da coluna. Devolve a
-   * altura da coluna mais alta.
+   * Each column's first block rises to the region top; the others follow, since the strip stays the
+   * same inside the column. Returns the tallest column's height.
    */
   private placeColumns(fill: ColumnFill, offset: number): number {
     let height = 0
@@ -586,7 +568,7 @@ class Paginator {
     return height
   }
 
-  /** @param regionBottom o pé da região de colunas, a contar do topo da folha. */
+  /** `regionBottom` is the foot of the column region, from the sheet top. */
   private leaveColumns(fill: ColumnFill, end: number, section: number, regionBottom: number): number {
     const stop = fill.stop
     const after = this.blocks[stop]
@@ -594,14 +576,14 @@ class Paginator {
 
     const lastPlaced = this.blocks[stop - 1]!
     if (fill.forced || stop < end) {
-      // Folha cheia, ou quebra de página ou de coluna na última coluna.
+      // Sheet full, or a page or column break in the last column.
       const at = fill.forced ? lastPlaced.top + lastPlaced.height : after.top
       this.cutAndRestart(at, sectionOf(after, section))
       return stop
     }
 
-    // A seção acabou nesta folha: o bloco seguinte desce ao pé da coluna mais
-    // alta, com o espaço natural que ele já tinha acima de si.
+    // The section ended on this sheet: the next block moves down to the foot of the tallest column,
+    // keeping the natural space it already had above it.
     const gap = Math.max(after.top - (lastPlaced.top + lastPlaced.height), 0)
     const lift = regionBottom + gap - (after.top - this.pageStart)
     this.placements.set(stop, { column: 0, lift })
@@ -611,7 +593,7 @@ class Paginator {
   }
 }
 
-/** As colunas preenchidas até a altura `height`, bloco inteiro por bloco inteiro. */
+/** Whole block by whole block. */
 function fillColumns(
   blocks: readonly MeasuredBlock[],
   start: number,
@@ -643,14 +625,14 @@ function fillColumns(
   return done(end, false)
 }
 
-/** Os cortes internos que o bloco aceita, pelas regras de manter junto. */
+/** By the keep-together rules. */
 function usableBreakpoints(block: MeasuredBlock, pageHeight: number): readonly number[] {
   if (block.keepLines === true && block.height <= pageHeight) return []
   if (block.widowControl !== true) return block.breakpoints
   const free = block.freeBreakpoints ?? []
   const lines = block.breakpoints.filter((at) => !free.includes(at))
   const guarded = [...lines.slice(1, -1), ...free].sort((left, right) => left - right)
-  // Maior que a folha e sem corte que respeite a regra: corta assim mesmo,
-  // que a alternativa seria uma folha esticada além do papel.
+  // Taller than the sheet and with no break that respects the rule: break anyway, since the
+  // alternative is a sheet stretched past the paper.
   return guarded.length === 0 && block.height > pageHeight ? block.breakpoints : guarded
 }

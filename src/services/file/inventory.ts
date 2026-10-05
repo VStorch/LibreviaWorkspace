@@ -1,16 +1,16 @@
 import type { LossInventory } from '@shared/types.js'
 
-/** Um alerta que abre em todo arquivo é fechado sem ler. */
+/** A warning that opens on every file is closed without reading. */
 export function hasReportableLoss(inventory: LossInventory | undefined): boolean {
   return inventory !== undefined && (inventory.invisible.length > 0 || inventory.lost.length > 0)
 }
 
-/** Perda de aparência não trava: quase todo documento do corpus tem alguma. */
+/** Appearance loss does not lock: almost every corpus document has some. */
 export function locksEditing(inventory: LossInventory | undefined): boolean {
   return inventory !== undefined && inventory.structural.length > 0
 }
 
-/** Só o `lost`, cada coisa uma vez: o sidecar registra por célula e por bloco. */
+/** Only `lost`, each thing once: the sidecar records per cell and per block. */
 export function lostOnSave(inventory: LossInventory | undefined): readonly string[] {
   return inventory === undefined ? [] : [...new Set(inventory.lost)]
 }

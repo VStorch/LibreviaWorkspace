@@ -13,14 +13,14 @@ import type { DocumentSource, LoadedFile, OpenFile, WorkspaceState } from './typ
 export type SetWorkspace = StoreApi<WorkspaceState>['setState']
 export type GetWorkspace = StoreApi<WorkspaceState>['getState']
 
-/** Gestos comuns a abrir, salvar, recuperar e imprimir, escritos uma vez para não divergirem. */
+/** Steps shared by open, save, recover and print, written once so they do not drift. */
 export interface WorkspaceContext {
   call: <T>(operation: () => Promise<IpcResult<T>>) => Promise<T | null>
   currentModel: () => DocumentModel
-  /** No formato interno, o mesmo do rascunho. */
+  /** In the internal format, the same as the draft. */
   currentContent: () => string
   forgetDraft: () => Promise<void>
-  /** `false` quando o usuário desistiu: quem chamou para sem alterar nada. */
+  /** `false` when the user gave up: the caller stops without changing anything. */
   ensureChangesHandled: () => Promise<boolean>
   show: (loaded: LoadedFile) => void
   source: () => DocumentSource | null
@@ -62,7 +62,9 @@ export function createWorkspaceContext(set: SetWorkspace, get: GetWorkspace): Wo
     return workbook === null ? serializeDocument(currentModel()) : serializeWorkbook(workbook)
   }
 
-  /** Depois de gravar e ao trocar de arquivo. A falha é engolida: um rascunho velho custa só um aviso. */
+  /**
+   * After saving and when switching files. Failure is swallowed: a stale draft only costs a prompt.
+   */
   async function forgetDraft(): Promise<void> {
     set({ autosaveBroken: false })
     await window.api.recovery.discard({}).catch(() => undefined)
@@ -83,7 +85,7 @@ export function createWorkspaceContext(set: SetWorkspace, get: GetWorkspace): Wo
   }
 
   function show({ file, model, workbook }: LoadedFile): void {
-    // Vale também na recuperação: o conteúdo já está na tela, e o autosave o grava de novo.
+    // Also on recovery: the content is already on screen, and autosave writes it again.
     void forgetDraft()
 
     set((state) => loadedState(file, model, workbook, state.generation))
@@ -104,12 +106,13 @@ export function createWorkspaceContext(set: SetWorkspace, get: GetWorkspace): Wo
 }
 
 function modelOf(state: WorkspaceState, read: WorkspaceState['initialDoc']): DocumentModel {
-  // As seções que o texto usa, na ordem dele (`resolveSections`); o atributo do documento não vai ao arquivo.
+  // The sections the text uses, in its order (`resolveSections`); the document attribute does not
+  // go to the file.
   const resolved = resolveSections(marksOfJson(read), read.attrs?.['bodySection'], state.page, state.sections)
   const { bodySection: _bodySection, ...docAttrs } = read.attrs ?? {}
   void _bodySection
   const doc = read.attrs === undefined ? read : { ...read, attrs: docAttrs }
-  // Só os comentários que o texto sustenta; o rascunho anterior a eles vai como veio.
+  // Only the comments the text supports; a draft older than comments goes as it came.
   const comments = state.beforeComments
     ? state.comments
     : resolveComments(commentAnchorIdsOfJson(read), state.comments, new Set(state.commentsOutside))
@@ -133,7 +136,7 @@ function modelOf(state: WorkspaceState, read: WorkspaceState['initialDoc']): Doc
   }
 }
 
-/** O estado de um arquivo recém-aberto; sem arquivo, o da tela inicial. */
+/** The state of a just-opened file; without a file, the home screen's. */
 export function loadedState(
   file: OpenFile | null,
   model: DocumentModel,
@@ -164,7 +167,7 @@ export function loadedState(
     generation: generation + 1,
     isDirty: false,
     error: null,
-    // O aviso e a trava são deste arquivo, e morrem com ele.
+    // The notice and the lock belong to this file, and die with it.
     notice: null,
     savedLoss: null,
     readOnly: false,

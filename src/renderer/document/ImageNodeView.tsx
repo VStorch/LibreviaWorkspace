@@ -34,14 +34,14 @@ const HANDLE_CURSORS: Record<ResizeHandle, string> = {
   w: 'ew-resize',
 }
 
-/** Como o Word move objeto com as setas. */
+/** The way Word moves objects with the arrow keys. */
 const KEYBOARD_STEP = 8
 
 /**
- * Uma transação por gesto, no `pointerup`: uma por pixel encheria o histórico e
- * remediria a folha a cada quadro. O tamanho vem do atributo, que pode esticar a
- * imagem (ver `document-image.ts`). O teto é a largura medida no bloco que abriga
- * a imagem, que numa célula é a da célula.
+ * One transaction per gesture, on `pointerup`: one per pixel would fill the history and remeasure
+ * the sheet every frame. The size comes from the attribute, which may stretch the image (see
+ * `document-image.ts`). The ceiling is the width measured on the block holding the image, which in
+ * a cell is the cell's.
  */
 export function ImageNodeView({ node, selected, editor, getPos }: NodeViewProps): React.JSX.Element {
   const frame = useRef<HTMLSpanElement>(null)
@@ -51,7 +51,10 @@ export function ImageNodeView({ node, selected, editor, getPos }: NodeViewProps)
   const size = dragged ?? attributeSize
   const editable = editor.isEditable
 
-  /** `setNodeAttribute`, e não `updateAttributes`: este substituiria a folha, e a seleção e as alças sumiriam. */
+  /**
+   * `setNodeAttribute`, not `updateAttributes`: the latter would replace the leaf, and the
+   * selection and handles would vanish.
+   */
   function resize(next: ImageSize): void {
     editor.commands.command(({ tr }) => {
       const pos = getPos()
@@ -91,7 +94,7 @@ export function ImageNodeView({ node, selected, editor, getPos }: NodeViewProps)
       <img
         src={typeof node.attrs['src'] === 'string' ? (node.attrs['src'] as string) : ''}
         alt={alt}
-        // Como estilo: o `height: auto` da folha de estilo venceria o atributo.
+        // As a style: the stylesheet's `height: auto` would beat the attribute.
         style={
           size === null
             ? undefined
@@ -99,8 +102,7 @@ export function ImageNodeView({ node, selected, editor, getPos }: NodeViewProps)
         }
         draggable={false}
       />
-
-      {/* Só para quem pode editar, e só na imagem selecionada. */}
+      {/* Only for editors, and only on the selected image. */}
       {editable && selected && (
         <ResizeHandles
           onStart={(handle, event) =>
@@ -137,14 +139,14 @@ interface DragResize {
   readonly event: React.PointerEvent
   readonly frame: HTMLSpanElement | null
   readonly attributeSize: ImageSize | null
-  /** O tamanho durante o gesto; `null` ao terminar. */
+  /** The size during the gesture; `null` when it ends. */
   readonly onPreview: (size: ImageSize | null) => void
   readonly onCommit: (size: ImageSize) => void
 }
 
 function dragResize({ handle, event, frame, attributeSize, onPreview, onCommit }: DragResize): void {
-  // O tamanho que está na tela, já que o atributo pode faltar; com zoom, as
-  // medidas voltam divididas pela escala.
+  // The size on screen, since the attribute may be missing; with zoom, measures come back divided
+  // by the scale.
   const image = frame?.querySelector('img') ?? null
   const scale = screenScaleOf(image)
   const measured = image?.getBoundingClientRect()
@@ -167,7 +169,7 @@ function dragResize({ handle, event, frame, attributeSize, onPreview, onCommit }
       start,
       deltaX: (moved.clientX - originX) / scale,
       deltaY: (moved.clientY - originY) / scale,
-      // Nos cantos a proporção trava e o `Shift` solta, como no Word.
+      // On corners the ratio locks and `Shift` releases it, as in Word.
       keepProportion: !moved.shiftKey,
       maxWidth: ceiling,
     })
@@ -179,7 +181,7 @@ function dragResize({ handle, event, frame, attributeSize, onPreview, onCommit }
     target.removeEventListener('pointerup', finish)
     target.removeEventListener('pointercancel', finish)
 
-    // A única transação do gesto.
+    // The gesture's only transaction.
     onPreview(null)
     if (last.width !== start.width || last.height !== start.height) onCommit(last)
   }
@@ -213,7 +215,7 @@ function ResizeHandles({
           }
           onPointerDown={(event) => onStart(handle, event)}
           onKeyDown={(event) => onNudge(handle, event)}
-          // Sem isto o `mousedown` tiraria a seleção e as alças antes do arrasto.
+          // Otherwise `mousedown` would drop the selection and the handles before the drag.
           onMouseDown={(event) => event.preventDefault()}
         />
       ))}
@@ -228,7 +230,7 @@ function sizeOf(attrs: Record<string, unknown>): ImageSize | null {
   return { width: Math.round(width), height: Math.round(height) }
 }
 
-/** O pai direto é o `span` do `ReactRenderer`, de largura zero para o `clientWidth`. */
+/** The direct parent is the `ReactRenderer` `span`, zero-width for `clientWidth`. */
 function containingBlockOf(element: HTMLElement | null): HTMLElement | null {
   let current = element?.parentElement ?? null
   while (current !== null && getComputedStyle(current).display.startsWith('inline')) {

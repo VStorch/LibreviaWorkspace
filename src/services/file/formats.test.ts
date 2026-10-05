@@ -28,7 +28,7 @@ describe('extensionOf', () => {
     ['/a/b/c.TXT', '.txt'],
     ['/a/b/arquivo.com.ponto.txt', '.txt'],
     ['/a/b/sem-extensao', ''],
-    // Um ponto inicial é arquivo oculto, não extensão.
+    // A leading dot is a hidden file, not an extension.
     ['/a/b/.oculto', ''],
   ])('lê a extensão de %s', (path, expected) => {
     expect(extensionOf(path)).toBe(expected)
@@ -48,8 +48,8 @@ describe('isSupportedExtension', () => {
   )
 
   it.each(['/a/b.exe', '/a/b.sh', '/a/b', '/a/b.xls', '/a/b.ods'])('recusa %s', (path) => {
-    // `.xls` e `.ods` são formatos diferentes, não variações: abrir um deles
-    // como se fosse `.xlsx` daria erro de arquivo corrompido.
+    // `.xls` and `.ods` are different formats, not variants: opening one as `.xlsx` would give a
+    // corrupt file error.
     expect(isSupportedExtension(path)).toBe(false)
   })
 })

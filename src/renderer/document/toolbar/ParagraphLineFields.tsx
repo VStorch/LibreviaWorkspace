@@ -14,7 +14,7 @@ import {
   type DraftChange,
 } from './paragraph-draft.js'
 
-/** O alinhamento e a entrelinha, iguais no diálogo de parágrafo e no de estilo. */
+/** Shared by the paragraph and style dialogs. */
 export function ParagraphLineFields({
   draft,
   onChange,
@@ -23,7 +23,7 @@ export function ParagraphLineFields({
 }: {
   readonly draft: ParagraphDraft
   readonly onChange: DraftChange
-  /** A entrelinha troca o tipo e o valor juntos. */
+  /** Line spacing changes kind and value together. */
   readonly onLineSpacing: (spacing: ReturnType<typeof lineSpacingFrom>) => void
   readonly autoFocus?: boolean
 }): React.JSX.Element {
@@ -44,7 +44,6 @@ export function ParagraphLineFields({
           <option value={TextAlignment.Justify}>{t('document.paragraph.alignJustify')}</option>
         </select>
       </label>
-
       <label className="popover__field">
         <span>{t('document.paragraph.lineSpacing')}</span>
         <select
@@ -60,8 +59,7 @@ export function ParagraphLineFields({
           <option value="at-least">{t('document.paragraph.spacingAtLeast')}</option>
         </select>
       </label>
-
-      {/* Um campo desabilitado ao lado de "Simples" só faria clicar nele. */}
+      {/* A disabled field next to "Single" would only invite clicking it. */}
       {isCustomLineSpacing(draft) && (
         <label className="popover__field popover__field--narrow">
           <span>

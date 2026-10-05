@@ -9,13 +9,13 @@ import {
 } from '@services/document/styles.js'
 
 /**
- * Os estilos dos arquivos antigos, com os dois lados de verdade: o sidecar
- * acrescenta os títulos ao DOCX que não os tem (`BuiltinStyles.cs`) e o leitor do
- * `.sdoc` os dá a todo arquivo anterior à versão 3 (`LEGACY_STYLES`). Uma medida
- * mudada de um lado só muda a paginação de quem não editou nada.
+ * The styles of old files, with both real sides: the sidecar adds headings to a DOCX that lacks
+ * them (`BuiltinStyles.cs`) and the `.sdoc` reader gives them to every file before version 3
+ * (`LEGACY_STYLES`). A value changed on one side only changes the pagination of someone who edited
+ * nothing.
  *
- * O C# é lido como texto, porque o que se compara são números. Fica em `src/main`,
- * o único lugar com `node:fs`.
+ * The C# is read as text, because what is compared are numbers. Lives in `src/main`, the only place
+ * with `node:fs`.
  */
 describe('contrato dos estilos dos arquivos antigos', () => {
   const source = readFileSync(
@@ -31,39 +31,38 @@ describe('contrato dos estilos dos arquivos antigos', () => {
   })
 
   it('os padrões do documento são os mesmos', () => {
-    // Fonte e tamanho moram no `w:docDefaults`, de onde todo estilo herda.
+    // Font and size live in `w:docDefaults`, which every style inherits from.
     expect(LEGACY_STYLES.defaults.character).toEqual({
       fontFamily: constantText(source, 'BodyFont'),
       fontSize: `${constantNumber(source, 'BodySizePt')}pt`,
     })
     expect(LEGACY_STYLES.defaults.paragraph).toEqual({})
 
-    // O `w:default="1"` responde qual estilo vale sem `w:pStyle`.
+    // `w:default="1"` says which style applies without `w:pStyle`.
     expect(LEGACY_STYLES.defaults.paragraphStyleId).toBe(defaultIdOf(source, false))
     expect(LEGACY_STYLES.defaults.characterStyleId).toBe(defaultIdOf(source, true))
   })
 
   it('a entrelinha do corpo é o mesmo fator nos dois lados', () => {
-    // Divergente, o documento sairia do editor com uma entrelinha e voltaria com outra.
+    // If they differ, the document would leave the editor with one line spacing and come back with
+    // another.
     expect(constantNumber(source, 'BodyLineFactor')).toBe(BODY_LINE_FACTOR)
   })
 })
 
-/** O valor de uma `const` de texto do C#. */
 function constantText(source: string, name: string): string {
   const match = new RegExp(`const string ${name} = "([^"]*)"`).exec(source)
   if (match?.[1] === undefined) throw new Error(`constante ${name} não encontrada`)
   return match[1]
 }
 
-/** O valor de uma `const` numérica do C#. */
 function constantNumber(source: string, name: string): number {
   const match = new RegExp(`const double ${name} = ([\\d.]+)`).exec(source)
   if (match?.[1] === undefined) throw new Error(`constante ${name} não encontrada`)
   return Number(match[1])
 }
 
-/** O id do estilo marcado `Default: true` — de caractere ou de parágrafo. */
+/** Character or paragraph. */
 function defaultIdOf(source: string, character: boolean): string | null {
   const found = entriesOf(source)
     .map(argumentsOf)
@@ -72,8 +71,8 @@ function defaultIdOf(source: string, character: boolean): string | null {
 }
 
 /**
- * Cada `new(...)` da tabela, por varredura de parênteses: as entradas têm várias
- * linhas, e uma expressão regular cortaria na primeira `)` sem reclamar.
+ * Scans parentheses: entries span several lines, and a regular expression would stop at the first
+ * `)` without complaint.
  */
 function entriesOf(source: string): string[] {
   const start = source.indexOf('BuiltinStyle[] All =')
@@ -108,7 +107,7 @@ function entriesOf(source: string): string[] {
 
 type Argument = string | number | boolean
 
-/** Os argumentos de uma entrada: id e nome posicionais, o resto nomeado. */
+/** Id and name positional, the rest named. */
 function argumentsOf(entry: string): Record<string, Argument> {
   const parts: string[] = []
   let current = ''
@@ -153,14 +152,13 @@ function valueOf(text: string): Argument {
   if (text.startsWith('"')) return text.slice(1, -1)
   if (text === 'true') return true
   if (text === 'false') return false
-  // A entrelinha do corpo é constante do arquivo, comparada em teste próprio.
+  // The body line spacing is a file constant, compared in its own test.
   if (text === 'BodyLineFactor') return BODY_LINE_FACTOR
   const number = Number(text)
   if (Number.isNaN(number)) throw new Error(`valor que o teste não sabe ler: ${text}`)
   return number
 }
 
-/** A tabela do C# na forma do modelo do documento, pronta para comparar. */
 function parseTable(source: string): Record<string, StyleDefinition> {
   const styles: Record<string, StyleDefinition> = {}
 
@@ -192,9 +190,9 @@ function parseTable(source: string): Record<string, StyleDefinition> {
       name: String(args['Name']),
       type: args['Character'] === true ? 'character' : 'paragraph',
       qFormat: args['QFormat'] === true,
-      // Os dois jeitos de esconder da galeria são um só no modelo.
+      // The two ways of hiding from the gallery are one in the model.
       hidden: args['Hidden'] === true || args['SemiHidden'] === true,
-      // Estilos embutidos do Word.
+      // Word's builtin styles.
       custom: false,
       ...text(args, 'BasedOn', 'basedOn'),
       ...text(args, 'Next', 'next'),
@@ -208,7 +206,7 @@ function parseTable(source: string): Record<string, StyleDefinition> {
   return styles
 }
 
-/** Meios-pontos não entram aqui: a tabela já está em pontos, como o editor os usa. */
+/** No half-points here: the table is already in points, as the editor uses them. */
 function pointsText(points: number): string {
   return `${points}pt`
 }

@@ -23,7 +23,7 @@ interface OpenedFile {
   readonly path: string
   readonly name: string
   readonly content: string
-  // `| undefined`: o contrato de IPC declara a propriedade como podendo vir indefinida.
+  // `| undefined`: the IPC contract declares the property as possibly undefined.
   readonly inventory?: LossInventory | undefined
   readonly template?: boolean | undefined
 }
@@ -151,7 +151,7 @@ function createSaveActions(
   get: GetWorkspace,
   ctx: WorkspaceContext,
 ): Pick<FileActions, 'save' | 'saveAs' | 'closeFile'> {
-  /** Planilha não passa pelo caminho de texto: não tem formatação a perder. */
+  /** A spreadsheet does not take the text path: it has no formatting to lose. */
   function encodeFor(path: string): string {
     const { workbook } = get()
     if (workbook !== null) return serializeWorkbook(workbook)
@@ -161,7 +161,7 @@ function createSaveActions(
     return isPlainTextPath(path) ? documentToPlainText(model.doc) : serializeDocument(model)
   }
 
-  /** Nada se perde em silêncio. */
+  /** Nothing is lost silently. */
   async function confirmPlainTextLoss(path: string, fileName: string): Promise<PlainTextAnswer> {
     const { workbook } = get()
     if (workbook !== null || !isPlainTextPath(path)) return 'proceed'
@@ -172,7 +172,10 @@ function createSaveActions(
     return answer.choice === PlainTextChoice.SaveAsDocument ? 'chooseAnother' : 'proceed'
   }
 
-  /** O rascunho não vale mais; o que a gravação perdeu vai à faixa, e a que não perdeu nada apaga o aviso anterior. */
+  /**
+   * The draft no longer counts; what saving lost goes to the banner, and a save that lost nothing
+   * clears the previous notice.
+   */
   async function afterSave(file: OpenFile, inventory: LossInventory | undefined): Promise<void> {
     const lost = lostOnSave(inventory)
     set({ file, isDirty: false, savedLoss: lost.length > 0 ? lost : null })
@@ -210,7 +213,7 @@ function createSaveActions(
       )
       if (chosen === null || chosen.canceled) return false
 
-      // Antes da gravação: desistir aqui não escreve nenhum byte.
+      // Before writing: giving up here writes no byte.
       const answer = await confirmPlainTextLoss(chosen.path, chosen.name)
       if (answer === 'cancel') return false
       if (answer === 'chooseAnother') return get().saveAs()
@@ -219,7 +222,7 @@ function createSaveActions(
         window.api.file.save({
           path: chosen.path,
           content: encodeFor(chosen.path),
-          // O documento criado de um modelo grava a partir do pacote dele.
+          // A document created from a template saves from its package.
           origin: file.origin ?? file.path,
         }),
       )
@@ -240,8 +243,8 @@ function createSaveActions(
 }
 
 /**
- * Só quando o documento mudou ou nunca foi gravado: aberto e salvo sem edição,
- * `docProps/` volta byte a byte. Fica no estado mesmo se a gravação falhar.
+ * Only when the document changed or was never saved: opened and saved without editing, `docProps/`
+ * goes back byte for byte. It stays in the state even if saving fails.
  */
 function stampForSave(set: SetWorkspace, get: GetWorkspace): void {
   const state = get()
@@ -254,17 +257,17 @@ function stampForSave(set: SetWorkspace, get: GetWorkspace): void {
   if (stamped !== state.properties) set({ properties: stamped })
 }
 
-/** `.xlsx` chega convertido no envelope do `.ssheet`: a extensão decide o editor. */
+/** `.xlsx` arrives converted in the `.ssheet` envelope: the extension picks the editor. */
 function interpret(opened: OpenedFile): LoadedFile {
   const kind = kindFromPath(opened.path)
-  // O modelo do Word abre sem caminho, para "salvar" nunca gravar por cima dele.
+  // A Word template opens without a path, so "save" never writes over it.
   const file: OpenFile =
     opened.template === true
       ? { path: null, name: opened.name, kind, origin: opened.path }
       : { path: opened.path, name: opened.name, kind }
 
   if (kind === DocumentKind.Spreadsheet) {
-    // Recalcula ao abrir: `HOJE()` e a fórmula editada à mão estariam desatualizadas.
+    // Recalculates on open: `HOJE()` and a hand-edited formula would be stale.
     return { file, model: createEmptyDocument(), workbook: recalculate(parseWorkbook(opened.content)) }
   }
 
@@ -277,7 +280,7 @@ function interpret(opened: OpenedFile): LoadedFile {
 
 function decode(path: string, content: string): DocumentModel {
   if (isPlainTextPath(path)) {
-    // Texto simples recebe os estilos do documento novo.
+    // Plain text gets the new document's styles.
     return { page: DEFAULT_PAGE_SETUP, doc: plainTextToDocument(content), styles: BUILTIN_STYLES }
   }
   return parseDocument(content)

@@ -9,7 +9,7 @@ import {
   noteSpan,
 } from './paginate.js'
 
-/** Blocos empilhados de altura fixa, na ordem, como o editor os mede. */
+/** Stacked fixed-height blocks, in order, as the editor measures them. */
 function stack(
   heights: readonly number[],
   marks: { pageBreak?: number[]; breakAfter?: number[]; keepNext?: number[] } = {},
@@ -35,7 +35,7 @@ describe('paginação', () => {
   })
 
   it('quebra antes do bloco que estouraria a página', () => {
-    // A quebra cai no topo do bloco que não cabe, nunca no meio.
+    // The break falls at the top of the block that does not fit, never in its middle.
     expect(paginate(stack([400, 400, 400]), 1000)).toEqual([800])
   })
 
@@ -45,37 +45,38 @@ describe('paginação', () => {
   })
 
   it('quebra à mão no começo do documento não cria página vazia', () => {
-    // Uma quebra antes de qualquer conteúdo não tem página para fechar.
+    // A break before any content has no page to close.
     const blocos = stack([10, 100], { pageBreak: [0] })
     expect(paginate(blocos, 1000)).toEqual([10])
   })
 
   it('título não fica sozinho no pé da página', () => {
-    // O título que estoura desce com o parágrafo dele, como o `break-after: avoid` do PDF.
+    // An overflowing heading goes down with its paragraph, like the PDF's `break-after: avoid`.
     const blocos = stack([600, 200, 100, 300], { keepNext: [2] })
     expect(paginate(blocos, 1000)).toEqual([800])
   })
 
   it('um título não arrasta a página inteira atrás de si', () => {
-    // A corrente para no primeiro, já no topo: descer todos deixaria a folha em branco.
+    // The chain stops at the first block, already at the top: moving them all down would leave the
+    // sheet blank.
     const blocos = stack([400, 400, 400], { keepNext: [0, 1, 2] })
     expect(paginate(blocos, 1000)).toEqual([400])
   })
 
   it('bloco mais alto que a página fica com a folha só para si', () => {
-    // A imagem maior que a folha abre uma, transborda, e o que vem depois abre outra.
+    // An image taller than the sheet opens one, overflows, and what follows opens another.
     const blocos = stack([100, 3000, 100])
     expect(paginate(blocos, 1000)).toEqual([100, 3100])
   })
 
   it('bloco gigante no fim do documento não cria folha em branco', () => {
-    // Sem nada depois, nenhuma página vazia no fim.
+    // With nothing after it, no empty page at the end.
     const blocos = stack([100, 3000])
     expect(paginate(blocos, 1000)).toEqual([100])
   })
 
   it('a quebra que o parágrafo carrega termina a folha depois dele', () => {
-    // `w:br w:type="page"` dentro de um `w:r` vira propriedade do bloco.
+    // `w:br w:type="page"` inside a `w:r` becomes a block property.
     const blocos = stack([100, 100, 100], { breakAfter: [1] })
     expect(paginate(blocos, 1000)).toEqual([200])
   })
@@ -86,19 +87,19 @@ describe('paginação', () => {
   })
 
   it('altura de página inválida não quebra nada', () => {
-    // Margens maiores que o papel dão altura negativa, e o laço não pode rodar sem fim.
+    // Margins larger than the paper give a negative height, and the loop must not run forever.
     expect(paginate(stack([100, 100]), 0)).toEqual([])
     expect(paginate(stack([100, 100]), -50)).toEqual([])
   })
 
   it('documento longo produz uma quebra por página cheia', () => {
     const blocos = stack(Array.from({ length: 20 }, () => 250))
-    // 250 × 4 = 1000 por página; 20 blocos dão cinco páginas, quatro cortes.
+    // 250 × 4 = 1000 per page; 20 blocks make five pages, four breaks.
     expect(paginate(blocos, 1000)).toEqual([1000, 2000, 3000, 4000])
   })
 
   it('documento com mais de quinhentas folhas não empilha o resto na última', () => {
-    // Sem teto de páginas: uma folha baixa num documento comum não amontoa o resto na última.
+    // No page cap: a short sheet in a regular document does not pile the rest onto the last one.
     const blocos = stack(Array.from({ length: 700 }, () => 100))
     const cortes = paginate(blocos, 100)
 
@@ -107,7 +108,7 @@ describe('paginação', () => {
   })
 
   it('bloco mais alto que a folha fica com ela só para si, mesmo aos milhares', () => {
-    // O laço também avança por aqui, senão travaria a cada tecla.
+    // The loop also advances here, otherwise it would hang on every key press.
     const blocos = stack(Array.from({ length: 600 }, () => 300))
     expect(paginate(blocos, 100)).toHaveLength(599)
   })
@@ -127,7 +128,7 @@ describe('cortes dentro de blocos', () => {
   })
 
   it('o cabeçalho repetido ocupa a folha seguinte', () => {
-    // Linhas e cabeçalho de 100: a segunda folha repete o cabeçalho e cabe uma linha a menos.
+    // Rows and header of 100: the second sheet repeats the header and fits one row less.
     const rows = Array.from({ length: 24 }, (_, index) => (index + 1) * 100)
     expect(paginate([splittable(2500, rows, { repeatHeight: 100 })], 1000)).toEqual([1000, 1900])
   })
@@ -180,7 +181,7 @@ describe('cortes dentro de blocos', () => {
   })
 
   describe('parágrafo cortado entre linhas', () => {
-    // Um parágrafo de dez linhas de 50: os cortes são os topos das linhas 2 a 10.
+    // A ten-line paragraph with 50 px lines: the breaks are the tops of lines 2 to 10.
     const paragraph = (top: number, lines = 10, extra: Partial<MeasuredBlock> = {}): MeasuredBlock => ({
       top,
       height: lines * 50,
@@ -192,7 +193,7 @@ describe('cortes dentro de blocos', () => {
     })
 
     it('a folha termina na última linha que cabe, e não antes do parágrafo', () => {
-      // Sem o corte, o parágrafo desceria inteiro e deixaria 300 de buraco.
+      // Without the break, the paragraph would move down whole and leave a 300 gap.
       expect(paginate([...stack([700]), paragraph(700)], 1000)).toEqual([1000])
     })
 
@@ -214,12 +215,12 @@ describe('cortes dentro de blocos', () => {
     })
 
     it('viúvas e órfãs: a última linha não desce sozinha, leva a penúltima', () => {
-      // Nove das dez linhas caberiam; a décima ficaria viúva no topo da folha.
+      // Nine of the ten lines would fit; the tenth would be a widow at the top of the sheet.
       expect(paginate([...stack([550]), paragraph(550, 10, { widowControl: true })], 1000)).toEqual([950])
     })
 
     it('viúvas e órfãs: a primeira linha não fica sozinha no pé', () => {
-      // Só uma linha caberia: o parágrafo inteiro desce.
+      // Only one line would fit: the whole paragraph moves down.
       expect(paginate([...stack([930]), paragraph(930, 10, { widowControl: true })], 1000)).toEqual([930])
     })
 
@@ -233,14 +234,15 @@ describe('cortes dentro de blocos', () => {
     })
 
     it('parágrafo maior que a folha respeita a regra nos dois cortes', () => {
-      // 25 linhas numa folha de 20: 20 e 5 não violam, e cortar em 1000 serve.
+      // 25 lines on a 20-line sheet: 20 and 5 break no rule, and cutting at 1000 works.
       expect(paginate([paragraph(0, 25, { widowControl: true })], 1000)).toEqual([1000])
-      // 21 linhas: cortar em 20 deixaria a 21ª viúva, então 19 ficam.
+      // 21 lines: cutting at 20 would leave the 21st a widow, so 19 stay.
       expect(paginate([paragraph(0, 21, { widowControl: true })], 1000)).toEqual([950])
     })
 
     it('o pé da captura ancorada corta mesmo com o controle de viúvas', () => {
-      // Quadro de 900 e a linha vazia dele (50), a partir de 60: a linha desce e o quadro fica, como no LibreOffice.
+      // A 900 frame and its empty line (50), from 60: the line moves down and the frame stays, as
+      // in LibreOffice.
       const captura: MeasuredBlock = {
         top: 60,
         height: 950,
@@ -255,8 +257,8 @@ describe('cortes dentro de blocos', () => {
     })
 
     it('a linha vazia da captura sobra no pé da folha em vez de descer', () => {
-      // Quadro de 900 + linha de 50 a partir de 60: a linha vazia entra na margem de
-      // baixo, e o bloco seguinte abre a folha nova.
+      // A 900 frame + a 50 line from 60: the empty line goes into the bottom margin, and the next
+      // block opens the new sheet.
       const captura = { ...stack([950])[0]!, top: 60, hangingBottom: 50 }
       const depois = { ...stack([100])[0]!, top: 1010 }
       expect(paginate([...stack([60]), captura, depois], 1000)).toEqual([1010])
@@ -288,8 +290,8 @@ describe('paginação por seção (M9)', () => {
   })
 
   it('a contínua continua na mesma folha, e a folha seguinte tem a altura da seção que a abre', () => {
-    // A primeira seção tem folha útil de 300; a contínua, de 500 (outras
-    // margens). A segunda folha abre na seção 1 e comporta os dois blocos de 250.
+    // The first section has a 300 usable sheet; the continuous one, 500 (other margins). The second
+    // sheet opens in section 1 and holds both 250 blocks.
     const plan = paginateSections(inSections([200, 50, 250, 250], [0, 1, 1, 1]), [flow(300), flow(500)])
     expect(plan.breaks).toEqual([250])
     expect(plan.sheets.map((sheet) => sheet.section)).toEqual([0, 1])
@@ -319,8 +321,8 @@ describe('paginação por seção (M9)', () => {
   })
 
   it('com a folha ainda vazia, a seção nova toma a folha em vez de abrir outra', () => {
-    // A quebra de página manual antes da marca de seção deixa a folha nova
-    // vazia: o Word não desenha uma segunda folha em branco.
+    // A manual page break before the section mark leaves the new sheet empty: Word does not draw a
+    // second blank sheet.
     const blocks = inSections([100, 10, 100], [0, 0, 1]).map((block, index) =>
       index === 1 ? { ...block, isPageBreak: true } : block,
     )
@@ -349,7 +351,7 @@ describe('colunas (M9)', () => {
   it('enche a primeira coluna, sobe o resto para a segunda e só então abre folha', () => {
     const plan = paginateSections(stack([400, 400, 400, 400, 400]), [flow(1000, { columns: 2 })])
     expect(columnsOf(plan, 5)).toEqual([0, 0, 1, 1, 0])
-    // O primeiro da segunda coluna sobe o que a primeira ocupou.
+    // The first block of the second column lifts by what the first occupied.
     expect(plan.placements.get(2)?.lift).toBe(-800)
     expect(plan.breaks).toEqual([1600])
     expect(plan.regions.map((region) => [region.sheet, region.top, region.height])).toEqual([
@@ -365,7 +367,7 @@ describe('colunas (M9)', () => {
     ])
     expect(columnsOf(plan, 4)).toEqual([0, 0, 1, 1])
     expect(plan.regions[0]?.height).toBe(200)
-    // O bloco da seção de baixo estava em 400 na tira; desenhado, fica em 200.
+    // The block of the section below was at 400 on the strip; drawn, it sits at 200.
     expect(plan.placements.get(4)?.lift).toBe(0)
     expect(plan.placements.get(2)?.lift).toBe(-200)
     expect(plan.breaks).toEqual([])
@@ -384,14 +386,14 @@ describe('colunas (M9)', () => {
 describe('notas de rodapé (M11)', () => {
   const page = [{ height: 1000, newSheet: false, parity: null, restart: null }] as const
   const SEPARATOR = 20
-  /** Uma nota de `lines` linhas de 20 px, com a referência no pé de `at`. */
+  /** A note of `lines` 20 px lines, with its reference at the foot of `at`. */
   const note = (id: string, at: number, lines = 1): MeasuredNote => ({
     id,
     at,
     height: lines * 20,
     lines: Array.from({ length: lines }, (_, line) => line * 20),
   })
-  /** Um parágrafo de linhas de 20 px, cortável entre elas. */
+  /** A paragraph of 20 px lines, breakable between them. */
   const paragraph = (top: number, lines: number, notes: MeasuredNote[] = []): MeasuredBlock => ({
     top,
     height: lines * 20,
@@ -403,8 +405,7 @@ describe('notas de rodapé (M11)', () => {
   })
 
   it('reserva no pé da folha o separador e a nota', () => {
-    // 50 linhas cabem (1000); com a nota de uma linha (20 + 20 de separador)
-    // na primeira, só 48.
+    // 50 lines fit (1000); with a one-line note (20 + 20 separator) on the first, only 48.
     const plan = paginateSections([paragraph(0, 60, [note('a', 20)])], page, { separator: SEPARATOR })
     expect(plan.breaks).toEqual([960])
     expect(plan.notes[0]).toEqual([{ id: 'a', fromLine: 0, toLine: 1 }])
@@ -426,8 +427,8 @@ describe('notas de rodapé (M11)', () => {
   })
 
   it('a nota que não cabe leva a linha da referência para a folha seguinte', () => {
-    // A referência está na linha 49 (pé em 980): o texto caberia, a primeira
-    // linha da nota não — a linha desce, e a nota vai com ela.
+    // The reference is on line 49 (foot at 980): the text would fit, the note's first line would
+    // not, so the line moves down and the note goes with it.
     const plan = paginateSections([paragraph(0, 60, [note('a', 980)])], page, { separator: SEPARATOR })
     expect(plan.breaks).toEqual([960])
     expect(plan.notes[0]).toEqual([])
@@ -437,17 +438,17 @@ describe('notas de rodapé (M11)', () => {
   it('a nota longa fica com a primeira linha na folha da referência e continua na seguinte', () => {
     const blocks = [paragraph(0, 30, [note('a', 400, 40)]), paragraph(600, 25)]
     const plan = paginateSections(blocks, page, { separator: SEPARATOR })
-    // A última nota só precisa da primeira linha: o texto continua até 960, e
-    // a nota fica com o que sobra (20 px, uma linha).
+    // The last note only needs its first line: the text runs until 960, and the note keeps what is
+    // left (20 px, one line).
     expect(plan.breaks).toEqual([960])
     expect(plan.notes[0]).toEqual([{ id: 'a', fromLine: 0, toLine: 1 }])
-    // Na folha seguinte a continuação vem antes de tudo.
+    // On the next sheet the continuation comes before everything.
     expect(plan.notes[1]).toEqual([{ id: 'a', fromLine: 1, toLine: 40 }])
   })
 
   it('a continuação longa enche o pé das folhas seguintes, sem tomar a folha toda', () => {
-    // A nota de 120 linhas na primeira linha e texto de sobra depois: a
-    // continuação pede meia folha em cada uma, e não uma linha por folha.
+    // A 120-line note on the first line with plenty of text after: the continuation asks for half a
+    // sheet on each, not one line per sheet.
     const plan = paginateSections([paragraph(0, 1, [note('a', 20, 120)]), paragraph(20, 150)], page, {
       separator: SEPARATOR,
     })
@@ -455,7 +456,7 @@ describe('notas de rodapé (M11)', () => {
     expect(slices[0]).toEqual([[0, 1]])
     expect(slices[1]).toEqual([[1, 26]])
     expect(slices[2]).toEqual([[26, 51]])
-    // Nenhuma folha passa da altura: texto + separador + notas.
+    // No sheet exceeds the height: text + separator + notes.
     plan.notes.forEach((_, sheet) => {
       const start = sheet === 0 ? 0 : plan.breaks[sheet - 1]!
       const end = plan.breaks[sheet] ?? 3020
@@ -478,8 +479,8 @@ describe('notas de rodapé (M11)', () => {
   it('as notas de várias referências somam, e a última pode ser cortada', () => {
     const blocks = [paragraph(0, 45, [note('a', 20, 3), note('b', 880, 5)])]
     const plan = paginateSections(blocks, page, { separator: SEPARATOR })
-    // Até 900 de texto: 900 + 20 + 60 de a + primeira linha de b (20) = 1000
-    // cabe; a linha seguinte não. A anterior vai inteira.
+    // Up to 900 of text: 900 + 20 + 60 for a + the first line of b (20) = 1000 fits; the next line
+    // does not. The previous one goes whole.
     expect(plan.breaks).toEqual([900])
     expect(plan.notes[0]).toEqual([
       { id: 'a', fromLine: 0, toLine: 3 },
@@ -506,7 +507,7 @@ describe('notas de rodapé (M11)', () => {
   })
 
   it('as notas de fim, como blocos depois do texto, cortam entre as linhas delas', () => {
-    // Quem as põe no fluxo é a medida (`usePagination`): aqui são blocos comuns.
+    // Measuring (`usePagination`) puts them in the flow: here they are regular blocks.
     const blocks = [paragraph(0, 40), paragraph(820, 20)]
     const plan = paginateSections(blocks, page, { separator: SEPARATOR })
     expect(plan.breaks).toEqual([1000])

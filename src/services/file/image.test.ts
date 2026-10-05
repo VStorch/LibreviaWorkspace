@@ -24,14 +24,13 @@ describe('detectImageMimeType', () => {
   })
 
   it('não confunde outro contêiner RIFF com WebP', () => {
-    // WAV também começa com "RIFF"; só os bytes 8..11 distinguem.
+    // WAV also starts with "RIFF"; only bytes 8..11 tell them apart.
     const wav = bytesOf(0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0, 0x57, 0x41, 0x56, 0x45)
     expect(detectImageMimeType(wav)).toBeNull()
   })
 
   it('recusa SVG mesmo sendo imagem', () => {
-    // SVG é XML e pode carregar script: embuti-lo seria XSS dentro do
-    // documento do próprio usuário.
+    // SVG is XML and may carry scripts: embedding it would be XSS inside the user's own document.
     const svg = new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg"><script/></svg>')
     expect(detectImageMimeType(svg)).toBeNull()
   })

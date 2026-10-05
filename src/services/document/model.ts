@@ -1,6 +1,6 @@
 /**
- * `doc` é o JSON do ProseMirror, o mesmo que o Tiptap edita; `page` e o resto
- * carregam o que não cabe no fluxo de texto.
+ * `doc` is the ProseMirror JSON Tiptap edits; `page` and the rest carry what does not fit in the
+ * text flow.
  */
 
 import { NO_BANDS, type Band, type BandHeights } from './band.js'
@@ -18,7 +18,7 @@ export const PageOrientation = {
 } as const
 export type PageOrientation = (typeof PageOrientation)[keyof typeof PageOrientation]
 
-/** Margens em milímetros — a unidade que aparece na interface. */
+/** In millimetres, the unit the UI shows. */
 export interface Margins {
   readonly top: number
   readonly right: number
@@ -30,62 +30,61 @@ export interface PageSetup {
   readonly size: PageSize
   readonly orientation: PageOrientation
   readonly margins: Margins
-  /** Texto simples digitado pela pessoa; `{n}` e `{total}` são trocados ao gerar o PDF. */
+  /** Plain text typed by the user; `{n}` and `{total}` are replaced when rendering the PDF. */
   readonly header: string
   readonly footer: string
-  /** O cabeçalho do documento importado; quando existe, manda na exibição. */
+  /** The imported document's header; when present, it wins on screen. */
   readonly headerBand: Band | null
   readonly footerBand: Band | null
   /**
-   * Só existem quando o documento liga `w:titlePg` ou `w:evenAndOddHeaders`: o
-   * Word guarda as partes mesmo com eles desligados — ver `PageReader.HasTitlePage`.
+   * Only exist when the document turns on `w:titlePg` or `w:evenAndOddHeaders`: Word keeps the
+   * parts even with them off; see `PageReader.HasTitlePage`.
    */
   readonly firstHeaderBand: Band | null
   readonly firstFooterBand: Band | null
   readonly evenHeaderBand: Band | null
   readonly evenFooterBand: Band | null
-  /** `w:pgMar/@header`: a origem vertical das âncoras de dentro do cabeçalho. */
+  /** `w:pgMar/@header`: the vertical origin for anchors inside the header. */
   readonly headerDistanceMm: number
   readonly footerDistanceMm: number
-  /** `w:pgNumType`. Ausente vale "decimal, a partir de 1" na tela e "não mexa" na gravação. */
+  /** `w:pgNumType`. Absent means "decimal from 1" on screen and "leave alone" when saving. */
   readonly pageNumberFormat?: PageNumberFormat | undefined
   readonly pageNumberStart?: number | null | undefined
-  /** `w:titlePg` e `w:evenAndOddHeaders`. Ausentes, valem pelo que as faixas dizem. */
+  /** `w:titlePg` and `w:evenAndOddHeaders`. Absent, they follow what the bands say. */
   readonly titlePage?: boolean | null | undefined
   readonly evenAndOddHeaders?: boolean | null | undefined
-  /** `w:sectPr/w:type`. Ausente vale "próxima página" na tela e "não mexa" na gravação. */
+  /** `w:sectPr/w:type`. Absent means "next page" on screen and "leave alone" when saving. */
   readonly start?: SectionStart | undefined
-  /** `w:cols`. Ausente vale uma coluna na tela e "não mexa" na gravação. */
+  /** `w:cols`. Absent means one column on screen and "leave alone" when saving. */
   readonly columns?: SectionColumns | undefined
 }
 
-/** `w:cols`: quantas colunas, o espaço entre elas (mm) e a linha separadora. */
+/** `w:cols`: column count, spacing between them (mm) and the separator line. */
 export interface SectionColumns {
   readonly count: number
   readonly spaceMm: number
   readonly separator: boolean
   /**
-   * Larguras diferentes, como o arquivo as declara (`w:equalWidth="0"`). A tela
-   * desenha colunas iguais; mudar as colunas no painel as iguala.
+   * Unequal widths, as the file declares them (`w:equalWidth="0"`). The screen draws equal columns;
+   * changing columns in the panel equalizes them.
    */
   readonly widthsMm?: number[] | undefined
 }
 
-/** Os começos de seção do OOXML — os de `w:type/@w:val`. */
+/** OOXML section starts, from `w:type/@w:val`. */
 export const SECTION_STARTS = ['nextPage', 'continuous', 'evenPage', 'oddPage', 'nextColumn'] as const
 export type SectionStart = (typeof SECTION_STARTS)[number]
 
 /**
- * O parágrafo que **encerra** a seção leva o mesmo `id` em `sectionBreak`, como
- * no OOXML o `w:sectPr` mora no parágrafo que fecha a seção. A última seção é
- * `DocumentModel.page`. Faixa nula, da segunda seção em diante, é "vincular ao
- * anterior" — ver `effectiveSections`.
+ * The paragraph that **closes** the section carries the same `id` in `sectionBreak`, as OOXML keeps
+ * `w:sectPr` in the paragraph that closes the section. The last section is `DocumentModel.page`. A
+ * null band from the second section on means "link to previous"; see `effectiveSections`.
  */
 export interface SectionSetup extends PageSetup {
   readonly id: string
 }
 
-/** Os formatos de número de página que o painel oferece — os de `w:pgNumType/@w:fmt`. */
+/** The ones the panel offers, from `w:pgNumType/@w:fmt`. */
 export const PAGE_NUMBER_FORMATS = [
   'decimal',
   'lowerRoman',
@@ -96,8 +95,8 @@ export const PAGE_NUMBER_FORMATS = [
 export type PageNumberFormat = (typeof PAGE_NUMBER_FORMATS)[number]
 
 /**
- * Coleções mutáveis porque o Tiptap espera `JSONContent`, e um array `readonly`
- * não é atribuível a um comum.
+ * Mutable collections because Tiptap expects `JSONContent`, and a `readonly` array is not
+ * assignable to a plain one.
  */
 export interface DocumentNode {
   readonly type: string
@@ -108,70 +107,73 @@ export interface DocumentNode {
 }
 
 export interface DocumentModel {
-  /** A última seção — a do corpo, e a única do documento de uma seção só. */
+  /** The last section: the body's, and the only one in a single-section document. */
   readonly page: PageSetup
-  /** Antes da última, em ordem. Fora dos nós pelo mesmo motivo de `styles`. */
+  /** The ones before the last, in order. Outside the nodes for the same reason as `styles`. */
   readonly sections?: readonly SectionSetup[]
   readonly doc: DocumentNode
   /**
-   * Fora dos nós: a impressão digital de um bloco é feita do que está dentro
-   * dele, e um estilo ali faria todo bloco parecer mudado na gravação cirúrgica.
+   * Outside the nodes: a block fingerprint is made from what is inside it, and a style there would
+   * make every block look changed to the surgical save.
    */
   readonly styles: StyleSheet
   /**
-   * Rascunho `.sdoc` < 4, com a formatação efetiva em cada bloco. A gravação o
-   * compara com uma leitura achatada do original, senão todo bloco pareceria mudado.
+   * `.sdoc` draft < 4, with the effective formatting on each block. Saving compares it with a
+   * flattened reading of the original, otherwise every block would look changed.
    */
   readonly flattened?: boolean
-  /** Rascunho `.sdoc` < 5: sem marcador, campo, link interno nem sumário nos nós. Mesmo motivo de `flattened`. */
+  /**
+   * `.sdoc` draft < 5: no bookmark, field, internal link or table of contents in the nodes. Same
+   * reason as `flattened`.
+   */
   readonly beforeReferences?: boolean
-  /** Rascunho `.sdoc` < 6: sem `sectionBreak`. Mesmo motivo de `flattened`. */
+  /** `.sdoc` draft < 6: no `sectionBreak`. Same reason as `flattened`. */
   readonly beforeSections?: boolean
   /**
-   * Marcadores do arquivo que não viraram nó — entre linhas de tabela, soltos
-   * entre blocos, no cabeçalho ou numa caixa. A referência que os cita não está
-   * quebrada, e "Atualizar campos" deixa o resultado dela como o Word deixou.
+   * File bookmarks that did not become nodes: between table rows, loose between blocks, in the
+   * header or in a box. A reference citing them is not broken, and "Update fields" leaves its
+   * result as Word left it.
    */
   readonly outsideBookmarks?: readonly string[]
   /**
-   * O corpo mora fora dos nós, como `styles`; no texto ficam só as pontas da
-   * âncora, uma por conversa. Só os que o texto sustenta (`resolveComments`).
+   * The body lives outside the nodes, like `styles`; the text only holds the anchor ends, one per
+   * thread. Only those the text supports (`resolveComments`).
    */
   readonly comments?: readonly DocumentComment[]
-  /** Rascunho `.sdoc` < 7: sem a âncora nos nós. Mesmo motivo de `flattened`. */
+  /** `.sdoc` draft < 7: no anchor in the nodes. Same reason as `flattened`. */
   readonly beforeComments?: boolean
-  /** `w:trackRevisions`. Ausente é "não mexa". */
+  /** `w:trackRevisions`. Absent means "leave alone". */
   readonly trackChanges?: boolean
-  /** Rascunho `.sdoc` < 8: sem as marcas de revisão. Mesmo motivo de `flattened`. */
+  /** `.sdoc` draft < 8: no revision marks. Same reason as `flattened`. */
   readonly beforeRevisions?: boolean
   /**
-   * Fora dos nós, como `styles`: o número de uma nota é a ordem da referência.
-   * Ausente é a numeração do Word: 1, 2, 3 nas de rodapé e i, ii, iii nas de fim.
+   * Outside the nodes, like `styles`: a note's number is the order of its reference. Absent means
+   * Word's numbering: 1, 2, 3 for footnotes and i, ii, iii for endnotes.
    */
   readonly notes?: DocumentNotes
-  /** Rascunho `.sdoc` < 9: sem `noteRef`. Mesmo motivo de `flattened`. */
+  /** `.sdoc` draft < 9: no `noteRef`. Same reason as `flattened`. */
   readonly beforeNotes?: boolean
-  /** Rascunho `.sdoc` < 11: sem `math`. Mesmo motivo de `flattened`. */
+  /** `.sdoc` draft < 11: no `math`. Same reason as `flattened`. */
   readonly beforeMath?: boolean
   /**
-   * `docProps/core.xml` e parte de `app.xml`, fora dos nós. Na gravação cada
-   * campo é um remendo: ausente é "deixe como está", vazio é "apague".
+   * `docProps/core.xml` and part of `app.xml`, outside the nodes. When saving each field is a
+   * patch: absent means "leave as is", empty means "clear".
    */
   readonly properties?: DocumentProperties
 }
 
 /**
- * As propriedades de um documento, como o Word as mostra em Arquivo →
- * Propriedades. As datas são W3CDTF (`2026-10-02T12:00:00Z`), como no pacote.
+ * As Word shows them in File → Properties. Dates are W3CDTF (`2026-10-02T12:00:00Z`), as in the
+ * package.
  */
 export interface DocumentProperties {
   readonly title?: string
   readonly subject?: string
-  /** `dc:creator`: o(s) autor(es), separados por ponto e vírgula, como no Word. */
+  /** `dc:creator`: the author(s), separated by semicolons, as in Word. */
   readonly creator?: string
   readonly keywords?: string
   readonly category?: string
-  /** `dc:description`: o que o Word chama de Comentários. */
+  /** `dc:description`: what Word calls Comments. */
   readonly description?: string
   readonly lastModifiedBy?: string
   readonly revision?: string
@@ -180,11 +182,11 @@ export interface DocumentProperties {
   /** `docProps/app.xml`. */
   readonly company?: string
   readonly manager?: string
-  /** `TotalTime` do `app.xml`, em minutos. Só lido: o editor não o mede. */
+  /** `TotalTime` from `app.xml`, in minutes. Read only: the editor does not measure it. */
   readonly totalTime?: number
 }
 
-/** A numeração de um tipo de nota, como `w:footnotePr`/`w:endnotePr` a descrevem. */
+/** `w:footnotePr`/`w:endnotePr`. */
 export interface NoteNumbering {
   /** `decimal`, `lowerRoman`, `upperLetter`, `chicago`… */
   readonly numFmt?: string
@@ -199,22 +201,22 @@ export interface DocumentNotes {
   readonly endnotePr?: NoteNumbering
 }
 
-/** Um comentário, como `word/comments.xml` e `word/commentsExtended.xml` o descrevem. */
+/** As `word/comments.xml` and `word/commentsExtended.xml` describe it. */
 export interface DocumentComment {
-  /** O `w:id` — o mesmo `cid` das pontas no texto. */
+  /** The `w:id`, the same `cid` as the anchor ends in the text. */
   readonly id: string
-  /** O comentário que este responde. Ausente é o que abre a conversa. */
+  /** The comment this one replies to. Absent for the one opening the thread. */
   readonly parentId?: string
   readonly author: string
   readonly initials?: string
-  /** Como o arquivo o traz (ISO 8601); vazio quando não traz. */
+  /** As the file has it (ISO 8601); empty when it has none. */
   readonly date: string
-  /** O texto de cada parágrafo, sem formatação. */
+  /** Each paragraph's text, unformatted. */
   readonly paragraphs: readonly string[]
-  /** Resolvido (`w15:done`) — vale para a conversa, pelo comentário que a abre. */
+  /** `w15:done`; applies to the thread, through the comment that opens it. */
   readonly done: boolean
   readonly paraId?: string
-  /** O corpo tem formatação, imagem ou campo que o texto simples não mostra. */
+  /** The body has formatting, an image or a field plain text does not show. */
   readonly rich?: boolean
 }
 
@@ -223,7 +225,7 @@ export const PAGE_DIMENSIONS_MM: Record<PageSize, { width: number; height: numbe
   [PageSize.Letter]: { width: 216, height: 279 },
 }
 
-/** Equivalente ao padrão "Normal" do Word: 2,54 cm em volta. */
+/** Like Word's "Normal" default: 2.54 cm all around. */
 export const DEFAULT_PAGE_SETUP: PageSetup = {
   size: PageSize.A4,
   orientation: PageOrientation.Portrait,
@@ -249,7 +251,7 @@ export function createEmptyDocument(): DocumentModel {
   return { page: DEFAULT_PAGE_SETUP, doc: EMPTY_DOCUMENT, styles: BUILTIN_STYLES }
 }
 
-/** Largura e altura já considerando a orientação. */
+/** Already accounting for orientation. */
 export function pageDimensionsMm(page: PageSetup): { width: number; height: number } {
   const base = PAGE_DIMENSIONS_MM[page.size]
   return page.orientation === PageOrientation.Landscape
@@ -257,7 +259,7 @@ export function pageDimensionsMm(page: PageSetup): { width: number; height: numb
     : { width: base.width, height: base.height }
 }
 
-/** A largura que define a moldura na tela. */
+/** The width that sets the frame on screen. */
 export function contentWidthMm(page: PageSetup): number {
   const { width } = pageDimensionsMm(page)
   return width - page.margins.left - page.margins.right
@@ -270,8 +272,8 @@ export function contentHeightMm(page: PageSetup, bands: BandHeights = NO_BANDS):
 }
 
 /**
- * A margem é um piso: quando o cabeçalho é mais alto que a distância dele até a
- * borda mais a margem, o Word e o LibreOffice descem o corpo até debaixo dele.
+ * The margin is a floor: when the header is taller than its distance to the edge plus the margin,
+ * Word and LibreOffice push the body below it.
  */
 export function contentInsetsMm(page: PageSetup, bands: BandHeights): { top: number; bottom: number } {
   return {
@@ -280,7 +282,7 @@ export function contentInsetsMm(page: PageSetup, bands: BandHeights): { top: num
   }
 }
 
-/** Margens que somam mais que a página dariam área de texto negativa. */
+/** Margins adding up to more than the page would give a negative text area. */
 export function isValidMargins(page: PageSetup): boolean {
   const { width, height } = pageDimensionsMm(page)
   const values = [page.margins.top, page.margins.right, page.margins.bottom, page.margins.left]

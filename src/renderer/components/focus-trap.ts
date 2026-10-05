@@ -1,6 +1,6 @@
 /**
- * O `Tab` circula entre os elementos de `selector` dentro do painel. Sem isso,
- * sairia para o texto ou para a barra, e o `Escape` não fecharia mais.
+ * `Tab` cycles among `selector` elements inside the panel. Otherwise it would leave for the text or
+ * the toolbar, and `Escape` would no longer close it.
  */
 export function cycleFocus(panel: HTMLElement | null, event: React.KeyboardEvent, selector: string): void {
   const stops = [...(panel?.querySelectorAll<HTMLElement>(selector) ?? [])]

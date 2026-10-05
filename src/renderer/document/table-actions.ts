@@ -1,7 +1,7 @@
 import type { Editor } from '@tiptap/react'
 import { TableAction } from '@shared/table-actions.js'
 
-/** Comandos do TableKit; inserir e propriedades abrem diálogo e não estão aqui. */
+/** TableKit commands; insert and properties open dialogs and are not here. */
 export function runTableAction(editor: Editor, action: TableAction): boolean {
   const chain = editor.chain().focus()
 
@@ -27,7 +27,7 @@ export function runTableAction(editor: Editor, action: TableAction): boolean {
     case TableAction.Delete:
       return chain.deleteTable().run()
 
-    // `false`: ainda há interface a abrir, e não falha.
+    // `false`: there is still UI to open, not a failure.
     case TableAction.Insert:
     case TableAction.Properties:
       return false

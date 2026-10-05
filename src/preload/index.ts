@@ -4,8 +4,8 @@ import type { AppApi, MenuCommandPayload } from '@shared/api.js'
 import type { ContextMenuTarget, EditorPreferences } from '@shared/types.js'
 
 /**
- * O `IpcRendererEvent` não pode vazar para o renderer. Sem schema aqui: o
- * preload sandboxed não carrega zod, e o renderer valida com `pushContracts`.
+ * Keeps `IpcRendererEvent` out of the renderer. No schema here: the sandboxed preload cannot load
+ * zod, so the renderer validates with `pushContracts`.
  */
 function subscribe<T>(channel: string, listener: (payload: T) => void): () => void {
   const wrapped = (_event: IpcRendererEvent, payload: T): void => listener(payload)
@@ -16,8 +16,8 @@ function subscribe<T>(channel: string, listener: (payload: T) => void): () => vo
 }
 
 /**
- * Nada de `ipcRenderer` cru nem `invoke` genérico, que devolveriam o poder que o
- * contextIsolation tirou: um método por operação do contrato, e nenhuma lógica.
+ * No raw `ipcRenderer` and no generic `invoke`, which would hand back the power contextIsolation
+ * took away: one method per contract operation, and no logic.
  */
 const api: AppApi = {
   file: {

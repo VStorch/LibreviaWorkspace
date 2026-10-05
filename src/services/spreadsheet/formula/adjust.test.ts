@@ -18,7 +18,7 @@ describe('copiar a fórmula', () => {
   })
 
   it('sair da planilha vira #REF!', () => {
-    // Copiar =A1 para a coluna A não tem para onde apontar.
+    // Copying =A1 to column A has nowhere to point.
     expect(translateFormula('=A1', 0, -1)).toBe('=#REF!')
   })
 
@@ -27,8 +27,8 @@ describe('copiar a fórmula', () => {
   })
 
   it('preserva espaços, maiúsculas e o resto do texto', () => {
-    // A reescrita é sobre os símbolos, não sobre a árvore: a fórmula volta como
-    // o usuário digitou, menos as referências que precisavam mudar.
+    // The rewrite works on tokens, not on the tree: the formula comes back as the user typed it,
+    // except for the references that had to change.
     expect(translateFormula('= soma( a1 ; "a1" )', 1, 0)).toBe('= soma( A2 ; "a1" )')
   })
 })
@@ -43,7 +43,7 @@ describe('inserir linha', () => {
   })
 
   it('mexe também nas absolutas, porque a célula andou de verdade', () => {
-    // Aqui o $ não protege: quem estava em $A$5 agora está em $A$6.
+    // Here $ does not protect: what was at $A$5 is now at $A$6.
     expect(adjustForRows('=$A$5', 2, 1, own)).toBe('=$A$6')
   })
 
@@ -66,9 +66,8 @@ describe('excluir linha', () => {
   })
 
   it('encolhe o intervalo em vez de destruí-lo', () => {
-    // A parte mais fácil de errar: tratar as pontas separadamente faria a
-    // primeira virar #REF! e mataria a fórmula por uma exclusão que o Excel
-    // absorve sem reclamar.
+    // The easiest part to get wrong: treating the ends separately would turn the first into #REF!
+    // and kill the formula over a deletion Excel absorbs without complaint.
     expect(adjustForRows('=SOMA(A1:A5)', 0, -3, own)).toBe('=SOMA(A1:A2)')
   })
 
@@ -101,7 +100,7 @@ describe('entre planilhas', () => {
   })
 
   it('a fórmula de outra planilha não ajusta a referência sem nome', () => {
-    // =A1 na aba "Resumo" aponta para "Resumo", e não para "Dados".
+    // =A1 on the "Resumo" sheet points to "Resumo", not to "Dados".
     expect(adjustForRows('=A5', 0, 1, other)).toBe('=A5')
   })
 

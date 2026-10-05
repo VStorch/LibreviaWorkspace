@@ -3,8 +3,8 @@ import { translate, type MessageKey, type Vars } from '@shared/i18n/index.js'
 import { editorPreferences } from './preferences.js'
 
 /**
- * No main o idioma vem da loja de preferências, e no renderer da cópia que a
- * tela desenha; a tradução é a mesma função de `shared`. `{app}` já vem preenchido.
+ * In main the language comes from the preferences store, in the renderer from the copy the screen
+ * draws; the translation is the same function from `shared`. `{app}` is already filled in.
  */
 export function t(key: MessageKey, vars?: Vars): string {
   return translate(editorPreferences().language, key, { app: APP_NAME, ...vars })

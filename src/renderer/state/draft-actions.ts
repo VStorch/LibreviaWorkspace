@@ -20,11 +20,11 @@ export function createDraftActions(
   return {
     autosave: async () => {
       const state = get()
-      // Com um rascunho esperando decisão, escrever apagaria o trabalho que ele devolve.
+      // With a draft awaiting a decision, writing would erase the work it brings back.
       if (state.file === null || !state.isDirty) return
       if (state.pendingDraft !== null || state.autosaveBroken) return
 
-      // Fora do `call`: o autosave não pisca o indicador de ocupado.
+      // Outside `call`: autosave does not flash the busy indicator.
       const result = await window.api.file.autosave({
         path: state.file.path,
         name: state.file.name,
@@ -47,7 +47,8 @@ export function createDraftActions(
 
       try {
         ctx.show(interpret(data.draft))
-        // Recuperado difere do disco: marcar como salvo faria fechar e perder tudo de novo.
+        // Recovered content differs from disk: marking it saved would let a close lose everything
+        // again.
         set({ isDirty: true })
       } catch (cause) {
         set({ error: toSerialized(cause) })
@@ -61,7 +62,7 @@ export function createDraftActions(
   }
 }
 
-/** Sempre em formato interno, mesmo de um `.txt`: é o que estava na tela. */
+/** Always in the internal format, even from a `.txt`: it is what was on screen. */
 function interpret(draft: RecoveredDraft): LoadedFile {
   const file = { path: draft.path, name: draft.name, kind: draft.kind }
 
@@ -73,8 +74,8 @@ function interpret(draft: RecoveredDraft): LoadedFile {
 }
 
 /**
- * Avisa uma vez e para de tentar. A frase é própria, porque a do erro fala do
- * arquivo do usuário, e aqui o que quebrou foi a rede de proteção.
+ * Warns once and stops trying. Its own sentence, because the error one speaks of the user's file,
+ * and what broke here is the safety net.
  */
 function autosaveBrokenState(cause: SerializedError): Partial<WorkspaceState> {
   return {

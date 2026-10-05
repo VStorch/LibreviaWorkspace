@@ -1,21 +1,24 @@
-/** O nome é o que o sumário e as referências citam; o `w:id` casa as duas pontas e é único. */
+/**
+ * The name is what the table of contents and references cite; the `w:id` pairs both ends and is
+ * unique.
+ */
 
 export const BOOKMARK_NAME_MAX = 40
 
 /**
- * Como o Word: letra, depois letras, algarismos e sublinhado, até 40. Sem o
- * sublinhado inicial, que marca os ocultos (`_Toc…`, `_Ref…`).
+ * As in Word: a letter, then letters, digits and underscores, up to 40. No leading underscore,
+ * which marks the hidden ones (`_Toc…`, `_Ref…`).
  */
 export function isValidBookmarkName(name: string): boolean {
   return new RegExp(`^\\p{L}[\\p{L}\\p{N}_]{0,${BOOKMARK_NAME_MAX - 1}}$`, 'u').test(name)
 }
 
-/** Oculto: os que o Word cria para o sumário e para as referências. */
+/** The ones Word creates for the table of contents and for references. */
 export function isHiddenBookmark(name: string): boolean {
   return name.startsWith('_')
 }
 
-/** O `w:id` é inteiro no esquema; o que não for número não entra na conta. */
+/** `w:id` is an integer in the schema; anything else is not counted. */
 export function nextBookmarkId(existing: Iterable<string>): string {
   let highest = -1
   for (const id of existing) {
@@ -25,7 +28,7 @@ export function nextBookmarkId(existing: Iterable<string>): string {
   return String(highest + 1)
 }
 
-/** O Word sorteia os algarismos; aqui contam a partir do maior, sem depender de sorte. */
+/** Word draws random digits; here they count up from the highest, without relying on luck. */
 export function hiddenBookmarkName(prefix: '_Ref' | '_Toc', existing: Iterable<string>): string {
   let highest = 0
   const pattern = new RegExp(`^${prefix}(\\d+)$`)

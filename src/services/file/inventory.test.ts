@@ -27,8 +27,8 @@ describe('somente leitura', () => {
   })
 
   it('não trava por perda de aparência', () => {
-    // Quase todo documento do corpus tem uma imagem ancorada: travar por isso
-    // travaria o uso do dia a dia, e o usuário aprenderia a liberar sem ler.
+    // Almost every corpus document has an anchored image: locking for that would lock everyday use,
+    // and the user would learn to unlock without reading.
     expect(locksEditing(inventory({ lost: ['posicionamento de imagem'] }))).toBe(false)
     expect(locksEditing(undefined)).toBe(false)
   })

@@ -1,6 +1,6 @@
 import { Language } from './i18n/language.js'
 
-/** Guia ícone, filtros de diálogo e editor. */
+/** Drives the icon, dialog filters and editor. */
 export const DocumentKind = {
   Document: 'document',
   Spreadsheet: 'spreadsheet',
@@ -9,46 +9,47 @@ export const DocumentKind = {
 export type DocumentKind = (typeof DocumentKind)[keyof typeof DocumentKind]
 
 /**
- * `invisible` continua no arquivo depois de salvar, mas não aparece na tela;
- * `lost` some ao salvar. Separados porque um aviso genérico se aprende a ignorar.
+ * `invisible` stays in the file after saving but does not show on screen; `lost` disappears on
+ * save. Kept apart because people learn to ignore a generic warning.
  */
 export interface LossInventory {
-  // Coleções mutáveis, como em `DocumentNode`: este tipo precisa ser atribuível
-  // ao que o zod infere no contrato de IPC, e um array `readonly` não é
-  // atribuível a um comum. As propriedades continuam `readonly`.
+  // Mutable collections, as in `DocumentNode`: this type must be assignable to what zod infers in
+  // the IPC contract, and a `readonly` array is not assignable to a plain one.
   readonly invisible: string[]
   readonly lost: string[]
   /**
-   * Subconjunto de `invisible`: o que some se o bloco que o ancora for editado.
-   * Decide se o arquivo abre em somente leitura.
+   * Subset of `invisible`: what disappears if the block anchoring it is edited. Decides whether the
+   * file opens read-only.
    */
   readonly structural: string[]
 }
 
 /**
- * `content` é sempre texto. Um `.docx` chega **já convertido** para o formato
- * interno; os bytes originais ficam no main, que grava cirurgicamente.
+ * `content` is always text. A `.docx` arrives **already converted** to the internal format; the
+ * original bytes stay in main, which writes surgically.
  */
 export interface LoadedFile {
   readonly path: string
   readonly name: string
   readonly kind: DocumentKind
   readonly content: string
-  /** Presente só quando o arquivo veio de um formato do Office. */
+  /** Only for Office files. */
   readonly inventory?: LossInventory
-  /** O arquivo é um modelo do Word: abre como documento novo — ver `ipc.ts`. */
+  /** A Word template opens as a new document; see `ipc.ts`. */
   readonly template?: boolean
 }
 
 export interface TemplateEntry {
   readonly source: 'builtin' | 'user'
-  /** O nome do arquivo no embutido; o caminho no do usuário. */
+  /** The file name for builtin templates; the path for the user's. */
   readonly id: string
   readonly name: string
   readonly description: string
 }
 
-/** Sem o conteúdo, que pode ter dezenas de megabytes: o aviso só precisa da origem e da data. */
+/**
+ * Without the content, which can be tens of megabytes: the prompt only needs the origin and date.
+ */
 export interface DraftSummary {
   readonly path: string | null
   readonly name: string
@@ -63,7 +64,6 @@ export interface RecentFile {
   readonly openedAt: number
 }
 
-/** Comandos que o menu nativo despacha para o renderer. */
 export const MenuCommand = {
   NewDocument: 'new-document',
   NewSpreadsheet: 'new-spreadsheet',
@@ -84,16 +84,16 @@ export const MenuCommand = {
   PageSetup: 'page-setup',
   ParagraphSetup: 'paragraph-setup',
   InsertPageBreak: 'insert-page-break',
-  /** Quebra de seção no cursor, pelo começo da seção nova. */
+  /** A section break at the cursor, at the start of the new section. */
   InsertSectionNextPage: 'insert-section-next-page',
   InsertSectionContinuous: 'insert-section-continuous',
   InsertSectionEvenPage: 'insert-section-even-page',
   InsertSectionOddPage: 'insert-section-odd-page',
-  /** Exclui a quebra que fecha a seção do cursor: a seção de cima assume a de baixo. */
+  /** The section above takes over the one below. */
   DeleteSectionBreak: 'delete-section-break',
   InsertColumnBreak: 'insert-column-break',
   FormatColumns: 'format-columns',
-  /** Zoom da folha: o do editor, e não o do Chromium, que aumentaria a interface. */
+  /** The editor's zoom, not Chromium's, which would scale the UI. */
   ZoomIn: 'zoom-in',
   ZoomOut: 'zoom-out',
   ZoomReset: 'zoom-reset',
@@ -104,7 +104,7 @@ export const MenuCommand = {
   SpecialCharacter: 'special-character',
   InsertEquation: 'insert-equation',
   InsertDisplayEquation: 'insert-display-equation',
-  /** Abre a equação selecionada no editor — o clique duplo e o Enter chegam aqui. */
+  /** Double click and Enter end up here. */
   EditEquation: 'edit-equation',
   ImageProperties: 'image-properties',
   InsertBookmark: 'insert-bookmark',
@@ -119,7 +119,6 @@ export const MenuCommand = {
   RejectAllChanges: 'reject-all-changes',
   NextChange: 'next-change',
   PreviousChange: 'previous-change',
-  /** `w:trackRevisions` do documento. */
   ToggleTrackChanges: 'toggle-track-changes',
   ShowAllMarkup: 'show-all-markup',
   ShowSimpleMarkup: 'show-simple-markup',
@@ -129,12 +128,10 @@ export const MenuCommand = {
   InsertTableOfContents: 'insert-table-of-contents',
   UpdateTableOfContents: 'update-table-of-contents',
   UpdateFields: 'update-fields',
-  /** Legenda com número (`SEQ`): Figura 1, Tabela 1… */
   InsertCaption: 'insert-caption',
-  /** Referência cruzada a título, marcador ou legenda (`REF`/`PAGEREF`). */
   InsertCrossReference: 'insert-cross-reference',
-  // O menu "Tabela". Os valores são os mesmos de `TableAction` (ver
-  // `table-actions.ts`), e é por eles que o `App` os repassa ao editor.
+  // The values match `TableAction` (see `table-actions.ts`), and `App` forwards them to the editor
+  // by them.
   TableInsert: 'table-insert',
   TableRowBefore: 'table-row-before',
   TableRowAfter: 'table-row-after',
@@ -147,13 +144,13 @@ export const MenuCommand = {
   TableHeaderRow: 'table-header-row',
   TableDelete: 'table-delete',
   TableProperties: 'table-properties',
-  /** Emitido quando o usuário escolhe "Salvar" no aviso de saída. */
+  /** When the user chooses "Save" in the exit prompt. */
   SaveAndExit: 'save-and-exit',
 } as const
 
 export type MenuCommand = (typeof MenuCommand)[keyof typeof MenuCommand]
 
-/** É da janela, como no Word: nada disso é gravado, e a impressão segue a janela. */
+/** Belongs to the window, as in Word: nothing of this is saved, and printing follows the window. */
 export const RevisionView = {
   All: 'all',
   Simple: 'simple',
@@ -163,7 +160,6 @@ export const RevisionView = {
 
 export type RevisionView = (typeof RevisionView)[keyof typeof RevisionView]
 
-/** Resposta do aviso de alterações não salvas. */
 export const DiscardChoice = {
   Save: 'save',
   Discard: 'discard',
@@ -172,18 +168,16 @@ export const DiscardChoice = {
 
 export type DiscardChoice = (typeof DiscardChoice)[keyof typeof DiscardChoice]
 
-/** Resposta ao aviso de que `.txt` não guarda formatação. */
 export const PlainTextChoice = {
-  /** Salvar assim mesmo, aceitando a perda de formatação. */
+  /** Accepting the formatting loss. */
   KeepPlain: 'keep-plain',
-  /** Salvar como documento, preservando tudo. */
   SaveAsDocument: 'save-as-document',
   Cancel: 'cancel',
 } as const
 
 export type PlainTextChoice = (typeof PlainTextChoice)[keyof typeof PlainTextChoice]
 
-/** Quem resolve `system` é o main, que enxerga o `nativeTheme` do Chromium. */
+/** Main resolves `system`, since it sees Chromium's `nativeTheme`. */
 export const Theme = {
   System: 'system',
   Light: 'light',
@@ -192,51 +186,58 @@ export const Theme = {
 
 export type Theme = (typeof Theme)[keyof typeof Theme]
 
-/** O tema depois de `system` virar um dos dois de verdade. */
 export type ResolvedTheme = 'light' | 'dark'
 
 /**
- * Moram no main: a ortografia é configuração de `session`, o idioma monta o menu
- * nativo e o tema precisa do `nativeTheme`.
+ * They live in main: spelling is a `session` setting, the language builds the native menu and the
+ * theme needs `nativeTheme`.
  */
 export interface EditorPreferences {
   readonly spellcheck: boolean
-  /** Marcas de formatação: ¶, espaço, tabulação e quebra de linha. */
+  /** ¶, space, tab and line break. */
   readonly invisibleCharacters: boolean
-  /** Autocorreção tipográfica: aspas curvas, travessão, reticências. */
+  /** Curly quotes, dashes, ellipsis. */
   readonly typography: boolean
-  /** Não muda as fórmulas, que aceitam os dois idiomas, nem o dicionário do corretor. */
+  /** Changes neither formulas, which accept both languages, nor the spellchecker dictionary. */
   readonly language: Language
   readonly theme: Theme
-  /** Preferência, e não estado da sessão, porque o menu nativo mostra a marca e só sabe o que está aqui. */
+  /**
+   * A preference, not session state, because the native menu shows the check mark and only knows
+   * what is here.
+   */
   readonly readingMode: boolean
   readonly showToolbar: boolean
   readonly showStatusBar: boolean
-  /** Zoom da folha na tela, em porcento (50–200). Não muda a paginação. */
+  /** Percent (50–200). Does not change pagination. */
   readonly zoom: number
-  /** Ajustar à largura: o zoom acompanha a janela, e `zoom` fica como estava. */
+  /** The zoom follows the window, and `zoom` stays as it was. */
   readonly zoomFit: boolean
-  /** Preferência pelo mesmo motivo de `readingMode`; no Word o painel também fica aberto no documento seguinte. */
+  /**
+   * A preference for the same reason as `readingMode`; in Word the pane also stays open in the next
+   * document.
+   */
   readonly navigationPane: boolean
-  /** Escondido, os comentários continuam no documento e no arquivo. */
+  /** Hidden comments stay in the document and the file. */
   readonly commentsPane: boolean
   /**
-   * O nome que assina os comentários novos. Vazio no arquivo, o main põe o
-   * usuário do sistema — ver `load()` em `src/main/preferences.ts`.
+   * Signs new comments. Empty in the file, main uses the system user; see `load()` in
+   * `src/main/preferences.ts`.
    */
   readonly authorName: string
 }
 
 /**
- * `Partial` não basta com `exactOptionalPropertyTypes`: o que o zod infere de um
- * schema parcial admite a chave presente com `undefined`, e é esse valor que
- * atravessa o IPC.
+ * `Partial` is not enough with `exactOptionalPropertyTypes`: what zod infers from a partial schema
+ * allows the key with `undefined`, and that is the value that crosses IPC.
  */
 export type EditorPreferencesPatch = {
   readonly [K in keyof EditorPreferences]?: EditorPreferences[K] | undefined
 }
 
-/** `language` só vale em último caso: na primeira execução, `load()` em `src/main/preferences.ts` usa o idioma do sistema. */
+/**
+ * `language` is the last resort: on first run, `load()` in `src/main/preferences.ts` uses the
+ * system language.
+ */
 export const DEFAULT_EDITOR_PREFERENCES: EditorPreferences = {
   spellcheck: true,
   invisibleCharacters: false,
@@ -253,7 +254,7 @@ export const DEFAULT_EDITOR_PREFERENCES: EditorPreferences = {
   authorName: '',
 }
 
-/** Operações de área de transferência que só o `webContents` sabe fazer. */
+/** Only `webContents` can do these. */
 export const EditCommand = {
   Cut: 'cut',
   Copy: 'copy',
@@ -262,14 +263,17 @@ export const EditCommand = {
 
 export type EditCommand = (typeof EditCommand)[keyof typeof EditCommand]
 
-/** Vem do evento `context-menu` do `webContents`, o único que traz o que o corretor do Chromium achou e sugere. */
+/**
+ * From the `webContents` `context-menu` event, the only one that carries what Chromium's
+ * spellchecker found and suggests.
+ */
 export interface ContextMenuTarget {
-  /** Onde clicou, em pixels da janela. */
+  /** Window pixels. */
   readonly x: number
   readonly y: number
-  /** O clique caiu em algo editável — fora disso, colar não faz sentido. */
+  /** Outside an editable target, paste makes no sense. */
   readonly editable: boolean
-  /** Vazio quando o clique não caiu sobre palavra marcada como errada. */
+  /** Empty when the click did not land on a misspelled word. */
   readonly misspelledWord: string
   readonly dictionarySuggestions: string[]
   readonly canCut: boolean
@@ -277,7 +281,10 @@ export interface ContextMenuTarget {
   readonly canPaste: boolean
 }
 
-/** `session` imita o "ignorar", que o Chromium não tem: entra no dicionário e sai no fim da sessão. */
+/**
+ * `session` imitates "ignore", which Chromium lacks: added to the dictionary and removed at the end
+ * of the session.
+ */
 export const DictionaryScope = {
   Permanent: 'permanent',
   Session: 'session',

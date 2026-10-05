@@ -24,7 +24,7 @@ function toPdfName(suggestedName: string): string {
 
 export function registerPrintHandlers(): void {
   handle(IpcChannel.PrintExportPdf, async (payload, event) => {
-    // O destino antes de gerar: se a pessoa desistir, nada é renderizado nem escrito.
+    // The destination before rendering: if the user gives up, nothing is rendered or written.
     const chosen = await showPdfSaveDialog(windowOf(event), toPdfName(payload.suggestedName))
     if (chosen === null) return { canceled: true as const }
 

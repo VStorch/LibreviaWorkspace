@@ -27,7 +27,7 @@ function stateOf(window: BrowserWindow): WindowState {
   return created
 }
 
-/** URL do servidor do Vite em desenvolvimento; ausente na build de produção. */
+/** Absent in the production build. */
 export function devServerUrl(): string | null {
   return process.env['ELECTRON_RENDERER_URL'] ?? null
 }
@@ -40,7 +40,7 @@ export function updateWindowState(window: BrowserWindow, title: string, isDirty:
   window.setDocumentEdited(isDirty)
 }
 
-/** O renderer já resolveu o que fazer. */
+/** The renderer has already decided what to do. */
 export function closeWithoutGuard(window: BrowserWindow): void {
   stateOf(window).bypassGuard = true
   window.close()
@@ -50,7 +50,10 @@ export function sendMenuCommand(window: BrowserWindow, payload: MenuCommandPaylo
   sendPush(window.webContents, IpcChannel.MenuCommand, payload)
 }
 
-/** Validar a saída pega o campo novo esquecido no schema, que o renderer descartaria em silêncio. */
+/**
+ * Validating the output catches a new field forgotten in the schema, which the renderer would drop
+ * silently.
+ */
 export function sendPush<C extends PushIpcChannel>(
   contents: WebContents,
   channel: C,
@@ -63,7 +66,7 @@ export function broadcastPush<C extends PushIpcChannel>(channel: C, payload: Pus
   for (const window of BrowserWindow.getAllWindows()) sendPush(window.webContents, channel, payload)
 }
 
-/** No main, para o aviso aparecer mesmo que o renderer trave. */
+/** In main, so the prompt appears even if the renderer hangs. */
 function installCloseGuard(window: BrowserWindow): void {
   window.on('close', (event) => {
     const state = stateOf(window)
@@ -79,7 +82,7 @@ function installCloseGuard(window: BrowserWindow): void {
         return
       }
 
-      // Só o renderer sabe o conteúdo: ele grava e fecha por `closeWithoutGuard`.
+      // Only the renderer knows the content: it saves and closes through `closeWithoutGuard`.
       sendMenuCommand(window, { command: MenuCommand.SaveAndExit })
     })
   })
@@ -92,12 +95,12 @@ export function createMainWindow(): BrowserWindow {
     minWidth: WINDOW_DEFAULTS.minWidth,
     minHeight: WINDOW_DEFAULTS.minHeight,
     title: APP_NAME,
-    // Sem o flash branco: só aparece quando o renderer terminou de pintar.
+    // No white flash: shown only after the renderer finished painting.
     show: false,
     backgroundColor: '#f6f7f9',
     webPreferences: {
       ...SECURE_WEB_PREFERENCES,
-      // .cjs: preloads sandboxed não suportam ESM.
+      // .cjs: sandboxed preloads do not support ESM.
       preload: join(import.meta.dirname, '../preload/index.cjs'),
     },
   })

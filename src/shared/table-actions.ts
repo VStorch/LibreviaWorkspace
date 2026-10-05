@@ -1,8 +1,7 @@
 import type { MessageKey } from './i18n/index.js'
 
-/** O rótulo é chave do catálogo: cada consumidor traduz com o `t` que tem. */
+/** The label is a catalog key: each consumer translates with its own `t`. */
 export const TableAction = {
-  /** Abre o diálogo que pergunta quantas linhas e colunas. */
   Insert: 'table-insert',
   RowBefore: 'table-row-before',
   RowAfter: 'table-row-after',
@@ -12,10 +11,9 @@ export const TableAction = {
   DeleteColumn: 'table-delete-column',
   MergeCells: 'table-merge-cells',
   SplitCell: 'table-split-cell',
-  /** `w:tblHeader`: a primeira linha se repete no alto de cada página. */
+  /** `w:tblHeader`: the first row repeats at the top of each page. */
   ToggleHeaderRow: 'table-header-row',
   Delete: 'table-delete',
-  /** Abre o diálogo de largura de coluna, bordas e sombreamento. */
   Properties: 'table-properties',
 } as const
 
@@ -24,9 +22,9 @@ export type TableAction = (typeof TableAction)[keyof typeof TableAction]
 export interface TableActionInfo {
   readonly id: TableAction
   readonly labelKey: MessageKey
-  /** Fora de uma tabela, a ação fica apagada no menu e some do menu de contexto. */
+  /** Outside a table the action is greyed out in the menu and hidden from the context menu. */
   readonly needsTable: boolean
-  /** O menu põe um separador quando o grupo muda. */
+  /** The menu adds a separator when the group changes. */
   readonly group: number
 }
 

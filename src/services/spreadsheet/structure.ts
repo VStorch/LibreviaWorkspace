@@ -1,4 +1,7 @@
-/** Da **pasta**, e não da planilha: uma linha inserida em "Dados" muda `=Dados!A5` escrita em "Resumo". */
+/**
+ * On the **workbook**, not the sheet: a row inserted in "Dados" changes `=Dados!A5` written in
+ * "Resumo".
+ */
 
 import { adjustForColumns, adjustForRows, renameSheetInFormula } from './formula/adjust.js'
 import {
@@ -9,7 +12,7 @@ import {
 } from './edit.js'
 import type { Cell, Sheet, WorkbookModel } from './model.js'
 
-/** Uma mudança de estrutura, como a interface a descreve. */
+/** As the UI describes it. */
 export type StructuralChange =
   | { readonly kind: 'insertRows'; readonly at: number; readonly count: number }
   | { readonly kind: 'deleteRows'; readonly at: number; readonly count: number }
@@ -53,7 +56,7 @@ function shift(sheet: Sheet, change: StructuralChange): Sheet {
   }
 }
 
-/** Sem a reescrita, renomear transformaria em `#REF!` toda fórmula que cita a aba. */
+/** Without the rewrite, renaming would turn every formula citing the tab into `#REF!`. */
 export function renameSheet(workbook: WorkbookModel, sheetIndex: number, name: string): WorkbookModel {
   const target = workbook.sheets[sheetIndex]
   if (target === undefined || target.name === name) return workbook
@@ -66,7 +69,7 @@ export function renameSheet(workbook: WorkbookModel, sheetIndex: number, name: s
   return { ...workbook, sheets }
 }
 
-/** Pula os nomes usados: quem apagou a Planilha2 e criou outra teria duas. */
+/** Skips used names: someone who deleted Planilha2 and created another would have two. */
 export function nextSheetName(workbook: WorkbookModel): string {
   const used = new Set(workbook.sheets.map((sheet) => sheet.name))
 
@@ -75,12 +78,12 @@ export function nextSheetName(workbook: WorkbookModel): string {
   return `Planilha${index}`
 }
 
-/** A aba já existe com este nome, sem contar a que está sendo renomeada? */
+/** Is there already a tab with this name, not counting the one being renamed? */
 export function isNameTaken(workbook: WorkbookModel, name: string, exceptIndex: number): boolean {
   return workbook.sheets.some((sheet, index) => index !== exceptIndex && sheet.name === name)
 }
 
-/** Planilha sem fórmula nenhuma volta como o mesmo objeto. */
+/** A sheet without any formula comes back as the same object. */
 function rewriteFormulas(sheet: Sheet, rewrite: (formula: string) => string): Sheet {
   let cells: Record<string, Cell> | null = null
 

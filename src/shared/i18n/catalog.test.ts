@@ -4,16 +4,15 @@ import { LANGUAGES } from './language.js'
 import { format, type Entry, type Message } from './message.js'
 
 /**
- * O contrato do catálogo, além do que o compilador cobre: o `{count}` que ficou numa
- * língua só, o plural traduzido como singular, a chave repetida entre áreas que o
- * espalhamento engole.
+ * The catalog contract beyond what the compiler checks: a `{count}` left in one language only, a
+ * plural translated as a singular, a key repeated across areas that the spread swallows.
  */
 
 function placeholders(text: string): string[] {
   return [...text.matchAll(/\{(\w+)\}/g)].map((match) => match[1]!).sort()
 }
 
-/** Os dois textos de uma mensagem: um se for frase, dois se for plural. */
+/** One text for a sentence, two for a plural. */
 function variants(message: Message): string[] {
   return typeof message === 'string' ? [message] : [message.one, message.other]
 }
@@ -22,7 +21,7 @@ describe('catálogo de traduções', () => {
   const entries = Object.entries(MESSAGES) as [string, Entry][]
 
   it('tem alguma coisa dentro', () => {
-    // Um catálogo vazio faria todo o resto deste arquivo passar sem testar nada.
+    // An empty catalog would make the rest of this file pass without testing anything.
     expect(entries.length).toBeGreaterThan(0)
   })
 
@@ -39,8 +38,8 @@ describe('catálogo de traduções', () => {
   })
 
   it('usa os mesmos buracos nos dois idiomas', () => {
-    // O caso real: a frase em português ganha um `{count}` e a inglesa não. A
-    // tela em inglês passa a mostrar "pages" sem número nenhum, e nada falha.
+    // The real case: the Portuguese sentence gains a `{count}` and the English one does not. The
+    // English UI then shows "pages" with no number, and nothing fails.
     const mismatched = entries
       .filter(([, entry]) => {
         const pt = variants(entry.pt).flatMap(placeholders)
@@ -53,8 +52,8 @@ describe('catálogo de traduções', () => {
   })
 
   it('é plural nos dois idiomas ou em nenhum', () => {
-    // Traduzir um par singular/plural como uma frase só dá "3 page" em inglês,
-    // e o compilador aceita as duas formas igualmente.
+    // Translating a singular/plural pair as a single sentence gives "3 page" in English, and the
+    // compiler accepts both shapes.
     const mismatched = entries
       .filter(([, entry]) => (typeof entry.pt === 'string') !== (typeof entry.en === 'string'))
       .map(([key]) => key)
@@ -63,8 +62,8 @@ describe('catálogo de traduções', () => {
   })
 
   it('não repete chave entre áreas', () => {
-    // O espalhamento que monta `MESSAGES` fica com a última e não avisa: a área
-    // que perdeu continua compilando, e a frase dela some da tela.
+    // The spread that builds `MESSAGES` keeps the last one silently: the losing area still
+    // compiles, and its sentence disappears from the screen.
     const seen = new Map<string, string>()
     const clashes: string[] = []
 
@@ -80,8 +79,8 @@ describe('catálogo de traduções', () => {
   })
 
   it('prefixa cada chave com a área em que mora', () => {
-    // Sem isto o catálogo vira um saco de nomes soltos, e a próxima pessoa não
-    // sabe em qual dos arquivos procurar a frase que quer mudar.
+    // Otherwise the catalog becomes a bag of loose names, and nobody knows which file holds the
+    // sentence.
     const misplaced = Object.entries(AREAS).flatMap(([area, catalog]) =>
       Object.keys(catalog).filter((key) => !key.startsWith(`${area}.`)),
     )
@@ -106,18 +105,17 @@ describe('format', () => {
 
     expect(format(paginas, 'pt', { count: 1 })).toBe('1 página')
     expect(format(paginas, 'pt', { count: 2 })).toBe('2 páginas')
-    // Zero é plural nos dois idiomas — "0 páginas", "0 pages".
     expect(format(paginas, 'en', { count: 0 })).toBe('0 pages')
   })
 
   it('deixa à vista o buraco sem valor', () => {
-    // Apagá-lo esconderia o erro; deixá-lo faz alguém consertar.
+    // Dropping it would hide the mistake; keeping it gets someone to fix it.
     expect(format(entry, 'pt', {})).toBe('Olá, {nome}')
   })
 
   it('não interpola o que veio dentro de um valor', () => {
-    // Um nome de arquivo chamado "{nome}.docx" não pode disparar uma segunda
-    // volta de substituição — e nome de arquivo é o que mais entra nestas frases.
+    // A file named "{nome}.docx" must not trigger a second substitution pass, and file names are
+    // what these sentences carry most.
     const arquivo: Entry = { pt: 'Salvo em {a}', en: 'Saved to {a}' }
     expect(format(arquivo, 'pt', { a: '{b}', b: 'nunca' })).toBe('Salvo em {b}')
   })

@@ -9,8 +9,8 @@ function sheetWith(cells: Array<[number, number, Parameters<typeof setCell>[3]]>
 
 describe('fillRange', () => {
   it('desloca a fórmula, em vez de repetir o resultado', () => {
-    // É a diferença entre uma planilha e uma tabela: quem arrasta `=B1*C1`
-    // espera `=B2*C2`, não o número da primeira linha três vezes.
+    // The difference between a spreadsheet and a table: whoever drags `=B1*C1` expects `=B2*C2`,
+    // not the first row's number three times.
     const sheet = sheetWith([[0, 3, { formula: '=B1*C1', value: 6 }]])
 
     const filled = fillRange(sheet, singleCell(0, 3), { fromRow: 0, toRow: 2, fromColumn: 3, toColumn: 3 })
@@ -20,8 +20,8 @@ describe('fillRange', () => {
   })
 
   it('não leva o valor calculado da origem', () => {
-    // O valor é da posição de origem. Quem preenche o da célula nova é o
-    // recálculo, que sabe a ordem certa de calcular.
+    // The value belongs to the source position. Recalculation fills the new cell's, since it knows
+    // the right order.
     const sheet = sheetWith([[0, 0, { formula: '=1+1', value: 2 }]])
 
     const filled = fillRange(sheet, singleCell(0, 0), { fromRow: 0, toRow: 1, fromColumn: 0, toColumn: 0 })
@@ -47,8 +47,8 @@ describe('fillRange', () => {
   })
 
   it('leva a formatação junto', () => {
-    // No Excel a alça carrega o formato. Deixá-lo para trás faria uma coluna de
-    // moeda preenchida virar meia coluna de números crus.
+    // In Excel the handle carries the format. Leaving it behind would turn a filled currency column
+    // into half a column of raw numbers.
     const sheet = sheetWith([[0, 0, { value: 10, style: { format: CellFormat.Currency, bold: true } }]])
 
     const filled = fillRange(sheet, singleCell(0, 0), { fromRow: 0, toRow: 1, fromColumn: 0, toColumn: 0 })
@@ -66,8 +66,7 @@ describe('fillRange', () => {
   })
 
   it('repete o padrão ciclicamente', () => {
-    // Duas linhas de origem arrastadas por seis preenchem o padrão três vezes,
-    // como no Excel.
+    // Two source rows dragged over six fill the pattern three times, as in Excel.
     const sheet = sheetWith([
       [0, 0, { value: 'par' }],
       [1, 0, { value: 'ímpar' }],
@@ -85,8 +84,8 @@ describe('fillRange', () => {
   })
 
   it('preencher para cima também funciona', () => {
-    // O módulo de um número negativo é negativo em JavaScript, e sem correção
-    // de sinal isso apontaria para fora da origem.
+    // The modulo of a negative number is negative in JavaScript, and without a sign fix it would
+    // point outside the source.
     const sheet = sheetWith([[3, 0, { formula: '=B4' }]])
 
     const filled = fillRange(sheet, singleCell(3, 0), { fromRow: 1, toRow: 3, fromColumn: 0, toColumn: 0 })
@@ -96,7 +95,7 @@ describe('fillRange', () => {
   })
 
   it('origem vazia limpa o destino', () => {
-    // Arrastar uma célula vazia por cima de dados apaga, como no Excel.
+    // Dragging an empty cell over data erases it, as in Excel.
     const sheet = sheetWith([
       [0, 0, {}],
       [1, 0, { value: 'apagar' }],

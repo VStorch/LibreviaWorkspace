@@ -18,7 +18,7 @@ import {
 
 const range = { fromRow: 0, fromColumn: 0, toRow: 1, toColumn: 1 }
 
-/** Planilha com A1:B2 preenchidas e um valor solto em D4. */
+/** A1:B2 filled and a loose value in D4. */
 function filled(): Sheet {
   let sheet = createSheet('S')
   sheet = setCell(sheet, 0, 0, { value: 'a' })
@@ -36,7 +36,7 @@ describe('intervalo', () => {
   })
 
   it('normaliza intervalo selecionado de trás para frente', () => {
-    // Arrastar de baixo para cima é tão comum quanto o contrário.
+    // Dragging bottom-up is as common as the opposite.
     expect(describeRange({ fromRow: 5, fromColumn: 3, toRow: 1, toColumn: 1 })).toBe('B2:D6')
   })
 
@@ -47,7 +47,7 @@ describe('intervalo', () => {
 
 describe('formatação', () => {
   it('mescla com o estilo existente em vez de substituir', () => {
-    // Pôr em negrito não pode apagar o fundo que a célula já tinha.
+    // Making it bold must not erase the cell's existing background.
     const painted = applyStyle(filled(), singleCell(0, 0), { background: '#ffff00' })
     const bolded = applyStyle(painted, singleCell(0, 0), { bold: true })
 
@@ -60,7 +60,7 @@ describe('formatação', () => {
     for (const { row, column } of cellsIn(range)) {
       expect(getCell(styled, row, column)?.style?.align).toBe('center')
     }
-    // Fora do intervalo, nada muda.
+    // Outside the range, nothing changes.
     expect(getCell(styled, 3, 3)?.style).toBeUndefined()
   })
 
@@ -79,7 +79,7 @@ describe('formatação', () => {
 
 describe('alternar atributo', () => {
   it('liga quando a seleção está mista', () => {
-    // Metade em negrito: o esperado é ligar tudo, não inverter cada célula.
+    // Half bold: the expectation is to turn everything on, not to flip each cell.
     const half = applyStyle(filled(), singleCell(0, 0), { bold: true })
     const toggled = toggleStyle(half, range, 'bold')
 
@@ -98,8 +98,8 @@ describe('alternar atributo', () => {
   })
 
   it('não deixa estilo vazio para trás', () => {
-    // Ligar e desligar precisa devolver a célula ao que era, senão o arquivo
-    // engorda com estilos vazios a cada clique.
+    // Toggling on and off must give the cell back as it was, or the file grows with empty styles on
+    // every click.
     const sheet = createSheet('S')
     const on = toggleStyle(sheet, singleCell(0, 0), 'bold')
     const off = toggleStyle(on, singleCell(0, 0), 'bold')
@@ -120,7 +120,7 @@ describe('bordas', () => {
 
 describe('apagar conteúdo', () => {
   it('apaga o valor e preserva a formatação', () => {
-    // É o que a tecla Delete faz numa planilha: limpa o dado, mantém o desenho.
+    // That is what Delete does in a spreadsheet: clears the data, keeps the formatting.
     const styled = applyStyle(filled(), singleCell(0, 0), { background: '#eee' })
     const cleared = clearContents(styled, singleCell(0, 0))
 
@@ -159,7 +159,7 @@ describe('linhas e colunas', () => {
   })
 
   it('desloca as larguras junto com as colunas', () => {
-    // Sem isso, inserir uma coluna deixaria a largura na coluna errada.
+    // Otherwise inserting a column would leave the width on the wrong column.
     const sheet = { ...filled(), columnWidths: { 0: 200, 3: 60 } }
     const shifted = insertColumns(sheet, 0)
 
@@ -175,8 +175,8 @@ describe('linhas e colunas', () => {
   })
 
   it('cresce e encolhe a planilha junto', () => {
-    // Sem isso, inserir empurraria a última linha para fora da área visível: o
-    // dado sumiria da tela e continuaria no arquivo.
+    // Otherwise inserting would push the last row out of the visible area: the data would vanish
+    // from the screen and stay in the file.
     const sheet = filled()
 
     expect(insertRows(sheet, 0, 3).rowCount).toBe(sheet.rowCount + 3)
@@ -190,7 +190,7 @@ describe('linhas e colunas', () => {
 
     expect(deleteRows(sheet, 8, 500).rowCount).toBe(8)
     expect(deleteColumns(sheet, 3, 500).columnCount).toBe(3)
-    // Fora do fim não há o que excluir: a planilha volta intacta.
+    // Past the end there is nothing to delete: the sheet comes back intact.
     expect(deleteRows(sheet, 10, 1)).toBe(sheet)
   })
 
@@ -200,7 +200,7 @@ describe('linhas e colunas', () => {
     expect(insertRows(sheet, 0).frozenRows).toBe(3)
     expect(deleteRows(sheet, 0).frozenRows).toBe(1)
     expect(insertColumns(sheet, 0).frozenColumns).toBe(3)
-    // Abaixo da faixa congelada, o congelamento não se move.
+    // Below the frozen band, the freeze does not move.
     expect(insertRows(sheet, 2).frozenRows).toBe(2)
   })
 })

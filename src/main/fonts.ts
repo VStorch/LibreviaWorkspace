@@ -4,19 +4,19 @@ import { fileURLToPath } from 'node:url'
 import { app, protocol } from 'electron'
 
 /**
- * Um esquema próprio, e não `file:` nem `data:`: a janela que gera o PDF carrega
- * um HTML de pasta temporária com `webSecurity`, e `file:` seria requisição
- * entre origens; `data:` somaria 9,4 MB de base64 ao renderer e a cada impressão.
+ * A scheme of our own, not `file:` or `data:`: the window that renders the PDF loads HTML from a
+ * temp folder with `webSecurity`, so `file:` would be cross-origin; `data:` would add 9.4 MB of
+ * base64 to the renderer and to every print.
  */
 export const FONT_SCHEME = 'librevia-font'
 
-/** Precisa ser declarado **antes** de `app.whenReady()`. */
+/** Must be declared **before** `app.whenReady()`. */
 export function registerFontScheme(): void {
   protocol.registerSchemesAsPrivileged([
     {
       scheme: FONT_SCHEME,
       privileges: {
-        // Sem origem de verdade o Chromium recusaria a fonte por CORS.
+        // Without a real origin Chromium would refuse the font through CORS.
         standard: true,
         secure: true,
         supportFetchAPI: true,
@@ -26,7 +26,7 @@ export function registerFontScheme(): void {
   ])
 }
 
-/** Depois de `app.whenReady()`. */
+/** After `app.whenReady()`. */
 export function serveFonts(): void {
   protocol.handle(FONT_SCHEME, async (request) => {
     const file = fontFileFor(request.url)
@@ -45,7 +45,7 @@ export function serveFonts(): void {
   })
 }
 
-/** Conferido contra o caminho resolvido, e não contra o texto: o pedido vem de um documento qualquer. */
+/** Checked against the resolved path, not the text: the request comes from any document. */
 export function fontFileFor(url: string, root: string = fontsRoot()): string | null {
   let name: string
   try {
@@ -63,7 +63,9 @@ export function fontFileFor(url: string, root: string = fontsRoot()): string | n
   return candidate
 }
 
-/** Como no sidecar: empacotado é `process.resourcesPath`; fora, deriva do próprio bundle. */
+/**
+ * As in the sidecar: packaged it is `process.resourcesPath`; otherwise it derives from the bundle.
+ */
 function fontsRoot(): string {
   const root = app.isPackaged
     ? process.resourcesPath

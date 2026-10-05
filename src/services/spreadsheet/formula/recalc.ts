@@ -1,6 +1,6 @@
 /**
- * O grafo de dependências é percorrido em ordem topológica, para `=B1+1` nunca
- * ler o valor velho de B1. O ciclo é detectado no mesmo percurso.
+ * The dependency graph is walked in topological order, so `=B1+1` never reads B1's old value.
+ * Cycles are detected in the same walk.
  */
 
 import type { Cell, Sheet, WorkbookModel } from '../model.js'
@@ -15,7 +15,7 @@ interface FormulaCell {
   readonly sheet: number
   readonly row: number
   readonly column: number
-  /** A referência A1 como está no mapa, para gravar o resultado de volta. */
+  /** As stored in the map, to write the result back. */
   readonly ref: string
   readonly node: Node | null
 }
@@ -23,13 +23,13 @@ interface FormulaCell {
 const key = (sheet: number, row: number, column: number): string => `${sheet}|${row}|${column}`
 
 /**
- * Chave numérica, e não `"A1"`: `SOMA(A1:A10000)` faz dez mil leituras. O
- * limite de colunas é o do Excel, então a chave não colide.
+ * A numeric key, not `"A1"`: `SOMA(A1:A10000)` does ten thousand reads. The column limit is
+ * Excel's, so keys do not collide.
  */
 const COLUMN_SPAN = 16_384
 const at = (row: number, column: number): number => row * COLUMN_SPAN + column
 
-/** Planilha sem fórmula volta como o mesmo objeto: o React compara por identidade. */
+/** A sheet without formulas comes back as the same object: React compares by identity. */
 export function recalculate(workbook: WorkbookModel, now: () => Date = () => new Date()): WorkbookModel {
   const cells = collect(workbook)
   if (cells.length === 0) return workbook
@@ -39,17 +39,17 @@ export function recalculate(workbook: WorkbookModel, now: () => Date = () => new
   const results: { cell: FormulaCell; value: Scalar }[] = []
 
   for (const cell of order(cells, byName)) {
-    // Fórmula que não fecha só chega aqui num arquivo editado à mão: a
-    // interface recusa antes de gravar.
+    // A formula that does not parse only arrives from a hand-edited file: the UI refuses it before
+    // saving.
     const value =
       cell.node === null
         ? FormulaError.Value
-        : // O contexto é montado por célula porque uma referência sem nome de
-          // planilha aponta para a planilha da **fórmula**, que muda a cada uma.
+        : // The context is built per cell because a reference without a sheet name points to the
+          // **formula's** sheet, which changes with each one.
           evaluate(cell.node, contextFor(cell.sheet, index, byName, now))
 
-    // Escrever no índice é o que faz a ordem topológica valer: quem vier depois
-    // e depender desta célula já lê o valor novo.
+    // Writing into the index is what makes the topological order hold: whatever comes later and
+    // depends on this cell already reads the new value.
     index[cell.sheet]?.set(at(cell.row, cell.column), value)
     results.push({ cell, value })
   }
@@ -71,8 +71,7 @@ function indexOf(sheet: Sheet): Map<number, Scalar> {
 
 function sheetsByName(workbook: WorkbookModel): ReadonlyMap<string, number> {
   const byName = new Map<string, number>()
-  // O Excel não diferencia maiúsculas em nome de planilha, e o usuário digita
-  // `plan1!A1` esperando que funcione.
+  // Excel ignores case in sheet names, and the user types `plan1!A1` expecting it to work.
   for (const [index, sheet] of workbook.sheets.entries()) byName.set(sheet.name.toUpperCase(), index)
   return byName
 }
@@ -94,7 +93,7 @@ function collect(workbook: WorkbookModel): FormulaCell[] {
   return cells
 }
 
-/** Lê do índice, já atualizado pelas fórmulas calculadas antes desta. */
+/** Reads from the index, already updated by the formulas computed before this one. */
 function contextFor(
   own: number,
   index: readonly Map<number, Scalar>[],
@@ -105,7 +104,7 @@ function contextFor(
     now,
     valueAt: (ref: CellRef): Scalar => {
       const sheet = sheetIndexOf(ref, byName, own)
-      // Nome de planilha que não existe: a aba foi excluída ou renomeada.
+      // A sheet name that does not exist: the tab was deleted or renamed.
       if (sheet === null) return FormulaError.Ref
 
       return index[sheet]?.get(at(ref.row, ref.column)) ?? null
@@ -113,13 +112,13 @@ function contextFor(
   }
 }
 
-/** Sem nome, é a planilha da própria fórmula, que muda a cada célula. */
+/** Without a name, it is the formula's own sheet, which changes with each cell. */
 function sheetIndexOf(ref: CellRef, byName: ReadonlyMap<string, number>, fallback: number): number | null {
   if (ref.sheet === undefined) return fallback
   return byName.get(ref.sheet.toUpperCase()) ?? null
 }
 
-/** Pilha explícita, e não recursão: dez mil fórmulas encadeadas estourariam a pilha. */
+/** An explicit stack, not recursion: ten thousand chained formulas would overflow the stack. */
 function order(cells: readonly FormulaCell[], byName: ReadonlyMap<string, number>): FormulaCell[] {
   const byKey = new Map<string, FormulaCell>()
   for (const cell of cells) byKey.set(key(cell.sheet, cell.row, cell.column), cell)
@@ -136,7 +135,7 @@ function order(cells: readonly FormulaCell[], byName: ReadonlyMap<string, number
   for (const start of byKey.keys()) {
     if (state.has(start)) continue
 
-    // Cada quadro guarda em que dependência parou, para retomar de onde saiu.
+    // Each frame records which dependency it stopped at, to resume from there.
     const stack: { at: string; next: number }[] = [{ at: start, next: 0 }]
     state.set(start, 'visiting')
 
@@ -157,7 +156,7 @@ function order(cells: readonly FormulaCell[], byName: ReadonlyMap<string, number
 
       if (seen === 'done') continue
       if (seen === 'visiting') {
-        // Fechou o ciclo: tudo que está na pilha a partir dele participa.
+        // The cycle closed: everything on the stack from it on takes part.
         const from = stack.findIndex((entry) => entry.at === dependency)
         for (const entry of stack.slice(from)) circular.add(entry.at)
         continue
@@ -168,8 +167,8 @@ function order(cells: readonly FormulaCell[], byName: ReadonlyMap<string, number
     }
   }
 
-  // As circulares entram primeiro, já com o erro: quem depende delas o herda
-  // pela propagação normal, em vez de ler um valor velho.
+  // Circular cells go first, already with the error: their dependents inherit it through normal
+  // propagation instead of reading an old value.
   const broken: FormulaCell[] = []
   for (const at of circular) {
     const cell = byKey.get(at)
@@ -180,8 +179,8 @@ function order(cells: readonly FormulaCell[], byName: ReadonlyMap<string, number
 }
 
 /**
- * Só as fórmulas impõem ordem. Os intervalos são cruzados contra a lista de
- * fórmulas, senão `SOMA(A1:A10000)` custaria dez mil passos.
+ * Only formulas impose order. Ranges are crossed against the formula list, otherwise
+ * `SOMA(A1:A10000)` would cost ten thousand steps.
  */
 function dependenciesOf(
   cell: FormulaCell,
@@ -215,7 +214,7 @@ function dependenciesOf(
     }
   }
 
-  // Uma fórmula que se referencia diretamente já é um ciclo.
+  // A formula referring to itself directly is already a cycle.
   found.delete(key(cell.sheet, cell.row, cell.column))
   if (referencesItself(cell, byName)) found.add(key(cell.sheet, cell.row, cell.column))
 
@@ -243,7 +242,7 @@ function referencesItself(cell: FormulaCell, byName: ReadonlyMap<string, number>
   return false
 }
 
-/** Planilha sem valor mudado volta como o mesmo objeto, e a pasta também. */
+/** A sheet with no changed value comes back as the same object, and so does the workbook. */
 function apply(
   workbook: WorkbookModel,
   results: readonly { cell: FormulaCell; value: Scalar }[],
@@ -255,8 +254,8 @@ function apply(
     const previous = sheet?.cells[cell.ref]
     if (sheet === undefined || previous === undefined) continue
 
-    // Como no Excel, `=A1` sobre célula em branco vale zero. Vazio tiraria a
-    // fórmula do mapa esparso na gravação seguinte.
+    // As in Excel, `=A1` over a blank cell is zero. Empty would drop the formula from the sparse
+    // map on the next save.
     const calculated = value === null ? 0 : value
     if (calculated === previous.value) continue
 

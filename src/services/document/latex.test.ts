@@ -4,7 +4,7 @@ import { mathMlToLatex } from './mathml-latex.js'
 import { MATH_PALETTE } from './math-palette.js'
 import { mathMlToString, sanitizeMathMl, type MathChild, type MathElement } from './mathml.js'
 
-/** O MathML do Temml para o LaTeX, ou falha o teste com o erro dele. */
+/** Or fails the test with Temml's error. */
 function render(latex: string, display = false): MathElement {
   const result = latexToMathMl(latex, display)
   if (!result.ok) throw new Error(`${latex}: ${result.error}`)
@@ -12,10 +12,10 @@ function render(latex: string, display = false): MathElement {
 }
 
 /**
- * A estrutura de um MathML, para comparar duas escritas da mesma equação: sem
- * atributos (menos a espessura da fração e a classe da caixa), sem `mspace`, sem
- * o U+2061 e com os `mrow` simples abertos no nível de cima — o Temml e o sidecar
- * agrupam de jeitos diferentes o que desenha igual.
+ * The structure of a MathML tree, to compare two spellings of the same equation: without attributes
+ * (except fraction thickness and the box class), without `mspace`, without U+2061 and with simple
+ * `mrow`s unwrapped at the top level, since Temml and the sidecar group differently what draws the
+ * same.
  */
 function shape(node: MathElement): string {
   return items(node.children)
@@ -37,7 +37,7 @@ function items(children: readonly MathChild[]): MathChild[] {
   const result: MathChild[] = []
   for (const child of children) {
     if (typeof child === 'string') {
-      // O circunflexo do sidecar (`^`) e o do Temml (`ˆ`) são o mesmo `m:acc`.
+      // The sidecar circumflex (`^`) and Temml's (`ˆ`) are the same `m:acc`.
       if (child.trim() !== '' && child !== '⁡') result.push(child.trim().replace('^', 'ˆ'))
       continue
     }
@@ -60,7 +60,7 @@ function fenced(node: MathElement): boolean {
   return first?.tag === 'mo' && first.attrs['fence'] === 'true'
 }
 
-/** O LaTeX → MathML → LaTeX → MathML: a segunda leitura tem a mesma estrutura que a primeira. */
+/** LaTeX → MathML → LaTeX → MathML: the second read has the same structure as the first. */
 function expectRoundTrip(tree: MathElement, display = false): string {
   const latex = mathMlToLatex(tree)
   const again = render(latex, display)
@@ -143,8 +143,8 @@ describe('MathML → LaTeX', () => {
   })
 
   /**
-   * O MathML que o sidecar escreve (`OmmlMath.Convert`) para cada construção do
-   * OMML: o LaTeX que sai dele, lido pelo Temml, dá a mesma estrutura.
+   * The MathML the sidecar writes (`OmmlMath.Convert`) for each OMML construct: the LaTeX derived
+   * from it, read by Temml, gives the same structure.
    */
   it.each([
     ['m:f', '<mfrac><mrow><mi>a</mi></mrow><mrow><mi>b</mi></mrow></mfrac>'],

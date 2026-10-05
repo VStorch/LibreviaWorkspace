@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { linesOf, type BandPiece } from './band.js'
 
 /**
- * Cada parágrafo da faixa é uma linha, como as três do rodapé do modelo de manual,
- * empilhadas e centradas no LibreOffice.
+ * Each band paragraph is a line, like the three lines of the manual template footer, stacked and
+ * centered in LibreOffice.
  */
 describe('linesOf', () => {
   const piece = (text: string, line = false): BandPiece => ({

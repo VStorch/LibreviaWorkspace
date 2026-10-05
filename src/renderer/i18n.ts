@@ -3,15 +3,15 @@ import { APP_NAME } from '@shared/constants.js'
 import { translate, type Language, type MessageKey, type Vars } from '@shared/i18n/index.js'
 import { currentPreferences, usePreferences } from './state/preferences.js'
 
-/** Redesenha quem o usa quando ele muda. */
+/** Redraws its users when it changes. */
 export function useLanguage(): Language {
   return usePreferences((state) => state.preferences.language)
 }
 
 /**
- * Um hook: trocar de idioma tem de redesenhar a tela, e o React só sabe disso se
- * o componente leu o idioma da loja. `useCallback` preso ao idioma, para `t` não
- * mudar a cada quadro.
+ * A hook: switching language must redraw the screen, and React only knows that if the component
+ * read the language from the store. `useCallback` bound to the language, so `t` does not change
+ * every frame.
  */
 export function useT(): (key: MessageKey, vars?: Vars) => string {
   const language = useLanguage()
@@ -21,7 +21,7 @@ export function useT(): (key: MessageKey, vars?: Vars) => string {
   )
 }
 
-/** Para extensões e despachantes, que são recriados quando a preferência muda. */
+/** For extensions and dispatchers, which are recreated when the preference changes. */
 export function t(key: MessageKey, vars?: Vars): string {
   return translate(currentPreferences().language, key, { app: APP_NAME, ...vars })
 }

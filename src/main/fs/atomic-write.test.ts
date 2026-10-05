@@ -6,9 +6,8 @@ import { AppError } from '@shared/errors.js'
 import { writeFileAtomic } from './atomic-write.js'
 
 /**
- * Três testes só valem em POSIX: no Windows o `chmod` do Node só liga o somente
- * leitura, `stat` devolve 0o666 e diretório continua gravável. A proteção que eles
- * cobrem é coberta no Linux.
+ * Three tests only hold on POSIX: on Windows Node's `chmod` only sets read-only, `stat` returns
+ * 0o666 and a directory stays writable. The protection they cover is covered on Linux.
  */
 const emPosix = process.platform !== 'win32'
 
@@ -34,8 +33,8 @@ describe('writeFileAtomic', () => {
   it('não deixa arquivo temporário para trás', async () => {
     await writeFileAtomic(join(directory, 'a.txt'), 'x')
 
-    // Um .tmp esquecido na pasta do usuário é lixo visível — e, numa pasta de
-    // rede compartilhada, lixo que todo mundo vê.
+    // A forgotten .tmp in the user's folder is visible litter, and on a shared network folder
+    // everyone sees it.
     const leftovers = (await readdir(directory)).filter((name) => name.endsWith('.tmp'))
     expect(leftovers).toEqual([])
   })
@@ -46,8 +45,8 @@ describe('writeFileAtomic', () => {
     await writeFileAtomic(target, 'versão 2')
 
     expect(await readFile(target, 'utf8')).toBe('versão 2')
-    // O .bak precisa ter a versão *anterior*: é essa a proteção contra uma
-    // gravação equivocada por cima de um documento bom.
+    // The .bak must hold the *previous* version: that is the protection against a mistaken save
+    // over a good document.
     expect(await readFile(`${target}.bak`, 'utf8')).toBe('versão 1')
   })
 
@@ -65,15 +64,14 @@ describe('writeFileAtomic', () => {
 
     await writeFileAtomic(target, 'atualizado')
 
-    // Salvar não pode estreitar o acesso de um arquivo compartilhado por uma
-    // equipe: quem podia ler antes precisa continuar podendo.
+    // Saving must not narrow access to a file shared by a team.
     expect((await stat(target)).mode & 0o777).toBe(0o640)
   })
 
   it.runIf(emPosix)('mantém o arquivo original intacto quando a gravação falha', async () => {
     const target = join(directory, 'protegido.txt')
     await writeFile(target, 'conteúdo valioso')
-    await chmod(directory, 0o500) // leitura e travessia, sem escrita
+    await chmod(directory, 0o500) // read and traverse, no write
 
     await expect(writeFileAtomic(target, 'tentativa')).rejects.toBeInstanceOf(AppError)
 
@@ -90,13 +88,11 @@ describe('writeFileAtomic', () => {
   })
 
   it('grava num sistema de arquivos diferente do temporário do sistema', async () => {
-    // Este é o teste da pasta de rede. Uma implementação que preparasse o
-    // arquivo temporário em os.tmpdir() e depois renomeasse para o destino
-    // falharia aqui com EXDEV — que é exatamente o que acontece ao salvar num
-    // compartilhamento montado. Só passa porque o temporário nasce na pasta
-    // de destino.
+    // The network folder test. An implementation that prepared the temp file in os.tmpdir() and
+    // then renamed it would fail here with EXDEV, which is exactly what happens on a mounted share.
+    // It passes only because the temp file is born in the destination folder.
     const crossDevice = await mkdtemp(join('/dev/shm', 'librevia-xdev-')).catch(() => null)
-    if (crossDevice === null) return // ambiente sem tmpfs separado
+    if (crossDevice === null) return // no separate tmpfs here
 
     try {
       const target = join(crossDevice, 'em-outro-volume.txt')

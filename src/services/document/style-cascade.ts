@@ -1,9 +1,8 @@
 /**
- * A mesma ordem de `StyleResolver.cs`: padrões do documento, depois a cadeia de
- * `basedOn` do ancestral mais distante ao mais próximo. Dois resolvedores que
- * discordam mudam a aparência do documento ao reabrir. O que o sidecar não
- * resolve fica de fora daqui também: `w:rStyle`, o "inverte o herdado" das
- * propriedades liga/desliga, estilo de tabela e fontes de tema.
+ * The same order as `StyleResolver.cs`: document defaults, then the `basedOn` chain from the
+ * farthest ancestor to the nearest. Two resolvers that disagree change the document's look on
+ * reopen. What the sidecar does not resolve stays out here too: `w:rStyle`, the "invert the
+ * inherited" of toggle properties, table styles and theme fonts.
  */
 
 import { cssLineHeightOf } from './line-metrics.js'
@@ -17,18 +16,21 @@ import {
   type StyleSheet,
 } from './styles.js'
 
-/** Um estilo com a herança aplicada. Campo ausente é "ninguém na cadeia disse". */
+/** A style with inheritance applied. An absent field means "nobody in the chain said". */
 export interface ResolvedStyle {
   readonly paragraph: StyleParagraphFormat
   readonly character: StyleCharacterFormat
 }
 
-/** O limite de `StyleResolver.MaxChainDepth`: cadeia mais longa é arquivo quebrado. */
+/** `StyleResolver.MaxChainDepth`: a longer chain is a broken file. */
 const MAX_CHAIN_DEPTH = 16
 
 const cache = new WeakMap<StyleSheet, Map<string, ResolvedStyle>>()
 
-/** `null` é o estilo padrão. Um id que o documento não define resolve só os padrões, como no Word. */
+/**
+ * `null` is the default style. An id the document does not define resolves only the defaults, as in
+ * Word.
+ */
 export function resolveStyle(sheet: StyleSheet, styleId: string | null): ResolvedStyle {
   let resolved = cache.get(sheet)
   if (resolved === undefined) {
@@ -36,8 +38,8 @@ export function resolveStyle(sheet: StyleSheet, styleId: string | null): Resolve
     cache.set(sheet, resolved)
   }
 
-  // O nulo não pode dividir chave com id nenhum — nem com o vazio, que é o jeito
-  // de pedir só os padrões (ver `style-css.ts`).
+  // Null must not share a key with any id, not even the empty one, which is how only the defaults
+  // are requested (see `style-css.ts`).
   const key = styleId ?? '\u0000'
   const cached = resolved.get(key)
   if (cached !== undefined) return cached
@@ -71,9 +73,9 @@ function chainOf(sheet: StyleSheet, styleId: string | null): readonly StyleDefin
 }
 
 /**
- * Campo a campo: o silêncio de um estilo deixa passar o herdado. Como antes,
- * depois e entrelinha são campos separados, o `w:spacing` que só redeclara o
- * espaço não apaga a entrelinha.
+ * Field by field: a style's silence lets the inherited value through. Since before, after and line
+ * spacing are separate fields, a `w:spacing` that only redeclares the space does not erase the line
+ * spacing.
  */
 function overlay<T extends object>(base: T, top: T | undefined): T {
   if (top === undefined) return base
@@ -84,7 +86,7 @@ function overlay<T extends object>(base: T, top: T | undefined): T {
   return merged as T
 }
 
-/** Sem o estilo no documento, o que o escritor vai acrescentar ao gravar (`BuiltinStyles.cs`). */
+/** Without the style in the document, what the writer will add when saving (`BuiltinStyles.cs`). */
 export function headingStyleOf(sheet: StyleSheet, level: number): ResolvedStyle {
   const name = `heading ${level}`
   const own = Object.values(sheet.styles).find(
@@ -106,10 +108,9 @@ export interface StyledBlock {
 }
 
 /**
- * O estilo do bloco com a formatação direta por cima, nas unidades do nó. Quem
- * decide olhando atributo precisa do valor que se vê: um título cujo estilo
- * manda "manter com o próximo" não traz `keepNext` no nó. Sem folha de estilos,
- * os atributos crus.
+ * The block's style with direct formatting on top, in node units. Whoever decides by attribute
+ * needs the visible value: a heading whose style says "keep with next" carries no `keepNext` on the
+ * node. Without a stylesheet, the raw attributes.
  */
 export function effectiveAttrs(block: StyledBlock, sheet: StyleSheet | null): Record<string, unknown> {
   const attrs: Record<string, unknown> = { ...(block.attrs ?? {}) }
@@ -123,7 +124,10 @@ export function effectiveAttrs(block: StyledBlock, sheet: StyleSheet | null): Re
   return attrs
 }
 
-/** O critério da regra do CSS: o id declarado; o título sem id, pelo nome `heading N`; o resto, o padrão. */
+/**
+ * The CSS rule's criterion: the declared id; a heading without an id, by the name `heading N`; the
+ * rest, the default.
+ */
 export function blockStyleOfNode(block: StyledBlock, sheet: StyleSheet | null): ResolvedStyle | null {
   const type = typeof block.type === 'string' ? block.type : block.type.name
   if (sheet === null || (type !== 'paragraph' && type !== 'heading')) return null
@@ -136,21 +140,23 @@ export function blockStyleOfNode(block: StyledBlock, sheet: StyleSheet | null): 
     : resolveStyle(sheet, styleId)
 }
 
-/** Sem os padrões do documento: por cima, eles apagariam o que o estilo do parágrafo deu ao trecho. */
+/**
+ * Without the document defaults: on top, they would erase what the paragraph style gave the run.
+ */
 export function resolveCharacterStyle(sheet: StyleSheet, styleId: string): StyleCharacterFormat {
   let character: StyleCharacterFormat = {}
   for (const style of chainOf(sheet, styleId)) character = overlay(character, style.character)
   return character
 }
 
-/** O estilo resolvido como o bloco o diria, campo a campo. Ausente é "ninguém disse". */
+/** An absent field means "nobody said". */
 export function styleAttrsOf({ paragraph, character }: ResolvedStyle): Record<string, unknown> {
   const attrs: Record<string, unknown> = {
     textAlign: paragraph.textAlign,
     indentMm: paragraph.indentMm,
     indentRightMm: paragraph.indentRightMm,
     firstLineMm: paragraph.firstLineMm,
-    // Zero quando a cadeia cala, como a regra do CSS: é o que se vê.
+    // Zero when the chain is silent, like the CSS rule: it is what is visible.
     spaceBefore: paragraph.spaceBefore ?? 0,
     spaceAfter: paragraph.spaceAfter ?? 0,
     lineHeight: lineHeightAttrOf(paragraph.lineSpacing, character.fontFamily ?? null),
@@ -165,7 +171,9 @@ export function styleAttrsOf({ paragraph, character }: ResolvedStyle): Record<st
   return attrs
 }
 
-/** O número do CSS já multiplicado pela altura natural da fonte; `exact` e `atLeast` em pontos. */
+/**
+ * The CSS number already multiplied by the font's natural height; `exact` and `atLeast` in points.
+ */
 export function lineHeightAttrOf(spacing: LineSpacing | undefined, family: string | null): string {
   if (spacing === undefined) return cssLineHeightOf(1, family)
   if (spacing.kind === 'multiple') return cssLineHeightOf(usableFactor(spacing.factor), family)
@@ -173,8 +181,8 @@ export function lineHeightAttrOf(spacing: LineSpacing | undefined, family: strin
 }
 
 /**
- * O múltiplo que vale: fora de `(0,5; 4)` é lixo do arquivo, e vale o simples —
- * o mesmo corte de `BodyReader.LineHeightOf`.
+ * Outside `(0.5; 4)` it is file garbage and single applies, the same cut as
+ * `BodyReader.LineHeightOf`.
  */
 export function usableFactor(factor: number): number {
   return factor > 0.5 && factor < 4 ? factor : 1

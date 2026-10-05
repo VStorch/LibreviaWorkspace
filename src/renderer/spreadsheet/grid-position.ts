@@ -1,4 +1,7 @@
-/** O grid é um web component: a posição está nos atributos que ele deixa no DOM da célula, o contrato público dele. */
+/**
+ * The grid is a web component: the position is in the attributes it leaves on the cell DOM, its
+ * public contract.
+ */
 
 function attributeOf(element: Element | null, name: string): number | null {
   const owner = element?.closest(`[${name}]`)
@@ -10,8 +13,8 @@ function attributeOf(element: Element | null, name: string): number | null {
 }
 
 /**
- * `null` no cabeçalho de coluna e na área vazia. `composedPath()[0]`, e não
- * `event.target`, que com shadow DOM chegaria reescrito como o hospedeiro.
+ * `null` on the column header and the empty area. `composedPath()[0]`, not `event.target`, which
+ * with shadow DOM would arrive retargeted to the host.
  */
 export function gridPositionOf(event: MouseEvent): { row: number; column: number } | null {
   const deepest = event.composedPath()[0]

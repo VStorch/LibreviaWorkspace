@@ -17,7 +17,7 @@ import { t } from '../i18n.js'
 import { editorPreferences } from '../preferences.js'
 import { handle } from './registry.js'
 
-/** Escreve um arquivo **novo**: não toca o caminho nem o estado "alterado" do documento aberto. */
+/** Writes a **new** file: does not touch the open document's path or "modified" state. */
 
 function windowOf(event: IpcMainInvokeEvent): BrowserWindow {
   const window = BrowserWindow.fromWebContents(event.sender)
@@ -32,7 +32,7 @@ export function exportName(suggestedName: string, extension: string): string {
   return `${dot > 0 ? suggestedName.slice(0, dot) : suggestedName}.${extension}`
 }
 
-/** A pasta das imagens do Markdown, ao lado dele: `relatorio.md` → `relatorio_arquivos`. */
+/** `relatorio.md` → `relatorio_arquivos`. */
 export function assetFolderOf(path: string): string {
   return `${basename(path, extname(path))}_arquivos`
 }
@@ -65,7 +65,7 @@ export function registerExportHandlers(): void {
     } else {
       const folder = assetFolderOf(path)
       const { markdown, assets } = exportMarkdown(model, { assetFolder: folder })
-      // A pasta só nasce quando há imagem.
+      // The folder only appears when there are images.
       if (assets.length > 0) {
         const directory = join(dirname(path), folder)
         await mkdir(directory, { recursive: true })

@@ -1,6 +1,6 @@
 import type { Catalog } from '../message.js'
 
-/** `{app}` é o nome do aplicativo, que não se traduz. */
+/** `{app}` is the application name, which is not translated. */
 export const MENU = {
   'menu.file': { pt: 'Arquivo', en: 'File' },
   'menu.edit': { pt: 'Editar', en: 'Edit' },
@@ -89,7 +89,7 @@ export const MENU = {
 
   'menu.help.about': { pt: 'Sobre o {app}', en: 'About {app}' },
 
-  // Só aparecem no macOS, e é o sistema que dita a redação destes.
+  // macOS only, and the system dictates their wording.
   'menu.app.hide': { pt: 'Ocultar {app}', en: 'Hide {app}' },
   'menu.app.hideOthers': { pt: 'Ocultar outros', en: 'Hide others' },
   'menu.app.unhide': { pt: 'Mostrar todos', en: 'Show all' },

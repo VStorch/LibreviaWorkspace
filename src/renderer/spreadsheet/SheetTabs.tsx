@@ -2,7 +2,7 @@ import { useState } from 'react'
 import type { WorkbookModel } from '@services/spreadsheet/model.js'
 import { useT } from '../i18n.js'
 
-/** O nome é validado: abas de mesmo nome quebrariam a referência entre abas. */
+/** The name is validated: tabs with the same name would break references between tabs. */
 export function SheetTabs({
   workbook,
   onSelect,
@@ -53,8 +53,7 @@ export function SheetTabs({
               {sheet.name}
             </button>
           )}
-
-          {/* A pasta precisa de pelo menos uma planilha. */}
+          {/* A workbook needs at least one sheet. */}
           {workbook.sheets.length > 1 && editing !== index && (
             <button
               type="button"

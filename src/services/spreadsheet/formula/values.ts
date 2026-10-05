@@ -1,14 +1,13 @@
 /**
- * `null` é a célula vazia, que não é zero nem texto vazio: em `MÉDIA(A1:A3)` com
- * duas preenchidas o divisor é dois. Ela vira zero só dentro de uma conta, como
- * no Excel.
+ * `null` is the empty cell, which is neither zero nor empty text: in `MÉDIA(A1:A3)` with two filled
+ * the divisor is two. It only becomes zero inside a calculation, as in Excel.
  */
 
 import { FormulaError, isFormulaError } from './errors.js'
 
 export type Scalar = number | string | boolean | FormulaError | null
 
-/** Aceita o formato brasileiro. Texto que não é número vira `#VALOR!`, nunca zero. */
+/** Accepts Brazilian format. Text that is not a number becomes `#VALOR!`, never zero. */
 export function toNumber(value: Scalar): number | FormulaError {
   if (isFormulaError(value)) return value
   if (value === null) return 0
@@ -31,7 +30,7 @@ export function toText(value: Scalar): string | FormulaError {
   return value
 }
 
-/** Ponto decimal: este texto entra em concatenação e comparação, iguais em qualquer máquina. */
+/** Decimal point: this text goes into concatenation and comparison, the same on any machine. */
 function formatNumber(value: number): string {
   return Number.isInteger(value) ? String(value) : String(Number(value.toPrecision(15)))
 }
@@ -49,8 +48,8 @@ export function toBoolean(value: Scalar): boolean | FormulaError {
 }
 
 /**
- * Como no Excel: texto compara sem caixa (`="a"="A"`), tipos diferentes nunca
- * são iguais (`=1="1"` é falso), e entre tipos número < texto < booleano.
+ * As in Excel: text compares case-insensitively (`="a"="A"`), different types are never equal
+ * (`=1="1"` is false), and across types number < text < boolean.
  */
 export function compare(left: Scalar, right: Scalar): number {
   const a = left ?? blankLike(right)
@@ -67,7 +66,7 @@ export function compare(left: Scalar, right: Scalar): number {
   return rank(a) - rank(b)
 }
 
-/** Por isso `=A1=""` e `=A1=0` são verdadeiros para célula vazia, como no Excel. */
+/** That is why `=A1=""` and `=A1=0` are true for an empty cell, as in Excel. */
 function blankLike(other: Scalar): Scalar {
   if (typeof other === 'string') return ''
   if (typeof other === 'boolean') return false
@@ -80,7 +79,7 @@ function rank(value: Scalar): number {
   return 2
 }
 
-/** Aceita `">10"`, `"<>0"`, `"São Paulo"` e os curingas `*` e `?`. */
+/** Accepts `">10"`, `"<>0"`, `"São Paulo"` and the `*` and `?` wildcards. */
 export function matchesCriteria(value: Scalar, criteria: Scalar): boolean {
   if (typeof criteria !== 'string') return compare(value, criteria) === 0
 
@@ -91,7 +90,7 @@ export function matchesCriteria(value: Scalar, criteria: Scalar): boolean {
   const rest = match[2]!.trim()
   const target: Scalar = rest.length === 0 ? null : (numberOrText(rest) as Scalar)
 
-  // Igualdade com curinga é o único caso em que o critério não é ordem.
+  // Equality with a wildcard is the only case where the criterion is not an ordering.
   if ((operator === '=' || operator === '<>') && typeof target === 'string' && hasWildcard(target)) {
     const hit = matchesPattern(value, target)
     return operator === '=' ? hit : !hit
@@ -123,7 +122,7 @@ function hasWildcard(text: string): boolean {
   return /(^|[^~])[*?]/.test(text)
 }
 
-/** Curingas do Excel: `*` é qualquer coisa, `?` é um caractere, `~` escapa. */
+/** Excel wildcards: `*` is anything, `?` is one character, `~` escapes. */
 function matchesPattern(value: Scalar, pattern: string): boolean {
   if (!hasWildcard(pattern)) return compare(value, numberOrText(pattern) as Scalar) === 0
 

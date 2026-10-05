@@ -13,7 +13,7 @@ type IpcResponseMap = {
   [C in Exclude<IpcChannel, PushIpcChannel>]: IpcResponse<C>
 }
 
-/** Payload de um comando de menu. `path` só vem em "abrir recente". */
+/** `path` only comes with "open recent". */
 export interface MenuCommandPayload {
   readonly command: MenuCommand
   readonly path?: string
@@ -27,7 +27,6 @@ export interface AppApi {
     chooseSavePath: Call<typeof IpcChannel.FileChooseSavePath>
     autosave: Call<typeof IpcChannel.FileAutosave>
   }
-  /** Modelos do Word. */
   readonly template: {
     list: Call<typeof IpcChannel.TemplateList>
     open: Call<typeof IpcChannel.TemplateOpen>
@@ -51,7 +50,6 @@ export interface AppApi {
   }
   readonly print: {
     exportPdf: Call<typeof IpcChannel.PrintExportPdf>
-    /** HTML ou Markdown. */
     exportDocument: Call<typeof IpcChannel.FileExport>
     dialog: Call<typeof IpcChannel.PrintDialog>
     preview: Call<typeof IpcChannel.PrintPreview>
@@ -66,28 +64,26 @@ export interface AppApi {
     close: Call<typeof IpcChannel.WindowClose>
   }
   readonly menu: {
-    /** Assina os comandos do menu nativo. Devolve a função de cancelamento. */
     onCommand(listener: (payload: MenuCommandPayload) => void): () => void
   }
   readonly preferences: {
     get: Call<typeof IpcChannel.PreferencesGet>
     set: Call<typeof IpcChannel.PreferencesSet>
-    /** Sem o aviso de volta, clicar no ¶ da barra deixaria o item do menu desmarcado. */
+    /** Without the echo, clicking the toolbar ¶ would leave the menu item unchecked. */
     onChange(listener: (preferences: EditorPreferences) => void): () => void
   }
   readonly edit: {
-    /** Recortar, copiar e colar — os que dependem da área de transferência. */
     run: Call<typeof IpcChannel.EditCommandRun>
-    /** O texto da área de transferência, para colar sem formatação. */
     readClipboardText: Call<typeof IpcChannel.ClipboardReadText>
   }
   readonly spell: {
-    /** Troca a palavra errada debaixo do cursor pela escolhida. */
     replace: Call<typeof IpcChannel.SpellReplaceWord>
     addWord: Call<typeof IpcChannel.SpellAddWord>
   }
   readonly contextMenu: {
-    /** O evento nasce no main, onde o corretor do Chromium diz a palavra errada e as sugestões. */
+    /**
+     * Raised in main, where Chromium's spellchecker knows the misspelled word and its suggestions.
+     */
     onRequest(listener: (target: ContextMenuTarget) => void): () => void
   }
 }

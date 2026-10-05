@@ -3,7 +3,7 @@ import { recalculate } from './formula/recalc.js'
 import { createSheet, getCell, setCell, type Sheet, type WorkbookModel } from './model.js'
 import { applyStructuralChange, isNameTaken, nextSheetName } from './structure.js'
 
-/** Coluna A com 1, 2, 3 e a soma delas em C1. */
+/** Column A with 1, 2, 3 and their sum in C1. */
 function planilha(name = 'Plan1'): Sheet {
   let sheet = createSheet(name)
   sheet = setCell(sheet, 0, 0, { value: 1 })
@@ -17,8 +17,8 @@ const pasta = (...sheets: Sheet[]): WorkbookModel => ({ sheets, activeSheet: 0 }
 
 describe('inserir linha', () => {
   it('estica o intervalo da fórmula junto com os dados', () => {
-    // Sem o ajuste, os dados desciam e a fórmula continuava somando o lugar
-    // antigo, dando um total errado sem aviso.
+    // Without the adjustment the data moved down and the formula kept summing the old place, giving
+    // a wrong total without warning.
     const depois = applyStructuralChange(pasta(planilha()), 0, { kind: 'insertRows', at: 1, count: 1 })
 
     expect(getCell(depois.sheets[0]!, 0, 2)?.formula).toBe('=SOMA(A1:A4)')
@@ -41,8 +41,7 @@ describe('inserir linha', () => {
 })
 
 describe('excluir linha', () => {
-  // A exclusão é da linha 2: a linha 1 leva junto a própria célula da fórmula,
-  // que mora nela.
+  // Row 2 is deleted: row 1 takes along the formula's own cell, which lives in it.
   it('encolhe o intervalo em vez de quebrar a fórmula', () => {
     const depois = applyStructuralChange(pasta(planilha()), 0, { kind: 'deleteRows', at: 1, count: 1 })
 
@@ -78,8 +77,8 @@ describe('colunas', () => {
 
 describe('entre planilhas', () => {
   it('a fórmula da outra aba acompanha a linha inserida aqui', () => {
-    // O motivo de a operação ser da pasta e não da planilha: sem isso,
-    // =Dados!A5 continuaria apontando para onde o dado não está mais.
+    // Why the operation belongs to the workbook and not the sheet: otherwise =Dados!A5 would keep
+    // pointing where the data no longer is.
     let resumo = createSheet('Resumo')
     resumo = setCell(resumo, 0, 0, { formula: '=Dados!A5' })
 
@@ -93,7 +92,7 @@ describe('entre planilhas', () => {
   })
 
   it('a referência sem nome da outra aba não se mexe', () => {
-    // =A5 em "Resumo" aponta para "Resumo", e não para "Dados".
+    // =A5 on "Resumo" points to "Resumo", not to "Dados".
     let resumo = createSheet('Resumo')
     resumo = setCell(resumo, 0, 0, { formula: '=A5' })
 
@@ -129,8 +128,8 @@ describe('nome da próxima aba', () => {
   })
 
   it('pula o nome já usado em vez de repeti-lo', () => {
-    // Quem apagou a Planilha2 e criou outra teria duas com o mesmo nome, e
-    // `=Planilha2!A1` deixaria de ter destino único.
+    // Someone who deleted Planilha2 and created another would have two with the same name, and
+    // `=Planilha2!A1` would no longer have a single target.
     const atual = pasta(planilha('Planilha1'), planilha('Planilha3'))
     expect(nextSheetName(atual)).toBe('Planilha4')
   })

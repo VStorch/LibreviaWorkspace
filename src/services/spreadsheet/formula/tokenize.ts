@@ -1,7 +1,7 @@
 /**
- * Como no Excel em português, a vírgula é decimal e o ponto e vírgula separa
- * argumentos: aceitar os dois papéis tornaria `SOMA(1,5)` ambíguo. O ponto
- * também é decimal, porque é o que sai ao colar de planilha estrangeira.
+ * As in Portuguese Excel, the comma is decimal and the semicolon separates arguments: accepting
+ * both roles would make `SOMA(1,5)` ambiguous. The dot is also decimal, because that is what comes
+ * from pasting a foreign spreadsheet.
  */
 
 import { ParseError } from './errors.js'
@@ -10,9 +10,9 @@ export const TokenKind = {
   Number: 'number',
   Text: 'text',
   Boolean: 'boolean',
-  /** Referência de célula, com ou sem `$` e com ou sem nome de planilha. */
+  /** With or without `$` and with or without a sheet name. */
   Reference: 'reference',
-  /** Nome de função, sempre seguido de `(`. */
+  /** Always followed by `(`. */
   Name: 'name',
   Operator: 'operator',
   Open: 'open',
@@ -28,13 +28,13 @@ export interface Token {
   readonly position: number
 }
 
-/** Operadores de dois caracteres primeiro: `<=` não pode virar `<` e `=`. */
+/** Two-character operators first: `<=` must not become `<` and `=`. */
 const OPERATORS = ['<>', '<=', '>=', '+', '-', '*', '/', '^', '&', '=', '<', '>', '%', ':'] as const
 
 const TRUE_WORDS = new Set(['VERDADEIRO', 'TRUE'])
 const FALSE_WORDS = new Set(['FALSO', 'FALSE'])
 
-/** Erros que o usuário pode digitar literalmente, como `=SEERRO(A1;#N/D)`. */
+/** Errors the user may type literally, as in `=SEERRO(A1;#N/D)`. */
 const ERROR_LITERALS = ['#DIV/0!', '#VALOR!', '#REF!', '#NOME?', '#NÚM!', '#N/D', '#CIRC!']
 
 const WHITESPACE: ReadonlySet<string> = new Set([' ', '\t', '\n', '\r'])
@@ -47,7 +47,7 @@ const PUNCTUATION: ReadonlyMap<string, TokenKind> = new Map([
 
 interface ReadToken {
   readonly token: Token
-  /** O texto da fórmula consumido, que difere do token nas aspas dobradas e nas maiúsculas. */
+  /** The consumed formula text, which differs from the token in doubled quotes and case. */
   readonly length: number
 }
 
@@ -85,8 +85,8 @@ function readToken(formula: string, at: number): ReadToken {
     return whole({ kind: TokenKind.Error, text: literal, position: at })
   }
 
-  // O número vem antes da referência: um dígito nunca começa referência, e
-  // ler ao contrário faria `1e3` virar `1` seguido de `e3`.
+  // Numbers come before references: a digit never starts a reference, and reading the other way
+  // would turn `1e3` into `1` followed by `e3`.
   if (isDigit(char) || ((char === ',' || char === '.') && isDigit(formula[at + 1]))) {
     return whole({ kind: TokenKind.Number, text: readNumber(formula, at), position: at })
   }
@@ -105,7 +105,7 @@ function readWordToken(formula: string, at: number): ReadToken {
   const char = formula[at]!
   const word = readWord(formula, at)
   if (word.length === 0) {
-    // A vírgula solta é quase sempre um separador de argumentos: a dica diz isso.
+    // A loose comma is almost always an argument separator: the hint says so.
     const hint =
       char === ',' ? 'Use ponto e vírgula para separar argumentos: SOMA(A1;B1).' : `Não entendi "${char}".`
     throw new ParseError(hint, at)
@@ -118,7 +118,7 @@ function readWordToken(formula: string, at: number): ReadToken {
   if (formula[at + word.length] === '(') {
     return { token: { kind: TokenKind.Name, text: upper, position: at }, length: word.length }
   }
-  // Sobrou referência. Se não for uma, o analisador reclama com posição.
+  // A reference is what is left. If it is not one, the parser complains with a position.
   return whole({ kind: TokenKind.Reference, text: word, position: at })
 }
 
@@ -141,7 +141,7 @@ function readNumber(formula: string, start: number): string {
       at += 2
       continue
     }
-    // Expoente: `1e3`, `2E-5`. O `e` só conta se vier dígito depois.
+    // Exponent: `1e3`, `2E-5`. The `e` only counts if a digit follows.
     if ((char === 'e' || char === 'E') && at > start) {
       const next = formula[at + 1]
       const afterSign = formula[at + 2]
@@ -160,7 +160,7 @@ function readNumber(formula: string, start: number): string {
   return formula.slice(start, at)
 }
 
-/** `""` vale uma aspa, como no Excel. Devolve o conteúdo já sem as aspas. */
+/** `""` is one quote, as in Excel. Returns the content without the quotes. */
 function readText(formula: string, start: number): Token {
   let at = start + 1
   let value = ''
@@ -188,7 +188,7 @@ function quotesIn(text: string): number {
   return count
 }
 
-/** ``, `Planilha1!A1` e `CONT.NÚM` são uma palavra só; o nome entre apóstrofos entra inteiro. */
+/** `$A$1`, `Planilha1!A1` and `CONT.NÚM` are a single word; a name in apostrophes enters whole. */
 function readWord(formula: string, start: number): string {
   let at = start
 

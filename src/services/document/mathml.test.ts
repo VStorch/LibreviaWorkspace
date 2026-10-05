@@ -5,7 +5,7 @@ import { latexOfEquation } from './mathml-latex.js'
 
 const NS = 'http://www.w3.org/1998/Math/MathML'
 
-/** O que o sidecar escreve para πr² (ver OmmlMath.cs). */
+/** What the sidecar writes for πr² (see OmmlMath.cs). */
 const AREA = `<math display="inline" xmlns="${NS}"><mrow><mi>π</mi><msup><mrow><mi>r</mi></mrow><mrow><mn>2</mn></mrow></msup></mrow></math>`
 
 describe('o filtro do MathML das equações', () => {

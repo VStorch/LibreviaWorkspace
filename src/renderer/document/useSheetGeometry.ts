@@ -13,17 +13,17 @@ import { setSectionBoxes } from './extensions/section-geometry.js'
 import type { PageLayout } from './usePagination.js'
 
 export interface SheetGeometry {
-  /** Cada folha centrada na pilha, como o Word mostra retrato e paisagem juntos. */
+  /** Each sheet centered in the stack, as Word shows portrait and landscape together. */
   readonly stackWidthPx: number
   readonly baseLeftPx: number
   readonly baseRightPx: number
-  /** A margem de cima da primeira folha: é um piso, como no Word. */
+  /** The first sheet's top margin: a floor, as in Word. */
   readonly topInsetPx: number
 }
 
 export interface SheetGeometryInput {
   readonly editor: Editor | null
-  /** Com as faixas resolvidas; a última é a do corpo. */
+  /** With bands resolved; the last is the body's. */
   readonly effective: readonly PageSetup[]
   readonly sections: readonly SectionSetup[]
   readonly layout: PageLayout
@@ -47,7 +47,7 @@ export function useSheetGeometry({
   const baseLeftPx = (stackWidthPx - pageWidthPx) / 2 + mmToPx(page.margins.left)
   const baseRightPx = (stackWidthPx - pageWidthPx) / 2 + mmToPx(page.margins.right)
 
-  // No modo de leitura não há folha, e nada se desloca.
+  // Reading mode has no sheets, and nothing moves.
   useEffect(() => {
     if (editor === null) return
     const boxes = reading
@@ -55,7 +55,7 @@ export function useSheetGeometry({
       : effective.map((section) => {
           const widthPx = mmToPx(pageDimensionsMm(section).width)
           const left = (stackWidthPx - widthPx) / 2 + mmToPx(section.margins.left)
-          // Qual coluna, quem decide é a paginação, por translação.
+          // Pagination decides which column, through a translation.
           const content = mmToPx(columnGeometry(section).widthMm)
           const base = stackWidthPx - baseLeftPx - baseRightPx
           return { shiftPx: left - baseLeftPx, narrowerPx: base - content }
@@ -66,7 +66,7 @@ export function useSheetGeometry({
   return { stackWidthPx, baseLeftPx, baseRightPx, topInsetPx: mmToPx(insets.top) }
 }
 
-/** A folha `index` na pilha: centrada, com o papel da seção que a abre. */
+/** Centered, with the paper of the section opening it. */
 export function sheetBoxOf(
   effective: readonly PageSetup[],
   layout: PageLayout,

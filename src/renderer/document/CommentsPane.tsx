@@ -14,12 +14,12 @@ import {
 import { commentAnchorsOf, commentsKey, focusComment } from './extensions/comment.js'
 import { coordsInDocument } from './extensions/note-view.js'
 
-/** Em pixels da folha. */
+/** Sheet pixels. */
 const GAP_PX = 8
 
 export const COMMENTS_PANE_OFFSET_PX = 24
 
-/** Ver `.comments-pane` no CSS. */
+/** See `.comments-pane` in the CSS. */
 export const COMMENTS_PANE_WIDTH_PX = 260 + COMMENTS_PANE_OFFSET_PX
 
 interface Thread {
@@ -27,13 +27,14 @@ interface Thread {
   readonly replies: readonly DocumentComment[]
 }
 
-/** Com as respostas na ordem do arquivo. */
+/** With replies in file order. */
 function threadsOf(comments: readonly DocumentComment[]): Thread[] {
   const known = new Set(comments.map((comment) => comment.id))
   const replies = new Map<string, DocumentComment[]>()
   const roots: DocumentComment[] = []
   for (const comment of comments) {
-    // A resposta sem o comentário no arquivo vira conversa própria: não pode sumir da tela.
+    // A reply whose comment is not in the file becomes its own thread: it must not vanish from the
+    // screen.
     if (comment.parentId !== undefined && known.has(comment.parentId)) {
       replies.set(comment.parentId, [...(replies.get(comment.parentId) ?? []), comment])
     } else {
@@ -49,10 +50,9 @@ interface Composing {
 }
 
 /**
- * `comments` são os que valem agora (`resolveComments`). Cada cartão fica na
- * altura do trecho e desce o preciso para não cobrir o de cima, como a margem do
- * Word. Uma medida por quadro, como a paginação; o que o arquivo ancora fora do
- * corpo vai para o fim.
+ * `comments` are the ones that count now (`resolveComments`). Each card sits at the height of its
+ * range and moves down just enough not to cover the one above, like Word's margin. One measurement
+ * per frame, like pagination; threads the file anchors outside the body go to the end.
  */
 export function CommentsPane({
   editor,
@@ -63,7 +63,7 @@ export function CommentsPane({
   readonly editor: Editor
   readonly comments: readonly DocumentComment[]
   readonly outside: ReadonlySet<string>
-  /** Em pixels da pilha. */
+  /** Stack pixels. */
   readonly leftPx: number
 }): React.JSX.Element {
   const t = useT()
@@ -72,7 +72,8 @@ export function CommentsPane({
   const paneRef = useRef<HTMLElement>(null)
   const listRef = useRef<HTMLOListElement>(null)
   const threads = useMemo(() => threadsOf(comments), [comments])
-  // A conversa em foco mora no realce: o Próximo do menu a escolhe sem passar pelo painel.
+  // The focused thread lives in the highlight: the menu's Next picks it without going through the
+  // pane.
   const active = useEditorState({
     editor,
     selector: ({ editor: current }) => commentsKey.getState(current.state)?.active ?? null,
@@ -120,7 +121,7 @@ export function CommentsPane({
   )
 }
 
-/** O rascunho, o foco e as conversas resolvidas, levados ao realce do editor. */
+/** The draft, the focus and resolved threads, carried to the editor highlight. */
 function useThreadState(
   editor: Editor,
   draft: string | null,
@@ -133,7 +134,7 @@ function useThreadState(
     editor.view.dispatch(focusComment(editor.state.tr, { active: draft }))
   }, [editor, draft, setComposing])
 
-  // O rascunho cujas pontas o desfazer levou não espera mais texto.
+  // A draft whose ends undo took away no longer waits for text.
   useEffect(() => {
     if (draft !== null && !threads.some((thread) => thread.root.id === draft)) {
       useWorkspace.getState().setCommentDraft(null)
@@ -146,7 +147,7 @@ function useThreadState(
   }, [editor, threads])
 }
 
-/** A altura de cada trecho comentado, em pixels do painel. */
+/** In pane pixels. */
 function useCommentTops(
   editor: Editor,
   threads: readonly Thread[],
@@ -160,7 +161,7 @@ function useCommentTops(
     const measure = (): void => {
       if (editor.isDestroyed) return
       const box = host.getBoundingClientRect()
-      // O zoom é `transform`: a tela mede escalado.
+      // Zoom is a `transform`: the screen measures scaled.
       const scale = host.offsetWidth > 0 ? box.width / host.offsetWidth : 1
       const anchors = commentAnchorsOf(editor.state.doc)
       const next = new Map<string, number>()
@@ -171,7 +172,8 @@ function useCommentTops(
         try {
           next.set(root.id, (coordsInDocument(editor.view, pos).top - box.top) / scale)
         } catch {
-          // A posição saiu do documento entre a edição e o quadro: a medida seguinte a acha.
+          // The position left the document between the edit and the frame: the next measurement
+          // finds it.
         }
       }
       setTops((previous) => (sameTops(previous, next) ? previous : next))
@@ -187,7 +189,7 @@ function useCommentTops(
     }
 
     schedule()
-    // A transação, e não só a edição: os vãos e as decorações descem o texto.
+    // The transaction, not only the edit: gaps and decorations move the text down.
     editor.on('transaction', schedule)
     const observer = new ResizeObserver(schedule)
     observer.observe(host)
@@ -200,7 +202,7 @@ function useCommentTops(
   return tops
 }
 
-/** Depois do desenho: a altura de um cartão só existe depois dele. */
+/** After drawing: a card's height only exists afterwards. */
 function useStackedCards(listRef: RefObject<HTMLOListElement | null>): void {
   useLayoutEffect(() => {
     let bottom = 0
@@ -407,7 +409,7 @@ function CommentBody({ comment, state }: { comment: DocumentComment; state: Card
   )
 }
 
-/** O clique no botão não escolhe o cartão. */
+/** Clicking the button does not select the card. */
 function CardAction({ label, run }: { label: string; run: () => void }): React.JSX.Element {
   return (
     <button
@@ -423,7 +425,7 @@ function CardAction({ label, run }: { label: string; run: () => void }): React.J
   )
 }
 
-/** `Ctrl+Enter` confirma e `Esc` desiste; o clique e a tecla não sobem para o cartão. */
+/** `Ctrl+Enter` confirms and `Esc` gives up; the click and the key do not bubble to the card. */
 function CommentComposer({
   initial,
   submitLabel,
@@ -487,7 +489,7 @@ function CommentComposer({
 function sameTops(left: ReadonlyMap<string, number>, right: ReadonlyMap<string, number>): boolean {
   if (left.size !== right.size) return false
   for (const [cid, top] of left) {
-    // Meio pixel não vale um redesenho.
+    // Half a pixel is not worth a redraw.
     if (!right.has(cid) || Math.abs(right.get(cid)! - top) > 0.5) return false
   }
   return true

@@ -24,25 +24,19 @@ import {
 } from './limits.js'
 
 /**
- * Contratos de IPC.
- *
- * Esta fronteira é **neutra em linguagem**: só trafegam dados serializáveis —
- * nunca objetos do Node, Buffers compartilhados, classes ou tipos de bibliotecas
- * de terceiros.
+ * The boundary is **language-neutral**: only serializable data crosses it, never Node objects,
+ * shared Buffers, classes or third-party library types.
  */
 
 /**
- * Teto de conteúdo em memória.
- *
- * Um `.sdoc` carrega imagens embutidas como data URI, então é bem maior que um
- * `.txt` equivalente. O limite existe para que um arquivo absurdo não trave a
- * interface, não para restringir uso legítimo.
+ * A `.sdoc` embeds images as data URIs, so it is much larger than the equivalent `.txt`. The cap
+ * keeps an absurd file from freezing the UI; it does not restrict legitimate use.
  */
 export const MAX_TEXT_LENGTH = 50_000_000
 
 const documentKindSchema = z.enum(['document', 'spreadsheet'])
 
-/** Ver `LossInventory` em types.ts: invisível e perdido não são a mesma coisa. */
+/** See `LossInventory` in types.ts: invisible and lost are not the same thing. */
 const inventorySchema = z.object({
   invisible: z.array(z.string().max(300)).max(50),
   lost: z.array(z.string().max(300)).max(50),
@@ -55,12 +49,12 @@ const loadedFileSchema = z.object({
   kind: documentKindSchema,
   content: z.string(),
   inventory: inventorySchema.optional(),
-  // O arquivo é um modelo do Word: o renderer o abre como documento novo, sem
-  // título, e `path` vira só a origem do pacote — nunca destino de gravação.
+  // The file is a Word template: the renderer opens it as a new, untitled document, and `path` is
+  // only the package origin, never a save destination.
   template: z.boolean().optional(),
 })
 
-/** Um modelo da galeria: o embutido pelo id, o do usuário pelo caminho. */
+/** Builtin templates by id, the user's by path. */
 const templateEntrySchema = z.object({
   source: z.enum(['builtin', 'user']),
   id: z.string().min(1).max(MAX_PATH_LENGTH),
@@ -75,7 +69,7 @@ const recentFileSchema = z.object({
   openedAt: z.number().int(),
 })
 
-/** O aviso de recuperação mostra de que arquivo veio e de quando é. */
+/** The recovery prompt shows which file it came from and when. */
 const draftSummarySchema = z.object({
   path: z.string().nullable(),
   name: z.string(),
@@ -85,21 +79,19 @@ const draftSummarySchema = z.object({
 
 const emptyRequest = z.object({})
 
-/** O HTML vem do editor; a configuração de página, do documento. */
 const printRequestSchema = z.object({
   html: z.string().max(MAX_TEXT_LENGTH),
   page: pageSetupSchema,
   /**
-   * O HTML já vem dividido em folhas do tamanho do papel.
+   * The HTML is already split into paper-sized sheets.
    *
-   * Quando verdadeiro, o `printToPDF` não recebe margem nem faixa: quem as
-   * desenha é a própria página. A planilha não vem paginada: o Chromium pagina
-   * a tabela contínua.
+   * When true, `printToPDF` gets no margins and no header or footer: the page draws them itself. A
+   * spreadsheet is not paginated: Chromium paginates the continuous table.
    */
   paged: z.boolean().default(false),
 })
 
-/** Diálogo cancelado não é erro: é um desfecho previsto. */
+/** A canceled dialog is not an error: it is an expected outcome. */
 const openResultSchema = z.discriminatedUnion('canceled', [
   z.object({ canceled: z.literal(true) }),
   z.object({ canceled: z.literal(false), file: loadedFileSchema }),
@@ -123,9 +115,9 @@ export const ipcContracts = {
     request: z.object({
       path: z.string().min(1),
       content: z.string().max(MAX_TEXT_LENGTH),
-      // O caminho de que o documento em edição foi carregado, `null` no
-      // documento novo. O main só o compara com o `.docx` que ele abriu, para
-      // decidir se grava sobre aquele pacote ou sobre um novo: nada é lido dele.
+      // The path the edited document was loaded from, `null` for a new document. Main only compares
+      // it with the `.docx` it opened, to decide whether to write over that package or a new one:
+      // nothing is read from it.
       origin: z.string().min(1).nullable(),
     }),
     response: z.object({
@@ -143,8 +135,8 @@ export const ipcContracts = {
     }),
   },
   [IpcChannel.TemplateOpen]: {
-    // Só o par fonte e id: o main confere o id contra a lista que ele mesmo
-    // monta — o renderer não abre caminho arbitrário por aqui.
+    // Only source and id: main checks the id against the list it builds itself, so the renderer
+    // cannot open an arbitrary path through here.
     request: z.object({ source: z.enum(['builtin', 'user']), id: z.string().min(1).max(MAX_PATH_LENGTH) }),
     response: z.object({ file: loadedFileSchema }),
   },
@@ -157,8 +149,8 @@ export const ipcContracts = {
     response: z.object({ folder: z.string() }),
   },
   [IpcChannel.FileChooseSavePath]: {
-    // O tipo viaja junto porque decide a extensão padrão: uma planilha gravada
-    // como `.sdoc` abriria como documento vazio na próxima vez.
+    // The kind decides the default extension: a spreadsheet saved as `.sdoc` would open as an empty
+    // document next time.
     request: z.object({
       suggestedName: z.string().min(1).max(MAX_FILE_NAME_LENGTH),
       kind: documentKindSchema.default('document'),
@@ -166,8 +158,8 @@ export const ipcContracts = {
     response: saveResultSchema,
   },
   [IpcChannel.FileAutosave]: {
-    // `path` nulo é trabalho que nunca foi gravado — o caso em que a
-    // recuperação vale mais, porque não há arquivo nenhum a que voltar.
+    // A null `path` is work that was never saved, where recovery matters most, since there is no
+    // file to go back to.
     request: z.object({
       path: z.string().nullable(),
       name: z.string().min(1).max(MAX_FILE_NAME_LENGTH),
@@ -204,7 +196,7 @@ export const ipcContracts = {
       z.object({ canceled: z.literal(true) }),
       z.object({
         canceled: z.literal(false),
-        // Data URI já validado por assinatura de bytes no processo main.
+        // Already validated by byte signature in main.
         dataUrl: z.string(),
         name: z.string(),
       }),
@@ -212,9 +204,8 @@ export const ipcContracts = {
   },
   [IpcChannel.FontsList]: {
     request: emptyRequest,
-    // Teto generoso e mesmo assim teto: uma máquina de gráfica passa de mil
-    // famílias, e um nome de fonte não tem cem caracteres. O limite protege a
-    // interface de uma saída de sistema estragada, não o uso legítimo.
+    // Generous, but still a cap: a print shop machine passes a thousand families, and no font name
+    // has a hundred characters. The limit protects the UI from broken system output.
     response: z.object({
       families: z.array(z.string().min(1).max(MAX_FONT_FAMILY_LENGTH)).max(MAX_FONT_FAMILIES),
     }),
@@ -226,8 +217,8 @@ export const ipcContracts = {
   [IpcChannel.FileExport]: {
     request: z.object({
       format: z.enum(['html', 'markdown', 'odt']),
-      // O documento serializado, como no salvar: o main monta o arquivo a partir
-      // do modelo, e não de um HTML pronto que o renderer pudesse ter trocado.
+      // Serialized as when saving: main builds the file from the model, not from ready HTML the
+      // renderer could have swapped.
       content: z.string().max(MAX_TEXT_LENGTH),
       suggestedName: z.string().min(1).max(MAX_FILE_NAME_LENGTH),
     }),
@@ -235,7 +226,7 @@ export const ipcContracts = {
   },
   [IpcChannel.PrintDialog]: {
     request: printRequestSchema,
-    // `false` significa que o usuário cancelou — cancelar não é erro.
+    // `false` means the user canceled, which is not an error.
     response: z.object({ printed: z.boolean() }),
   },
   [IpcChannel.PrintPreview]: {
@@ -254,9 +245,9 @@ export const ipcContracts = {
     request: z.object({
       title: z.string().max(300),
       isDirty: z.boolean(),
-      /** O controle de alterações do documento, para a marca do menu Revisão. */
+      /** For the check mark in the Review menu. */
       trackChanges: z.boolean(),
-      /** Como a janela mostra as alterações, para o item marcado de Revisão → Mostrar. */
+      /** For the checked item in Review → Show. */
       revisionView: z.enum(RevisionView),
     }),
     response: z.object({ applied: z.literal(true) }),
@@ -274,11 +265,10 @@ export const ipcContracts = {
     response: editorPreferencesSchema,
   },
   [IpcChannel.PreferencesSet]: {
-    // Remendo, e não o conjunto inteiro: quem clica em "marcas de formatação"
-    // não tem opinião sobre ortografia, e mandar as três de volta faria um
-    // clique desfazer o que o outro acabou de ligar.
+    // A patch, not the whole set: whoever toggles formatting marks has no opinion about spelling,
+    // and sending all three back would let one click undo what another just turned on.
     request: editorPreferencesPatchSchema,
-    // A resposta é o estado resultante, para o renderer não ter de adivinhá-lo.
+    // The resulting state, so the renderer does not have to guess it.
     response: editorPreferencesSchema,
   },
   [IpcChannel.EditCommandRun]: {
@@ -295,23 +285,23 @@ export const ipcContracts = {
   },
   [IpcChannel.SpellAddWord]: {
     request: z.object({ word: z.string().min(1).max(MAX_NAME_LENGTH), scope: z.enum(DictionaryScope) }),
-    // `false` quando o corretor recusou a palavra — está desligado, ou ela tem
-    // caractere que o dicionário do usuário não aceita. Não é erro.
+    // `false` when the spellchecker refused the word: it is off, or the word has a character the
+    // user dictionary does not accept. Not an error.
     response: z.object({ added: z.boolean() }),
   },
 } as const
 
 /**
- * Contratos do sentido oposto: o que o main empurra para o renderer.
+ * The opposite direction: what main pushes to the renderer.
  *
- * O renderer valida com o **mesmo** schema antes de agir. Parece exagero, já que
- * quem manda é o main — mas é o que garante que os dois lados concordem sobre a
- * forma da mensagem, e um dia um deles vai ser reescrito sem o outro.
+ * The renderer validates with the **same** schema before acting. It looks excessive since main is
+ * the sender, but it keeps both sides agreeing on the message shape, and one day one of them will
+ * be rewritten without the other.
  */
 export const pushContracts = {
   [IpcChannel.MenuCommand]: z.object({
     command: z.enum(MenuCommand),
-    /** Só em "abrir recente". */
+    /** Only with "open recent". */
     path: z.string().optional(),
   }),
   [IpcChannel.ContextMenuRequested]: contextMenuTargetSchema,
@@ -328,8 +318,8 @@ export type IpcRequest<C extends InvocableIpcChannel> = z.infer<IpcContracts[C][
 export type IpcResponse<C extends InvocableIpcChannel> = z.infer<IpcContracts[C]['response']>
 
 /**
- * Envelope de resultado. Handlers nunca propagam exceções pelo IPC: toda
- * chamada devolve sucesso ou um erro já higienizado.
+ * Handlers never propagate exceptions through IPC: every call returns success or an already
+ * sanitized error.
  */
 export type IpcResult<T> =
   { readonly ok: true; readonly data: T } | { readonly ok: false; readonly error: SerializedError }

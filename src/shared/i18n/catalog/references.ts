@@ -34,8 +34,7 @@ export const REFERENCES = {
   'references.link.headings': { pt: 'Títulos', en: 'Headings' },
   'references.link.bookmarks': { pt: 'Marcadores', en: 'Bookmarks' },
 
-  // Texto do documento, e não da interface: entra no arquivo no idioma de quem
-  // escreve, como o Word faz.
+  // Document text, not UI text: it goes into the file in the writer's language, as Word does.
   'references.toc.title': { pt: 'Sumário', en: 'Contents' },
   'references.toc.empty': {
     pt: 'Nenhuma entrada de sumário foi encontrada.',
@@ -53,7 +52,7 @@ export const REFERENCES = {
   'references.caption.position': { pt: 'Posição', en: 'Position' },
   'references.caption.below': { pt: 'Abaixo do item do cursor', en: 'Below the current item' },
   'references.caption.above': { pt: 'Acima do item do cursor', en: 'Above the current item' },
-  // Rótulos do documento, como os do Word no idioma de quem escreve.
+  // Document labels, as Word writes them in the writer's language.
   'references.caption.figure': { pt: 'Figura', en: 'Figure' },
   'references.caption.table': { pt: 'Tabela', en: 'Table' },
   'references.caption.equation': { pt: 'Equação', en: 'Equation' },

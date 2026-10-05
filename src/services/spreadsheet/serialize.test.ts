@@ -25,8 +25,8 @@ describe('ida e volta do formato interno', () => {
   })
 
   it('preserva larguras de coluna com a chave numérica', () => {
-    // As chaves saem do JSON como texto. Sem a conversão de volta,
-    // `columnWidths[0]` procuraria um número e encontraria a chave "0".
+    // Keys come out of JSON as text. Without converting back, `columnWidths[0]` would look for a
+    // number and find the key "0".
     const restored = parseWorkbook(serializeWorkbook(rich))
 
     expect(restored.sheets[0]!.columnWidths[0]).toBe(180)
@@ -48,8 +48,7 @@ describe('ida e volta do formato interno', () => {
   })
 
   it('grava o mapa esparso, sem linhas vazias', () => {
-    // Uma planilha de mil linhas com duas células preenchidas não pode gerar
-    // mil entradas no arquivo.
+    // A thousand-row sheet with two filled cells must not produce a thousand entries in the file.
     const raw = JSON.parse(serializeWorkbook(rich)) as { sheets: { cells: object }[] }
 
     expect(Object.keys(raw.sheets[0]!.cells)).toEqual(['A1', 'C2'])
@@ -85,7 +84,7 @@ describe('leitura de arquivo problemático', () => {
   })
 
   it('recupera aba ativa fora do intervalo sem descartar os dados', () => {
-    // O dado vale mais que a lembrança de qual aba estava aberta.
+    // The data is worth more than remembering which tab was open.
     const broken = JSON.stringify({
       format: 'ssheet',
       version: SSHEET_VERSION,
@@ -99,8 +98,7 @@ describe('leitura de arquivo problemático', () => {
   })
 
   it('abre planilha gravada sem os campos acrescentados depois', () => {
-    // Compatibilidade: acrescentar campo opcional não pode invalidar o que já
-    // está em disco.
+    // Compatibility: adding an optional field must not invalidate what is already on disk.
     const older = JSON.stringify({
       format: 'ssheet',
       version: SSHEET_VERSION,

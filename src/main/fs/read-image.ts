@@ -4,7 +4,7 @@ import { MAX_IMAGE_BYTES, detectImageMimeType, isImageWithinSizeLimit } from '@s
 import { t } from '../i18n.js'
 import { editorPreferences } from '../preferences.js'
 
-/** Por assinatura de bytes, e não por extensão: a imagem viaja dentro do documento. */
+/** By byte signature, not extension: the image travels inside the document. */
 export async function readImageAsDataUrl(path: string): Promise<string> {
   let size: number
   try {

@@ -7,7 +7,7 @@ interface ParagraphSpacingFieldsProps {
   readonly onChange: DraftChange
 }
 
-/** O espaço antes e depois do parágrafo, em pontos — como o Word o mede. */
+/** In points, as Word measures it. */
 export function ParagraphSpacingFields({ draft, onChange }: ParagraphSpacingFieldsProps): React.JSX.Element {
   const t = useT()
 

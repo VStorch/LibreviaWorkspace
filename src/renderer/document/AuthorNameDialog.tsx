@@ -3,7 +3,7 @@ import type { Editor } from '@tiptap/react'
 import { useT } from '../i18n.js'
 import { currentPreferences, setPreference } from '../state/preferences.js'
 
-/** Os comentários existentes guardam o autor com que foram escritos, como no Word. */
+/** Existing comments keep the author they were written with, as in Word. */
 export function AuthorNameDialog({
   editor,
   onClose,

@@ -17,7 +17,7 @@ import {
 
 describe('formatação de parágrafo', () => {
   it('o bloco sem nada declarado abre o diálogo no padrão', () => {
-    // Bloco novo: todo atributo nulo. O diálogo não abre com `NaN`.
+    // A new block: every attribute null. The dialog does not open with `NaN`.
     const draft = paragraphDraftFrom({
       textAlign: null,
       spaceBefore: null,
@@ -32,7 +32,7 @@ describe('formatação de parágrafo', () => {
   })
 
   it('o deslocamento é a mesma medida com o sinal trocado', () => {
-    // O recuo pendente é `text-indent` negativo no CSS e duas perguntas no diálogo.
+    // Hanging indent is a negative CSS `text-indent` and two questions in the dialog.
     const draft = paragraphDraftFrom({ firstLineMm: -6.4 })
     expect(draft.firstLineKind).toBe(FirstLineKind.Hanging)
     expect(draft.firstLineMm).toBe(6.4)
@@ -51,7 +51,7 @@ describe('formatação de parágrafo', () => {
   })
 
   it('recuo zerado sai como ausência, e não como zero', () => {
-    // Nulo e ausente são o mesmo para a impressão digital; `0` explícito reescreveria o bloco.
+    // Null and absent are the same to the fingerprint; an explicit `0` would rewrite the block.
     const attrs = paragraphAttrsFrom(DEFAULT_PARAGRAPH_DRAFT)
 
     expect(attrs.indentMm).toBeNull()
@@ -61,19 +61,20 @@ describe('formatação de parágrafo', () => {
   })
 
   it('o passo de Ctrl+] entra no campo como milímetro', () => {
-    // As duas origens de recuo somam no gravador, e o campo mostra a soma.
+    // Both indent sources add up in the writer, and the field shows the sum.
     const draft = paragraphDraftFrom({ indentMm: 5, indent: 2 })
 
     expect(draft.indentLeftMm).toBe(Math.round((5 + 2 * INDENT_STEP_MM) * 10) / 10)
-    // E volta como medida única, com o nível zerado: senão o recuo dobraria.
+    // And it comes back as a single measure, with the level reset: otherwise the indent would
+    // double.
     expect(paragraphAttrsFrom(draft).indent).toBe(0)
   })
 
   it('a entrelinha simples do bloco que nasceu no editor continua calada', () => {
-    // "Simples" no bloco sem nada declarado deixa o atributo ausente: um número
-    // reescreveria o bloco sem mudar o que se vê.
+    // "Single" on a block with nothing declared leaves the attribute absent: a number would rewrite
+    // the block without changing what is visible.
     expect(paragraphAttrsFrom(DEFAULT_PARAGRAPH_DRAFT).lineHeight).toBeNull()
-    // Vindo de outra entrelinha é medida explícita: `normal` o gravador não grava.
+    // Coming from another spacing it is an explicit measure: the writer does not write `normal`.
     expect(
       paragraphAttrsFrom(DEFAULT_PARAGRAPH_DRAFT, { lineHeight: '1.5' }, { lineHeight: '1.5' }).lineHeight,
     ).toBe('1.1499')
@@ -89,14 +90,14 @@ describe('formatação de parágrafo', () => {
   })
 
   it('o fator do diálogo é o do Word, e o atributo é o do CSS', () => {
-    // O atributo guarda o fator já multiplicado pela altura natural da fonte, como o
-    // CSS mede e o leitor produz; o diálogo mostra o do Word.
+    // The attribute stores the factor already multiplied by the font's natural height, as CSS
+    // measures and the reader produces; the dialog shows Word's.
     const calibri = { fontFamily: 'Calibri, sans-serif' }
     const draft = paragraphDraftFrom({ ...calibri, lineHeight: '1.8311' })
 
     expect(draft.lineSpacingKind).toBe(LineSpacingKind.Multiple)
     expect(draft.lineSpacingValue).toBe(1.5)
-    // E de volta pelo mesmo caminho, que é o que o gravador vai dividir.
+    // And back the same way, which is what the writer will divide.
     expect(paragraphAttrsFrom(draft, calibri).lineHeight).toBe('1.8311')
   })
 
@@ -108,32 +109,32 @@ describe('formatação de parágrafo', () => {
     ['Courier New, monospace', 2, '2.2656'],
     ['Aptos', 1.5, '1.7249'],
   ])('em %s, %s linha grava %s de CSS', (fontFamily, factor, css) => {
-    // Um caso por fator e por altura natural: é a conta que o gravador desfaz
-    // (`ParagraphFormat.ApplyLineHeight`), e o que o Word acaba lendo.
+    // One case per factor and natural height: the math the writer undoes
+    // (`ParagraphFormat.ApplyLineHeight`), and what Word ends up reading.
     const attrs = paragraphAttrsFrom(
       { ...DEFAULT_PARAGRAPH_DRAFT, lineSpacingKind: LineSpacingKind.Multiple, lineSpacingValue: factor },
       { fontFamily },
     )
 
     expect(attrs.lineHeight).toBe(css)
-    // O gravador divide pela mesma altura, e o `w:line` recebe o que a pessoa escolheu.
+    // The writer divides by the same height, and `w:line` gets what the user chose.
     expect(lineFactorOf(Number(attrs.lineHeight), fontFamily)).toBe(factor)
     expect(paragraphDraftFrom({ fontFamily, lineHeight: attrs.lineHeight }).lineSpacingValue).toBe(factor)
   })
 
   it('o parágrafo importado sem entrelinha declarada abre como Simples', () => {
-    // O fator 1 já multiplicado (`1.2207` em Calibri) aparece como "Simples".
+    // Factor 1 already multiplied (`1.2207` in Calibri) shows as "Single".
     const draft = paragraphDraftFrom({ fontFamily: 'Calibri, sans-serif', lineHeight: '1.2207' })
 
     expect(draft.lineSpacingKind).toBe(LineSpacingKind.Single)
-    // E aplicar de novo devolve o mesmo atributo.
+    // And applying again gives the same attribute.
     expect(
       paragraphAttrsFrom(draft, { fontFamily: 'Calibri, sans-serif', lineHeight: '1.2207' }).lineHeight,
     ).toBe('1.2207')
   })
 
   it('escolher Simples sobre uma entrelinha declarada chega ao arquivo', () => {
-    // Fonte desconhecida: `normal` deixaria de pé o `w:line` antigo, então sai número.
+    // Unknown font: `normal` would leave the old `w:line` standing, so a number goes out.
     const attrs = paragraphAttrsFrom(
       { ...DEFAULT_PARAGRAPH_DRAFT, lineSpacingKind: LineSpacingKind.Single },
       { fontFamily: 'Aptos', lineHeight: '1.7249' },
@@ -144,8 +145,7 @@ describe('formatação de parágrafo', () => {
   })
 
   it('o fator mínimo cabe na faixa do gravador', () => {
-    // O número do diálogo é o do Word: 0,51 como medida de CSS seria 0,42 de fator,
-    // fora de (0,5; 4).
+    // The dialog number is Word's: 0.51 as a CSS measure would be a 0.42 factor, outside (0.5; 4).
     const attrs = paragraphAttrsFrom(
       {
         ...DEFAULT_PARAGRAPH_DRAFT,
@@ -159,7 +159,7 @@ describe('formatação de parágrafo', () => {
   })
 
   it('o seletor rápido da barra fala em linha, e não em CSS', () => {
-    // A barra e `Ctrl+1`, `Ctrl+5` e `Ctrl+2` usam a conversão do diálogo.
+    // The toolbar and `Ctrl+1`, `Ctrl+5` and `Ctrl+2` use the dialog conversion.
     const calibri = { fontFamily: 'Calibri, sans-serif', lineHeight: '1.8311' }
 
     expect(lineSpacingChoiceOf(calibri)).toBe('1.5')
@@ -172,7 +172,7 @@ describe('formatação de parágrafo', () => {
   })
 
   it('o fator fica na faixa que o gravador aceita', () => {
-    // Fora de (0,5; 4) o gravador registra perda: o diálogo nem oferece.
+    // Outside (0.5; 4) the writer records a loss: the dialog does not even offer it.
     const attrs = paragraphAttrsFrom({
       ...DEFAULT_PARAGRAPH_DRAFT,
       lineSpacingKind: LineSpacingKind.Multiple,
@@ -183,10 +183,11 @@ describe('formatação de parágrafo', () => {
   })
 
   it('o alinhamento só é escrito quando alguém o escolheu', () => {
-    // O leitor omite `textAlign` sem `w:jc`, e "Aplicar" não o acrescenta.
+    // The reader omits `textAlign` without `w:jc`, and "Apply" does not add it.
     expect(paragraphAttrsFrom(DEFAULT_PARAGRAPH_DRAFT, {}).textAlign).toBeNull()
 
-    // Num parágrafo que declara alinhamento, "À esquerda" é decisão: o estilo justificaria de volta.
+    // In a paragraph that declares alignment, "Left" is a decision: the style would justify it
+    // back.
     expect(paragraphAttrsFrom(DEFAULT_PARAGRAPH_DRAFT, { textAlign: 'justify' }).textAlign).toBe(
       TextAlignment.Left,
     )
@@ -198,7 +199,7 @@ describe('formatação de parágrafo', () => {
   })
 
   it('campo vazio ou fora de faixa reprova o formulário', () => {
-    // `NaN` do campo apagado gravaria `w:before="NaN"`, que o Word recusa.
+    // A cleared field's `NaN` would write `w:before="NaN"`, which Word refuses.
     expect(isValidParagraphDraft(DEFAULT_PARAGRAPH_DRAFT)).toBe(true)
     expect(isValidParagraphDraft({ ...DEFAULT_PARAGRAPH_DRAFT, spaceBefore: Number.NaN })).toBe(false)
     expect(isValidParagraphDraft({ ...DEFAULT_PARAGRAPH_DRAFT, indentLeftMm: -3 })).toBe(false)
@@ -212,8 +213,8 @@ describe('formatação de parágrafo', () => {
   })
 
   describe('contra o estilo', () => {
-    // O bloco carrega só a formatação direta; o resto é do estilo, e o diálogo
-    // mostra o que se vê — `effectiveAttrs` —, mas grava só o que mudou.
+    // The block carries only direct formatting; the rest is the style's, and the dialog shows what
+    // is visible (`effectiveAttrs`) but saves only what changed.
     const attrs = { styleId: 'Citacao', spaceAfter: 6, indent: 0 }
     const effective = {
       ...attrs,

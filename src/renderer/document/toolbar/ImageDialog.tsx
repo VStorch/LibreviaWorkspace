@@ -3,12 +3,12 @@ import type { Editor } from '@tiptap/react'
 import { useT } from '../../i18n.js'
 import { applyImageProperties, imageAt } from '../extensions/document-image.js'
 
-/** O que o `w:docPr/@descr` aceita sem exagero. */
+/** What `w:docPr/@descr` takes without excess. */
 const MAX_ALT_LENGTH = 300
 
 /**
- * O texto alternativo vai para `wp:docPr/@descr` e é o que o leitor de tela
- * anuncia: o "Texto Alt" do Word. O tamanho se resolve pelas alças da imagem.
+ * Alt text goes to `wp:docPr/@descr` and is what the screen reader announces: Word's "Alt Text".
+ * Size is set with the image handles.
  */
 export function ImageDialog({
   editor,
@@ -87,7 +87,7 @@ export function ImageDialog({
   )
 }
 
-/** Do parágrafo, quando ela mora num, ou dela, quando é bloco solto. */
+/** The paragraph's, when it lives in one, or its own, when it is a loose block. */
 function currentAlign(editor: Editor): string {
   const placed = imageAt(editor)
   if (placed === null) return ''

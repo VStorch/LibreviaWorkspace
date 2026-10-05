@@ -1,12 +1,12 @@
 /**
- * O menu chega ao renderer pelo `App`, que não tem o editor. Os identificadores
- * são os mesmos de `MenuCommand`, para o `App` repassar pelo nome sem tradução.
+ * The menu reaches the renderer through `App`, which has no editor. The identifiers match
+ * `MenuCommand`, so `App` forwards them by name without translation.
  */
 
 import { TableAction } from '@shared/table-actions.js'
 import type { MenuCommand } from '@shared/types.js'
 
-/** O `satisfies` faz o valor que não existe em `MenuCommand` não compilar. */
+/** `satisfies` makes a value missing from `MenuCommand` fail to compile. */
 export const EditorCommand = {
   FindReplace: 'find-replace',
   PageSetup: 'page-setup',
@@ -53,25 +53,25 @@ export type EditorCommand = (typeof EditorCommand)[keyof typeof EditorCommand]
 
 const KNOWN = new Set<string>(Object.values(EditorCommand))
 
-/** O `App` só sabe de arquivos: seleção, cursor e diálogo do documento são do editor. */
+/** `App` only knows about files: selection, cursor and document dialogs belong to the editor. */
 export function asEditorCommand(command: string): EditorCommand | null {
   return KNOWN.has(command) ? (command as EditorCommand) : null
 }
 
-/** A lista é a das exceções: um comando novo nasce bloqueado no somente leitura. */
+/** The list holds the exceptions: a new command starts blocked when read-only. */
 const READS_ONLY: ReadonlySet<EditorCommand> = new Set<EditorCommand>([
   EditorCommand.FindReplace,
   EditorCommand.WordCount,
-  // O diálogo abre para "Ir para"; adicionar e excluir se apagam lá dentro.
+  // The dialog opens for "Go to"; add and delete grey out inside it.
   EditorCommand.InsertBookmark,
-  // Andar entre os comentários só lê; e o nome do autor é preferência, não documento.
+  // Moving between comments only reads; the author name is a preference, not the document.
   EditorCommand.NextComment,
   EditorCommand.PreviousComment,
   EditorCommand.AuthorName,
-  // Andar entre as alterações também só lê; aceitar e rejeitar editam.
+  // Moving between changes also only reads; accepting and rejecting edit.
   EditorCommand.NextChange,
   EditorCommand.PreviousChange,
-  // A equação abre para ser vista; o diálogo só grava com o documento editável.
+  // The equation opens for viewing; the dialog only saves when the document is editable.
   EditorCommand.EditEquation,
 ])
 

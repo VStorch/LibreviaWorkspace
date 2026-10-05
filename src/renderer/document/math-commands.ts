@@ -3,14 +3,14 @@ import { NodeSelection, type EditorState } from '@tiptap/pm/state'
 import { DELETION, INSERTION } from './extensions/track-changes.js'
 
 /**
- * Uma transação, um passo de desfazer. Trocar é `replaceWith`: com o controle
- * ligado, `track-input.ts` vê exclusão e inserção, como o Word registra.
+ * One transaction, one undo step. Replacing is `replaceWith`: with tracking on, `track-input.ts`
+ * sees a deletion and an insertion, as Word records it.
  */
 
 export type EquationTarget =
   { readonly kind: 'insert'; readonly display: boolean } | { readonly kind: 'edit'; readonly pos: number }
 
-/** O `omml` vai nulo: o sidecar o refaz do MathML. */
+/** `omml` goes null: the sidecar rebuilds it from the MathML. */
 export interface EquationContent {
   readonly latex: string
   readonly mathml: string
@@ -42,13 +42,13 @@ export function insertEquation(editor: Editor, content: EquationContent): void {
     .run()
 }
 
-/** Falso quando ali não há mais equação. */
+/** False when there is no longer an equation there. */
 export function replaceEquation(editor: Editor, pos: number, content: EquationContent): boolean {
   const node = editor.state.doc.nodeAt(pos)
   if (node === null || node.type.name !== 'math') return false
 
   const jc = content.display === node.attrs['display'] ? (node.attrs['jc'] as string | null) : null
-  // As marcas de revisão são da equação antiga.
+  // The revision marks belong to the old equation.
   const marks = node.marks.filter((mark) => mark.type.name !== INSERTION && mark.type.name !== DELETION)
   const replacement = node.type.create({ ...attrsOf(content), jc }, null, marks)
   return editor

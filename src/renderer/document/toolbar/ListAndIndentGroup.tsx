@@ -4,7 +4,7 @@ import { ToolbarButton, ToolbarGroup } from '../../components/ToolbarControls.js
 import { useT } from '../../i18n.js'
 import { focusChain } from './focus-chain.js'
 
-/** Listas e recuo: o que muda a estrutura do bloco, e não a aparência do texto. */
+/** What changes the block structure, not the text look. */
 export function ListAndIndentGroup({
   editor,
   onOpenListFormat,

@@ -1,23 +1,23 @@
 import type { DocumentProperties } from './model.js'
 
-/** Sem milissegundos, como o Word grava `dcterms:created` e `dcterms:modified`. */
+/** Without milliseconds, as Word writes `dcterms:created` and `dcterms:modified`. */
 export function w3cdtf(date: Date): string {
   return date.toISOString().replace(/\.\d{3}Z$/, 'Z')
 }
 
 export interface PropertiesStamp {
-  /** Vazio é "não assine". */
+  /** Empty means "do not sign". */
   readonly author: string
   readonly now: Date
-  /** Nunca gravado: ganha também o criador e a data de criação. */
+  /** Never saved: also gets the creator and the creation date. */
   readonly fresh: boolean
   readonly edited: boolean
 }
 
 /**
- * Como o Word, mas só quando o documento **mudou**: senão `docProps/` volta
- * byte a byte. No modelo, e não no sidecar, porque só quem edita sabe se houve
- * edição. Sem o que carimbar, devolve `current`.
+ * Like Word, but only when the document **changed**: otherwise `docProps/` goes back byte for byte.
+ * In the model, not the sidecar, because only the editor knows whether there was an edit. With
+ * nothing to stamp, returns `current`.
  */
 export function stampProperties(
   current: DocumentProperties | undefined,
@@ -37,7 +37,7 @@ export function stampProperties(
   }
 }
 
-/** O documento novo ganha data e autor de criação, sem apagar os que já tiver. */
+/** A new document gets the creation date and author, without erasing existing ones. */
 function creationStamp(
   current: DocumentProperties | undefined,
   when: string,

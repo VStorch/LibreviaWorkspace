@@ -3,7 +3,7 @@ export interface Occurrence {
   readonly end: number
 }
 
-/** Não sobrepostas: "aa" em "aaaa" são duas, e "substituir tudo" termina. */
+/** Non-overlapping: "aa" in "aaaa" is two, and "replace all" ends. */
 export function findOccurrences(haystack: string, needle: string, caseSensitive = false): Occurrence[] {
   if (needle.length === 0) return []
 
@@ -22,11 +22,11 @@ export function findOccurrences(haystack: string, needle: string, caseSensitive 
 }
 
 /**
- * `toLowerCase()` muda o comprimento do `İ` turco, e as posições são as do
- * documento. Cada ponto de código só é convertido quando cabe no mesmo espaço.
+ * `toLowerCase()` changes the length of Turkish `İ`, and positions are the document's. Each code
+ * point is only converted when it fits in the same space.
  */
 function foldCase(text: string): string {
-  // Por ponto de código, para não partir um par substituto.
+  // By code point, so a surrogate pair is not split.
   let folded = ''
   for (const character of text) {
     const lower = character.toLowerCase()

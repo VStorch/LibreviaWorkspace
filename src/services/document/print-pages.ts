@@ -15,24 +15,23 @@ import {
 import { frameOf, placeFloating, type FloatingObject } from './floating.js'
 
 /**
- * O editor entrega o documento **já dividido em páginas**, e cada uma vira uma
- * caixa do tamanho do papel: com `@page { margin: 0 }`, o Chromium só empilha.
- * Deixá-lo paginar seria ter dois paginadores que precisam concordar. As faixas
- * são DOM dentro da página, e não o `headerTemplate` do Chromium, que desenha a
- * mesma faixa em todas as páginas.
+ * The editor delivers the document **already split into pages**, and each becomes a paper-sized
+ * box: with `@page { margin: 0 }`, Chromium only stacks them. Letting it paginate would mean two
+ * paginators that must agree. Bands are DOM inside the page, not Chromium's `headerTemplate`, which
+ * draws the same band on every page.
  */
 
 export interface PrintPage {
   readonly number: number
   readonly html: string
   readonly floats: readonly PrintFloat[]
-  /** Com `pageNumberStart` no número da primeira folha da seção — ver `sheetSetups`. */
+  /** With `pageNumberStart` set to the section's first sheet number; see `sheetSetups`. */
   readonly setup: PageSetup
-  /** A folha dentro da seção, a partir de 1: é o que decide a capa e o número. */
+  /** The sheet within the section, from 1: it decides the title page and the number. */
   readonly inSection: number
-  /** A folha em branco que a seção par ou ímpar pediu. */
+  /** The blank sheet an even or odd section asked for. */
   readonly blank?: boolean
-  /** As linhas entre colunas desta folha (`w:cols/@w:sep`), em mm da folha. */
+  /** This sheet's column separator lines (`w:cols/@w:sep`), in sheet mm. */
   readonly columnLines?: readonly {
     readonly leftMm: number
     readonly topMm: number
@@ -41,7 +40,7 @@ export interface PrintPage {
   readonly notes?: readonly PrintNoteArea[]
 }
 
-/** Uma área de notas no papel: a mesma da tela (`NoteArea`), em mm e com o HTML das notas. */
+/** The same as the screen's (`NoteArea`), in mm and with the notes' HTML. */
 export interface PrintNoteArea {
   readonly topMm: number
   readonly leftMm: number
@@ -50,13 +49,13 @@ export interface PrintNoteArea {
   readonly separatorMm: number
   readonly items: readonly {
     readonly html: string
-    /** Onde, no corpo da nota, começa a primeira linha desta folha. */
+    /** Where, in the note body, this sheet's first line starts. */
     readonly clipTopMm: number
     readonly heightMm: number
   }[]
 }
 
-/** O texto da caixa vem em HTML já serializado: quem tem o schema do ProseMirror é o editor. */
+/** The box text comes as serialized HTML: the editor holds the ProseMirror schema. */
 export interface PrintFloat {
   readonly object: FloatingObject
   readonly anchorTopMm: number
@@ -64,13 +63,12 @@ export interface PrintFloat {
 }
 
 /**
- * `@page` é gerado porque tamanho e orientação vêm do documento. A margem é
- * zero: quem recua o texto é a caixa da página, e `printToPDF` a contaria duas
- * vezes.
+ * `@page` is generated because size and orientation come from the document. The margin is zero: the
+ * page box indents the text, and `printToPDF` would count it twice.
  */
 export function buildPagedCss(pages: readonly Pick<PrintPage, 'setup'>[]): string {
-  // Um `@page` nomeado por papel: a folha em paisagem sai em paisagem no meio de
-  // um documento em retrato. O Chromium honra o nome com `preferCSSPageSize`.
+  // One named `@page` per paper: a landscape sheet comes out landscape in the middle of a portrait
+  // document. Chromium honors the name with `preferCSSPageSize`.
   const papers = new Map<string, { width: number; height: number }>()
   for (const sheet of pages) {
     const size = pageDimensionsMm(sheet.setup)
@@ -154,18 +152,18 @@ ${named}
 }
 
 /**
- * As alturas das faixas viajam junto porque o papel precisa da mesma conta de
- * margem que a tela fez: um cabeçalho mais alto que a margem desce o corpo.
+ * Band heights travel along because paper needs the same margin math the screen did: a header
+ * taller than the margin pushes the body down.
  */
 export interface PagedDocument {
   readonly pages: readonly PrintPage[]
-  /** Altura das faixas de cada seção, na ordem das seções (`useBandHeights`). */
+  /** Per section, in section order (`useBandHeights`). */
   readonly bands: readonly BandHeights[]
-  /** A seção de cada folha, para achar a altura das faixas dela. */
+  /** Each sheet's section, to find its band heights. */
   readonly sections?: readonly number[]
 }
 
-/** O nome do `@page` de um papel: as medidas, que é o que o distingue. */
+/** The dimensions, which is what tells papers apart. */
 function paperName(size: { width: number; height: number }): string {
   return `folha-${Math.round(size.width * 10)}x${Math.round(size.height * 10)}`
 }
@@ -197,8 +195,8 @@ function renderPage(
     sheet.html +
     '</div>'
 
-  // A ordem no HTML é a ordem de empilhamento: o que fica atrás (`behindDoc`)
-  // vem antes, o texto no meio, o da frente por último.
+  // HTML order is stacking order: what sits behind (`behindDoc`) comes first, the text in the
+  // middle, the front last.
   const floats = sheet.floats
 
   return (
@@ -229,7 +227,7 @@ function renderPage(
   )
 }
 
-/** A continuação sobe o corpo da nota até a linha em que a folha anterior parou. */
+/** A continuation lifts the note body to the line where the previous sheet stopped. */
 function renderNotes(area: PrintNoteArea): string {
   const separator =
     area.separator === null
@@ -259,10 +257,9 @@ function renderFloats(floats: readonly PrintFloat[], page: PageSetup, behind: bo
     const style =
       `left:${box.leftMm}mm;top:${box.topMm}mm;` +
       `width:${box.widthMm}mm;height:${box.heightMm}mm;` +
-      // Em torno do centro, como o Word gira: a caixa é posicionada sem girar e
-      // o giro acontece depois.
+      // Around the center, as Word rotates: the box is positioned unrotated and rotated afterwards.
       (box.rotation === 0 ? '' : `transform:rotate(${box.rotation}deg);`) +
-      // A mesma moldura da tela, pela mesma função.
+      // The same frame as the screen, through the same function.
       Object.entries(frameOf(item.object))
         .map(([property, value]) => `${property}:${value};`)
         .join('')
@@ -271,8 +268,8 @@ function renderFloats(floats: readonly PrintFloat[], page: PageSetup, behind: bo
       return `<img class="paper-float" alt="" style="${style}" src="${escapeHtml(item.object.src ?? '')}" />`
     }
 
-    // O filete: forma rasa e larga, com contorno e sem conteúdo — a linha que
-    // corre sob o cabeçalho corporativo.
+    // The rule: a flat, wide shape with an outline and no content, the line under a corporate
+    // header.
     if (item.object.kind === 'rule') {
       return `<div class="paper-float paper-float--rule" style="${style}"></div>`
     }
@@ -304,7 +301,7 @@ function renderBand(
   )
 }
 
-/** Com as células já resolvidas pelo leitor, como a tela. */
+/** With cells already resolved by the reader, like the screen. */
 function renderGrid(band: Band, label: string, total: number): string {
   if (band.rows.length === 0) return ''
 
@@ -325,7 +322,7 @@ function renderGrid(band: Band, label: string, total: number): string {
   return `<table class="paper-page__grid"><tbody>${rows}</tbody></table>`
 }
 
-/** Para os três terços da faixa e para as células da grade. */
+/** For the band's three thirds and for the grid cells. */
 function renderLines(pieces: readonly BandPiece[], label: string, total: number): string {
   return linesOf(pieces)
     .map(

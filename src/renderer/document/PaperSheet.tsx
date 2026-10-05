@@ -10,15 +10,15 @@ import type { NoteArea } from './usePagination.js'
 
 export interface PaperSheetProps {
   readonly page: PageSetup
-  /** A partir de 1. */
+  /** From 1. */
   readonly pageNumber: number
   readonly totalPages: number
   readonly topPx: number
-  /** A pilha tem a largura da folha mais larga. */
+  /** The stack is as wide as the widest sheet. */
   readonly leftPx?: number
-  /** É por ela que a altura das faixas é medida (`useBandHeights`). */
+  /** Band heights are measured by it (`useBandHeights`). */
   readonly section?: number
-  /** Em pixels da folha. */
+  /** Sheet pixels. */
   readonly columnLines?: readonly {
     readonly leftPx: number
     readonly topPx: number
@@ -27,13 +27,16 @@ export interface PaperSheetProps {
   readonly noteAreas?: readonly NoteArea[]
   readonly floats: readonly PlacedFloat[]
   readonly schema: Schema
-  /** Ausentes no documento travado: nada recebe o cursor. */
+  /** Absent when the document is locked: nothing takes the cursor. */
   readonly onEditFloat?: ((source: FloatSource, content: DocumentNode[]) => void) | undefined
   readonly onEditBandPiece?: ((pid: string, text: string) => void) | undefined
   readonly onEditBandBox?: ((bid: string, content: DocumentNode[]) => void) | undefined
 }
 
-/** Fora do `contenteditable`: no papel estas peças moram na margem, sem empurrar o texto. */
+/**
+ * Outside the `contenteditable`: on paper these pieces live in the margin, without pushing the
+ * text.
+ */
 export function PaperSheet({
   page,
   pageNumber,
@@ -66,9 +69,8 @@ export function PaperSheet({
       }}
     >
       <FloatingLayer objects={floats} page={page} schema={schema} behind {...editFloat} />
-
       {(['header', 'footer'] as const).map((kind) => {
-        // A ordem do Word: a capa manda sobre a paridade, e a paridade sobre o padrão.
+        // Word's order: the title page beats parity, and parity beats the default.
         const band = bandForPage(page, pageNumber, kind)
         if (!hasBandContent(band)) return null
 
@@ -85,8 +87,7 @@ export function PaperSheet({
           />
         )
       })}
-
-      {/* Numa camada própria, acima da coluna de texto, que cobre a margem e apanharia o clique. */}
+      {/* In a layer of its own, above the text column, which covers the margin and would catch the click. */}
       {(['behind', 'front'] as const).map((where) => (
         <FloatingLayer
           key={where}
@@ -98,9 +99,7 @@ export function PaperSheet({
           {...(onEditBandBox === undefined ? {} : { onEditBand: onEditBandBox })}
         />
       ))}
-
       <FloatingLayer objects={floats} page={page} schema={schema} behind={false} {...editFloat} />
-
       {columnLines.map((line) => (
         <div
           key={`${line.leftPx}:${line.topPx}`}
@@ -108,7 +107,6 @@ export function PaperSheet({
           style={{ left: `${line.leftPx}px`, top: `${line.topPx}px`, height: `${line.heightPx}px` }}
         />
       ))}
-
       {noteAreas.map((area) => (
         <NoteAreaView key={area.kind} area={area} />
       ))}

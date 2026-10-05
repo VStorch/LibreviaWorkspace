@@ -19,7 +19,9 @@ const KEEP_OPTIONS = [
   ['widowControl', 'document.paragraph.widowControl'],
 ] as const satisfies readonly (readonly [keyof ParagraphDraft, MessageKey])[]
 
-/** Abre com o que o parágrafo do cursor já tem: é também um jeito de **ler** a formatação. */
+/**
+ * Opens with what the cursor's paragraph already has: it is also a way to **read** the formatting.
+ */
 export function ParagraphDialog({
   editor,
   onClose,
@@ -39,7 +41,7 @@ export function ParagraphDialog({
     editor.chain().focus().setParagraphFormat(draft).run()
     onClose()
 
-    // De novo depois de fechar: o painel sai da tela e levaria o foco ao corpo da página.
+    // Again after closing: the panel leaves the screen and would take focus to the page body.
     requestAnimationFrame(() => editor.commands.focus())
   }
 
@@ -48,7 +50,7 @@ export function ParagraphDialog({
       className="popover popover--wide"
       role="dialog"
       aria-label={t('document.paragraph.title')}
-      // No elemento, e não globalmente, como o painel de localizar.
+      // On the element, not globally, like the find panel.
       onKeyDown={(event) => {
         if (event.key === 'Escape') onClose()
         if (event.key === 'Enter') apply()
@@ -60,11 +62,8 @@ export function ParagraphDialog({
         onLineSpacing={(spacing) => setDraft({ ...draft, ...spacing })}
         autoFocus
       />
-
       <ParagraphSpacingFields draft={draft} onChange={change} />
-
       <ParagraphIndentFields draft={draft} onChange={change} />
-
       {KEEP_OPTIONS.map(([key, label]) => (
         <label key={key} className="popover__check">
           <input
@@ -75,12 +74,10 @@ export function ParagraphDialog({
           <span>{t(label)}</span>
         </label>
       ))}
-
       <p className={valid ? 'popover__hint' : 'popover__error'}>
         {valid ? t('document.paragraph.hintValid') : t('document.paragraph.hintInvalid')}
       </p>
-
-      {/* `preventDefault` no `mousedown`: o botão não toma o foco do documento. */}
+      {/* `preventDefault` on `mousedown`: the button does not take focus from the document. */}
       <DialogActions
         confirmLabel={t('document.common.apply')}
         onConfirm={apply}

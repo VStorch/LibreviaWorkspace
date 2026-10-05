@@ -1,14 +1,14 @@
 /**
- * `PAGEREF _Toc123 \h`, `SEQ Figura \* ARABIC`, `TOC \o "1-3" \h \z \u`. Só o que
- * as referências usam; a instrução volta ao arquivo como veio.
+ * `PAGEREF _Toc123 \h`, `SEQ Figura \* ARABIC`, `TOC \o "1-3" \h \z \u`. Only what references use;
+ * the instruction goes back to the file as it came.
  */
 
-/** A palavra do campo: `PAGEREF`, `REF`, `SEQ`, `TOC`… Maiúscula, como o Word a escreve. */
+/** `PAGEREF`, `REF`, `SEQ`, `TOC`… Uppercase, as Word writes it. */
 export function fieldKind(instr: string): string {
   return /^\s*([A-Za-z]+)/.exec(instr)?.[1]?.toUpperCase() ?? ''
 }
 
-/** As palavras da instrução, com as aspas desfeitas: `TOC \o "1-3"` → `TOC`, `\o`, `1-3`. */
+/** Unquoted: `TOC \o "1-3"` → `TOC`, `\o`, `1-3`. */
 export function fieldTokens(instr: string): string[] {
   const tokens: string[] = []
   const pattern = /"([^"]*)"|(\S+)/g
@@ -16,13 +16,13 @@ export function fieldTokens(instr: string): string[] {
   return tokens
 }
 
-/** O primeiro argumento: o marcador de `REF` e `PAGEREF`, o identificador de `SEQ`. */
+/** The bookmark of `REF` and `PAGEREF`, the identifier of `SEQ`. */
 export function fieldArgument(instr: string): string | null {
   const argument = fieldTokens(instr)[1]
   return argument === undefined || argument.startsWith('\\') ? null : argument
 }
 
-/** O valor de uma chave (`\o "1-3"` → `1-3`), `''` para chave sem valor, `null` se ausente. */
+/** `\o "1-3"` → `1-3`; `''` for a switch without a value, `null` when absent. */
 export function fieldSwitch(instr: string, name: string): string | null {
   const tokens = fieldTokens(instr)
   const index = tokens.findIndex((token) => token.toLowerCase() === `\\${name.toLowerCase()}`)
@@ -31,7 +31,10 @@ export function fieldSwitch(instr: string, name: string): string | null {
   return value === undefined || value.startsWith('\\') ? '' : value
 }
 
-/** Sem `\o` ou com ele vazio, os nove, como no Word; o sumário só com `\t` cai nos três primeiros. */
+/**
+ * Without `\o`, or with it empty, all nine, as in Word; a table of contents with only `\t` falls
+ * back to the first three.
+ */
 export function tocLevels(instr: string): { readonly from: number; readonly to: number } {
   const range = fieldSwitch(instr, 'o')
   if (range === null) return { from: 1, to: 3 }
@@ -42,12 +45,12 @@ export function tocLevels(instr: string): { readonly from: number; readonly to: 
   return from <= to ? { from, to } : { from: to, to: from }
 }
 
-/** As entradas do sumário são links (`\h`)? */
+/** `\h`. */
 export function tocLinks(instr: string): boolean {
   return fieldSwitch(instr, 'h') !== null
 }
 
-/** O sumário omite os números de página (`\n` sem intervalo)? */
+/** `\n` without a range. */
 export function tocOmitsPages(instr: string): boolean {
   return fieldSwitch(instr, 'n') === ''
 }
@@ -81,12 +84,12 @@ function roman(value: number): string {
 }
 
 function alphabetic(value: number): string {
-  // Depois do Z, o Word conta AA, BB…
+  // After Z, Word counts AA, BB…
   const letter = String.fromCharCode(65 + ((value - 1) % 26))
   return letter.repeat(Math.floor((value - 1) / 26) + 1)
 }
 
-/** O número no formato de `\* ARABIC`, `ROMAN`, `roman`, `ALPHABETIC` ou `alphabetic`. */
+/** `\* ARABIC`, `ROMAN`, `roman`, `ALPHABETIC` or `alphabetic`. */
 export function formatFieldNumber(value: number, instr: string): string {
   const format = fieldSwitch(instr, '*') ?? 'ARABIC'
   if (value < 1) return String(value)
@@ -104,7 +107,9 @@ export function formatFieldNumber(value: number, instr: string): string {
   }
 }
 
-/** Cada identificador conta à parte, sem caixa; `\r n` recomeça em `n`, `\c` repete o último. */
+/**
+ * Each identifier counts apart, case-insensitively; `\r n` restarts at `n`, `\c` repeats the last.
+ */
 export function sequenceNumbers(instructions: readonly string[]): string[] {
   const counters = new Map<string, number>()
   return instructions.map((instr) => {

@@ -11,8 +11,8 @@ export function StatusBar(): React.JSX.Element {
   const state = useWorkspace()
   const { width, height } = pageDimensionsMm(state.page)
 
-  // Planilha não tem página, palavra nem caractere: mostrar isso ali seria
-  // informação falsa ocupando o lugar da verdadeira.
+  // A spreadsheet has no pages, words or characters: showing them there would be false information in the
+  // place of the true one.
   const sheet = state.workbook?.sheets[state.workbook.activeSheet]
 
   return (
@@ -55,8 +55,6 @@ export function StatusBar(): React.JSX.Element {
         </>
       )}
 
-      {/* Indicador de alterações não salvas: repete o marcador do título da
-          janela, para que o estado seja legível sem sair do conteúdo. */}
       <span className={state.isDirty ? 'statusbar__state statusbar__state--dirty' : 'statusbar__state'}>
         {state.busy
           ? t('shell.statusBar.working')
@@ -68,7 +66,6 @@ export function StatusBar(): React.JSX.Element {
   )
 }
 
-/** O zoom da folha, os mesmos comandos do menu Exibir. */
 function ZoomControls(): React.JSX.Element {
   const t = useT()
   const zoom = useEffectiveZoom()

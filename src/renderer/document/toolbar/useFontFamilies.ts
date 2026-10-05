@@ -3,7 +3,7 @@ import { familiesInDocument, orderFontFamilies } from '@services/document/font-l
 import { useT } from '../../i18n.js'
 import { useWorkspace } from '../../state/workspace.js'
 
-/** A ordem é de `font-list.ts`. As instaladas são pedidas uma vez por janela. */
+/** The order comes from `font-list.ts`. Installed fonts are requested once per window. */
 export function useFontFamilies(activeFamily: string): readonly { value: string; label: string }[] {
   const t = useT()
   const initialDoc = useWorkspace((state) => state.initialDoc)
@@ -13,7 +13,7 @@ export function useFontFamilies(activeFamily: string): readonly { value: string;
     let alive = true
 
     void window.api.fonts.list({}).then((result) => {
-      // Sem aviso: a lista é um conforto.
+      // No warning: the list is a convenience.
       if (alive && result.ok) setInstalled(result.data.families)
     })
 
@@ -22,13 +22,14 @@ export function useFontFamilies(activeFamily: string): readonly { value: string;
     }
   }, [])
 
-  // Do modelo de montagem, e não do conteúdo ao vivo: varrer a árvore a cada tecla custaria caro.
+  // From the mount-time model, not the live content: walking the tree on every key press would be
+  // costly.
   const inDocument = useMemo(() => familiesInDocument(initialDoc), [initialDoc])
 
   return useMemo(() => {
     const families = orderFontFamilies(installed, inDocument)
 
-    // A fonte do cursor entra mesmo fora das três origens: o `<select>` mentiria.
+    // The cursor's font goes in even outside the three sources: otherwise the `<select>` would lie.
     if (
       activeFamily !== '' &&
       !families.some((family) => family.toLowerCase() === activeFamily.toLowerCase())

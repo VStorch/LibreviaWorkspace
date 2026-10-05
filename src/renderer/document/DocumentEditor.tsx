@@ -36,9 +36,9 @@ import { EditorContextMenu, EditorDialogs } from './EditorDialogs.js'
 import { PageStack } from './PageStack.js'
 
 /**
- * Pagina ao vivo: o texto é um fluxo só, e uma decoração de margem empurra cada
- * bloco para a folha certa (ver `extensions/pagination.ts`). As faixas são
- * desenhadas fora do `contenteditable`, na camada das folhas.
+ * Paginates live: the text is a single flow, and a margin decoration pushes each block to the right
+ * sheet (see `extensions/pagination.ts`). Bands are drawn outside the `contenteditable`, in the
+ * sheet layer.
  */
 export function DocumentEditor(): React.JSX.Element {
   const readOnly = useWorkspace((state) => state.readOnly)
@@ -80,7 +80,7 @@ export function DocumentEditor(): React.JSX.Element {
   const sheetEditing = useSheetEditing(editor, readOnly)
   useFittedZoom(scrollRef, editor, geometry.stackWidthPx)
 
-  // O segundo passe dos campos de página (`settlePageFields`).
+  // The second pass of page fields (`settlePageFields`).
   useEffect(() => {
     if (editor !== null && !readOnly) settlePageFields(editor, referenceContext())
   }, [editor, layout, readOnly, referenceContext])
@@ -99,10 +99,8 @@ export function DocumentEditor(): React.JSX.Element {
         referenceContext={referenceContext}
         pasteWithoutFormat={pasteWithoutFormat}
       />
-
       {reading && <ReadingHint />}
-
-      {/* Ao lado da folha, e não por cima: um painel flutuante taparia o texto. */}
+      {/* Beside the sheet, not over it: a floating panel would cover the text. */}
       <div className="editor-body">
         {!reading && preferences.navigationPane && <NavigationPane editor={editor} />}
         <div ref={scrollRef} className={`editor-scroll${reading ? ' editor-scroll--reading' : ''}`}>
@@ -135,7 +133,7 @@ interface EditorChromeProps {
   readonly pasteWithoutFormat: () => Promise<void>
 }
 
-/** O CSS de impressão, a barra, os diálogos abertos e o menu de contexto. */
+/** Print CSS, the toolbar, the open dialogs and the context menu. */
 function EditorChrome(props: EditorChromeProps): React.JSX.Element {
   const { editor, commands, pasteWithoutFormat } = props
   const { dialogs, setDialog } = commands
@@ -146,9 +144,8 @@ function EditorChrome(props: EditorChromeProps): React.JSX.Element {
   const [contextTarget, setContextTarget] = useContextMenuTarget()
   return (
     <>
-      {/* O mesmo CSS do HTML de impressão, para o papel sair igual à tela. */}
+      {/* The same CSS as the print HTML, so paper matches the screen. */}
       <style>{DOCUMENT_CONTENT_CSS + styleCss + NOTES_CSS + EDITOR_ONLY_CSS}</style>
-
       {!reading && showToolbar && (
         <DocumentToolbar
           editor={editor}
@@ -162,7 +159,6 @@ function EditorChrome(props: EditorChromeProps): React.JSX.Element {
           onOpenListFormat={() => setDialog('listFormat', true)}
         />
       )}
-
       <EditorDialogs
         open={dialogs}
         context={{
@@ -175,7 +171,6 @@ function EditorChrome(props: EditorChromeProps): React.JSX.Element {
           referenceContext: props.referenceContext,
         }}
       />
-
       {contextTarget !== null && (
         <EditorContextMenu
           editor={editor}
@@ -200,8 +195,8 @@ function ReadingHint(): React.JSX.Element {
 }
 
 /**
- * Pelas marcas, e não pelo documento: seções novas a cada tecla refariam a
- * paginação e a geometria das seções, até o React desistir (erro 185).
+ * By the marks, not by the document: new sections on every key press would redo pagination and the
+ * section geometry until React gave up (error 185).
  */
 function useDocumentSections(editor: Editor | null): {
   resolved: ResolvedSections
@@ -221,9 +216,8 @@ function useDocumentSections(editor: Editor | null): {
 }
 
 /**
- * A paginação, as faixas e o que a impressão lê deles. Lidos por `ref` ao
- * imprimir: registrar `readPages` a cada layout recriaria a fonte do documento a
- * cada tecla.
+ * Pagination, bands and what printing reads from them. Read through a `ref` when printing:
+ * registering `readPages` on every layout would recreate the document source on every key press.
  */
 function useDocumentLayout(
   editor: Editor | null,
@@ -275,7 +269,9 @@ function useDocumentLayout(
   return { layout, bands, layoutRef }
 }
 
-/** A folha de cada nota de rodapé, para o reinício por página. Transação sem mudança no texto. */
+/**
+ * The sheet of each footnote, for per-page restart. A transaction that does not change the text.
+ */
 function useFootnotePages(editor: Editor | null, layout: PageLayout): void {
   const notesSetup = useWorkspace((state) => state.notes)
   useEffect(() => {
@@ -287,7 +283,7 @@ function useFootnotePages(editor: Editor | null, layout: PageLayout): void {
   }, [editor, layout.noteAreas, notesSetup])
 }
 
-/** Lidas na hora do comando, e não na da renderização. */
+/** Read when the command runs, not when rendering. */
 function useReferenceContext(
   layoutRef: { readonly current: PageLayout },
   effective: readonly PageSetup[],
@@ -309,8 +305,8 @@ function useReferenceContext(
 }
 
 /**
- * Nada de `pasteAndMatchStyle` do Chromium: ele **adapta** a formatação em vez
- * de descartá-la. A conversão é `@services/document/paste.ts`.
+ * No Chromium `pasteAndMatchStyle`: it **adapts** formatting instead of dropping it. The conversion
+ * is `@services/document/paste.ts`.
  */
 function usePasteWithoutFormat(editor: Editor | null, readOnly: boolean): () => Promise<void> {
   const showError = useWorkspace((state) => state.showError)
@@ -326,7 +322,7 @@ function usePasteWithoutFormat(editor: Editor | null, readOnly: boolean): () => 
     const content = plainPasteContent(result.data.text)
     if (content.length === 0) return
 
-    // `DocumentNode` e `JSONContent` são a mesma forma.
+    // `DocumentNode` and `JSONContent` are the same shape.
     editor
       .chain()
       .focus()
@@ -340,11 +336,11 @@ function useContextMenuTarget(): [ContextMenuTarget | null, (target: ContextMenu
   useEffect(
     () =>
       window.api.contextMenu.onRequest((payload) => {
-        // A segunda ponta do zod, que o preload sandboxed não pode fazer.
+        // The second zod check, which the sandboxed preload cannot do.
         const parsed = pushContracts[IpcChannel.ContextMenuRequested].safeParse(payload)
         if (!parsed.success) return
 
-        // Sem ação a oferecer, o menu teria todos os itens apagados, como na barra de ferramentas.
+        // With no action to offer, every menu item would be greyed out, as on the toolbar.
         if (!parsed.data.editable && !parsed.data.canCopy) return
 
         setContextTarget(parsed.data)
@@ -354,7 +350,7 @@ function useContextMenuTarget(): [ContextMenuTarget | null, (target: ContextMenu
   return [contextTarget, setContextTarget]
 }
 
-/** Medido sempre: ampliar a partir do ajuste precisa do valor que se vê. */
+/** Always measured: zooming in from fit needs the visible value. */
 function useFittedZoom(
   scrollRef: { readonly current: HTMLDivElement | null },
   editor: Editor | null,

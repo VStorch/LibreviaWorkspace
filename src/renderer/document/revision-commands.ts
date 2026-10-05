@@ -10,9 +10,12 @@ import {
   settleChangeAt,
 } from './extensions/track-changes.js'
 
-/** Transações comuns, com desfazer, fora do controle (`SKIP_TRACKING`): aceitar não é edição nova. */
+/**
+ * Ordinary transactions, with undo, outside tracking (`SKIP_TRACKING`): accepting is not a new
+ * edit.
+ */
 
-/** O cursor é o da nota quando ela é a ativa (`caretOf`). */
+/** The cursor is the note's when the note is active (`caretOf`). */
 export function hasChangeAtCursor(editor: Editor): boolean {
   return changeAt(editor.state.doc, caretOf(editor.view).from) !== null
 }
@@ -23,7 +26,7 @@ export function settleChange(editor: Editor, accept: boolean): boolean {
   const tr = editor.state.tr
   if (!settleChangeAt(tr, caret.from, accept)) return false
   tr.setMeta(SKIP_TRACKING, true)
-  // Na nota, o corpo recebe a mudança pela própria vista, e o foco volta a ele.
+  // In a note, the body gets the change through its own view, and focus returns to it.
   if (caret.note === null) tr.scrollIntoView()
   editor.view.dispatch(tr)
   caret.note?.view.focus()
@@ -38,7 +41,7 @@ export function settleAll(editor: Editor, accept: boolean): boolean {
   return true
 }
 
-/** Devolve se achou. A partir do cursor da nota ativa, quando há uma. */
+/** Returns whether one was found. From the active note's cursor, when there is one. */
 export function goToChange(editor: Editor, direction: 1 | -1): boolean {
   const caret = caretOf(editor.view)
   const change = adjacentChange(editor.state.doc, direction === 1 ? caret.to : caret.from, direction)

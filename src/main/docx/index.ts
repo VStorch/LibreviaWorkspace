@@ -1,4 +1,7 @@
-/** Os bytes originais ficam **aqui**, e não no sidecar, que é sem estado: a morte dele não custa a gravação cirúrgica. */
+/**
+ * The original bytes live **here**, not in the stateless sidecar: its death does not cost the
+ * surgical save.
+ */
 
 import { readFile } from 'node:fs/promises'
 import { z } from 'zod'
@@ -20,9 +23,8 @@ import { editorPreferences } from '../preferences.js'
 import { MAX_NAME_LENGTH } from '@shared/limits.js'
 
 /**
- * `ipc.ts` recusa mais de 50 rótulos por categoria e mais de 300 caracteres em
- * cada um: sem o corte, um documento patológico deixaria de abrir por causa do
- * aviso.
+ * `ipc.ts` refuses more than 50 labels per category and more than 300 characters each: without the
+ * cut, a pathological document would fail to open because of the warning.
  */
 const inventoryLabels = z
   .array(z.string())
@@ -36,8 +38,8 @@ const inventorySchema = z.object({
 })
 
 /**
- * `page` e `doc` são validados no renderer; os estilos, aqui, o único ponto por
- * onde passam antes de irem para o `.sdoc`.
+ * `page` and `doc` are validated in the renderer; the styles here, the only point they pass before
+ * reaching the `.sdoc`.
  */
 const openResultSchema = z.object({
   model: z.object({
@@ -60,14 +62,17 @@ const saveResultSchema = z.object({
   rewrittenBlocks: z.number().int().nonnegative(),
 })
 
-/** Como estavam no disco ao abrir, e não como estão agora, que pode ter mudado por outra mão. */
+/** As they were on disk when opened, not as they are now, which someone else may have changed. */
 let openedOriginal: { path: string; bytes: Buffer } | null = null
 
 export function forgetOpenedDocx(): void {
   openedOriginal = null
 }
 
-/** Depois de uma queda os bytes originais se perderam com o processo: sem relê-los, salvar seria recusado. */
+/**
+ * After a crash the original bytes died with the process: without rereading them, saving would be
+ * refused.
+ */
 export async function adoptDocxOriginal(path: string): Promise<boolean> {
   try {
     openedOriginal = { path: normalizePath(path), bytes: await readFile(path) }
@@ -97,12 +102,12 @@ export async function openDocx(client: SidecarClient, path: string): Promise<Ope
     throw new AppError(ErrorCode.SidecarFailed, t('errors.docx.cannotRead'), t('errors.docx.openContract'))
   }
 
-  // Normalizado, como volta do `authorizePath` e chega no `origin`: cru, o `.docx`
-  // aberto seria gravado por cima do pacote mínimo.
+  // Normalized, as `authorizePath` returns it and `origin` brings it: raw, the opened `.docx` would
+  // be written over the minimal package.
   openedOriginal = { path: normalizePath(path), bytes }
 
   return {
-    // As constantes, e não o literal: um `1` fixo faria todo documento do Word passar por migrações.
+    // The constants, not a literal: a fixed `1` would push every Word document through migrations.
     content: JSON.stringify({ format: SDOC_FORMAT, version: SDOC_VERSION, ...parsed.data.model }),
     inventory: parsed.data.inventory,
   }
@@ -115,17 +120,19 @@ export interface SavedDocx {
 }
 
 export interface DocxTarget {
-  /** `null` no documento novo. Só para comparar com o original guardado. */
+  /** `null` for a new document. Only compared with the stored original. */
   readonly origin: string | null
   readonly destination: string
-  /** O sidecar grava o rótulo de modelo na parte principal; sem isto, o de documento. */
+  /**
+   * The sidecar writes the template content type in the main part; without this, the document one.
+   */
   readonly template?: boolean
 }
 
 /**
- * Por cima do pacote original, ou do pacote mínimo no documento que nasceu no
- * editor. O original só vale se a origem do documento em edição for o caminho
- * dele: senão um documento novo levaria cabeçalhos, estilos e notas de outro.
+ * Over the original package, or the minimal package for a document born in the editor. The original
+ * only applies if the edited document's origin is its path: otherwise a new document would inherit
+ * another one's headers, styles and notes.
  */
 export async function saveDocx(
   client: SidecarClient,
@@ -158,9 +165,8 @@ export async function saveDocx(
   return {
     bytes: reply.binary,
     inventory: { ...inventory, lost },
-    // O pacote de partida desta gravação, e não os bytes gravados: partindo do
-    // resultado anterior, o documento novo somaria uma cópia de cada imagem por
-    // gravação.
+    // The starting package of this save, not the saved bytes: starting from the previous result, a
+    // new document would gain a copy of every image per save.
     original,
   }
 }
@@ -168,8 +174,8 @@ export async function saveDocx(
 type SdocModel = ReturnType<typeof unwrapSdoc>
 
 function saveParamsOf(model: SdocModel, target: DocxTarget): Record<string, unknown> {
-  // `flatten` escolhe a leitura de referência do sidecar para o rascunho
-  // achatado. Os estilos vão sempre, para chegarem a `word/styles.xml`.
+  // `flatten` picks the sidecar's reference reading for the flattened draft. Styles always go, to
+  // reach `word/styles.xml`.
   return {
     page: model.page,
     doc: model.doc,
@@ -177,14 +183,13 @@ function saveParamsOf(model: SdocModel, target: DocxTarget): Record<string, unkn
     ...(model.beforeReferences ? { beforeReferences: true } : {}),
     ...(model.sections === undefined ? {} : { sections: model.sections }),
     ...(model.beforeSections ? { beforeSections: true } : {}),
-    // A lista vazia é "todos excluídos"; no rascunho de antes deles, só a marca.
+    // The empty list means "all deleted"; for a draft older than comments, only the flag.
     ...(model.beforeComments ? { beforeComments: true } : { comments: model.comments }),
     ...(model.trackChanges === undefined ? {} : { trackChanges: model.trackChanges }),
     ...(model.beforeRevisions ? { beforeRevisions: true } : {}),
     ...(model.beforeNotes ? { beforeNotes: true } : {}),
     ...(model.beforeMath ? { beforeMath: true } : {}),
-    // O sidecar só grava a numeração das notas e as propriedades quando diferem
-    // das do arquivo de destino.
+    // The sidecar only writes note numbering and properties when they differ from the target file.
     ...(model.notes === undefined ? {} : { notes: model.notes }),
     ...(model.properties === undefined ? {} : { properties: model.properties }),
     ...(model.styles === undefined ? {} : { styles: model.styles }),
@@ -192,29 +197,28 @@ function saveParamsOf(model: SdocModel, target: DocxTarget): Record<string, unkn
   }
 }
 
-/** A frase do sidecar vem em português; a tela mostra a da língua escolhida. */
+/** The sidecar's sentence is Portuguese; the screen shows the chosen language. */
 function lossesOf(declared: readonly string[], model: SdocModel, fromMinimalPackage: boolean): string[] {
   const foreignBandsPt = translate(Language.Portuguese, 'errors.docx.foreignBands')
   const lost = declared.map((item) => (item === foreignBandsPt ? t('errors.docx.foreignBands') : item))
   if (!fromMinimalPackage) return lost
-  // O sidecar já declara a mesma perda quando a relação não existia no pacote
-  // mínimo: a frase é uma só.
+  // The sidecar already declares the same loss when the relationship did not exist in the minimal
+  // package: the sentence is a single one.
   if (
     [model.page, ...(Array.isArray(model.sections) ? model.sections : [])].some(hasForeignBands) &&
     !lost.includes(t('errors.docx.foreignBands'))
   )
     lost.push(t('errors.docx.foreignBands'))
-  // Rede de proteção: um modelo com `oid` foi numerado contra um pacote que
-  // não está aqui, e sai o pacote mínimo. Dito em voz alta, porque perda calada
-  // é o pior defeito deste programa.
+  // Safety net: a model with `oid` was numbered against a package that is not here, and the minimal
+  // package goes out. Said out loud, because silent loss is this program's worst defect.
   if (hasOid(model.doc)) lost.push(t('errors.docx.originPackage'))
   return lost
 }
 
 /**
- * Chamado **depois** que a gravação chegou ao disco, para uma falha não deixar o
- * original apontando um caminho que o documento não tem. Vale para qualquer
- * destino: o `.docx` salvo como `.sdoc` continua com os mesmos `oid`.
+ * Called **after** the save reached the disk, so a failure does not leave the original pointing to
+ * a path the document does not have. Applies to any destination: a `.docx` saved as `.sdoc` keeps
+ * the same `oid`s.
  */
 export function followDocxOriginal(
   origin: string | null,
@@ -231,7 +235,7 @@ export function followDocxOriginal(
   }
 }
 
-/** O `oid` é a impressão digital do bloco no pacote de origem: basta um. */
+/** The `oid` is the block's fingerprint in the source package: one is enough. */
 function hasOid(doc: unknown): boolean {
   if (typeof doc !== 'object' || doc === null) return false
   const content = (doc as { content?: unknown }).content
@@ -260,7 +264,7 @@ function hasForeignBands(page: unknown): boolean {
   return bandKeys.some((key) => record[key] !== null && record[key] !== undefined)
 }
 
-/** Criado pelo sidecar (`DocxTemplate`), com a página e os estilos do documento. */
+/** Created by the sidecar (`DocxTemplate`), with the document's page and styles. */
 async function createDocx(client: SidecarClient, page: unknown, styles: unknown): Promise<Uint8Array> {
   const reply = await client.request(SidecarMethod.DocxCreate, { page, styles })
   if (reply.binary.length === 0) {
@@ -297,7 +301,7 @@ function unwrapSdoc(content: string): {
     throw new AppError(ErrorCode.Internal, t('errors.docx.inconsistentState'))
   }
 
-  // O sidecar só toca `word/styles.xml` quando algum estilo mudou.
+  // The sidecar only touches `word/styles.xml` when some style changed.
   const envelope = z
     .object({
       page: z.unknown(),
@@ -314,7 +318,7 @@ function unwrapSdoc(content: string): {
       beforeNotes: z.boolean().optional(),
       beforeMath: z.boolean().optional(),
       notes: z.unknown().optional(),
-      // Conferidas aqui também: vão para o arquivo do usuário.
+      // Checked here too: they go into the user's file.
       properties: documentPropertiesSchema.optional(),
     })
     .safeParse(parsed)

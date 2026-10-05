@@ -16,7 +16,7 @@ type SheetActions = Pick<
 
 export function createSheetActions(set: SetWorkspace, get: GetWorkspace): SheetActions {
   return {
-    /** Um só ponto de recálculo: nenhum caminho de edição deixa valor velho na tela. */
+    /** A single recalculation point: no editing path leaves a stale value on screen. */
     updateSheet: (sheet) => {
       const { workbook } = get()
       if (workbook === null) return
@@ -39,7 +39,7 @@ export function createSheetActions(set: SetWorkspace, get: GetWorkspace): SheetA
     selectSheet: (index) => {
       const { workbook } = get()
       if (workbook === null || index < 0 || index >= workbook.sheets.length) return
-      // Navegação, e não edição.
+      // Navigation, not editing.
       set({ workbook: { ...workbook, activeSheet: index } })
     },
 
@@ -59,7 +59,7 @@ export function createSheetActions(set: SetWorkspace, get: GetWorkspace): SheetA
       const sheet = workbook.sheets[index]
       if (sheet === undefined || trimmed.length === 0) return
 
-      // Nome repetido quebraria a referência entre abas.
+      // A repeated name would break references between tabs.
       if (isNameTaken(workbook, trimmed, index)) return
 
       set({ workbook: recalculate(renameSheetIn(workbook, index, trimmed)), isDirty: true })

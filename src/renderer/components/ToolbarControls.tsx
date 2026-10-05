@@ -4,7 +4,7 @@ interface ToolbarButtonProps {
   readonly icon: IconName
   readonly label: string
   readonly onClick: () => void
-  /** Só em botão que liga e desliga: no comando, `aria-pressed="false"` soaria como interruptor. */
+  /** Only on toggle buttons: on a command, `aria-pressed="false"` would sound like a switch. */
   readonly active?: boolean
   readonly disabled?: boolean
   readonly shortcut?: string
@@ -27,7 +27,8 @@ export function ToolbarButton({
       title={shortcut === undefined ? label : `${label} (${shortcut})`}
       aria-label={label}
       aria-pressed={active}
-      // Sem isto o clique tiraria o foco do editor, e a seleção, antes do comando.
+      // Otherwise the click would take focus, and the selection, from the editor before the
+      // command.
       onMouseDown={(event) => event.preventDefault()}
     >
       <Icon name={icon} />
@@ -77,7 +78,7 @@ interface ColorControlProps {
   readonly onClear: () => void
 }
 
-/** Como no Word e no Docs: o ícone diz o que recebe a cor, a barra diz qual. */
+/** As in Word and Docs: the icon says what gets the color, the bar says which. */
 export function ColorControl({
   icon,
   label,
@@ -114,7 +115,7 @@ export function ColorControl({
   )
 }
 
-/** O grupo não se parte quando a barra quebra de linha. */
+/** The group does not split when the toolbar wraps. */
 export function ToolbarGroup({
   label,
   children,

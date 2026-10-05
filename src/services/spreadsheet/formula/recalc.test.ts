@@ -3,7 +3,7 @@ import { createSheet, getCell, setCell, type Sheet, type WorkbookModel } from '.
 import { FormulaError } from './errors.js'
 import { recalculate } from './recalc.js'
 
-/** Monta uma planilha a partir de um mapa de referência → valor ou fórmula. */
+/** A sheet from a map of reference → value or formula. */
 function sheetWith(name: string, entries: Record<string, string | number>): Sheet {
   let sheet = createSheet(name)
 
@@ -26,7 +26,6 @@ function workbookWith(...sheets: Sheet[]): WorkbookModel {
   return { sheets, activeSheet: 0 }
 }
 
-/** Valor calculado de uma célula, pela referência. */
 function valueOf(workbook: WorkbookModel, ref: string, sheet = 0) {
   const match = /^([A-Z]+)(\d+)$/.exec(ref)!
   let column = 0
@@ -36,9 +35,8 @@ function valueOf(workbook: WorkbookModel, ref: string, sheet = 0) {
 
 describe('ordem de cálculo', () => {
   it('calcula a cadeia de trás para frente, não na ordem do mapa', () => {
-    // A1 depende de B1, que depende de C1. Calcular na ordem em que aparecem
-    // daria a A1 o valor velho de B1 — e o erro só apareceria na segunda vez
-    // que alguém mexesse na planilha.
+    // A1 depends on B1, which depends on C1. Computing in appearance order would give A1 the old
+    // value of B1, and the error would only show the second time someone touched the sheet.
     const done = recalculate(workbookWith(sheetWith('P', { A1: '=B1+1', B1: '=C1*2', C1: 5 })))
 
     expect(valueOf(done, 'C1')).toBe(5)
@@ -47,9 +45,9 @@ describe('ordem de cálculo', () => {
   })
 
   it('resolve cadeia longa sem estourar a pilha', () => {
-    // Percurso recursivo morreria aqui, e o usuário veria o aplicativo sumir
-    // sem explicação nenhuma. O mapa é montado direto porque `setCell` copia a
-    // planilha inteira a cada célula, e cinco mil cópias dominariam o teste.
+    // A recursive walk would die here, and the user would see the app vanish without any
+    // explanation. The map is built directly because `setCell` copies the whole sheet for each
+    // cell, and five thousand copies would dominate the test.
     const cells: Record<string, { formula?: string; value?: number }> = { A1: { value: 1 } }
     for (let row = 2; row <= 5000; row++) cells[`A${row}`] = { formula: `=A${row - 1}+1` }
 
@@ -82,8 +80,7 @@ describe('referência circular', () => {
   })
 
   it('pega o ciclo pela soma de um intervalo que contém a própria célula', () => {
-    // O jeito mais comum de criar um ciclo sem perceber: arrastar a soma para
-    // dentro da coluna que ela soma.
+    // The most common way to create a cycle unknowingly: dragging the sum into the column it sums.
     const done = recalculate(workbookWith(sheetWith('P', { A1: 1, A2: 2, A3: '=SOMA(A1:A3)' })))
 
     expect(valueOf(done, 'A3')).toBe(FormulaError.Circular)
@@ -96,7 +93,7 @@ describe('referência circular', () => {
   })
 
   it('o resto da planilha continua calculando', () => {
-    // Um ciclo num canto não pode derrubar o cálculo do resto.
+    // A cycle in one corner must not bring down the rest of the calculation.
     const done = recalculate(workbookWith(sheetWith('P', { A1: '=B1', B1: '=A1', D1: 2, D2: '=D1*3' })))
 
     expect(valueOf(done, 'D2')).toBe(6)
@@ -113,8 +110,8 @@ describe('entre planilhas', () => {
   })
 
   it('referência sem nome aponta para a planilha da própria fórmula', () => {
-    // A armadilha: se o padrão fosse a aba ativa, a fórmula da segunda aba leria
-    // a célula da primeira e daria um número plausível e errado.
+    // The trap: if the default were the active tab, the second tab's formula would read the first
+    // one's cell and give a plausible, wrong number.
     const done = recalculate(
       workbookWith(sheetWith('Um', { A1: 100, B1: '=A1' }), sheetWith('Dois', { A1: 7, B1: '=A1' })),
     )
@@ -155,7 +152,7 @@ describe('o que o recálculo preserva', () => {
   })
 
   it('devolve a mesma pasta quando não há fórmula nenhuma', () => {
-    // Identidade importa: o React redesenha a grade inteira se o objeto muda.
+    // Identity matters: React redraws the whole grid if the object changes.
     const workbook = workbookWith(sheetWith('P', { A1: 1, B1: 2 }))
 
     expect(recalculate(workbook)).toBe(workbook)
@@ -168,15 +165,15 @@ describe('o que o recálculo preserva', () => {
   })
 
   it('fórmula sobre célula vazia vale zero, e não some do arquivo', () => {
-    // Se o resultado vazio apagasse a célula, a fórmula iria junto: o mapa
-    // esparso remove célula sem valor, sem fórmula e sem estilo.
+    // If an empty result erased the cell, the formula would go with it: the sparse map removes
+    // cells without value, formula or style.
     const done = recalculate(workbookWith(sheetWith('P', { B1: '=A1' })))
 
     expect(getCell(done.sheets[0]!, 0, 1)).toEqual({ formula: '=A1', value: 0 })
   })
 
   it('fórmula que não fecha não derruba o recálculo', () => {
-    // Só chega aqui num arquivo editado à mão; a interface recusa antes.
+    // Only reachable with a hand-edited file; the UI refuses it first.
     const done = recalculate(workbookWith(sheetWith('P', { A1: '=SOMA(', B1: 1, C1: '=B1+1' })))
 
     expect(valueOf(done, 'A1')).toBe(FormulaError.Value)

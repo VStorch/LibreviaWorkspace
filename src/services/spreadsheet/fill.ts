@@ -1,12 +1,12 @@
-/** Arrastar copia a fórmula deslocada (`=B2*C2` → `=B3*C3`), e não o resultado. */
+/** Dragging copies the shifted formula (`=B2*C2` → `=B3*C3`), not the result. */
 
 import { normalizeRange, type Range } from './edit.js'
 import { translateFormula } from './formula/adjust.js'
 import { getCell, setCell, type Cell, type Sheet } from './model.js'
 
 /**
- * `target` inclui a origem, que não é reescrita. A repetição é cíclica, como no
- * Excel: duas linhas arrastadas por seis repetem o padrão três vezes.
+ * `target` includes the source, which is not rewritten. Repetition is cyclic, as in Excel: two rows
+ * dragged over six repeat the pattern three times.
  */
 export function fillRange(sheet: Sheet, source: Range, target: Range): Sheet {
   const from = normalizeRange(source)
@@ -24,7 +24,7 @@ export function fillRange(sheet: Sheet, source: Range, target: Range): Sheet {
         continue
       }
 
-      // Arrastar para cima dá diferença negativa, e `%` em JavaScript a devolve negativa.
+      // Dragging upward gives a negative difference, and `%` in JavaScript returns it negative.
       const sourceRow = from.fromRow + ((((row - from.fromRow) % rows) + rows) % rows)
       const sourceColumn = from.fromColumn + ((((column - from.fromColumn) % columns) + columns) % columns)
 
@@ -40,7 +40,7 @@ export function fillRange(sheet: Sheet, source: Range, target: Range): Sheet {
   return updated
 }
 
-/** O estilo vem junto, como no Excel; o valor não, porque é o recálculo que o preenche. */
+/** The style comes along, as in Excel; the value does not, because recalculation fills it. */
 function copyOf(source: Cell | undefined, rowDelta: number, columnDelta: number): Cell {
   if (source === undefined) return {}
 

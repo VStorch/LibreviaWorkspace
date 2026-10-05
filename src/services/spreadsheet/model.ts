@@ -1,4 +1,4 @@
-/** O valor cru fica separado da aparência. */
+/** The raw value stays apart from the appearance. */
 export const CellFormat = {
   General: 'general',
   Text: 'text',
@@ -24,7 +24,9 @@ export const BorderSide = {
 } as const
 export type BorderSide = (typeof BorderSide)[keyof typeof BorderSide]
 
-/** `| undefined` explícito para ser atribuível ao que o zod infere, sob `exactOptionalPropertyTypes`. */
+/**
+ * Explicit `| undefined` to be assignable to what zod infers under `exactOptionalPropertyTypes`.
+ */
 export interface CellStyle {
   readonly bold?: boolean | undefined
   readonly italic?: boolean | undefined
@@ -33,30 +35,33 @@ export interface CellStyle {
   readonly background?: string | undefined
   readonly align?: HorizontalAlign | undefined
   readonly format?: CellFormat | undefined
-  /** Casas decimais para número, moeda e percentual. */
+  /** For number, currency and percent. */
   readonly decimals?: number | undefined
   readonly borders?: readonly BorderSide[] | undefined
 }
 
 export type CellValue = string | number | boolean
 
-/** `value` guarda o valor calculado, e `formula` a fórmula: reabrir não exige recalcular, como no XLSX. */
+/**
+ * `value` holds the computed value and `formula` the formula: reopening does not require
+ * recalculating, as in XLSX.
+ */
 export interface Cell {
   readonly value?: CellValue | undefined
   readonly formula?: string | undefined
   readonly style?: CellStyle | undefined
 }
 
-/** Esparso, e não matriz: dez mil linhas com trinta células preenchidas ocupam trinta entradas. */
+/** Sparse, not a matrix: ten thousand rows with thirty filled cells take thirty entries. */
 export type CellMap = Record<string, Cell>
 
 export interface Sheet {
   readonly name: string
   readonly cells: CellMap
-  /** Larguras em pixels, por índice de coluna. Ausente = padrão. */
+  /** Pixels, by column index. Absent means default. */
   readonly columnWidths: Record<number, number>
   readonly rowHeights: Record<number, number>
-  /** Quantas linhas e colunas ficam presas ao rolar. */
+  /** Rows and columns pinned while scrolling. */
   readonly frozenRows: number
   readonly frozenColumns: number
   readonly rowCount: number
@@ -90,7 +95,9 @@ export function createEmptyWorkbook(): WorkbookModel {
   return { sheets: [createSheet('Planilha1')], activeSheet: 0 }
 }
 
-/** 0 → A, 25 → Z, 26 → AA. A base 26 do Excel não tem zero, daí o decremento antes de cada divisão. */
+/**
+ * 0 → A, 25 → Z, 26 → AA. Excel's base 26 has no zero, hence the decrement before each division.
+ */
 export function columnName(index: number): string {
   if (!Number.isInteger(index) || index < 0) return ''
 
@@ -133,7 +140,10 @@ export function getCell(sheet: Sheet, row: number, column: number): Cell | undef
   return sheet.cells[cellRef(row, column)]
 }
 
-/** Célula sem valor, fórmula nem estilo sai do mapa, para o arquivo não crescer a cada limpeza. */
+/**
+ * A cell without value, formula or style leaves the map, so the file does not grow with every
+ * clear.
+ */
 export function setCell(sheet: Sheet, row: number, column: number, cell: Cell): Sheet {
   const ref = cellRef(row, column)
   const cells = { ...sheet.cells }

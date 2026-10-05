@@ -1,6 +1,6 @@
 /**
- * O que o Word deixa à mão na aba "Símbolo", e não uma tabela Unicode completa.
- * O nome traduzido é o que o leitor de tela anuncia.
+ * What Word keeps at hand in the "Symbol" tab, not a full Unicode table. The translated name is
+ * what the screen reader announces.
  */
 
 import { Language, translate, type MessageKey } from '@shared/i18n/index.js'
@@ -8,7 +8,7 @@ import { Language, translate, type MessageKey } from '@shared/i18n/index.js'
 export interface SpecialCharacter {
   readonly char: string
   readonly nameKey: MessageKey
-  /** O nome acessível do botão e a dica do mouse. */
+  /** The button's accessible name and tooltip. */
   readonly name: string
 }
 
@@ -50,7 +50,7 @@ const GROUPS_DEF: readonly GroupDef[] = [
       { char: '‰', nameKey: 'chars.punct.perMille' },
       { char: '¿', nameKey: 'chars.punct.invertedQuestion' },
       { char: '¡', nameKey: 'chars.punct.invertedExclamation' },
-      // Impede "R$" de ficar no fim de uma linha e o valor na seguinte.
+      // Keeps "R$" from staying at the end of a line and the amount on the next.
       { char: '\u00a0', nameKey: 'chars.punct.nonBreakingSpace' },
     ],
   },

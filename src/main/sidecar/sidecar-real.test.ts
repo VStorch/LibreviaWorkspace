@@ -1,7 +1,7 @@
 /**
- * Ponta a ponta contra o sidecar .NET de verdade: `protocol.test.ts` e
- * `FrameIoTests.cs` conferem cada lado contra a própria ideia do formato.
- * Depende de `npm run sidecar:build`, e falha sem ele em vez de ser pulado.
+ * End to end against the real .NET sidecar: `protocol.test.ts` and `FrameIoTests.cs` check each
+ * side against its own idea of the format. Depends on `npm run sidecar:build`, and fails without it
+ * instead of being skipped.
  */
 
 import { Buffer } from 'node:buffer'
@@ -28,27 +28,27 @@ describe.skipIf(!published)('sidecar .NET publicado', () => {
     const health = await client.health()
 
     expect(health.name).toBe('Librevia.Format')
-    // As versões entram no health porque um documento que abre errado só numa
-    // máquina quase sempre é diferença de versão de biblioteca.
+    // Versions are part of health because a document that opens wrong on a single machine is almost
+    // always a library version difference.
     expect(health.runtime).toMatch(/OpenXml=3\./)
     expect(health.runtime).toMatch(/ClosedXML=0\./)
   })
 
   it('devolve binário grande byte a byte igual', async () => {
-    // 4 MB com padrão conhecido: pega truncamento, reordenação e qualquer
-    // tentativa de tratar os bytes como texto.
+    // 4 MB with a known pattern: catches truncation, reordering and any attempt to treat the bytes
+    // as text.
     const payload = new Uint8Array(4 * 1024 * 1024).map((_, i) => (i * 31) % 256)
 
     const reply = await client.request(SidecarMethod.Echo, {}, payload)
 
     expect(reply.binary.length).toBe(payload.length)
-    // `toEqual` compararia 4 milhões de elementos um a um e levaria mais tempo
-    // que a viagem inteira até o sidecar. `Buffer.compare` é memcmp.
+    // `toEqual` would compare 4 million elements one by one and take longer than the whole round
+    // trip. `Buffer.compare` is memcmp.
     expect(Buffer.compare(Buffer.from(reply.binary), Buffer.from(payload))).toBe(0)
   })
 
   it('preserva bytes que quebrariam um protocolo de linha', async () => {
-    // Assinatura de ZIP e fins de linha — é disto que um DOCX é feito.
+    // ZIP signature and line endings: that is what a DOCX is made of.
     const payload = new Uint8Array([0x50, 0x4b, 0x03, 0x04, 0x0a, 0x0d, 0x00, 0x1a])
 
     const reply = await client.request(SidecarMethod.Echo, {}, payload)
@@ -57,7 +57,7 @@ describe.skipIf(!published)('sidecar .NET publicado', () => {
   })
 
   it('atende pedidos seguidos no mesmo processo', async () => {
-    // Prova que o laço volta ao topo em vez de atender um e travar.
+    // Proves the loop goes back to the top instead of serving one and hanging.
     for (let round = 0; round < 5; round++) {
       const reply = await client.request(SidecarMethod.Echo, {}, new Uint8Array([round]))
       expect(reply.binary).toEqual(new Uint8Array([round]))
@@ -65,8 +65,7 @@ describe.skipIf(!published)('sidecar .NET publicado', () => {
   })
 
   it('cria o pacote mínimo de um documento novo', async () => {
-    // O método novo do protocolo, com o executável publicado: a configuração de
-    // página vai no JSON, e o pacote volta no binário — pronto para abrir.
+    // The page setup goes in the JSON, and the package comes back in the binary, ready to open.
     const page = { size: 'Letter', orientation: 'landscape', margins: { top: 20, right: 20, bottom: 20, left: 20 } }
 
     const created = await client.request(SidecarMethod.DocxCreate, { page })
@@ -75,7 +74,7 @@ describe.skipIf(!published)('sidecar .NET publicado', () => {
     const opened = await client.request(SidecarMethod.DocxOpen, {}, created.binary)
     expect(opened.result).toMatchObject({ model: { page: { size: 'Letter', orientation: 'landscape' } } })
 
-    // E serve de original para a gravação de sempre.
+    // And it serves as the original for the regular save.
     const model = { page, doc: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Olá.' }] }] } }
     const saved = await client.request(SidecarMethod.DocxSave, model, created.binary)
     expect(saved.result).toMatchObject({ rewrittenBlocks: 1 })
@@ -89,7 +88,7 @@ describe.skipIf(!published)('sidecar .NET publicado', () => {
       const opened = await client.request(SidecarMethod.DocxOpen, {}, created.binary)
       const read = (opened.result as { model: { styles: StyleSheet } }).model.styles
 
-      // O leitor devolve a pilha de CSS; a tabela, o nome solto.
+      // The reader returns the CSS stack; the table, the bare name.
       const { fontFamily, ...character } = read.defaults.character
       expect(firstFontOf(fontFamily)).toBe(styles.defaults.character.fontFamily)
       expect({ ...read.defaults, character }).toMatchObject({
@@ -110,13 +109,13 @@ describe.skipIf(!published)('sidecar .NET publicado', () => {
     const unknown = client.request('metodo.inexistente' as SidecarMethod, {})
     await expect(unknown).rejects.toThrow(/não conhece/i)
 
-    // O importante é o processo seguir vivo depois de recusar.
+    // What matters is that the process stays alive after refusing.
     await expect(client.health()).resolves.toMatchObject({ name: 'Librevia.Format' })
   })
 
   it('não escreve nada fora do protocolo no stdout', async () => {
-    // Um Console.WriteLine perdido corromperia o fluxo. O Program.cs redireciona
-    // Console.Out para stderr justamente por isso; este teste é a trava.
+    // A stray Console.WriteLine would corrupt the stream. Program.cs redirects Console.Out to
+    // stderr for that reason; this test is the lock.
     const health = await client.health()
     const reply = await client.request(SidecarMethod.Echo, {}, new Uint8Array([1]))
 

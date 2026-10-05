@@ -21,18 +21,18 @@ export interface PageStackProps {
   readonly floatsByPage: readonly PlacedFloat[][]
   readonly sheetEditing: SheetEditing | Record<string, never>
   readonly notePool: RefObject<HTMLDivElement | null>
-  /** `null` com o painel fechado ou sem comentários. */
+  /** `null` with the pane closed or without comments. */
   readonly comments: {
     readonly list: readonly DocumentComment[]
     readonly outside: ReadonlySet<string>
   } | null
-  /** O invólucro do zoom cresce para a rolagem chegar até a coluna dos comentários. */
+  /** The zoom wrapper grows so scrolling reaches the comments column. */
   readonly zoomedWidthPx: number
 }
 
 /**
- * O `transform` do zoom não muda o espaço ocupado: o invólucro o reserva, para a
- * rolagem chegar ao fim. A paginação mede em 100 %.
+ * The zoom `transform` does not change the space taken: the wrapper reserves it so scrolling
+ * reaches the end. Pagination measures at 100 %.
  */
 export function PageStack(props: PageStackProps): React.JSX.Element {
   const { editor, layout, reading, zoom, geometry, effective, notePool, comments, zoomedWidthPx } = props
@@ -60,16 +60,14 @@ export function PageStack(props: PageStackProps): React.JSX.Element {
               }
         }
       >
-        {/* Fora do `contenteditable`: dentro, cada folha seria um nó
-        selecionável. Sem folhas no modo de leitura, nem objetos ancorados,
-        cuja posição é relativa a uma folha. */}
+        {/* Outside the `contenteditable`: inside, each sheet would be a selectable node. No sheets in reading
+        mode, and no anchored objects, whose position is relative to a sheet. */}
         {!reading && <SheetPapers {...props} />}
-
         <div
           className="pages__column"
           style={
             reading
-              ? // A largura da leitura vem do CSS, e não das margens do documento.
+              ? // Reading width comes from CSS, not from the document margins.
                 undefined
               : {
                   paddingTop: `${geometry.topInsetPx}px`,
@@ -80,9 +78,8 @@ export function PageStack(props: PageStackProps): React.JSX.Element {
         >
           <EditorContent editor={editor} />
         </div>
-
-        {/* Os corpos de nota sem folha, na largura da coluna, onde a paginação
-            os mede; no modo de leitura, aparecem aqui, depois do texto. */}
+        {/* Note bodies without a sheet, at column width, where pagination measures them; in reading mode they
+        show here, after the text. */}
         <div
           ref={notePool}
           className={`note-pool${reading ? ' note-pool--reading' : ''}`}
@@ -95,7 +92,6 @@ export function PageStack(props: PageStackProps): React.JSX.Element {
                 }
           }
         />
-
         {comments !== null && (
           <CommentsPane
             editor={editor}
@@ -109,7 +105,9 @@ export function PageStack(props: PageStackProps): React.JSX.Element {
   )
 }
 
-/** O papel de cada folha e, nele, as faixas, que moram dentro da margem e não empurram o texto. */
+/**
+ * Each sheet's paper and, on it, the bands, which live inside the margin and do not push the text.
+ */
 function SheetPapers({
   editor,
   layout,

@@ -9,7 +9,7 @@ import { SectionScopeChoice, type SectionScope } from './SectionScopeChoice.js'
 const MAX_COLUMNS = 12
 const MAX_SPACING_MM = 100
 
-/** Na seção do cursor ou no documento todo, como a configuração de página. */
+/** For the cursor's section or the whole document, like page setup. */
 export function ColumnsDialog({
   editor,
   onClose,

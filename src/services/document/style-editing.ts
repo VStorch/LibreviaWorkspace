@@ -1,8 +1,7 @@
 /**
- * Toda função devolve uma folha nova: é pela referência que o CSS se regera.
- * `StyleWriter.cs` só mexe no `w:style` que mudou. O formulário mostra o que o
- * estilo vale e grava só o campo mudado, para mudar o pai continuar alcançando o
- * filho.
+ * Every function returns a new sheet: the CSS regenerates by reference. `StyleWriter.cs` only
+ * touches the `w:style` that changed. The form shows what the style is worth and saves only the
+ * changed field, so changing the parent still reaches the child.
  */
 
 import { firstFontOf } from './line-metrics.js'
@@ -22,7 +21,7 @@ import {
   type StyleSheet,
 } from './styles.js'
 
-/** O nível de título de um estilo, pelo nome interno — `heading 1` em qualquer idioma. */
+/** By internal name: `heading 1` in any language. */
 export function headingLevelOfStyle(style: StyleDefinition | undefined): number | null {
   const match = /^heading ([1-6])$/i.exec(style?.name ?? '')
   return match === null ? null : Number(match[1])
@@ -32,7 +31,7 @@ export function withStyle(sheet: StyleSheet, style: StyleDefinition): StyleSheet
   return { ...sheet, styles: { ...sheet.styles, [style.id]: style } }
 }
 
-/** Como o Word: sem acento, espaço nem pontuação, e um número no fim quando já existe. */
+/** As in Word: no accents, spaces or punctuation, and a trailing number when it already exists. */
 export function newStyleId(sheet: StyleSheet, name: string): string {
   const base =
     name
@@ -51,7 +50,7 @@ export interface NewStyle {
   readonly next?: string | undefined
 }
 
-/** Um estilo personalizado, vazio: tudo o que ele vale vem do pai. */
+/** Empty: everything it is worth comes from the parent. */
 export function createStyle(sheet: StyleSheet, input: NewStyle): { sheet: StyleSheet; id: string } {
   const id = newStyleId(sheet, input.name)
   const style: StyleDefinition = {
@@ -67,7 +66,7 @@ export function createStyle(sheet: StyleSheet, input: NewStyle): { sheet: StyleS
   return { sheet: withStyle(sheet, style), id }
 }
 
-/** O nome do estilo embutido (`heading 1`) não muda: é como o Word reconhece o título. */
+/** A builtin style's name (`heading 1`) does not change: that is how Word recognizes a heading. */
 export function withIdentity(
   sheet: StyleSheet,
   id: string,
@@ -84,7 +83,7 @@ export function withIdentity(
   delete (rest as { basedOn?: string }).basedOn
   delete (rest as { next?: string }).next
   const name = style.custom && identity.name.trim() !== '' ? identity.name.trim() : style.name
-  // Herdar de si mesmo seria laço, e o resolvedor cortaria a cadeia.
+  // Inheriting from itself would be a loop, and the resolver would cut the chain.
   const basedOn = identity.basedOn === id ? style.basedOn : identity.basedOn
   return withStyle(sheet, {
     ...rest,
@@ -96,9 +95,9 @@ export function withIdentity(
 
 export interface StyleDraft {
   readonly paragraph: ParagraphDraft
-  /** Nome da fonte, ou vazio quando ninguém na cadeia diz. */
+  /** Empty when nobody in the chain says. */
   readonly fontFamily: string
-  /** Pontos, ou `null` quando ninguém na cadeia diz. */
+  /** Points, or `null` when nobody in the chain says. */
   readonly fontSize: number | null
   readonly bold: boolean
   readonly italic: boolean
@@ -120,7 +119,7 @@ export function styleDraftOf(sheet: StyleSheet, id: string): StyleDraft {
   }
 }
 
-/** Campo igual continua como estava, declarado ou herdado. */
+/** An unchanged field stays as it was, declared or inherited. */
 export function styleWithDraft(sheet: StyleSheet, id: string, draft: StyleDraft): StyleSheet {
   const style = sheet.styles[id]
   if (style === undefined) return sheet
@@ -183,9 +182,9 @@ function withCharacterChanges(
 }
 
 /**
- * "Atualizar estilo a partir da seleção", só quando a pessoa pede.
+ * "Update style to match selection", only when the user asks.
  *
- * @param effective os atributos do bloco com o estilo por baixo (`effectiveAttrs`).
+ * @param effective the block's attributes with the style underneath (`effectiveAttrs`).
  */
 export function styleFromBlock(
   sheet: StyleSheet,
@@ -203,7 +202,7 @@ export function styleFromBlock(
   }
 }
 
-/** O estilo que vem depois de um parágrafo deste, ao dar Enter no fim dele. */
+/** Applied on Enter at the end of a paragraph with this style. */
 export function nextStyleIdOf(sheet: StyleSheet, id: string | null): string | null {
   const own = id ?? sheet.defaults.paragraphStyleId
   if (own === null) return null

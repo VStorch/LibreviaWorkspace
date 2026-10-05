@@ -23,7 +23,7 @@ export function TableDialog({
     editor.chain().focus().insertTable({ rows, cols: columns, withHeaderRow: headerRow }).run()
     onClose()
 
-    // De novo depois de fechar, como no diálogo de parágrafo.
+    // Again after closing, as in the paragraph dialog.
     requestAnimationFrame(() => editor.commands.focus())
   }
 
@@ -66,7 +66,7 @@ export function TableDialog({
 
       <label className="popover__check">
         <input type="checkbox" checked={headerRow} onChange={(event) => setHeaderRow(event.target.checked)} />
-        {/* `w:tblHeader`: a linha reaparece no alto de cada página. */}
+        {/* `w:tblHeader`: the row repeats at the top of each page. */}
         <span>{t('document.tableDialog.headerRow')}</span>
       </label>
 

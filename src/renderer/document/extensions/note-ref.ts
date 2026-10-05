@@ -8,10 +8,10 @@ import { sectionBreakIn, type SectionBlock } from '@services/document/sections.j
 import { noteRefView } from './note-view.js'
 
 /**
- * Um nó em linha e atômico, **com conteúdo**: o corpo tem editor próprio
- * (`note-view.ts`), mas viaja dentro da referência — copiar copia a nota, apagar
- * apaga. O `nid` é o `w:id`; a colada ao lado da original o perde, e ganha nota
- * própria. O número é a ordem da referência, desenhado por decoração.
+ * An inline atomic node **with content**: the body has its own editor (`note-view.ts`), but travels
+ * inside the reference, so copying copies the note and deleting deletes it. `nid` is the `w:id`;
+ * one pasted beside the original loses it and gets its own note. The number is the reference's
+ * order, drawn by a decoration.
  */
 
 export interface NoteRefOptions {
@@ -21,7 +21,7 @@ export interface NoteRefOptions {
 
 export const noteRefKey = new PluginKey<NoteRefState>('noteRef')
 
-/** Sem descer no corpo de nenhuma. */
+/** Without descending into any body. */
 export function noteRefsOf(doc: ProseMirrorNode): Array<{ node: ProseMirrorNode; pos: number }> {
   const found: Array<{ node: ProseMirrorNode; pos: number }> = []
   doc.descendants((node, pos) => {
@@ -32,7 +32,7 @@ export function noteRefsOf(doc: ProseMirrorNode): Array<{ node: ProseMirrorNode;
   return found
 }
 
-/** `null` fora de nota: é por ela que um comando sabe que a seleção é a do corpo. */
+/** `null` outside a note: that is how a command knows the selection is the body's. */
 export function noteRefAround(doc: ProseMirrorNode, pos: number): number | null {
   if (pos < 0 || pos > doc.content.size) return null
   const $pos = doc.resolve(pos)
@@ -47,12 +47,15 @@ function markOf(node: ProseMirrorNode): string | null {
   return typeof mark === 'string' && mark !== '' ? mark : null
 }
 
-/** A de marca própria não: o Word grava a marca no corpo, e desenhá-la de novo daria "**". */
+/**
+ * Not one with its own mark: Word writes the mark in the body, and drawing it again would give
+ * "**".
+ */
 export function drawsNoteNumber(node: ProseMirrorNode): boolean {
   return markOf(node) === null
 }
 
-/** Pela contagem das marcas de seção antes dela, que fecham a seção como o `w:sectPr`. */
+/** By counting the section marks before it, which close the section like `w:sectPr`. */
 function noteRefSections(doc: ProseMirrorNode): number[] {
   const sections: number[] = []
   let section = 0
@@ -67,7 +70,7 @@ function noteRefSections(doc: ProseMirrorNode): number[] {
   return sections
 }
 
-/** `pages` é a folha de cada uma, para o reinício por página. */
+/** `pages` is each one's sheet, for per-page restart. */
 export function noteRefLabels(
   doc: ProseMirrorNode,
   notes?: DocumentNotes,
@@ -116,9 +119,9 @@ function noteRefState(
   return { decorations, labels, pages }
 }
 
-/** O papel e o `NOTEREF` usam os mesmos. */
+/** Paper and `NOTEREF` use the same ones. */
 export function noteLabelsOf(state: EditorState): readonly string[] {
-  // Sem o plugin (um estado montado à parte), a conta padrão do documento.
+  // Without the plugin (a separately built state), the document's default count.
   return noteRefKey.getState(state)?.labels ?? noteRefLabels(state.doc)
 }
 
@@ -126,7 +129,7 @@ export function notePagesOf(state: EditorState): readonly (number | undefined)[]
   return noteRefKey.getState(state)?.pages ?? []
 }
 
-/** Vem da paginação, depois de ela assentar; a transação não muda o documento. */
+/** Comes from pagination once it settles; the transaction does not change the document. */
 export function setNotePages(tr: Transaction, pages: readonly (number | undefined)[]): Transaction {
   return tr.setMeta(noteRefKey, pages).setMeta('addToHistory', false)
 }
@@ -156,8 +159,8 @@ export function samePages(
 }
 
 /**
- * O arquivo não aceita duas referências à mesma nota: a colada vai sem `nid` e
- * ganha nota própria. Arrastar não é colar, e leva o `nid` junto.
+ * The file does not accept two references to the same note: a pasted one goes without `nid` and
+ * gets its own note. Dragging is not pasting, and keeps the `nid`.
  */
 export function withoutRepeatedNotes(slice: Slice, doc: ProseMirrorNode, moving = false): Slice {
   if (moving) return slice
@@ -188,7 +191,7 @@ function contentFromJson(element: HTMLElement, schema: Schema): Fragment {
     const raw = element.getAttribute('data-note-body')
     if (raw !== null) return Fragment.fromJSON(schema, JSON.parse(raw) as unknown)
   } catch {
-    // Corpo ilegível: a nota chega vazia, sem derrubar a colagem.
+    // Unreadable body: the note arrives empty, without breaking the paste.
   }
   return Fragment.from(schema.nodes['paragraph']!.create())
 }
@@ -232,9 +235,9 @@ export const NoteRef = Node.create<NoteRefOptions>({
     return [
       {
         tag: 'sup[data-note-ref]',
-        // Acima do sobrescrito, que também reconhece o `<sup>` e levaria a nota embora.
+        // Above superscript, which also recognizes `<sup>` and would take the note away.
         priority: 100,
-        // Num atributo: `<p>` dentro de `<p>` faria o analisador partir o parágrafo.
+        // In an attribute: `<p>` inside `<p>` would make the parser split the paragraph.
         getContent: (element, schema) => contentFromJson(element as HTMLElement, schema),
       },
     ]
@@ -284,7 +287,10 @@ export const NoteRef = Node.create<NoteRefOptions>({
   },
 })
 
-/** A referência tem o corpo dentro: sem isto o título com nota iria ao sumário com o texto dela. */
+/**
+ * The reference has the body inside: without this a heading with a note would go to the table of
+ * contents with the note text.
+ */
 export function textBetweenWithoutNotes(
   node: ProseMirrorNode,
   from: number,
@@ -315,7 +321,7 @@ export function textBetweenWithoutNotes(
   return text
 }
 
-/** `labels` são os da tela para esta folha, na mesma ordem (ver `print-source.ts`). */
+/** `labels` are the screen's for this sheet, in the same order (see `print-source.ts`). */
 export function numberNotesForPrint(holder: HTMLElement, labels: readonly string[]): void {
   let index = 0
   for (const element of holder.querySelectorAll<HTMLElement>('sup[data-note-ref]')) {

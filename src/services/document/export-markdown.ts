@@ -16,14 +16,13 @@ import type { DocumentModel, DocumentNode } from './model.js'
 import { latexOfEquation } from './mathml-latex.js'
 
 /**
- * CommonMark com as tabelas e as notas do GFM. As imagens vão para uma pasta
- * irmã (`relatorio_arquivos/`), como o "Salvar como página da Web" do Word: em
- * `data:` o texto ficaria ilegível, e muitos visualizadores as recusam. Tabela
- * com mescla sai em HTML; sublinhado, cor e fonte se perdem.
+ * CommonMark with GFM tables and notes. Images go to a sibling folder (`relatorio_arquivos/`), like
+ * Word's "Save as Web Page": as `data:` the text would be unreadable, and many viewers refuse them.
+ * A table with merged cells goes out as HTML; underline, color and font are lost.
  */
 
 export interface MarkdownExportOptions {
-  /** O nome da pasta das imagens, ao lado do arquivo (`relatorio_arquivos`). */
+  /** Next to the file (`relatorio_arquivos`). */
   readonly assetFolder: string
 }
 
@@ -44,11 +43,11 @@ interface OpenMark {
   readonly key: string
   readonly open: string
   readonly close: string
-  /** Onde o conteúdo da marca começa na saída. */
+  /** Where the mark content starts in the output. */
   readonly at: number
 }
 
-/** A ordem de abertura: o link por fora, o sobrescrito por dentro. */
+/** Opening order: the link outside, superscript inside. */
 const MARK_ORDER = ['link', 'bold', 'italic', 'strike', 'superscript', 'subscript']
 
 type MarkSyntax = Omit<OpenMark, 'at'>
@@ -76,7 +75,7 @@ export function exportMarkdown(
   const assets: MarkdownAsset[] = []
   const assetBySrc = new Map<string, string>()
 
-  /** O caminho relativo da imagem, gravando-a na lista uma vez só. */
+  /** Adds the image to the list only once. */
   function imagePath(src: unknown): string | null {
     const data = imageData(src)
     if (data === null) return null
@@ -113,7 +112,7 @@ class MarkdownWriter {
     for (const node of nodes) {
       const text = this.block(node)
       if (text === '') continue
-      // Duas listas do mesmo tipo seguidas virariam uma só.
+      // Two consecutive lists of the same kind would merge into one.
       if (previous !== null && previous.type === node.type && isList(node)) parts.push('<!-- -->')
       parts.push(text)
       previous = node
@@ -155,7 +154,7 @@ class MarkdownWriter {
   private heading(node: DocumentNode): string {
     const text = this.inline(node.content ?? [], 'heading').trim()
     if (text === '') return ''
-    // O `#` no fim seria lido como o fecho opcional do título.
+    // A trailing `#` would be read as the optional heading closer.
     return `${'#'.repeat(exportHeadingLevel(node))} ${text.replace(/#$/, '\\#')}`
   }
 
@@ -187,7 +186,7 @@ class MarkdownWriter {
       children.forEach((child, index) => {
         const text = this.block(child)
         if (text === '') return
-        // A sublista cola no parágrafo do item: lista compacta continua compacta.
+        // A sublist sticks to the item paragraph: a tight list stays tight.
         const glue = parts.length === 0 ? '' : isList(child) && !loose && index > 0 ? '\n' : '\n\n'
         parts.push(glue + text)
       })
@@ -239,7 +238,7 @@ class MarkdownWriter {
         const entry = stack.pop()!
         const trailing = /[ \t]*$/.exec(out)![0]
         const core = out.slice(0, out.length - trailing.length)
-        // A marca que ficou sem conteúdo sai sem deixar `****` para trás.
+        // A mark left empty goes away without leaving `****` behind.
         out =
           core.length === entry.at
             ? core.slice(0, entry.at - entry.open.length) + trailing
@@ -254,7 +253,7 @@ class MarkdownWriter {
       if (isCode) piece = codeSpan(node.text ?? '', mode)
 
       let wanted = this.marksOf(node)
-      // O espaço sozinho não abre ênfase: `** **` não é negrito em Markdown.
+      // A lone space does not open emphasis: `** **` is not bold in Markdown.
       if (node.type === 'text' && !isCode && (node.text ?? '').trim() === '') {
         wanted = wanted.filter((mark) => stack.some((open) => open.key === mark.key))
       }
@@ -264,7 +263,7 @@ class MarkdownWriter {
 
       const opening = wanted.slice(stack.length)
       if (opening.length > 0) {
-        // O espaço antes do conteúdo vai para fora da marca.
+        // The space before the content goes outside the mark.
         const leading = /^[ \t]*/.exec(piece)![0]
         out += leading
         piece = piece.slice(leading.length)
@@ -280,7 +279,7 @@ class MarkdownWriter {
   }
 
   private marksOf(node: DocumentNode): Array<Omit<OpenMark, 'at'>> {
-    // A referência de nota fica fora das marcas: `<sup>[^1]</sup>` não é nota.
+    // A note reference stays outside the marks: `<sup>[^1]</sup>` is not a note.
     if (node.type === 'noteRef') return []
     const found: Array<Omit<OpenMark, 'at'> & { readonly order: number }> = []
     for (const mark of node.marks ?? []) {
@@ -306,7 +305,7 @@ class MarkdownWriter {
       }
       case 'field':
         return escapeMarkdown(String(node.attrs?.['result'] ?? ''))
-      // LaTeX entre cifrões, que o Pandoc e o GitHub leem; sem LaTeX, o MathML.
+      // LaTeX between dollar signs, which Pandoc and GitHub read; without LaTeX, MathML.
       case 'math':
         return mathMarkdown(node, mode)
       case 'bookmarkStart':
@@ -323,7 +322,7 @@ class MarkdownWriter {
     return `![${escapeMarkdown(alt)}](${path})`
   }
 
-  /** Só os que algum link aponta: os outros seriam ruído no texto. */
+  /** Only the ones a link points to: the others would be noise in the text. */
   private bookmarkAnchor(node: DocumentNode): string {
     const name = String(node.attrs?.['name'] ?? '')
     return this.source.linkTargets.has(name) ? `<a id="${escapeHtml(name)}"></a>` : ''
@@ -343,7 +342,7 @@ function mathMarkdown(node: DocumentNode, mode: Mode): string {
   return mode === 'block' ? `\n$$${escaped}$$\n` : `$$${escaped}$$`
 }
 
-/** `[^1]` nas de rodapé, `[^fim-1]` nas de fim: as duas contas não se cruzam. */
+/** `[^1]` for footnotes, `[^fim-1]` for endnotes: the two counts do not cross. */
 function noteKey(note: ExportNote): string {
   return note.id.replace(/^nota-rodape-/, '').replace(/^nota-/, '')
 }
@@ -352,7 +351,7 @@ function isList(node: DocumentNode): boolean {
   return node.type === 'bulletList' || node.type === 'orderedList'
 }
 
-/** A tabela que o GFM representa: sem mescla, sem bloco dentro de célula. */
+/** No merged cells and no blocks inside cells. */
 function isSimpleTable(rows: readonly DocumentNode[]): boolean {
   const columns = (rows[0]?.content ?? []).length
   if (columns === 0) return false
@@ -367,7 +366,7 @@ function isSimpleTable(rows: readonly DocumentNode[]): boolean {
   })
 }
 
-/** O começo da linha (`#`, `>`, `-`, `1.`) é com `escapeLineStarts`. */
+/** Line starts (`#`, `>`, `-`, `1.`) are handled by `escapeLineStarts`. */
 export function escapeMarkdown(text: string): string {
   return text.replace(/[\\`*_[\]<>~|$]/g, '\\$&').replace(/&(?=#?[a-z0-9]+;)/gi, '&amp;')
 }
@@ -376,7 +375,7 @@ function escapeLineStarts(text: string): string {
   return text
     .split('\n')
     .map((line) => {
-      // Recuo no começo viraria bloco de código; no Markdown ele não significa nada.
+      // Leading indentation would become a code block; in Markdown it means nothing.
       const trimmed = line.replace(/^[ \t]+/, '')
       if (/^(#{1,6}(\s|$)|>|[-+](\s|$)|=+\s*$|-+\s*$)/.test(trimmed)) return `\\${trimmed}`
       return trimmed.replace(/^(\d{1,9})([.)])(?=\s|$)/, '$1\\$2')
@@ -389,7 +388,7 @@ function codeSpan(text: string, mode: Mode): string {
   const longest = Math.max(0, ...Array.from(content.matchAll(/`+/g), (match) => match[0].length))
   const fence = '`'.repeat(longest + 1)
   const padded = content.startsWith('`') || content.endsWith('`') ? ` ${content} ` : content
-  // Na célula do GFM a barra vertical divide a coluna mesmo dentro do código.
+  // In a GFM cell the pipe splits the column even inside code.
   return `${fence}${mode === 'cell' ? padded.replace(/\|/g, '\\|') : padded}${fence}`
 }
 
@@ -413,12 +412,12 @@ function linkDestination(href: string, title: string): string {
   return title === '' ? destination : `${destination} "${title.replace(/["\\]/g, '\\$&')}"`
 }
 
-/** Um pedaço de caminho de URL relativa: espaço, acento e parêntese codificados. */
+/** Spaces, accents and parentheses encoded. */
 function encodePathPart(part: string): string {
   return encodeURIComponent(part).replace(/\(/g, '%28').replace(/\)/g, '%29')
 }
 
-/** Recua as linhas depois da primeira — a continuação de um item ou de uma nota. */
+/** The continuation of an item or a note. */
 function indentRest(text: string, pad: string): string {
   return text
     .split('\n')

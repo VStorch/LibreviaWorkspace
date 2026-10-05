@@ -40,8 +40,7 @@ export function CharacterFormatGroup({ editor }: { readonly editor: Editor }): R
         active={active.strike}
         onClick={() => chain().toggleInheritedMark('strike').run()}
       />
-
-      {/* Os atalhos anunciados são os do Word; `Ctrl+.` e `Ctrl+,` do Tiptap continuam valendo. */}
+      {/* The announced shortcuts are Word's; Tiptap's `Ctrl+.` and `Ctrl+,` keep working. */}
       <ToolbarButton
         icon="superscript"
         label={t('document.characterFormat.superscript')}
@@ -68,13 +67,12 @@ export function CharacterFormatGroup({ editor }: { readonly editor: Editor }): R
         active={active.smallCaps}
         onClick={() => chain().toggleSmallCaps().run()}
       />
-
       <ColorControls editor={editor} active={active} />
     </ToolbarGroup>
   )
 }
 
-/** O que aparece, com o estilo por baixo. */
+/** What shows, with the style underneath. */
 function activeFormatOf(current: Editor) {
   return {
     bold: markVisiblyOn(current.state.tr, current.storage.paragraphCommands.styles, 'bold'),
@@ -105,7 +103,7 @@ function ColorControls({ editor, active }: { editor: Editor; active: ActiveForma
         onChange={(value) => chain().setColor(value).run()}
         onClear={() => chain().unsetColor().run()}
       />
-      {/* O "Destaque" é `w:highlight`, de catorze cores; este é `w:shd`, de cor livre. */}
+      {/* "Highlight" is `w:highlight`, with fourteen colors; this one is `w:shd`, with any color. */}
       <ColorControl
         icon="text-background"
         label={t('document.characterFormat.backgroundColor')}

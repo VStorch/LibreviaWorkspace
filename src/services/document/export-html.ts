@@ -18,30 +18,30 @@ import { styleSheetCss } from './style-css.js'
 import { cellBordersFromAttr, cellBordersToCss } from './table-format.js'
 
 /**
- * Uma página autocontida e sem script. Os estilos viram as regras da tela
- * (`styleSheetCss`) e a formatação direta sai inline. Tudo o que vem do
- * documento é escapado, e o CSS de atributo passa por `safeCss`.
+ * A self-contained page without scripts. Styles become the screen rules (`styleSheetCss`) and
+ * direct formatting goes inline. Everything from the document is escaped, and attribute CSS goes
+ * through `safeCss`.
  */
 
 export interface HtmlExportOptions {
-  /** O nome do arquivo de origem: o título quando as propriedades não têm um. */
+  /** The title when the properties have none. */
   readonly fileName: string
   readonly lang: string
-  /** Os textos que a página leva, na língua da interface. */
+  /** In the UI language. */
   readonly labels: HtmlExportLabels
 }
 
 export interface HtmlExportLabels {
-  /** O rótulo da seção de notas, para leitores de tela. */
+  /** For screen readers. */
   readonly notes: string
-  /** A dica do número da nota, que leva de volta ao texto. */
+  /** The tooltip of the note number, which leads back to the text. */
   readonly backToText: string
 }
 
-/** Como o renderizador resolve o `src` de uma imagem: `null` a omite. */
+/** `null` omits the image. */
 export type ImageSource = (src: unknown) => string | null
 
-/** O Markdown o usa para a tabela que não cabe em GFM. */
+/** Markdown uses it for tables GFM cannot represent. */
 export interface HtmlRenderer {
   blocks(nodes: readonly DocumentNode[]): string
   inline(nodes: readonly DocumentNode[]): string
@@ -92,7 +92,7 @@ function metaTag(name: string, value: string | undefined): string {
   return text === undefined || text === '' ? '' : `<meta name="${name}" content="${escapeHtml(text)}">\n`
 }
 
-/** A página não tem a folha do editor: uma coluna legível, com as regras de lista e tabela dele. */
+/** The page has no editor sheet: a readable column, with its list and table rules. */
 const EXPORT_CSS = `
 html { background: #ffffff; }
 body { margin: 0; color: #111111; }
@@ -204,7 +204,7 @@ class HtmlWriter implements HtmlRenderer {
 
   private inlineOrBreak(content: readonly DocumentNode[] | undefined): string {
     const html = this.inline(content ?? [])
-    // O parágrafo vazio ocupa uma linha, como no documento.
+    // An empty paragraph takes a line, as in the document.
     return html === '' ? '<br>' : html
   }
 
@@ -273,7 +273,7 @@ class HtmlWriter implements HtmlRenderer {
   private inlineNode(node: DocumentNode): string {
     const inner = this.inlineContent(node)
     if (inner === '') return ''
-    // O `vertAlign` que o Word põe na referência de nota a subiria duas vezes.
+    // The `vertAlign` Word puts on a note reference would raise it twice.
     return node.type === 'noteRef' ? inner : wrapMarks(inner, node.marks ?? [])
   }
 
@@ -365,7 +365,7 @@ function notesSection(source: ExportSource, renderer: HtmlRenderer, labels: Html
   return `<section class="notas" aria-label="${escapeHtml(labels.notes)}">\n<hr>\n${lists.join('\n')}\n</section>\n`
 }
 
-/** As marcas de um trecho, de fora para dentro: o link por fora de tudo. */
+/** Outside in: the link wraps everything. */
 function wrapMarks(inner: string, marks: NonNullable<DocumentNode['marks']>): string {
   let html = inner
   const ordered = [...marks].sort((a, b) => (a.type === 'link' ? 1 : 0) - (b.type === 'link' ? 1 : 0))
@@ -385,7 +385,7 @@ const styled =
   (html) =>
     `<span style="${css}">${html}</span>`
 
-/** A marca desligada (`off`) desfaz a do estilo, e não some. */
+/** A mark switched off (`off`) undoes the style's, rather than disappearing. */
 const toggled =
   (tag: string, offCss: string): MarkWrapper =>
   (html, attrs, mark) =>
@@ -453,7 +453,7 @@ function textStyleCss(attrs: Record<string, unknown>): string {
   return declarations(pairs)
 }
 
-/** Como `block-format.ts` a desenha. */
+/** As `block-format.ts` draws it. */
 export function blockCss(attrs: Record<string, unknown>): string {
   const mm = (value: unknown): string | null => {
     const number = finiteNumber(value)
@@ -478,7 +478,7 @@ export function blockCss(attrs: Record<string, unknown>): string {
   return declarations(pairs)
 }
 
-/** O passo do recuo por nível, o mesmo do editor (`indent.ts`). */
+/** The same as the editor (`indent.ts`). */
 const INDENT_STEP_EM = 2.5
 
 function declarations(pairs: ReadonlyArray<[string, unknown]>): string {
@@ -491,7 +491,7 @@ function declarations(pairs: ReadonlyArray<[string, unknown]>): string {
     .join('; ')
 }
 
-/** Sem `url(`, `expression`, barra invertida nem ponto e vírgula. */
+/** No `url(`, `expression`, backslash or semicolon. */
 export function safeCss(value: unknown): string | null {
   if (typeof value === 'number') return Number.isFinite(value) ? String(value) : null
   if (typeof value !== 'string') return null
@@ -515,7 +515,7 @@ function safeDeclarations(css: string): string[] {
     .filter((declaration): declaration is string => declaration !== null)
 }
 
-/** O `</style>` não pode aparecer no texto de uma regra: fecharia o bloco. */
+/** `</style>` must not appear in a rule: it would close the block. */
 function safeStyleText(css: string): string {
   return css.replace(/<\//g, '<\\/')
 }
@@ -565,7 +565,7 @@ export function escapeHtml(text: string): string {
     .replaceAll("'", '&#39;')
 }
 
-/** O `display` sai do nó, e não do MathML: é ele que faz da equação de exibição um bloco. */
+/** `display` comes from the node, not the MathML: it makes a display equation a block. */
 export function mathHtml(node: DocumentNode): string {
   const tree = sanitizeMathMl(typeof node.attrs?.['mathml'] === 'string' ? node.attrs['mathml'] : '')
   if (tree === null) return ''

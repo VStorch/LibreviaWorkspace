@@ -1,7 +1,7 @@
 /**
- * O avaliador pede os valores ao contexto e não conhece a planilha nem a ordem.
- * Erro é **valor**, e não exceção: `#DIV/0!` se propaga pela conta. Só erro de
- * escrita da fórmula lança.
+ * The evaluator asks the context for values and knows neither the sheet nor the order. An error is
+ * a **value**, not an exception: `#DIV/0!` propagates through the math. Only a malformed formula
+ * throws.
  */
 
 import type { Node } from './ast.js'
@@ -11,13 +11,13 @@ import { compare, toBoolean, toNumber, toText, type Scalar } from './values.js'
 import { findFunction } from './functions/index.js'
 
 export interface EvalContext {
-  /** Célula vazia devolve `null`. */
+  /** An empty cell returns `null`. */
   readonly valueAt: (ref: CellRef) => Scalar
-  /** Injetado, para `HOJE()` não prender os testes ao dia em que rodam. */
+  /** Injected, so `HOJE()` does not tie tests to the day they run. */
   readonly now: () => Date
 }
 
-/** Um argumento de função: um valor, ou um retângulo de valores. */
+/** A value, or a rectangle of values. */
 export type Argument =
   | { readonly kind: 'value'; readonly value: Scalar }
   | { readonly kind: 'range'; readonly rows: readonly (readonly Scalar[])[] }
@@ -33,7 +33,7 @@ export function evaluate(node: Node, context: EvalContext): Scalar {
     case 'reference':
       return context.valueAt(node.ref)
 
-    // Solto numa conta, o Excel faria uma interseção implícita que quase ninguém usa.
+    // Loose in a calculation, Excel would do an implicit intersection that almost nobody uses.
     case 'range':
       return FormulaError.Value
 
@@ -112,12 +112,12 @@ function arithmetic(operator: string, left: Scalar, right: Scalar): Scalar {
   }
 }
 
-/** `Infinity` vira `#NÚM!`. */
+/** `Infinity` becomes `#NÚM!`. */
 function finite(value: number): Scalar {
   return Number.isFinite(value) ? value : FormulaError.Num
 }
 
-/** `=SE(A1=0;"";1/A1)` não pode calcular o ramo não escolhido. */
+/** `=SE(A1=0;"";1/A1)` must not compute the branch not taken. */
 const LAZY = new Set(['SE', 'IF', 'SEERRO', 'IFERROR', 'SENÃODISP', 'SEND', 'IFNA'])
 
 function call(node: { name: string; args: readonly Node[] }, context: EvalContext): Scalar {
@@ -132,7 +132,8 @@ function call(node: { name: string; args: readonly Node[] }, context: EvalContex
   const args: Argument[] = []
   for (const arg of node.args) {
     const value = argumentOf(arg, context)
-    // Erro em argumento contamina a chamada, menos nas preguiçosas e nas que examinam erro.
+    // An error in an argument taints the call, except for lazy functions and those that inspect
+    // errors.
     if (!definition.acceptsErrors && value.kind === 'value' && isFormulaError(value.value)) {
       return value.value
     }
@@ -150,7 +151,7 @@ function lazyCall(name: string, args: readonly Node[], context: EvalContext): Sc
     if (isFormulaError(condition)) return condition
 
     const branch = condition ? args[1] : args[2]
-    // `=SE(A1>0;1)` com A1 negativo devolve FALSO no Excel, e não vazio.
+    // `=SE(A1>0;1)` with a negative A1 returns FALSE in Excel, not empty.
     return branch === undefined ? false : evaluate(branch, context)
   }
 

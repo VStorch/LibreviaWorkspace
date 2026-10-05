@@ -49,14 +49,15 @@ const PATHS: Record<IconName, React.ReactNode> = {
     <path d="M5 12h14M8 8a3.5 3.5 0 0 1 3.5-3h1A3.5 3.5 0 0 1 16 8M8 16a3.5 3.5 0 0 0 3.5 3h1a3.5 3.5 0 0 0 3.5-3" />
   ),
 
-  // Um "A" e um quadradinho, erguido num e rebaixado no outro: "X²" com traços viraria borrão a 18 px.
+  // An "A" and a small square, raised in one and lowered in the other: "X²" in strokes would blur
+  // at 18 px.
   superscript: <path d="M3.5 18 8.5 7l5 11M5.3 14.6h6.4M17 5.5h4v4h-4z" />,
   subscript: <path d="M3.5 16 8.5 5l5 11M5.3 12.6h6.4M17 14.5h4v4h-4z" />,
 
   caps: <path d="M2 17.5 6 7l4 10.5M3.5 14.2h5M13 17.5 17 7l4 10.5M14.5 14.2h5" />,
   'small-caps': <path d="M2 17.5 6 7l4 10.5M3.5 14.2h5M14 17.5 16.8 10.5l2.8 7M15 15.2h3.6" />,
 
-  // As linhas de texto distinguem a lista de estilos do `paragraph`.
+  // The text lines tell the style list apart from `paragraph`.
   styles: <path d="M2.5 17 6.5 6l4 11M4 13.6h5M14 8h7M14 12h7M14 16h5" />,
 
   'align-left': <path d="M4 6h16M4 10h10M4 14h16M4 18h10" />,
@@ -80,7 +81,7 @@ const PATHS: Record<IconName, React.ReactNode> = {
   'page-setup': <path d="M5 3h9l5 5v13H5zM14 3v5h5M8 13h8M8 17h5" />,
   'print-preview': <path d="M7 9V4h10v5M7 18H5v-6h14v6h-2M8 15h8v6H8z" />,
 
-  // A barrinha com a cor escolhida é desenhada pelo CSS.
+  // CSS draws the bar with the chosen color.
   'text-color': <path d="M6 17 12 6l6 11M8.4 13.2h7.2" />,
   'fill-color': (
     <path d="M7.4 3.4 9.9 5.9M9.9 5.9 4.7 11.1a1.6 1.6 0 0 0 0 2.2l4.8 4.8a1.6 1.6 0 0 0 2.2 0l5.2-5.2zM20 8.6c0 1-.8 1.8-1.8 1.8s-1.8-.8-1.8-1.8 1.8-3.2 1.8-3.2 1.8 2.2 1.8 3.2z" />
@@ -90,7 +91,7 @@ const PATHS: Record<IconName, React.ReactNode> = {
 
   paragraph: <path d="M18 4h-6.5a4 4 0 0 0 0 8H14M14 4v16M18 4v16" />,
 
-  // O ponto do espaço ao lado distingue as marcas do botão que abre o diálogo.
+  // The space dot beside it tells the marks apart from the button that opens the dialog.
   'formatting-marks': (
     <>
       <path d="M19 4h-6a3.5 3.5 0 0 0 0 7h2M15 4v16M19 4v16" />

@@ -22,7 +22,7 @@ const doc = ProseMirrorNode.fromJSON(schema, {
   content: [{ type: 'paragraph', content: [{ type: 'text', text: 'O orçamento é de doze mil.' }] }],
 })
 
-/** A biblioteca só ganha: o comentário e a resposta dele ficam nela o tempo todo. */
+/** The library only grows: the comment and its reply stay in it the whole time. */
 const library: DocumentComment[] = [
   { id: '0', author: 'Ana', date: '', paragraphs: ['Conferir.'], done: false },
   { id: '1', parentId: '0', author: 'Bruno', date: '', paragraphs: ['Ok.'], done: false },
@@ -31,7 +31,7 @@ const library: DocumentComment[] = [
 const visible = (state: EditorState): string[] =>
   resolveComments(new Set(commentAnchorsOf(state.doc).keys()), library).map((comment) => comment.id)
 
-/** Roda um comando de histórico e devolve o estado seguinte. */
+/** Runs a history command and returns the next state. */
 function run(state: EditorState, command: typeof undo): EditorState {
   let next = state
   command(state, (tr: Transaction) => {
@@ -43,7 +43,7 @@ function run(state: EditorState, command: typeof undo): EditorState {
 describe('comentário e desfazer', () => {
   it('inserir, desfazer, refazer, excluir e desfazer de novo: o texto decide o cartão', () => {
     let state = EditorState.create({ schema, doc, plugins: [history()] })
-    // "doze mil" selecionado.
+    // "doze mil" selected.
     state = state.apply(state.tr.setSelection(TextSelection.create(state.doc, 18, 26)))
     expect(visible(state)).toEqual([])
 
@@ -81,7 +81,7 @@ describe('comentário e desfazer', () => {
   })
 })
 
-/** Um parágrafo de texto e pontas de comentário. */
+/** A text paragraph and comment ends. */
 const anchored = (
   ...parts: (string | { readonly at: 'commentStart' | 'commentEnd'; readonly cid: string })[]
 ) =>
@@ -134,7 +134,7 @@ describe('colar âncoras de comentário', () => {
 })
 
 describe('próximo e anterior comentário', () => {
-  // "a[0b]0 c]1 d[2e]2" — o 1 é de ponto; o 9 é resposta, sem cartão.
+  // "a[0b]0 c]1 d[2e]2": 1 is a point comment; 9 is a reply, without a card.
   const doc = docWith(
     anchored('a', open('0'), 'b', close('0'), ' c', close('1'), open('9'), close('9')),
     anchored('d', open('2'), 'e', close('2')),
@@ -154,7 +154,7 @@ describe('próximo e anterior comentário', () => {
     const inside = positions.get('0')!.start! + 1
     expect(adjacentComment(doc, threads, '0', inside, 1)).toBe('1')
     expect(adjacentComment(doc, threads, '0', inside, -1)).toBe('2')
-    // O cursor clicado longe dela: quem manda é o cursor.
+    // The cursor clicked far from it: the cursor rules.
     expect(adjacentComment(doc, threads, '0', doc.content.size - 1, 1)).toBe('0')
   })
 
@@ -167,7 +167,7 @@ describe('Backspace e Delete em volta da âncora', () => {
   it('o cursor passa por cima das âncoras, e só delas', () => {
     const doc = docWith(anchored('Fim.', close('1'), open('2')))
     const at = (pos: number) => EditorState.create({ schema, doc, selection: TextSelection.create(doc, pos) })
-    // Depois das duas âncoras: o Backspace vai para depois do ".".
+    // After both anchors: Backspace goes after the ".".
     expect(pastAnchors(at(7), -1)).toBe(5)
     expect(pastAnchors(at(5), 1)).toBe(7)
     expect(pastAnchors(at(4), -1)).toBeNull()
@@ -192,7 +192,7 @@ describe('comentário dentro de uma nota (M11)', () => {
       },
     ],
   })
-  // "Fonte" dentro da nota: o parágrafo do corpo, a referência, o parágrafo da nota.
+  // "Fonte" inside the note: the body paragraph, the reference, the note paragraph.
   const from = 1 + 'Corpo'.length + 2
   const to = from + 'Fonte'.length
 
@@ -205,7 +205,7 @@ describe('comentário dentro de uma nota (M11)', () => {
     expect(tr.doc.child(0).child(1).textContent).toBe('Fonte da nota.')
     expect(tr.doc.child(0).child(1).child(0).childCount).toBe(4)
 
-    // Excluir a conversa tira as pontas de dentro da nota.
+    // Deleting the thread removes the ends inside the note.
     const removal = EditorState.create({ doc: tr.doc }).tr
     expect(removeCommentAnchors(removal, '0')).toBe(true)
     expect(commentAnchorsOf(removal.doc).size).toBe(0)

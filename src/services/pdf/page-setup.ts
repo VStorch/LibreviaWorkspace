@@ -21,7 +21,7 @@ export interface PdfPrintOptions {
   readonly scale: number
 }
 
-/** O Chromium desenha cabeçalho e rodapé dentro da margem e recorta o que passar. */
+/** Chromium draws header and footer inside the margin and clips what overflows. */
 export const MIN_MARGIN_FOR_HEADER_MM = 12
 
 export function marginFitsHeaderOrFooter(marginMm: number): boolean {
@@ -37,8 +37,8 @@ function escapeHtml(text: string): string {
 }
 
 /**
- * O Chromium troca as classes `pageNumber` e `totalPages`. O texto é escapado, e
- * a fonte é declarada porque sem ela o template sai em tamanho zero.
+ * Chromium replaces the `pageNumber` and `totalPages` classes. The text is escaped, and the font is
+ * declared because without it the template renders at size zero.
  */
 export function buildHeaderFooterTemplate(text: string): string {
   if (text.trim().length === 0) return '<span></span>'
@@ -56,8 +56,8 @@ export function buildHeaderFooterTemplate(text: string): string {
 }
 
 /**
- * A imagem entra como `data:` URI porque o template não busca recurso externo,
- * e a escala é reduzida porque o Chromium o desenha com escala própria.
+ * The image goes in as a `data:` URI because the template fetches no external resource, and the
+ * scale is reduced because Chromium draws it at its own scale.
  */
 export function buildBandTemplate(band: Band): string {
   const cell = (pieces: readonly BandPiece[], align: string): string =>
@@ -109,7 +109,7 @@ export interface NativePrintOptions {
   readonly margins: { readonly marginType: 'custom' } & PdfMargins
 }
 
-/** As margens do `print()` são em pixels CSS, e as do `printToPDF()` em polegadas. */
+/** `print()` margins are CSS pixels, `printToPDF()` ones are inches. */
 export function buildNativePrintOptions(page: PageSetup): NativePrintOptions {
   return {
     pageSize: page.size === PageSize.Letter ? 'Letter' : 'A4',
@@ -126,10 +126,8 @@ export function buildNativePrintOptions(page: PageSetup): NativePrintOptions {
 }
 
 /**
- * @param paged
- * O HTML já vem em folhas do tamanho do papel: margem zero, tamanho do `@page`
- * e sem a faixa do Chromium, que cairia por cima da nossa. A planilha não vem
- * paginada.
+ * @param paged The HTML already comes in paper-sized sheets: zero margin, `@page` size and no
+ * Chromium band, which would fall over ours. A spreadsheet is not paginated.
  */
 export function buildPrintOptions(page: PageSetup, paged = false): PdfPrintOptions {
   if (paged) {
@@ -141,13 +139,13 @@ export function buildPrintOptions(page: PageSetup, paged = false): PdfPrintOptio
       displayHeaderFooter: false,
       headerTemplate: '',
       footerTemplate: '',
-      // O mesmo papel que a tela desenhou.
+      // The same paper the screen drew.
       preferCSSPageSize: true,
       scale: 1,
     }
   }
 
-  // A faixa preservada do documento manda; o texto digitado só vale sem ela.
+  // The document's preserved band wins; typed text only applies without one.
   const headerBand = hasBandContent(page.headerBand) ? page.headerBand : null
   const footerBand = hasBandContent(page.footerBand) ? page.footerBand : null
 
@@ -163,14 +161,14 @@ export function buildPrintOptions(page: PageSetup, paged = false): PdfPrintOptio
       left: mmToInches(page.margins.left),
       right: mmToInches(page.margins.right),
     },
-    // Sem isto, destaque de texto e fundo de cabeçalho de tabela somem do PDF.
+    // Otherwise text highlight and table header backgrounds vanish from the PDF.
     printBackground: true,
     displayHeaderFooter: hasHeader || hasFooter,
     headerTemplate:
       headerBand === null ? buildHeaderFooterTemplate(page.header) : buildBandTemplate(headerBand),
     footerTemplate:
       footerBand === null ? buildHeaderFooterTemplate(page.footer) : buildBandTemplate(footerBand),
-    // As margens e o tamanho vêm daqui, não do CSS: é uma fonte só.
+    // Margins and size come from here, not from CSS: a single source.
     preferCSSPageSize: false,
     scale: 1,
   }

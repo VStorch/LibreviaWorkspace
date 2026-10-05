@@ -1,6 +1,6 @@
 /**
- * As listas da galeria do Word, com as medidas dele. Os nove níveis, porque Tab
- * desce ao nível seguinte, que tem de estar definido.
+ * Word's gallery lists, with its measures. All nine levels, because Tab moves to the next level,
+ * which must be defined.
  */
 
 import { twipsToMm } from '@services/units.js'
@@ -29,7 +29,7 @@ export const NUMBER_FORMATS = [
   'none',
 ] as const
 
-/** As marcas que o diálogo oferece — todas com glifo conhecido do Word (`ListLevels.cs`). */
+/** All with a glyph Word knows (`ListLevels.cs`). */
 export const BULLET_MARKS = ['•', 'o', '▪', '➢', '●', '□', '✓', '–'] as const
 
 export const LIST_PRESETS: readonly ListPreset[] = [
@@ -40,8 +40,8 @@ export const LIST_PRESETS: readonly ListPreset[] = [
     levels: defaultLevels('orderedList'),
   },
   {
-    // "1 1.1 1.1.1" do Word: cada nível leva os de cima, e o recuo pendente
-    // cresce com o número, que fica mais largo a cada nível.
+    // Word's "1 1.1 1.1.1": each level carries the ones above, and the hanging indent grows with
+    // the number, which widens at each level.
     id: 'legal',
     kind: 'orderedList',
     labelKey: 'document.lists.presetLegal',
@@ -104,7 +104,7 @@ export const LIST_PRESETS: readonly ListPreset[] = [
   },
 ]
 
-/** Pelo primeiro nível, como o leitor decide. */
+/** By the first level, as the reader decides. */
 export function kindOfLevels(list: readonly LevelDef[]): 'bulletList' | 'orderedList' {
   const fmt = list[0]?.fmt
   return fmt === 'bullet' || fmt === 'none' ? 'bulletList' : 'orderedList'

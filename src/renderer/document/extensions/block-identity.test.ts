@@ -7,10 +7,9 @@ import { buildEditorExtensions } from '../editor-extensions.js'
 import { uniqueOids } from './block-identity.js'
 
 /**
- * A identidade do bloco é única: com dois blocos de mesmo `oid`, o gravador preserva
- * o XML do primeiro e regenera o segundo. O Enter divide o parágrafo, e o lado novo
- * não leva o `oid`. Sem o `Editor` do Tiptap, que precisa de DOM: o Enter é o
- * `splitBlock` do ProseMirror.
+ * Block identity is unique: with two blocks sharing an `oid`, the writer keeps the first one's XML
+ * and regenerates the second. Enter splits the paragraph, and the new side does not take the `oid`.
+ * Without Tiptap's `Editor`, which needs a DOM: Enter is ProseMirror's `splitBlock`.
  */
 
 const schema = getSchema(buildEditorExtensions(() => {}))
@@ -19,7 +18,7 @@ function stateOf(doc: unknown): EditorState {
   return EditorState.create({ doc: schema.nodeFromJSON(doc), plugins: [uniqueOids()] })
 }
 
-/** Aplica um comando como o editor o aplica: o despacho passa pelo `apply`. */
+/** Dispatch goes through `apply`, as in the editor. */
 function run(state: EditorState, at: number, command: typeof splitBlock): EditorState {
   let next = state.apply(state.tr.setSelection(TextSelection.create(state.doc, at)))
   command(next, (tr: Transaction) => {
@@ -44,7 +43,7 @@ describe('uniqueOids', () => {
       ],
     })
 
-    // O cursor entre "Antes" e " e depois": 1 é o começo do parágrafo.
+    // The cursor between "Antes" and " e depois": 1 is the start of the paragraph.
     const divided = run(state, 1 + 'Antes'.length, splitBlock)
 
     expect(divided.doc.childCount).toBe(2)
@@ -52,9 +51,9 @@ describe('uniqueOids', () => {
   })
 
   it('a identidade repetida por colagem também sai', () => {
-    // A gravação já previa o `oid` repetido — preserva o XML da primeira
-    // ocorrência e regenera as outras. Aqui a regra é a mesma, um passo antes:
-    // a segunda ocorrência deixa de afirmar uma identidade que não é dela.
+    // Saving already handled a repeated `oid` by keeping the first occurrence's XML and
+    // regenerating the others. The rule is the same here, one step earlier: the second occurrence
+    // stops claiming an identity that is not its own.
     const state = stateOf({
       type: 'doc',
       content: [
@@ -70,8 +69,8 @@ describe('uniqueOids', () => {
   })
 
   it('não mexe no que já é único', () => {
-    // O plugin devolve transação só quando há o que corrigir: uma transação
-    // apendada a cada tecla digitada suja o histórico de desfazer.
+    // The plugin returns a transaction only when there is something to fix: an appended transaction
+    // on every key press dirties the undo history.
     const state = stateOf({
       type: 'doc',
       content: [

@@ -6,8 +6,8 @@ import { formatCell } from '@services/spreadsheet/format.js'
 import { useT } from '../i18n.js'
 
 /**
- * A célula mostra o resultado, e aqui se vê a fórmula. A fórmula é conferida
- * antes de entrar: `=ABS(1;2)` recebe a frase, e não o `#VALOR!`.
+ * The cell shows the result, and the formula shows here. The formula is checked before it goes in:
+ * `=ABS(1;2)` gets the sentence, not `#VALOR!`.
  */
 export function FormulaBar({
   sheet,
@@ -20,19 +20,19 @@ export function FormulaBar({
 }): React.JSX.Element {
   const t = useT()
   const cell = getCell(sheet, range.fromRow, range.fromColumn)
-  // O valor cru, e não o formatado: reeditar "R$ 1.234,50" devolveria texto.
+  // The raw value, not the formatted one: re-editing "R$ 1.234,50" would give back text.
   const stored = cell?.formula ?? (cell?.value === undefined ? '' : String(cell.value))
 
   const [draft, setDraft] = useState(stored)
   const [problem, setProblem] = useState<string | null>(null)
   const input = useRef<HTMLInputElement>(null)
 
-  /** Só a troca de célula recarrega a barra: o recálculo apagaria o que se está escrevendo. */
+  /** Only a cell change reloads the bar: recalculation would erase what is being typed. */
   const anchor = describeRange(range)
   const loaded = useRef(anchor)
   if (loaded.current !== anchor) {
     loaded.current = anchor
-    // Na renderização, e não num efeito, para não piscar um valor velho.
+    // During render, not in an effect, so an old value does not flash.
     setDraft(stored)
     setProblem(null)
   }
@@ -83,7 +83,8 @@ export function FormulaBar({
             setProblem(null)
           }
         }}
-        // Sair confirma, como no Excel, menos com problema, que descartaria o que se escreveu.
+        // Leaving confirms, as in Excel, except when there is a problem, which would discard what
+        // was typed.
         onBlur={() => {
           if (problem === null && draft !== stored) commit()
         }}

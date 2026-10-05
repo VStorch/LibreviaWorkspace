@@ -68,7 +68,7 @@ describe('ida e volta do formato interno', () => {
   })
 
   it('abre documento gravado antes de existirem cabeçalho e rodapé', () => {
-    // Campo opcional novo não invalida o que está em disco.
+    // A new optional field does not invalidate what is on disk.
     const anterior = JSON.stringify({
       format: 'sdoc',
       version: SDOC_VERSION,
@@ -105,13 +105,13 @@ describe('estilos no formato interno', () => {
     })
 
   it('devolve os estilos gravados', () => {
-    // Os estilos do documento atravessam fiéis: um perdido mudaria a aparência.
+    // The document styles cross faithfully: a lost one would change the look.
     expect(parseDocument(serializeDocument(richDocument)).styles).toEqual(BUILTIN_STYLES)
   })
 
   it('marca como achatados os blocos de um arquivo anterior à versão 4', () => {
-    // Antes da versão 4 cada bloco levava a formatação efetiva, e a gravação em DOCX
-    // compara com uma leitura achatada.
+    // Before version 4 each block carried the effective formatting, and saving to DOCX compares
+    // with a flattened reading.
     expect(parseDocument(v2()).flattened).toBe(true)
     expect(parseDocument(serializeDocument(richDocument)).flattened).toBeUndefined()
     const flat = parseDocument(serializeDocument({ ...richDocument, flattened: true }))
@@ -119,7 +119,7 @@ describe('estilos no formato interno', () => {
   })
 
   it('marca como anterior às referências o arquivo de antes da versão 5', () => {
-    // Antes da versão 5 os nós não trazem marcador nem campo.
+    // Before version 5 the nodes carry no bookmarks or fields.
     const v4 = JSON.stringify({ ...JSON.parse(v2(BUILTIN_STYLES)), version: 4 })
     expect(parseDocument(v4).beforeReferences).toBe(true)
     expect(parseDocument(v4).flattened).toBeUndefined()
@@ -129,7 +129,7 @@ describe('estilos no formato interno', () => {
   })
 
   it('marca como anterior às seções o arquivo de antes da versão 6, e leva as seções na ida e volta', () => {
-    // Antes da versão 6 não há `sections` nem `sectionBreak`: a página é a do documento inteiro.
+    // Before version 6 there are no `sections` or `sectionBreak`: the page is the whole document's.
     const v5 = JSON.stringify({ ...JSON.parse(v2(BUILTIN_STYLES)), version: 5 })
     expect(parseDocument(v5).beforeSections).toBe(true)
     expect(parseDocument(v5).sections).toBeUndefined()
@@ -147,7 +147,7 @@ describe('estilos no formato interno', () => {
   })
 
   it('marca como anterior aos comentários o arquivo da versão 6, e leva os comentários na ida e volta', () => {
-    // Antes da versão 7 os nós não trazem as pontas da âncora.
+    // Before version 7 the nodes carry no anchor ends.
     const v6 = JSON.stringify({ ...JSON.parse(v2(BUILTIN_STYLES)), version: 6 })
     expect(parseDocument(v6).beforeComments).toBe(true)
     expect(parseDocument(v6).comments).toBeUndefined()
@@ -172,7 +172,7 @@ describe('estilos no formato interno', () => {
   })
 
   it('marca como anterior às revisões o arquivo da versão 7, e leva o interruptor na ida e volta', () => {
-    // Antes do controle de alterações, sem marcas de revisão.
+    // Before track changes, no revision marks.
     const v7 = JSON.stringify({ ...JSON.parse(v2(BUILTIN_STYLES)), version: 7 })
     expect(parseDocument(v7).beforeRevisions).toBe(true)
     expect(parseDocument(v7).beforeComments).toBeUndefined()
@@ -187,7 +187,7 @@ describe('estilos no formato interno', () => {
   })
 
   it('marca como anterior às notas o arquivo da versão 8, e leva a numeração na ida e volta', () => {
-    // Antes das notas, sem `noteRef`.
+    // Before notes, no `noteRef`.
     const v8 = JSON.stringify({ ...JSON.parse(v2(BUILTIN_STYLES)), version: 8 })
     expect(parseDocument(v8).beforeNotes).toBe(true)
     expect(parseDocument(v8).beforeRevisions).toBeUndefined()
@@ -202,8 +202,8 @@ describe('estilos no formato interno', () => {
   })
 
   it('marca como anterior às equações o arquivo da versão 10, e o atual não', () => {
-    // Antes das equações não há nó `math`, e editar o parágrafo perde a equação: a
-    // gravação em DOCX declara isso.
+    // Before equations there is no `math` node, and editing the paragraph loses the equation:
+    // saving to DOCX says so.
     const v10 = JSON.stringify({ ...JSON.parse(v2(BUILTIN_STYLES)), version: 10 })
     expect(parseDocument(v10).beforeMath).toBe(true)
     expect(parseDocument(v10).beforeNotes).toBeUndefined()
@@ -213,7 +213,7 @@ describe('estilos no formato interno', () => {
     const legacy = parseDocument(serializeDocument({ ...richDocument, beforeMath: true }))
     expect(legacy.beforeMath).toBe(true)
 
-    // O nó atravessa o `.sdoc` como veio: o OMML é o que volta ao arquivo.
+    // The node crosses the `.sdoc` as it came: the OMML is what goes back to the file.
     const omml = '<m:oMath xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math"/>'
     const math = { type: 'math', attrs: { omml, mathml: '<math></math>', latex: '', display: false } }
     const doc = { type: 'doc', content: [{ type: 'paragraph', content: [math] }] }
@@ -221,7 +221,7 @@ describe('estilos no formato interno', () => {
   })
 
   it('leva as propriedades na ida e volta, e o arquivo da versão 9 abre sem elas e sem marca', () => {
-    // Antes das propriedades: a ausência deixa `docProps/` como está no arquivo.
+    // Before properties: their absence leaves `docProps/` as it is in the file.
     const v9 = JSON.stringify({ ...JSON.parse(v2(BUILTIN_STYLES)), version: 9 })
     const legacy = parseDocument(v9)
     expect(legacy.properties).toBeUndefined()
@@ -254,12 +254,12 @@ describe('estilos no formato interno', () => {
   })
 
   it('dá os estilos embutidos ao arquivo da versão 2, que não os tinha', () => {
-    // Documento antigo abre idêntico, medida por medida.
+    // An old document opens identical, measure by measure.
     expect(parseDocument(v2()).styles).toEqual(LEGACY_STYLES)
   })
 
   it('ignora estilos num arquivo que se declara da versão 2', () => {
-    // A versão 2 não tem estilos: um `styles` ali é remendo, e não se confia nele.
+    // Version 2 has no styles: a `styles` there is a patch, and it is not trusted.
     const forjado: StyleSheet = {
       defaults: { paragraph: {}, character: {}, paragraphStyleId: null, characterStyleId: null },
       styles: {},
@@ -278,7 +278,7 @@ describe('estilos no formato interno', () => {
   })
 
   it('recusa um estilo malformado em vez de abrir o documento sem ele', () => {
-    // Sem tipo, não há onde o estilo se aplique.
+    // Without a type, there is nowhere for the style to apply.
     const quebrado = JSON.stringify({
       format: 'sdoc',
       version: SDOC_VERSION,
@@ -291,8 +291,8 @@ describe('estilos no formato interno', () => {
 })
 
 describe('documento gravado pela versão 1 do formato', () => {
-  // Na versão 1 a imagem era bloco, solta entre parágrafos ou na célula; hoje é
-  // inline, e o TipTap monta o documento sem validar o schema.
+  // In version 1 the image was a block, loose between paragraphs or in a cell; today it is inline,
+  // and Tiptap builds the document without validating the schema.
   const image = { type: 'image', attrs: { src: 'data:image/png;base64,AAAA', width: 40 } }
   const versionOne = (doc: object): string =>
     JSON.stringify({ format: 'sdoc', version: 1, page: DEFAULT_PAGE_SETUP, doc })
@@ -361,7 +361,7 @@ describe('leitura de arquivo problemático', () => {
   })
 
   it('recupera margens impossíveis usando o padrão, sem descartar o texto', () => {
-    // Melhor margem padrão que recusar o arquivo.
+    // Better the default margin than refusing the file.
     const quebrado = JSON.stringify({
       format: 'sdoc',
       version: SDOC_VERSION,

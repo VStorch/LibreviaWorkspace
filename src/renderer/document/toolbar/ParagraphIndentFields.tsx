@@ -7,7 +7,7 @@ interface ParagraphIndentFieldsProps {
   readonly onChange: DraftChange
 }
 
-/** Os recuos, em milímetros, e o tratamento da primeira linha. */
+/** In millimetres, with the first-line treatment. */
 export function ParagraphIndentFields({ draft, onChange }: ParagraphIndentFieldsProps): React.JSX.Element {
   const t = useT()
 

@@ -3,9 +3,9 @@ import { noteBody, parkNoteBody, placeNoteBody, subscribeNoteBodies } from './ex
 import { NOTE_SEPARATOR_PX, type NoteArea, type NoteAreaItem } from './usePagination.js'
 
 /**
- * O pedaço da primeira linha mostra o **próprio** corpo editável, recortado; a
- * continuação é uma cópia deslocada, porque um elemento não mora em dois lugares.
- * Clicar na continuação leva o cursor ao corpo.
+ * The first-line slice shows the note's **own** editable body, clipped; the continuation is a
+ * shifted copy, because an element cannot live in two places. Clicking the continuation takes the
+ * cursor to the body.
  */
 export function NoteAreaView({ area }: { area: NoteArea }): React.JSX.Element {
   return (
@@ -33,7 +33,7 @@ export function NoteAreaView({ area }: { area: NoteArea }): React.JSX.Element {
 
 function LiveNote({ item }: { item: NoteAreaItem }): React.JSX.Element {
   const slot = useRef<HTMLDivElement>(null)
-  // Só quando a nota muda de lugar: refazer a cada desenho tiraria o foco.
+  // Only when the note moves: redoing it on every draw would steal focus.
   useLayoutEffect(() => {
     const element = slot.current
     const body = noteBody(item.key)
@@ -48,7 +48,8 @@ function LiveNote({ item }: { item: NoteAreaItem }): React.JSX.Element {
 function ContinuedNote({ item }: { item: NoteAreaItem }): React.JSX.Element {
   const slot = useRef<HTMLDivElement>(null)
 
-  // A cópia se refaz fora do React: um estado assinado a cada tecla levaria o React a desistir (erro 185).
+  // The copy is redone outside React: state subscribed on every key press would make React give up
+  // (error 185).
   useLayoutEffect(() => {
     const element = slot.current
     if (element === null) return undefined

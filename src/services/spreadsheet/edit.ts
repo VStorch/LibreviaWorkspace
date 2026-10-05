@@ -1,7 +1,7 @@
 import { parseInput } from './format.js'
 import { cellRef, getCell, setCell, type BorderSide, type Cell, type CellStyle, type Sheet } from './model.js'
 
-/** Base zero e inclusivo. */
+/** Zero-based and inclusive. */
 export interface Range {
   readonly fromRow: number
   readonly fromColumn: number
@@ -22,7 +22,7 @@ export function singleCell(row: number, column: number): Range {
   return { fromRow: row, toRow: row, fromColumn: column, toColumn: column }
 }
 
-/** Referência exibível: "B3" para uma célula, "B3:D9" para um intervalo. */
+/** "B3" for a cell, "B3:D9" for a range. */
 export function describeRange(range: Range): string {
   const { fromRow, fromColumn, toRow, toColumn } = normalizeRange(range)
   const start = cellRef(fromRow, fromColumn)
@@ -43,7 +43,7 @@ export function* cellsIn(range: Range): Generator<{ row: number; column: number 
   }
 }
 
-/** Mescla com o estilo existente: o negrito não apaga o fundo. */
+/** Merges with the existing style: bold does not erase the background. */
 export function applyStyle(sheet: Sheet, range: Range, change: Partial<CellStyle>): Sheet {
   let updated = sheet
 
@@ -57,7 +57,7 @@ export function applyStyle(sheet: Sheet, range: Range, change: Partial<CellStyle
   return updated
 }
 
-/** Se tudo já está ligado, desliga; senão, liga tudo. */
+/** If everything is already on, turns it off; otherwise turns everything on. */
 export function toggleStyle(sheet: Sheet, range: Range, key: 'bold' | 'italic' | 'underline'): Sheet {
   const allOn = [...cellsIn(range)].every(
     ({ row, column }) => getCell(sheet, row, column)?.style?.[key] === true,
@@ -66,12 +66,12 @@ export function toggleStyle(sheet: Sheet, range: Range, key: 'bold' | 'italic' |
   return applyStyle(sheet, range, { [key]: allOn ? undefined : true })
 }
 
-/** `sides` vazio remove as bordas; cada célula recebe os mesmos lados. */
+/** Empty `sides` removes the borders; every cell gets the same sides. */
 export function applyBorders(sheet: Sheet, range: Range, sides: readonly BorderSide[]): Sheet {
   return applyStyle(sheet, range, { borders: sides.length === 0 ? undefined : [...sides] })
 }
 
-/** Apaga o conteúdo, preservando a formatação — como a tecla Delete faz. */
+/** Preserves the formatting, as Delete does. */
 export function clearContents(sheet: Sheet, range: Range): Sheet {
   let updated = sheet
 
@@ -85,11 +85,14 @@ export function clearContents(sheet: Sheet, range: Range): Sheet {
   return updated
 }
 
-/** O `=` inicial distingue fórmula de texto. O valor fica para o recálculo, que sabe a ordem. */
+/**
+ * A leading `=` tells a formula from text. The value is left to recalculation, which knows the
+ * order.
+ */
 export function writeText(sheet: Sheet, row: number, column: number, text: string): Sheet {
   const previous = getCell(sheet, row, column)
 
-  // O formato reconhecido na digitação não apaga o escolhido à mão.
+  // A format recognized while typing does not erase the one chosen by hand.
   const keepStyle = (cell: Cell, fallback?: Partial<CellStyle>): Cell => {
     const style = previous?.style ?? fallback
     return style === undefined ? cell : { ...cell, style }
@@ -101,7 +104,9 @@ export function writeText(sheet: Sheet, row: number, column: number, text: strin
   return setCell(sheet, row, column, keepStyle({ value: parsed.value }, parsed.style))
 }
 
-/** A planilha cresce junto: senão a última linha sairia da área visível e continuaria no arquivo. */
+/**
+ * The sheet grows along: otherwise the last row would leave the visible area and stay in the file.
+ */
 export function insertRows(sheet: Sheet, at: number, count = 1): Sheet {
   return count <= 0 ? sheet : shiftRows(sheet, at, count)
 }
@@ -132,7 +137,7 @@ function shiftRows(sheet: Sheet, at: number, delta: number): Sheet {
       continue
     }
 
-    // Linha excluída: a célula desaparece junto.
+    // A deleted row takes the cell with it.
     if (delta < 0 && position.row < at - delta) continue
 
     cells[cellRef(position.row + delta, position.column)] = cell
@@ -173,7 +178,7 @@ function shiftColumns(sheet: Sheet, at: number, delta: number): Sheet {
   }
 }
 
-/** Inserir dentro da faixa congelada a desloca junto. */
+/** Inserting inside the frozen band shifts it along. */
 function shiftFrozen(frozen: number, at: number, delta: number): number {
   return at < frozen ? Math.max(at, frozen + delta) : frozen
 }

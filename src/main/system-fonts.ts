@@ -4,30 +4,30 @@ import { promisify } from 'node:util'
 import { parseFontconfigFamilies, parseWindowsFontRegistry } from '@services/document/font-list.js'
 
 /**
- * `queryLocalFonts()` pede permissão e não vale num renderer sem origem: quem
- * pergunta é o main. Conforto, e não requisito: toda falha devolve lista vazia.
+ * `queryLocalFonts()` asks for permission and does not work in a renderer without an origin, so
+ * main asks. A comfort, not a requirement: every failure returns an empty list.
  */
 
 const run = promisify(execFile)
 
-/** Para o caso patológico, como o cache do fontconfig sendo reconstruído. */
+/** For the pathological case, such as the fontconfig cache being rebuilt. */
 const TIMEOUT_MS = 4000
 const MAX_OUTPUT_BYTES = 8 * 1024 * 1024
 
-/** Uma vez por sessão: instalar fonte com o aplicativo aberto é raro. */
+/** Once per session: installing a font with the app open is rare. */
 let cached: Promise<string[]> | null = null
 
 export function listInstalledFontFamilies(): Promise<string[]> {
   cached ??= collect().then((families) => {
-    // Lista vazia não fica em cache: pode ser falha transitória, e guardá-la
-    // deixaria a barra sem fonte nenhuma pela sessão inteira.
+    // An empty list is not cached: it may be a transient failure, and keeping it would leave the
+    // toolbar without fonts for the whole session.
     if (families.length === 0) cached = null
     return families
   })
   return cached
 }
 
-/** Para os testes. */
+/** For the tests. */
 export function forgetInstalledFonts(): void {
   cached = null
 }
@@ -40,7 +40,7 @@ async function collect(): Promise<string[]> {
   }
 }
 
-/** `%{family[0]}`: só o primeiro nome da família, sem caminho nem estilo. */
+/** `%{family[0]}`: only the first family name, without path or style. */
 async function fromFontconfig(): Promise<string[]> {
   const { stdout } = await run('fc-list', ['--format', '%{family[0]}\\n'], {
     timeout: TIMEOUT_MS,
@@ -52,9 +52,9 @@ async function fromFontconfig(): Promise<string[]> {
 }
 
 /**
- * As duas chaves do registro: a da máquina e a do usuário, onde fica a fonte
- * instalada sem administrador. `reg query` pelo **caminho absoluto**, porque o
- * `CreateProcess` procura o nome simples antes no diretório atual.
+ * Both registry keys: the machine's and the user's, where fonts installed without admin rights go.
+ * `reg query` by **absolute path**, because `CreateProcess` looks up the bare name in the current
+ * directory first.
  */
 async function fromWindowsRegistry(): Promise<string[]> {
   const keys = [
@@ -74,7 +74,7 @@ async function fromWindowsRegistry(): Promise<string[]> {
       })
       for (const family of parseWindowsFontRegistry(stdout)) families.add(family)
     } catch {
-      // A chave do usuário não existe em instalação nova.
+      // The user key does not exist on a fresh install.
     }
   }
 

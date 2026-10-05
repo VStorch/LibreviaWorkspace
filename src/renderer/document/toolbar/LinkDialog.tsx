@@ -15,7 +15,6 @@ interface LinkDialogProps {
   readonly onClose: () => void
 }
 
-/** O título ganha um marcador oculto na hora de aplicar. */
 type Place =
   { readonly kind: 'bookmark'; readonly name: string } | { readonly kind: 'heading'; readonly pos: number }
 
@@ -31,7 +30,6 @@ export function LinkDialog({ editor, onClose }: LinkDialogProps): React.JSX.Elem
   const [value, setValue] = useState(internal ? '' : existing)
   const [rejected, setRejected] = useState(false)
 
-  // Uma vez, ao abrir: o diálogo não muda o documento enquanto está aberto.
   const [places] = useState(() => placesOf(editor, sheet, internal ? existing.slice(1) : null))
   const [place, setPlace] = useState<string>(internal ? `b:${existing.slice(1)}` : '')
 
@@ -76,12 +74,9 @@ export function LinkDialog({ editor, onClose }: LinkDialogProps): React.JSX.Elem
           }}
         />
       </label>
-
-      {/* Um link é endereço ou lugar: o campo se apaga para dizer isso. */}
+      {/* A link is an address or a place: the field greys out to say so. */}
       <PlaceSelect places={places} value={place} onChange={setPlace} />
-
       {rejected && <p className="popover__error">{t('document.linkDialog.invalidAddress')}</p>}
-
       <DialogActions confirmLabel={t('document.common.apply')} onConfirm={apply} onCancel={onClose}>
         {existing !== '' && (
           <button type="button" className="btn" onClick={remove}>
@@ -99,9 +94,8 @@ interface Places {
 }
 
 /**
- * Uma vez, ao abrir: o diálogo não muda o documento enquanto está aberto. O
- * marcador oculto só entra quando é o destino do link em edição, senão o seletor
- * abriria em branco.
+ * Read once, on open: the document does not change while the dialog is open. The hidden bookmark only appears
+ * when it is the target of the link being edited, otherwise the picker would open blank.
  */
 function placesOf(editor: Editor, sheet: StyleSheet, target: string | null): Places {
   const doc = editor.state.doc
@@ -114,7 +108,7 @@ function placesOf(editor: Editor, sheet: StyleSheet, target: string | null): Pla
   }
 }
 
-/** `false` quando o lugar não existe mais. */
+/** `false` when the place no longer exists. */
 function linkToPlace(editor: Editor, place: string, headings: Places['headings']): boolean {
   const chosen: Place | null = place.startsWith('b:')
     ? { kind: 'bookmark', name: place.slice(2) }
@@ -123,7 +117,7 @@ function linkToPlace(editor: Editor, place: string, headings: Places['headings']
       : null
   if (chosen === null) return false
 
-  // O título ganha um marcador oculto, como no Word; a seleção é mapeada pela transação.
+  // The heading gets a hidden bookmark, as in Word; the transaction maps the selection.
   const label =
     chosen.kind === 'bookmark'
       ? chosen.name
@@ -134,7 +128,7 @@ function linkToPlace(editor: Editor, place: string, headings: Places['headings']
   const href = `#${name}`
   const chain = editor.chain().focus()
   if (editor.state.selection.empty && !editor.isActive('link')) {
-    // Sem texto selecionado, o link leva o nome do lugar, como no Word.
+    // With no text selected, the link takes the name of the place, as in Word.
     chain.insertContent({ type: 'text', text: label, marks: [{ type: 'link', attrs: { href } }] }).run()
   } else {
     chain.extendMarkRange('link').setLink({ href }).run()

@@ -4,15 +4,15 @@ import { NoteKind } from '@services/document/notes.js'
 import { activeNoteOf, noteBodyOf } from './extensions/note-view.js'
 import { useWorkspace } from '../state/workspace.js'
 
-/** Quando o documento o tem. */
+/** When the document has it. */
 const NOTE_STYLE: Record<NoteKind, string> = {
   [NoteKind.Footnote]: 'FootnoteText',
   [NoteKind.Endnote]: 'EndnoteText',
 }
 
 /**
- * A referência no fim da seleção, como no Word, e o cursor no corpo. O foco vai
- * ao corpo quando ele chega à folha (ver `note-view.ts`).
+ * The reference at the end of the selection, as in Word, and the cursor in the body. Focus goes to
+ * the body when it reaches the sheet (see `note-view.ts`).
  */
 export function insertNote(editor: Editor, kind: NoteKind): boolean {
   const { state, schema } = editor
@@ -37,7 +37,7 @@ export function insertNote(editor: Editor, kind: NoteKind): boolean {
   return true
 }
 
-/** A do corpo em que está o cursor, a referência selecionada, ou a que encosta no cursor. */
+/** The body holding the cursor, the selected reference, or the one touching the cursor. */
 export function noteAtCursor(editor: Editor): { pos: number; kind: NoteKind } | null {
   const { state, view } = editor
   const found = (pos: number | undefined): { pos: number; kind: NoteKind } | null => {
@@ -56,7 +56,7 @@ export function noteAtCursor(editor: Editor): { pos: number; kind: NoteKind } | 
   return null
 }
 
-/** A referência perde o `nid`: a gravação cria a nota na outra parte, com o mesmo corpo. */
+/** The reference loses its `nid`: saving creates the note in the other part, with the same body. */
 export function convertNote(editor: Editor, pos: number): boolean {
   if (useWorkspace.getState().readOnly) return false
   const { state } = editor
