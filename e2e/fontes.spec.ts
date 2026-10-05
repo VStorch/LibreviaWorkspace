@@ -38,11 +38,12 @@ test.describe('fontes empacotadas', () => {
   })
 
   test('as cinco famílias ficam disponíveis pelo nome do documento', async () => {
-    const disponiveis = await session.window.evaluate(() =>
-      ['Calibri', 'Cambria', 'Arial', 'Times New Roman', 'Courier New'].filter((familia) =>
-        document.fonts.check(`12pt '${familia}'`),
-      ),
-    )
+    // `check` only reports faces already loaded, and a family no text uses yet is not.
+    const disponiveis = await session.window.evaluate(async () => {
+      const familias = ['Calibri', 'Cambria', 'Arial', 'Times New Roman', 'Courier New']
+      await Promise.all(familias.map((familia) => document.fonts.load(`12pt '${familia}'`)))
+      return familias.filter((familia) => document.fonts.check(`12pt '${familia}'`))
+    })
 
     expect(disponiveis).toEqual(['Calibri', 'Cambria', 'Arial', 'Times New Roman', 'Courier New'])
   })
