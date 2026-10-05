@@ -309,7 +309,8 @@ permissivas — MIT, BSD, Apache-2.0, ISC e parecidas — e reprova o pacote que
 ## Idioma
 
 - **Identificadores em inglês:** nomes de arquivo, função, variável e tipo.
-- **Mensagens ao usuário, nomes de teste e os raros comentários em português.**
+- **Os raros comentários em inglês**, como os identificadores que eles acompanham.
+- **Mensagens ao usuário e nomes de teste em português.**
 - **Commits em inglês.**
 
 ---

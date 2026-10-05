@@ -52,7 +52,7 @@ Teste só o que a mudança tocou. Rodar a suíte inteira a cada passo é desperd
 - Siga os [princípios do CONTRIBUTING](CONTRIBUTING.md#princípios): Clean Code (nomes claros,
   funções pequenas, sem números mágicos, sem duplicação), Clean Architecture (dependências só para
   dentro; regra de negócio em `src/services/`, sem Electron nem React) e SOLID.
-- Identificadores em **inglês**. Mensagens ao usuário, nomes de teste e os raros comentários em
+- Identificadores e os raros comentários em **inglês**. Mensagens ao usuário e nomes de teste em
   **português**.
 - **Evite comentários.** O código deve se explicar por nomes, funções pequenas e constantes
   nomeadas; o porquê vai no nome do teste e no commit. Comentário só para o que o código não tem

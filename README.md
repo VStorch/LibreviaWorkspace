@@ -845,9 +845,10 @@ troca dessas chegando.
 
 ### Idioma e commits
 
-Identificadores em inglês; mensagens ao usuário, nomes de teste e os raros comentários em português;
-commits em inglês, no padrão [Conventional Commits](https://www.conventionalcommits.org). Os
-detalhes estão no [CONTRIBUTING](CONTRIBUTING.md#commits).
+Identificadores e os raros comentários em inglês; mensagens ao usuário e nomes de teste em
+português; commits em inglês, no padrão
+[Conventional Commits](https://www.conventionalcommits.org). Os detalhes estão no
+[CONTRIBUTING](CONTRIBUTING.md#commits).
 
 ---
 
