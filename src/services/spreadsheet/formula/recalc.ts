@@ -3,7 +3,7 @@
  * Cycles are detected in the same walk.
  */
 
-import type { Cell, Sheet, WorkbookModel } from '../model.js'
+import { parseRef, type Cell, type Sheet, type WorkbookModel } from '../model.js'
 import { walk, type Node } from './ast.js'
 import { FormulaError } from './errors.js'
 import { evaluate, type EvalContext } from './evaluate.js'
@@ -61,7 +61,7 @@ function indexOf(sheet: Sheet): Map<number, Scalar> {
   const values = new Map<number, Scalar>()
 
   for (const [ref, cell] of Object.entries(sheet.cells)) {
-    const position = positionOf(ref)
+    const position = parseRef(ref)
     if (position === null || cell.value === undefined) continue
     values.set(at(position.row, position.column), cell.value)
   }
@@ -83,7 +83,7 @@ function collect(workbook: WorkbookModel): FormulaCell[] {
     for (const [ref, cell] of Object.entries(model.cells)) {
       if (cell.formula === undefined) continue
 
-      const position = positionOf(ref)
+      const position = parseRef(ref)
       if (position === null) continue
 
       cells.push({ sheet, ...position, ref, node: tryParseFormula(cell.formula) })
@@ -276,14 +276,4 @@ function apply(
       return cells === undefined ? sheet : { ...sheet, cells }
     }),
   }
-}
-
-function positionOf(ref: string): { row: number; column: number } | null {
-  const match = /^([A-Z]+)([0-9]+)$/.exec(ref)
-  if (match === null) return null
-
-  let column = 0
-  for (const letter of match[1]!) column = column * 26 + (letter.charCodeAt(0) - 64)
-
-  return { row: Number.parseInt(match[2]!, 10) - 1, column: column - 1 }
 }

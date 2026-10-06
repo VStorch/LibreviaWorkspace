@@ -1,4 +1,3 @@
-import { BrowserWindow, type IpcMainInvokeEvent } from 'electron'
 import { AppError, ErrorCode } from '@shared/errors.js'
 import { IpcChannel } from '@shared/ipc-channels.js'
 import type { LoadedFile } from '@shared/types.js'
@@ -22,15 +21,8 @@ import { readTextFile } from '../fs/read-text.js'
 import { refreshMenu } from '../menu.js'
 import { t } from '../i18n.js'
 import { handle } from './registry.js'
+import { windowOf } from './sender-window.js'
 import { forgetExternalFileRequest, isExternalFileRequested } from '../external-files.js'
-
-function windowOf(event: IpcMainInvokeEvent): BrowserWindow {
-  const window = BrowserWindow.fromWebContents(event.sender)
-  if (window === null) {
-    throw new AppError(ErrorCode.Internal, t('errors.ipc.windowNotAvailable'))
-  }
-  return window
-}
 
 /**
  * A Word template opens as a new document, and its path is **not** authorized: nothing writes over

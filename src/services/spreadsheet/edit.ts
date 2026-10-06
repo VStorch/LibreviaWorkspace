@@ -1,5 +1,14 @@
 import { parseInput } from './format.js'
-import { cellRef, getCell, setCell, type BorderSide, type Cell, type CellStyle, type Sheet } from './model.js'
+import {
+  cellRef,
+  getCell,
+  parseRef,
+  setCell,
+  type BorderSide,
+  type Cell,
+  type CellStyle,
+  type Sheet,
+} from './model.js'
 
 /** Zero-based and inclusive. */
 export interface Range {
@@ -129,7 +138,7 @@ function shiftRows(sheet: Sheet, at: number, delta: number): Sheet {
   const cells: Record<string, Cell> = {}
 
   for (const [ref, cell] of Object.entries(sheet.cells)) {
-    const position = positionOf(ref)
+    const position = parseRef(ref)
     if (position === null) continue
 
     if (position.row < at) {
@@ -156,7 +165,7 @@ function shiftColumns(sheet: Sheet, at: number, delta: number): Sheet {
   const cells: Record<string, Cell> = {}
 
   for (const [ref, cell] of Object.entries(sheet.cells)) {
-    const position = positionOf(ref)
+    const position = parseRef(ref)
     if (position === null) continue
 
     if (position.column < at) {
@@ -197,16 +206,6 @@ function shiftDimensions(sizes: Record<number, number>, at: number, delta: numbe
   }
 
   return shifted
-}
-
-function positionOf(ref: string): { row: number; column: number } | null {
-  const match = /^([A-Z]+)([0-9]+)$/.exec(ref)
-  if (match === null) return null
-
-  let column = 0
-  for (const letter of match[1]!) column = column * 26 + (letter.charCodeAt(0) - 64)
-
-  return { row: Number.parseInt(match[2]!, 10) - 1, column: column - 1 }
 }
 
 function clean(style: Record<string, unknown>): CellStyle {

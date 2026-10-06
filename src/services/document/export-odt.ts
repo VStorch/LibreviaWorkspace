@@ -4,6 +4,7 @@ import {
   imageData,
   imageExtension,
   isSectionMarkOnly,
+  plainText,
   prepareExport,
   safeHref,
   type ExportSource,
@@ -1511,12 +1512,6 @@ function sizeMm(
     return { width: pxToMm(natural.width), height: pxToMm(natural.height) }
   }
   return { width: 40, height: 40 }
-}
-
-function plainText(node: DocumentNode): string {
-  if (node.type === 'text') return node.text ?? ''
-  if (node.type === 'hardBreak') return '\n'
-  return (node.content ?? []).map(plainText).join('')
 }
 
 function metaXml(model: OdtModel, options: OdtExportOptions): string {

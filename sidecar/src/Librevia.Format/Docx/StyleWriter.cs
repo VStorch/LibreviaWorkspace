@@ -1,7 +1,8 @@
-using System.Globalization;
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
+
+using static Librevia.Format.Docx.InvariantText;
 
 namespace Librevia.Format.Docx;
 
@@ -383,8 +384,6 @@ internal static class StyleWriter
     /// Away from zero, like <see cref="Attr.MmToTwips(double)"/>: 10.25 pt is 21 half-points.
     /// </summary>
     private static int Rounded(double value) => (int)Math.Round(value, MidpointRounding.AwayFromZero);
-
-    private static string Invariant(int value) => value.ToString(CultureInfo.InvariantCulture);
 
     /// <summary>
     /// Null removes; at its schema slot; a child already in place stays where it is.

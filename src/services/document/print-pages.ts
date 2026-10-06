@@ -1,3 +1,4 @@
+import { escapeHtml } from '@services/html.js'
 import { contentInsetsMm, pageDimensionsMm, type PageSetup } from './model.js'
 import {
   NO_BANDS,
@@ -366,12 +367,4 @@ function renderPiece(piece: BandPiece, label: string, total: number): string {
     (piece.fontFamily === undefined ? '' : `font-family:${escapeHtml(piece.fontFamily)};`)
 
   return `<span style="${style}">${escapeHtml(text)}</span>`
-}
-
-function escapeHtml(text: string): string {
-  return text
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
 }

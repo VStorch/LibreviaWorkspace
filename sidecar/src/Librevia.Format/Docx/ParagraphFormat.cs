@@ -2,6 +2,8 @@ using System.Globalization;
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Wordprocessing;
 
+using static Librevia.Format.Docx.InvariantText;
+
 namespace Librevia.Format.Docx;
 
 /// <summary>
@@ -619,11 +621,6 @@ internal sealed class ParagraphFormat(
         var first = stack.Split(',')[0].Trim().Trim('\'', '"');
         return first.Length > 0 ? first : null;
     }
-
-    /// <summary>
-    /// Formats without any locale's comma: works for twips, half-points and 240ths.
-    /// </summary>
-    private static string Invariant(int value) => value.ToString(CultureInfo.InvariantCulture);
 
     /// <c>StringValue?</c>: <c>null</c> deletes the attribute. A ternary on <c>string</c> would
     /// write <c>w:ind w:right=""</c>, outside the schema.

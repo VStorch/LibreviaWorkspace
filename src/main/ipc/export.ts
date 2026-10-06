@@ -1,8 +1,6 @@
 import { mkdir } from 'node:fs/promises'
 import { basename, dirname, extname, join } from 'node:path'
 import { deflateRawSync } from 'node:zlib'
-import { BrowserWindow, type IpcMainInvokeEvent } from 'electron'
-import { AppError, ErrorCode } from '@shared/errors.js'
 import { Language } from '@shared/i18n/language.js'
 import { IpcChannel } from '@shared/ipc-channels.js'
 import { exportHtml } from '@services/document/export-html.js'
@@ -16,16 +14,9 @@ import { authorizePath } from '../fs/paths.js'
 import { t } from '../i18n.js'
 import { editorPreferences } from '../preferences.js'
 import { handle } from './registry.js'
+import { windowOf } from './sender-window.js'
 
 /** Writes a **new** file: does not touch the open document's path or "modified" state. */
-
-function windowOf(event: IpcMainInvokeEvent): BrowserWindow {
-  const window = BrowserWindow.fromWebContents(event.sender)
-  if (window === null) {
-    throw new AppError(ErrorCode.Internal, t('errors.ipc.windowNotAvailable'))
-  }
-  return window
-}
 
 export function exportName(suggestedName: string, extension: string): string {
   const dot = suggestedName.lastIndexOf('.')

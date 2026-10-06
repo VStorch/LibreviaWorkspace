@@ -1,7 +1,7 @@
 import { mkdir, readdir } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { app, BrowserWindow, shell, type IpcMainInvokeEvent } from 'electron'
+import { app, shell } from 'electron'
 import { AppError, ErrorCode } from '@shared/errors.js'
 import { IpcChannel } from '@shared/ipc-channels.js'
 import type { MessageKey } from '@shared/i18n/index.js'
@@ -12,6 +12,7 @@ import { normalizePath } from '../fs/paths.js'
 import { t } from '../i18n.js'
 import { loadFile } from './file.js'
 import { handle } from './registry.js'
+import { windowOf } from './sender-window.js'
 import { MAX_USER_TEMPLATES } from '@shared/limits.js'
 
 /**
@@ -93,14 +94,6 @@ async function userEntries(): Promise<TemplateEntry[]> {
       name: name.replace(/\.dot[xm]$/i, ''),
       description: t('shell.template.userTemplate'),
     }))
-}
-
-function windowOf(event: IpcMainInvokeEvent): BrowserWindow {
-  const window = BrowserWindow.fromWebContents(event.sender)
-  if (window === null) {
-    throw new AppError(ErrorCode.Internal, t('errors.ipc.windowNotAvailable'))
-  }
-  return window
 }
 
 export function registerTemplateHandlers(): void {

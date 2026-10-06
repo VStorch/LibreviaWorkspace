@@ -1,8 +1,10 @@
+import { escapeHtml } from '@services/html.js'
 import {
   exportHeadingLevel,
   exportTitle,
   imageData,
   isSectionMarkOnly,
+  plainText,
   prepareExport,
   safeHref,
   tocLevelOf,
@@ -535,12 +537,6 @@ function stringAttr(value: unknown): string {
   return typeof value === 'string' ? value : ''
 }
 
-function plainText(node: DocumentNode): string {
-  if (node.type === 'text') return node.text ?? ''
-  if (node.type === 'hardBreak') return '\n'
-  return (node.content ?? []).map(plainText).join('')
-}
-
 function columnWidths(row: DocumentNode | undefined): number[] | null {
   if (row === undefined) return null
   const widths: number[] = []
@@ -554,15 +550,6 @@ function columnWidths(row: DocumentNode | undefined): number[] | null {
     }
   }
   return widths.length > 0 ? widths : null
-}
-
-export function escapeHtml(text: string): string {
-  return text
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#39;')
 }
 
 /** `display` comes from the node, not the MathML: it makes a display equation a block. */

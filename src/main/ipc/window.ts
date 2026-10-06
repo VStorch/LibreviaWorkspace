@@ -1,24 +1,14 @@
-import { BrowserWindow, type IpcMainInvokeEvent } from 'electron'
-import { AppError, ErrorCode } from '@shared/errors.js'
 import { IpcChannel } from '@shared/ipc-channels.js'
 import { fileNameFromPath } from '@services/file/formats.js'
 import { confirmDiscardChanges, confirmPlainTextSave, showImagePickerDialog } from '../dialogs.js'
 import { readImageAsDataUrl } from '../fs/read-image.js'
 import { listInstalledFontFamilies } from '../system-fonts.js'
 import { closeWithoutGuard, updateWindowState } from '../window.js'
-import { t } from '../i18n.js'
 import { handle } from './registry.js'
+import { windowOf } from './sender-window.js'
 import { setRevisionViewChecked, setTrackChangesChecked } from '../menu.js'
 import { externalFilesReady } from '../external-files.js'
 import { MAX_FONT_FAMILIES, MAX_FONT_FAMILY_LENGTH } from '@shared/limits.js'
-
-function windowOf(event: IpcMainInvokeEvent): BrowserWindow {
-  const window = BrowserWindow.fromWebContents(event.sender)
-  if (window === null) {
-    throw new AppError(ErrorCode.Internal, t('errors.ipc.windowNotAvailable'))
-  }
-  return window
-}
 
 export function registerWindowHandlers(): void {
   handle(IpcChannel.WindowReady, (_payload, event) => {

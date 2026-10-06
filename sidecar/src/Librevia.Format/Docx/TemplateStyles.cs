@@ -1,6 +1,8 @@
 using System.Globalization;
 using DocumentFormat.OpenXml.Wordprocessing;
 
+using static Librevia.Format.Docx.InvariantText;
+
 namespace Librevia.Format.Docx;
 
 /// <summary>
@@ -289,6 +291,4 @@ internal static class TemplateStyles
 
     /// <summary>Points → twips (<c>w:spacing</c>).</summary>
     private static string Twips(double points) => Invariant((int)Math.Round(points * Unit.TwipsPerPoint));
-
-    private static string Invariant(int value) => value.ToString(CultureInfo.InvariantCulture);
 }

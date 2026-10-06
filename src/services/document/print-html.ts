@@ -1,3 +1,4 @@
+import { escapeHtml } from '@services/html.js'
 import { DOCUMENT_CONTENT_CSS, NOTES_CSS, PRINT_ONLY_CSS } from './content-styles.js'
 
 /**
@@ -27,12 +28,4 @@ ${extraCss}
 </head>
 <body>${wrapInContent ? `<div class="page__content">${bodyHtml}</div>` : bodyHtml}</body>
 </html>`
-}
-
-function escapeHtml(text: string): string {
-  return text
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
 }

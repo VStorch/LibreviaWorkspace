@@ -1,3 +1,4 @@
+import { escapeHtml } from '@services/html.js'
 import { PageOrientation, PageSize, type PageSetup } from '@services/document/model.js'
 import { hasBandContent, type Band, type BandPiece } from '@services/document/band.js'
 import { mmToInches, mmToPx } from '@services/units.js'
@@ -26,14 +27,6 @@ export const MIN_MARGIN_FOR_HEADER_MM = 12
 
 export function marginFitsHeaderOrFooter(marginMm: number): boolean {
   return marginMm >= MIN_MARGIN_FOR_HEADER_MM
-}
-
-function escapeHtml(text: string): string {
-  return text
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
 }
 
 /**

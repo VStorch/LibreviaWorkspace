@@ -276,6 +276,12 @@ export function exportTitle(model: Pick<DocumentModel, 'properties'>, fileName: 
 }
 
 /** A paragraph that only carries a section mark has no text to export. */
+export function plainText(node: DocumentNode): string {
+  if (node.type === 'text') return node.text ?? ''
+  if (node.type === 'hardBreak') return '\n'
+  return (node.content ?? []).map(plainText).join('')
+}
+
 export function isSectionMarkOnly(node: DocumentNode): boolean {
   return node.attrs?.['sectionMark'] === true && (node.content ?? []).length === 0
 }

@@ -1,8 +1,10 @@
+import { escapeHtml } from '@services/html.js'
 import {
   exportHeadingLevel,
   imageData,
   imageExtension,
   isSectionMarkOnly,
+  plainText,
   prepareExport,
   safeHref,
   tocLevelOf,
@@ -11,7 +13,7 @@ import {
   type ExportSource,
   type Mark,
 } from './export-common.js'
-import { createHtmlRenderer, escapeHtml, mathHtml } from './export-html.js'
+import { createHtmlRenderer, mathHtml } from './export-html.js'
 import type { DocumentModel, DocumentNode } from './model.js'
 import { latexOfEquation } from './mathml-latex.js'
 
@@ -399,12 +401,6 @@ function codeBlock(node: DocumentNode): string {
   const language =
     typeof node.attrs?.['language'] === 'string' ? node.attrs['language'].replace(/[^\w+-]/g, '') : ''
   return `${fence}${language}\n${text}\n${fence}`
-}
-
-function plainText(node: DocumentNode): string {
-  if (node.type === 'text') return node.text ?? ''
-  if (node.type === 'hardBreak') return '\n'
-  return (node.content ?? []).map(plainText).join('')
 }
 
 function linkDestination(href: string, title: string): string {

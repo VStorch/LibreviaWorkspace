@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createSheet, getCell, setCell, type Sheet, type WorkbookModel } from '../model.js'
+import { createSheet, getCell, parseRef, setCell, type Sheet, type WorkbookModel } from '../model.js'
 import { FormulaError } from './errors.js'
 import { recalculate } from './recalc.js'
 
@@ -8,15 +8,11 @@ function sheetWith(name: string, entries: Record<string, string | number>): Shee
   let sheet = createSheet(name)
 
   for (const [ref, entry] of Object.entries(entries)) {
-    const match = /^([A-Z]+)(\d+)$/.exec(ref)!
-    let column = 0
-    for (const letter of match[1]!) column = column * 26 + (letter.charCodeAt(0) - 64)
-    const row = Number(match[2]) - 1
-
+    const { row, column } = parseRef(ref)!
     sheet =
       typeof entry === 'string' && entry.startsWith('=')
-        ? setCell(sheet, row, column - 1, { formula: entry })
-        : setCell(sheet, row, column - 1, { value: entry })
+        ? setCell(sheet, row, column, { formula: entry })
+        : setCell(sheet, row, column, { value: entry })
   }
 
   return sheet
@@ -27,10 +23,8 @@ function workbookWith(...sheets: Sheet[]): WorkbookModel {
 }
 
 function valueOf(workbook: WorkbookModel, ref: string, sheet = 0) {
-  const match = /^([A-Z]+)(\d+)$/.exec(ref)!
-  let column = 0
-  for (const letter of match[1]!) column = column * 26 + (letter.charCodeAt(0) - 64)
-  return getCell(workbook.sheets[sheet]!, Number(match[2]) - 1, column - 1)?.value
+  const { row, column } = parseRef(ref)!
+  return getCell(workbook.sheets[sheet]!, row, column)?.value
 }
 
 describe('ordem de cálculo', () => {

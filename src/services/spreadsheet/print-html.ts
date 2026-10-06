@@ -1,10 +1,11 @@
+import { escapeHtml } from '@services/html.js'
 /**
  * Built from the **model**, not from the DOM as for documents: the grid only draws visible cells.
  * Formatting rules are the screen's (`formatCell`).
  */
 
 import { formatCell } from './format.js'
-import { cellRef, DEFAULT_COLUMN_WIDTH, type Cell, type Sheet } from './model.js'
+import { cellRef, columnIndex, DEFAULT_COLUMN_WIDTH, type Cell, type Sheet } from './model.js'
 import { translate, Language } from '@shared/i18n/index.js'
 
 export interface PrintBounds {
@@ -22,16 +23,10 @@ export function usedBounds(sheet: Sheet): PrintBounds {
     if (match === null) continue
 
     rows = Math.max(rows, Number(match[2]))
-    columns = Math.max(columns, indexOfColumn(match[1]!) + 1)
+    columns = Math.max(columns, columnIndex(match[1]!) + 1)
   }
 
   return { rows, columns }
-}
-
-function indexOfColumn(letters: string): number {
-  let index = 0
-  for (const letter of letters) index = index * 26 + (letter.charCodeAt(0) - 64)
-  return index - 1
 }
 
 /** Frozen rows become `<thead>`, which the browser repeats at the top of each page. */
@@ -123,14 +118,6 @@ function inlineStyle(cell: Cell | undefined): string {
  */
 function cssColor(value: string): string {
   return /^#[0-9a-fA-F]{6}$/.test(value) ? value : 'inherit'
-}
-
-function escapeHtml(text: string): string {
-  return text
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
 }
 
 /** `break-inside: avoid`: a tall row is not cut by the page break. */
