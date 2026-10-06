@@ -18,6 +18,7 @@ quais padrões o código segue. A maior parte desses padrões é conferida por m
   - [Outras boas práticas](#outras-boas-práticas)
 - [Fronteiras entre as camadas](#fronteiras-entre-as-camadas)
 - [Tamanho e complexidade das funções](#tamanho-e-complexidade-das-funções)
+- [Procure antes de escrever](#procure-antes-de-escrever)
 - [Contratos que mudam juntos](#contratos-que-mudam-juntos)
 - [Textos da interface](#textos-da-interface)
 - [Testes](#testes)
@@ -99,7 +100,7 @@ quem escreveu. Não é uma regra só, mas um conjunto de hábitos:
 | **O código se explica sozinho** | se um trecho precisa de comentário para ser entendido, o trecho é que precisa melhorar: um nome melhor, uma função extraída, uma constante com nome. Comentário envelhece sem que o compilador perceba; o código, não | o *porquê* mora no nome, no teste e no commit. Um comportamento copiado do Excel vira um teste cujo nome o descreve, por exemplo "`=-2^2` vale 4, como no Excel" |
 | **Sem efeito escondido** | uma função chamada `formatCell` não grava nada no disco; o nome promete, e o corpo cumpre | a lógica pura em `src/services/` não toca disco, rede nem tela |
 | **Erro tratado de propósito** | o erro tem tipo e mensagem que a pessoa entende, em vez de uma exceção genérica engolida ou propagada sem contexto | `AppError` com `ErrorCode`; na planilha, erro é valor (`#DIV/0!`) e se propaga sem derrubar o cálculo |
-| **Sem duplicação** | a mesma regra escrita em dois lugares diverge na primeira mudança feita às pressas | os rótulos de `Inventory.cs` são constantes; os textos da interface vivem num catálogo só |
+| **Sem duplicação** | a mesma regra escrita em dois lugares diverge na primeira mudança feita às pressas | os rótulos de `Inventory.cs` são constantes; os textos da interface vivem num catálogo só; [procure antes de escrever](#procure-antes-de-escrever) |
 | **Deixe melhor do que encontrou** | ao mexer num arquivo, arrume o que estiver ao alcance — um nome ruim, um comentário que só repete o código | o lint de tamanho e complexidade não tem lista de exceções |
 | **Formatação que ninguém discute** | o formatador decide espaços e quebras, e a revisão fala do que importa | Prettier, conferido no CI |
 
@@ -250,6 +251,41 @@ escreva o motivo:
 // eslint-disable-next-line max-params
 handleDoubleClickOn(view, _pos, node, nodePos, _event, direct) {
 ```
+
+---
+
+## Procure antes de escrever
+
+A mesma lógica não deve existir em dois lugares. Uma cópia funciona no dia em que é feita, mas
+na primeira correção uma delas fica para trás, e as duas passam a se comportar de modos
+diferentes sem que ninguém perceba.
+
+Antes de escrever uma função auxiliar, procure com `git grep` se ela já existe. Busque pelo que a
+função **faz**, não só pelo nome que você daria a ela.
+
+### Onde mora o que é comum
+
+| Para | Use | Em |
+| --- | --- | --- |
+| escapar texto para HTML | `escapeHtml` | `src/services/html.ts` |
+| converter unidades (mm, pt, px, twips) | as funções e constantes | `src/services/units.ts` |
+| referência de célula (`B12`) e letra de coluna | `parseRef`, `cellRef`, `columnIndex`, `columnName` | `src/services/spreadsheet/model.ts` |
+| percorrer o documento numa exportação | `plainText`, `walk`, `prepareExport` | `src/services/document/export-common.ts` |
+| a janela de quem chamou um canal IPC | `windowOf` | `src/main/ipc/sender-window.ts` |
+| unidades do OOXML no sidecar | `Unit` | `sidecar/src/Librevia.Format/Unit.cs` |
+| número sem a vírgula do idioma, no XML | `Invariant` | `sidecar/src/Librevia.Format/Docx/InvariantText.cs` |
+| ler uma parte de um `.docx`, `.xlsx` ou `.odt` no e2e | `entryOf` | `e2e/fixtures.ts` |
+| `pdftotext`, `pdfinfo` e `soffice` no e2e | `hasPdftotext`, `pdfText`, `hasSoffice`… | `e2e/external-tools.ts` |
+
+### Quando a função não existe
+
+- **Na segunda vez que for preciso, extraia.** A primeira cópia é o sinal de que a função tem
+  dono. Mova-a para o módulo da camada mais interna que todos os usuários podem importar (veja
+  as [fronteiras](#fronteiras-entre-as-camadas)) e apague as cópias no mesmo commit.
+- **Os testes também.** Uma função auxiliar repetida em vários specs vai para um módulo comum
+  da pasta de testes, como `e2e/external-tools.ts`.
+- **Mesmo nome não quer dizer mesma função.** Duas funções com o mesmo nome que fazem coisas
+  diferentes não são duplicação. Duplicação é a mesma lógica em dois lugares.
 
 ---
 

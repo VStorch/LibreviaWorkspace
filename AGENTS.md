@@ -60,6 +60,11 @@ Teste só o que a mudança tocou. Rodar a suíte inteira a cada passo é desperd
   `eslint-disable`), e sempre dizendo por quê, nunca o quê.
 - Ao mexer num trecho com comentário que só repete o código, troque o comentário por um nome
   melhor.
+- **Procure antes de escrever um helper** (`git grep` pelo que ele faz). Os comuns estão listados
+  em [Procure antes de escrever](CONTRIBUTING.md#procure-antes-de-escrever): `escapeHtml`,
+  `units.ts`, `parseRef`/`columnIndex`, `export-common.ts`, `windowOf`, `Invariant`, e no e2e
+  `entryOf` e `external-tools.ts`. Nada de cópia local; na segunda ocorrência, extraia para a
+  camada certa e apague as cópias no mesmo commit.
 - README e MANUAL: linguagem simples e exata, frases curtas, exemplos concretos, números medidos.
 
 ## Commits
