@@ -6,6 +6,7 @@ import { promisify } from 'node:util'
 import { expect, test } from '@playwright/test'
 import { launch, menu, stubDialogs, type Session } from './app.js'
 import { docxWithFootnote, docxWithLongFootnote, docxWithManyFootnotes, entryOf } from './fixtures.js'
+import { hasPdfinfo, hasSoffice } from './external-tools.js'
 
 /**
  * Footnotes and endnotes: read, numbered and preserved.
@@ -153,7 +154,7 @@ test.describe('notas no pé da página', () => {
   })
 
   test('as notas empurram linhas, e a tela e o PDF têm as mesmas folhas', async () => {
-    test.skip(!(await temPoppler()), 'pdfinfo não instalado')
+    test.skip(!(await hasPdfinfo()), 'pdfinfo não instalado')
     const origem = join(pasta, 'longo.docx')
     const pdf = join(pasta, 'longo.pdf')
     await writeFile(origem, await docxWithManyFootnotes())
@@ -175,7 +176,7 @@ test.describe('notas no pé da página', () => {
     expect(stdout).toContain('Nota 1.')
 
     // And LibreOffice, with the same file, reaches the same sheet count.
-    if (await temSoffice()) {
+    if (await hasSoffice()) {
       const copia = join(pasta, 'lo.docx')
       await copyFile(origem, copia)
       await promisify(execFile)('soffice', ['--headless', '--convert-to', 'pdf', '--outdir', pasta, copia], {
@@ -304,7 +305,7 @@ test.describe('notas no pé da página', () => {
     expect(numero(continuacao!.primeira)).toBe(numero(primeira!.ultima) + 1)
     expect(continuacao!.ultima).toContain('Linha 69')
 
-    if (await temPoppler()) {
+    if (await hasPdfinfo()) {
       await menu(session, 'export-pdf')
       await expect.poll(() => paginasDoPdf(pdf), { timeout: 30_000 }).toBeGreaterThan(1)
       const { stdout } = await promisify(execFile)('pdftotext', ['-f', '2', '-l', '2', pdf, '-'])
@@ -453,24 +454,6 @@ test.describe('notas no pé da página', () => {
     expect(paragrafo).toContain('<w:commentReference')
   })
 })
-
-async function temPoppler(): Promise<boolean> {
-  try {
-    await promisify(execFile)('pdfinfo', ['-v'])
-    return true
-  } catch {
-    return false
-  }
-}
-
-async function temSoffice(): Promise<boolean> {
-  try {
-    await promisify(execFile)('soffice', ['--version'])
-    return true
-  } catch {
-    return false
-  }
-}
 
 async function paginasDoPdf(caminho: string): Promise<number> {
   try {

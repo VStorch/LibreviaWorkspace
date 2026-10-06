@@ -1,29 +1,10 @@
-import { execFile } from 'node:child_process'
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { promisify } from 'node:util'
 import { expect, test } from '@playwright/test'
 import { launch, menu, stubDialogs, type Session } from './app.js'
 import { EQUATION_AFTER, EQUATION_BEFORE, docxWithEquations, entryOf } from './fixtures.js'
-
-async function textoDoPdf(caminho: string): Promise<string> {
-  try {
-    const { stdout } = await promisify(execFile)('pdftotext', [caminho, '-'])
-    return stdout
-  } catch {
-    return ''
-  }
-}
-
-async function temPdftotext(): Promise<boolean> {
-  try {
-    await promisify(execFile)('pdftotext', ['-v'])
-    return true
-  } catch {
-    return false
-  }
-}
+import { hasPdftotext, pdfText } from './external-tools.js'
 
 /** The XML's `m:oMath`/`m:oMathPara`, in order: what must come back as it came. */
 function equacoesDo(xml: string): string[] {
@@ -108,7 +89,7 @@ test.describe('equações', () => {
   })
 
   test('o PDF leva as equações', async () => {
-    test.skip(!(await temPdftotext()), 'pdftotext não instalado')
+    test.skip(!(await hasPdftotext()), 'pdftotext não instalado')
     const origem = join(pasta, 'relatorio.docx')
     const destino = join(pasta, 'relatorio.pdf')
     await writeFile(origem, await docxWithEquations())
@@ -117,8 +98,10 @@ test.describe('equações', () => {
     await expect(session.window.locator('.pages__column .equacao')).toHaveCount(3)
 
     await menu(session, 'export-pdf')
-    await expect.poll(() => textoDoPdf(destino), { timeout: 30_000 }).toContain('para todo raio')
-    const texto = await textoDoPdf(destino)
+    await expect
+      .poll(() => pdfText(destino, { layout: false }), { timeout: 30_000 })
+      .toContain('para todo raio')
+    const texto = await pdfText(destino, { layout: false })
     // The area's π, the Δ and the quadratic formula's root come from the equations; the surrounding
     // text lacks them. π and Δ come out in mathematical italic (U+1D70B, U+1D6E5), which is how a
     // one-letter `mi` draws them.

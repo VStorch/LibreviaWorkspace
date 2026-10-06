@@ -6,6 +6,7 @@ import { promisify } from 'node:util'
 import { expect, test } from '@playwright/test'
 import { launch, menu, stubDialogs, type Session } from './app.js'
 import { docxWithLongTable } from './fixtures.js'
+import { hasPdftotext } from './external-tools.js'
 
 /**
  * The editor paginates live: the sheet count responds to typing, and the long table's last row
@@ -127,7 +128,7 @@ test.describe('paginação ao vivo', () => {
   })
 
   test('o parágrafo que não cabe é cortado entre linhas, no mesmo lugar na tela e no PDF', async () => {
-    test.skip(!(await temPdftotext()), 'pdftotext não instalado')
+    test.skip(!(await hasPdftotext()), 'pdftotext não instalado')
     const destino = join(pasta, 'corte.pdf')
     await stubDialogs(session.app, { save: destino, messageBox: 1 })
     await paragrafoAtravessandoAFolha(session)
@@ -185,7 +186,7 @@ test.describe('paginação ao vivo', () => {
   })
 
   test('a linha de cabeçalho da tabela se repete no alto de cada folha, na tela e no PDF', async () => {
-    test.skip(!(await temPdftotext()), 'pdftotext não instalado')
+    test.skip(!(await hasPdftotext()), 'pdftotext não instalado')
     const source = join(pasta, 'cabecalho.docx')
     const destino = join(pasta, 'cabecalho.pdf')
     await writeFile(source, await docxWithLongTable(80, true))
@@ -372,15 +373,6 @@ async function palavrasDaPagina(caminho: string, pagina: number): Promise<string
     '-',
   ])
   return stdout.split(/\s+/).filter((word) => word.length > 0)
-}
-
-async function temPdftotext(): Promise<boolean> {
-  try {
-    await promisify(execFile)('pdftotext', ['-v'])
-    return true
-  } catch {
-    return false
-  }
 }
 
 /**

@@ -1,9 +1,9 @@
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
 import { launch, menu, stubDialogs, type Session } from './app.js'
-import { docxWithNamedStyles, docxWithTextBox } from './fixtures.js'
+import { docxWithNamedStyles, docxWithTextBox, entryOf } from './fixtures.js'
 
 /**
  * Opening and saving without editing does not touch the file: the writer returns the original XML
@@ -39,7 +39,7 @@ test.describe('gravação cirúrgica', () => {
 
     // The box is the sentinel: the editor shows the text inside, but cannot redraw the shape. If it
     // came back, the block's original XML was preserved, which is all this test needs to know.
-    const corpo = await corpoDoDocumento(destino)
+    const corpo = await entryOf(destino, 'word/document.xml')
     expect(corpo).toContain('txbxContent')
     expect(corpo).toContain('Título na caixa')
   })
@@ -61,33 +61,8 @@ test.describe('gravação cirúrgica', () => {
     await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
 
     const paragrafos = (xml: string): number => (xml.match(/<w:p[ >/]/g) ?? []).length
-    expect(paragrafos(await corpoDoDocumento(destino))).toBe(paragrafos(await corpoDoDocumento(origem)))
+    expect(paragrafos(await entryOf(destino, 'word/document.xml'))).toBe(
+      paragrafos(await entryOf(origem, 'word/document.xml')),
+    )
   })
 })
-
-/** The content of `word/document.xml` inside the `.docx`, without unpacking to disk. */
-async function corpoDoDocumento(caminho: string): Promise<string> {
-  const { promisify } = await import('node:util')
-  const { inflateRaw } = await import('node:zlib')
-  const inflate = promisify(inflateRaw)
-  const zip = await readFile(caminho)
-
-  // A sweep of the zip local headers: enough to find a part by name, without a new test dependency.
-  for (let i = 0; i + 30 <= zip.length; i++) {
-    if (zip.readUInt32LE(i) !== 0x04034b50) continue
-
-    const metodo = zip.readUInt16LE(i + 8)
-    const comprimido = zip.readUInt32LE(i + 18)
-    const original = zip.readUInt32LE(i + 22)
-    const tamanhoNome = zip.readUInt16LE(i + 26)
-    const extra = zip.readUInt16LE(i + 28)
-    const nome = zip.subarray(i + 30, i + 30 + tamanhoNome).toString('utf8')
-    if (nome !== 'word/document.xml') continue
-
-    const fim = i + 30 + tamanhoNome + extra + (comprimido > 0 ? comprimido : original)
-    const dados = zip.subarray(i + 30 + tamanhoNome + extra, fim)
-    return (metodo === 0 ? dados : await inflate(dados)).toString('utf8')
-  }
-
-  throw new Error(`word/document.xml não encontrado em ${caminho}`)
-}

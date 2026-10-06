@@ -1024,29 +1024,30 @@ function zip(entries: Array<[string, string | Buffer]>): Buffer {
 }
 
 /**
- * The content of a `.docx` part, without unpacking to disk. Reads compressed entries, like the
- * app's, and stored ones, like these fixtures'.
+ * By the central directory, not the local headers: LibreOffice writes the sizes after the data, and
+ * the local header carries zero.
  */
 export async function entryOf(path: string, name: string): Promise<string> {
   const { readFile } = await import('node:fs/promises')
-  const { promisify } = await import('node:util')
-  const { inflateRaw } = await import('node:zlib')
-  const inflate = promisify(inflateRaw)
+  const { inflateRawSync } = await import('node:zlib')
   const zip = await readFile(path)
 
-  for (let i = 0; i + 30 <= zip.length; i++) {
-    if (zip.readUInt32LE(i) !== 0x04034b50) continue
-
-    const metodo = zip.readUInt16LE(i + 8)
-    const comprimido = zip.readUInt32LE(i + 18)
-    const original = zip.readUInt32LE(i + 22)
-    const tamanhoNome = zip.readUInt16LE(i + 26)
-    const extra = zip.readUInt16LE(i + 28)
-    if (zip.subarray(i + 30, i + 30 + tamanhoNome).toString('utf8') !== name) continue
-
-    const fim = i + 30 + tamanhoNome + extra + (comprimido > 0 ? comprimido : original)
-    const dados = zip.subarray(i + 30 + tamanhoNome + extra, fim)
-    return (metodo === 0 ? dados : await inflate(dados)).toString('utf8')
+  const directoryEnd = zip.lastIndexOf(Buffer.from([0x50, 0x4b, 0x05, 0x06]))
+  const entries = zip.readUInt16LE(directoryEnd + 10)
+  let position = zip.readUInt32LE(directoryEnd + 16)
+  for (let index = 0; index < entries; index++) {
+    const method = zip.readUInt16LE(position + 10)
+    const compressedSize = zip.readUInt32LE(position + 20)
+    const nameLength = zip.readUInt16LE(position + 28)
+    const extraLength = zip.readUInt16LE(position + 30)
+    const commentLength = zip.readUInt16LE(position + 32)
+    const localHeader = zip.readUInt32LE(position + 42)
+    if (zip.toString('utf8', position + 46, position + 46 + nameLength) === name) {
+      const start = localHeader + 30 + zip.readUInt16LE(localHeader + 26) + zip.readUInt16LE(localHeader + 28)
+      const data = zip.subarray(start, start + compressedSize)
+      return (method === 0 ? data : inflateRawSync(data)).toString('utf8')
+    }
+    position += 46 + nameLength + extraLength + commentLength
   }
 
   throw new Error(`${name} não encontrado em ${path}`)

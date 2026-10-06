@@ -7,6 +7,7 @@ import { promisify } from 'node:util'
 import { expect, test } from '@playwright/test'
 import { launch, menu, stubDialogs, type Session } from './app.js'
 import { entryOf } from './fixtures.js'
+import { hasSoffice } from './external-tools.js'
 
 /**
  * Word templates: File → New from template…, opening a `.dotx` and saving as template.
@@ -65,7 +66,7 @@ test.describe('modelos', () => {
     expect(await entryOf(destino, 'word/document.xml')).toContain('3 Conclusão final')
 
     // LibreOffice opens the result.
-    if (await temSoffice()) {
+    if (await hasSoffice()) {
       const copia = join(pasta, 'lo.docx')
       await copyFile(destino, copia)
       await promisify(execFile)('soffice', ['--headless', '--convert-to', 'pdf', '--outdir', pasta, copia], {
@@ -134,15 +135,6 @@ async function hash(path: string): Promise<string> {
 async function existe(path: string): Promise<boolean> {
   try {
     return (await stat(path)).isFile()
-  } catch {
-    return false
-  }
-}
-
-async function temSoffice(): Promise<boolean> {
-  try {
-    await promisify(execFile)('soffice', ['--version'])
-    return true
   } catch {
     return false
   }

@@ -1,11 +1,10 @@
-import { execFile } from 'node:child_process'
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { promisify } from 'node:util'
 import { expect, test } from '@playwright/test'
 import { launch, menu, stubDialogs, type Session } from './app.js'
 import { docxWithPageNumbering, entryOf } from './fixtures.js'
+import { hasPdftotext, pdfText } from './external-tools.js'
 
 /**
  * Page numbering: each sheet's number with the start and format the document asks for, the field
@@ -45,12 +44,12 @@ test.describe('numeração de página', () => {
   })
 
   test('o PDF numera as folhas como a tela', async () => {
-    test.skip(!(await temPdftotext()), 'pdftotext não instalado')
+    test.skip(!(await hasPdftotext()), 'pdftotext não instalado')
     await abrir()
     const destino = join(pasta, 'saida.pdf')
     await stubDialogs(session.app, { save: destino, messageBox: 1 })
     await menu(session, 'export-pdf')
-    await expect.poll(() => textoDoPdf(destino), { timeout: 30_000 }).toMatch(/Página iii[\s\S]*Página iv/)
+    await expect.poll(() => pdfText(destino), { timeout: 30_000 }).toMatch(/Página iii[\s\S]*Página iv/)
   })
 
   test('o campo inserido na faixa do Word vira campo no arquivo e conta na tela', async () => {
@@ -105,21 +104,3 @@ test.describe('numeração de página', () => {
     await expect.poll(() => rodapes(session)).toEqual(['1', '2'])
   })
 })
-
-async function temPdftotext(): Promise<boolean> {
-  try {
-    await promisify(execFile)('pdftotext', ['-v'])
-    return true
-  } catch {
-    return false
-  }
-}
-
-async function textoDoPdf(caminho: string): Promise<string> {
-  try {
-    const { stdout } = await promisify(execFile)('pdftotext', ['-layout', caminho, '-'])
-    return stdout
-  } catch {
-    return ''
-  }
-}

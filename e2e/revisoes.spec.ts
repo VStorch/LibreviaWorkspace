@@ -3,62 +3,10 @@ import { copyFile, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
-import { inflateRawSync } from 'node:zlib'
 import { expect, test } from '@playwright/test'
 import { launch, menu, stubDialogs, type Session } from './app.js'
 import { docxWithTrackedChange, entryOf } from './fixtures.js'
-
-async function temSoffice(): Promise<boolean> {
-  try {
-    await promisify(execFile)('soffice', ['--version'])
-    return true
-  } catch {
-    return false
-  }
-}
-
-/** An entry of a regular (compressed) ZIP, as LibreOffice writes the `.odt`. */
-async function temPdftotext(): Promise<boolean> {
-  try {
-    await promisify(execFile)('pdftotext', ['-v'])
-    return true
-  } catch {
-    return false
-  }
-}
-
-async function textoDoPdf(caminho: string): Promise<string> {
-  try {
-    const { stdout } = await promisify(execFile)('pdftotext', ['-layout', caminho, '-'])
-    return stdout
-  } catch {
-    return ''
-  }
-}
-
-async function entradaZip(caminho: string, nome: string): Promise<string> {
-  const zip = await readFile(caminho)
-  // The central directory at the end: each entry says where its local header starts.
-  const fim = zip.lastIndexOf(Buffer.from([0x50, 0x4b, 0x05, 0x06]))
-  let posicao = zip.readUInt32LE(fim + 16)
-  const total = zip.readUInt16LE(fim + 10)
-  for (let index = 0; index < total; index++) {
-    const metodo = zip.readUInt16LE(posicao + 10)
-    const tamanho = zip.readUInt32LE(posicao + 20)
-    const nomeTamanho = zip.readUInt16LE(posicao + 28)
-    const extra = zip.readUInt16LE(posicao + 30)
-    const comentario = zip.readUInt16LE(posicao + 32)
-    const local = zip.readUInt32LE(posicao + 42)
-    const entrada = zip.toString('utf8', posicao + 46, posicao + 46 + nomeTamanho)
-    if (entrada === nome) {
-      const inicio = local + 30 + zip.readUInt16LE(local + 26) + zip.readUInt16LE(local + 28)
-      const dados = zip.subarray(inicio, inicio + tamanho)
-      return (metodo === 0 ? dados : inflateRawSync(dados)).toString('utf8')
-    }
-    posicao += 46 + nomeTamanho + extra + comentario
-  }
-  return ''
-}
+import { hasPdftotext, hasSoffice, pdfText } from './external-tools.js'
 
 /**
  * Track changes: the revision shows on screen, accepting and rejecting change the text, what is
@@ -135,7 +83,7 @@ test.describe('revisões', () => {
   })
 
   test('o LibreOffice lê as revisões que o arquivo gravado leva', async () => {
-    test.skip(!(await temSoffice()), 'sem LibreOffice nesta máquina')
+    test.skip(!(await hasSoffice()), 'sem LibreOffice nesta máquina')
     const origem = join(pasta, 'revisado.docx')
     await writeFile(origem, await docxWithTrackedChange())
     await stubDialogs(session.app, { open: origem, messageBox: 1 })
@@ -154,7 +102,7 @@ test.describe('revisões', () => {
     await promisify(execFile)('soffice', ['--headless', '--convert-to', 'odt', '--outdir', pasta, copia], {
       timeout: 120_000,
     })
-    const conteudo = await entradaZip(join(pasta, 'copia.odt'), 'content.xml')
+    const conteudo = await entryOf(join(pasta, 'copia.odt'), 'content.xml')
     // Insertion, deletion, paragraph mark, move (both sides) and row.
     const regioes = conteudo.match(/<text:changed-region/g) ?? []
     expect(regioes.length).toBeGreaterThanOrEqual(4)
@@ -190,13 +138,13 @@ test.describe('revisões', () => {
     expect(corpo).toContain('<w:delText')
     expect(await entryOf(arquivo, 'word/settings.xml')).toContain('<w:trackRevisions')
 
-    if (await temSoffice()) {
+    if (await hasSoffice()) {
       const copia = join(pasta, 'copia.docx')
       await copyFile(arquivo, copia)
       await promisify(execFile)('soffice', ['--headless', '--convert-to', 'odt', '--outdir', pasta, copia], {
         timeout: 120_000,
       })
-      const conteudo = await entradaZip(join(pasta, 'copia.odt'), 'content.xml')
+      const conteudo = await entryOf(join(pasta, 'copia.odt'), 'content.xml')
       expect((conteudo.match(/<text:changed-region/g) ?? []).length).toBeGreaterThanOrEqual(2)
     }
 
@@ -258,10 +206,10 @@ test.describe('revisões', () => {
     expect(await inserido.evaluate((element) => getComputedStyle(element).textDecorationLine)).toBe('none')
     await expect(editor.locator('.revision-changed')).toHaveCount(0)
 
-    if (await temPdftotext()) {
+    if (await hasPdftotext()) {
       await menu(session, 'export-pdf')
-      await expect.poll(() => textoDoPdf(destino), { timeout: 30_000 }).toContain('Ata da reunião')
-      const texto = await textoDoPdf(destino)
+      await expect.poll(() => pdfText(destino), { timeout: 30_000 }).toContain('Ata da reunião')
+      const texto = await pdfText(destino)
       expect(texto).toContain('Linha que fica')
       expect(texto).not.toContain('Trecho excluído')
       expect(texto).not.toContain('Linha excluída')

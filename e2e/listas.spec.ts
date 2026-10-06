@@ -1,11 +1,10 @@
-import { execFile } from 'node:child_process'
 import { copyFile, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { promisify } from 'node:util'
 import { expect, test } from '@playwright/test'
 import { launch, menu, stubDialogs, type Session } from './app.js'
 import { docxWithMultilevelList, entryOf } from './fixtures.js'
+import { hasPdftotext, pdfText } from './external-tools.js'
 
 /**
  * Multilevel lists with the label Word would draw: the second level composes the first (`1.a)`),
@@ -53,14 +52,14 @@ test.describe('listas multinível', () => {
   })
 
   test('o PDF mostra as mesmas marcas da tela', async () => {
-    test.skip(!(await temPdftotext()), 'pdftotext não instalado')
+    test.skip(!(await hasPdftotext()), 'pdftotext não instalado')
     await abrirMultinivel()
     const destino = join(pasta, 'saida.pdf')
     await stubDialogs(session.app, { save: destino, messageBox: 1 })
     await menu(session, 'export-pdf')
 
-    await expect.poll(() => textoDoPdf(destino), { timeout: 30_000 }).toContain('1.a)')
-    const texto = await textoDoPdf(destino)
+    await expect.poll(() => pdfText(destino), { timeout: 30_000 }).toContain('1.a)')
+    const texto = await pdfText(destino)
     expect(texto).toMatch(/1\.b\)\s+Um-b/)
     expect(texto).toMatch(/3\.\s+Três/)
     expect(texto).toMatch(/10\.\s+Dez/)
@@ -188,21 +187,3 @@ test.describe('listas multinível', () => {
     await expect.poll(() => marcas(session)).toEqual(['1.', '2.'])
   })
 })
-
-async function temPdftotext(): Promise<boolean> {
-  try {
-    await promisify(execFile)('pdftotext', ['-v'])
-    return true
-  } catch {
-    return false
-  }
-}
-
-async function textoDoPdf(caminho: string): Promise<string> {
-  try {
-    const { stdout } = await promisify(execFile)('pdftotext', ['-layout', caminho, '-'])
-    return stdout
-  } catch {
-    return ''
-  }
-}

@@ -1,9 +1,9 @@
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
 import { launch, menu, stubDialogs, type Session } from './app.js'
-import { docxWithVerticalAlignment } from './fixtures.js'
+import { docxWithVerticalAlignment, entryOf } from './fixtures.js'
 
 /**
  * Character and paragraph formatting across the whole seam: the button, the editor command and what
@@ -47,7 +47,7 @@ test.describe('formatação do documento', () => {
     await menu(session, 'save-as')
     await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
 
-    const corpo = await corpoDoDocumento(destino)
+    const corpo = await entryOf(destino, 'word/document.xml')
     expect(corpo).toContain('w:vertAlign w:val="superscript"')
     expect(corpo).toContain('w:vertAlign w:val="subscript"')
 
@@ -148,29 +148,3 @@ test.describe('formatação do documento', () => {
     await expect(editor).toContainText('Sem mudança nenhuma. Continua.')
   })
 })
-
-/** The content of `word/document.xml` inside the `.docx`, without unpacking to disk. */
-async function corpoDoDocumento(caminho: string): Promise<string> {
-  const { promisify } = await import('node:util')
-  const { inflateRaw } = await import('node:zlib')
-  const inflate = promisify(inflateRaw)
-  const zip = await readFile(caminho)
-
-  for (let i = 0; i + 30 <= zip.length; i++) {
-    if (zip.readUInt32LE(i) !== 0x04034b50) continue
-
-    const metodo = zip.readUInt16LE(i + 8)
-    const comprimido = zip.readUInt32LE(i + 18)
-    const original = zip.readUInt32LE(i + 22)
-    const tamanhoNome = zip.readUInt16LE(i + 26)
-    const extra = zip.readUInt16LE(i + 28)
-    const nome = zip.subarray(i + 30, i + 30 + tamanhoNome).toString('utf8')
-    if (nome !== 'word/document.xml') continue
-
-    const dados = zip.subarray(i + 30 + tamanhoNome + extra, i + 30 + tamanhoNome + extra + comprimido)
-    if (metodo === 0) return dados.subarray(0, original).toString('utf8')
-    return (await inflate(dados)).toString('utf8')
-  }
-
-  throw new Error('word/document.xml não encontrado no pacote')
-}

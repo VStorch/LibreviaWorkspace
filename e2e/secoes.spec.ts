@@ -6,6 +6,7 @@ import { promisify } from 'node:util'
 import { expect, test } from '@playwright/test'
 import { launch, menu, stubDialogs, type Session } from './app.js'
 import { docxWithColumns, docxWithSections, entryOf } from './fixtures.js'
+import { hasPdfinfo } from './external-tools.js'
 
 /**
  * Sections: each sheet with its section's paper, band and number.
@@ -75,7 +76,7 @@ test.describe('seções', () => {
   })
 
   test('o PDF sai com o papel de cada seção e os mesmos números', async () => {
-    test.skip(!(await temPoppler()), 'pdfinfo não instalado')
+    test.skip(!(await hasPdfinfo()), 'pdfinfo não instalado')
     await abrir()
     const destino = join(pasta, 'secoes.pdf')
     await stubDialogs(session.app, { save: destino, messageBox: 1 })
@@ -191,7 +192,7 @@ test.describe('seções', () => {
     expect(depois.width).toBeGreaterThan(primeiro.width * 1.5)
     await expect(session.window.locator('.paper-column-line')).toHaveCount(1)
 
-    test.skip(!(await temPoppler()), 'pdftotext não instalado')
+    test.skip(!(await hasPdfinfo()), 'pdftotext não instalado')
     const destino = join(pasta, 'colunas.pdf')
     await stubDialogs(session.app, { save: destino, messageBox: 1 })
     await menu(session, 'export-pdf')
@@ -305,15 +306,6 @@ test.describe('seções', () => {
     expect(terceiro!.y).toBeGreaterThan(folhas[1]!)
   })
 })
-
-async function temPoppler(): Promise<boolean> {
-  try {
-    await promisify(execFile)('pdfinfo', ['-v'])
-    return true
-  } catch {
-    return false
-  }
-}
 
 /** Each PDF sheet's orientation, by the size `pdfinfo` reports. */
 async function tamanhos(caminho: string): Promise<string[]> {
