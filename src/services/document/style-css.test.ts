@@ -49,4 +49,21 @@ describe('styleSheetCss', () => {
       css.indexOf('.page__content > [data-style-id="Normal"]'),
     )
   })
+
+  it('o preto declarado no estilo vira variável que só o tema escuro redefine', () => {
+    const normal = BUILTIN_STYLES.styles['Normal']!
+    const styles = {
+      ...BUILTIN_STYLES.styles,
+      Normal: { ...normal, character: { ...normal.character, color: '#000000' } },
+    }
+    const css = styleSheetCss({ ...BUILTIN_STYLES, styles })
+    expect(ruleOf(css, '.page__content > [data-style-id="Normal"]')).toContain(
+      'color: var(--declared-black, #000000);',
+    )
+  })
+
+  it('a cor que não é preta continua a do autor', () => {
+    const css = styleSheetCss(BUILTIN_STYLES)
+    expect(ruleOf(css, '.page__content > [data-style-id="Heading1"]')).toContain('color: #2f5496;')
+  })
 })

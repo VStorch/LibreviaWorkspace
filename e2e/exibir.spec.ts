@@ -1,8 +1,9 @@
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
-import { launch, menu, type Session } from './app.js'
+import { launch, menu, stubDialogs, type Session } from './app.js'
+import { docxWithBlackNormal } from './fixtures.js'
 
 /**
  * The "View" menu: theme, language and reading mode, preferences kept in main; here we check the
@@ -80,6 +81,25 @@ test.describe('menu Exibir', () => {
       .evaluate((node) => getComputedStyle(node).color)
 
     expect(escuro).not.toBe(claro)
+  })
+
+  test('o preto que o estilo declara acompanha o tema escuro', async () => {
+    const folder = await mkdtemp(join(tmpdir(), 'librevia-exibir-'))
+    try {
+      const origem = join(folder, 'preto.docx')
+      await writeFile(origem, await docxWithBlackNormal())
+      await stubDialogs(session.app, { open: origem, messageBox: 1 })
+      await menu(session, 'open')
+
+      const texto = session.window.locator('.ProseMirror p', { hasText: 'Texto no estilo Normal.' })
+      await expect(texto).toHaveCSS('color', 'rgb(0, 0, 0)')
+
+      await setPreference(session, { theme: 'dark' })
+      const corDoTema = await session.window.evaluate(() => getComputedStyle(document.body).color)
+      await expect(texto).toHaveCSS('color', corDoTema)
+    } finally {
+      await rm(folder, { recursive: true, force: true })
+    }
   })
 
   test('o idioma troca a interface sem reabrir nada', async () => {

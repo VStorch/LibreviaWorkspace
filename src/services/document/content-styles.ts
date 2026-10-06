@@ -3,6 +3,7 @@
  * screen. No app CSS variables: it must work in a standalone HTML.
  */
 import { DOCUMENT_FONT_CSS } from './fonts.js'
+import { DECLARED_BLACK_VARIABLE } from './style-css.js'
 
 export const DOCUMENT_CONTENT_CSS = `
 ${DOCUMENT_FONT_CSS}
@@ -189,15 +190,11 @@ ${DOCUMENT_FONT_CSS}
 }
 `
 
-/**
- * The dark theme lives here, never in `DOCUMENT_CONTENT_CSS`: printed paper is white in any theme.
- * Only what the document did not ask for changes color; the author's color comes inline and wins. A
- * text declared black stays black on dark paper: telling it apart would mean changing the HTML that
- * feeds the surgical save.
- */
+/** The dark theme lives here, never in `DOCUMENT_CONTENT_CSS`: printed paper is white in any theme. */
 const DARK_CONTENT_CSS = `
 :root[data-theme='dark'] .page__content {
   color: var(--text);
+  ${DECLARED_BLACK_VARIABLE}: var(--text);
 }
 
 /* A mesma cor das outras superfícies, para o papel não parecer recortado. */

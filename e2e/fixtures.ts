@@ -1058,11 +1058,11 @@ export async function entryOf(path: string, name: string): Promise<string> {
  * not (`heading 1`), and a paragraph in the author's style (`Citao`), which the pane shows as the
  * cursor's style.
  */
-export async function docxWithNamedStyles(extraParagraphs = ''): Promise<Buffer> {
+export async function docxWithNamedStyles(extraParagraphs = '', normalProperties = ''): Promise<Buffer> {
   const styles = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:styles xmlns:w="${W}">
 <w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="Calibri" w:hAnsi="Calibri"/><w:sz w:val="22"/></w:rPr></w:rPrDefault></w:docDefaults>
-<w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:qFormat/></w:style>
+<w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:qFormat/>${normalProperties}</w:style>
 <w:style w:type="paragraph" w:styleId="Ttulo1"><w:name w:val="heading 1"/><w:basedOn w:val="Normal"/><w:uiPriority w:val="9"/><w:qFormat/>
 <w:pPr><w:outlineLvl w:val="0"/></w:pPr><w:rPr><w:b/><w:sz w:val="32"/></w:rPr></w:style>
 <w:style w:type="paragraph" w:customStyle="1" w:styleId="Citao"><w:name w:val="Citação recuada"/><w:basedOn w:val="Normal"/><w:qFormat/>
@@ -1096,6 +1096,10 @@ export async function docxWithNamedStyles(extraParagraphs = ''): Promise<Buffer>
       ),
     ],
   ])
+}
+
+export async function docxWithBlackNormal(): Promise<Buffer> {
+  return docxWithNamedStyles(paragraph('Texto no estilo Normal.'), '<w:rPr><w:color w:val="000000"/></w:rPr>')
 }
 
 /**

@@ -20,6 +20,10 @@ import { StyleType, type StyleCharacterFormat, type StyleSheet } from './styles.
 
 const HEADING_LEVELS = 6
 
+const BLACK = '#000000'
+
+export const DECLARED_BLACK_VARIABLE = '--declared-black'
+
 export function styleSheetCss(sheet: StyleSheet): string {
   const base = resolveStyle(sheet, null)
   const rules = [
@@ -104,7 +108,7 @@ function characterCss({ paragraph, character }: ResolvedStyle): Array<[string, s
   ]
   if (family !== null) css.unshift(['font-family', fontStackOf(family)])
   // Without a declared color Word's "automatic" applies, which is not a color to write.
-  if (character.color !== undefined) css.push(['color', character.color])
+  if (character.color !== undefined) css.push(['color', screenColorOf(character.color)])
   return css
 }
 
@@ -118,10 +122,14 @@ function declaredCharacterCss(character: StyleCharacterFormat): Array<[string, s
     ['text-decoration', declaredDecoration(character)],
     ['text-transform', mapDefined(character.allCaps, (caps) => (caps ? 'uppercase' : 'none'))],
     ['font-variant', mapDefined(character.smallCaps, (small) => (small ? 'small-caps' : 'normal'))],
-    ['color', character.color],
+    ['color', mapDefined(character.color, screenColorOf)],
     ['background-color', character.highlight],
   ]
   return declared.filter((entry): entry is [string, string] => entry[1] !== undefined)
+}
+
+function screenColorOf(color: string): string {
+  return color.toLowerCase() === BLACK ? `var(${DECLARED_BLACK_VARIABLE}, ${BLACK})` : color
 }
 
 function mapDefined<T>(value: T | undefined, map: (value: T) => string): string | undefined {
