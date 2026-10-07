@@ -208,6 +208,34 @@ test('a barra de status acompanha a página e o zoom do PDF', async () => {
   await expect.poll(async () => Math.abs((await pageWidth(frame)) - 816 * 1.1)).toBeLessThanOrEqual(1)
 })
 
+test('localiza um texto no PDF, anda entre as ocorrências e apaga os destaques ao fechar', async () => {
+  const report = join(folder, 'busca.pdf')
+  await writeFile(report, pdfOf(['Receita anual', 'Despesa anual', 'Saldo anual']))
+  await openPdf(report)
+  await expect(session.window.getByTestId('pdf-page')).toHaveText('Página 1 de 3')
+
+  await menu(session, 'find-replace')
+  const findbar = session.window.getByRole('search')
+  await expect(findbar.getByRole('textbox', { name: 'Localizar' })).toBeFocused()
+  await findbar.getByRole('textbox', { name: 'Localizar' }).fill('anual')
+  await expect(findbar.locator('.findbar__count')).toHaveText('1 de 3')
+
+  await findbar.getByRole('textbox', { name: 'Localizar' }).press('Enter')
+  await findbar.getByRole('textbox', { name: 'Localizar' }).press('Enter')
+  await expect(findbar.locator('.findbar__count')).toHaveText('3 de 3')
+  await expect(session.window.getByTestId('pdf-page')).toHaveText('Página 3 de 3')
+
+  await findbar.getByRole('textbox', { name: 'Localizar' }).fill('lucro')
+  await expect(findbar.locator('.findbar__count')).toHaveText('nenhuma')
+
+  await findbar.getByRole('textbox', { name: 'Localizar' }).fill('Saldo')
+  const highlights = session.window.frameLocator('.pdf-view__frame').locator('.textLayer .highlight')
+  await expect(highlights).not.toHaveCount(0)
+  await findbar.getByRole('button', { name: 'Fechar busca' }).click()
+  await expect(findbar).toHaveCount(0)
+  await expect(highlights).toHaveCount(0)
+})
+
 test('imprimir um PDF abre o arquivo original na pré-visualização do Chromium', async () => {
   await openPdf(file)
 

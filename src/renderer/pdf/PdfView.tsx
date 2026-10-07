@@ -3,9 +3,11 @@ import { clampZoom } from '@services/document/zoom.js'
 import { PDF_VIEWER_ORIGIN, PDF_VIEWER_PAGE } from '@shared/constants.js'
 import type { MessageKey } from '@shared/i18n/index.js'
 import { PAGE_WIDTH, viewerEventSchema, type ViewerEvent } from '@shared/pdf-viewer-protocol.js'
+import { EditorCommand, onEditorCommand } from '../document/editor-commands.js'
 import { useT } from '../i18n.js'
 import { currentPreferences, usePreferences } from '../state/preferences.js'
 import { setFittedZoom } from '../state/zoom.js'
+import { PdfFindBar } from './PdfFindBar.js'
 import { connectViewer, sendToViewer, usePdfViewer } from './viewer-state.js'
 
 type Failure = Extract<ViewerEvent, { type: 'error' }>['reason']
@@ -28,8 +30,17 @@ export function PdfView({ path }: { readonly path: string }): React.JSX.Element 
   const frame = useRef<HTMLIFrameElement>(null)
   const [failure, setFailure] = useState<Failure | null>(null)
   const ready = useViewerChannel(frame, path, setFailure)
+  const [finding, setFinding] = useState(false)
   useViewerZoom(ready)
   useViewerTheme(ready)
+
+  useEffect(
+    () =>
+      onEditorCommand((command) => {
+        if (command === EditorCommand.FindReplace) setFinding(true)
+      }),
+    [],
+  )
 
   if (failure !== null) {
     return (
@@ -41,6 +52,7 @@ export function PdfView({ path }: { readonly path: string }): React.JSX.Element 
 
   return (
     <div className="pdf-view">
+      {finding && ready && <PdfFindBar onClose={() => setFinding(false)} />}
       <iframe
         ref={frame}
         className="pdf-view__frame"
