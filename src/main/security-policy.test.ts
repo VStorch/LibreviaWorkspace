@@ -5,6 +5,8 @@ import {
   isAllowedExternalUrl,
   isAllowedNavigation,
   isPdfViewerUrl,
+  isViewerSchemeUrl,
+  VIEWER_CONTENT_SECURITY_POLICY,
 } from './security-policy.js'
 
 describe('SECURE_WEB_PREFERENCES', () => {
@@ -39,13 +41,35 @@ describe('buildContentSecurityPolicy', () => {
     expect(buildContentSecurityPolicy('production')).not.toContain('ws://')
   })
 
-  it.each(['object-src', 'frame-src', 'base-uri', 'form-action'])(
-    'restringe %s nos dois modos',
-    (directive) => {
-      expect(buildContentSecurityPolicy('production')).toContain(`${directive} 'none'`)
-      expect(buildContentSecurityPolicy('development')).toContain(`${directive} 'none'`)
-    },
-  )
+  it('só o visualizador de PDF entra num frame', () => {
+    expect(buildContentSecurityPolicy('production')).toContain('frame-src librevia-viewer:;')
+    expect(buildContentSecurityPolicy('development')).toContain('frame-src librevia-viewer:;')
+  })
+
+  it.each(['object-src', 'base-uri', 'form-action'])('restringe %s nos dois modos', (directive) => {
+    expect(buildContentSecurityPolicy('production')).toContain(`${directive} 'none'`)
+    expect(buildContentSecurityPolicy('development')).toContain(`${directive} 'none'`)
+  })
+})
+
+describe('política do visualizador de PDF', () => {
+  const directive = (name: string): string =>
+    VIEWER_CONTENT_SECURITY_POLICY.split('; ').find((entry) => entry.startsWith(`${name} `)) ?? ''
+
+  it('compila WebAssembly, mas não aceita eval nem script inline', () => {
+    expect(directive('script-src')).toBe("script-src librevia-viewer: 'wasm-unsafe-eval'")
+  })
+
+  it('não busca nada fora do próprio esquema', () => {
+    expect(VIEWER_CONTENT_SECURITY_POLICY).toContain("default-src 'none'")
+    expect(directive('connect-src')).toBe('connect-src librevia-viewer:')
+    expect(directive('worker-src')).toBe('worker-src librevia-viewer:')
+  })
+
+  it('reconhece as respostas do esquema, que levam a própria política', () => {
+    expect(isViewerSchemeUrl('librevia-viewer://app/pdf-viewer/index.html')).toBe(true)
+    expect(isViewerSchemeUrl('file:///app/index.html')).toBe(false)
+  })
 })
 
 describe('isAllowedExternalUrl', () => {

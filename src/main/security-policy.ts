@@ -1,4 +1,4 @@
-import { ALLOWED_EXTERNAL_PROTOCOLS } from '@shared/constants.js'
+import { ALLOWED_EXTERNAL_PROTOCOLS, PDF_VIEWER_SCHEME } from '@shared/constants.js'
 
 /** Without `electron`, to be testable; `security.ts` applies it. */
 
@@ -44,7 +44,8 @@ export function buildContentSecurityPolicy(mode: AppMode): string {
 
   const common: Record<string, string> = {
     'object-src': "'none'",
-    'frame-src': "'none'",
+    // Only the PDF viewer, which runs in its own origin and process.
+    'frame-src': `${PDF_VIEWER_SCHEME}:`,
     'media-src': "'none'",
     'worker-src': "'self'",
     'base-uri': "'none'",
@@ -54,6 +55,28 @@ export function buildContentSecurityPolicy(mode: AppMode): string {
   return Object.entries({ ...directives, ...common })
     .map(([key, value]) => `${key} ${value}`)
     .join('; ')
+}
+
+/**
+ * The PDF viewer frame's own policy. `'wasm-unsafe-eval'` compiles the JPEG 2000 and JBIG2 image
+ * decoders and nothing else: `eval` and `new Function` stay blocked, which is what stops a font
+ * crafted to run code (CVE-2024-4367). pdf.js positions the text layer with inline styles.
+ */
+export const VIEWER_CONTENT_SECURITY_POLICY = [
+  "default-src 'none'",
+  `script-src ${PDF_VIEWER_SCHEME}: 'wasm-unsafe-eval'`,
+  `worker-src ${PDF_VIEWER_SCHEME}:`,
+  `connect-src ${PDF_VIEWER_SCHEME}:`,
+  `img-src ${PDF_VIEWER_SCHEME}: blob: data:`,
+  `style-src ${PDF_VIEWER_SCHEME}: 'unsafe-inline'`,
+  `font-src ${PDF_VIEWER_SCHEME}: data: blob:`,
+  "base-uri 'none'",
+  "form-action 'none'",
+].join('; ')
+
+/** Its responses carry their own policy; the app's would block the viewer. */
+export function isViewerSchemeUrl(rawUrl: string): boolean {
+  return rawUrl.startsWith(`${PDF_VIEWER_SCHEME}:`)
 }
 
 /** A document link only goes to the system browser if it passes here. */

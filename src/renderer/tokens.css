@@ -1,0 +1,129 @@
+/*
+ * Every color, shadow and rounded corner comes from the variables here, so the same thing does not
+ * look like two depending on the editor open, nor in the PDF viewer, which imports this file too.
+ */
+
+:root {
+  --bg: #f5f6f8;
+  --surface: #ffffff;
+  /* The background paper and grid rest on: darker than the rest of the shell. */
+  --sunken: #eceef1;
+  --border: #e2e5ea;
+  --border-strong: #c7ced6;
+  --hover: #eef1f4;
+  --text: #1b1f24;
+  --muted: #6b7280;
+
+  /*
+   * Documents blue and spreadsheets green, like Word and Excel, Writer and Calc: that is how people
+   * know where they are. The shell swaps `--accent` through the `.app` class.
+   */
+  --accent: var(--accent-document);
+  --accent-soft: var(--accent-document-soft);
+  --accent-line: var(--accent-document-line);
+
+  --accent-document: #1f5fa9;
+  --accent-document-soft: #e6eefa;
+  --accent-document-line: #b9d3ee;
+
+  --accent-spreadsheet: #1a7a4c;
+  --accent-spreadsheet-soft: #e3f1e9;
+  --accent-spreadsheet-line: #b0d9c3;
+
+  /* States. Red is error; amber asks for attention; blue only informs. */
+  --danger-bg: #fdecea;
+  --danger-border: #f3c2bd;
+  --danger-text: #91231a;
+  --notice-bg: #fff8e6;
+  --notice-border: #e6cf87;
+  --notice-text: #5c4708;
+  --warn-bg: #fff3e3;
+  --warn-border: #e3b979;
+  --warn-text: #5c3d08;
+  --info-bg: #e9f1fb;
+  --info-border: #a9c7e8;
+  --info-text: #16395c;
+
+  /* Colors that would be fixed, and so become variables the theme reaches. */
+
+  /* In dark mode the emphasis lightens, and the text on it darkens along. */
+  --on-accent: #ffffff;
+
+  /* In dark mode the mix is with the paper, not with white. */
+  --selection-mix: #ffffff;
+
+  /* The "Find" highlight belongs to the app, not to the document. */
+  --search-hit: #ffe9a8;
+  --search-hit-current: #ffb938;
+  --comment-hit: #fbeecb;
+  --comment-hit-active: #f5d77e;
+
+  /* A shape rule without a declared color follows the theme. */
+  --rule: #000000;
+
+  --radius: 10px;
+  --radius-sm: 6px;
+  --shadow-sm: 0 1px 2px rgb(16 24 40 / 6%);
+  --shadow-md: 0 4px 12px rgb(16 24 40 / 10%);
+  --shadow-lg: 0 12px 32px rgb(16 24 40 / 16%);
+
+  color-scheme: light;
+}
+
+/*
+ * The dark theme is only variables. The renderer writes `data-theme` from the media query, which
+ * obeys `nativeTheme.themeSource` (`state/theme.ts`). The paper darkens without inverting; a color
+ * the document chose stays its own (`content-styles.ts`); and none of this goes into the file.
+ */
+:root[data-theme='dark'] {
+  --bg: #16181c;
+  /* Lighter than the background, as in the light theme. */
+  --surface: #1e2126;
+  --sunken: #101215;
+  --border: #2c3138;
+  --border-strong: #454c56;
+  --hover: #262b31;
+  --text: #e4e7ea;
+  --muted: #9aa3ad;
+
+  /* #1f5fa9 gives 2.4:1 on this background: the emphasis lightens, keeping blue and green. */
+  --accent-document: #6ba5e7;
+  --accent-document-soft: #1c2a3a;
+  --accent-document-line: #2f4a68;
+
+  --accent-spreadsheet: #5cc48d;
+  --accent-spreadsheet-soft: #172a20;
+  --accent-spreadsheet-line: #2a5340;
+
+  --danger-bg: #2e1a18;
+  --danger-border: #6b342e;
+  --danger-text: #f0a79f;
+  --notice-bg: #2b2413;
+  --notice-border: #63522a;
+  --notice-text: #e8ce8c;
+  --warn-bg: #2d2214;
+  --warn-border: #6a4f2a;
+  --warn-text: #e8bd83;
+  --info-bg: #17222e;
+  --info-border: #2f4a68;
+  --info-text: #a8c9ec;
+
+  /*
+   * White on #6ba5e7 gives 2.6:1, near-black 8.9:1. The selection mixes with the dark paper, "find"
+   * becomes dark amber, and the rule is the text itself.
+   */
+  --on-accent: #10151b;
+  --selection-mix: #1e2126;
+  --search-hit: #4a3a12;
+  --search-hit-current: #7d5c12;
+  --comment-hit: #3d3522;
+  --comment-hit-active: #6b5520;
+  --rule: #e4e7ea;
+
+  /* On a dark background shadows vanish: separation comes from the border. */
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 40%);
+  --shadow-md: 0 4px 12px rgb(0 0 0 / 45%);
+  --shadow-lg: 0 12px 32px rgb(0 0 0 / 55%);
+
+  color-scheme: dark;
+}

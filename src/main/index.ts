@@ -10,7 +10,9 @@ import { registerTemplateHandlers } from './ipc/templates.js'
 import { registerWindowHandlers } from './ipc/window.js'
 import { useRecoveryFolder } from './fs/recovery.js'
 import { refreshMenu } from './menu.js'
-import { registerFontScheme, serveFonts } from './fonts.js'
+import { serveFonts } from './fonts.js'
+import { serveViewer } from './pdf-scheme.js'
+import { registerAppSchemes } from './schemes.js'
 import { applyStoredPreferences, onPreferencesChanged } from './preferences.js'
 import { applySessionPolicy } from './security.js'
 import { forgetSessionWords, installBundledDictionary, serveDictionary } from './spellcheck.js'
@@ -22,8 +24,8 @@ import { fileFromArguments, requestExternalFile } from './external-files.js'
 app.enableSandbox()
 app.setName(APP_NAME)
 
-// Also before `whenReady`: the scheme only gets privileges while Chromium builds the list.
-registerFontScheme()
+// Also before `whenReady`: a scheme only gets privileges while Chromium builds the list.
+registerAppSchemes()
 
 // The dictionary first, synchronously: inside `whenReady` the spellchecker would already have
 // started downloading its own, which would overwrite the bundled one.
@@ -48,6 +50,7 @@ if (!app.requestSingleInstanceLock()) {
   void app.whenReady().then(async () => {
     applySessionPolicy(session.defaultSession, devServerUrl() === null ? 'production' : 'development')
     serveFonts()
+    serveViewer()
     serveDictionary()
     applyStoredPreferences()
 

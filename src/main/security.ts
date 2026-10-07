@@ -1,10 +1,12 @@
 import { BrowserWindow, shell, type Session, type WebContents } from 'electron'
+import { PDF_VIEWER_PAGE } from '@shared/constants.js'
 import { confirmExternalLink } from './dialogs.js'
 import {
   buildContentSecurityPolicy,
   isAllowedExternalUrl,
   isAllowedNavigation,
   isPdfViewerUrl,
+  isViewerSchemeUrl,
   type AppMode,
 } from './security-policy.js'
 
@@ -13,7 +15,7 @@ export function applySessionPolicy(session: Session, mode: AppMode): void {
   const csp = buildContentSecurityPolicy(mode)
 
   session.webRequest.onHeadersReceived((details, callback) => {
-    if (isPdfViewerUrl(details.url)) {
+    if (isPdfViewerUrl(details.url) || isViewerSchemeUrl(details.url)) {
       callback({})
       return
     }
@@ -33,6 +35,11 @@ export function applySessionPolicy(session: Session, mode: AppMode): void {
 export function applyNavigationPolicy(contents: WebContents, appOrigin: string | null): void {
   contents.on('will-navigate', (event, url) => {
     if (!isAllowedNavigation(url, appOrigin)) event.preventDefault()
+  })
+
+  // The only frame is the PDF viewer, and it stays on its page: a link goes out through the app.
+  contents.on('will-frame-navigate', (event) => {
+    if (!event.isMainFrame && event.url !== PDF_VIEWER_PAGE) event.preventDefault()
   })
 
   contents.on('will-attach-webview', (event) => event.preventDefault())

@@ -2,6 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { translate, Language } from '@shared/i18n/index.js'
 import { App } from './app/App.js'
+import './tokens.css'
 import './styles.css'
 
 const container = document.getElementById('root')
