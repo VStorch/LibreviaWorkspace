@@ -1,4 +1,5 @@
-import { shell, type Session, type WebContents } from 'electron'
+import { BrowserWindow, shell, type Session, type WebContents } from 'electron'
+import { confirmExternalLink } from './dialogs.js'
 import {
   buildContentSecurityPolicy,
   isAllowedExternalUrl,
@@ -38,26 +39,31 @@ export function applyNavigationPolicy(contents: WebContents, appOrigin: string |
 
   // No child windows: links go to the system browser, after the scheme allowlist.
   contents.setWindowOpenHandler(({ url }) => {
-    if (isAllowedExternalUrl(url)) void shell.openExternal(url)
+    void openOutside(contents, url)
     return { action: 'deny' }
   })
 }
 
 /** A PDF viewer never leaves its file: a link goes to the system browser, or nowhere. */
 export function applyViewerNavigationPolicy(contents: WebContents): void {
-  const openOutside = (url: string): void => {
-    if (isAllowedExternalUrl(url)) void shell.openExternal(url)
-  }
-
   contents.on('will-navigate', (event, url) => {
     event.preventDefault()
-    openOutside(url)
+    void openOutside(contents, url)
   })
 
   contents.on('will-attach-webview', (event) => event.preventDefault())
 
   contents.setWindowOpenHandler(({ url }) => {
-    openOutside(url)
+    void openOutside(contents, url)
     return { action: 'deny' }
   })
+}
+
+/**
+ * The person sees the address before the browser opens it: a page that went wrong would otherwise
+ * carry what it reads to any site, in the URL.
+ */
+async function openOutside(contents: WebContents, url: string): Promise<void> {
+  if (!isAllowedExternalUrl(url)) return
+  if (await confirmExternalLink(BrowserWindow.fromWebContents(contents), url)) await shell.openExternal(url)
 }

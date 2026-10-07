@@ -114,6 +114,23 @@ export async function confirmDiscardChanges(window: BrowserWindow, fileName: str
   return DiscardChoice.Cancel
 }
 
+/** "Cancel" answers Esc and Enter: a link in a file opens a browser only on a deliberate choice. */
+export async function confirmExternalLink(window: BrowserWindow | null, url: string): Promise<boolean> {
+  const options = {
+    type: 'question' as const,
+    title: t('dialog.externalLink.title'),
+    message: t('dialog.externalLink.message'),
+    detail: url,
+    buttons: [t('dialog.externalLink.open'), t('dialog.discard.cancel')],
+    defaultId: 1,
+    cancelId: 1,
+    noLink: true,
+  }
+  const { response } =
+    window === null ? await dialog.showMessageBox(options) : await dialog.showMessageBox(window, options)
+  return response === 0
+}
+
 export async function showPdfSaveDialog(
   window: BrowserWindow,
   suggestedName: string,

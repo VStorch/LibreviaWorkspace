@@ -48,6 +48,13 @@ export const DIALOG = {
   'dialog.discard.dontSave': { pt: 'Não salvar', en: 'Don’t save' },
   'dialog.discard.cancel': { pt: 'Cancelar', en: 'Cancel' },
 
+  'dialog.externalLink.title': { pt: 'Abrir link', en: 'Open link' },
+  'dialog.externalLink.message': {
+    pt: 'Abrir este endereço no navegador?',
+    en: 'Open this address in the browser?',
+  },
+  'dialog.externalLink.open': { pt: 'Abrir', en: 'Open' },
+
   'dialog.plainText.title': { pt: 'Formatação será perdida', en: 'Formatting will be lost' },
   'dialog.plainText.message': {
     pt: '“{fileName}” é um arquivo de texto simples.',
