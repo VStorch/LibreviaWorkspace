@@ -17,8 +17,9 @@ export function StatusBar(): React.JSX.Element {
 
   return (
     <footer className="statusbar">
+      {/* `rtl` cuts the start of a long path, keeping the name; `bdi` keeps its slashes in place. */}
       <span className="statusbar__file" title={state.file?.path ?? undefined}>
-        {state.file?.path ?? t('shell.statusBar.notSavedYet')}
+        <bdi dir="ltr">{state.file?.path ?? t('shell.statusBar.notSavedYet')}</bdi>
       </span>
 
       <span className="statusbar__spacer" />
