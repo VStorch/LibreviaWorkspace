@@ -5,7 +5,8 @@ import {
   EXCEL_EXTENSION,
   PLAIN_TEXT_EXTENSION,
   SPREADSHEET_EXTENSION,
-  SUPPORTED_EXTENSIONS,
+  OPENABLE_EXTENSIONS,
+  PDF_EXTENSION,
   WORD_EXTENSION,
   WORD_MACRO_TEMPLATE_EXTENSION,
   WORD_TEMPLATE_EXTENSION,
@@ -16,13 +17,14 @@ const bare = (extension: string) => extension.replace('.', '')
 
 function getFilters() {
   return [
-    { name: t('dialog.filter.allSupported'), extensions: SUPPORTED_EXTENSIONS.map(bare) },
+    { name: t('dialog.filter.allSupported'), extensions: OPENABLE_EXTENSIONS.map(bare) },
     { name: t('dialog.filter.wordDocs'), extensions: [bare(WORD_EXTENSION)] },
     { name: t('dialog.filter.wordTemplates'), extensions: templateExtensions() },
     { name: t('dialog.filter.excelSheets'), extensions: [bare(EXCEL_EXTENSION)] },
     { name: t('dialog.filter.documents'), extensions: [bare(DOCUMENT_EXTENSION)] },
     { name: t('dialog.filter.spreadsheets'), extensions: [bare(SPREADSHEET_EXTENSION)] },
     { name: t('dialog.filter.plainText'), extensions: [bare(PLAIN_TEXT_EXTENSION)] },
+    { name: t('dialog.filter.pdfDocs'), extensions: [bare(PDF_EXTENSION)] },
     { name: t('dialog.filter.allFiles'), extensions: ['*'] },
   ]
 }

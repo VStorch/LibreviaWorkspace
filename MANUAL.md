@@ -72,8 +72,9 @@ Explorador de Arquivos.
 | `.sdoc` | documento do Librevia | guarda tudo, sem perda nenhuma |
 | `.ssheet` | planilha do Librevia | guarda tudo, sem perda nenhuma |
 | `.txt` | texto puro | abre e grava; salvar nele descarta a formatação, e o aplicativo avisa antes |
+| `.pdf` | documento PDF | abre só para ler, no lugar do arquivo aberto, como os outros: busca, zoom, miniaturas e impressão ficam nos botões no alto do PDF, como no Chrome |
 
-E estes, o Librevia só **cria**:
+E estes, o Librevia **cria**. O `.pdf` também abre para leitura, como mostra a tabela acima:
 
 | Extensão | Como |
 | --- | --- |

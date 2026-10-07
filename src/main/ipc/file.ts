@@ -5,6 +5,7 @@ import {
   ensureSupportedExtension,
   fileNameFromPath,
   isExcelPath,
+  isPdfPath,
   isWordPackagePath,
   isWordTemplatePath,
   kindFromPath,
@@ -15,7 +16,14 @@ import { followDocxOriginal, forgetOpenedDocx, openDocx, saveDocx } from '../doc
 import { forgetOpenedXlsx, openXlsx, saveXlsx } from '../xlsx/index.js'
 import { sidecar } from '../sidecar/index.js'
 import { writeFileAtomic } from '../fs/atomic-write.js'
-import { assertPathAuthorized, assertReadableFile, authorizePath, normalizePath } from '../fs/paths.js'
+import {
+  allowViewing,
+  assertPathAuthorized,
+  assertReadableFile,
+  assertViewablePdf,
+  authorizePath,
+  normalizePath,
+} from '../fs/paths.js'
 import { clearRecentFiles, isRemembered, listRecentFiles, rememberRecentFile } from '../fs/recent.js'
 import { readTextFile } from '../fs/read-text.js'
 import { refreshMenu } from '../menu.js'
@@ -30,6 +38,7 @@ import { forgetExternalFileRequest, isExternalFileRequested } from '../external-
  * absent, the file's.
  */
 export async function loadFile(path: string, templateName?: string): Promise<LoadedFile> {
+  if (isPdfPath(path)) return loadPdf(path)
   await assertReadableFile(path)
 
   // DOCX and XLSX become the internal format here: the renderer never sees OOXML.
@@ -71,6 +80,21 @@ export async function loadFile(path: string, templateName?: string): Promise<Loa
   }
 
   return loaded.inventory === undefined ? file : { ...file, inventory: loaded.inventory }
+}
+
+/**
+ * No content: Chromium reads the PDF from disk when the viewer attaches. The path is only allowed for
+ * viewing, never authorized: nothing is ever written to it.
+ */
+async function loadPdf(path: string): Promise<LoadedFile> {
+  await assertViewablePdf(path)
+  forgetOpenedDocx()
+  forgetOpenedXlsx()
+
+  const source = allowViewing(path)
+  rememberRecentFile(source)
+  void refreshMenu()
+  return { path: source, name: fileNameFromPath(source), kind: kindFromPath(source), content: '' }
 }
 
 export function registerFileHandlers(): void {

@@ -5,6 +5,8 @@ import {
   ensureSupportedExtension,
   extensionOf,
   fileNameFromPath,
+  isPdfPath,
+  kindFromPath,
   isSupportedExtension,
   isWordPackagePath,
   isWordTemplatePath,
@@ -51,6 +53,19 @@ describe('isSupportedExtension', () => {
     // `.xls` and `.ods` are different formats, not variants: opening one as `.xlsx` would give a
     // corrupt file error.
     expect(isSupportedExtension(path)).toBe(false)
+  })
+})
+
+describe('PDF', () => {
+  it.each(['/a/b.pdf', '/a/b.PDF'])('%s abre no visualizador', (path) => {
+    expect(isPdfPath(path)).toBe(true)
+    expect(kindFromPath(path)).toBe(DocumentKind.Pdf)
+  })
+
+  it('nunca é destino de gravação', () => {
+    // Only viewed: saving text into a `.pdf` would produce a file no reader opens.
+    expect(isSupportedExtension('/a/b.pdf')).toBe(false)
+    expect(ensureSupportedExtension('/a/b.pdf')).toBe('/a/b.pdf.sdoc')
   })
 })
 

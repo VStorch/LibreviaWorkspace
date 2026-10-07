@@ -152,6 +152,11 @@ export const SHELL = {
     pt: 'A gravação automática de segurança parou de funcionar. Seu arquivo não foi alterado, mas salve o trabalho manualmente: uma queda agora custaria o que não foi salvo.',
     en: 'Automatic backup saving stopped working. Your file was not modified, but save your work manually: a crash now would cost what was not saved.',
   },
+  'shell.pdf.viewer': { pt: 'Visualizador de PDF', en: 'PDF viewer' },
+  'shell.pdf.viewOnly': {
+    pt: 'O PDF abre só para leitura. Para imprimir ou salvar uma cópia, use os botões no alto do PDF.',
+    en: 'The PDF opens for reading only. To print or save a copy, use the buttons at the top of the PDF.',
+  },
   'shell.print.nothingToPrint': {
     pt: 'Não há nada aberto para imprimir. Abra ou crie um documento ou uma planilha primeiro.',
     en: 'Nothing is open to print. Open or create a document or spreadsheet first.',

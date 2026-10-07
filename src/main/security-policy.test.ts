@@ -4,6 +4,7 @@ import {
   buildContentSecurityPolicy,
   isAllowedExternalUrl,
   isAllowedNavigation,
+  isPdfViewerUrl,
 } from './security-policy.js'
 
 describe('SECURE_WEB_PREFERENCES', () => {
@@ -83,5 +84,19 @@ describe('isAllowedNavigation', () => {
 
   it('recusa URL malformada', () => {
     expect(isAllowedNavigation('%%%', null)).toBe(false)
+  })
+})
+
+describe('isPdfViewerUrl', () => {
+  it('reconhece a página do visualizador de PDF do Chromium', () => {
+    expect(isPdfViewerUrl('chrome-extension://mhjfbmdgcfjbbpaeojofohoefgiehjai/index.html')).toBe(true)
+  })
+
+  it('não isenta da CSP nenhuma outra origem', () => {
+    // Only the viewer's own page goes without the app's CSP: anything else here would open a hole.
+    expect(isPdfViewerUrl('chrome-extension://outraextensaoqualquer/index.html')).toBe(false)
+    expect(isPdfViewerUrl('file:///tmp/relatorio.pdf')).toBe(false)
+    expect(isPdfViewerUrl('https://mhjfbmdgcfjbbpaeojofohoefgiehjai/index.html')).toBe(false)
+    expect(isPdfViewerUrl('%%%')).toBe(false)
   })
 })

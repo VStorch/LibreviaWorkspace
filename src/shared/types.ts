@@ -4,6 +4,8 @@ import { Language } from './i18n/language.js'
 export const DocumentKind = {
   Document: 'document',
   Spreadsheet: 'spreadsheet',
+  /** Only viewed: never edited, saved or kept as a draft. */
+  Pdf: 'pdf',
 } as const
 
 export type DocumentKind = (typeof DocumentKind)[keyof typeof DocumentKind]

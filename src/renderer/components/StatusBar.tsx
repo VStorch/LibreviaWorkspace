@@ -1,7 +1,7 @@
 import { pageDimensionsMm } from '@services/document/model.js'
 import { useT } from '../i18n.js'
 import { useWorkspace } from '../state/workspace.js'
-import { MenuCommand } from '@shared/types.js'
+import { DocumentKind, MenuCommand } from '@shared/types.js'
 import { MAX_ZOOM, MIN_ZOOM } from '@services/document/zoom.js'
 import { usePreferences } from '../state/preferences.js'
 import { runZoomCommand, useEffectiveZoom } from '../state/zoom.js'
@@ -23,7 +23,8 @@ export function StatusBar(): React.JSX.Element {
 
       <span className="statusbar__spacer" />
 
-      {sheet === undefined ? (
+      {/* The viewer shows its own pages and zoom. */}
+      {state.file?.kind === DocumentKind.Pdf ? null : sheet === undefined ? (
         <>
           <span className="statusbar__metric">
             {state.page.size} {width} × {height} mm

@@ -34,7 +34,7 @@ import {
  */
 export const MAX_TEXT_LENGTH = 50_000_000
 
-const documentKindSchema = z.enum(['document', 'spreadsheet'])
+const documentKindSchema = z.enum(['document', 'spreadsheet', 'pdf'])
 
 /** See `LossInventory` in types.ts: invisible and lost are not the same thing. */
 const inventorySchema = z.object({
@@ -96,6 +96,11 @@ const openResultSchema = z.discriminatedUnion('canceled', [
   z.object({ canceled: z.literal(true) }),
   z.object({ canceled: z.literal(false), file: loadedFileSchema }),
 ])
+
+/** In CSS pixels of the app's page; main converts them. */
+const MAX_VIEW_EXTENT = 100_000
+const viewExtent = z.number().int().min(0).max(MAX_VIEW_EXTENT)
+const viewBoundsSchema = z.object({ x: viewExtent, y: viewExtent, width: viewExtent, height: viewExtent })
 
 const saveResultSchema = z.discriminatedUnion('canceled', [
   z.object({ canceled: z.literal(true) }),
@@ -257,6 +262,19 @@ export const ipcContracts = {
     response: z.object({ closing: z.literal(true) }),
   },
   [IpcChannel.WindowReady]: {
+    request: emptyRequest,
+    response: z.object({ applied: z.literal(true) }),
+  },
+  [IpcChannel.PdfAttach]: {
+    // Main only shows a path it opened itself as a PDF.
+    request: z.object({ path: z.string().min(1).max(MAX_PATH_LENGTH), bounds: viewBoundsSchema }),
+    response: z.object({ applied: z.literal(true) }),
+  },
+  [IpcChannel.PdfLayout]: {
+    request: z.object({ bounds: viewBoundsSchema.nullable() }),
+    response: z.object({ applied: z.literal(true) }),
+  },
+  [IpcChannel.PdfDetach]: {
     request: emptyRequest,
     response: z.object({ applied: z.literal(true) }),
   },

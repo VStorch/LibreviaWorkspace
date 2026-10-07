@@ -10,6 +10,7 @@ export const DIALOG = {
   'dialog.filter.documents': { pt: 'Documentos', en: 'Documents' },
   'dialog.filter.spreadsheets': { pt: 'Planilhas', en: 'Spreadsheets' },
   'dialog.filter.plainText': { pt: 'Texto simples', en: 'Plain text' },
+  'dialog.filter.pdfDocs': { pt: 'Documentos PDF', en: 'PDF documents' },
   'dialog.filter.allFiles': { pt: 'Todos os arquivos', en: 'All files' },
   'dialog.filter.images': { pt: 'Imagens', en: 'Images' },
   'dialog.filter.document': { pt: 'Documento', en: 'Document' },

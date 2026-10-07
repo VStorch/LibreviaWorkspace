@@ -60,6 +60,15 @@ export const IpcChannel = {
   /** Already resolved on the renderer side. */
   WindowClose: 'window:close',
 
+  /**
+   * Chromium's PDF viewer goes over the area the renderer reserves: the renderer cannot embed it,
+   * because its CSP refuses plugins and frames.
+   */
+  PdfAttach: 'pdf:attach',
+  /** `null` hides the viewer, so a dialog of the app can show above it. */
+  PdfLayout: 'pdf:layout',
+  PdfDetach: 'pdf:detach',
+
   PreferencesGet: 'prefs:get',
   /** Main stores and applies it. */
   PreferencesSet: 'prefs:set',
@@ -110,6 +119,9 @@ export const INVOCABLE_IPC_CHANNELS = [
   IpcChannel.WindowSetState,
   IpcChannel.WindowReady,
   IpcChannel.WindowClose,
+  IpcChannel.PdfAttach,
+  IpcChannel.PdfLayout,
+  IpcChannel.PdfDetach,
   IpcChannel.PreferencesGet,
   IpcChannel.PreferencesSet,
   IpcChannel.EditCommandRun,

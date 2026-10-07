@@ -21,9 +21,16 @@ export const SUPPORTED_EXTENSIONS = [
   EXCEL_EXTENSION,
   PLAIN_TEXT_EXTENSION,
 ] as const
+/** Only viewed, never a save destination: that is why it stays out of `SUPPORTED_EXTENSIONS`. */
+export const PDF_EXTENSION = '.pdf'
+export const OPENABLE_EXTENSIONS = [...SUPPORTED_EXTENSIONS, PDF_EXTENSION] as const
 
 export function isPlainTextPath(path: string): boolean {
   return extensionOf(path) === PLAIN_TEXT_EXTENSION
+}
+
+export function isPdfPath(path: string): boolean {
+  return extensionOf(path) === PDF_EXTENSION
 }
 
 export function isWordPath(path: string): boolean {
@@ -67,6 +74,7 @@ export function isSupportedExtension(path: string): boolean {
 
 export function kindFromPath(path: string): DocumentKind {
   const extension = extensionOf(path)
+  if (extension === PDF_EXTENSION) return DocumentKind.Pdf
   return extension === SPREADSHEET_EXTENSION || extension === EXCEL_EXTENSION
     ? DocumentKind.Spreadsheet
     : DocumentKind.Document

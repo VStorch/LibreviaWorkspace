@@ -8,13 +8,15 @@ const requested = new Set<string>()
 const pending: string[] = []
 let target: BrowserWindow | null = null
 
+const ARGUMENT_EXTENSIONS = ['.docx', '.dotx', '.dotm', '.pdf']
+
 /**
  * Only native open arguments grant access to a file outside the recent list. A `.dotx` or `.dotm`
- * from the command line creates a new document, as in Word.
+ * from the command line creates a new document, as in Word; a `.pdf` opens in the viewer.
  */
-export function docxFromArguments(args: readonly string[], cwd: string): string | undefined {
+export function fileFromArguments(args: readonly string[], cwd: string): string | undefined {
   const path = args.find(
-    (arg) => !arg.startsWith('-') && ['.docx', '.dotx', '.dotm'].includes(extname(arg).toLowerCase()),
+    (arg) => !arg.startsWith('-') && ARGUMENT_EXTENSIONS.includes(extname(arg).toLowerCase()),
   )
   return path === undefined ? undefined : resolve(cwd, path)
 }

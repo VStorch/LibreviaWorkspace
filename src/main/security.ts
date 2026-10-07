@@ -3,6 +3,7 @@ import {
   buildContentSecurityPolicy,
   isAllowedExternalUrl,
   isAllowedNavigation,
+  isPdfViewerUrl,
   type AppMode,
 } from './security-policy.js'
 
@@ -11,6 +12,10 @@ export function applySessionPolicy(session: Session, mode: AppMode): void {
   const csp = buildContentSecurityPolicy(mode)
 
   session.webRequest.onHeadersReceived((details, callback) => {
+    if (isPdfViewerUrl(details.url)) {
+      callback({})
+      return
+    }
     callback({
       responseHeaders: {
         ...details.responseHeaders,
@@ -34,6 +39,25 @@ export function applyNavigationPolicy(contents: WebContents, appOrigin: string |
   // No child windows: links go to the system browser, after the scheme allowlist.
   contents.setWindowOpenHandler(({ url }) => {
     if (isAllowedExternalUrl(url)) void shell.openExternal(url)
+    return { action: 'deny' }
+  })
+}
+
+/** A PDF viewer never leaves its file: a link goes to the system browser, or nowhere. */
+export function applyViewerNavigationPolicy(contents: WebContents): void {
+  const openOutside = (url: string): void => {
+    if (isAllowedExternalUrl(url)) void shell.openExternal(url)
+  }
+
+  contents.on('will-navigate', (event, url) => {
+    event.preventDefault()
+    openOutside(url)
+  })
+
+  contents.on('will-attach-webview', (event) => event.preventDefault())
+
+  contents.setWindowOpenHandler(({ url }) => {
+    openOutside(url)
     return { action: 'deny' }
   })
 }

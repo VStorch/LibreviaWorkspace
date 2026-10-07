@@ -87,3 +87,20 @@ export function isAllowedNavigation(targetUrl: string, appOrigin: string | null)
     return false
   }
 }
+
+/** Chromium's built-in PDF viewer: an extension compiled into Electron, not something we load. */
+const PDF_VIEWER_EXTENSION_ID = 'mhjfbmdgcfjbbpaeojofohoefgiehjai'
+
+/**
+ * The app's CSP is made for the interface: on the viewer's page it would block the
+ * `chrome://resources` scripts the viewer is built from, and the PDF would open blank. Compares
+ * scheme and host because `origin` is `"null"` for a `chrome-extension:` URL.
+ */
+export function isPdfViewerUrl(rawUrl: string): boolean {
+  try {
+    const url = new URL(rawUrl)
+    return url.protocol === 'chrome-extension:' && url.host === PDF_VIEWER_EXTENSION_ID
+  } catch {
+    return false
+  }
+}

@@ -10,6 +10,7 @@ import { recalculate } from '@services/spreadsheet/formula/recalc.js'
 import { defaultFileName, isPlainTextPath, kindFromPath } from '@services/file/formats.js'
 import { hasReportableLoss, locksEditing, lostOnSave } from '@services/file/inventory.js'
 import { currentPreferences } from './preferences.js'
+import { refuseViewOnly } from './view-only.js'
 import {
   loadedState,
   toSerialized,
@@ -187,6 +188,7 @@ function createSaveActions(
     save: async () => {
       const file = get().file
       if (file === null) return false
+      if (file.kind === DocumentKind.Pdf) return refuseViewOnly(set)
 
       const { path } = file
       if (path === null) return get().saveAs()
@@ -207,6 +209,7 @@ function createSaveActions(
     saveAs: async () => {
       const file = get().file
       if (file === null) return false
+      if (file.kind === DocumentKind.Pdf) return refuseViewOnly(set)
 
       const chosen = await ctx.call(() =>
         window.api.file.chooseSavePath({ suggestedName: file.name, kind: file.kind }),
@@ -265,6 +268,9 @@ function interpret(opened: OpenedFile): LoadedFile {
     opened.template === true
       ? { path: null, name: opened.name, kind, origin: opened.path }
       : { path: opened.path, name: opened.name, kind }
+
+  // The viewer reads the PDF from disk: there is no model to build.
+  if (kind === DocumentKind.Pdf) return { file, model: createEmptyDocument(), workbook: null }
 
   if (kind === DocumentKind.Spreadsheet) {
     // Recalculates on open: `HOJE()` and a hand-edited formula would be stale.

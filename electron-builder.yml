@@ -60,6 +60,7 @@ linux:
     - application/vnd.openxmlformats-officedocument.wordprocessingml.template
     - application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
     - text/plain
+    - application/pdf
 
 win:
   fileAssociations:

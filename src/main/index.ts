@@ -3,6 +3,7 @@ import { APP_NAME } from '@shared/constants.js'
 import { registerEditingHandlers } from './ipc/editing.js'
 import { registerFileHandlers } from './ipc/file.js'
 import { registerExportHandlers } from './ipc/export.js'
+import { registerPdfHandlers } from './ipc/pdf.js'
 import { registerPrintHandlers } from './ipc/print.js'
 import { registerRecoveryHandlers } from './ipc/recovery.js'
 import { registerTemplateHandlers } from './ipc/templates.js'
@@ -15,7 +16,7 @@ import { applySessionPolicy } from './security.js'
 import { forgetSessionWords, installBundledDictionary, serveDictionary } from './spellcheck.js'
 import { checkSidecarHealth, disposeSidecar } from './sidecar/index.js'
 import { createMainWindow, devServerUrl } from './window.js'
-import { docxFromArguments, requestExternalFile } from './external-files.js'
+import { fileFromArguments, requestExternalFile } from './external-files.js'
 
 // Sandbox for every renderer, including the hidden print window. Before `app.whenReady()`.
 app.enableSandbox()
@@ -32,11 +33,11 @@ installBundledDictionary()
 if (!app.requestSingleInstanceLock()) {
   app.quit()
 } else {
-  const initialFile = docxFromArguments(process.argv.slice(app.isPackaged ? 1 : 2), process.cwd())
+  const initialFile = fileFromArguments(process.argv.slice(app.isPackaged ? 1 : 2), process.cwd())
   if (initialFile !== undefined) requestExternalFile(initialFile)
 
   app.on('second-instance', (_event, argv, workingDirectory) => {
-    const path = docxFromArguments(argv.slice(app.isPackaged ? 1 : 2), workingDirectory)
+    const path = fileFromArguments(argv.slice(app.isPackaged ? 1 : 2), workingDirectory)
     if (path !== undefined) requestExternalFile(path)
     const [existing] = BrowserWindow.getAllWindows()
     if (existing === undefined) return
@@ -55,6 +56,7 @@ if (!app.requestSingleInstanceLock()) {
     registerEditingHandlers()
     registerFileHandlers()
     registerPrintHandlers()
+    registerPdfHandlers()
     registerExportHandlers()
     registerRecoveryHandlers()
     registerTemplateHandlers()

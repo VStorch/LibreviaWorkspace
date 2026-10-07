@@ -136,7 +136,7 @@ Ele também:
 | `.sdoc` | ✅ | ✅ | documento do Librevia; guarda tudo, sem perda |
 | `.ssheet` | ✅ | ✅ | planilha do Librevia; guarda tudo, sem perda |
 | `.txt` | ✅ | ✅ | só texto; salvar nele descarta a formatação, e o app avisa antes |
-| `.pdf` | — | exporta | documentos e planilhas |
+| `.pdf` | 👁️ | exporta | abre só para ler, com o mesmo visualizador do Chrome; exporta documentos e planilhas |
 | `.html`, `.md` | — | exporta | documento numa página só, ou em Markdown com as imagens numa pasta ao lado |
 | `.odt` | — | exporta | documento no formato do LibreOffice |
 

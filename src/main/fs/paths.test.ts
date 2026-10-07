@@ -6,6 +6,9 @@ import {
   MAX_FILE_BYTES,
   assertPathAuthorized,
   assertReadableFile,
+  assertViewablePdf,
+  allowViewing,
+  assertViewingAllowed,
   authorizePath,
   isPathAuthorized,
   resetAuthorizedPaths,
@@ -110,5 +113,46 @@ describe('assertReadableFile', () => {
     await writeFile(path, Buffer.alloc(MAX_FILE_BYTES + 1))
 
     await expect(assertReadableFile(path)).rejects.toMatchObject({ code: 'FILE_TOO_LARGE' })
+  })
+})
+
+describe('assertViewablePdf', () => {
+  it('aceita um PDF acima do limite dos arquivos editáveis', async () => {
+    // Chromium streams the PDF: its bytes never cross to the renderer, so the limit does not apply.
+    const path = join(directory, 'digitalizado.pdf')
+    await writeFile(path, Buffer.alloc(MAX_FILE_BYTES + 1))
+
+    await expect(assertViewablePdf(path)).resolves.toBeUndefined()
+  })
+
+  it('recusa o que não é PDF', async () => {
+    const path = join(directory, 'ata.txt')
+    await writeFile(path, 'ata')
+
+    await expect(assertViewablePdf(path)).rejects.toMatchObject({ code: 'UNSUPPORTED_FORMAT' })
+  })
+
+  it('recusa PDF inexistente', async () => {
+    await expect(assertViewablePdf(join(directory, 'fantasma.pdf'))).rejects.toMatchObject({
+      code: 'FILE_NOT_FOUND',
+    })
+  })
+})
+
+describe('PDFs só para ver', () => {
+  it('o visualizador só mostra um PDF que o main abriu', () => {
+    // The renderer asks to show a path: one it made up does not reach the viewer.
+    expect(() => assertViewingAllowed('/home/ana/outro.pdf')).toThrow(/recusada/i)
+
+    const path = join(directory, 'relatorio.pdf')
+    allowViewing(path)
+    expect(assertViewingAllowed(path)).toBe(path)
+  })
+
+  it('ver um PDF não autoriza gravar nele', () => {
+    const path = join(directory, 'relatorio.pdf')
+    allowViewing(path)
+
+    expect(isPathAuthorized(path)).toBe(false)
   })
 })

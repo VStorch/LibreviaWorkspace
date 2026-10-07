@@ -63,6 +63,11 @@ const api: AppApi = {
     setState: (payload) => ipcRenderer.invoke(IpcChannel.WindowSetState, payload),
     close: (payload) => ipcRenderer.invoke(IpcChannel.WindowClose, payload),
   },
+  pdf: {
+    attach: (payload) => ipcRenderer.invoke(IpcChannel.PdfAttach, payload),
+    layout: (payload) => ipcRenderer.invoke(IpcChannel.PdfLayout, payload),
+    detach: (payload) => ipcRenderer.invoke(IpcChannel.PdfDetach, payload),
+  },
   menu: {
     onCommand: (listener) => subscribe<MenuCommandPayload>(IpcChannel.MenuCommand, listener),
   },

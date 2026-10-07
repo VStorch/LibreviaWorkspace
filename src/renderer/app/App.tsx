@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { MenuCommand } from '@shared/types.js'
+import { DocumentKind, MenuCommand } from '@shared/types.js'
 import { buildWindowTitle } from '@services/file/formats.js'
 import type { WorkbookModel } from '@services/spreadsheet/model.js'
 import { ErrorBanner } from '../components/ErrorBanner.js'
@@ -11,6 +11,7 @@ import { TemplateGallery } from '../components/TemplateGallery.js'
 import { DocumentEditor } from '../document/DocumentEditor.js'
 import { asEditorCommand, emitEditorCommand } from '../document/editor-commands.js'
 import { HomePage } from '../pages/HomePage.js'
+import { PdfView } from '../pdf/PdfView.js'
 import { SheetTabs } from '../spreadsheet/SheetTabs.js'
 import { SpreadsheetEditor } from '../spreadsheet/SpreadsheetEditor.js'
 import { usePreferences, watchPreferences } from '../state/preferences.js'
@@ -68,6 +69,7 @@ const MENU_ACTIONS: Partial<Record<MenuCommand, MenuAction>> = {
 
 export function App(): React.JSX.Element {
   const hasFile = useWorkspace((state) => state.file !== null)
+  const viewedPdf = useWorkspace((state) => (state.file?.kind === DocumentKind.Pdf ? state.file.path : null))
   const templateGallery = useWorkspace((state) => state.templateGallery)
   // The editor is remounted for each document, with no leftover state.
   const generation = useWorkspace((state) => state.generation)
@@ -90,7 +92,9 @@ export function App(): React.JSX.Element {
       <ReadOnlyBanner />
       <InventoryBanner />
       <div className="app__body">
-        {workbook !== null ? (
+        {viewedPdf !== null ? (
+          <PdfView key={generation} path={viewedPdf} />
+        ) : workbook !== null ? (
           <WorkbookView workbook={workbook} generation={generation} />
         ) : hasFile ? (
           <DocumentEditor key={generation} />

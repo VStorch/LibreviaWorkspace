@@ -215,6 +215,12 @@ button {
   min-height: 0;
 }
 
+/* The viewer's own background: no flash while Chromium loads it over this area. */
+.pdf-view {
+  height: 100%;
+  background: #282828;
+}
+
 .banner {
   display: flex;
   align-items: flex-start;

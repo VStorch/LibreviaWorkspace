@@ -6,6 +6,7 @@ import { AppError, ErrorCode } from '@shared/errors.js'
 import type { PageSetup } from '@services/document/model.js'
 import { buildNativePrintOptions, buildPrintOptions } from '@services/pdf/page-setup.js'
 import { t } from '../i18n.js'
+import { openPdfWindow } from '../pdf-viewer.js'
 
 /**
  * Chromium itself renders the PDF in a hidden window with **JavaScript off**: the HTML comes from
@@ -76,24 +77,12 @@ export async function openPdfPreview(parent: BrowserWindow, pdf: Buffer, title: 
   const temporaryPath = join(app.getPath('temp'), `librevia-preview-${randomUUID()}.pdf`)
   await writeFile(temporaryPath, pdf)
 
-  const window = new BrowserWindow({
-    parent,
-    width: 900,
-    height: 1000,
+  const window = openPdfWindow({
+    path: temporaryPath,
     title: t('errors.print.previewTitle', { title }),
-    autoHideMenuBar: true,
-    webPreferences: {
-      plugins: true,
-      javascript: false,
-      contextIsolation: true,
-      nodeIntegration: false,
-      sandbox: true,
-    },
+    parent,
   })
-
   window.on('closed', () => {
     void unlink(temporaryPath).catch(() => undefined)
   })
-
-  await window.loadFile(temporaryPath)
 }

@@ -1,3 +1,4 @@
+import { DocumentKind } from '@shared/types.js'
 import type { PageSetup } from '@services/document/model.js'
 import { buildPrintHtml } from '@services/document/print-html.js'
 import { effectiveSections } from '@services/document/sections.js'
@@ -6,6 +7,7 @@ import { styleSheetCss } from '@services/document/style-css.js'
 import { SHEET_PRINT_CSS, buildSheetHtml } from '@services/spreadsheet/print-html.js'
 import { t } from '../i18n.js'
 import { currentPreferences } from './preferences.js'
+import { refuseViewOnly } from './view-only.js'
 import type { GetWorkspace, SetWorkspace, WorkspaceContext } from './context.js'
 import type { DocumentSource, WorkspaceState } from './types.js'
 
@@ -26,6 +28,7 @@ export function createPrintActions(
 
   /** Returning `false` silently would make "Export to PDF" do nothing. */
   function refuse(): false {
+    if (get().file?.kind === DocumentKind.Pdf) return refuseViewOnly(set)
     set({
       error: {
         code: 'INTERNAL',
@@ -51,6 +54,7 @@ export function createPrintActions(
 
     exportDocument: async (format) => {
       const state = get()
+      if (state.file?.kind === DocumentKind.Pdf) return refuseViewOnly(set)
       if (state.workbook !== null || ctx.source() === null) {
         set({ error: { code: 'INTERNAL', message: t('shell.export.documentOnly') } })
         return false
