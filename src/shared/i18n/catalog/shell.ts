@@ -73,6 +73,7 @@ export const SHELL = {
     pt: { one: '{count} página', other: '{count} páginas' },
     en: { one: '{count} page', other: '{count} pages' },
   },
+  'shell.statusBar.pageOf': { pt: 'Página {page} de {pages}', en: 'Page {page} of {pages}' },
   'shell.statusBar.words': {
     pt: { one: '{count} palavra', other: '{count} palavras' },
     en: { one: '{count} word', other: '{count} words' },
@@ -154,9 +155,18 @@ export const SHELL = {
   },
   'shell.pdf.viewer': { pt: 'Visualizador de PDF', en: 'PDF viewer' },
   'shell.pdf.viewOnly': {
-    pt: 'O PDF abre só para leitura. Para imprimir ou salvar uma cópia, use os botões no alto do PDF.',
-    en: 'The PDF opens for reading only. To print or save a copy, use the buttons at the top of the PDF.',
+    pt: 'O PDF abre só para leitura. Para imprimir ou salvar uma cópia, use Arquivo → Imprimir.',
+    en: 'The PDF opens for reading only. To print or save a copy, use File → Print.',
   },
+  'shell.pdf.password': {
+    pt: 'Este PDF é protegido por senha, e o Librevia ainda não abre PDFs com senha.',
+    en: 'This PDF is password protected, and Librevia does not open password-protected PDFs yet.',
+  },
+  'shell.pdf.invalid': {
+    pt: 'Não foi possível ler este PDF: o arquivo está danificado ou não é um PDF.',
+    en: 'This PDF could not be read: the file is damaged or is not a PDF.',
+  },
+  'shell.pdf.failed': { pt: 'Não foi possível mostrar este PDF.', en: 'This PDF could not be shown.' },
   'shell.print.nothingToPrint': {
     pt: 'Não há nada aberto para imprimir. Abra ou crie um documento ou uma planilha primeiro.',
     en: 'Nothing is open to print. Open or create a document or spreadsheet first.',

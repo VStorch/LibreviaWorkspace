@@ -136,7 +136,7 @@ Ele também:
 | `.sdoc` | ✅ | ✅ | documento do Librevia; guarda tudo, sem perda |
 | `.ssheet` | ✅ | ✅ | planilha do Librevia; guarda tudo, sem perda |
 | `.txt` | ✅ | ✅ | só texto; salvar nele descarta a formatação, e o app avisa antes |
-| `.pdf` | 👁️ | exporta | abre só para ler, com o mesmo visualizador do Chrome; exporta documentos e planilhas |
+| `.pdf` | 👁️ | exporta | abre só para ler, com página, zoom e busca do próprio app; exporta documentos e planilhas |
 | `.html`, `.md` | — | exporta | documento numa página só, ou em Markdown com as imagens numa pasta ao lado |
 | `.odt` | — | exporta | documento no formato do LibreOffice |
 
@@ -431,6 +431,7 @@ importam e do que cada uma guarda.
 | [`sidecar/`](src/main/sidecar) | localiza o executável .NET, sobe o processo e fala o protocolo de quadros |
 | [`docx/`](src/main/docx), [`xlsx/`](src/main/xlsx) | o lado TypeScript de cada formato, incluindo a tradução das fórmulas |
 | [`print/`](src/main/print) | PDF pelo `printToPDF` |
+| [`pdf-scheme.ts`](src/main/pdf-scheme.ts), [`pdf-viewer.ts`](src/main/pdf-viewer.ts) | o visualizador de PDF na sua origem própria, e a janela de impressão de um PDF |
 | [`security.ts`](src/main/security.ts), [`security-policy.ts`](src/main/security-policy.ts) | preferências da janela e política de navegação |
 | [`spellcheck.ts`](src/main/spellcheck.ts), [`fonts.ts`](src/main/fonts.ts), [`system-fonts.ts`](src/main/system-fonts.ts) | ortografia offline e lista de fontes |
 
@@ -444,6 +445,8 @@ importam e do que cada uma guarda.
 | [`spreadsheet/`](src/renderer/spreadsheet) | grade, barra de fórmulas, abas e menus da planilha |
 | [`state/`](src/renderer/state) | estado com Zustand: arquivos, rascunhos, impressão, tema, zoom, modo de leitura |
 | [`components/`](src/renderer/components) | peças comuns: barra de status, faixas de aviso, galeria de modelos |
+| [`pdf/`](src/renderer/pdf) | o quadro do visualizador de PDF e a barra de busca dele |
+| [`pdf-viewer/`](src/renderer/pdf-viewer) | a página isolada que desenha o PDF com o pdf.js |
 
 ### Lógica pura — `src/services/`
 
@@ -517,12 +520,16 @@ folha (viúvas e órfãs) são evitadas, e o cabeçalho de uma tabela se repete 
 Nos 25 documentos usados para conferir, o número de folhas é o mesmo do LibreOffice, e cada
 folha começa pela mesma palavra.
 
-Não há biblioteca de PDF: quem gera o PDF é o próprio **Chromium**, pelo `printToPDF`. O
+Nenhuma biblioteca gera o PDF: quem gera é o próprio **Chromium**, pelo `printToPDF`. O
 editor entrega o documento **já dividido em folhas**, e cada folha vira uma caixa do tamanho
 do papel. Por isso o PDF sai igual à tela, com o texto selecionável e as fontes embutidas.
 
 Antes havia dois paginadores, o do editor e o do Chromium, e eles nem sempre concordavam.
 Agora há um só.
+
+Para **ler** um PDF, o Librevia usa o [pdf.js](https://mozilla.github.io/pdf.js/), da Mozilla.
+Ele roda num quadro com origem e processo próprios, sem acesso ao resto do aplicativo, e lê o
+arquivo por trechos: um PDF de 200 MB abre em 0,3 s, lendo 128 KB dele.
 
 > ⚠️ **Ao mexer em margens:** `printToPDF()` recebe **polegadas** e `webContents.print()`
 > recebe **pixels CSS**. As duas conversões ficam juntas em `services/pdf/page-setup.ts`, com

@@ -1,22 +1,22 @@
+import { fileNameFromPath } from '@services/file/formats.js'
 import { IpcChannel } from '@shared/ipc-channels.js'
 import { assertViewingAllowed } from '../fs/paths.js'
-import { attachPdfView, detachPdfView, layoutPdfView } from '../pdf-viewer.js'
+import { t } from '../i18n.js'
+import { shareDocument } from '../pdf-scheme.js'
+import { openPdfWindow } from '../pdf-viewer.js'
 import { handle } from './registry.js'
 import { windowOf } from './sender-window.js'
 
 export function registerPdfHandlers(): void {
-  handle(IpcChannel.PdfAttach, (payload, event) => {
-    attachPdfView(windowOf(event), assertViewingAllowed(payload.path), payload.bounds)
-    return { applied: true as const }
-  })
+  handle(IpcChannel.PdfShare, (payload) => ({ url: shareDocument(assertViewingAllowed(payload.path)) }))
 
-  handle(IpcChannel.PdfLayout, (payload, event) => {
-    layoutPdfView(windowOf(event), payload.bounds)
-    return { applied: true as const }
-  })
-
-  handle(IpcChannel.PdfDetach, (_payload, event) => {
-    detachPdfView(windowOf(event))
-    return { applied: true as const }
+  handle(IpcChannel.PdfPrint, (payload, event) => {
+    const path = assertViewingAllowed(payload.path)
+    openPdfWindow({
+      path,
+      title: t('errors.print.previewTitle', { title: fileNameFromPath(path) }),
+      parent: windowOf(event),
+    })
+    return { opened: true as const }
   })
 }

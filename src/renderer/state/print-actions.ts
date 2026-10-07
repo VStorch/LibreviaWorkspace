@@ -38,6 +38,13 @@ export function createPrintActions(
     return false
   }
 
+  /** Chromium's viewer prints the PDF as it is, in the print preview window. */
+  async function printPdf(): Promise<boolean> {
+    const path = get().file?.path
+    if (path === null || path === undefined) return false
+    return (await ctx.call(() => window.api.pdf.print({ path }))) !== null
+  }
+
   return {
     exportPdf: async () => {
       const request = buildRequest()
@@ -72,6 +79,7 @@ export function createPrintActions(
     },
 
     print: async () => {
+      if (get().file?.kind === DocumentKind.Pdf) return printPdf()
       const request = buildRequest()
       if (request === null) return refuse()
 
@@ -80,6 +88,10 @@ export function createPrintActions(
     },
 
     printPreview: async () => {
+      if (get().file?.kind === DocumentKind.Pdf) {
+        await printPdf()
+        return
+      }
       const request = buildRequest()
       if (request === null) {
         refuse()

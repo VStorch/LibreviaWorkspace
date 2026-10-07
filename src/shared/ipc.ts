@@ -12,6 +12,7 @@ import {
   editorPreferencesSchema,
   pageSetupSchema,
 } from './schemas.js'
+import { PDF_VIEWER_ORIGIN } from './constants.js'
 import { DictionaryScope, EditCommand, MenuCommand, RevisionView } from './types.js'
 import type { SerializedError } from './errors.js'
 import {
@@ -96,11 +97,6 @@ const openResultSchema = z.discriminatedUnion('canceled', [
   z.object({ canceled: z.literal(true) }),
   z.object({ canceled: z.literal(false), file: loadedFileSchema }),
 ])
-
-/** In CSS pixels of the app's page; main converts them. */
-const MAX_VIEW_EXTENT = 100_000
-const viewExtent = z.number().int().min(0).max(MAX_VIEW_EXTENT)
-const viewBoundsSchema = z.object({ x: viewExtent, y: viewExtent, width: viewExtent, height: viewExtent })
 
 const saveResultSchema = z.discriminatedUnion('canceled', [
   z.object({ canceled: z.literal(true) }),
@@ -265,18 +261,14 @@ export const ipcContracts = {
     request: emptyRequest,
     response: z.object({ applied: z.literal(true) }),
   },
-  [IpcChannel.PdfAttach]: {
-    // Main only shows a path it opened itself as a PDF.
-    request: z.object({ path: z.string().min(1).max(MAX_PATH_LENGTH), bounds: viewBoundsSchema }),
-    response: z.object({ applied: z.literal(true) }),
+  [IpcChannel.PdfShare]: {
+    // Main only shares a path it opened itself as a PDF.
+    request: z.object({ path: z.string().min(1).max(MAX_PATH_LENGTH) }),
+    response: z.object({ url: z.string().startsWith(`${PDF_VIEWER_ORIGIN}/document/`) }),
   },
-  [IpcChannel.PdfLayout]: {
-    request: z.object({ bounds: viewBoundsSchema.nullable() }),
-    response: z.object({ applied: z.literal(true) }),
-  },
-  [IpcChannel.PdfDetach]: {
-    request: emptyRequest,
-    response: z.object({ applied: z.literal(true) }),
+  [IpcChannel.PdfPrint]: {
+    request: z.object({ path: z.string().min(1).max(MAX_PATH_LENGTH) }),
+    response: z.object({ opened: z.literal(true) }),
   },
   [IpcChannel.PreferencesGet]: {
     request: emptyRequest,

@@ -64,9 +64,8 @@ export interface AppApi {
     close: Call<typeof IpcChannel.WindowClose>
   }
   readonly pdf: {
-    attach: Call<typeof IpcChannel.PdfAttach>
-    layout: Call<typeof IpcChannel.PdfLayout>
-    detach: Call<typeof IpcChannel.PdfDetach>
+    share: Call<typeof IpcChannel.PdfShare>
+    print: Call<typeof IpcChannel.PdfPrint>
   }
   readonly menu: {
     onCommand(listener: (payload: MenuCommandPayload) => void): () => void

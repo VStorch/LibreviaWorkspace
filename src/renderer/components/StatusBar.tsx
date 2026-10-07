@@ -5,6 +5,7 @@ import { DocumentKind, MenuCommand } from '@shared/types.js'
 import { MAX_ZOOM, MIN_ZOOM } from '@services/document/zoom.js'
 import { usePreferences } from '../state/preferences.js'
 import { runZoomCommand, useEffectiveZoom } from '../state/zoom.js'
+import { usePdfViewer } from '../pdf/viewer-state.js'
 
 export function StatusBar(): React.JSX.Element {
   const t = useT()
@@ -24,8 +25,9 @@ export function StatusBar(): React.JSX.Element {
 
       <span className="statusbar__spacer" />
 
-      {/* The viewer shows its own pages and zoom. */}
-      {state.file?.kind === DocumentKind.Pdf ? null : sheet === undefined ? (
+      {state.file?.kind === DocumentKind.Pdf ? (
+        <PdfMetrics />
+      ) : sheet === undefined ? (
         <>
           <span className="statusbar__metric">
             {state.page.size} {width} × {height} mm
@@ -65,6 +67,22 @@ export function StatusBar(): React.JSX.Element {
             : t('shell.statusBar.saved')}
       </span>
     </footer>
+  )
+}
+
+function PdfMetrics(): React.JSX.Element {
+  const t = useT()
+  const page = usePdfViewer((viewer) => viewer.page)
+  const pages = usePdfViewer((viewer) => viewer.pages)
+  return (
+    <>
+      {pages > 0 && (
+        <span className="statusbar__metric" data-testid="pdf-page">
+          {t('shell.statusBar.pageOf', { page, pages })}
+        </span>
+      )}
+      <ZoomControls />
+    </>
   )
 }
 

@@ -45,6 +45,8 @@ segurança:
 | --- | --- |
 | **Um arquivo não derruba o aplicativo** | um `.docx` ou `.xlsx` que trava o serviço de formatos, esgota a memória ou abre um ZIP que se expande sem fim |
 | **A interface roda isolada** | um documento que consegue executar código fora da sandbox do renderer, ou acessar Node.js |
+| **Um PDF fica no visualizador** | um PDF que, aberto, alcança a página ou as funções do aplicativo, abre uma janela, tira a janela do aplicativo ou lê outro arquivo além dele |
+| **Um link só sai com confirmação** | um link num arquivo que abre o navegador sem que o usuário veja o endereço e aceite |
 | **Só se grava onde o usuário escolheu** | gravar ou ler um caminho que não passou por um diálogo do sistema nem pela lista de recentes, furando a trava `PATH_NOT_AUTHORIZED` |
 | **O aplicativo não usa a rede** | um documento que faz o aplicativo buscar algo na internet sozinho, ao abrir ou ao imprimir |
 | **O serviço de formatos não grava nada** | o sidecar .NET escrevendo no disco ou abrindo conexão |

@@ -64,9 +64,8 @@ const api: AppApi = {
     close: (payload) => ipcRenderer.invoke(IpcChannel.WindowClose, payload),
   },
   pdf: {
-    attach: (payload) => ipcRenderer.invoke(IpcChannel.PdfAttach, payload),
-    layout: (payload) => ipcRenderer.invoke(IpcChannel.PdfLayout, payload),
-    detach: (payload) => ipcRenderer.invoke(IpcChannel.PdfDetach, payload),
+    share: (payload) => ipcRenderer.invoke(IpcChannel.PdfShare, payload),
+    print: (payload) => ipcRenderer.invoke(IpcChannel.PdfPrint, payload),
   },
   menu: {
     onCommand: (listener) => subscribe<MenuCommandPayload>(IpcChannel.MenuCommand, listener),
