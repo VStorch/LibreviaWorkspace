@@ -2,7 +2,7 @@ import { DocumentKind, PlainTextChoice, type LossInventory } from '@shared/types
 import { DEFAULT_PAGE_SETUP, createEmptyDocument, type DocumentModel } from '@services/document/model.js'
 import { documentToPlainText, hasRichFormatting, plainTextToDocument } from '@services/document/plain-text.js'
 import { parseDocument, serializeDocument } from '@services/document/serialize.js'
-import { stampProperties } from '@services/file/properties.js'
+import { stampProperties, w3cdtf } from '@services/file/properties.js'
 import { BUILTIN_STYLES } from '@services/document/styles.js'
 import { createEmptyWorkbook } from '@services/spreadsheet/model.js'
 import { parseWorkbook, serializeWorkbook } from '@services/spreadsheet/serialize.js'
@@ -189,7 +189,11 @@ function createSaveActions(
     save: async () => {
       const file = get().file
       if (file === null) return false
-      if (file.kind === DocumentKind.Pdf) return refuseViewOnly(set)
+      if (file.kind === DocumentKind.Pdf) {
+        if (!(await savePdfProperties(set, get, ctx, file))) return false
+        await afterSave(file, undefined)
+        return true
+      }
 
       const { path } = file
       if (path === null) return get().saveAs()
@@ -250,6 +254,25 @@ function createSaveActions(
  * Only when the document changed or was never saved: opened and saved without editing, `docProps/`
  * goes back byte for byte. It stays in the state even if saving fails.
  */
+/** A PDF only has its properties to save; the rest of it is read only. */
+async function savePdfProperties(
+  set: SetWorkspace,
+  get: GetWorkspace,
+  ctx: WorkspaceContext,
+  file: OpenFile,
+): Promise<boolean> {
+  const { path } = file
+  const { isDirty, properties } = get()
+  if (path === null || !isDirty || properties === undefined) return refuseViewOnly(set)
+
+  const stamped = { ...properties, modified: w3cdtf(new Date()) }
+  const data = await ctx.call(() => window.api.pdf.saveProperties({ path, properties: stamped }))
+  if (data === null) return false
+
+  set({ properties: stamped })
+  return true
+}
+
 function stampForSave(set: SetWorkspace, get: GetWorkspace): void {
   const state = get()
   const stamped = stampProperties(state.properties, {

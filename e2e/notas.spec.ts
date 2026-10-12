@@ -6,7 +6,7 @@ import { promisify } from 'node:util'
 import { expect, test } from '@playwright/test'
 import { launch, menu, stubDialogs, type Session } from './app.js'
 import { docxWithFootnote, docxWithLongFootnote, docxWithManyFootnotes, entryOf } from './fixtures.js'
-import { hasPdfinfo, hasSoffice } from './external-tools.js'
+import { hasPdfinfo, hasSoffice, pdfInfo } from './external-tools.js'
 
 /**
  * Footnotes and endnotes: read, numbered and preserved.
@@ -456,10 +456,5 @@ test.describe('notas no pé da página', () => {
 })
 
 async function paginasDoPdf(caminho: string): Promise<number> {
-  try {
-    const { stdout } = await promisify(execFile)('pdfinfo', [caminho])
-    return Number(/Pages:\s+(\d+)/.exec(stdout)?.[1] ?? 0)
-  } catch {
-    return 0
-  }
+  return Number(/Pages:\s+(\d+)/.exec(await pdfInfo(caminho))?.[1] ?? 0)
 }

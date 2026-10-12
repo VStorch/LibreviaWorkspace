@@ -37,7 +37,10 @@ export function assertPathAuthorized(path: string): string {
   return normalized
 }
 
-/** Read only: PDFs main opened, which the viewer may show. Never a destination. */
+/**
+ * PDFs main opened, which the viewer may show. Never a destination for content: only the
+ * properties update `pdf-metadata.ts` builds is appended to them.
+ */
 const viewablePaths = new Set<string>()
 
 export function allowViewing(path: string): string {

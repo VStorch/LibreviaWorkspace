@@ -27,3 +27,13 @@ export async function pdfText(path: string, { layout = true } = {}): Promise<str
     return ''
   }
 }
+
+/** The metadata poppler reads, one `Key: value` per line; empty on failure. */
+export async function pdfInfo(path: string): Promise<string> {
+  try {
+    const { stdout } = await run('pdfinfo', ['-enc', 'UTF-8', path])
+    return stdout
+  } catch {
+    return ''
+  }
+}

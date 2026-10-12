@@ -50,6 +50,7 @@ segurança:
 | **Só se grava onde o usuário escolheu** | gravar ou ler um caminho que não passou por um diálogo do sistema nem pela lista de recentes, furando a trava `PATH_NOT_AUTHORIZED` |
 | **O aplicativo não usa a rede** | um documento que faz o aplicativo buscar algo na internet sozinho, ao abrir ou ao imprimir |
 | **O serviço de formatos não grava nada** | o sidecar .NET escrevendo no disco ou abrindo conexão |
+| **As propriedades de um PDF só acrescentam** | gravar as propriedades de um PDF muda algum byte do que já estava no arquivo, ou grava num PDF que não foi o aberto |
 
 ## O que fica fora do escopo
 

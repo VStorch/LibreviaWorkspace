@@ -22,6 +22,8 @@ export function createDraftActions(
       const state = get()
       // With a draft awaiting a decision, writing would erase the work it brings back.
       if (state.file === null || !state.isDirty) return
+      // A PDF's only change is its properties, which have no draft: closing asks to save them.
+      if (state.file.kind === DocumentKind.Pdf) return
       if (state.pendingDraft !== null || state.autosaveBroken) return
 
       // Outside `call`: autosave does not flash the busy indicator.

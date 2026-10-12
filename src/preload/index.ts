@@ -66,6 +66,8 @@ const api: AppApi = {
   pdf: {
     share: (payload) => ipcRenderer.invoke(IpcChannel.PdfShare, payload),
     print: (payload) => ipcRenderer.invoke(IpcChannel.PdfPrint, payload),
+    properties: (payload) => ipcRenderer.invoke(IpcChannel.PdfProperties, payload),
+    saveProperties: (payload) => ipcRenderer.invoke(IpcChannel.PdfSaveProperties, payload),
   },
   menu: {
     onCommand: (listener) => subscribe<MenuCommandPayload>(IpcChannel.MenuCommand, listener),

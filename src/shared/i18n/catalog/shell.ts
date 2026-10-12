@@ -155,8 +155,20 @@ export const SHELL = {
   },
   'shell.pdf.viewer': { pt: 'Visualizador de PDF', en: 'PDF viewer' },
   'shell.pdf.viewOnly': {
-    pt: 'O PDF abre só para leitura. Para imprimir ou salvar uma cópia, use Arquivo → Imprimir.',
-    en: 'The PDF opens for reading only. To print or save a copy, use File → Print.',
+    pt: 'O PDF abre só para leitura; em Arquivo → Propriedades dá para alterar título, autor, assunto e palavras-chave. Para imprimir ou salvar uma cópia, use Arquivo → Imprimir.',
+    en: 'The PDF opens for reading only; File → Properties changes its title, author, subject and keywords. To print or save a copy, use File → Print.',
+  },
+  'shell.pdf.propertiesTitle': { pt: 'Propriedades do PDF', en: 'PDF properties' },
+  'shell.pdf.application': { pt: 'Aplicativo', en: 'Application' },
+  'shell.pdf.producer': { pt: 'Produtor do PDF', en: 'PDF producer' },
+  'shell.pdf.version': { pt: 'Versão do PDF', en: 'PDF version' },
+  'shell.pdf.signedWarning': {
+    pt: 'Este PDF é assinado digitalmente. Salvar acrescenta as propriedades no fim do arquivo: a assinatura continua valendo para a versão assinada, mas leitores como o Acrobat vão avisar que o arquivo mudou depois dela.',
+    en: 'This PDF is digitally signed. Saving appends the properties to the end of the file: the signature stays valid for the signed version, but readers such as Acrobat will warn that the file changed after it.',
+  },
+  'shell.pdf.encryptedProperties': {
+    pt: 'Este PDF é criptografado. O Librevia não altera as propriedades de PDFs criptografados.',
+    en: 'This PDF is encrypted. Librevia does not change the properties of encrypted PDFs.',
   },
   'shell.pdf.password': {
     pt: 'Este PDF é protegido por senha. Para lê-lo, abra o arquivo de novo e digite a senha.',

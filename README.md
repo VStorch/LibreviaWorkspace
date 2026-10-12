@@ -467,6 +467,7 @@ importam e do que cada uma guarda.
 | [`Protocol/`](sidecar/src/Librevia.Format/Protocol) | formato dos quadros e das mensagens |
 | [`Docx/`](sidecar/src/Librevia.Format/Docx) | 48 arquivos: leitores (`DocxReader`, `BodyReader`, `StyleReader`, `NotesReader`…), escritores (`DocxWriter`, `ParagraphWriter`, `SectionWriter`…), equações (`OmmlMath`), revisões, modelos e o `Inventory` |
 | [`Xlsx/`](sidecar/src/Librevia.Format/Xlsx) | leitura e escrita de planilhas e formatos numéricos |
+| [`Pdf/`](sidecar/src/Librevia.Format/Pdf) | leitura da estrutura de um PDF e atualização incremental do título, autor, assunto e palavras-chave |
 
 ---
 
@@ -531,6 +532,13 @@ Para **ler** um PDF, o Librevia usa o [pdf.js](https://mozilla.github.io/pdf.js/
 Ele roda num quadro com origem e processo próprios, sem acesso ao resto do aplicativo, e lê o
 arquivo por trechos: um PDF de 200 MB abre em 0,3 s, lendo 128 KB dele. A senha de um PDF protegido
 vai do diálogo direto para esse quadro: não passa pelo processo principal e não fica guardada.
+
+As **propriedades** de um PDF (título, autor, assunto e palavras-chave) são gravadas por
+**atualização incremental**, prevista na especificação do PDF: os bytes do arquivo ficam como
+estavam, e o dicionário de informações novo, o XMP, uma tabela de referências e um trailer
+apontando para a anterior vão no fim. Numa amostra de dez PDFs, entre eles um de 33 MB e 1.282
+páginas, a atualização teve de 357 bytes a 4,6 KB. Um PDF criptografado é recusado; num PDF
+assinado, o diálogo avisa antes que leitores como o Acrobat vão indicar a mudança.
 
 > ⚠️ **Ao mexer em margens:** `printToPDF()` recebe **polegadas** e `webContents.print()`
 > recebe **pixels CSS**. As duas conversões ficam juntas em `services/pdf/page-setup.ts`, com

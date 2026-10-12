@@ -1,8 +1,9 @@
-import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, test, type Frame } from '@playwright/test'
 import { launch, menu, stubDialogs, type Session } from './app.js'
+import { hasPdfinfo, pdfInfo } from './external-tools.js'
 
 /**
  * One Letter page with a 200 × 200 JPEG 2000 image, red on the left and blue on the right, at
@@ -133,6 +134,59 @@ test('salvar com um PDF aberto explica que ele é só para leitura', async () =>
 
   await menu(session, 'save')
   await expect(session.window.locator('.banner')).toContainText('só para leitura')
+})
+
+test('as propriedades do PDF vão para o fim do arquivo, e o que já existia fica byte a byte', async () => {
+  const original = await readFile(file)
+  await openPdf(file)
+  await expect(pageText()).toContainText('Relatorio anual')
+
+  await menu(session, 'document-properties')
+  const dialog = session.window.getByRole('dialog', { name: 'Propriedades do PDF' })
+  await expect(dialog.getByRole('textbox', { name: 'Título' })).toBeFocused()
+  // Only what a PDF keeps: no company, manager, category or comments.
+  await expect(dialog.getByRole('textbox')).toHaveCount(4)
+  await expect(dialog.getByRole('row', { name: /Versão do PDF/ })).toContainText('1.4')
+  await dialog.getByRole('textbox', { name: 'Título' }).fill('Relatório anual 2026')
+  await dialog.getByRole('textbox', { name: 'Autor(es)' }).fill('Ana Lima')
+  await dialog.getByRole('button', { name: 'Aplicar' }).click()
+  await expect(dialog).toHaveCount(0)
+
+  await menu(session, 'save')
+  await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
+
+  const saved = await readFile(file)
+  expect(saved.length).toBeGreaterThan(original.length)
+  expect(saved.subarray(0, original.length).equals(original)).toBe(true)
+  if (await hasPdfinfo()) {
+    const info = await pdfInfo(file)
+    expect(info).toMatch(/Title:\s+Relatório anual 2026/)
+    expect(info).toMatch(/Author:\s+Ana Lima/)
+  }
+
+  // Read again from disk, not from what is on screen.
+  await menu(session, 'close-file')
+  await openPdf(file)
+  await menu(session, 'document-properties')
+  await expect(dialog.getByRole('textbox', { name: 'Título' })).toHaveValue('Relatório anual 2026')
+  await expect(dialog.getByRole('textbox', { name: 'Autor(es)' })).toHaveValue('Ana Lima')
+  await expect(dialog.getByRole('row', { name: /Modificado em/ })).not.toContainText('—')
+})
+
+test('as propriedades de um PDF criptografado não são alteradas', async () => {
+  const locked = join(folder, 'protegido.pdf')
+  await writeFile(locked, Buffer.from(PROTECTED_PDF, 'base64'))
+  await openPdf(locked)
+  const password = session.window.getByRole('dialog', { name: 'PDF protegido por senha' }).getByLabel('Senha')
+  await password.fill('segredo')
+  await password.press('Enter')
+  await expect(pageText()).toContainText('Conteudo protegido')
+
+  await menu(session, 'document-properties')
+
+  const dialog = session.window.getByRole('dialog', { name: 'Propriedades do PDF' })
+  await expect(dialog).toContainText('criptografado')
+  await expect(dialog.getByRole('textbox')).toHaveCount(0)
 })
 
 test('fechar o arquivo tira o PDF da tela', async () => {

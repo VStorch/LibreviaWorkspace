@@ -230,6 +230,19 @@ export const documentPropertiesSchema = z.object({
 })
 
 /**
+ * A PDF's information dictionary and XMP, as the sidecar reads them. `application` and `producer`
+ * are read only; an encrypted PDF comes without properties.
+ */
+export const pdfInspectionSchema = z.object({
+  version: z.string().max(MAX_FIELD_LENGTH),
+  encrypted: z.boolean(),
+  signed: z.boolean(),
+  properties: documentPropertiesSchema.optional(),
+  application: propertyText,
+  producer: propertyText,
+})
+
+/**
  * Lives here, not in the IPC contract, because the same schema serves three places: reading the
  * file where main stores them, the renderer request and the echo back. Three definitions would
  * drift, and the drift would show as a checked menu item the editor ignores.

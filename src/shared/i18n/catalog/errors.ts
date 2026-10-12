@@ -172,6 +172,24 @@ export const ERRORS = {
   },
   'errors.docx.createContract': { pt: 'docx.create sem pacote', en: 'docx.create returned no package' },
 
+  'errors.pdf.cannotRead': {
+    pt: 'Não foi possível ler as propriedades deste PDF.',
+    en: 'Could not read the properties of this PDF.',
+  },
+  'errors.pdf.inspectContract': { pt: 'pdf.inspect fora do contrato', en: 'pdf.inspect out of contract' },
+  'errors.pdf.cannotSave': {
+    pt: 'Não foi possível gravar as propriedades do PDF. O arquivo não foi alterado.',
+    en: 'Could not save the PDF properties. The file was not modified.',
+  },
+  'errors.pdf.saveContract': {
+    pt: 'pdf.setMetadata fora do contrato',
+    en: 'pdf.setMetadata out of contract',
+  },
+  'errors.pdf.tooLarge': {
+    pt: 'Este PDF é grande demais para alterar as propriedades (limite atual: {limit} MB). Ele continua aberto para leitura.',
+    en: 'This PDF is too large to change its properties (current limit: {limit} MB). It stays open for reading.',
+  },
+
   'errors.xlsx.cannotRead': {
     pt: 'Não foi possível ler esta planilha do Excel. O arquivo pode estar danificado.',
     en: 'Could not read this Excel spreadsheet. The file may be damaged.',

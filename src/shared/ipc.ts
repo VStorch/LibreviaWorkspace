@@ -8,9 +8,11 @@ import {
 } from './ipc-channels.js'
 import {
   contextMenuTargetSchema,
+  documentPropertiesSchema,
   editorPreferencesPatchSchema,
   editorPreferencesSchema,
   pageSetupSchema,
+  pdfInspectionSchema,
 } from './schemas.js'
 import { PDF_VIEWER_ORIGIN } from './constants.js'
 import { DictionaryScope, EditCommand, MenuCommand, RevisionView } from './types.js'
@@ -269,6 +271,15 @@ export const ipcContracts = {
   [IpcChannel.PdfPrint]: {
     request: z.object({ path: z.string().min(1).max(MAX_PATH_LENGTH) }),
     response: z.object({ opened: z.literal(true) }),
+  },
+  [IpcChannel.PdfProperties]: {
+    request: z.object({ path: z.string().min(1).max(MAX_PATH_LENGTH) }),
+    response: pdfInspectionSchema,
+  },
+  [IpcChannel.PdfSaveProperties]: {
+    // Fields, never bytes: main writes the file, from what is on disk.
+    request: z.object({ path: z.string().min(1).max(MAX_PATH_LENGTH), properties: documentPropertiesSchema }),
+    response: z.object({ saved: z.literal(true) }),
   },
   [IpcChannel.PreferencesGet]: {
     request: emptyRequest,

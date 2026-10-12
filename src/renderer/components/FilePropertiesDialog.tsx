@@ -21,7 +21,9 @@ const EDITABLE = [
   ['description', 'document.properties.description'],
 ] as const satisfies readonly (readonly [keyof DocumentProperties, MessageKey])[]
 
-type EditableKey = (typeof EDITABLE)[number][0]
+export type EditableKey = (typeof EDITABLE)[number][0]
+
+const ALL_FIELDS: readonly EditableKey[] = EDITABLE.map(([key]) => key)
 
 /**
  * File → Properties, for a document or a spreadsheet: the same fields, each editor with its own
@@ -33,10 +35,18 @@ export function FilePropertiesDialog({
   title,
   statistics,
   onClose,
+  fields = ALL_FIELDS,
+  authorship = true,
+  notice,
 }: {
   readonly title: MessageKey
   readonly statistics: readonly StatisticRow[]
   readonly onClose: () => void
+  /** The format's own: a PDF has no company, manager, category or comments. */
+  readonly fields?: readonly EditableKey[]
+  /** Last saved by, revision and editing time, which only Office files keep. */
+  readonly authorship?: boolean
+  readonly notice?: string | undefined
 }): React.JSX.Element {
   const t = useT()
   const properties = useWorkspace((state) => state.properties)
@@ -64,9 +74,15 @@ export function FilePropertiesDialog({
         if (event.key === 'Escape') onClose()
       }}
     >
-      <SummaryFields values={values} onChange={setValues} onSubmit={save} />
+      {notice !== undefined && (
+        <p className="popover__hint" role="note">
+          {notice}
+        </p>
+      )}
 
-      <Statistics statistics={statistics} />
+      <SummaryFields fields={fields} values={values} onChange={setValues} onSubmit={save} />
+
+      <Statistics statistics={statistics} authorship={authorship} />
 
       <DialogActions confirmLabel={t('document.common.apply')} onConfirm={save} onCancel={onClose} />
     </div>
@@ -90,10 +106,12 @@ function patchOf(
 }
 
 function SummaryFields({
+  fields,
   values,
   onChange,
   onSubmit,
 }: {
+  fields: readonly EditableKey[]
   values: Record<EditableKey, string>
   onChange: (values: Record<EditableKey, string>) => void
   onSubmit: () => void
@@ -102,7 +120,7 @@ function SummaryFields({
   return (
     <fieldset className="popover__fieldset">
       <legend>{t('document.properties.summary')}</legend>
-      {EDITABLE.map(([key, label], index) => (
+      {EDITABLE.filter(([key]) => fields.includes(key)).map(([key, label], index) => (
         <label key={key} className="popover__field properties__field">
           <span>{t(label)}</span>
           {key === 'description' ? (
@@ -130,7 +148,13 @@ function SummaryFields({
   )
 }
 
-function Statistics({ statistics }: { statistics: readonly StatisticRow[] }): React.JSX.Element {
+function Statistics({
+  statistics,
+  authorship,
+}: {
+  statistics: readonly StatisticRow[]
+  authorship: boolean
+}): React.JSX.Element {
   const t = useT()
   const language = useLanguage()
   const properties = useWorkspace((state) => state.properties)
@@ -145,16 +169,7 @@ function Statistics({ statistics }: { statistics: readonly StatisticRow[] }): Re
   const info: readonly StatisticRow[] = [
     ['document.properties.created', date(properties?.created)],
     ['document.properties.modified', date(properties?.modified)],
-    ['document.properties.lastModifiedBy', properties?.lastModifiedBy || '—'],
-    ['document.properties.revision', properties?.revision || '—'],
-    ...(properties?.totalTime === undefined
-      ? []
-      : [
-          [
-            'document.properties.totalTime',
-            t('document.properties.minutes', { count: properties.totalTime.toLocaleString(language) }),
-          ] as const,
-        ]),
+    ...(authorship ? authorshipRows(properties, t, language) : []),
     ...statistics,
   ]
 
@@ -173,4 +188,23 @@ function Statistics({ statistics }: { statistics: readonly StatisticRow[] }): Re
       </table>
     </fieldset>
   )
+}
+
+function authorshipRows(
+  properties: DocumentProperties | undefined,
+  t: ReturnType<typeof useT>,
+  language: string,
+): StatisticRow[] {
+  return [
+    ['document.properties.lastModifiedBy', properties?.lastModifiedBy || '—'],
+    ['document.properties.revision', properties?.revision || '—'],
+    ...(properties?.totalTime === undefined
+      ? []
+      : [
+          [
+            'document.properties.totalTime',
+            t('document.properties.minutes', { count: properties.totalTime.toLocaleString(language) }),
+          ] as const,
+        ]),
+  ]
 }

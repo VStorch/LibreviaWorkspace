@@ -66,6 +66,8 @@ export interface AppApi {
   readonly pdf: {
     share: Call<typeof IpcChannel.PdfShare>
     print: Call<typeof IpcChannel.PdfPrint>
+    properties: Call<typeof IpcChannel.PdfProperties>
+    saveProperties: Call<typeof IpcChannel.PdfSaveProperties>
   }
   readonly menu: {
     onCommand(listener: (payload: MenuCommandPayload) => void): () => void

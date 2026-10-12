@@ -64,6 +64,10 @@ export const IpcChannel = {
   PdfShare: 'pdf:share',
   /** Chromium's own viewer prints the original file, in the print preview window. */
   PdfPrint: 'pdf:print',
+  /** Title, author… read by the sidecar from the open PDF. */
+  PdfProperties: 'pdf:properties',
+  /** Appends an incremental update to the open PDF; the original bytes stay. */
+  PdfSaveProperties: 'pdf:save-properties',
 
   PreferencesGet: 'prefs:get',
   /** Main stores and applies it. */
@@ -117,6 +121,8 @@ export const INVOCABLE_IPC_CHANNELS = [
   IpcChannel.WindowClose,
   IpcChannel.PdfShare,
   IpcChannel.PdfPrint,
+  IpcChannel.PdfProperties,
+  IpcChannel.PdfSaveProperties,
   IpcChannel.PreferencesGet,
   IpcChannel.PreferencesSet,
   IpcChannel.EditCommandRun,

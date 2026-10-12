@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type RefObject } from 'react'
+import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
 import { clampZoom } from '@services/document/zoom.js'
 import { PDF_VIEWER_ORIGIN, PDF_VIEWER_PAGE } from '@shared/constants.js'
 import type { MessageKey } from '@shared/i18n/index.js'
@@ -11,6 +11,7 @@ import { currentPreferences, usePreferences } from '../state/preferences.js'
 import { runZoomCommand, setFittedZoom } from '../state/zoom.js'
 import { PdfFindBar } from './PdfFindBar.js'
 import { PdfPasswordDialog } from './PdfPasswordDialog.js'
+import { PdfPropertiesDialog } from './PdfPropertiesDialog.js'
 import { connectViewer, sendToViewer, usePdfViewer } from './viewer-state.js'
 
 type Failure = Extract<ViewerEvent, { type: 'error' }>['reason']
@@ -39,6 +40,8 @@ export function PdfView({ path }: { readonly path: string }): React.JSX.Element 
   const [passwordRequest, setPasswordRequest] = useState<PasswordRequest | null>(null)
   const ready = useViewerChannel(frame, path, setFailure, setPasswordRequest)
   const [finding, setFinding] = useState(false)
+  const [showProperties, setShowProperties] = useState(false)
+  const closeProperties = useCallback(() => setShowProperties(false), [])
   useViewerZoom(ready)
   useViewerTheme(ready)
   useZoomInKeys()
@@ -47,6 +50,7 @@ export function PdfView({ path }: { readonly path: string }): React.JSX.Element 
     () =>
       onEditorCommand((command) => {
         if (command === EditorCommand.FindReplace) setFinding(true)
+        if (command === EditorCommand.DocumentProperties) setShowProperties(true)
       }),
     [],
   )
@@ -62,6 +66,7 @@ export function PdfView({ path }: { readonly path: string }): React.JSX.Element 
   return (
     <div className="pdf-view">
       {finding && ready && <PdfFindBar onClose={() => setFinding(false)} />}
+      {showProperties && <PdfPropertiesDialog path={path} onClose={closeProperties} />}
       {passwordRequest !== null && (
         <PdfPasswordDialog
           retry={passwordRequest.retry}
