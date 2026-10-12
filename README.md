@@ -529,7 +529,8 @@ Agora há um só.
 
 Para **ler** um PDF, o Librevia usa o [pdf.js](https://mozilla.github.io/pdf.js/), da Mozilla.
 Ele roda num quadro com origem e processo próprios, sem acesso ao resto do aplicativo, e lê o
-arquivo por trechos: um PDF de 200 MB abre em 0,3 s, lendo 128 KB dele.
+arquivo por trechos: um PDF de 200 MB abre em 0,3 s, lendo 128 KB dele. A senha de um PDF protegido
+vai do diálogo direto para esse quadro: não passa pelo processo principal e não fica guardada.
 
 > ⚠️ **Ao mexer em margens:** `printToPDF()` recebe **polegadas** e `webContents.print()`
 > recebe **pixels CSS**. As duas conversões ficam juntas em `services/pdf/page-setup.ts`, com

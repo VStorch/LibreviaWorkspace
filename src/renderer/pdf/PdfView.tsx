@@ -10,9 +10,14 @@ import { useT } from '../i18n.js'
 import { currentPreferences, usePreferences } from '../state/preferences.js'
 import { runZoomCommand, setFittedZoom } from '../state/zoom.js'
 import { PdfFindBar } from './PdfFindBar.js'
+import { PdfPasswordDialog } from './PdfPasswordDialog.js'
 import { connectViewer, sendToViewer, usePdfViewer } from './viewer-state.js'
 
 type Failure = Extract<ViewerEvent, { type: 'error' }>['reason']
+
+interface PasswordRequest {
+  readonly retry: boolean
+}
 
 const FAILURE_MESSAGES: Readonly<Record<Failure, MessageKey>> = {
   password: 'shell.pdf.password',
@@ -31,7 +36,8 @@ export function PdfView({ path }: { readonly path: string }): React.JSX.Element 
   const t = useT()
   const frame = useRef<HTMLIFrameElement>(null)
   const [failure, setFailure] = useState<Failure | null>(null)
-  const ready = useViewerChannel(frame, path, setFailure)
+  const [passwordRequest, setPasswordRequest] = useState<PasswordRequest | null>(null)
+  const ready = useViewerChannel(frame, path, setFailure, setPasswordRequest)
   const [finding, setFinding] = useState(false)
   useViewerZoom(ready)
   useViewerTheme(ready)
@@ -56,6 +62,16 @@ export function PdfView({ path }: { readonly path: string }): React.JSX.Element 
   return (
     <div className="pdf-view">
       {finding && ready && <PdfFindBar onClose={() => setFinding(false)} />}
+      {passwordRequest !== null && (
+        <PdfPasswordDialog
+          retry={passwordRequest.retry}
+          onAnswer={(password) => {
+            setPasswordRequest(null)
+            sendToViewer({ type: 'password', password })
+          }}
+          onCancel={() => setFailure('password')}
+        />
+      )}
       <iframe
         ref={frame}
         className="pdf-view__frame"
@@ -72,6 +88,7 @@ function useViewerChannel(
   frame: RefObject<HTMLIFrameElement | null>,
   path: string,
   onFailure: (failure: Failure) => void,
+  onPassword: (request: PasswordRequest) => void,
 ): boolean {
   const [ready, setReady] = useState(false)
 
@@ -95,7 +112,7 @@ function useViewerChannel(
       const parsed = viewerEventSchema.safeParse(event.data)
       if (!parsed.success) return
       if (parsed.data.type === 'ready') void open()
-      else hearViewer(parsed.data, onFailure)
+      else hearViewer(parsed.data, onFailure, onPassword)
     }
 
     window.addEventListener('message', onMessage)
@@ -104,7 +121,7 @@ function useViewerChannel(
       window.removeEventListener('message', onMessage)
       disconnect()
     }
-  }, [frame, path, onFailure])
+  }, [frame, path, onFailure, onPassword])
 
   return ready
 }
@@ -112,6 +129,7 @@ function useViewerChannel(
 function hearViewer(
   event: Exclude<ViewerEvent, { type: 'ready' }>,
   onFailure: (failure: Failure) => void,
+  onPassword: (request: PasswordRequest) => void,
 ): void {
   switch (event.type) {
     case 'loaded':
@@ -129,6 +147,9 @@ function hearViewer(
       return
     case 'found':
       usePdfViewer.setState({ found: { current: event.current, total: event.total } })
+      return
+    case 'password':
+      onPassword({ retry: event.retry })
       return
     case 'link':
       // Main asks before opening the browser.

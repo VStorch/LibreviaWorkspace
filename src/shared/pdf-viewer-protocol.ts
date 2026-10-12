@@ -10,6 +10,8 @@ import { PDF_VIEWER_ORIGIN } from './constants.js'
 const MAX_QUERY_LENGTH = 1_000
 const MAX_URL_LENGTH = 8_192
 const MAX_PAGES = 1_000_000
+/** PDF 2.0 cuts a password at 127 bytes; this only keeps a message from growing without end. */
+const MAX_PASSWORD_LENGTH = 1_024
 
 const zoomSchema = z.number().int().min(MIN_ZOOM).max(MAX_ZOOM)
 const pageSchema = z.number().int().min(1).max(MAX_PAGES)
@@ -32,6 +34,7 @@ export const viewerCommandSchema = z.discriminatedUnion('type', [
     caseSensitive: z.boolean(),
   }),
   z.object({ type: z.literal('find-close') }),
+  z.object({ type: z.literal('password'), password: z.string().max(MAX_PASSWORD_LENGTH) }),
 ])
 
 export const viewerEventSchema = z.discriminatedUnion('type', [
@@ -41,6 +44,8 @@ export const viewerEventSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('zoom'), zoom: zoomSchema }),
   z.object({ type: z.literal('zoom-in') }),
   z.object({ type: z.literal('found'), current: countSchema, total: countSchema }),
+  /** `retry`: the last password was wrong. */
+  z.object({ type: z.literal('password'), retry: z.boolean() }),
   z.object({ type: z.literal('link'), url: z.string().max(MAX_URL_LENGTH) }),
   z.object({ type: z.literal('error'), reason: z.enum(['password', 'invalid', 'unknown']) }),
 ])

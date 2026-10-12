@@ -29,6 +29,28 @@ const JPEG2000_PDF = [
   'PDwgL1NpemUgNiAvUm9vdCAxIDAgUiA+PgpzdGFydHhyZWYKMTA4NwolJUVPRgo=',
 ].join('')
 
+/** One page reading "Conteudo protegido", encrypted with AES-256 (revision 6); the password is `segredo`. */
+const PROTECTED_PDF = [
+  'JVBERi0xLjcKMSAwIG9iago8PCAvVHlwZSAvQ2F0YWxvZyAvUGFnZXMgMiAwIFIgPj4KZW5kb2JqCjIgMCBvYmoKPDwgL1R5cGUg',
+  'L1BhZ2VzIC9LaWRzIFs0IDAgUl0gL0NvdW50IDEgPj4KZW5kb2JqCjMgMCBvYmoKPDwgL1R5cGUgL0ZvbnQgL1N1YnR5cGUgL1R5',
+  'cGUxIC9CYXNlRm9udCAvSGVsdmV0aWNhID4+CmVuZG9iago0IDAgb2JqCjw8IC9UeXBlIC9QYWdlIC9QYXJlbnQgMiAwIFIgL01l',
+  'ZGlhQm94IFswIDAgNjEyIDc5Ml0gL0NvbnRlbnRzIDUgMCBSIC9SZXNvdXJjZXMgPDwgL0ZvbnQgPDwgL0YxIDMgMCBSID4+ID4+',
+  'ID4+CmVuZG9iago1IDAgb2JqCjw8IC9MZW5ndGggODAgPj4Kc3RyZWFtCuf1G2eYQxRxghomNmJioHP5yxWNKRO09XiyhBtWte2Q',
+  'OOMvi+cIVF/ny+h74EDmvhoQKOp4sqw1Umejq8PBoOzOdrLQF0qH1LccO0AqbzdnCmVuZHN0cmVhbQplbmRvYmoKNiAwIG9iago8',
+  'PCAvRmlsdGVyIC9TdGFuZGFyZCAvViA1IC9SIDYgL0xlbmd0aCAyNTYgL0NGIDw8IC9TdGRDRiA8PCAvQ0ZNIC9BRVNWMyAvQXV0',
+  'aEV2ZW50IC9Eb2NPcGVuIC9MZW5ndGggMzIgPj4gPj4gL1N0bUYgL1N0ZENGIC9TdHJGIC9TdGRDRiAvTyA8ZjBhMzEzNWI1NjFj',
+  'YTYyMmI3ODUzZWIwODk1MjM2MWFjY2M2OGQ5YTFjZjcwMDIwZDZiMGFjN2QxYmZhNzAwYmJiMWFjNjMyMTc5OTFjMmZhMTdiNTE4',
+  'NjdiODYyYTRiPiAvVSA8ZWFlNDhkYzU3OTVmNzdmYjA0ZWY3ODQyZTQ5NzM4YzYzNWFkYTU1NmYxNTUwMjY3MDM2MGZjYWE0ODMz',
+  'OWI2YTVhYTNiNzViNzNiNjkzMTExNzlkMmE0NmZlZjQ0NGJkPiAvT0UgPGE5NGQ3ZDQxZWM2YmUxZTdiNjViNDc1MTVmMGM3MDFj',
+  'MTJlZGQyNzczNjAwOTU2YmU1NWExMjlkYjJiMjhmZTg+IC9VRSA8OWFjYmIzMGZiMWI2NGMxYjQ3YTlmMWI3ZjYxZjM3ODRjY2U5',
+  'ZWRmNmM5ZmMxZmU5ZTFjOGNkZmM2MzY2ZGY0OD4gL1AgLTQgL1Blcm1zIDxmMmFiNWJhMmQ2ZWE1ZGFlMTYwMDRhMWM5YmVlZGI4',
+  'Mz4gPj4KZW5kb2JqCnhyZWYKMCA3CjAwMDAwMDAwMDAgNjU1MzUgZiAKMDAwMDAwMDAwOSAwMDAwMCBuIAowMDAwMDAwMDU4IDAw',
+  'MDAwIG4gCjAwMDAwMDAxMTUgMDAwMDAgbiAKMDAwMDAwMDE4NSAwMDAwMCBuIAowMDAwMDAwMzExIDAwMDAwIG4gCjAwMDAwMDA0',
+  'NDEgMDAwMDAgbiAKdHJhaWxlcgo8PCAvU2l6ZSA3IC9Sb290IDEgMCBSIC9FbmNyeXB0IDYgMCBSIC9JRCBbPDQxNzQwN2YxZjgw',
+  'ZWUwOTk2OGQ3OWRjYWMyM2E0ZjI3PiA8NDE3NDA3ZjFmODBlZTA5OTY4ZDc5ZGNhYzIzYTRmMjc+XSA+PgpzdGFydHhyZWYKOTg4',
+  'CiUlRU9GCg==',
+].join('')
+
 let session: Session
 let folder: string
 let file: string
@@ -135,6 +157,37 @@ test('um PDF danificado mostra uma explicação no lugar das páginas', async ()
   await openPdf(damaged)
 
   await expect(session.window.locator('.pdf-view--failed')).toContainText('danificado')
+})
+
+test('um PDF com senha pergunta a senha, avisa quando está errada e abre com a certa', async () => {
+  const locked = join(folder, 'protegido.pdf')
+  await writeFile(locked, Buffer.from(PROTECTED_PDF, 'base64'))
+  await openPdf(locked)
+
+  const dialog = session.window.getByRole('dialog', { name: 'PDF protegido por senha' })
+  const password = dialog.getByLabel('Senha')
+  await expect(password).toBeFocused()
+  await password.fill('errada')
+  await password.press('Enter')
+  await expect(dialog.getByRole('alert')).toHaveText('Senha incorreta. Tente de novo.')
+
+  await password.fill('segredo')
+  await dialog.getByRole('button', { name: 'Abrir' }).click()
+  await expect(dialog).toHaveCount(0)
+  await expect(pageText()).toContainText('Conteudo protegido')
+})
+
+test('cancelar a senha mostra por que o PDF não apareceu', async () => {
+  const locked = join(folder, 'protegido.pdf')
+  await writeFile(locked, Buffer.from(PROTECTED_PDF, 'base64'))
+  await openPdf(locked)
+
+  await session.window
+    .getByRole('dialog', { name: 'PDF protegido por senha' })
+    .getByLabel('Senha')
+    .press('Escape')
+
+  await expect(session.window.locator('.pdf-view--failed')).toContainText('protegido por senha')
 })
 
 test('uma imagem JPEG 2000 aparece: o decodificador em WebAssembly roda sob a política do visualizador', async () => {

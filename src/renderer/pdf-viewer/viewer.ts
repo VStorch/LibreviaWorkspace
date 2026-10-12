@@ -1,4 +1,4 @@
-import { getDocument, type PDFDocumentLoadingTask } from 'pdfjs-dist'
+import { getDocument, PasswordResponses, type PDFDocumentLoadingTask } from 'pdfjs-dist'
 import { EventBus, PDFFindController, PDFLinkService, PDFViewer } from 'pdfjs-dist/web/pdf_viewer.mjs'
 import { clampZoom } from '@services/document/zoom.js'
 import { PDF_VIEWER_ORIGIN } from '@shared/constants.js'
@@ -30,6 +30,11 @@ export function createViewer(container: HTMLDivElement): (command: ViewerCommand
 
   let zoom: Zoom = PAGE_WIDTH
   let task: PDFDocumentLoadingTask | null = null
+  let answerPassword: PasswordAnswer | null = null
+  const askForPassword = (answer: PasswordAnswer, retry: boolean): void => {
+    answerPassword = answer
+    tellApp({ type: 'password', retry })
+  }
 
   reportToApp(eventBus)
   eventBus.on('pagesinit', () => applyZoom(viewer, zoom))
@@ -42,7 +47,7 @@ export function createViewer(container: HTMLDivElement): (command: ViewerCommand
         void task?.destroy()
         task = null
         rangedSource(command.url, reportFailure).then(
-          (source) => (task = open(source, viewer, linkService)),
+          (source) => (task = open(source, viewer, linkService, askForPassword)),
           reportFailure,
         )
         return
@@ -68,11 +73,22 @@ export function createViewer(container: HTMLDivElement): (command: ViewerCommand
       case 'find-close':
         eventBus.dispatch('findbarclose', { source: null })
         return
+      case 'password':
+        answerPassword?.(command.password)
+        answerPassword = null
+        return
     }
   }
 }
 
-function open(source: PdfSource, viewer: PDFViewer, linkService: PDFLinkService): PDFDocumentLoadingTask {
+type PasswordAnswer = (password: string) => void
+
+function open(
+  source: PdfSource,
+  viewer: PDFViewer,
+  linkService: PDFLinkService,
+  askForPassword: (answer: PasswordAnswer, retry: boolean) => void,
+): PDFDocumentLoadingTask {
   const task = getDocument({
     ...source,
     // Only the pieces the pages on screen need, and the text a search reads.
@@ -83,6 +99,9 @@ function open(source: PdfSource, viewer: PDFViewer, linkService: PDFLinkService)
     wasmUrl: `${RESOURCES}/wasm/`,
     iccUrl: `${RESOURCES}/iccs/`,
   })
+
+  task.onPassword = (answer: PasswordAnswer, reason: number) =>
+    askForPassword(answer, reason === PasswordResponses.INCORRECT_PASSWORD)
 
   task.promise.then(
     (pdf) => {

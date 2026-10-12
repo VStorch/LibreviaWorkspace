@@ -159,9 +159,17 @@ export const SHELL = {
     en: 'The PDF opens for reading only. To print or save a copy, use File → Print.',
   },
   'shell.pdf.password': {
-    pt: 'Este PDF é protegido por senha, e o Librevia ainda não abre PDFs com senha.',
-    en: 'This PDF is password protected, and Librevia does not open password-protected PDFs yet.',
+    pt: 'Este PDF é protegido por senha. Para lê-lo, abra o arquivo de novo e digite a senha.',
+    en: 'This PDF is password protected. To read it, open the file again and type the password.',
   },
+  'shell.pdf.passwordTitle': { pt: 'PDF protegido por senha', en: 'Password-protected PDF' },
+  'shell.pdf.passwordLabel': { pt: 'Senha', en: 'Password' },
+  'shell.pdf.passwordHint': {
+    pt: 'A senha serve só para mostrar este PDF: o Librevia não a guarda.',
+    en: 'The password is used only to show this PDF: Librevia does not keep it.',
+  },
+  'shell.pdf.passwordWrong': { pt: 'Senha incorreta. Tente de novo.', en: 'Wrong password. Try again.' },
+  'shell.pdf.passwordOpen': { pt: 'Abrir', en: 'Open' },
   'shell.pdf.invalid': {
     pt: 'Não foi possível ler este PDF: o arquivo está danificado ou não é um PDF.',
     en: 'This PDF could not be read: the file is damaged or is not a PDF.',
