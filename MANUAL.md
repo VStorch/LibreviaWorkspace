@@ -108,6 +108,9 @@ modelos.
 - **Informações e estatísticas**: quando o documento foi criado e modificado, por quem, o número
   da revisão e o tempo total de edição.
 
+Numa planilha é igual. As estatísticas contam as abas, as células preenchidas e as fórmulas. As
+propriedades vão para o `.xlsx` e o Excel as mostra em **Arquivo → Informações**.
+
 ---
 
 <a id="atalhos"></a>

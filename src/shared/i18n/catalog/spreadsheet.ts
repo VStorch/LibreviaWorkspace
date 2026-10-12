@@ -90,4 +90,8 @@ export const SPREADSHEET = {
     pt: 'Esta planilha foi criada por uma versão mais recente do aplicativo. Atualize para abri-la.',
     en: 'This spreadsheet was created by a newer version of the application. Update to open it.',
   },
+  'spreadsheet.properties.dialog': { pt: 'Propriedades da planilha', en: 'Spreadsheet properties' },
+  'spreadsheet.properties.sheets': { pt: 'Abas', en: 'Sheets' },
+  'spreadsheet.properties.filledCells': { pt: 'Células preenchidas', en: 'Filled cells' },
+  'spreadsheet.properties.formulas': { pt: 'Fórmulas', en: 'Formulas' },
 } satisfies Catalog

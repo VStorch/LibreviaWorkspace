@@ -16,10 +16,10 @@ import {
   type DocumentModel,
   type DocumentNode,
   type DocumentNotes,
-  type DocumentProperties,
   type NoteNumbering,
 } from './model.js'
 import { LEGACY_STYLES, type StyleSheet } from './styles.js'
+import { propertiesOf } from '@services/file/properties.js'
 
 /**
  * The internal `.sdoc` format.
@@ -219,13 +219,6 @@ function optionalPartsOf(
     ...(data.notes === undefined ? {} : { notes: notesOf(data.notes) }),
     ...(data.properties === undefined ? {} : { properties: propertiesOf(data.properties) }),
   }
-}
-
-/** Without absent keys, for `exactOptionalPropertyTypes`. */
-export function propertiesOf(raw: z.infer<typeof documentPropertiesSchema>): DocumentProperties {
-  return Object.fromEntries(
-    Object.entries(raw).filter(([, value]) => value !== undefined),
-  ) as DocumentProperties
 }
 
 /** Without absent keys, for `exactOptionalPropertyTypes`. */

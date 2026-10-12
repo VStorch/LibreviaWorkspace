@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { DocumentKind, MenuCommand } from '@shared/types.js'
 import { buildWindowTitle } from '@services/file/formats.js'
 import type { WorkbookModel } from '@services/spreadsheet/model.js'
@@ -9,11 +9,17 @@ import { RecoveryBanner } from '../components/RecoveryBanner.js'
 import { StatusBar } from '../components/StatusBar.js'
 import { TemplateGallery } from '../components/TemplateGallery.js'
 import { DocumentEditor } from '../document/DocumentEditor.js'
-import { asEditorCommand, emitEditorCommand } from '../document/editor-commands.js'
+import {
+  EditorCommand,
+  asEditorCommand,
+  emitEditorCommand,
+  onEditorCommand,
+} from '../document/editor-commands.js'
 import { HomePage } from '../pages/HomePage.js'
 import { PdfView } from '../pdf/PdfView.js'
 import { SheetTabs } from '../spreadsheet/SheetTabs.js'
 import { SpreadsheetEditor } from '../spreadsheet/SpreadsheetEditor.js'
+import { WorkbookPropertiesDialog } from '../spreadsheet/WorkbookPropertiesDialog.js'
 import { usePreferences, watchPreferences } from '../state/preferences.js'
 import { useReadingMode } from '../state/reading.js'
 import { useTheme } from '../state/theme.js'
@@ -198,6 +204,15 @@ function WorkbookView({
   const renameSheet = useWorkspace((state) => state.renameSheet)
   const removeSheet = useWorkspace((state) => state.removeSheet)
   const readOnly = useWorkspace((state) => state.readOnly)
+  const [showProperties, setShowProperties] = useState(false)
+  useEffect(
+    () =>
+      onEditorCommand((command) => {
+        if (command === EditorCommand.DocumentProperties) setShowProperties(true)
+      }),
+    [],
+  )
+
   return (
     <div className="workbook">
       <SpreadsheetEditor
@@ -214,6 +229,9 @@ function WorkbookView({
         onRename={renameSheet}
         onRemove={removeSheet}
       />
+      {showProperties && (
+        <WorkbookPropertiesDialog workbook={workbook} onClose={() => setShowProperties(false)} />
+      )}
     </div>
   )
 }

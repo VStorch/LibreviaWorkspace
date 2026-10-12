@@ -3,9 +3,16 @@ import { AppError, ErrorCode } from '@shared/errors.js'
 import { translate, Language } from '@shared/i18n/index.js'
 import { DEFAULT_COLUMN_COUNT, DEFAULT_ROW_COUNT, createEmptyWorkbook, type WorkbookModel } from './model.js'
 import { MAX_COLOR_LENGTH } from '@shared/limits.js'
+import { documentPropertiesSchema } from '@shared/schemas.js'
+import { propertiesOf } from '@services/file/properties.js'
 
 export const SSHEET_FORMAT = 'ssheet'
-export const SSHEET_VERSION = 1
+/**
+ * - **1** — sheets, cells and the active tab.
+ * - **2** — the file's **properties** (title, subject, author…). A version 1 file has none, and
+ *   saving to XLSX then leaves the original's as they are.
+ */
+export const SSHEET_VERSION = 2
 
 const cellStyleSchema = z.object({
   bold: z.boolean().optional(),
@@ -47,11 +54,18 @@ const ssheetSchema = z.object({
   version: z.number().int().positive(),
   sheets: z.array(sheetSchema).min(1).max(200),
   activeSheet: z.number().int().nonnegative().default(0),
+  properties: documentPropertiesSchema.optional(),
 })
 
 export function serializeWorkbook(model: WorkbookModel): string {
   return JSON.stringify(
-    { format: SSHEET_FORMAT, version: SSHEET_VERSION, sheets: model.sheets, activeSheet: model.activeSheet },
+    {
+      format: SSHEET_FORMAT,
+      version: SSHEET_VERSION,
+      sheets: model.sheets,
+      activeSheet: model.activeSheet,
+      ...(model.properties === undefined ? {} : { properties: model.properties }),
+    },
     null,
     2,
   )
@@ -78,7 +92,12 @@ export function parseWorkbook(text: string, language: Language = Language.Portug
   // An out-of-range active tab does not stop reading.
   const activeSheet = parsed.data.activeSheet < parsed.data.sheets.length ? parsed.data.activeSheet : 0
 
-  return { sheets: parsed.data.sheets, activeSheet }
+  const { properties } = parsed.data
+  return {
+    sheets: parsed.data.sheets,
+    activeSheet,
+    ...(properties === undefined ? {} : { properties: propertiesOf(properties) }),
+  }
 }
 
 export function isSpreadsheetFile(text: string): boolean {

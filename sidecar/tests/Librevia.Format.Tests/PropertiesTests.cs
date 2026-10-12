@@ -9,7 +9,7 @@ namespace Librevia.Format.Tests;
 /// the rest of the part intact.
 public class PropertiesTests
 {
-    private const string Core =
+    internal const string Core =
         """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>""" + "\r\n" +
         """<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:dcmitype="http://purl.org/dc/dcmitype/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">""" +
         """<dc:title>Relatório anual</dc:title><dc:subject>Contas</dc:subject><dc:creator>Ana Lima</dc:creator>""" +
@@ -19,7 +19,7 @@ public class PropertiesTests
         """<dcterms:modified xsi:type="dcterms:W3CDTF">2025-02-03T04:05:06Z</dcterms:modified>""" +
         """<cp:category>Finanças</cp:category><cp:contentStatus>Rascunho</cp:contentStatus></cp:coreProperties>""";
 
-    private const string App =
+    internal const string App =
         """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>""" + "\r\n" +
         """<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes">""" +
         """<Template>Normal.dotm</Template><TotalTime>42</TotalTime><Pages>1</Pages><Application>Microsoft Office Word</Application>""" +
@@ -46,7 +46,7 @@ public class PropertiesTests
         return buffer.ToArray();
     }
 
-    private static void Write(OpenXmlPart part, string xml)
+    internal static void Write(OpenXmlPart part, string xml)
     {
         using var stream = part.GetStream(FileMode.Create);
         var bytes = Encoding.UTF8.GetBytes(xml);

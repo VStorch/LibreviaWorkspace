@@ -53,6 +53,40 @@ test.describe('planilha em .xlsx', () => {
     await select(session.window, 2, 0)
     await expect(session.window.locator('.formula-bar__input')).toHaveValue('=A1*A2')
   })
+
+  test('as propriedades da planilha vão para o .xlsx e voltam ao reabrir', async () => {
+    const target = join(folder, 'orcamento.xlsx')
+    session = await launch()
+    await stubDialogs(session.app, { save: target, open: target, messageBox: 1 })
+
+    await menu(session, 'new-spreadsheet')
+    await gridReady(session.window)
+    await write(session.window, 0, 0, '3')
+    await write(session.window, 1, 0, '=A1*2')
+
+    await menu(session, 'document-properties')
+    const dialog = session.window.getByRole('dialog', { name: 'Propriedades da planilha' })
+    await expect(dialog.getByRole('row', { name: /Células preenchidas/ })).toContainText('2')
+    await expect(dialog.getByRole('row', { name: /Fórmulas/ })).toContainText('1')
+    await dialog.getByRole('textbox', { name: 'Título' }).fill('Orçamento 2026')
+    await dialog.getByRole('textbox', { name: 'Autor(es)' }).fill('Ana Lima')
+    await dialog.getByRole('button', { name: 'Aplicar' }).click()
+    await expect(dialog).toHaveCount(0)
+
+    await menu(session, 'save-as')
+    await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
+    await expect.poll(() => exists(target), { timeout: 30_000 }).toBe(true)
+
+    await menu(session, 'close-file')
+    await menu(session, 'open')
+    await gridReady(session.window)
+    await menu(session, 'document-properties')
+    await expect(dialog.getByRole('textbox', { name: 'Título' })).toHaveValue('Orçamento 2026')
+    await expect(dialog.getByRole('textbox', { name: 'Autor(es)' })).toHaveValue('Ana Lima')
+    // The save stamp: the first revision, and a date where there was none.
+    await expect(dialog.getByRole('row', { name: /Revisão/ })).toContainText('1')
+    await expect(dialog.getByRole('row', { name: /Modificado em/ })).not.toContainText('—')
+  })
 })
 
 /**

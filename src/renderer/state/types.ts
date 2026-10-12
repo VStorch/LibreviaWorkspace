@@ -5,10 +5,10 @@ import type {
   DocumentModel,
   DocumentNode,
   DocumentNotes,
-  DocumentProperties,
   PageSetup,
   SectionSetup,
 } from '@services/document/model.js'
+import type { DocumentProperties } from '@services/file/properties.js'
 import type { PagedDocument } from '@services/document/print-pages.js'
 import type { StyleSheet } from '@services/document/styles.js'
 import type { Sheet, WorkbookModel } from '@services/spreadsheet/model.js'

@@ -120,3 +120,18 @@ describe('isSpreadsheetFile', () => {
     expect(isSpreadsheetFile(text)).toBe(false)
   })
 })
+
+describe('propriedades da planilha', () => {
+  it('voltam do arquivo como foram gravadas', () => {
+    const properties = { title: 'Orçamento 2026', creator: 'Ana', revision: '3' }
+    const reopened = parseWorkbook(serializeWorkbook({ ...createEmptyWorkbook(), properties }))
+
+    expect(reopened.properties).toEqual(properties)
+  })
+
+  it('uma planilha da versão 1 abre sem propriedades, e o XLSX guarda as que tinha', () => {
+    const version1 = JSON.stringify({ format: 'ssheet', version: 1, sheets: [createSheet('A')] })
+
+    expect(parseWorkbook(version1)).not.toHaveProperty('properties')
+  })
+})

@@ -52,7 +52,7 @@ public sealed record PropertiesDto(
 
 /// <summary>
 /// Through the raw XML: the SDK's <c>PackageProperties</c> reserializes <c>core.xml</c> and drops
-/// what it does not know.
+/// what it does not know. The same parts in a document and in a spreadsheet.
 /// </summary>
 internal static class DocumentProperties
 {
@@ -85,10 +85,10 @@ internal static class DocumentProperties
     ];
 
     /// <summary>Null when the package has neither part, or no field in them.</summary>
-    public static PropertiesDto? Read(WordprocessingDocument document)
+    public static PropertiesDto? Read(OpenXmlPackage document)
     {
-        var core = Load(document.CoreFilePropertiesPart)?.Root;
-        var app = Load(document.ExtendedFilePropertiesPart)?.Root;
+        var core = Load(CorePart(document))?.Root;
+        var app = Load(AppPart(document))?.Root;
         if (core is null && app is null) return null;
 
         // Empty means absent, not "clear": the new package's `<dc:creator/>` stays.
@@ -122,17 +122,17 @@ internal static class DocumentProperties
     /// <summary>
     /// Only the part that changes is rewritten, with what the editor does not know.
     /// </summary>
-    public static void Apply(WordprocessingDocument document, PropertiesDto? model, HashSet<string> touched)
+    public static void Apply(OpenXmlPackage document, PropertiesDto? model, HashSet<string> touched)
     {
         if (model is null) return;
 
-        var corePart = document.CoreFilePropertiesPart;
+        var corePart = CorePart(document);
         var core = Load(corePart);
         if (Patch(ref core, CoreFields, model, NewCore))
         {
             if (corePart is null)
             {
-                corePart = document.AddCoreFilePropertiesPart();
+                corePart = document.AddNewPart<CoreFilePropertiesPart>();
                 // The new relationship lives in `_rels/.rels`, which would come back without it.
                 touched.Add("_rels/.rels");
             }
@@ -141,13 +141,13 @@ internal static class DocumentProperties
             touched.Add(corePart.Uri.ToString().TrimStart('/'));
         }
 
-        var appPart = document.ExtendedFilePropertiesPart;
+        var appPart = AppPart(document);
         var app = Load(appPart);
         if (Patch(ref app, AppFields, model, NewApp))
         {
             if (appPart is null)
             {
-                appPart = document.AddExtendedFilePropertiesPart();
+                appPart = document.AddNewPart<ExtendedFilePropertiesPart>();
                 touched.Add("_rels/.rels");
             }
 
@@ -155,6 +155,12 @@ internal static class DocumentProperties
             touched.Add(appPart.Uri.ToString().TrimStart('/'));
         }
     }
+
+    private static CoreFilePropertiesPart? CorePart(OpenXmlPackage document) =>
+        document.GetPartsOfType<CoreFilePropertiesPart>().FirstOrDefault();
+
+    private static ExtendedFilePropertiesPart? AppPart(OpenXmlPackage document) =>
+        document.GetPartsOfType<ExtendedFilePropertiesPart>().FirstOrDefault();
 
     /// <returns>Whether any field changed.</returns>
     private static bool Patch(

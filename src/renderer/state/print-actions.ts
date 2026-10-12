@@ -116,7 +116,11 @@ function printRequestOf(state: WorkspaceState, source: DocumentSource | null): P
     if (sheet === undefined) return null
 
     return {
-      html: buildPrintHtml(buildSheetHtml(sheet, currentPreferences().language), name, SHEET_PRINT_CSS),
+      html: buildPrintHtml(
+        buildSheetHtml(sheet, currentPreferences().language),
+        titleOf(state, name),
+        SHEET_PRINT_CSS,
+      ),
       page: state.page,
       // The grid is a continuous table that Chromium splits.
       paged: false,
@@ -132,12 +136,16 @@ function printRequestOf(state: WorkspaceState, source: DocumentSource | null): P
   return {
     html: buildPrintHtml(
       buildPagedBody(paged),
-      // `<title>` becomes the PDF Title; `printToPDF` does not write author or subject.
-      state.properties?.title?.trim() || name,
+      titleOf(state, name),
       styleSheetCss(state.styles) + buildPagedCss(paged.pages),
       false,
     ),
     page,
     paged: true,
   }
+}
+
+/** `<title>` becomes the PDF Title; `printToPDF` does not write author or subject. */
+function titleOf(state: WorkspaceState, name: string): string {
+  return state.properties?.title?.trim() || name
 }

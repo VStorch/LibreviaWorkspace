@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Librevia.Format.Docx;
 
 namespace Librevia.Format.Xlsx;
 
@@ -13,6 +14,11 @@ public sealed class WorkbookDto
 
     [JsonPropertyName("activeSheet")]
     public int ActiveSheet { get; set; }
+
+    /// <summary>When saving, each field is a patch: absent leaves the file's as it is.</summary>
+    [JsonPropertyName("properties")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public PropertiesDto? Properties { get; set; }
 }
 
 public sealed class SheetDto

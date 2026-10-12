@@ -1,3 +1,5 @@
+import type { DocumentProperties } from '@services/file/properties.js'
+
 /**
  * `doc` is the ProseMirror JSON Tiptap edits; `page` and the rest carry what does not fit in the
  * text flow.
@@ -160,30 +162,6 @@ export interface DocumentModel {
    * patch: absent means "leave as is", empty means "clear".
    */
   readonly properties?: DocumentProperties
-}
-
-/**
- * As Word shows them in File → Properties. Dates are W3CDTF (`2026-10-02T12:00:00Z`), as in the
- * package.
- */
-export interface DocumentProperties {
-  readonly title?: string
-  readonly subject?: string
-  /** `dc:creator`: the author(s), separated by semicolons, as in Word. */
-  readonly creator?: string
-  readonly keywords?: string
-  readonly category?: string
-  /** `dc:description`: what Word calls Comments. */
-  readonly description?: string
-  readonly lastModifiedBy?: string
-  readonly revision?: string
-  readonly created?: string
-  readonly modified?: string
-  /** `docProps/app.xml`. */
-  readonly company?: string
-  readonly manager?: string
-  /** `TotalTime` from `app.xml`, in minutes. Read only: the editor does not measure it. */
-  readonly totalTime?: number
 }
 
 /** `w:footnotePr`/`w:endnotePr`. */

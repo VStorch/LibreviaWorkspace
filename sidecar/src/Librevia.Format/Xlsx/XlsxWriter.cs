@@ -1,4 +1,6 @@
 using ClosedXML.Excel;
+using DocumentFormat.OpenXml.Packaging;
+using Librevia.Format.Docx;
 
 namespace Librevia.Format.Xlsx;
 
@@ -50,7 +52,19 @@ public static class XlsxWriter
 
         using var output = new MemoryStream();
         book.SaveAs(output);
+        ApplyProperties(output, model.Properties);
         return (output.ToArray(), new Result(model.Sheets.Count, written, cleared, preserved));
+    }
+
+    /// <summary>
+    /// After ClosedXML, which writes back the properties it read: only the fields that changed, as
+    /// in a document.
+    /// </summary>
+    private static void ApplyProperties(MemoryStream output, PropertiesDto? properties)
+    {
+        if (properties is null) return;
+        using var package = SpreadsheetDocument.Open(output, isEditable: true);
+        DocumentProperties.Apply(package, properties, touched: []);
     }
 
     private static XLWorkbook Open(Stream source, bool hasOriginal)

@@ -2,7 +2,7 @@ import { DocumentKind, PlainTextChoice, type LossInventory } from '@shared/types
 import { DEFAULT_PAGE_SETUP, createEmptyDocument, type DocumentModel } from '@services/document/model.js'
 import { documentToPlainText, hasRichFormatting, plainTextToDocument } from '@services/document/plain-text.js'
 import { parseDocument, serializeDocument } from '@services/document/serialize.js'
-import { stampProperties } from '@services/document/properties.js'
+import { stampProperties } from '@services/file/properties.js'
 import { BUILTIN_STYLES } from '@services/document/styles.js'
 import { createEmptyWorkbook } from '@services/spreadsheet/model.js'
 import { parseWorkbook, serializeWorkbook } from '@services/spreadsheet/serialize.js'
@@ -14,6 +14,7 @@ import { refuseViewOnly } from './view-only.js'
 import {
   loadedState,
   toSerialized,
+  workbookOf,
   type GetWorkspace,
   type SetWorkspace,
   type WorkspaceContext,
@@ -154,9 +155,9 @@ function createSaveActions(
 ): Pick<FileActions, 'save' | 'saveAs' | 'closeFile'> {
   /** A spreadsheet does not take the text path: it has no formatting to lose. */
   function encodeFor(path: string): string {
+    if (get().workbook !== null || !isPlainTextPath(path)) stampForSave(set, get)
     const { workbook } = get()
-    if (workbook !== null) return serializeWorkbook(workbook)
-    if (!isPlainTextPath(path)) stampForSave(set, get)
+    if (workbook !== null) return serializeWorkbook(workbookOf(workbook, get()))
 
     const model = ctx.currentModel()
     return isPlainTextPath(path) ? documentToPlainText(model.doc) : serializeDocument(model)

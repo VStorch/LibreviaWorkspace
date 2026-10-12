@@ -1,4 +1,29 @@
-import type { DocumentProperties } from './model.js'
+import type { z } from 'zod'
+import type { documentPropertiesSchema } from '@shared/schemas.js'
+
+/**
+ * As Word and Excel show them in File → Properties. Dates are W3CDTF (`2026-10-02T12:00:00Z`), as in the
+ * package.
+ */
+export interface DocumentProperties {
+  readonly title?: string
+  readonly subject?: string
+  /** `dc:creator`: the author(s), separated by semicolons, as in Word. */
+  readonly creator?: string
+  readonly keywords?: string
+  readonly category?: string
+  /** `dc:description`: what Word calls Comments. */
+  readonly description?: string
+  readonly lastModifiedBy?: string
+  readonly revision?: string
+  readonly created?: string
+  readonly modified?: string
+  /** `docProps/app.xml`. */
+  readonly company?: string
+  readonly manager?: string
+  /** `TotalTime` from `app.xml`, in minutes. Read only: the editor does not measure it. */
+  readonly totalTime?: number
+}
 
 /** Without milliseconds, as Word writes `dcterms:created` and `dcterms:modified`. */
 export function w3cdtf(date: Date): string {
@@ -52,4 +77,11 @@ function creationStamp(
 function nextRevision(revision: string | undefined): string {
   const current = Number.parseInt(revision ?? '', 10)
   return String(Number.isFinite(current) && current > 0 ? current + 1 : 1)
+}
+
+/** Without absent keys, for `exactOptionalPropertyTypes`. */
+export function propertiesOf(raw: z.infer<typeof documentPropertiesSchema>): DocumentProperties {
+  return Object.fromEntries(
+    Object.entries(raw).filter(([, value]) => value !== undefined),
+  ) as DocumentProperties
 }

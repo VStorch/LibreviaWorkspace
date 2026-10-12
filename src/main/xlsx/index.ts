@@ -109,7 +109,12 @@ export async function saveXlsx(client: SidecarClient, ssheetContent: string): Pr
 
   const reply = await client.request(
     SidecarMethod.XlsxSave,
-    { sheets: model.sheets, activeSheet: model.activeSheet },
+    {
+      sheets: model.sheets,
+      activeSheet: model.activeSheet,
+      // A patch: the sidecar rewrites only the fields that differ from the original's.
+      ...(model.properties === undefined ? {} : { properties: model.properties }),
+    },
     original === undefined ? new Uint8Array(0) : new Uint8Array(original),
   )
 

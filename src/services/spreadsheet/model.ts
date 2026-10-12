@@ -1,3 +1,5 @@
+import type { DocumentProperties } from '@services/file/properties.js'
+
 /** The raw value stays apart from the appearance. */
 export const CellFormat = {
   General: 'general',
@@ -71,6 +73,8 @@ export interface Sheet {
 export interface WorkbookModel {
   readonly sheets: Sheet[]
   readonly activeSheet: number
+  /** As in a document: each field a patch when saving to XLSX. */
+  readonly properties?: DocumentProperties
 }
 
 export const DEFAULT_ROW_COUNT = 1000

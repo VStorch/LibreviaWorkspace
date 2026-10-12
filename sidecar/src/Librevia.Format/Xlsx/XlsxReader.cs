@@ -1,4 +1,5 @@
 using ClosedXML.Excel;
+using DocumentFormat.OpenXml.Packaging;
 using Librevia.Format.Docx;
 
 namespace Librevia.Format.Xlsx;
@@ -43,8 +44,19 @@ public static class XlsxReader
             }
 
             NoteBookWide(book, inventory);
+            workbook.Properties = ReadProperties(stream);
             return new XlsxOpenResult(workbook, inventory);
         }
+    }
+
+    /// <summary>
+    /// ClosedXML knows neither the revision nor what Excel left in the parts: read like a document's.
+    /// </summary>
+    private static PropertiesDto? ReadProperties(Stream stream)
+    {
+        stream.Position = 0;
+        using var package = SpreadsheetDocument.Open(stream, isEditable: false);
+        return DocumentProperties.Read(package);
     }
 
     private static SheetDto ReadSheet(IXLWorksheet sheet, Inventory inventory)

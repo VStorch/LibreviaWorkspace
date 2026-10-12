@@ -6,6 +6,7 @@ import type { DocumentModel } from '@services/document/model.js'
 import { onlyDefined, onlyNonEmpty, onlyTrue, serializeDocument } from '@services/document/serialize.js'
 import { commentAnchorIdsOfJson, commentsOutsideOf, resolveComments } from '@services/document/comments.js'
 import { marksOfJson, resolveSections } from '@services/document/sections.js'
+import type { WorkbookModel } from '@services/spreadsheet/model.js'
 import { serializeWorkbook } from '@services/spreadsheet/serialize.js'
 import { t } from '../i18n.js'
 import type { DocumentSource, LoadedFile, OpenFile, WorkspaceState } from './types.js'
@@ -58,8 +59,10 @@ export function createWorkspaceContext(set: SetWorkspace, get: GetWorkspace): Wo
   }
 
   function currentContent(): string {
-    const { workbook } = get()
-    return workbook === null ? serializeDocument(currentModel()) : serializeWorkbook(workbook)
+    const state = get()
+    return state.workbook === null
+      ? serializeDocument(currentModel())
+      : serializeWorkbook(workbookOf(state.workbook, state))
   }
 
   /**
@@ -136,6 +139,13 @@ function modelOf(state: WorkspaceState, read: WorkspaceState['initialDoc']): Doc
   }
 }
 
+/** The properties live in the state, as a document's, and the dialog edits them there. */
+export function workbookOf(workbook: WorkbookModel, state: WorkspaceState): WorkbookModel {
+  const { properties: _opened, ...rest } = workbook
+  void _opened
+  return { ...rest, ...onlyDefined('properties', state.properties) }
+}
+
 /** The state of a just-opened file; without a file, the home screen's. */
 export function loadedState(
   file: OpenFile | null,
@@ -163,7 +173,7 @@ export function loadedState(
     notes: model.notes,
     beforeNotes: model.beforeNotes === true,
     beforeMath: model.beforeMath === true,
-    properties: model.properties,
+    properties: workbook?.properties ?? model.properties,
     generation: generation + 1,
     isDirty: false,
     error: null,
