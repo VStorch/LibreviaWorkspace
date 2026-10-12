@@ -37,6 +37,12 @@ export interface DocumentProperties {
   readonly creator?: string
   readonly keywords?: string
   readonly category?: string
+  /** `cp:contentStatus`: "Rascunho", "Final"… */
+  readonly contentStatus?: string
+  /** `dc:language`, as Word wrote it (`pt-BR`). Read only. */
+  readonly language?: string
+  /** `cp:lastPrinted`. Read only: the editor does not mark printing. */
+  readonly lastPrinted?: string
   /** `dc:description`: what Word calls Comments. */
   readonly description?: string
   readonly lastModifiedBy?: string
@@ -55,6 +61,18 @@ export interface DocumentProperties {
   readonly removePersonalInformation?: boolean
   /** Absent leaves the file's as they are; a list replaces them. */
   readonly custom?: readonly CustomProperty[]
+  /** Written to `app.xml` when saving an edited DOCX; never read back, nor kept in the state. */
+  readonly statistics?: DocumentStatistics
+}
+
+/** What Word keeps in `app.xml`, for file managers and search that do not open the document. */
+export interface DocumentStatistics {
+  readonly pages: number
+  readonly words: number
+  /** Without spaces, as Word's `Characters`. */
+  readonly characters: number
+  readonly charactersWithSpaces: number
+  readonly paragraphs: number
 }
 
 /** Without milliseconds, as Word writes `dcterms:created` and `dcterms:modified`. */

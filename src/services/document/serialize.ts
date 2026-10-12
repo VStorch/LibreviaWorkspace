@@ -66,9 +66,11 @@ import { propertiesOf } from '@services/file/properties.js'
  *   draft lacks it, and saving signs with the author's name as before.
  * - **13**: `properties.custom`, the custom properties. An older draft lacks them, and saving to
  *   DOCX leaves the file's as they are.
+ * - **14**: `properties.contentStatus`, `language` and `lastPrinted`. An older draft lacks them, and
+ *   saving to DOCX leaves the file's as they are.
  */
 export const SDOC_FORMAT = 'sdoc'
-export const SDOC_VERSION = 13
+export const SDOC_VERSION = 14
 
 /** Content is only validated in shape; the fine structure is ProseMirror's. */
 const documentNodeSchema: z.ZodType<DocumentNode> = z.looseObject({

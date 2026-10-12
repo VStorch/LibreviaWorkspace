@@ -8,7 +8,8 @@ using Wordprocessing = DocumentFormat.OpenXml.Wordprocessing;
 namespace Librevia.Format.Docx;
 
 /// <c>docProps/core.xml</c> and part of <c>docProps/app.xml</c>. Each field is a patch: null leaves
-/// the file as it is, and empty clears it. <c>TotalTime</c> is read only.
+/// the file as it is, and empty clears it. <c>TotalTime</c>, <c>Language</c> and <c>LastPrinted</c>
+/// are read only; <c>Statistics</c> is only written.
 public sealed record PropertiesDto(
     [property: JsonPropertyName("title")]
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
@@ -46,6 +47,18 @@ public sealed record PropertiesDto(
     [property: JsonPropertyName("manager")]
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     string? Manager = null,
+    [property: JsonPropertyName("contentStatus")]
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    string? ContentStatus = null,
+    [property: JsonPropertyName("language")]
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    string? Language = null,
+    [property: JsonPropertyName("lastPrinted")]
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    string? LastPrinted = null,
+    [property: JsonPropertyName("statistics")]
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    DocumentStatisticsDto? Statistics = null,
     [property: JsonPropertyName("totalTime")]
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     int? TotalTime = null,
@@ -57,6 +70,15 @@ public sealed record PropertiesDto(
     [property: JsonPropertyName("custom")]
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     List<CustomPropertyDto>? Custom = null);
+
+/// The counts Word keeps in <c>app.xml</c>, which file managers and search show without opening
+/// the document. The editor sends them when saving an edited document.
+public sealed record DocumentStatisticsDto(
+    [property: JsonPropertyName("pages")] int Pages,
+    [property: JsonPropertyName("words")] int Words,
+    [property: JsonPropertyName("characters")] int Characters,
+    [property: JsonPropertyName("charactersWithSpaces")] int CharactersWithSpaces,
+    [property: JsonPropertyName("paragraphs")] int Paragraphs);
 
 /// <summary>
 /// Through the raw XML: the SDK's <c>PackageProperties</c> reserializes <c>core.xml</c> and drops
@@ -79,6 +101,9 @@ internal static class DocumentProperties
         (Dc + "creator", p => p.Creator),
         (Cp + "keywords", p => p.Keywords),
         (Cp + "category", p => p.Category),
+        (Cp + "contentStatus", p => p.ContentStatus),
+        (Dc + "language", p => p.Language),
+        (Cp + "lastPrinted", p => p.LastPrinted),
         (Dc + "description", p => p.Description),
         (Cp + "lastModifiedBy", p => p.LastModifiedBy),
         (Cp + "revision", p => p.Revision),
@@ -90,7 +115,14 @@ internal static class DocumentProperties
     [
         (Ep + "Company", p => p.Company),
         (Ep + "Manager", p => p.Manager),
+        (Ep + "Pages", p => Count(p.Statistics?.Pages)),
+        (Ep + "Words", p => Count(p.Statistics?.Words)),
+        (Ep + "Characters", p => Count(p.Statistics?.Characters)),
+        (Ep + "CharactersWithSpaces", p => Count(p.Statistics?.CharactersWithSpaces)),
+        (Ep + "Paragraphs", p => Count(p.Statistics?.Paragraphs)),
     ];
+
+    private static string? Count(int? value) => value?.ToString(CultureInfo.InvariantCulture);
 
     /// <summary>Null when the package has neither part, or no field in them.</summary>
     public static PropertiesDto? Read(OpenXmlPackage document)
@@ -117,6 +149,9 @@ internal static class DocumentProperties
             Creator: Text(core, Dc + "creator"),
             Keywords: Text(core, Cp + "keywords"),
             Category: Text(core, Cp + "category"),
+            ContentStatus: Text(core, Cp + "contentStatus"),
+            Language: Text(core, Dc + "language"),
+            LastPrinted: Text(core, Cp + "lastPrinted"),
             Description: Text(core, Dc + "description"),
             LastModifiedBy: Text(core, Cp + "lastModifiedBy"),
             Revision: Text(core, Cp + "revision"),

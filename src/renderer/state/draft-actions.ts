@@ -51,7 +51,7 @@ export function createDraftActions(
         ctx.show(interpret(data.draft))
         // Recovered content differs from disk: marking it saved would let a close lose everything
         // again.
-        set({ isDirty: true })
+        set({ isDirty: true, textEdited: true })
       } catch (cause) {
         set({ error: toSerialized(cause) })
       }

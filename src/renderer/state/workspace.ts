@@ -41,6 +41,7 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
     workbook: null,
     generation: 0,
     isDirty: false,
+    textEdited: false,
     stats: { characters: 0, words: 0 },
     pageCount: 1,
     recents: [],
@@ -56,7 +57,7 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
 
     registerDocumentSource: (source) => ctx.setSource(source),
     markDirty: () => {
-      if (!get().isDirty) set({ isDirty: true })
+      if (!get().textEdited) set({ isDirty: true, textEdited: true })
     },
     setStats: (stats) => {
       const current = get().stats

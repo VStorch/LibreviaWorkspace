@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { DocumentNode } from './model.js'
-import { charactersWithoutSpaces, countParagraphs } from './word-count.js'
+import { charactersWithoutSpaces, countParagraphs, documentStatistics } from './word-count.js'
 
 function paragrafo(texto: string): DocumentNode {
   return texto === ''
@@ -76,5 +76,31 @@ describe('parágrafos', () => {
     }
 
     expect(countParagraphs(doc)).toBe(1)
+  })
+})
+
+describe('documentStatistics', () => {
+  it('mede caracteres e parágrafos sem o texto excluído e guarda o que veio contado', () => {
+    const doc: DocumentNode = {
+      type: 'doc',
+      content: [
+        {
+          type: 'paragraph',
+          content: [
+            { type: 'text', text: 'Olá mundo' },
+            { type: 'text', text: ' velho', marks: [{ type: 'deletion' }] },
+          ],
+        },
+        { type: 'paragraph', content: [{ type: 'text', text: 'Fim.' }] },
+        { type: 'paragraph' },
+      ],
+    }
+    expect(documentStatistics(doc, { pages: 1, words: 3, charactersWithSpaces: 13 })).toEqual({
+      pages: 1,
+      words: 3,
+      charactersWithSpaces: 13,
+      characters: 12,
+      paragraphs: 2,
+    })
   })
 })

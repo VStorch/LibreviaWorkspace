@@ -17,7 +17,8 @@ public class PropertiesTests
         """<cp:lastModifiedBy>Bia</cp:lastModifiedBy><cp:revision>7</cp:revision>""" +
         """<dcterms:created xsi:type="dcterms:W3CDTF">2025-01-02T03:04:05Z</dcterms:created>""" +
         """<dcterms:modified xsi:type="dcterms:W3CDTF">2025-02-03T04:05:06Z</dcterms:modified>""" +
-        """<cp:category>Finanças</cp:category><cp:contentStatus>Rascunho</cp:contentStatus></cp:coreProperties>""";
+        """<cp:category>Finanças</cp:category><cp:contentStatus>Rascunho</cp:contentStatus>""" +
+        """<dc:language>pt-BR</dc:language><cp:lastPrinted>2025-02-01T10:00:00Z</cp:lastPrinted></cp:coreProperties>""";
 
     internal const string App =
         """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>""" + "\r\n" +
@@ -72,6 +73,32 @@ public class PropertiesTests
         Assert.Equal("ACME", properties.Company);
         Assert.Equal("Carla", properties.Manager);
         Assert.Equal(42, properties.TotalTime);
+        Assert.Equal("Rascunho", properties.ContentStatus);
+        Assert.Equal("pt-BR", properties.Language);
+        Assert.Equal("2025-02-01T10:00:00Z", properties.LastPrinted);
+    }
+
+    [Fact]
+    public void OStatusRegravaSoOCoreEAsEstatisticasSoOApp()
+    {
+        var original = WithProperties();
+        var model = Clone(Open(original));
+        model = model with { Properties = model.Properties! with { ContentStatus = "Final" } };
+
+        var bytes = Save(original, model).Bytes;
+
+        Assert.Contains("<cp:contentStatus>Final</cp:contentStatus>", XmlOf(bytes, "docProps/core.xml"), StringComparison.Ordinal);
+        Assert.Equal(PartsOf(original)["docProps/app.xml"], PartsOf(bytes)["docProps/app.xml"]);
+
+        model = model with { Properties = model.Properties! with { Statistics = new DocumentStatisticsDto(3, 120, 600, 720, 9) } };
+        bytes = Save(original, model).Bytes;
+
+        var app = XmlOf(bytes, "docProps/app.xml");
+        Assert.Contains("<Pages>3</Pages>", app, StringComparison.Ordinal);
+        Assert.Contains("<Words>120</Words><Characters>600</Characters><CharactersWithSpaces>720</CharactersWithSpaces><Paragraphs>9</Paragraphs>", app, StringComparison.Ordinal);
+        Assert.Contains("<Template>Normal.dotm</Template>", app, StringComparison.Ordinal);
+        Assert.Null(Open(bytes).Properties!.Statistics);
+        AssertSchema(bytes);
     }
 
     [Fact]

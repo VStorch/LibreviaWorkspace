@@ -24,6 +24,7 @@ const EDITABLE = [
   ['manager', 'document.properties.manager'],
   ['company', 'document.properties.company'],
   ['category', 'document.properties.category'],
+  ['contentStatus', 'document.properties.contentStatus'],
   ['keywords', 'document.properties.keywords'],
   ['description', 'document.properties.description'],
 ] as const satisfies readonly (readonly [keyof DocumentProperties, MessageKey])[]
@@ -197,7 +198,9 @@ function Statistics({
   const info: readonly StatisticRow[] = [
     ['document.properties.created', date(properties?.created)],
     ['document.properties.modified', date(properties?.modified)],
+    ...(authorship ? [['document.properties.lastPrinted', date(properties?.lastPrinted)] as const] : []),
     ...(authorship ? authorshipRows(properties, t, language) : []),
+    ...(properties?.language ? [['document.properties.language', properties.language] as const] : []),
     ...statistics,
   ]
 

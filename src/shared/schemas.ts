@@ -217,12 +217,17 @@ export const documentNotesSchema = z.object({
  */
 const propertyText = z.string().max(MAX_PROPERTY_LENGTH).optional()
 
+const count = z.number().int().min(0).max(1_000_000_000)
+
 export const documentPropertiesSchema = z.object({
   title: propertyText,
   subject: propertyText,
   creator: propertyText,
   keywords: propertyText,
   category: propertyText,
+  contentStatus: propertyText,
+  language: propertyText,
+  lastPrinted: z.string().max(MAX_FIELD_LENGTH).optional(),
   description: z.string().max(MAX_DESCRIPTION_LENGTH).optional(),
   lastModifiedBy: propertyText,
   revision: z.string().max(MAX_FIELD_LENGTH).optional(),
@@ -231,6 +236,15 @@ export const documentPropertiesSchema = z.object({
   company: propertyText,
   manager: propertyText,
   totalTime: z.number().int().min(0).max(1_000_000_000).optional(),
+  statistics: z
+    .object({
+      pages: count,
+      words: count,
+      characters: count,
+      charactersWithSpaces: count,
+      paragraphs: count,
+    })
+    .optional(),
   removePersonalInformation: z.boolean().optional(),
   custom: z
     .array(

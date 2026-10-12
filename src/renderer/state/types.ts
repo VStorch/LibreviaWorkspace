@@ -84,6 +84,8 @@ export interface WorkspaceState {
   /** Changes on every new/open: the editor is remounted, with no leftover state. */
   generation: number
   isDirty: boolean
+  /** The text itself changed since opening or saving, not only properties, styles or the page. */
+  textEdited: boolean
   stats: { characters: number; words: number }
   pageCount: number
   recents: readonly RecentFile[]

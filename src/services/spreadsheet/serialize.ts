@@ -15,8 +15,10 @@ export const SSHEET_FORMAT = 'ssheet'
  *   file lacks it, and saving signs with the author's name as before.
  * - **4** — `properties.custom`, the custom properties. A version 3 file lacks them, and saving to
  *   XLSX leaves the file's as they are.
+ * - **5** — `properties.contentStatus`, `language` and `lastPrinted`. A version 4 file lacks them,
+ *   and saving to XLSX leaves the file's as they are.
  */
-export const SSHEET_VERSION = 4
+export const SSHEET_VERSION = 5
 
 const cellStyleSchema = z.object({
   bold: z.boolean().optional(),

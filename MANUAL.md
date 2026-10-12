@@ -103,14 +103,20 @@ modelos.
 
 **Arquivo → Propriedades…** tem três partes:
 
-- **Resumo**: título, assunto, autores, gerente, empresa, categoria, palavras-chave e
-  comentários. Você pode preencher e alterar.
+- **Resumo**: título, assunto, autores, gerente, empresa, categoria, status (por exemplo,
+  "Rascunho" ou "Final"), palavras-chave e comentários. Você pode preencher e alterar.
 - **Personalizadas**: campos com nome próprio, como "Cliente" ou "Nº do processo", cada um do
   tipo texto, número, data ou sim ou não. **Adicionar propriedade** cria uma; o **×** apaga. São
   as mesmas da aba **Personalizar** das propriedades avançadas do Word e do Excel. Um tipo que o
   Librevia não mostra, como uma lista, continua no arquivo.
-- **Informações e estatísticas**: quando o documento foi criado e modificado, por quem, o número
-  da revisão e o tempo total de edição.
+- **Informações e estatísticas**: quando o documento foi criado, modificado e impresso pela
+  última vez, por quem, o número da revisão, o tempo total de edição e o idioma, quando o arquivo
+  o informa.
+
+Ao salvar um `.docx` com o texto alterado, o Librevia grava também as páginas, palavras,
+caracteres e parágrafos, como o Word. O gerenciador de arquivos e a busca do sistema leem esses
+números sem abrir o documento. Se só as propriedades mudaram, essa parte do arquivo fica como
+estava.
 
 Numa planilha é igual. As estatísticas contam as abas, as células preenchidas e as fórmulas. As
 propriedades vão para o `.xlsx` e o Excel as mostra em **Arquivo → Informações**.

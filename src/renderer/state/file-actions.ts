@@ -7,7 +7,8 @@ import { BUILTIN_STYLES } from '@services/document/styles.js'
 import { createEmptyWorkbook } from '@services/spreadsheet/model.js'
 import { parseWorkbook, serializeWorkbook } from '@services/spreadsheet/serialize.js'
 import { recalculate } from '@services/spreadsheet/formula/recalc.js'
-import { defaultFileName, isPlainTextPath, kindFromPath } from '@services/file/formats.js'
+import { defaultFileName, isPlainTextPath, isWordPackagePath, kindFromPath } from '@services/file/formats.js'
+import { documentStatistics } from '@services/document/word-count.js'
 import { hasReportableLoss, locksEditing, lostOnSave } from '@services/file/inventory.js'
 import { currentPreferences } from './preferences.js'
 import { refuseViewOnly } from './view-only.js'
@@ -157,7 +158,8 @@ function createSaveActions(
     if (workbook !== null) return serializeWorkbook(workbookOf(workbook, get()))
 
     const model = ctx.currentModel()
-    return isPlainTextPath(path) ? documentToPlainText(model.doc) : serializeDocument(model)
+    if (isPlainTextPath(path)) return documentToPlainText(model.doc)
+    return serializeDocument(isWordPackagePath(path) ? withStatistics(model, get()) : model)
   }
 
   /** Nothing is lost silently. */
@@ -177,7 +179,7 @@ function createSaveActions(
    */
   async function afterSave(file: OpenFile, inventory: LossInventory | undefined): Promise<void> {
     const lost = lostOnSave(inventory)
-    set({ file, isDirty: false, savedLoss: lost.length > 0 ? lost : null })
+    set({ file, isDirty: false, textEdited: false, savedLoss: lost.length > 0 ? lost : null })
     await ctx.forgetDraft()
     await get().refreshRecents()
   }
@@ -279,6 +281,20 @@ function stampForSave(set: SetWorkspace, get: GetWorkspace): void {
     edited: state.isDirty,
   })
   if (stamped !== state.properties) set({ properties: stamped })
+}
+
+/**
+ * Only for Word and only after the text changed: with only the properties edited, `app.xml` goes
+ * back byte for byte. Not in the state, so a `.sdoc` never carries counts that would go stale.
+ */
+function withStatistics(model: DocumentModel, state: WorkspaceState): DocumentModel {
+  if (!state.textEdited && state.file?.path !== null) return model
+  const statistics = documentStatistics(model.doc, {
+    pages: state.pageCount,
+    words: state.stats.words,
+    charactersWithSpaces: state.stats.characters,
+  })
+  return { ...model, properties: { ...model.properties, statistics } }
 }
 
 /** What opening a file says about what it lost or hides. */

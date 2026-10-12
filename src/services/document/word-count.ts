@@ -1,3 +1,5 @@
+import type { DocumentStatistics } from '@services/file/properties.js'
+import { finalDocument } from './export-common.js'
 import type { DocumentNode } from './model.js'
 
 /**
@@ -33,4 +35,20 @@ export function countParagraphs(node: DocumentNode): number {
 function inlineTextOf(node: DocumentNode): string {
   if (typeof node.text === 'string') return node.text
   return (node.content ?? []).map(inlineTextOf).join('')
+}
+
+/**
+ * For `app.xml`. Words and characters with spaces come counted from the editor, like the status bar;
+ * the rest is measured here, on the text without tracked deletions.
+ */
+export function documentStatistics(
+  doc: DocumentNode,
+  counted: Pick<DocumentStatistics, 'pages' | 'words' | 'charactersWithSpaces'>,
+): DocumentStatistics {
+  const final = finalDocument(doc)
+  return {
+    ...counted,
+    characters: charactersWithoutSpaces(inlineTextOf(final)),
+    paragraphs: countParagraphs(final),
+  }
 }

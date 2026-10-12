@@ -176,6 +176,7 @@ export function loadedState(
     properties: workbook?.properties ?? model.properties,
     generation: generation + 1,
     isDirty: false,
+    textEdited: false,
     error: null,
     // The notice and the lock belong to this file, and die with it.
     notice: null,
