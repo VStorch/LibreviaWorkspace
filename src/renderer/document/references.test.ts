@@ -112,6 +112,7 @@ function contextWith(layout: Partial<PageLayout>, outsideBookmarks: string[] = [
     setStyles: () => {},
     t: (key) => key,
     outsideBookmarks,
+    locale: 'pt',
   }
 }
 

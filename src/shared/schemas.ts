@@ -219,6 +219,15 @@ const propertyText = z.string().max(MAX_PROPERTY_LENGTH).optional()
 
 const count = z.number().int().min(0).max(1_000_000_000)
 
+/** The counts saving sends to a DOCX's `app.xml`; see `DocumentStatistics`. */
+export const documentStatisticsSchema = z.object({
+  pages: count,
+  words: count,
+  characters: count,
+  charactersWithSpaces: count,
+  paragraphs: count,
+})
+
 export const documentPropertiesSchema = z.object({
   title: propertyText,
   subject: propertyText,
@@ -235,16 +244,7 @@ export const documentPropertiesSchema = z.object({
   modified: z.string().max(MAX_FIELD_LENGTH).optional(),
   company: propertyText,
   manager: propertyText,
-  totalTime: z.number().int().min(0).max(1_000_000_000).optional(),
-  statistics: z
-    .object({
-      pages: count,
-      words: count,
-      characters: count,
-      charactersWithSpaces: count,
-      paragraphs: count,
-    })
-    .optional(),
+  totalTime: count.optional(),
   removePersonalInformation: z.boolean().optional(),
   custom: z
     .array(

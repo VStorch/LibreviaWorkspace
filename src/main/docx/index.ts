@@ -12,6 +12,7 @@ import {
   documentCommentSchema,
   documentNotesSchema,
   documentPropertiesSchema,
+  documentStatisticsSchema,
   styleSheetSchema,
 } from '@shared/schemas.js'
 import type { LossInventory } from '@shared/types.js'
@@ -195,9 +196,20 @@ function saveParamsOf(model: SdocModel, target: DocxTarget): Record<string, unkn
     ...(model.beforeMath ? { beforeMath: true } : {}),
     // The sidecar only writes note numbering and properties when they differ from the target file.
     ...(model.notes === undefined ? {} : { notes: model.notes }),
-    ...(model.properties === undefined ? {} : { properties: model.properties }),
+    ...propertiesParam(model),
     ...(model.styles === undefined ? {} : { styles: model.styles }),
     ...(target.template === true ? { template: true } : {}),
+  }
+}
+
+/** The counts travel with the properties: the sidecar writes both to `docProps/`. */
+function propertiesParam(model: SdocModel): Record<string, unknown> {
+  if (model.properties === undefined && model.statistics === undefined) return {}
+  return {
+    properties: {
+      ...(model.properties ?? {}),
+      ...(model.statistics === undefined ? {} : { statistics: model.statistics }),
+    },
   }
 }
 
@@ -297,6 +309,7 @@ function unwrapSdoc(content: string): {
   beforeMath: boolean
   notes: unknown
   properties: unknown
+  statistics: unknown
 } {
   let parsed: unknown
   try {
@@ -324,6 +337,7 @@ function unwrapSdoc(content: string): {
       notes: z.unknown().optional(),
       // Checked here too: they go into the user's file.
       properties: documentPropertiesSchema.optional(),
+      statistics: documentStatisticsSchema.optional(),
     })
     .safeParse(parsed)
   if (!envelope.success) {
@@ -346,5 +360,6 @@ function unwrapSdoc(content: string): {
     beforeMath: envelope.data.beforeMath === true,
     notes: envelope.data.notes,
     properties: envelope.data.properties,
+    statistics: envelope.data.statistics,
   }
 }

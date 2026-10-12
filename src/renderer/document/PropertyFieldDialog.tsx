@@ -16,12 +16,11 @@ export function PropertyFieldDialog({
   readonly onClose: () => void
 }): React.JSX.Element {
   const t = useT()
-  const [{ properties, locale }] = useState(context)
+  const [{ properties, locale }] = useState(() => context())
   const [choices] = useState(() => propertyFieldChoices(properties))
   const [chosen, setChosen] = useState(0)
   const choice = choices[chosen]
-  const value =
-    choice === undefined ? '' : (propertyFieldResult(choice.instr, properties, locale ?? 'en') ?? '')
+  const value = choice === undefined ? '' : (propertyFieldResult(choice.instr, properties, locale) ?? '')
 
   function insert(): void {
     if (choice === undefined) return

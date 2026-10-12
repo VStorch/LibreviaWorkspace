@@ -61,11 +61,12 @@ export interface DocumentProperties {
   readonly removePersonalInformation?: boolean
   /** Absent leaves the file's as they are; a list replaces them. */
   readonly custom?: readonly CustomProperty[]
-  /** Written to `app.xml` when saving an edited DOCX; never read back, nor kept in the state. */
-  readonly statistics?: DocumentStatistics
 }
 
-/** What Word keeps in `app.xml`, for file managers and search that do not open the document. */
+/**
+ * What Word keeps in `app.xml`, for file managers and search that do not open the document. Only
+ * sent when saving an edited DOCX: never read back, nor kept with the properties.
+ */
 export interface DocumentStatistics {
   readonly pages: number
   readonly words: number
@@ -155,7 +156,8 @@ export function customPropertiesProblem(properties: readonly CustomProperty[]): 
   return null
 }
 
-function isNumber(value: string): boolean {
+/** What a number property accepts: Word refuses an empty value. */
+export function isNumber(value: string): boolean {
   return value.trim() !== '' && Number.isFinite(Number(value))
 }
 

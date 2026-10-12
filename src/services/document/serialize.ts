@@ -19,7 +19,7 @@ import {
   type NoteNumbering,
 } from './model.js'
 import { LEGACY_STYLES, type StyleSheet } from './styles.js'
-import { propertiesOf } from '@services/file/properties.js'
+import { propertiesOf, type DocumentStatistics } from '@services/file/properties.js'
 
 /**
  * The internal `.sdoc` format.
@@ -108,7 +108,8 @@ const sdocSchema = z.object({
   properties: documentPropertiesSchema.optional(),
 })
 
-export function serializeDocument(model: DocumentModel): string {
+/** `statistics` only goes to a DOCX, beside the model; a `.sdoc` never carries it. */
+export function serializeDocument(model: DocumentModel, statistics?: DocumentStatistics): string {
   return JSON.stringify(
     {
       format: SDOC_FORMAT,
@@ -131,6 +132,7 @@ export function serializeDocument(model: DocumentModel): string {
       ...onlyTrue('beforeNotes', model.beforeNotes),
       ...onlyTrue('beforeMath', model.beforeMath),
       ...onlyDefined('properties', model.properties),
+      ...onlyDefined('statistics', statistics),
     },
     null,
     2,

@@ -48,7 +48,7 @@ export interface ReferenceContext {
   /** What `TITLE`, `AUTHOR` and `DOCPROPERTY` show. */
   readonly properties?: DocumentProperties | undefined
   /** Dates and numbers of custom properties, as the system writes them. */
-  readonly locale?: string
+  readonly locale: string
 }
 
 /** Makes ProseMirror read now the selection the browser already changed. */
@@ -246,7 +246,7 @@ function resultOf(field: FieldAt, scan: FieldScan): FieldResult {
 }
 
 function propertyText(instr: string, context: ReferenceContext): string {
-  const result = propertyFieldResult(instr, context.properties, context.locale ?? 'en')
+  const result = propertyFieldResult(instr, context.properties, context.locale)
   return result ?? context.t('references.field.unknownProperty')
 }
 

@@ -100,8 +100,7 @@ internal static class PersonalNames
     private static IEnumerable<string> WordParts(OfficePackage package, OfficeKind kind)
     {
         if (kind != OfficeKind.Word) return [];
-        return package.PartsOfType(type => type.Contains("wordprocessingml", StringComparison.Ordinal) ||
-                                           type.StartsWith("application/vnd.ms-word", StringComparison.Ordinal))
+        return package.PartsOfType(OfficeContentType.IsWord)
             .Where(part => package.Bytes(part) is { } bytes && bytes.AsSpan().IndexOf("author"u8) >= 0)
             .ToList();
     }

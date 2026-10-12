@@ -103,7 +103,8 @@ export interface WorkspaceState {
   busy: boolean
 
   registerDocumentSource: (source: DocumentSource | null) => void
-  markDirty: () => void
+  /** The editor's own edits: also marks the file modified. */
+  markTextEdited: () => void
   setStats: (stats: { characters: number; words: number }) => void
   setPageCount: (pages: number) => void
   setPage: (page: PageSetup) => void

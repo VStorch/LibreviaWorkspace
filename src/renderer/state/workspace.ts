@@ -56,7 +56,7 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
     busy: false,
 
     registerDocumentSource: (source) => ctx.setSource(source),
-    markDirty: () => {
+    markTextEdited: () => {
       if (!get().textEdited) set({ isDirty: true, textEdited: true })
     },
     setStats: (stats) => {

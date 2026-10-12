@@ -9,6 +9,18 @@ public enum OfficeKind
     Excel,
 }
 
+/// <summary>By content type: the Open XML ones, and the <c>vnd.ms-</c> ones of macro and template files.</summary>
+internal static class OfficeContentType
+{
+    public static bool IsWord(string type) =>
+        type.Contains("wordprocessingml", StringComparison.Ordinal) ||
+        type.StartsWith("application/vnd.ms-word", StringComparison.Ordinal);
+
+    public static bool IsExcel(string type) =>
+        type.Contains("spreadsheetml", StringComparison.Ordinal) ||
+        type.StartsWith("application/vnd.ms-excel", StringComparison.Ordinal);
+}
+
 /// <summary>What a DOCX or XLSX reveals about who made it, beyond its content.</summary>
 public sealed record PrivacyReport(
     [property: JsonPropertyName("names")] List<string> Names,
@@ -87,17 +99,8 @@ public static class PersonalData
     {
         var main = package.RelationshipOf(string.Empty, OfficeDocument)?.Part;
         var type = main is null ? null : package.ContentType(main);
-        if (type is not null && (type.Contains("wordprocessingml", StringComparison.Ordinal) ||
-                                 type.StartsWith("application/vnd.ms-word", StringComparison.Ordinal)))
-        {
-            return (OfficeKind.Word, main!);
-        }
-
-        if (type is not null && (type.Contains("spreadsheetml", StringComparison.Ordinal) ||
-                                 type.StartsWith("application/vnd.ms-excel", StringComparison.Ordinal)))
-        {
-            return (OfficeKind.Excel, main!);
-        }
+        if (type is not null && OfficeContentType.IsWord(type)) return (OfficeKind.Word, main!);
+        if (type is not null && OfficeContentType.IsExcel(type)) return (OfficeKind.Excel, main!);
 
         throw new PrivacyException("O arquivo não é um documento do Word nem uma planilha do Excel.");
     }

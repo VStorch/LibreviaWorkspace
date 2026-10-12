@@ -7,7 +7,7 @@ import { readFile } from 'node:fs/promises'
 import { z } from 'zod'
 import { AppError, ErrorCode, fromFileSystemError } from '@shared/errors.js'
 import { privacyReportSchema } from '@shared/schemas.js'
-import { isExcelPath, isWordPackagePath } from '@services/file/formats.js'
+import { isExcelPath, isOfficePackagePath } from '@services/file/formats.js'
 import type { PrivacyCategory } from '@services/file/privacy.js'
 import { decodeDocx, type OpenedDocx } from './docx/index.js'
 import { assertReadableFile } from './fs/paths.js'
@@ -68,7 +68,7 @@ function anonymousName(): string {
 
 /** From disk, not the opened original: after a save, that one is still the package saving started from. */
 async function readPackage(path: string): Promise<Uint8Array> {
-  if (!isWordPackagePath(path) && !isExcelPath(path)) {
+  if (!isOfficePackagePath(path)) {
     throw new AppError(ErrorCode.UnsupportedFormat, t('errors.privacy.onlyPackages'))
   }
   await assertReadableFile(path)

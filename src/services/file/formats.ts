@@ -48,6 +48,11 @@ export function isWordPackagePath(path: string): boolean {
   return isWordPath(path) || isWordTemplatePath(path)
 }
 
+/** A DOCX, Word template or XLSX: an Office package the sidecar opens part by part. */
+export function isOfficePackagePath(path: string): boolean {
+  return isWordPackagePath(path) || isExcelPath(path)
+}
+
 export function isSpreadsheetPath(path: string): boolean {
   return extensionOf(path) === SPREADSHEET_EXTENSION
 }

@@ -2,6 +2,7 @@ import {
   CUSTOM_PROPERTY_TYPES,
   CustomPropertyType,
   instantOfDay,
+  isNumber,
   localDayOf,
   type CustomProperty,
   type CustomPropertyProblem,
@@ -31,7 +32,7 @@ function valueForType(type: CustomPropertyType, previous: string): string {
     case CustomPropertyType.Date:
       return ''
     case CustomPropertyType.Number:
-      return previous.trim() !== '' && Number.isFinite(Number(previous)) ? previous : ''
+      return isNumber(previous) ? previous : ''
     case CustomPropertyType.Text:
       return previous
   }

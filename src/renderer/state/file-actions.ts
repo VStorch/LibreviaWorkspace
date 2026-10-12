@@ -2,7 +2,7 @@ import { DocumentKind, PlainTextChoice, type LossInventory } from '@shared/types
 import { DEFAULT_PAGE_SETUP, createEmptyDocument, type DocumentModel } from '@services/document/model.js'
 import { documentToPlainText, hasRichFormatting, plainTextToDocument } from '@services/document/plain-text.js'
 import { parseDocument, serializeDocument } from '@services/document/serialize.js'
-import { stampProperties, w3cdtf } from '@services/file/properties.js'
+import { stampProperties, w3cdtf, type DocumentStatistics } from '@services/file/properties.js'
 import { BUILTIN_STYLES } from '@services/document/styles.js'
 import { createEmptyWorkbook } from '@services/spreadsheet/model.js'
 import { parseWorkbook, serializeWorkbook } from '@services/spreadsheet/serialize.js'
@@ -159,7 +159,7 @@ function createSaveActions(
 
     const model = ctx.currentModel()
     if (isPlainTextPath(path)) return documentToPlainText(model.doc)
-    return serializeDocument(isWordPackagePath(path) ? withStatistics(model, get()) : model)
+    return serializeDocument(model, isWordPackagePath(path) ? statisticsToSave(model, get()) : undefined)
   }
 
   /** Nothing is lost silently. */
@@ -285,16 +285,15 @@ function stampForSave(set: SetWorkspace, get: GetWorkspace): void {
 
 /**
  * Only for Word and only after the text changed: with only the properties edited, `app.xml` goes
- * back byte for byte. Not in the state, so a `.sdoc` never carries counts that would go stale.
+ * back byte for byte.
  */
-function withStatistics(model: DocumentModel, state: WorkspaceState): DocumentModel {
-  if (!state.textEdited && state.file?.path !== null) return model
-  const statistics = documentStatistics(model.doc, {
+function statisticsToSave(model: DocumentModel, state: WorkspaceState): DocumentStatistics | undefined {
+  if (!state.textEdited && state.file?.path !== null) return undefined
+  return documentStatistics(model.doc, {
     pages: state.pageCount,
     words: state.stats.words,
     charactersWithSpaces: state.stats.characters,
   })
-  return { ...model, properties: { ...model.properties, statistics } }
 }
 
 /** What opening a file says about what it lost or hides. */
