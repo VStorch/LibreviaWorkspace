@@ -94,12 +94,12 @@ Ele também:
 | **Página** | folhas de verdade na tela, cabeçalho, rodapé, numeração de página, margens, orientação, zoom de 50 % a 200 % |
 | **Seções e colunas** | cada seção com o próprio papel e as próprias margens; texto em colunas |
 | **Tabelas e imagens** | inserir e editar; cabeçalho de tabela repetido em cada folha; imagens ancoradas no texto |
-| **Referências** | painel de navegação, sumário, marcadores, legendas e referência cruzada |
+| **Referências** | painel de navegação, sumário, marcadores, legendas, referência cruzada e campos que mostram as propriedades no texto |
 | **Notas** | notas de rodapé e de fim, editadas no pé da própria folha |
 | **Revisão** | comentários com resposta e resolução; controle de alterações enquanto você digita; aceitar e rejeitar |
 | **Equações** | mostra as equações do Word e permite escrever novas em LaTeX |
 | **Modelos** | cria documentos a partir de modelos do Word (`.dotx`); quatro vêm com o aplicativo |
-| **Ferramentas** | ortografia em português sem internet, localizar e substituir, contar palavras, caracteres especiais, autocorreção tipográfica, propriedades do documento, inspetor de dados pessoais |
+| **Ferramentas** | ortografia em português sem internet, localizar e substituir, contar palavras, caracteres especiais, autocorreção tipográfica, propriedades do documento (inclusive as personalizadas), inspetor de dados pessoais |
 
 ### Planilhas
 
@@ -114,7 +114,8 @@ Ele também:
 
 | Área | O que entrega |
 | --- | --- |
-| **PDF e impressão** | documentos e planilhas, com cabeçalho, rodapé, numeração, margens e orientação |
+| **PDF e impressão** | documentos e planilhas, com cabeçalho, rodapé, numeração, margens e orientação; o PDF exportado leva as propriedades |
+| **Leitor de PDF** | abre PDFs, inclusive protegidos por senha; edita as propriedades e avisa quantas versões anteriores o arquivo guarda |
 | **Exportar** | documento para PDF, HTML, Markdown e ODT |
 | **Recuperação** | rascunho a cada oito segundos, oferecido de volta depois de uma queda |
 | **Somente leitura** | só trava o arquivo quando editar pode apagar algo importante dele |
@@ -136,7 +137,7 @@ Ele também:
 | `.sdoc` | ✅ | ✅ | documento do Librevia; guarda tudo, sem perda |
 | `.ssheet` | ✅ | ✅ | planilha do Librevia; guarda tudo, sem perda |
 | `.txt` | ✅ | ✅ | só texto; salvar nele descarta a formatação, e o app avisa antes |
-| `.pdf` | 👁️ | exporta | abre só para ler, com página, zoom e busca do próprio app; exporta documentos e planilhas |
+| `.pdf` | 👁️ | exporta | abre para ler, com página, zoom, busca e senha; o texto não se edita, mas título, autor, assunto e palavras-chave sim; exporta documentos e planilhas |
 | `.html`, `.md` | — | exporta | documento numa página só, ou em Markdown com as imagens numa pasta ao lado |
 | `.odt` | — | exporta | documento no formato do LibreOffice |
 
@@ -248,6 +249,21 @@ A limpeza trabalha parte por parte no pacote: um documento sem miniatura nem nom
 comentários; os pixels, o perfil de cor e a orientação ficam. Os autores viram "Autor", como no
 Word, e o arquivo guarda o pedido de não gravar nomes (`w:removePersonalInformation` no Word,
 `filterPrivacy` no Excel), que o Word, o Excel e o Librevia respeitam nas próximas gravações.
+
+</details>
+
+<details>
+<summary><b>As propriedades também</b></summary>
+
+As propriedades moram em três partes do pacote: o resumo em `docProps/core.xml`, a empresa, o
+gerente e as estatísticas em `docProps/app.xml`, e as personalizadas em `docProps/custom.xml`.
+Mudar só o status regrava só o `core.xml`; as outras duas voltam byte a byte.
+
+As estatísticas (páginas, palavras, caracteres e parágrafos) só são gravadas quando o texto mudou.
+Se você só trocou o título, o `app.xml` fica como estava, com os números que o Word escreveu.
+
+Um campo `DOCPROPERTY "Cliente"` no texto mostra o valor da propriedade. Ao clicar em **Aplicar**
+nas propriedades, o Librevia atualiza esses campos, e o Word faz o mesmo com `F9`.
 
 </details>
 
@@ -471,7 +487,7 @@ importam e do que cada uma guarda.
 | [`document/`](src/services/document) | modelo do documento, `.sdoc`, estilos, paginação, listas, campos, notas, equações (LaTeX e MathML), exportação HTML, Markdown e ODT |
 | [`spreadsheet/`](src/services/spreadsheet) | modelo da planilha, `.ssheet`, edição, preenchimento, formatação, estrutura |
 | [`spreadsheet/formula/`](src/services/spreadsheet/formula) | fórmulas: leitura, avaliação, recálculo, ajuste de referências e as 52 funções |
-| [`file/`](src/services/file) | extensões aceitas e o inventário do que um arquivo pode perder |
+| [`file/`](src/services/file) | extensões aceitas, propriedades do documento, dados pessoais e o inventário do que um arquivo pode perder |
 | [`pdf/`](src/services/pdf) | configuração de página, nas unidades que o Chromium espera |
 | [`spell/`](src/services/spell) | dicionário do usuário |
 
@@ -481,7 +497,7 @@ importam e do que cada uma guarda.
 | --- | --- |
 | [`Program.cs`](sidecar/src/Librevia.Format/Program.cs), [`Server.cs`](sidecar/src/Librevia.Format/Server.cs) | laço que recebe pedidos pelo stdin e responde pelo stdout |
 | [`Protocol/`](sidecar/src/Librevia.Format/Protocol) | formato dos quadros e das mensagens |
-| [`Docx/`](sidecar/src/Librevia.Format/Docx) | 48 arquivos: leitores (`DocxReader`, `BodyReader`, `StyleReader`, `NotesReader`…), escritores (`DocxWriter`, `ParagraphWriter`, `SectionWriter`…), equações (`OmmlMath`), revisões, modelos e o `Inventory` |
+| [`Docx/`](sidecar/src/Librevia.Format/Docx) | 50 arquivos: leitores (`DocxReader`, `BodyReader`, `StyleReader`, `NotesReader`…), escritores (`DocxWriter`, `ParagraphWriter`, `SectionWriter`…), equações (`OmmlMath`), revisões, modelos, propriedades (`DocumentProperties`, `CustomProperties`) e o `Inventory` |
 | [`Xlsx/`](sidecar/src/Librevia.Format/Xlsx) | leitura e escrita de planilhas e formatos numéricos |
 | [`Pdf/`](sidecar/src/Librevia.Format/Pdf) | leitura da estrutura de um PDF e atualização incremental do título, autor, assunto e palavras-chave |
 | [`Privacy/`](sidecar/src/Librevia.Format/Privacy) | o inspetor de dados pessoais: acha e remove nomes, pastas, propriedades personalizadas, a miniatura e os metadados das imagens de um DOCX ou XLSX |
@@ -905,6 +921,7 @@ português; commits em inglês, no padrão
 | **Tamanho** | arquivos acima de 20 MB não abrem |
 | **Comentários** | o texto do comentário é só texto puro; formatação nele vira perda declarada se editado |
 | **Controle de alterações** | mudanças de formatação são preservadas, mas não registradas como revisão |
+| **Campos de propriedade** | atualizados só no corpo do texto; no cabeçalho e no rodapé, ainda não |
 | **Equações** | usam a fonte de matemática do sistema; alguns comandos LaTeX, como `\,` e `aligned`, não voltam iguais do formato do Word |
 
 A lista completa de diferenças conhecidas, com o que fazer em cada caso, está no
