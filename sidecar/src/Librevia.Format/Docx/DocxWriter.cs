@@ -147,7 +147,7 @@ public static class DocxWriter
         // Only band parts that changed enter the writable list.
         touched.UnionWith(BandWriter.Apply(part, [.. model.Sections ?? [], model.Page], inventory, aliases));
 
-        // `docProps/custom.xml` is never touched.
+        // `docProps/custom.xml` only when its properties changed.
         DocumentProperties.Apply(document, model.Properties, touched);
 
         part.Document!.Save();

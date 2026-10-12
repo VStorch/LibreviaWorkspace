@@ -52,7 +52,11 @@ public sealed record PropertiesDto(
     /// See <see cref="Privacy.PrivacyFlag"/>. Only true is a patch: saving never clears the flag.
     [property: JsonPropertyName("removePersonalInformation")]
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    bool? RemovePersonalInformation = null);
+    bool? RemovePersonalInformation = null,
+    /// <c>docProps/custom.xml</c>: null leaves the part as it is; a list replaces it.
+    [property: JsonPropertyName("custom")]
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    List<CustomPropertyDto>? Custom = null);
 
 /// <summary>
 /// Through the raw XML: the SDK's <c>PackageProperties</c> reserializes <c>core.xml</c> and drops
@@ -94,7 +98,8 @@ internal static class DocumentProperties
         var core = Load(CorePart(document))?.Root;
         var app = Load(AppPart(document))?.Root;
         var anonymous = Privacy.PrivacyFlag.IsSet(Load(FlagPart(document)));
-        if (core is null && app is null && !anonymous) return null;
+        var custom = CustomProperties.Read(document);
+        if (core is null && app is null && !anonymous && custom is null) return null;
 
         // Empty means absent, not "clear": the new package's `<dc:creator/>` stays.
         string? Text(XElement? root, XName name) =>
@@ -120,7 +125,8 @@ internal static class DocumentProperties
             Company: Text(app, Ep + "Company"),
             Manager: Text(app, Ep + "Manager"),
             TotalTime: totalTime,
-            RemovePersonalInformation: anonymous ? true : null);
+            RemovePersonalInformation: anonymous ? true : null,
+            Custom: custom is { Count: > 0 } ? custom : null);
 
         return read == new PropertiesDto() ? null : read;
     }
@@ -162,6 +168,7 @@ internal static class DocumentProperties
         }
 
         if (model.RemovePersonalInformation == true) ApplyFlag(document, touched);
+        CustomProperties.Apply(document, model.Custom, touched);
     }
 
     /// <summary>
