@@ -43,6 +43,16 @@ public sealed class Server(Stream input, Stream output)
                 var (bytes, result) = Xlsx.XlsxWriter.Write(original, model);
                 return Task.FromResult(new Reply(result, bytes));
             },
+            ["pdf.inspect"] = static (_, binary, _) =>
+                Task.FromResult(Reply.Of(Pdf.PdfMetadata.Inspect(binary.ToArray()))),
+            // Only the bytes to append: main writes them after the original, which stays as it was.
+            ["pdf.setMetadata"] = static (request, binary, _) =>
+            {
+                var patch = request.Params.Deserialize<Docx.PropertiesDto>(JsonOptions.Default)
+                            ?? throw new Pdf.PdfException("As propriedades a gravar chegaram vazias.");
+                var update = Pdf.PdfMetadata.Update(binary.ToArray(), patch);
+                return Task.FromResult(new Reply(new { appended = update.Length }, update));
+            },
         };
 
     public sealed record Reply(object? Result, ReadOnlyMemory<byte> Binary)
@@ -112,6 +122,13 @@ public sealed class Server(Stream input, Stream output)
             await RespondErrorAsync(
                 request?.Id ?? 0,
                 new ErrorPayload("XLSX_INVALID", problem.Message),
+                cancellation).ConfigureAwait(false);
+        }
+        catch (Pdf.PdfException problem)
+        {
+            await RespondErrorAsync(
+                request?.Id ?? 0,
+                new ErrorPayload("PDF_INVALID", problem.Message),
                 cancellation).ConfigureAwait(false);
         }
         catch (Exception problem) when (problem is not OperationCanceledException)

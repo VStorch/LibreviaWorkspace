@@ -123,6 +123,8 @@ export const SidecarMethod = {
   DocxCreate: 'docx.create',
   XlsxOpen: 'xlsx.open',
   XlsxSave: 'xlsx.save',
+  PdfInspect: 'pdf.inspect',
+  PdfSetMetadata: 'pdf.setMetadata',
 } as const
 
 export type SidecarMethod = (typeof SidecarMethod)[keyof typeof SidecarMethod]
