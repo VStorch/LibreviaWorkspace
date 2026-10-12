@@ -4,6 +4,7 @@ import { registerEditingHandlers } from './ipc/editing.js'
 import { registerFileHandlers } from './ipc/file.js'
 import { registerExportHandlers } from './ipc/export.js'
 import { registerPdfHandlers } from './ipc/pdf.js'
+import { registerPrivacyHandlers } from './ipc/privacy.js'
 import { registerPrintHandlers } from './ipc/print.js'
 import { registerRecoveryHandlers } from './ipc/recovery.js'
 import { registerTemplateHandlers } from './ipc/templates.js'
@@ -60,6 +61,7 @@ if (!app.requestSingleInstanceLock()) {
     registerFileHandlers()
     registerPrintHandlers()
     registerPdfHandlers()
+    registerPrivacyHandlers()
     registerExportHandlers()
     registerRecoveryHandlers()
     registerTemplateHandlers()

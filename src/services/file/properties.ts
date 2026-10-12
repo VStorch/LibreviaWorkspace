@@ -23,6 +23,11 @@ export interface DocumentProperties {
   readonly manager?: string
   /** `TotalTime` from `app.xml`, in minutes. Read only: the editor does not measure it. */
   readonly totalTime?: number
+  /**
+   * Word's `w:removePersonalInformation`, Excel's `filterPrivacy`: saving signs nothing with the
+   * person's name. Set by the personal data inspector.
+   */
+  readonly removePersonalInformation?: boolean
 }
 
 /** Without milliseconds, as Word writes `dcterms:created` and `dcterms:modified`. */
@@ -51,7 +56,7 @@ export function stampProperties(
   if (!stamp.edited && !stamp.fresh) return current
 
   const when = w3cdtf(stamp.now)
-  const author = stamp.author.trim()
+  const author = current?.removePersonalInformation === true ? '' : stamp.author.trim()
 
   return {
     ...current,

@@ -4,6 +4,7 @@ import { createWorkspaceContext } from './context.js'
 import { createDraftActions } from './draft-actions.js'
 import { createFileActions } from './file-actions.js'
 import { createPrintActions } from './print-actions.js'
+import { createPrivacyActions } from './privacy-actions.js'
 import { createSheetActions } from './sheet-actions.js'
 import type { WorkspaceState } from './types.js'
 
@@ -49,6 +50,7 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
     pendingDraft: null,
     readOnly: false,
     templateGallery: false,
+    inspector: false,
     autosaveBroken: false,
     busy: false,
 
@@ -77,10 +79,12 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
     showError: (error) => set({ error }),
     allowEditing: () => set({ readOnly: false }),
     setTemplateGallery: (templateGallery) => set({ templateGallery }),
+    setInspector: (inspector) => set({ inspector }),
 
     ...createFileActions(set, get, ctx),
     ...createSheetActions(set, get),
     ...createDraftActions(set, get, ctx),
     ...createPrintActions(set, get, ctx),
+    ...createPrivacyActions(set, get, ctx),
   }
 })

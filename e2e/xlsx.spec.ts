@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, test, type Page } from '@playwright/test'
 import { launch, menu, stubDialogs, type Session } from './app.js'
+import { entryOf } from './fixtures.js'
 
 /**
  * The whole `.xlsx` path, which no unit test sees: React → IPC → main → formula translation →
@@ -86,6 +87,39 @@ test.describe('planilha em .xlsx', () => {
     // The save stamp: the first revision, and a date where there was none.
     await expect(dialog.getByRole('row', { name: /Revisão/ })).toContainText('1')
     await expect(dialog.getByRole('row', { name: /Modificado em/ })).not.toContainText('—')
+  })
+
+  test('o inspetor tira o autor da planilha e o .xlsx guarda o pedido de não gravar nomes', async () => {
+    const target = join(folder, 'orcamento.xlsx')
+    session = await launch()
+    await stubDialogs(session.app, { save: target, messageBox: 1 })
+
+    await menu(session, 'new-spreadsheet')
+    await gridReady(session.window)
+    await write(session.window, 0, 0, '3')
+    await menu(session, 'document-properties')
+    const properties = session.window.getByRole('dialog', { name: 'Propriedades da planilha' })
+    await properties.getByRole('textbox', { name: 'Autor(es)' }).fill('Ana Lima')
+    await properties.getByRole('button', { name: 'Aplicar' }).click()
+    await menu(session, 'save-as')
+    await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
+
+    await menu(session, 'inspect-document')
+    const inspector = session.window.getByRole('dialog', { name: 'Inspecionar documento' })
+    await expect(inspector).toContainText('Ana Lima')
+    await inspector.getByRole('button', { name: 'Remover' }).click()
+    await expect(inspector).toContainText('Removido.')
+    await inspector.getByRole('button', { name: 'Fechar' }).click()
+    await gridReady(session.window)
+    await expect(cell(session.window, 0, 0)).toHaveText('3')
+
+    await menu(session, 'save')
+    await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
+    expect(await entryOf(target, 'xl/workbook.xml')).toContain('filterPrivacy="1"')
+    // ClosedXML keeps a new spreadsheet's core properties outside `docProps/`: the dialog reads them.
+    await menu(session, 'document-properties')
+    await expect(properties.getByRole('textbox', { name: 'Autor(es)' })).toHaveValue('')
+    await expect(properties.getByRole('row', { name: /Modificado por/ })).toContainText('—')
   })
 })
 

@@ -111,6 +111,27 @@ modelos.
 Numa planilha é igual. As estatísticas contam as abas, as células preenchidas e as fórmulas. As
 propriedades vão para o `.xlsx` e o Excel as mostra em **Arquivo → Informações**.
 
+### Inspecionar documento
+
+Antes de mandar um arquivo para fora, **Arquivo → Inspecionar documento…** mostra o que ele
+revela além do conteúdo, e remove o que você marcar:
+
+- **Nomes de pessoas e da empresa**: autor, último a salvar, gerente, empresa e quem escreveu
+  cada comentário e alteração. Os autores passam a se chamar "Autor", como faz o Word, e o
+  arquivo passa a pedir que nada seja assinado com nome: comentários e alterações novos também
+  saem como "Autor", aqui, no Word e no Excel.
+- **Pastas do computador**: o caminho do modelo anexado a um documento do Word, ou a última pasta
+  onde o Excel salvou a planilha. Costumam trazer o nome do usuário, como `C:\Users\ana\...`.
+- **Propriedades personalizadas**: campos criados por pessoas ou por sistemas da empresa.
+- **Miniatura da primeira página**: a imagem que o gerenciador de arquivos mostra.
+- **Metadados das imagens**: os dados da câmera ou do programa guardados nas fotos JPEG e PNG,
+  às vezes com o local GPS. A imagem e a orientação ficam.
+
+Remover marca o arquivo como alterado: só **Salvar** grava a versão limpa, e fechar sem salvar
+deixa o arquivo como estava. Num `.docx` ou `.xlsx` com alterações não salvas, o inspetor pede
+para salvar antes, porque ele lê o arquivo como está gravado. Num `.sdoc` ou `.ssheet` só há
+nomes para remover.
+
 ---
 
 <a id="atalhos"></a>

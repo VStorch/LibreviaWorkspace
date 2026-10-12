@@ -103,6 +103,8 @@ export const MenuCommand = {
   PasteWithoutFormat: 'paste-without-format',
   WordCount: 'word-count',
   DocumentProperties: 'document-properties',
+  /** Names, folders and image metadata the file reveals; see `privacy.ts`. */
+  InspectDocument: 'inspect-document',
   SpecialCharacter: 'special-character',
   InsertEquation: 'insert-equation',
   InsertDisplayEquation: 'insert-display-equation',

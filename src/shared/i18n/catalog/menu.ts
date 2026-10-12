@@ -30,6 +30,7 @@ export const MENU = {
   'menu.file.exportMarkdown': { pt: 'Markdown…', en: 'Markdown…' },
   'menu.file.exportOdt': { pt: 'ODT…', en: 'ODT…' },
   'menu.file.properties': { pt: 'Propriedades…', en: 'Properties…' },
+  'menu.file.inspect': { pt: 'Inspecionar documento…', en: 'Inspect document…' },
   'menu.file.print': { pt: 'Imprimir…', en: 'Print…' },
   'menu.file.close': { pt: 'Fechar arquivo', en: 'Close file' },
   'menu.file.quit': { pt: 'Sair', en: 'Quit' },

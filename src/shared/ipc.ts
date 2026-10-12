@@ -13,7 +13,10 @@ import {
   editorPreferencesSchema,
   pageSetupSchema,
   pdfInspectionSchema,
+  privacyCategorySchema,
+  privacyReportSchema,
 } from './schemas.js'
+import { PRIVACY_CATEGORIES } from '@services/file/privacy.js'
 import { PDF_VIEWER_ORIGIN } from './constants.js'
 import { DictionaryScope, EditCommand, MenuCommand, RevisionView } from './types.js'
 import type { SerializedError } from './errors.js'
@@ -284,6 +287,18 @@ export const ipcContracts = {
     // Fields, never bytes: main writes the file, from what is on disk.
     request: z.object({ path: z.string().min(1).max(MAX_PATH_LENGTH), properties: documentPropertiesSchema }),
     response: z.object({ saved: z.literal(true) }),
+  },
+  [IpcChannel.PrivacyInspect]: {
+    request: z.object({ path: z.string().min(1).max(MAX_PATH_LENGTH) }),
+    response: privacyReportSchema,
+  },
+  [IpcChannel.PrivacyRemove]: {
+    request: z.object({
+      path: z.string().min(1).max(MAX_PATH_LENGTH),
+      categories: z.array(privacyCategorySchema).min(1).max(PRIVACY_CATEGORIES.length),
+    }),
+    // The file reread from the clean copy, as opening returns it.
+    response: z.object({ content: z.string(), inventory: inventorySchema.optional() }),
   },
   [IpcChannel.PreferencesGet]: {
     request: emptyRequest,

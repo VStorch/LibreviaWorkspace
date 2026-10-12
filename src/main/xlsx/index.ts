@@ -69,7 +69,11 @@ export async function openXlsx(client: SidecarClient, path: string): Promise<Ope
   } catch (cause) {
     throw fromFileSystemError(cause, 'leitura', editorPreferences().language)
   }
+  return decodeXlsx(client, path, bytes)
+}
 
+/** See `decodeDocx`. */
+export async function decodeXlsx(client: SidecarClient, path: string, bytes: Buffer): Promise<OpenedXlsx> {
   // The two timings say whether the delay was the sidecar's or the conversion's.
   const startedAt = Date.now()
   const reply = await client.request(SidecarMethod.XlsxOpen, {}, new Uint8Array(bytes))

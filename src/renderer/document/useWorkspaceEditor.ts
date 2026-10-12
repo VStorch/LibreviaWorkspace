@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react'
 import { useEditor, type Editor } from '@tiptap/react'
 import { currentPreferences } from '../state/preferences.js'
+import { signingName } from '../state/signature.js'
 import { useWorkspace } from '../state/workspace.js'
 import { t as translateNow } from '../i18n.js'
 import { buildEditorExtensions } from './editor-extensions.js'
@@ -33,7 +34,7 @@ export function useWorkspaceEditor(): WorkspaceEditor {
       notes: () => useWorkspace.getState().notes,
       isTrackingChanges: () => useWorkspace.getState().trackChanges === true,
       // `w:author` is mandatory: without a name, a generic author, as in Word.
-      revisionAuthor: () => currentPreferences().authorName.trim() || translateNow('revisions.unknownAuthor'),
+      revisionAuthor: () => signingName() || translateNow('revisions.unknownAuthor'),
     }),
     content: initialDoc,
     onUpdate: ({ editor: current, transaction }) => {

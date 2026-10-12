@@ -5,6 +5,7 @@ import { DIALOG } from './dialog.js'
 import { DOCUMENT } from './document.js'
 import { ERRORS } from './errors.js'
 import { MENU } from './menu.js'
+import { PRIVACY } from './privacy.js'
 import { REFERENCES } from './references.js'
 import { REVISIONS } from './revisions.js'
 import { SHELL } from './shell.js'
@@ -29,6 +30,7 @@ export const MESSAGES = {
   ...REFERENCES,
   ...COMMENTS,
   ...REVISIONS,
+  ...PRIVACY,
 } as const
 
 export type MessageKey = keyof typeof MESSAGES
@@ -47,4 +49,5 @@ export const AREAS: Readonly<Record<string, Readonly<Record<string, Entry>>>> = 
   references: REFERENCES,
   comments: COMMENTS,
   revisions: REVISIONS,
+  privacy: PRIVACY,
 }

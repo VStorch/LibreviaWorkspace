@@ -68,10 +68,7 @@ function createOpenActions(set: SetWorkspace, get: GetWorkspace, ctx: WorkspaceC
 
     try {
       ctx.show(interpret(opened))
-      set({
-        notice: hasReportableLoss(opened.inventory) ? (opened.inventory ?? null) : null,
-        readOnly: locksEditing(opened.inventory),
-      })
+      set(openedNotice(opened.inventory))
     } catch (cause) {
       set({ error: toSerialized(cause) })
       return false
@@ -284,8 +281,18 @@ function stampForSave(set: SetWorkspace, get: GetWorkspace): void {
   if (stamped !== state.properties) set({ properties: stamped })
 }
 
+/** What opening a file says about what it lost or hides. */
+export function openedNotice(
+  inventory: LossInventory | undefined,
+): Pick<WorkspaceState, 'notice' | 'readOnly'> {
+  return {
+    notice: hasReportableLoss(inventory) ? (inventory ?? null) : null,
+    readOnly: locksEditing(inventory),
+  }
+}
+
 /** `.xlsx` arrives converted in the `.ssheet` envelope: the extension picks the editor. */
-function interpret(opened: OpenedFile): LoadedFile {
+export function interpret(opened: OpenedFile): LoadedFile {
   const kind = kindFromPath(opened.path)
   // A Word template opens without a path, so "save" never writes over it.
   const file: OpenFile =

@@ -35,6 +35,16 @@ describe('carimbo das propriedades na gravação', () => {
     })
   })
 
+  it('o arquivo que pede para não guardar nomes não é assinado', () => {
+    const stamped = stampProperties(
+      { removePersonalInformation: true, creator: '' },
+      { author: 'Ana', now, fresh: true, edited: true },
+    )
+    expect(stamped?.creator).toBe('')
+    expect(stamped?.lastModifiedBy).toBeUndefined()
+    expect(stamped?.modified).toBe('2026-10-02T12:34:56Z')
+  })
+
   it('sem nome de autor, não assina', () => {
     const stamped = stampProperties({}, { author: '', now, fresh: true, edited: true })
     expect(stamped?.creator).toBeUndefined()

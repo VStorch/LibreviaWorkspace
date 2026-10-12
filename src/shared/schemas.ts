@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import type { DocumentNode } from '@services/document/model.js'
 import { MAX_ZOOM, MIN_ZOOM } from '@services/document/zoom.js'
+import { PRIVACY_CATEGORIES } from '@services/file/privacy.js'
 import { Language, LANGUAGES } from './i18n/language.js'
 import { Theme } from './types.js'
 import {
@@ -11,6 +12,7 @@ import {
   MAX_ID_LENGTH,
   MAX_IMAGE_SIDE_PX,
   MAX_NAME_LENGTH,
+  MAX_PATH_LENGTH,
   MAX_PROPERTY_LENGTH,
   MAX_SECTION_COLUMNS,
   MAX_START_NUMBER,
@@ -227,6 +229,7 @@ export const documentPropertiesSchema = z.object({
   company: propertyText,
   manager: propertyText,
   totalTime: z.number().int().min(0).max(1_000_000_000).optional(),
+  removePersonalInformation: z.boolean().optional(),
 })
 
 /**
@@ -240,6 +243,20 @@ export const pdfInspectionSchema = z.object({
   properties: documentPropertiesSchema.optional(),
   application: propertyText,
   producer: propertyText,
+})
+
+export const privacyCategorySchema = z.enum(PRIVACY_CATEGORIES)
+
+const MAX_PRIVACY_ITEMS = 500
+
+/** What the sidecar finds in a DOCX or XLSX, and the editor in a model of its own. */
+export const privacyReportSchema = z.object({
+  names: z.array(propertyText.unwrap()).max(MAX_PRIVACY_ITEMS),
+  paths: z.array(z.string().max(MAX_PATH_LENGTH)).max(MAX_PRIVACY_ITEMS),
+  customProperties: z.array(propertyText.unwrap()).max(MAX_PRIVACY_ITEMS),
+  thumbnail: z.boolean(),
+  imagesWithMetadata: z.number().int().nonnegative(),
+  removePersonalInformation: z.boolean(),
 })
 
 /**

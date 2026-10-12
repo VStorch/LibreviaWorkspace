@@ -62,9 +62,11 @@ import { propertiesOf } from '@services/file/properties.js'
  * - **11**: **equations**: the `math` node, with the file's OMML inside and the MathML the screen
  *   draws. An older draft has no node (the equation was hidden in the paragraph), and reading marks
  *   it (`beforeMath`) for the same reason as version 4.
+ * - **12**: `properties.removePersonalInformation`, set by the personal data inspector. An older
+ *   draft lacks it, and saving signs with the author's name as before.
  */
 export const SDOC_FORMAT = 'sdoc'
-export const SDOC_VERSION = 11
+export const SDOC_VERSION = 12
 
 /** Content is only validated in shape; the fine structure is ProseMirror's. */
 const documentNodeSchema: z.ZodType<DocumentNode> = z.looseObject({

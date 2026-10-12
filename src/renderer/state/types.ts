@@ -9,6 +9,7 @@ import type {
   SectionSetup,
 } from '@services/document/model.js'
 import type { DocumentProperties } from '@services/file/properties.js'
+import type { PrivacyCategory, PrivacyReport } from '@services/file/privacy.js'
 import type { PagedDocument } from '@services/document/print-pages.js'
 import type { StyleSheet } from '@services/document/styles.js'
 import type { Sheet, WorkbookModel } from '@services/spreadsheet/model.js'
@@ -132,6 +133,13 @@ export interface WorkspaceState {
   openRecent: (path: string) => Promise<void>
   templateGallery: boolean
   setTemplateGallery: (open: boolean) => void
+  /** File → Inspect document. */
+  inspector: boolean
+  setInspector: (open: boolean) => void
+  /** `null` when inspecting failed; the error is already on screen. */
+  inspectPersonalData: () => Promise<PrivacyReport | null>
+  /** Marks the file modified: only saving writes the clean version. */
+  removePersonalData: (categories: readonly PrivacyCategory[]) => Promise<boolean>
   /** `null` browses for a `.dotx`. Returns whether the new document reached the screen. */
   newFromTemplate: (
     template: { readonly source: 'builtin' | 'user'; readonly id: string } | null,

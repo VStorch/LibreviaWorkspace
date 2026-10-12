@@ -282,6 +282,7 @@ function fileMenu(recent: MenuItemConstructorOptions[]): MenuItemConstructorOpti
         ],
       },
       commandItem('menu.file.properties', MenuCommand.DocumentProperties),
+      commandItem('menu.file.inspect', MenuCommand.InspectDocument),
       commandItem('menu.file.print', MenuCommand.Print, acceleratorOf(SHORTCUTS.print)),
       { type: 'separator' },
       commandItem('menu.file.close', MenuCommand.CloseFile, acceleratorOf(SHORTCUTS.closeFile)),

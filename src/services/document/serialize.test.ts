@@ -201,13 +201,18 @@ describe('estilos no formato interno', () => {
     expect(legacy.beforeNotes).toBe(true)
   })
 
+  it('guarda o pedido de não gravar nomes nas propriedades', () => {
+    const properties = { creator: '', removePersonalInformation: true }
+    expect(parseDocument(serializeDocument({ ...richDocument, properties })).properties).toEqual(properties)
+  })
+
   it('marca como anterior às equações o arquivo da versão 10, e o atual não', () => {
     // Before equations there is no `math` node, and editing the paragraph loses the equation:
     // saving to DOCX says so.
     const v10 = JSON.stringify({ ...JSON.parse(v2(BUILTIN_STYLES)), version: 10 })
     expect(parseDocument(v10).beforeMath).toBe(true)
     expect(parseDocument(v10).beforeNotes).toBeUndefined()
-    expect(JSON.parse(serializeDocument(richDocument)).version).toBe(11)
+    expect(JSON.parse(serializeDocument(richDocument)).version).toBe(SDOC_VERSION)
     expect(parseDocument(serializeDocument(richDocument)).beforeMath).toBeUndefined()
 
     const legacy = parseDocument(serializeDocument({ ...richDocument, beforeMath: true }))

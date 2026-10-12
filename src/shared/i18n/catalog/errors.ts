@@ -190,6 +190,20 @@ export const ERRORS = {
     en: 'This PDF is too large to change its properties (current limit: {limit} MB). It stays open for reading.',
   },
 
+  'errors.privacy.cannotInspect': {
+    pt: 'Não foi possível inspecionar este arquivo.',
+    en: 'Could not inspect this file.',
+  },
+  'errors.privacy.cannotRemove': {
+    pt: 'Não foi possível remover os dados pessoais. O arquivo não foi alterado.',
+    en: 'Could not remove the personal data. The file was not modified.',
+  },
+  'errors.privacy.contract': { pt: 'package.* fora do contrato', en: 'package.* out of contract' },
+  'errors.privacy.onlyPackages': {
+    pt: 'Só documentos do Word e planilhas do Excel passam pelo inspetor.',
+    en: 'Only Word documents and Excel spreadsheets go through the inspector.',
+  },
+
   'errors.xlsx.cannotRead': {
     pt: 'Não foi possível ler esta planilha do Excel. O arquivo pode estar danificado.',
     en: 'Could not read this Excel spreadsheet. The file may be damaged.',

@@ -95,7 +95,11 @@ export async function openDocx(client: SidecarClient, path: string): Promise<Ope
   } catch (cause) {
     throw fromFileSystemError(cause, 'leitura', editorPreferences().language)
   }
+  return decodeDocx(client, path, bytes)
+}
 
+/** Also for bytes that never reached the disk, like the personal data inspector's clean copy. */
+export async function decodeDocx(client: SidecarClient, path: string, bytes: Buffer): Promise<OpenedDocx> {
   const reply = await client.request(SidecarMethod.DocxOpen, {}, new Uint8Array(bytes))
   const parsed = openResultSchema.safeParse(reply.result)
   if (!parsed.success) {

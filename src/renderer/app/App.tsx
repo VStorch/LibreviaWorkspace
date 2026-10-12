@@ -3,6 +3,7 @@ import { DocumentKind, MenuCommand } from '@shared/types.js'
 import { buildWindowTitle } from '@services/file/formats.js'
 import type { WorkbookModel } from '@services/spreadsheet/model.js'
 import { ErrorBanner } from '../components/ErrorBanner.js'
+import { PrivacyInspector } from '../components/PrivacyInspector.js'
 import { InventoryBanner } from '../components/InventoryBanner.js'
 import { ReadOnlyBanner } from '../components/ReadOnlyBanner.js'
 import { RecoveryBanner } from '../components/RecoveryBanner.js'
@@ -61,6 +62,7 @@ const MENU_ACTIONS: Partial<Record<MenuCommand, MenuAction>> = {
   [MenuCommand.SaveAndExit]: async (workspace) => {
     if (await workspace.save()) await window.api.window.close({})
   },
+  [MenuCommand.InspectDocument]: (workspace) => workspace.setInspector(workspace.file !== null),
   [MenuCommand.ExportPdf]: (workspace) => workspace.exportPdf(),
   [MenuCommand.ExportHtml]: (workspace) => workspace.exportDocument('html'),
   [MenuCommand.ExportMarkdown]: (workspace) => workspace.exportDocument('markdown'),
@@ -77,6 +79,7 @@ export function App(): React.JSX.Element {
   const hasFile = useWorkspace((state) => state.file !== null)
   const viewedPdf = useWorkspace((state) => (state.file?.kind === DocumentKind.Pdf ? state.file.path : null))
   const templateGallery = useWorkspace((state) => state.templateGallery)
+  const inspector = useWorkspace((state) => state.inspector && state.file !== null)
   // The editor is remounted for each document, with no leftover state.
   const generation = useWorkspace((state) => state.generation)
   const workbook = useWorkspace((state) => state.workbook)
@@ -111,6 +114,7 @@ export function App(): React.JSX.Element {
       {/* Word count and page number are tools for writing. */}
       {hasFile && !reading && showStatusBar && <StatusBar />}
       {templateGallery && <TemplateGallery />}
+      {inspector && <PrivacyInspector />}
     </div>
   )
 }

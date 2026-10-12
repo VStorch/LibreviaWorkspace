@@ -3,6 +3,7 @@ import type { DocumentComment } from '@services/document/model.js'
 import { initialsOf, nextCommentId, paragraphsOfText, resolveComments } from '@services/document/comments.js'
 import { t } from '../i18n.js'
 import { currentPreferences, setPreference } from '../state/preferences.js'
+import { signingName } from '../state/signature.js'
 import { useWorkspace } from '../state/workspace.js'
 import {
   adjacentComment,
@@ -31,7 +32,7 @@ export function commentEditsAllowed(): boolean {
 }
 
 function newComment(library: readonly DocumentComment[], parentId?: string): DocumentComment {
-  const author = currentPreferences().authorName.trim()
+  const author = signingName()
   const initials = initialsOf(author)
   return {
     id: nextCommentId(library),

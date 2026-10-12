@@ -99,7 +99,7 @@ Ele também:
 | **Revisão** | comentários com resposta e resolução; controle de alterações enquanto você digita; aceitar e rejeitar |
 | **Equações** | mostra as equações do Word e permite escrever novas em LaTeX |
 | **Modelos** | cria documentos a partir de modelos do Word (`.dotx`); quatro vêm com o aplicativo |
-| **Ferramentas** | ortografia em português sem internet, localizar e substituir, contar palavras, caracteres especiais, autocorreção tipográfica, propriedades do documento |
+| **Ferramentas** | ortografia em português sem internet, localizar e substituir, contar palavras, caracteres especiais, autocorreção tipográfica, propriedades do documento, inspetor de dados pessoais |
 
 ### Planilhas
 
@@ -232,6 +232,22 @@ está em jogo**. Um clique em "Editar mesmo assim" libera aquele arquivo, e só 
 A classificação mora em `Inventory.cs`. Os rótulos são **constantes** usadas pelos leitores
 do formato. Se fossem frases soltas, mudar uma delas num lugar faria o documento abrir
 editável sem ninguém perceber. Como são constantes, o compilador não deixa.
+
+</details>
+
+<details>
+<summary><b>O inspetor de dados pessoais segue a mesma regra</b></summary>
+
+**Arquivo → Inspecionar documento** acha o que o arquivo revela além do conteúdo: os nomes das
+propriedades e dos autores de comentários e alterações, a pasta do modelo anexado (no Excel, a
+última pasta onde a planilha foi salva), as propriedades personalizadas, a miniatura e o EXIF das
+fotos, que pode trazer o local GPS.
+
+A limpeza trabalha parte por parte no pacote: um documento sem miniatura nem nomes em
+`word/document.xml` sai com essa parte idêntica byte a byte. Numa foto, sai o EXIF, o XMP e os
+comentários; os pixels, o perfil de cor e a orientação ficam. Os autores viram "Autor", como no
+Word, e o arquivo guarda o pedido de não gravar nomes (`w:removePersonalInformation` no Word,
+`filterPrivacy` no Excel), que o Word, o Excel e o Librevia respeitam nas próximas gravações.
 
 </details>
 
@@ -468,6 +484,7 @@ importam e do que cada uma guarda.
 | [`Docx/`](sidecar/src/Librevia.Format/Docx) | 48 arquivos: leitores (`DocxReader`, `BodyReader`, `StyleReader`, `NotesReader`…), escritores (`DocxWriter`, `ParagraphWriter`, `SectionWriter`…), equações (`OmmlMath`), revisões, modelos e o `Inventory` |
 | [`Xlsx/`](sidecar/src/Librevia.Format/Xlsx) | leitura e escrita de planilhas e formatos numéricos |
 | [`Pdf/`](sidecar/src/Librevia.Format/Pdf) | leitura da estrutura de um PDF e atualização incremental do título, autor, assunto e palavras-chave |
+| [`Privacy/`](sidecar/src/Librevia.Format/Privacy) | o inspetor de dados pessoais: acha e remove nomes, pastas, propriedades personalizadas, a miniatura e os metadados das imagens de um DOCX ou XLSX |
 
 ---
 

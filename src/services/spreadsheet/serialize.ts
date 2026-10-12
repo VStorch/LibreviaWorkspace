@@ -11,8 +11,10 @@ export const SSHEET_FORMAT = 'ssheet'
  * - **1** — sheets, cells and the active tab.
  * - **2** — the file's **properties** (title, subject, author…). A version 1 file has none, and
  *   saving to XLSX then leaves the original's as they are.
+ * - **3** — `properties.removePersonalInformation`, set by the personal data inspector. A version 2
+ *   file lacks it, and saving signs with the author's name as before.
  */
-export const SSHEET_VERSION = 2
+export const SSHEET_VERSION = 3
 
 const cellStyleSchema = z.object({
   bold: z.boolean().optional(),

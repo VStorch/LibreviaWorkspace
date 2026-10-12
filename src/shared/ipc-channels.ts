@@ -69,6 +69,11 @@ export const IpcChannel = {
   /** Appends an incremental update to the open PDF; the original bytes stay. */
   PdfSaveProperties: 'pdf:save-properties',
 
+  /** Names, folders and image metadata in the saved DOCX or XLSX. */
+  PrivacyInspect: 'privacy:inspect',
+  /** The clean copy stays in memory, as the opened file: only saving writes it. */
+  PrivacyRemove: 'privacy:remove',
+
   PreferencesGet: 'prefs:get',
   /** Main stores and applies it. */
   PreferencesSet: 'prefs:set',
@@ -123,6 +128,8 @@ export const INVOCABLE_IPC_CHANNELS = [
   IpcChannel.PdfPrint,
   IpcChannel.PdfProperties,
   IpcChannel.PdfSaveProperties,
+  IpcChannel.PrivacyInspect,
+  IpcChannel.PrivacyRemove,
   IpcChannel.PreferencesGet,
   IpcChannel.PreferencesSet,
   IpcChannel.EditCommandRun,

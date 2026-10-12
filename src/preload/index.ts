@@ -69,6 +69,10 @@ const api: AppApi = {
     properties: (payload) => ipcRenderer.invoke(IpcChannel.PdfProperties, payload),
     saveProperties: (payload) => ipcRenderer.invoke(IpcChannel.PdfSaveProperties, payload),
   },
+  privacy: {
+    inspect: (payload) => ipcRenderer.invoke(IpcChannel.PrivacyInspect, payload),
+    remove: (payload) => ipcRenderer.invoke(IpcChannel.PrivacyRemove, payload),
+  },
   menu: {
     onCommand: (listener) => subscribe<MenuCommandPayload>(IpcChannel.MenuCommand, listener),
   },

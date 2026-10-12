@@ -69,6 +69,10 @@ export interface AppApi {
     properties: Call<typeof IpcChannel.PdfProperties>
     saveProperties: Call<typeof IpcChannel.PdfSaveProperties>
   }
+  readonly privacy: {
+    inspect: Call<typeof IpcChannel.PrivacyInspect>
+    remove: Call<typeof IpcChannel.PrivacyRemove>
+  }
   readonly menu: {
     onCommand(listener: (payload: MenuCommandPayload) => void): () => void
   }
