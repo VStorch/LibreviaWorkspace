@@ -31,6 +31,14 @@ internal sealed class PdfFile
 
     public int Size => (int)((Trailer["Size"] as PdfNumber)?.Integer ?? 0);
 
+    /// <summary>
+    /// How many incremental updates were appended. Each one leaves the previous revision in the
+    /// file, readable by anyone who looks; a linearized PDF starts with two sections of its own.
+    /// </summary>
+    public int Updates { get; }
+
+    private const int LinearizationWindow = 1024;
+
     public PdfFile(byte[] data)
     {
         _data = data;
@@ -50,6 +58,10 @@ internal sealed class PdfFile
         {
             previous = ReadSection(offset, out _)["Prev"];
         }
+
+        var linearized = data.AsSpan(0, Math.Min(data.Length, LinearizationWindow)).IndexOf("/Linearized"u8) >= 0;
+        var original = linearized ? 2 : 1;
+        Updates = Math.Max(0, visited.Count - original);
     }
 
     public string Version()

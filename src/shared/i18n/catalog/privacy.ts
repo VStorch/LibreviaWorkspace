@@ -53,6 +53,26 @@ export const PRIVACY = {
     pt: 'Este arquivo já pede para não guardar nomes: comentários e alterações novos saem como "{anonymous}".',
     en: 'This file already asks not to keep names: new comments and changes come out as "{anonymous}".',
   },
+  'privacy.pdfNamesDetail': {
+    pt: 'Autor nas propriedades: {names}. Para mudar, use Arquivo → Propriedades.',
+    en: 'Author in the properties: {names}. To change it, use File → Properties.',
+  },
+  'privacy.pdfVersions': {
+    pt: {
+      one: 'O arquivo guarda {count} versão anterior, de uma edição acrescentada no fim. Os leitores mostram só a última, mas a anterior continua no arquivo, com o autor e o título que tinha.',
+      other:
+        'O arquivo guarda {count} versões anteriores, de edições acrescentadas no fim. Os leitores mostram só a última, mas as anteriores continuam no arquivo, com o autor e o título que tinham.',
+    },
+    en: {
+      one: 'The file keeps {count} earlier version, from an edit appended at the end. Readers show only the latest, but the earlier one stays in the file, with the author and title it had.',
+      other:
+        'The file keeps {count} earlier versions, from edits appended at the end. Readers show only the latest, but the earlier ones stay in the file, with the authors and titles they had.',
+    },
+  },
+  'privacy.pdfNote': {
+    pt: 'O Librevia não apaga dados de um PDF: alterar acrescenta no fim e deixa o que havia antes. Para um PDF sem esses dados, exporte de novo a partir do documento original.',
+    en: 'Librevia does not erase data from a PDF: changing it appends to the end and keeps what was there. For a PDF without this data, export it again from the original document.',
+  },
   'privacy.remove': { pt: 'Remover', en: 'Remove' },
   'privacy.removed': {
     pt: 'Removido. Salve o arquivo para gravar a versão sem esses dados; fechar sem salvar mantém o arquivo como estava.',

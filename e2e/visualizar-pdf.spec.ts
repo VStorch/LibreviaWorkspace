@@ -173,6 +173,24 @@ test('as propriedades do PDF vão para o fim do arquivo, e o que já existia fic
   await expect(dialog.getByRole('row', { name: /Modificado em/ })).not.toContainText('—')
 })
 
+test('o inspetor de um PDF mostra o autor e avisa que a versão anterior continua no arquivo', async () => {
+  await openPdf(file)
+  await expect(pageText()).toContainText('Relatorio anual')
+  await menu(session, 'document-properties')
+  const properties = session.window.getByRole('dialog', { name: 'Propriedades do PDF' })
+  await properties.getByRole('textbox', { name: 'Autor(es)' }).fill('Ana Lima')
+  await properties.getByRole('button', { name: 'Aplicar' }).click()
+  await menu(session, 'save')
+  await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
+
+  await menu(session, 'inspect-document')
+  const inspector = session.window.getByRole('dialog', { name: 'Inspecionar documento' })
+  await expect(inspector).toContainText('Ana Lima')
+  await expect(inspector).toContainText('1 versão anterior')
+  await expect(inspector).toContainText('não apaga dados de um PDF')
+  await expect(inspector.getByRole('button', { name: 'Remover' })).toHaveCount(0)
+})
+
 test('as propriedades de um PDF criptografado não são alteradas', async () => {
   const locked = join(folder, 'protegido.pdf')
   await writeFile(locked, Buffer.from(PROTECTED_PDF, 'base64'))

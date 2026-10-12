@@ -1,9 +1,11 @@
 import { DocumentKind, type LossInventory } from '@shared/types.js'
 import { isExcelPath, isWordPackagePath } from '@services/file/formats.js'
+import { propertiesOf } from '@services/file/properties.js'
 import {
   PrivacyCategory,
   anonymizeAuthors,
   inspectOwnFile,
+  inspectPdf,
   withoutPersonalNames,
   type PrivacyReport,
 } from '@services/file/privacy.js'
@@ -69,14 +71,21 @@ export function createPrivacyActions(
     return true
   }
 
+  async function inspectOpenPdf(file: OpenFile): Promise<PrivacyReport | null> {
+    if (file.path === null) return null
+    const { path } = file
+    const inspection = await ctx.call(() => window.api.pdf.properties({ path }))
+    if (inspection === null) return null
+    // The properties being edited, when the dialog already changed them.
+    const properties = get().properties ?? propertiesOf(inspection.properties ?? {})
+    return inspectPdf(properties, inspection.updates, anonymousName())
+  }
+
   return {
     inspectPersonalData: async (): Promise<PrivacyReport | null> => {
       const state = get()
       if (state.file === null) return null
-      if (state.file.kind === DocumentKind.Pdf) {
-        set({ error: { code: 'INTERNAL', message: t('errors.privacy.onlyPackages') } })
-        return null
-      }
+      if (state.file.kind === DocumentKind.Pdf) return inspectOpenPdf(state.file)
 
       const path = packagePathOf(state.file)
       if (path !== null) return ctx.call(() => window.api.privacy.inspect({ path }))

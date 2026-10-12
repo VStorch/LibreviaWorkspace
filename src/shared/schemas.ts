@@ -243,6 +243,8 @@ export const pdfInspectionSchema = z.object({
   properties: documentPropertiesSchema.optional(),
   application: propertyText,
   producer: propertyText,
+  /** Incremental updates appended so far; each one leaves the previous revision in the file. */
+  updates: z.number().int().nonnegative(),
 })
 
 export const privacyCategorySchema = z.enum(PRIVACY_CATEGORIES)

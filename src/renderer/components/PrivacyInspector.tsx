@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { PrivacyCategory, foundCategories, type PrivacyReport } from '@services/file/privacy.js'
 import type { MessageKey } from '@shared/i18n/index.js'
+import { DocumentKind } from '@shared/types.js'
 import { useT } from '../i18n.js'
 import { anonymousName, inspectionNeedsSave } from '../state/privacy-actions.js'
 import { useWorkspace } from '../state/workspace.js'
@@ -32,6 +33,7 @@ export function PrivacyInspector(): React.JSX.Element {
     inspectionNeedsSave(useWorkspace.getState()) ? { step: 'save' } : { step: 'loading' },
   )
   const close = (): void => useWorkspace.getState().setInspector(false)
+  const isPdf = useWorkspace((state) => state.file?.kind === DocumentKind.Pdf)
 
   useEffect(() => {
     if (phase.step !== 'loading') return
@@ -70,9 +72,12 @@ export function PrivacyInspector(): React.JSX.Element {
         </Message>
       )}
       {phase.step === 'loading' && <p className="popover__hint">{t('privacy.loading')}</p>}
-      {phase.step === 'report' && (
-        <Report report={phase.report} onRemoved={() => setPhase({ step: 'removed' })} onClose={close} />
-      )}
+      {phase.step === 'report' &&
+        (isPdf ? (
+          <PdfReport report={phase.report} onClose={close} />
+        ) : (
+          <Report report={phase.report} onRemoved={() => setPhase({ step: 'removed' })} onClose={close} />
+        ))}
       {phase.step === 'removed' && <Message text={t('privacy.removed')} onClose={close} />}
     </div>
   )
@@ -171,6 +176,44 @@ function Report({
             {t('privacy.remove')}
           </button>
         )}
+      </div>
+    </>
+  )
+}
+
+/** Read only: removing from a PDF would leave the old value in the file, so it only explains. */
+function PdfReport({
+  report,
+  onClose,
+}: {
+  readonly report: PrivacyReport
+  readonly onClose: () => void
+}): React.JSX.Element {
+  const t = useT()
+  const versions = report.previousVersions ?? 0
+  return (
+    <>
+      {report.names.length > 0 && (
+        <>
+          <p className="popover__check">
+            <strong>{t('privacy.names')}</strong>
+          </p>
+          <p className="popover__hint privacy__detail">
+            {t('privacy.pdfNamesDetail', { names: listed(report.names) })}
+          </p>
+        </>
+      )}
+      {versions > 0 && (
+        <p className="popover__hint" role="note">
+          {t('privacy.pdfVersions', { count: versions })}
+        </p>
+      )}
+      <p className="popover__hint">{t('privacy.pdfNote')}</p>
+      <div className="popover__actions">
+        <span className="popover__spacer" />
+        <button type="button" className="btn" autoFocus onClick={onClose}>
+          {t('document.common.close')}
+        </button>
       </div>
     </>
   )

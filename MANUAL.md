@@ -132,6 +132,11 @@ deixa o arquivo como estava. Num `.docx` ou `.xlsx` com alterações não salvas
 para salvar antes, porque ele lê o arquivo como está gravado. Num `.sdoc` ou `.ssheet` só há
 nomes para remover.
 
+Num PDF, o inspetor só mostra: o autor das propriedades e quantas versões anteriores o arquivo
+guarda. Cada alteração de um PDF, feita aqui ou em outro programa, é acrescentada no fim e deixa a
+versão anterior dentro do arquivo, com o autor e o título que tinha. Para um PDF sem esses dados,
+exporte de novo a partir do documento original.
+
 ---
 
 <a id="atalhos"></a>

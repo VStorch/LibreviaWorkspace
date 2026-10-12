@@ -559,6 +559,10 @@ apontando para a anterior vão no fim. Numa amostra de dez PDFs, entre eles um d
 páginas, a atualização teve de 357 bytes a 4,6 KB. Um PDF criptografado é recusado; num PDF
 assinado, o diálogo avisa antes que leitores como o Acrobat vão indicar a mudança.
 
+O mesmo mecanismo explica por que o inspetor de dados pessoais não promete limpar um PDF: a versão
+anterior continua no arquivo. Ele conta as atualizações pela cadeia de `/Prev` (um PDF linearizado
+começa com duas seções, que não contam) e avisa quantas versões anteriores o arquivo guarda.
+
 > ⚠️ **Ao mexer em margens:** `printToPDF()` recebe **polegadas** e `webContents.print()`
 > recebe **pixels CSS**. As duas conversões ficam juntas em `services/pdf/page-setup.ts`, com
 > um teste que compara uma com a outra.

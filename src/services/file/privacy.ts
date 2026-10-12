@@ -30,6 +30,8 @@ export interface PrivacyReport {
   readonly thumbnail: boolean
   readonly imagesWithMetadata: number
   readonly removePersonalInformation: boolean
+  /** A PDF's earlier revisions, which incremental updates leave in the file. */
+  readonly previousVersions?: number
 }
 
 /** The categories with something to remove, in the order the inspector lists them. */
@@ -69,6 +71,18 @@ export function inspectOwnFile(
     imagesWithMetadata: 0,
     removePersonalInformation: properties?.removePersonalInformation === true,
   }
+}
+
+/**
+ * A PDF only shows its author here: changing it appends an update and leaves the old value in the
+ * file, so the inspector warns instead of promising a removal.
+ */
+export function inspectPdf(
+  properties: DocumentProperties | undefined,
+  updates: number,
+  anonymous: string,
+): PrivacyReport {
+  return { ...inspectOwnFile(properties, null, anonymous), previousVersions: updates }
 }
 
 /** Empty clears the field when saving to DOCX or XLSX; the flag keeps the next save from signing. */

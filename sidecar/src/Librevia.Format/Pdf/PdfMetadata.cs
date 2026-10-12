@@ -13,7 +13,8 @@ public sealed record PdfInspection(
     [property: JsonPropertyName("signed")] bool Signed,
     [property: JsonPropertyName("properties")] PropertiesDto? Properties,
     [property: JsonPropertyName("application")] string? Application,
-    [property: JsonPropertyName("producer")] string? Producer);
+    [property: JsonPropertyName("producer")] string? Producer,
+    [property: JsonPropertyName("updates")] int Updates);
 
 /// <summary>
 /// The information dictionary and the XMP packet, changed by an <b>incremental update</b>: the
@@ -33,7 +34,7 @@ public static class PdfMetadata
         var file = new PdfFile(bytes);
         if (file.Trailer["Encrypt"] is not null)
         {
-            return new PdfInspection(file.Version(), Encrypted: true, Signed: false, null, null, null);
+            return new PdfInspection(file.Version(), Encrypted: true, Signed: false, null, null, null, file.Updates);
         }
 
         var values = Values(file);
@@ -52,7 +53,8 @@ public static class PdfMetadata
             Signed: IsSigned(file),
             properties == new PropertiesDto() ? null : properties,
             Value("Creator"),
-            Value("Producer"));
+            Value("Producer"),
+            file.Updates);
     }
 
     /// <summary>The bytes to append; empty when nothing changes.</summary>

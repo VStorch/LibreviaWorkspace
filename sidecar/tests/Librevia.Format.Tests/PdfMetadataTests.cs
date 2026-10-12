@@ -140,6 +140,19 @@ public class PdfMetadataTests
     }
 
     [Fact]
+    public void ContaAsVersoesAnterioresQueCadaAtualizacaoDeixa()
+    {
+        var original = PdfFixtures.Classic();
+        var once = Saved(original, new PropertiesDto(Title: "Primeira"));
+        var twice = Saved(once, new PropertiesDto(Keywords: "segunda"));
+
+        Assert.Equal(0, PdfMetadata.Inspect(original).Updates);
+        Assert.Equal(1, PdfMetadata.Inspect(once).Updates);
+        Assert.Equal(2, PdfMetadata.Inspect(twice).Updates);
+        Assert.Equal(1, PdfMetadata.Inspect(Saved(PdfFixtures.WithXrefStream(), new PropertiesDto(Title: "X"))).Updates);
+    }
+
+    [Fact]
     public void OSegundoIdentificadorMudaEOPrimeiroFica()
     {
         var saved = Text(Saved(PdfFixtures.Classic(), new PropertiesDto(Title: "Outro")));

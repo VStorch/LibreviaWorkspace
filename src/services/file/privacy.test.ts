@@ -5,6 +5,7 @@ import {
   authorsIn,
   foundCategories,
   inspectOwnFile,
+  inspectPdf,
   withoutPersonalNames,
 } from './privacy.js'
 
@@ -63,6 +64,12 @@ describe('inspetor de dados pessoais nos arquivos do próprio editor', () => {
       manager: '',
       removePersonalInformation: true,
     })
+  })
+
+  it('no PDF, mostra o autor e quantas versões anteriores o arquivo guarda', () => {
+    const report = inspectPdf({ creator: 'Ana Lima', title: 'Relatório' }, 2, ANONYMOUS)
+    expect(report.names).toEqual(['Ana Lima'])
+    expect(report.previousVersions).toBe(2)
   })
 
   it('lista as categorias na ordem do inspetor', () => {
