@@ -10,7 +10,7 @@ import { plainPasteContent } from '@services/document/paste.js'
 import type { DocumentNode, PageSetup } from '@services/document/model.js'
 import { effectiveSections, resolveSections, type ResolvedSections } from '@services/document/sections.js'
 import { fitWidthZoom } from '@services/document/zoom.js'
-import { usePreferences } from '../state/preferences.js'
+import { currentPreferences, usePreferences } from '../state/preferences.js'
 import { useLeaveReadingOnEscape, useReadingMode } from '../state/reading.js'
 import { useRevisionView } from '../state/revision-view.js'
 import { t as translateNow, useT } from '../i18n.js'
@@ -298,6 +298,8 @@ function useReferenceContext(
       styles: useWorkspace.getState().styles,
       setStyles: useWorkspace.getState().setStyles,
       outsideBookmarks: useWorkspace.getState().outsideBookmarks,
+      properties: useWorkspace.getState().properties,
+      locale: currentPreferences().language,
       t: translateNow,
     }),
     [layoutRef],

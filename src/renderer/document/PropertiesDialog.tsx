@@ -3,13 +3,16 @@ import { FilePropertiesDialog, type StatisticRow } from '../components/FilePrope
 import { useLanguage } from '../i18n.js'
 import { useWorkspace } from '../state/workspace.js'
 import { tally } from './WordCountDialog.js'
+import { updatePropertyFields, type ReferenceContext } from './references.js'
 
 /** The file's properties with the document's counts, as Word shows them. */
 export function PropertiesDialog({
   editor,
+  context,
   onClose,
 }: {
   readonly editor: Editor
+  readonly context: () => ReferenceContext
   readonly onClose: () => void
 }): React.JSX.Element {
   const language = useLanguage()
@@ -32,6 +35,7 @@ export function PropertiesDialog({
     <FilePropertiesDialog
       title="document.properties.title.dialog"
       statistics={statistics}
+      onApply={() => updatePropertyFields(editor, context())}
       onClose={() => {
         onClose()
         requestAnimationFrame(() => editor.view.focus())

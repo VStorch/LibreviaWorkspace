@@ -33,6 +33,7 @@ export const EditorCommand = {
   UpdateFields: 'update-fields',
   InsertCaption: 'insert-caption',
   InsertCrossReference: 'insert-cross-reference',
+  InsertPropertyField: 'insert-property-field',
   InsertComment: 'insert-comment',
   InsertFootnote: 'insert-footnote',
   InsertEndnote: 'insert-endnote',

@@ -44,6 +44,10 @@ export const REFERENCES = {
     pt: 'Erro! Indicador não definido.',
     en: 'Error! Bookmark not defined.',
   },
+  'references.field.unknownProperty': {
+    pt: 'Erro! Nome de propriedade de documento desconhecido.',
+    en: 'Error! Unknown document property name.',
+  },
 
   'references.insert': { pt: 'Inserir', en: 'Insert' },
   'references.caption.title': { pt: 'Legenda', en: 'Caption' },
@@ -56,6 +60,14 @@ export const REFERENCES = {
   'references.caption.figure': { pt: 'Figura', en: 'Figure' },
   'references.caption.table': { pt: 'Tabela', en: 'Table' },
   'references.caption.equation': { pt: 'Equação', en: 'Equation' },
+  'references.property.title': { pt: 'Inserir propriedade', en: 'Insert property' },
+  'references.property.name': { pt: 'Propriedade', en: 'Property' },
+  'references.property.value': { pt: 'Valor atual', en: 'Current value' },
+  'references.property.emptyValue': { pt: '(vazio)', en: '(empty)' },
+  'references.property.hint': {
+    pt: 'Depois de mudar a propriedade, o campo se atualiza ao aplicar as propriedades ou com F9.',
+    en: 'After the property changes, the field updates when the properties are applied or with F9.',
+  },
   'references.crossRef.title': { pt: 'Referência cruzada', en: 'Cross-reference' },
   'references.crossRef.type': { pt: 'Tipo', en: 'Reference type' },
   'references.crossRef.heading': { pt: 'Título', en: 'Heading' },

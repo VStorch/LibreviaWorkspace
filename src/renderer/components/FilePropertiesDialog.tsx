@@ -42,6 +42,7 @@ export function FilePropertiesDialog({
   title,
   statistics,
   onClose,
+  onApply,
   fields = ALL_FIELDS,
   authorship = true,
   custom = true,
@@ -50,6 +51,8 @@ export function FilePropertiesDialog({
   readonly title: MessageKey
   readonly statistics: readonly StatisticRow[]
   readonly onClose: () => void
+  /** After the new properties are in the workspace: the document refreshes the fields showing them. */
+  readonly onApply?: () => void
   /** The format's own: a PDF has no company, manager, category or comments. */
   readonly fields?: readonly EditableKey[]
   /** Last saved by, revision and editing time, which only Office files keep. */
@@ -79,7 +82,10 @@ export function FilePropertiesDialog({
     if (found !== null) return
 
     const next = patchOf(properties, values, list)
-    if (next !== null) setProperties(next)
+    if (next !== null) {
+      setProperties(next)
+      onApply?.()
+    }
     onClose()
   }
 

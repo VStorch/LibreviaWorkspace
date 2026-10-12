@@ -353,6 +353,7 @@ function insertMenu(): MenuItemConstructorOptions {
         acceleratorOf(SHORTCUTS.insertEquation),
       ),
       commandItem('menu.insert.displayEquation', MenuCommand.InsertDisplayEquation),
+      commandItem('menu.insert.propertyField', MenuCommand.InsertPropertyField),
       { type: 'separator' },
       commandItem(
         'menu.insert.bookmark',

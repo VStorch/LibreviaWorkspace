@@ -59,6 +59,7 @@ export const MENU = {
   'menu.insert.specialCharacter': { pt: 'Caractere especial…', en: 'Special character…' },
   'menu.insert.equation': { pt: 'Equação', en: 'Equation' },
   'menu.insert.displayEquation': { pt: 'Equação em destaque', en: 'Display equation' },
+  'menu.insert.propertyField': { pt: 'Propriedade do documento…', en: 'Document property…' },
   'menu.insert.bookmark': { pt: 'Marcador…', en: 'Bookmark…' },
   'menu.insert.comment': { pt: 'Comentário', en: 'Comment' },
   'menu.insert.footnote': { pt: 'Nota de rodapé', en: 'Footnote' },

@@ -115,6 +115,12 @@ modelos.
 Numa planilha é igual. As estatísticas contam as abas, as células preenchidas e as fórmulas. As
 propriedades vão para o `.xlsx` e o Excel as mostra em **Arquivo → Informações**.
 
+Para levar uma propriedade ao texto, use **Inserir → Propriedade do documento…**: escolha, por
+exemplo, "Cliente" e o texto mostra "XPTO". Quando você muda o valor e clica em **Aplicar** nas
+propriedades, o texto passa a mostrar o novo valor. É o mesmo campo `DOCPROPERTY` (ou `TITLE`,
+`AUTHOR`…) do Word, que o atualiza com `F9`. Ainda só funciona no corpo do texto, não no cabeçalho
+nem no rodapé.
+
 ### Inspecionar documento
 
 Antes de mandar um arquivo para fora, **Arquivo → Inspecionar documento…** mostra o que ele
@@ -474,8 +480,8 @@ se atualizam sozinhos. **Referências → Referência cruzada…** pergunta:
 
 ### Atualizar campos
 
-Números de página, total de páginas, referências cruzadas e legendas são **campos**: texto que o
-aplicativo calcula. `F9`, ou **Referências → Atualizar campos**, recalcula todos.
+Números de página, total de páginas, referências cruzadas, legendas e propriedades do documento
+são **campos**: texto que o aplicativo calcula. `F9`, ou **Referências → Atualizar campos**, recalcula todos.
 
 ---
 

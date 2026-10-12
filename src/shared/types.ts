@@ -134,6 +134,8 @@ export const MenuCommand = {
   UpdateFields: 'update-fields',
   InsertCaption: 'insert-caption',
   InsertCrossReference: 'insert-cross-reference',
+  /** `TITLE`, `AUTHOR`, `DOCPROPERTY "Cliente"`; see `property-fields.ts`. */
+  InsertPropertyField: 'insert-property-field',
   // The values match `TableAction` (see `table-actions.ts`), and `App` forwards them to the editor
   // by them.
   TableInsert: 'table-insert',

@@ -16,6 +16,7 @@ import { BookmarkDialog } from './BookmarkDialog.js'
 import { ColumnsDialog } from './ColumnsDialog.js'
 import { CaptionDialog } from './CaptionDialog.js'
 import { CrossReferenceDialog } from './CrossReferenceDialog.js'
+import { PropertyFieldDialog } from './PropertyFieldDialog.js'
 import { WordCountDialog } from './WordCountDialog.js'
 import { PropertiesDialog } from './PropertiesDialog.js'
 import { AuthorNameDialog } from './AuthorNameDialog.js'
@@ -66,7 +67,12 @@ const DIALOGS: readonly { key: DialogKey; render: (context: DialogContext) => Re
     ),
   },
   { key: 'wordCount', render: simple('wordCount', WordCountDialog) },
-  { key: 'properties', render: simple('properties', PropertiesDialog) },
+  {
+    key: 'properties',
+    render: (c) => (
+      <PropertiesDialog editor={c.editor} context={c.referenceContext} onClose={c.close('properties')} />
+    ),
+  },
   { key: 'authorName', render: simple('authorName', AuthorNameDialog) },
   { key: 'styles', render: simple('styles', StylesPanel) },
   { key: 'specialCharacter', render: simple('specialCharacter', SpecialCharsDialog) },
@@ -101,6 +107,16 @@ const DIALOGS: readonly { key: DialogKey; render: (context: DialogContext) => Re
         editor={c.editor}
         context={c.referenceContext}
         onClose={c.close('crossReference')}
+      />
+    ),
+  },
+  {
+    key: 'propertyField',
+    render: (c) => (
+      <PropertyFieldDialog
+        editor={c.editor}
+        context={c.referenceContext}
+        onClose={c.close('propertyField')}
       />
     ),
   },

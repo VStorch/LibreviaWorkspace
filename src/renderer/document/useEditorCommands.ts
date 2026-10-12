@@ -39,6 +39,7 @@ export interface EditorDialogs {
   readonly bookmark: boolean
   readonly caption: boolean
   readonly crossReference: boolean
+  readonly propertyField: boolean
   readonly columns: boolean
   readonly authorName: boolean
   readonly properties: boolean
@@ -60,6 +61,7 @@ const CLOSED: EditorDialogs = {
   bookmark: false,
   caption: false,
   crossReference: false,
+  propertyField: false,
   columns: false,
   authorName: false,
   properties: false,
@@ -183,6 +185,7 @@ const COMMANDS: Readonly<Record<EditorCommand, CommandHandler>> = {
   ),
   [EditorCommand.InsertCaption]: openDialog('caption'),
   [EditorCommand.InsertCrossReference]: openDialog('crossReference'),
+  [EditorCommand.InsertPropertyField]: openDialog('propertyField'),
   [EditorCommand.UpdateFields]: withEditor((editor, scope) => {
     updateFields(editor, scope.referenceContext())
   }),

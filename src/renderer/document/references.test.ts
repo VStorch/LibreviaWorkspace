@@ -10,10 +10,12 @@ import {
   captionLabels,
   crossReferenceTargets,
   insertCrossReference,
+  insertPropertyField,
   noteNumberIn,
   settlePageFields,
   sheetAt,
   updateFields,
+  updatePropertyFields,
   type ReferenceContext,
 } from './references.js'
 import type { PageLayout } from './usePagination.js'
@@ -207,5 +209,42 @@ describe('referência cruzada a uma nota (M11)', () => {
     editor.view.dispatch(editor.state.tr.insert(1, ProseMirrorNode.fromJSON(schema, footnote('Zero.'))))
     updateFields(editor, contextWith({}))
     expect(fields()).toEqual(['3'])
+  })
+})
+
+describe('campos de propriedade', () => {
+  const properties = {
+    title: 'Contrato',
+    custom: [{ name: 'Cliente', type: 'text' as const, value: 'XPTO' }],
+  }
+
+  it('F9 mostra o título e a personalizada, e avisa da propriedade que não existe', () => {
+    const { editor, fields } = fakeEditor({
+      type: 'doc',
+      content: [
+        paragraph(
+          field(' TITLE \\* MERGEFORMAT ', 'antigo'),
+          field(' DOCPROPERTY "cliente" ', ''),
+          field(' DOCPROPERTY Sumiu ', 'x'),
+        ),
+      ],
+    })
+    updateFields(editor, { ...contextWith({}), properties })
+    expect(fields()).toEqual(['Contrato', 'XPTO', 'references.field.unknownProperty'])
+  })
+
+  it('aplicar as propriedades atualiza só os campos de propriedade', () => {
+    const { editor, fields } = fakeEditor({
+      type: 'doc',
+      content: [paragraph(field(' AUTHOR ', 'Ana'), field(' PAGE ', '7'))],
+    })
+    updatePropertyFields(editor, { ...contextWith({}), properties: { creator: 'Bia' } })
+    expect(fields()).toEqual(['Bia', '7'])
+  })
+
+  it('inserir já traz o valor atual', () => {
+    const { editor, fields } = fakeEditor({ type: 'doc', content: [paragraph(text('Cliente: '))] })
+    insertPropertyField(editor, { ...contextWith({}), properties }, ' DOCPROPERTY "Cliente" ')
+    expect(fields()).toEqual(['XPTO'])
   })
 })

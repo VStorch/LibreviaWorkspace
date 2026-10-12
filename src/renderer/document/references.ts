@@ -13,6 +13,8 @@ import {
   tocOmitsPages,
 } from '@services/document/fields.js'
 import type { PageSetup } from '@services/document/model.js'
+import { PROPERTY_FIELD_KINDS, propertyFieldResult } from '@services/document/property-fields.js'
+import type { DocumentProperties } from '@services/file/properties.js'
 import type { NoteKind } from '@services/document/notes.js'
 import { outlineOf } from '@services/document/outline.js'
 import {
@@ -43,6 +45,10 @@ export interface ReferenceContext {
   readonly t: (key: MessageKey) => string
   /** Bookmarks that exist in the file outside the nodes; see `DocumentModel.outsideBookmarks`. */
   readonly outsideBookmarks?: readonly string[]
+  /** What `TITLE`, `AUTHOR` and `DOCPROPERTY` show. */
+  readonly properties?: DocumentProperties | undefined
+  /** Dates and numbers of custom properties, as the system writes them. */
+  readonly locale?: string
 }
 
 /** Makes ProseMirror read now the selection the browser already changed. */
@@ -110,7 +116,7 @@ export function noteNumberIn(
 const PAGE_KINDS = new Set(['PAGE', 'PAGEREF', 'NUMPAGES'])
 
 /** Field kinds the editor can recompute. The rest stays as Word left it. */
-const UPDATABLE = new Set(['PAGE', 'PAGEREF', 'NUMPAGES', 'REF', 'SEQ', 'NOTEREF'])
+const UPDATABLE = new Set(['PAGE', 'PAGEREF', 'NUMPAGES', 'REF', 'SEQ', 'NOTEREF', ...PROPERTY_FIELD_KINDS])
 
 export interface FieldUpdate {
   readonly changed: number
@@ -235,8 +241,18 @@ function resultOf(field: FieldAt, scan: FieldScan): FieldResult {
     case 'NUMPAGES':
       return { result: String(context.layout.pages), pageDependent: true }
     default:
-      return unpaged(null)
+      return unpaged(PROPERTY_FIELD_KINDS.has(field.kind) ? propertyText(instr, context) : null)
   }
+}
+
+function propertyText(instr: string, context: ReferenceContext): string {
+  const result = propertyFieldResult(instr, context.properties, context.locale ?? 'en')
+  return result ?? context.t('references.field.unknownProperty')
+}
+
+/** After File → Properties, as the fields that show them would be stale otherwise. */
+export function updatePropertyFields(editor: Editor, context: ReferenceContext): FieldUpdate {
+  return updateFieldsIn(editor, context, 0, editor.state.doc.content.size, PROPERTY_FIELD_KINDS)
 }
 
 function referenceResult(kind: 'REF' | 'NOTEREF' | 'PAGEREF', instr: string, scan: FieldScan): FieldResult {
@@ -684,4 +700,14 @@ export function insertCrossReference(
   // The same path as F9.
   updateFieldsIn(editor, context, at, at + 1)
   return true
+}
+
+/** "Insert → Document property": the field, with its result right away. */
+export function insertPropertyField(editor: Editor, context: ReferenceContext, instr: string): void {
+  flushSelection(editor)
+  const { state } = editor
+  const at = state.selection.from
+  const field = state.schema.nodes['field']!.create({ instr, result: '' })
+  editor.view.dispatch(state.tr.replaceSelectionWith(field, true).scrollIntoView())
+  updateFieldsIn(editor, context, at, at + 1)
 }

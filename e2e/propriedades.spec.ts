@@ -143,6 +143,38 @@ test.describe('propriedades do documento', () => {
     await expect(nomes).toHaveValue('Folhas')
     await expect(dialogo.getByRole('spinbutton', { name: 'Valor' })).toHaveValue('3')
   })
+  test('o campo de propriedade mostra o valor e acompanha a mudança nas propriedades', async () => {
+    const origem = join(pasta, 'relatorio.docx')
+    await writeFile(origem, await docxWithProperties())
+    await stubDialogs(session.app, { open: origem, messageBox: 1 })
+    await menu(session, 'open')
+    const texto = session.window.locator('.pages__column .ProseMirror')
+    await expect(texto).toContainText('Relatório de contas')
+    await texto.click()
+    await session.window.keyboard.press('Control+End')
+    await session.window.keyboard.type(' Cliente: ')
+
+    await menu(session, 'insert-property-field')
+    const inserir = session.window.getByRole('dialog', { name: 'Inserir propriedade' })
+    await inserir.getByRole('listbox', { name: 'Propriedade' }).selectOption({ label: 'Cliente' })
+    await expect(inserir).toContainText('Valor atual: XPTO')
+    await inserir.getByRole('button', { name: 'Inserir' }).click()
+    const campo = texto.locator('[data-field="docproperty"]')
+    await expect(campo).toHaveText('XPTO')
+
+    await menu(session, 'document-properties')
+    const dialogo = session.window.getByRole('dialog', { name: 'Propriedades do documento' })
+    await dialogo.getByRole('textbox', { name: 'Valor' }).fill('ACME Ltda')
+    await dialogo.getByRole('button', { name: 'Aplicar' }).click()
+    await expect(campo).toHaveText('ACME Ltda')
+
+    await menu(session, 'save')
+    await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
+    const documento = await entryOf(origem, 'word/document.xml')
+    expect(documento).toContain('DOCPROPERTY "Cliente" \\* MERGEFORMAT')
+    expect(documento).toContain('ACME Ltda')
+  })
+
   test('o PDF exportado leva título, autor, assunto e palavras-chave', async () => {
     // Chromium writes the page `<title>` as the PDF Title; main appends the rest.
     const alvo = join(pasta, 'ata.pdf')
