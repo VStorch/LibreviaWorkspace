@@ -208,6 +208,24 @@ test('a barra de status acompanha a página e o zoom do PDF', async () => {
   await expect.poll(async () => Math.abs((await pageWidth(frame)) - 816 * 1.1)).toBeLessThanOrEqual(1)
 })
 
+test('Ctrl+= e Ctrl++ ampliam o PDF, com o foco nele ou na barra de busca', async () => {
+  await openPdf(file)
+  const frame = await viewerFrame()
+  const zoom = session.window.locator('.statusbar__zoom-level')
+  await menu(session, 'zoom-reset')
+  await expect(zoom).toHaveText('100%')
+
+  await pageText().click()
+  await session.window.keyboard.press('Control+Equal')
+  await expect(zoom).toHaveText('110%')
+  await expect.poll(async () => Math.abs((await pageWidth(frame)) - 816 * 1.1)).toBeLessThanOrEqual(1)
+
+  await menu(session, 'find-replace')
+  await expect(session.window.getByRole('textbox', { name: 'Localizar' })).toBeFocused()
+  await session.window.keyboard.press('Control+Shift+Equal')
+  await expect(zoom).toHaveText('125%')
+})
+
 test('localiza um texto no PDF, anda entre as ocorrências e apaga os destaques ao fechar', async () => {
   const report = join(folder, 'busca.pdf')
   await writeFile(report, pdfOf(['Receita anual', 'Despesa anual', 'Saldo anual']))

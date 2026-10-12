@@ -174,7 +174,8 @@ São os atalhos do Word, com poucas exceções, explicadas no fim da tabela.
 > - **Corpo de texto** é `Ctrl+Alt+0`, e não `Ctrl+Shift+N`, porque aqui essa combinação abre
 >   uma planilha nova.
 > - **Ampliar** usa o `+` do teclado numérico, para não ocupar o `Ctrl+Shift+=` do sobrescrito.
->   O menu **Exibir** também tem ampliar e reduzir.
+>   O menu **Exibir** também tem ampliar e reduzir. Num PDF, que não tem texto para formatar,
+>   `Ctrl+=` e `Ctrl++` também ampliam.
 > - **Marcas de formatação** são `Ctrl+F10`, como no LibreOffice. O `Ctrl+*` do Word já é usado
 >   pela lista com marcadores.
 

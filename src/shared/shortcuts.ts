@@ -398,3 +398,21 @@ export function canonicalKeyOf(key: ShortcutKey): string {
   const { mod, modifiers, key: name } = parts(key)
   return [...(mod ? ['Mod'] : []), ...modifiers, name.toLowerCase()].join('+')
 }
+
+/** The fields of a `keydown` that say which key it was. */
+export interface PressedKey {
+  readonly key: string
+  readonly code: string
+  readonly ctrlKey: boolean
+  readonly metaKey: boolean
+  readonly altKey: boolean
+}
+
+/**
+ * With a PDF on screen there is no text to format, so the keys of subscript and superscript zoom
+ * in, as in a browser. The keypad `+` is left out: the menu accelerator already takes it.
+ */
+export function isPdfZoomInKey(pressed: PressedKey): boolean {
+  if (!(pressed.ctrlKey || pressed.metaKey) || pressed.altKey || pressed.code === 'NumpadAdd') return false
+  return pressed.key === '=' || pressed.key === '+'
+}

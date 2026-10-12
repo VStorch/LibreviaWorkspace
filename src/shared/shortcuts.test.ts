@@ -6,6 +6,7 @@ import {
   acceleratorOf,
   canonicalKeyOf,
   editorKeyOf,
+  isPdfZoomInKey,
   shortcutHintOf,
 } from './shortcuts.js'
 
@@ -97,5 +98,24 @@ describe('tabela de atalhos', () => {
     expect(shortcutHintOf(SHORTCUTS.insertPageBreak)).toBe('Ctrl+Enter')
     expect(shortcutHintOf(SHORTCUTS.formattingMarks)).toBe('Ctrl+F10')
     expect(shortcutHintOf(SHORTCUTS.findReplace)).toBe('Ctrl+F')
+  })
+})
+
+describe('isPdfZoomInKey', () => {
+  const pressed = { key: '=', code: 'Equal', ctrlKey: true, metaKey: false, altKey: false }
+
+  it('amplia com Ctrl+= e com Ctrl++, em qualquer teclado', () => {
+    expect(isPdfZoomInKey(pressed)).toBe(true)
+    expect(isPdfZoomInKey({ ...pressed, key: '+' })).toBe(true)
+    expect(isPdfZoomInKey({ ...pressed, ctrlKey: false, metaKey: true })).toBe(true)
+  })
+
+  it('deixa o + do teclado numérico ao menu, que já o atende', () => {
+    expect(isPdfZoomInKey({ ...pressed, key: '+', code: 'NumpadAdd' })).toBe(false)
+  })
+
+  it('ignora a tecla sem Ctrl ou com Alt', () => {
+    expect(isPdfZoomInKey({ ...pressed, ctrlKey: false })).toBe(false)
+    expect(isPdfZoomInKey({ ...pressed, altKey: true })).toBe(false)
   })
 })

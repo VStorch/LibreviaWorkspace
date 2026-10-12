@@ -3,6 +3,7 @@ import { EventBus, PDFFindController, PDFLinkService, PDFViewer } from 'pdfjs-di
 import { clampZoom } from '@services/document/zoom.js'
 import { PDF_VIEWER_ORIGIN } from '@shared/constants.js'
 import { PAGE_WIDTH, type ViewerCommand } from '@shared/pdf-viewer-protocol.js'
+import { isPdfZoomInKey } from '@shared/shortcuts.js'
 import { tellApp } from './channel.js'
 import { rangedSource, type PdfSource } from './ranged-source.js'
 
@@ -33,6 +34,7 @@ export function createViewer(container: HTMLDivElement): (command: ViewerCommand
   reportToApp(eventBus)
   eventBus.on('pagesinit', () => applyZoom(viewer, zoom))
   sendLinksToApp(container)
+  sendZoomKeysToApp()
 
   return (command) => {
     switch (command.type) {
@@ -134,5 +136,14 @@ function sendLinksToApp(container: HTMLElement): void {
     if (anchor === null || anchor.href === '' || anchor.href.startsWith(PDF_VIEWER_ORIGIN)) return
     event.preventDefault()
     tellApp({ type: 'link', url: anchor.href })
+  })
+}
+
+/** The zoom is the app's, shared with the editor: the frame only asks for a step. */
+function sendZoomKeysToApp(): void {
+  window.addEventListener('keydown', (event) => {
+    if (!isPdfZoomInKey(event)) return
+    event.preventDefault()
+    tellApp({ type: 'zoom-in' })
   })
 }

@@ -3,10 +3,12 @@ import { clampZoom } from '@services/document/zoom.js'
 import { PDF_VIEWER_ORIGIN, PDF_VIEWER_PAGE } from '@shared/constants.js'
 import type { MessageKey } from '@shared/i18n/index.js'
 import { PAGE_WIDTH, viewerEventSchema, type ViewerEvent } from '@shared/pdf-viewer-protocol.js'
+import { isPdfZoomInKey } from '@shared/shortcuts.js'
+import { MenuCommand } from '@shared/types.js'
 import { EditorCommand, onEditorCommand } from '../document/editor-commands.js'
 import { useT } from '../i18n.js'
 import { currentPreferences, usePreferences } from '../state/preferences.js'
-import { setFittedZoom } from '../state/zoom.js'
+import { runZoomCommand, setFittedZoom } from '../state/zoom.js'
 import { PdfFindBar } from './PdfFindBar.js'
 import { connectViewer, sendToViewer, usePdfViewer } from './viewer-state.js'
 
@@ -33,6 +35,7 @@ export function PdfView({ path }: { readonly path: string }): React.JSX.Element 
   const [finding, setFinding] = useState(false)
   useViewerZoom(ready)
   useViewerTheme(ready)
+  useZoomInKeys()
 
   useEffect(
     () =>
@@ -121,6 +124,9 @@ function hearViewer(
       // The viewer measured "fit width"; the status bar shows it as the editor's would.
       if (currentPreferences().zoomFit) setFittedZoom(event.zoom)
       return
+    case 'zoom-in':
+      void runZoomCommand(MenuCommand.ZoomIn)
+      return
     case 'found':
       usePdfViewer.setState({ found: { current: event.current, total: event.total } })
       return
@@ -141,6 +147,19 @@ function useViewerZoom(ready: boolean): void {
   useEffect(() => {
     if (ready) sendToViewer({ type: 'zoom', zoom: zoomFit ? PAGE_WIDTH : clampZoom(zoom) })
   }, [ready, zoom, zoomFit])
+}
+
+/** With the focus outside the frame, as on the find bar; inside it, the frame asks for the step. */
+function useZoomInKeys(): void {
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (!isPdfZoomInKey(event)) return
+      event.preventDefault()
+      void runZoomCommand(MenuCommand.ZoomIn)
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [])
 }
 
 /** Follows `data-theme`, which also changes when the system's theme does. */

@@ -39,6 +39,7 @@ export const viewerEventSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('loaded'), pages: countSchema }),
   z.object({ type: z.literal('page'), page: pageSchema }),
   z.object({ type: z.literal('zoom'), zoom: zoomSchema }),
+  z.object({ type: z.literal('zoom-in') }),
   z.object({ type: z.literal('found'), current: countSchema, total: countSchema }),
   z.object({ type: z.literal('link'), url: z.string().max(MAX_URL_LENGTH) }),
   z.object({ type: z.literal('error'), reason: z.enum(['password', 'invalid', 'unknown']) }),
