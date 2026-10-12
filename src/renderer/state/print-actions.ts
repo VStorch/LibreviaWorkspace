@@ -54,6 +54,7 @@ export function createPrintActions(
         window.api.print.exportPdf({
           ...request,
           suggestedName: get().file?.name ?? t('shell.print.defaultDocumentName').toLowerCase(),
+          ...(get().properties === undefined ? {} : { properties: get().properties }),
         }),
       )
       return data !== null && !data.canceled
@@ -145,7 +146,7 @@ function printRequestOf(state: WorkspaceState, source: DocumentSource | null): P
   }
 }
 
-/** `<title>` becomes the PDF Title; `printToPDF` does not write author or subject. */
+/** `<title>` becomes the PDF Title; main appends author, subject and keywords. */
 function titleOf(state: WorkspaceState, name: string): string {
   return state.properties?.title?.trim() || name
 }

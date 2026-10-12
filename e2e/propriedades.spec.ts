@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
 import { launch, menu, stubDialogs, type Session } from './app.js'
+import { hasPdfinfo, pdfInfo } from './external-tools.js'
 import {
   PROPERTIES_APP,
   PROPERTIES_CORE,
@@ -92,9 +93,8 @@ test.describe('propriedades do documento', () => {
     await expect(dialogo.getByRole('textbox', { name: 'Palavras-chave' })).toHaveValue('contas; auditoria')
     await expect(dialogo.getByRole('textbox', { name: 'Assunto' })).toHaveValue('Contas')
   })
-  test('o título das propriedades é o Title do PDF', async () => {
-    // Chromium writes the page `<title>` as the PDF Title. `printToPDF` does not write author,
-    // subject and keywords.
+  test('o PDF exportado leva título, autor, assunto e palavras-chave', async () => {
+    // Chromium writes the page `<title>` as the PDF Title; main appends the rest.
     const alvo = join(pasta, 'ata.pdf')
     await stubDialogs(session.app, { save: alvo, messageBox: 1 })
     await menu(session, 'new-document')
@@ -104,6 +104,9 @@ test.describe('propriedades do documento', () => {
     await menu(session, 'document-properties')
     const dialogo = session.window.getByRole('dialog', { name: 'Propriedades do documento' })
     await dialogo.getByRole('textbox', { name: 'Título' }).fill('Ata de reuniao')
+    await dialogo.getByRole('textbox', { name: 'Autor(es)' }).fill('Ana Lima')
+    await dialogo.getByRole('textbox', { name: 'Assunto' }).fill('Conselho')
+    await dialogo.getByRole('textbox', { name: 'Palavras-chave' }).fill('ata; reunião')
     await dialogo.getByRole('button', { name: 'Aplicar' }).click()
 
     await menu(session, 'export-pdf')
@@ -113,5 +116,12 @@ test.describe('propriedades do documento', () => {
     }
     // ASCII on purpose: outside it Chromium writes the title in UTF-16.
     await expect.poll(titulo, { timeout: 30_000 }).toBe('Ata de reuniao')
+
+    if (await hasPdfinfo()) {
+      const info = await pdfInfo(alvo)
+      expect(info).toMatch(/Author:\s+Ana Lima/)
+      expect(info).toMatch(/Subject:\s+Conselho/)
+      expect(info).toMatch(/Keywords:\s+ata; reunião/)
+    }
   })
 })

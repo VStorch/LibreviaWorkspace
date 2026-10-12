@@ -34,16 +34,26 @@ export async function savePdfProperties(
   properties: DocumentProperties,
 ): Promise<void> {
   const original = await readPdf(path)
-  const reply = await client.request(SidecarMethod.PdfSetMetadata, properties, original)
+  const updated = await withPdfProperties(client, original, properties)
+  if (updated !== original) await writeFileAtomic(path, updated)
+}
+
+/** The PDF followed by the update; the same array when nothing changes. */
+export async function withPdfProperties(
+  client: SidecarClient,
+  pdf: Uint8Array,
+  properties: DocumentProperties,
+): Promise<Uint8Array> {
+  const reply = await client.request(SidecarMethod.PdfSetMetadata, properties, pdf)
   if (!setMetadataResultSchema.safeParse(reply.result).success) {
     throw new AppError(ErrorCode.SidecarFailed, t('errors.pdf.cannotSave'), t('errors.pdf.saveContract'))
   }
-  if (reply.binary.length === 0) return
+  if (reply.binary.length === 0) return pdf
 
-  const updated = new Uint8Array(original.length + reply.binary.length)
-  updated.set(original, 0)
-  updated.set(reply.binary, original.length)
-  await writeFileAtomic(path, updated)
+  const updated = new Uint8Array(pdf.length + reply.binary.length)
+  updated.set(pdf, 0)
+  updated.set(reply.binary, pdf.length)
+  return updated
 }
 
 /** The whole file crosses to the sidecar, which reads objects anywhere in it. */

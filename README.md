@@ -524,6 +524,8 @@ folha começa pela mesma palavra.
 Nenhuma biblioteca gera o PDF: quem gera é o próprio **Chromium**, pelo `printToPDF`. O
 editor entrega o documento **já dividido em folhas**, e cada folha vira uma caixa do tamanho
 do papel. Por isso o PDF sai igual à tela, com o texto selecionável e as fontes embutidas.
+O `printToPDF` só grava o título; o autor, o assunto e as palavras-chave das propriedades entram
+depois, pela mesma atualização incremental que altera um PDF aberto.
 
 Antes havia dois paginadores, o do editor e o do Chromium, e eles nem sempre concordavam.
 Agora há um só.

@@ -214,7 +214,11 @@ export const ipcContracts = {
     }),
   },
   [IpcChannel.PrintExportPdf]: {
-    request: printRequestSchema.extend({ suggestedName: z.string().min(1).max(MAX_FILE_NAME_LENGTH) }),
+    request: printRequestSchema.extend({
+      suggestedName: z.string().min(1).max(MAX_FILE_NAME_LENGTH),
+      // `printToPDF` writes only the title, from `<title>`; main adds the rest.
+      properties: documentPropertiesSchema.optional(),
+    }),
     response: saveResultSchema,
   },
   [IpcChannel.FileExport]: {

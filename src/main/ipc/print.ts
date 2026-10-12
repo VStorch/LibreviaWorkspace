@@ -3,9 +3,30 @@ import { fileNameFromPath } from '@services/file/formats.js'
 import { showPdfSaveDialog } from '../dialogs.js'
 import { writeFileAtomic } from '../fs/atomic-write.js'
 import { authorizePath } from '../fs/paths.js'
+import { withPdfProperties } from '../pdf-metadata.js'
+import { sidecar } from '../sidecar/index.js'
 import { openPdfPreview, printDocument, renderPdf } from '../print/pdf.js'
 import { handle } from './registry.js'
 import { windowOf } from './sender-window.js'
+
+/** What Chromium does not write: it takes only the title, from `<title>`. */
+const COMPLETED_FIELDS = ['creator', 'subject', 'keywords'] as const
+
+type CompletedFields = Partial<Record<(typeof COMPLETED_FIELDS)[number], string | undefined>>
+
+/** Only when there is something to add: without it, the export does not need the sidecar. */
+async function completedMetadata(
+  pdf: Uint8Array,
+  properties: CompletedFields | undefined,
+): Promise<Uint8Array> {
+  const missing: Record<string, string> = {}
+  for (const key of COMPLETED_FIELDS) {
+    const text = properties?.[key]?.trim() ?? ''
+    if (text !== '') missing[key] = text
+  }
+  if (Object.keys(missing).length === 0) return pdf
+  return withPdfProperties(sidecar(), pdf, missing)
+}
 
 function toPdfName(suggestedName: string): string {
   const dot = suggestedName.lastIndexOf('.')
@@ -20,7 +41,7 @@ export function registerPrintHandlers(): void {
 
     const pdf = await renderPdf(payload.html, payload.page, payload.paged)
     const path = authorizePath(chosen)
-    await writeFileAtomic(path, pdf)
+    await writeFileAtomic(path, await completedMetadata(pdf, payload.properties))
 
     return { canceled: false as const, path, name: fileNameFromPath(path) }
   })
