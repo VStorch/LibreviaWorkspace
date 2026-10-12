@@ -1,9 +1,9 @@
 using System.Globalization;
-using System.Text;
 using System.Text.Json.Serialization;
-using System.Xml;
 using System.Xml.Linq;
 using DocumentFormat.OpenXml.Packaging;
+using Spreadsheet = DocumentFormat.OpenXml.Spreadsheet;
+using Wordprocessing = DocumentFormat.OpenXml.Wordprocessing;
 
 namespace Librevia.Format.Docx;
 
@@ -48,7 +48,11 @@ public sealed record PropertiesDto(
     string? Manager = null,
     [property: JsonPropertyName("totalTime")]
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    int? TotalTime = null);
+    int? TotalTime = null,
+    /// See <see cref="Privacy.PrivacyFlag"/>. Only true is a patch: saving never clears the flag.
+    [property: JsonPropertyName("removePersonalInformation")]
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    bool? RemovePersonalInformation = null);
 
 /// <summary>
 /// Through the raw XML: the SDK's <c>PackageProperties</c> reserializes <c>core.xml</c> and drops
@@ -89,7 +93,8 @@ internal static class DocumentProperties
     {
         var core = Load(CorePart(document))?.Root;
         var app = Load(AppPart(document))?.Root;
-        if (core is null && app is null) return null;
+        var anonymous = Privacy.PrivacyFlag.IsSet(Load(FlagPart(document)));
+        if (core is null && app is null && !anonymous) return null;
 
         // Empty means absent, not "clear": the new package's `<dc:creator/>` stays.
         string? Text(XElement? root, XName name) =>
@@ -114,7 +119,8 @@ internal static class DocumentProperties
             Modified: Text(core, DcTerms + "modified"),
             Company: Text(app, Ep + "Company"),
             Manager: Text(app, Ep + "Manager"),
-            TotalTime: totalTime);
+            TotalTime: totalTime,
+            RemovePersonalInformation: anonymous ? true : null);
 
         return read == new PropertiesDto() ? null : read;
     }
@@ -154,7 +160,54 @@ internal static class DocumentProperties
             Save(appPart, app!);
             touched.Add(appPart.Uri.ToString().TrimStart('/'));
         }
+
+        if (model.RemovePersonalInformation == true) ApplyFlag(document, touched);
     }
+
+    /// <summary>
+    /// Through the typed DOM: saving tracked changes may already have loaded <c>settings.xml</c>,
+    /// and the SDK would write that copy over a raw edit.
+    /// </summary>
+    private static void ApplyFlag(OpenXmlPackage document, HashSet<string> touched)
+    {
+        OpenXmlPart? changed = document switch
+        {
+            WordprocessingDocument { MainDocumentPart: { } main } => FlagWord(main),
+            SpreadsheetDocument { WorkbookPart: { } workbook } => FlagWorkbook(workbook),
+            _ => null,
+        };
+        if (changed is not null) touched.Add(changed.Uri.ToString().TrimStart('/'));
+    }
+
+    private static DocumentSettingsPart? FlagWord(MainDocumentPart main)
+    {
+        var part = main.DocumentSettingsPart ?? main.AddNewPart<DocumentSettingsPart>();
+        var settings = part.Settings ??= new Wordprocessing.Settings();
+        if (settings.GetFirstChild<Wordprocessing.RemovePersonalInformation>() is not null) return null;
+        if (!settings.AddChild(new Wordprocessing.RemovePersonalInformation(), throwOnError: false)) return null;
+
+        settings.Save();
+        return part;
+    }
+
+    private static WorkbookPart? FlagWorkbook(WorkbookPart part)
+    {
+        if (part.Workbook is not { } workbook) return null;
+        var properties = workbook.WorkbookProperties ??= new Spreadsheet.WorkbookProperties();
+        if (properties.FilterPrivacy?.Value == true) return null;
+
+        properties.FilterPrivacy = true;
+        workbook.Save();
+        return part;
+    }
+
+    /// <summary>Word's <c>settings.xml</c>, Excel's <c>workbook.xml</c>.</summary>
+    private static OpenXmlPart? FlagPart(OpenXmlPackage document) => document switch
+    {
+        WordprocessingDocument word => word.MainDocumentPart?.DocumentSettingsPart,
+        SpreadsheetDocument sheet => sheet.WorkbookPart,
+        _ => null,
+    };
 
     private static CoreFilePropertiesPart? CorePart(OpenXmlPackage document) =>
         document.GetPartsOfType<CoreFilePropertiesPart>().FirstOrDefault();
@@ -243,12 +296,9 @@ internal static class DocumentProperties
         try
         {
             using var stream = part.GetStream(FileMode.Open, FileAccess.Read);
-            using var reader = XmlReader.Create(
-                stream,
-                new XmlReaderSettings { DtdProcessing = DtdProcessing.Prohibit, XmlResolver = null });
-            return XDocument.Load(reader, LoadOptions.PreserveWhitespace);
+            return XmlParts.Read(stream);
         }
-        catch (Exception problem) when (problem is XmlException or IOException or InvalidOperationException)
+        catch (Exception problem) when (problem is IOException or InvalidOperationException)
         {
             return null;
         }
@@ -256,15 +306,7 @@ internal static class DocumentProperties
 
     private static void Save(OpenXmlPart part, XDocument xml)
     {
-        // XmlWriter would write `utf-8`; Word and LibreOffice write `UTF-8`.
-        var standalone = xml.Declaration?.Standalone is { Length: > 0 } value ? value : "yes";
         using var stream = part.GetStream(FileMode.Create, FileAccess.Write);
-        var declaration = Encoding.UTF8.GetBytes(
-            $"<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"{standalone}\"?>\r\n");
-        stream.Write(declaration, 0, declaration.Length);
-        using var writer = XmlWriter.Create(
-            stream,
-            new XmlWriterSettings { Encoding = new UTF8Encoding(false), OmitXmlDeclaration = true });
-        xml.Root!.Save(writer);
+        XmlParts.Write(stream, xml);
     }
 }

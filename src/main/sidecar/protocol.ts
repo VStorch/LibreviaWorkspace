@@ -113,7 +113,8 @@ function concat(left: Uint8Array, right: Uint8Array): Uint8Array {
 /**
  * `health` proves the process starts; `diagnostics.echo`, that the binary gets through. `docx.save`
  * receives the original bytes, not a session, because the sidecar is stateless. `docx.create`
- * returns the minimal package for a document born in the editor.
+ * returns the minimal package for a document born in the editor. `package.scrub` returns the whole
+ * DOCX or XLSX without the personal data asked for.
  */
 export const SidecarMethod = {
   Health: 'health',
@@ -125,6 +126,8 @@ export const SidecarMethod = {
   XlsxSave: 'xlsx.save',
   PdfInspect: 'pdf.inspect',
   PdfSetMetadata: 'pdf.setMetadata',
+  PackageInspect: 'package.inspect',
+  PackageScrub: 'package.scrub',
 } as const
 
 export type SidecarMethod = (typeof SidecarMethod)[keyof typeof SidecarMethod]

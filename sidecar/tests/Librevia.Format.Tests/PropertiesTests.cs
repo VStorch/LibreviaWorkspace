@@ -25,7 +25,7 @@ public class PropertiesTests
         """<Template>Normal.dotm</Template><TotalTime>42</TotalTime><Pages>1</Pages><Application>Microsoft Office Word</Application>""" +
         """<Manager>Carla</Manager><Company>ACME</Company></Properties>""";
 
-    private const string Custom =
+    internal const string Custom =
         """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>""" + "\r\n" +
         """<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/custom-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes">""" +
         """<property fmtid="{D5CDD505-2E9C-101B-9397-08002B2CF9AE}" pid="2" name="Cliente"><vt:lpwstr>XPTO</vt:lpwstr></property></Properties>""";

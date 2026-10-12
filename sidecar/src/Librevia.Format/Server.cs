@@ -53,7 +53,19 @@ public sealed class Server(Stream input, Stream output)
                 var update = Pdf.PdfMetadata.Update(binary.ToArray(), patch);
                 return Task.FromResult(new Reply(new { appended = update.Length }, update));
             },
+            ["package.inspect"] = static (request, binary, _) =>
+                Task.FromResult(Reply.Of(Privacy.PersonalData.Inspect(binary.ToArray(), PrivacyRequestOf(request)))),
+            // The whole clean package: unlike a PDF, a zip cannot grow by appending.
+            ["package.scrub"] = static (request, binary, _) =>
+            {
+                var (bytes, changes) = Privacy.PersonalData.Scrub(binary.ToArray(), PrivacyRequestOf(request));
+                return Task.FromResult(new Reply(new { changes }, bytes));
+            },
         };
+
+    private static Privacy.PrivacyRequest PrivacyRequestOf(Request request) =>
+        request.Params.Deserialize<Privacy.PrivacyRequest>(JsonOptions.Default)
+        ?? throw new Privacy.PrivacyException("O pedido de inspeção chegou vazio.");
 
     public sealed record Reply(object? Result, ReadOnlyMemory<byte> Binary)
     {
@@ -129,6 +141,13 @@ public sealed class Server(Stream input, Stream output)
             await RespondErrorAsync(
                 request?.Id ?? 0,
                 new ErrorPayload("PDF_INVALID", problem.Message),
+                cancellation).ConfigureAwait(false);
+        }
+        catch (Privacy.PrivacyException problem)
+        {
+            await RespondErrorAsync(
+                request?.Id ?? 0,
+                new ErrorPayload("PACKAGE_INVALID", problem.Message),
                 cancellation).ConfigureAwait(false);
         }
         catch (Exception problem) when (problem is not OperationCanceledException)
