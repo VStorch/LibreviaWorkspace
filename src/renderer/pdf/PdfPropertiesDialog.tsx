@@ -79,6 +79,7 @@ function EditablePdfProperties({
       statistics={statistics}
       fields={PDF_FIELDS}
       authorship={false}
+      custom={false}
       notice={inspection.signed ? t('shell.pdf.signedWarning') : undefined}
       onClose={onClose}
     />

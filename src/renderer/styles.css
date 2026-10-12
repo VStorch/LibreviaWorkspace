@@ -1298,6 +1298,41 @@ button {
   margin: 0 0 12px;
 }
 
+/* Name, type, value and the remove button, aligned as a table. */
+.custom-properties {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 110px minmax(0, 1fr) auto;
+  gap: 6px 8px;
+  align-items: center;
+  margin-bottom: 10px;
+  font-size: 13px;
+}
+
+.custom-properties__row {
+  display: contents;
+}
+
+.custom-properties__header {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.custom-properties input[type='text'],
+.custom-properties input[type='number'],
+.custom-properties input[type='date'],
+.custom-properties select {
+  height: 28px;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0 6px;
+  font: inherit;
+}
+
+.custom-properties input[type='checkbox'] {
+  justify-self: start;
+}
+
 /* Under its checkbox; a long folder path wraps. */
 .privacy__detail {
   margin: -6px 0 12px 24px;

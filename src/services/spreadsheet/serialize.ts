@@ -13,8 +13,10 @@ export const SSHEET_FORMAT = 'ssheet'
  *   saving to XLSX then leaves the original's as they are.
  * - **3** — `properties.removePersonalInformation`, set by the personal data inspector. A version 2
  *   file lacks it, and saving signs with the author's name as before.
+ * - **4** — `properties.custom`, the custom properties. A version 3 file lacks them, and saving to
+ *   XLSX leaves the file's as they are.
  */
-export const SSHEET_VERSION = 3
+export const SSHEET_VERSION = 4
 
 const cellStyleSchema = z.object({
   bold: z.boolean().optional(),

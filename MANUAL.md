@@ -101,10 +101,14 @@ modelos.
 
 ### Propriedades do documento
 
-**Arquivo → Propriedades…** tem duas partes:
+**Arquivo → Propriedades…** tem três partes:
 
 - **Resumo**: título, assunto, autores, gerente, empresa, categoria, palavras-chave e
   comentários. Você pode preencher e alterar.
+- **Personalizadas**: campos com nome próprio, como "Cliente" ou "Nº do processo", cada um do
+  tipo texto, número, data ou sim ou não. **Adicionar propriedade** cria uma; o **×** apaga. São
+  as mesmas da aba **Personalizar** das propriedades avançadas do Word e do Excel. Um tipo que o
+  Librevia não mostra, como uma lista, continua no arquivo.
 - **Informações e estatísticas**: quando o documento foi criado e modificado, por quem, o número
   da revisão e o tempo total de edição.
 

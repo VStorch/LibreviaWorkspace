@@ -1,9 +1,16 @@
 import { useState } from 'react'
-import type { DocumentProperties } from '@services/file/properties.js'
+import {
+  customPropertiesProblem,
+  sameCustomProperties,
+  type CustomProperty,
+  type CustomPropertyProblem,
+  type DocumentProperties,
+} from '@services/file/properties.js'
 import type { MessageKey } from '@shared/i18n/index.js'
 import { MAX_DESCRIPTION_LENGTH, MAX_PROPERTY_LENGTH } from '@shared/limits.js'
 import { useLanguage, useT } from '../i18n.js'
 import { useWorkspace } from '../state/workspace.js'
+import { CustomPropertiesFields, propertiesOfRows, rowsOf, type CustomRow } from './CustomPropertiesFields.js'
 import { DialogActions } from './DialogActions.js'
 
 /** A label and the value already written for the reader. */
@@ -37,6 +44,7 @@ export function FilePropertiesDialog({
   onClose,
   fields = ALL_FIELDS,
   authorship = true,
+  custom = true,
   notice,
 }: {
   readonly title: MessageKey
@@ -46,6 +54,8 @@ export function FilePropertiesDialog({
   readonly fields?: readonly EditableKey[]
   /** Last saved by, revision and editing time, which only Office files keep. */
   readonly authorship?: boolean
+  /** `docProps/custom.xml`, which a PDF does not have. */
+  readonly custom?: boolean
   readonly notice?: string | undefined
 }): React.JSX.Element {
   const t = useT()
@@ -59,8 +69,16 @@ export function FilePropertiesDialog({
       >,
   )
 
+  const [rows, setRows] = useState<CustomRow[]>(() => rowsOf(properties?.custom))
+  const [problem, setProblem] = useState<CustomPropertyProblem | null>(null)
+
   function save(): void {
-    const next = patchOf(properties, values)
+    const list = custom ? propertiesOfRows(rows) : null
+    const found = list === null ? null : customPropertiesProblem(list)
+    setProblem(found)
+    if (found !== null) return
+
+    const next = patchOf(properties, values, list)
     if (next !== null) setProperties(next)
     onClose()
   }
@@ -82,6 +100,8 @@ export function FilePropertiesDialog({
 
       <SummaryFields fields={fields} values={values} onChange={setValues} onSubmit={save} />
 
+      {custom && <CustomPropertiesFields rows={rows} onChange={setRows} problem={problem} />}
+
       <Statistics statistics={statistics} authorship={authorship} />
 
       <DialogActions confirmLabel={t('document.common.apply')} onConfirm={save} onCancel={onClose} />
@@ -89,13 +109,15 @@ export function FilePropertiesDialog({
   )
 }
 
-/** `null` when nothing changed. */
+/** `null` when nothing changed. `custom` is `null` where the format has none. */
 function patchOf(
   properties: DocumentProperties | undefined,
   values: Record<EditableKey, string>,
+  custom: readonly CustomProperty[] | null,
 ): DocumentProperties | null {
   let next: Record<string, unknown> = { ...properties }
-  let changed = false
+  let changed = custom !== null && !sameCustomProperties(properties?.custom ?? [], custom)
+  if (changed) next = { ...next, custom }
   for (const [key] of EDITABLE) {
     const value = values[key]
     if (value === (properties?.[key] ?? '')) continue

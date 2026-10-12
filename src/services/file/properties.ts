@@ -1,6 +1,31 @@
 import type { z } from 'zod'
 import type { documentPropertiesSchema } from '@shared/schemas.js'
 
+export const CustomPropertyType = {
+  Text: 'text',
+  Number: 'number',
+  /** The value is the file's instant (`2026-10-12T03:00:00Z`): Word stores local midnight in UTC. */
+  Date: 'date',
+  /** `true` or `false`. */
+  Boolean: 'boolean',
+} as const
+
+export type CustomPropertyType = (typeof CustomPropertyType)[keyof typeof CustomPropertyType]
+
+export const CUSTOM_PROPERTY_TYPES = [
+  CustomPropertyType.Text,
+  CustomPropertyType.Number,
+  CustomPropertyType.Date,
+  CustomPropertyType.Boolean,
+] as const
+
+/** File → Properties → Custom, as `docProps/custom.xml` keeps it. */
+export interface CustomProperty {
+  readonly name: string
+  readonly type: CustomPropertyType
+  readonly value: string
+}
+
 /**
  * As Word and Excel show them in File → Properties. Dates are W3CDTF (`2026-10-02T12:00:00Z`), as in the
  * package.
@@ -28,6 +53,8 @@ export interface DocumentProperties {
    * person's name. Set by the personal data inspector.
    */
   readonly removePersonalInformation?: boolean
+  /** Absent leaves the file's as they are; a list replaces them. */
+  readonly custom?: readonly CustomProperty[]
 }
 
 /** Without milliseconds, as Word writes `dcterms:created` and `dcterms:modified`. */
@@ -89,4 +116,54 @@ export function propertiesOf(raw: z.infer<typeof documentPropertiesSchema>): Doc
   return Object.fromEntries(
     Object.entries(raw).filter(([, value]) => value !== undefined),
   ) as DocumentProperties
+}
+
+export type CustomPropertyProblem = 'nameMissing' | 'nameRepeated' | 'numberInvalid' | 'dateMissing'
+
+/** The first problem that would keep the list from being saved; `null` when there is none. */
+export function customPropertiesProblem(properties: readonly CustomProperty[]): CustomPropertyProblem | null {
+  const names = properties.map((property) => property.name.trim().toLocaleLowerCase())
+  if (names.some((name) => name === '')) return 'nameMissing'
+  // Word refuses two properties that differ only in case.
+  if (new Set(names).size !== names.length) return 'nameRepeated'
+  if (
+    properties.some((property) => property.type === CustomPropertyType.Number && !isNumber(property.value))
+  ) {
+    return 'numberInvalid'
+  }
+  if (properties.some((property) => property.type === CustomPropertyType.Date && property.value === '')) {
+    return 'dateMissing'
+  }
+  return null
+}
+
+function isNumber(value: string): boolean {
+  return value.trim() !== '' && Number.isFinite(Number(value))
+}
+
+/** In any order: the file's list and the one on screen need not follow each other. */
+export function sameCustomProperties(a: readonly CustomProperty[], b: readonly CustomProperty[]): boolean {
+  return (
+    a.length === b.length &&
+    a.every((left) =>
+      b.some((right) => right.name === left.name && right.type === left.type && right.value === left.value),
+    )
+  )
+}
+
+/** The day the person sees, in their time zone, as a date input wants it (`2026-10-12`). */
+export function localDayOf(instant: string): string {
+  const parsed = Date.parse(instant)
+  if (Number.isNaN(parsed)) return ''
+  const date = new Date(parsed)
+  const pad = (value: number): string => String(value).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+}
+
+/** Local midnight of the day, in UTC, as Word writes a custom date. */
+export function instantOfDay(day: string): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(day)
+  if (match === null) return ''
+  const [, year, month, date] = match
+  return w3cdtf(new Date(Number(year), Number(month) - 1, Number(date)))
 }

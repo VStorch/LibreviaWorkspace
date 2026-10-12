@@ -3,6 +3,7 @@ import {
   PrivacyCategory,
   anonymizeAuthors,
   authorsIn,
+  cleanOwnProperties,
   foundCategories,
   inspectOwnFile,
   inspectPdf,
@@ -70,6 +71,16 @@ describe('inspetor de dados pessoais nos arquivos do próprio editor', () => {
     const report = inspectPdf({ creator: 'Ana Lima', title: 'Relatório' }, 2, ANONYMOUS)
     expect(report.names).toEqual(['Ana Lima'])
     expect(report.previousVersions).toBe(2)
+  })
+
+  it('acha e remove as propriedades personalizadas de um arquivo do próprio editor', () => {
+    const properties = { title: 'T', custom: [{ name: 'Cliente', type: 'text' as const, value: 'XPTO' }] }
+    expect(inspectOwnFile(properties, null, ANONYMOUS).customProperties).toEqual(['Cliente'])
+    expect(cleanOwnProperties(properties, [PrivacyCategory.CustomProperties])).toEqual({
+      title: 'T',
+      custom: [],
+    })
+    expect(cleanOwnProperties(properties, [PrivacyCategory.Names]).custom).toHaveLength(1)
   })
 
   it('lista as categorias na ordem do inspetor', () => {

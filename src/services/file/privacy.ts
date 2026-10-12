@@ -50,8 +50,8 @@ export function foundCategories(report: PrivacyReport): PrivacyCategory[] {
 const PERSONAL_PROPERTIES = ['creator', 'lastModifiedBy', 'company', 'manager'] as const
 
 /**
- * A `.sdoc` or `.ssheet` only has names: in the properties, and in the comments and changes of
- * `content` (the document model, or nothing for a spreadsheet).
+ * A `.sdoc` or `.ssheet` only has names (in the properties, and in the comments and changes of
+ * `content`, the document model or nothing for a spreadsheet) and custom properties.
  */
 export function inspectOwnFile(
   properties: DocumentProperties | undefined,
@@ -66,7 +66,7 @@ export function inspectOwnFile(
   return {
     names,
     paths: [],
-    customProperties: [],
+    customProperties: (properties?.custom ?? []).map((property) => property.name),
     thumbnail: false,
     imagesWithMetadata: 0,
     removePersonalInformation: properties?.removePersonalInformation === true,
@@ -83,6 +83,17 @@ export function inspectPdf(
   anonymous: string,
 ): PrivacyReport {
   return { ...inspectOwnFile(properties, null, anonymous), previousVersions: updates }
+}
+
+/** What removing does to the properties of a file of the editor's own. */
+export function cleanOwnProperties(
+  properties: DocumentProperties | undefined,
+  categories: readonly PrivacyCategory[],
+): DocumentProperties {
+  const named = categories.includes(PrivacyCategory.Names)
+    ? withoutPersonalNames(properties)
+    : { ...properties }
+  return categories.includes(PrivacyCategory.CustomProperties) ? { ...named, custom: [] } : named
 }
 
 /** Empty clears the field when saving to DOCX or XLSX; the flag keeps the next save from signing. */

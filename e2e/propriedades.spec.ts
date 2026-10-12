@@ -93,6 +93,56 @@ test.describe('propriedades do documento', () => {
     await expect(dialogo.getByRole('textbox', { name: 'Palavras-chave' })).toHaveValue('contas; auditoria')
     await expect(dialogo.getByRole('textbox', { name: 'Assunto' })).toHaveValue('Contas')
   })
+
+  test('as personalizadas se editam, acrescentam e apagam, e só o custom.xml muda', async () => {
+    const origem = join(pasta, 'relatorio.docx')
+    await writeFile(origem, await docxWithProperties())
+    await stubDialogs(session.app, { open: origem, messageBox: 1 })
+    await menu(session, 'open')
+    await expect(session.window.locator('.pages__column .ProseMirror')).toContainText('Relatório de contas')
+
+    await menu(session, 'document-properties')
+    const dialogo = session.window.getByRole('dialog', { name: 'Propriedades do documento' })
+    const nomes = dialogo.getByRole('textbox', { name: 'Nome' })
+    const valores = dialogo.getByRole('textbox', { name: 'Valor' })
+    await expect(nomes).toHaveValue('Cliente')
+    await expect(valores).toHaveValue('XPTO')
+    await valores.fill('ACME Ltda')
+
+    await dialogo.getByRole('button', { name: 'Adicionar propriedade' }).click()
+    await expect(nomes.nth(1)).toBeFocused()
+    await nomes.nth(1).fill('Folhas')
+    await dialogo.getByRole('combobox', { name: 'Tipo' }).nth(1).selectOption({ label: 'Número' })
+    await dialogo.getByRole('spinbutton', { name: 'Valor' }).fill('3')
+
+    // A row without a name does not go: the dialog says why and stays open.
+    await dialogo.getByRole('button', { name: 'Adicionar propriedade' }).click()
+    await dialogo.getByRole('button', { name: 'Aplicar' }).click()
+    await expect(dialogo.getByRole('alert')).toHaveText('Toda propriedade personalizada precisa de um nome.')
+    await dialogo.getByRole('button', { name: 'Remover', exact: false }).last().click()
+    await dialogo.getByRole('button', { name: 'Aplicar' }).click()
+    await expect(dialogo).toHaveCount(0)
+
+    await menu(session, 'save')
+    await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
+    const custom = await entryOf(origem, 'docProps/custom.xml')
+    expect(custom).toContain('pid="2" name="Cliente"><vt:lpwstr>ACME Ltda</vt:lpwstr>')
+    expect(custom).toContain('pid="3" name="Folhas"><vt:i4>3</vt:i4>')
+    expect(await entryOf(origem, 'docProps/app.xml')).toBe(PROPERTIES_APP)
+
+    await menu(session, 'document-properties')
+    await dialogo.getByRole('button', { name: 'Remover Cliente' }).click()
+    await dialogo.getByRole('button', { name: 'Aplicar' }).click()
+    await menu(session, 'save')
+    await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
+    expect(await entryOf(origem, 'docProps/custom.xml')).not.toContain('Cliente')
+
+    await menu(session, 'open')
+    await expect(session.window.locator('.pages__column .ProseMirror')).toContainText('Relatório de contas')
+    await menu(session, 'document-properties')
+    await expect(nomes).toHaveValue('Folhas')
+    await expect(dialogo.getByRole('spinbutton', { name: 'Valor' })).toHaveValue('3')
+  })
   test('o PDF exportado leva título, autor, assunto e palavras-chave', async () => {
     // Chromium writes the page `<title>` as the PDF Title; main appends the rest.
     const alvo = join(pasta, 'ata.pdf')

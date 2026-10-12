@@ -249,6 +249,36 @@ export const DOCUMENT = {
   'document.properties.revision': { pt: 'Revisão', en: 'Revision number' },
   'document.properties.totalTime': { pt: 'Tempo total de edição', en: 'Total editing time' },
   'document.properties.minutes': { pt: '{count} min', en: '{count} min' },
+  'document.properties.custom': { pt: 'Personalizadas', en: 'Custom' },
+  'document.properties.custom.empty': {
+    pt: 'Nenhuma. Campos como cliente, número do processo ou classificação ficam aqui.',
+    en: 'None. Fields such as client, case number or classification go here.',
+  },
+  'document.properties.custom.name': { pt: 'Nome', en: 'Name' },
+  'document.properties.custom.type': { pt: 'Tipo', en: 'Type' },
+  'document.properties.custom.value': { pt: 'Valor', en: 'Value' },
+  'document.properties.custom.text': { pt: 'Texto', en: 'Text' },
+  'document.properties.custom.number': { pt: 'Número', en: 'Number' },
+  'document.properties.custom.date': { pt: 'Data', en: 'Date' },
+  'document.properties.custom.boolean': { pt: 'Sim ou não', en: 'Yes or no' },
+  'document.properties.custom.add': { pt: 'Adicionar propriedade', en: 'Add property' },
+  'document.properties.custom.remove': { pt: 'Remover {name}', en: 'Remove {name}' },
+  'document.properties.custom.nameMissing': {
+    pt: 'Toda propriedade personalizada precisa de um nome.',
+    en: 'Every custom property needs a name.',
+  },
+  'document.properties.custom.nameRepeated': {
+    pt: 'Duas propriedades personalizadas têm o mesmo nome.',
+    en: 'Two custom properties have the same name.',
+  },
+  'document.properties.custom.numberInvalid': {
+    pt: 'Uma propriedade do tipo número tem um valor que não é número.',
+    en: 'A number property has a value that is not a number.',
+  },
+  'document.properties.custom.dateMissing': {
+    pt: 'Uma propriedade do tipo data está sem data.',
+    en: 'A date property has no date.',
+  },
 
   'document.characterFormat.group': { pt: 'Formatação do texto', en: 'Text formatting' },
   'document.characterFormat.bold': { pt: 'Negrito', en: 'Bold' },

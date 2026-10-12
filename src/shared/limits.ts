@@ -18,6 +18,8 @@ export const MAX_IMAGE_SIDE_PX = 4000
 
 /** The `docProps/` fields: the description is free text, the others fit on one line. */
 export const MAX_PROPERTY_LENGTH = 2_000
+/** Word's dialog has no limit; a list longer than this is no longer something a person keeps. */
+export const MAX_CUSTOM_PROPERTIES = 500
 export const MAX_DESCRIPTION_LENGTH = 100_000
 
 /** Word stores the start number in a 16-bit integer. */

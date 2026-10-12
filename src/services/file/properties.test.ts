@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { stampProperties, w3cdtf } from './properties.js'
+import {
+  CustomPropertyType,
+  customPropertiesProblem,
+  instantOfDay,
+  localDayOf,
+  sameCustomProperties,
+  stampProperties,
+  w3cdtf,
+} from './properties.js'
 
 const now = new Date('2026-10-02T12:34:56.789Z')
 
@@ -53,5 +61,38 @@ describe('carimbo das propriedades na gravação', () => {
 
   it('a data sai em W3CDTF sem milissegundos', () => {
     expect(w3cdtf(now)).toBe('2026-10-02T12:34:56Z')
+  })
+})
+
+describe('propriedades personalizadas', () => {
+  const texto = { name: 'Cliente', type: CustomPropertyType.Text, value: 'XPTO' }
+  const numero = { name: 'Processo', type: CustomPropertyType.Number, value: '2026' }
+
+  it('aceita a lista válida', () => {
+    expect(customPropertiesProblem([texto, numero])).toBeNull()
+  })
+
+  it('recusa nome vazio, nome repetido sem olhar maiúsculas, número inválido e data vazia', () => {
+    expect(customPropertiesProblem([{ ...texto, name: '  ' }])).toBe('nameMissing')
+    expect(customPropertiesProblem([texto, { ...numero, name: 'cliente' }])).toBe('nameRepeated')
+    expect(customPropertiesProblem([{ ...numero, value: 'doze' }])).toBe('numberInvalid')
+    expect(customPropertiesProblem([{ ...numero, value: '' }])).toBe('numberInvalid')
+    expect(customPropertiesProblem([{ name: 'Prazo', type: CustomPropertyType.Date, value: '' }])).toBe(
+      'dateMissing',
+    )
+  })
+
+  it('a mesma lista em outra ordem é a mesma', () => {
+    expect(sameCustomProperties([texto, numero], [numero, texto])).toBe(true)
+    expect(sameCustomProperties([texto], [{ ...texto, value: 'outro' }])).toBe(false)
+    expect(sameCustomProperties([texto], [])).toBe(false)
+  })
+
+  it('a data vai e volta como o mesmo dia no fuso de quem usa', () => {
+    const instant = instantOfDay('2026-10-12')
+    expect(instant).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:00Z$/)
+    expect(localDayOf(instant)).toBe('2026-10-12')
+    expect(instantOfDay('12/10/2026')).toBe('')
+    expect(localDayOf('não é data')).toBe('')
   })
 })

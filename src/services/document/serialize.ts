@@ -64,9 +64,11 @@ import { propertiesOf } from '@services/file/properties.js'
  *   it (`beforeMath`) for the same reason as version 4.
  * - **12**: `properties.removePersonalInformation`, set by the personal data inspector. An older
  *   draft lacks it, and saving signs with the author's name as before.
+ * - **13**: `properties.custom`, the custom properties. An older draft lacks them, and saving to
+ *   DOCX leaves the file's as they are.
  */
 export const SDOC_FORMAT = 'sdoc'
-export const SDOC_VERSION = 12
+export const SDOC_VERSION = 13
 
 /** Content is only validated in shape; the fine structure is ProseMirror's. */
 const documentNodeSchema: z.ZodType<DocumentNode> = z.looseObject({

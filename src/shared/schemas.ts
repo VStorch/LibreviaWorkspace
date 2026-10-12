@@ -2,6 +2,7 @@ import { z } from 'zod'
 import type { DocumentNode } from '@services/document/model.js'
 import { MAX_ZOOM, MIN_ZOOM } from '@services/document/zoom.js'
 import { PRIVACY_CATEGORIES } from '@services/file/privacy.js'
+import { CUSTOM_PROPERTY_TYPES } from '@services/file/properties.js'
 import { Language, LANGUAGES } from './i18n/language.js'
 import { Theme } from './types.js'
 import {
@@ -9,6 +10,7 @@ import {
   MAX_CSS_VALUE_LENGTH,
   MAX_DESCRIPTION_LENGTH,
   MAX_FIELD_LENGTH,
+  MAX_CUSTOM_PROPERTIES,
   MAX_ID_LENGTH,
   MAX_IMAGE_SIDE_PX,
   MAX_NAME_LENGTH,
@@ -230,6 +232,17 @@ export const documentPropertiesSchema = z.object({
   manager: propertyText,
   totalTime: z.number().int().min(0).max(1_000_000_000).optional(),
   removePersonalInformation: z.boolean().optional(),
+  custom: z
+    .array(
+      z.object({
+        name: z.string().min(1).max(MAX_NAME_LENGTH),
+        type: z.enum(CUSTOM_PROPERTY_TYPES),
+        value: z.string().max(MAX_PROPERTY_LENGTH),
+      }),
+    )
+    .max(MAX_CUSTOM_PROPERTIES)
+    .readonly()
+    .optional(),
 })
 
 /**

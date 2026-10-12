@@ -6,7 +6,7 @@ import {
   anonymizeAuthors,
   inspectOwnFile,
   inspectPdf,
-  withoutPersonalNames,
+  cleanOwnProperties,
   type PrivacyReport,
 } from '@services/file/privacy.js'
 import { t } from '../i18n.js'
@@ -57,13 +57,11 @@ export function createPrivacyActions(
     return true
   }
 
-  /** A file of the editor's own only has names. */
+  /** A file of the editor's own only has names and custom properties. */
   function cleanOwnFile(file: OpenFile, categories: readonly PrivacyCategory[]): boolean {
-    if (!categories.includes(PrivacyCategory.Names)) return false
-
     const state = get()
-    const properties = withoutPersonalNames(state.properties)
-    if (state.workbook === null) {
+    const properties = cleanOwnProperties(state.properties, categories)
+    if (state.workbook === null && categories.includes(PrivacyCategory.Names)) {
       const model = anonymizeAuthors(ctx.currentModel(), anonymousName())
       ctx.show({ file, model: { ...model, properties }, workbook: null })
     }
