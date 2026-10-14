@@ -136,6 +136,8 @@ export const MenuCommand = {
   InsertCrossReference: 'insert-cross-reference',
   /** `TITLE`, `AUTHOR`, `DOCPROPERTY "Cliente"`; see `property-fields.ts`. */
   InsertPropertyField: 'insert-property-field',
+  AiAssistant: 'ai-assistant',
+  AiProviders: 'ai-providers',
   // The values match `TableAction` (see `table-actions.ts`), and `App` forwards them to the editor
   // by them.
   TableInsert: 'table-insert',
@@ -155,6 +157,16 @@ export const MenuCommand = {
 } as const
 
 export type MenuCommand = (typeof MenuCommand)[keyof typeof MenuCommand]
+
+export const AiAction = {
+  Rewrite: 'rewrite',
+  Summarize: 'summarize',
+  Proofread: 'proofread',
+  Translate: 'translate',
+  Custom: 'custom',
+} as const
+
+export type AiAction = (typeof AiAction)[keyof typeof AiAction]
 
 /** Belongs to the window, as in Word: nothing of this is saved, and printing follows the window. */
 export const RevisionView = {

@@ -4,8 +4,14 @@ import { MAX_ZOOM, MIN_ZOOM } from '@services/document/zoom.js'
 import { PRIVACY_CATEGORIES } from '@services/file/privacy.js'
 import { CUSTOM_PROPERTY_TYPES } from '@services/file/properties.js'
 import { Language, LANGUAGES } from './i18n/language.js'
-import { Theme } from './types.js'
+import { AiProviderKind } from '@services/ai/provider.js'
+import { AiAction, Theme } from './types.js'
 import {
+  MAX_AI_INSTRUCTION_LENGTH,
+  MAX_AI_KEY_LENGTH,
+  MAX_AI_RESPONSE_LENGTH,
+  MAX_AI_SELECTION_LENGTH,
+  MAX_AI_URL_LENGTH,
   MAX_COLOR_LENGTH,
   MAX_CSS_VALUE_LENGTH,
   MAX_DESCRIPTION_LENGTH,
@@ -434,4 +440,48 @@ export const styleSheetSchema = z.object({
   styles: z
     .record(z.string().max(MAX_ID_LENGTH), styleDefinitionSchema)
     .refine((styles) => Object.keys(styles).length <= 4000, 'estilos demais'),
+})
+
+const aiProviderIdSchema = z.string().min(1).max(MAX_ID_LENGTH)
+const aiModelIdSchema = z.string().max(MAX_ID_LENGTH)
+const aiBaseUrlSchema = z.url({ protocol: /^https?$/ }).max(MAX_AI_URL_LENGTH)
+
+/** What the renderer sees of a provider: whether it has a key, never the key. */
+export const aiProviderSchema = z.object({
+  id: aiProviderIdSchema,
+  kind: z.enum(AiProviderKind),
+  label: z.string().min(1).max(MAX_NAME_LENGTH),
+  baseUrl: aiBaseUrlSchema.optional(),
+  hasKey: z.boolean(),
+  local: z.boolean(),
+  consented: z.boolean(),
+  defaultModel: aiModelIdSchema.optional(),
+})
+
+export const aiProviderDraftSchema = z.object({
+  id: aiProviderIdSchema.optional(),
+  kind: z.enum(AiProviderKind),
+  label: z.string().trim().min(1).max(MAX_NAME_LENGTH),
+  baseUrl: aiBaseUrlSchema.optional(),
+  apiKey: z.string().trim().max(MAX_AI_KEY_LENGTH).optional(),
+  defaultModel: aiModelIdSchema.optional(),
+  makeDefault: z.boolean().default(false),
+  revokeConsent: z.boolean().default(false),
+})
+
+export const aiActionSchema = z.enum(AiAction)
+
+export const aiGenerateRequestSchema = z.object({
+  requestId: z.uuid(),
+  providerId: aiProviderIdSchema,
+  model: aiModelIdSchema,
+  action: aiActionSchema,
+  targetLanguage: z.enum(LANGUAGES).optional(),
+  instruction: z.string().max(MAX_AI_INSTRUCTION_LENGTH).optional(),
+  text: z.string().min(1).max(MAX_AI_SELECTION_LENGTH),
+})
+
+export const aiStreamEventSchema = z.object({
+  requestId: z.uuid(),
+  delta: z.string().min(1).max(MAX_AI_RESPONSE_LENGTH),
 })

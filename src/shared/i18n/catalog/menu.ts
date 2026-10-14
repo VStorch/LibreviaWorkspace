@@ -88,6 +88,8 @@ export const MENU = {
   'menu.tools.typography': { pt: 'Autocorreção tipográfica', en: 'Smart typography' },
   'menu.tools.wordCount': { pt: 'Contar palavras…', en: 'Word count…' },
   'menu.tools.authorName': { pt: 'Nome do autor…', en: 'Author name…' },
+  'menu.tools.aiAssistant': { pt: 'Assistente de IA…', en: 'AI assistant…' },
+  'menu.tools.aiProviders': { pt: 'Assistentes de IA…', en: 'AI assistants…' },
 
   'menu.help.about': { pt: 'Sobre o {app}', en: 'About {app}' },
 

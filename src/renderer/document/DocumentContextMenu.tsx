@@ -1,11 +1,12 @@
 import { Fragment } from 'react'
 import type { IpcResult } from '@shared/ipc.js'
 import { TABLE_ACTIONS, type TableAction } from '@shared/table-actions.js'
-import { DictionaryScope, EditCommand, type ContextMenuTarget } from '@shared/types.js'
+import { AiAction, DictionaryScope, EditCommand, type ContextMenuTarget } from '@shared/types.js'
 import { ContextMenu, ContextMenuItem, ContextMenuSeparator } from '../components/ContextMenu.js'
 import { useT } from '../i18n.js'
 import { useWorkspace } from '../state/workspace.js'
 import { NoteKind } from '@services/document/notes.js'
+import { AI_ACTION_LABELS } from './AiPanel.js'
 
 export type ListAction = 'restart' | 'continue' | 'setStart' | 'format'
 
@@ -24,6 +25,7 @@ export interface DocumentContextMenuProps {
   /** `null` away from a note (`noteAtCursor`). */
   readonly noteKind: NoteKind | null
   readonly onConvertNote: () => void
+  readonly onAiAction: (action: AiAction) => void
 }
 
 /**
@@ -69,6 +71,7 @@ export function DocumentContextMenu(props: DocumentContextMenuProps): React.JSX.
       )}
       {/* "Insert table" is left out: a table inside a table lives in the "Table" menu. */}
       {inTable && !readOnly && <TableItems onTableAction={props.onTableAction} onClose={onClose} />}
+      {target.canCopy && !readOnly && <AiItems onAiAction={props.onAiAction} onClose={onClose} />}
     </ContextMenu>
   )
 }
@@ -230,6 +233,27 @@ function TableItems({
             {t(action.labelKey)}
           </ContextMenuItem>
         </Fragment>
+      ))}
+    </>
+  )
+}
+
+/** Flat, after the rest: the context menu has no submenus. */
+function AiItems({
+  onAiAction,
+  onClose,
+}: {
+  onAiAction: (action: AiAction) => void
+  onClose: () => void
+}): React.JSX.Element {
+  const t = useT()
+  return (
+    <>
+      <ContextMenuSeparator />
+      {Object.values(AiAction).map((action) => (
+        <ContextMenuItem key={action} onClick={closing(onClose, () => onAiAction(action))}>
+          {`${t('ai.panel.title')}: ${t(AI_ACTION_LABELS[action])}`}
+        </ContextMenuItem>
       ))}
     </>
   )

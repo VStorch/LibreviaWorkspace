@@ -13,6 +13,11 @@ type IpcResponseMap = {
   [C in Exclude<IpcChannel, PushIpcChannel>]: IpcResponse<C>
 }
 
+export interface AiStreamEvent {
+  readonly requestId: string
+  readonly delta: string
+}
+
 /** `path` only comes with "open recent". */
 export interface MenuCommandPayload {
   readonly command: MenuCommand
@@ -72,6 +77,16 @@ export interface AppApi {
   readonly privacy: {
     inspect: Call<typeof IpcChannel.PrivacyInspect>
     remove: Call<typeof IpcChannel.PrivacyRemove>
+  }
+  readonly ai: {
+    listProviders: Call<typeof IpcChannel.AiProvidersList>
+    saveProvider: Call<typeof IpcChannel.AiProviderSave>
+    removeProvider: Call<typeof IpcChannel.AiProviderRemove>
+    discover: Call<typeof IpcChannel.AiDiscover>
+    listModels: Call<typeof IpcChannel.AiModelsList>
+    generate: Call<typeof IpcChannel.AiGenerate>
+    cancel: Call<typeof IpcChannel.AiCancel>
+    onStream(listener: (event: AiStreamEvent) => void): () => void
   }
   readonly menu: {
     onCommand(listener: (payload: MenuCommandPayload) => void): () => void

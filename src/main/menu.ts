@@ -440,6 +440,9 @@ function toolsMenu(preferences: EditorPreferences): MenuItemConstructorOptions {
       { type: 'separator' },
       commandItem('menu.tools.wordCount', MenuCommand.WordCount, acceleratorOf(SHORTCUTS.wordCount)),
       commandItem('menu.tools.authorName', MenuCommand.AuthorName),
+      { type: 'separator' },
+      commandItem('menu.tools.aiAssistant', MenuCommand.AiAssistant, acceleratorOf(SHORTCUTS.aiAssistant)),
+      commandItem('menu.tools.aiProviders', MenuCommand.AiProviders),
     ],
   }
 }

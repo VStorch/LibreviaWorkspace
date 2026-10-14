@@ -27,3 +27,13 @@ export const MAX_START_NUMBER = 32767
 
 /** Word does not split a page into more than 45 columns. */
 export const MAX_SECTION_COLUMNS = 45
+
+/** A long chapter; a whole book would cost money on a paid service and stall a local model. */
+export const MAX_AI_SELECTION_LENGTH = 20_000
+export const MAX_AI_INSTRUCTION_LENGTH = 2_000
+export const MAX_AI_RESPONSE_LENGTH = 100_000
+export const MAX_AI_KEY_LENGTH = 500
+export const MAX_AI_URL_LENGTH = 2_000
+export const MAX_AI_PROVIDERS = 20
+export const MAX_AI_MODELS = 1_000
+export const MAX_AI_STREAM_LINE_LENGTH = 1_000_000

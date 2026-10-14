@@ -3,7 +3,7 @@ import type { JSONContent } from '@tiptap/core'
 import type { Editor } from '@tiptap/react'
 import { IpcChannel } from '@shared/ipc-channels.js'
 import { pushContracts } from '@shared/ipc.js'
-import type { ContextMenuTarget } from '@shared/types.js'
+import type { AiAction, ContextMenuTarget } from '@shared/types.js'
 import { DOCUMENT_CONTENT_CSS, EDITOR_ONLY_CSS, NOTES_CSS } from '@services/document/content-styles.js'
 import { styleSheetCss } from '@services/document/style-css.js'
 import { plainPasteContent } from '@services/document/paste.js'
@@ -34,6 +34,7 @@ import { useFloatsByPage, useSheetEditing } from './useSheetEditing.js'
 import { useSheetGeometry } from './useSheetGeometry.js'
 import { EditorContextMenu, EditorDialogs } from './EditorDialogs.js'
 import { PageStack } from './PageStack.js'
+import { AiPanel, type AiLaunch } from './AiPanel.js'
 
 /**
  * Paginates live: the text is a single flow, and a margin decoration pushes each block to the right
@@ -67,6 +68,7 @@ export function DocumentEditor(): React.JSX.Element {
   const referenceContext = useReferenceContext(layoutRef, effective)
   const pasteWithoutFormat = usePasteWithoutFormat(editor, readOnly)
   const commands = useEditorCommands(editor, readOnly, pasteWithoutFormat, referenceContext)
+  const ai = useAiLauncher(commands.setDialog)
   const { comments, outside } = useComments(editor)
   const geometry = useSheetGeometry({
     editor,
@@ -98,6 +100,7 @@ export function DocumentEditor(): React.JSX.Element {
         readOnly={readOnly}
         referenceContext={referenceContext}
         pasteWithoutFormat={pasteWithoutFormat}
+        onAiAction={ai.launchAi}
       />
       {reading && <ReadingHint />}
       {/* Beside the sheet, not over it: a floating panel would cover the text. */}
@@ -118,9 +121,58 @@ export function DocumentEditor(): React.JSX.Element {
             zoomedWidthPx={geometry.stackWidthPx + (commentsPane ? COMMENTS_PANE_WIDTH_PX : 0)}
           />
         </div>
+        {!reading && <AiSidePane editor={editor} commands={commands} ai={ai} />}
       </div>
     </div>
   )
+}
+
+interface AiLauncher {
+  readonly launch: AiLaunch | null
+  readonly launchAi: (action: AiAction) => void
+  readonly close: () => void
+}
+
+function AiSidePane({
+  editor,
+  commands,
+  ai,
+}: {
+  readonly editor: Editor
+  readonly commands: EditorCommands
+  readonly ai: AiLauncher
+}): React.JSX.Element | null {
+  if (!commands.dialogs.aiPanel) return null
+  return (
+    <AiPanel
+      editor={editor}
+      configuring={commands.dialogs.aiProviders}
+      launch={ai.launch}
+      onClose={ai.close}
+      onConfigure={() => commands.setDialog('aiProviders', true)}
+    />
+  )
+}
+
+/** Without a provider, the context menu opens the setup instead: nothing to send to. */
+function useAiLauncher(setDialog: EditorCommands['setDialog']): AiLauncher {
+  const showError = useWorkspace((state) => state.showError)
+  const [launch, setLaunch] = useState<AiLaunch | null>(null)
+  const launchAi = useCallback(
+    (action: AiAction) =>
+      void window.api.ai.listProviders({}).then((result) => {
+        if (!result.ok) return showError(result.error)
+        if (result.data.providers.length === 0) return setDialog('aiProviders', true)
+        setLaunch((current) => ({ action, nonce: (current?.nonce ?? 0) + 1 }))
+        setDialog('aiPanel', true)
+      }),
+    [setDialog, showError],
+  )
+  const close = useCallback(() => {
+    setLaunch(null)
+    setDialog('aiPanel', false)
+  }, [setDialog])
+  return { launch, launchAi, close }
 }
 
 interface EditorChromeProps {
@@ -131,6 +183,7 @@ interface EditorChromeProps {
   readonly readOnly: boolean
   readonly referenceContext: () => ReferenceContext
   readonly pasteWithoutFormat: () => Promise<void>
+  readonly onAiAction: (action: AiAction) => void
 }
 
 /** Print CSS, the toolbar, the open dialogs and the context menu. */
@@ -178,6 +231,7 @@ function EditorChrome(props: EditorChromeProps): React.JSX.Element {
           run={commands.run}
           setDialog={setDialog}
           pasteWithoutFormat={pasteWithoutFormat}
+          onAiAction={props.onAiAction}
           onClose={() => setContextTarget(null)}
         />
       )}

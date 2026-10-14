@@ -1,4 +1,5 @@
 import type { Entry } from '../message.js'
+import { AI } from './ai.js'
 import { CHARS } from './chars.js'
 import { COMMENTS } from './comments.js'
 import { DIALOG } from './dialog.js'
@@ -31,6 +32,7 @@ export const MESSAGES = {
   ...COMMENTS,
   ...REVISIONS,
   ...PRIVACY,
+  ...AI,
 } as const
 
 export type MessageKey = keyof typeof MESSAGES
@@ -50,4 +52,5 @@ export const AREAS: Readonly<Record<string, Readonly<Record<string, Entry>>>> = 
   comments: COMMENTS,
   revisions: REVISIONS,
   privacy: PRIVACY,
+  ai: AI,
 }

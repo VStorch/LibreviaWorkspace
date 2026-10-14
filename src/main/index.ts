@@ -1,5 +1,6 @@
 import { app, BrowserWindow, session } from 'electron'
 import { APP_NAME } from '@shared/constants.js'
+import { registerAiHandlers } from './ipc/ai.js'
 import { registerEditingHandlers } from './ipc/editing.js'
 import { registerFileHandlers } from './ipc/file.js'
 import { registerExportHandlers } from './ipc/export.js'
@@ -66,6 +67,7 @@ if (!app.requestSingleInstanceLock()) {
     registerRecoveryHandlers()
     registerTemplateHandlers()
     registerWindowHandlers()
+    registerAiHandlers()
 
     // The menu draws its check marks from the preferences, including those changed from the
     // toolbar.

@@ -212,6 +212,11 @@ export const SHORTCUTS = {
     key: { mod: true, shift: true, key: 'G' },
     does: 'Contar palavras…',
   },
+  aiAssistant: {
+    owner: ShortcutOwner.Menu,
+    key: { mod: true, shift: true, key: 'Y' },
+    does: 'Assistente de IA…',
+  },
 
   // ## Editor: alignment, as in Word and Writer
   alignLeft: { owner: ShortcutOwner.Editor, key: { mod: true, key: 'L' }, does: 'Alinhar à esquerda' },

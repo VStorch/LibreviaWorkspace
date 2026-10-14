@@ -7,6 +7,10 @@ import {
   type PushIpcChannel,
 } from './ipc-channels.js'
 import {
+  aiGenerateRequestSchema,
+  aiProviderDraftSchema,
+  aiProviderSchema,
+  aiStreamEventSchema,
   contextMenuTargetSchema,
   documentPropertiesSchema,
   editorPreferencesPatchSchema,
@@ -18,10 +22,14 @@ import {
 } from './schemas.js'
 import { PRIVACY_CATEGORIES } from '@services/file/privacy.js'
 import { PDF_VIEWER_ORIGIN } from './constants.js'
+import { AiProviderKind } from '@services/ai/provider.js'
 import { DictionaryScope, EditCommand, MenuCommand, RevisionView } from './types.js'
 import type { SerializedError } from './errors.js'
 import {
+  MAX_AI_MODELS,
+  MAX_AI_PROVIDERS,
   MAX_FILE_NAME_LENGTH,
+  MAX_ID_LENGTH,
   MAX_FONT_FAMILIES,
   MAX_FONT_FAMILY_LENGTH,
   MAX_NAME_LENGTH,
@@ -84,6 +92,13 @@ const draftSummarySchema = z.object({
 })
 
 const emptyRequest = z.object({})
+
+const aiProviderListSchema = z.object({
+  providers: z.array(aiProviderSchema).max(MAX_AI_PROVIDERS),
+  defaultProviderId: z.string().max(MAX_ID_LENGTH).nullable(),
+})
+
+const aiProviderRefSchema = z.object({ providerId: z.string().min(1).max(MAX_ID_LENGTH) })
 
 const printRequestSchema = z.object({
   html: z.string().max(MAX_TEXT_LENGTH),
@@ -329,6 +344,52 @@ export const ipcContracts = {
     // user dictionary does not accept. Not an error.
     response: z.object({ added: z.boolean() }),
   },
+  [IpcChannel.AiProvidersList]: {
+    request: emptyRequest,
+    response: aiProviderListSchema,
+  },
+  [IpcChannel.AiProviderSave]: {
+    request: aiProviderDraftSchema,
+    response: aiProviderListSchema,
+  },
+  [IpcChannel.AiProviderRemove]: {
+    request: aiProviderRefSchema,
+    response: aiProviderListSchema,
+  },
+  [IpcChannel.AiDiscover]: {
+    request: emptyRequest,
+    response: z.object({
+      candidates: z
+        .array(
+          z.object({
+            kind: z.enum(AiProviderKind),
+            label: z.string().min(1).max(MAX_NAME_LENGTH),
+            baseUrl: z.string().max(MAX_PATH_LENGTH).optional(),
+          }),
+        )
+        .max(MAX_AI_PROVIDERS),
+    }),
+  },
+  [IpcChannel.AiModelsList]: {
+    request: aiProviderRefSchema,
+    response: z.object({
+      models: z
+        .array(z.object({ id: z.string().min(1).max(MAX_ID_LENGTH), label: z.string().max(MAX_NAME_LENGTH) }))
+        .max(MAX_AI_MODELS),
+    }),
+  },
+  [IpcChannel.AiGenerate]: {
+    request: aiGenerateRequestSchema,
+    response: z.object({
+      status: z.enum(['done', 'canceled', 'declined']),
+      model: z.string().max(MAX_ID_LENGTH).optional(),
+      costUsd: z.number().nonnegative().optional(),
+    }),
+  },
+  [IpcChannel.AiCancel]: {
+    request: z.object({ requestId: z.uuid() }),
+    response: z.object({ canceled: z.boolean() }),
+  },
 } as const
 
 /**
@@ -346,6 +407,7 @@ export const pushContracts = {
   }),
   [IpcChannel.ContextMenuRequested]: contextMenuTargetSchema,
   [IpcChannel.PreferencesChanged]: editorPreferencesSchema,
+  [IpcChannel.AiStream]: aiStreamEventSchema,
 } as const
 
 export type PushContracts = typeof pushContracts

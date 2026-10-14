@@ -131,6 +131,26 @@ export async function confirmExternalLink(window: BrowserWindow | null, url: str
   return response === 0
 }
 
+/** Asked once per provider, before the first text leaves this computer. */
+export async function confirmAiConsent(
+  window: BrowserWindow,
+  label: string,
+  destination: string | undefined,
+): Promise<boolean> {
+  const { response } = await dialog.showMessageBox(window, {
+    type: 'question',
+    title: t('ai.consent.title'),
+    message: t('ai.consent.message', { provider: label }),
+    detail:
+      destination === undefined ? t('ai.consent.detail') : `${t('ai.consent.detail')}\n\n${destination}`,
+    buttons: [t('ai.consent.allow'), t('dialog.discard.cancel')],
+    defaultId: 1,
+    cancelId: 1,
+    noLink: true,
+  })
+  return response === 0
+}
+
 export async function showPdfSaveDialog(
   window: BrowserWindow,
   suggestedName: string,

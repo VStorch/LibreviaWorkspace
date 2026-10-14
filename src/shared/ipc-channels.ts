@@ -89,10 +89,22 @@ export const IpcChannel = {
   /** Forever, or only for this session. */
   SpellAddWord: 'spell:add-word',
 
+  /** Never the keys: the renderer only learns whether a provider has one. */
+  AiProvidersList: 'ai:providers-list',
+  AiProviderSave: 'ai:provider-save',
+  AiProviderRemove: 'ai:provider-remove',
+  /** Only when the person asks: nothing is probed on startup. */
+  AiDiscover: 'ai:discover',
+  AiModelsList: 'ai:models-list',
+  /** The text arrives through `AiStream`; the end, the error or the cancellation through the reply. */
+  AiGenerate: 'ai:generate',
+  AiCancel: 'ai:cancel',
+
   MenuCommand: 'menu:command',
   ContextMenuRequested: 'context-menu:requested',
   /** Whatever its origin. */
   PreferencesChanged: 'prefs:changed',
+  AiStream: 'ai:stream',
 } as const
 
 export type IpcChannel = (typeof IpcChannel)[keyof typeof IpcChannel]
@@ -136,6 +148,13 @@ export const INVOCABLE_IPC_CHANNELS = [
   IpcChannel.ClipboardReadText,
   IpcChannel.SpellReplaceWord,
   IpcChannel.SpellAddWord,
+  IpcChannel.AiProvidersList,
+  IpcChannel.AiProviderSave,
+  IpcChannel.AiProviderRemove,
+  IpcChannel.AiDiscover,
+  IpcChannel.AiModelsList,
+  IpcChannel.AiGenerate,
+  IpcChannel.AiCancel,
 ] as const
 
 export type InvocableIpcChannel = (typeof INVOCABLE_IPC_CHANNELS)[number]
@@ -148,6 +167,7 @@ export const PUSH_IPC_CHANNELS = [
   IpcChannel.MenuCommand,
   IpcChannel.ContextMenuRequested,
   IpcChannel.PreferencesChanged,
+  IpcChannel.AiStream,
 ] as const
 
 export type PushIpcChannel = (typeof PUSH_IPC_CHANNELS)[number]

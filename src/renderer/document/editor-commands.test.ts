@@ -3,7 +3,7 @@ import { MenuCommand } from '@shared/types.js'
 import { EditorCommand, asEditorCommand, runsWhileLocked } from './editor-commands.js'
 
 describe('comandos do editor no somente leitura', () => {
-  it('só a busca, a contagem, os marcadores, a navegação e abrir a equação rodam com o documento travado', () => {
+  it('só a busca, a contagem, os marcadores, a navegação, abrir a equação e configurar assistentes rodam com o documento travado', () => {
     // The bookmark dialog opens for "Go to"; add and delete grey out inside it. The equation opens
     // for viewing: the dialog does not save while locked.
     const allowed = Object.values(EditorCommand).filter(runsWhileLocked)
@@ -18,6 +18,7 @@ describe('comandos do editor no somente leitura', () => {
         EditorCommand.NextChange,
         EditorCommand.PreviousChange,
         EditorCommand.EditEquation,
+        EditorCommand.AiProviders,
       ].sort(),
     )
   })

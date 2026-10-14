@@ -285,4 +285,44 @@ export const ERRORS = {
     pt: 'resposta fora do contrato',
     en: 'response out of contract',
   },
+  'errors.ai.providerMissing': {
+    pt: 'Este assistente de IA não está mais configurado. Escolha outro em Ferramentas → Assistentes de IA.',
+    en: 'This AI assistant is no longer set up. Choose another in Tools → AI assistants.',
+  },
+  'errors.ai.modelMissing': {
+    pt: 'Escolha um modelo para este assistente em Ferramentas → Assistentes de IA.',
+    en: 'Choose a model for this assistant in Tools → AI assistants.',
+  },
+  'errors.ai.auth': {
+    pt: 'O serviço de IA recusou a chave. Confira a chave em Ferramentas → Assistentes de IA.',
+    en: 'The AI service refused the key. Check the key in Tools → AI assistants.',
+  },
+  'errors.ai.rateLimited': {
+    pt: 'O serviço de IA pediu uma pausa: muitos pedidos ou limite de uso atingido. Tente de novo daqui a pouco.',
+    en: 'The AI service asked for a pause: too many requests or usage limit reached. Try again shortly.',
+  },
+  'errors.ai.unreachable': {
+    pt: 'Não foi possível falar com o assistente de IA. Confira se ele está aberto e se o endereço está certo.',
+    en: 'Could not reach the AI assistant. Check that it is running and that the address is right.',
+  },
+  'errors.ai.refused': {
+    pt: 'O modelo se recusou a responder a este pedido.',
+    en: 'The model declined to answer this request.',
+  },
+  'errors.ai.failed': {
+    pt: 'O assistente de IA respondeu com um erro.',
+    en: 'The AI assistant answered with an error.',
+  },
+  'errors.ai.lineTooLong': {
+    pt: 'O assistente de IA mandou uma resposta fora do formato esperado: uma linha longa demais.',
+    en: 'The AI assistant sent a reply in an unexpected format: a line that is too long.',
+  },
+  'errors.ai.cliMissing': {
+    pt: 'O programa claude não foi encontrado. Instale-o ou remova este assistente.',
+    en: 'The claude program was not found. Install it or remove this assistant.',
+  },
+  'errors.ai.secretsUnavailable': {
+    pt: 'Este sistema não oferece um cofre de senhas, e o Librevia não guarda chaves sem cifra. Use um assistente local, que não precisa de chave.',
+    en: 'This system offers no password vault, and Librevia does not store keys unencrypted. Use a local assistant, which needs no key.',
+  },
 } satisfies Catalog

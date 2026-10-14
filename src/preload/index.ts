@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
 import { IpcChannel } from '@shared/ipc-channels.js'
-import type { AppApi, MenuCommandPayload } from '@shared/api.js'
+import type { AiStreamEvent, AppApi, MenuCommandPayload } from '@shared/api.js'
 import type { ContextMenuTarget, EditorPreferences } from '@shared/types.js'
 
 /**
@@ -72,6 +72,16 @@ const api: AppApi = {
   privacy: {
     inspect: (payload) => ipcRenderer.invoke(IpcChannel.PrivacyInspect, payload),
     remove: (payload) => ipcRenderer.invoke(IpcChannel.PrivacyRemove, payload),
+  },
+  ai: {
+    listProviders: (payload) => ipcRenderer.invoke(IpcChannel.AiProvidersList, payload),
+    saveProvider: (payload) => ipcRenderer.invoke(IpcChannel.AiProviderSave, payload),
+    removeProvider: (payload) => ipcRenderer.invoke(IpcChannel.AiProviderRemove, payload),
+    discover: (payload) => ipcRenderer.invoke(IpcChannel.AiDiscover, payload),
+    listModels: (payload) => ipcRenderer.invoke(IpcChannel.AiModelsList, payload),
+    generate: (payload) => ipcRenderer.invoke(IpcChannel.AiGenerate, payload),
+    cancel: (payload) => ipcRenderer.invoke(IpcChannel.AiCancel, payload),
+    onStream: (listener) => subscribe<AiStreamEvent>(IpcChannel.AiStream, listener),
   },
   menu: {
     onCommand: (listener) => subscribe<MenuCommandPayload>(IpcChannel.MenuCommand, listener),

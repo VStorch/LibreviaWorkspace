@@ -63,8 +63,8 @@ type OpenActions = Pick<
 >
 
 function createOpenActions(set: SetWorkspace, get: GetWorkspace, ctx: WorkspaceContext): OpenActions {
-  async function openFile(fetch: () => Promise<OpenedFile | null>): Promise<boolean> {
-    const opened = await fetch()
+  async function openFile(load: () => Promise<OpenedFile | null>): Promise<boolean> {
+    const opened = await load()
     if (opened === null) return false
 
     try {

@@ -1,0 +1,106 @@
+import type { Catalog } from '../message.js'
+
+export const AI = {
+  'ai.consent.title': { pt: 'Permitir este assistente de IA?', en: 'Allow this AI assistant?' },
+  'ai.consent.message': {
+    pt: '{provider} fica fora deste computador. Cada pedido envia a ele o trecho selecionado e, no pedido livre, a instrução que você escrever.',
+    en: '{provider} is outside this computer. Each request sends it the selected passage and, for a free request, the instruction you write.',
+  },
+  'ai.consent.detail': {
+    pt: 'O resto do documento fica aqui. O Librevia lembra esta resposta para este assistente. Para ser perguntado de novo, use Ferramentas → Assistentes de IA.',
+    en: 'The rest of the document stays here. Librevia remembers this answer for this assistant. To be asked again, use Tools → AI assistants.',
+  },
+  'ai.consent.allow': { pt: 'Permitir', en: 'Allow' },
+
+  'ai.panel.title': { pt: 'Assistente de IA', en: 'AI assistant' },
+  'ai.panel.provider': { pt: 'Assistente', en: 'Assistant' },
+  'ai.panel.action': { pt: 'O que fazer', en: 'What to do' },
+  'ai.panel.targetLanguage': { pt: 'Para o idioma', en: 'Into' },
+  'ai.panel.instruction': { pt: 'Pedido', en: 'Request' },
+  'ai.panel.instructionPlaceholder': { pt: 'Ex.: deixe mais formal', en: 'E.g.: make it more formal' },
+  'ai.panel.generate': { pt: 'Gerar', en: 'Generate' },
+  'ai.panel.stop': { pt: 'Parar', en: 'Stop' },
+  'ai.panel.result': { pt: 'Resposta', en: 'Answer' },
+  'ai.panel.apply': { pt: 'Aplicar', en: 'Apply' },
+  'ai.panel.insertBelow': { pt: 'Inserir abaixo', en: 'Insert below' },
+  'ai.panel.copy': { pt: 'Copiar', en: 'Copy' },
+  'ai.panel.running': { pt: 'Gerando…', en: 'Generating…' },
+  'ai.panel.canceled': { pt: 'Interrompido.', en: 'Stopped.' },
+  'ai.panel.declined': { pt: 'Nada foi enviado.', en: 'Nothing was sent.' },
+  'ai.panel.cost': {
+    pt: 'Custo informado pelo assistente: US$ {cost}',
+    en: 'Cost reported by the assistant: US$ {cost}',
+  },
+  'ai.panel.changed': {
+    pt: 'O trecho mudou desde o pedido. Use Inserir abaixo ou Copiar.',
+    en: 'The passage changed since the request. Use Insert below or Copy.',
+  },
+  'ai.panel.applyHint': {
+    pt: 'Aplicar entra como alteração controlada, para você aceitar ou rejeitar.',
+    en: 'Apply comes in as a tracked change, for you to accept or reject.',
+  },
+  'ai.panel.noProviders': {
+    pt: 'Nenhum assistente configurado. Nada sai deste computador até você configurar um.',
+    en: 'No assistant is set up. Nothing leaves this computer until you set one up.',
+  },
+  'ai.panel.configure': { pt: 'Configurar…', en: 'Set up…' },
+  'ai.panel.readOnly': { pt: 'O documento está só para leitura.', en: 'The document is read only.' },
+  'ai.problem.empty': {
+    pt: 'Selecione o trecho que o assistente deve usar.',
+    en: 'Select the passage the assistant should use.',
+  },
+  'ai.problem.unsupported': {
+    pt: 'O assistente trabalha com texto: a seleção não pode ter imagens, equações, notas nem campos, nem passar de uma célula de tabela para outra.',
+    en: 'The assistant works with text: the selection cannot hold images, equations, notes or fields, nor span table cells.',
+  },
+  'ai.problem.tooLong': {
+    pt: 'A seleção passa de {max} caracteres. Selecione um trecho menor.',
+    en: 'The selection is over {max} characters. Select a shorter passage.',
+  },
+
+  'ai.action.rewrite': { pt: 'Reescrever', en: 'Rewrite' },
+  'ai.action.summarize': { pt: 'Resumir', en: 'Summarize' },
+  'ai.action.proofread': { pt: 'Revisar ortografia e gramática', en: 'Fix spelling and grammar' },
+  'ai.action.translate': { pt: 'Traduzir', en: 'Translate' },
+  'ai.action.custom': { pt: 'Pedido livre…', en: 'Custom request…' },
+
+  'ai.providers.title': { pt: 'Assistentes de IA', en: 'AI assistants' },
+  'ai.providers.intro': {
+    pt: 'O assistente recebe só o texto que você selecionar. Os locais rodam neste computador; os outros enviam o trecho pela internet.',
+    en: 'The assistant receives only the text you select. Local ones run on this computer; the others send the passage over the internet.',
+  },
+  'ai.providers.empty': { pt: 'Nenhum assistente configurado.', en: 'No assistant set up.' },
+  'ai.providers.discover': { pt: 'Procurar assistentes', en: 'Find assistants' },
+  'ai.providers.discovering': { pt: 'Procurando…', en: 'Searching…' },
+  'ai.providers.nothingFound': {
+    pt: 'Nenhum assistente encontrado neste computador.',
+    en: 'No assistant found on this computer.',
+  },
+  'ai.providers.add': { pt: 'Adicionar', en: 'Add' },
+  'ai.providers.remove': { pt: 'Remover', en: 'Remove' },
+  'ai.providers.makeDefault': { pt: 'Usar como padrão', en: 'Use as default' },
+  'ai.providers.default': { pt: 'Padrão', en: 'Default' },
+  'ai.providers.local': { pt: 'Neste computador', en: 'On this computer' },
+  'ai.providers.remote': { pt: 'Fora deste computador', en: 'Outside this computer' },
+  'ai.providers.revokeConsent': { pt: 'Pedir permissão de novo', en: 'Ask permission again' },
+  'ai.providers.model': { pt: 'Modelo padrão', en: 'Default model' },
+  'ai.providers.modelAuto': { pt: 'Automático', en: 'Automatic' },
+  'ai.providers.loadModels': { pt: 'Listar modelos', en: 'List models' },
+  'ai.providers.manual': { pt: 'Adicionar à mão', en: 'Add manually' },
+  'ai.providers.kind': { pt: 'Tipo', en: 'Type' },
+  'ai.providers.name': { pt: 'Nome', en: 'Name' },
+  'ai.providers.url': { pt: 'Endereço', en: 'Address' },
+  'ai.providers.key': { pt: 'Chave da API', en: 'API key' },
+  'ai.providers.keyHint': {
+    pt: 'Guardada cifrada pelo cofre de senhas do sistema; nunca é mostrada de novo.',
+    en: "Stored encrypted by the system's password vault; never shown again.",
+  },
+  'ai.providers.keySaved': { pt: 'Chave guardada', en: 'Key stored' },
+  'ai.providers.save': { pt: 'Salvar', en: 'Save' },
+  'ai.kind.openaiCompatible': {
+    pt: 'Compatível com OpenAI (Ollama, LM Studio…)',
+    en: 'OpenAI-compatible (Ollama, LM Studio…)',
+  },
+  'ai.kind.anthropic': { pt: 'Anthropic (API)', en: 'Anthropic (API)' },
+  'ai.kind.claudeCli': { pt: 'Claude Code (programa instalado)', en: 'Claude Code (installed program)' },
+} satisfies Catalog

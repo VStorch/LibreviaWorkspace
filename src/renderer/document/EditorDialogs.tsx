@@ -1,6 +1,6 @@
 import { Fragment } from 'react'
 import type { Editor } from '@tiptap/react'
-import type { ContextMenuTarget } from '@shared/types.js'
+import type { AiAction, ContextMenuTarget } from '@shared/types.js'
 import type { ResolvedSections } from '@services/document/sections.js'
 import { TableDialog } from './toolbar/TableDialog.js'
 import { TablePropertiesDialog } from './toolbar/TablePropertiesDialog.js'
@@ -20,6 +20,7 @@ import { PropertyFieldDialog } from './PropertyFieldDialog.js'
 import { WordCountDialog } from './WordCountDialog.js'
 import { PropertiesDialog } from './PropertiesDialog.js'
 import { AuthorNameDialog } from './AuthorNameDialog.js'
+import { AiProvidersDialog } from './AiProvidersDialog.js'
 import { insertComment } from './comment-commands.js'
 import { hasChangeAtCursor, settleChange } from './revision-commands.js'
 import { convertNote, noteAtCursor } from './note-commands.js'
@@ -74,6 +75,7 @@ const DIALOGS: readonly { key: DialogKey; render: (context: DialogContext) => Re
     ),
   },
   { key: 'authorName', render: simple('authorName', AuthorNameDialog) },
+  { key: 'aiProviders', render: simple('aiProviders', AiProvidersDialog) },
   { key: 'styles', render: simple('styles', StylesPanel) },
   { key: 'specialCharacter', render: simple('specialCharacter', SpecialCharsDialog) },
   {
@@ -144,6 +146,7 @@ export interface EditorContextMenuProps {
   readonly run: (command: EditorCommand) => void
   readonly setDialog: (dialog: DialogKey, open: boolean) => void
   readonly pasteWithoutFormat: () => Promise<void>
+  readonly onAiAction: (action: AiAction) => void
   readonly onClose: () => void
 }
 
@@ -153,6 +156,7 @@ export function EditorContextMenu({
   run,
   setDialog,
   pasteWithoutFormat,
+  onAiAction,
   onClose,
 }: EditorContextMenuProps): React.JSX.Element {
   const contextNote = noteAtCursor(editor)
@@ -173,6 +177,7 @@ export function EditorContextMenu({
       }}
       onClose={onClose}
       onPasteWithoutFormat={() => void pasteWithoutFormat()}
+      onAiAction={onAiAction}
       onNewComment={() => insertComment(editor)}
       onRevision={hasChangeAtCursor(editor) ? (accept) => void settleChange(editor, accept) : null}
       noteKind={contextNote?.kind ?? null}

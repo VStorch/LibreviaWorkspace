@@ -23,6 +23,14 @@ export const ErrorCode = {
   SidecarTimeout: 'SIDECAR_TIMEOUT',
   /** Crashed mid-operation, or answered something we could not parse. */
   SidecarFailed: 'SIDECAR_FAILED',
+
+  AiNotConfigured: 'AI_NOT_CONFIGURED',
+  AiAuthFailed: 'AI_AUTH_FAILED',
+  AiRateLimited: 'AI_RATE_LIMITED',
+  AiUnreachable: 'AI_UNREACHABLE',
+  AiRefused: 'AI_REFUSED',
+  AiFailed: 'AI_FAILED',
+  AiSecretsUnavailable: 'AI_SECRETS_UNAVAILABLE',
 } as const
 
 export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode]

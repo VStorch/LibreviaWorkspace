@@ -47,6 +47,8 @@ export const EditorCommand = {
   NextChange: 'next-change',
   PreviousChange: 'previous-change',
   ToggleTrackChanges: 'toggle-track-changes',
+  AiAssistant: 'ai-assistant',
+  AiProviders: 'ai-providers',
   ...TableAction,
 } as const satisfies Record<string, MenuCommand>
 
@@ -74,6 +76,8 @@ const READS_ONLY: ReadonlySet<EditorCommand> = new Set<EditorCommand>([
   EditorCommand.PreviousChange,
   // The equation opens for viewing; the dialog only saves when the document is editable.
   EditorCommand.EditEquation,
+  // Setting up assistants is a preference, not the document.
+  EditorCommand.AiProviders,
 ])
 
 export function runsWhileLocked(command: EditorCommand): boolean {

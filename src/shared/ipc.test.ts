@@ -190,3 +190,52 @@ describe('validação de dialog:confirm-discard', () => {
     expect(response.safeParse({ choice: 'talvez' }).success).toBe(false)
   })
 })
+
+describe('contratos do assistente de IA', () => {
+  const generate = ipcContracts[IpcChannel.AiGenerate].request
+  const valid = {
+    requestId: '0b8f3c1e-5d2a-4c7b-9e6f-1a2b3c4d5e6f',
+    providerId: 'p1',
+    model: 'llama3',
+    action: 'rewrite',
+    text: 'Um parágrafo.',
+  }
+
+  it('aceita um pedido completo', () => {
+    expect(generate.safeParse(valid).success).toBe(true)
+  })
+
+  it('recusa seleção vazia, longa demais ou sem identificador válido', () => {
+    expect(generate.safeParse({ ...valid, text: '' }).success).toBe(false)
+    expect(generate.safeParse({ ...valid, text: 'x'.repeat(20_001) }).success).toBe(false)
+    expect(generate.safeParse({ ...valid, requestId: 'abc' }).success).toBe(false)
+    expect(generate.safeParse({ ...valid, action: 'delete-everything' }).success).toBe(false)
+  })
+
+  it('só aceita endereço http ou https para o provedor', () => {
+    const save = ipcContracts[IpcChannel.AiProviderSave].request
+    const draft = { kind: 'openai-compatible', label: 'Ollama' }
+    expect(save.safeParse({ ...draft, baseUrl: 'http://localhost:11434/v1' }).success).toBe(true)
+    expect(save.safeParse({ ...draft, baseUrl: 'file:///etc/passwd' }).success).toBe(false)
+    expect(save.safeParse({ ...draft, baseUrl: 'javascript:alert(1)' }).success).toBe(false)
+  })
+
+  it('não deixa a chave voltar ao renderer na lista de provedores', () => {
+    const list = ipcContracts[IpcChannel.AiProvidersList].response
+    const parsed = list.parse({
+      providers: [
+        {
+          id: 'p1',
+          kind: 'anthropic',
+          label: 'A',
+          hasKey: true,
+          local: false,
+          consented: false,
+          apiKey: 's',
+        },
+      ],
+      defaultProviderId: 'p1',
+    })
+    expect(parsed.providers[0]).not.toHaveProperty('apiKey')
+  })
+})

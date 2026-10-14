@@ -44,6 +44,8 @@ export interface EditorDialogs {
   readonly authorName: boolean
   readonly properties: boolean
   readonly equation: boolean
+  readonly aiPanel: boolean
+  readonly aiProviders: boolean
 }
 
 const CLOSED: EditorDialogs = {
@@ -66,6 +68,8 @@ const CLOSED: EditorDialogs = {
   authorName: false,
   properties: false,
   equation: false,
+  aiPanel: false,
+  aiProviders: false,
 }
 
 export interface EditorCommands {
@@ -170,6 +174,8 @@ const COMMANDS: Readonly<Record<EditorCommand, CommandHandler>> = {
   [EditorCommand.NextComment]: withEditor((editor) => goToComment(editor, 1)),
   [EditorCommand.PreviousComment]: withEditor((editor) => goToComment(editor, -1)),
   [EditorCommand.AuthorName]: openDialog('authorName'),
+  [EditorCommand.AiAssistant]: openDialog('aiPanel'),
+  [EditorCommand.AiProviders]: openDialog('aiProviders'),
   [EditorCommand.AcceptChange]: withEditor((editor) => settleChange(editor, true)),
   [EditorCommand.RejectChange]: withEditor((editor) => settleChange(editor, false)),
   [EditorCommand.AcceptAllChanges]: withEditor((editor) => settleAll(editor, true)),
