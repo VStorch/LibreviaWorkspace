@@ -101,7 +101,7 @@ Ele também:
 | **Equações** | mostra as equações do Word e permite escrever novas em LaTeX |
 | **Modelos** | cria documentos a partir de modelos do Word (`.dotx`); quatro vêm com o aplicativo |
 | **Ferramentas** | ortografia em português sem internet, localizar e substituir, contar palavras, caracteres especiais, autocorreção tipográfica |
-| **Assistente de IA** | opcional e desligado de fábrica: reescreve, resume, revisa ou traduz o trecho selecionado; a resposta entra como alteração controlada. Funciona com Ollama e LM Studio, neste computador, com o Claude Code ou com um serviço na nuvem |
+| **Assistente de IA** | opcional e desligado de fábrica: reescreve, resume, revisa ou traduz o trecho selecionado, com o documento aberto como contexto e só com permissão; a resposta chega formatada (negrito, títulos, listas) e entra como alteração controlada. Funciona com Ollama e LM Studio, neste computador, com o Claude Code ou com um serviço na nuvem |
 
 ### Planilhas
 
@@ -492,13 +492,13 @@ fácil se perder. Esta é a lista das pastas que importam e do que cada uma guar
 
 | Pasta | Conteúdo |
 | --- | --- |
-| [`document/`](src/services/document) | modelo do documento, `.sdoc`, estilos, paginação, listas, campos, notas, equações (LaTeX e MathML), exportação HTML, Markdown e ODT |
+| [`document/`](src/services/document) | modelo do documento, `.sdoc`, estilos, paginação, listas, campos, notas, equações (LaTeX e MathML), exportação HTML, Markdown e ODT, leitura do Markdown das respostas do assistente |
 | [`spreadsheet/`](src/services/spreadsheet) | modelo da planilha, `.ssheet`, edição, preenchimento, formatação, estrutura |
 | [`spreadsheet/formula/`](src/services/spreadsheet/formula) | fórmulas: leitura, avaliação, recálculo, ajuste de referências e as 52 funções |
 | [`file/`](src/services/file) | extensões aceitas, propriedades do documento, dados pessoais e o inventário do que um arquivo pode perder |
 | [`pdf/`](src/services/pdf) | configuração de página, nas unidades que o Chromium espera |
 | [`spell/`](src/services/spell) | dicionário do usuário |
-| [`ai/`](src/services/ai) | pedidos ao assistente de IA e leitura das respostas em fluxo |
+| [`ai/`](src/services/ai) | pedidos ao assistente de IA, contexto do documento e leitura das respostas em fluxo |
 
 ### Sidecar — `sidecar/src/Librevia.Format/`
 
