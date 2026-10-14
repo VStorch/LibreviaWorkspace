@@ -176,7 +176,7 @@ São os atalhos do Word, com poucas exceções, explicadas no fim da tabela.
 | `Ctrl+F` | localizar e substituir |
 | `Ctrl+Shift+V` | colar sem formatação |
 | `Ctrl+Shift+G` | contar palavras |
-| `Ctrl+Shift+Y` | assistente de IA |
+| `Ctrl+Shift+Y` | abrir e fechar o assistente de IA |
 
 ### Texto e parágrafo
 
@@ -689,7 +689,8 @@ assistente quais ele tem).
 
 1. Selecione o trecho.
 2. Clique com o botão direito e escolha, por exemplo, **Assistente de IA: Reescrever**. Também dá
-   para abrir o painel por **Ferramentas → Assistente de IA…** (`Ctrl+Shift+Y`).
+   para abrir o painel por **Ferramentas → Assistente de IA…** (`Ctrl+Shift+Y`); o mesmo atalho o
+   fecha.
 3. A resposta aparece no painel à direita enquanto é escrita. **Parar** interrompe.
 4. Escolha o que fazer com ela:
    - **Aplicar** troca o trecho pela resposta como **alteração controlada**, com o nome do modelo

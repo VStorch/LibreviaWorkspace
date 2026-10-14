@@ -141,6 +141,25 @@ test.describe('assistente de IA', () => {
     await expect(editor).toHaveText('O gato dorme.')
   })
 
+  test('o mesmo comando abre e fecha o painel, e reabrir não repete o pedido', async () => {
+    const editor = await escrever('O gato dorme.')
+    await configurar()
+    await editor.click()
+    await session.window.keyboard.press('Control+A')
+    await editor.click({ button: 'right', position: { x: 10, y: 5 } })
+    await session.window.getByRole('menuitem', { name: 'Assistente de IA: Reescrever' }).click()
+    await expect(painel().getByLabel('Resposta')).toHaveValue(RESPOSTA.join(''))
+    const gerados = () => fake.pedidos.filter((pedido) => pedido.startsWith('POST')).length
+    expect(gerados()).toBe(1)
+
+    await menu(session, 'ai-assistant')
+    await expect(painel()).toHaveCount(0)
+    await menu(session, 'ai-assistant')
+    await expect(painel()).toBeVisible()
+    await expect(painel().getByRole('button', { name: 'Gerar' })).toBeEnabled()
+    expect(gerados()).toBe(1)
+  })
+
   test('parar fecha a conexão com o assistente', async () => {
     const editor = await escrever('O gato dorme.')
     await configurar()

@@ -68,7 +68,7 @@ export function DocumentEditor(): React.JSX.Element {
   const referenceContext = useReferenceContext(layoutRef, effective)
   const pasteWithoutFormat = usePasteWithoutFormat(editor, readOnly)
   const commands = useEditorCommands(editor, readOnly, pasteWithoutFormat, referenceContext)
-  const ai = useAiLauncher(commands.setDialog)
+  const ai = useAiLauncher(commands.setDialog, commands.dialogs.aiPanel)
   const { comments, outside } = useComments(editor)
   const geometry = useSheetGeometry({
     editor,
@@ -155,7 +155,7 @@ function AiSidePane({
 }
 
 /** Without a provider, the context menu opens the setup instead: nothing to send to. */
-function useAiLauncher(setDialog: EditorCommands['setDialog']): AiLauncher {
+function useAiLauncher(setDialog: EditorCommands['setDialog'], open: boolean): AiLauncher {
   const showError = useWorkspace((state) => state.showError)
   const [launch, setLaunch] = useState<AiLaunch | null>(null)
   const launchAi = useCallback(
@@ -168,10 +168,12 @@ function useAiLauncher(setDialog: EditorCommands['setDialog']): AiLauncher {
       }),
     [setDialog, showError],
   )
-  const close = useCallback(() => {
-    setLaunch(null)
-    setDialog('aiPanel', false)
-  }, [setDialog])
+  const [launchOpen, setLaunchOpen] = useState(open)
+  if (launchOpen !== open) {
+    setLaunchOpen(open)
+    if (!open) setLaunch(null)
+  }
+  const close = useCallback(() => setDialog('aiPanel', false), [setDialog])
   return { launch, launchAi, close }
 }
 

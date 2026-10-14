@@ -97,6 +97,10 @@ export function useEditorCommands(
     setDialogs((current) => (current[dialog] === open ? current : { ...current, [dialog]: open }))
   }, [])
 
+  const toggleDialog = useCallback((dialog: keyof EditorDialogs) => {
+    setDialogs((current) => ({ ...current, [dialog]: !current[dialog] }))
+  }, [])
+
   const run = useCallback(
     (command: EditorCommand) => {
       if (readOnly && !runsWhileLocked(command)) return
@@ -109,11 +113,11 @@ export function useEditorCommands(
       }
 
       COMMANDS[command](
-        { editor, setDialog, setEquationTarget, referenceContext, pasteWithoutFormat },
+        { editor, setDialog, toggleDialog, setEquationTarget, referenceContext, pasteWithoutFormat },
         command,
       )
     },
-    [editor, readOnly, pasteWithoutFormat, referenceContext, setDialog],
+    [editor, readOnly, pasteWithoutFormat, referenceContext, setDialog, toggleDialog],
   )
 
   useEffect(() => onEditorCommand(run), [run])
@@ -124,6 +128,7 @@ export function useEditorCommands(
 interface CommandScope {
   readonly editor: Editor | null
   readonly setDialog: (dialog: keyof EditorDialogs, open: boolean) => void
+  readonly toggleDialog: (dialog: keyof EditorDialogs) => void
   readonly setEquationTarget: (target: EquationTarget) => void
   readonly referenceContext: () => ReferenceContext
   readonly pasteWithoutFormat: () => Promise<void>
@@ -174,7 +179,7 @@ const COMMANDS: Readonly<Record<EditorCommand, CommandHandler>> = {
   [EditorCommand.NextComment]: withEditor((editor) => goToComment(editor, 1)),
   [EditorCommand.PreviousComment]: withEditor((editor) => goToComment(editor, -1)),
   [EditorCommand.AuthorName]: openDialog('authorName'),
-  [EditorCommand.AiAssistant]: openDialog('aiPanel'),
+  [EditorCommand.AiAssistant]: (scope) => scope.toggleDialog('aiPanel'),
   [EditorCommand.AiProviders]: openDialog('aiProviders'),
   [EditorCommand.AcceptChange]: withEditor((editor) => settleChange(editor, true)),
   [EditorCommand.RejectChange]: withEditor((editor) => settleChange(editor, false)),
