@@ -11,7 +11,6 @@ arquivos do Word e do Excel e, ao salvar, **regrava só o que você editou**.
 ![.NET](https://img.shields.io/badge/.NET_10-512BD4?style=for-the-badge&logo=dotnet&logoColor=white)
 ![Licença MIT](https://img.shields.io/badge/Licença-MIT-22C55E?style=for-the-badge)
 
-
 Este README é para quem lê ou mexe no código. Quem só quer **usar** o aplicativo deve ler o
 **[manual](MANUAL.md)**.
 
@@ -33,6 +32,7 @@ Este README é para quem lê ou mexe no código. Quem só quer **usar** o aplica
 - [Mapa do código](#mapa-do-código)
 - [Por que há .NET num projeto Electron](#por-que-há-net-num-projeto-electron)
 - [A tela é a folha impressa](#a-tela-é-a-folha-impressa)
+- [Ler e alterar um PDF](#ler-e-alterar-um-pdf)
 - [Recuperação depois de uma queda](#recuperação-depois-de-uma-queda)
 - [Idiomas e aparência](#idiomas-e-aparência)
 - [Desempenho, medido](#desempenho-medido)
@@ -99,13 +99,13 @@ Ele também:
 | **Revisão** | comentários com resposta e resolução; controle de alterações enquanto você digita; aceitar e rejeitar |
 | **Equações** | mostra as equações do Word e permite escrever novas em LaTeX |
 | **Modelos** | cria documentos a partir de modelos do Word (`.dotx`); quatro vêm com o aplicativo |
-| **Ferramentas** | ortografia em português sem internet, localizar e substituir, contar palavras, caracteres especiais, autocorreção tipográfica, propriedades do documento (inclusive as personalizadas), inspetor de dados pessoais |
+| **Ferramentas** | ortografia em português sem internet, localizar e substituir, contar palavras, caracteres especiais, autocorreção tipográfica |
 
 ### Planilhas
 
 | Área | O que entrega |
 | --- | --- |
-| **Grade** | 10 mil linhas, seleção de intervalo, alça de preenchimento, área de transferência |
+| **Grade** | seleção de intervalo, alça de preenchimento, área de transferência; abre planilhas de 20 mil linhas |
 | **Estrutura** | abas, congelar linhas e colunas, inserir e excluir linhas e colunas |
 | **Formatação** | número, moeda, percentual, data e texto; negrito, itálico, sublinhado, cores, alinhamento e bordas |
 | **Fórmulas** | 52 funções em português e em inglês, referências entre abas, barra de fórmulas |
@@ -116,6 +116,8 @@ Ele também:
 | --- | --- |
 | **PDF e impressão** | documentos e planilhas, com cabeçalho, rodapé, numeração, margens e orientação; o PDF exportado leva as propriedades |
 | **Leitor de PDF** | abre PDFs, inclusive protegidos por senha; edita as propriedades e avisa quantas versões anteriores o arquivo guarda |
+| **Propriedades** | resumo, propriedades personalizadas e estatísticas, em documentos e planilhas |
+| **Dados pessoais** | o inspetor acha e remove nomes, pastas, miniatura e metadados das fotos de um `.docx` ou `.xlsx` |
 | **Exportar** | documento para PDF, HTML, Markdown e ODT |
 | **Recuperação** | rascunho a cada oito segundos, oferecido de volta depois de uma queda |
 | **Somente leitura** | só trava o arquivo quando editar pode apagar algo importante dele |
@@ -137,7 +139,7 @@ Ele também:
 | `.sdoc` | ✅ | ✅ | documento do Librevia; guarda tudo, sem perda |
 | `.ssheet` | ✅ | ✅ | planilha do Librevia; guarda tudo, sem perda |
 | `.txt` | ✅ | ✅ | só texto; salvar nele descarta a formatação, e o app avisa antes |
-| `.pdf` | 👁️ | exporta | abre para ler, com página, zoom, busca e senha; o texto não se edita, mas título, autor, assunto e palavras-chave sim; exporta documentos e planilhas |
+| `.pdf` | ✅ | exporta | abre só para ler; título, autor, assunto e palavras-chave se alteram; documentos e planilhas exportam para ele |
 | `.html`, `.md` | — | exporta | documento numa página só, ou em Markdown com as imagens numa pasta ao lado |
 | `.odt` | — | exporta | documento no formato do LibreOffice |
 
@@ -435,8 +437,8 @@ teste trava essas opções: se alguém desligar uma delas, `security-policy.test
 
 ## 🗺️ Mapa do código
 
-Pelo tamanho, cerca de 70 mil linhas, é fácil se perder. Esta é a lista das pastas que
-importam e do que cada uma guarda.
+São cerca de 96 mil linhas de TypeScript e C#, um terço delas de testes. Com esse tamanho, é
+fácil se perder. Esta é a lista das pastas que importam e do que cada uma guarda.
 
 ### Raiz
 
@@ -458,12 +460,14 @@ importam e do que cada uma guarda.
 | --- | --- |
 | [`index.ts`](src/main/index.ts), [`window.ts`](src/main/window.ts) | início do aplicativo e criação das janelas |
 | [`menu.ts`](src/main/menu.ts), [`context-menu.ts`](src/main/context-menu.ts) | menu nativo e menu do botão direito |
-| [`ipc/`](src/main/ipc) | um arquivo por grupo de canais: arquivo, edição, exportação, impressão, rascunhos, modelos, janela |
+| [`ipc/`](src/main/ipc) | um arquivo por grupo de canais: arquivo, edição, exportação, impressão, PDF, dados pessoais, rascunhos, modelos, janela |
 | [`fs/`](src/main/fs) | autorização de caminhos, gravação atômica, recentes, rascunhos, limite de 20 MB |
 | [`sidecar/`](src/main/sidecar) | localiza o executável .NET, sobe o processo e fala o protocolo de quadros |
 | [`docx/`](src/main/docx), [`xlsx/`](src/main/xlsx) | o lado TypeScript de cada formato, incluindo a tradução das fórmulas |
-| [`print/`](src/main/print) | PDF pelo `printToPDF` |
-| [`pdf-scheme.ts`](src/main/pdf-scheme.ts), [`pdf-viewer.ts`](src/main/pdf-viewer.ts) | o visualizador de PDF na sua origem própria, e a janela de impressão de um PDF |
+| [`print/`](src/main/print), [`pdf-metadata.ts`](src/main/pdf-metadata.ts) | PDF pelo `printToPDF`, depois as propriedades gravadas nele |
+| [`pdf-scheme.ts`](src/main/pdf-scheme.ts), [`pdf-viewer.ts`](src/main/pdf-viewer.ts) | o leitor de PDF na sua origem própria, e a janela de impressão de um PDF |
+| [`privacy.ts`](src/main/privacy.ts) | o inspetor de dados pessoais, que lê o arquivo gravado no disco |
+| [`preferences.ts`](src/main/preferences.ts), [`i18n.ts`](src/main/i18n.ts) | idioma e tema guardados, e a tradução do menu nativo |
 | [`security.ts`](src/main/security.ts), [`security-policy.ts`](src/main/security-policy.ts) | preferências da janela e política de navegação |
 | [`spellcheck.ts`](src/main/spellcheck.ts), [`fonts.ts`](src/main/fonts.ts), [`system-fonts.ts`](src/main/system-fonts.ts) | ortografia offline e lista de fontes |
 
@@ -471,13 +475,14 @@ importam e do que cada uma guarda.
 
 | Pasta | Conteúdo |
 | --- | --- |
+| [`app/`](src/renderer/app), [`pages/`](src/renderer/pages) | a casca do aplicativo, com o salvamento do rascunho, e a página inicial |
 | [`document/`](src/renderer/document) | o editor de documentos: folhas, faixas de cabeçalho e rodapé, notas, comentários, diálogos |
 | [`document/extensions/`](src/renderer/document/extensions) | extensões do TipTap: paginação, estilos, listas, campos, notas, equações, controle de alterações |
 | [`document/toolbar/`](src/renderer/document/toolbar) | a barra de ferramentas e os diálogos de parágrafo, tabela, imagem e link |
 | [`spreadsheet/`](src/renderer/spreadsheet) | grade, barra de fórmulas, abas e menus da planilha |
 | [`state/`](src/renderer/state) | estado com Zustand: arquivos, rascunhos, impressão, tema, zoom, modo de leitura |
-| [`components/`](src/renderer/components) | peças comuns: barra de status, faixas de aviso, galeria de modelos |
-| [`pdf/`](src/renderer/pdf) | o quadro do visualizador de PDF e a barra de busca dele |
+| [`components/`](src/renderer/components) | peças comuns: barra de status, faixas de aviso, galeria de modelos, propriedades, inspetor de dados pessoais |
+| [`pdf/`](src/renderer/pdf) | o quadro do leitor de PDF e a barra de busca dele |
 | [`pdf-viewer/`](src/renderer/pdf-viewer) | a página isolada que desenha o PDF com o pdf.js |
 
 ### Lógica pura — `src/services/`
@@ -558,26 +563,10 @@ Nenhuma biblioteca gera o PDF: quem gera é o próprio **Chromium**, pelo `print
 editor entrega o documento **já dividido em folhas**, e cada folha vira uma caixa do tamanho
 do papel. Por isso o PDF sai igual à tela, com o texto selecionável e as fontes embutidas.
 O `printToPDF` só grava o título; o autor, o assunto e as palavras-chave das propriedades entram
-depois, pela mesma atualização incremental que altera um PDF aberto.
+depois, por [atualização incremental](#ler-e-alterar-um-pdf), como num PDF aberto.
 
 Antes havia dois paginadores, o do editor e o do Chromium, e eles nem sempre concordavam.
 Agora há um só.
-
-Para **ler** um PDF, o Librevia usa o [pdf.js](https://mozilla.github.io/pdf.js/), da Mozilla.
-Ele roda num quadro com origem e processo próprios, sem acesso ao resto do aplicativo, e lê o
-arquivo por trechos: um PDF de 200 MB abre em 0,3 s, lendo 128 KB dele. A senha de um PDF protegido
-vai do diálogo direto para esse quadro: não passa pelo processo principal e não fica guardada.
-
-As **propriedades** de um PDF (título, autor, assunto e palavras-chave) são gravadas por
-**atualização incremental**, prevista na especificação do PDF: os bytes do arquivo ficam como
-estavam, e o dicionário de informações novo, o XMP, uma tabela de referências e um trailer
-apontando para a anterior vão no fim. Numa amostra de dez PDFs, entre eles um de 33 MB e 1.282
-páginas, a atualização teve de 357 bytes a 4,6 KB. Um PDF criptografado é recusado; num PDF
-assinado, o diálogo avisa antes que leitores como o Acrobat vão indicar a mudança.
-
-O mesmo mecanismo explica por que o inspetor de dados pessoais não promete limpar um PDF: a versão
-anterior continua no arquivo. Ele conta as atualizações pela cadeia de `/Prev` (um PDF linearizado
-começa com duas seções, que não contam) e avisa quantas versões anteriores o arquivo guarda.
 
 > ⚠️ **Ao mexer em margens:** `printToPDF()` recebe **polegadas** e `webContents.print()`
 > recebe **pixels CSS**. As duas conversões ficam juntas em `services/pdf/page-setup.ts`, com
@@ -598,6 +587,30 @@ instalador traz fontes livres com as **mesmas medidas** das fontes do Office:
 | Courier New | Liberation Mono |
 
 </details>
+
+---
+
+<a id="ler-e-alterar-um-pdf"></a>
+
+## 📕 Ler e alterar um PDF
+
+Para **ler** um PDF, o Librevia usa o [pdf.js](https://mozilla.github.io/pdf.js/), da Mozilla.
+Ele roda num quadro com origem e processo próprios, sem acesso ao resto do aplicativo, e lê o
+arquivo por trechos: um PDF de 200 MB abre em 0,3 s, lendo 128 KB dele. A senha de um PDF
+protegido vai do diálogo direto para esse quadro: não passa pelo processo principal e não fica
+guardada.
+
+As **propriedades** de um PDF (título, autor, assunto e palavras-chave) são gravadas por
+**atualização incremental**, prevista na especificação do PDF: os bytes do arquivo ficam como
+estavam, e o dicionário de informações novo, o XMP, uma tabela de referências e um trailer
+apontando para a anterior vão no fim. Numa amostra de dez PDFs, entre eles um de 33 MB e 1.282
+páginas, a atualização teve de 357 bytes a 4,6 KB. Num PDF criptografado, a alteração é
+recusada; num PDF assinado, o diálogo avisa antes que leitores como o Acrobat vão indicar a
+mudança.
+
+O mesmo mecanismo explica por que o inspetor de dados pessoais não promete limpar um PDF: a versão
+anterior continua no arquivo. Ele conta as atualizações pela cadeia de `/Prev` (um PDF linearizado
+começa com duas seções, que não contam) e avisa quantas versões anteriores o arquivo guarda.
 
 ---
 
@@ -741,7 +754,8 @@ npm run dev
 | `npm run e2e` | build e testes de ponta a ponta no aplicativo montado |
 | `npm run lint` | lint, incluindo as fronteiras entre as camadas |
 | `npm run i18n:check` | procura texto da interface fora do catálogo de traduções |
-| `npm run verify` | **o mesmo que o CI roda**: tipos, lint, testes dos dois lados, licenças e traduções |
+| `npm run verify` | tipos, lint, testes dos dois lados, licenças e traduções |
+| `npm run format:check` | confere a formatação, que o `verify` não cobre; `npm run format` corrige |
 | `npm run dist` | instaladores AppImage e `.deb` em `release/` |
 | `npm run dist:win` | instalador NSIS (rodando no Windows) |
 
@@ -758,9 +772,9 @@ São três camadas, e cada uma prova algo que a anterior não alcança:
 
 | Camada | Ferramenta | O que prova | Quantos |
 | --- | --- | --- | --- |
-| **Unidade** | Vitest | lógica pura, processo principal, contratos de IPC | 1.386 |
-| **Sidecar** | xUnit (.NET) | leitura e escrita de DOCX e XLSX, ida e volta byte a byte | 456 |
-| **Ponta a ponta** | Playwright + Electron | o aplicativo montado, com o preload isolado e o sidecar publicado | 180 |
+| **Unidade** | Vitest | lógica pura, processo principal, contratos de IPC | 1.441 |
+| **Sidecar** | xUnit (.NET) | leitura e escrita de DOCX, XLSX e PDF, ida e volta byte a byte | 499 |
+| **Ponta a ponta** | Playwright + Electron | o aplicativo montado, com o preload isolado e o sidecar publicado | 214 |
 
 Alguns testes de ponta a ponta usam documentos reais, que não entram no repositório. Eles são
 **pulados** quando a variável `LIBREVIA_CORPUS_DOC` não aponta para um desses arquivos.
@@ -831,8 +845,8 @@ instalador leva, além do aplicativo:
 
 O sidecar fica **fora** do asar. Um executável dentro de um arquivo compactado não roda.
 
-No Linux, o aplicativo se registra para `.docx`, `.dotx`, `.xlsx` e `.txt`; no Windows, para
-`.docx` e `.dotx`.
+No Linux, o aplicativo se registra para `.docx`, `.dotx`, `.xlsx`, `.txt` e `.pdf`; no Windows,
+para `.docx` e `.dotx`.
 
 `npm run notices` gera o `THIRD-PARTY-NOTICES.md`. Ele cobre **três** conjuntos: as
 dependências npm de produção, o Electron inteiro (com Chromium e Node.js) e os pacotes NuGet
@@ -857,19 +871,22 @@ leitura; **Clean Architecture**, regras do negócio que não dependem de detalhe
 
 ### Fronteiras entre as camadas
 
-1. **`src/services/` e `src/shared/` não importam `electron`, `react` nem `node:*`.** São
-   camadas puras: rodam dos dois lados e se testam sem o Electron.
-2. **O renderer não importa `electron` nem `node:*`.** Fala com o resto só por `window.api`.
+1. **`src/services/` e `src/shared/` não importam `electron`, `react`, `node:*`, `@main/*` nem
+   `@renderer/*`.** São camadas puras: rodam dos dois lados e se testam sem o Electron.
+2. **O renderer não importa `electron`, `node:*` nem `@main/*`.** Fala com o resto só por
+   `window.api`.
+3. **O preload importa só o `electron` e o `@shared`.** Ele encaminha e nada mais.
 
-Quem quebrar uma das duas é barrado pelo `npm run lint`, antes de qualquer revisão.
+Quem quebrar uma delas é barrado pelo `npm run lint`, antes de qualquer revisão.
 
 ### Contratos
 
 - **Todo canal de IPC tem um esquema Zod**, conferido nas duas pontas, em
   [`src/shared/schemas.ts`](src/shared/schemas.ts) e [`ipc.ts`](src/shared/ipc.ts).
 - **O protocolo do sidecar muda dos dois lados ao mesmo tempo**: TypeScript e C#.
-- **Os formatos próprios têm versão.** O `.sdoc` está na versão 11; um arquivo de versão mais
-  nova que a do aplicativo é recusado com uma mensagem clara, em vez de aberto pela metade.
+- **Os formatos próprios têm versão.** O `.sdoc` está na versão 14 e o `.ssheet`, na 5. As
+  versões antigas continuam abrindo; um arquivo de versão mais nova que a do aplicativo é
+  recusado com uma mensagem clara, em vez de aberto pela metade.
 
 ### Portões de qualidade
 
