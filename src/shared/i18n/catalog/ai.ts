@@ -3,12 +3,12 @@ import type { Catalog } from '../message.js'
 export const AI = {
   'ai.consent.title': { pt: 'Permitir este assistente de IA?', en: 'Allow this AI assistant?' },
   'ai.consent.message': {
-    pt: '{provider} fica fora deste computador. Cada pedido envia a ele o trecho selecionado e, no pedido livre, a instrução que você escrever.',
-    en: '{provider} is outside this computer. Each request sends it the selected passage and, for a free request, the instruction you write.',
+    pt: '{provider} fica fora deste computador. Cada pedido envia a ele o trecho selecionado, o documento aberto como contexto e, no pedido livre, a instrução que você escrever.',
+    en: '{provider} is outside this computer. Each request sends it the selected passage, the open document as context and, for a free request, the instruction you write.',
   },
   'ai.consent.detail': {
-    pt: 'O resto do documento fica aqui. O Librevia lembra esta resposta para este assistente. Para ser perguntado de novo, use Ferramentas → Assistentes de IA.',
-    en: 'The rest of the document stays here. Librevia remembers this answer for this assistant. To be asked again, use Tools → AI assistants.',
+    pt: 'A resposta é gerada lá, fora deste computador. O Librevia lembra esta permissão para este assistente. Para ser perguntado de novo, use Ferramentas → Assistentes de IA.',
+    en: 'The answer is generated there, outside this computer. Librevia remembers this permission for this assistant. To be asked again, use Tools → AI assistants.',
   },
   'ai.consent.allow': { pt: 'Permitir', en: 'Allow' },
 
@@ -67,8 +67,8 @@ export const AI = {
 
   'ai.providers.title': { pt: 'Assistentes de IA', en: 'AI assistants' },
   'ai.providers.intro': {
-    pt: 'O assistente recebe só o texto que você selecionar. Os locais rodam neste computador; os outros enviam o trecho pela internet.',
-    en: 'The assistant receives only the text you select. Local ones run on this computer; the others send the passage over the internet.',
+    pt: 'O assistente recebe o trecho que você selecionar e, como contexto, o documento aberto. Os locais rodam neste computador; os outros enviam tudo isso pela internet.',
+    en: 'The assistant receives the passage you select and, as context, the open document. Local ones run on this computer; the others send all of it over the internet.',
   },
   'ai.providers.empty': { pt: 'Nenhum assistente configurado.', en: 'No assistant set up.' },
   'ai.providers.discover': { pt: 'Procurar assistentes', en: 'Find assistants' },
@@ -100,6 +100,14 @@ export const AI = {
   'ai.providers.keyKeep': {
     pt: 'Deixe em branco para manter a chave guardada. Mudar o endereço apaga a chave.',
     en: 'Leave blank to keep the stored key. Changing the address erases the key.',
+  },
+  'ai.providers.contextLength': {
+    pt: 'Contexto máximo (caracteres)',
+    en: 'Maximum context (characters)',
+  },
+  'ai.providers.contextLengthHint': {
+    pt: 'Quanto do documento vai junto com o trecho. Em branco: {local} neste computador, {remote} fora dele. Modelos locais leem pouco de uma vez e ignoram o excesso sem avisar.',
+    en: 'How much of the document goes along with the passage. Blank: {local} on this computer, {remote} outside it. Local models read little at a time and drop the rest without warning.',
   },
   'ai.providers.keySaved': { pt: 'Chave guardada', en: 'Key stored' },
   'ai.providers.save': { pt: 'Salvar', en: 'Save' },

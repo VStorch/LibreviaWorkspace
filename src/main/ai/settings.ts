@@ -6,7 +6,7 @@ import { AiProviderKind } from '@services/ai/provider.js'
 import { AppError, ErrorCode } from '@shared/errors.js'
 import type { IpcRequest, IpcResponse } from '@shared/ipc.js'
 import type { IpcChannel } from '@shared/ipc-channels.js'
-import { MAX_AI_PROVIDERS } from '@shared/limits.js'
+import { DEFAULT_LOCAL_AI_CONTEXT_LENGTH, MAX_AI_DOCUMENT_LENGTH, MAX_AI_PROVIDERS } from '@shared/limits.js'
 import { t } from '../i18n.js'
 import { aiError } from './errors.js'
 import { createSecretBox, type SecretBox } from './secrets.js'
@@ -22,7 +22,10 @@ const storedProviderSchema = z.object({
   baseUrl: z.string().optional(),
   sealedKey: z.string().optional(),
   consented: z.boolean(),
+  /** What the person allowed: before version 2, the selection only; since, the whole document too. */
+  consentVersion: z.number().optional(),
   defaultModel: z.string().optional(),
+  contextLength: z.number().optional(),
 })
 
 export const DEFAULT_AI_PREFERENCES: AiPreferences = { keepFormatting: true, anthropicFallback: false }
@@ -48,6 +51,18 @@ export interface AiSettingsStore {
   write(data: AiSettingsData): void
 }
 
+export const AI_CONSENT_VERSION = 2
+
+export function hasCurrentConsent(provider: Pick<StoredAiProvider, 'consented' | 'consentVersion'>): boolean {
+  return provider.consented && provider.consentVersion === AI_CONSENT_VERSION
+}
+
+/** Local models read little at a time, and the excess is dropped without a word. */
+export function contextLengthOf(provider: StoredAiProvider): number {
+  if (provider.contextLength !== undefined) return provider.contextLength
+  return isLocalProvider(provider) ? DEFAULT_LOCAL_AI_CONTEXT_LENGTH : MAX_AI_DOCUMENT_LENGTH
+}
+
 export function isLocalProvider(provider: Pick<StoredAiProvider, 'kind' | 'baseUrl'>): boolean {
   return (
     provider.kind === AiProviderKind.OpenAiCompatible &&
@@ -60,6 +75,20 @@ function baseUrlOf(draft: AiProviderDraft): string | undefined {
   if (draft.kind !== AiProviderKind.OpenAiCompatible) return undefined
   if (draft.baseUrl === undefined) throw invalid()
   return draft.baseUrl
+}
+
+function keptConsent(
+  draft: AiProviderDraft,
+  sameDestination: StoredAiProvider | undefined,
+): Pick<StoredAiProvider, 'consented' | 'consentVersion'> {
+  const consented =
+    sameDestination !== undefined && !draft.revokeConsent && hasCurrentConsent(sameDestination)
+  return consented ? { consented, consentVersion: AI_CONSENT_VERSION } : { consented }
+}
+
+function contextLengthOfDraft(draft: AiProviderDraft): Pick<StoredAiProvider, 'contextLength'> {
+  if (draft.kind !== AiProviderKind.OpenAiCompatible || draft.contextLength === undefined) return {}
+  return { contextLength: draft.contextLength }
 }
 
 const invalid = (): AppError => new AppError(ErrorCode.InvalidRequest, t('errors.ipc.invalidData'))
@@ -82,8 +111,9 @@ export class AiSettings {
         ...(provider.baseUrl === undefined ? {} : { baseUrl: provider.baseUrl }),
         hasKey: provider.sealedKey !== undefined,
         local: isLocalProvider(provider),
-        consented: provider.consented,
+        consented: hasCurrentConsent(provider),
         ...(provider.defaultModel === undefined ? {} : { defaultModel: provider.defaultModel }),
+        ...(provider.contextLength === undefined ? {} : { contextLength: provider.contextLength }),
       })),
       defaultProviderId: data.defaultProviderId,
       preferences: data.preferences,
@@ -145,7 +175,11 @@ export class AiSettings {
   }
 
   markConsented(id: string): void {
-    this.updateProvider(id, (provider) => ({ ...provider, consented: true }))
+    this.updateProvider(id, (provider) => ({
+      ...provider,
+      consented: true,
+      consentVersion: AI_CONSENT_VERSION,
+    }))
   }
 
   private updateProvider(id: string, change: (provider: StoredAiProvider) => StoredAiProvider): void {
@@ -167,8 +201,9 @@ export class AiSettings {
       label: draft.label,
       ...(baseUrl === undefined ? {} : { baseUrl }),
       ...(sealedKey === undefined ? {} : { sealedKey }),
-      consented: kept !== undefined && !draft.revokeConsent && kept.consented,
+      ...keptConsent(draft, kept),
       ...(defaultModel === '' ? {} : { defaultModel }),
+      ...contextLengthOfDraft(draft),
     }
   }
 

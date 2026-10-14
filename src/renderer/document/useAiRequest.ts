@@ -3,14 +3,17 @@ import type { Editor } from '@tiptap/react'
 import type { Transaction } from '@tiptap/pm/state'
 import { IpcChannel } from '@shared/ipc-channels.js'
 import { pushContracts } from '@shared/ipc.js'
-import type { AiAction } from '@shared/types.js'
+import { MAX_AI_SELECTION_LENGTH } from '@shared/limits.js'
+import { AiFormat, type AiAction } from '@shared/types.js'
 import type { Language } from '@shared/i18n/index.js'
 import { useWorkspace } from '../state/workspace.js'
 import {
   aiTarget,
   buildInsertBelow,
   buildTrackedReplacement,
+  documentAround,
   rangeChanged,
+  selectedMarkdown,
   type AiRange,
   type AiTargetProblem,
 } from './ai-apply.js'
@@ -20,6 +23,7 @@ export type AiPhase = 'idle' | 'running' | 'done' | 'canceled' | 'declined' | 'f
 export interface AiRunState {
   readonly phase: AiPhase
   readonly text: string
+  readonly format: AiFormat
   readonly changed: boolean
   readonly model?: string | undefined
   readonly costUsd?: number | undefined
@@ -31,6 +35,7 @@ export interface AiStartOptions {
   readonly action: AiAction
   readonly targetLanguage?: Language | undefined
   readonly instruction?: string | undefined
+  readonly format: AiFormat
 }
 
 interface ActiveRun {
@@ -39,7 +44,7 @@ interface ActiveRun {
   readonly snapshot: string
 }
 
-const IDLE: AiRunState = { phase: 'idle', text: '', changed: false }
+const IDLE: AiRunState = { phase: 'idle', text: '', format: AiFormat.Plain, changed: false }
 
 export interface AiRequest {
   readonly state: AiRunState
@@ -106,10 +111,14 @@ export function useAiRequest(editor: Editor): AiRequest {
     async (options: AiStartOptions): Promise<AiTargetProblem | null> => {
       const target = aiTarget(editor.state)
       if ('problem' in target) return target.problem
+      const { doc } = editor.state
+      const text = options.format === AiFormat.Markdown ? selectedMarkdown(doc, target.range) : target.text
+      if (text.length > MAX_AI_SELECTION_LENGTH) return 'tooLong'
       const requestId = crypto.randomUUID()
       runRef.current = { requestId, range: target.range, snapshot: target.text }
-      setState({ ...IDLE, phase: 'running' })
-      const result = await window.api.ai.generate({ requestId, text: target.text, ...options })
+      setState({ ...IDLE, phase: 'running', format: options.format })
+      const around = documentAround(doc, target.range)
+      const result = await window.api.ai.generate({ requestId, ...options, text, ...around })
       if (runRef.current?.requestId !== requestId) return null
       if (!result.ok) {
         showError(result.error)
@@ -132,11 +141,12 @@ export function useAiRequest(editor: Editor): AiRequest {
     (build: typeof buildTrackedReplacement, author: string) => {
       const run = runRef.current
       if (run === null) return
-      const tr = build(editor.state, run.range, state.text, author, new Date())
+      const response = { text: state.text, format: state.format }
+      const tr = build(editor.state, run.range, response, author, new Date())
       if (tr !== null) editor.view.dispatch(tr)
       editor.view.focus()
     },
-    [editor, state.text],
+    [editor, state.text, state.format],
   )
 
   return {

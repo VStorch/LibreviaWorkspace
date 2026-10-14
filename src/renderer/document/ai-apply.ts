@@ -6,8 +6,12 @@ import {
   type Selection,
   type Transaction,
 } from '@tiptap/pm/state'
+import { exportMarkdown } from '@services/document/export-markdown.js'
+import { markdownToNodes } from '@services/document/markdown-import.js'
+import type { DocumentNode } from '@services/document/model.js'
 import { plainPasteContent } from '@services/document/paste.js'
-import { MAX_AI_SELECTION_LENGTH } from '@shared/limits.js'
+import { MAX_AI_DOCUMENT_LENGTH, MAX_AI_SELECTION_LENGTH } from '@shared/limits.js'
+import { AiFormat } from '@shared/types.js'
 import { DELETION, INSERTION, textWithoutDeletions } from './extensions/track-changes.js'
 import { SKIP_TRACKING, trackTransaction } from './extensions/track-input.js'
 
@@ -25,9 +29,42 @@ export type AiTarget =
 const UNSUPPORTED_NODES: ReadonlySet<string> = new Set(['image', 'math', 'noteRef', 'field'])
 const CELL_NODES: ReadonlySet<string> = new Set(['tableCell', 'tableHeader'])
 const REVISION_MARKS: ReadonlySet<string> = new Set([INSERTION, DELETION])
+/** Marks the Markdown answer says itself; the others (font, color, underline) come from the passage. */
+const MARKDOWN_MARKS: ReadonlySet<string> = new Set([
+  'bold',
+  'italic',
+  'strike',
+  'code',
+  'link',
+  'superscript',
+  'subscript',
+])
+
+export interface AiResponse {
+  readonly text: string
+  readonly format: AiFormat
+}
 
 export function selectedText(doc: ProseMirrorNode, range: AiRange): string {
   return textWithoutDeletions(doc.cut(range.from, range.to), '\n', '')
+}
+
+export function selectedMarkdown(doc: ProseMirrorNode, range: AiRange): string {
+  const content = (doc.cut(range.from, range.to).toJSON() as DocumentNode).content ?? []
+  return exportMarkdown({ doc: { type: 'doc', content } }, { assetFolder: '' }).markdown.trimEnd()
+}
+
+/** The document around the selection, as far as the contract allows: the nearest text matters most. */
+export function documentAround(
+  doc: ProseMirrorNode,
+  range: AiRange,
+): { readonly before: string; readonly after: string } {
+  const before = textWithoutDeletions(doc.cut(0, range.from), '\n', '')
+  const after = textWithoutDeletions(doc.cut(range.to), '\n', '')
+  return {
+    before: before.slice(Math.max(0, before.length - MAX_AI_DOCUMENT_LENGTH)),
+    after: after.slice(0, MAX_AI_DOCUMENT_LENGTH),
+  }
 }
 
 function cellOf(state: EditorState, pos: number): number {
@@ -74,11 +111,15 @@ export function rangeChanged(doc: ProseMirrorNode, range: AiRange, snapshot: str
   return range.to <= range.from || selectedText(doc, range) !== snapshot
 }
 
-function plainMarks(state: EditorState, pos: number): readonly Mark[] {
+function plainMarks(state: EditorState, pos: number, format: AiFormat): readonly Mark[] {
   return state.doc
     .resolve(pos)
     .marks()
-    .filter((mark) => !REVISION_MARKS.has(mark.type.name))
+    .filter(
+      (mark) =>
+        !REVISION_MARKS.has(mark.type.name) &&
+        (format === AiFormat.Plain || !MARKDOWN_MARKS.has(mark.type.name)),
+    )
 }
 
 function paragraphsOf(state: EditorState, text: string, marks: readonly Mark[]): ProseMirrorNode[] {
@@ -89,6 +130,39 @@ function paragraphsOf(state: EditorState, text: string, marks: readonly Mark[]):
   })
 }
 
+/** The answer's own marks win over the passage's: `addToSet` replaces a mark of the same type. */
+function withBaseMarks(node: ProseMirrorNode, base: readonly Mark[]): ProseMirrorNode {
+  if (node.isText) return node.mark(node.marks.reduce((set, mark) => mark.addToSet(set), base))
+  if (node.isTextblock && !node.type.allowsMarks(base)) return node
+  const children: ProseMirrorNode[] = []
+  node.forEach((child) => children.push(withBaseMarks(child, base)))
+  return node.copy(Fragment.fromArray(children))
+}
+
+function blocksOf(state: EditorState, markdown: string, marks: readonly Mark[]): ProseMirrorNode[] {
+  return markdownToNodes(markdown).map((block) => withBaseMarks(state.schema.nodeFromJSON(block), marks))
+}
+
+function responseBlocks(state: EditorState, response: AiResponse, marks: readonly Mark[]): ProseMirrorNode[] {
+  return response.format === AiFormat.Markdown
+    ? blocksOf(state, response.text, marks)
+    : paragraphsOf(state, response.text, marks)
+}
+
+/**
+ * Open paragraphs at both ends keep the change a plain replacement of text, which the revision
+ * tracking follows; a list at the edge would wrap the text around it in a step it cannot mark.
+ */
+function textEdged(state: EditorState, blocks: readonly ProseMirrorNode[]): ProseMirrorNode[] {
+  const empty = (): ProseMirrorNode[] =>
+    blocks.length > 0 ? [state.schema.nodes['paragraph']!.create()] : []
+  return [
+    ...(blocks[0]?.isTextblock === true ? [] : empty()),
+    ...blocks,
+    ...(blocks[blocks.length - 1]?.isTextblock === true ? [] : empty()),
+  ]
+}
+
 function tracked(tr: Transaction, state: EditorState, author: string, now: Date): Transaction {
   return trackTransaction(tr, state, author, now).setMeta(SKIP_TRACKING, true)
 }
@@ -97,29 +171,26 @@ function tracked(tr: Transaction, state: EditorState, author: string, now: Date)
 export function buildTrackedReplacement(
   state: EditorState,
   range: AiRange,
-  text: string,
+  response: AiResponse,
   author: string,
   now: Date,
 ): Transaction | null {
-  const paragraphs = paragraphsOf(state, text, plainMarks(state, range.from))
-  if (paragraphs.length === 0) return null
-  const slice =
-    paragraphs.length === 1
-      ? new Slice(paragraphs[0]!.content, 0, 0)
-      : new Slice(Fragment.fromArray(paragraphs), 1, 1)
+  const blocks = responseBlocks(state, response, plainMarks(state, range.from, response.format))
+  if (blocks.length === 0) return null
+  const slice = new Slice(Fragment.fromArray(textEdged(state, blocks)), 1, 1)
   return tracked(state.tr.replace(range.from, range.to, slice), state, author, now)
 }
 
 export function buildInsertBelow(
   state: EditorState,
   range: AiRange,
-  text: string,
+  response: AiResponse,
   author: string,
   now: Date,
 ): Transaction | null {
-  const paragraphs = paragraphsOf(state, text, [])
-  if (paragraphs.length === 0) return null
+  const blocks = responseBlocks(state, response, [])
+  if (blocks.length === 0) return null
   const $to = state.doc.resolve(range.to)
   const after = $to.parent.isTextblock ? $to.after() : range.to
-  return tracked(state.tr.insert(after, Fragment.fromArray(paragraphs)), state, author, now)
+  return tracked(state.tr.insert(after, Fragment.fromArray(blocks)), state, author, now)
 }

@@ -168,6 +168,13 @@ export const AiAction = {
 
 export type AiAction = (typeof AiAction)[keyof typeof AiAction]
 
+export const AiFormat = {
+  Plain: 'plain',
+  Markdown: 'markdown',
+} as const
+
+export type AiFormat = (typeof AiFormat)[keyof typeof AiFormat]
+
 /** Belongs to the window, as in Word: nothing of this is saved, and printing follows the window. */
 export const RevisionView = {
   All: 'all',

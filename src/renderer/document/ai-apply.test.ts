@@ -3,11 +3,21 @@ import { getSchema } from '@tiptap/core'
 import { Node as ProseMirrorNode } from '@tiptap/pm/model'
 import { AllSelection, EditorState, NodeSelection, TextSelection } from '@tiptap/pm/state'
 import { buildEditorExtensions } from './editor-extensions.js'
-import { aiTarget, buildInsertBelow, buildTrackedReplacement, rangeChanged } from './ai-apply.js'
+import { AiFormat } from '@shared/types.js'
+import {
+  aiTarget,
+  buildInsertBelow,
+  buildTrackedReplacement,
+  documentAround,
+  rangeChanged,
+  selectedMarkdown,
+} from './ai-apply.js'
 import { SKIP_TRACKING } from './extensions/track-input.js'
 
 const schema = getSchema(buildEditorExtensions(() => {}))
 const NOW = new Date('2026-10-01T12:34:56Z')
+const plain = (value: string) => ({ text: value, format: AiFormat.Plain })
+const markdown = (value: string) => ({ text: value, format: AiFormat.Markdown })
 
 const paragraph = (...content: Record<string, unknown>[]): Record<string, unknown> => ({
   type: 'paragraph',
@@ -90,7 +100,7 @@ describe('aiTarget', () => {
     const state = EditorState.create({ doc })
     const all = state.apply(state.tr.setSelection(new AllSelection(doc)))
     expect(aiTarget(all)).toEqual({ range: { from: 1, to: 9 }, text: 'Um\nDois' })
-    const next = all.apply(buildTrackedReplacement(all, { from: 1, to: 9 }, 'Três', 'm', NOW)!)
+    const next = all.apply(buildTrackedReplacement(all, { from: 1, to: 9 }, plain('Três'), 'm', NOW)!)
     expect(shown(next.doc)).toEqual(['[Um]', '[Dois]{Três}'])
   })
 
@@ -107,7 +117,7 @@ describe('aiTarget', () => {
 describe('buildTrackedReplacement', () => {
   it('entra como revisão com o modelo de autor, mesmo com o controle desligado', () => {
     const state = stateOf([paragraph(text('O gato dorme.'))], 3, 7)
-    const tr = buildTrackedReplacement(state, { from: 3, to: 7 }, 'cão', 'llama3', NOW)!
+    const tr = buildTrackedReplacement(state, { from: 3, to: 7 }, plain('cão'), 'llama3', NOW)!
     expect(tr.getMeta(SKIP_TRACKING)).toBe(true)
     const next = state.apply(tr)
     expect(shown(next.doc)).toEqual(['O [gato]{cão} dorme.'])
@@ -116,14 +126,16 @@ describe('buildTrackedReplacement', () => {
 
   it('várias linhas viram parágrafos ligados ao texto em volta', () => {
     const state = stateOf([paragraph(text('Antes meio depois'))], 7, 11)
-    const next = state.apply(buildTrackedReplacement(state, { from: 7, to: 11 }, 'um\ndois', 'm', NOW)!)
+    const next = state.apply(
+      buildTrackedReplacement(state, { from: 7, to: 11 }, plain('um\ndois'), 'm', NOW)!,
+    )
     next.doc.check()
     expect(shown(next.doc)).toEqual(['Antes [meio]{um}', '{dois} depois'])
   })
 
   it('mantém a formatação do começo do trecho', () => {
     const state = stateOf([paragraph(text('negrito', { type: 'bold' }))], 1, 8)
-    const next = state.apply(buildTrackedReplacement(state, { from: 1, to: 8 }, 'forte', 'm', NOW)!)
+    const next = state.apply(buildTrackedReplacement(state, { from: 1, to: 8 }, plain('forte'), 'm', NOW)!)
     let bold = false
     next.doc.descendants((node) => {
       if (node.text === 'forte') bold = node.marks.some((mark) => mark.type.name === 'bold')
@@ -133,14 +145,75 @@ describe('buildTrackedReplacement', () => {
 
   it('não faz nada com resposta vazia', () => {
     const state = stateOf([paragraph(text('abc'))], 1, 3)
-    expect(buildTrackedReplacement(state, { from: 1, to: 3 }, '', 'm', NOW)).toBeNull()
+    expect(buildTrackedReplacement(state, { from: 1, to: 3 }, plain(''), 'm', NOW)).toBeNull()
+  })
+})
+
+describe('resposta em Markdown', () => {
+  it('negrito e lista viram formatação dentro da revisão do modelo', () => {
+    const state = stateOf(
+      [paragraph(text('Antes')), paragraph(text('troque')), paragraph(text('Depois'))],
+      8,
+      14,
+    )
+    const tr = buildTrackedReplacement(state, { from: 8, to: 14 }, markdown('**x**\n\n- item'), 'm', NOW)!
+    const next = state.apply(tr)
+    next.doc.check()
+    let strong = false
+    next.doc.descendants((node) => {
+      if (node.text === 'x') {
+        strong = node.marks.some((mark) => mark.type.name === 'bold')
+        expect(node.marks.some((mark) => mark.type.name === 'insertion')).toBe(true)
+      }
+    })
+    expect(strong).toBe(true)
+    expect(next.doc.child(2).type.name).toBe('bulletList')
+    expect(shown(next.doc)).toContain('{item}')
+    expect(authorsOf(next.doc)).toEqual(['m'])
+  })
+
+  it('a resposta não herda o negrito do trecho, mas herda a cor', () => {
+    const red = { type: 'textStyle', attrs: { color: '#ff0000' } }
+    const state = stateOf([paragraph(text('forte', { type: 'bold' }, red))], 1, 6)
+    const next = state.apply(
+      buildTrackedReplacement(state, { from: 1, to: 6 }, markdown('*leve*'), 'm', NOW)!,
+    )
+    next.doc.descendants((node) => {
+      if (node.text !== 'leve') return
+      const names = node.marks.map((mark) => mark.type.name)
+      expect(names).toContain('italic')
+      expect(names).toContain('textStyle')
+      expect(names).not.toContain('bold')
+    })
+  })
+
+  it('inserir abaixo põe título e lista marcados como inserção', () => {
+    const state = stateOf([paragraph(text('Primeiro'))], 1, 5)
+    const next = state.apply(
+      buildInsertBelow(state, { from: 1, to: 5 }, markdown('# Resumo\n\n1. um'), 'm', NOW)!,
+    )
+    next.doc.check()
+    expect(next.doc.child(1).type.name).toBe('heading')
+    expect(next.doc.child(2).type.name).toBe('orderedList')
+    expect(shown(next.doc)).toEqual(['Primeiro', '{Resumo}', '{um}'])
+  })
+
+  it('o trecho vai em Markdown e o documento em volta, sem as exclusões', () => {
+    const deleted = { type: 'deletion', attrs: { author: 'a', date: NOW.toISOString(), id: 1 } }
+    const state = stateOf(
+      [paragraph(text('Antes '), text('apagado', deleted), text('forte', { type: 'bold' }), text(' depois'))],
+      14,
+      19,
+    )
+    expect(selectedMarkdown(state.doc, { from: 14, to: 19 })).toBe('**forte**')
+    expect(documentAround(state.doc, { from: 14, to: 19 })).toEqual({ before: 'Antes ', after: ' depois' })
   })
 })
 
 describe('buildInsertBelow', () => {
   it('insere parágrafos marcados depois do parágrafo do trecho', () => {
     const state = stateOf([paragraph(text('Primeiro')), paragraph(text('Segundo'))], 1, 5)
-    const next = state.apply(buildInsertBelow(state, { from: 1, to: 5 }, 'Resumo', 'm', NOW)!)
+    const next = state.apply(buildInsertBelow(state, { from: 1, to: 5 }, plain('Resumo'), 'm', NOW)!)
     expect(shown(next.doc)).toEqual(['Primeiro', '{Resumo}', 'Segundo'])
   })
 })

@@ -5,13 +5,14 @@ import { PRIVACY_CATEGORIES } from '@services/file/privacy.js'
 import { CUSTOM_PROPERTY_TYPES } from '@services/file/properties.js'
 import { Language, LANGUAGES } from './i18n/language.js'
 import { AiProviderKind } from '@services/ai/provider.js'
-import { AiAction, Theme } from './types.js'
+import { AiAction, AiFormat, Theme } from './types.js'
 import {
   MAX_AI_INSTRUCTION_LENGTH,
   MAX_AI_KEY_LENGTH,
   MAX_AI_RESPONSE_LENGTH,
   MAX_AI_SELECTION_LENGTH,
   MAX_AI_URL_LENGTH,
+  MAX_AI_DOCUMENT_LENGTH,
   MAX_COLOR_LENGTH,
   MAX_CSS_VALUE_LENGTH,
   MAX_DESCRIPTION_LENGTH,
@@ -445,6 +446,9 @@ export const styleSheetSchema = z.object({
 const aiProviderIdSchema = z.string().min(1).max(MAX_ID_LENGTH)
 export const aiModelIdSchema = z.string().max(MAX_ID_LENGTH)
 const aiBaseUrlSchema = z.url({ protocol: /^https?$/ }).max(MAX_AI_URL_LENGTH)
+/** In characters: how much of the document goes along with the selection. */
+export const aiContextLengthSchema = z.int().min(0).max(MAX_AI_DOCUMENT_LENGTH)
+const aiDocumentPartSchema = z.string().max(MAX_AI_DOCUMENT_LENGTH)
 
 /** What the renderer sees of a provider: whether it has a key, never the key. */
 export const aiProviderSchema = z.object({
@@ -456,6 +460,7 @@ export const aiProviderSchema = z.object({
   local: z.boolean(),
   consented: z.boolean(),
   defaultModel: aiModelIdSchema.optional(),
+  contextLength: aiContextLengthSchema.optional(),
 })
 
 export const aiProviderDraftSchema = z.object({
@@ -465,6 +470,7 @@ export const aiProviderDraftSchema = z.object({
   baseUrl: aiBaseUrlSchema.optional(),
   apiKey: z.string().trim().max(MAX_AI_KEY_LENGTH).optional(),
   defaultModel: aiModelIdSchema.optional(),
+  contextLength: aiContextLengthSchema.optional(),
   makeDefault: z.boolean().default(false),
   revokeConsent: z.boolean().default(false),
 })
@@ -485,6 +491,10 @@ export const aiGenerateRequestSchema = z.object({
   targetLanguage: z.enum(LANGUAGES).optional(),
   instruction: z.string().max(MAX_AI_INSTRUCTION_LENGTH).optional(),
   text: z.string().min(1).max(MAX_AI_SELECTION_LENGTH),
+  /** The document text before and after the selection, deletions left out. */
+  before: aiDocumentPartSchema.default(''),
+  after: aiDocumentPartSchema.default(''),
+  format: z.enum(AiFormat).default(AiFormat.Plain),
 })
 
 export const aiStreamEventSchema = z.object({

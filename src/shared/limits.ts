@@ -30,6 +30,10 @@ export const MAX_SECTION_COLUMNS = 45
 
 /** A long chapter; a whole book would cost money on a paid service and stall a local model. */
 export const MAX_AI_SELECTION_LENGTH = 20_000
+/** The open document goes along as context; past this, only the text around the selection. */
+export const MAX_AI_DOCUMENT_LENGTH = 200_000
+/** Ollama reads 4096 tokens by default and drops the rest without a word: about 6000 characters fit. */
+export const DEFAULT_LOCAL_AI_CONTEXT_LENGTH = 6_000
 export const MAX_AI_INSTRUCTION_LENGTH = 2_000
 export const MAX_AI_RESPONSE_LENGTH = 100_000
 export const MAX_AI_KEY_LENGTH = 500

@@ -4,7 +4,13 @@ import { AiProviderKind } from '@services/ai/provider.js'
 import type { IpcRequest, IpcResponse } from '@shared/ipc.js'
 import type { IpcChannel } from '@shared/ipc-channels.js'
 import type { MessageKey } from '@shared/i18n/index.js'
-import { MAX_AI_KEY_LENGTH, MAX_AI_URL_LENGTH, MAX_NAME_LENGTH } from '@shared/limits.js'
+import {
+  DEFAULT_LOCAL_AI_CONTEXT_LENGTH,
+  MAX_AI_DOCUMENT_LENGTH,
+  MAX_AI_KEY_LENGTH,
+  MAX_AI_URL_LENGTH,
+  MAX_NAME_LENGTH,
+} from '@shared/limits.js'
 import { useT } from '../i18n.js'
 import { useWorkspace } from '../state/workspace.js'
 import { useAiProviders, type AiProviderInfo, type AiProviders } from './useAiProviders.js'
@@ -25,6 +31,7 @@ function draftOf(provider: AiProviderInfo, change: Partial<ProviderDraft>): Prov
     kind: provider.kind,
     label: provider.label,
     ...(provider.baseUrl === undefined ? {} : { baseUrl: provider.baseUrl }),
+    ...(provider.contextLength === undefined ? {} : { contextLength: provider.contextLength }),
     makeDefault: false,
     revokeConsent: false,
     ...change,
@@ -190,6 +197,7 @@ interface ProviderForm {
   readonly label: string
   readonly baseUrl: string
   readonly apiKey: string
+  readonly contextLength: string
 }
 
 function formOf(provider: AiProviderInfo | undefined): ProviderForm {
@@ -198,7 +206,17 @@ function formOf(provider: AiProviderInfo | undefined): ProviderForm {
     label: provider?.label ?? '',
     baseUrl: provider?.baseUrl ?? '',
     apiKey: '',
+    contextLength: provider?.contextLength?.toString() ?? '',
   }
+}
+
+const CONTEXT_LENGTH_DIGITS = String(MAX_AI_DOCUMENT_LENGTH).length
+
+/** Blank goes back to the default; a number out of range is brought inside it. */
+function contextLengthOf(form: ProviderForm): { contextLength?: number } {
+  const typed = Number.parseInt(form.contextLength, 10)
+  if (form.kind !== AiProviderKind.OpenAiCompatible || Number.isNaN(typed)) return {}
+  return { contextLength: Math.min(MAX_AI_DOCUMENT_LENGTH, Math.max(0, typed)) }
 }
 
 /** A blank key while editing keeps the stored one; main forgets it anyway if the address changes. */
@@ -211,6 +229,7 @@ function draftFromForm(form: ProviderForm, defaultLabel: string, id: string | un
     label: label === '' ? defaultLabel : label,
     ...(form.kind === AiProviderKind.OpenAiCompatible ? { baseUrl: form.baseUrl.trim() } : {}),
     ...(form.kind !== AiProviderKind.ClaudeCli && apiKey !== '' ? { apiKey } : {}),
+    ...contextLengthOf(form),
     makeDefault: false,
     revokeConsent: false,
   }
@@ -229,7 +248,6 @@ function ManualProviderForm({
   const [form, setForm] = useState<ProviderForm>(() => formOf(editing))
   const change = (field: Partial<ProviderForm>): void => setForm((previous) => ({ ...previous, ...field }))
   const needsUrl = form.kind === AiProviderKind.OpenAiCompatible
-  const needsKey = form.kind !== AiProviderKind.ClaudeCli
   const submit = async (): Promise<void> => {
     if (!(await save(draftFromForm(form, t(KIND_LABELS[form.kind]), editing?.id)))) return
     setForm(formOf(undefined))
@@ -258,26 +276,7 @@ function ManualProviderForm({
         maxLength={MAX_NAME_LENGTH}
         onChange={(label) => change({ label })}
       />
-      {needsUrl && (
-        <TextField
-          label={t('ai.providers.url')}
-          type="url"
-          value={form.baseUrl}
-          maxLength={MAX_AI_URL_LENGTH}
-          placeholder="http://localhost:11434/v1"
-          onChange={(baseUrl) => change({ baseUrl })}
-        />
-      )}
-      {needsKey && (
-        <TextField
-          label={t('ai.providers.key')}
-          type="password"
-          value={form.apiKey}
-          maxLength={MAX_AI_KEY_LENGTH}
-          hint={t(editing?.hasKey === true ? 'ai.providers.keyKeep' : 'ai.providers.keyHint')}
-          onChange={(apiKey) => change({ apiKey })}
-        />
-      )}
+      <ConnectionFields form={form} change={change} keyStored={editing?.hasKey === true} />
       <div className="ai-pane__actions">
         <button
           type="button"
@@ -294,6 +293,57 @@ function ManualProviderForm({
         )}
       </div>
     </fieldset>
+  )
+}
+
+function ConnectionFields({
+  form,
+  change,
+  keyStored,
+}: {
+  readonly form: ProviderForm
+  readonly change: (field: Partial<ProviderForm>) => void
+  readonly keyStored: boolean
+}): React.JSX.Element {
+  const t = useT()
+  const needsUrl = form.kind === AiProviderKind.OpenAiCompatible
+  const needsKey = form.kind !== AiProviderKind.ClaudeCli
+  return (
+    <>
+      {needsUrl && (
+        <TextField
+          label={t('ai.providers.url')}
+          type="url"
+          value={form.baseUrl}
+          maxLength={MAX_AI_URL_LENGTH}
+          placeholder="http://localhost:11434/v1"
+          onChange={(baseUrl) => change({ baseUrl })}
+        />
+      )}
+      {needsUrl && (
+        <TextField
+          label={t('ai.providers.contextLength')}
+          type="number"
+          value={form.contextLength}
+          maxLength={CONTEXT_LENGTH_DIGITS}
+          hint={t('ai.providers.contextLengthHint', {
+            local: DEFAULT_LOCAL_AI_CONTEXT_LENGTH,
+            remote: MAX_AI_DOCUMENT_LENGTH,
+          })}
+          onChange={(contextLength) => change({ contextLength })}
+        />
+      )}
+      {needsKey && (
+        <TextField
+          label={t('ai.providers.key')}
+          type="password"
+          value={form.apiKey}
+          maxLength={MAX_AI_KEY_LENGTH}
+          hint={t(keyStored ? 'ai.providers.keyKeep' : 'ai.providers.keyHint')}
+          onChange={(apiKey) => change({ apiKey })}
+        />
+      )}
+    </>
   )
 }
 
@@ -336,7 +386,7 @@ function TextField({
   readonly value: string
   readonly maxLength: number
   readonly onChange: (value: string) => void
-  readonly type?: 'text' | 'url' | 'password'
+  readonly type?: 'text' | 'url' | 'password' | 'number'
   readonly placeholder?: string
   readonly hint?: string
 }): React.JSX.Element {

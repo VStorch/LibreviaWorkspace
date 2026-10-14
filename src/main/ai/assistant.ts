@@ -1,3 +1,4 @@
+import { contextWindow } from '@services/ai/context.js'
 import { AI_MAX_OUTPUT_TOKENS, buildMessages } from '@services/ai/prompts.js'
 import { AiProviderKind, type AiModel, type AiProvider } from '@services/ai/provider.js'
 import { ErrorCode } from '@shared/errors.js'
@@ -11,7 +12,13 @@ import { CLAUDE_COMMAND, findExecutable } from './discovery.js'
 import { aiError } from './errors.js'
 import { createOpenAiCompatibleProvider } from './openai-compatible.js'
 import type { AiModelCache } from './model-cache.js'
-import { isLocalProvider, type AiSettings, type StoredAiProvider } from './settings.js'
+import {
+  contextLengthOf,
+  hasCurrentConsent,
+  isLocalProvider,
+  type AiSettings,
+  type StoredAiProvider,
+} from './settings.js'
 
 export type AiGenerateRequest = IpcRequest<typeof IpcChannel.AiGenerate>
 export type AiGenerateResponse = IpcResponse<typeof IpcChannel.AiGenerate>
@@ -55,7 +62,7 @@ export async function ensureConsent(
   stored: StoredAiProvider,
   confirmConsent: (provider: StoredAiProvider) => Promise<boolean>,
 ): Promise<boolean> {
-  if (isLocalProvider(stored) || stored.consented) return true
+  if (isLocalProvider(stored) || hasCurrentConsent(stored)) return true
   if (!(await confirmConsent(stored))) return false
   settings.markConsented(stored.id)
   return true
@@ -95,6 +102,11 @@ async function resolveModel(
   return { id: model?.id ?? chosen, fallback: wantsFallback && model?.fallback === true }
 }
 
+function messagesFor(request: AiGenerateRequest, stored: StoredAiProvider): ReturnType<typeof buildMessages> {
+  const budget = contextLengthOf(stored) - request.text.length
+  return buildMessages({ ...request, context: contextWindow(request.before, request.after, budget) })
+}
+
 export async function generate(
   request: AiGenerateRequest,
   context: GenerateContext,
@@ -111,7 +123,7 @@ export async function generate(
       provider,
       {
         model: chosen.id,
-        ...buildMessages(request),
+        ...messagesFor(request, stored),
         maxTokens: AI_MAX_OUTPUT_TOKENS,
         ...(chosen.fallback ? { fallback: true } : {}),
       },

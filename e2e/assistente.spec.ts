@@ -17,22 +17,36 @@ interface FakeServer {
   readonly server: Server
   readonly baseUrl: string
   readonly pedidos: string[]
+  readonly corpos: string[]
+  resposta: string[]
   fechadasCedo: number
   lento: boolean
   derrubar: boolean
 }
 
 async function startFakeServer(): Promise<FakeServer> {
-  const fake = { pedidos: [] as string[], fechadasCedo: 0, lento: false, derrubar: false } as FakeServer
+  const fake = {
+    pedidos: [] as string[],
+    corpos: [] as string[],
+    resposta: RESPOSTA,
+    fechadasCedo: 0,
+    lento: false,
+    derrubar: false,
+  } as FakeServer
   const server = createServer((req, res) => {
     fake.pedidos.push(`${req.method} ${req.url}`)
+    let corpo = ''
+    req.on('data', (pedaco: Buffer) => (corpo += pedaco.toString()))
+    req.on('end', () => {
+      if (corpo !== '') fake.corpos.push(corpo)
+    })
     if (req.url === '/v1/models') {
       res.writeHead(200, { 'content-type': 'application/json' })
       res.end(JSON.stringify({ data: [{ id: MODELO }] }))
       return
     }
     res.writeHead(200, { 'content-type': 'text/event-stream' })
-    const pedacos = fake.lento ? Array.from({ length: PEDACOS_LENTOS }, (_, i) => `${i} `) : RESPOSTA
+    const pedacos = fake.lento ? Array.from({ length: PEDACOS_LENTOS }, (_, i) => `${i} `) : fake.resposta
     let i = 0
     const timer = setInterval(() => {
       if (fake.derrubar && i === 1) {
@@ -134,9 +148,9 @@ test.describe('assistente de IA', () => {
 
     await painel().getByRole('button', { name: 'Gerar' }).click()
     const resposta = painel().getByLabel('Resposta')
-    await expect(resposta).toHaveValue(/^Texto /)
-    expect(await resposta.inputValue()).not.toContain('modelo.')
-    await expect(resposta).toHaveValue(RESPOSTA.join(''))
+    await expect(resposta).toHaveText(/^Texto /)
+    expect(await resposta.textContent()).not.toContain('modelo.')
+    await expect(resposta).toHaveText(RESPOSTA.join(''))
 
     await painel().getByRole('button', { name: 'Aplicar' }).click()
     await expect(editor.locator(`ins.revision[data-author="${MODELO}"]`)).toHaveText(RESPOSTA.join(''))
@@ -156,7 +170,7 @@ test.describe('assistente de IA', () => {
     await session.window.keyboard.press('Control+A')
     await editor.click({ button: 'right', position: { x: 10, y: 5 } })
     await acaoDoMenu('Reescrever')
-    await expect(painel().getByLabel('Resposta')).toHaveValue(RESPOSTA.join(''))
+    await expect(painel().getByLabel('Resposta')).toHaveText(RESPOSTA.join(''))
     const gerados = () => fake.pedidos.filter((pedido) => pedido.startsWith('POST')).length
     expect(gerados()).toBe(1)
 
@@ -177,7 +191,7 @@ test.describe('assistente de IA', () => {
     await menu(session, 'ai-assistant')
 
     await painel().getByRole('button', { name: 'Gerar' }).click()
-    await expect(painel().getByLabel('Resposta')).toHaveValue(/^0 /)
+    await expect(painel().getByLabel('Resposta')).toHaveText(/^0 /)
     await painel().getByRole('button', { name: 'Parar' }).click()
 
     await expect(painel().getByText('Interrompido.')).toBeVisible()
@@ -193,7 +207,7 @@ test.describe('assistente de IA', () => {
     await menu(session, 'ai-assistant')
 
     await painel().getByRole('button', { name: 'Gerar' }).click()
-    await expect(painel().getByLabel('Resposta')).toHaveValue(/^0 /)
+    await expect(painel().getByLabel('Resposta')).toHaveText(/^0 /)
     await editor.click()
     await session.window.keyboard.press('Home')
     await session.window.keyboard.press('ArrowRight')
@@ -214,7 +228,7 @@ test.describe('assistente de IA', () => {
     await menu(session, 'ai-assistant')
 
     await painel().getByRole('button', { name: 'Gerar' }).click()
-    await expect(painel().getByLabel('Resposta')).toHaveValue(/^0 /)
+    await expect(painel().getByLabel('Resposta')).toHaveText(/^0 /)
     await painel().getByRole('button', { name: 'Parar' }).click()
 
     await expect(painel().getByText('Interrompido.')).toBeVisible()
@@ -232,10 +246,10 @@ test.describe('assistente de IA', () => {
     const gerar = painel().getByRole('button', { name: 'Gerar' })
     const resposta = painel().getByLabel('Resposta')
     await gerar.click()
-    await expect(resposta).toHaveValue(RESPOSTA.join(''))
+    await expect(resposta).toHaveText(RESPOSTA.join(''))
     await gerar.click()
-    await expect(resposta).toHaveValue(/^Texto /)
-    await expect(resposta).toHaveValue(RESPOSTA.join(''))
+    await expect(resposta).toHaveText(/^Texto /)
+    await expect(resposta).toHaveText(RESPOSTA.join(''))
 
     expect(await caixasDeMensagem()).toBe(0)
     expect(fake.pedidos.filter((pedido) => pedido === 'POST /v1/chat/completions')).toHaveLength(2)
@@ -300,7 +314,73 @@ test.describe('assistente de IA', () => {
     await expect(submenu.getByRole('menuitem', { name: 'Revisar ortografia e gramática' })).toBeFocused()
     await session.window.keyboard.press('Enter')
     await expect(contexto).toHaveCount(0)
+    await expect(painel().getByLabel('Resposta')).toHaveText(RESPOSTA.join(''))
+  })
+
+  function mensagensEnviadas(): { system: string; user: string } {
+    const corpo = JSON.parse(fake.corpos.at(-1) ?? '{}') as { messages?: { role: string; content: string }[] }
+    const conteudo = (papel: string) => corpo.messages?.find((m) => m.role === papel)?.content ?? ''
+    return { system: conteudo('system'), user: conteudo('user') }
+  }
+
+  async function selecionarParagrafoDoMeio(): Promise<Locator> {
+    const editor = await escrever('Primeiro parágrafo.')
+    await session.window.keyboard.press('Enter')
+    await session.window.keyboard.type('O gato dorme.')
+    await session.window.keyboard.press('Enter')
+    await session.window.keyboard.type('Último parágrafo.')
+    await configurar()
+    await editor.getByText('O gato dorme.').click()
+    await session.window.keyboard.press('Home')
+    await session.window.keyboard.press('Shift+End')
+    return editor
+  }
+
+  test('o documento vai junto como contexto, com a seleção marcada', async () => {
+    await selecionarParagrafoDoMeio()
+    await menu(session, 'ai-assistant')
+    await painel().getByRole('button', { name: 'Gerar' }).click()
+    await expect(painel().getByLabel('Resposta')).toHaveText(RESPOSTA.join(''))
+
+    const { user } = mensagensEnviadas()
+    expect(user).toContain('Primeiro parágrafo.')
+    expect(user).toContain('<selection>O gato dorme.</selection>')
+    expect(user).toContain('Último parágrafo.')
+  })
+
+  test('resposta em Markdown aparece formatada e, aplicada, vira negrito e lista na revisão do modelo', async () => {
+    const editor = await selecionarParagrafoDoMeio()
+    fake.resposta = ['**Gato** ', 'dorme.\n\n', '- item um\n', '- item dois']
+    await menu(session, 'ai-assistant')
+    await painel().getByRole('button', { name: 'Gerar' }).click()
+    const resposta = painel().getByLabel('Resposta')
+    await expect(resposta.locator('li')).toHaveText(['item um', 'item dois'])
+    await expect(resposta.locator('strong')).toHaveText('Gato')
+
+    await painel().getByRole('button', { name: 'Aplicar' }).click()
+    await expect(editor.locator('strong', { hasText: 'Gato' })).toHaveCount(1)
+    await expect(editor.locator('li')).toHaveText(['item um', 'item dois'])
+    await expect(editor.locator(`ins.revision[data-author="${MODELO}"]`, { hasText: 'item um' })).toHaveCount(
+      1,
+    )
+    await expect(editor.locator(`del.revision[data-author="${MODELO}"]`)).toHaveText('O gato dorme.')
+  })
+
+  test('sem manter a formatação, a revisão vai e volta em texto puro', async () => {
+    await selecionarParagrafoDoMeio()
+    await menu(session, 'ai-providers')
+    const dialogo = session.window.getByRole('dialog', { name: 'Assistentes de IA' })
+    const manter = dialogo.getByLabel('Manter a formatação nas revisões')
+    await manter.click()
+    await expect(manter).not.toBeChecked()
+    await dialogo.getByRole('button', { name: 'Fechar' }).click()
+    await menu(session, 'ai-assistant')
+    await painel().getByRole('button', { name: 'Gerar' }).click()
     await expect(painel().getByLabel('Resposta')).toHaveValue(RESPOSTA.join(''))
+
+    const { system } = mensagensEnviadas()
+    expect(system).toContain('no Markdown')
+    expect(system).not.toContain('Format it in Markdown')
   })
 
   test('conexão derrubada no meio da resposta dá aviso de rede, não erro genérico', async () => {

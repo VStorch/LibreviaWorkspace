@@ -1,13 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Editor } from '@tiptap/react'
+import { responseFormat } from '@services/ai/prompts.js'
 import { AiProviderKind } from '@services/ai/provider.js'
 import { LANGUAGE_NAMES, LANGUAGES, Language, type MessageKey } from '@shared/i18n/index.js'
 import { MAX_AI_INSTRUCTION_LENGTH, MAX_AI_SELECTION_LENGTH } from '@shared/limits.js'
-import { AiAction, EditCommand } from '@shared/types.js'
+import { AiAction, AiFormat, EditCommand } from '@shared/types.js'
 import { useT } from '../i18n.js'
 import { currentPreferences } from '../state/preferences.js'
 import { useWorkspace } from '../state/workspace.js'
 import type { AiTargetProblem } from './ai-apply.js'
+import { AiMarkdownPreview } from './AiMarkdownPreview.js'
 import { AiModelSelect } from './AiModelSelect.js'
 import { authorOf, useAiProviders, type AiProviderInfo } from './useAiProviders.js'
 import { useAiRequest, type AiRequest } from './useAiRequest.js'
@@ -80,6 +82,7 @@ export function AiPanel({
         action: chosen.action,
         targetLanguage: chosen.action === AiAction.Translate ? chosen.targetLanguage : undefined,
         instruction: chosen.action === AiAction.Custom ? chosen.instruction : undefined,
+        format: responseFormat(chosen.action, list?.preferences.keepFormatting ?? true),
       }),
     )
   }
@@ -269,21 +272,31 @@ function AiResult({
 }): React.JSX.Element | null {
   const t = useT()
   const output = useRef<HTMLTextAreaElement>(null)
+  const preview = useRef<HTMLDivElement>(null)
   const { state } = request
   if (state.phase === 'idle') return null
   const status = STATUS_LABELS[state.phase]
   const author = authorOf(provider, state.model)
   const finished = state.phase === 'done' && state.text !== ''
+  const markdown = state.format === AiFormat.Markdown
   const copy = (): void => {
-    output.current?.select()
+    if (markdown && preview.current !== null) window.getSelection()?.selectAllChildren(preview.current)
+    else output.current?.select()
     void window.api.edit.run({ command: EditCommand.Copy })
   }
   return (
     <>
-      <label className="popover__field">
-        <span>{t('ai.panel.result')}</span>
-        <textarea ref={output} className="ai-pane__output" readOnly rows={10} value={state.text} />
-      </label>
+      {markdown ? (
+        <div className="popover__field">
+          <span>{t('ai.panel.result')}</span>
+          <AiMarkdownPreview ref={preview} markdown={state.text} label={t('ai.panel.result')} />
+        </div>
+      ) : (
+        <label className="popover__field">
+          <span>{t('ai.panel.result')}</span>
+          <textarea ref={output} className="ai-pane__output" readOnly rows={10} value={state.text} />
+        </label>
+      )}
       {status !== undefined && (
         <p className="ai-pane__note" role="status">
           {t(status)}

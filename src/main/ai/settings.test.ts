@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { ErrorCode } from '@shared/errors.js'
-import { AiSettings, type AiSettingsData } from './settings.js'
+import { DEFAULT_LOCAL_AI_CONTEXT_LENGTH, MAX_AI_DOCUMENT_LENGTH } from '@shared/limits.js'
+import { AiSettings, contextLengthOf, type AiSettingsData } from './settings.js'
 
 function settings(): { subject: AiSettings; stored: () => AiSettingsData } {
   let data: unknown = undefined
@@ -102,9 +103,41 @@ describe('configuração dos assistentes', () => {
       { seal: (plain) => plain, open: (sealed) => sealed },
     )
     expect(subject.list()).toMatchObject({
-      providers: [{ id: 'a', label: 'Antigo', consented: true }],
+      providers: [{ id: 'a', label: 'Antigo' }],
       preferences: { keepFormatting: true, anthropicFallback: false },
     })
+  })
+
+  it('consentimento dado quando só a seleção ia junto é pedido de novo, agora que o documento vai', () => {
+    let data: unknown = {
+      providers: [{ id: 'a', kind: 'anthropic', label: 'Antigo', consented: true }],
+      defaultProviderId: 'a',
+    }
+    const subject = new AiSettings(
+      { read: () => data, write: (value) => (data = value) },
+      { seal: (plain) => plain, open: (sealed) => sealed },
+    )
+    expect(subject.list().providers[0]?.consented).toBe(false)
+    subject.markConsented('a')
+    expect(subject.list().providers[0]?.consented).toBe(true)
+  })
+
+  it('o limite de contexto vale só para servidor compatível com OpenAI, e local começa menor', () => {
+    const { subject } = settings()
+    const local = {
+      kind: 'openai-compatible',
+      label: 'Ollama',
+      baseUrl: 'http://127.0.0.1:11434/v1',
+      makeDefault: false,
+      revokeConsent: false,
+    } as const
+    subject.save(local)
+    expect(contextLengthOf(subject.find('id1'))).toBe(DEFAULT_LOCAL_AI_CONTEXT_LENGTH)
+    subject.save({ ...local, id: 'id1', contextLength: 12_000 })
+    expect(subject.list().providers[0]?.contextLength).toBe(12_000)
+    expect(contextLengthOf(subject.find('id1'))).toBe(12_000)
+    subject.save({ ...draft, contextLength: 10 })
+    expect(contextLengthOf(subject.find('id2'))).toBe(MAX_AI_DOCUMENT_LENGTH)
   })
 
   it('escolher o modelo não mexe na chave nem no consentimento, e as preferências sobrevivem', () => {

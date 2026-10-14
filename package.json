@@ -62,6 +62,7 @@
     "@tiptap/react": "^3.30.0",
     "@tiptap/starter-kit": "^3.30.0",
     "electron-store": "^11.0.2",
+    "marked": "^18.1.1",
     "pdfjs-dist": "^6.4.299",
     "temml": "^0.13.5",
     "zod": "^4.4.3",

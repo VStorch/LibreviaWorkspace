@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { AiProvider, AiStreamPart } from '@services/ai/provider.js'
+import { DEFAULT_LOCAL_AI_CONTEXT_LENGTH } from '@shared/limits.js'
 import { generate } from './assistant.js'
 import { AiModelCache } from './model-cache.js'
 import { AiSettings } from './settings.js'
@@ -10,6 +11,9 @@ const REQUEST = {
   model: '',
   action: 'rewrite',
   text: 'Um texto.',
+  before: '',
+  after: '',
+  format: 'plain',
 } as const
 
 function settingsWith(kind: 'anthropic' | 'openai-compatible', baseUrl?: string): AiSettings {
@@ -88,6 +92,29 @@ describe('generate', () => {
     )
     expect(result).toEqual({ status: 'done', model: 'llama3' })
     expect(asked).toBe(false)
+  })
+
+  it('servidor local recebe só o documento em volta da seleção que cabe no limite dele', async () => {
+    let user = ''
+    const provider: AiProvider = {
+      listModels: async () => [],
+      async *stream(prompt) {
+        user = prompt.user
+        yield { text: 'ok' }
+      },
+    }
+    await generate(
+      { ...REQUEST, model: 'llama3', before: 'a '.repeat(5_000), after: ' depois' },
+      {
+        settings: settingsWith('openai-compatible', 'http://127.0.0.1:11434/v1'),
+        signal: new AbortController().signal,
+        push: () => undefined,
+        confirmConsent: async () => true,
+        providerFor: async () => provider,
+      },
+    )
+    expect(user).toContain('<selection>Um texto.</selection> depois')
+    expect(user.length).toBeLessThanOrEqual(DEFAULT_LOCAL_AI_CONTEXT_LENGTH + 100)
   })
 
   it('cancelado devolve o estado, não um erro', async () => {
