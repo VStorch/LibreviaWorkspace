@@ -13,6 +13,7 @@ import { createSecretBox, type SecretBox } from './secrets.js'
 
 export type AiProviderDraft = IpcRequest<typeof IpcChannel.AiProviderSave>
 export type AiProviderList = IpcResponse<typeof IpcChannel.AiProvidersList>
+export type AiPreferences = IpcRequest<typeof IpcChannel.AiPreferencesSave>
 
 const storedProviderSchema = z.object({
   id: z.string(),
@@ -24,15 +25,23 @@ const storedProviderSchema = z.object({
   defaultModel: z.string().optional(),
 })
 
+export const DEFAULT_AI_PREFERENCES: AiPreferences = { keepFormatting: true, anthropicFallback: false }
+
 const settingsSchema = z.object({
   providers: z.array(storedProviderSchema).max(MAX_AI_PROVIDERS),
   defaultProviderId: z.string().nullable(),
+  preferences: z
+    .object({
+      keepFormatting: z.boolean().default(DEFAULT_AI_PREFERENCES.keepFormatting),
+      anthropicFallback: z.boolean().default(DEFAULT_AI_PREFERENCES.anthropicFallback),
+    })
+    .default(DEFAULT_AI_PREFERENCES),
 })
 
 export type StoredAiProvider = z.infer<typeof storedProviderSchema>
 export type AiSettingsData = z.infer<typeof settingsSchema>
 
-const EMPTY: AiSettingsData = { providers: [], defaultProviderId: null }
+const EMPTY: AiSettingsData = { providers: [], defaultProviderId: null, preferences: DEFAULT_AI_PREFERENCES }
 
 export interface AiSettingsStore {
   read(): unknown
@@ -77,7 +86,12 @@ export class AiSettings {
         ...(provider.defaultModel === undefined ? {} : { defaultModel: provider.defaultModel }),
       })),
       defaultProviderId: data.defaultProviderId,
+      preferences: data.preferences,
     }
+  }
+
+  preferences(): AiPreferences {
+    return this.read().preferences
   }
 
   find(id: string): StoredAiProvider {
@@ -100,7 +114,7 @@ export class AiSettings {
         ? [...data.providers, provider]
         : data.providers.map((candidate) => (candidate.id === provider.id ? provider : candidate))
     const makeDefault = draft.makeDefault || data.defaultProviderId === null
-    this.write({ providers, defaultProviderId: makeDefault ? provider.id : data.defaultProviderId })
+    this.write({ ...data, providers, defaultProviderId: makeDefault ? provider.id : data.defaultProviderId })
     return this.list()
   }
 
@@ -109,17 +123,36 @@ export class AiSettings {
     const providers = data.providers.filter((provider) => provider.id !== id)
     const defaultProviderId =
       data.defaultProviderId === id ? (providers[0]?.id ?? null) : data.defaultProviderId
-    this.write({ providers, defaultProviderId })
+    this.write({ ...data, providers, defaultProviderId })
+    return this.list()
+  }
+
+  /** Apart from `save`: picking a model must not touch the key or the consent. */
+  chooseModel(id: string, model: string): AiProviderList {
+    this.find(id)
+    this.updateProvider(id, (provider) => {
+      const chosen: StoredAiProvider = { ...provider }
+      if (model === '') delete chosen.defaultModel
+      else chosen.defaultModel = model
+      return chosen
+    })
+    return this.list()
+  }
+
+  savePreferences(preferences: AiPreferences): AiProviderList {
+    this.write({ ...this.read(), preferences })
     return this.list()
   }
 
   markConsented(id: string): void {
+    this.updateProvider(id, (provider) => ({ ...provider, consented: true }))
+  }
+
+  private updateProvider(id: string, change: (provider: StoredAiProvider) => StoredAiProvider): void {
     const data = this.read()
     this.write({
       ...data,
-      providers: data.providers.map((provider) =>
-        provider.id === id ? { ...provider, consented: true } : provider,
-      ),
+      providers: data.providers.map((provider) => (provider.id === id ? change(provider) : provider)),
     })
   }
 

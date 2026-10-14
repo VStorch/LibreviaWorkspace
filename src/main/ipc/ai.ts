@@ -25,6 +25,8 @@ export function registerAiHandlers(): void {
     models.forget(payload.providerId)
     return aiSettings().remove(payload.providerId)
   })
+  handle(IpcChannel.AiModelChoose, (payload) => aiSettings().chooseModel(payload.providerId, payload.model))
+  handle(IpcChannel.AiPreferencesSave, (payload) => aiSettings().savePreferences(payload))
   handle(IpcChannel.AiDiscover, async () => ({ candidates: await discoverProviders() }))
 
   handle(IpcChannel.AiModelsList, async (payload, event) => {

@@ -91,4 +91,39 @@ describe('configuração dos assistentes', () => {
     expect(() => subject.save({ ...draft, kind: 'openai-compatible' })).toThrow()
     expect(() => subject.find('nenhum')).toThrow(expect.objectContaining({ code: ErrorCode.AiNotConfigured }))
   })
+
+  it('arquivo antigo, sem preferências, continua valendo e ganha os padrões', () => {
+    let data: unknown = {
+      providers: [{ id: 'a', kind: 'anthropic', label: 'Antigo', consented: true }],
+      defaultProviderId: 'a',
+    }
+    const subject = new AiSettings(
+      { read: () => data, write: (value) => (data = value) },
+      { seal: (plain) => plain, open: (sealed) => sealed },
+    )
+    expect(subject.list()).toMatchObject({
+      providers: [{ id: 'a', label: 'Antigo', consented: true }],
+      preferences: { keepFormatting: true, anthropicFallback: false },
+    })
+  })
+
+  it('escolher o modelo não mexe na chave nem no consentimento, e as preferências sobrevivem', () => {
+    const { subject, stored } = settings()
+    subject.save({ ...draft, apiKey: 'k' })
+    subject.markConsented('id1')
+    subject.savePreferences({ keepFormatting: false, anthropicFallback: true })
+    expect(subject.chooseModel('id1', 'modelo-x').providers[0]).toMatchObject({
+      defaultModel: 'modelo-x',
+      hasKey: true,
+      consented: true,
+    })
+    expect(subject.chooseModel('id1', '').providers[0]?.defaultModel).toBeUndefined()
+    subject.save({ ...draft, id: 'id1', label: 'Renomeado' })
+    expect(stored().preferences).toEqual({ keepFormatting: false, anthropicFallback: true })
+    expect(stored().providers[0]).toMatchObject({
+      label: 'Renomeado',
+      sealedKey: 'selado:k',
+      consented: true,
+    })
+  })
 })

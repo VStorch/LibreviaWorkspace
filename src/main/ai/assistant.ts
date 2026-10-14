@@ -61,18 +61,38 @@ export async function ensureConsent(
   return true
 }
 
+interface ResolvedModel {
+  readonly id: string
+  readonly fallback: boolean
+}
+
+function listedModels(
+  stored: StoredAiProvider,
+  provider: AiProvider,
+  context: GenerateContext,
+): Promise<readonly AiModel[]> {
+  const load = (): Promise<AiModel[]> => provider.listModels(context.signal)
+  return context.models?.get(stored.id, load) ?? load()
+}
+
 async function resolveModel(
   request: AiGenerateRequest,
   stored: StoredAiProvider,
   provider: AiProvider,
   context: GenerateContext,
-): Promise<string> {
+): Promise<ResolvedModel> {
   const chosen = request.model !== '' ? request.model : (stored.defaultModel ?? '')
-  if (chosen !== '' || stored.kind === AiProviderKind.ClaudeCli) return chosen
-  const load = (): Promise<AiModel[]> => provider.listModels(context.signal)
-  const [first] = await (context.models?.get(stored.id, load) ?? load())
-  if (first === undefined) throw aiError(ErrorCode.AiNotConfigured, 'errors.ai.modelMissing')
-  return first.id
+  const wantsFallback =
+    stored.kind === AiProviderKind.Anthropic && context.settings.preferences().anthropicFallback
+  if (stored.kind === AiProviderKind.ClaudeCli || (chosen !== '' && !wantsFallback)) {
+    return { id: chosen, fallback: false }
+  }
+  const models = await listedModels(stored, provider, context)
+  const model = chosen === '' ? models[0] : models.find((candidate) => candidate.id === chosen)
+  if (model === undefined && chosen === '') {
+    throw aiError(ErrorCode.AiNotConfigured, 'errors.ai.modelMissing')
+  }
+  return { id: model?.id ?? chosen, fallback: wantsFallback && model?.fallback === true }
 }
 
 export async function generate(
@@ -89,11 +109,16 @@ export async function generate(
     const chosen = await resolveModel(request, stored, provider, context)
     const relayed = await relay(
       provider,
-      { model: chosen, ...buildMessages(request), maxTokens: AI_MAX_OUTPUT_TOKENS },
+      {
+        model: chosen.id,
+        ...buildMessages(request),
+        maxTokens: AI_MAX_OUTPUT_TOKENS,
+        ...(chosen.fallback ? { fallback: true } : {}),
+      },
       signal,
       batcher.add,
     )
-    const model = relayed.model ?? chosen
+    const model = relayed.model ?? chosen.id
     return {
       status: 'done',
       ...(model === '' ? {} : { model }),

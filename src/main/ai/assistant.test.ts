@@ -150,4 +150,48 @@ describe('generate', () => {
     await generate(REQUEST, context)
     expect(listed).toBe(2)
   })
+
+  describe('troca de modelo quando a Anthropic recusa', () => {
+    const fallbackProvider = (seen: { fallback?: boolean }): AiProvider => ({
+      listModels: async () => [
+        { id: 'aceita', label: 'Aceita', fallback: true },
+        { id: 'nao-aceita', label: 'Não aceita', fallback: false },
+      ],
+      async *stream(prompt) {
+        seen.fallback = prompt.fallback === true
+        yield { text: 'Parte. ' }
+        yield { model: 'substituto' }
+        yield { text: 'Resto.' }
+      },
+    })
+    const run = async (
+      model: string,
+      preference: boolean,
+    ): Promise<{ fallback?: boolean; author?: string | undefined }> => {
+      const settings = settingsWith('anthropic')
+      settings.markConsented('id1')
+      settings.savePreferences({ keepFormatting: true, anthropicFallback: preference })
+      const seen: { fallback?: boolean } = {}
+      const result = await generate(
+        { ...REQUEST, model },
+        {
+          settings,
+          signal: new AbortController().signal,
+          push: () => undefined,
+          confirmConsent: async () => true,
+          providerFor: async () => fallbackProvider(seen),
+        },
+      )
+      return { ...seen, ...(result.status === 'done' ? { author: result.model } : {}) }
+    }
+
+    it('com a preferência ligada e um modelo que aceita, pede a troca e o autor é o modelo final', async () => {
+      expect(await run('aceita', true)).toEqual({ fallback: true, author: 'substituto' })
+    })
+
+    it('não pede a troca quando o modelo não aceita ou a preferência está desligada', async () => {
+      expect((await run('nao-aceita', true)).fallback).toBe(false)
+      expect((await run('aceita', false)).fallback).toBe(false)
+    })
+  })
 })

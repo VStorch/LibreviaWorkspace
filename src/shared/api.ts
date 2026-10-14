@@ -82,6 +82,8 @@ export interface AppApi {
     listProviders: Call<typeof IpcChannel.AiProvidersList>
     saveProvider: Call<typeof IpcChannel.AiProviderSave>
     removeProvider: Call<typeof IpcChannel.AiProviderRemove>
+    chooseModel: Call<typeof IpcChannel.AiModelChoose>
+    savePreferences: Call<typeof IpcChannel.AiPreferencesSave>
     discover: Call<typeof IpcChannel.AiDiscover>
     listModels: Call<typeof IpcChannel.AiModelsList>
     generate: Call<typeof IpcChannel.AiGenerate>

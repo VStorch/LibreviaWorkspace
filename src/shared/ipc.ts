@@ -8,6 +8,8 @@ import {
 } from './ipc-channels.js'
 import {
   aiGenerateRequestSchema,
+  aiModelIdSchema,
+  aiPreferencesSchema,
   aiProviderDraftSchema,
   aiProviderSchema,
   aiStreamEventSchema,
@@ -96,6 +98,7 @@ const emptyRequest = z.object({})
 const aiProviderListSchema = z.object({
   providers: z.array(aiProviderSchema).max(MAX_AI_PROVIDERS),
   defaultProviderId: z.string().max(MAX_ID_LENGTH).nullable(),
+  preferences: aiPreferencesSchema,
 })
 
 const aiProviderRefSchema = z.object({ providerId: z.string().min(1).max(MAX_ID_LENGTH) })
@@ -354,6 +357,14 @@ export const ipcContracts = {
   },
   [IpcChannel.AiProviderRemove]: {
     request: aiProviderRefSchema,
+    response: aiProviderListSchema,
+  },
+  [IpcChannel.AiModelChoose]: {
+    request: aiProviderRefSchema.extend({ model: aiModelIdSchema }),
+    response: aiProviderListSchema,
+  },
+  [IpcChannel.AiPreferencesSave]: {
+    request: aiPreferencesSchema,
     response: aiProviderListSchema,
   },
   [IpcChannel.AiDiscover]: {

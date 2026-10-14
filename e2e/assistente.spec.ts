@@ -99,6 +99,14 @@ test.describe('assistente de IA', () => {
     await dialogo.getByRole('button', { name: 'Fechar' }).click()
   }
 
+  async function acaoDoMenu(acao: string): Promise<void> {
+    await session.window.getByRole('menuitem', { name: 'Assistente de IA' }).hover()
+    await session.window
+      .getByRole('menu', { name: 'Assistente de IA' })
+      .getByRole('menuitem', { name: acao })
+      .click()
+  }
+
   function painel() {
     return session.window.getByRole('complementary', { name: 'Assistente de IA' })
   }
@@ -112,7 +120,7 @@ test.describe('assistente de IA', () => {
     await editor.click()
     await session.window.keyboard.press('Control+A')
     await editor.click({ button: 'right', position: { x: 10, y: 5 } })
-    await session.window.getByRole('menuitem', { name: 'Assistente de IA: Reescrever' }).click()
+    await acaoDoMenu('Reescrever')
     await expect(session.window.getByRole('dialog', { name: 'Assistentes de IA' })).toBeVisible()
     expect(fake.pedidos).toEqual([])
   })
@@ -147,7 +155,7 @@ test.describe('assistente de IA', () => {
     await editor.click()
     await session.window.keyboard.press('Control+A')
     await editor.click({ button: 'right', position: { x: 10, y: 5 } })
-    await session.window.getByRole('menuitem', { name: 'Assistente de IA: Reescrever' }).click()
+    await acaoDoMenu('Reescrever')
     await expect(painel().getByLabel('Resposta')).toHaveValue(RESPOSTA.join(''))
     const gerados = () => fake.pedidos.filter((pedido) => pedido.startsWith('POST')).length
     expect(gerados()).toBe(1)
@@ -232,6 +240,67 @@ test.describe('assistente de IA', () => {
     expect(await caixasDeMensagem()).toBe(0)
     expect(fake.pedidos.filter((pedido) => pedido === 'POST /v1/chat/completions')).toHaveLength(2)
     expect(fake.pedidos.filter((pedido) => pedido === 'GET /v1/models')).toHaveLength(1)
+  })
+
+  test('o modelo escolhido no painel fica lembrado ao reabrir', async () => {
+    await escrever('O gato dorme.')
+    await configurar()
+    await menu(session, 'ai-assistant')
+    const modelo = painel().getByLabel('Modelo')
+    await expect(modelo).toHaveValue('')
+    await painel().getByRole('button', { name: 'Listar modelos' }).click()
+    await modelo.selectOption(MODELO)
+    await expect(modelo).toHaveValue(MODELO)
+
+    await menu(session, 'ai-assistant')
+    await expect(painel()).toHaveCount(0)
+    await menu(session, 'ai-assistant')
+    await expect(painel().getByLabel('Modelo')).toHaveValue(MODELO)
+  })
+
+  test('editar o assistente troca o nome e mantém o endereço', async () => {
+    await escrever('O gato dorme.')
+    await configurar()
+    await menu(session, 'ai-providers')
+    const dialogo = session.window.getByRole('dialog', { name: 'Assistentes de IA' })
+    await dialogo.getByRole('button', { name: 'Editar' }).click()
+    const edicao = dialogo.getByRole('group', { name: 'Editar assistente' })
+    await expect(edicao.getByLabel('Endereço')).toHaveValue(fake.baseUrl)
+    await edicao.getByLabel('Nome').fill('Servidor renomeado')
+    await edicao.getByRole('button', { name: 'Salvar' }).click()
+    await expect(dialogo.getByText('Servidor renomeado')).toBeVisible()
+    await expect(dialogo.getByText('Servidor falso')).toHaveCount(0)
+    await expect(dialogo.getByText('Neste computador · Padrão')).toBeVisible()
+  })
+
+  test('o submenu do assistente funciona pelo teclado, e Esc fecha só o submenu', async () => {
+    const editor = await escrever('O gato dorme.')
+    await configurar()
+    await editor.click()
+    await session.window.keyboard.press('Control+A')
+    await session.window.keyboard.press('Shift+F10')
+    const contexto = session.window.getByRole('menu', { name: 'Ações do documento' })
+    const gatilho = contexto.getByRole('menuitem', { name: 'Assistente de IA' })
+    await expect(contexto.getByRole('menuitem').first()).toBeFocused()
+
+    await session.window.keyboard.press('End')
+    await expect(gatilho).toBeFocused()
+    await session.window.keyboard.press('ArrowRight')
+    const submenu = session.window.getByRole('menu', { name: 'Assistente de IA' })
+    await expect(submenu.getByRole('menuitem', { name: 'Reescrever' })).toBeFocused()
+
+    await session.window.keyboard.press('Escape')
+    await expect(submenu).toHaveCount(0)
+    await expect(contexto).toBeVisible()
+    await expect(gatilho).toBeFocused()
+
+    await session.window.keyboard.press('ArrowRight')
+    await session.window.keyboard.press('ArrowDown')
+    await session.window.keyboard.press('ArrowDown')
+    await expect(submenu.getByRole('menuitem', { name: 'Revisar ortografia e gramática' })).toBeFocused()
+    await session.window.keyboard.press('Enter')
+    await expect(contexto).toHaveCount(0)
+    await expect(painel().getByLabel('Resposta')).toHaveValue(RESPOSTA.join(''))
   })
 
   test('conexão derrubada no meio da resposta dá aviso de rede, não erro genérico', async () => {

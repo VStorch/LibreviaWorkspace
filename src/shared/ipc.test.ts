@@ -235,6 +235,7 @@ describe('contratos do assistente de IA', () => {
         },
       ],
       defaultProviderId: 'p1',
+      preferences: { keepFormatting: true, anthropicFallback: false },
     })
     expect(parsed.providers[0]).not.toHaveProperty('apiKey')
   })

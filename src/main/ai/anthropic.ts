@@ -1,10 +1,15 @@
 import Anthropic from '@anthropic-ai/sdk'
-import type { AiModel, AiProvider, AiStreamPart } from '@services/ai/provider.js'
+import type { BetaRawMessageStreamEvent } from '@anthropic-ai/sdk/resources/beta/messages/messages.js'
+import type { AiModel, AiPrompt, AiProvider, AiStreamPart } from '@services/ai/provider.js'
 import { ErrorCode } from '@shared/errors.js'
 import { MAX_AI_MODELS } from '@shared/limits.js'
 import { aiError, refusedError, unreachableError } from './errors.js'
 
-type AnthropicClient = Pick<Anthropic, 'models' | 'messages'>
+type AnthropicClient = { readonly beta: Pick<Anthropic['beta'], 'models' | 'messages'> }
+
+/** The listing beta reports which models accept `fallbacks`; the messages beta accepts it. */
+const FALLBACK_LISTING_BETA = 'server-side-fallback-2026-06-01'
+const FALLBACK_MESSAGES_BETA = 'server-side-fallback-2026-07-01'
 
 export function createAnthropicProvider(
   apiKey: string,
@@ -14,8 +19,10 @@ export function createAnthropicProvider(
     async listModels(signal): Promise<AiModel[]> {
       try {
         const models: AiModel[] = []
-        for await (const model of client.models.list({}, { signal })) {
-          models.push({ id: model.id, label: model.display_name })
+        const listing = client.beta.models.list({ betas: [FALLBACK_LISTING_BETA] }, { signal })
+        for await (const model of listing) {
+          const fallback = (model.allowed_fallback_models?.length ?? 0) > 0
+          models.push({ id: model.id, label: model.display_name, fallback })
           if (models.length >= MAX_AI_MODELS) break
         }
         return models
@@ -25,27 +32,44 @@ export function createAnthropicProvider(
     },
     async *stream(prompt, signal): AsyncGenerator<AiStreamPart> {
       try {
-        const stream = client.messages.stream(
-          {
-            model: prompt.model,
-            max_tokens: prompt.maxTokens,
-            system: prompt.system,
-            messages: [{ role: 'user', content: prompt.user }],
-          },
-          { signal },
-        )
-        for await (const event of stream) {
-          if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
-            yield { text: event.delta.text }
-          } else if (event.type === 'message_delta' && event.delta.stop_reason === 'refusal') {
-            throw refusedError()
-          }
+        for await (const event of openStream(client, prompt, signal)) {
+          const part = partOf(event)
+          if (part !== undefined) yield part
         }
       } catch (cause) {
         throw translateSdkError(cause)
       }
     },
   }
+}
+
+function openStream(
+  client: AnthropicClient,
+  prompt: AiPrompt,
+  signal: AbortSignal,
+): AsyncIterable<BetaRawMessageStreamEvent> {
+  return client.beta.messages.stream(
+    {
+      model: prompt.model,
+      max_tokens: prompt.maxTokens,
+      system: prompt.system,
+      messages: [{ role: 'user', content: prompt.user }],
+      ...(prompt.fallback === true ? { betas: [FALLBACK_MESSAGES_BETA], fallbacks: 'default' } : {}),
+    },
+    { signal },
+  )
+}
+
+/** After a fallback the new model continues from the partial text, so nothing already sent is undone. */
+function partOf(event: BetaRawMessageStreamEvent): AiStreamPart | undefined {
+  if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
+    return { text: event.delta.text }
+  }
+  if (event.type === 'content_block_start' && event.content_block.type === 'fallback') {
+    return { model: event.content_block.to.model }
+  }
+  if (event.type === 'message_delta' && event.delta.stop_reason === 'refusal') throw refusedError()
+  return undefined
 }
 
 function translateSdkError(cause: unknown): unknown {

@@ -443,7 +443,7 @@ export const styleSheetSchema = z.object({
 })
 
 const aiProviderIdSchema = z.string().min(1).max(MAX_ID_LENGTH)
-const aiModelIdSchema = z.string().max(MAX_ID_LENGTH)
+export const aiModelIdSchema = z.string().max(MAX_ID_LENGTH)
 const aiBaseUrlSchema = z.url({ protocol: /^https?$/ }).max(MAX_AI_URL_LENGTH)
 
 /** What the renderer sees of a provider: whether it has a key, never the key. */
@@ -467,6 +467,12 @@ export const aiProviderDraftSchema = z.object({
   defaultModel: aiModelIdSchema.optional(),
   makeDefault: z.boolean().default(false),
   revokeConsent: z.boolean().default(false),
+})
+
+export const aiPreferencesSchema = z.object({
+  /** For the actions that revise the passage: rewrite, proofread, translate. */
+  keepFormatting: z.boolean(),
+  anthropicFallback: z.boolean(),
 })
 
 export const aiActionSchema = z.enum(AiAction)

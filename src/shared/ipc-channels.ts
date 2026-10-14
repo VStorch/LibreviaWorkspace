@@ -93,6 +93,9 @@ export const IpcChannel = {
   AiProvidersList: 'ai:providers-list',
   AiProviderSave: 'ai:provider-save',
   AiProviderRemove: 'ai:provider-remove',
+  /** Apart from `AiProviderSave`: choosing a model never touches the key nor the consent. */
+  AiModelChoose: 'ai:model-choose',
+  AiPreferencesSave: 'ai:preferences-save',
   /** Only when the person asks: nothing is probed on startup. */
   AiDiscover: 'ai:discover',
   AiModelsList: 'ai:models-list',
@@ -151,6 +154,8 @@ export const INVOCABLE_IPC_CHANNELS = [
   IpcChannel.AiProvidersList,
   IpcChannel.AiProviderSave,
   IpcChannel.AiProviderRemove,
+  IpcChannel.AiModelChoose,
+  IpcChannel.AiPreferencesSave,
   IpcChannel.AiDiscover,
   IpcChannel.AiModelsList,
   IpcChannel.AiGenerate,

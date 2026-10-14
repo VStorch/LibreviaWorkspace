@@ -9,23 +9,38 @@ type Client = Parameters<typeof createAnthropicProvider>[1]
 
 function clientWith(events: unknown[], calls: unknown[] = []): Client {
   return {
-    messages: {
-      stream: (body: unknown, options: unknown) => {
-        calls.push(body, options)
-        return (async function* () {
-          for (const event of events) yield event
-        })()
+    beta: {
+      messages: {
+        stream: (body: unknown, options: unknown) => {
+          calls.push(body, options)
+          return (async function* () {
+            for (const event of events) yield event
+          })()
+        },
       },
-    },
-    models: {
-      list: () =>
-        (async function* () {
-          yield { id: 'modelo-a', display_name: 'Modelo A' }
-          yield { id: 'modelo-b', display_name: 'Modelo B' }
-        })(),
+      models: {
+        list: (params: unknown) => {
+          calls.push(params)
+          return (async function* () {
+            yield { id: 'modelo-a', display_name: 'Modelo A', allowed_fallback_models: ['modelo-b'] }
+            yield { id: 'modelo-b', display_name: 'Modelo B', allowed_fallback_models: [] }
+          })()
+        },
+      },
     },
   } as unknown as Client
 }
+
+const FALLBACK = {
+  type: 'content_block_start',
+  index: 0,
+  content_block: { type: 'fallback', from: { model: 'modelo-x' }, to: { model: 'modelo-y' } },
+}
+
+const text = (value: string): unknown => ({
+  type: 'content_block_delta',
+  delta: { type: 'text_delta', text: value },
+})
 
 async function collect(iterable: AsyncIterable<unknown>): Promise<unknown[]> {
   const parts: unknown[] = []
@@ -53,6 +68,25 @@ describe('provedor Anthropic', () => {
     expect(await collect(provider.stream(PROMPT, signal))).toEqual([{ text: 'Olá' }])
     expect(calls[0]).toMatchObject({ model: 'modelo-x', max_tokens: 100, system: 'sys' })
     expect(calls[1]).toEqual({ signal })
+    expect(calls[0]).not.toHaveProperty('fallbacks')
+  })
+
+  it('com o recurso ligado, pede a troca de modelo e passa adiante o modelo que assumiu', async () => {
+    const calls: unknown[] = []
+    const provider = createAnthropicProvider('chave', clientWith([text('Come'), FALLBACK, text('ço')], calls))
+    const parts = await collect(provider.stream({ ...PROMPT, fallback: true }, new AbortController().signal))
+    expect(parts).toEqual([{ text: 'Come' }, { model: 'modelo-y' }, { text: 'ço' }])
+    expect(calls[0]).toMatchObject({ betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' })
+  })
+
+  it('se o modelo que assumiu também recusar, o erro continua legível', async () => {
+    const provider = createAnthropicProvider(
+      'chave',
+      clientWith([FALLBACK, { type: 'message_delta', delta: { stop_reason: 'refusal' } }]),
+    )
+    await expect(
+      collect(provider.stream({ ...PROMPT, fallback: true }, new AbortController().signal)),
+    ).rejects.toMatchObject({ code: ErrorCode.AiRefused })
   })
 
   it('recusa do modelo vira erro legível', async () => {
@@ -67,9 +101,11 @@ describe('provedor Anthropic', () => {
 
   it('erro de autenticação do SDK vira erro de chave', async () => {
     const client = {
-      messages: {
-        stream: () => {
-          throw new Anthropic.AuthenticationError(401, undefined, 'invalid x-api-key', new Headers())
+      beta: {
+        messages: {
+          stream: () => {
+            throw new Anthropic.AuthenticationError(401, undefined, 'invalid x-api-key', new Headers())
+          },
         },
       },
     } as unknown as Client
@@ -78,11 +114,13 @@ describe('provedor Anthropic', () => {
     ).rejects.toMatchObject({ code: ErrorCode.AiAuthFailed })
   })
 
-  it('lista os modelos com o nome de exibição', async () => {
-    const provider = createAnthropicProvider('chave', clientWith([]))
+  it('lista os modelos com o nome de exibição e marca os que aceitam outro modelo', async () => {
+    const calls: unknown[] = []
+    const provider = createAnthropicProvider('chave', clientWith([], calls))
     expect(await provider.listModels(new AbortController().signal)).toEqual([
-      { id: 'modelo-a', label: 'Modelo A' },
-      { id: 'modelo-b', label: 'Modelo B' },
+      { id: 'modelo-a', label: 'Modelo A', fallback: true },
+      { id: 'modelo-b', label: 'Modelo B', fallback: false },
     ])
+    expect(calls[0]).toEqual({ betas: ['server-side-fallback-2026-06-01'] })
   })
 })

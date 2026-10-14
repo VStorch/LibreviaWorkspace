@@ -9,6 +9,8 @@ export type AiProviderKind = (typeof AiProviderKind)[keyof typeof AiProviderKind
 export interface AiModel {
   readonly id: string
   readonly label: string
+  /** Whether the provider may hand the request to another model when this one refuses. */
+  readonly fallback?: boolean
 }
 
 export interface AiPrompt {
@@ -16,6 +18,7 @@ export interface AiPrompt {
   readonly system: string
   readonly user: string
   readonly maxTokens: number
+  readonly fallback?: boolean
 }
 
 export type AiStreamPart =

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Editor } from '@tiptap/react'
+import { AiProviderKind } from '@services/ai/provider.js'
 import { LANGUAGE_NAMES, LANGUAGES, Language, type MessageKey } from '@shared/i18n/index.js'
 import { MAX_AI_INSTRUCTION_LENGTH, MAX_AI_SELECTION_LENGTH } from '@shared/limits.js'
 import { AiAction, EditCommand } from '@shared/types.js'
@@ -7,6 +8,7 @@ import { useT } from '../i18n.js'
 import { currentPreferences } from '../state/preferences.js'
 import { useWorkspace } from '../state/workspace.js'
 import type { AiTargetProblem } from './ai-apply.js'
+import { AiModelSelect } from './AiModelSelect.js'
 import { authorOf, useAiProviders, type AiProviderInfo } from './useAiProviders.js'
 import { useAiRequest, type AiRequest } from './useAiRequest.js'
 
@@ -56,7 +58,7 @@ export function AiPanel({
 }: AiPanelProps): React.JSX.Element {
   const t = useT()
   const readOnly = useWorkspace((state) => state.readOnly)
-  const { list } = useAiProviders(configuring)
+  const { list, update } = useAiProviders(configuring)
   const request = useAiRequest(editor)
   const [providerId, setProviderId] = useState<string | null>(null)
   const [form, setForm] = useState<AiForm>(() => ({
@@ -98,12 +100,7 @@ export function AiPanel({
         </button>
       </div>
       {list !== null && provider === undefined ? (
-        <div className="ai-pane__body">
-          <p className="ai-pane__note">{t('ai.panel.noProviders')}</p>
-          <button type="button" className="btn btn--primary" onClick={onConfigure}>
-            {t('ai.panel.configure')}
-          </button>
-        </div>
+        <AiNoProviders onConfigure={onConfigure} />
       ) : (
         <div className="ai-pane__body">
           {readOnly && <p className="ai-pane__note">{t('ai.panel.readOnly')}</p>}
@@ -111,6 +108,10 @@ export function AiPanel({
             providers={list?.providers ?? []}
             provider={provider}
             onProvider={setProviderId}
+            onModel={(model) => {
+              if (provider !== undefined)
+                void update(window.api.ai.chooseModel({ providerId: provider.id, model }))
+            }}
             form={form}
             onForm={setForm}
             running={request.state.phase === 'running'}
@@ -127,6 +128,18 @@ export function AiPanel({
         </div>
       )}
     </aside>
+  )
+}
+
+function AiNoProviders({ onConfigure }: { readonly onConfigure: () => void }): React.JSX.Element {
+  const t = useT()
+  return (
+    <div className="ai-pane__body">
+      <p className="ai-pane__note">{t('ai.panel.noProviders')}</p>
+      <button type="button" className="btn btn--primary" onClick={onConfigure}>
+        {t('ai.panel.configure')}
+      </button>
+    </div>
   )
 }
 
@@ -151,6 +164,7 @@ interface AiRequestFormProps {
   readonly providers: readonly AiProviderInfo[]
   readonly provider: AiProviderInfo | undefined
   readonly onProvider: (id: string) => void
+  readonly onModel: (model: string) => void
   readonly form: AiForm
   readonly onForm: (form: AiForm) => void
   readonly running: boolean
@@ -174,6 +188,9 @@ function AiRequestForm(props: AiRequestFormProps): React.JSX.Element {
           ))}
         </select>
       </label>
+      {props.provider !== undefined && props.provider.kind !== AiProviderKind.ClaudeCli && (
+        <AiModelSelect provider={props.provider} disabled={props.running} onChoose={props.onModel} />
+      )}
       <label className="popover__field">
         <span>{t('ai.panel.action')}</span>
         <select

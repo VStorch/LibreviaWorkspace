@@ -10,8 +10,8 @@ import { useWorkspace } from '../state/workspace.js'
 import { useAiProviders, type AiProviderInfo, type AiProviders } from './useAiProviders.js'
 
 type ProviderDraft = IpcRequest<typeof IpcChannel.AiProviderSave>
+type AiPreferences = IpcRequest<typeof IpcChannel.AiPreferencesSave>
 type Candidate = IpcResponse<typeof IpcChannel.AiDiscover>['candidates'][number]
-type Model = IpcResponse<typeof IpcChannel.AiModelsList>['models'][number]
 
 const KIND_LABELS: Readonly<Record<AiProviderKind, MessageKey>> = {
   [AiProviderKind.OpenAiCompatible]: 'ai.kind.openaiCompatible',
@@ -68,6 +68,7 @@ export function AiProvidersDialog({
       </ul>
       <DiscoverSection save={save} />
       <ManualProviderForm save={save} />
+      <PreferencesSection providers={providers} />
       <div className="popover__actions">
         <span className="popover__spacer" />
         <button type="button" className="btn" onClick={onClose}>
@@ -90,6 +91,14 @@ function ProviderRow({
   readonly providers: AiProviders
 }): React.JSX.Element {
   const t = useT()
+  const [editing, setEditing] = useState(false)
+  if (editing) {
+    return (
+      <li className="ai-providers__item">
+        <ManualProviderForm save={save} editing={provider} onDone={() => setEditing(false)} />
+      </li>
+    )
+  }
   return (
     <li className="ai-providers__item">
       <div className="ai-providers__heading">
@@ -99,8 +108,10 @@ function ProviderRow({
           {isDefault ? ` · ${t('ai.providers.default')}` : ''}
         </span>
       </div>
-      {provider.kind !== AiProviderKind.ClaudeCli && <ModelChoice provider={provider} save={save} />}
       <div className="ai-pane__actions">
+        <button type="button" className="btn" onClick={() => setEditing(true)}>
+          {t('ai.providers.edit')}
+        </button>
         {!isDefault && (
           <button
             type="button"
@@ -128,46 +139,6 @@ function ProviderRow({
         </button>
       </div>
     </li>
-  )
-}
-
-function ModelChoice({
-  provider,
-  save,
-}: {
-  readonly provider: AiProviderInfo
-  readonly save: (draft: ProviderDraft) => Promise<boolean>
-}): React.JSX.Element {
-  const t = useT()
-  const showError = useWorkspace((state) => state.showError)
-  const [models, setModels] = useState<readonly Model[] | null>(null)
-  const loadModels = async (): Promise<void> => {
-    const result = await window.api.ai.listModels({ providerId: provider.id })
-    if (result.ok) setModels(result.data.models)
-    else showError(result.error)
-  }
-  const chosen = provider.defaultModel ?? ''
-  const options = models ?? (chosen === '' ? [] : [{ id: chosen, label: chosen }])
-  return (
-    <div className="popover__row">
-      <label className="popover__field">
-        <span>{t('ai.providers.model')}</span>
-        <select
-          value={chosen}
-          onChange={(event) => void save(draftOf(provider, { defaultModel: event.target.value }))}
-        >
-          <option value="">{t('ai.providers.modelAuto')}</option>
-          {options.map((model) => (
-            <option key={model.id} value={model.id}>
-              {model.label}
-            </option>
-          ))}
-        </select>
-      </label>
-      <button type="button" className="btn" onClick={() => void loadModels()}>
-        {t('ai.providers.loadModels')}
-      </button>
-    </div>
   )
 }
 
@@ -214,39 +185,66 @@ function DiscoverSection({
   )
 }
 
+interface ProviderForm {
+  readonly kind: AiProviderKind
+  readonly label: string
+  readonly baseUrl: string
+  readonly apiKey: string
+}
+
+function formOf(provider: AiProviderInfo | undefined): ProviderForm {
+  return {
+    kind: provider?.kind ?? AiProviderKind.OpenAiCompatible,
+    label: provider?.label ?? '',
+    baseUrl: provider?.baseUrl ?? '',
+    apiKey: '',
+  }
+}
+
+/** A blank key while editing keeps the stored one; main forgets it anyway if the address changes. */
+function draftFromForm(form: ProviderForm, defaultLabel: string, id: string | undefined): ProviderDraft {
+  const label = form.label.trim()
+  const apiKey = form.apiKey.trim()
+  return {
+    ...(id === undefined ? {} : { id }),
+    kind: form.kind,
+    label: label === '' ? defaultLabel : label,
+    ...(form.kind === AiProviderKind.OpenAiCompatible ? { baseUrl: form.baseUrl.trim() } : {}),
+    ...(form.kind !== AiProviderKind.ClaudeCli && apiKey !== '' ? { apiKey } : {}),
+    makeDefault: false,
+    revokeConsent: false,
+  }
+}
+
 function ManualProviderForm({
   save,
+  editing,
+  onDone,
 }: {
   readonly save: (draft: ProviderDraft) => Promise<boolean>
+  readonly editing?: AiProviderInfo
+  readonly onDone?: () => void
 }): React.JSX.Element {
   const t = useT()
-  const [kind, setKind] = useState<AiProviderKind>(AiProviderKind.OpenAiCompatible)
-  const [label, setLabel] = useState('')
-  const [baseUrl, setBaseUrl] = useState('')
-  const [apiKey, setApiKey] = useState('')
-  const needsUrl = kind === AiProviderKind.OpenAiCompatible
-  const needsKey = kind !== AiProviderKind.ClaudeCli
+  const [form, setForm] = useState<ProviderForm>(() => formOf(editing))
+  const change = (field: Partial<ProviderForm>): void => setForm((previous) => ({ ...previous, ...field }))
+  const needsUrl = form.kind === AiProviderKind.OpenAiCompatible
+  const needsKey = form.kind !== AiProviderKind.ClaudeCli
   const submit = async (): Promise<void> => {
-    const draft: ProviderDraft = {
-      kind,
-      label: label.trim() === '' ? t(KIND_LABELS[kind]) : label.trim(),
-      ...(needsUrl ? { baseUrl: baseUrl.trim() } : {}),
-      ...(needsKey && apiKey.trim() !== '' ? { apiKey: apiKey.trim() } : {}),
-      makeDefault: false,
-      revokeConsent: false,
-    }
-    if (await save(draft)) {
-      setLabel('')
-      setBaseUrl('')
-      setApiKey('')
-    }
+    if (!(await save(draftFromForm(form, t(KIND_LABELS[form.kind]), editing?.id)))) return
+    setForm(formOf(undefined))
+    onDone?.()
   }
   return (
     <fieldset className="popover__fieldset">
-      <legend>{t('ai.providers.manual')}</legend>
+      <legend>{t(editing === undefined ? 'ai.providers.manual' : 'ai.providers.editing')}</legend>
       <label className="popover__field">
         <span>{t('ai.providers.kind')}</span>
-        <select value={kind} onChange={(event) => setKind(event.target.value as AiProviderKind)}>
+        <select
+          value={form.kind}
+          disabled={editing !== undefined}
+          onChange={(event) => change({ kind: event.target.value as AiProviderKind })}
+        >
           {Object.values(AiProviderKind).map((value) => (
             <option key={value} value={value}>
               {t(KIND_LABELS[value])}
@@ -256,40 +254,74 @@ function ManualProviderForm({
       </label>
       <TextField
         label={t('ai.providers.name')}
-        value={label}
+        value={form.label}
         maxLength={MAX_NAME_LENGTH}
-        onChange={setLabel}
+        onChange={(label) => change({ label })}
       />
       {needsUrl && (
         <TextField
           label={t('ai.providers.url')}
           type="url"
-          value={baseUrl}
+          value={form.baseUrl}
           maxLength={MAX_AI_URL_LENGTH}
           placeholder="http://localhost:11434/v1"
-          onChange={setBaseUrl}
+          onChange={(baseUrl) => change({ baseUrl })}
         />
       )}
       {needsKey && (
         <TextField
           label={t('ai.providers.key')}
           type="password"
-          value={apiKey}
+          value={form.apiKey}
           maxLength={MAX_AI_KEY_LENGTH}
-          hint={t('ai.providers.keyHint')}
-          onChange={setApiKey}
+          hint={t(editing?.hasKey === true ? 'ai.providers.keyKeep' : 'ai.providers.keyHint')}
+          onChange={(apiKey) => change({ apiKey })}
         />
       )}
       <div className="ai-pane__actions">
         <button
           type="button"
           className="btn btn--primary"
-          disabled={needsUrl && baseUrl.trim() === ''}
+          disabled={needsUrl && form.baseUrl.trim() === ''}
           onClick={() => void submit()}
         >
           {t('ai.providers.save')}
         </button>
+        {onDone !== undefined && (
+          <button type="button" className="btn" onClick={onDone}>
+            {t('document.common.cancel')}
+          </button>
+        )}
       </div>
+    </fieldset>
+  )
+}
+
+function PreferencesSection({ providers }: { readonly providers: AiProviders }): React.JSX.Element | null {
+  const t = useT()
+  const preferences = providers.list?.preferences
+  if (preferences === undefined) return null
+  const toggle = (change: Partial<AiPreferences>): void =>
+    void providers.update(window.api.ai.savePreferences({ ...preferences, ...change }))
+  return (
+    <fieldset className="popover__fieldset">
+      <legend>{t('ai.preferences.title')}</legend>
+      <label className="popover__check">
+        <input
+          type="checkbox"
+          checked={preferences.keepFormatting}
+          onChange={(event) => toggle({ keepFormatting: event.target.checked })}
+        />
+        {t('ai.preferences.keepFormatting')}
+      </label>
+      <label className="popover__check">
+        <input
+          type="checkbox"
+          checked={preferences.anthropicFallback}
+          onChange={(event) => toggle({ anthropicFallback: event.target.checked })}
+        />
+        {t('ai.preferences.anthropicFallback')}
+      </label>
     </fieldset>
   )
 }

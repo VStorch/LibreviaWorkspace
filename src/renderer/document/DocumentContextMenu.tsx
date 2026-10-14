@@ -2,7 +2,12 @@ import { Fragment } from 'react'
 import type { IpcResult } from '@shared/ipc.js'
 import { TABLE_ACTIONS, type TableAction } from '@shared/table-actions.js'
 import { AiAction, DictionaryScope, EditCommand, type ContextMenuTarget } from '@shared/types.js'
-import { ContextMenu, ContextMenuItem, ContextMenuSeparator } from '../components/ContextMenu.js'
+import {
+  ContextMenu,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextSubmenu,
+} from '../components/ContextMenu.js'
 import { useT } from '../i18n.js'
 import { useWorkspace } from '../state/workspace.js'
 import { NoteKind } from '@services/document/notes.js'
@@ -238,7 +243,6 @@ function TableItems({
   )
 }
 
-/** Flat, after the rest: the context menu has no submenus. */
 function AiItems({
   onAiAction,
   onClose,
@@ -250,11 +254,13 @@ function AiItems({
   return (
     <>
       <ContextMenuSeparator />
-      {Object.values(AiAction).map((action) => (
-        <ContextMenuItem key={action} onClick={closing(onClose, () => onAiAction(action))}>
-          {`${t('ai.panel.title')}: ${t(AI_ACTION_LABELS[action])}`}
-        </ContextMenuItem>
-      ))}
+      <ContextSubmenu label={t('ai.panel.title')}>
+        {Object.values(AiAction).map((action) => (
+          <ContextMenuItem key={action} onClick={closing(onClose, () => onAiAction(action))}>
+            {t(AI_ACTION_LABELS[action])}
+          </ContextMenuItem>
+        ))}
+      </ContextSubmenu>
     </>
   )
 }

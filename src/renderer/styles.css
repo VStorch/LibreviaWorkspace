@@ -1604,7 +1604,9 @@ button {
   cursor: pointer;
 }
 
-.ctx-menu__item:hover:not(:disabled) {
+.ctx-menu__item:hover:not(:disabled),
+.ctx-menu__item:focus-visible,
+.ctx-menu__item[aria-expanded='true'] {
   background: var(--accent-soft);
   color: var(--accent);
 }
@@ -1613,6 +1615,16 @@ button {
 .ctx-menu__item:disabled {
   color: var(--muted);
   cursor: default;
+}
+
+.ctx-menu__item--parent {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.ctx-menu__arrow {
+  color: var(--muted);
 }
 
 /* As in Word. */
