@@ -73,7 +73,8 @@ outras como vieram.
 
 Ele também:
 
-- **não usa a rede**, nem para a ortografia, nem para as fontes;
+- **não usa a rede**, nem para a ortografia, nem para as fontes, a menos que você ligue um
+  assistente de IA;
 - **avisa antes de perder alguma coisa**, e diz o quê;
 - **guarda um rascunho** a cada oito segundos, para o caso de o computador desligar.
 
@@ -100,6 +101,7 @@ Ele também:
 | **Equações** | mostra as equações do Word e permite escrever novas em LaTeX |
 | **Modelos** | cria documentos a partir de modelos do Word (`.dotx`); quatro vêm com o aplicativo |
 | **Ferramentas** | ortografia em português sem internet, localizar e substituir, contar palavras, caracteres especiais, autocorreção tipográfica |
+| **Assistente de IA** | opcional e desligado de fábrica: reescreve, resume, revisa ou traduz o trecho selecionado; a resposta entra como alteração controlada. Funciona com Ollama e LM Studio, neste computador, com o Claude Code ou com um serviço na nuvem |
 
 ### Planilhas
 
@@ -389,7 +391,7 @@ flowchart LR
 | --- | --- | --- |
 | **Renderer** | desenha a interface e edita | tocar no disco ou importar `electron` e `node:*` |
 | **Preload** | expõe `window.api` | ter lógica; ele só encaminha |
-| **Main** | abre janelas, lê e grava arquivos, imprime | aceitar caminho que o usuário não escolheu |
+| **Main** | abre janelas, lê e grava arquivos, imprime | aceitar caminho que o usuário não escolheu; acessar a rede fora de `src/main/ai/` |
 | **Sidecar** | lê e escreve DOCX e XLSX | acessar rede ou gravar no disco |
 
 ### Uma abertura e um salvamento, passo a passo
@@ -470,6 +472,7 @@ fácil se perder. Esta é a lista das pastas que importam e do que cada uma guar
 | [`preferences.ts`](src/main/preferences.ts), [`i18n.ts`](src/main/i18n.ts) | idioma e tema guardados, e a tradução do menu nativo |
 | [`security.ts`](src/main/security.ts), [`security-policy.ts`](src/main/security-policy.ts) | preferências da janela e política de navegação |
 | [`spellcheck.ts`](src/main/spellcheck.ts), [`fonts.ts`](src/main/fonts.ts), [`system-fonts.ts`](src/main/system-fonts.ts) | ortografia offline e lista de fontes |
+| [`ai/`](src/main/ai) | o assistente de IA: provedores, chaves cifradas, consentimento e cancelamento. É a única pasta que acessa a rede |
 
 ### Interface — `src/renderer/`
 
@@ -495,6 +498,7 @@ fácil se perder. Esta é a lista das pastas que importam e do que cada uma guar
 | [`file/`](src/services/file) | extensões aceitas, propriedades do documento, dados pessoais e o inventário do que um arquivo pode perder |
 | [`pdf/`](src/services/pdf) | configuração de página, nas unidades que o Chromium espera |
 | [`spell/`](src/services/spell) | dicionário do usuário |
+| [`ai/`](src/services/ai) | pedidos ao assistente de IA e leitura das respostas em fluxo |
 
 ### Sidecar — `sidecar/src/Librevia.Format/`
 

@@ -31,8 +31,9 @@ Editor de documentos e planilhas que funciona **sem internet**. Abre e grava arq
 
 ## 💿 Instalar
 
-Nada aqui precisa de internet. **O aplicativo não acessa a rede em momento nenhum**, nem para
-conferir a ortografia.
+Nada aqui precisa de internet. **O aplicativo não acessa a rede**, nem para conferir a ortografia.
+A única exceção é o [assistente de IA](#assistente-de-ia), que vem desligado e só envia texto
+depois que você o configura.
 
 ### 🐧 Linux — AppImage
 
@@ -175,6 +176,7 @@ São os atalhos do Word, com poucas exceções, explicadas no fim da tabela.
 | `Ctrl+F` | localizar e substituir |
 | `Ctrl+Shift+V` | colar sem formatação |
 | `Ctrl+Shift+G` | contar palavras |
+| `Ctrl+Shift+Y` | assistente de IA |
 
 ### Texto e parágrafo
 
@@ -656,6 +658,68 @@ Um `Backspace` logo depois de uma troca desfaz **só aquela troca**. Escreva `--
 vez, e o travessão volta a ser dois hifens. É a saída para escrever um comando sem desligar nada.
 
 Para desligar: **Ferramentas → Autocorreção tipográfica**. O que já foi trocado continua trocado.
+
+---
+
+<a id="assistente-de-ia"></a>
+
+## 🤖 Assistente de IA
+
+O assistente reescreve, resume, revisa ou traduz o trecho que você selecionar. Ele vem
+**desligado**: enquanto nenhum assistente estiver configurado, nada sai do computador.
+
+### Configurar
+
+Abra **Ferramentas → Assistentes de IA…**. Há dois caminhos:
+
+- **Procurar assistentes** olha, só quando você clica, três lugares deste computador: o Ollama
+  (`localhost:11434`), o LM Studio (`localhost:1234`) e o programa `claude` (Claude Code), se
+  estiver instalado. O que responder aparece com um botão **Adicionar**.
+- **Adicionar à mão** aceita um servidor compatível com OpenAI (endereço e, se ele pedir, uma
+  chave) ou a API da Anthropic (chave).
+
+A chave fica cifrada pelo cofre de senhas do sistema e nunca volta para a tela. No Linux sem cofre
+(sem GNOME Keyring nem KWallet), o Librevia recusa guardar a chave; os assistentes locais
+continuam funcionando, porque não precisam dela.
+
+No mesmo diálogo você escolhe o assistente padrão e o modelo padrão (**Listar modelos** pergunta ao
+assistente quais ele tem).
+
+### Usar
+
+1. Selecione o trecho.
+2. Clique com o botão direito e escolha, por exemplo, **Assistente de IA: Reescrever**. Também dá
+   para abrir o painel por **Ferramentas → Assistente de IA…** (`Ctrl+Shift+Y`).
+3. A resposta aparece no painel à direita enquanto é escrita. **Parar** interrompe.
+4. Escolha o que fazer com ela:
+   - **Aplicar** troca o trecho pela resposta como **alteração controlada**, com o nome do modelo
+     como autor. Aceite ou rejeite como qualquer outra alteração. Isso vale mesmo com o controle de
+     alterações desligado.
+   - **Inserir abaixo** põe a resposta num parágrafo novo depois do trecho, também marcada.
+   - **Copiar** leva a resposta para a área de transferência.
+
+Se você editar o trecho enquanto a resposta chega, **Aplicar** fica apagado e o painel avisa "O
+trecho mudou". Inserir abaixo e Copiar continuam valendo.
+
+### O que é enviado, e para onde
+
+- **Só o texto selecionado** e, no pedido livre, a instrução que você escrever. O texto vai sem
+  formatação, até 20 000 caracteres. O resto do documento, o nome do arquivo e as propriedades
+  ficam aqui.
+- Um assistente em `localhost` ou `127.0.0.1` roda neste computador: o texto não sai dele.
+- Um assistente fora do computador (um servidor em outro endereço, a API da Anthropic ou o Claude
+  Code, que fala com a Anthropic) pergunta antes do primeiro envio, mostrando o destino. A resposta
+  fica guardada para aquele assistente; **Pedir permissão de novo** faz a pergunta voltar.
+- O Claude Code informa o custo do pedido; o painel mostra esse valor quando ele vem.
+
+### Limites
+
+- Só no editor de documentos; planilhas ainda não.
+- A resposta entra como texto simples, com a formatação do começo do trecho. Negrito no meio do
+  trecho original não volta.
+- A seleção não pode ter imagens, equações, notas nem campos, nem passar de uma célula de tabela
+  para outra.
+- Cada pedido é independente: o assistente não lembra os anteriores.
 
 ---
 
