@@ -13,6 +13,7 @@ import {
   selectedMarkdown,
 } from './ai-apply.js'
 import { SKIP_TRACKING } from './extensions/track-input.js'
+import { settleAllChanges } from './extensions/track-changes.js'
 
 const schema = getSchema(buildEditorExtensions(() => {}))
 const NOW = new Date('2026-10-01T12:34:56Z')
@@ -207,6 +208,89 @@ describe('resposta em Markdown', () => {
     )
     expect(selectedMarkdown(state.doc, { from: 14, to: 19 })).toBe('**forte**')
     expect(documentAround(state.doc, { from: 14, to: 19 })).toEqual({ before: 'Antes ', after: ' depois' })
+  })
+})
+
+describe('resposta em Markdown sob revisão', () => {
+  const THREE = [paragraph(text('Primeiro.')), paragraph(text('O gato dorme.')), paragraph(text('Fim.'))]
+  const ANSWER = markdown('O **gato** dorme.\n\n- um\n- dois')
+
+  function settled(state: EditorState, accept: boolean): ProseMirrorNode {
+    const tr = state.tr
+    settleAllChanges(tr, accept)
+    const doc = state.apply(tr).doc
+    doc.check()
+    return doc
+  }
+
+  function outline(doc: ProseMirrorNode): string[] {
+    const blocks: string[] = []
+    doc.forEach((node) => blocks.push(`${node.type.name}:${node.textContent}`))
+    return blocks
+  }
+
+  it('código e bloco de código entram como texto simples, todo ele marcado como inserção', () => {
+    const state = stateOf([paragraph(text('troque'))], 1, 7)
+    const answer = markdown('usa `x`\n\n```\ny = 1\n```')
+    const next = state.apply(buildTrackedReplacement(state, { from: 1, to: 7 }, answer, 'm', NOW)!)
+    next.doc.check()
+    next.doc.descendants((node) => {
+      if (!node.isText) return
+      const names = node.marks.map((mark) => mark.type.name)
+      if (!names.includes('deletion')) expect(names).toContain('insertion')
+      if (!names.includes('deletion')) expect(names).not.toContain('code')
+    })
+    expect(shown(next.doc)).toEqual(['[troque]{usa x}', '{y = 1}'])
+  })
+
+  it('rejeitar parágrafo e lista devolve só os parágrafos originais', () => {
+    const state = stateOf(THREE, 12, 25)
+    const next = state.apply(buildTrackedReplacement(state, { from: 12, to: 25 }, ANSWER, 'm', NOW)!)
+    expect(outline(settled(next, false))).toEqual([
+      'paragraph:Primeiro.',
+      'paragraph:O gato dorme.',
+      'paragraph:Fim.',
+    ])
+  })
+
+  it('aceitar parágrafo e lista no fim do trecho não deixa parágrafo vazio', () => {
+    const state = stateOf(THREE, 12, 25)
+    const next = state.apply(buildTrackedReplacement(state, { from: 12, to: 25 }, ANSWER, 'm', NOW)!)
+    expect(outline(settled(next, true))).toEqual([
+      'paragraph:Primeiro.',
+      'paragraph:O gato dorme.',
+      'bulletList:umdois',
+      'paragraph:Fim.',
+    ])
+  })
+
+  it('lista no meio de um parágrafo: aceitar parte o parágrafo e rejeitar o reconstitui', () => {
+    const state = stateOf([paragraph(text('Antes troque depois.'))], 7, 13)
+    const next = state.apply(buildTrackedReplacement(state, { from: 7, to: 13 }, markdown('- um'), 'm', NOW)!)
+    expect(outline(settled(next, true))).toEqual(['paragraph:Antes ', 'bulletList:um', 'paragraph: depois.'])
+    expect(outline(settled(next, false))).toEqual(['paragraph:Antes troque depois.'])
+  })
+
+  it('lista no começo do trecho entra antes do parágrafo e some ao rejeitar', () => {
+    const state = stateOf(THREE, 12, 25)
+    const answer = markdown('- um\n\nO gato dorme.')
+    const next = state.apply(buildTrackedReplacement(state, { from: 12, to: 25 }, answer, 'm', NOW)!)
+    expect(outline(settled(next, true))).toEqual([
+      'paragraph:Primeiro.',
+      'bulletList:um',
+      'paragraph:O gato dorme.',
+      'paragraph:Fim.',
+    ])
+    expect(outline(settled(next, false))).toEqual(outline(state.doc))
+  })
+
+  it('o trecho em Markdown leva sobrescrito como texto e, numa célula, só os parágrafos', () => {
+    const state = stateOf([paragraph(text('m'), text('2', { type: 'superscript' }))], 1, 3)
+    expect(selectedMarkdown(state.doc, { from: 1, to: 3 })).toBe('m2')
+    const cell = { type: 'tableCell', content: [paragraph(text('um')), paragraph(text('dois'))] }
+    const table = { type: 'table', content: [{ type: 'tableRow', content: [cell] }] }
+    const inTable = stateOf([table], 4, 13)
+    expect(selectedMarkdown(inTable.doc, { from: 4, to: 13 })).toBe('um\n\ndois')
   })
 })
 

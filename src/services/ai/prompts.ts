@@ -1,6 +1,12 @@
 import { AiAction, AiFormat } from '@shared/types.js'
 import { Language } from '@shared/i18n/language.js'
-import { NO_CONTEXT, SELECTION_CLOSE, SELECTION_OPEN, type DocumentContext } from './context.js'
+import {
+  NO_CONTEXT,
+  SELECTION_CLOSE,
+  SELECTION_OPEN,
+  stripSelectionTags,
+  type DocumentContext,
+} from './context.js'
 
 export const AI_MAX_OUTPUT_TOKENS = 4096
 
@@ -62,7 +68,7 @@ function hasContext(context: DocumentContext): boolean {
 
 function documentOf(request: AiRequest, context: DocumentContext): string {
   if (!hasContext(context)) return `Passage:\n${request.text}`
-  return `Document:\n${context.before}${SELECTION_OPEN}${request.text}${SELECTION_CLOSE}${context.after}`
+  return `Document:\n${stripSelectionTags(context.before)}${SELECTION_OPEN}${stripSelectionTags(request.text)}${SELECTION_CLOSE}${stripSelectionTags(context.after)}`
 }
 
 function userMessage(request: AiRequest, context: DocumentContext): string {

@@ -333,6 +333,10 @@ export const ERRORS = {
     pt: 'O agente não respondeu ao iniciar. Confira se ele abre no terminal sem pedir nada.',
     en: 'The agent did not answer when starting. Check that it opens in a terminal without asking for anything.',
   },
+  'errors.ai.notAnAgent': {
+    pt: 'Este programa não respondeu como um agente ACP. Confira se escolheu o programa certo e os argumentos.',
+    en: 'This program did not answer as an ACP agent. Check that you chose the right program and arguments.',
+  },
   'errors.ai.secretsUnavailable': {
     pt: 'Este sistema não oferece um cofre de senhas, e o Librevia não guarda chaves sem cifra. Use um assistente local, que não precisa de chave.',
     en: 'This system offers no password vault, and Librevia does not store keys unencrypted. Use a local assistant, which needs no key.',

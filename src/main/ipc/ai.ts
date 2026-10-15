@@ -2,7 +2,7 @@ import type { IpcMainInvokeEvent } from 'electron'
 import { AiProviderKind, type AiModel } from '@services/ai/provider.js'
 import { IpcChannel } from '@shared/ipc-channels.js'
 import { AiRequests } from '../ai/requests.js'
-import { ensureConsent, generate, providerFor } from '../ai/assistant.js'
+import { consentDestination, ensureConsent, generate, providerFor } from '../ai/assistant.js'
 import { discoverProviders } from '../ai/discovery.js'
 import { AiModelCache } from '../ai/model-cache.js'
 import { aiSettings } from '../ai/settings.js'
@@ -21,7 +21,8 @@ async function listModels(
 ): Promise<{ models: AiModel[] }> {
   const settings = aiSettings()
   const stored = settings.find(providerId)
-  const confirm = (): Promise<boolean> => confirmAiConsent(windowOf(event), stored.label, stored.baseUrl)
+  const confirm = (): Promise<boolean> =>
+    confirmAiConsent(windowOf(event), stored.label, consentDestination(stored))
   if (!(await ensureConsent(settings, stored, confirm))) return { models: [] }
   const provider = await providerFor(settings, stored)
   const closed = new AbortController()
@@ -75,7 +76,8 @@ export function registerAiHandlers(): void {
             sendPush(event.sender, IpcChannel.AiStream, { requestId: payload.requestId, delta })
         },
         models,
-        confirmConsent: (provider) => confirmAiConsent(windowOf(event), provider.label, provider.baseUrl),
+        confirmConsent: (provider) =>
+          confirmAiConsent(windowOf(event), provider.label, consentDestination(provider)),
       })
     } finally {
       requests.end(payload.requestId)

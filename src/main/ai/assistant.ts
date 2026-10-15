@@ -1,4 +1,5 @@
 import { acpAgentOf } from '@services/ai/acp-agents.js'
+import { joinArgs } from '@services/ai/acp-session.js'
 import { contextWindow } from '@services/ai/context.js'
 import { AI_MAX_OUTPUT_TOKENS, buildMessages } from '@services/ai/prompts.js'
 import { AiProviderKind, type AiModel, type AiProvider } from '@services/ai/provider.js'
@@ -68,6 +69,13 @@ async function acpProviderFor(stored: StoredAiProvider): Promise<AiProvider> {
       : await findExecutable(acpAgentOf(stored.agentId).command)
   if (command === null) throw aiError(ErrorCode.AiNotConfigured, 'errors.ai.agentMissing')
   return createAcpProvider({ command, args: stored.args ?? [] })
+}
+
+/** What the consent names: for an agent, the program that will run and how, not the name given. */
+export function consentDestination(stored: StoredAiProvider): string | undefined {
+  if (stored.kind !== AiProviderKind.Acp) return stored.baseUrl
+  const program = stored.command ?? (stored.agentId === undefined ? '' : acpAgentOf(stored.agentId).command)
+  return joinArgs([program, ...(stored.args ?? [])])
 }
 
 export async function ensureConsent(

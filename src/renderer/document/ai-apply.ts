@@ -28,17 +28,13 @@ export type AiTarget =
 /** Plain text in, plain text out: these would come back as letters, or not at all. */
 const UNSUPPORTED_NODES: ReadonlySet<string> = new Set(['image', 'math', 'noteRef', 'field'])
 const CELL_NODES: ReadonlySet<string> = new Set(['tableCell', 'tableHeader'])
-const REVISION_MARKS: ReadonlySet<string> = new Set([INSERTION, DELETION])
+/** Revisions are the tracking's; code excludes every other mark, the revision one included. */
+const UNCARRIED_MARKS: ReadonlySet<string> = new Set([INSERTION, DELETION, 'code'])
 /** Marks the Markdown answer says itself; the others (font, color, underline) come from the passage. */
-const MARKDOWN_MARKS: ReadonlySet<string> = new Set([
-  'bold',
-  'italic',
-  'strike',
-  'code',
-  'link',
-  'superscript',
-  'subscript',
-])
+const MARKDOWN_MARKS: ReadonlySet<string> = new Set(['bold', 'italic', 'strike', 'link'])
+/** Exported as HTML or code that the answer would not bring back: they go as plain text. */
+const PLAIN_IN_MARKDOWN: ReadonlySet<string> = new Set(['code', 'superscript', 'subscript'])
+const TABLE_NODES: ReadonlySet<string> = new Set(['table', 'tableRow', ...CELL_NODES])
 
 export interface AiResponse {
   readonly text: string
@@ -49,8 +45,25 @@ export function selectedText(doc: ProseMirrorNode, range: AiRange): string {
   return textWithoutDeletions(doc.cut(range.from, range.to), '\n', '')
 }
 
+function isDeletedNode(node: DocumentNode): boolean {
+  return (node.marks ?? []).some((mark) => mark.type === DELETION)
+}
+
+/** A passage inside a cell goes as its paragraphs: a table would come back as a table's text. */
+function markdownReady(nodes: readonly DocumentNode[]): DocumentNode[] {
+  return nodes.flatMap((node): DocumentNode[] => {
+    if (isDeletedNode(node)) return []
+    const content = node.content === undefined ? undefined : markdownReady(node.content)
+    if (TABLE_NODES.has(node.type)) return content ?? []
+    const marks = node.marks?.filter((mark) => !PLAIN_IN_MARKDOWN.has(mark.type))
+    return [
+      { ...node, ...(content === undefined ? {} : { content }), ...(marks === undefined ? {} : { marks }) },
+    ]
+  })
+}
+
 export function selectedMarkdown(doc: ProseMirrorNode, range: AiRange): string {
-  const content = (doc.cut(range.from, range.to).toJSON() as DocumentNode).content ?? []
+  const content = markdownReady((doc.cut(range.from, range.to).toJSON() as DocumentNode).content ?? [])
   return exportMarkdown({ doc: { type: 'doc', content } }, { assetFolder: '' }).markdown.trimEnd()
 }
 
@@ -117,7 +130,7 @@ function plainMarks(state: EditorState, pos: number, format: AiFormat): readonly
     .marks()
     .filter(
       (mark) =>
-        !REVISION_MARKS.has(mark.type.name) &&
+        !UNCARRIED_MARKS.has(mark.type.name) &&
         (format === AiFormat.Plain || !MARKDOWN_MARKS.has(mark.type.name)),
     )
 }
@@ -163,6 +176,45 @@ function textEdged(state: EditorState, blocks: readonly ProseMirrorNode[]): Pros
   ]
 }
 
+interface BlockParts {
+  /** Lists and quotes that go whole before the passage's paragraph. */
+  readonly leading: readonly ProseMirrorNode[]
+  readonly middle: readonly ProseMirrorNode[]
+  readonly trailing: readonly ProseMirrorNode[]
+}
+
+/**
+ * A list at an edge of the passage with no text beyond it goes beside the paragraph, as whole
+ * inserted blocks: an empty paragraph to hold it would remain after accepting or rejecting.
+ */
+function partition(blocks: readonly ProseMirrorNode[], headEmpty: boolean, tailEmpty: boolean): BlockParts {
+  let start = 0
+  let end = blocks.length
+  if (headEmpty) while (start < end && !blocks[start]!.isTextblock) start++
+  if (tailEmpty) while (end > start && !blocks[end - 1]!.isTextblock) end--
+  return { leading: blocks.slice(0, start), middle: blocks.slice(start, end), trailing: blocks.slice(end) }
+}
+
+function replaceInParagraphs(
+  state: EditorState,
+  range: AiRange,
+  blocks: readonly ProseMirrorNode[],
+): Transaction {
+  const $from = state.doc.resolve(range.from)
+  const $to = state.doc.resolve(range.to)
+  const parts = partition(blocks, $from.parentOffset === 0, $to.parentOffset === $to.parent.content.size)
+  const tr = state.tr
+  if (parts.trailing.length > 0) tr.insert($to.after(), Fragment.fromArray(parts.trailing))
+  const middle = parts.middle.length > 0 ? textEdged(state, parts.middle) : []
+  tr.replace(
+    range.from,
+    range.to,
+    middle.length > 0 ? new Slice(Fragment.fromArray(middle), 1, 1) : Slice.empty,
+  )
+  if (parts.leading.length > 0) tr.insert($from.before(), Fragment.fromArray(parts.leading))
+  return tr
+}
+
 function tracked(tr: Transaction, state: EditorState, author: string, now: Date): Transaction {
   return trackTransaction(tr, state, author, now).setMeta(SKIP_TRACKING, true)
 }
@@ -177,8 +229,7 @@ export function buildTrackedReplacement(
 ): Transaction | null {
   const blocks = responseBlocks(state, response, plainMarks(state, range.from, response.format))
   if (blocks.length === 0) return null
-  const slice = new Slice(Fragment.fromArray(textEdged(state, blocks)), 1, 1)
-  return tracked(state.tr.replace(range.from, range.to, slice), state, author, now)
+  return tracked(replaceInParagraphs(state, range, blocks), state, author, now)
 }
 
 export function buildInsertBelow(

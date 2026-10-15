@@ -14,6 +14,7 @@ interface FakeAgentBehavior {
   readonly ignoresCancel?: boolean
   readonly stopReason?: string
   readonly missing?: boolean
+  readonly notAgent?: 'methodNotFound' | 'closes'
 }
 
 const MODEL_OPTION = {
@@ -58,6 +59,16 @@ class FakeAgent extends EventEmitter {
     return true
   }
 
+  private closeAlone(): void {
+    this.exitCode = 1
+    this.stdout.end()
+    this.stderr.end()
+    queueMicrotask(() => {
+      this.emit('exit', 1, null)
+      this.emit('close', 1, null)
+    })
+  }
+
   private send(message: Record<string, unknown>): void {
     if (!this.stdout.writableEnded) this.stdout.write(`${JSON.stringify({ jsonrpc: '2.0', ...message })}\n`)
   }
@@ -82,6 +93,9 @@ class FakeAgent extends EventEmitter {
     if (this.behavior.missing) return
     switch (message.method) {
       case 'initialize':
+        if (this.behavior.notAgent === 'methodNotFound')
+          return this.send({ id: message.id, error: { code: -32601, message: 'Method not found' } })
+        if (this.behavior.notAgent === 'closes') return this.closeAlone()
         if (this.behavior.authRequired)
           return this.send({ id: message.id, error: { code: -32000, message: 'Authentication required' } })
         return this.send({ id: message.id, result: { protocolVersion: 1, agentCapabilities: {} } })
@@ -248,6 +262,19 @@ describe('createAcpProvider', () => {
     expect(methodsOf(child)).toContain('session/cancel')
     expect(child.signals).toContain('SIGTERM')
   })
+
+  it.each(['methodNotFound', 'closes'] as const)(
+    'programa que não fala ACP (%s) vira aviso legível, sem texto técnico',
+    async (notAgent) => {
+      const { provider } = setup({ notAgent })
+      const failure = await collect(provider.stream(PROMPT, new AbortController().signal)).catch(
+        (cause: unknown) => cause,
+      )
+      expect(failure).toMatchObject({ code: ErrorCode.AiFailed, detail: undefined })
+      expect(String((failure as Error).message)).toMatch(/ACP/)
+      expect(String((failure as Error).message)).not.toMatch(/Method not found|connection closed/i)
+    },
+  )
 
   it('programa ausente vira aviso de agente não encontrado', async () => {
     const { child, provider } = setup({ missing: true })

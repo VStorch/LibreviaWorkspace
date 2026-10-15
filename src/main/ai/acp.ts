@@ -25,6 +25,7 @@ import {
   removeWorkFolder,
   spawnWithoutShell,
   terminate,
+  terminateNow,
   type Spawn,
   type WorkFolder,
 } from './child-process.js'
@@ -53,7 +54,7 @@ const runningAgents = new Set<AgentProcess>()
 
 /** On quit: the window's cancellation waits for the agent, and the app does not. */
 export function stopAllAgents(): void {
-  for (const agent of runningAgents) agent.close()
+  for (const agent of runningAgents) agent.close({ immediately: true })
 }
 
 /**
@@ -100,8 +101,9 @@ class AgentProcess {
         clientCapabilities: { fs: { readTextFile: false, writeTextFile: false }, terminal: false },
       }),
       startup,
+      handshakeError,
     )
-    this.session = await this.within(agent.buildSession(this.cwd).start(), startup)
+    this.session = await this.within(agent.buildSession(this.cwd).start(), startup, handshakeError)
     return this.session
   }
 
@@ -120,8 +122,15 @@ class AgentProcess {
   }
 
   /** The process may die without answering; then the pending step fails instead of waiting forever. */
-  within<T>(step: Promise<T>, timeoutMs?: number): Promise<T> {
-    const racers: Promise<T>[] = [step, this.ended]
+  within<T>(
+    step: Promise<T>,
+    timeoutMs?: number,
+    failure: (cause: unknown) => unknown = (cause) => cause,
+  ): Promise<T> {
+    const fail = (cause: unknown): never => {
+      throw failure(cause)
+    }
+    const racers: Promise<T>[] = [step.catch(fail), this.ended.catch(fail)]
     if (timeoutMs !== undefined) racers.push(deadline(timeoutMs))
     return Promise.race(racers)
   }
@@ -136,11 +145,12 @@ class AgentProcess {
     setTimeout(() => this.close(), CANCEL_GRACE_MS).unref()
   }
 
-  close(): void {
+  close(options: { immediately?: boolean } = {}): void {
     runningAgents.delete(this)
     this.session?.dispose()
     this.connection.close()
-    terminate(this.child)
+    if (options.immediately === true) terminateNow(this.child)
+    else terminate(this.child)
   }
 }
 
@@ -152,6 +162,16 @@ function deadline(ms: number): Promise<never> {
 
 function agentMissing(cause: Error): Error {
   return aiError(ErrorCode.AiNotConfigured, 'errors.ai.agentMissing', cause.message)
+}
+
+/**
+ * A program that closes the connection or does not know the protocol's first methods is not an
+ * agent, or was started without the arguments that make it one.
+ */
+function handshakeError(cause: unknown): unknown {
+  if (isAuthError(cause)) return aiError(ErrorCode.AiAuthFailed, 'errors.ai.agentLogin')
+  if (cause instanceof AppError && cause.code !== ErrorCode.AiFailed) return cause
+  return aiError(ErrorCode.AiFailed, 'errors.ai.notAnAgent')
 }
 
 function readableError(cause: unknown): unknown {

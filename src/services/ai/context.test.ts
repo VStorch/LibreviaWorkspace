@@ -29,4 +29,10 @@ describe('contextWindow', () => {
     expect(stripSelectionTags('a <selection>b</SELECTION> c')).toBe('a b c')
     expect(contextWindow('x <selection>', '', 100).before).toBe('x ')
   })
+
+  it('não deixa marca de seleção se formar depois de limpar nem passar com espaços', () => {
+    expect(stripSelectionTags('a<sel<selection>ection>b')).toBe('ab')
+    expect(stripSelectionTags('<sel<sel<selection>ection>ection>')).toBe('')
+    expect(stripSelectionTags('a<selection >b</ selection>c< SELECTION x>d')).toBe('abcd')
+  })
 })

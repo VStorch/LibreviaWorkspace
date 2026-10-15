@@ -174,7 +174,22 @@ describe('configuração dos assistentes', () => {
     expect(list.providers[0]).toMatchObject({ agentId: 'gemini', args: '--acp', local: false })
   })
 
-  it('agente ACP escolhido no diálogo mostra só o nome do arquivo, e trocar o programa pede consentimento de novo', () => {
+  it('trocar os argumentos de um agente esquece o consentimento', () => {
+    const { subject } = settings()
+    const gemini = {
+      kind: 'acp',
+      label: 'Gemini',
+      agentId: 'gemini',
+      makeDefault: false,
+      revokeConsent: false,
+    } as const
+    subject.save(gemini)
+    subject.markConsented('id1')
+    expect(subject.save({ ...gemini, id: 'id1', args: '--acp' }).providers[0]?.consented).toBe(true)
+    expect(subject.save({ ...gemini, id: 'id1', args: '--acp --outro' }).providers[0]?.consented).toBe(false)
+  })
+
+  it('agente ACP escolhido no diálogo mostra só o nome do arquivo; renomear mantém o consentimento e trocar o programa o esquece', () => {
     const { subject, stored } = settings()
     subject.saveAgentExecutable(
       { label: 'Meu agente', args: "--acp --dir 'a b'" },
@@ -195,11 +210,11 @@ describe('configuração dos assistentes', () => {
       id: 'id1',
       kind: 'acp',
       label: 'Renomeado',
-      args: '--acp',
+      args: "--acp --dir 'a b'",
       makeDefault: false,
       revokeConsent: false,
     })
-    expect(stored().providers[0]).toMatchObject({ command: '/opt/agente/bin/meu-agente', args: ['--acp'] })
+    expect(stored().providers[0]).toMatchObject({ command: '/opt/agente/bin/meu-agente', label: 'Renomeado' })
     expect(subject.list().providers[0]?.consented).toBe(true)
 
     subject.saveAgentExecutable({ id: 'id1', label: 'Renomeado', args: '' }, '/usr/bin/outro')

@@ -122,8 +122,16 @@ function sameDestination(existing: StoredAiProvider | undefined, next: StoredAiP
     existing.kind === next.kind &&
     existing.baseUrl === next.baseUrl &&
     existing.agentId === next.agentId &&
-    existing.command === next.command
+    existing.command === next.command &&
+    sameArgs(existing.args, next.args)
   )
+}
+
+/** Other arguments can make the same program another agent, or send the text elsewhere. */
+function sameArgs(a: readonly string[] | undefined, b: readonly string[] | undefined): boolean {
+  const left = a ?? []
+  const right = b ?? []
+  return left.length === right.length && left.every((arg, index) => arg === right[index])
 }
 
 function agentInfoOf(provider: StoredAiProvider): Partial<AiProviderList['providers'][number]> {

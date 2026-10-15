@@ -4,7 +4,8 @@ import type { DocumentNode } from './model.js'
 
 /**
  * Markdown from an AI model into document nodes. Only the lexer: marked's HTML renderer never runs,
- * and raw HTML in the answer stays as the literal text the model wrote.
+ * and raw HTML in the answer stays as the literal text the model wrote. Code comes in as plain
+ * text: the editor's code mark and code block refuse the revision mark the answer must carry.
  */
 
 type NodeMark = NonNullable<DocumentNode['marks']>[number]
@@ -12,8 +13,6 @@ type NodeMark = NonNullable<DocumentNode['marks']>[number]
 const BOLD: NodeMark = { type: 'bold' }
 const ITALIC: NodeMark = { type: 'italic' }
 const STRIKE: NodeMark = { type: 'strike' }
-/** The editor's code mark excludes every other mark. */
-const CODE_ONLY: readonly NodeMark[] = [{ type: 'code' }]
 const SOFT_BREAK = /\n/g
 
 export function markdownToNodes(markdown: string): DocumentNode[] {
@@ -36,7 +35,7 @@ function blockOf(token: MarkedToken): DocumentNode[] {
     case 'blockquote':
       return [{ type: 'blockquote', content: atLeastOneBlock(blocksOf(token.tokens)) }]
     case 'code':
-      return [textblock('codeBlock', textOf(token.text, []))]
+      return literalParagraphs(token.text)
     case 'space':
     case 'def':
     case 'hr':
@@ -91,7 +90,7 @@ function inlineToken(token: MarkedToken, marks: readonly NodeMark[]): DocumentNo
     case 'del':
       return inlineOf(token.tokens, withMark(marks, STRIKE))
     case 'codespan':
-      return textOf(token.text, CODE_ONLY)
+      return textOf(token.text, marks)
     case 'link':
       return inlineOf(token.tokens, withLink(marks, token.href))
     case 'br':

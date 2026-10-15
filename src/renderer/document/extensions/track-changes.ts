@@ -202,15 +202,37 @@ const settleText: Settler = (tr, change, effect, mapping) => {
   }
 }
 
+/**
+ * The outermost block holding nothing but the empty paragraph at `start` (its list item, its list),
+ * when its container can do without it; else null.
+ */
+function emptyBlockAround(doc: ProseMirrorNode, start: number): { from: number; to: number } | null {
+  const $inside = doc.resolve(start + 1)
+  let depth = $inside.depth
+  while (depth > 1 && $inside.node(depth - 1).childCount === 1) depth--
+  const index = $inside.index(depth - 1)
+  if (!$inside.node(depth - 1).canReplace(index, index + 1)) return null
+  return { from: $inside.before(depth), to: $inside.after(depth) }
+}
+
+/** An Enter that goes away joins the paragraphs, as in Word; an emptied inserted block goes whole. */
+function dropParagraphMark(tr: Transaction, start: number, paragraph: ProseMirrorNode): void {
+  const empty = paragraph.content.size === 0 ? emptyBlockAround(tr.doc, start) : null
+  if (empty !== null) {
+    tr.delete(empty.from, empty.to)
+    return
+  }
+  const after = start + paragraph.nodeSize
+  if (after < tr.doc.content.size && canJoin(tr.doc, after)) tr.join(after)
+}
+
 const settleParagraphMark: Settler = (tr, change, effect, mapping) => {
   const end = mapping.map(change.from)
   const paragraph = tr.doc.resolve(end).parent
   const start = end - paragraph.nodeSize + 1
   if (start < 0 || tr.doc.nodeAt(start) !== paragraph) return
   tr.setNodeMarkup(start, undefined, { ...paragraph.attrs, markRevision: null })
-  // An Enter that goes away joins the paragraphs, as in Word.
-  const after = start + paragraph.nodeSize
-  if (effect === 'drop' && after < tr.doc.content.size && canJoin(tr.doc, after)) tr.join(after)
+  if (effect === 'drop') dropParagraphMark(tr, start, tr.doc.nodeAt(start)!)
 }
 
 const settleRow: Settler = (tr, change, effect, mapping) => {
@@ -254,7 +276,14 @@ export function settleAllChanges(tr: Transaction, accept: boolean): boolean {
   const changes = revisionChangesOf(tr.doc)
   if (changes.length === 0) return false
   const since = tr.steps.length
-  for (const change of [...changes].reverse()) settle(tr, change, accept, since)
+  const isText = (change: RevisionChange): boolean => change.segments.length > 0
+  const backwards = (list: RevisionChange[]): RevisionChange[] => [...list].reverse()
+  // Text first: a paragraph left empty by it goes whole when its inserted mark is rejected.
+  const ordered = [
+    ...backwards(changes.filter(isText)),
+    ...backwards(changes.filter((change) => !isText(change))),
+  ]
+  for (const change of ordered) settle(tr, change, accept, since)
   return true
 }
 

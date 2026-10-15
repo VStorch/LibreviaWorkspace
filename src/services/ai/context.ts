@@ -8,14 +8,20 @@ export interface DocumentContext {
 export const SELECTION_OPEN = '<selection>'
 export const SELECTION_CLOSE = '</selection>'
 
-const SELECTION_TAGS = /<\/?selection>/gi
+const SELECTION_TAGS = /<\s*\/?\s*selection\b[^>]*>/gi
 const WORD_BOUNDARY = /\s/
 
 export const NO_CONTEXT: DocumentContext = { before: '', after: '', excerpt: false }
 
 /** A document that happens to contain the tags would confuse the model about where the selection is. */
 export function stripSelectionTags(text: string): string {
-  return text.replace(SELECTION_TAGS, '')
+  let current = text
+  let previous: string
+  do {
+    previous = current
+    current = previous.replace(SELECTION_TAGS, '')
+  } while (current !== previous)
+  return current
 }
 
 /** The end of `text`, starting at a word: a cut word would read as a typo to fix. */

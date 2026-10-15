@@ -16,7 +16,8 @@ export const ACP_AGENTS = [
   { id: 'opencode', label: 'OpenCode', command: 'opencode', args: ['acp'] },
   { id: 'goose', label: 'Goose', command: 'goose', args: ['acp'] },
   { id: 'copilot', label: 'GitHub Copilot', command: 'copilot', args: ['--acp'] },
-  { id: 'qwen', label: 'Qwen Code', command: 'qwen', args: ['--acp', '--experimental-skills'] },
+  // The registry adds `--experimental-skills`, which turns on more than the protocol.
+  { id: 'qwen', label: 'Qwen Code', command: 'qwen', args: ['--acp'] },
   { id: 'kimi', label: 'Kimi CLI', command: 'kimi', args: ['acp'] },
   { id: 'cursor-agent', label: 'Cursor Agent', command: 'cursor-agent', args: ['acp'] },
   { id: 'kilo', label: 'Kilo Code', command: 'kilo', args: ['acp'] },

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { markdownToNodes } from './markdown-import.js'
 
 describe('markdownToNodes', () => {
-  it('negrito, itálico, tachado e código viram marcas', () => {
+  it('negrito, itálico e tachado viram marcas; código vira texto simples', () => {
     expect(markdownToNodes('**a** *b* ~~c~~ `d`')).toEqual([
       {
         type: 'paragraph',
@@ -13,7 +13,7 @@ describe('markdownToNodes', () => {
           { type: 'text', text: ' ' },
           { type: 'text', text: 'c', marks: [{ type: 'strike' }] },
           { type: 'text', text: ' ' },
-          { type: 'text', text: 'd', marks: [{ type: 'code' }] },
+          { type: 'text', text: 'd' },
         ],
       },
     ])
@@ -45,10 +45,11 @@ describe('markdownToNodes', () => {
     expect(numbered).toMatchObject({ type: 'orderedList', attrs: { start: 3 } })
   })
 
-  it('citação, bloco de código e quebra de linha forçada', () => {
-    expect(markdownToNodes('> citado\n\n```\nx = 1\n```\n\na  \nb')).toEqual([
+  it('citação, bloco de código como parágrafos simples e quebra de linha forçada', () => {
+    expect(markdownToNodes('> citado\n\n```\nx = 1\ny = 2\n```\n\na  \nb')).toEqual([
       { type: 'blockquote', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'citado' }] }] },
-      { type: 'codeBlock', content: [{ type: 'text', text: 'x = 1' }] },
+      { type: 'paragraph', content: [{ type: 'text', text: 'x = 1' }] },
+      { type: 'paragraph', content: [{ type: 'text', text: 'y = 2' }] },
       {
         type: 'paragraph',
         content: [{ type: 'text', text: 'a' }, { type: 'hardBreak' }, { type: 'text', text: 'b' }],

@@ -18,11 +18,17 @@ export interface WorkFolder {
   readonly removeDir?: (dir: string) => Promise<void>
 }
 
-/** Without a shell: arguments reach the program as they are, never interpreted. */
+const IS_WINDOWS = process.platform === 'win32'
+
+/**
+ * Without a shell: arguments reach the program as they are, never interpreted. On POSIX the program
+ * leads a process group of its own, so stopping it reaches the helpers it started.
+ */
 export const spawnWithoutShell: Spawn = (command, args, options) =>
   nodeSpawn(command, args, {
     cwd: options.cwd,
     shell: false,
+    detached: !IS_WINDOWS,
     stdio: ['pipe', 'pipe', 'pipe'],
     windowsHide: true,
   })
@@ -54,10 +60,58 @@ export function collect(stream: Readable): () => string {
   return () => text
 }
 
-export function terminate(child: ChildProcessWithoutNullStreams): void {
-  if (child.exitCode !== null || child.signalCode !== null) return
-  child.kill('SIGTERM')
-  const timer = setTimeout(() => child.kill('SIGKILL'), KILL_GRACE_MS)
+export interface ProcessTreeKiller {
+  readonly windows: boolean
+  readonly killGroup: (pid: number, signal: NodeJS.Signals) => void
+  readonly runTaskkill: (args: readonly string[]) => void
+}
+
+const systemKiller: ProcessTreeKiller = {
+  windows: IS_WINDOWS,
+  killGroup: (pid, signal) => process.kill(-pid, signal),
+  runTaskkill: (args) => {
+    nodeSpawn('taskkill', args, { shell: false, stdio: 'ignore', windowsHide: true }).on(
+      'error',
+      () => undefined,
+    )
+  },
+}
+
+/** The program and every process it started; the program alone if its group is gone. */
+export function killTree(
+  child: ChildProcessWithoutNullStreams,
+  signal: NodeJS.Signals,
+  killer: ProcessTreeKiller = systemKiller,
+): void {
+  const pid = child.pid
+  if (pid === undefined) {
+    child.kill(signal)
+    return
+  }
+  if (killer.windows) {
+    killer.runTaskkill(['/pid', String(pid), '/T', '/F'])
+    return
+  }
+  try {
+    killer.killGroup(pid, signal)
+  } catch {
+    child.kill(signal)
+  }
+}
+
+function hasEnded(child: ChildProcessWithoutNullStreams): boolean {
+  return child.exitCode !== null || child.signalCode !== null
+}
+
+export function terminate(child: ChildProcessWithoutNullStreams, killer?: ProcessTreeKiller): void {
+  if (hasEnded(child)) return
+  killTree(child, 'SIGTERM', killer)
+  const timer = setTimeout(() => killTree(child, 'SIGKILL', killer), KILL_GRACE_MS)
   timer.unref()
   child.once('exit', () => clearTimeout(timer))
+}
+
+/** On quit there is no later: a timer would never fire. */
+export function terminateNow(child: ChildProcessWithoutNullStreams, killer?: ProcessTreeKiller): void {
+  if (!hasEnded(child)) killTree(child, 'SIGKILL', killer)
 }

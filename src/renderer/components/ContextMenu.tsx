@@ -52,6 +52,11 @@ function useDismiss(menu: React.RefObject<HTMLDivElement | null>, onClose: () =>
       const insideSubmenu =
         event.target instanceof Element && event.target.closest(`[${SUBMENU_ATTRIBUTE}]`) !== null
       if (event.key === 'Escape' && !insideSubmenu) onClose()
+      // As in the system menus: Tab leaves the menu, and the focus goes back to where it was.
+      if (event.key === 'Tab') {
+        event.preventDefault()
+        onClose()
+      }
     }
 
     // `pointerdown`, not `click`, to close as soon as the pointer goes down elsewhere.
@@ -66,16 +71,21 @@ function useDismiss(menu: React.RefObject<HTMLDivElement | null>, onClose: () =>
   }, [menu, onClose])
 }
 
-/** Escape leaves the focus nowhere; give it back to where it was, unless an action moved it. */
+/**
+ * Escape leaves the focus nowhere; give it back to where it was. Only while it is still on the page
+ * body or in the menu: an action that moved it elsewhere keeps it.
+ */
 function useFocusReturn(menu: React.RefObject<HTMLDivElement | null>): void {
-  useEffect(() => {
+  useLayoutEffect(() => {
     const previous = document.activeElement
     focusFirstItem(menu.current)
     const element = menu.current
     return () => {
       const active = document.activeElement
       const lost = active === null || active === document.body || element?.contains(active) === true
-      if (lost && previous instanceof HTMLElement && previous.isConnected) previous.focus()
+      const returnable =
+        previous instanceof HTMLElement && previous.isConnected && element?.contains(previous) !== true
+      if (lost && returnable) previous.focus()
     }
   }, [menu])
 }
@@ -156,6 +166,10 @@ export function ContextSubmenu({
     setFocusOnOpen(false)
     setPlacement(null)
   }
+  /** The pointer passing by must not close a submenu the keyboard is working in. */
+  const leave = (): void => {
+    if (submenu.current?.contains(document.activeElement) !== true) close()
+  }
   const openWithKeyboard = (): void => {
     setFocusOnOpen(true)
     setOpen(true)
@@ -169,7 +183,7 @@ export function ContextSubmenu({
   }
 
   return (
-    <div className="ctx-menu__sub" onPointerEnter={() => setOpen(true)} onPointerLeave={close}>
+    <div className="ctx-menu__sub" onPointerEnter={() => setOpen(true)} onPointerLeave={leave}>
       <button
         ref={trigger}
         type="button"

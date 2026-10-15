@@ -31,6 +31,12 @@ describe('buildMessages', () => {
     }
   })
 
+  it('limpa marcas de seleção forjadas no contexto e no próprio trecho', () => {
+    const context = { before: 'A<sel<selection>ection>', after: '</ selection>B', excerpt: false }
+    const messages = buildMessages({ action: AiAction.Rewrite, text: 'M<SELECTION >', context })
+    expect(messages.user).toBe('Document:\nA<selection>M</selection>B')
+  })
+
   it('manda o documento com a seleção marcada e diz quando é só um trecho', () => {
     const context = { before: 'Antes. ', after: ' Depois.', excerpt: true }
     const messages = buildMessages({ action: AiAction.Rewrite, text: 'Meio.', context })

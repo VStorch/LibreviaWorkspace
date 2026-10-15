@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import type { AiProvider, AiStreamPart } from '@services/ai/provider.js'
 import { DEFAULT_LOCAL_AI_CONTEXT_LENGTH } from '@shared/limits.js'
-import { generate } from './assistant.js'
+import { consentDestination, generate } from './assistant.js'
 import { AiModelCache } from './model-cache.js'
-import { AiSettings } from './settings.js'
+import { AiSettings, type StoredAiProvider } from './settings.js'
 
 const REQUEST = {
   requestId: '0b8f3c1e-5d2a-4c7b-9e6f-1a2b3c4d5e6f',
@@ -256,5 +256,19 @@ describe('generate', () => {
       expect((await run('nao-aceita', true)).fallback).toBe(false)
       expect((await run('aceita', false)).fallback).toBe(false)
     })
+  })
+})
+
+describe('consentDestination', () => {
+  it('para um agente ACP mostra o programa que vai rodar e os argumentos, não o nome dado', () => {
+    const chosen = { id: 'a', kind: 'acp', label: 'Seguro', command: '/opt/x/agente', args: ['--acp', 'a b'] }
+    expect(consentDestination(chosen as StoredAiProvider)).toBe("/opt/x/agente --acp 'a b'")
+    const known = { id: 'b', kind: 'acp', label: 'Gemini', agentId: 'gemini', args: ['--acp'] }
+    expect(consentDestination(known as StoredAiProvider)).toBe('gemini --acp')
+  })
+
+  it('para um servidor mostra o endereço', () => {
+    const server = { id: 'c', kind: 'openai-compatible', label: 'S', baseUrl: 'https://a.example/v1' }
+    expect(consentDestination(server as StoredAiProvider)).toBe('https://a.example/v1')
   })
 })
