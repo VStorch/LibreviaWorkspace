@@ -688,8 +688,11 @@ Mistral Vibe (`vibe-acp`) e Amp (`amp-acp`). Um agente instalado em outro lugar 
 - O login é feito no próprio agente: abra-o uma vez no terminal e entre na sua conta. Se ele
   pedir login, o Librevia avisa e não insiste.
 - O Librevia não baixa nem instala agentes.
-- O agente roda numa pasta temporária vazia, sem acesso aos seus arquivos nem ao terminal; todo
-  pedido de permissão que ele fizer é recusado. Ele só devolve texto.
+- O Librevia não oferece ao agente seus arquivos nem um terminal, e recusa todo pedido de
+  permissão que ele fizer. O agente roda numa pasta temporária vazia e o Librevia só usa o texto
+  que ele devolve.
+- As ferramentas próprias do agente (as do Gemini CLI, do Codex, do Claude Agent…) seguem a
+  configuração dele, não a do Librevia. Para restringir o que ele pode fazer, configure o agente.
 - No Windows, só funcionam agentes que sejam um `.exe`; os instalados pelo npm (`.cmd`) não.
 
 A chave fica cifrada pelo cofre de senhas do sistema e nunca volta para a tela. No Linux sem cofre
@@ -752,8 +755,10 @@ trecho mudou". Inserir abaixo e Copiar continuam valendo.
 - O nome do arquivo e as propriedades ficam aqui.
 - Um assistente em `localhost` ou `127.0.0.1` roda neste computador: o texto não sai dele.
 - Um assistente fora do computador (um servidor em outro endereço, a API da Anthropic, o Claude
-  Code, que fala com a Anthropic, ou um agente ACP, que pode usar a nuvem) pergunta antes do primeiro envio, mostrando o destino e dizendo
-  que o documento vai junto e que a resposta é gerada fora do computador. A permissão fica
+  Code, que fala com a Anthropic, ou um agente ACP, que pode usar a nuvem) pergunta antes do
+  primeiro envio, mostrando o destino e dizendo que o documento vai junto e que a resposta é
+  gerada fora do computador. Para um agente ACP, o destino mostrado é o programa que vai rodar,
+  com os argumentos; trocar o programa ou os argumentos faz a pergunta voltar. A permissão fica
   guardada para aquele assistente; **Pedir permissão de novo** faz a pergunta voltar. Quem deu
   permissão numa versão anterior, que mandava só o trecho, é perguntado de novo.
 - O Claude Code informa o custo do pedido; o painel mostra esse valor quando ele vem.

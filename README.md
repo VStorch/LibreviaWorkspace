@@ -101,7 +101,7 @@ Ele também:
 | **Equações** | mostra as equações do Word e permite escrever novas em LaTeX |
 | **Modelos** | cria documentos a partir de modelos do Word (`.dotx`); quatro vêm com o aplicativo |
 | **Ferramentas** | ortografia em português sem internet, localizar e substituir, contar palavras, caracteres especiais, autocorreção tipográfica |
-| **Assistente de IA** | opcional e desligado de fábrica: reescreve, resume, revisa ou traduz o trecho selecionado, com o documento aberto como contexto e só com permissão; a resposta chega formatada (negrito, títulos, listas) e entra como alteração controlada. Funciona com Ollama e LM Studio, neste computador, com o Claude Code, com agentes que falam o protocolo ACP (Gemini CLI, Codex e outros) ou com um serviço na nuvem |
+| **Assistente de IA** | opcional e desligado de fábrica: reescreve, resume, revisa ou traduz o trecho selecionado, com o documento aberto como contexto e com permissão para os que ficam fora do computador; a resposta chega formatada (negrito, títulos, listas) e entra como alteração controlada. Funciona com Ollama e LM Studio, neste computador, com o Claude Code, com agentes que falam o protocolo ACP (Gemini CLI, Codex e outros) ou com um serviço na nuvem |
 
 ### Planilhas
 
