@@ -189,6 +189,18 @@ export async function showExportSaveDialog(
   return result.canceled ? null : (result.filePath ?? null)
 }
 
+/** The program the person picks is what runs: a path never arrives from the renderer. */
+export async function showAgentExecutableDialog(window: BrowserWindow): Promise<string | null> {
+  const result = await dialog.showOpenDialog(window, {
+    title: t('dialog.agent.title'),
+    properties: ['openFile'],
+    ...(process.platform === 'win32'
+      ? { filters: [{ name: t('dialog.filter.programs'), extensions: ['exe'] }] }
+      : {}),
+  })
+  return result.canceled ? null : (result.filePaths[0] ?? null)
+}
+
 export async function showImagePickerDialog(window: BrowserWindow): Promise<string | null> {
   const result = await dialog.showOpenDialog(window, {
     title: t('dialog.image.title'),

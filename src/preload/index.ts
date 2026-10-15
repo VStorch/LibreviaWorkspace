@@ -79,6 +79,7 @@ const api: AppApi = {
     removeProvider: (payload) => ipcRenderer.invoke(IpcChannel.AiProviderRemove, payload),
     chooseModel: (payload) => ipcRenderer.invoke(IpcChannel.AiModelChoose, payload),
     savePreferences: (payload) => ipcRenderer.invoke(IpcChannel.AiPreferencesSave, payload),
+    chooseAgentExecutable: (payload) => ipcRenderer.invoke(IpcChannel.AiAgentChooseExecutable, payload),
     discover: (payload) => ipcRenderer.invoke(IpcChannel.AiDiscover, payload),
     listModels: (payload) => ipcRenderer.invoke(IpcChannel.AiModelsList, payload),
     generate: (payload) => ipcRenderer.invoke(IpcChannel.AiGenerate, payload),

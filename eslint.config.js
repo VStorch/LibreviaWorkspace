@@ -9,6 +9,7 @@ const NETWORK_MESSAGE = 'Rede só em src/main/ai: o resto do aplicativo não ace
 const NETWORK_PATHS = [
   { name: '@anthropic-ai/sdk', message: NETWORK_MESSAGE },
   { name: 'undici', message: NETWORK_MESSAGE },
+  { name: '@agentclientprotocol/sdk', message: NETWORK_MESSAGE },
 ]
 const ELECTRON_NET = {
   selector: "ImportDeclaration[source.value='electron'] > ImportSpecifier[imported.name='net']",
@@ -19,6 +20,7 @@ const NETWORK_PATTERNS = [
     group: ['node:http', 'node:https', 'node:http2', 'node:net', 'node:tls', 'node:dgram'],
     message: NETWORK_MESSAGE,
   },
+  { group: ['@agentclientprotocol/sdk/*'], message: NETWORK_MESSAGE },
 ]
 const CHILD_PROCESS_PATTERNS = [
   {

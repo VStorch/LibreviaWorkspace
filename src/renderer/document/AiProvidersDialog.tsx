@@ -6,6 +6,7 @@ import type { IpcChannel } from '@shared/ipc-channels.js'
 import type { MessageKey } from '@shared/i18n/index.js'
 import {
   DEFAULT_LOCAL_AI_CONTEXT_LENGTH,
+  MAX_AI_AGENT_ARGS_LENGTH,
   MAX_AI_DOCUMENT_LENGTH,
   MAX_AI_KEY_LENGTH,
   MAX_AI_URL_LENGTH,
@@ -16,6 +17,7 @@ import { useWorkspace } from '../state/workspace.js'
 import { useAiProviders, type AiProviderInfo, type AiProviders } from './useAiProviders.js'
 
 type ProviderDraft = IpcRequest<typeof IpcChannel.AiProviderSave>
+type SaveProvider = (draft: ProviderDraft) => Promise<boolean>
 type AiPreferences = IpcRequest<typeof IpcChannel.AiPreferencesSave>
 type Candidate = IpcResponse<typeof IpcChannel.AiDiscover>['candidates'][number]
 
@@ -23,6 +25,7 @@ const KIND_LABELS: Readonly<Record<AiProviderKind, MessageKey>> = {
   [AiProviderKind.OpenAiCompatible]: 'ai.kind.openaiCompatible',
   [AiProviderKind.Anthropic]: 'ai.kind.anthropic',
   [AiProviderKind.ClaudeCli]: 'ai.kind.claudeCli',
+  [AiProviderKind.Acp]: 'ai.kind.acp',
 }
 
 function draftOf(provider: AiProviderInfo, change: Partial<ProviderDraft>): ProviderDraft {
@@ -32,6 +35,8 @@ function draftOf(provider: AiProviderInfo, change: Partial<ProviderDraft>): Prov
     label: provider.label,
     ...(provider.baseUrl === undefined ? {} : { baseUrl: provider.baseUrl }),
     ...(provider.contextLength === undefined ? {} : { contextLength: provider.contextLength }),
+    ...(provider.agentId === undefined ? {} : { agentId: provider.agentId }),
+    ...(provider.args === undefined ? {} : { args: provider.args }),
     makeDefault: false,
     revokeConsent: false,
     ...change,
@@ -46,7 +51,8 @@ export function AiProvidersDialog({
 }): React.JSX.Element {
   const t = useT()
   const providers = useAiProviders()
-  const save = (draft: ProviderDraft): Promise<boolean> => providers.update(window.api.ai.saveProvider(draft))
+  const save: SaveProvider = (draft) => providers.update(window.api.ai.saveProvider(draft))
+  const chooseProgram: ChooseProgram = (draft) => chooseAgentProgram(providers, draft)
   const list = providers.list
   return (
     <div
@@ -69,12 +75,13 @@ export function AiProvidersDialog({
             provider={provider}
             isDefault={provider.id === list.defaultProviderId}
             save={save}
+            chooseProgram={chooseProgram}
             providers={providers}
           />
         ))}
       </ul>
       <DiscoverSection save={save} />
-      <ManualProviderForm save={save} />
+      <ManualProviderForm save={save} chooseProgram={chooseProgram} />
       <PreferencesSection providers={providers} />
       <div className="popover__actions">
         <span className="popover__spacer" />
@@ -90,11 +97,13 @@ function ProviderRow({
   provider,
   isDefault,
   save,
+  chooseProgram,
   providers,
 }: {
   readonly provider: AiProviderInfo
   readonly isDefault: boolean
-  readonly save: (draft: ProviderDraft) => Promise<boolean>
+  readonly save: SaveProvider
+  readonly chooseProgram: ChooseProgram
   readonly providers: AiProviders
 }): React.JSX.Element {
   const t = useT()
@@ -102,7 +111,12 @@ function ProviderRow({
   if (editing) {
     return (
       <li className="ai-providers__item">
-        <ManualProviderForm save={save} editing={provider} onDone={() => setEditing(false)} />
+        <ManualProviderForm
+          save={save}
+          chooseProgram={chooseProgram}
+          editing={provider}
+          onDone={() => setEditing(false)}
+        />
       </li>
     )
   }
@@ -112,6 +126,7 @@ function ProviderRow({
         <strong>{provider.label}</strong>
         <span className="popover__hint">
           {t(provider.local ? 'ai.providers.local' : 'ai.providers.remote')}
+          {provider.commandName === undefined ? '' : ` · ${provider.commandName}`}
           {isDefault ? ` · ${t('ai.providers.default')}` : ''}
         </span>
       </div>
@@ -174,7 +189,10 @@ function DiscoverSection({
         <p className="popover__hint">{t('ai.providers.nothingFound')}</p>
       )}
       {candidates?.map((candidate) => (
-        <div key={`${candidate.kind}-${candidate.baseUrl ?? ''}`} className="ai-providers__candidate">
+        <div
+          key={`${candidate.kind}-${candidate.baseUrl ?? candidate.agentId ?? ''}`}
+          className="ai-providers__candidate"
+        >
           <span>
             {candidate.label}
             {candidate.baseUrl === undefined ? '' : ` · ${candidate.baseUrl}`}
@@ -198,6 +216,7 @@ interface ProviderForm {
   readonly baseUrl: string
   readonly apiKey: string
   readonly contextLength: string
+  readonly args: string
 }
 
 function formOf(provider: AiProviderInfo | undefined): ProviderForm {
@@ -207,6 +226,7 @@ function formOf(provider: AiProviderInfo | undefined): ProviderForm {
     baseUrl: provider?.baseUrl ?? '',
     apiKey: '',
     contextLength: provider?.contextLength?.toString() ?? '',
+    args: provider?.args ?? '',
   }
 }
 
@@ -220,36 +240,58 @@ function contextLengthOf(form: ProviderForm): { contextLength?: number } {
 }
 
 /** A blank key while editing keeps the stored one; main forgets it anyway if the address changes. */
-function draftFromForm(form: ProviderForm, defaultLabel: string, id: string | undefined): ProviderDraft {
+function draftFromForm(form: ProviderForm, defaultLabel: string, editing?: AiProviderInfo): ProviderDraft {
   const label = form.label.trim()
   const apiKey = form.apiKey.trim()
+  const isAgent = form.kind === AiProviderKind.Acp
   return {
-    ...(id === undefined ? {} : { id }),
+    ...(editing === undefined ? {} : { id: editing.id }),
+    ...(isAgent && editing?.agentId !== undefined ? { agentId: editing.agentId } : {}),
+    ...(isAgent ? { args: form.args.trim() } : {}),
     kind: form.kind,
     label: label === '' ? defaultLabel : label,
     ...(form.kind === AiProviderKind.OpenAiCompatible ? { baseUrl: form.baseUrl.trim() } : {}),
-    ...(form.kind !== AiProviderKind.ClaudeCli && apiKey !== '' ? { apiKey } : {}),
+    ...(needsKey(form.kind) && apiKey !== '' ? { apiKey } : {}),
     ...contextLengthOf(form),
     makeDefault: false,
     revokeConsent: false,
   }
 }
 
+function needsKey(kind: AiProviderKind): boolean {
+  return kind === AiProviderKind.OpenAiCompatible || kind === AiProviderKind.Anthropic
+}
+
+type ChooseProgram = (draft: ProviderDraft) => Promise<boolean>
+
+/** True only when a program was chosen: canceling the file dialog keeps the form as it was. */
+async function chooseAgentProgram(providers: AiProviders, draft: ProviderDraft): Promise<boolean> {
+  const call = window.api.ai.chooseAgentExecutable({
+    ...(draft.id === undefined ? {} : { id: draft.id }),
+    label: draft.label,
+    args: draft.args ?? '',
+  })
+  const result = await call
+  return (await providers.update(call)) && result.ok && result.data.chosen
+}
+
 function ManualProviderForm({
   save,
+  chooseProgram,
   editing,
   onDone,
 }: {
-  readonly save: (draft: ProviderDraft) => Promise<boolean>
+  readonly save: SaveProvider
+  readonly chooseProgram: ChooseProgram
   readonly editing?: AiProviderInfo
   readonly onDone?: () => void
 }): React.JSX.Element {
   const t = useT()
   const [form, setForm] = useState<ProviderForm>(() => formOf(editing))
   const change = (field: Partial<ProviderForm>): void => setForm((previous) => ({ ...previous, ...field }))
-  const needsUrl = form.kind === AiProviderKind.OpenAiCompatible
-  const submit = async (): Promise<void> => {
-    if (!(await save(draftFromForm(form, t(KIND_LABELS[form.kind]), editing?.id)))) return
+  const draft = (): ProviderDraft => draftFromForm(form, t(KIND_LABELS[form.kind]), editing)
+  const finish = (done: boolean): void => {
+    if (!done) return
     setForm(formOf(undefined))
     onDone?.()
   }
@@ -277,22 +319,59 @@ function ManualProviderForm({
         onChange={(label) => change({ label })}
       />
       <ConnectionFields form={form} change={change} keyStored={editing?.hasKey === true} />
-      <div className="ai-pane__actions">
-        <button
-          type="button"
-          className="btn btn--primary"
-          disabled={needsUrl && form.baseUrl.trim() === ''}
-          onClick={() => void submit()}
-        >
+      <FormActions
+        form={form}
+        editing={editing}
+        onSave={() => void save(draft()).then(finish)}
+        onChooseProgram={() => void chooseProgram(draft()).then(finish)}
+        {...(onDone === undefined ? {} : { onCancel: onDone })}
+      />
+    </fieldset>
+  )
+}
+
+/** A new custom agent starts by choosing its program; a known one, or one already chosen, just saves. */
+function FormActions({
+  form,
+  editing,
+  onSave,
+  onChooseProgram,
+  onCancel,
+}: {
+  readonly form: ProviderForm
+  readonly editing: AiProviderInfo | undefined
+  readonly onSave: () => void
+  readonly onChooseProgram: () => void
+  readonly onCancel?: () => void
+}): React.JSX.Element {
+  const t = useT()
+  const isAgent = form.kind === AiProviderKind.Acp
+  const customAgent = isAgent && editing?.agentId === undefined
+  const canSave = isAgent
+    ? editing !== undefined
+    : form.kind !== AiProviderKind.OpenAiCompatible || form.baseUrl.trim() !== ''
+  return (
+    <div className="ai-pane__actions">
+      {canSave && (
+        <button type="button" className="btn btn--primary" onClick={onSave}>
           {t('ai.providers.save')}
         </button>
-        {onDone !== undefined && (
-          <button type="button" className="btn" onClick={onDone}>
-            {t('document.common.cancel')}
-          </button>
-        )}
-      </div>
-    </fieldset>
+      )}
+      {customAgent && (
+        <button
+          type="button"
+          className={editing === undefined ? 'btn btn--primary' : 'btn'}
+          onClick={onChooseProgram}
+        >
+          {t(editing === undefined ? 'ai.providers.chooseProgram' : 'ai.providers.chooseOtherProgram')}
+        </button>
+      )}
+      {onCancel !== undefined && (
+        <button type="button" className="btn" onClick={onCancel}>
+          {t('document.common.cancel')}
+        </button>
+      )}
+    </div>
   )
 }
 
@@ -307,7 +386,7 @@ function ConnectionFields({
 }): React.JSX.Element {
   const t = useT()
   const needsUrl = form.kind === AiProviderKind.OpenAiCompatible
-  const needsKey = form.kind !== AiProviderKind.ClaudeCli
+  const isAgent = form.kind === AiProviderKind.Acp
   return (
     <>
       {needsUrl && (
@@ -333,7 +412,16 @@ function ConnectionFields({
           onChange={(contextLength) => change({ contextLength })}
         />
       )}
-      {needsKey && (
+      {isAgent && (
+        <TextField
+          label={t('ai.providers.args')}
+          value={form.args}
+          maxLength={MAX_AI_AGENT_ARGS_LENGTH}
+          hint={t('ai.providers.argsHint')}
+          onChange={(args) => change({ args })}
+        />
+      )}
+      {needsKey(form.kind) && (
         <TextField
           label={t('ai.providers.key')}
           type="password"

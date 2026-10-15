@@ -16,6 +16,7 @@ import { serveFonts } from './fonts.js'
 import { serveViewer } from './pdf-scheme.js'
 import { registerAppSchemes } from './schemes.js'
 import { applyStoredPreferences, onPreferencesChanged } from './preferences.js'
+import { stopAllAgents } from './ai/acp.js'
 import { applySessionPolicy } from './security.js'
 import { forgetSessionWords, installBundledDictionary, serveDictionary } from './spellcheck.js'
 import { checkSidecarHealth, disposeSidecar } from './sidecar/index.js'
@@ -93,6 +94,7 @@ if (!app.requestSingleInstanceLock()) {
   // `will-quit`: on macOS the app stays alive without windows.
   app.on('will-quit', () => {
     disposeSidecar()
+    stopAllAgents()
     // Ignoring lasts for the session; adding to the dictionary is forever.
     forgetSessionWords(session.defaultSession)
   })

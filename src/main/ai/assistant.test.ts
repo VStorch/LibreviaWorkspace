@@ -117,6 +117,42 @@ describe('generate', () => {
     expect(user.length).toBeLessThanOrEqual(DEFAULT_LOCAL_AI_CONTEXT_LENGTH + 100)
   })
 
+  it('agente ACP pede consentimento e, no automático, usa o modelo do próprio agente sem abrir outro processo para listar', async () => {
+    let data: unknown
+    const settings = new AiSettings(
+      { read: () => data, write: (value) => (data = value) },
+      { seal: (plain) => plain, open: (sealed) => sealed },
+      () => 'id1',
+    )
+    settings.save({
+      kind: 'acp',
+      label: 'Gemini',
+      agentId: 'gemini',
+      makeDefault: false,
+      revokeConsent: false,
+    })
+    let asked = false
+    let listed = false
+    const seen: { model?: string } = {}
+    const result = await generate(REQUEST, {
+      settings,
+      signal: new AbortController().signal,
+      push: () => undefined,
+      confirmConsent: async () => (asked = true),
+      providerFor: async () => ({
+        ...providerOf([{ model: 'gemini-pro' }, { text: 'ok' }], seen),
+        listModels: async () => {
+          listed = true
+          return []
+        },
+      }),
+    })
+    expect(asked).toBe(true)
+    expect(listed).toBe(false)
+    expect(seen.model).toBe('')
+    expect(result).toEqual({ status: 'done', model: 'gemini-pro' })
+  })
+
   it('cancelado devolve o estado, não um erro', async () => {
     const controller = new AbortController()
     const provider: AiProvider = {

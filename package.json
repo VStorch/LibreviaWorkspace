@@ -42,6 +42,7 @@
     "dist:win": "npm run build && npm run sidecar:build && npm run notices && electron-builder --win"
   },
   "dependencies": {
+    "@agentclientprotocol/sdk": "^1.8.0",
     "@anthropic-ai/sdk": "^0.133.0",
     "@revolist/react-datagrid": "^4.25.2",
     "@revolist/revogrid": "^4.25.2",

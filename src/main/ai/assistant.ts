@@ -1,3 +1,4 @@
+import { acpAgentOf } from '@services/ai/acp-agents.js'
 import { contextWindow } from '@services/ai/context.js'
 import { AI_MAX_OUTPUT_TOKENS, buildMessages } from '@services/ai/prompts.js'
 import { AiProviderKind, type AiModel, type AiProvider } from '@services/ai/provider.js'
@@ -5,6 +6,7 @@ import { ErrorCode } from '@shared/errors.js'
 import type { IpcRequest, IpcResponse } from '@shared/ipc.js'
 import type { IpcChannel } from '@shared/ipc-channels.js'
 import { MAX_AI_RESPONSE_LENGTH } from '@shared/limits.js'
+import { createAcpProvider } from './acp.js'
 import { createAnthropicProvider } from './anthropic.js'
 import { createDeltaBatcher } from './batcher.js'
 import { createClaudeCliProvider } from './claude-cli.js'
@@ -52,9 +54,20 @@ export async function providerFor(settings: AiSettings, stored: StoredAiProvider
     if (apiKey === undefined) throw aiError(ErrorCode.AiAuthFailed, 'errors.ai.auth')
     return createAnthropicProvider(apiKey)
   }
+  if (stored.kind === AiProviderKind.Acp) return acpProviderFor(stored)
   const command = await findExecutable(CLAUDE_COMMAND)
   if (command === null) throw aiError(ErrorCode.AiNotConfigured, 'errors.ai.cliMissing')
   return createClaudeCliProvider({ command })
+}
+
+/** A known agent is looked up on the PATH each time; a chosen one runs from where it was chosen. */
+async function acpProviderFor(stored: StoredAiProvider): Promise<AiProvider> {
+  const command =
+    stored.agentId === undefined
+      ? (stored.command ?? null)
+      : await findExecutable(acpAgentOf(stored.agentId).command)
+  if (command === null) throw aiError(ErrorCode.AiNotConfigured, 'errors.ai.agentMissing')
+  return createAcpProvider({ command, args: stored.args ?? [] })
 }
 
 export async function ensureConsent(
@@ -91,7 +104,8 @@ async function resolveModel(
   const chosen = request.model !== '' ? request.model : (stored.defaultModel ?? '')
   const wantsFallback =
     stored.kind === AiProviderKind.Anthropic && context.settings.preferences().anthropicFallback
-  if (stored.kind === AiProviderKind.ClaudeCli || (chosen !== '' && !wantsFallback)) {
+  const automaticOnly = stored.kind === AiProviderKind.ClaudeCli || stored.kind === AiProviderKind.Acp
+  if (automaticOnly || (chosen !== '' && !wantsFallback)) {
     return { id: chosen, fallback: false }
   }
   const models = await listedModels(stored, provider, context)

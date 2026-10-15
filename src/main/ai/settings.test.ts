@@ -159,4 +159,57 @@ describe('configuração dos assistentes', () => {
       consented: true,
     })
   })
+
+  it('agente ACP conhecido guarda o id e os argumentos da tabela, nunca um caminho vindo do renderer', () => {
+    const { subject, stored } = settings()
+    const list = subject.save({
+      kind: 'acp',
+      label: 'Gemini',
+      agentId: 'gemini',
+      makeDefault: false,
+      revokeConsent: false,
+    })
+    expect(stored().providers[0]).toMatchObject({ agentId: 'gemini', args: ['--acp'] })
+    expect(stored().providers[0]?.command).toBeUndefined()
+    expect(list.providers[0]).toMatchObject({ agentId: 'gemini', args: '--acp', local: false })
+  })
+
+  it('agente ACP escolhido no diálogo mostra só o nome do arquivo, e trocar o programa pede consentimento de novo', () => {
+    const { subject, stored } = settings()
+    subject.saveAgentExecutable(
+      { label: 'Meu agente', args: "--acp --dir 'a b'" },
+      '/opt/agente/bin/meu-agente',
+    )
+    expect(stored().providers[0]).toMatchObject({
+      command: '/opt/agente/bin/meu-agente',
+      args: ['--acp', '--dir', 'a b'],
+    })
+    expect(JSON.stringify(subject.list())).not.toContain('/opt/agente')
+    expect(subject.list().providers[0]).toMatchObject({
+      commandName: 'meu-agente',
+      args: "--acp --dir 'a b'",
+    })
+
+    subject.markConsented('id1')
+    subject.save({
+      id: 'id1',
+      kind: 'acp',
+      label: 'Renomeado',
+      args: '--acp',
+      makeDefault: false,
+      revokeConsent: false,
+    })
+    expect(stored().providers[0]).toMatchObject({ command: '/opt/agente/bin/meu-agente', args: ['--acp'] })
+    expect(subject.list().providers[0]?.consented).toBe(true)
+
+    subject.saveAgentExecutable({ id: 'id1', label: 'Renomeado', args: '' }, '/usr/bin/outro')
+    expect(subject.list().providers[0]?.consented).toBe(false)
+  })
+
+  it('agente ACP personalizado novo sem executável escolhido é recusado', () => {
+    const { subject } = settings()
+    expect(() =>
+      subject.save({ kind: 'acp', label: 'X', makeDefault: false, revokeConsent: false }),
+    ).toThrow()
+  })
 })

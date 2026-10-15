@@ -18,6 +18,8 @@ export const DIALOG = {
   'dialog.filter.wordTemplates': { pt: 'Modelos do Word', en: 'Word templates' },
   'dialog.filter.wordTemplate': { pt: 'Modelo do Word (.dotx)', en: 'Word template (.dotx)' },
   'dialog.template.title': { pt: 'Procurar modelo', en: 'Browse for template' },
+  'dialog.agent.title': { pt: 'Escolher o programa do agente', en: "Choose the agent's program" },
+  'dialog.filter.programs': { pt: 'Programas', en: 'Programs' },
   'dialog.filter.spreadsheet': { pt: 'Planilha', en: 'Spreadsheet' },
   'dialog.filter.excelSheet': { pt: 'Planilha do Excel', en: 'Excel spreadsheet' },
 

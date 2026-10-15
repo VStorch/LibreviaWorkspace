@@ -111,6 +111,13 @@ export const AI = {
   },
   'ai.providers.keySaved': { pt: 'Chave guardada', en: 'Key stored' },
   'ai.providers.save': { pt: 'Salvar', en: 'Save' },
+  'ai.providers.args': { pt: 'Argumentos', en: 'Arguments' },
+  'ai.providers.argsHint': {
+    pt: 'Separados por espaço; use aspas para um argumento com espaço. Vão direto ao programa, sem terminal.',
+    en: 'Separated by spaces; use quotes for an argument with spaces. They go straight to the program, without a terminal.',
+  },
+  'ai.providers.chooseProgram': { pt: 'Escolher o programa…', en: 'Choose the program…' },
+  'ai.providers.chooseOtherProgram': { pt: 'Escolher outro programa…', en: 'Choose another program…' },
   'ai.preferences.title': { pt: 'Preferências', en: 'Preferences' },
   'ai.preferences.keepFormatting': {
     pt: 'Manter a formatação nas revisões (reescrever, revisar, traduzir)',
@@ -126,4 +133,5 @@ export const AI = {
   },
   'ai.kind.anthropic': { pt: 'Anthropic (API)', en: 'Anthropic (API)' },
   'ai.kind.claudeCli': { pt: 'Claude Code (programa instalado)', en: 'Claude Code (installed program)' },
+  'ai.kind.acp': { pt: 'Agente ACP (programa instalado)', en: 'ACP agent (installed program)' },
 } satisfies Catalog

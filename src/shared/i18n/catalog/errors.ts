@@ -321,6 +321,18 @@ export const ERRORS = {
     pt: 'O programa claude não foi encontrado. Instale-o ou remova este assistente.',
     en: 'The claude program was not found. Install it or remove this assistant.',
   },
+  'errors.ai.agentMissing': {
+    pt: 'O programa do agente não foi encontrado. Instale-o, escolha o executável de novo ou remova este assistente.',
+    en: "The agent's program was not found. Install it, choose the executable again or remove this assistant.",
+  },
+  'errors.ai.agentLogin': {
+    pt: 'O agente pede login. Abra o agente no terminal, faça login por lá e tente de novo.',
+    en: 'The agent asks you to log in. Open the agent in a terminal, log in there and try again.',
+  },
+  'errors.ai.agentNoAnswer': {
+    pt: 'O agente não respondeu ao iniciar. Confira se ele abre no terminal sem pedir nada.',
+    en: 'The agent did not answer when starting. Check that it opens in a terminal without asking for anything.',
+  },
   'errors.ai.secretsUnavailable': {
     pt: 'Este sistema não oferece um cofre de senhas, e o Librevia não guarda chaves sem cifra. Use um assistente local, que não precisa de chave.',
     en: 'This system offers no password vault, and Librevia does not store keys unencrypted. Use a local assistant, which needs no key.',

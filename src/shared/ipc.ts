@@ -8,6 +8,7 @@ import {
 } from './ipc-channels.js'
 import {
   aiGenerateRequestSchema,
+  aiAgentArgsSchema,
   aiModelIdSchema,
   aiPreferencesSchema,
   aiProviderDraftSchema,
@@ -24,6 +25,7 @@ import {
 } from './schemas.js'
 import { PRIVACY_CATEGORIES } from '@services/file/privacy.js'
 import { PDF_VIEWER_ORIGIN } from './constants.js'
+import { ACP_AGENT_IDS } from '@services/ai/acp-agents.js'
 import { AiProviderKind } from '@services/ai/provider.js'
 import { DictionaryScope, EditCommand, MenuCommand, RevisionView } from './types.js'
 import type { SerializedError } from './errors.js'
@@ -367,6 +369,15 @@ export const ipcContracts = {
     request: aiPreferencesSchema,
     response: aiProviderListSchema,
   },
+  [IpcChannel.AiAgentChooseExecutable]: {
+    request: z.object({
+      id: z.string().min(1).max(MAX_ID_LENGTH).optional(),
+      label: z.string().trim().min(1).max(MAX_NAME_LENGTH),
+      args: aiAgentArgsSchema,
+    }),
+    // `chosen` is false when the person closed the file dialog: nothing was saved.
+    response: aiProviderListSchema.extend({ chosen: z.boolean() }),
+  },
   [IpcChannel.AiDiscover]: {
     request: emptyRequest,
     response: z.object({
@@ -376,6 +387,8 @@ export const ipcContracts = {
             kind: z.enum(AiProviderKind),
             label: z.string().min(1).max(MAX_NAME_LENGTH),
             baseUrl: z.string().max(MAX_PATH_LENGTH).optional(),
+            agentId: z.enum(ACP_AGENT_IDS).optional(),
+            args: aiAgentArgsSchema.optional(),
           }),
         )
         .max(MAX_AI_PROVIDERS),

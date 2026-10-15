@@ -21,6 +21,7 @@ const PATTERNS: readonly (readonly [string, RegExp])[] = [
   ['node network module', /from\s+['"](node:)?(http|https|http2|net|tls|dgram)['"]/u],
   ['undici', /from\s+['"]undici['"]/u],
   ['@anthropic-ai/sdk', /from\s+['"]@anthropic-ai\/sdk['"]/u],
+  ['@agentclientprotocol/sdk', /from\s+['"]@agentclientprotocol\/sdk[/'"]/u],
   ['electron net', /import\s*\{[^}]*\bnet\b[^}]*\}\s*from\s+['"]electron['"]/u],
   ['child_process', /['"](node:)?child_process['"]/u],
 ]

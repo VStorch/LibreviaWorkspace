@@ -2,6 +2,7 @@ export const AiProviderKind = {
   OpenAiCompatible: 'openai-compatible',
   Anthropic: 'anthropic',
   ClaudeCli: 'claude-cli',
+  Acp: 'acp',
 } as const
 
 export type AiProviderKind = (typeof AiProviderKind)[keyof typeof AiProviderKind]

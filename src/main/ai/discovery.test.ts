@@ -12,13 +12,31 @@ describe('discoverProviders', () => {
         if (url.includes('11434')) return new Response('{}')
         throw new TypeError('connection refused')
       }) as unknown as typeof fetch,
-      findExecutable: async () => '/usr/bin/claude',
+      findExecutable: async (name) => (name === 'claude' || name === 'gemini' ? `/usr/bin/${name}` : null),
     })
     expect(asked.sort()).toEqual(['http://localhost:11434/v1/models', 'http://localhost:1234/v1/models'])
     expect(candidates).toEqual([
       { kind: 'openai-compatible', label: 'Ollama', baseUrl: 'http://localhost:11434/v1' },
       { kind: 'claude-cli', label: 'Claude Code' },
+      { kind: 'acp', label: 'Gemini CLI', agentId: 'gemini', args: '--acp' },
     ])
+  })
+
+  it('procura cada agente ACP conhecido pelo nome do programa, nunca por npx', async () => {
+    const searched: string[] = []
+    await discoverProviders({
+      fetch: (async () => {
+        throw new TypeError('connection refused')
+      }) as unknown as typeof fetch,
+      findExecutable: async (name) => {
+        searched.push(name)
+        return null
+      },
+    })
+    expect(searched).toContain('codex-acp')
+    expect(searched).toContain('opencode')
+    expect(searched).not.toContain('npx')
+    expect(searched).not.toContain('uvx')
   })
 
   it('desiste de um servidor que não responde a tempo', async () => {

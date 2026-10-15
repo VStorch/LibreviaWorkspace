@@ -1,6 +1,8 @@
 import { constants } from 'node:fs'
 import { access as fsAccess } from 'node:fs/promises'
 import { delimiter, join } from 'node:path'
+import { ACP_AGENTS, type AcpAgentId } from '@services/ai/acp-agents.js'
+import { joinArgs } from '@services/ai/acp-session.js'
 import { AiProviderKind } from '@services/ai/provider.js'
 
 export const CLAUDE_COMMAND = 'claude'
@@ -15,6 +17,8 @@ export interface AiCandidate {
   readonly kind: AiProviderKind
   readonly label: string
   readonly baseUrl?: string
+  readonly agentId?: AcpAgentId
+  readonly args?: string
 }
 
 export interface DiscoveryDeps {
@@ -59,7 +63,12 @@ export async function discoverProviders(
     .then((path): AiCandidate[] =>
       path === null ? [] : [{ kind: AiProviderKind.ClaudeCli, label: 'Claude Code' }],
     )
-  return (await Promise.all([...servers, cli])).flat()
+  const agents = ACP_AGENTS.map(async (agent): Promise<AiCandidate[]> =>
+    (await deps.findExecutable(agent.command)) === null
+      ? []
+      : [{ kind: AiProviderKind.Acp, label: agent.label, agentId: agent.id, args: joinArgs(agent.args) }],
+  )
+  return (await Promise.all([...servers, cli, ...agents])).flat()
 }
 
 async function answers(fetcher: typeof fetch, baseUrl: string): Promise<boolean> {

@@ -1,7 +1,11 @@
+import { existsSync } from 'node:fs'
+import { chmod, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { createServer, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { expect, test, type Locator } from '@playwright/test'
-import { launch, menu, type Session } from './app.js'
+import { launch, menu, stubDialogs, type Session } from './app.js'
 
 const MODELO = 'modelo-falso'
 const RESPOSTA = ['Texto ', 'reescrito ', 'pelo ', 'modelo.']
@@ -397,3 +401,185 @@ test.describe('assistente de IA', () => {
     await expect(painel().getByRole('button', { name: 'Aplicar' })).toBeDisabled()
   })
 })
+
+/**
+ * A fake ACP agent, JSON-RPC written by hand: it thinks, calls a tool, asks permission, and answers
+ * only after the permission reply. It logs every message it receives, its pid and its folder. It
+ * ignores `session/cancel`, so stopping must end the process. "devagar" in the prompt makes it slow.
+ */
+function fakeAgentSource(logPath: string): string {
+  return `#!/usr/bin/env node
+import { appendFileSync } from 'node:fs'
+const log = (entry) => appendFileSync(${JSON.stringify(logPath)}, JSON.stringify(entry) + '\\n')
+const send = (message) => process.stdout.write(JSON.stringify({ jsonrpc: '2.0', ...message }) + '\\n')
+const update = (update) => send({ method: 'session/update', params: { sessionId: 's1', update } })
+const MODEL = {
+  id: 'model', name: 'Modelo', type: 'select', category: 'model', currentValue: 'agente-rapido',
+  options: [{ value: 'agente-rapido', name: 'Rápido' }, { value: 'agente-esperto', name: 'Esperto' }],
+}
+log({ pid: process.pid, cwd: process.cwd() })
+let prompt
+let buffer = ''
+process.stdin.on('data', (chunk) => {
+  buffer += chunk
+  let end
+  while ((end = buffer.indexOf('\\n')) >= 0) {
+    const line = buffer.slice(0, end)
+    buffer = buffer.slice(end + 1)
+    if (line.trim() !== '') handle(JSON.parse(line))
+  }
+})
+function handle(message) {
+  log(message)
+  if (message.method === 'initialize') return send({ id: message.id, result: { protocolVersion: 1, agentCapabilities: {} } })
+  if (message.method === 'session/new') return send({ id: message.id, result: { sessionId: 's1', configOptions: [MODEL] } })
+  if (message.method === 'session/set_config_option') return send({ id: message.id, result: { configOptions: [MODEL] } })
+  if (message.method === 'session/prompt') {
+    prompt = message
+    update({ sessionUpdate: 'agent_thought_chunk', content: { type: 'text', text: 'pensamento secreto' } })
+    update({ sessionUpdate: 'tool_call', toolCallId: 't1', title: 'Apagar arquivos', kind: 'delete' })
+    return send({
+      id: 'permissao',
+      method: 'session/request_permission',
+      params: {
+        sessionId: 's1',
+        toolCall: { toolCallId: 't1' },
+        options: [
+          { optionId: 'permitir', name: 'Permitir', kind: 'allow_always' },
+          { optionId: 'recusar', name: 'Recusar', kind: 'reject_once' },
+        ],
+      },
+    })
+  }
+  if (message.id === 'permissao') answer(JSON.stringify(prompt.params.prompt).includes('devagar'))
+}
+function answer(slow) {
+  const pieces = slow ? Array.from({ length: 200 }, (_, i) => i + ' ') : ['Texto ', 'do ', 'agente.']
+  let next = 0
+  const timer = setInterval(() => {
+    if (next < pieces.length) {
+      update({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: pieces[next++] } })
+      return
+    }
+    clearInterval(timer)
+    send({ id: prompt.id, result: { stopReason: 'end_turn' } })
+  }, 200)
+}
+`
+}
+
+interface AgentLogEntry {
+  readonly pid?: number
+  readonly cwd?: string
+  readonly id?: string | number
+  readonly method?: string
+  readonly params?: Record<string, unknown>
+  readonly result?: unknown
+}
+
+test.describe('assistente por agente ACP', () => {
+  test.skip(process.platform === 'win32', 'o agente falso é um script com shebang')
+
+  let session: Session
+  let pasta: string
+  let registro: string
+
+  test.beforeEach(async () => {
+    pasta = await mkdtemp(join(tmpdir(), 'librevia-acp-e2e-'))
+    registro = join(pasta, 'registro.jsonl')
+    const agente = join(pasta, 'fake-acp-agent.mjs')
+    await writeFile(agente, fakeAgentSource(registro))
+    await chmod(agente, 0o755)
+    session = await launch()
+    await stubDialogs(session.app, { open: agente, messageBox: 0 })
+  })
+
+  test.afterEach(async () => {
+    await session.close()
+    await rm(pasta, { recursive: true, force: true })
+  })
+
+  async function lerRegistro(): Promise<AgentLogEntry[]> {
+    const texto = await readFile(registro, 'utf8').catch(() => '')
+    return texto
+      .split('\n')
+      .filter((linha) => linha !== '')
+      .map((linha) => JSON.parse(linha) as AgentLogEntry)
+  }
+
+  function painel() {
+    return session.window.getByRole('complementary', { name: 'Assistente de IA' })
+  }
+
+  async function prepararAgente(texto: string): Promise<Locator> {
+    await menu(session, 'new-document')
+    const editor = session.window.locator('.ProseMirror')
+    await editor.click()
+    await session.window.keyboard.type(texto)
+    await menu(session, 'ai-providers')
+    const dialogo = session.window.getByRole('dialog', { name: 'Assistentes de IA' })
+    await dialogo.getByLabel('Tipo').selectOption({ label: 'Agente ACP (programa instalado)' })
+    await dialogo.getByLabel('Nome').fill('Agente falso')
+    await dialogo.getByRole('button', { name: 'Escolher o programa…' }).click()
+    await expect(dialogo.getByText('Agente falso')).toBeVisible()
+    await expect(dialogo.getByText(/Fora deste computador · fake-acp-agent\.mjs/)).toBeVisible()
+    await dialogo.getByRole('button', { name: 'Fechar' }).click()
+    await editor.click()
+    await session.window.keyboard.press('Control+A')
+    await menu(session, 'ai-assistant')
+    return editor
+  }
+
+  test('o agente responde só com texto, a permissão é recusada e o modelo escolhido vira o autor', async () => {
+    const editor = await prepararAgente('O gato dorme.')
+    await painel().getByRole('button', { name: 'Listar modelos' }).click()
+    const modelo = painel().getByLabel('Modelo')
+    await modelo.selectOption('agente-esperto')
+
+    await painel().getByRole('button', { name: 'Gerar' }).click()
+    const resposta = painel().getByLabel('Resposta')
+    await expect(resposta).toHaveText('Texto do agente.')
+    await expect(resposta).not.toContainText('pensamento')
+
+    await painel().getByRole('button', { name: 'Aplicar' }).click()
+    await expect(editor.locator('ins.revision[data-author="agente-esperto"]')).toHaveText('Texto do agente.')
+
+    const mensagens = await lerRegistro()
+    const permissao = mensagens.find((mensagem) => mensagem.id === 'permissao')
+    expect(permissao?.result).toEqual({ outcome: { outcome: 'selected', optionId: 'recusar' } })
+    const escolha = mensagens.find((mensagem) => mensagem.method === 'session/set_config_option')
+    expect(escolha?.params).toMatchObject({ configId: 'model', value: 'agente-esperto' })
+    const inicio = mensagens.find((mensagem) => mensagem.method === 'initialize')
+    expect(inicio?.params?.['clientCapabilities']).toEqual({
+      fs: { readTextFile: false, writeTextFile: false },
+      terminal: false,
+    })
+    const pastas = mensagens.flatMap((mensagem) => (mensagem.cwd === undefined ? [] : [mensagem.cwd]))
+    expect(pastas.every((cwd) => cwd.includes('librevia-ai-'))).toBe(true)
+    await expect.poll(() => pastas.some((cwd) => existsSync(cwd))).toBe(false)
+  })
+
+  test('parar avisa o agente e encerra o processo dele', async () => {
+    await prepararAgente('Escreva devagar.')
+    await painel().getByRole('button', { name: 'Gerar' }).click()
+    await expect(painel().getByLabel('Resposta')).toHaveText(/^0 /)
+    await painel().getByRole('button', { name: 'Parar' }).click()
+    await expect(painel().getByText('Interrompido.')).toBeVisible()
+
+    await expect
+      .poll(async () => (await lerRegistro()).some((mensagem) => mensagem.method === 'session/cancel'))
+      .toBe(true)
+    const mensagens = await lerRegistro()
+    const pids = mensagens.flatMap((mensagem) => (mensagem.pid === undefined ? [] : [mensagem.pid]))
+    await expect.poll(() => pids.filter(estaVivo)).toEqual([])
+  })
+})
+
+function estaVivo(pid: number): boolean {
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch {
+    return false
+  }
+}

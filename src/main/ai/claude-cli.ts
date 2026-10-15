@@ -1,29 +1,26 @@
-import { spawn as nodeSpawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
-import { mkdtemp, rm } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import type { ChildProcessWithoutNullStreams } from 'node:child_process'
 import type { Readable } from 'node:stream'
 import { parseClaudeCliLine, type ClaudeCliEvent } from '@services/ai/claude-stream.js'
 import type { AiPrompt, AiProvider, AiStreamPart } from '@services/ai/provider.js'
 import { ErrorCode } from '@shared/errors.js'
+import {
+  collect,
+  exitOf,
+  makeWorkFolder,
+  removeWorkFolder,
+  spawnWithoutShell,
+  terminate,
+  type Spawn,
+  type WorkFolder,
+} from './child-process.js'
 import { aiError, refusedError } from './errors.js'
 import { takeBoundedLines } from './stream-lines.js'
 
-const KILL_GRACE_MS = 2_000
-const MAX_STDERR_LENGTH = 2_000
-
 type CliResult = Extract<ClaudeCliEvent, { type: 'result' }>
-type Spawn = (
-  command: string,
-  args: readonly string[],
-  options: { cwd: string },
-) => ChildProcessWithoutNullStreams
 
-export interface ClaudeCliOptions {
+export interface ClaudeCliOptions extends WorkFolder {
   readonly command: string
   readonly spawn?: Spawn
-  readonly makeTempDir?: () => Promise<string>
-  readonly removeDir?: (dir: string) => Promise<void>
 }
 
 /**
@@ -49,14 +46,6 @@ export function claudeCliArgs(prompt: AiPrompt): string[] {
   ]
 }
 
-const defaultSpawn: Spawn = (command, args, options) =>
-  nodeSpawn(command, args, {
-    cwd: options.cwd,
-    shell: false,
-    stdio: ['pipe', 'pipe', 'pipe'],
-    windowsHide: true,
-  })
-
 export function createClaudeCliProvider(options: ClaudeCliOptions): AiProvider {
   return {
     listModels: () => Promise.resolve([]),
@@ -76,7 +65,7 @@ async function* runCli(
   signal: AbortSignal,
 ): AsyncGenerator<AiStreamPart> {
   signal.throwIfAborted()
-  const cwd = await (options.makeTempDir ?? (() => mkdtemp(join(tmpdir(), 'librevia-ai-'))))()
+  const cwd = await makeWorkFolder(options)
   let running: RunningCli | undefined
   const stop = (): void => {
     if (running !== undefined) terminate(running.child)
@@ -90,13 +79,13 @@ async function* runCli(
     signal.removeEventListener('abort', stop)
     stop()
     void running?.exited.catch(() => undefined)
-    await (options.removeDir ?? ((dir) => rm(dir, { recursive: true, force: true })))(cwd)
+    await removeWorkFolder(options, cwd)
   }
 }
 
 function startCli(options: ClaudeCliOptions, prompt: AiPrompt, cwd: string): RunningCli {
-  const child = (options.spawn ?? defaultSpawn)(options.command, claudeCliArgs(prompt), { cwd })
-  const running = { child, exited: exitOf(child), stderr: collect(child.stderr) }
+  const child = (options.spawn ?? spawnWithoutShell)(options.command, claudeCliArgs(prompt), { cwd })
+  const running = { child, exited: exitOf(child, cliMissing), stderr: collect(child.stderr) }
   child.stdin.on('error', () => undefined)
   child.stdin.end(prompt.user)
   return running
@@ -139,27 +128,6 @@ async function* cliEvents(stdout: Readable): AsyncGenerator<ClaudeCliEvent> {
   if (buffer.trim() !== '') yield parseClaudeCliLine(buffer)
 }
 
-function exitOf(child: ChildProcessWithoutNullStreams): Promise<number | null> {
-  return new Promise((resolve, reject) => {
-    child.once('error', (cause) =>
-      reject(aiError(ErrorCode.AiNotConfigured, 'errors.ai.cliMissing', cause.message)),
-    )
-    child.once('close', (code) => resolve(code))
-  })
-}
-
-function collect(stream: Readable): () => string {
-  let text = ''
-  stream.on('data', (chunk: Buffer | string) => {
-    text = (text + chunk.toString()).slice(-MAX_STDERR_LENGTH)
-  })
-  return () => text
-}
-
-function terminate(child: ChildProcessWithoutNullStreams): void {
-  if (child.exitCode !== null || child.signalCode !== null) return
-  child.kill('SIGTERM')
-  const timer = setTimeout(() => child.kill('SIGKILL'), KILL_GRACE_MS)
-  timer.unref()
-  child.once('exit', () => clearTimeout(timer))
+function cliMissing(cause: Error): Error {
+  return aiError(ErrorCode.AiNotConfigured, 'errors.ai.cliMissing', cause.message)
 }

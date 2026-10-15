@@ -1,6 +1,9 @@
 import { randomUUID } from 'node:crypto'
 import Store from 'electron-store'
+import { basename } from 'node:path'
 import { z } from 'zod'
+import { ACP_AGENT_IDS, acpAgentOf } from '@services/ai/acp-agents.js'
+import { joinArgs, splitArgs } from '@services/ai/acp-session.js'
 import { isLoopback } from '@services/ai/locality.js'
 import { AiProviderKind } from '@services/ai/provider.js'
 import { AppError, ErrorCode } from '@shared/errors.js'
@@ -14,6 +17,7 @@ import { createSecretBox, type SecretBox } from './secrets.js'
 export type AiProviderDraft = IpcRequest<typeof IpcChannel.AiProviderSave>
 export type AiProviderList = IpcResponse<typeof IpcChannel.AiProvidersList>
 export type AiPreferences = IpcRequest<typeof IpcChannel.AiPreferencesSave>
+export type AiAgentExecutableDraft = IpcRequest<typeof IpcChannel.AiAgentChooseExecutable>
 
 const storedProviderSchema = z.object({
   id: z.string(),
@@ -26,6 +30,10 @@ const storedProviderSchema = z.object({
   consentVersion: z.number().optional(),
   defaultModel: z.string().optional(),
   contextLength: z.number().optional(),
+  /** ACP: a known agent, found on the PATH when used, or the program the person chose. */
+  agentId: z.enum(ACP_AGENT_IDS).optional(),
+  command: z.string().optional(),
+  args: z.array(z.string()).optional(),
 })
 
 export const DEFAULT_AI_PREFERENCES: AiPreferences = { keepFormatting: true, anthropicFallback: false }
@@ -91,6 +99,41 @@ function contextLengthOfDraft(draft: AiProviderDraft): Pick<StoredAiProvider, 'c
   return { contextLength: draft.contextLength }
 }
 
+type AgentTarget = Pick<StoredAiProvider, 'agentId' | 'command' | 'args'>
+
+function agentTargetOf(
+  draft: AiProviderDraft,
+  existing: StoredAiProvider | undefined,
+  command: string | undefined,
+): AgentTarget {
+  if (draft.kind !== AiProviderKind.Acp) return {}
+  const typed = draft.args === undefined ? undefined : splitArgs(draft.args)
+  if (command !== undefined) return { command, args: typed ?? [] }
+  if (draft.agentId !== undefined)
+    return { agentId: draft.agentId, args: typed ?? [...acpAgentOf(draft.agentId).args] }
+  if (existing?.kind !== AiProviderKind.Acp) throw invalid()
+  const kept = existing.agentId === undefined ? { command: existing.command } : { agentId: existing.agentId }
+  return { ...kept, args: typed ?? existing.args ?? [] }
+}
+
+function sameDestination(existing: StoredAiProvider | undefined, next: StoredAiProvider): boolean {
+  return (
+    existing !== undefined &&
+    existing.kind === next.kind &&
+    existing.baseUrl === next.baseUrl &&
+    existing.agentId === next.agentId &&
+    existing.command === next.command
+  )
+}
+
+function agentInfoOf(provider: StoredAiProvider): Partial<AiProviderList['providers'][number]> {
+  return {
+    ...(provider.agentId === undefined ? {} : { agentId: provider.agentId }),
+    ...(provider.command === undefined ? {} : { commandName: basename(provider.command) }),
+    ...(provider.args === undefined ? {} : { args: joinArgs(provider.args) }),
+  }
+}
+
 const invalid = (): AppError => new AppError(ErrorCode.InvalidRequest, t('errors.ipc.invalidData'))
 
 /** Apart from the editor preferences: keys and consents are not something a preference reset should touch. */
@@ -114,6 +157,7 @@ export class AiSettings {
         consented: hasCurrentConsent(provider),
         ...(provider.defaultModel === undefined ? {} : { defaultModel: provider.defaultModel }),
         ...(provider.contextLength === undefined ? {} : { contextLength: provider.contextLength }),
+        ...agentInfoOf(provider),
       })),
       defaultProviderId: data.defaultProviderId,
       preferences: data.preferences,
@@ -134,11 +178,11 @@ export class AiSettings {
     return provider.sealedKey === undefined ? undefined : this.secrets.open(provider.sealedKey)
   }
 
-  save(draft: AiProviderDraft): AiProviderList {
+  save(draft: AiProviderDraft, command?: string): AiProviderList {
     const data = this.read()
     const existing = draft.id === undefined ? undefined : this.find(draft.id)
     if (existing === undefined && data.providers.length >= MAX_AI_PROVIDERS) throw invalid()
-    const provider = this.merge(draft, existing)
+    const provider = this.merge(draft, existing, command)
     const providers =
       existing === undefined
         ? [...data.providers, provider]
@@ -146,6 +190,21 @@ export class AiSettings {
     const makeDefault = draft.makeDefault || data.defaultProviderId === null
     this.write({ ...data, providers, defaultProviderId: makeDefault ? provider.id : data.defaultProviderId })
     return this.list()
+  }
+
+  /** The path comes from main's own file dialog, never from the renderer. */
+  saveAgentExecutable(draft: AiAgentExecutableDraft, command: string): AiProviderList {
+    return this.save(
+      {
+        ...(draft.id === undefined ? {} : { id: draft.id }),
+        kind: AiProviderKind.Acp,
+        label: draft.label,
+        args: draft.args,
+        makeDefault: false,
+        revokeConsent: false,
+      },
+      command,
+    )
   }
 
   remove(id: string): AiProviderList {
@@ -190,16 +249,25 @@ export class AiSettings {
     })
   }
 
-  private merge(draft: AiProviderDraft, existing: StoredAiProvider | undefined): StoredAiProvider {
+  private merge(
+    draft: AiProviderDraft,
+    existing: StoredAiProvider | undefined,
+    command: string | undefined,
+  ): StoredAiProvider {
     const baseUrl = baseUrlOf(draft)
-    const kept = existing?.kind === draft.kind && existing.baseUrl === baseUrl ? existing : undefined
-    const sealedKey = this.sealedKeyOf(draft, kept)
-    const defaultModel = draft.defaultModel ?? existing?.defaultModel ?? ''
-    return {
+    const destination: StoredAiProvider = {
       id: existing?.id ?? this.newId(),
       kind: draft.kind,
       label: draft.label,
+      consented: false,
       ...(baseUrl === undefined ? {} : { baseUrl }),
+      ...agentTargetOf(draft, existing, command),
+    }
+    const kept = sameDestination(existing, destination) ? existing : undefined
+    const sealedKey = this.sealedKeyOf(draft, kept)
+    const defaultModel = draft.defaultModel ?? kept?.defaultModel ?? ''
+    return {
+      ...destination,
       ...(sealedKey === undefined ? {} : { sealedKey }),
       ...keptConsent(draft, kept),
       ...(defaultModel === '' ? {} : { defaultModel }),
@@ -211,7 +279,7 @@ export class AiSettings {
     draft: AiProviderDraft,
     sameDestination: StoredAiProvider | undefined,
   ): string | undefined {
-    if (draft.kind === AiProviderKind.ClaudeCli) return undefined
+    if (draft.kind === AiProviderKind.ClaudeCli || draft.kind === AiProviderKind.Acp) return undefined
     if (draft.apiKey === undefined) return sameDestination?.sealedKey
     return draft.apiKey === '' ? undefined : this.secrets.seal(draft.apiKey)
   }

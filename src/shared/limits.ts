@@ -41,3 +41,4 @@ export const MAX_AI_URL_LENGTH = 2_000
 export const MAX_AI_PROVIDERS = 20
 export const MAX_AI_MODELS = 1_000
 export const MAX_AI_STREAM_LINE_LENGTH = 1_000_000
+export const MAX_AI_AGENT_ARGS_LENGTH = 1_000

@@ -96,6 +96,8 @@ export const IpcChannel = {
   /** Apart from `AiProviderSave`: choosing a model never touches the key nor the consent. */
   AiModelChoose: 'ai:model-choose',
   AiPreferencesSave: 'ai:preferences-save',
+  /** Main opens the file dialog and keeps the path: the renderer never names a program to run. */
+  AiAgentChooseExecutable: 'ai:agent-choose-executable',
   /** Only when the person asks: nothing is probed on startup. */
   AiDiscover: 'ai:discover',
   AiModelsList: 'ai:models-list',
@@ -156,6 +158,7 @@ export const INVOCABLE_IPC_CHANNELS = [
   IpcChannel.AiProviderRemove,
   IpcChannel.AiModelChoose,
   IpcChannel.AiPreferencesSave,
+  IpcChannel.AiAgentChooseExecutable,
   IpcChannel.AiDiscover,
   IpcChannel.AiModelsList,
   IpcChannel.AiGenerate,

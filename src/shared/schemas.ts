@@ -4,9 +4,11 @@ import { MAX_ZOOM, MIN_ZOOM } from '@services/document/zoom.js'
 import { PRIVACY_CATEGORIES } from '@services/file/privacy.js'
 import { CUSTOM_PROPERTY_TYPES } from '@services/file/properties.js'
 import { Language, LANGUAGES } from './i18n/language.js'
+import { ACP_AGENT_IDS } from '@services/ai/acp-agents.js'
 import { AiProviderKind } from '@services/ai/provider.js'
 import { AiAction, AiFormat, Theme } from './types.js'
 import {
+  MAX_AI_AGENT_ARGS_LENGTH,
   MAX_AI_INSTRUCTION_LENGTH,
   MAX_AI_KEY_LENGTH,
   MAX_AI_RESPONSE_LENGTH,
@@ -449,6 +451,9 @@ const aiBaseUrlSchema = z.url({ protocol: /^https?$/ }).max(MAX_AI_URL_LENGTH)
 /** In characters: how much of the document goes along with the selection. */
 export const aiContextLengthSchema = z.int().min(0).max(MAX_AI_DOCUMENT_LENGTH)
 const aiDocumentPartSchema = z.string().max(MAX_AI_DOCUMENT_LENGTH)
+const aiAgentIdSchema = z.enum(ACP_AGENT_IDS)
+/** As typed: main splits them, quotes included, and hands them to the agent without a shell. */
+export const aiAgentArgsSchema = z.string().max(MAX_AI_AGENT_ARGS_LENGTH)
 
 /** What the renderer sees of a provider: whether it has a key, never the key. */
 export const aiProviderSchema = z.object({
@@ -461,6 +466,10 @@ export const aiProviderSchema = z.object({
   consented: z.boolean(),
   defaultModel: aiModelIdSchema.optional(),
   contextLength: aiContextLengthSchema.optional(),
+  agentId: aiAgentIdSchema.optional(),
+  /** The file name only: the full path of a chosen agent stays in main. */
+  commandName: z.string().max(MAX_PATH_LENGTH).optional(),
+  args: aiAgentArgsSchema.optional(),
 })
 
 export const aiProviderDraftSchema = z.object({
@@ -471,6 +480,8 @@ export const aiProviderDraftSchema = z.object({
   apiKey: z.string().trim().max(MAX_AI_KEY_LENGTH).optional(),
   defaultModel: aiModelIdSchema.optional(),
   contextLength: aiContextLengthSchema.optional(),
+  agentId: aiAgentIdSchema.optional(),
+  args: aiAgentArgsSchema.optional(),
   makeDefault: z.boolean().default(false),
   revokeConsent: z.boolean().default(false),
 })
