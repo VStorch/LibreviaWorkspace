@@ -672,11 +672,25 @@ O assistente reescreve, resume, revisa ou traduz o trecho que você selecionar. 
 
 Abra **Ferramentas → Assistentes de IA…**. Há dois caminhos:
 
-- **Procurar assistentes** olha, só quando você clica, três lugares deste computador: o Ollama
-  (`localhost:11434`), o LM Studio (`localhost:1234`) e o programa `claude` (Claude Code), se
-  estiver instalado. O que responder aparece com um botão **Adicionar**.
+- **Procurar assistentes** olha, só quando você clica, o que já está neste computador: o Ollama
+  (`localhost:11434`), o LM Studio (`localhost:1234`), o programa `claude` (Claude Code) e os
+  agentes ACP instalados (veja abaixo). O que responder aparece com um botão **Adicionar**.
 - **Adicionar à mão** aceita um servidor compatível com OpenAI (endereço e, se ele pedir, uma
-  chave) ou a API da Anthropic (chave).
+  chave), a API da Anthropic (chave) ou um agente ACP.
+
+**Agentes ACP.** O ACP (Agent Client Protocol) é um protocolo aberto que vários agentes de IA
+falam. A procura encontra estes, se o programa estiver no `PATH`: Gemini CLI (`gemini`), Claude
+Agent (`claude-agent-acp`), Codex (`codex-acp`), OpenCode, Goose, GitHub Copilot (`copilot`),
+Qwen Code (`qwen`), Kimi CLI, Cursor Agent (`cursor-agent`), Kilo Code (`kilo`), Auggie, Cline,
+Mistral Vibe (`vibe-acp`) e Amp (`amp-acp`). Um agente instalado em outro lugar entra por
+**Adicionar à mão → Agente ACP → Escolher o programa…**, com os argumentos que ele pede.
+
+- O login é feito no próprio agente: abra-o uma vez no terminal e entre na sua conta. Se ele
+  pedir login, o Librevia avisa e não insiste.
+- O Librevia não baixa nem instala agentes.
+- O agente roda numa pasta temporária vazia, sem acesso aos seus arquivos nem ao terminal; todo
+  pedido de permissão que ele fizer é recusado. Ele só devolve texto.
+- No Windows, só funcionam agentes que sejam um `.exe`; os instalados pelo npm (`.cmd`) não.
 
 A chave fica cifrada pelo cofre de senhas do sistema e nunca volta para a tela. No Linux sem cofre
 (sem GNOME Keyring nem KWallet), o Librevia recusa guardar a chave; os assistentes locais
@@ -737,8 +751,8 @@ trecho mudou". Inserir abaixo e Copiar continuam valendo.
   próximo do trecho, e o modelo é avisado de que vê só uma parte.
 - O nome do arquivo e as propriedades ficam aqui.
 - Um assistente em `localhost` ou `127.0.0.1` roda neste computador: o texto não sai dele.
-- Um assistente fora do computador (um servidor em outro endereço, a API da Anthropic ou o Claude
-  Code, que fala com a Anthropic) pergunta antes do primeiro envio, mostrando o destino e dizendo
+- Um assistente fora do computador (um servidor em outro endereço, a API da Anthropic, o Claude
+  Code, que fala com a Anthropic, ou um agente ACP, que pode usar a nuvem) pergunta antes do primeiro envio, mostrando o destino e dizendo
   que o documento vai junto e que a resposta é gerada fora do computador. A permissão fica
   guardada para aquele assistente; **Pedir permissão de novo** faz a pergunta voltar. Quem deu
   permissão numa versão anterior, que mandava só o trecho, é perguntado de novo.

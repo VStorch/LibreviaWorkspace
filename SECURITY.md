@@ -50,6 +50,7 @@ segurança:
 | **Só se grava onde o usuário escolheu** | gravar ou ler um caminho que não passou por um diálogo do sistema nem pela lista de recentes, furando a trava `PATH_NOT_AUTHORIZED` |
 | **O aplicativo só usa a rede para o assistente de IA** | um documento que faz o aplicativo buscar algo na internet sozinho, ao abrir ou ao imprimir; qualquer conexão sem um assistente configurado, salvo a consulta a `localhost` quando a pessoa clica em "Procurar assistentes" |
 | **O assistente envia só o documento aberto, e só com permissão** | texto de outro arquivo, o nome do arquivo ou as propriedades indo para o assistente; um envio para fora do computador sem a confirmação feita pelo processo principal, que diz que o documento aberto vai junto como contexto |
+| **Um agente de IA não mexe no computador** | um agente ACP ou o Claude Code lendo ou gravando arquivos, abrindo um terminal ou tendo uma permissão aceita; o programa do agente vindo de um caminho escolhido pela interface, sem passar por diálogo do sistema; o processo seguindo vivo depois de parar ou de fechar a janela |
 | **A chave do assistente não vaza** | a chave voltando para a interface, aparecendo em log ou gravada sem cifra no disco |
 | **O serviço de formatos não grava nada** | o sidecar .NET escrevendo no disco ou abrindo conexão |
 | **As propriedades de um PDF só acrescentam** | gravar as propriedades de um PDF muda algum byte do que já estava no arquivo, ou grava num PDF que não foi o aberto |
