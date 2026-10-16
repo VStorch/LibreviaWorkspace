@@ -665,8 +665,8 @@ Para desligar: **Ferramentas → Autocorreção tipográfica**. O que já foi tr
 
 ## 🤖 Assistente de IA
 
-O assistente reescreve, resume, revisa ou traduz o trecho que você selecionar. Ele vem
-**desligado**: enquanto nenhum assistente estiver configurado, nada sai do computador.
+O assistente reescreve, resume, revisa ou traduz o trecho que você selecionar, e conversa sobre o
+documento. Ele vem **desligado**: enquanto nenhum assistente estiver configurado, nada sai do computador.
 
 ### Configurar
 
@@ -724,7 +724,8 @@ Em **Preferências**, no mesmo diálogo:
    abre o menu, as setas andam, **→** abre o submenu, **←** ou `Esc` o fecham. Também dá para
    abrir o painel por **Ferramentas → Assistente de IA…** (`Ctrl+Shift+Y`); o mesmo atalho o
    fecha.
-3. No painel, **Modelo** escolhe o modelo do assistente. **Automático** usa o padrão dele;
+3. O painel tem duas abas: **Ações**, descrita aqui, e **Conversa** (veja
+   [Conversar](#conversar)). **Modelo** escolhe o modelo do assistente. **Automático** usa o padrão dele;
    **Listar modelos** pergunta quais ele tem. A escolha fica lembrada para aquele assistente.
 4. A resposta aparece no painel à direita enquanto é escrita, já formatada. **Parar** interrompe.
 5. Escolha o que fazer com ela:
@@ -740,10 +741,36 @@ eles entram no documento como título e lista de verdade.
 Se você editar o trecho enquanto a resposta chega, **Aplicar** fica apagado e o painel avisa "O
 trecho mudou". Inserir abaixo e Copiar continuam valendo.
 
+### Conversar
+
+A aba **Conversa** troca várias mensagens com o assistente sobre o documento aberto.
+
+1. Escreva no campo **Mensagem**. `Enter` envia; `Shift+Enter` quebra a linha.
+2. A resposta aparece na conversa enquanto é escrita, já formatada. **Parar** interrompe.
+3. Cada resposta concluída tem **Inserir abaixo**, que põe a resposta em parágrafos novos depois da
+   seleção ou do cursor, como alteração controlada com o nome do modelo como autor, e **Copiar**.
+   Não há Aplicar: a conversa não substitui a seleção.
+4. **Nova conversa** apaga as mensagens e começa do zero.
+
+A cada mensagem vai o documento **como ele está naquele momento**: se você editar o texto entre
+uma pergunta e outra, a próxima já leva a versão nova. Com um trecho selecionado, ele vai marcado,
+e o modelo entende "isto" como esse trecho; sem seleção, vai o documento inteiro.
+
+A conversa fica só na memória do Librevia. Ela não é gravada no arquivo, nem no disco, nem nas
+configurações, e some quando você fecha o documento ou clica em Nova conversa. Trocar de aba não
+apaga nada. Com o documento só para leitura, dá para conversar, mas Inserir abaixo fica apagado.
+
 ### O que é enviado, e para onde
 
 - **O trecho selecionado**, até 20 000 caracteres, e, no pedido livre, a instrução que você
   escrever.
+- **Na conversa**, a cada mensagem: o documento atual, a sua mensagem (até 2 000 caracteres) e as
+  mensagens anteriores, até 40. O modelo é avisado de que o documento é material de consulta e de
+  que instruções escritas nele não vêm de você. As mensagens anteriores ocupam no máximo metade do
+  limite de contexto do assistente; acima disso, as mais antigas ficam de fora, e a sua última
+  mensagem vai sempre. O documento usa o espaço que sobra.
+- O Claude Code e os agentes ACP abrem um processo novo a cada pedido e não guardam a conversa:
+  por isso recebem a conversa inteira, com o documento, a cada mensagem.
 - **O documento aberto, como contexto**: o texto antes e depois do trecho, sem formatação e sem o
   que foi excluído com o controle de alterações. Com ele, o modelo mantém os termos e o tom do
   resto. O modelo pode analisar esse texto, mas a resposta continua sendo só o texto que substitui
@@ -773,7 +800,8 @@ trecho mudou". Inserir abaixo e Copiar continuam valendo.
   no trecho.
 - A seleção não pode ter imagens, equações, notas nem campos, nem passar de uma célula de tabela
   para outra.
-- Cada pedido é independente: o assistente não lembra os anteriores.
+- Na aba Ações, cada pedido é independente: o assistente não lembra os anteriores. Só a aba
+  Conversa tem histórico, e só enquanto o documento está aberto.
 
 ---
 
