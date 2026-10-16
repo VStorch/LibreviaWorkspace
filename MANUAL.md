@@ -760,6 +760,40 @@ A conversa fica só na memória do Librevia. Ela não é gravada no arquivo, nem
 configurações, e some quando você fecha o documento ou clica em Nova conversa. Trocar de aba não
 apaga nada. Com o documento só para leitura, dá para conversar, mas Inserir abaixo fica apagado.
 
+#### Propostas de alteração e comentários
+
+Abaixo do campo de mensagem fica a caixa **Deixar o assistente propor alterações e comentários**.
+Ela vem desligada, e o Librevia lembra a escolha. Desligada, a conversa funciona como descrito
+acima.
+
+Ligada, o assistente pode, durante a resposta:
+
+- ler qualquer parágrafo do documento e procurar um texto nele;
+- propor a troca de um trecho de um parágrafo por outro texto (ou a remoção do trecho);
+- propor um comentário sobre um trecho.
+
+**Nada muda no documento sem um clique seu.** Cada proposta aparece abaixo da resposta, com o
+número do parágrafo, o trecho atual e o texto novo (ou o comentário), e os botões **Aplicar** e
+**Descartar**. **Aplicar todas** aplica as que ainda estão abertas; alterações e comentários entram juntos, e
+um único Desfazer volta todos.
+
+- Uma alteração aplicada entra como alteração controlada, com o nome do modelo como autor: dá
+  para aceitar ou rejeitar como qualquer outra.
+- Um comentário aplicado entra sobre o trecho, com o nome do modelo como autor.
+- Antes de aplicar, o Librevia confere se o parágrafo daquele número ainda tem exatamente o texto
+  que o modelo leu, com o trecho uma vez só. Se você editou o parágrafo, ou acrescentou ou apagou
+  parágrafos acima dele, a proposta mostra "O texto mudou" e não é aplicada.
+- No máximo 30 propostas por mensagem, 10 ferramentas por rodada e 8 rodadas. O que o modelo lê
+  do documento numa resposta, somado, não passa do limite de contexto do assistente; acima disso,
+  a ferramenta responde que a leitura acabou. O assistente não grava nada, não abre arquivos, não
+  acessa a internet e não roda programas: ele só lê o texto enviado e propõe.
+- Com o documento só para leitura, Aplicar fica apagado.
+
+Só a API da Anthropic e os servidores compatíveis com OpenAI (Ollama, LM Studio…) oferecem isso.
+Com o Claude Code ou um agente ACP, a caixa fica apagada. Um modelo local sem suporte a
+ferramentas recusa o pedido: o Librevia avisa para desligar a caixa ou trocar de modelo, e o
+motivo aparece também na resposta, no painel.
+
 ### O que é enviado, e para onde
 
 - **O trecho selecionado**, até 20 000 caracteres, e, no pedido livre, a instrução que você
@@ -769,6 +803,11 @@ apaga nada. Com o documento só para leitura, dá para conversar, mas Inserir ab
   que instruções escritas nele não vêm de você. As mensagens anteriores ocupam no máximo metade do
   limite de contexto do assistente; acima disso, as mais antigas ficam de fora, e a sua última
   mensagem vai sempre. O documento usa o espaço que sobra.
+- **Com as propostas ligadas**, o documento vai dividido em parágrafos numerados ("[12] texto…"),
+  um por parágrafo, item de lista ou célula de tabela, sem o que foi excluído. Se não couber
+  inteiro, vai o começo, e o modelo é avisado de que pode ler o resto pedindo os parágrafos. Cada
+  parágrafo que ele lê ou procura sai desse mesmo texto, enviado junto com a mensagem; nada é lido
+  do arquivo. O texto das notas de rodapé não vai.
 - O Claude Code e os agentes ACP abrem um processo novo a cada pedido e não guardam a conversa:
   por isso recebem a conversa inteira, com o documento, a cada mensagem.
 - **O documento aberto, como contexto**: o texto antes e depois do trecho, sem formatação e sem o
