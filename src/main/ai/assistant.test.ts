@@ -233,7 +233,7 @@ describe('generate', () => {
     ): Promise<{ fallback?: boolean; author?: string | undefined }> => {
       const settings = settingsWith('anthropic')
       settings.markConsented('id1')
-      settings.savePreferences({ keepFormatting: true, anthropicFallback: preference })
+      settings.savePreferences({ keepFormatting: true, anthropicFallback: preference, chatProposals: false })
       const seen: { fallback?: boolean } = {}
       const result = await generate(
         { ...REQUEST, model },
@@ -285,6 +285,8 @@ const CHAT: AiConversationRequest = {
   before: 'Choveu o dia todo.',
   after: '',
   selection: '',
+  proposals: false,
+  paragraphs: [],
 }
 
 function recordingProvider(parts: AiStreamPart[], seen: { prompt?: AiPrompt }): AiProvider {
@@ -347,5 +349,86 @@ describe('chat', () => {
     })
     expect(result).toEqual({ status: 'canceled' })
     expect(pushed.join('')).toBe('meio')
+  })
+
+  it('com as propostas ligadas e servidor compatível, manda as ferramentas e devolve as propostas', async () => {
+    const settings = settingsWith('openai-compatible', 'http://127.0.0.1:11434/v1')
+    settings.savePreferences({ keepFormatting: true, anthropicFallback: false, chatProposals: true })
+    const prompts: AiPrompt[] = []
+    const provider: AiProvider = {
+      listModels: async () => [],
+      async *stream(prompt) {
+        prompts.push(prompt)
+        if (prompts.length === 1) {
+          yield {
+            toolCall: {
+              id: 'a',
+              name: 'propose_edit',
+              arguments: '{"paragraph":1,"find":"dia","replace":"mês"}',
+            },
+          }
+        } else yield { text: 'Proposto.' }
+      },
+    }
+    const result = await chat(
+      { ...CHAT, proposals: true, paragraphs: ['Choveu o dia todo.'] },
+      {
+        settings,
+        signal: new AbortController().signal,
+        push: () => undefined,
+        confirmConsent: async () => true,
+        providerFor: async () => provider,
+      },
+    )
+    expect(result).toEqual({
+      status: 'done',
+      model: 'm',
+      proposals: [
+        {
+          id: '1',
+          kind: 'edit',
+          paragraph: 1,
+          paragraphText: 'Choveu o dia todo.',
+          find: 'dia',
+          replace: 'mês',
+        },
+      ],
+    })
+    expect(prompts[0]?.system).toContain('[1] Choveu o dia todo.')
+    expect(prompts[0]?.tools).toHaveLength(4)
+  })
+
+  it('com as propostas desligadas, o pedido não leva ferramentas', async () => {
+    const seen: { prompt?: AiPrompt } = {}
+    const result = await chat(
+      { ...CHAT, paragraphs: ['Choveu o dia todo.'] },
+      {
+        settings: settingsWith('openai-compatible', 'http://127.0.0.1:11434/v1'),
+        signal: new AbortController().signal,
+        push: () => undefined,
+        confirmConsent: async () => true,
+        providerFor: async () => recordingProvider([{ text: 'ok' }], seen),
+      },
+    )
+    expect(result).toEqual({ status: 'done', model: 'm' })
+    expect(seen.prompt?.tools).toBeUndefined()
+    expect(seen.prompt?.system).not.toContain('[1]')
+  })
+
+  it('com a preferência ligada mas o pedido sem a marca, não manda ferramentas', async () => {
+    const settings = settingsWith('openai-compatible', 'http://127.0.0.1:11434/v1')
+    settings.savePreferences({ keepFormatting: true, anthropicFallback: false, chatProposals: true })
+    const seen: { prompt?: AiPrompt } = {}
+    await chat(
+      { ...CHAT, paragraphs: ['Choveu o dia todo.'] },
+      {
+        settings,
+        signal: new AbortController().signal,
+        push: () => undefined,
+        confirmConsent: async () => true,
+        providerFor: async () => recordingProvider([{ text: 'ok' }], seen),
+      },
+    )
+    expect(seen.prompt?.tools).toBeUndefined()
   })
 })

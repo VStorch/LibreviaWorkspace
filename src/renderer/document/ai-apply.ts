@@ -214,14 +214,14 @@ function partition(blocks: readonly ProseMirrorNode[], headEmpty: boolean, tailE
 }
 
 function replaceInParagraphs(
+  tr: Transaction,
   state: EditorState,
   range: AiRange,
   blocks: readonly ProseMirrorNode[],
 ): Transaction {
-  const $from = state.doc.resolve(range.from)
-  const $to = state.doc.resolve(range.to)
+  const $from = tr.doc.resolve(range.from)
+  const $to = tr.doc.resolve(range.to)
   const parts = partition(blocks, $from.parentOffset === 0, $to.parentOffset === $to.parent.content.size)
-  const tr = state.tr
   if (parts.trailing.length > 0) tr.insert($to.after(), Fragment.fromArray(parts.trailing))
   const middle = parts.middle.length > 0 ? textEdged(state, parts.middle) : []
   tr.replace(
@@ -247,7 +247,32 @@ export function buildTrackedReplacement(
 ): Transaction | null {
   const blocks = responseBlocks(state, response, plainMarks(state, range.from, response.format))
   if (blocks.length === 0) return null
-  return tracked(replaceInParagraphs(state, range, blocks), state, author, now)
+  return tracked(replaceInParagraphs(state.tr, state, range, blocks), state, author, now)
+}
+
+export interface AiTextEdit {
+  readonly range: AiRange
+  readonly text: string
+}
+
+/**
+ * Several plain-text replacements as one tracked change, one undo. The ranges must not overlap;
+ * the last goes first so the earlier positions still hold.
+ */
+export function buildTrackedEdits(
+  state: EditorState,
+  edits: readonly AiTextEdit[],
+  author: string,
+  now: Date,
+): Transaction | null {
+  if (edits.length === 0) return null
+  const tr = state.tr
+  for (const edit of [...edits].sort((a, b) => b.range.from - a.range.from)) {
+    const marks = plainMarks(state, edit.range.from, AiFormat.Plain)
+    const blocks = paragraphsOf(state, edit.text, marks)
+    replaceInParagraphs(tr, state, edit.range, edit.text === '' ? [] : blocks)
+  }
+  return tracked(tr, state, author, now)
 }
 
 export function buildInsertBelow(

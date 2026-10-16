@@ -25,3 +25,5 @@ export function errorForStatus(status: number): AppError {
 
 export const refusedError = (): AppError => aiError(ErrorCode.AiRefused, 'errors.ai.refused')
 export const unreachableError = (): AppError => aiError(ErrorCode.AiUnreachable, 'errors.ai.unreachable')
+export const toolCallsTooLargeError = (): AppError =>
+  aiError(ErrorCode.AiFailed, 'errors.ai.toolCallsTooLarge')

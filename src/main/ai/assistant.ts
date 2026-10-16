@@ -1,13 +1,20 @@
 import { acpAgentOf } from '@services/ai/acp-agents.js'
 import { joinArgs } from '@services/ai/acp-session.js'
-import { buildChatPrompt, type AiChatPrompt } from '@services/ai/chat.js'
+import { buildChatPrompt, buildToolChatPrompt, type AiChatPrompt } from '@services/ai/chat.js'
 import { contextWindow } from '@services/ai/context.js'
 import { AI_MAX_OUTPUT_TOKENS, buildMessages } from '@services/ai/prompts.js'
-import { AiProviderKind, AiRole, type AiModel, type AiProvider } from '@services/ai/provider.js'
+import type { AiProposal } from '@services/ai/proposals.js'
+import {
+  AiProviderKind,
+  AiRole,
+  offersDocumentTools,
+  type AiModel,
+  type AiPrompt,
+  type AiProvider,
+} from '@services/ai/provider.js'
 import { ErrorCode } from '@shared/errors.js'
 import type { IpcRequest, IpcResponse } from '@shared/ipc.js'
 import type { IpcChannel } from '@shared/ipc-channels.js'
-import { MAX_AI_RESPONSE_LENGTH } from '@shared/limits.js'
 import { createAcpProvider } from './acp.js'
 import { createAnthropicProvider } from './anthropic.js'
 import { createDeltaBatcher } from './batcher.js'
@@ -16,6 +23,7 @@ import { CLAUDE_COMMAND, findExecutable } from './discovery.js'
 import { aiError } from './errors.js'
 import { createOpenAiCompatibleProvider } from './openai-compatible.js'
 import type { AiModelCache } from './model-cache.js'
+import { relay, type RelayMeta } from './relay.js'
 import {
   contextLengthOf,
   hasCurrentConsent,
@@ -23,17 +31,35 @@ import {
   type AiSettings,
   type StoredAiProvider,
 } from './settings.js'
+import { relayWithTools } from './tool-loop.js'
 
 export type AiGenerateRequest = IpcRequest<typeof IpcChannel.AiGenerate>
 export type AiGenerateResponse = IpcResponse<typeof IpcChannel.AiGenerate>
 export type AiConversationRequest = IpcRequest<typeof IpcChannel.AiChat>
+export type AiConversationResponse = IpcResponse<typeof IpcChannel.AiChat>
 
 interface PromptTarget {
   readonly providerId: string
   readonly model: string
 }
 
-type PromptBuilder = (stored: StoredAiProvider) => AiChatPrompt
+interface Answered extends RelayMeta {
+  readonly proposals?: readonly AiProposal[]
+}
+
+type Runner = (
+  provider: AiProvider,
+  prompt: AiPrompt,
+  signal: AbortSignal,
+  add: (text: string) => void,
+) => Promise<Answered>
+
+interface Plan {
+  readonly prompt: AiChatPrompt
+  readonly run: Runner
+}
+
+type Planner = (stored: StoredAiProvider) => Plan
 
 const STREAM_BATCH_MS = 50
 
@@ -44,11 +70,6 @@ export interface GenerateContext {
   readonly confirmConsent: (provider: StoredAiProvider) => Promise<boolean>
   readonly providerFor?: (provider: StoredAiProvider) => Promise<AiProvider>
   readonly models?: AiModelCache
-}
-
-interface Relayed {
-  readonly costUsd?: number
-  readonly model?: string
 }
 
 export async function providerFor(settings: AiSettings, stored: StoredAiProvider): Promise<AiProvider> {
@@ -142,20 +163,45 @@ function messagesFor(request: AiGenerateRequest, stored: StoredAiProvider): AiCh
   return { system, messages: [{ role: AiRole.User, text: user }] }
 }
 
+const relayOnce: Runner = (provider, prompt, signal, add) => relay(provider, prompt, signal, add)
+
 export function generate(request: AiGenerateRequest, context: GenerateContext): Promise<AiGenerateResponse> {
-  return answer(request, context, (stored) => messagesFor(request, stored))
+  return answer(request, context, (stored) => ({ prompt: messagesFor(request, stored), run: relayOnce }))
 }
 
-/** The conversation sends the document as it is now, with each message. */
-export function chat(request: AiConversationRequest, context: GenerateContext): Promise<AiGenerateResponse> {
-  return answer(request, context, (stored) => buildChatPrompt(request, contextLengthOf(stored)))
+/**
+ * The conversation sends the document as it is now, with each message. With the proposals on and
+ * a provider that takes tools, the model reads it by paragraph and proposes; the person applies.
+ */
+export function chat(
+  request: AiConversationRequest,
+  context: GenerateContext,
+): Promise<AiConversationResponse> {
+  return answer(request, context, (stored) => {
+    const contextLength = contextLengthOf(stored)
+    const wantsTools = request.proposals && context.settings.preferences().chatProposals
+    if (!wantsTools || !offersDocumentTools(stored.kind)) {
+      return { prompt: buildChatPrompt(request, contextLength), run: relayOnce }
+    }
+    return {
+      prompt: buildToolChatPrompt(request, contextLength),
+      run: (provider, prompt, signal, add) =>
+        relayWithTools(
+          provider,
+          prompt,
+          { paragraphs: request.paragraphs, readBudget: contextLength },
+          signal,
+          add,
+        ),
+    }
+  })
 }
 
 async function answer(
   request: PromptTarget,
   context: GenerateContext,
-  build: PromptBuilder,
-): Promise<AiGenerateResponse> {
+  plan: Planner,
+): Promise<AiConversationResponse> {
   const { settings, signal } = context
   const stored = settings.find(request.providerId)
   if (!(await ensureConsent(settings, stored, context.confirmConsent))) return { status: 'declined' }
@@ -164,22 +210,24 @@ async function answer(
   try {
     const provider = await (context.providerFor ?? ((p) => providerFor(settings, p)))(stored)
     const chosen = await resolveModel(request, stored, provider, context)
-    const relayed = await relay(
+    const { prompt, run } = plan(stored)
+    const answered = await run(
       provider,
       {
         model: chosen.id,
-        ...build(stored),
+        ...prompt,
         maxTokens: AI_MAX_OUTPUT_TOKENS,
         ...(chosen.fallback ? { fallback: true } : {}),
       },
       signal,
       batcher.add,
     )
-    const model = relayed.model ?? chosen.id
+    const model = answered.model ?? chosen.id
     return {
       status: 'done',
       ...(model === '' ? {} : { model }),
-      ...(relayed.costUsd === undefined ? {} : { costUsd: relayed.costUsd }),
+      ...(answered.costUsd === undefined ? {} : { costUsd: answered.costUsd }),
+      ...(answered.proposals === undefined ? {} : { proposals: [...answered.proposals] }),
     }
   } catch (cause) {
     if (signal.aborted) return { status: 'canceled' }
@@ -187,26 +235,4 @@ async function answer(
   } finally {
     batcher.flush()
   }
-}
-
-async function relay(
-  provider: AiProvider,
-  prompt: Parameters<AiProvider['stream']>[0],
-  signal: AbortSignal,
-  add: (text: string) => void,
-): Promise<Relayed> {
-  let length = 0
-  let relayed: Relayed = {}
-  for await (const part of provider.stream(prompt, signal)) {
-    if (!('text' in part)) {
-      relayed = { ...relayed, ...part }
-      continue
-    }
-    const text = part.text.slice(0, MAX_AI_RESPONSE_LENGTH - length)
-    length += text.length
-    if (text !== '') add(text)
-    if (length >= MAX_AI_RESPONSE_LENGTH) break
-  }
-  signal.throwIfAborted()
-  return relayed
 }

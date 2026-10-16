@@ -67,6 +67,30 @@ export const AI = {
     pt: 'A mensagem chegou ao limite de {max} caracteres.',
     en: 'The message reached the limit of {max} characters.',
   },
+  'ai.chat.proposals': {
+    pt: 'Deixar o assistente propor alterações e comentários',
+    en: 'Let the assistant propose edits and comments',
+  },
+  'ai.chat.proposalsUnavailable': {
+    pt: 'Este assistente não oferece isso no Librevia.',
+    en: 'This assistant does not offer this in Librevia.',
+  },
+  'ai.proposals.title': { pt: 'Propostas do assistente', en: "The assistant's proposals" },
+  'ai.proposals.edit': { pt: 'Alteração no parágrafo {paragraph}', en: 'Edit in paragraph {paragraph}' },
+  'ai.proposals.comment': {
+    pt: 'Comentário no parágrafo {paragraph}',
+    en: 'Comment in paragraph {paragraph}',
+  },
+  'ai.proposals.removal': { pt: '(remover)', en: '(remove)' },
+  'ai.proposals.apply': { pt: 'Aplicar', en: 'Apply' },
+  'ai.proposals.discard': { pt: 'Descartar', en: 'Discard' },
+  'ai.proposals.applyAll': { pt: 'Aplicar todas', en: 'Apply all' },
+  'ai.proposals.applied': { pt: 'Aplicada.', en: 'Applied.' },
+  'ai.proposals.discarded': { pt: 'Descartada.', en: 'Discarded.' },
+  'ai.proposals.changed': {
+    pt: 'O texto mudou: a proposta não foi aplicada.',
+    en: 'The text changed: the proposal was not applied.',
+  },
   'ai.chat.hint': {
     pt: 'Inserir abaixo entra como alteração controlada, depois da seleção ou do cursor. A conversa fica só na memória e some ao fechar o documento.',
     en: 'Insert below comes in as a tracked change, after the selection or the cursor. The chat stays in memory only and is gone when you close the document.',

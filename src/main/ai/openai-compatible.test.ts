@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { ErrorCode } from '@shared/errors.js'
-import { MAX_AI_MODELS, MAX_AI_STREAM_LINE_LENGTH } from '@shared/limits.js'
+import { MAX_AI_MODELS, MAX_AI_STREAM_LINE_LENGTH, MAX_AI_TOOL_CALLS } from '@shared/limits.js'
+import { t } from '../i18n.js'
 import { createOpenAiCompatibleProvider } from './openai-compatible.js'
 
 const PROMPT = {
@@ -182,5 +183,126 @@ describe('provedor compatível com OpenAI', () => {
       fetch: (async () => Response.json({ data })) as unknown as typeof fetch,
     })
     expect(await provider.listModels(new AbortController().signal)).toHaveLength(MAX_AI_MODELS)
+  })
+
+  const TOOLS = [{ name: 'search_document', description: 'Busca.', parameters: { type: 'object' } }]
+
+  it('com ferramentas, manda tools e o histórico de chamadas e resultados no formato da OpenAI', async () => {
+    const fetchStub = vi.fn(async () => sseResponse(['data: [DONE]\n\n']))
+    const provider = createOpenAiCompatibleProvider({
+      baseUrl: 'http://x/v1',
+      fetch: fetchStub as unknown as typeof fetch,
+    })
+    const exchanges = [
+      {
+        text: '',
+        calls: [{ id: 'a', name: 'search_document', arguments: '{"query":"gato"}' }],
+        results: [{ callId: 'a', content: '[1] O gato.', isError: false }],
+      },
+    ]
+    await collect(provider.stream({ ...PROMPT, tools: TOOLS, exchanges }, new AbortController().signal))
+    const [, init] = fetchStub.mock.calls[0] as unknown as [string, RequestInit]
+    const body = JSON.parse(init.body as string)
+    expect(body.tools).toEqual([
+      {
+        type: 'function',
+        function: { name: 'search_document', description: 'Busca.', parameters: { type: 'object' } },
+      },
+    ])
+    expect(body.messages.slice(2)).toEqual([
+      {
+        role: 'assistant',
+        content: null,
+        tool_calls: [
+          { id: 'a', type: 'function', function: { name: 'search_document', arguments: '{"query":"gato"}' } },
+        ],
+      },
+      { role: 'tool', tool_call_id: 'a', content: '[1] O gato.' },
+    ])
+  })
+
+  it('sem ferramentas, o pedido não leva tools', async () => {
+    const fetchStub = vi.fn(async () => sseResponse(['data: [DONE]\n\n']))
+    const provider = createOpenAiCompatibleProvider({
+      baseUrl: 'http://x/v1',
+      fetch: fetchStub as unknown as typeof fetch,
+    })
+    await collect(provider.stream(PROMPT, new AbortController().signal))
+    const [, init] = fetchStub.mock.calls[0] as unknown as [string, RequestInit]
+    expect(JSON.parse(init.body as string)).not.toHaveProperty('tools')
+  })
+
+  it('junta os deltas de tool_calls e entrega as chamadas no fim do stream', async () => {
+    const piece = (calls: unknown[]): string =>
+      `data: ${JSON.stringify({ choices: [{ delta: { tool_calls: calls } }] })}\n\n`
+    const provider = createOpenAiCompatibleProvider({
+      baseUrl: 'http://x/v1',
+      fetch: (async () =>
+        sseResponse([
+          delta('Vou ver. '),
+          piece([{ index: 0, id: 'a', function: { name: 'search_document', arguments: '{"que' } }]),
+          piece([{ index: 0, function: { arguments: 'ry":"gato"}' } }]),
+          'data: [DONE]\n\n',
+        ])) as unknown as typeof fetch,
+    })
+    expect(await collect(provider.stream({ ...PROMPT, tools: TOOLS }, new AbortController().signal))).toEqual(
+      [
+        { text: 'Vou ver. ' },
+        { toolCall: { id: 'a', name: 'search_document', arguments: '{"query":"gato"}' } },
+      ],
+    )
+  })
+
+  it('modelo sem ferramentas recusado pelo servidor vira aviso para desligar a caixa', async () => {
+    const refusal = JSON.stringify({
+      error: { message: 'registry.ollama.ai/library/gemma does not support tools' },
+    })
+    const provider = createOpenAiCompatibleProvider({
+      baseUrl: 'http://x/v1',
+      fetch: (async () => new Response(refusal, { status: 400 })) as unknown as typeof fetch,
+    })
+    await expect(
+      collect(provider.stream({ ...PROMPT, tools: TOOLS }, new AbortController().signal)),
+    ).rejects.toMatchObject({ code: ErrorCode.AiFailed, message: t('errors.ai.toolsUnsupported') })
+  })
+
+  it('400 que cita ferramentas depois da primeira rodada continua erro comum', async () => {
+    const provider = createOpenAiCompatibleProvider({
+      baseUrl: 'http://x/v1',
+      fetch: (async () => new Response('bad tool_call_id', { status: 400 })) as unknown as typeof fetch,
+    })
+    const exchanges = [{ text: '', calls: [], results: [] }]
+    await expect(
+      collect(provider.stream({ ...PROMPT, tools: TOOLS, exchanges }, new AbortController().signal)),
+    ).rejects.toMatchObject({ message: t('errors.ai.failed') })
+  })
+
+  it('lê só o começo de um corpo de erro enorme', async () => {
+    const huge = 'x'.repeat(1_000_000) + ' tools'
+    const provider = createOpenAiCompatibleProvider({
+      baseUrl: 'http://x/v1',
+      fetch: (async () => new Response(huge, { status: 400 })) as unknown as typeof fetch,
+    })
+    await expect(
+      collect(provider.stream({ ...PROMPT, tools: TOOLS }, new AbortController().signal)),
+    ).rejects.toMatchObject({ message: t('errors.ai.failed') })
+  })
+
+  it('aborta a resposta que pede ferramentas demais', async () => {
+    const calls = Array.from({ length: MAX_AI_TOOL_CALLS + 1 }, (_, index) => ({
+      index,
+      id: `c${index}`,
+      function: { name: 'search_document', arguments: '{}' },
+    }))
+    const provider = createOpenAiCompatibleProvider({
+      baseUrl: 'http://x/v1',
+      fetch: (async () =>
+        sseResponse([
+          `data: ${JSON.stringify({ choices: [{ delta: { tool_calls: calls } }] })}\n\n`,
+        ])) as unknown as typeof fetch,
+    })
+    await expect(
+      collect(provider.stream({ ...PROMPT, tools: TOOLS }, new AbortController().signal)),
+    ).rejects.toMatchObject({ message: t('errors.ai.toolCallsTooLarge') })
   })
 })

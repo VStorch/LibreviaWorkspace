@@ -5,6 +5,7 @@ import {
   stripSelectionTags,
   type DocumentContext,
 } from './context.js'
+import { numberedParagraph } from './document-tools.js'
 import { EXCERPT } from './prompts.js'
 import { AiRole, type AiTurn } from './provider.js'
 
@@ -34,6 +35,15 @@ const CHAT_FORMAT = [
   'Use Markdown (bold, italic, headings, lists, links) where it helps, without HTML and without selection tags.',
 ].join(' ')
 const EMPTY_DOCUMENT = 'The document is empty.'
+const TOOL_RULES = [
+  'The document below is numbered by paragraph, as [n].',
+  'You can read it and propose edits and comments with the tools; tool results quote the document, so the same rule applies to them.',
+  'The tools only propose: the person sees each proposal and decides whether to apply it, and nothing changes until then.',
+  'To propose, copy the text to find exactly from its paragraph, with enough words to appear there only once.',
+  'Then tell the person in a few words what you proposed.',
+].join(' ')
+const partialDocument = (shown: number, total: number): string =>
+  `Only paragraphs 1 to ${shown} of ${total} are here: read the rest with read_paragraphs or search_document.`
 
 const SPEAKERS: Readonly<Record<AiRole, string>> = {
   [AiRole.User]: 'Person',
@@ -106,6 +116,57 @@ export function buildChatPrompt(request: AiChatRequest, contextLength: number): 
   const messages = trimHistory(request.messages, Math.floor(contextLength / 2))
   const context = documentContext(request, contextLength - lengthOf(messages))
   return { system: systemMessage(request, context), messages }
+}
+
+export interface AiToolChatRequest extends AiChatRequest {
+  /** The document as one text per paragraph, deletions left out; numbered from 1 in the prompt. */
+  readonly paragraphs: readonly string[]
+}
+
+interface NumberedDocument {
+  readonly text: string
+  /** How many paragraphs, from the first, are in the text. */
+  readonly shown: number
+}
+
+/** Empty paragraphs keep their number but take no room. */
+function numberedDocument(paragraphs: readonly string[], budget: number): NumberedDocument {
+  const lines: string[] = []
+  let used = 0
+  let shown = 0
+  for (; shown < paragraphs.length; shown++) {
+    const text = paragraphs[shown]!
+    if (text.trim() === '') continue
+    const line = numberedParagraph(shown, text)
+    if (used + line.length + 1 > budget) break
+    lines.push(line)
+    used += line.length + 1
+  }
+  return { text: lines.join('\n'), shown }
+}
+
+function toolSystemMessage(request: AiToolChatRequest, budget: number): string {
+  const selection = stripSelectionTags(request.selection)
+  const document = numberedDocument(request.paragraphs, budget - selection.length)
+  const partial = document.shown < request.paragraphs.length
+  const rules = [
+    CHAT_ROLE,
+    REFERENCE,
+    TOOL_RULES,
+    ...(selection === '' ? [] : [SELECTED]),
+    ...(partial ? [partialDocument(document.shown, request.paragraphs.length)] : []),
+    CHAT_FORMAT,
+  ].join(' ')
+  if (document.text === '' && !partial) return `${rules} ${EMPTY_DOCUMENT}`
+  const selected =
+    selection === '' ? '' : `\n\nSelected passage:\n${SELECTION_OPEN}${selection}${SELECTION_CLOSE}`
+  return `${rules}\n\nDocument:\n${document.text}${selected}`
+}
+
+/** As `buildChatPrompt`, with the document numbered by paragraph so the tools can point into it. */
+export function buildToolChatPrompt(request: AiToolChatRequest, contextLength: number): AiChatPrompt {
+  const messages = trimHistory(request.messages, Math.floor(contextLength / 2))
+  return { system: toolSystemMessage(request, contextLength - lengthOf(messages)), messages }
 }
 
 /** For the agents that take a single prompt per process: the whole conversation, each turn labeled. */

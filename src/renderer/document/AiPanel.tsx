@@ -131,7 +131,18 @@ export function AiPanel({
             />
           </AiTabPanel>
           <AiTabPanel tab="chat" active={tab}>
-            {provider !== undefined && <AiChatTab chat={chat} provider={provider} readOnly={readOnly} />}
+            {provider !== undefined && (
+              <AiChatTab
+                chat={chat}
+                provider={provider}
+                readOnly={readOnly}
+                proposals={list?.preferences.chatProposals ?? false}
+                onProposals={(chatProposals) => {
+                  if (list !== null)
+                    void update(window.api.ai.savePreferences({ ...list.preferences, chatProposals }))
+                }}
+              />
+            )}
           </AiTabPanel>
         </div>
       )}

@@ -2172,3 +2172,38 @@ button {
   gap: 6px;
   margin-bottom: 8px;
 }
+
+.ai-proposals {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ai-proposal {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.ai-proposal__text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ai-proposal__find,
+.ai-proposal__replace,
+.ai-proposal__comment {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+
+.ai-proposal__replace {
+  text-decoration: none;
+  color: var(--accent);
+}

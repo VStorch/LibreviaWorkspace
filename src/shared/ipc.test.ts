@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import { INVOCABLE_IPC_CHANNELS, IpcChannel, PUSH_IPC_CHANNELS } from './ipc-channels.js'
 import { MAX_TEXT_LENGTH, ipcContracts, pushContracts } from './ipc.js'
-import { MAX_AI_CHAT_MESSAGE_LENGTH, MAX_AI_CHAT_MESSAGES, MAX_AI_RESPONSE_LENGTH } from './limits.js'
+import {
+  MAX_AI_CHAT_MESSAGE_LENGTH,
+  MAX_AI_CHAT_MESSAGES,
+  MAX_AI_DOCUMENT_LENGTH,
+  MAX_AI_PROPOSALS,
+  MAX_AI_RESPONSE_LENGTH,
+} from './limits.js'
 
 describe('contratos de IPC', () => {
   it('define um contrato para cada canal invocável', () => {
@@ -228,6 +234,8 @@ describe('contratos do assistente de IA', () => {
 
     it('aceita uma conversa que termina com a pessoa', () => {
       expect(chat.safeParse(conversation).success).toBe(true)
+      expect(chat.parse(conversation).proposals).toBe(false)
+      expect(chat.safeParse({ ...conversation, proposals: 'sim' }).success).toBe(false)
       expect(chat.safeParse({ ...conversation, before: 'Doc', selection: 'trecho' }).success).toBe(true)
     })
 
@@ -252,6 +260,51 @@ describe('contratos do assistente de IA', () => {
         { role: 'user', text: 'e?' },
       ]
       expect(chat.safeParse({ ...conversation, messages: longReply }).success).toBe(false)
+    })
+
+    it('aceita os parágrafos numerados só dentro do tamanho do documento', () => {
+      expect(chat.parse(conversation).paragraphs).toEqual([])
+      expect(chat.safeParse({ ...conversation, paragraphs: ['Um.', 'Dois.'] }).success).toBe(true)
+      const half = 'x'.repeat(MAX_AI_DOCUMENT_LENGTH / 2 + 1)
+      expect(chat.safeParse({ ...conversation, paragraphs: [half, half] }).success).toBe(false)
+    })
+  })
+
+  describe('propostas na resposta da conversa', () => {
+    const response = ipcContracts[IpcChannel.AiChat].response
+    const anchor = { paragraphText: 'O gato e a chuva.' }
+    const edit = {
+      ...anchor,
+      id: '1',
+      kind: 'edit',
+      paragraph: 3,
+      find: 'gato',
+      replace: 'cão',
+      reason: 'tom',
+    }
+    const comment = { ...anchor, id: '2', kind: 'comment', paragraph: 1, find: 'chuva', comment: 'Fonte?' }
+
+    it('aceita alteração e comentário', () => {
+      expect(response.safeParse({ status: 'done', proposals: [edit, comment] }).success).toBe(true)
+      expect(response.safeParse({ status: 'done' }).success).toBe(true)
+    })
+
+    it('recusa proposta sem o texto que lhe cabe, parágrafo zero, trecho longo ou propostas demais', () => {
+      const noReplace = { ...anchor, id: '1', kind: 'edit', paragraph: 3, find: 'gato' }
+      const noParagraphText = { ...edit, paragraphText: undefined }
+      expect(response.safeParse({ status: 'done', proposals: [noParagraphText] }).success).toBe(false)
+      expect(response.safeParse({ status: 'done', proposals: [noReplace] }).success).toBe(false)
+      expect(response.safeParse({ status: 'done', proposals: [{ ...comment, comment: '' }] }).success).toBe(
+        false,
+      )
+      expect(response.safeParse({ status: 'done', proposals: [{ ...edit, paragraph: 0 }] }).success).toBe(
+        false,
+      )
+      expect(
+        response.safeParse({ status: 'done', proposals: [{ ...edit, find: 'x'.repeat(2001) }] }).success,
+      ).toBe(false)
+      const many = Array.from({ length: MAX_AI_PROPOSALS + 1 }, (_, i) => ({ ...edit, id: String(i) }))
+      expect(response.safeParse({ status: 'done', proposals: many }).success).toBe(false)
     })
   })
 
@@ -278,7 +331,7 @@ describe('contratos do assistente de IA', () => {
         },
       ],
       defaultProviderId: 'p1',
-      preferences: { keepFormatting: true, anthropicFallback: false },
+      preferences: { keepFormatting: true, anthropicFallback: false, chatProposals: false },
     })
     expect(parsed.providers[0]).not.toHaveProperty('apiKey')
   })

@@ -308,7 +308,7 @@ export function selectChange(tr: Transaction, change: RevisionChange): Transacti
   return tr.setSelection(selection).scrollIntoView()
 }
 
-function isDeleted(node: ProseMirrorNode): boolean {
+export function isDeleted(node: ProseMirrorNode): boolean {
   return node.marks.some((mark) => mark.type.name === DELETION)
 }
 

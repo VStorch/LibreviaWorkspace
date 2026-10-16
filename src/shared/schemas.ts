@@ -5,10 +5,16 @@ import { PRIVACY_CATEGORIES } from '@services/file/privacy.js'
 import { CUSTOM_PROPERTY_TYPES } from '@services/file/properties.js'
 import { Language, LANGUAGES } from './i18n/language.js'
 import { ACP_AGENT_IDS } from '@services/ai/acp-agents.js'
+import { AiProposalKind } from '@services/ai/proposals.js'
 import { AiProviderKind, AiRole } from '@services/ai/provider.js'
 import { AiAction, AiFormat, Theme } from './types.js'
 import {
   MAX_AI_AGENT_ARGS_LENGTH,
+  MAX_AI_COMMENT_LENGTH,
+  MAX_AI_FIND_LENGTH,
+  MAX_AI_PARAGRAPHS,
+  MAX_AI_REASON_LENGTH,
+  MAX_AI_REPLACE_LENGTH,
   MAX_AI_CHAT_MESSAGE_LENGTH,
   MAX_AI_CHAT_MESSAGES,
   MAX_AI_INSTRUCTION_LENGTH,
@@ -492,6 +498,8 @@ export const aiPreferencesSchema = z.object({
   /** For the actions that revise the passage: rewrite, proofread, translate. */
   keepFormatting: z.boolean(),
   anthropicFallback: z.boolean(),
+  /** In the chat, the document tools: the model proposes edits and comments that the person applies. */
+  chatProposals: z.boolean(),
 })
 
 export const aiActionSchema = z.enum(AiAction)
@@ -531,7 +539,39 @@ export const aiChatRequestSchema = z.object({
   before: aiDocumentPartSchema.default(''),
   after: aiDocumentPartSchema.default(''),
   selection: z.string().max(MAX_AI_SELECTION_LENGTH).default(''),
+  /** The person asked for proposals in this message; main still checks the preference and the provider. */
+  proposals: z.boolean().default(false),
+  /** One text per paragraph, deletions left out; sent only when the tools are on. */
+  paragraphs: z
+    .array(aiDocumentPartSchema)
+    .max(MAX_AI_PARAGRAPHS)
+    .refine(
+      (paragraphs) => paragraphs.reduce((sum, text) => sum + text.length, 0) <= MAX_AI_DOCUMENT_LENGTH,
+      'document too long',
+    )
+    .default([]),
 })
+
+const aiProposalAnchor = {
+  id: z.string().min(1).max(MAX_ID_LENGTH),
+  paragraph: z.int().min(1).max(MAX_AI_PARAGRAPHS),
+  paragraphText: aiDocumentPartSchema,
+  find: z.string().min(1).max(MAX_AI_FIND_LENGTH),
+}
+
+export const aiProposalSchema = z.discriminatedUnion('kind', [
+  z.object({
+    ...aiProposalAnchor,
+    kind: z.literal(AiProposalKind.Edit),
+    replace: z.string().max(MAX_AI_REPLACE_LENGTH),
+    reason: z.string().max(MAX_AI_REASON_LENGTH).optional(),
+  }),
+  z.object({
+    ...aiProposalAnchor,
+    kind: z.literal(AiProposalKind.Comment),
+    comment: z.string().min(1).max(MAX_AI_COMMENT_LENGTH),
+  }),
+])
 
 export const aiStreamEventSchema = z.object({
   requestId: z.uuid(),

@@ -313,6 +313,14 @@ export const ERRORS = {
     pt: 'O assistente de IA respondeu com um erro.',
     en: 'The AI assistant answered with an error.',
   },
+  'errors.ai.toolsUnsupported': {
+    pt: 'Este modelo não aceita ferramentas. Desligue “Deixar o assistente propor alterações e comentários” na conversa ou escolha outro modelo.',
+    en: 'This model does not accept tools. Turn off “Let the assistant propose edits and comments” in the chat or choose another model.',
+  },
+  'errors.ai.toolCallsTooLarge': {
+    pt: 'O modelo pediu ferramentas demais, ou com argumentos longos demais, numa só resposta. Tente um pedido menor.',
+    en: 'The model asked for too many tools, or with arguments too long, in one answer. Try a smaller request.',
+  },
   'errors.ai.lineTooLong': {
     pt: 'O assistente de IA mandou uma resposta fora do formato esperado: uma linha longa demais.',
     en: 'The AI assistant sent a reply in an unexpected format: a line that is too long.',

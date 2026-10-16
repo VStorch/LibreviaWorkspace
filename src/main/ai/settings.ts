@@ -36,7 +36,11 @@ const storedProviderSchema = z.object({
   args: z.array(z.string()).optional(),
 })
 
-export const DEFAULT_AI_PREFERENCES: AiPreferences = { keepFormatting: true, anthropicFallback: false }
+export const DEFAULT_AI_PREFERENCES: AiPreferences = {
+  keepFormatting: true,
+  anthropicFallback: false,
+  chatProposals: false,
+}
 
 const settingsSchema = z.object({
   providers: z.array(storedProviderSchema).max(MAX_AI_PROVIDERS),
@@ -45,6 +49,7 @@ const settingsSchema = z.object({
     .object({
       keepFormatting: z.boolean().default(DEFAULT_AI_PREFERENCES.keepFormatting),
       anthropicFallback: z.boolean().default(DEFAULT_AI_PREFERENCES.anthropicFallback),
+      chatProposals: z.boolean().default(DEFAULT_AI_PREFERENCES.chatProposals),
     })
     .default(DEFAULT_AI_PREFERENCES),
 })

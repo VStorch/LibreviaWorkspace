@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Editor } from '@tiptap/react'
+import type { AiProposal } from '@services/ai/proposals.js'
 import { AiRole, type AiTurn } from '@services/ai/provider.js'
 import { MAX_AI_CHAT_MESSAGES } from '@shared/limits.js'
 import { AiFormat } from '@shared/types.js'
 import { useWorkspace } from '../state/workspace.js'
 import { buildInsertBelow, chatDocument } from './ai-apply.js'
+import { chatParagraphs } from './ai-proposals.js'
+import { applyProposals } from './proposal-commands.js'
 import { useAiStream, type AiPhase } from './useAiRequest.js'
 
 export interface AiChatMessage {
@@ -15,11 +18,20 @@ export interface AiChatMessage {
   readonly phase: AiPhase
   readonly model?: string | undefined
   readonly costUsd?: number | undefined
+  readonly proposals?: readonly ChatProposal[] | undefined
+  /** Why a failed reply has no answer, as main worded it. */
+  readonly error?: string | undefined
 }
+
+export type ProposalState = 'open' | 'applied' | 'discarded' | 'changed'
+
+export type ChatProposal = AiProposal & { readonly state: ProposalState }
 
 export interface AiChatTarget {
   readonly providerId: string
   readonly model: string
+  /** The model may propose edits and comments: the document goes numbered by paragraph. */
+  readonly proposals: boolean
 }
 
 /** In memory only, for the open document: nothing of it is saved anywhere. */
@@ -30,6 +42,9 @@ export interface AiChat {
   readonly cancel: () => void
   readonly clear: () => void
   readonly insertBelow: (message: AiChatMessage, author: string) => void
+  /** Only the open ones among `ids`; the rest keep their state. */
+  readonly apply: (messageId: string, ids: readonly string[], author: string) => void
+  readonly discard: (messageId: string, id: string) => void
 }
 
 type SetMessages = (update: (messages: readonly AiChatMessage[]) => readonly AiChatMessage[]) => void
@@ -47,6 +62,48 @@ function updated(
   change: (message: AiChatMessage) => Partial<AiChatMessage>,
 ): readonly AiChatMessage[] {
   return messages.map((message) => (message.id === id ? { ...message, ...change(message) } : message))
+}
+
+function withStates(
+  message: AiChatMessage,
+  states: ReadonlyMap<string, ProposalState>,
+): Partial<AiChatMessage> {
+  return {
+    proposals: message.proposals?.map((proposal) => ({
+      ...proposal,
+      state: states.get(proposal.id) ?? proposal.state,
+    })),
+  }
+}
+
+function useProposals(
+  editor: Editor | null,
+  messages: readonly AiChatMessage[],
+  setMessages: SetMessages,
+): Pick<AiChat, 'apply' | 'discard'> {
+  const apply = useCallback(
+    (messageId: string, ids: readonly string[], author: string) => {
+      const open = messages
+        .find((message) => message.id === messageId)
+        ?.proposals?.filter((proposal) => proposal.state === 'open' && ids.includes(proposal.id))
+      if (editor === null || open === undefined || open.length === 0) return
+      const outcome = applyProposals(editor, open, author)
+      const states = new Map<string, ProposalState>([
+        ...outcome.applied.map((id) => [id, 'applied'] as const),
+        ...outcome.changed.map((id) => [id, 'changed'] as const),
+      ])
+      setMessages((current) => updated(current, messageId, (message) => withStates(message, states)))
+    },
+    [editor, messages, setMessages],
+  )
+  const discard = useCallback(
+    (messageId: string, id: string) => {
+      const states = new Map<string, ProposalState>([[id, 'discarded']])
+      setMessages((current) => updated(current, messageId, (message) => withStates(message, states)))
+    },
+    [setMessages],
+  )
+  return { apply, discard }
 }
 
 function useReplyStream(activeRef: { readonly current: string | null }, setMessages: SetMessages): void {
@@ -96,15 +153,27 @@ export function useAiChat(editor: Editor | null): AiChat {
       const history = historyOf([...messages, asked])
       const result = await window.api.ai.chat({
         requestId,
-        ...target,
+        providerId: target.providerId,
+        model: target.model,
         messages: history,
         ...chatDocument(editor.state),
+        proposals: target.proposals,
+        paragraphs: target.proposals ? chatParagraphs(editor.state.doc) : [],
       })
       if (activeRef.current !== requestId) return
       activeRef.current = null
       if (!result.ok) showError(result.error)
-      const { status: phase, model, costUsd } = result.ok ? result.data : { status: 'failed' as const }
-      setMessages((current) => updated(current, requestId, () => ({ phase, model, costUsd })))
+      const {
+        status: phase,
+        model,
+        costUsd,
+        proposals,
+      } = result.ok ? result.data : { status: 'failed' as const }
+      const opened = proposals?.map((proposal): ChatProposal => ({ ...proposal, state: 'open' }))
+      const error = result.ok ? undefined : result.error.message
+      setMessages((current) =>
+        updated(current, requestId, () => ({ phase, model, costUsd, proposals: opened, error })),
+      )
     },
     [editor, messages, showError],
   )
@@ -133,6 +202,7 @@ export function useAiChat(editor: Editor | null): AiChat {
     [editor],
   )
 
+  const { apply, discard } = useProposals(editor, messages, setMessages)
   const running = messages.some((message) => message.phase === 'running')
-  return { messages, running, send, cancel, clear, insertBelow }
+  return { messages, running, send, cancel, clear, insertBelow, apply, discard }
 }

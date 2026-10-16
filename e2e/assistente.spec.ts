@@ -1,6 +1,6 @@
 import { existsSync } from 'node:fs'
 import { chmod, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
-import { createServer, type Server } from 'node:http'
+import { createServer, type Server, type ServerResponse } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -24,9 +24,13 @@ interface FakeServer {
   readonly pedidos: string[]
   readonly corpos: string[]
   resposta: string[]
+  /** With `tools` in the request and no tool result yet, the reply is these calls, in pieces. */
+  chamadas: { name: string; arguments: unknown }[] | null
   fechadasCedo: number
   lento: boolean
   derrubar: boolean
+  /** Answers a request with `tools` as Ollama does for a model without them. */
+  semFerramentas: boolean
 }
 
 async function startFakeServer(): Promise<FakeServer> {
@@ -34,9 +38,11 @@ async function startFakeServer(): Promise<FakeServer> {
     pedidos: [] as string[],
     corpos: [] as string[],
     resposta: RESPOSTA,
+    chamadas: null,
     fechadasCedo: 0,
     lento: false,
     derrubar: false,
+    semFerramentas: false,
   } as FakeServer
   const server = createServer((req, res) => {
     fake.pedidos.push(`${req.method} ${req.url}`)
@@ -44,14 +50,43 @@ async function startFakeServer(): Promise<FakeServer> {
     req.on('data', (pedaco: Buffer) => (corpo += pedaco.toString()))
     req.on('end', () => {
       if (corpo !== '') fake.corpos.push(corpo)
+      if (req.url === '/v1/models') {
+        res.writeHead(200, { 'content-type': 'application/json' })
+        res.end(JSON.stringify({ data: [{ id: MODELO }] }))
+        return
+      }
+      responder(res, corpo)
     })
-    if (req.url === '/v1/models') {
-      res.writeHead(200, { 'content-type': 'application/json' })
-      res.end(JSON.stringify({ data: [{ id: MODELO }] }))
+  })
+  function pedacosDe(corpo: string): string[] {
+    const pedido = JSON.parse(corpo) as { tools?: unknown[]; messages: { role: string }[] }
+    const primeiraRodada = pedido.tools !== undefined && !pedido.messages.some((m) => m.role === 'tool')
+    if (primeiraRodada && fake.chamadas !== null) {
+      return fake.chamadas.flatMap((chamada, index) => {
+        const args = JSON.stringify(chamada.arguments)
+        const metade = Math.floor(args.length / 2)
+        return [
+          {
+            index,
+            id: `chamada-${index}`,
+            type: 'function',
+            function: { name: chamada.name, arguments: args.slice(0, metade) },
+          },
+          { index, function: { arguments: args.slice(metade) } },
+        ].map((delta) => JSON.stringify({ choices: [{ delta: { tool_calls: [delta] } }] }))
+      })
+    }
+    const textos = fake.lento ? Array.from({ length: PEDACOS_LENTOS }, (_, i) => `${i} `) : fake.resposta
+    return textos.map((texto) => JSON.stringify({ choices: [{ delta: { content: texto } }] }))
+  }
+  function responder(res: ServerResponse, corpo: string): void {
+    if (fake.semFerramentas && (JSON.parse(corpo) as { tools?: unknown }).tools !== undefined) {
+      res.writeHead(400, { 'content-type': 'application/json' })
+      res.end(JSON.stringify({ error: { message: `${MODELO} does not support tools` } }))
       return
     }
     res.writeHead(200, { 'content-type': 'text/event-stream' })
-    const pedacos = fake.lento ? Array.from({ length: PEDACOS_LENTOS }, (_, i) => `${i} `) : fake.resposta
+    const pedacos = pedacosDe(corpo)
     let i = 0
     const timer = setInterval(() => {
       if (fake.derrubar && i === 1) {
@@ -59,7 +94,7 @@ async function startFakeServer(): Promise<FakeServer> {
         return
       }
       if (i < pedacos.length) {
-        res.write(`data: ${JSON.stringify({ choices: [{ delta: { content: pedacos[i++] } }] })}\n\n`)
+        res.write(`data: ${pedacos[i++]}\n\n`)
         return
       }
       clearInterval(timer)
@@ -69,7 +104,7 @@ async function startFakeServer(): Promise<FakeServer> {
       clearInterval(timer)
       if (!res.writableEnded) fake.fechadasCedo++
     })
-  })
+  }
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
   const { port } = server.address() as AddressInfo
   return Object.assign(fake, { server, baseUrl: `http://127.0.0.1:${port}/v1` })
@@ -480,6 +515,91 @@ test.describe('assistente de IA', () => {
     } finally {
       await rm(pasta, { recursive: true, force: true })
     }
+  })
+
+  const PROPOR = 'Deixar o assistente propor alterações e comentários'
+
+  test('com a caixa ligada, as propostas aparecem e Aplicar todas cria a revisão e o comentário do modelo', async () => {
+    const editor = await escrever('O gato dorme.')
+    await configurar()
+    fake.chamadas = [
+      { name: 'propose_edit', arguments: { paragraph: 1, find: 'dorme', replace: 'cochila', reason: 'Tom' } },
+      { name: 'add_comment', arguments: { paragraph: 1, find: 'gato', comment: 'Qual gato?' } },
+    ]
+    const { campo, conversa } = await abrirConversa()
+    const caixa = painel().getByLabel(PROPOR)
+    await expect(caixa).not.toBeChecked()
+    await caixa.click()
+    await expect(caixa).toBeChecked()
+    await perguntar(campo, 'Revise o texto.')
+
+    await expect(conversa.getByLabel('Resposta')).toHaveText(RESPOSTA.join(''))
+    const propostas = conversa.getByRole('group', { name: 'Propostas do assistente' })
+    await expect(propostas.getByText('Alteração no parágrafo 1')).toBeVisible()
+    await expect(propostas.getByText('Comentário no parágrafo 1')).toBeVisible()
+    await expect(editor.locator('ins.revision')).toHaveCount(0)
+
+    const [primeiro, segundo] = fake.corpos.slice(-2).map((corpo) => JSON.parse(corpo))
+    expect(primeiro.tools.map((tool: { function: { name: string } }) => tool.function.name)).toContain(
+      'propose_edit',
+    )
+    expect(primeiro.messages[0].content).toContain('[1] O gato dorme.')
+    expect(segundo.messages.filter((m: { role: string }) => m.role === 'tool')).toHaveLength(2)
+
+    await propostas.getByRole('button', { name: 'Aplicar todas' }).click()
+    await expect(editor.locator(`ins.revision[data-author="${MODELO}"]`)).toHaveText('cochila')
+    await expect(editor.locator(`del.revision[data-author="${MODELO}"]`)).toHaveText('dorme')
+    const cartao = session.window.locator('.comment-card', { hasText: 'Qual gato?' })
+    await expect(cartao).toContainText(MODELO)
+    await expect(propostas.getByText('Aplicada.')).toHaveCount(2)
+  })
+
+  test('Aplicar e Descartar dizem de qual proposta são e deixam o foco no painel', async () => {
+    await escrever('O gato dorme.')
+    await configurar()
+    fake.chamadas = [
+      { name: 'propose_edit', arguments: { paragraph: 1, find: 'dorme', replace: 'cochila' } },
+      { name: 'add_comment', arguments: { paragraph: 1, find: 'gato', comment: 'Qual gato?' } },
+    ]
+    const { campo, conversa } = await abrirConversa()
+    await painel().getByLabel(PROPOR).click()
+    await perguntar(campo, 'Revise o texto.')
+    const propostas = conversa.getByRole('group', { name: 'Propostas do assistente' })
+    const aplicar = propostas.getByRole('button', { name: 'Aplicar', exact: true })
+    await expect(aplicar).toHaveCount(2)
+    await expect(aplicar.first()).toHaveAccessibleDescription(/Alteração no parágrafo 1.*dorme.*cochila/u)
+    await expect(propostas.getByRole('button', { name: 'Descartar' }).last()).toHaveAccessibleDescription(
+      /Comentário no parágrafo 1.*Qual gato\?/u,
+    )
+
+    await aplicar.first().click()
+    await expect(propostas.getByText('Aplicada.')).toHaveCount(1)
+    await expect(aplicar).toHaveCount(1)
+    await expect(aplicar).toBeFocused()
+    await propostas.getByRole('button', { name: 'Descartar' }).click()
+    await expect(propostas.getByText('Descartada.')).toBeVisible()
+    await expect(campo).toBeFocused()
+  })
+
+  test('modelo que recusa ferramentas: a resposta mostra o motivo', async () => {
+    await escrever('O gato dorme.')
+    await configurar()
+    fake.semFerramentas = true
+    const { campo, conversa } = await abrirConversa()
+    await painel().getByLabel(PROPOR).click()
+    await perguntar(campo, 'Revise o texto.')
+    await expect(conversa.getByText('Sem resposta.')).toBeVisible()
+    await expect(conversa.getByText('Este modelo não aceita ferramentas.', { exact: false })).toBeVisible()
+  })
+
+  test('com a caixa desligada, o pedido da conversa não leva ferramentas', async () => {
+    await escrever('O gato dorme.')
+    await configurar()
+    const { campo, conversa } = await abrirConversa()
+    await expect(painel().getByLabel(PROPOR)).not.toBeChecked()
+    await perguntar(campo, 'Qual é o tema?')
+    await expect(conversa.getByLabel('Resposta')).toHaveText(RESPOSTA.join(''))
+    expect(JSON.parse(fake.corpos.at(-1) ?? '{}')).not.toHaveProperty('tools')
   })
 
   test('parar no meio da conversa fecha a conexão e deixa enviar de novo', async () => {

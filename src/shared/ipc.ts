@@ -8,6 +8,7 @@ import {
 } from './ipc-channels.js'
 import {
   aiChatRequestSchema,
+  aiProposalSchema,
   aiGenerateRequestSchema,
   aiAgentArgsSchema,
   aiModelIdSchema,
@@ -32,6 +33,7 @@ import { DictionaryScope, EditCommand, MenuCommand, RevisionView } from './types
 import type { SerializedError } from './errors.js'
 import {
   MAX_AI_MODELS,
+  MAX_AI_PROPOSALS,
   MAX_AI_PROVIDERS,
   MAX_FILE_NAME_LENGTH,
   MAX_ID_LENGTH,
@@ -108,6 +110,10 @@ const aiGenerateResponseSchema = z.object({
   status: z.enum(['done', 'canceled', 'declined']),
   model: z.string().max(MAX_ID_LENGTH).optional(),
   costUsd: z.number().nonnegative().optional(),
+})
+
+const aiChatResponseSchema = aiGenerateResponseSchema.extend({
+  proposals: z.array(aiProposalSchema).max(MAX_AI_PROPOSALS).optional(),
 })
 
 const aiProviderRefSchema = z.object({ providerId: z.string().min(1).max(MAX_ID_LENGTH) })
@@ -415,7 +421,7 @@ export const ipcContracts = {
   },
   [IpcChannel.AiChat]: {
     request: aiChatRequestSchema,
-    response: aiGenerateResponseSchema,
+    response: aiChatResponseSchema,
   },
   [IpcChannel.AiCancel]: {
     request: z.object({ requestId: z.uuid() }),

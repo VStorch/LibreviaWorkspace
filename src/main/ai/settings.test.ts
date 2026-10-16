@@ -104,7 +104,24 @@ describe('configuração dos assistentes', () => {
     )
     expect(subject.list()).toMatchObject({
       providers: [{ id: 'a', label: 'Antigo' }],
-      preferences: { keepFormatting: true, anthropicFallback: false },
+      preferences: { keepFormatting: true, anthropicFallback: false, chatProposals: false },
+    })
+  })
+
+  it('preferências salvas antes das propostas na conversa ganham a caixa desligada', () => {
+    const data: unknown = {
+      providers: [],
+      defaultProviderId: null,
+      preferences: { keepFormatting: false, anthropicFallback: true },
+    }
+    const subject = new AiSettings(
+      { read: () => data, write: () => undefined },
+      { seal: (plain) => plain, open: (sealed) => sealed },
+    )
+    expect(subject.preferences()).toEqual({
+      keepFormatting: false,
+      anthropicFallback: true,
+      chatProposals: false,
     })
   })
 
@@ -144,7 +161,7 @@ describe('configuração dos assistentes', () => {
     const { subject, stored } = settings()
     subject.save({ ...draft, apiKey: 'k' })
     subject.markConsented('id1')
-    subject.savePreferences({ keepFormatting: false, anthropicFallback: true })
+    subject.savePreferences({ keepFormatting: false, anthropicFallback: true, chatProposals: true })
     expect(subject.chooseModel('id1', 'modelo-x').providers[0]).toMatchObject({
       defaultModel: 'modelo-x',
       hasKey: true,
@@ -152,7 +169,11 @@ describe('configuração dos assistentes', () => {
     })
     expect(subject.chooseModel('id1', '').providers[0]?.defaultModel).toBeUndefined()
     subject.save({ ...draft, id: 'id1', label: 'Renomeado' })
-    expect(stored().preferences).toEqual({ keepFormatting: false, anthropicFallback: true })
+    expect(stored().preferences).toEqual({
+      keepFormatting: false,
+      anthropicFallback: true,
+      chatProposals: true,
+    })
     expect(stored().providers[0]).toMatchObject({
       label: 'Renomeado',
       sealedKey: 'selado:k',

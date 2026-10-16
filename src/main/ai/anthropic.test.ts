@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import Anthropic from '@anthropic-ai/sdk'
 import { ErrorCode } from '@shared/errors.js'
+import { MAX_AI_TOOL_ARGUMENTS_LENGTH, MAX_AI_TOOL_CALLS } from '@shared/limits.js'
+import { t } from '../i18n.js'
 import { createAnthropicProvider } from './anthropic.js'
 
 const PROMPT = {
@@ -149,5 +151,106 @@ describe('provedor Anthropic', () => {
       { id: 'modelo-b', label: 'Modelo B', fallback: false },
     ])
     expect(calls[0]).toEqual({ betas: ['server-side-fallback-2026-06-01'] })
+  })
+
+  it('monta a chamada de ferramenta a partir de tool_use e input_json_delta', async () => {
+    const provider = createAnthropicProvider(
+      'k',
+      clientWith([
+        text('Vou ver.'),
+        {
+          type: 'content_block_start',
+          index: 1,
+          content_block: { type: 'tool_use', id: 't1', name: 'search_document', input: {} },
+        },
+        {
+          type: 'content_block_delta',
+          index: 1,
+          delta: { type: 'input_json_delta', partial_json: '{"query":' },
+        },
+        {
+          type: 'content_block_delta',
+          index: 1,
+          delta: { type: 'input_json_delta', partial_json: '"gato"}' },
+        },
+        { type: 'content_block_stop', index: 1 },
+      ]),
+    )
+    expect(await collect(provider.stream(PROMPT, new AbortController().signal))).toEqual([
+      { text: 'Vou ver.' },
+      { toolCall: { id: 't1', name: 'search_document', arguments: '{"query":"gato"}' } },
+    ])
+  })
+
+  it('aborta a resposta que pede ferramentas demais', async () => {
+    const events = Array.from({ length: MAX_AI_TOOL_CALLS + 1 }, (_, index) => [
+      {
+        type: 'content_block_start',
+        index,
+        content_block: { type: 'tool_use', id: `t${index}`, name: 'search_document', input: {} },
+      },
+      { type: 'content_block_stop', index },
+    ]).flat()
+    const provider = createAnthropicProvider('k', clientWith(events))
+    await expect(collect(provider.stream(PROMPT, new AbortController().signal))).rejects.toMatchObject({
+      message: t('errors.ai.toolCallsTooLarge'),
+    })
+  })
+
+  it('aborta argumentos de ferramenta longos demais', async () => {
+    const provider = createAnthropicProvider(
+      'k',
+      clientWith([
+        {
+          type: 'content_block_start',
+          index: 0,
+          content_block: { type: 'tool_use', id: 't1', name: 'search_document', input: {} },
+        },
+        {
+          type: 'content_block_delta',
+          index: 0,
+          delta: { type: 'input_json_delta', partial_json: 'x'.repeat(MAX_AI_TOOL_ARGUMENTS_LENGTH + 1) },
+        },
+      ]),
+    )
+    await expect(collect(provider.stream(PROMPT, new AbortController().signal))).rejects.toMatchObject({
+      message: t('errors.ai.toolCallsTooLarge'),
+    })
+  })
+
+  it('manda as ferramentas e o histórico como tool_use e tool_result', async () => {
+    const calls: unknown[] = []
+    const provider = createAnthropicProvider('k', clientWith([], calls))
+    const prompt = {
+      ...PROMPT,
+      tools: [
+        { name: 'search_document', description: 'Busca.', parameters: { type: 'object', properties: {} } },
+      ],
+      exchanges: [
+        {
+          text: 'Vou ver.',
+          calls: [{ id: 't1', name: 'search_document', arguments: '{"query":"gato"}' }],
+          results: [{ callId: 't1', content: 'nada', isError: true }],
+        },
+      ],
+    }
+    await collect(provider.stream(prompt, new AbortController().signal))
+    const body = calls[0] as { tools: unknown; messages: unknown[] }
+    expect(body.tools).toEqual([
+      { name: 'search_document', description: 'Busca.', input_schema: { type: 'object', properties: {} } },
+    ])
+    expect(body.messages.slice(1)).toEqual([
+      {
+        role: 'assistant',
+        content: [
+          { type: 'text', text: 'Vou ver.' },
+          { type: 'tool_use', id: 't1', name: 'search_document', input: { query: 'gato' } },
+        ],
+      },
+      {
+        role: 'user',
+        content: [{ type: 'tool_result', tool_use_id: 't1', content: 'nada', is_error: true }],
+      },
+    ])
   })
 })

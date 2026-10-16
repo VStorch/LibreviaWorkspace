@@ -45,3 +45,17 @@ export const MAX_AI_PROVIDERS = 20
 export const MAX_AI_MODELS = 1_000
 export const MAX_AI_STREAM_LINE_LENGTH = 1_000_000
 export const MAX_AI_AGENT_ARGS_LENGTH = 1_000
+/** The chat's document tools: what the model may read and propose in one reply. */
+export const MAX_AI_PARAGRAPHS = 50_000
+export const MAX_AI_TOOL_ROUNDS = 8
+export const MAX_AI_TOOL_CALLS = 10
+/** The JSON of one call's arguments: a find and a replace at their limits fit with room. */
+export const MAX_AI_TOOL_ARGUMENTS_LENGTH = 20_000
+export const MAX_AI_PROPOSALS = 30
+export const MAX_AI_FIND_LENGTH = 2_000
+export const MAX_AI_REPLACE_LENGTH = 10_000
+export const MAX_AI_COMMENT_LENGTH = 2_000
+export const MAX_AI_REASON_LENGTH = 500
+export const MAX_AI_SEARCH_QUERY_LENGTH = 200
+export const MAX_AI_SEARCH_RESULTS = 20
+export const MAX_AI_READ_PARAGRAPHS = 50

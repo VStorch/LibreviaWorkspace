@@ -1,3 +1,4 @@
+import type { Transaction } from '@tiptap/pm/state'
 import type { Editor } from '@tiptap/react'
 import type { DocumentComment } from '@services/document/model.js'
 import { initialsOf, nextCommentId, paragraphsOfText, resolveComments } from '@services/document/comments.js'
@@ -31,8 +32,11 @@ export function commentEditsAllowed(): boolean {
   return false
 }
 
-function newComment(library: readonly DocumentComment[], parentId?: string): DocumentComment {
-  const author = signingName()
+function newComment(
+  library: readonly DocumentComment[],
+  parentId?: string,
+  author = signingName(),
+): DocumentComment {
   const initials = initialsOf(author)
   return {
     id: nextCommentId(library),
@@ -74,6 +78,44 @@ export function insertComment(editor: Editor): void {
   showCommentsPane()
   cleanBeforeDraft = wasClean
   store.setCommentDraft(comment.id)
+}
+
+export interface CommentAt {
+  readonly range: { readonly from: number; readonly to: number }
+  readonly text: string
+}
+
+function addCommentsTo(
+  tr: Transaction,
+  entries: readonly CommentAt[],
+  author: string,
+  library: DocumentComment[],
+): void {
+  for (const entry of entries) {
+    const comment = { ...newComment(library, undefined, author), paragraphs: paragraphsOfText(entry.text) }
+    const range = { from: tr.mapping.map(entry.range.from), to: tr.mapping.map(entry.range.to) }
+    if (insertCommentAnchors(tr, tr.doc.type.schema, comment.id, range)) library.push(comment)
+  }
+}
+
+/**
+ * Finished comments by someone else (the assistant's model), with ranges in the document before
+ * `tr`: what `tr` already changes and the comments go as one transaction, one undo.
+ */
+export function insertCommentsAt(
+  editor: Editor,
+  entries: readonly CommentAt[],
+  author: string,
+  tr: Transaction = editor.state.tr,
+): boolean {
+  const store = useWorkspace.getState()
+  const library = [...store.comments]
+  if (entries.length > 0 && commentEditsAllowed()) addCommentsTo(tr, entries, author, library)
+  const inserted = library.length > store.comments.length
+  if (inserted) store.setComments(library)
+  if (tr.docChanged) editor.view.dispatch(tr)
+  if (inserted) showCommentsPane()
+  return inserted
 }
 
 /** Giving up the new card brings the document back to saved. */
