@@ -3,7 +3,12 @@ import { ErrorCode } from '@shared/errors.js'
 import { MAX_AI_MODELS, MAX_AI_STREAM_LINE_LENGTH } from '@shared/limits.js'
 import { createOpenAiCompatibleProvider } from './openai-compatible.js'
 
-const PROMPT = { model: 'llama3', system: 'sys', user: 'Olá', maxTokens: 100 }
+const PROMPT = {
+  model: 'llama3',
+  system: 'sys',
+  messages: [{ role: 'user' as const, text: 'Olá' }],
+  maxTokens: 100,
+}
 
 function sseResponse(lines: string[]): Response {
   const encoder = new TextEncoder()
@@ -25,7 +30,31 @@ async function collect(iterable: AsyncIterable<unknown>): Promise<unknown[]> {
   return parts
 }
 
+const CONVERSATION = {
+  ...PROMPT,
+  messages: [
+    { role: 'user' as const, text: 'Qual o tema?' },
+    { role: 'assistant' as const, text: 'Chuva.' },
+    { role: 'user' as const, text: 'E o tom?' },
+  ],
+}
 describe('provedor compatível com OpenAI', () => {
+  it('manda a conversa inteira, depois do system, com o papel de cada fala', async () => {
+    const fetchStub = vi.fn(async () => sseResponse(['data: [DONE]\n\n']))
+    const provider = createOpenAiCompatibleProvider({
+      baseUrl: 'http://localhost:11434/v1',
+      fetch: fetchStub as unknown as typeof fetch,
+    })
+    await collect(provider.stream(CONVERSATION, new AbortController().signal))
+    const [, init] = fetchStub.mock.calls[0] as unknown as [string, RequestInit]
+    expect(JSON.parse(init.body as string).messages).toEqual([
+      { role: 'system', content: 'sys' },
+      { role: 'user', content: 'Qual o tema?' },
+      { role: 'assistant', content: 'Chuva.' },
+      { role: 'user', content: 'E o tom?' },
+    ])
+  })
+
   it('lê o texto em pedaços, mesmo com a linha partida entre dois pacotes', async () => {
     const half = delta(' mundo')
     const fetchStub = vi.fn(async () =>

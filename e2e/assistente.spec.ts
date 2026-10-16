@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, test, type Locator } from '@playwright/test'
 import { launch, menu, stubDialogs, type Session } from './app.js'
+import { docxWithCellRevision } from './fixtures.js'
 
 const MODELO = 'modelo-falso'
 const RESPOSTA = ['Texto ', 'reescrito ', 'pelo ', 'modelo.']
@@ -399,6 +400,102 @@ test.describe('assistente de IA', () => {
     await expect(session.window.getByText('Não foi possível falar com o assistente de IA.')).toBeVisible()
     await expect(session.window.getByText('Ocorreu um erro inesperado.')).toHaveCount(0)
     await expect(painel().getByRole('button', { name: 'Aplicar' })).toBeDisabled()
+  })
+
+  async function abrirConversa(): Promise<{ campo: Locator; conversa: Locator }> {
+    await menu(session, 'ai-assistant')
+    await painel().getByRole('tab', { name: 'Conversa' }).click()
+    return { campo: painel().getByLabel('Mensagem'), conversa: painel().getByRole('log') }
+  }
+
+  async function perguntar(campo: Locator, pergunta: string): Promise<void> {
+    await campo.fill(pergunta)
+    await campo.press('Enter')
+  }
+
+  function conversaEnviada(): { role: string; content: string }[] {
+    const corpo = JSON.parse(fake.corpos.at(-1) ?? '{}') as { messages?: { role: string; content: string }[] }
+    return corpo.messages ?? []
+  }
+
+  test('na conversa, o segundo pedido leva a primeira pergunta e a primeira resposta, e Nova conversa limpa', async () => {
+    await escrever('O gato dorme.')
+    await configurar()
+    const { campo, conversa } = await abrirConversa()
+
+    await perguntar(campo, 'Qual é o tema?')
+    await expect(campo).toBeFocused()
+    await expect(campo).toHaveValue('')
+    await expect(conversa.getByLabel('Resposta')).toHaveText(RESPOSTA.join(''))
+
+    await perguntar(campo, 'E o tom?')
+    await expect(conversa.getByLabel('Resposta')).toHaveCount(2)
+    await expect(conversa.getByLabel('Resposta').nth(1)).toHaveText(RESPOSTA.join(''))
+    const [system, ...historico] = conversaEnviada()
+    expect(system?.role).toBe('system')
+    expect(system?.content).toContain('O gato dorme.')
+    expect(historico).toEqual([
+      { role: 'user', content: 'Qual é o tema?' },
+      { role: 'assistant', content: RESPOSTA.join('') },
+      { role: 'user', content: 'E o tom?' },
+    ])
+
+    await painel().getByRole('tab', { name: 'Ações' }).click()
+    await expect(painel().getByRole('button', { name: 'Gerar' })).toBeVisible()
+    await painel().getByRole('tab', { name: 'Conversa' }).click()
+    await expect(conversa.getByText('E o tom?')).toBeVisible()
+
+    await painel().getByRole('button', { name: 'Nova conversa' }).click()
+    await expect(conversa.getByLabel('Resposta')).toHaveCount(0)
+    await expect(conversa.getByText('Qual é o tema?')).toHaveCount(0)
+    await expect(campo).toBeFocused()
+  })
+
+  test('Inserir abaixo da conversa entra como revisão com o modelo como autor', async () => {
+    const editor = await escrever('O gato dorme.')
+    await configurar()
+    const { campo, conversa } = await abrirConversa()
+    await perguntar(campo, 'Escreva uma frase.')
+    await expect(conversa.getByLabel('Resposta')).toHaveText(RESPOSTA.join(''))
+
+    await conversa.getByRole('button', { name: 'Inserir abaixo' }).click()
+    await expect(editor.locator(`ins.revision[data-author="${MODELO}"]`)).toHaveText(RESPOSTA.join(''))
+    await expect(editor.getByText('O gato dorme.')).toBeVisible()
+  })
+
+  test('documento só para leitura: o painel abre, a conversa funciona e Inserir abaixo fica desativado', async () => {
+    const pasta = await mkdtemp(join(tmpdir(), 'librevia-ia-leitura-'))
+    try {
+      const origem = join(pasta, 'travado.docx')
+      await writeFile(origem, await docxWithCellRevision())
+      await stubDialogs(session.app, { open: origem, messageBox: 1 })
+      await menu(session, 'open')
+      await expect(session.window.locator('.banner--readonly')).toBeVisible()
+      await configurar()
+
+      const { campo, conversa } = await abrirConversa()
+      await perguntar(campo, 'Do que trata?')
+      await expect(conversa.getByLabel('Resposta')).toHaveText(RESPOSTA.join(''))
+      await expect(conversa.getByRole('button', { name: 'Inserir abaixo' })).toBeDisabled()
+    } finally {
+      await rm(pasta, { recursive: true, force: true })
+    }
+  })
+
+  test('parar no meio da conversa fecha a conexão e deixa enviar de novo', async () => {
+    await escrever('O gato dorme.')
+    await configurar()
+    fake.lento = true
+    const { campo, conversa } = await abrirConversa()
+    await perguntar(campo, 'Conte devagar.')
+    await expect(conversa.getByLabel('Resposta')).toHaveText(/^0 /)
+
+    await painel().getByRole('button', { name: 'Parar' }).click()
+    await expect(conversa.getByText('Interrompido.')).toBeVisible()
+    await expect.poll(() => fake.fechadasCedo).toBe(1)
+    await expect(conversa.getByRole('button', { name: 'Inserir abaixo' })).toHaveCount(0)
+    await campo.fill('De novo')
+    await expect(painel().getByRole('button', { name: 'Enviar' })).toBeEnabled()
   })
 })
 

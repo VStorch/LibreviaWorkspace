@@ -78,6 +78,8 @@ const READS_ONLY: ReadonlySet<EditorCommand> = new Set<EditorCommand>([
   EditorCommand.EditEquation,
   // Setting up assistants is a preference, not the document.
   EditorCommand.AiProviders,
+  // The chat only reads; applying and inserting grey out inside the panel.
+  EditorCommand.AiAssistant,
 ])
 
 export function runsWhileLocked(command: EditorCommand): boolean {

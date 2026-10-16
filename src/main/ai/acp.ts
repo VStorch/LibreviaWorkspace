@@ -15,6 +15,7 @@ import {
   refusePermission,
   textOfUpdate,
 } from '@services/ai/acp-session.js'
+import { transcriptPrompt } from '@services/ai/chat.js'
 import type { AiModel, AiPrompt, AiProvider, AiStreamPart } from '@services/ai/provider.js'
 import { AppError, ErrorCode } from '@shared/errors.js'
 import { MAX_AI_STREAM_LINE_LENGTH } from '@shared/limits.js'
@@ -215,7 +216,7 @@ async function* answer(agent: AgentProcess, prompt: AiPrompt): AsyncGenerator<Ai
   const session = await agent.open()
   const model = await agent.chooseModel(session, prompt.model)
   if (model !== '') yield { model }
-  session.prompt(`${prompt.system}\n\n${prompt.user}`).catch(() => undefined)
+  session.prompt(`${prompt.system}\n\n${transcriptPrompt(prompt.messages)}`).catch(() => undefined)
   for (;;) {
     const message = await agent.within(session.nextUpdate())
     if (message.kind === 'stop') {

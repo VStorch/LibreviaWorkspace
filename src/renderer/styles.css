@@ -2046,6 +2046,73 @@ button {
   text-decoration: underline;
 }
 
+.ai-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+}
+
+.ai-tabs__tab {
+  padding: 6px 12px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: none;
+  font: inherit;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.ai-tabs__tab--active {
+  border-bottom-color: var(--accent);
+  color: inherit;
+}
+
+.ai-pane__tab {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ai-pane__tab[hidden] {
+  display: none;
+}
+
+.ai-chat {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ai-chat__message {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ai-chat__message--person {
+  align-self: flex-end;
+  max-width: 90%;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--sunken);
+}
+
+.ai-chat__speaker {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.ai-chat__text {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+
+.ai-chat .ai-preview {
+  min-height: 0;
+}
+
 .ai-pane__actions {
   display: flex;
   flex-wrap: wrap;

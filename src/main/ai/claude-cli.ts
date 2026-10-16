@@ -1,5 +1,6 @@
 import type { ChildProcessWithoutNullStreams } from 'node:child_process'
 import type { Readable } from 'node:stream'
+import { transcriptPrompt } from '@services/ai/chat.js'
 import { parseClaudeCliLine, type ClaudeCliEvent } from '@services/ai/claude-stream.js'
 import type { AiPrompt, AiProvider, AiStreamPart } from '@services/ai/provider.js'
 import { ErrorCode } from '@shared/errors.js'
@@ -87,7 +88,7 @@ function startCli(options: ClaudeCliOptions, prompt: AiPrompt, cwd: string): Run
   const child = (options.spawn ?? spawnWithoutShell)(options.command, claudeCliArgs(prompt), { cwd })
   const running = { child, exited: exitOf(child, cliMissing), stderr: collect(child.stderr) }
   child.stdin.on('error', () => undefined)
-  child.stdin.end(prompt.user)
+  child.stdin.end(transcriptPrompt(prompt.messages))
   return running
 }
 

@@ -5,10 +5,12 @@ import { PRIVACY_CATEGORIES } from '@services/file/privacy.js'
 import { CUSTOM_PROPERTY_TYPES } from '@services/file/properties.js'
 import { Language, LANGUAGES } from './i18n/language.js'
 import { ACP_AGENT_IDS } from '@services/ai/acp-agents.js'
-import { AiProviderKind } from '@services/ai/provider.js'
+import { AiProviderKind, AiRole } from '@services/ai/provider.js'
 import { AiAction, AiFormat, Theme } from './types.js'
 import {
   MAX_AI_AGENT_ARGS_LENGTH,
+  MAX_AI_CHAT_MESSAGE_LENGTH,
+  MAX_AI_CHAT_MESSAGES,
   MAX_AI_INSTRUCTION_LENGTH,
   MAX_AI_KEY_LENGTH,
   MAX_AI_RESPONSE_LENGTH,
@@ -506,6 +508,29 @@ export const aiGenerateRequestSchema = z.object({
   before: aiDocumentPartSchema.default(''),
   after: aiDocumentPartSchema.default(''),
   format: z.enum(AiFormat).default(AiFormat.Plain),
+})
+
+const aiChatTurnSchema = z.discriminatedUnion('role', [
+  z.object({ role: z.literal(AiRole.User), text: z.string().min(1).max(MAX_AI_CHAT_MESSAGE_LENGTH) }),
+  z.object({ role: z.literal(AiRole.Assistant), text: z.string().min(1).max(MAX_AI_RESPONSE_LENGTH) }),
+])
+
+export const aiChatRequestSchema = z.object({
+  requestId: z.uuid(),
+  providerId: aiProviderIdSchema,
+  model: aiModelIdSchema,
+  messages: z
+    .array(aiChatTurnSchema)
+    .min(1)
+    .max(MAX_AI_CHAT_MESSAGES)
+    .refine(
+      (messages) => messages[messages.length - 1]?.role === AiRole.User,
+      'the conversation must end with the person',
+    ),
+  /** The document text before and after the selection, deletions left out; all of it in `before` without one. */
+  before: aiDocumentPartSchema.default(''),
+  after: aiDocumentPartSchema.default(''),
+  selection: z.string().max(MAX_AI_SELECTION_LENGTH).default(''),
 })
 
 export const aiStreamEventSchema = z.object({

@@ -53,7 +53,7 @@ function openStream(
       model: prompt.model,
       max_tokens: prompt.maxTokens,
       system: prompt.system,
-      messages: [{ role: 'user', content: prompt.user }],
+      messages: prompt.messages.map((turn) => ({ role: turn.role, content: turn.text })),
       ...(prompt.fallback === true ? { betas: [FALLBACK_MESSAGES_BETA], fallbacks: 'default' } : {}),
     },
     { signal },

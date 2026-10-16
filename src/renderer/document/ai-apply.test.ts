@@ -8,6 +8,7 @@ import {
   aiTarget,
   buildInsertBelow,
   buildTrackedReplacement,
+  chatDocument,
   documentAround,
   rangeChanged,
   selectedMarkdown,
@@ -308,5 +309,17 @@ describe('rangeChanged', () => {
     expect(rangeChanged(state.doc, { from: 3, to: 7 }, 'gato')).toBe(false)
     expect(rangeChanged(state.doc, { from: 3, to: 7 }, 'rato')).toBe(true)
     expect(rangeChanged(state.doc, { from: 5, to: 5 }, '')).toBe(true)
+  })
+})
+
+describe('chatDocument', () => {
+  it('sem seleção manda o documento inteiro, sem marcar trecho', () => {
+    const state = stateOf([paragraph(text('Um.')), paragraph(text('Dois.'))], 2, 2)
+    expect(chatDocument(state)).toEqual({ before: 'Um.\nDois.', after: '', selection: '' })
+  })
+
+  it('com seleção manda o texto em volta e o trecho selecionado', () => {
+    const state = stateOf([paragraph(text('Antes meio depois'))], 7, 11)
+    expect(chatDocument(state)).toEqual({ before: 'Antes ', after: ' depois', selection: 'meio' })
   })
 })

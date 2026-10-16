@@ -1,8 +1,9 @@
 import { acpAgentOf } from '@services/ai/acp-agents.js'
 import { joinArgs } from '@services/ai/acp-session.js'
+import { buildChatPrompt, type AiChatPrompt } from '@services/ai/chat.js'
 import { contextWindow } from '@services/ai/context.js'
 import { AI_MAX_OUTPUT_TOKENS, buildMessages } from '@services/ai/prompts.js'
-import { AiProviderKind, type AiModel, type AiProvider } from '@services/ai/provider.js'
+import { AiProviderKind, AiRole, type AiModel, type AiProvider } from '@services/ai/provider.js'
 import { ErrorCode } from '@shared/errors.js'
 import type { IpcRequest, IpcResponse } from '@shared/ipc.js'
 import type { IpcChannel } from '@shared/ipc-channels.js'
@@ -25,6 +26,14 @@ import {
 
 export type AiGenerateRequest = IpcRequest<typeof IpcChannel.AiGenerate>
 export type AiGenerateResponse = IpcResponse<typeof IpcChannel.AiGenerate>
+export type AiConversationRequest = IpcRequest<typeof IpcChannel.AiChat>
+
+interface PromptTarget {
+  readonly providerId: string
+  readonly model: string
+}
+
+type PromptBuilder = (stored: StoredAiProvider) => AiChatPrompt
 
 const STREAM_BATCH_MS = 50
 
@@ -104,7 +113,7 @@ function listedModels(
 }
 
 async function resolveModel(
-  request: AiGenerateRequest,
+  request: PromptTarget,
   stored: StoredAiProvider,
   provider: AiProvider,
   context: GenerateContext,
@@ -124,14 +133,28 @@ async function resolveModel(
   return { id: model?.id ?? chosen, fallback: wantsFallback && model?.fallback === true }
 }
 
-function messagesFor(request: AiGenerateRequest, stored: StoredAiProvider): ReturnType<typeof buildMessages> {
+function messagesFor(request: AiGenerateRequest, stored: StoredAiProvider): AiChatPrompt {
   const budget = contextLengthOf(stored) - request.text.length
-  return buildMessages({ ...request, context: contextWindow(request.before, request.after, budget) })
+  const { system, user } = buildMessages({
+    ...request,
+    context: contextWindow(request.before, request.after, budget),
+  })
+  return { system, messages: [{ role: AiRole.User, text: user }] }
 }
 
-export async function generate(
-  request: AiGenerateRequest,
+export function generate(request: AiGenerateRequest, context: GenerateContext): Promise<AiGenerateResponse> {
+  return answer(request, context, (stored) => messagesFor(request, stored))
+}
+
+/** The conversation sends the document as it is now, with each message. */
+export function chat(request: AiConversationRequest, context: GenerateContext): Promise<AiGenerateResponse> {
+  return answer(request, context, (stored) => buildChatPrompt(request, contextLengthOf(stored)))
+}
+
+async function answer(
+  request: PromptTarget,
   context: GenerateContext,
+  build: PromptBuilder,
 ): Promise<AiGenerateResponse> {
   const { settings, signal } = context
   const stored = settings.find(request.providerId)
@@ -145,7 +168,7 @@ export async function generate(
       provider,
       {
         model: chosen.id,
-        ...messagesFor(request, stored),
+        ...build(stored),
         maxTokens: AI_MAX_OUTPUT_TOKENS,
         ...(chosen.fallback ? { fallback: true } : {}),
       },

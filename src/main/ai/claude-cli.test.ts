@@ -5,7 +5,12 @@ import { describe, expect, it } from 'vitest'
 import { ErrorCode } from '@shared/errors.js'
 import { claudeCliArgs, createClaudeCliProvider } from './claude-cli.js'
 
-const PROMPT = { model: '', system: 'regras', user: 'Olá', maxTokens: 100 }
+const PROMPT = {
+  model: '',
+  system: 'regras',
+  messages: [{ role: 'user' as const, text: 'Olá' }],
+  maxTokens: 100,
+}
 
 class FakeChild extends EventEmitter {
   readonly stdin = new PassThrough()

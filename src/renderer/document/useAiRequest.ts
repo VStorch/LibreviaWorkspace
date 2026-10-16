@@ -54,17 +54,29 @@ export interface AiRequest {
   readonly insertBelow: (author: string) => void
 }
 
-function useStreamedText(runRef: { readonly current: ActiveRun | null }, setState: SetState): void {
+/** Both callbacks must be stable: a new one would subscribe again. */
+export function useAiStream(
+  activeRequestId: () => string | undefined,
+  onDelta: (delta: string) => void,
+): void {
   useEffect(
     () =>
       window.api.ai.onStream((payload) => {
         const parsed = pushContracts[IpcChannel.AiStream].safeParse(payload)
-        if (!parsed.success || parsed.data.requestId !== runRef.current?.requestId) return
-        const { delta } = parsed.data
-        setState((state) => ({ ...state, text: state.text + delta }))
+        if (!parsed.success || parsed.data.requestId !== activeRequestId()) return
+        onDelta(parsed.data.delta)
       }),
-    [runRef, setState],
+    [activeRequestId, onDelta],
   )
+}
+
+function useStreamedText(runRef: { readonly current: ActiveRun | null }, setState: SetState): void {
+  const activeRequestId = useCallback(() => runRef.current?.requestId, [runRef])
+  const append = useCallback(
+    (delta: string) => setState((state) => ({ ...state, text: state.text + delta })),
+    [setState],
+  )
+  useAiStream(activeRequestId, append)
 }
 
 type SetState = (update: (state: AiRunState) => AiRunState) => void

@@ -14,10 +14,20 @@ export interface AiModel {
   readonly fallback?: boolean
 }
 
+export const AiRole = { User: 'user', Assistant: 'assistant' } as const
+
+export type AiRole = (typeof AiRole)[keyof typeof AiRole]
+
+export interface AiTurn {
+  readonly role: AiRole
+  readonly text: string
+}
+
 export interface AiPrompt {
   readonly model: string
   readonly system: string
-  readonly user: string
+  /** Oldest first, ending with the person's message. */
+  readonly messages: readonly AiTurn[]
   readonly maxTokens: number
   readonly fallback?: boolean
 }

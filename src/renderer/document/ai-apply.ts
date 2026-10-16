@@ -80,6 +80,24 @@ export function documentAround(
   }
 }
 
+export interface AiChatDocument {
+  readonly before: string
+  readonly after: string
+  readonly selection: string
+}
+
+/** The document as it is now; a selection is marked only when it holds text that fits. */
+export function chatDocument(state: EditorState): AiChatDocument {
+  const selection = textualSelection(state)
+  const range = { from: selection.from, to: selection.to }
+  const text = selection.empty ? '' : selectedText(state.doc, range)
+  if (text.trim() === '' || text.length > MAX_AI_SELECTION_LENGTH) {
+    const whole = textWithoutDeletions(state.doc, '\n', '')
+    return { before: whole.slice(0, MAX_AI_DOCUMENT_LENGTH), after: '', selection: '' }
+  }
+  return { ...documentAround(state.doc, range), selection: text }
+}
+
 function cellOf(state: EditorState, pos: number): number {
   const $pos = state.doc.resolve(pos)
   for (let depth = $pos.depth; depth > 0; depth--) {

@@ -35,7 +35,7 @@ const PASSAGE_IN_DOCUMENT = [
   `The user message holds the person's document, with the passage they selected between ${SELECTION_OPEN} and ${SELECTION_CLOSE}.`,
   'Work on that passage only; the rest of the document is there for context.',
 ].join(' ')
-const EXCERPT = 'The document is too long to send whole: you see only the text around the passage.'
+export const EXCERPT = 'The document is too long to send whole: you see only the text around the passage.'
 const ONLY_RESULT = 'Reply with the resulting text only: no preamble, no explanation, no quotation marks'
 
 const FORMAT_RULES: Readonly<Record<AiFormat, string>> = {

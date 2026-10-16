@@ -5,7 +5,12 @@ import { describe, expect, it } from 'vitest'
 import { ErrorCode } from '@shared/errors.js'
 import { createAcpProvider } from './acp.js'
 
-const PROMPT = { model: '', system: 'regras', user: 'Olá', maxTokens: 100 }
+const PROMPT = {
+  model: '',
+  system: 'regras',
+  messages: [{ role: 'user' as const, text: 'Olá' }],
+  maxTokens: 100,
+}
 
 type Message = { id?: number | string; method?: string; params?: Record<string, unknown>; result?: unknown }
 

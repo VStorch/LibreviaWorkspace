@@ -36,6 +36,9 @@ export const MAX_AI_DOCUMENT_LENGTH = 200_000
 export const DEFAULT_LOCAL_AI_CONTEXT_LENGTH = 6_000
 export const MAX_AI_INSTRUCTION_LENGTH = 2_000
 export const MAX_AI_RESPONSE_LENGTH = 100_000
+/** Twenty exchanges; the oldest leave the panel first. */
+export const MAX_AI_CHAT_MESSAGES = 40
+export const MAX_AI_CHAT_MESSAGE_LENGTH = MAX_AI_INSTRUCTION_LENGTH
 export const MAX_AI_KEY_LENGTH = 500
 export const MAX_AI_URL_LENGTH = 2_000
 export const MAX_AI_PROVIDERS = 20

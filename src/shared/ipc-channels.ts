@@ -103,6 +103,8 @@ export const IpcChannel = {
   AiModelsList: 'ai:models-list',
   /** The text arrives through `AiStream`; the end, the error or the cancellation through the reply. */
   AiGenerate: 'ai:generate',
+  /** Like `AiGenerate`, for a conversation: the same stream, the same reply. */
+  AiChat: 'ai:chat',
   AiCancel: 'ai:cancel',
 
   MenuCommand: 'menu:command',
@@ -162,6 +164,7 @@ export const INVOCABLE_IPC_CHANNELS = [
   IpcChannel.AiDiscover,
   IpcChannel.AiModelsList,
   IpcChannel.AiGenerate,
+  IpcChannel.AiChat,
   IpcChannel.AiCancel,
 ] as const
 

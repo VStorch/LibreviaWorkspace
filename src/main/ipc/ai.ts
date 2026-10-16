@@ -2,7 +2,14 @@ import type { IpcMainInvokeEvent } from 'electron'
 import { AiProviderKind, type AiModel } from '@services/ai/provider.js'
 import { IpcChannel } from '@shared/ipc-channels.js'
 import { AiRequests } from '../ai/requests.js'
-import { consentDestination, ensureConsent, generate, providerFor } from '../ai/assistant.js'
+import {
+  chat,
+  consentDestination,
+  ensureConsent,
+  generate,
+  providerFor,
+  type GenerateContext,
+} from '../ai/assistant.js'
 import { discoverProviders } from '../ai/discovery.js'
 import { AiModelCache } from '../ai/model-cache.js'
 import { aiSettings } from '../ai/settings.js'
@@ -65,24 +72,26 @@ export function registerAiHandlers(): void {
 
   handle(IpcChannel.AiModelsList, (payload, event) => listModels(payload.providerId, event, models))
 
-  handle(IpcChannel.AiGenerate, async (payload, event) => {
+  const run = <Request extends { readonly requestId: string }, Response>(
+    payload: Request,
+    event: IpcMainInvokeEvent,
+    answer: (request: Request, context: GenerateContext) => Promise<Response>,
+  ): Promise<Response> => {
     const signal = requests.begin(payload.requestId, event.sender)
-    try {
-      return await generate(payload, {
-        settings: aiSettings(),
-        signal,
-        push: (delta) => {
-          if (!event.sender.isDestroyed())
-            sendPush(event.sender, IpcChannel.AiStream, { requestId: payload.requestId, delta })
-        },
-        models,
-        confirmConsent: (provider) =>
-          confirmAiConsent(windowOf(event), provider.label, consentDestination(provider)),
-      })
-    } finally {
-      requests.end(payload.requestId)
-    }
-  })
+    return answer(payload, {
+      settings: aiSettings(),
+      signal,
+      push: (delta) => {
+        if (!event.sender.isDestroyed())
+          sendPush(event.sender, IpcChannel.AiStream, { requestId: payload.requestId, delta })
+      },
+      models,
+      confirmConsent: (provider) =>
+        confirmAiConsent(windowOf(event), provider.label, consentDestination(provider)),
+    }).finally(() => requests.end(payload.requestId))
+  }
+  handle(IpcChannel.AiGenerate, (payload, event) => run(payload, event, generate))
+  handle(IpcChannel.AiChat, (payload, event) => run(payload, event, chat))
 
   handle(IpcChannel.AiCancel, (payload, event) => ({
     canceled: requests.cancel(payload.requestId, event.sender.id),

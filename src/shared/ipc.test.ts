@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { INVOCABLE_IPC_CHANNELS, IpcChannel, PUSH_IPC_CHANNELS } from './ipc-channels.js'
 import { MAX_TEXT_LENGTH, ipcContracts, pushContracts } from './ipc.js'
+import { MAX_AI_CHAT_MESSAGE_LENGTH, MAX_AI_CHAT_MESSAGES, MAX_AI_RESPONSE_LENGTH } from './limits.js'
 
 describe('contratos de IPC', () => {
   it('define um contrato para cada canal invocável', () => {
@@ -210,6 +211,48 @@ describe('contratos do assistente de IA', () => {
     expect(generate.safeParse({ ...valid, text: 'x'.repeat(20_001) }).success).toBe(false)
     expect(generate.safeParse({ ...valid, requestId: 'abc' }).success).toBe(false)
     expect(generate.safeParse({ ...valid, action: 'delete-everything' }).success).toBe(false)
+  })
+
+  describe('conversa', () => {
+    const chat = ipcContracts[IpcChannel.AiChat].request
+    const conversation = {
+      requestId: valid.requestId,
+      providerId: 'p1',
+      model: '',
+      messages: [
+        { role: 'user', text: 'Qual o tema?' },
+        { role: 'assistant', text: 'Chuva.' },
+        { role: 'user', text: 'E o tom?' },
+      ],
+    }
+
+    it('aceita uma conversa que termina com a pessoa', () => {
+      expect(chat.safeParse(conversation).success).toBe(true)
+      expect(chat.safeParse({ ...conversation, before: 'Doc', selection: 'trecho' }).success).toBe(true)
+    })
+
+    it('recusa papel inválido, conversa vazia ou que termina com o assistente', () => {
+      expect(chat.safeParse({ ...conversation, messages: [{ role: 'system', text: 'x' }] }).success).toBe(
+        false,
+      )
+      expect(chat.safeParse({ ...conversation, messages: [] }).success).toBe(false)
+      expect(chat.safeParse({ ...conversation, messages: conversation.messages.slice(0, 2) }).success).toBe(
+        false,
+      )
+    })
+
+    it('recusa mensagens demais ou texto longo demais', () => {
+      const many = Array.from({ length: MAX_AI_CHAT_MESSAGES + 1 }, () => ({ role: 'user', text: 'oi' }))
+      expect(chat.safeParse({ ...conversation, messages: many }).success).toBe(false)
+      const long = [{ role: 'user', text: 'x'.repeat(MAX_AI_CHAT_MESSAGE_LENGTH + 1) }]
+      expect(chat.safeParse({ ...conversation, messages: long }).success).toBe(false)
+      const longReply = [
+        { role: 'user', text: 'oi' },
+        { role: 'assistant', text: 'x'.repeat(MAX_AI_RESPONSE_LENGTH + 1) },
+        { role: 'user', text: 'e?' },
+      ]
+      expect(chat.safeParse({ ...conversation, messages: longReply }).success).toBe(false)
+    })
   })
 
   it('só aceita endereço http ou https para o provedor', () => {

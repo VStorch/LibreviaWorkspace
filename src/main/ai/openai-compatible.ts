@@ -55,7 +55,7 @@ function chatRequest(prompt: AiPrompt): object {
     max_tokens: prompt.maxTokens,
     messages: [
       { role: 'system', content: prompt.system },
-      { role: 'user', content: prompt.user },
+      ...prompt.messages.map((turn) => ({ role: turn.role, content: turn.text })),
     ],
   }
 }

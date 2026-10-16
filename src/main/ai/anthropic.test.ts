@@ -3,7 +3,12 @@ import Anthropic from '@anthropic-ai/sdk'
 import { ErrorCode } from '@shared/errors.js'
 import { createAnthropicProvider } from './anthropic.js'
 
-const PROMPT = { model: 'modelo-x', system: 'sys', user: 'Olá', maxTokens: 100 }
+const PROMPT = {
+  model: 'modelo-x',
+  system: 'sys',
+  messages: [{ role: 'user' as const, text: 'Olá' }],
+  maxTokens: 100,
+}
 
 type Client = Parameters<typeof createAnthropicProvider>[1]
 
@@ -48,7 +53,29 @@ async function collect(iterable: AsyncIterable<unknown>): Promise<unknown[]> {
   return parts
 }
 
+const CONVERSATION = {
+  ...PROMPT,
+  messages: [
+    { role: 'user' as const, text: 'Qual o tema?' },
+    { role: 'assistant' as const, text: 'Chuva.' },
+    { role: 'user' as const, text: 'E o tom?' },
+  ],
+}
 describe('provedor Anthropic', () => {
+  it('manda a conversa inteira como mensagens, com o system à parte', async () => {
+    const calls: unknown[] = []
+    const provider = createAnthropicProvider('chave', clientWith([], calls))
+    await collect(provider.stream(CONVERSATION, new AbortController().signal))
+    expect(calls[0]).toMatchObject({
+      system: 'sys',
+      messages: [
+        { role: 'user', content: 'Qual o tema?' },
+        { role: 'assistant', content: 'Chuva.' },
+        { role: 'user', content: 'E o tom?' },
+      ],
+    })
+  })
+
   it('lê só os pedaços de texto e passa o sinal de cancelamento', async () => {
     const calls: unknown[] = []
     const signal = new AbortController().signal

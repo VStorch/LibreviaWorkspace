@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import type { AiProvider, AiStreamPart } from '@services/ai/provider.js'
+import type { AiPrompt, AiProvider, AiStreamPart } from '@services/ai/provider.js'
 import { DEFAULT_LOCAL_AI_CONTEXT_LENGTH } from '@shared/limits.js'
-import { consentDestination, generate } from './assistant.js'
+import { chat, consentDestination, generate, type AiConversationRequest } from './assistant.js'
 import { AiModelCache } from './model-cache.js'
 import { AiSettings, type StoredAiProvider } from './settings.js'
 
@@ -99,7 +99,7 @@ describe('generate', () => {
     const provider: AiProvider = {
       listModels: async () => [],
       async *stream(prompt) {
-        user = prompt.user
+        user = prompt.messages[0]?.text ?? ''
         yield { text: 'ok' }
       },
     }
@@ -270,5 +270,82 @@ describe('consentDestination', () => {
   it('para um servidor mostra o endereço', () => {
     const server = { id: 'c', kind: 'openai-compatible', label: 'S', baseUrl: 'https://a.example/v1' }
     expect(consentDestination(server as StoredAiProvider)).toBe('https://a.example/v1')
+  })
+})
+
+const CHAT: AiConversationRequest = {
+  requestId: '1c9a4d2f-6e3b-4d8c-af70-2b3c4d5e6f70',
+  providerId: 'id1',
+  model: 'm',
+  messages: [
+    { role: 'user', text: 'Qual é o tema?' },
+    { role: 'assistant', text: 'É sobre chuva.' },
+    { role: 'user', text: 'E o tom?' },
+  ],
+  before: 'Choveu o dia todo.',
+  after: '',
+  selection: '',
+}
+
+function recordingProvider(parts: AiStreamPart[], seen: { prompt?: AiPrompt }): AiProvider {
+  return {
+    listModels: async () => [],
+    async *stream(prompt) {
+      seen.prompt = prompt
+      yield* parts
+    },
+  }
+}
+
+describe('chat', () => {
+  it('manda o histórico como mensagens e o documento atual no system, e devolve o texto em stream', async () => {
+    const seen: { prompt?: AiPrompt } = {}
+    const pushed: string[] = []
+    const result = await chat(CHAT, {
+      settings: settingsWith('openai-compatible', 'http://127.0.0.1:11434/v1'),
+      signal: new AbortController().signal,
+      push: (delta) => pushed.push(delta),
+      confirmConsent: async () => true,
+      providerFor: async () => recordingProvider([{ text: 'Sereno' }, { text: '.' }], seen),
+    })
+    expect(result).toEqual({ status: 'done', model: 'm' })
+    expect(pushed.join('')).toBe('Sereno.')
+    expect(seen.prompt?.messages).toEqual(CHAT.messages)
+    expect(seen.prompt?.system).toContain('Choveu o dia todo.')
+  })
+
+  it('não manda nada se a pessoa recusar o consentimento', async () => {
+    const seen: { prompt?: AiPrompt } = {}
+    const result = await chat(CHAT, {
+      settings: settingsWith('anthropic'),
+      signal: new AbortController().signal,
+      push: () => undefined,
+      confirmConsent: async () => false,
+      providerFor: async () => recordingProvider([{ text: 'x' }], seen),
+    })
+    expect(result).toEqual({ status: 'declined' })
+    expect(seen.prompt).toBeUndefined()
+  })
+
+  it('cancelada no meio devolve o estado, não um erro', async () => {
+    const controller = new AbortController()
+    const provider: AiProvider = {
+      listModels: async () => [],
+      async *stream(_prompt, signal) {
+        yield { text: 'meio' }
+        controller.abort()
+        signal.throwIfAborted()
+      },
+    }
+    const pushed: string[] = []
+    const result = await chat(CHAT, {
+      settings: settingsWith('openai-compatible', 'http://127.0.0.1:11434/v1'),
+      signal: controller.signal,
+      push: (delta) => pushed.push(delta),
+      confirmConsent: async () => true,
+      providerFor: async () => provider,
+    })
+    expect(result).toEqual({ status: 'canceled' })
+    expect(pushed.join('')).toBe('meio')
   })
 })

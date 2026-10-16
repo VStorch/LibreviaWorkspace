@@ -7,6 +7,7 @@ import {
   type PushIpcChannel,
 } from './ipc-channels.js'
 import {
+  aiChatRequestSchema,
   aiGenerateRequestSchema,
   aiAgentArgsSchema,
   aiModelIdSchema,
@@ -101,6 +102,12 @@ const aiProviderListSchema = z.object({
   providers: z.array(aiProviderSchema).max(MAX_AI_PROVIDERS),
   defaultProviderId: z.string().max(MAX_ID_LENGTH).nullable(),
   preferences: aiPreferencesSchema,
+})
+
+const aiGenerateResponseSchema = z.object({
+  status: z.enum(['done', 'canceled', 'declined']),
+  model: z.string().max(MAX_ID_LENGTH).optional(),
+  costUsd: z.number().nonnegative().optional(),
 })
 
 const aiProviderRefSchema = z.object({ providerId: z.string().min(1).max(MAX_ID_LENGTH) })
@@ -404,11 +411,11 @@ export const ipcContracts = {
   },
   [IpcChannel.AiGenerate]: {
     request: aiGenerateRequestSchema,
-    response: z.object({
-      status: z.enum(['done', 'canceled', 'declined']),
-      model: z.string().max(MAX_ID_LENGTH).optional(),
-      costUsd: z.number().nonnegative().optional(),
-    }),
+    response: aiGenerateResponseSchema,
+  },
+  [IpcChannel.AiChat]: {
+    request: aiChatRequestSchema,
+    response: aiGenerateResponseSchema,
   },
   [IpcChannel.AiCancel]: {
     request: z.object({ requestId: z.uuid() }),

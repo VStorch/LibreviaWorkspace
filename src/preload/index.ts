@@ -83,6 +83,7 @@ const api: AppApi = {
     discover: (payload) => ipcRenderer.invoke(IpcChannel.AiDiscover, payload),
     listModels: (payload) => ipcRenderer.invoke(IpcChannel.AiModelsList, payload),
     generate: (payload) => ipcRenderer.invoke(IpcChannel.AiGenerate, payload),
+    chat: (payload) => ipcRenderer.invoke(IpcChannel.AiChat, payload),
     cancel: (payload) => ipcRenderer.invoke(IpcChannel.AiCancel, payload),
     onStream: (listener) => subscribe<AiStreamEvent>(IpcChannel.AiStream, listener),
   },

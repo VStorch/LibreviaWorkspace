@@ -3,8 +3,8 @@ import type { Catalog } from '../message.js'
 export const AI = {
   'ai.consent.title': { pt: 'Permitir este assistente de IA?', en: 'Allow this AI assistant?' },
   'ai.consent.message': {
-    pt: '{provider} fica fora deste computador. Cada pedido envia a ele o trecho selecionado, o documento aberto como contexto e, no pedido livre, a instrução que você escrever.',
-    en: '{provider} is outside this computer. Each request sends it the selected passage, the open document as context and, for a free request, the instruction you write.',
+    pt: '{provider} fica fora deste computador. Cada pedido envia a ele o trecho selecionado, o documento aberto como contexto e, no pedido livre, a instrução que você escrever. Na conversa, cada mensagem envia o documento e a conversa até ali.',
+    en: '{provider} is outside this computer. Each request sends it the selected passage, the open document as context and, for a free request, the instruction you write. In the chat, each message sends the document and the chat so far.',
   },
   'ai.consent.detail': {
     pt: 'A resposta é gerada lá, fora deste computador. O Librevia lembra esta permissão para este assistente. Para ser perguntado de novo, use Ferramentas → Assistentes de IA.',
@@ -28,6 +28,7 @@ export const AI = {
   'ai.panel.running': { pt: 'Gerando…', en: 'Generating…' },
   'ai.panel.canceled': { pt: 'Interrompido.', en: 'Stopped.' },
   'ai.panel.declined': { pt: 'Nada foi enviado.', en: 'Nothing was sent.' },
+  'ai.panel.failed': { pt: 'Sem resposta.', en: 'No answer.' },
   'ai.panel.cost': {
     pt: 'Custo informado pelo assistente: US$ {cost}',
     en: 'Cost reported by the assistant: US$ {cost}',
@@ -46,6 +47,30 @@ export const AI = {
   },
   'ai.panel.configure': { pt: 'Configurar…', en: 'Set up…' },
   'ai.panel.readOnly': { pt: 'O documento está só para leitura.', en: 'The document is read only.' },
+  'ai.tab.actions': { pt: 'Ações', en: 'Actions' },
+  'ai.tab.chat': { pt: 'Conversa', en: 'Chat' },
+  'ai.chat.log': { pt: 'Mensagens da conversa', en: 'Chat messages' },
+  'ai.chat.empty': {
+    pt: 'Pergunte sobre o documento. O documento como está agora vai junto com cada mensagem.',
+    en: 'Ask about the document. The document as it is now goes along with each message.',
+  },
+  'ai.chat.you': { pt: 'Você', en: 'You' },
+  'ai.chat.assistant': { pt: 'Assistente', en: 'Assistant' },
+  'ai.chat.message': { pt: 'Mensagem', en: 'Message' },
+  'ai.chat.placeholder': {
+    pt: 'Enter envia; Shift+Enter quebra a linha',
+    en: 'Enter sends; Shift+Enter starts a new line',
+  },
+  'ai.chat.send': { pt: 'Enviar', en: 'Send' },
+  'ai.chat.new': { pt: 'Nova conversa', en: 'New chat' },
+  'ai.chat.tooLong': {
+    pt: 'A mensagem chegou ao limite de {max} caracteres.',
+    en: 'The message reached the limit of {max} characters.',
+  },
+  'ai.chat.hint': {
+    pt: 'Inserir abaixo entra como alteração controlada, depois da seleção ou do cursor. A conversa fica só na memória e some ao fechar o documento.',
+    en: 'Insert below comes in as a tracked change, after the selection or the cursor. The chat stays in memory only and is gone when you close the document.',
+  },
   'ai.problem.empty': {
     pt: 'Selecione o trecho que o assistente deve usar.',
     en: 'Select the passage the assistant should use.',

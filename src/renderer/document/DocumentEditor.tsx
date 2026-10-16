@@ -35,6 +35,7 @@ import { useSheetGeometry } from './useSheetGeometry.js'
 import { EditorContextMenu, EditorDialogs } from './EditorDialogs.js'
 import { PageStack } from './PageStack.js'
 import { AiPanel, type AiLaunch } from './AiPanel.js'
+import { useAiChat, type AiChat } from './useAiChat.js'
 
 /**
  * Paginates live: the text is a single flow, and a margin decoration pushes each block to the right
@@ -69,6 +70,7 @@ export function DocumentEditor(): React.JSX.Element {
   const pasteWithoutFormat = usePasteWithoutFormat(editor, readOnly)
   const commands = useEditorCommands(editor, readOnly, pasteWithoutFormat, referenceContext)
   const ai = useAiLauncher(commands.setDialog, commands.dialogs.aiPanel)
+  const chat = useAiChat(editor)
   const { comments, outside } = useComments(editor)
   const geometry = useSheetGeometry({
     editor,
@@ -121,7 +123,7 @@ export function DocumentEditor(): React.JSX.Element {
             zoomedWidthPx={geometry.stackWidthPx + (commentsPane ? COMMENTS_PANE_WIDTH_PX : 0)}
           />
         </div>
-        {!reading && <AiSidePane editor={editor} commands={commands} ai={ai} />}
+        {!reading && <AiSidePane editor={editor} commands={commands} ai={ai} chat={chat} />}
       </div>
     </div>
   )
@@ -137,15 +139,18 @@ function AiSidePane({
   editor,
   commands,
   ai,
+  chat,
 }: {
   readonly editor: Editor
   readonly commands: EditorCommands
   readonly ai: AiLauncher
+  readonly chat: AiChat
 }): React.JSX.Element | null {
   if (!commands.dialogs.aiPanel) return null
   return (
     <AiPanel
       editor={editor}
+      chat={chat}
       configuring={commands.dialogs.aiProviders}
       launch={ai.launch}
       onClose={ai.close}
