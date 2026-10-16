@@ -7,6 +7,7 @@ import { buildEditorExtensions } from '../editor-extensions.js'
 import { revisionChangesOf, settleAllChanges, textWithoutDeletions } from './track-changes.js'
 import {
   SKIP_TRACKING,
+  closeContainers,
   joinHistoryGroup,
   type TrackGroup,
   revisionDate,
@@ -180,6 +181,48 @@ describe('controle do que se digita', () => {
     let state = stateOf([paragraph(text('ab'))], 2)
     state = track(state, (tr) => tr.replaceSelection(stripRevisions(pasted)))
     expect(shown(state.doc)).toEqual(['a{cola}b'])
+  })
+
+  it('a lista colada no fim de um parágrafo entra como revisão, e rejeitar devolve o original', () => {
+    const item = (value: string): ProseMirrorNode =>
+      schema.nodes['listItem']!.create(null, schema.nodes['paragraph']!.create(null, schema.text(value)))
+    const list = schema.nodes['bulletList']!.create(null, [item('um'), item('dois')])
+    const pasted = closeContainers(new Slice(Fragment.from(list), 3, 3))
+    const initial = stateOf([paragraph(text('abc')), paragraph(text('fim'))], 4)
+    const state = track(initial, (tr) => tr.replaceSelection(pasted))
+    expect(shown(state.doc)).toEqual(['abc', '{um}¶ins', '{dois}¶ins', 'fim'])
+    expect(state.doc.child(1).type.name).toBe('bulletList')
+    expect(state.doc.child(1).childCount).toBe(2)
+    const rejected = state.tr
+    settleAllChanges(rejected, false)
+    expect(rejected.doc.eq(initial.doc)).toBe(true)
+  })
+
+  it('só a lista ou a tabela aberta nas pontas é fechada; parágrafos abertos continuam se juntando', () => {
+    const paragraphs = Fragment.from([
+      schema.nodes['paragraph']!.create(null, schema.text('a')),
+      schema.nodes['paragraph']!.create(null, schema.text('b')),
+    ])
+    const closed = closeContainers(new Slice(paragraphs, 1, 1))
+    expect([closed.openStart, closed.openEnd]).toEqual([1, 1])
+  })
+
+  it('texto formatado como código pode ser excluído e inserido com marca de revisão', () => {
+    const code = { type: 'code' }
+    let state = stateOf([paragraph(text('abcd', code))])
+    state = state.apply(state.tr.setSelection(TextSelection.create(state.doc, 2, 4)))
+    state = track(state, (tr) => tr.deleteSelection())
+    expect(shown(state.doc)).toEqual(['a[bc]d'])
+    state = track(state, (tr) => tr.insert(1, schema.text('x', [schema.marks['code']!.create()])))
+    expect(shown(state.doc)).toEqual(['{x}a[bc]d'])
+  })
+
+  it('o código continua excluindo a outra formatação', () => {
+    const code = schema.marks['code']!
+    const others = Object.values(schema.marks).filter(
+      (type) => ![code.name, 'insertion', 'deletion'].includes(type.name),
+    )
+    expect(others.filter((type) => !code.excludes(type)).map((type) => type.name)).toEqual([])
   })
 
   it('copiar deixa o excluído de fora', () => {

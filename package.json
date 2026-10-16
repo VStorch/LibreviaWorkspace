@@ -47,6 +47,7 @@
     "@revolist/react-datagrid": "^4.25.2",
     "@revolist/revogrid": "^4.25.2",
     "@tiptap/core": "^3.30.0",
+    "@tiptap/extension-code": "^3.30.0",
     "@tiptap/extension-color": "^3.30.0",
     "@tiptap/extension-font-family": "^3.30.0",
     "@tiptap/extension-highlight": "^3.30.0",

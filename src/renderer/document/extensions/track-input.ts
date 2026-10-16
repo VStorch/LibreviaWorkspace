@@ -504,6 +504,17 @@ export function stripRevisions(slice: Slice): Slice {
   return new Slice(withoutRevisions(slice.content), slice.openStart, slice.openEnd)
 }
 
+/**
+ * A list or table open at an edge would merge into the paragraph around it, a change of paragraph
+ * kind that tracking cannot record: while tracking, it comes in whole.
+ */
+export function closeContainers(slice: Slice): Slice {
+  const isContainer = (node: ProseMirrorNode | null): boolean => node !== null && !node.isTextblock
+  const openStart = isContainer(slice.content.firstChild) ? 0 : slice.openStart
+  const openEnd = isContainer(slice.content.lastChild) ? 0 : slice.openEnd
+  return new Slice(slice.content, openStart, openEnd)
+}
+
 export function stripDeleted(slice: Slice): Slice {
   return new Slice(withoutDeleted(slice.content), slice.openStart, slice.openEnd)
 }
@@ -658,7 +669,10 @@ export const TrackInput = Extension.create<TrackInputOptions>({
           handleKeyDown: (view, event) => trackedDeleteKey(view, event, options.isTracking),
           // Pasted content comes in as new text; deleted text does not go to the clipboard, not
           // even as plain text.
-          transformPasted: (slice) => stripRevisions(slice),
+          transformPasted: (slice) => {
+            const pasted = stripRevisions(slice)
+            return options.isTracking() ? closeContainers(pasted) : pasted
+          },
           transformCopied: (slice) => stripDeleted(slice),
           clipboardTextSerializer: (slice) => {
             return plainTextOf(stripDeleted(slice).content)

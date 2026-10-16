@@ -266,4 +266,24 @@ test.describe('revisões', () => {
     await expect(editor.locator('del.revision')).toHaveCount(0)
     await expect(editor).toHaveText('abcdef')
   })
+
+  test('a lista colada no fim de um parágrafo entra como revisão, e rejeitar tudo a tira', async () => {
+    const editor = session.window.locator('.ProseMirror')
+    await menu(session, 'new-document')
+    await editor.click()
+    await session.window.keyboard.type('Antes da lista.')
+    await menu(session, 'toggle-track-changes')
+    await session.window.keyboard.press('End')
+
+    await session.app.evaluate(({ clipboard }) => {
+      clipboard.write({ text: 'um\ndois', html: '<ul><li>um</li><li>dois</li></ul>' })
+    })
+    await session.window.keyboard.press('Control+v')
+    await expect(editor.locator('li')).toHaveCount(2)
+    await expect(editor.locator('ins.revision')).toHaveText(['um', 'dois'])
+
+    await menu(session, 'reject-all-changes')
+    await expect(editor.locator('li')).toHaveCount(0)
+    await expect(editor).toHaveText('Antes da lista.')
+  })
 })

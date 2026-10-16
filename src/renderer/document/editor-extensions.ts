@@ -1,5 +1,6 @@
 import { InputRule, type Attribute, type Extensions } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
+import Code from '@tiptap/extension-code'
 import {
   InvisibleCharacter,
   InvisibleCharacters,
@@ -137,16 +138,28 @@ export function buildEditorExtensions(
   ]
 }
 
+/**
+ * Code excludes the other formatting, but not revisions: with Tiptap's `excludes: '_'`, code could
+ * be neither marked deleted nor inserted.
+ */
+const TrackableCode = Code.extend({
+  excludes:
+    'link textStyle bold italic strike underline superscript subscript highlight charStyle caps smallCaps',
+})
+
 /** Text, formatting, images and tables; the rest belongs to the document editor. */
 function contentExtensions(): Extensions {
   return [
     StarterKit.configure({
       link: false,
+      code: false,
       undoRedo: { depth: 200 },
       // No empty paragraph after a heading: the corpus ends in `Heading1`, and saving without
       // editing would add a `<w:p/>`.
       trailingNode: { notAfter: ['paragraph', 'heading'] },
     }),
+
+    TrackableCode,
 
     DocumentLink.configure({
       // Links open in the system browser, after main's scheme allowlist.

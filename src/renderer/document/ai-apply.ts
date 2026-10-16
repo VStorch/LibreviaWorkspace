@@ -28,8 +28,8 @@ export type AiTarget =
 /** Plain text in, plain text out: these would come back as letters, or not at all. */
 const UNSUPPORTED_NODES: ReadonlySet<string> = new Set(['image', 'math', 'noteRef', 'field'])
 const CELL_NODES: ReadonlySet<string> = new Set(['tableCell', 'tableHeader'])
-/** Revisions are the tracking's; code excludes every other mark, the revision one included. */
-const UNCARRIED_MARKS: ReadonlySet<string> = new Set([INSERTION, DELETION, 'code'])
+/** Revisions are the tracking's. */
+const UNCARRIED_MARKS: ReadonlySet<string> = new Set([INSERTION, DELETION])
 /** Marks the Markdown answer says itself; the others (font, color, underline) come from the passage. */
 const MARKDOWN_MARKS: ReadonlySet<string> = new Set(['bold', 'italic', 'strike', 'link'])
 /** Exported as HTML or code that the answer would not bring back: they go as plain text. */
