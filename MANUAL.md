@@ -231,6 +231,11 @@ São os atalhos do Word, com poucas exceções, explicadas no fim da tabela.
 `Ctrl+B`, `Ctrl+I` e `Ctrl+U` valem para as células selecionadas. O **botão direito** numa célula
 abre o menu de inserir e excluir linhas e colunas.
 
+`Ctrl+Z` desfaz a última edição da planilha (uma célula, uma colagem, uma linha inserida, uma aba
+nova) e `Ctrl+Y` ou `Ctrl+Shift+Z` a refaz. São até 100 passos, e o histórico recomeça a cada
+arquivo aberto. Enquanto você digita numa célula ou na barra de fórmulas, o `Ctrl+Z` desfaz só a
+digitação.
+
 **A alça de preenchimento** é o quadradinho no canto inferior direito da seleção. Arraste-o, e as
 células seguintes são preenchidas. Se a célula de origem tiver uma fórmula, ela **acompanha**:
 `=B2*C2` arrastada para baixo vira `=B3*C3`. Uma referência com `$` não se mexe.
@@ -666,7 +671,8 @@ Para desligar: **Ferramentas → Autocorreção tipográfica**. O que já foi tr
 ## 🤖 Assistente de IA
 
 O assistente reescreve, resume, revisa ou traduz o trecho que você selecionar, e conversa sobre o
-documento. Ele vem **desligado**: enquanto nenhum assistente estiver configurado, nada sai do computador.
+documento. Na planilha, ele explica e cria fórmulas e preenche colunas (veja
+[Nas planilhas](#nas-planilhas)). Ele vem **desligado**: enquanto nenhum assistente estiver configurado, nada sai do computador.
 
 ### Configurar
 
@@ -794,6 +800,41 @@ Com o Claude Code ou um agente ACP, a caixa fica apagada. Um modelo local sem su
 ferramentas recusa o pedido: o Librevia avisa para desligar a caixa ou trocar de modelo, e o
 motivo aparece também na resposta, no painel.
 
+### Nas planilhas
+
+No editor de planilhas, **Ferramentas → Assistente de IA…** (`Ctrl+Shift+Y`) abre o painel à
+direita; o mesmo atalho o fecha. O assistente, o modelo e a configuração são os mesmos do
+documento. Em **O que fazer** há três tarefas, e nenhuma muda a planilha sem um clique seu:
+
+- **Explicar fórmula** explica a fórmula da célula ativa, no idioma do Librevia, com formatação. Só funciona
+  numa célula com fórmula. Nada é gravado.
+- **Criar fórmula**: escreva em **Pedido** o que você quer (por exemplo, "soma dos preços da
+  coluna B") e clique em **Gerar**. O painel mostra a fórmula e o valor que ela daria na célula
+  ativa, calculado numa cópia da planilha. **Inserir na célula** grava a fórmula na célula ativa,
+  e um `Ctrl+Z` a desfaz. O Librevia confere a fórmula como na barra de fórmulas: ela precisa
+  começar com `=` e usar só funções que o Librevia conhece, com `;` entre os argumentos. Se não
+  passar, o painel mostra o problema e não deixa inserir.
+- **Preencher coluna**: selecione as células a preencher, numa única coluna e com no máximo 500
+  linhas, e escreva o pedido (por exemplo, "categoria do produto da coluna A"). O painel mostra
+  uma prévia com a célula, o valor atual e o valor novo. **Aplicar** grava todos de uma vez, e um
+  `Ctrl+Z` desfaz todos. Entram valores, nunca fórmulas: um valor que começa com `=` entra como
+  texto. Se a resposta não trouxer um valor por linha, o painel avisa "A resposta não veio no
+  formato esperado." e não deixa aplicar.
+
+O que vai junto com o pedido:
+
+- Para explicar e criar: o nome da planilha ativa, a célula ativa, a primeira linha preenchida
+  (os cabeçalhos) e as células preenchidas, as mais próximas da célula ativa primeiro, até o
+  limite de contexto do assistente. Para explicar, vai também a fórmula.
+- Para preencher: para cada linha selecionada, os valores das outras colunas preenchidas daquela
+  linha, e os cabeçalhos quando a primeira linha preenchida fica acima da seleção. As linhas nunca
+  são cortadas: se não couberem no limite de contexto, o Librevia avisa e pede menos linhas.
+- Cada célula vai com até 200 caracteres. As outras abas, o nome do arquivo e as propriedades
+  ficam aqui.
+
+Com a planilha só para leitura, dá para pedir, mas Inserir na célula e Aplicar ficam apagados. As
+respostas ficam no painel até o próximo pedido; o assistente não lembra os pedidos anteriores.
+
 ### O que é enviado, e para onde
 
 - **O trecho selecionado**, até 20 000 caracteres, e, no pedido livre, a instrução que você
@@ -831,7 +872,7 @@ motivo aparece também na resposta, no painel.
 
 ### Limites
 
-- Só no editor de documentos; planilhas ainda não.
+- Na planilha não há conversa: só as três tarefas descritas em [Nas planilhas](#nas-planilhas).
 - Com **Manter a formatação** ligada, sublinhado, cor e fonte não passam pelo modelo: a resposta
   recebe os do começo do trecho. Desligada, a resposta entra como texto simples com toda a
   formatação do começo do trecho.
