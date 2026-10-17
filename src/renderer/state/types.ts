@@ -132,6 +132,9 @@ export interface WorkspaceState {
   addSheet: () => void
   renameSheet: (index: number, name: string) => void
   removeSheet: (index: number) => void
+  /** Every sheet edit above is one step; navigating between tabs is not. */
+  undoSheet: () => void
+  redoSheet: () => void
   openViaDialog: () => Promise<void>
   openRecent: (path: string) => Promise<void>
   templateGallery: boolean

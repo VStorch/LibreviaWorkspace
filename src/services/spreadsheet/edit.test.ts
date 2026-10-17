@@ -14,6 +14,9 @@ import {
   singleCell,
   toggleStyle,
   writeText,
+  writeValue,
+  writeValues,
+  editableText,
 } from './edit.js'
 
 const range = { fromRow: 0, fromColumn: 0, toRow: 1, toColumn: 1 }
@@ -233,5 +236,51 @@ describe('writeText', () => {
   it('não apaga o estilo que o usuário escolheu à mão', () => {
     const painted = setCell(createSheet('S'), 0, 0, { value: 1, style: { bold: true } })
     expect(writeText(painted, 0, 0, '2').cells['A1']).toEqual({ value: 2, style: { bold: true } })
+  })
+})
+
+describe('writeValue', () => {
+  it('grava o valor sem virar fórmula e mantém o estilo da célula', () => {
+    const styled = applyStyle(createSheet('S'), singleCell(0, 0), { bold: true })
+    const sheet = writeValue(styled, 0, 0, '=A2')
+    expect(getCell(sheet, 0, 0)).toEqual({ value: '=A2', style: { bold: true } })
+    expect(getCell(writeValue(sheet, 0, 0, false), 0, 0)?.value).toBe(false)
+    expect(getCell(writeValue(sheet, 0, 0, null), 0, 0)).toEqual({ style: { bold: true } })
+  })
+})
+
+describe('writeValues', () => {
+  it('grava várias células numa cópia só, com as mesmas regras de writeValue', () => {
+    const styled = applyStyle(createSheet('S'), singleCell(1, 0), { bold: true })
+    const sheet = writeValues(styled, [
+      { row: 0, column: 0, value: '=A2' },
+      { row: 1, column: 0, value: 'R$ 10' },
+      { row: 2, column: 0, value: null },
+    ])
+    expect(getCell(sheet, 0, 0)).toEqual({ value: '=A2' })
+    expect(getCell(sheet, 1, 0)?.value).toBe(10)
+    expect(getCell(sheet, 1, 0)?.style?.bold).toBe(true)
+    expect(getCell(sheet, 2, 0)).toBeUndefined()
+    expect(styled.cells['A1']).toBeUndefined()
+  })
+})
+
+describe('texto com apóstrofo', () => {
+  it('o apóstrofo guarda como texto o que viraria fórmula ou número, e não entra no valor', () => {
+    expect(getCell(writeText(createSheet('S'), 0, 0, "'=A2"), 0, 0)).toEqual({ value: '=A2' })
+    expect(getCell(writeText(createSheet('S'), 0, 0, "'007"), 0, 0)).toEqual({ value: '007' })
+    expect(getCell(writeText(createSheet('S'), 0, 0, "'12"), 0, 0)).toEqual({ value: '12' })
+  })
+
+  it('editar a célula mostra o apóstrofo, e confirmar sem mudar devolve a mesma célula', () => {
+    const literal = writeValue(createSheet('S'), 0, 0, '=A2')
+    expect(editableText(getCell(literal, 0, 0))).toBe("'=A2")
+    const again = writeText(literal, 0, 0, editableText(getCell(literal, 0, 0)))
+    expect(getCell(again, 0, 0)).toEqual({ value: '=A2' })
+
+    expect(editableText(getCell(writeText(createSheet('S'), 0, 0, 'Caneta'), 0, 0))).toBe('Caneta')
+    expect(editableText(getCell(writeText(createSheet('S'), 0, 0, '=1+1'), 0, 0))).toBe('=1+1')
+    expect(editableText(getCell(writeText(createSheet('S'), 0, 0, '3'), 0, 0))).toBe('3')
+    expect(editableText(undefined)).toBe('')
   })
 })

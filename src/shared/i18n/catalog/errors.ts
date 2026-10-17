@@ -289,6 +289,10 @@ export const ERRORS = {
     pt: 'Este assistente de IA não está mais configurado. Escolha outro em Ferramentas → Assistentes de IA.',
     en: 'This AI assistant is no longer set up. Choose another in Tools → AI assistants.',
   },
+  'errors.ai.sheetTooLarge': {
+    pt: 'As linhas escolhidas não cabem no que este assistente lê de uma vez. Escolha menos linhas.',
+    en: 'The chosen rows do not fit in what this assistant reads at once. Choose fewer rows.',
+  },
   'errors.ai.modelMissing': {
     pt: 'Escolha um modelo para este assistente em Ferramentas → Assistentes de IA.',
     en: 'Choose a model for this assistant in Tools → AI assistants.',

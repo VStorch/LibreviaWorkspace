@@ -1,9 +1,10 @@
 import { mkdtemp, rm, stat } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test } from '@playwright/test'
 import { launch, menu, stubDialogs, type Session } from './app.js'
 import { entryOf } from './fixtures.js'
+import { cell, gridReady, select, write } from './sheet-grid.js'
 
 /**
  * The whole `.xlsx` path, which no unit test sees: React → IPC → main → formula translation →
@@ -123,47 +124,9 @@ test.describe('planilha em .xlsx', () => {
   })
 })
 
-/**
- * A grid cell, by zero-based coordinates. `revogr-overlay-selection` avoids matching the row
- * header, which uses the same coordinates.
- */
-function cell(window: Page, row: number, column: number) {
-  return window
-    .locator(`revogr-overlay-selection revogr-data [data-rgrow="${row}"][data-rgcol="${column}"]`)
-    .first()
-}
-
-/** The grid only draws cells after mounting; clicking earlier selects nothing. */
-async function gridReady(window: Page): Promise<void> {
-  await expect(window.locator('revo-grid')).toBeVisible()
-  await expect(cell(window, 0, 0)).toBeVisible()
-}
-
-async function select(window: Page, row: number, column: number): Promise<void> {
-  // The click repeats until the selection moves: the grid redraws after opening.
-  await expect(async () => {
-    await cell(window, row, column).click()
-    await expect(window.locator('.formula-bar__ref')).toHaveText(reference(row, column), {
-      timeout: 1000,
-    })
-  }).toPass({ timeout: 15_000 })
-}
-
-/** Selects the cell and writes into it through the formula bar. */
-async function write(window: Page, row: number, column: number, text: string): Promise<void> {
-  await select(window, row, column)
-  const input = window.locator('.formula-bar__input')
-  await input.fill(text)
-  await input.press('Enter')
-}
-
 async function exists(path: string): Promise<boolean> {
   return stat(path).then(
     () => true,
     () => false,
   )
-}
-
-function reference(row: number, column: number): string {
-  return `${String.fromCharCode(65 + column)}${row + 1}`
 }

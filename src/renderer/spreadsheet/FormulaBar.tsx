@@ -1,9 +1,10 @@
 import { useRef, useState } from 'react'
 import { getCell, type Sheet } from '@services/spreadsheet/model.js'
-import { describeRange, type Range } from '@services/spreadsheet/edit.js'
+import { describeRange, editableText, type Range } from '@services/spreadsheet/edit.js'
 import { checkFormula } from '@services/spreadsheet/formula/validate.js'
 import { formatCell } from '@services/spreadsheet/format.js'
 import { useT } from '../i18n.js'
+import { SHEET_UNDO_ATTRIBUTE } from './useSheetUndo.js'
 
 /**
  * The cell shows the result, and the formula shows here. The formula is checked before it goes in:
@@ -21,34 +22,36 @@ export function FormulaBar({
   const t = useT()
   const cell = getCell(sheet, range.fromRow, range.fromColumn)
   // The raw value, not the formatted one: re-editing "R$ 1.234,50" would give back text.
-  const stored = cell?.formula ?? (cell?.value === undefined ? '' : String(cell.value))
+  const stored = editableText(cell)
 
   const [draft, setDraft] = useState(stored)
   const [problem, setProblem] = useState<string | null>(null)
   const input = useRef<HTMLInputElement>(null)
 
-  /** Only a cell change reloads the bar: recalculation would erase what is being typed. */
+  /**
+   * A cell change reloads the bar, and so does new content in it (undo, the assistant). Recalculation
+   * does not: it changes the value of a formula, not the formula shown here.
+   */
   const anchor = describeRange(range)
-  const loaded = useRef(anchor)
-  if (loaded.current !== anchor) {
-    loaded.current = anchor
+  const shown = `${anchor}\n${stored}`
+  const loaded = useRef(shown)
+  if (loaded.current !== shown) {
+    loaded.current = shown
     // During render, not in an effect, so an old value does not flash.
     setDraft(stored)
     setProblem(null)
   }
 
   const commit = (): void => {
-    if (draft.startsWith('=')) {
-      const found = checkFormula(draft)
-      if (found !== null) {
-        setProblem(found.message)
-        input.current?.focus()
-        return
-      }
+    const found = draft.startsWith('=') ? checkFormula(draft) : null
+    if (found !== null) {
+      setProblem(found.message)
+      input.current?.focus()
+      return
     }
-
     setProblem(null)
-    onCommit(draft)
+    // Unchanged, nothing is written: a step in the history for it would undo nothing.
+    if (draft !== stored) onCommit(draft)
   }
 
   return (
@@ -68,6 +71,7 @@ export function FormulaBar({
         spellCheck={false}
         aria-label={t('spreadsheet.formulaBar.inputLabel')}
         aria-invalid={problem !== null}
+        {...(draft === stored ? { [SHEET_UNDO_ATTRIBUTE]: '' } : {})}
         onChange={(event) => {
           setDraft(event.target.value)
           if (problem !== null) setProblem(null)

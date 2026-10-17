@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import type { Editor } from '@tiptap/react'
 import type { AiProposal } from '@services/ai/proposals.js'
 import { AiRole, type AiTurn } from '@services/ai/provider.js'
@@ -9,6 +9,7 @@ import { buildInsertBelow, chatDocument } from './ai-apply.js'
 import { chatParagraphs } from './ai-proposals.js'
 import { applyProposals } from './proposal-commands.js'
 import { useAiStream, type AiPhase } from './useAiRequest.js'
+import { useCancelOnUnmount } from '../ai/useCancelOnUnmount.js'
 
 export interface AiChatMessage {
   readonly id: string
@@ -117,16 +118,6 @@ function useReplyStream(activeRef: { readonly current: string | null }, setMessa
     [activeRef, setMessages],
   )
   useAiStream(activeRequestId, append)
-}
-
-function useCancelOnUnmount(activeRef: { readonly current: string | null }): void {
-  useEffect(
-    () => () => {
-      const requestId = activeRef.current
-      if (requestId !== null) void window.api.ai.cancel({ requestId })
-    },
-    [activeRef],
-  )
 }
 
 export function useAiChat(editor: Editor | null): AiChat {

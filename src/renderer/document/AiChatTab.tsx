@@ -1,21 +1,13 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
 import { AiRole, offersDocumentTools } from '@services/ai/provider.js'
-import type { MessageKey } from '@shared/i18n/index.js'
 import { MAX_AI_CHAT_MESSAGE_LENGTH } from '@shared/limits.js'
 import { useT } from '../i18n.js'
 import { copyContents } from './ai-copy.js'
 import { AiChatProposals } from './AiChatProposals.js'
 import { AiMarkdownPreview } from './AiMarkdownPreview.js'
 import type { AiChat, AiChatMessage } from './useAiChat.js'
-import type { AiPhase } from './useAiRequest.js'
+import { AI_STATUS_LABELS } from '../ai/ai-status.js'
 import { authorOf, type AiProviderInfo } from './useAiProviders.js'
-
-export const AI_STATUS_LABELS: Partial<Record<AiPhase, MessageKey>> = {
-  running: 'ai.panel.running',
-  canceled: 'ai.panel.canceled',
-  declined: 'ai.panel.declined',
-  failed: 'ai.panel.failed',
-}
 
 interface AiChatTabBaseProps {
   readonly chat: AiChat

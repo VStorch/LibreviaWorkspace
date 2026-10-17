@@ -1,15 +1,17 @@
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { RevoGrid, type ColumnRegular } from '@revolist/react-datagrid'
 import type {
   AfterEditEvent,
   BeforeSaveDataDetails,
   ChangedRange,
   FocusAfterRenderEvent,
+  RangeArea,
   RevoGridCustomEvent,
 } from '@revolist/revogrid'
 import { formatCell } from '@services/spreadsheet/format.js'
 import { DEFAULT_COLUMN_WIDTH, columnName, getCell, type Sheet } from '@services/spreadsheet/model.js'
 import {
+  editableText,
   normalizeRange,
   rangeContains,
   singleCell,
@@ -24,7 +26,8 @@ import { usePreferences } from '../state/preferences.js'
 import { SpreadsheetToolbar } from './SpreadsheetToolbar.js'
 import { SheetContextMenu, type MenuPosition } from './SheetContextMenu.js'
 import { cellStyleOf } from './cell-style.js'
-import { gridPositionOf } from './grid-position.js'
+import { SHEET_ROWS_PANE, gridPositionOf, sheetColumnOf } from './grid-position.js'
+import { useCrossPaneRange } from './useCrossPaneRange.js'
 import { useFormatShortcuts } from './useFormatShortcuts.js'
 import { useTypeAhead } from './useTypeAhead.js'
 
@@ -35,16 +38,22 @@ import { useTypeAhead } from './useTypeAhead.js'
 
 type GridRow = Record<string, string>
 
+/** `MouseEvent.button` of the right button. */
+const SECONDARY_BUTTON = 2
+
 export function SpreadsheetEditor({
   sheet,
   onChange,
   onStructure,
+  onRange,
   readOnly = false,
 }: {
   sheet: Sheet
   onChange: (sheet: Sheet) => void
   /** A **workbook** operation: a row inserted here changes `=Dados!A5` written on another tab. */
   onStructure: (change: StructuralChange) => void
+  /** The selection, for what lives beside the grid: the assistant works on it. */
+  onRange?: (range: Range) => void
   /** Reading and scrolling keep working. */
   readOnly?: boolean
 }): React.JSX.Element {
@@ -57,6 +66,7 @@ export function SpreadsheetEditor({
   const [range, setRange] = useState<Range>(() => singleCell(0, 0))
   const selection = useRef(range)
   selection.current = range
+  useEffect(() => onRange?.(range), [onRange, range])
 
   const typeAhead = useTypeAhead(readOnly)
 
@@ -64,18 +74,22 @@ export function SpreadsheetEditor({
 
   const { columns, source } = useGridModel(sheet, current)
   const { handleEdit, handleEditStart } = useEditHandlers(current, applyChange, typeAhead)
-  const { handleResize, handleFocus, handleRange, handleAutofill } = useSelectionHandlers(
+  const container = useRef<HTMLDivElement>(null)
+  useGridRange(container, current, setRange)
+  useCrossPaneRange(container, current, selection, setRange)
+  useGridTakesFocus(container)
+  const { handleResize, handleFocus, handleAutofill } = useSelectionHandlers(
     current,
     applyChange,
     typeAhead,
     setRange,
   )
-  const { menu, handleContextMenu, closeMenu } = useSheetMenu(selection, setRange)
+  const { menu, handleContextMenu, closeMenu } = useSheetMenu(container, selection, setRange)
 
   useFormatShortcuts((key) => applyChange(toggleStyle(current.current, selection.current, key)))
 
   return (
-    <div className="sheet" onContextMenu={handleContextMenu}>
+    <div ref={container} className="sheet" onContextMenu={handleContextMenu}>
       {showToolbar && <SpreadsheetToolbar sheet={sheet} range={range} onChange={applyChange} />}
 
       <FormulaBar
@@ -113,7 +127,6 @@ export function SpreadsheetEditor({
         onBeforeeditstart={handleEditStart}
         onAftercolumnresize={handleResize}
         onAfterfocus={handleFocus}
-        onBeforerange={handleRange}
         onBeforeautofill={handleAutofill}
       />
     </div>
@@ -200,14 +213,19 @@ function useEditHandlers(
     [applyChange, typeAhead],
   )
 
-  /** Shows the **formula**: leaving the cell by accident would write the result over it. */
+  /**
+   * Shows the **formula**: leaving the cell by accident would write the result over it. A text that
+   * reads as a formula shows with its apostrophe, so Enter keeps it text.
+   */
   const handleEditStart = useCallback((event: RevoGridCustomEvent<BeforeSaveDataDetails>) => {
     const detail = event.detail
     const column = Number.parseInt(String(detail.prop).slice(1), 10)
     if (!Number.isInteger(column)) return
 
-    const formula = getCell(current.current, detail.rowIndex, column)?.formula
-    if (formula !== undefined) detail.val = formula
+    const cell = getCell(current.current, detail.rowIndex, column)
+    const text = editableText(cell)
+    const reinterpreted = typeof cell?.value === 'string' && text !== cell.value
+    if (cell?.formula !== undefined || reinterpreted) detail.val = text
   }, [])
 
   return { handleEdit, handleEditStart }
@@ -221,7 +239,6 @@ function useSelectionHandlers(
 ): {
   handleResize: (event: CustomEvent<Record<number, ColumnRegular>>) => void
   handleFocus: (event: RevoGridCustomEvent<FocusAfterRenderEvent>) => void
-  handleRange: (event: RevoGridCustomEvent<ChangedRange>) => void
   handleAutofill: (event: RevoGridCustomEvent<ChangedRange>) => void
 } {
   const handleResize = useCallback(
@@ -237,20 +254,14 @@ function useSelectionHandlers(
 
   const handleFocus = useCallback(
     (event: RevoGridCustomEvent<FocusAfterRenderEvent>) => {
-      const { rowIndex, colIndex } = event.detail
+      const { rowIndex, colIndex, colType } = event.detail
       if (!Number.isInteger(rowIndex) || !Number.isInteger(colIndex)) return
 
-      setRange(singleCell(rowIndex, colIndex))
+      setRange(singleCell(rowIndex, sheetColumnOf(colIndex, colType, current.current.frozenColumns)))
       typeAhead.settle()
     },
     [typeAhead],
   )
-
-  const handleRange = useCallback((event: RevoGridCustomEvent<ChangedRange>) => {
-    const area = event.detail.newRange
-    if (area === null) return
-    setRange(normalizeRange({ fromRow: area.y, fromColumn: area.x, toRow: area.y1, toColumn: area.x1 }))
-  }, [])
 
   /** On the model: the grid would copy the displayed text, which for a formula is the result. */
   const handleAutofill = useCallback(
@@ -270,10 +281,65 @@ function useSelectionHandlers(
     [applyChange],
   )
 
-  return { handleResize, handleFocus, handleRange, handleAutofill }
+  return { handleResize, handleFocus, handleAutofill }
+}
+
+/**
+ * The grid has no public event for a range drawn with the mouse or Shift+arrows (`beforerange` is
+ * only for autofill, and `getSelectedRange` lags 70 ms behind the arrow keys). Its selection layer
+ * announces each range with `setrange`, in the coordinates of its own pane: that is why the RevoGrid
+ * version is pinned.
+ */
+function useGridRange(
+  container: { readonly current: HTMLDivElement | null },
+  current: SheetRef,
+  setRange: (range: Range) => void,
+): void {
+  useEffect(() => {
+    const element = container.current
+    if (element === null) return
+    const follow = (event: Event): void => {
+      const area = (event as CustomEvent<(RangeArea & { type?: string }) | null>).detail
+      if (area === null || area.type !== SHEET_ROWS_PANE) return
+      const layer = event.composedPath()[0]
+      const pane = layer instanceof Element ? (layer.getAttribute('coltype') ?? undefined) : undefined
+      const { frozenColumns } = current.current
+      setRange(
+        normalizeRange({
+          fromRow: area.y,
+          toRow: area.y1,
+          fromColumn: sheetColumnOf(area.x, pane, frozenColumns),
+          toColumn: sheetColumnOf(area.x1, pane, frozenColumns),
+        }),
+      )
+    }
+    element.addEventListener('setrange', follow)
+    return () => element.removeEventListener('setrange', follow)
+  }, [container, current, setRange])
+}
+
+/**
+ * The grid cancels the press on a cell, so the browser would leave the focus in the field typed into
+ * last, such as the assistant's request, and Edit > Undo would undo that field. A cell being edited
+ * lives inside the grid and keeps it.
+ */
+function useGridTakesFocus(container: { readonly current: HTMLDivElement | null }): void {
+  useEffect(() => {
+    const element = container.current
+    if (element === null) return
+    const takeFocus = (event: MouseEvent): void => {
+      const grid = event.target instanceof Element ? event.target.closest('revo-grid') : null
+      const focused = document.activeElement
+      if (grid === null || !(focused instanceof HTMLElement) || grid.contains(focused)) return
+      focused.blur()
+    }
+    element.addEventListener('mousedown', takeFocus, { capture: true })
+    return () => element.removeEventListener('mousedown', takeFocus, { capture: true })
+  }, [container])
 }
 
 function useSheetMenu(
+  container: { readonly current: HTMLDivElement | null },
   selection: { readonly current: Range },
   setRange: (range: Range) => void,
 ): {
@@ -282,6 +348,22 @@ function useSheetMenu(
   closeMenu: () => void
 } {
   const [menu, setMenu] = useState<MenuPosition | null>(null)
+
+  // The grid moves the selection on any button's press: inside the selection the right button keeps
+  // it, so the menu acts on all of it.
+  useEffect(() => {
+    const element = container.current
+    if (element === null) return
+    const keepSelection = (event: MouseEvent): void => {
+      if (event.button !== SECONDARY_BUTTON) return
+      const position = gridPositionOf(event)
+      if (position !== null && rangeContains(selection.current, position.row, position.column)) {
+        event.stopPropagation()
+      }
+    }
+    element.addEventListener('mousedown', keepSelection, { capture: true })
+    return () => element.removeEventListener('mousedown', keepSelection, { capture: true })
+  }, [container, selection])
 
   /** As in Excel: inside the selection it acts on it; outside, on the clicked cell. */
   const handleContextMenu = useCallback((event: React.MouseEvent<HTMLDivElement>) => {

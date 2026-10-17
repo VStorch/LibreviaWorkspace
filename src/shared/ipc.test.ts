@@ -219,6 +219,39 @@ describe('contratos do assistente de IA', () => {
     expect(generate.safeParse({ ...valid, action: 'delete-everything' }).success).toBe(false)
   })
 
+  describe('planilha', () => {
+    const sheet = ipcContracts[IpcChannel.AiSheet].request
+    const formula = {
+      requestId: valid.requestId,
+      providerId: 'p1',
+      model: '',
+      task: 'formula',
+      language: 'pt',
+      instruction: 'some a coluna B',
+      context: 'Sheet: Vendas',
+    }
+
+    it('aceita cada tarefa com o que ela precisa', () => {
+      expect(sheet.safeParse(formula).success).toBe(true)
+      expect(sheet.safeParse({ ...formula, task: 'explain', instruction: '', formula: '=A1' }).success).toBe(
+        true,
+      )
+      expect(sheet.safeParse({ ...formula, task: 'fill', rowCount: 500 }).success).toBe(true)
+    })
+
+    it('recusa tarefa sem o que precisa, linhas demais e contexto longo demais', () => {
+      expect(sheet.safeParse({ ...formula, task: 'explain' }).success).toBe(false)
+      expect(sheet.safeParse({ ...formula, instruction: '  ' }).success).toBe(false)
+      expect(sheet.safeParse({ ...formula, task: 'fill' }).success).toBe(false)
+      expect(sheet.safeParse({ ...formula, task: 'fill', rowCount: 501 }).success).toBe(false)
+      expect(sheet.safeParse({ ...formula, task: 'sort' }).success).toBe(false)
+      expect(sheet.safeParse({ ...formula, context: 'x'.repeat(MAX_AI_DOCUMENT_LENGTH + 1) }).success).toBe(
+        false,
+      )
+      expect(sheet.safeParse({ ...formula, instruction: 'x'.repeat(2_001) }).success).toBe(false)
+    })
+  })
+
   describe('conversa', () => {
     const chat = ipcContracts[IpcChannel.AiChat].request
     const conversation = {

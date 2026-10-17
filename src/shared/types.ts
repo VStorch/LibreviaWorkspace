@@ -76,6 +76,9 @@ export const MenuCommand = {
   Save: 'save',
   SaveAs: 'save-as',
   CloseFile: 'close-file',
+  /** The sheet keeps its own history; elsewhere the focused field or editor undoes. */
+  Undo: 'undo',
+  Redo: 'redo',
   FindReplace: 'find-replace',
   ExportPdf: 'export-pdf',
   ExportHtml: 'export-html',
@@ -174,6 +177,14 @@ export const AiFormat = {
 } as const
 
 export type AiFormat = (typeof AiFormat)[keyof typeof AiFormat]
+
+export const AiSheetTask = {
+  Explain: 'explain',
+  Formula: 'formula',
+  Fill: 'fill',
+} as const
+
+export type AiSheetTask = (typeof AiSheetTask)[keyof typeof AiSheetTask]
 
 /** Belongs to the window, as in Word: nothing of this is saved, and printing follows the window. */
 export const RevisionView = {
@@ -284,6 +295,8 @@ export const EditCommand = {
   Cut: 'cut',
   Copy: 'copy',
   Paste: 'paste',
+  Undo: 'undo',
+  Redo: 'redo',
 } as const
 
 export type EditCommand = (typeof EditCommand)[keyof typeof EditCommand]

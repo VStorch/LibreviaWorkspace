@@ -24,7 +24,7 @@ export interface AiMessages {
   readonly user: string
 }
 
-const LANGUAGE_IN_PROMPT: Readonly<Record<Language, string>> = {
+export const LANGUAGE_IN_PROMPT: Readonly<Record<Language, string>> = {
   [Language.Portuguese]: 'Brazilian Portuguese',
   [Language.English]: 'English',
 }

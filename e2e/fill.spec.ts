@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 import { launch, menu, type Session } from './app.js'
+import { cell, select, write } from './sheet-grid.js'
 
 /**
  * The fill handle carries the formula, not the result: drag with the mouse, because a unit test
@@ -37,26 +38,6 @@ test.describe('alça de preenchimento', () => {
     await expect(session.window.locator('.formula-bar__input')).toHaveValue('=A2*B2')
   })
 })
-
-function cell(window: Page, row: number, column: number) {
-  return window
-    .locator(`revogr-overlay-selection revogr-data [data-rgrow="${row}"][data-rgcol="${column}"]`)
-    .first()
-}
-
-async function select(window: Page, row: number, column: number): Promise<void> {
-  await cell(window, row, column).click()
-  await expect(window.locator('.formula-bar__ref')).toHaveText(
-    `${String.fromCharCode(65 + column)}${row + 1}`,
-  )
-}
-
-async function write(window: Page, row: number, column: number, text: string): Promise<void> {
-  await select(window, row, column)
-  const input = window.locator('.formula-bar__input')
-  await input.fill(text)
-  await input.press('Enter')
-}
 
 /** Drags the small square at the selection corner, starting a few pixels inside. */
 async function dragHandle(

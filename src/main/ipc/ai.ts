@@ -8,6 +8,7 @@ import {
   ensureConsent,
   generate,
   providerFor,
+  sheet,
   type GenerateContext,
 } from '../ai/assistant.js'
 import { discoverProviders } from '../ai/discovery.js'
@@ -92,6 +93,7 @@ export function registerAiHandlers(): void {
   }
   handle(IpcChannel.AiGenerate, (payload, event) => run(payload, event, generate))
   handle(IpcChannel.AiChat, (payload, event) => run(payload, event, chat))
+  handle(IpcChannel.AiSheet, (payload, event) => run(payload, event, sheet))
 
   handle(IpcChannel.AiCancel, (payload, event) => ({
     canceled: requests.cancel(payload.requestId, event.sender.id),

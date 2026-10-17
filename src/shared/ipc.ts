@@ -10,6 +10,7 @@ import {
   aiChatRequestSchema,
   aiProposalSchema,
   aiGenerateRequestSchema,
+  aiSheetRequestSchema,
   aiAgentArgsSchema,
   aiModelIdSchema,
   aiPreferencesSchema,
@@ -422,6 +423,10 @@ export const ipcContracts = {
   [IpcChannel.AiChat]: {
     request: aiChatRequestSchema,
     response: aiChatResponseSchema,
+  },
+  [IpcChannel.AiSheet]: {
+    request: aiSheetRequestSchema,
+    response: aiGenerateResponseSchema,
   },
   [IpcChannel.AiCancel]: {
     request: z.object({ requestId: z.uuid() }),

@@ -105,6 +105,8 @@ export const IpcChannel = {
   AiGenerate: 'ai:generate',
   /** Like `AiGenerate`, for a conversation: the same stream, the same reply. */
   AiChat: 'ai:chat',
+  /** The spreadsheet's tasks: the same stream and reply, with the active sheet as context. */
+  AiSheet: 'ai:sheet',
   AiCancel: 'ai:cancel',
 
   MenuCommand: 'menu:command',
@@ -165,6 +167,7 @@ export const INVOCABLE_IPC_CHANNELS = [
   IpcChannel.AiModelsList,
   IpcChannel.AiGenerate,
   IpcChannel.AiChat,
+  IpcChannel.AiSheet,
   IpcChannel.AiCancel,
 ] as const
 

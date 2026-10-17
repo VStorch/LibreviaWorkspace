@@ -89,6 +89,7 @@ export interface AppApi {
     listModels: Call<typeof IpcChannel.AiModelsList>
     generate: Call<typeof IpcChannel.AiGenerate>
     chat: Call<typeof IpcChannel.AiChat>
+    sheet: Call<typeof IpcChannel.AiSheet>
     cancel: Call<typeof IpcChannel.AiCancel>
     onStream(listener: (event: AiStreamEvent) => void): () => void
   }

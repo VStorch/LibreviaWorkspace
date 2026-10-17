@@ -2,20 +2,9 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
-import { launch, menu, stubDialogs, type Session } from './app.js'
+import { clickMenuItem, launch, menu, stubDialogs, type Session } from './app.js'
 import { docxWithCommentThread, entryOf } from './fixtures.js'
 import { hasPdftotext, pdfText } from './external-tools.js'
-
-/** Clicks a native menu item, by menu and item label. */
-async function clickMenuItem(session: Session, menuLabel: string, itemLabel: string): Promise<void> {
-  await session.app.evaluate(
-    ({ Menu }, [top, item]) => {
-      const submenu = Menu.getApplicationMenu()?.items.find((entry) => entry.label === top)?.submenu
-      submenu?.items.find((entry) => entry.label === item)?.click()
-    },
-    [menuLabel, itemLabel] as const,
-  )
-}
 
 /**
  * Comments: read, shown beside the sheet and returned to the file when the paragraph anchoring them

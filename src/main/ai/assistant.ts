@@ -3,6 +3,7 @@ import { joinArgs } from '@services/ai/acp-session.js'
 import { buildChatPrompt, buildToolChatPrompt, type AiChatPrompt } from '@services/ai/chat.js'
 import { contextWindow } from '@services/ai/context.js'
 import { AI_MAX_OUTPUT_TOKENS, buildMessages } from '@services/ai/prompts.js'
+import { buildSheetPrompt } from '@services/ai/sheet-prompts.js'
 import type { AiProposal } from '@services/ai/proposals.js'
 import {
   AiProviderKind,
@@ -37,6 +38,8 @@ export type AiGenerateRequest = IpcRequest<typeof IpcChannel.AiGenerate>
 export type AiGenerateResponse = IpcResponse<typeof IpcChannel.AiGenerate>
 export type AiConversationRequest = IpcRequest<typeof IpcChannel.AiChat>
 export type AiConversationResponse = IpcResponse<typeof IpcChannel.AiChat>
+export type AiSheetRequest = IpcRequest<typeof IpcChannel.AiSheet>
+export type AiSheetResponse = IpcResponse<typeof IpcChannel.AiSheet>
 
 interface PromptTarget {
   readonly providerId: string
@@ -194,6 +197,15 @@ export function chat(
           add,
         ),
     }
+  })
+}
+
+/** No tools for any provider: the answer is text, and the renderer checks it before anything is written. */
+export function sheet(request: AiSheetRequest, context: GenerateContext): Promise<AiSheetResponse> {
+  return answer(request, context, (stored) => {
+    const prompt = buildSheetPrompt(request, contextLengthOf(stored))
+    if (prompt === null) throw aiError(ErrorCode.AiFailed, 'errors.ai.sheetTooLarge')
+    return { prompt, run: relayOnce }
   })
 }
 

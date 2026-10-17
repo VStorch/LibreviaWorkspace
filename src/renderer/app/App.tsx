@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { DocumentKind, MenuCommand } from '@shared/types.js'
+import { DocumentKind, EditCommand, MenuCommand } from '@shared/types.js'
 import { buildWindowTitle } from '@services/file/formats.js'
 import type { WorkbookModel } from '@services/spreadsheet/model.js'
 import { ErrorBanner } from '../components/ErrorBanner.js'
@@ -20,6 +20,11 @@ import { HomePage } from '../pages/HomePage.js'
 import { PdfView } from '../pdf/PdfView.js'
 import { SheetTabs } from '../spreadsheet/SheetTabs.js'
 import { SpreadsheetEditor } from '../spreadsheet/SpreadsheetEditor.js'
+import { SheetAiPanel } from '../spreadsheet/SheetAiPanel.js'
+import { useSheetAiPane } from '../spreadsheet/useSheetAiPane.js'
+import { sheetOwnsUndo, useSheetUndo } from '../spreadsheet/useSheetUndo.js'
+import { AiProvidersDialog } from '../document/AiProvidersDialog.js'
+import { singleCell, type Range } from '@services/spreadsheet/edit.js'
 import { WorkbookPropertiesDialog } from '../spreadsheet/WorkbookPropertiesDialog.js'
 import { usePreferences, watchPreferences } from '../state/preferences.js'
 import { useReadingMode } from '../state/reading.js'
@@ -45,9 +50,43 @@ async function runMenuCommand(command: MenuCommand, path: string | undefined): P
 }
 
 type Workspace = ReturnType<typeof useWorkspace.getState>
+
+type HistoryCommand = typeof EditCommand.Undo | typeof EditCommand.Redo
+
+const HISTORY_INPUT: Record<HistoryCommand, string> = {
+  [EditCommand.Undo]: 'historyUndo',
+  [EditCommand.Redo]: 'historyRedo',
+}
+
+/**
+ * The editors hear the menu as the browser's own undo, a `beforeinput` they take; Chromium's redo
+ * would stay greyed out, since the editor kept its undo away from it.
+ */
+function undoInEditor(command: HistoryCommand): boolean {
+  const focused = document.activeElement
+  if (!(focused instanceof HTMLElement) || !focused.isContentEditable) return false
+  const event = new InputEvent('beforeinput', {
+    inputType: HISTORY_INPUT[command],
+    bubbles: true,
+    cancelable: true,
+  })
+  return !focused.dispatchEvent(event)
+}
+
+/** From the menu: the sheet's history outside its text fields; anywhere else, the focused one's. */
+function runHistory(workspace: Workspace, command: HistoryCommand): unknown {
+  if (workspace.workbook !== null && sheetOwnsUndo(document.activeElement)) {
+    return command === EditCommand.Undo ? workspace.undoSheet() : workspace.redoSheet()
+  }
+  if (undoInEditor(command)) return undefined
+  return window.api.edit.run({ command })
+}
+
 type MenuAction = (workspace: Workspace, path: string | undefined) => Promise<unknown> | unknown
 
 const MENU_ACTIONS: Partial<Record<MenuCommand, MenuAction>> = {
+  [MenuCommand.Undo]: (workspace) => runHistory(workspace, EditCommand.Undo),
+  [MenuCommand.Redo]: (workspace) => runHistory(workspace, EditCommand.Redo),
   [MenuCommand.NewDocument]: (workspace) => workspace.newDocument(),
   [MenuCommand.NewSpreadsheet]: (workspace) => workspace.newSpreadsheet(),
   [MenuCommand.NewFromTemplate]: (workspace) => workspace.setTemplateGallery(true),
@@ -207,8 +246,13 @@ function WorkbookView({
   const addSheet = useWorkspace((state) => state.addSheet)
   const renameSheet = useWorkspace((state) => state.renameSheet)
   const removeSheet = useWorkspace((state) => state.removeSheet)
+  const undoSheet = useWorkspace((state) => state.undoSheet)
+  const redoSheet = useWorkspace((state) => state.redoSheet)
   const readOnly = useWorkspace((state) => state.readOnly)
   const [showProperties, setShowProperties] = useState(false)
+  const [range, setRange] = useState<Range>(() => singleCell(0, 0))
+  const aiPane = useSheetAiPane()
+  useSheetUndo(undoSheet, redoSheet)
   useEffect(
     () =>
       onEditorCommand((command) => {
@@ -218,21 +262,38 @@ function WorkbookView({
   )
 
   return (
-    <div className="workbook">
-      <SpreadsheetEditor
-        key={`${generation}-${workbook.activeSheet}`}
-        sheet={workbook.sheets[workbook.activeSheet]!}
-        onChange={updateSheet}
-        onStructure={changeStructure}
-        readOnly={readOnly}
-      />
-      <SheetTabs
-        workbook={workbook}
-        onSelect={selectSheet}
-        onAdd={addSheet}
-        onRename={renameSheet}
-        onRemove={removeSheet}
-      />
+    <div className="workbook-shell">
+      <div className="workbook">
+        <SpreadsheetEditor
+          key={`${generation}-${workbook.activeSheet}`}
+          sheet={workbook.sheets[workbook.activeSheet]!}
+          onChange={updateSheet}
+          onStructure={changeStructure}
+          onRange={setRange}
+          readOnly={readOnly}
+        />
+        <SheetTabs
+          workbook={workbook}
+          onSelect={selectSheet}
+          onAdd={addSheet}
+          onRename={renameSheet}
+          onRemove={removeSheet}
+        />
+      </div>
+      {aiPane.open && (
+        <SheetAiPanel
+          workbook={workbook}
+          range={range}
+          readOnly={readOnly}
+          configuring={aiPane.configuring}
+          onApply={(sheet) => {
+            if (!readOnly) updateSheet(sheet)
+          }}
+          onClose={aiPane.close}
+          onConfigure={() => aiPane.configure(true)}
+        />
+      )}
+      {aiPane.configuring && <AiProvidersDialog onClose={() => aiPane.configure(false)} />}
       {showProperties && (
         <WorkbookPropertiesDialog workbook={workbook} onClose={() => setShowProperties(false)} />
       )}

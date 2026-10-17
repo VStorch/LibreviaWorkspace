@@ -59,3 +59,8 @@ export const MAX_AI_REASON_LENGTH = 500
 export const MAX_AI_SEARCH_QUERY_LENGTH = 200
 export const MAX_AI_SEARCH_RESULTS = 20
 export const MAX_AI_READ_PARAGRAPHS = 50
+/** The spreadsheet assistant: the cells sent as context and how many rows one fill writes. */
+export const MAX_AI_SHEET_CONTEXT_LENGTH = MAX_AI_DOCUMENT_LENGTH
+export const MAX_AI_FILL_ROWS = 500
+/** Excel's own limit for the text of a formula. */
+export const MAX_AI_FORMULA_LENGTH = 8_192

@@ -91,3 +91,16 @@ export async function menu(session: Session, command: string): Promise<void> {
   }, command)
   await session.window.evaluate(() => new Promise<void>((resolve) => setTimeout(resolve, 0)))
 }
+
+/** By the labels, as a click with the mouse: `menu()` skips the item and goes straight to the page. */
+export async function clickMenuItem(session: Session, menuLabel: string, itemLabel: string): Promise<void> {
+  await session.app.evaluate(
+    ({ Menu }, [top, wanted]) => {
+      const submenu = Menu.getApplicationMenu()?.items.find((entry) => entry.label === top)?.submenu
+      const item = submenu?.items.find((entry) => entry.label === wanted)
+      if (item === undefined) throw new Error(`no menu item ${top} > ${wanted}`)
+      item.click()
+    },
+    [menuLabel, itemLabel] as const,
+  )
+}

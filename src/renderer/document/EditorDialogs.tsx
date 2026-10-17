@@ -75,7 +75,7 @@ const DIALOGS: readonly { key: DialogKey; render: (context: DialogContext) => Re
     ),
   },
   { key: 'authorName', render: simple('authorName', AuthorNameDialog) },
-  { key: 'aiProviders', render: simple('aiProviders', AiProvidersDialog) },
+  { key: 'aiProviders', render: (c) => <AiProvidersDialog onClose={c.close('aiProviders')} /> },
   { key: 'styles', render: simple('styles', StylesPanel) },
   { key: 'specialCharacter', render: simple('specialCharacter', SpecialCharsDialog) },
   {

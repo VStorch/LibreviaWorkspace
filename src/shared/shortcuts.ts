@@ -14,9 +14,10 @@
  * the key: a future menu item on `Ctrl+B` hits the test, not a report months later that bold
  * "sometimes doesn't work".
  *
- * Left out: Electron roles that keep their default accelerator (undo, copy, paste, select all,
- * quit, full screen). Chromium handles them inside the editable field, so declaring `Ctrl+Z` as
- * "menu" would invent a collision. Only roles whose accelerator we change (`reload`) and zoom are
+ * Left out: Electron roles that keep their default accelerator (copy, paste, select all, quit,
+ * full screen), and undo and redo, whose menu items show the role's key without registering it.
+ * Chromium handles them inside the editable field, so declaring `Ctrl+Z` as "menu" would invent a
+ * collision. Only roles whose accelerator we change (`reload`) and zoom are
  * listed.
  *
  * Also left out: alignment on `Ctrl+Shift+L/E/R/J`, which `TextAlign` adds by default. In

@@ -92,6 +92,18 @@ function commandItem(
   }
 }
 
+/** The accelerators of Electron's `undo` and `redo` roles. */
+const UNDO_ACCELERATOR = 'CommandOrControl+Z'
+const REDO_ACCELERATOR = process.platform === 'win32' ? 'Control+Y' : 'Shift+CommandOrControl+Z'
+
+/**
+ * Not a role: the role undoes only Chromium's history, and the sheet keeps its own. The key is only
+ * shown, not registered, so the page hears it first, as it did with the role.
+ */
+function historyItem(key: MessageKey, command: MenuCommand, accelerator: string): MenuItemConstructorOptions {
+  return { ...commandItem(key, command, accelerator), registerAccelerator: false }
+}
+
 type BooleanPreference = {
   [K in keyof EditorPreferences]: EditorPreferences[K] extends boolean ? K : never
 }[keyof EditorPreferences]
@@ -295,8 +307,8 @@ function editMenu(): MenuItemConstructorOptions {
   return {
     label: t('menu.edit'),
     submenu: [
-      { role: 'undo', label: t('menu.edit.undo') },
-      { role: 'redo', label: t('menu.edit.redo') },
+      historyItem('menu.edit.undo', MenuCommand.Undo, UNDO_ACCELERATOR),
+      historyItem('menu.edit.redo', MenuCommand.Redo, REDO_ACCELERATOR),
       { type: 'separator' },
       { role: 'cut', label: t('menu.edit.cut') },
       { role: 'copy', label: t('menu.edit.copy') },

@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Editor } from '@tiptap/react'
 import { responseFormat } from '@services/ai/prompts.js'
-import { AiProviderKind } from '@services/ai/provider.js'
 import { LANGUAGE_NAMES, LANGUAGES, Language, type MessageKey } from '@shared/i18n/index.js'
 import { MAX_AI_INSTRUCTION_LENGTH, MAX_AI_SELECTION_LENGTH } from '@shared/limits.js'
 import { AiAction, AiFormat } from '@shared/types.js'
@@ -10,10 +9,11 @@ import { currentPreferences } from '../state/preferences.js'
 import { useWorkspace } from '../state/workspace.js'
 import type { AiTargetProblem } from './ai-apply.js'
 import { copyContents, copySelection } from './ai-copy.js'
-import { AI_STATUS_LABELS, AiChatTab } from './AiChatTab.js'
+import { AiChatTab } from './AiChatTab.js'
+import { AI_STATUS_LABELS } from '../ai/ai-status.js'
 import { AiMarkdownPreview } from './AiMarkdownPreview.js'
-import { AiModelSelect } from './AiModelSelect.js'
-import { authorOf, useAiProviders, type AiProviderInfo } from './useAiProviders.js'
+import { AiPanelFrame, AiProviderFields, useAiPanelChoice } from '../ai/AiPanelFrame.js'
+import { authorOf, type AiProviderInfo } from './useAiProviders.js'
 import type { AiChat } from './useAiChat.js'
 import { useAiRequest, type AiRequest } from './useAiRequest.js'
 
@@ -83,70 +83,41 @@ export function AiPanel({
 }: AiPanelProps): React.JSX.Element {
   const t = useT()
   const readOnly = useWorkspace((state) => state.readOnly)
-  const { list, update } = useAiProviders(configuring)
+  const choice = useAiPanelChoice(configuring)
+  const { list, update } = choice.providers
+  const { provider } = choice
   const request = useAiRequest(editor)
-  const [providerId, setProviderId] = useState<string | null>(null)
   const [tab, setTab] = useTab(launch)
-  const provider =
-    list?.providers.find((candidate) => candidate.id === (providerId ?? list.defaultProviderId)) ??
-    list?.providers[0]
 
   return (
-    <aside className="ai-pane" aria-label={t('ai.panel.title')}>
-      <div className="nav-pane__header">
-        <span className="nav-pane__title">{t('ai.panel.title')}</span>
-        <button
-          type="button"
-          className="nav-pane__close"
-          aria-label={t('document.common.close')}
-          title={t('document.common.close')}
-          onClick={onClose}
-        >
-          ×
-        </button>
-      </div>
-      {list !== null && provider === undefined ? (
-        <AiNoProviders onConfigure={onConfigure} />
-      ) : (
-        <div className="ai-pane__body">
-          <AiTabs active={tab} onChoose={setTab} />
-          {readOnly && <p className="ai-pane__note">{t('ai.panel.readOnly')}</p>}
-          <AiProviderFields
-            providers={list?.providers ?? []}
+    <AiPanelFrame choice={choice} onClose={onClose} onConfigure={onConfigure}>
+      <AiTabs active={tab} onChoose={setTab} />
+      {readOnly && <p className="ai-pane__note">{t('ai.panel.readOnly')}</p>}
+      <AiProviderFields choice={choice} running={request.state.phase === 'running' || chat.running} />
+      <AiTabPanel tab="actions" active={tab}>
+        <AiActions
+          request={request}
+          provider={provider}
+          keepFormatting={list?.preferences.keepFormatting ?? true}
+          readOnly={readOnly}
+          launch={launch}
+        />
+      </AiTabPanel>
+      <AiTabPanel tab="chat" active={tab}>
+        {provider !== undefined && (
+          <AiChatTab
+            chat={chat}
             provider={provider}
-            onProvider={setProviderId}
-            onModel={(model) => {
-              if (provider !== undefined)
-                void update(window.api.ai.chooseModel({ providerId: provider.id, model }))
+            readOnly={readOnly}
+            proposals={list?.preferences.chatProposals ?? false}
+            onProposals={(chatProposals) => {
+              if (list !== null)
+                void update(window.api.ai.savePreferences({ ...list.preferences, chatProposals }))
             }}
-            running={request.state.phase === 'running' || chat.running}
           />
-          <AiTabPanel tab="actions" active={tab}>
-            <AiActions
-              request={request}
-              provider={provider}
-              keepFormatting={list?.preferences.keepFormatting ?? true}
-              readOnly={readOnly}
-              launch={launch}
-            />
-          </AiTabPanel>
-          <AiTabPanel tab="chat" active={tab}>
-            {provider !== undefined && (
-              <AiChatTab
-                chat={chat}
-                provider={provider}
-                readOnly={readOnly}
-                proposals={list?.preferences.chatProposals ?? false}
-                onProposals={(chatProposals) => {
-                  if (list !== null)
-                    void update(window.api.ai.savePreferences({ ...list.preferences, chatProposals }))
-                }}
-              />
-            )}
-          </AiTabPanel>
-        </div>
-      )}
-    </aside>
+        )}
+      </AiTabPanel>
+    </AiPanelFrame>
   )
 }
 
@@ -287,18 +258,6 @@ function AiActions({
   )
 }
 
-function AiNoProviders({ onConfigure }: { readonly onConfigure: () => void }): React.JSX.Element {
-  const t = useT()
-  return (
-    <div className="ai-pane__body">
-      <p className="ai-pane__note">{t('ai.panel.noProviders')}</p>
-      <button type="button" className="btn btn--primary" onClick={onConfigure}>
-        {t('ai.panel.configure')}
-      </button>
-    </div>
-  )
-}
-
 function useLaunch(
   launch: AiLaunch | null,
   provider: AiProviderInfo | undefined,
@@ -314,35 +273,6 @@ function useLaunch(
     setForm(next)
     if (launch.action !== AiAction.Custom) void generate(next)
   }, [launch, provider, form, setForm, generate])
-}
-
-interface AiProviderFieldsProps {
-  readonly providers: readonly AiProviderInfo[]
-  readonly provider: AiProviderInfo | undefined
-  readonly onProvider: (id: string) => void
-  readonly onModel: (model: string) => void
-  readonly running: boolean
-}
-
-function AiProviderFields(props: AiProviderFieldsProps): React.JSX.Element {
-  const t = useT()
-  return (
-    <>
-      <label className="popover__field">
-        <span>{t('ai.panel.provider')}</span>
-        <select value={props.provider?.id ?? ''} onChange={(event) => props.onProvider(event.target.value)}>
-          {props.providers.map((provider) => (
-            <option key={provider.id} value={provider.id}>
-              {provider.label}
-            </option>
-          ))}
-        </select>
-      </label>
-      {props.provider !== undefined && props.provider.kind !== AiProviderKind.ClaudeCli && (
-        <AiModelSelect provider={props.provider} disabled={props.running} onChoose={props.onModel} />
-      )}
-    </>
-  )
 }
 
 interface AiRequestFormProps {

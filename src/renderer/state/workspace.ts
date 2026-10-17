@@ -14,7 +14,7 @@ export type { DocumentSource, WorkspaceState } from './types.js'
  * Fields and one-line setters; anything with rules lives in the action groups, wired by
  * `context.ts`.
  */
-export const useWorkspace = create<WorkspaceState>((set, get) => {
+export const useWorkspace = create<WorkspaceState>((set, get, store) => {
   const ctx = createWorkspaceContext(set, get)
   const empty = createEmptyDocument()
 
@@ -83,7 +83,7 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
     setInspector: (inspector) => set({ inspector }),
 
     ...createFileActions(set, get, ctx),
-    ...createSheetActions(set, get),
+    ...createSheetActions(set, get, store.subscribe),
     ...createDraftActions(set, get, ctx),
     ...createPrintActions(set, get, ctx),
     ...createPrivacyActions(set, get, ctx),

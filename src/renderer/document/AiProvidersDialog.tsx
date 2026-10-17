@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import type { Editor } from '@tiptap/react'
 import { AiProviderKind } from '@services/ai/provider.js'
 import type { IpcRequest, IpcResponse } from '@shared/ipc.js'
 import type { IpcChannel } from '@shared/ipc-channels.js'
@@ -43,12 +42,7 @@ function draftOf(provider: AiProviderInfo, change: Partial<ProviderDraft>): Prov
   }
 }
 
-export function AiProvidersDialog({
-  onClose,
-}: {
-  readonly editor: Editor
-  readonly onClose: () => void
-}): React.JSX.Element {
+export function AiProvidersDialog({ onClose }: { readonly onClose: () => void }): React.JSX.Element {
   const t = useT()
   const providers = useAiProviders()
   const save: SaveProvider = (draft) => providers.update(window.api.ai.saveProvider(draft))

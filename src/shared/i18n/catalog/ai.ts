@@ -3,8 +3,8 @@ import type { Catalog } from '../message.js'
 export const AI = {
   'ai.consent.title': { pt: 'Permitir este assistente de IA?', en: 'Allow this AI assistant?' },
   'ai.consent.message': {
-    pt: '{provider} fica fora deste computador. Cada pedido envia a ele o trecho selecionado, o documento aberto como contexto e, no pedido livre, a instrução que você escrever. Na conversa, cada mensagem envia o documento e a conversa até ali.',
-    en: '{provider} is outside this computer. Each request sends it the selected passage, the open document as context and, for a free request, the instruction you write. In the chat, each message sends the document and the chat so far.',
+    pt: '{provider} fica fora deste computador. Cada pedido envia a ele o trecho ou as células selecionadas, o documento aberto ou a planilha ativa como contexto e a instrução que você escrever. Na conversa, cada mensagem envia o documento e a conversa até ali.',
+    en: '{provider} is outside this computer. Each request sends it the selected passage or cells, the open document or the active sheet as context and the instruction you write. In the chat, each message sends the document and the chat so far.',
   },
   'ai.consent.detail': {
     pt: 'A resposta é gerada lá, fora deste computador. O Librevia lembra esta permissão para este assistente. Para ser perguntado de novo, use Ferramentas → Assistentes de IA.',
@@ -47,6 +47,60 @@ export const AI = {
   },
   'ai.panel.configure': { pt: 'Configurar…', en: 'Set up…' },
   'ai.panel.readOnly': { pt: 'O documento está só para leitura.', en: 'The document is read only.' },
+  'ai.sheet.explain': { pt: 'Explicar fórmula', en: 'Explain formula' },
+  'ai.sheet.formula': { pt: 'Criar fórmula', en: 'Write a formula' },
+  'ai.sheet.fill': { pt: 'Preencher coluna', en: 'Fill a column' },
+  'ai.sheet.formulaPlaceholder': {
+    pt: 'Ex.: soma dos preços da coluna B',
+    en: 'E.g.: sum of the prices in column B',
+  },
+  'ai.sheet.fillPlaceholder': {
+    pt: 'Ex.: categoria do produto da coluna A',
+    en: 'E.g.: category of the product in column A',
+  },
+  'ai.sheet.noFormula': {
+    pt: 'A célula ativa não tem fórmula para explicar.',
+    en: 'The active cell has no formula to explain.',
+  },
+  'ai.sheet.oneColumn': {
+    pt: 'Selecione as células a preencher numa única coluna.',
+    en: 'Select the cells to fill in a single column.',
+  },
+  'ai.sheet.tooManyRows': {
+    pt: 'Selecione no máximo {max} linhas.',
+    en: 'Select at most {max} rows.',
+  },
+  'ai.sheet.tooLarge': {
+    pt: 'As linhas escolhidas têm texto demais para enviar. Escolha menos linhas.',
+    en: 'The chosen rows hold too much text to send. Choose fewer rows.',
+  },
+  'ai.sheet.readOnly': {
+    pt: 'A planilha está só para leitura: dá para pedir, mas não para inserir nem aplicar.',
+    en: 'The spreadsheet is read only: you can ask, but not insert or apply.',
+  },
+  'ai.sheet.formulaLabel': { pt: 'Fórmula', en: 'Formula' },
+  'ai.sheet.valueIn': { pt: 'Valor em {cell}', en: 'Value in {cell}' },
+  'ai.sheet.insert': { pt: 'Inserir na célula', en: 'Insert into cell' },
+  'ai.sheet.noFormulaInAnswer': {
+    pt: 'A resposta não trouxe uma fórmula.',
+    en: 'The answer did not bring a formula.',
+  },
+  'ai.sheet.invalidFormula': {
+    pt: 'A fórmula sugerida não pode entrar: {problem}',
+    en: 'The suggested formula cannot go in: {problem}',
+  },
+  'ai.sheet.badFormat': {
+    pt: 'A resposta não veio no formato esperado.',
+    en: 'The answer did not come in the expected format.',
+  },
+  'ai.sheet.otherSheet': {
+    pt: 'Volte para a planilha {sheet} para gravar a resposta.',
+    en: 'Go back to the sheet {sheet} to write the answer.',
+  },
+  'ai.sheet.preview': { pt: 'Prévia', en: 'Preview' },
+  'ai.sheet.cell': { pt: 'Célula', en: 'Cell' },
+  'ai.sheet.current': { pt: 'Valor atual', en: 'Current value' },
+  'ai.sheet.new': { pt: 'Valor novo', en: 'New value' },
   'ai.tab.actions': { pt: 'Ações', en: 'Actions' },
   'ai.tab.chat': { pt: 'Conversa', en: 'Chat' },
   'ai.chat.log': { pt: 'Mensagens da conversa', en: 'Chat messages' },

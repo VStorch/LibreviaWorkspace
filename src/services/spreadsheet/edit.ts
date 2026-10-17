@@ -2,11 +2,13 @@ import { parseInput } from './format.js'
 import {
   cellRef,
   getCell,
+  isBlank,
   parseRef,
   setCell,
   type BorderSide,
   type Cell,
   type CellStyle,
+  type CellValue,
   type Sheet,
 } from './model.js'
 
@@ -94,23 +96,74 @@ export function clearContents(sheet: Sheet, range: Range): Sheet {
   return updated
 }
 
+/** As in Excel: an apostrophe in front keeps what follows as text, and is not part of it. */
+const TEXT_PREFIX = "'"
+
 /**
  * A leading `=` tells a formula from text. The value is left to recalculation, which knows the
  * order.
  */
-export function writeText(sheet: Sheet, row: number, column: number, text: string): Sheet {
-  const previous = getCell(sheet, row, column)
-
+function textCell(previous: Cell | undefined, text: string): Cell {
   // A format recognized while typing does not erase the one chosen by hand.
   const keepStyle = (cell: Cell, fallback?: Partial<CellStyle>): Cell => {
     const style = previous?.style ?? fallback
     return style === undefined ? cell : { ...cell, style }
   }
 
-  if (text.startsWith('=')) return setCell(sheet, row, column, keepStyle({ formula: text }))
+  if (text.startsWith(TEXT_PREFIX)) return keepStyle({ value: text.slice(TEXT_PREFIX.length) })
+  if (text.startsWith('=')) return keepStyle({ formula: text })
 
   const parsed = parseInput(text)
-  return setCell(sheet, row, column, keepStyle({ value: parsed.value }, parsed.style))
+  return keepStyle({ value: parsed.value }, parsed.style)
+}
+
+export function writeText(sheet: Sheet, row: number, column: number, text: string): Sheet {
+  return setCell(sheet, row, column, textCell(getCell(sheet, row, column), text))
+}
+
+/** A value, never a formula: a text that starts with `=` stays text. The style stays. */
+function valueCell(previous: Cell | undefined, value: CellValue | null): Cell {
+  if (typeof value === 'string') {
+    const literal = value.startsWith('=') || value.startsWith(TEXT_PREFIX)
+    return textCell(previous, literal ? TEXT_PREFIX + value : value)
+  }
+  const cell: Cell = value === null ? {} : { value }
+  return previous?.style === undefined ? cell : { ...cell, style: previous.style }
+}
+
+export function writeValue(sheet: Sheet, row: number, column: number, value: CellValue | null): Sheet {
+  return setCell(sheet, row, column, valueCell(getCell(sheet, row, column), value))
+}
+
+export interface ValueWrite {
+  readonly row: number
+  readonly column: number
+  readonly value: CellValue | null
+}
+
+/** As `writeValue` for each, with a single copy of the cell map however many cells change. */
+export function writeValues(sheet: Sheet, writes: readonly ValueWrite[]): Sheet {
+  const cells = { ...sheet.cells }
+  for (const { row, column, value } of writes) {
+    const ref = cellRef(row, column)
+    const cell = valueCell(cells[ref], value)
+    if (isBlank(cell)) delete cells[ref]
+    else cells[ref] = cell
+  }
+  return { ...sheet, cells }
+}
+
+/**
+ * What editing the cell starts from: typed back unchanged, it gives the same cell. A text that would
+ * be read as a formula or a number gets the apostrophe back.
+ */
+export function editableText(cell: Cell | undefined): string {
+  if (cell?.formula !== undefined) return cell.formula
+  const value = cell?.value
+  if (value === undefined) return ''
+  if (typeof value !== 'string') return String(value)
+  const reread = textCell(cell, value)
+  return reread.formula === undefined && reread.value === value ? value : TEXT_PREFIX + value
 }
 
 /**

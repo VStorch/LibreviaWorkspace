@@ -1,5 +1,6 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test } from '@playwright/test'
 import { launch, menu, type Session } from './app.js'
+import { cell } from './sheet-grid.js'
 
 /**
  * Entering a column of numbers nonstop: the grid waits 70 ms after Enter to move focus down, and a
@@ -37,9 +38,3 @@ test.describe('digitação contínua na planilha', () => {
     }
   })
 })
-
-function cell(window: Page, row: number, column: number) {
-  return window
-    .locator(`revogr-overlay-selection revogr-data [data-rgrow="${row}"][data-rgcol="${column}"]`)
-    .first()
-}

@@ -7,7 +7,7 @@ import { Language, LANGUAGES } from './i18n/language.js'
 import { ACP_AGENT_IDS } from '@services/ai/acp-agents.js'
 import { AiProposalKind } from '@services/ai/proposals.js'
 import { AiProviderKind, AiRole } from '@services/ai/provider.js'
-import { AiAction, AiFormat, Theme } from './types.js'
+import { AiAction, AiFormat, AiSheetTask, Theme } from './types.js'
 import {
   MAX_AI_AGENT_ARGS_LENGTH,
   MAX_AI_COMMENT_LENGTH,
@@ -23,6 +23,9 @@ import {
   MAX_AI_SELECTION_LENGTH,
   MAX_AI_URL_LENGTH,
   MAX_AI_DOCUMENT_LENGTH,
+  MAX_AI_FILL_ROWS,
+  MAX_AI_FORMULA_LENGTH,
+  MAX_AI_SHEET_CONTEXT_LENGTH,
   MAX_COLOR_LENGTH,
   MAX_CSS_VALUE_LENGTH,
   MAX_DESCRIPTION_LENGTH,
@@ -551,6 +554,38 @@ export const aiChatRequestSchema = z.object({
     )
     .default([]),
 })
+
+/** Each task brings what it needs: the formula to explain, the description, the rows to fill. */
+function missingForTask(request: {
+  task: AiSheetTask
+  instruction: string
+  formula?: string | undefined
+  rowCount?: number | undefined
+}): string | null {
+  if (request.task === AiSheetTask.Explain) return request.formula === undefined ? 'formula' : null
+  if (request.instruction.trim() === '') return 'instruction'
+  if (request.task === AiSheetTask.Fill && request.rowCount === undefined) return 'rowCount'
+  return null
+}
+
+export const aiSheetRequestSchema = z
+  .object({
+    requestId: z.uuid(),
+    providerId: aiProviderIdSchema,
+    model: aiModelIdSchema,
+    task: z.enum(AiSheetTask),
+    language: z.enum(LANGUAGES),
+    instruction: z.string().max(MAX_AI_INSTRUCTION_LENGTH).default(''),
+    formula: z.string().min(1).max(MAX_AI_FORMULA_LENGTH).optional(),
+    /** The active sheet only, as text: its name, the headers and the cells that matter. */
+    context: z.string().max(MAX_AI_SHEET_CONTEXT_LENGTH),
+    rowCount: z.int().min(1).max(MAX_AI_FILL_ROWS).optional(),
+  })
+  .superRefine((request, context) => {
+    const missing = missingForTask(request)
+    if (missing !== null)
+      context.addIssue({ code: 'custom', path: [missing], message: `${missing} required` })
+  })
 
 const aiProposalAnchor = {
   id: z.string().min(1).max(MAX_ID_LENGTH),

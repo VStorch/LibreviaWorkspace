@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { AiPrompt, AiProvider, AiStreamPart } from '@services/ai/provider.js'
 import { DEFAULT_LOCAL_AI_CONTEXT_LENGTH } from '@shared/limits.js'
-import { chat, consentDestination, generate, type AiConversationRequest } from './assistant.js'
+import { chat, consentDestination, generate, sheet, type AiConversationRequest } from './assistant.js'
 import { AiModelCache } from './model-cache.js'
 import { AiSettings, type StoredAiProvider } from './settings.js'
 
@@ -430,5 +430,50 @@ describe('chat', () => {
       },
     )
     expect(seen.prompt?.tools).toBeUndefined()
+  })
+})
+
+describe('sheet', () => {
+  const SHEET = {
+    requestId: REQUEST.requestId,
+    providerId: 'id1',
+    model: 'm',
+    task: 'formula',
+    language: 'pt',
+    instruction: 'some os preços',
+    context: 'Sheet: Vendas\nActive cell: B4\nCells:\nB2: 3\nB3: 5',
+  } as const
+
+  function contextOf(stream: AiStreamPart[], seen: { prompt?: AiPrompt }, pushed: string[] = []) {
+    return {
+      settings: settingsWith('openai-compatible', 'http://127.0.0.1:11434/v1'),
+      signal: new AbortController().signal,
+      push: (delta: string) => pushed.push(delta),
+      confirmConsent: async () => true,
+      providerFor: async () => recordingProvider(stream, seen),
+    }
+  }
+
+  it('manda a planilha como contexto, sem ferramentas, e devolve a resposta em stream', async () => {
+    const seen: { prompt?: AiPrompt } = {}
+    const pushed: string[] = []
+    const result = await sheet(SHEET, contextOf([{ text: '=SOMA(' }, { text: 'B2:B3)' }], seen, pushed))
+    expect(result).toEqual({ status: 'done', model: 'm' })
+    expect(pushed.join('')).toBe('=SOMA(B2:B3)')
+    expect(seen.prompt?.tools).toBeUndefined()
+    expect(seen.prompt?.system).toContain('SOMA')
+    expect(seen.prompt?.messages[0]?.text).toContain('B2: 3')
+  })
+
+  it('linhas para preencher que não cabem no contexto do provedor local dão erro sem enviar', async () => {
+    const seen: { prompt?: AiPrompt } = {}
+    const fill = {
+      ...SHEET,
+      task: 'fill',
+      rowCount: 1,
+      context: 'x'.repeat(DEFAULT_LOCAL_AI_CONTEXT_LENGTH),
+    } as const
+    await expect(sheet(fill, contextOf([{ text: '[1]' }], seen))).rejects.toThrow()
+    expect(seen.prompt).toBeUndefined()
   })
 })
