@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { fillRange } from './fill.js'
+import { fillRange, fillTarget } from './fill.js'
 import { singleCell } from './edit.js'
 import { CellFormat, createSheet, getCell, setCell, type Sheet } from './model.js'
 
@@ -112,5 +112,20 @@ describe('fillRange', () => {
     const filled = fillRange(sheet, singleCell(2, 0), { fromRow: 0, toRow: 2, fromColumn: 0, toColumn: 0 })
 
     expect(getCell(filled, 0, 0)?.formula).toContain('#REF!')
+  })
+})
+
+describe('fillTarget', () => {
+  const source = { fromRow: 2, fromColumn: 1, toRow: 3, toColumn: 2 }
+
+  it('estende só na direção em que o ponteiro saiu mais da origem', () => {
+    expect(fillTarget(source, { row: 9, column: 4 })).toEqual({ ...source, toRow: 9 })
+    expect(fillTarget(source, { row: 4, column: 6 })).toEqual({ ...source, toColumn: 6 })
+    expect(fillTarget(source, { row: 0, column: 2 })).toEqual({ ...source, fromRow: 0 })
+    expect(fillTarget(source, { row: 3, column: 0 })).toEqual({ ...source, fromColumn: 0 })
+  })
+
+  it('dentro da origem, não preenche nada', () => {
+    expect(fillTarget(source, { row: 3, column: 1 })).toEqual(source)
   })
 })

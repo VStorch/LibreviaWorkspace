@@ -20,7 +20,7 @@ interface PaneSelection {
   clearFocus(): void
 }
 
-interface SelectionConnector {
+export interface SelectionConnector {
   readonly stores: Record<number, Record<number, PaneSelection | undefined> | undefined>
   readonly storesByType: Record<string, number | undefined>
   readonly storesXToType: Record<number, string | undefined>
@@ -39,7 +39,7 @@ const ARROW_STEPS: Readonly<Record<string, SheetCell>> = {
 }
 
 /** `MouseEvent.button` of the left button, and its bit in `MouseEvent.buttons`. */
-const PRIMARY_BUTTON = 0
+export const PRIMARY_BUTTON = 0
 const PRIMARY_BUTTON_HELD = 1
 
 /** A press on a cell, followed until the button is released. */
@@ -86,7 +86,7 @@ function stepped(extent: SheetCell, step: SheetCell, sheet: Sheet): SheetCell {
 }
 
 /** Each pane draws the part of the range inside it; the grid by itself never draws across them. */
-function paint(selection: SelectionConnector, range: Range, sheet: Sheet): void {
+export function paint(selection: SelectionConnector, range: Range, sheet: Sheet): void {
   const panes = selection.stores[selection.storesByType[SHEET_ROWS_PANE] ?? -1] ?? {}
   for (const [x, type] of Object.entries(selection.storesXToType)) {
     const store = panes[Number(x)]
@@ -98,6 +98,20 @@ function paint(selection: SelectionConnector, range: Range, sheet: Sheet): void 
     if (from > to) store.clearFocus()
     else store.setRange({ x: from, y: range.fromRow }, { x: to, y: range.toRow })
   }
+}
+
+/** The grid's selection, found again each time a cell takes focus; returns the unsubscribe. */
+export function followSelection(
+  element: HTMLElement,
+  found: (selection: SelectionConnector | undefined) => void,
+): () => void {
+  const connect = (): void => {
+    const grid = element.querySelector<GridElement>('revo-grid')
+    void grid?.getProviders().then((providers) => found(providers?.selection))
+  }
+  connect()
+  element.addEventListener('afterfocus', connect)
+  return () => element.removeEventListener('afterfocus', connect)
 }
 
 function isTyping(target: EventTarget | null): boolean {
@@ -127,13 +141,6 @@ export function useCrossPaneRange(
     if (element === null) return
     let selection: SelectionConnector | undefined
     let drag: Drag | null = null
-
-    const connect = (): void => {
-      const grid = element.querySelector<GridElement>('revo-grid')
-      void grid?.getProviders().then((providers) => {
-        selection = providers?.selection
-      })
-    }
 
     /** `true` when the extension is this hook's, and the grid must not see the event. */
     const extendTo = (target: (anchor: SheetCell) => SheetCell): boolean => {
@@ -190,15 +197,16 @@ export function useCrossPaneRange(
       drag = null
     }
 
-    connect()
-    element.addEventListener('afterfocus', connect)
+    const unfollow = followSelection(element, (found) => {
+      selection = found
+    })
     element.addEventListener('mousedown', followClick, { capture: true })
     // Before the grid's own listener, on `document`.
     window.addEventListener('keydown', followKey, { capture: true })
     window.addEventListener('mousemove', followDrag, { capture: true })
     window.addEventListener('mouseup', endDrag, { capture: true })
     return () => {
-      element.removeEventListener('afterfocus', connect)
+      unfollow()
       element.removeEventListener('mousedown', followClick, { capture: true })
       window.removeEventListener('keydown', followKey, { capture: true })
       window.removeEventListener('mousemove', followDrag, { capture: true })

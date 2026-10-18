@@ -27,6 +27,7 @@ import { SpreadsheetToolbar } from './SpreadsheetToolbar.js'
 import { SheetContextMenu, type MenuPosition } from './SheetContextMenu.js'
 import { cellStyleOf } from './cell-style.js'
 import { SHEET_ROWS_PANE, gridPositionOf, sheetColumnOf } from './grid-position.js'
+import { useCrossPaneFill } from './useCrossPaneFill.js'
 import { useCrossPaneRange } from './useCrossPaneRange.js'
 import { useSheetClipboard } from './useSheetClipboard.js'
 import { useFormatShortcuts } from './useFormatShortcuts.js'
@@ -78,6 +79,7 @@ export function SpreadsheetEditor({
   const container = useRef<HTMLDivElement>(null)
   useGridRange(container, current, setRange)
   useCrossPaneRange(container, current, selection, setRange)
+  useCrossPaneFill(container, current, selection, applyChange, setRange)
   useGridTakesFocus(container)
   useSheetClipboard(current, selection, applyChange)
   const { handleResize, handleFocus, handleAutofill } = useSelectionHandlers(
@@ -268,17 +270,18 @@ function useSelectionHandlers(
   /** On the model: the grid would copy the displayed text, which for a formula is the result. */
   const handleAutofill = useCallback(
     (event: RevoGridCustomEvent<ChangedRange>) => {
-      const { oldRange, newRange } = event.detail
+      const { oldRange, newRange, colType } = event.detail
       if (oldRange === null || newRange === null) return
 
       event.preventDefault()
-      applyChange(
-        fillRange(
-          current.current,
-          { fromRow: oldRange.y, fromColumn: oldRange.x, toRow: oldRange.y1, toColumn: oldRange.x1 },
-          { fromRow: newRange.y, fromColumn: newRange.x, toRow: newRange.y1, toColumn: newRange.x1 },
-        ),
-      )
+      const sheet = current.current
+      const toSheet = (area: RangeArea): Range => ({
+        fromRow: area.y,
+        fromColumn: sheetColumnOf(area.x, colType, sheet.frozenColumns),
+        toRow: area.y1,
+        toColumn: sheetColumnOf(area.x1, colType, sheet.frozenColumns),
+      })
+      applyChange(fillRange(sheet, toSheet(oldRange), toSheet(newRange)))
     },
     [applyChange],
   )

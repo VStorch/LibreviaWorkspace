@@ -40,6 +40,24 @@ export function fillRange(sheet: Sheet, source: Range, target: Range): Sheet {
   return updated
 }
 
+/**
+ * Where dragging the fill handle to `pointer` fills, as in Excel: along the rows or the columns,
+ * whichever the pointer went further out of the source in; never both.
+ */
+export function fillTarget(source: Range, pointer: { readonly row: number; readonly column: number }): Range {
+  const from = normalizeRange(source)
+  const rows = Math.max(pointer.row - from.toRow, from.fromRow - pointer.row, 0)
+  const columns = Math.max(pointer.column - from.toColumn, from.fromColumn - pointer.column, 0)
+  if (rows === 0 && columns === 0) return from
+  return rows >= columns
+    ? { ...from, fromRow: Math.min(from.fromRow, pointer.row), toRow: Math.max(from.toRow, pointer.row) }
+    : {
+        ...from,
+        fromColumn: Math.min(from.fromColumn, pointer.column),
+        toColumn: Math.max(from.toColumn, pointer.column),
+      }
+}
+
 /** The style comes along, as in Excel; the value does not, because recalculation fills it. */
 function copyOf(source: Cell | undefined, rowDelta: number, columnDelta: number): Cell {
   if (source === undefined) return {}

@@ -48,3 +48,25 @@ export async function selectDown(window: Page, row: number, column: number, rows
     await expect(window.locator('.formula-bar__ref')).toHaveText(range, { timeout: 1000 })
   }).toPass({ timeout: 15_000 })
 }
+
+/** Drags the small square at the selection corner, starting a few pixels inside. */
+export async function dragHandle(
+  window: Page,
+  fromRow: number,
+  fromColumn: number,
+  toRow: number,
+  toColumn: number,
+): Promise<void> {
+  await select(window, fromRow, fromColumn)
+
+  const origin = await cell(window, fromRow, fromColumn).boundingBox()
+  const destination = await cell(window, toRow, toColumn).boundingBox()
+  if (origin === null || destination === null) throw new Error('célula sem posição na tela')
+
+  await window.mouse.move(origin.x + origin.width - 2, origin.y + origin.height - 2)
+  await window.mouse.down()
+  await window.mouse.move(destination.x + destination.width / 2, destination.y + destination.height / 2, {
+    steps: 8,
+  })
+  await window.mouse.up()
+}

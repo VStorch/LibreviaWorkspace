@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 import { launch, menu, type Session } from './app.js'
-import { cell, gridReady, select, write } from './sheet-grid.js'
+import { cell, dragHandle, gridReady, select, write } from './sheet-grid.js'
 
 /** Columns A and B and rows 1 and 2 frozen. */
 async function freeze(window: Page): Promise<void> {
@@ -95,5 +95,24 @@ test.describe('painéis congelados na planilha', () => {
     await window.keyboard.press('Control+x')
     await expect.poll(() => app.evaluate(({ clipboard }) => clipboard.readText())).toBe('a\tb\t2')
     for (const column of [0, 1, 2]) await expect(cell(window, 0, column)).toHaveText('')
+  })
+
+  test('a alça de preenchimento escreve nas colunas certas, no painel que rola e através da divisa', async () => {
+    const { window } = session
+    await write(window, 2, 3, '5')
+    await write(window, 6, 1, '=A7+1')
+    await freeze(window)
+
+    await dragHandle(window, 2, 3, 4, 3)
+    for (const row of [3, 4]) await expect(cell(window, row, 3)).toHaveText('5')
+    await expect(cell(window, 3, 1)).toHaveText('')
+
+    await dragHandle(window, 6, 1, 6, 3)
+    await expect(cell(window, 6, 2)).toHaveText('2')
+    await select(window, 6, 3)
+    await expect(window.locator('.formula-bar__input')).toHaveValue('=C7+1')
+    await window.keyboard.press('Control+z')
+    for (const column of [2, 3]) await expect(cell(window, 6, column)).toHaveText('')
+    await expect(cell(window, 6, 1)).toHaveText('1')
   })
 })

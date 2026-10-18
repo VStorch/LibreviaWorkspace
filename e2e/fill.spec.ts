@@ -1,6 +1,6 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test } from '@playwright/test'
 import { launch, menu, type Session } from './app.js'
-import { cell, select, write } from './sheet-grid.js'
+import { cell, dragHandle, select, write } from './sheet-grid.js'
 
 /**
  * The fill handle carries the formula, not the result: drag with the mouse, because a unit test
@@ -38,25 +38,3 @@ test.describe('alça de preenchimento', () => {
     await expect(session.window.locator('.formula-bar__input')).toHaveValue('=A2*B2')
   })
 })
-
-/** Drags the small square at the selection corner, starting a few pixels inside. */
-async function dragHandle(
-  window: Page,
-  fromRow: number,
-  fromColumn: number,
-  toRow: number,
-  toColumn: number,
-): Promise<void> {
-  await select(window, fromRow, fromColumn)
-
-  const origin = await cell(window, fromRow, fromColumn).boundingBox()
-  const destination = await cell(window, toRow, toColumn).boundingBox()
-  if (origin === null || destination === null) throw new Error('célula sem posição na tela')
-
-  await window.mouse.move(origin.x + origin.width - 2, origin.y + origin.height - 2)
-  await window.mouse.down()
-  await window.mouse.move(destination.x + destination.width / 2, destination.y + destination.height / 2, {
-    steps: 8,
-  })
-  await window.mouse.up()
-}
