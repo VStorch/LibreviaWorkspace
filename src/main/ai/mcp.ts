@@ -1,4 +1,5 @@
 import { app, type WebContents } from 'electron'
+import { joinArgs } from '@services/ai/acp-session.js'
 import { MCP_SERVER_NAME } from '@services/ai/mcp-protocol.js'
 import { IpcChannel } from '@shared/ipc-channels.js'
 import { t } from '../i18n.js'
@@ -9,6 +10,7 @@ import { RendererDocument } from './mcp-window.js'
 
 const CONFIG_INDENT = 2
 const USER_DATA_SWITCH = '--user-data-dir'
+const CLAUDE_CODE_ADD = ['claude', 'mcp', 'add', '--scope', 'user']
 
 /** What a client runs: the AppImage itself when packaged as one, since its mount path changes. */
 export function mcpBridgeLaunch(): McpBridgeLaunch {
@@ -22,6 +24,12 @@ export function mcpBridgeLaunch(): McpBridgeLaunch {
 export function mcpClientConfig(): string {
   const { command, args } = mcpBridgeLaunch()
   return JSON.stringify({ mcpServers: { [MCP_SERVER_NAME]: { command, args } } }, null, CONFIG_INDENT)
+}
+
+/** Registers the server once for every folder Claude Code is opened in. */
+export function mcpClientCommand(): string {
+  const { command, args } = mcpBridgeLaunch()
+  return joinArgs([...CLAUDE_CODE_ADD, MCP_SERVER_NAME, '--', command, ...args])
 }
 
 const documentWindow = new RendererDocument()

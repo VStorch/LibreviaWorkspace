@@ -71,7 +71,10 @@ test.describe('servidor MCP local', () => {
     await expect(caixa).toBeChecked({ checked: ligar })
     let configuracao: { command: string; args: string[] } | null = null
     if (ligar) {
-      const texto = dialogo.getByTestId('mcp-setup').locator('pre')
+      await expect(dialogo.getByTestId('mcp-setup-command').locator('pre')).toContainText(
+        'claude mcp add --scope user librevia --',
+      )
+      const texto = dialogo.getByTestId('mcp-setup-json').locator('pre')
       await expect(texto).toContainText('--mcp-bridge')
       const json = JSON.parse(await texto.innerText()) as {
         mcpServers: { librevia: { command: string; args: string[] } }

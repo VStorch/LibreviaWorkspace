@@ -238,9 +238,13 @@ export const AI = {
     pt: 'O programa conectado recebe o texto inteiro do documento e o envia para onde ele estiver configurado (por exemplo, os servidores da Anthropic). As alterações dele entram como revisões e comentários, que você aceita ou rejeita.',
     en: 'The connected program receives the whole text of the document and sends it wherever it is set up to (for example, Anthropic’s servers). Its changes come in as revisions and comments, which you accept or reject.',
   },
+  'ai.preferences.mcpCommand': {
+    pt: 'Claude Code: rode este comando uma vez no terminal',
+    en: 'Claude Code: run this command once in the terminal',
+  },
   'ai.preferences.mcpConfig': {
-    pt: 'Configuração para colar no programa',
-    en: 'Configuration to paste into the program',
+    pt: 'Outros programas (Claude Desktop, .mcp.json): cole esta configuração uma vez',
+    en: 'Other programs (Claude Desktop, .mcp.json): paste this configuration once',
   },
   'ai.preferences.mcpCopy': { pt: 'Copiar', en: 'Copy' },
   'ai.preferences.mcpCopied': { pt: 'Copiado', en: 'Copied' },

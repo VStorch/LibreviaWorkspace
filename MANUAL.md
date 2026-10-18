@@ -844,8 +844,11 @@ trabalhar no documento aberto no Librevia, inclusive no que ainda não foi salvo
 
 1. Abra **Ferramentas → Assistentes de IA…** e ligue **Permitir que programas externos leiam o
    documento aberto e proponham alterações (MCP)**. Vem desligado.
-2. Copie a configuração que aparece embaixo e cole no programa. No Claude Code, ela vai no
-   arquivo `.mcp.json` do projeto; no Claude Desktop, em `claude_desktop_config.json`.
+2. Registre o Librevia no programa. Isso se faz uma vez só; depois ele continua conectando sozinho.
+   - **Claude Code:** copie o comando que aparece embaixo e rode no terminal. Ele começa com
+     `claude mcp add --scope user librevia --` e vale para qualquer pasta.
+   - **Claude Desktop e outros:** copie a configuração JSON e cole em `claude_desktop_config.json`
+     ou no `.mcp.json` do projeto.
 3. Com o Librevia aberto, peça ao programa, por exemplo: "leia o documento aberto no Librevia e
    comente as frases longas demais".
 

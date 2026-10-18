@@ -441,14 +441,17 @@ export const ipcContracts = {
   },
   [IpcChannel.McpStatus]: {
     request: emptyRequest,
-    response: mcpClientsSchema.extend({ clientConfig: z.string().max(MAX_PATH_LENGTH * 2) }),
+    response: mcpClientsSchema.extend({
+      clientCommand: z.string().max(MAX_PATH_LENGTH * 2),
+      clientConfig: z.string().max(MAX_PATH_LENGTH * 2),
+    }),
   },
   [IpcChannel.McpDisconnect]: {
     request: emptyRequest,
     response: mcpClientsSchema,
   },
   [IpcChannel.McpCopyConfig]: {
-    request: emptyRequest,
+    request: z.object({ format: z.enum(['command', 'json']) }),
     response: z.object({ copied: z.literal(true) }),
   },
 } as const

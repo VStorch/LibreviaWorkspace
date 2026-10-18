@@ -467,25 +467,45 @@ function PreferencesSection({ providers }: { readonly providers: AiProviders }):
   )
 }
 
-/** What the connected program receives, and the configuration to paste into it. */
+type McpSetupFormat = 'command' | 'json'
+
+/** What the connected program receives, and how to register the app in it. */
 function McpSetup(): React.JSX.Element {
   const t = useT()
-  const [config, setConfig] = useState('')
-  const [copied, setCopied] = useState(false)
+  const [setup, setSetup] = useState<Record<McpSetupFormat, string>>({ command: '', json: '' })
   useEffect(() => {
     void window.api.mcp.status({}).then((result) => {
-      if (result.ok) setConfig(result.data.clientConfig)
+      if (result.ok) setSetup({ command: result.data.clientCommand, json: result.data.clientConfig })
     })
   }, [])
-  const copy = async (): Promise<void> => {
-    const result = await window.api.mcp.copyConfig({})
-    setCopied(result.ok)
-  }
   return (
     <div data-testid="mcp-setup">
       <p className="popover__hint">{t('ai.preferences.mcpWarning')}</p>
-      <span className="popover__hint">{t('ai.preferences.mcpConfig')}</span>
-      <pre className="popover__code">{config}</pre>
+      <McpSetupBlock format="command" label={t('ai.preferences.mcpCommand')} text={setup.command} />
+      <McpSetupBlock format="json" label={t('ai.preferences.mcpConfig')} text={setup.json} />
+    </div>
+  )
+}
+
+function McpSetupBlock({
+  format,
+  label,
+  text,
+}: {
+  readonly format: McpSetupFormat
+  readonly label: string
+  readonly text: string
+}): React.JSX.Element {
+  const t = useT()
+  const [copied, setCopied] = useState(false)
+  const copy = async (): Promise<void> => {
+    const result = await window.api.mcp.copyConfig({ format })
+    setCopied(result.ok)
+  }
+  return (
+    <div data-testid={`mcp-setup-${format}`}>
+      <span className="popover__hint">{label}</span>
+      <pre className="popover__code">{text}</pre>
       <button type="button" className="btn" onClick={() => void copy()}>
         {t(copied ? 'ai.preferences.mcpCopied' : 'ai.preferences.mcpCopy')}
       </button>
