@@ -795,8 +795,10 @@ um único Desfazer volta todos.
   acessa a internet e não roda programas: ele só lê o texto enviado e propõe.
 - Com o documento só para leitura, Aplicar fica apagado.
 
-Só a API da Anthropic e os servidores compatíveis com OpenAI (Ollama, LM Studio…) oferecem isso.
-Com o Claude Code ou um agente ACP, a caixa fica apagada. Um modelo local sem suporte a
+A API da Anthropic, os servidores compatíveis com OpenAI (Ollama, LM Studio…) e o Claude Code
+oferecem isso. O Claude Code recebe só essas quatro ferramentas, por uma chave que vale para uma
+mensagem só, e continua sem as dele (arquivos, terminal) e sem os servidores MCP que você tenha
+configurado nele. Com um agente ACP, a caixa fica apagada. Um modelo local sem suporte a
 ferramentas recusa o pedido: o Librevia avisa para desligar a caixa ou trocar de modelo, e o
 motivo aparece também na resposta, no painel.
 
@@ -834,6 +836,40 @@ O que vai junto com o pedido:
 
 Com a planilha só para leitura, dá para pedir, mas Inserir na célula e Aplicar ficam apagados. As
 respostas ficam no painel até o próximo pedido; o assistente não lembra os pedidos anteriores.
+
+### Programas externos (MCP)
+
+O Claude Code no terminal, o Claude Desktop ou outro programa que fale o protocolo MCP podem
+trabalhar no documento aberto no Librevia, inclusive no que ainda não foi salvo.
+
+1. Abra **Ferramentas → Assistentes de IA…** e ligue **Permitir que programas externos leiam o
+   documento aberto e proponham alterações (MCP)**. Vem desligado.
+2. Copie a configuração que aparece embaixo e cole no programa. No Claude Code, ela vai no
+   arquivo `.mcp.json` do projeto; no Claude Desktop, em `claude_desktop_config.json`.
+3. Com o Librevia aberto, peça ao programa, por exemplo: "leia o documento aberto no Librevia e
+   comente as frases longas demais".
+
+O programa conectado pode ler os parágrafos, procurar um texto, propor a troca de um trecho e
+comentar um trecho. **Cada proposta entra na hora como alteração controlada ou comentário**, mesmo
+com o controle de alterações desligado, e com o nome do programa seguido de "(MCP)" como autor:
+"Claude Code (MCP)". Você aceita ou rejeita como qualquer revisão, e Desfazer volta cada uma. Não
+há limite de propostas.
+
+O programa não abre nem salva arquivos, não aceita nem rejeita revisões, não vê o nome nem o
+caminho do arquivo e não mexe em planilhas nem em PDFs. Com o documento só para leitura, as
+propostas são recusadas.
+
+- Enquanto um programa estiver conectado, a barra de status mostra o nome dele e o botão
+  **Desconectar**. Desligar a caixa também derruba as conexões.
+- No máximo 2 programas ao mesmo tempo.
+- O programa recebe o texto inteiro do documento e o envia para onde ele estiver configurado: o
+  Claude Code e o Claude Desktop mandam para os servidores da Anthropic.
+- A ligação não usa a rede: o programa roda `librevia --mcp-bridge`, que conversa com o Librevia
+  aberto por um arquivo de comunicação (socket) na pasta de dados, que só o seu usuário abre. Cada
+  conexão apresenta uma chave que muda a cada vez que o Librevia abre e a cada vez que a caixa é
+  ligada; a configuração copiada continua valendo, porque a chave é lida de novo a cada conexão.
+- No Linux, o programa precisa rodar dentro da sessão gráfica (com `DISPLAY` ou Wayland), porque a
+  ponte é o próprio Librevia.
 
 ### O que é enviado, e para onde
 

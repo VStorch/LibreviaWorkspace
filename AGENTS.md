@@ -45,6 +45,13 @@ Teste só o que a mudança tocou. Rodar a suíte inteira a cada passo é desperd
 - **Textos da interface:** toda frase visível vai no catálogo `src/shared/i18n/catalog/`, com
   `pt` e `en`. O `npm run i18n:check` acusa frase solta no código.
 - **Rede:** o aplicativo não acessa a internet. Não acrescente nada que busque algo fora.
+- **Servidor MCP:** desligado por padrão. Escuta só em socket Unix (pasta 700, socket 600) ou
+  named pipe, nunca em porta TCP. Toda conexão apresenta a chave da pasta de dados, comparada em
+  tempo constante e trocada a cada abertura do app e a cada vez que o servidor é ligado. Os
+  clientes só têm as ferramentas de `document-tools.ts`. Toda escrita entra como revisão
+  controlada ou comentário, com autor "<nome> (MCP)", e nunca salva, aceita ou rejeita nada.
+  Ferramenta nova não lê arquivo, não acessa a rede e não executa nada. Sessões internas do
+  Claude Code usam chave de um só pedido e leem só o instantâneo daquela mensagem.
 - **Dependência nova** precisa de licença permissiva; o portão de licenças reprova o resto.
 
 ## Estilo

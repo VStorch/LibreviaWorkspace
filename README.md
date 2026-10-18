@@ -101,7 +101,7 @@ Ele também:
 | **Equações** | mostra as equações do Word e permite escrever novas em LaTeX |
 | **Modelos** | cria documentos a partir de modelos do Word (`.dotx`); quatro vêm com o aplicativo |
 | **Ferramentas** | ortografia em português sem internet, localizar e substituir, contar palavras, caracteres especiais, autocorreção tipográfica |
-| **Assistente de IA** | opcional e desligado de fábrica: reescreve, resume, revisa ou traduz o trecho selecionado, com o documento aberto como contexto e com permissão para os que ficam fora do computador; a resposta chega formatada (negrito, títulos, listas) e entra como alteração controlada. Na planilha, explica e cria fórmulas e preenche colunas, com prévia antes de gravar. Funciona com Ollama e LM Studio, neste computador, com o Claude Code, com agentes que falam o protocolo ACP (Gemini CLI, Codex e outros) ou com um serviço na nuvem |
+| **Assistente de IA** | opcional e desligado de fábrica: reescreve, resume, revisa ou traduz o trecho selecionado, com o documento aberto como contexto e com permissão para os que ficam fora do computador; a resposta chega formatada (negrito, títulos, listas) e entra como alteração controlada. Na planilha, explica e cria fórmulas e preenche colunas, com prévia antes de gravar. Funciona com Ollama e LM Studio, neste computador, com o Claude Code, com agentes que falam o protocolo ACP (Gemini CLI, Codex e outros) ou com um serviço na nuvem. Programas externos, como o Claude Code, podem ler o documento aberto e deixar revisões e comentários pelo protocolo MCP, sem usar a rede |
 
 ### Planilhas
 
@@ -472,7 +472,7 @@ fácil se perder. Esta é a lista das pastas que importam e do que cada uma guar
 | [`preferences.ts`](src/main/preferences.ts), [`i18n.ts`](src/main/i18n.ts) | idioma e tema guardados, e a tradução do menu nativo |
 | [`security.ts`](src/main/security.ts), [`security-policy.ts`](src/main/security-policy.ts) | preferências da janela e política de navegação |
 | [`spellcheck.ts`](src/main/spellcheck.ts), [`fonts.ts`](src/main/fonts.ts), [`system-fonts.ts`](src/main/system-fonts.ts) | ortografia offline e lista de fontes |
-| [`ai/`](src/main/ai) | o assistente de IA: provedores, chaves cifradas, consentimento e cancelamento. É a única pasta que acessa a rede |
+| [`ai/`](src/main/ai) | o assistente de IA: provedores, chaves cifradas, consentimento, cancelamento e o servidor MCP local. É a única pasta que acessa a rede |
 
 ### Interface — `src/renderer/`
 
