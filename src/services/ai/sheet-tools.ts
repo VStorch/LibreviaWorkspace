@@ -10,10 +10,12 @@ import {
   MAX_AI_REASON_LENGTH,
   MAX_AI_SEARCH_QUERY_LENGTH,
   MAX_AI_SEARCH_RESULTS,
+  MAX_AI_TOOL_RESULT_LENGTH,
   MAX_AI_WRITE_CELLS,
+  MAX_NAME_LENGTH,
 } from '@shared/limits.js'
 import type { AiToolCall, AiToolDefinition } from './provider.js'
-import { byPosition, cellLine, usedCells, type UsedCell } from './sheet-context.js'
+import { byPosition, cellLine, linesThatFit, usedCells, type UsedCell } from './sheet-context.js'
 import { defineTool as defineAnyTool, failure, success, toolbox, type ToolOutcome } from './tools.js'
 
 /** The workbook on screen and the selection on its active sheet. */
@@ -43,6 +45,8 @@ export const SheetToolName = {
 const DEFAULT_FIND_RESULTS = 10
 const MAX_REF_LENGTH = 16
 const RANGE_FORMAT = 'The range reads like "A1" or "A1:D20".'
+/** Left for the note on where to read on, so that the note never pushes the result past its limit. */
+const READ_ON_NOTE_ROOM = 200
 
 function defineTool<S extends z.ZodType>(
   name: string,
@@ -56,7 +60,7 @@ function defineTool<S extends z.ZodType>(
 const sheetName = z
   .string()
   .min(1)
-  .max(MAX_AI_SEARCH_QUERY_LENGTH)
+  .max(MAX_NAME_LENGTH)
   .optional()
   .describe('Name of the sheet; the active one when left out.')
 
@@ -103,6 +107,18 @@ const listSheets = defineTool(
   },
 )
 
+/** Up to a number of cells and a length, then where to read on from. */
+function readLines(sheet: Sheet, cells: readonly UsedCell[]): string[] {
+  const lines = [`Sheet: ${sheet.name}`, ...cells.slice(0, MAX_AI_READ_CELLS).map(cellLine)]
+  const shown = linesThatFit(lines, MAX_AI_TOOL_RESULT_LENGTH - READ_ON_NOTE_ROOM) - 1
+  const next = cells[shown]
+  if (next === undefined) return lines
+  return [
+    ...lines.slice(0, shown + 1),
+    `Only the first ${shown} cells with content are shown; the next is ${cellRef(next.row, next.column)}: read on from its row.`,
+  ]
+}
+
 const readCells = defineTool(
   SheetToolName.ReadCells,
   'Read the cells of a range that have content, one per line: the formula, when there is one, then what the cell shows.',
@@ -125,14 +141,7 @@ const readCells = defineTool(
       .filter((cell) => rangeContains(area, cell.row, cell.column))
       .sort(byPosition)
     if (cells.length === 0) return success(`${describeRange(area)} on ${sheet.name} is empty.`)
-    const lines = [`Sheet: ${sheet.name}`, ...cells.slice(0, MAX_AI_READ_CELLS).map(cellLine)]
-    const next = cells[MAX_AI_READ_CELLS]
-    if (next !== undefined) {
-      lines.push(
-        `Only the first ${MAX_AI_READ_CELLS} cells with content are shown; the next is ${cellRef(next.row, next.column)}: read on from its row.`,
-      )
-    }
-    return success(lines.join('\n'))
+    return success(readLines(sheet, cells).join('\n'))
   },
 )
 
@@ -184,6 +193,12 @@ function formulaProblem(rows: readonly (readonly string[])[], row: number, colum
   return null
 }
 
+/** The cells a proposal covers: from its corner, as wide as its longest row. */
+export function proposalTarget({ row, column, rows }: Pick<SheetProposal, 'row' | 'column' | 'rows'>): Range {
+  const width = Math.max(...rows.map((cells) => cells.length))
+  return { fromRow: row, fromColumn: column, toRow: row + rows.length - 1, toColumn: column + width - 1 }
+}
+
 const writeCells = defineTool(
   SheetToolName.WriteCells,
   'Propose writing cells from a starting cell. The person sees the proposal over the sheet and applies or discards it; nothing changes until then.',
@@ -198,13 +213,7 @@ const writeCells = defineTool(
     if (at === null) return failure('The start is one cell, like "B2".')
     const sheet = sheetOf(context, name)
     if (typeof sheet === 'string') return failure(sheet)
-    const width = Math.max(...rows.map((cells) => cells.length))
-    const target = {
-      fromRow: at.row,
-      fromColumn: at.column,
-      toRow: at.row + rows.length - 1,
-      toColumn: at.column + width - 1,
-    }
+    const target = proposalTarget({ ...at, rows })
     const problem = outsideProblem(sheet, target) ?? formulaProblem(rows, at.row, at.column)
     if (problem !== null) return failure(problem)
     return {

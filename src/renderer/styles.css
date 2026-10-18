@@ -2264,7 +2264,6 @@ button {
   color: var(--accent);
 }
 
-/* What an MCP client would write, as the grid would show the cells it fills. */
 .sheet-proposal__preview {
   align-self: flex-start;
   margin-top: 6px;

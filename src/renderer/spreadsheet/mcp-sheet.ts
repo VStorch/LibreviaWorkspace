@@ -4,12 +4,9 @@ import { runSheetTool, type SheetProposal } from '@services/ai/sheet-tools.js'
 import { failure, type ToolOutcome } from '@services/ai/tools.js'
 import type { Range } from '@services/spreadsheet/edit.js'
 import type { McpDocumentRequest } from '@shared/api.js'
-import type { IpcRequest } from '@shared/ipc.js'
-import type { IpcChannel } from '@shared/ipc-channels.js'
-import { MCP_DOCUMENT_REFUSED, McpDocumentAsk, McpDocumentRefusal } from '@shared/types.js'
+import { McpDocumentAsk, McpDocumentRefusal } from '@shared/types.js'
+import { refused, type McpReply } from '../ai/mcp-reply.js'
 import { useWorkspace } from '../state/workspace.js'
-
-type Reply = IpcRequest<typeof IpcChannel.McpDocumentReply>
 
 export interface PendingSheetProposal extends SheetProposal {
   readonly id: string
@@ -42,7 +39,6 @@ function offer(proposal: SheetProposal, author: string, generation: number): voi
 /** The selection on the workbook on screen; null while a text document, a PDF or nothing is. */
 let selection: Range | null = null
 
-/** Until the workbook leaves the screen. */
 export function useOfferSheetToMcp(range: Range): void {
   useEffect(() => {
     selection = range
@@ -55,28 +51,22 @@ export function useOfferSheetToMcp(range: Range): void {
   )
 }
 
-const NO_CALL = 'The request came without a tool call.'
+const INCOMPLETE = 'The request came without the tool call or its author.'
 
-const toolReply = (requestId: string, { content, isError }: ToolOutcome<unknown>): Reply => ({
+const toolReply = (requestId: string, { content, isError }: ToolOutcome<unknown>): McpReply => ({
   requestId,
   ask: McpDocumentAsk.SheetTool,
   content,
   isError,
 })
 
-const refused = (requestId: string, refusal: McpDocumentRefusal): Reply => ({
-  requestId,
-  ask: MCP_DOCUMENT_REFUSED,
-  refusal,
-})
-
 /** Reading works in read-only mode; a write only waits on screen, and never in read-only mode. */
-export function answerSheetTool(request: McpDocumentRequest): Reply {
+export function answerSheetTool(request: McpDocumentRequest, selected = selection): McpReply {
   const { requestId, call, author } = request
   const { workbook, readOnly, generation } = useWorkspace.getState()
-  if (workbook === null || selection === null) return refused(requestId, McpDocumentRefusal.NoSpreadsheet)
-  if (call === undefined || author === undefined) return toolReply(requestId, failure(NO_CALL))
-  const outcome = runSheetTool({ id: requestId, ...call }, { workbook, selection })
+  if (workbook === null || selected === null) return refused(requestId, McpDocumentRefusal.NoSpreadsheet)
+  if (call === undefined || author === undefined) return toolReply(requestId, failure(INCOMPLETE))
+  const outcome = runSheetTool({ id: requestId, ...call }, { workbook, selection: selected })
   if (outcome.proposal !== undefined) {
     if (readOnly) return refused(requestId, McpDocumentRefusal.ReadOnly)
     offer(outcome.proposal, author, generation)

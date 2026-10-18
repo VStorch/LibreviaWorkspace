@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { proposalTarget } from '@services/ai/sheet-tools.js'
 import { pasteText } from '@services/spreadsheet/clipboard.js'
 import { cellsIn, describeRange, editableText, type Range } from '@services/spreadsheet/edit.js'
 import { quoteSheet } from '@services/spreadsheet/formula/references.js'
@@ -10,11 +11,6 @@ import { discardSheetProposal, useSheetMcpProposals, type PendingSheetProposal }
 /** Enough to see what goes where; the whole proposal goes in on apply. */
 const PREVIEW_ROWS = 5
 const PREVIEW_COLUMNS = 6
-
-function targetOf({ row, column, rows }: PendingSheetProposal): Range {
-  const width = Math.max(...rows.map((cells) => cells.length))
-  return { fromRow: row, fromColumn: column, toRow: row + rows.length - 1, toColumn: column + width - 1 }
-}
 
 function filledIn(sheet: Sheet, target: Range): number {
   let count = 0
@@ -74,7 +70,7 @@ export function SheetMcpProposal(): React.JSX.Element | null {
 
   const index = workbook.sheets.findIndex((sheet) => sheet.name === proposal.sheet)
   const sheet = workbook.sheets[index]
-  const target = targetOf(proposal)
+  const target = proposalTarget(proposal)
   const filled = sheet === undefined ? 0 : filledIn(sheet, target)
   const apply = (): void => {
     if (sheet === undefined) return

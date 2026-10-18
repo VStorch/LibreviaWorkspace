@@ -58,19 +58,22 @@ function headerCells(used: readonly UsedCell[], headerRow: number | null): UsedC
 const distance = (cell: CellPosition, active: CellPosition): number =>
   Math.abs(cell.row - active.row) + Math.abs(cell.column - active.column)
 
+/** How many of the first lines, each with its line break, fit in the budget. */
+export function linesThatFit(lines: readonly string[], budget: number): number {
+  let used = 0
+  for (const [index, line] of lines.entries()) {
+    used += line.length + 1
+    if (used > budget) return index
+  }
+  return lines.length
+}
+
 /** Whole lines while they fit, in order; says so when some were left out. */
 export function fitLines(lines: readonly string[], budget: number): string {
-  const kept: string[] = []
-  let used = 0
-  for (const line of lines) {
-    if (used + line.length + 1 > budget) {
-      const withNote = [...kept, NEAREST_ONLY].join('\n')
-      return withNote.length <= budget ? withNote : kept.join('\n')
-    }
-    kept.push(line)
-    used += line.length + 1
-  }
-  return kept.join('\n')
+  const kept = lines.slice(0, linesThatFit(lines, budget))
+  if (kept.length === lines.length) return kept.join('\n')
+  const withNote = [...kept, NEAREST_ONLY].join('\n')
+  return withNote.length <= budget ? withNote : kept.join('\n')
 }
 
 /**

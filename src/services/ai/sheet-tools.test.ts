@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { singleCell } from '@services/spreadsheet/edit.js'
 import { createSheet, setCell, type WorkbookModel } from '@services/spreadsheet/model.js'
-import { MAX_AI_READ_CELLS } from '@shared/limits.js'
+import { MAX_AI_READ_CELLS, MAX_AI_TOOL_RESULT_LENGTH } from '@shared/limits.js'
 import { runSheetTool, SHEET_TOOLS, SheetToolName, type SheetToolContext } from './sheet-tools.js'
 
 function context(): SheetToolContext {
@@ -67,6 +67,22 @@ describe('ferramentas da planilha', () => {
     const lines = call(SheetToolName.ReadCells, { range: 'A1:A1000' }, long).content.split('\n')
     expect(lines).toHaveLength(MAX_AI_READ_CELLS + 2)
     expect(lines.at(-1)).toContain(`the next is A${MAX_AI_READ_CELLS + 1}`)
+  })
+
+  it('param antes do limite de tamanho quando as células são longas', () => {
+    let sheet = createSheet('Textos')
+    for (let row = 0; row < MAX_AI_READ_CELLS; row++) {
+      sheet = setCell(sheet, row, 0, { formula: `="${'a'.repeat(300)}"`, value: 'b'.repeat(300) })
+    }
+    const long: SheetToolContext = {
+      workbook: { sheets: [sheet], activeSheet: 0 },
+      selection: singleCell(0, 0),
+    }
+    const content = call(SheetToolName.ReadCells, { range: 'A1:A1000' }, long).content
+    expect(content.length).toBeLessThanOrEqual(MAX_AI_TOOL_RESULT_LENGTH)
+    expect(content.split('\n').at(-1)).toMatch(
+      /^Only the first \d+ cells with content are shown; the next is A\d+/,
+    )
   })
 
   it('buscam em todas as abas, ignorando maiúsculas, ou só na pedida', () => {

@@ -1,17 +1,15 @@
 import { useEffect } from 'react'
 import type { Editor } from '@tiptap/react'
 import { closeHistory } from '@tiptap/pm/history'
-import type { IpcRequest } from '@shared/ipc.js'
 import { IpcChannel } from '@shared/ipc-channels.js'
 import { pushContracts } from '@shared/ipc.js'
 import type { McpDocumentRequest } from '@shared/api.js'
-import { MCP_DOCUMENT_REFUSED, McpDocumentAsk, McpDocumentRefusal } from '@shared/types.js'
+import { McpDocumentAsk, McpDocumentRefusal } from '@shared/types.js'
+import { refused, type McpReply } from '../ai/mcp-reply.js'
 import { answerSheetTool } from '../spreadsheet/mcp-sheet.js'
 import { useWorkspace } from '../state/workspace.js'
 import { chatParagraphs } from './ai-proposals.js'
 import { applyProposals } from './proposal-commands.js'
-
-type Reply = IpcRequest<typeof IpcChannel.McpDocumentReply>
 
 /** The text document on screen; none while a spreadsheet, a PDF or nothing is open. */
 let shown: Editor | null = null
@@ -27,12 +25,6 @@ export function useOfferToMcp(editor: Editor | null): void {
   }, [editor])
 }
 
-const refused = (requestId: string, refusal: McpDocumentRefusal): Reply => ({
-  requestId,
-  ask: MCP_DOCUMENT_REFUSED,
-  refusal,
-})
-
 /** Always a tracked revision or a comment, each its own undo step, whatever the editing mode. */
 function applyOne(editor: Editor, request: McpDocumentRequest): boolean {
   if (request.proposal === undefined || request.author === undefined) return false
@@ -42,7 +34,7 @@ function applyOne(editor: Editor, request: McpDocumentRequest): boolean {
   return outcome.applied.length > 0
 }
 
-function answer(request: McpDocumentRequest): Reply {
+function answer(request: McpDocumentRequest): McpReply {
   const { requestId } = request
   if (Date.now() > request.deadline) return refused(requestId, McpDocumentRefusal.Expired)
   if (request.ask === McpDocumentAsk.SheetTool) return answerSheetTool(request)
