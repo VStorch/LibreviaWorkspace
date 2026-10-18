@@ -38,8 +38,20 @@ const ARROW_STEPS: Readonly<Record<string, SheetCell>> = {
   ArrowRight: { row: 0, column: 1 },
 }
 
-/** `MouseEvent.button` of the left button. */
+/** `MouseEvent.button` of the left button, and its bit in `MouseEvent.buttons`. */
 const PRIMARY_BUTTON = 0
+const PRIMARY_BUTTON_HELD = 1
+
+/** A press on a cell, followed until the button is released. */
+interface Drag {
+  readonly anchor: SheetCell
+  last: SheetCell
+  /** From the first time the pointer goes over the divide, the range is this hook's to draw. */
+  crossed: boolean
+}
+
+const inFrozenPane = (cell: SheetCell, frozenColumns: number): boolean => cell.column < frozenColumns
+const sameCell = (a: SheetCell, b: SheetCell): boolean => a.row === b.row && a.column === b.column
 
 function rangeBetween(anchor: SheetCell, extent: SheetCell): Range {
   return normalizeRange({
@@ -101,7 +113,8 @@ function arrowStepOf(event: KeyboardEvent): SheetCell | undefined {
  * RevoGrid keeps one selection per pane and extends a range only inside the pane of its focused
  * cell: Shift+arrow stops at the frozen columns, and Shift+click past them restarts there. With
  * frozen columns, the extension is done here, from the anchor, as in any spreadsheet; always, not
- * only across the divide, because the grid applies an arrow 70 ms late and the two would race.
+ * only across the divide, because the grid applies an arrow 70 ms late and the two would race. A
+ * drag with the mouse is left to the grid until it crosses the divide, where the grid stops.
  */
 export function useCrossPaneRange(
   container: { readonly current: HTMLDivElement | null },
@@ -113,6 +126,7 @@ export function useCrossPaneRange(
     const element = container.current
     if (element === null) return
     let selection: SelectionConnector | undefined
+    let drag: Drag | null = null
 
     const connect = (): void => {
       const grid = element.querySelector<GridElement>('revo-grid')
@@ -149,9 +163,31 @@ export function useCrossPaneRange(
       if (position === null) return
       // Clicking the focused cell again, the grid announces nothing, though it drops the range.
       if (!event.shiftKey) setRange(singleCell(position.row, position.column))
+      drag = event.shiftKey ? null : { anchor: position, last: position, crossed: false }
       if (!event.shiftKey || !extendTo(() => position)) return
       event.preventDefault()
       event.stopPropagation()
+    }
+
+    const followDrag = (event: MouseEvent): void => {
+      const position = drag === null ? null : gridPositionOf(event)
+      if (drag === null || position === null) return
+      if ((event.buttons & PRIMARY_BUTTON_HELD) === 0) {
+        drag = null
+        return
+      }
+      const { frozenColumns } = current.current
+      drag.crossed ||= inFrozenPane(position, frozenColumns) !== inFrozenPane(drag.anchor, frozenColumns)
+      if (!drag.crossed) return
+      event.stopPropagation()
+      if (sameCell(position, drag.last)) return
+      drag.last = position
+      extendTo(() => position)
+    }
+
+    const endDrag = (event: MouseEvent): void => {
+      if (drag?.crossed === true) event.stopPropagation()
+      drag = null
     }
 
     connect()
@@ -159,10 +195,14 @@ export function useCrossPaneRange(
     element.addEventListener('mousedown', followClick, { capture: true })
     // Before the grid's own listener, on `document`.
     window.addEventListener('keydown', followKey, { capture: true })
+    window.addEventListener('mousemove', followDrag, { capture: true })
+    window.addEventListener('mouseup', endDrag, { capture: true })
     return () => {
       element.removeEventListener('afterfocus', connect)
       element.removeEventListener('mousedown', followClick, { capture: true })
       window.removeEventListener('keydown', followKey, { capture: true })
+      window.removeEventListener('mousemove', followDrag, { capture: true })
+      window.removeEventListener('mouseup', endDrag, { capture: true })
     }
   }, [container, current, selected, setRange])
 }
