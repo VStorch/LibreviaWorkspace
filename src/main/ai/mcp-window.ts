@@ -9,17 +9,21 @@ import { DocumentUnavailable, type DocumentWindow } from './mcp-external.js'
 
 /** Reading the paragraphs or putting in one change takes the window well under this. */
 export const MCP_WINDOW_TIMEOUT_MS = 5_000
+/** Main waits past the window's deadline, so a change the window put in is never reported as lost. */
+export const MCP_REPLY_GRACE_MS = 1_000
 
 type Reply = IpcRequest<typeof IpcChannel.McpDocumentReply>
-type Ask = Omit<PushPayload<typeof IpcChannel.McpDocumentRequest>, 'requestId'>
+type Ask = Omit<PushPayload<typeof IpcChannel.McpDocumentRequest>, 'requestId' | 'deadline'>
+
+const NO_WINDOW = 'Librevia has no window open.'
+const NO_ANSWER = 'The Librevia window did not answer in time; nothing was changed. Try again.'
 
 const REFUSALS: Readonly<Record<McpDocumentRefusal, string>> = {
   [McpDocumentRefusal.NoTextDocument]:
     'No text document is open in Librevia (a spreadsheet, a PDF or nothing is): open one and try again.',
   [McpDocumentRefusal.ReadOnly]: 'The open document is read-only: it takes no revisions or comments.',
+  [McpDocumentRefusal.Expired]: NO_ANSWER,
 }
-const NO_WINDOW = 'Librevia has no window open.'
-const NO_ANSWER = 'The Librevia window did not answer in time; try again.'
 
 function accepted(reply: Reply): Reply {
   if (reply.ask === MCP_DOCUMENT_REFUSED) throw new DocumentUnavailable(REFUSALS[reply.refusal])
@@ -61,17 +65,18 @@ export class RendererDocument implements DocumentWindow {
       return Promise.reject(new DocumentUnavailable(NO_WINDOW))
     }
     const requestId = randomUUID()
+    const deadline = Date.now() + MCP_WINDOW_TIMEOUT_MS
     return new Promise<Reply>((resolve, reject) => {
       const timer = setTimeout(() => {
         this.pending.delete(requestId)
         reject(new DocumentUnavailable(NO_ANSWER))
-      }, MCP_WINDOW_TIMEOUT_MS)
+      }, MCP_WINDOW_TIMEOUT_MS + MCP_REPLY_GRACE_MS)
       this.pending.set(requestId, (reply) => {
         clearTimeout(timer)
         this.pending.delete(requestId)
         resolve(reply)
       })
-      sendPush(contents, IpcChannel.McpDocumentRequest, { requestId, ...ask })
+      sendPush(contents, IpcChannel.McpDocumentRequest, { requestId, deadline, ...ask })
     }).then(accepted)
   }
 }

@@ -634,6 +634,8 @@ export const mcpClientsSchema = z.object({ clients: z.array(mcpClientNameSchema)
 export const mcpDocumentRequestSchema = z.object({
   requestId: z.uuid(),
   ask: z.enum(McpDocumentAsk),
+  /** Epoch milliseconds; past it the window refuses. */
+  deadline: z.number().int().positive(),
   /** Only to apply: the proposal goes in at once, by this author. */
   proposal: aiProposalSchema.optional(),
   author: z.string().min(1).max(MAX_NAME_LENGTH).optional(),

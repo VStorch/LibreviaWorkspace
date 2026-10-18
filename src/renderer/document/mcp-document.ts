@@ -43,6 +43,7 @@ function applyOne(editor: Editor, request: McpDocumentRequest): boolean {
 
 function answer(request: McpDocumentRequest): Reply {
   const { requestId } = request
+  if (Date.now() > request.deadline) return refused(requestId, McpDocumentRefusal.Expired)
   const editor = shown
   if (editor === null || editor.isDestroyed) return refused(requestId, McpDocumentRefusal.NoTextDocument)
   if (request.ask === McpDocumentAsk.Snapshot) {

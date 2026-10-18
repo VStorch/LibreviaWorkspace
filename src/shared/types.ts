@@ -190,6 +190,8 @@ export const McpDocumentRefusal = {
   /** A spreadsheet, a PDF or nothing is open. */
   NoTextDocument: 'no-text-document',
   ReadOnly: 'read-only',
+  /** Main stopped waiting: a change put in now would reach a client already told it failed. */
+  Expired: 'expired',
 } as const
 
 export type McpDocumentRefusal = (typeof McpDocumentRefusal)[keyof typeof McpDocumentRefusal]
