@@ -113,7 +113,9 @@ export function createMainWindow(): BrowserWindow {
   window.once('ready-to-show', () => window.show())
 
   if (url !== null) {
-    void window.loadURL(url)
+    // Vite serves pre-bundled dependencies as immutable for a year: a copy kept on disk from an
+    // earlier run asks for chunks the new optimization no longer has, and the sheet grid stays blank.
+    void window.webContents.session.clearCache().then(() => window.loadURL(url))
   } else {
     void window.loadFile(join(import.meta.dirname, '../renderer/index.html'))
   }
