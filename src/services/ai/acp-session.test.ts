@@ -59,15 +59,17 @@ describe('answerPermission', () => {
     for (const call of [
       { name: 'mcp__librevia__read_paragraphs', title: 'mcp__librevia__read_paragraphs', kind: 'other' },
       { title: 'mcp_librevia_add_comment' },
-      { title: 'read_paragraphs (librevia MCP Server)', kind: 'other' },
-      { title: 'read_paragraphs(from: 1, count: 5)', kind: 'other' },
+      { title: ' read_paragraphs (librevia MCP Server) ', kind: 'other' },
     ]) {
       expect(answerPermission(call, OPTIONS, SERVER)).toEqual(allowed)
     }
   })
 
-  it('recusa o resto: outra ferramenta, outro servidor, tipo que executa, mensagem sem as ferramentas', () => {
+  it('recusa o resto: nome sem o servidor, outro servidor, tipo que executa, mensagem sem as ferramentas', () => {
     for (const call of [
+      { name: 'add_comment', kind: 'other' },
+      { title: 'add_comment(text: "oi")' },
+      { title: 'add_comment (github MCP Server)' },
       { name: 'Bash', title: 'mcp__librevia__read_paragraphs', kind: 'execute' },
       { title: 'mcp__librevia__read_paragraphs', kind: 'execute' },
       { title: 'mcp__outro__read_paragraphs' },
@@ -77,7 +79,7 @@ describe('answerPermission', () => {
     ]) {
       expect(answerPermission(call, OPTIONS, SERVER)).toEqual(refused)
     }
-    expect(answerPermission({ title: 'read_paragraphs' }, OPTIONS, undefined)).toEqual(refused)
+    expect(answerPermission({ title: 'mcp__librevia__read_paragraphs' }, OPTIONS, undefined)).toEqual(refused)
   })
 })
 

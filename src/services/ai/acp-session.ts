@@ -70,26 +70,19 @@ export function refusePermission(options: readonly AcpPermissionOption[]): AcpPe
 }
 
 /**
- * How agents name a tool of an MCP server: bare, as Claude Code (`mcp__librevia__read_paragraphs`),
- * as Gemini (`mcp_librevia_read_paragraphs`, or `read_paragraphs (librevia MCP Server)` and
- * `read_paragraphs(from: 1)` as titles).
+ * How agents name a tool of an MCP server, always with the server: Claude Code
+ * (`mcp__librevia__read_paragraphs`) and Gemini (`mcp_librevia_read_paragraphs`, shown as
+ * `read_paragraphs (librevia MCP Server)`). A bare name could be a tool of another server.
  */
-function namesOf(server: string, tool: string): string[] {
-  return [tool, `mcp__${server}__${tool}`, `mcp_${server}_${tool}`, `${tool} (${server} MCP Server)`]
-}
-
-function isTitleOf(title: string, server: string, tool: string): boolean {
-  return namesOf(server, tool).includes(title) || title.startsWith(`${tool}(`)
+function qualifiedNames(server: string, tool: string): string[] {
+  return [`mcp__${server}__${tool}`, `mcp_${server}_${tool}`, `${tool} (${server} MCP Server)`]
 }
 
 /** Only an exact name of one of Librevia's tools, never of a tool that edits, runs or fetches. */
 export function isLibreviaTool(call: AcpToolCall, server: AiToolServer | undefined): boolean {
   if (server === undefined || UNSAFE_TOOL_KINDS.has(call.kind ?? '')) return false
-  const { name, title } = call
-  return server.tools.some((tool) => {
-    if (typeof name === 'string' && name !== '') return namesOf(server.name, tool).includes(name)
-    return typeof title === 'string' && isTitleOf(title.trim(), server.name, tool)
-  })
+  const given = typeof call.name === 'string' && call.name !== '' ? call.name : call.title?.trim()
+  return given !== undefined && server.tools.some((tool) => qualifiedNames(server.name, tool).includes(given))
 }
 
 /** Librevia's tools run once each time they are asked for; everything else is refused. */
