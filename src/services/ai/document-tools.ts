@@ -12,12 +12,16 @@ import {
 } from '@shared/limits.js'
 import { AiProposalKind, occurrences, type AiProposal } from './proposals.js'
 import type { AiToolCall, AiToolDefinition } from './provider.js'
+import {
+  defineTool as defineAnyTool,
+  failure,
+  success,
+  toolbox,
+  type Tool,
+  type ToolOutcome as AnyOutcome,
+} from './tools.js'
 
-export interface ToolOutcome {
-  readonly content: string
-  readonly isError: boolean
-  readonly proposal?: AiProposal
-}
+export type ToolOutcome = AnyOutcome<AiProposal>
 
 /** The document as the renderer sent it: one text per paragraph, deletions left out. */
 export interface ToolContext {
@@ -25,10 +29,7 @@ export interface ToolContext {
   readonly proposalCount: number
 }
 
-interface DocumentTool {
-  readonly definition: AiToolDefinition
-  readonly run: (input: unknown, context: ToolContext) => ToolOutcome
-}
+type DocumentTool = Tool<ToolContext, AiProposal>
 
 export const AiToolName = {
   ReadParagraphs: 'read_paragraphs',
@@ -39,17 +40,8 @@ export const AiToolName = {
 
 const DEFAULT_SEARCH_RESULTS = 10
 
-const failure = (content: string): ToolOutcome => ({ content, isError: true })
-const success = (content: string): ToolOutcome => ({ content, isError: false })
-
 export function numberedParagraph(index: number, text: string): string {
   return `[${index + 1}] ${text}`
-}
-
-function parametersOf(schema: z.ZodType): Readonly<Record<string, unknown>> {
-  const parameters = { ...(z.toJSONSchema(schema) as Record<string, unknown>) }
-  delete parameters['$schema']
-  return parameters
 }
 
 function defineTool<S extends z.ZodType>(
@@ -58,14 +50,7 @@ function defineTool<S extends z.ZodType>(
   schema: S,
   run: (args: z.infer<S>, context: ToolContext) => ToolOutcome,
 ): DocumentTool {
-  return {
-    definition: { name, description, parameters: parametersOf(schema) },
-    run(input, context) {
-      const parsed = schema.safeParse(input)
-      if (!parsed.success) return failure(`Invalid arguments: ${z.prettifyError(parsed.error)}`)
-      return run(parsed.data, context)
-    },
-  }
+  return defineAnyTool(name, description, schema, run)
 }
 
 const paragraphNumber = z.int().min(1).max(MAX_AI_PARAGRAPHS)
@@ -184,11 +169,11 @@ const addComment = defineTool(
   },
 )
 
-const TOOLS: ReadonlyMap<string, DocumentTool> = new Map(
-  [readParagraphs, searchDocument, proposeEdit, addComment].map((tool) => [tool.definition.name, tool]),
-)
+const TOOLS = toolbox([readParagraphs, searchDocument, proposeEdit, addComment])
 
-export const DOCUMENT_TOOLS: readonly AiToolDefinition[] = [...TOOLS.values()].map((tool) => tool.definition)
+export const DOCUMENT_TOOLS: readonly AiToolDefinition[] = TOOLS.definitions
+
+export const isDocumentTool = (name: string): boolean => TOOLS.has(name)
 
 const APPLIED_DESCRIPTIONS: Readonly<Record<string, string>> = {
   [AiToolName.ProposeEdit]:
@@ -215,21 +200,7 @@ export function appliedOutcome(proposal: AiProposal, applied: boolean): ToolOutc
   )
 }
 
-function parseArguments(text: string): { readonly value: unknown } | null {
-  try {
-    return { value: JSON.parse(text.trim() === '' ? '{}' : text) as unknown }
-  } catch {
-    return null
-  }
-}
-
 /** Reads only the snapshot: no tool touches the live document, a file, the network or a process. */
 export function runDocumentTool(call: AiToolCall, context: ToolContext): ToolOutcome {
-  const tool = TOOLS.get(call.name)
-  if (tool === undefined) {
-    return failure(`There is no tool named "${call.name}". The tools are: ${[...TOOLS.keys()].join(', ')}.`)
-  }
-  const input = parseArguments(call.arguments)
-  if (input === null) return failure('The arguments are not valid JSON.')
-  return tool.run(input.value, context)
+  return TOOLS.run(call, context)
 }
