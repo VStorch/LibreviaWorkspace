@@ -190,6 +190,31 @@ const TOOLS: ReadonlyMap<string, DocumentTool> = new Map(
 
 export const DOCUMENT_TOOLS: readonly AiToolDefinition[] = [...TOOLS.values()].map((tool) => tool.definition)
 
+const APPLIED_DESCRIPTIONS: Readonly<Record<string, string>> = {
+  [AiToolName.ProposeEdit]:
+    'Replace a text inside one paragraph. The change goes into the document at once as a tracked revision, which the person accepts or rejects.',
+  [AiToolName.AddComment]:
+    'Comment on a text inside one paragraph. The comment goes into the document at once, under your name.',
+}
+
+/** For a client outside the app, whose proposals go straight in as revisions and comments. */
+export const APPLIED_DOCUMENT_TOOLS: readonly AiToolDefinition[] = DOCUMENT_TOOLS.map((tool) => ({
+  ...tool,
+  description: APPLIED_DESCRIPTIONS[tool.name] ?? tool.description,
+}))
+
+/** What the client learns once the app tried to put the proposal in the document. */
+export function appliedOutcome(proposal: AiProposal, applied: boolean): ToolOutcome {
+  if (!applied) {
+    return failure(`Paragraph ${proposal.paragraph} changed before this went in: read it again and retry.`)
+  }
+  return success(
+    proposal.kind === AiProposalKind.Edit
+      ? 'The edit is in the document as a tracked revision; the person will accept or reject it.'
+      : 'The comment is in the document.',
+  )
+}
+
 function parseArguments(text: string): { readonly value: unknown } | null {
   try {
     return { value: JSON.parse(text.trim() === '' ? '{}' : text) as unknown }

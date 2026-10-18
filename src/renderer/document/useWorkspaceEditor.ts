@@ -6,6 +6,7 @@ import { signingName } from '../state/signature.js'
 import { useWorkspace } from '../state/workspace.js'
 import { buildEditorExtensions } from './editor-extensions.js'
 import { isPaginationOnly } from './extensions/pagination.js'
+import { useOfferToMcp } from './mcp-document.js'
 import type { SearchStatus } from './extensions/search-replace.js'
 
 export interface WorkspaceEditor {
@@ -54,6 +55,7 @@ export function useWorkspaceEditor(): WorkspaceEditor {
     },
   })
 
+  useOfferToMcp(editor)
   return { editor, searchStatus, contentRevision, touch }
 }
 

@@ -1,6 +1,12 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
 import { IpcChannel } from '@shared/ipc-channels.js'
-import type { AiStreamEvent, AppApi, MenuCommandPayload } from '@shared/api.js'
+import type {
+  AiStreamEvent,
+  AppApi,
+  McpClients,
+  McpDocumentRequest,
+  MenuCommandPayload,
+} from '@shared/api.js'
 import type { ContextMenuTarget, EditorPreferences } from '@shared/types.js'
 
 /**
@@ -87,6 +93,14 @@ const api: AppApi = {
     sheet: (payload) => ipcRenderer.invoke(IpcChannel.AiSheet, payload),
     cancel: (payload) => ipcRenderer.invoke(IpcChannel.AiCancel, payload),
     onStream: (listener) => subscribe<AiStreamEvent>(IpcChannel.AiStream, listener),
+  },
+  mcp: {
+    reply: (payload) => ipcRenderer.invoke(IpcChannel.McpDocumentReply, payload),
+    status: (payload) => ipcRenderer.invoke(IpcChannel.McpStatus, payload),
+    disconnect: (payload) => ipcRenderer.invoke(IpcChannel.McpDisconnect, payload),
+    copyConfig: (payload) => ipcRenderer.invoke(IpcChannel.McpCopyConfig, payload),
+    onDocumentRequest: (listener) => subscribe<McpDocumentRequest>(IpcChannel.McpDocumentRequest, listener),
+    onClients: (listener) => subscribe<McpClients>(IpcChannel.McpClients, listener),
   },
   menu: {
     onCommand: (listener) => subscribe<MenuCommandPayload>(IpcChannel.MenuCommand, listener),

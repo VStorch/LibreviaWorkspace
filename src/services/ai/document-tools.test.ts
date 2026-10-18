@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import { MAX_AI_PROPOSALS } from '@shared/limits.js'
-import { AiToolName, DOCUMENT_TOOLS, runDocumentTool, type ToolContext } from './document-tools.js'
+import {
+  AiToolName,
+  APPLIED_DOCUMENT_TOOLS,
+  appliedOutcome,
+  DOCUMENT_TOOLS,
+  runDocumentTool,
+  type ToolContext,
+} from './document-tools.js'
 
 const CONTEXT: ToolContext = {
   paragraphs: ['O gato dorme.', '', 'O cão late e o cão corre.', 'Fim do Gato.'],
@@ -129,6 +136,32 @@ describe('ferramentas do documento', () => {
     expect(call('delete_file', {}).content).toContain('read_paragraphs')
     expect(call(AiToolName.ReadParagraphs, '{"from": 1,')).toEqual({
       content: 'The arguments are not valid JSON.',
+      isError: true,
+    })
+  })
+})
+
+describe('ferramentas para clientes de fora do aplicativo', () => {
+  const edit = {
+    id: '1',
+    kind: 'edit' as const,
+    paragraph: 2,
+    paragraphText: 'O gato dorme.',
+    find: 'gato',
+    replace: 'cão',
+  }
+
+  it('as mesmas ferramentas, dizendo que a mudança entra como revisão que a pessoa aceita ou rejeita', () => {
+    expect(APPLIED_DOCUMENT_TOOLS.map((tool) => tool.name)).toEqual(DOCUMENT_TOOLS.map((tool) => tool.name))
+    const proposeEdit = APPLIED_DOCUMENT_TOOLS.find((tool) => tool.name === AiToolName.ProposeEdit)
+    expect(proposeEdit?.description).toContain('tracked revision')
+    expect(proposeEdit?.description).toContain('accepts or rejects')
+  })
+
+  it('o resultado diz se a mudança entrou ou se o parágrafo mudou', () => {
+    expect(appliedOutcome(edit, true)).toMatchObject({ isError: false })
+    expect(appliedOutcome(edit, false)).toEqual({
+      content: 'Paragraph 2 changed before this went in: read it again and retry.',
       isError: true,
     })
   })

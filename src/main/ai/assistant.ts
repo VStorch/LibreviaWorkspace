@@ -32,7 +32,8 @@ import {
   type AiSettings,
   type StoredAiProvider,
 } from './settings.js'
-import { relayWithTools } from './tool-loop.js'
+import { relayWithTools, type ToolDocument } from './tool-loop.js'
+import { relayThroughToolServer, type ToolSessions } from './tool-server.js'
 
 export type AiGenerateRequest = IpcRequest<typeof IpcChannel.AiGenerate>
 export type AiGenerateResponse = IpcResponse<typeof IpcChannel.AiGenerate>
@@ -73,6 +74,8 @@ export interface GenerateContext {
   readonly confirmConsent: (provider: StoredAiProvider) => Promise<boolean>
   readonly providerFor?: (provider: StoredAiProvider) => Promise<AiProvider>
   readonly models?: AiModelCache
+  /** Through the local MCP server, for a provider that runs the tool loop itself. */
+  readonly toolSessions?: ToolSessions
 }
 
 export async function providerFor(settings: AiSettings, stored: StoredAiProvider): Promise<AiProvider> {
@@ -183,21 +186,20 @@ export function chat(
   return answer(request, context, (stored) => {
     const contextLength = contextLengthOf(stored)
     const wantsTools = request.proposals && context.settings.preferences().chatProposals
-    if (!wantsTools || !offersDocumentTools(stored.kind)) {
-      return { prompt: buildChatPrompt(request, contextLength), run: relayOnce }
-    }
-    return {
-      prompt: buildToolChatPrompt(request, contextLength),
-      run: (provider, prompt, signal, add) =>
-        relayWithTools(
-          provider,
-          prompt,
-          { paragraphs: request.paragraphs, readBudget: contextLength },
-          signal,
-          add,
-        ),
-    }
+    const document = { paragraphs: request.paragraphs, readBudget: contextLength }
+    const run = wantsTools ? toolRunner(stored.kind, context, document) : null
+    if (run === null) return { prompt: buildChatPrompt(request, contextLength), run: relayOnce }
+    return { prompt: buildToolChatPrompt(request, contextLength), run }
   })
+}
+
+/** Claude Code runs the loop itself, reaching the tools through the local MCP server. */
+function toolRunner(kind: AiProviderKind, context: GenerateContext, document: ToolDocument): Runner | null {
+  if (!offersDocumentTools(kind)) return null
+  if (kind === AiProviderKind.ClaudeCli) {
+    return context.toolSessions === undefined ? null : relayThroughToolServer(context.toolSessions, document)
+  }
+  return (provider, prompt, signal, add) => relayWithTools(provider, prompt, document, signal, add)
 }
 
 /** No tools for any provider: the answer is text, and the renderer checks it before anything is written. */

@@ -418,6 +418,12 @@ button {
   text-align: left;
 }
 
+.statusbar__mcp {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .statusbar__zoom {
   display: inline-flex;
   align-items: center;
@@ -425,7 +431,8 @@ button {
 }
 
 .statusbar__zoom-button,
-.statusbar__zoom-level {
+.statusbar__zoom-level,
+.statusbar__mcp-disconnect {
   border: 0;
   background: transparent;
   color: inherit;
@@ -442,6 +449,7 @@ button {
 
 .statusbar__zoom-button:hover:not(:disabled),
 .statusbar__zoom-level:hover,
+.statusbar__mcp-disconnect:hover,
 .statusbar__zoom-button--active {
   background: var(--hover);
 }
@@ -1296,6 +1304,19 @@ button {
   font-size: 12px;
   color: var(--muted);
   margin: 0 0 12px;
+}
+
+/* The client configuration: copied whole, so it wraps instead of scrolling sideways. */
+.popover__code {
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: var(--hover);
+  border-radius: 4px;
+  padding: 8px;
+  margin: 4px 0 8px;
+  user-select: text;
 }
 
 /* Name, type, value and the remove button, aligned as a table. */

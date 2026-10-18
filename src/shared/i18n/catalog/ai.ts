@@ -230,6 +230,27 @@ export const AI = {
     pt: 'Se o modelo da Anthropic recusar, tentar outro modelo recomendado pela Anthropic',
     en: 'If the Anthropic model refuses, try another model Anthropic recommends',
   },
+  'ai.preferences.mcpServer': {
+    pt: 'Permitir que programas externos leiam o documento aberto e proponham alterações (MCP)',
+    en: 'Let external programs read the open document and propose changes (MCP)',
+  },
+  'ai.preferences.mcpWarning': {
+    pt: 'O programa conectado recebe o texto inteiro do documento e o envia para onde ele estiver configurado (por exemplo, os servidores da Anthropic). As alterações dele entram como revisões e comentários, que você aceita ou rejeita.',
+    en: 'The connected program receives the whole text of the document and sends it wherever it is set up to (for example, Anthropic’s servers). Its changes come in as revisions and comments, which you accept or reject.',
+  },
+  'ai.preferences.mcpConfig': {
+    pt: 'Configuração para colar no programa',
+    en: 'Configuration to paste into the program',
+  },
+  'ai.preferences.mcpCopy': { pt: 'Copiar', en: 'Copy' },
+  'ai.preferences.mcpCopied': { pt: 'Copiado', en: 'Copied' },
+  'ai.mcp.externalClient': { pt: 'Assistente externo', en: 'External assistant' },
+  'ai.mcp.connected': { pt: 'Conectado por MCP: {names}', en: 'Connected through MCP: {names}' },
+  'ai.mcp.disconnect': { pt: 'Desconectar', en: 'Disconnect' },
+  'ai.mcp.disconnectHint': {
+    pt: 'Desconectar todos os programas externos',
+    en: 'Disconnect all external programs',
+  },
   'ai.kind.openaiCompatible': {
     pt: 'Compatível com OpenAI (Ollama, LM Studio…)',
     en: 'OpenAI-compatible (Ollama, LM Studio…)',

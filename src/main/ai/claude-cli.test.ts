@@ -82,6 +82,34 @@ describe('claudeCliArgs', () => {
     expect(args[args.indexOf('--system-prompt') + 1]).toBe('regras')
     expect(args).not.toContain('--model')
     expect(claudeCliArgs({ ...PROMPT, model: 'sonnet' }).slice(-2)).toEqual(['--model', 'sonnet'])
+    expect(args).not.toContain('--mcp-config')
+  })
+
+  it('com as ferramentas do documento, só o servidor do Librevia e só as ferramentas dele', () => {
+    const toolServer = {
+      name: 'librevia',
+      command: '/opt/librevia',
+      args: ['--mcp-bridge'],
+      env: { LIBREVIA_MCP_TOKEN: 'chave' },
+      tools: ['read_paragraphs', 'propose_edit'],
+    }
+    const args = claudeCliArgs({ ...PROMPT, toolServer })
+    expect(args[args.indexOf('--tools') + 1]).toBe('')
+    expect(args).toEqual(expect.arrayContaining(['--strict-mcp-config']))
+    expect(args[args.indexOf('--setting-sources') + 1]).toBe('')
+    expect(JSON.parse(args[args.indexOf('--mcp-config') + 1]!)).toEqual({
+      mcpServers: {
+        librevia: {
+          type: 'stdio',
+          command: '/opt/librevia',
+          args: ['--mcp-bridge'],
+          env: { LIBREVIA_MCP_TOKEN: 'chave' },
+        },
+      },
+    })
+    expect(args[args.indexOf('--allowedTools') + 1]).toBe(
+      'mcp__librevia__read_paragraphs,mcp__librevia__propose_edit',
+    )
   })
 })
 

@@ -2,7 +2,7 @@ import type { ChildProcessWithoutNullStreams } from 'node:child_process'
 import type { Readable } from 'node:stream'
 import { transcriptPrompt } from '@services/ai/chat.js'
 import { parseClaudeCliLine, type ClaudeCliEvent } from '@services/ai/claude-stream.js'
-import type { AiPrompt, AiProvider, AiStreamPart } from '@services/ai/provider.js'
+import type { AiPrompt, AiProvider, AiStreamPart, AiToolServer } from '@services/ai/provider.js'
 import { ErrorCode } from '@shared/errors.js'
 import {
   collect,
@@ -24,9 +24,29 @@ export interface ClaudeCliOptions extends WorkFolder {
   readonly spawn?: Spawn
 }
 
+/** Claude Code names a server's tools `mcp__<server>__<tool>`. */
+const mcpToolName = (server: AiToolServer, tool: string): string => `mcp__${server.name}__${tool}`
+
+/** Only Librevia's server, and only its document tools are allowed. */
+function toolServerArgs(server: AiToolServer | undefined): string[] {
+  if (server === undefined) return []
+  const config = {
+    mcpServers: {
+      [server.name]: { type: 'stdio', command: server.command, args: server.args, env: server.env },
+    },
+  }
+  return [
+    '--mcp-config',
+    JSON.stringify(config),
+    '--allowedTools',
+    server.tools.map((tool) => mcpToolName(server, tool)).join(','),
+  ]
+}
+
 /**
- * No tools, no MCP servers, no settings or session files: the CLI only turns a prompt into text.
- * The empty working folder keeps it from reading the person's project.
+ * None of its own tools, no MCP servers but Librevia's, no settings or session files: the CLI only
+ * turns a prompt into text, reading the document through Librevia's tools when the prompt brings
+ * them. The empty working folder keeps it from reading the person's project.
  */
 export function claudeCliArgs(prompt: AiPrompt): string[] {
   return [
@@ -39,6 +59,7 @@ export function claudeCliArgs(prompt: AiPrompt): string[] {
     '--no-session-persistence',
     '--verbose',
     '--strict-mcp-config',
+    ...toolServerArgs(prompt.toolServer),
     '--setting-sources',
     '',
     '--system-prompt',

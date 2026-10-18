@@ -108,7 +108,7 @@ describe('configuração dos assistentes', () => {
     })
   })
 
-  it('preferências salvas antes das propostas na conversa ganham a caixa desligada', () => {
+  it('preferências salvas antes das propostas e do servidor MCP ganham as caixas desligadas', () => {
     const data: unknown = {
       providers: [],
       defaultProviderId: null,
@@ -122,6 +122,7 @@ describe('configuração dos assistentes', () => {
       keepFormatting: false,
       anthropicFallback: true,
       chatProposals: false,
+      mcpServer: false,
     })
   })
 
@@ -161,7 +162,12 @@ describe('configuração dos assistentes', () => {
     const { subject, stored } = settings()
     subject.save({ ...draft, apiKey: 'k' })
     subject.markConsented('id1')
-    subject.savePreferences({ keepFormatting: false, anthropicFallback: true, chatProposals: true })
+    subject.savePreferences({
+      keepFormatting: false,
+      anthropicFallback: true,
+      chatProposals: true,
+      mcpServer: false,
+    })
     expect(subject.chooseModel('id1', 'modelo-x').providers[0]).toMatchObject({
       defaultModel: 'modelo-x',
       hasKey: true,
@@ -173,6 +179,7 @@ describe('configuração dos assistentes', () => {
       keepFormatting: false,
       anthropicFallback: true,
       chatProposals: true,
+      mcpServer: false,
     })
     expect(stored().providers[0]).toMatchObject({
       label: 'Renomeado',

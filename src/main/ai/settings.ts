@@ -40,6 +40,7 @@ export const DEFAULT_AI_PREFERENCES: AiPreferences = {
   keepFormatting: true,
   anthropicFallback: false,
   chatProposals: false,
+  mcpServer: false,
 }
 
 const settingsSchema = z.object({
@@ -50,6 +51,7 @@ const settingsSchema = z.object({
       keepFormatting: z.boolean().default(DEFAULT_AI_PREFERENCES.keepFormatting),
       anthropicFallback: z.boolean().default(DEFAULT_AI_PREFERENCES.anthropicFallback),
       chatProposals: z.boolean().default(DEFAULT_AI_PREFERENCES.chatProposals),
+      mcpServer: z.boolean().default(DEFAULT_AI_PREFERENCES.mcpServer),
     })
     .default(DEFAULT_AI_PREFERENCES),
 })

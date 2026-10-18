@@ -108,12 +108,22 @@ export const IpcChannel = {
   /** The spreadsheet's tasks: the same stream and reply, with the active sheet as context. */
   AiSheet: 'ai:sheet',
   AiCancel: 'ai:cancel',
+  /** The window's answer to `McpDocumentRequest`. */
+  McpDocumentReply: 'mcp:document-reply',
+  /** The clients connected now, and the configuration to paste into one. */
+  McpStatus: 'mcp:status',
+  McpDisconnect: 'mcp:disconnect',
+  /** Main writes the configuration to the clipboard: the renderer holds no clipboard of its own. */
+  McpCopyConfig: 'mcp:copy-config',
 
   MenuCommand: 'menu:command',
   ContextMenuRequested: 'context-menu:requested',
   /** Whatever its origin. */
   PreferencesChanged: 'prefs:changed',
   AiStream: 'ai:stream',
+  /** A client of the local MCP server reads the open document or puts a change in it. */
+  McpDocumentRequest: 'mcp:document-request',
+  McpClients: 'mcp:clients',
 } as const
 
 export type IpcChannel = (typeof IpcChannel)[keyof typeof IpcChannel]
@@ -169,6 +179,10 @@ export const INVOCABLE_IPC_CHANNELS = [
   IpcChannel.AiChat,
   IpcChannel.AiSheet,
   IpcChannel.AiCancel,
+  IpcChannel.McpDocumentReply,
+  IpcChannel.McpStatus,
+  IpcChannel.McpDisconnect,
+  IpcChannel.McpCopyConfig,
 ] as const
 
 export type InvocableIpcChannel = (typeof INVOCABLE_IPC_CHANNELS)[number]
@@ -182,6 +196,8 @@ export const PUSH_IPC_CHANNELS = [
   IpcChannel.ContextMenuRequested,
   IpcChannel.PreferencesChanged,
   IpcChannel.AiStream,
+  IpcChannel.McpDocumentRequest,
+  IpcChannel.McpClients,
 ] as const
 
 export type PushIpcChannel = (typeof PUSH_IPC_CHANNELS)[number]

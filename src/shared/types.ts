@@ -178,6 +178,25 @@ export const AiFormat = {
 
 export type AiFormat = (typeof AiFormat)[keyof typeof AiFormat]
 
+/** What main asks of the open document for a client of the local MCP server. */
+export const McpDocumentAsk = {
+  Snapshot: 'snapshot',
+  Apply: 'apply',
+} as const
+
+export type McpDocumentAsk = (typeof McpDocumentAsk)[keyof typeof McpDocumentAsk]
+
+export const McpDocumentRefusal = {
+  /** A spreadsheet, a PDF or nothing is open. */
+  NoTextDocument: 'no-text-document',
+  ReadOnly: 'read-only',
+} as const
+
+export type McpDocumentRefusal = (typeof McpDocumentRefusal)[keyof typeof McpDocumentRefusal]
+
+/** The reply to either ask when the window cannot do it. */
+export const MCP_DOCUMENT_REFUSED = 'refused'
+
 export const AiSheetTask = {
   Explain: 'explain',
   Formula: 'formula',

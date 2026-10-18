@@ -25,7 +25,7 @@ export interface ToolDocument {
   readonly readBudget: number
 }
 
-interface ToolRun {
+export interface ToolRun {
   readonly document: ToolDocument
   readonly proposals: AiProposal[]
   /** Characters of results already sent back, all rounds together. */
@@ -41,7 +41,8 @@ const tooManyCalls = (callId: string): AiToolResult => ({
 const READ_LIMIT_REACHED =
   'The reading limit for this message is used up: answer with what you have already read.'
 
-function runCall(call: AiToolCall, run: ToolRun): AiToolResult {
+/** The same limits wherever the loop runs: here, or in a provider that runs it through MCP. */
+export function runToolCall(call: AiToolCall, run: ToolRun): AiToolResult {
   const { paragraphs, readBudget } = run.document
   const outcome = runDocumentTool(call, { paragraphs, proposalCount: run.proposals.length })
   if (!outcome.isError && run.read + outcome.content.length > readBudget) {
@@ -54,7 +55,7 @@ function runCall(call: AiToolCall, run: ToolRun): AiToolResult {
 
 function runCalls(exchange: Omit<AiToolExchange, 'results'>, run: ToolRun): AiToolExchange {
   const results = exchange.calls.map((call, index) =>
-    index < MAX_AI_TOOL_CALLS ? runCall(call, run) : tooManyCalls(call.id),
+    index < MAX_AI_TOOL_CALLS ? runToolCall(call, run) : tooManyCalls(call.id),
   )
   return { ...exchange, results }
 }

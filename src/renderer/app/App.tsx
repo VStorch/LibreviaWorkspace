@@ -8,6 +8,8 @@ import { InventoryBanner } from '../components/InventoryBanner.js'
 import { ReadOnlyBanner } from '../components/ReadOnlyBanner.js'
 import { RecoveryBanner } from '../components/RecoveryBanner.js'
 import { StatusBar } from '../components/StatusBar.js'
+import { answerMcpRequests } from '../document/mcp-document.js'
+import { watchMcpClients } from '../state/mcp-clients.js'
 import { TemplateGallery } from '../components/TemplateGallery.js'
 import { DocumentEditor } from '../document/DocumentEditor.js'
 import {
@@ -167,6 +169,10 @@ function useWorkspaceLifecycle(): void {
 
   // The copy of the preferences the screen draws; main owns them.
   useEffect(() => watchPreferences(), [])
+
+  // The local MCP server's clients: who is connected, and what they read and change.
+  useEffect(() => watchMcpClients(), [])
+  useEffect(() => answerMcpRequests(), [])
 
   // Including when the operating system changed the theme.
   useTheme()

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { AiProviderKind } from '@services/ai/provider.js'
 import type { IpcRequest, IpcResponse } from '@shared/ipc.js'
 import type { IpcChannel } from '@shared/ipc-channels.js'
@@ -454,7 +454,42 @@ function PreferencesSection({ providers }: { readonly providers: AiProviders }):
         />
         {t('ai.preferences.anthropicFallback')}
       </label>
+      <label className="popover__check">
+        <input
+          type="checkbox"
+          checked={preferences.mcpServer}
+          onChange={(event) => toggle({ mcpServer: event.target.checked })}
+        />
+        {t('ai.preferences.mcpServer')}
+      </label>
+      {preferences.mcpServer && <McpSetup />}
     </fieldset>
+  )
+}
+
+/** What the connected program receives, and the configuration to paste into it. */
+function McpSetup(): React.JSX.Element {
+  const t = useT()
+  const [config, setConfig] = useState('')
+  const [copied, setCopied] = useState(false)
+  useEffect(() => {
+    void window.api.mcp.status({}).then((result) => {
+      if (result.ok) setConfig(result.data.clientConfig)
+    })
+  }, [])
+  const copy = async (): Promise<void> => {
+    const result = await window.api.mcp.copyConfig({})
+    setCopied(result.ok)
+  }
+  return (
+    <div data-testid="mcp-setup">
+      <p className="popover__hint">{t('ai.preferences.mcpWarning')}</p>
+      <span className="popover__hint">{t('ai.preferences.mcpConfig')}</span>
+      <pre className="popover__code">{config}</pre>
+      <button type="button" className="btn" onClick={() => void copy()}>
+        {t(copied ? 'ai.preferences.mcpCopied' : 'ai.preferences.mcpCopy')}
+      </button>
+    </div>
   )
 }
 

@@ -1,6 +1,8 @@
 import { app, BrowserWindow, session } from 'electron'
+import { aiSettings } from './ai/settings.js'
 import { APP_NAME } from '@shared/constants.js'
 import { registerAiHandlers } from './ipc/ai.js'
+import { registerMcpHandlers } from './ipc/mcp.js'
 import { registerEditingHandlers } from './ipc/editing.js'
 import { registerFileHandlers } from './ipc/file.js'
 import { registerExportHandlers } from './ipc/export.js'
@@ -17,27 +19,36 @@ import { serveViewer } from './pdf-scheme.js'
 import { registerAppSchemes } from './schemes.js'
 import { applyStoredPreferences, onPreferencesChanged } from './preferences.js'
 import { stopAllAgents } from './ai/acp.js'
+import { attachMcpWindow, disposeMcp, mcpHost } from './ai/mcp.js'
+import { runMcpBridge } from './ai/mcp-bridge.js'
+import { isMcpBridge } from './ai/mcp-paths.js'
 import { applySessionPolicy } from './security.js'
 import { forgetSessionWords, installBundledDictionary, serveDictionary } from './spellcheck.js'
 import { checkSidecarHealth, disposeSidecar } from './sidecar/index.js'
-import { createMainWindow, devServerUrl } from './window.js'
+import { createMainWindow as createWindow, devServerUrl } from './window.js'
 import { fileFromArguments, requestExternalFile } from './external-files.js'
 
-// Sandbox for every renderer, including the hidden print window. Before `app.whenReady()`.
-app.enableSandbox()
-app.setName(APP_NAME)
+// The bridge of a client of the local MCP server: before anything of the app, which it never starts.
+if (isMcpBridge(process.argv)) runMcpBridge()
+else startApp()
 
-// Also before `whenReady`: a scheme only gets privileges while Chromium builds the list.
-registerAppSchemes()
+function startApp(): void {
+  // Sandbox for every renderer, including the hidden print window. Before `app.whenReady()`.
+  app.enableSandbox()
+  app.setName(APP_NAME)
 
-// The dictionary first, synchronously: inside `whenReady` the spellchecker would already have
-// started downloading its own, which would overwrite the bundled one.
-installBundledDictionary()
+  // Also before `whenReady`: a scheme only gets privileges while Chromium builds the list.
+  registerAppSchemes()
 
-// A single instance: two editing the same file would lose data.
-if (!app.requestSingleInstanceLock()) {
-  app.quit()
-} else {
+  // The dictionary first, synchronously: inside `whenReady` the spellchecker would already have
+  // started downloading its own, which would overwrite the bundled one.
+  installBundledDictionary()
+
+  // A single instance: two editing the same file would lose data.
+  if (!app.requestSingleInstanceLock()) {
+    app.quit()
+    return
+  }
   const initialFile = fileFromArguments(process.argv.slice(app.isPackaged ? 1 : 2), process.cwd())
   if (initialFile !== undefined) requestExternalFile(initialFile)
 
@@ -50,42 +61,7 @@ if (!app.requestSingleInstanceLock()) {
     existing.focus()
   })
 
-  void app.whenReady().then(async () => {
-    applySessionPolicy(session.defaultSession, devServerUrl() === null ? 'production' : 'development')
-    serveFonts()
-    serveViewer()
-    serveDictionary()
-    applyStoredPreferences()
-
-    useRecoveryFolder(app.getPath('userData'))
-
-    registerEditingHandlers()
-    registerFileHandlers()
-    registerPrintHandlers()
-    registerPdfHandlers()
-    registerPrivacyHandlers()
-    registerExportHandlers()
-    registerRecoveryHandlers()
-    registerTemplateHandlers()
-    registerWindowHandlers()
-    registerAiHandlers()
-
-    // The menu draws its check marks from the preferences, including those changed from the
-    // toolbar.
-    onPreferencesChanged(() => {
-      void refreshMenu()
-    })
-    await refreshMenu()
-
-    createMainWindow()
-
-    // After the window: the app does not wait for the sidecar to appear.
-    void checkSidecarHealth()
-
-    app.on('activate', () => {
-      if (BrowserWindow.getAllWindows().length === 0) createMainWindow()
-    })
-  })
+  void app.whenReady().then(onReady)
 
   app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') app.quit()
@@ -95,7 +71,61 @@ if (!app.requestSingleInstanceLock()) {
   app.on('will-quit', () => {
     disposeSidecar()
     stopAllAgents()
+    disposeMcp()
     // Ignoring lasts for the session; adding to the dictionary is forever.
     forgetSessionWords(session.defaultSession)
+  })
+}
+
+function registerHandlers(): void {
+  registerEditingHandlers()
+  registerFileHandlers()
+  registerPrintHandlers()
+  registerPdfHandlers()
+  registerPrivacyHandlers()
+  registerExportHandlers()
+  registerRecoveryHandlers()
+  registerTemplateHandlers()
+  registerWindowHandlers()
+  registerAiHandlers()
+  registerMcpHandlers()
+}
+
+/** The local MCP server answers through the window that shows the document. */
+function createMainWindow(): void {
+  attachMcpWindow(createWindow().webContents)
+}
+
+async function onReady(): Promise<void> {
+  applySessionPolicy(session.defaultSession, devServerUrl() === null ? 'production' : 'development')
+  serveFonts()
+  serveViewer()
+  serveDictionary()
+  applyStoredPreferences()
+
+  useRecoveryFolder(app.getPath('userData'))
+
+  registerHandlers()
+
+  // The menu draws its check marks from the preferences, including those changed from the
+  // toolbar.
+  onPreferencesChanged(() => {
+    void refreshMenu()
+  })
+  await refreshMenu()
+
+  createMainWindow()
+
+  // After the window: the app does not wait for the sidecar to appear.
+  void checkSidecarHealth()
+  // A new key on each opening, when the person allowed external programs.
+  if (aiSettings().preferences().mcpServer) {
+    mcpHost()
+      .setExternal(true)
+      .catch((cause: unknown) => console.warn('[mcp] the local server did not start:', String(cause)))
+  }
+
+  app.on('activate', () => {
+    if (BrowserWindow.getAllWindows().length === 0) createMainWindow()
   })
 }

@@ -59,6 +59,9 @@ export const MAX_AI_REASON_LENGTH = 500
 export const MAX_AI_SEARCH_QUERY_LENGTH = 200
 export const MAX_AI_SEARCH_RESULTS = 20
 export const MAX_AI_READ_PARAGRAPHS = 50
+/** The local MCP server: the name a client gives itself, shown as the author of its changes. */
+export const MAX_MCP_CLIENT_NAME_LENGTH = 64
+export const MAX_MCP_CLIENTS = 2
 /** The spreadsheet assistant: the cells sent as context and how many rows one fill writes. */
 export const MAX_AI_SHEET_CONTEXT_LENGTH = MAX_AI_DOCUMENT_LENGTH
 export const MAX_AI_FILL_ROWS = 500

@@ -7,7 +7,15 @@ import { Language, LANGUAGES } from './i18n/language.js'
 import { ACP_AGENT_IDS } from '@services/ai/acp-agents.js'
 import { AiProposalKind } from '@services/ai/proposals.js'
 import { AiProviderKind, AiRole } from '@services/ai/provider.js'
-import { AiAction, AiFormat, AiSheetTask, Theme } from './types.js'
+import {
+  AiAction,
+  AiFormat,
+  AiSheetTask,
+  MCP_DOCUMENT_REFUSED,
+  McpDocumentAsk,
+  McpDocumentRefusal,
+  Theme,
+} from './types.js'
 import {
   MAX_AI_AGENT_ARGS_LENGTH,
   MAX_AI_COMMENT_LENGTH,
@@ -26,6 +34,8 @@ import {
   MAX_AI_FILL_ROWS,
   MAX_AI_FORMULA_LENGTH,
   MAX_AI_SHEET_CONTEXT_LENGTH,
+  MAX_MCP_CLIENT_NAME_LENGTH,
+  MAX_MCP_CLIENTS,
   MAX_COLOR_LENGTH,
   MAX_CSS_VALUE_LENGTH,
   MAX_DESCRIPTION_LENGTH,
@@ -503,6 +513,8 @@ export const aiPreferencesSchema = z.object({
   anthropicFallback: z.boolean(),
   /** In the chat, the document tools: the model proposes edits and comments that the person applies. */
   chatProposals: z.boolean(),
+  /** Programs outside the app read the open document and leave revisions and comments, through MCP. */
+  mcpServer: z.boolean(),
 })
 
 export const aiActionSchema = z.enum(AiAction)
@@ -526,6 +538,15 @@ const aiChatTurnSchema = z.discriminatedUnion('role', [
   z.object({ role: z.literal(AiRole.Assistant), text: z.string().min(1).max(MAX_AI_RESPONSE_LENGTH) }),
 ])
 
+/** One text per paragraph, deletions left out. */
+const aiParagraphsSchema = z
+  .array(aiDocumentPartSchema)
+  .max(MAX_AI_PARAGRAPHS)
+  .refine(
+    (paragraphs) => paragraphs.reduce((sum, text) => sum + text.length, 0) <= MAX_AI_DOCUMENT_LENGTH,
+    'document too long',
+  )
+
 export const aiChatRequestSchema = z.object({
   requestId: z.uuid(),
   providerId: aiProviderIdSchema,
@@ -545,14 +566,7 @@ export const aiChatRequestSchema = z.object({
   /** The person asked for proposals in this message; main still checks the preference and the provider. */
   proposals: z.boolean().default(false),
   /** One text per paragraph, deletions left out; sent only when the tools are on. */
-  paragraphs: z
-    .array(aiDocumentPartSchema)
-    .max(MAX_AI_PARAGRAPHS)
-    .refine(
-      (paragraphs) => paragraphs.reduce((sum, text) => sum + text.length, 0) <= MAX_AI_DOCUMENT_LENGTH,
-      'document too long',
-    )
-    .default([]),
+  paragraphs: aiParagraphsSchema.default([]),
 })
 
 /** Each task brings what it needs: the formula to explain, the description, the rows to fill. */
@@ -612,3 +626,25 @@ export const aiStreamEventSchema = z.object({
   requestId: z.uuid(),
   delta: z.string().min(1).max(MAX_AI_RESPONSE_LENGTH),
 })
+
+const mcpClientNameSchema = z.string().min(1).max(MAX_MCP_CLIENT_NAME_LENGTH)
+
+export const mcpClientsSchema = z.object({ clients: z.array(mcpClientNameSchema).max(MAX_MCP_CLIENTS) })
+
+export const mcpDocumentRequestSchema = z.object({
+  requestId: z.uuid(),
+  ask: z.enum(McpDocumentAsk),
+  /** Only to apply: the proposal goes in at once, by this author. */
+  proposal: aiProposalSchema.optional(),
+  author: z.string().min(1).max(MAX_NAME_LENGTH).optional(),
+})
+
+export const mcpDocumentReplySchema = z.discriminatedUnion('ask', [
+  z.object({ requestId: z.uuid(), ask: z.literal(McpDocumentAsk.Snapshot), paragraphs: aiParagraphsSchema }),
+  z.object({ requestId: z.uuid(), ask: z.literal(McpDocumentAsk.Apply), applied: z.boolean() }),
+  z.object({
+    requestId: z.uuid(),
+    ask: z.literal(MCP_DOCUMENT_REFUSED),
+    refusal: z.enum(McpDocumentRefusal),
+  }),
+])

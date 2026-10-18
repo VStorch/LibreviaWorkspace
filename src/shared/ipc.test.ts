@@ -364,8 +364,28 @@ describe('contratos do assistente de IA', () => {
         },
       ],
       defaultProviderId: 'p1',
-      preferences: { keepFormatting: true, anthropicFallback: false, chatProposals: false },
+      preferences: { keepFormatting: true, anthropicFallback: false, chatProposals: false, mcpServer: false },
     })
     expect(parsed.providers[0]).not.toHaveProperty('apiKey')
+  })
+})
+
+describe('contratos do servidor MCP local', () => {
+  const requestId = '7d3f1c9e-8a2b-4c5d-9e0f-1a2b3c4d5e6f'
+
+  it('a janela responde o instantâneo, o resultado de aplicar ou a recusa, e nada além', () => {
+    const reply = ipcContracts[IpcChannel.McpDocumentReply].request
+    expect(reply.safeParse({ requestId, ask: 'snapshot', paragraphs: ['a'] }).success).toBe(true)
+    expect(reply.safeParse({ requestId, ask: 'apply', applied: true }).success).toBe(true)
+    expect(reply.safeParse({ requestId, ask: 'refused', refusal: 'read-only' }).success).toBe(true)
+    expect(reply.safeParse({ requestId, ask: 'refused', refusal: 'outra' }).success).toBe(false)
+    expect(reply.safeParse({ requestId, ask: 'save' }).success).toBe(false)
+  })
+
+  it('a lista de clientes tem no máximo dois nomes curtos', () => {
+    const clients = pushContracts[IpcChannel.McpClients]
+    expect(clients.safeParse({ clients: ['a', 'b'] }).success).toBe(true)
+    expect(clients.safeParse({ clients: ['a', 'b', 'c'] }).success).toBe(false)
+    expect(clients.safeParse({ clients: ['x'.repeat(65)] }).success).toBe(false)
   })
 })

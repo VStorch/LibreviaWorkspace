@@ -10,9 +10,13 @@ export type AiProviderKind = (typeof AiProviderKind)[keyof typeof AiProviderKind
 const DOCUMENT_TOOL_KINDS: ReadonlySet<AiProviderKind> = new Set([
   AiProviderKind.OpenAiCompatible,
   AiProviderKind.Anthropic,
+  AiProviderKind.ClaudeCli,
 ])
 
-/** The agents run their own tools, outside Librevia's reach: they get none of the document's. */
+/**
+ * Claude Code reaches the document's tools through Librevia's local MCP server, and only them. The
+ * ACP agents run their own tools, outside Librevia's reach: they get none of the document's.
+ */
 export function offersDocumentTools(kind: AiProviderKind): boolean {
   return DOCUMENT_TOOL_KINDS.has(kind)
 }
@@ -60,6 +64,15 @@ export interface AiToolExchange {
   readonly results: readonly AiToolResult[]
 }
 
+/** The local MCP server with the document's tools, for a provider that runs the tool loop itself. */
+export interface AiToolServer {
+  readonly name: string
+  readonly command: string
+  readonly args: readonly string[]
+  readonly env: Readonly<Record<string, string>>
+  readonly tools: readonly string[]
+}
+
 export interface AiPrompt {
   readonly model: string
   readonly system: string
@@ -70,6 +83,7 @@ export interface AiPrompt {
   readonly tools?: readonly AiToolDefinition[]
   /** After the person's last message, oldest first. */
   readonly exchanges?: readonly AiToolExchange[]
+  readonly toolServer?: AiToolServer
 }
 
 export type AiStreamPart =

@@ -6,6 +6,7 @@ import { MAX_ZOOM, MIN_ZOOM } from '@services/document/zoom.js'
 import { usePreferences } from '../state/preferences.js'
 import { runZoomCommand, useEffectiveZoom } from '../state/zoom.js'
 import { usePdfViewer } from '../pdf/viewer-state.js'
+import { disconnectMcpClients, useMcpClients } from '../state/mcp-clients.js'
 
 export function StatusBar(): React.JSX.Element {
   const t = useT()
@@ -59,6 +60,8 @@ export function StatusBar(): React.JSX.Element {
         </>
       )}
 
+      <McpClients />
+
       <span className={state.isDirty ? 'statusbar__state statusbar__state--dirty' : 'statusbar__state'}>
         {state.busy
           ? t('shell.statusBar.working')
@@ -67,6 +70,26 @@ export function StatusBar(): React.JSX.Element {
             : t('shell.statusBar.saved')}
       </span>
     </footer>
+  )
+}
+
+/** While a program outside the app reads the document, the person sees it and can cut it off. */
+function McpClients(): React.JSX.Element | null {
+  const t = useT()
+  const clients = useMcpClients((state) => state.clients)
+  if (clients.length === 0) return null
+  return (
+    <span className="statusbar__metric statusbar__mcp" data-testid="mcp-status">
+      {t('ai.mcp.connected', { names: clients.join(', ') })}
+      <button
+        type="button"
+        className="statusbar__mcp-disconnect"
+        title={t('ai.mcp.disconnectHint')}
+        onClick={() => void disconnectMcpClients()}
+      >
+        {t('ai.mcp.disconnect')}
+      </button>
+    </span>
   )
 }
 

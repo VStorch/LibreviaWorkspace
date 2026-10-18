@@ -17,6 +17,9 @@ import {
   aiProviderDraftSchema,
   aiProviderSchema,
   aiStreamEventSchema,
+  mcpClientsSchema,
+  mcpDocumentReplySchema,
+  mcpDocumentRequestSchema,
   contextMenuTargetSchema,
   documentPropertiesSchema,
   editorPreferencesPatchSchema,
@@ -432,6 +435,22 @@ export const ipcContracts = {
     request: z.object({ requestId: z.uuid() }),
     response: z.object({ canceled: z.boolean() }),
   },
+  [IpcChannel.McpDocumentReply]: {
+    request: mcpDocumentReplySchema,
+    response: z.object({ received: z.boolean() }),
+  },
+  [IpcChannel.McpStatus]: {
+    request: emptyRequest,
+    response: mcpClientsSchema.extend({ clientConfig: z.string().max(MAX_PATH_LENGTH * 2) }),
+  },
+  [IpcChannel.McpDisconnect]: {
+    request: emptyRequest,
+    response: mcpClientsSchema,
+  },
+  [IpcChannel.McpCopyConfig]: {
+    request: emptyRequest,
+    response: z.object({ copied: z.literal(true) }),
+  },
 } as const
 
 /**
@@ -450,6 +469,8 @@ export const pushContracts = {
   [IpcChannel.ContextMenuRequested]: contextMenuTargetSchema,
   [IpcChannel.PreferencesChanged]: editorPreferencesSchema,
   [IpcChannel.AiStream]: aiStreamEventSchema,
+  [IpcChannel.McpDocumentRequest]: mcpDocumentRequestSchema,
+  [IpcChannel.McpClients]: mcpClientsSchema,
 } as const
 
 export type PushContracts = typeof pushContracts

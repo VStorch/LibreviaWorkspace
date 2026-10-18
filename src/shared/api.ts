@@ -1,5 +1,5 @@
 import type { IpcChannel, PushIpcChannel } from './ipc-channels.js'
-import type { IpcRequest, IpcResponse, IpcResult } from './ipc.js'
+import type { IpcRequest, IpcResponse, IpcResult, PushPayload } from './ipc.js'
 import type { ContextMenuTarget, EditorPreferences, MenuCommand } from './types.js'
 
 type Call<C extends keyof IpcRequestMap> = (
@@ -17,6 +17,9 @@ export interface AiStreamEvent {
   readonly requestId: string
   readonly delta: string
 }
+
+export type McpDocumentRequest = PushPayload<typeof IpcChannel.McpDocumentRequest>
+export type McpClients = PushPayload<typeof IpcChannel.McpClients>
 
 /** `path` only comes with "open recent". */
 export interface MenuCommandPayload {
@@ -92,6 +95,14 @@ export interface AppApi {
     sheet: Call<typeof IpcChannel.AiSheet>
     cancel: Call<typeof IpcChannel.AiCancel>
     onStream(listener: (event: AiStreamEvent) => void): () => void
+  }
+  readonly mcp: {
+    reply: Call<typeof IpcChannel.McpDocumentReply>
+    status: Call<typeof IpcChannel.McpStatus>
+    disconnect: Call<typeof IpcChannel.McpDisconnect>
+    copyConfig: Call<typeof IpcChannel.McpCopyConfig>
+    onDocumentRequest(listener: (request: McpDocumentRequest) => void): () => void
+    onClients(listener: (payload: McpClients) => void): () => void
   }
   readonly menu: {
     onCommand(listener: (payload: MenuCommandPayload) => void): () => void

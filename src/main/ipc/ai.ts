@@ -13,6 +13,7 @@ import {
 } from '../ai/assistant.js'
 import { discoverProviders } from '../ai/discovery.js'
 import { AiModelCache } from '../ai/model-cache.js'
+import { mcpHost } from '../ai/mcp.js'
 import { aiSettings } from '../ai/settings.js'
 import { confirmAiConsent, showAgentExecutableDialog } from '../dialogs.js'
 import { sendPush } from '../window.js'
@@ -62,7 +63,10 @@ export function registerAiHandlers(): void {
     return aiSettings().remove(payload.providerId)
   })
   handle(IpcChannel.AiModelChoose, (payload) => aiSettings().chooseModel(payload.providerId, payload.model))
-  handle(IpcChannel.AiPreferencesSave, (payload) => aiSettings().savePreferences(payload))
+  handle(IpcChannel.AiPreferencesSave, async (payload) => {
+    await mcpHost().setExternal(payload.mcpServer)
+    return aiSettings().savePreferences(payload)
+  })
   handle(IpcChannel.AiAgentChooseExecutable, async (payload, event) => {
     const command = await showAgentExecutableDialog(windowOf(event))
     if (command === null) return { ...aiSettings().list(), chosen: false }
@@ -87,6 +91,7 @@ export function registerAiHandlers(): void {
           sendPush(event.sender, IpcChannel.AiStream, { requestId: payload.requestId, delta })
       },
       models,
+      toolSessions: mcpHost(),
       confirmConsent: (provider) =>
         confirmAiConsent(windowOf(event), provider.label, consentDestination(provider)),
     }).finally(() => requests.end(payload.requestId))

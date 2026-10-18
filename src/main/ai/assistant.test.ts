@@ -4,6 +4,7 @@ import { DEFAULT_LOCAL_AI_CONTEXT_LENGTH } from '@shared/limits.js'
 import { chat, consentDestination, generate, sheet, type AiConversationRequest } from './assistant.js'
 import { AiModelCache } from './model-cache.js'
 import { AiSettings, type StoredAiProvider } from './settings.js'
+import type { ToolSessions } from './tool-server.js'
 
 const REQUEST = {
   requestId: '0b8f3c1e-5d2a-4c7b-9e6f-1a2b3c4d5e6f',
@@ -16,7 +17,7 @@ const REQUEST = {
   format: 'plain',
 } as const
 
-function settingsWith(kind: 'anthropic' | 'openai-compatible', baseUrl?: string): AiSettings {
+function settingsWith(kind: 'anthropic' | 'openai-compatible' | 'claude-cli', baseUrl?: string): AiSettings {
   let data: unknown
   const settings = new AiSettings(
     { read: () => data, write: (value) => (data = value) },
@@ -233,7 +234,12 @@ describe('generate', () => {
     ): Promise<{ fallback?: boolean; author?: string | undefined }> => {
       const settings = settingsWith('anthropic')
       settings.markConsented('id1')
-      settings.savePreferences({ keepFormatting: true, anthropicFallback: preference, chatProposals: false })
+      settings.savePreferences({
+        keepFormatting: true,
+        anthropicFallback: preference,
+        chatProposals: false,
+        mcpServer: false,
+      })
       const seen: { fallback?: boolean } = {}
       const result = await generate(
         { ...REQUEST, model },
@@ -353,7 +359,12 @@ describe('chat', () => {
 
   it('com as propostas ligadas e servidor compatível, manda as ferramentas e devolve as propostas', async () => {
     const settings = settingsWith('openai-compatible', 'http://127.0.0.1:11434/v1')
-    settings.savePreferences({ keepFormatting: true, anthropicFallback: false, chatProposals: true })
+    settings.savePreferences({
+      keepFormatting: true,
+      anthropicFallback: false,
+      chatProposals: true,
+      mcpServer: false,
+    })
     const prompts: AiPrompt[] = []
     const provider: AiProvider = {
       listModels: async () => [],
@@ -398,6 +409,53 @@ describe('chat', () => {
     expect(prompts[0]?.tools).toHaveLength(4)
   })
 
+  it('com Claude Code, as ferramentas vão pelo servidor MCP local, numa sessão que fecha com a resposta', async () => {
+    const settings = settingsWith('claude-cli')
+    settings.savePreferences({
+      keepFormatting: true,
+      anthropicFallback: false,
+      chatProposals: true,
+      mcpServer: false,
+    })
+    const proposal = {
+      id: '1',
+      kind: 'comment' as const,
+      paragraph: 1,
+      paragraphText: 'Choveu.',
+      find: 'Choveu',
+      comment: 'Bom.',
+    }
+    const events: string[] = []
+    const opened: unknown[] = []
+    const toolSessions: ToolSessions = {
+      open: async (document) => {
+        opened.push(document)
+        return {
+          server: { name: 'librevia', command: 'x', args: [], env: {}, tools: ['add_comment'] },
+          proposals: () => [proposal],
+          close: () => events.push('fechou'),
+        }
+      },
+    }
+    const seen: { prompt?: AiPrompt } = {}
+    const result = await chat(
+      { ...CHAT, proposals: true, paragraphs: ['Choveu.'] },
+      {
+        settings,
+        signal: new AbortController().signal,
+        push: () => undefined,
+        confirmConsent: async () => true,
+        providerFor: async () => recordingProvider([{ text: 'Comentei.' }], seen),
+        toolSessions,
+      },
+    )
+    expect(result).toMatchObject({ status: 'done', proposals: [proposal] })
+    expect(seen.prompt?.toolServer?.tools).toEqual(['add_comment'])
+    expect(seen.prompt?.tools).toBeUndefined()
+    expect(opened).toEqual([{ paragraphs: ['Choveu.'], readBudget: expect.any(Number) }])
+    expect(events).toEqual(['fechou'])
+  })
+
   it('com as propostas desligadas, o pedido não leva ferramentas', async () => {
     const seen: { prompt?: AiPrompt } = {}
     const result = await chat(
@@ -417,7 +475,12 @@ describe('chat', () => {
 
   it('com a preferência ligada mas o pedido sem a marca, não manda ferramentas', async () => {
     const settings = settingsWith('openai-compatible', 'http://127.0.0.1:11434/v1')
-    settings.savePreferences({ keepFormatting: true, anthropicFallback: false, chatProposals: true })
+    settings.savePreferences({
+      keepFormatting: true,
+      anthropicFallback: false,
+      chatProposals: true,
+      mcpServer: false,
+    })
     const seen: { prompt?: AiPrompt } = {}
     await chat(
       { ...CHAT, paragraphs: ['Choveu o dia todo.'] },
