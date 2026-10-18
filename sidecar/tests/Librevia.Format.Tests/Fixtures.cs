@@ -18,6 +18,16 @@ public static class Fixtures
         body.AppendChild(Paragraph("Terceiro parágrafo."));
     });
 
+    /// <summary>Invalid, but it happens: the body has no `w:sectPr`.</summary>
+    public static byte[] WithoutSection()
+    {
+        using var buffer = new MemoryStream();
+        buffer.Write(Simple());
+        using (var document = WordprocessingDocument.Open(buffer, isEditable: true))
+            document.MainDocumentPart!.Document!.Body!.GetFirstChild<SectionProperties>()!.Remove();
+        return buffer.ToArray();
+    }
+
     /// <summary>A comment anchored on the second paragraph.</summary>
     public static byte[] WithComment() => Build((body, part) =>
     {

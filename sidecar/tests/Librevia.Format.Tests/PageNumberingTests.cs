@@ -32,6 +32,14 @@ public class PageNumberingTests
     }
 
     [Fact]
+    public void DocumentoSemSecaoAbreSemInicioDeNumeracaoESeSerializa()
+    {
+        var page = Roundtrip.Clone(Roundtrip.Open(Fixtures.WithoutSection())).Page;
+
+        Assert.Equal(System.Text.Json.JsonValueKind.Null, page.PageNumberStart.ValueKind);
+    }
+
+    [Fact]
     public void AbrirEGravarSemMexerNaoTocaNaSecaoNemNasConfiguracoes()
     {
         var original = WithNumbering("lowerRoman", 3, titlePage: true);

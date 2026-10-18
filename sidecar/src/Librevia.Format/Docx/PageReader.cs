@@ -346,5 +346,6 @@ public static class PageReader
 
     private static PageSetupDto Default() => new(
         "A4", "portrait", new MarginsDto(25, 25, 25, 25), null, null,
-        PageNumberFormat: "decimal", TitlePage: false, EvenAndOddHeaders: false);
+        PageNumberFormat: "decimal", PageNumberStart: StartElement(null), TitlePage: false,
+        EvenAndOddHeaders: false);
 }
