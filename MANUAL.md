@@ -695,7 +695,8 @@ Mistral Vibe (`vibe-acp`) e Amp (`amp-acp`). Um agente instalado em outro lugar 
   pedir login, o Librevia avisa e não insiste.
 - O Librevia não baixa nem instala agentes.
 - O Librevia não oferece ao agente seus arquivos nem um terminal, e recusa todo pedido de
-  permissão que ele fizer. O agente roda numa pasta temporária vazia e o Librevia só usa o texto
+  permissão que ele fizer, menos o de usar as ferramentas do próprio Librevia numa conversa com
+  propostas (veja abaixo). O agente roda numa pasta temporária vazia e o Librevia só usa o texto
   que ele devolve.
 - As ferramentas próprias do agente (as do Gemini CLI, do Codex, do Claude Agent…) seguem a
   configuração dele, não a do Librevia. Para restringir o que ele pode fazer, configure o agente.
@@ -795,10 +796,11 @@ um único Desfazer volta todos.
   acessa a internet e não roda programas: ele só lê o texto enviado e propõe.
 - Com o documento só para leitura, Aplicar fica apagado.
 
-A API da Anthropic, os servidores compatíveis com OpenAI (Ollama, LM Studio…) e o Claude Code
-oferecem isso. O Claude Code recebe só essas quatro ferramentas, por uma chave que vale para uma
+Todos os assistentes oferecem isso. O Claude Code recebe só essas quatro ferramentas, por uma chave que vale para uma
 mensagem só, e continua sem as dele (arquivos, terminal) e sem os servidores MCP que você tenha
-configurado nele. Com um agente ACP, a caixa fica apagada. Um modelo local sem suporte a
+configurado nele. Um agente ACP recebe as mesmas quatro ferramentas, do mesmo jeito; o Librevia
+permite cada uso delas e recusa os pedidos de permissão para o resto, mas o agente pode ter
+ferramentas ou servidores MCP próprios que não pedem permissão. Um modelo local sem suporte a
 ferramentas recusa o pedido: o Librevia avisa para desligar a caixa ou trocar de modelo, e o
 motivo aparece também na resposta, no painel.
 

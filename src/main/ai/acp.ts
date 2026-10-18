@@ -9,14 +9,14 @@ import {
   type ClientConnection,
 } from '@agentclientprotocol/sdk'
 import {
+  answerPermission,
   isAuthError,
   modelOptionOf,
   modelsOf,
-  refusePermission,
   textOfUpdate,
 } from '@services/ai/acp-session.js'
 import { transcriptPrompt } from '@services/ai/chat.js'
-import type { AiModel, AiPrompt, AiProvider, AiStreamPart } from '@services/ai/provider.js'
+import type { AiModel, AiPrompt, AiProvider, AiStreamPart, AiToolServer } from '@services/ai/provider.js'
 import { AppError, ErrorCode } from '@shared/errors.js'
 import { MAX_AI_STREAM_LINE_LENGTH } from '@shared/limits.js'
 import {
@@ -58,9 +58,20 @@ export function stopAllAgents(): void {
   for (const agent of runningAgents) agent.close({ immediately: true })
 }
 
+/** Librevia's MCP server as ACP describes a program the agent starts. */
+function stdioServer(server: AiToolServer) {
+  return {
+    name: server.name,
+    command: server.command,
+    args: [...server.args],
+    env: Object.entries(server.env).map(([name, value]) => ({ name, value })),
+  }
+}
+
 /**
- * A client that offers the agent nothing: no files, no terminal, every permission refused. The agent
- * can only answer in text.
+ * A client that offers the agent nothing of its own: no files, no terminal, every permission
+ * refused but to run Librevia's tools, when a message brings them. Otherwise the agent can only
+ * answer in text.
  */
 class AgentProcess {
   readonly exited: Promise<number | null>
@@ -68,6 +79,7 @@ class AgentProcess {
   private readonly connection: ClientConnection
   private readonly ended: Promise<never>
   private session: ActiveSession | undefined
+  private toolServer: AiToolServer | undefined
 
   constructor(
     private readonly options: AcpOptions,
@@ -83,7 +95,9 @@ class AgentProcess {
     })
     this.ended.catch(() => undefined)
     this.connection = client({ name: CLIENT_NAME })
-      .onRequest(methods.client.session.requestPermission, ({ params }) => refusePermission(params.options))
+      .onRequest(methods.client.session.requestPermission, ({ params }) =>
+        answerPermission(params.toolCall, params.options, this.toolServer),
+      )
       .connect(
         ndJsonStream(
           Writable.toWeb(this.child.stdin) as WritableStream<Uint8Array>,
@@ -93,7 +107,8 @@ class AgentProcess {
       )
   }
 
-  async open(): Promise<ActiveSession> {
+  async open(toolServer?: AiToolServer): Promise<ActiveSession> {
+    this.toolServer = toolServer
     const agent = this.connection.agent
     const startup = this.options.startupTimeoutMs ?? STARTUP_TIMEOUT_MS
     await this.within(
@@ -104,7 +119,9 @@ class AgentProcess {
       startup,
       handshakeError,
     )
-    this.session = await this.within(agent.buildSession(this.cwd).start(), startup, handshakeError)
+    const builder = agent.buildSession(this.cwd)
+    if (toolServer !== undefined) builder.withMcpServer(stdioServer(toolServer))
+    this.session = await this.within(builder.start(), startup, handshakeError)
     return this.session
   }
 
@@ -213,7 +230,7 @@ function runPrompt(options: AcpOptions, prompt: AiPrompt, signal: AbortSignal): 
 }
 
 async function* answer(agent: AgentProcess, prompt: AiPrompt): AsyncGenerator<AiStreamPart> {
-  const session = await agent.open()
+  const session = await agent.open(prompt.toolServer)
   const model = await agent.chooseModel(session, prompt.model)
   if (model !== '') yield { model }
   session.prompt(`${prompt.system}\n\n${transcriptPrompt(prompt.messages)}`).catch(() => undefined)

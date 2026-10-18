@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest'
-import { isAuthError, joinArgs, modelsOf, refusePermission, splitArgs, textOfUpdate } from './acp-session.js'
+import {
+  answerPermission,
+  isAuthError,
+  joinArgs,
+  modelsOf,
+  refusePermission,
+  splitArgs,
+  textOfUpdate,
+} from './acp-session.js'
+import type { AiToolServer } from './provider.js'
 
 describe('textOfUpdate', () => {
   it('só o texto da resposta passa; pensamento e ferramentas ficam de fora', () => {
@@ -27,6 +36,48 @@ describe('refusePermission', () => {
     expect(refusePermission([{ optionId: 'sim', kind: 'allow_always' }])).toEqual({
       outcome: { outcome: 'cancelled' },
     })
+  })
+})
+
+describe('answerPermission', () => {
+  const SERVER: AiToolServer = {
+    name: 'librevia',
+    command: '/bin/librevia',
+    args: [],
+    env: {},
+    tools: ['read_paragraphs', 'add_comment'],
+  }
+  const OPTIONS = [
+    { optionId: 'sempre', kind: 'allow_always' },
+    { optionId: 'sim', kind: 'allow_once' },
+    { optionId: 'nao', kind: 'reject_once' },
+  ]
+  const allowed = { outcome: { outcome: 'selected', optionId: 'sim' } }
+  const refused = { outcome: { outcome: 'selected', optionId: 'nao' } }
+
+  it('permite uma vez as ferramentas do Librevia, pelo nome que cada agente dá', () => {
+    for (const call of [
+      { name: 'mcp__librevia__read_paragraphs', title: 'mcp__librevia__read_paragraphs', kind: 'other' },
+      { title: 'mcp_librevia_add_comment' },
+      { title: 'read_paragraphs (librevia MCP Server)', kind: 'other' },
+      { title: 'read_paragraphs(from: 1, count: 5)', kind: 'other' },
+    ]) {
+      expect(answerPermission(call, OPTIONS, SERVER)).toEqual(allowed)
+    }
+  })
+
+  it('recusa o resto: outra ferramenta, outro servidor, tipo que executa, mensagem sem as ferramentas', () => {
+    for (const call of [
+      { name: 'Bash', title: 'mcp__librevia__read_paragraphs', kind: 'execute' },
+      { title: 'mcp__librevia__read_paragraphs', kind: 'execute' },
+      { title: 'mcp__outro__read_paragraphs' },
+      { title: 'echo mcp__librevia__read_paragraphs' },
+      { name: 'mcp__librevia__propose_edit' },
+      {},
+    ]) {
+      expect(answerPermission(call, OPTIONS, SERVER)).toEqual(refused)
+    }
+    expect(answerPermission({ title: 'read_paragraphs' }, OPTIONS, undefined)).toEqual(refused)
   })
 })
 

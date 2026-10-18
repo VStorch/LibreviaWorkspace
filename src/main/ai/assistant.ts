@@ -8,7 +8,7 @@ import type { AiProposal } from '@services/ai/proposals.js'
 import {
   AiProviderKind,
   AiRole,
-  offersDocumentTools,
+  runsToolsThroughMcp,
   type AiModel,
   type AiPrompt,
   type AiProvider,
@@ -193,10 +193,9 @@ export function chat(
   })
 }
 
-/** Claude Code runs the loop itself, reaching the tools through the local MCP server. */
+/** Claude Code and the ACP agents run the loop themselves, reaching the tools through the local MCP server. */
 function toolRunner(kind: AiProviderKind, context: GenerateContext, document: ToolDocument): Runner | null {
-  if (!offersDocumentTools(kind)) return null
-  if (kind === AiProviderKind.ClaudeCli) {
+  if (runsToolsThroughMcp(kind)) {
     return context.toolSessions === undefined ? null : relayThroughToolServer(context.toolSessions, document)
   }
   return (provider, prompt, signal, add) => relayWithTools(provider, prompt, document, signal, add)

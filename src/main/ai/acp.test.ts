@@ -20,6 +20,8 @@ interface FakeAgentBehavior {
   readonly stopReason?: string
   readonly missing?: boolean
   readonly notAgent?: 'methodNotFound' | 'closes'
+  /** What the agent says about the tool it asks to run. */
+  readonly toolCall?: Record<string, unknown>
 }
 
 const MODEL_OPTION = {
@@ -130,7 +132,7 @@ class FakeAgent extends EventEmitter {
       method: 'session/request_permission',
       params: {
         sessionId: 's1',
-        toolCall: { toolCallId: 't1' },
+        toolCall: { toolCallId: 't1', ...this.behavior.toolCall },
         options: [
           { optionId: 'sim', name: 'Permitir', kind: 'allow_once' },
           { optionId: 'nao', name: 'Recusar', kind: 'reject_once' },
@@ -195,6 +197,40 @@ describe('createAcpProvider', () => {
 
   it('recusa o pedido de permissão do agente', async () => {
     const { child, provider } = setup()
+    await collect(provider.stream(PROMPT, new AbortController().signal))
+    const answer = child.received.find((message) => message.id === 'p1')
+    expect(answer?.result).toEqual({ outcome: { outcome: 'selected', optionId: 'nao' } })
+  })
+
+  it('com as ferramentas do Librevia, o servidor MCP vai na sessão e só as ferramentas dele são permitidas', async () => {
+    const toolServer = {
+      name: 'librevia',
+      command: '/bin/librevia',
+      args: ['--mcp-bridge'],
+      env: { LIBREVIA_MCP_TOKEN: 'k' },
+      tools: ['read_paragraphs'],
+    }
+    const { child, provider } = setup({
+      toolCall: { title: 'mcp__librevia__read_paragraphs', kind: 'other' },
+    })
+    await collect(provider.stream({ ...PROMPT, toolServer }, new AbortController().signal))
+    const session = child.received.find((message) => message.method === 'session/new')
+    expect(session?.params?.['mcpServers']).toEqual([
+      {
+        name: 'librevia',
+        command: '/bin/librevia',
+        args: ['--mcp-bridge'],
+        env: [{ name: 'LIBREVIA_MCP_TOKEN', value: 'k' }],
+      },
+    ])
+    const answer = child.received.find((message) => message.id === 'p1')
+    expect(answer?.result).toEqual({ outcome: { outcome: 'selected', optionId: 'sim' } })
+  })
+
+  it('sem as ferramentas na mensagem, até o nome delas é recusado', async () => {
+    const { child, provider } = setup({
+      toolCall: { title: 'mcp__librevia__read_paragraphs', kind: 'other' },
+    })
     await collect(provider.stream(PROMPT, new AbortController().signal))
     const answer = child.received.find((message) => message.id === 'p1')
     expect(answer?.result).toEqual({ outcome: { outcome: 'selected', optionId: 'nao' } })

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
-import { AiRole, offersDocumentTools } from '@services/ai/provider.js'
+import { AiRole } from '@services/ai/provider.js'
 import { MAX_AI_CHAT_MESSAGE_LENGTH } from '@shared/limits.js'
 import { useT } from '../i18n.js'
 import { copyContents } from './ai-copy.js'
@@ -22,31 +22,20 @@ interface AiChatLogProps extends AiChatTabBaseProps {
 }
 
 interface AiChatTabProps extends AiChatTabBaseProps {
-  /** The remembered choice; it only takes effect with a provider that offers the tools. */
   readonly proposals: boolean
   readonly onProposals: (on: boolean) => void
 }
 
 function AiProposalsChoice({
-  provider,
   proposals,
   onProposals,
-}: Pick<AiChatTabProps, 'provider' | 'proposals' | 'onProposals'>): React.JSX.Element {
+}: Pick<AiChatTabProps, 'proposals' | 'onProposals'>): React.JSX.Element {
   const t = useT()
-  const offered = offersDocumentTools(provider.kind)
   return (
-    <>
-      <label className="popover__check">
-        <input
-          type="checkbox"
-          checked={offered && proposals}
-          disabled={!offered}
-          onChange={(event) => onProposals(event.target.checked)}
-        />
-        {t('ai.chat.proposals')}
-      </label>
-      {!offered && <p className="ai-pane__note">{t('ai.chat.proposalsUnavailable')}</p>}
-    </>
+    <label className="popover__check">
+      <input type="checkbox" checked={proposals} onChange={(event) => onProposals(event.target.checked)} />
+      {t('ai.chat.proposals')}
+    </label>
   )
 }
 
@@ -91,7 +80,7 @@ export function AiChatTab({
     void chat.send(draft, {
       providerId: provider.id,
       model: provider.defaultModel ?? '',
-      proposals: proposals && offersDocumentTools(provider.kind),
+      proposals,
     })
   }
   const restart = (): void => {
@@ -142,7 +131,7 @@ export function AiChatTab({
           {t('ai.chat.new')}
         </button>
       </div>
-      <AiProposalsChoice provider={provider} proposals={proposals} onProposals={onProposals} />
+      <AiProposalsChoice proposals={proposals} onProposals={onProposals} />
       <p className="popover__hint">{t('ai.chat.hint')}</p>
     </>
   )

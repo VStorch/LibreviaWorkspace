@@ -125,10 +125,6 @@ export const AI = {
     pt: 'Deixar o assistente propor alterações e comentários',
     en: 'Let the assistant propose edits and comments',
   },
-  'ai.chat.proposalsUnavailable': {
-    pt: 'Este assistente não oferece isso no Librevia.',
-    en: 'This assistant does not offer this in Librevia.',
-  },
   'ai.proposals.title': { pt: 'Propostas do assistente', en: "The assistant's proposals" },
   'ai.proposals.edit': { pt: 'Alteração no parágrafo {paragraph}', en: 'Edit in paragraph {paragraph}' },
   'ai.proposals.comment': {

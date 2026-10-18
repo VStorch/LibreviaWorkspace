@@ -1,4 +1,4 @@
-import type { AiModel } from './provider.js'
+import type { AiModel, AiToolServer } from './provider.js'
 
 /** The few fields Librevia reads from the ACP messages; the SDK types fit these shapes. */
 export interface AcpUpdate {
@@ -9,6 +9,13 @@ export interface AcpUpdate {
 export interface AcpPermissionOption {
   readonly optionId: string
   readonly kind: string
+}
+
+/** What the agent says about the tool it wants to run; any field may be missing. */
+export interface AcpToolCall {
+  readonly name?: string | null
+  readonly title?: string | null
+  readonly kind?: string | null
 }
 
 export type AcpPermissionAnswer = {
@@ -41,6 +48,8 @@ export interface AcpModelOption {
 
 const AUTH_REQUIRED_CODE = -32000
 const REJECT_KINDS = ['reject_once', 'reject_always'] as const
+/** The kinds an agent gives its own tools that change files, run programs or reach the network. */
+const UNSAFE_TOOL_KINDS = new Set(['edit', 'delete', 'move', 'execute', 'fetch'])
 const QUOTES = new Set(["'", '"'])
 
 /** Only the answer itself: thoughts, tool calls and plans are the agent's business. */
@@ -58,6 +67,40 @@ export function refusePermission(options: readonly AcpPermissionOption[]): AcpPe
     if (option !== undefined) return { outcome: { outcome: 'selected', optionId: option.optionId } }
   }
   return { outcome: { outcome: 'cancelled' } }
+}
+
+/**
+ * How agents name a tool of an MCP server: bare, as Claude Code (`mcp__librevia__read_paragraphs`),
+ * as Gemini (`mcp_librevia_read_paragraphs`, or `read_paragraphs (librevia MCP Server)` and
+ * `read_paragraphs(from: 1)` as titles).
+ */
+function namesOf(server: string, tool: string): string[] {
+  return [tool, `mcp__${server}__${tool}`, `mcp_${server}_${tool}`, `${tool} (${server} MCP Server)`]
+}
+
+function isTitleOf(title: string, server: string, tool: string): boolean {
+  return namesOf(server, tool).includes(title) || title.startsWith(`${tool}(`)
+}
+
+/** Only an exact name of one of Librevia's tools, never of a tool that edits, runs or fetches. */
+export function isLibreviaTool(call: AcpToolCall, server: AiToolServer | undefined): boolean {
+  if (server === undefined || UNSAFE_TOOL_KINDS.has(call.kind ?? '')) return false
+  const { name, title } = call
+  return server.tools.some((tool) => {
+    if (typeof name === 'string' && name !== '') return namesOf(server.name, tool).includes(name)
+    return typeof title === 'string' && isTitleOf(title.trim(), server.name, tool)
+  })
+}
+
+/** Librevia's tools run once each time they are asked for; everything else is refused. */
+export function answerPermission(
+  call: AcpToolCall,
+  options: readonly AcpPermissionOption[],
+  server: AiToolServer | undefined,
+): AcpPermissionAnswer {
+  const allow = options.find((option) => option.kind === 'allow_once')
+  if (allow === undefined || !isLibreviaTool(call, server)) return refusePermission(options)
+  return { outcome: { outcome: 'selected', optionId: allow.optionId } }
 }
 
 export function modelOptionOf(

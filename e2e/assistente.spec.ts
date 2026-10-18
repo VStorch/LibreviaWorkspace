@@ -513,9 +513,12 @@ test.describe('assistente de IA', () => {
  * A fake ACP agent, JSON-RPC written by hand: it thinks, calls a tool, asks permission, and answers
  * only after the permission reply. It logs every message it receives, its pid and its folder. It
  * ignores `session/cancel`, so stopping must end the process. "devagar" in the prompt makes it slow.
+ * Given an MCP server in the session, it asks to run Librevia's `add_comment` and, allowed, starts
+ * the server as a real agent would and calls it, logging the result.
  */
 function fakeAgentSource(logPath: string): string {
   return `#!/usr/bin/env node
+import { spawn } from 'node:child_process'
 import { appendFileSync } from 'node:fs'
 const log = (entry) => appendFileSync(${JSON.stringify(logPath)}, JSON.stringify(entry) + '\\n')
 const send = (message) => process.stdout.write(JSON.stringify({ jsonrpc: '2.0', ...message }) + '\\n')
@@ -526,6 +529,7 @@ const MODEL = {
 }
 log({ pid: process.pid, cwd: process.cwd() })
 let prompt
+let mcp
 let buffer = ''
 process.stdin.on('data', (chunk) => {
   buffer += chunk
@@ -539,8 +543,23 @@ process.stdin.on('data', (chunk) => {
 function handle(message) {
   log(message)
   if (message.method === 'initialize') return send({ id: message.id, result: { protocolVersion: 1, agentCapabilities: {} } })
-  if (message.method === 'session/new') return send({ id: message.id, result: { sessionId: 's1', configOptions: [MODEL] } })
+  if (message.method === 'session/new') {
+    mcp = message.params.mcpServers[0]
+    return send({ id: message.id, result: { sessionId: 's1', configOptions: [MODEL] } })
+  }
   if (message.method === 'session/set_config_option') return send({ id: message.id, result: { configOptions: [MODEL] } })
+  if (message.method === 'session/prompt' && mcp !== undefined) {
+    prompt = message
+    const toolCall = { toolCallId: 't2', title: 'mcp__librevia__add_comment', kind: 'other' }
+    return send({ id: 'ferramenta', method: 'session/request_permission', params: { sessionId: 's1', toolCall, options: [
+      { optionId: 'permitir', name: 'Permitir', kind: 'allow_once' },
+      { optionId: 'recusar', name: 'Recusar', kind: 'reject_once' },
+    ] } })
+  }
+  if (message.id === 'ferramenta') {
+    if (message.result.outcome.optionId === 'permitir') return callTool()
+    return answer(false)
+  }
   if (message.method === 'session/prompt') {
     prompt = message
     update({ sessionUpdate: 'agent_thought_chunk', content: { type: 'text', text: 'pensamento secreto' } })
@@ -560,6 +579,28 @@ function handle(message) {
   }
   if (message.id === 'permissao') answer(JSON.stringify(prompt.params.prompt).includes('devagar'))
 }
+function callTool() {
+  const env = { ...process.env, ...Object.fromEntries(mcp.env.map(({ name, value }) => [name, value])) }
+  const server = spawn(mcp.command, mcp.args, { env, stdio: ['pipe', 'pipe', 'inherit'] })
+  const ask = (id, method, params) => server.stdin.write(JSON.stringify({ jsonrpc: '2.0', id, method, params }) + '\\n')
+  let rest = ''
+  server.stdout.setEncoding('utf8')
+  server.stdout.on('data', (chunk) => {
+    const lines = (rest + chunk).split('\\n')
+    rest = lines.pop()
+    for (const line of lines.filter((text) => text.trim() !== '')) {
+      const reply = JSON.parse(line)
+      if (reply.id === 1) {
+        ask(2, 'tools/call', { name: 'add_comment', arguments: { paragraph: 1, find: 'gato', comment: 'Qual gato?' } })
+      } else if (reply.id === 2) {
+        log({ ferramenta: reply.result })
+        server.kill()
+        answer(false)
+      }
+    }
+  })
+  ask(1, 'initialize', { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'agente', version: '1' } })
+}
 function answer(slow) {
   const pieces = slow ? Array.from({ length: 200 }, (_, i) => i + ' ') : ['Texto ', 'do ', 'agente.']
   let next = 0
@@ -576,6 +617,7 @@ function answer(slow) {
 }
 
 interface AgentLogEntry {
+  readonly ferramenta?: { content: { text: string }[]; isError: boolean }
   readonly pid?: number
   readonly cwd?: string
   readonly id?: string | number
@@ -664,6 +706,28 @@ test.describe('assistente por agente ACP', () => {
     const pastas = mensagens.flatMap((mensagem) => (mensagem.cwd === undefined ? [] : [mensagem.cwd]))
     expect(pastas.every((cwd) => cwd.includes('librevia-ai-'))).toBe(true)
     await expect.poll(() => pastas.some((cwd) => existsSync(cwd))).toBe(false)
+  })
+
+  test('com a caixa ligada, o agente usa as ferramentas do Librevia pelo servidor MCP e a proposta aparece', async () => {
+    await prepararAgente('O gato dorme.')
+    await painel().getByRole('tab', { name: 'Conversa' }).click()
+    await painel().getByLabel('Deixar o assistente propor alterações e comentários').click()
+    const campo = painel().getByLabel('Mensagem')
+    await campo.fill('Comente o texto.')
+    await campo.press('Enter')
+
+    const conversa = painel().getByRole('log')
+    await expect(conversa.getByLabel('Resposta')).toHaveText('Texto do agente.')
+    const propostas = conversa.getByRole('group', { name: 'Propostas do assistente' })
+    await expect(propostas.getByText('Comentário no parágrafo 1')).toBeVisible()
+    await expect(session.window.locator('.comment-card')).toHaveCount(0)
+
+    const mensagens = await lerRegistro()
+    const permissao = mensagens.find((mensagem) => mensagem.id === 'ferramenta')
+    expect(permissao?.result).toEqual({ outcome: { outcome: 'selected', optionId: 'permitir' } })
+    const resultado = mensagens.find((mensagem) => mensagem.ferramenta !== undefined)?.ferramenta
+    expect(resultado).toMatchObject({ isError: false })
+    expect(resultado?.content[0]?.text).toContain('Comment 1 proposed')
   })
 
   test('parar avisa o agente e encerra o processo dele', async () => {

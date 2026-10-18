@@ -7,18 +7,12 @@ export const AiProviderKind = {
 
 export type AiProviderKind = (typeof AiProviderKind)[keyof typeof AiProviderKind]
 
-const DOCUMENT_TOOL_KINDS: ReadonlySet<AiProviderKind> = new Set([
-  AiProviderKind.OpenAiCompatible,
-  AiProviderKind.Anthropic,
-  AiProviderKind.ClaudeCli,
-])
-
 /**
- * Claude Code reaches the document's tools through Librevia's local MCP server, and only them. The
- * ACP agents run their own tools, outside Librevia's reach: they get none of the document's.
+ * Claude Code and the ACP agents run the tool loop themselves and reach the document's tools
+ * through Librevia's local MCP server, with a key for one message; the others get them here.
  */
-export function offersDocumentTools(kind: AiProviderKind): boolean {
-  return DOCUMENT_TOOL_KINDS.has(kind)
+export function runsToolsThroughMcp(kind: AiProviderKind): boolean {
+  return kind === AiProviderKind.ClaudeCli || kind === AiProviderKind.Acp
 }
 
 export interface AiModel {
