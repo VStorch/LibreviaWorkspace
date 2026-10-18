@@ -52,15 +52,18 @@ describe('parseClaudeCliLine', () => {
           event: { type: 'message_start', message: { model: 'claude-opus-5-5' } },
         }),
       ),
-    ).toEqual({ type: 'model', model: 'claude-opus-5-5' })
+    ).toEqual({ type: 'message', model: 'claude-opus-5-5' })
+  })
+
+  it('o início de cada mensagem marca uma rodada nova, mesmo sem o modelo', () => {
+    expect(
+      parseClaudeCliLine(JSON.stringify({ type: 'stream_event', event: { type: 'message_start' } })),
+    ).toEqual({ type: 'message', model: undefined })
   })
 
   it('ignora as outras linhas', () => {
     expect(parseClaudeCliLine(JSON.stringify({ type: 'system', subtype: 'init' }))).toEqual({ type: 'skip' })
     expect(parseClaudeCliLine(JSON.stringify({ type: 'assistant', message: {} }))).toEqual({ type: 'skip' })
-    expect(
-      parseClaudeCliLine(JSON.stringify({ type: 'stream_event', event: { type: 'message_start' } })),
-    ).toEqual({ type: 'skip' })
     expect(parseClaudeCliLine('não é JSON')).toEqual({ type: 'skip' })
   })
 })

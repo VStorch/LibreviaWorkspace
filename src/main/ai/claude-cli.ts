@@ -16,6 +16,7 @@ import {
 } from './child-process.js'
 import { aiError, refusedError } from './errors.js'
 import { takeBoundedLines } from './stream-lines.js'
+import { ROUND_SEPARATOR } from './tool-loop.js'
 
 type CliResult = Extract<ClaudeCliEvent, { type: 'result' }>
 
@@ -115,10 +116,19 @@ function startCli(options: ClaudeCliOptions, prompt: AiPrompt, cwd: string): Run
 
 async function* readCli(running: RunningCli, signal: AbortSignal): AsyncGenerator<AiStreamPart> {
   let result: CliResult | undefined
+  let wrote = false
+  let separator = ''
   for await (const event of cliEvents(running.child.stdout)) {
     if (event.type === 'result') result = event
-    else if (event.type === 'text') yield { text: event.text }
     else if (event.type === 'model') yield { model: event.model }
+    else if (event.type === 'message') {
+      if (event.model !== undefined) yield { model: event.model }
+      if (wrote) separator = ROUND_SEPARATOR
+    } else if (event.type === 'text') {
+      yield { text: separator + event.text }
+      separator = ''
+      wrote = true
+    }
   }
   const code = await running.exited
   signal.throwIfAborted()

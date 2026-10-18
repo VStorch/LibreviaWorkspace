@@ -142,6 +142,18 @@ describe('provedor Claude Code', () => {
     await expect(parts).rejects.toMatchObject({ code: ErrorCode.AiFailed, detail: 'Not logged in' })
   })
 
+  it('o texto de cada rodada com ferramentas começa um parágrafo novo', async () => {
+    const { child, provider } = setup()
+    const parts = collect(provider.stream(PROMPT, new AbortController().signal))
+    await new Promise((resolve) => setImmediate(resolve))
+    const start = line({ type: 'stream_event', event: { type: 'message_start' } })
+    child.stdout.write(start + start + delta('Vou ler o documento.') + start + delta('Propus duas trocas.'))
+    child.stdout.write(line({ type: 'result', is_error: false }))
+    child.finish(0)
+
+    expect(await parts).toEqual([{ text: 'Vou ler o documento.' }, { text: '\n\nPropus duas trocas.' }])
+  })
+
   it('cancelar encerra o processo e limpa a pasta', async () => {
     const { child, removed, provider } = setup()
     const controller = new AbortController()

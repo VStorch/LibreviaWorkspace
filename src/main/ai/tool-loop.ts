@@ -8,7 +8,7 @@ export interface ToolLoopResult extends RelayMeta {
   readonly proposals: readonly AiProposal[]
 }
 
-const ROUND_SEPARATOR = '\n\n'
+export const ROUND_SEPARATOR = '\n\n'
 
 /** The text of a new round reads as a new paragraph after the previous round's. */
 function separated(add: (text: string) => void, budget: RelayBudget): (text: string) => void {

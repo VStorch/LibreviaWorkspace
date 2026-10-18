@@ -8,6 +8,8 @@ export type ClaudeCliEvent =
       readonly message: string
     }
   | { readonly type: 'model'; readonly model: string }
+  /** Each round of a reply with tools is a message of its own. */
+  | { readonly type: 'message'; readonly model: string | undefined }
   | { readonly type: 'skip' }
 
 const SKIP: ClaudeCliEvent = { type: 'skip' }
@@ -37,7 +39,8 @@ export function parseClaudeCliLine(line: string): ClaudeCliEvent {
   }
   if (parsed.type === 'system' && parsed.subtype === 'init') return modelOf(parsed.model)
   if (parsed.type === 'stream_event' && parsed.event?.type === 'message_start') {
-    return modelOf(parsed.event.message?.model)
+    const model = parsed.event.message?.model
+    return { type: 'message', model: typeof model === 'string' && model !== '' ? model : undefined }
   }
   if (parsed.type === 'stream_event') return textOf(parsed)
   if (parsed.type === 'result') return resultOf(parsed)
