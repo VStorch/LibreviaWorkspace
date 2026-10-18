@@ -134,4 +134,34 @@ test.describe('servidor MCP local', () => {
     pontes.push(recusada)
     expect(await recusada.saiu).toBe(1)
   })
+
+  test('Desconectar na barra de status derruba o cliente e deixa o servidor ligado', async () => {
+    const origem = join(pasta, 'ata.docx')
+    await writeFile(origem, await docxWithTrackedChange())
+    await stubDialogs(session.app, { open: origem, messageBox: 1 })
+    await menu(session, 'open')
+    await expect(session.window.locator('.ProseMirror')).toContainText('Ata da reunião de terça.')
+    const configuracao = await definirPreferencia(true)
+
+    const ponte = abrirPonte(configuracao!.command, configuracao!.args, session.userData)
+    pontes.push(ponte)
+    await ponte.pedir('initialize', {
+      protocolVersion: '2025-06-18',
+      clientInfo: { name: CLIENTE, version: '1' },
+    })
+    const indicador = session.window.getByTestId('mcp-status')
+    await expect(indicador).toContainText(CLIENTE)
+
+    await indicador.getByRole('button', { name: 'Desconectar' }).click()
+    expect(await ponte.saiu).toBe(0)
+    await expect(indicador).toHaveCount(0)
+
+    const outra = abrirPonte(configuracao!.command, configuracao!.args, session.userData)
+    pontes.push(outra)
+    const inicio = await outra.pedir('initialize', {
+      protocolVersion: '2025-06-18',
+      clientInfo: { name: CLIENTE, version: '1' },
+    })
+    expect(inicio['result']).toMatchObject({ serverInfo: { name: 'librevia' } })
+  })
 })
