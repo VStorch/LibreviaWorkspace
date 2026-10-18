@@ -7,6 +7,8 @@ export const TEXT_FIELD = 'input, textarea, select, [contenteditable="true"]'
 /** The app's dialogs float over the sheet without `aria-modal`; while one is open it has the keys. */
 const DIALOG = '[role="dialog"], [aria-modal="true"], dialog[open]'
 
+export const dialogOverSheet = (): boolean => document.querySelector(DIALOG) !== null
+
 /** Excel's and LibreOffice's keys. Ctrl+Shift+Y is not one of them: it opens the assistant. */
 function historyKeyOf(event: KeyboardEvent): 'undo' | 'redo' | null {
   if (!(event.ctrlKey || event.metaKey) || event.altKey) return null
@@ -21,7 +23,7 @@ function historyKeyOf(event: KeyboardEvent): 'undo' | 'redo' | null {
  * over the sheet.
  */
 export function sheetOwnsUndo(target: EventTarget | null): boolean {
-  if (document.querySelector(DIALOG) !== null) return false
+  if (dialogOverSheet()) return false
   if (!(target instanceof Element)) return true
   const field = target.closest(TEXT_FIELD)
   return field === null || field.hasAttribute(SHEET_UNDO_ATTRIBUTE)

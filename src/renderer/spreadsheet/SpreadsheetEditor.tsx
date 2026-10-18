@@ -28,6 +28,7 @@ import { SheetContextMenu, type MenuPosition } from './SheetContextMenu.js'
 import { cellStyleOf } from './cell-style.js'
 import { SHEET_ROWS_PANE, gridPositionOf, sheetColumnOf } from './grid-position.js'
 import { useCrossPaneRange } from './useCrossPaneRange.js'
+import { useSheetClipboard } from './useSheetClipboard.js'
 import { useFormatShortcuts } from './useFormatShortcuts.js'
 import { useTypeAhead } from './useTypeAhead.js'
 
@@ -78,6 +79,7 @@ export function SpreadsheetEditor({
   useGridRange(container, current, setRange)
   useCrossPaneRange(container, current, selection, setRange)
   useGridTakesFocus(container)
+  useSheetClipboard(current, selection, applyChange)
   const { handleResize, handleFocus, handleAutofill } = useSelectionHandlers(
     current,
     applyChange,
@@ -320,8 +322,9 @@ function useGridRange(
 
 /**
  * The grid cancels the press on a cell, so the browser would leave the focus in the field typed into
- * last, such as the assistant's request, and Edit > Undo would undo that field. A cell being edited
- * lives inside the grid and keeps it.
+ * last, such as the assistant's request, and Edit > Undo would undo that field; and the text selected
+ * last, such as the assistant's answer, which Copy would take instead of the cells. A cell being
+ * edited lives inside the grid and keeps the focus.
  */
 function useGridTakesFocus(container: { readonly current: HTMLDivElement | null }): void {
   useEffect(() => {
@@ -329,8 +332,10 @@ function useGridTakesFocus(container: { readonly current: HTMLDivElement | null 
     if (element === null) return
     const takeFocus = (event: MouseEvent): void => {
       const grid = event.target instanceof Element ? event.target.closest('revo-grid') : null
+      if (grid === null) return
+      document.getSelection()?.removeAllRanges()
       const focused = document.activeElement
-      if (grid === null || !(focused instanceof HTMLElement) || grid.contains(focused)) return
+      if (!(focused instanceof HTMLElement) || grid.contains(focused)) return
       focused.blur()
     }
     element.addEventListener('mousedown', takeFocus, { capture: true })
