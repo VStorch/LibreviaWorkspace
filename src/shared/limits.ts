@@ -67,3 +67,8 @@ export const MAX_AI_SHEET_CONTEXT_LENGTH = MAX_AI_DOCUMENT_LENGTH
 export const MAX_AI_FILL_ROWS = 500
 /** Excel's own limit for the text of a formula. */
 export const MAX_AI_FORMULA_LENGTH = 8_192
+/** The spreadsheet tools of the MCP server: the used cells one read returns and one write proposes. */
+export const MAX_AI_READ_CELLS = 500
+export const MAX_AI_WRITE_CELLS = 1_000
+/** A tool's answer that the window computes and sends back to main. */
+export const MAX_AI_TOOL_RESULT_LENGTH = MAX_AI_DOCUMENT_LENGTH

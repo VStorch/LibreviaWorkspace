@@ -74,4 +74,35 @@ describe('RendererDocument', () => {
     const late = { requestId: sent[0]!.requestId, ask: McpDocumentAsk.Apply, applied: true } as const
     expect(document.receive(late, contents)).toBe(false)
   })
+
+  it('a ferramenta da planilha vai à janela com o pedido e o autor, e a resposta volta ao cliente', async () => {
+    const { document, contents } = attached()
+    const call = { id: '1', name: 'read_cells', arguments: '{"range":"A1"}' }
+    const running = document.runSheetTool(call, 'Editor X (MCP)')
+    expect(sent[0]).toMatchObject({
+      ask: McpDocumentAsk.SheetTool,
+      call: { name: call.name, arguments: call.arguments },
+      author: 'Editor X (MCP)',
+    })
+    const reply = {
+      requestId: sent[0]!.requestId,
+      ask: McpDocumentAsk.SheetTool,
+      content: 'A1: 1',
+      isError: false,
+    } as const
+    document.receive(reply, contents)
+    await expect(running).resolves.toEqual({ content: 'A1: 1', isError: false })
+  })
+
+  it('sem planilha aberta, o cliente fica sabendo', async () => {
+    const { document, contents } = attached()
+    const running = document.runSheetTool({ id: '1', name: 'list_sheets', arguments: '{}' }, 'X (MCP)')
+    const reply = {
+      requestId: sent[0]!.requestId,
+      ask: MCP_DOCUMENT_REFUSED,
+      refusal: McpDocumentRefusal.NoSpreadsheet,
+    } as const
+    document.receive(reply, contents)
+    await expect(running).rejects.toThrow(/No spreadsheet is open/u)
+  })
 })

@@ -64,7 +64,12 @@ function readQuoted(text: string, start: number): [string, number] {
 const isSeparator = (char: string): boolean => char === COLUMN_SEPARATOR || char === '\n' || char === '\r'
 
 /** From the top left corner, as typed; whatever falls outside the sheet is dropped. */
-export function pasteText(sheet: Sheet, row: number, column: number, rows: readonly string[][]): Sheet {
+export function pasteText(
+  sheet: Sheet,
+  row: number,
+  column: number,
+  rows: readonly (readonly string[])[],
+): Sheet {
   let updated = sheet
   rows.forEach((cells, rowOffset) => {
     if (row + rowOffset >= sheet.rowCount) return

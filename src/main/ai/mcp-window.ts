@@ -1,6 +1,8 @@
 import { randomUUID } from 'node:crypto'
 import type { WebContents } from 'electron'
+import type { McpToolResult } from '@services/ai/mcp-protocol.js'
 import type { AiProposal } from '@services/ai/proposals.js'
+import type { AiToolCall } from '@services/ai/provider.js'
 import type { IpcRequest, PushPayload } from '@shared/ipc.js'
 import { IpcChannel } from '@shared/ipc-channels.js'
 import { MCP_DOCUMENT_REFUSED, McpDocumentAsk, McpDocumentRefusal } from '@shared/types.js'
@@ -21,7 +23,9 @@ const NO_ANSWER = 'The Librevia window did not answer in time; nothing was chang
 const REFUSALS: Readonly<Record<McpDocumentRefusal, string>> = {
   [McpDocumentRefusal.NoTextDocument]:
     'No text document is open in Librevia (a spreadsheet, a PDF or nothing is): open one and try again.',
-  [McpDocumentRefusal.ReadOnly]: 'The open document is read-only: it takes no revisions or comments.',
+  [McpDocumentRefusal.NoSpreadsheet]:
+    'No spreadsheet is open in Librevia (a text document, a PDF or nothing is): open one and try again.',
+  [McpDocumentRefusal.ReadOnly]: 'The open file is read-only: it takes no changes.',
   [McpDocumentRefusal.Expired]: NO_ANSWER,
 }
 
@@ -50,6 +54,13 @@ export class RendererDocument implements DocumentWindow {
   async apply(proposal: AiProposal, author: string): Promise<boolean> {
     const reply = await this.ask({ ask: McpDocumentAsk.Apply, proposal, author })
     return reply.ask === McpDocumentAsk.Apply && reply.applied
+  }
+
+  async runSheetTool(call: AiToolCall, author: string): Promise<McpToolResult> {
+    const { name, arguments: args } = call
+    const reply = await this.ask({ ask: McpDocumentAsk.SheetTool, call: { name, arguments: args }, author })
+    if (reply.ask !== McpDocumentAsk.SheetTool) throw new DocumentUnavailable(NO_ANSWER)
+    return { content: reply.content, isError: reply.isError }
   }
 
   /** Only from the window that was asked, and only for a question still waiting. */

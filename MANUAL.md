@@ -840,7 +840,7 @@ respostas ficam no painel até o próximo pedido; o assistente não lembra os pe
 ### Programas externos (MCP)
 
 O Claude Code no terminal, o Claude Desktop ou outro programa que fale o protocolo MCP podem
-trabalhar no documento aberto no Librevia, inclusive no que ainda não foi salvo.
+trabalhar no documento ou na planilha aberta no Librevia, inclusive no que ainda não foi salvo.
 
 1. Abra **Ferramentas → Assistentes de IA…** e ligue **Permitir que programas externos leiam o
    documento aberto e proponham alterações (MCP)**. Vem desligado.
@@ -850,7 +850,7 @@ trabalhar no documento aberto no Librevia, inclusive no que ainda não foi salvo
    - **Claude Desktop e outros:** copie a configuração JSON e cole em `claude_desktop_config.json`
      ou no `.mcp.json` do projeto.
 3. Com o Librevia aberto, peça ao programa, por exemplo: "leia o documento aberto no Librevia e
-   comente as frases longas demais".
+   comente as frases longas demais" ou "some a coluna de preços da planilha aberta no Librevia".
 
 O programa conectado pode ler os parágrafos, procurar um texto, propor a troca de um trecho e
 comentar um trecho. **Cada proposta entra na hora como alteração controlada ou comentário**, mesmo
@@ -858,14 +858,24 @@ com o controle de alterações desligado, e com o nome do programa seguido de "(
 "Claude Code (MCP)". Você aceita ou rejeita como qualquer revisão, e Desfazer volta cada uma. Não
 há limite de propostas.
 
+Numa planilha aberta, o programa pode listar as abas, ler as células de um intervalo (a fórmula e
+o valor), procurar um texto em todas as abas e propor a escrita de células a partir de uma célula,
+como se fossem digitadas: um texto que começa com `=` vira fórmula. A planilha não tem controle de
+alterações, então **a escrita não entra na hora**: aparece numa faixa acima da grade, com o nome
+do programa, o intervalo, uma prévia das primeiras linhas e quantas células preenchidas ela
+substitui. **Aplicar** grava tudo de uma vez, indo para a aba certa, e um `Ctrl+Z` desfaz;
+**Descartar** joga fora. Com várias propostas, elas aparecem uma de cada vez, na ordem em que
+chegaram. Abrir outro arquivo descarta as que estiverem esperando. Uma fórmula que a barra de
+fórmulas recusaria é recusada já no pedido, com o motivo.
+
 O programa não abre nem salva arquivos, não aceita nem rejeita revisões, não vê o nome nem o
-caminho do arquivo e não mexe em planilhas nem em PDFs. Com o documento só para leitura, as
+caminho do arquivo e não mexe em PDFs. Com o arquivo só para leitura, ele ainda lê, mas as
 propostas são recusadas.
 
 - Enquanto um programa estiver conectado, a barra de status mostra o nome dele e o botão
   **Desconectar**. Desligar a caixa também derruba as conexões.
 - No máximo 2 programas ao mesmo tempo.
-- O programa recebe o texto inteiro do documento e o envia para onde ele estiver configurado: o
+- O programa recebe o texto inteiro do documento, ou as células que pedir da planilha, e o envia para onde ele estiver configurado: o
   Claude Code e o Claude Desktop mandam para os servidores da Anthropic.
 - A ligação não usa a rede: o programa roda `librevia --mcp-bridge`, que conversa com o Librevia
   aberto por um arquivo de comunicação (socket) na pasta de dados, que só o seu usuário abre. Cada

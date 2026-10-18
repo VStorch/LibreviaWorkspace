@@ -2263,3 +2263,30 @@ button {
   text-decoration: none;
   color: var(--accent);
 }
+
+/* What an MCP client would write, as the grid would show the cells it fills. */
+.sheet-proposal__preview {
+  align-self: flex-start;
+  margin-top: 6px;
+  border-collapse: collapse;
+  font-size: 12px;
+  background: var(--surface);
+  color: var(--text);
+}
+
+.sheet-proposal__preview th,
+.sheet-proposal__preview td {
+  border: 1px solid var(--border);
+  padding: 2px 6px;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sheet-proposal__preview th {
+  background: var(--sunken);
+  font-weight: 500;
+  color: var(--muted);
+  min-width: 24px;
+}

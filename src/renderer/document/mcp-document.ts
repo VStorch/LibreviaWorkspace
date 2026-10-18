@@ -6,6 +6,7 @@ import { IpcChannel } from '@shared/ipc-channels.js'
 import { pushContracts } from '@shared/ipc.js'
 import type { McpDocumentRequest } from '@shared/api.js'
 import { MCP_DOCUMENT_REFUSED, McpDocumentAsk, McpDocumentRefusal } from '@shared/types.js'
+import { answerSheetTool } from '../spreadsheet/mcp-sheet.js'
 import { useWorkspace } from '../state/workspace.js'
 import { chatParagraphs } from './ai-proposals.js'
 import { applyProposals } from './proposal-commands.js'
@@ -44,6 +45,7 @@ function applyOne(editor: Editor, request: McpDocumentRequest): boolean {
 function answer(request: McpDocumentRequest): Reply {
   const { requestId } = request
   if (Date.now() > request.deadline) return refused(requestId, McpDocumentRefusal.Expired)
+  if (request.ask === McpDocumentAsk.SheetTool) return answerSheetTool(request)
   const editor = shown
   if (editor === null || editor.isDestroyed) return refused(requestId, McpDocumentRefusal.NoTextDocument)
   if (request.ask === McpDocumentAsk.Snapshot) {

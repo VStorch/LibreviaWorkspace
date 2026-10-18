@@ -182,6 +182,8 @@ export type AiFormat = (typeof AiFormat)[keyof typeof AiFormat]
 export const McpDocumentAsk = {
   Snapshot: 'snapshot',
   Apply: 'apply',
+  /** The spreadsheet's tools run in the window, over the workbook on screen. */
+  SheetTool: 'sheet-tool',
 } as const
 
 export type McpDocumentAsk = (typeof McpDocumentAsk)[keyof typeof McpDocumentAsk]
@@ -189,6 +191,8 @@ export type McpDocumentAsk = (typeof McpDocumentAsk)[keyof typeof McpDocumentAsk
 export const McpDocumentRefusal = {
   /** A spreadsheet, a PDF or nothing is open. */
   NoTextDocument: 'no-text-document',
+  /** A text document, a PDF or nothing is open. */
+  NoSpreadsheet: 'no-spreadsheet',
   ReadOnly: 'read-only',
   /** Main stopped waiting: a change put in now would reach a client already told it failed. */
   Expired: 'expired',

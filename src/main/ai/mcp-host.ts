@@ -1,7 +1,8 @@
 import { timingSafeEqual } from 'node:crypto'
 import { rm } from 'node:fs/promises'
 import type { Socket } from 'node:net'
-import { APPLIED_DOCUMENT_TOOLS, DOCUMENT_TOOLS } from '@services/ai/document-tools.js'
+import { DOCUMENT_TOOLS } from '@services/ai/document-tools.js'
+import { EXTERNAL_INSTRUCTIONS, EXTERNAL_TOOLS } from '@services/ai/external-tools.js'
 import { mcpClientName } from '@services/ai/mcp-client-name.js'
 import { createMcpConnection, MCP_SERVER_NAME, type McpServerOptions } from '@services/ai/mcp-protocol.js'
 import { MAX_MCP_CLIENTS } from '@shared/limits.js'
@@ -193,7 +194,8 @@ export class McpHost implements ToolSessions {
     })
     this.notify()
     this.serve(socket, rest, {
-      tools: APPLIED_DOCUMENT_TOOLS,
+      tools: EXTERNAL_TOOLS,
+      instructions: EXTERNAL_INSTRUCTIONS,
       runTool: externalToolRunner(this.options.document, this.options.fallbackName),
       onInitialize: (client) => {
         if (!this.external.has(socket)) return

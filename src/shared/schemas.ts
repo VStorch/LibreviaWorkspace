@@ -34,6 +34,8 @@ import {
   MAX_AI_FILL_ROWS,
   MAX_AI_FORMULA_LENGTH,
   MAX_AI_SHEET_CONTEXT_LENGTH,
+  MAX_AI_TOOL_ARGUMENTS_LENGTH,
+  MAX_AI_TOOL_RESULT_LENGTH,
   MAX_MCP_CLIENT_NAME_LENGTH,
   MAX_MCP_CLIENTS,
   MAX_COLOR_LENGTH,
@@ -639,11 +641,24 @@ export const mcpDocumentRequestSchema = z.object({
   /** Only to apply: the proposal goes in at once, by this author. */
   proposal: aiProposalSchema.optional(),
   author: z.string().min(1).max(MAX_NAME_LENGTH).optional(),
+  /** Only for a spreadsheet tool: the client's call, which the window checks as it runs it. */
+  call: z
+    .object({
+      name: z.string().min(1).max(MAX_ID_LENGTH),
+      arguments: z.string().max(MAX_AI_TOOL_ARGUMENTS_LENGTH),
+    })
+    .optional(),
 })
 
 export const mcpDocumentReplySchema = z.discriminatedUnion('ask', [
   z.object({ requestId: z.uuid(), ask: z.literal(McpDocumentAsk.Snapshot), paragraphs: aiParagraphsSchema }),
   z.object({ requestId: z.uuid(), ask: z.literal(McpDocumentAsk.Apply), applied: z.boolean() }),
+  z.object({
+    requestId: z.uuid(),
+    ask: z.literal(McpDocumentAsk.SheetTool),
+    content: z.string().max(MAX_AI_TOOL_RESULT_LENGTH),
+    isError: z.boolean(),
+  }),
   z.object({
     requestId: z.uuid(),
     ask: z.literal(MCP_DOCUMENT_REFUSED),

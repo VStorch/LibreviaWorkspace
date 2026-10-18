@@ -57,6 +57,7 @@ describe('servidor MCP local', () => {
   let userData: string
   let host: McpHost
   let applied: { proposal: AiProposal; author: string }[]
+  let sheetCalls: { name: string; author: string }[]
   let clientsSeen: (readonly string[])[]
   const paths = (): ReturnType<typeof mcpPaths> => mcpPaths(userData)
   const address = async (): Promise<string> =>
@@ -68,6 +69,10 @@ describe('servidor MCP local', () => {
     apply: (proposal, author) => {
       applied.push({ proposal, author })
       return Promise.resolve(true)
+    },
+    runSheetTool: (call, author) => {
+      sheetCalls.push({ name: call.name, author })
+      return Promise.resolve({ content: 'Sheet: Vendas', isError: false })
     },
   }
 
@@ -86,6 +91,7 @@ describe('servidor MCP local', () => {
   beforeEach(async () => {
     userData = await mkdtemp(join(tmpdir(), 'librevia-mcp-'))
     applied = []
+    sheetCalls = []
     clientsSeen = []
     host = makeHost()
   })
@@ -171,6 +177,32 @@ describe('servidor MCP local', () => {
     expect(clientsSeen.at(-1)).toEqual([])
   })
 
+  it('o cliente externo tem as ferramentas do documento e da planilha, que vão à janela', async () => {
+    await host.setExternal(true)
+    const external = await client(await address(), await externalKey())
+    const start = await external.call('initialize', { clientInfo: { name: 'Editor X' } })
+    expect(start['result']).toMatchObject({ instructions: expect.stringContaining('spreadsheet') })
+    const list = await external.call('tools/list')
+    const names = (list['result'] as { tools: { name: string }[] }).tools.map((tool) => tool.name)
+    expect(names).toEqual([
+      'read_paragraphs',
+      'search_document',
+      'propose_edit',
+      'add_comment',
+      'list_sheets',
+      'read_cells',
+      'find_cells',
+      'write_cells',
+    ])
+    const read = await external.call('tools/call', { name: 'read_cells', arguments: { range: 'A1' } })
+    expect(textOf(read)).toBe('Sheet: Vendas')
+    expect(sheetCalls).toEqual([{ name: 'read_cells', author: 'Editor X (MCP)' }])
+    const unknown = await external.call('tools/call', { name: 'run_shell', arguments: {} })
+    expect(textOf(unknown)).toContain(
+      'read_paragraphs, search_document, propose_edit, add_comment, list_sheets',
+    )
+  })
+
   it('a sessão interna lê só o próprio instantâneo e morre ao terminar', async () => {
     const mine = await host.open({ paragraphs: ['Só meu.'], readBudget: 1_000 })
     const other = await host.open({ paragraphs: ['De outro.'], readBudget: 1_000 })
@@ -187,6 +219,9 @@ describe('servidor MCP local', () => {
     })
     expect(mine.proposals()).toHaveLength(1)
     expect(applied).toEqual([])
+    const sheet = await session.call('tools/call', { name: 'read_cells', arguments: { range: 'A1' } })
+    expect(textOf(sheet)).toContain('There is no tool named "read_cells"')
+    expect(sheetCalls).toEqual([])
     mine.close()
     await session.closed
     const again = await client(await address(), key)

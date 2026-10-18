@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
 import { launch, menu, stubDialogs, type Session } from './app.js'
 import { docxWithTrackedChange } from './fixtures.js'
+import { cell, gridReady, write } from './sheet-grid.js'
 
 const CLIENTE = 'Cliente de teste'
 const OPCAO = 'Permitir que programas externos leiam o documento aberto e proponham alterações (MCP)'
@@ -107,7 +108,16 @@ test.describe('servidor MCP local', () => {
 
     const lista = await ponte.pedir('tools/list')
     const nomes = (lista['result'] as { tools: { name: string }[] }).tools.map((tool) => tool.name)
-    expect(nomes).toEqual(['read_paragraphs', 'search_document', 'propose_edit', 'add_comment'])
+    expect(nomes).toEqual([
+      'read_paragraphs',
+      'search_document',
+      'propose_edit',
+      'add_comment',
+      'list_sheets',
+      'read_cells',
+      'find_cells',
+      'write_cells',
+    ])
 
     const leitura = await ponte.pedir('tools/call', {
       name: 'read_paragraphs',
@@ -163,5 +173,50 @@ test.describe('servidor MCP local', () => {
       clientInfo: { name: CLIENTE, version: '1' },
     })
     expect(inicio['result']).toMatchObject({ serverInfo: { name: 'librevia' } })
+  })
+
+  test('na planilha, o cliente lê as células e a escrita espera a pessoa aplicar ou descartar', async () => {
+    const { window } = session
+    await menu(session, 'new-spreadsheet')
+    await gridReady(window)
+    await write(window, 0, 0, 'Produto')
+    await write(window, 1, 0, 'Café')
+    await write(window, 1, 1, '=2*5')
+    const configuracao = await definirPreferencia(true)
+    const ponte = abrirPonte(configuracao!.command, configuracao!.args, session.userData)
+    pontes.push(ponte)
+    await ponte.pedir('initialize', {
+      protocolVersion: '2025-06-18',
+      clientInfo: { name: CLIENTE, version: '1' },
+    })
+
+    const chamar = async (name: string, args: unknown): Promise<string> =>
+      textoDe(await ponte.pedir('tools/call', { name, arguments: args }))
+    expect(await chamar('read_cells', { range: 'A1:B2' })).toBe(
+      ['Sheet: Planilha1', 'A1: Produto', 'A2: Café', 'B2: =2*5 → 10'].join('\n'),
+    )
+    expect(await chamar('read_paragraphs', { from: 1, count: 1 })).toContain('No text document is open')
+
+    expect(await chamar('write_cells', { start: 'B1', rows: [['Total'], ['=B3*2'], ['7']] })).toContain(
+      'waiting',
+    )
+    const faixa = window.getByRole('region', { name: 'Proposta de um programa externo' })
+    await expect(faixa).toContainText(`${CLIENTE} (MCP) propõe escrever em Planilha1!B1:B3`)
+    await expect(faixa).toContainText('Substitui 1 célula preenchida.')
+    await expect(faixa.getByRole('table')).toContainText('=B3*2')
+    await expect(cell(window, 0, 1)).toHaveText('')
+
+    await faixa.getByRole('button', { name: 'Aplicar' }).click()
+    await expect(faixa).toHaveCount(0)
+    await expect(cell(window, 0, 1)).toHaveText('Total')
+    await expect(cell(window, 1, 1)).toHaveText('14')
+    await window.keyboard.press('Control+z')
+    await expect(cell(window, 1, 1)).toHaveText('10')
+    await expect(cell(window, 0, 1)).toHaveText('')
+
+    await chamar('write_cells', { start: 'C1', rows: [['x']] })
+    await faixa.getByRole('button', { name: 'Descartar' }).click()
+    await expect(faixa).toHaveCount(0)
+    await expect(cell(window, 0, 2)).toHaveText('')
   })
 })

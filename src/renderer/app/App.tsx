@@ -23,6 +23,8 @@ import { PdfView } from '../pdf/PdfView.js'
 import { SheetTabs } from '../spreadsheet/SheetTabs.js'
 import { SpreadsheetEditor } from '../spreadsheet/SpreadsheetEditor.js'
 import { SheetAiPanel } from '../spreadsheet/SheetAiPanel.js'
+import { SheetMcpProposal } from '../spreadsheet/SheetMcpProposal.js'
+import { useOfferSheetToMcp } from '../spreadsheet/mcp-sheet.js'
 import { useSheetAiPane } from '../spreadsheet/useSheetAiPane.js'
 import { sheetOwnsUndo, useSheetUndo } from '../spreadsheet/useSheetUndo.js'
 import { AiProvidersDialog } from '../document/AiProvidersDialog.js'
@@ -259,6 +261,7 @@ function WorkbookView({
   const [range, setRange] = useState<Range>(() => singleCell(0, 0))
   const aiPane = useSheetAiPane()
   useSheetUndo(undoSheet, redoSheet)
+  useOfferSheetToMcp(range)
   useEffect(
     () =>
       onEditorCommand((command) => {
@@ -270,6 +273,7 @@ function WorkbookView({
   return (
     <div className="workbook-shell">
       <div className="workbook">
+        <SheetMcpProposal />
         <SpreadsheetEditor
           key={`${generation}-${workbook.activeSheet}`}
           sheet={workbook.sheets[workbook.activeSheet]!}

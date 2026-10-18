@@ -26,6 +26,8 @@ export interface McpToolResult {
 export interface McpServerOptions {
   readonly version: string
   readonly tools: readonly AiToolDefinition[]
+  /** What the client should know to use the tools, sent once on initialize. */
+  readonly instructions?: string
   readonly runTool: (call: AiToolCall, client: McpClient) => Promise<McpToolResult>
   readonly onInitialize?: (client: McpClient) => void
 }
@@ -116,6 +118,7 @@ export function createMcpConnection(options: McpServerOptions): McpConnection {
         protocolVersion: negotiatedVersion(parsed.data.protocolVersion),
         capabilities: { tools: {} },
         serverInfo: { name: MCP_SERVER_NAME, version: options.version },
+        ...(options.instructions === undefined ? {} : { instructions: options.instructions }),
       },
     }
   }

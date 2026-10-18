@@ -8,6 +8,7 @@ import {
   deleteColumns,
   deleteRows,
   describeRange,
+  parseRange,
   insertColumns,
   insertRows,
   rangeContains,
@@ -36,6 +37,13 @@ describe('intervalo', () => {
   it('descreve célula única e intervalo', () => {
     expect(describeRange(singleCell(2, 1))).toBe('B3')
     expect(describeRange(range)).toBe('A1:B2')
+  })
+
+  it('lê de volta o que describeRange escreve, em qualquer ordem, e recusa o resto', () => {
+    expect(parseRange('A1:B2')).toEqual(range)
+    expect(parseRange('b2:a1')).toEqual(range)
+    expect(parseRange('C3')).toEqual(singleCell(2, 2))
+    for (const text of ['', 'A1:', 'A1:B2:C3', '1A']) expect(parseRange(text)).toBeNull()
   })
 
   it('normaliza intervalo selecionado de trás para frente', () => {

@@ -40,6 +40,20 @@ export function describeRange(range: Range): string {
   return fromRow === toRow && fromColumn === toColumn ? start : `${start}:${cellRef(toRow, toColumn)}`
 }
 
+/** The inverse of `describeRange`: "B3" or "B3:D9", in either order. */
+export function parseRange(text: string): Range | null {
+  const [from, to, ...rest] = text.split(':')
+  const start = parseRef(from ?? '')
+  const end = to === undefined ? start : parseRef(to)
+  if (start === null || end === null || rest.length > 0) return null
+  return normalizeRange({
+    fromRow: start.row,
+    fromColumn: start.column,
+    toRow: end.row,
+    toColumn: end.column,
+  })
+}
+
 export function rangeContains(range: Range, row: number, column: number): boolean {
   const { fromRow, fromColumn, toRow, toColumn } = normalizeRange(range)
   return row >= fromRow && row <= toRow && column >= fromColumn && column <= toColumn

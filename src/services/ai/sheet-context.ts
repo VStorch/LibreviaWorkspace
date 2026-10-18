@@ -7,7 +7,7 @@ export interface CellPosition {
   readonly column: number
 }
 
-interface UsedCell extends CellPosition {
+export interface UsedCell extends CellPosition {
   readonly cell: Cell
 }
 
@@ -21,7 +21,7 @@ function isUsed(cell: Cell): boolean {
   return cell.formula !== undefined || (cell.value !== undefined && cell.value !== '')
 }
 
-function usedCells(sheet: Sheet): UsedCell[] {
+export function usedCells(sheet: Sheet): UsedCell[] {
   const used: UsedCell[] = []
   for (const [ref, cell] of Object.entries(sheet.cells)) {
     const position = parseRef(ref)
@@ -40,9 +40,11 @@ function cellText(cell: Cell): string {
   return cell.formula === undefined ? value : `${shown(cell.formula)} → ${value}`
 }
 
-const item = (used: UsedCell): string => `${cellRef(used.row, used.column)}: ${cellText(used.cell)}`
+/** "B2: =A2*2 → 4": the formula, when there is one, and what the cell shows. */
+export const cellLine = (used: UsedCell): string =>
+  `${cellRef(used.row, used.column)}: ${cellText(used.cell)}`
 
-const byPosition = (a: CellPosition, b: CellPosition): number => a.row - b.row || a.column - b.column
+export const byPosition = (a: CellPosition, b: CellPosition): number => a.row - b.row || a.column - b.column
 
 /** The first row with anything in it: where a table keeps its titles. */
 function headerRowOf(used: readonly UsedCell[]): number | null {
@@ -85,8 +87,8 @@ export function describeSheetAround(sheet: Sheet, active: CellPosition, budget: 
   const lines = [
     `Sheet: ${sheet.name}`,
     `Active cell: ${cellRef(active.row, active.column)}`,
-    ...(headers.length === 0 ? [] : ['Headers:', ...headers.map(item)]),
-    ...(nearby.length === 0 ? [] : ['Cells:', ...nearby.map(item)]),
+    ...(headers.length === 0 ? [] : ['Headers:', ...headers.map(cellLine)]),
+    ...(nearby.length === 0 ? [] : ['Cells:', ...nearby.map(cellLine)]),
   ]
   return fitLines(lines, budget)
 }

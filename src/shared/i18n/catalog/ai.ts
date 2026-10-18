@@ -235,8 +235,8 @@ export const AI = {
     en: 'Let external programs read the open document and propose changes (MCP)',
   },
   'ai.preferences.mcpWarning': {
-    pt: 'O programa conectado recebe o texto inteiro do documento e o envia para onde ele estiver configurado (por exemplo, os servidores da Anthropic). As alterações dele entram como revisões e comentários, que você aceita ou rejeita.',
-    en: 'The connected program receives the whole text of the document and sends it wherever it is set up to (for example, Anthropic’s servers). Its changes come in as revisions and comments, which you accept or reject.',
+    pt: 'O programa conectado recebe o texto inteiro do documento, ou as células que pedir da planilha, e o envia para onde ele estiver configurado (por exemplo, os servidores da Anthropic). No documento, as alterações dele entram como revisões e comentários, que você aceita ou rejeita; na planilha, ficam esperando você aplicar ou descartar.',
+    en: 'The connected program receives the whole text of the document, or the cells it asks for in a spreadsheet, and sends it wherever it is set up to (for example, Anthropic’s servers). In a document its changes come in as revisions and comments, which you accept or reject; in a spreadsheet they wait for you to apply or discard them.',
   },
   'ai.preferences.mcpCommand': {
     pt: 'Claude Code: rode este comando uma vez no terminal',
@@ -262,4 +262,28 @@ export const AI = {
   'ai.kind.anthropic': { pt: 'Anthropic (API)', en: 'Anthropic (API)' },
   'ai.kind.claudeCli': { pt: 'Claude Code (programa instalado)', en: 'Claude Code (installed program)' },
   'ai.kind.acp': { pt: 'Agente ACP (programa instalado)', en: 'ACP agent (installed program)' },
+  'ai.mcp.sheetProposal.label': {
+    pt: 'Proposta de um programa externo',
+    en: 'Proposal from an external program',
+  },
+  'ai.mcp.sheetProposal.title': {
+    pt: '{author} propõe escrever em {range}',
+    en: '{author} proposes writing to {range}',
+  },
+  'ai.mcp.sheetProposal.position': { pt: '1 de {count}', en: '1 of {count}' },
+  'ai.mcp.sheetProposal.preview': { pt: 'Prévia do que será escrito', en: 'Preview of what will be written' },
+  'ai.mcp.sheetProposal.moreRows': {
+    pt: { one: 'e mais {count} linha', other: 'e mais {count} linhas' },
+    en: { one: 'and {count} more row', other: 'and {count} more rows' },
+  },
+  'ai.mcp.sheetProposal.replaces': {
+    pt: { one: 'Substitui {count} célula preenchida.', other: 'Substitui {count} células preenchidas.' },
+    en: { one: 'Replaces {count} filled cell.', other: 'Replaces {count} filled cells.' },
+  },
+  'ai.mcp.sheetProposal.noSheet': {
+    pt: 'A planilha {sheet} não existe mais.',
+    en: 'The sheet {sheet} no longer exists.',
+  },
+  'ai.mcp.sheetProposal.apply': { pt: 'Aplicar', en: 'Apply' },
+  'ai.mcp.sheetProposal.discard': { pt: 'Descartar', en: 'Discard' },
 } satisfies Catalog
