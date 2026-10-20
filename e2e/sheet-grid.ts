@@ -16,13 +16,19 @@ export async function gridReady(window: Page): Promise<void> {
   await expect(cell(window, 0, 0)).toBeVisible()
 }
 
+/**
+ * The bar shows the cell on the press, but the grid moves the focus to it only after drawing it:
+ * typing in the bar before that would end in the cell, and Enter would open its editor.
+ */
 export async function select(window: Page, row: number, column: number): Promise<void> {
+  const ref = window.locator('.formula-bar__ref')
+  const target = cell(window, row, column)
   // The click repeats until the selection moves: the grid redraws after opening.
   await expect(async () => {
-    await cell(window, row, column).click()
-    await expect(window.locator('.formula-bar__ref')).toHaveText(reference(row, column), {
-      timeout: 1000,
-    })
+    const moves = (await ref.textContent()) !== reference(row, column)
+    await target.click()
+    await expect(ref).toHaveText(reference(row, column), { timeout: 1000 })
+    if (moves) await expect(target).toBeFocused({ timeout: 1000 })
   }).toPass({ timeout: 15_000 })
 }
 
