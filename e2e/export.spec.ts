@@ -54,7 +54,7 @@ test.describe('export as HTML, Markdown and ODT', () => {
     expect(page).toContain('<html lang="pt-BR">')
     expect(page).toContain('<title>ata</title>')
     expect(page).toContain('<p>Ata da reunião de terça.</p>')
-    expect(page).toContain('<a href="#nota-rodape-1" id="ref-nota-rodape-1">1</a>')
+    expect(page).toContain('<a href="#footnote-1" id="ref-footnote-1">1</a>')
     expect(page).toContain('Fonte: ata anterior.')
     expect(page).not.toMatch(/<script/i)
 
@@ -109,7 +109,7 @@ test.describe('export as HTML, Markdown and ODT', () => {
     }
     const contents = await entryOf(odt, 'content.xml')
     expect(contents).toContain('Ata da reunião de terça.')
-    expect(contents).toMatch(/<text:note text:id="nota-rodape-1" text:note-class="footnote">/)
+    expect(contents).toMatch(/<text:note text:id="footnote-1" text:note-class="footnote">/)
     expect(contents).toContain('Fonte: ata anterior.')
     expect(await entryOf(odt, 'styles.xml')).toContain('<office:master-styles>')
 

@@ -11,7 +11,7 @@ import { NoteKind, noteCounter } from './notes.js'
 export interface ExportNote {
   readonly kind: NoteKind
   readonly label: string
-  /** The note anchor (`nota-rodape-1`, `nota-fim-1`); the reference's has `ref-` in front. */
+  /** The note anchor (`footnote-1`, `endnote-1`); the reference's has `ref-` in front. */
   readonly id: string
   readonly body: readonly DocumentNode[]
 }
@@ -129,7 +129,7 @@ function exportNoteOf(
   return {
     kind,
     label: label({ kind, mark, section }),
-    id: `${kind === NoteKind.Endnote ? 'nota-fim' : 'nota-rodape'}-${ordinals[kind]}`,
+    id: `${kind === NoteKind.Endnote ? 'endnote' : 'footnote'}-${ordinals[kind]}`,
     body: node.content ?? [],
   }
 }

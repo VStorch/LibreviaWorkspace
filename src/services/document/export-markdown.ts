@@ -344,9 +344,9 @@ function mathMarkdown(node: DocumentNode, mode: Mode): string {
   return mode === 'block' ? `\n$$${escaped}$$\n` : `$$${escaped}$$`
 }
 
-/** `[^1]` for footnotes, `[^fim-1]` for endnotes: the two counts do not cross. */
+/** `[^1]` for footnotes, `[^endnote-1]` for endnotes: the two counts do not cross. */
 function noteKey(note: ExportNote): string {
-  return note.id.replace(/^nota-rodape-/, '').replace(/^nota-/, '')
+  return note.id.replace(/^footnote-/, '')
 }
 
 function isList(node: DocumentNode): boolean {

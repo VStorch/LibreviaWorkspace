@@ -273,7 +273,7 @@ describe('exportOdt', () => {
     expect(content).toContain('<text:bookmark-end text:name="_Toc1"/>')
     expect(content).toContain('<text:a xlink:type="simple" xlink:href="#_Toc1">')
     expect(content).toMatch(
-      /<text:note text:id="nota-rodape-1" text:note-class="footnote"><text:note-citation>1<\/text:note-citation><text:note-body><text:p[^>]*>Nota de rodapé<\/text:p>/,
+      /<text:note text:id="footnote-1" text:note-class="footnote"><text:note-citation>1<\/text:note-citation><text:note-body><text:p[^>]*>Nota de rodapé<\/text:p>/,
     )
     expect(content).toContain('text:note-class="endnote"><text:note-citation>i</text:note-citation>')
     expect(content).toContain('<text:page-number text:select-page="current">1</text:page-number>')

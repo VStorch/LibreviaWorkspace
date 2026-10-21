@@ -131,18 +131,18 @@ body { margin: 0; color: #111111; }
 .page__content th { background: #f0f2f4; font-weight: 600; text-align: left; }
 .page__content img { max-width: 100%; height: auto; }
 .page__content blockquote { border-left: 3px solid #c7ced6; padding-left: 1em; color: #444444; }
-.sumario ul { list-style: none; margin: 0; padding: 0; }
-.sumario a { color: inherit; text-decoration: none; }
-.nota-ref a { text-decoration: none; }
-.notas { box-sizing: border-box; max-width: 170mm; margin: 0 auto 24px; padding: 0 16px; font-size: 0.9em; }
-.notas hr { width: 33%; margin: 0 0 0.6em; border: 0; border-top: 1px solid #555555; }
-.notas ol { list-style: none; margin: 0; padding: 0; }
-.notas li { display: flex; gap: 0.4em; }
-.notas li > a { text-decoration: none; }
-.notas__corpo > * { margin: 0; }
+.toc ul { list-style: none; margin: 0; padding: 0; }
+.toc a { color: inherit; text-decoration: none; }
+.note-ref a { text-decoration: none; }
+.notes { box-sizing: border-box; max-width: 170mm; margin: 0 auto 24px; padding: 0 16px; font-size: 0.9em; }
+.notes hr { width: 33%; margin: 0 0 0.6em; border: 0; border-top: 1px solid #555555; }
+.notes ol { list-style: none; margin: 0; padding: 0; }
+.notes li { display: flex; gap: 0.4em; }
+.notes li > a { text-decoration: none; }
+.notes__body > * { margin: 0; }
 .page-break { display: none; }
 @media print {
-  .page__content, .notas { max-width: none; margin: 0; padding: 0; }
+  .page__content, .notes { max-width: none; margin: 0; padding: 0; }
   .page-break { display: block; break-after: page; }
 }
 `
@@ -268,7 +268,7 @@ class HtmlWriter implements HtmlRenderer {
         return `<li${indent}>${this.inline(withoutPageNumbers(entry.content ?? []))}</li>`
       })
       .join('\n')
-    const nav = `<nav class="sumario"><ul>\n${entries}\n</ul></nav>`
+    const nav = `<nav class="toc"><ul>\n${entries}\n</ul></nav>`
     return title === '' ? nav : `${title}\n${nav}`
   }
 
@@ -321,7 +321,7 @@ class HtmlWriter implements HtmlRenderer {
     const note = this.source.noteOf.get(node)
     if (note === undefined) return ''
     const kind = note.kind === NoteKind.Endnote ? ' data-kind="endnote"' : ''
-    return `<sup class="nota-ref"${kind}><a href="#${note.id}" id="ref-${note.id}">${escapeHtml(note.label)}</a></sup>`
+    return `<sup class="note-ref"${kind}><a href="#${note.id}" id="ref-${note.id}">${escapeHtml(note.label)}</a></sup>`
   }
 }
 
@@ -360,11 +360,11 @@ function notesSection(source: ExportSource, renderer: HtmlRenderer, labels: Html
           .map(
             (note) =>
               `<li id="${note.id}"><a href="#ref-${note.id}" title="${escapeHtml(labels.backToText)}">${escapeHtml(note.label)}</a>` +
-              `<div class="notas__corpo">${renderer.blocks(note.body)}</div></li>`,
+              `<div class="notes__body">${renderer.blocks(note.body)}</div></li>`,
           )
           .join('\n')}\n</ol>`,
     )
-  return `<section class="notas" aria-label="${escapeHtml(labels.notes)}">\n<hr>\n${lists.join('\n')}\n</section>\n`
+  return `<section class="notes" aria-label="${escapeHtml(labels.notes)}">\n<hr>\n${lists.join('\n')}\n</section>\n`
 }
 
 /** Outside in: the link wraps everything. */

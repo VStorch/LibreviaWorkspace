@@ -165,21 +165,17 @@ describe('exportHtml', () => {
 
   it('puts the bookmark as an anchor and the table of contents as a link list, without page numbers', () => {
     expect(output).toContain('<h1><a id="_Toc1"></a>Título')
-    expect(output).toContain('<nav class="sumario"><ul>\n<li><a href="#_Toc1">Introdução</a></li>')
+    expect(output).toContain('<nav class="toc"><ul>\n<li><a href="#_Toc1">Introdução</a></li>')
     expect(output).not.toContain('>7<')
   })
 
   it('numbers the notes and gathers them at the end with a way back', () => {
-    expect(output).toContain(
-      '<sup class="nota-ref"><a href="#nota-rodape-1" id="ref-nota-rodape-1">1</a></sup>',
-    )
-    expect(output).toContain(
-      '<li id="nota-rodape-1"><a href="#ref-nota-rodape-1" title="Voltar ao texto">1</a>',
-    )
+    expect(output).toContain('<sup class="note-ref"><a href="#footnote-1" id="ref-footnote-1">1</a></sup>')
+    expect(output).toContain('<li id="footnote-1"><a href="#ref-footnote-1" title="Voltar ao texto">1</a>')
     expect(output).toContain('<p>Nota um</p>')
     // Endnotes count apart, in lowercase Roman numerals, as in Word.
-    expect(output).toContain('href="#nota-fim-1" id="ref-nota-fim-1">i</a>')
-    expect(output).toContain('<section class="notas" aria-label="Notas">')
+    expect(output).toContain('href="#endnote-1" id="ref-endnote-1">i</a>')
+    expect(output).toContain('<section class="notes" aria-label="Notas">')
   })
 
   it('keeps the start, the marker and the nesting of lists', () => {
@@ -271,9 +267,9 @@ describe('exportMarkdown', () => {
 
   it('uses GFM notes for footnotes and endnotes', () => {
     expect(markdown).toContain('novo[^1]')
-    expect(markdown).toContain('Fim[^fim-1]')
+    expect(markdown).toContain('Fim[^endnote-1]')
     expect(markdown).toContain('[^1]: Nota um')
-    expect(markdown).toContain('[^fim-1]: Nota de fim')
+    expect(markdown).toContain('[^endnote-1]: Nota de fim')
   })
 
   it('keeps the start of the numbered list and the nesting', () => {
