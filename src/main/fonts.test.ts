@@ -6,7 +6,7 @@ import { BUNDLED_FONT_FILES } from '@services/document/fonts.js'
 
 const raiz = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 
-describe('fontes empacotadas', () => {
+describe('bundled fonts', () => {
   it('every declared file exists in resources/fonts', () => {
     // Without this test the failure is silent and costly: the @font-face rule points to a file that
     // did not ship in the installer, Chromium substitutes on its own, and the document paginates

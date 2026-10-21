@@ -169,7 +169,7 @@ public class NotesTests
         Assert.Contains("Segundo parágrafo da nota.", edited);
         Assert.Contains("FootnoteText", edited);
 
-        // As outras partes voltam byte a byte.
+        // The other parts come back byte for byte.
         Assert.Equal(PartsOf(original)["word/endnotes.xml"], PartsOf(bytes)["word/endnotes.xml"]);
 
         var reread = NoteRef(Open(bytes), "footnote", "1");

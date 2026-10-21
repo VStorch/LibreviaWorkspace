@@ -201,7 +201,7 @@ describe('MathML → LaTeX', () => {
     ],
     ['m:borderBox', '<mrow class="omml-caixa"><mrow><mi>z</mi></mrow></mrow>'],
     ['m:r', '<mi>𝐯</mi><mi mathvariant="normal">d</mi><mtext>texto</mtext><mi>Δ</mi><mn>2</mn><mi>a</mi>'],
-  ])('ida e volta pelo MathML do sidecar: %s', (_label, inner) => {
+  ])('round trip through the sidecar MathML: %s', (_label, inner) => {
     const tree = sanitizeMathMl(`<math display="inline">${inner}</math>`)
     expect(tree).not.toBeNull()
     expectRoundTrip(tree!)

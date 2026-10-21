@@ -20,7 +20,7 @@ function variants(message: Message): string[] {
 describe('translation catalog', () => {
   const entries = Object.entries(MESSAGES) as [string, Entry][]
 
-  it('tem alguma coisa dentro', () => {
+  it('is not empty', () => {
     // An empty catalog would make the rest of this file pass without testing anything.
     expect(entries.length).toBeGreaterThan(0)
   })
@@ -92,12 +92,12 @@ describe('translation catalog', () => {
 describe('format', () => {
   const entry: Entry = { pt: 'Olá, {nome}', en: 'Hello, {nome}' }
 
-  it('escolhe o idioma', () => {
+  it('picks the language', () => {
     expect(format(entry, 'pt', { nome: 'Ana' })).toBe('Olá, Ana')
     expect(format(entry, 'en', { nome: 'Ana' })).toBe('Hello, Ana')
   })
 
-  it('escolhe singular e plural pelo count', () => {
+  it('picks singular or plural by count', () => {
     const pages: Entry = {
       pt: { one: '{count} página', other: '{count} páginas' },
       en: { one: '{count} page', other: '{count} pages' },

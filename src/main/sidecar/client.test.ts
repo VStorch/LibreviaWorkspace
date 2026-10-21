@@ -136,7 +136,7 @@ describe('the sidecar dies, the document must not die with it', () => {
   it.runIf(fakeSidecarRuns)('does not leave the request hanging forever when the sidecar goes silent', async () => {
     // Without a timeout, the window freezes and the only way out is killing the app.
     const client = await fakeSidecar(`${RESPONDER}
-      function __handle() { /* nunca responde */ }
+      function __handle() { /* never replies */ }
     `)
 
     const error = await codeOf(client.request(SidecarMethod.Echo, {}, undefined, 300))
@@ -162,7 +162,7 @@ describe('the sidecar dies, the document must not die with it', () => {
 
   it.runIf(fakeSidecarRuns)('kills a silent sidecar instead of letting it pile up requests', async () => {
     const client = await fakeSidecar(`${RESPONDER}
-      function __handle() { /* nunca responde */ }
+      function __handle() { /* never replies */ }
     `)
 
     await expect(client.request(SidecarMethod.Echo, {}, undefined, 200)).rejects.toThrow()
@@ -213,10 +213,10 @@ describe.runIf(fakeSidecarRuns)('the sidecar answers nonsense', () => {
   })
 })
 
-describe('encerramento', () => {
+describe('shutdown', () => {
   it.runIf(fakeSidecarRuns)('dispose leaves no request hanging', async () => {
     const client = await fakeSidecar(`${RESPONDER}
-      function __handle() { /* nunca responde */ }
+      function __handle() { /* never replies */ }
     `)
 
     const pending = client.request(SidecarMethod.Echo, {})

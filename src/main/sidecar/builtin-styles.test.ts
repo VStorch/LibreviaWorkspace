@@ -17,7 +17,7 @@ import {
  * The C# is read as text, because what is compared are numbers. Lives in `src/main`, the only place
  * with `node:fs`.
  */
-describe('contrato dos estilos dos arquivos antigos', () => {
+describe('built-in styles contract for old files', () => {
   const source = readFileSync(
     new URL('../../../sidecar/src/Librevia.Format/Docx/BuiltinStyles.cs', import.meta.url),
     'utf8',

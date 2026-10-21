@@ -1188,7 +1188,7 @@ public class DocxWriteBackTests
 
         var xml = Roundtrip.XmlOf(Roundtrip.Save(original, model).Bytes);
 
-        // Continua A5: o lado curto virou a altura.
+        // Still A5: the short side became the height.
         Assert.Contains("w:w=\"11907\"", xml, StringComparison.Ordinal);
         Assert.Contains("w:h=\"8391\"", xml, StringComparison.Ordinal);
         Assert.Contains("w:orient=\"landscape\"", xml, StringComparison.Ordinal);

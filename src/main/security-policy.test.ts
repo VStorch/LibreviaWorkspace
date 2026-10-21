@@ -87,7 +87,7 @@ describe('isAllowedExternalUrl', () => {
     'vbscript:msgbox',
     'not-a-url',
     '',
-  ])('recusa %s', (url) => {
+  ])('refuses %s', (url) => {
     expect(isAllowedExternalUrl(url)).toBe(false)
   })
 })
@@ -106,7 +106,7 @@ describe('isAllowedNavigation', () => {
     expect(isAllowedNavigation('file:///etc/passwd', 'http://localhost:5173')).toBe(false)
   })
 
-  it('recusa URL malformada', () => {
+  it('refuses a malformed URL', () => {
     expect(isAllowedNavigation('%%%', null)).toBe(false)
   })
 })

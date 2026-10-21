@@ -15,7 +15,7 @@ describe('fromFileSystemError', () => {
     ['EDQUOT', ErrorCode.WriteFailed],
     ['ENAMETOOLONG', ErrorCode.WriteFailed],
     ['EBUSY', ErrorCode.WriteFailed],
-  ])('%s vira %s', (errno, expected) => {
+  ])('%s becomes %s', (errno, expected) => {
     expect(of(errno).code).toBe(expected)
   })
 
@@ -38,7 +38,7 @@ describe('fromFileSystemError', () => {
     expect(of('EWHATEVER', 'escrita').code).toBe(ErrorCode.WriteFailed)
   })
 
-  it('nenhuma mensagem carrega o errno cru', () => {
+  it('no message carries the raw errno', () => {
     // The system code says nothing to someone who only wants to know whether they can keep working.
     for (const errno of ['ENOENT', 'EACCES', 'EDQUOT', 'EBUSY', 'EXDEV']) {
       expect(of(errno).message).not.toContain(errno)

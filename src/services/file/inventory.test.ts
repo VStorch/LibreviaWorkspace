@@ -21,7 +21,7 @@ describe('something to warn about', () => {
   })
 })
 
-describe('somente leitura', () => {
+describe('read-only', () => {
   it('locks for what is lost when editing the block that anchors it', () => {
     expect(locksEditing(inventory({ structural: ['comentários'] }))).toBe(true)
   })

@@ -43,13 +43,13 @@ describe('extensionOf', () => {
 
 describe('isSupportedExtension', () => {
   it.each(['/a/b.txt', '/a/b.sdoc', '/a/b.ssheet', '/a/b.docx', '/a/b.DOCX', '/a/b.xlsx', '/a/b.XLSX'])(
-    'aceita %s',
+    'accepts %s',
     (path) => {
       expect(isSupportedExtension(path)).toBe(true)
     },
   )
 
-  it.each(['/a/b.exe', '/a/b.sh', '/a/b', '/a/b.xls', '/a/b.ods'])('recusa %s', (path) => {
+  it.each(['/a/b.exe', '/a/b.sh', '/a/b', '/a/b.xls', '/a/b.ods'])('refuses %s', (path) => {
     // `.xls` and `.ods` are different formats, not variants: opening one as `.xlsx` would give a
     // corrupt file error.
     expect(isSupportedExtension(path)).toBe(false)
@@ -57,7 +57,7 @@ describe('isSupportedExtension', () => {
 })
 
 describe('PDF', () => {
-  it.each(['/a/b.pdf', '/a/b.PDF'])('%s abre no visualizador', (path) => {
+  it.each(['/a/b.pdf', '/a/b.PDF'])('%s opens in the viewer', (path) => {
     expect(isPdfPath(path)).toBe(true)
     expect(kindFromPath(path)).toBe(DocumentKind.Pdf)
   })

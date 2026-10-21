@@ -16,8 +16,8 @@ describe('plainTextToDocument', () => {
   it.each([
     ['\n', 'unix'],
     ['\r\n', 'windows'],
-    ['\r', 'mac clássico'],
-  ])('aceita quebra de linha %j (%s)', (breakChar) => {
+    ['\r', 'classic mac'],
+  ])('accepts line break %j (%s)', (breakChar) => {
     expect(plainTextToDocument(`a${breakChar}b`).content).toHaveLength(2)
   })
 
@@ -80,15 +80,12 @@ describe('hasRichFormatting', () => {
   })
 
   it.each([
-    [
-      'marca de negrito',
-      { type: 'paragraph', content: [{ type: 'text', marks: [{ type: 'bold' }], text: 'x' }] },
-    ],
-    ['título', { type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'x' }] }],
-    ['alinhamento', { type: 'paragraph', attrs: { textAlign: 'center' } }],
-    ['imagem', { type: 'image', attrs: { src: 'data:image/png;base64,AAA' } }],
-    ['tabela', { type: 'table', content: [] }],
-  ])('acusa formatação em %s', (_label, node) => {
+    ['bold mark', { type: 'paragraph', content: [{ type: 'text', marks: [{ type: 'bold' }], text: 'x' }] }],
+    ['heading', { type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'x' }] }],
+    ['alignment', { type: 'paragraph', attrs: { textAlign: 'center' } }],
+    ['image', { type: 'image', attrs: { src: 'data:image/png;base64,AAA' } }],
+    ['table', { type: 'table', content: [] }],
+  ])('flags formatting in %s', (_label, node) => {
     // Pessimistic on purpose: this triggers the warning before saving as .txt.
     expect(hasRichFormatting({ type: 'doc', content: [node as DocumentNode] })).toBe(true)
   })

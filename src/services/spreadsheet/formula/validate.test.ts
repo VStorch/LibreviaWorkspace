@@ -3,7 +3,7 @@ import { checkFormula } from './validate.js'
 
 describe('valid formula', () => {
   it.each(['=1+1', '=SOMA(A1:A9)', '=SE(A1>0;"sim";"não")', '=HOJE()', '=SOMA(1;2;3;4;5)'])(
-    '%s passa',
+    '%s passes',
     (formula) => {
       expect(checkFormula(formula)).toBeNull()
     },

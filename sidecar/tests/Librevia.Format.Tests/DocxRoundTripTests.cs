@@ -484,7 +484,7 @@ public class DocxRoundTripTests
         // "1.13 lines" is 1.13 times the font's single line, which in Arial is 1.1499 em.
         var model = Open(Fixtures.WithLineMetrics());
 
-        // 271/240 a quatro casas (1,1292), a grade do arquivo, sobre 1,1499.
+        // 271/240 to four places (1.1292), the file's grid, over 1.1499.
         Assert.Equal("1.2985", BlockContaining(model, "Arial e um pouco mais").Attrs!["lineHeight"]!.GetValue<string>());
     }
 
@@ -1250,7 +1250,7 @@ public class DocxRoundTripTests
         var banner = FirstOfType(Open(Fixtures.WithStyles()), "paragraph");
         Assert.Empty(MarksOf(banner));
 
-        // A leitura achatada, do rascunho antigo, leva tudo.
+        // The flattened reading, for the old draft, carries everything.
         var flat = FirstOfType(OpenFlat(Fixtures.WithStyles()), "paragraph");
         Assert.Contains(MarksOf(flat), m => m.Type == "bold");
     }

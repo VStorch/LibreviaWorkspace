@@ -66,7 +66,7 @@ describe('assertReadableFile', () => {
     await expect(assertReadableFile(path)).resolves.toBeUndefined()
   })
 
-  it('recusa caminho relativo', async () => {
+  it('refuses a relative path', async () => {
     await expect(assertReadableFile('relativo.txt')).rejects.toMatchObject({
       code: 'INVALID_REQUEST',
     })
@@ -81,14 +81,14 @@ describe('assertReadableFile', () => {
     await expect(assertReadableFile(path)).rejects.toMatchObject({ code: 'UNSUPPORTED_FORMAT' })
   })
 
-  it('aceita .xlsx', async () => {
+  it('accepts .xlsx', async () => {
     const path = join(directory, 'vendas.xlsx')
     await writeFile(path, 'x')
 
     await expect(assertReadableFile(path)).resolves.toBeUndefined()
   })
 
-  it('aceita .docx', async () => {
+  it('accepts .docx', async () => {
     const path = join(directory, 'contrato.docx')
     await writeFile(path, 'x')
 
@@ -102,7 +102,7 @@ describe('assertReadableFile', () => {
     await expect(assertReadableFile(path)).rejects.toMatchObject({ code: 'NOT_A_FILE' })
   })
 
-  it('recusa arquivo inexistente', async () => {
+  it('refuses a missing file', async () => {
     await expect(assertReadableFile(join(directory, 'fantasma.txt'))).rejects.toMatchObject({
       code: 'FILE_NOT_FOUND',
     })
@@ -132,7 +132,7 @@ describe('assertViewablePdf', () => {
     await expect(assertViewablePdf(path)).rejects.toMatchObject({ code: 'UNSUPPORTED_FORMAT' })
   })
 
-  it('recusa PDF inexistente', async () => {
+  it('refuses a missing PDF', async () => {
     await expect(assertViewablePdf(join(directory, 'fantasma.pdf'))).rejects.toMatchObject({
       code: 'FILE_NOT_FOUND',
     })

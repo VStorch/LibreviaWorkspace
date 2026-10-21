@@ -42,7 +42,7 @@ afterEach(() => {
   Object.defineProperty(process, 'platform', { value: platform, configurable: true })
 })
 
-describe('fontes instaladas', () => {
+describe('installed fonts', () => {
   it('on Linux asks fontconfig and reads once per session', async () => {
     pretendPlatform('linux')
     next.push({ stdout: 'DejaVu Sans\nLiberation Serif\n' })

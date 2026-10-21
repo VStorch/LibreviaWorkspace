@@ -108,7 +108,7 @@ describe('paragraph formatting', () => {
     ['Times New Roman, serif', 1.5, '1.7249'],
     ['Courier New, monospace', 2, '2.2656'],
     ['Aptos', 1.5, '1.7249'],
-  ])('em %s, %s linha grava %s de CSS', (fontFamily, factor, css) => {
+  ])('in %s, a factor of %s writes %s in CSS', (fontFamily, factor, css) => {
     // One case per factor and natural height: the math the writer undoes
     // (`ParagraphFormat.ApplyLineHeight`), and what Word ends up reading.
     const attrs = paragraphAttrsFrom(

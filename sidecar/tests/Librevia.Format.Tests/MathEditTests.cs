@@ -93,7 +93,7 @@ public class MathEditTests
         "d[()](e(\"x\")e(\"y\"))")]
     [InlineData("<mrow><mo fence=\"true\">{</mo><mi>x</mi><mo fence=\"true\"></mo></mrow>", "d[{](e(\"x\"))")]
     [InlineData("<mrow><mo fence=\"true\">|</mo><mi>x</mi><mo fence=\"true\">|</mo></mrow>", "d[||](e(\"x\"))")]
-    // A matriz e as linhas.
+    // The matrix and its rows.
     [InlineData("<mrow><mo fence=\"true\">(</mo><mtable><mtr><mtd><mi>a</mi></mtd><mtd><mi>b</mi></mtd></mtr><mtr><mtd><mi>c</mi></mtd><mtd><mi>d</mi></mtd></mtr></mtable><mo fence=\"true\">)</mo></mrow>",
         "d[()](e(m(mr(e(\"a\")e(\"b\"))mr(e(\"c\")e(\"d\")))))")]
     [InlineData("<mtable><mtr><mtd><mi>a</mi></mtd></mtr><mtr><mtd><mi>b</mi></mtd></mtr></mtable>", "eqArr(e(\"a\")e(\"b\"))")]

@@ -30,7 +30,7 @@ describe('buildPrintOptions', () => {
     expect(buildPrintOptions(withPage({ orientation: PageOrientation.Portrait })).landscape).toBe(false)
   })
 
-  it('sempre imprime fundos', () => {
+  it('always prints backgrounds', () => {
     // Otherwise text highlight and table header backgrounds vanish from the PDF.
     expect(buildPrintOptions(DEFAULT_PAGE_SETUP).printBackground).toBe(true)
   })
@@ -96,7 +96,7 @@ describe('buildHeaderFooterTemplate', () => {
     expect(buildHeaderFooterTemplate('{n} de {total}')).toContain('<span class="totalPages"></span>')
   })
 
-  it('declara a fonte explicitamente', () => {
+  it('declares the font explicitly', () => {
     // Without a declared font size, Chromium renders the template at size zero and the header
     // simply does not appear.
     expect(buildHeaderFooterTemplate('Relatório')).toMatch(/font-size:\s*9pt/)
@@ -188,7 +188,7 @@ describe('preserved document band', () => {
 })
 
 describe('marginFitsHeaderOrFooter', () => {
-  it('recusa margem apertada demais', () => {
+  it('refuses a margin that is too tight', () => {
     // Chromium draws header and footer inside the margin and clips the excess: with a small margin,
     // the text vanishes without warning.
     expect(marginFitsHeaderOrFooter(MIN_MARGIN_FOR_HEADER_MM - 1)).toBe(false)

@@ -118,7 +118,7 @@ describe('generate', () => {
     expect(user.length).toBeLessThanOrEqual(DEFAULT_LOCAL_AI_CONTEXT_LENGTH + 100)
   })
 
-  it('an ACP agent asks for consent and, in automatic mode, uses the agent own model without opening another process to list', async () => {
+  it("an ACP agent asks for consent and, in automatic mode, uses the agent's own model without opening another process to list", async () => {
     let data: unknown
     const settings = new AiSettings(
       { read: () => data, write: (value) => (data = value) },

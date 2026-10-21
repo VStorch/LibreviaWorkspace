@@ -64,7 +64,7 @@ describe('property stamp on save', () => {
   })
 })
 
-describe('propriedades personalizadas', () => {
+describe('custom properties', () => {
   const texto = { name: 'Cliente', type: CustomPropertyType.Text, value: 'XPTO' }
   const numero = { name: 'Processo', type: CustomPropertyType.Number, value: '2026' }
 

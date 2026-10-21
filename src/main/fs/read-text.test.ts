@@ -58,7 +58,7 @@ describe('readTextFile', () => {
     await expect(readTextFile(path)).rejects.toMatchObject({ code: 'NOT_TEXT_FILE' })
   })
 
-  it('aceita arquivo vazio', async () => {
+  it('accepts an empty file', async () => {
     const path = await writeBytes('vazio.txt', Buffer.alloc(0))
     expect(await readTextFile(path)).toBe('')
   })

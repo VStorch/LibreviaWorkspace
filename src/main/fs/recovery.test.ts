@@ -59,7 +59,7 @@ describe('recovery draft', () => {
     expect(await readDraftSummary()).not.toHaveProperty('content')
   })
 
-  it('rascunho corrompido conta como ausente', async () => {
+  it('a corrupt draft counts as missing', async () => {
     // It exists to save the day after a crash. A read error in it would be a second failure on top
     // of someone who just lost work.
     await mkdir(join(directory, 'recuperacao'), { recursive: true })
@@ -75,7 +75,7 @@ describe('recovery draft', () => {
     expect(await readDraft()).toBeNull()
   })
 
-  it('descartar apaga', async () => {
+  it('discarding deletes', async () => {
     await writeDraft(SAMPLE)
     await discardDraft()
 

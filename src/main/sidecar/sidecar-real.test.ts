@@ -23,7 +23,7 @@ const published = await access(executable, constants.X_OK).then(
 const client = new SidecarClient(() => Promise.resolve(executable))
 afterAll(() => client.dispose())
 
-describe.skipIf(!published)('sidecar .NET publicado', () => {
+describe.skipIf(!published)('published .NET sidecar', () => {
   it('answers health with the OOXML library versions', async () => {
     const health = await client.health()
 
@@ -56,7 +56,7 @@ describe.skipIf(!published)('sidecar .NET publicado', () => {
     expect(reply.binary).toEqual(payload)
   })
 
-  it('atende pedidos seguidos no mesmo processo', async () => {
+  it('serves consecutive requests in the same process', async () => {
     // Proves the loop goes back to the top instead of serving one and hanging.
     for (let round = 0; round < 5; round++) {
       const reply = await client.request(SidecarMethod.Echo, {}, new Uint8Array([round]))

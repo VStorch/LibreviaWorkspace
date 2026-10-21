@@ -99,13 +99,13 @@ describe('file:save validation', () => {
 
   it.each([
     ['without path', { content: 'texto' }],
-    ['caminho vazio', { path: '', content: 'texto' }],
+    ['empty path', { path: '', content: 'texto' }],
     ['without content', { path: '/a/b.txt' }],
     ['non-text path', { path: 42, content: 'texto', origin: null }],
     ['without origin', { path: '/a/b.docx', content: 'texto' }],
-    ['origem vazia', { path: '/a/b.docx', content: 'texto', origin: '' }],
-    ['nulo', null],
-  ])('recusa %s', (_label, payload) => {
+    ['empty origin', { path: '/a/b.docx', content: 'texto', origin: '' }],
+    ['null', null],
+  ])('refuses %s', (_label, payload) => {
     expect(schema.safeParse(payload).success).toBe(false)
   })
 
@@ -125,16 +125,16 @@ describe('Word templates (M11)', () => {
   const opened = ipcContracts[IpcChannel.TemplateOpen].response
   const list = ipcContracts[IpcChannel.TemplateList].response
 
-  it('abre pelo par fonte e id', () => {
+  it('opens by the source and id pair', () => {
     expect(open.safeParse({ source: 'builtin', id: 'carta.dotx' }).success).toBe(true)
     expect(open.safeParse({ source: 'user', id: '/home/ana/Modelos/proposta.dotx' }).success).toBe(true)
   })
 
   it.each([
-    ['fonte desconhecida', { source: 'web', id: 'carta.dotx' }],
-    ['id vazio', { source: 'builtin', id: '' }],
+    ['unknown source', { source: 'web', id: 'carta.dotx' }],
+    ['empty id', { source: 'builtin', id: '' }],
     ['without id', { source: 'user' }],
-  ])('recusa %s', (_label, payload) => {
+  ])('refuses %s', (_label, payload) => {
     expect(open.safeParse(payload).success).toBe(false)
   })
 
@@ -172,13 +172,13 @@ describe('fonts:list validation', () => {
   // it: a schema nobody runs is a compile-time type, not protection.
   const schema = ipcContracts[IpcChannel.FontsList].response
 
-  it('aceita a lista vazia', () => {
+  it('accepts the empty list', () => {
     // A system without `fontconfig` returns nothing, and that is not an error: the toolbar keeps
     // the bundled fonts.
     expect(schema.safeParse({ families: [] }).success).toBe(true)
   })
 
-  it('recusa nome vazio e lista absurda', () => {
+  it('refuses an empty name and an absurd list', () => {
     // This is the output of a system program, data and not truth: an empty name would become an
     // invisible option, and a list of a hundred thousand entries would freeze the toolbar.
     expect(schema.safeParse({ families: [''] }).success).toBe(false)
@@ -219,7 +219,7 @@ describe('AI assistant contracts', () => {
     expect(generate.safeParse({ ...valid, action: 'delete-everything' }).success).toBe(false)
   })
 
-  describe('planilha', () => {
+  describe('spreadsheet', () => {
     const sheet = ipcContracts[IpcChannel.AiSheet].request
     const formula = {
       requestId: valid.requestId,
@@ -252,7 +252,7 @@ describe('AI assistant contracts', () => {
     })
   })
 
-  describe('conversa', () => {
+  describe('conversation', () => {
     const chat = ipcContracts[IpcChannel.AiChat].request
     const conversation = {
       requestId: valid.requestId,
@@ -282,7 +282,7 @@ describe('AI assistant contracts', () => {
       )
     })
 
-    it('recusa mensagens demais ou texto longo demais', () => {
+    it('refuses too many messages or too long a text', () => {
       const many = Array.from({ length: MAX_AI_CHAT_MESSAGES + 1 }, () => ({ role: 'user', text: 'oi' }))
       expect(chat.safeParse({ ...conversation, messages: many }).success).toBe(false)
       const long = [{ role: 'user', text: 'x'.repeat(MAX_AI_CHAT_MESSAGE_LENGTH + 1) }]

@@ -72,8 +72,8 @@ function newDocumentWithListAndImage(text: string): string {
   })
 }
 
-describe.skipIf(documents.length === 0)('corpus real', () => {
-  it.each(documents)('abre %s', async (path) => {
+describe.skipIf(documents.length === 0)('real corpus', () => {
+  it.each(documents)('opens %s', async (path) => {
     const opened = await openDocx(client, path)
     const model = JSON.parse(opened.content) as {
       format: string
@@ -134,7 +134,7 @@ describe.skipIf(documents.length === 0)('corpus real', () => {
  * A document born in the editor saved as `.docx`, over the package the sidecar creates. Depends on
  * the published sidecar, not on the corpus.
  */
-describe.skipIf(!published)('documento novo em .docx', () => {
+describe.skipIf(!published)('new document in .docx', () => {
   it('writes over the minimal package and the text returns on reopen', async () => {
     const saved = await saveDocx(client, newDocument('Texto do documento novo.'), {
       origin: null,
@@ -237,7 +237,7 @@ describe.skipIf(!published)('documento novo em .docx', () => {
  * renderer's `origin` on save: they must match, or the opened `.docx` is written over the minimal
  * package.
  */
-describe.skipIf(!published)('o caminho do pacote original', () => {
+describe.skipIf(!published)('the original package path', () => {
   let directory = ''
 
   beforeAll(async () => {

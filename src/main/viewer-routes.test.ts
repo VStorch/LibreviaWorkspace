@@ -31,7 +31,7 @@ describe('PDF viewer routes', () => {
     expect(viewerRoute('librevia-viewer://app/index.html')).toBeNull()
   })
 
-  it('recusa outro host e outro esquema', () => {
+  it('refuses another host and another scheme', () => {
     expect(viewerRoute('librevia-viewer://outro/pdf-viewer/index.html')).toBeNull()
     expect(viewerRoute('librevia-font://app/pdf-viewer/index.html')).toBeNull()
     expect(viewerRoute('not a url')).toBeNull()
@@ -53,7 +53,7 @@ describe('content type', () => {
   })
 })
 
-describe('pedidos por trecho', () => {
+describe('range requests', () => {
   it('without a header it is the whole file', () => {
     expect(parseByteRange(null, 1000)).toBeNull()
   })

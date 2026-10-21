@@ -96,7 +96,7 @@ describe('message boundaries in the pipe', () => {
   })
 })
 
-describe('defesa contra sidecar corrompido', () => {
+describe('defense against a corrupt sidecar', () => {
   it('refuses a frame announcing an absurd binary, without trying to allocate', () => {
     // Without this cap, a lying header would make us reserve gigabytes.
     const header = new Uint8Array(FRAME_HEADER_BYTES)
@@ -106,7 +106,7 @@ describe('defesa contra sidecar corrompido', () => {
     expect(() => new FrameReader().push(header)).toThrow(/inesperada/i)
   })
 
-  it('recusa JSON malformado no quadro', () => {
+  it('refuses malformed JSON in the frame', () => {
     const garbage = new TextEncoder().encode('{ this is not json')
     const frame = new Uint8Array(FRAME_HEADER_BYTES + garbage.length)
     new DataView(frame.buffer).setUint32(0, garbage.length, false)
@@ -117,7 +117,7 @@ describe('defesa contra sidecar corrompido', () => {
 })
 
 describe('parseResponse', () => {
-  it('aceita sucesso', () => {
+  it('accepts success', () => {
     const response = parseResponse({ id: 1, ok: true, result: { version: '1.0' } })
 
     expect(response.ok).toBe(true)
@@ -138,9 +138,9 @@ describe('parseResponse', () => {
     ['without id', { ok: true, result: 1 }],
     ['without ok', { id: 1, result: 1 }],
     ['error without message', { id: 1, ok: false, error: { code: 'X' } }],
-    ['id negativo', { id: -1, ok: true, result: 1 }],
+    ['negative id', { id: -1, ok: true, result: 1 }],
     ['not an object', 'ok'],
-  ])('recusa resposta fora do contrato: %s', (_label, payload) => {
+  ])('refuses a response outside the contract: %s', (_label, payload) => {
     // The sidecar is another process: it may be an old version or corrupt. Trusting the shape of
     // what it returns would be the mistake of trusting the renderer.
     expect(() => parseResponse(payload)).toThrow(AppError)

@@ -20,11 +20,11 @@ describe('normalizeLinkUrl', () => {
   })
 
   it.each([
-    ['javascript:alert(1)', 'script disfarçado de link'],
-    ['data:text/html,<script>alert(1)</script>', 'documento embutido'],
-    ['file:///etc/passwd', 'arquivo local'],
-    ['vbscript:msgbox', 'script legado'],
-  ])('recusa %s (%s)', (url) => {
+    ['javascript:alert(1)', 'script disguised as a link'],
+    ['data:text/html,<script>alert(1)</script>', 'embedded document'],
+    ['file:///etc/passwd', 'local file'],
+    ['vbscript:msgbox', 'legacy script'],
+  ])('refuses %s (%s)', (url) => {
     // A document can come from anywhere; a link must not become execution.
     expect(normalizeLinkUrl(url)).toBeNull()
   })

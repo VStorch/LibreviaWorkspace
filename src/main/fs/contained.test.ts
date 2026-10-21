@@ -4,7 +4,7 @@ import { containedPath } from './contained.js'
 
 const ROOT = join('/', 'app', 'out', 'renderer')
 
-describe('caminho contido numa pasta', () => {
+describe('path contained in a folder', () => {
   it('accepts a file inside the folder', () => {
     expect(containedPath(ROOT, 'pdf-viewer/index.html')).toBe(join(ROOT, 'pdf-viewer', 'index.html'))
   })
