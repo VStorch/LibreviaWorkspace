@@ -5,7 +5,7 @@ import tseslint from 'typescript-eslint'
  * The network is reachable only from `src/main/ai/`, and only after the person sets up an AI
  * assistant. `src/main/network-boundary.test.ts` checks the same from the source text.
  */
-const NETWORK_MESSAGE = 'Rede só em src/main/ai: o resto do aplicativo não acessa a internet.'
+const NETWORK_MESSAGE = 'Network only in src/main/ai: the rest of the app does not access the internet.'
 const NETWORK_PATHS = [
   { name: '@anthropic-ai/sdk', message: NETWORK_MESSAGE },
   { name: 'undici', message: NETWORK_MESSAGE },
@@ -25,7 +25,7 @@ const NETWORK_PATTERNS = [
 const CHILD_PROCESS_PATTERNS = [
   {
     group: ['node:child_process'],
-    message: 'Processos só no sidecar, nas fontes do sistema e no assistente de IA.',
+    message: 'Processes only in the sidecar, the system fonts and the AI assistant.',
   },
 ]
 const NETWORK_GLOBALS = ['fetch', 'WebSocket', 'EventSource', 'XMLHttpRequest'].map((name) => ({
@@ -70,16 +70,16 @@ export default tseslint.config(
         'error',
         {
           paths: [
-            { name: 'electron', message: 'Camada pura: mova o uso de Electron para src/main.' },
-            { name: 'react', message: 'Camada pura: sem React aqui.' },
-            { name: 'react-dom', message: 'Camada pura: sem React aqui.' },
+            { name: 'electron', message: 'Pure layer: move the Electron usage to src/main.' },
+            { name: 'react', message: 'Pure layer: no React here.' },
+            { name: 'react-dom', message: 'Pure layer: no React here.' },
             ...NETWORK_PATHS,
           ],
           patterns: [
-            { group: ['node:*'], message: 'Camada pura: sem APIs do Node — este código roda no renderer.' },
+            { group: ['node:*'], message: 'Pure layer: no Node APIs, this code runs in the renderer.' },
             {
               group: ['@main/*', '@renderer/*'],
-              message: 'Camada pura não depende de main nem de renderer.',
+              message: 'A pure layer depends on neither main nor renderer.',
             },
             ...NETWORK_PATTERNS,
           ],
@@ -95,12 +95,12 @@ export default tseslint.config(
         'error',
         {
           paths: [
-            { name: 'electron', message: 'O renderer fala com o main apenas por window.api.' },
+            { name: 'electron', message: 'The renderer talks to main only through window.api.' },
             ...NETWORK_PATHS,
           ],
           patterns: [
-            { group: ['node:*'], message: 'O renderer não tem Node.js — use window.api.' },
-            { group: ['@main/*'], message: 'O renderer não importa do processo main.' },
+            { group: ['node:*'], message: 'The renderer has no Node.js; use window.api.' },
+            { group: ['@main/*'], message: 'The renderer does not import from the main process.' },
           ],
         },
       ],
@@ -118,7 +118,7 @@ export default tseslint.config(
           patterns: [
             {
               group: ['@services/*', '@renderer/*', '@main/*'],
-              message: 'O preload só pode importar de @shared — mantenha-o mínimo.',
+              message: 'The preload may only import from @shared; keep it minimal.',
             },
             ...NETWORK_PATTERNS,
           ],
