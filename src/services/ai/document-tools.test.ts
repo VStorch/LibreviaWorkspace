@@ -20,8 +20,8 @@ const call = (name: string, args: unknown, context: ToolContext = CONTEXT) =>
     context,
   )
 
-describe('ferramentas do documento', () => {
-  it('descrevem as quatro ferramentas com esquema JSON de objeto', () => {
+describe('document tools', () => {
+  it('describe the four tools with an object JSON schema', () => {
     expect(DOCUMENT_TOOLS.map((tool) => tool.name)).toEqual([
       'read_paragraphs',
       'search_document',
@@ -34,7 +34,7 @@ describe('ferramentas do documento', () => {
     }
   })
 
-  it('read_paragraphs devolve os parágrafos numerados a partir de 1', () => {
+  it('read_paragraphs returns paragraphs numbered from 1', () => {
     expect(call(AiToolName.ReadParagraphs, { from: 3, count: 5 })).toEqual({
       content: '[3] O cão late e o cão corre.\n[4] Fim do Gato.',
       isError: false,
@@ -43,7 +43,7 @@ describe('ferramentas do documento', () => {
     expect(call(AiToolName.ReadParagraphs, { from: 1, count: 51 }).isError).toBe(true)
   })
 
-  it('search_document acha sem diferenciar maiúsculas e respeita o máximo', () => {
+  it('search_document matches case-insensitively and respects the maximum', () => {
     expect(call(AiToolName.SearchDocument, { query: 'gato' }).content).toBe(
       '[1] O gato dorme.\n[4] Fim do Gato.',
     )
@@ -55,7 +55,7 @@ describe('ferramentas do documento', () => {
     expect(call(AiToolName.SearchDocument, { query: 'x'.repeat(201) }).isError).toBe(true)
   })
 
-  it('propose_edit válida vira proposta com o motivo', () => {
+  it('a valid propose_edit becomes a proposal with the reason', () => {
     const outcome = call(AiToolName.ProposeEdit, {
       paragraph: 1,
       paragraphText: 'O gato dorme.',
@@ -75,20 +75,20 @@ describe('ferramentas do documento', () => {
     })
   })
 
-  it('propose_edit recusa trecho ausente, repetido, parágrafo inexistente e troca igual', () => {
+  it('propose_edit refuses a missing or repeated snippet, a nonexistent paragraph and an identical replacement', () => {
     const ausente = call(AiToolName.ProposeEdit, { paragraph: 1, find: 'late', replace: 'x' })
     expect(ausente).toMatchObject({ isError: true })
     expect(ausente.content).toContain('not in paragraph 1')
     expect(ausente.proposal).toBeUndefined()
-    const repetido = call(AiToolName.ProposeEdit, { paragraph: 3, find: 'cão', replace: 'x' })
-    expect(repetido.content).toContain('appears 2 times')
+    const repeated = call(AiToolName.ProposeEdit, { paragraph: 3, find: 'cão', replace: 'x' })
+    expect(repeated.content).toContain('appears 2 times')
     expect(call(AiToolName.ProposeEdit, { paragraph: 7, find: 'a', replace: 'b' }).content).toContain(
       'no paragraph 7',
     )
     expect(call(AiToolName.ProposeEdit, { paragraph: 1, find: 'gato', replace: 'gato' }).isError).toBe(true)
   })
 
-  it('valida os limites das entradas', () => {
+  it('validates the input limits', () => {
     expect(call(AiToolName.ProposeEdit, { paragraph: 1, find: 'x'.repeat(2001), replace: '' }).isError).toBe(
       true,
     )
@@ -105,7 +105,7 @@ describe('ferramentas do documento', () => {
     expect(call(AiToolName.AddComment, { paragraph: 0, find: 'gato', comment: 'c' }).isError).toBe(true)
   })
 
-  it('add_comment válida vira proposta de comentário com o número seguinte', () => {
+  it('a valid add_comment becomes a comment proposal with the next number', () => {
     const outcome = call(
       AiToolName.AddComment,
       { paragraph: 4, find: 'Gato', comment: 'Maiúscula?' },
@@ -121,7 +121,7 @@ describe('ferramentas do documento', () => {
     })
   })
 
-  it('passado o limite de propostas, devolve erro e não registra', () => {
+  it('past the proposal limit, returns an error and does not record', () => {
     const outcome = call(
       AiToolName.AddComment,
       { paragraph: 1, find: 'gato', comment: 'c' },
@@ -131,7 +131,7 @@ describe('ferramentas do documento', () => {
     expect(outcome.proposal).toBeUndefined()
   })
 
-  it('ferramenta desconhecida e JSON inválido são erros de ferramenta', () => {
+  it('unknown tool and invalid JSON are tool errors', () => {
     expect(call('delete_file', {})).toMatchObject({ isError: true })
     expect(call('delete_file', {}).content).toContain('read_paragraphs')
     expect(call(AiToolName.ReadParagraphs, '{"from": 1,')).toEqual({
@@ -141,7 +141,7 @@ describe('ferramentas do documento', () => {
   })
 })
 
-describe('ferramentas para clientes de fora do aplicativo', () => {
+describe('tools for clients outside the app', () => {
   const edit = {
     id: '1',
     kind: 'edit' as const,
@@ -151,14 +151,14 @@ describe('ferramentas para clientes de fora do aplicativo', () => {
     replace: 'cão',
   }
 
-  it('as mesmas ferramentas, dizendo que a mudança entra como revisão que a pessoa aceita ou rejeita', () => {
+  it('the same tools, saying the change enters as a revision the person accepts or rejects', () => {
     expect(APPLIED_DOCUMENT_TOOLS.map((tool) => tool.name)).toEqual(DOCUMENT_TOOLS.map((tool) => tool.name))
     const proposeEdit = APPLIED_DOCUMENT_TOOLS.find((tool) => tool.name === AiToolName.ProposeEdit)
     expect(proposeEdit?.description).toContain('tracked revision')
     expect(proposeEdit?.description).toContain('accepts or rejects')
   })
 
-  it('o resultado diz se a mudança entrou ou se o parágrafo mudou', () => {
+  it('the result says whether the change went in or the paragraph changed', () => {
     expect(appliedOutcome(edit, true)).toMatchObject({ isError: false })
     expect(appliedOutcome(edit, false)).toEqual({
       content: 'Paragraph 2 changed before this went in: read it again and retry.',

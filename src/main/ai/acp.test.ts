@@ -176,7 +176,7 @@ const methodsOf = (child: FakeAgent): (string | undefined)[] =>
   child.received.map((message) => message.method)
 
 describe('createAcpProvider', () => {
-  it('abre o agente sem shell na pasta vazia, sem arquivos nem terminal, e repassa só o texto da resposta', async () => {
+  it('opens the agent without a shell in the empty folder, without files or terminal, and relays only the response text', async () => {
     const { child, calls, removed, provider } = setup()
     const parts = await collect(provider.stream(PROMPT, new AbortController().signal))
 
@@ -195,14 +195,14 @@ describe('createAcpProvider', () => {
     expect(removed).toEqual(['/tmp/librevia-ai-x'])
   })
 
-  it('recusa o pedido de permissão do agente', async () => {
+  it('refuses the agent permission request', async () => {
     const { child, provider } = setup()
     await collect(provider.stream(PROMPT, new AbortController().signal))
     const answer = child.received.find((message) => message.id === 'p1')
     expect(answer?.result).toEqual({ outcome: { outcome: 'selected', optionId: 'nao' } })
   })
 
-  it('com as ferramentas do Librevia, o servidor MCP vai na sessão e só as ferramentas dele são permitidas', async () => {
+  it('with the Librevia tools, the MCP server goes in the session and only its tools are allowed', async () => {
     const toolServer = {
       name: 'librevia',
       command: '/bin/librevia',
@@ -227,7 +227,7 @@ describe('createAcpProvider', () => {
     expect(answer?.result).toEqual({ outcome: { outcome: 'selected', optionId: 'sim' } })
   })
 
-  it('sem as ferramentas na mensagem, até o nome delas é recusado', async () => {
+  it('without the tools in the message, even their name is refused', async () => {
     const { child, provider } = setup({
       toolCall: { title: 'mcp__librevia__read_paragraphs', kind: 'other' },
     })
@@ -236,7 +236,7 @@ describe('createAcpProvider', () => {
     expect(answer?.result).toEqual({ outcome: { outcome: 'selected', optionId: 'nao' } })
   })
 
-  it('o modelo escolhido vai para a sessão antes do pedido', async () => {
+  it('the chosen model goes to the session before the request', async () => {
     const { child, provider } = setup()
     const parts = await collect(
       provider.stream({ ...PROMPT, model: 'esperto' }, new AbortController().signal),
@@ -249,7 +249,7 @@ describe('createAcpProvider', () => {
     expect(parts[0]).toEqual({ model: 'esperto' })
   })
 
-  it('lista os modelos da sessão e encerra o processo', async () => {
+  it('lists the session models and ends the process', async () => {
     const { child, removed, provider } = setup()
     const models = await provider.listModels(new AbortController().signal)
     expect(models).toEqual([
@@ -261,21 +261,21 @@ describe('createAcpProvider', () => {
     expect(removed).toEqual(['/tmp/librevia-ai-x'])
   })
 
-  it('agente que pede login vira aviso para fazer login no terminal', async () => {
+  it('an agent that asks for login becomes a notice to log in on the terminal', async () => {
     const { provider } = setup({ authRequired: true })
     await expect(collect(provider.stream(PROMPT, new AbortController().signal))).rejects.toMatchObject({
       code: ErrorCode.AiAuthFailed,
     })
   })
 
-  it('recusa do modelo vira o erro de recusa', async () => {
+  it('the model refusal becomes the refusal error', async () => {
     const { provider } = setup({ stopReason: 'refusal' })
     await expect(collect(provider.stream(PROMPT, new AbortController().signal))).rejects.toMatchObject({
       code: ErrorCode.AiRefused,
     })
   })
 
-  it('cancelar avisa o agente e encerra o processo', async () => {
+  it('cancelling notifies the agent and ends the process', async () => {
     const { child, removed, provider } = setup({ stopReason: 'cancelled' })
     const controller = new AbortController()
     const parts: unknown[] = []
@@ -288,7 +288,7 @@ describe('createAcpProvider', () => {
     expect(removed).toEqual(['/tmp/librevia-ai-x'])
   })
 
-  it('agente que ignora o cancelamento é encerrado mesmo assim', async () => {
+  it('an agent that ignores cancellation is ended anyway', async () => {
     const { child, provider } = setup({ ignoresCancel: true })
     const controller = new AbortController()
     const run = collect(
@@ -305,7 +305,7 @@ describe('createAcpProvider', () => {
   })
 
   it.each(['methodNotFound', 'closes'] as const)(
-    'programa que não fala ACP (%s) vira aviso legível, sem texto técnico',
+    'a program that does not speak ACP (%s) becomes a readable notice, without technical text',
     async (notAgent) => {
       const { provider } = setup({ notAgent })
       const failure = await collect(provider.stream(PROMPT, new AbortController().signal)).catch(
@@ -317,7 +317,7 @@ describe('createAcpProvider', () => {
     },
   )
 
-  it('programa ausente vira aviso de agente não encontrado', async () => {
+  it('a missing program becomes an agent-not-found notice', async () => {
     const { child, provider } = setup({ missing: true })
     const run = collect(provider.stream(PROMPT, new AbortController().signal))
     setTimeout(() => child.emit('error', new Error('spawn ENOENT')), 0)

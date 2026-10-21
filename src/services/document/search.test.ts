@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { findOccurrences, stepIndex } from './search.js'
 
 describe('findOccurrences', () => {
-  it('encontra todas as ocorrências', () => {
+  it('finds all occurrences', () => {
     expect(findOccurrences('boi boi boi', 'boi')).toEqual([
       { start: 0, end: 3 },
       { start: 4, end: 7 },
@@ -10,15 +10,15 @@ describe('findOccurrences', () => {
     ])
   })
 
-  it('ignora maiúsculas por padrão', () => {
+  it('ignores case by default', () => {
     expect(findOccurrences('Contrato contrato CONTRATO', 'contrato')).toHaveLength(3)
   })
 
-  it('respeita maiúsculas quando pedido', () => {
+  it('respects case when requested', () => {
     expect(findOccurrences('Contrato contrato', 'contrato', true)).toEqual([{ start: 9, end: 17 }])
   })
 
-  it('não devolve ocorrências sobrepostas', () => {
+  it('does not return overlapping occurrences', () => {
     // Otherwise "replace all" would reprocess the newly written text and might never end.
     expect(findOccurrences('aaaa', 'aa')).toEqual([
       { start: 0, end: 2 },
@@ -26,32 +26,32 @@ describe('findOccurrences', () => {
     ])
   })
 
-  it('devolve vazio para termo vazio', () => {
+  it('returns empty for an empty term', () => {
     expect(findOccurrences('qualquer texto', '')).toEqual([])
   })
 
-  it('devolve vazio quando não há ocorrência', () => {
+  it('returns empty when there is no occurrence', () => {
     expect(findOccurrences('texto', 'ausente')).toEqual([])
   })
 
-  it('mantém as posições alinhadas quando a letra muda de tamanho em minúsculas', () => {
+  it('keeps positions aligned when a letter changes length in lowercase', () => {
     // `'İ'.toLowerCase()` has two code units: lowercasing the whole text would shift the following
     // positions.
-    const texto = 'İstanbul tem contrato'
-    const [ocorrencia] = findOccurrences(texto, 'contrato')
+    const text = 'İstanbul tem contrato'
+    const [occurrence] = findOccurrences(text, 'contrato')
 
-    expect(ocorrencia).toBeDefined()
-    expect(texto.slice(ocorrencia!.start, ocorrencia!.end)).toBe('contrato')
+    expect(occurrence).toBeDefined()
+    expect(text.slice(occurrence!.start, occurrence!.end)).toBe('contrato')
   })
 
-  it('mantém as posições alinhadas depois de um caractere fora do BMP', () => {
-    const texto = '😀 Contrato'
-    const [ocorrencia] = findOccurrences(texto, 'contrato')
+  it('keeps positions aligned after a non-BMP character', () => {
+    const text = '😀 Contrato'
+    const [occurrence] = findOccurrences(text, 'contrato')
 
-    expect(texto.slice(ocorrencia!.start, ocorrencia!.end)).toBe('Contrato')
+    expect(text.slice(occurrence!.start, occurrence!.end)).toBe('Contrato')
   })
 
-  it('trata acentuação como caractere comum', () => {
+  it('treats accents as ordinary characters', () => {
     // "acao" does not find "ação": normalizing accents would change positions and break
     // replacement. If ever wanted, it needs an index map, not a naive normalization.
     expect(findOccurrences('ação', 'acao')).toEqual([])
@@ -60,21 +60,21 @@ describe('findOccurrences', () => {
 })
 
 describe('stepIndex', () => {
-  it('avança e volta ao início ao passar do fim', () => {
+  it('advances and wraps to the start past the end', () => {
     expect(stepIndex(0, 3, 1)).toBe(1)
     expect(stepIndex(2, 3, 1)).toBe(0)
   })
 
-  it('retrocede e vai ao fim ao passar do início', () => {
+  it('steps back and wraps to the end past the start', () => {
     expect(stepIndex(0, 3, -1)).toBe(2)
   })
 
-  it('parte da primeira ocorrência quando ainda não há seleção', () => {
+  it('starts from the first occurrence when there is no selection yet', () => {
     expect(stepIndex(-1, 3, 1)).toBe(0)
     expect(stepIndex(-1, 3, -1)).toBe(2)
   })
 
-  it('devolve -1 quando não há ocorrências', () => {
+  it('returns -1 when there are no occurrences', () => {
     expect(stepIndex(0, 0, 1)).toBe(-1)
   })
 })

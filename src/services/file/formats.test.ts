@@ -19,7 +19,7 @@ describe('fileNameFromPath', () => {
     ['\\\\servidor\\setor\\ata.txt', 'ata.txt'],
     ['/mnt/rede/contratos/minuta final.txt', 'minuta final.txt'],
     ['sem-pasta.txt', 'sem-pasta.txt'],
-  ])('extrai o nome de %s', (path, expected) => {
+  ])('extracts the name from %s', (path, expected) => {
     expect(fileNameFromPath(path)).toBe(expected)
   })
 })
@@ -32,11 +32,11 @@ describe('extensionOf', () => {
     ['/a/b/sem-extensao', ''],
     // A leading dot is a hidden file, not an extension.
     ['/a/b/.oculto', ''],
-  ])('lê a extensão de %s', (path, expected) => {
+  ])('reads the extension of %s', (path, expected) => {
     expect(extensionOf(path)).toBe(expected)
   })
 
-  it('não confunde ponto de pasta com extensão do arquivo', () => {
+  it('does not mistake a dot in a folder name for the file extension', () => {
     expect(extensionOf('/home/ana/pasta.com.ponto/arquivo')).toBe('')
   })
 })
@@ -62,41 +62,41 @@ describe('PDF', () => {
     expect(kindFromPath(path)).toBe(DocumentKind.Pdf)
   })
 
-  it('nunca é destino de gravação', () => {
+  it('is never a save target', () => {
     // Only viewed: saving text into a `.pdf` would produce a file no reader opens.
     expect(isSupportedExtension('/a/b.pdf')).toBe(false)
     expect(ensureSupportedExtension('/a/b.pdf')).toBe('/a/b.pdf.sdoc')
   })
 })
 
-describe('modelos do Word (M11)', () => {
-  it.each(['/a/b.dotx', '/a/b.DOTX', '/a/b.dotm'])('%s é modelo e pacote do Word', (path) => {
+describe('Word templates (M11)', () => {
+  it.each(['/a/b.dotx', '/a/b.DOTX', '/a/b.dotm'])('%s is a Word template and package', (path) => {
     expect(isSupportedExtension(path)).toBe(true)
     expect(isWordTemplatePath(path)).toBe(true)
     expect(isWordPackagePath(path)).toBe(true)
   })
 
-  it('o .docx é pacote do Word, mas não modelo', () => {
+  it('.docx is a Word package, but not a template', () => {
     expect(isWordTemplatePath('/a/b.docx')).toBe(false)
     expect(isWordPackagePath('/a/b.docx')).toBe(true)
   })
 
-  it('o .dotx é destino; o .dotm não, porque as macros não viajam', () => {
+  it('.dotx is a save target; .dotm is not, because macros do not travel', () => {
     expect(ensureSupportedExtension('/a/b.dotx', DocumentKind.Document)).toBe('/a/b.dotx')
     expect(ensureSupportedExtension('/a/b.dotm', DocumentKind.Document)).toBe('/a/b.dotm.sdoc')
   })
 })
 
 describe('buildWindowTitle', () => {
-  it('marca alterações não salvas', () => {
+  it('marks unsaved changes', () => {
     expect(buildWindowTitle('ata.txt', true, 'Librevia')).toBe('• ata.txt — Librevia')
   })
 
-  it('não marca quando está salvo', () => {
+  it('does not mark when saved', () => {
     expect(buildWindowTitle('ata.txt', false, 'Librevia')).toBe('ata.txt — Librevia')
   })
 
-  it('usa rótulo próprio para arquivo ainda sem nome', () => {
+  it('uses its own label for a file that has no name yet', () => {
     expect(buildWindowTitle(null, false, 'Librevia')).toBe('Sem título — Librevia')
   })
 })

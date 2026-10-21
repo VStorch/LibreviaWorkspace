@@ -3,13 +3,13 @@ import { documentToPlainText, hasRichFormatting, plainTextToDocument } from './p
 import type { DocumentNode } from './model.js'
 
 describe('plainTextToDocument', () => {
-  it('transforma cada linha num parágrafo', () => {
+  it('turns each line into a paragraph', () => {
     const doc = plainTextToDocument('primeira\nsegunda')
     expect(doc.content).toHaveLength(2)
     expect(doc.content?.[0]).toEqual({ type: 'paragraph', content: [{ type: 'text', text: 'primeira' }] })
   })
 
-  it('preserva linhas em branco', () => {
+  it('preserves blank lines', () => {
     expect(plainTextToDocument('a\n\nb').content).toHaveLength(3)
   })
 
@@ -21,24 +21,24 @@ describe('plainTextToDocument', () => {
     expect(plainTextToDocument(`a${breakChar}b`).content).toHaveLength(2)
   })
 
-  it('nunca produz documento vazio', () => {
+  it('never produces an empty document', () => {
     // ProseMirror refuses a doc without content; an empty file must not bring the editor down.
     expect(plainTextToDocument('').content).toEqual([{ type: 'paragraph' }])
   })
 })
 
 describe('documentToPlainText', () => {
-  it('junta blocos com quebra de linha', () => {
+  it('joins blocks with a line break', () => {
     const doc = plainTextToDocument('uma\noutra')
     expect(documentToPlainText(doc)).toBe('uma\noutra')
   })
 
-  it('sobrevive à ida e volta pelo texto puro', () => {
+  it('survives a round trip through plain text', () => {
     const original = 'linha 1\n\nlinha 3\nlinha 4'
     expect(documentToPlainText(plainTextToDocument(original))).toBe(original)
   })
 
-  it('extrai o texto de títulos e listas', () => {
+  it('extracts the text of headings and lists', () => {
     const doc: DocumentNode = {
       type: 'doc',
       content: [
@@ -56,7 +56,7 @@ describe('documentToPlainText', () => {
     expect(documentToPlainText(doc)).toContain('item')
   })
 
-  it('ignora marcas de formatação e mantém só o texto', () => {
+  it('ignores formatting marks and keeps only the text', () => {
     const doc: DocumentNode = {
       type: 'doc',
       content: [
@@ -75,7 +75,7 @@ describe('documentToPlainText', () => {
 })
 
 describe('hasRichFormatting', () => {
-  it('não acusa formatação num documento de texto puro', () => {
+  it('reports no formatting in a plain text document', () => {
     expect(hasRichFormatting(plainTextToDocument('só texto\nem duas linhas'))).toBe(false)
   })
 

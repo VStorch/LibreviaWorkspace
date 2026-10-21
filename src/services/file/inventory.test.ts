@@ -9,24 +9,24 @@ const inventory = (partial: Partial<LossInventory>): LossInventory => ({
   ...partial,
 })
 
-describe('há o que avisar', () => {
-  it('não, quando o arquivo abriu inteiro', () => {
+describe('something to warn about', () => {
+  it('no, when the file opened whole', () => {
     expect(hasReportableLoss(inventory({}))).toBe(false)
     expect(hasReportableLoss(undefined)).toBe(false)
   })
 
-  it('sim, tanto para o que some quanto para o que não aparece', () => {
+  it('yes, both for what is lost and for what is not shown', () => {
     expect(hasReportableLoss(inventory({ lost: ['comentários'] }))).toBe(true)
     expect(hasReportableLoss(inventory({ invisible: ['notas de rodapé'] }))).toBe(true)
   })
 })
 
 describe('somente leitura', () => {
-  it('trava pelo que some ao editar o bloco que o ancora', () => {
+  it('locks for what is lost when editing the block that anchors it', () => {
     expect(locksEditing(inventory({ structural: ['comentários'] }))).toBe(true)
   })
 
-  it('não trava por perda de aparência', () => {
+  it('does not lock for a loss of appearance', () => {
     // Almost every corpus document has an anchored image: locking for that would lock everyday use,
     // and the user would learn to unlock without reading.
     expect(locksEditing(inventory({ lost: ['posicionamento de imagem'] }))).toBe(false)
@@ -34,20 +34,20 @@ describe('somente leitura', () => {
   })
 })
 
-describe('o que uma gravação perdeu', () => {
-  it('é só o que se perdeu — o invisível continua no arquivo', () => {
+describe('what a save lost', () => {
+  it('is only what was lost: the invisible stays in the file', () => {
     expect(lostOnSave(inventory({ lost: ['mesclagem vertical'], invisible: ['formas'] }))).toEqual([
       'mesclagem vertical',
     ])
   })
 
-  it('diz cada perda uma vez, mesmo que ela tenha acontecido em várias células', () => {
+  it('reports each loss once, even if it happened in several cells', () => {
     expect(lostOnSave(inventory({ lost: ['mesclagem vertical', 'mesclagem vertical'] }))).toEqual([
       'mesclagem vertical',
     ])
   })
 
-  it('é nada quando o formato não tem inventário', () => {
+  it('is nothing when the format has no inventory', () => {
     expect(lostOnSave(undefined)).toEqual([])
   })
 })

@@ -10,12 +10,12 @@ import { docxWithNamedStyles, entryOf } from './fixtures.js'
  * The styles pane: view, apply, modify, create and clear, with the screen changing, undo, and the
  * modified style going to the `.docx` and back.
  */
-test.describe('painel de estilos', () => {
+test.describe('styles panel', () => {
   let session: Session
   let folder: string
 
   test.beforeEach(async () => {
-    folder = await mkdtemp(join(tmpdir(), 'librevia-estilos-'))
+    folder = await mkdtemp(join(tmpdir(), 'librevia-styles-'))
     session = await launch()
   })
 
@@ -24,7 +24,7 @@ test.describe('painel de estilos', () => {
     await rm(folder, { recursive: true, force: true })
   })
 
-  test('o documento novo mostra os estilos embutidos e o do cursor', async () => {
+  test("the new document shows the built-in styles and the cursor's", async () => {
     await menu(session, 'new-document')
 
     await session.window.getByRole('button', { name: 'Estilos do documento' }).click()
@@ -39,11 +39,11 @@ test.describe('painel de estilos', () => {
     await expect(panel).toContainText('Parágrafo do cursor: Título 1')
   })
 
-  test('mostra os estilos que o .docx traz, com o nome que o autor deu', async () => {
-    const origem = join(folder, 'estilos.docx')
-    await writeFile(origem, await docxWithNamedStyles())
+  test('shows the styles the .docx brings, with the name the author gave', async () => {
+    const sourceFile = join(folder, 'estilos.docx')
+    await writeFile(sourceFile, await docxWithNamedStyles())
 
-    await stubDialogs(session.app, { open: origem, messageBox: 1 })
+    await stubDialogs(session.app, { open: sourceFile, messageBox: 1 })
     await menu(session, 'open')
     await expect(session.window.locator('.ProseMirror')).toContainText('Um trecho citado.')
 
@@ -66,7 +66,7 @@ test.describe('painel de estilos', () => {
     await expect(panel).not.toContainText('Citação recuada')
   })
 
-  test('aplicar pelo painel troca o bloco, e desfazer o devolve', async () => {
+  test('applying from the panel changes the block, and undo restores it', async () => {
     await menu(session, 'new-document')
     const editor = session.window.locator('.ProseMirror')
     await editor.click()
@@ -85,7 +85,7 @@ test.describe('painel de estilos', () => {
     await expect(editor.locator('p').first()).toHaveText('Relatório')
   })
 
-  test('modificar o estilo muda a tela na hora', async () => {
+  test('modifying the style changes the screen at once', async () => {
     await menu(session, 'new-document')
     const editor = session.window.locator('.ProseMirror')
     await editor.click()
@@ -113,7 +113,7 @@ test.describe('painel de estilos', () => {
     await expect(session.window.locator('.statusbar__state')).not.toHaveText('Salvo')
   })
 
-  test('Enter no fim do título abre o estilo seguinte', async () => {
+  test('Enter at the end of a heading opens the next style', async () => {
     await menu(session, 'new-document')
     const editor = session.window.locator('.ProseMirror')
     await editor.click()
@@ -129,7 +129,7 @@ test.describe('painel de estilos', () => {
     await expect(session.window.getByRole('combobox', { name: 'Estilo' })).toHaveValue('Normal')
   })
 
-  test('limpar a formatação tira o direto e deixa o estilo', async () => {
+  test('clearing formatting removes the direct one and keeps the style', async () => {
     await menu(session, 'new-document')
     const editor = session.window.locator('.ProseMirror')
     await editor.click()
@@ -145,11 +145,11 @@ test.describe('painel de estilos', () => {
     await expect(editor.locator('p').first()).toHaveText('Negrito à mão')
   })
 
-  test('o estilo modificado vai para o .docx e volta dele', async () => {
-    const origem = join(folder, 'estilos.docx')
-    await writeFile(origem, await docxWithNamedStyles())
+  test('the modified style goes to the .docx and comes back from it', async () => {
+    const sourceFile = join(folder, 'estilos.docx')
+    await writeFile(sourceFile, await docxWithNamedStyles())
 
-    await stubDialogs(session.app, { open: origem, save: origem, messageBox: 1 })
+    await stubDialogs(session.app, { open: sourceFile, save: sourceFile, messageBox: 1 })
     await menu(session, 'open')
     const editor = session.window.locator('.ProseMirror')
     await expect(editor).toContainText('Um trecho citado.')
@@ -166,8 +166,8 @@ test.describe('painel de estilos', () => {
     await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
 
     // Only the style changed in the file: the paragraph still only points to it.
-    expect(await entryOf(origem, 'word/styles.xml')).toContain('<w:sz w:val="36"')
-    expect(await entryOf(origem, 'word/document.xml')).not.toContain('w:sz')
+    expect(await entryOf(sourceFile, 'word/styles.xml')).toContain('<w:sz w:val="36"')
+    expect(await entryOf(sourceFile, 'word/document.xml')).not.toContain('w:sz')
 
     await menu(session, 'open')
     const quote = editor.locator('[data-style-id="Citao"]')
@@ -180,12 +180,12 @@ test.describe('painel de estilos', () => {
       .toBeCloseTo(18 * (96 / 72), 0)
   })
 
-  test('o texto importado segue o estilo: modificado, e de título a Normal', async () => {
+  test('imported text follows the style: modified, and from heading to Normal', async () => {
     // The run, not the paragraph: the style font stuck in a mark would change one and not the
     // other.
-    const origem = join(folder, 'estilos.docx')
-    await writeFile(origem, await docxWithNamedStyles())
-    await stubDialogs(session.app, { open: origem, messageBox: 1 })
+    const sourceFile = join(folder, 'estilos.docx')
+    await writeFile(sourceFile, await docxWithNamedStyles())
+    await stubDialogs(session.app, { open: sourceFile, messageBox: 1 })
     await menu(session, 'open')
     const editor = session.window.locator('.ProseMirror')
     await expect(editor).toContainText('Um trecho citado.')
@@ -220,7 +220,7 @@ test.describe('painel de estilos', () => {
     expect(normal?.weight).toBe('400')
   })
 
-  test('o foco circula dentro do painel, e Escape continua fechando', async () => {
+  test('focus cycles inside the panel, and Escape still closes', async () => {
     await menu(session, 'new-document')
     await session.window.getByRole('button', { name: 'Estilos do documento' }).click()
 

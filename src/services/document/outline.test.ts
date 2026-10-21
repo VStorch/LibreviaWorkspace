@@ -46,28 +46,28 @@ function block(type: string, attrs: Record<string, unknown>, text: string, pos: 
 }
 
 describe('outlineLevelOf', () => {
-  it('o título vale pelo nível que traz', () => {
+  it('a heading counts by the level it carries', () => {
     expect(outlineLevelOf({ type: 'heading', attrs: { level: 2 } }, null)).toBe(2)
   })
 
-  it('o parágrafo vale pelo nível que a cascata de estilos lhe dá', () => {
+  it('a paragraph counts by the level the style cascade gives it', () => {
     expect(outlineLevelOf({ type: 'paragraph', attrs: { styleId: 'Capitulo' } }, SHEET)).toBe(1)
     // The style's own level beats the inherited one.
     expect(outlineLevelOf({ type: 'paragraph', attrs: { styleId: 'Secao' } }, SHEET)).toBe(2)
   })
 
-  it('nível 9 é corpo de texto, ainda que herde de um título', () => {
+  it('level 9 is body text, even if it inherits from a heading', () => {
     expect(outlineLevelOf({ type: 'paragraph', attrs: { styleId: 'TOCHeading' } }, SHEET)).toBeNull()
   })
 
-  it('parágrafo comum, ou sem folha de estilos, não é título', () => {
+  it('a plain paragraph, or one without a style sheet, is not a heading', () => {
     expect(outlineLevelOf({ type: 'paragraph', attrs: {} }, SHEET)).toBeNull()
     expect(outlineLevelOf({ type: 'paragraph', attrs: { styleId: 'Capitulo' } }, null)).toBeNull()
   })
 })
 
 describe('outlineOf', () => {
-  it('lista os títulos na ordem, sem os vazios e com o espaço normalizado', () => {
+  it('lists the headings in order, without empty ones and with whitespace normalized', () => {
     const entries = outlineOf(
       [
         block('paragraph', {}, 'Capa', 0),
@@ -91,7 +91,7 @@ describe('currentEntryIndex', () => {
     { level: 2, text: 'B', pos: 30 },
   ]
 
-  it('é o último título que começa antes da posição', () => {
+  it('is the last heading that starts before the position', () => {
     expect(currentEntryIndex(entries, 5)).toBe(-1)
     expect(currentEntryIndex(entries, 10)).toBe(0)
     expect(currentEntryIndex(entries, 29)).toBe(0)

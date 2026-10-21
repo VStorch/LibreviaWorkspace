@@ -1,24 +1,24 @@
 import { describe, expect, it } from 'vitest'
 import { mcpAuthor, mcpClientName } from './mcp-client-name.js'
 
-describe('nome do cliente MCP', () => {
-  it('o autor leva sempre o sufixo (MCP)', () => {
+describe('MCP client name', () => {
+  it('the author always carries the (MCP) suffix', () => {
     expect(mcpAuthor('Claude Code', 'Assistente externo')).toBe('Claude Code (MCP)')
   })
 
-  it('tira caracteres de controle e espaços das pontas', () => {
+  it('strips control characters and surrounding spaces', () => {
     expect(mcpAuthor('  Cli\u0000en\u001bte\n ', 'Assistente externo')).toBe('Cliente (MCP)')
   })
 
-  it('tira as sequências de cor do terminal inteiras', () => {
+  it('strips whole terminal color sequences', () => {
     expect(mcpClientName('Evil\u0007\u001b[31mBot\u001b[0m', 'x')).toBe('EvilBot')
   })
 
-  it('corta em 64 caracteres', () => {
+  it('truncates at 64 characters', () => {
     expect(mcpClientName('a'.repeat(100), 'x')).toBe('a'.repeat(64))
   })
 
-  it('nome vazio vira a frase do catálogo, ainda com o sufixo', () => {
+  it('an empty name becomes the catalog phrase, still with the suffix', () => {
     expect(mcpAuthor(' \u0007 ', 'Assistente externo')).toBe('Assistente externo (MCP)')
   })
 })

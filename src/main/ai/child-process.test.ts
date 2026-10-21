@@ -28,19 +28,19 @@ function killer(windows: boolean): ProcessTreeKiller & { groups: unknown[]; task
 }
 
 describe('killTree', () => {
-  it('no POSIX manda o sinal ao grupo inteiro do programa', () => {
+  it('on POSIX sends the signal to the whole program group', () => {
     const tree = killer(false)
     killTree(fakeChild(42), 'SIGTERM', tree)
     expect(tree.groups).toEqual([[42, 'SIGTERM']])
   })
 
-  it('no Windows encerra a árvore com taskkill', () => {
+  it('on Windows ends the tree with taskkill', () => {
     const tree = killer(true)
     killTree(fakeChild(42), 'SIGTERM', tree)
     expect(tree.taskkills).toEqual([['/pid', '42', '/T', '/F']])
   })
 
-  it('sem grupo, encerra só o programa', () => {
+  it('without a group, ends only the program', () => {
     const child = fakeChild(42)
     const tree: ProcessTreeKiller = {
       ...killer(false),
@@ -54,7 +54,7 @@ describe('killTree', () => {
 })
 
 describe('terminateNow', () => {
-  it('ao sair, mata com SIGKILL na hora, sem esperar timer', () => {
+  it('on exit, kills with SIGKILL immediately, without waiting for a timer', () => {
     vi.useFakeTimers()
     const tree = killer(false)
     terminateNow(fakeChild(7), tree)

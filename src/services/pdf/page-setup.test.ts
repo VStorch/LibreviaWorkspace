@@ -12,7 +12,7 @@ import {
 const withPage = (overrides: Partial<PageSetup>): PageSetup => ({ ...DEFAULT_PAGE_SETUP, ...overrides })
 
 describe('buildPrintOptions', () => {
-  it('converte as margens de milímetros para polegadas', () => {
+  it('converts margins from millimeters to inches', () => {
     // Chromium works in inches; a mistake here produces a PDF with silently wrong margins.
     const options = buildPrintOptions(
       withPage({ margins: { top: 25.4, right: 12.7, bottom: 25.4, left: 50.8 } }),
@@ -23,7 +23,7 @@ describe('buildPrintOptions', () => {
     expect(options.margins.left).toBeCloseTo(2, 6)
   })
 
-  it('traduz tamanho e orientação', () => {
+  it('translates size and orientation', () => {
     expect(buildPrintOptions(withPage({ size: PageSize.A4 })).pageSize).toBe('A4')
     expect(buildPrintOptions(withPage({ size: PageSize.Letter })).pageSize).toBe('Letter')
     expect(buildPrintOptions(withPage({ orientation: PageOrientation.Landscape })).landscape).toBe(true)
@@ -35,30 +35,30 @@ describe('buildPrintOptions', () => {
     expect(buildPrintOptions(DEFAULT_PAGE_SETUP).printBackground).toBe(true)
   })
 
-  it('não liga cabeçalho e rodapé quando não há nenhum', () => {
+  it('does not turn on header and footer when there is none', () => {
     expect(buildPrintOptions(DEFAULT_PAGE_SETUP).displayHeaderFooter).toBe(false)
   })
 
   it.each([
-    ['só cabeçalho', { header: 'Relatório', footer: '' }],
-    ['só rodapé', { header: '', footer: 'página {n}' }],
-    ['ambos', { header: 'Relatório', footer: 'página {n}' }],
-  ])('liga cabeçalho e rodapé quando há %s', (_label, overrides) => {
+    ['header only', { header: 'Relatório', footer: '' }],
+    ['footer only', { header: '', footer: 'página {n}' }],
+    ['both', { header: 'Relatório', footer: 'página {n}' }],
+  ])('turns on header and footer when there is %s', (_label, overrides) => {
     expect(buildPrintOptions(withPage(overrides)).displayHeaderFooter).toBe(true)
   })
 
-  it('ignora texto que é só espaço em branco', () => {
+  it('ignores text that is only whitespace', () => {
     expect(buildPrintOptions(withPage({ header: '   ' })).displayHeaderFooter).toBe(false)
   })
 
-  it('deixa o tamanho de página vir das opções, não do CSS', () => {
+  it('lets the page size come from the options, not from the CSS', () => {
     // Two sources of truth for the margin would double it.
     expect(buildPrintOptions(DEFAULT_PAGE_SETUP).preferCSSPageSize).toBe(false)
   })
 })
 
 describe('buildNativePrintOptions', () => {
-  it('usa pixels nas margens, não polegadas', () => {
+  it('uses pixels for margins, not inches', () => {
     // The trap: printToPDF wants inches and print() wants pixels. Swapping them gets the margin
     // wrong by a factor of 96.
     const options = buildNativePrintOptions(
@@ -72,11 +72,11 @@ describe('buildNativePrintOptions', () => {
     ).toBeCloseTo(1, 6)
   })
 
-  it('marca as margens como personalizadas', () => {
+  it('marks the margins as custom', () => {
     expect(buildNativePrintOptions(DEFAULT_PAGE_SETUP).margins.marginType).toBe('custom')
   })
 
-  it('leva tamanho, orientação e fundo para o diálogo nativo', () => {
+  it('carries size, orientation and background to the native dialog', () => {
     const options = buildNativePrintOptions(
       withPage({ size: PageSize.Letter, orientation: PageOrientation.Landscape }),
     )
@@ -88,11 +88,11 @@ describe('buildNativePrintOptions', () => {
 })
 
 describe('buildHeaderFooterTemplate', () => {
-  it('substitui {n} pelo número da página', () => {
+  it('replaces {n} with the page number', () => {
     expect(buildHeaderFooterTemplate('Página {n}')).toContain('<span class="pageNumber"></span>')
   })
 
-  it('substitui {total} pelo total de páginas', () => {
+  it('replaces {total} with the total number of pages', () => {
     expect(buildHeaderFooterTemplate('{n} de {total}')).toContain('<span class="totalPages"></span>')
   })
 
@@ -102,27 +102,27 @@ describe('buildHeaderFooterTemplate', () => {
     expect(buildHeaderFooterTemplate('Relatório')).toMatch(/font-size:\s*9pt/)
   })
 
-  it('escapa a marcação digitada pelo usuário', () => {
+  it('escapes markup typed by the user', () => {
     const template = buildHeaderFooterTemplate('<script>alert(1)</script>')
 
     expect(template).not.toContain('<script>')
     expect(template).toContain('&lt;script&gt;')
   })
 
-  it('escapa antes de inserir os marcadores, sem quebrá-los', () => {
+  it('escapes before inserting the placeholders, without breaking them', () => {
     const template = buildHeaderFooterTemplate('a & b — página {n}')
 
     expect(template).toContain('&amp;')
     expect(template).toContain('<span class="pageNumber"></span>')
   })
 
-  it('devolve um elemento vazio quando não há texto', () => {
+  it('returns an empty element when there is no text', () => {
     expect(buildHeaderFooterTemplate('')).toBe('<span></span>')
     expect(buildHeaderFooterTemplate('   ')).toBe('<span></span>')
   })
 })
 
-describe('faixa preservada do documento', () => {
+describe('preserved document band', () => {
   const band = {
     left: [{ kind: 'pageNumber' as const, bold: false, italic: false }],
     center: [
@@ -143,7 +143,7 @@ describe('faixa preservada do documento', () => {
     rows: [],
   }
 
-  it('manda na exibição quando existe, ignorando o texto digitado', () => {
+  it('takes over the display when present, ignoring the typed text', () => {
     // The file's header has a logo and numbering; the text field would represent none of that.
     const options = buildPrintOptions(withPage({ header: 'texto qualquer', headerBand: band }))
 
@@ -151,32 +151,32 @@ describe('faixa preservada do documento', () => {
     expect(options.headerTemplate).not.toContain('texto qualquer')
   })
 
-  it('embute a imagem, porque o template não busca recurso externo', () => {
+  it('embeds the image, because the template does not fetch external resources', () => {
     // A logo by URL would simply not appear in the PDF.
     expect(buildBandTemplate(band)).toContain('src="data:image/png;base64,AAAA"')
   })
 
-  it('mantém os marcadores que o Chromium substitui', () => {
+  it('keeps the placeholders that Chromium replaces', () => {
     expect(buildBandTemplate(band)).toContain('<span class="pageNumber"></span>')
   })
 
-  it('desenha o filete quando o documento tem', () => {
+  it('draws the rule when the document has one', () => {
     expect(buildBandTemplate(band)).toMatch(/border-bottom:\s*1px solid/)
     expect(buildBandTemplate({ ...band, rule: false })).not.toMatch(/border-bottom/)
   })
 
-  it('liga cabeçalho e rodapé mesmo sem texto digitado', () => {
+  it('turns on header and footer even without typed text', () => {
     expect(buildPrintOptions(withPage({ header: '', headerBand: band })).displayHeaderFooter).toBe(true)
   })
 
-  it('ignora faixa vazia e volta para o texto digitado', () => {
+  it('ignores an empty band and falls back to the typed text', () => {
     const empty = { left: [], center: [], right: [], rule: false, floats: [], rows: [] }
     const options = buildPrintOptions(withPage({ header: 'Relatório', headerBand: empty }))
 
     expect(options.headerTemplate).toContain('Relatório')
   })
 
-  it('escapa marcação vinda do documento', () => {
+  it('escapes markup coming from the document', () => {
     const hostile = {
       ...band,
       center: [{ kind: 'text' as const, text: '<script>alert(1)</script>', bold: false, italic: false }],

@@ -169,7 +169,7 @@ public class MathTests
         "<mi>𝔤</mi>")]
     [InlineData("<m:r><m:t>3,14+x</m:t></m:r>",
         "<mn>3,14</mn><mo>+</mo><mi>x</mi>")]
-    public void ConverteCadaConstrucao(string omml, string expected)
+    public void ConvertsEachConstruct(string omml, string expected)
     {
         var mathml = Convert(omml);
         Assert.Contains(expected, mathml);
@@ -179,14 +179,14 @@ public class MathTests
     [Theory]
     [InlineData("""<m:borderBox><m:borderBoxPr><m:hideTop m:val="1"/></m:borderBoxPr><m:e/></m:borderBox>""", "m:borderBox")]
     [InlineData("""<m:r><m:t>x</m:t></m:r><w:sdt/>""", "w:sdt")]
-    public void ConstrucaoQueATelaNaoDesenhaVaiParaALista(string omml, string label)
+    public void ConstructTheScreenDoesNotDrawGoesToTheList(string omml, string label)
     {
         var converted = OmmlMath.Convert($"<m:oMath xmlns:m=\"{Mns}\" xmlns:w=\"{W}\">{omml}</m:oMath>");
         Assert.Equal([label], converted.Lossy);
     }
 
     [Fact]
-    public void TudoOQueSeDesenhaNaoVaiParaALista()
+    public void EverythingThatIsDrawnDoesNotGoToTheList()
     {
         var model = Open(WithMath());
         var drawn = Equations(model).Where(node => !(Attr(node, "omml") ?? "").Contains("borderBox", StringComparison.Ordinal));
@@ -194,7 +194,7 @@ public class MathTests
     }
 
     [Fact]
-    public void LeAEquacaoEmLinhaEADeExibicao()
+    public void ReadsInlineAndDisplayEquations()
     {
         var result = DocxReader.Read(WithMath());
         var equations = Equations(result.Model);
@@ -223,7 +223,7 @@ public class MathTests
     }
 
     [Fact]
-    public void ConstrucaoNaoDesenhadaTravaAEquacaoEAvisaSemSerEstrutural()
+    public void UndrawnConstructLocksTheEquationAndWarnsWithoutBeingStructural()
     {
         var result = DocxReader.Read(WithMath());
         var locked = Equations(result.Model).Single(node => !Flag(node, "editable"));
@@ -233,14 +233,14 @@ public class MathTests
     }
 
     [Fact]
-    public void DocumentoSoComEquacoesDesenhadasNaoAvisaNada()
+    public void DocumentWithOnlyDrawnEquationsWarnsAboutNothing()
     {
         var result = DocxReader.Read(WithMath(Plain + Inline + Display));
         Assert.DoesNotContain(Inventory.Equations, result.Inventory.Invisible);
     }
 
     [Fact]
-    public void AbrirESalvarDevolveCadaEquacaoComoVeio()
+    public void OpenAndSaveReturnsEveryEquationAsItCame()
     {
         var original = WithMath();
         var (bytes, result) = Save(original, Clone(Open(original)));
@@ -251,7 +251,7 @@ public class MathTests
     }
 
     [Fact]
-    public void EditarOTextoAoLadoMantemOOmmlIntacto()
+    public void EditingTheTextNextToItKeepsTheOmmlIntact()
     {
         var original = WithMath();
         var model = Clone(Open(original));
@@ -275,7 +275,7 @@ public class MathTests
     }
 
     [Fact]
-    public void OMathMLDerivadoNaoMudaAImpressaoDigital()
+    public void DerivedMathMlDoesNotChangeTheFingerprint()
     {
         // MathML, LaTeX and the list come from the OMML: a better conversion must not make the
         // paragraph look edited.
@@ -291,7 +291,7 @@ public class MathTests
     }
 
     [Fact]
-    public void EquacaoSemOmmlNemMathMlEDeclaradaComoPerda()
+    public void EquationWithoutOmmlOrMathMlIsDeclaredAsLoss()
     {
         var original = WithMath();
         var model = Clone(Open(original));
@@ -304,7 +304,7 @@ public class MathTests
     }
 
     [Fact]
-    public void RascunhoDeAntesDasEquacoesDeclaraAPerdaAoEditar()
+    public void DraftFromBeforeEquationsDeclaresTheLossOnEdit()
     {
         var original = WithMath();
         // The model from before equations: no `math`.

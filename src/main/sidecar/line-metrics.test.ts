@@ -10,8 +10,8 @@ import {
  * (`BodyReader.LineHeightOf`) and the UI divides (`paragraph-format.ts`). Lives in `src/main`, the
  * only place with `node:fs`.
  */
-describe('contrato da altura natural da linha', () => {
-  it('a tabela é a mesma que o sidecar usa', () => {
+describe('natural line height contract', () => {
+  it('the table is the same one the sidecar uses', () => {
     // The number must be **one**: the reader multiplies in C# and the UI divides here. Two tables
     // that disagree turn "1.5" on screen into something else in the file.
     const source = readFileSync(

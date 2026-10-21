@@ -23,26 +23,26 @@ const SAMPLE = {
   content: '{"format":"sdoc"}',
 }
 
-describe('rascunho de recuperação', () => {
-  it('grava e lê de volta', async () => {
+describe('recovery draft', () => {
+  it('writes and reads back', async () => {
     const savedAt = await writeDraft(SAMPLE)
     const draft = await readDraft()
 
     expect(draft).toEqual({ ...SAMPLE, savedAt })
   })
 
-  it('não há rascunho quando nunca se gravou nenhum', async () => {
+  it('there is no draft when none was ever written', async () => {
     expect(await readDraft()).toBeNull()
   })
 
-  it('guarda um rascunho só', async () => {
+  it('keeps a single draft', async () => {
     await writeDraft(SAMPLE)
     await writeDraft({ ...SAMPLE, name: 'outra.ssheet', kind: DocumentKind.Spreadsheet })
 
     expect((await readDraft())?.name).toBe('outra.ssheet')
   })
 
-  it('não deixa cópia .bak para trás', async () => {
+  it('leaves no .bak copy behind', async () => {
     // The draft is rewritten every eight seconds: keeping the previous version of each would double
     // the writes without protecting anything.
     await writeDraft(SAMPLE)
@@ -51,7 +51,7 @@ describe('rascunho de recuperação', () => {
     expect(await readdir(join(directory, 'recuperacao'))).toEqual(['rascunho.json'])
   })
 
-  it('o resumo não carrega o conteúdo', async () => {
+  it('the summary does not carry the content', async () => {
     // A `.sdoc` with embedded images is tens of megabytes, and the prompt only needs the name and
     // time.
     await writeDraft({ ...SAMPLE, content: 'x'.repeat(100_000) })
@@ -63,14 +63,14 @@ describe('rascunho de recuperação', () => {
     // It exists to save the day after a crash. A read error in it would be a second failure on top
     // of someone who just lost work.
     await mkdir(join(directory, 'recuperacao'), { recursive: true })
-    await writeFile(join(directory, 'recuperacao', 'rascunho.json'), '{ isto não é json')
+    await writeFile(join(directory, 'recuperacao', 'rascunho.json'), '{ this is not json')
 
     expect(await readDraft()).toBeNull()
   })
 
-  it('rascunho de formato desconhecido conta como ausente', async () => {
+  it('a draft in an unknown format counts as missing', async () => {
     await mkdir(join(directory, 'recuperacao'), { recursive: true })
-    await writeFile(join(directory, 'recuperacao', 'rascunho.json'), '{"name":"sem os outros campos"}')
+    await writeFile(join(directory, 'recuperacao', 'rascunho.json'), '{"name":"without the other fields"}')
 
     expect(await readDraft()).toBeNull()
   })
@@ -82,13 +82,13 @@ describe('rascunho de recuperação', () => {
     expect(await readDraft()).toBeNull()
   })
 
-  it('descartar o que não existe não é erro', async () => {
+  it('discarding what does not exist is not an error', async () => {
     await expect(discardDraft()).resolves.toBeUndefined()
   })
 
-  it('trabalho que nunca foi gravado também tem rascunho', async () => {
+  it('work that was never saved also has a draft', async () => {
     // Exactly the case where recovery matters most: there is no file to go back to.
-    await writeDraft({ ...SAMPLE, path: null, name: 'Documento sem título.sdoc' })
+    await writeDraft({ ...SAMPLE, path: null, name: 'Untitled document.sdoc' })
 
     expect((await readDraft())?.path).toBeNull()
   })

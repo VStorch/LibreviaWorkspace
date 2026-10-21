@@ -20,7 +20,7 @@ test.afterEach(async () => {
   await session.close()
 })
 
-test('um link externo só abre no navegador depois de confirmado, mostrando o endereço', async () => {
+test('an external link opens in the browser only after confirmation, showing the address', async () => {
   await answerConfirmation(session, 0)
 
   await session.window.evaluate((url) => window.open(url), ADDRESS)
@@ -29,7 +29,7 @@ test('um link externo só abre no navegador depois de confirmado, mostrando o en
   expect(await askedAbout(session)).toEqual([ADDRESS])
 })
 
-test('recusar a confirmação não abre nada', async () => {
+test('refusing the confirmation opens nothing', async () => {
   await answerConfirmation(session, 1)
 
   await session.window.evaluate((url) => window.open(url), ADDRESS)
@@ -38,7 +38,7 @@ test('recusar a confirmação não abre nada', async () => {
   expect(await openedLinks(session)).toEqual([])
 })
 
-test('um endereço fora da lista permitida nem chega a perguntar', async () => {
+test('an address outside the allowed list does not even ask', async () => {
   await answerConfirmation(session, 0)
 
   await session.window.evaluate(() => window.open('file:///etc/passwd'))

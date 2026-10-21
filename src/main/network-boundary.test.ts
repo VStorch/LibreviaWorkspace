@@ -35,8 +35,8 @@ function sourceFiles(dir: string, out: string[] = []): string[] {
   return out
 }
 
-describe('fronteira de rede', () => {
-  it('só src/main/ai acessa a rede ou abre processos fora das exceções conhecidas', () => {
+describe('network boundary', () => {
+  it('only src/main/ai reaches the network or spawns processes, outside the known exceptions', () => {
     const findings = sourceFiles(SRC).flatMap((path) => {
       const file = relative(process.cwd(), path).split(sep).join('/')
       if (file.startsWith(AI_FOLDER)) return []
@@ -48,7 +48,7 @@ describe('fronteira de rede', () => {
     expect(findings).toEqual([])
   })
 
-  it('as exceções continuam valendo; uma que sumiu sai da lista', () => {
+  it('the exceptions still hold; one that disappeared leaves the list', () => {
     const stale = Object.entries(ALLOWED).flatMap(([file, names]) => {
       const source = readFileSync(join(process.cwd(), file), 'utf8')
       return names

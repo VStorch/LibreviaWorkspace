@@ -56,7 +56,7 @@ public class RevisionsTests
     private static string? AttrOf(Mark? mark, string name) => mark?.Attrs?.GetValueOrDefault(name)?.GetValue<string>();
 
     [Fact]
-    public void LeInsercaoExclusaoEAsDuasJuntas()
+    public void ReadsInsertionDeletionAndBothTogether()
     {
         var result = DocxReader.Read(WithRevisions());
         var model = result.Model;
@@ -85,7 +85,7 @@ public class RevisionsTests
     }
 
     [Fact]
-    public void LeMovimentacaoComoExclusaoEInsercao()
+    public void ReadsMoveAsDeletionAndInsertion()
     {
         var model = Open(WithRevisions());
         var texts = Walk(model.Doc).Where(node => node.Type == "text" && node.Text == "movido").ToList();
@@ -100,7 +100,7 @@ public class RevisionsTests
     }
 
     [Fact]
-    public void LeARevisaoDaMarcaDeParagrafoEDaLinha()
+    public void ReadsTheRevisionOfTheParagraphMarkAndTheRow()
     {
         var model = Open(WithRevisions());
 
@@ -119,7 +119,7 @@ public class RevisionsTests
     }
 
     [Fact]
-    public void SalvarSemMexerNaoReescreveNadaEDevolveOXmlIgual()
+    public void SavingWithoutChangesRewritesNothingAndReturnsTheSameXml()
     {
         var original = WithRevisions();
         var (saved, result) = Save(original, Clone(Open(original)));
@@ -130,7 +130,7 @@ public class RevisionsTests
     }
 
     [Fact]
-    public void EditarOParagrafoRevisadoDevolveInsEDelComOsMesmosIds()
+    public void EditingTheRevisedParagraphReturnsInsAndDelWithTheSameIds()
     {
         var original = WithRevisions();
         var model = Clone(Open(original));
@@ -152,7 +152,7 @@ public class RevisionsTests
     }
 
     [Fact]
-    public void ParagrafoPartidoGanhaIdNovoNaSegundaMetade()
+    public void SplitParagraphGetsNewIdInTheSecondHalf()
     {
         var original = WithRevisions();
         var model = Clone(Open(original));
@@ -170,7 +170,7 @@ public class RevisionsTests
     }
 
     [Fact]
-    public void RevisaoDeFormatacaoNoParagrafoEditadoEPerdaDeclarada()
+    public void FormattingRevisionInEditedParagraphIsDeclaredLoss()
     {
         var original = WithRevisions();
         var model = Clone(Open(original));
@@ -182,7 +182,7 @@ public class RevisionsTests
     }
 
     [Fact]
-    public void MovimentacaoEditadaViraExclusaoEInsercao()
+    public void EditedMoveBecomesDeletionAndInsertion()
     {
         var original = WithRevisions();
         var model = Clone(Open(original));
@@ -198,7 +198,7 @@ public class RevisionsTests
     }
 
     [Fact]
-    public void AceitarTudoSaiDentroDoEsquemaESemRevisao()
+    public void AcceptAllComesOutValidAgainstTheSchemaWithoutRevisions()
     {
         var original = WithRevisions();
         var model = Clone(Open(original));
@@ -248,7 +248,7 @@ public class RevisionsTests
     }
 
     [Fact]
-    public void RascunhoDeAntesDasRevisoesUsaALeituraDeEntao()
+    public void DraftFromBeforeRevisionsUsesTheReadingOfThatTime()
     {
         var original = WithRevisions();
 
@@ -260,7 +260,7 @@ public class RevisionsTests
     }
 
     [Fact]
-    public void RascunhoAntigoEditadoDeclaraAMovimentacaoEAFormatacao()
+    public void EditedOldDraftDeclaresMoveAndFormatting()
     {
         // A draft from before revisions does not carry them: rewriting the paragraph loses them.
         var original = WithRevisions();
@@ -275,7 +275,7 @@ public class RevisionsTests
     }
 
     [Fact]
-    public void CelulaInseridaContinuaTravando()
+    public void InsertedCellStillLocks()
     {
         var inventory = DocxReader.Read(Fixtures.WithInsertedCell()).Inventory;
 
@@ -283,7 +283,7 @@ public class RevisionsTests
     }
 
     [Fact]
-    public void ControlarAlteracoesIdaEVolta()
+    public void TrackChangesRoundTrip()
     {
         var original = WithRevisions();
         Assert.Null(Open(original).TrackChanges);

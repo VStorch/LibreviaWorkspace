@@ -24,7 +24,7 @@ const client = new SidecarClient(() => Promise.resolve(executable))
 afterAll(() => client.dispose())
 
 describe.skipIf(!published)('sidecar .NET publicado', () => {
-  it('responde ao health com as versões das bibliotecas OOXML', async () => {
+  it('answers health with the OOXML library versions', async () => {
     const health = await client.health()
 
     expect(health.name).toBe('Librevia.Format')
@@ -34,7 +34,7 @@ describe.skipIf(!published)('sidecar .NET publicado', () => {
     expect(health.runtime).toMatch(/ClosedXML=0\./)
   })
 
-  it('devolve binário grande byte a byte igual', async () => {
+  it('returns a large binary byte for byte identical', async () => {
     // 4 MB with a known pattern: catches truncation, reordering and any attempt to treat the bytes
     // as text.
     const payload = new Uint8Array(4 * 1024 * 1024).map((_, i) => (i * 31) % 256)
@@ -47,7 +47,7 @@ describe.skipIf(!published)('sidecar .NET publicado', () => {
     expect(Buffer.compare(Buffer.from(reply.binary), Buffer.from(payload))).toBe(0)
   })
 
-  it('preserva bytes que quebrariam um protocolo de linha', async () => {
+  it('keeps bytes that would break a line protocol', async () => {
     // ZIP signature and line endings: that is what a DOCX is made of.
     const payload = new Uint8Array([0x50, 0x4b, 0x03, 0x04, 0x0a, 0x0d, 0x00, 0x1a])
 
@@ -64,7 +64,7 @@ describe.skipIf(!published)('sidecar .NET publicado', () => {
     }
   })
 
-  it('cria o pacote mínimo de um documento novo', async () => {
+  it('creates the minimal package of a new document', async () => {
     // The page setup goes in the JSON, and the package comes back in the binary, ready to open.
     const page = { size: 'Letter', orientation: 'landscape', margins: { top: 20, right: 20, bottom: 20, left: 20 } }
 
@@ -80,7 +80,7 @@ describe.skipIf(!published)('sidecar .NET publicado', () => {
     expect(saved.result).toMatchObject({ rewrittenBlocks: 1 })
   })
 
-  it('o pacote novo grava os estilos que o documento carrega', async () => {
+  it('the new package writes the styles the document carries', async () => {
     const page = { size: 'A4', orientation: 'portrait', margins: { top: 25, right: 25, bottom: 25, left: 25 } }
 
     for (const styles of [BUILTIN_STYLES, LEGACY_STYLES]) {
@@ -105,7 +105,7 @@ describe.skipIf(!published)('sidecar .NET publicado', () => {
     }
   })
 
-  it('recusa método desconhecido com erro, sem morrer', async () => {
+  it('refuses an unknown method with an error, without dying', async () => {
     const unknown = client.request('metodo.inexistente' as SidecarMethod, {})
     await expect(unknown).rejects.toThrow(/não conhece/i)
 
@@ -113,7 +113,7 @@ describe.skipIf(!published)('sidecar .NET publicado', () => {
     await expect(client.health()).resolves.toMatchObject({ name: 'Librevia.Format' })
   })
 
-  it('não escreve nada fora do protocolo no stdout', async () => {
+  it('writes nothing outside the protocol to stdout', async () => {
     // A stray Console.WriteLine would corrupt the stream. Program.cs redirects Console.Out to
     // stderr for that reason; this test is the lock.
     const health = await client.health()
@@ -124,8 +124,8 @@ describe.skipIf(!published)('sidecar .NET publicado', () => {
   })
 })
 
-describe.skipIf(published)('sidecar não publicado', () => {
-  it('falha explicando que falta publicar', async () => {
+describe.skipIf(published)('unpublished sidecar', () => {
+  it('fails explaining that publishing is missing', async () => {
     const missing = new SidecarClient(() => Promise.resolve(executable))
     try {
       await missing.health()

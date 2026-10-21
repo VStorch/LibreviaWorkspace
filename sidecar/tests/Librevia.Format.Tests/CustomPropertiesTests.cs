@@ -44,7 +44,7 @@ public class CustomPropertiesTests
     private static List<CustomPropertyDto> Shown(byte[] docx) => Open(docx).Properties?.Custom ?? [];
 
     [Fact]
-    public void LeCadaTipoEDeixaDeForaOQueOEditorNaoMostra()
+    public void ReadsEachTypeAndLeavesOutWhatTheEditorDoesNotShow()
     {
         Assert.Equal(
             [
@@ -58,7 +58,7 @@ public class CustomPropertiesTests
     }
 
     [Fact]
-    public void AMesmaListaEmOutraOrdemNaoReescreveAParte()
+    public void SameListInAnotherOrderDoesNotRewriteThePart()
     {
         var original = WithCustom();
         var reversed = Shown(original).AsEnumerable().Reverse().ToList();
@@ -69,7 +69,7 @@ public class CustomPropertiesTests
     }
 
     [Fact]
-    public void AlterarUmValorTrocaSoEleEGuardaOVetor()
+    public void ChangingOneValueReplacesOnlyItAndKeepsTheVector()
     {
         var original = WithCustom();
         var custom = Shown(original).Select(property =>
@@ -83,7 +83,7 @@ public class CustomPropertiesTests
     }
 
     [Fact]
-    public void ApagarETrocarOTipoMantemOsPids()
+    public void DeletingAndChangingTheTypeKeepsThePids()
     {
         var original = WithCustom();
         var custom = Shown(original)
@@ -103,7 +103,7 @@ public class CustomPropertiesTests
     }
 
     [Fact]
-    public void ListaVaziaSemNadaDesconhecidoTiraAParte()
+    public void EmptyListWithNothingUnknownRemovesThePart()
     {
         using var buffer = new MemoryStream();
         buffer.Write(Fixtures.Simple());
@@ -121,7 +121,7 @@ public class CustomPropertiesTests
     }
 
     [Fact]
-    public void DocumentoSemAParteGanhaUmaComONumeroEAData()
+    public void DocumentWithoutThePartGetsOneWithTheNumberAndDate()
     {
         var saved = SaveCustom(Fixtures.Simple(),
         [
@@ -139,7 +139,7 @@ public class CustomPropertiesTests
     }
 
     [Fact]
-    public void NaPlanilhaAsPersonalizadasVaoEVoltam()
+    public void InTheSpreadsheetCustomOnesRoundTrip()
     {
         using var book = new XLWorkbook();
         book.Worksheets.Add("Plan1").Cell("A1").Value = 1;

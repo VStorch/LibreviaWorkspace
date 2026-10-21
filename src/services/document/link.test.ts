@@ -2,20 +2,20 @@ import { describe, expect, it } from 'vitest'
 import { normalizeLinkUrl } from './link.js'
 
 describe('normalizeLinkUrl', () => {
-  it('completa o esquema quando o usuário digita só o domínio', () => {
+  it('completes the scheme when the user types only the domain', () => {
     expect(normalizeLinkUrl('empresa.com.br')).toBe('https://empresa.com.br/')
   })
 
-  it('preserva um endereço completo', () => {
+  it('preserves a complete address', () => {
     expect(normalizeLinkUrl('https://intranet.local/setor/doc')).toBe('https://intranet.local/setor/doc')
   })
 
-  it('aceita http e mailto', () => {
+  it('accepts http and mailto', () => {
     expect(normalizeLinkUrl('http://intranet.local')).toBe('http://intranet.local/')
     expect(normalizeLinkUrl('mailto:setor@empresa.com.br')).toBe('mailto:setor@empresa.com.br')
   })
 
-  it('ignora espaços em volta', () => {
+  it('ignores surrounding spaces', () => {
     expect(normalizeLinkUrl('  https://exemplo.com  ')).toBe('https://exemplo.com/')
   })
 
@@ -29,7 +29,7 @@ describe('normalizeLinkUrl', () => {
     expect(normalizeLinkUrl(url)).toBeNull()
   })
 
-  it('recusa endereço vazio ou sem host', () => {
+  it('rejects an empty address or one without a host', () => {
     expect(normalizeLinkUrl('')).toBeNull()
     expect(normalizeLinkUrl('   ')).toBeNull()
     expect(normalizeLinkUrl('https://')).toBeNull()

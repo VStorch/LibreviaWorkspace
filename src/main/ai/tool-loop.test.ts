@@ -26,8 +26,8 @@ function scripted(rounds: AiStreamPart[][], seen: AiPrompt[] = []): AiProvider {
   }
 }
 
-describe('laço de ferramentas', () => {
-  it('roda as ferramentas, devolve os resultados na rodada seguinte e junta as propostas', async () => {
+describe('tool loop', () => {
+  it('runs the tools, returns the results in the next round and collects the proposals', async () => {
     const seen: AiPrompt[] = []
     const provider = scripted(
       [
@@ -77,7 +77,7 @@ describe('laço de ferramentas', () => {
     ])
   })
 
-  it('erro de ferramenta volta ao modelo, que pode tentar de novo', async () => {
+  it('a tool error goes back to the model, which can try again', async () => {
     const seen: AiPrompt[] = []
     const provider = scripted(
       [
@@ -97,7 +97,7 @@ describe('laço de ferramentas', () => {
     expect(result.proposals).toHaveLength(1)
   })
 
-  it(`para depois de ${MAX_AI_TOOL_ROUNDS} rodadas com o que tiver`, async () => {
+  it(`stops after ${MAX_AI_TOOL_ROUNDS} rounds with what it has`, async () => {
     const seen: AiPrompt[] = []
     const always = Array.from({ length: 20 }, (_, round) => [
       toolCall(`c${round}`, 'add_comment', { paragraph: 1, find: 'gato', comment: `n${round}` }),
@@ -113,7 +113,7 @@ describe('laço de ferramentas', () => {
     expect(result.proposals).toHaveLength(MAX_AI_TOOL_ROUNDS)
   })
 
-  it('cancelar no meio interrompe sem pedir outra rodada', async () => {
+  it('cancelling midway stops without asking for another round', async () => {
     const controller = new AbortController()
     let rounds = 0
     const provider: AiProvider = {
@@ -131,7 +131,7 @@ describe('laço de ferramentas', () => {
     expect(rounds).toBe(1)
   })
 
-  it('soma o custo de todas as rodadas', async () => {
+  it('sums the cost of all rounds', async () => {
     const provider = scripted([
       [toolCall('a', 'search_document', { query: 'gato' }), { costUsd: 0.25 }],
       [{ text: 'Pronto.' }, { costUsd: 0.5 }],
@@ -146,7 +146,7 @@ describe('laço de ferramentas', () => {
     expect(result.costUsd).toBe(0.75)
   })
 
-  it(`responde com erro às chamadas além de ${MAX_AI_TOOL_CALLS} numa rodada`, async () => {
+  it(`answers with an error to calls beyond ${MAX_AI_TOOL_CALLS} in a round`, async () => {
     const seen: AiPrompt[] = []
     const many = Array.from({ length: MAX_AI_TOOL_CALLS + 2 }, (_, index) =>
       toolCall(`c${index}`, 'search_document', { query: 'gato' }),
@@ -164,7 +164,7 @@ describe('laço de ferramentas', () => {
     expect(results[MAX_AI_TOOL_CALLS]?.callId).toBe(`c${MAX_AI_TOOL_CALLS}`)
   })
 
-  it('acabado o orçamento de leitura, a ferramenta avisa em vez de ler', async () => {
+  it('once the read budget is spent, the tool warns instead of reading', async () => {
     const seen: AiPrompt[] = []
     const provider = scripted(
       [

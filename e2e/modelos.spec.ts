@@ -15,114 +15,118 @@ import { hasSoffice } from './external-tools.js'
  * A document created from a template is new and untitled: "save" asks for the destination, the
  * `.docx` goes out with the document label, and the template stays as it was.
  */
-test.describe('modelos', () => {
+test.describe('templates', () => {
   let session: Session
-  let pasta: string
+  let directory: string
 
   test.beforeEach(async () => {
-    pasta = await mkdtemp(join(tmpdir(), 'librevia-modelos-'))
+    directory = await mkdtemp(join(tmpdir(), 'librevia-templates-'))
     session = await launch()
   })
 
   test.afterEach(async () => {
     await session.close()
-    await rm(pasta, { recursive: true, force: true })
+    await rm(directory, { recursive: true, force: true })
   })
 
-  const texto = (s: Session) => s.window.locator('.pages__column .ProseMirror')
-  const DOCUMENTO = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml'
-  const MODELO = 'application/vnd.openxmlformats-officedocument.wordprocessingml.template.main+xml'
+  const text = (s: Session) => s.window.locator('.pages__column .ProseMirror')
+  const DOCUMENT = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml'
+  const TEMPLATE = 'application/vnd.openxmlformats-officedocument.wordprocessingml.template.main+xml'
 
-  test('criar a partir do modelo embutido, digitar e salvar pergunta o destino', async () => {
-    const modelo = resolve('resources/templates/relatorio.dotx')
-    const antes = await hash(modelo)
-    const destino = join(pasta, 'relatorio-final.docx')
-    await stubDialogs(session.app, { save: destino, messageBox: 1 })
+  test('creating from the built-in template, typing and saving asks for the destination', async () => {
+    const template = resolve('resources/templates/relatorio.dotx')
+    const before = await hash(template)
+    const destinationFile = join(directory, 'relatorio-final.docx')
+    await stubDialogs(session.app, { save: destinationFile, messageBox: 1 })
 
     await menu(session, 'new-from-template')
-    const galeria = session.window.getByRole('dialog', { name: 'Novo a partir de modelo' })
-    await galeria.getByRole('option', { name: /Relatório com capa e sumário/ }).click()
-    await galeria.getByRole('button', { name: 'Criar' }).click()
-    await expect(galeria).toHaveCount(0)
+    const gallery = session.window.getByRole('dialog', { name: 'Novo a partir de modelo' })
+    await gallery.getByRole('option', { name: /Relatório com capa e sumário/ }).click()
+    await gallery.getByRole('button', { name: 'Criar' }).click()
+    await expect(gallery).toHaveCount(0)
 
     // The template's styles and footer arrived: headings are `h1`, and the band carries the page
     // number.
-    await expect(texto(session)).toContainText('[Título do relatório]')
-    await expect(texto(session).locator('h1').first()).toHaveText('1 Introdução')
+    await expect(text(session)).toContainText('[Título do relatório]')
+    await expect(text(session).locator('h1').first()).toHaveText('1 Introdução')
     await expect(session.window.locator('.band--footer').last()).toContainText('Página')
 
-    await texto(session).locator('h1').last().click()
+    await text(session).locator('h1').last().click()
     await session.window.keyboard.press('End')
     await session.window.keyboard.type(' final')
 
     await menu(session, 'save')
     await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
-    await expect.poll(() => existe(destino)).toBe(true)
+    await expect.poll(() => exists(destinationFile)).toBe(true)
 
-    expect(await hash(modelo)).toBe(antes)
-    const tipos = await entryOf(destino, '[Content_Types].xml')
-    expect(tipos).toContain(DOCUMENTO)
-    expect(tipos).not.toContain(MODELO)
-    expect(await entryOf(destino, 'word/document.xml')).toContain('3 Conclusão final')
+    expect(await hash(template)).toBe(before)
+    const types = await entryOf(destinationFile, '[Content_Types].xml')
+    expect(types).toContain(DOCUMENT)
+    expect(types).not.toContain(TEMPLATE)
+    expect(await entryOf(destinationFile, 'word/document.xml')).toContain('3 Conclusão final')
 
     // LibreOffice opens the result.
     if (await hasSoffice()) {
-      const copia = join(pasta, 'lo.docx')
-      await copyFile(destino, copia)
-      await promisify(execFile)('soffice', ['--headless', '--convert-to', 'pdf', '--outdir', pasta, copia], {
-        timeout: 120_000,
-      })
-      expect(await existe(join(pasta, 'lo.pdf'))).toBe(true)
+      const copy = join(directory, 'lo.docx')
+      await copyFile(destinationFile, copy)
+      await promisify(execFile)(
+        'soffice',
+        ['--headless', '--convert-to', 'pdf', '--outdir', directory, copy],
+        {
+          timeout: 120_000,
+        },
+      )
+      expect(await exists(join(directory, 'lo.pdf'))).toBe(true)
     }
 
     // And so does the app itself, now as a regular document.
-    await stubDialogs(session.app, { open: destino })
+    await stubDialogs(session.app, { open: destinationFile })
     await menu(session, 'open')
-    await expect(texto(session)).toContainText('3 Conclusão final')
-    await expect(texto(session).locator('h1').first()).toHaveText('1 Introdução')
+    await expect(text(session)).toContainText('3 Conclusão final')
+    await expect(text(session).locator('h1').first()).toHaveText('1 Introdução')
   })
 
-  test('salvar como modelo e reabri-lo cria um documento novo', async () => {
-    const modelo = join(pasta, 'meu.dotx')
-    await stubDialogs(session.app, { save: modelo, messageBox: 1 })
+  test('saving as template and reopening it creates a new document', async () => {
+    const template = join(directory, 'meu.dotx')
+    await stubDialogs(session.app, { save: template, messageBox: 1 })
 
     await menu(session, 'new-document')
-    await texto(session).click()
+    await text(session).click()
     await session.window.keyboard.type('Modelo próprio')
     await menu(session, 'save-as')
     await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
 
-    const tipos = await entryOf(modelo, '[Content_Types].xml')
-    expect(tipos).toContain(MODELO)
-    expect(tipos).not.toContain(DOCUMENTO)
-    const antes = await hash(modelo)
+    const types = await entryOf(template, '[Content_Types].xml')
+    expect(types).toContain(TEMPLATE)
+    expect(types).not.toContain(DOCUMENT)
+    const before = await hash(template)
 
     // Reopened, the template becomes a new document: "save" asks for the destination.
-    const derivado = join(pasta, 'derivado.docx')
-    await stubDialogs(session.app, { open: modelo, save: derivado })
+    const derived = join(directory, 'derivado.docx')
+    await stubDialogs(session.app, { open: template, save: derived })
     await menu(session, 'open')
-    await expect(texto(session)).toContainText('Modelo próprio')
-    await texto(session).click()
+    await expect(text(session)).toContainText('Modelo próprio')
+    await text(session).click()
     await session.window.keyboard.press('End')
     await session.window.keyboard.type(' — cópia')
     await menu(session, 'save')
     await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
 
-    expect(await hash(modelo)).toBe(antes)
-    expect(await entryOf(derivado, '[Content_Types].xml')).toContain(DOCUMENTO)
-    expect(await entryOf(derivado, 'word/document.xml')).toContain('Modelo próprio — cópia')
+    expect(await hash(template)).toBe(before)
+    expect(await entryOf(derived, '[Content_Types].xml')).toContain(DOCUMENT)
+    expect(await entryOf(derived, 'word/document.xml')).toContain('Modelo próprio — cópia')
   })
 
-  test('a galeria mostra os modelos da pasta do usuário', async () => {
-    const pastaModelos = join(session.userData, 'Modelos')
-    await mkdir(pastaModelos, { recursive: true })
-    await copyFile(resolve('resources/templates/carta.dotx'), join(pastaModelos, 'Proposta.dotx'))
+  test('the gallery shows the templates in the user folder', async () => {
+    const templatesDirectory = join(session.userData, 'Modelos')
+    await mkdir(templatesDirectory, { recursive: true })
+    await copyFile(resolve('resources/templates/carta.dotx'), join(templatesDirectory, 'Proposta.dotx'))
 
     await menu(session, 'new-from-template')
-    const galeria = session.window.getByRole('dialog', { name: 'Novo a partir de modelo' })
-    await galeria.getByRole('option', { name: /Proposta/ }).dblclick()
-    await expect(galeria).toHaveCount(0)
-    await expect(texto(session)).toContainText('[Seu nome]')
+    const gallery = session.window.getByRole('dialog', { name: 'Novo a partir de modelo' })
+    await gallery.getByRole('option', { name: /Proposta/ }).dblclick()
+    await expect(gallery).toHaveCount(0)
+    await expect(text(session)).toContainText('[Seu nome]')
   })
 })
 
@@ -132,7 +136,7 @@ async function hash(path: string): Promise<string> {
     .digest('hex')
 }
 
-async function existe(path: string): Promise<boolean> {
+async function exists(path: string): Promise<boolean> {
   try {
     return (await stat(path)).isFile()
   } catch {

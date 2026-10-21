@@ -11,22 +11,22 @@ function filled(): Sheet {
 }
 
 describe('rangeAsText', () => {
-  it('copia o que a célula mostra, com tabulação entre colunas e uma linha por linha', () => {
+  it('copies what the cell shows, with a tab between columns and one line per row', () => {
     expect(rangeAsText(filled(), { fromRow: 0, fromColumn: 0, toRow: 0, toColumn: 2 })).toBe('a\t\t2')
   })
 
-  it('põe entre aspas a célula com quebra de linha ou aspas, como o Excel', () => {
+  it('quotes a cell with a line break or quotes, as Excel does', () => {
     const range = { fromRow: 1, fromColumn: 0, toRow: 1, toColumn: 1 }
     expect(rangeAsText(filled(), range)).toBe('\t"linha\ncom ""aspas"""')
   })
 
-  it('aceita o intervalo de trás para a frente', () => {
+  it('accepts a backwards range', () => {
     expect(rangeAsText(filled(), { fromRow: 0, fromColumn: 2, toRow: 0, toColumn: 0 })).toBe('a\t\t2')
   })
 })
 
 describe('parseClipboardText', () => {
-  it('separa linhas e colunas e ignora a quebra de linha final', () => {
+  it('splits rows and columns and ignores the trailing line break', () => {
     expect(parseClipboardText('a\tb\nc\td\n')).toEqual([
       ['a', 'b'],
       ['c', 'd'],
@@ -34,11 +34,11 @@ describe('parseClipboardText', () => {
     expect(parseClipboardText('a\r\nb')).toEqual([['a'], ['b']])
   })
 
-  it('mantém células vazias e lê as aspas de volta', () => {
+  it('keeps empty cells and reads the quotes back', () => {
     expect(parseClipboardText('\t"linha\ncom ""aspas"""\t')).toEqual([['', 'linha\ncom "aspas"', '']])
   })
 
-  it('é o inverso de rangeAsText', () => {
+  it('is the inverse of rangeAsText', () => {
     const range = { fromRow: 0, fromColumn: 0, toRow: 1, toColumn: 2 }
     const text = rangeAsText(filled(), range)
     expect(parseClipboardText(text)).toEqual([
@@ -49,7 +49,7 @@ describe('parseClipboardText', () => {
 })
 
 describe('pasteText', () => {
-  it('escreve a partir da célula, como se digitasse, e descarta o que passa da planilha', () => {
+  it('writes from the cell as if typed, and discards what goes past the sheet', () => {
     const sheet = createSheet('S')
     const corner = sheet.columnCount - 1
     const pasted = pasteText(sheet, 0, corner - 1, [

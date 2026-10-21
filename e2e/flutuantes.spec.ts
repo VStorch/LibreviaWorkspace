@@ -11,19 +11,19 @@ import { launch, menu, stubDialogs, type Session } from './app.js'
  * behind the text. The corpus is not in the repository: without `LIBREVIA_CORPUS_DOC`, the tests
  * are skipped.
  */
-const MODELO = process.env['LIBREVIA_CORPUS_DOC'] ?? ''
+const TEMPLATE = process.env['LIBREVIA_CORPUS_DOC'] ?? ''
 
-test.describe('objetos ancorados', () => {
+test.describe('anchored objects', () => {
   let session: Session
 
   test.skip(
-    MODELO === '' || !existsSync(MODELO),
+    TEMPLATE === '' || !existsSync(TEMPLATE),
     'requer LIBREVIA_CORPUS_DOC apontando para o documento do corpus',
   )
 
   test.beforeEach(async () => {
     session = await launch()
-    await stubDialogs(session.app, { open: MODELO, messageBox: 1 })
+    await stubDialogs(session.app, { open: TEMPLATE, messageBox: 1 })
     await menu(session, 'open')
     await expect(session.window.locator('.ProseMirror')).toBeVisible()
     // The position depends on the sheet the anchor paragraph fell on, and only exists after
@@ -35,48 +35,48 @@ test.describe('objetos ancorados', () => {
     await session.close()
   })
 
-  test('o texto das caixas aparece na posição delas, e não emendado na linha', async () => {
-    const caixas = session.window.locator('.paper-float--text')
-    await expect(caixas.filter({ hasText: 'Título' })).toHaveCount(1)
-    await expect(caixas.filter({ hasText: 'Subtitulo' })).toHaveCount(1)
+  test('the text of the boxes appears at their position, not joined into the line', async () => {
+    const boxes = session.window.locator('.paper-float--text')
+    await expect(boxes.filter({ hasText: 'Título' })).toHaveCount(1)
+    await expect(boxes.filter({ hasText: 'Subtitulo' })).toHaveCount(1)
   })
 
-  test('a marca girada fica na lateral, à esquerda da coluna de texto', async () => {
-    const caixa = await session.window.evaluate(() => {
+  test('the rotated mark stays at the side, left of the text column', async () => {
+    const boxRect = await session.window.evaluate(() => {
       const paper = document.querySelector('.paper') as HTMLElement
-      const marca = document.querySelector('.paper-floats--behind img') as HTMLElement | null
-      if (marca === null) return null
+      const mark = document.querySelector('.paper-floats--behind img') as HTMLElement | null
+      if (mark === null) return null
 
-      const folha = paper.getBoundingClientRect()
-      const box = marca.getBoundingClientRect()
-      return { esquerda: box.left - folha.left, largura: box.width, larguraFolha: folha.width }
+      const sheet = paper.getBoundingClientRect()
+      const box = mark.getBoundingClientRect()
+      return { left: box.left - sheet.left, width: box.width, sheetWidth: sheet.width }
     })
 
-    expect(caixa).not.toBeNull()
+    expect(boxRect).not.toBeNull()
     // Rotated, the mark is a narrow band on the left, before the text column.
-    expect(caixa!.largura).toBeLessThan(caixa!.larguraFolha / 2)
-    expect(caixa!.esquerda).toBeLessThan(caixa!.larguraFolha / 4)
+    expect(boxRect!.width).toBeLessThan(boxRect!.sheetWidth / 2)
+    expect(boxRect!.left).toBeLessThan(boxRect!.sheetWidth / 4)
   })
 
-  test('o objeto de trás fica atrás do texto', async () => {
+  test('the object behind stays behind the text', async () => {
     // `behindDoc` is cover decoration and watermark: on top, it would cover the text.
-    const ordem = await session.window.evaluate(() => {
-      const atras = document.querySelector('.paper-floats--behind') as HTMLElement | null
-      const coluna = document.querySelector('.pages__column') as HTMLElement | null
-      if (atras === null || coluna === null) return null
+    const order = await session.window.evaluate(() => {
+      const behind = document.querySelector('.paper-floats--behind') as HTMLElement | null
+      const column = document.querySelector('.pages__column') as HTMLElement | null
+      if (behind === null || column === null) return null
       return {
-        atras: Number(getComputedStyle(atras).zIndex),
-        texto: Number(getComputedStyle(coluna).zIndex),
+        behind: Number(getComputedStyle(behind).zIndex),
+        text: Number(getComputedStyle(column).zIndex),
       }
     })
 
-    expect(ordem).not.toBeNull()
-    expect(ordem!.atras).toBeLessThan(ordem!.texto)
+    expect(order).not.toBeNull()
+    expect(order!.behind).toBeLessThan(order!.text)
   })
 
-  test('as marcas do cabeçalho e do rodapé giram como no arquivo', async () => {
+  test('the header and footer marks rotate as in the file', async () => {
     // Drawings anchored in the band, rotated a quarter turn: 28.6 mm standing in a 10 mm band.
-    const giradas = await session.window.evaluate(
+    const rotated = await session.window.evaluate(
       () =>
         Array.from(document.querySelectorAll('.paper-float'))
           .map((node) => getComputedStyle(node as HTMLElement).transform)
@@ -84,29 +84,29 @@ test.describe('objetos ancorados', () => {
     )
 
     // The body's mark, the header's and the footer's, on every sheet.
-    expect(giradas).toBeGreaterThanOrEqual(3)
+    expect(rotated).toBeGreaterThanOrEqual(3)
   })
 
-  test('as marcas da faixa repetem em toda folha', async () => {
+  test('the band marks repeat on every sheet', async () => {
     // The band repeats, and so does what is anchored in it: it belongs to the page.
-    const porFolha = await session.window.evaluate(() =>
+    const perSheet = await session.window.evaluate(() =>
       Array.from(document.querySelectorAll('.paper-bands')).map(
-        (banda) => banda.querySelectorAll('.paper-float').length,
+        (band) => band.querySelectorAll('.paper-float').length,
       ),
     )
 
-    expect(porFolha.length).toBeGreaterThan(1)
-    expect(Math.min(...porFolha)).toBeGreaterThanOrEqual(3)
+    expect(perSheet.length).toBeGreaterThan(1)
+    expect(Math.min(...perSheet)).toBeGreaterThanOrEqual(3)
   })
 
-  test('os objetos não ocupam lugar no fluxo do texto', async () => {
+  test('the objects take no place in the text flow', async () => {
     // The paragraph anchoring the 286 mm mark keeps its line height.
-    const alturas = await session.window.evaluate(() =>
+    const heights = await session.window.evaluate(() =>
       Array.from(document.querySelectorAll('.page__content > *')).map(
         (node) => (node as HTMLElement).offsetHeight,
       ),
     )
 
-    expect(Math.max(...alturas)).toBeLessThan(200)
+    expect(Math.max(...heights)).toBeLessThan(200)
   })
 })

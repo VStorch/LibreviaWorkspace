@@ -11,7 +11,7 @@ import { launch, menu, type Session } from './app.js'
  * clean Linux, and the substitutes ship in the installer (`src/main/fonts.ts`). Loaded by URL, not
  * by name, because `local()` would hide the bundled file on the developer's machine.
  */
-test.describe('fontes empacotadas', () => {
+test.describe('bundled fonts', () => {
   let session: Session
 
   test.beforeEach(async () => {
@@ -24,34 +24,34 @@ test.describe('fontes empacotadas', () => {
     await session.close()
   })
 
-  test('o esquema serve a fonte que o instalador leva', async () => {
-    const resultado = await session.window.evaluate(async () => {
+  test('the scheme serves the font the installer ships', async () => {
+    const result = await session.window.evaluate(async () => {
       const face = new FontFace(
         'ProvaDeCarregamento',
         "url('librevia-font://fonts/Carlito-Regular.ttf') format('truetype')",
       )
-      const carregada = await face.load()
-      return carregada.status
+      const loaded = await face.load()
+      return loaded.status
     })
 
-    expect(resultado).toBe('loaded')
+    expect(result).toBe('loaded')
   })
 
-  test('as cinco famílias ficam disponíveis pelo nome do documento', async () => {
+  test("the five families are available by the document's name", async () => {
     // `check` only reports faces already loaded, and a family no text uses yet is not.
-    const disponiveis = await session.window.evaluate(async () => {
-      const familias = ['Calibri', 'Cambria', 'Arial', 'Times New Roman', 'Courier New']
-      await Promise.all(familias.map((familia) => document.fonts.load(`12pt '${familia}'`)))
-      return familias.filter((familia) => document.fonts.check(`12pt '${familia}'`))
+    const available = await session.window.evaluate(async () => {
+      const families = ['Calibri', 'Cambria', 'Arial', 'Times New Roman', 'Courier New']
+      await Promise.all(families.map((family) => document.fonts.load(`12pt '${family}'`)))
+      return families.filter((family) => document.fonts.check(`12pt '${family}'`))
     })
 
-    expect(disponiveis).toEqual(['Calibri', 'Cambria', 'Arial', 'Times New Roman', 'Courier New'])
+    expect(available).toEqual(['Calibri', 'Cambria', 'Arial', 'Times New Roman', 'Courier New'])
   })
 
-  test('o esquema não serve arquivo de fora da pasta de fontes', async () => {
+  test('the scheme does not serve files from outside the fonts folder', async () => {
     // The request comes from CSS, and CSS may come from a document anyone wrote. A normalized `../`
     // is the classic way out of a folder believed closed.
-    const vazou = await session.window.evaluate(async () => {
+    const leaked = await session.window.evaluate(async () => {
       try {
         const face = new FontFace(
           'Travessia',
@@ -64,6 +64,6 @@ test.describe('fontes empacotadas', () => {
       }
     })
 
-    expect(vazou).toBe(false)
+    expect(leaked).toBe(false)
   })
 })

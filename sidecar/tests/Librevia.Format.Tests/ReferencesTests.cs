@@ -28,7 +28,7 @@ public class ReferencesTests
     }
 
     [Fact]
-    public void AbrirEGravarSemEditarDevolveCadaElementoDoCorpoComoEstava()
+    public void OpenAndWriteWithoutEditingReturnsEveryBodyElementAsItWas()
     {
         var original = Fixtures.WithReferences();
         var (saved, result) = Roundtrip.Save(original, Roundtrip.Clone(Roundtrip.Open(original)));
@@ -46,7 +46,7 @@ public class ReferencesTests
     }
 
     [Fact]
-    public void OsMarcadoresViramNosComNomeEId()
+    public void MarkersBecomeNodesWithNameAndId()
     {
         var model = Roundtrip.Open(Fixtures.WithReferences());
 
@@ -63,7 +63,7 @@ public class ReferencesTests
     }
 
     [Fact]
-    public void OLinkInternoViraEnderecoComCerquilha()
+    public void InternalLinkBecomesAddressWithHash()
     {
         var model = Roundtrip.Open(Fixtures.WithReferences());
 
@@ -76,7 +76,7 @@ public class ReferencesTests
     }
 
     [Fact]
-    public void ParagrafoEditadoGravaOMarcadorEOLinkInternoDoModelo()
+    public void EditedParagraphWritesTheMarkerAndTheInternalLinkOfTheModel()
     {
         var original = Fixtures.WithReferences();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
@@ -103,7 +103,7 @@ public class ReferencesTests
     }
 
     [Fact]
-    public void MarcadorApagadoDoParagrafoNaoVolta()
+    public void DeletedParagraphMarkerDoesNotComeBack()
     {
         // A bookmark deleted by the dialog does not come back from the original.
         var original = Fixtures.WithReferences();
@@ -118,7 +118,7 @@ public class ReferencesTests
     }
 
     [Fact]
-    public void ParagrafoColadoNaoDuplicaMarcadorDoModelo()
+    public void PastedParagraphDoesNotDuplicateTheModelMarker()
     {
         var original = Fixtures.WithReferences();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
@@ -133,7 +133,7 @@ public class ReferencesTests
     }
 
     [Fact]
-    public void RascunhoDeAntesDasReferenciasContinuaReconhecido()
+    public void DraftFromBeforeReferencesIsStillRecognized()
     {
         // A draft from before `.sdoc` 5 has no bookmarks or internal links in the nodes.
         var original = Fixtures.WithReferences();
@@ -148,7 +148,7 @@ public class ReferencesTests
     }
 
     [Fact]
-    public void MarcadorEntreLinhasDeTabelaEditadaContinuaNoLugar()
+    public void MarkerBetweenRowsOfEditedTableStaysInPlace()
     {
         // Word puts the ends of a bookmark embracing rows in `w:tbl` and `w:tr`.
         const string cell = "<w:tc><w:tcPr><w:tcW w:w=\"4500\" w:type=\"dxa\"/></w:tcPr><w:p><w:r><w:t>{0}</w:t></w:r></w:p></w:tc>";
@@ -175,7 +175,7 @@ public class ReferencesTests
     private static string Instruction(Node field) => AttrOf(field, "instr")!.Trim();
 
     [Fact]
-    public void CamposViramNosComInstrucaoEResultado()
+    public void FieldsBecomeNodesWithInstructionAndResult()
     {
         var opened = DocxReader.Read(Fixtures.WithReferences());
         var fields = NodesOf(opened.Model, "field");
@@ -189,7 +189,7 @@ public class ReferencesTests
     }
 
     [Fact]
-    public void OSumarioViraUmBlocoComAsEntradasDentro()
+    public void TableOfContentsBecomesABlockWithTheEntriesInside()
     {
         var model = Roundtrip.Open(Fixtures.WithReferences());
         var toc = Assert.Single(NodesOf(model, "tableOfContents"));
@@ -209,7 +209,7 @@ public class ReferencesTests
     }
 
     [Fact]
-    public void SumarioEditadoVoltaComoCampoDentroDoControleDeConteudo()
+    public void EditedTableOfContentsComesBackAsFieldInsideTheContentControl()
     {
         var original = Fixtures.WithReferences();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
@@ -231,7 +231,7 @@ public class ReferencesTests
     }
 
     [Fact]
-    public void ParagrafoComCampoEditadoMantemOCampo()
+    public void ParagraphWithEditedFieldKeepsTheField()
     {
         var original = Fixtures.WithReferences();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
@@ -248,7 +248,7 @@ public class ReferencesTests
     }
 
     [Fact]
-    public void SumarioSemControleDeConteudoEhUmBlocoDeVariosParagrafos()
+    public void TableOfContentsWithoutContentControlIsABlockOfSeveralParagraphs()
     {
         var body = Fixtures.ReferencesBody;
         var inner = body[(body.IndexOf("<w:sdtContent>", StringComparison.Ordinal) + "<w:sdtContent>".Length)..body.IndexOf("</w:sdtContent>", StringComparison.Ordinal)];
@@ -274,7 +274,7 @@ public class ReferencesTests
     }
 
     [Fact]
-    public void SumarioNovoGanhaControleDeConteudoEParadaDeTabulacao()
+    public void NewTableOfContentsGetsContentControlAndTabStop()
     {
         // What the editor sends when inserting a table of contents: the node without `oid`, with
         // its entries.
@@ -302,7 +302,7 @@ public class ReferencesTests
     }
 
     [Fact]
-    public void CampoAninhadoContinuaTravandoEPerdeAoEditar()
+    public void NestedFieldStillLocksAndIsLostOnEdit()
     {
         // A field inside a field does not fit in the node: the result stays, with the document
         // locked and a warning.
@@ -326,7 +326,7 @@ public class ReferencesTests
     [InlineData("<w:fldChar w:fldCharType=\"begin\"><w:ffData><w:name w:val=\"Texto1\"/><w:enabled/></w:ffData></w:fldChar>", " FORMTEXT ")]
     [InlineData("<w:fldChar w:fldCharType=\"begin\" w:fldLock=\"1\"/>", " PAGE ")]
     [InlineData("<w:fldChar w:fldCharType=\"begin\" w:dirty=\"1\"/>", " PAGE ")]
-    public void CampoComDadosOuTravaNaoViraNoEPerdaEhDeclarada(string begin, string instruction)
+    public void FieldWithDataOrLockDoesNotBecomeNodeAndLossIsDeclared(string begin, string instruction)
     {
         var body =
             "<w:p><w:r><w:t xml:space=\"preserve\">Antes </w:t></w:r><w:r>" + begin + "</w:r>" +
@@ -345,7 +345,7 @@ public class ReferencesTests
     }
 
     [Fact]
-    public void CampoSimplesTravadoNaoViraNo()
+    public void LockedSimpleFieldDoesNotBecomeNode()
     {
         var original = Fixtures.BuildFromXml(
             "<w:p><w:fldSimple w:instr=\" PAGE \" w:fldLock=\"1\"><w:r><w:t>3</w:t></w:r></w:fldSimple></w:p>", "");
@@ -355,7 +355,7 @@ public class ReferencesTests
     }
 
     [Fact]
-    public void MarcadorColadoComIdRepetidoGanhaIdNovoEFica()
+    public void PastedMarkerWithRepeatedIdGetsNewIdAndStays()
     {
         // The pasted paragraph carries a bookmark with a new name and an id already in use, even
         // one the model does not know.
@@ -379,7 +379,7 @@ public class ReferencesTests
     }
 
     [Fact]
-    public void MarcadoresForaDoModeloVaoNaLista()
+    public void MarkersOutsideTheModelGoToTheList()
     {
         var model = Roundtrip.Open(Fixtures.BuildFromXml(
             "<w:tbl><w:tblPr/><w:tblGrid><w:gridCol w:w=\"9000\"/></w:tblGrid><w:bookmarkStart w:id=\"1\" w:name=\"Tabela\"/>" +
@@ -390,7 +390,7 @@ public class ReferencesTests
     }
 
     [Fact]
-    public void BlocoApagadoComOFimDoMarcadorDevolveOFimDepoisDoComeco()
+    public void DeletedBlockWithTheMarkerEndPutsTheEndAfterTheStart()
     {
         // The end of "Resumo" lives before the "Escopo" heading, and does not vanish with it.
         var original = Fixtures.WithReferences();
@@ -403,7 +403,7 @@ public class ReferencesTests
     }
 
     [Fact]
-    public void EntradaNovaDoSumarioTemUmLinkSo()
+    public void NewTocEntryHasOnlyOneLink()
     {
         var original = Fixtures.WithReferences();
         var model = Roundtrip.Clone(Roundtrip.Open(original));

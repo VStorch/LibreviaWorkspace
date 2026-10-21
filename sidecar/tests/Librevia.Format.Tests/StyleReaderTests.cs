@@ -17,7 +17,7 @@ public class StyleReaderTests
     }
 
     [Fact]
-    public void PadroesDoDocumentoVemComFonteETamanho()
+    public void DocumentDefaultsComeWithFontAndSize()
     {
         var sheet = Read(Fixtures.WithStyles());
 
@@ -27,7 +27,7 @@ public class StyleReaderTests
     }
 
     [Fact]
-    public void EstiloTrazParagrafoECaractereNasUnidadesDoEditor()
+    public void StyleBringsParagraphAndCharacterInEditorUnits()
     {
         var faixa = Read(Fixtures.WithStyles()).Styles["Faixa"];
 
@@ -43,7 +43,7 @@ public class StyleReaderTests
     }
 
     [Fact]
-    public void HerancaNaoEResolvidaAqui()
+    public void InheritanceIsNotResolvedHere()
     {
         // `Corpo` says only what it says: the cascade is resolved in TS, where each font's line
         // height is known, and changing the parent still changes the children.
@@ -56,7 +56,7 @@ public class StyleReaderTests
     }
 
     [Fact]
-    public void EspacamentoRecuoEEntrelinhaVemNaFormaCerta()
+    public void SpacingIndentAndLineSpacingComeInTheRightForm()
     {
         var normal = Read(Fixtures.WithStyleSpacingAndDirectMargins()).Styles["Normal"];
         var paragraph = normal.Paragraph!;
@@ -76,7 +76,7 @@ public class StyleReaderTests
     }
 
     [Fact]
-    public void EstiloDeTabelaEDeNumeracaoFicamDeFora()
+    public void TableAndNumberingStylesAreLeftOut()
     {
         // Only paragraph and character styles; the others go back in an untouched
         // `word/styles.xml`.
@@ -90,7 +90,7 @@ public class StyleReaderTests
     }
 
     [Fact]
-    public void PacoteDoDocumentoNovoVoltaComATabelaDeDados()
+    public void PackageOfTheNewDocumentComesBackWithTheDataTable()
     {
         // The other side of `builtin-styles.test.ts`, which compares `LEGACY_STYLES` with the C#
         // table: here the table is compared with the file it generates.
@@ -133,7 +133,7 @@ public class StyleReaderTests
     }
 
     [Fact]
-    public void DocumentoSemEstiloNenhumNaoQuebraALeitura()
+    public void DocumentWithoutAnyStyleDoesNotBreakReading()
     {
         // Without `word/styles.xml`, an empty sheet, not an exception.
         var sheet = Read(Fixtures.Simple());

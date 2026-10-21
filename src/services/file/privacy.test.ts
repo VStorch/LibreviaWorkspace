@@ -26,12 +26,12 @@ const model = {
   comments: [{ id: '1', author: 'Ana', initials: 'AL', date: '', paragraphs: ['ver'], done: false }],
 }
 
-describe('inspetor de dados pessoais nos arquivos do próprio editor', () => {
-  it('acha os autores de comentários, alterações e marcas de parágrafo', () => {
+describe("personal data inspector for the editor's own files", () => {
+  it('finds the authors of comments, changes and paragraph marks', () => {
     expect(authorsIn(model).sort()).toEqual(['Ana', 'Bruno', 'Carla'])
   })
 
-  it('junta os nomes das propriedades sem repetir nem listar o nome genérico', () => {
+  it('merges the property names without repeating or listing the generic name', () => {
     const report = inspectOwnFile(
       { creator: 'Ana; Dora', lastModifiedBy: 'Ana', company: 'ACME', title: 'Relatório' },
       { comments: [{ author: ANONYMOUS }, { author: 'Bruno' }] },
@@ -41,13 +41,13 @@ describe('inspetor de dados pessoais nos arquivos do próprio editor', () => {
     expect(foundCategories(report)).toEqual([PrivacyCategory.Names])
   })
 
-  it('sem nomes, não acha nada', () => {
+  it('without names, finds nothing', () => {
     const report = inspectOwnFile({ title: 'Relatório' }, null, ANONYMOUS)
     expect(foundCategories(report)).toEqual([])
     expect(report.removePersonalInformation).toBe(false)
   })
 
-  it('troca cada autor e as iniciais pelo nome genérico e não mexe no resto', () => {
+  it('replaces each author and the initials with the generic name and leaves the rest alone', () => {
     const clean = anonymizeAuthors(model, ANONYMOUS)
     expect(authorsIn(clean)).toEqual([ANONYMOUS, ANONYMOUS, ANONYMOUS])
     expect(clean.comments[0]?.initials).toBe('A')
@@ -56,7 +56,7 @@ describe('inspetor de dados pessoais nos arquivos do próprio editor', () => {
     expect(authorsIn(model)).toContain('Bruno')
   })
 
-  it('limpa a autoria das propriedades e liga a marca, guardando o título', () => {
+  it('clears the authorship from the properties and turns on the flag, keeping the title', () => {
     expect(withoutPersonalNames({ title: 'T', creator: 'Ana', company: 'ACME' })).toEqual({
       title: 'T',
       creator: '',
@@ -67,13 +67,13 @@ describe('inspetor de dados pessoais nos arquivos do próprio editor', () => {
     })
   })
 
-  it('no PDF, mostra o autor e quantas versões anteriores o arquivo guarda', () => {
+  it('for PDF, shows the author and how many earlier versions the file keeps', () => {
     const report = inspectPdf({ creator: 'Ana Lima', title: 'Relatório' }, 2, ANONYMOUS)
     expect(report.names).toEqual(['Ana Lima'])
     expect(report.previousVersions).toBe(2)
   })
 
-  it('acha e remove as propriedades personalizadas de um arquivo do próprio editor', () => {
+  it("finds and removes the custom properties of the editor's own file", () => {
     const properties = { title: 'T', custom: [{ name: 'Cliente', type: 'text' as const, value: 'XPTO' }] }
     expect(inspectOwnFile(properties, null, ANONYMOUS).customProperties).toEqual(['Cliente'])
     expect(cleanOwnProperties(properties, [PrivacyCategory.CustomProperties])).toEqual({
@@ -83,7 +83,7 @@ describe('inspetor de dados pessoais nos arquivos do próprio editor', () => {
     expect(cleanOwnProperties(properties, [PrivacyCategory.Names]).custom).toHaveLength(1)
   })
 
-  it('lista as categorias na ordem do inspetor', () => {
+  it('lists the categories in the inspector order', () => {
     expect(
       foundCategories({
         names: [],

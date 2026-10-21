@@ -17,7 +17,7 @@ import { SidecarMethod, encodeFrame } from './protocol.js'
  * contract. The logic under test has no platform; Windows is covered by `sidecar-real.test.ts` and
  * the installer job. Only the tests that need a live process depend on this.
  */
-const sidecarDeMentiraSobe = process.platform !== 'win32'
+const fakeSidecarRuns = process.platform !== 'win32'
 
 const clients: SidecarClient[] = []
 
@@ -75,8 +75,8 @@ function reply(json, binary = Buffer.alloc(0)) {
 }
 `
 
-describe.runIf(sidecarDeMentiraSobe)('conversa normal', () => {
-  it('responde a um pedido e devolve o binário', async () => {
+describe.runIf(fakeSidecarRuns)('normal conversation', () => {
+  it('answers a request and returns the binary', async () => {
     const client = await fakeSidecar(`${RESPONDER}
       function __handle(request, binary) {
         reply({ id: request.id, ok: true, result: { eco: request.params.valor } }, binary)
@@ -89,7 +89,7 @@ describe.runIf(sidecarDeMentiraSobe)('conversa normal', () => {
     expect(reply.binary).toEqual(new Uint8Array([7, 8, 9]))
   })
 
-  it('mantém pedidos simultâneos separados, mesmo respondidos fora de ordem', async () => {
+  it('keeps concurrent requests separate, even when answered out of order', async () => {
     // Without correlation by id, one request's response would go to another, without error.
     const client = await fakeSidecar(`${RESPONDER}
       const pending = []
@@ -109,7 +109,7 @@ describe.runIf(sidecarDeMentiraSobe)('conversa normal', () => {
     expect(results.map((r) => r.result)).toEqual([1, 2, 3])
   })
 
-  it('propaga o erro do sidecar com a frase que ele mandou', async () => {
+  it('propagates the sidecar error with the message it sent', async () => {
     const client = await fakeSidecar(`${RESPONDER}
       function __handle(request) {
         reply({ id: request.id, ok: false, error: { code: 'DOCX_INVALIDO', message: 'O arquivo não é um documento do Word.' } })
@@ -122,8 +122,8 @@ describe.runIf(sidecarDeMentiraSobe)('conversa normal', () => {
   })
 })
 
-describe('o sidecar morre — o documento não pode morrer junto', () => {
-  it.runIf(sidecarDeMentiraSobe)('falha com erro compreensível quando o processo morre no meio', async () => {
+describe('the sidecar dies, the document must not die with it', () => {
+  it.runIf(fakeSidecarRuns)('fails with an understandable error when the process dies midway', async () => {
     const client = await fakeSidecar(`${RESPONDER}
       function __handle() { process.exit(1) }
     `)
@@ -133,7 +133,7 @@ describe('o sidecar morre — o documento não pode morrer junto', () => {
     expect(error).toBe(ErrorCode.SidecarFailed)
   })
 
-  it.runIf(sidecarDeMentiraSobe)('não deixa o pedido pendurado para sempre quando o sidecar emudece', async () => {
+  it.runIf(fakeSidecarRuns)('does not leave the request hanging forever when the sidecar goes silent', async () => {
     // Without a timeout, the window freezes and the only way out is killing the app.
     const client = await fakeSidecar(`${RESPONDER}
       function __handle() { /* nunca responde */ }
@@ -144,7 +144,7 @@ describe('o sidecar morre — o documento não pode morrer junto', () => {
     expect(error).toBe(ErrorCode.SidecarTimeout)
   })
 
-  it.runIf(sidecarDeMentiraSobe)('sobe um processo novo depois de uma queda, em vez de ficar inutilizado', async () => {
+  it.runIf(fakeSidecarRuns)('starts a new process after a crash, instead of staying unusable', async () => {
     const client = await fakeSidecar(`${RESPONDER}
       let primeiro = true
       function __handle(request) {
@@ -160,7 +160,7 @@ describe('o sidecar morre — o documento não pode morrer junto', () => {
     expect(segundo).toBe(ErrorCode.SidecarFailed)
   })
 
-  it.runIf(sidecarDeMentiraSobe)('derruba um sidecar mudo em vez de deixá-lo acumulando pedidos', async () => {
+  it.runIf(fakeSidecarRuns)('kills a silent sidecar instead of letting it pile up requests', async () => {
     const client = await fakeSidecar(`${RESPONDER}
       function __handle() { /* nunca responde */ }
     `)
@@ -170,7 +170,7 @@ describe('o sidecar morre — o documento não pode morrer junto', () => {
     await expect(client.request(SidecarMethod.Echo, {}, undefined, 200)).rejects.toThrow()
   })
 
-  it('recusa quando o executável não existe, sem derrubar o aplicativo', async () => {
+  it('refuses when the executable does not exist, without taking the app down', async () => {
     const client = new SidecarClient(() => Promise.resolve('/caminho/que/nao/existe'))
     clients.push(client)
 
@@ -180,8 +180,8 @@ describe('o sidecar morre — o documento não pode morrer junto', () => {
   })
 })
 
-describe.runIf(sidecarDeMentiraSobe)('o sidecar responde besteira', () => {
-  it('recusa resposta fora do contrato', async () => {
+describe.runIf(fakeSidecarRuns)('the sidecar answers nonsense', () => {
+  it('refuses a response outside the contract', async () => {
     const client = await fakeSidecar(`${RESPONDER}
       function __handle() { reply({ isto: 'não é uma resposta' }) }
     `)
@@ -189,7 +189,7 @@ describe.runIf(sidecarDeMentiraSobe)('o sidecar responde besteira', () => {
     expect(await codeOf(client.request(SidecarMethod.Echo, {}))).toBe(ErrorCode.SidecarFailed)
   })
 
-  it('recusa fluxo corrompido sem tentar adivinhar onde o próximo quadro começa', async () => {
+  it('refuses a corrupt stream without guessing where the next frame starts', async () => {
     const client = await fakeSidecar(`${RESPONDER}
       function __handle() { process.stdout.write(Buffer.from('lixo que não é quadro nenhum')) }
     `)
@@ -199,7 +199,7 @@ describe.runIf(sidecarDeMentiraSobe)('o sidecar responde besteira', () => {
     )
   })
 
-  it('ignora resposta com id que ninguém pediu', async () => {
+  it('ignores a response with an id nobody asked for', async () => {
     const client = await fakeSidecar(`${RESPONDER}
       function __handle(request) {
         reply({ id: 9999, ok: true, result: 'fantasma' })
@@ -214,7 +214,7 @@ describe.runIf(sidecarDeMentiraSobe)('o sidecar responde besteira', () => {
 })
 
 describe('encerramento', () => {
-  it.runIf(sidecarDeMentiraSobe)('dispose não deixa pedido pendurado', async () => {
+  it.runIf(fakeSidecarRuns)('dispose leaves no request hanging', async () => {
     const client = await fakeSidecar(`${RESPONDER}
       function __handle() { /* nunca responde */ }
     `)
@@ -225,14 +225,14 @@ describe('encerramento', () => {
     expect(await codeOf(pending)).toBe(ErrorCode.SidecarUnavailable)
   })
 
-  it('recusa pedidos depois de encerrado', async () => {
+  it('refuses requests after shutdown', async () => {
     const client = await fakeSidecar(RESPONDER + 'function __handle() {}')
     client.dispose()
 
     expect(await codeOf(client.request(SidecarMethod.Echo, {}))).toBe(ErrorCode.SidecarUnavailable)
   })
 
-  it('dispose é idempotente', async () => {
+  it('dispose is idempotent', async () => {
     const client = await fakeSidecar(RESPONDER + 'function __handle() {}')
 
     expect(() => {
@@ -242,8 +242,8 @@ describe('encerramento', () => {
   })
 })
 
-describe('encodeFrame no formato que o sidecar espera', () => {
-  it('põe os tamanhos em big-endian nos primeiros 8 bytes', () => {
+describe('encodeFrame in the format the sidecar expects', () => {
+  it('puts the sizes in big-endian in the first 8 bytes', () => {
     // The contract the C# side reads.
     const frame = encodeFrame({ a: 1 }, new Uint8Array([1, 2, 3]))
     const view = new DataView(frame.buffer, frame.byteOffset)

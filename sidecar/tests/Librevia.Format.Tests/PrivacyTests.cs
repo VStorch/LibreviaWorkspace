@@ -105,7 +105,7 @@ public class PrivacyTests
             name.StartsWith("media/", StringComparison.Ordinal) && Path.GetExtension(name) is ".jpg" or ".png");
 
     [Fact]
-    public void InspecaoEncontraNomesDasPropriedadesDosComentariosEDasPessoas()
+    public void InspectionFindsNamesInPropertiesCommentsAndPeople()
     {
         var report = PersonalData.Inspect(DocumentWithPersonalData(), Inspection);
 
@@ -118,7 +118,7 @@ public class PrivacyTests
     }
 
     [Fact]
-    public void RemoverNomesTrocaOsAutoresEApagaAAutoria()
+    public void RemovingNamesReplacesTheAuthorsAndErasesAuthorship()
     {
         var clean = PersonalData.Scrub(DocumentWithPersonalData(), Remove(PrivacyCategory.Names)).Bytes;
 
@@ -140,7 +140,7 @@ public class PrivacyTests
     }
 
     [Fact]
-    public void RemoverNomesTrocaOAutorDasAlteracoesControladas()
+    public void RemovingNamesReplacesTheAuthorOfTrackedChanges()
     {
         var clean = PersonalData.Scrub(Fixtures.WithTrackedChanges(), Remove(PrivacyCategory.Names)).Bytes;
 
@@ -150,7 +150,7 @@ public class PrivacyTests
     }
 
     [Fact]
-    public void PartesSemDadosPessoaisVoltamComOsMesmosBytes()
+    public void PartsWithoutPersonalDataComeBackWithTheSameBytes()
     {
         var original = DocumentWithPersonalData();
         var clean = PersonalData.Scrub(original, Remove(PrivacyCategory.Thumbnail)).Bytes;
@@ -166,7 +166,7 @@ public class PrivacyTests
     }
 
     [Fact]
-    public void RemoveMiniaturaEPropriedadesPersonalizadasComRelacaoETipo()
+    public void RemovesThumbnailAndCustomPropertiesWithRelationshipAndType()
     {
         var clean = PersonalData.Scrub(
             DocumentWithPersonalData(),
@@ -183,7 +183,7 @@ public class PrivacyTests
     }
 
     [Fact]
-    public void RemoveOCaminhoDoModeloAnexado()
+    public void RemovesThePathOfTheAttachedTemplate()
     {
         var clean = PersonalData.Scrub(DocumentWithPersonalData(), Remove(PrivacyCategory.Paths)).Bytes;
 
@@ -194,7 +194,7 @@ public class PrivacyTests
     }
 
     [Fact]
-    public void ImagemPerdeOExifEOComentarioMasGuardaAOrientacao()
+    public void ImageLosesExifAndCommentButKeepsOrientation()
     {
         var original = DocumentWithPersonalData();
         var clean = PersonalData.Scrub(original, Remove(PrivacyCategory.ImageMetadata)).Bytes;
@@ -214,7 +214,7 @@ public class PrivacyTests
     }
 
     [Fact]
-    public void FotoEmPeNaoGanhaExifNovo()
+    public void UprightPhotoDoesNotGetNewExif()
     {
         using var buffer = new MemoryStream();
         buffer.Write(Fixtures.Simple());
@@ -231,7 +231,7 @@ public class PrivacyTests
     }
 
     [Fact]
-    public void PngPerdeOsTextosEContinuaValido()
+    public void PngLosesTheTextsAndRemainsValid()
     {
         static byte[] Chunk(string type, byte[] data)
         {
@@ -268,7 +268,7 @@ public class PrivacyTests
     }
 
     [Fact]
-    public void SemCategoriasNadaMuda()
+    public void WithoutCategoriesNothingChanges()
     {
         var original = DocumentWithPersonalData();
 
@@ -279,7 +279,7 @@ public class PrivacyTests
     }
 
     [Fact]
-    public void GravarComAMarcaNoModeloAEscreveNoSettings()
+    public void SavingWithTheMarkInTheModelWritesItToSettings()
     {
         var original = Fixtures.Simple();
         var model = Open(original) with { Properties = new PropertiesDto(RemovePersonalInformation: true) };
@@ -328,7 +328,7 @@ public class PrivacyTests
     }
 
     [Fact]
-    public void PlanilhaPerdeOAutorDaNotaEAPasta()
+    public void SpreadsheetLosesTheNoteAuthorAndTheFolder()
     {
         var original = WorkbookWithPersonalData();
         var report = PersonalData.Inspect(original, Inspection);
@@ -348,7 +348,7 @@ public class PrivacyTests
     }
 
     [Fact]
-    public void PlanilhaGravadaGuardaAMarca()
+    public void SavedSpreadsheetKeepsTheMark()
     {
         var clean = PersonalData.Scrub(WorkbookWithPersonalData(), Remove(PrivacyCategory.Names)).Bytes;
         var model = XlsxReader.Read(clean).Workbook;
@@ -359,7 +359,7 @@ public class PrivacyTests
     }
 
     [Fact]
-    public void ArquivoQueNaoEPacoteERecusado()
+    public void FileThatIsNotAPackageIsRejected()
     {
         Assert.Throws<PrivacyException>(() => PersonalData.Inspect("não é zip"u8.ToArray(), Inspection));
     }

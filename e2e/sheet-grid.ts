@@ -67,7 +67,7 @@ export async function dragHandle(
 
   const origin = await cell(window, fromRow, fromColumn).boundingBox()
   const destination = await cell(window, toRow, toColumn).boundingBox()
-  if (origin === null || destination === null) throw new Error('célula sem posição na tela')
+  if (origin === null || destination === null) throw new Error('cell has no position on screen')
 
   await window.mouse.move(origin.x + origin.width - 2, origin.y + origin.height - 2)
   await window.mouse.down()

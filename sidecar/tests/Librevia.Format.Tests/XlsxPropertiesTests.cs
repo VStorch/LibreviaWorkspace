@@ -35,7 +35,7 @@ public class XlsxPropertiesTests
     }
 
     [Fact]
-    public void LeAsPropriedadesDaPlanilha()
+    public void ReadsTheSpreadsheetProperties()
     {
         var properties = PropertiesOf(WithProperties());
 
@@ -48,7 +48,7 @@ public class XlsxPropertiesTests
     }
 
     [Fact]
-    public void GravarSemPropriedadesMantemAsDoArquivo()
+    public void SavingWithoutPropertiesKeepsTheOnesInTheFile()
     {
         var saved = PropertiesOf(Save(WithProperties(), properties: null));
 
@@ -60,7 +60,7 @@ public class XlsxPropertiesTests
     }
 
     [Fact]
-    public void GravaSoOsCamposQueMudaram()
+    public void WritesOnlyTheFieldsThatChanged()
     {
         var patch = new PropertiesDto(Title: "Orçamento", Subject: "", Revision: "8");
         var saved = PropertiesOf(Save(WithProperties(), patch));
@@ -74,7 +74,7 @@ public class XlsxPropertiesTests
     }
 
     [Fact]
-    public void UmaPlanilhaNovaGanhaAsPropriedades()
+    public void NewSpreadsheetGetsTheProperties()
     {
         var saved = PropertiesOf(Save(null, new PropertiesDto(Title: "Nova", Creator: "Ana", Company: "ACME")));
 

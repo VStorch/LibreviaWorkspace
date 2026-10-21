@@ -31,8 +31,8 @@ function write(store: ReturnType<typeof openWorkbook>, column: number, text: str
   state.updateSheet(writeText(state.workbook!.sheets[0]!, 0, column, text))
 }
 
-describe('desfazer da planilha', () => {
-  it('desfazer e refazer não gravam passo novo; uma edição nova apaga o refazer', () => {
+describe('sheet undo', () => {
+  it('undo and redo record no new step; a new edit clears redo', () => {
     const store = openWorkbook()
     write(store, 0, 'a')
     write(store, 1, 'b')
@@ -49,7 +49,7 @@ describe('desfazer da planilha', () => {
     expect(valueAt(store.getState(), { row: 0, column: 0 })).toBeUndefined()
   })
 
-  it('a mesma planilha de volta não conta como edição', () => {
+  it('the same sheet coming back does not count as an edit', () => {
     const store = openWorkbook()
     const state = store.getState()
     state.updateSheet(state.workbook!.sheets[0]!)
@@ -58,7 +58,7 @@ describe('desfazer da planilha', () => {
     expect(store.getState().workbook).toBe(state.workbook)
   })
 
-  it('desfazer até o estado salvo deixa de pedir para salvar, e refazer volta a pedir', () => {
+  it('undoing back to the saved state stops asking to save, and redoing asks again', () => {
     const store = openWorkbook()
     write(store, 0, 'a')
     expect(store.getState().isDirty).toBe(true)
@@ -75,7 +75,7 @@ describe('desfazer da planilha', () => {
     expect(store.getState().isDirty).toBe(true)
   })
 
-  it('abrir outro arquivo esquece o histórico do anterior', () => {
+  it("opening another file forgets the previous file's history", () => {
     const store = openWorkbook()
     write(store, 0, 'a')
     const other: WorkbookModel = { sheets: [createSheet('Outra')], activeSheet: 0 }

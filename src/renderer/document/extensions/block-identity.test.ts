@@ -31,7 +31,7 @@ const oidsOf = (doc: ProseMirrorNode): unknown[] =>
   doc.children.map((block: ProseMirrorNode) => block.attrs['oid'])
 
 describe('uniqueOids', () => {
-  it('dividir um parágrafo deixa o `oid` com o lado de cima', () => {
+  it('splitting a paragraph leaves the `oid` with the upper half', () => {
     const state = stateOf({
       type: 'doc',
       content: [
@@ -50,7 +50,7 @@ describe('uniqueOids', () => {
     expect(oidsOf(divided.doc)).toEqual(['b1', null])
   })
 
-  it('a identidade repetida por colagem também sai', () => {
+  it('an identity repeated by paste is dropped too', () => {
     // Saving already handled a repeated `oid` by keeping the first occurrence's XML and
     // regenerating the others. The rule is the same here, one step earlier: the second occurrence
     // stops claiming an identity that is not its own.
@@ -68,7 +68,7 @@ describe('uniqueOids', () => {
     expect(oidsOf(typed.doc)).toEqual(['b1', null, 'b2'])
   })
 
-  it('não mexe no que já é único', () => {
+  it('leaves what is already unique alone', () => {
     // The plugin returns a transaction only when there is something to fix: an appended transaction
     // on every key press dirties the undo history.
     const state = stateOf({

@@ -199,11 +199,11 @@ const decode = (bytes: Uint8Array | undefined): string => new TextDecoder().deco
 const shrink = (data: Uint8Array): Uint8Array => data.subarray(0, 1)
 
 describe('zip', () => {
-  it('calcula o CRC-32 de referência', () => {
+  it('computes the reference CRC-32', () => {
     expect(crc32(new TextEncoder().encode('123456789'))).toBe(0xcbf43926)
   })
 
-  it('comprime o que encolhe, guarda o resto, e o CRC é o do original', () => {
+  it("compresses what shrinks, stores the rest, and the CRC is the original's", () => {
     const big = new TextEncoder().encode('a'.repeat(1000))
     const entries = unzip(
       zip(
@@ -228,7 +228,7 @@ describe('exportOdt', () => {
   const content = read('content.xml')
   const styles = read('styles.xml')
 
-  it('abre com o mimetype, primeiro e guardado, sem campo extra', () => {
+  it('opens with the mimetype, first and stored, with no extra field', () => {
     expect([...bytes.subarray(0, 4)]).toEqual([0x50, 0x4b, 0x03, 0x04])
     expect(decode(bytes.subarray(30, 38))).toBe('mimetype')
     expect(decode(bytes.subarray(38, 38 + 39))).toBe('application/vnd.oasis.opendocument.text')
@@ -236,7 +236,7 @@ describe('exportOdt', () => {
     expect(entries.get('mimetype')).toMatchObject({ method: 0, extra: 0 })
   })
 
-  it('declara no manifesto cada parte e cada imagem', () => {
+  it('declares each part and each image in the manifest', () => {
     expect([...entries.keys()]).toEqual([
       'mimetype',
       'content.xml',
@@ -253,7 +253,7 @@ describe('exportOdt', () => {
     expect(manifest).toContain('manifest:full-path="content.xml" manifest:media-type="text/xml"')
   })
 
-  it('escapa o texto, os atributos e os metadados', () => {
+  it('escapes the text, attributes and metadata', () => {
     expect(content).toContain('Título &lt;script&gt;&amp;')
     expect(content).not.toContain('<script>')
     expect(content).toContain('xlink:href="https://example.com/?a=1&amp;b=2"')
@@ -266,7 +266,7 @@ describe('exportOdt', () => {
     expect(meta).toContain('<meta:creation-date>2026-01-02T03:04:05Z</meta:creation-date>')
   })
 
-  it('leva títulos, marcadores, links, notas, campos e comentários', () => {
+  it('carries headings, bookmarks, links, notes, fields and comments', () => {
     expect(content).toMatch(
       /<text:h text:style-name="[^"]+" text:outline-level="1"><text:bookmark-start text:name="_Toc1"\/>/,
     )
@@ -285,13 +285,13 @@ describe('exportOdt', () => {
     expect(content).toContain('<text:s/>inserido')
   })
 
-  it('guarda os espaços em sequência e a tabulação', () => {
+  it('keeps consecutive spaces and the tab', () => {
     expect(content).toContain('Olá <text:s/>')
     expect(odfText('  a\tb   c')).toBe('<text:s text:c="2"/>a<text:tab/>b <text:s text:c="2"/>c')
     expect(xml('a\u0001<')).toBe('a&lt;')
   })
 
-  it('formata o trecho com estilo automático e o parágrafo com a direta', () => {
+  it('formats the run with an automatic style and the paragraph with the direct one', () => {
     expect(styles).toMatch(
       /<style:style style:name="[^"]+" style:display-name="heading 1" style:family="paragraph"/,
     )
@@ -307,7 +307,7 @@ describe('exportOdt', () => {
     expect(content).toContain('fo:keep-with-next="always"')
   })
 
-  it('numera as listas como a conta do Word, aninhadas e com início', () => {
+  it('numbers lists as Word counts them, nested and with a start', () => {
     expect(content).toMatch(/<text:list text:style-name="L1"><text:list-item text:start-value="3">/)
     expect(content).toContain(
       '<text:list-level-style-number text:level="1" style:num-suffix="." style:num-format="1" text:start-value="3">',
@@ -318,7 +318,7 @@ describe('exportOdt', () => {
     expect(content).toContain('<text:list-level-style-bullet text:level="1" text:bullet-char="•">')
   })
 
-  it('mescla as células com cobertas e põe a imagem no pacote', () => {
+  it('merges cells with covered ones and puts the image in the package', () => {
     expect(content).toContain('table:number-columns-spanned="2"')
     expect(content).toContain('table:number-rows-spanned="2"')
     // A note inside a cell stays a note.
@@ -332,7 +332,7 @@ describe('exportOdt', () => {
     expect(pixelSizeOf(png)).toEqual({ width: 2, height: 3 })
   })
 
-  it('dá a cada seção a página mestra, e a quebra ao bloco seguinte', () => {
+  it('gives each section its master page, and the break to the next block', () => {
     expect(content).toMatch(
       /style:master-page-name="Standard"><style:paragraph-properties[^>]*style:page-number="1"/,
     )
@@ -349,7 +349,7 @@ describe('exportOdt', () => {
     expect(header).toContain('<text:page-count>1</text:page-count>')
   })
 
-  it('com compressão, só as partes de XML são comprimidas', () => {
+  it('with compression, only the XML parts are compressed', () => {
     const packed = unzip(exportOdt(RICH_ODT_MODEL, {}, shrink))
     expect([...packed.entries()].filter(([, entry]) => entry.method === 8).map(([name]) => name)).toEqual([
       'content.xml',
@@ -361,7 +361,7 @@ describe('exportOdt', () => {
   })
 })
 
-describe('as equações no ODT (M11, fase 3)', () => {
+describe('equations in ODT (M11, phase 3)', () => {
   const SQUARE = '<math display="inline"><msup><mi>x</mi><mn>2</mn></msup></math>'
   const FRACTION = '<math display="block"><mfrac><mi>a</mi><mi>b</mi></mfrac></math>'
   const model: DocumentModel = {
@@ -386,7 +386,7 @@ describe('as equações no ODT (M11, fase 3)', () => {
   const read = (name: string): string => decode(entries.get(name)?.data)
   const content = read('content.xml')
 
-  it('cada equação é um objeto de fórmula, como um caractere, com o MathML na pasta dele', () => {
+  it('each equation is a formula object, like a character, with its MathML in its folder', () => {
     expect(content).toMatch(
       /<draw:frame draw:style-name="fr\d+" draw:name="Equation\d+" text:anchor-type="as-char" svg:width="[\d.]+mm" svg:height="[\d.]+mm" draw:z-index="\d+"><draw:object xlink:href="\.\/Object 1" xlink:type="simple" xlink:show="embed" xlink:actuate="onLoad"\/><svg:desc>x\^2<\/svg:desc><\/draw:frame>/,
     )
@@ -404,7 +404,7 @@ describe('as equações no ODT (M11, fase 3)', () => {
     expect(content).toContain('<svg:desc>\\frac{a}{b}</svg:desc>')
   })
 
-  it('o manifesto declara cada objeto e cada parte dele, e só o que está no pacote', () => {
+  it('the manifest declares each object and each of its parts, and only what is in the package', () => {
     const manifest = read('META-INF/manifest.xml')
     expect(manifest).toContain(
       '<manifest:file-entry manifest:full-path="Object 1/" manifest:version="1.3" manifest:media-type="application/vnd.oasis.opendocument.formula"/>',
@@ -420,7 +420,7 @@ describe('as equações no ODT (M11, fase 3)', () => {
     }
   })
 
-  it('o quadro cresce com o texto e com o que a equação empilha', () => {
+  it('the frame grows with the text and with what the equation stacks', () => {
     const flat = formulaSizeMm({
       tag: 'math',
       attrs: {},

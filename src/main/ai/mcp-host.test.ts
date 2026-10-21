@@ -53,7 +53,7 @@ function client(address: string, key: string): Promise<Client> {
 const textOf = (message: Record<string, unknown>): string =>
   (message['result'] as { content: { text: string }[] }).content[0]!.text
 
-describe('servidor MCP local', () => {
+describe('local MCP server', () => {
   let userData: string
   let host: McpHost
   let applied: { proposal: AiProposal; author: string }[]
@@ -102,7 +102,7 @@ describe('servidor MCP local', () => {
     await rm(userData, { recursive: true, force: true })
   })
 
-  it('escuta só num caminho, nunca numa porta', async () => {
+  it('listens only on a path, never on a port', async () => {
     const listen = vi.spyOn(Server.prototype, 'listen')
     await host.setExternal(true)
     expect(listen).toHaveBeenCalledTimes(1)
@@ -110,7 +110,7 @@ describe('servidor MCP local', () => {
     expect(listen.mock.calls[0]![0]).toBe(await address())
   })
 
-  it.skipIf(IS_WINDOWS)('pasta 0700, socket e chave 0600', async () => {
+  it.skipIf(IS_WINDOWS)('folder 0700, socket and key 0600', async () => {
     await host.setExternal(true)
     const mode = async (path: string): Promise<number> => (await stat(path)).mode & 0o777
     expect(await mode(paths().folder)).toBe(0o700)
@@ -118,14 +118,14 @@ describe('servidor MCP local', () => {
     expect(await mode(paths().token)).toBe(0o600)
   })
 
-  it('chave errada fecha a conexão', async () => {
+  it('wrong key closes the connection', async () => {
     await host.setExternal(true)
     const wrong = await client(await address(), 'f'.repeat(64))
     await wrong.closed
     expect(wrong.socket.destroyed).toBe(true)
   })
 
-  it('sem a chave no tempo-limite, fecha', async () => {
+  it('without the key within the timeout, closes', async () => {
     await host.dispose()
     host = makeHost({ authTimeoutMs: SHORT_AUTH_MS })
     await host.setExternal(true)
@@ -134,7 +134,7 @@ describe('servidor MCP local', () => {
     expect(silent.socket.destroyed).toBe(true)
   })
 
-  it('a chave muda a cada vez que a preferência é ligada; desligada, recusa o cliente externo', async () => {
+  it('the key changes each time the preference is turned on; when off, refuses the external client', async () => {
     await host.setExternal(true)
     const first = await externalKey()
     const connected = await client(await address(), first)
@@ -148,7 +148,7 @@ describe('servidor MCP local', () => {
     await stale.closed
   })
 
-  it('a terceira conexão externa é recusada', async () => {
+  it('the third external connection is refused', async () => {
     await host.setExternal(true)
     const key = await externalKey()
     const one = await client(await address(), key)
@@ -160,7 +160,7 @@ describe('servidor MCP local', () => {
     expect(clientsSeen.at(-1)).toHaveLength(2)
   })
 
-  it('o cliente externo aparece pelo nome, e a proposta entra na hora com o autor (MCP)', async () => {
+  it('the external client shows by name, and the proposal goes in at once with the (MCP) author', async () => {
     await host.setExternal(true)
     const external = await client(await address(), await externalKey())
     await external.call('initialize', { clientInfo: { name: 'Editor X' } })
@@ -177,7 +177,7 @@ describe('servidor MCP local', () => {
     expect(clientsSeen.at(-1)).toEqual([])
   })
 
-  it('o cliente externo tem as ferramentas do documento e da planilha, que vão à janela', async () => {
+  it('the external client has the document and sheet tools, which go to the window', async () => {
     await host.setExternal(true)
     const external = await client(await address(), await externalKey())
     const start = await external.call('initialize', { clientInfo: { name: 'Editor X' } })
@@ -203,7 +203,7 @@ describe('servidor MCP local', () => {
     )
   })
 
-  it('a sessão interna lê só o próprio instantâneo e morre ao terminar', async () => {
+  it('the internal session reads only its own snapshot and dies when done', async () => {
     const mine = await host.open({ paragraphs: ['Só meu.'], readBudget: 1_000 })
     const other = await host.open({ paragraphs: ['De outro.'], readBudget: 1_000 })
     const key = mine.server.env[MCP_TOKEN_ENV]!
@@ -229,7 +229,7 @@ describe('servidor MCP local', () => {
     other.close()
   })
 
-  it('sem preferência nem sessão, não escuta', async () => {
+  it('without preference or session, does not listen', async () => {
     const session = await host.open({ paragraphs: [], readBudget: 1 })
     session.close()
     await host.setExternal(false)

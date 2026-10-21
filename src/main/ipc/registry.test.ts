@@ -28,15 +28,15 @@ async function invoke(channel: IpcChannel, reply: unknown, payload: unknown = {}
   return handlers.get(channel)!({}, payload)
 }
 
-describe('registro de IPC', () => {
-  it('devolve a resposta válida já normalizada', () => {
+describe('IPC registry', () => {
+  it('returns the valid response already normalized', () => {
     expect(invoke(IpcChannel.FontsList, { families: ['Arial'] })).resolves.toEqual({
       ok: true,
       data: { families: ['Arial'] },
     })
   })
 
-  it('recusa a resposta que o contrato do canal não prevê', async () => {
+  it('refuses a response the channel contract does not allow', async () => {
     // An empty name is what broken `fc-list` output produces, and would become an invisible option.
     // The renderer gets an error, and the main log says why.
     const result = (await invoke(IpcChannel.FontsList, { families: [''] })) as {
@@ -48,7 +48,7 @@ describe('registro de IPC', () => {
     expect(result.error?.code).toBe(ErrorCode.Internal)
   })
 
-  it('recusa o pedido que o contrato do canal não prevê', async () => {
+  it('refuses a request the channel contract does not allow', async () => {
     const result = (await invoke(
       IpcChannel.SpellAddWord,
       { added: true },

@@ -26,7 +26,7 @@ public class StyleWriterTests
             .ToDictionary(match => match.Groups[1].Value, match => match.Value);
 
     [Fact]
-    public void SemMudancaOsEstilosVoltamByteAByte()
+    public void WithoutChangeTheStylesComeBackByteForByte()
     {
         var original = Fixtures.WithStyles();
         var saved = Roundtrip.Save(original, Roundtrip.Clone(Roundtrip.Open(original)));
@@ -35,7 +35,7 @@ public class StyleWriterTests
     }
 
     [Fact]
-    public void MudarUmEstiloMexeSoNele()
+    public void ChangingAStyleTouchesOnlyIt()
     {
         var original = Fixtures.WithStyles();
         var model = Changed(original, sheet =>
@@ -65,7 +65,7 @@ public class StyleWriterTests
     }
 
     [Fact]
-    public void TirarUmaPropriedadeRemoveOElemento()
+    public void RemovingAPropertyRemovesTheElement()
     {
         var original = Fixtures.WithStyles();
         var model = Changed(original, sheet =>
@@ -87,25 +87,25 @@ public class StyleWriterTests
     }
 
     [Fact]
-    public void EstiloNovoEntraComoPersonalizado()
+    public void NewStyleEntersAsCustom()
     {
         var original = Fixtures.WithStyles();
-        var novo = new StyleDefinitionDto(
+        var added = new StyleDefinitionDto(
             "Destaque", "Destaque", "paragraph", QFormat: true, Hidden: false, Custom: true,
             BasedOn: "Corpo",
             Paragraph: new StyleParagraphDto(TextAlign: "center", SpaceBefore: 12, KeepNext: true),
             Character: new StyleCharacterDto(Bold: true, Color: "#c00000"));
-        var model = Changed(original, sheet => WithStyle(sheet, novo));
+        var model = Changed(original, sheet => WithStyle(sheet, added));
 
         var saved = Roundtrip.Save(original, model);
         var xml = StylesOf(Roundtrip.XmlOf(saved.Bytes, "word/styles.xml"))["Destaque"];
 
         Assert.Contains("w:customStyle=\"1\"", xml, StringComparison.Ordinal);
-        Assert.Equal(novo, Roundtrip.Open(saved.Bytes).Styles!.Styles["Destaque"]);
+        Assert.Equal(added, Roundtrip.Open(saved.Bytes).Styles!.Styles["Destaque"]);
     }
 
     [Fact]
-    public void OsPadroesDoDocumentoTambemVoltam()
+    public void DocumentDefaultsAlsoComeBack()
     {
         var original = Fixtures.WithStyles();
         var model = Changed(original, sheet => sheet with
@@ -123,17 +123,17 @@ public class StyleWriterTests
     }
 
     [Fact]
-    public void RascunhoAntigoSoAcrescentaEstilos()
+    public void OldDraftOnlyAddsStyles()
     {
         // Version 2 draft styles were invented in the migration: the new style goes in, and a
         // change to an existing one stays out of the file, with a warning.
         var original = Fixtures.WithStyles();
-        var novo = new StyleDefinitionDto(
+        var added = new StyleDefinitionDto(
             "Destaque", "Destaque", "paragraph", QFormat: true, Hidden: false, Custom: true,
             Character: new StyleCharacterDto(Bold: true));
         var model = Changed(original, sheet => WithStyle(
             WithStyle(sheet, sheet.Styles["Faixa"] with { Character = new StyleCharacterDto(Bold: false) }),
-            novo));
+            added));
 
         var saved = Roundtrip.Save(original, Roundtrip.Clone(Roundtrip.OpenFlat(original)) with
         {
@@ -143,13 +143,13 @@ public class StyleWriterTests
 
         var reopened = Roundtrip.Open(saved.Bytes).Styles!;
         Assert.Equal(0, saved.Result.RewrittenBlocks);
-        Assert.Equal(novo, reopened.Styles["Destaque"]);
+        Assert.Equal(added, reopened.Styles["Destaque"]);
         Assert.Equal(Roundtrip.Open(original).Styles!.Styles["Faixa"], reopened.Styles["Faixa"]);
         Assert.Contains(saved.Result.Inventory.Lost, item => item.Contains("rascunho", StringComparison.Ordinal));
     }
 
     [Fact]
-    public void MeioPontoArredondaParaLongeDoZeroEMedidaEmLinhasSai()
+    public void HalfPointRoundsAwayFromZeroAndMeasureInLinesComesOut()
     {
         // `w:beforeLines` beats `w:before` in Word: without removing it, the new space would show
         // nowhere.
@@ -184,7 +184,7 @@ public class StyleWriterTests
     }
 
     [Fact]
-    public void NomeDeEmbutidoNaoMudaEOAvisoSai()
+    public void BuiltinNameDoesNotChangeAndTheWarningGoesAway()
     {
         var original = Fixtures.WithStyleSpacingAndDirectMargins();
         var model = Changed(original, sheet => WithStyle(sheet, sheet.Styles["Normal"] with { Name = "Meu Normal" }));
@@ -195,7 +195,7 @@ public class StyleWriterTests
     }
 
     [Fact]
-    public void ParagrafoQueApontaEstiloIndefinidoEntraNoInventario()
+    public void ParagraphPointingToUndefinedStyleEntersTheInventory()
     {
         var original = Fixtures.WithStyles();
         var model = Roundtrip.Clone(Roundtrip.Open(original));

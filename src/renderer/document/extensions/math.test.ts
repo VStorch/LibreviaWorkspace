@@ -13,7 +13,7 @@ const equation = (attrs: Record<string, unknown>): ProseMirrorNode => schema.nod
 const paragraphWith = (...content: ProseMirrorNode[]): ProseMirrorNode =>
   schema.node('doc', null, [schema.node('paragraph', null, content)])
 
-describe('a equação copiada como texto (M11, fase 3)', () => {
+describe('the equation copied as text (M11, phase 3)', () => {
   const copied = (node: ProseMirrorNode): string => {
     const doc = paragraphWith(schema.text('a '), node, schema.text(' b'))
     return getTextBetween(
@@ -25,21 +25,21 @@ describe('a equação copiada como texto (M11, fase 3)', () => {
     )
   }
 
-  it('é o LaTeX guardado', () => {
+  it('is the stored LaTeX', () => {
     expect(copied(equation({ mathml: FRACTION, latex: '\\frac{a}{b}' }))).toBe('a \\frac{a}{b} b')
   })
 
-  it('é o LaTeX tirado do MathML, na que veio de um arquivo', () => {
+  it('is the LaTeX derived from MathML, for one that came from a file', () => {
     expect(plainTextOf(equation({ omml: '<m:oMath/>', mathml: FRACTION, latex: '' }))).toBe('\\frac{a}{b}')
   })
 
-  it('é o marcador quando nem o MathML dá', () => {
+  it('is the placeholder when even MathML does not help', () => {
     expect(plainTextOf(equation({ mathml: '<script/>', latex: '' }))).toMatch(/^\[equa/)
   })
 })
 
-describe('o MathML colado de fora (M11, fase 3)', () => {
-  it('vira uma equação nova: sem OMML, filtrada, com o LaTeX tirado dela', () => {
+describe('MathML pasted from outside (M11, phase 3)', () => {
+  it('becomes a new equation: without OMML, filtered, with the LaTeX derived from it', () => {
     const attrs = mathAttrsOfMarkup(
       '<math xmlns="http://www.w3.org/1998/Math/MathML" display="block" onclick="x()"><mfrac><mi>a</mi><mi>b</mi></mfrac></math>',
     )
@@ -52,12 +52,12 @@ describe('o MathML colado de fora (M11, fase 3)', () => {
     })
   })
 
-  it('o que não é MathML não vira equação', () => {
+  it('what is not MathML does not become an equation', () => {
     expect(mathAttrsOfMarkup('<math><mi>x</mi>')).toBe(false)
     expect(mathAttrsOfMarkup('<svg/>')).toBe(false)
   })
 
-  it('as regras de leitura: o embrulho do editor antes do math solto', () => {
+  it('the parse rules: the editor wrapper comes before bare math', () => {
     const rules = ProseMirrorDOMParser.fromSchema(schema).rules.map((rule) =>
       'tag' in rule ? rule.tag : null,
     )
@@ -67,19 +67,19 @@ describe('o MathML colado de fora (M11, fase 3)', () => {
   })
 })
 
-describe('a equação na busca e na contagem (M11, fase 3)', () => {
+describe('the equation in search and counting (M11, phase 3)', () => {
   const doc = paragraphWith(
     schema.text('x '),
     equation({ mathml: '<math><mi>x</mi></math>', latex: 'x' }),
     schema.text(' y'),
   )
 
-  it('a busca não acha nada dentro dela, nem atravessa o lugar dela', () => {
+  it('search finds nothing inside it, nor crosses its place', () => {
     expect(collectMatches(doc, 'x', false)).toEqual([{ from: 1, to: 2 }])
     expect(collectMatches(doc, '  ', false)).toEqual([])
   })
 
-  it('não tem caracteres', () => {
+  it('has no characters', () => {
     expect(textWithoutDeletions(doc, undefined, characterLeaf)).toBe('x  y')
   })
 })

@@ -17,25 +17,25 @@ const properties: DocumentProperties = {
 const result = (instr: string): string | null => propertyFieldResult(instr, properties, 'pt')
 
 describe('propertyFieldResult', () => {
-  it('os campos próprios e o DOCPROPERTY leem as mesmas propriedades', () => {
+  it('the dedicated fields and DOCPROPERTY read the same properties', () => {
     expect(result(' TITLE ')).toBe('contrato de locação')
     expect(result(' AUTHOR \\* MERGEFORMAT ')).toBe('Ana')
     expect(result(' DOCPROPERTY Comments ')).toBe('Rascunho')
     expect(result(' DOCPROPERTY Company ')).toBe('')
   })
 
-  it('acha a personalizada sem olhar maiúsculas e formata número, data e sim ou não', () => {
+  it('finds the custom one ignoring case and formats number, date and yes or no', () => {
     expect(result(' DOCPROPERTY "cliente" ')).toBe('XPTO')
     expect(result(' DOCPROPERTY Valor ')).toBe('12,5')
     expect(result(' DOCPROPERTY Prazo ')).toBe(new Date('2026-10-12T15:00:00Z').toLocaleDateString('pt'))
     expect(result(' DOCPROPERTY Aprovado ')).toBe('Y')
   })
 
-  it('propriedade que não existe dá null', () => {
+  it('a property that does not exist gives null', () => {
     expect(result(' DOCPROPERTY "Processo" ')).toBeNull()
   })
 
-  it('segue as opções de maiúsculas do Word', () => {
+  it("follows Word's case options", () => {
     expect(result(' TITLE \\* Upper \\* MERGEFORMAT ')).toBe('CONTRATO DE LOCAÇÃO')
     expect(result(' TITLE \\* Caps ')).toBe('Contrato De Locação')
     expect(result(' TITLE \\* FirstCap ')).toBe('Contrato de locação')
@@ -43,7 +43,7 @@ describe('propertyFieldResult', () => {
 })
 
 describe('propertyFieldChoices', () => {
-  it('oferece as do resumo e as personalizadas, sem nome com aspas', () => {
+  it('offers the summary ones and the custom ones, without a quoted name', () => {
     const choices = propertyFieldChoices({
       custom: [...properties.custom!, { name: 'a"b', type: 'text', value: '' }],
     })

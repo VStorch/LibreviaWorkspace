@@ -118,8 +118,8 @@ function fakeEditor(doc: ProseMirrorNode): FakeEditor {
   return { editor, transactions, state: () => state }
 }
 
-describe('parágrafos numerados para a conversa', () => {
-  it('um item por bloco de texto, com células e itens de lista, sem as exclusões', () => {
+describe('numbered paragraphs for the chat', () => {
+  it('one item per text block, with cells and list items, without deletions', () => {
     const doc = docOf(
       paragraph(text('O gato '), text('não ', deletion), text('dorme.')),
       { type: 'table', content: [{ type: 'tableRow', content: [cell('um'), cell('dois')] }] },
@@ -130,8 +130,8 @@ describe('parágrafos numerados para a conversa', () => {
   })
 })
 
-describe('localizar uma proposta', () => {
-  it('mapeia o trecho do texto sem exclusões para posições do documento', () => {
+describe('locating a proposal', () => {
+  it('maps the excerpt of the text without deletions to document positions', () => {
     const doc = docOf(
       paragraph(text('Primeiro.')),
       paragraph(text('O gato '), text('não ', deletion), text('dorme.')),
@@ -141,7 +141,7 @@ describe('localizar uma proposta', () => {
     expect(doc.textBetween(range!.from, range!.to)).toBe('gato não dorme')
   })
 
-  it('texto ausente, repetido ou parágrafo que não existe: nada a aplicar', () => {
+  it('missing or repeated text, or a paragraph that does not exist: nothing to apply', () => {
     const doc = docOf(paragraph(text('a gato a')))
     expect(locateProposal(doc, edit(doc, '1', 1, 'cão', 'x'))).toBeNull()
     expect(locateProposal(doc, edit(doc, '1', 1, 'a', 'x'))).toBeNull()
@@ -149,13 +149,13 @@ describe('localizar uma proposta', () => {
   })
 })
 
-describe('aplicar propostas', () => {
+describe('applying proposals', () => {
   beforeEach(() => {
     useWorkspace.setState({ readOnly: false, beforeComments: false, comments: [] })
     usePreferences.setState({ preferences: { ...usePreferences.getState().preferences, commentsPane: true } })
   })
 
-  it('alteração entra como revisão controlada com o modelo como autor', () => {
+  it('a change goes in as a tracked revision with the model as author', () => {
     const state = EditorState.create({ doc: docOf(paragraph(text('O gato dorme.'))) })
     const range = locateProposal(state.doc, edit(state.doc, '1', 1, 'dorme', 'cochila'))!
     const next = state.apply(buildTrackedEdits(state, [{ range, text: 'cochila' }], MODEL, NOW)!)
@@ -163,7 +163,7 @@ describe('aplicar propostas', () => {
     expect(authorsOf(next.doc)).toEqual([MODEL])
   })
 
-  it('Aplicar todas: as alterações vão numa transação só, de trás para frente', () => {
+  it('Apply all: the changes go in a single transaction, back to front', () => {
     const fake = fakeEditor(docOf(paragraph(text('O gato dorme.')), paragraph(text('O cão late.'))))
     const outcome = applyProposals(
       fake.editor,
@@ -179,7 +179,7 @@ describe('aplicar propostas', () => {
     expect(shown(fake.state().doc)).toEqual(['O [gato]{felino} [dorme]{cochila}.', 'O cão [late].'])
   })
 
-  it('texto mudado desde a proposta não é aplicado e fica marcado', () => {
+  it('text changed since the proposal is not applied and is flagged', () => {
     const fake = fakeEditor(docOf(paragraph(text('O gato dorme.'))))
     const outcome = applyProposals(
       fake.editor,
@@ -189,7 +189,7 @@ describe('aplicar propostas', () => {
     expect(outcome).toEqual({ applied: ['2'], changed: ['1'] })
   })
 
-  it('parágrafo novo acima renumera: a proposta não cai no parágrafo que ficou com o número', () => {
+  it('a new paragraph above renumbers: the proposal does not land on the paragraph that took the number', () => {
     const before = docOf(paragraph(text('O gato dorme.')), paragraph(text('O gato late.')))
     const proposal = edit(before, '1', 2, 'gato', 'cão')
     const fake = fakeEditor(
@@ -199,7 +199,7 @@ describe('aplicar propostas', () => {
     expect(fake.transactions).toHaveLength(0)
   })
 
-  it('Aplicar todas com comentários e alterações: uma transação, um desfazer', () => {
+  it('Apply all with comments and changes: one transaction, one undo', () => {
     const fake = fakeEditor(docOf(paragraph(text('O gato dorme.')), paragraph(text('O cão late.'))))
     const doc = fake.state().doc
     const outcome = applyProposals(
@@ -213,7 +213,7 @@ describe('aplicar propostas', () => {
     expect(useWorkspace.getState().comments).toHaveLength(2)
   })
 
-  it('propostas sobrepostas: a segunda fica como texto mudado', () => {
+  it('overlapping proposals: the second is flagged as changed text', () => {
     const fake = fakeEditor(docOf(paragraph(text('O gato dorme.'))))
     const outcome = applyProposals(
       fake.editor,
@@ -223,7 +223,7 @@ describe('aplicar propostas', () => {
     expect(outcome).toEqual({ applied: ['1'], changed: ['2'] })
   })
 
-  it('comentário entra nos dois extremos do trecho, com o modelo como autor', () => {
+  it('a comment goes in at both ends of the excerpt, with the model as author', () => {
     const fake = fakeEditor(docOf(paragraph(text('O gato dorme.'))))
     const proposal: AiProposal = { ...comment(fake.state().doc, '1', 1, 'gato'), comment: 'Qual gato?' }
     const outcome = applyProposals(fake.editor, [proposal], MODEL)
@@ -234,7 +234,7 @@ describe('aplicar propostas', () => {
     ])
   })
 
-  it('documento só para leitura: nada é aplicado', () => {
+  it('read-only document: nothing is applied', () => {
     useWorkspace.setState({ readOnly: true })
     const fake = fakeEditor(docOf(paragraph(text('O gato dorme.'))))
     const proposal = comment(fake.state().doc, '1', 1, 'gato')

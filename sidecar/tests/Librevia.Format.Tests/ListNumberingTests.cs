@@ -22,7 +22,7 @@ public class ListNumberingTests
     private static JsonObject DefinitionOf(Node list) => (JsonObject)AttrOf(list, "numbering")!;
 
     [Fact]
-    public void LeitorEntregaOsNiveisEAChaveDaContagem()
+    public void ReaderDeliversTheLevelsAndTheCountKey()
     {
         var lists = ListsOf(Roundtrip.Open(Fixtures.WithMultilevelList()));
 
@@ -48,7 +48,7 @@ public class ListNumberingTests
     }
 
     [Fact]
-    public void OutraNumeracaoNoMesmoNivelEOutraLista()
+    public void OtherNumberingAtTheSameLevelIsAnotherList()
     {
         // Joined, "Dez" would be an item of "Três": 4, not 10.
         var lists = ListsOf(Roundtrip.Open(Fixtures.WithMultilevelList()));
@@ -57,7 +57,7 @@ public class ListNumberingTests
     }
 
     [Fact]
-    public void AbrirEGravarSemEditarNaoTocaNaNumeracao()
+    public void OpenAndWriteWithoutEditingLeavesNumberingAlone()
     {
         var original = Fixtures.WithMultilevelList();
         var (saved, result) = Roundtrip.Save(original, Roundtrip.Clone(Roundtrip.Open(original)));
@@ -67,7 +67,7 @@ public class ListNumberingTests
     }
 
     [Fact]
-    public void ListaReiniciadaGanhaNumComStartOverrideDaMesmaDefinicao()
+    public void RestartedListGetsNumWithStartOverrideOfTheSameDefinition()
     {
         // "Restart at 1": a new `w:num` of the same definition, with `w:startOverride`, as in Word.
         var original = Fixtures.WithMultilevelList();
@@ -92,7 +92,7 @@ public class ListNumberingTests
     }
 
     [Fact]
-    public void ItemDescidoComTabVaiAoNivelDeBaixoSemReescreverOParagrafo()
+    public void ItemDemotedWithTabGoesToTheLowerLevelWithoutRewritingTheParagraph()
     {
         // It changes the surrounding list, not the item; returned as it came, it would go back to
         // level 0.
@@ -112,7 +112,7 @@ public class ListNumberingTests
     }
 
     [Fact]
-    public void CadaListaNovaGanhaDefinicaoPropriaComOsNiveisDoWord()
+    public void EachNewListGetsItsOwnDefinitionWithWordLevels()
     {
         // With a single definition, the second new list would continue the first one's count in
         // Word.
@@ -141,7 +141,7 @@ public class ListNumberingTests
     }
 
     [Fact]
-    public void ListasNovasComAMesmaChaveSaoUmaNumeracaoSo()
+    public void NewListsWithTheSameKeyAreOneNumbering()
     {
         // "Continue numbering" between two lists not saved yet: the key is what joins them, and
         // both must come out in the same `w:num`.
@@ -166,7 +166,7 @@ public class ListNumberingTests
     }
 
     [Fact]
-    public void ListaComDefinicaoDaGaleriaSaiComOsNiveisDela()
+    public void ListWithGalleryDefinitionComesOutWithItsLevels()
     {
         // A definition chosen in the editor (gallery, pasted list) comes back the same.
         var original = Fixtures.Simple();
@@ -191,7 +191,7 @@ public class ListNumberingTests
     }
 
     [Fact]
-    public void MarcadoresDaTelaVoltamAoGlifoEAFonteDoWord()
+    public void ScreenBulletsGoBackToWordGlyphAndFont()
     {
         Assert.Equal(("", "Symbol"), ListLevels.GlyphOf("•"));
         Assert.Equal(("", "Wingdings"), ListLevels.GlyphOf("▪"));
@@ -200,7 +200,7 @@ public class ListNumberingTests
     }
 
     [Fact]
-    public void ListaColadaComNumIdQueODestinoUsaParaOutraCoisaGanhaNumeracaoPropria()
+    public void PastedListWithNumIdTheTargetUsesForSomethingElseGetsItsOwnNumbering()
     {
         // A list from another document carries `numId` 5, which here is another numbering.
         var original = Fixtures.WithMultilevelList();
@@ -221,7 +221,7 @@ public class ListNumberingTests
     }
 
     [Fact]
-    public void NumIdSemDefinicaoNaoEListaENaoEReescrito()
+    public void NumIdWithoutDefinitionIsNotAListAndIsNotRewritten()
     {
         var original = Fixtures.WithDanglingNumbering();
         var opened = Roundtrip.Open(original);
@@ -233,7 +233,7 @@ public class ListNumberingTests
     }
 
     [Fact]
-    public void NivelNaoMudadoECopiadoDoOriginalAoRecriarADefinicao()
+    public void UnchangedLevelIsCopiedFromTheOriginalWhenRecreatingTheDefinition()
     {
         // The gallery only touched level 2: level 1 comes back from the file as it was
         // (right-aligned, red, `ordinal`), not rebuilt from what the screen knows.
@@ -259,7 +259,7 @@ public class ListNumberingTests
     }
 
     [Fact]
-    public void NivelRecriadoSemOriginalLevaAlinhamentoEFormatoEAvisaOQueFicou()
+    public void RecreatedLevelWithoutOriginalCarriesAlignmentAndFormatAndWarnsWhatRemained()
     {
         // Pasted from another document: there is no `w:lvl` to copy. What the definition carries
         // comes back (right-aligned, `ordinal`); the number color does not, and a warning goes out.

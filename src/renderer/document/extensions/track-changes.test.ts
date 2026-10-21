@@ -87,8 +87,8 @@ function positionOf(node: ProseMirrorNode, text: string): number {
   return found
 }
 
-describe('controle de alterações', () => {
-  it('acha cada alteração, e o marcador no meio não parte a exclusão', () => {
+describe('change tracking', () => {
+  it('finds each change, and the marker in the middle does not split the deletion', () => {
     const changes = revisionChangesOf(doc)
     expect(changes.map((change) => change.kind)).toEqual([
       'insertion',
@@ -101,7 +101,7 @@ describe('controle de alterações', () => {
     expect(doc.textBetween(deletion.from, deletion.to)).toBe(' excluído')
   })
 
-  it('aceitar a exclusão apaga o texto e deixa o marcador', () => {
+  it('accepting the deletion removes the text and keeps the marker', () => {
     const state = EditorState.create({ schema, doc })
     const tr = state.tr
     expect(settleChangeAt(tr, positionOf(doc, 'luído') + 1, true)).toBe(true)
@@ -113,7 +113,7 @@ describe('controle de alterações', () => {
     expect(types).toContain('bookmarkEnd')
   })
 
-  it('rejeitar a exclusão devolve o texto como texto comum', () => {
+  it('rejecting the deletion returns the text as plain text', () => {
     const state = EditorState.create({ schema, doc })
     const tr = state.tr
     settleChangeAt(tr, positionOf(doc, 'exc') + 1, false)
@@ -122,7 +122,7 @@ describe('controle de alterações', () => {
     expect(revisionChangesOf(next.doc).map((change) => change.kind)).not.toContain('deletion')
   })
 
-  it('rejeitar a inserção a apaga; aceitar tira só a marca', () => {
+  it('rejecting the insertion removes it; accepting only drops the mark', () => {
     const state = EditorState.create({ schema, doc })
     const rejected = state.tr
     settleChangeAt(rejected, positionOf(doc, 'inserido') + 2, false)
@@ -135,7 +135,7 @@ describe('controle de alterações', () => {
     expect(revisionChangesOf(next.doc)[0]!.kind).toBe('deletion')
   })
 
-  it('rejeitar a marca de parágrafo inserida junta com o seguinte', () => {
+  it('rejecting the inserted paragraph mark joins with the next one', () => {
     const state = EditorState.create({ schema, doc })
     const tr = state.tr
     expect(changeAt(doc, positionOf(doc, 'Partido') + 2)?.kind).toBe('markInsertion')
@@ -145,7 +145,7 @@ describe('controle de alterações', () => {
     expect(next.doc.child(1).attrs['markRevision']).toBeNull()
   })
 
-  it('aceitar tudo numa transação: um desfazer devolve tudo', () => {
+  it('accept all in one transaction: one undo restores everything', () => {
     let state = EditorState.create({ schema, doc, plugins: [history()] })
     const tr = state.tr
     expect(settleAllChanges(tr, true)).toBe(true)
@@ -163,7 +163,7 @@ describe('controle de alterações', () => {
     expect(state.doc.eq(doc)).toBe(true)
   })
 
-  it('rejeitar tudo: o inserido sai, o excluído volta, a linha fica', () => {
+  it('reject all: the inserted text goes, the deleted text returns, the line stays', () => {
     const state = EditorState.create({ schema, doc })
     const tr = state.tr
     settleAllChanges(tr, false)
@@ -174,7 +174,7 @@ describe('controle de alterações', () => {
     expect(revisionChangesOf(next.doc)).toEqual([])
   })
 
-  it('próxima e anterior andam pela ordem do texto', () => {
+  it('next and previous move in text order', () => {
     expect(adjacentChange(doc, 0, 1)?.kind).toBe('insertion')
     const insertion = adjacentChange(doc, 0, 1)!
     expect(adjacentChange(doc, insertion.to, 1)?.kind).toBe('deletion')
@@ -187,7 +187,7 @@ describe('controle de alterações', () => {
     expect(state.selection.from).toBe(1)
   })
 
-  it('a busca e a contagem não veem o texto excluído', () => {
+  it('search and counting do not see deleted text', () => {
     const paragraph = doc.child(0)
     const hidden = textWithoutDeletions(paragraph, undefined, ' ', '\u0000')
     expect(hidden).toHaveLength(paragraph.content.size)
@@ -197,7 +197,7 @@ describe('controle de alterações', () => {
   })
 })
 
-describe('alterações dentro das notas (M11)', () => {
+describe('changes inside notes (M11)', () => {
   const withNote = ProseMirrorNode.fromJSON(schema, {
     type: 'doc',
     content: [
@@ -225,12 +225,12 @@ describe('alterações dentro das notas (M11)', () => {
     ],
   })
 
-  it('acha as alterações do corpo da nota, na ordem do texto', () => {
+  it('finds the changes in the note body, in text order', () => {
     const changes = revisionChangesOf(withNote)
     expect(changes.map((change) => withNote.textBetween(change.from, change.to))).toEqual(['nova', ' velha'])
   })
 
-  it('aceitar todas não deixa marca na nota', () => {
+  it('accept all leaves no mark in the note', () => {
     const state = EditorState.create({ doc: withNote })
     const tr = state.tr
     expect(settleAllChanges(tr, true)).toBe(true)
@@ -238,14 +238,14 @@ describe('alterações dentro das notas (M11)', () => {
     expect(tr.doc.child(0).child(1).textContent).toBe('Nota nova')
   })
 
-  it('rejeitar todas devolve a nota como era', () => {
+  it('reject all returns the note as it was', () => {
     const tr = EditorState.create({ doc: withNote }).tr
     settleAllChanges(tr, false)
     expect(tr.doc.child(0).child(1).textContent).toBe('Nota  velha')
     expect(revisionChangesOf(tr.doc)).toEqual([])
   })
 
-  it('aceita ou rejeita a alteração no cursor de dentro da nota, e só ela', () => {
+  it('accepts or rejects the change at the cursor inside the note, and only that one', () => {
     const inside = positionOf(withNote, 'velha') + 1
     const tr = EditorState.create({ doc: withNote }).tr
     expect(settleChangeAt(tr, inside, false)).toBe(true)
@@ -255,7 +255,7 @@ describe('alterações dentro das notas (M11)', () => {
     ])
   })
 
-  it('do cursor na nota, a próxima e a anterior andam dentro da mesma nota', () => {
+  it('from the cursor in the note, next and previous move within the same note', () => {
     const afterNova = positionOf(withNote, 'nova') + 'nova'.length
     const next = adjacentChange(withNote, afterNova, 1)!
     expect(withNote.textBetween(next.from, next.to)).toBe(' velha')
@@ -264,7 +264,7 @@ describe('alterações dentro das notas (M11)', () => {
     expect(adjacentChange(withNote, next.to, 1)).toBeNull()
   })
 
-  it('a próxima alteração entra na nota', () => {
+  it('the next change enters the note', () => {
     expect(
       withNote.textBetween(adjacentChange(withNote, 0, 1)!.from, adjacentChange(withNote, 0, 1)!.to),
     ).toBe('nova')

@@ -10,35 +10,35 @@ import { docxWithHeaderTextBox, entryOf } from './fixtures.js'
  * comes back whole, because typing in it opens and closes paragraphs; the `PAGE` field does not, or
  * it would become a fixed number.
  */
-test.describe('caixa de cabeçalho editável', () => {
+test.describe('editable header box', () => {
   let session: Session
-  let pasta: string
-  let destino: string
+  let directory: string
+  let destinationFile: string
 
   test.beforeEach(async () => {
-    pasta = await mkdtemp(join(tmpdir(), 'librevia-faixa-'))
-    destino = join(pasta, 'salva.docx')
+    directory = await mkdtemp(join(tmpdir(), 'librevia-band-'))
+    destinationFile = join(directory, 'salva.docx')
     session = await launch()
 
-    const origem = join(pasta, 'grupo.docx')
-    await writeFile(origem, await docxWithHeaderTextBox())
-    await stubDialogs(session.app, { open: origem, save: destino, messageBox: 1 })
+    const sourceFile = join(directory, 'grupo.docx')
+    await writeFile(sourceFile, await docxWithHeaderTextBox())
+    await stubDialogs(session.app, { open: sourceFile, save: destinationFile, messageBox: 1 })
     await menu(session, 'open')
     await expect(session.window.locator('.ProseMirror')).toBeVisible()
   })
 
   test.afterEach(async () => {
     await session.close()
-    await rm(pasta, { recursive: true, force: true })
+    await rm(directory, { recursive: true, force: true })
   })
 
-  test('o título da caixa é digitável e volta para o cabeçalho do arquivo', async () => {
-    const caixa = session.window
+  test('the box title is typeable and returns to the file header', async () => {
+    const box = session.window
       .locator('.paper-float--text')
       .filter({ hasText: 'EVIDÊNCIAS DO ROTEIRO' })
       .first()
 
-    await caixa.click()
+    await box.click()
     await session.window.keyboard.press('ControlOrMeta+a')
     await session.window.keyboard.type('EVIDÊNCIAS DE HOMOLOGAÇÃO')
     await session.window.locator('.ProseMirror').click()
@@ -46,20 +46,20 @@ test.describe('caixa de cabeçalho editável', () => {
     await menu(session, 'save-as')
     await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
 
-    const cabecalho = await entryOf(destino, 'word/header1.xml')
-    expect(cabecalho).toContain('EVIDÊNCIAS DE HOMOLOGAÇÃO')
-    expect(cabecalho).not.toContain('EVIDÊNCIAS DO ROTEIRO')
+    const header = await entryOf(destinationFile, 'word/header1.xml')
+    expect(header).toContain('EVIDÊNCIAS DE HOMOLOGAÇÃO')
+    expect(header).not.toContain('EVIDÊNCIAS DO ROTEIRO')
 
     // The group stays whole, with the field this writer cannot generate.
-    expect(cabecalho).toContain('PAGE')
-    expect(cabecalho).toContain('fldChar')
+    expect(header).toContain('PAGE')
+    expect(header).toContain('fldChar')
   })
 
-  test('a caixa do número da página não recebe o cursor', async () => {
+  test('the page number box does not receive the cursor', async () => {
     // What shows in it is this sheet's number; what is in the file is a field. Returning it as text
     // would make the header say "1" on every sheet, and it would only be noticed on the second.
-    const numero = session.window.locator('.paper-float--text').filter({ hasText: /^1$/ })
-    await expect(numero).toHaveCount(1)
-    await expect(numero).not.toHaveClass(/paper-float--edit/)
+    const number = session.window.locator('.paper-float--text').filter({ hasText: /^1$/ })
+    await expect(number).toHaveCount(1)
+    await expect(number).not.toHaveClass(/paper-float--edit/)
   })
 })

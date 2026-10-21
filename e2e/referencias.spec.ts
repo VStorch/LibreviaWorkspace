@@ -20,12 +20,12 @@ async function setPreference(session: Session, patch: Record<string, unknown>): 
   }, patch)
 }
 
-test.describe('painel de navegação', () => {
+test.describe('navigation panel', () => {
   let session: Session
   let folder: string
 
   test.beforeEach(async () => {
-    folder = await mkdtemp(join(tmpdir(), 'librevia-referencias-'))
+    folder = await mkdtemp(join(tmpdir(), 'librevia-references-'))
     session = await launch()
   })
 
@@ -34,7 +34,7 @@ test.describe('painel de navegação', () => {
     await rm(folder, { recursive: true, force: true })
   })
 
-  test('lista os títulos ao vivo, leva a eles e destaca o da seção do cursor', async () => {
+  test("lists the headings live, goes to them and highlights the cursor's section", async () => {
     await menu(session, 'new-document')
     const editor = session.window.locator('.ProseMirror')
     await editor.click()
@@ -66,14 +66,14 @@ test.describe('painel de navegação', () => {
     await expect(pane).toHaveCount(0)
   })
 
-  test('no documento travado também leva ao título', async () => {
+  test('in the locked document it also goes to the heading', async () => {
     // The inserted cell locks editing. The heading is Portuguese Word's `Ttulo1`, recognized by the
     // internal name `heading 1`.
-    const origem = join(folder, 'travado.docx')
+    const sourceFile = join(folder, 'travado.docx')
     const p = (style: string, text: string): string =>
       `<w:p><w:pPr><w:pStyle w:val="${style}"/></w:pPr><w:r><w:t>${text}</w:t></w:r></w:p>`
     await writeFile(
-      origem,
+      sourceFile,
       await docxWithNamedStyles(
         Array.from({ length: 40 }, (_, index) => p('Normal', `Parágrafo ${index + 1}.`)).join('') +
           p('Ttulo1', 'Conclusão') +
@@ -82,7 +82,7 @@ test.describe('painel de navegação', () => {
           '</w:tc></w:tr></w:tbl><w:p/>',
       ),
     )
-    await stubDialogs(session.app, { open: origem, messageBox: 1 })
+    await stubDialogs(session.app, { open: sourceFile, messageBox: 1 })
     await menu(session, 'open')
     await expect(session.window.locator('.banner--readonly')).toBeVisible()
 
@@ -107,12 +107,12 @@ const BOOKMARKS_BODY =
   '<w:p><w:r><w:t>e termina aqui.</w:t></w:r></w:p><w:bookmarkEnd w:id="1"/>' +
   '<w:p><w:r><w:t xml:space="preserve">Veja o </w:t></w:r><w:hyperlink w:anchor="Resumo" w:history="1"><w:r><w:t>resumo</w:t></w:r></w:hyperlink><w:r><w:t xml:space="preserve"> e a conclusão.</w:t></w:r></w:p>'
 
-test.describe('marcadores', () => {
+test.describe('bookmarks', () => {
   let session: Session
   let folder: string
 
   test.beforeEach(async () => {
-    folder = await mkdtemp(join(tmpdir(), 'librevia-marcadores-'))
+    folder = await mkdtemp(join(tmpdir(), 'librevia-bookmarks-'))
     session = await launch()
   })
 
@@ -121,11 +121,11 @@ test.describe('marcadores', () => {
     await rm(folder, { recursive: true, force: true })
   })
 
-  test('lista, vai para, adiciona e grava sem perder os ocultos', async () => {
-    const origem = join(folder, 'marcadores.docx')
-    const destino = join(folder, 'saida.docx')
-    await writeFile(origem, await docxWithReferences(BOOKMARKS_BODY))
-    await stubDialogs(session.app, { open: origem, save: destino, messageBox: 1 })
+  test('list, go to, add and save without losing the hidden ones', async () => {
+    const sourceFile = join(folder, 'marcadores.docx')
+    const destinationFile = join(folder, 'saida.docx')
+    await writeFile(sourceFile, await docxWithReferences(BOOKMARKS_BODY))
+    await stubDialogs(session.app, { open: sourceFile, save: destinationFile, messageBox: 1 })
     await menu(session, 'open')
     const editor = session.window.locator('.ProseMirror')
     await expect(editor).toContainText('O resumo começa aqui')
@@ -171,19 +171,19 @@ test.describe('marcadores', () => {
 
     await menu(session, 'save-as')
     await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
-    const corpo = await entryOf(destino, 'word/document.xml')
-    expect(corpo).toMatch(/w:name="Conclusao"/)
-    expect(corpo).not.toMatch(/Descartavel/)
+    const body = await entryOf(destinationFile, 'word/document.xml')
+    expect(body).toMatch(/w:name="Conclusao"/)
+    expect(body).not.toMatch(/Descartavel/)
     // The heading's hidden bookmark and the end living in the body, between two paragraphs.
-    expect(corpo).toMatch(/w:name="_Toc100"/)
-    expect(corpo).toMatch(/<\/w:p><w:bookmarkEnd w:id="1" ?\/>/)
-    expect(corpo).toMatch(/w:anchor="Resumo"/)
+    expect(body).toMatch(/w:name="_Toc100"/)
+    expect(body).toMatch(/<\/w:p><w:bookmarkEnd w:id="1" ?\/>/)
+    expect(body).toMatch(/w:anchor="Resumo"/)
   })
 
-  test('Ctrl+clique no link interno leva ao marcador', async () => {
-    const origem = join(folder, 'link.docx')
-    await writeFile(origem, await docxWithReferences(BOOKMARKS_BODY))
-    await stubDialogs(session.app, { open: origem, messageBox: 1 })
+  test('Ctrl+click on the internal link goes to the bookmark', async () => {
+    const sourceFile = join(folder, 'link.docx')
+    await writeFile(sourceFile, await docxWithReferences(BOOKMARKS_BODY))
+    await stubDialogs(session.app, { open: sourceFile, messageBox: 1 })
     await menu(session, 'open')
     const editor = session.window.locator('.ProseMirror')
 
@@ -192,14 +192,14 @@ test.describe('marcadores', () => {
     await expect(editor.locator('p', { hasText: 'começa aqui' })).toHaveText('>O resumo começa aqui ')
   })
 
-  test('link para um título cria o marcador oculto em volta dele', async () => {
-    const origem = join(folder, 'titulo.docx')
-    const destino = join(folder, 'titulo-saida.docx')
+  test('a link to a heading creates the hidden bookmark around it', async () => {
+    const sourceFile = join(folder, 'titulo.docx')
+    const destinationFile = join(folder, 'titulo-saida.docx')
     await writeFile(
-      origem,
+      sourceFile,
       await docxWithReferences(BOOKMARKS_BODY.replace(/<w:bookmark(Start|End)[^>]*\/>/g, '')),
     )
-    await stubDialogs(session.app, { open: origem, save: destino, messageBox: 1 })
+    await stubDialogs(session.app, { open: sourceFile, save: destinationFile, messageBox: 1 })
     await menu(session, 'open')
     const editor = session.window.locator('.ProseMirror')
 
@@ -215,23 +215,23 @@ test.describe('marcadores', () => {
 
     await menu(session, 'save-as')
     await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
-    const corpo = await entryOf(destino, 'word/document.xml')
-    const nome = /w:anchor="(_Ref\d+)"/.exec(corpo)?.[1]
-    expect(nome).toBeDefined()
-    expect(corpo).toContain(`w:name="${nome ?? ''}"`)
+    const body = await entryOf(destinationFile, 'word/document.xml')
+    const name = /w:anchor="(_Ref\d+)"/.exec(body)?.[1]
+    expect(name).toBeDefined()
+    expect(body).toContain(`w:name="${name ?? ''}"`)
   })
 })
 
 /** The text of a PDF page, through the system `pdftotext`; null without it. */
-async function textoDaPagina(caminho: string, pagina: number): Promise<string | null> {
+async function textOfPage(filePath: string, page: number): Promise<string | null> {
   try {
     const { stdout } = await promisify(execFile)('pdftotext', [
       '-f',
-      String(pagina),
+      String(page),
       '-l',
-      String(pagina),
+      String(page),
       '-layout',
-      caminho,
+      filePath,
       '-',
     ])
     return stdout
@@ -240,20 +240,20 @@ async function textoDaPagina(caminho: string, pagina: number): Promise<string | 
   }
 }
 
-async function pdfPronto(caminho: string): Promise<boolean> {
+async function readyPdf(filePath: string): Promise<boolean> {
   try {
-    return (await readFile(caminho)).toString('latin1').includes('%%EOF')
+    return (await readFile(filePath)).toString('latin1').includes('%%EOF')
   } catch {
     return false
   }
 }
 
-test.describe('sumário', () => {
+test.describe('table of contents', () => {
   let session: Session
   let folder: string
 
   test.beforeEach(async () => {
-    folder = await mkdtemp(join(tmpdir(), 'librevia-sumario-'))
+    folder = await mkdtemp(join(tmpdir(), 'librevia-toc-'))
     session = await launch()
   })
 
@@ -262,9 +262,9 @@ test.describe('sumário', () => {
     await rm(folder, { recursive: true, force: true })
   })
 
-  test('insere com o número da página de cada título, atualiza e sai igual no PDF e no .docx', async () => {
-    const pdf = join(folder, 'sumario.pdf')
-    const docx = join(folder, 'sumario.docx')
+  test("inserts with each heading's page number, updates, and comes out the same in the PDF and .docx", async () => {
+    const pdf = join(folder, 'toc.pdf')
+    const docx = join(folder, 'toc.docx')
     await stubDialogs(session.app, { save: pdf, messageBox: 1 })
     await menu(session, 'new-document')
     const editor = session.window.locator('.ProseMirror')
@@ -312,34 +312,34 @@ test.describe('sumário', () => {
 
     // Paper: the same first sheet, with the entries and numbers.
     await menu(session, 'export-pdf')
-    await expect.poll(() => pdfPronto(pdf), { timeout: 30_000 }).toBe(true)
-    const primeira = await textoDaPagina(pdf, 1)
-    if (primeira !== null) {
-      expect(primeira).toMatch(/Introdução[ .]*2/)
-      expect(primeira).toMatch(/Escopo[ .]*3/)
-      expect(primeira).toMatch(/Conclusão[ .]*3/)
+    await expect.poll(() => readyPdf(pdf), { timeout: 30_000 }).toBe(true)
+    const first = await textOfPage(pdf, 1)
+    if (first !== null) {
+      expect(first).toMatch(/Introdução[ .]*2/)
+      expect(first).toMatch(/Escopo[ .]*3/)
+      expect(first).toMatch(/Conclusão[ .]*3/)
     }
 
     await stubDialogs(session.app, { save: docx, messageBox: 1 })
     await menu(session, 'save-as')
     await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
-    const corpo = await entryOf(docx, 'word/document.xml')
-    expect(corpo).toContain('w:val="Table of Contents"')
-    expect(corpo).toMatch(/TOC \\o "1-3" \\h/)
-    expect(corpo.match(/PAGEREF _Toc\d+/g)).toHaveLength(3)
+    const body = await entryOf(docx, 'word/document.xml')
+    expect(body).toContain('w:val="Table of Contents"')
+    expect(body).toMatch(/TOC \\o "1-3" \\h/)
+    expect(body.match(/PAGEREF _Toc\d+/g)).toHaveLength(3)
     expect(
-      corpo.match(/w:bookmarkStart[^>]*w:name="_Toc\d+"|w:name="_Toc\d+"[^>]*w:bookmarkStart/g)?.length ?? 0,
+      body.match(/w:bookmarkStart[^>]*w:name="_Toc\d+"|w:name="_Toc\d+"[^>]*w:bookmarkStart/g)?.length ?? 0,
     ).toBeGreaterThan(0)
-    const estilos = await entryOf(docx, 'word/styles.xml')
-    expect(estilos).toContain('w:val="toc 1"')
-    expect(estilos).toContain('w:val="TOC Heading"')
+    const styles = await entryOf(docx, 'word/styles.xml')
+    expect(styles).toContain('w:val="toc 1"')
+    expect(styles).toContain('w:val="TOC Heading"')
   })
 
-  test('o sumário do Word abre editável, mostra as entradas e volta intacto', async () => {
-    const origem = join(folder, 'word.docx')
-    const destino = join(folder, 'word-saida.docx')
-    await writeFile(origem, await docxWithReferences())
-    await stubDialogs(session.app, { open: origem, save: destino, messageBox: 1 })
+  test("Word's table of contents opens editable, shows the entries and comes back intact", async () => {
+    const sourceFile = join(folder, 'word.docx')
+    const destinationFile = join(folder, 'word-saida.docx')
+    await writeFile(sourceFile, await docxWithReferences())
+    await stubDialogs(session.app, { open: sourceFile, save: destinationFile, messageBox: 1 })
     await menu(session, 'open')
     const editor = session.window.locator('.ProseMirror')
 
@@ -352,25 +352,25 @@ test.describe('sumário', () => {
 
     await menu(session, 'save-as')
     await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
-    const antes = await entryOf(origem, 'word/document.xml')
-    const depois = await entryOf(destino, 'word/document.xml')
-    const sumario = (xml: string): string => /<w:sdt>.*<\/w:sdt>/.exec(xml)?.[0] ?? ''
-    expect(sumario(depois)).not.toBe('')
+    const before = await entryOf(sourceFile, 'word/document.xml')
+    const after = await entryOf(destinationFile, 'word/document.xml')
+    const tocBlock = (xml: string): string => /<w:sdt>.*<\/w:sdt>/.exec(xml)?.[0] ?? ''
+    expect(tocBlock(after)).not.toBe('')
     // Preserved without "Update": the same XML, with attributes in SDK order.
     const normal = (xml: string): string =>
-      sumario(xml)
+      tocBlock(xml)
         .replace(/ \/>/g, '/>')
         .replace(/ w:history="1"/g, '')
-    expect(normal(depois)).toBe(normal(antes))
+    expect(normal(after)).toBe(normal(before))
   })
 })
 
-test.describe('legendas e referências cruzadas', () => {
+test.describe('captions and cross-references', () => {
   let session: Session
   let folder: string
 
   test.beforeEach(async () => {
-    folder = await mkdtemp(join(tmpdir(), 'librevia-legendas-'))
+    folder = await mkdtemp(join(tmpdir(), 'librevia-captions-'))
     session = await launch()
   })
 
@@ -379,11 +379,11 @@ test.describe('legendas e referências cruzadas', () => {
     await rm(folder, { recursive: true, force: true })
   })
 
-  test('legenda nova, F9 renumera, e a referência cruzada cita o número e o título', async () => {
-    const origem = join(folder, 'legendas.docx')
-    const destino = join(folder, 'legendas-saida.docx')
-    await writeFile(origem, await docxWithReferences())
-    await stubDialogs(session.app, { open: origem, save: destino, messageBox: 1 })
+  test('new caption, F9 renumbers, and the cross-reference cites the number and the title', async () => {
+    const sourceFile = join(folder, 'legendas.docx')
+    const destinationFile = join(folder, 'legendas-saida.docx')
+    await writeFile(sourceFile, await docxWithReferences())
+    await stubDialogs(session.app, { open: sourceFile, save: destinationFile, messageBox: 1 })
     await menu(session, 'open')
     const editor = session.window.locator('.ProseMirror')
     await expect(editor).toContainText('Como mostra a Figura 1')
@@ -395,10 +395,10 @@ test.describe('legendas e referências cruzadas', () => {
       .getByRole('button', { name: /Escopo/ })
       .click()
     await menu(session, 'insert-caption')
-    const legenda = session.window.getByRole('dialog', { name: 'Legenda' })
-    await legenda.getByLabel('Rótulo').selectOption('Figura')
-    await legenda.getByLabel('Texto depois do número').fill('— Fluxo')
-    await legenda.getByRole('button', { name: 'Inserir' }).click()
+    const caption = session.window.getByRole('dialog', { name: 'Legenda' })
+    await caption.getByLabel('Rótulo').selectOption('Figura')
+    await caption.getByLabel('Texto depois do número').fill('— Fluxo')
+    await caption.getByRole('button', { name: 'Inserir' }).click()
     await expect(editor.locator('p', { hasText: 'Fluxo' })).toHaveText('Figura 1 — Fluxo')
 
     // F9 with the cursor collapsed: the whole document. The file's caption becomes 2, and the
@@ -429,18 +429,18 @@ test.describe('legendas e referências cruzadas', () => {
 
     await menu(session, 'save-as')
     await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
-    const corpo = await entryOf(destino, 'word/document.xml')
-    expect(corpo.match(/SEQ Figura/g)).toHaveLength(2)
-    expect(corpo).toMatch(/REF _Ref\d+ \\h/)
-    expect(corpo).toMatch(/REF _Ref200 \\h/)
+    const body = await entryOf(destinationFile, 'word/document.xml')
+    expect(body.match(/SEQ Figura/g)).toHaveLength(2)
+    expect(body).toMatch(/REF _Ref\d+ \\h/)
+    expect(body).toMatch(/REF _Ref200 \\h/)
     // The file figure's new number went into the field result.
-    expect(corpo).toMatch(/<w:t[^>]*>Figura 2<\/w:t>/)
+    expect(body).toMatch(/<w:t[^>]*>Figura 2<\/w:t>/)
   })
 
-  test('recortar e colar a legenda inteira leva o marcador que a referência cita', async () => {
-    const origem = join(folder, 'mover.docx')
-    await writeFile(origem, await docxWithReferences())
-    await stubDialogs(session.app, { open: origem, messageBox: 1 })
+  test('cutting and pasting the whole caption carries the bookmark the reference cites', async () => {
+    const sourceFile = join(folder, 'mover.docx')
+    await writeFile(sourceFile, await docxWithReferences())
+    await stubDialogs(session.app, { open: sourceFile, messageBox: 1 })
     await menu(session, 'open')
     const editor = session.window.locator('.ProseMirror')
 

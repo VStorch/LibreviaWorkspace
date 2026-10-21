@@ -23,13 +23,13 @@ public class DocxTemplateTests
     }
 
     [Fact]
-    public void PacoteNovoPassaPeloValidadorSemErro()
+    public void NewPackagePassesTheValidatorWithoutError()
     {
         Roundtrip.AssertSchema(DocxTemplate.Create(A4()));
     }
 
     [Fact]
-    public void PacoteNovoTemAsPartesMinimasENaoTemNumeracao()
+    public void NewPackageHasTheMinimalPartsAndNoNumbering()
     {
         // Numbering is born with the first list (NumberingFactory).
         var parts = Roundtrip.PartsOf(DocxTemplate.Create(A4())).Keys.Order(StringComparer.Ordinal);
@@ -44,14 +44,14 @@ public class DocxTemplateTests
     }
 
     [Fact]
-    public void PacoteNovoEDeterministico()
+    public void NewPackageIsDeterministic()
     {
         // The same request gives the same bytes.
         Assert.Equal(DocxTemplate.Create(A4()), DocxTemplate.Create(A4()));
     }
 
     [Fact]
-    public void PaginaDoPacoteVemDaConfiguracao()
+    public void PackagePageComesFromTheConfiguration()
     {
         var page = new PageSetupDto("Letter", "landscape", new MarginsDto(10, 20, 30, 40), null, null);
         var xml = Roundtrip.XmlOf(DocxTemplate.Create(page));
@@ -67,7 +67,7 @@ public class DocxTemplateTests
     }
 
     [Fact]
-    public void PacoteNovoDeclaraEstilosConfiguracaoEPropriedades()
+    public void NewPackageDeclaresStylesSettingsAndProperties()
     {
         var bytes = DocxTemplate.Create(A4());
         var styles = Roundtrip.XmlOf(bytes, "word/styles.xml");
@@ -100,7 +100,7 @@ public class DocxTemplateTests
     }
 
     [Fact]
-    public void EstilosDoPacoteReproduzemATelaDoDocumentoNovo()
+    public void PackageStylesReproduceTheNewDocumentScreen()
     {
         // Without a stylesheet, the package carries the BuiltinStyles table; reopened, it must say
         // the same, or pagination changes.
@@ -128,7 +128,7 @@ public class DocxTemplateTests
     }
 
     [Fact]
-    public void DocumentoNovoVaiEVoltaComTituloListaTabelaEImagem()
+    public void NewDocumentRoundTripsWithHeadingListTableAndImage()
     {
         var cell = (string text) => Node.Of("tableCell", Text("paragraph", text));
         var table = Node.Of("table", Node.Of("tableRow", cell("A1"), cell("B1")), Node.Of("tableRow", cell("A2"), cell("B2")));
@@ -165,7 +165,7 @@ public class DocxTemplateTests
     }
 
     [Fact]
-    public void SegundaGravacaoSobreOPacoteGravadoFunciona()
+    public void SecondWriteOverTheWrittenPackageWorks()
     {
         // After the first save, the saved bytes become the original.
         var first = new DocumentModelDto(A4(), Node.Of("doc", Text("paragraph", "Versão um.")));
@@ -180,7 +180,7 @@ public class DocxTemplateTests
     }
 
     [Fact]
-    public void CabecalhoDeTextoSimplesDoDocumentoNovoChegaAoArquivo()
+    public void PlainTextHeaderOfTheNewDocumentReachesTheFile()
     {
         // A plain text header and footer, with `{n}` in place of the number.
         var page = A4() with { HeaderText = "Relatório anual", FooterText = "Página {n} de {total}" };
@@ -202,7 +202,7 @@ public class DocxTemplateTests
     }
 
     [Fact]
-    public void FaixaDeOutroPacoteNaoDerrubaAGravacaoEEntraNoInventario()
+    public void BandFromAnotherPackageDoesNotBreakTheWriteAndEntersTheInventory()
     {
         // A `.sdoc` that was a `.docx` keeps the band with relationship ids from the source package
         // (`rId5:0:0`), which the minimal package lacks: the band is lost, with a warning, and the
@@ -236,7 +236,7 @@ public class DocxTemplateTests
     }
 
     [Fact]
-    public void TituloNovoNumDocxComTtulo1SaiComoTtulo1()
+    public void NewHeadingInDocxWithTtulo1ComesOutAsTtulo1()
     {
         // In Portuguese Word the id is `Ttulo1`, and the name stays `heading 1`.
         var original = WithLocalizedHeadingStyle();
@@ -260,7 +260,7 @@ public class DocxTemplateTests
     }
 
     [Fact]
-    public void TituloNovoSemEstiloNoPacoteLevaADefinicaoDoModelo()
+    public void NewHeadingWithoutStyleInPackageCarriesTheModelDefinition()
     {
         // The package defines no heading: the definition comes from the new document template, and
         // `word/styles.xml` becomes a touched part.
@@ -282,7 +282,7 @@ public class DocxTemplateTests
     }
 
     [Fact]
-    public void TituloDeOutroPacoteNaoApontaEstiloQueEstePacoteNaoDefine()
+    public void HeadingFromAnotherPackageDoesNotPointToStyleThisPackageDoesNotDefine()
     {
         // The `.sdoc` of a Portuguese `.docx` carries `Ttulo1`, which the minimal package does not
         // define.
@@ -302,7 +302,7 @@ public class DocxTemplateTests
     }
 
     [Fact]
-    public void TituloRebaixadoPerdeOEstiloReconhecidoSoPeloNome()
+    public void DemotedHeadingLosesTheStyleRecognizedOnlyByName()
     {
         // `Überschrift1` is recognized by name: screen and file agree when demoting it.
         var original = WithHeadingNamedOnly();
@@ -322,7 +322,7 @@ public class DocxTemplateTests
     }
 
     [Fact]
-    public void DocxComTituloLocalizadoPeloNomeAbreESalvaSemReescreverNada()
+    public void DocxWithHeadingLocalizedByNameOpensAndSavesWithoutRewritingAnything()
     {
         // A heading recognized by name must not make the writer disagree with the reader.
         var original = WithHeadingNamedOnly();

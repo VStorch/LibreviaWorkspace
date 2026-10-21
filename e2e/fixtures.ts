@@ -337,7 +337,7 @@ export async function docxWithCommentThread(): Promise<Buffer> {
  * was preserved.
  */
 export async function docxWithTextBox(): Promise<Buffer> {
-  const caixa =
+  const box =
     `<w:p><w:r><mc:AlternateContent><mc:Choice Requires="wps">` +
     `<w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0">` +
     `<wp:extent cx="2000000" cy="1000000"/><wp:docPr id="1" name="Caixa"/>` +
@@ -352,7 +352,7 @@ export async function docxWithTextBox(): Promise<Buffer> {
   return zip([
     ['[Content_Types].xml', CONTENT_TYPES.replace(/<Override PartName="\/word\/comments[^>]+>/, '')],
     ['_rels/.rels', ROOT_RELS],
-    ['word/document.xml', documentXml(caixa + paragraph('Primeiro parágrafo do corpo.'))],
+    ['word/document.xml', documentXml(box + paragraph('Primeiro parágrafo do corpo.'))],
   ])
 }
 
@@ -379,7 +379,7 @@ const IMAGE_RELS = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 export async function docxWithStretchedImage(description?: string): Promise<Buffer> {
   const R = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships'
   const PIC = 'http://schemas.openxmlformats.org/drawingml/2006/picture'
-  const imagem =
+  const image =
     `<w:p><w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0">` +
     `<wp:extent cx="3810000" cy="952500"/>` +
     `<wp:docPr id="1" name="Quadrado"${description === undefined ? '' : ` descr="${description}"`}/>` +
@@ -396,7 +396,7 @@ export async function docxWithStretchedImage(description?: string): Promise<Buff
     ['_rels/.rels', ROOT_RELS],
     ['word/_rels/document.xml.rels', IMAGE_RELS],
     ['word/media/quadrado.png', SQUARE_PNG],
-    ['word/document.xml', documentXml(imagem + paragraph('Legenda da imagem.'))],
+    ['word/document.xml', documentXml(image + paragraph('Legenda da imagem.'))],
   ])
 }
 
@@ -410,7 +410,7 @@ export async function docxWithDescribedImage(): Promise<Buffer> {
  * row, each an attribute or node type the schema may return differently.
  */
 export async function docxWithStyledCells(): Promise<Buffer> {
-  const bordas =
+  const borders =
     `<w:tcBorders><w:top w:val="double" w:sz="12" w:color="FF0000"/>` +
     `<w:bottom w:val="nil"/></w:tcBorders>`
   const cell = (text: string, extra = ''): string =>
@@ -422,7 +422,7 @@ export async function docxWithStyledCells(): Promise<Buffer> {
     `<w:tr><w:trPr><w:tblHeader/></w:trPr>` +
     `${cell('Cabeçalho sombreado', '<w:shd w:val="clear" w:color="auto" w:fill="D9D9D9"/>')}` +
     `${cell('Cabeçalho B')}${cell('Cabeçalho C')}</w:tr>` +
-    `<w:tr>${cell('Com borda', bordas)}` +
+    `<w:tr>${cell('Com borda', borders)}` +
     `<w:tc><w:tcPr><w:tcW w:w="6000" w:type="dxa"/><w:gridSpan w:val="2"/></w:tcPr>` +
     `${paragraph('Mesclada na horizontal')}</w:tc></w:tr></w:tbl>`
 
@@ -438,27 +438,27 @@ export async function docxWithStyledCells(): Promise<Buffer> {
  * both.
  */
 export async function docxWithHeaderGrid(): Promise<Buffer> {
-  const borda =
+  const border =
     `<w:tblBorders><w:top w:val="single" w:sz="4"/><w:left w:val="single" w:sz="4"/>` +
     `<w:bottom w:val="single" w:sz="4"/><w:right w:val="single" w:sz="4"/>` +
     `<w:insideH w:val="single" w:sz="4"/><w:insideV w:val="single" w:sz="4"/></w:tblBorders>`
 
-  const celula = (texto: string, largura: string, extra = ''): string =>
-    `<w:tc><w:tcPr><w:tcW w:w="${largura}" w:type="dxa"/>${extra}</w:tcPr>` +
-    `<w:p><w:r><w:t xml:space="preserve">${texto}</w:t></w:r></w:p></w:tc>`
+  const tableCell = (content: string, widthTwips: string, extra = ''): string =>
+    `<w:tc><w:tcPr><w:tcW w:w="${widthTwips}" w:type="dxa"/>${extra}</w:tcPr>` +
+    `<w:p><w:r><w:t xml:space="preserve">${content}</w:t></w:r></w:p></w:tc>`
 
-  const grade =
-    `<w:tbl><w:tblPr><w:tblW w:w="10000" w:type="dxa"/>${borda}</w:tblPr>` +
+  const grid =
+    `<w:tbl><w:tblPr><w:tblW w:w="10000" w:type="dxa"/>${border}</w:tblPr>` +
     `<w:tblGrid><w:gridCol w:w="2000"/><w:gridCol w:w="8000"/></w:tblGrid>` +
-    `<w:tr>${celula('Selo', '2000', '<w:vMerge w:val="restart"/>')}${celula('Chamado 10001', '8000')}</w:tr>` +
-    `<w:tr>${celula('', '2000', '<w:vMerge/>')}${celula('Título do documento', '8000')}</w:tr>` +
+    `<w:tr>${tableCell('Selo', '2000', '<w:vMerge w:val="restart"/>')}${tableCell('Chamado 10001', '8000')}</w:tr>` +
+    `<w:tr>${tableCell('', '2000', '<w:vMerge/>')}${tableCell('Título do documento', '8000')}</w:tr>` +
     // Four rows: the grid exceeds the top margin, and the body must move down.
-    `<w:tr>${celula('', '2000', '<w:vMerge/>')}${celula('Terceira linha do cabeçalho', '8000')}</w:tr>` +
-    `<w:tr>${celula('', '2000', '<w:vMerge/>')}${celula('Quarta linha do cabeçalho', '8000')}</w:tr>` +
+    `<w:tr>${tableCell('', '2000', '<w:vMerge/>')}${tableCell('Terceira linha do cabeçalho', '8000')}</w:tr>` +
+    `<w:tr>${tableCell('', '2000', '<w:vMerge/>')}${tableCell('Quarta linha do cabeçalho', '8000')}</w:tr>` +
     `</w:tbl>`
 
   const header = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<w:hdr xmlns:w="${W}">${grade}<w:p/></w:hdr>`
+<w:hdr xmlns:w="${W}">${grid}<w:p/></w:hdr>`
 
   const rels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
@@ -466,7 +466,7 @@ export async function docxWithHeaderGrid(): Promise<Buffer> {
 </Relationships>`
 
   const R = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships'
-  const corpo =
+  const bodyXml =
     paragraph('Primeira linha do corpo.') +
     `<w:sectPr><w:headerReference xmlns:r="${R}" w:type="default" r:id="rId5"/>` +
     `<w:pgSz w:w="11906" w:h="16838"/>` +
@@ -487,7 +487,7 @@ export async function docxWithHeaderGrid(): Promise<Buffer> {
     // This document's `w:sectPr` is the fixture's, not the template's empty one.
     [
       'word/document.xml',
-      documentXml('').replace('<w:sectPr/>', '').replace('</w:body>', `${corpo}</w:body>`),
+      documentXml('').replace('<w:sectPr/>', '').replace('</w:body>', `${bodyXml}</w:body>`),
     ],
   ])
 }
@@ -506,7 +506,7 @@ export async function docxWithPageNumbering(): Promise<Buffer> {
 </Relationships>`
 
   const R = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships'
-  const corpo =
+  const bodyXml =
     paragraph('Primeira folha.') +
     '<w:p><w:r><w:br w:type="page"/></w:r></w:p>' +
     paragraph('Segunda folha.') +
@@ -529,7 +529,7 @@ export async function docxWithPageNumbering(): Promise<Buffer> {
     ['word/footer1.xml', footer],
     [
       'word/document.xml',
-      documentXml('').replace('<w:sectPr/>', '').replace('</w:body>', `${corpo}</w:body>`),
+      documentXml('').replace('<w:sectPr/>', '').replace('</w:body>', `${bodyXml}</w:body>`),
     ],
   ])
 }
@@ -550,7 +550,7 @@ export async function docxWithSections(): Promise<Buffer> {
 
   const R = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships'
   const margins = `<w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440" w:header="708" w:footer="708"/>`
-  const corpo =
+  const bodyXml =
     paragraph('Folha em retrato.') +
     `<w:p><w:pPr><w:sectPr><w:footerReference xmlns:r="${R}" w:type="default" r:id="rId5"/>` +
     `<w:pgSz w:w="11906" w:h="16838"/>${margins}<w:pgNumType w:fmt="lowerRoman"/></w:sectPr></w:pPr></w:p>` +
@@ -572,7 +572,7 @@ export async function docxWithSections(): Promise<Buffer> {
     ['word/footer1.xml', footer],
     [
       'word/document.xml',
-      documentXml('').replace('<w:sectPr/>', '').replace('</w:body>', `${corpo}</w:body>`),
+      documentXml('').replace('<w:sectPr/>', '').replace('</w:body>', `${bodyXml}</w:body>`),
     ],
   ])
 }
@@ -583,7 +583,7 @@ export async function docxWithSections(): Promise<Buffer> {
  */
 export async function docxWithColumns(): Promise<Buffer> {
   const margins = `<w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440" w:header="708" w:footer="708"/>`
-  const corpo =
+  const bodyXml =
     Array.from({ length: 6 }, (_, index) => paragraph(`Parágrafo ${index + 1} em colunas.`)).join('') +
     `<w:p><w:pPr><w:sectPr><w:pgSz w:w="11906" w:h="16838"/>${margins}` +
     `<w:cols w:num="2" w:space="720" w:sep="1"/></w:sectPr></w:pPr></w:p>` +
@@ -595,7 +595,7 @@ export async function docxWithColumns(): Promise<Buffer> {
     ['_rels/.rels', ROOT_RELS],
     [
       'word/document.xml',
-      documentXml('').replace('<w:sectPr/>', '').replace('</w:body>', `${corpo}</w:body>`),
+      documentXml('').replace('<w:sectPr/>', '').replace('</w:body>', `${bodyXml}</w:body>`),
     ],
   ])
 }
@@ -607,7 +607,7 @@ export async function docxWithColumns(): Promise<Buffer> {
 export async function docxWithAnchoredScreenshot(): Promise<Buffer> {
   const R = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships'
   const PIC = 'http://schemas.openxmlformats.org/drawingml/2006/picture'
-  const imagem =
+  const image =
     `<w:p><w:r><w:drawing><wp:anchor distT="0" distB="0" distL="0" distR="0" simplePos="0" ` +
     `relativeHeight="2" behindDoc="0" locked="0" layoutInCell="0" allowOverlap="1">` +
     `<wp:simplePos x="0" y="0"/>` +
@@ -628,7 +628,7 @@ export async function docxWithAnchoredScreenshot(): Promise<Buffer> {
     ['_rels/.rels', ROOT_RELS],
     ['word/_rels/document.xml.rels', IMAGE_RELS],
     ['word/media/quadrado.png', SQUARE_PNG],
-    ['word/document.xml', documentXml(paragraph('Antes da captura.') + imagem + paragraph('Depois.'))],
+    ['word/document.xml', documentXml(paragraph('Antes da captura.') + image + paragraph('Depois.'))],
   ])
 }
 
@@ -641,7 +641,7 @@ export async function docxWithIndentedScreenshot(): Promise<Buffer> {
   const PIC = 'http://schemas.openxmlformats.org/drawingml/2006/picture'
 
   // 3810000 EMU is 100.6 mm: it fits the 146.5 mm column, not the indented paragraph.
-  const imagem =
+  const image =
     `<w:p><w:pPr><w:ind w:left="720"/></w:pPr>` +
     `<w:r><w:drawing><wp:anchor distT="0" distB="0" distL="0" distR="0" simplePos="0" ` +
     `relativeHeight="2" behindDoc="0" locked="0" layoutInCell="0" allowOverlap="1">` +
@@ -658,7 +658,7 @@ export async function docxWithIndentedScreenshot(): Promise<Buffer> {
     `</pic:pic></a:graphicData></a:graphic>` +
     `</wp:anchor></w:drawing></w:r></w:p>`
 
-  const recuado =
+  const indented =
     `<w:p><w:pPr><w:ind w:left="720"/></w:pPr>` +
     `<w:r><w:t xml:space="preserve">Legenda recuada meia polegada.</w:t></w:r></w:p>`
 
@@ -667,7 +667,7 @@ export async function docxWithIndentedScreenshot(): Promise<Buffer> {
     ['_rels/.rels', ROOT_RELS],
     ['word/_rels/document.xml.rels', IMAGE_RELS],
     ['word/media/quadrado.png', SQUARE_PNG],
-    ['word/document.xml', documentXml(recuado + imagem)],
+    ['word/document.xml', documentXml(indented + image)],
   ])
 }
 
@@ -677,7 +677,7 @@ export async function docxWithIndentedScreenshot(): Promise<Buffer> {
  */
 export async function docxWithAnchoredTextBox(): Promise<Buffer> {
   const WPS = 'http://schemas.microsoft.com/office/word/2010/wordprocessingShape'
-  const caixa =
+  const box =
     `<w:p><w:r><mc:AlternateContent><mc:Choice Requires="wps">` +
     `<w:drawing><wp:anchor distT="0" distB="0" distL="0" distR="0" simplePos="0" ` +
     `relativeHeight="3" behindDoc="0" locked="0" layoutInCell="1" allowOverlap="1">` +
@@ -704,7 +704,7 @@ export async function docxWithAnchoredTextBox(): Promise<Buffer> {
   return zip([
     ['[Content_Types].xml', CONTENT_TYPES.replace(/<Override PartName="\/word\/comments[^>]+>/, '')],
     ['_rels/.rels', ROOT_RELS],
-    ['word/document.xml', documentXml(caixa + paragraph('Primeiro parágrafo do corpo.'))],
+    ['word/document.xml', documentXml(box + paragraph('Primeiro parágrafo do corpo.'))],
   ])
 }
 
@@ -716,22 +716,22 @@ export async function docxWithHeaderTextBox(): Promise<Buffer> {
   const R = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships'
   const WPG = 'http://schemas.microsoft.com/office/word/2010/wordprocessingGroup'
 
-  const forma = (x: string, largura: string, dentro: string): string =>
+  const shape = (x: string, widthTwips: string, inside: string): string =>
     `<wps:wsp><wps:cNvSpPr txBox="1"/>` +
-    `<wps:spPr><a:xfrm><a:off x="${x}" y="0"/><a:ext cx="${largura}" cy="327600"/></a:xfrm>` +
+    `<wps:spPr><a:xfrm><a:off x="${x}" y="0"/><a:ext cx="${widthTwips}" cy="327600"/></a:xfrm>` +
     `<a:prstGeom prst="rect"><a:avLst/></a:prstGeom></wps:spPr>` +
-    `<wps:txbx><w:txbxContent>${dentro}</w:txbxContent></wps:txbx>` +
+    `<wps:txbx><w:txbxContent>${inside}</w:txbxContent></wps:txbx>` +
     `<wps:bodyPr/></wps:wsp>`
 
   // The numbering box carries `PAGE` as `{n}`, and is not editable: it would become a fixed number.
-  const numero =
+  const numberXml =
     `<w:p><w:r><w:fldChar w:fldCharType="begin"/></w:r>` +
     `<w:r><w:instrText xml:space="preserve"> PAGE </w:instrText></w:r>` +
     `<w:r><w:fldChar w:fldCharType="separate"/></w:r>` +
     `<w:r><w:t>1</w:t></w:r>` +
     `<w:r><w:fldChar w:fldCharType="end"/></w:r></w:p>`
 
-  const grupo =
+  const group =
     `<w:p><w:r><w:drawing><wp:anchor distT="0" distB="0" distL="0" distR="0" simplePos="0" ` +
     `relativeHeight="2" behindDoc="0" locked="0" layoutInCell="0" allowOverlap="1">` +
     `<wp:simplePos x="0" y="0"/>` +
@@ -742,20 +742,20 @@ export async function docxWithHeaderTextBox(): Promise<Buffer> {
     `<a:graphic><a:graphicData uri="${WPG}"><wpg:wgp xmlns:wpg="${WPG}">` +
     `<wpg:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="6371640" cy="604440"/>` +
     `<a:chOff x="0" y="0"/><a:chExt cx="6371640" cy="604440"/></a:xfrm></wpg:grpSpPr>` +
-    forma('0', '900000', numero) +
-    forma('1500000', '3052800', `<w:p><w:r><w:t>EVIDÊNCIAS DO ROTEIRO</w:t></w:r></w:p>`) +
+    shape('0', '900000', numberXml) +
+    shape('1500000', '3052800', `<w:p><w:r><w:t>EVIDÊNCIAS DO ROTEIRO</w:t></w:r></w:p>`) +
     `</wpg:wgp></a:graphicData></a:graphic>` +
     `</wp:anchor></w:drawing></w:r></w:p>`
 
   const header = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<w:hdr xmlns:w="${W}" xmlns:mc="${MC}" xmlns:wp="${WP}" xmlns:a="${A}" xmlns:wps="${WPS}" mc:Ignorable="wps">${grupo}</w:hdr>`
+<w:hdr xmlns:w="${W}" xmlns:mc="${MC}" xmlns:wp="${WP}" xmlns:a="${A}" xmlns:wps="${WPS}" mc:Ignorable="wps">${group}</w:hdr>`
 
   const rels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
 <Relationship Id="rId5" Type="${R}/header" Target="header1.xml"/>
 </Relationships>`
 
-  const corpo =
+  const bodyXml =
     paragraph('Primeira linha do corpo.') +
     `<w:sectPr><w:headerReference xmlns:r="${R}" w:type="default" r:id="rId5"/>` +
     `<w:pgSz w:w="11906" w:h="16838"/>` +
@@ -775,7 +775,7 @@ export async function docxWithHeaderTextBox(): Promise<Buffer> {
     ['word/header1.xml', header],
     [
       'word/document.xml',
-      documentXml('').replace('<w:sectPr/>', '').replace('</w:body>', `${corpo}</w:body>`),
+      documentXml('').replace('<w:sectPr/>', '').replace('</w:body>', `${bodyXml}</w:body>`),
     ],
   ])
 }
@@ -785,11 +785,11 @@ export async function docxWithHeaderTextBox(): Promise<Buffer> {
  * next one's space before, and CSS keeps the larger margin.
  */
 export async function docxWithSpacingOnBothSides(): Promise<Buffer> {
-  const espacado = (antes: number, depois: number, texto: string): string =>
+  const spaced = (before: number, after: number, content: string): string =>
     `<w:p><w:pPr><w:spacing w:lineRule="auto" w:line="240" ` +
-    `w:before="${antes}" w:after="${depois}"/></w:pPr>` +
+    `w:before="${before}" w:after="${after}"/></w:pPr>` +
     `<w:r><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/><w:sz w:val="20"/></w:rPr>` +
-    `<w:t xml:space="preserve">${texto}</w:t></w:r></w:p>`
+    `<w:t xml:space="preserve">${content}</w:t></w:r></w:p>`
 
   return zip([
     ['[Content_Types].xml', CONTENT_TYPES.replace(/<Override PartName="\/word\/comments[^>]+>/, '')],
@@ -798,7 +798,7 @@ export async function docxWithSpacingOnBothSides(): Promise<Buffer> {
       'word/document.xml',
       documentXml(
         // 283 twips is 14.15 pt on each side of the joint.
-        espacado(0, 283, 'Antes da junta.') + espacado(283, 0, 'Depois da junta.'),
+        spaced(0, 283, 'Antes da junta.') + spaced(283, 0, 'Depois da junta.'),
       ),
     ],
   ])
@@ -809,9 +809,9 @@ export async function docxWithSpacingOnBothSides(): Promise<Buffer> {
  * "m²".
  */
 export async function docxWithVerticalAlignment(): Promise<Buffer> {
-  const run = (align: string, texto: string): string =>
+  const run = (align: string, content: string): string =>
     `<w:r><w:rPr>${align === '' ? '' : `<w:vertAlign w:val="${align}"/>`}</w:rPr>` +
-    `<w:t xml:space="preserve">${texto}</w:t></w:r>`
+    `<w:t xml:space="preserve">${content}</w:t></w:r>`
 
   return zip([
     ['[Content_Types].xml', CONTENT_TYPES.replace(/<Override PartName="\/word\/comments[^>]+>/, '')],
@@ -831,9 +831,9 @@ export async function docxWithVerticalAlignment(): Promise<Buffer> {
  * `numId`; in the editor, an element with the items inside.
  */
 export async function docxWithBulletList(): Promise<Buffer> {
-  const item = (texto: string): string =>
+  const item = (content: string): string =>
     `<w:p><w:pPr><w:numPr><w:ilvl w:val="0"/><w:numId w:val="3"/></w:numPr></w:pPr>` +
-    `<w:r><w:t xml:space="preserve">${texto}</w:t></w:r></w:p>`
+    `<w:r><w:t xml:space="preserve">${content}</w:t></w:r></w:p>`
 
   const numbering = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:numbering xmlns:w="${W}">
@@ -874,9 +874,9 @@ export async function docxWithBulletList(): Promise<Buffer> {
  * separate count. In Word: 1. 1.a) 1.b) 2. | 3. 10.
  */
 export async function docxWithMultilevelList(): Promise<Buffer> {
-  const item = (texto: string, numId: number, nivel = 0): string =>
-    `<w:p><w:pPr><w:numPr><w:ilvl w:val="${nivel}"/><w:numId w:val="${numId}"/></w:numPr></w:pPr>` +
-    `<w:r><w:t xml:space="preserve">${texto}</w:t></w:r></w:p>`
+  const item = (content: string, numId: number, levelXml = 0): string =>
+    `<w:p><w:pPr><w:numPr><w:ilvl w:val="${levelXml}"/><w:numId w:val="${numId}"/></w:numPr></w:pPr>` +
+    `<w:r><w:t xml:space="preserve">${content}</w:t></w:r></w:p>`
 
   const level = (ilvl: number, fmt: string, text: string, left: number): string =>
     `<w:lvl w:ilvl="${ilvl}"><w:start w:val="1"/><w:numFmt w:val="${fmt}"/><w:lvlText w:val="${text}"/>` +
@@ -978,7 +978,7 @@ function crc32(data: Buffer): number {
 
 function zip(entries: Array<[string, string | Buffer]>): Buffer {
   const locals: Buffer[] = []
-  const central: Buffer[] = []
+  const middle: Buffer[] = []
   let offset = 0
 
   for (const [name, text] of entries) {
@@ -1007,12 +1007,12 @@ function zip(entries: Array<[string, string | Buffer]>): Buffer {
     header.writeUInt32LE(data.length, 24)
     header.writeUInt16LE(filename.length, 28)
     header.writeUInt32LE(offset, 42)
-    central.push(Buffer.concat([header, filename]))
+    middle.push(Buffer.concat([header, filename]))
 
     offset += entry.length
   }
 
-  const directory = Buffer.concat(central)
+  const directory = Buffer.concat(middle)
   const end = Buffer.alloc(22)
   end.writeUInt32LE(0x06054b50, 0)
   end.writeUInt16LE(entries.length, 8)
@@ -1050,7 +1050,7 @@ export async function entryOf(path: string, name: string): Promise<string> {
     position += 46 + nameLength + extraLength + commentLength
   }
 
-  throw new Error(`${name} não encontrado em ${path}`)
+  throw new Error(`${name} not found in ${path}`)
 }
 
 /**
@@ -1075,8 +1075,8 @@ export async function docxWithNamedStyles(extraParagraphs = '', normalProperties
 <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
 </Relationships>`
 
-  const comEstilo = (id: string, texto: string): string =>
-    `<w:p><w:pPr><w:pStyle w:val="${id}"/></w:pPr><w:r><w:t xml:space="preserve">${texto}</w:t></w:r></w:p>`
+  const withStyle = (id: string, content: string): string =>
+    `<w:p><w:pPr><w:pStyle w:val="${id}"/></w:pPr><w:r><w:t xml:space="preserve">${content}</w:t></w:r></w:p>`
 
   return zip([
     [
@@ -1092,7 +1092,7 @@ export async function docxWithNamedStyles(extraParagraphs = '', normalProperties
     [
       'word/document.xml',
       documentXml(
-        comEstilo('Ttulo1', 'Relatório anual') + comEstilo('Citao', 'Um trecho citado.') + extraParagraphs,
+        withStyle('Ttulo1', 'Relatório anual') + withStyle('Citao', 'Um trecho citado.') + extraParagraphs,
       ),
     ],
   ])

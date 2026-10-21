@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { MenuCommand } from '@shared/types.js'
 import { EditorCommand, asEditorCommand, runsWhileLocked } from './editor-commands.js'
 
-describe('comandos do editor no somente leitura', () => {
-  it('só a busca, a contagem, os marcadores, a navegação, abrir a equação, configurar assistentes e o painel do assistente rodam com o documento travado', () => {
+describe('editor commands in read-only mode', () => {
+  it('only search, counting, bookmarks, navigation, opening the equation, configuring assistants and the assistant panel run with the document locked', () => {
     // The bookmark dialog opens for "Go to"; add and delete grey out inside it. The equation opens
     // for viewing: the dialog does not save while locked.
     const allowed = Object.values(EditorCommand).filter(runsWhileLocked)
@@ -24,15 +24,15 @@ describe('comandos do editor no somente leitura', () => {
     )
   })
 
-  it('toda ação de tabela é edição', () => {
+  it('every table action is an edit', () => {
     for (const command of Object.values(EditorCommand).filter((value) => value.startsWith('table-'))) {
       expect(runsWhileLocked(command)).toBe(false)
     }
   })
 })
 
-describe('repasse do menu ao editor', () => {
-  it('reconhece pelo nome cada comando de editor, e só eles', () => {
+describe('menu hand-off to the editor', () => {
+  it('recognizes every editor command by name, and only those', () => {
     for (const command of Object.values(EditorCommand)) expect(asEditorCommand(command)).toBe(command)
     expect(asEditorCommand(MenuCommand.Save)).toBeNull()
   })

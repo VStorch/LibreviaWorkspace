@@ -14,8 +14,8 @@ const readAll = (chunks: Uint8Array[]) => {
   return chunks.flatMap((chunk) => reader.push(chunk))
 }
 
-describe('ida e volta do quadro', () => {
-  it('recupera JSON e binário exatamente como entraram', () => {
+describe('frame round trip', () => {
+  it('recovers JSON and binary exactly as they went in', () => {
     const binary = new Uint8Array([0, 255, 13, 10, 0, 127])
     const [frame] = readAll([encodeFrame({ id: 1, method: 'health' }, binary)])
 
@@ -23,14 +23,14 @@ describe('ida e volta do quadro', () => {
     expect(frame?.binary).toEqual(binary)
   })
 
-  it('aceita quadro sem binário', () => {
+  it('accepts a frame without binary', () => {
     const [frame] = readAll([encodeFrame({ ok: true })])
 
     expect(frame?.json).toEqual({ ok: true })
     expect(frame?.binary).toEqual(EMPTY_BINARY)
   })
 
-  it('preserva bytes que pareceriam fim de linha ou fim de texto', () => {
+  it('keeps bytes that would look like end of line or end of text', () => {
     // A newline-delimited protocol would fall apart here. Ours is length-prefixed precisely to
     // carry DOCX, which is a ZIP and contains anything.
     const binary = new Uint8Array([0x0a, 0x0d, 0x1a, 0x00, 0x50, 0x4b, 0x03, 0x04])
@@ -39,18 +39,18 @@ describe('ida e volta do quadro', () => {
     expect(frame?.binary).toEqual(binary)
   })
 
-  it('preserva texto não-ASCII', () => {
+  it('keeps non-ASCII text', () => {
     const [frame] = readAll([encodeFrame({ message: 'Configuração — evidências' })])
 
     expect(frame?.json).toEqual({ message: 'Configuração — evidências' })
   })
 })
 
-describe('fronteiras de mensagem no pipe', () => {
+describe('message boundaries in the pipe', () => {
   // A pipe does not preserve boundaries. These three cases are this integration's classic bug, and
   // it only shows with large documents.
 
-  it('remonta um quadro partido byte a byte', () => {
+  it('reassembles a frame split byte by byte', () => {
     const complete = encodeFrame({ id: 7 }, new Uint8Array([1, 2, 3, 4, 5]))
     const frames = readAll([...complete].map((byte) => new Uint8Array([byte])))
 
@@ -59,7 +59,7 @@ describe('fronteiras de mensagem no pipe', () => {
     expect(frames[0]?.binary).toEqual(new Uint8Array([1, 2, 3, 4, 5]))
   })
 
-  it('separa vários quadros que chegaram num pedaço só', () => {
+  it('splits several frames that arrived in one chunk', () => {
     const a = encodeFrame({ id: 1 })
     const b = encodeFrame({ id: 2 }, new Uint8Array([9]))
     const c = encodeFrame({ id: 3 })
@@ -72,7 +72,7 @@ describe('fronteiras de mensagem no pipe', () => {
     expect(readAll([glued]).map((f) => f.json)).toEqual([{ id: 1 }, { id: 2 }, { id: 3 }])
   })
 
-  it('não entrega nada enquanto o quadro está incompleto', () => {
+  it('delivers nothing while the frame is incomplete', () => {
     const reader = new FrameReader()
     const complete = encodeFrame({ id: 1 }, new Uint8Array([1, 2, 3]))
 
@@ -81,7 +81,7 @@ describe('fronteiras de mensagem no pipe', () => {
     expect(reader.push(complete.subarray(complete.length - 1))).toHaveLength(1)
   })
 
-  it('sobrevive a um binário de 1 MB partido em pedaços de 64 KB', () => {
+  it('survives a 1 MB binary split into 64 KB chunks', () => {
     const binary = new Uint8Array(1024 * 1024).map((_, i) => i % 256)
     const complete = encodeFrame({ id: 1 }, binary)
 
@@ -97,7 +97,7 @@ describe('fronteiras de mensagem no pipe', () => {
 })
 
 describe('defesa contra sidecar corrompido', () => {
-  it('recusa quadro que anuncia binário absurdo, sem tentar alocar', () => {
+  it('refuses a frame announcing an absurd binary, without trying to allocate', () => {
     // Without this cap, a lying header would make us reserve gigabytes.
     const header = new Uint8Array(FRAME_HEADER_BYTES)
     new DataView(header.buffer).setUint32(4, MAX_BINARY_BYTES + 1, false)
@@ -107,7 +107,7 @@ describe('defesa contra sidecar corrompido', () => {
   })
 
   it('recusa JSON malformado no quadro', () => {
-    const garbage = new TextEncoder().encode('{ isto não é json')
+    const garbage = new TextEncoder().encode('{ this is not json')
     const frame = new Uint8Array(FRAME_HEADER_BYTES + garbage.length)
     new DataView(frame.buffer).setUint32(0, garbage.length, false)
     frame.set(garbage, FRAME_HEADER_BYTES)
@@ -124,7 +124,7 @@ describe('parseResponse', () => {
     expect(response).toMatchObject({ id: 1 })
   })
 
-  it('aceita falha com erro do sidecar', () => {
+  it('accepts a failure with a sidecar error', () => {
     const response = parseResponse({
       id: 2,
       ok: false,
@@ -135,11 +135,11 @@ describe('parseResponse', () => {
   })
 
   it.each([
-    ['sem id', { ok: true, result: 1 }],
-    ['sem ok', { id: 1, result: 1 }],
-    ['erro sem mensagem', { id: 1, ok: false, error: { code: 'X' } }],
+    ['without id', { ok: true, result: 1 }],
+    ['without ok', { id: 1, result: 1 }],
+    ['error without message', { id: 1, ok: false, error: { code: 'X' } }],
     ['id negativo', { id: -1, ok: true, result: 1 }],
-    ['não é objeto', 'ok'],
+    ['not an object', 'ok'],
   ])('recusa resposta fora do contrato: %s', (_label, payload) => {
     // The sidecar is another process: it may be an old version or corrupt. Trusting the shape of
     // what it returns would be the mistake of trusting the renderer.
@@ -151,7 +151,7 @@ describe('parseResponse', () => {
     }
   })
 
-  it('não vaza detalhe técnico na mensagem ao usuário', () => {
+  it('does not leak technical detail in the user message', () => {
     try {
       parseResponse({ nada: 'disso' })
     } catch (error) {

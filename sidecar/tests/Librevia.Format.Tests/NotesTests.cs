@@ -99,7 +99,7 @@ public class NotesTests
         Regex.Match(xml, $"""<w:{kind} [^>]*w:id="{id}"[^>]*>.*?</w:{kind}>""", RegexOptions.Singleline).Value;
 
     [Fact]
-    public void LeAReferenciaComOCorpoDaNotaDentro()
+    public void ReadsTheReferenceWithTheNoteBodyInside()
     {
         var result = DocxReader.Read(WithNotes());
         var model = result.Model;
@@ -127,7 +127,7 @@ public class NotesTests
     }
 
     [Fact]
-    public void AbrirESalvarNaoTocaNadaDasNotas()
+    public void OpenAndSaveLeavesNotesUntouched()
     {
         var original = WithNotes();
         var (bytes, result) = Save(original, Clone(Open(original)));
@@ -144,7 +144,7 @@ public class NotesTests
     }
 
     [Fact]
-    public void EditarUmaNotaReescreveSoOParagrafoDelaENaoOQueAReferencia()
+    public void EditingANoteRewritesOnlyItsParagraphAndNotTheReference()
     {
         var original = WithNotes();
         var model = Clone(Open(original));
@@ -177,7 +177,7 @@ public class NotesTests
     }
 
     [Fact]
-    public void RevisaoNovaNaNotaGanhaIdUnicoNoPacote()
+    public void NewRevisionInNoteGetsUniqueIdInThePackage()
     {
         var original = WithNotes();
         var model = Clone(Open(original));
@@ -208,7 +208,7 @@ public class NotesTests
     }
 
     [Fact]
-    public void ApagarAReferenciaTiraANota()
+    public void DeletingTheReferenceRemovesTheNote()
     {
         var original = WithNotes();
         var model = Clone(Open(original));
@@ -226,7 +226,7 @@ public class NotesTests
     }
 
     [Fact]
-    public void ReferenciaMovidaLevaANotaParaOMesmoLugarNaParte()
+    public void MovedReferenceTakesTheNoteToTheSamePlaceInThePart()
     {
         // LibreOffice matches note and reference by order in the part.
         var original = WithNotes();
@@ -250,7 +250,7 @@ public class NotesTests
     }
 
     [Fact]
-    public void ReferenciaRepetidaGanhaNotaPropria()
+    public void RepeatedReferenceGetsItsOwnNote()
     {
         var original = WithNotes();
         var model = Clone(Open(original));
@@ -274,7 +274,7 @@ public class NotesTests
     }
 
     [Fact]
-    public void ParagrafoReescritoDevolveAReferenciaComoEra()
+    public void RewrittenParagraphReturnsTheReferenceAsItWas()
     {
         var original = WithNotes();
         var model = Clone(Open(original));
@@ -297,7 +297,7 @@ public class NotesTests
     }
 
     [Fact]
-    public void NotaDeFimEditadaNaoTocaAsDeRodape()
+    public void EditedEndnoteDoesNotTouchTheFootnotes()
     {
         var original = WithNotes();
         var model = Clone(Open(original));
@@ -311,7 +311,7 @@ public class NotesTests
     }
 
     [Fact]
-    public void NotaNovaNumDocumentoSemNotasCriaAParte()
+    public void NewNoteInADocumentWithoutNotesCreatesThePart()
     {
         var original = Fixtures.Simple();
         var model = Clone(Open(original));
@@ -340,7 +340,7 @@ public class NotesTests
     }
 
     [Fact]
-    public void RascunhoDeAntesDasNotasDeclaraAPerdaENaoMexeNasPartes()
+    public void DraftFromBeforeNotesDeclaresTheLossAndDoesNotTouchTheParts()
     {
         var original = WithNotes();
         // The model from before notes: no `noteRef`.
@@ -367,7 +367,7 @@ public class NotesTests
     }
 
     [Fact]
-    public void NumeracaoDoModeloQueOPacoteNaoTemEGravada()
+    public void NumberingOfTheModelThePackageLacksIsWritten()
     {
         // The package of a `.sdoc` saved as `.docx` does not have the model's numbering.
         var original = WithNotes();
@@ -400,7 +400,7 @@ public class NotesTests
     }
 
     [Fact]
-    public void NumeracaoNovaDaNotaDeFimCriaODeclaradoNoSettings()
+    public void NewEndnoteNumberingCreatesTheOneDeclaredInSettings()
     {
         var original = WithNotes();
         var model = Open(original) with
@@ -417,7 +417,7 @@ public class NotesTests
     }
 
     [Fact]
-    public void NumeracaoIgualNaoTocaOSettings()
+    public void SameNumberingDoesNotTouchTheSettings()
     {
         var original = WithNotes();
         var (bytes, _) = Save(original, Open(original));
@@ -465,7 +465,7 @@ public class NotesTests
     }
 
     [Fact]
-    public void ComentarioNovoNaNotaVaiParaANotaEVoltaNaLeitura()
+    public void NewCommentInTheNoteGoesToTheNoteAndComesBackOnRead()
     {
         var (_, saved) = WithCommentInNote();
 
@@ -485,7 +485,7 @@ public class NotesTests
     }
 
     [Fact]
-    public void ComentarioExcluidoDaNotaSaiDaNotaEDosComentarios()
+    public void DeletedCommentOfTheNoteLeavesTheNoteAndTheComments()
     {
         var (_, saved) = WithCommentInNote();
         var model = Clone(Open(saved));
@@ -501,7 +501,7 @@ public class NotesTests
     }
 
     [Fact]
-    public void ReferenciaCruzadaANotaGravaONoterefEOMarcadorEmVoltaDaReferencia()
+    public void CrossReferenceToNoteWritesTheNoterefAndTheMarkerAroundTheReference()
     {
         var original = WithNotes();
         var model = Clone(Open(original));

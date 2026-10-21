@@ -48,45 +48,45 @@ const richDocument: DocumentModel = {
   styles: BUILTIN_STYLES,
 }
 
-describe('ida e volta do formato interno', () => {
-  it('preserva o documento inteiro', () => {
+describe('internal format round trip', () => {
+  it('preserves the whole document', () => {
     const restored = parseDocument(serializeDocument(richDocument))
     expect(restored).toEqual(richDocument)
   })
 
-  it('preserva a configuração de página', () => {
+  it('preserves the page setup', () => {
     const restored = parseDocument(serializeDocument(richDocument))
     expect(restored.page.size).toBe(PageSize.Letter)
     expect(restored.page.orientation).toBe(PageOrientation.Landscape)
     expect(restored.page.margins).toEqual({ top: 15, right: 15, bottom: 15, left: 15 })
   })
 
-  it('preserva cabeçalho e rodapé', () => {
+  it('preserves header and footer', () => {
     const restored = parseDocument(serializeDocument(richDocument))
     expect(restored.page.header).toBe('Relatório interno')
     expect(restored.page.footer).toBe('Página {n} de {total}')
   })
 
-  it('abre documento gravado antes de existirem cabeçalho e rodapé', () => {
+  it('opens a document saved before header and footer existed', () => {
     // A new optional field does not invalidate what is on disk.
-    const anterior = JSON.stringify({
+    const previous = JSON.stringify({
       format: 'sdoc',
       version: SDOC_VERSION,
       page: { size: 'A4', orientation: 'portrait', margins: { top: 25, right: 25, bottom: 25, left: 25 } },
       doc: { type: 'doc', content: [{ type: 'paragraph' }] },
     })
 
-    const restored = parseDocument(anterior)
+    const restored = parseDocument(previous)
     expect(restored.page.header).toBe('')
     expect(restored.page.footer).toBe('')
   })
 
-  it('preserva um documento vazio', () => {
+  it('preserves an empty document', () => {
     const empty = createEmptyDocument()
     expect(parseDocument(serializeDocument(empty))).toEqual(empty)
   })
 
-  it('grava a versão do formato', () => {
+  it('writes the format version', () => {
     expect(JSON.parse(serializeDocument(createEmptyDocument()))).toMatchObject({
       format: 'sdoc',
       version: SDOC_VERSION,
@@ -94,7 +94,7 @@ describe('ida e volta do formato interno', () => {
   })
 })
 
-describe('estilos no formato interno', () => {
+describe('styles in the internal format', () => {
   const v2 = (styles?: StyleSheet): string =>
     JSON.stringify({
       format: 'sdoc',
@@ -104,12 +104,12 @@ describe('estilos no formato interno', () => {
       ...(styles === undefined ? {} : { styles }),
     })
 
-  it('devolve os estilos gravados', () => {
+  it('returns the saved styles', () => {
     // The document styles cross faithfully: a lost one would change the look.
     expect(parseDocument(serializeDocument(richDocument)).styles).toEqual(BUILTIN_STYLES)
   })
 
-  it('marca como achatados os blocos de um arquivo anterior à versão 4', () => {
+  it('marks the blocks of a file older than version 4 as flattened', () => {
     // Before version 4 each block carried the effective formatting, and saving to DOCX compares
     // with a flattened reading.
     expect(parseDocument(v2()).flattened).toBe(true)
@@ -118,7 +118,7 @@ describe('estilos no formato interno', () => {
     expect(flat.flattened).toBe(true)
   })
 
-  it('marca como anterior às referências o arquivo de antes da versão 5', () => {
+  it('marks a file older than version 5 as predating references', () => {
     // Before version 5 the nodes carry no bookmarks or fields.
     const v4 = JSON.stringify({ ...JSON.parse(v2(BUILTIN_STYLES)), version: 4 })
     expect(parseDocument(v4).beforeReferences).toBe(true)
@@ -128,7 +128,7 @@ describe('estilos no formato interno', () => {
     expect(legacy.beforeReferences).toBe(true)
   })
 
-  it('marca como anterior às seções o arquivo de antes da versão 6, e leva as seções na ida e volta', () => {
+  it('marks a file older than version 6 as predating sections, and carries sections in the round trip', () => {
     // Before version 6 there are no `sections` or `sectionBreak`: the page is the whole document's.
     const v5 = JSON.stringify({ ...JSON.parse(v2(BUILTIN_STYLES)), version: 5 })
     expect(parseDocument(v5).beforeSections).toBe(true)
@@ -146,7 +146,7 @@ describe('estilos no formato interno', () => {
     expect(reopened.beforeSections).toBeUndefined()
   })
 
-  it('marca como anterior aos comentários o arquivo da versão 6, e leva os comentários na ida e volta', () => {
+  it('marks a version 6 file as predating comments, and carries comments in the round trip', () => {
     // Before version 7 the nodes carry no anchor ends.
     const v6 = JSON.stringify({ ...JSON.parse(v2(BUILTIN_STYLES)), version: 6 })
     expect(parseDocument(v6).beforeComments).toBe(true)
@@ -171,7 +171,7 @@ describe('estilos no formato interno', () => {
     expect(legacy.beforeComments).toBe(true)
   })
 
-  it('marca como anterior às revisões o arquivo da versão 7, e leva o interruptor na ida e volta', () => {
+  it('marks a version 7 file as predating revisions, and carries the switch in the round trip', () => {
     // Before track changes, no revision marks.
     const v7 = JSON.stringify({ ...JSON.parse(v2(BUILTIN_STYLES)), version: 7 })
     expect(parseDocument(v7).beforeRevisions).toBe(true)
@@ -186,7 +186,7 @@ describe('estilos no formato interno', () => {
     expect(legacy.beforeRevisions).toBe(true)
   })
 
-  it('marca como anterior às notas o arquivo da versão 8, e leva a numeração na ida e volta', () => {
+  it('marks a version 8 file as predating notes, and carries the numbering in the round trip', () => {
     // Before notes, no `noteRef`.
     const v8 = JSON.stringify({ ...JSON.parse(v2(BUILTIN_STYLES)), version: 8 })
     expect(parseDocument(v8).beforeNotes).toBe(true)
@@ -201,12 +201,12 @@ describe('estilos no formato interno', () => {
     expect(legacy.beforeNotes).toBe(true)
   })
 
-  it('guarda o pedido de não gravar nomes nas propriedades', () => {
+  it('keeps the request not to write names into the properties', () => {
     const properties = { creator: '', removePersonalInformation: true }
     expect(parseDocument(serializeDocument({ ...richDocument, properties })).properties).toEqual(properties)
   })
 
-  it('marca como anterior às equações o arquivo da versão 10, e o atual não', () => {
+  it('marks a version 10 file as predating equations, and the current one not', () => {
     // Before equations there is no `math` node, and editing the paragraph loses the equation:
     // saving to DOCX says so.
     const v10 = JSON.stringify({ ...JSON.parse(v2(BUILTIN_STYLES)), version: 10 })
@@ -225,7 +225,7 @@ describe('estilos no formato interno', () => {
     expect(parseDocument(serializeDocument({ ...richDocument, doc })).doc).toEqual(doc)
   })
 
-  it('leva as propriedades na ida e volta, e o arquivo da versão 9 abre sem elas e sem marca', () => {
+  it('carries properties in the round trip, and a version 9 file opens without them and without a mark', () => {
     // Before properties: their absence leaves `docProps/` as it is in the file.
     const v9 = JSON.stringify({ ...JSON.parse(v2(BUILTIN_STYLES)), version: 9 })
     const legacy = parseDocument(v9)
@@ -245,7 +245,7 @@ describe('estilos no formato interno', () => {
     expect(parseDocument(serializeDocument(richDocument)).properties).toBeUndefined()
   })
 
-  it('recusa propriedades malformadas', () => {
+  it('rejects malformed properties', () => {
     const broken = JSON.stringify({
       ...JSON.parse(serializeDocument(richDocument)),
       properties: { title: 42 },
@@ -258,21 +258,21 @@ describe('estilos no formato interno', () => {
     expect(() => parseDocument(long)).toThrow(AppError)
   })
 
-  it('dá os estilos embutidos ao arquivo da versão 2, que não os tinha', () => {
+  it('gives the built-in styles to a version 2 file, which had none', () => {
     // An old document opens identical, measure by measure.
     expect(parseDocument(v2()).styles).toEqual(LEGACY_STYLES)
   })
 
-  it('ignora estilos num arquivo que se declara da versão 2', () => {
+  it('ignores styles in a file that declares itself version 2', () => {
     // Version 2 has no styles: a `styles` there is a patch, and it is not trusted.
-    const forjado: StyleSheet = {
+    const forged: StyleSheet = {
       defaults: { paragraph: {}, character: {}, paragraphStyleId: null, characterStyleId: null },
       styles: {},
     }
-    expect(parseDocument(v2(forjado)).styles).toEqual(LEGACY_STYLES)
+    expect(parseDocument(v2(forged)).styles).toEqual(LEGACY_STYLES)
   })
 
-  it('dá os estilos embutidos ao arquivo da versão 1', () => {
+  it('gives the built-in styles to a version 1 file', () => {
     const version1 = JSON.stringify({
       format: 'sdoc',
       version: 1,
@@ -282,27 +282,27 @@ describe('estilos no formato interno', () => {
     expect(parseDocument(version1).styles).toEqual(LEGACY_STYLES)
   })
 
-  it('recusa um estilo malformado em vez de abrir o documento sem ele', () => {
+  it('rejects a malformed style instead of opening the document without it', () => {
     // Without a type, there is nowhere for the style to apply.
-    const quebrado = JSON.stringify({
+    const broken = JSON.stringify({
       format: 'sdoc',
       version: SDOC_VERSION,
       page: DEFAULT_PAGE_SETUP,
       doc: { type: 'doc' },
       styles: { defaults: {}, styles: { Corpo: { id: 'Corpo', name: 'Corpo' } } },
     })
-    expect(() => parseDocument(quebrado)).toThrow(/documento válido/i)
+    expect(() => parseDocument(broken)).toThrow(/documento válido/i)
   })
 })
 
-describe('documento gravado pela versão 1 do formato', () => {
+describe('document saved by version 1 of the format', () => {
   // In version 1 the image was a block, loose between paragraphs or in a cell; today it is inline,
   // and Tiptap builds the document without validating the schema.
   const image = { type: 'image', attrs: { src: 'data:image/png;base64,AAAA', width: 40 } }
   const versionOne = (doc: object): string =>
     JSON.stringify({ format: 'sdoc', version: 1, page: DEFAULT_PAGE_SETUP, doc })
 
-  it('embrulha num parágrafo a imagem solta entre os blocos', () => {
+  it('wraps the image loose between blocks in a paragraph', () => {
     const parsed = parseDocument(
       versionOne({
         type: 'doc',
@@ -315,7 +315,7 @@ describe('documento gravado pela versão 1 do formato', () => {
     ])
   })
 
-  it('embrulha também a imagem solta dentro de uma célula', () => {
+  it('also wraps the image loose inside a cell', () => {
     const parsed = parseDocument(
       versionOne({
         type: 'doc',
@@ -332,42 +332,42 @@ describe('documento gravado pela versão 1 do formato', () => {
     ])
   })
 
-  it('não mexe na imagem que já está num parágrafo', () => {
+  it('leaves alone an image already in a paragraph', () => {
     const doc = { type: 'doc', content: [{ type: 'paragraph', content: [image] }] }
     expect(parseDocument(versionOne(doc)).doc).toEqual(doc)
   })
 
-  it('não migra o que já foi gravado na versão atual', () => {
+  it('does not migrate what was already saved in the current version', () => {
     const doc = { type: 'doc', content: [image] }
     const current = JSON.stringify({ format: 'sdoc', version: SDOC_VERSION, page: DEFAULT_PAGE_SETUP, doc })
     expect(parseDocument(current).doc).toEqual(doc)
   })
 })
 
-describe('leitura de arquivo problemático', () => {
-  it('recusa JSON malformado com mensagem compreensível', () => {
+describe('reading a problematic file', () => {
+  it('rejects malformed JSON with an understandable message', () => {
     expect(() => parseDocument('{ isto não é json')).toThrow(AppError)
     expect(() => parseDocument('{ isto não é json')).toThrow(/corrompido|válido/i)
   })
 
-  it('recusa JSON válido que não é um documento', () => {
+  it('rejects valid JSON that is not a document', () => {
     expect(() => parseDocument('{"qualquer":"coisa"}')).toThrow(/documento válido/i)
   })
 
-  it('recusa documento de versão futura em vez de adivinhar', () => {
-    const futuro = JSON.stringify({
+  it('rejects a document from a future version instead of guessing', () => {
+    const future = JSON.stringify({
       format: 'sdoc',
       version: SDOC_VERSION + 1,
       page: DEFAULT_PAGE_SETUP,
       doc: { type: 'doc' },
     })
 
-    expect(() => parseDocument(futuro)).toThrow(/versão mais recente/i)
+    expect(() => parseDocument(future)).toThrow(/versão mais recente/i)
   })
 
-  it('recupera margens impossíveis usando o padrão, sem descartar o texto', () => {
+  it('recovers impossible margins using the default, without discarding the text', () => {
     // Better the default margin than refusing the file.
-    const quebrado = JSON.stringify({
+    const broken = JSON.stringify({
       format: 'sdoc',
       version: SDOC_VERSION,
       page: {
@@ -378,7 +378,7 @@ describe('leitura de arquivo problemático', () => {
       doc: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'importante' }] }] },
     })
 
-    const restored = parseDocument(quebrado)
+    const restored = parseDocument(broken)
     expect(restored.page).toEqual(DEFAULT_PAGE_SETUP)
     expect(restored.doc).toMatchObject({ type: 'doc' })
   })

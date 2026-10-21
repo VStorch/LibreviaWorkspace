@@ -12,38 +12,38 @@ describe('fromXlsxFormula', () => {
     ['=ROUND(A1*1.5,2)', '=ARRED(A1*1,5;2)'],
     ['=COUNTIF(A1:A9,">10")', '=CONT.SE(A1:A9;">10")'],
     ['=CONCATENATE(A1," ",B1)', '=CONCATENAR(A1;" ";B1)'],
-  ])('traduz %s', (file, app) => {
+  ])('translates %s', (file, app) => {
     expect(fromXlsxFormula(file)).toBe(app)
   })
 
-  it('não mexe em vírgula dentro de texto', () => {
+  it('leaves commas inside text alone', () => {
     expect(fromXlsxFormula('=IF(A1,"um, dois","três")')).toBe('=SE(A1;"um, dois";"três")')
   })
 
-  it('não mexe em vírgula dentro de nome de planilha', () => {
+  it('leaves commas inside a sheet name alone', () => {
     expect(fromXlsxFormula("='Vendas, filial'!A1")).toBe("='Vendas, filial'!A1")
   })
 
-  it('deixa a matriz literal como está', () => {
+  it('leaves the literal array as is', () => {
     // The app does not compute arrays. Translating what it does not understand would spoil a file
     // that would stay fine if left alone.
     expect(fromXlsxFormula('=SUM({1,2;3,4})')).toBe('=SOMA({1,2;3,4})')
   })
 
-  it('traduz erro escrito na fórmula', () => {
+  it('translates an error written in the formula', () => {
     expect(fromXlsxFormula('=IFERROR(A1,#N/A)')).toBe('=SEERRO(A1;#N/D)')
   })
 
-  it('não confunde célula chamada como função', () => {
+  it('does not confuse a cell with a function call', () => {
     // `SOMA` without an attached parenthesis is a reference, not a call.
     expect(fromXlsxFormula('=SUM(SUM1,B1)')).toBe('=SOMA(SUM1;B1)')
   })
 
-  it('deixa intacta a função que o motor não conhece', () => {
+  it('leaves intact a function the engine does not know', () => {
     expect(fromXlsxFormula('=_xlfn.XLOOKUP(A1,B:B,C:C)')).toBe('=_xlfn.XLOOKUP(A1;B:B;C:C)')
   })
 
-  it('entrega fórmula que o analisador aceita', () => {
+  it('produces a formula the parser accepts', () => {
     expect(() => parseFormula(fromXlsxFormula('=IF(SUM(A1:A3)>1.5,ROUND(B1,2),0)'))).not.toThrow()
   })
 })
@@ -58,24 +58,24 @@ describe('toXlsxFormula', () => {
     ['=NÚM.CARACT(A1)', '=LEN(A1)'],
     ['=ÉERROS(A1)', '=ISERROR(A1)'],
     ['=SENÃODISP(A1;0)', '=IFNA(A1,0)'],
-  ])('traduz %s', (app, file) => {
+  ])('translates %s', (app, file) => {
     expect(toXlsxFormula(app)).toBe(file)
   })
 
-  it('aceita o nome em inglês já digitado pelo usuário', () => {
+  it('accepts an English name already typed by the user', () => {
     expect(toXlsxFormula('=SUM(A1;B1)')).toBe('=SUM(A1,B1)')
   })
 
-  it('traduz erro escrito na fórmula', () => {
+  it('translates an error written in the formula', () => {
     expect(toXlsxFormula('=SEERRO(A1;#N/D)')).toBe('=IFERROR(A1,#N/A)')
   })
 
-  it('não mexe em ponto e vírgula dentro de texto', () => {
+  it('leaves semicolons inside text alone', () => {
     expect(toXlsxFormula('=CONCATENAR("a;b";A1)')).toBe('=CONCATENATE("a;b",A1)')
   })
 })
 
-describe('ida e volta', () => {
+describe('round trip', () => {
   // The surgical save compares the outgoing formula with the one in the file. If the round trip
   // changed anything, opening and saving without editing would rewrite every cell and erase what
   // the model does not represent.
@@ -89,11 +89,11 @@ describe('ida e volta', () => {
     '=IFERROR(VLOOKUP(A1,T!A:B,2,FALSE),"—")',
     '=SUM({1,2;3,4})',
     '=A1&", "&B1',
-  ])('%s volta idêntica', (formula) => {
+  ])('%s comes back identical', (formula) => {
     expect(toXlsxFormula(fromXlsxFormula(formula))).toBe(formula)
   })
 
-  it('preserva espaços e maiúsculas do que não traduz', () => {
+  it('preserves spaces and case of what it does not translate', () => {
     expect(toXlsxFormula(fromXlsxFormula('=SUM( a1 , b1 )'))).toBe('=SUM( a1 , b1 )')
   })
 })

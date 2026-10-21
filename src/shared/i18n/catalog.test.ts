@@ -17,7 +17,7 @@ function variants(message: Message): string[] {
   return typeof message === 'string' ? [message] : [message.one, message.other]
 }
 
-describe('catálogo de traduções', () => {
+describe('translation catalog', () => {
   const entries = Object.entries(MESSAGES) as [string, Entry][]
 
   it('tem alguma coisa dentro', () => {
@@ -25,7 +25,7 @@ describe('catálogo de traduções', () => {
     expect(entries.length).toBeGreaterThan(0)
   })
 
-  it('não deixa nenhuma frase vazia', () => {
+  it('leaves no phrase empty', () => {
     const empty = entries.flatMap(([key, entry]) =>
       LANGUAGES.flatMap((language) =>
         variants(entry[language])
@@ -37,7 +37,7 @@ describe('catálogo de traduções', () => {
     expect(empty).toEqual([])
   })
 
-  it('usa os mesmos buracos nos dois idiomas', () => {
+  it('uses the same placeholders in both languages', () => {
     // The real case: the Portuguese sentence gains a `{count}` and the English one does not. The
     // English UI then shows "pages" with no number, and nothing fails.
     const mismatched = entries
@@ -51,7 +51,7 @@ describe('catálogo de traduções', () => {
     expect(mismatched).toEqual([])
   })
 
-  it('é plural nos dois idiomas ou em nenhum', () => {
+  it('is plural in both languages or in neither', () => {
     // Translating a singular/plural pair as a single sentence gives "3 page" in English, and the
     // compiler accepts both shapes.
     const mismatched = entries
@@ -61,7 +61,7 @@ describe('catálogo de traduções', () => {
     expect(mismatched).toEqual([])
   })
 
-  it('não repete chave entre áreas', () => {
+  it('does not repeat a key across areas', () => {
     // The spread that builds `MESSAGES` keeps the last one silently: the losing area still
     // compiles, and its sentence disappears from the screen.
     const seen = new Map<string, string>()
@@ -78,7 +78,7 @@ describe('catálogo de traduções', () => {
     expect(clashes).toEqual([])
   })
 
-  it('prefixa cada chave com a área em que mora', () => {
+  it('prefixes each key with the area it lives in', () => {
     // Otherwise the catalog becomes a bag of loose names, and nobody knows which file holds the
     // sentence.
     const misplaced = Object.entries(AREAS).flatMap(([area, catalog]) =>
@@ -98,22 +98,22 @@ describe('format', () => {
   })
 
   it('escolhe singular e plural pelo count', () => {
-    const paginas: Entry = {
+    const pages: Entry = {
       pt: { one: '{count} página', other: '{count} páginas' },
       en: { one: '{count} page', other: '{count} pages' },
     }
 
-    expect(format(paginas, 'pt', { count: 1 })).toBe('1 página')
-    expect(format(paginas, 'pt', { count: 2 })).toBe('2 páginas')
-    expect(format(paginas, 'en', { count: 0 })).toBe('0 pages')
+    expect(format(pages, 'pt', { count: 1 })).toBe('1 página')
+    expect(format(pages, 'pt', { count: 2 })).toBe('2 páginas')
+    expect(format(pages, 'en', { count: 0 })).toBe('0 pages')
   })
 
-  it('deixa à vista o buraco sem valor', () => {
+  it('leaves a placeholder without a value visible', () => {
     // Dropping it would hide the mistake; keeping it gets someone to fix it.
     expect(format(entry, 'pt', {})).toBe('Olá, {nome}')
   })
 
-  it('não interpola o que veio dentro de um valor', () => {
+  it('does not interpolate what came inside a value', () => {
     // A file named "{nome}.docx" must not trigger a second substitution pass, and file names are
     // what these sentences carry most.
     const arquivo: Entry = { pt: 'Salvo em {a}', en: 'Saved to {a}' }

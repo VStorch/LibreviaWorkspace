@@ -55,7 +55,7 @@ public class PropertiesTests
     }
 
     [Fact]
-    public void LeAsPropriedadesDoCoreEDoApp()
+    public void ReadsTheCoreAndAppProperties()
     {
         var properties = Open(WithProperties()).Properties;
 
@@ -79,7 +79,7 @@ public class PropertiesTests
     }
 
     [Fact]
-    public void OStatusRegravaSoOCoreEAsEstatisticasSoOApp()
+    public void StatusRewritesOnlyTheCoreAndStatisticsOnlyTheApp()
     {
         var original = WithProperties();
         var model = Clone(Open(original));
@@ -102,7 +102,7 @@ public class PropertiesTests
     }
 
     [Fact]
-    public void GravarSemMudarDeixaAsPartesDePropriedadesByteAByte()
+    public void SavingWithoutChangesLeavesThePropertyPartsByteForByte()
     {
         var original = WithProperties();
         var before = PartsOf(original);
@@ -119,7 +119,7 @@ public class PropertiesTests
     }
 
     [Fact]
-    public void MudarOTituloRegravaSoOCoreEGuardaOQueNaoConhece()
+    public void ChangingTheTitleRewritesOnlyTheCoreAndKeepsWhatItDoesNotKnow()
     {
         var original = WithProperties();
         var model = Clone(Open(original));
@@ -147,7 +147,7 @@ public class PropertiesTests
     }
 
     [Fact]
-    public void ACadeiaVaziaApagaOCampoEAEmpresaRegravaSoOApp()
+    public void EmptyStringDeletesTheFieldAndTheCompanyRewritesOnlyTheApp()
     {
         var original = WithProperties();
         var model = Clone(Open(original)) with
@@ -168,7 +168,7 @@ public class PropertiesTests
     }
 
     [Fact]
-    public void ODocumentoNovoGanhaCriadorEDataNoCore()
+    public void NewDocumentGetsCreatorAndDateInTheCore()
     {
         var page = Open(Fixtures.Simple()).Page;
         var template = DocxTemplate.Create(page);
@@ -196,7 +196,7 @@ public class PropertiesTests
     }
 
     [Fact]
-    public void OPacoteSemCorePassaATerUm()
+    public void PackageWithoutCoreComesToHaveOne()
     {
         var original = Fixtures.Simple();
         Assert.False(PartsOf(original).ContainsKey("docProps/core.xml"));

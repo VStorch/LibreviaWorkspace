@@ -39,18 +39,18 @@ const doc = ProseMirrorNode.fromJSON(schema, {
   ],
 })
 
-describe('referência de nota', () => {
-  it('o schema aceita a referência com o corpo dentro, e ela volta igual', () => {
+describe('note reference', () => {
+  it('the schema accepts the reference with the body inside, and it comes back the same', () => {
     expect(doc.toJSON()).toEqual(ProseMirrorNode.fromJSON(schema, doc.toJSON()).toJSON())
     expect(noteRefsOf(doc)).toHaveLength(4)
   })
 
-  it('numera pela ordem no texto, cada tipo por si, sem contar a marca própria', () => {
+  it('numbers by text order, each kind on its own, not counting custom marks', () => {
     expect(noteRefLabels(doc)).toEqual(['1', '*', 'i', '2'])
     expect(noteRefLabels(doc, { footnotePr: { numFmt: 'upperRoman' } })).toEqual(['I', '*', 'i', 'II'])
   })
 
-  it('a colagem que repetiria uma nota do documento a leva sem nid; arrastar não', () => {
+  it('a paste that would duplicate a document note drops its nid; dragging does not', () => {
     const slice = new Slice(doc.child(0).content, 0, 0)
     const pasted = withoutRepeatedNotes(slice, doc)
     const ref = noteRefsOf(
@@ -64,20 +64,20 @@ describe('referência de nota', () => {
     expect(withoutRepeatedNotes(slice, doc, true)).toBe(slice)
   })
 
-  it('a busca vê a nota como um bloco opaco do comprimento dela, e a contagem lê o corpo', () => {
+  it('search sees the note as an opaque block of its length, and counting reads the body', () => {
     const paragraph = doc.child(0)
     const hidden = textWithoutDeletions(paragraph, undefined, ' ', '\u0000')
     expect(hidden.length).toBe(paragraph.content.size)
     expect(textWithoutDeletions(paragraph, ' ', ' ')).toBe('Primeira Fonte A.')
   })
 
-  it('o texto do parágrafo para o sumário e o painel não leva o corpo da nota', () => {
+  it('the paragraph text for the outline and the panel does not include the note body', () => {
     const paragraph = doc.child(1)
     expect(textBetweenWithoutNotes(paragraph, 0, paragraph.content.size)).toBe('Segunda fim')
     expect(textBetweenWithoutNotes(doc, 0, doc.content.size, '|')).toBe('Primeira|Segunda fim')
   })
 
-  it('o HTML leva o corpo num atributo, que a colagem lê de volta', () => {
+  it('the HTML carries the body in an attribute, which paste reads back', () => {
     const serializer = DOMSerializer.fromSchema(schema)
     const spec = serializer.nodes['noteRef']!(doc.child(0).child(1))
     const [tag, attrs] = spec as [string, Record<string, string>]
@@ -85,7 +85,7 @@ describe('referência de nota', () => {
     expect(JSON.parse(attrs['data-note-body']!)).toEqual(doc.child(0).child(1).content.toJSON())
   })
 
-  it('na colagem, o `<sup>` da referência é nota, e não a marca de sobrescrito', () => {
+  it("on paste, the reference's `<sup>` is a note, not the superscript mark", () => {
     // No DOM in the test: the note rule needs a higher priority than superscript, which also
     // matches `sup` and, on a tie, would win for being a mark.
     const noteRule = schema.nodes['noteRef']!.spec.parseDOM!.find((rule) => rule.tag?.startsWith('sup'))
@@ -98,15 +98,15 @@ describe('referência de nota', () => {
   })
 })
 
-describe('o número no começo do corpo (M11)', () => {
-  it('a nota de marca própria não ganha o número: a marca já está no corpo', () => {
+describe('the number at the start of the body (M11)', () => {
+  it('a note with a custom mark gets no number: the mark is already in the body', () => {
     const refs = noteRefsOf(doc)
     // Text order: 1, the "*" one, the endnote and 3.
     expect(refs.map(({ node }) => drawsNoteNumber(node))).toEqual([true, false, true, true])
   })
 })
 
-describe('a nota em volta de uma posição e a numeração com reinício (M11)', () => {
+describe('the note around a position and numbering with restart (M11)', () => {
   const withSections = ProseMirrorNode.fromJSON(schema, {
     type: 'doc',
     content: [
@@ -116,19 +116,19 @@ describe('a nota em volta de uma posição e a numeração com reinício (M11)',
     ],
   })
 
-  it('acha a referência que contém a posição, e nenhuma fora das notas', () => {
+  it('finds the reference containing the position, and none outside the notes', () => {
     const [first] = noteRefsOf(withSections)
     expect(noteRefAround(withSections, first!.pos + 2)).toBe(first!.pos)
     expect(noteRefAround(withSections, 1)).toBeNull()
     expect(noteRefAround(withSections, first!.pos)).toBeNull()
   })
 
-  it('reinicia a cada seção pelas marcas do texto', () => {
+  it('restarts at each section by the text marks', () => {
     expect(noteRefLabels(withSections, { footnotePr: { restart: 'eachSect' } })).toEqual(['1', '2', '1'])
     expect(noteRefLabels(withSections)).toEqual(['1', '2', '3'])
   })
 
-  it('reinicia a cada página pelas folhas que a paginação dá', () => {
+  it('restarts at each page by the sheets pagination gives', () => {
     const areas = [
       { sheet: 0, kind: 'footnote', items: [{ index: 0, fromLine: 0 }] },
       {

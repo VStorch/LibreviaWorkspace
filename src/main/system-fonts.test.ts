@@ -43,7 +43,7 @@ afterEach(() => {
 })
 
 describe('fontes instaladas', () => {
-  it('no Linux pergunta ao fontconfig e lê uma vez por sessão', async () => {
+  it('on Linux asks fontconfig and reads once per session', async () => {
     pretendPlatform('linux')
     next.push({ stdout: 'DejaVu Sans\nLiberation Serif\n' })
 
@@ -54,7 +54,7 @@ describe('fontes instaladas', () => {
     expect(calls[0]?.file).toBe('fc-list')
   })
 
-  it('a falha não fica em cache', async () => {
+  it('a failure is not cached', async () => {
     // The point of the test: a timeout is transient, and caching the empty list condemned the whole
     // session to no fonts.
     pretendPlatform('linux')
@@ -67,13 +67,13 @@ describe('fontes instaladas', () => {
     expect(calls).toHaveLength(2)
   })
 
-  it('no Windows chama o reg.exe do System32, pelo caminho absoluto', async () => {
+  it('on Windows calls the reg.exe from System32 by its absolute path', async () => {
     // `reg` by its bare name is looked up in the executable's directory and the current directory
     // before System32: a `reg.exe` planted in a writable folder would run instead of the system's.
     pretendPlatform('win32')
     process.env['SystemRoot'] = 'C:\\Windows'
     next.push({ stdout: '    Arial (TrueType)    REG_SZ    arial.ttf\n' })
-    next.push({ error: new Error('a chave do usuário não existe') })
+    next.push({ error: new Error('the user key does not exist') })
 
     expect(await listInstalledFontFamilies()).toEqual(['Arial'])
     expect(calls).toHaveLength(2)

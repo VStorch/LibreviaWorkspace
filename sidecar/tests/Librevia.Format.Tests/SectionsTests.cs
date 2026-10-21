@@ -23,7 +23,7 @@ public class SectionsTests
             node.Attrs?.GetValueOrDefault("sectionBreak")?.GetValue<string>() == id);
 
     [Fact]
-    public void LeTodasAsSecoesComGeometriaInicioENumeracao()
+    public void ReadsAllSectionsWithGeometryStartAndNumbering()
     {
         var result = DocxReader.Read(Fixtures.WithThreeSections());
         var model = result.Model;
@@ -46,7 +46,7 @@ public class SectionsTests
     }
 
     [Fact]
-    public void FaixaQueASecaoNaoDeclaraFicaHerdadaENaoRepetida()
+    public void BandTheSectionDoesNotDeclareIsInheritedAndNotRepeated()
     {
         var model = Roundtrip.Open(Fixtures.WithThreeSections());
 
@@ -57,7 +57,7 @@ public class SectionsTests
     }
 
     [Fact]
-    public void ParagrafoQueEncerraSecaoLevaOId()
+    public void ParagraphThatEndsSectionCarriesTheId()
     {
         var model = Roundtrip.Open(Fixtures.WithThreeSections());
 
@@ -68,7 +68,7 @@ public class SectionsTests
     }
 
     [Fact]
-    public void AbrirEGravarSemEditarNaoReescreveNadaEDevolveCadaSecao()
+    public void OpenAndWriteWithoutEditingRewritesNothingAndReturnsEverySection()
     {
         var original = Fixtures.WithThreeSections();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
@@ -80,7 +80,7 @@ public class SectionsTests
     }
 
     [Fact]
-    public void MudarAOrientacaoDeUmaSecaoSoTocaOWSectPrDela()
+    public void ChangingTheOrientationOfASectionOnlyTouchesItsWSectPr()
     {
         var original = Fixtures.WithThreeSections();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
@@ -102,7 +102,7 @@ public class SectionsTests
     }
 
     [Fact]
-    public void MudarInicioENumeracaoDeUmaSecao()
+    public void ChangingStartAndNumberingOfASection()
     {
         var original = Fixtures.WithThreeSections();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
@@ -127,7 +127,7 @@ public class SectionsTests
     }
 
     [Fact]
-    public void ApagarAMarcaJuntaOTrechoASecaoDeBaixo()
+    public void DeletingTheMarkMergesTheRangeIntoTheSectionBelow()
     {
         var original = Fixtures.WithThreeSections();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
@@ -147,7 +147,7 @@ public class SectionsTests
     }
 
     [Fact]
-    public void MarcaNovaCopiaASecaoQuePartiuEAplicaOModelo()
+    public void NewMarkCopiesTheSectionItSplitFromAndAppliesTheModel()
     {
         var original = Fixtures.WithThreeSections();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
@@ -175,7 +175,7 @@ public class SectionsTests
     }
 
     [Fact]
-    public void MarcaRepetidaPorParagrafoPartidoNaoDuplicaASecao()
+    public void RepeatedMarkOnSplitParagraphDoesNotDuplicateTheSection()
     {
         var original = Fixtures.WithThreeSections();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
@@ -190,7 +190,7 @@ public class SectionsTests
     }
 
     [Fact]
-    public void RascunhoDeAntesDasSecoesGravaComoAntes()
+    public void DraftFromBeforeSectionsWritesAsBefore()
     {
         // A `.sdoc` < 6 carries neither `sectionBreak` nor `sections`, and no block looks changed.
         var original = Fixtures.WithThreeSections();
@@ -222,7 +222,7 @@ public class SectionsTests
         band is null ? string.Empty : string.Concat(band.Left.Concat(band.Center).Concat(band.Right).Select(p => p.Text));
 
     [Fact]
-    public void DesvincularCriaUmaParteNovaEEditarACopiaNaoMudaAOriginal()
+    public void UnlinkCreatesANewPartAndEditingTheCopyDoesNotChangeTheOriginal()
     {
         var original = Fixtures.WithThreeSections();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
@@ -240,7 +240,7 @@ public class SectionsTests
     }
 
     [Fact]
-    public void VincularAoAnteriorTiraAReferenciaDaSecao()
+    public void LinkToPreviousRemovesTheSectionReference()
     {
         var original = Fixtures.WithThreeSections();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
@@ -259,7 +259,7 @@ public class SectionsTests
     }
 
     [Fact]
-    public void LeColunasEAQuebraDeColuna()
+    public void ReadsColumnsAndTheColumnBreak()
     {
         var result = DocxReader.Read(Fixtures.WithColumns());
         var model = result.Model;
@@ -272,7 +272,7 @@ public class SectionsTests
     }
 
     [Fact]
-    public void ColunasVoltamIntactasEMudarONumeroIgualaAsLarguras()
+    public void ColumnsComeBackIntactAndChangingTheCountEqualizesTheWidths()
     {
         var original = Fixtures.WithColumns();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
@@ -291,7 +291,7 @@ public class SectionsTests
     }
 
     [Fact]
-    public void EditarOParagrafoDaQuebraDeColunaAMantem()
+    public void EditingTheColumnBreakParagraphKeepsIt()
     {
         var original = Fixtures.WithColumns();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
@@ -304,7 +304,7 @@ public class SectionsTests
     }
 
     [Fact]
-    public void DesvincularDeNovoASecaoQueJaTemParteNaoEscreveNaParteErrada()
+    public void UnlinkingAgainASectionThatHasAPartDoesNotWriteToTheWrongPart()
     {
         // Linked and unlinked again, the copy points to the previous one's part (`s2~rId…`): it
         // needs another, or the text would go to the upper header.
@@ -330,7 +330,7 @@ public class SectionsTests
     }
 
     [Fact]
-    public void MarcaSemSecaoNoModeloSaiDoArquivoComAvisoESemDeslocarAsOutras()
+    public void MarkWithoutSectionInTheModelLeavesTheFileWithWarningAndWithoutShiftingTheOthers()
     {
         // Undo brings back the `s2` mark without the section: the file does not keep a section the
         // screen does not show.
@@ -348,7 +348,7 @@ public class SectionsTests
     }
 
     [Fact]
-    public void SecaoQuePassaADeclararAFaixaHerdadaApontaAMesmaParte()
+    public void SectionThatStartsDeclaringTheInheritedBandPointsToTheSamePart()
     {
         // With the first break deleted, the section below points to the bands it inherited.
         var original = Fixtures.WithThreeSections();
@@ -362,7 +362,7 @@ public class SectionsTests
     }
 
     [Fact]
-    public void RenomearAMarcaDaSecaoPartidaNaoReescreveOParagrafo()
+    public void RenamingTheMarkOfTheSplitSectionDoesNotRewriteTheParagraph()
     {
         // Inserting a break renames the split section's mark (`planSectionBreak`): the paragraph
         // closing it comes back preserved, only with the new setup.

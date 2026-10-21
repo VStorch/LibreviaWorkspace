@@ -63,18 +63,18 @@ function authorsOf(doc: ProseMirrorNode): string[] {
 }
 
 describe('aiTarget', () => {
-  it('devolve o trecho selecionado como texto puro', () => {
+  it('returns the selected excerpt as plain text', () => {
     const state = stateOf([paragraph(text('O gato dorme.'))], 3, 7)
     expect(aiTarget(state)).toEqual({ range: { from: 3, to: 7 }, text: 'gato' })
   })
 
-  it('deixa de fora o texto já excluído numa revisão', () => {
+  it('leaves out text already deleted in a revision', () => {
     const deletion = { type: 'deletion', attrs: { author: 'Ana', date: '2026-01-01T00:00:00Z', rid: '1' } }
     const state = stateOf([paragraph(text('um '), text('dois ', deletion), text('três'))], 1, 13)
     expect(aiTarget(state)).toMatchObject({ text: 'um três' })
   })
 
-  it('recusa seleção vazia, com imagem e entre células', () => {
+  it('rejects an empty selection, one with an image, and one across cells', () => {
     expect(aiTarget(stateOf([paragraph(text('abc'))], 2, 2))).toEqual({ problem: 'empty' })
 
     const image = { type: 'image', attrs: { src: 'data:image/png;base64,AA==' } }
@@ -94,7 +94,7 @@ describe('aiTarget', () => {
     expect(aiTarget(across)).toEqual({ problem: 'unsupported' })
   })
 
-  it('selecionar tudo vira o texto do primeiro ao último parágrafo', () => {
+  it('select all becomes the text from the first to the last paragraph', () => {
     const doc = ProseMirrorNode.fromJSON(schema, {
       type: 'doc',
       content: [paragraph(text('Um')), paragraph(text('Dois'))],
@@ -106,7 +106,7 @@ describe('aiTarget', () => {
     expect(shown(next.doc)).toEqual(['[Um]', '[Dois]{Três}'])
   })
 
-  it('recusa seleção de nó inteiro', () => {
+  it('rejects a whole-node selection', () => {
     const image = { type: 'image', attrs: { src: 'data:image/png;base64,AA==' } }
     const doc = ProseMirrorNode.fromJSON(schema, { type: 'doc', content: [paragraph(text('a'), image)] })
     const state = EditorState.create({ doc })
@@ -117,7 +117,7 @@ describe('aiTarget', () => {
 })
 
 describe('buildTrackedReplacement', () => {
-  it('entra como revisão com o modelo de autor, mesmo com o controle desligado', () => {
+  it('goes in as a revision with the model as author, even with tracking off', () => {
     const state = stateOf([paragraph(text('O gato dorme.'))], 3, 7)
     const tr = buildTrackedReplacement(state, { from: 3, to: 7 }, plain('cão'), 'llama3', NOW)!
     expect(tr.getMeta(SKIP_TRACKING)).toBe(true)
@@ -126,7 +126,7 @@ describe('buildTrackedReplacement', () => {
     expect(authorsOf(next.doc)).toEqual(['llama3'])
   })
 
-  it('várias linhas viram parágrafos ligados ao texto em volta', () => {
+  it('several lines become paragraphs joined to the surrounding text', () => {
     const state = stateOf([paragraph(text('Antes meio depois'))], 7, 11)
     const next = state.apply(
       buildTrackedReplacement(state, { from: 7, to: 11 }, plain('um\ndois'), 'm', NOW)!,
@@ -135,7 +135,7 @@ describe('buildTrackedReplacement', () => {
     expect(shown(next.doc)).toEqual(['Antes [meio]{um}', '{dois} depois'])
   })
 
-  it('mantém a formatação do começo do trecho', () => {
+  it('keeps the formatting from the start of the excerpt', () => {
     const state = stateOf([paragraph(text('negrito', { type: 'bold' }))], 1, 8)
     const next = state.apply(buildTrackedReplacement(state, { from: 1, to: 8 }, plain('forte'), 'm', NOW)!)
     let bold = false
@@ -145,14 +145,14 @@ describe('buildTrackedReplacement', () => {
     expect(bold).toBe(true)
   })
 
-  it('não faz nada com resposta vazia', () => {
+  it('does nothing with an empty answer', () => {
     const state = stateOf([paragraph(text('abc'))], 1, 3)
     expect(buildTrackedReplacement(state, { from: 1, to: 3 }, plain(''), 'm', NOW)).toBeNull()
   })
 })
 
-describe('resposta em Markdown', () => {
-  it('negrito e lista viram formatação dentro da revisão do modelo', () => {
+describe('Markdown answer', () => {
+  it("bold and list become formatting inside the model's revision", () => {
     const state = stateOf(
       [paragraph(text('Antes')), paragraph(text('troque')), paragraph(text('Depois'))],
       8,
@@ -174,7 +174,7 @@ describe('resposta em Markdown', () => {
     expect(authorsOf(next.doc)).toEqual(['m'])
   })
 
-  it('a resposta não herda o negrito do trecho, mas herda a cor', () => {
+  it("the answer does not inherit the excerpt's bold, but inherits its color", () => {
     const red = { type: 'textStyle', attrs: { color: '#ff0000' } }
     const state = stateOf([paragraph(text('forte', { type: 'bold' }, red))], 1, 6)
     const next = state.apply(
@@ -189,7 +189,7 @@ describe('resposta em Markdown', () => {
     })
   })
 
-  it('inserir abaixo põe título e lista marcados como inserção', () => {
+  it('inserting below puts heading and list marked as insertion', () => {
     const state = stateOf([paragraph(text('Primeiro'))], 1, 5)
     const next = state.apply(
       buildInsertBelow(state, { from: 1, to: 5 }, markdown('# Resumo\n\n1. um'), 'm', NOW)!,
@@ -200,7 +200,7 @@ describe('resposta em Markdown', () => {
     expect(shown(next.doc)).toEqual(['Primeiro', '{Resumo}', '{um}'])
   })
 
-  it('o trecho vai em Markdown e o documento em volta, sem as exclusões', () => {
+  it('the excerpt goes as Markdown and the surrounding document without deletions', () => {
     const deleted = { type: 'deletion', attrs: { author: 'a', date: NOW.toISOString(), id: 1 } }
     const state = stateOf(
       [paragraph(text('Antes '), text('apagado', deleted), text('forte', { type: 'bold' }), text(' depois'))],
@@ -212,7 +212,7 @@ describe('resposta em Markdown', () => {
   })
 })
 
-describe('resposta em Markdown sob revisão', () => {
+describe('Markdown answer under tracking', () => {
   const THREE = [paragraph(text('Primeiro.')), paragraph(text('O gato dorme.')), paragraph(text('Fim.'))]
   const ANSWER = markdown('O **gato** dorme.\n\n- um\n- dois')
 
@@ -230,7 +230,7 @@ describe('resposta em Markdown sob revisão', () => {
     return blocks
   }
 
-  it('código e bloco de código entram como texto simples, todo ele marcado como inserção', () => {
+  it('code and code block go in as plain text, all marked as insertion', () => {
     const state = stateOf([paragraph(text('troque'))], 1, 7)
     const answer = markdown('usa `x`\n\n```\ny = 1\n```')
     const next = state.apply(buildTrackedReplacement(state, { from: 1, to: 7 }, answer, 'm', NOW)!)
@@ -244,7 +244,7 @@ describe('resposta em Markdown sob revisão', () => {
     expect(shown(next.doc)).toEqual(['[troque]{usa x}', '{y = 1}'])
   })
 
-  it('rejeitar parágrafo e lista devolve só os parágrafos originais', () => {
+  it('rejecting paragraph and list returns only the original paragraphs', () => {
     const state = stateOf(THREE, 12, 25)
     const next = state.apply(buildTrackedReplacement(state, { from: 12, to: 25 }, ANSWER, 'm', NOW)!)
     expect(outline(settled(next, false))).toEqual([
@@ -254,7 +254,7 @@ describe('resposta em Markdown sob revisão', () => {
     ])
   })
 
-  it('aceitar parágrafo e lista no fim do trecho não deixa parágrafo vazio', () => {
+  it('accepting paragraph and list at the end of the excerpt leaves no empty paragraph', () => {
     const state = stateOf(THREE, 12, 25)
     const next = state.apply(buildTrackedReplacement(state, { from: 12, to: 25 }, ANSWER, 'm', NOW)!)
     expect(outline(settled(next, true))).toEqual([
@@ -265,14 +265,14 @@ describe('resposta em Markdown sob revisão', () => {
     ])
   })
 
-  it('lista no meio de um parágrafo: aceitar parte o parágrafo e rejeitar o reconstitui', () => {
+  it('list in the middle of a paragraph: accepting splits the paragraph and rejecting restores it', () => {
     const state = stateOf([paragraph(text('Antes troque depois.'))], 7, 13)
     const next = state.apply(buildTrackedReplacement(state, { from: 7, to: 13 }, markdown('- um'), 'm', NOW)!)
     expect(outline(settled(next, true))).toEqual(['paragraph:Antes ', 'bulletList:um', 'paragraph: depois.'])
     expect(outline(settled(next, false))).toEqual(['paragraph:Antes troque depois.'])
   })
 
-  it('lista no começo do trecho entra antes do parágrafo e some ao rejeitar', () => {
+  it('list at the start of the excerpt goes before the paragraph and vanishes on reject', () => {
     const state = stateOf(THREE, 12, 25)
     const answer = markdown('- um\n\nO gato dorme.')
     const next = state.apply(buildTrackedReplacement(state, { from: 12, to: 25 }, answer, 'm', NOW)!)
@@ -285,7 +285,7 @@ describe('resposta em Markdown sob revisão', () => {
     expect(outline(settled(next, false))).toEqual(outline(state.doc))
   })
 
-  it('o trecho em Markdown leva sobrescrito como texto e, numa célula, só os parágrafos', () => {
+  it('the Markdown excerpt carries superscript as text and, in a cell, only the paragraphs', () => {
     const state = stateOf([paragraph(text('m'), text('2', { type: 'superscript' }))], 1, 3)
     expect(selectedMarkdown(state.doc, { from: 1, to: 3 })).toBe('m2')
     const cell = { type: 'tableCell', content: [paragraph(text('um')), paragraph(text('dois'))] }
@@ -296,7 +296,7 @@ describe('resposta em Markdown sob revisão', () => {
 })
 
 describe('buildInsertBelow', () => {
-  it('insere parágrafos marcados depois do parágrafo do trecho', () => {
+  it("inserts marked paragraphs after the excerpt's paragraph", () => {
     const state = stateOf([paragraph(text('Primeiro')), paragraph(text('Segundo'))], 1, 5)
     const next = state.apply(buildInsertBelow(state, { from: 1, to: 5 }, plain('Resumo'), 'm', NOW)!)
     expect(shown(next.doc)).toEqual(['Primeiro', '{Resumo}', 'Segundo'])
@@ -304,7 +304,7 @@ describe('buildInsertBelow', () => {
 })
 
 describe('rangeChanged', () => {
-  it('acusa trecho editado ou colapsado', () => {
+  it('flags an edited or collapsed excerpt', () => {
     const state = stateOf([paragraph(text('O gato dorme.'))], 3, 7)
     expect(rangeChanged(state.doc, { from: 3, to: 7 }, 'gato')).toBe(false)
     expect(rangeChanged(state.doc, { from: 3, to: 7 }, 'rato')).toBe(true)
@@ -313,12 +313,12 @@ describe('rangeChanged', () => {
 })
 
 describe('chatDocument', () => {
-  it('sem seleção manda o documento inteiro, sem marcar trecho', () => {
+  it('with no selection sends the whole document, without marking an excerpt', () => {
     const state = stateOf([paragraph(text('Um.')), paragraph(text('Dois.'))], 2, 2)
     expect(chatDocument(state)).toEqual({ before: 'Um.\nDois.', after: '', selection: '' })
   })
 
-  it('com seleção manda o texto em volta e o trecho selecionado', () => {
+  it('with a selection sends the surrounding text and the selected excerpt', () => {
     const state = stateOf([paragraph(text('Antes meio depois'))], 7, 11)
     expect(chatDocument(state)).toEqual({ before: 'Antes ', after: ' depois', selection: 'meio' })
   })

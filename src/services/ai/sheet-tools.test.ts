@@ -18,8 +18,8 @@ function context(): SheetToolContext {
 const call = (name: string, args: unknown, given = context()) =>
   runSheetTool({ id: '1', name, arguments: JSON.stringify(args) }, given)
 
-describe('ferramentas da planilha', () => {
-  it('oferecem listar, ler, buscar e propor escrita', () => {
+describe('sheet tools', () => {
+  it('offer list, read, search and propose write', () => {
     expect(SHEET_TOOLS.map((tool) => tool.name)).toEqual([
       'list_sheets',
       'read_cells',
@@ -28,7 +28,7 @@ describe('ferramentas da planilha', () => {
     ])
   })
 
-  it('listam as abas, onde cada uma tem conteúdo e a seleção da ativa', () => {
+  it('list the tabs, where each has content and the active selection', () => {
     expect(call(SheetToolName.ListSheets, {}).content).toBe(
       [
         '1. Vendas (active): content in A1:B2',
@@ -39,7 +39,7 @@ describe('ferramentas da planilha', () => {
     )
   })
 
-  it('leem só as células com conteúdo, com a fórmula e o valor, em qualquer aba', () => {
+  it('read only cells with content, with formula and value, in any tab', () => {
     expect(call(SheetToolName.ReadCells, { range: 'B2:A1' }).content).toBe(
       ['Sheet: Vendas', 'A1: Produto', 'B1: Total', 'A2: Café', 'B2: =2*5 → 10'].join('\n'),
     )
@@ -49,7 +49,7 @@ describe('ferramentas da planilha', () => {
     expect(call(SheetToolName.ReadCells, { range: 'D1:D9' }).content).toBe('D1:D9 on Vendas is empty.')
   })
 
-  it('recusam intervalo mal escrito, fora da planilha ou aba que não existe', () => {
+  it('refuse a malformed range, one outside the sheet or a tab that does not exist', () => {
     expect(call(SheetToolName.ReadCells, { range: 'A1-B2' })).toMatchObject({ isError: true })
     expect(call(SheetToolName.ReadCells, { range: 'A1:A5000' }).content).toContain('outside the sheet Vendas')
     expect(call(SheetToolName.ReadCells, { range: 'A1', sheet: 'Nada' }).content).toBe(
@@ -57,7 +57,7 @@ describe('ferramentas da planilha', () => {
     )
   })
 
-  it('dizem de onde continuar quando a leitura passa do limite', () => {
+  it('say where to continue when the read exceeds the limit', () => {
     let sheet = createSheet('Longa')
     for (let row = 0; row <= MAX_AI_READ_CELLS; row++) sheet = setCell(sheet, row, 0, { value: row })
     const long: SheetToolContext = {
@@ -69,7 +69,7 @@ describe('ferramentas da planilha', () => {
     expect(lines.at(-1)).toContain(`the next is A${MAX_AI_READ_CELLS + 1}`)
   })
 
-  it('param antes do limite de tamanho quando as células são longas', () => {
+  it('stop before the size limit when cells are long', () => {
     let sheet = createSheet('Textos')
     for (let row = 0; row < MAX_AI_READ_CELLS; row++) {
       sheet = setCell(sheet, row, 0, { formula: `="${'a'.repeat(300)}"`, value: 'b'.repeat(300) })
@@ -85,7 +85,7 @@ describe('ferramentas da planilha', () => {
     )
   })
 
-  it('buscam em todas as abas, ignorando maiúsculas, ou só na pedida', () => {
+  it('search all tabs, ignoring case, or only the requested one', () => {
     expect(call(SheetToolName.FindCells, { query: 'CAFÉ' }).content).toBe(
       ['Vendas!A2: Café', "'Dados 2026'!C3: café moído"].join('\n'),
     )
@@ -95,7 +95,7 @@ describe('ferramentas da planilha', () => {
     expect(call(SheetToolName.FindCells, { query: 'chá' }).content).toBe('No cell contains that text.')
   })
 
-  it('propõem a escrita sem mexer na planilha, na aba pedida', () => {
+  it('propose the write without touching the sheet, in the requested tab', () => {
     const given = context()
     const outcome = call(
       SheetToolName.WriteCells,
@@ -114,7 +114,7 @@ describe('ferramentas da planilha', () => {
     ).toBe('Vazia')
   })
 
-  it('não propõem fórmula que a planilha recusaria nem escrita que passa da borda', () => {
+  it('do not propose a formula the sheet would refuse nor a write that goes past the edge', () => {
     const invalid = call(SheetToolName.WriteCells, { start: 'A1', rows: [['ok', '=NADA(1)']] })
     expect(invalid).toMatchObject({ isError: true })
     expect(invalid.content).toMatch(/^B1: /)

@@ -3,7 +3,7 @@ import { effectiveAttrs, resolveStyle } from './style-cascade.js'
 import { BUILTIN_STYLES, LEGACY_STYLES, StyleType, type StyleSheet } from './styles.js'
 
 describe('resolveStyle', () => {
-  it('parte dos padrões do documento e deixa o mais próximo da cadeia com a última palavra', () => {
+  it('starts from the document defaults and lets the closest in the chain have the last word', () => {
     const heading = resolveStyle(BUILTIN_STYLES, 'Heading1')
     expect(heading.character).toMatchObject({ fontFamily: 'Calibri', fontSize: '16pt', color: '#2f5496' })
     // The heading's space after (0) beats the default's (8); line spacing, which the heading does
@@ -15,7 +15,7 @@ describe('resolveStyle', () => {
     })
   })
 
-  it('sem id é o estilo padrão de parágrafo', () => {
+  it('without an id it is the default paragraph style', () => {
     expect(resolveStyle(LEGACY_STYLES, null).paragraph).toEqual(LEGACY_STYLES.styles['Normal']?.paragraph)
     expect(resolveStyle(LEGACY_STYLES, null).character).toEqual({
       fontFamily: 'Times New Roman',
@@ -23,14 +23,14 @@ describe('resolveStyle', () => {
     })
   })
 
-  it('id que o documento não define vale só os padrões', () => {
+  it('an id the document does not define gets only the defaults', () => {
     expect(resolveStyle(BUILTIN_STYLES, 'NaoExiste')).toEqual({
       paragraph: BUILTIN_STYLES.defaults.paragraph,
       character: BUILTIN_STYLES.defaults.character,
     })
   })
 
-  it('não entra em laço num basedOn circular', () => {
+  it('does not loop on a circular basedOn', () => {
     const style = { name: 'x', type: StyleType.Paragraph, qFormat: false, hidden: false, custom: true }
     const sheet: StyleSheet = {
       defaults: { paragraph: {}, character: {}, paragraphStyleId: null, characterStyleId: null },
@@ -44,7 +44,7 @@ describe('resolveStyle', () => {
 })
 
 describe('effectiveAttrs', () => {
-  it('o título sem id vale o estilo `heading N`, e o direto vence', () => {
+  it('a heading without an id takes the `heading N` style, and the direct one wins', () => {
     const attrs = effectiveAttrs(
       { type: 'heading', attrs: { level: 1, spaceAfter: 4, keepNext: null } },
       BUILTIN_STYLES,
@@ -53,12 +53,12 @@ describe('effectiveAttrs', () => {
     expect(attrs).toMatchObject({ keepNext: true, spaceBefore: 12, spaceAfter: 4, fontSize: '16pt' })
   })
 
-  it('o parágrafo vale o estilo declarado, nas unidades do nó', () => {
+  it("a paragraph takes the declared style, in the node's units", () => {
     const attrs = effectiveAttrs({ type: 'paragraph', attrs: { styleId: 'ListParagraph' } }, BUILTIN_STYLES)
     expect(attrs).toMatchObject({ indentMm: 12.7, spaceAfter: 8, lineHeight: '1.3174' })
   })
 
-  it('lista e tabela, e o editor sem estilos, voltam como estão', () => {
+  it('list and table, and the editor without styles, come back as they are', () => {
     const list = { type: 'bulletList', attrs: { spaceBefore: 3 } }
     expect(effectiveAttrs(list, BUILTIN_STYLES)).toEqual({ spaceBefore: 3 })
     expect(effectiveAttrs({ type: 'paragraph', attrs: { indent: 0 } }, null)).toEqual({ indent: 0 })

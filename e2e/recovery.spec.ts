@@ -4,14 +4,14 @@ import { expect, test } from '@playwright/test'
 import { launch, menu, type Session } from './app.js'
 
 /** Recovery proven against a real crash: `SIGKILL`, without exit handlers. */
-test.describe('recuperação depois de uma queda', () => {
+test.describe('recovery after a crash', () => {
   let session: Session
 
   test.afterEach(async () => {
     await session.close()
   })
 
-  test('devolve o que estava na tela e não escreve em arquivo nenhum', async () => {
+  test('restores what was on screen and writes to no file', async () => {
     session = await launch()
 
     await menu(session, 'new-document')
@@ -22,7 +22,7 @@ test.describe('recuperação depois de uma queda', () => {
 
     // Autosave runs on a timer, every eight seconds.
     await expect
-      .poll(async () => draftOnDisk(session), { timeout: 20_000, message: 'o rascunho não foi gravado' })
+      .poll(async () => draftOnDisk(session), { timeout: 20_000, message: 'the draft was not written' })
       .toBe(true)
 
     const { userData } = session
@@ -44,7 +44,7 @@ test.describe('recuperação depois de uma queda', () => {
     await expect(session.window.locator('.statusbar__state')).toContainText('Não salvo')
   })
 
-  test('descartar apaga o rascunho de vez', async () => {
+  test('discarding deletes the draft for good', async () => {
     session = await launch()
 
     await menu(session, 'new-document')
@@ -62,7 +62,7 @@ test.describe('recuperação depois de uma queda', () => {
     expect(await draftOnDisk(session)).toBe(false)
   })
 
-  test('sessão limpa não mostra aviso nenhum', async () => {
+  test('a clean session shows no notice', async () => {
     // A warning that appears on every launch is one the user learns to close without reading.
     session = await launch()
 

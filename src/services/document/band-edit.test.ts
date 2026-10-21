@@ -24,7 +24,7 @@ describe('editBandPiece', () => {
 
   const setup = (bands: Partial<PageSetup>): PageSetup => ({ ...DEFAULT_PAGE_SETUP, ...bands })
 
-  it('troca o texto da peça daquele endereço', () => {
+  it('replaces the text of the piece at that address', () => {
     const page = setup({ headerBand: band(piece('Chamado 10001', 'rId5:0:0'), piece('Título', 'rId5:1:0')) })
 
     expect(editBandPiece(page, 'rId5:1:0', 'Outro título').headerBand?.left.map((item) => item.text)).toEqual(
@@ -32,7 +32,7 @@ describe('editBandPiece', () => {
     )
   })
 
-  it('alcança a peça esteja ela onde estiver na faixa', () => {
+  it('reaches the piece wherever it is in the band', () => {
     // A corporate header is a table, and the text to change lives in a cell, not in one of the
     // three columns.
     const page = setup({
@@ -48,7 +48,7 @@ describe('editBandPiece', () => {
     expect(updated.firstFooterBand?.rows[0]?.cells[0]?.pieces[0]?.text).toBe('Setembro/2026')
   })
 
-  it('devolve a mesma configuração quando não há o que trocar', () => {
+  it('returns the same configuration when there is nothing to replace', () => {
     // A click that changed nothing must not mark the document as modified, and leaving the piece
     // without typing is the common case.
     const page = setup({ headerBand: band(piece('Chamado 10001', 'rId5:0:0')) })
@@ -57,7 +57,7 @@ describe('editBandPiece', () => {
     expect(editBandPiece(page, 'rId9:4:0', 'Outra coisa')).toBe(page)
   })
 
-  it('não escreve em peça sem endereço', () => {
+  it('does not write to a piece without an address', () => {
     // Page numbers and images have no `w:t` to hold typed text.
     const page = setup({ headerBand: band(piece('5')) })
 
@@ -67,7 +67,7 @@ describe('editBandPiece', () => {
 
 /** The whole box goes into `page`. */
 describe('editBandFloat', () => {
-  const caixa = (bid: string | undefined, text: string): FloatingObject => ({
+  const box = (bid: string | undefined, text: string): FloatingObject => ({
     kind: 'text',
     content: [{ type: 'paragraph', content: [{ type: 'text', text }] }],
     widthMm: 80,
@@ -85,30 +85,32 @@ describe('editBandFloat', () => {
     headerBand: { left: [], center: [], right: [], rule: false, floats, rows: [] },
   })
 
-  const texto = (page: PageSetup, at: number): unknown =>
+  const textAt = (page: PageSetup, at: number): unknown =>
     page.headerBand?.floats[at]?.content?.[0]?.content?.[0]?.text
 
-  it('troca o conteúdo da caixa daquele endereço', () => {
-    const page = setup([caixa('rId13#0', 'EVIDÊNCIAS DO ROTEIRO'), caixa('rId13#1', 'Outra caixa')])
-    const novo = [{ type: 'paragraph', content: [{ type: 'text', text: 'EVIDÊNCIAS DE HOMOLOGAÇÃO' }] }]
+  it('replaces the content of the box at that address', () => {
+    const page = setup([box('rId13#0', 'EVIDÊNCIAS DO ROTEIRO'), box('rId13#1', 'Outra caixa')])
+    const replacement = [
+      { type: 'paragraph', content: [{ type: 'text', text: 'EVIDÊNCIAS DE HOMOLOGAÇÃO' }] },
+    ]
 
-    const updated = editBandFloat(page, 'rId13#0', novo)
-    expect(texto(updated, 0)).toBe('EVIDÊNCIAS DE HOMOLOGAÇÃO')
-    expect(texto(updated, 1)).toBe('Outra caixa')
+    const updated = editBandFloat(page, 'rId13#0', replacement)
+    expect(textAt(updated, 0)).toBe('EVIDÊNCIAS DE HOMOLOGAÇÃO')
+    expect(textAt(updated, 1)).toBe('Outra caixa')
   })
 
-  it('não escreve em caixa sem endereço', () => {
+  it('does not write to a box without an address', () => {
     // A box carrying numbering loses its address when its bullet changes: what is on screen is this
     // sheet's number, and writing it back would replace the `PAGE` field with a fixed number.
-    const page = setup([caixa(undefined, '3')])
+    const page = setup([box(undefined, '3')])
 
     expect(editBandFloat(page, 'rId13#0', [])).toBe(page)
   })
 
-  it('devolve a mesma configuração quando o texto não mudou', () => {
-    const page = setup([caixa('rId13#0', 'Igual')])
-    const mesmo = [{ type: 'paragraph', content: [{ type: 'text', text: 'Igual' }] }]
+  it('returns the same configuration when the text did not change', () => {
+    const page = setup([box('rId13#0', 'Igual')])
+    const same = [{ type: 'paragraph', content: [{ type: 'text', text: 'Igual' }] }]
 
-    expect(editBandFloat(page, 'rId13#0', mesmo)).toBe(page)
+    expect(editBandFloat(page, 'rId13#0', same)).toBe(page)
   })
 })

@@ -15,7 +15,7 @@ const HAS_XMLLINT = (() => {
 })()
 
 /** Here, not next to the export, because only main has `xmllint`. */
-describe('o ODT com equações', () => {
+describe('the ODT with equations', () => {
   const model: DocumentModel = {
     page: DEFAULT_PAGE_SETUP,
     sections: [{ ...DEFAULT_PAGE_SETUP, id: 's1' }],
@@ -54,7 +54,7 @@ describe('o ODT com equações', () => {
     },
   }
 
-  it.skipIf(!HAS_XMLLINT)('toda parte de XML é bem formada', () => {
+  it.skipIf(!HAS_XMLLINT)('every XML part is well formed', () => {
     const parts = odtEntries(model).filter((entry) => entry.name.endsWith('.xml'))
     expect(parts.map((entry) => entry.name)).toContain('Object 2/content.xml')
     for (const entry of parts) {

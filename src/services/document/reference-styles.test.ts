@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { ensureCaptionStyle, ensureTocHeadingStyle, ensureTocStyle } from './reference-styles.js'
 import { BUILTIN_STYLES, StyleType, type StyleSheet } from './styles.js'
 
-describe('os estilos das referências', () => {
-  it('usa o estilo que o documento já tem pelo nome, ainda que com outro id', () => {
+describe('reference styles', () => {
+  it('uses the style the document already has by name, even with another id', () => {
     const sheet: StyleSheet = {
       ...BUILTIN_STYLES,
       styles: {
@@ -23,7 +23,7 @@ describe('os estilos das referências', () => {
     expect(ensured.sheet).toBe(sheet)
   })
 
-  it('cria o que falta com as medidas do Word', () => {
+  it("creates what is missing with Word's measures", () => {
     const second = ensureTocStyle(BUILTIN_STYLES, 2)
     expect(second.id).toBe('TOC2')
     expect(second.sheet.styles['TOC2']).toMatchObject({
@@ -42,7 +42,7 @@ describe('os estilos das referências', () => {
     expect(caption.sheet.styles[caption.id]).toMatchObject({ name: 'caption', character: { italic: true } })
   })
 
-  it('não toma o id de um estilo de outro nome', () => {
+  it('does not take the id of a style with another name', () => {
     const sheet: StyleSheet = {
       ...BUILTIN_STYLES,
       styles: {

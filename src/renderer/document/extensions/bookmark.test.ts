@@ -20,7 +20,7 @@ function docOf(...paragraphs: unknown[][]): ProseMirrorNode {
 }
 
 describe('bookmarksOf', () => {
-  it('casa as pontas pelo id, ainda que em parágrafos diferentes', () => {
+  it('matches the ends by id, even in different paragraphs', () => {
     const doc = docOf([start('Resumo', '4'), text('um')], [text('dois'), end('4')])
     const [entry] = bookmarksOf(doc)
     expect(entry).toMatchObject({ name: 'Resumo', bid: '4', pos: 1 })
@@ -28,8 +28,8 @@ describe('bookmarksOf', () => {
   })
 })
 
-describe('placeBookmark e removeBookmark', () => {
-  it('marca a seleção com um id novo, e o nome repetido muda de lugar', () => {
+describe('placeBookmark and removeBookmark', () => {
+  it('marks the selection with a new id, and a repeated name moves', () => {
     const doc = docOf([start('Velho', '2'), text('abcdef'), end('2')])
     let state = EditorState.create({ doc })
     state = state.apply(state.tr.setSelection(TextSelection.create(state.doc, 2, 4)))
@@ -54,7 +54,7 @@ describe('placeBookmark e removeBookmark', () => {
 })
 
 describe('withoutRepeatedBookmarks', () => {
-  it('tira da colagem o marcador que o documento já tem, e deixa o novo', () => {
+  it('drops from the paste the bookmark the document already has, and keeps the new one', () => {
     const doc = docOf([start('Resumo', '1'), text('x'), end('1')])
     const pasted = docOf([start('Resumo', '1'), text('cópia'), end('1')], [start('Outro', '9'), end('9')])
     const slice = new Slice(Fragment.from(pasted.content), 0, 0)
@@ -72,7 +72,7 @@ describe('withoutRepeatedBookmarks', () => {
     expect(kinds.filter((kind) => kind === 'bookmarkEnd')).toHaveLength(1)
   })
 
-  it('renumera o marcador de nome novo cujo id o documento já usa', () => {
+  it('renumbers a newly named bookmark whose id the document already uses', () => {
     const doc = docOf([start('Resumo', '0'), text('x'), end('0')])
     const pasted = docOf([start('Colado', '0'), text('y'), end('0')])
     const result = withoutRepeatedBookmarks(new Slice(Fragment.from(pasted.content), 0, 0), doc)
@@ -84,15 +84,15 @@ describe('withoutRepeatedBookmarks', () => {
     expect(marks).toEqual(['bookmarkStart:1', 'bookmarkEnd:1'])
   })
 
-  it('arrastar dentro do documento move o marcador junto', () => {
+  it('dragging within the document moves the bookmark along', () => {
     const doc = docOf([start('Resumo', '1'), text('x'), end('1')])
     const slice = new Slice(Fragment.from(doc.content), 0, 0)
     expect(withoutRepeatedBookmarks(slice, doc, true)).toBe(slice)
   })
 })
 
-describe('seleção de uma linha inteira', () => {
-  it('leva junto os marcadores encostados no começo e no fim do texto', () => {
+describe('selection of a whole line', () => {
+  it('carries along the bookmarks touching the start and end of the text', () => {
     const doc = docOf([start('_Ref1', '1'), text('Figura 1'), end('1')])
     // The text starts at position 2 (after the bookmark); it ends at 10.
     let state = EditorState.create({ doc })
@@ -106,7 +106,7 @@ describe('seleção de uma linha inteira', () => {
     expect(extendOverAnchors(state)).toBeNull()
   })
 
-  it('o pedaço que só encosta numa ponta não leva a âncora dali', () => {
+  it('a piece that only touches one end does not take that anchor', () => {
     const doc = docOf([start('_Ref1', '1'), text('Figura 1'), end('1')])
     let state = EditorState.create({ doc })
     // Shift+← from the end: only the "1".

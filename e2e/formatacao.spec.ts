@@ -10,12 +10,12 @@ import { docxWithVerticalAlignment, entryOf } from './fixtures.js'
  * the sidecar writes. Superscript changes the meaning ("cm3" is not "cm³"): if it comes back from
  * the file, the path holds.
  */
-test.describe('formatação do documento', () => {
+test.describe('document formatting', () => {
   let session: Session
   let folder: string
 
   test.beforeEach(async () => {
-    folder = await mkdtemp(join(tmpdir(), 'librevia-formatacao-'))
+    folder = await mkdtemp(join(tmpdir(), 'librevia-formatting-'))
     session = await launch()
   })
 
@@ -24,12 +24,12 @@ test.describe('formatação do documento', () => {
     await rm(folder, { recursive: true, force: true })
   })
 
-  test('o sobrescrito do documento aparece na tela e volta para o arquivo', async () => {
-    const origem = join(folder, 'formula.docx')
-    const destino = join(folder, 'salva.docx')
-    await writeFile(origem, await docxWithVerticalAlignment())
+  test('the document superscript shows on screen and returns to the file', async () => {
+    const sourceFile = join(folder, 'formula.docx')
+    const destinationFile = join(folder, 'salva.docx')
+    await writeFile(sourceFile, await docxWithVerticalAlignment())
 
-    await stubDialogs(session.app, { open: origem, save: destino, messageBox: 1 })
+    await stubDialogs(session.app, { open: sourceFile, save: destinationFile, messageBox: 1 })
     await menu(session, 'open')
 
     const editor = session.window.locator('.ProseMirror')
@@ -47,83 +47,83 @@ test.describe('formatação do documento', () => {
     await menu(session, 'save-as')
     await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
 
-    const corpo = await entryOf(destino, 'word/document.xml')
-    expect(corpo).toContain('w:vertAlign w:val="superscript"')
-    expect(corpo).toContain('w:vertAlign w:val="subscript"')
+    const body = await entryOf(destinationFile, 'word/document.xml')
+    expect(body).toContain('w:vertAlign w:val="superscript"')
+    expect(body).toContain('w:vertAlign w:val="subscript"')
 
     // Nothing in the notice: the writer knows how to write this formatting.
     await expect(session.window.locator('.banner--notice')).toHaveCount(0)
   })
 
-  test('os botões de sobrescrito, caixa alta e versalete marcam o texto', async () => {
+  test('the superscript, uppercase and small caps buttons mark the text', async () => {
     await menu(session, 'new-document')
     const editor = session.window.locator('.ProseMirror')
     await editor.click()
     await session.window.keyboard.type('marcado')
     await session.window.keyboard.press('Control+a')
 
-    for (const [rotulo, seletor] of [
+    for (const [label, selector] of [
       ['Sobrescrito', 'sup'],
       ['Caixa alta', 'span[data-caps]'],
       ['Versalete', 'span[data-small-caps]'],
     ] as const) {
-      await session.window.getByRole('button', { name: rotulo, exact: true }).click()
-      await expect(editor.locator(seletor)).toHaveCount(1)
+      await session.window.getByRole('button', { name: label, exact: true }).click()
+      await expect(editor.locator(selector)).toHaveCount(1)
     }
   })
 
-  test('o diálogo de parágrafo aplica espaçamento e recuo', async () => {
+  test('the paragraph dialog applies spacing and indent', async () => {
     await menu(session, 'new-document')
     const editor = session.window.locator('.ProseMirror')
     await editor.click()
     await session.window.keyboard.type('Parágrafo medido.')
 
     await menu(session, 'paragraph-setup')
-    const dialogo = session.window.getByRole('dialog', { name: 'Parágrafo' })
-    await expect(dialogo).toBeVisible()
+    const dialog = session.window.getByRole('dialog', { name: 'Parágrafo' })
+    await expect(dialog).toBeVisible()
 
     // By role: "Left" is also an alignment option, in the picker's `label`.
-    await dialogo.getByRole('spinbutton', { name: 'Antes' }).fill('18')
-    await dialogo.getByRole('spinbutton', { name: 'Esquerda' }).fill('20')
-    await dialogo.getByRole('button', { name: 'Aplicar' }).click()
-    await expect(dialogo).toBeHidden()
+    await dialog.getByRole('spinbutton', { name: 'Antes' }).fill('18')
+    await dialog.getByRole('spinbutton', { name: 'Esquerda' }).fill('20')
+    await dialog.getByRole('button', { name: 'Aplicar' }).click()
+    await expect(dialog).toBeHidden()
 
     // A real measure, as pagination will see it.
-    const medidas = await editor
+    const measures = await editor
       .locator('p')
       .first()
-      .evaluate((elemento) => {
-        const estilo = getComputedStyle(elemento)
-        return { antes: estilo.marginTop, recuo: estilo.paddingLeft }
+      .evaluate((element) => {
+        const style = getComputedStyle(element)
+        return { before: style.marginTop, indent: style.paddingLeft }
       })
 
     // 18 pt in CSS pixels, and 20 mm likewise.
-    expect(Number.parseFloat(medidas.antes)).toBeCloseTo(18 * (96 / 72), 0)
-    expect(Number.parseFloat(medidas.recuo)).toBeCloseTo(20 * (96 / 25.4), 0)
+    expect(Number.parseFloat(measures.before)).toBeCloseTo(18 * (96 / 72), 0)
+    expect(Number.parseFloat(measures.indent)).toBeCloseTo(20 * (96 / 25.4), 0)
   })
 
-  test('a entrelinha de 1,5 linha é 1,5 linha, e não 1,5 de CSS', async () => {
+  test('1.5 line spacing is 1.5 lines, not CSS 1.5', async () => {
     await menu(session, 'new-document')
     const editor = session.window.locator('.ProseMirror')
     await editor.click()
     await session.window.keyboard.type('Parágrafo de uma linha e meia.')
 
     await menu(session, 'paragraph-setup')
-    const dialogo = session.window.getByRole('dialog', { name: 'Parágrafo' })
-    await dialogo.getByRole('combobox', { name: 'Entrelinha' }).selectOption('1.5')
-    await dialogo.getByRole('button', { name: 'Aplicar' }).click()
+    const dialog = session.window.getByRole('dialog', { name: 'Parágrafo' })
+    await dialog.getByRole('combobox', { name: 'Entrelinha' }).selectOption('1.5')
+    await dialog.getByRole('button', { name: 'Aplicar' }).click()
 
     // Word's multiple is over the natural height of the style font: 1.5 lines in Calibri is
     // `line-height: 1.8311`.
-    const proporcao = await editor
+    const ratio = await editor
       .locator('p')
       .first()
-      .evaluate((elemento) => {
-        const estilo = getComputedStyle(elemento)
-        return Number.parseFloat(estilo.lineHeight) / Number.parseFloat(estilo.fontSize)
+      .evaluate((element) => {
+        const style = getComputedStyle(element)
+        return Number.parseFloat(style.lineHeight) / Number.parseFloat(style.fontSize)
       })
 
-    expect(proporcao).toBeCloseTo(1.8311, 2)
+    expect(ratio).toBeCloseTo(1.8311, 2)
 
     // And the toolbar shows Word's number.
     await expect(session.window.getByRole('combobox', { name: 'Espaçamento entre linhas' })).toHaveValue(
@@ -131,16 +131,16 @@ test.describe('formatação do documento', () => {
     )
   })
 
-  test('"Aplicar" sem mexer em nada devolve o foco ao texto', async () => {
+  test('"Aplicar" without changing anything returns focus to the text', async () => {
     await menu(session, 'new-document')
     const editor = session.window.locator('.ProseMirror')
     await editor.click()
     await session.window.keyboard.type('Sem mudança nenhuma.')
 
     await menu(session, 'paragraph-setup')
-    const dialogo = session.window.getByRole('dialog', { name: 'Parágrafo' })
-    await dialogo.getByRole('button', { name: 'Aplicar' }).click()
-    await expect(dialogo).toBeHidden()
+    const dialog = session.window.getByRole('dialog', { name: 'Parágrafo' })
+    await dialog.getByRole('button', { name: 'Aplicar' }).click()
+    await expect(dialog).toBeHidden()
 
     // "Apply" with nothing to change returns focus to the text, in the frame after closing.
     await expect(editor).toBeFocused()

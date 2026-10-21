@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { markdownToNodes } from './markdown-import.js'
 
 describe('markdownToNodes', () => {
-  it('negrito, itálico e tachado viram marcas; código vira texto simples', () => {
+  it('bold, italic and strikethrough become marks; code becomes plain text', () => {
     expect(markdownToNodes('**a** *b* ~~c~~ `d`')).toEqual([
       {
         type: 'paragraph',
@@ -19,7 +19,7 @@ describe('markdownToNodes', () => {
     ])
   })
 
-  it('título guarda o nível, e parágrafos separados por linha em branco ficam separados', () => {
+  it('heading keeps the level, and paragraphs separated by a blank line stay separate', () => {
     expect(markdownToNodes('## Título\n\nUm\nmesmo parágrafo\n\nOutro')).toEqual([
       { type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'Título' }] },
       { type: 'paragraph', content: [{ type: 'text', text: 'Um mesmo parágrafo' }] },
@@ -27,7 +27,7 @@ describe('markdownToNodes', () => {
     ])
   })
 
-  it('listas com marcadores, numeradas e aninhadas', () => {
+  it('bulleted, numbered and nested lists', () => {
     const [bullets, numbered] = markdownToNodes('- um\n  - dentro\n- dois\n\n3. três')
     expect(bullets).toMatchObject({
       type: 'bulletList',
@@ -45,7 +45,7 @@ describe('markdownToNodes', () => {
     expect(numbered).toMatchObject({ type: 'orderedList', attrs: { start: 3 } })
   })
 
-  it('citação, bloco de código como parágrafos simples e quebra de linha forçada', () => {
+  it('quote, code block as plain paragraphs and forced line break', () => {
     expect(markdownToNodes('> citado\n\n```\nx = 1\ny = 2\n```\n\na  \nb')).toEqual([
       { type: 'blockquote', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'citado' }] }] },
       { type: 'paragraph', content: [{ type: 'text', text: 'x = 1' }] },
@@ -57,7 +57,7 @@ describe('markdownToNodes', () => {
     ])
   })
 
-  it('link seguro vira link; javascript: fica só o texto', () => {
+  it('safe link becomes a link; javascript: leaves only the text', () => {
     expect(markdownToNodes('[site](https://exemplo.com) [mal](javascript:alert(1))')).toEqual([
       {
         type: 'paragraph',
@@ -70,7 +70,7 @@ describe('markdownToNodes', () => {
     ])
   })
 
-  it('HTML cru do modelo fica como texto, nunca como marcação', () => {
+  it('raw HTML from the model stays as text, never as markup', () => {
     expect(markdownToNodes('a <b>b</b>')).toEqual([
       {
         type: 'paragraph',
@@ -87,7 +87,7 @@ describe('markdownToNodes', () => {
     ])
   })
 
-  it('negrito dentro de negrito não repete a marca', () => {
+  it('bold inside bold does not repeat the mark', () => {
     const [paragraph] = markdownToNodes('**a __b__**')
     expect(paragraph?.content?.[1]).toEqual({ type: 'text', text: 'b', marks: [{ type: 'bold' }] })
   })

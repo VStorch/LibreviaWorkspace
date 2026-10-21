@@ -4,137 +4,137 @@ import { adjustForColumns, adjustForRows, translateFormula } from './adjust.js'
 const own = { sheet: 'Plan1', own: true }
 const other = { sheet: 'Dados', own: false }
 
-describe('copiar a fórmula', () => {
-  it('desloca as referências relativas', () => {
+describe('copying the formula', () => {
+  it('shifts relative references', () => {
     expect(translateFormula('=A1+B2', 1, 0)).toBe('=A2+B3')
   })
 
-  it('não mexe nas absolutas — é para isso que o $ existe', () => {
+  it('leaves absolute ones alone, which is what $ is for', () => {
     expect(translateFormula('=$A$1+A1', 2, 0)).toBe('=$A$1+A3')
   })
 
-  it('trava só o eixo marcado', () => {
+  it('locks only the marked axis', () => {
     expect(translateFormula('=A$1+$A1', 1, 1)).toBe('=B$1+$A2')
   })
 
-  it('sair da planilha vira #REF!', () => {
+  it('leaving the sheet becomes #REF!', () => {
     // Copying =A1 to column A has nowhere to point.
     expect(translateFormula('=A1', 0, -1)).toBe('=#REF!')
   })
 
-  it('leva o intervalo inteiro junto', () => {
+  it('moves the whole range along', () => {
     expect(translateFormula('=SOMA(A1:A3)', 1, 0)).toBe('=SOMA(A2:A4)')
   })
 
-  it('preserva espaços, maiúsculas e o resto do texto', () => {
+  it('preserves spaces, case and the rest of the text', () => {
     // The rewrite works on tokens, not on the tree: the formula comes back as the user typed it,
     // except for the references that had to change.
     expect(translateFormula('= soma( a1 ; "a1" )', 1, 0)).toBe('= soma( A2 ; "a1" )')
   })
 })
 
-describe('inserir linha', () => {
-  it('empurra a referência que estava embaixo', () => {
+describe('inserting a row', () => {
+  it('pushes the reference that was below', () => {
     expect(adjustForRows('=A5', 2, 1, own)).toBe('=A6')
   })
 
-  it('não mexe no que está acima', () => {
+  it('leaves what is above alone', () => {
     expect(adjustForRows('=A1', 2, 1, own)).toBe('=A1')
   })
 
-  it('mexe também nas absolutas, porque a célula andou de verdade', () => {
+  it('also moves absolute ones, because the cell really moved', () => {
     // Here $ does not protect: what was at $A$5 is now at $A$6.
     expect(adjustForRows('=$A$5', 2, 1, own)).toBe('=$A$6')
   })
 
-  it('estica o intervalo quando a linha entra no meio dele', () => {
+  it('stretches the range when the row enters the middle of it', () => {
     expect(adjustForRows('=SOMA(A1:A5)', 2, 1, own)).toBe('=SOMA(A1:A6)')
   })
 
-  it('empurra o intervalo inteiro quando entra antes dele', () => {
+  it('pushes the whole range when the row enters before it', () => {
     expect(adjustForRows('=SOMA(A3:A5)', 0, 1, own)).toBe('=SOMA(A4:A6)')
   })
 })
 
-describe('excluir linha', () => {
-  it('puxa a referência de baixo', () => {
+describe('deleting a row', () => {
+  it('pulls up the reference below', () => {
     expect(adjustForRows('=A5', 0, -1, own)).toBe('=A4')
   })
 
-  it('a referência para a linha excluída vira #REF!', () => {
+  it('a reference to the deleted row becomes #REF!', () => {
     expect(adjustForRows('=A3', 2, -1, own)).toBe('=#REF!')
   })
 
-  it('encolhe o intervalo em vez de destruí-lo', () => {
+  it('shrinks the range instead of destroying it', () => {
     // The easiest part to get wrong: treating the ends separately would turn the first into #REF!
     // and kill the formula over a deletion Excel absorbs without complaint.
     expect(adjustForRows('=SOMA(A1:A5)', 0, -3, own)).toBe('=SOMA(A1:A2)')
   })
 
-  it('encolhe pelo fim também', () => {
+  it('shrinks from the end too', () => {
     expect(adjustForRows('=SOMA(A1:A5)', 3, -2, own)).toBe('=SOMA(A1:A3)')
   })
 
-  it('só vira #REF! quando o intervalo inteiro some', () => {
+  it('becomes #REF! only when the whole range disappears', () => {
     expect(adjustForRows('=SOMA(A1:A5)', 0, -5, own)).toBe('=SOMA(#REF!:#REF!)')
   })
 })
 
-describe('colunas', () => {
-  it('inserir empurra para a direita', () => {
+describe('columns', () => {
+  it('inserting pushes to the right', () => {
     expect(adjustForColumns('=C1', 1, 1, own)).toBe('=D1')
   })
 
-  it('excluir puxa para a esquerda', () => {
+  it('deleting pulls to the left', () => {
     expect(adjustForColumns('=C1', 0, -1, own)).toBe('=B1')
   })
 
-  it('encolhe o intervalo', () => {
+  it('shrinks the range', () => {
     expect(adjustForColumns('=SOMA(A1:E1)', 0, -2, own)).toBe('=SOMA(A1:C1)')
   })
 })
 
-describe('entre planilhas', () => {
-  it('a fórmula da própria planilha ajusta a referência sem nome', () => {
+describe('across sheets', () => {
+  it('a formula on the sheet itself adjusts the unqualified reference', () => {
     expect(adjustForRows('=A5', 0, 1, own)).toBe('=A6')
   })
 
-  it('a fórmula de outra planilha não ajusta a referência sem nome', () => {
+  it('a formula on another sheet does not adjust the unqualified reference', () => {
     // =A1 on the "Resumo" sheet points to "Resumo", not to "Dados".
     expect(adjustForRows('=A5', 0, 1, other)).toBe('=A5')
   })
 
-  it('mas ajusta a que nomeia a planilha mexida', () => {
+  it('but adjusts the one that names the changed sheet', () => {
     expect(adjustForRows('=Dados!A5', 0, 1, other)).toBe('=Dados!A6')
   })
 
-  it('não confunde outra planilha qualquer', () => {
+  it('does not confuse it with any other sheet', () => {
     expect(adjustForRows('=Outra!A5', 0, 1, other)).toBe('=Outra!A5')
   })
 
-  it('mantém o nome só na primeira ponta do intervalo', () => {
+  it('keeps the name only on the first end of the range', () => {
     expect(adjustForRows('=SOMA(Dados!A1:A5)', 0, 1, other)).toBe('=SOMA(Dados!A2:A6)')
   })
 
-  it('não diferencia maiúsculas no nome da aba', () => {
+  it('ignores case in the sheet name', () => {
     expect(adjustForRows('=dados!A5', 0, 1, other)).toBe('=dados!A6')
   })
 })
 
-describe('o que não deve ser tocado', () => {
-  it('texto que parece referência', () => {
+describe('what must not be touched', () => {
+  it('text that looks like a reference', () => {
     expect(adjustForRows('=SE(A1="B2";"C3";A5)', 0, 1, own)).toBe('=SE(A2="B2";"C3";A6)')
   })
 
-  it('nome de função com letra e número', () => {
+  it('function name with letters and digits', () => {
     expect(translateFormula('=HOJE()+A1', 1, 0)).toBe('=HOJE()+A2')
   })
 
-  it('fórmula que nem chega a ser lida volta intacta', () => {
+  it('a formula that cannot even be read comes back intact', () => {
     expect(adjustForRows('=SOMA("', 0, 1, own)).toBe('=SOMA("')
   })
 
-  it('fórmula sem o sinal de igual também funciona', () => {
+  it('a formula without the equals sign works too', () => {
     expect(adjustForRows('A5', 0, 1, own)).toBe('A6')
   })
 })

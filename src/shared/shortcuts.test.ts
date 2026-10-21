@@ -27,14 +27,14 @@ function crossOwnerCollisions(table: Readonly<Record<string, Shortcut>>): string
     .map(([key, entries]) => `${key}: ${entries.map((entry) => `${entry.id} (${entry.owner})`).join(' e ')}`)
 }
 
-describe('tabela de atalhos', () => {
-  it('não declara a mesma tecla para donos diferentes', () => {
+describe('shortcut table', () => {
+  it('does not declare the same key for different owners', () => {
     // The regression to rule out: a new menu accelerator on an editor key erases the editor
     // shortcut without any error.
     expect(crossOwnerCollisions(SHORTCUTS)).toEqual([])
   })
 
-  it('acusa a colisão quando ela existe — o teste acima não passa por vazio', () => {
+  it('reports the collision when there is one, so the test above does not pass vacuously', () => {
     const collisions = crossOwnerCollisions({
       superscript: SHORTCUTS.superscript,
       // The old "Zoom in", on `CommandOrControl+Plus`, which Electron maps to Shift+`=`: a
@@ -45,12 +45,12 @@ describe('tabela de atalhos', () => {
     expect(collisions).toEqual(['Mod+Shift+=: superscript (editor) e zoomIn (menu)'])
   })
 
-  it('não declara a mesma tecla duas vezes, nem para o mesmo dono', () => {
+  it('does not declare the same key twice, not even for the same owner', () => {
     const keys = Object.values(SHORTCUTS).map((shortcut) => canonicalKeyOf(shortcut.key))
     expect(new Set(keys).size).toBe(keys.length)
   })
 
-  it('escreve o acelerador do menu como o Electron o espera', () => {
+  it('writes the menu accelerator the way Electron expects it', () => {
     // Pinned one by one: these are the keys the app has today, and gathering them in one table must
     // not have changed them.
     expect(acceleratorOf(SHORTCUTS.newDocument)).toBe('CmdOrCtrl+N')
@@ -69,7 +69,7 @@ describe('tabela de atalhos', () => {
     expect(acceleratorOf(SHORTCUTS.wordCount)).toBe('CmdOrCtrl+Shift+G')
   })
 
-  it('escreve a tecla do editor com a letra minúscula que o prosemirror-keymap exige', () => {
+  it('writes the editor key with the lowercase letter prosemirror-keymap requires', () => {
     // With an uppercase `L` the keymap would read "the key that needs Shift", and the shortcut
     // would never fire.
     expect(editorKeyOf(SHORTCUTS.alignLeft)).toBe('Mod-l')
@@ -83,7 +83,7 @@ describe('tabela de atalhos', () => {
     expect(editorKeyOf(SHORTCUTS.subscript)).toBe('Mod-=')
   })
 
-  it('anuncia na barra de ferramentas exatamente as dicas de sempre', () => {
+  it('announces exactly the usual hints in the toolbar', () => {
     expect(shortcutHintOf(SHORTCUTS.bold)).toBe('Ctrl+B')
     expect(shortcutHintOf(SHORTCUTS.italic)).toBe('Ctrl+I')
     expect(shortcutHintOf(SHORTCUTS.underline)).toBe('Ctrl+U')
@@ -104,17 +104,17 @@ describe('tabela de atalhos', () => {
 describe('isPdfZoomInKey', () => {
   const pressed = { key: '=', code: 'Equal', ctrlKey: true, metaKey: false, altKey: false }
 
-  it('amplia com Ctrl+= e com Ctrl++, em qualquer teclado', () => {
+  it('zooms in with Ctrl+= and Ctrl++, on any keyboard', () => {
     expect(isPdfZoomInKey(pressed)).toBe(true)
     expect(isPdfZoomInKey({ ...pressed, key: '+' })).toBe(true)
     expect(isPdfZoomInKey({ ...pressed, ctrlKey: false, metaKey: true })).toBe(true)
   })
 
-  it('deixa o + do teclado numérico ao menu, que já o atende', () => {
+  it('leaves the numeric keypad + to the menu, which already handles it', () => {
     expect(isPdfZoomInKey({ ...pressed, key: '+', code: 'NumpadAdd' })).toBe(false)
   })
 
-  it('ignora a tecla sem Ctrl ou com Alt', () => {
+  it('ignores the key without Ctrl or with Alt', () => {
     expect(isPdfZoomInKey({ ...pressed, ctrlKey: false })).toBe(false)
     expect(isPdfZoomInKey({ ...pressed, altKey: true })).toBe(false)
   })

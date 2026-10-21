@@ -37,7 +37,7 @@ function settingsWith(kind: 'anthropic' | 'openai-compatible' | 'claude-cli', ba
 
 function providerOf(parts: AiStreamPart[], seen: { model?: string } = {}): AiProvider {
   return {
-    listModels: async () => [{ id: 'primeiro', label: 'primeiro' }],
+    listModels: async () => [{ id: 'first', label: 'first' }],
     async *stream(prompt) {
       seen.model = prompt.model
       yield* parts
@@ -46,7 +46,7 @@ function providerOf(parts: AiStreamPart[], seen: { model?: string } = {}): AiPro
 }
 
 describe('generate', () => {
-  it('pergunta antes de mandar para fora e não manda nada se a pessoa recusar', async () => {
+  it('asks before sending out and sends nothing if the person declines', async () => {
     let streamed = false
     const result = await generate(REQUEST, {
       settings: settingsWith('anthropic'),
@@ -62,7 +62,7 @@ describe('generate', () => {
     expect(streamed).toBe(false)
   })
 
-  it('lembra o consentimento e usa o primeiro modelo quando nenhum foi escolhido', async () => {
+  it('remembers the consent and uses the first model when none was chosen', async () => {
     const settings = settingsWith('anthropic')
     const pushed: string[] = []
     const seen: { model?: string } = {}
@@ -73,13 +73,13 @@ describe('generate', () => {
       confirmConsent: async () => true,
       providerFor: async () => providerOf([{ text: 'Novo ' }, { text: 'texto.' }, { costUsd: 0.5 }], seen),
     })
-    expect(result).toEqual({ status: 'done', model: 'primeiro', costUsd: 0.5 })
+    expect(result).toEqual({ status: 'done', model: 'first', costUsd: 0.5 })
     expect(pushed.join('')).toBe('Novo texto.')
-    expect(seen.model).toBe('primeiro')
+    expect(seen.model).toBe('first')
     expect(settings.list().providers[0]?.consented).toBe(true)
   })
 
-  it('servidor local não pede consentimento', async () => {
+  it('a local server does not ask for consent', async () => {
     let asked = false
     const result = await generate(
       { ...REQUEST, model: 'llama3' },
@@ -95,7 +95,7 @@ describe('generate', () => {
     expect(asked).toBe(false)
   })
 
-  it('servidor local recebe só o documento em volta da seleção que cabe no limite dele', async () => {
+  it('a local server gets only the document around the selection that fits its limit', async () => {
     let user = ''
     const provider: AiProvider = {
       listModels: async () => [],
@@ -118,7 +118,7 @@ describe('generate', () => {
     expect(user.length).toBeLessThanOrEqual(DEFAULT_LOCAL_AI_CONTEXT_LENGTH + 100)
   })
 
-  it('agente ACP pede consentimento e, no automático, usa o modelo do próprio agente sem abrir outro processo para listar', async () => {
+  it('an ACP agent asks for consent and, in automatic mode, uses the agent own model without opening another process to list', async () => {
     let data: unknown
     const settings = new AiSettings(
       { read: () => data, write: (value) => (data = value) },
@@ -154,7 +154,7 @@ describe('generate', () => {
     expect(result).toEqual({ status: 'done', model: 'gemini-pro' })
   })
 
-  it('cancelado devolve o estado, não um erro', async () => {
+  it('cancelled returns the state, not an error', async () => {
     const controller = new AbortController()
     const provider: AiProvider = {
       listModels: async () => [],
@@ -177,7 +177,7 @@ describe('generate', () => {
     expect(result).toEqual({ status: 'canceled' })
   })
 
-  it('o modelo informado pelo fluxo vira o autor, mesmo no automático', async () => {
+  it('the model reported by the stream becomes the author, even in automatic mode', async () => {
     const result = await generate(REQUEST, {
       settings: settingsWith('openai-compatible', 'http://localhost:1/v1'),
       signal: new AbortController().signal,
@@ -188,12 +188,12 @@ describe('generate', () => {
     expect(result).toEqual({ status: 'done', model: 'claude-opus-5-5' })
   })
 
-  it('no automático, a lista de modelos é buscada uma vez só', async () => {
+  it('in automatic mode, the model list is fetched only once', async () => {
     let listed = 0
     const provider: AiProvider = {
       listModels: async () => {
         listed += 1
-        return [{ id: 'primeiro', label: 'primeiro' }]
+        return [{ id: 'first', label: 'first' }]
       },
       async *stream() {
         yield { text: 'ok' }
@@ -215,11 +215,11 @@ describe('generate', () => {
     expect(listed).toBe(2)
   })
 
-  describe('troca de modelo quando a Anthropic recusa', () => {
+  describe('model switch when Anthropic refuses', () => {
     const fallbackProvider = (seen: { fallback?: boolean }): AiProvider => ({
       listModels: async () => [
         { id: 'aceita', label: 'Aceita', fallback: true },
-        { id: 'nao-aceita', label: 'Não aceita', fallback: false },
+        { id: 'not-accepted', label: 'Not accepted', fallback: false },
       ],
       async *stream(prompt) {
         seen.fallback = prompt.fallback === true
@@ -254,26 +254,26 @@ describe('generate', () => {
       return { ...seen, ...(result.status === 'done' ? { author: result.model } : {}) }
     }
 
-    it('com a preferência ligada e um modelo que aceita, pede a troca e o autor é o modelo final', async () => {
+    it('with the preference on and a model that accepts, asks for the switch and the author is the final model', async () => {
       expect(await run('aceita', true)).toEqual({ fallback: true, author: 'substituto' })
     })
 
-    it('não pede a troca quando o modelo não aceita ou a preferência está desligada', async () => {
-      expect((await run('nao-aceita', true)).fallback).toBe(false)
+    it('does not ask for the switch when the model does not accept it or the preference is off', async () => {
+      expect((await run('not-accepted', true)).fallback).toBe(false)
       expect((await run('aceita', false)).fallback).toBe(false)
     })
   })
 })
 
 describe('consentDestination', () => {
-  it('para um agente ACP mostra o programa que vai rodar e os argumentos, não o nome dado', () => {
+  it('for an ACP agent shows the program that will run and its arguments, not the given name', () => {
     const chosen = { id: 'a', kind: 'acp', label: 'Seguro', command: '/opt/x/agente', args: ['--acp', 'a b'] }
     expect(consentDestination(chosen as StoredAiProvider)).toBe("/opt/x/agente --acp 'a b'")
     const known = { id: 'b', kind: 'acp', label: 'Gemini', agentId: 'gemini', args: ['--acp'] }
     expect(consentDestination(known as StoredAiProvider)).toBe('gemini --acp')
   })
 
-  it('para um servidor mostra o endereço', () => {
+  it('for a server shows the address', () => {
     const server = { id: 'c', kind: 'openai-compatible', label: 'S', baseUrl: 'https://a.example/v1' }
     expect(consentDestination(server as StoredAiProvider)).toBe('https://a.example/v1')
   })
@@ -306,7 +306,7 @@ function recordingProvider(parts: AiStreamPart[], seen: { prompt?: AiPrompt }): 
 }
 
 describe('chat', () => {
-  it('manda o histórico como mensagens e o documento atual no system, e devolve o texto em stream', async () => {
+  it('sends the history as messages and the current document in the system prompt, and returns the text as a stream', async () => {
     const seen: { prompt?: AiPrompt } = {}
     const pushed: string[] = []
     const result = await chat(CHAT, {
@@ -322,7 +322,7 @@ describe('chat', () => {
     expect(seen.prompt?.system).toContain('Choveu o dia todo.')
   })
 
-  it('não manda nada se a pessoa recusar o consentimento', async () => {
+  it('sends nothing if the person declines consent', async () => {
     const seen: { prompt?: AiPrompt } = {}
     const result = await chat(CHAT, {
       settings: settingsWith('anthropic'),
@@ -335,7 +335,7 @@ describe('chat', () => {
     expect(seen.prompt).toBeUndefined()
   })
 
-  it('cancelada no meio devolve o estado, não um erro', async () => {
+  it('cancelled midway returns the state, not an error', async () => {
     const controller = new AbortController()
     const provider: AiProvider = {
       listModels: async () => [],
@@ -357,7 +357,7 @@ describe('chat', () => {
     expect(pushed.join('')).toBe('meio')
   })
 
-  it('com as propostas ligadas e servidor compatível, manda as ferramentas e devolve as propostas', async () => {
+  it('with proposals on and a compatible server, sends the tools and returns the proposals', async () => {
     const settings = settingsWith('openai-compatible', 'http://127.0.0.1:11434/v1')
     settings.savePreferences({
       keepFormatting: true,
@@ -409,7 +409,7 @@ describe('chat', () => {
     expect(prompts[0]?.tools).toHaveLength(4)
   })
 
-  it('com Claude Code, as ferramentas vão pelo servidor MCP local, numa sessão que fecha com a resposta', async () => {
+  it('with Claude Code, the tools go through the local MCP server, in a session that closes with the response', async () => {
     const settings = settingsWith('claude-cli')
     settings.savePreferences({
       keepFormatting: true,
@@ -456,7 +456,7 @@ describe('chat', () => {
     expect(events).toEqual(['fechou'])
   })
 
-  it('com as propostas desligadas, o pedido não leva ferramentas', async () => {
+  it('with proposals off, the request carries no tools', async () => {
     const seen: { prompt?: AiPrompt } = {}
     const result = await chat(
       { ...CHAT, paragraphs: ['Choveu o dia todo.'] },
@@ -473,7 +473,7 @@ describe('chat', () => {
     expect(seen.prompt?.system).not.toContain('[1]')
   })
 
-  it('com a preferência ligada mas o pedido sem a marca, não manda ferramentas', async () => {
+  it('with the preference on but the request without the mark, sends no tools', async () => {
     const settings = settingsWith('openai-compatible', 'http://127.0.0.1:11434/v1')
     settings.savePreferences({
       keepFormatting: true,
@@ -517,7 +517,7 @@ describe('sheet', () => {
     }
   }
 
-  it('manda a planilha como contexto, sem ferramentas, e devolve a resposta em stream', async () => {
+  it('sends the sheet as context, without tools, and returns the response as a stream', async () => {
     const seen: { prompt?: AiPrompt } = {}
     const pushed: string[] = []
     const result = await sheet(SHEET, contextOf([{ text: '=SOMA(' }, { text: 'B2:B3)' }], seen, pushed))
@@ -528,7 +528,7 @@ describe('sheet', () => {
     expect(seen.prompt?.messages[0]?.text).toContain('B2: 3')
   })
 
-  it('linhas para preencher que não cabem no contexto do provedor local dão erro sem enviar', async () => {
+  it('rows to fill that do not fit the local provider context give an error without sending', async () => {
     const seen: { prompt?: AiPrompt } = {}
     const fill = {
       ...SHEET,

@@ -22,7 +22,7 @@ function renderedAttrs(node: ProseMirrorNode): Record<string, unknown> {
 }
 
 describe('drawListsForPrint', () => {
-  it('leva ao papel a marca e o recuo que a tela desenha por decoração', () => {
+  it('carries to paper the marker and indent the screen draws as decoration', () => {
     const doc = ProseMirrorNode.fromJSON(schema, {
       type: 'doc',
       content: [
@@ -44,7 +44,7 @@ describe('drawListsForPrint', () => {
     expect(renderedAttrs(list!.child(1))['data-label']).toBe('2.')
   })
 
-  it('o documento em si não ganha atributo nenhum', () => {
+  it('the document itself gains no attribute', () => {
     const doc = ProseMirrorNode.fromJSON(schema, {
       type: 'doc',
       content: [{ type: 'bulletList', content: [item('um')] }],
@@ -66,13 +66,13 @@ describe('renamePastedKeys', () => {
   const docWith = (...lists: ProseMirrorNode[]) => schema.node('doc', null, lists)
   const keyOf = (slice: Slice) => (slice.content.child(0).attrs['numbering'] as { key: string }).key
 
-  it('a lista colada de outro documento, com a chave de uma lista daqui, ganha chave própria', () => {
+  it('a list pasted from another document, with the key of a list here, gets its own key', () => {
     const doc = docWith(listWith('a1'))
     const pasted = new Slice(Fragment.from(listWith('a1', 'upperRoman')), 0, 0)
     expect(keyOf(renamePastedKeys(pasted, doc))).not.toBe('a1')
   })
 
-  it('a cópia de dentro do documento continua a mesma numeração', () => {
+  it('a copy from within the document keeps the same numbering', () => {
     const doc = docWith(listWith('a1'))
     const pasted = new Slice(Fragment.from(listWith('a1')), 0, 0)
     expect(keyOf(renamePastedKeys(pasted, doc))).toBe('a1')

@@ -40,7 +40,7 @@ const doc = ProseMirrorNode.fromJSON(schema, {
 })
 
 describe('sheetAt', () => {
-  it('conta as folhas que começam antes da posição', () => {
+  it('counts the sheets that start before the position', () => {
     // The second sheet opens at the third block; the third, in the middle of the fourth.
     const starts = [{ blockIndex: 2 }, { blockIndex: 3, offset: 2 }]
     let third = 0
@@ -56,8 +56,8 @@ describe('sheetAt', () => {
   })
 })
 
-describe('destinos das referências', () => {
-  it('acha as legendas pelo rótulo do SEQ e os títulos com o recuo do nível', () => {
+describe('reference targets', () => {
+  it('finds captions by the SEQ label and headings with the level indent', () => {
     expect(captionLabels(doc, ['Figura', 'Equação'])).toEqual(['Figura', 'Equação', 'Tabela'])
     expect(
       crossReferenceTargets(doc, BUILTIN_STYLES, { type: 'caption', label: 'figura' }).map((t) => t.text),
@@ -118,8 +118,8 @@ function contextWith(layout: Partial<PageLayout>, outsideBookmarks: string[] = [
 
 const field = (instr: string, result: string) => ({ type: 'field', attrs: { instr, result } })
 
-describe('atualizar campos', () => {
-  it('a referência a marcador que o arquivo tem fora dos nós fica como estava', () => {
+describe('updating fields', () => {
+  it('a reference to a bookmark the file has outside the nodes stays as it was', () => {
     const { editor, fields } = fakeEditor({
       type: 'doc',
       content: [paragraph(field(' REF Linhas \\h ', 'texto do Word'), field(' REF Sumiu ', 'velho'))],
@@ -128,7 +128,7 @@ describe('atualizar campos', () => {
     expect(fields()).toEqual(['texto do Word', 'references.field.missingBookmark'])
   })
 
-  it('F9 que não mudou nada não arma o segundo passe', () => {
+  it('an F9 that changed nothing does not arm the second pass', () => {
     const { editor, fields } = fakeEditor({
       type: 'doc',
       content: [
@@ -148,14 +148,14 @@ describe('atualizar campos', () => {
   })
 })
 
-describe('referência cruzada a uma nota (M11)', () => {
+describe('cross-reference to a note (M11)', () => {
   const footnote = (body: string): unknown => ({
     type: 'noteRef',
     attrs: { kind: 'footnote', nid: null, mark: null },
     content: [paragraph(text(body))],
   })
 
-  it('acha a nota pelo marcador e mostra o número dela', () => {
+  it('finds the note by bookmark and shows its number', () => {
     const plain = ProseMirrorNode.fromJSON(schema, {
       type: 'doc',
       content: [paragraph(text('A'), footnote('Um.'), text('B'), footnote('Dois.'))],
@@ -175,7 +175,7 @@ describe('referência cruzada a uma nota (M11)', () => {
     ).toEqual(['1 Um.', '2 Dois.'])
   })
 
-  it('insere o NOTEREF com o marcador na referência, e o F9 o renumera', () => {
+  it('inserts the NOTEREF with the bookmark in the reference, and F9 renumbers it', () => {
     const { editor, fields } = fakeEditor({
       type: 'doc',
       content: [paragraph(text('A'), footnote('Um.'), text('B'), footnote('Dois.')), paragraph(text('Ver '))],
@@ -213,13 +213,13 @@ describe('referência cruzada a uma nota (M11)', () => {
   })
 })
 
-describe('campos de propriedade', () => {
+describe('property fields', () => {
   const properties = {
     title: 'Contrato',
     custom: [{ name: 'Cliente', type: 'text' as const, value: 'XPTO' }],
   }
 
-  it('F9 mostra o título e a personalizada, e avisa da propriedade que não existe', () => {
+  it('F9 shows the title and the custom property, and warns about the property that does not exist', () => {
     const { editor, fields } = fakeEditor({
       type: 'doc',
       content: [
@@ -234,7 +234,7 @@ describe('campos de propriedade', () => {
     expect(fields()).toEqual(['Contrato', 'XPTO', 'references.field.unknownProperty'])
   })
 
-  it('aplicar as propriedades atualiza só os campos de propriedade', () => {
+  it('applying the properties updates only the property fields', () => {
     const { editor, fields } = fakeEditor({
       type: 'doc',
       content: [paragraph(field(' AUTHOR ', 'Ana'), field(' PAGE ', '7'))],
@@ -243,7 +243,7 @@ describe('campos de propriedade', () => {
     expect(fields()).toEqual(['Bia', '7'])
   })
 
-  it('inserir já traz o valor atual', () => {
+  it('inserting already brings the current value', () => {
     const { editor, fields } = fakeEditor({ type: 'doc', content: [paragraph(text('Cliente: '))] })
     insertPropertyField(editor, { ...contextWith({}), properties }, ' DOCPROPERTY "Cliente" ')
     expect(fields()).toEqual(['XPTO'])

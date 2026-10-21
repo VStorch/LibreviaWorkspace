@@ -11,8 +11,8 @@ import {
 const start = { width: 400, height: 300 }
 const wide = 624
 
-describe('redimensionar imagem pelas alças', () => {
-  it('o canto de baixo à direita cresce nas duas medidas', () => {
+describe('resizing an image by its handles', () => {
+  it('the bottom right corner grows in both dimensions', () => {
     const size = resizedImage({
       handle: ResizeHandle.SouthEast,
       start,
@@ -27,7 +27,7 @@ describe('redimensionar imagem pelas alças', () => {
     expect(size).toEqual({ width: 500, height: 375 })
   })
 
-  it('o canto de cima à esquerda cresce quando o ponteiro vai para trás', () => {
+  it('the top left corner grows when the pointer moves backwards', () => {
     const size = resizedImage({
       handle: ResizeHandle.NorthWest,
       start,
@@ -40,7 +40,7 @@ describe('redimensionar imagem pelas alças', () => {
     expect(size).toEqual({ width: 500, height: 375 })
   })
 
-  it('com a proporção solta os dois eixos andam sozinhos', () => {
+  it('with the ratio unlocked the two axes move independently', () => {
     const size = resizedImage({
       handle: ResizeHandle.SouthEast,
       start,
@@ -53,7 +53,7 @@ describe('redimensionar imagem pelas alças', () => {
     expect(size).toEqual({ width: 500, height: 200 })
   })
 
-  it('a alça de borda mexe numa medida só, mesmo com a proporção pedida', () => {
+  it('an edge handle changes one dimension only, even with the ratio requested', () => {
     // The middle handle exists to stretch one axis: locking the ratio on it would make it a corner.
     const size = resizedImage({
       handle: ResizeHandle.East,
@@ -67,7 +67,7 @@ describe('redimensionar imagem pelas alças', () => {
     expect(size).toEqual({ width: 500, height: 300 })
   })
 
-  it('a alça de baixo mexe só na altura', () => {
+  it('the bottom handle changes only the height', () => {
     const size = resizedImage({
       handle: ResizeHandle.South,
       start,
@@ -80,7 +80,7 @@ describe('redimensionar imagem pelas alças', () => {
     expect(size).toEqual({ width: 400, height: 360 })
   })
 
-  it('a imagem não passa da coluna de texto', () => {
+  it('the image does not exceed the text column', () => {
     // Without the ceiling, the writer would shrink the image on its own when saving, and the screen
     // would no longer show what the file has.
     const size = resizedImage({
@@ -95,7 +95,7 @@ describe('redimensionar imagem pelas alças', () => {
     expect(size).toEqual({ width: wide, height: 468 })
   })
 
-  it('a imagem não encolhe até não dar para pegar de volta', () => {
+  it('the image does not shrink until it cannot be grabbed back', () => {
     // Below the minimum the eight handles overlap, and growing back would only be possible by
     // undoing an unfinished drag.
     const size = resizedImage({
@@ -110,7 +110,7 @@ describe('redimensionar imagem pelas alças', () => {
     expect(size).toEqual({ width: MIN_IMAGE_PX, height: MIN_IMAGE_PX })
   })
 
-  it('o tamanho sai em pixel inteiro', () => {
+  it('the size comes out in whole pixels', () => {
     // The number goes into the node attribute, and a value with decimals would change every frame
     // from floating-point noise, making pagination remeasure everything.
     const size = resizedImage({
@@ -126,18 +126,18 @@ describe('redimensionar imagem pelas alças', () => {
     expect(Number.isInteger(size.height)).toBe(true)
   })
 
-  it('oito alças: quatro cantos e quatro bordas', () => {
+  it('eight handles: four corners and four edges', () => {
     expect(RESIZE_HANDLES).toHaveLength(8)
     expect(RESIZE_HANDLES.filter(isCornerHandle)).toHaveLength(4)
   })
 })
 
-describe('imagem que deixou de caber', () => {
-  it('a coluna que encolhe encolhe a imagem na proporção', () => {
+describe('an image that stopped fitting', () => {
+  it('a shrinking column shrinks the image proportionally', () => {
     expect(fittedImage({ width: 800, height: 600 }, 400)).toEqual({ width: 400, height: 300 })
   })
 
-  it('a imagem que já cabe fica como está', () => {
+  it('an image that already fits stays as it is', () => {
     const size = { width: 300, height: 200 }
     expect(fittedImage(size, 400)).toBe(size)
   })

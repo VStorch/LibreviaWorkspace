@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test'
 import { clickMenuItem, launch, menu, type Session } from './app.js'
 import { cell, gridReady, reference, select, selectDown, write } from './sheet-grid.js'
 
-test.describe('desfazer na planilha', () => {
+test.describe('undo in the spreadsheet', () => {
   let session: Session
 
   test.beforeEach(async () => {
@@ -15,7 +15,7 @@ test.describe('desfazer na planilha', () => {
     await session.close()
   })
 
-  test('Ctrl+Z desfaz, Ctrl+Y e Ctrl+Shift+Z refazem, e desfazer não grava passo novo', async () => {
+  test('Ctrl+Z undoes, Ctrl+Y and Ctrl+Shift+Z redo, and undoing records no new step', async () => {
     const { window } = session
     await write(window, 0, 0, 'a')
     await write(window, 0, 1, 'b')
@@ -39,7 +39,7 @@ test.describe('desfazer na planilha', () => {
     await expect(cell(window, 0, 1)).toHaveText('b')
   })
 
-  test('depois de desfazer, a célula ativa mostra o valor de antes', async () => {
+  test('after undoing, the active cell shows the earlier value', async () => {
     const { window } = session
     await write(window, 0, 1, 'b')
     await select(window, 0, 1)
@@ -48,7 +48,7 @@ test.describe('desfazer na planilha', () => {
     await expect(window.locator('.formula-bar__input')).toHaveValue('')
   })
 
-  test('desfazer até o que estava salvo tira o aviso de alteração', async () => {
+  test('undoing back to what was saved clears the modified notice', async () => {
     const { window } = session
     const title = await window.title()
     await write(window, 0, 0, 'a')
@@ -57,7 +57,7 @@ test.describe('desfazer na planilha', () => {
     await expect(window).toHaveTitle(title)
   })
 
-  test('Editar > Desfazer e Refazer do menu usam o histórico da planilha', async () => {
+  test('Edit > Undo and Redo in the menu use the spreadsheet history', async () => {
     const { window } = session
     await write(window, 0, 0, 'a')
     await cell(window, 5, 3).click()
@@ -67,7 +67,7 @@ test.describe('desfazer na planilha', () => {
     await expect(cell(window, 0, 0)).toHaveText('a')
   })
 
-  test('com um diálogo aberto, Ctrl+Z não desfaz a planilha por trás', async () => {
+  test('with a dialog open, Ctrl+Z does not undo the spreadsheet behind it', async () => {
     const { window } = session
     await write(window, 0, 0, 'a')
     await cell(window, 5, 3).click()
@@ -81,7 +81,7 @@ test.describe('desfazer na planilha', () => {
 
   // The menu's accelerator does not hear keys sent by Playwright: the test checks that the sheet
   // leaves the key alone, so it reaches the menu.
-  test('Ctrl+Shift+Y não é refazer: a planilha deixa a tecla para o atalho do assistente', async () => {
+  test('Ctrl+Shift+Y is not redo: the spreadsheet leaves the key for the assistant shortcut', async () => {
     const { window } = session
     await write(window, 0, 0, 'a')
     await cell(window, 5, 3).click()
@@ -97,7 +97,7 @@ test.describe('desfazer na planilha', () => {
     await expect(cell(window, 0, 0)).toHaveText('')
   })
 
-  test('texto que começa com "=" continua texto ao ser editado de novo', async () => {
+  test('text starting with "=" stays text when edited again', async () => {
     const { window } = session
     await write(window, 0, 0, "'=1+1")
     await expect(cell(window, 0, 0)).toHaveText('=1+1')
@@ -109,7 +109,7 @@ test.describe('desfazer na planilha', () => {
   })
 })
 
-test.describe('seleção da planilha', () => {
+test.describe('spreadsheet selection', () => {
   let session: Session
 
   test.beforeEach(async () => {
@@ -141,7 +141,7 @@ test.describe('seleção da planilha', () => {
     }).toPass({ timeout: 15_000 })
   }
 
-  test('clique direito dentro da seleção mantém a seleção e o menu age nela toda', async () => {
+  test('right-click inside the selection keeps the selection and the menu acts on all of it', async () => {
     const { window } = session
     await selectBlock()
     await cell(window, 1, 1).click({ button: 'right' })
@@ -157,7 +157,7 @@ test.describe('seleção da planilha', () => {
     }
   })
 
-  test('clique direito fora da seleção vai para a célula clicada', async () => {
+  test('right-click outside the selection goes to the clicked cell', async () => {
     const { window } = session
     await selectBlock()
     await cell(window, 5, 3).click({ button: 'right' })
@@ -165,7 +165,7 @@ test.describe('seleção da planilha', () => {
     await expect(window.getByRole('menuitem', { name: 'Excluir linha', exact: true })).toBeVisible()
   })
 
-  test('com colunas congeladas, a célula e o intervalo selecionados têm a referência certa', async () => {
+  test('with frozen columns, the selected cell and range have the right reference', async () => {
     const { window } = session
     await select(window, 2, 2)
     await window.getByRole('button', { name: 'Congelar até a seleção' }).click()
@@ -182,7 +182,7 @@ test.describe('seleção da planilha', () => {
     await expect(window.locator('.formula-bar__ref')).toHaveText('B2')
   })
 
-  test('com colunas congeladas, Shift+seta e Shift+clique estendem a seleção através da divisa', async () => {
+  test('with frozen columns, Shift+arrow and Shift+click extend the selection across the divider', async () => {
     const { window } = session
     const ref = window.locator('.formula-bar__ref')
     await select(window, 2, 2)
@@ -214,7 +214,7 @@ test.describe('seleção da planilha', () => {
   })
 })
 
-test.describe('desfazer pelo menu fora da planilha', () => {
+test.describe('undo from the menu outside the spreadsheet', () => {
   let session: Session
 
   test.beforeEach(async () => {
@@ -225,7 +225,7 @@ test.describe('desfazer pelo menu fora da planilha', () => {
     await session.close()
   })
 
-  test('no documento, Editar > Desfazer e Refazer continuam no histórico do editor', async () => {
+  test('in the document, Edit > Undo and Redo stay on the editor history', async () => {
     const { window } = session
     await menu(session, 'new-document')
     const editor = window.locator('.ProseMirror')

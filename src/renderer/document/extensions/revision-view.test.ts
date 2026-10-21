@@ -36,15 +36,15 @@ const doc = docOf(
   { type: 'paragraph', content: [text('fim')] },
 )
 
-describe('o cursor fora do que o modo esconde', () => {
-  it('cada modo esconde o seu trecho', () => {
+describe('the cursor outside what the mode hides', () => {
+  it('each mode hides its own excerpt', () => {
     const block = doc.firstChild!
     expect(hiddenRuns(block, RevisionView.All)).toEqual([])
     expect(hiddenRuns(block, RevisionView.None)).toEqual([{ from: 2, to: 4 }])
     expect(hiddenRuns(block, RevisionView.Original)).toEqual([{ from: 4, to: 6 }])
   })
 
-  it('dentro do excluído escondido, o cursor vai para a borda no sentido em que andava', () => {
+  it('inside hidden deleted text, the cursor goes to the edge in the direction it was moving', () => {
     expect(visiblePosition(doc, 4, RevisionView.Simple, 1)).toBe(5)
     expect(visiblePosition(doc, 4, RevisionView.Simple, -1)).toBe(3)
     // At the edges it is already outside; and with all markup nothing is hidden.
@@ -52,7 +52,7 @@ describe('o cursor fora do que o modo esconde', () => {
     expect(visiblePosition(doc, 4, RevisionView.All, 1)).toBe(4)
   })
 
-  it('o parágrafo excluído inteiro some, e o cursor passa para o vizinho', () => {
+  it('a fully deleted paragraph disappears, and the cursor moves to the neighbor', () => {
     const second = doc.child(1)
     expect(isHiddenBlock(second, RevisionView.None)).toBe(true)
     expect(isHiddenBlock(second, RevisionView.Original)).toBe(false)
@@ -63,15 +63,15 @@ describe('o cursor fora do que o modo esconde', () => {
     expect(doc.resolve(before).parent.textContent).toBe('abcdefgh')
   })
 
-  it('a seleção que já está fora fica como está', () => {
+  it('a selection already outside stays as it is', () => {
     expect(visibleSelection(doc, TextSelection.create(doc, 2), RevisionView.None, 1)).toBeNull()
     const moved = visibleSelection(doc, TextSelection.create(doc, 6), RevisionView.Original, -1)
     expect(moved?.head).toBe(5)
   })
 })
 
-describe('apagar o que se vê', () => {
-  it('a seleção que passa pelo excluído escondido apaga só o resto', () => {
+describe('deleting what is visible', () => {
+  it('a selection that spans hidden deleted text removes only the rest', () => {
     const tr = EditorState.create({ doc }).tr
     // "ab[cd]ef gh" from 1 to 9: without markup, "cd" is not visible and stays.
     deleteVisible(tr, 1, 9, RevisionView.None)
@@ -82,8 +82,8 @@ describe('apagar o que se vê', () => {
   })
 })
 
-describe('o cursor fora de muitos parágrafos escondidos', () => {
-  it('passa por mais de dezesseis em sequência', () => {
+describe('the cursor outside many hidden paragraphs', () => {
+  it('passes more than sixteen in a row', () => {
     const hidden = Array.from({ length: 20 }, () => ({
       type: 'paragraph',
       attrs: { markRevision: { kind: 'del', author: 'Ana' } },

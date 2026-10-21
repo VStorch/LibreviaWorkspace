@@ -21,7 +21,7 @@ public class PageNumberingTests
         });
 
     [Fact]
-    public void LeFormatoInicioEInterruptores()
+    public void ReadsFormatStartAndSwitches()
     {
         var page = Roundtrip.Open(WithNumbering("lowerRoman", 3, titlePage: true)).Page;
 
@@ -32,7 +32,7 @@ public class PageNumberingTests
     }
 
     [Fact]
-    public void DocumentoSemSecaoAbreSemInicioDeNumeracaoESeSerializa()
+    public void DocumentWithoutSectionOpensWithoutNumberingStartAndSerializes()
     {
         var page = Roundtrip.Clone(Roundtrip.Open(Fixtures.WithoutSection())).Page;
 
@@ -40,7 +40,7 @@ public class PageNumberingTests
     }
 
     [Fact]
-    public void AbrirEGravarSemMexerNaoTocaNaSecaoNemNasConfiguracoes()
+    public void OpenAndWriteWithoutChangesLeavesSectionAndSettingsAlone()
     {
         var original = WithNumbering("lowerRoman", 3, titlePage: true);
         var (saved, result) = Roundtrip.Save(original, Roundtrip.Clone(Roundtrip.Open(original)));
@@ -51,7 +51,7 @@ public class PageNumberingTests
     }
 
     [Fact]
-    public void OPainelMudaFormatoInicioEInterruptoresNoArquivo()
+    public void PanelChangesFormatStartAndSwitchesInTheFile()
     {
         var original = WithNumbering(null, null);
         var model = Roundtrip.Clone(Roundtrip.Open(original));
@@ -88,7 +88,7 @@ public class PageNumberingTests
     }
 
     [Fact]
-    public void CampoInseridoNaFaixaDoWordViraCampoDeVerdade()
+    public void FieldInsertedInTheWordBandBecomesARealField()
     {
         var original = Fixtures.WithFooterOfThreeLines();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
@@ -110,7 +110,7 @@ public class PageNumberingTests
     }
 
     [Fact]
-    public void RascunhoSemInicioMudaOFormatoSemApagarOInicio()
+    public void DraftWithoutStartChangesTheFormatWithoutErasingTheStart()
     {
         var original = WithNumbering("lowerRoman", 3);
         var model = Roundtrip.Clone(Roundtrip.Open(original));
@@ -121,7 +121,7 @@ public class PageNumberingTests
     }
 
     [Fact]
-    public void PageRefESectionPagesNaoSaoNumeroDePagina()
+    public void PageRefAndSectionPagesAreNotPageNumbers()
     {
         var bytes = Fixtures.WithFooter(new Paragraph(
             new SimpleField(new Run(new Text("4"))) { Instruction = " PAGEREF _Toc1 \\h " },
@@ -135,7 +135,7 @@ public class PageNumberingTests
     }
 
     [Fact]
-    public void ChavesEscritasNoArquivoContinuamTexto()
+    public void BracesWrittenInTheFileRemainText()
     {
         var bytes = Fixtures.WithFooter(new Paragraph(new Run(new Text("Use {n} aqui"))));
         var model = Roundtrip.Clone(Roundtrip.Open(bytes));

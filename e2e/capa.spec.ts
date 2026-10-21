@@ -10,12 +10,12 @@ import { docxWithAnchoredTextBox, entryOf } from './fixtures.js'
  * outside the `contenteditable`. Text typed in the box becomes an attribute of the anchor block and
  * goes out in `w:txbxContent`, without losing the box.
  */
-test.describe('capa editável', () => {
+test.describe('editable cover', () => {
   let session: Session
   let folder: string
 
   test.beforeEach(async () => {
-    folder = await mkdtemp(join(tmpdir(), 'librevia-capa-'))
+    folder = await mkdtemp(join(tmpdir(), 'librevia-cover-'))
     session = await launch()
   })
 
@@ -24,21 +24,21 @@ test.describe('capa editável', () => {
     await rm(folder, { recursive: true, force: true })
   })
 
-  test('o título da caixa é digitável e volta para o arquivo', async () => {
-    const origem = join(folder, 'capa.docx')
-    const destino = join(folder, 'salva.docx')
-    await writeFile(origem, await docxWithAnchoredTextBox())
+  test('the box title is typeable and returns to the file', async () => {
+    const sourceFile = join(folder, 'capa.docx')
+    const destinationFile = join(folder, 'salva.docx')
+    await writeFile(sourceFile, await docxWithAnchoredTextBox())
 
-    await stubDialogs(session.app, { open: origem, save: destino, messageBox: 1 })
+    await stubDialogs(session.app, { open: sourceFile, save: destinationFile, messageBox: 1 })
     await menu(session, 'open')
 
     // The document does not open locked: the shape is no reason for a lock.
     await expect(session.window.locator('.readonly-banner')).toHaveCount(0)
 
-    const caixa = session.window.locator('.paper-float--text').filter({ hasText: 'Título da capa' })
-    await expect(caixa).toHaveCount(1)
+    const box = session.window.locator('.paper-float--text').filter({ hasText: 'Título da capa' })
+    await expect(box).toHaveCount(1)
 
-    await caixa.click()
+    await box.click()
     await session.window.keyboard.press('ControlOrMeta+a')
     await session.window.keyboard.type('Título trocado')
 
@@ -50,9 +50,9 @@ test.describe('capa editável', () => {
     await menu(session, 'save-as')
     await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
 
-    const corpo = await entryOf(destino, 'word/document.xml')
-    expect(corpo).toContain('txbxContent')
-    expect(corpo).toContain('Título trocado')
-    expect(corpo).not.toContain('Título da capa')
+    const body = await entryOf(destinationFile, 'word/document.xml')
+    expect(body).toContain('txbxContent')
+    expect(body).toContain('Título trocado')
+    expect(body).not.toContain('Título da capa')
   })
 })

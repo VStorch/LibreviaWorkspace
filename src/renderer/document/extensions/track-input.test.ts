@@ -72,8 +72,8 @@ function marksAt(doc: ProseMirrorNode, pos: number): Record<string, unknown>[] {
   return (doc.nodeAt(pos)?.marks ?? []).map((m) => ({ type: m.type.name, ...m.attrs }))
 }
 
-describe('controle do que se digita', () => {
-  it('o que se digita vira inserção do autor, e o mesmo minuto é um trecho só', () => {
+describe('tracking of typing', () => {
+  it("typed text becomes the author's insertion, and the same minute is a single run", () => {
     let state = stateOf([paragraph(text('abc'))], 4)
     state = track(state, (tr) => tr.insertText('x'))
     state = track(state, (tr) => tr.insertText('y'))
@@ -85,13 +85,13 @@ describe('controle do que se digita', () => {
     expect(state.selection.from).toBe(6)
   })
 
-  it('digitar no meio da inserção de outro autor não herda a marca dele', () => {
+  it("typing in the middle of another author's insertion does not inherit its mark", () => {
     let state = stateOf([paragraph(text('ab', mark('insertion', 'Bruno')))], 2)
     state = track(state, (tr) => tr.insertText('x'))
     expect(marksAt(state.doc, 2)[0]).toMatchObject({ type: 'insertion', author: 'Ana' })
   })
 
-  it('o Backspace guarda o caractere excluído e deixa o cursor antes dele', () => {
+  it('Backspace keeps the deleted character and leaves the cursor before it', () => {
     let state = stateOf([paragraph(text('abc'))], 4)
     state = track(state, (tr) => tr.delete(3, 4))
     expect(shown(state.doc)).toEqual(['ab[c]'])
@@ -102,27 +102,27 @@ describe('controle do que se digita', () => {
     expect(state.selection.from).toBe(2)
   })
 
-  it('o Delete guarda o caractere e deixa o cursor depois dele', () => {
+  it('Delete keeps the character and leaves the cursor after it', () => {
     let state = stateOf([paragraph(text('abc'))], 2)
     state = track(state, (tr) => tr.delete(2, 3))
     expect(shown(state.doc)).toEqual(['a[b]c'])
     expect(state.selection.from).toBe(3)
   })
 
-  it('apagar a própria inserção apaga de verdade', () => {
+  it('deleting your own insertion really deletes it', () => {
     let state = stateOf([paragraph(text('ab'), text('xy', mark('insertion', 'Ana')), text('c'))], 5)
     state = track(state, (tr) => tr.delete(4, 5))
     expect(shown(state.doc)).toEqual(['ab{x}c'])
     expect(state.selection.from).toBe(4)
   })
 
-  it('apagar a inserção de outro autor a deixa inserida e excluída', () => {
+  it("deleting another author's insertion leaves it inserted and deleted", () => {
     let state = stateOf([paragraph(text('a'), text('xy', mark('insertion', 'Bruno')))], 4)
     state = track(state, (tr) => tr.delete(2, 4))
     expect(shown(state.doc)).toEqual(['a{[xy]}'])
   })
 
-  it('o que já é exclusão fica como está: o cursor só passa por cima', () => {
+  it('what is already a deletion stays as it is: the cursor just passes over it', () => {
     let state = stateOf([paragraph(text('a'), text('b', mark('deletion', 'Bruno')))], 3)
     const before = state.doc
     state = track(state, (tr) => tr.delete(2, 3))
@@ -130,7 +130,7 @@ describe('controle do que se digita', () => {
     expect(state.selection.from).toBe(2)
   })
 
-  it('digitar sobre a seleção exclui o selecionado e insere depois dele', () => {
+  it('typing over the selection deletes the selected text and inserts after it', () => {
     let state = stateOf([paragraph(text('um dois três'))])
     state = state.apply(state.tr.setSelection(TextSelection.create(state.doc, 4, 8)))
     state = track(state, (tr) => tr.insertText('2'))
@@ -138,7 +138,7 @@ describe('controle do que se digita', () => {
     expect(state.selection.from).toBe(9)
   })
 
-  it('apagar entre parágrafos mantém os dois e exclui a marca do primeiro', () => {
+  it("deleting between paragraphs keeps both and deletes the first one's mark", () => {
     let state = stateOf([paragraph(text('abc')), paragraph(text('def'))])
     state = state.apply(state.tr.setSelection(TextSelection.create(state.doc, 3, 8)))
     state = track(state, (tr) => tr.deleteSelection())
@@ -148,14 +148,14 @@ describe('controle do que se digita', () => {
     expect(shown(state.apply(accept).doc)).toEqual(['abf'])
   })
 
-  it('o Backspace no começo do parágrafo exclui a marca do de cima', () => {
+  it('Backspace at the start of the paragraph deletes the mark of the one above', () => {
     let state = stateOf([paragraph(text('ab')), paragraph(text('cd'))], 5)
     state = track(state, (tr) => tr.join(4))
     expect(shown(state.doc)).toEqual(['ab¶del', 'cd'])
     expect(state.selection.from).toBe(3)
   })
 
-  it('o Enter insere a marca de parágrafo; o Backspace logo depois a tira de verdade', () => {
+  it('Enter inserts the paragraph mark; Backspace right after really removes it', () => {
     let state = stateOf([paragraph(text('abcd'))], 3)
     state = track(state, (tr) => tr.split(3))
     expect(shown(state.doc)).toEqual(['ab¶ins', 'cd'])
@@ -164,7 +164,7 @@ describe('controle do que se digita', () => {
     expect(shown(state.doc)).toEqual(['abcd'])
   })
 
-  it('o Backspace no parágrafo vazio criado pelo Enter também o desfaz de verdade', () => {
+  it('Backspace in the empty paragraph created by Enter also really undoes it', () => {
     let state = stateOf([paragraph(text('ab'))], 3)
     state = track(state, (tr) => tr.split(3))
     expect(shown(state.doc)).toEqual(['ab¶ins', ''])
@@ -172,7 +172,7 @@ describe('controle do que se digita', () => {
     expect(shown(state.doc)).toEqual(['ab'])
   })
 
-  it('a colagem perde as revisões de fora e entra como inserção', () => {
+  it('a paste loses outside revisions and goes in as an insertion', () => {
     const pasted = new Slice(
       Fragment.from(schema.text('cola', [schema.marks['deletion']!.create({ author: 'Bruno' })])),
       0,
@@ -183,7 +183,7 @@ describe('controle do que se digita', () => {
     expect(shown(state.doc)).toEqual(['a{cola}b'])
   })
 
-  it('a lista colada no fim de um parágrafo entra como revisão, e rejeitar devolve o original', () => {
+  it('a list pasted at the end of a paragraph goes in as a revision, and rejecting restores the original', () => {
     const item = (value: string): ProseMirrorNode =>
       schema.nodes['listItem']!.create(null, schema.nodes['paragraph']!.create(null, schema.text(value)))
     const list = schema.nodes['bulletList']!.create(null, [item('um'), item('dois')])
@@ -198,7 +198,7 @@ describe('controle do que se digita', () => {
     expect(rejected.doc.eq(initial.doc)).toBe(true)
   })
 
-  it('só a lista ou a tabela aberta nas pontas é fechada; parágrafos abertos continuam se juntando', () => {
+  it('only a list or table open at the ends is closed; open paragraphs keep merging', () => {
     const paragraphs = Fragment.from([
       schema.nodes['paragraph']!.create(null, schema.text('a')),
       schema.nodes['paragraph']!.create(null, schema.text('b')),
@@ -207,7 +207,7 @@ describe('controle do que se digita', () => {
     expect([closed.openStart, closed.openEnd]).toEqual([1, 1])
   })
 
-  it('texto formatado como código pode ser excluído e inserido com marca de revisão', () => {
+  it('text formatted as code can be deleted and inserted with a revision mark', () => {
     const code = { type: 'code' }
     let state = stateOf([paragraph(text('abcd', code))])
     state = state.apply(state.tr.setSelection(TextSelection.create(state.doc, 2, 4)))
@@ -217,7 +217,7 @@ describe('controle do que se digita', () => {
     expect(shown(state.doc)).toEqual(['{x}a[bc]d'])
   })
 
-  it('o código continua excluindo a outra formatação', () => {
+  it('code still excludes the other formatting', () => {
     const code = schema.marks['code']!
     const others = Object.values(schema.marks).filter(
       (type) => ![code.name, 'insertion', 'deletion'].includes(type.name),
@@ -225,13 +225,13 @@ describe('controle do que se digita', () => {
     expect(others.filter((type) => !code.excludes(type)).map((type) => type.name)).toEqual([])
   })
 
-  it('copiar deixa o excluído de fora', () => {
+  it('copying leaves deleted text out', () => {
     const state = stateOf([paragraph(text('a'), text('xx', mark('deletion', 'Bruno')), text('b'))])
     const slice = stripDeleted(state.doc.slice(1, 5))
     expect(slice.content.textBetween(0, slice.content.size)).toBe('ab')
   })
 
-  it('um desfazer devolve o documento de antes', () => {
+  it('one undo returns the earlier document', () => {
     let state = stateOf([paragraph(text('abc'))], 2, true)
     const before = state.doc
     state = state.apply(state.tr.setSelection(TextSelection.create(state.doc, 1, 3)))
@@ -242,7 +242,7 @@ describe('controle do que se digita', () => {
     expect(undone.doc.eq(before)).toBe(true)
   })
 
-  it('Backspaces seguidos, Delete seguidos, e Enter com o que se digita depois: um desfazer cada', () => {
+  it('consecutive Backspaces, consecutive Deletes, and Enter with what is typed after: one undo each', () => {
     const initial = stateOf([paragraph(text('abcdef'))], 4, true)
     let state = initial
     let group: TrackGroup | null = null
@@ -280,7 +280,7 @@ describe('controle do que se digita', () => {
     expect(state.doc.eq(initial.doc)).toBe(true)
   })
 
-  it('depois de meio segundo, ou longe do cursor, começa outro desfazer', () => {
+  it('after half a second, or far from the cursor, a new undo starts', () => {
     let state = stateOf([paragraph(text('abcdef'))], 4, true)
     const tracked1 = trackTransaction(state.tr.delete(3, 4).setTime(1_000), state, 'Ana', NOW)
     let group = joinHistoryGroup(state.tr.delete(3, 4).setTime(1_000), tracked1, null)
@@ -296,13 +296,13 @@ describe('controle do que se digita', () => {
     expect(undoDepth(state)).toBe(3)
   })
 
-  it('na composição do IME o que sai sai de verdade, e o que entra é marcado', () => {
+  it('during IME composition what leaves really leaves, and what enters is marked', () => {
     let state = stateOf([paragraph(text('abc'))], 3)
     state = track(state, (tr) => tr.insertText('か', 2, 3), { composing: true })
     expect(shown(state.doc)).toEqual(['a{か}c'])
   })
 
-  it('substituir tudo: cada ocorrência excluída e a nova inserida depois', () => {
+  it('replace all: each occurrence deleted and the new one inserted after', () => {
     const blocks = [paragraph(text('gato e gato')), paragraph(text('outro gato'))]
     const replaceAll = (tr: Transaction): Transaction => {
       for (const from of [20, 8, 1]) tr.insertText('cão', from, from + 4)
@@ -316,7 +316,7 @@ describe('controle do que se digita', () => {
     )
   })
 
-  it('a linha de tabela apagada fica excluída; a inserida, marcada', () => {
+  it('a deleted table row stays as deleted; an inserted one is marked', () => {
     const cell = (value: string): Record<string, unknown> => ({
       type: 'tableCell',
       content: [paragraph(text(value))],
@@ -344,7 +344,7 @@ describe('controle do que se digita', () => {
     expect(state.doc.firstChild!.childCount).toBe(2)
   })
 
-  it('desfazer, aceitar e o que não entra no histórico passam sem controle', () => {
+  it('undo, accept and whatever does not enter the history pass untracked', () => {
     const state = stateOf([paragraph(text('abc'))])
     expect(shouldTrack(state.tr.insertText('x', 1))).toBe(true)
     expect(shouldTrack(state.tr)).toBe(false)
@@ -353,7 +353,7 @@ describe('controle do que se digita', () => {
     expect(shouldTrack(state.tr.insertText('x', 1).setMeta('history$', { redo: false }))).toBe(false)
   })
 
-  it('a ponta de comentário entra e sai sem virar revisão', () => {
+  it('a comment anchor goes in and out without becoming a revision', () => {
     let state = stateOf([paragraph(text('abc'))])
     const anchor = schema.nodes['commentStart']!.create({ cid: '1' })
     state = track(state, (tr) => tr.insert(2, anchor))
@@ -363,7 +363,7 @@ describe('controle do que se digita', () => {
     expect(revisionChangesOf(state.doc)).toHaveLength(0)
   })
 
-  it('a data tem precisão de minuto', () => {
+  it('the date has minute precision', () => {
     expect(revisionDate(NOW)).toBe(DATE)
   })
 })
@@ -399,8 +399,8 @@ function settled(state: EditorState, accept: boolean): string {
   return doc.textBetween(0, doc.content.size, accept ? '' : '\n')
 }
 
-describe('controle do que se digita — aleatório', () => {
-  it('o documento segue válido; aceitar dá o texto sem controle, rejeitar dá o de antes', () => {
+describe('tracking of typing - randomized', () => {
+  it('the document stays valid; accepting gives the untracked text, rejecting gives the earlier one', () => {
     const next = random(42)
     const pick = <T>(items: readonly T[]): T => items[Math.floor(next() * items.length)]!
     const words = ['a', 'bc', 'def', ' ', 'xyz']
@@ -451,8 +451,8 @@ describe('controle do que se digita — aleatório', () => {
   })
 })
 
-describe('Ctrl+Backspace e Ctrl+Delete', () => {
-  it('a palavra do texto que se vê, passando por cima do já excluído', () => {
+describe('Ctrl+Backspace and Ctrl+Delete', () => {
+  it('the word of the visible text, skipping over what is already deleted', () => {
     const block = stateOf([
       paragraph(text('one '), text('two', mark('deletion', 'Bia')), text(' three')),
     ]).doc.child(0)
@@ -465,10 +465,10 @@ describe('Ctrl+Backspace e Ctrl+Delete', () => {
   })
 })
 
-describe('a equação (M11, fase 2) com o controle ligado', () => {
+describe('the equation (M11, phase 2) with tracking on', () => {
   const old = { type: 'math', attrs: { omml: '<m:oMath/>', mathml: '<math/>', latex: 'x' } }
 
-  it('trocar a equação é excluir a antiga e inserir a nova, num passo de desfazer', () => {
+  it('swapping the equation deletes the old one and inserts the new one, in one undo step', () => {
     const state = stateOf([paragraph(text('a'), old, text('b'))], undefined, true)
     const replacement = schema.nodes['math']!.create({ omml: null, mathml: '<math/>', latex: 'y' })
     const next = track(state, (tr) => tr.replaceWith(2, 3, replacement))

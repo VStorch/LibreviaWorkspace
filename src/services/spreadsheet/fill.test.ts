@@ -8,7 +8,7 @@ function sheetWith(cells: Array<[number, number, Parameters<typeof setCell>[3]]>
 }
 
 describe('fillRange', () => {
-  it('desloca a fórmula, em vez de repetir o resultado', () => {
+  it('shifts the formula instead of repeating the result', () => {
     // The difference between a spreadsheet and a table: whoever drags `=B1*C1` expects `=B2*C2`,
     // not the first row's number three times.
     const sheet = sheetWith([[0, 3, { formula: '=B1*C1', value: 6 }]])
@@ -19,7 +19,7 @@ describe('fillRange', () => {
     expect(getCell(filled, 2, 3)?.formula).toBe('=B3*C3')
   })
 
-  it('não leva o valor calculado da origem', () => {
+  it("does not carry over the source's computed value", () => {
     // The value belongs to the source position. Recalculation fills the new cell's, since it knows
     // the right order.
     const sheet = sheetWith([[0, 0, { formula: '=1+1', value: 2 }]])
@@ -29,7 +29,7 @@ describe('fillRange', () => {
     expect(getCell(filled, 1, 0)?.value).toBeUndefined()
   })
 
-  it('a referência com $ não acompanha', () => {
+  it('a reference with $ does not follow', () => {
     const sheet = sheetWith([[0, 1, { formula: '=A1*$C$1' }]])
 
     const filled = fillRange(sheet, singleCell(0, 1), { fromRow: 0, toRow: 1, fromColumn: 1, toColumn: 1 })
@@ -37,7 +37,7 @@ describe('fillRange', () => {
     expect(getCell(filled, 1, 1)?.formula).toBe('=A2*$C$1')
   })
 
-  it('preenche para o lado deslocando a coluna', () => {
+  it('fills sideways, shifting the column', () => {
     const sheet = sheetWith([[0, 0, { formula: '=A2' }]])
 
     const filled = fillRange(sheet, singleCell(0, 0), { fromRow: 0, toRow: 0, fromColumn: 0, toColumn: 2 })
@@ -46,7 +46,7 @@ describe('fillRange', () => {
     expect(getCell(filled, 0, 2)?.formula).toBe('=C2')
   })
 
-  it('leva a formatação junto', () => {
+  it('carries the formatting along', () => {
     // In Excel the handle carries the format. Leaving it behind would turn a filled currency column
     // into half a column of raw numbers.
     const sheet = sheetWith([[0, 0, { value: 10, style: { format: CellFormat.Currency, bold: true } }]])
@@ -57,7 +57,7 @@ describe('fillRange', () => {
     expect(getCell(filled, 1, 0)?.value).toBe(10)
   })
 
-  it('não reescreve a origem', () => {
+  it('does not rewrite the source', () => {
     const sheet = sheetWith([[0, 0, { formula: '=X1', value: 5 }]])
 
     const filled = fillRange(sheet, singleCell(0, 0), { fromRow: 0, toRow: 3, fromColumn: 0, toColumn: 0 })
@@ -65,7 +65,7 @@ describe('fillRange', () => {
     expect(getCell(filled, 0, 0)).toEqual({ formula: '=X1', value: 5 })
   })
 
-  it('repete o padrão ciclicamente', () => {
+  it('repeats the pattern cyclically', () => {
     // Two source rows dragged over six fill the pattern three times, as in Excel.
     const sheet = sheetWith([
       [0, 0, { value: 'par' }],
@@ -83,7 +83,7 @@ describe('fillRange', () => {
     expect(getCell(filled, 4, 0)?.value).toBe('par')
   })
 
-  it('preencher para cima também funciona', () => {
+  it('filling upward works too', () => {
     // The modulo of a negative number is negative in JavaScript, and without a sign fix it would
     // point outside the source.
     const sheet = sheetWith([[3, 0, { formula: '=B4' }]])
@@ -94,7 +94,7 @@ describe('fillRange', () => {
     expect(getCell(filled, 1, 0)?.formula).toBe('=B2')
   })
 
-  it('origem vazia limpa o destino', () => {
+  it('an empty source clears the target', () => {
     // Dragging an empty cell over data erases it, as in Excel.
     const sheet = sheetWith([
       [0, 0, {}],
@@ -106,7 +106,7 @@ describe('fillRange', () => {
     expect(getCell(filled, 1, 0)).toBeUndefined()
   })
 
-  it('a fórmula que sairia da planilha vira #REF!', () => {
+  it('a formula that would leave the sheet becomes #REF!', () => {
     const sheet = sheetWith([[2, 0, { formula: '=A1' }]])
 
     const filled = fillRange(sheet, singleCell(2, 0), { fromRow: 0, toRow: 2, fromColumn: 0, toColumn: 0 })
@@ -118,14 +118,14 @@ describe('fillRange', () => {
 describe('fillTarget', () => {
   const source = { fromRow: 2, fromColumn: 1, toRow: 3, toColumn: 2 }
 
-  it('estende só na direção em que o ponteiro saiu mais da origem', () => {
+  it('extends only in the direction the pointer moved farthest from the source', () => {
     expect(fillTarget(source, { row: 9, column: 4 })).toEqual({ ...source, toRow: 9 })
     expect(fillTarget(source, { row: 4, column: 6 })).toEqual({ ...source, toColumn: 6 })
     expect(fillTarget(source, { row: 0, column: 2 })).toEqual({ ...source, fromRow: 0 })
     expect(fillTarget(source, { row: 3, column: 0 })).toEqual({ ...source, fromColumn: 0 })
   })
 
-  it('dentro da origem, não preenche nada', () => {
+  it('inside the source, fills nothing', () => {
     expect(fillTarget(source, { row: 3, column: 1 })).toEqual(source)
   })
 })

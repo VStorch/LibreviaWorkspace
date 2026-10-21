@@ -12,7 +12,7 @@ const note = (text: string, kind = 'footnote'): unknown => ({
   content: [{ type: 'paragraph', content: [{ type: 'text', text }] }],
 })
 
-describe('localizar nas notas (M11)', () => {
+describe('find in notes (M11)', () => {
   const doc = ProseMirrorNode.fromJSON(schema, {
     type: 'doc',
     content: [
@@ -28,7 +28,7 @@ describe('localizar nas notas (M11)', () => {
     ],
   })
 
-  it('acha o texto das notas, na ordem do texto, sem casar através da referência', () => {
+  it("finds the notes' text, in text order, without matching across the reference", () => {
     const matches = collectMatches(doc, 'ata', false)
     expect(matches.map((match) => doc.textBetween(match.from, match.to))).toEqual([
       'ata',
@@ -46,7 +46,7 @@ describe('localizar nas notas (M11)', () => {
     )
   })
 
-  it('a ocorrência dentro da nota aponta para dentro do corpo dela', () => {
+  it('a match inside the note points inside its body', () => {
     const inside = collectMatches(doc, 'anterior', false)
     expect(inside).toHaveLength(1)
     const $from = doc.resolve(inside[0]!.from)

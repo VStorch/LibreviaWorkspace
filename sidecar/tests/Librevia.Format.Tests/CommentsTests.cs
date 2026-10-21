@@ -20,7 +20,7 @@ public class CommentsTests
             .Select(match => $"{match.Groups[1].Value}:{match.Groups[2].Value}")];
 
     [Fact]
-    public void LeAConversaAsRespostasEOResolvido()
+    public void ReadsTheThreadTheRepliesAndTheResolved()
     {
         var result = DocxReader.Read(Fixtures.WithCommentThread());
         var comments = result.Model.Comments!;
@@ -49,7 +49,7 @@ public class CommentsTests
     }
 
     [Fact]
-    public void EditarOParagrafoComentadoDevolveAsAncorasEAsRespostas()
+    public void EditingTheCommentedParagraphReturnsTheAnchorsAndTheReplies()
     {
         var original = Fixtures.WithCommentThread();
         var model = Clone(Open(original));
@@ -97,7 +97,7 @@ public class CommentsTests
     }
 
     [Fact]
-    public void ApagarOFimDoTrechoDeixaOComentarioNoPontoDoComeco()
+    public void DeletingTheEndOfTheRangeLeavesTheCommentAtTheStartPoint()
     {
         // The editor deletes the end with the text and leaves the start: a start without an end
         // makes LibreOffice drop the whole thread.
@@ -116,7 +116,7 @@ public class CommentsTests
     }
 
     [Fact]
-    public void ORascunhoGravadoNumPacoteNovoLevaOsComentarios()
+    public void DraftWrittenToANewPackageCarriesTheComments()
     {
         // A reopened draft saved into a package without comments: the parts are created, and the
         // thread comes back whole, with the reply beside it.
@@ -136,7 +136,7 @@ public class CommentsTests
     }
 
     [Fact]
-    public void AbrirESalvarSemEditarNaoReescreveNada()
+    public void OpenAndSaveWithoutEditingRewritesNothing()
     {
         var original = Fixtures.WithCommentThread();
         var (saved, result) = Save(original, Clone(Open(original)));
@@ -155,7 +155,7 @@ public class CommentsTests
     }
 
     [Fact]
-    public void ORascunhoDeAntesDosComentariosAindaDeclaraAPerda()
+    public void DraftFromBeforeCommentsStillDeclaresTheLoss()
     {
         // A `.sdoc` < 7 has no anchors in the nodes, nor does its reference reading.
         var original = Fixtures.WithComment();
@@ -186,7 +186,7 @@ public class CommentsTests
         new(id, "Vinícius Storch", "2026-10-01T12:00:00Z", [text], false, ParentId: parentId);
 
     [Fact]
-    public void ComentarioNovoNumDocumentoSemComentariosCriaAsPartes()
+    public void NewCommentInADocumentWithoutCommentsCreatesTheParts()
     {
         var original = Fixtures.Simple();
         var model = Clone(Open(original));
@@ -218,7 +218,7 @@ public class CommentsTests
     }
 
     [Fact]
-    public void ComentarioDePontoNovoSoTemAReferencia()
+    public void NewPointCommentOnlyHasTheReference()
     {
         var original = Fixtures.Simple();
         var model = Clone(Open(original));
@@ -232,7 +232,7 @@ public class CommentsTests
     }
 
     [Fact]
-    public void EditarOTextoReescreveSoOComentario()
+    public void EditingTheTextRewritesOnlyTheComment()
     {
         var original = Fixtures.WithCommentThread();
         var model = Clone(Open(original));
@@ -255,7 +255,7 @@ public class CommentsTests
     }
 
     [Fact]
-    public void ResolverEReabrirMudaSoOCommentsExtended()
+    public void ResolvingAndReopeningChangesOnlyCommentsExtended()
     {
         var original = Fixtures.WithCommentThread();
         var model = Clone(Open(original));
@@ -274,7 +274,7 @@ public class CommentsTests
     }
 
     [Fact]
-    public void ResponderPoeAsPontasAoLadoDasDoComentario()
+    public void ReplyPutsTheEndsNextToThoseOfTheComment()
     {
         var original = Fixtures.WithCommentThread();
         var model = Clone(Open(original));
@@ -297,7 +297,7 @@ public class CommentsTests
     }
 
     [Fact]
-    public void ExcluirAConversaLevaAsRespostas()
+    public void DeletingTheThreadTakesTheRepliesAlong()
     {
         var original = Fixtures.WithCommentThread();
         var model = Clone(Open(original));
@@ -319,7 +319,7 @@ public class CommentsTests
     }
 
     [Fact]
-    public void EditarComentarioComFormatacaoDeclaraAPerda()
+    public void EditingCommentWithFormattingDeclaresTheLoss()
     {
         var original = Fixtures.WithCommentThread();
         var model = Clone(Open(original));

@@ -11,24 +11,24 @@ import { hasPdftotext, pdfText } from './external-tools.js'
  * is edited; created, replied to, resolved and deleted in the pane, and saved back; the cursor
  * around anchors, cut and paste, navigation, hiding the pane, the author and paper.
  */
-test.describe('comentários', () => {
+test.describe('comments', () => {
   let session: Session
-  let pasta: string
+  let directory: string
 
   test.beforeEach(async () => {
-    pasta = await mkdtemp(join(tmpdir(), 'librevia-comentarios-'))
+    directory = await mkdtemp(join(tmpdir(), 'librevia-comments-'))
     session = await launch()
   })
 
   test.afterEach(async () => {
     await session.close()
-    await rm(pasta, { recursive: true, force: true })
+    await rm(directory, { recursive: true, force: true })
   })
 
-  test('a conversa aparece ao lado do trecho, e editar o parágrafo não a perde', async () => {
-    const origem = join(pasta, 'ata.docx')
-    await writeFile(origem, await docxWithCommentThread())
-    await stubDialogs(session.app, { open: origem, messageBox: 1 })
+  test('the thread appears beside the excerpt, and editing the paragraph does not lose it', async () => {
+    const sourceFile = join(directory, 'ata.docx')
+    await writeFile(sourceFile, await docxWithCommentThread())
+    await stubDialogs(session.app, { open: sourceFile, messageBox: 1 })
     await menu(session, 'open')
 
     const editor = session.window.locator('.ProseMirror')
@@ -36,29 +36,29 @@ test.describe('comentários', () => {
     await expect(session.window.locator('.banner--readonly')).toBeHidden()
 
     // One thread per card: the reply lives inside the question's.
-    const cartoes = session.window.locator('.comment-card')
-    await expect(cartoes).toHaveCount(2)
-    const conversa = cartoes.filter({ hasText: 'Conferir o valor.' })
-    await expect(conversa).toContainText('Ana')
-    await expect(conversa.locator('.comment-card__replies')).toContainText('Conferido na planilha.')
+    const cards = session.window.locator('.comment-card')
+    await expect(cards).toHaveCount(2)
+    const conversation = cards.filter({ hasText: 'Conferir o valor.' })
+    await expect(conversation).toContainText('Ana')
+    await expect(conversation.locator('.comment-card__replies')).toContainText('Conferido na planilha.')
 
     // A resolved one comes collapsed: author and notice, without the text.
-    const resolvida = cartoes.filter({ hasText: 'Resolvido' })
-    await expect(resolvida).toContainText('Carla')
-    await expect(resolvida).not.toContainText('Trocar o título.')
+    const resolved = cards.filter({ hasText: 'Resolvido' })
+    await expect(resolved).toContainText('Carla')
+    await expect(resolved).not.toContainText('Trocar o título.')
 
     // At the height of the range it comments.
-    const trecho = editor.locator('.comment-range').first()
-    await expect(trecho).toHaveText('doze mil reais')
+    const excerpt = editor.locator('.comment-range').first()
+    await expect(excerpt).toHaveText('doze mil reais')
     await expect
       .poll(async () => {
-        const [caixaTrecho, caixaCartao] = await Promise.all([trecho.boundingBox(), conversa.boundingBox()])
-        return Math.abs(caixaTrecho!.y - caixaCartao!.y)
+        const [excerptBox, cardBox] = await Promise.all([excerpt.boundingBox(), conversation.boundingBox()])
+        return Math.abs(excerptBox!.y - cardBox!.y)
       })
       .toBeLessThan(30)
 
     // Clicking the card selects and highlights the range.
-    await conversa.click()
+    await conversation.click()
     await expect(editor.locator('.comment-range--active')).toHaveText('doze mil reais')
 
     await editor.getByText('por ano.').click()
@@ -68,115 +68,117 @@ test.describe('comentários', () => {
     await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
     await expect(session.window.locator('.banner--notice')).toBeHidden()
 
-    const corpo = await entryOf(origem, 'word/document.xml')
-    expect(corpo).toContain('Revisado.')
+    const body = await entryOf(sourceFile, 'word/document.xml')
+    expect(body).toContain('Revisado.')
     for (const id of ['0', '1', '2']) {
-      expect(corpo).toContain(`<w:commentRangeStart w:id="${id}"`)
-      expect(corpo).toContain(`<w:commentReference w:id="${id}"`)
+      expect(body).toContain(`<w:commentRangeStart w:id="${id}"`)
+      expect(body).toContain(`<w:commentReference w:id="${id}"`)
     }
 
     // Reopened, the card is still there, with the reply.
     await menu(session, 'open')
     await expect(editor).toContainText('Revisado.')
-    await expect(cartoes).toHaveCount(2)
-    await expect(cartoes.filter({ hasText: 'Conferir o valor.' })).toContainText('Conferido na planilha.')
+    await expect(cards).toHaveCount(2)
+    await expect(cards.filter({ hasText: 'Conferir o valor.' })).toContainText('Conferido na planilha.')
   })
-  test('criar, responder, resolver e excluir, e o arquivo e o rascunho guardam tudo', async () => {
-    const origem = join(pasta, 'ata.docx')
-    const rascunho = join(pasta, 'ata.sdoc')
-    const destino = join(pasta, 'volta.docx')
-    await writeFile(origem, await docxWithCommentThread())
-    await stubDialogs(session.app, { open: origem, save: rascunho, messageBox: 1 })
+  test('create, reply, resolve and delete, and the file and the draft keep everything', async () => {
+    const sourceFile = join(directory, 'ata.docx')
+    const draft = join(directory, 'ata.sdoc')
+    const destinationFile = join(directory, 'volta.docx')
+    await writeFile(sourceFile, await docxWithCommentThread())
+    await stubDialogs(session.app, { open: sourceFile, save: draft, messageBox: 1 })
     await menu(session, 'open')
 
     const editor = session.window.locator('.ProseMirror')
-    const cartoes = session.window.locator('.comment-card')
-    await expect(cartoes).toHaveCount(2)
+    const cards = session.window.locator('.comment-card')
+    await expect(cards).toHaveCount(2)
 
     // A new comment on "Fim.": the card opens with the text box focused.
     await editor.getByText('Fim.').click()
     await session.window.keyboard.press('End')
     await session.window.keyboard.press('Shift+Home')
     await menu(session, 'insert-comment')
-    const caixa = session.window.locator('.comment-composer__field')
-    await expect(caixa).toBeFocused()
+    const box = session.window.locator('.comment-composer__field')
+    await expect(box).toBeFocused()
     await session.window.keyboard.type('Revisar o fim.')
     await session.window.getByRole('button', { name: 'Comentar' }).click()
-    await expect(cartoes).toHaveCount(3)
-    await expect(cartoes.filter({ hasText: 'Revisar o fim.' })).toBeVisible()
+    await expect(cards).toHaveCount(3)
+    await expect(cards.filter({ hasText: 'Revisar o fim.' })).toBeVisible()
     await expect(editor.locator('.comment-range').filter({ hasText: 'Fim.' })).toHaveCount(1)
 
     // Esc gives up the new card, and its ends go with it.
     await editor.getByText('Ata da reunião').click()
     await menu(session, 'insert-comment')
-    await expect(caixa).toBeFocused()
+    await expect(box).toBeFocused()
     await session.window.keyboard.press('Escape')
-    await expect(cartoes).toHaveCount(3)
+    await expect(cards).toHaveCount(3)
 
-    const conversa = cartoes.filter({ hasText: 'Conferir o valor.' })
-    await conversa.click()
-    await conversa.getByRole('button', { name: 'Responder' }).click()
+    const conversation = cards.filter({ hasText: 'Conferir o valor.' })
+    await conversation.click()
+    await conversation.getByRole('button', { name: 'Responder' }).click()
     await session.window.keyboard.type('Fechado.')
     await session.window.keyboard.press('Control+Enter')
-    await expect(conversa.locator('.comment-card__replies')).toContainText('Fechado.')
-    await conversa.getByRole('button', { name: 'Resolver' }).click()
-    await expect(conversa).toHaveClass(/comment-card--done/)
+    await expect(conversation.locator('.comment-card__replies')).toContainText('Fechado.')
+    await conversation.getByRole('button', { name: 'Resolver' }).click()
+    await expect(conversation).toHaveClass(/comment-card--done/)
 
-    const resolvida = cartoes.filter({ hasText: 'Carla' })
-    await resolvida.click()
-    await resolvida.getByRole('button', { name: 'Excluir' }).click()
-    await expect(cartoes).toHaveCount(2)
-    await expect(cartoes.filter({ hasText: 'Carla' })).toHaveCount(0)
+    const resolved = cards.filter({ hasText: 'Carla' })
+    await resolved.click()
+    await resolved.getByRole('button', { name: 'Excluir' }).click()
+    await expect(cards).toHaveCount(2)
+    await expect(cards.filter({ hasText: 'Carla' })).toHaveCount(0)
 
     // Undoing the deletion brings the card back; redoing removes it again.
     await editor.click()
     await session.window.keyboard.press('Control+Z')
-    await expect(cartoes).toHaveCount(3)
+    await expect(cards).toHaveCount(3)
     await session.window.keyboard.press('Control+Shift+Z')
-    await expect(cartoes).toHaveCount(2)
+    await expect(cards).toHaveCount(2)
 
     await menu(session, 'save')
     await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
 
-    const comentarios = await entryOf(origem, 'word/comments.xml')
-    expect(comentarios).toContain('Revisar o fim.')
-    expect(comentarios).toContain('Fechado.')
-    expect(comentarios).not.toContain('Trocar o título.')
-    expect(await entryOf(origem, 'word/commentsExtended.xml')).toMatch(/w15:paraId="10000000" w15:done="1"/)
-    expect(await entryOf(origem, 'word/document.xml')).not.toContain('w:id="2"')
+    const comments = await entryOf(sourceFile, 'word/comments.xml')
+    expect(comments).toContain('Revisar o fim.')
+    expect(comments).toContain('Fechado.')
+    expect(comments).not.toContain('Trocar o título.')
+    expect(await entryOf(sourceFile, 'word/commentsExtended.xml')).toMatch(
+      /w15:paraId="10000000" w15:done="1"/,
+    )
+    expect(await entryOf(sourceFile, 'word/document.xml')).not.toContain('w:id="2"')
 
     // The draft keeps the same state, and so does the .docx saved from it.
     await menu(session, 'save-as')
     await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
-    await stubDialogs(session.app, { open: rascunho, save: destino })
+    await stubDialogs(session.app, { open: draft, save: destinationFile })
     await menu(session, 'close-file')
     await expect(session.window.locator('.home')).toBeVisible()
     await menu(session, 'open')
-    await expect(cartoes).toHaveCount(2)
-    await expect(cartoes.filter({ hasText: 'Revisar o fim.' })).toBeVisible()
-    await expect(cartoes.filter({ hasText: 'Ana' })).toHaveClass(/comment-card--done/)
+    await expect(cards).toHaveCount(2)
+    await expect(cards.filter({ hasText: 'Revisar o fim.' })).toBeVisible()
+    await expect(cards.filter({ hasText: 'Ana' })).toHaveClass(/comment-card--done/)
 
     await menu(session, 'save-as')
     await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
-    await stubDialogs(session.app, { open: destino })
+    await stubDialogs(session.app, { open: destinationFile })
     await menu(session, 'open')
-    await expect(cartoes).toHaveCount(2)
-    const ana = cartoes.filter({ hasText: 'Ana' })
+    await expect(cards).toHaveCount(2)
+    const ana = cards.filter({ hasText: 'Ana' })
     await expect(ana).toHaveClass(/comment-card--done/)
     await ana.click()
     await expect(ana.locator('.comment-card__replies')).toContainText('Conferido na planilha.')
     await expect(ana.locator('.comment-card__replies')).toContainText('Fechado.')
-    await expect(cartoes.filter({ hasText: 'Revisar o fim.' })).toBeVisible()
+    await expect(cards.filter({ hasText: 'Revisar o fim.' })).toBeVisible()
   })
-  test('o comentário de ponto no fim do parágrafo não desencontra a seleção', async () => {
-    const origem = join(pasta, 'ata.docx')
-    await writeFile(origem, await docxWithCommentThread())
-    await stubDialogs(session.app, { open: origem, messageBox: 1 })
+  test('a point comment at the end of the paragraph does not misalign the selection', async () => {
+    const sourceFile = join(directory, 'ata.docx')
+    await writeFile(sourceFile, await docxWithCommentThread())
+    await stubDialogs(session.app, { open: sourceFile, messageBox: 1 })
     await menu(session, 'open')
 
     const editor = session.window.locator('.ProseMirror')
-    const cartoes = session.window.locator('.comment-card')
-    await expect(cartoes).toHaveCount(2)
+    const cards = session.window.locator('.comment-card')
+    await expect(cards).toHaveCount(2)
 
     // A point comment at the end of "Fim.": only the `commentEnd`, touching the end.
     await editor.getByText('Fim.').click()
@@ -185,7 +187,7 @@ test.describe('comentários', () => {
     await expect(session.window.locator('.comment-composer__field')).toBeFocused()
     await session.window.keyboard.type('Ponto.')
     await session.window.getByRole('button', { name: 'Comentar' }).click()
-    await expect(cartoes).toHaveCount(3)
+    await expect(cards).toHaveCount(3)
 
     // Selecting only the last character is not the paragraph: deleting it keeps the comment.
     await editor.getByText('Fim.').click()
@@ -193,7 +195,7 @@ test.describe('comentários', () => {
     await session.window.keyboard.press('Shift+ArrowLeft')
     await session.window.keyboard.press('Delete')
     await expect(editor.locator('p').last()).toHaveText('Fim')
-    await expect(cartoes).toHaveCount(3)
+    await expect(cards).toHaveCount(3)
     await session.window.keyboard.type('.')
 
     // `End` and `Shift+Home` in quick succession select the line, and a single `Backspace` deletes
@@ -211,20 +213,20 @@ test.describe('comentários', () => {
     await session.window.keyboard.press('End')
     await session.window.keyboard.press('Backspace')
     await expect(editor.getByText('Título provisóri', { exact: true })).toBeVisible()
-    await expect(cartoes.filter({ hasText: 'Carla' })).toHaveCount(1)
+    await expect(cards.filter({ hasText: 'Carla' })).toHaveCount(1)
   })
-  test('recortar e colar leva o comentário; copiar e colar não o repete', async () => {
-    const origem = join(pasta, 'ata.docx')
-    await writeFile(origem, await docxWithCommentThread())
-    await stubDialogs(session.app, { open: origem, messageBox: 1 })
+  test('cut and paste carries the comment; copy and paste does not repeat it', async () => {
+    const sourceFile = join(directory, 'ata.docx')
+    await writeFile(sourceFile, await docxWithCommentThread())
+    await stubDialogs(session.app, { open: sourceFile, messageBox: 1 })
     await menu(session, 'open')
 
     const editor = session.window.locator('.ProseMirror')
-    const cartoes = session.window.locator('.comment-card')
-    const carla = cartoes.filter({ hasText: 'Carla' })
+    const cards = session.window.locator('.comment-card')
+    const carla = cards.filter({ hasText: 'Carla' })
     await expect(carla).toHaveCount(1)
 
-    // A linha inteira leva as pontas encostadas nela: recortada, a conversa sai.
+    // The whole line carries the ends touching it: once cut, the thread goes with it.
     await editor.getByText('Título provisório').click()
     await session.window.keyboard.press('Home')
     await session.window.keyboard.press('Shift+End')
@@ -253,50 +255,50 @@ test.describe('comentários', () => {
 
     await menu(session, 'save')
     await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
-    expect(await entryOf(origem, 'word/comments.xml')).toContain('Trocar o título.')
-    expect((await entryOf(origem, 'word/document.xml')).match(/<w:commentRangeStart w:id="2"/g)).toHaveLength(
-      1,
-    )
+    expect(await entryOf(sourceFile, 'word/comments.xml')).toContain('Trocar o título.')
+    expect(
+      (await entryOf(sourceFile, 'word/document.xml')).match(/<w:commentRangeStart w:id="2"/g),
+    ).toHaveLength(1)
   })
 
-  test('próximo e anterior escolhem a conversa pela ordem do texto', async () => {
-    const origem = join(pasta, 'ata.docx')
-    await writeFile(origem, await docxWithCommentThread())
-    await stubDialogs(session.app, { open: origem, messageBox: 1 })
+  test('next and previous pick the thread in text order', async () => {
+    const sourceFile = join(directory, 'ata.docx')
+    await writeFile(sourceFile, await docxWithCommentThread())
+    await stubDialogs(session.app, { open: sourceFile, messageBox: 1 })
     await menu(session, 'open')
 
     const editor = session.window.locator('.ProseMirror')
-    const ativo = session.window.locator('.comment-card--active')
+    const active = session.window.locator('.comment-card--active')
     await expect(session.window.locator('.comment-card')).toHaveCount(2)
 
     // Bruno's reply has its own ends in the file, but is not a thread.
     await menu(session, 'next-comment')
-    await expect(ativo).toContainText('Ana')
+    await expect(active).toContainText('Ana')
     await expect(editor.locator('.comment-range--active')).toHaveText('doze mil reais')
     await menu(session, 'next-comment')
-    await expect(ativo).toContainText('Carla')
+    await expect(active).toContainText('Carla')
     await menu(session, 'next-comment')
-    await expect(ativo).toContainText('Ana')
+    await expect(active).toContainText('Ana')
     await menu(session, 'previous-comment')
-    await expect(ativo).toContainText('Carla')
+    await expect(active).toContainText('Carla')
 
     // The cursor went along: what is typed lands in the chosen range.
     await expect(editor).toBeFocused()
   })
 
-  test('esconder o painel tira os cartões e o realce, e o arquivo guarda tudo', async () => {
-    const origem = join(pasta, 'ata.docx')
-    await writeFile(origem, await docxWithCommentThread())
-    await stubDialogs(session.app, { open: origem, messageBox: 1 })
+  test('hiding the panel removes the cards and highlight, and the file keeps everything', async () => {
+    const sourceFile = join(directory, 'ata.docx')
+    await writeFile(sourceFile, await docxWithCommentThread())
+    await stubDialogs(session.app, { open: sourceFile, messageBox: 1 })
     await menu(session, 'open')
 
     const editor = session.window.locator('.ProseMirror')
-    const painel = session.window.locator('.comments-pane')
-    await expect(painel).toHaveCount(1)
+    const panel = session.window.locator('.comments-pane')
+    await expect(panel).toHaveCount(1)
     await expect(editor.locator('.comment-range')).not.toHaveCount(0)
 
     await clickMenuItem(session, 'Exibir', 'Comentários')
-    await expect(painel).toHaveCount(0)
+    await expect(panel).toHaveCount(0)
     await expect(editor.locator('.comment-range')).toHaveCount(0)
 
     await editor.getByText('por ano.').click()
@@ -304,47 +306,47 @@ test.describe('comentários', () => {
     await session.window.keyboard.type(' Revisado.')
     await menu(session, 'save')
     await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
-    const corpo = await entryOf(origem, 'word/document.xml')
-    expect(corpo).toContain('<w:commentRangeStart w:id="0"')
-    expect(corpo).toContain('<w:commentRangeStart w:id="2"')
-    expect(await entryOf(origem, 'word/comments.xml')).toContain('Conferir o valor.')
+    const body = await entryOf(sourceFile, 'word/document.xml')
+    expect(body).toContain('<w:commentRangeStart w:id="0"')
+    expect(body).toContain('<w:commentRangeStart w:id="2"')
+    expect(await entryOf(sourceFile, 'word/comments.xml')).toContain('Conferir o valor.')
 
     // The preference sticks: with the document reopened, the pane stays hidden.
     await menu(session, 'open')
     await expect(editor).toContainText('Revisado.')
-    await expect(painel).toHaveCount(0)
+    await expect(panel).toHaveCount(0)
 
     // Inserting a comment brings the pane back.
     await editor.getByText('Fim.').click()
     await menu(session, 'insert-comment')
-    await expect(painel).toHaveCount(1)
+    await expect(panel).toHaveCount(1)
     await expect(session.window.locator('.comment-composer__field')).toBeFocused()
     await session.window.keyboard.press('Escape')
 
     await clickMenuItem(session, 'Exibir', 'Comentários')
-    await expect(painel).toHaveCount(0)
+    await expect(panel).toHaveCount(0)
     await clickMenuItem(session, 'Exibir', 'Comentários')
-    await expect(painel).toHaveCount(1)
+    await expect(panel).toHaveCount(1)
     await expect(editor.locator('.comment-range').first()).toBeVisible()
   })
 
-  test('o nome do autor assina o comentário novo, e a resposta se edita', async () => {
-    const origem = join(pasta, 'ata.docx')
-    await writeFile(origem, await docxWithCommentThread())
-    await stubDialogs(session.app, { open: origem, messageBox: 1 })
+  test('the author name signs the new comment, and the reply can be edited', async () => {
+    const sourceFile = join(directory, 'ata.docx')
+    await writeFile(sourceFile, await docxWithCommentThread())
+    await stubDialogs(session.app, { open: sourceFile, messageBox: 1 })
     await menu(session, 'open')
 
     const editor = session.window.locator('.ProseMirror')
-    const cartoes = session.window.locator('.comment-card')
-    await expect(cartoes).toHaveCount(2)
+    const cards = session.window.locator('.comment-card')
+    await expect(cards).toHaveCount(2)
 
     await menu(session, 'author-name')
-    const dialogo = session.window.getByRole('dialog', { name: 'Nome do autor' })
-    const nome = dialogo.getByRole('textbox', { name: 'Nome' })
-    await expect(nome).toBeFocused()
-    await nome.fill('Zé da Silva')
-    await dialogo.getByRole('button', { name: 'Salvar' }).click()
-    await expect(dialogo).toHaveCount(0)
+    const dialog = session.window.getByRole('dialog', { name: 'Nome do autor' })
+    const name = dialog.getByRole('textbox', { name: 'Nome' })
+    await expect(name).toBeFocused()
+    await name.fill('Zé da Silva')
+    await dialog.getByRole('button', { name: 'Salvar' }).click()
+    await expect(dialog).toHaveCount(0)
 
     await editor.getByText('Fim.').click()
     await session.window.keyboard.press('End')
@@ -353,44 +355,51 @@ test.describe('comentários', () => {
     await expect(session.window.locator('.comment-composer__field')).toBeFocused()
     await session.window.keyboard.type('Assinado.')
     await session.window.getByRole('button', { name: 'Comentar' }).click()
-    await expect(cartoes.filter({ hasText: 'Assinado.' })).toContainText('Zé da Silva')
+    await expect(cards.filter({ hasText: 'Assinado.' })).toContainText('Zé da Silva')
 
     // Bruno's reply, edited in Ana's card.
-    const conversa = cartoes.filter({ hasText: 'Conferir o valor.' })
-    await conversa.click()
-    const respostas = conversa.locator('.comment-card__replies')
-    await respostas.getByRole('button', { name: 'Editar' }).click()
-    const caixa = respostas.locator('.comment-composer__field')
-    await expect(caixa).toBeFocused()
-    await expect(caixa).toHaveValue('Conferido na planilha.')
-    await caixa.fill('Conferido duas vezes.')
+    const conversation = cards.filter({ hasText: 'Conferir o valor.' })
+    await conversation.click()
+    const replies = conversation.locator('.comment-card__replies')
+    await replies.getByRole('button', { name: 'Editar' }).click()
+    const box = replies.locator('.comment-composer__field')
+    await expect(box).toBeFocused()
+    await expect(box).toHaveValue('Conferido na planilha.')
+    await box.fill('Conferido duas vezes.')
     await session.window.keyboard.press('Control+Enter')
-    await expect(respostas).toContainText('Conferido duas vezes.')
-    await expect(respostas).not.toContainText('Conferido na planilha.')
+    await expect(replies).toContainText('Conferido duas vezes.')
+    await expect(replies).not.toContainText('Conferido na planilha.')
 
     await menu(session, 'save')
     await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
-    const comentarios = await entryOf(origem, 'word/comments.xml')
-    expect(comentarios).toMatch(
+    const comments = await entryOf(sourceFile, 'word/comments.xml')
+    expect(comments).toMatch(
       /w:author="Zé da Silva"[^>]*w:initials="ZDS"|w:initials="ZDS"[^>]*w:author="Zé da Silva"/,
     )
-    expect(comentarios).toContain('Conferido duas vezes.')
-    expect(comentarios).not.toContain('Conferido na planilha.')
+    expect(comments).toContain('Conferido duas vezes.')
+    expect(comments).not.toContain('Conferido na planilha.')
   })
 
-  test('o PDF sai sem os comentários', async () => {
-    test.skip(!(await hasPdftotext()), 'pdftotext não instalado')
-    const origem = join(pasta, 'ata.docx')
-    const destino = join(pasta, 'ata.pdf')
-    await writeFile(origem, await docxWithCommentThread())
-    await stubDialogs(session.app, { open: origem, save: destino, messageBox: 1 })
+  test('the PDF comes out without the comments', async () => {
+    test.skip(!(await hasPdftotext()), 'pdftotext not installed')
+    const sourceFile = join(directory, 'ata.docx')
+    const destinationFile = join(directory, 'ata.pdf')
+    await writeFile(sourceFile, await docxWithCommentThread())
+    await stubDialogs(session.app, { open: sourceFile, save: destinationFile, messageBox: 1 })
     await menu(session, 'open')
     await expect(session.window.locator('.comment-card')).toHaveCount(2)
 
     await menu(session, 'export-pdf')
-    await expect.poll(() => pdfText(destino), { timeout: 30_000 }).toContain('doze mil reais')
-    const texto = await pdfText(destino)
-    for (const fora of ['Conferir o valor.', 'Conferido na planilha.', 'Ana', 'Bruno', 'Carla', 'Resolvido'])
-      expect(texto).not.toContain(fora)
+    await expect.poll(() => pdfText(destinationFile), { timeout: 30_000 }).toContain('doze mil reais')
+    const text = await pdfText(destinationFile)
+    for (const outside of [
+      'Conferir o valor.',
+      'Conferido na planilha.',
+      'Ana',
+      'Bruno',
+      'Carla',
+      'Resolvido',
+    ])
+      expect(text).not.toContain(outside)
   })
 })

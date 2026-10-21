@@ -63,10 +63,10 @@ const CONVERSATION = {
     { role: 'user' as const, text: 'E o tom?' },
   ],
 }
-describe('provedor Anthropic', () => {
-  it('manda a conversa inteira como mensagens, com o system à parte', async () => {
+describe('Anthropic provider', () => {
+  it('sends the whole conversation as messages, with the system prompt separate', async () => {
     const calls: unknown[] = []
-    const provider = createAnthropicProvider('chave', clientWith([], calls))
+    const provider = createAnthropicProvider('key', clientWith([], calls))
     await collect(provider.stream(CONVERSATION, new AbortController().signal))
     expect(calls[0]).toMatchObject({
       system: 'sys',
@@ -78,11 +78,11 @@ describe('provedor Anthropic', () => {
     })
   })
 
-  it('lê só os pedaços de texto e passa o sinal de cancelamento', async () => {
+  it('reads only the text chunks and passes the cancellation signal', async () => {
     const calls: unknown[] = []
     const signal = new AbortController().signal
     const provider = createAnthropicProvider(
-      'chave',
+      'key',
       clientWith(
         [
           { type: 'message_start' },
@@ -100,17 +100,17 @@ describe('provedor Anthropic', () => {
     expect(calls[0]).not.toHaveProperty('fallbacks')
   })
 
-  it('com o recurso ligado, pede a troca de modelo e passa adiante o modelo que assumiu', async () => {
+  it('with the feature on, asks for the model switch and passes on the model that took over', async () => {
     const calls: unknown[] = []
-    const provider = createAnthropicProvider('chave', clientWith([text('Come'), FALLBACK, text('ço')], calls))
+    const provider = createAnthropicProvider('key', clientWith([text('Come'), FALLBACK, text('ço')], calls))
     const parts = await collect(provider.stream({ ...PROMPT, fallback: true }, new AbortController().signal))
     expect(parts).toEqual([{ text: 'Come' }, { model: 'modelo-y' }, { text: 'ço' }])
     expect(calls[0]).toMatchObject({ betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' })
   })
 
-  it('se o modelo que assumiu também recusar, o erro continua legível', async () => {
+  it('if the model that took over also refuses, the error stays readable', async () => {
     const provider = createAnthropicProvider(
-      'chave',
+      'key',
       clientWith([FALLBACK, { type: 'message_delta', delta: { stop_reason: 'refusal' } }]),
     )
     await expect(
@@ -118,9 +118,9 @@ describe('provedor Anthropic', () => {
     ).rejects.toMatchObject({ code: ErrorCode.AiRefused })
   })
 
-  it('recusa do modelo vira erro legível', async () => {
+  it('model refusal becomes a readable error', async () => {
     const provider = createAnthropicProvider(
-      'chave',
+      'key',
       clientWith([{ type: 'message_delta', delta: { stop_reason: 'refusal' } }]),
     )
     await expect(collect(provider.stream(PROMPT, new AbortController().signal))).rejects.toMatchObject({
@@ -128,7 +128,7 @@ describe('provedor Anthropic', () => {
     })
   })
 
-  it('erro de autenticação do SDK vira erro de chave', async () => {
+  it('SDK authentication error becomes a key error', async () => {
     const client = {
       beta: {
         messages: {
@@ -139,13 +139,13 @@ describe('provedor Anthropic', () => {
       },
     } as unknown as Client
     await expect(
-      collect(createAnthropicProvider('chave', client).stream(PROMPT, new AbortController().signal)),
+      collect(createAnthropicProvider('key', client).stream(PROMPT, new AbortController().signal)),
     ).rejects.toMatchObject({ code: ErrorCode.AiAuthFailed })
   })
 
-  it('lista os modelos com o nome de exibição e marca os que aceitam outro modelo', async () => {
+  it('lists the models with the display name and flags those that accept another model', async () => {
     const calls: unknown[] = []
-    const provider = createAnthropicProvider('chave', clientWith([], calls))
+    const provider = createAnthropicProvider('key', clientWith([], calls))
     expect(await provider.listModels(new AbortController().signal)).toEqual([
       { id: 'modelo-a', label: 'Modelo A', fallback: true },
       { id: 'modelo-b', label: 'Modelo B', fallback: false },
@@ -153,7 +153,7 @@ describe('provedor Anthropic', () => {
     expect(calls[0]).toEqual({ betas: ['server-side-fallback-2026-06-01'] })
   })
 
-  it('monta a chamada de ferramenta a partir de tool_use e input_json_delta', async () => {
+  it('builds the tool call from tool_use and input_json_delta', async () => {
     const provider = createAnthropicProvider(
       'k',
       clientWith([
@@ -182,7 +182,7 @@ describe('provedor Anthropic', () => {
     ])
   })
 
-  it('aborta a resposta que pede ferramentas demais', async () => {
+  it('aborts a response that asks for too many tools', async () => {
     const events = Array.from({ length: MAX_AI_TOOL_CALLS + 1 }, (_, index) => [
       {
         type: 'content_block_start',
@@ -197,7 +197,7 @@ describe('provedor Anthropic', () => {
     })
   })
 
-  it('aborta argumentos de ferramenta longos demais', async () => {
+  it('aborts tool arguments that are too long', async () => {
     const provider = createAnthropicProvider(
       'k',
       clientWith([
@@ -218,7 +218,7 @@ describe('provedor Anthropic', () => {
     })
   })
 
-  it('manda as ferramentas e o histórico como tool_use e tool_result', async () => {
+  it('sends the tools and the history as tool_use and tool_result', async () => {
     const calls: unknown[] = []
     const provider = createAnthropicProvider('k', clientWith([], calls))
     const prompt = {

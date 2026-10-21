@@ -21,12 +21,12 @@ async function writeBytes(name: string, bytes: Buffer): Promise<string> {
 }
 
 describe('readTextFile', () => {
-  it('lê UTF-8 sem BOM', async () => {
+  it('reads UTF-8 without BOM', async () => {
     const path = await writeBytes('simples.txt', Buffer.from('Relatório de março', 'utf8'))
     expect(await readTextFile(path)).toBe('Relatório de março')
   })
 
-  it('remove o BOM de UTF-8', async () => {
+  it('removes the UTF-8 BOM', async () => {
     // What Windows Notepad writes, and the BOM would show as an invisible character at the start of
     // the document.
     const bytes = Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), Buffer.from('Ata', 'utf8')])
@@ -35,14 +35,14 @@ describe('readTextFile', () => {
     expect(await readTextFile(path)).toBe('Ata')
   })
 
-  it('lê UTF-16 little endian', async () => {
+  it('reads UTF-16 little endian', async () => {
     const bytes = Buffer.concat([Buffer.from([0xff, 0xfe]), Buffer.from('Contrato', 'utf16le')])
     const path = await writeBytes('utf16le.txt', bytes)
 
     expect(await readTextFile(path)).toBe('Contrato')
   })
 
-  it('lê UTF-16 big endian', async () => {
+  it('reads UTF-16 big endian', async () => {
     const swapped = Buffer.from('Contrato', 'utf16le')
     swapped.swap16()
     const path = await writeBytes('utf16be.txt', Buffer.concat([Buffer.from([0xfe, 0xff]), swapped]))
@@ -50,7 +50,7 @@ describe('readTextFile', () => {
     expect(await readTextFile(path)).toBe('Contrato')
   })
 
-  it('recusa conteúdo binário', async () => {
+  it('refuses binary content', async () => {
     // Opening an executable by mistake would fill the editor with garbage, and saving it would
     // destroy the file.
     const path = await writeBytes('binario.txt', Buffer.from([0x7f, 0x45, 0x4c, 0x46, 0x00, 0x01]))
@@ -63,7 +63,7 @@ describe('readTextFile', () => {
     expect(await readTextFile(path)).toBe('')
   })
 
-  it('reporta arquivo inexistente com mensagem compreensível', async () => {
+  it('reports a missing file with an understandable message', async () => {
     await expect(readTextFile(join(directory, 'nao-existe.txt'))).rejects.toMatchObject({
       code: 'FILE_NOT_FOUND',
     })

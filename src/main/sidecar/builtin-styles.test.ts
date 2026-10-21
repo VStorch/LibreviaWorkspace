@@ -23,14 +23,14 @@ describe('contrato dos estilos dos arquivos antigos', () => {
     'utf8',
   )
 
-  it('a tabela do sidecar é a mesma do modelo do documento', () => {
+  it('the sidecar table is the same as the document model', () => {
     const declared = parseTable(source)
 
     expect(Object.keys(declared).length).toBeGreaterThan(0)
     expect(declared).toEqual(LEGACY_STYLES.styles)
   })
 
-  it('os padrões do documento são os mesmos', () => {
+  it('the document defaults are the same', () => {
     // Font and size live in `w:docDefaults`, which every style inherits from.
     expect(LEGACY_STYLES.defaults.character).toEqual({
       fontFamily: constantText(source, 'BodyFont'),
@@ -43,7 +43,7 @@ describe('contrato dos estilos dos arquivos antigos', () => {
     expect(LEGACY_STYLES.defaults.characterStyleId).toBe(defaultIdOf(source, true))
   })
 
-  it('a entrelinha do corpo é o mesmo fator nos dois lados', () => {
+  it('the body line spacing is the same factor on both sides', () => {
     // If they differ, the document would leave the editor with one line spacing and come back with
     // another.
     expect(constantNumber(source, 'BodyLineFactor')).toBe(BODY_LINE_FACTOR)
@@ -52,13 +52,13 @@ describe('contrato dos estilos dos arquivos antigos', () => {
 
 function constantText(source: string, name: string): string {
   const match = new RegExp(`const string ${name} = "([^"]*)"`).exec(source)
-  if (match?.[1] === undefined) throw new Error(`constante ${name} não encontrada`)
+  if (match?.[1] === undefined) throw new Error(`constant ${name} not found`)
   return match[1]
 }
 
 function constantNumber(source: string, name: string): number {
   const match = new RegExp(`const double ${name} = ([\\d.]+)`).exec(source)
-  if (match?.[1] === undefined) throw new Error(`constante ${name} não encontrada`)
+  if (match?.[1] === undefined) throw new Error(`constant ${name} not found`)
   return Number(match[1])
 }
 
@@ -76,7 +76,7 @@ function defaultIdOf(source: string, character: boolean): string | null {
  */
 function entriesOf(source: string): string[] {
   const start = source.indexOf('BuiltinStyle[] All =')
-  if (start < 0) throw new Error('tabela All não encontrada')
+  if (start < 0) throw new Error('All table not found')
 
   const entries: string[] = []
   for (let at = source.indexOf('new(', start); at >= 0; at = source.indexOf('new(', at + 1)) {
@@ -155,7 +155,7 @@ function valueOf(text: string): Argument {
   // The body line spacing is a file constant, compared in its own test.
   if (text === 'BodyLineFactor') return BODY_LINE_FACTOR
   const number = Number(text)
-  if (Number.isNaN(number)) throw new Error(`valor que o teste não sabe ler: ${text}`)
+  if (Number.isNaN(number)) throw new Error(`value the test cannot read: ${text}`)
   return number
 }
 

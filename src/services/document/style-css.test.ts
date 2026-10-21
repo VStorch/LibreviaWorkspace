@@ -9,7 +9,7 @@ function ruleOf(css: string, selector: string): string {
 }
 
 describe('styleSheetCss', () => {
-  it('o arquivo antigo desenha como antes dos estilos: Times 12, entrelinha 1,5', () => {
+  it('an old file renders as before styles: Times 12, line spacing 1.5', () => {
     const css = styleSheetCss(LEGACY_STYLES)
     expect(ruleOf(css, '.page__content')).toContain("font-family: 'Times New Roman', serif;")
     expect(ruleOf(css, '.page__content')).toContain('line-height: 1.4997;')
@@ -17,7 +17,7 @@ describe('styleSheetCss', () => {
     expect(ruleOf(css, '.page__content > h1:not([data-style-id])')).toContain('font-size: 22pt;')
   })
 
-  it('o documento novo nasce Calibri 11, entrelinha 1,08, 8 pt depois', () => {
+  it('a new document starts as Calibri 11, line spacing 1.08, 8 pt after', () => {
     const css = styleSheetCss(BUILTIN_STYLES)
     const body = ruleOf(css, '.page__content > p:not([data-style-id])')
     expect(body).toContain("font-family: 'Calibri', sans-serif;")
@@ -27,13 +27,13 @@ describe('styleSheetCss', () => {
     expect(ruleOf(css, '.page__content > h1:not([data-style-id])')).toContain('font-weight: 400;')
   })
 
-  it('todo estilo de parágrafo ganha regra pelo id, e o de caractere não', () => {
+  it('every paragraph style gets a rule by id, and a character style does not', () => {
     const css = styleSheetCss(BUILTIN_STYLES)
     expect(ruleOf(css, '.page__content > [data-style-id="ListParagraph"]')).toContain('padding-left: 12.7mm;')
     expect(css).not.toContain('[data-style-id="Hyperlink"]')
   })
 
-  it('título que o documento não define é desenhado como o escritor vai gravá-lo', () => {
+  it('a heading the document does not define is drawn as the writer will save it', () => {
     const styles = Object.fromEntries(
       Object.entries(BUILTIN_STYLES.styles).filter(([id]) => id !== 'Heading2'),
     )
@@ -41,7 +41,7 @@ describe('styleSheetCss', () => {
     expect(ruleOf(css, '.page__content > h2:not([data-style-id])')).toContain('font-size: 17pt;')
   })
 
-  it('o id que o documento não define vale só os padrões, antes das regras por id', () => {
+  it('an id the document does not define gets only the defaults, before the rules by id', () => {
     const css = styleSheetCss(BUILTIN_STYLES)
     const generic = ruleOf(css, '.page__content > [data-style-id]')
     expect(generic).toContain('margin-bottom: 8pt;')
@@ -50,7 +50,7 @@ describe('styleSheetCss', () => {
     )
   })
 
-  it('o preto declarado no estilo vira variável que só o tema escuro redefine', () => {
+  it('the black declared in the style becomes a variable that only the dark theme redefines', () => {
     const normal = BUILTIN_STYLES.styles['Normal']!
     const styles = {
       ...BUILTIN_STYLES.styles,
@@ -62,7 +62,7 @@ describe('styleSheetCss', () => {
     )
   })
 
-  it('a cor que não é preta continua a do autor', () => {
+  it("a color that is not black stays the author's", () => {
     const css = styleSheetCss(BUILTIN_STYLES)
     expect(ruleOf(css, '.page__content > [data-style-id="Heading1"]')).toContain('color: #2f5496;')
   })

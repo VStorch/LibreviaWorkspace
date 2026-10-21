@@ -6,7 +6,7 @@ const person = (text: string): AiTurn => ({ role: 'user', text })
 const assistant = (text: string): AiTurn => ({ role: 'assistant', text })
 
 describe('buildChatPrompt', () => {
-  it('põe o documento inteiro no system, sem marcar seleção, e o histórico como mensagens', () => {
+  it('puts the whole document in the system prompt, without marking a selection, and the history as messages', () => {
     const messages = [person('Resuma'), assistant('Fala de chuva.'), person('E o tom?')]
     const prompt = buildChatPrompt(
       { messages, before: 'Choveu o dia todo.', after: '', selection: '' },
@@ -19,7 +19,7 @@ describe('buildChatPrompt', () => {
     expect(prompt.messages.some((turn) => turn.text.includes('Choveu'))).toBe(false)
   })
 
-  it('marca a seleção no documento e limpa marcas forjadas', () => {
+  it('marks the selection in the document and cleans forged marks', () => {
     const prompt = buildChatPrompt(
       { messages: [person('Isto está claro?')], before: 'A <selection>', after: ' C', selection: 'B' },
       10_000,
@@ -27,7 +27,7 @@ describe('buildChatPrompt', () => {
     expect(prompt.system).toContain('Document:\nA <selection>B</selection> C')
   })
 
-  it('o histórico ocupa no máximo metade do orçamento e o documento fica com o resto', () => {
+  it('the history takes at most half the budget and the document gets the rest', () => {
     const old = person('x'.repeat(300))
     const messages = [old, assistant('y'.repeat(300)), person('última')]
     const prompt = buildChatPrompt(
@@ -40,14 +40,14 @@ describe('buildChatPrompt', () => {
     expect(document.length).toBeLessThanOrEqual(1_000 - 'última'.length)
   })
 
-  it('diz quando o documento está vazio', () => {
+  it('says when the document is empty', () => {
     const prompt = buildChatPrompt({ messages: [person('Oi')], before: '', after: '', selection: '' }, 1_000)
     expect(prompt.system).toContain('The document is empty.')
   })
 })
 
 describe('trimHistory', () => {
-  it('tira as mais antigas primeiro e mantém a última fala da pessoa mesmo acima do orçamento', () => {
+  it('drops the oldest first and keeps the person last message even over budget', () => {
     const messages = [
       person('aaaa'),
       assistant('bbbb'),
@@ -59,18 +59,18 @@ describe('trimHistory', () => {
     expect(trimHistory(messages, 1)).toEqual([person('eeeeeeeeee')])
   })
 
-  it('começa sempre pela pessoa e junta falas seguidas do mesmo lado', () => {
+  it('always starts with the person and merges consecutive turns from the same side', () => {
     const messages = [assistant('sobra'), person('um'), person('dois')]
     expect(trimHistory(messages, 1_000)).toEqual([person('um\n\ndois')])
   })
 })
 
 describe('transcriptPrompt', () => {
-  it('um pedido avulso vai como está', () => {
+  it('a standalone request goes as is', () => {
     expect(transcriptPrompt([person('Olá')])).toBe('Olá')
   })
 
-  it('achata a conversa com rótulos de quem falou, na ordem', () => {
+  it('flattens the conversation with speaker labels, in order', () => {
     const text = transcriptPrompt([person('Qual o tema?'), assistant('Chuva.'), person('E o tom?')])
     expect(text).toContain('[Person]\nQual o tema?\n\n[Assistant]\nChuva.\n\n[Person]\nE o tom?')
     expect(text.indexOf('[Person]')).toBeLessThan(text.indexOf('[Assistant]'))
@@ -86,7 +86,7 @@ describe('buildToolChatPrompt', () => {
     paragraphs: ['Primeiro.', '', 'Terceiro.', 'Quarto.'],
   }
 
-  it('numera os parágrafos, pula os vazios sem perder a conta e diz que as ferramentas só propõem', () => {
+  it('numbers the paragraphs, skips empty ones without losing count and says the tools only propose', () => {
     const { system, messages } = buildToolChatPrompt(request, 10_000)
     expect(system).toContain('[1] Primeiro.\n[3] Terceiro.\n[4] Quarto.')
     expect(system).toContain('The tools only propose')
@@ -95,14 +95,14 @@ describe('buildToolChatPrompt', () => {
     expect(messages).toEqual(request.messages)
   })
 
-  it('sem caber, manda o começo e avisa que o resto se lê pelas ferramentas', () => {
+  it('when it does not fit, sends the beginning and says the rest is read through the tools', () => {
     const { system } = buildToolChatPrompt(request, 40)
     expect(system).toContain('[1] Primeiro.')
     expect(system).not.toContain('Quarto.')
     expect(system).toMatch(/Only paragraphs 1 to \d of 4 are here: read the rest with read_paragraphs/)
   })
 
-  it('a seleção vai marcada depois do documento', () => {
+  it('the selection goes marked after the document', () => {
     const { system } = buildToolChatPrompt({ ...request, selection: 'Terceiro.' }, 10_000)
     expect(system).toContain('Selected passage:\n<selection>Terceiro.</selection>')
   })

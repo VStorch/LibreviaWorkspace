@@ -87,7 +87,7 @@ describe.skipIf(documents.length === 0)('corpus real', () => {
     expect(['A4', 'Letter']).toContain(model.page.size)
   })
 
-  it.each(documents)('salva %s sem reescrever nada quando nada foi editado', async (path) => {
+  it.each(documents)('saves %s without rewriting anything when nothing was edited', async (path) => {
     // Opening and saving by reflex costs nothing.
     forgetOpenedDocx()
     const opened = await openDocx(client, path)
@@ -97,7 +97,7 @@ describe.skipIf(documents.length === 0)('corpus real', () => {
     expect(saved.inventory.lost).toEqual([])
   })
 
-  it('preserva todas as partes do pacote menos o corpo', async () => {
+  it('keeps every package part except the body', async () => {
     const path = documents[0]!
     forgetOpenedDocx()
 
@@ -114,7 +114,7 @@ describe.skipIf(documents.length === 0)('corpus real', () => {
     expect(changed).toEqual(['word/document.xml'])
   })
 
-  it('não empresta o pacote aberto a um documento de outra origem', async () => {
+  it('does not lend the open package to a document from another origin', async () => {
     // A new document after opening a `.docx` does not write over its bytes.
     const path = documents[0]!
     forgetOpenedDocx()
@@ -135,7 +135,7 @@ describe.skipIf(documents.length === 0)('corpus real', () => {
  * the published sidecar, not on the corpus.
  */
 describe.skipIf(!published)('documento novo em .docx', () => {
-  it('grava sobre o pacote mínimo e o texto volta ao reabrir', async () => {
+  it('writes over the minimal package and the text returns on reopen', async () => {
     const saved = await saveDocx(client, newDocument('Texto do documento novo.'), {
       origin: null,
       destination: '/tmp/novo.docx',
@@ -151,13 +151,13 @@ describe.skipIf(!published)('documento novo em .docx', () => {
     expect(keptParts.get('word/document.xml')!.toString('utf8')).not.toContain('Texto do documento novo.')
   })
 
-  it('a segunda gravação no mesmo arquivo parte do mesmo pacote que a primeira', async () => {
+  it('the second save to the same file starts from the same package as the first', async () => {
     const destination = '/tmp/novo-duas-vezes.docx'
     forgetOpenedDocx()
-    const first = await saveDocx(client, newDocument('Mesma versão.'), { origin: null, destination })
+    const first = await saveDocx(client, newDocument('Same version.'), { origin: null, destination })
     followDocxOriginal(null, destination, first)
 
-    const second = await saveDocx(client, newDocument('Mesma versão.'), {
+    const second = await saveDocx(client, newDocument('Same version.'), {
       origin: destination,
       destination,
     })
@@ -167,7 +167,7 @@ describe.skipIf(!published)('documento novo em .docx', () => {
     expect(Buffer.compare(Buffer.from(second.bytes), Buffer.from(first.bytes))).toBe(0)
   })
 
-  it('gravar cinco vezes o mesmo documento novo não acumula partes', async () => {
+  it('saving the same new document five times does not accumulate parts', async () => {
     // Always starting from the minimal package, saving again adds no numbering or image to what was
     // there.
     const destination = '/tmp/novo-cinco-vezes.docx'
@@ -176,7 +176,7 @@ describe.skipIf(!published)('documento novo em .docx', () => {
     const counted: { media: number; numbering: number }[] = []
     for (let round = 0; round < 5; round++) {
       const origin = round === 0 ? null : destination
-      const saved = await saveDocx(client, newDocumentWithListAndImage(`Versão ${round + 1}.`), {
+      const saved = await saveDocx(client, newDocumentWithListAndImage(`Version ${round + 1}.`), {
         origin,
         destination,
       })
@@ -195,7 +195,7 @@ describe.skipIf(!published)('documento novo em .docx', () => {
     expect(counted).toEqual(counted.map(() => counted[0]))
   })
 
-  it('declara a perda do pacote de origem quando o modelo tem oid e o original não está aqui', async () => {
+  it('declares the loss of the source package when the model has an oid and the original is not here', async () => {
     // A model with `oid` saved without its package loses styles, notes and comments: the user has
     // to read that on screen.
     forgetOpenedDocx()
@@ -219,7 +219,7 @@ describe.skipIf(!published)('documento novo em .docx', () => {
     )
   })
 
-  it('avisa quando as faixas de um .docx de origem não têm onde ser gravadas', async () => {
+  it('warns when the tracks of a source .docx have nowhere to be written', async () => {
     // A `.sdoc` that was a `.docx` carries the source file's headers and footers.
     const content = JSON.stringify({
       page: { ...page, headerBand: { left: [], center: [], right: [], rule: true, rows: [] } },
@@ -262,7 +262,7 @@ describe.skipIf(!published)('o caminho do pacote original', () => {
     return `${directory}/.//${path.slice(directory.length + 1)}`
   }
 
-  it('reconhece o original quando a abertura veio por um caminho escrito de outro jeito', async () => {
+  it('recognizes the original when it was opened through a differently written path', async () => {
     const path = await docxOnDisk('aberto.docx')
     forgetOpenedDocx()
 
@@ -273,7 +273,7 @@ describe.skipIf(!published)('o caminho do pacote original', () => {
     expect(Buffer.compare(saved.original, await readFile(path))).toBe(0)
   })
 
-  it('reconhece o original quando o origin da gravação vem escrito de outro jeito', async () => {
+  it('recognizes the original when the save origin is written differently', async () => {
     const path = await docxOnDisk('gravado.docx')
     forgetOpenedDocx()
 
@@ -287,7 +287,7 @@ describe.skipIf(!published)('o caminho do pacote original', () => {
     expect(Buffer.compare(saved.original, await readFile(path))).toBe(0)
   })
 
-  it('reata o original recuperado por um caminho escrito de outro jeito', async () => {
+  it('rebinds the recovered original through a differently written path', async () => {
     // Recovery rereads the bytes from disk through the draft's path.
     const path = await docxOnDisk('recuperado.docx')
     forgetOpenedDocx()

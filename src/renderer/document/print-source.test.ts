@@ -25,8 +25,8 @@ const paragraph = (text: string) => schema.node('paragraph', null, schema.text(t
 const row = (text: string) => schema.node('tableRow', null, schema.node('tableCell', null, paragraph(text)))
 const item = (text: string) => schema.node('listItem', null, paragraph(text))
 
-describe('recorte das páginas para impressão', () => {
-  it('recorta uma tabela em três folhas sem repetir ou perder linhas', () => {
+describe('page slicing for printing', () => {
+  it('slices a table into three sheets without repeating or losing rows', () => {
     const table = schema.node('table', null, ['A', 'B', 'C', 'D', 'E'].map(row))
     const blocks = [paragraph('Antes'), table, paragraph('Depois')]
     const cuts = [
@@ -44,27 +44,27 @@ describe('recorte das páginas para impressão', () => {
     expect(pages[1]![0]!.type.name).toBe('table')
   })
 
-  it('lista numerada continua de onde a folha anterior terminou', () => {
+  it('a numbered list continues where the previous sheet ended', () => {
     const list = schema.node('orderedList', { start: 7 }, ['A', 'B', 'C'].map(item))
     const page = slicePageBlocks([list], { blockIndex: 0, childIndex: 2 }, { blockIndex: 1 })
     expect(page[0]!.attrs.start).toBe(9)
     expect(page[0]!.textContent).toBe('C')
   })
 
-  it('preserva a estrutura da lista de marcadores', () => {
+  it('preserves the bullet list structure', () => {
     const list = schema.node('bulletList', null, ['A', 'B', 'C'].map(item))
     const page = slicePageBlocks([list], { blockIndex: 0 }, { blockIndex: 0, childIndex: 1 })
     expect(page[0]!.type.name).toBe('bulletList')
     expect(page[0]!.textContent).toBe('A')
   })
 
-  it('mantém blocos inteiros e a folha vazia de uma quebra explícita final', () => {
+  it('keeps whole blocks and the empty sheet from a trailing explicit break', () => {
     const block = paragraph('Inteiro')
     expect(slicePageBlocks([block], { blockIndex: 0 }, { blockIndex: 1 })).toEqual([block])
     expect(slicePageBlocks([block], { blockIndex: 1 }, { blockIndex: 1 })).toEqual([])
   })
 
-  it('parágrafo cortado entre linhas sai em dois pedaços que somam o original', () => {
+  it('a paragraph cut between lines comes out in two pieces that add up to the original', () => {
     const block = paragraph('Primeira linha. Segunda linha.')
     const blocks = [paragraph('Antes'), block]
     const cut = { blockIndex: 1, offset: 16 }
@@ -74,13 +74,13 @@ describe('recorte das páginas para impressão', () => {
     expect(bottom.map((node) => node.textContent)).toEqual(['Segunda linha.'])
   })
 
-  it('parágrafo de três folhas: o pedaço do meio é só o miolo', () => {
+  it('a three-sheet paragraph: the middle piece is only the core', () => {
     const block = paragraph('aaaabbbbcccc')
     const page = slicePageBlocks([block], { blockIndex: 0, offset: 4 }, { blockIndex: 0, offset: 8 })
     expect(page.map((node) => node.textContent)).toEqual(['bbbb'])
   })
 
-  it('a folha em que a tabela continua abre com as linhas de cabeçalho', () => {
+  it('the sheet where the table continues opens with the header rows', () => {
     const header = schema.node('tableRow', null, schema.node('tableHeader', null, paragraph('Cab')))
     const table = schema.node('table', null, [header, ...['A', 'B', 'C'].map(row)])
     const page = slicePageBlocks(
@@ -94,7 +94,7 @@ describe('recorte das páginas para impressão', () => {
   })
 })
 
-describe('impressão conforme Revisão → Mostrar', () => {
+describe('printing according to Review → Show', () => {
   const ins = schema.marks['insertion']!.create({ author: 'Ana' })
   const del = schema.marks['deletion']!.create({ author: 'Ana' })
   const revised = schema.node('paragraph', { markRevision: { kind: 'del', author: 'Ana' } }, [
@@ -140,25 +140,28 @@ describe('impressão conforme Revisão → Mostrar', () => {
     return [...names].sort()
   }
 
-  it('marcação completa: tudo como está, com as marcas', () => {
+  it('full markup: everything as is, with the marks', () => {
     const shown = blocksForView(blocks, RevisionView.All)
     expect(shown).toEqual(blocks)
     expect(marksOf(shown)).toEqual(['bloco', 'deletion', 'insertion'])
   })
 
-  it.each([RevisionView.Simple, RevisionView.None])('%s: o texto final, sem excluído nem marca', (view) => {
-    const shown = blocksForView(blocks, view)
-    expect(shown.map((node) => node.textContent)).toEqual(['Era novo', 'Todo novo', 'FicaNova'])
-    expect(marksOf(shown)).toEqual([])
-  })
+  it.each([RevisionView.Simple, RevisionView.None])(
+    '%s: the final text, without deleted text or marks',
+    (view) => {
+      const shown = blocksForView(blocks, view)
+      expect(shown.map((node) => node.textContent)).toEqual(['Era novo', 'Todo novo', 'FicaNova'])
+      expect(marksOf(shown)).toEqual([])
+    },
+  )
 
-  it('original: o texto de antes, sem inserido nem marca', () => {
+  it('original: the earlier text, without inserted text or marks', () => {
     const shown = blocksForView(blocks, RevisionView.Original)
     expect(shown.map((node) => node.textContent)).toEqual(['Era velho', 'Todo velho', 'FicaVelha'])
     expect(marksOf(shown)).toEqual([])
   })
 
-  it('a célula que perdeu o texto continua, vazia', () => {
+  it('a cell that lost its text remains, empty', () => {
     const cell = schema.node('tableCell', null, schema.node('paragraph', null, schema.text('x', [ins])))
     const shown = blocksForView(
       [schema.node('table', null, schema.node('tableRow', null, cell))],

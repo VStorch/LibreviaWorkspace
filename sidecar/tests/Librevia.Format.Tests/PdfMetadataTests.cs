@@ -13,7 +13,7 @@ public class PdfMetadataTests
     private static string Text(byte[] bytes) => Encoding.Latin1.GetString(bytes);
 
     [Fact]
-    public void LeAsPropriedadesDoDicionarioDeInformacoes()
+    public void ReadsThePropertiesOfTheInformationDictionary()
     {
         var inspection = PdfMetadata.Inspect(PdfFixtures.Classic());
 
@@ -30,7 +30,7 @@ public class PdfMetadataTests
     }
 
     [Fact]
-    public void SemDicionarioLeOXmp()
+    public void WithoutDictionaryReadsTheXmp()
     {
         var inspection = PdfMetadata.Inspect(PdfFixtures.Classic(info: null, xmp: PdfFixtures.Xmp));
 
@@ -40,7 +40,7 @@ public class PdfMetadataTests
     }
 
     [Fact]
-    public void AtualizacaoVemDepoisDoOriginalIntacto()
+    public void UpdateComesAfterTheIntactOriginal()
     {
         var original = PdfFixtures.Classic();
 
@@ -54,7 +54,7 @@ public class PdfMetadataTests
     }
 
     [Fact]
-    public void ReabrirMostraOsCamposNovosEGuardaOsOutros()
+    public void ReopeningShowsTheNewFieldsAndKeepsTheOthers()
     {
         var saved = Saved(PdfFixtures.Classic(), new PropertiesDto(Title: "Relatório revisto", Keywords: "contas; 2026", Subject: ""));
 
@@ -68,7 +68,7 @@ public class PdfMetadataTests
     }
 
     [Fact]
-    public void ADataDeModificacaoVaiNoFormatoDoPdf()
+    public void ModifiedDateGoesInPdfFormat()
     {
         var saved = Saved(PdfFixtures.Classic(), new PropertiesDto(Modified: "2026-10-12T16:00:00Z"));
 
@@ -78,7 +78,7 @@ public class PdfMetadataTests
     }
 
     [Fact]
-    public void SemMudancaNaoAcrescentaNada()
+    public void WithoutChangeAddsNothing()
     {
         var update = PdfMetadata.Update(PdfFixtures.Classic(), new PropertiesDto(Title: "Relatório anual", Creator: "Ana Lima"));
 
@@ -86,7 +86,7 @@ public class PdfMetadataTests
     }
 
     [Fact]
-    public void UmPdfSemDicionarioGanhaUmNovo()
+    public void PdfWithoutDictionaryGetsANewOne()
     {
         var original = PdfFixtures.Classic(info: null);
 
@@ -97,7 +97,7 @@ public class PdfMetadataTests
     }
 
     [Fact]
-    public void OXmpMudaJuntoEGuardaOQueNaoConhece()
+    public void XmpChangesTogetherAndKeepsWhatItDoesNotKnow()
     {
         var original = PdfFixtures.Classic(xmp: PdfFixtures.Xmp);
 
@@ -114,7 +114,7 @@ public class PdfMetadataTests
     }
 
     [Fact]
-    public void LeEAtualizaUmPdfComXrefEmStream()
+    public void ReadsAndUpdatesAPdfWithXrefStream()
     {
         var original = PdfFixtures.WithXrefStream();
         Assert.Equal("Relatório anual", PdfMetadata.Inspect(original).Properties?.Title);
@@ -129,7 +129,7 @@ public class PdfMetadataTests
     }
 
     [Fact]
-    public void DuasAtualizacoesSeguidasEncadeiam()
+    public void TwoConsecutiveUpdatesChain()
     {
         var once = Saved(PdfFixtures.Classic(), new PropertiesDto(Title: "Primeira"));
         var twice = Saved(once, new PropertiesDto(Keywords: "segunda"));
@@ -140,7 +140,7 @@ public class PdfMetadataTests
     }
 
     [Fact]
-    public void ContaAsVersoesAnterioresQueCadaAtualizacaoDeixa()
+    public void CountsThePreviousVersionsEachUpdateLeaves()
     {
         var original = PdfFixtures.Classic();
         var once = Saved(original, new PropertiesDto(Title: "Primeira"));
@@ -153,7 +153,7 @@ public class PdfMetadataTests
     }
 
     [Fact]
-    public void OSegundoIdentificadorMudaEOPrimeiroFica()
+    public void SecondIdentifierChangesAndTheFirstStays()
     {
         var saved = Text(Saved(PdfFixtures.Classic(), new PropertiesDto(Title: "Outro")));
 
@@ -163,7 +163,7 @@ public class PdfMetadataTests
     }
 
     [Fact]
-    public void TextoForaDoAsciiVaiEmUtf16()
+    public void NonAsciiTextGoesInUtf16()
     {
         var saved = Saved(PdfFixtures.Classic(), new PropertiesDto(Title: "Ação — 2026"));
 
@@ -172,7 +172,7 @@ public class PdfMetadataTests
     }
 
     [Fact]
-    public void PdfCriptografadoERecusado()
+    public void EncryptedPdfIsRejected()
     {
         var encrypted = PdfFixtures.Classic(trailerExtras: " /Encrypt << /Filter /Standard /V 2 >>");
 
@@ -183,7 +183,7 @@ public class PdfMetadataTests
     }
 
     [Fact]
-    public void ReconheceUmPdfAssinado()
+    public void RecognizesASignedPdf()
     {
         var signed = PdfFixtures.Classic(catalogExtras: " /AcroForm << /Fields [] /SigFlags 3 >>");
 
@@ -191,13 +191,13 @@ public class PdfMetadataTests
     }
 
     [Fact]
-    public void ArquivoQueNaoEPdfERecusado()
+    public void FileThatIsNotAPdfIsRejected()
     {
         Assert.Throws<PdfException>(() => PdfMetadata.Inspect(Encoding.ASCII.GetBytes("PK\u0003\u0004 não é PDF")));
     }
 
     [Fact]
-    public void PdfSemTabelaDeReferenciasERecusado()
+    public void PdfWithoutCrossReferenceTableIsRejected()
     {
         var broken = Encoding.ASCII.GetBytes("%PDF-1.4\n1 0 obj\n<< >>\nendobj\n");
 

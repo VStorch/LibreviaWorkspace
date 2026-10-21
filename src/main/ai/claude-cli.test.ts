@@ -74,7 +74,7 @@ async function collect(iterable: AsyncIterable<unknown>): Promise<unknown[]> {
 }
 
 describe('claudeCliArgs', () => {
-  it('desliga ferramentas, MCP, configurações e sessão', () => {
+  it('turns off tools, MCP, settings and session', () => {
     const args = claudeCliArgs(PROMPT)
     expect(args).toEqual(expect.arrayContaining(['-p', '--no-session-persistence', '--strict-mcp-config']))
     expect(args[args.indexOf('--tools') + 1]).toBe('')
@@ -85,12 +85,12 @@ describe('claudeCliArgs', () => {
     expect(args).not.toContain('--mcp-config')
   })
 
-  it('com as ferramentas do documento, só o servidor do Librevia e só as ferramentas dele', () => {
+  it('with the document tools, only the Librevia server and only its tools', () => {
     const toolServer = {
       name: 'librevia',
       command: '/opt/librevia',
       args: ['--mcp-bridge'],
-      env: { LIBREVIA_MCP_TOKEN: 'chave' },
+      env: { LIBREVIA_MCP_TOKEN: 'key' },
       tools: ['read_paragraphs', 'propose_edit'],
     }
     const args = claudeCliArgs({ ...PROMPT, toolServer })
@@ -103,7 +103,7 @@ describe('claudeCliArgs', () => {
           type: 'stdio',
           command: '/opt/librevia',
           args: ['--mcp-bridge'],
-          env: { LIBREVIA_MCP_TOKEN: 'chave' },
+          env: { LIBREVIA_MCP_TOKEN: 'key' },
         },
       },
     })
@@ -113,8 +113,8 @@ describe('claudeCliArgs', () => {
   })
 })
 
-describe('provedor Claude Code', () => {
-  it('manda o pedido pelo stdin, lê o texto e o custo, e apaga a pasta temporária', async () => {
+describe('Claude Code provider', () => {
+  it('sends the request through stdin, reads the text and the cost, and deletes the temporary folder', async () => {
     const { child, calls, removed, provider } = setup()
     const parts = collect(provider.stream(PROMPT, new AbortController().signal))
     await new Promise((resolve) => setImmediate(resolve))
@@ -133,7 +133,7 @@ describe('provedor Claude Code', () => {
     expect(removed).toEqual(['/tmp/librevia-ai-x'])
   })
 
-  it('erro informado pelo programa vira erro legível', async () => {
+  it('an error reported by the program becomes a readable error', async () => {
     const { child, provider } = setup()
     const parts = collect(provider.stream(PROMPT, new AbortController().signal))
     await new Promise((resolve) => setImmediate(resolve))
@@ -142,7 +142,7 @@ describe('provedor Claude Code', () => {
     await expect(parts).rejects.toMatchObject({ code: ErrorCode.AiFailed, detail: 'Not logged in' })
   })
 
-  it('o texto de cada rodada com ferramentas começa um parágrafo novo', async () => {
+  it('the text of each tool round starts a new paragraph', async () => {
     const { child, provider } = setup()
     const parts = collect(provider.stream(PROMPT, new AbortController().signal))
     await new Promise((resolve) => setImmediate(resolve))
@@ -154,7 +154,7 @@ describe('provedor Claude Code', () => {
     expect(await parts).toEqual([{ text: 'Vou ler o documento.' }, { text: '\n\nPropus duas trocas.' }])
   })
 
-  it('cancelar encerra o processo e limpa a pasta', async () => {
+  it('cancelling ends the process and cleans the folder', async () => {
     const { child, removed, provider } = setup()
     const controller = new AbortController()
     const parts = collect(provider.stream(PROMPT, controller.signal))
@@ -167,7 +167,7 @@ describe('provedor Claude Code', () => {
     expect(removed).toEqual(['/tmp/librevia-ai-x'])
   })
 
-  it('pedido já cancelado não abre o programa', async () => {
+  it('an already cancelled request does not open the program', async () => {
     const { calls, provider } = setup()
     const controller = new AbortController()
     controller.abort()
@@ -175,7 +175,7 @@ describe('provedor Claude Code', () => {
     expect(calls).toHaveLength(0)
   })
 
-  it('cancelado enquanto a pasta temporária era criada encerra o processo logo ao abrir', async () => {
+  it('cancelled while the temporary folder was being created ends the process right on opening', async () => {
     const child = new FakeChild()
     const controller = new AbortController()
     const removed: string[] = []
@@ -195,7 +195,7 @@ describe('provedor Claude Code', () => {
     expect(removed).toEqual(['/tmp/librevia-ai-y'])
   })
 
-  it('falha ao abrir o programa ainda apaga a pasta temporária', async () => {
+  it('failure to open the program still deletes the temporary folder', async () => {
     const removed: string[] = []
     const provider = createClaudeCliProvider({
       command: '/usr/bin/claude',

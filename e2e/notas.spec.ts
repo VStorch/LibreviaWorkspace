@@ -14,33 +14,33 @@ import { hasPdfinfo, hasSoffice, pdfInfo } from './external-tools.js'
  * The reference is a node with the note body inside. Editing the paragraph carrying it does not
  * lose it, which is why a document with notes does not open locked.
  */
-test.describe('notas de rodapé', () => {
+test.describe('footnotes', () => {
   let session: Session
-  let pasta: string
+  let directory: string
 
   test.beforeEach(async () => {
-    pasta = await mkdtemp(join(tmpdir(), 'librevia-notas-'))
+    directory = await mkdtemp(join(tmpdir(), 'librevia-notes-'))
     session = await launch()
   })
 
   test.afterEach(async () => {
     await session.close()
-    await rm(pasta, { recursive: true, force: true })
+    await rm(directory, { recursive: true, force: true })
   })
 
-  test('editar o parágrafo da referência, salvar e reabrir mantém a nota', async () => {
-    const origem = join(pasta, 'ata.docx')
-    await writeFile(origem, await docxWithFootnote())
-    await stubDialogs(session.app, { open: origem, messageBox: 1 })
+  test('editing the reference paragraph, saving and reopening keeps the note', async () => {
+    const sourceFile = join(directory, 'ata.docx')
+    await writeFile(sourceFile, await docxWithFootnote())
+    await stubDialogs(session.app, { open: sourceFile, messageBox: 1 })
     await menu(session, 'open')
 
     const editor = session.window.locator('.pages__column .ProseMirror')
     await expect(editor).toHaveAttribute('contenteditable', 'true')
     await expect(editor.locator('sup.note-ref')).toHaveAttribute('data-note-number', '1')
     // The note shows at the foot of the first sheet, with its number.
-    const nota = session.window.locator('.paper-notes .note-body')
-    await expect(nota).toContainText('Fonte: ata anterior.')
-    await expect(nota.locator('.note-number')).toHaveText('1')
+    const note = session.window.locator('.paper-notes .note-body')
+    await expect(note).toContainText('Fonte: ata anterior.')
+    await expect(note.locator('.note-number')).toHaveText('1')
 
     await editor.getByText('Segundo parágrafo').click()
     await session.window.keyboard.press('Home')
@@ -52,12 +52,12 @@ test.describe('notas de rodapé', () => {
 
     // The paragraph was rewritten with the reference; the note, which nobody touched, stays in the
     // file, with the separators.
-    const corpo = await entryOf(origem, 'word/document.xml')
-    expect(corpo).toContain('Revisto: Segundo parágrafo')
-    expect(corpo).toMatch(/<w:footnoteReference w:id="1" ?\/>/)
-    const notas = await entryOf(origem, 'word/footnotes.xml')
-    expect(notas).toContain('Fonte: ata anterior.')
-    expect(notas).toContain('w:separator')
+    const body = await entryOf(sourceFile, 'word/document.xml')
+    expect(body).toContain('Revisto: Segundo parágrafo')
+    expect(body).toMatch(/<w:footnoteReference w:id="1" ?\/>/)
+    const notes = await entryOf(sourceFile, 'word/footnotes.xml')
+    expect(notes).toContain('Fonte: ata anterior.')
+    expect(notes).toContain('w:separator')
 
     await menu(session, 'open')
     await expect(editor).toContainText('Revisto: Segundo parágrafo')
@@ -71,158 +71,162 @@ test.describe('notas de rodapé', () => {
  * Footnotes and endnotes: the body is edited at the foot of the page, and notes take room on the
  * sheet, so screen and paper break at the same place.
  */
-test.describe('notas no pé da página', () => {
+test.describe('notes at the foot of the page', () => {
   let session: Session
-  let pasta: string
+  let directory: string
 
   test.beforeEach(async () => {
-    pasta = await mkdtemp(join(tmpdir(), 'librevia-notas-'))
+    directory = await mkdtemp(join(tmpdir(), 'librevia-notes-'))
     session = await launch()
   })
 
   test.afterEach(async () => {
     await session.close()
-    await rm(pasta, { recursive: true, force: true })
+    await rm(directory, { recursive: true, force: true })
   })
 
-  const texto = (session: Session) => session.window.locator('.pages__column .ProseMirror')
-  const notas = (session: Session) => session.window.locator('.paper-notes .note-body')
+  const text = (session: Session) => session.window.locator('.pages__column .ProseMirror')
+  const notes = (session: Session) => session.window.locator('.paper-notes .note-body')
 
-  test('inserir nota pelo comando, escrever nela, desfazer e refazer', async () => {
+  test('insert a note by command, write in it, undo and redo', async () => {
     await menu(session, 'new-document')
-    await texto(session).click()
+    await text(session).click()
     await session.window.keyboard.type('Ata da reunião')
     await menu(session, 'insert-footnote')
 
-    await expect(texto(session).locator('sup.note-ref')).toHaveAttribute('data-note-number', '1')
-    await expect(notas(session)).toHaveCount(1)
+    await expect(text(session).locator('sup.note-ref')).toHaveAttribute('data-note-number', '1')
+    await expect(notes(session)).toHaveCount(1)
     // The cursor is already in the note body.
-    await expect(notas(session)).toBeFocused()
+    await expect(notes(session)).toBeFocused()
     await session.window.keyboard.type('Fonte: livro de atas.')
-    await expect(notas(session)).toContainText('Fonte: livro de atas.')
-    await expect(notas(session).locator('.note-number')).toHaveText('1')
+    await expect(notes(session)).toContainText('Fonte: livro de atas.')
+    await expect(notes(session).locator('.note-number')).toHaveText('1')
 
     // A single history: undoing inside the note undoes in the document.
     await session.window.keyboard.press('Control+z')
-    await expect(notas(session)).not.toContainText('Fonte: livro de atas.')
+    await expect(notes(session)).not.toContainText('Fonte: livro de atas.')
     await session.window.keyboard.press('Control+y')
-    await expect(notas(session)).toContainText('Fonte: livro de atas.')
+    await expect(notes(session)).toContainText('Fonte: livro de atas.')
 
     // Clicking the number goes back to the reference; the next one, at the end, is 2.
-    await notas(session).locator('.note-number').click()
-    await expect(texto(session)).toBeFocused()
+    await notes(session).locator('.note-number').click()
+    await expect(text(session)).toBeFocused()
     await session.window.keyboard.press('End')
     await session.window.keyboard.type(' e mais')
     await menu(session, 'insert-footnote')
     await session.window.keyboard.type('Segunda nota.')
-    await expect(notas(session)).toHaveCount(2)
-    await expect(notas(session).nth(1)).toContainText('Segunda nota.')
-    await expect(notas(session).nth(1).locator('.note-number')).toHaveText('2')
+    await expect(notes(session)).toHaveCount(2)
+    await expect(notes(session).nth(1)).toContainText('Segunda nota.')
+    await expect(notes(session).nth(1).locator('.note-number')).toHaveText('2')
   })
 
-  test('apagar a referência apaga a nota; salvar em .docx e reabrir mantém o texto', async () => {
-    const destino = join(pasta, 'ata.docx')
-    await stubDialogs(session.app, { save: destino, open: destino, messageBox: 1 })
+  test('deleting the reference deletes the note; saving to .docx and reopening keeps the text', async () => {
+    const destinationFile = join(directory, 'ata.docx')
+    await stubDialogs(session.app, { save: destinationFile, open: destinationFile, messageBox: 1 })
     await menu(session, 'new-document')
-    await texto(session).click()
+    await text(session).click()
     await session.window.keyboard.type('Primeira')
     await menu(session, 'insert-footnote')
     await session.window.keyboard.type('Nota que fica.')
-    await notas(session).locator('.note-number').click()
+    await notes(session).locator('.note-number').click()
     await session.window.keyboard.type(' segunda')
     await menu(session, 'insert-footnote')
     await session.window.keyboard.type('Nota que sai.')
-    await expect(notas(session)).toHaveCount(2)
+    await expect(notes(session)).toHaveCount(2)
 
     // Backspace right after the reference deletes the reference and the note.
-    await notas(session).nth(1).locator('.note-number').click()
+    await notes(session).nth(1).locator('.note-number').click()
     await session.window.keyboard.press('Backspace')
-    await expect(texto(session).locator('sup.note-ref')).toHaveCount(1)
-    await expect(notas(session)).toHaveCount(1)
-    await expect(notas(session)).toContainText('Nota que fica.')
+    await expect(text(session).locator('sup.note-ref')).toHaveCount(1)
+    await expect(notes(session)).toHaveCount(1)
+    await expect(notes(session)).toContainText('Nota que fica.')
 
     await menu(session, 'save-as')
     await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
-    const corpo = await entryOf(destino, 'word/footnotes.xml')
-    expect(corpo).toContain('Nota que fica.')
-    expect(corpo).not.toContain('Nota que sai.')
+    const body = await entryOf(destinationFile, 'word/footnotes.xml')
+    expect(body).toContain('Nota que fica.')
+    expect(body).not.toContain('Nota que sai.')
 
     await menu(session, 'close-file')
     await menu(session, 'open')
-    await expect(notas(session)).toHaveCount(1)
-    await expect(notas(session)).toContainText('Nota que fica.')
+    await expect(notes(session)).toHaveCount(1)
+    await expect(notes(session)).toContainText('Nota que fica.')
   })
 
-  test('as notas empurram linhas, e a tela e o PDF têm as mesmas folhas', async () => {
-    test.skip(!(await hasPdfinfo()), 'pdfinfo não instalado')
-    const origem = join(pasta, 'longo.docx')
-    const pdf = join(pasta, 'longo.pdf')
-    await writeFile(origem, await docxWithManyFootnotes())
-    await stubDialogs(session.app, { open: origem, save: pdf, messageBox: 1 })
+  test('notes push lines, and the screen and the PDF have the same sheets', async () => {
+    test.skip(!(await hasPdfinfo()), 'pdfinfo not installed')
+    const sourceFile = join(directory, 'longo.docx')
+    const pdf = join(directory, 'longo.pdf')
+    await writeFile(sourceFile, await docxWithManyFootnotes())
+    await stubDialogs(session.app, { open: sourceFile, save: pdf, messageBox: 1 })
     await menu(session, 'open')
-    await expect(texto(session)).toContainText('24. Os conselheiros')
+    await expect(text(session)).toContainText('24. Os conselheiros')
 
-    const folhas = session.window.locator('.paper')
-    await expect(notas(session)).toHaveCount(24)
-    const naTela = await folhas.count()
-    expect(naTela).toBeGreaterThan(2)
+    const sheets = session.window.locator('.paper')
+    await expect(notes(session)).toHaveCount(24)
+    const onScreen = await sheets.count()
+    expect(onScreen).toBeGreaterThan(2)
     // Every sheet with a reference has the notes area, at the foot.
-    await expect(session.window.locator('.paper-notes--footnote')).toHaveCount(naTela)
+    await expect(session.window.locator('.paper-notes--footnote')).toHaveCount(onScreen)
 
     await menu(session, 'export-pdf')
-    await expect.poll(() => paginasDoPdf(pdf), { timeout: 30_000 }).toBe(naTela)
+    await expect.poll(() => pdfPages(pdf), { timeout: 30_000 }).toBe(onScreen)
     // Note 1 comes out on paper, on the first sheet.
     const { stdout } = await promisify(execFile)('pdftotext', ['-f', '1', '-l', '1', pdf, '-'])
     expect(stdout).toContain('Nota 1.')
 
     // And LibreOffice, with the same file, reaches the same sheet count.
     if (await hasSoffice()) {
-      const copia = join(pasta, 'lo.docx')
-      await copyFile(origem, copia)
-      await promisify(execFile)('soffice', ['--headless', '--convert-to', 'pdf', '--outdir', pasta, copia], {
-        timeout: 120_000,
-      })
-      expect(await paginasDoPdf(join(pasta, 'lo.pdf'))).toBe(naTela)
+      const copy = join(directory, 'lo.docx')
+      await copyFile(sourceFile, copy)
+      await promisify(execFile)(
+        'soffice',
+        ['--headless', '--convert-to', 'pdf', '--outdir', directory, copy],
+        {
+          timeout: 120_000,
+        },
+      )
+      expect(await pdfPages(join(directory, 'lo.pdf'))).toBe(onScreen)
     }
   })
 
-  test('com o controle de alterações ligado, o que se digita na nota fica marcado', async () => {
+  test('with track changes on, what is typed in the note is marked', async () => {
     await menu(session, 'new-document')
-    await texto(session).click()
+    await text(session).click()
     await session.window.keyboard.type('Texto')
     await menu(session, 'insert-footnote')
     await session.window.keyboard.type('Original.')
-    await expect(notas(session)).toContainText('Original.')
+    await expect(notes(session)).toContainText('Original.')
 
     await menu(session, 'toggle-track-changes')
-    await notas(session).click()
+    await notes(session).click()
     await session.window.keyboard.press('End')
     await session.window.keyboard.type(' Novo')
-    await expect(notas(session).locator('ins')).toHaveText(' Novo')
+    await expect(notes(session).locator('ins')).toHaveText(' Novo')
     // A tracked Backspace leaves the deleted text in place, struck through.
     await session.window.keyboard.press('End')
-    for (let vez = 0; vez < ' Novo'.length; vez++) await session.window.keyboard.press('ArrowLeft')
+    for (let time = 0; time < ' Novo'.length; time++) await session.window.keyboard.press('ArrowLeft')
     await session.window.keyboard.press('Backspace')
-    await expect(notas(session).locator('del')).toHaveText('.')
-    await expect(notas(session)).toContainText('Original. Novo')
+    await expect(notes(session).locator('del')).toHaveText('.')
+    await expect(notes(session)).toContainText('Original. Novo')
   })
 
-  test('a nota de fim vai depois do último parágrafo', async () => {
+  test('the endnote goes after the last paragraph', async () => {
     await menu(session, 'new-document')
-    await texto(session).click()
+    await text(session).click()
     await session.window.keyboard.type('Corpo do texto')
     await menu(session, 'insert-endnote')
     await session.window.keyboard.type('Ao fim do documento.')
-    await expect(texto(session).locator('sup.note-ref')).toHaveAttribute('data-note-number', 'i')
+    await expect(text(session).locator('sup.note-ref')).toHaveAttribute('data-note-number', 'i')
 
     const area = session.window.locator('.paper-notes--endnote')
     await expect(area).toHaveCount(1)
     await expect(area.locator('.note-body')).toContainText('Ao fim do documento.')
     await expect(area.locator('.note-number')).toHaveText('i')
     // Right below the text, not at the foot of the sheet.
-    const paragrafo = await texto(session).locator('p').first().boundingBox()
-    const caixa = await area.boundingBox()
-    expect(caixa!.y - (paragrafo!.y + paragrafo!.height)).toBeLessThan(60)
+    const paragraph = await text(session).locator('p').first().boundingBox()
+    const box = await area.boundingBox()
+    expect(box!.y - (paragraph!.y + paragraph!.height)).toBeLessThan(60)
 
     // Search finds the note text.
     await menu(session, 'find-replace')
@@ -230,11 +234,11 @@ test.describe('notas no pé da página', () => {
     await expect(area.locator('.search-hit')).toHaveCount(1)
   })
 
-  test('com vários parágrafos, a nota de fim fica abaixo do último, ao reabrir também', async () => {
-    const destino = join(pasta, 'fim.docx')
-    await stubDialogs(session.app, { save: destino, open: destino, messageBox: 1 })
+  test('with several paragraphs, the endnote stays below the last one, also on reopening', async () => {
+    const destinationFile = join(directory, 'fim.docx')
+    await stubDialogs(session.app, { save: destinationFile, open: destinationFile, messageBox: 1 })
     await menu(session, 'new-document')
-    await texto(session).click()
+    await text(session).click()
     await session.window.keyboard.type('Primeiro parágrafo')
     await session.window.keyboard.press('Enter')
     await session.window.keyboard.type('Segundo parágrafo')
@@ -243,163 +247,163 @@ test.describe('notas no pé da página', () => {
     await menu(session, 'insert-endnote')
     await session.window.keyboard.type('Fim novo.')
 
-    const abaixoDoTexto = async (): Promise<void> => {
+    const belowText = async (): Promise<void> => {
       const area = session.window.locator('.paper-notes--endnote')
       await expect(area).toHaveCount(1)
-      const ultimo = await texto(session).locator('p').last().boundingBox()
-      const caixa = await area.boundingBox()
-      expect(caixa!.y).toBeGreaterThanOrEqual(ultimo!.y + ultimo!.height - 1)
+      const last = await text(session).locator('p').last().boundingBox()
+      const box = await area.boundingBox()
+      expect(box!.y).toBeGreaterThanOrEqual(last!.y + last!.height - 1)
     }
-    await abaixoDoTexto()
+    await belowText()
 
     await menu(session, 'save-as')
     await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
     await menu(session, 'close-file')
     await menu(session, 'open')
-    await expect(texto(session)).toContainText('Terceiro')
-    await abaixoDoTexto()
+    await expect(text(session)).toContainText('Terceiro')
+    await belowText()
   })
 
-  test('a nota maior que a folha continua na seguinte, sem cobrir o texto', async () => {
-    const origem = join(pasta, 'nota-longa.docx')
-    const pdf = join(pasta, 'nota-longa.pdf')
-    await writeFile(origem, await docxWithLongFootnote())
-    await stubDialogs(session.app, { open: origem, save: pdf, messageBox: 1 })
+  test('a note longer than the sheet continues on the next one, without covering the text', async () => {
+    const sourceFile = join(directory, 'nota-longa.docx')
+    const pdf = join(directory, 'nota-longa.pdf')
+    await writeFile(sourceFile, await docxWithLongFootnote())
+    await stubDialogs(session.app, { open: sourceFile, save: pdf, messageBox: 1 })
     await menu(session, 'open')
-    await expect(texto(session)).toContainText('Delta')
+    await expect(text(session)).toContainText('Delta')
     await expect(session.window.locator('.paper-notes__slot--continued')).toHaveCount(1)
 
-    const geometria = await session.window.evaluate(() => {
-      const caixa = (elemento: Element): { top: number; bottom: number } => {
-        const { top, bottom } = elemento.getBoundingClientRect()
+    const geometry = await session.window.evaluate(() => {
+      const box = (element: Element): { top: number; bottom: number } => {
+        const { top, bottom } = element.getBoundingClientRect()
         return { top, bottom }
       }
-      const folhas = Array.from(document.querySelectorAll('.paper'), caixa)
-      const blocos = Array.from(document.querySelectorAll('.pages__column .ProseMirror > *'), caixa)
-      const recortes = Array.from(document.querySelectorAll('.paper-notes__slot'), (slot) => {
-        const area = caixa(slot)
-        const visiveis = Array.from(slot.querySelectorAll('p')).filter((p) => {
-          const linha = p.getBoundingClientRect()
-          return linha.bottom > area.top + 1 && linha.top < area.bottom - 1
+      const sheets = Array.from(document.querySelectorAll('.paper'), box)
+      const blocks = Array.from(document.querySelectorAll('.pages__column .ProseMirror > *'), box)
+      const cutouts = Array.from(document.querySelectorAll('.paper-notes__slot'), (slot) => {
+        const area = box(slot)
+        const visible = Array.from(slot.querySelectorAll('p')).filter((p) => {
+          const line = p.getBoundingClientRect()
+          return line.bottom > area.top + 1 && line.top < area.bottom - 1
         })
         return {
           ...area,
-          primeira: visiveis[0]?.textContent ?? '',
-          ultima: visiveis.at(-1)?.textContent ?? '',
+          first: visible[0]?.textContent ?? '',
+          last: visible.at(-1)?.textContent ?? '',
         }
       })
-      return { folhas, blocos, recortes }
+      return { sheets, blocks, cutouts }
     })
     // Each slice within a sheet, without covering any text paragraph.
-    for (const recorte of geometria.recortes) {
-      expect(
-        geometria.folhas.some((folha) => recorte.top >= folha.top && recorte.bottom <= folha.bottom),
-      ).toBe(true)
-      for (const bloco of geometria.blocos) {
-        expect(recorte.bottom <= bloco.top + 1 || recorte.top >= bloco.bottom - 1).toBe(true)
+    for (const cutout of geometry.cutouts) {
+      expect(geometry.sheets.some((sheet) => cutout.top >= sheet.top && cutout.bottom <= sheet.bottom)).toBe(
+        true,
+      )
+      for (const block of geometry.blocks) {
+        expect(cutout.bottom <= block.top + 1 || cutout.top >= block.bottom - 1).toBe(true)
       }
     }
     // The continuation starts where the first sheet stopped and goes to the end of the note.
-    const [primeira, continuacao] = geometria.recortes
-    const numero = (linha: string): number => Number(/Linha (\d+)/.exec(linha)?.[1] ?? -1)
-    expect(numero(continuacao!.primeira)).toBe(numero(primeira!.ultima) + 1)
-    expect(continuacao!.ultima).toContain('Linha 69')
+    const [first, continuation] = geometry.cutouts
+    const lineNumber = (line: string): number => Number(/Linha (\d+)/.exec(line)?.[1] ?? -1)
+    expect(lineNumber(continuation!.first)).toBe(lineNumber(first!.last) + 1)
+    expect(continuation!.last).toContain('Linha 69')
 
     if (await hasPdfinfo()) {
       await menu(session, 'export-pdf')
-      await expect.poll(() => paginasDoPdf(pdf), { timeout: 30_000 }).toBeGreaterThan(1)
+      await expect.poll(() => pdfPages(pdf), { timeout: 30_000 }).toBeGreaterThan(1)
       const { stdout } = await promisify(execFile)('pdftotext', ['-f', '2', '-l', '2', pdf, '-'])
-      expect(stdout).toContain(`Linha ${numero(continuacao!.primeira)} `)
+      expect(stdout).toContain(`Linha ${lineNumber(continuation!.first)} `)
       expect(stdout).toContain('Linha 69')
       expect(stdout).not.toContain('Nota longa.')
     }
   })
 
-  test('digitar depressa na nota até passar da folha não escapa para o texto', async () => {
+  test('typing fast in the note past the sheet does not escape into the text', async () => {
     await menu(session, 'new-document')
-    await texto(session).click()
+    await text(session).click()
     await session.window.keyboard.type('Corpo')
     await menu(session, 'insert-footnote')
-    for (let linha = 0; linha < 70; linha++) {
-      await session.window.keyboard.type(`L${linha} nota longa que precisa continuar.`)
+    for (let line = 0; line < 70; line++) {
+      await session.window.keyboard.type(`L${line} nota longa que precisa continuar.`)
       await session.window.keyboard.press('Enter')
     }
     await session.window.keyboard.type('Fim da nota.')
     await expect(session.window.locator('.paper-notes__slot--continued').first()).toBeAttached()
     // The live body; continuations are copies of it.
-    const nota = session.window.locator('.paper-notes__slot:not(.paper-notes__slot--continued) > .note-body')
-    await expect(nota).toBeFocused()
-    await expect(texto(session).locator('p').first()).toHaveText('Corpo')
-    await expect(texto(session).locator('p')).toHaveCount(1)
-    await expect(nota.locator('p')).toHaveCount(71)
-    await expect(notas(session).locator('p').last()).toHaveText('Fim da nota.')
+    const note = session.window.locator('.paper-notes__slot:not(.paper-notes__slot--continued) > .note-body')
+    await expect(note).toBeFocused()
+    await expect(text(session).locator('p').first()).toHaveText('Corpo')
+    await expect(text(session).locator('p')).toHaveCount(1)
+    await expect(note.locator('p')).toHaveCount(71)
+    await expect(notes(session).locator('p').last()).toHaveText('Fim da nota.')
   })
 
-  test('desfazer a nota com o cursor nela devolve o foco ao texto, e refazer funciona', async () => {
+  test('undoing the note with the cursor in it returns focus to the text, and redo works', async () => {
     await menu(session, 'new-document')
-    await texto(session).click()
+    await text(session).click()
     await session.window.keyboard.type('Texto')
     await menu(session, 'insert-footnote')
     await session.window.keyboard.type('Nota')
-    await expect(notas(session)).toBeFocused()
+    await expect(notes(session)).toBeFocused()
     // The note text, then the note.
     await session.window.keyboard.press('Control+z')
     await session.window.keyboard.press('Control+z')
-    await expect(notas(session)).toHaveCount(0)
-    await expect(texto(session)).toBeFocused()
+    await expect(notes(session)).toHaveCount(0)
+    await expect(text(session)).toBeFocused()
 
     await session.window.keyboard.press('Control+y')
-    await expect(notas(session)).toHaveCount(1)
-    await expect(texto(session).locator('sup.note-ref')).toHaveCount(1)
+    await expect(notes(session)).toHaveCount(1)
+    await expect(text(session).locator('sup.note-ref')).toHaveCount(1)
   })
 
-  test('aceitar pelo menu de contexto a alteração no cursor dentro da nota', async () => {
+  test('accepting from the context menu the change at the cursor inside the note', async () => {
     await menu(session, 'new-document')
-    await texto(session).click()
+    await text(session).click()
     await session.window.keyboard.type('Texto')
     await menu(session, 'insert-footnote')
     await session.window.keyboard.type('Original.')
-    await expect(notas(session)).toContainText('Original.')
+    await expect(notes(session)).toContainText('Original.')
 
     await menu(session, 'toggle-track-changes')
-    await notas(session).click()
+    await notes(session).click()
     await session.window.keyboard.press('End')
     await session.window.keyboard.type(' Novo')
     await session.window.keyboard.type(' Outro')
-    await expect(notas(session).locator('ins')).toHaveText(' Novo Outro')
+    await expect(notes(session).locator('ins')).toHaveText(' Novo Outro')
 
-    await notas(session).locator('ins').click({ button: 'right' })
-    const contexto = session.window.getByRole('menu', { name: 'Ações do documento' })
-    await contexto.getByRole('menuitem', { name: 'Aceitar alteração' }).click()
-    await expect(notas(session).locator('ins')).toHaveCount(0)
-    await expect(notas(session)).toContainText('Original. Novo Outro')
+    await notes(session).locator('ins').click({ button: 'right' })
+    const context = session.window.getByRole('menu', { name: 'Ações do documento' })
+    await context.getByRole('menuitem', { name: 'Aceitar alteração' }).click()
+    await expect(notes(session).locator('ins')).toHaveCount(0)
+    await expect(notes(session)).toContainText('Original. Novo Outro')
   })
 
-  test('comentário novo dentro da nota é recusado, e o texto fica como estava', async () => {
+  test('a new comment inside the note is refused, and the text stays as it was', async () => {
     // LibreOffice does not open a .docx with `w:commentReference` in `footnotes.xml`.
     await menu(session, 'new-document')
-    await texto(session).click()
+    await text(session).click()
     await session.window.keyboard.type('Ata')
     await menu(session, 'insert-footnote')
     await session.window.keyboard.type('Fonte da ata.')
     await session.window.keyboard.press('End')
     await session.window.keyboard.press('ArrowLeft')
-    for (let vez = 0; vez < 'ata'.length; vez++) await session.window.keyboard.press('Shift+ArrowLeft')
+    for (let time = 0; time < 'ata'.length; time++) await session.window.keyboard.press('Shift+ArrowLeft')
     await menu(session, 'insert-comment')
 
     await expect(session.window.getByText(/não abriria o arquivo/)).toBeVisible()
     await expect(session.window.locator('.comment-card')).toHaveCount(0)
-    await expect(notas(session).locator('.comment-range')).toHaveCount(0)
-    await expect(notas(session)).toContainText('Fonte da ata.')
+    await expect(notes(session).locator('.comment-range')).toHaveCount(0)
+    await expect(notes(session)).toContainText('Fonte da ata.')
   })
 
-  test('a referência cruzada a uma nota mostra o número e o F9 o atualiza', async () => {
+  test('a cross-reference to a note shows the number and F9 updates it', async () => {
     await menu(session, 'new-document')
-    await texto(session).click()
+    await text(session).click()
     await session.window.keyboard.type('Primeira')
     await menu(session, 'insert-footnote')
     await session.window.keyboard.type('Nota alvo.')
-    await notas(session).locator('.note-number').click()
+    await notes(session).locator('.note-number').click()
     await session.window.keyboard.press('Enter')
     await session.window.keyboard.type('Ver nota ')
 
@@ -409,33 +413,33 @@ test.describe('notas no pé da página', () => {
     await ref.getByLabel('Para qual').selectOption({ label: '1 Nota alvo.' })
     await expect(ref.getByLabel('Inserir referência a')).toHaveValue('number')
     await ref.getByRole('button', { name: 'Inserir' }).click()
-    const paragrafo = texto(session).locator('p', { hasText: 'Ver nota' })
-    await expect(paragrafo).toHaveText('Ver nota 1')
+    const paragraph = text(session).locator('p', { hasText: 'Ver nota' })
+    await expect(paragraph).toHaveText('Ver nota 1')
 
     // A new note before the cited one: F9 now cites 2.
-    await texto(session).locator('p').first().click()
+    await text(session).locator('p').first().click()
     await session.window.keyboard.press('Home')
     await menu(session, 'insert-footnote')
     await session.window.keyboard.type('Nota nova.')
-    await expect(texto(session).locator('sup.note-ref').nth(1)).toHaveAttribute('data-note-number', '2')
+    await expect(text(session).locator('sup.note-ref').nth(1)).toHaveAttribute('data-note-number', '2')
     await menu(session, 'update-fields')
-    await expect(paragrafo).toHaveText('Ver nota 2')
+    await expect(paragraph).toHaveText('Ver nota 2')
   })
 
-  test('comentar uma palavra do parágrafo que tem nota ancora o comentário nela', async () => {
-    const origem = join(pasta, 'comentario.docx')
-    const destino = join(pasta, 'comentario-salvo.docx')
-    await writeFile(origem, await docxWithManyFootnotes(2))
-    await stubDialogs(session.app, { open: origem, save: destino, messageBox: 1 })
+  test('commenting a word in a paragraph that has a note anchors the comment on it', async () => {
+    const sourceFile = join(directory, 'comentario.docx')
+    const destinationFile = join(directory, 'comentario-salvo.docx')
+    await writeFile(sourceFile, await docxWithManyFootnotes(2))
+    await stubDialogs(session.app, { open: sourceFile, save: destinationFile, messageBox: 1 })
     await menu(session, 'open')
-    await expect(notas(session)).toHaveCount(2)
+    await expect(notes(session)).toHaveCount(2)
     // Editing an earlier note, and going back to the text.
-    await notas(session).first().click()
+    await notes(session).first().click()
     await session.window.keyboard.press('End')
     await session.window.keyboard.type(' Editada.')
-    await texto(session).click()
+    await text(session).click()
     await session.window.keyboard.press('Control+Home')
-    for (let vez = 0; vez < '1. '.length; vez++) await session.window.keyboard.press('ArrowRight')
+    for (let time = 0; time < '1. '.length; time++) await session.window.keyboard.press('ArrowRight')
     await session.window.keyboard.press('Shift+ArrowRight')
     await session.window.keyboard.press('Shift+ArrowRight')
     await menu(session, 'insert-comment')
@@ -444,17 +448,17 @@ test.describe('notas no pé da página', () => {
 
     await menu(session, 'save-as')
     await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
-    const documento = await entryOf(destino, 'word/document.xml')
-    const paragrafo = /<w:p>(?:(?!<w:p>).)*?<\/w:p>/s.exec(documento)?.[0] ?? ''
-    expect(paragrafo).toMatch(
+    const documentName = await entryOf(destinationFile, 'word/document.xml')
+    const paragraph = /<w:p>(?:(?!<w:p>).)*?<\/w:p>/s.exec(documentName)?.[0] ?? ''
+    expect(paragraph).toMatch(
       /<w:commentRangeStart[^>]*\/>(<w:r>(?:(?!<\/w:r>).)*<\/w:r>)*?<w:commentRangeEnd/s,
     )
-    const comentado = /<w:commentRangeStart[^>]*\/>(.*?)<w:commentRangeEnd/s.exec(paragrafo)?.[1] ?? ''
-    expect(comentado.replace(/<[^>]+>/g, '')).toBe('Os')
-    expect(paragrafo).toContain('<w:commentReference')
+    const commented = /<w:commentRangeStart[^>]*\/>(.*?)<w:commentRangeEnd/s.exec(paragraph)?.[1] ?? ''
+    expect(commented.replace(/<[^>]+>/g, '')).toBe('Os')
+    expect(paragraph).toContain('<w:commentReference')
   })
 })
 
-async function paginasDoPdf(caminho: string): Promise<number> {
-  return Number(/Pages:\s+(\d+)/.exec(await pdfInfo(caminho))?.[1] ?? 0)
+async function pdfPages(filePath: string): Promise<number> {
+  return Number(/Pages:\s+(\d+)/.exec(await pdfInfo(filePath))?.[1] ?? 0)
 }

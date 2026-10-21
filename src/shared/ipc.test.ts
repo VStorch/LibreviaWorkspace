@@ -9,26 +9,26 @@ import {
   MAX_AI_RESPONSE_LENGTH,
 } from './limits.js'
 
-describe('contratos de IPC', () => {
-  it('define um contrato para cada canal invocável', () => {
+describe('IPC contracts', () => {
+  it('defines a contract for each invocable channel', () => {
     // A channel without a schema would pass unvalidated payloads to the handler.
     for (const channel of INVOCABLE_IPC_CHANNELS) {
       expect(ipcContracts[channel]).toBeDefined()
     }
   })
 
-  it('não expõe contrato para canal não declarado', () => {
+  it('exposes no contract for an undeclared channel', () => {
     expect(Object.keys(ipcContracts).sort()).toEqual([...INVOCABLE_IPC_CHANNELS].sort())
   })
 
-  it('mantém o canal de menu fora dos invocáveis: ele vai de main para renderer', () => {
+  it('keeps the menu channel out of the invocable ones: it goes from main to renderer', () => {
     expect(INVOCABLE_IPC_CHANNELS).not.toContain(IpcChannel.MenuCommand)
     expect(ipcContracts).not.toHaveProperty(IpcChannel.MenuCommand)
   })
 })
 
-describe('contratos do sentido main → renderer', () => {
-  it('define um contrato para cada canal empurrado', () => {
+describe('main → renderer contracts', () => {
+  it('defines a contract for each pushed channel', () => {
     // Without a schema nobody would check the shape, and the renderer would drop the message
     // silently, the costliest defect here.
     for (const channel of PUSH_IPC_CHANNELS) {
@@ -36,7 +36,7 @@ describe('contratos do sentido main → renderer', () => {
     }
   })
 
-  it('os dois sentidos não se misturam', () => {
+  it('the two directions do not mix', () => {
     for (const channel of PUSH_IPC_CHANNELS) {
       expect(INVOCABLE_IPC_CHANNELS).not.toContain(channel)
       expect(ipcContracts).not.toHaveProperty(channel)
@@ -44,7 +44,7 @@ describe('contratos do sentido main → renderer', () => {
   })
 })
 
-describe('validação do alvo do menu de contexto', () => {
+describe('context menu target validation', () => {
   const schema = pushContracts[IpcChannel.ContextMenuRequested]
 
   const alvo = {
@@ -58,11 +58,11 @@ describe('validação do alvo do menu de contexto', () => {
     canPaste: true,
   }
 
-  it('aceita o que o Chromium manda', () => {
+  it('accepts what Chromium sends', () => {
     expect(schema.safeParse(alvo).success).toBe(true)
   })
 
-  it('recusa coordenada negativa e lista de sugestões absurda', () => {
+  it('refuses a negative coordinate and an absurd suggestion list', () => {
     // This becomes a screen position and menu items: a negative coordinate puts the menu outside
     // the window, and thirty suggestions overflow it.
     expect(schema.safeParse({ ...alvo, x: -1 }).success).toBe(false)
@@ -72,55 +72,55 @@ describe('validação do alvo do menu de contexto', () => {
   })
 })
 
-describe('validação de prefs:set', () => {
+describe('prefs:set validation', () => {
   const schema = ipcContracts[IpcChannel.PreferencesSet].request
 
-  it('aceita um remendo de uma chave só', () => {
+  it('accepts a patch with a single key', () => {
     // Whoever toggles formatting marks has no opinion about spelling.
     expect(schema.parse({ invisibleCharacters: true })).toEqual({ invisibleCharacters: true })
   })
 
-  it('recusa valor que não é booleano', () => {
+  it('refuses a non-boolean value', () => {
     expect(schema.safeParse({ spellcheck: 'sim' }).success).toBe(false)
   })
 })
 
-describe('validação de file:save', () => {
+describe('file:save validation', () => {
   const schema = ipcContracts[IpcChannel.FileSave].request
 
-  it('aceita uma gravação bem formada', () => {
+  it('accepts a well-formed save', () => {
     expect(schema.safeParse({ path: '/home/ana/ata.txt', content: 'texto', origin: null }).success).toBe(true)
   })
 
-  it('aceita a origem do documento aberto', () => {
+  it('accepts the origin of the open document', () => {
     const payload = { path: '/home/ana/ata.docx', content: '{}', origin: '/home/ana/ata.sdoc' }
     expect(schema.safeParse(payload).success).toBe(true)
   })
 
   it.each([
-    ['sem caminho', { content: 'texto' }],
+    ['without path', { content: 'texto' }],
     ['caminho vazio', { path: '', content: 'texto' }],
-    ['sem conteúdo', { path: '/a/b.txt' }],
-    ['caminho não textual', { path: 42, content: 'texto', origin: null }],
-    ['sem origem', { path: '/a/b.docx', content: 'texto' }],
+    ['without content', { path: '/a/b.txt' }],
+    ['non-text path', { path: 42, content: 'texto', origin: null }],
+    ['without origin', { path: '/a/b.docx', content: 'texto' }],
     ['origem vazia', { path: '/a/b.docx', content: 'texto', origin: '' }],
     ['nulo', null],
   ])('recusa %s', (_label, payload) => {
     expect(schema.safeParse(payload).success).toBe(false)
   })
 
-  it('recusa conteúdo acima do teto de memória', () => {
+  it('refuses content above the memory ceiling', () => {
     const oversized = { path: '/a/b.txt', content: 'x'.repeat(MAX_TEXT_LENGTH + 1) }
     expect(schema.safeParse(oversized).success).toBe(false)
   })
 
-  it('descarta campos não previstos no contrato', () => {
+  it('drops fields not in the contract', () => {
     const parsed = schema.parse({ path: '/a/b.txt', content: 'oi', origin: null, extra: 'ignorar' })
     expect(parsed).toEqual({ path: '/a/b.txt', content: 'oi', origin: null })
   })
 })
 
-describe('modelos do Word (M11)', () => {
+describe('Word templates (M11)', () => {
   const open = ipcContracts[IpcChannel.TemplateOpen].request
   const opened = ipcContracts[IpcChannel.TemplateOpen].response
   const list = ipcContracts[IpcChannel.TemplateList].response
@@ -133,12 +133,12 @@ describe('modelos do Word (M11)', () => {
   it.each([
     ['fonte desconhecida', { source: 'web', id: 'carta.dotx' }],
     ['id vazio', { source: 'builtin', id: '' }],
-    ['sem id', { source: 'user' }],
+    ['without id', { source: 'user' }],
   ])('recusa %s', (_label, payload) => {
     expect(open.safeParse(payload).success).toBe(false)
   })
 
-  it('o documento aberto de um modelo traz a marca de modelo', () => {
+  it('the document opened from a template carries the template mark', () => {
     const file = {
       path: '/r/carta.dotx',
       name: 'Carta.docx',
@@ -149,7 +149,7 @@ describe('modelos do Word (M11)', () => {
     expect(opened.parse({ file }).file.template).toBe(true)
   })
 
-  it('a galeria lista as duas fontes e a pasta do usuário', () => {
+  it('the gallery lists both sources and the user folder', () => {
     const entry = { source: 'builtin', id: 'carta.dotx', name: 'Carta', description: 'Uma carta' }
     expect(list.safeParse({ builtin: [entry], user: [], folder: '/home/ana/Modelos' }).success).toBe(true)
     expect(list.safeParse({ builtin: [{ ...entry, source: 'outra' }], user: [], folder: '' }).success).toBe(
@@ -158,16 +158,16 @@ describe('modelos do Word (M11)', () => {
   })
 })
 
-describe('validação de file:open-recent', () => {
+describe('file:open-recent validation', () => {
   const schema = ipcContracts[IpcChannel.FileOpenRecent].request
 
-  it('exige um caminho não vazio', () => {
+  it('requires a non-empty path', () => {
     expect(schema.safeParse({ path: '' }).success).toBe(false)
     expect(schema.safeParse({ path: '/a/b.txt' }).success).toBe(true)
   })
 })
 
-describe('validação de fonts:list', () => {
+describe('fonts:list validation', () => {
   // `src/main/ipc/registry.ts` runs this schema on the real response, and `registry.test.ts` proves
   // it: a schema nobody runs is a compile-time type, not protection.
   const schema = ipcContracts[IpcChannel.FontsList].response
@@ -186,19 +186,19 @@ describe('validação de fonts:list', () => {
   })
 })
 
-describe('validação de dialog:confirm-discard', () => {
+describe('dialog:confirm-discard validation', () => {
   const response = ipcContracts[IpcChannel.DialogConfirmDiscard].response
 
-  it.each(['save', 'discard', 'cancel'])('aceita a resposta %s', (choice) => {
+  it.each(['save', 'discard', 'cancel'])('accepts the %s answer', (choice) => {
     expect(response.safeParse({ choice }).success).toBe(true)
   })
 
-  it('recusa uma resposta fora das três previstas', () => {
+  it('refuses an answer outside the expected three', () => {
     expect(response.safeParse({ choice: 'talvez' }).success).toBe(false)
   })
 })
 
-describe('contratos do assistente de IA', () => {
+describe('AI assistant contracts', () => {
   const generate = ipcContracts[IpcChannel.AiGenerate].request
   const valid = {
     requestId: '0b8f3c1e-5d2a-4c7b-9e6f-1a2b3c4d5e6f',
@@ -208,11 +208,11 @@ describe('contratos do assistente de IA', () => {
     text: 'Um parágrafo.',
   }
 
-  it('aceita um pedido completo', () => {
+  it('accepts a complete request', () => {
     expect(generate.safeParse(valid).success).toBe(true)
   })
 
-  it('recusa seleção vazia, longa demais ou sem identificador válido', () => {
+  it('refuses an empty selection, one too long or without a valid identifier', () => {
     expect(generate.safeParse({ ...valid, text: '' }).success).toBe(false)
     expect(generate.safeParse({ ...valid, text: 'x'.repeat(20_001) }).success).toBe(false)
     expect(generate.safeParse({ ...valid, requestId: 'abc' }).success).toBe(false)
@@ -231,7 +231,7 @@ describe('contratos do assistente de IA', () => {
       context: 'Sheet: Vendas',
     }
 
-    it('aceita cada tarefa com o que ela precisa', () => {
+    it('accepts each task with what it needs', () => {
       expect(sheet.safeParse(formula).success).toBe(true)
       expect(sheet.safeParse({ ...formula, task: 'explain', instruction: '', formula: '=A1' }).success).toBe(
         true,
@@ -239,7 +239,7 @@ describe('contratos do assistente de IA', () => {
       expect(sheet.safeParse({ ...formula, task: 'fill', rowCount: 500 }).success).toBe(true)
     })
 
-    it('recusa tarefa sem o que precisa, linhas demais e contexto longo demais', () => {
+    it('refuses a task without what it needs, too many lines and too long a context', () => {
       expect(sheet.safeParse({ ...formula, task: 'explain' }).success).toBe(false)
       expect(sheet.safeParse({ ...formula, instruction: '  ' }).success).toBe(false)
       expect(sheet.safeParse({ ...formula, task: 'fill' }).success).toBe(false)
@@ -265,14 +265,14 @@ describe('contratos do assistente de IA', () => {
       ],
     }
 
-    it('aceita uma conversa que termina com a pessoa', () => {
+    it('accepts a conversation that ends with the person', () => {
       expect(chat.safeParse(conversation).success).toBe(true)
       expect(chat.parse(conversation).proposals).toBe(false)
       expect(chat.safeParse({ ...conversation, proposals: 'sim' }).success).toBe(false)
       expect(chat.safeParse({ ...conversation, before: 'Doc', selection: 'trecho' }).success).toBe(true)
     })
 
-    it('recusa papel inválido, conversa vazia ou que termina com o assistente', () => {
+    it('refuses an invalid role, an empty conversation or one that ends with the assistant', () => {
       expect(chat.safeParse({ ...conversation, messages: [{ role: 'system', text: 'x' }] }).success).toBe(
         false,
       )
@@ -295,7 +295,7 @@ describe('contratos do assistente de IA', () => {
       expect(chat.safeParse({ ...conversation, messages: longReply }).success).toBe(false)
     })
 
-    it('aceita os parágrafos numerados só dentro do tamanho do documento', () => {
+    it('accepts numbered paragraphs only within the document size', () => {
       expect(chat.parse(conversation).paragraphs).toEqual([])
       expect(chat.safeParse({ ...conversation, paragraphs: ['Um.', 'Dois.'] }).success).toBe(true)
       const half = 'x'.repeat(MAX_AI_DOCUMENT_LENGTH / 2 + 1)
@@ -303,7 +303,7 @@ describe('contratos do assistente de IA', () => {
     })
   })
 
-  describe('propostas na resposta da conversa', () => {
+  describe('proposals in the conversation reply', () => {
     const response = ipcContracts[IpcChannel.AiChat].response
     const anchor = { paragraphText: 'O gato e a chuva.' }
     const edit = {
@@ -317,12 +317,12 @@ describe('contratos do assistente de IA', () => {
     }
     const comment = { ...anchor, id: '2', kind: 'comment', paragraph: 1, find: 'chuva', comment: 'Fonte?' }
 
-    it('aceita alteração e comentário', () => {
+    it('accepts a change and a comment', () => {
       expect(response.safeParse({ status: 'done', proposals: [edit, comment] }).success).toBe(true)
       expect(response.safeParse({ status: 'done' }).success).toBe(true)
     })
 
-    it('recusa proposta sem o texto que lhe cabe, parágrafo zero, trecho longo ou propostas demais', () => {
+    it('refuses a proposal without its text, paragraph zero, a long excerpt or too many proposals', () => {
       const noReplace = { ...anchor, id: '1', kind: 'edit', paragraph: 3, find: 'gato' }
       const noParagraphText = { ...edit, paragraphText: undefined }
       expect(response.safeParse({ status: 'done', proposals: [noParagraphText] }).success).toBe(false)
@@ -341,7 +341,7 @@ describe('contratos do assistente de IA', () => {
     })
   })
 
-  it('só aceita endereço http ou https para o provedor', () => {
+  it('accepts only an http or https address for the provider', () => {
     const save = ipcContracts[IpcChannel.AiProviderSave].request
     const draft = { kind: 'openai-compatible', label: 'Ollama' }
     expect(save.safeParse({ ...draft, baseUrl: 'http://localhost:11434/v1' }).success).toBe(true)
@@ -349,7 +349,7 @@ describe('contratos do assistente de IA', () => {
     expect(save.safeParse({ ...draft, baseUrl: 'javascript:alert(1)' }).success).toBe(false)
   })
 
-  it('não deixa a chave voltar ao renderer na lista de provedores', () => {
+  it('does not let the key return to the renderer in the provider list', () => {
     const list = ipcContracts[IpcChannel.AiProvidersList].response
     const parsed = list.parse({
       providers: [
@@ -370,10 +370,10 @@ describe('contratos do assistente de IA', () => {
   })
 })
 
-describe('contratos do servidor MCP local', () => {
+describe('local MCP server contracts', () => {
   const requestId = '7d3f1c9e-8a2b-4c5d-9e0f-1a2b3c4d5e6f'
 
-  it('a janela responde o instantâneo, o resultado de aplicar ou a recusa, e nada além', () => {
+  it('the window answers the snapshot, the apply result or the refusal, and nothing else', () => {
     const reply = ipcContracts[IpcChannel.McpDocumentReply].request
     expect(reply.safeParse({ requestId, ask: 'snapshot', paragraphs: ['a'] }).success).toBe(true)
     expect(reply.safeParse({ requestId, ask: 'apply', applied: true }).success).toBe(true)
@@ -382,7 +382,7 @@ describe('contratos do servidor MCP local', () => {
     expect(reply.safeParse({ requestId, ask: 'save' }).success).toBe(false)
   })
 
-  it('a lista de clientes tem no máximo dois nomes curtos', () => {
+  it('the client list has at most two short names', () => {
     const clients = pushContracts[IpcChannel.McpClients]
     expect(clients.safeParse({ clients: ['a', 'b'] }).success).toBe(true)
     expect(clients.safeParse({ clients: ['a', 'b', 'c'] }).success).toBe(false)

@@ -24,8 +24,8 @@ afterAll(() => {
   rmSync(perfil, { recursive: true, force: true })
 })
 
-describe('dicionário embutido', () => {
-  it('existe em resources/dictionaries e está no formato do Chromium', () => {
+describe('bundled dictionary', () => {
+  it('exists in resources/dictionaries and is in Chromium format', () => {
     // Same reason as the fonts test (`src/main/fonts.test.ts`): without it the failure is silent
     // and only shows on the installer's machine, which has no dictionary in the profile and,
     // offline, ends up without a spellchecker.
@@ -39,15 +39,15 @@ describe('dicionário embutido', () => {
   })
 })
 
-describe('instalação do dicionário no perfil', () => {
+describe('dictionary installation in the profile', () => {
   const instalado = join(perfil, DICTIONARY_FOLDER, dictionaryFileName())
 
-  it('copia o dicionário embutido na primeira execução', () => {
+  it('copies the bundled dictionary on first run', () => {
     expect(installBundledDictionary()).toBe(true)
     expect(hasBdictSignature(readFileSync(instalado))).toBe(true)
   })
 
-  it('repara o arquivo estragado na mesma execução', () => {
+  it('repairs the corrupt file in the same run', () => {
     // Chromium deletes a corrupt `.bdic` and tries to download: offline, spelling disappears
     // without warning. The signature check restores it right away.
     writeFileSync(instalado, 'lixo')

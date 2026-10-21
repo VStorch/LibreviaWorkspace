@@ -19,12 +19,12 @@ const rich: WorkbookModel = {
   activeSheet: 1,
 }
 
-describe('ida e volta do formato interno', () => {
-  it('preserva a planilha inteira', () => {
+describe('round trip of the internal format', () => {
+  it('preserves the whole sheet', () => {
     expect(parseWorkbook(serializeWorkbook(rich))).toEqual(rich)
   })
 
-  it('preserva larguras de coluna com a chave numérica', () => {
+  it('preserves column widths with the numeric key', () => {
     // Keys come out of JSON as text. Without converting back, `columnWidths[0]` would look for a
     // number and find the key "0".
     const restored = parseWorkbook(serializeWorkbook(rich))
@@ -33,7 +33,7 @@ describe('ida e volta do formato interno', () => {
     expect(restored.sheets[0]!.columnWidths[3]).toBe(60)
   })
 
-  it('preserva congelamento e formatação de célula', () => {
+  it('preserves freeze panes and cell formatting', () => {
     const sheet = parseWorkbook(serializeWorkbook(rich)).sheets[0]!
 
     expect(sheet.frozenRows).toBe(1)
@@ -42,19 +42,19 @@ describe('ida e volta do formato interno', () => {
     expect(sheet.cells['A1']?.style?.bold).toBe(true)
   })
 
-  it('preserva uma planilha vazia', () => {
+  it('preserves an empty sheet', () => {
     const empty = createEmptyWorkbook()
     expect(parseWorkbook(serializeWorkbook(empty))).toEqual(empty)
   })
 
-  it('grava o mapa esparso, sem linhas vazias', () => {
+  it('writes the sparse map, without empty rows', () => {
     // A thousand-row sheet with two filled cells must not produce a thousand entries in the file.
     const raw = JSON.parse(serializeWorkbook(rich)) as { sheets: { cells: object }[] }
 
     expect(Object.keys(raw.sheets[0]!.cells)).toEqual(['A1', 'C2'])
   })
 
-  it('grava a versão do formato', () => {
+  it('writes the format version', () => {
     expect(JSON.parse(serializeWorkbook(createEmptyWorkbook()))).toMatchObject({
       format: 'ssheet',
       version: SSHEET_VERSION,
@@ -62,17 +62,17 @@ describe('ida e volta do formato interno', () => {
   })
 })
 
-describe('leitura de arquivo problemático', () => {
-  it('recusa JSON malformado com mensagem compreensível', () => {
+describe('reading a problematic file', () => {
+  it('rejects malformed JSON with an understandable message', () => {
     expect(() => parseWorkbook('{ isto não é json')).toThrow(AppError)
     expect(() => parseWorkbook('{ isto não é json')).toThrow(/corrompido|válida/i)
   })
 
-  it('recusa JSON válido que não é planilha', () => {
+  it('rejects valid JSON that is not a spreadsheet', () => {
     expect(() => parseWorkbook('{"qualquer":"coisa"}')).toThrow(/planilha válida/i)
   })
 
-  it('recusa versão futura em vez de adivinhar', () => {
+  it('rejects a future version instead of guessing', () => {
     const future = JSON.stringify({
       format: 'ssheet',
       version: SSHEET_VERSION + 1,
@@ -83,7 +83,7 @@ describe('leitura de arquivo problemático', () => {
     expect(() => parseWorkbook(future)).toThrow(/versão mais recente/i)
   })
 
-  it('recupera aba ativa fora do intervalo sem descartar os dados', () => {
+  it('recovers an out-of-range active sheet without discarding the data', () => {
     // The data is worth more than remembering which tab was open.
     const broken = JSON.stringify({
       format: 'ssheet',
@@ -97,7 +97,7 @@ describe('leitura de arquivo problemático', () => {
     expect(restored.sheets).toHaveLength(1)
   })
 
-  it('abre planilha gravada sem os campos acrescentados depois', () => {
+  it('opens a sheet saved without the fields added later', () => {
     // Compatibility: adding an optional field must not invalidate what is already on disk.
     const older = JSON.stringify({
       format: 'ssheet',
@@ -112,24 +112,24 @@ describe('leitura de arquivo problemático', () => {
 })
 
 describe('isSpreadsheetFile', () => {
-  it('reconhece o formato pelo conteúdo', () => {
+  it('recognizes the format by its content', () => {
     expect(isSpreadsheetFile(serializeWorkbook(createEmptyWorkbook()))).toBe(true)
   })
 
-  it.each(['', 'texto solto', '{"format":"sdoc"}'])('recusa %o', (text) => {
+  it.each(['', 'texto solto', '{"format":"sdoc"}'])('rejects %o', (text) => {
     expect(isSpreadsheetFile(text)).toBe(false)
   })
 })
 
-describe('propriedades da planilha', () => {
-  it('voltam do arquivo como foram gravadas', () => {
+describe('sheet properties', () => {
+  it('come back from the file as they were written', () => {
     const properties = { title: 'Orçamento 2026', creator: 'Ana', revision: '3' }
     const reopened = parseWorkbook(serializeWorkbook({ ...createEmptyWorkbook(), properties }))
 
     expect(reopened.properties).toEqual(properties)
   })
 
-  it('uma planilha da versão 1 abre sem propriedades, e o XLSX guarda as que tinha', () => {
+  it('a version 1 sheet opens without properties, and the XLSX keeps the ones it had', () => {
     const version1 = JSON.stringify({ format: 'ssheet', version: 1, sheets: [createSheet('A')] })
 
     expect(parseWorkbook(version1)).not.toHaveProperty('properties')

@@ -68,7 +68,7 @@ test.afterEach(async () => {
   await rm(folder, { recursive: true, force: true })
 })
 
-test('abre o PDF na mesma janela, desenhado pelo visualizador do aplicativo', async () => {
+test("opens the PDF in the same window, drawn by the app's viewer", async () => {
   await openPdf(file)
 
   await expect(pageText()).toContainText('Relatorio anual')
@@ -78,7 +78,7 @@ test('abre o PDF na mesma janela, desenhado pelo visualizador do aplicativo', as
   await expect(session.window.getByTestId('pdf-page')).toHaveText('Página 1 de 1')
 })
 
-test('o visualizador roda isolado: sem acesso ao aplicativo, sem janelas e em outro processo', async () => {
+test('the viewer runs isolated: no access to the app, no windows and in another process', async () => {
   await openPdf(file)
   const frame = await viewerFrame()
 
@@ -101,7 +101,7 @@ test('o visualizador roda isolado: sem acesso ao aplicativo, sem janelas e em ou
   expect(processes[1]).not.toBe(processes[0])
 })
 
-test('abrir um PDF com alterações não salvas pergunta antes', async () => {
+test('opening a PDF with unsaved changes asks first', async () => {
   await menu(session, 'new-document')
   await session.window.locator('.ProseMirror').fill('Trabalho não salvo')
 
@@ -115,7 +115,7 @@ test('abrir um PDF com alterações não salvas pergunta antes', async () => {
   await expect(pageText()).toContainText('Relatorio anual')
 })
 
-test('um diálogo do aplicativo aparece por cima do PDF', async () => {
+test('an app dialog appears on top of the PDF', async () => {
   await openPdf(file)
 
   await menu(session, 'new-from-template')
@@ -129,14 +129,14 @@ test('um diálogo do aplicativo aparece por cima do PDF', async () => {
   expect(onTop).toBe(true)
 })
 
-test('salvar com um PDF aberto explica que ele é só para leitura', async () => {
+test('saving with a PDF open explains that it is read-only', async () => {
   await openPdf(file)
 
   await menu(session, 'save')
   await expect(session.window.locator('.banner')).toContainText('só para leitura')
 })
 
-test('as propriedades do PDF vão para o fim do arquivo, e o que já existia fica byte a byte', async () => {
+test('PDF properties go to the end of the file, and what already existed stays byte for byte', async () => {
   const original = await readFile(file)
   await openPdf(file)
   await expect(pageText()).toContainText('Relatorio anual')
@@ -173,7 +173,7 @@ test('as propriedades do PDF vão para o fim do arquivo, e o que já existia fic
   await expect(dialog.getByRole('row', { name: /Modificado em/ })).not.toContainText('—')
 })
 
-test('o inspetor de um PDF mostra o autor e avisa que a versão anterior continua no arquivo', async () => {
+test("a PDF's inspector shows the author and warns that the previous version stays in the file", async () => {
   await openPdf(file)
   await expect(pageText()).toContainText('Relatorio anual')
   await menu(session, 'document-properties')
@@ -191,7 +191,7 @@ test('o inspetor de um PDF mostra o autor e avisa que a versão anterior continu
   await expect(inspector.getByRole('button', { name: 'Remover' })).toHaveCount(0)
 })
 
-test('as propriedades de um PDF criptografado não são alteradas', async () => {
+test('the properties of an encrypted PDF are not changed', async () => {
   const locked = join(folder, 'protegido.pdf')
   await writeFile(locked, Buffer.from(PROTECTED_PDF, 'base64'))
   await openPdf(locked)
@@ -207,7 +207,7 @@ test('as propriedades de um PDF criptografado não são alteradas', async () => 
   await expect(dialog.getByRole('textbox')).toHaveCount(0)
 })
 
-test('fechar o arquivo tira o PDF da tela', async () => {
+test('closing the file removes the PDF from the screen', async () => {
   await openPdf(file)
 
   await menu(session, 'close-file')
@@ -215,7 +215,7 @@ test('fechar o arquivo tira o PDF da tela', async () => {
   await expect(session.window.locator('.pdf-view__frame')).toHaveCount(0)
 })
 
-test('abre o PDF passado ao iniciar o aplicativo', async () => {
+test('opens the PDF passed at app startup', async () => {
   await session.close()
   session = await launch({ file })
 
@@ -223,7 +223,7 @@ test('abre o PDF passado ao iniciar o aplicativo', async () => {
   await expect(session.window).toHaveTitle('relatorio.pdf — Librevia')
 })
 
-test('um PDF danificado mostra uma explicação no lugar das páginas', async () => {
+test('a damaged PDF shows an explanation in place of the pages', async () => {
   const damaged = join(folder, 'danificado.pdf')
   await writeFile(damaged, '%PDF-1.4\nisto não é um PDF de verdade\n')
   await openPdf(damaged)
@@ -231,7 +231,7 @@ test('um PDF danificado mostra uma explicação no lugar das páginas', async ()
   await expect(session.window.locator('.pdf-view--failed')).toContainText('danificado')
 })
 
-test('um PDF com senha pergunta a senha, avisa quando está errada e abre com a certa', async () => {
+test('a password-protected PDF asks for the password, warns when it is wrong and opens with the right one', async () => {
   const locked = join(folder, 'protegido.pdf')
   await writeFile(locked, Buffer.from(PROTECTED_PDF, 'base64'))
   await openPdf(locked)
@@ -249,7 +249,7 @@ test('um PDF com senha pergunta a senha, avisa quando está errada e abre com a 
   await expect(pageText()).toContainText('Conteudo protegido')
 })
 
-test('cancelar a senha mostra por que o PDF não apareceu', async () => {
+test('canceling the password shows why the PDF did not appear', async () => {
   const locked = join(folder, 'protegido.pdf')
   await writeFile(locked, Buffer.from(PROTECTED_PDF, 'base64'))
   await openPdf(locked)
@@ -262,7 +262,7 @@ test('cancelar a senha mostra por que o PDF não apareceu', async () => {
   await expect(session.window.locator('.pdf-view--failed')).toContainText('protegido por senha')
 })
 
-test('uma imagem JPEG 2000 aparece: o decodificador em WebAssembly roda sob a política do visualizador', async () => {
+test("a JPEG 2000 image shows: the WebAssembly decoder runs under the viewer's policy", async () => {
   const image = join(folder, 'imagem.pdf')
   await writeFile(image, Buffer.from(JPEG2000_PDF, 'base64'))
   await openPdf(image)
@@ -281,7 +281,7 @@ test('uma imagem JPEG 2000 aparece: o decodificador em WebAssembly roda sob a po
   expect(await pixelAt(400, 450)).toEqual([30, 30, 220])
 })
 
-test('um PDF grande abre lendo só os trechos de que a página precisa', async () => {
+test('a large PDF opens reading only the ranges the page needs', async () => {
   const large = join(folder, 'grande.pdf')
   const size = 5 * 1024 * 1024
   await writeFile(large, pdfOf(['Arquivo grande'], undefined, size))
@@ -308,7 +308,7 @@ test('um PDF grande abre lendo só os trechos de que a página precisa', async (
   expect(read).toBeLessThan(size / 10)
 })
 
-test('a barra de status acompanha a página e o zoom do PDF', async () => {
+test('the status bar follows the PDF page and zoom', async () => {
   const report = join(folder, 'tres-paginas.pdf')
   await writeFile(report, pdfOf(['Primeira', 'Segunda', 'Terceira']))
   await openPdf(report)
@@ -333,7 +333,7 @@ test('a barra de status acompanha a página e o zoom do PDF', async () => {
   await expect.poll(async () => Math.abs((await pageWidth(frame)) - 816 * 1.1)).toBeLessThanOrEqual(1)
 })
 
-test('Ctrl+= e Ctrl++ ampliam o PDF, com o foco nele ou na barra de busca', async () => {
+test('Ctrl+= and Ctrl++ zoom the PDF in, with focus on it or on the search bar', async () => {
   await openPdf(file)
   const frame = await viewerFrame()
   const zoom = session.window.locator('.statusbar__zoom-level')
@@ -351,7 +351,7 @@ test('Ctrl+= e Ctrl++ ampliam o PDF, com o foco nele ou na barra de busca', asyn
   await expect(zoom).toHaveText('125%')
 })
 
-test('localiza um texto no PDF, anda entre as ocorrências e apaga os destaques ao fechar', async () => {
+test('finds text in the PDF, steps through the matches and clears the highlights on close', async () => {
   const report = join(folder, 'busca.pdf')
   await writeFile(report, pdfOf(['Receita anual', 'Despesa anual', 'Saldo anual']))
   await openPdf(report)
@@ -379,7 +379,7 @@ test('localiza um texto no PDF, anda entre as ocorrências e apaga os destaques 
   await expect(highlights).toHaveCount(0)
 })
 
-test('imprimir um PDF abre o arquivo original na pré-visualização do Chromium', async () => {
+test("printing a PDF opens the original file in Chromium's preview", async () => {
   await openPdf(file)
 
   await menu(session, 'print')
@@ -388,7 +388,7 @@ test('imprimir um PDF abre o arquivo original na pré-visualização do Chromium
   await expect.poll(() => chromiumViewerRendered(session)).toBe(true)
 })
 
-test('um link do PDF passa pela confirmação antes de abrir o navegador', async () => {
+test('a PDF link goes through confirmation before opening the browser', async () => {
   const linked = join(folder, 'com-link.pdf')
   await writeFile(linked, pdfOf(['Veja o site'], 'https://example.com/ajuda'))
   await session.app.evaluate(({ dialog, shell }) => {
@@ -408,7 +408,7 @@ test('um link do PDF passa pela confirmação antes de abrir o navegador', async
     .toEqual(['https://example.com/ajuda'])
 })
 
-test('a visualização de impressão de um documento mostra as páginas', async () => {
+test("a document's print preview shows the pages", async () => {
   await menu(session, 'new-document')
   await session.window.locator('.ProseMirror').fill('Ata')
   await menu(session, 'print-preview')
@@ -428,7 +428,7 @@ function pageText() {
 async function viewerFrame(): Promise<Frame> {
   await expect(pageText()).toBeVisible()
   const frame = session.window.frames().find((candidate) => candidate.url().startsWith('librevia-viewer:'))
-  if (frame === undefined) throw new Error('o visualizador não está na página')
+  if (frame === undefined) throw new Error('the viewer is not on the page')
   await frame.evaluate(() => {
     Object.assign(window, {
       attempt: (action: () => unknown): string => {

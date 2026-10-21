@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { discoverProviders, findExecutable } from './discovery.js'
 
 describe('discoverProviders', () => {
-  it('encontra o servidor que responde e o programa no PATH', async () => {
+  it('finds the server that answers and the program in PATH', async () => {
     const asked: string[] = []
     const candidates = await discoverProviders({
       fetch: (async (url: string) => {
@@ -22,7 +22,7 @@ describe('discoverProviders', () => {
     ])
   })
 
-  it('procura cada agente ACP conhecido pelo nome do programa, nunca por npx', async () => {
+  it('looks up each known ACP agent by program name, never by npx', async () => {
     const searched: string[] = []
     await discoverProviders({
       fetch: (async () => {
@@ -39,7 +39,7 @@ describe('discoverProviders', () => {
     expect(searched).not.toContain('uvx')
   })
 
-  it('desiste de um servidor que não responde a tempo', async () => {
+  it('gives up on a server that does not answer in time', async () => {
     const started = Date.now()
     const candidates = await discoverProviders({
       fetch: ((_url: string, init: RequestInit) =>
@@ -54,7 +54,7 @@ describe('discoverProviders', () => {
 })
 
 describe('findExecutable', () => {
-  it('só aceita arquivo executável numa pasta do PATH', async () => {
+  it('only accepts an executable file in a PATH folder', async () => {
     const checked: [string, number][] = []
     const path = await findExecutable(
       'claude',

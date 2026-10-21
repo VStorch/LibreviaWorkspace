@@ -8,7 +8,7 @@ import { cell } from './sheet-grid.js'
  * lies where the grid's clock meets the typist's, which a unit test cannot reach. The formula bar
  * does not go through it.
  */
-test.describe('digitação contínua na planilha', () => {
+test.describe('continuous typing in the spreadsheet', () => {
   let session: Session
 
   test.beforeEach(async () => {
@@ -19,22 +19,22 @@ test.describe('digitação contínua na planilha', () => {
     await session.close()
   })
 
-  test('uma coluna digitada sem pausa chega inteira', async () => {
+  test('a column typed without pause arrives whole', async () => {
     await menu(session, 'new-spreadsheet')
     await expect(cell(session.window, 0, 0)).toBeVisible()
 
-    const valores = ['980', '1200', '2450', '860']
+    const values = ['980', '1200', '2450', '860']
     await cell(session.window, 0, 0).click()
 
-    for (const valor of valores) {
+    for (const value of values) {
       // 60 ms per key is fast keypad typing, with no pause between Enter and the next number, which
       // is how a column is entered.
-      await session.window.keyboard.type(valor, { delay: 60 })
+      await session.window.keyboard.type(value, { delay: 60 })
       await session.window.keyboard.press('Enter')
     }
 
-    for (const [linha, valor] of valores.entries()) {
-      await expect(cell(session.window, linha, 0)).toHaveText(valor)
+    for (const [line, value] of values.entries()) {
+      await expect(cell(session.window, line, 0)).toHaveText(value)
     }
   })
 })

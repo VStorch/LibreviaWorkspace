@@ -11,7 +11,7 @@ import {
 import type { AiToolServer } from './provider.js'
 
 describe('textOfUpdate', () => {
-  it('só o texto da resposta passa; pensamento e ferramentas ficam de fora', () => {
+  it('only the response text passes; thoughts and tools are left out', () => {
     const text = { type: 'text', text: 'olá' }
     expect(textOfUpdate({ sessionUpdate: 'agent_message_chunk', content: text })).toBe('olá')
     expect(textOfUpdate({ sessionUpdate: 'agent_thought_chunk', content: text })).toBe('')
@@ -23,7 +23,7 @@ describe('textOfUpdate', () => {
 })
 
 describe('refusePermission', () => {
-  it('escolhe a opção de recusar uma vez quando o agente oferece', () => {
+  it('picks the reject-once option when the agent offers it', () => {
     const answer = refusePermission([
       { optionId: 'sim', kind: 'allow_once' },
       { optionId: 'nunca', kind: 'reject_always' },
@@ -32,7 +32,7 @@ describe('refusePermission', () => {
     expect(answer).toEqual({ outcome: { outcome: 'selected', optionId: 'nao' } })
   })
 
-  it('sem opção de recusa, cancela o pedido em vez de permitir', () => {
+  it('without a reject option, cancels the request instead of allowing it', () => {
     expect(refusePermission([{ optionId: 'sim', kind: 'allow_always' }])).toEqual({
       outcome: { outcome: 'cancelled' },
     })
@@ -55,7 +55,7 @@ describe('answerPermission', () => {
   const allowed = { outcome: { outcome: 'selected', optionId: 'sim' } }
   const refused = { outcome: { outcome: 'selected', optionId: 'nao' } }
 
-  it('permite uma vez as ferramentas do Librevia, pelo nome que cada agente dá', () => {
+  it('allows Librevia tools once, by the name each agent gives', () => {
     for (const call of [
       { name: 'mcp__librevia__read_paragraphs', title: 'mcp__librevia__read_paragraphs', kind: 'other' },
       { title: 'mcp_librevia_add_comment' },
@@ -65,7 +65,7 @@ describe('answerPermission', () => {
     }
   })
 
-  it('recusa o resto: nome sem o servidor, outro servidor, tipo que executa, mensagem sem as ferramentas', () => {
+  it('refuses the rest: name without the server, another server, executing kind, message without the tools', () => {
     for (const call of [
       { name: 'add_comment', kind: 'other' },
       { title: 'add_comment(text: "oi")' },
@@ -84,7 +84,7 @@ describe('answerPermission', () => {
 })
 
 describe('modelsOf', () => {
-  it('lê os modelos da opção de categoria modelo, inclusive em grupos', () => {
+  it('reads the models from the model category option, including in groups', () => {
     const models = modelsOf([
       {
         id: 'mode',
@@ -107,14 +107,14 @@ describe('modelsOf', () => {
     ])
   })
 
-  it('sem opção de modelo, a lista fica vazia e vale o automático', () => {
+  it('without a model option, the list is empty and automatic applies', () => {
     expect(modelsOf(undefined)).toEqual([])
     expect(modelsOf([{ id: 'x', type: 'boolean', category: 'model', currentValue: true }])).toEqual([])
   })
 })
 
 describe('isAuthError', () => {
-  it('reconhece o código de autenticação exigida do ACP', () => {
+  it('recognizes the ACP authentication-required code', () => {
     expect(isAuthError({ code: -32000, message: 'Authentication required' })).toBe(true)
     expect(isAuthError({ code: -32603 })).toBe(false)
     expect(isAuthError(new Error('x'))).toBe(false)
@@ -122,7 +122,7 @@ describe('isAuthError', () => {
 })
 
 describe('splitArgs e joinArgs', () => {
-  it('separa por espaços e mantém juntos os trechos entre aspas', () => {
+  it('splits on spaces and keeps quoted parts together', () => {
     expect(splitArgs(` --acp  --dir 'meus documentos' "it's" ''`)).toEqual([
       '--acp',
       '--dir',
@@ -132,7 +132,7 @@ describe('splitArgs e joinArgs', () => {
     ])
   })
 
-  it('não interpreta nada de shell', () => {
+  it('does not interpret any shell syntax', () => {
     expect(splitArgs('$(rm -rf ~); echo `x` | cat')).toEqual([
       '$(rm',
       '-rf',
@@ -144,8 +144,8 @@ describe('splitArgs e joinArgs', () => {
     ])
   })
 
-  it('juntar e separar de novo devolve os mesmos argumentos', () => {
-    const args = ['--acp', 'com espaço', "it's", '']
+  it('joining and splitting again returns the same arguments', () => {
+    const args = ['--acp', 'with space', "it's", '']
     expect(splitArgs(joinArgs(args))).toEqual(args)
   })
 })

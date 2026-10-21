@@ -12,67 +12,67 @@ import { docxWithHeaderGrid, entryOf } from './fixtures.js'
  * A grid header: the corporate one is a table, with the logo in a cell merged across rows, the
  * title beside it and the numbering on the right.
  */
-test.describe('cabeçalho em grade', () => {
+test.describe('grid header', () => {
   let session: Session
-  let pasta: string
-  let destino: string
+  let directory: string
+  let destinationFile: string
 
   test.beforeEach(async () => {
-    pasta = await mkdtemp(join(tmpdir(), 'librevia-cabecalho-'))
-    destino = join(pasta, 'salva.docx')
+    directory = await mkdtemp(join(tmpdir(), 'librevia-header-'))
+    destinationFile = join(directory, 'salva.docx')
     session = await launch()
 
-    const origem = join(pasta, 'grade.docx')
-    await writeFile(origem, await docxWithHeaderGrid())
-    await stubDialogs(session.app, { open: origem, save: destino, messageBox: 1 })
+    const sourceFile = join(directory, 'grade.docx')
+    await writeFile(sourceFile, await docxWithHeaderGrid())
+    await stubDialogs(session.app, { open: sourceFile, save: destinationFile, messageBox: 1 })
     await menu(session, 'open')
     await expect(session.window.locator('.ProseMirror')).toBeVisible()
   })
 
   test.afterEach(async () => {
     await session.close()
-    await rm(pasta, { recursive: true, force: true })
+    await rm(directory, { recursive: true, force: true })
   })
 
-  test('a tabela do cabeçalho é desenhada como tabela', async () => {
-    const grade = session.window.locator('.band--header .band__grid').first()
-    await expect(grade).toBeVisible()
-    await expect(grade.locator('tr')).toHaveCount(4)
-    await expect(grade.locator('td')).toHaveCount(5)
+  test('the header table is drawn as a table', async () => {
+    const grid = session.window.locator('.band--header .band__grid').first()
+    await expect(grid).toBeVisible()
+    await expect(grid.locator('tr')).toHaveCount(4)
+    await expect(grid.locator('td')).toHaveCount(5)
   })
 
-  test('a célula mesclada cresce em vez de deixar a linha vazia', async () => {
+  test('the merged cell grows instead of leaving the row empty', async () => {
     // In OOXML vertical merging is not height: the top cell says `restart` and the lower one shows
     // as an empty cell. Drawn as a real cell, it would open a blank band under the logo.
-    const selo = session.window.locator('.band--header .band__grid td', { hasText: 'Selo' }).first()
-    await expect(selo).toHaveAttribute('rowspan', '4')
+    const stamp = session.window.locator('.band--header .band__grid td', { hasText: 'Selo' }).first()
+    await expect(stamp).toHaveAttribute('rowspan', '4')
   })
 
-  test('o corpo desce para debaixo do cabeçalho, sem se encontrar com ele', async () => {
+  test('the body moves down below the header, without meeting it', async () => {
     // The top margin is a floor: with a taller header, Word and LibreOffice push the body down.
-    const medidas = await session.window.evaluate(() => {
-      const banda = document.querySelector('.band--header') as HTMLElement | null
-      const primeira = document.querySelector('.page__content > *') as HTMLElement | null
-      if (banda === null || primeira === null) return null
+    const measures = await session.window.evaluate(() => {
+      const band = document.querySelector('.band--header') as HTMLElement | null
+      const first = document.querySelector('.page__content > *') as HTMLElement | null
+      if (band === null || first === null) return null
       return {
-        fimDaFaixa: banda.getBoundingClientRect().bottom,
-        inicio: primeira.getBoundingClientRect().top,
+        bandEnd: band.getBoundingClientRect().bottom,
+        start: first.getBoundingClientRect().top,
       }
     })
 
-    expect(medidas).not.toBeNull()
-    expect(medidas!.inicio).toBeGreaterThanOrEqual(medidas!.fimDaFaixa)
+    expect(measures).not.toBeNull()
+    expect(measures!.start).toBeGreaterThanOrEqual(measures!.bandEnd)
   })
 
-  test('o texto do cabeçalho é digitável e volta para o arquivo', async () => {
+  test('the header text is typeable and returns to the file', async () => {
     // The header title is editable, and only that piece's `w:t` is rewritten: table, borders and
     // merging stay byte for byte.
-    const titulo = session.window
+    const title = session.window
       .locator('.band--header .band__text')
       .filter({ hasText: 'Título do documento' })
       .first()
 
-    await titulo.click()
+    await title.click()
     await session.window.keyboard.press('ControlOrMeta+a')
     await session.window.keyboard.type('Título corrigido')
 
@@ -84,36 +84,36 @@ test.describe('cabeçalho em grade', () => {
     await menu(session, 'save-as')
     await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
 
-    const cabecalho = await entryOf(destino, 'word/header1.xml')
-    expect(cabecalho).toContain('Título corrigido')
-    expect(cabecalho).not.toContain('Título do documento')
+    const header = await entryOf(destinationFile, 'word/header1.xml')
+    expect(header).toContain('Título corrigido')
+    expect(header).not.toContain('Título do documento')
 
     // The rest of the part was not regenerated: the grid is still there, with the merge this writer
     // could not produce from scratch.
-    expect(cabecalho).toContain('w:vMerge w:val="restart"')
-    expect(cabecalho).toContain('Chamado 10001')
+    expect(header).toContain('w:vMerge w:val="restart"')
+    expect(header).toContain('Chamado 10001')
   })
 
-  test('o que não tem texto próprio no arquivo não recebe o cursor', async () => {
+  test('what has no text of its own in the file does not receive the cursor', async () => {
     // The margin around the band still belongs to the body: clicking it must not take the cursor
     // out of the text.
-    const editaveis = await session.window.locator('.band--header .band__text').count()
-    const pecas = await session.window.locator('.band--header .band__grid td').count()
+    const editable = await session.window.locator('.band--header .band__text').count()
+    const pieces = await session.window.locator('.band--header .band__grid td').count()
 
-    expect(editaveis).toBeGreaterThan(0)
-    expect(editaveis).toBeLessThan(pecas + 1)
+    expect(editable).toBeGreaterThan(0)
+    expect(editable).toBeLessThan(pieces + 1)
     await expect(session.window.locator('.band--header')).not.toHaveAttribute('aria-hidden', 'true')
   })
 
-  test('a grade ocupa a faixa inteira, e não um dos terços', async () => {
-    const larguras = await session.window.evaluate(() => {
-      const banda = document.querySelector('.band--header') as HTMLElement | null
-      const grade = document.querySelector('.band--header .band__grid') as HTMLElement | null
-      if (banda === null || grade === null) return null
-      return { banda: banda.getBoundingClientRect().width, grade: grade.getBoundingClientRect().width }
+  test('the grid fills the whole band, not one of the thirds', async () => {
+    const widths = await session.window.evaluate(() => {
+      const band = document.querySelector('.band--header') as HTMLElement | null
+      const grid = document.querySelector('.band--header .band__grid') as HTMLElement | null
+      if (band === null || grid === null) return null
+      return { band: band.getBoundingClientRect().width, grid: grid.getBoundingClientRect().width }
     })
 
-    expect(larguras).not.toBeNull()
-    expect(larguras!.grade).toBeGreaterThan(larguras!.banda * 0.95)
+    expect(widths).not.toBeNull()
+    expect(widths!.grid).toBeGreaterThan(widths!.band * 0.95)
   })
 })

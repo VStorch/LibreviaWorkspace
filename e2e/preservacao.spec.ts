@@ -11,12 +11,12 @@ import { docxWithNamedStyles, docxWithTextBox, entryOf } from './fixtures.js'
  * `oid` must be in the schema and shape differences do not count; the sidecar tests do not go
  * through the editor.
  */
-test.describe('gravação cirúrgica', () => {
+test.describe('surgical save', () => {
   let session: Session
   let folder: string
 
   test.beforeEach(async () => {
-    folder = await mkdtemp(join(tmpdir(), 'librevia-preservacao-'))
+    folder = await mkdtemp(join(tmpdir(), 'librevia-preservation-'))
     session = await launch()
   })
 
@@ -25,12 +25,12 @@ test.describe('gravação cirúrgica', () => {
     await rm(folder, { recursive: true, force: true })
   })
 
-  test('abrir e salvar sem editar preserva a caixa de texto', async () => {
-    const origem = join(folder, 'entrada.docx')
-    const destino = join(folder, 'saida.docx')
-    await writeFile(origem, await docxWithTextBox())
+  test('opening and saving without editing preserves the text box', async () => {
+    const sourceFile = join(folder, 'entrada.docx')
+    const destinationFile = join(folder, 'saida.docx')
+    await writeFile(sourceFile, await docxWithTextBox())
 
-    await stubDialogs(session.app, { open: origem, save: destino, messageBox: 1 })
+    await stubDialogs(session.app, { open: sourceFile, save: destinationFile, messageBox: 1 })
     await menu(session, 'open')
     await expect(session.window.locator('.ProseMirror')).toContainText('Título na caixa')
 
@@ -39,20 +39,20 @@ test.describe('gravação cirúrgica', () => {
 
     // The box is the sentinel: the editor shows the text inside, but cannot redraw the shape. If it
     // came back, the block's original XML was preserved, which is all this test needs to know.
-    const corpo = await entryOf(destino, 'word/document.xml')
-    expect(corpo).toContain('txbxContent')
-    expect(corpo).toContain('Título na caixa')
+    const body = await entryOf(destinationFile, 'word/document.xml')
+    expect(body).toContain('txbxContent')
+    expect(body).toContain('Título na caixa')
   })
 
-  test('documento que termina num título volta sem parágrafo vazio acrescentado', async () => {
+  test('a document ending in a heading comes back without an added empty paragraph', async () => {
     // Tiptap added an empty paragraph after the last heading, and saving without editing put a new
     // `<w:p/>` at the end of the file; the four corpus evidence documents end that way.
-    const origem = join(folder, 'titulo-no-fim.docx')
-    const destino = join(folder, 'titulo-no-fim-saida.docx')
+    const sourceFile = join(folder, 'titulo-no-fim.docx')
+    const destinationFile = join(folder, 'titulo-no-fim-saida.docx')
     const final = '<w:p><w:pPr><w:pStyle w:val="Ttulo1"/></w:pPr><w:r><w:t>Título final</w:t></w:r></w:p>'
-    await writeFile(origem, await docxWithNamedStyles(final))
+    await writeFile(sourceFile, await docxWithNamedStyles(final))
 
-    await stubDialogs(session.app, { open: origem, save: destino, messageBox: 1 })
+    await stubDialogs(session.app, { open: sourceFile, save: destinationFile, messageBox: 1 })
     await menu(session, 'open')
     await expect(session.window.locator('.ProseMirror')).toContainText('Título final')
     await expect(session.window.locator('.ProseMirror > *').last()).toHaveText('Título final')
@@ -60,9 +60,9 @@ test.describe('gravação cirúrgica', () => {
     await menu(session, 'save-as')
     await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
 
-    const paragrafos = (xml: string): number => (xml.match(/<w:p[ >/]/g) ?? []).length
-    expect(paragrafos(await entryOf(destino, 'word/document.xml'))).toBe(
-      paragrafos(await entryOf(origem, 'word/document.xml')),
+    const paragraphs = (xml: string): number => (xml.match(/<w:p[ >/]/g) ?? []).length
+    expect(paragraphs(await entryOf(destinationFile, 'word/document.xml'))).toBe(
+      paragraphs(await entryOf(sourceFile, 'word/document.xml')),
     )
   })
 })

@@ -17,7 +17,7 @@ async function setPreference(session: Session, patch: Record<string, unknown>): 
   }, patch)
 }
 
-test.describe('menu Exibir', () => {
+test.describe('View menu', () => {
   let session: Session
 
   test.beforeEach(async () => {
@@ -29,7 +29,7 @@ test.describe('menu Exibir', () => {
     await session.close()
   })
 
-  test('as barras de ferramentas e de status obedecem às preferências', async () => {
+  test('the toolbar and status bar follow the preferences', async () => {
     await expect(session.window.locator('.toolbar')).toBeVisible()
     await expect(session.window.locator('.statusbar')).toBeVisible()
 
@@ -42,7 +42,7 @@ test.describe('menu Exibir', () => {
     await expect(session.window.locator('.statusbar')).toBeVisible()
   })
 
-  test('o tema escuro troca a cor da casca e do papel', async () => {
+  test('the dark theme changes the shell and paper color', async () => {
     const root = session.window.locator('html')
     await expect(root).toHaveAttribute('data-theme', 'light')
 
@@ -64,59 +64,59 @@ test.describe('menu Exibir', () => {
     await expect(root).toHaveAttribute('data-theme', 'light')
   })
 
-  test('o texto que o documento não coloriu acompanha o tema', async () => {
+  test('text the document did not color follows the theme', async () => {
     await session.window.locator('.ProseMirror').click()
     await session.window.keyboard.type('Sem cor declarada.')
 
-    const claro = await session.window
+    const light = await session.window
       .locator('.ProseMirror p')
       .first()
       .evaluate((node) => getComputedStyle(node).color)
 
     await setPreference(session, { theme: 'dark' })
 
-    const escuro = await session.window
+    const dark = await session.window
       .locator('.ProseMirror p')
       .first()
       .evaluate((node) => getComputedStyle(node).color)
 
-    expect(escuro).not.toBe(claro)
+    expect(dark).not.toBe(light)
   })
 
-  test('o preto que o estilo declara acompanha o tema escuro', async () => {
-    const folder = await mkdtemp(join(tmpdir(), 'librevia-exibir-'))
+  test('the black a style declares follows the dark theme', async () => {
+    const folder = await mkdtemp(join(tmpdir(), 'librevia-view-'))
     try {
-      const origem = join(folder, 'preto.docx')
-      await writeFile(origem, await docxWithBlackNormal())
-      await stubDialogs(session.app, { open: origem, messageBox: 1 })
+      const sourceFile = join(folder, 'preto.docx')
+      await writeFile(sourceFile, await docxWithBlackNormal())
+      await stubDialogs(session.app, { open: sourceFile, messageBox: 1 })
       await menu(session, 'open')
 
-      const texto = session.window.locator('.ProseMirror p', { hasText: 'Texto no estilo Normal.' })
-      await expect(texto).toHaveCSS('color', 'rgb(0, 0, 0)')
+      const text = session.window.locator('.ProseMirror p', { hasText: 'Texto no estilo Normal.' })
+      await expect(text).toHaveCSS('color', 'rgb(0, 0, 0)')
 
       await setPreference(session, { theme: 'dark' })
-      const corDoTema = await session.window.evaluate(() => getComputedStyle(document.body).color)
-      await expect(texto).toHaveCSS('color', corDoTema)
+      const themeColor = await session.window.evaluate(() => getComputedStyle(document.body).color)
+      await expect(text).toHaveCSS('color', themeColor)
     } finally {
       await rm(folder, { recursive: true, force: true })
     }
   })
 
-  test('o idioma troca a interface sem reabrir nada', async () => {
+  test('the language switches the interface without reopening anything', async () => {
     // The toolbar comes from the catalog; main checks the native menu.
     await setPreference(session, { language: 'en' })
 
-    const acoes = session.window.locator('.ProseMirror')
-    await expect(acoes).toBeVisible()
+    const editorArea = session.window.locator('.ProseMirror')
+    await expect(editorArea).toBeVisible()
 
     // Right-click labels come from the catalog, in the chosen language.
-    const idioma = await session.window.evaluate(() => document.documentElement.lang)
-    expect(typeof idioma).toBe('string')
+    const language = await session.window.evaluate(() => document.documentElement.lang)
+    expect(typeof language).toBe('string')
 
     await setPreference(session, { language: 'pt' })
   })
 
-  test('o modo de leitura tira as barras e o papel', async () => {
+  test('reading mode removes the bars and the paper', async () => {
     await expect(session.window.locator('.doc-toolbar, .toolbar').first()).toBeVisible()
     await expect(session.window.locator('.paper')).not.toHaveCount(0)
 
@@ -128,21 +128,21 @@ test.describe('menu Exibir', () => {
     await expect(session.window.locator('.pages--reading')).toHaveCount(1)
   })
 
-  test('o modo de leitura trava a edição', async () => {
+  test('reading mode locks editing', async () => {
     await session.window.locator('.ProseMirror').click()
     await session.window.keyboard.type('Antes.')
 
     await setPreference(session, { readingMode: true })
 
-    const antes = await session.window.locator('.ProseMirror').textContent()
+    const before = await session.window.locator('.ProseMirror').textContent()
     await session.window.locator('.ProseMirror').click()
     await session.window.keyboard.type('DEPOIS')
-    const depois = await session.window.locator('.ProseMirror').textContent()
+    const after = await session.window.locator('.ProseMirror').textContent()
 
-    expect(depois).toBe(antes)
+    expect(after).toBe(before)
   })
 
-  test('Esc sai do modo de leitura', async () => {
+  test('Esc leaves reading mode', async () => {
     await setPreference(session, { readingMode: true })
     await expect(session.window.locator('.pages--reading')).toHaveCount(1)
 
@@ -159,8 +159,8 @@ test.describe('menu Exibir', () => {
  * of the saved value would fall back to the light theme in Portuguese without any error. Its own
  * `describe`, because it reuses `userData` across two sessions.
  */
-test.describe('o que foi escolhido continua escolhido', () => {
-  test('tema, idioma e modo de leitura voltam como estavam', async () => {
+test.describe('what was chosen stays chosen', () => {
+  test('theme, language and reading mode come back as they were', async () => {
     const userData = await mkdtemp(join(tmpdir(), 'librevia-prefs-'))
     let session = await launch({ userData })
 
@@ -178,7 +178,7 @@ test.describe('o que foi escolhido continua escolhido', () => {
       // Same profile, new process: that is what "reopening the app" means.
       session = await launch({ userData })
 
-      const guardado = await session.window.evaluate(async () => {
+      const stored = await session.window.evaluate(async () => {
         const api = (
           window as unknown as {
             api: { preferences: { get: (p: unknown) => Promise<{ ok: boolean; data: unknown }> } }
@@ -187,7 +187,7 @@ test.describe('o que foi escolhido continua escolhido', () => {
         return api.preferences.get({})
       })
 
-      expect(guardado).toMatchObject({
+      expect(stored).toMatchObject({
         ok: true,
         data: { theme: 'dark', language: 'en', readingMode: true },
       })

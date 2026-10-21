@@ -6,28 +6,28 @@ import { OpenAiToolCalls, parseOpenAiLine } from './sse.js'
 const chunk = (content: string): string => `data: ${JSON.stringify({ choices: [{ delta: { content } }] })}`
 
 describe('parseOpenAiLine', () => {
-  it('lê o trecho de texto de cada evento', () => {
+  it('reads the text chunk of each event', () => {
     expect(parseOpenAiLine(chunk('Olá'))).toEqual({ type: 'text', text: 'Olá' })
   })
 
-  it('reconhece o fim', () => {
+  it('recognizes the end', () => {
     expect(parseOpenAiLine('data: [DONE]')).toEqual({ type: 'done' })
   })
 
-  it('devolve o erro que o servidor manda no meio do fluxo', () => {
-    expect(parseOpenAiLine('data: {"error":{"message":"modelo não carregado"}}')).toEqual({
+  it('returns the error the server sends mid-stream', () => {
+    expect(parseOpenAiLine('data: {"error":{"message":"model not loaded"}}')).toEqual({
       type: 'error',
-      message: 'modelo não carregado',
+      message: 'model not loaded',
     })
   })
 
-  it('filtro de conteúdo do servidor vira recusa', () => {
+  it('the server content filter becomes a refusal', () => {
     expect(parseOpenAiLine('data: {"choices":[{"delta":{},"finish_reason":"content_filter"}]}')).toEqual({
       type: 'refused',
     })
   })
 
-  it('ignora comentários, eventos sem texto e JSON quebrado', () => {
+  it('ignores comments, events without text and broken JSON', () => {
     expect(parseOpenAiLine(': keep-alive')).toEqual({ type: 'skip' })
     expect(parseOpenAiLine('data: {"choices":[{"delta":{"role":"assistant"}}]}')).toEqual({ type: 'skip' })
     expect(parseOpenAiLine('data: {"choi')).toEqual({ type: 'skip' })
@@ -35,7 +35,7 @@ describe('parseOpenAiLine', () => {
 })
 
 describe('takeLines', () => {
-  it('guarda a linha partida até o próximo pedaço', () => {
+  it('keeps the split line until the next chunk', () => {
     const first = takeLines(`${chunk('Um')}\n\ndata: {"choi`)
     expect(first.lines).toEqual([chunk('Um')])
 
@@ -48,8 +48,8 @@ describe('takeLines', () => {
 const toolChunk = (calls: unknown[]): string =>
   `data: ${JSON.stringify({ choices: [{ delta: { tool_calls: calls } }] })}`
 
-describe('chamadas de ferramenta no stream da OpenAI', () => {
-  it('junta os pedaços de arguments por índice, com id e nome do primeiro pedaço', () => {
+describe('tool calls in the OpenAI stream', () => {
+  it('joins the arguments pieces by index, with id and name from the first piece', () => {
     const calls = new OpenAiToolCalls()
     const lines = [
       toolChunk([
@@ -69,7 +69,7 @@ describe('chamadas de ferramenta no stream da OpenAI', () => {
     ])
   })
 
-  it('dá um id a chamada que veio sem, diferente em cada rodada', () => {
+  it('gives an id to a call that came without one, different in each round', () => {
     const first = new OpenAiToolCalls(0)
     const second = new OpenAiToolCalls(1)
     first.add([{ index: 0, name: 'x', arguments: '{}' }])
@@ -78,14 +78,14 @@ describe('chamadas de ferramenta no stream da OpenAI', () => {
     expect(second.finished()[0]?.id).toBe('call_1_0')
   })
 
-  it('recusa chamadas além do limite de uma resposta', () => {
+  it('refuses calls beyond the limit of one response', () => {
     const calls = new OpenAiToolCalls()
     const deltas = Array.from({ length: MAX_AI_TOOL_CALLS }, (_, index) => ({ index, name: 'x' }))
     expect(calls.add(deltas)).toBe(true)
     expect(calls.add([{ index: MAX_AI_TOOL_CALLS, name: 'x' }])).toBe(false)
   })
 
-  it('recusa argumentos mais longos que o limite', () => {
+  it('refuses arguments longer than the limit', () => {
     const calls = new OpenAiToolCalls()
     expect(calls.add([{ index: 0, name: 'x', arguments: 'a'.repeat(MAX_AI_TOOL_ARGUMENTS_LENGTH) }])).toBe(
       true,
@@ -93,7 +93,7 @@ describe('chamadas de ferramenta no stream da OpenAI', () => {
     expect(calls.add([{ index: 0, arguments: 'a' }])).toBe(false)
   })
 
-  it('texto e chamada no mesmo pedaço chegam juntos', () => {
+  it('text and call in the same chunk arrive together', () => {
     const line = `data: ${JSON.stringify({
       choices: [
         { delta: { content: 'Vou ver.', tool_calls: [{ index: 0, id: 'a', function: { name: 'x' } }] } },

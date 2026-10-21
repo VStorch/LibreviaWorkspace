@@ -91,7 +91,7 @@ async function documentXmlOf(zip: Uint8Array): Promise<string> {
     return method === 0 ? data.toString('utf8') : (await inflate(data)).toString('utf8')
   }
 
-  throw new Error('o arquivo gravado não tem word/document.xml')
+  throw new Error('the saved file has no word/document.xml')
 }
 
 /** As `getJSON()` returns it. */
@@ -238,42 +238,42 @@ function sectionsOf(xml: string): string[] {
   )
 }
 
-describe.skipIf(!published)('impressão digital entre o editor e o sidecar', () => {
+describe.skipIf(!published)('fingerprint between the editor and the sidecar', () => {
   // One case per corpus structure, because each diverges in its own way.
   const documents: Array<[string, () => Promise<Buffer>]> = [
-    ['parágrafos com comentário ancorado', docxWithComment],
+    ['paragraphs with an anchored comment', docxWithComment],
     // The anchor becomes a node and the reply's does not, on both sides.
-    ['conversa de comentários com resposta e resolvido', docxWithCommentThread],
-    ['parágrafo sem nada em volta', docxWithoutExtras],
+    ['comment thread with reply and resolved', docxWithCommentThread],
+    ['paragraph with nothing around it', docxWithoutExtras],
     ['imagem esticada no fluxo do texto', docxWithStretchedImage],
     ['caixa de texto', docxWithTextBox],
-    ['espaçamento dos dois lados', docxWithSpacingOnBothSides],
-    ['cabeçalho em grade', docxWithHeaderGrid],
-    ['lista com marcador', docxWithBulletList],
+    ['spacing on both sides', docxWithSpacingOnBothSides],
+    ['header grid', docxWithHeaderGrid],
+    ['bullet list', docxWithBulletList],
     // Levels, composite text, continuation and restart.
-    ['lista multinível com reinício', docxWithMultilevelList],
-    ['tabela com tabela aninhada', docxWithTable],
+    ['multilevel list with restart', docxWithMultilevelList],
+    ['table with nested table', docxWithTable],
     ['sobrescrito e subscrito', docxWithVerticalAlignment],
     // Column width, shading, border, horizontal merge and header row in the table; alt text on the
     // image.
-    ['tabela com sombreamento, borda e cabeçalho', docxWithStyledCells],
-    ['imagem com texto alternativo', docxWithDescribedImage],
+    ['table with shading, border and header', docxWithStyledCells],
+    ['image with alt text', docxWithDescribedImage],
     // The block carries only direct formatting, and the rest belongs to the styles.
     ['estilos nomeados', () => docxWithNamedStyles()],
-    ['formatação direta por cima dos estilos', docxWithDirectOverStyles],
+    ['direct formatting over styles', docxWithDirectOverStyles],
     // Table of contents, bookmarks (including hidden ones), fields and internal link.
-    ['referências do Word', () => docxWithReferences()],
+    ['Word references', () => docxWithReferences()],
     // Three sections, with an empty mark, a mark on a paragraph with text, and inheritance.
-    ['seções', docxWithSections],
+    ['sections', docxWithSections],
     // Revised insertion, deletion, paragraph mark, move and row.
-    ['controle de alterações', () => docxWithTrackedChange()],
+    ['tracked changes', () => docxWithTrackedChange()],
     // The note reference carries the body inside, and the fingerprint does not see it.
-    ['nota de rodapé', () => docxWithFootnote()],
+    ['footnote', () => docxWithFootnote()],
     // The equation carries its OMML as identity, and the derived MathML does not count.
-    ['equações em linha e de exibição', docxWithEquations],
+    ['inline and display equations', docxWithEquations],
   ]
 
-  it.each(documents)('abrir e salvar %s não reescreve bloco nenhum', async (_name, build) => {
+  it.each(documents)('opening and saving %s rewrites no block', async (_name, build) => {
     const bytes = await build()
     const result = await openSaveAndCount(bytes)
 
@@ -281,7 +281,7 @@ describe.skipIf(!published)('impressão digital entre o editor e o sidecar', () 
     expect(result.preservedBlocks).toBeGreaterThan(0)
   })
 
-  it('abrir e salvar um documento de seções devolve cada w:sectPr byte a byte', async () => {
+  it('opening and saving a document with sections returns each w:sectPr byte for byte', async () => {
     // Opened and saved without editing, no `w:sectPr` changes, not even the body's, which is the
     // last section.
     const bytes = await docxWithSections()
@@ -291,7 +291,7 @@ describe.skipIf(!published)('impressão digital entre o editor e o sidecar', () 
     expect(sectionsOf(await documentXmlOf(result.bytes))).toEqual(sectionsOf(await documentXmlOf(bytes)))
   })
 
-  it.each(documents)('o modelo de %s volta do schema como o sidecar o leu', async (_name, build) => {
+  it.each(documents)('the model of %s comes back from the schema as the sidecar read it', async (_name, build) => {
     // The counter says it passed; comparing the trees says why.
     const bytes = await build()
     const opened = await client.request(SidecarMethod.DocxOpen, {}, new Uint8Array(bytes))
@@ -300,7 +300,7 @@ describe.skipIf(!published)('impressão digital entre o editor e o sidecar', () 
     expect(asFingerprinted(throughEditor(model.doc))).toEqual(asFingerprinted(model.doc))
   })
 
-  it('o corpo da nota volta do schema como o sidecar o leu', async () => {
+  it('the note body comes back from the schema as the sidecar read it', async () => {
     // NotesWriter compares the note body block by block: an attribute lost in the schema would
     // rewrite the note on every save.
     const bytes = await docxWithFootnote()
@@ -323,7 +323,7 @@ describe.skipIf(!published)('impressão digital entre o editor e o sidecar', () 
     expect(asFingerprinted(bodies(throughEditor(model.doc)))).toEqual(asFingerprinted(read))
   })
 
-  it('a saída do diálogo de parágrafo é o que o arquivo recebe', async () => {
+  it('the paragraph dialog output is what the file receives', async () => {
     // The only path where the editor invents paragraph attributes: `lineHeight` as a CSS measure,
     // `textAlign` and `indent: 0`. The dialog factor does not go raw into the attribute, or the
     // writer would divide it by the font's natural height.
@@ -376,7 +376,7 @@ describe.skipIf(!published)('impressão digital entre o editor e o sidecar', () 
     expect(draft.spaceAfter).toBe(6)
   })
 
-  it('o diálogo de parágrafo aplicado sem mudança não reescreve bloco nenhum', async () => {
+  it('the paragraph dialog applied without change rewrites no block', async () => {
     // "OK" without changes does not turn what the style inherits into direct formatting.
     const bytes = await docxWithDirectOverStyles()
     const opened = await client.request(SidecarMethod.DocxOpen, {}, new Uint8Array(bytes))
@@ -400,7 +400,7 @@ describe.skipIf(!published)('impressão digital entre o editor e o sidecar', () 
     expect(result.preservedBlocks).toBe(doc.content.length)
   })
 
-  it('cada bloco do modelo chega ao editor com identidade', async () => {
+  it('each model block reaches the editor with identity', async () => {
     // The `oid` links the screen block to the file's `w:p`.
     const bytes = await docxWithComment()
     const opened = await client.request(SidecarMethod.DocxOpen, {}, new Uint8Array(bytes))

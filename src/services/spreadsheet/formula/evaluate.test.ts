@@ -16,7 +16,7 @@ function context(cells: Record<string, Scalar> = {}): EvalContext {
 const calc = (formula: string, cells?: Record<string, Scalar>): Scalar =>
   evaluate(parseFormula(formula), context(cells))
 
-describe('aritmética', () => {
+describe('arithmetic', () => {
   it.each([
     ['=1+2', 3],
     ['=10/4', 2.5],
@@ -29,34 +29,34 @@ describe('aritmética', () => {
     expect(calc(formula)).toBe(expected)
   })
 
-  it('divisão por zero vira erro, não infinito', () => {
+  it('division by zero becomes an error, not infinity', () => {
     expect(calc('=1/0')).toBe(FormulaError.Div0)
   })
 
-  it('estouro vira #NÚM!', () => {
+  it('overflow becomes #NÚM!', () => {
     expect(calc('=1e308*10')).toBe(FormulaError.Num)
   })
 
-  it('raiz de negativo é #NÚM!, não NaN', () => {
+  it('square root of a negative is #NÚM!, not NaN', () => {
     expect(calc('=RAIZ(-1)')).toBe(FormulaError.Num)
   })
 })
 
-describe('erros se propagam', () => {
-  it('atravessam a conta inteira', () => {
+describe('errors propagate', () => {
+  it('run through the whole calculation', () => {
     expect(calc('=SOMA(1;2)+1/0')).toBe(FormulaError.Div0)
   })
 
-  it('o primeiro erro é o que aparece', () => {
+  it('the first error is the one that shows', () => {
     expect(calc('=1/0+A1', { A1: FormulaError.NA })).toBe(FormulaError.Div0)
   })
 
-  it('SEERRO intercepta', () => {
+  it('SEERRO intercepts', () => {
     expect(calc('=SEERRO(1/0;"sem valor")')).toBe('sem valor')
     expect(calc('=SEERRO(10;"sem valor")')).toBe(10)
   })
 
-  it('ÉERROS enxerga o erro em vez de propagá-lo', () => {
+  it('ÉERROS sees the error instead of propagating it', () => {
     // Without special handling, the argument's error would become the result before the function is
     // called, and ÉERROS could never answer TRUE.
     expect(calc('=ÉERROS(1/0)')).toBe(true)
@@ -64,179 +64,179 @@ describe('erros se propagam', () => {
   })
 })
 
-describe('SE não avalia o ramo descartado', () => {
-  it('não estoura na divisão do ramo não escolhido', () => {
+describe('SE does not evaluate the discarded branch', () => {
+  it('does not blow up on a division in the branch not chosen', () => {
     // The case behind lazy evaluation: with A1 at zero, computing 1/A1 would produce #DIV/0! even
     // though the user guarded the formula.
     expect(calc('=SE(A1=0;"";1/A1)', { A1: 0 })).toBe('')
     expect(calc('=SE(A1=0;"";1/A1)', { A1: 4 })).toBe(0.25)
   })
 
-  it('sem o terceiro argumento devolve FALSO, como o Excel', () => {
+  it('without the third argument returns FALSO, as Excel does', () => {
     expect(calc('=SE(1>2;"sim")')).toBe(false)
   })
 })
 
-describe('células vazias', () => {
-  it('valem zero na conta', () => {
+describe('empty cells', () => {
+  it('count as zero in calculations', () => {
     expect(calc('=A1+1')).toBe(1)
   })
 
-  it('não entram na média', () => {
+  it('are left out of the average', () => {
     // If empty became zero, the average of 10 and 20 with an empty cell between would be 10 instead
     // of 15: wrong, and without any warning.
     expect(calc('=MÉDIA(A1:A3)', { A1: 10, A3: 20 })).toBe(15)
   })
 
-  it('não são contadas por CONT.NÚM nem por CONT.VALORES', () => {
+  it('are not counted by CONT.NÚM or CONT.VALORES', () => {
     expect(calc('=CONT.NÚM(A1:A3)', { A1: 10, A3: 20 })).toBe(2)
     expect(calc('=CONT.VALORES(A1:A3)', { A1: 'x', A3: 20 })).toBe(2)
   })
 
-  it('comparam igual tanto a zero quanto a texto vazio', () => {
+  it('compare equal to both zero and empty text', () => {
     expect(calc('=A1=0')).toBe(true)
     expect(calc('=A1=""')).toBe(true)
   })
 })
 
-describe('comparação', () => {
-  it('texto não diferencia maiúsculas', () => {
+describe('comparison', () => {
+  it('text comparison ignores case', () => {
     expect(calc('="a"="A"')).toBe(true)
   })
 
-  it('tipos diferentes nunca são iguais', () => {
+  it('different types are never equal', () => {
     // =1="1" is false in Excel. Comparing by conversion would send a text column down a decision
     // path that is not its own.
     expect(calc('=1="1"')).toBe(false)
   })
 
-  it('ordena número antes de texto', () => {
+  it('sorts numbers before text', () => {
     expect(calc('=1<"a"')).toBe(true)
   })
 })
 
-describe('texto em conta', () => {
-  it('dentro de intervalo é ignorado', () => {
+describe('text in calculations', () => {
+  it('inside a range it is ignored', () => {
     // A column with a text header must still sum.
     expect(calc('=SOMA(A1:A3)', { A1: 'total', A2: 10, A3: 20 })).toBe(30)
   })
 
-  it('passado direto é convertido', () => {
+  it('passed directly it is converted', () => {
     expect(calc('=SOMA("5";1)')).toBe(6)
   })
 
-  it('texto que não é número vira #VALOR!', () => {
+  it('text that is not a number becomes #VALOR!', () => {
     expect(calc('=1+"abc"')).toBe(FormulaError.Value)
   })
 
-  it('lê número no formato brasileiro', () => {
+  it('reads a number in Brazilian format', () => {
     expect(calc('=A1+0', { A1: '1.234,56' })).toBe(1234.56)
   })
 })
 
-describe('concatenação', () => {
-  it('junta texto e número', () => {
+describe('concatenation', () => {
+  it('joins text and number', () => {
     expect(calc('="total: "&A1', { A1: 42 })).toBe('total: 42')
   })
 
-  it('usa ponto decimal, que é estável entre máquinas', () => {
+  it('uses a decimal point, which is stable across machines', () => {
     expect(calc('=""&1,5')).toBe('1.5')
   })
 
-  it('vazio vira texto vazio, e não a palavra "nulo"', () => {
+  it('empty becomes empty text, not the word "nulo"', () => {
     expect(calc('="x"&A1')).toBe('x')
   })
 })
 
-describe('intervalos', () => {
-  it('somam o retângulo inteiro', () => {
+describe('ranges', () => {
+  it('sum the whole rectangle', () => {
     expect(calc('=SOMA(A1:B2)', { A1: 1, B1: 2, A2: 3, B2: 4 })).toBe(10)
   })
 
-  it('soltos numa conta são erro', () => {
+  it('loose in a calculation are an error', () => {
     expect(calc('=A1:B2+1', { A1: 1 })).toBe(FormulaError.Value)
   })
 
-  it('funcionam escritos ao contrário', () => {
+  it('work when written backwards', () => {
     expect(calc('=SOMA(B2:A1)', { A1: 1, B1: 2, A2: 3, B2: 4 })).toBe(10)
   })
 })
 
-describe('arredondamento', () => {
-  it('meio sobe para longe do zero, nos dois sinais', () => {
+describe('rounding', () => {
+  it('halves round away from zero, for both signs', () => {
     // JavaScript's Math.round would take -2.5 to -2, and the one-cent difference would only show at
     // month end.
     expect(calc('=ARRED(2,5;0)')).toBe(3)
     expect(calc('=ARRED(-2,5;0)')).toBe(-3)
   })
 
-  it('não escorrega no binário', () => {
+  it('does not slip on binary representation', () => {
     expect(calc('=ARRED(1,005;2)')).toBe(1.01)
   })
 
-  it('aceita casas negativas', () => {
+  it('accepts negative places', () => {
     expect(calc('=ARRED(1234;-2)')).toBe(1200)
   })
 
-  it('INT desce de verdade, TRUNCAR corta', () => {
+  it('INT really rounds down, TRUNCAR cuts', () => {
     expect(calc('=INT(-2,5)')).toBe(-3)
     expect(calc('=TRUNCAR(-2,5)')).toBe(-2)
   })
 
-  it('RESTO acompanha o sinal do divisor, como no Excel', () => {
+  it("RESTO follows the divisor's sign, as in Excel", () => {
     // JavaScript's % operator would give -1 here.
     expect(calc('=RESTO(-1;3)')).toBe(2)
   })
 })
 
-describe('agregação com critério', () => {
-  const tabela = { A1: 'sul', B1: 10, A2: 'norte', B2: 20, A3: 'sul', B3: 30 }
+describe('aggregation with criteria', () => {
+  const table = { A1: 'sul', B1: 10, A2: 'norte', B2: 20, A3: 'sul', B3: 30 }
 
-  it('SOMASE com texto', () => {
-    expect(calc('=SOMASE(A1:A3;"sul";B1:B3)', tabela)).toBe(40)
+  it('SOMASE with text', () => {
+    expect(calc('=SOMASE(A1:A3;"sul";B1:B3)', table)).toBe(40)
   })
 
-  it('SOMASE com comparador', () => {
-    expect(calc('=SOMASE(B1:B3;">15")', tabela)).toBe(50)
+  it('SOMASE with a comparator', () => {
+    expect(calc('=SOMASE(B1:B3;">15")', table)).toBe(50)
   })
 
-  it('CONT.SE com curinga', () => {
-    expect(calc('=CONT.SE(A1:A3;"s*")', tabela)).toBe(2)
+  it('CONT.SE with a wildcard', () => {
+    expect(calc('=CONT.SE(A1:A3;"s*")', table)).toBe(2)
   })
 
-  it('CONT.SE não conta as vazias com critério de diferença', () => {
+  it('CONT.SE does not count empty cells with a not-equal criterion', () => {
     // Otherwise a column of ten thousand blank rows would count ten thousand.
-    expect(calc('=CONT.SE(A1:A9;"<>norte")', tabela)).toBe(2)
+    expect(calc('=CONT.SE(A1:A9;"<>norte")', table)).toBe(2)
   })
 })
 
-describe('procura', () => {
-  const tabela = { A1: 1, B1: 'um', A2: 5, B2: 'cinco', A3: 9, B3: 'nove' }
+describe('lookup', () => {
+  const table = { A1: 1, B1: 'um', A2: 5, B2: 'cinco', A3: 9, B3: 'nove' }
 
-  it('PROCV exato', () => {
-    expect(calc('=PROCV(5;A1:B3;2;FALSO)', tabela)).toBe('cinco')
+  it('exact PROCV', () => {
+    expect(calc('=PROCV(5;A1:B3;2;FALSO)', table)).toBe('cinco')
   })
 
-  it('PROCV exato sem achar devolve #N/D', () => {
-    expect(calc('=PROCV(7;A1:B3;2;FALSO)', tabela)).toBe(FormulaError.NA)
+  it('exact PROCV with no match returns #N/D', () => {
+    expect(calc('=PROCV(7;A1:B3;2;FALSO)', table)).toBe(FormulaError.NA)
   })
 
-  it('PROCV aproximado é o padrão, como no Excel', () => {
+  it('approximate PROCV is the default, as in Excel', () => {
     // Without the fourth argument Excel searches approximately. It is a bad default, but changing
     // it would make the same spreadsheet give different results in each.
-    expect(calc('=PROCV(7;A1:B3;2)', tabela)).toBe('cinco')
+    expect(calc('=PROCV(7;A1:B3;2)', table)).toBe('cinco')
   })
 
-  it('coluna fora do intervalo é #REF!', () => {
-    expect(calc('=PROCV(5;A1:B3;3;FALSO)', tabela)).toBe(FormulaError.Ref)
+  it('a column outside the range is #REF!', () => {
+    expect(calc('=PROCV(5;A1:B3;3;FALSO)', table)).toBe(FormulaError.Ref)
   })
 
-  it('CORRESP e ÍNDICE trabalham juntos', () => {
-    expect(calc('=ÍNDICE(B1:B3;CORRESP(9;A1:A3;0))', tabela)).toBe('nove')
+  it('CORRESP and ÍNDICE work together', () => {
+    expect(calc('=ÍNDICE(B1:B3;CORRESP(9;A1:A3;0))', table)).toBe('nove')
   })
 })
 
-describe('texto', () => {
+describe('text', () => {
   it.each([
     ['=ESQUERDA("planilha";4)', 'plan'],
     ['=DIREITA("planilha";4)', 'ilha'],
@@ -251,59 +251,59 @@ describe('texto', () => {
     expect(calc(formula)).toBe(expected)
   })
 
-  it('LOCALIZAR diferencia maiúsculas e PROCURAR não', () => {
+  it('LOCALIZAR is case-sensitive and PROCURAR is not', () => {
     expect(calc('=PROCURAR("IL";"planilha")')).toBe(5)
     expect(calc('=SEERRO(LOCALIZAR("IL";"planilha");"não achou")')).toBe('não achou')
   })
 
-  it('conta emoji como um caractere', () => {
+  it('counts an emoji as one character', () => {
     expect(calc('=NÚM.CARACT("a🙂")')).toBe(2)
   })
 })
 
-describe('datas', () => {
-  it('HOJE vem do contexto, e não do relógio', () => {
+describe('dates', () => {
+  it('HOJE comes from the context, not the clock', () => {
     // Without injecting "now", every date test would break the next day.
     expect(calc('=ANO(HOJE())')).toBe(2026)
     expect(calc('=MÊS(HOJE())')).toBe(8)
     expect(calc('=DIA(HOJE())')).toBe(15)
   })
 
-  it('a diferença entre datas é uma subtração', () => {
+  it('the difference between dates is a subtraction', () => {
     expect(calc('=DATA(2026;8;15)-DATA(2026;8;1)')).toBe(14)
   })
 
-  it('mês treze é janeiro do ano seguinte', () => {
+  it('month thirteen is January of the next year', () => {
     expect(calc('=ANO(DATA(2026;13;1))')).toBe(2027)
   })
 })
 
-describe('lógica', () => {
-  it('E e OU não param no primeiro resultado', () => {
+describe('logic', () => {
+  it('E and OU do not stop at the first result', () => {
     // Excel evaluates every argument: stopping early would return FALSE here and #DIV/0! there, for
     // the same spreadsheet.
     expect(calc('=E(FALSO;1/0)')).toBe(FormulaError.Div0)
     expect(calc('=OU(VERDADEIRO;1/0)')).toBe(FormulaError.Div0)
   })
 
-  it('combinam normalmente', () => {
+  it('combine normally', () => {
     expect(calc('=E(1>0;2>1)')).toBe(true)
     expect(calc('=OU(1>2;2>3)')).toBe(false)
     expect(calc('=NÃO(1>0)')).toBe(false)
   })
 })
 
-describe('nomes', () => {
-  it('função desconhecida vira #NOME?', () => {
+describe('names', () => {
+  it('an unknown function becomes #NOME?', () => {
     expect(calc('=INVENTADA(1)')).toBe(FormulaError.Name)
   })
 
-  it('inglês e português dão no mesmo', () => {
+  it('English and Portuguese names are equivalent', () => {
     expect(calc('=SUM(1;2)')).toBe(calc('=SOMA(1;2)'))
     expect(calc('=IF(1>0;"a";"b")')).toBe(calc('=SE(1>0;"a";"b")'))
   })
 
-  it('número errado de argumentos vira #VALOR!', () => {
+  it('wrong number of arguments becomes #VALOR!', () => {
     expect(calc('=ABS(1;2)')).toBe(FormulaError.Value)
   })
 })

@@ -8,8 +8,8 @@ const NS = 'http://www.w3.org/1998/Math/MathML'
 /** What the sidecar writes for πr² (see OmmlMath.cs). */
 const AREA = `<math display="inline" xmlns="${NS}"><mrow><mi>π</mi><msup><mrow><mi>r</mi></mrow><mrow><mn>2</mn></mrow></msup></mrow></math>`
 
-describe('o filtro do MathML das equações', () => {
-  it('deixa passar o que a conversão do sidecar escreve, sem mudar nada', () => {
+describe("the equations' MathML filter", () => {
+  it('lets through what the sidecar conversion writes, unchanged', () => {
     const tree = sanitizeMathMl(AREA)
     expect(tree).not.toBeNull()
     expect(mathMlToString(tree!)).toBe(
@@ -18,7 +18,7 @@ describe('o filtro do MathML das equações', () => {
     expect(mathText(tree!)).toBe('πr2')
   })
 
-  it('leva os atributos de apresentação e a classe da caixa', () => {
+  it('carries the presentation attributes and the box class', () => {
     const tree = sanitizeMathMl(
       `<math xmlns="${NS}"><mrow class="omml-caixa outra"><mfrac linethickness="0"><mi mathvariant="normal">sin</mi><mo stretchy="true" largeop="true">∑</mo></mfrac></mrow></math>`,
     )
@@ -27,7 +27,7 @@ describe('o filtro do MathML das equações', () => {
     )
   })
 
-  it('derruba elemento de fora da lista com tudo o que tem dentro, e atributo de fora sozinho', () => {
+  it('drops an element outside the list with everything inside it, and an outside attribute alone', () => {
     const tree = sanitizeMathMl(
       `<math xmlns="${NS}"><mi onclick="alert(1)" style="color:red" href="javascript:alert(1)">x</mi>` +
         `<script>alert(1)</script><maction actiontype="toggle"><mi>y</mi></maction>` +
@@ -36,7 +36,7 @@ describe('o filtro do MathML das equações', () => {
     expect(mathMlToString(tree!)).toBe(`<math xmlns="${NS}"><mi>x</mi><mtext>a</mtext></math>`)
   })
 
-  it('escapa o texto e os atributos na volta a texto', () => {
+  it('escapes the text and attributes on the way back to text', () => {
     const tree = sanitizeMathMl(
       `<math xmlns="${NS}"><mo>&lt;</mo><mtext>&amp;&#x3C;img&#62;</mtext><mi dir='"'>a</mi></math>`,
     )
@@ -45,7 +45,7 @@ describe('o filtro do MathML das equações', () => {
     )
   })
 
-  it('recusa o que não é um math bem formado', () => {
+  it('rejects what is not a well-formed math', () => {
     const refused = [
       '',
       'texto solto',
@@ -65,12 +65,12 @@ describe('o filtro do MathML das equações', () => {
     for (const source of refused) expect(sanitizeMathMl(source), source).toBeNull()
   })
 
-  it('recusa a árvore funda demais', () => {
+  it('rejects a tree that is too deep', () => {
     const deep = `<math xmlns="${NS}">${'<mrow>'.repeat(500)}${'</mrow>'.repeat(500)}</math>`
     expect(sanitizeMathMl(deep)).toBeNull()
   })
 
-  it('aceita o elemento vazio fechado em si e o espaço do XML entre filhos', () => {
+  it('accepts the self-closed empty element and XML whitespace between children', () => {
     const tree = sanitizeMathMl(
       `<math xmlns="${NS}">\n  <mmultiscripts><mi>C</mi><mprescripts /><mn>1</mn><mn>2</mn></mmultiscripts>\n</math>`,
     )
@@ -80,8 +80,8 @@ describe('o filtro do MathML das equações', () => {
   })
 })
 
-describe('a equação no papel (M11, fase 3)', () => {
-  it('a de exibição não se parte entre páginas, e a impressão leva o CSS da tela', () => {
+describe('the equation on paper (M11, phase 3)', () => {
+  it('the display one does not split across pages, and printing carries the screen CSS', () => {
     expect(DOCUMENT_CONTENT_CSS).toMatch(/\.equacao--exibicao \{[^}]*break-inside: avoid/)
     expect(DOCUMENT_CONTENT_CSS).toContain('.page__content .equacao math {')
     expect(PRINT_ONLY_CSS).not.toContain('equacao')
@@ -89,7 +89,7 @@ describe('a equação no papel (M11, fase 3)', () => {
 })
 
 describe('latexOfEquation', () => {
-  it('o guardado; senão, a anotação TeX; senão, o tirado do MathML', () => {
+  it('the stored one; otherwise, the TeX annotation; otherwise, the one derived from MathML', () => {
     expect(latexOfEquation({ latex: ' x^2 ', mathml: '<math><mi>y</mi></math>' })).toBe('x^2')
     expect(
       latexOfEquation({

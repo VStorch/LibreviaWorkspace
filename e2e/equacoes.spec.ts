@@ -7,7 +7,7 @@ import { EQUATION_AFTER, EQUATION_BEFORE, docxWithEquations, entryOf } from './f
 import { hasPdftotext, pdfText } from './external-tools.js'
 
 /** The XML's `m:oMath`/`m:oMathPara`, in order: what must come back as it came. */
-function equacoesDo(xml: string): string[] {
+function equationsOf(xml: string): string[] {
   // The whole `word/document.xml` is reserialized by the SDK, which closes an empty element with "
   // />": the only difference in writing.
   return (xml.match(/<m:oMath(?:Para)?[ >][\s\S]*?<\/m:oMath(?:Para)?>/g) ?? []).map((math) =>
@@ -19,55 +19,55 @@ function equacoesDo(xml: string): string[] {
  * Equations: drawn from MathML, read-only, and returned to the file with the OMML as it came, also
  * when editing the text beside them.
  */
-test.describe('equações', () => {
+test.describe('equations', () => {
   let session: Session
-  let pasta: string
+  let directory: string
 
   test.beforeEach(async () => {
-    pasta = await mkdtemp(join(tmpdir(), 'librevia-equacoes-'))
+    directory = await mkdtemp(join(tmpdir(), 'librevia-equations-'))
     session = await launch()
   })
 
   test.afterEach(async () => {
     await session.close()
-    await rm(pasta, { recursive: true, force: true })
+    await rm(directory, { recursive: true, force: true })
   })
 
-  test('a equação em linha e a de exibição aparecem; editar o texto ao lado e reabrir as mantém', async () => {
-    const origem = join(pasta, 'relatorio.docx')
+  test('the inline and display equations appear; editing the text beside them and reopening keeps them', async () => {
+    const sourceFile = join(directory, 'relatorio.docx')
     const bytes = await docxWithEquations()
-    await writeFile(origem, bytes)
-    const antes = equacoesDo(await entryOf(origem, 'word/document.xml'))
-    expect(antes).toHaveLength(3)
+    await writeFile(sourceFile, bytes)
+    const before = equationsOf(await entryOf(sourceFile, 'word/document.xml'))
+    expect(before).toHaveLength(3)
 
-    await stubDialogs(session.app, { open: origem, messageBox: 1 })
+    await stubDialogs(session.app, { open: sourceFile, messageBox: 1 })
     await menu(session, 'open')
 
     const editor = session.window.locator('.pages__column .ProseMirror')
     await expect(editor).toHaveAttribute('contenteditable', 'true')
-    const equacoes = editor.locator('.equacao')
-    await expect(equacoes).toHaveCount(3)
+    const equations = editor.locator('.equacao')
+    await expect(equations).toHaveCount(3)
 
     // The inline one: inside the sentence, at text height.
-    const emLinha = equacoes.nth(0)
-    await expect(emLinha.locator('math msup')).toHaveCount(1)
-    const caixaEmLinha = await emLinha.boundingBox()
-    expect(caixaEmLinha!.width).toBeGreaterThan(10)
-    expect(caixaEmLinha!.height).toBeLessThan(40)
+    const inline = equations.nth(0)
+    await expect(inline.locator('math msup')).toHaveCount(1)
+    const inlineBox = await inline.boundingBox()
+    expect(inlineBox!.width).toBeGreaterThan(10)
+    expect(inlineBox!.height).toBeLessThan(40)
 
     // The display one: a column-wide block, with the fraction and the root.
-    const exibicao = equacoes.nth(1)
-    await expect(exibicao).toHaveClass(/equacao--exibicao/)
-    await expect(exibicao.locator('math mfrac msqrt')).toHaveCount(1)
-    const caixaExibicao = await exibicao.boundingBox()
-    const caixaEditor = await editor.boundingBox()
-    expect(caixaExibicao!.width).toBeGreaterThan(caixaEditor!.width * 0.8)
-    expect(caixaExibicao!.height).toBeGreaterThan(caixaEmLinha!.height)
+    const display = equations.nth(1)
+    await expect(display).toHaveClass(/equacao--exibicao/)
+    await expect(display.locator('math mfrac msqrt')).toHaveCount(1)
+    const displayBox = await display.boundingBox()
+    const editorBox = await editor.boundingBox()
+    expect(displayBox!.width).toBeGreaterThan(editorBox!.width * 0.8)
+    expect(displayBox!.height).toBeGreaterThan(inlineBox!.height)
 
     // A locked one says what the screen does not draw.
-    const travada = equacoes.nth(2)
-    await expect(travada).toHaveClass(/equacao--travada/)
-    await expect(travada).toHaveAttribute('title', /m:borderBox/)
+    const locked = equations.nth(2)
+    await expect(locked).toHaveClass(/equacao--travada/)
+    await expect(locked).toHaveAttribute('title', /m:borderBox/)
 
     await editor.getByText(EQUATION_AFTER.trim()).click()
     await session.window.keyboard.press('End')
@@ -77,10 +77,10 @@ test.describe('equações', () => {
     await menu(session, 'save')
     await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
 
-    const corpo = await entryOf(origem, 'word/document.xml')
-    expect(corpo).toContain('para todo raio. Conferido.')
-    expect(corpo).toContain(EQUATION_BEFORE)
-    expect(equacoesDo(corpo)).toEqual(antes)
+    const body = await entryOf(sourceFile, 'word/document.xml')
+    expect(body).toContain('para todo raio. Conferido.')
+    expect(body).toContain(EQUATION_BEFORE)
+    expect(equationsOf(body)).toEqual(before)
 
     await menu(session, 'open')
     await expect(editor).toContainText('para todo raio. Conferido.')
@@ -88,32 +88,32 @@ test.describe('equações', () => {
     await expect(editor.locator('.equacao').nth(0).locator('math msup')).toHaveCount(1)
   })
 
-  test('o PDF leva as equações', async () => {
-    test.skip(!(await hasPdftotext()), 'pdftotext não instalado')
-    const origem = join(pasta, 'relatorio.docx')
-    const destino = join(pasta, 'relatorio.pdf')
-    await writeFile(origem, await docxWithEquations())
-    await stubDialogs(session.app, { open: origem, save: destino, messageBox: 1 })
+  test('the PDF carries the equations', async () => {
+    test.skip(!(await hasPdftotext()), 'pdftotext not installed')
+    const sourceFile = join(directory, 'relatorio.docx')
+    const destinationFile = join(directory, 'relatorio.pdf')
+    await writeFile(sourceFile, await docxWithEquations())
+    await stubDialogs(session.app, { open: sourceFile, save: destinationFile, messageBox: 1 })
     await menu(session, 'open')
     await expect(session.window.locator('.pages__column .equacao')).toHaveCount(3)
 
     await menu(session, 'export-pdf')
     await expect
-      .poll(() => pdfText(destino, { layout: false }), { timeout: 30_000 })
+      .poll(() => pdfText(destinationFile, { layout: false }), { timeout: 30_000 })
       .toContain('para todo raio')
-    const texto = await pdfText(destino, { layout: false })
+    const text = await pdfText(destinationFile, { layout: false })
     // The area's π, the Δ and the quadratic formula's root come from the equations; the surrounding
     // text lacks them. π and Δ come out in mathematical italic (U+1D70B, U+1D6E5), which is how a
     // one-letter `mi` draws them.
-    expect(texto).toMatch(/[π𝜋]/u)
-    expect(texto).toMatch(/[Δ𝛥]/u)
-    expect(texto).toContain('√')
-    expect(texto).toContain('Fim.')
+    expect(text).toMatch(/[π𝜋]/u)
+    expect(text).toMatch(/[Δ𝛥]/u)
+    expect(text).toContain('√')
+    expect(text).toContain('Fim.')
   })
 
-  test('inserir pelo menu, digitar o LaTeX, desfazer e refazer; salvar em .docx e reabrir', async () => {
-    const destino = join(pasta, 'nova.docx')
-    await stubDialogs(session.app, { save: destino, open: destino, messageBox: 1 })
+  test('insert from the menu, type the LaTeX, undo and redo; save to .docx and reopen', async () => {
+    const destinationFile = join(directory, 'nova.docx')
+    await stubDialogs(session.app, { save: destinationFile, open: destinationFile, messageBox: 1 })
     await menu(session, 'new-document')
     const editor = session.window.locator('.pages__column .ProseMirror')
     await editor.click()
@@ -122,18 +122,18 @@ test.describe('equações', () => {
     await session.window.waitForTimeout(700)
 
     await menu(session, 'insert-equation')
-    const dialogo = session.window.getByRole('dialog', { name: 'Equação', exact: true })
-    const fonte = dialogo.locator('textarea')
-    await expect(fonte).toBeFocused()
-    await fonte.fill('\\frac{a}{b}+\\sqrt{x}')
-    await expect(dialogo.locator('.equation__preview math mfrac')).toHaveCount(1)
-    await dialogo.getByRole('button', { name: 'OK', exact: true }).click()
-    await expect(dialogo).toHaveCount(0)
+    const dialog = session.window.getByRole('dialog', { name: 'Equação', exact: true })
+    const font = dialog.locator('textarea')
+    await expect(font).toBeFocused()
+    await font.fill('\\frac{a}{b}+\\sqrt{x}')
+    await expect(dialog.locator('.equation__preview math mfrac')).toHaveCount(1)
+    await dialog.getByRole('button', { name: 'OK', exact: true }).click()
+    await expect(dialog).toHaveCount(0)
 
-    const equacao = editor.locator('.equacao')
-    await expect(equacao).toHaveCount(1)
-    await expect(equacao.locator('math mfrac')).toHaveCount(1)
-    await expect(equacao.locator('math msqrt')).toHaveCount(1)
+    const equation = editor.locator('.equacao')
+    await expect(equation).toHaveCount(1)
+    await expect(equation.locator('math mfrac')).toHaveCount(1)
+    await expect(equation.locator('math msqrt')).toHaveCount(1)
 
     // One undo step per OK.
     await session.window.keyboard.press('Control+z')
@@ -144,10 +144,10 @@ test.describe('equações', () => {
 
     await menu(session, 'save-as')
     await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
-    const corpo = await entryOf(destino, 'word/document.xml')
-    expect(corpo).toContain('<m:f>')
-    expect(corpo).toContain('<m:rad>')
-    expect(corpo).toContain('Cambria Math')
+    const body = await entryOf(destinationFile, 'word/document.xml')
+    expect(body).toContain('<m:f>')
+    expect(body).toContain('<m:rad>')
+    expect(body).toContain('Cambria Math')
 
     await menu(session, 'close-file')
     await menu(session, 'open')
@@ -156,106 +156,104 @@ test.describe('equações', () => {
     await expect(editor.locator('.equacao math msqrt')).toHaveCount(1)
   })
 
-  test('editar uma equação do arquivo; cancelar não muda nada; a travada só abre para ver', async () => {
-    const origem = join(pasta, 'relatorio.docx')
-    await writeFile(origem, await docxWithEquations())
-    const antes = equacoesDo(await entryOf(origem, 'word/document.xml'))
-    await stubDialogs(session.app, { open: origem, messageBox: 1 })
+  test('edit a file equation; canceling changes nothing; the locked one only opens to view', async () => {
+    const sourceFile = join(directory, 'relatorio.docx')
+    await writeFile(sourceFile, await docxWithEquations())
+    const before = equationsOf(await entryOf(sourceFile, 'word/document.xml'))
+    await stubDialogs(session.app, { open: sourceFile, messageBox: 1 })
     await menu(session, 'open')
 
     const editor = session.window.locator('.pages__column .ProseMirror')
-    const equacoes = editor.locator('.equacao')
-    await expect(equacoes).toHaveCount(3)
-    const estado = session.window.locator('.statusbar__state')
-    const estadoAntes = await estado.textContent()
-    const dialogo = session.window.getByRole('dialog', { name: 'Equação', exact: true })
+    const equations = editor.locator('.equacao')
+    await expect(equations).toHaveCount(3)
+    const state = session.window.locator('.statusbar__state')
+    const stateBefore = await state.textContent()
+    const dialog = session.window.getByRole('dialog', { name: 'Equação', exact: true })
 
     // LaTeX comes from the file equation's MathML; canceling leaves everything as it was.
-    await equacoes.nth(0).dblclick()
-    await expect(dialogo.locator('textarea')).toHaveValue(/\\pi\s*r\^\{2\}/)
-    await dialogo.getByRole('button', { name: 'Cancelar' }).click()
-    await expect(dialogo).toHaveCount(0)
-    await expect(estado).toHaveText(estadoAntes ?? '')
+    await equations.nth(0).dblclick()
+    await expect(dialog.locator('textarea')).toHaveValue(/\\pi\s*r\^\{2\}/)
+    await dialog.getByRole('button', { name: 'Cancelar' }).click()
+    await expect(dialog).toHaveCount(0)
+    await expect(state).toHaveText(stateBefore ?? '')
 
     // Selected, Enter also opens it.
-    await equacoes.nth(0).click()
+    await equations.nth(0).click()
     await session.window.keyboard.press('Enter')
-    await expect(dialogo).toHaveCount(1)
-    await dialogo.locator('textarea').fill('\\pi r^{3}')
-    await dialogo.getByRole('button', { name: 'OK', exact: true }).click()
-    await expect(equacoes.nth(0).locator('math msup mn')).toHaveText('3')
-    await expect(equacoes).toHaveCount(3)
+    await expect(dialog).toHaveCount(1)
+    await dialog.locator('textarea').fill('\\pi r^{3}')
+    await dialog.getByRole('button', { name: 'OK', exact: true }).click()
+    await expect(equations.nth(0).locator('math msup mn')).toHaveText('3')
+    await expect(equations).toHaveCount(3)
 
     // A locked one lists only the missing construct, and does not open for editing.
-    await equacoes.nth(2).dblclick()
-    await expect(dialogo).toContainText('m:borderBox')
-    await expect(dialogo).not.toContainText('m:e')
-    await expect(dialogo.locator('textarea')).toHaveCount(0)
-    await dialogo.getByRole('button', { name: 'Fechar' }).click()
+    await equations.nth(2).dblclick()
+    await expect(dialog).toContainText('m:borderBox')
+    await expect(dialog).not.toContainText('m:e')
+    await expect(dialog.locator('textarea')).toHaveCount(0)
+    await dialog.getByRole('button', { name: 'Fechar' }).click()
 
     await menu(session, 'save')
-    await expect(estado).toHaveText('Salvo')
-    const depois = equacoesDo(await entryOf(origem, 'word/document.xml'))
-    expect(depois).toHaveLength(3)
-    expect(depois[0]).toContain('<m:sSup>')
-    expect(depois[0]).toMatch(/<m:t>3<\/m:t>/)
+    await expect(state).toHaveText('Salvo')
+    const after = equationsOf(await entryOf(sourceFile, 'word/document.xml'))
+    expect(after).toHaveLength(3)
+    expect(after[0]).toContain('<m:sSup>')
+    expect(after[0]).toMatch(/<m:t>3<\/m:t>/)
     // The other two come back as they came.
-    expect(depois.slice(1)).toEqual(antes.slice(1))
+    expect(after.slice(1)).toEqual(before.slice(1))
 
     await menu(session, 'open')
     await expect(editor.locator('.equacao').nth(0).locator('math msup mn')).toHaveText('3')
   })
 
-  test('exportar em HTML, Markdown e ODT leva as equações', async () => {
-    const origem = join(pasta, 'relatorio.docx')
-    await writeFile(origem, await docxWithEquations())
-    await stubDialogs(session.app, { open: origem, messageBox: 1 })
+  test('exporting to HTML, Markdown and ODT carries the equations', async () => {
+    const sourceFile = join(directory, 'relatorio.docx')
+    await writeFile(sourceFile, await docxWithEquations())
+    await stubDialogs(session.app, { open: sourceFile, messageBox: 1 })
     await menu(session, 'open')
     await expect(session.window.locator('.pages__column .equacao')).toHaveCount(3)
-    const lido = (caminho: string) => () => readFile(caminho, 'utf8').catch(() => '')
+    const read = (filePath: string) => () => readFile(filePath, 'utf8').catch(() => '')
 
-    const html = join(pasta, 'relatorio.html')
+    const html = join(directory, 'relatorio.html')
     await stubDialogs(session.app, { save: html })
     await menu(session, 'export-html')
-    await expect.poll(lido(html), { timeout: 15_000 }).toContain('</html>')
-    const pagina = await readFile(html, 'utf8')
-    expect(pagina).toMatch(/<math xmlns="http:\/\/www\.w3\.org\/1998\/Math\/MathML" display="inline">/)
-    expect(pagina).toMatch(
-      /<math xmlns="http:\/\/www\.w3\.org\/1998\/Math\/MathML" display="block">.*<mfrac>/,
-    )
+    await expect.poll(read(html), { timeout: 15_000 }).toContain('</html>')
+    const page = await readFile(html, 'utf8')
+    expect(page).toMatch(/<math xmlns="http:\/\/www\.w3\.org\/1998\/Math\/MathML" display="inline">/)
+    expect(page).toMatch(/<math xmlns="http:\/\/www\.w3\.org\/1998\/Math\/MathML" display="block">.*<mfrac>/)
 
-    const markdown = join(pasta, 'relatorio.md')
+    const markdown = join(directory, 'relatorio.md')
     await stubDialogs(session.app, { save: markdown })
     await menu(session, 'export-markdown')
-    await expect.poll(lido(markdown), { timeout: 15_000 }).toContain(EQUATION_AFTER.trim())
-    const texto = await readFile(markdown, 'utf8')
+    await expect.poll(read(markdown), { timeout: 15_000 }).toContain(EQUATION_AFTER.trim())
+    const text = await readFile(markdown, 'utf8')
     // LaTeX comes from the MathML of the file's equations, which do not store it.
-    expect(texto).toMatch(/A área do círculo é \$\\pi\s*r\^\{2\}\$ para todo raio\./)
-    expect(texto).toMatch(/^\$\$x\s*=.*\\frac\{.*\\Delta.*\$\$$/m)
+    expect(text).toMatch(/A área do círculo é \$\\pi\s*r\^\{2\}\$ para todo raio\./)
+    expect(text).toMatch(/^\$\$x\s*=.*\\frac\{.*\\Delta.*\$\$$/m)
 
-    const odt = join(pasta, 'relatorio.odt')
+    const odt = join(directory, 'relatorio.odt')
     await stubDialogs(session.app, { save: odt })
     await menu(session, 'export-odt')
     await expect
       .poll(() => entryOf(odt, 'META-INF/manifest.xml').catch(() => ''), { timeout: 15_000 })
       .toContain('application/vnd.oasis.opendocument.formula')
-    const conteudo = await entryOf(odt, 'content.xml')
-    expect(conteudo.match(/<draw:object xlink:href="\.\/Object \d+"/g)).toHaveLength(3)
+    const contents = await entryOf(odt, 'content.xml')
+    expect(contents.match(/<draw:object xlink:href="\.\/Object \d+"/g)).toHaveLength(3)
     expect(await entryOf(odt, 'Object 2/content.xml')).toMatch(/<math [^>]*display="block">.*<mfrac>/)
   })
 
-  test('copiar uma equação dá o LaTeX; colar a nossa mantém o OMML, e o MathML de fora vira equação nova', async () => {
-    const origem = join(pasta, 'relatorio.docx')
-    await writeFile(origem, await docxWithEquations())
-    await stubDialogs(session.app, { open: origem, messageBox: 1 })
+  test('copying an equation gives the LaTeX; pasting ours keeps the OMML, and outside MathML becomes a new equation', async () => {
+    const sourceFile = join(directory, 'relatorio.docx')
+    await writeFile(sourceFile, await docxWithEquations())
+    await stubDialogs(session.app, { open: sourceFile, messageBox: 1 })
     await menu(session, 'open')
     const editor = session.window.locator('.pages__column .ProseMirror')
-    const equacoes = editor.locator('.equacao')
-    await expect(equacoes).toHaveCount(3)
-    const omml = await equacoes.nth(0).getAttribute('data-omml')
+    const equations = editor.locator('.equacao')
+    await expect(equations).toHaveCount(3)
+    const omml = await equations.nth(0).getAttribute('data-omml')
     expect(omml).toContain('oMath')
 
-    await equacoes.nth(0).click()
+    await equations.nth(0).click()
     await session.window.keyboard.press('ControlOrMeta+c')
     await expect
       .poll(() => session.app.evaluate(({ clipboard }) => clipboard.readText()))
@@ -264,8 +262,8 @@ test.describe('equações', () => {
     // Pasted at the end of the document, it is the same equation, with the OMML from the file.
     await session.window.keyboard.press('ControlOrMeta+End')
     await session.window.keyboard.press('ControlOrMeta+v')
-    await expect(equacoes).toHaveCount(4)
-    await expect(equacoes.nth(3)).toHaveAttribute('data-omml', omml ?? '')
+    await expect(equations).toHaveCount(4)
+    await expect(equations.nth(3)).toHaveAttribute('data-omml', omml ?? '')
 
     // MathML from a web page: a new equation, without OMML, with LaTeX derived from it.
     await session.app.evaluate(({ clipboard }) => {
@@ -275,11 +273,11 @@ test.describe('equações', () => {
       })
     })
     await session.window.keyboard.press('ControlOrMeta+v')
-    await expect(equacoes).toHaveCount(5)
-    const colada = equacoes.nth(4)
-    await expect(colada).toHaveAttribute('data-omml', '')
-    await expect(colada).toHaveAttribute('data-latex', '\\frac{a}{b}')
-    await expect(colada).toHaveAttribute('data-display', 'true')
-    await expect(colada.locator('math mfrac')).toHaveCount(1)
+    await expect(equations).toHaveCount(5)
+    const pasted = equations.nth(4)
+    await expect(pasted).toHaveAttribute('data-omml', '')
+    await expect(pasted).toHaveAttribute('data-latex', '\\frac{a}{b}')
+    await expect(pasted).toHaveAttribute('data-display', 'true')
+    await expect(pasted.locator('math mfrac')).toHaveCount(1)
   })
 })

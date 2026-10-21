@@ -19,14 +19,14 @@ const request = (name: string, args: unknown): McpDocumentRequest => ({
 
 const write = (): McpDocumentRequest => request('write_cells', { start: 'B1', rows: [['=A1*2']] })
 
-describe('ferramentas da planilha pedidas por um cliente MCP', () => {
+describe('sheet tools requested by an MCP client', () => {
   beforeEach(() => {
     const sheet = setCell(createSheet('Planilha1'), 0, 0, { value: 3 })
     useWorkspace.setState({ workbook: { sheets: [sheet], activeSheet: 0 }, readOnly: false })
     useSheetMcpProposals.setState({ pending: [] })
   })
 
-  it('a escrita fica pendente com o autor, sem mexer na planilha', () => {
+  it('the write stays pending with the author, without touching the sheet', () => {
     expect(answerSheetTool(write(), SELECTION)).toMatchObject({
       ask: McpDocumentAsk.SheetTool,
       isError: false,
@@ -37,7 +37,7 @@ describe('ferramentas da planilha pedidas por um cliente MCP', () => {
     expect(useWorkspace.getState().workbook?.sheets[0]?.cells['B1']).toBeUndefined()
   })
 
-  it('no modo só leitura, lê mas recusa a escrita sem deixar proposta', () => {
+  it('in read-only mode, reads but refuses the write without leaving a proposal', () => {
     useWorkspace.setState({ readOnly: true })
     expect(answerSheetTool(request('read_cells', { range: 'A1' }), SELECTION)).toMatchObject({
       isError: false,
@@ -50,7 +50,7 @@ describe('ferramentas da planilha pedidas por um cliente MCP', () => {
     expect(useSheetMcpProposals.getState().pending).toEqual([])
   })
 
-  it('sem planilha na tela, recusa dizendo que não há planilha', () => {
+  it('with no sheet on screen, refuses saying there is no sheet', () => {
     expect(answerSheetTool(write(), null)).toMatchObject({ refusal: McpDocumentRefusal.NoSpreadsheet })
   })
 })

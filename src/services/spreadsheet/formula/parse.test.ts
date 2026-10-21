@@ -32,7 +32,7 @@ function show(node: Node): string {
 
 const tree = (formula: string): string => show(parseFormula(formula))
 
-describe('precedência', () => {
+describe('precedence', () => {
   it.each([
     ['=1+2*3', '(1 + (2 * 3))'],
     ['=(1+2)*3', '((1 + 2) * 3)'],
@@ -40,60 +40,60 @@ describe('precedência', () => {
     ['=1&2&3', '((1 & 2) & 3)'],
     ['=1<2+3', '(1 < (2 + 3))'],
     ['=1&2=3', '((1 & 2) = 3)'],
-  ])('%s vira %s', (formula, expected) => {
+  ])('%s becomes %s', (formula, expected) => {
     expect(tree(formula)).toBe(expected)
   })
 
-  it('potência associa à direita', () => {
+  it('exponentiation is right-associative', () => {
     // 2^(3^2) = 512, not (2^3)^2 = 64.
     expect(tree('=2^3^2')).toBe('(2 ^ (3 ^ 2))')
   })
 
-  it('menos unário liga mais forte que a potência, como no Excel', () => {
+  it('unary minus binds tighter than exponentiation, as in Excel', () => {
     // =-2^2 is 4 in Excel, not -4 as in math. The result must match the spreadsheet next to it, not
     // the textbook.
     expect(tree('=-2^2')).toBe('((-2) ^ 2)')
   })
 
-  it('aceita expoente negativo', () => {
+  it('accepts a negative exponent', () => {
     expect(tree('=2^-1')).toBe('(2 ^ (-1))')
   })
 })
 
-describe('números', () => {
-  it('lê vírgula como decimal', () => {
+describe('numbers', () => {
+  it('reads a comma as decimal', () => {
     expect(tree('=1,5')).toBe('1.5')
   })
 
-  it('aceita ponto decimal também, que é o que vem colado de fora', () => {
+  it('accepts a decimal point too, which is what comes pasted from outside', () => {
     expect(tree('=1.5')).toBe('1.5')
   })
 
-  it('lê notação científica', () => {
+  it('reads scientific notation', () => {
     expect(tree('=2e-3')).toBe('0.002')
   })
 
-  it('trata % como sufixo', () => {
+  it('treats % as a suffix', () => {
     expect(tree('=50%')).toBe('(50%)')
     expect(tree('=A1*10%')).toBe('(A1 * (10%))')
   })
 })
 
-describe('texto', () => {
-  it('lê aspas duplicadas como uma aspa', () => {
+describe('text', () => {
+  it('reads doubled quotes as one quote', () => {
     expect(tree('="diz ""oi"""')).toBe('"diz "oi""')
   })
 
-  it('reclama de aspas não fechadas', () => {
+  it('complains about unclosed quotes', () => {
     expect(() => parseFormula('="aberto')).toThrow(ParseError)
   })
 
-  it('não confunde ponto e vírgula dentro do texto com separador', () => {
+  it('does not mistake a semicolon inside text for a separator', () => {
     expect(tree('=SOMA("a;b")')).toBe('SOMA("a;b")')
   })
 })
 
-describe('referências', () => {
+describe('references', () => {
   it.each([
     ['=A1', 'A1'],
     ['=$A$1', '$A$1'],
@@ -102,64 +102,64 @@ describe('referências', () => {
     ['=Plan1!A1', 'Plan1!A1'],
     ["='Vendas 2026'!A1", "'Vendas 2026'!A1"],
     ['=AA100', 'AA100'],
-  ])('%s vira %s', (formula, expected) => {
+  ])('%s becomes %s', (formula, expected) => {
     expect(tree(formula)).toBe(expected)
   })
 
-  it('normaliza o intervalo escrito ao contrário', () => {
+  it('normalizes a range written backwards', () => {
     // B4:A1 and A1:B4 are the same rectangle; whoever reads the tree should not need to know the
     // typing order.
     expect(tree('=SOMA(B4:A1)')).toBe('SOMA(A1:B4)')
   })
 
-  it('leva o $ para o canto certo ao normalizar', () => {
+  it('moves the $ to the right corner when normalizing', () => {
     expect(tree('=SOMA($B$4:A1)')).toBe('SOMA(A1:$B$4)')
   })
 
-  it('mantém o nome da planilha no intervalo', () => {
+  it('keeps the sheet name in the range', () => {
     expect(tree('=SOMA(Plan2!A1:B2)')).toBe('SOMA(Plan2!A1:B2)')
   })
 })
 
-describe('funções', () => {
-  it('lê chamada sem argumentos', () => {
+describe('functions', () => {
+  it('reads a call without arguments', () => {
     expect(tree('=HOJE()')).toBe('HOJE()')
   })
 
-  it('separa argumentos por ponto e vírgula', () => {
+  it('separates arguments by semicolons', () => {
     expect(tree('=SE(A1>0;"sim";"não")')).toBe('SE((A1 > 0); "sim"; "não")')
   })
 
-  it('aceita nome com ponto', () => {
+  it('accepts a name with a dot', () => {
     expect(tree('=CONT.SE(A1:A9;">0")')).toBe('CONT.SE(A1:A9; ">0")')
   })
 
-  it('aninha chamadas', () => {
+  it('nests calls', () => {
     expect(tree('=SOMA(MÁXIMO(A1;B1);2)')).toBe('SOMA(MÁXIMO(A1; B1); 2)')
   })
 
-  it('maiúsculas e minúsculas dão no mesmo', () => {
+  it('upper and lower case are equivalent', () => {
     expect(tree('=soma(a1:b2)')).toBe('SOMA(A1:B2)')
   })
 })
 
-describe('erros de escrita', () => {
+describe('syntax errors', () => {
   it.each([
     ['=SOMA(A1', 'parêntese'],
     ['=1+', 'terminou'],
     ['=A1 B1', 'Sobrou'],
     ['=', 'vazia'],
-  ])('%s reclama', (formula, trecho) => {
+  ])('%s complains', (formula, trecho) => {
     expect(() => parseFormula(formula)).toThrow(new RegExp(trecho, 'i'))
   })
 
-  it('aponta a vírgula usada como separador', () => {
+  it('points out the comma used as a separator', () => {
     // The most likely mistake of someone coming from English Excel. Saying only "did not
     // understand" would send the user to look in the wrong place.
     expect(() => parseFormula('=SOMA(A1,B1)')).toThrow(/ponto e vírgula/i)
   })
 
-  it('diz onde está o problema', () => {
+  it('says where the problem is', () => {
     try {
       parseFormula('=SOMA(A1;)')
       expect.unreachable('deveria ter reclamado')
@@ -169,20 +169,20 @@ describe('erros de escrita', () => {
     }
   })
 
-  it('a versão silenciosa devolve nulo em vez de lançar', () => {
+  it('the silent version returns null instead of throwing', () => {
     expect(tryParseFormula('=SOMA(')).toBeNull()
     expect(tryParseFormula('=1')).not.toBeNull()
   })
 })
 
-describe('erros literais', () => {
-  it('aceita #N/D escrito na fórmula', () => {
+describe('literal errors', () => {
+  it('accepts #N/D written in the formula', () => {
     expect(tree('=SEERRO(A1;#N/D)')).toBe('SEERRO(A1; #N/D)')
   })
 })
 
-describe('percorrer a árvore', () => {
-  it('visita todos os nós', () => {
+describe('walking the tree', () => {
+  it('visits every node', () => {
     const refs = [...walk(parseFormula('=SOMA(A1:B2;C3)*D4'))].filter(
       (node) => node.kind === 'reference' || node.kind === 'range',
     )

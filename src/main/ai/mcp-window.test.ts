@@ -38,7 +38,7 @@ describe('RendererDocument', () => {
   })
   afterEach(() => vi.useRealTimers())
 
-  it('manda à janela o prazo e espera um pouco além dele, para não dar como perdida uma mudança feita', async () => {
+  it('sends the window the deadline and waits a bit beyond it, so a change already made is not reported lost', async () => {
     const { document, contents } = attached()
     const applying = document.apply(PROPOSAL, 'Claude Code (MCP)')
     const [request] = sent
@@ -50,7 +50,7 @@ describe('RendererDocument', () => {
     await expect(applying).resolves.toBe(true)
   })
 
-  it('a janela recusa o pedido vencido e o cliente fica sabendo que nada mudou', async () => {
+  it('the window refuses the expired request and the client learns nothing changed', async () => {
     const { document, contents } = attached()
     const applying = document.apply(PROPOSAL, 'Claude Code (MCP)')
     const reply = {
@@ -64,7 +64,7 @@ describe('RendererDocument', () => {
     await expect(applying).rejects.toBeInstanceOf(DocumentUnavailable)
   })
 
-  it('sem resposta depois do prazo e da folga, o pedido falha e a resposta atrasada é ignorada', async () => {
+  it('with no response after the deadline and slack, the request fails and the late response is ignored', async () => {
     const { document, contents } = attached()
     const applying = document.apply(PROPOSAL, 'Claude Code (MCP)')
     const failure = expect(applying).rejects.toBeInstanceOf(DocumentUnavailable)
@@ -75,7 +75,7 @@ describe('RendererDocument', () => {
     expect(document.receive(late, contents)).toBe(false)
   })
 
-  it('a ferramenta da planilha vai à janela com o pedido e o autor, e a resposta volta ao cliente', async () => {
+  it('the sheet tool goes to the window with the request and the author, and the response returns to the client', async () => {
     const { document, contents } = attached()
     const call = { id: '1', name: 'read_cells', arguments: '{"range":"A1"}' }
     const running = document.runSheetTool(call, 'Editor X (MCP)')
@@ -94,7 +94,7 @@ describe('RendererDocument', () => {
     await expect(running).resolves.toEqual({ content: 'A1: 1', isError: false })
   })
 
-  it('sem planilha aberta, o cliente fica sabendo', async () => {
+  it('without an open sheet, the client is told', async () => {
     const { document, contents } = attached()
     const running = document.runSheetTool({ id: '1', name: 'list_sheets', arguments: '{}' }, 'X (MCP)')
     const reply = {

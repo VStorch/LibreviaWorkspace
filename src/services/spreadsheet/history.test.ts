@@ -14,8 +14,8 @@ import { createSheet, setCell, type WorkbookModel } from './model.js'
 const free = (): number => 0
 const states = (history: History<number>): number[] => history.past.map((entry) => entry.state)
 
-describe('histórico de edições', () => {
-  it('desfaz e refaz na ordem, e uma edição nova apaga o que foi desfeito', () => {
+describe('edit history', () => {
+  it('undoes and redoes in order, and a new edit discards what was undone', () => {
     const history = recordEdit(recordEdit(emptyHistory<number>(), 1, 2, free), 2, 3, free)
     const undone = undoStep(history, 3, free)!
     expect(undone.state).toBe(2)
@@ -25,19 +25,19 @@ describe('histórico de edições', () => {
     expect(recordEdit(undone.history, 2, 4, free).future).toEqual([])
   })
 
-  it('sem passos, não há o que desfazer nem refazer', () => {
+  it('with no steps, there is nothing to undo or redo', () => {
     expect(undoStep(emptyHistory<number>(), 1, free)).toBeNull()
     expect(redoStep(emptyHistory<number>(), 1, free)).toBeNull()
   })
 
-  it('guarda no máximo o limite de passos', () => {
+  it('keeps at most the step limit', () => {
     let history = emptyHistory<number>()
     for (let step = 0; step < MAX_UNDO_STEPS + 5; step++) history = recordEdit(history, step, step + 1, free)
     expect(history.past).toHaveLength(MAX_UNDO_STEPS)
     expect(history.past[0]?.state).toBe(5)
   })
 
-  it('numa planilha grande, o limite de células corta os passos antigos e guarda o último', () => {
+  it('in a large sheet, the cell limit drops old steps and keeps the last one', () => {
     const heavy = (): number => MAX_UNDO_CELLS / 4
     let history = emptyHistory<number>()
     for (let step = 0; step < 10; step++) history = recordEdit(history, step, step + 1, heavy)
@@ -47,7 +47,7 @@ describe('histórico de edições', () => {
     expect(states(recordEdit(history, 10, 11, huge))).toEqual([10])
   })
 
-  it('conta só as células das abas que a edição mudou', () => {
+  it('counts only the cells of the sheets the edit changed', () => {
     const big = Array.from({ length: 50 }, (_, row) => row).reduce(
       (sheet, row) => setCell(sheet, row, 0, { value: row }),
       createSheet('Dados'),

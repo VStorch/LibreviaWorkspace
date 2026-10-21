@@ -8,11 +8,11 @@ const delta = (text: string): string =>
   })
 
 describe('parseClaudeCliLine', () => {
-  it('lê o texto parcial', () => {
+  it('reads the partial text', () => {
     expect(parseClaudeCliLine(delta('Olá'))).toEqual({ type: 'text', text: 'Olá' })
   })
 
-  it('lê o resultado com o custo', () => {
+  it('reads the result with the cost', () => {
     const line = JSON.stringify({
       type: 'result',
       subtype: 'success',
@@ -30,7 +30,7 @@ describe('parseClaudeCliLine', () => {
     })
   })
 
-  it('marca a recusa e o erro', () => {
+  it('flags the refusal and the error', () => {
     const refusal = parseClaudeCliLine(
       JSON.stringify({ type: 'result', is_error: false, stop_reason: 'refusal' }),
     )
@@ -41,7 +41,7 @@ describe('parseClaudeCliLine', () => {
     expect(failure).toMatchObject({ failed: true, message: 'Not logged in', costUsd: undefined })
   })
 
-  it('lê o modelo que respondeu, do início da sessão e do início da mensagem', () => {
+  it('reads the model that answered, from the session start and the message start', () => {
     expect(
       parseClaudeCliLine(JSON.stringify({ type: 'system', subtype: 'init', model: 'claude-opus-5-5' })),
     ).toEqual({ type: 'model', model: 'claude-opus-5-5' })
@@ -55,15 +55,15 @@ describe('parseClaudeCliLine', () => {
     ).toEqual({ type: 'message', model: 'claude-opus-5-5' })
   })
 
-  it('o início de cada mensagem marca uma rodada nova, mesmo sem o modelo', () => {
+  it('the start of each message marks a new round, even without the model', () => {
     expect(
       parseClaudeCliLine(JSON.stringify({ type: 'stream_event', event: { type: 'message_start' } })),
     ).toEqual({ type: 'message', model: undefined })
   })
 
-  it('ignora as outras linhas', () => {
+  it('ignores the other lines', () => {
     expect(parseClaudeCliLine(JSON.stringify({ type: 'system', subtype: 'init' }))).toEqual({ type: 'skip' })
     expect(parseClaudeCliLine(JSON.stringify({ type: 'assistant', message: {} }))).toEqual({ type: 'skip' })
-    expect(parseClaudeCliLine('não é JSON')).toEqual({ type: 'skip' })
+    expect(parseClaudeCliLine('not JSON')).toEqual({ type: 'skip' })
   })
 })

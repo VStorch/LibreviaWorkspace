@@ -39,8 +39,8 @@ const CONVERSATION = {
     { role: 'user' as const, text: 'E o tom?' },
   ],
 }
-describe('provedor compatível com OpenAI', () => {
-  it('manda a conversa inteira, depois do system, com o papel de cada fala', async () => {
+describe('OpenAI-compatible provider', () => {
+  it('sends the whole conversation, after the system prompt, with the role of each turn', async () => {
     const fetchStub = vi.fn(async () => sseResponse(['data: [DONE]\n\n']))
     const provider = createOpenAiCompatibleProvider({
       baseUrl: 'http://localhost:11434/v1',
@@ -56,7 +56,7 @@ describe('provedor compatível com OpenAI', () => {
     ])
   })
 
-  it('lê o texto em pedaços, mesmo com a linha partida entre dois pacotes', async () => {
+  it('reads the text in chunks, even with a line split across two packets', async () => {
     const half = delta(' mundo')
     const fetchStub = vi.fn(async () =>
       sseResponse([delta('Olá'), half.slice(0, 20), half.slice(20), 'data: [DONE]\n\n', delta('ignorado')]),
@@ -78,7 +78,7 @@ describe('provedor compatível com OpenAI', () => {
     expect(JSON.parse(init.body as string)).toMatchObject({ model: 'llama3', stream: true, max_tokens: 100 })
   })
 
-  it('traduz 401 em erro de chave', async () => {
+  it('translates 401 into a key error', async () => {
     const provider = createOpenAiCompatibleProvider({
       baseUrl: 'http://localhost:1/v1',
       fetch: (async () => new Response('no', { status: 401 })) as unknown as typeof fetch,
@@ -88,7 +88,7 @@ describe('provedor compatível com OpenAI', () => {
     })
   })
 
-  it('servidor fora do ar vira erro legível', async () => {
+  it('a server that is down becomes a readable error', async () => {
     const provider = createOpenAiCompatibleProvider({
       baseUrl: 'http://localhost:1/v1',
       fetch: (async () => {
@@ -100,7 +100,7 @@ describe('provedor compatível com OpenAI', () => {
     })
   })
 
-  it('cancelar fecha o fluxo', async () => {
+  it('cancelling closes the stream', async () => {
     const controller = new AbortController()
     let canceled = false
     const body = new ReadableStream<Uint8Array>({
@@ -123,7 +123,7 @@ describe('provedor compatível com OpenAI', () => {
     expect(canceled).toBe(true)
   })
 
-  it('lista os modelos de /models', async () => {
+  it('lists the models from /models', async () => {
     const provider = createOpenAiCompatibleProvider({
       baseUrl: 'http://localhost:1/v1',
       fetch: (async () =>
@@ -134,7 +134,7 @@ describe('provedor compatível com OpenAI', () => {
     ])
   })
 
-  it('conexão que cai no meio da resposta vira erro de rede', async () => {
+  it('a connection that drops mid-response becomes a network error', async () => {
     const body = new ReadableStream<Uint8Array>({
       start(stream) {
         stream.enqueue(new TextEncoder().encode(delta('um')))
@@ -152,7 +152,7 @@ describe('provedor compatível com OpenAI', () => {
     })
   })
 
-  it('linha sem fim maior que o limite vira erro legível', async () => {
+  it('an endless line over the limit becomes a readable error', async () => {
     const provider = createOpenAiCompatibleProvider({
       baseUrl: 'http://localhost:1/v1',
       fetch: (async () =>
@@ -163,7 +163,7 @@ describe('provedor compatível com OpenAI', () => {
     })
   })
 
-  it('filtro de conteúdo vira recusa', async () => {
+  it('content filter becomes a refusal', async () => {
     const provider = createOpenAiCompatibleProvider({
       baseUrl: 'http://localhost:1/v1',
       fetch: (async () =>
@@ -176,7 +176,7 @@ describe('provedor compatível com OpenAI', () => {
     })
   })
 
-  it('lista no máximo o limite de modelos', async () => {
+  it('lists at most the model limit', async () => {
     const data = Array.from({ length: MAX_AI_MODELS + 5 }, (_, index) => ({ id: `m${index}` }))
     const provider = createOpenAiCompatibleProvider({
       baseUrl: 'http://localhost:1/v1',
@@ -187,7 +187,7 @@ describe('provedor compatível com OpenAI', () => {
 
   const TOOLS = [{ name: 'search_document', description: 'Busca.', parameters: { type: 'object' } }]
 
-  it('com ferramentas, manda tools e o histórico de chamadas e resultados no formato da OpenAI', async () => {
+  it('with tools, sends tools and the history of calls and results in the OpenAI format', async () => {
     const fetchStub = vi.fn(async () => sseResponse(['data: [DONE]\n\n']))
     const provider = createOpenAiCompatibleProvider({
       baseUrl: 'http://x/v1',
@@ -221,7 +221,7 @@ describe('provedor compatível com OpenAI', () => {
     ])
   })
 
-  it('sem ferramentas, o pedido não leva tools', async () => {
+  it('without tools, the request carries no tools', async () => {
     const fetchStub = vi.fn(async () => sseResponse(['data: [DONE]\n\n']))
     const provider = createOpenAiCompatibleProvider({
       baseUrl: 'http://x/v1',
@@ -232,7 +232,7 @@ describe('provedor compatível com OpenAI', () => {
     expect(JSON.parse(init.body as string)).not.toHaveProperty('tools')
   })
 
-  it('junta os deltas de tool_calls e entrega as chamadas no fim do stream', async () => {
+  it('joins the tool_calls deltas and delivers the calls at the end of the stream', async () => {
     const piece = (calls: unknown[]): string =>
       `data: ${JSON.stringify({ choices: [{ delta: { tool_calls: calls } }] })}\n\n`
     const provider = createOpenAiCompatibleProvider({
@@ -253,7 +253,7 @@ describe('provedor compatível com OpenAI', () => {
     )
   })
 
-  it('modelo sem ferramentas recusado pelo servidor vira aviso para desligar a caixa', async () => {
+  it('a model without tools rejected by the server becomes a notice to turn off the checkbox', async () => {
     const refusal = JSON.stringify({
       error: { message: 'registry.ollama.ai/library/gemma does not support tools' },
     })
@@ -266,7 +266,7 @@ describe('provedor compatível com OpenAI', () => {
     ).rejects.toMatchObject({ code: ErrorCode.AiFailed, message: t('errors.ai.toolsUnsupported') })
   })
 
-  it('400 que cita ferramentas depois da primeira rodada continua erro comum', async () => {
+  it('a 400 that mentions tools after the first round stays an ordinary error', async () => {
     const provider = createOpenAiCompatibleProvider({
       baseUrl: 'http://x/v1',
       fetch: (async () => new Response('bad tool_call_id', { status: 400 })) as unknown as typeof fetch,
@@ -277,7 +277,7 @@ describe('provedor compatível com OpenAI', () => {
     ).rejects.toMatchObject({ message: t('errors.ai.failed') })
   })
 
-  it('lê só o começo de um corpo de erro enorme', async () => {
+  it('reads only the start of a huge error body', async () => {
     const huge = 'x'.repeat(1_000_000) + ' tools'
     const provider = createOpenAiCompatibleProvider({
       baseUrl: 'http://x/v1',
@@ -288,7 +288,7 @@ describe('provedor compatível com OpenAI', () => {
     ).rejects.toMatchObject({ message: t('errors.ai.failed') })
   })
 
-  it('aborta a resposta que pede ferramentas demais', async () => {
+  it('aborts a response that asks for too many tools', async () => {
     const calls = Array.from({ length: MAX_AI_TOOL_CALLS + 1 }, (_, index) => ({
       index,
       id: `c${index}`,

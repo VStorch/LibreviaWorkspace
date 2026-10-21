@@ -25,14 +25,14 @@ afterEach(async () => {
   await rm(directory, { recursive: true, force: true })
 })
 
-describe('autorização de caminhos', () => {
-  it('recusa um caminho que nunca foi escolhido pelo usuário', () => {
+describe('path authorization', () => {
+  it('refuses a path the user never chose', () => {
     // The central control: even if a malicious document compromises the renderer, it cannot make
     // main write to /etc.
     expect(() => assertPathAuthorized('/etc/passwd')).toThrow(/recusada/i)
   })
 
-  it('aceita um caminho depois de autorizado', () => {
+  it('accepts a path once authorized', () => {
     const path = join(directory, 'ata.txt')
     authorizePath(path)
 
@@ -40,7 +40,7 @@ describe('autorização de caminhos', () => {
     expect(() => assertPathAuthorized(path)).not.toThrow()
   })
 
-  it('não se deixa enganar por caminho equivalente com ".."', () => {
+  it('is not fooled by an equivalent path with ".."', () => {
     const path = join(directory, 'ata.txt')
     authorizePath(path)
 
@@ -50,7 +50,7 @@ describe('autorização de caminhos', () => {
     expect(isPathAuthorized(join(directory, '..', 'outro.txt'))).toBe(false)
   })
 
-  it('esquece as autorizações ao reiniciar a sessão', () => {
+  it('forgets the authorizations when the session restarts', () => {
     authorizePath(join(directory, 'ata.txt'))
     resetAuthorizedPaths()
 
@@ -59,9 +59,9 @@ describe('autorização de caminhos', () => {
 })
 
 describe('assertReadableFile', () => {
-  it('aceita um .txt comum', async () => {
+  it('accepts a plain .txt', async () => {
     const path = join(directory, 'ok.txt')
-    await writeFile(path, 'conteúdo')
+    await writeFile(path, 'content')
 
     await expect(assertReadableFile(path)).resolves.toBeUndefined()
   })
@@ -72,7 +72,7 @@ describe('assertReadableFile', () => {
     })
   })
 
-  it('recusa extensão que o aplicativo não abre', async () => {
+  it('refuses an extension the app does not open', async () => {
     // `.ods` is another format, not a variant: opening it as `.xlsx` would give a corrupt file
     // error, sending the user to look for the problem in the wrong place.
     const path = join(directory, 'planilha.ods')
@@ -95,7 +95,7 @@ describe('assertReadableFile', () => {
     await expect(assertReadableFile(path)).resolves.toBeUndefined()
   })
 
-  it('recusa uma pasta', async () => {
+  it('refuses a folder', async () => {
     const path = join(directory, 'pasta.txt')
     await mkdir(path)
 
@@ -108,7 +108,7 @@ describe('assertReadableFile', () => {
     })
   })
 
-  it('recusa arquivo acima do limite', async () => {
+  it('refuses a file above the limit', async () => {
     const path = join(directory, 'enorme.txt')
     await writeFile(path, Buffer.alloc(MAX_FILE_BYTES + 1))
 
@@ -117,7 +117,7 @@ describe('assertReadableFile', () => {
 })
 
 describe('assertViewablePdf', () => {
-  it('aceita um PDF acima do limite dos arquivos editáveis', async () => {
+  it('accepts a PDF above the editable files limit', async () => {
     // Chromium streams the PDF: its bytes never cross to the renderer, so the limit does not apply.
     const path = join(directory, 'digitalizado.pdf')
     await writeFile(path, Buffer.alloc(MAX_FILE_BYTES + 1))
@@ -125,7 +125,7 @@ describe('assertViewablePdf', () => {
     await expect(assertViewablePdf(path)).resolves.toBeUndefined()
   })
 
-  it('recusa o que não é PDF', async () => {
+  it('refuses what is not a PDF', async () => {
     const path = join(directory, 'ata.txt')
     await writeFile(path, 'ata')
 
@@ -139,8 +139,8 @@ describe('assertViewablePdf', () => {
   })
 })
 
-describe('PDFs só para ver', () => {
-  it('o visualizador só mostra um PDF que o main abriu', () => {
+describe('view-only PDFs', () => {
+  it('the viewer only shows a PDF that main opened', () => {
     // The renderer asks to show a path: one it made up does not reach the viewer.
     expect(() => assertViewingAllowed('/home/ana/outro.pdf')).toThrow(/recusada/i)
 
@@ -149,7 +149,7 @@ describe('PDFs só para ver', () => {
     expect(assertViewingAllowed(path)).toBe(path)
   })
 
-  it('ver um PDF não autoriza gravar nele', () => {
+  it('viewing a PDF does not authorize writing to it', () => {
     const path = join(directory, 'relatorio.pdf')
     allowViewing(path)
 

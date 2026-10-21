@@ -9,7 +9,7 @@ import { launch, menu, stubDialogs, type Session } from './app.js'
  * The PDF comes out, with ink inside: exporting can fail silently, without an error and without a
  * file, so the test goes to disk.
  */
-test.describe('exportar PDF', () => {
+test.describe('export PDF', () => {
   let session: Session
   let folder: string
 
@@ -23,7 +23,7 @@ test.describe('exportar PDF', () => {
     await rm(folder, { recursive: true, force: true })
   })
 
-  test('documento vira PDF', async () => {
+  test('a document becomes a PDF', async () => {
     const target = join(folder, 'ata.pdf')
     await stubDialogs(session.app, { save: target, messageBox: 1 })
 
@@ -35,7 +35,7 @@ test.describe('exportar PDF', () => {
     await expect.poll(() => glyphRuns(target), { timeout: 30_000 }).toBeGreaterThan(0)
   })
 
-  test('planilha vira PDF', async () => {
+  test('a spreadsheet becomes a PDF', async () => {
     const target = join(folder, 'contas.pdf')
     await stubDialogs(session.app, { save: target, messageBox: 1 })
 
@@ -52,7 +52,7 @@ test.describe('exportar PDF', () => {
     await expect.poll(() => glyphRuns(target), { timeout: 30_000 }).toBeGreaterThan(0)
   })
 
-  test('a linha em branco continua ocupando uma linha no papel', async () => {
+  test('a blank line still takes up a line on paper', async () => {
     // An empty paragraph has a line in the editor through ProseMirror's <br>, and on paper too:
     // otherwise the text rises and the first line goes under the header.
     const target = join(folder, 'linhas.pdf')
@@ -71,12 +71,12 @@ test.describe('exportar PDF', () => {
     await expect.poll(() => textTops(target), { timeout: 30_000 }).toHaveLength(3)
 
     // The document itself gives the measure of a paragraph.
-    const [alfa, beta, gama] = await textTops(target)
-    const umParagrafo = beta! - alfa!
-    expect(gama! - beta!).toBeGreaterThan(umParagrafo * 1.8)
+    const [alpha, beta, gamma] = await textTops(target)
+    const oneParagraph = beta! - alpha!
+    expect(gamma! - beta!).toBeGreaterThan(oneParagraph * 1.8)
   })
 
-  test('sem nada aberto, avisa em vez de não fazer nada', async () => {
+  test('with nothing open, it warns instead of doing nothing', async () => {
     await stubDialogs(session.app, { save: join(folder, 'nada.pdf') })
 
     await menu(session, 'export-pdf')

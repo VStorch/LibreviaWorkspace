@@ -16,8 +16,8 @@ function settings(): { subject: AiSettings; stored: () => AiSettingsData } {
 
 const draft = { kind: 'anthropic', label: 'Anthropic', makeDefault: false, revokeConsent: false } as const
 
-describe('configuração dos assistentes', () => {
-  it('nunca devolve a chave na lista, só que ela existe', () => {
+describe('assistants settings', () => {
+  it('never returns the key in the list, only that it exists', () => {
     const { subject, stored } = settings()
     const list = subject.save({ ...draft, apiKey: 'sk-secreta' })
     expect(JSON.stringify(list)).not.toContain('sk-secreta')
@@ -26,7 +26,7 @@ describe('configuração dos assistentes', () => {
     expect(subject.keyOf(subject.find('id1'))).toBe('sk-secreta')
   })
 
-  it('o primeiro vira padrão, e remover o padrão passa para o seguinte', () => {
+  it('the first becomes the default, and removing the default passes to the next', () => {
     const { subject } = settings()
     subject.save({ ...draft, apiKey: 'a' })
     subject.save({
@@ -41,7 +41,7 @@ describe('configuração dos assistentes', () => {
     expect(subject.remove('id1').defaultProviderId).toBe('id2')
   })
 
-  it('manter a chave quando ela não vem, e esquecer o consentimento ao mudar o endereço', () => {
+  it('keeps the key when it is not sent, and forgets the consent when the address changes', () => {
     const { subject } = settings()
     const base = {
       kind: 'openai-compatible',
@@ -60,7 +60,7 @@ describe('configuração dos assistentes', () => {
     ).toBe(false)
   })
 
-  it('descarta a chave antiga quando o destino muda, para ela não seguir para outro servidor', () => {
+  it('discards the old key when the destination changes, so it does not go to another server', () => {
     const { subject } = settings()
     const base = {
       kind: 'openai-compatible',
@@ -80,20 +80,20 @@ describe('configuração dos assistentes', () => {
     )
   })
 
-  it('revoga o consentimento a pedido', () => {
+  it('revokes the consent on request', () => {
     const { subject } = settings()
     subject.save({ ...draft, apiKey: 'k' })
     subject.markConsented('id1')
     expect(subject.save({ ...draft, id: 'id1', revokeConsent: true }).providers[0]?.consented).toBe(false)
   })
 
-  it('exige endereço para servidor compatível com OpenAI e acusa provedor inexistente', () => {
+  it('requires an address for an OpenAI-compatible server and flags a nonexistent provider', () => {
     const { subject } = settings()
     expect(() => subject.save({ ...draft, kind: 'openai-compatible' })).toThrow()
     expect(() => subject.find('nenhum')).toThrow(expect.objectContaining({ code: ErrorCode.AiNotConfigured }))
   })
 
-  it('arquivo antigo, sem preferências, continua valendo e ganha os padrões', () => {
+  it('an old file, without preferences, stays valid and gets the defaults', () => {
     let data: unknown = {
       providers: [{ id: 'a', kind: 'anthropic', label: 'Antigo', consented: true }],
       defaultProviderId: 'a',
@@ -108,7 +108,7 @@ describe('configuração dos assistentes', () => {
     })
   })
 
-  it('preferências salvas antes das propostas e do servidor MCP ganham as caixas desligadas', () => {
+  it('preferences saved before proposals and the MCP server get the checkboxes off', () => {
     const data: unknown = {
       providers: [],
       defaultProviderId: null,
@@ -126,7 +126,7 @@ describe('configuração dos assistentes', () => {
     })
   })
 
-  it('consentimento dado quando só a seleção ia junto é pedido de novo, agora que o documento vai', () => {
+  it('consent given when only the selection was sent is asked again, now that the document goes', () => {
     let data: unknown = {
       providers: [{ id: 'a', kind: 'anthropic', label: 'Antigo', consented: true }],
       defaultProviderId: 'a',
@@ -140,7 +140,7 @@ describe('configuração dos assistentes', () => {
     expect(subject.list().providers[0]?.consented).toBe(true)
   })
 
-  it('o limite de contexto vale só para servidor compatível com OpenAI, e local começa menor', () => {
+  it('the context limit applies only to an OpenAI-compatible server, and local starts smaller', () => {
     const { subject } = settings()
     const local = {
       kind: 'openai-compatible',
@@ -158,7 +158,7 @@ describe('configuração dos assistentes', () => {
     expect(contextLengthOf(subject.find('id2'))).toBe(MAX_AI_DOCUMENT_LENGTH)
   })
 
-  it('escolher o modelo não mexe na chave nem no consentimento, e as preferências sobrevivem', () => {
+  it('choosing the model does not touch the key or the consent, and preferences survive', () => {
     const { subject, stored } = settings()
     subject.save({ ...draft, apiKey: 'k' })
     subject.markConsented('id1')
@@ -188,7 +188,7 @@ describe('configuração dos assistentes', () => {
     })
   })
 
-  it('agente ACP conhecido guarda o id e os argumentos da tabela, nunca um caminho vindo do renderer', () => {
+  it('a known ACP agent stores the id and the table arguments, never a path coming from the renderer', () => {
     const { subject, stored } = settings()
     const list = subject.save({
       kind: 'acp',
@@ -202,7 +202,7 @@ describe('configuração dos assistentes', () => {
     expect(list.providers[0]).toMatchObject({ agentId: 'gemini', args: '--acp', local: false })
   })
 
-  it('trocar os argumentos de um agente esquece o consentimento', () => {
+  it('changing an agent arguments forgets the consent', () => {
     const { subject } = settings()
     const gemini = {
       kind: 'acp',
@@ -217,7 +217,7 @@ describe('configuração dos assistentes', () => {
     expect(subject.save({ ...gemini, id: 'id1', args: '--acp --outro' }).providers[0]?.consented).toBe(false)
   })
 
-  it('agente ACP escolhido no diálogo mostra só o nome do arquivo; renomear mantém o consentimento e trocar o programa o esquece', () => {
+  it('an ACP agent chosen in the dialog shows only the file name; renaming keeps the consent and changing the program forgets it', () => {
     const { subject, stored } = settings()
     subject.saveAgentExecutable(
       { label: 'Meu agente', args: "--acp --dir 'a b'" },
@@ -249,7 +249,7 @@ describe('configuração dos assistentes', () => {
     expect(subject.list().providers[0]?.consented).toBe(false)
   })
 
-  it('agente ACP personalizado novo sem executável escolhido é recusado', () => {
+  it('a new custom ACP agent without a chosen executable is refused', () => {
     const { subject } = settings()
     expect(() =>
       subject.save({ kind: 'acp', label: 'X', makeDefault: false, revokeConsent: false }),

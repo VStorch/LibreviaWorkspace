@@ -7,7 +7,7 @@ const CONTEXT = ['Sheet: Vendas', 'Active cell: B4', 'Cells:', 'B3: 2', 'B2: 3',
 const BASE = { language: Language.Portuguese, instruction: 'some os preços', context: CONTEXT }
 
 describe('buildSheetPrompt', () => {
-  it('para criar fórmula, lista as funções no dialeto guardado e pede só a fórmula', () => {
+  it('to create a formula, lists the functions in the stored dialect and asks for the formula only', () => {
     const prompt = buildSheetPrompt({ ...BASE, task: AiSheetTask.Formula }, 10_000)!
     expect(prompt.system).toContain('SOMA')
     expect(prompt.system).toContain('semicolon')
@@ -15,7 +15,7 @@ describe('buildSheetPrompt', () => {
     expect(prompt.messages[0]?.text).toBe(`Request: some os preços\n\n${CONTEXT}`)
   })
 
-  it('para explicar, manda a fórmula e pede Markdown no idioma da pessoa', () => {
+  it('to explain, sends the formula and asks for Markdown in the person language', () => {
     const request = { ...BASE, task: AiSheetTask.Explain, instruction: '', formula: '=SOMA(B2:B3)' }
     const prompt = buildSheetPrompt(request, 10_000)!
     expect(prompt.system).toContain('Brazilian Portuguese')
@@ -23,7 +23,7 @@ describe('buildSheetPrompt', () => {
     expect(prompt.messages[0]?.text).toMatch(/^Formula: =SOMA\(B2:B3\)\n\nSheet: Vendas/)
   })
 
-  it('corta as células mais distantes para caber no contexto do provedor, descontadas as instruções', () => {
+  it('drops the farthest cells to fit the provider context, discounting the instructions', () => {
     const request = { ...BASE, task: AiSheetTask.Formula }
     const system = buildSheetPrompt(request, Number.MAX_SAFE_INTEGER)!.system.length
     const prompt = buildSheetPrompt(request, system + 70)!
@@ -32,7 +32,7 @@ describe('buildSheetPrompt', () => {
     expect(text).not.toContain('A2: Caneta')
   })
 
-  it('para preencher, pede um array JSON do tamanho certo e nunca corta as linhas', () => {
+  it('to fill, asks for a JSON array of the right size and never cuts rows', () => {
     const request = { ...BASE, task: AiSheetTask.Fill, rowCount: 3 }
     expect(buildSheetPrompt(request, 10_000)!.system).toContain('JSON array only, with exactly 3 items')
     expect(buildSheetPrompt(request, 70)).toBeNull()

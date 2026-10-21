@@ -14,7 +14,7 @@ describe('linesOf', () => {
     line,
   })
 
-  it('quebra onde o arquivo abre parágrafo', () => {
+  it('breaks where the file opens a paragraph', () => {
     const lines = linesOf([
       piece('www.exemplo.com.br'),
       piece('Documento V01', true),
@@ -29,11 +29,11 @@ describe('linesOf', () => {
     ])
   })
 
-  it('sem marca nenhuma, tudo é uma linha só', () => {
+  it('without any mark, everything is a single line', () => {
     expect(linesOf([piece('Relatório'), piece(' mensal')])).toHaveLength(1)
   })
 
-  it('faixa vazia não gera linha', () => {
+  it('an empty band produces no line', () => {
     expect(linesOf([])).toEqual([])
   })
 })

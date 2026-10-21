@@ -7,7 +7,7 @@ namespace Librevia.Format.Tests;
 public class XlsxReadTests
 {
     [Fact]
-    public void LeValoresDeCadaTipo()
+    public void ReadsValuesOfEachType()
     {
         var sheet = XlsxFixtures.Sheet(XlsxFixtures.Model(XlsxFixtures.Sales()), "Vendas");
 
@@ -17,7 +17,7 @@ public class XlsxReadTests
     }
 
     [Fact]
-    public void LeFormulaComOSinalDeIgual()
+    public void ReadsFormulaWithTheEqualsSign()
     {
         var sheet = XlsxFixtures.Sheet(XlsxFixtures.Model(XlsxFixtures.Sales()), "Vendas");
 
@@ -26,7 +26,7 @@ public class XlsxReadTests
     }
 
     [Fact]
-    public void LeFormulaEntreAbas()
+    public void ReadsFormulaAcrossSheets()
     {
         var sheet = XlsxFixtures.Sheet(XlsxFixtures.Model(XlsxFixtures.Sales()), "Vendas");
 
@@ -34,7 +34,7 @@ public class XlsxReadTests
     }
 
     [Fact]
-    public void DataViraNumeroDeSerie()
+    public void DateBecomesSerialNumber()
     {
         var sheet = XlsxFixtures.Sheet(XlsxFixtures.Model(XlsxFixtures.Sales()), "Vendas");
         var cell = sheet.Cells["E2"];
@@ -45,7 +45,7 @@ public class XlsxReadTests
     }
 
     [Fact]
-    public void ReconheceMoedaPelaMascara()
+    public void RecognizesCurrencyFromTheMask()
     {
         var sheet = XlsxFixtures.Sheet(XlsxFixtures.Model(XlsxFixtures.Sales()), "Vendas");
 
@@ -54,7 +54,7 @@ public class XlsxReadTests
     }
 
     [Fact]
-    public void LeNegrito()
+    public void ReadsBold()
     {
         var sheet = XlsxFixtures.Sheet(XlsxFixtures.Model(XlsxFixtures.Sales()), "Vendas");
 
@@ -62,7 +62,7 @@ public class XlsxReadTests
     }
 
     [Fact]
-    public void LeLarguraDeColunaEmPixels()
+    public void ReadsColumnWidthInPixels()
     {
         var sheet = XlsxFixtures.Sheet(XlsxFixtures.Model(XlsxFixtures.Sales()), "Vendas");
 
@@ -71,7 +71,7 @@ public class XlsxReadTests
     }
 
     [Fact]
-    public void LeCongelamento()
+    public void ReadsFreeze()
     {
         var sheet = XlsxFixtures.Sheet(XlsxFixtures.Model(XlsxFixtures.Sales()), "Vendas");
 
@@ -80,7 +80,7 @@ public class XlsxReadTests
     }
 
     [Fact]
-    public void LeTodasAsAbasNaOrdem()
+    public void ReadsAllSheetsInOrder()
     {
         var workbook = XlsxFixtures.Model(XlsxFixtures.Sales());
 
@@ -88,7 +88,7 @@ public class XlsxReadTests
     }
 
     [Fact]
-    public void CelulaVaziaNaoEntraNoMapa()
+    public void EmptyCellDoesNotEnterTheMap()
     {
         var sheet = XlsxFixtures.Sheet(XlsxFixtures.Model(XlsxFixtures.Sales()), "Vendas");
 
@@ -97,7 +97,7 @@ public class XlsxReadTests
     }
 
     [Fact]
-    public void ArquivoQueNaoEPlanilhaDaMensagemCompreensivel()
+    public void FileThatIsNotASpreadsheetGivesAnUnderstandableMessage()
     {
         var problem = Assert.Throws<XlsxException>(() => XlsxReader.Read([1, 2, 3, 4]));
 
@@ -108,7 +108,7 @@ public class XlsxReadTests
 public class XlsxInventoryTests
 {
     [Fact]
-    public void AvisaSobreCelulasMescladas()
+    public void WarnsAboutMergedCells()
     {
         var result = XlsxReader.Read(XlsxFixtures.WithMerge());
 
@@ -116,7 +116,7 @@ public class XlsxInventoryTests
     }
 
     [Fact]
-    public void PlanilhaComumNaoGeraAviso()
+    public void OrdinarySpreadsheetRaisesNoWarning()
     {
         // A warning on every file is learned to be closed without reading.
         var result = XlsxReader.Read(XlsxFixtures.Sales());
@@ -136,7 +136,7 @@ public class XlsxSurgicalTests
     }
 
     [Fact]
-    public void GravarSemEditarNaoEscreveNenhumaCelula()
+    public void SavingWithoutEditingWritesNoCell()
     {
         // Saving without editing rewrites nothing.
         var (_, report) = SaveUnchanged(XlsxFixtures.Sales());
@@ -147,7 +147,7 @@ public class XlsxSurgicalTests
     }
 
     [Fact]
-    public void ModeloQueVemPeloJsonTambemPreserva()
+    public void TemplateComingThroughJsonAlsoPreserves()
     {
         // In production JSON arrives: without the scalar conversion, every value would be a
         // `JsonElement` and no cell would look equal.
@@ -165,7 +165,7 @@ public class XlsxSurgicalTests
     }
 
     [Fact]
-    public void EditarUmaCelulaEscreveApenasUma()
+    public void EditingOneCellWritesOnlyOne()
     {
         var original = XlsxFixtures.Sales();
         var model = XlsxFixtures.Model(original);
@@ -177,7 +177,7 @@ public class XlsxSurgicalTests
     }
 
     [Fact]
-    public void PreservaOQueOModeloNaoRepresenta()
+    public void PreservesWhatTheModelDoesNotRepresent()
     {
         // B2 has a 14 pt font, which the model does not carry.
         var original = XlsxFixtures.Sales();
@@ -192,7 +192,7 @@ public class XlsxSurgicalTests
     }
 
     [Fact]
-    public void PreservaParteDoPacoteQueNaoConhece()
+    public void PreservesPackagePartItDoesNotKnow()
     {
         // Charts and pivot tables live in their own parts, like this one.
         var original = XlsxFixtures.WithForeignPart(XlsxFixtures.Sales(), "<catalogo>NAO-PERCA</catalogo>");
@@ -205,7 +205,7 @@ public class XlsxSurgicalTests
     }
 
     [Fact]
-    public void PreservaFiltroMesclagemFormatoCondicionalEValidacao()
+    public void PreservesFilterMergeConditionalFormatAndValidation()
     {
         // Preserving without offering UI only counts if it survives an edit.
         var original = XlsxFixtures.WithUnmodeledFeatures();
@@ -226,7 +226,7 @@ public class XlsxSurgicalTests
     }
 
     [Fact]
-    public void ValorEditadoChegaNoArquivo()
+    public void EditedValueReachesTheFile()
     {
         var original = XlsxFixtures.Sales();
         var model = XlsxFixtures.Model(original);
@@ -238,7 +238,7 @@ public class XlsxSurgicalTests
     }
 
     [Fact]
-    public void FormulaNovaChegaComoFormula()
+    public void NewFormulaArrivesAsFormula()
     {
         var original = XlsxFixtures.Sales();
         var model = XlsxFixtures.Model(original);
@@ -250,7 +250,7 @@ public class XlsxSurgicalTests
     }
 
     [Fact]
-    public void CelulaApagadaSaiDoArquivo()
+    public void DeletedCellLeavesTheFile()
     {
         var original = XlsxFixtures.Sales();
         var model = XlsxFixtures.Model(original);
@@ -263,7 +263,7 @@ public class XlsxSurgicalTests
     }
 
     [Fact]
-    public void FormatoEscolhidoNoAplicativoChegaComoMascara()
+    public void FormatChosenInTheAppArrivesAsMask()
     {
         var original = XlsxFixtures.Sales();
         var model = XlsxFixtures.Model(original);
@@ -278,7 +278,7 @@ public class XlsxSurgicalTests
     }
 
     [Fact]
-    public void RenomearAbaVaiParaOArquivo()
+    public void RenamingSheetGoesToTheFile()
     {
         var original = XlsxFixtures.Sales();
         var model = XlsxFixtures.Model(original);
@@ -290,7 +290,7 @@ public class XlsxSurgicalTests
     }
 
     [Fact]
-    public void TrocarNomesEntreDuasAbasNaoColide()
+    public void SwappingNamesBetweenTwoSheetsDoesNotCollide()
     {
         // ClosedXML refuses a name another tab still has.
         var original = XlsxFixtures.Sales();
@@ -304,7 +304,7 @@ public class XlsxSurgicalTests
     }
 
     [Fact]
-    public void AbaNovaEAbaRemovida()
+    public void NewSheetAndRemovedSheet()
     {
         var original = XlsxFixtures.Sales();
         var model = XlsxFixtures.Model(original);
@@ -320,7 +320,7 @@ public class XlsxSurgicalTests
     }
 
     [Fact]
-    public void PlanilhaNovaSemOriginal()
+    public void NewSpreadsheetWithoutOriginal()
     {
         var model = new WorkbookDto();
         model.Sheets.Add(new SheetDto
@@ -340,7 +340,7 @@ public class XlsxSurgicalTests
     }
 
     [Fact]
-    public void GravarSemAbaNenhumaEErro()
+    public void SavingWithoutAnySheetIsAnError()
     {
         var problem = Assert.Throws<XlsxException>(() => XlsxWriter.Write(null, new WorkbookDto()));
 
@@ -348,17 +348,17 @@ public class XlsxSurgicalTests
     }
 
     [Fact]
-    public void IdaEVoltaPreservaOsValoresDeTodasAsCelulas()
+    public void RoundTripPreservesTheValuesOfAllCells()
     {
         var original = XlsxFixtures.Sales();
-        var antes = XlsxFixtures.Model(original);
+        var before = XlsxFixtures.Model(original);
 
-        var (bytes, _) = XlsxWriter.Write(original, antes);
-        var depois = XlsxFixtures.Model(bytes);
+        var (bytes, _) = XlsxWriter.Write(original, before);
+        var after = XlsxFixtures.Model(bytes);
 
-        foreach (var sheet in antes.Sheets)
+        foreach (var sheet in before.Sheets)
         {
-            var other = XlsxFixtures.Sheet(depois, sheet.Name);
+            var other = XlsxFixtures.Sheet(after, sheet.Name);
             Assert.Equal(sheet.Cells.Keys.OrderBy(key => key), other.Cells.Keys.OrderBy(key => key));
             foreach (var (reference, cell) in sheet.Cells)
             {
@@ -378,7 +378,7 @@ public class NumberFormatTests
     [InlineData("dd/mm/yyyy", "date", null)]
     [InlineData("#,##0", "number", 0)]
     [InlineData("@", "text", null)]
-    public void ReconheceAIntencaoDaMascara(string mask, string expected, int? decimals)
+    public void RecognizesTheIntentOfTheMask(string mask, string expected, int? decimals)
     {
         using var book = new XLWorkbook();
         var cell = book.Worksheets.Add("P").Cell("A1");
@@ -391,7 +391,7 @@ public class NumberFormatTests
     }
 
     [Fact]
-    public void ColchetesNaoViramData()
+    public void BracketsDoNotBecomeADate()
     {
         // A bracketed `[$R$-416]` must not turn a price column into 1900 dates.
         using var book = new XLWorkbook();
@@ -407,7 +407,7 @@ public class NumberFormatTests
     [InlineData("General")]
     [InlineData("GENERAL")]
     [InlineData("Geral")]
-    public void GeralPorExtensoNaoViraData(string mask)
+    public void GeneralSpelledOutDoesNotBecomeADate(string mask)
     {
         // LibreOffice writes `General` in full, and its "a" is not the one in `dd/mm/aaaa`.
         using var book = new XLWorkbook();
@@ -421,7 +421,7 @@ public class NumberFormatTests
     }
 
     [Fact]
-    public void BarraInvertidaNaoViraData()
+    public void BackslashDoesNotBecomeADate()
     {
         // `\d` is an escaped letter d, not the day of the month.
         using var book = new XLWorkbook();
@@ -435,7 +435,7 @@ public class NumberFormatTests
     }
 
     [Fact]
-    public void HoraNaoViraData()
+    public void TimeDoesNotBecomeADate()
     {
         // A time-only value shown as a date would give 31/12/1899.
         using var book = new XLWorkbook();
@@ -451,20 +451,20 @@ public class NumberFormatTests
 public class UnitTests
 {
     [Fact]
-    public void LarguraPadraoDaOitentaQuatroPixels()
+    public void DefaultWidthIsEightyFourPixels()
     {
         // 8.43 characters, the default width, are 64 pixels.
         Assert.Equal(64, Units.WidthToPixels(8.43));
     }
 
     [Fact]
-    public void LarguraEIdaEVolta()
+    public void WidthRoundTrip()
     {
         Assert.Equal(20, Math.Round(Units.PixelsToWidth(Units.WidthToPixels(20)), 2));
     }
 
     [Fact]
-    public void PontosViramPixelsNaDensidadeDoCss()
+    public void PointsBecomePixelsAtTheCssDensity()
     {
         Assert.Equal(96, Units.PointsToPixels(72));
     }

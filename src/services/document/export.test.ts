@@ -125,7 +125,7 @@ const html = (model = MODEL): string =>
 describe('exportHtml', () => {
   const output = html()
 
-  it('é uma página autocontida, com língua, título e sem script', () => {
+  it('is a self-contained page, with language, title and no script', () => {
     expect(output.startsWith('<!doctype html>')).toBe(true)
     expect(output).toContain('<html lang="pt-BR">')
     expect(output).toContain('<meta charset="utf-8">')
@@ -135,16 +135,16 @@ describe('exportHtml', () => {
     expect(output).toContain('Título &lt;script&gt;alert(1)&lt;/script&gt;')
   })
 
-  it('cai no nome do arquivo quando as propriedades não têm título', () => {
+  it('falls back to the file name when the properties have no title', () => {
     expect(html({ ...MODEL, properties: {} })).toContain('<title>relatorio</title>')
   })
 
-  it('leva os estilos do documento e a formatação direta do parágrafo', () => {
+  it("carries the document styles and the paragraph's direct formatting", () => {
     expect(output).toContain('.page__content > [data-style-id="Normal"]')
     expect(output).toContain('<p data-style-id="Normal" style="text-align: center">')
   })
 
-  it('marca o texto com as tags semânticas', () => {
+  it('marks the text with semantic tags', () => {
     expect(output).toContain('<strong>mundo</strong>')
     expect(output).toContain('<em>itálico</em>')
     expect(output).toContain('<s>riscado</s>')
@@ -154,7 +154,7 @@ describe('exportHtml', () => {
     expect(output).toContain(`<img src="${PNG}" alt="logo">`)
   })
 
-  it('exporta as revisões como texto final e deixa os comentários de fora', () => {
+  it('exports revisions as final text and leaves comments out', () => {
     expect(output).toContain(' novo')
     expect(output).not.toContain('velho')
     expect(output).not.toMatch(/<(ins|del)\b/)
@@ -163,13 +163,13 @@ describe('exportHtml', () => {
     expect(output).not.toContain('cid')
   })
 
-  it('põe o marcador como âncora e o sumário como lista de links, sem número de página', () => {
+  it('puts the bookmark as an anchor and the table of contents as a link list, without page numbers', () => {
     expect(output).toContain('<h1><a id="_Toc1"></a>Título')
     expect(output).toContain('<nav class="sumario"><ul>\n<li><a href="#_Toc1">Introdução</a></li>')
     expect(output).not.toContain('>7<')
   })
 
-  it('numera as notas e as reúne no fim com o caminho de volta', () => {
+  it('numbers the notes and gathers them at the end with a way back', () => {
     expect(output).toContain(
       '<sup class="nota-ref"><a href="#nota-rodape-1" id="ref-nota-rodape-1">1</a></sup>',
     )
@@ -182,25 +182,25 @@ describe('exportHtml', () => {
     expect(output).toContain('<section class="notas" aria-label="Notas">')
   })
 
-  it('mantém o início, a marca e o aninhamento das listas', () => {
+  it('keeps the start, the marker and the nesting of lists', () => {
     expect(output).toMatch(/<ol start="3" data-list-indent style="[^"]*">/)
     expect(output).toContain('data-label="3."')
     expect(output).toContain('data-label="4."')
     expect(output).toMatch(/<li[^>]*><p>quatro<\/p>\n<ul[^>]*>\n<li[^>]*><p>dentro<\/p><\/li>/)
   })
 
-  it('exporta tabelas com larguras e células mescladas', () => {
+  it('exports tables with widths and merged cells', () => {
     expect(output).toContain('<colgroup><col style="width: 100px"><col style="width: 200px"></colgroup>')
     expect(output).toContain('<td colspan="2"><p>mesclada</p></td>')
   })
 
-  it('marca a quebra de página só para a impressão', () => {
+  it('marks the page break for printing only', () => {
     expect(output).toContain('<div class="page-break"></div>')
     expect(output).toContain('.page-break { display: block; break-after: page; }')
   })
 })
 
-describe('exportHtml — o que vem do documento não executa nem busca nada', () => {
+describe('exportHtml: what comes from the document neither runs nor fetches anything', () => {
   const hostile: DocumentNode = {
     type: 'doc',
     content: [
@@ -219,23 +219,23 @@ describe('exportHtml — o que vem do documento não executa nem busca nada', ()
   }
   const output = html({ ...MODEL, doc: hostile, properties: { title: '</title><script>x</script>' } })
 
-  it('escapa texto, atributos e o título', () => {
+  it('escapes text, attributes and the title', () => {
     expect(output).not.toMatch(/<script|<img src=x|<svg|<b>/i)
     expect(output).toContain('&lt;img src=x onerror=alert(1)&gt;')
     expect(output).toContain('<title>&lt;/title&gt;&lt;script&gt;x&lt;/script&gt;</title>')
   })
 
-  it('não leva link perigoso, CSS com url( nem imagem de fora', () => {
+  it('carries no dangerous link, CSS with url( or outside image', () => {
     expect(output).not.toContain('javascript:')
     expect(output.slice(output.indexOf('<body>'))).not.toMatch(/url\(|rastreio/)
     expect(output).toContain('clique')
   })
 
-  it('bloqueia script e rede pela política da página', () => {
+  it('blocks script and network through the page policy', () => {
     expect(output).toContain("default-src 'none'; img-src data:")
   })
 
-  it('aceita só o vocabulário de cores, medidas e fontes', () => {
+  it('accepts only the vocabulary of colors, measures and fonts', () => {
     expect(safeCss('#ff0000')).toBe('#ff0000')
     expect(safeCss("'Times New Roman', serif")).toBe("'Times New Roman', serif")
     expect(safeCss('12pt')).toBe('12pt')
@@ -249,49 +249,49 @@ describe('exportHtml — o que vem do documento não executa nem busca nada', ()
 describe('exportMarkdown', () => {
   const { markdown, assets } = exportMarkdown(MODEL, { assetFolder: 'relatório_arquivos' })
 
-  it('escreve títulos, ênfase, código e links', () => {
+  it('writes headings, emphasis, code and links', () => {
     expect(markdown).toContain('# <a id="_Toc1"></a>Título \\<script\\>alert(1)\\</script\\>')
     expect(markdown).toContain('Olá **mundo** *itálico* ~~riscado~~ `x*y` [site](https://exemplo.com) novo')
   })
 
-  it('exporta o texto final das revisões', () => {
+  it('exports the final text of revisions', () => {
     expect(markdown).not.toContain('velho')
     expect(markdown).toContain('Junta isto')
     expect(markdown).not.toContain('fora')
   })
 
-  it('quebra a linha com barra invertida e leva o resultado do campo', () => {
+  it('breaks the line with a backslash and carries the field result', () => {
     expect(markdown).toContain('campo 42\\\nlinha 2')
   })
 
-  it('grava a imagem na pasta irmã e a referencia por caminho relativo', () => {
+  it('saves the image in the sibling folder and references it by relative path', () => {
     expect(markdown).toContain('![logo](relat%C3%B3rio_arquivos/image-1.png)')
     expect(assets).toEqual([{ name: 'image-1.png', mime: 'image/png', base64: 'iVBORw0KGgo=' }])
   })
 
-  it('usa as notas do GFM para as de rodapé e as de fim', () => {
+  it('uses GFM notes for footnotes and endnotes', () => {
     expect(markdown).toContain('novo[^1]')
     expect(markdown).toContain('Fim[^fim-1]')
     expect(markdown).toContain('[^1]: Nota um')
     expect(markdown).toContain('[^fim-1]: Nota de fim')
   })
 
-  it('mantém o início da lista numerada e o aninhamento', () => {
+  it('keeps the start of the numbered list and the nesting', () => {
     expect(markdown).toContain('3. três\n4. quatro\n   - dentro')
   })
 
-  it('escreve a tabela simples em GFM e a mesclada em HTML', () => {
+  it('writes the simple table in GFM and the merged one in HTML', () => {
     expect(markdown).toContain('| A | B\\|C |\n| --- | --- |\n| 1 | 2 |')
     expect(markdown).toContain('<table>')
     expect(markdown).toContain('<td colspan="2"><p>mesclada</p></td>')
   })
 
-  it('escreve o sumário como lista de links, sem número de página', () => {
+  it('writes the table of contents as a link list, without page numbers', () => {
     expect(markdown).toContain('- [Introdução](#_Toc1)')
     expect(markdown).not.toContain('7')
   })
 
-  it('escapa o que viraria marcação', () => {
+  it('escapes what would turn into markup', () => {
     expect(markdown).toContain('\\# não é título')
     expect(markdown).toContain('1\\. não é lista')
     expect(markdown).toContain(
@@ -300,13 +300,13 @@ describe('exportMarkdown', () => {
   })
 })
 
-describe('escapeMarkdown e as marcas', () => {
-  it('escapa os caracteres especiais e a entidade', () => {
+describe('escapeMarkdown and the marks', () => {
+  it('escapes special characters and the entity', () => {
     expect(escapeMarkdown('a*b_c`d')).toBe('a\\*b\\_c\\`d')
     expect(escapeMarkdown('&copy; & co')).toBe('&amp;copy; & co')
   })
 
-  it('tira o espaço das pontas da ênfase', () => {
+  it('trims the space at the ends of the emphasis', () => {
     const doc: DocumentNode = {
       type: 'doc',
       content: [paragraph(text('a'), text(' forte ', [{ type: 'bold' }]), text('b'))],
@@ -314,7 +314,7 @@ describe('escapeMarkdown e as marcas', () => {
     expect(exportMarkdown({ doc }, { assetFolder: 'x' }).markdown).toBe('a **forte** b\n')
   })
 
-  it('não abre ênfase só com espaço e não deixa delimitador vazio', () => {
+  it('does not open emphasis with only space and leaves no empty delimiter', () => {
     const doc: DocumentNode = {
       type: 'doc',
       content: [paragraph(text('a'), text(' ', [{ type: 'italic' }]), text('b'))],
@@ -322,7 +322,7 @@ describe('escapeMarkdown e as marcas', () => {
     expect(exportMarkdown({ doc }, { assetFolder: 'x' }).markdown).toBe('a b\n')
   })
 
-  it('não leva link perigoso', () => {
+  it('carries no dangerous link', () => {
     const doc: DocumentNode = {
       type: 'doc',
       content: [paragraph(text('x', [{ type: 'link', attrs: { href: 'javascript:alert(1)' } }]))],
@@ -330,14 +330,14 @@ describe('escapeMarkdown e as marcas', () => {
     expect(exportMarkdown({ doc }, { assetFolder: 'x' }).markdown).toBe('x\n')
   })
 
-  it('cerca o código com mais crases do que ele tem', () => {
+  it('fences the code with more backticks than it contains', () => {
     const doc: DocumentNode = { type: 'doc', content: [paragraph(text('a`b', [{ type: 'code' }]))] }
     expect(exportMarkdown({ doc }, { assetFolder: 'x' }).markdown).toBe('``a`b``\n')
   })
 })
 
 describe('finalDocument', () => {
-  it('não deixa célula vazia quando tudo nela foi excluído', () => {
+  it('leaves no empty cell when everything in it was deleted', () => {
     const doc = finalDocument({
       type: 'tableCell',
       content: [{ type: 'paragraph', content: [text('x', [{ type: 'deletion' }])] }],
@@ -346,7 +346,7 @@ describe('finalDocument', () => {
   })
 })
 
-describe('as equações (M11, fase 3)', () => {
+describe('equations (M11, phase 3)', () => {
   const FRACTION = '<math display="block"><mfrac><mi>a</mi><mi>b</mi></mfrac></math>'
   const inline = (attrs: Record<string, unknown>): DocumentNode => ({
     type: 'math',
@@ -354,7 +354,7 @@ describe('as equações (M11, fase 3)', () => {
   })
   const doc = (...content: DocumentNode[]): DocumentNode => ({ type: 'doc', content })
 
-  it('no HTML, o MathML filtrado, em bloco só a de exibição', () => {
+  it('in HTML, the filtered MathML, as a block only the display one', () => {
     const output = html({
       doc: doc(
         paragraph(text('Seja '), inline({ mathml: '<math display="block"><mi>x</mi></math>', latex: 'x' })),
@@ -368,7 +368,7 @@ describe('as equações (M11, fase 3)', () => {
     expect(output).toContain('display="block"><mfrac><mi>a</mi><mi>b</mi></mfrac></math>')
   })
 
-  it('no Markdown, o LaTeX entre cifrões; o da exibição na linha dele', () => {
+  it('in Markdown, the LaTeX between dollar signs; the display one on its own line', () => {
     const markdown = exportMarkdown(
       {
         doc: doc(
@@ -390,7 +390,7 @@ describe('as equações (M11, fase 3)', () => {
     expect(markdown).toBe('Custa \\$5 e $x^2$.\n\nLogo\n$$\\frac{a}{b}$$\nfim\n')
   })
 
-  it('no Markdown, a equação sem LaTeX nenhum vai como MathML', () => {
+  it('in Markdown, an equation with no LaTeX at all goes as MathML', () => {
     const markdown = exportMarkdown(
       { doc: doc(paragraph(inline({ mathml: '<math><mi>x</mi></math>', latex: '', omml: '<m:oMath/>' }))) },
       { assetFolder: 'x' },

@@ -11,14 +11,14 @@ import {
 
 const now = new Date('2026-10-02T12:34:56.789Z')
 
-describe('carimbo das propriedades na gravação', () => {
-  it('não carimba o documento que ninguém editou', () => {
+describe('property stamp on save', () => {
+  it('does not stamp a document nobody edited', () => {
     const current = { title: 'T', modified: '2020-01-01T00:00:00Z' }
     expect(stampProperties(current, { author: 'Ana', now, fresh: false, edited: false })).toBe(current)
     expect(stampProperties(undefined, { author: 'Ana', now, fresh: false, edited: false })).toBeUndefined()
   })
 
-  it('o editado ganha quem modificou, quando e a revisão seguinte, e guarda o resto', () => {
+  it('an edited document gets who modified it, when and the next revision, and keeps the rest', () => {
     const stamped = stampProperties(
       { title: 'T', creator: 'Bia', created: '2020-01-01T00:00:00Z', revision: '7' },
       { author: ' Ana ', now, fresh: false, edited: true },
@@ -33,7 +33,7 @@ describe('carimbo das propriedades na gravação', () => {
     })
   })
 
-  it('o documento novo ganha criador e data de criação', () => {
+  it('a new document gets a creator and creation date', () => {
     expect(stampProperties(undefined, { author: 'Ana', now, fresh: true, edited: false })).toEqual({
       created: '2026-10-02T12:34:56Z',
       creator: 'Ana',
@@ -43,7 +43,7 @@ describe('carimbo das propriedades na gravação', () => {
     })
   })
 
-  it('o arquivo que pede para não guardar nomes não é assinado', () => {
+  it('a file that asks not to keep names is not signed', () => {
     const stamped = stampProperties(
       { removePersonalInformation: true, creator: '' },
       { author: 'Ana', now, fresh: true, edited: true },
@@ -53,13 +53,13 @@ describe('carimbo das propriedades na gravação', () => {
     expect(stamped?.modified).toBe('2026-10-02T12:34:56Z')
   })
 
-  it('sem nome de autor, não assina', () => {
+  it('without an author name, does not sign', () => {
     const stamped = stampProperties({}, { author: '', now, fresh: true, edited: true })
     expect(stamped?.creator).toBeUndefined()
     expect(stamped?.lastModifiedBy).toBeUndefined()
   })
 
-  it('a data sai em W3CDTF sem milissegundos', () => {
+  it('the date comes out in W3CDTF without milliseconds', () => {
     expect(w3cdtf(now)).toBe('2026-10-02T12:34:56Z')
   })
 })
@@ -68,11 +68,11 @@ describe('propriedades personalizadas', () => {
   const texto = { name: 'Cliente', type: CustomPropertyType.Text, value: 'XPTO' }
   const numero = { name: 'Processo', type: CustomPropertyType.Number, value: '2026' }
 
-  it('aceita a lista válida', () => {
+  it('accepts the valid list', () => {
     expect(customPropertiesProblem([texto, numero])).toBeNull()
   })
 
-  it('recusa nome vazio, nome repetido sem olhar maiúsculas, número inválido e data vazia', () => {
+  it('rejects an empty name, a duplicate name ignoring case, an invalid number and an empty date', () => {
     expect(customPropertiesProblem([{ ...texto, name: '  ' }])).toBe('nameMissing')
     expect(customPropertiesProblem([texto, { ...numero, name: 'cliente' }])).toBe('nameRepeated')
     expect(customPropertiesProblem([{ ...numero, value: 'doze' }])).toBe('numberInvalid')
@@ -82,13 +82,13 @@ describe('propriedades personalizadas', () => {
     )
   })
 
-  it('a mesma lista em outra ordem é a mesma', () => {
+  it('the same list in another order is the same', () => {
     expect(sameCustomProperties([texto, numero], [numero, texto])).toBe(true)
     expect(sameCustomProperties([texto], [{ ...texto, value: 'outro' }])).toBe(false)
     expect(sameCustomProperties([texto], [])).toBe(false)
   })
 
-  it('a data vai e volta como o mesmo dia no fuso de quem usa', () => {
+  it("the date round-trips as the same day in the user's time zone", () => {
     const instant = instantOfDay('2026-10-12')
     expect(instant).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:00Z$/)
     expect(localDayOf(instant)).toBe('2026-10-12')

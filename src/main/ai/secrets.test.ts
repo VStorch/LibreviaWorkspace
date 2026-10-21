@@ -11,22 +11,22 @@ function storage(backend: string, available = true) {
   }
 }
 
-describe('cofre das chaves', () => {
-  it('cifra e decifra pelo cofre do sistema', () => {
+describe('key store', () => {
+  it('encrypts and decrypts through the system keychain', () => {
     const box = createSecretBox(storage('gnome_libsecret'), 'linux')
     const sealed = box.seal('sk-123')
     expect(sealed).not.toContain('sk-123')
     expect(box.open(sealed)).toBe('sk-123')
   })
 
-  it('recusa guardar chave quando o Linux cai no texto puro', () => {
+  it('refuses to store a key when Linux falls back to plain text', () => {
     const box = createSecretBox(storage('basic_text'), 'linux')
     expect(() => box.seal('sk-123')).toThrow(
       expect.objectContaining({ code: ErrorCode.AiSecretsUnavailable }),
     )
   })
 
-  it('recusa quando não há cifra disponível', () => {
+  it('refuses when no encryption is available', () => {
     const box = createSecretBox(storage('unknown', false), 'win32')
     expect(() => box.seal('sk-123')).toThrow(
       expect.objectContaining({ code: ErrorCode.AiSecretsUnavailable }),

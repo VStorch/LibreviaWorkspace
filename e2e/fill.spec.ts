@@ -6,7 +6,7 @@ import { cell, dragHandle, select, write } from './sheet-grid.js'
  * The fill handle carries the formula, not the result: drag with the mouse, because a unit test
  * cannot know whether the grid event was subscribed.
  */
-test.describe('alça de preenchimento', () => {
+test.describe('fill handle', () => {
   let session: Session
 
   test.beforeEach(async () => {
@@ -17,7 +17,7 @@ test.describe('alça de preenchimento', () => {
     await session.close()
   })
 
-  test('arrastar uma fórmula desloca as referências', async () => {
+  test('dragging a formula shifts the references', async () => {
     await menu(session, 'new-spreadsheet')
     await expect(cell(session.window, 0, 0)).toBeVisible()
 

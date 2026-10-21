@@ -13,27 +13,27 @@ const band = (text: string, pid?: string): Band => ({
 
 const textOf = (found: Band | null): string | undefined => found?.center[0]?.text
 
-describe('numeração de página', () => {
-  it('o número impresso segue o início e o formato de w:pgNumType', () => {
+describe('page numbering', () => {
+  it('the printed number follows the start and format of w:pgNumType', () => {
     const page: PageSetup = { ...DEFAULT_PAGE_SETUP, pageNumberFormat: 'lowerRoman', pageNumberStart: 3 }
     expect([1, 2, 3].map((sheet) => pageLabel(page, sheet))).toEqual(['iii', 'iv', 'v'])
     expect(pageLabel(DEFAULT_PAGE_SETUP, 2)).toBe('2')
   })
 
-  it('a peça de texto mostra {n} e {total} com os números desta folha', () => {
+  it("the text piece shows {n} and {total} with this sheet's numbers", () => {
     const piece = { kind: 'text' as const, text: 'Folha {n} de {total}', bold: false, italic: false }
     expect(pieceText(piece, 'iv', 9)).toBe('Folha iv de 9')
     // Braces written in the file are text, not a field.
     expect(pieceText({ ...piece, literal: true }, 'iv', 9)).toBe('Folha {n} de {total}')
   })
 
-  it('primeira página diferente sem faixa própria deixa a capa limpa', () => {
+  it('different first page without its own band leaves the cover clean', () => {
     const page: PageSetup = { ...DEFAULT_PAGE_SETUP, footerBand: band('Rodapé'), titlePage: true }
     expect(bandForPage(page, 1, 'footer')).toBeNull()
     expect(textOf(bandForPage(page, 2, 'footer'))).toBe('Rodapé')
   })
 
-  it('a faixa da capa guardada com o interruptor desligado não aparece', () => {
+  it('the cover band saved with the switch off does not show', () => {
     const page: PageSetup = {
       ...DEFAULT_PAGE_SETUP,
       footerBand: band('Miolo'),
@@ -43,7 +43,7 @@ describe('numeração de página', () => {
     expect(textOf(bandForPage(page, 1, 'footer'))).toBe('Miolo')
   })
 
-  it('rascunho antigo, sem o interruptor, vale pela faixa que trouxe', () => {
+  it('an old draft without the switch counts by the band it brought', () => {
     const page: PageSetup = {
       ...DEFAULT_PAGE_SETUP,
       footerBand: band('Miolo'),
@@ -52,7 +52,7 @@ describe('numeração de página', () => {
     expect(textOf(bandForPage(page, 1, 'footer'))).toBe('Capa')
   })
 
-  it('a paridade é a do número impresso, e não a da folha', () => {
+  it('parity is that of the printed number, not of the sheet', () => {
     const page: PageSetup = {
       ...DEFAULT_PAGE_SETUP,
       footerBand: band('Ímpar'),
@@ -64,7 +64,7 @@ describe('numeração de página', () => {
     expect(textOf(bandForPage(page, 2, 'footer'))).toBe('Ímpar')
   })
 
-  it('o rodapé de texto simples vira faixa, com o campo no lugar de {n}', () => {
+  it('the plain text footer becomes a band, with the field in place of {n}', () => {
     const footer = plainBand('Página {n} de {total}')!
     expect(footer.center.map((piece) => piece.kind)).toEqual(['text', 'pageNumber', 'text', 'totalPages'])
     const page: PageSetup = { ...DEFAULT_PAGE_SETUP, footer: 'Página {n}' }
@@ -72,7 +72,7 @@ describe('numeração de página', () => {
     expect(plainBand('   ')).toBeNull()
   })
 
-  it('inserir o campo sem cursor na faixa vai para o fim do rodapé', () => {
+  it('inserting the field with no cursor in the band goes to the end of the footer', () => {
     expect(appendPageField(DEFAULT_PAGE_SETUP, '{n}')?.footer).toBe('{n}')
     expect(appendPageField({ ...DEFAULT_PAGE_SETUP, footer: 'Página' }, '{n}')?.footer).toBe('Página {n}')
 

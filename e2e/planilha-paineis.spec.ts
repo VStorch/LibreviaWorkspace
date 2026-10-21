@@ -21,7 +21,7 @@ async function drag(window: Page, to: { row: number; column: number }): Promise<
   await window.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2, { steps: 10 })
 }
 
-test.describe('painéis congelados na planilha', () => {
+test.describe('frozen panes in the spreadsheet', () => {
   let session: Session
 
   test.beforeEach(async () => {
@@ -34,7 +34,7 @@ test.describe('painéis congelados na planilha', () => {
     await session.close()
   })
 
-  test('arrastar com o mouse estende a seleção através da divisa e volta', async () => {
+  test('dragging with the mouse extends the selection across the divider and back', async () => {
     const { window } = session
     const ref = window.locator('.formula-bar__ref')
     await freeze(window)
@@ -54,7 +54,7 @@ test.describe('painéis congelados na planilha', () => {
     await expect(window.locator('revogr-overlay-selection .selection-border-range')).toHaveCount(1)
   })
 
-  test('Delete apaga a seleção inteira, dos dois lados da divisa', async () => {
+  test('Delete clears the whole selection, on both sides of the divider', async () => {
     const { window } = session
     for (const [column, text] of ['a', 'b', 'c', 'd'].entries()) await write(window, 0, column, text)
     await freeze(window)
@@ -65,7 +65,7 @@ test.describe('painéis congelados na planilha', () => {
     await expect(cell(window, 0, 3)).toHaveText('d')
   })
 
-  test('copiar, colar e recortar levam a seleção inteira, em qualquer painel', async () => {
+  test('copy, paste and cut carry the whole selection, in any pane', async () => {
     const { window, app } = session
     await write(window, 0, 0, 'a')
     await write(window, 0, 1, 'b')
@@ -97,7 +97,7 @@ test.describe('painéis congelados na planilha', () => {
     for (const column of [0, 1, 2]) await expect(cell(window, 0, column)).toHaveText('')
   })
 
-  test('a alça de preenchimento escreve nas colunas certas, no painel que rola e através da divisa', async () => {
+  test('the fill handle writes to the right columns, in the scrolling pane and across the divider', async () => {
     const { window } = session
     await write(window, 2, 3, '5')
     await write(window, 6, 1, '=A7+1')

@@ -11,7 +11,7 @@ import { cell, gridReady, select, write } from './sheet-grid.js'
  * binary frame → sidecar → ClosedXML → disk, and back. The spreadsheet is created by the app
  * itself.
  */
-test.describe('planilha em .xlsx', () => {
+test.describe('spreadsheet in .xlsx', () => {
   let session: Session
   let folder: string
 
@@ -24,7 +24,7 @@ test.describe('planilha em .xlsx', () => {
     await rm(folder, { recursive: true, force: true })
   })
 
-  test('salva, reabre e as fórmulas continuam fórmulas', async () => {
+  test('saves, reopens and the formulas stay formulas', async () => {
     const target = join(folder, 'vendas.xlsx')
     session = await launch()
     await stubDialogs(session.app, { save: target, open: target, messageBox: 1 })
@@ -56,7 +56,7 @@ test.describe('planilha em .xlsx', () => {
     await expect(session.window.locator('.formula-bar__input')).toHaveValue('=A1*A2')
   })
 
-  test('as propriedades da planilha vão para o .xlsx e voltam ao reabrir', async () => {
+  test('the spreadsheet properties go to the .xlsx and come back on reopening', async () => {
     const target = join(folder, 'orcamento.xlsx')
     session = await launch()
     await stubDialogs(session.app, { save: target, open: target, messageBox: 1 })
@@ -90,7 +90,7 @@ test.describe('planilha em .xlsx', () => {
     await expect(dialog.getByRole('row', { name: /Modificado em/ })).not.toContainText('—')
   })
 
-  test('o inspetor tira o autor da planilha e o .xlsx guarda o pedido de não gravar nomes', async () => {
+  test('the inspector removes the spreadsheet author and the .xlsx keeps the request not to store names', async () => {
     const target = join(folder, 'orcamento.xlsx')
     session = await launch()
     await stubDialogs(session.app, { save: target, messageBox: 1 })

@@ -122,7 +122,7 @@ public class DocxRoundTripTests
     }
 
     [Fact]
-    public void ImagemAncoradaSaiDoFluxo()
+    public void AnchoredImageLeavesTheFlow()
     {
         // In Word an anchored object lives at a sheet position and does not push the text.
         var model = Open(Fixtures.WithAnchoredImage());
@@ -139,7 +139,7 @@ public class DocxRoundTripTests
     }
 
     [Fact]
-    public void AncoradaOndeOFluxoAPoriaContinuaNoFluxo()
+    public void AnchoredWhereTheFlowWouldPutItStaysInTheFlow()
     {
         // LibreOffice writes the image in its own paragraph as a `wp:anchor` without offset,
         // centered: it takes height in the flow.
@@ -152,7 +152,7 @@ public class DocxRoundTripTests
     }
 
     [Fact]
-    public void ImagemNoFluxoContinuaSendoBloco()
+    public void ImageInTheFlowRemainsABlock()
     {
         // `wp:inline` takes room in the line.
         var model = Open(Fixtures.WithInlineImage());
@@ -166,7 +166,7 @@ public class DocxRoundTripTests
     }
 
     [Fact]
-    public void ImagemReescritaMantemOTamanhoQueTinha()
+    public void RewrittenImageKeepsItsSize()
     {
         // The edited paragraph is rewritten from the model, and the image keeps its shape.
         var original = Fixtures.WithInlineImage();
@@ -183,7 +183,7 @@ public class DocxRoundTripTests
     }
 
     [Fact]
-    public void AListaHerdaOEspacamentoDosParagrafosDela()
+    public void ListInheritsTheSpacingOfItsParagraphs()
     {
         // In the file the list is numbered paragraphs, each with its own spacing; the editor's list
         // element must not add the default spacing.
@@ -479,7 +479,7 @@ public class DocxRoundTripTests
     }
 
     [Fact]
-    public void OMultiploDaEntrelinhaEVezAAlturaDaFonte()
+    public void LineSpacingMultipleIsTimesTheFontHeight()
     {
         // "1.13 lines" is 1.13 times the font's single line, which in Arial is 1.1499 em.
         var model = Open(Fixtures.WithLineMetrics());
@@ -489,7 +489,7 @@ public class DocxRoundTripTests
     }
 
     [Fact]
-    public void FonteQueNaoVaiNoInstaladorAindaRespeitaOMultiplo()
+    public void FontNotShippedWithTheInstallerStillHonorsTheMultiple()
     {
         // An unknown font with a declared multiple: the 1.15 guess, the height of almost every
         // Latin font, because against the font size it errs by 15 %.
@@ -501,13 +501,13 @@ public class DocxRoundTripTests
     }
 
     [Fact]
-    public void AFonteAusenteCaiNaSubstitutaDoTipoCerto()
+    public void MissingFontFallsBackToTheSubstituteOfTheRightKind()
     {
         // `word/fontTable.xml` gives the kind of a font that may be missing, for the CSS stack.
         var model = Open(Fixtures.WithMissingFont());
 
-        var titulo = MarksOf(BlockContaining(model, "Título da capa")).Single(m => m.Type == "textStyle");
-        Assert.Equal("Segoe UI, sans-serif", titulo.Attrs!["fontFamily"]!.GetValue<string>());
+        var title = MarksOf(BlockContaining(model, "Título da capa")).Single(m => m.Type == "textStyle");
+        Assert.Equal("Segoe UI, sans-serif", title.Attrs!["fontFamily"]!.GetValue<string>());
 
         // Without a declared kind, no invented stack.
         var outro = MarksOf(BlockContaining(model, "Sem tipo")).Single(m => m.Type == "textStyle");
@@ -515,7 +515,7 @@ public class DocxRoundTripTests
     }
 
     [Fact]
-    public void SoONomeDaFonteVoltaParaOArquivo()
+    public void OnlyTheFontNameGoesBackToTheFile()
     {
         // `w:rFonts` stores the name, not the stack: otherwise the font would be "Segoe UI,
         // sans-serif".
@@ -526,9 +526,9 @@ public class DocxRoundTripTests
         paragraph.Attrs!.Remove("oid");
 
         var (bytes, _) = Save(original, model);
-        var titulo = MarksOf(BlockContaining(Open(bytes), "Título da capa")).Single(m => m.Type == "textStyle");
+        var title = MarksOf(BlockContaining(Open(bytes), "Título da capa")).Single(m => m.Type == "textStyle");
 
-        Assert.Equal("Segoe UI, sans-serif", titulo.Attrs!["fontFamily"]!.GetValue<string>());
+        Assert.Equal("Segoe UI, sans-serif", title.Attrs!["fontFamily"]!.GetValue<string>());
     }
 
     [Fact]
@@ -639,7 +639,7 @@ public class DocxRoundTripTests
     }
 
     [Fact]
-    public void RevisaoDeEstruturaEEstruturalEComentarioNao()
+    public void StructureRevisionIsStructuralAndCommentIsNot()
     {
         // The list that decides read-only is a subset of invisibility: comments and text revisions
         // are not in it, structure revisions are.
@@ -653,7 +653,7 @@ public class DocxRoundTripTests
     }
 
     [Fact]
-    public void DocumentoComumNaoAbreEmSomenteLeitura()
+    public void OrdinaryDocumentDoesNotOpenReadOnly()
     {
         // Read-only on a normal document would teach people to click "edit anyway" without reading.
         var result = DocxReader.Read(Fixtures.Simple());
@@ -662,7 +662,7 @@ public class DocxRoundTripTests
     }
 
     [Fact]
-    public void ImagemAncoradaNaoEEstrutural()
+    public void AnchoredImageIsNotStructural()
     {
         // An appearance loss, not a content one: almost every corpus document has one.
         var result = DocxReader.Read(Fixtures.WithAnchoredImage());
@@ -671,7 +671,7 @@ public class DocxRoundTripTests
     }
 
     [Fact]
-    public void DesenhoAncoradoNoCabecalhoNaoEspremeEmTresColunas()
+    public void DrawingAnchoredInTheHeaderIsNotSqueezedIntoThreeColumns()
     {
         // An anchored drawing in the band goes as an object, with position and rotation: the corpus
         // side mark stands upright, 28.6 mm in a 10 mm band.
@@ -687,17 +687,17 @@ public class DocxRoundTripTests
     }
 
     [Fact]
-    public void ODeslocamentoNegativoDoCabecalhoSobreviveComSinal()
+    public void NegativeHeaderOffsetSurvivesWithSign()
     {
         // A mark leaving the column to the left: the sign counts.
         var page = DocxReader.Read(Fixtures.WithAnchoredHeaderLogo(-1123950)).Model.Page;
 
-        var marca = Assert.Single(page.Header!.Floats!);
-        Assert.Equal(-31.22, marca.HorizontalOffsetMm!.Value, 2);
+        var mark = Assert.Single(page.Header!.Floats!);
+        Assert.Equal(-31.22, mark.HorizontalOffsetMm!.Value, 2);
     }
 
     [Fact]
-    public void CabecalhoEmGradeSaiComoGrade()
+    public void GridHeaderComesOutAsGrid()
     {
         // The corpus corporate header is a table, with the logo merged across three rows: three
         // columns are not enough.
@@ -715,7 +715,7 @@ public class DocxRoundTripTests
     }
 
     [Fact]
-    public void ACelulaMescladaCresceEmVezDeDeixarBuracos()
+    public void MergedCellGrowsInsteadOfLeavingGaps()
     {
         // OOXML vertical merging is `restart` on top and empty cells below.
         var rows = DocxReader.Read(Fixtures.WithHeaderGrid()).Model.Page.Header!.Rows!;
@@ -728,7 +728,7 @@ public class DocxRoundTripTests
     }
 
     [Fact]
-    public void AGradeTrazLarguraJuntoEBordaResolvida()
+    public void GridCarriesWidthTogetherWithResolvedBorder()
     {
         // Width as a fraction of the grid, because whoever draws does not know what a twip is
         // worth; the border comes resolved, because each side comes from three places in OOXML.
@@ -743,7 +743,7 @@ public class DocxRoundTripTests
     }
 
     [Fact]
-    public void OGrupoDoCabecalhoSaiPecaPorPeca()
+    public void HeaderGroupComesOutPieceByPiece()
     {
         // The anchor gives the group's place, and `a:chOff`/`a:chExt` the inner ruler.
         var page = DocxReader.Read(Fixtures.WithHeaderGroup()).Model.Page;
@@ -758,17 +758,17 @@ public class DocxRoundTripTests
         Assert.Equal(129, logo.DxMm, 1);
         Assert.Equal(0, logo.DyMm, 1);
 
-        var titulo = floats.Single(item => item.Kind == "text");
-        Assert.Equal(84.8, titulo.WidthMm, 1);
-        Assert.Equal(41.7, titulo.DxMm, 1);
-        Assert.Equal(6.9, titulo.DyMm, 1);
+        var title = floats.Single(item => item.Kind == "text");
+        Assert.Equal(84.8, title.WidthMm, 1);
+        Assert.Equal(41.7, title.DxMm, 1);
+        Assert.Equal(6.9, title.DyMm, 1);
         Assert.Equal(
             "EVIDÊNCIAS DO ROTEIRO",
-            titulo.Content!.Single().Content!.Single().Text);
+            title.Content!.Single().Content!.Single().Text);
     }
 
     [Fact]
-    public void ADistanciaDaFaixaAteABordaEhLida()
+    public void BandDistanceToTheEdgeIsRead()
     {
         // The vertical origin for band anchors, which are relative to the paragraph.
         var page = DocxReader.Read(Fixtures.WithAnchoredHeaderLogo(0)).Model.Page;
@@ -777,7 +777,7 @@ public class DocxRoundTripTests
     }
 
     [Fact]
-    public void QuebraDentroDoParagrafoViraPropriedadeDoBloco()
+    public void BreakInsideTheParagraphBecomesBlockProperty()
     {
         // The editor does not accept a block node inside a line, and HTML moves a `<div>` out of a
         // `<p>`: indexes would stop matching the paper.
@@ -789,7 +789,7 @@ public class DocxRoundTripTests
     }
 
     [Fact]
-    public void AQuebraDoParagrafoVoltaAoArquivoAoEditar()
+    public void ParagraphBreakGoesBackToTheFileWhenEditing()
     {
         // An edited paragraph must write the break back; an untouched one carries it in the
         // original XML.
@@ -804,7 +804,7 @@ public class DocxRoundTripTests
     }
 
     [Fact]
-    public void OCabecalhoPadraoNaoDependeDaOrdemDeGravacao()
+    public void DefaultHeaderDoesNotDependOnWriteOrder()
     {
         // What counts is `w:type`, not the order of references in the XML.
         var bytes = Fixtures.WithFirstPageHeader(titlePage: true);
@@ -820,7 +820,7 @@ public class DocxRoundTripTests
     }
 
     [Fact]
-    public void PrimeiraPaginaComCabecalhoProprioEhLida()
+    public void FirstPageWithItsOwnHeaderIsRead()
     {
         var page = DocxReader.Read(Fixtures.WithFirstPageHeader(titlePage: true)).Model.Page;
 
@@ -828,7 +828,7 @@ public class DocxRoundTripTests
     }
 
     [Fact]
-    public void SemTitlePgOCabecalhoDaCapaNaoEhUsado()
+    public void WithoutTitlePgTheCoverHeaderIsNotUsed()
     {
         // Word keeps the `first` part with the switch off (four of the six corpus documents): it
         // comes, switched off, and whoever draws does not use it.
@@ -842,7 +842,7 @@ public class DocxRoundTripTests
     // Reader and editor describe the same block differently: each test below pins one of those as
     // "not an edit".
     [Fact]
-    public void AtributoNuloEAusenteSaoAMesmaCoisa()
+    public void NullAndMissingAttributeAreTheSame()
     {
         // ProseMirror materializes every schema attribute, with `null`.
         var doLeitor = Node.Of("paragraph").With("fontSize", "12pt");
@@ -852,7 +852,7 @@ public class DocxRoundTripTests
     }
 
     [Fact]
-    public void AOrdemDasChavesNaoContaComoEdicao()
+    public void KeyOrderDoesNotCountAsAnEdit()
     {
         // `JsonObject` keeps insertion order, which differs between the two sides.
         var doLeitor = Node.Of("paragraph").With("lineHeight", 1.16).With("fontSize", "12pt");
@@ -862,7 +862,7 @@ public class DocxRoundTripTests
     }
 
     [Fact]
-    public void AOrdemDasMarcasNaoContaComoEdicao()
+    public void MarkOrderDoesNotCountAsAnEdit()
     {
         // ProseMirror orders marks by their position in the schema.
         var doLeitor = new Node { Type = "text", Text = "Acme", Marks = [Mark.Of("bold"), Mark.Of("textStyle", "color", "#404040")] };
@@ -872,7 +872,7 @@ public class DocxRoundTripTests
     }
 
     [Fact]
-    public void TextoVizinhoComAsMesmasMarcasEUmTextoSo()
+    public void AdjacentTextWithTheSameMarksIsOneText()
     {
         // The reader emits one node per `w:r`: "Acme® Software" arrives split.
         var doLeitor = Node.Of(
@@ -885,7 +885,7 @@ public class DocxRoundTripTests
     }
 
     [Fact]
-    public void TextoVizinhoComMarcasDiferentesNaoSeFunde()
+    public void AdjacentTextWithDifferentMarksDoesNotMerge()
     {
         // Merging without looking at marks would hide a formatting edit.
         var negrito = Node.Of(
@@ -898,17 +898,17 @@ public class DocxRoundTripTests
     }
 
     [Fact]
-    public void EdicaoDeVerdadeContinuaSendoVista()
+    public void RealEditIsStillSeen()
     {
         // Loosening too much preserves the XML of a changed block, which is data loss.
-        var antes = Node.Of("paragraph", new Node { Type = "text", Text = "Sumário" });
-        var depois = Node.Of("paragraph", new Node { Type = "text", Text = "Sumario" });
+        var before = Node.Of("paragraph", new Node { Type = "text", Text = "Sumário" });
+        var after = Node.Of("paragraph", new Node { Type = "text", Text = "Sumario" });
 
-        Assert.NotEqual(antes.Fingerprint(), depois.Fingerprint());
+        Assert.NotEqual(before.Fingerprint(), after.Fingerprint());
     }
 
     [Fact]
-    public void OidNaoEntraNaComparacao()
+    public void OidDoesNotEnterTheComparison()
     {
         // Identity is not content.
         var primeiro = Node.Of("paragraph", new Node { Type = "text", Text = "Texto" }).With("oid", "b1");
@@ -918,7 +918,7 @@ public class DocxRoundTripTests
     }
 
     [Fact]
-    public void CaixaDeTextoViraObjetoComOTextoDentro()
+    public void TextBoxBecomesObjectWithTheTextInside()
     {
         // A box is its own text flow: in the line, title and subtitle would run together.
         var floats = FloatsOf(Open(Fixtures.WithTextBoxes()).Doc.Content![0]);
@@ -930,7 +930,7 @@ public class DocxRoundTripTests
     }
 
     [Fact]
-    public void CaixaDeTextoNaoEntraDuasVezes()
+    public void TextBoxDoesNotEnterTwice()
     {
         // DrawingML and VML fallback: one branch only, or two objects in the same place.
         var floats = FloatsOf(Open(Fixtures.WithTextBoxes()).Doc.Content![0]);
@@ -939,7 +939,7 @@ public class DocxRoundTripTests
     }
 
     [Fact]
-    public void CaixaDeTextoSobreviveAEdicaoDoParagrafoAncora()
+    public void TextBoxSurvivesEditingTheAnchorParagraph()
     {
         // The writer does not generate shapes from scratch: it copies anchored objects from the
         // block's original XML.
@@ -958,7 +958,7 @@ public class DocxRoundTripTests
     }
 
     [Fact]
-    public void TextoDigitadoNaCaixaVoltaParaOArquivo()
+    public void TextTypedInTheBoxGoesBackToTheFile()
     {
         // The cover title and subtitle live in boxes: the new text has to go back.
         var original = Fixtures.WithTextBoxes();
@@ -966,23 +966,23 @@ public class DocxRoundTripTests
 
         var capa = model.Doc.Content![0];
         var floats = FloatsOf(capa);
-        var editado = JsonNode.Parse(floats[0].GetRawText())!.AsObject();
-        editado["content"]![0]!["content"]![0]!["text"] = "Título trocado";
-        capa.Attrs!["floats"] = new JsonArray(editado, JsonNode.Parse(floats[1].GetRawText()));
+        var edited = JsonNode.Parse(floats[0].GetRawText())!.AsObject();
+        edited["content"]![0]!["content"]![0]!["text"] = "Título trocado";
+        capa.Attrs!["floats"] = new JsonArray(edited, JsonNode.Parse(floats[1].GetRawText()));
 
         var (bytes, _) = Save(original, model);
-        var depois = FloatsOf(Open(bytes).Doc.Content![0]);
+        var after = FloatsOf(Open(bytes).Doc.Content![0]);
 
-        Assert.Contains(depois, item => TextOfFloat(item) == "Título trocado");
-        Assert.Contains(depois, item => TextOfFloat(item) == "Subtítulo do manual");
-        Assert.DoesNotContain(depois, item => TextOfFloat(item) == "Título do manual");
+        Assert.Contains(after, item => TextOfFloat(item) == "Título trocado");
+        Assert.Contains(after, item => TextOfFloat(item) == "Subtítulo do manual");
+        Assert.DoesNotContain(after, item => TextOfFloat(item) == "Título do manual");
 
         // The fallback branch too, or the file says two things.
         Assert.DoesNotContain("Título do manual", MainDocumentXml(bytes), StringComparison.Ordinal);
     }
 
     [Fact]
-    public void CaixaNaoEditadaNaoEReescrita()
+    public void UneditedBoxIsNotRewritten()
     {
         // A box nobody touched keeps the XML it had.
         var original = Fixtures.WithTextBoxes();
@@ -998,7 +998,7 @@ public class DocxRoundTripTests
     }
 
     [Fact]
-    public void CaixaDeTextoNaoTravaMaisODocumento()
+    public void TextBoxNoLongerLocksTheDocument()
     {
         // Editable, because editing the anchor copies the shape. The warning stays: without a
         // declaration, the shape inherits frame and fill from the theme.
@@ -1009,7 +1009,7 @@ public class DocxRoundTripTests
     }
 
     [Fact]
-    public void CaixaSemMolduraNaoAvisaMolduraNenhuma()
+    public void BoxWithoutFrameDoesNotWarnAboutNoFrame()
     {
         // A box without decoration needs no warning.
         var result = DocxReader.Read(Fixtures.WithDecoratedTextBoxes());
@@ -1029,7 +1029,7 @@ public class DocxRoundTripTests
     }
 
     [Fact]
-    public void OGradienteContinuaSendoAvisado()
+    public void GradientIsStillWarned()
     {
         // The warning now only covers what is left: gradient, texture, shadow, rounded corner.
         var result = DocxReader.Read(Fixtures.WithGradientTextBox());
@@ -1038,22 +1038,22 @@ public class DocxRoundTripTests
     }
 
     [Fact]
-    public void OCabecalhoTrazAFonteQueODocumentoPede()
+    public void HeaderCarriesTheFontTheDocumentAsksFor()
     {
         // Without it the header would inherit the editor font.
         var floats = Open(Fixtures.WithHeaderGroup()).Page.Header!.Floats;
-        var titulo = floats.Single(item => item.Kind == "text");
+        var title = floats.Single(item => item.Kind == "text");
 
-        var marca = titulo.Content!.Single().Content!.Single().Marks!
+        var mark = title.Content!.Single().Content!.Single().Marks!
             .Single(m => m.Type == "textStyle");
 
         // No stack: the fixture does not declare the family, and the editor's `@font-face` serves
         // Calibri.
-        Assert.Equal("Calibri", marca.Attrs!["fontFamily"]!.GetValue<string>());
+        Assert.Equal("Calibri", mark.Attrs!["fontFamily"]!.GetValue<string>());
     }
 
     [Fact]
-    public void OFileteDoCabecalhoEDesenhado()
+    public void HeaderRuleIsDrawn()
     {
         // The rule is a zero-height outlined shape, in the logo group.
         var floats = Open(Fixtures.WithHeaderGroup()).Page.Header!.Floats;
@@ -1064,7 +1064,7 @@ public class DocxRoundTripTests
     }
 
     [Fact]
-    public void AListaTrazAMarcaEOsRecuosQueODocumentoPede()
+    public void ListCarriesTheMarkerAndTheIndentsTheDocumentAsksFor()
     {
         // The document states the character and both distances, where the text starts and how far
         // before it the marker sits; the private use area character comes translated.
@@ -1077,7 +1077,7 @@ public class DocxRoundTripTests
     }
 
     [Fact]
-    public void CadaParagrafoDoRodapeAbreUmaLinha()
+    public void EachFooterParagraphOpensALine()
     {
         // Each band paragraph is a line.
         var page = Open(Fixtures.WithFooterOfThreeLines()).Page;
@@ -1090,7 +1090,7 @@ public class DocxRoundTripTests
     }
 
     [Fact]
-    public void CadaPecaDaFaixaSabeDeOndeVeio()
+    public void EachPieceOfTheBandKnowsWhereItCameFrom()
     {
         // The address lets saving write into the piece's `w:t` without regenerating the band.
         var pieces = Open(Fixtures.WithFooterOfThreeLines()).Page.Footer!.Center;
@@ -1105,7 +1105,7 @@ public class DocxRoundTripTests
     }
 
     [Fact]
-    public void PecaSemTextoProprioNaoRecebeEndereco()
+    public void PieceWithoutOwnTextGetsNoAddress()
     {
         // No `w:t`, no address: typing there would erase the field.
         var pieces = Open(Fixtures.WithFooterOfPageNumber()).Page.Footer!.Left;
@@ -1119,7 +1119,7 @@ public class DocxRoundTripTests
     }
 
     [Fact]
-    public void OTextoDigitadoNoRodapeVoltaParaOArquivo()
+    public void TextTypedInTheFooterGoesBackToTheFile()
     {
         // Only the edited piece's `w:t` changes.
         var original = Fixtures.WithFooterOfThreeLines();
@@ -1136,7 +1136,7 @@ public class DocxRoundTripTests
     }
 
     [Fact]
-    public void RodapeNaoEditadoNaoEReescrito()
+    public void UneditedFooterIsNotRewritten()
     {
         // A part nobody touched goes back byte for byte, not reserialized by the SDK.
         var original = Fixtures.WithFooterOfThreeLines();
@@ -1148,7 +1148,7 @@ public class DocxRoundTripTests
     }
 
     [Fact]
-    public void OCampoDoRodapeSobreviveAEdicaoDaLinha()
+    public void FooterFieldSurvivesEditingTheLine()
     {
         // Text merged with the tab lost its trace: saving writes nothing, before the field becomes
         // a fixed number.
@@ -1167,21 +1167,21 @@ public class DocxRoundTripTests
     }
 
     [Fact]
-    public void OTextoDigitadoNaCaixaDoCabecalhoVoltaParaOArquivo()
+    public void TextTypedInTheHeaderBoxGoesBackToTheFile()
     {
         // The corporate header title lives in a box inside a shape group.
         var original = Fixtures.WithHeaderGroup();
         var model = Clone(Open(original));
 
-        var caixa = Assert.Single(model.Page.Header!.Floats!, item => item.Kind == "text");
-        Assert.NotNull(caixa.BoxId);
+        var box = Assert.Single(model.Page.Header!.Floats!, item => item.Kind == "text");
+        Assert.NotNull(box.BoxId);
 
-        caixa.Content![0].Content![0].Text = "EVIDÊNCIAS DE HOMOLOGAÇÃO";
+        box.Content![0].Content![0].Text = "EVIDÊNCIAS DE HOMOLOGAÇÃO";
 
         var reopened = Open(Save(original, model).Bytes).Page.Header!;
-        var voltou = Assert.Single(reopened.Floats!, item => item.Kind == "text");
+        var reopenedBox = Assert.Single(reopened.Floats!, item => item.Kind == "text");
 
-        Assert.Equal("EVIDÊNCIAS DE HOMOLOGAÇÃO", voltou.Content![0].Content![0].Text);
+        Assert.Equal("EVIDÊNCIAS DE HOMOLOGAÇÃO", reopenedBox.Content![0].Content![0].Text);
 
         // The group stays whole: the writer does not generate logo and rule.
         Assert.Contains(reopened.Floats!, item => item.Kind == "image");
@@ -1189,7 +1189,7 @@ public class DocxRoundTripTests
     }
 
     [Fact]
-    public void CaixaDoCabecalhoNaoEditadaNaoEReescrita()
+    public void UneditedHeaderBoxIsNotRewritten()
     {
         var original = Fixtures.WithHeaderGroup();
 
@@ -1199,7 +1199,7 @@ public class DocxRoundTripTests
     }
 
     [Fact]
-    public void OEspacoDeclaradoNaoApagaAEntrelinhaDoEstilo()
+    public void DeclaredSpacingDoesNotEraseTheStyleLineSpacing()
     {
         // `w:spacing` attributes are independent: declaring only `w:after` does not erase the
         // style's line spacing.
@@ -1211,7 +1211,7 @@ public class DocxRoundTripTests
     }
 
     [Fact]
-    public void ORecuoDoParagrafoEAMedidaQueODocumentoPede()
+    public void ParagraphIndentIsTheMeasureTheDocumentAsksFor()
     {
         // The editor level is worth 2.5em, 25 pt at 10 pt, not the 36 pt of 720 twips.
         var blocks = OpenFlat(Fixtures.WithStyleSpacingAndDirectMargins()).Doc.Content!;
@@ -1228,7 +1228,7 @@ public class DocxRoundTripTests
     }
 
     [Fact]
-    public void ORecuoVoltaParaOArquivoNaMedidaEmQueVeio()
+    public void IndentGoesBackToTheFileInTheMeasureItCameIn()
     {
         var original = Fixtures.WithStyleSpacingAndDirectMargins();
         var model = Clone(Open(original));
@@ -1243,7 +1243,7 @@ public class DocxRoundTripTests
     }
 
     [Fact]
-    public void OTrechoLevaSoOQueDifereDoEstilo()
+    public void TheRunCarriesOnlyWhatDiffersFromTheStyle()
     {
         // A run without its own formatting does not take the style's, or modifying the style would
         // not change the screen.
@@ -1256,7 +1256,7 @@ public class DocxRoundTripTests
     }
 
     [Fact]
-    public void OBlocoLevaSoOQueOParagrafoDeclara()
+    public void TheBlockCarriesOnlyWhatTheParagraphDeclares()
     {
         // The block carries only direct formatting, at its effective value; the inherited part
         // comes from the style CSS.
@@ -1277,7 +1277,7 @@ public class DocxRoundTripTests
     }
 
     [Fact]
-    public void OFundoEOManterComOProximoDoEstiloFicamNoEstilo()
+    public void ShadingAndKeepWithNextOfTheStyleStayInTheStyle()
     {
         var model = Open(Fixtures.WithStyles());
         var banner = FirstOfType(model, "paragraph");
@@ -1289,7 +1289,7 @@ public class DocxRoundTripTests
     }
 
     [Fact]
-    public void OEditadoGravaAEntrelinhaNaFonteDoEstiloESomaONivelAoRecuoDoEstilo()
+    public void EditedOneWritesLineSpacingInTheStyleFontAndAddsTheLevelToTheStyleIndent()
     {
         // The writer looks up the style's font and indent in the style.
         var original = Fixtures.WithStyleSpacingAndDirectMargins();
@@ -1305,7 +1305,7 @@ public class DocxRoundTripTests
     }
 
     [Fact]
-    public void ORascunhoAchatadoEComparadoComALeituraAchatada()
+    public void FlattenedDraftIsComparedWithTheFlattenedReading()
     {
         // A draft from before `.sdoc` 4 carries flattened blocks.
         var original = Fixtures.WithStyles();
@@ -1319,7 +1319,7 @@ public class DocxRoundTripTests
     }
 
     [Fact]
-    public void AMarcaDeSecaoNaoEUmaLinhaDeTexto()
+    public void SectionMarkIsNotATextLine()
     {
         // The section mark is an empty paragraph with `w:sectPr`, and LibreOffice gives it no
         // height.
@@ -1336,7 +1336,7 @@ public class DocxRoundTripTests
     }
 
     [Fact]
-    public void OParagrafoQueAncoraEQuebraContinuaParagrafo()
+    public void ParagraphThatAnchorsAndBreaksRemainsAParagraph()
     {
         // The cover mark anchored to the break paragraph stays on the upper sheet: the break node
         // lives between sheets.
@@ -1349,7 +1349,7 @@ public class DocxRoundTripTests
     }
 
     [Fact]
-    public void QuebraSozinhaContinuaSendoNoDeQuebra()
+    public void LoneBreakRemainsABreakNode()
     {
         // With nothing anchored, a paragraph with only the break is the break node.
         var model = Open(Fixtures.WithLonePageBreak());
@@ -1358,7 +1358,7 @@ public class DocxRoundTripTests
     }
 
     [Fact]
-    public void OGiroViajaEmGrausSemMexerNasMedidas()
+    public void RotationTravelsInDegreesWithoutChangingTheMeasures()
     {
         // Word positions unrotated and rotates around the center, like `transform: rotate()`.
         var model = Open(Fixtures.WithRotatedImage());
@@ -1370,7 +1370,7 @@ public class DocxRoundTripTests
     }
 
     [Fact]
-    public void AAncoraViajaComOrigemEDeslocamento()
+    public void AnchorTravelsWithOriginAndOffset()
     {
         // The most common origin is the paragraph, which only has a position after pagination.
         var image = Assert.Single(FloatsOf(Open(Fixtures.WithRotatedImage()).Doc.Content![0]));

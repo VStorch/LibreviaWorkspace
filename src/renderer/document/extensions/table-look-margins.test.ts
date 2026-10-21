@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { cellMarginsCss } from './table-look.js'
 
-describe('margem de célula da tabela', () => {
-  it('twips viram pixels de CSS, na ordem do padding', () => {
+describe('table cell margin', () => {
+  it('twips become CSS pixels, in padding order', () => {
     expect(cellMarginsCss('0 108 60 108')).toBe('0px 7.2px 4px 7.2px')
   })
 
-  it('o que não for quatro medidas some, e a célula fica com a margem do modelo', () => {
+  it("anything other than four measures is dropped, and the cell gets the model's margin", () => {
     expect(cellMarginsCss(null)).toBeNull()
     expect(cellMarginsCss('0 108')).toBeNull()
     expect(cellMarginsCss('0 -5 0 108')).toBeNull()

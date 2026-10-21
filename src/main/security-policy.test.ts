@@ -21,52 +21,52 @@ describe('SECURE_WEB_PREFERENCES', () => {
     ['webSecurity', true],
     ['allowRunningInsecureContent', false],
     ['webviewTag', false],
-  ])('mantém %s como %s', (key, expected) => {
+  ])('keeps %s as %s', (key, expected) => {
     expect(SECURE_WEB_PREFERENCES[key as keyof typeof SECURE_WEB_PREFERENCES]).toBe(expected)
   })
 })
 
 describe('buildContentSecurityPolicy', () => {
-  it('bloqueia qualquer conexão de rede em produção', () => {
+  it('blocks any network connection in production', () => {
     expect(buildContentSecurityPolicy('production')).toContain("connect-src 'none'")
   })
 
-  it('não permite script inline em produção', () => {
+  it('allows no inline script in production', () => {
     expect(buildContentSecurityPolicy('production')).toContain("script-src 'self'")
     expect(buildContentSecurityPolicy('production')).not.toContain("script-src 'self' 'unsafe-inline'")
   })
 
-  it('libera o WebSocket do Vite apenas em desenvolvimento', () => {
+  it('allows the Vite WebSocket only in development', () => {
     expect(buildContentSecurityPolicy('development')).toContain('ws://localhost:*')
     expect(buildContentSecurityPolicy('production')).not.toContain('ws://')
   })
 
-  it('só o visualizador de PDF entra num frame', () => {
+  it('only the PDF viewer goes into a frame', () => {
     expect(buildContentSecurityPolicy('production')).toContain('frame-src librevia-viewer:;')
     expect(buildContentSecurityPolicy('development')).toContain('frame-src librevia-viewer:;')
   })
 
-  it.each(['object-src', 'base-uri', 'form-action'])('restringe %s nos dois modos', (directive) => {
+  it.each(['object-src', 'base-uri', 'form-action'])('restricts %s in both modes', (directive) => {
     expect(buildContentSecurityPolicy('production')).toContain(`${directive} 'none'`)
     expect(buildContentSecurityPolicy('development')).toContain(`${directive} 'none'`)
   })
 })
 
-describe('política do visualizador de PDF', () => {
+describe('PDF viewer policy', () => {
   const directive = (name: string): string =>
     VIEWER_CONTENT_SECURITY_POLICY.split('; ').find((entry) => entry.startsWith(`${name} `)) ?? ''
 
-  it('compila WebAssembly, mas não aceita eval nem script inline', () => {
+  it('compiles WebAssembly, but accepts neither eval nor inline script', () => {
     expect(directive('script-src')).toBe("script-src librevia-viewer: 'wasm-unsafe-eval'")
   })
 
-  it('não busca nada fora do próprio esquema', () => {
+  it('fetches nothing outside its own scheme', () => {
     expect(VIEWER_CONTENT_SECURITY_POLICY).toContain("default-src 'none'")
     expect(directive('connect-src')).toBe('connect-src librevia-viewer:')
     expect(directive('worker-src')).toBe('worker-src librevia-viewer:')
   })
 
-  it('reconhece as respostas do esquema, que levam a própria política', () => {
+  it('recognizes responses of the scheme, which carry their own policy', () => {
     expect(isViewerSchemeUrl('librevia-viewer://app/pdf-viewer/index.html')).toBe(true)
     expect(isViewerSchemeUrl('file:///app/index.html')).toBe(false)
   })
@@ -74,7 +74,7 @@ describe('política do visualizador de PDF', () => {
 
 describe('isAllowedExternalUrl', () => {
   it.each(['https://exemplo.com', 'http://intranet.local/doc', 'mailto:alguem@exemplo.com'])(
-    'aceita %s',
+    'accepts %s',
     (url) => {
       expect(isAllowedExternalUrl(url)).toBe(true)
     },
@@ -93,15 +93,15 @@ describe('isAllowedExternalUrl', () => {
 })
 
 describe('isAllowedNavigation', () => {
-  it('permite a própria origem do servidor de desenvolvimento', () => {
+  it('allows the own origin of the development server', () => {
     expect(isAllowedNavigation('http://localhost:5173/index.html', 'http://localhost:5173')).toBe(true)
   })
 
-  it('recusa outra origem mesmo em desenvolvimento', () => {
+  it('refuses another origin even in development', () => {
     expect(isAllowedNavigation('https://exemplo.com', 'http://localhost:5173')).toBe(false)
   })
 
-  it('permite file: apenas em produção', () => {
+  it('allows file: only in production', () => {
     expect(isAllowedNavigation('file:///app/index.html', null)).toBe(true)
     expect(isAllowedNavigation('file:///etc/passwd', 'http://localhost:5173')).toBe(false)
   })
@@ -112,11 +112,11 @@ describe('isAllowedNavigation', () => {
 })
 
 describe('isPdfViewerUrl', () => {
-  it('reconhece a página do visualizador de PDF do Chromium', () => {
+  it('recognizes the PDF viewer page of Chromium', () => {
     expect(isPdfViewerUrl('chrome-extension://mhjfbmdgcfjbbpaeojofohoefgiehjai/index.html')).toBe(true)
   })
 
-  it('não isenta da CSP nenhuma outra origem', () => {
+  it('exempts no other origin from the CSP', () => {
     // Only the viewer's own page goes without the app's CSP: anything else here would open a hole.
     expect(isPdfViewerUrl('chrome-extension://outraextensaoqualquer/index.html')).toBe(false)
     expect(isPdfViewerUrl('file:///tmp/relatorio.pdf')).toBe(false)

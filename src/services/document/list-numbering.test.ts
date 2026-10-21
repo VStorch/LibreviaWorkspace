@@ -43,7 +43,7 @@ const outline: NumberingDef = {
 }
 
 describe('formatNumber', () => {
-  it('escreve cada formato do Word', () => {
+  it('writes each Word format', () => {
     expect(formatNumber(4, 'decimal')).toBe('4')
     expect(formatNumber(4, 'decimalZero')).toBe('04')
     expect(formatNumber(4, 'lowerRoman')).toBe('iv')
@@ -52,19 +52,19 @@ describe('formatNumber', () => {
     expect(formatNumber(4, 'bullet')).toBe('')
   })
 
-  it('depois do z vem aa, como no Word, e não ab', () => {
+  it('after z comes aa, as in Word, not ab', () => {
     expect(formatNumber(26, 'lowerLetter')).toBe('z')
     expect(formatNumber(27, 'lowerLetter')).toBe('aa')
     expect(formatNumber(28, 'lowerLetter')).toBe('bb')
   })
 
-  it('formato desconhecido sai em decimal, e não some', () => {
+  it('unknown format comes out as decimal, and does not vanish', () => {
     expect(formatNumber(3, 'ordinal')).toBe('3')
   })
 })
 
 describe('numberLists', () => {
-  it('lista nova numerada usa os níveis padrão do Word: 1. a. i.', () => {
+  it("a new numbered list uses Word's default levels: 1. a. i.", () => {
     const root = doc(
       list(
         'orderedList',
@@ -79,7 +79,7 @@ describe('numberLists', () => {
     expect(labels(root)).toEqual(['1.', 'a.', 'i.', 'b.', '2.'])
   })
 
-  it('compõe os números de cima pelo texto do nível', () => {
+  it('composes the upper numbers through the level text', () => {
     const root = doc(
       list(
         'orderedList',
@@ -91,7 +91,7 @@ describe('numberLists', () => {
     expect(labels(root)).toEqual(['1.', '2.', '2.a)', '2.b)'])
   })
 
-  it('a mesma definição continua a conta do outro lado de um parágrafo', () => {
+  it('the same definition continues the count across a paragraph', () => {
     const root = doc(
       list('orderedList', { numId: 5, numbering: outline }, item('um'), item('dois')),
       paragraph('no meio'),
@@ -100,7 +100,7 @@ describe('numberLists', () => {
     expect(labels(root)).toEqual(['1.', '2.', '3.'])
   })
 
-  it('outro w:num da mesma definição abstrata também continua', () => {
+  it('another w:num of the same abstract definition also continues', () => {
     const other = { ...outline }
     const root = doc(
       list('orderedList', { numId: 5, numbering: outline }, item('um')),
@@ -110,7 +110,7 @@ describe('numberLists', () => {
     expect(labels(root)).toEqual(['1.', '2.'])
   })
 
-  it('o reinício do w:num conta à parte, a partir do valor dado', () => {
+  it('the w:num restart counts separately, from the given value', () => {
     const restarted: NumberingDef = { ...outline, key: 'n7', overrides: { '0': 10 } }
     const root = doc(
       list('orderedList', { numId: 5, numbering: outline }, item('um'), item('dois')),
@@ -120,7 +120,7 @@ describe('numberLists', () => {
     expect(labels(root)).toEqual(['1.', '2.', '10.', '11.', '3.'])
   })
 
-  it('o item de cima reinicia os de baixo', () => {
+  it('the upper item restarts the lower ones', () => {
     const root = doc(
       list(
         'orderedList',
@@ -132,7 +132,7 @@ describe('numberLists', () => {
     expect(labels(root)).toEqual(['1.', '1.a)', '1.b)', '2.', '2.a)'])
   })
 
-  it('w:isLgl escreve os números de cima em decimal', () => {
+  it('w:isLgl writes the upper numbers as decimal', () => {
     const levels: LevelDef[] = [
       { fmt: 'upperRoman', text: '%1.', start: 1 },
       { fmt: 'decimal', text: '%1.%2.', start: 1, legal: true },
@@ -147,7 +147,7 @@ describe('numberLists', () => {
     expect(labels(root)).toEqual(['I.', '1.1.'])
   })
 
-  it('lista com marcador desenha a marca do nível, e sublista criada com Tab herda a definição', () => {
+  it('a bulleted list draws the level mark, and a sublist created with Tab inherits the definition', () => {
     const bullets: NumberingDef = {
       key: 'a2',
       levels: [
@@ -167,7 +167,7 @@ describe('numberLists', () => {
     expect(result.lists[1]!.numId).toBe(2)
   })
 
-  it('duas listas novas contam cada uma a sua', () => {
+  it('two new lists each count their own', () => {
     const root = doc(
       list('orderedList', {}, item('um'), item('dois')),
       paragraph('no meio'),
@@ -176,14 +176,14 @@ describe('numberLists', () => {
     expect(labels(root)).toEqual(['1.', '2.', '1.'])
   })
 
-  it('o nível do arquivo vale quando a lista começa fundo', () => {
+  it("the file's level holds when the list starts deep", () => {
     const root = doc(list('orderedList', { numId: 5, numbering: outline, level: 1 }, item('solto')))
     const result = numberLists(root, reader)
     expect(result.lists[0]!.level).toBe(1)
     expect(result.labels).toEqual(['1.a)'])
   })
 
-  it('o recuo da sublista é relativo ao da lista de fora', () => {
+  it("the sublist indent is relative to the outer list's", () => {
     const root = doc(
       list(
         'orderedList',
@@ -198,15 +198,15 @@ describe('numberLists', () => {
   })
 })
 
-describe('listas prontas', () => {
-  it('todas definem os nove níveis', () => {
+describe('ready-made lists', () => {
+  it('all define the nine levels', () => {
     for (const preset of LIST_PRESETS) {
       expect(preset.levels).toHaveLength(9)
       expect(kindOfLevels(preset.levels)).toBe(preset.kind)
     }
   })
 
-  it('1. 1.1. 1.1.1. compõe todos os níveis de cima', () => {
+  it('1. 1.1. 1.1.1. composes all the upper levels', () => {
     const legal = LIST_PRESETS.find((preset) => preset.id === 'legal')!
     const numbering = { key: 'l', levels: legal.levels }
     const root = doc(

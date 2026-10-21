@@ -8,7 +8,7 @@ function sheetWith(cells: Array<[number, number, Parameters<typeof setCell>[3]]>
 }
 
 describe('usedBounds', () => {
-  it('para no último dado, não no fim da grade', () => {
+  it('stops at the last data, not at the end of the grid', () => {
     // A new sheet has a thousand rows and no data. Printing the whole grid would waste dozens of
     // blank pages, and the user would find out at the printer tray.
     const sheet = sheetWith([
@@ -19,24 +19,24 @@ describe('usedBounds', () => {
     expect(usedBounds(sheet)).toEqual({ rows: 3, columns: 4 })
   })
 
-  it('planilha vazia não tem área de impressão', () => {
+  it('an empty sheet has no print area', () => {
     expect(usedBounds(createSheet('Plan1'))).toEqual({ rows: 0, columns: 0 })
   })
 })
 
 describe('buildSheetHtml', () => {
-  it('diz que a aba está vazia em vez de imprimir uma tabela sem linhas', () => {
+  it('says the sheet is empty instead of printing a table with no rows', () => {
     expect(buildSheetHtml(createSheet('Plan1'))).toContain('vazia')
   })
 
-  it('formata a célula como na tela', () => {
+  it('formats the cell as on screen', () => {
     const sheet = sheetWith([[0, 0, { value: 12.5, style: { format: CellFormat.Currency } }]])
 
     // The same `formatCell` as the grid: the cell must not look different on paper.
     expect(buildSheetHtml(sheet)).toContain('R$')
   })
 
-  it('leva negrito, cor e alinhamento para o papel', () => {
+  it('carries bold, color and alignment to paper', () => {
     const sheet = sheetWith([
       [0, 0, { value: 'Título', style: { bold: true, color: '#1a5fb4', align: 'center' } }],
     ])
@@ -47,7 +47,7 @@ describe('buildSheetHtml', () => {
     expect(html).toContain('text-align:center')
   })
 
-  it('não inventa alinhamento que a tela não faz', () => {
+  it('does not invent alignment the screen does not make', () => {
     // Excel right-aligns numbers on its own; this grid does not. Printing differently from the
     // screen breaks the only promise printing has.
     const sheet = sheetWith([[0, 0, { value: 42 }]])
@@ -55,7 +55,7 @@ describe('buildSheetHtml', () => {
     expect(buildSheetHtml(sheet)).not.toContain('text-align')
   })
 
-  it('as linhas congeladas viram cabeçalho da tabela', () => {
+  it('frozen rows become the table header', () => {
     // The browser repeats `<thead>` at the top of each printed page. That is what someone who froze
     // the row on screen expects on paper.
     const sheet: Sheet = {
@@ -71,13 +71,13 @@ describe('buildSheetHtml', () => {
     expect(html).toMatch(/<tbody>.*Cabo.*<\/tbody>/s)
   })
 
-  it('sem congelamento não inventa cabeçalho', () => {
+  it('without freeze panes, invents no header', () => {
     const sheet = sheetWith([[0, 0, { value: 'Produto' }]])
 
     expect(buildSheetHtml(sheet)).not.toContain('<thead>')
   })
 
-  it('escapa o conteúdo da célula', () => {
+  it('escapes the cell content', () => {
     // The text comes from a document, which is untrusted data.
     const sheet = sheetWith([[0, 0, { value: '<script>alert(1)</script>' }]])
 
@@ -85,7 +85,7 @@ describe('buildSheetHtml', () => {
     expect(buildSheetHtml(sheet)).toContain('&lt;script&gt;')
   })
 
-  it('recusa cor que não seja #rrggbb', () => {
+  it('rejects a color that is not #rrggbb', () => {
     // Without the guard, a "color" with a semicolon would leave the `style` attribute and become
     // another declaration.
     const sheet = sheetWith([[0, 0, { value: 'x', style: { color: 'red;background:url(http://x)' } }]])
@@ -95,7 +95,7 @@ describe('buildSheetHtml', () => {
     expect(html).toContain('color:inherit')
   })
 
-  it('converte a largura das colunas em proporção', () => {
+  it('converts column widths into proportions', () => {
     // In pixels, a sheet wider than the page comes out with the last column clipped at the margin,
     // and the user only finds out after printing.
     const sheet: Sheet = { ...sheetWith([[0, 1, { value: 'x' }]]), columnWidths: { 0: 288, 1: 96 } }
@@ -106,7 +106,7 @@ describe('buildSheetHtml', () => {
     expect(html).not.toContain('px')
   })
 
-  it('encolhe a fonte conforme a planilha alarga', () => {
+  it('shrinks the font as the sheet widens', () => {
     // Twelve columns on portrait A4 give about fifty pixels each; at 11 pt numbers start breaking
     // in the middle.
     const estreita = sheetWith([[0, 3, { value: 'x' }]])
@@ -116,7 +116,7 @@ describe('buildSheetHtml', () => {
     expect(buildSheetHtml(larga)).toContain('font-size:8pt')
   })
 
-  it('não corta o texto que não cabe na coluna', () => {
+  it('does not cut text that does not fit in the column', () => {
     // On screen the column can be widened; on paper it cannot. Content hidden on paper is silent
     // loss.
     expect(SHEET_PRINT_CSS).not.toContain('text-overflow')

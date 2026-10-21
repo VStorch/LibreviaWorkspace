@@ -16,7 +16,7 @@ import {
  * loses it. Comments, text revisions and notes do not lock: they go back to the file. Locking
  * everything would teach people to click "edit anyway" without reading.
  */
-test.describe('somente leitura', () => {
+test.describe('read-only', () => {
   let session: Session
   let folder: string
 
@@ -30,7 +30,7 @@ test.describe('somente leitura', () => {
     await rm(folder, { recursive: true, force: true })
   })
 
-  test('documento com revisão de estrutura abre travado e diz por quê', async () => {
+  test('a document with a structure revision opens locked and says why', async () => {
     const target = join(folder, 'ata.docx')
     await writeFile(target, await docxWithCellRevision())
     await stubDialogs(session.app, { open: target, messageBox: 1 })
@@ -64,7 +64,7 @@ test.describe('somente leitura', () => {
    * The lock also applies to the menu: commands call the editor directly, and it obeys even with
    * `contenteditable="false"`.
    */
-  test('os comandos de edição do menu respeitam a trava', async () => {
+  test("the menu's edit commands respect the lock", async () => {
     const target = join(folder, 'ata-com-tabela.docx')
     await writeFile(target, await docxWithCellRevision({ leadingTable: true }))
     await stubDialogs(session.app, { open: target, messageBox: 1 })
@@ -72,8 +72,8 @@ test.describe('somente leitura', () => {
     await menu(session, 'open')
     await expect(session.window.locator('.banner--readonly')).toBeVisible()
 
-    const linhas = session.window.locator('.page__content tr')
-    await expect(linhas).toHaveCount(2)
+    const lines = session.window.locator('.page__content tr')
+    await expect(lines).toHaveCount(2)
 
     for (const command of [
       'table-row-after',
@@ -99,12 +99,12 @@ test.describe('somente leitura', () => {
 
     await expect(session.window.getByRole('dialog', { name: 'Inserir tabela' })).toHaveCount(0)
     await expect(session.window.getByRole('dialog', { name: 'Propriedades da tabela' })).toHaveCount(0)
-    await expect(linhas).toHaveCount(2)
+    await expect(lines).toHaveCount(2)
     await expect(session.window.locator('.page__content table')).toHaveCount(1)
     await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
   })
 
-  test('documento com comentário abre editável e mostra o comentário', async () => {
+  test('a document with a comment opens editable and shows the comment', async () => {
     const target = join(folder, 'comentado.docx')
     await writeFile(target, await docxWithComment())
     await stubDialogs(session.app, { open: target, messageBox: 1 })
@@ -118,7 +118,7 @@ test.describe('somente leitura', () => {
     await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
   })
 
-  test('documento com controle de alterações abre editável e mostra as revisões', async () => {
+  test('a document with track changes opens editable and shows the revisions', async () => {
     const target = join(folder, 'revisado.docx')
     await writeFile(target, await docxWithTrackedChange())
     await stubDialogs(session.app, { open: target, messageBox: 1 })
@@ -132,7 +132,7 @@ test.describe('somente leitura', () => {
     await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
   })
 
-  test('documento com nota de rodapé abre editável e numera a referência', async () => {
+  test('a document with a footnote opens editable and numbers the reference', async () => {
     const target = join(folder, 'nota.docx')
     await writeFile(target, await docxWithFootnote())
     await stubDialogs(session.app, { open: target, messageBox: 1 })
@@ -150,7 +150,7 @@ test.describe('somente leitura', () => {
     await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
   })
 
-  test('documento comum abre editável', async () => {
+  test('a plain document opens editable', async () => {
     const target = join(folder, 'simples.docx')
     await writeFile(target, await docxWithoutExtras())
     await stubDialogs(session.app, { open: target, messageBox: 1 })

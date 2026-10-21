@@ -18,7 +18,7 @@ public class DocxWriteBackTests
     /// blames the writer for a test defect.
     /// </summary>
     [Fact]
-    public void TodoFixtureNasceDentroDoEsquema()
+    public void EveryFixtureIsBornValidAgainstTheSchema()
     {
         var invalid = new List<string>();
 
@@ -46,7 +46,7 @@ public class DocxWriteBackTests
     }
 
     [Fact]
-    public void EditarParagrafoPreservaEstiloEspacamentoEFundo()
+    public void EditingParagraphPreservesStyleSpacingAndShading()
     {
         // Fixing a comma in the heading does not touch the rest of `w:pPr`.
         var original = Fixtures.WithFormattedParagraph();
@@ -78,7 +78,7 @@ public class DocxWriteBackTests
     }
 
     [Fact]
-    public void ParagrafoQueDeixouDeSerTituloPerdeOEstiloDeTitulo()
+    public void ParagraphThatStoppedBeingAHeadingLosesTheHeadingStyle()
     {
         // Keeping the `styleId` does not leave a heading look on what became a paragraph.
         var original = Fixtures.WithFormattedParagraph();
@@ -98,7 +98,7 @@ public class DocxWriteBackTests
     }
 
     [Fact]
-    public void OBlocoEditadoNaoRepeteOEstiloNosRunsNemNoPPr()
+    public void EditedBlockDoesNotRepeatTheStyleInTheRunsNorInThePPr()
     {
         // The band run's marks come from the `Faixa` style, and writing them as direct would repeat
         // the style in every `w:r`.
@@ -123,7 +123,7 @@ public class DocxWriteBackTests
     }
 
     [Fact]
-    public void TrechoSemNegritoNumEstiloNegritoSegueOQueATelaMostra()
+    public void RunWithoutBoldInBoldStyleFollowsWhatTheScreenShows()
     {
         // The style rule makes the block bold: `w:b w:val="0"` would make the file diverge from the
         // screen.
@@ -138,7 +138,7 @@ public class DocxWriteBackTests
     }
 
     [Fact]
-    public void ODesligadoSobreOEstiloVaiEVoltaDoArquivo()
+    public void OffOverTheStyleRoundTripsThroughTheFile()
     {
         // A mark with `off` is `w:b w:val="0"`, and reread it becomes the same mark.
         var original = Fixtures.WithStyles();
@@ -163,7 +163,7 @@ public class DocxWriteBackTests
     }
 
     [Fact]
-    public void FormatacaoLimpaSaiDoArquivo()
+    public void ClearedFormattingLeavesTheFile()
     {
         // Direct formatting that left the node was cleared by someone and goes; border and tab
         // stay.
@@ -187,7 +187,7 @@ public class DocxWriteBackTests
     }
 
     [Fact]
-    public void NoWordEmPortuguesOTituloApontaTtulo1()
+    public void InPortugueseWordTheHeadingPointsToTtulo1()
     {
         // The id is translated, and the name `heading 1` is not: `word/styles.xml` goes back
         // untouched.
@@ -207,7 +207,7 @@ public class DocxWriteBackTests
     }
 
     [Fact]
-    public void EstiloQueOPacoteNaoTemECopiadoDoModeloEmbutido()
+    public void StyleThePackageLacksIsCopiedFromTheBuiltinTemplate()
     {
         // `ListParagraph` came from the new document, and this package does not define it.
         var original = DocxTemplateTests.WithLocalizedHeadingStyle();
@@ -225,7 +225,7 @@ public class DocxWriteBackTests
     }
 
     [Fact]
-    public void DiminuirORecuoAteZeroChegaAoArquivo()
+    public void DecreasingIndentToZeroReachesTheFile()
     {
         // A zeroed indent leaves `w:pPr`, and the paragraph goes back to the style's indent.
         var original = Fixtures.WithFormattedParagraph();
@@ -242,7 +242,7 @@ public class DocxWriteBackTests
     }
 
     [Fact]
-    public void RecuoNegativoDoArquivoSobreviveAEdicao()
+    public void NegativeIndentFromTheFileSurvivesEditing()
     {
         // The reader only emits positive indents: a negative one nobody touched stays.
         var original = Fixtures.WithNegativeIndent();
@@ -256,7 +256,7 @@ public class DocxWriteBackTests
     }
 
     [Fact]
-    public void RecuoAusenteNaoViraAtributoVazio()
+    public void MissingIndentDoesNotBecomeEmptyAttribute()
     {
         // A `string`'s `null` becomes `StringValue(null)`, and the SDK writes `w:right=""`, which
         // Word refuses.
@@ -272,7 +272,7 @@ public class DocxWriteBackTests
     }
 
     [Fact]
-    public void MarcadorDoParagrafoSobreviveAEdicaoDoTexto()
+    public void ParagraphMarkerSurvivesTextEditing()
     {
         // A bookmark is the target of cross-references, indexes and internal links, and the model
         // does not represent it.
@@ -291,7 +291,7 @@ public class DocxWriteBackTests
     }
 
     [Fact]
-    public void BlocoColadoComOMesmoOidNaoDuplicaOMarcador()
+    public void PastedBlockWithTheSameOidDoesNotDuplicateTheMarker()
     {
         // A repeated `oid` is a pasted block: from the second one on the bookmark is not copied, or
         // two bookmarks would share an id.
@@ -306,7 +306,7 @@ public class DocxWriteBackTests
     }
 
     [Fact]
-    public void ItemDeListaEditadoContinuaApontandoAMesmaNumeracao()
+    public void EditedListItemStillPointsToTheSameNumbering()
     {
         // `w:numId w:val="0"` means "no numbering".
         var original = Fixtures.WithBulletList();
@@ -326,7 +326,7 @@ public class DocxWriteBackTests
     }
 
     [Fact]
-    public void ListaCriadaNoEditorGanhaNumeracaoNoArquivo()
+    public void ListCreatedInTheEditorGetsNumberingInTheFile()
     {
         // A document without lists has no `word/numbering.xml`: the part is created.
         var original = Fixtures.Simple();
@@ -350,7 +350,7 @@ public class DocxWriteBackTests
     }
 
     [Fact]
-    public void ListaOrdenadaNovaSaiNumerada()
+    public void NewOrderedListComesOutNumbered()
     {
         var original = Fixtures.Simple();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
@@ -367,7 +367,7 @@ public class DocxWriteBackTests
     }
 
     [Fact]
-    public void ListaDentroDeCelulaSobreviveAEdicaoDaCelula()
+    public void ListInsideCellSurvivesEditingTheCell()
     {
         // Without list context, the writer would read that the paragraph stopped being an item.
         var original = Fixtures.WithListInsideTableCell();
@@ -384,7 +384,7 @@ public class DocxWriteBackTests
     }
 
     [Fact]
-    public void ListaColadaDeOutroDocumentoGanhaNumeracaoQueODestinoDefine()
+    public void ListPastedFromAnotherDocumentGetsNumberingTheTargetDefines()
     {
         // A pasted list carries the source document's `numId`, which this one does not define.
         var original = Fixtures.Simple();
@@ -402,7 +402,7 @@ public class DocxWriteBackTests
     }
 
     [Fact]
-    public void SublistaOrdenadaDentroDeListaComMarcadorSaiNumerada()
+    public void OrderedSublistInsideBulletListComesOutNumbered()
     {
         // A numbered sublist inside a bulleted one does not inherit the outer `numId`.
         var original = Fixtures.WithBulletList();
@@ -425,7 +425,7 @@ public class DocxWriteBackTests
     }
 
     [Fact]
-    public void ImagemInseridaPelaBarraSobreviveAoSalvar()
+    public void ImageInsertedFromTheToolbarSurvivesSaving()
     {
         // A toolbar image is a block and arrives without a measure.
         var original = Fixtures.Simple();
@@ -447,7 +447,7 @@ public class DocxWriteBackTests
     }
 
     [Fact]
-    public void ImagemMaiorQueAColunaEncolheNaProporcao()
+    public void ImageLargerThanTheColumnShrinksProportionally()
     {
         var original = Fixtures.Simple();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
@@ -470,7 +470,7 @@ public class DocxWriteBackTests
     }
 
     [Fact]
-    public void ImagemComDataUriSemVirgulaNaoDerrubaAGravacao()
+    public void ImageWithDataUriWithoutCommaDoesNotBreakTheWrite()
     {
         // `data:image/png` without a comma: one image must not bring the save down.
         var original = Fixtures.Simple();
@@ -485,7 +485,7 @@ public class DocxWriteBackTests
     }
 
     [Fact]
-    public void IdDeDesenhoNaoDependeDeQuantasGravacoesJaAconteceram()
+    public void DrawingIdDoesNotDependOnHowManyWritesAlreadyHappened()
     {
         // The id depends neither on how many saves the process has done nor collides with the
         // file's, which Word shows as a damaged document.
@@ -512,7 +512,7 @@ public class DocxWriteBackTests
     }
 
     [Fact]
-    public void TabelaEditadaPreservaEstiloLargurasEMesclagem()
+    public void EditedTablePreservesStyleWidthsAndMerge()
     {
         var original = Fixtures.WithStyledTable();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
@@ -532,7 +532,7 @@ public class DocxWriteBackTests
     }
 
     [Fact]
-    public void TabelaAninhadaSobreviveAAberturaEAGravacao()
+    public void NestedTableSurvivesOpeningAndWriting()
     {
         var original = Fixtures.WithNestedTable();
         var model = Roundtrip.Open(original);
@@ -551,7 +551,7 @@ public class DocxWriteBackTests
     }
 
     [Fact]
-    public void CelulaQueTerminaEmTabelaGanhaParagrafoNoFim()
+    public void CellEndingInATableGetsAParagraphAtTheEnd()
     {
         // An editor cell may end in a nested table; Word's `w:tc` must end in a `w:p`.
         var original = Fixtures.WithNestedTable();
@@ -567,7 +567,7 @@ public class DocxWriteBackTests
     }
 
     [Fact]
-    public void LinhaInseridaNoMeioRegistraPerdaEDescartaAMesclagem()
+    public void RowInsertedInTheMiddleRecordsLossAndDiscardsTheMerge()
     {
         // An inserted row misaligns positions and would take `w:vMerge` to the wrong row.
         var original = Fixtures.WithStyledTable();
@@ -589,7 +589,7 @@ public class DocxWriteBackTests
     }
 
     [Fact]
-    public void LarguraDeColunaArrastadaChegaAoArquivo()
+    public void DraggedColumnWidthReachesTheFile()
     {
         // The divider dragged in TableKit reaches `w:tblGrid`.
         var original = Fixtures.WithTable();
@@ -615,7 +615,7 @@ public class DocxWriteBackTests
     }
 
     [Fact]
-    public void EditarTextoDaCelulaNaoMexeNaGradeDeColunas()
+    public void EditingCellTextDoesNotChangeTheColumnGrid()
     {
         // Twip→pixel rounds (4675 twips is 311.67 px): an unresized grid stays.
         var original = Fixtures.WithTable();
@@ -630,7 +630,7 @@ public class DocxWriteBackTests
     }
 
     [Fact]
-    public void TabelaInseridaNaTelaNasceComGradeDeColunas()
+    public void TableInsertedOnScreenIsBornWithColumnGrid()
     {
         // The schema requires `w:tblGrid`: equal columns across the text column, as Word does on
         // insert.
@@ -653,7 +653,7 @@ public class DocxWriteBackTests
     }
 
     [Fact]
-    public void LinhaDeCabecalhoDesligadaSaiDoArquivo()
+    public void DisabledHeaderRowLeavesTheFile()
     {
         // `w:trPr` also carries height and revision: turning the flag off does not take it along.
         var original = Fixtures.WithStyledTable();
@@ -675,7 +675,7 @@ public class DocxWriteBackTests
     }
 
     [Fact]
-    public void SombreamentoEBordaEscolhidosNaTelaChegamAoArquivo()
+    public void ShadingAndBorderChosenOnScreenReachTheFile()
     {
         var original = Fixtures.WithTable();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
@@ -696,7 +696,7 @@ public class DocxWriteBackTests
     }
 
     [Fact]
-    public void CelulaNaoFormatadaConservaTramaEEstiloExotico()
+    public void UnformattedCellKeepsPatternAndExoticStyle()
     {
         // As long as nobody formats the cell, the pattern and the exotic border come back from the
         // original XML.
@@ -714,7 +714,7 @@ public class DocxWriteBackTests
     }
 
     [Fact]
-    public void LarguraArrastadaNumaTabelaNovaChegaAoArquivo()
+    public void DraggedWidthInANewTableReachesTheFile()
     {
         // TableKit only puts `colwidth` on the dragged column.
         var original = Fixtures.Simple();
@@ -745,7 +745,7 @@ public class DocxWriteBackTests
     }
 
     [Fact]
-    public void ArrastarUmaColunaNaoMexeNaMedidaDasOutras()
+    public void DraggingAColumnDoesNotChangeTheWidthOfTheOthers()
     {
         // A neighbour nobody touched does not go through `px × 15` (2000 twips is 133.33 px).
         var original = Fixtures.WithThreeColumns();
@@ -763,7 +763,7 @@ public class DocxWriteBackTests
     }
 
     [Fact]
-    public void ColunaInseridaRecalculaAGrade()
+    public void InsertedColumnRecalculatesTheGrid()
     {
         // After inserting a column, TableKit leaves the new cell without a width.
         var original = Fixtures.WithThreeColumns();
@@ -785,7 +785,7 @@ public class DocxWriteBackTests
     }
 
     [Fact]
-    public void CabecalhoLigadoNumaLinhaComRevisaoFicaAntesDaRevisao()
+    public void HeaderLinkedToARevisedRowStaysBeforeTheRevision()
     {
         // In `w:trPr` the revision (`w:ins`, `w:del`, `w:trPrChange`) closes the sequence.
         var original = Fixtures.WithInsertedRow();
@@ -798,11 +798,11 @@ public class DocxWriteBackTests
 
         var header = xml.IndexOf("<w:tblHeader", StringComparison.Ordinal);
         var inserted = xml.IndexOf("<w:ins ", StringComparison.Ordinal);
-        Assert.True(header > 0 && inserted > header, "o w:tblHeader saiu depois do w:ins");
+        Assert.True(header > 0 && inserted > header, "w:tblHeader came out after w:ins");
     }
 
     [Fact]
-    public void LinhaQueNaoCobreAGradeNaoEncolheAGrade()
+    public void RowThatDoesNotCoverTheGridDoesNotShrinkTheGrid()
     {
         // With `w:gridBefore`, the model grid must have the file's columns.
         var original = Fixtures.WithGridBefore();
@@ -825,7 +825,7 @@ public class DocxWriteBackTests
     }
 
     [Fact]
-    public void LarguraQueNaoCabeNaGradeDoArquivoEntraNoInventario()
+    public void WidthThatDoesNotFitTheFileGridEntersTheInventory()
     {
         // A grid the model does not fully describe: the file's stays, with a warning.
         var original = Fixtures.WithGridBefore();
@@ -843,7 +843,7 @@ public class DocxWriteBackTests
     }
 
     [Fact]
-    public void FormatarUmLadoConservaOQueOModeloNaoRepresenta()
+    public void FormattingOneSideKeepsWhatTheModelDoesNotRepresent()
     {
         // Adding the bottom border does not erase the diagonal, inner border, `w:space` or theme
         // color.
@@ -866,7 +866,7 @@ public class DocxWriteBackTests
     }
 
     [Fact]
-    public void TrocarACorDoLadoTiraACorDeTemaDele()
+    public void ChangingTheSideColorRemovesItsThemeColor()
     {
         // A theme color beats `w:color` in Word, and goes with the color change; `w:space` stays.
         var original = Fixtures.WithRichCellBorders();
@@ -885,7 +885,7 @@ public class DocxWriteBackTests
     }
 
     [Fact]
-    public void FormatarACelulaDaTramaRegistraAPerda()
+    public void FormattingThePatternedCellRecordsTheLoss()
     {
         // Changing the cell look erases the pattern and the exotic style, with a warning.
         var original = Fixtures.WithPatternedCell();
@@ -904,7 +904,7 @@ public class DocxWriteBackTests
     }
 
     [Fact]
-    public void MesclagemVerticalFeitaNaTelaEntraNoInventario()
+    public void VerticalMergeDoneOnScreenEntersTheInventory()
     {
         // TableKit's `rowspan` does not become `w:vMerge` yet: the least is to say so.
         var original = Fixtures.WithTable();
@@ -920,7 +920,7 @@ public class DocxWriteBackTests
     }
 
     [Fact]
-    public void TextoAlternativoDaImagemVaiEVolta()
+    public void ImageAltTextRoundTrips()
     {
         var original = Fixtures.Simple();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
@@ -945,7 +945,7 @@ public class DocxWriteBackTests
     }
 
     [Fact]
-    public void RedimensionarImagemDoArquivoMantemODesenhoOriginal()
+    public void ResizingImageFromTheFileKeepsTheOriginalDrawing()
     {
         // Resizing changes only the size: `wp:docPr`, the image part and what the writer does not
         // generate (effect, crop, border) stay.
@@ -975,7 +975,7 @@ public class DocxWriteBackTests
     }
 
     [Fact]
-    public void ImagemAncoradaNoFluxoNaoSeDuplicaAoEditarOParagrafo()
+    public void ImageAnchoredInTheFlowIsNotDuplicatedWhenEditingTheParagraph()
     {
         // An anchored image in the flow arrives as a paragraph image: the original `w:r` does not
         // come along.
@@ -991,7 +991,7 @@ public class DocxWriteBackTests
     }
 
     [Fact]
-    public void MarcadorEntreLinhasContinuaEntreAsLinhas()
+    public void MarkerBetweenRowsStaysBetweenTheRows()
     {
         // Children that are not rows stay in place.
         var original = Fixtures.WithBookmarkBetweenRows();
@@ -1004,14 +1004,14 @@ public class DocxWriteBackTests
         var firstRowEnd = xml.IndexOf("</w:tr>", StringComparison.Ordinal);
         var bookmark = xml.IndexOf("bookmarkStart", StringComparison.Ordinal);
 
-        Assert.True(bookmark > firstRowEnd, "o marcador voltou para antes da primeira linha");
+        Assert.True(bookmark > firstRowEnd, "the bookmark moved to before the first row");
         Assert.True(
             xml.IndexOf("bookmarkEnd", StringComparison.Ordinal) > xml.LastIndexOf("</w:tr>", StringComparison.Ordinal),
-            "o fim do marcador saiu de depois da última linha");
+            "the bookmark end moved from after the last row");
     }
 
     [Fact]
-    public void CorDoCssViraHexadecimalDeSeisDigitos()
+    public void CssColorBecomesSixDigitHex()
     {
         // Word reports `rgb(255, 0, 0)` as damaged, and draws color names as black.
         var original = Fixtures.Simple();
@@ -1042,7 +1042,7 @@ public class DocxWriteBackTests
     }
 
     [Fact]
-    public void EditarParagrafoMantemSobrescritoESubscrito()
+    public void EditingParagraphKeepsSuperscriptAndSubscript()
     {
         var original = Fixtures.WithVerticalAlignment();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
@@ -1067,7 +1067,7 @@ public class DocxWriteBackTests
     }
 
     [Fact]
-    public void CorQueNaoDaParaConverterEntraNoInventario()
+    public void ColorThatCannotBeConvertedEntersTheInventory()
     {
         var original = Fixtures.Simple();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
@@ -1089,7 +1089,7 @@ public class DocxWriteBackTests
     }
 
     [Fact]
-    public void NomeDeCorForaDaTabelaNaoViraHexadecimal()
+    public void ColorNameOutsideTheTableDoesNotBecomeHex()
     {
         // `fade` is valid hex, but not a color.
         var original = Fixtures.Simple();
@@ -1112,7 +1112,7 @@ public class DocxWriteBackTests
     }
 
     [Fact]
-    public void TamanhoDeFonteEmPixelsViraPontos()
+    public void FontSizeInPixelsBecomesPoints()
     {
         var original = Fixtures.Simple();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
@@ -1135,7 +1135,7 @@ public class DocxWriteBackTests
     }
 
     [Fact]
-    public void CaractereDeControleNaoDerrubaAGravacao()
+    public void ControlCharacterDoesNotBreakTheWrite()
     {
         // `\u0001` does not exist in XML 1.0, not even escaped; `\u000B` and `\n` are breaks, and
         // the tab is `w:tab`.
@@ -1158,7 +1158,7 @@ public class DocxWriteBackTests
     }
 
     [Fact]
-    public void PapelForaDeA4NaoEArredondadoAoSalvar()
+    public void NonA4PaperIsNotRoundedOnSave()
     {
         // The model only names A4 and Letter: `w:sectPr` only changes when the page changes.
         var original = Fixtures.WithCustomPaper();
@@ -1170,7 +1170,7 @@ public class DocxWriteBackTests
     }
 
     [Fact]
-    public void PapelQueOModeloNaoNomeiaEAvisadoComoInvisivel()
+    public void PaperTheModelDoesNotNameIsWarnedAsInvisible()
     {
         // The panel shows A4 for an A5: the warning says the screen approximates.
         var inventory = DocxReader.Read(Fixtures.WithCustomPaper()).Inventory;
@@ -1180,7 +1180,7 @@ public class DocxWriteBackTests
     }
 
     [Fact]
-    public void GirarAFolhaMantemOPapelDoArquivo()
+    public void RotatingTheSheetKeepsThePaperOfTheFile()
     {
         var original = Fixtures.WithCustomPaper();
         var opened = Roundtrip.Clone(Roundtrip.Open(original));
@@ -1195,7 +1195,7 @@ public class DocxWriteBackTests
     }
 
     [Fact]
-    public void MudarAMargemRegravaAMargemESomenteEla()
+    public void ChangingTheMarginRewritesTheMarginAndOnlyIt()
     {
         var original = Fixtures.WithCustomPaper();
         var opened = Roundtrip.Clone(Roundtrip.Open(original));

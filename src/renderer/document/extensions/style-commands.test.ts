@@ -40,8 +40,8 @@ function run(state: EditorState, command: (tr: EditorState['tr']) => boolean): E
   return state.apply(tr)
 }
 
-describe('comandos de estilo', () => {
-  it('aplicar um estilo de título troca o bloco e tira a formatação direta', () => {
+describe('style commands', () => {
+  it('applying a heading style swaps the block and removes direct formatting', () => {
     const state = stateOf({ type: 'doc', content: [paragraph('Relatório', { spaceAfter: 20 })] })
     const after = run(state, (tr) => applyParagraphStyle(tr, sheet, 'Heading1'))
     const block = after.doc.firstChild!
@@ -56,7 +56,7 @@ describe('comandos de estilo', () => {
     expect(back.attrs['styleId']).toBeNull()
   })
 
-  it('limpar a formatação deixa o estilo e o link', () => {
+  it('clearing formatting keeps the style and the link', () => {
     const link = { type: 'link', attrs: { href: 'https://exemplo.org' } }
     const state = stateOf(
       {
@@ -76,7 +76,7 @@ describe('comandos de estilo', () => {
     expect(block.firstChild!.marks.map((mark) => mark.type.name)).toEqual(['link'])
   })
 
-  it('tirar o negrito num título negrito grava a marca "desligado", e pô-lo de volta a tira', () => {
+  it('removing bold on a bold heading writes the "off" mark, and putting it back removes it', () => {
     const state = stateOf(
       {
         type: 'doc',
@@ -99,7 +99,7 @@ describe('comandos de estilo', () => {
     expect(toggleInheritedMark(plain.tr, sheet, 'bold')).toBe(false)
   })
 
-  it('Enter no fim do título abre um parágrafo Normal', () => {
+  it('Enter at the end of the heading opens a Normal paragraph', () => {
     const state = stateOf(
       {
         type: 'doc',
@@ -123,7 +123,7 @@ describe('comandos de estilo', () => {
     expect(splitWithNextStyle(stateOf(state.doc.toJSON(), 2).tr, sheet)).toBe(false)
   })
 
-  it('o estilo de caractere vira marca no trecho', () => {
+  it('a character style becomes a mark on the excerpt', () => {
     const state = stateOf({ type: 'doc', content: [paragraph('Palavra')] }, 1, 8)
     const after = run(state, (tr) => applyCharacterStyle(tr, 'Hyperlink'))
     expect(after.doc.firstChild!.firstChild!.marks[0]?.attrs).toEqual({ styleId: 'Hyperlink' })

@@ -71,12 +71,12 @@ function expectRoundTrip(tree: MathElement, display = false): string {
 const SAMPLES = MATH_PALETTE.flatMap((group) => group.templates.map((template) => template.sample))
 
 describe('LaTeX → MathML (Temml)', () => {
-  it.each(SAMPLES)('desenha o modelo da paleta %s', (latex) => {
+  it.each(SAMPLES)('renders the palette template %s', (latex) => {
     const result = latexToMathMl(latex, false)
     expect(result.ok).toBe(true)
   })
 
-  it('o resultado passa pelo filtro sem perder nada', () => {
+  it('the result passes through the filter losing nothing', () => {
     for (const latex of SAMPLES) {
       const result = latexToMathMl(latex, true)
       if (!result.ok) throw new Error(latex)
@@ -88,17 +88,17 @@ describe('LaTeX → MathML (Temml)', () => {
     }
   })
 
-  it('a fração e a raiz da especificação', () => {
+  it('the fraction and root from the specification', () => {
     const tree = render('\\frac{a}{b}+\\sqrt{x}')
     expect(shape(tree)).toBe('mfrac(mi("a") mi("b")) mo("+") msqrt(mi("x"))')
   })
 
-  it('a de exibição leva display="block"', () => {
+  it('the display one carries display="block"', () => {
     const result = latexToMathMl('x', true)
     expect(result.ok && result.tree.attrs['display']).toBe('block')
   })
 
-  it('LaTeX que não fecha devolve o erro do Temml, e não lança', () => {
+  it("LaTeX that does not close returns Temml's error, and does not throw", () => {
     for (const latex of ['\\frac{a}', '\\sqrt{', 'a^', '\\naoexiste', '\\left(']) {
       const result = latexToMathMl(latex, false)
       expect(result.ok, latex).toBe(false)
@@ -106,7 +106,7 @@ describe('LaTeX → MathML (Temml)', () => {
     }
   })
 
-  it('traduz o que o Temml escreve fora do MathML Core', () => {
+  it('translates what Temml writes outside MathML Core', () => {
     expect(shape(render('\\overline{AB}'))).toBe('mover(mi("A") mi("B") mo("‾"))')
     expect(render('\\overline{AB}').children[0]).toMatchObject({ tag: 'mover', attrs: { accent: 'true' } })
     expect(shape(render('\\boxed{x}'))).toBe('mrow[omml-caixa](mi("x"))')
@@ -115,7 +115,7 @@ describe('LaTeX → MathML (Temml)', () => {
 })
 
 describe('MathML → LaTeX', () => {
-  it.each(SAMPLES)('ida e volta pela paleta: %s', (latex) => {
+  it.each(SAMPLES)('round trip through the palette: %s', (latex) => {
     expectRoundTrip(render(latex))
   })
 
@@ -138,7 +138,7 @@ describe('MathML → LaTeX', () => {
     expectRoundTrip(render(latex, true), true)
   })
 
-  it('a especificação: \\frac{a}{b}+\\sqrt{x}', () => {
+  it('the specification: \\frac{a}{b}+\\sqrt{x}', () => {
     expect(mathMlToLatex(render('\\frac{a}{b}+\\sqrt{x}'))).toBe('\\frac{a}{b}+\\sqrt{x}')
   })
 

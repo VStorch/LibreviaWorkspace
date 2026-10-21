@@ -5,7 +5,7 @@ import { expect, test } from '@playwright/test'
 import { launch, menu, stubDialogs, type Session } from './app.js'
 
 /** The file cycle, in the assembled app, sandboxed preload and all. */
-test.describe('ciclo de arquivo', () => {
+test.describe('file cycle', () => {
   let session: Session
   let folder: string
 
@@ -19,11 +19,11 @@ test.describe('ciclo de arquivo', () => {
     await rm(folder, { recursive: true, force: true })
   })
 
-  test('abre na tela inicial', async () => {
+  test('opens on the home screen', async () => {
     await expect(session.window.locator('.home')).toBeVisible()
   })
 
-  test('escrever, salvar, fechar e reabrir devolve o texto', async () => {
+  test('writing, saving, closing and reopening returns the text', async () => {
     const target = join(folder, 'ata.sdoc')
     await stubDialogs(session.app, { save: target, open: target, messageBox: 1 })
 
@@ -41,7 +41,7 @@ test.describe('ciclo de arquivo', () => {
     await expect(session.window.locator('.ProseMirror')).toContainText('Presentes: Ana, Bruno e Carla.')
   })
 
-  test('o formato do arquivo decide o editor', async () => {
+  test('the file format decides the editor', async () => {
     // `.ssheet` must open in the grid, not in the text editor showing JSON.
     const target = join(folder, 'contas.ssheet')
     await stubDialogs(session.app, { save: target, open: target, messageBox: 1 })

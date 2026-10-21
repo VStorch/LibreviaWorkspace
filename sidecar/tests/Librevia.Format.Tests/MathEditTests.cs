@@ -116,13 +116,13 @@ public class MathEditTests
     // The box, and the text.
     [InlineData("<mrow class=\"omml-caixa\"><mi>z</mi></mrow>", "borderBox(e(\"z\"))")]
     [InlineData("<mi>a</mi><mtext> se </mtext><mi>b</mi>", "\"a se b\"")]
-    public void ConverteCadaConstrucao(string inner, string expected)
+    public void ConvertsEachConstruct(string inner, string expected)
     {
         Assert.Equal(expected, ShapeOf($"<math {Ns}>{inner}</math>"));
     }
 
     [Fact]
-    public void AsFichasLevamAFonteDeMatematicaEOEstilo()
+    public void TheChipsCarryTheMathFontAndTheStyle()
     {
         var omml = XElement.Parse(OmmlMath.ToOmml(
             $"<math {Ns}><mi>x</mi><mi>sin</mi><mi mathvariant=\"normal\">d</mi><mi>𝐯</mi><mi>ℝ</mi><mi>ℒ</mi><mtext>se</mtext></math>",
@@ -153,7 +153,7 @@ public class MathEditTests
     [InlineData(null, "center")]
     [InlineData("right", "right")]
     [InlineData("bogus", "center")]
-    public void ADeExibicaoViraOMathParaComAlinhamento(string? jc, string expected)
+    public void DisplayEquationBecomesMathParaWithAlignment(string? jc, string expected)
     {
         var omml = XElement.Parse(OmmlMath.ToOmml($"<math {Ns} display=\"block\"><mi>x</mi></math>", true, jc)!);
         Assert.Equal(M + "oMathPara", omml.Name);
@@ -162,7 +162,7 @@ public class MathEditTests
     }
 
     [Fact]
-    public void MathMlMalFormadoNaoViraOmml()
+    public void MalformedMathMlDoesNotBecomeOmml()
     {
         Assert.Null(OmmlMath.ToOmml("<math><mi>x</math>", false, null));
         Assert.Null(OmmlMath.ToOmml("<p>x</p>", false, null));
@@ -196,7 +196,7 @@ public class MathEditTests
 
     [Theory]
     [MemberData(nameof(Fixtures))]
-    public void OmmlMathMlOmmlMantemAEstrutura(string paragraph)
+    public void OmmlMathMlOmmlKeepsTheStructure(string paragraph)
     {
         foreach (var omml in OmmlOf(WithMath(paragraph)).Concat(ParasOf(WithMath(paragraph))))
         {
@@ -249,7 +249,7 @@ public class MathEditTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public void AEquacaoNovaGravaOmmlValido(bool display)
+    public void NewEquationWritesValidOmml(bool display)
     {
         var original = WithMath(MathTestsPlain);
         var (bytes, result) = Save(original, WithNewEquation(original, Everything, display, display ? "left" : null));
@@ -272,7 +272,7 @@ public class MathEditTests
     private const string MathTestsPlain = """<w:p><w:r><w:t>Intocado.</w:t></w:r></w:p>""";
 
     [Fact]
-    public void EditarAEquacaoTrocaOOmmlEReescreveOParagrafo()
+    public void EditingTheEquationReplacesTheOmmlAndRewritesTheParagraph()
     {
         var original = WithMath();
         var model = Clone(Open(original));
@@ -288,7 +288,7 @@ public class MathEditTests
     }
 
     [Fact]
-    public void EditarEquacaoFormatadaPorDentroAvisaUmaVez()
+    public void EditingEquationFormattedInsideWarnsOnce()
     {
         var colored =
             "<w:p><m:oMath><m:r><w:rPr><w:rFonts w:ascii=\"Cambria Math\" w:hAnsi=\"Cambria Math\"/><w:color w:val=\"FF0000\"/></w:rPr><m:t>x</m:t></m:r></m:oMath>" +
@@ -307,7 +307,7 @@ public class MathEditTests
     }
 
     [Fact]
-    public void AImpressaoDigitalDaEquacaoSemOmmlVeOMathMl()
+    public void FingerprintOfEquationWithoutOmmlSeesTheMathMl()
     {
         var original = WithMath(MathTestsPlain);
         var model = WithNewEquation(original, $"<math {Ns}><mi>x</mi></math>", false);
@@ -318,7 +318,7 @@ public class MathEditTests
     }
 
     [Fact]
-    public void TrocarAEquacaoComOControleLigadoGravaExclusaoEInsercao()
+    public void ReplacingTheEquationWithTrackingOnWritesDeletionAndInsertion()
     {
         // The editor replaces the equation as a deletion and an insertion (`track-input.ts`), in
         // the same paragraph.
@@ -345,7 +345,7 @@ public class MathEditTests
     }
 
     [Fact]
-    public void ConstrucaoDesconhecidaListaSoElaENaoOsArgumentos()
+    public void UnknownConstructListsOnlyItselfAndNotTheArguments()
     {
         var converted = OmmlMath.Convert(
             $"<m:oMath xmlns:m=\"{Mns}\" xmlns:w=\"{W}\"><m:foo><m:e><m:r><m:t>x</m:t></m:r></m:e><m:sub/></m:foo></m:oMath>");

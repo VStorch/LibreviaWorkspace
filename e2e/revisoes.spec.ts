@@ -13,24 +13,24 @@ import { hasPdftotext, hasSoffice, pdfText } from './external-tools.js'
  * typed with tracking on becomes a revision, and the saved file says the same, in Word and in
  * LibreOffice.
  */
-test.describe('revisões', () => {
+test.describe('revisions', () => {
   let session: Session
-  let pasta: string
+  let directory: string
 
   test.beforeEach(async () => {
-    pasta = await mkdtemp(join(tmpdir(), 'librevia-revisoes-'))
+    directory = await mkdtemp(join(tmpdir(), 'librevia-revisions-'))
     session = await launch()
   })
 
   test.afterEach(async () => {
     await session.close()
-    await rm(pasta, { recursive: true, force: true })
+    await rm(directory, { recursive: true, force: true })
   })
 
-  test('aceitar tudo, salvar e reabrir: nenhuma revisão sobra', async () => {
-    const origem = join(pasta, 'revisado.docx')
-    await writeFile(origem, await docxWithTrackedChange())
-    await stubDialogs(session.app, { open: origem, messageBox: 1 })
+  test('accept all, save and reopen: no revision is left', async () => {
+    const sourceFile = join(directory, 'revisado.docx')
+    await writeFile(sourceFile, await docxWithTrackedChange())
+    await stubDialogs(session.app, { open: sourceFile, messageBox: 1 })
     await menu(session, 'open')
 
     const editor = session.window.locator('.ProseMirror')
@@ -46,19 +46,19 @@ test.describe('revisões', () => {
     await menu(session, 'save')
     await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
 
-    const corpo = await entryOf(origem, 'word/document.xml')
-    expect(corpo).not.toMatch(/<w:(ins|del|moveFrom|moveTo)[ >]/)
-    expect(corpo).toContain('com uma inserção revisada.')
+    const body = await entryOf(sourceFile, 'word/document.xml')
+    expect(body).not.toMatch(/<w:(ins|del|moveFrom|moveTo)[ >]/)
+    expect(body).toContain('com uma inserção revisada.')
 
     await menu(session, 'open')
     await expect(editor).toContainText('com uma inserção revisada.')
     await expect(editor.locator('ins.revision, del.revision, [data-revision]')).toHaveCount(0)
   })
 
-  test('rejeitar uma exclusão devolve o texto, e desfazer a devolve', async () => {
-    const origem = join(pasta, 'revisado.docx')
-    await writeFile(origem, await docxWithTrackedChange())
-    await stubDialogs(session.app, { open: origem, messageBox: 1 })
+  test('rejecting a deletion restores the text, and undo restores it again', async () => {
+    const sourceFile = join(directory, 'revisado.docx')
+    await writeFile(sourceFile, await docxWithTrackedChange())
+    await stubDialogs(session.app, { open: sourceFile, messageBox: 1 })
     await menu(session, 'open')
 
     const editor = session.window.locator('.ProseMirror')
@@ -75,18 +75,18 @@ test.describe('revisões', () => {
     await menu(session, 'save')
     await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
 
-    const corpo = await entryOf(origem, 'word/document.xml')
-    expect(corpo).not.toContain('<w:delText xml:space="preserve"> Trecho excluído.')
-    expect(corpo).toContain('Trecho excluído.')
+    const body = await entryOf(sourceFile, 'word/document.xml')
+    expect(body).not.toContain('<w:delText xml:space="preserve"> Trecho excluído.')
+    expect(body).toContain('Trecho excluído.')
     // The same paragraph's insertion is still a revision, with the id it had.
-    expect(corpo).toMatch(/<w:ins [^>]*w:id="1"/)
+    expect(body).toMatch(/<w:ins [^>]*w:id="1"/)
   })
 
-  test('o LibreOffice lê as revisões que o arquivo gravado leva', async () => {
-    test.skip(!(await hasSoffice()), 'sem LibreOffice nesta máquina')
-    const origem = join(pasta, 'revisado.docx')
-    await writeFile(origem, await docxWithTrackedChange())
-    await stubDialogs(session.app, { open: origem, messageBox: 1 })
+  test('LibreOffice reads the revisions the saved file carries', async () => {
+    test.skip(!(await hasSoffice()), 'no LibreOffice on this machine')
+    const sourceFile = join(directory, 'revisado.docx')
+    await writeFile(sourceFile, await docxWithTrackedChange())
+    await stubDialogs(session.app, { open: sourceFile, messageBox: 1 })
     await menu(session, 'open')
 
     // Editing the revised paragraph: it is rewritten, and revisions come from the marks.
@@ -97,29 +97,29 @@ test.describe('revisões', () => {
     await menu(session, 'save')
     await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
 
-    const copia = join(pasta, 'copia.docx')
-    await copyFile(origem, copia)
-    await promisify(execFile)('soffice', ['--headless', '--convert-to', 'odt', '--outdir', pasta, copia], {
+    const copy = join(directory, 'copia.docx')
+    await copyFile(sourceFile, copy)
+    await promisify(execFile)('soffice', ['--headless', '--convert-to', 'odt', '--outdir', directory, copy], {
       timeout: 120_000,
     })
-    const conteudo = await entryOf(join(pasta, 'copia.odt'), 'content.xml')
+    const contents = await entryOf(join(directory, 'copia.odt'), 'content.xml')
     // Insertion, deletion, paragraph mark, move (both sides) and row.
-    const regioes = conteudo.match(/<text:changed-region/g) ?? []
-    expect(regioes.length).toBeGreaterThanOrEqual(4)
+    const regions = contents.match(/<text:changed-region/g) ?? []
+    expect(regions.length).toBeGreaterThanOrEqual(4)
   })
 
-  test('controlar alterações: o que se digita e apaga vira revisão no arquivo e no rascunho', async () => {
-    const arquivo = join(pasta, 'controlado.docx')
-    const rascunho = join(pasta, 'controlado.sdoc')
+  test('track changes: what is typed and deleted becomes a revision in the file and the draft', async () => {
+    const file = join(directory, 'controlado.docx')
+    const draft = join(directory, 'controlado.sdoc')
     const editor = session.window.locator('.ProseMirror')
-    const indicador = session.window.getByTestId('track-changes-status')
+    const indicator = session.window.getByTestId('track-changes-status')
 
     await menu(session, 'new-document')
     await editor.click()
     await session.window.keyboard.type('Texto antigo.')
-    await expect(indicador).toHaveCount(0)
+    await expect(indicator).toHaveCount(0)
     await menu(session, 'toggle-track-changes')
-    await expect(indicador).toBeVisible()
+    await expect(indicator).toBeVisible()
 
     // Backspace keeps the full stop as deleted; what is typed afterwards is an insertion.
     await session.window.keyboard.press('End')
@@ -128,111 +128,115 @@ test.describe('revisões', () => {
     await expect(editor.locator('del.revision')).toHaveText('.')
     await expect(editor.locator('ins.revision')).toHaveText(' e novo')
 
-    await stubDialogs(session.app, { save: arquivo, open: arquivo, messageBox: 1 })
+    await stubDialogs(session.app, { save: file, open: file, messageBox: 1 })
     await menu(session, 'save')
     await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
 
-    const corpo = await entryOf(arquivo, 'word/document.xml')
-    expect(corpo).toMatch(/<w:ins [^>]*w:author="[^"]+"/)
-    expect(corpo).toMatch(/<w:del [^>]*w:author="[^"]+"/)
-    expect(corpo).toContain('<w:delText')
-    expect(await entryOf(arquivo, 'word/settings.xml')).toContain('<w:trackRevisions')
+    const body = await entryOf(file, 'word/document.xml')
+    expect(body).toMatch(/<w:ins [^>]*w:author="[^"]+"/)
+    expect(body).toMatch(/<w:del [^>]*w:author="[^"]+"/)
+    expect(body).toContain('<w:delText')
+    expect(await entryOf(file, 'word/settings.xml')).toContain('<w:trackRevisions')
 
     if (await hasSoffice()) {
-      const copia = join(pasta, 'copia.docx')
-      await copyFile(arquivo, copia)
-      await promisify(execFile)('soffice', ['--headless', '--convert-to', 'odt', '--outdir', pasta, copia], {
-        timeout: 120_000,
-      })
-      const conteudo = await entryOf(join(pasta, 'copia.odt'), 'content.xml')
-      expect((conteudo.match(/<text:changed-region/g) ?? []).length).toBeGreaterThanOrEqual(2)
+      const copy = join(directory, 'copia.docx')
+      await copyFile(file, copy)
+      await promisify(execFile)(
+        'soffice',
+        ['--headless', '--convert-to', 'odt', '--outdir', directory, copy],
+        {
+          timeout: 120_000,
+        },
+      )
+      const contents = await entryOf(join(directory, 'copia.odt'), 'content.xml')
+      expect((contents.match(/<text:changed-region/g) ?? []).length).toBeGreaterThanOrEqual(2)
     }
 
     // Reopened, the marks and the switch remain; accepting all cleans the text.
     await menu(session, 'open')
     await expect(editor.locator('ins.revision')).toHaveText(' e novo')
     await expect(editor.locator('del.revision')).toHaveText('.')
-    await expect(indicador).toBeVisible()
+    await expect(indicator).toBeVisible()
     await menu(session, 'accept-all-changes')
     await expect(editor.locator('ins.revision, del.revision, [data-revision]')).toHaveCount(0)
     await expect(editor).toContainText('Texto antigo e novo')
 
     // The draft keeps the switch.
-    await stubDialogs(session.app, { save: rascunho, open: rascunho })
+    await stubDialogs(session.app, { save: draft, open: draft })
     await menu(session, 'save-as')
     await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
-    expect(JSON.parse(await readFile(rascunho, 'utf8'))).toMatchObject({ trackChanges: true })
+    expect(JSON.parse(await readFile(draft, 'utf8'))).toMatchObject({ trackChanges: true })
     await menu(session, 'toggle-track-changes')
-    await expect(indicador).toHaveCount(0)
+    await expect(indicator).toHaveCount(0)
     await menu(session, 'open')
-    await expect(indicador).toBeVisible()
+    await expect(indicator).toBeVisible()
   })
 
-  test('mostrar: marcação simples, sem marcação e original, com o cursor fora do escondido', async () => {
-    const origem = join(pasta, 'revisado.docx')
-    const destino = join(pasta, 'revisado.pdf')
-    await writeFile(origem, await docxWithTrackedChange())
-    await stubDialogs(session.app, { open: origem, save: destino, messageBox: 1 })
+  test('show: simple markup, no markup and original, with the cursor outside the hidden part', async () => {
+    const sourceFile = join(directory, 'revisado.docx')
+    const destinationFile = join(directory, 'revisado.pdf')
+    await writeFile(sourceFile, await docxWithTrackedChange())
+    await stubDialogs(session.app, { open: sourceFile, save: destinationFile, messageBox: 1 })
     await menu(session, 'open')
 
     const editor = session.window.locator('.ProseMirror')
-    const excluido = editor.locator('del.revision', { hasText: 'Trecho excluído.' })
-    const inserido = editor.locator('ins.revision', { hasText: 'com uma inserção' })
-    const segundo = editor.locator('p', { hasText: 'Segundo parágrafo' })
-    await expect(excluido).toBeVisible()
+    const deleted = editor.locator('del.revision', { hasText: 'Trecho excluído.' })
+    const inserted = editor.locator('ins.revision', { hasText: 'com uma inserção' })
+    const second = editor.locator('p', { hasText: 'Segundo parágrafo' })
+    await expect(deleted).toBeVisible()
 
     // Simple markup: deletions and the deleted row vanish, the bar appears.
     await menu(session, 'show-simple-markup')
     await expect(editor).toHaveClass(/revisions-simple/)
-    await expect(excluido).toBeHidden()
+    await expect(deleted).toBeHidden()
     await expect(editor.locator('tr', { hasText: 'Linha excluída' })).toBeHidden()
-    await expect(inserido).toBeVisible()
-    await expect(segundo).toHaveClass(/revision-changed/)
+    await expect(inserted).toBeVisible()
+    await expect(second).toHaveClass(/revision-changed/)
 
     // The cursor does not enter hidden deleted text: what is typed at the end and after two arrow
     // presses lands in the visible text.
-    await inserido.click()
+    await inserted.click()
     await session.window.keyboard.press('End')
     await session.window.keyboard.type('!')
     await session.window.keyboard.press('ArrowLeft')
     await session.window.keyboard.press('ArrowLeft')
     await session.window.keyboard.type('Z')
-    await expect(segundo).toContainText('revisadaZ.!', { useInnerText: true })
-    await expect(excluido).toHaveText('Trecho excluído.')
+    await expect(second).toContainText('revisadaZ.!', { useInnerText: true })
+    await expect(deleted).toHaveText('Trecho excluído.')
 
     // No markup: the insertion stays as plain text, without a bar.
     await menu(session, 'show-no-markup')
-    await expect(excluido).toBeHidden()
-    expect(await inserido.evaluate((element) => getComputedStyle(element).textDecorationLine)).toBe('none')
+    await expect(deleted).toBeHidden()
+    expect(await inserted.evaluate((element) => getComputedStyle(element).textDecorationLine)).toBe('none')
     await expect(editor.locator('.revision-changed')).toHaveCount(0)
 
     if (await hasPdftotext()) {
       await menu(session, 'export-pdf')
-      await expect.poll(() => pdfText(destino), { timeout: 30_000 }).toContain('Ata da reunião')
-      const texto = await pdfText(destino)
-      expect(texto).toContain('Linha que fica')
-      expect(texto).not.toContain('Trecho excluído')
-      expect(texto).not.toContain('Linha excluída')
+      await expect.poll(() => pdfText(destinationFile), { timeout: 30_000 }).toContain('Ata da reunião')
+      const text = await pdfText(destinationFile)
+      expect(text).toContain('Linha que fica')
+      expect(text).not.toContain('Trecho excluído')
+      expect(text).not.toContain('Linha excluída')
     }
 
     // Original: the insertion vanishes, the deletion comes back, and the editor refuses typing.
     await menu(session, 'show-original')
-    await expect(inserido).toBeHidden()
-    await expect(excluido).toBeVisible()
+    await expect(inserted).toBeHidden()
+    await expect(deleted).toBeVisible()
     await expect(editor.locator('tr', { hasText: 'Linha excluída' })).toBeVisible()
     await expect(editor).toHaveAttribute('contenteditable', 'false')
 
     await menu(session, 'show-all-markup')
-    await expect(inserido).toBeVisible()
+    await expect(inserted).toBeVisible()
     await expect(editor).toHaveAttribute('contenteditable', 'true')
   })
 
-  test('a paginação acompanha o modo de mostrar', async () => {
+  test('pagination follows the show mode', async () => {
     const editor = session.window.locator('.ProseMirror')
     await menu(session, 'new-document')
     await editor.click()
-    for (let linha = 1; linha <= 60; linha++) {
-      await session.window.keyboard.insertText(`Linha ${linha}`)
+    for (let line = 1; line <= 60; line++) {
+      await session.window.keyboard.insertText(`Linha ${line}`)
       await session.window.keyboard.press('Enter')
     }
     await session.window.keyboard.insertText('Fica.')
@@ -252,14 +256,14 @@ test.describe('revisões', () => {
     await expect(session.window.locator('.paper')).toHaveCount(2)
   })
 
-  test('Backspaces seguidos com o controle ligado saem num desfazer só', async () => {
+  test('consecutive Backspaces with tracking on come out as a single undo', async () => {
     const editor = session.window.locator('.ProseMirror')
     await menu(session, 'new-document')
     await editor.click()
     await session.window.keyboard.type('abcdef')
     await menu(session, 'toggle-track-changes')
     await session.window.keyboard.press('End')
-    for (let vez = 0; vez < 3; vez++) await session.window.keyboard.press('Backspace')
+    for (let time = 0; time < 3; time++) await session.window.keyboard.press('Backspace')
     await expect(editor.locator('del.revision')).toHaveText('def')
 
     await session.window.keyboard.press('Control+z')
@@ -267,7 +271,7 @@ test.describe('revisões', () => {
     await expect(editor).toHaveText('abcdef')
   })
 
-  test('a lista colada no fim de um parágrafo entra como revisão, e rejeitar tudo a tira', async () => {
+  test('a list pasted at the end of a paragraph enters as a revision, and rejecting all removes it', async () => {
     const editor = session.window.locator('.ProseMirror')
     await menu(session, 'new-document')
     await editor.click()

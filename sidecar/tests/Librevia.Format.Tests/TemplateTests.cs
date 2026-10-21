@@ -88,7 +88,7 @@ public class TemplateTests
     }
 
     [Fact]
-    public void AbrirUmDotxDaOMesmoModeloQueODocxEquivalente()
+    public void OpeningADotxGivesTheSameModelAsTheEquivalentDocx()
     {
         var docx = Fixtures.WithHeaderGroup();
         var dotx = AsTemplate(docx);
@@ -103,7 +103,7 @@ public class TemplateTests
     }
 
     [Fact]
-    public void GravarODocumentoDeUmModeloEscreveORotuloDeDocumentoSemReescreverNada()
+    public void SavingTheDocumentOfATemplateWritesTheDocumentLabelWithoutRewritingAnything()
     {
         var dotx = AsTemplate(Fixtures.WithComment());
         var (bytes, result) = Roundtrip.Save(dotx, Roundtrip.Clone(Roundtrip.Open(dotx)));
@@ -120,7 +120,7 @@ public class TemplateTests
     }
 
     [Fact]
-    public void SalvarComoModeloEscreveORotuloDeModelo()
+    public void SavingAsTemplateWritesTheTemplateLabel()
     {
         var docx = Fixtures.Simple();
         var model = Roundtrip.Clone(Roundtrip.Open(docx)) with { Template = true };
@@ -134,7 +134,7 @@ public class TemplateTests
     }
 
     [Fact]
-    public void ODocumentoNovoGravadoComoModeloSaiComORotuloDeModelo()
+    public void NewDocumentSavedAsTemplateComesOutWithTheTemplateLabel()
     {
         var created = DocxTemplate.Create(Roundtrip.Open(Fixtures.Simple()).Page);
         var model = Roundtrip.Clone(Roundtrip.Open(Fixtures.Simple())) with { Template = true };
@@ -144,7 +144,7 @@ public class TemplateTests
     }
 
     [Fact]
-    public void AsMacrosDoDotmSaemEAPerdaEDeclarada()
+    public void DotmMacrosAreDroppedAndTheLossIsDeclared()
     {
         var dotm = AsMacroTemplate(Fixtures.WithComment());
         Assert.True(PackageKind.HasMacros(dotm));
@@ -171,7 +171,7 @@ public class TemplateTests
     }
 
     [Fact]
-    public void ODocumentoJaComORotuloCertoVoltaIntacto()
+    public void DocumentAlreadyWithTheRightLabelComesBackIntact()
     {
         var docx = Fixtures.Simple();
         Assert.Same(docx, PackageKind.Retarget(docx, template: false, new Inventory()));
