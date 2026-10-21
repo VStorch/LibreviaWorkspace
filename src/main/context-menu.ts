@@ -31,7 +31,7 @@ export function installContextMenu(contents: WebContents): void {
     try {
       sendPush(contents, IpcChannel.ContextMenuRequested, target)
     } catch (cause) {
-      console.error('[context-menu] alvo fora do contrato, menu não enviado:', cause)
+      console.error('[context-menu] target outside the contract, menu not sent:', cause)
     }
   })
 }

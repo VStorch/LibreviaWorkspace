@@ -103,4 +103,4 @@ function png() {
 const target = resolve('build/icon.png')
 mkdirSync(dirname(target), { recursive: true })
 writeFileSync(target, png())
-console.log(`ícone gravado em ${target} (${SIZE}×${SIZE})`)
+console.log(`icon written to ${target} (${SIZE}×${SIZE})`)

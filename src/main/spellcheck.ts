@@ -50,7 +50,7 @@ export function installBundledDictionary(): boolean {
     // Being there is not enough: Chromium deletes a broken `.bdic` and tries to download. Checking
     // the signature restores it in this run.
     if (hasInstalledSignature(target)) return true
-    console.error(`[spellcheck] dicionário do perfil está corrompido e será reposto: ${target}`)
+    console.error(`[spellcheck] the profile dictionary is corrupt and will be replaced: ${target}`)
   } catch {
     // Does not exist yet: first run.
   }
@@ -60,7 +60,7 @@ export function installBundledDictionary(): boolean {
 
     // Better to find out in the log than to be left without a spellchecker without knowing why.
     if (!hasBdictSignature(readFileSync(source))) {
-      console.error(`[spellcheck] dicionário embutido não está no formato BDic: ${source}`)
+      console.error(`[spellcheck] the bundled dictionary is not in BDic format: ${source}`)
       return false
     }
 
@@ -68,7 +68,7 @@ export function installBundledDictionary(): boolean {
     copyFileSync(source, target)
     return true
   } catch (cause) {
-    console.error('[spellcheck] não foi possível instalar o dicionário embutido:', cause)
+    console.error('[spellcheck] could not install the bundled dictionary:', cause)
     return false
   }
 }
@@ -94,7 +94,7 @@ function hasInstalledSignature(target: string): boolean {
  */
 export function serveDictionary(): void {
   protocol.handle(DICTIONARY_SCHEME, async (request) => {
-    console.warn(`[spellcheck] o corretor pediu o dicionário pela rede: ${request.url}`)
+    console.warn(`[spellcheck] the spell checker asked for the dictionary over the network: ${request.url}`)
 
     try {
       return new Response(await readFile(bundledDictionaryPath()), {
@@ -119,7 +119,7 @@ export function applySpellChecker(session: Session, enabled: boolean): void {
   } catch (cause) {
     // Without a spellchecker in Electron (or on macOS without the language), spelling is lost, not
     // the app.
-    console.error('[spellcheck] o corretor não pôde ser configurado:', cause)
+    console.error('[spellcheck] the spell checker could not be configured:', cause)
   }
 }
 

@@ -28,7 +28,7 @@ export async function checkSidecarHealth(): Promise<void> {
     const health = await sidecar().health()
     console.info(`[sidecar] ${health.name} ${health.version} — ${health.runtime}`)
   } catch (cause) {
-    console.error('[sidecar] indisponível na subida:', cause instanceof Error ? cause.message : cause)
+    console.error('[sidecar] unavailable at startup:', cause instanceof Error ? cause.message : cause)
   }
 }
 

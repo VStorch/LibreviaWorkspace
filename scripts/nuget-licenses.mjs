@@ -31,7 +31,7 @@ export function nugetAssetsExist() {
 export function collectNuGetLicenses() {
   const assets = JSON.parse(readFileSync(assetsPath, 'utf8'))
   const packageFolders = Object.keys(assets.packageFolders ?? {})
-  if (packageFolders.length === 0) throw new Error('nenhuma pasta de pacotes NuGet no project.assets.json')
+  if (packageFolders.length === 0) throw new Error('no NuGet package folder in project.assets.json')
 
   const resolved = new Set()
   for (const target of Object.values(assets.targets ?? {})) {

@@ -28,9 +28,6 @@ const EXEMPT = new Map([
   ['src/services/spreadsheet/formula', 'function names and syntax, not interface'],
   // No code renders `.does`. If the shortcut table ever reaches the screen, remove this.
   ['src/shared/shortcuts.ts', 'the does field is documentation, it never reaches the screen'],
-  ['src/main/context-menu.ts', 'technical IPC log in the main terminal, never on screen'],
-  ['src/main/sidecar/index.ts', 'technical sidecar startup log in the main terminal, never on screen'],
-  ['src/main/spellcheck.ts', 'technical spell checker logs in the main terminal, never on screen'],
 ])
 
 /** Words that give away a Portuguese sentence even without accents. */
@@ -99,7 +96,7 @@ if (process.argv.includes('--count')) {
   for (const found of findings) {
     console.log(`${found.file}:${found.line}: ${found.text}`)
   }
-  console.log(`\n${findings.length} frase(s) ainda no codigo.`)
+  console.log(`\n${findings.length} sentence(s) still in the code.`)
 }
 
 process.exit(findings.length === 0 ? 0 : 1)

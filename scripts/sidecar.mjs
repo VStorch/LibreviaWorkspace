@@ -19,11 +19,11 @@ const RUNTIME_IDENTIFIERS = ['linux-x64', 'win-x64']
 
 function currentRuntimeIdentifier() {
   if (process.arch !== 'x64') {
-    fail(`sem alvo publicado para ${process.platform}-${process.arch}`)
+    fail(`no publish target for ${process.platform}-${process.arch}`)
   }
   if (process.platform === 'linux') return 'linux-x64'
   if (process.platform === 'win32') return 'win-x64'
-  return fail(`sem alvo publicado para ${process.platform}`)
+  return fail(`no publish target for ${process.platform}`)
 }
 
 function fail(message) {
@@ -33,8 +33,8 @@ function fail(message) {
 
 function run(command, args) {
   const result = spawnSync(command, args, { stdio: 'inherit', shell: false })
-  if (result.error) fail(`não foi possível executar ${command}: ${result.error.message}`)
-  if (result.status !== 0) fail(`${command} terminou com código ${result.status}`)
+  if (result.error) fail(`could not run ${command}: ${result.error.message}`)
+  if (result.status !== 0) fail(`${command} exited with code ${result.status}`)
 }
 
 function build(all) {
@@ -63,7 +63,7 @@ function build(all) {
  */
 function licenses() {
   if (!nugetAssetsExist()) {
-    fail('project.assets.json ausente — rode `dotnet restore sidecar/Librevia.Format.slnx` antes')
+    fail('project.assets.json missing: run `dotnet restore sidecar/Librevia.Format.slnx` first')
   }
 
   const packages = collectNuGetLicenses()
@@ -72,26 +72,26 @@ function licenses() {
 
   for (const { name, version, license, found } of packages) {
     if (!found) {
-      problems.push(`${name}/${version}: pacote não encontrado no cache local`)
+      problems.push(`${name}/${version}: package not found in the local cache`)
       continue
     }
 
-    report.push(`  ${`${name}/${version}`.padEnd(46)} ${license ?? '(não declarada)'}`)
+    report.push(`  ${`${name}/${version}`.padEnd(46)} ${license ?? '(not declared)'}`)
 
     if (license === null) {
-      problems.push(`${name}/${version}: não declara expressão de licença SPDX`)
+      problems.push(`${name}/${version}: declares no SPDX license expression`)
     } else if (!ALLOWED_LICENSES.has(license)) {
-      problems.push(`${name}/${version}: licença "${license}" fora da allowlist`)
+      problems.push(`${name}/${version}: license "${license}" is outside the allowlist`)
     }
   }
 
-  console.log(`\nLicenças NuGet (${packages.length} pacotes):`)
+  console.log(`\nNuGet licenses (${packages.length} packages):`)
   console.log(report.join('\n'))
 
   if (problems.length > 0) {
-    fail(`licenças reprovadas:\n  - ${problems.join('\n  - ')}`)
+    fail(`rejected licenses:\n  - ${problems.join('\n  - ')}`)
   }
-  console.log('\n✓ todas dentro da allowlist\n')
+  console.log('\n✓ all within the allowlist\n')
 }
 
 const [command, ...flags] = process.argv.slice(2)

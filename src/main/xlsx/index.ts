@@ -89,7 +89,7 @@ export async function decodeXlsx(client: SidecarClient, path: string, bytes: Buf
 
   const cells = model.sheets.reduce((total, sheet) => total + Object.keys(sheet.cells).length, 0)
   console.info(
-    `[xlsx] abertas ${cells} celulas — servico ${readAt - startedAt} ms, conversao ${Date.now() - readAt} ms`,
+    `[xlsx] opened ${cells} cells: service ${readAt - startedAt} ms, conversion ${Date.now() - readAt} ms`,
   )
 
   return {
@@ -128,7 +128,7 @@ export async function saveXlsx(client: SidecarClient, ssheetContent: string): Pr
   }
 
   console.info(
-    `[xlsx] escritas ${parsed.data.cellsWritten}, limpas ${parsed.data.cellsCleared}, preservadas ${parsed.data.cellsPreserved}`,
+    `[xlsx] written ${parsed.data.cellsWritten}, cleared ${parsed.data.cellsCleared}, preserved ${parsed.data.cellsPreserved}`,
   )
 
   return { bytes: reply.binary, inventory: { invisible: [], lost: [], structural: [] } }
