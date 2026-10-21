@@ -921,7 +921,7 @@ troca dessas chegando.
 
 ### Idioma e commits
 
-Identificadores e os raros comentários em inglês; mensagens ao usuário e nomes de teste em
+Identificadores, os raros comentários e os testes em inglês; mensagens ao usuário em
 português; commits em inglês, no padrão
 [Conventional Commits](https://www.conventionalcommits.org). Os detalhes estão no
 [CONTRIBUTING](CONTRIBUTING.md#commits).

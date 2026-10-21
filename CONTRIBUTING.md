@@ -97,7 +97,7 @@ quem escreveu. Não é uma regra só, mas um conjunto de hábitos:
 | **Funções pequenas, que fazem uma coisa** | se a descrição de uma função precisa de um "e", provavelmente são duas funções | os [limites de tamanho e complexidade](#tamanho-e-complexidade-das-funções), cobrados pelo lint |
 | **Poucos parâmetros** | uma chamada com sete argumentos posicionais obriga quem lê a contar vírgulas; um objeto com nomes se explica sozinho | `max-params` 5; acima disso, objeto de opções, como em `usePagination` |
 | **Sem números mágicos** | um `20971520` solto não diz nada; `MAX_FILE_BYTES` diz o que é e muda num lugar só | constantes nomeadas para limites, versões de formato e rótulos de aviso |
-| **O código se explica sozinho** | se um trecho precisa de comentário para ser entendido, o trecho é que precisa melhorar: um nome melhor, uma função extraída, uma constante com nome. Comentário envelhece sem que o compilador perceba; o código, não | o *porquê* mora no nome, no teste e no commit. Um comportamento copiado do Excel vira um teste cujo nome o descreve, por exemplo "`=-2^2` vale 4, como no Excel" |
+| **O código se explica sozinho** | se um trecho precisa de comentário para ser entendido, o trecho é que precisa melhorar: um nome melhor, uma função extraída, uma constante com nome. Comentário envelhece sem que o compilador perceba; o código, não | o *porquê* mora no nome, no teste e no commit. Um comportamento copiado do Excel vira um teste cujo nome o descreve, por exemplo "`=-2^2` is 4, as in Excel" |
 | **Sem efeito escondido** | uma função chamada `formatCell` não grava nada no disco; o nome promete, e o corpo cumpre | a lógica pura em `src/services/` não toca disco, rede nem tela |
 | **Erro tratado de propósito** | o erro tem tipo e mensagem que a pessoa entende, em vez de uma exceção genérica engolida ou propagada sem contexto | `AppError` com `ErrorCode`; na planilha, erro é valor (`#DIV/0!`) e se propaga sem derrubar o cálculo |
 | **Sem duplicação** | a mesma regra escrita em dois lugares diverge na primeira mudança feita às pressas | os rótulos de `Inventory.cs` são constantes; os textos da interface vivem num catálogo só; [procure antes de escrever](#procure-antes-de-escrever) |
@@ -346,7 +346,8 @@ permissivas — MIT, BSD, Apache-2.0, ISC e parecidas — e reprova o pacote que
 
 - **Identificadores em inglês:** nomes de arquivo, função, variável e tipo.
 - **Os raros comentários em inglês**, como os identificadores que eles acompanham.
-- **Mensagens ao usuário e nomes de teste em português.**
+- **Testes em inglês:** nomes, descrições e comentários.
+- **Mensagens ao usuário em português.**
 - **Commits em inglês.**
 
 ---
