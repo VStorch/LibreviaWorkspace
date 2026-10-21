@@ -12,6 +12,8 @@ describe('fromXlsxFormula', () => {
     ['=ROUND(A1*1.5,2)', '=ARRED(A1*1,5;2)'],
     ['=COUNTIF(A1:A9,">10")', '=CONT.SE(A1:A9;">10")'],
     ['=CONCATENATE(A1," ",B1)', '=CONCATENAR(A1;" ";B1)'],
+    ['=FIND("a",A1)', '=PROCURAR("a";A1)'],
+    ['=SEARCH("a",A1)', '=LOCALIZAR("a";A1)'],
   ])('translates %s', (file, app) => {
     expect(fromXlsxFormula(file)).toBe(app)
   })

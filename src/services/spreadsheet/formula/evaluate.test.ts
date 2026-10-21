@@ -246,14 +246,15 @@ describe('text', () => {
     ['=ARRUMAR("  a   b  ")', 'a b'],
     ['=SUBSTITUIR("a-b-c";"-";"/")', 'a/b/c'],
     ['=CONCATENAR("a";1;VERDADEIRO)', 'a1VERDADEIRO'],
-    ['=PROCURAR("IL";"planilha")', 5],
+    ['=LOCALIZAR("IL";"planilha")', 5],
   ])('%s = %s', (formula, expected) => {
     expect(calc(formula)).toBe(expected)
   })
 
-  it('LOCALIZAR is case-sensitive and PROCURAR is not', () => {
-    expect(calc('=PROCURAR("IL";"planilha")')).toBe(5)
-    expect(calc('=SEERRO(LOCALIZAR("IL";"planilha");"não achou")')).toBe('não achou')
+  it('PROCURAR is case-sensitive and LOCALIZAR is not, as in Brazilian Excel', () => {
+    expect(calc('=LOCALIZAR("IL";"planilha")')).toBe(5)
+    expect(calc('=SEERRO(PROCURAR("IL";"planilha");"não achou")')).toBe('não achou')
+    expect(calc('=PROCURAR("il";"planilha")')).toBe(5)
   })
 
   it('counts an emoji as one character', () => {

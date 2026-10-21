@@ -86,7 +86,7 @@ export const TEXT: readonly FunctionDefinition[] = [
     return from.length === 0 ? text : text.replaceAll(from, to)
   }),
 
-  define(['PROCURAR', 'SEARCH'], 2, 3, (args) => {
+  define(['LOCALIZAR', 'SEARCH'], 2, 3, (args) => {
     const needle = textArg(args[0])
     if (isFormulaError(needle)) return needle
     const haystack = textArg(args[1])
@@ -95,12 +95,12 @@ export const TEXT: readonly FunctionDefinition[] = [
     if (isFormulaError(from)) return from
     if (from < 1) return FormulaError.Value
 
-    // PROCURAR is case-insensitive; LOCALIZAR is the one that is not.
+    // Brazilian Excel: LOCALIZAR is SEARCH and ignores case; Portugal's Excel swaps the names.
     const at = haystack.toUpperCase().indexOf(needle.toUpperCase(), start(from))
     return at < 0 ? FormulaError.Value : at + 1
   }),
 
-  define(['LOCALIZAR', 'FIND'], 2, 3, (args) => {
+  define(['PROCURAR', 'FIND'], 2, 3, (args) => {
     const needle = textArg(args[0])
     if (isFormulaError(needle)) return needle
     const haystack = textArg(args[1])
