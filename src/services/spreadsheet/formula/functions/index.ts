@@ -15,7 +15,7 @@ const ALL: readonly FunctionDefinition[] = [...MATH, ...STATS, ...LOGICAL, ...TE
 const BY_NAME = new Map<string, FunctionDefinition>()
 for (const definition of ALL) {
   for (const name of definition.names) {
-    if (BY_NAME.has(name)) throw new Error(`Função duplicada no catálogo: ${name}`)
+    if (BY_NAME.has(name)) throw new Error(`Duplicate function in the catalog: ${name}`)
     BY_NAME.set(name, definition)
   }
 }

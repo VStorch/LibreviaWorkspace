@@ -105,7 +105,7 @@ export class SidecarClient {
 
   dispose(): void {
     this.#disposed = true
-    this.#failAllPending(new AppError(ErrorCode.SidecarUnavailable, died(), 'aplicativo encerrando'))
+    this.#failAllPending(new AppError(ErrorCode.SidecarUnavailable, died(), 'app shutting down'))
 
     const child = this.#child
     if (child === null) return

@@ -465,7 +465,7 @@ export const styleSheetSchema = z.object({
   // table variant passes 400.
   styles: z
     .record(z.string().max(MAX_ID_LENGTH), styleDefinitionSchema)
-    .refine((styles) => Object.keys(styles).length <= 4000, 'estilos demais'),
+    .refine((styles) => Object.keys(styles).length <= 4000, 'too many styles'),
 })
 
 const aiProviderIdSchema = z.string().min(1).max(MAX_ID_LENGTH)
