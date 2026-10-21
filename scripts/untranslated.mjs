@@ -5,9 +5,9 @@
  *   node scripts/untranslated.mjs          lists everything, exits 1 if anything is found
  *   node scripts/untranslated.mjs --count  only the number
  *
- * Comments, `*.test.ts` and `e2e/` are skipped: comments are in English and test names in
- * Portuguese, by rule. The rest is strings with an accented letter or a Portuguese function word;
- * false positives go to the exemption list, with the reason.
+ * Comments, `*.test.ts` and `e2e/` are skipped: comments and tests are in English, by rule, and
+ * tests hold Portuguese only as test data. The rest is strings with an accented letter or a
+ * Portuguese function word; false positives go to the exemption list, with the reason.
  */
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, relative, sep } from 'node:path'
@@ -23,14 +23,14 @@ const SKIP_DIRS = new Set(['node_modules', 'out', 'dist', 'release', '.git'])
  * Portuguese.
  */
 const EXEMPT = new Map([
-  ['src/shared/i18n', 'o catalogo guarda as duas linguas de proposito'],
+  ['src/shared/i18n', 'the catalog holds both languages on purpose'],
   // SOMA and PROCV are syntax the .xlsx stores: translating them would break the formulas.
-  ['src/services/spreadsheet/formula', 'nome de funcao e sintaxe, nao interface'],
+  ['src/services/spreadsheet/formula', 'function names and syntax, not interface'],
   // No code renders `.does`. If the shortcut table ever reaches the screen, remove this.
-  ['src/shared/shortcuts.ts', 'o campo does e documentacao, nao vai para a tela'],
-  ['src/main/context-menu.ts', 'log tecnico de IPC no terminal do main, nao vai para a tela'],
-  ['src/main/sidecar/index.ts', 'log tecnico de subida do sidecar no terminal do main, nao vai para a tela'],
-  ['src/main/spellcheck.ts', 'logs tecnicos do corretor no terminal do main, nao vao para a tela'],
+  ['src/shared/shortcuts.ts', 'the does field is documentation, it never reaches the screen'],
+  ['src/main/context-menu.ts', 'technical IPC log in the main terminal, never on screen'],
+  ['src/main/sidecar/index.ts', 'technical sidecar startup log in the main terminal, never on screen'],
+  ['src/main/spellcheck.ts', 'technical spell checker logs in the main terminal, never on screen'],
 ])
 
 /** Words that give away a Portuguese sentence even without accents. */
