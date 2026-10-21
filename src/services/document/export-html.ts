@@ -111,16 +111,16 @@ body { margin: 0; color: #111111; }
 .page__content a { color: #14538f; }
 .page__content ul[data-list-indent],
 .page__content ol[data-list-indent] {
-  padding-left: var(--lista-recuo) !important;
-  margin-left: var(--lista-margem, 0mm);
+  padding-left: var(--list-indent) !important;
+  margin-left: var(--list-margin, 0mm);
 }
 .page__content li[data-label] { list-style: none; }
 .page__content li[data-label] > :first-child::before {
-  content: var(--lista-marca);
+  content: var(--list-marker);
   display: inline-block;
   box-sizing: border-box;
-  min-width: var(--lista-pendente, 0mm);
-  margin-left: calc(-1 * var(--lista-pendente, 0mm));
+  min-width: var(--list-hanging, 0mm);
+  margin-left: calc(-1 * var(--list-hanging, 0mm));
   padding-right: 0.5em;
   text-indent: 0;
   white-space: pre;

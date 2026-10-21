@@ -192,8 +192,8 @@ describe('numberLists', () => {
       ),
     )
     const [outer, inner] = numberLists(root, reader).lists
-    expect(listDrawAttrs(outer!)['style']).toContain('--lista-recuo: 6.35mm')
-    expect(listDrawAttrs(inner!)['style']).toContain('--lista-recuo: 6.35mm')
+    expect(listDrawAttrs(outer!)['style']).toContain('--list-indent: 6.35mm')
+    expect(listDrawAttrs(inner!)['style']).toContain('--list-indent: 6.35mm')
     expect(inner!.indentMm).toBe(12.7)
   })
 })

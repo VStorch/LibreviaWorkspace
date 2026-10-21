@@ -34,7 +34,7 @@ const JSON_READER: ListTreeReader<DocumentNode> = {
 /** Through the document's own numbering: a second `%1.%2.` grammar would drift from the paper. */
 export function previewOf(levels: readonly LevelDef[]): string[] {
   const kind = kindOfLevels(levels)
-  const numbering = { key: 'previa', levels }
+  const numbering = { key: 'preview', levels }
   let nested: DocumentNode | null = null
   for (let level = 2; level >= 0; level--) {
     const item: DocumentNode = {

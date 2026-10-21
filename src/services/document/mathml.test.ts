@@ -82,9 +82,9 @@ describe("the equations' MathML filter", () => {
 
 describe('the equation on paper (M11, phase 3)', () => {
   it('the display one does not split across pages, and printing carries the screen CSS', () => {
-    expect(DOCUMENT_CONTENT_CSS).toMatch(/\.equacao--exibicao \{[^}]*break-inside: avoid/)
-    expect(DOCUMENT_CONTENT_CSS).toContain('.page__content .equacao math {')
-    expect(PRINT_ONLY_CSS).not.toContain('equacao')
+    expect(DOCUMENT_CONTENT_CSS).toMatch(/\.equation--display \{[^}]*break-inside: avoid/)
+    expect(DOCUMENT_CONTENT_CSS).toContain('.page__content .equation math {')
+    expect(PRINT_ONLY_CSS).not.toContain('equation')
   })
 })
 

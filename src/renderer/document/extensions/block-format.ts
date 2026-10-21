@@ -49,7 +49,7 @@ const BLOCK_ATTRIBUTES: Attributes = {
       // distance to the text. Single quotes, because the value goes into a CSS string.
       return {
         'data-marker': value,
-        style: `--marca: '${value.replace(/['\\]/g, '\\$&')}'`,
+        style: `--marker: '${value.replace(/['\\]/g, '\\$&')}'`,
       }
     },
   },
@@ -65,7 +65,7 @@ const BLOCK_ATTRIBUTES: Attributes = {
       return value !== null && value >= 0
         ? {
             'data-indent-mm': String(value),
-            style: `padding-left: ${value}mm; --recuo: ${value}mm`,
+            style: `padding-left: ${value}mm; --indent: ${value}mm`,
           }
         : {}
     },
@@ -80,7 +80,7 @@ const BLOCK_ATTRIBUTES: Attributes = {
       return value !== null && value >= 0
         ? {
             'data-indent-right-mm': String(value),
-            style: `padding-right: ${value}mm; --recuo-direita: ${value}mm`,
+            style: `padding-right: ${value}mm; --indent-right: ${value}mm`,
           }
         : {}
     },
@@ -105,7 +105,7 @@ const BLOCK_ATTRIBUTES: Attributes = {
     renderHTML: (attributes) => {
       const value = Number(attributes['hangingMm'])
       return Number.isFinite(value) && value > 0
-        ? { 'data-hanging-mm': String(value), style: `--pendente: ${value}mm` }
+        ? { 'data-hanging-mm': String(value), style: `--hanging: ${value}mm` }
         : {}
     },
   },

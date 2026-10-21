@@ -35,7 +35,7 @@ describe('drawListsForPrint', () => {
 
     const [list] = drawListsForPrint(doc)
     expect(renderedAttrs(list!)['data-list-indent']).toBe('')
-    expect(String(renderedAttrs(list!)['style'])).toContain('--lista-recuo: 12.7mm')
+    expect(String(renderedAttrs(list!)['style'])).toContain('--list-indent: 12.7mm')
 
     const first = list!.child(0)
     const nested = first.child(1)

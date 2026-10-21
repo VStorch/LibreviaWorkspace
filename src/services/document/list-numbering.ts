@@ -329,7 +329,7 @@ export function listDrawAttrs(info: ListInfo): Record<string, string> {
   const relative = round2(info.indentMm - info.parentIndentMm)
   return {
     'data-list-indent': '',
-    style: `--lista-recuo: ${Math.max(0, relative)}mm; --lista-margem: ${Math.min(0, relative)}mm; --lista-pendente: ${Math.max(0, info.hangingMm)}mm`,
+    style: `--list-indent: ${Math.max(0, relative)}mm; --list-margin: ${Math.min(0, relative)}mm; --list-hanging: ${Math.max(0, info.hangingMm)}mm`,
   }
 }
 
@@ -338,5 +338,5 @@ export function listDrawAttrs(info: ListInfo): Record<string, string> {
  */
 export function itemDrawAttrs(label: string): Record<string, string> {
   const quoted = label.replace(/["\\]/g, '\\$&').replace(/\n/g, ' ')
-  return { 'data-label': label, style: `--lista-marca: "${quoted}"` }
+  return { 'data-label': label, style: `--list-marker: "${quoted}"` }
 }

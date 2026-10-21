@@ -45,7 +45,7 @@ test.describe('equations', () => {
 
     const editor = session.window.locator('.pages__column .ProseMirror')
     await expect(editor).toHaveAttribute('contenteditable', 'true')
-    const equations = editor.locator('.equacao')
+    const equations = editor.locator('.equation')
     await expect(equations).toHaveCount(3)
 
     // The inline one: inside the sentence, at text height.
@@ -57,7 +57,7 @@ test.describe('equations', () => {
 
     // The display one: a column-wide block, with the fraction and the root.
     const display = equations.nth(1)
-    await expect(display).toHaveClass(/equacao--exibicao/)
+    await expect(display).toHaveClass(/equation--display/)
     await expect(display.locator('math mfrac msqrt')).toHaveCount(1)
     const displayBox = await display.boundingBox()
     const editorBox = await editor.boundingBox()
@@ -66,7 +66,7 @@ test.describe('equations', () => {
 
     // A locked one says what the screen does not draw.
     const locked = equations.nth(2)
-    await expect(locked).toHaveClass(/equacao--travada/)
+    await expect(locked).toHaveClass(/equation--locked/)
     await expect(locked).toHaveAttribute('title', /m:borderBox/)
 
     await editor.getByText(EQUATION_AFTER.trim()).click()
@@ -84,8 +84,8 @@ test.describe('equations', () => {
 
     await menu(session, 'open')
     await expect(editor).toContainText('para todo raio. Conferido.')
-    await expect(editor.locator('.equacao')).toHaveCount(3)
-    await expect(editor.locator('.equacao').nth(0).locator('math msup')).toHaveCount(1)
+    await expect(editor.locator('.equation')).toHaveCount(3)
+    await expect(editor.locator('.equation').nth(0).locator('math msup')).toHaveCount(1)
   })
 
   test('the PDF carries the equations', async () => {
@@ -95,7 +95,7 @@ test.describe('equations', () => {
     await writeFile(sourceFile, await docxWithEquations())
     await stubDialogs(session.app, { open: sourceFile, save: destinationFile, messageBox: 1 })
     await menu(session, 'open')
-    await expect(session.window.locator('.pages__column .equacao')).toHaveCount(3)
+    await expect(session.window.locator('.pages__column .equation')).toHaveCount(3)
 
     await menu(session, 'export-pdf')
     await expect
@@ -130,17 +130,17 @@ test.describe('equations', () => {
     await dialog.getByRole('button', { name: 'OK', exact: true }).click()
     await expect(dialog).toHaveCount(0)
 
-    const equation = editor.locator('.equacao')
+    const equation = editor.locator('.equation')
     await expect(equation).toHaveCount(1)
     await expect(equation.locator('math mfrac')).toHaveCount(1)
     await expect(equation.locator('math msqrt')).toHaveCount(1)
 
     // One undo step per OK.
     await session.window.keyboard.press('Control+z')
-    await expect(editor.locator('.equacao')).toHaveCount(0)
+    await expect(editor.locator('.equation')).toHaveCount(0)
     await expect(editor).toContainText('Área:')
     await session.window.keyboard.press('Control+y')
-    await expect(editor.locator('.equacao math mfrac')).toHaveCount(1)
+    await expect(editor.locator('.equation math mfrac')).toHaveCount(1)
 
     await menu(session, 'save-as')
     await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
@@ -151,9 +151,9 @@ test.describe('equations', () => {
 
     await menu(session, 'close-file')
     await menu(session, 'open')
-    await expect(editor.locator('.equacao')).toHaveCount(1)
-    await expect(editor.locator('.equacao math mfrac')).toHaveCount(1)
-    await expect(editor.locator('.equacao math msqrt')).toHaveCount(1)
+    await expect(editor.locator('.equation')).toHaveCount(1)
+    await expect(editor.locator('.equation math mfrac')).toHaveCount(1)
+    await expect(editor.locator('.equation math msqrt')).toHaveCount(1)
   })
 
   test('edit a file equation; canceling changes nothing; the locked one only opens to view', async () => {
@@ -164,7 +164,7 @@ test.describe('equations', () => {
     await menu(session, 'open')
 
     const editor = session.window.locator('.pages__column .ProseMirror')
-    const equations = editor.locator('.equacao')
+    const equations = editor.locator('.equation')
     await expect(equations).toHaveCount(3)
     const state = session.window.locator('.statusbar__state')
     const stateBefore = await state.textContent()
@@ -203,7 +203,7 @@ test.describe('equations', () => {
     expect(after.slice(1)).toEqual(before.slice(1))
 
     await menu(session, 'open')
-    await expect(editor.locator('.equacao').nth(0).locator('math msup mn')).toHaveText('3')
+    await expect(editor.locator('.equation').nth(0).locator('math msup mn')).toHaveText('3')
   })
 
   test('exporting to HTML, Markdown and ODT carries the equations', async () => {
@@ -211,7 +211,7 @@ test.describe('equations', () => {
     await writeFile(sourceFile, await docxWithEquations())
     await stubDialogs(session.app, { open: sourceFile, messageBox: 1 })
     await menu(session, 'open')
-    await expect(session.window.locator('.pages__column .equacao')).toHaveCount(3)
+    await expect(session.window.locator('.pages__column .equation')).toHaveCount(3)
     const read = (filePath: string) => () => readFile(filePath, 'utf8').catch(() => '')
 
     const html = join(directory, 'relatorio.html')
@@ -248,7 +248,7 @@ test.describe('equations', () => {
     await stubDialogs(session.app, { open: sourceFile, messageBox: 1 })
     await menu(session, 'open')
     const editor = session.window.locator('.pages__column .ProseMirror')
-    const equations = editor.locator('.equacao')
+    const equations = editor.locator('.equation')
     await expect(equations).toHaveCount(3)
     const omml = await equations.nth(0).getAttribute('data-omml')
     expect(omml).toContain('oMath')

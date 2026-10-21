@@ -13,7 +13,7 @@ import { latexOfEquation } from '@services/document/mathml-latex.js'
 import { t } from '../../i18n.js'
 
 /** Its CSS is in `content-styles.ts`. */
-export const MATH_CLASS = 'equacao'
+export const MATH_CLASS = 'equation'
 
 /**
  * `m:oMath` or `m:oMathPara`, atomic like a field. The identity is `omml`, which goes back to the
@@ -108,8 +108,8 @@ export function renderMath(node: ProseMirrorNode, doc: Document): HTMLElement {
   const wrapper = doc.createElement('span')
   wrapper.className = [
     MATH_CLASS,
-    display ? `${MATH_CLASS}--exibicao` : '',
-    locked ? `${MATH_CLASS}--travada` : '',
+    display ? `${MATH_CLASS}--display` : '',
+    locked ? `${MATH_CLASS}--locked` : '',
   ]
     .filter((name) => name !== '')
     .join(' ')

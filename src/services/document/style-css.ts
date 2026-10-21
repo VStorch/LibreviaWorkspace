@@ -80,9 +80,9 @@ function paragraphCss({ paragraph }: ResolvedStyle): Array<[string, string]> {
     ['margin-bottom', points(paragraph.spaceAfter)],
     ['text-align', paragraph.textAlign ?? 'start'],
     ['padding-left', indent],
-    ['--recuo', indent],
+    ['--indent', indent],
     ['padding-right', indentRight],
-    ['--recuo-direita', indentRight],
+    ['--indent-right', indentRight],
     ['text-indent', millimeters(paragraph.firstLineMm)],
     ['background-color', paragraph.background ?? 'transparent'],
   ]

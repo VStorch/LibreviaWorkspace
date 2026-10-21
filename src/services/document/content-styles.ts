@@ -68,14 +68,14 @@ ${DOCUMENT_FONT_CSS}
    resolves to whatever font has an OpenType MATH table. The box
    (\`m:borderBox\`) is an \`mrow\` with a border, because MathML Core has no
    \`menclose\`. */
-.page__content .equacao math {
+.page__content .equation math {
   font-family: 'STIX Two Math', 'Cambria Math', 'Noto Sans Math', 'DejaVu Math TeX Gyre', math;
 }
-.page__content .equacao--exibicao { display: block; text-align: center; break-inside: avoid; }
-.page__content .equacao--exibicao[data-jc='left'] { text-align: left; }
-.page__content .equacao--exibicao[data-jc='right'] { text-align: right; }
-.page__content .equacao--exibicao math { display: inline math; math-style: normal; }
-.page__content .equacao .omml-caixa { border: 1px solid currentColor; padding: 0.1em; }
+.page__content .equation--display { display: block; text-align: center; break-inside: avoid; }
+.page__content .equation--display[data-jc='left'] { text-align: left; }
+.page__content .equation--display[data-jc='right'] { text-align: right; }
+.page__content .equation--display math { display: inline math; math-style: normal; }
+.page__content .equation .omml-caixa { border: 1px solid currentColor; padding: 0.1em; }
 
 /* Superscript and subscript without stretching the line, as in Word:
    \`line-height: 0\` keeps the line's height, and the fractional size does not
@@ -89,25 +89,25 @@ ${DOCUMENT_FONT_CSS}
 .page__content img[data-align='center'] { display: block; margin-inline: auto; }
 .page__content img[data-align='right'] { display: block; margin-left: auto; }
 
-/* The list mark comes ready in --lista-marca (list-numbering.ts), counted the
+/* The list mark comes ready in --list-marker (list-numbering.ts), counted the
    way Word counts, and is drawn by a pseudo-element because the native marker
    cannot be placed in the hanging indent (w:ind/@hanging). The indent is
-   relative to the outer list's (--lista-recuo); !important because the node may
+   relative to the outer list's (--list-indent); !important because the node may
    carry the absolute one as an inline style. */
 .page__content ul[data-list-indent],
 .page__content ol[data-list-indent] {
-  padding-left: var(--lista-recuo) !important;
-  margin-left: var(--lista-margem, 0mm);
+  padding-left: var(--list-indent) !important;
+  margin-left: var(--list-margin, 0mm);
 }
 
 .page__content li[data-label] { list-style: none; }
 
 .page__content li[data-label] > :first-child::before {
-  content: var(--lista-marca);
+  content: var(--list-marker);
   display: inline-block;
   box-sizing: border-box;
-  min-width: var(--lista-pendente, 0mm);
-  margin-left: calc(-1 * var(--lista-pendente, 0mm));
+  min-width: var(--list-hanging, 0mm);
+  margin-left: calc(-1 * var(--list-hanging, 0mm));
   /* A mark wider than the hanging indent: Word jumps to the next tab stop;
      here, at least half a letter of space. */
   padding-right: 0.5em;
@@ -124,8 +124,8 @@ ${DOCUMENT_FONT_CSS}
 .page__content img[data-anchored],
 .page__content .node-image[data-anchored] {
   display: block;
-  margin-left: calc(-1 * var(--recuo, 0mm));
-  max-width: calc(100% + var(--recuo, 0mm) + var(--recuo-direita, 0mm));
+  margin-left: calc(-1 * var(--indent, 0mm));
+  max-width: calc(100% + var(--indent, 0mm) + var(--indent-right, 0mm));
 }
 
 .page__content .node-image[data-anchored] > .image-frame {
@@ -260,8 +260,8 @@ export const EDITOR_ONLY_CSS = `
 
 /* A locked equation, with a construct the screen cannot draw, gets an
    underline, and the tooltip says what is missing. */
-.page__content .equacao.ProseMirror-selectednode { background: #d9d9d9; outline: none; }
-.page__content .equacao--travada { text-decoration: underline dotted #b0b0b0; }
+.page__content .equation.ProseMirror-selectednode { background: #d9d9d9; outline: none; }
+.page__content .equation--locked { text-decoration: underline dotted #b0b0b0; }
 
 ${DARK_CONTENT_CSS}
 .page__content .selectedCell::after {
