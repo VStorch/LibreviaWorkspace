@@ -10,12 +10,12 @@ ${DOCUMENT_FONT_CSS}
 
 .page__content {
   outline: none;
-  /* Flex, e não fluxo comum, para as margens não se fundirem: o CSS fica com a
-     maior, e o Word e o LibreOffice somam as duas. */
+  /* Flex, not normal flow, so the margins do not collapse: CSS keeps the larger
+     one, while Word and LibreOffice add both. */
   display: flex;
   flex-direction: column;
-  /* No documento, o CSS dos estilos (style-css.ts) sobrepõe isto; vale sozinho
-     na planilha impressa. */
+  /* In the document, the style CSS (style-css.ts) overrides this; it applies on
+     its own in the printed spreadsheet. */
   font-family: 'Times New Roman', 'Liberation Serif', Georgia, serif;
   font-size: 12pt;
   line-height: 1.5;
@@ -24,8 +24,8 @@ ${DOCUMENT_FONT_CSS}
 
 .page__content > * + * { margin-top: 0.6em; }
 
-/* O parágrafo vazio ocupa uma linha: no papel não há o <br> que o ProseMirror
-   põe para o cursor, e sem isto o texto subiria. */
+/* An empty paragraph takes one line: on paper there is no <br> that ProseMirror
+   adds for the cursor, and without this the text would move up. */
 .page__content :is(p, h1, h2, h3, h4, h5, h6, li):empty::before {
   content: '';
   display: inline-block;
@@ -43,9 +43,9 @@ ${DOCUMENT_FONT_CSS}
 
 .page__content a { color: #14538f; text-decoration: underline; }
 
-/* O sumário: o estilo "toc N" do Word pede tabulação à direita com pontinhos.
-   Sem paradas de tabulação no editor, a entrada vira uma fileira flexível. O
-   link da entrada não se pinta, como no Word. */
+/* The table of contents: Word's "toc N" style asks for a right tab with dot
+   leaders. With no tab stops in the editor, the entry becomes a flex row. The
+   entry's link is not colored, as in Word. */
 .page__content .toc a { color: inherit; text-decoration: none; }
 .page__content .toc :is(p, h1, h2, h3, h4, h5, h6, a):has(> .field[data-field='pageref']) {
   display: flex;
@@ -64,9 +64,9 @@ ${DOCUMENT_FONT_CSS}
   padding: 0 0.2em;
 }
 
-/* A fonte de matemática é a do sistema: \`math\` é a família genérica que o
-   Chromium resolve para a fonte com tabela OpenType MATH que houver. A caixa
-   (\`m:borderBox\`) é um \`mrow\` com borda, porque o MathML Core não tem
+/* The math font is the system's: \`math\` is the generic family Chromium
+   resolves to whatever font has an OpenType MATH table. The box
+   (\`m:borderBox\`) is an \`mrow\` with a border, because MathML Core has no
    \`menclose\`. */
 .page__content .equacao math {
   font-family: 'STIX Two Math', 'Cambria Math', 'Noto Sans Math', 'DejaVu Math TeX Gyre', math;
@@ -77,23 +77,23 @@ ${DOCUMENT_FONT_CSS}
 .page__content .equacao--exibicao math { display: inline math; math-style: normal; }
 .page__content .equacao .omml-caixa { border: 1px solid currentColor; padding: 0.1em; }
 
-/* Sobrescrito e subscrito sem esticar a linha, como no Word: \`line-height: 0\`
-   devolve a medida da linha, e o tamanho em fração não encolhe de novo a cada
-   expoente aninhado. */
+/* Superscript and subscript without stretching the line, as in Word:
+   \`line-height: 0\` keeps the line's height, and the fractional size does not
+   shrink again with each nested exponent. */
 .page__content sup,
 .page__content sub { font-size: 0.65em; line-height: 0; }
 
 .page__content img { max-width: 100%; height: auto; }
 
-/* Imagem como bloco, alinhada por atributo: só vem de rascunhos antigos. */
+/* Image as a block, aligned by attribute: only comes from old drafts. */
 .page__content img[data-align='center'] { display: block; margin-inline: auto; }
 .page__content img[data-align='right'] { display: block; margin-left: auto; }
 
-/* A marca da lista vem pronta em --lista-marca (list-numbering.ts), contada
-   como o Word conta, e é desenhada por pseudo-elemento porque o marcador nativo
-   não se posiciona no recuo pendente (w:ind/@hanging). O recuo é relativo ao da
-   lista de fora (--lista-recuo); !important porque o nó pode trazer o absoluto
-   em estilo inline. */
+/* The list mark comes ready in --lista-marca (list-numbering.ts), counted the
+   way Word counts, and is drawn by a pseudo-element because the native marker
+   cannot be placed in the hanging indent (w:ind/@hanging). The indent is
+   relative to the outer list's (--lista-recuo); !important because the node may
+   carry the absolute one as an inline style. */
 .page__content ul[data-list-indent],
 .page__content ol[data-list-indent] {
   padding-left: var(--lista-recuo) !important;
@@ -108,18 +108,19 @@ ${DOCUMENT_FONT_CSS}
   box-sizing: border-box;
   min-width: var(--lista-pendente, 0mm);
   margin-left: calc(-1 * var(--lista-pendente, 0mm));
-  /* Marca maior que o recuo pendente: o Word salta para a tabulação seguinte;
-     aqui, ao menos meia letra de ar. */
+  /* A mark wider than the hanging indent: Word jumps to the next tab stop;
+     here, at least half a letter of space. */
   padding-right: 0.5em;
   text-indent: 0;
   white-space: pre;
 }
 
-/* A imagem ancorada é um bloco do tamanho da coluna, como no Word: inline ela
-   cobraria a descida da fonte, e o recuo do parágrafo não a estreita. Pelo
-   atributo, e não pela posição, porque o ProseMirror põe uma imagem de serviço
-   ao lado. Na tela a regra pega o embrulho do NodeView (.node-image), filho do
-   parágrafo; a moldura encolhe à imagem para as alças ficarem nos cantos. */
+/* An anchored image is a column-wide block, as in Word: inline it would pay
+   for the font's descent, and the paragraph indent does not narrow it. By
+   attribute, not by position, because ProseMirror puts a service image next to
+   it. On screen the rule targets the NodeView wrapper (.node-image), a child of
+   the paragraph; the frame shrinks to the image so the handles sit on the
+   corners. */
 .page__content img[data-anchored],
 .page__content .node-image[data-anchored] {
   display: block;
@@ -132,15 +133,15 @@ ${DOCUMENT_FONT_CSS}
   width: fit-content;
 }
 
-/* O <br> de serviço do ProseMirror não abre linha depois da imagem em bloco:
-   o papel não tem esse <br>. */
+/* ProseMirror's service <br> does not open a line after a block image: paper
+   has no such <br>. */
 .page__content img[data-anchored] ~ br,
 .page__content img[data-anchored] ~ img.ProseMirror-separator,
 .page__content .node-image[data-anchored] ~ br,
 .page__content .node-image[data-anchored] ~ img.ProseMirror-separator { display: none !important; }
 
-/* O parágrafo da imagem ancorada mantém a linha dele por baixo da imagem,
-   dentro do parágrafo: é o que o LibreOffice mede entre duas capturas. */
+/* The anchored image's paragraph keeps its line under the image, inside the
+   paragraph: that is what LibreOffice measures between two captures. */
 .page__content p:not([data-anchor-text]):has(> img[data-anchored])::after,
 .page__content p:not([data-anchor-text]):has(> .node-image[data-anchored])::after {
   content: '';
@@ -149,8 +150,8 @@ ${DOCUMENT_FONT_CSS}
 }
 
 
-/* A marca de seção (o parágrafo vazio que guarda o w:sectPr) não ocupa linha,
-   como no LibreOffice. Continua no documento: a gravação a devolve. */
+/* The section mark (the empty paragraph holding w:sectPr) takes no line, as in
+   LibreOffice. It stays in the document: saving writes it back. */
 .page__content p[data-section-mark] {
   height: 0;
   margin: 0;
@@ -169,12 +170,13 @@ ${DOCUMENT_FONT_CSS}
   border-collapse: collapse;
   width: 100%;
   table-layout: fixed;
-  /* Sem margem própria, como no Word: o ar em volta é o dos parágrafos vizinhos. */
+  /* No margin of its own, as in Word: the space around it is the neighboring
+   paragraphs'. */
   margin: 0;
 }
 
-/* A margem de célula vem da tabela (--cell-margins); sem ela, 60/120 twips, o
-   TableNormal do Word. */
+/* The cell margin comes from the table (--cell-margins); without it, 60/120
+   twips, Word's TableNormal. */
 .page__content th,
 .page__content td {
   border: 1px solid #9aa3ad;
@@ -197,12 +199,12 @@ const DARK_CONTENT_CSS = `
   ${DECLARED_BLACK_VARIABLE}: var(--text);
 }
 
-/* A mesma cor das outras superfícies, para o papel não parecer recortado. */
+/* The same color as the other surfaces, so the paper does not look cut out. */
 :root[data-theme='dark'] .paper {
   background: var(--surface);
 }
 
-/* #14538f sobre papel escuro dá 2.1:1. */
+/* #14538f on dark paper gives 2.1:1. */
 :root[data-theme='dark'] .page__content a {
   color: var(--accent-document);
 }
@@ -239,8 +241,8 @@ export const NOTES_CSS = `
   border-top: 0.75pt solid #000000;
 }
 .paper-notes__separator--continued::after { width: 100%; }
-/* clip, e não hidden: a área não rola com o cursor. flow-root porque clip não
-   isola a margem negativa da continuação. */
+/* clip, not hidden: the area does not scroll with the cursor. flow-root because
+   clip does not contain the continuation's negative margin. */
 .paper-notes__slot { overflow: clip; display: flow-root; }
 .note-body { display: flex; flex-direction: column; }
 .note-number { vertical-align: super; font-size: 0.65em; line-height: 0; }
@@ -248,15 +250,16 @@ export const NOTES_CSS = `
 
 /** Editor only: cell selection, resize handle, page break. */
 export const EDITOR_ONLY_CSS = `
-/* O sombreado cinza do Word mostra que o número é calculado. Só na tela. */
+/* Word's gray shading shows that the number is calculated. Screen only. */
 .page__content .field.ProseMirror-selectednode { background: #d9d9d9; outline: none; }
 
-/* O número é decoração, pela ordem no texto (note-ref.ts); no papel vem escrito. */
+/* The number is decoration, from the order in the text (note-ref.ts); on paper
+   it is written out. */
 .page__content .note-ref::after { content: attr(data-note-number); }
 .page__content .note-ref.ProseMirror-selectednode { background: #d9d9d9; outline: none; }
 
-/* A equação travada, com construção que a tela não desenha, leva um traço por
-   baixo, e a dica diz o que falta. */
+/* A locked equation, with a construct the screen cannot draw, gets an
+   underline, and the tooltip says what is missing. */
 .page__content .equacao.ProseMirror-selectednode { background: #d9d9d9; outline: none; }
 .page__content .equacao--travada { text-decoration: underline dotted #b0b0b0; }
 
@@ -279,9 +282,9 @@ ${DARK_CONTENT_CSS}
   cursor: col-resize;
 }
 
-/* A quebra de página não desenha nada, como na vista de impressão do Word e do
-   LibreOffice: a folha termina ali. Continua selecionável e apagável com
-   Backspace no começo da folha seguinte. */
+/* A page break draws nothing, as in the print layout of Word and LibreOffice:
+   the sheet ends there. It stays selectable and deletable with Backspace at the
+   start of the next sheet. */
 .page__content .page-break {
   border: none;
   margin: 0;
@@ -290,8 +293,8 @@ ${DARK_CONTENT_CSS}
 
 .page__content .ProseMirror-selectednode { outline: 2px solid #1f5fa9; }
 
-/* Em linha e sem entrelinha: sem isto a moldura cobraria a descida da fonte, e
-   a tela mediria a imagem mais alta que o papel. */
+/* Inline and with no line spacing: without this the frame would pay for the
+   font's descent, and the screen would measure the image taller than paper. */
 .page__content .image-frame {
   display: inline-block;
   position: relative;
@@ -322,9 +325,9 @@ ${DARK_CONTENT_CSS}
 .page__content .image-frame__grip--sw { left: -5px; bottom: -5px; }
 .page__content .image-frame__grip--w { left: -5px; top: calc(50% - 5px); }
 
-/* As marcas de formatação não mudam a medida da linha: largura, altura e
-   entrelinha zero, com o glifo visível pelo overflow. Por isso injectCSS: false
-   em editor-extensions.ts. */
+/* Formatting marks do not change the line's measure: zero width, height and
+   line spacing, with the glyph visible through overflow. Hence injectCSS: false
+   in editor-extensions.ts. */
 .page__content .tiptap-invisible-character {
   width: 0;
   height: 0;
@@ -349,7 +352,7 @@ ${DARK_CONTENT_CSS}
 .page__content .tiptap-invisible-character--break::before { content: '¬'; }
 .page__content .tiptap-invisible-character--paragraph::before { content: '¶'; }
 
-/* A imagem de serviço ao lado da marca também não cobra altura. */
+/* The service image next to the mark takes no height either. */
 .page__content .tiptap-invisible-character + img.ProseMirror-separator {
   width: 0 !important;
   height: 0 !important;
@@ -371,7 +374,7 @@ export const PRINT_ONLY_CSS = `
 .page__content h2,
 .page__content h3,
 .page__content h4,
-/* A mesma regra das marcas de fim de página da tela. */
+/* The same rule as the screen's end-of-page marks. */
 .page__content [data-keep-next] { break-after: avoid; }
 
 .page__content tr,
@@ -379,7 +382,7 @@ export const PRINT_ONLY_CSS = `
 
 .page__content thead { display: table-header-group; }
 
-/* Como na tela (styles.css); nos outros modos a impressão sai sem as marcas
+/* As on screen (styles.css); in the other modes printing goes without the marks
    (print-source.ts). */
 .page__content .revision-author-0 { --revision: #1f5fa9; }
 .page__content .revision-author-1 { --revision: #b3261e; }

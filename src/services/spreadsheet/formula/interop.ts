@@ -21,7 +21,7 @@ interface Dialect {
   readonly language: 'pt' | 'en'
   /** Decimal separators accepted in the source. */
   readonly decimalsIn: string
-  /** Separador decimal a escrever. */
+  /** Decimal separator to write. */
   readonly decimalOut: string
   /** The source's, then the destination's. */
   readonly separator: readonly [string, string]

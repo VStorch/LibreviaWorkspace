@@ -5,10 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Librevia</title>
     <!--
-      A CSP não é declarada aqui de propósito: ela é injetada como cabeçalho
-      pelo processo main (src/main/security.ts). Duas declarações se somariam
-      pela interseção mais restritiva, o que torna o efeito real difícil de
-      prever. Uma fonte de verdade só.
+      The CSP is not declared here on purpose: the main process injects it as a
+      header (src/main/security.ts). Two declarations would combine into the
+      most restrictive intersection, which makes the real effect hard to
+      predict. A single source of truth.
     -->
   </head>
   <body>

@@ -63,7 +63,7 @@ export interface WorkspaceState {
    * restores.
    */
   comments: readonly DocumentComment[]
-  /** As conversas ancoradas fora do corpo — ver `commentsOutsideOf`. */
+  /** The threads anchored outside the body; see `commentsOutsideOf`. */
   commentsOutside: readonly string[]
   /** The just-inserted comment whose box the pane opens. */
   commentDraft: string | null

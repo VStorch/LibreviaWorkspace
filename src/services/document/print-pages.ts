@@ -92,13 +92,13 @@ export function buildPagedCss(pages: readonly Pick<PrintPage, 'setup'>[]): strin
   box-sizing: border-box;
   width: ${first.width}mm;
   height: ${first.height}mm;
-  /* Bloco mais alto que a folha transborda na tela; no papel não há para onde
-     transbordar, e deixá-lo invadir a folha seguinte sobreporia texto a texto. */
+  /* A block taller than the sheet overflows on screen; on paper there is nowhere
+     to overflow, and letting it into the next sheet would lay text over text. */
   overflow: hidden;
   break-after: page;
 }
 
-/* Sem isto o Chromium fecha o documento com uma folha em branco. */
+/* Without this Chromium ends the document with a blank sheet. */
 .paper-page:last-child { break-after: auto; }
 
 .paper-page__body { height: 100%; box-sizing: border-box; position: relative; z-index: 1; }
@@ -106,7 +106,7 @@ export function buildPagedCss(pages: readonly Pick<PrintPage, 'setup'>[]): strin
 .paper-floats { position: absolute; inset: 0; }
 .paper-floats--behind { z-index: 0; }
 .paper-floats--front { z-index: 2; }
-/* A extensão que o arquivo declara já conta o contorno. */
+/* The extent the file declares already includes the outline. */
 .paper-float { position: absolute; object-fit: contain; box-sizing: border-box; }
 .paper-float--text > * { margin: 0; }
 
@@ -115,26 +115,26 @@ export function buildPagedCss(pages: readonly Pick<PrintPage, 'setup'>[]): strin
   display: grid;
   grid-template-columns: auto 1fr auto;
   align-items: center;
-  /* Só entre as colunas: ver a mesma regra em styles.css. */
+  /* Only between the columns: see the same rule in styles.css. */
   column-gap: 8px;
   font-size: 9pt;
   color: #222222;
 }
 
-/* Topo e base vêm em linha, do que o documento declara. */
+/* Top and bottom come inline, from what the document declares. */
 .paper-page__band--ruled { border-bottom: 1px solid #999999; padding-bottom: 2px; }
 .paper-page__band img { object-fit: contain; }
-/* O filete do cabeçalho: a forma tem altura zero, e o que se ve e o contorno. */
+/* The header rule: the shape has zero height, and what shows is the outline. */
 .paper-float--rule { border-top: 1px solid #000000; }
-/* Mesma regra de styles.css: o br ocupa a largura toda para quebrar a linha
-   dentro do flex, que é como cada paragrafo do arquivo vira uma linha. */
+/* Same rule as styles.css: the br takes the full width to break the line inside
+   the flex, which is how each paragraph of the file becomes a line. */
 .paper-page__cell { display: flex; flex-direction: column; justify-content: center; min-width: 0; }
 .paper-page__line { display: flex; align-items: center; gap: 6px; }
 .paper-page__cell--center { align-items: center; }
 .paper-page__cell--right { align-items: flex-end; }
 
-/* A grade atravessa os três terços: ela é a moldura do cabeçalho, não uma peça
-   a ser distribuída entre eles. */
+/* The grid spans the three thirds: it is the header's frame, not a piece to be
+   shared among them. */
 .paper-page__grid {
   grid-column: 1 / -1;
   width: 100%;
@@ -146,8 +146,8 @@ export function buildPagedCss(pages: readonly Pick<PrintPage, 'setup'>[]): strin
 
 .paper-column-line { position: absolute; width: 0; border-left: 1px solid #000000; }
 
-/* Por último, para vencer a medida padrão de .paper-page acima: cada folha com
-   o papel da sua seção. */
+/* Last, to win over the default size of .paper-page above: each sheet with its
+   section's paper. */
 ${named}
 `
 }

@@ -130,8 +130,9 @@ export const SHEET_PRINT_CSS = `
   /* O corpo real vem no atributo da tabela: depende da largura da planilha. */
   font-size: 11pt;
 }
-/* O texto quebra em vez de ser cortado, porque no papel não dá para alargar a
-   coluna; mas só entre palavras, porque "200" partido em "20" e "0" engana. */
+/* Text wraps instead of being cut, because on paper the column cannot be
+   widened; but only between words, because "200" split into "20" and "0"
+   misleads. */
 .sheet-print td {
   border: 1px solid #d0d0d0;
   padding: 2px 5px;

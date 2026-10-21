@@ -138,7 +138,7 @@ declare module '@tiptap/core' {
     bookmarks: {
       /** An existing name **moves**, as in Word. */
       setBookmark: (name: string) => ReturnType
-      /** As duas pontas; o texto fica. */
+      /** Both ends; the text stays. */
       deleteBookmark: (name: string) => ReturnType
     }
   }

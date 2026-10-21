@@ -15,7 +15,7 @@ import { noteRefView } from './note-view.js'
  */
 
 export interface NoteRefOptions {
-  /** Consultada a cada conta. */
+  /** Queried on every count. */
   readonly notes: (() => DocumentNotes | undefined) | undefined
 }
 
