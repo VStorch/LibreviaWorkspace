@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import { cellRef, columnIndex, columnName, createSheet, getCell, parseRef, setCell } from './model.js'
+import { Language } from '@shared/i18n/index.js'
+import {
+  cellRef,
+  columnIndex,
+  columnName,
+  createEmptyWorkbook,
+  createSheet,
+  getCell,
+  parseRef,
+  setCell,
+} from './model.js'
 
 describe('column names', () => {
   it.each([
@@ -80,5 +90,12 @@ describe('cell writing', () => {
     const withFormula = setCell(createSheet('S'), 0, 0, { formula: '=SOMA(B1:B9)' })
 
     expect(Object.keys(withFormula.cells)).toEqual(['A1'])
+  })
+})
+
+describe('empty workbook', () => {
+  it('names its sheet in the interface language, as Excel does', () => {
+    expect(createEmptyWorkbook().sheets.map((sheet) => sheet.name)).toEqual(['Planilha1'])
+    expect(createEmptyWorkbook(Language.English).sheets.map((sheet) => sheet.name)).toEqual(['Sheet1'])
   })
 })

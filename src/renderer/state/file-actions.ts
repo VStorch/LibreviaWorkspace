@@ -108,7 +108,7 @@ function createOpenActions(set: SetWorkspace, get: GetWorkspace, ctx: WorkspaceC
           kind: DocumentKind.Spreadsheet,
         },
         model: createEmptyDocument(),
-        workbook: createEmptyWorkbook(),
+        workbook: createEmptyWorkbook(currentPreferences().language),
       })
     },
 

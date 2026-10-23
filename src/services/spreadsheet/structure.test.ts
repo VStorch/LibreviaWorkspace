@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { recalculate } from './formula/recalc.js'
 import { createSheet, getCell, setCell, type Sheet, type WorkbookModel } from './model.js'
+import { Language } from '@shared/i18n/index.js'
 import { applyStructuralChange, isNameTaken, nextSheetName } from './structure.js'
 
 /** Column A with 1, 2, 3 and their sum in C1. */
@@ -150,8 +151,13 @@ describe('next sheet name', () => {
   it('skips a name already in use instead of repeating it', () => {
     // Someone who deleted Planilha2 and created another would have two with the same name, and
     // `=Planilha2!A1` would no longer have a single target.
-    const atual = makeWorkbook(makeSheet('Planilha1'), makeSheet('Planilha3'))
-    expect(nextSheetName(atual)).toBe('Planilha4')
+    const workbook = makeWorkbook(makeSheet('Planilha1'), makeSheet('Planilha3'))
+    expect(nextSheetName(workbook)).toBe('Planilha4')
+  })
+
+  it('names the sheet in the interface language', () => {
+    const workbook = makeWorkbook(makeSheet('Sheet1'), makeSheet('Sheet3'))
+    expect(nextSheetName(workbook, Language.English)).toBe('Sheet4')
   })
 
   it('recognizes a name taken by another sheet, not by the sheet itself', () => {

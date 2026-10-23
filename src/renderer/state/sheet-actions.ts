@@ -16,6 +16,7 @@ import {
   nextSheetName,
   renameSheet as renameSheetIn,
 } from '@services/spreadsheet/structure.js'
+import { currentPreferences } from './preferences.js'
 import type { GetWorkspace, SetWorkspace } from './context.js'
 import type { WorkspaceState } from './types.js'
 
@@ -123,7 +124,7 @@ export function createSheetActions(set: SetWorkspace, get: GetWorkspace, subscri
       const { workbook } = get()
       if (workbook === null) return
 
-      const sheets = [...workbook.sheets, createSheet(nextSheetName(workbook))]
+      const sheets = [...workbook.sheets, createSheet(nextSheetName(workbook, currentPreferences().language))]
       history.commit(workbook, { sheets, activeSheet: sheets.length - 1 })
     },
 

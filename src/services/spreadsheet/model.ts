@@ -1,4 +1,5 @@
 import type { DocumentProperties } from '@services/file/properties.js'
+import { translate, Language } from '@shared/i18n/index.js'
 
 /** The raw value stays apart from the appearance. */
 export const CellFormat = {
@@ -95,8 +96,13 @@ export function createSheet(name: string): Sheet {
   }
 }
 
-export function createEmptyWorkbook(): WorkbookModel {
-  return { sheets: [createSheet('Planilha1')], activeSheet: 0 }
+/** As in Excel, the default name follows the interface language: Planilha1 or Sheet1. */
+export function defaultSheetName(number: number, language: Language = Language.Portuguese): string {
+  return translate(language, 'spreadsheet.sheet.defaultName', { number })
+}
+
+export function createEmptyWorkbook(language: Language = Language.Portuguese): WorkbookModel {
+  return { sheets: [createSheet(defaultSheetName(1, language))], activeSheet: 0 }
 }
 
 /**

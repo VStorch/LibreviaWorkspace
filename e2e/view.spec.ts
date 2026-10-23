@@ -127,6 +127,9 @@ test.describe('View menu', () => {
 
     await expect(session.window.locator('.formula-bar__value')).toHaveAttribute('title', 'Result')
 
+    await session.window.locator('.tabs__add').click()
+    await expect(session.window.locator('.tab__name')).toHaveText(['Sheet1', 'Sheet2'])
+
     await setPreference(session, { language: 'pt' })
   })
 

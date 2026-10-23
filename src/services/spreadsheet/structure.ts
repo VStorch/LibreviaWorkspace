@@ -10,7 +10,8 @@ import {
   insertColumns as insertColumnsIn,
   insertRows as insertRowsIn,
 } from './edit.js'
-import type { Cell, Sheet, WorkbookModel } from './model.js'
+import { Language } from '@shared/i18n/index.js'
+import { defaultSheetName, type Cell, type Sheet, type WorkbookModel } from './model.js'
 
 /** As the UI describes it. */
 export type StructuralChange =
@@ -69,13 +70,13 @@ export function renameSheet(workbook: WorkbookModel, sheetIndex: number, name: s
   return { ...workbook, sheets }
 }
 
-/** Skips used names: someone who deleted Planilha2 and created another would have two. */
-export function nextSheetName(workbook: WorkbookModel): string {
+/** Skips used names: someone who deleted Sheet2 and created another would have two. */
+export function nextSheetName(workbook: WorkbookModel, language: Language = Language.Portuguese): string {
   const used = new Set(workbook.sheets.map((sheet) => sheet.name))
 
-  let index = workbook.sheets.length + 1
-  while (used.has(`Planilha${index}`)) index += 1
-  return `Planilha${index}`
+  let number = workbook.sheets.length + 1
+  while (used.has(defaultSheetName(number, language))) number += 1
+  return defaultSheetName(number, language)
 }
 
 /** Is there already a tab with this name, not counting the one being renamed? */
