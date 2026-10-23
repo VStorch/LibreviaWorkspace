@@ -88,7 +88,7 @@ public sealed class Server(Stream input, Stream output)
             catch (InvalidDataException problem)
             {
                 // Without knowing where the next frame starts, exit; main starts another process.
-                await Console.Error.WriteLineAsync($"quadro inválido: {problem.Message}").ConfigureAwait(false);
+                await Console.Error.WriteLineAsync($"invalid frame: {problem.Message}").ConfigureAwait(false);
                 return;
             }
 

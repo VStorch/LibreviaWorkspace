@@ -162,7 +162,7 @@ export async function saveDocx(
     throw new AppError(ErrorCode.SidecarFailed, t('errors.docx.cannotSave'), t('errors.docx.saveContract'))
   }
 
-  console.info(`[docx] preservados ${parsed.data.preservedBlocks}, reescritos ${parsed.data.rewrittenBlocks}`)
+  console.info(`[docx] preserved ${parsed.data.preservedBlocks}, rewritten ${parsed.data.rewrittenBlocks}`)
 
   const inventory = parsed.data.inventory
   const lost = lossesOf(inventory.lost, model, kept === null)

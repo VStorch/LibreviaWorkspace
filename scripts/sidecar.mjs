@@ -41,7 +41,7 @@ function build(all) {
   const targets = all ? RUNTIME_IDENTIFIERS : [currentRuntimeIdentifier()]
 
   for (const rid of targets) {
-    console.log(`\n▸ publicando sidecar para ${rid}`)
+    console.log(`\n▸ publishing the sidecar for ${rid}`)
     run('dotnet', [
       'publish',
       project,

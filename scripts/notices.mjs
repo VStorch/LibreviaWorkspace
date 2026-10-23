@@ -180,7 +180,7 @@ function build() {
 
   const target = join(root, 'THIRD-PARTY-NOTICES.md')
   writeFileSync(target, sections.join('\n'))
-  console.log(`avisos gravados em ${target} — ${npm.length} pacotes npm, ${nuget.length} NuGet`)
+  console.log(`notices written to ${target} — ${npm.length} npm packages, ${nuget.length} NuGet`)
 }
 
 build()
