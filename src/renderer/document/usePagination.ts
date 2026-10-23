@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { Editor } from '@tiptap/react'
 import type { Node as ProseMirrorNode } from '@tiptap/pm/model'
 import type { EditorView } from '@tiptap/pm/view'
@@ -33,7 +33,7 @@ import {
   columnGeometry,
   type SectionBlock,
 } from '@services/document/sections.js'
-import { applyPageGaps, type RepeatedHeader } from './extensions/pagination.js'
+import { applyPageGaps, paginationKey, type RepeatedHeader } from './extensions/pagination.js'
 import { LINE_GAP_CLASS, measureLines } from './line-boxes.js'
 import { screenScaleOf } from './screen-scale.js'
 import { noteBodyOf, type NoteBody } from './extensions/note-view.js'
@@ -234,7 +234,7 @@ export function usePagination(
   { bands = [], paginated = true, styles = null }: PaginationOptions = {},
 ): PageLayout {
   const [layout, setLayout] = useState<PageLayout>(INITIAL_LAYOUT)
-  const writeGaps = useGapWriter()
+  const [writeGaps] = useState(createGapWriter)
   const bandsKey = bands.map((band) => `${band.headerMm}:${band.footerMm}`).join('|')
 
   useEffect(() => {
@@ -322,7 +322,7 @@ function sectionMetricsOf(sections: readonly PageSetup[], bands: readonly BandHe
 }
 
 /** What measuring writes to the DOM, and what the next one subtracts. */
-interface PageGaps {
+export interface PageGaps {
   readonly gaps: ReadonlyMap<number, number>
   /**
    * The gap **plus** the block's own top margin, which is what CSS reads; the gap is what the math
@@ -345,33 +345,45 @@ const NO_PAGE_GAPS: PageGaps = {
 }
 
 /**
- * In a `ref`, because the effect reruns on every key press and the next read must subtract what was
- * already pushed. The key is the node **position**: an internal break pushes a table row or list
- * item, which has no block index.
+ * Kept across effects, because the effect reruns on every key press and the next read must subtract
+ * what was already pushed. The key is the node **position**: an internal break pushes a table row
+ * or list item, which has no block index.
  */
-function useGapWriter(): (view: EditorView, next: PageGaps) => void {
-  const last = useRef<PageGaps>(NO_PAGE_GAPS)
+export function createGapWriter(): (view: EditorView, next: PageGaps) => void {
+  let last = NO_PAGE_GAPS
   /** Compared by what they draw. */
-  const lastHeaders = useRef('[]')
+  let lastHeaders = '[]'
+  let lastCount = 0
 
-  return useCallback((view: EditorView, next: PageGaps) => {
+  return (view, next) => {
     const headersKey = JSON.stringify(next.headers)
     if (
-      sameGaps(last.current.columns, next.columns) &&
-      sameGaps(last.current.gaps, next.gaps) &&
-      sameGaps(last.current.written, next.written) &&
-      sameGaps(last.current.lines, next.lines) &&
-      lastHeaders.current === headersKey
+      decorationCountOf(view) === lastCount &&
+      sameGaps(last.columns, next.columns) &&
+      sameGaps(last.gaps, next.gaps) &&
+      sameGaps(last.written, next.written) &&
+      sameGaps(last.lines, next.lines) &&
+      lastHeaders === headersKey
     )
       return
-    lastHeaders.current = headersKey
-    last.current = next
+    lastHeaders = headersKey
+    last = next
     applyPageGaps(view, next.written, next.gaps, {
       lines: next.lines,
       headers: next.headers,
       columns: next.columns,
     })
-  }, [])
+    lastCount = decorationCountOf(view)
+  }
+}
+
+/**
+ * Editing maps the decorations and drops the ones whose node it replaces or joins. The new node can
+ * sit at the same position, the measurement then comes out the same and would not write the margin
+ * again: with fast typing, the sheet's first block stayed at the foot of the previous one.
+ */
+function decorationCountOf(view: EditorView): number {
+  return paginationKey.getState(view.state)?.find().length ?? 0
 }
 
 type IndexedNote = MeasuredNote & { index: number }

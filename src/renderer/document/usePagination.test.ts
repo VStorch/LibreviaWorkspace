@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { layoutPages, topMarginFor } from './usePagination.js'
+import { getSchema } from '@tiptap/core'
+import { EditorState, type Transaction } from '@tiptap/pm/state'
+import type { EditorView } from '@tiptap/pm/view'
+import { buildEditorExtensions } from './editor-extensions.js'
+import { paginationKey, paginationPlugin } from './extensions/pagination.js'
+import { createGapWriter, layoutPages, topMarginFor, type PageGaps } from './usePagination.js'
 
 type Measured = Parameters<typeof layoutPages>[0]
 type MetricsOf = Parameters<typeof layoutPages>[2]
@@ -71,5 +76,59 @@ describe('screen pagination', () => {
     expect(topMarginFor(SPACE_AFTER_PX, SPACE_AFTER_PX)).toBe(0)
     expect(topMarginFor(-489.33, SPACE_AFTER_PX)).toBeCloseTo(-500)
     expect(topMarginFor(30, SPACE_AFTER_PX)).toBeCloseTo(19.33)
+  })
+})
+
+describe('gap writer', () => {
+  const schema = getSchema(buildEditorExtensions(() => {}))
+  const SHEET_GAP = 220
+
+  function viewOf(...paragraphs: string[]): EditorView {
+    const doc = schema.nodeFromJSON({
+      type: 'doc',
+      content: paragraphs.map((text) => ({ type: 'paragraph', content: [{ type: 'text', text }] })),
+    })
+    const view = {
+      state: EditorState.create({ doc, plugins: [paginationPlugin()] }),
+      dispatch: (transaction: Transaction) => {
+        view.state = view.state.apply(transaction)
+      },
+    }
+    return view as unknown as EditorView
+  }
+
+  function gapsAt(position: number): PageGaps {
+    const at = new Map([[position, SHEET_GAP]])
+    return { gaps: at, written: at, lines: new Map(), headers: [], columns: new Map() }
+  }
+
+  const marginsOf = (view: EditorView) => paginationKey.getState(view.state)!.find()
+
+  it('writes the margin again when editing dropped it, even if the measurement did not change', () => {
+    const view = viewOf('above', 'opening')
+    const opening = view.state.doc.firstChild!.nodeSize
+    const write = createGapWriter()
+    write(view, gapsAt(opening))
+    expect(marginsOf(view)).toHaveLength(1)
+
+    // Replacing the node drops its decoration, and the new one sits at the same position.
+    const retyped = schema.nodes['paragraph']!.create(null, schema.text('opening'))
+    view.dispatch(view.state.tr.replaceWith(opening, view.state.doc.content.size, retyped))
+    expect(marginsOf(view)).toHaveLength(0)
+
+    write(view, gapsAt(opening))
+    expect(marginsOf(view)).toHaveLength(1)
+  })
+
+  it('does not dispatch again for the same measurement', () => {
+    const view = viewOf('above', 'opening')
+    const opening = view.state.doc.firstChild!.nodeSize
+    const write = createGapWriter()
+    write(view, gapsAt(opening))
+    const drawn = view.state
+
+    write(view, gapsAt(opening))
+
+    expect(view.state).toBe(drawn)
   })
 })

@@ -10,28 +10,31 @@ import { LINE_GAP_CLASS } from '../line-boxes.js'
  */
 export const paginationKey = new PluginKey<DecorationSet>('pagination')
 
+export function paginationPlugin(): Plugin<DecorationSet> {
+  return new Plugin({
+    key: paginationKey,
+    state: {
+      init: () => DecorationSet.empty,
+      apply(transaction, current) {
+        const next = transaction.getMeta(paginationKey) as DecorationSet | undefined
+        if (next !== undefined) return next
+
+        // Until the measurement arrives, decorations follow editing, or the sheets would flicker.
+        return current.map(transaction.mapping, transaction.doc)
+      },
+    },
+    props: {
+      decorations: (state) => paginationKey.getState(state),
+    },
+  })
+}
+
 export const Pagination = Extension.create({
   name: 'pagination',
 
   addProseMirrorPlugins() {
     return [
-      new Plugin({
-        key: paginationKey,
-        state: {
-          init: () => DecorationSet.empty,
-          apply(transaction, current) {
-            const next = transaction.getMeta(paginationKey) as DecorationSet | undefined
-            if (next !== undefined) return next
-
-            // Until the measurement arrives, decorations follow editing, or the sheets would
-            // flicker.
-            return current.map(transaction.mapping, transaction.doc)
-          },
-        },
-        props: {
-          decorations: (state) => paginationKey.getState(state),
-        },
-      }),
+      paginationPlugin(),
       // An anchored capture with text: its 1lh line (`content-styles.ts`) does not add up.
       new Plugin({
         props: {
