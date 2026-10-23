@@ -99,7 +99,12 @@ export function createPrintActions(
         return
       }
 
-      await ctx.call(() => window.api.print.preview({ ...request, title: get().file?.name ?? 'Documento' }))
+      await ctx.call(() =>
+        window.api.print.preview({
+          ...request,
+          title: get().file?.name ?? t('shell.print.defaultDocumentName'),
+        }),
+      )
     },
   }
 }

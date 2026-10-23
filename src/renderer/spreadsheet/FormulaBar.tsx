@@ -100,7 +100,7 @@ export function FormulaBar({
         </span>
       )}
 
-      <span className="formula-bar__value" title="Resultado">
+      <span className="formula-bar__value" title={t('spreadsheet.formulaBar.result')}>
         {cell?.formula === undefined ? '' : formatCell(cell)}
       </span>
     </div>

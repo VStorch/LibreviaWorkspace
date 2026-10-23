@@ -6,6 +6,7 @@ export const SPREADSHEET = {
     pt: 'Fórmula ou conteúdo da célula',
     en: 'Formula or cell content',
   },
+  'spreadsheet.formulaBar.result': { pt: 'Resultado', en: 'Result' },
 
   'spreadsheet.contextMenu.label': { pt: 'Ações da planilha', en: 'Sheet actions' },
   'spreadsheet.rows.insertAbove': {

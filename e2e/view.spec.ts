@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
 import { launch, menu, stubDialogs, type Session } from './app.js'
 import { docxWithBlackNormal } from './fixtures.js'
+import { gridReady, select, write } from './sheet-grid.js'
 
 /**
  * The "View" menu: theme, language and reading mode, preferences kept in main; here we check the
@@ -112,6 +113,19 @@ test.describe('View menu', () => {
     // Right-click labels come from the catalog, in the chosen language.
     const language = await session.window.evaluate(() => document.documentElement.lang)
     expect(typeof language).toBe('string')
+
+    await setPreference(session, { language: 'pt' })
+  })
+
+  test('in English, the spreadsheet speaks English too', async () => {
+    await setPreference(session, { language: 'en' })
+    await menu(session, 'new-spreadsheet')
+    await gridReady(session.window)
+
+    await write(session.window, 0, 0, '=1+1')
+    await select(session.window, 0, 0)
+
+    await expect(session.window.locator('.formula-bar__value')).toHaveAttribute('title', 'Result')
 
     await setPreference(session, { language: 'pt' })
   })
