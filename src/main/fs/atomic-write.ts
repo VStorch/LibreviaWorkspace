@@ -46,7 +46,7 @@ export async function writeFileAtomic(
   } catch (cause) {
     if (handle !== undefined) await handle.close().catch(() => undefined)
     await unlink(temporaryPath).catch(() => undefined)
-    throw fromFileSystemError(cause, 'escrita')
+    throw fromFileSystemError(cause, 'write')
   }
 }
 

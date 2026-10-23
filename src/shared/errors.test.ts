@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { ErrorCode, fromFileSystemError, toSerializedError, AppError } from './errors.js'
 
 describe('fromFileSystemError', () => {
-  const of = (code: string, operation: 'leitura' | 'escrita' = 'escrita') =>
+  const of = (code: string, operation: 'read' | 'write' = 'write') =>
     fromFileSystemError(Object.assign(new Error('cru'), { code }), operation)
 
   it.each([
@@ -34,8 +34,8 @@ describe('fromFileSystemError', () => {
   )
 
   it('the operation decides the code of an unknown error', () => {
-    expect(of('EWHATEVER', 'leitura').code).toBe(ErrorCode.ReadFailed)
-    expect(of('EWHATEVER', 'escrita').code).toBe(ErrorCode.WriteFailed)
+    expect(of('EWHATEVER', 'read').code).toBe(ErrorCode.ReadFailed)
+    expect(of('EWHATEVER', 'write').code).toBe(ErrorCode.WriteFailed)
   })
 
   it('no message carries the raw errno', () => {

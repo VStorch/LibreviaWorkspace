@@ -67,7 +67,7 @@ export async function openXlsx(client: SidecarClient, path: string): Promise<Ope
   try {
     bytes = await readFile(path)
   } catch (cause) {
-    throw fromFileSystemError(cause, 'leitura', editorPreferences().language)
+    throw fromFileSystemError(cause, 'read', editorPreferences().language)
   }
   return decodeXlsx(client, path, bytes)
 }

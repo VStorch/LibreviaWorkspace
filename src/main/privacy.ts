@@ -75,6 +75,6 @@ async function readPackage(path: string): Promise<Uint8Array> {
   try {
     return new Uint8Array(await readFile(path))
   } catch (cause) {
-    throw fromFileSystemError(cause, 'leitura', editorPreferences().language)
+    throw fromFileSystemError(cause, 'read', editorPreferences().language)
   }
 }

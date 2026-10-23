@@ -96,7 +96,7 @@ async function statFile(path: string): Promise<Stats> {
   try {
     info = await stat(path)
   } catch (cause) {
-    throw fromFileSystemError(cause, 'leitura', editorPreferences().language)
+    throw fromFileSystemError(cause, 'read', editorPreferences().language)
   }
 
   if (!info.isFile()) {

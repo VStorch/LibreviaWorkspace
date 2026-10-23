@@ -96,14 +96,14 @@ const NETWORK_ERRORS: ReadonlySet<string> = new Set([
 /** Otherwise a network share that went offline would show "EBUSY" on screen. */
 export function fromFileSystemError(
   cause: unknown,
-  operation: 'leitura' | 'escrita',
+  operation: 'read' | 'write',
   language: Language = Language.Portuguese,
 ): AppError {
   const code = typeof cause === 'object' && cause !== null ? (cause as { code?: string }).code : undefined
   const known = code === undefined ? undefined : FILE_SYSTEM_ERRORS.get(code)
   if (known !== undefined) return new AppError(known[0], translate(language, known[1]))
 
-  const reading = operation === 'leitura'
+  const reading = operation === 'read'
   const failed = reading ? ErrorCode.ReadFailed : ErrorCode.WriteFailed
   if (code !== undefined && NETWORK_ERRORS.has(code)) {
     return new AppError(failed, translate(language, 'errors.fs.networkTimeout'))

@@ -66,6 +66,6 @@ async function readPdf(path: string): Promise<Uint8Array> {
     return new Uint8Array(await readFile(path))
   } catch (cause) {
     if (cause instanceof AppError) throw cause
-    throw fromFileSystemError(cause, 'leitura', editorPreferences().language)
+    throw fromFileSystemError(cause, 'read', editorPreferences().language)
   }
 }

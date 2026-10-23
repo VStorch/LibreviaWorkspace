@@ -10,7 +10,7 @@ export async function readImageAsDataUrl(path: string): Promise<string> {
   try {
     size = (await stat(path)).size
   } catch (cause) {
-    throw fromFileSystemError(cause, 'leitura', editorPreferences().language)
+    throw fromFileSystemError(cause, 'read', editorPreferences().language)
   }
 
   if (!isImageWithinSizeLimit(size)) {
@@ -22,7 +22,7 @@ export async function readImageAsDataUrl(path: string): Promise<string> {
   try {
     bytes = await readFile(path)
   } catch (cause) {
-    throw fromFileSystemError(cause, 'leitura', editorPreferences().language)
+    throw fromFileSystemError(cause, 'read', editorPreferences().language)
   }
 
   const mimeType = detectImageMimeType(bytes)

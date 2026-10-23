@@ -9,7 +9,7 @@ export async function readTextFile(path: string): Promise<string> {
   try {
     bytes = await readFile(path)
   } catch (cause) {
-    throw fromFileSystemError(cause, 'leitura', editorPreferences().language)
+    throw fromFileSystemError(cause, 'read', editorPreferences().language)
   }
 
   if (startsWith(bytes, [0xef, 0xbb, 0xbf])) {
