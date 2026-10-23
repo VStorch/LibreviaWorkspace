@@ -75,7 +75,7 @@ ${DOCUMENT_FONT_CSS}
 .page__content .equation--display[data-jc='left'] { text-align: left; }
 .page__content .equation--display[data-jc='right'] { text-align: right; }
 .page__content .equation--display math { display: inline math; math-style: normal; }
-.page__content .equation .omml-caixa { border: 1px solid currentColor; padding: 0.1em; }
+.page__content .equation .omml-box { border: 1px solid currentColor; padding: 0.1em; }
 
 /* Superscript and subscript without stretching the line, as in Word:
    \`line-height: 0\` keeps the line's height, and the fractional size does not

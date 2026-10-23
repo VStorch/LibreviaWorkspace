@@ -152,7 +152,7 @@ public class MathTests
     [InlineData("<m:box><m:e><m:r><m:t>x</m:t></m:r></m:e></m:box>",
         "<mrow><mrow><mi>x</mi></mrow></mrow>")]
     [InlineData("<m:borderBox><m:e><m:r><m:t>x</m:t></m:r></m:e></m:borderBox>",
-        """<mrow class="omml-caixa"><mrow><mi>x</mi></mrow></mrow>""")]
+        """<mrow class="omml-box"><mrow><mi>x</mi></mrow></mrow>""")]
     [InlineData("""<m:phant><m:phantPr><m:show m:val="0"/></m:phantPr><m:e><m:r><m:t>x</m:t></m:r></m:e></m:phant>""",
         "<mphantom><mrow><mi>x</mi></mrow></mphantom>")]
     [InlineData("""<m:phant><m:phantPr><m:zeroWid/></m:phantPr><m:e><m:r><m:t>x</m:t></m:r></m:e></m:phant>""",

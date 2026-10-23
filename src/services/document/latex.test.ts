@@ -109,7 +109,7 @@ describe('LaTeX → MathML (Temml)', () => {
   it('translates what Temml writes outside MathML Core', () => {
     expect(shape(render('\\overline{AB}'))).toBe('mover(mi("A") mi("B") mo("‾"))')
     expect(render('\\overline{AB}').children[0]).toMatchObject({ tag: 'mover', attrs: { accent: 'true' } })
-    expect(shape(render('\\boxed{x}'))).toBe('mrow[omml-caixa](mi("x"))')
+    expect(shape(render('\\boxed{x}'))).toBe('mrow[omml-box](mi("x"))')
     expect(shape(render('{}_{a}^{b}X'))).toBe('mmultiscripts(mi("X") mprescripts() mi("a") mi("b"))')
   })
 })
@@ -199,7 +199,7 @@ describe('MathML → LaTeX', () => {
       'm:func sen',
       '<mrow><mrow><mi mathvariant="normal">sen</mi></mrow><mo>⁡</mo><mrow><mi>x</mi></mrow></mrow>',
     ],
-    ['m:borderBox', '<mrow class="omml-caixa"><mrow><mi>z</mi></mrow></mrow>'],
+    ['m:borderBox', '<mrow class="omml-box"><mrow><mi>z</mi></mrow></mrow>'],
     ['m:r', '<mi>𝐯</mi><mi mathvariant="normal">d</mi><mtext>texto</mtext><mi>Δ</mi><mn>2</mn><mi>a</mi>'],
   ])('round trip through the sidecar MathML: %s', (_label, inner) => {
     const tree = sanitizeMathMl(`<math display="inline">${inner}</math>`)

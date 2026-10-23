@@ -20,10 +20,10 @@ describe("the equations' MathML filter", () => {
 
   it('carries the presentation attributes and the box class', () => {
     const tree = sanitizeMathMl(
-      `<math xmlns="${NS}"><mrow class="omml-caixa outra"><mfrac linethickness="0"><mi mathvariant="normal">sin</mi><mo stretchy="true" largeop="true">∑</mo></mfrac></mrow></math>`,
+      `<math xmlns="${NS}"><mrow class="omml-box other"><mfrac linethickness="0"><mi mathvariant="normal">sin</mi><mo stretchy="true" largeop="true">∑</mo></mfrac></mrow></math>`,
     )
     expect(mathMlToString(tree!)).toBe(
-      `<math xmlns="${NS}"><mrow class="omml-caixa"><mfrac linethickness="0"><mi mathvariant="normal">sin</mi><mo stretchy="true" largeop="true">∑</mo></mfrac></mrow></math>`,
+      `<math xmlns="${NS}"><mrow class="omml-box"><mfrac linethickness="0"><mi mathvariant="normal">sin</mi><mo stretchy="true" largeop="true">∑</mo></mfrac></mrow></math>`,
     )
   })
 

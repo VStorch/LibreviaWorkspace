@@ -18,7 +18,7 @@ public static partial class OmmlMath
     private static readonly XNamespace Ml = "http://www.w3.org/1998/Math/MathML";
 
     /// <summary>CSS draws the <c>m:borderBox</c> border.</summary>
-    public const string BoxClass = "omml-caixa";
+    public const string BoxClass = "omml-box";
 
     /// <param name="MathMl">The whole `math`, serialized.</param>
     /// <param name="Display">It is a display equation (`m:oMathPara`).</param>

@@ -114,7 +114,7 @@ public class MathEditTests
     [InlineData("<mrow><mrow><mi mathvariant=\"normal\">log</mi></mrow><mo>⁡</mo><mrow><mi>z</mi></mrow></mrow>", "func(fName(\"log\")e(\"z\"))")]
     [InlineData("<mrow><munder><mi>lim</mi><mi>x</mi></munder><mo>⁡</mo><mspace width=\"0.1667em\"/><mi>f</mi></mrow>", "func(fName(limLow(e(\"lim\")lim(\"x\")))e(\"f\"))")]
     // The box, and the text.
-    [InlineData("<mrow class=\"omml-caixa\"><mi>z</mi></mrow>", "borderBox(e(\"z\"))")]
+    [InlineData("<mrow class=\"omml-box\"><mi>z</mi></mrow>", "borderBox(e(\"z\"))")]
     [InlineData("<mi>a</mi><mtext> se </mtext><mi>b</mi>", "\"a se b\"")]
     public void ConvertsEachConstruct(string inner, string expected)
     {
@@ -233,7 +233,7 @@ public class MathEditTests
         "<mover><mi>x</mi><mo>ˆ</mo></mover><mover><mi>y</mi><mo stretchy=\"true\">‾</mo></mover>" +
         "<munder><mi>y</mi><mo stretchy=\"true\">⏟</mo></munder><munder><mi>lim</mi><mi>x</mi></munder>" +
         "<mover><mi>b</mi><mi>a</mi></mover><munderover><mi>A</mi><mi>a</mi><mi>b</mi></munderover>" +
-        "<mrow><mi>sin</mi><mo>⁡</mo></mrow><mi>x</mi><mrow class=\"omml-caixa\"><mi>z</mi></mrow>" +
+        "<mrow><mi>sin</mi><mo>⁡</mo></mrow><mi>x</mi><mrow class=\"omml-box\"><mi>z</mi></mrow>" +
         "<mi>𝐯</mi><mi>ℝ</mi><mtext> e </mtext><mphantom><mi>q</mi></mphantom>" +
         "</mrow></math>";
 

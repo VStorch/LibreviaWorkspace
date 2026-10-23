@@ -8,7 +8,7 @@
 export const MATHML_NAMESPACE = 'http://www.w3.org/1998/Math/MathML'
 
 /** `m:borderBox`; see `OmmlMath.BoxClass`. */
-export const MATH_BOX_CLASS = 'omml-caixa'
+export const MATH_BOX_CLASS = 'omml-box'
 
 export interface MathElement {
   readonly tag: string
