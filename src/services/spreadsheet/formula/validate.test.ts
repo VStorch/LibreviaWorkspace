@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { Language } from '@shared/i18n/index.js'
 import { checkFormula } from './validate.js'
 
 describe('valid formula', () => {
@@ -58,5 +59,17 @@ describe('argument count', () => {
 
   it('leaves variadic functions alone', () => {
     expect(checkFormula('=CONCATENAR("a";"b";"c";"d")')).toBeNull()
+  })
+})
+
+describe('in English', () => {
+  it.each([
+    ['=SOMA(A1,B1)', 'Use semicolons to separate arguments: SUM(A1;B1).'],
+    ['=SOMATÓRIO(A1)', 'Unknown function SOMATÓRIO.'],
+    ['=ABS(1;2)', 'ABS takes at most 1 argument, and got 2.'],
+    ['=ARRED(1)', 'ARRED needs 2 arguments, and got 1 argument.'],
+    ['=SUM()', 'SUM needs 1 argument, and got none.'],
+  ])('%s explains the problem in English', (formula, message) => {
+    expect(checkFormula(formula, Language.English)?.message).toBe(message)
   })
 })

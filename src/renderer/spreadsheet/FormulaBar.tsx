@@ -3,7 +3,7 @@ import { getCell, type Sheet } from '@services/spreadsheet/model.js'
 import { describeRange, editableText, type Range } from '@services/spreadsheet/edit.js'
 import { checkFormula } from '@services/spreadsheet/formula/validate.js'
 import { formatCell } from '@services/spreadsheet/format.js'
-import { useT } from '../i18n.js'
+import { useLanguage, useT } from '../i18n.js'
 import { SHEET_UNDO_ATTRIBUTE } from './useSheetUndo.js'
 
 /**
@@ -20,6 +20,7 @@ export function FormulaBar({
   onCommit: (text: string) => void
 }): React.JSX.Element {
   const t = useT()
+  const language = useLanguage()
   const cell = getCell(sheet, range.fromRow, range.fromColumn)
   // The raw value, not the formatted one: re-editing "R$ 1.234,50" would give back text.
   const stored = editableText(cell)
@@ -43,7 +44,7 @@ export function FormulaBar({
   }
 
   const commit = (): void => {
-    const found = draft.startsWith('=') ? checkFormula(draft) : null
+    const found = draft.startsWith('=') ? checkFormula(draft, language) : null
     if (found !== null) {
       setProblem(found.message)
       input.current?.focus()

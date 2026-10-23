@@ -9,6 +9,90 @@ export const SPREADSHEET = {
   'spreadsheet.formulaBar.result': { pt: 'Resultado', en: 'Result' },
   'spreadsheet.sheet.defaultName': { pt: 'Planilha{number}', en: 'Sheet{number}' },
 
+  'spreadsheet.formula.empty': { pt: 'A fórmula está vazia.', en: 'The formula is empty.' },
+  'spreadsheet.formula.endedEarly': {
+    pt: 'A fórmula terminou antes do esperado.',
+    en: 'The formula ended sooner than expected.',
+  },
+  'spreadsheet.formula.unclosedParenthesis': {
+    pt: 'Faltou fechar um parêntese.',
+    en: 'A parenthesis is not closed.',
+  },
+  'spreadsheet.formula.missingCallParenthesis': {
+    pt: 'Faltou o parêntese depois de {name}.',
+    en: 'The parenthesis after {name} is missing.',
+  },
+  'spreadsheet.formula.unclosedCall': {
+    pt: 'Faltou fechar o parêntese de {name}.',
+    en: 'The parenthesis of {name} is not closed.',
+  },
+  'spreadsheet.formula.unexpectedToken': {
+    pt: 'Não esperava "{token}" aqui.',
+    en: 'Did not expect "{token}" here.',
+  },
+  'spreadsheet.formula.trailingToken': {
+    pt: 'Sobrou "{token}" no fim da fórmula.',
+    en: '"{token}" is left over at the end of the formula.',
+  },
+  'spreadsheet.formula.rangeEndMissing': {
+    pt: 'Depois de ":" falta uma célula.',
+    en: 'A cell is missing after ":".',
+  },
+  'spreadsheet.formula.rangeAcrossSheets': {
+    pt: 'Um intervalo não pode atravessar duas planilhas.',
+    en: 'A range cannot span two sheets.',
+  },
+  'spreadsheet.formula.invalidCell': {
+    pt: '"{token}" não é uma célula válida.',
+    en: '"{token}" is not a valid cell.',
+  },
+  'spreadsheet.formula.invalidNumber': { pt: '"{token}" não é um número.', en: '"{token}" is not a number.' },
+  'spreadsheet.formula.unknownErrorValue': {
+    pt: '"{token}" não é um erro conhecido.',
+    en: '"{token}" is not a known error.',
+  },
+  'spreadsheet.formula.unknownErrorAt': {
+    pt: 'Erro desconhecido em "{text}".',
+    en: 'Unknown error in "{text}".',
+  },
+  'spreadsheet.formula.commaSeparator': {
+    pt: 'Use ponto e vírgula para separar argumentos: SOMA(A1;B1).',
+    en: 'Use semicolons to separate arguments: SUM(A1;B1).',
+  },
+  'spreadsheet.formula.unexpectedCharacter': {
+    pt: 'Não entendi "{character}".',
+    en: 'Did not understand "{character}".',
+  },
+  'spreadsheet.formula.unclosedText': {
+    pt: 'Faltou fechar as aspas do texto.',
+    en: 'The quotes around the text are not closed.',
+  },
+  'spreadsheet.formula.unclosedSheetName': {
+    pt: 'Faltou fechar o apóstrofo do nome da planilha.',
+    en: 'The apostrophe around the sheet name is not closed.',
+  },
+  'spreadsheet.formula.missingSheetBang': {
+    pt: 'Depois do nome da planilha falta o "!".',
+    en: 'The "!" after the sheet name is missing.',
+  },
+  'spreadsheet.formula.unknownFunction': {
+    pt: 'Não conheço a função {name}.',
+    en: 'Unknown function {name}.',
+  },
+  'spreadsheet.formula.tooFewArguments': {
+    pt: '{name} precisa de {expected}, e recebeu {given}.',
+    en: '{name} needs {expected}, and got {given}.',
+  },
+  'spreadsheet.formula.tooManyArguments': {
+    pt: '{name} aceita no máximo {expected}, e recebeu {given}.',
+    en: '{name} takes at most {expected}, and got {given}.',
+  },
+  'spreadsheet.formula.arguments': {
+    pt: { one: '1 argumento', other: '{count} argumentos' },
+    en: { one: '1 argument', other: '{count} arguments' },
+  },
+  'spreadsheet.formula.noArguments': { pt: 'nenhum', en: 'none' },
+
   'spreadsheet.contextMenu.label': { pt: 'Ações da planilha', en: 'Sheet actions' },
   'spreadsheet.rows.insertAbove': {
     pt: { one: 'Inserir linha acima', other: 'Inserir {count} linhas acima' },

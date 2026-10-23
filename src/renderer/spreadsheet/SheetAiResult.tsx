@@ -10,7 +10,7 @@ import { cellsIn, writeText } from '@services/spreadsheet/edit.js'
 import { formatCell } from '@services/spreadsheet/format.js'
 import { cellRef, getCell, type Sheet, type WorkbookModel } from '@services/spreadsheet/model.js'
 import { AiSheetTask } from '@shared/types.js'
-import { useT } from '../i18n.js'
+import { useLanguage, useT } from '../i18n.js'
 import { AiMarkdownPreview } from '../document/AiMarkdownPreview.js'
 import type { SheetAiRun } from './useSheetAi.js'
 
@@ -63,10 +63,11 @@ function ElsewhereNote({ name }: { readonly name: string | null }): React.JSX.El
 
 function FormulaPreview(props: ResultProps): React.JSX.Element {
   const t = useT()
+  const language = useLanguage()
   const { run, workbook, onApply } = props
   const { sheet, blocked, elsewhere } = useTargetSheet(props)
   const labelId = useId()
-  const answer = useMemo(() => readFormulaAnswer(run.text), [run.text])
+  const answer = useMemo(() => readFormulaAnswer(run.text, language), [run.text, language])
   const { fromRow: row, fromColumn: column } = run.target
   const ref = cellRef(row, column)
   const value = useMemo(

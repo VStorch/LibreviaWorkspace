@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { Language } from '@shared/i18n/index.js'
 import { ParseError } from './errors.js'
 import { formatReference } from './references.js'
 import { parseFormula, tryParseFormula } from './parse.js'
@@ -143,26 +144,53 @@ describe('functions', () => {
   })
 })
 
+function problemOf(formula: string): string | undefined {
+  try {
+    parseFormula(formula)
+    return undefined
+  } catch (error) {
+    if (error instanceof ParseError) return error.key
+    throw error
+  }
+}
+
 describe('syntax errors', () => {
   it.each([
-    ['=SOMA(A1', 'parêntese'],
-    ['=1+', 'terminou'],
-    ['=A1 B1', 'Sobrou'],
-    ['=', 'vazia'],
-  ])('%s complains', (formula, trecho) => {
-    expect(() => parseFormula(formula)).toThrow(new RegExp(trecho, 'i'))
+    ['=SOMA(A1', 'spreadsheet.formula.unclosedCall'],
+    ['=(1', 'spreadsheet.formula.unclosedParenthesis'],
+    ['=1+', 'spreadsheet.formula.endedEarly'],
+    ['=A1 B1', 'spreadsheet.formula.trailingToken'],
+    ['=', 'spreadsheet.formula.empty'],
+    ['="open', 'spreadsheet.formula.unclosedText'],
+    ["='Sales!A1", 'spreadsheet.formula.unclosedSheetName'],
+    ['=A1:Sheet2!B2', 'spreadsheet.formula.rangeAcrossSheets'],
+    ['=#WRONG!', 'spreadsheet.formula.unknownErrorAt'],
+  ])('%s complains with %s', (formula, key) => {
+    expect(problemOf(formula)).toBe(key)
   })
 
   it('points out the comma used as a separator', () => {
     // The most likely mistake of someone coming from English Excel. Saying only "did not
     // understand" would send the user to look in the wrong place.
-    expect(() => parseFormula('=SOMA(A1,B1)')).toThrow(/ponto e vírgula/i)
+    expect(problemOf('=SOMA(A1,B1)')).toBe('spreadsheet.formula.commaSeparator')
+  })
+
+  it('reads the problem in either language', () => {
+    try {
+      parseFormula('=A1 B1')
+      expect.unreachable('should have complained')
+    } catch (error) {
+      expect((error as ParseError).describe(Language.Portuguese)).toBe('Sobrou "B1" no fim da fórmula.')
+      expect((error as ParseError).describe(Language.English)).toBe(
+        '"B1" is left over at the end of the formula.',
+      )
+    }
   })
 
   it('says where the problem is', () => {
     try {
       parseFormula('=SOMA(A1;)')
-      expect.unreachable('deveria ter reclamado')
+      expect.unreachable('should have complained')
     } catch (error) {
       expect(error).toBeInstanceOf(ParseError)
       expect((error as ParseError).position).toBeGreaterThan(0)

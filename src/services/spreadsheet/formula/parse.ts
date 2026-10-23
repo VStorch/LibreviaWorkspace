@@ -1,5 +1,6 @@
 /** Ascending precedence, with Excel's table: `=1+2*3` is seven. */
 
+import type { MessageKey, Vars } from '@shared/i18n/index.js'
 import type { BinaryOperator, Node } from './ast.js'
 import { ParseError, isFormulaError, type FormulaError } from './errors.js'
 import { parseReference, type CellRef } from './references.js'
@@ -27,7 +28,7 @@ const RIGHT_ASSOCIATIVE = new Set<BinaryOperator>(['^'])
 export function parseFormula(formula: string): Node {
   const text = formula.startsWith('=') ? formula.slice(1) : formula
   const tokens = tokenize(text)
-  if (tokens.length === 0) throw new ParseError('A fórmula está vazia.', 0)
+  if (tokens.length === 0) throw new ParseError('spreadsheet.formula.empty', 0)
 
   const parser = new Parser(tokens, text.length)
   const node = parser.expression(0)
@@ -112,7 +113,7 @@ class Parser {
 
       case TokenKind.Open: {
         const inner = this.expression(0)
-        this.expect(TokenKind.Close, 'Faltou fechar um parêntese.')
+        this.expect(TokenKind.Close, 'spreadsheet.formula.unclosedParenthesis')
         return inner
       }
 
@@ -123,12 +124,12 @@ class Parser {
         return this.reference(token)
 
       default:
-        throw new ParseError(`Não esperava "${token.text}" aqui.`, token.position)
+        throw new ParseError('spreadsheet.formula.unexpectedToken', token.position, { token: token.text })
     }
   }
 
   call(name: Token): Node {
-    this.expect(TokenKind.Open, `Faltou o parêntese depois de ${name.text}.`)
+    this.expect(TokenKind.Open, 'spreadsheet.formula.missingCallParenthesis', { name: name.text })
 
     const args: Node[] = []
     if (this.peek()?.kind !== TokenKind.Close) {
@@ -139,7 +140,7 @@ class Parser {
       }
     }
 
-    this.expect(TokenKind.Close, `Faltou fechar o parêntese de ${name.text}.`)
+    this.expect(TokenKind.Close, 'spreadsheet.formula.unclosedCall', { name: name.text })
     return { kind: 'call', name: name.text, args }
   }
 
@@ -150,12 +151,12 @@ class Parser {
     if (next?.kind !== TokenKind.Operator || next.text !== ':') return { kind: 'reference', ref: from }
 
     this.#at++
-    const end = this.expect(TokenKind.Reference, 'Depois de ":" falta uma célula.')
+    const end = this.expect(TokenKind.Reference, 'spreadsheet.formula.rangeEndMissing')
     const to = this.cellRef(end)
 
     // A range lives on a single sheet: `Plan1!A1:Plan2!B2` is refused.
     if (to.sheet !== undefined && to.sheet !== from.sheet) {
-      throw new ParseError('Um intervalo não pode atravessar duas planilhas.', end.position)
+      throw new ParseError('spreadsheet.formula.rangeAcrossSheets', end.position)
     }
 
     // Stored already ordered: `B4:A1` and `A1:B4` are the same rectangle. The sheet name stays only
@@ -170,7 +171,8 @@ class Parser {
 
   cellRef(token: Token): CellRef {
     const ref = parseReference(token.text)
-    if (ref === null) throw new ParseError(`"${token.text}" não é uma célula válida.`, token.position)
+    if (ref === null)
+      throw new ParseError('spreadsheet.formula.invalidCell', token.position, { token: token.text })
     return ref
   }
 
@@ -180,33 +182,35 @@ class Parser {
 
   take(): Token {
     const token = this.tokens[this.#at]
-    if (token === undefined) throw new ParseError('A fórmula terminou antes do esperado.', this.end)
+    if (token === undefined) throw new ParseError('spreadsheet.formula.endedEarly', this.end)
     this.#at++
     return token
   }
 
-  expect(kind: TokenKind, message: string): Token {
+  expect(kind: TokenKind, problem: MessageKey, vars?: Vars): Token {
     const token = this.peek()
-    if (token?.kind !== kind) throw new ParseError(message, token?.position ?? this.end)
+    if (token?.kind !== kind) throw new ParseError(problem, token?.position ?? this.end, vars)
     this.#at++
     return token
   }
 
   expectEnd(): void {
     const token = this.peek()
-    if (token !== undefined) throw new ParseError(`Sobrou "${token.text}" no fim da fórmula.`, token.position)
+    if (token !== undefined)
+      throw new ParseError('spreadsheet.formula.trailingToken', token.position, { token: token.text })
   }
 }
 
 function numberOf(token: Token): number {
   const value = Number(token.text.replace(',', '.'))
-  if (!Number.isFinite(value)) throw new ParseError(`"${token.text}" não é um número.`, token.position)
+  if (!Number.isFinite(value))
+    throw new ParseError('spreadsheet.formula.invalidNumber', token.position, { token: token.text })
   return value
 }
 
 function asError(token: Token): FormulaError {
   if (!isFormulaError(token.text))
-    throw new ParseError(`"${token.text}" não é um erro conhecido.`, token.position)
+    throw new ParseError('spreadsheet.formula.unknownErrorValue', token.position, { token: token.text })
   return token.text
 }
 

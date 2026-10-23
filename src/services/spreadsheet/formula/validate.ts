@@ -3,6 +3,7 @@
  * Excel also refuses the formula with a warning.
  */
 
+import { translate, Language } from '@shared/i18n/index.js'
 import { walk, type Node } from './ast.js'
 import { ParseError } from './errors.js'
 import { findFunction, isKnownFunction } from './functions/index.js'
@@ -14,12 +15,15 @@ export interface FormulaProblem {
   readonly position?: number
 }
 
-export function checkFormula(formula: string): FormulaProblem | null {
+export function checkFormula(
+  formula: string,
+  language: Language = Language.Portuguese,
+): FormulaProblem | null {
   let node: Node
   try {
     node = parseFormula(formula)
   } catch (cause) {
-    if (cause instanceof ParseError) return { message: cause.message, position: cause.position }
+    if (cause instanceof ParseError) return { message: cause.describe(language), position: cause.position }
     throw cause
   }
 
@@ -27,10 +31,10 @@ export function checkFormula(formula: string): FormulaProblem | null {
     if (child.kind !== 'call') continue
 
     if (!isKnownFunction(child.name)) {
-      return { message: `Não conheço a função ${child.name}.` }
+      return { message: translate(language, 'spreadsheet.formula.unknownFunction', { name: child.name }) }
     }
 
-    const problem = arityOf(child.name, child.args.length)
+    const problem = arityOf(child.name, child.args.length, language)
     if (problem !== null) return { message: problem }
   }
 
@@ -48,7 +52,7 @@ const LAZY_ARITY: Record<string, { min: number; max: number }> = {
   IFNA: { min: 2, max: 2 },
 }
 
-function arityOf(name: string, given: number): string | null {
+function arityOf(name: string, given: number, language: Language): string | null {
   const upper = name.toUpperCase()
   const limits = LAZY_ARITY[upper] ?? findFunction(upper)
   if (limits === undefined) return null
@@ -56,16 +60,17 @@ function arityOf(name: string, given: number): string | null {
   const min = 'min' in limits ? limits.min : limits.minArgs
   const max = 'max' in limits ? limits.max : limits.maxArgs
 
+  const count = (value: number) => translate(language, 'spreadsheet.formula.arguments', { count: value })
   if (given < min) {
-    return `${name} precisa de ${count(min)}, e recebeu ${given === 0 ? 'nenhum' : count(given)}.`
+    return translate(language, 'spreadsheet.formula.tooFewArguments', {
+      name,
+      expected: count(min),
+      given: given === 0 ? translate(language, 'spreadsheet.formula.noArguments') : count(given),
+    })
   }
   if (given > max) {
-    return `${name} aceita no máximo ${count(max)}, e recebeu ${given}.`
+    return translate(language, 'spreadsheet.formula.tooManyArguments', { name, expected: count(max), given })
   }
 
   return null
-}
-
-function count(value: number): string {
-  return value === 1 ? '1 argumento' : `${value} argumentos`
 }

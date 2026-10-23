@@ -3,6 +3,7 @@ import { writeText, writeValues, type Range } from '@services/spreadsheet/edit.j
 import { recalculate } from '@services/spreadsheet/formula/recalc.js'
 import { checkFormula } from '@services/spreadsheet/formula/validate.js'
 import { getCell, type Cell, type Sheet, type WorkbookModel } from '@services/spreadsheet/model.js'
+import { Language } from '@shared/i18n/index.js'
 import { MAX_AI_FORMULA_LENGTH } from '@shared/limits.js'
 import type { CellPosition } from './sheet-context.js'
 
@@ -49,12 +50,12 @@ function formulaIn(text: string): string | null {
 }
 
 /** Only a formula that the sheet would take as typed: the same check as the formula bar. */
-export function readFormulaAnswer(text: string): FormulaAnswer {
+export function readFormulaAnswer(text: string, language: Language = Language.Portuguese): FormulaAnswer {
   const formula = formulaIn(text)
   if (formula === null || formula.length < 2 || formula.length > MAX_AI_FORMULA_LENGTH) {
     return { kind: 'missing' }
   }
-  const problem = checkFormula(formula)
+  const problem = checkFormula(formula, language)
   return problem === null
     ? { kind: 'formula', formula }
     : { kind: 'invalid', formula, message: problem.message }

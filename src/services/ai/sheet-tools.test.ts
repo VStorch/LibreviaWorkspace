@@ -117,7 +117,7 @@ describe('sheet tools', () => {
   it('do not propose a formula the sheet would refuse nor a write that goes past the edge', () => {
     const invalid = call(SheetToolName.WriteCells, { start: 'A1', rows: [['ok', '=NADA(1)']] })
     expect(invalid).toMatchObject({ isError: true })
-    expect(invalid.content).toMatch(/^B1: /)
+    expect(invalid.content).toBe('B1: Unknown function NADA.')
     expect(call(SheetToolName.WriteCells, { start: 'Z1', rows: [['a', 'b']] }).content).toContain('outside')
     expect(call(SheetToolName.WriteCells, { start: 'A1:B2', rows: [['a']] }).proposal).toBeUndefined()
   })

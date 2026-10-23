@@ -128,6 +128,13 @@ test.describe('View menu', () => {
 
     await expect(session.window.locator('.formula-bar__value')).toHaveAttribute('title', 'Result')
 
+    await write(session.window, 1, 0, '=SUM(A1,B1)')
+    await expect(session.window.locator('.formula-bar__problem')).toHaveText(
+      'Use semicolons to separate arguments: SUM(A1;B1).',
+    )
+    await session.window.locator('.formula-bar__input').fill('')
+    await session.window.locator('.formula-bar__input').press('Enter')
+
     await session.window.locator('.tabs__add').click()
     await expect(session.window.locator('.tab__name')).toHaveText(['Sheet1', 'Sheet2'])
 

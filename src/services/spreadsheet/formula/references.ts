@@ -45,7 +45,7 @@ export function quoteSheet(name: string): string {
 function splitSheet(text: string): { sheet?: string; rest: string } {
   if (text.startsWith("'")) {
     const end = text.indexOf("'!", 1)
-    if (end < 0) throw new ParseError('Faltou fechar o apóstrofo do nome da planilha.', 0)
+    if (end < 0) throw new ParseError('spreadsheet.formula.unclosedSheetName', 0)
     return { sheet: text.slice(1, end).replaceAll("''", "'"), rest: text.slice(end + 2) }
   }
 

@@ -81,7 +81,8 @@ function readToken(formula: string, at: number): ReadToken {
 
   if (char === '#') {
     const literal = ERROR_LITERALS.find((error) => formula.startsWith(error, at))
-    if (literal === undefined) throw new ParseError(`Erro desconhecido em "${formula.slice(at)}".`, at)
+    if (literal === undefined)
+      throw new ParseError('spreadsheet.formula.unknownErrorAt', at, { text: formula.slice(at) })
     return whole({ kind: TokenKind.Error, text: literal, position: at })
   }
 
@@ -106,9 +107,8 @@ function readWordToken(formula: string, at: number): ReadToken {
   const word = readWord(formula, at)
   if (word.length === 0) {
     // A loose comma is almost always an argument separator: the hint says so.
-    const hint =
-      char === ',' ? 'Use ponto e vírgula para separar argumentos: SOMA(A1;B1).' : `Não entendi "${char}".`
-    throw new ParseError(hint, at)
+    if (char === ',') throw new ParseError('spreadsheet.formula.commaSeparator', at)
+    throw new ParseError('spreadsheet.formula.unexpectedCharacter', at, { character: char })
   }
 
   const upper = word.toUpperCase()
@@ -179,7 +179,7 @@ function readText(formula: string, start: number): Token {
     at++
   }
 
-  throw new ParseError('Faltou fechar as aspas do texto.', start)
+  throw new ParseError('spreadsheet.formula.unclosedText', start)
 }
 
 function quotesIn(text: string): number {
@@ -195,9 +195,9 @@ function readWord(formula: string, start: number): string {
   if (formula[at] === "'") {
     at++
     while (at < formula.length && formula[at] !== "'") at++
-    if (at >= formula.length) throw new ParseError('Faltou fechar o apóstrofo do nome da planilha.', start)
+    if (at >= formula.length) throw new ParseError('spreadsheet.formula.unclosedSheetName', start)
     at++
-    if (formula[at] !== '!') throw new ParseError('Depois do nome da planilha falta o "!".', start)
+    if (formula[at] !== '!') throw new ParseError('spreadsheet.formula.missingSheetBang', start)
     at++
   }
 

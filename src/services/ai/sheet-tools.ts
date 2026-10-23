@@ -4,6 +4,7 @@ import { formatCell } from '@services/spreadsheet/format.js'
 import { quoteSheet } from '@services/spreadsheet/formula/references.js'
 import { checkFormula } from '@services/spreadsheet/formula/validate.js'
 import { cellRef, parseRef, type Sheet, type WorkbookModel } from '@services/spreadsheet/model.js'
+import { Language } from '@shared/i18n/index.js'
 import {
   MAX_AI_FORMULA_LENGTH,
   MAX_AI_READ_CELLS,
@@ -186,7 +187,7 @@ const cellsToWrite = z
 function formulaProblem(rows: readonly (readonly string[])[], row: number, column: number): string | null {
   for (const [rowOffset, cells] of rows.entries()) {
     for (const [columnOffset, text] of cells.entries()) {
-      const problem = text.startsWith('=') ? checkFormula(text) : null
+      const problem = text.startsWith('=') ? checkFormula(text, Language.English) : null
       if (problem !== null) return `${cellRef(row + rowOffset, column + columnOffset)}: ${problem.message}`
     }
   }
