@@ -1,6 +1,7 @@
 import { copyFile, open, rename, stat, unlink, type FileHandle } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { fromFileSystemError } from '@shared/errors.js'
+import { editorPreferences } from '../preferences.js'
 
 /** Network folders sometimes do not implement fsync, and that is not a write failure. */
 const FSYNC_UNSUPPORTED = new Set(['EINVAL', 'ENOTSUP', 'EPERM', 'EBADF', 'EISDIR'])
@@ -46,7 +47,7 @@ export async function writeFileAtomic(
   } catch (cause) {
     if (handle !== undefined) await handle.close().catch(() => undefined)
     await unlink(temporaryPath).catch(() => undefined)
-    throw fromFileSystemError(cause, 'write')
+    throw fromFileSystemError(cause, 'write', editorPreferences().language)
   }
 }
 

@@ -1,9 +1,15 @@
 import { chmod, mkdtemp, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AppError } from '@shared/errors.js'
-import { writeFileAtomic } from './atomic-write.js'
+import { Language } from '@shared/i18n/index.js'
+
+const { preferences } = vi.hoisted(() => ({ preferences: { language: 'pt' as Language } }))
+
+vi.mock('../preferences.js', () => ({ editorPreferences: () => preferences }))
+
+const { writeFileAtomic } = await import('./atomic-write.js')
 
 /**
  * Three tests only hold on POSIX: on Windows Node's `chmod` only sets read-only, `stat` returns
@@ -23,8 +29,18 @@ afterEach(async () => {
 })
 
 describe('writeFileAtomic', () => {
+  it('explains a failed write in the interface language', async () => {
+    const target = join(directory, 'missing-folder', 'file.txt')
+
+    preferences.language = Language.English
+    await expect(writeFileAtomic(target, 'x')).rejects.toThrow('The file was not found.')
+
+    preferences.language = Language.Portuguese
+    await expect(writeFileAtomic(target, 'x')).rejects.toThrow('O arquivo não foi encontrado.')
+  })
+
   it('creates a new file', async () => {
-    const target = join(directory, 'novo.txt')
+    const target = join(directory, 'new.txt')
     await writeFileAtomic(target, 'initial content')
 
     expect(await readFile(target, 'utf8')).toBe('initial content')
