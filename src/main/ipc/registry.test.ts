@@ -1,15 +1,19 @@
 import { describe, expect, it, vi } from 'vitest'
 import { IpcChannel } from '@shared/ipc-channels.js'
 import { ErrorCode } from '@shared/errors.js'
+import { Language } from '@shared/i18n/language.js'
 
 /**
  * The registry checks both directions: the renderer request is untrusted, and our own response is
  * checked too, so a wrong shape does not reach the UI far from its cause. `ipcMain` is faked, since
  * there is no Electron here.
  */
-const { handlers } = vi.hoisted(() => ({
+const { handlers, preferences } = vi.hoisted(() => ({
   handlers: new Map<string, (event: unknown, payload: unknown) => Promise<unknown>>(),
+  preferences: { language: 'pt' as Language },
 }))
+
+vi.mock('../preferences.js', () => ({ editorPreferences: () => preferences }))
 
 vi.mock('electron', () => ({
   ipcMain: {
@@ -20,6 +24,11 @@ vi.mock('electron', () => ({
 }))
 
 const { handle } = await import('./registry.js')
+
+interface Result {
+  readonly ok: boolean
+  readonly error?: { readonly code: string; readonly detail?: string }
+}
 
 async function invoke(channel: IpcChannel, reply: unknown, payload: unknown = {}): Promise<unknown> {
   // The handler type is the contract's; here the test returns on purpose what the contract does not
@@ -60,5 +69,22 @@ describe('IPC registry', () => {
 
     expect(result.ok).toBe(false)
     expect(result.error?.code).toBe(ErrorCode.InvalidRequest)
+  })
+
+  it.each([
+    [Language.Portuguese, 'campo: word', 'resposta, campo: families.0'],
+    [Language.English, 'field: word', 'response, field: families.0'],
+  ])('names the failing field in the %s detail', async (language, requestDetail, responseDetail) => {
+    preferences.language = language
+
+    const request = (await invoke(
+      IpcChannel.SpellAddWord,
+      { added: true },
+      { word: '', scope: 'session' },
+    )) as Result
+    const response = (await invoke(IpcChannel.FontsList, { families: [''] })) as Result
+
+    expect(request.error?.detail).toBe(requestDetail)
+    expect(response.error?.detail).toBe(responseDetail)
   })
 })

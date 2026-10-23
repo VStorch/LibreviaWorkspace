@@ -120,6 +120,8 @@ export const ERRORS = {
     pt: 'A operação terminou de um jeito que o aplicativo não reconhece.',
     en: 'The operation ended in a way the application does not recognize.',
   },
+  'errors.ipc.requestField': { pt: 'campo: {field}', en: 'field: {field}' },
+  'errors.ipc.responseField': { pt: 'resposta, campo: {field}', en: 'response, field: {field}' },
 
   'errors.print.prepareFailed': {
     pt: 'Não foi possível preparar o documento: {description}',
