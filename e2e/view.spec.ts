@@ -121,6 +121,7 @@ test.describe('View menu', () => {
     await setPreference(session, { language: 'en' })
     await menu(session, 'new-spreadsheet')
     await gridReady(session.window)
+    await expect(session.window).toHaveTitle(/^Untitled spreadsheet\.ssheet/)
 
     await write(session.window, 0, 0, '=1+1')
     await select(session.window, 0, 0)

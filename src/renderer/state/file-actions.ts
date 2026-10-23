@@ -93,7 +93,11 @@ function createOpenActions(set: SetWorkspace, get: GetWorkspace, ctx: WorkspaceC
     newDocument: async () => {
       if (!(await ctx.ensureChangesHandled())) return
       ctx.show({
-        file: { path: null, name: defaultFileName(DocumentKind.Document), kind: DocumentKind.Document },
+        file: {
+          path: null,
+          name: defaultFileName(DocumentKind.Document, currentPreferences().language),
+          kind: DocumentKind.Document,
+        },
         model: createEmptyDocument(),
         workbook: null,
       })
@@ -104,7 +108,7 @@ function createOpenActions(set: SetWorkspace, get: GetWorkspace, ctx: WorkspaceC
       ctx.show({
         file: {
           path: null,
-          name: defaultFileName(DocumentKind.Spreadsheet),
+          name: defaultFileName(DocumentKind.Spreadsheet, currentPreferences().language),
           kind: DocumentKind.Spreadsheet,
         },
         model: createEmptyDocument(),
