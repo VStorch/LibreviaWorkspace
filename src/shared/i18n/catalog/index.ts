@@ -10,6 +10,7 @@ import { PRIVACY } from './privacy.js'
 import { REFERENCES } from './references.js'
 import { REVISIONS } from './revisions.js'
 import { SHELL } from './shell.js'
+import { SIDECAR } from './sidecar.js'
 import { SPREADSHEET } from './spreadsheet.js'
 import { TABLE } from './table.js'
 import { VIEW } from './view.js'
@@ -33,6 +34,7 @@ export const MESSAGES = {
   ...REVISIONS,
   ...PRIVACY,
   ...AI,
+  ...SIDECAR,
 } as const
 
 export type MessageKey = keyof typeof MESSAGES
@@ -53,4 +55,5 @@ export const AREAS: Readonly<Record<string, Readonly<Record<string, Entry>>>> = 
   revisions: REVISIONS,
   privacy: PRIVACY,
   ai: AI,
+  sidecar: SIDECAR,
 }

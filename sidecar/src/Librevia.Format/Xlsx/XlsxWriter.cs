@@ -17,7 +17,7 @@ public static class XlsxWriter
     {
         if (model.Sheets.Count == 0)
         {
-            throw new XlsxException("Não há nada para gravar: a planilha ficou sem abas.");
+            throw new XlsxException("sidecar.error.nothingToSave");
         }
 
         // ClosedXML reads the missing parts during `SaveAs`: closed earlier, "Cannot access a
@@ -78,7 +78,7 @@ public static class XlsxWriter
         catch (Exception problem) when (problem is not OutOfMemoryException)
         {
             throw new XlsxException(
-                "O arquivo original não pôde ser lido para gravar por cima. Use \"Salvar como\" para gravar num arquivo novo.");
+                "sidecar.error.xlsxOriginalUnreadable");
         }
     }
 

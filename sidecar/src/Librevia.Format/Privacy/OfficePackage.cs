@@ -38,12 +38,12 @@ internal sealed class OfficePackage
         }
         catch (InvalidDataException)
         {
-            throw new PrivacyException("O arquivo não é um pacote do Office válido.");
+            throw new PrivacyException("sidecar.error.invalidPackage");
         }
 
         if (!package._parts.ContainsKey(ContentTypesPart))
         {
-            throw new PrivacyException("O arquivo não é um pacote do Office válido.");
+            throw new PrivacyException("sidecar.error.invalidPackage");
         }
 
         return package;

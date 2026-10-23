@@ -347,5 +347,5 @@ internal sealed class PdfParser(byte[] data, int position)
     };
 
     public static PdfException Broken() =>
-        new("Este PDF está danificado: não foi possível ler a estrutura dele.");
+        new("sidecar.error.pdfDamaged");
 }

@@ -101,7 +101,7 @@ public class XlsxReadTests
     {
         var problem = Assert.Throws<XlsxException>(() => XlsxReader.Read([1, 2, 3, 4]));
 
-        Assert.Contains("não pôde ser lida", problem.Message);
+        Assert.Equal("sidecar.error.xlsxUnreadable", problem.Message);
     }
 }
 
@@ -344,7 +344,7 @@ public class XlsxSurgicalTests
     {
         var problem = Assert.Throws<XlsxException>(() => XlsxWriter.Write(null, new WorkbookDto()));
 
-        Assert.Contains("sem abas", problem.Message);
+        Assert.Equal("sidecar.error.nothingToSave", problem.Message);
     }
 
     [Fact]

@@ -128,7 +128,7 @@ internal static class Xmp
 
         var description = existing?.Parent ?? packet.Descendants(Rdf + "Description").FirstOrDefault();
         Remove(existing);
-        if (description is null) throw new PdfException("Os metadados XMP deste PDF estão num formato que o Librevia não sabe alterar.");
+        if (description is null) throw new PdfException("sidecar.error.xmpUnsupported");
 
         if (description.GetPrefixOfNamespace(name.Namespace) is null)
         {

@@ -128,7 +128,7 @@ describe('parseResponse', () => {
     const response = parseResponse({
       id: 2,
       ok: false,
-      error: { code: 'DOCX_INVALID', message: 'O arquivo não é um documento válido.' },
+      error: { code: 'DOCX_INVALID', key: 'sidecar.error.docxDamaged' },
     })
 
     expect(response.ok).toBe(false)
@@ -137,7 +137,7 @@ describe('parseResponse', () => {
   it.each([
     ['without id', { ok: true, result: 1 }],
     ['without ok', { id: 1, result: 1 }],
-    ['error without message', { id: 1, ok: false, error: { code: 'X' } }],
+    ['error without key', { id: 1, ok: false, error: { code: 'X' } }],
     ['negative id', { id: -1, ok: true, result: 1 }],
     ['not an object', 'ok'],
   ])('refuses a response outside the contract: %s', (_label, payload) => {

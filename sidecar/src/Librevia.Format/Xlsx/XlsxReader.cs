@@ -27,7 +27,7 @@ public static class XlsxReader
         catch (Exception problem) when (problem is not OutOfMemoryException)
         {
             throw new XlsxException(
-                "Esta planilha não pôde ser lida: o arquivo parece corrompido ou não é uma planilha do Excel.");
+                "sidecar.error.xlsxUnreadable");
         }
 
         using (book)
@@ -40,7 +40,7 @@ public static class XlsxReader
 
             if (workbook.Sheets.Count == 0)
             {
-                throw new XlsxException("Esta planilha não tem nenhuma aba.");
+                throw new XlsxException("sidecar.error.noSheets");
             }
 
             NoteBookWide(book, inventory);

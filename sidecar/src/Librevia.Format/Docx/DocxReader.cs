@@ -88,9 +88,9 @@ public static class DocxReader
         using var document = Open(stream);
 
         var part = document.MainDocumentPart
-                   ?? throw new DocxException("O arquivo não contém um documento do Word.");
+                   ?? throw new DocxException("sidecar.error.docxWithoutDocument");
         var body = part.Document?.Body
-                   ?? throw new DocxException("O documento do Word está vazio ou danificado.");
+                   ?? throw new DocxException("sidecar.error.docxDamaged");
 
         var inventory = new Inventory();
         NoteWholeDocumentFeatures(part, inventory);
@@ -158,9 +158,9 @@ public static class DocxReader
     {
         var document = Open(stream);
         var part = document.MainDocumentPart
-                   ?? throw new DocxException("O arquivo não contém um documento do Word.");
+                   ?? throw new DocxException("sidecar.error.docxWithoutDocument");
         var body = part.Document?.Body
-                   ?? throw new DocxException("O documento do Word está vazio ou danificado.");
+                   ?? throw new DocxException("sidecar.error.docxDamaged");
 
         var (_, blocks) = new BodyReader(part, inventory).Read(body);
         return (document, part, blocks);
@@ -177,7 +177,7 @@ public static class DocxReader
             // A document is untrusted data: whatever the library throws becomes a sentence, not a
             // crashed process.
             throw new DocxException(
-                "Não foi possível abrir este arquivo. Ele pode estar danificado ou não ser um documento do Word.",
+                "sidecar.error.docxUnreadable",
                 problem);
         }
     }

@@ -11,3 +11,8 @@ export type { MessageKey } from './catalog/index.js'
 export function translate(language: Language, key: MessageKey, vars?: Vars): string {
   return format(MESSAGES[key], language, vars)
 }
+
+/** For keys that come from outside the code, such as the format service's. */
+export function isMessageKey(text: string): text is MessageKey {
+  return Object.hasOwn(MESSAGES, text)
+}

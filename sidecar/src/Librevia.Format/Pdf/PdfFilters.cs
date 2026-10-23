@@ -17,7 +17,7 @@ internal static class PdfFilters
         if (filters.Count == 0) return stream.Data;
         if (filters.Count > 1 || filters[0] != "FlateDecode")
         {
-            throw new PdfException("Este PDF usa uma compactação que o Librevia não sabe ler.");
+            throw new PdfException("sidecar.error.pdfCompression");
         }
 
         var parameters = resolve(stream.Dictionary["DecodeParms"]) switch
@@ -72,7 +72,7 @@ internal static class PdfFilters
     {
         var predictor = Integer(parameters?["Predictor"]) ?? 1;
         if (predictor == 1) return data;
-        if (predictor < 10) throw new PdfException("Este PDF usa uma compactação que o Librevia não sabe ler.");
+        if (predictor < 10) throw new PdfException("sidecar.error.pdfCompression");
 
         var colors = Integer(parameters?["Colors"]) ?? 1;
         var bits = Integer(parameters?["BitsPerComponent"]) ?? 8;

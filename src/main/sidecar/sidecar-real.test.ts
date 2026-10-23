@@ -106,7 +106,7 @@ describe.skipIf(!published)('published .NET sidecar', () => {
   })
 
   it('refuses an unknown method with an error, without dying', async () => {
-    const unknown = client.request('metodo.inexistente' as SidecarMethod, {})
+    const unknown = client.request('method.missing' as SidecarMethod, {})
     await expect(unknown).rejects.toThrow(/não conhece/i)
 
     // What matters is that the process stays alive after refusing.

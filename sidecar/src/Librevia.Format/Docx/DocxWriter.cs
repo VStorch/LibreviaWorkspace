@@ -29,9 +29,9 @@ public static class DocxWriter
 
         using var document = OpenEditable(buffer);
         var part = document.MainDocumentPart
-                   ?? throw new DocxException("O arquivo original não contém um documento do Word.");
+                   ?? throw new DocxException("sidecar.error.originalWithoutDocument");
         var body = part.Document?.Body
-                   ?? throw new DocxException("O arquivo original está vazio ou danificado.");
+                   ?? throw new DocxException("sidecar.error.originalDamaged");
 
         // Reindexes the same bytes with the same reader that produced the model: ids come out
         // equal, and a flattened draft is compared with a flattened reading.
@@ -935,7 +935,7 @@ public static class DocxWriter
         catch (Exception problem) when (problem is not DocxException)
         {
             throw new DocxException(
-                "Não foi possível gravar sobre o arquivo original. Ele pode ter sido alterado ou danificado.",
+                "sidecar.error.originalUnwritable",
                 problem);
         }
     }

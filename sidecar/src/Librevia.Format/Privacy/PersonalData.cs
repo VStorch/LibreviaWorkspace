@@ -102,7 +102,7 @@ public static class PersonalData
         if (type is not null && OfficeContentType.IsWord(type)) return (OfficeKind.Word, main!);
         if (type is not null && OfficeContentType.IsExcel(type)) return (OfficeKind.Excel, main!);
 
-        throw new PrivacyException("O arquivo não é um documento do Word nem uma planilha do Excel.");
+        throw new PrivacyException("sidecar.error.notOfficeDocument");
     }
 
     /// <summary>Word keeps the flag in <c>settings.xml</c>; Excel, in the workbook itself.</summary>

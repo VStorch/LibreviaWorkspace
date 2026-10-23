@@ -1380,16 +1380,15 @@ public class DocxRoundTripTests
     }
 
     [Theory]
-    [InlineData("não é um zip")]
-    [InlineData("PK zip truncado")]
+    [InlineData("not a zip")]
+    [InlineData("PK truncated zip")]
     public void RejectsGarbageWithAReadableMessage(string garbage)
     {
         // A document is untrusted data: it becomes a sentence, and never brings the process down.
         var problem = Assert.Throws<DocxException>(
             () => DocxReader.Read(System.Text.Encoding.UTF8.GetBytes(garbage)));
 
-        Assert.DoesNotContain("Exception", problem.Message, StringComparison.Ordinal);
-        Assert.Contains("Word", problem.Message, StringComparison.Ordinal);
+        Assert.Equal("sidecar.error.docxUnreadable", problem.Message);
     }
 
     [Fact]

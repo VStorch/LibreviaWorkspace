@@ -109,15 +109,15 @@ describe.runIf(fakeSidecarRuns)('normal conversation', () => {
     expect(results.map((r) => r.result)).toEqual([1, 2, 3])
   })
 
-  it('propagates the sidecar error with the message it sent', async () => {
+  it('propagates the sidecar error with the sentence its key names', async () => {
     const client = await fakeSidecar(`${RESPONDER}
       function __handle(request) {
-        reply({ id: request.id, ok: false, error: { code: 'DOCX_INVALIDO', message: 'O arquivo não é um documento do Word.' } })
+        reply({ id: request.id, ok: false, error: { code: 'DOCX_INVALID', key: 'sidecar.error.docxWithoutDocument' } })
       }
     `)
 
     await expect(client.request(SidecarMethod.Echo, {})).rejects.toThrow(
-      'O arquivo não é um documento do Word.',
+      'O arquivo não contém um documento do Word.',
     )
   })
 })

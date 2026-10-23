@@ -22,14 +22,14 @@ public sealed class Server(Stream input, Stream output)
             ["docx.save"] = static (request, binary, _) =>
             {
                 var model = request.Params.Deserialize<Docx.DocumentModelDto>(JsonOptions.Default)
-                            ?? throw new Docx.DocxException("O documento a gravar chegou vazio.");
+                            ?? throw new Docx.DocxException("sidecar.error.documentMissing");
                 var (bytes, result) = Docx.DocxWriter.Write(binary.ToArray(), model);
                 return Task.FromResult(new Reply(result, bytes));
             },
             ["docx.create"] = static (request, _, _) =>
             {
                 var create = request.Params.Deserialize<Docx.DocxCreateDto>(JsonOptions.Default)
-                             ?? throw new Docx.DocxException("A configuração de página chegou vazia.");
+                             ?? throw new Docx.DocxException("sidecar.error.pageMissing");
                 return Task.FromResult(new Reply(null, Docx.DocxTemplate.Create(create.Page, create.Styles)));
             },
             ["xlsx.open"] = static (_, binary, _) =>
@@ -38,7 +38,7 @@ public sealed class Server(Stream input, Stream output)
             ["xlsx.save"] = static (request, binary, _) =>
             {
                 var model = request.Params.Deserialize<Xlsx.WorkbookDto>(JsonOptions.Default)
-                            ?? throw new Xlsx.XlsxException("A planilha a gravar chegou vazia.");
+                            ?? throw new Xlsx.XlsxException("sidecar.error.workbookMissing");
                 var original = binary.IsEmpty ? null : binary.ToArray();
                 var (bytes, result) = Xlsx.XlsxWriter.Write(original, model);
                 return Task.FromResult(new Reply(result, bytes));
@@ -49,7 +49,7 @@ public sealed class Server(Stream input, Stream output)
             ["pdf.setMetadata"] = static (request, binary, _) =>
             {
                 var patch = request.Params.Deserialize<Docx.PropertiesDto>(JsonOptions.Default)
-                            ?? throw new Pdf.PdfException("As propriedades a gravar chegaram vazias.");
+                            ?? throw new Pdf.PdfException("sidecar.error.propertiesMissing");
                 var update = Pdf.PdfMetadata.Update(binary.ToArray(), patch);
                 return Task.FromResult(new Reply(new { appended = update.Length }, update));
             },
@@ -65,7 +65,7 @@ public sealed class Server(Stream input, Stream output)
 
     private static Privacy.PrivacyRequest PrivacyRequestOf(Request request) =>
         request.Params.Deserialize<Privacy.PrivacyRequest>(JsonOptions.Default)
-        ?? throw new Privacy.PrivacyException("O pedido de inspeção chegou vazio.");
+        ?? throw new Privacy.PrivacyException("sidecar.error.inspectionMissing");
 
     public sealed record Reply(object? Result, ReadOnlyMemory<byte> Binary)
     {
@@ -113,7 +113,7 @@ public sealed class Server(Stream input, Stream output)
             {
                 await RespondErrorAsync(
                     request.Id,
-                    new ErrorPayload("UNKNOWN_METHOD", "O aplicativo pediu uma operação que este serviço não conhece.",
+                    new ErrorPayload("UNKNOWN_METHOD", "sidecar.error.unknownMethod",
                         request.Method),
                     cancellation).ConfigureAwait(false);
                 return;
@@ -156,7 +156,7 @@ public sealed class Server(Stream input, Stream output)
             await Console.Error.WriteLineAsync(problem.ToString()).ConfigureAwait(false);
             await RespondErrorAsync(
                 request?.Id ?? 0,
-                new ErrorPayload("INTERNAL", "Ocorreu um erro inesperado ao processar o documento.",
+                new ErrorPayload("INTERNAL", "sidecar.error.unexpected",
                     problem.GetType().Name),
                 cancellation).ConfigureAwait(false);
         }

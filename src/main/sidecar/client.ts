@@ -12,6 +12,7 @@ import {
   type HealthResult,
 } from './protocol.js'
 import { t } from '../i18n.js'
+import { sidecarMessage } from './messages.js'
 
 /** Past this, something is stuck, and hanging silently is worse than failing fast. */
 export const REQUEST_TIMEOUT_MS = 60_000
@@ -192,10 +193,9 @@ export class SidecarClient {
         if (response.ok) {
           pending.resolve({ result: response.result, binary: frame.binary })
         } else {
-          // The sentence is already Portuguese; the code becomes SidecarFailed, with the detail in
-          // the log.
+          // The code becomes SidecarFailed, with the sidecar's own code as the detail.
           pending.reject(
-            new AppError(ErrorCode.SidecarFailed, response.error.message, response.error.code),
+            new AppError(ErrorCode.SidecarFailed, sidecarMessage(response.error.key), response.error.code),
           )
         }
       })

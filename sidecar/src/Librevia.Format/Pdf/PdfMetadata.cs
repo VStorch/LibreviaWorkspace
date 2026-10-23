@@ -25,7 +25,7 @@ public sealed record PdfInspection(
 public static class PdfMetadata
 {
     public const string EncryptedRefusal =
-        "Este PDF é criptografado. O Librevia não altera as propriedades de PDFs criptografados.";
+        "sidecar.error.pdfEncrypted";
 
     private static readonly string[] DateKeys = ["CreationDate", "ModDate"];
 
@@ -169,7 +169,7 @@ public static class PdfMetadata
         if (catalog["Metadata"] is not PdfRef reference || file.Resolve(reference) is not PdfStream stream) return null;
 
         var document = Xmp.Parse(PdfFilters.Decode(stream, file.Resolve));
-        if (document is null) throw new PdfException("Os metadados XMP deste PDF estão danificados.");
+        if (document is null) throw new PdfException("sidecar.error.xmpDamaged");
         return (reference, stream, document);
     }
 

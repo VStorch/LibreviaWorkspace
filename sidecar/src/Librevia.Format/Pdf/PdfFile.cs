@@ -44,7 +44,7 @@ internal sealed class PdfFile
         _data = data;
         if (PdfParser.IndexOf(data, "%PDF-"u8, 0) is < 0 or > 1024)
         {
-            throw new PdfException("Este arquivo não é um PDF.");
+            throw new PdfException("sidecar.error.notPdf");
         }
 
         LastXref = FindStartXref();

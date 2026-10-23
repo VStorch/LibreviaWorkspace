@@ -138,10 +138,10 @@ export interface SidecarRequest {
   readonly params: unknown
 }
 
-/** The sidecar speaks Portuguese to the user; the error code is its own. */
+/** The sidecar names the sentence by its catalog key; the error code is its own. */
 const sidecarErrorSchema = z.object({
   code: z.string().min(1).max(64),
-  message: z.string().min(1).max(500),
+  key: z.string().min(1).max(100),
   detail: z.string().max(500).optional(),
 })
 
