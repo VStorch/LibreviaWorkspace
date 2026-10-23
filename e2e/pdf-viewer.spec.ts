@@ -290,7 +290,7 @@ test('a large PDF opens reading only the ranges the page needs', async () => {
     Object.assign(globalThis, { documentRanges: ranges })
     electronSession.defaultSession.webRequest.onSendHeaders({ urls: ['<all_urls>'] }, (details) => {
       if (details.url.includes('/document/'))
-        ranges.push(String(details.requestHeaders['Range'] ?? 'inteiro'))
+        ranges.push(String(details.requestHeaders['Range'] ?? 'whole file'))
     })
   })
 
@@ -304,7 +304,7 @@ test('a large PDF opens reading only the ranges the page needs', async () => {
     const [start, end] = range.replace('bytes=', '').split('-').map(Number)
     return total + end! - start! + 1
   }, 0)
-  expect(ranges).not.toContain('inteiro')
+  expect(ranges).not.toContain('whole file')
   expect(read).toBeLessThan(size / 10)
 })
 
