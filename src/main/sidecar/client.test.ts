@@ -116,9 +116,10 @@ describe.runIf(fakeSidecarRuns)('normal conversation', () => {
       }
     `)
 
-    await expect(client.request(SidecarMethod.Echo, {})).rejects.toThrow(
-      'O arquivo não contém um documento do Word.',
-    )
+    const failure = client.request(SidecarMethod.Echo, {})
+
+    await expect(failure).rejects.toThrow('O arquivo não contém um documento do Word.')
+    await expect(failure).rejects.toMatchObject({ detail: undefined })
   })
 })
 

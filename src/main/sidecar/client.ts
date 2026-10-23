@@ -193,10 +193,10 @@ export class SidecarClient {
         if (response.ok) {
           pending.resolve({ result: response.result, binary: frame.binary })
         } else {
-          // The code becomes SidecarFailed, with the sidecar's own code as the detail.
-          pending.reject(
-            new AppError(ErrorCode.SidecarFailed, sidecarMessage(response.error.key), response.error.code),
-          )
+          // `DOCX_INVALID` on screen says nothing to the user: the sidecar's code goes to the log.
+          const { code, detail } = response.error
+          console.warn(`[sidecar] ${code}${detail === undefined ? '' : `: ${detail}`}`)
+          pending.reject(new AppError(ErrorCode.SidecarFailed, sidecarMessage(response.error.key)))
         }
       })
     }
