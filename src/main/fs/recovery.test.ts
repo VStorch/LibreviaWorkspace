@@ -48,7 +48,7 @@ describe('recovery draft', () => {
     await writeDraft(SAMPLE)
     await writeDraft(SAMPLE)
 
-    expect(await readdir(join(directory, 'recuperacao'))).toEqual(['rascunho.json'])
+    expect(await readdir(join(directory, 'recovery'))).toEqual(['draft.json'])
   })
 
   it('the summary does not carry the content', async () => {
@@ -62,15 +62,15 @@ describe('recovery draft', () => {
   it('a corrupt draft counts as missing', async () => {
     // It exists to save the day after a crash. A read error in it would be a second failure on top
     // of someone who just lost work.
-    await mkdir(join(directory, 'recuperacao'), { recursive: true })
-    await writeFile(join(directory, 'recuperacao', 'rascunho.json'), '{ this is not json')
+    await mkdir(join(directory, 'recovery'), { recursive: true })
+    await writeFile(join(directory, 'recovery', 'draft.json'), '{ this is not json')
 
     expect(await readDraft()).toBeNull()
   })
 
   it('a draft in an unknown format counts as missing', async () => {
-    await mkdir(join(directory, 'recuperacao'), { recursive: true })
-    await writeFile(join(directory, 'recuperacao', 'rascunho.json'), '{"name":"without the other fields"}')
+    await mkdir(join(directory, 'recovery'), { recursive: true })
+    await writeFile(join(directory, 'recovery', 'draft.json'), '{"name":"without the other fields"}')
 
     expect(await readDraft()).toBeNull()
   })

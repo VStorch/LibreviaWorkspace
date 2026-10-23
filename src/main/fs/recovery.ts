@@ -26,13 +26,13 @@ const draftSchema = z.object({
   savedAt: z.number().int().positive(),
 })
 
-const FILE_NAME = 'rascunho.json'
+const FILE_NAME = 'draft.json'
 
 let folder: string | null = null
 
 /** Once, when main starts. */
 export function useRecoveryFolder(path: string): void {
-  folder = join(path, 'recuperacao')
+  folder = join(path, 'recovery')
 }
 
 function directory(): string {

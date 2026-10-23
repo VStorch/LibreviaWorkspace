@@ -74,7 +74,7 @@ test.describe('recovery after a crash', () => {
 /** Is the draft on disk? Checked by path, not through the API under test. */
 async function draftOnDisk(session: Session): Promise<boolean> {
   try {
-    await stat(join(session.userData, 'recuperacao', 'rascunho.json'))
+    await stat(join(session.userData, 'recovery', 'draft.json'))
     return true
   } catch {
     return false
