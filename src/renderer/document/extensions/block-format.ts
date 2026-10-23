@@ -44,13 +44,7 @@ const BLOCK_ATTRIBUTES: Attributes = {
     parseHTML: (element) => element.getAttribute('data-marker'),
     renderHTML: (attributes) => {
       const value = attributes['marker']
-      if (typeof value !== 'string' || value.length === 0) return {}
-      // A variable, not `list-style-type`: the item's `::before` is the only way to control the
-      // distance to the text. Single quotes, because the value goes into a CSS string.
-      return {
-        'data-marker': value,
-        style: `--marker: '${value.replace(/['\\]/g, '\\$&')}'`,
-      }
+      return typeof value === 'string' && value.length > 0 ? { 'data-marker': value } : {}
     },
   },
 
@@ -104,9 +98,7 @@ const BLOCK_ATTRIBUTES: Attributes = {
     parseHTML: (element) => element.getAttribute('data-hanging-mm'),
     renderHTML: (attributes) => {
       const value = Number(attributes['hangingMm'])
-      return Number.isFinite(value) && value > 0
-        ? { 'data-hanging-mm': String(value), style: `--hanging: ${value}mm` }
-        : {}
+      return Number.isFinite(value) && value > 0 ? { 'data-hanging-mm': String(value) } : {}
     },
   },
 
