@@ -16,7 +16,7 @@ namespace Librevia.Format.Docx;
 internal static class StyleWriter
 {
     /// <summary>The copy Word 2010 writes alongside, which we do not rewrite.</summary>
-    internal const string StaleEffects = "estilos com efeitos do Word 2010 (stylesWithEffects.xml)";
+    internal const string StaleEffects = "sidecar.notice.staleStyleEffects";
 
     /// <returns>Whether anything was written.</returns>
     /// <param name="additionsOnly">
@@ -86,7 +86,7 @@ internal static class StyleWriter
             changed = true;
         }
 
-        if (skipped) inventory.NoteLoss("mudança nos estilos existentes feita num rascunho de versão antiga");
+        if (skipped) inventory.NoteLoss("sidecar.notice.oldDraftStyleChange");
         if (!changed) return false;
 
         styles.Save();
@@ -117,7 +117,7 @@ internal static class StyleWriter
         if (before.Name != after.Name)
         {
             if (before.Custom) element.StyleName = new StyleName { Val = after.Name };
-            else inventory.NoteLoss($"novo nome do estilo embutido \"{before.Name}\"");
+            else inventory.NoteLoss("sidecar.notice.builtinStyleRename", before.Name);
         }
         if (before.BasedOn != after.BasedOn) element.BasedOn = after.BasedOn is null ? null : new BasedOn { Val = after.BasedOn };
         if (before.Next != after.Next)

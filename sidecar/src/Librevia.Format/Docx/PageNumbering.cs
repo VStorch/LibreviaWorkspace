@@ -27,7 +27,7 @@ internal static class PageNumbering
             section.RemoveAllChildren<TitlePage>();
             if (title && !section.AddChild(new TitlePage(), throwOnError: false))
             {
-                inventory.NoteLoss("\"Primeira página diferente\" (o arquivo não aceitou o interruptor)");
+                inventory.NoteLoss("sidecar.notice.differentFirstPageRefused");
             }
         }
 
@@ -42,7 +42,7 @@ internal static class PageNumbering
             // warning stays.
             if (even && !settings.AddChild(new EvenAndOddHeaders(), throwOnError: false))
             {
-                inventory.NoteLoss("\"Pares e ímpares diferentes\" (o arquivo não aceitou o interruptor)");
+                inventory.NoteLoss("sidecar.notice.differentOddEvenRefused");
                 return;
             }
 
@@ -80,7 +80,7 @@ internal static class PageNumbering
 
         if (existing is null && !section.AddChild(element, throwOnError: false))
         {
-            inventory.NoteLoss("formato e início da numeração de página (o arquivo não aceitou a mudança)");
+            inventory.NoteLoss("sidecar.notice.pageNumberingRefused");
         }
     }
 

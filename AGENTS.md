@@ -40,8 +40,9 @@ Teste só o que a mudança tocou. Rodar a suíte inteira a cada passo é desperd
   `sidecar/src/Librevia.Format/Protocol/Frame.cs` mudam juntos.
 - **Formatos próprios:** mudou o que o `.sdoc` ou o `.ssheet` guardam, suba `SDOC_VERSION` ou
   `SSHEET_VERSION` e mantenha a leitura das versões antigas.
-- **Avisos de perda:** use as constantes de `sidecar/src/Librevia.Format/Docx/Inventory.cs`;
-  nunca reescreva a frase.
+- **Avisos de perda e erros do sidecar:** o sidecar manda a chave, nunca a frase. Use as
+  constantes de `sidecar/src/Librevia.Format/Docx/Inventory.cs`; chave nova vai em
+  `src/shared/i18n/catalog/sidecar.ts`, com `pt` e `en`.
 - **Textos da interface:** toda frase visível vai no catálogo `src/shared/i18n/catalog/`, com
   `pt` e `en`. O `npm run i18n:check` acusa frase solta no código.
 - **Rede:** o aplicativo não acessa a internet. Não acrescente nada que busque algo fora.

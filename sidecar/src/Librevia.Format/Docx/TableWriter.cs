@@ -23,10 +23,10 @@ internal sealed class TableWriter(
     /// structure, and a misplaced <c>w:vMerge</c> makes Word report a corrupt table.
     /// </summary>
     private const string ShiftedStructure =
-        "largura, mesclagem ou sombreamento de parte de uma tabela que você editou";
+        "sidecar.notice.shiftedTablePart";
 
     /// <summary>The writer does not write it yet.</summary>
-    internal const string VerticalMergeLoss = "mesclagem vertical de células feita no editor";
+    internal const string VerticalMergeLoss = "sidecar.notice.editorVerticalMerge";
 
     private readonly TableGridWriter _grid = new(inventory, usableWidthPx);
 
@@ -230,7 +230,7 @@ internal sealed class TableWriter(
         // A content control or a field between paragraphs would come back as nothing.
         if (children.Any(child => child is not (Paragraph or Table or TableCellProperties)))
         {
-            inventory.NoteLoss("conteúdo especial de uma célula que você editou");
+            inventory.NoteLoss("sidecar.notice.editedCellSpecialContent");
         }
 
         var position = 0;

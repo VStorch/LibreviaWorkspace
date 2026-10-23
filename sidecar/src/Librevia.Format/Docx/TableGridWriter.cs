@@ -17,7 +17,7 @@ internal sealed class TableGridWriter(Inventory inventory, int usableWidthPx)
     private const int MinSharePx = 48;
 
     internal const string PartialGridLoss =
-        "largura de coluna de uma tabela com linhas que não ocupam todas as colunas";
+        "sidecar.notice.partialGridWidth";
 
     public void Apply(Table table, List<Node> rows, Table? original)
     {

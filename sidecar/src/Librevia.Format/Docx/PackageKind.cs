@@ -19,7 +19,7 @@ public static class PackageKind
     public const string MacroTemplateMain = "application/vnd.ms-word.template.macroEnabledTemplate.main+xml";
 
     /// <summary>The macro loss sentence, on open and on save.</summary>
-    public const string Macros = "macros (VBA) do modelo";
+    public const string Macros = "sidecar.notice.templateMacros";
 
     private static readonly XNamespace ContentTypes =
         "http://schemas.openxmlformats.org/package/2006/content-types";

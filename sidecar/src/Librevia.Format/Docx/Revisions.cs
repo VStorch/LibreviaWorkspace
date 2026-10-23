@@ -304,7 +304,7 @@ public static class Revisions
         settings.RemoveAllChildren<TrackRevisions>();
         if (track && !settings.AddChild(new TrackRevisions(), throwOnError: false))
         {
-            inventory.NoteLoss("\"Controlar alterações\" (o arquivo não aceitou o interruptor)");
+            inventory.NoteLoss("sidecar.notice.trackChangesRefused");
             return;
         }
 

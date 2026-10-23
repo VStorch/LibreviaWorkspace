@@ -30,6 +30,22 @@ test.describe('read-only', () => {
     await rm(folder, { recursive: true, force: true })
   })
 
+  test('in English, the reason comes in English and still only once', async () => {
+    const target = join(folder, 'minutes.docx')
+    await writeFile(target, await docxWithCellRevision())
+    await stubDialogs(session.app, { open: target, messageBox: 1 })
+    await session.window.evaluate(async () => {
+      const api = (window as unknown as { api: { preferences: { set: (p: unknown) => Promise<unknown> } } })
+        .api
+      await api.preferences.set({ language: 'en' })
+    })
+
+    await menu(session, 'open')
+
+    await expect(session.window.locator('.banner--readonly')).toContainText('structure revisions')
+    await expect(session.window.locator('.banner--notice')).toBeHidden()
+  })
+
   test('a document with a structure revision opens locked and says why', async () => {
     const target = join(folder, 'ata.docx')
     await writeFile(target, await docxWithCellRevision())

@@ -145,7 +145,7 @@ public class StyleWriterTests
         Assert.Equal(0, saved.Result.RewrittenBlocks);
         Assert.Equal(added, reopened.Styles["Destaque"]);
         Assert.Equal(Roundtrip.Open(original).Styles!.Styles["Faixa"], reopened.Styles["Faixa"]);
-        Assert.Contains(saved.Result.Inventory.Lost, item => item.Contains("rascunho", StringComparison.Ordinal));
+        Assert.Contains(saved.Result.Inventory.Lost, m => m == new Notice("sidecar.notice.oldDraftStyleChange"));
     }
 
     [Fact]
@@ -191,7 +191,7 @@ public class StyleWriterTests
         var saved = Roundtrip.Save(original, model);
 
         Assert.Contains("w:val=\"Normal\"", Roundtrip.XmlOf(saved.Bytes, "word/styles.xml"), StringComparison.Ordinal);
-        Assert.Contains(saved.Result.Inventory.Lost, item => item.Contains("Normal", StringComparison.Ordinal));
+        Assert.Contains(saved.Result.Inventory.Lost, m => m == new Notice("sidecar.notice.builtinStyleRename", "Normal"));
     }
 
     [Fact]
@@ -199,10 +199,10 @@ public class StyleWriterTests
     {
         var original = Fixtures.WithStyles();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
-        model.Doc.Content![0].With("styleId", "NaoExiste");
+        model.Doc.Content![0].With("styleId", "DoesNotExist");
         model.Doc.Content[0].Content![0].Text = "Editado.";
 
         var saved = Roundtrip.Save(original, model);
-        Assert.Contains(saved.Result.Inventory.Lost, item => item.Contains("NaoExiste", StringComparison.Ordinal));
+        Assert.Contains(saved.Result.Inventory.Lost, m => m == new Notice("sidecar.notice.undefinedStyle", "DoesNotExist"));
     }
 }

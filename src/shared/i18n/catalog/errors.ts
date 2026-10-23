@@ -160,10 +160,6 @@ export const ERRORS = {
     pt: 'O documento em edição está em estado inconsistente.',
     en: 'The document being edited is in an inconsistent state.',
   },
-  'errors.docx.foreignBands': {
-    pt: 'cabeçalho e rodapé do arquivo .docx de origem',
-    en: 'header and footer from the original .docx file',
-  },
   'errors.docx.originPackage': {
     pt: 'estilos, numeração das notas e demais partes do arquivo .docx de origem',
     en: 'styles, note numbering, and other parts of the original .docx file',
@@ -282,6 +278,10 @@ export const ERRORS = {
   'errors.sidecar.invalidJson': {
     pt: 'JSON inválido no quadro',
     en: 'invalid JSON in frame',
+  },
+  'errors.sidecar.unknownNotice': {
+    pt: 'conteúdo que esta versão do aplicativo não sabe descrever',
+    en: 'content this version of the app cannot describe',
   },
   'errors.sidecar.contractViolation': {
     pt: 'resposta fora do contrato',

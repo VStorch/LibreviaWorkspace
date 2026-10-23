@@ -121,8 +121,8 @@ public class NotesTests
         Assert.Equal(3, model.Notes?.FootnotePr?.Start);
 
         // A note is not invisible, nor does it lock the document.
-        Assert.DoesNotContain(Inventory.Footnotes, result.Inventory.Invisible);
-        Assert.DoesNotContain(Inventory.Endnotes, result.Inventory.Invisible);
+        Assert.DoesNotContain(new Notice(Inventory.Footnotes), result.Inventory.Invisible);
+        Assert.DoesNotContain(new Notice(Inventory.Endnotes), result.Inventory.Invisible);
         Assert.Empty(result.Inventory.Structural);
     }
 
@@ -362,7 +362,7 @@ public class NotesTests
 
         Assert.True(EditFirstTextContaining(model, "Texto com nota", "Texto editado"));
         var (bytes, result) = Save(original, model with { BeforeNotes = true });
-        Assert.Contains("nota de rodapé num parágrafo que você editou", result.Inventory.Lost);
+        Assert.Contains(new Notice("sidecar.notice.editedParagraphFootnote"), result.Inventory.Lost);
         Assert.Equal(PartsOf(original)["word/footnotes.xml"], PartsOf(bytes)["word/footnotes.xml"]);
     }
 

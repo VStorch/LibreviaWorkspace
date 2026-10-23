@@ -27,13 +27,13 @@ internal static class PlainBandWriter
         if (page.Header is not { IsEmpty: false })
         {
             added |= ApplyOne<HeaderReference, HeaderPart>(part, section, Meaningful(page.HeaderText), HeaderId,
-                "cabeçalho", inventory, touched, content => new Header(content));
+                "sidecar.notice.plainHeaderKept", inventory, touched, content => new Header(content));
         }
 
         if (page.Footer is not { IsEmpty: false })
         {
             added |= ApplyOne<FooterReference, FooterPart>(part, section, Meaningful(page.FooterText), FooterId,
-                "rodapé", inventory, touched, content => new Footer(content));
+                "sidecar.notice.plainFooterKept", inventory, touched, content => new Footer(content));
         }
 
         // Someone else's document only changes order when a new reference came in.
@@ -48,7 +48,7 @@ internal static class PlainBandWriter
         SectionProperties section,
         string? text,
         string ownId,
-        string label,
+        string keptOwnLoss,
         Inventory? inventory,
         HashSet<string>? touched,
         Func<Paragraph, OpenXmlPartRootElement> root)
@@ -74,7 +74,7 @@ internal static class PlainBandWriter
         if (existing is not null && existing.Id?.Value != ownId)
         {
             // A header of its own that the reader does not show: its own stays, with a warning.
-            inventory?.NoteLoss($"{label} de texto simples: o documento já tem um {label} próprio");
+            inventory?.NoteLoss(keptOwnLoss);
             return false;
         }
 

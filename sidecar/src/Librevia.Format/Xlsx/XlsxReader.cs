@@ -82,7 +82,7 @@ public static class XlsxReader
             if (++read > MaxCellsPerSheet)
             {
                 inventory.NoteInvisible(
-                    $"a aba \"{sheet.Name}\" tem mais células do que o aplicativo abre; o excedente não foi carregado");
+                    "sidecar.notice.sheetTooLarge", sheet.Name);
                 break;
             }
 
@@ -213,36 +213,36 @@ public static class XlsxReader
     {
         if (sheet.MergedRanges.Count > 0)
         {
-            inventory.NoteInvisible("células mescladas (aparecem separadas na tela)");
+            inventory.NoteInvisible("sidecar.notice.mergedCells");
         }
         if (sheet.ConditionalFormats.Any())
         {
-            inventory.NoteInvisible("formatação condicional");
+            inventory.NoteInvisible("sidecar.notice.conditionalFormatting");
         }
         if (sheet.DataValidations.Any())
         {
-            inventory.NoteInvisible("listas e validação de dados");
+            inventory.NoteInvisible("sidecar.notice.dataValidation");
         }
         if (sheet.Pictures.Count > 0)
         {
-            inventory.NoteInvisible("imagens");
+            inventory.NoteInvisible("sidecar.notice.images");
         }
         if (sheet.Tables.Any())
         {
-            inventory.NoteInvisible("tabelas formatadas");
+            inventory.NoteInvisible("sidecar.notice.formattedTables");
         }
         if (sheet.AutoFilter.IsEnabled)
         {
-            inventory.NoteInvisible("filtros");
+            inventory.NoteInvisible("sidecar.notice.filters");
         }
         // `CellsUsed(Comments)` also returns cells with content and no comment.
         if (sheet.CellsUsed(XLCellsUsedOptions.Comments, cell => cell.HasComment).Any())
         {
-            inventory.NoteInvisible("comentários nas células");
+            inventory.NoteInvisible("sidecar.notice.cellComments");
         }
         if (sheet.Visibility != XLWorksheetVisibility.Visible)
         {
-            inventory.NoteInvisible($"a aba \"{sheet.Name}\" está oculta no arquivo e aparece aqui como as outras");
+            inventory.NoteInvisible("sidecar.notice.hiddenSheet", sheet.Name);
         }
     }
 
@@ -251,7 +251,7 @@ public static class XlsxReader
         if (book.DefinedNames.Any())
         {
             // The engine does not know defined names.
-            inventory.NoteInvisible("intervalos nomeados (fórmulas que os usam não são calculadas)");
+            inventory.NoteInvisible("sidecar.notice.namedRanges");
         }
     }
 }

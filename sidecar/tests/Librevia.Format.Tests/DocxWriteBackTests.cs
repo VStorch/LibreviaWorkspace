@@ -480,7 +480,7 @@ public class DocxWriteBackTests
 
         var (saved, result) = Roundtrip.Save(original, model);
 
-        Assert.Contains(result.Inventory.Lost, message => message.Contains("imagem", StringComparison.Ordinal));
+        Assert.Contains(result.Inventory.Lost, m => m.Key.StartsWith("sidecar.notice.image", StringComparison.Ordinal));
         Assert.Contains("Primeiro parágrafo", Roundtrip.TextOf(Roundtrip.Open(saved)), StringComparison.Ordinal);
     }
 
@@ -582,7 +582,7 @@ public class DocxWriteBackTests
         var (saved, result) = Roundtrip.Save(original, model);
         var xml = Roundtrip.XmlOf(saved);
 
-        Assert.Contains(result.Inventory.Lost, message => message.Contains("tabela", StringComparison.Ordinal));
+        Assert.Contains(result.Inventory.Lost, m => m == new Notice("sidecar.notice.shiftedTablePart"));
         Assert.DoesNotContain("w:vMerge", xml, StringComparison.Ordinal);
 
         Assert.Equal(3, Roundtrip.Open(saved).Doc.Content![0].Content!.Count);
@@ -839,7 +839,7 @@ public class DocxWriteBackTests
 
         Assert.Contains("<w:gridCol w:w=\"2000\"", xml, StringComparison.Ordinal);
         Assert.Contains("<w:gridCol w:w=\"3000\"", xml, StringComparison.Ordinal);
-        Assert.Contains(result.Inventory.Lost, message => message.Contains("largura", StringComparison.Ordinal));
+        Assert.Contains(result.Inventory.Lost, m => m == new Notice("sidecar.notice.partialGridWidth"));
     }
 
     [Fact]
@@ -897,10 +897,10 @@ public class DocxWriteBackTests
 
         var result = Roundtrip.Save(original, model).Result;
 
-        Assert.Contains(result.Inventory.Lost, message => message.Contains("trama", StringComparison.Ordinal));
+        Assert.Contains(result.Inventory.Lost, m => m == new Notice("sidecar.notice.cellShadingPattern"));
         Assert.Contains(
             result.Inventory.Lost,
-            message => message.Contains("estilo de borda", StringComparison.Ordinal));
+            m => m == new Notice("sidecar.notice.cellBorderStyle"));
     }
 
     [Fact]
@@ -916,7 +916,7 @@ public class DocxWriteBackTests
 
         var result = Roundtrip.Save(original, model).Result;
 
-        Assert.Contains(result.Inventory.Lost, message => message.Contains("mesclagem vertical", StringComparison.Ordinal));
+        Assert.Contains(result.Inventory.Lost, m => m == new Notice("sidecar.notice.editorVerticalMerge"));
     }
 
     [Fact]
@@ -1084,7 +1084,7 @@ public class DocxWriteBackTests
 
         var (saved, result) = Roundtrip.Save(original, model);
 
-        Assert.Contains(result.Inventory.Lost, message => message.Contains("cor", StringComparison.Ordinal));
+        Assert.Contains(result.Inventory.Lost, m => m.Key == "sidecar.notice.textColor");
         Assert.DoesNotContain("hsl(", Roundtrip.XmlOf(saved), StringComparison.Ordinal);
     }
 
@@ -1107,7 +1107,7 @@ public class DocxWriteBackTests
 
         var (saved, result) = Roundtrip.Save(original, model);
 
-        Assert.Contains(result.Inventory.Lost, message => message.Contains("cor", StringComparison.Ordinal));
+        Assert.Contains(result.Inventory.Lost, m => m.Key == "sidecar.notice.textColor");
         Assert.DoesNotContain("FFAADD", Roundtrip.XmlOf(saved), StringComparison.Ordinal);
     }
 
@@ -1175,7 +1175,7 @@ public class DocxWriteBackTests
         // The panel shows A4 for an A5: the warning says the screen approximates.
         var inventory = DocxReader.Read(Fixtures.WithCustomPaper()).Inventory;
 
-        Assert.Contains(inventory.Invisible, message => message.Contains("papel", StringComparison.Ordinal));
+        Assert.Contains(inventory.Invisible, m => m == new Notice("sidecar.notice.paperSize"));
         Assert.Empty(inventory.Lost);
     }
 

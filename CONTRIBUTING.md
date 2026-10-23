@@ -298,8 +298,8 @@ função **faz**, não só pelo nome que você daria a ela.
   `sidecar-real.test.ts` conversa com o executável de verdade e pega a diferença.
 - **Formatos próprios:** `.sdoc` e `.ssheet` têm número de versão. Mudou o que eles guardam,
   suba a versão e mantenha a leitura das versões antigas.
-- **Avisos de perda:** os rótulos do `Inventory.cs` são constantes. Use a constante; nunca
-  escreva a frase de novo em outro lugar.
+- **Avisos de perda:** os rótulos do `Inventory.cs` são constantes com a chave do catálogo
+  `sidecar.ts`. Use a constante; a frase, em português e em inglês, mora só no catálogo.
 
 ---
 

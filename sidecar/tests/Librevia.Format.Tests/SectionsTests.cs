@@ -42,7 +42,7 @@ public class SectionsTests
         Assert.Equal(1, start);
 
         // Diverging is not loss: the section exists in the model.
-        Assert.DoesNotContain(result.Inventory.Lost, message => message.Contains("seções", StringComparison.Ordinal));
+        Assert.DoesNotContain(result.Inventory.Lost, m => m.Key.StartsWith("sidecar.notice.section", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -267,7 +267,7 @@ public class SectionsTests
         Assert.Equal(new ColumnsDto(2, 10, true), model.Sections![0].Columns! with { WidthsMm = null });
         Assert.Equal(3, model.Page.Columns!.Count);
         Assert.Equal(3, model.Page.Columns.WidthsMm!.Count);
-        Assert.Contains(result.Inventory.Invisible, m => m.Contains("larguras diferentes", StringComparison.Ordinal));
+        Assert.Contains(result.Inventory.Invisible, m => m == new Notice("sidecar.notice.unequalColumns"));
         Assert.True(model.Doc.Content![0].Attrs!["columnBreakAfter"]!.GetValue<bool>());
     }
 
@@ -341,7 +341,7 @@ public class SectionsTests
         var (saved, result) = Roundtrip.Save(original, model);
         var reread = Roundtrip.Open(saved);
 
-        Assert.Contains(result.Inventory.Lost, message => message.Contains("quebra de seção", StringComparison.Ordinal));
+        Assert.Contains(result.Inventory.Lost, m => m == new Notice("sidecar.notice.sectionWithoutSetup"));
         Assert.Equal(2, SectionXmlOf(saved).Count);
         Assert.Equal("Cabeçalho da primeira", TextOf(reread.Sections![0].Header));
         Assert.Equal("landscape", reread.Page.Orientation);

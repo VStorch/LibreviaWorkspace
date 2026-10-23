@@ -7,7 +7,6 @@ import { readFile } from 'node:fs/promises'
 import { z } from 'zod'
 import { SDOC_FORMAT, SDOC_VERSION } from '@services/document/serialize.js'
 import { AppError, ErrorCode, fromFileSystemError } from '@shared/errors.js'
-import { Language, translate } from '@shared/i18n/index.js'
 import {
   documentCommentSchema,
   documentNotesSchema,
@@ -18,25 +17,11 @@ import {
 import type { LossInventory } from '@shared/types.js'
 import { normalizePath } from '../fs/paths.js'
 import type { SidecarClient } from '../sidecar/client.js'
+import { sidecarInventorySchema } from '../sidecar/messages.js'
 import { SidecarMethod } from '../sidecar/protocol.js'
 import { t } from '../i18n.js'
 import { editorPreferences } from '../preferences.js'
 import { MAX_NAME_LENGTH } from '@shared/limits.js'
-
-/**
- * `ipc.ts` refuses more than 50 labels per category and more than 300 characters each: without the
- * cut, a pathological document would fail to open because of the warning.
- */
-const inventoryLabels = z
-  .array(z.string())
-  .default([])
-  .transform((labels) => labels.slice(0, 50).map((label) => label.slice(0, 300)))
-
-const inventorySchema = z.object({
-  invisible: inventoryLabels,
-  lost: inventoryLabels,
-  structural: inventoryLabels,
-})
 
 /**
  * `page` and `doc` are validated in the renderer; the styles here, the only point they pass before
@@ -54,11 +39,11 @@ const openResultSchema = z.object({
     notes: documentNotesSchema.optional(),
     properties: documentPropertiesSchema.optional(),
   }),
-  inventory: inventorySchema,
+  inventory: sidecarInventorySchema,
 })
 
 const saveResultSchema = z.object({
-  inventory: inventorySchema,
+  inventory: sidecarInventorySchema,
   preservedBlocks: z.number().int().nonnegative(),
   rewrittenBlocks: z.number().int().nonnegative(),
 })
@@ -215,16 +200,15 @@ function propertiesParam(model: SdocModel): Record<string, unknown> {
 
 /** The sidecar's sentence is Portuguese; the screen shows the chosen language. */
 function lossesOf(declared: readonly string[], model: SdocModel, fromMinimalPackage: boolean): string[] {
-  const foreignBandsPt = translate(Language.Portuguese, 'errors.docx.foreignBands')
-  const lost = declared.map((item) => (item === foreignBandsPt ? t('errors.docx.foreignBands') : item))
+  const lost = [...declared]
   if (!fromMinimalPackage) return lost
   // The sidecar already declares the same loss when the relationship did not exist in the minimal
   // package: the sentence is a single one.
   if (
     [model.page, ...(Array.isArray(model.sections) ? model.sections : [])].some(hasForeignBands) &&
-    !lost.includes(t('errors.docx.foreignBands'))
+    !lost.includes(t('sidecar.notice.foreignBands'))
   )
-    lost.push(t('errors.docx.foreignBands'))
+    lost.push(t('sidecar.notice.foreignBands'))
   // Safety net: a model with `oid` was numbered against a package that is not here, and the minimal
   // package goes out. Said out loud, because silent loss is this program's worst defect.
   if (hasOid(model.doc)) lost.push(t('errors.docx.originPackage'))

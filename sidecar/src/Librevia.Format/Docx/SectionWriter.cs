@@ -40,7 +40,7 @@ internal static class SectionWriter
             // does not show it.
             if (paragraphs.Any(p => p.ParagraphProperties?.SectionProperties is not null))
             {
-                inventory.NoteLoss("quebra de seção sem configuração no documento (a seção foi unida à seguinte)");
+                inventory.NoteLoss("sidecar.notice.sectionWithoutSetup");
             }
 
             id = null;

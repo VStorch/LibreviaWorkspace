@@ -112,7 +112,7 @@ internal sealed class ParagraphFormat(
     /// </summary>
     private void NoteUndefined(string id)
     {
-        if (!headings.Defines(id)) inventory.NoteLoss($"estilo \"{id}\", que o documento não define");
+        if (!headings.Defines(id)) inventory.NoteLoss("sidecar.notice.undefinedStyle", id);
     }
 
     private static void ApplyAlignment(ParagraphProperties properties, Node node)
@@ -429,7 +429,7 @@ internal sealed class ParagraphFormat(
 
         if (!double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var css) || css <= 0)
         {
-            inventory.NoteLoss($"entrelinha \"{value}\"");
+            inventory.NoteLoss("sidecar.notice.lineSpacing", value);
             return;
         }
 
@@ -437,7 +437,7 @@ internal sealed class ParagraphFormat(
         var factor = css / natural;
         if (factor is <= 0.5 or >= 4)
         {
-            inventory.NoteLoss($"entrelinha \"{value}\"");
+            inventory.NoteLoss("sidecar.notice.lineSpacing", value);
             return;
         }
 
@@ -460,7 +460,7 @@ internal sealed class ParagraphFormat(
 
         if (ColorValue.Hex(background) is not { } fill)
         {
-            inventory.NoteLoss($"cor de fundo \"{background}\"");
+            inventory.NoteLoss("sidecar.notice.backgroundColor", background);
             return;
         }
 
@@ -566,7 +566,7 @@ internal sealed class ParagraphFormat(
         }
         else
         {
-            inventory.NoteLoss($"tamanho de fonte \"{size}\"");
+            inventory.NoteLoss("sidecar.notice.fontSize", size);
         }
     }
 

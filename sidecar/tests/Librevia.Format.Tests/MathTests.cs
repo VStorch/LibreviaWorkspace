@@ -228,15 +228,15 @@ public class MathTests
         var result = DocxReader.Read(WithMath());
         var locked = Equations(result.Model).Single(node => !Flag(node, "editable"));
         Assert.Equal(["m:borderBox"], locked.Attrs!["lossy"]!.AsArray().Select(item => item!.GetValue<string>()));
-        Assert.Contains(Inventory.Equations, result.Inventory.Invisible);
-        Assert.DoesNotContain(Inventory.Equations, result.Inventory.Structural);
+        Assert.Contains(new Notice(Inventory.Equations), result.Inventory.Invisible);
+        Assert.DoesNotContain(new Notice(Inventory.Equations), result.Inventory.Structural);
     }
 
     [Fact]
     public void DocumentWithOnlyDrawnEquationsWarnsAboutNothing()
     {
         var result = DocxReader.Read(WithMath(Plain + Inline + Display));
-        Assert.DoesNotContain(Inventory.Equations, result.Inventory.Invisible);
+        Assert.DoesNotContain(new Notice(Inventory.Equations), result.Inventory.Invisible);
     }
 
     [Fact]
@@ -299,7 +299,7 @@ public class MathTests
         equation.With("omml", null).With("mathml", "");
 
         var (bytes, result) = Save(original, model);
-        Assert.Contains("equação que não pôde ser gravada", result.Inventory.Lost);
+        Assert.Contains(new Notice("sidecar.notice.unsavedEquation"), result.Inventory.Lost);
         Assert.Equal(OmmlOf(original).Count - 1, OmmlOf(bytes).Count);
     }
 
@@ -327,6 +327,6 @@ public class MathTests
 
         Assert.True(EditFirstTextContaining(model, "A área é ", "A área editada é "));
         var (_, result) = Save(original, model with { BeforeMath = true });
-        Assert.Contains("equação num parágrafo que você editou", result.Inventory.Lost);
+        Assert.Contains(new Notice("sidecar.notice.editedParagraphEquation"), result.Inventory.Lost);
     }
 }

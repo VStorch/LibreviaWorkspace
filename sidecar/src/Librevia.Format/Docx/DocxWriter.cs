@@ -473,7 +473,7 @@ public static class DocxWriter
         {
             if (block.Leading.Concat(block.Trailing).Any(loose => loose is not (BookmarkStart or BookmarkEnd)))
             {
-                inventory.NoteLoss("conteúdo solto entre blocos que você apagou");
+                inventory.NoteLoss("sidecar.notice.looseContent");
             }
         }
 
@@ -810,7 +810,7 @@ public static class DocxWriter
                 : original.Descendants<CommentReference>().Any(reference =>
                     reference.Parent is Run run && BodyReader.ReferenceOnly(run) is null))
         {
-            inventory.NoteLoss("comentário ancorado num parágrafo que você editou");
+            inventory.NoteLoss("sidecar.notice.editedParagraphComment");
         }
 
         // In an old draft moves and formatting revisions are lost too.
@@ -820,7 +820,7 @@ public static class DocxWriter
              original.Descendants<MoveFromRangeStart>().Any() || original.Descendants<MoveToRangeStart>().Any() ||
              original.Descendants<RunPropertiesChange>().Any(change => change.Parent?.Parent is Run)))
         {
-            inventory.NoteLoss("marcas de revisão num parágrafo que você editou");
+            inventory.NoteLoss("sidecar.notice.editedParagraphRevisionMarks");
         }
 
         // An image inside a revision does not carry the mark: it goes back as accepted content.
@@ -830,42 +830,42 @@ public static class DocxWriter
                 (element.Descendants<Drawing>().Any() || element.Descendants<Picture>().Any() ||
                  element.Descendants<EmbeddedObject>().Any())))
         {
-            inventory.NoteLoss("imagem dentro de uma revisão num parágrafo que você editou (ficou como aceita)");
+            inventory.NoteLoss("sidecar.notice.editedParagraphRevisedImage");
         }
 
         // Formatting from before the revision lives in `w:rPr`, which saving rebuilds from the
         // marks.
         if (!beforeRevisions && original.Descendants<RunPropertiesChange>().Any(change => change.Parent?.Parent is Run))
         {
-            inventory.NoteLoss("revisão de formatação num parágrafo que você editou");
+            inventory.NoteLoss("sidecar.notice.editedParagraphFormatRevision");
         }
 
         if (!beforeRevisions &&
             (original.Descendants<MoveFromRangeStart>().Any() || original.Descendants<MoveToRangeStart>().Any() ||
              original.Descendants<MoveFromRangeEnd>().Any() || original.Descendants<MoveToRangeEnd>().Any()))
         {
-            inventory.NoteLoss("movimentação de texto num parágrafo que você editou (virou exclusão e inserção)");
+            inventory.NoteLoss("sidecar.notice.editedParagraphMove");
         }
 
         if (beforeNotes && original.Descendants<FootnoteReference>().Any())
         {
-            inventory.NoteLoss("nota de rodapé num parágrafo que você editou");
+            inventory.NoteLoss("sidecar.notice.editedParagraphFootnote");
         }
 
         if (beforeNotes && original.Descendants<EndnoteReference>().Any())
         {
-            inventory.NoteLoss("nota de fim num parágrafo que você editou");
+            inventory.NoteLoss("sidecar.notice.editedParagraphEndnote");
         }
 
         if (beforeMath && original.Descendants<DocumentFormat.OpenXml.Math.OfficeMath>().Any())
         {
-            inventory.NoteLoss("equação num parágrafo que você editou");
+            inventory.NoteLoss("sidecar.notice.editedParagraphEquation");
         }
 
         // A field that became a node goes back as a field; one shown only by its result is lost.
         if (block.UnrepresentedField)
         {
-            inventory.NoteLoss("campo calculado num parágrafo que você editou");
+            inventory.NoteLoss("sidecar.notice.editedParagraphField");
         }
 
         // Anchored objects are copied from the original; what is left is VML (`w:pict`) and a
@@ -874,7 +874,7 @@ public static class DocxWriter
             original.Elements<Run>().Any(run =>
                 run.Descendants<WordDrawing.Anchor>().Any() && !ParagraphWriter.IsAnchoredOnly(run)))
         {
-            inventory.NoteLoss("forma ou caixa de texto num parágrafo que você editou");
+            inventory.NoteLoss("sidecar.notice.editedParagraphShape");
         }
     }
 

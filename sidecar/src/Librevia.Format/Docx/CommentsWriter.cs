@@ -24,7 +24,7 @@ namespace Librevia.Format.Docx;
 public static class CommentsWriter
 {
     /// <summary>The pane only edits plain text.</summary>
-    public const string RichEdited = "formatação de um comentário que você editou";
+    public const string RichEdited = "sidecar.notice.editedCommentFormatting";
 
     private const string W14Ns = "http://schemas.microsoft.com/office/word/2010/wordml";
     private const string McNs = "http://schemas.openxmlformats.org/markup-compatibility/2006";

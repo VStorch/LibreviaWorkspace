@@ -7,7 +7,7 @@ const { preferences } = vi.hoisted(() => ({ preferences: { language: 'pt' as Lan
 
 vi.mock('../preferences.js', () => ({ editorPreferences: () => preferences }))
 
-const { sidecarMessage } = await import('./messages.js')
+const { sidecarInventorySchema, sidecarMessage, sidecarNotice } = await import('./messages.js')
 
 const SIDECAR_SOURCE = join(process.cwd(), 'sidecar', 'src')
 
@@ -52,5 +52,40 @@ describe('sidecar messages', () => {
     expect(sidecarMessage('shell.print.defaultDocumentName')).toBe(
       'Ocorreu um erro inesperado ao processar o documento.',
     )
+  })
+
+  it('quotes the value the notice carries, in either language', () => {
+    const notice = { key: 'sidecar.notice.hiddenSheet', value: 'Sales' }
+
+    preferences.language = Language.English
+    expect(sidecarNotice(notice)).toBe('the sheet "Sales" is hidden in the file and shows here like the others')
+
+    preferences.language = Language.Portuguese
+    expect(sidecarNotice(notice)).toBe('a aba "Sales" está oculta no arquivo e aparece aqui como as outras')
+  })
+
+  it('does not interpolate a value that looks like a placeholder', () => {
+    preferences.language = Language.Portuguese
+    expect(sidecarNotice({ key: 'sidecar.notice.textColor', value: '{value}' })).toBe('cor de texto "{value}"')
+  })
+
+  it('names an unknown notice instead of hiding it', () => {
+    preferences.language = Language.English
+    expect(sidecarNotice({ key: 'sidecar.notice.fromTheFuture' })).toBe(
+      'content this version of the app cannot describe',
+    )
+  })
+
+  it('turns the inventory into sentences, with the same cut as the IPC contract', () => {
+    preferences.language = Language.Portuguese
+    const inventory = sidecarInventorySchema.parse({
+      invisible: Array.from({ length: 60 }, () => ({ key: 'sidecar.notice.comments' })),
+      structural: [{ key: 'sidecar.notice.structureRevisions' }],
+    })
+
+    expect(inventory.invisible).toHaveLength(50)
+    expect(inventory.invisible[0]).toBe('comentários')
+    expect(inventory.lost).toEqual([])
+    expect(inventory.structural).toEqual(['revisões de estrutura'])
   })
 })

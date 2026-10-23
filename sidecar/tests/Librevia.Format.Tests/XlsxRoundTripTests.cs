@@ -1,4 +1,5 @@
 using ClosedXML.Excel;
+using Librevia.Format.Docx;
 using Librevia.Format.Xlsx;
 using Xunit;
 
@@ -112,7 +113,7 @@ public class XlsxInventoryTests
     {
         var result = XlsxReader.Read(XlsxFixtures.WithMerge());
 
-        Assert.Contains(result.Inventory.Invisible, message => message.Contains("mescladas"));
+        Assert.Contains(result.Inventory.Invisible, m => m == new Notice("sidecar.notice.mergedCells"));
     }
 
     [Fact]

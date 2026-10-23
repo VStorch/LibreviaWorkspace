@@ -44,7 +44,7 @@ public class CommentsTests
             Anchors(result.Model));
 
         // Shown in the pane, a comment is neither a warning nor a lock.
-        Assert.DoesNotContain(Inventory.Comments, result.Inventory.Invisible);
+        Assert.DoesNotContain(new Notice(Inventory.Comments), result.Inventory.Invisible);
         Assert.Empty(result.Inventory.Structural);
     }
 
@@ -132,7 +132,7 @@ public class CommentsTests
         Assert.True(reopened[2].Done);
         Assert.Equal(["Conferir o valor."], reopened[0].Paragraphs);
         // A formatted one goes out as plain text, and the loss is stated.
-        Assert.Equal([CommentsWriter.RichEdited], result.Inventory.Lost);
+        Assert.Equal([new Notice(CommentsWriter.RichEdited)], result.Inventory.Lost);
     }
 
     [Fact]
@@ -171,7 +171,7 @@ public class CommentsTests
         Assert.True(EditFirstTextContaining(model, "Parágrafo comentado", "Reescrito."));
         var (_, result) = Save(original, model);
 
-        Assert.Contains(result.Inventory.Lost, message => message.Contains("comentário", StringComparison.Ordinal));
+        Assert.Contains(result.Inventory.Lost, m => m == new Notice("sidecar.notice.editedParagraphComment"));
     }
 
     private static Node AnchorNode(string type, string cid) =>
@@ -327,7 +327,7 @@ public class CommentsTests
 
         var (saved, result) = Save(original, model);
 
-        Assert.Equal([CommentsWriter.RichEdited], result.Inventory.Lost);
+        Assert.Equal([new Notice(CommentsWriter.RichEdited)], result.Inventory.Lost);
         Assert.Equal(["sem negrito"], DocxReader.Read(saved).Model.Comments![4].Paragraphs);
     }
 }

@@ -133,7 +133,7 @@ public static class PageReader
             !PageNumberFormats.Contains(pageFormat))
         {
             inventory.NoteInvisible(
-                $"formato de número de página \"{pageFormat}\" (mostrado em algarismos; o arquivo o mantém)");
+                "sidecar.notice.pageNumberFormat", pageFormat);
         }
         var size = section.GetFirstChild<DocumentFormat.OpenXml.Wordprocessing.PageSize>();
         var margin = section.GetFirstChild<PageMargin>();
@@ -148,7 +148,7 @@ public static class PageReader
         if (!IsKnownPaper(widthTwips, heightTwips))
         {
             inventory.NoteInvisible(
-                "o tamanho do papel deste documento não é A4 nem Carta (ele é preservado no arquivo)");
+                "sidecar.notice.paperSize");
         }
 
         // The band decides each piece's third against the column width.
@@ -215,7 +215,7 @@ public static class PageReader
         var unequal = columns?.EqualWidth is not null && !columns.EqualWidth.Value && widths is { Count: > 1 };
         if (unequal && count > 1)
         {
-            inventory?.NoteInvisible("colunas de larguras diferentes (mostradas iguais; o arquivo as mantém)");
+            inventory?.NoteInvisible("sidecar.notice.unequalColumns");
         }
 
         return new ColumnsDto(

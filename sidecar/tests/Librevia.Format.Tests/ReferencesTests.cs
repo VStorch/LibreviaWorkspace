@@ -314,12 +314,12 @@ public class ReferencesTests
             "<w:r><w:fldChar w:fldCharType=\"separate\"/></w:r><w:r><w:t>um</w:t></w:r><w:r><w:fldChar w:fldCharType=\"end\"/></w:r></w:p>";
         var original = Fixtures.BuildFromXml(nested, "");
         var opened = DocxReader.Read(original);
-        Assert.Contains(Inventory.Fields, opened.Inventory.Structural);
+        Assert.Contains(new Notice(Inventory.Fields), opened.Inventory.Structural);
 
         var model = Roundtrip.Clone(opened.Model);
         Assert.True(Roundtrip.EditFirstTextContaining(model, "Antes ", "Depois "));
         var (_, result) = Roundtrip.Save(original, model);
-        Assert.Contains("campo calculado num parágrafo que você editou", result.Inventory.Lost);
+        Assert.Contains(new Notice("sidecar.notice.editedParagraphField"), result.Inventory.Lost);
     }
 
     [Theory]
@@ -337,11 +337,11 @@ public class ReferencesTests
         var opened = DocxReader.Read(original);
 
         Assert.Empty(NodesOf(opened.Model, "field"));
-        Assert.Contains(Inventory.Fields, opened.Inventory.Structural);
+        Assert.Contains(new Notice(Inventory.Fields), opened.Inventory.Structural);
 
         var model = Roundtrip.Clone(opened.Model);
         Assert.True(Roundtrip.EditFirstTextContaining(model, "Antes ", "Depois "));
-        Assert.Contains("campo calculado num parágrafo que você editou", Roundtrip.Save(original, model).Result.Inventory.Lost);
+        Assert.Contains(new Notice("sidecar.notice.editedParagraphField"), Roundtrip.Save(original, model).Result.Inventory.Lost);
     }
 
     [Fact]
@@ -351,7 +351,7 @@ public class ReferencesTests
             "<w:p><w:fldSimple w:instr=\" PAGE \" w:fldLock=\"1\"><w:r><w:t>3</w:t></w:r></w:fldSimple></w:p>", "");
         var opened = DocxReader.Read(original);
         Assert.Empty(NodesOf(opened.Model, "field"));
-        Assert.Contains(Inventory.Fields, opened.Inventory.Structural);
+        Assert.Contains(new Notice(Inventory.Fields), opened.Inventory.Structural);
     }
 
     [Fact]

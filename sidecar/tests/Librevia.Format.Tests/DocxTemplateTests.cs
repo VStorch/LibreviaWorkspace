@@ -225,7 +225,7 @@ public class DocxTemplateTests
 
         var (saved, result) = Roundtrip.Save(DocxTemplate.Create(A4()), model);
 
-        Assert.Contains("cabeçalho e rodapé do arquivo .docx de origem", result.Inventory.Lost);
+        Assert.Contains(new Notice("sidecar.notice.foreignBands"), result.Inventory.Lost);
         Assert.Contains(
             "Primeira linha do corpo.",
             Roundtrip.XmlOf(saved, "word/document.xml"),

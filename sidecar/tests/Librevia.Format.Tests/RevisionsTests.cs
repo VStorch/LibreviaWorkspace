@@ -81,7 +81,7 @@ public class RevisionsTests
 
         // Text revisions neither lock nor warn; formatting ones only warn.
         Assert.Empty(result.Inventory.Structural);
-        Assert.Equal([Inventory.FormatRevisions], result.Inventory.Invisible);
+        Assert.Equal([new Notice(Inventory.FormatRevisions)], result.Inventory.Invisible);
     }
 
     [Fact]
@@ -178,7 +178,7 @@ public class RevisionsTests
 
         var (_, result) = Save(original, model);
 
-        Assert.Contains("revisão de formatação num parágrafo que você editou", result.Inventory.Lost);
+        Assert.Contains(new Notice("sidecar.notice.editedParagraphFormatRevision"), result.Inventory.Lost);
     }
 
     [Fact]
@@ -191,7 +191,7 @@ public class RevisionsTests
         var (saved, result) = Save(original, model);
         var xml = XmlOf(saved);
 
-        Assert.Contains(result.Inventory.Lost, loss => loss.StartsWith("movimentação de texto", StringComparison.Ordinal));
+        Assert.Contains(result.Inventory.Lost, m => m == new Notice("sidecar.notice.editedParagraphMove"));
         Assert.DoesNotContain("moveFrom", xml, StringComparison.Ordinal);
         Assert.DoesNotContain("moveTo", xml, StringComparison.Ordinal);
         Assert.Matches("<w:ins [^>]*w:id=\"23\"", xml);
@@ -271,7 +271,7 @@ public class RevisionsTests
 
         var (_, result) = Save(original, model with { BeforeRevisions = true });
 
-        Assert.Contains(result.Inventory.Lost, loss => loss.StartsWith("marcas de revisão", StringComparison.Ordinal));
+        Assert.Contains(result.Inventory.Lost, m => m == new Notice("sidecar.notice.editedParagraphRevisionMarks"));
     }
 
     [Fact]
@@ -279,7 +279,7 @@ public class RevisionsTests
     {
         var inventory = DocxReader.Read(Fixtures.WithInsertedCell()).Inventory;
 
-        Assert.Contains(Inventory.StructureRevisions, inventory.Structural);
+        Assert.Contains(new Notice(Inventory.StructureRevisions), inventory.Structural);
     }
 
     [Fact]

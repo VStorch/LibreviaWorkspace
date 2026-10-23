@@ -12,7 +12,7 @@ namespace Librevia.Format.Docx;
 internal static class BandWriter
 {
     /// <summary>The same sentence as main: it is the same loss.</summary>
-    private const string ForeignBands = "cabeçalho e rodapé do arquivo .docx de origem";
+    private const string ForeignBands = "sidecar.notice.foreignBands";
 
     /// <summary>Returns the paths that changed.</summary>
     /// <param name="sections">Two sections pointing to the same part carry the same text
@@ -117,20 +117,20 @@ internal static class BandWriter
             // A box with a field is not rewritten: a header that stops counting pages is worse.
             if (HasField(box))
             {
-                inventory.NoteLoss("texto de uma caixa de cabeçalho com campo calculado");
+                inventory.NoteLoss("sidecar.notice.headerBoxFieldText");
                 continue;
             }
 
             // Rewritten, the box loses its bookmark: a warning goes out.
             if (box.Descendants<BookmarkStart>().Any())
             {
-                inventory.NoteLoss("marcador numa caixa de cabeçalho que você editou");
+                inventory.NoteLoss("sidecar.notice.headerBoxBookmark");
             }
 
             if (box.Descendants<InsertedRun>().Any() || box.Descendants<DeletedRun>().Any() ||
                 box.Descendants<MoveFromRun>().Any() || box.Descendants<MoveToRun>().Any())
             {
-                inventory.NoteLoss("revisões numa caixa de cabeçalho que você editou");
+                inventory.NoteLoss("sidecar.notice.headerBoxRevisions");
             }
 
             box.RemoveAllChildren();
@@ -220,7 +220,7 @@ internal static class BandWriter
             return fresh + address[relationship.Length..];
         }
 
-        inventory.NoteLoss("cabeçalho ou rodapé desvinculado da seção anterior");
+        inventory.NoteLoss("sidecar.notice.unlinkedBand");
         return null;
     }
 

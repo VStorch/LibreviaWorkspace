@@ -160,7 +160,7 @@ public static class ListLevels
         // document.
         if (level["extra"]?.GetValue<bool>() == true)
         {
-            inventory?.NoteLoss("formatação própria do número de uma lista (fonte, cor ou estilo do nível)");
+            inventory?.NoteLoss("sidecar.notice.listNumberFormatting");
         }
         definition.PreviousParagraphProperties = new PreviousParagraphProperties(new Indentation
         {
@@ -197,7 +197,7 @@ public static class ListLevels
         var value = new NumberFormatValues(name);
         if (((DocumentFormat.OpenXml.IEnumValue)value).IsValid) return value;
 
-        inventory?.NoteLoss($"formato de numeração de lista \"{name}\" (gravado como decimal)");
+        inventory?.NoteLoss("sidecar.notice.listNumberFormat", name);
         return NumberFormatValues.Decimal;
     }
 }

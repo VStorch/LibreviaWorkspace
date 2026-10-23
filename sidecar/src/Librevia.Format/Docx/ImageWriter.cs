@@ -33,7 +33,7 @@ internal sealed class ImageWriter(MainDocumentPart part, Inventory inventory, in
         var source = Attr.String(node, "src");
         if (source is null || !source.StartsWith("data:", StringComparison.Ordinal))
         {
-            inventory.NoteLoss("imagem sem conteúdo embutido");
+            inventory.NoteLoss("sidecar.notice.imageWithoutContent");
             return null;
         }
 
@@ -42,14 +42,14 @@ internal sealed class ImageWriter(MainDocumentPart part, Inventory inventory, in
         var comma = source.IndexOf(',', StringComparison.Ordinal);
         if (comma < 0)
         {
-            inventory.NoteLoss("imagem com endereço inválido");
+            inventory.NoteLoss("sidecar.notice.imageInvalidAddress");
             return null;
         }
 
         var header = source[5..comma];
         if (!header.EndsWith(";base64", StringComparison.OrdinalIgnoreCase))
         {
-            inventory.NoteLoss("imagem em formato não suportado");
+            inventory.NoteLoss("sidecar.notice.imageUnsupported");
             return null;
         }
 
@@ -61,7 +61,7 @@ internal sealed class ImageWriter(MainDocumentPart part, Inventory inventory, in
         }
         catch (FormatException)
         {
-            inventory.NoteLoss("imagem com conteúdo ilegível");
+            inventory.NoteLoss("sidecar.notice.imageUnreadable");
             return null;
         }
 
@@ -74,7 +74,7 @@ internal sealed class ImageWriter(MainDocumentPart part, Inventory inventory, in
             case "image/gif": imageType = ImagePartType.Gif; break;
             case "image/bmp": imageType = ImagePartType.Bmp; break;
             default:
-                inventory.NoteLoss($"imagem em {contentType}");
+                inventory.NoteLoss("sidecar.notice.imageType", contentType);
                 return null;
         }
 

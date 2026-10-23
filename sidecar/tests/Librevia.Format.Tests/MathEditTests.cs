@@ -303,7 +303,7 @@ public class MathEditTests
         var model = Clone(Open(original));
         foreach (var equation in Equations(model)) equation.With("omml", null);
         var (_, result) = Save(original, model);
-        Assert.Equal(["formatação dentro da equação editada"], result.Inventory.Lost);
+        Assert.Equal([new Notice("sidecar.notice.editedEquationFormatting")], result.Inventory.Lost);
     }
 
     [Fact]

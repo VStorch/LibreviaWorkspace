@@ -151,10 +151,10 @@ public class TemplateTests
 
         // Declared right on open: whoever opens knows before editing.
         var opened = DocxReader.Read(dotm);
-        Assert.Contains(PackageKind.Macros, opened.Inventory.Lost);
+        Assert.Contains(new Notice(PackageKind.Macros), opened.Inventory.Lost);
 
         var (bytes, result) = Roundtrip.Save(dotm, Roundtrip.Clone(opened.Model));
-        Assert.Contains(PackageKind.Macros, result.Inventory.Lost);
+        Assert.Contains(new Notice(PackageKind.Macros), result.Inventory.Lost);
         Assert.Equal(0, result.RewrittenBlocks);
         Assert.False(PackageKind.HasMacros(bytes));
 

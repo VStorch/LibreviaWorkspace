@@ -1497,7 +1497,7 @@ public sealed class BodyReader(
 
         if (!_owner.TryGetPartById(relationshipId, out var found) || found is not ImagePart image)
         {
-            inventory.NoteLoss("imagem em formato não suportado");
+            inventory.NoteLoss("sidecar.notice.imageUnsupported");
             return null;
         }
 

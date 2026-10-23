@@ -198,7 +198,7 @@ internal static class TableLook
         var previous = properties.Shading?.Val?.Value;
         if (previous is not null && previous != ShadingPatternValues.Clear && previous != ShadingPatternValues.Nil)
         {
-            inventory.NoteLoss("trama de sombreamento de uma célula que você formatou");
+            inventory.NoteLoss("sidecar.notice.cellShadingPattern");
         }
 
         if (model is null)
@@ -261,7 +261,7 @@ internal static class TableLook
         }
 
         // Only for a side that really changed.
-        if (approximated) inventory.NoteLoss("estilo de borda de uma célula que você formatou");
+        if (approximated) inventory.NoteLoss("sidecar.notice.cellBorderStyle");
 
         properties.TableCellBorders = borders.HasChildren ? borders : null;
         return true;

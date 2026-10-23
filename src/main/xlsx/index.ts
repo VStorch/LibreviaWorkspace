@@ -18,19 +18,14 @@ import {
   serializeWorkbook,
 } from '@services/spreadsheet/serialize.js'
 import type { SidecarClient } from '../sidecar/client.js'
+import { sidecarInventorySchema } from '../sidecar/messages.js'
 import { SidecarMethod } from '../sidecar/protocol.js'
 import { t } from '../i18n.js'
 import { editorPreferences } from '../preferences.js'
 
-const inventorySchema = z.object({
-  invisible: z.array(z.string()).default([]),
-  lost: z.array(z.string()).default([]),
-  structural: z.array(z.string()).default([]),
-})
-
 const openResultSchema = z.object({
   workbook: z.unknown(),
-  inventory: inventorySchema,
+  inventory: sidecarInventorySchema,
 })
 
 const saveResultSchema = z.object({

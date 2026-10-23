@@ -291,7 +291,7 @@ public class DocxRoundTripTests
         var result = DocxReader.Read(Fixtures.WithIdenticalSections());
 
         Assert.Equal("A4", result.Model.Page.Size);
-        Assert.DoesNotContain(result.Inventory.Lost, m => m.Contains("seções", StringComparison.Ordinal));
+        Assert.DoesNotContain(result.Inventory.Lost, m => m.Key.StartsWith("sidecar.notice.section", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -623,7 +623,7 @@ public class DocxRoundTripTests
         // The pane shows them: neither an invisibility nor a loss warning.
         var result = DocxReader.Read(Fixtures.WithComment());
 
-        Assert.DoesNotContain("comentários", result.Inventory.Invisible);
+        Assert.DoesNotContain(new Notice(Inventory.Comments), result.Inventory.Invisible);
         Assert.Empty(result.Inventory.Lost);
     }
 
@@ -646,8 +646,8 @@ public class DocxRoundTripTests
         var comentado = DocxReader.Read(Fixtures.WithComment()).Inventory;
         var revisado = DocxReader.Read(Fixtures.WithInsertedCell()).Inventory;
 
-        Assert.DoesNotContain(Inventory.Comments, comentado.Structural);
-        Assert.Contains(Inventory.StructureRevisions, revisado.Structural);
+        Assert.DoesNotContain(new Notice(Inventory.Comments), comentado.Structural);
+        Assert.Contains(new Notice(Inventory.StructureRevisions), revisado.Structural);
         // Everything structural is invisible, or the warning would stop mentioning it.
         Assert.All(revisado.Structural, item => Assert.Contains(item, revisado.Invisible));
     }
@@ -1004,8 +1004,8 @@ public class DocxRoundTripTests
         // declaration, the shape inherits frame and fill from the theme.
         var result = DocxReader.Read(Fixtures.WithTextBoxes());
 
-        Assert.Contains(Inventory.Shapes, result.Inventory.Invisible);
-        Assert.DoesNotContain(Inventory.Shapes, result.Inventory.Structural);
+        Assert.Contains(new Notice(Inventory.Shapes), result.Inventory.Invisible);
+        Assert.DoesNotContain(new Notice(Inventory.Shapes), result.Inventory.Structural);
     }
 
     [Fact]
@@ -1014,7 +1014,7 @@ public class DocxRoundTripTests
         // A box without decoration needs no warning.
         var result = DocxReader.Read(Fixtures.WithDecoratedTextBoxes());
 
-        Assert.DoesNotContain(Inventory.Shapes, result.Inventory.Invisible);
+        Assert.DoesNotContain(new Notice(Inventory.Shapes), result.Inventory.Invisible);
 
         var floats = result.Model.Doc.Content!.SelectMany(FloatsOf).ToList();
 
@@ -1034,7 +1034,7 @@ public class DocxRoundTripTests
         // The warning now only covers what is left: gradient, texture, shadow, rounded corner.
         var result = DocxReader.Read(Fixtures.WithGradientTextBox());
 
-        Assert.Contains(Inventory.Shapes, result.Inventory.Invisible);
+        Assert.Contains(new Notice(Inventory.Shapes), result.Inventory.Invisible);
     }
 
     [Fact]

@@ -135,7 +135,7 @@ public sealed class ParagraphWriter
             default:
                 // What we cannot generate becomes an empty paragraph and goes to the inventory,
                 // never silently.
-                _inventory.NoteLoss($"bloco do tipo \"{node.Type}\"");
+                _inventory.NoteLoss("sidecar.notice.blockType", node.Type);
                 yield return new Paragraph();
                 break;
         }
@@ -189,7 +189,7 @@ public sealed class ParagraphWriter
         var boxes = TextBoxNav.AnchoredBoxesOf(paragraph).ToList();
         if (boxes.Count != wanted.Count)
         {
-            _inventory.NoteLoss("texto de caixa num parágrafo que você editou");
+            _inventory.NoteLoss("sidecar.notice.editedParagraphBoxText");
             return;
         }
 
@@ -422,7 +422,7 @@ public sealed class ParagraphWriter
             // (OmmlMath.ToOmml).
             case "math":
                 if (MathOf(node) is { } math) yield return math;
-                else _inventory.NoteLoss("equação que não pôde ser gravada");
+                else _inventory.NoteLoss("sidecar.notice.unsavedEquation");
                 break;
 
             case "image":
@@ -438,7 +438,7 @@ public sealed class ParagraphWriter
                 break;
 
             default:
-                _inventory.NoteLoss($"conteúdo do tipo \"{node.Type}\"");
+                _inventory.NoteLoss("sidecar.notice.contentType", node.Type);
                 break;
         }
     }
@@ -463,7 +463,7 @@ public sealed class ParagraphWriter
                                element.Ancestors<DocumentFormat.OpenXml.Math.Paragraph>().FirstOrDefault() is null));
         if (equations.Any(equation => FormattedInside(equation) && !kept.Contains(equation.OuterXml)))
         {
-            _inventory.NoteLoss("formatação dentro da equação editada");
+            _inventory.NoteLoss("sidecar.notice.editedEquationFormatting");
         }
     }
 
@@ -610,7 +610,7 @@ public sealed class ParagraphWriter
                     break;
 
                 default:
-                    _inventory.NoteLoss($"formatação \"{mark.Type}\"");
+                    _inventory.NoteLoss("sidecar.notice.formatting", mark.Type);
                     break;
             }
         }
@@ -655,7 +655,7 @@ public sealed class ParagraphWriter
         }
         catch (UriFormatException)
         {
-            _inventory.NoteLoss("endereço de link inválido");
+            _inventory.NoteLoss("sidecar.notice.invalidLink");
             return runs;
         }
 
@@ -835,7 +835,7 @@ public sealed class ParagraphWriter
         if (Attr.MarkString(mark, "color") is { } color)
         {
             if (ColorValue.Hex(color) is { } hex) properties.Color = new Color { Val = hex };
-            else _inventory.NoteLoss($"cor de texto \"{color}\"");
+            else _inventory.NoteLoss("sidecar.notice.textColor", color);
         }
 
         // The editor's `backgroundColor` is the same `w:shd` as the file's highlight.
@@ -863,14 +863,14 @@ public sealed class ParagraphWriter
             }
             else
             {
-                _inventory.NoteLoss($"tamanho de fonte \"{size}\"");
+                _inventory.NoteLoss("sidecar.notice.fontSize", size);
             }
         }
 
         // Line spacing belongs to the paragraph (ParagraphFormat): in a run it has nowhere to go.
         if (Attr.MarkString(mark, "lineHeight") is { } lineHeight)
         {
-            _inventory.NoteLoss($"entrelinha de um trecho de texto (\"{lineHeight}\")");
+            _inventory.NoteLoss("sidecar.notice.runLineSpacing", lineHeight);
         }
     }
 
@@ -882,7 +882,7 @@ public sealed class ParagraphWriter
     {
         if (ColorValue.Hex(color) is not { } hex)
         {
-            _inventory.NoteLoss($"cor de fundo de texto \"{color}\"");
+            _inventory.NoteLoss("sidecar.notice.textBackground", color);
             return;
         }
 
