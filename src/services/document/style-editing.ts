@@ -37,7 +37,7 @@ export function newStyleId(sheet: StyleSheet, name: string): string {
     name
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '')
-      .replace(/[^A-Za-z0-9]/g, '') || 'Estilo'
+      .replace(/[^A-Za-z0-9]/g, '') || 'Style'
   let id = base
   for (let suffix = 2; id in sheet.styles; suffix++) id = `${base}${suffix}`
   return id

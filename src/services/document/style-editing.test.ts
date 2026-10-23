@@ -15,7 +15,7 @@ describe('creating and modifying styles', () => {
   it('the id comes from the name, without accents, and does not collide', () => {
     expect(newStyleId(BUILTIN_STYLES, 'Citação longa')).toBe('Citacaolonga')
     expect(newStyleId(BUILTIN_STYLES, 'Normal')).toBe('Normal2')
-    expect(newStyleId(BUILTIN_STYLES, '***')).toBe('Estilo')
+    expect(newStyleId(BUILTIN_STYLES, '***')).toBe('Style')
   })
 
   it('the new style is custom and inherits everything from its parent', () => {
