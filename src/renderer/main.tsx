@@ -2,6 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { translate, Language } from '@shared/i18n/index.js'
 import { App } from './app/App.js'
+import { FailureBoundary } from './components/FailureBoundary.js'
 import './tokens.css'
 import './styles.css'
 
@@ -10,6 +11,8 @@ if (container === null) throw new Error(translate(Language.Portuguese, 'shell.er
 
 createRoot(container).render(
   <StrictMode>
-    <App />
+    <FailureBoundary>
+      <App />
+    </FailureBoundary>
   </StrictMode>,
 )

@@ -13,6 +13,7 @@ import {
 } from './protocol.js'
 import { t } from '../i18n.js'
 import { sidecarMessage } from './messages.js'
+import { logError, logWarning } from '../log.js'
 
 /** Past this, something is stuck, and hanging silently is worse than failing fast. */
 export const REQUEST_TIMEOUT_MS = 60_000
@@ -143,7 +144,7 @@ export class SidecarClient {
     child.stdout.on('data', (chunk: Buffer) => this.#onStdout(chunk))
     // Our own diagnostics: they stay in the log and never reach the user.
     child.stderr.on('data', (chunk: Buffer) => {
-      console.error('[sidecar]', chunk.toString('utf8').trimEnd())
+      logError('sidecar', chunk.toString('utf8').trimEnd())
     })
 
     child.once('error', (cause) => {
@@ -152,6 +153,7 @@ export class SidecarClient {
     })
 
     child.once('exit', (code, signal) => {
+      if (!this.#disposed) logError('sidecar', `exited (code ${String(code)}, signal ${String(signal)})`)
       this.#child = null
       this.#reader = new FrameReader()
       this.#failAllPending(
@@ -195,7 +197,7 @@ export class SidecarClient {
         } else {
           // `DOCX_INVALID` on screen says nothing to the user: the sidecar's code goes to the log.
           const { code, detail } = response.error
-          console.warn(`[sidecar] ${code}${detail === undefined ? '' : `: ${detail}`}`)
+          logWarning('sidecar', `${code}${detail === undefined ? '' : `: ${detail}`}`)
           pending.reject(new AppError(ErrorCode.SidecarFailed, sidecarMessage(response.error.key)))
         }
       })

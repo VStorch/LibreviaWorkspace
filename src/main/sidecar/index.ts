@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url'
 import { app } from 'electron'
 import { SidecarClient } from './client.js'
 import { locateSidecarIn } from './locate.js'
+import { logError } from '../log.js'
 
 /**
  * Outside the package it derives from the bundle: `app.getAppPath()` changes with how Electron is
@@ -28,7 +29,7 @@ export async function checkSidecarHealth(): Promise<void> {
     const health = await sidecar().health()
     console.info(`[sidecar] ${health.name} ${health.version} — ${health.runtime}`)
   } catch (cause) {
-    console.error('[sidecar] unavailable at startup:', cause instanceof Error ? cause.message : cause)
+    logError('sidecar', 'unavailable at startup:', cause instanceof Error ? cause.message : cause)
   }
 }
 

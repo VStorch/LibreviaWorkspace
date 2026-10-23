@@ -2,6 +2,7 @@ import type { WebContents } from 'electron'
 import { IpcChannel } from '@shared/ipc-channels.js'
 import type { ContextMenuTarget } from '@shared/types.js'
 import { sendPush } from './window.js'
+import { logError } from './log.js'
 
 /**
  * Spellchecker suggestions only exist in the `webContents` `context-menu` event. Main reports what
@@ -31,7 +32,7 @@ export function installContextMenu(contents: WebContents): void {
     try {
       sendPush(contents, IpcChannel.ContextMenuRequested, target)
     } catch (cause) {
-      console.error('[context-menu] target outside the contract, menu not sent:', cause)
+      logError('context-menu', 'target outside the contract, menu not sent:', cause)
     }
   })
 }

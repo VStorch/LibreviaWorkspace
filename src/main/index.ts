@@ -27,6 +27,8 @@ import { forgetSessionWords, installBundledDictionary, serveDictionary } from '.
 import { checkSidecarHealth, disposeSidecar } from './sidecar/index.js'
 import { createMainWindow as createWindow, devServerUrl } from './window.js'
 import { fileFromArguments, requestExternalFile } from './external-files.js'
+import { watchProcessFailures, watchWindowFailures } from './failures.js'
+import { logInfo, logWarning, useLogFolder } from './log.js'
 
 // The bridge of a client of the local MCP server: before anything of the app, which it never starts.
 if (isMcpBridge(process.argv)) runMcpBridge()
@@ -36,6 +38,9 @@ function startApp(): void {
   // Sandbox for every renderer, including the hidden print window. Before `app.whenReady()`.
   app.enableSandbox()
   app.setName(APP_NAME)
+
+  useLogFolder(app.getPath('logs'))
+  watchProcessFailures()
 
   // Also before `whenReady`: a scheme only gets privileges while Chromium builds the list.
   registerAppSchemes()
@@ -93,7 +98,9 @@ function registerHandlers(): void {
 
 /** The local MCP server answers through the window that shows the document. */
 function createMainWindow(): void {
-  attachMcpWindow(createWindow().webContents)
+  const window = createWindow()
+  watchWindowFailures(window)
+  attachMcpWindow(window.webContents)
 }
 
 async function onReady(): Promise<void> {
@@ -104,6 +111,10 @@ async function onReady(): Promise<void> {
   applyStoredPreferences()
 
   useRecoveryFolder(app.getPath('userData'))
+  logInfo(
+    'app',
+    `${APP_NAME} ${app.getVersion()}, ${process.platform} ${process.arch}, Electron ${process.versions.electron}`,
+  )
 
   registerHandlers()
 
@@ -122,7 +133,7 @@ async function onReady(): Promise<void> {
   if (aiSettings().preferences().mcpServer) {
     mcpHost()
       .setExternal(true)
-      .catch((cause: unknown) => console.warn('[mcp] the local server did not start:', String(cause)))
+      .catch((cause: unknown) => logWarning('mcp', 'the local server did not start:', String(cause)))
   }
 
   app.on('activate', () => {

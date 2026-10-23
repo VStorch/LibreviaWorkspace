@@ -92,6 +92,7 @@ export const MENU = {
   'menu.tools.aiProviders': { pt: 'Assistentes de IA…', en: 'AI assistants…' },
 
   'menu.help.about': { pt: 'Sobre o {app}', en: 'About {app}' },
+  'menu.help.openLogs': { pt: 'Abrir pasta de registros', en: 'Open log folder' },
 
   // macOS only, and the system dictates their wording.
   'menu.app.hide': { pt: 'Ocultar {app}', en: 'Hide {app}' },

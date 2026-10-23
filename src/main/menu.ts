@@ -7,6 +7,8 @@ import { MenuCommand, RevisionView, Theme, type EditorPreferences } from '@share
 import { showAboutDialog } from './dialogs.js'
 import { listRecentFiles } from './fs/recent.js'
 import { t } from './i18n.js'
+import { logFolder } from './log.js'
+import { openFolder } from './open-folder.js'
 import { editorPreferences, updatePreferences } from './preferences.js'
 import { devServerUrl, sendMenuCommand } from './window.js'
 
@@ -470,8 +472,14 @@ function helpMenu(): MenuItemConstructorOptions {
           if (window !== null) showAboutDialog(window, APP_NAME, app.getVersion())
         },
       },
+      { label: t('menu.help.openLogs'), click: () => void openLogFolder() },
     ],
   }
+}
+
+async function openLogFolder(): Promise<void> {
+  const folder = logFolder()
+  if (folder !== null) await openFolder(folder)
 }
 
 export async function refreshMenu(): Promise<void> {

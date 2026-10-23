@@ -1057,6 +1057,23 @@ tempo, abrir outro arquivo, e o trabalho continua guardado.
 
 Quando você salva, o rascunho é apagado: o arquivo no disco já é a versão boa.
 
+Se só a janela parar de funcionar, o aplicativo pergunta se quer **Reabrir**. Ao reabrir, a mesma
+faixa oferece o rascunho.
+
+### O registro de erros
+
+Quando algo falha, o Librevia anota a causa num arquivo, `librevia.log`. Ele fica **só neste
+computador**: nada é enviado. **Ajuda → Abrir pasta de registros** mostra a pasta:
+
+| Sistema | Pasta |
+| --- | --- |
+| Linux | `~/.config/Librevia/logs` |
+| Windows | `%APPDATA%\Librevia\logs` |
+
+Ao relatar um problema, anexe esse arquivo. Ele traz a versão, o sistema e as mensagens de erro, e
+pode trazer o nome de um arquivo aberto. Passando de 1 MB, ele vira `librevia.old.log` e um novo
+começa.
+
 ---
 
 <a id="salvar-não-custa"></a>

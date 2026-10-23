@@ -1,7 +1,7 @@
-import { mkdir, readdir } from 'node:fs/promises'
+import { readdir } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { app, shell } from 'electron'
+import { app } from 'electron'
 import { AppError, ErrorCode } from '@shared/errors.js'
 import { IpcChannel } from '@shared/ipc-channels.js'
 import type { MessageKey } from '@shared/i18n/index.js'
@@ -14,6 +14,7 @@ import { loadFile } from './file.js'
 import { handle } from './registry.js'
 import { windowOf } from './sender-window.js'
 import { MAX_USER_TEMPLATES } from '@shared/limits.js'
+import { openFolder } from '../open-folder.js'
 
 /**
  * Builtin templates live in `resources/templates`; the user's in `<userData>/Modelos`, where "save
@@ -129,10 +130,7 @@ export function registerTemplateHandlers(): void {
 
   handle(IpcChannel.TemplateOpenFolder, async () => {
     const folder = userTemplatesFolder()
-    await mkdir(folder, { recursive: true })
-    // `openPath` returns the error message instead of throwing.
-    const problem = await shell.openPath(folder)
-    if (problem !== '') console.warn(`[templates] ${problem}`)
+    await openFolder(folder)
     return { folder }
   })
 }

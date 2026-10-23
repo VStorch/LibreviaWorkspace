@@ -10,6 +10,7 @@ import {
   hasBdictSignature,
 } from '@services/spell/dictionary.js'
 import { DictionaryScope } from '@shared/types.js'
+import { logError, logWarning } from './log.js'
 
 /**
  * Offline, even on first run. Chromium looks for the dictionary at `Dictionaries/pt-BR-3-0.bdic`
@@ -50,7 +51,7 @@ export function installBundledDictionary(): boolean {
     // Being there is not enough: Chromium deletes a broken `.bdic` and tries to download. Checking
     // the signature restores it in this run.
     if (hasInstalledSignature(target)) return true
-    console.error(`[spellcheck] the profile dictionary is corrupt and will be replaced: ${target}`)
+    logError('spellcheck', `the profile dictionary is corrupt and will be replaced: ${target}`)
   } catch {
     // Does not exist yet: first run.
   }
@@ -60,7 +61,7 @@ export function installBundledDictionary(): boolean {
 
     // Better to find out in the log than to be left without a spellchecker without knowing why.
     if (!hasBdictSignature(readFileSync(source))) {
-      console.error(`[spellcheck] the bundled dictionary is not in BDic format: ${source}`)
+      logError('spellcheck', `the bundled dictionary is not in BDic format: ${source}`)
       return false
     }
 
@@ -68,7 +69,7 @@ export function installBundledDictionary(): boolean {
     copyFileSync(source, target)
     return true
   } catch (cause) {
-    console.error('[spellcheck] could not install the bundled dictionary:', cause)
+    logError('spellcheck', 'could not install the bundled dictionary:', cause)
     return false
   }
 }
@@ -94,7 +95,7 @@ function hasInstalledSignature(target: string): boolean {
  */
 export function serveDictionary(): void {
   protocol.handle(DICTIONARY_SCHEME, async (request) => {
-    console.warn(`[spellcheck] the spell checker asked for the dictionary over the network: ${request.url}`)
+    logWarning('spellcheck', `the spell checker asked for the dictionary over the network: ${request.url}`)
 
     try {
       return new Response(await readFile(bundledDictionaryPath()), {
@@ -119,7 +120,7 @@ export function applySpellChecker(session: Session, enabled: boolean): void {
   } catch (cause) {
     // Without a spellchecker in Electron (or on macOS without the language), spelling is lost, not
     // the app.
-    console.error('[spellcheck] the spell checker could not be configured:', cause)
+    logError('spellcheck', 'the spell checker could not be configured:', cause)
   }
 }
 

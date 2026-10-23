@@ -145,6 +145,23 @@ export const SHELL = {
     pt: 'A comunicação com o aplicativo falhou. Tente novamente.',
     en: 'Communication with the application failed. Please try again.',
   },
+  'shell.failure.main.title': { pt: 'Erro interno', en: 'Internal error' },
+  'shell.failure.main.detail': {
+    pt: 'Algo falhou dentro do {app}. Salve seu trabalho e abra o aplicativo de novo. Os detalhes ficaram em:\n{log}',
+    en: 'Something failed inside {app}. Save your work and open the application again. The details were written to:\n{log}',
+  },
+  'shell.failure.window.title': { pt: 'A janela parou de funcionar.', en: 'The window stopped working.' },
+  'shell.failure.window.detail': {
+    pt: 'Ao reabrir, se havia alterações não salvas, o {app} oferece o rascunho guardado. Os detalhes ficaram em:\n{log}',
+    en: 'When it reopens, if there were unsaved changes, {app} offers the stored draft. The details were written to:\n{log}',
+  },
+  'shell.failure.window.reload': { pt: 'Reabrir', en: 'Reopen' },
+  'shell.failure.window.close': { pt: 'Fechar', en: 'Close' },
+  'shell.failure.screen.title': { pt: 'A tela parou de funcionar.', en: 'The screen stopped working.' },
+  'shell.failure.screen.detail': {
+    pt: 'Ao reabrir, se havia alterações não salvas, o {app} oferece o rascunho guardado. Os detalhes ficam em Ajuda → Abrir pasta de registros.',
+    en: 'When it reopens, if there were unsaved changes, {app} offers the stored draft. The details are in Help → Open log folder.',
+  },
   'shell.error.rootNotFound': {
     pt: 'Elemento #root não encontrado.',
     en: '#root element not found.',

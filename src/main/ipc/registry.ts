@@ -6,6 +6,7 @@ import { AppError, ErrorCode, toSerializedError } from '@shared/errors.js'
 import type { MessageKey } from '@shared/i18n/index.js'
 import { t } from '../i18n.js'
 import { editorPreferences } from '../preferences.js'
+import { logError } from '../log.js'
 
 function fieldDetail(error: z.ZodError, key: MessageKey): string | undefined {
   const field = error.issues[0]?.path.join('.')
@@ -50,7 +51,7 @@ export function handle<C extends InvocableIpcChannel>(
       // fields.
       return { ok: true, data: replied.data as IpcResponse<C> }
     } catch (cause) {
-      console.error(`[ipc] channel ${channel} failed:`, cause)
+      logError('ipc', `channel ${channel} failed:`, cause)
       return { ok: false, error: toSerializedError(cause, editorPreferences().language) }
     }
   })
