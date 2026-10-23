@@ -857,7 +857,7 @@ dependências npm de produção, o Electron inteiro (com Chromium e Node.js) e o
 do sidecar, que leva o runtime do .NET junto. O portão `licenses:check` olha só o primeiro.
 Deixar os outros dois de fora daria a impressão de estar em dia sem estar.
 
-> 🚧 **Ainda provisório:** o ícone (`build/icon.png`, gerado por `npm run icon`).
+O ícone é desenhado em `build/icon.svg`. `npm run icon` gera o `build/icon.png` a partir dele.
 
 ---
 

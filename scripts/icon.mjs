@@ -1,65 +1,72 @@
 /**
- * Generates the app's provisional icon, a hand-written PNG: a rounded square with a light "L". To
- * replace it, swap `build/icon.png` for a 512×512 PNG. The minimal format is three chunks and a
- * CRC, and `node:zlib` compresses.
+ * Renders `build/icon.svg` into `build/icon.png` (512×512, transparent background). The SVG holds
+ * only filled polygons, so a small rasterizer is enough and the build needs no image library.
  */
 
 import { deflateSync } from 'node:zlib'
-import { mkdirSync, writeFileSync } from 'node:fs'
-import { dirname, resolve } from 'node:path'
+import { readFileSync, writeFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 
 const SIZE = 512
-const RADIUS = 96
-const BACKGROUND = [26, 58, 92] // slate blue
-const MARK = [244, 246, 249]
+const SAMPLES_PER_AXIS = 4
+const OPAQUE = 255
 
-/** The "L", as a fraction of the side: vertical stem and horizontal foot. */
-const STEM = { x: 0.34, y: 0.24, w: 0.1, h: 0.52 }
-const FOOT = { x: 0.34, y: 0.66, w: 0.32, h: 0.1 }
-
-function inside(x, y, box) {
-  return x >= box.x * SIZE && x < (box.x + box.w) * SIZE && y >= box.y * SIZE && y < (box.y + box.h) * SIZE
+function readPolygons(svg) {
+  return [...svg.matchAll(/<path d="M([^"]+?)\s*Z" fill="#([0-9a-f]{6})"\/>/gi)].map(([, path, hex]) => ({
+    points: path.split('L').map((pair) => pair.trim().split(/\s+/).map(Number)),
+    color: [0, 2, 4].map((at) => parseInt(hex.slice(at, at + 2), 16)),
+  }))
 }
 
-/** Rounded corner: outside the radius, the pixel is transparent. */
-function opaque(x, y) {
-  const corners = [
-    [RADIUS, RADIUS],
-    [SIZE - RADIUS - 1, RADIUS],
-    [RADIUS, SIZE - RADIUS - 1],
-    [SIZE - RADIUS - 1, SIZE - RADIUS - 1],
-  ]
-
-  const nearLeft = x < RADIUS
-  const nearRight = x > SIZE - RADIUS - 1
-  const nearTop = y < RADIUS
-  const nearBottom = y > SIZE - RADIUS - 1
-  if (!((nearLeft || nearRight) && (nearTop || nearBottom))) return true
-
-  const [cx, cy] = corners.find(
-    ([ax, ay]) => x < RADIUS === (ax === RADIUS) && y < RADIUS === (ay === RADIUS),
-  )
-  return (x - cx) ** 2 + (y - cy) ** 2 <= RADIUS ** 2
+function contains(points, x, y) {
+  let inside = false
+  for (let i = 0, j = points.length - 1; i < points.length; j = i++) {
+    const [xi, yi] = points[i]
+    const [xj, yj] = points[j]
+    if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside
+  }
+  return inside
 }
 
-function pixels() {
-  // A filter byte (0 = none) before each pixel row, as PNG requires.
+function coverage(points, px, py) {
+  let hits = 0
+  for (let sy = 0; sy < SAMPLES_PER_AXIS; sy++) {
+    for (let sx = 0; sx < SAMPLES_PER_AXIS; sx++) {
+      const x = px + (sx + 0.5) / SAMPLES_PER_AXIS
+      const y = py + (sy + 0.5) / SAMPLES_PER_AXIS
+      if (contains(points, x, y)) hits++
+    }
+  }
+  return hits / SAMPLES_PER_AXIS ** 2
+}
+
+function blendOver(pixel, color, alpha) {
+  const outAlpha = alpha + pixel[3] * (1 - alpha)
+  if (outAlpha === 0) return pixel
+  const channel = (i) => (color[i] * alpha + pixel[i] * pixel[3] * (1 - alpha)) / outAlpha
+  return [channel(0), channel(1), channel(2), outAlpha]
+}
+
+function pixels(polygons) {
+  // PNG wants a filter byte (0 = none) before each row.
   const raw = Buffer.alloc(SIZE * (SIZE * 4 + 1))
   let at = 0
-
   for (let y = 0; y < SIZE; y++) {
     raw[at++] = 0
     for (let x = 0; x < SIZE; x++) {
-      const visible = opaque(x, y)
-      const mark = inside(x, y, STEM) || inside(x, y, FOOT)
-      const [r, g, b] = mark ? MARK : BACKGROUND
-      raw[at++] = r
-      raw[at++] = g
-      raw[at++] = b
-      raw[at++] = visible ? 255 : 0
+      const pixel = polygons.reduce(
+        (under, { points, color }) => {
+          const alpha = coverage(points, x, y)
+          return alpha === 0 ? under : blendOver(under, color, alpha)
+        },
+        [0, 0, 0, 0],
+      )
+      raw[at++] = Math.round(pixel[0])
+      raw[at++] = Math.round(pixel[1])
+      raw[at++] = Math.round(pixel[2])
+      raw[at++] = Math.round(pixel[3] * OPAQUE)
     }
   }
-
   return raw
 }
 
@@ -84,23 +91,23 @@ function chunk(type, data) {
   return Buffer.concat([length, body, crc])
 }
 
-function png() {
+function png(raw) {
   const header = Buffer.alloc(13)
   header.writeUInt32BE(SIZE, 0)
   header.writeUInt32BE(SIZE, 4)
   header[8] = 8 // bits per channel
   header[9] = 6 // RGBA
-  // depth, filter and interlace stay at zero: the format's basics.
 
   return Buffer.concat([
     Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
     chunk('IHDR', header),
-    chunk('IDAT', deflateSync(pixels(), { level: 9 })),
+    chunk('IDAT', deflateSync(raw, { level: 9 })),
     chunk('IEND', Buffer.alloc(0)),
   ])
 }
 
+const polygons = readPolygons(readFileSync(resolve('build/icon.svg'), 'utf8'))
+if (polygons.length === 0) throw new Error('build/icon.svg has no polygon to draw')
 const target = resolve('build/icon.png')
-mkdirSync(dirname(target), { recursive: true })
-writeFileSync(target, png())
-console.log(`icon written to ${target} (${SIZE}×${SIZE})`)
+writeFileSync(target, png(pixels(polygons)))
+console.log(`icon written to ${target} (${SIZE}×${SIZE}, ${polygons.length} polygons)`)
