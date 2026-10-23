@@ -1,7 +1,7 @@
 {
   "name": "librevia",
   "version": "0.0.0",
-  "description": "Suíte de documentos e planilhas para desktop — offline, DOCX/XLSX/PDF",
+  "description": "Desktop document and spreadsheet suite — offline, DOCX/XLSX/PDF",
   "homepage": "https://librevia.internal",
   "desktopName": "librevia.desktop",
   "author": {

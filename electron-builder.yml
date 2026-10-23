@@ -29,7 +29,7 @@ files:
 # `sidecarPathIn` looks from `process.resourcesPath`.
 linux:
   category: Office
-  synopsis: Suíte de documentos e planilhas, offline
+  synopsis: Offline document and spreadsheet suite
   # Without this the desktop does not link the open window to the taskbar icon, and the app shows as
   # a generic, nameless entry. The `.desktop` file name comes from `package.json`, which is where
   # the builder looks.
