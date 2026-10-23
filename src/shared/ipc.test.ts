@@ -126,12 +126,12 @@ describe('Word templates (M11)', () => {
   const list = ipcContracts[IpcChannel.TemplateList].response
 
   it('opens by the source and id pair', () => {
-    expect(open.safeParse({ source: 'builtin', id: 'carta.dotx' }).success).toBe(true)
+    expect(open.safeParse({ source: 'builtin', id: 'letter.dotx' }).success).toBe(true)
     expect(open.safeParse({ source: 'user', id: '/home/ana/Modelos/proposta.dotx' }).success).toBe(true)
   })
 
   it.each([
-    ['unknown source', { source: 'web', id: 'carta.dotx' }],
+    ['unknown source', { source: 'web', id: 'letter.dotx' }],
     ['empty id', { source: 'builtin', id: '' }],
     ['without id', { source: 'user' }],
   ])('refuses %s', (_label, payload) => {
@@ -140,7 +140,7 @@ describe('Word templates (M11)', () => {
 
   it('the document opened from a template carries the template mark', () => {
     const file = {
-      path: '/r/carta.dotx',
+      path: '/r/letter.dotx',
       name: 'Carta.docx',
       kind: 'document',
       content: '{}',
@@ -150,7 +150,7 @@ describe('Word templates (M11)', () => {
   })
 
   it('the gallery lists both sources and the user folder', () => {
-    const entry = { source: 'builtin', id: 'carta.dotx', name: 'Carta', description: 'Uma carta' }
+    const entry = { source: 'builtin', id: 'letter.dotx', name: 'Carta', description: 'Uma carta' }
     expect(list.safeParse({ builtin: [entry], user: [], folder: '/home/ana/Modelos' }).success).toBe(true)
     expect(list.safeParse({ builtin: [{ ...entry, source: 'outra' }], user: [], folder: '' }).success).toBe(
       false,

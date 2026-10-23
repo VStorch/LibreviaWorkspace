@@ -29,22 +29,22 @@ interface BuiltinTemplate {
 /** The blank document first, as in Word. */
 const BUILTIN_TEMPLATES: readonly BuiltinTemplate[] = [
   {
-    file: 'documento-em-branco.dotx',
+    file: 'blank-document.dotx',
     name: 'shell.template.blank.name',
     description: 'shell.template.blank.description',
   },
   {
-    file: 'carta.dotx',
+    file: 'letter.dotx',
     name: 'shell.template.letter.name',
     description: 'shell.template.letter.description',
   },
   {
-    file: 'relatorio.dotx',
+    file: 'report.dotx',
     name: 'shell.template.report.name',
     description: 'shell.template.report.description',
   },
   {
-    file: 'ata-reuniao.dotx',
+    file: 'meeting-minutes.dotx',
     name: 'shell.template.minutes.name',
     description: 'shell.template.minutes.description',
   },

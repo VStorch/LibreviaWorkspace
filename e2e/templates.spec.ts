@@ -34,7 +34,7 @@ test.describe('templates', () => {
   const TEMPLATE = 'application/vnd.openxmlformats-officedocument.wordprocessingml.template.main+xml'
 
   test('creating from the built-in template, typing and saving asks for the destination', async () => {
-    const template = resolve('resources/templates/relatorio.dotx')
+    const template = resolve('resources/templates/report.dotx')
     const before = await hash(template)
     const destinationFile = join(directory, 'relatorio-final.docx')
     await stubDialogs(session.app, { save: destinationFile, messageBox: 1 })
@@ -117,10 +117,21 @@ test.describe('templates', () => {
     expect(await entryOf(derived, 'word/document.xml')).toContain('Modelo próprio — cópia')
   })
 
+  test('every built-in template opens', async () => {
+    for (const name of ['Documento em branco', 'Carta', 'Relatório com capa e sumário', 'Ata de reunião']) {
+      await menu(session, 'new-from-template')
+      const gallery = session.window.getByRole('dialog', { name: 'Novo a partir de modelo' })
+      await gallery.getByRole('option', { name: new RegExp(`^${name}`) }).dblclick()
+      await expect(gallery).toHaveCount(0)
+      await expect(session.window.locator('.banner[role="alert"]')).toHaveCount(0)
+      await expect(text(session)).toBeVisible()
+    }
+  })
+
   test('the gallery shows the templates in the user folder', async () => {
     const templatesDirectory = join(session.userData, 'Modelos')
     await mkdir(templatesDirectory, { recursive: true })
-    await copyFile(resolve('resources/templates/carta.dotx'), join(templatesDirectory, 'Proposta.dotx'))
+    await copyFile(resolve('resources/templates/letter.dotx'), join(templatesDirectory, 'Proposta.dotx'))
 
     await menu(session, 'new-from-template')
     const gallery = session.window.getByRole('dialog', { name: 'Novo a partir de modelo' })

@@ -2,12 +2,12 @@
 
 Os modelos que a galeria de **Arquivo → Novo a partir de modelo…** oferece:
 
-| Arquivo                    | Modelo                       |
-| -------------------------- | ---------------------------- |
-| `documento-em-branco.dotx` | Documento em branco          |
-| `carta.dotx`               | Carta                        |
-| `relatorio.dotx`           | Relatório com capa e sumário |
-| `ata-reuniao.dotx`      | Ata de reunião               |
+| Arquivo                | Modelo                       |
+| ---------------------- | ---------------------------- |
+| `blank-document.dotx`  | Documento em branco          |
+| `letter.dotx`          | Carta                        |
+| `report.dotx`          | Relatório com capa e sumário |
+| `meeting-minutes.dotx` | Ata de reunião               |
 
 ## Origem e licença
 
