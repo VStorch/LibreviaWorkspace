@@ -13,9 +13,9 @@ import { drawsNoteNumber, noteLabelsOf, noteRefsOf, numberNotesForPrint } from '
 import { NOTE_NUMBER_CLASS } from './extensions/note-view.js'
 import {
   NOTE_SEPARATOR_PX,
-  collapsed,
   drawnSheet,
   isInternalStart,
+  topMarginFor,
   type PageLayout,
   type PageStart,
 } from './usePagination.js'
@@ -213,7 +213,7 @@ function placeColumns(holder: HTMLElement, start: PageStart, end: PageStart, lay
     if (move.dx !== 0) element.style.transform = `translateX(${move.dx}px)`
     // The sheet's first block does not rise: the new sheet already puts it at the top.
     if (move.lift !== 0 && index !== start.blockIndex) {
-      element.style.marginTop = `${collapsed(move.natural + move.lift, move.collapse)}px`
+      element.style.marginTop = `${topMarginFor(move.natural + move.lift, move.collapse)}px`
     }
   }
 }

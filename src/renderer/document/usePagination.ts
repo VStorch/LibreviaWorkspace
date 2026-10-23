@@ -108,17 +108,18 @@ export interface ColumnMove {
   readonly lift: number
   /** Paper writes the natural margin plus the offset. */
   readonly natural: number
-  /** The previous block's bottom margin; see `collapsed`. */
+  /** The previous block's bottom margin; see `topMarginFor`. */
   readonly collapse: number
 }
 
 /**
- * Vertical margins collapse: positive with positive takes the larger, and a negative one **adds**
- * to the positive. So a distance smaller than the previous bottom margin is only reached by
- * subtracting it.
+ * The editor is a flex column (`content-styles.ts`), so vertical margins add up instead of
+ * collapsing: the distance to the block above already holds that block's bottom margin, and the
+ * top margin to write is what remains. Writing the whole distance counted it twice, and each
+ * measurement pushed the block one more bottom margin down.
  */
-export function collapsed(distance: number, previous: number): number {
-  return distance >= previous ? distance : distance - previous
+export function topMarginFor(distance: number, previousBottom: number): number {
+  return distance - previousBottom
 }
 
 /** In drawn sheet pixels. */
@@ -316,7 +317,7 @@ function sectionMetricsOf(sections: readonly PageSetup[], bands: readonly BandHe
 interface PageGaps {
   readonly gaps: ReadonlyMap<number, number>
   /**
-   * The gap **plus** the natural margin, which is what CSS reads; the gap is what the math
+   * The gap **plus** the block's own top margin, which is what CSS reads; the gap is what the math
    * subtracts.
    */
   readonly written: ReadonlyMap<number, number>
@@ -511,7 +512,7 @@ class DocumentMeasurer {
         {
           position: offset,
           natural: Math.max(top - (before === undefined ? 0 : before.top + before.height), 0),
-          // A negative top margin adds up with it (`collapsed`).
+          // What the block above adds to the distance (`topMarginFor`).
           collapse:
             previousDom instanceof HTMLElement
               ? parseFloat(getComputedStyle(previousDom).marginBottom) || 0
@@ -669,7 +670,7 @@ function tableHeaderOf(table: HTMLTableElement | null): TableHeader {
   return { rows, headerRows, repeatHeight }
 }
 
-function layoutPages(
+export function layoutPages(
   measured: Measurement,
   flows: readonly SectionFlow[],
   metricsOf: MetricsOf,
@@ -703,8 +704,8 @@ function layoutPages(
 
 /**
  * Gap = what was left of the sheet + both margins + the space between papers. The written margin
- * **replaces** the block's natural margin (the last declaration wins), so the written value is the
- * gap plus the natural margin; the flow math subtracts only the gap.
+ * **replaces** the block's own top margin (the last declaration wins), so the written value is the
+ * gap plus that margin (`topMarginFor`); the flow math subtracts only the gap.
  */
 class SheetStack {
   private readonly gaps = new Map<number, number>()
@@ -829,7 +830,7 @@ class SheetStack {
     this.pageStarts.push(extra > 0 ? { ...target.start, repeatHeader: true } : target.start)
     for (const node of target.nodes) {
       this.gaps.set(node.position, shift + extra)
-      this.written.set(node.position, shift + extra + node.natural)
+      this.written.set(node.position, shift + extra + topMarginFor(node.natural, node.collapse ?? 0))
     }
     return at - extra
   }
@@ -967,8 +968,8 @@ class SheetStack {
 
   private liftBlock(node: CutTarget['nodes'][number], lift: number): void {
     this.gaps.set(node.position, (this.gaps.get(node.position) ?? 0) + lift)
-    const distance = (this.written.get(node.position) ?? node.natural) + lift
-    this.written.set(node.position, collapsed(distance, node.collapse ?? 0))
+    const margin = this.written.get(node.position) ?? topMarginFor(node.natural, node.collapse ?? 0)
+    this.written.set(node.position, margin + lift)
   }
 
   private columnLines(): ColumnLine[] {
