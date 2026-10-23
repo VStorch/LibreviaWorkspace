@@ -32,7 +32,7 @@ const EXEMPT = new Map([
 
 /** Words that give away a Portuguese sentence even without accents. */
 const PT_WORDS =
-  /\b(de|da|do|das|dos|para|com|sem|nao|nenhum|nenhuma|salvar|abrir|fechar|arquivo|pagina|linha|coluna|tabela|imagem|texto|erro|aviso)\b/i
+  /\b(de|da|do|das|dos|para|com|sem|nao|nenhum|nenhuma|salvar|abrir|fechar|arquivo|pagina|linha|coluna|tabela|imagem|texto|erro|aviso|documento|planilha|resultado|celula|estilo|comentario|revisao)\b/i
 
 function walk(dir, out = []) {
   for (const name of readdirSync(dir)) {
