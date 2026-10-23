@@ -40,8 +40,8 @@ depois que você o configura e permite.
 Baixe o arquivo, dê permissão de execução e abra:
 
 ```bash
-chmod +x Librevia-0.0.0.AppImage
-./Librevia-0.0.0.AppImage
+chmod +x Librevia-0.5.0.AppImage
+./Librevia-0.5.0.AppImage
 ```
 
 ### 🐧 Linux — pacote `.deb`
@@ -49,7 +49,7 @@ chmod +x Librevia-0.0.0.AppImage
 Instala no menu de aplicativos, como qualquer outro programa:
 
 ```bash
-sudo apt install ./librevia_0.0.0_amd64.deb
+sudo apt install ./librevia_0.5.0_amd64.deb
 ```
 
 ### 🪟 Windows

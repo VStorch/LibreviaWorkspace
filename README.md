@@ -857,10 +857,7 @@ dependências npm de produção, o Electron inteiro (com Chromium e Node.js) e o
 do sidecar, que leva o runtime do .NET junto. O portão `licenses:check` olha só o primeiro.
 Deixar os outros dois de fora daria a impressão de estar em dia sem estar.
 
-> 🚧 **Ainda provisórios:** o ícone (`build/icon.png`, gerado por `npm run icon`), a versão
-> `0.0.0` e os endereços `.internal` do mantenedor do `.deb` e do `homepage`. O domínio
-> `.internal` é reservado para uso interno; é melhor que inventar um endereço público que
-> não existe.
+> 🚧 **Ainda provisório:** o ícone (`build/icon.png`, gerado por `npm run icon`).
 
 ---
 

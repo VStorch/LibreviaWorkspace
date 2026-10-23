@@ -68,6 +68,6 @@ body:
     id: versao
     attributes:
       label: Versão do Librevia e sistema
-      placeholder: 'ex.: 0.0.0, Windows 11'
+      placeholder: 'ex.: 0.5.0, Windows 11'
     validations:
       required: true

@@ -1,12 +1,12 @@
 {
   "name": "librevia",
-  "version": "0.0.0",
+  "version": "0.5.0",
   "description": "Desktop document and spreadsheet suite — offline, DOCX/XLSX/PDF",
-  "homepage": "https://librevia.internal",
+  "homepage": "https://github.com/VStorch/LibreviaWorkspace",
   "desktopName": "librevia.desktop",
   "author": {
-    "name": "Librevia",
-    "email": "librevia@librevia.internal"
+    "name": "Vinícius Storch",
+    "email": "viniciusstorch62@gmail.com"
   },
   "license": "MIT",
   "private": true,

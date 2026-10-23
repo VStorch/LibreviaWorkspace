@@ -1,6 +1,6 @@
 appId: com.librevia.suite
 productName: Librevia
-copyright: Uso interno
+copyright: Copyright © 2026 Vinícius Storch
 
 directories:
   output: release
@@ -103,10 +103,7 @@ nsis:
   createStartMenuShortcut: true
 
 deb:
-  # A `.internal` address on purpose: it is the TLD reserved for internal use, and saying so is more
-  # honest than inventing a public domain that does not exist. Replace it with the company address
-  # before distributing for real.
-  maintainer: Librevia <librevia@librevia.internal>
+  maintainer: Vinícius Storch <viniciusstorch62@gmail.com>
   # `libnotify` and friends are an Electron app's usual dependencies on Debian/Ubuntu; without them
   # the package installs and the app does not open.
   depends:
