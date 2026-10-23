@@ -596,7 +596,7 @@ function callTool() {
       if (reply.id === 1) {
         ask(2, 'tools/call', { name: 'add_comment', arguments: { paragraph: 1, find: 'gato', comment: 'Qual gato?' } })
       } else if (reply.id === 2) {
-        log({ ferramenta: reply.result })
+        log({ toolName: reply.result })
         server.kill()
         answer(false)
       }
