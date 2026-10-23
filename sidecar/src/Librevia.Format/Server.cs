@@ -107,7 +107,7 @@ public sealed class Server(Stream input, Stream output)
         try
         {
             request = JsonSerializer.Deserialize<Request>(frame.Json.Span, JsonOptions.Default)
-                      ?? throw new InvalidDataException("pedido vazio");
+                      ?? throw new InvalidDataException("empty request");
 
             if (!_handlers.TryGetValue(request.Method, out var handler))
             {

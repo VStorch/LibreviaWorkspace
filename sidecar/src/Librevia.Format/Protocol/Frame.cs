@@ -40,19 +40,19 @@ public static class FrameIo
         if (jsonLength > Frame.MaxJsonBytes || binaryLength > Frame.MaxBinaryBytes)
         {
             throw new InvalidDataException(
-                $"quadro anuncia {jsonLength} bytes de JSON e {binaryLength} de binário");
+                $"frame announces {jsonLength} JSON bytes and {binaryLength} binary bytes");
         }
 
         var json = new byte[jsonLength];
         if (!await ReadExactlyOrEofAsync(input, json, cancellation).ConfigureAwait(false))
         {
-            throw new InvalidDataException("fluxo terminou no meio do JSON");
+            throw new InvalidDataException("stream ended in the middle of the JSON");
         }
 
         var binary = new byte[binaryLength];
         if (!await ReadExactlyOrEofAsync(input, binary, cancellation).ConfigureAwait(false))
         {
-            throw new InvalidDataException("fluxo terminou no meio do binário");
+            throw new InvalidDataException("stream ended in the middle of the binary");
         }
 
         return new Frame(json, binary);
