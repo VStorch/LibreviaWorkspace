@@ -242,12 +242,21 @@ test.describe('revisions', () => {
     await session.window.keyboard.insertText('Fica.')
     await expect(session.window.locator('.paper')).toHaveCount(2)
 
-    // Everything but the last line, deleted with tracking on.
+    // Everything but the last line, deleted with tracking on. Pressed a few milliseconds after Home,
+    // the extension can be lost while the editor still reads the previous selection, and Delete
+    // would take only the "F": the selection is checked before deleting.
     await menu(session, 'toggle-track-changes')
     await session.window.keyboard.press('Home')
-    await session.window.keyboard.press('Control+Shift+Home')
+    await expect(async () => {
+      await session.window.keyboard.press('Control+Shift+Home')
+      const selected = await session.window.evaluate(async () => {
+        await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+        return window.getSelection()?.toString() ?? ''
+      })
+      expect(selected).toContain('Linha 1')
+    }).toPass()
     await session.window.keyboard.press('Delete')
-    await expect(editor.locator('del.revision').first()).toBeVisible()
+    await expect(editor.locator('del.revision').first()).toHaveText('Linha 1')
     await expect(session.window.locator('.paper')).toHaveCount(2)
 
     await menu(session, 'show-no-markup')
