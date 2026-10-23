@@ -1,4 +1,5 @@
 import type { EditorView } from '@tiptap/pm/view'
+import { screenScaleOf } from './screen-scale.js'
 
 /**
  * The paginator only breaks where it is told it can: without lines, a half-page paragraph would
@@ -34,8 +35,7 @@ interface Line {
 
 export function measureLines(view: EditorView, element: HTMLElement): ParagraphLines {
   const box = element.getBoundingClientRect()
-  // With zoom (`transform`) the rectangle comes at screen scale; pagination counts in CSS pixels.
-  const scale = element.offsetHeight > 0 && box.height > 0 ? box.height / element.offsetHeight : 1
+  const scale = screenScaleOf(element)
 
   const pieces: Piece[] = []
   let shift = 0

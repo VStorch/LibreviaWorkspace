@@ -35,6 +35,7 @@ import {
 } from '@services/document/sections.js'
 import { applyPageGaps, type RepeatedHeader } from './extensions/pagination.js'
 import { LINE_GAP_CLASS, measureLines } from './line-boxes.js'
+import { screenScaleOf } from './screen-scale.js'
 import { noteBodyOf, type NoteBody } from './extensions/note-view.js'
 
 /** The space between one sheet and the next, like a stack of paper. */
@@ -73,6 +74,13 @@ export interface NoteArea {
 
 /** A constant, so `sameGaps` compares by value. */
 const EMPTY_GAPS = new Map<number, number>()
+
+/**
+ * The block opening a sheet is measured with the margin the last measurement wrote, and layout
+ * places boxes at 1/64 px: without a grid that absorbs the difference, the distance to the block
+ * above moved a few hundredths on every repagination, with no end.
+ */
+const NATURAL_GRID_PX = 0.25
 
 export interface PageLayout {
   /** How many sheets to draw, blank sheets of even and odd sections included. */
@@ -395,7 +403,7 @@ type MeasuredLines = NonNullable<ReturnType<typeof measureLines>>
 class DocumentMeasurer {
   private accumulated = 0
   private refIndex = 0
-  private readonly origin: number
+  private readonly ruler: Ruler
   private readonly blocks: MeasuredBlock[] = []
   private readonly targets: CutTarget[] = []
   private readonly measuredNotes = new Map<string, IndexedNote>()
@@ -406,7 +414,7 @@ class DocumentMeasurer {
     element: HTMLElement,
     private readonly styles: StyleSheet | null,
   ) {
-    this.origin = offsetTopOf(element)
+    this.ruler = rulerOf(element)
   }
 
   measure(declared: readonly SectionSetup[]): Measurement {
@@ -456,7 +464,7 @@ class DocumentMeasurer {
       dom,
       offset,
       blockIndex,
-      top: offsetTopOf(dom) - this.origin - this.accumulated,
+      top: this.ruler.top(dom) - this.accumulated,
     }
     this.pushBlockTarget(drawn)
 
@@ -473,14 +481,14 @@ class DocumentMeasurer {
     const lines = block.isTextblock && children.length === 0 ? measureLines(this.editor.view, dom) : null
     if (lines !== null) this.pushLineTargets(lines, drawn, breakpoints)
     const capture = anchoredCaptureOf(drawn, lines)
-    const header = tableHeaderOf(table)
+    const header = tableHeaderOf(table, this.ruler)
     const internal =
       lines !== null
         ? lines.shift
         : this.pushChildTargets(children, table, header, drawn, { breakpoints, childTops })
 
     const effective = effectiveAttrs(block, this.styles)
-    const height = dom.offsetHeight - internal
+    const height = this.ruler.height(dom) - internal
     const notes = this.measureNotes(drawn, height, { lineStarts: lines?.starts ?? null, children, childTops })
 
     this.blocks.push({
@@ -511,7 +519,7 @@ class DocumentMeasurer {
       nodes: [
         {
           position: offset,
-          natural: Math.max(top - (before === undefined ? 0 : before.top + before.height), 0),
+          natural: onNaturalGrid(top - (before === undefined ? 0 : before.top + before.height)),
           // What the block above adds to the distance (`topMarginFor`).
           collapse:
             previousDom instanceof HTMLElement
@@ -548,8 +556,7 @@ class DocumentMeasurer {
       const cells = child instanceof HTMLTableRowElement ? Array.from(child.cells) : []
       const shift = cells.length > 0 ? shiftOf(cells[0]!) : shiftOf(child)
       // Padding grows the row downward; a margin already moved its top.
-      const at =
-        offsetTopOf(child) - this.origin - this.accumulated - internal - (cells.length === 0 ? shift : 0)
+      const at = this.ruler.top(child) - this.accumulated - internal - (cells.length === 0 ? shift : 0)
       cuts.childTops.push(at)
       if (childIndex > header.headerRows) {
         cuts.breakpoints.push(at)
@@ -654,7 +661,7 @@ interface TableHeader {
  * Header rows (`w:tblHeader`) at the start of the table: breaking inside them, or right after,
  * would leave the header alone at the foot.
  */
-function tableHeaderOf(table: HTMLTableElement | null): TableHeader {
+function tableHeaderOf(table: HTMLTableElement | null, ruler: Ruler): TableHeader {
   const rows = table !== null ? Array.from(table.rows) : []
   let headerRows = 0
   while (
@@ -666,7 +673,7 @@ function tableHeaderOf(table: HTMLTableElement | null): TableHeader {
   }
   const lastHeader = rows[headerRows - 1]
   const repeatHeight =
-    lastHeader === undefined ? 0 : offsetTopOf(lastHeader) + lastHeader.offsetHeight - offsetTopOf(rows[0]!)
+    lastHeader === undefined ? 0 : ruler.top(lastHeader) + ruler.height(lastHeader) - ruler.top(rows[0]!)
   return { rows, headerRows, repeatHeight }
 }
 
@@ -1082,15 +1089,28 @@ function anchorsFor(
   return anchors
 }
 
-/** Adds up the offsetParents' origins: a row measures from the table. */
-function offsetTopOf(node: HTMLElement): number {
-  let top = 0
-  let current: HTMLElement | null = node
-  while (current !== null) {
-    top += current.offsetTop
-    current = current.offsetParent instanceof HTMLElement ? current.offsetParent : null
+function onNaturalGrid(distance: number): number {
+  return Math.max(Math.round(distance / NATURAL_GRID_PX) * NATURAL_GRID_PX, 0)
+}
+
+/** In CSS pixels from the top of the editor. */
+interface Ruler {
+  readonly top: (node: HTMLElement) => number
+  readonly height: (node: HTMLElement) => number
+}
+
+/**
+ * Subpixel: `offsetTop` and `offsetHeight` round to whole pixels, and the margin written from one
+ * measurement would carry that rounding into the next, moving the sheet's first block a little
+ * more on every repagination.
+ */
+function rulerOf(element: HTMLElement): Ruler {
+  const box = element.getBoundingClientRect()
+  const scale = screenScaleOf(element)
+  return {
+    top: (node) => (node.getBoundingClientRect().top - box.top) / scale,
+    height: (node) => node.getBoundingClientRect().height / scale,
   }
-  return top
 }
 
 /** The decoration follows model edits; the measurement reads the already mapped push. */
@@ -1111,7 +1131,7 @@ function repeatedHeader(
 ): RepeatedHeader {
   const tableBox = table.getBoundingClientRect()
   const cellBox = cell.getBoundingClientRect()
-  const scale = table.offsetWidth > 0 && tableBox.width > 0 ? tableBox.width / table.offsetWidth : 1
+  const scale = screenScaleOf(table)
   const style = getComputedStyle(cell)
   const left = (cellBox.left - tableBox.left) / scale + cell.clientLeft + parseFloat(style.paddingLeft)
   const natural = parseFloat(style.paddingTop) - shiftOf(cell)
@@ -1164,7 +1184,7 @@ function referenceBottom(
 ): number {
   if (lineStarts !== null) {
     const box = block.getBoundingClientRect()
-    const scale = block.offsetHeight > 0 && box.height > 0 ? box.height / block.offsetHeight : 1
+    const scale = screenScaleOf(block)
     // The superscript's foot, not its top: it rises above its line.
     const y = (reference.getBoundingClientRect().bottom - box.top) / scale - 1
     const next = lineStarts.find((start) => start > y)
@@ -1178,10 +1198,10 @@ function referenceBottom(
 /** The note body's height and each line's top, at its current width. */
 function measureNote(body: NoteBody): { height: number; lines: number[] } {
   const element = body.body
-  const height = element.offsetHeight
-  if (height <= 0) return { height: 0, lines: [0] }
   const box = element.getBoundingClientRect()
-  const scale = box.height > 0 ? box.height / height : 1
+  const scale = screenScaleOf(element)
+  const height = box.height / scale
+  if (height <= 0) return { height: 0, lines: [0] }
   const lines: number[] = []
   for (const child of Array.from(element.children)) {
     if (!(child instanceof HTMLElement)) continue

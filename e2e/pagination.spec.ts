@@ -303,7 +303,35 @@ test.describe('live pagination', () => {
     for (let i = 0; i < 3; i++) await session.window.keyboard.press('Backspace')
     await expect.poll(() => screenCut(session)).toEqual(original)
   })
+
+  test('the push of the block opening a sheet does not drift with each repagination', async () => {
+    await linesAcrossSheet(session)
+    const sheetStart = session.window.locator('.ProseMirror > [data-page-start]').first()
+    await expect(sheetStart).toBeAttached()
+    const original = Number(await sheetStart.getAttribute('data-page-shift'))
+
+    await session.window.keyboard.press('Control+Home')
+    for (let i = 0; i < 20; i++) {
+      await session.window.keyboard.type('x')
+      await session.window.keyboard.press('Backspace')
+    }
+
+    // Each repagination used to move it a fifth of a pixel more; what is left is subpixel noise.
+    await session.window.waitForTimeout(500)
+    const shift = Number(await sheetStart.getAttribute('data-page-shift'))
+    expect(Math.abs(shift - original)).toBeLessThan(0.25)
+  })
 })
+
+/** Short paragraphs, by keyboard, until a few of them pass to the second sheet. */
+async function linesAcrossSheet(session: Session): Promise<void> {
+  await menu(session, 'new-document')
+  await session.window.locator('.ProseMirror').click()
+  for (let i = 0; i < 45; i++) {
+    await session.window.keyboard.insertText(`Linha ${i}`)
+    await session.window.keyboard.press('Enter')
+  }
+}
 
 /**
  * Fills the sheet with short paragraphs and writes a long one of numbered words (`p1 p2 …`) that

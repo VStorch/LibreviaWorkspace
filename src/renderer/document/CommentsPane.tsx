@@ -13,6 +13,7 @@ import {
 } from './comment-commands.js'
 import { commentAnchorsOf, commentsKey, focusComment } from './extensions/comment.js'
 import { coordsInDocument } from './extensions/note-view.js'
+import { screenScaleOf } from './screen-scale.js'
 
 /** Sheet pixels. */
 const GAP_PX = 8
@@ -161,8 +162,7 @@ function useCommentTops(
     const measure = (): void => {
       if (editor.isDestroyed) return
       const box = host.getBoundingClientRect()
-      // Zoom is a `transform`: the screen measures scaled.
-      const scale = host.offsetWidth > 0 ? box.width / host.offsetWidth : 1
+      const scale = screenScaleOf(host)
       const anchors = commentAnchorsOf(editor.state.doc)
       const next = new Map<string, number>()
       for (const { root } of threads) {
