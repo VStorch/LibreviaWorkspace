@@ -34,11 +34,15 @@ function templateExtensions(): string[] {
   return [bare(WORD_TEMPLATE_EXTENSION), bare(WORD_MACRO_TEMPLATE_EXTENSION)]
 }
 
+function wordDocFilter() {
+  return { name: t('dialog.filter.wordDoc'), extensions: [bare(WORD_EXTENSION)] }
+}
+
 function getSaveFilters(kind: DocumentKind) {
   return kind === DocumentKind.Document
     ? [
         { name: t('dialog.filter.document'), extensions: [bare(DOCUMENT_EXTENSION)] },
-        { name: t('dialog.filter.wordDoc'), extensions: [bare(WORD_EXTENSION)] },
+        wordDocFilter(),
         { name: t('dialog.filter.wordTemplate'), extensions: [bare(WORD_TEMPLATE_EXTENSION)] },
         { name: t('dialog.filter.plainText'), extensions: [bare(PLAIN_TEXT_EXTENSION)] },
       ]
@@ -85,11 +89,12 @@ export async function showSaveFileDialog(
   window: BrowserWindow,
   suggestedName: string,
   kind: DocumentKind,
+  wordOnly = false,
 ): Promise<string | null> {
   const result = await dialog.showSaveDialog(window, {
     title: t('dialog.save.title'),
     defaultPath: suggestedName,
-    filters: getSaveFilters(kind),
+    filters: wordOnly ? [wordDocFilter()] : getSaveFilters(kind),
     // The system dialog already warns about overwriting.
     properties: ['createDirectory', 'showOverwriteConfirmation'],
   })

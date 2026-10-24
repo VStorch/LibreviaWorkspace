@@ -1140,11 +1140,14 @@ com o texto selecionável e as fontes embutidas.
 > 💡 Se as colunas da planilha ficarem apertadas, ponha a página em paisagem em
 > **Arquivo → Configuração de página…**.
 
-### Exportar como HTML, Markdown ou ODT
+### Exportar como Word, ODT, HTML ou Markdown
 
 Em **Arquivo → Exportar como**, o documento vira uma **página da web** (`.html`), um texto em
 **Markdown** (`.md`) ou um **documento do OpenDocument** (`.odt`). É um arquivo novo: o documento
 continua aberto no mesmo lugar, do jeito que estava.
+
+**Documento do Word (.docx)** é diferente: funciona como **Salvar como**, só com o formato do Word.
+O documento passa a ser o `.docx`, e o próximo **Salvar** grava nele.
 
 - **HTML** sai numa página só, com os estilos, as listas, as tabelas e as imagens dentro dela. As
   notas vão para o fim, com um link de volta ao texto.

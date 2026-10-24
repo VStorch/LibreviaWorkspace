@@ -3,6 +3,7 @@ import { IpcChannel } from '@shared/ipc-channels.js'
 import type { LoadedFile } from '@shared/types.js'
 import {
   ensureSupportedExtension,
+  extensionOf,
   fileNameFromPath,
   isExcelPath,
   isPdfPath,
@@ -28,6 +29,7 @@ import { clearRecentFiles, isRemembered, listRecentFiles, rememberRecentFile } f
 import { readTextFile } from '../fs/read-text.js'
 import { refreshMenu } from '../menu.js'
 import { t } from '../i18n.js'
+import { exportName } from './export.js'
 import { handle } from './registry.js'
 import { windowOf } from './sender-window.js'
 import { forgetExternalFileRequest, isExternalFileRequested } from '../external-files.js'
@@ -97,6 +99,11 @@ async function loadPdf(path: string): Promise<LoadedFile> {
   return { path: source, name: fileNameFromPath(source), kind: kindFromPath(source), content: '' }
 }
 
+/** A name typed without `.docx` still goes out as Word, which is what was asked. */
+function asWordPath(path: string): string {
+  return extensionOf(path) === WORD_EXTENSION ? path : `${path}${WORD_EXTENSION}`
+}
+
 export function registerFileHandlers(): void {
   handle(IpcChannel.FileOpen, async (_payload, event) => {
     const path = await showOpenFileDialog(windowOf(event))
@@ -140,11 +147,17 @@ export function registerFileHandlers(): void {
   })
 
   handle(IpcChannel.FileChooseSavePath, async (payload, event) => {
-    const chosen = await showSaveFileDialog(windowOf(event), payload.suggestedName, payload.kind)
+    const { wordOnly } = payload
+    const chosen = await showSaveFileDialog(
+      windowOf(event),
+      wordOnly ? exportName(payload.suggestedName, WORD_EXTENSION.slice(1)) : payload.suggestedName,
+      payload.kind,
+      wordOnly,
+    )
     if (chosen === null) return { canceled: true as const }
 
     // Only authorizes: writing is another call, so the loss warning comes before writing.
-    const path = authorizePath(ensureSupportedExtension(chosen, payload.kind))
+    const path = authorizePath(wordOnly ? asWordPath(chosen) : ensureSupportedExtension(chosen, payload.kind))
     return { canceled: false as const, path, name: fileNameFromPath(path) }
   })
 

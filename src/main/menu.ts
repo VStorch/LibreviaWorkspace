@@ -290,9 +290,10 @@ function fileMenu(recent: MenuItemConstructorOptions[]): MenuItemConstructorOpti
       {
         label: t('menu.file.exportAs'),
         submenu: [
+          commandItem('menu.file.exportWord', MenuCommand.ExportWord),
+          commandItem('menu.file.exportOdt', MenuCommand.ExportOdt),
           commandItem('menu.file.exportHtml', MenuCommand.ExportHtml),
           commandItem('menu.file.exportMarkdown', MenuCommand.ExportMarkdown),
-          commandItem('menu.file.exportOdt', MenuCommand.ExportOdt),
         ],
       },
       commandItem('menu.file.properties', MenuCommand.DocumentProperties),

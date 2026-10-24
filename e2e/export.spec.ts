@@ -6,10 +6,10 @@ import { launch, menu, stubDialogs, type Session } from './app.js'
 import { docxWithFootnote, entryOf } from './fixtures.js'
 
 /**
- * File → Export as → HTML…, Markdown… and ODT…. Exporting writes a new file: the document stays at
- * its path and without pending changes.
+ * File → Export as → HTML, Markdown and ODT write a new file: the document stays at its path and
+ * without pending changes. Word is a save as, offering only `.docx`.
  */
-test.describe('export as HTML, Markdown and ODT', () => {
+test.describe('export as Word, HTML, Markdown and ODT', () => {
   let session: Session
   let directory: string
 
@@ -114,6 +114,36 @@ test.describe('export as HTML, Markdown and ODT', () => {
     expect(await entryOf(odt, 'styles.xml')).toContain('<office:master-styles>')
 
     await expect(session.window).toHaveTitle(/^ata\.docx/)
+    await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
+  })
+
+  test('Word saves the document as .docx, offering only that format, and goes on from there', async () => {
+    await menu(session, 'new-document')
+    const text = session.window.locator('.pages__column .ProseMirror')
+    await text.click()
+    await session.window.keyboard.type('Relatório mensal')
+
+    const typed = join(directory, 'relatorio')
+    await session.app.evaluate(({ dialog }, path) => {
+      const offered = globalThis as { offered?: unknown }
+      dialog.showSaveDialog = (async (...args: unknown[]) => {
+        offered.offered = args.at(-1)
+        return { canceled: false, filePath: path }
+      }) as typeof dialog.showSaveDialog
+    }, typed)
+    await menu(session, 'export-word')
+
+    const docx = `${typed}.docx`
+    await expect
+      .poll(() => entryOf(docx, 'word/document.xml').catch(() => ''), { timeout: 15_000 })
+      .toContain('Relatório mensal')
+    const offered = await session.app.evaluate(
+      () =>
+        (globalThis as { offered?: { defaultPath: string; filters: { extensions: string[] }[] } }).offered,
+    )
+    expect(offered?.defaultPath).toMatch(/\.docx$/)
+    expect(offered?.filters.map((filter) => filter.extensions)).toEqual([['docx']])
+    await expect(session.window).toHaveTitle(/^relatorio\.docx/)
     await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
   })
 })

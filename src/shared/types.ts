@@ -84,6 +84,7 @@ export const MenuCommand = {
   ExportHtml: 'export-html',
   ExportMarkdown: 'export-markdown',
   ExportOdt: 'export-odt',
+  ExportWord: 'export-word',
   Print: 'print',
   PrintPreview: 'print-preview',
   PageSetup: 'page-setup',

@@ -11,6 +11,7 @@ import { defaultFileName, isPlainTextPath, isWordPackagePath, kindFromPath } fro
 import { documentStatistics } from '@services/document/word-count.js'
 import { hasReportableLoss, locksEditing, lostOnSave } from '@services/file/inventory.js'
 import { currentPreferences } from './preferences.js'
+import { t } from '../i18n.js'
 import { refuseViewOnly } from './view-only.js'
 import {
   loadedState,
@@ -150,6 +151,12 @@ function createOpenActions(set: SetWorkspace, get: GetWorkspace, ctx: WorkspaceC
   }
 }
 
+/** A spreadsheet has no Word format to go to. */
+function refuseWordExport(set: SetWorkspace): false {
+  set({ error: { code: 'INTERNAL', message: t('shell.export.documentOnly') } })
+  return false
+}
+
 function createSaveActions(
   set: SetWorkspace,
   get: GetWorkspace,
@@ -214,13 +221,15 @@ function createSaveActions(
       return true
     },
 
-    saveAs: async () => {
+    saveAs: async (options) => {
       const file = get().file
       if (file === null) return false
       if (file.kind === DocumentKind.Pdf) return refuseViewOnly(set)
+      const wordOnly = options?.wordOnly === true
+      if (wordOnly && file.kind !== DocumentKind.Document) return refuseWordExport(set)
 
       const chosen = await ctx.call(() =>
-        window.api.file.chooseSavePath({ suggestedName: file.name, kind: file.kind }),
+        window.api.file.chooseSavePath({ suggestedName: file.name, kind: file.kind, wordOnly }),
       )
       if (chosen === null || chosen.canceled) return false
 

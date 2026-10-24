@@ -110,6 +110,7 @@ const MENU_ACTIONS: Partial<Record<MenuCommand, MenuAction>> = {
   [MenuCommand.ExportHtml]: (workspace) => workspace.exportDocument('html'),
   [MenuCommand.ExportMarkdown]: (workspace) => workspace.exportDocument('markdown'),
   [MenuCommand.ExportOdt]: (workspace) => workspace.exportDocument('odt'),
+  [MenuCommand.ExportWord]: (workspace) => workspace.saveAs({ wordOnly: true }),
   [MenuCommand.Print]: (workspace) => workspace.print(),
   [MenuCommand.PrintPreview]: (workspace) => workspace.printPreview(),
   [MenuCommand.ZoomIn]: () => runZoomCommand(MenuCommand.ZoomIn),

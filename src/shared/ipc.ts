@@ -197,6 +197,7 @@ export const ipcContracts = {
     request: z.object({
       suggestedName: z.string().min(1).max(MAX_FILE_NAME_LENGTH),
       kind: documentKindSchema.default('document'),
+      wordOnly: z.boolean().default(false),
     }),
     response: saveResultSchema,
   },

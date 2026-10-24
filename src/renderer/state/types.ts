@@ -151,7 +151,8 @@ export interface WorkspaceState {
     template: { readonly source: 'builtin' | 'user'; readonly id: string } | null,
   ) => Promise<boolean>
   save: () => Promise<boolean>
-  saveAs: () => Promise<boolean>
+  /** `wordOnly` offers only `.docx`, and the document goes on from there, as with any save as. */
+  saveAs: (options?: { readonly wordOnly?: boolean }) => Promise<boolean>
   closeFile: () => Promise<void>
   clearRecents: () => Promise<void>
 
