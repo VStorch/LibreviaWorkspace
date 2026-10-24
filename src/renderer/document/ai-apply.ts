@@ -252,27 +252,103 @@ export function buildTrackedReplacement(
 
 export interface AiTextEdit {
   readonly range: AiRange
-  readonly text: string
+  /** Markdown; empty deletes the range. */
+  readonly markdown: string
+}
+
+export interface AiBlockInsertion {
+  /** Between two blocks. */
+  readonly pos: number
+  readonly markdown: string
+}
+
+/** Markdown drops the spaces at the ends, which keep a replaced word apart from its neighbors. */
+const EDGE_SPACES = /^([ \t]*)([\s\S]*?)([ \t]*)$/
+
+function withText(
+  node: ProseMirrorNode,
+  text: string,
+  marks: readonly Mark[],
+  atEnd: boolean,
+): ProseMirrorNode {
+  if (text === '' || !node.isTextblock) return node
+  const piece = Fragment.from(node.type.schema.text(text, marks))
+  return node.copy(atEnd ? node.content.append(piece) : piece.append(node.content))
+}
+
+/** The answer's formatting on top of the replaced text's own: a fixed word keeps its bold. */
+function editBlocks(state: EditorState, edit: AiTextEdit): ProseMirrorNode[] {
+  if (edit.markdown === '') return []
+  const marks = plainMarks(state, edit.range.from, AiFormat.Plain)
+  const [, lead = '', core = '', trail = ''] = EDGE_SPACES.exec(edit.markdown) ?? []
+  const blocks = core === '' ? [] : blocksOf(state, core, marks)
+  if (blocks.length === 0) return paragraphsOf(state, edit.markdown, marks)
+  blocks[0] = withText(blocks[0]!, lead, marks, false)
+  blocks[blocks.length - 1] = withText(blocks[blocks.length - 1]!, trail, marks, true)
+  return blocks
+}
+
+const sameBlock = (a: ProseMirrorNode, b: ProseMirrorNode): boolean =>
+  a.type === b.type && a.attrs['level'] === b.attrs['level']
+
+/**
+ * A whole top-level paragraph that the answer opens with a heading, list or quote becomes those
+ * blocks; merged into the paragraph, the heading would keep the paragraph's style.
+ */
+function wholeBlockRange(
+  state: EditorState,
+  range: AiRange,
+  blocks: readonly ProseMirrorNode[],
+): AiRange | null {
+  const $from = state.doc.resolve(range.from)
+  const $to = state.doc.resolve(range.to)
+  const first = blocks[0]
+  const whole = $from.parentOffset === 0 && $to.parentOffset === $to.parent.content.size
+  if (first === undefined || !whole || $from.depth !== 1 || !$from.sameParent($to)) return null
+  if (first.type.name === 'paragraph' || sameBlock(first, $from.parent)) return null
+  return { from: $from.before(), to: $to.after() }
+}
+
+function replaceEdit(tr: Transaction, state: EditorState, edit: AiTextEdit): void {
+  const blocks = editBlocks(state, edit)
+  const block = wholeBlockRange(state, edit.range, blocks)
+  if (block === null) replaceInParagraphs(tr, state, edit.range, blocks)
+  else tr.replaceWith(block.from, block.to, Fragment.fromArray(blocks))
+}
+
+interface PlacedChange {
+  readonly pos: number
+  readonly apply: (tr: Transaction) => void
 }
 
 /**
- * Several plain-text replacements as one tracked change, one undo. The ranges must not overlap;
- * the last goes first so the earlier positions still hold.
+ * Edits and insertions as one tracked change, one undo. The edit ranges must not overlap; the last
+ * change goes first so the earlier positions still hold, and insertions at one place keep their order.
  */
 export function buildTrackedEdits(
   state: EditorState,
   edits: readonly AiTextEdit[],
+  insertions: readonly AiBlockInsertion[],
   author: string,
   now: Date,
 ): Transaction | null {
-  if (edits.length === 0) return null
+  const changes: PlacedChange[] = [
+    ...edits.map((edit) => ({
+      pos: edit.range.from,
+      apply: (tr: Transaction) => replaceEdit(tr, state, edit),
+    })),
+    ...insertions.map((insertion) => ({
+      pos: insertion.pos,
+      apply: (tr: Transaction) => {
+        const blocks = blocksOf(state, insertion.markdown, [])
+        if (blocks.length > 0) tr.insert(insertion.pos, Fragment.fromArray(blocks))
+      },
+    })),
+  ]
+  if (changes.length === 0) return null
   const tr = state.tr
-  for (const edit of [...edits].sort((a, b) => b.range.from - a.range.from)) {
-    const marks = plainMarks(state, edit.range.from, AiFormat.Plain)
-    const blocks = paragraphsOf(state, edit.text, marks)
-    replaceInParagraphs(tr, state, edit.range, edit.text === '' ? [] : blocks)
-  }
-  return tracked(tr, state, author, now)
+  for (const change of changes.reverse().sort((a, b) => b.pos - a.pos)) change.apply(tr)
+  return tr.docChanged ? tracked(tr, state, author, now) : null
 }
 
 export function buildInsertBelow(

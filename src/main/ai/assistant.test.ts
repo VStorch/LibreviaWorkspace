@@ -406,7 +406,7 @@ describe('chat', () => {
       ],
     })
     expect(prompts[0]?.system).toContain('[1] Choveu o dia todo.')
-    expect(prompts[0]?.tools).toHaveLength(4)
+    expect(prompts[0]?.tools).toHaveLength(5)
   })
 
   it('with Claude Code, the tools go through the local MCP server, in a session that closes with the response', async () => {

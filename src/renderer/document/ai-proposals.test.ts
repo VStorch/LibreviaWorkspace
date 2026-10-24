@@ -3,9 +3,15 @@ import { getSchema } from '@tiptap/core'
 import { Node as ProseMirrorNode } from '@tiptap/pm/model'
 import { EditorState, type Transaction } from '@tiptap/pm/state'
 import type { Editor } from '@tiptap/react'
-import type { AiCommentProposal, AiProposal } from '@services/ai/proposals.js'
+import type {
+  AiCommentProposal,
+  AiEditProposal,
+  AiInsertProposal,
+  AiProposal,
+} from '@services/ai/proposals.js'
 import { usePreferences } from '../state/preferences.js'
 import { useWorkspace } from '../state/workspace.js'
+import { settleAllChanges } from './extensions/track-changes.js'
 import { buildTrackedEdits } from './ai-apply.js'
 import { chatParagraphs, locateProposal } from './ai-proposals.js'
 import { buildEditorExtensions } from './editor-extensions.js'
@@ -71,7 +77,7 @@ const edit = (
   paragraphNumber: number,
   find: string,
   replace: string,
-): AiProposal => ({
+): AiEditProposal => ({
   id,
   kind: 'edit',
   paragraph: paragraphNumber,
@@ -93,6 +99,34 @@ const comment = (
   find,
   comment: `Comentário ${id}`,
 })
+
+const insertion = (doc: ProseMirrorNode, id: string, after: number, content: string): AiInsertProposal => ({
+  id,
+  kind: 'insert',
+  paragraph: after,
+  paragraphText: after === 0 ? '' : (chatParagraphs(doc)[after - 1] ?? ''),
+  content,
+})
+
+/** Block type, then its text as `shown` writes it. */
+function outline(doc: ProseMirrorNode): string[] {
+  const blocks: string[] = []
+  doc.forEach((node) => {
+    const level = node.type.name === 'heading' ? String(node.attrs['level']) : ''
+    blocks.push(
+      `${node.type.name}${level}:${shown(docOf(node.toJSON() as Record<string, unknown>)).join('|')}`,
+    )
+  })
+  return blocks
+}
+
+function settled(state: EditorState, accept: boolean): ProseMirrorNode {
+  const tr = state.tr
+  settleAllChanges(tr, accept)
+  const doc = state.apply(tr).doc
+  doc.check()
+  return doc
+}
 
 interface FakeEditor {
   readonly editor: Editor
@@ -158,7 +192,7 @@ describe('applying proposals', () => {
   it('a change goes in as a tracked revision with the model as author', () => {
     const state = EditorState.create({ doc: docOf(paragraph(text('O gato dorme.'))) })
     const range = locateProposal(state.doc, edit(state.doc, '1', 1, 'dorme', 'cochila'))!
-    const next = state.apply(buildTrackedEdits(state, [{ range, text: 'cochila' }], MODEL, NOW)!)
+    const next = state.apply(buildTrackedEdits(state, [{ range, markdown: 'cochila' }], [], MODEL, NOW)!)
     expect(shown(next.doc)).toEqual(['O gato [dorme]{cochila}.'])
     expect(authorsOf(next.doc)).toEqual([MODEL])
   })
@@ -241,6 +275,150 @@ describe('applying proposals', () => {
     expect(
       applyProposals(fake.editor, [proposal, edit(fake.state().doc, '2', 1, 'dorme', 'x')], MODEL).applied,
     ).toEqual([])
+    expect(fake.transactions).toHaveLength(0)
+  })
+})
+
+describe('Markdown in a proposed edit', () => {
+  beforeEach(() => useWorkspace.setState({ readOnly: false }))
+
+  it('bold and italic become marks, inside the revision', () => {
+    const fake = fakeEditor(docOf(paragraph(text('O gato dorme.'))))
+    applyProposals(fake.editor, [edit(fake.state().doc, '1', 1, 'dorme', '**dorme** *bem*')], MODEL)
+    expect(shown(fake.state().doc)).toEqual(['O gato [dorme]{dorme}{ }{bem}.'])
+    const marks: string[][] = []
+    fake.state().doc.descendants((node) => {
+      if (node.isText)
+        marks.push(node.marks.map((mark) => mark.type.name).filter((name) => name !== 'insertion'))
+    })
+    expect(marks).toEqual([[], ['deletion'], ['bold'], [], ['italic'], []])
+  })
+
+  it('keeps the spaces at the ends, which Markdown would drop', () => {
+    const fake = fakeEditor(docOf(paragraph(text('O gato dorme.'))))
+    applyProposals(fake.editor, [edit(fake.state().doc, '1', 1, 'gato ', 'cão ')], MODEL)
+    expect(shown(fake.state().doc)).toEqual(['O [gato ]{cão }dorme.'])
+  })
+
+  it('a word fixed inside bold text keeps the bold', () => {
+    const fake = fakeEditor(docOf(paragraph(text('Muito obrigdo.', { type: 'bold' }))))
+    applyProposals(fake.editor, [edit(fake.state().doc, '1', 1, 'obrigdo', 'obrigado')], MODEL)
+    const inserted = fake.state().doc.firstChild!.child(2)
+    expect(inserted.text).toBe('obrigado')
+    expect(inserted.marks.map((mark) => mark.type.name).sort()).toEqual(['bold', 'insertion'])
+  })
+})
+
+describe('a whole paragraph that the answer turns into other blocks', () => {
+  beforeEach(() => useWorkspace.setState({ readOnly: false }))
+
+  it('becomes a heading; rejecting brings back the paragraph', () => {
+    const fake = fakeEditor(docOf(paragraph(text('relatorio de vendas')), paragraph(text('Texto.'))))
+    applyProposals(
+      fake.editor,
+      [edit(fake.state().doc, '1', 1, 'relatorio de vendas', '# Relatório de vendas')],
+      MODEL,
+    )
+    expect(outline(settled(fake.state(), true))).toEqual(['heading1:Relatório de vendas', 'paragraph:Texto.'])
+    expect(outline(settled(fake.state(), false))).toEqual([
+      'paragraph:relatorio de vendas',
+      'paragraph:Texto.',
+    ])
+  })
+
+  it('becomes a list with nothing left over on accept', () => {
+    const fake = fakeEditor(docOf(paragraph(text('a, b')), paragraph(text('Fim.'))))
+    applyProposals(fake.editor, [edit(fake.state().doc, '1', 1, 'a, b', '1. a\n2. b')], MODEL)
+    expect(outline(settled(fake.state(), true))).toEqual(['orderedList:a|b', 'paragraph:Fim.'])
+    expect(outline(settled(fake.state(), false))).toEqual(['paragraph:a, b', 'paragraph:Fim.'])
+  })
+
+  it('plain text over a heading keeps the heading, which the model cannot see', () => {
+    const heading = { type: 'heading', attrs: { level: 2 }, content: [text('Resumo')] }
+    const fake = fakeEditor(docOf(heading))
+    applyProposals(fake.editor, [edit(fake.state().doc, '1', 1, 'Resumo', 'Resumo final')], MODEL)
+    expect(outline(settled(fake.state(), true))).toEqual(['heading2:Resumo final'])
+  })
+
+  it('part of a paragraph stays inside it', () => {
+    const fake = fakeEditor(docOf(paragraph(text('O gato dorme.'))))
+    applyProposals(fake.editor, [edit(fake.state().doc, '1', 1, 'gato', '# gato')], MODEL)
+    expect(outline(settled(fake.state(), true))).toEqual(['paragraph:O gato dorme.'])
+  })
+})
+
+describe('applying an insertion', () => {
+  beforeEach(() => useWorkspace.setState({ readOnly: false }))
+
+  const GUIDE = '# Guia\n\nTexto com **negrito**.\n\n- Café\n- Chá'
+
+  it('writes headings, paragraphs and lists into an empty document, all as revision', () => {
+    const fake = fakeEditor(docOf(paragraph()))
+    const outcome = applyProposals(fake.editor, [insertion(fake.state().doc, '1', 0, GUIDE)], MODEL)
+    expect(outcome).toEqual({ applied: ['1'], changed: [] })
+    expect(outline(fake.state().doc)).toEqual([
+      'heading1:{Guia}',
+      'paragraph:{Texto com }{negrito}{.}',
+      'bulletList:{Café}|{Chá}',
+      'paragraph:',
+    ])
+    expect(authorsOf(fake.state().doc)).toEqual([MODEL])
+  })
+
+  it('rejecting it brings back the empty document; accepting it keeps the formatting', () => {
+    const fake = fakeEditor(docOf(paragraph()))
+    applyProposals(fake.editor, [insertion(fake.state().doc, '1', 1, GUIDE)], MODEL)
+    expect(outline(settled(fake.state(), false))).toEqual(['paragraph:'])
+    expect(outline(settled(fake.state(), true))).toEqual([
+      'heading1:Guia',
+      'paragraph:Texto com negrito.',
+      'bulletList:Café|Chá',
+      'paragraph:',
+    ])
+  })
+
+  it('goes after its paragraph, and after the whole list when the paragraph is an item', () => {
+    const fake = fakeEditor(docOf(paragraph(text('Um.')), bullets('a', 'b'), paragraph(text('Fim.'))))
+    const doc = fake.state().doc
+    applyProposals(
+      fake.editor,
+      [insertion(doc, '1', 1, 'Depois do um.'), insertion(doc, '2', 2, 'Depois da lista.')],
+      MODEL,
+    )
+    expect(outline(fake.state().doc)).toEqual([
+      'paragraph:Um.',
+      'paragraph:{Depois do um.}',
+      'bulletList:a|b',
+      'paragraph:{Depois da lista.}',
+      'paragraph:Fim.',
+    ])
+  })
+
+  it('insertions at one place keep their order, in the same transaction as the edits', () => {
+    const fake = fakeEditor(docOf(paragraph(text('O gato dorme.'))))
+    const doc = fake.state().doc
+    const outcome = applyProposals(
+      fake.editor,
+      [
+        insertion(doc, '1', 1, 'Primeira.'),
+        edit(doc, '2', 1, 'gato', 'cão'),
+        insertion(doc, '3', 1, 'Segunda.'),
+      ],
+      MODEL,
+    )
+    expect(outcome).toEqual({ applied: ['1', '2', '3'], changed: [] })
+    expect(fake.transactions).toHaveLength(1)
+    expect(outline(fake.state().doc)).toEqual([
+      'paragraph:O [gato]{cão} dorme.',
+      'paragraph:{Primeira.}',
+      'paragraph:{Segunda.}',
+    ])
+  })
+
+  it('a paragraph that changed since the proposal: nothing goes in', () => {
+    const proposal = insertion(docOf(paragraph(text('Antes.'))), '1', 1, 'Novo.')
+    const fake = fakeEditor(docOf(paragraph(text('Depois.'))))
+    expect(applyProposals(fake.editor, [proposal], MODEL)).toEqual({ applied: [], changed: ['1'] })
     expect(fake.transactions).toHaveLength(0)
   })
 })

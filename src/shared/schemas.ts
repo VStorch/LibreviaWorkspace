@@ -603,10 +603,14 @@ export const aiSheetRequestSchema = z
       context.addIssue({ code: 'custom', path: [missing], message: `${missing} required` })
   })
 
-const aiProposalAnchor = {
+const aiProposalPlace = {
   id: z.string().min(1).max(MAX_ID_LENGTH),
-  paragraph: z.int().min(1).max(MAX_AI_PARAGRAPHS),
   paragraphText: aiDocumentPartSchema,
+}
+
+const aiProposalAnchor = {
+  ...aiProposalPlace,
+  paragraph: z.int().min(1).max(MAX_AI_PARAGRAPHS),
   find: z.string().min(1).max(MAX_AI_FIND_LENGTH),
 }
 
@@ -621,6 +625,12 @@ export const aiProposalSchema = z.discriminatedUnion('kind', [
     ...aiProposalAnchor,
     kind: z.literal(AiProposalKind.Comment),
     comment: z.string().min(1).max(MAX_AI_COMMENT_LENGTH),
+  }),
+  z.object({
+    ...aiProposalPlace,
+    paragraph: z.int().min(0).max(MAX_AI_PARAGRAPHS),
+    kind: z.literal(AiProposalKind.Insert),
+    content: z.string().min(1).max(MAX_AI_REPLACE_LENGTH),
   }),
 ])
 

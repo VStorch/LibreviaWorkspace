@@ -2264,6 +2264,15 @@ button {
   color: var(--accent);
 }
 
+.ai-chat .ai-proposal__replace.ai-preview {
+  display: block;
+  max-height: none;
+  overflow: visible;
+  padding: 0;
+  border: none;
+  white-space: normal;
+}
+
 .sheet-proposal__preview {
   align-self: flex-start;
   margin-top: 6px;

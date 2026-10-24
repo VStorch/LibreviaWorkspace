@@ -777,15 +777,24 @@ Ligada, o assistente pode, durante a resposta:
 
 - ler qualquer parágrafo do documento e procurar um texto nele;
 - propor a troca de um trecho de um parágrafo por outro texto (ou a remoção do trecho);
+- propor texto novo depois de um parágrafo ou no início do documento. É assim que ele escreve num
+  documento vazio. Depois de um item de lista ou de uma célula, o texto entra depois da lista ou
+  da tabela inteira;
 - propor um comentário sobre um trecho.
 
-**Nada muda no documento sem um clique seu.** Cada proposta aparece abaixo da resposta, com o
-número do parágrafo, o trecho atual e o texto novo (ou o comentário), e os botões **Aplicar** e
-**Descartar**. **Aplicar todas** aplica as que ainda estão abertas; alterações e comentários entram juntos, e
-um único Desfazer volta todos.
+O texto proposto vem formatado: títulos (com os estilos Título 1 a Título 6), listas com
+marcadores e numeradas, citações, negrito, itálico, tachado e links. Se a troca pega o parágrafo
+inteiro e o texto novo começa com um título ou uma lista, o parágrafo vira esse título ou essa
+lista. Uma palavra corrigida dentro de um trecho em negrito continua em negrito. Tabelas e imagens
+ainda não entram por proposta.
 
-- Uma alteração aplicada entra como alteração controlada, com o nome do modelo como autor: dá
-  para aceitar ou rejeitar como qualquer outra.
+**Nada muda no documento sem um clique seu.** Cada proposta aparece abaixo da resposta, com o
+número do parágrafo, o trecho atual e o texto novo já formatado (ou o comentário), e os botões
+**Aplicar** e **Descartar**. **Aplicar todas** aplica as que ainda estão abertas; alterações,
+inserções e comentários entram juntos, e um único Desfazer volta todos.
+
+- Uma alteração ou inserção aplicada entra como alteração controlada, com o nome do modelo como
+  autor: dá para aceitar ou rejeitar como qualquer outra.
 - Um comentário aplicado entra sobre o trecho, com o nome do modelo como autor.
 - Antes de aplicar, o Librevia confere se o parágrafo daquele número ainda tem exatamente o texto
   que o modelo leu, com o trecho uma vez só. Se você editou o parágrafo, ou acrescentou ou apagou
@@ -796,9 +805,9 @@ um único Desfazer volta todos.
   acessa a internet e não roda programas: ele só lê o texto enviado e propõe.
 - Com o documento só para leitura, Aplicar fica apagado.
 
-Todos os assistentes oferecem isso. O Claude Code recebe só essas quatro ferramentas, por uma chave que vale para uma
+Todos os assistentes oferecem isso. O Claude Code recebe só essas cinco ferramentas, por uma chave que vale para uma
 mensagem só, e continua sem as dele (arquivos, terminal) e sem os servidores MCP que você tenha
-configurado nele. Um agente ACP recebe as mesmas quatro ferramentas, do mesmo jeito; o Librevia
+configurado nele. Um agente ACP recebe as mesmas cinco ferramentas, do mesmo jeito; o Librevia
 permite cada uso delas e recusa os pedidos de permissão para o resto, mas o agente pode ter
 ferramentas ou servidores MCP próprios que não pedem permissão. Um modelo local sem suporte a
 ferramentas recusa o pedido: o Librevia avisa para desligar a caixa ou trocar de modelo, e o
@@ -854,8 +863,8 @@ trabalhar no documento ou na planilha aberta no Librevia, inclusive no que ainda
 3. Com o Librevia aberto, peça ao programa, por exemplo: "leia o documento aberto no Librevia e
    comente as frases longas demais" ou "some a coluna de preços da planilha aberta no Librevia".
 
-O programa conectado pode ler os parágrafos, procurar um texto, propor a troca de um trecho e
-comentar um trecho. **Cada proposta entra na hora como alteração controlada ou comentário**, mesmo
+O programa conectado pode ler os parágrafos, procurar um texto, propor a troca de um trecho,
+inserir texto novo (formatado, como na conversa) e comentar um trecho. **Cada proposta entra na hora como alteração controlada ou comentário**, mesmo
 com o controle de alterações desligado, e com o nome do programa seguido de "(MCP)" como autor:
 "Claude Code (MCP)". Você aceita ou rejeita como qualquer revisão, e Desfazer volta cada uma. Não
 há limite de propostas.

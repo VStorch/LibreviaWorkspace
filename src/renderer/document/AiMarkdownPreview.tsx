@@ -55,6 +55,11 @@ function rendered(node: DocumentNode, key: number): ReactNode {
   )
 }
 
+export function MarkdownBlocks({ markdown }: { readonly markdown: string }): React.JSX.Element {
+  const nodes = useMemo(() => markdownToNodes(markdown), [markdown])
+  return <>{nodes.map(rendered)}</>
+}
+
 export function AiMarkdownPreview({
   markdown,
   label,
@@ -64,10 +69,9 @@ export function AiMarkdownPreview({
   readonly label: string
   readonly ref?: Ref<HTMLDivElement>
 }): React.JSX.Element {
-  const nodes = useMemo(() => markdownToNodes(markdown), [markdown])
   return (
     <div ref={ref} className="ai-pane__output ai-preview" role="region" aria-label={label} tabIndex={0}>
-      {nodes.map(rendered)}
+      <MarkdownBlocks markdown={markdown} />
     </div>
   )
 }

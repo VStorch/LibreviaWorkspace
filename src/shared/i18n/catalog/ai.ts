@@ -131,6 +131,11 @@ export const AI = {
     pt: 'Comentário no parágrafo {paragraph}',
     en: 'Comment in paragraph {paragraph}',
   },
+  'ai.proposals.insert': {
+    pt: 'Inserção depois do parágrafo {paragraph}',
+    en: 'Insertion after paragraph {paragraph}',
+  },
+  'ai.proposals.insertAtStart': { pt: 'Inserção no início', en: 'Insertion at the start' },
   'ai.proposals.removal': { pt: '(remover)', en: '(remove)' },
   'ai.proposals.apply': { pt: 'Aplicar', en: 'Apply' },
   'ai.proposals.discard': { pt: 'Descartar', en: 'Discard' },

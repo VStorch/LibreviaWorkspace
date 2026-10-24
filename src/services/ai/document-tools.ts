@@ -36,6 +36,7 @@ export const AiToolName = {
   SearchDocument: 'search_document',
   ProposeEdit: 'propose_edit',
   AddComment: 'add_comment',
+  InsertContent: 'insert_content',
 } as const
 
 const DEFAULT_SEARCH_RESULTS = 10
@@ -54,6 +55,9 @@ function defineTool<S extends z.ZodType>(
 }
 
 const paragraphNumber = z.int().min(1).max(MAX_AI_PARAGRAPHS)
+const markdownText = (what: string) =>
+  `${what}, in Markdown: # to ###### for headings, - or 1. for lists, > for quotes, **bold**, *italic*, ~~strikethrough~~, [links](https://…). They become the document's own formatting.`
+
 const findText = z
   .string()
   .min(1)
@@ -120,7 +124,10 @@ const proposeEdit = defineTool(
   z.object({
     paragraph: paragraphNumber,
     find: findText,
-    replace: z.string().max(MAX_AI_REPLACE_LENGTH).describe('The new text; empty to delete.'),
+    replace: z
+      .string()
+      .max(MAX_AI_REPLACE_LENGTH)
+      .describe(`${markdownText('The new text')} Empty to delete.`),
     reason: z.string().max(MAX_AI_REASON_LENGTH).optional(),
   }),
   ({ paragraph, find, replace, reason }, context) => {
@@ -169,7 +176,40 @@ const addComment = defineTool(
   },
 )
 
-const TOOLS = toolbox([readParagraphs, searchDocument, proposeEdit, addComment])
+function insertProblem(after: number, context: ToolContext): string | null {
+  if (after <= context.paragraphs.length) return null
+  return `There is no paragraph ${after}; the document has ${context.paragraphs.length}.`
+}
+
+const insertContent = defineTool(
+  AiToolName.InsertContent,
+  'Propose new paragraphs, headings, lists or quotes after a paragraph, or at the start of the document; this is how to write in an empty document. Inside a list or table, they go after the whole list or table. The person sees the proposal and decides; nothing changes until then.',
+  z.object({
+    after: z
+      .int()
+      .min(0)
+      .max(MAX_AI_PARAGRAPHS)
+      .describe('Number of the paragraph to insert after; 0 for the start of the document.'),
+    content: z.string().min(1).max(MAX_AI_REPLACE_LENGTH).describe(markdownText('What to insert')),
+  }),
+  ({ after, content }, context) => {
+    const problem = limitProblem(context) ?? insertProblem(after, context)
+    if (problem !== null) return failure(problem)
+    const id = String(context.proposalCount + 1)
+    return {
+      ...success(`Insertion ${id} proposed; the person will decide.`),
+      proposal: {
+        id,
+        kind: AiProposalKind.Insert,
+        paragraph: after,
+        paragraphText: after === 0 ? '' : context.paragraphs[after - 1]!,
+        content,
+      },
+    }
+  },
+)
+
+const TOOLS = toolbox([readParagraphs, searchDocument, proposeEdit, insertContent, addComment])
 
 export const DOCUMENT_TOOLS: readonly AiToolDefinition[] = TOOLS.definitions
 
@@ -178,6 +218,8 @@ export const isDocumentTool = (name: string): boolean => TOOLS.has(name)
 const APPLIED_DESCRIPTIONS: Readonly<Record<string, string>> = {
   [AiToolName.ProposeEdit]:
     'Replace a text inside one paragraph. The change goes into the document at once as a tracked revision, which the person accepts or rejects.',
+  [AiToolName.InsertContent]:
+    'Insert new paragraphs, headings, lists or quotes after a paragraph, or at the start of the document; this is how to write in an empty document. Inside a list or table, they go after the whole list or table. The content goes into the document at once as a tracked revision, which the person accepts or rejects.',
   [AiToolName.AddComment]:
     'Comment on a text inside one paragraph. The comment goes into the document at once, under your name.',
 }
@@ -194,9 +236,9 @@ export function appliedOutcome(proposal: AiProposal, applied: boolean): ToolOutc
     return failure(`Paragraph ${proposal.paragraph} changed before this went in: read it again and retry.`)
   }
   return success(
-    proposal.kind === AiProposalKind.Edit
-      ? 'The edit is in the document as a tracked revision; the person will accept or reject it.'
-      : 'The comment is in the document.',
+    proposal.kind === AiProposalKind.Comment
+      ? 'The comment is in the document.'
+      : 'The change is in the document as a tracked revision; the person will accept or reject it.',
   )
 }
 

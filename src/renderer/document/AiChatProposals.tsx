@@ -2,7 +2,14 @@ import { useId } from 'react'
 import { AiProposalKind } from '@services/ai/proposals.js'
 import type { MessageKey } from '@shared/i18n/index.js'
 import { useT } from '../i18n.js'
+import { MarkdownBlocks } from './AiMarkdownPreview.js'
 import type { ChatProposal, ProposalState } from './useAiChat.js'
+
+const PLACE_LABELS: Readonly<Record<AiProposalKind, MessageKey>> = {
+  [AiProposalKind.Edit]: 'ai.proposals.edit',
+  [AiProposalKind.Comment]: 'ai.proposals.comment',
+  [AiProposalKind.Insert]: 'ai.proposals.insert',
+}
 
 const STATE_LABELS: Partial<Record<ProposalState, MessageKey>> = {
   applied: 'ai.proposals.applied',
@@ -55,6 +62,13 @@ export function AiChatProposals({
 
 function AiProposalBody({ proposal }: { readonly proposal: ChatProposal }): React.JSX.Element {
   const t = useT()
+  if (proposal.kind === AiProposalKind.Insert) {
+    return (
+      <ins className="ai-preview ai-proposal__replace">
+        <MarkdownBlocks markdown={proposal.content} />
+      </ins>
+    )
+  }
   if (proposal.kind === AiProposalKind.Comment) {
     return (
       <>
@@ -69,7 +83,9 @@ function AiProposalBody({ proposal }: { readonly proposal: ChatProposal }): Reac
       {proposal.replace === '' ? (
         <span className="ai-pane__note">{t('ai.proposals.removal')}</span>
       ) : (
-        <ins className="ai-proposal__replace">{proposal.replace}</ins>
+        <ins className="ai-preview ai-proposal__replace">
+          <MarkdownBlocks markdown={proposal.replace} />
+        </ins>
       )}
       {proposal.reason !== undefined && <p className="ai-pane__note">{proposal.reason}</p>}
     </>
@@ -89,7 +105,10 @@ function AiProposalCard({
 }): React.JSX.Element {
   const t = useT()
   const status = STATE_LABELS[proposal.state]
-  const where = proposal.kind === AiProposalKind.Edit ? 'ai.proposals.edit' : 'ai.proposals.comment'
+  const where =
+    proposal.kind === AiProposalKind.Insert && proposal.paragraph === 0
+      ? 'ai.proposals.insertAtStart'
+      : PLACE_LABELS[proposal.kind]
   const describedBy = useId()
   return (
     <div className="ai-proposal">

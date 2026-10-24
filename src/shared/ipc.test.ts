@@ -339,6 +339,17 @@ describe('AI assistant contracts', () => {
       const many = Array.from({ length: MAX_AI_PROPOSALS + 1 }, (_, i) => ({ ...edit, id: String(i) }))
       expect(response.safeParse({ status: 'done', proposals: many }).success).toBe(false)
     })
+
+    it('accepts an insertion at the start, and refuses one without content', () => {
+      const insert = { id: '3', kind: 'insert', paragraph: 0, paragraphText: '', content: '# Título' }
+      expect(response.safeParse({ status: 'done', proposals: [insert] }).success).toBe(true)
+      expect(response.safeParse({ status: 'done', proposals: [{ ...insert, content: '' }] }).success).toBe(
+        false,
+      )
+      expect(response.safeParse({ status: 'done', proposals: [{ ...insert, paragraph: -1 }] }).success).toBe(
+        false,
+      )
+    })
   })
 
   it('accepts only an http or https address for the provider', () => {

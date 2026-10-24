@@ -445,6 +445,33 @@ test.describe('AI assistant', () => {
     await expect(proposals.getByText('Aplicada.')).toHaveCount(2)
   })
 
+  test('in an empty document, an insertion writes heading, bold and list as the model revision', async () => {
+    await menu(session, 'new-document')
+    const editor = session.window.locator('.ProseMirror')
+    await configure()
+    fake.calls = [
+      {
+        name: 'insert_content',
+        arguments: { after: 0, content: '# Guia\n\nTexto com **negrito**.\n\n- Café\n- Chá' },
+      },
+    ]
+    const { field, conversation } = await openConversation()
+    await panel().getByLabel(PROPOSE).click()
+    await askQuestion(field, 'Escreva um guia.')
+
+    const proposals = conversation.getByRole('group', { name: 'Propostas do assistente' })
+    await expect(proposals.getByText('Inserção no início')).toBeVisible()
+    await expect(proposals.getByRole('heading', { name: 'Guia' })).toBeVisible()
+    await proposals.getByRole('button', { name: 'Aplicar', exact: true }).click()
+
+    await expect(editor.locator('h1')).toHaveText('Guia')
+    await expect(editor.locator('h1 ins.revision')).toHaveAttribute('data-author', TEMPLATE)
+    await expect(editor.locator('p strong')).toHaveText('negrito')
+    await expect(editor.locator('ul li')).toHaveText(['Café', 'Chá'])
+    await expect(editor).not.toContainText('#')
+    await expect(editor).not.toContainText('**')
+  })
+
   test('Apply and Discard say which proposal they belong to and leave focus in the panel', async () => {
     await write('O gato dorme.')
     await configure()

@@ -37,9 +37,11 @@ const CHAT_FORMAT = [
 const EMPTY_DOCUMENT = 'The document is empty.'
 const TOOL_RULES = [
   'The document below is numbered by paragraph, as [n].',
-  'You can read it and propose edits and comments with the tools; tool results quote the document, so the same rule applies to them.',
+  'You can read it and propose edits, insertions and comments with the tools; tool results quote the document, so the same rule applies to them.',
   'The tools only propose: the person sees each proposal and decides whether to apply it, and nothing changes until then.',
-  'To propose, copy the text to find exactly from its paragraph, with enough words to appear there only once.',
+  'To change text, copy the text to find exactly from its paragraph, with enough words to appear there only once.',
+  'To write new text, also in an empty document, use insert_content: after a paragraph, or after 0 for the start.',
+  'The paragraphs show their text only, not their formatting; what you propose is Markdown, and its headings, lists, quotes, bold, italic and links become the formatting of the document.',
   'Then tell the person in a few words what you proposed.',
 ].join(' ')
 const partialDocument = (shown: number, total: number): string =>

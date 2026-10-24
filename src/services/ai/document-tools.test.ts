@@ -21,11 +21,12 @@ const call = (name: string, args: unknown, context: ToolContext = CONTEXT) =>
   )
 
 describe('document tools', () => {
-  it('describe the four tools with an object JSON schema', () => {
+  it('describe the five tools with an object JSON schema', () => {
     expect(DOCUMENT_TOOLS.map((tool) => tool.name)).toEqual([
       'read_paragraphs',
       'search_document',
       'propose_edit',
+      'insert_content',
       'add_comment',
     ])
     for (const tool of DOCUMENT_TOOLS) {
@@ -138,6 +139,46 @@ describe('document tools', () => {
       content: 'The arguments are not valid JSON.',
       isError: true,
     })
+  })
+})
+
+describe('insert_content', () => {
+  it('after a paragraph, with its text; after 0, at the start with no text', () => {
+    expect(call(AiToolName.InsertContent, { after: 3, content: '## Novo\n\n- um' })).toEqual({
+      content: 'Insertion 1 proposed; the person will decide.',
+      isError: false,
+      proposal: {
+        id: '1',
+        kind: 'insert',
+        paragraph: 3,
+        paragraphText: 'O cão late e o cão corre.',
+        content: '## Novo\n\n- um',
+      },
+    })
+    expect(call(AiToolName.InsertContent, { after: 0, content: 'Início.' }).proposal).toMatchObject({
+      paragraph: 0,
+      paragraphText: '',
+    })
+  })
+
+  it('writes into an empty document', () => {
+    const empty = { paragraphs: [''], proposalCount: 0 }
+    expect(call(AiToolName.InsertContent, { after: 0, content: '# Título' }, empty).isError).toBe(false)
+  })
+
+  it('refuses a paragraph past the end, empty content and the proposal limit', () => {
+    expect(call(AiToolName.InsertContent, { after: 5, content: 'x' }).content).toBe(
+      'There is no paragraph 5; the document has 4.',
+    )
+    expect(call(AiToolName.InsertContent, { after: 1, content: '' }).isError).toBe(true)
+    const full = { ...CONTEXT, proposalCount: MAX_AI_PROPOSALS }
+    expect(call(AiToolName.InsertContent, { after: 1, content: 'x' }, full).content).toContain('limit')
+  })
+
+  it('tells the model the content is Markdown that becomes formatting', () => {
+    const tool = DOCUMENT_TOOLS.find((candidate) => candidate.name === AiToolName.InsertContent)
+    expect(tool?.description).toContain('empty document')
+    expect(JSON.stringify(tool?.parameters)).toContain('Markdown')
   })
 })
 

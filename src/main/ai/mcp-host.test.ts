@@ -188,6 +188,7 @@ describe('local MCP server', () => {
       'read_paragraphs',
       'search_document',
       'propose_edit',
+      'insert_content',
       'add_comment',
       'list_sheets',
       'read_cells',
@@ -199,7 +200,7 @@ describe('local MCP server', () => {
     expect(sheetCalls).toEqual([{ name: 'read_cells', author: 'Editor X (MCP)' }])
     const unknown = await external.call('tools/call', { name: 'run_shell', arguments: {} })
     expect(textOf(unknown)).toContain(
-      'read_paragraphs, search_document, propose_edit, add_comment, list_sheets',
+      'read_paragraphs, search_document, propose_edit, insert_content, add_comment, list_sheets',
     )
   })
 

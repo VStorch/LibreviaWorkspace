@@ -1,5 +1,5 @@
 import type { Node as ProseMirrorNode } from '@tiptap/pm/model'
-import { occurrences, type AiProposal } from '@services/ai/proposals.js'
+import { occurrences, type AiAnchoredProposal, type AiInsertProposal } from '@services/ai/proposals.js'
 import { MAX_AI_DOCUMENT_LENGTH, MAX_AI_PARAGRAPHS } from '@shared/limits.js'
 import type { AiRange } from './ai-apply.js'
 import { isDeleted } from './extensions/track-changes.js'
@@ -14,6 +14,8 @@ interface TextSpan {
 interface ParagraphText {
   readonly text: string
   readonly spans: readonly TextSpan[]
+  readonly pos: number
+  readonly node: ProseMirrorNode
 }
 
 const NOTE_REF = 'noteRef'
@@ -28,7 +30,7 @@ function paragraphText(block: ProseMirrorNode, blockPos: number): ParagraphText 
     spans.push({ offset: text.length, pos: blockPos + 1 + childOffset, length: piece.length })
     text += piece
   })
-  return { text, spans }
+  return { text, spans, pos: blockPos, node: block }
 }
 
 /**
@@ -76,7 +78,7 @@ function endPos(spans: readonly TextSpan[], offset: number): number | null {
  * Null when the paragraph of that number no longer reads as it did: an edit or a paragraph added
  * above would otherwise land the proposal on another one.
  */
-export function locateProposal(doc: ProseMirrorNode, proposal: AiProposal): AiRange | null {
+export function locateProposal(doc: ProseMirrorNode, proposal: AiAnchoredProposal): AiRange | null {
   const paragraph = paragraphsOf(doc)[proposal.paragraph - 1]
   if (paragraph?.text !== proposal.paragraphText) return null
   if (occurrences(paragraph.text, proposal.find) !== 1) return null
@@ -86,12 +88,26 @@ export function locateProposal(doc: ProseMirrorNode, proposal: AiProposal): AiRa
   return from === null || to === null ? null : { from, to }
 }
 
-export interface LocatedProposal<P extends AiProposal> {
+/**
+ * After the top-level block that holds the paragraph, so a list or table stays whole; an empty
+ * paragraph of its own is the place to write, so the insertion goes before it. Null as in
+ * `locateProposal`.
+ */
+export function locateInsertion(doc: ProseMirrorNode, proposal: AiInsertProposal): number | null {
+  if (proposal.paragraph === 0) return 0
+  const paragraph = paragraphsOf(doc)[proposal.paragraph - 1]
+  if (paragraph?.text !== proposal.paragraphText) return null
+  const $block = doc.resolve(paragraph.pos)
+  if ($block.depth > 0) return $block.after(1)
+  return paragraph.node.content.size === 0 ? paragraph.pos : paragraph.pos + paragraph.node.nodeSize
+}
+
+export interface LocatedProposal<P extends AiAnchoredProposal> {
   readonly proposal: P
   readonly range: AiRange
 }
 
-export interface LocatedProposals<P extends AiProposal> {
+export interface LocatedProposals<P extends AiAnchoredProposal> {
   readonly located: readonly LocatedProposal<P>[]
   /** Not found as they were, or overlapping one found before them. */
   readonly changed: readonly string[]
@@ -99,7 +115,7 @@ export interface LocatedProposals<P extends AiProposal> {
 
 const overlaps = (a: AiRange, b: AiRange): boolean => a.from < b.to && b.from < a.to
 
-export function locateProposals<P extends AiProposal>(
+export function locateProposals<P extends AiAnchoredProposal>(
   doc: ProseMirrorNode,
   proposals: readonly P[],
 ): LocatedProposals<P> {
