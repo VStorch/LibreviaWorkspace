@@ -72,6 +72,10 @@ win:
       name: Librevia Word Template
       description: Word template
       role: Editor
+    - ext: xlsx
+      name: Librevia Excel Workbook
+      description: Excel workbook
+      role: Editor
   target:
     - target: nsis
       arch: [x64]

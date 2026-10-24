@@ -850,7 +850,7 @@ instalador leva, além do aplicativo:
 O sidecar fica **fora** do asar. Um executável dentro de um arquivo compactado não roda.
 
 No Linux, o aplicativo se registra para `.docx`, `.dotx`, `.xlsx`, `.txt` e `.pdf`; no Windows,
-para `.docx` e `.dotx`.
+para `.docx`, `.dotx` e `.xlsx`.
 
 `npm run notices` gera o `THIRD-PARTY-NOTICES.md`. Ele cobre **três** conjuntos: as
 dependências npm de produção, o Electron inteiro (com Chromium e Node.js) e os pacotes NuGet
