@@ -41,6 +41,16 @@ test.describe('file cycle', () => {
     await expect(session.window.locator('.ProseMirror')).toContainText('Presentes: Ana, Bruno e Carla.')
   })
 
+  test('a click low on the sheet of a new document lands in the text', async () => {
+    await menu(session, 'new-document')
+    const paper = session.window.locator('.paper').first()
+    const box = (await paper.boundingBox())!
+    await session.window.mouse.click(box.x + box.width / 2, box.y + box.height / 2)
+    await session.window.keyboard.type('Primeira linha')
+
+    await expect(session.window.locator('.ProseMirror')).toHaveText('Primeira linha')
+  })
+
   test('the file format decides the editor', async () => {
     // `.ssheet` must open in the grid, not in the text editor showing JSON.
     const target = join(folder, 'contas.ssheet')

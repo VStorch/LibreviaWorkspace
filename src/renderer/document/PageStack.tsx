@@ -1,4 +1,4 @@
-import { useMemo, type RefObject } from 'react'
+import { useMemo, type MouseEvent, type RefObject } from 'react'
 import { EditorContent, type Editor } from '@tiptap/react'
 import type { DocumentComment, PageSetup } from '@services/document/model.js'
 import { pageDimensionsMm } from '@services/document/model.js'
@@ -50,6 +50,7 @@ export function PageStack(props: PageStackProps): React.JSX.Element {
       <div
         className={`pages${reading ? ' pages--reading' : ''}`}
         data-zoom={reading ? 100 : zoom}
+        onMouseDown={(event) => placeCaretNearClick(editor, event)}
         style={
           reading
             ? undefined
@@ -103,6 +104,28 @@ export function PageStack(props: PageStackProps): React.JSX.Element {
       </div>
     </div>
   )
+}
+
+/**
+ * The paper is drawn behind the text and the editable area ends at the last line, so a click lower on
+ * the sheet would reach no text, as in a new document.
+ */
+function placeCaretNearClick(editor: Editor, event: MouseEvent<HTMLDivElement>): void {
+  const target = event.target as Element
+  const onBareSheet = target === event.currentTarget || target.classList.contains('pages__column')
+  if (event.button !== 0 || !onBareSheet || !editor.isEditable) return
+
+  const text = editor.view.dom.getBoundingClientRect()
+  const found = editor.view.posAtCoords({
+    left: Math.min(Math.max(event.clientX, text.left), text.right - 1),
+    top: Math.min(Math.max(event.clientY, text.top), text.bottom - 1),
+  })
+  if (found === null) return
+
+  event.preventDefault()
+  // Tiptap's focus() waits a frame; keys typed right after the click would land on the body.
+  editor.view.focus()
+  editor.commands.setTextSelection(found.pos)
 }
 
 /**
