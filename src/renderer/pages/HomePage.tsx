@@ -1,4 +1,5 @@
 import { APP_NAME } from '@shared/constants.js'
+import swallowUrl from '../../../build/icon.svg?url'
 import type { RecentFile } from '@shared/types.js'
 import { Icon, type IconName } from '../components/Icon.js'
 import { useT } from '../i18n.js'
@@ -31,47 +32,9 @@ function RecentItem({ file }: { readonly file: RecentFile }): React.JSX.Element 
   )
 }
 
-/** Two sheets, green behind and blue in front: the home screen is the only place for the brand. */
+/** The app icon itself, so the home screen and the system show the same swallow. */
 function BrandMark(): React.JSX.Element {
-  return (
-    <svg
-      className="home__mark"
-      viewBox="0 0 40 40"
-      width="42"
-      height="42"
-      fill="none"
-      strokeLinecap="round"
-      aria-hidden="true"
-    >
-      <rect
-        x="14"
-        y="6"
-        width="19"
-        height="26"
-        rx="3"
-        transform="rotate(9 23.5 19)"
-        fill="var(--accent-spreadsheet-soft)"
-        stroke="var(--accent-spreadsheet)"
-        strokeWidth="1.6"
-      />
-      <rect
-        x="7"
-        y="9"
-        width="19"
-        height="26"
-        rx="3"
-        fill="var(--surface)"
-        stroke="var(--accent-document)"
-        strokeWidth="1.6"
-      />
-      <path
-        d="M11.5 16h10M11.5 21h10M11.5 26h6"
-        stroke="var(--accent-document)"
-        strokeWidth="1.6"
-        opacity="0.45"
-      />
-    </svg>
-  )
+  return <img className="home__mark" src={swallowUrl} width="72" height="72" alt="" />
 }
 
 type Tone = 'document' | 'spreadsheet' | 'neutral'
