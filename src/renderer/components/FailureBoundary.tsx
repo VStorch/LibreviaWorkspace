@@ -1,4 +1,4 @@
-import { Component, type ReactNode } from 'react'
+import { Component, type ErrorInfo, type ReactNode } from 'react'
 import { t } from '../i18n.js'
 
 interface FailureBoundaryState {
@@ -10,6 +10,10 @@ export class FailureBoundary extends Component<{ readonly children: ReactNode },
 
   static getDerivedStateFromError(): FailureBoundaryState {
     return { failed: true }
+  }
+
+  override componentDidCatch(error: Error, info: ErrorInfo): void {
+    console.error(error.stack ?? String(error), info.componentStack ?? '')
   }
 
   override render(): ReactNode {
