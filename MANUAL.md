@@ -55,6 +55,8 @@ sudo apt install ./librevia_0.5.0_amd64.deb
 ### 🪟 Windows
 
 Execute o instalador. Ele instala **só para o seu usuário** e não pede senha de administrador.
+O instalador ainda não é assinado, então o Windows pode mostrar "O Windows protegeu o computador":
+clique em **Mais informações** e depois em **Executar assim mesmo**.
 Depois disso, um `.docx`, um `.dotx` ou um `.xlsx` pode ser aberto com o Librevia pelo botão
 direito do Explorador de Arquivos.
 
