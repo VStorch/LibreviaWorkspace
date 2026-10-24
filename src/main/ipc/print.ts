@@ -46,8 +46,8 @@ export function registerPrintHandlers(): void {
     return { canceled: false as const, path, name: fileNameFromPath(path) }
   })
 
-  handle(IpcChannel.PrintDialog, async (payload) => ({
-    printed: await printDocument(payload.html, payload.page),
+  handle(IpcChannel.PrintDialog, async (payload, event) => ({
+    printed: await printDocument(payload.html, payload.page, windowOf(event)),
   }))
 
   handle(IpcChannel.PrintPreview, async (payload, event) => {

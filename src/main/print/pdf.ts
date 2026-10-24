@@ -10,14 +10,20 @@ import { openPdfWindow } from '../pdf-viewer.js'
 
 /**
  * Chromium itself renders the PDF in a hidden window with **JavaScript off**: the HTML comes from
- * the document, and turning it into a PDF needs nothing executed.
+ * the document, and turning it into a PDF needs nothing executed. With `over`, the window shows above
+ * that one before `run`.
  */
-async function withRenderWindow<T>(html: string, run: (contents: WebContents) => Promise<T>): Promise<T> {
+async function withRenderWindow<T>(
+  html: string,
+  run: (contents: WebContents) => Promise<T>,
+  over?: BrowserWindow,
+): Promise<T> {
   const temporaryPath = join(app.getPath('temp'), `librevia-print-${randomUUID()}.html`)
   await writeFile(temporaryPath, html, 'utf8')
 
   const window = new BrowserWindow({
     show: false,
+    ...(over === undefined ? {} : { parent: over, modal: true }),
     webPreferences: {
       javascript: false,
       sandbox: true,
@@ -38,6 +44,7 @@ async function withRenderWindow<T>(html: string, run: (contents: WebContents) =>
 
     await window.loadFile(temporaryPath)
     await loaded
+    if (over !== undefined) window.show()
 
     return await run(window.webContents)
   } finally {
@@ -50,8 +57,14 @@ export async function renderPdf(html: string, page: PageSetup, paged = false): P
   return withRenderWindow(html, async (contents) => contents.printToPDF(buildPrintOptions(page, paged)))
 }
 
+/**
+ * On Wayland, the print dialog of a window never shown takes the app down: Chromium hands the
+ * compositor a surface without a role. On Linux the page to print shows above the editor meanwhile.
+ */
+const PRINTS_FROM_SHOWN_WINDOW = process.platform === 'linux'
+
 /** `false` when canceled: canceling is not an error. */
-export async function printDocument(html: string, page: PageSetup): Promise<boolean> {
+export async function printDocument(html: string, page: PageSetup, owner: BrowserWindow): Promise<boolean> {
   return withRenderWindow(
     html,
     (contents) =>
@@ -69,6 +82,7 @@ export async function printDocument(html: string, page: PageSetup): Promise<bool
           reject(new AppError(ErrorCode.Internal, t('errors.print.printFailed', { reason })))
         })
       }),
+    PRINTS_FROM_SHOWN_WINDOW ? owner : undefined,
   )
 }
 
