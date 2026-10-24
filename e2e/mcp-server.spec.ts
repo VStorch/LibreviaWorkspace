@@ -112,6 +112,7 @@ test.describe('local MCP server', () => {
       'read_paragraphs',
       'search_document',
       'propose_edit',
+      'insert_content',
       'add_comment',
       'list_sheets',
       'read_cells',
@@ -132,6 +133,14 @@ test.describe('local MCP server', () => {
     expect(textOf(proposal)).toContain('tracked revision')
     await expect(editor.locator(`ins.revision[data-author="${CLIENT} (MCP)"]`)).toHaveText('quarta')
     await expect(editor.locator(`del.revision[data-author="${CLIENT} (MCP)"]`)).toHaveText('terça')
+
+    const insertion = await bridge.ask('tools/call', {
+      name: 'insert_content',
+      arguments: { after: 0, content: '## Pauta' },
+    })
+    expect(textOf(insertion)).toContain('tracked revision')
+    await expect(editor.locator(`h2 ins.revision[data-author="${CLIENT} (MCP)"]`)).toHaveText('Pauta')
+    await expect(editor.locator('.ai-diff__actions')).toHaveCount(0)
 
     const indicator = session.window.getByTestId('mcp-status')
     await expect(indicator).toContainText(CLIENT)

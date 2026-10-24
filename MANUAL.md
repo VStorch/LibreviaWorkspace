@@ -788,22 +788,34 @@ inteiro e o texto novo começa com um título ou uma lista, o parágrafo vira es
 lista. Uma palavra corrigida dentro de um trecho em negrito continua em negrito. Tabelas e imagens
 ainda não entram por proposta.
 
-**Nada muda no documento sem um clique seu.** Cada proposta aparece abaixo da resposta, com o
-número do parágrafo, o trecho atual e o texto novo já formatado (ou o comentário), e os botões
-**Aplicar** e **Descartar**. **Aplicar todas** aplica as que ainda estão abertas; alterações,
-inserções e comentários entram juntos, e um único Desfazer volta todos.
+**Nada muda no documento sem um clique seu.** Cada proposta aparece de dois jeitos:
 
-- Uma alteração ou inserção aplicada entra como alteração controlada, com o nome do modelo como
-  autor: dá para aceitar ou rejeitar como qualquer outra.
-- Um comentário aplicado entra sobre o trecho, com o nome do modelo como autor.
-- Antes de aplicar, o Librevia confere se o parágrafo daquele número ainda tem exatamente o texto
+- **Na folha, como diferença.** Numa troca dentro de um parágrafo, só as palavras que mudam:
+  a que sai fica riscada em vermelho, a que entra aparece em verde ao lado. Um texto novo de
+  vários blocos (título, lista) e uma inserção aparecem num bloco verde entre os parágrafos. Um
+  comentário marca o trecho em amarelo, com o texto ao lado. Cada proposta tem os botões
+  **Aceitar** e **Rejeitar**. Você pode continuar escrevendo: a diferença acompanha o texto.
+- **No painel**, abaixo da resposta, com o número do parágrafo, o trecho atual e o texto novo já
+  formatado (ou o comentário), e os mesmos botões. **Aceitar todas** e **Rejeitar todas** decidem
+  as que ainda estão abertas.
+
+Aceitar põe a mudança direto no texto, e Desfazer (Ctrl+Z) a tira. Com várias aceitas de uma vez,
+um único Desfazer volta todas.
+
+- Com o **controle de alterações ligado**, uma alteração ou inserção aceita entra como alteração
+  controlada, com o nome do modelo como autor: dá para aceitar ou rejeitar depois, como qualquer
+  outra.
+- Um comentário aceito entra sobre o trecho, com o nome do modelo como autor.
+- Rejeitar só tira a proposta da folha; o texto fica como estava.
+- Antes de aceitar, o Librevia confere se o parágrafo daquele número ainda tem exatamente o texto
   que o modelo leu, com o trecho uma vez só. Se você editou o parágrafo, ou acrescentou ou apagou
-  parágrafos acima dele, a proposta mostra "O texto mudou" e não é aplicada.
+  parágrafos acima dele, a diferença some da folha, e Aceitar no painel mostra "O texto mudou" sem
+  mudar nada.
 - No máximo 30 propostas por mensagem, 10 ferramentas por rodada e 8 rodadas. O que o modelo lê
   do documento numa resposta, somado, não passa do limite de contexto do assistente; acima disso,
   a ferramenta responde que a leitura acabou. O assistente não grava nada, não abre arquivos, não
   acessa a internet e não roda programas: ele só lê o texto enviado e propõe.
-- Com o documento só para leitura, Aplicar fica apagado.
+- Com o documento só para leitura, Aceitar fica apagado.
 
 Todos os assistentes oferecem isso. O Claude Code recebe só essas cinco ferramentas, por uma chave que vale para uma
 mensagem só, e continua sem as dele (arquivos, terminal) e sem os servidores MCP que você tenha

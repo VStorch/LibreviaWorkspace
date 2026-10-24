@@ -21,7 +21,7 @@ interface AiChatProposalsProps {
   readonly proposals: readonly ChatProposal[]
   readonly readOnly: boolean
   readonly onApply: (ids: readonly string[]) => void
-  readonly onDiscard: (id: string) => void
+  readonly onDiscard: (ids: readonly string[]) => void
 }
 
 export function AiChatProposals({
@@ -40,7 +40,7 @@ export function AiChatProposals({
           proposal={proposal}
           readOnly={readOnly}
           onApply={() => onApply([proposal.id])}
-          onDiscard={() => onDiscard(proposal.id)}
+          onDiscard={() => onDiscard([proposal.id])}
         />
       ))}
       {open.length > 1 && (
@@ -53,6 +53,14 @@ export function AiChatProposals({
             onClick={() => onApply(open.map((proposal) => proposal.id))}
           >
             {t('ai.proposals.applyAll')}
+          </button>
+          <button
+            type="button"
+            className="btn"
+            data-proposal-action=""
+            onClick={() => onDiscard(open.map((proposal) => proposal.id))}
+          >
+            {t('ai.proposals.discardAll')}
           </button>
         </div>
       )}

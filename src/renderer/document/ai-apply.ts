@@ -265,6 +265,17 @@ export interface AiBlockInsertion {
 /** Markdown drops the spaces at the ends, which keep a replaced word apart from its neighbors. */
 const EDGE_SPACES = /^([ \t]*)([\s\S]*?)([ \t]*)$/
 
+export interface EdgeSpaces {
+  readonly lead: string
+  readonly core: string
+  readonly trail: string
+}
+
+export function edgeSpacesOf(text: string): EdgeSpaces {
+  const [, lead = '', core = '', trail = ''] = EDGE_SPACES.exec(text) ?? []
+  return { lead, core, trail }
+}
+
 function withText(
   node: ProseMirrorNode,
   text: string,
@@ -280,7 +291,7 @@ function withText(
 function editBlocks(state: EditorState, edit: AiTextEdit): ProseMirrorNode[] {
   if (edit.markdown === '') return []
   const marks = plainMarks(state, edit.range.from, AiFormat.Plain)
-  const [, lead = '', core = '', trail = ''] = EDGE_SPACES.exec(edit.markdown) ?? []
+  const { lead, core, trail } = edgeSpacesOf(edit.markdown)
   const blocks = core === '' ? [] : blocksOf(state, core, marks)
   if (blocks.length === 0) return paragraphsOf(state, edit.markdown, marks)
   blocks[0] = withText(blocks[0]!, lead, marks, false)
@@ -321,16 +332,21 @@ interface PlacedChange {
   readonly apply: (tr: Transaction) => void
 }
 
+export interface AiRevision {
+  readonly author: string
+  readonly now: Date
+}
+
 /**
- * Edits and insertions as one tracked change, one undo. The edit ranges must not overlap; the last
- * change goes first so the earlier positions still hold, and insertions at one place keep their order.
+ * Edits and insertions as one change, one undo: a revision by `revision.author`, or, with no
+ * revision, straight into the text. The edit ranges must not overlap; the last change goes first so
+ * the earlier positions still hold, and insertions at one place keep their order.
  */
-export function buildTrackedEdits(
+export function buildProposalEdits(
   state: EditorState,
   edits: readonly AiTextEdit[],
   insertions: readonly AiBlockInsertion[],
-  author: string,
-  now: Date,
+  revision: AiRevision | null,
 ): Transaction | null {
   const changes: PlacedChange[] = [
     ...edits.map((edit) => ({
@@ -348,7 +364,8 @@ export function buildTrackedEdits(
   if (changes.length === 0) return null
   const tr = state.tr
   for (const change of changes.reverse().sort((a, b) => b.pos - a.pos)) change.apply(tr)
-  return tr.docChanged ? tracked(tr, state, author, now) : null
+  if (!tr.docChanged) return null
+  return revision === null ? tr : tracked(tr, state, revision.author, revision.now)
 }
 
 export function buildInsertBelow(

@@ -80,6 +80,7 @@ export function AiChatTab({
     void chat.send(draft, {
       providerId: provider.id,
       model: provider.defaultModel ?? '',
+      providerLabel: provider.label,
       proposals,
     })
   }
@@ -161,11 +162,11 @@ function AiChatLog({
             readOnly={readOnly}
             onInsert={() => chat.insertBelow(message, authorOf(provider, message.model))}
             onApply={(ids) => {
-              chat.apply(message.id, ids, authorOf(provider, message.model))
+              chat.apply(message.id, ids)
               onProposalSettled()
             }}
-            onDiscard={(id) => {
-              chat.discard(message.id, id)
+            onDiscard={(ids) => {
+              chat.discard(message.id, ids)
               onProposalSettled()
             }}
           />
@@ -186,7 +187,7 @@ function AiChatReply({
   readonly readOnly: boolean
   readonly onInsert: () => void
   readonly onApply: (ids: readonly string[]) => void
-  readonly onDiscard: (id: string) => void
+  readonly onDiscard: (ids: readonly string[]) => void
 }): React.JSX.Element {
   const t = useT()
   const preview = useRef<HTMLDivElement>(null)

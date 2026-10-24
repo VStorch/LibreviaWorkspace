@@ -839,6 +839,81 @@ button {
   box-shadow: inset 3px 0 0 var(--revision);
 }
 
+/* The assistant's open proposals, as a diff on the sheet; the paper is light in both themes. */
+.ProseMirror .ai-diff__old {
+  background: #fde2e1;
+  color: #8c1d18;
+  text-decoration: line-through;
+}
+
+.ProseMirror .ai-diff__new {
+  background: #d9f2e1;
+  color: #145c38;
+}
+
+.ProseMirror .ai-diff__comment {
+  background: #fff1c2;
+}
+
+.ProseMirror .ai-diff__note {
+  margin-left: 4px;
+  padding: 0 4px;
+  border-radius: 3px;
+  background: #fff1c2;
+  color: #5c4400;
+  font-style: italic;
+}
+
+.ProseMirror .ai-diff__block {
+  margin: 4px 0;
+  padding: 2px 8px;
+  border-left: 3px solid #1a7a4c;
+  background: #eef9f1;
+  color: #145c38;
+}
+
+.ProseMirror .ai-diff__block > :is(p, ul, ol, blockquote, h1, h2, h3, h4, h5, h6) {
+  margin: 0.3em 0;
+}
+
+.ProseMirror .ai-diff__actions {
+  display: inline-flex;
+  gap: 4px;
+  margin-left: 4px;
+  vertical-align: baseline;
+  font:
+    12px/1.4 system-ui,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
+  font-style: normal;
+  user-select: none;
+}
+
+.ProseMirror .ai-diff__actions button {
+  padding: 0 6px;
+  border: 1px solid #b9c2cc;
+  border-radius: 3px;
+  background: #fff;
+  color: #1f2933;
+  cursor: pointer;
+}
+
+.ProseMirror .ai-diff__actions .ai-diff__accept {
+  border-color: #1a7a4c;
+  color: #145c38;
+}
+
+.ProseMirror .ai-diff__actions button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.ProseMirror .ai-diff__actions button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
 .ProseMirror tr[data-revision]::after {
   content: none;
 }

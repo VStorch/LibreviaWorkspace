@@ -409,14 +409,19 @@ test.describe('AI assistant', () => {
   })
 
   const PROPOSE = 'Deixar o assistente propor alterações e comentários'
+  const EDIT_CALL = {
+    name: 'propose_edit',
+    arguments: { paragraph: 1, find: 'dorme', replace: 'cochila', reason: 'Tom' },
+  }
+  const COMMENT_CALL = {
+    name: 'add_comment',
+    arguments: { paragraph: 1, find: 'gato', comment: 'Qual gato?' },
+  }
 
-  test('with the box checked, proposals appear and Apply all creates the model revision and comment', async () => {
+  test('with the box checked, proposals show as a diff on the sheet and Accept all puts them in the text', async () => {
     const editor = await write('O gato dorme.')
     await configure()
-    fake.calls = [
-      { name: 'propose_edit', arguments: { paragraph: 1, find: 'dorme', replace: 'cochila', reason: 'Tom' } },
-      { name: 'add_comment', arguments: { paragraph: 1, find: 'gato', comment: 'Qual gato?' } },
-    ]
+    fake.calls = [EDIT_CALL, COMMENT_CALL]
     const { field, conversation } = await openConversation()
     const box = panel().getByLabel(PROPOSE)
     await expect(box).not.toBeChecked()
@@ -428,6 +433,9 @@ test.describe('AI assistant', () => {
     const proposals = conversation.getByRole('group', { name: 'Propostas do assistente' })
     await expect(proposals.getByText('Alteração no parágrafo 1')).toBeVisible()
     await expect(proposals.getByText('Comentário no parágrafo 1')).toBeVisible()
+    await expect(editor.locator('.ai-diff__old')).toHaveText('dorme')
+    await expect(editor.locator('.ai-diff__new')).toHaveText('cochila')
+    await expect(editor.locator('.ai-diff__note')).toContainText('Qual gato?')
     await expect(editor.locator('ins.revision')).toHaveCount(0)
 
     const [first, second] = fake.bodies.slice(-2).map((body) => JSON.parse(body))
@@ -437,15 +445,69 @@ test.describe('AI assistant', () => {
     expect(first.messages[0].content).toContain('[1] O gato dorme.')
     expect(second.messages.filter((m: { role: string }) => m.role === 'tool')).toHaveLength(2)
 
-    await proposals.getByRole('button', { name: 'Aplicar todas' }).click()
-    await expect(editor.locator(`ins.revision[data-author="${TEMPLATE}"]`)).toHaveText('cochila')
-    await expect(editor.locator(`del.revision[data-author="${TEMPLATE}"]`)).toHaveText('dorme')
+    await proposals.getByRole('button', { name: 'Aceitar todas' }).click()
+    await expect(editor.locator('p').first()).toHaveText('O gato cochila.')
+    await expect(editor.locator('ins.revision, del.revision')).toHaveCount(0)
+    await expect(editor.locator('.ai-diff__old, .ai-diff__new, .ai-diff__actions')).toHaveCount(0)
     const card = session.window.locator('.comment-card', { hasText: 'Qual gato?' })
     await expect(card).toContainText(TEMPLATE)
-    await expect(proposals.getByText('Aplicada.')).toHaveCount(2)
+    await expect(proposals.getByText('Aceita.')).toHaveCount(2)
   })
 
-  test('in an empty document, an insertion writes heading, bold and list as the model revision', async () => {
+  test('with revision tracking on, an accepted proposal goes in as the model revision', async () => {
+    const editor = await write('O gato dorme.')
+    await menu(session, 'toggle-track-changes')
+    await configure()
+    fake.calls = [EDIT_CALL]
+    const { field } = await openConversation()
+    await panel().getByLabel(PROPOSE).click()
+    await askQuestion(field, 'Revise o texto.')
+
+    await editor.getByRole('button', { name: 'Aceitar a alteração do assistente' }).click()
+    await expect(editor.locator(`ins.revision[data-author="${TEMPLATE}"]`)).toHaveText('cochila')
+    await expect(editor.locator(`del.revision[data-author="${TEMPLATE}"]`)).toHaveText('dorme')
+  })
+
+  test('Accept and Reject on the sheet decide each proposal, and the panel follows', async () => {
+    const editor = await write('O gato dorme.')
+    await configure()
+    fake.calls = [EDIT_CALL, COMMENT_CALL]
+    const { field, conversation } = await openConversation()
+    await panel().getByLabel(PROPOSE).click()
+    await askQuestion(field, 'Revise o texto.')
+    const proposals = conversation.getByRole('group', { name: 'Propostas do assistente' })
+
+    await editor.getByRole('button', { name: 'Rejeitar o comentário do assistente' }).click()
+    await expect(proposals.getByText('Rejeitada.')).toBeVisible()
+    await expect(editor.locator('.ai-diff__note, .ai-diff__comment')).toHaveCount(0)
+    await expect(editor.locator('.ai-diff__old')).toHaveText('dorme')
+
+    await editor.getByRole('button', { name: 'Aceitar a alteração do assistente' }).click()
+    await expect(proposals.getByText('Aceita.')).toBeVisible()
+    await expect(editor.locator('p').first()).toHaveText('O gato cochila.')
+    await expect(session.window.locator('.comment-card')).toHaveCount(0)
+
+    await session.window.keyboard.press('Control+Z')
+    await expect(editor.locator('p').first()).toHaveText('O gato dorme.')
+  })
+
+  test('Reject all clears the diff and leaves the text as it was', async () => {
+    const editor = await write('O gato dorme.')
+    await configure()
+    fake.calls = [EDIT_CALL, COMMENT_CALL]
+    const { field, conversation } = await openConversation()
+    await panel().getByLabel(PROPOSE).click()
+    await askQuestion(field, 'Revise o texto.')
+    const proposals = conversation.getByRole('group', { name: 'Propostas do assistente' })
+    await expect(editor.locator('.ai-diff__actions')).toHaveCount(2)
+
+    await proposals.getByRole('button', { name: 'Rejeitar todas' }).click()
+    await expect(proposals.getByText('Rejeitada.')).toHaveCount(2)
+    await expect(editor.locator('.ai-diff__actions')).toHaveCount(0)
+    await expect(editor.locator('p').first()).toHaveText('O gato dorme.')
+  })
+
+  test('in an empty document, an insertion writes heading, bold and list', async () => {
     await menu(session, 'new-document')
     const editor = session.window.locator('.ProseMirror')
     await configure()
@@ -462,40 +524,38 @@ test.describe('AI assistant', () => {
     const proposals = conversation.getByRole('group', { name: 'Propostas do assistente' })
     await expect(proposals.getByText('Inserção no início')).toBeVisible()
     await expect(proposals.getByRole('heading', { name: 'Guia' })).toBeVisible()
-    await proposals.getByRole('button', { name: 'Aplicar', exact: true }).click()
+    await expect(editor.locator('.ai-diff__block h1')).toHaveText('Guia')
+    await proposals.getByRole('button', { name: 'Aceitar', exact: true }).click()
 
     await expect(editor.locator('h1')).toHaveText('Guia')
-    await expect(editor.locator('h1 ins.revision')).toHaveAttribute('data-author', TEMPLATE)
     await expect(editor.locator('p strong')).toHaveText('negrito')
     await expect(editor.locator('ul li')).toHaveText(['Café', 'Chá'])
+    await expect(editor.locator('.ai-diff__block')).toHaveCount(0)
     await expect(editor).not.toContainText('#')
     await expect(editor).not.toContainText('**')
   })
 
-  test('Apply and Discard say which proposal they belong to and leave focus in the panel', async () => {
+  test('Accept and Reject in the panel say which proposal they belong to and leave focus in the panel', async () => {
     await write('O gato dorme.')
     await configure()
-    fake.calls = [
-      { name: 'propose_edit', arguments: { paragraph: 1, find: 'dorme', replace: 'cochila' } },
-      { name: 'add_comment', arguments: { paragraph: 1, find: 'gato', comment: 'Qual gato?' } },
-    ]
+    fake.calls = [EDIT_CALL, COMMENT_CALL]
     const { field, conversation } = await openConversation()
     await panel().getByLabel(PROPOSE).click()
     await askQuestion(field, 'Revise o texto.')
     const proposals = conversation.getByRole('group', { name: 'Propostas do assistente' })
-    const apply = proposals.getByRole('button', { name: 'Aplicar', exact: true })
-    await expect(apply).toHaveCount(2)
-    await expect(apply.first()).toHaveAccessibleDescription(/Alteração no parágrafo 1.*dorme.*cochila/u)
-    await expect(proposals.getByRole('button', { name: 'Descartar' }).last()).toHaveAccessibleDescription(
-      /Comentário no parágrafo 1.*Qual gato\?/u,
-    )
+    const accept = proposals.getByRole('button', { name: 'Aceitar', exact: true })
+    await expect(accept).toHaveCount(2)
+    await expect(accept.first()).toHaveAccessibleDescription(/Alteração no parágrafo 1.*dorme.*cochila/u)
+    await expect(
+      proposals.getByRole('button', { name: 'Rejeitar', exact: true }).last(),
+    ).toHaveAccessibleDescription(/Comentário no parágrafo 1.*Qual gato\?/u)
 
-    await apply.first().click()
-    await expect(proposals.getByText('Aplicada.')).toHaveCount(1)
-    await expect(apply).toHaveCount(1)
-    await expect(apply).toBeFocused()
-    await proposals.getByRole('button', { name: 'Descartar' }).click()
-    await expect(proposals.getByText('Descartada.')).toBeVisible()
+    await accept.first().click()
+    await expect(proposals.getByText('Aceita.')).toHaveCount(1)
+    await expect(accept).toHaveCount(1)
+    await expect(accept).toBeFocused()
+    await proposals.getByRole('button', { name: 'Rejeitar', exact: true }).click()
+    await expect(proposals.getByText('Rejeitada.')).toBeVisible()
     await expect(field).toBeFocused()
   })
 

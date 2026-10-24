@@ -1,5 +1,11 @@
 import type { Node as ProseMirrorNode } from '@tiptap/pm/model'
-import { occurrences, type AiAnchoredProposal, type AiInsertProposal } from '@services/ai/proposals.js'
+import {
+  AiProposalKind,
+  occurrences,
+  type AiAnchoredProposal,
+  type AiInsertProposal,
+  type AiProposal,
+} from '@services/ai/proposals.js'
 import { MAX_AI_DOCUMENT_LENGTH, MAX_AI_PARAGRAPHS } from '@shared/limits.js'
 import type { AiRange } from './ai-apply.js'
 import { isDeleted } from './extensions/track-changes.js'
@@ -79,7 +85,11 @@ function endPos(spans: readonly TextSpan[], offset: number): number | null {
  * above would otherwise land the proposal on another one.
  */
 export function locateProposal(doc: ProseMirrorNode, proposal: AiAnchoredProposal): AiRange | null {
-  const paragraph = paragraphsOf(doc)[proposal.paragraph - 1]
+  return rangeIn(paragraphsOf(doc), proposal)
+}
+
+function rangeIn(paragraphs: readonly ParagraphText[], proposal: AiAnchoredProposal): AiRange | null {
+  const paragraph = paragraphs[proposal.paragraph - 1]
   if (paragraph?.text !== proposal.paragraphText) return null
   if (occurrences(paragraph.text, proposal.find) !== 1) return null
   const offset = paragraph.text.indexOf(proposal.find)
@@ -94,12 +104,37 @@ export function locateProposal(doc: ProseMirrorNode, proposal: AiAnchoredProposa
  * `locateProposal`.
  */
 export function locateInsertion(doc: ProseMirrorNode, proposal: AiInsertProposal): number | null {
+  return insertionIn(doc, paragraphsOf(doc), proposal)
+}
+
+function insertionIn(
+  doc: ProseMirrorNode,
+  paragraphs: readonly ParagraphText[],
+  proposal: AiInsertProposal,
+): number | null {
   if (proposal.paragraph === 0) return 0
-  const paragraph = paragraphsOf(doc)[proposal.paragraph - 1]
+  const paragraph = paragraphs[proposal.paragraph - 1]
   if (paragraph?.text !== proposal.paragraphText) return null
   const $block = doc.resolve(paragraph.pos)
   if ($block.depth > 0) return $block.after(1)
   return paragraph.node.content.size === 0 ? paragraph.pos : paragraph.pos + paragraph.node.nodeSize
+}
+
+/** A range for an edit or comment, a position for an insertion. */
+export type ProposalPlace = AiRange | number
+
+/** Each proposal where it is now, or null; the document is walked once for all of them. */
+export function placeProposals(
+  doc: ProseMirrorNode,
+  proposals: readonly AiProposal[],
+): (ProposalPlace | null)[] {
+  if (proposals.length === 0) return []
+  const paragraphs = paragraphsOf(doc)
+  return proposals.map((proposal) =>
+    proposal.kind === AiProposalKind.Insert
+      ? insertionIn(doc, paragraphs, proposal)
+      : rangeIn(paragraphs, proposal),
+  )
 }
 
 export interface LocatedProposal<P extends AiAnchoredProposal> {

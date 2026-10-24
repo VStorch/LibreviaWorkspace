@@ -23,6 +23,7 @@ import {
   LineHeight,
   TextStyle,
 } from '@tiptap/extension-text-style'
+import { AiDiff } from './extensions/ai-diff.js'
 import { BlockFormat } from './extensions/block-format.js'
 import { DocumentImage } from './extensions/document-image.js'
 import { BlockIdentity } from './extensions/block-identity.js'
@@ -124,6 +125,7 @@ export function buildEditorExtensions(
       author: options.revisionAuthor ?? (() => ''),
     }),
     ZeroWidthAnchors,
+    AiDiff,
     Field,
     TableOfContents,
     MathNode,

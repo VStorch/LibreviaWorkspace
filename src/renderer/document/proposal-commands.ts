@@ -7,7 +7,7 @@ import {
   type AiProposal,
 } from '@services/ai/proposals.js'
 import { useWorkspace } from '../state/workspace.js'
-import { buildTrackedEdits, type AiBlockInsertion } from './ai-apply.js'
+import { buildProposalEdits, type AiBlockInsertion } from './ai-apply.js'
 import {
   locateInsertion,
   locateProposal,
@@ -63,24 +63,27 @@ const idsOf = (located: readonly LocatedProposal<AiEditProposal | AiCommentPropo
   located.map(({ proposal }) => proposal.id)
 
 /**
- * Checked against the document as it is now. Edits, insertions and comments go in one transaction, one undo:
- * the comment ends are placed after the tracked edits, which keep the deleted text where it was.
+ * Checked against the document as it is now. Edits and insertions go in as a revision by `author`,
+ * or straight into the text when `direct`. Everything goes in one transaction, one undo: the
+ * comment ends are placed after the edits, mapped through them.
  */
 export function applyProposals(
   editor: Editor,
   proposals: readonly AiProposal[],
   author: string,
+  direct = false,
 ): ProposalOutcome {
   if (useWorkspace.getState().readOnly) return { applied: [], changed: [] }
   const edits = locateProposals(editor.state.doc, proposals.filter(isEdit))
   const comments = locateComments(editor, proposals.filter(isComment))
   const inserts = locateInsertions(editor, proposals.filter(isInsert))
   const textEdits = edits.located.map(({ proposal, range }) => ({ range, markdown: proposal.replace }))
-  const tracked = buildTrackedEdits(editor.state, textEdits, inserts.located, author, new Date())
+  const revision = direct ? null : { author, now: new Date() }
+  const edited = buildProposalEdits(editor.state, textEdits, inserts.located, revision)
   const entries = comments.located.map(({ proposal, range }) => ({ range, text: proposal.comment }))
-  const commented = insertCommentsAt(editor, entries, author, tracked ?? editor.state.tr)
+  const commented = insertCommentsAt(editor, entries, author, edited ?? editor.state.tr)
   const applied = new Set([
-    ...(tracked === null ? [] : [...idsOf(edits.located), ...inserts.located.map(({ id }) => id)]),
+    ...(edited === null ? [] : [...idsOf(edits.located), ...inserts.located.map(({ id }) => id)]),
     ...(commented ? idsOf(comments.located) : []),
   ])
   return {

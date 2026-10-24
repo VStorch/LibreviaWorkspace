@@ -12,7 +12,7 @@ import type {
 import { usePreferences } from '../state/preferences.js'
 import { useWorkspace } from '../state/workspace.js'
 import { settleAllChanges } from './extensions/track-changes.js'
-import { buildTrackedEdits } from './ai-apply.js'
+import { buildProposalEdits } from './ai-apply.js'
 import { chatParagraphs, locateProposal } from './ai-proposals.js'
 import { buildEditorExtensions } from './editor-extensions.js'
 import { applyProposals } from './proposal-commands.js'
@@ -192,7 +192,9 @@ describe('applying proposals', () => {
   it('a change goes in as a tracked revision with the model as author', () => {
     const state = EditorState.create({ doc: docOf(paragraph(text('O gato dorme.'))) })
     const range = locateProposal(state.doc, edit(state.doc, '1', 1, 'dorme', 'cochila'))!
-    const next = state.apply(buildTrackedEdits(state, [{ range, markdown: 'cochila' }], [], MODEL, NOW)!)
+    const next = state.apply(
+      buildProposalEdits(state, [{ range, markdown: 'cochila' }], [], { author: MODEL, now: NOW })!,
+    )
     expect(shown(next.doc)).toEqual(['O gato [dorme]{cochila}.'])
     expect(authorsOf(next.doc)).toEqual([MODEL])
   })
@@ -420,5 +422,49 @@ describe('applying an insertion', () => {
     const fake = fakeEditor(docOf(paragraph(text('Depois.'))))
     expect(applyProposals(fake.editor, [proposal], MODEL)).toEqual({ applied: [], changed: ['1'] })
     expect(fake.transactions).toHaveLength(0)
+  })
+})
+
+describe('accepting straight into the text', () => {
+  beforeEach(() => useWorkspace.setState({ readOnly: false }))
+
+  it('an edit replaces the words with no revision left behind', () => {
+    const fake = fakeEditor(docOf(paragraph(text('O gato dorme.'))))
+    const outcome = applyProposals(
+      fake.editor,
+      [edit(fake.state().doc, '1', 1, 'dorme', 'cochila')],
+      MODEL,
+      true,
+    )
+    expect(outcome).toEqual({ applied: ['1'], changed: [] })
+    expect(shown(fake.state().doc)).toEqual(['O gato cochila.'])
+    expect(authorsOf(fake.state().doc)).toEqual([])
+  })
+
+  it('a whole paragraph becomes a heading or a list, with no empty paragraph left', () => {
+    const fake = fakeEditor(
+      docOf(paragraph(text('relatorio')), paragraph(text('a, b')), paragraph(text('Fim.'))),
+    )
+    const doc = fake.state().doc
+    applyProposals(
+      fake.editor,
+      [edit(doc, '1', 1, 'relatorio', '# Relatório'), edit(doc, '2', 2, 'a, b', '1. a\n2. b')],
+      MODEL,
+      true,
+    )
+    expect(outline(fake.state().doc)).toEqual(['heading1:Relatório', 'orderedList:a|b', 'paragraph:Fim.'])
+  })
+
+  it('an insertion writes into an empty document, and one undo step takes it all back', () => {
+    const fake = fakeEditor(docOf(paragraph()))
+    const doc = fake.state().doc
+    applyProposals(
+      fake.editor,
+      [insertion(doc, '1', 0, '# Guia'), insertion(doc, '2', 0, '- um')],
+      MODEL,
+      true,
+    )
+    expect(outline(fake.state().doc)).toEqual(['heading1:Guia', 'bulletList:um', 'paragraph:'])
+    expect(fake.transactions).toHaveLength(1)
   })
 })
