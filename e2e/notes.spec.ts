@@ -6,7 +6,7 @@ import { promisify } from 'node:util'
 import { expect, test } from '@playwright/test'
 import { launch, menu, stubDialogs, type Session } from './app.js'
 import { docxWithFootnote, docxWithLongFootnote, docxWithManyFootnotes, entryOf } from './fixtures.js'
-import { hasPdfinfo, hasSoffice, pdfInfo } from './external-tools.js'
+import { hasPdfinfo, hasSoffice, pdfInfo, pdfText } from './external-tools.js'
 
 /**
  * Footnotes and endnotes: read, numbered and preserved.
@@ -172,8 +172,7 @@ test.describe('notes at the foot of the page', () => {
     await menu(session, 'export-pdf')
     await expect.poll(() => pdfPages(pdf), { timeout: 30_000 }).toBe(onScreen)
     // Note 1 comes out on paper, on the first sheet.
-    const { stdout } = await promisify(execFile)('pdftotext', ['-f', '1', '-l', '1', pdf, '-'])
-    expect(stdout).toContain('Nota 1.')
+    expect(await pdfText(pdf, { page: 1, layout: false })).toContain('Nota 1.')
 
     // And LibreOffice, with the same file, reaches the same sheet count.
     if (await hasSoffice()) {
@@ -312,10 +311,10 @@ test.describe('notes at the foot of the page', () => {
     if (await hasPdfinfo()) {
       await menu(session, 'export-pdf')
       await expect.poll(() => pdfPages(pdf), { timeout: 30_000 }).toBeGreaterThan(1)
-      const { stdout } = await promisify(execFile)('pdftotext', ['-f', '2', '-l', '2', pdf, '-'])
-      expect(stdout).toContain(`Linha ${lineNumber(continuation!.first)} `)
-      expect(stdout).toContain('Linha 69')
-      expect(stdout).not.toContain('Nota longa.')
+      const secondSheet = await pdfText(pdf, { page: 2, layout: false })
+      expect(secondSheet).toContain(`Linha ${lineNumber(continuation!.first)} `)
+      expect(secondSheet).toContain('Linha 69')
+      expect(secondSheet).not.toContain('Nota longa.')
     }
   })
 

@@ -19,9 +19,14 @@ export const hasPdfinfo = (): Promise<boolean> => isInstalled('pdfinfo', '-v')
 export const hasSoffice = (): Promise<boolean> => isInstalled('soffice', '--version')
 
 /** Empty while the PDF is still being written, so that `expect.poll` retries. */
-export async function pdfText(path: string, { layout = true } = {}): Promise<string> {
+export async function pdfText(
+  path: string,
+  { layout = true, page }: { layout?: boolean; page?: number } = {},
+): Promise<string> {
+  const onePage = page === undefined ? [] : ['-f', String(page), '-l', String(page)]
+  const options = [...onePage, ...(layout ? ['-layout'] : [])]
   try {
-    const { stdout } = await run('pdftotext', ['-enc', 'UTF-8', ...(layout ? ['-layout'] : []), path, '-'])
+    const { stdout } = await run('pdftotext', ['-enc', 'UTF-8', ...options, path, '-'])
     return stdout
   } catch {
     return ''
@@ -29,9 +34,10 @@ export async function pdfText(path: string, { layout = true } = {}): Promise<str
 }
 
 /** The metadata poppler reads, one `Key: value` per line; empty on failure. */
-export async function pdfInfo(path: string): Promise<string> {
+export async function pdfInfo(path: string, { lastPage }: { lastPage?: number } = {}): Promise<string> {
+  const pageSizes = lastPage === undefined ? [] : ['-f', '1', '-l', String(lastPage)]
   try {
-    const { stdout } = await run('pdfinfo', ['-enc', 'UTF-8', path])
+    const { stdout } = await run('pdfinfo', ['-enc', 'UTF-8', ...pageSizes, path])
     return stdout
   } catch {
     return ''

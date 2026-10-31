@@ -1,12 +1,11 @@
 /// <reference lib="dom" />
-import { execFile } from 'node:child_process'
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { promisify } from 'node:util'
 import { expect, test } from '@playwright/test'
 import { launch, menu, stubDialogs, type Session } from './app.js'
 import { docxWithNamedStyles, docxWithReferences, entryOf } from './fixtures.js'
+import { hasPdftotext, pdfText } from './external-tools.js'
 
 /**
  * References: navigation pane, bookmarks, table of contents, captions and cross-references.
@@ -222,26 +221,6 @@ test.describe('bookmarks', () => {
   })
 })
 
-/** The text of a PDF page, through the system `pdftotext`; null without it. */
-async function textOfPage(filePath: string, page: number): Promise<string | null> {
-  try {
-    const { stdout } = await promisify(execFile)('pdftotext', [
-      '-enc',
-      'UTF-8',
-      '-f',
-      String(page),
-      '-l',
-      String(page),
-      '-layout',
-      filePath,
-      '-',
-    ])
-    return stdout
-  } catch {
-    return null
-  }
-}
-
 async function readyPdf(filePath: string): Promise<boolean> {
   try {
     return (await readFile(filePath)).toString('latin1').includes('%%EOF')
@@ -315,8 +294,8 @@ test.describe('table of contents', () => {
     // Paper: the same first sheet, with the entries and numbers.
     await menu(session, 'export-pdf')
     await expect.poll(() => readyPdf(pdf), { timeout: 30_000 }).toBe(true)
-    const first = await textOfPage(pdf, 1)
-    if (first !== null) {
+    if (await hasPdftotext()) {
+      const first = await pdfText(pdf, { page: 1 })
       expect(first).toMatch(/Introdução[ .]*2/)
       expect(first).toMatch(/Escopo[ .]*3/)
       expect(first).toMatch(/Conclusão[ .]*3/)
