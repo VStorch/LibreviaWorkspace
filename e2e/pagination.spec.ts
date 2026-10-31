@@ -396,6 +396,8 @@ async function screenCut(session: Session): Promise<{ beforeCut: string; afterCu
 /** The words on a PDF page, through the system `pdftotext`. */
 async function wordsOfPage(filePath: string, page: number): Promise<string[]> {
   const { stdout } = await promisify(execFile)('pdftotext', [
+    '-enc',
+    'UTF-8',
     '-f',
     String(page),
     '-l',

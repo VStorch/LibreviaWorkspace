@@ -45,7 +45,8 @@ test.describe('file cycle', () => {
     await menu(session, 'new-document')
     const paper = session.window.locator('.paper').first()
     const box = (await paper.boundingBox())!
-    await session.window.mouse.click(box.x + box.width / 2, box.y + box.height / 2)
+    // Forced because `.pages`, above the sheet, is what takes the click and places the cursor.
+    await paper.click({ position: { x: box.width / 2, y: box.height / 2 }, force: true })
     await session.window.keyboard.type('Primeira linha')
 
     await expect(session.window.locator('.ProseMirror')).toHaveText('Primeira linha')

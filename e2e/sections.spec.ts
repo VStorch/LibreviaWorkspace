@@ -89,7 +89,13 @@ test.describe('sections', () => {
     expect(third).toEqual('retrato')
     expect(fourth).toEqual('retrato')
 
-    const { stdout } = await promisify(execFile)('pdftotext', ['-layout', destinationFile, '-'])
+    const { stdout } = await promisify(execFile)('pdftotext', [
+      '-enc',
+      'UTF-8',
+      '-layout',
+      destinationFile,
+      '-',
+    ])
     expect(stdout).toMatch(/Página i[\s\S]*Folha em paisagem[\s\S]*Página 1[\s\S]*Página 2[\s\S]*Página 3/)
   })
 
@@ -196,7 +202,13 @@ test.describe('sections', () => {
     await stubDialogs(session.app, { save: destinationFile, messageBox: 1 })
     await menu(session, 'export-pdf')
     await expect.poll(() => sizes(destinationFile), { timeout: 30_000 }).toHaveLength(1)
-    const { stdout } = await promisify(execFile)('pdftotext', ['-layout', destinationFile, '-'])
+    const { stdout } = await promisify(execFile)('pdftotext', [
+      '-enc',
+      'UTF-8',
+      '-layout',
+      destinationFile,
+      '-',
+    ])
     expect(stdout).toMatch(/Parágrafo 1 em colunas\.\s+Parágrafo 4 em colunas\./)
   })
 

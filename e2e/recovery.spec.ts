@@ -71,12 +71,18 @@ test.describe('recovery after a crash', () => {
     await session.window.keyboard.type('Texto antes da falha')
     await expect.poll(async () => draftOnDisk(session), { timeout: 20_000 }).toBe(true)
 
-    await session.app.evaluate(async ({ BrowserWindow }) => {
+    // After the call returns: an `evaluate` still open when the renderer dies can hang on Linux.
+    await session.app.evaluate(({ BrowserWindow }) => {
       const contents = BrowserWindow.getAllWindows()[0]?.webContents
-      const reloaded = new Promise<void>((resolve) => contents?.once('did-finish-load', () => resolve()))
-      contents?.forcefullyCrashRenderer()
-      await reloaded
+      contents?.once('did-finish-load', () => {
+        ;(globalThis as { reloaded?: boolean }).reloaded = true
+      })
+      setTimeout(() => contents?.forcefullyCrashRenderer(), 0)
     })
+    // Asked of main: a script sent to the renderer as it dies would never answer.
+    await expect
+      .poll(() => session.app.evaluate(() => (globalThis as { reloaded?: boolean }).reloaded === true))
+      .toBe(true)
 
     await expect
       .poll(async () => inReloadedWindow(session, `document.querySelector('.banner--recovery') !== null`))

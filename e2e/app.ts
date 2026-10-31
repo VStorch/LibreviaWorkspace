@@ -55,9 +55,11 @@ export async function launch(options: { userData?: string; file?: string } = {})
         await rm(userData, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 })
     },
     crash: async () => {
-      // SIGKILL runs no exit handler: a crash, not a close.
-      app.process().kill('SIGKILL')
-      await app.waitForEvent('close').catch(() => undefined)
+      // SIGKILL runs no exit handler: a crash, not a close. By the pid main reports: on Windows
+      // `app.process()` is a wrapper, and killing it would leave the app holding its instance lock.
+      const closed = app.waitForEvent('close').catch(() => undefined)
+      process.kill(await app.evaluate(() => process.pid), 'SIGKILL')
+      await closed
     },
   }
 }

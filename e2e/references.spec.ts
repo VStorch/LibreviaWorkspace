@@ -226,6 +226,8 @@ test.describe('bookmarks', () => {
 async function textOfPage(filePath: string, page: number): Promise<string | null> {
   try {
     const { stdout } = await promisify(execFile)('pdftotext', [
+      '-enc',
+      'UTF-8',
       '-f',
       String(page),
       '-l',

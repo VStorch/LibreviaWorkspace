@@ -21,7 +21,7 @@ export const hasSoffice = (): Promise<boolean> => isInstalled('soffice', '--vers
 /** Empty while the PDF is still being written, so that `expect.poll` retries. */
 export async function pdfText(path: string, { layout = true } = {}): Promise<string> {
   try {
-    const { stdout } = await run('pdftotext', [...(layout ? ['-layout'] : []), path, '-'])
+    const { stdout } = await run('pdftotext', ['-enc', 'UTF-8', ...(layout ? ['-layout'] : []), path, '-'])
     return stdout
   } catch {
     return ''
