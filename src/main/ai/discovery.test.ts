@@ -56,15 +56,16 @@ describe('discoverProviders', () => {
 describe('findExecutable', () => {
   it('only accepts an executable file in a PATH folder', async () => {
     const checked: [string, number][] = []
+    const program = join('/b', process.platform === 'win32' ? 'claude.exe' : 'claude')
     const path = await findExecutable(
       'claude',
       { PATH: ['/a', '/b'].join(delimiter) },
       async (file, mode) => {
         checked.push([file, mode])
-        if (file !== join('/b', 'claude')) throw new Error('ENOENT')
+        if (file !== program) throw new Error('ENOENT')
       },
     )
-    expect(path).toBe(join('/b', 'claude'))
+    expect(path).toBe(program)
     expect(checked.every(([, mode]) => mode === constants.X_OK)).toBe(true)
   })
 })

@@ -92,7 +92,7 @@ describe('message boundaries in the pipe', () => {
 
     const frames = readAll(chunks)
     expect(frames).toHaveLength(1)
-    expect(frames[0]?.binary).toEqual(binary)
+    expect(Buffer.compare(frames[0]!.binary, binary)).toBe(0)
   })
 })
 

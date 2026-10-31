@@ -1,8 +1,8 @@
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { containedPath } from './contained.js'
 
-const ROOT = join('/', 'app', 'out', 'renderer')
+const ROOT = resolve('/', 'app', 'out', 'renderer')
 
 describe('path contained in a folder', () => {
   it('accepts a file inside the folder', () => {
