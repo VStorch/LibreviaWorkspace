@@ -439,10 +439,14 @@ test.describe('notes at the foot of the page', () => {
     await session.window.keyboard.press('End')
     await session.window.keyboard.type(' Editada.')
     await text(session).click()
-    await session.window.keyboard.press('Control+Home')
-    for (let time = 0; time < '1. '.length; time++) await session.window.keyboard.press('ArrowRight')
-    await session.window.keyboard.press('Shift+ArrowRight')
-    await session.window.keyboard.press('Shift+ArrowRight')
+    // Retried because the selection can still move for a moment after leaving the note editor.
+    await expect(async () => {
+      await session.window.keyboard.press('Control+Home')
+      for (let time = 0; time < '1. '.length; time++) await session.window.keyboard.press('ArrowRight')
+      await session.window.keyboard.press('Shift+ArrowRight')
+      await session.window.keyboard.press('Shift+ArrowRight')
+      expect(await session.window.evaluate(() => getSelection()?.toString())).toBe('Os')
+    }).toPass()
     await menu(session, 'insert-comment')
     await session.window.keyboard.type('Ver isto')
     await session.window.keyboard.press('Control+Enter')
