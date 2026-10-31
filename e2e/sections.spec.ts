@@ -2,7 +2,7 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
-import { launch, menu, stubDialogs, type Session } from './app.js'
+import { launch, menu, stubDialogs, selectionSettled, type Session } from './app.js'
 import { docxWithColumns, docxWithSections, entryOf } from './fixtures.js'
 import { hasPdfinfo, pdfInfo, pdfText } from './external-tools.js'
 
@@ -146,6 +146,7 @@ test.describe('sections', () => {
     // The copy is the landscape section's: editing it does not change the first one's footer.
     const piece = session.window.locator('.band--footer .band__text').nth(1)
     await piece.click()
+    await selectionSettled(session)
     await session.window.keyboard.press('Home')
     await session.window.keyboard.type('Anexo — ')
     await session.window.locator('.ProseMirror').click()
@@ -210,6 +211,7 @@ test.describe('sections', () => {
     await dialog.getByRole('button', { name: 'Aplicar' }).click()
 
     await session.window.locator('.ProseMirror p', { hasText: 'Esquerda.' }).click()
+    await selectionSettled(session)
     await session.window.keyboard.press('End')
     await menu(session, 'insert-column-break')
     const left = session.window.locator('.ProseMirror p', { hasText: 'Esquerda.' })

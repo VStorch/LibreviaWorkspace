@@ -3,7 +3,7 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
-import { launch, menu, stubDialogs, type Session } from './app.js'
+import { launch, menu, stubDialogs, selectionSettled, type Session } from './app.js'
 import { docxWithNamedStyles, docxWithReferences, entryOf } from './fixtures.js'
 import { hasPdftotext, pdfText } from './external-tools.js'
 
@@ -205,6 +205,7 @@ test.describe('bookmarks', () => {
     // Cursor at the end of the last paragraph, without a selection: the link takes the heading
     // text.
     await editor.locator('p', { hasText: 'e a conclusão' }).click()
+    await selectionSettled(session)
     await session.window.keyboard.press('End')
     await session.window.getByRole('button', { name: 'Link' }).click()
     const dialog = session.window.getByRole('dialog', { name: 'Inserir link' })
@@ -264,6 +265,7 @@ test.describe('table of contents', () => {
 
     // The table of contents goes in before the cursor's block, on the first sheet.
     await editor.locator('p', { hasText: 'Capa.' }).click()
+    await selectionSettled(session)
     await session.window.keyboard.press('Home')
     await menu(session, 'insert-table-of-contents')
     const toc = editor.locator('.toc')
@@ -391,6 +393,7 @@ test.describe('captions and cross-references', () => {
     // Cross-references at the end of the last paragraph: the number of the file's figure and the
     // text of a heading.
     await editor.locator('p', { hasText: 'Veja o' }).click()
+    await selectionSettled(session)
     await session.window.keyboard.press('End')
     await session.window.waitForTimeout(100)
     await menu(session, 'insert-cross-reference')
@@ -427,6 +430,7 @@ test.describe('captions and cross-references', () => {
 
     // The natural line selection: from end to start, with the keyboard.
     await editor.locator('p', { hasText: 'Arquitetura' }).click()
+    await selectionSettled(session)
     await session.window.keyboard.press('End')
     await session.window.waitForTimeout(100)
     await session.window.keyboard.press('Shift+Home')
@@ -434,6 +438,7 @@ test.describe('captions and cross-references', () => {
     await session.window.keyboard.press('Control+X')
 
     await editor.locator('p', { hasText: 'Veja o' }).click()
+    await selectionSettled(session)
     await session.window.keyboard.press('End')
     await session.window.waitForTimeout(100)
     await session.window.keyboard.press('Enter')

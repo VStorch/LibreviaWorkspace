@@ -2,7 +2,7 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
-import { launch, menu, stubDialogs, type Session } from './app.js'
+import { launch, menu, stubDialogs, selectionSettled, type Session } from './app.js'
 import { docxWithVerticalAlignment, entryOf } from './fixtures.js'
 
 /**
@@ -41,6 +41,7 @@ test.describe('document formatting', () => {
 
     // Editing forces the writer to rewrite the paragraph, where the loss would happen.
     await editor.click()
+    await selectionSettled(session)
     await session.window.keyboard.press('End')
     await session.window.keyboard.type(' Mexido.')
 

@@ -2,7 +2,7 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
-import { clickMenuItem, launch, menu, stubDialogs, type Session } from './app.js'
+import { clickMenuItem, launch, menu, stubDialogs, selectionSettled, type Session } from './app.js'
 import { docxWithCommentThread, entryOf } from './fixtures.js'
 import { hasPdftotext, pdfText } from './external-tools.js'
 
@@ -62,6 +62,7 @@ test.describe('comments', () => {
     await expect(editor.locator('.comment-range--active')).toHaveText('doze mil reais')
 
     await editor.getByText('por ano.').click()
+    await selectionSettled(session)
     await session.window.keyboard.press('End')
     await session.window.keyboard.type(' Revisado.')
     await menu(session, 'save')
@@ -95,6 +96,7 @@ test.describe('comments', () => {
 
     // A new comment on "Fim.": the card opens with the text box focused.
     await editor.getByText('Fim.').click()
+    await selectionSettled(session)
     await session.window.keyboard.press('End')
     await session.window.keyboard.press('Shift+Home')
     await menu(session, 'insert-comment')
@@ -182,6 +184,7 @@ test.describe('comments', () => {
 
     // A point comment at the end of "Fim.": only the `commentEnd`, touching the end.
     await editor.getByText('Fim.').click()
+    await selectionSettled(session)
     await session.window.keyboard.press('End')
     await menu(session, 'insert-comment')
     await expect(session.window.locator('.comment-composer__field')).toBeFocused()
@@ -191,6 +194,7 @@ test.describe('comments', () => {
 
     // Selecting only the last character is not the paragraph: deleting it keeps the comment.
     await editor.getByText('Fim.').click()
+    await selectionSettled(session)
     await session.window.keyboard.press('End')
     await session.window.keyboard.press('Shift+ArrowLeft')
     await session.window.keyboard.press('Delete')
@@ -201,6 +205,7 @@ test.describe('comments', () => {
     // `End` and `Shift+Home` in quick succession select the line, and a single `Backspace` deletes
     // it.
     await editor.getByText('Fim.').click()
+    await selectionSettled(session)
     await session.window.keyboard.press('End')
     await session.window.keyboard.press('Shift+Home')
     await session.window.keyboard.press('Backspace')
@@ -210,6 +215,7 @@ test.describe('comments', () => {
     // Without a selection, `Backspace` skips over the anchor (the end of Carla's comment) and
     // deletes the character, and the thread stays.
     await editor.getByText('Título provisório').click()
+    await selectionSettled(session)
     await session.window.keyboard.press('End')
     await session.window.keyboard.press('Backspace')
     await expect(editor.getByText('Título provisóri', { exact: true })).toBeVisible()
@@ -228,6 +234,7 @@ test.describe('comments', () => {
 
     // The whole line carries the ends touching it: once cut, the thread goes with it.
     await editor.getByText('Título provisório').click()
+    await selectionSettled(session)
     await session.window.keyboard.press('Home')
     await session.window.keyboard.press('Shift+End')
     await session.window.keyboard.press('Control+X')
@@ -235,6 +242,7 @@ test.describe('comments', () => {
 
     // Pasted at the end, it comes back with the card.
     await editor.getByText('Fim.').click()
+    await selectionSettled(session)
     await session.window.keyboard.press('End')
     await session.window.keyboard.press('Enter')
     await session.window.keyboard.press('Control+V')
@@ -243,10 +251,12 @@ test.describe('comments', () => {
 
     // Copied and pasted again, the text repeats and the thread does not.
     await editor.getByText('Título provisório').click()
+    await selectionSettled(session)
     await session.window.keyboard.press('Home')
     await session.window.keyboard.press('Shift+End')
     await session.window.keyboard.press('Control+C')
     await editor.getByText('Fim.').click()
+    await selectionSettled(session)
     await session.window.keyboard.press('End')
     await session.window.keyboard.press('Control+V')
     await expect(editor.getByText('Título provisório')).toHaveCount(2)
@@ -302,6 +312,7 @@ test.describe('comments', () => {
     await expect(editor.locator('.comment-range')).toHaveCount(0)
 
     await editor.getByText('por ano.').click()
+    await selectionSettled(session)
     await session.window.keyboard.press('End')
     await session.window.keyboard.type(' Revisado.')
     await menu(session, 'save')
@@ -349,6 +360,7 @@ test.describe('comments', () => {
     await expect(dialog).toHaveCount(0)
 
     await editor.getByText('Fim.').click()
+    await selectionSettled(session)
     await session.window.keyboard.press('End')
     await session.window.keyboard.press('Shift+Home')
     await menu(session, 'insert-comment')

@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
 import { expect, test } from '@playwright/test'
-import { launch, menu, stubDialogs, type Session } from './app.js'
+import { launch, menu, selectionSettled, stubDialogs, type Session } from './app.js'
 import { docxWithTrackedChange, entryOf } from './fixtures.js'
 import { hasPdftotext, hasSoffice, pdfText } from './external-tools.js'
 
@@ -92,6 +92,7 @@ test.describe('revisions', () => {
     // Editing the revised paragraph: it is rewritten, and revisions come from the marks.
     const editor = session.window.locator('.ProseMirror')
     await editor.getByText('Segundo parágrafo,').click()
+    await selectionSettled(session)
     await session.window.keyboard.press('Home')
     await session.window.keyboard.type('Novo: ')
     await menu(session, 'save')
@@ -196,6 +197,7 @@ test.describe('revisions', () => {
     // The cursor does not enter hidden deleted text: what is typed at the end and after two arrow
     // presses lands in the visible text.
     await inserted.click()
+    await selectionSettled(session)
     await session.window.keyboard.press('End')
     await session.window.keyboard.type('!')
     await session.window.keyboard.press('ArrowLeft')

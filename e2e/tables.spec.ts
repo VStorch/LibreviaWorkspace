@@ -5,7 +5,7 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
-import { launch, menu, stubDialogs, type Session } from './app.js'
+import { launch, menu, stubDialogs, selectionSettled, type Session } from './app.js'
 import { docxWithLongTable, docxWithStretchedImage, docxWithTable, entryOf } from './fixtures.js'
 
 /**
@@ -82,6 +82,7 @@ test.describe('editable tables and images', () => {
     await stubDialogs(session.app, { open: sourceFile, messageBox: 1 })
     await menu(session, 'open')
     await session.window.getByText('Antes da tabela.').click()
+    await selectionSettled(session)
     await session.window.keyboard.press('End')
     await menu(session, 'table-insert')
     await session.window

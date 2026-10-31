@@ -106,3 +106,16 @@ export async function clickMenuItem(session: Session, menuLabel: string, itemLab
     [menuLabel, itemLabel] as const,
   )
 }
+
+/**
+ * For a key pressed right after a click: until the next frames, the click may still move the selection
+ * and the key would land elsewhere, faster than anyone types.
+ */
+export async function selectionSettled(session: Session): Promise<void> {
+  await session.window.evaluate(
+    () =>
+      new Promise<void>((resolve) => {
+        requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(resolve, 0)))
+      }),
+  )
+}

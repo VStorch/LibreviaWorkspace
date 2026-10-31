@@ -2,7 +2,7 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
-import { launch, menu, stubDialogs, type Session } from './app.js'
+import { launch, menu, stubDialogs, selectionSettled, type Session } from './app.js'
 import { hasPdfinfo, pdfInfo } from './external-tools.js'
 import {
   PROPERTIES_APP,
@@ -165,6 +165,7 @@ test.describe('document properties', () => {
     expect(await entryOf(sourceFile, 'docProps/app.xml')).toBe(PROPERTIES_APP)
 
     await text.click()
+    await selectionSettled(session)
     await session.window.keyboard.press('Control+End')
     await session.window.keyboard.type(' Mais duas.')
     await menu(session, 'save')
@@ -183,6 +184,7 @@ test.describe('document properties', () => {
     const text = session.window.locator('.pages__column .ProseMirror')
     await expect(text).toContainText('Relatório de contas')
     await text.click()
+    await selectionSettled(session)
     await session.window.keyboard.press('Control+End')
     await session.window.keyboard.type(' Cliente: ')
 

@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
 import { expect, test } from '@playwright/test'
-import { launch, menu, stubDialogs, type Session } from './app.js'
+import { launch, menu, stubDialogs, selectionSettled, type Session } from './app.js'
 import { docxWithFootnote, docxWithLongFootnote, docxWithManyFootnotes, entryOf } from './fixtures.js'
 import { hasPdfinfo, hasSoffice, pdfInfo, pdfText } from './external-tools.js'
 
@@ -45,6 +45,7 @@ test.describe('footnotes', () => {
     // On the first letters: the line's middle is past its end, beside the reference, and a key pressed
     // before the selection settles there leaves for the next paragraph.
     await editor.getByText('Segundo parágrafo').click({ position: { x: 4, y: 4 } })
+    await selectionSettled(session)
     await session.window.keyboard.press('Home')
     await session.window.keyboard.type('Revisto: ')
     await expect(editor).toContainText('Revisto: Segundo parágrafo')
@@ -201,6 +202,7 @@ test.describe('notes at the foot of the page', () => {
 
     await menu(session, 'toggle-track-changes')
     await notes(session).click()
+    await selectionSettled(session)
     await session.window.keyboard.press('End')
     await session.window.keyboard.type(' Novo')
     await expect(notes(session).locator('ins')).toHaveText(' Novo')
@@ -368,6 +370,7 @@ test.describe('notes at the foot of the page', () => {
 
     await menu(session, 'toggle-track-changes')
     await notes(session).click()
+    await selectionSettled(session)
     await session.window.keyboard.press('End')
     await session.window.keyboard.type(' Novo')
     await session.window.keyboard.type(' Outro')
@@ -419,6 +422,7 @@ test.describe('notes at the foot of the page', () => {
 
     // A new note before the cited one: F9 now cites 2.
     await text(session).locator('p').first().click()
+    await selectionSettled(session)
     await session.window.keyboard.press('Home')
     await menu(session, 'insert-footnote')
     await session.window.keyboard.type('Nota nova.')
@@ -436,6 +440,7 @@ test.describe('notes at the foot of the page', () => {
     await expect(notes(session)).toHaveCount(2)
     // Editing an earlier note, and going back to the text.
     await notes(session).first().click()
+    await selectionSettled(session)
     await session.window.keyboard.press('End')
     await session.window.keyboard.type(' Editada.')
     await text(session).click()
