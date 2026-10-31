@@ -91,12 +91,20 @@ jobs:
         if: runner.os == 'Windows'
         run: npm run dist:win
 
-      # The Windows runner starts at 1024x768, where the window cuts the sheet and clicks land elsewhere.
+      # The Windows runner's screen is smaller than a sheet, so the window would cut it.
       - name: Tela maior (Windows)
         if: runner.os == 'Windows'
         run: Set-DisplayResolution -Width 1920 -Height 1080 -Force
         shell: pwsh
         continue-on-error: true
+
+      # What the .deb does on install. Playwright starts the app with --no-sandbox, but the MCP bridge
+      # the tests start like a client does not, and Chromium aborts on an unconfigured helper.
+      - name: Sandbox do Chromium (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo chown root:root release/linux-unpacked/chrome-sandbox
+          sudo chmod 4755 release/linux-unpacked/chrome-sandbox
 
       # Without a display no window starts; `xvfb-run` gives the runner one.
       - name: Ponta a ponta sobre o pacote (Linux)
