@@ -42,7 +42,9 @@ test.describe('footnotes', () => {
     await expect(note).toContainText('Fonte: ata anterior.')
     await expect(note.locator('.note-number')).toHaveText('1')
 
-    await editor.getByText('Segundo parágrafo').click()
+    // On the first letters: the line's middle is past its end, beside the reference, and a key pressed
+    // before the selection settles there leaves for the next paragraph.
+    await editor.getByText('Segundo parágrafo').click({ position: { x: 4, y: 4 } })
     await session.window.keyboard.press('Home')
     await session.window.keyboard.type('Revisto: ')
     await expect(editor).toContainText('Revisto: Segundo parágrafo')
