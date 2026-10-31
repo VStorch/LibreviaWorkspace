@@ -49,6 +49,9 @@ jobs:
       - name: Testes
         run: npm test
 
+      - name: Textos soltos no código
+        run: npm run i18n:check
+
       # License gate: the build fails if any transitive dependency brings a license outside the
       # allowlist.
       - name: Licenças (npm)
@@ -88,6 +91,13 @@ jobs:
         if: runner.os == 'Windows'
         run: npm run dist:win
 
+      # The Windows runner starts at 1024x768, where the window cuts the sheet and clicks land elsewhere.
+      - name: Tela maior (Windows)
+        if: runner.os == 'Windows'
+        run: Set-DisplayResolution -Width 1920 -Height 1080 -Force
+        shell: pwsh
+        continue-on-error: true
+
       # Without a display no window starts; `xvfb-run` gives the runner one.
       - name: Ponta a ponta sobre o pacote (Linux)
         if: runner.os == 'Linux'
@@ -100,6 +110,12 @@ jobs:
         run: npm run test:e2e
         env:
           LIBREVIA_E2E_BINARY: release/win-unpacked/Librevia.exe
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: e2e-${{ runner.os }}
+          path: test-results/
 
       - uses: actions/upload-artifact@v4
         with:
