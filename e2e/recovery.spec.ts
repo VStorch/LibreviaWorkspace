@@ -77,7 +77,9 @@ test.describe('recovery after a crash', () => {
       contents?.once('did-finish-load', () => {
         ;(globalThis as { reloaded?: boolean }).reloaded = true
       })
-      setTimeout(() => contents?.forcefullyCrashRenderer(), 0)
+      // Killed from outside: `forcefullyCrashRenderer` needs the renderer's help, and on Linux it left
+      // one neither alive nor gone, which also held the app's exit back.
+      setTimeout(() => process.kill(contents?.getOSProcessId() ?? 0, 'SIGKILL'), 0)
     })
     // Asked of main: a script sent to the renderer as it dies would never answer.
     await expect
@@ -95,7 +97,7 @@ test.describe('recovery after a crash', () => {
       .toContain('Texto antes da falha')
 
     const logs = await session.app.evaluate(({ app }) => app.getPath('logs'))
-    expect(await readFile(join(logs, 'librevia.log'), 'utf8')).toContain('renderer gone (crashed')
+    expect(await readFile(join(logs, 'librevia.log'), 'utf8')).toContain('renderer gone (killed')
   })
 
   test('a clean session shows no notice', async () => {
