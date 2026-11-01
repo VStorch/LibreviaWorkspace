@@ -1,5 +1,6 @@
+import { useState } from 'react'
 import { APP_NAME } from '@shared/constants.js'
-import swallowUrl from '../../../build/icon.svg?url'
+import swallow from '../../../build/icon.svg?raw'
 import type { RecentFile } from '@shared/types.js'
 import { Icon, type IconName } from '../components/Icon.js'
 import { useT } from '../i18n.js'
@@ -32,9 +33,24 @@ function RecentItem({ file }: { readonly file: RecentFile }): React.JSX.Element 
   )
 }
 
+const CLICKS_TO_FLAP = 3
+
 /** The app icon itself, so the home screen and the system show the same swallow. */
 function BrandMark(): React.JSX.Element {
-  return <img className="home__mark" src={swallowUrl} width="72" height="72" alt="" />
+  const [flapping, setFlapping] = useState(false)
+  return (
+    <span
+      className={flapping ? 'home__mark home__mark--flapping' : 'home__mark'}
+      aria-hidden="true"
+      // Repeated clicks would otherwise select the nearest text, the title.
+      onMouseDown={(event) => event.preventDefault()}
+      onClick={(event) => {
+        if (event.detail === CLICKS_TO_FLAP) setFlapping(true)
+      }}
+      onAnimationEnd={() => setFlapping(false)}
+      dangerouslySetInnerHTML={{ __html: swallow }}
+    />
+  )
 }
 
 type Tone = 'document' | 'spreadsheet' | 'neutral'

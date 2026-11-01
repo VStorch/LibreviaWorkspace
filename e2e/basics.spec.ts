@@ -23,6 +23,14 @@ test.describe('file cycle', () => {
     await expect(session.window.locator('.home')).toBeVisible()
   })
 
+  test('three clicks on the swallow flap its wings, and then it rests', async () => {
+    const swallow = session.window.locator('.home__mark')
+    await swallow.click({ clickCount: 3 })
+    await expect(swallow).toHaveClass(/home__mark--flapping/)
+    expect(await session.window.evaluate(() => getSelection()?.toString())).toBe('')
+    await expect(swallow).not.toHaveClass(/home__mark--flapping/)
+  })
+
   test('writing, saving, closing and reopening returns the text', async () => {
     const target = join(folder, 'ata.sdoc')
     await stubDialogs(session.app, { save: target, open: target, messageBox: 1 })
