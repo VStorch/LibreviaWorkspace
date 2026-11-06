@@ -436,12 +436,12 @@ public class OdtReaderTests
             masters: """<style:master-page style:name="Standard" style:page-layout-name="pm1"><style:header><text:p>Data: <text:date>1/1/26</text:date></text:p><table:table/></style:header><style:footer-first><text:p>Capa</text:p></style:footer-first></style:master-page>""" +
                      """<style:master-page style:name="Outra" style:page-layout-name="pm1"/>""");
 
-        var page = Open(bytes).Model.Page;
+        var page = Open(bytes).Model.Sections!.Single();
         Assert.Equal("A4", page.Size);
         Assert.Equal(("Data: 1/1/26", string.Empty), (page.Header!.Left.Single().Text, page.HeaderText));
         Assert.Equal((true, "Capa"), (page.TitlePage, page.FirstFooter!.Left.Single().Text));
         Assert.Same(page.Header, page.FirstHeader);
-        Assert.Equal(["sidecar.notice.bandFormatting", "sidecar.notice.paperSizeChanged", "sidecar.notice.sections"], Noted(bytes));
+        Assert.Equal(["sidecar.notice.bandFormatting", "sidecar.notice.paperSizeChanged"], Noted(bytes));
     }
 
     [Fact]

@@ -35,19 +35,26 @@ internal sealed class OdtBodyReader
     /// Each child of <c>office:text</c> that gives nodes is a block, the unit saving keeps byte for
     /// byte or rewrites. A child that gives none stays in the gap before the next block.
     /// </summary>
-    public List<OdtSourceBlock> ReadBlocks(XElement text)
+    public List<OdtSourceBlock> ReadBlocks(XElement text, OdtSectionReader sections)
     {
         var blocks = new List<OdtSourceBlock>();
         var index = 0;
         foreach (var child in text.Elements())
         {
             _context.BeginBlock();
+            var opening = sections.OpeningOf(child);
             var nodes = ReadBlock(child, flat: false).ToList();
             var notices = _context.EndBlock();
-            if (nodes.Count > 0) blocks.Add(new OdtSourceBlock(blocks.Count + 1, index, nodes, notices));
+            if (nodes.Count > 0)
+            {
+                blocks.Add(new OdtSourceBlock(blocks.Count + 1, index, nodes, notices));
+                sections.Add(blocks, blocks[^1], opening);
+            }
+
             index++;
         }
 
+        _context.ModeledSection = null;
         return blocks;
     }
 
@@ -69,7 +76,7 @@ internal sealed class OdtBodyReader
         var local = element.Name.LocalName;
         if (element.Name == Ns.Text + "section")
         {
-            _context.NoteLoss(OdtNotices.Sections);
+            if (element != _context.ModeledSection) _context.NoteLoss(OdtNotices.Sections);
             return Children(element, flat);
         }
 

@@ -77,8 +77,9 @@ internal sealed class OdtBodyWriter
         var body = new StringBuilder(_prelude);
         for (var index = 0; index < content.Count;)
         {
-            _pending = _sections.Enter(body, index) ?? _pending;
-            if (Kept(content, index) is { } block)
+            var kept = Kept(content, index);
+            _pending = _sections.Enter(body, index, raw: kept is not null) ?? _pending;
+            if (kept is { } block)
             {
                 _pending = null;
                 Place(body, block);
@@ -188,6 +189,7 @@ internal sealed class OdtBodyWriter
         if (part != 0 || _kept.Contains(block.Number) || index + block.Nodes.Count > content.Count) return null;
         if (_predicted?.Contains(block.Number) == false) return null;
         if (index > 0 && OdtBlockWriter.JoinsNext(content[index - 1]) && OdtBlockWriter.IsParagraph(content[index])) return null;
+        if (!SectionsHold(content, index, block)) return null;
 
         for (var offset = 0; offset < block.Nodes.Count; offset++)
         {
@@ -197,6 +199,24 @@ internal sealed class OdtBodyWriter
         }
 
         return block;
+    }
+
+    /// <summary>
+    /// Where the block's XML opens a section (a master page, columns), the plan must open the same
+    /// one there, and none inside it; a <c>text:section</c> also ends its section.
+    /// </summary>
+    private bool SectionsHold(List<Node> content, int index, OdtSourceBlock block)
+    {
+        var read = _source.SectionStartingAt(block.Number);
+        if (!_sections.Keeps(index, read)) return false;
+        var end = index + block.Nodes.Count;
+        for (var inner = index + 1; inner < end; inner++)
+        {
+            if (_sections.StartAt(inner) is not null) return false;
+        }
+
+        var columns = read is { } known && _source.Sections[known].Setup.Columns is { Count: > 1 };
+        return !columns || end >= content.Count || _sections.StartAt(end) is not null;
     }
 
     /// <summary>The gap that belongs before the block, once.</summary>

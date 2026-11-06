@@ -58,8 +58,18 @@ internal sealed class OdtSource
     /// <summary>The <c>office:name</c> of each named comment, by its id in <see cref="Comments"/>.</summary>
     public required IReadOnlyDictionary<string, string> CommentNames { get; init; }
 
-    /// <summary>The master page of the first block, whose page setup the model carries.</summary>
-    public string? MasterPage { get; init; }
+    /// <summary>In order, the last the page's: what <see cref="OdtSectionPlan"/> maps the model's back to.</summary>
+    public required List<OdtReadSection> Sections { get; init; }
+
+    /// <summary>The read section whose first block this is, or <c>null</c>.</summary>
+    public int? SectionStartingAt(int blockNumber)
+    {
+        var index = Sections.FindIndex(section => section.StartBlock == blockNumber);
+        return index < 0 ? null : index;
+    }
+
+    /// <summary>The master page of the page setup, the last section's.</summary>
+    public string? MasterPage => Sections[^1].Master;
 
     /// <summary>The elements of <c>office:text</c>, in order: what each block's index points to.</summary>
     public required List<XElement> Elements { get; init; }
@@ -72,8 +82,10 @@ internal sealed class OdtSource
         var notices = new Inventory();
         var styles = OdtStyles.Read(package.Content, package.Styles);
         var context = new OdtReadContext(package, styles, notices);
-        var blocks = new OdtBodyReader(context).ReadBlocks(text);
+        var sectionReader = new OdtSectionReader(context, notices);
+        var blocks = new OdtBodyReader(context).ReadBlocks(text, sectionReader);
         foreach (var block in blocks) block.Stamp();
+        var sections = sectionReader.Sections();
 
         return new OdtSource
         {
@@ -81,7 +93,8 @@ internal sealed class OdtSource
             Text = text,
             Styles = styles,
             Blocks = blocks,
-            Page = OdtPageReader.Read(package, context.MasterPage, notices),
+            Page = sections[^1].Setup,
+            Sections = sections,
             Sheet = OdtStyleSheet.Read(styles),
             Properties = OdtProperties.Read(package.Meta, OdtPrivacyMark.IsSet(package.ReadXml(OdtPrivacyMark.SettingsPath))),
             Notices = notices,
@@ -89,7 +102,6 @@ internal sealed class OdtSource
             CommentNames = context.Comments.Names,
             Notes = OdtNoteCounter.Read(package.Styles),
             Changes = context.Changes.Source,
-            MasterPage = context.MasterPage,
             Elements = [.. text.Elements()],
         };
     }
@@ -99,7 +111,8 @@ internal sealed class OdtSource
         var doc = Node.Of("doc");
         doc.Content = [.. Blocks.SelectMany(block => block.Nodes)];
         if (doc.Content.Count == 0) doc.Content.Add(OdtParagraphReader.Empty());
+        var earlier = Sections.Count > 1 ? Sections[..^1].Select(section => section.Setup).ToList() : null;
         return new DocumentModelDto(
-            Page, doc, Sheet, Comments: Comments, TrackChanges: Changes.Tracking ? true : null, Notes: Notes, Properties: Properties);
+            Page, doc, Sheet, Sections: earlier, Comments: Comments, TrackChanges: Changes.Tracking ? true : null, Notes: Notes, Properties: Properties);
     }
 }

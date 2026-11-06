@@ -6,7 +6,8 @@ namespace Librevia.Format.Odt;
 
 /// <summary>
 /// <c>styles.xml</c>, only where the model differs from the file: a named style changed or created,
-/// the page layout of the master page in use, and its header or footer when their text changed.
+/// the page layout of each master page a section uses (or a copy, see <see cref="OdtSectionMasters"/>),
+/// and its header or footer when their text changed.
 /// Each touched element is cut out and replaced; the rest of the part stays as it was.
 /// </summary>
 internal static class OdtStylesPart
@@ -31,7 +32,7 @@ internal static class OdtStylesPart
     };
 
     /// <returns>The new text, or <c>null</c> when nothing changed.</returns>
-    public static string? Write(OdtSource source, DocumentModelDto model, IEnumerable<string> taken)
+    public static string? Write(OdtSource source, DocumentModelDto model, IEnumerable<string> taken, IReadOnlyList<OdtMasterChange> masters)
     {
         if (source.Package.Styles?.Root is not { } root) return null;
 
@@ -42,7 +43,13 @@ internal static class OdtStylesPart
         var changed = NamedStyles(source, model.Styles, root, spans, xmlOut, edits);
 
         var automatic = new OdtAutomaticStyles(taken);
-        changed |= Page(source, model.Page, root, spans, xmlOut, edits, automatic);
+        var copies = new List<XElement>();
+        foreach (var master in masters) changed |= Page(source, master, new PartEdits(root, spans, xmlOut, edits, automatic), copies);
+        if (copies.Count > 0 && root.Element(Ns.Office + "master-styles") is { } masterStyles)
+        {
+            edits.AppendContent(OdtXmlSpans.Find(spans, masterStyles), xmlOut.Write(copies));
+        }
+
         OdtWriter.AppendStyles(edits, spans, root, xmlOut, automatic.Created, root.Element(Ns.Office + "master-styles"));
         return changed ? edits.Apply() : null;
     }
@@ -158,38 +165,62 @@ internal static class OdtStylesPart
         return name.ToString();
     }
 
-    private static bool Page(
-        OdtSource source, PageSetupDto wanted, XElement root, XmlSpan spans, OdtXmlOut xmlOut, TextEdits edits, OdtAutomaticStyles automatic)
-    {
-        var known = source.Page;
-        var bandsChanged = (wanted.Header is null && (known.HeaderText ?? string.Empty) != (wanted.HeaderText ?? string.Empty)) ||
-                           (wanted.Footer is null && (known.FooterText ?? string.Empty) != (wanted.FooterText ?? string.Empty));
-        var layoutChanged = known.Size != wanted.Size || known.Orientation != wanted.Orientation ||
-                            !SameMargins(known.Margins, wanted.Margins) || known.PageNumberFormat != wanted.PageNumberFormat;
-        if (!bandsChanged && !layoutChanged) return false;
+    private sealed record PartEdits(XElement Root, XmlSpan Spans, OdtXmlOut Out, TextEdits Edits, OdtAutomaticStyles Automatic);
 
-        var masters = root.Element(Ns.Office + "master-styles")?.Elements(Ns.Style + "master-page").ToList() ?? [];
-        var master = masters.FirstOrDefault(page => page.Attr(Ns.Style + "name") == (source.MasterPage ?? OdtPageReader.DefaultMaster))
-                     ?? masters.FirstOrDefault();
+    /// <summary>What <see cref="Page"/> writes: the layout and the plain bands.</summary>
+    public static bool SameLayout(PageSetupDto known, PageSetupDto wanted) =>
+        !BandsChanged(known, wanted) && known.Size == wanted.Size && known.Orientation == wanted.Orientation &&
+        SameMargins(known.Margins, wanted.Margins) && known.PageNumberFormat == wanted.PageNumberFormat;
+
+    private static bool BandsChanged(PageSetupDto known, PageSetupDto wanted) =>
+        (wanted.Header is null && (known.HeaderText ?? string.Empty) != (wanted.HeaderText ?? string.Empty)) ||
+        (wanted.Footer is null && (known.FooterText ?? string.Empty) != (wanted.FooterText ?? string.Empty));
+
+    /// <summary>The master page brought to the section's setup, in place or, with <c>From</c>, as a new copy.</summary>
+    private static bool Page(OdtSource source, OdtMasterChange change, PartEdits part, List<XElement> copies)
+    {
+        var (name, from, known, wanted) = change;
+        var masters = part.Root.Element(Ns.Office + "master-styles")?.Elements(Ns.Style + "master-page").ToList() ?? [];
+        var master = masters.FirstOrDefault(page => page.Attr(Ns.Style + "name") == (from ?? name))
+                     ?? (from is null ? masters.FirstOrDefault() : null);
         if (master is null) return false;
 
         var bands = new XElement(master);
+        var bandsChanged = BandsChanged(known, wanted);
         if (bandsChanged)
         {
-            if (wanted.Header is null) Band(source, bands, "header", known.HeaderText, wanted.HeaderText, HeaderStyle, automatic);
-            if (wanted.Footer is null) Band(source, bands, "footer", known.FooterText, wanted.FooterText, FooterStyle, automatic);
-            edits.Replace(OdtXmlSpans.Find(spans, master), xmlOut.Write(bands));
+            if (wanted.Header is null) Band(source, bands, "header", known.HeaderText, wanted.HeaderText, HeaderStyle, part.Automatic);
+            if (wanted.Footer is null) Band(source, bands, "footer", known.FooterText, wanted.FooterText, FooterStyle, part.Automatic);
         }
 
-        var layout = root.Element(Ns.Office + "automatic-styles")?.Elements(Ns.Style + "page-layout")
+        var layout = part.Root.Element(Ns.Office + "automatic-styles")?.Elements(Ns.Style + "page-layout")
             .FirstOrDefault(element => element.Attr(Ns.Style + "name") == master.Attr(Ns.Style + "page-layout-name"));
-        if (layout?.Element(Ns.Style + "page-layout-properties") is { } properties &&
-            Layout(properties, layout, bands, known, wanted) is { } changed)
+        var properties = layout?.Element(Ns.Style + "page-layout-properties");
+        var changed = properties is null ? null : Layout(properties, layout!, bands, known, wanted);
+        if (from is not null)
         {
-            edits.Replace(OdtXmlSpans.Find(spans, properties), xmlOut.Write(changed));
+            copies.Add(Copy(bands, name, layout, properties, changed, part.Automatic));
+            return true;
         }
 
+        if (bandsChanged) part.Edits.Replace(OdtXmlSpans.Find(part.Spans, master), part.Out.Write(bands));
+        if (changed is not null) part.Edits.Replace(OdtXmlSpans.Find(part.Spans, properties!), part.Out.Write(changed));
         return true;
+    }
+
+    /// <summary>A new master page, with its own page layout when the layout changes.</summary>
+    private static XElement Copy(
+        XElement master, string name, XElement? layout, XElement? properties, XElement? changed, OdtAutomaticStyles automatic)
+    {
+        master.SetAttributeValue(Ns.Style + "name", name);
+        master.SetAttributeValue(Ns.Style + "display-name", null);
+        if (layout is null || changed is null) return master;
+        var copy = new XElement(
+            layout.Name,
+            layout.Attributes().Where(attribute => attribute.Name != Ns.Style + "name"),
+            layout.Elements().Select(element => element == properties ? changed : new XElement(element)));
+        master.SetAttributeValue(Ns.Style + "page-layout-name", automatic.Add(OdtAutomaticStyles.PageLayout, copy));
+        return master;
     }
 
     private static bool SameMargins(MarginsDto known, MarginsDto wanted) =>

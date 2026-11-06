@@ -27,7 +27,7 @@ internal sealed class OdtTableReader(OdtReadContext context, OdtBodyReader body)
         var style = context.Styles.Find("table", table.Attr(Ns.Table + "style-name"));
         var properties = style?.Properties("table-properties");
         var breakBefore = !flat && !context.IsFirstBlock && properties?.Attr(Ns.Fo + "break-before") == ParagraphFormat.Page;
-        context.SeeBlock(style?.MasterPage);
+        context.SeeBlock();
 
         var widths = ColumnWidths(table);
         var rows = new List<Node>();

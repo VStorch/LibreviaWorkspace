@@ -36,8 +36,9 @@ public static class OdtWriter
         context.TakeNames(package.Content.Root!);
 
         var replaced = new Dictionary<string, byte[]>(StringComparer.Ordinal);
-        var (content, preserved, rewritten) = Content(package, source, context, model);
-        var styles = OdtStylesPart.Write(source, model, taken);
+        var masters = OdtSectionMasters.Assign(source, [.. model.Sections ?? [], model.Page], MastersOf(package.Styles));
+        var (content, preserved, rewritten) = Content(package, source, context, model, masters);
+        var styles = OdtStylesPart.Write(source, model, taken, masters.Changes);
         Replace(replaced, package, OdtPackage.ContentPath, content);
         Replace(replaced, package, OdtPackage.StylesPath, styles);
         if (OdtMetaPart.Write(package.Meta, source.Properties, model.Properties) is { } meta) replaced[OdtPackage.MetaPath] = meta;
@@ -64,14 +65,14 @@ public static class OdtWriter
         Encoding.UTF8.GetString(package.ReadBytes(path) ?? throw new OdtException("sidecar.error.odtWithoutContent"));
 
     private static (string Text, int Preserved, int Rewritten) Content(
-        OdtPackage package, OdtSource source, OdtWriteContext context, DocumentModelDto model)
+        OdtPackage package, OdtSource source, OdtWriteContext context, DocumentModelDto model, OdtSectionMasters masters)
     {
         var xml = TextOf(package, OdtPackage.ContentPath);
         var root = package.Content.Root!;
         var spans = OdtXmlSpans.Root(xml);
         var xmlOut = new OdtXmlOut(root);
         var textSpan = OdtXmlSpans.Find(spans, source.Text);
-        var sections = new OdtSectionPlan(model, MastersOf(package.Styles), source.MasterPage, context, xmlOut);
+        var sections = new OdtSectionPlan(model, masters, context, xmlOut);
         var body = new OdtBodyWriter(source, context, xmlOut, xml, textSpan, sections);
         var inner = body.Write(model.Doc);
 

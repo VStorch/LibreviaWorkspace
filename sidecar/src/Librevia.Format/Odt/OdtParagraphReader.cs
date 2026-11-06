@@ -34,7 +34,7 @@ internal sealed class OdtParagraphReader(OdtReadContext context)
         var style = context.Styles.Find(OdtStyles.ParagraphFamily, styleName);
         var breakBefore = !flat && !context.IsFirstBlock && style is { Automatic: true } &&
                           ParagraphFormat.Of(style.Properties("paragraph-properties")).PageBreakBefore;
-        context.SeeBlock(style?.MasterPage);
+        context.SeeBlock();
 
         var formats = FormatsOf(styleName, style);
         var node = Formatted(element, formats, flat);

@@ -1,3 +1,4 @@
+using System.Xml.Linq;
 using Librevia.Format.Docx;
 
 namespace Librevia.Format.Odt;
@@ -26,8 +27,8 @@ internal sealed class OdtReadContext(OdtPackage package, OdtStyles styles, Inven
 
     private bool _sawBlock;
 
-    /// <summary>The master page of the first block: the page setup the document opens with.</summary>
-    public string? MasterPage { get; private set; }
+    /// <summary>The <c>text:section</c> the model carries as a section with columns, see <see cref="OdtSectionReader"/>.</summary>
+    public XElement? ModeledSection { get; set; }
 
     /// <summary>The first block in the text: a page break before it would only add a blank sheet.</summary>
     public bool IsFirstBlock => !_sawBlock;
@@ -48,23 +49,5 @@ internal sealed class OdtReadContext(OdtPackage package, OdtStyles styles, Inven
         return block;
     }
 
-    /// <summary>
-    /// A master page named after the first block starts another page setup: a section the model
-    /// does not carry here.
-    /// </summary>
-    public void SeeBlock(string? masterPage)
-    {
-        var first = !_sawBlock;
-        _sawBlock = true;
-        if (first)
-        {
-            MasterPage = string.IsNullOrEmpty(masterPage) ? null : masterPage;
-            return;
-        }
-
-        if (!string.IsNullOrEmpty(masterPage) && masterPage != (MasterPage ?? OdtPageReader.DefaultMaster))
-        {
-            Inventory.NoteLoss(OdtNotices.Sections);
-        }
-    }
+    public void SeeBlock() => _sawBlock = true;
 }
