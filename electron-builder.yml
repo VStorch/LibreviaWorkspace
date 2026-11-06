@@ -59,6 +59,8 @@ linux:
     - application/vnd.openxmlformats-officedocument.wordprocessingml.document
     - application/vnd.openxmlformats-officedocument.wordprocessingml.template
     - application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+    - application/vnd.oasis.opendocument.text
+    - application/vnd.oasis.opendocument.text-template
     - text/plain
     - application/pdf
 
@@ -71,6 +73,14 @@ win:
     - ext: dotx
       name: Librevia Word Template
       description: Word template
+      role: Editor
+    - ext: odt
+      name: Librevia OpenDocument Text
+      description: OpenDocument text
+      role: Editor
+    - ext: ott
+      name: Librevia OpenDocument Template
+      description: OpenDocument text template
       role: Editor
     - ext: xlsx
       name: Librevia Excel Workbook
