@@ -143,21 +143,36 @@ Ele também:
 | `.txt` | ✅ | ✅ | só texto; salvar nele descarta a formatação, e o app avisa antes |
 | `.pdf` | ✅ | exporta | abre só para ler; título, autor, assunto e palavras-chave se alteram; documentos e planilhas exportam para ele |
 | `.html`, `.md` | — | exporta | documento numa página só, ou em Markdown com as imagens numa pasta ao lado |
-| `.odt` | — | exporta | documento no formato do LibreOffice |
+| `.odt` | ✅ | ✅ | documento do LibreOffice; o que você não editou volta intacto |
 
 <details>
-<summary><b>Por que o Librevia exporta ODT mas não abre ODT nem ODS</b></summary>
+<summary><b>Como funciona o ODT, e por que o ODS não abre</b></summary>
 
-**Escrever** um `.odt` novo é simples: o Librevia conhece o próprio documento e só precisa
-descrevê-lo no formato do LibreOffice. Não há nada a preservar.
+Um `.odt` abre como arquivo próprio: `Ctrl+S` grava nele. Como no `.docx`, cada parágrafo,
+título, lista e tabela recebe uma identificação ao abrir. Ao salvar, o bloco que você não
+editou volta com o texto exato que tinha no `content.xml`. Só o bloco editado é escrito de
+novo.
 
-**Abrir** e salvar de volta é outra coisa. Para não estragar o arquivo, seria preciso fazer
-com o ODT a mesma gravação cuidadosa que existe para o DOCX, e isso pede uma biblioteca que
-entenda o formato inteiro. Não há biblioteca madura com licença permissiva para isso, em
-nenhuma linguagem.
+O resto do arquivo também fica onde estava:
 
-Na prática isso pouco aparece. O LibreOffice grava `.docx` e `.xlsx` pelo "Salvar como", e
-esses arquivos abrem aqui normalmente.
+- `styles.xml` só muda se você alterou um estilo, as margens, o papel, o cabeçalho ou o rodapé;
+- `meta.xml` só muda se você alterou as propriedades;
+- configurações, miniatura e objetos voltam iguais.
+
+Algumas coisas o Librevia não mostra: nota de rodapé, comentário, marca de revisão, indicador,
+seção, caixa de texto, equação, desenho e formulário. Elas continuam no arquivo enquanto você
+não edita o bloco onde estão, e o app avisa ao abrir. Se você editar esse bloco, elas se perdem
+nele, e o app avisa ao salvar.
+
+Os campos de número de página, total de páginas, data, hora, título e autor abrem como os do
+`.docx` e voltam ao arquivo como campos do LibreOffice. Outro campo mostra o texto que tinha; se
+você editar o bloco onde está, ele vira texto comum.
+
+O "Salvar como" só oferece `.odt` para um documento que veio de um `.odt`. Um documento novo,
+ou vindo de `.docx`, vai para ODT por **Arquivo → Exportar como**.
+
+Planilhas `.ods` não abrem. O LibreOffice grava `.xlsx` pelo "Salvar como", e esse arquivo
+abre aqui normalmente.
 
 </details>
 
@@ -202,6 +217,8 @@ Os números abaixo foram medidos:
 | Documento de 105 blocos, salvo sem editar | **0** blocos reescritos |
 | O mesmo documento, com um parágrafo editado | **1** bloco reescrito |
 | Partes do pacote que mudam | só `word/document.xml`; as outras 25 saem idênticas byte a byte |
+| Documento do LibreOffice (`.odt`, 7 blocos), salvo sem editar | **0** blocos reescritos; as 9 partes saem idênticas |
+| O mesmo `.odt`, com um parágrafo editado | **1** bloco reescrito; só `content.xml` muda |
 | Planilha do LibreOffice, aberta e salva sem editar | **0** células escritas, 18 preservadas |
 | A mesma planilha, com uma quantidade alterada | **4** células: a digitada e as três fórmulas que dependiam dela |
 
@@ -364,7 +381,7 @@ flowchart LR
     end
 
     subgraph S["🧩 Sidecar · .NET 10"]
-        FMT["Librevia.Format<br/><i>DOCX e XLSX</i>"]
+        FMT["Librevia.Format<br/><i>DOCX, ODT e XLSX</i>"]
     end
 
     SV[["📚 src/services<br/>lógica pura, usada<br/>pelos dois lados"]]
@@ -392,7 +409,7 @@ flowchart LR
 | **Renderer** | desenha a interface e edita | tocar no disco ou importar `electron` e `node:*` |
 | **Preload** | expõe `window.api` | ter lógica; ele só encaminha |
 | **Main** | abre janelas, lê e grava arquivos, imprime | aceitar caminho que o usuário não escolheu; acessar a rede fora de `src/main/ai/` |
-| **Sidecar** | lê e escreve DOCX e XLSX | acessar rede ou gravar no disco |
+| **Sidecar** | lê e escreve DOCX, ODT e XLSX | acessar rede ou gravar no disco |
 
 ### Uma abertura e um salvamento, passo a passo
 
@@ -931,7 +948,8 @@ português; commits em inglês, no padrão
 
 | Limite | Situação |
 | --- | --- |
-| **ODT e ODS** | não abrem; o documento pode ser **exportado** para ODT |
+| **ODS** | não abre |
+| **ODT** | só salva em `.odt` o documento que veio de um; os outros vão por **Exportar como** |
 | **Macros** | um `.dotm` abre, mas sem as macros |
 | **Mesclar células na planilha** | ainda não existe |
 | **Filtros de planilha** | preservados no arquivo, mas sem tela para criar ou alterar |
