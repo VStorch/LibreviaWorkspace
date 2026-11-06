@@ -168,8 +168,10 @@ Os campos de número de página, total de páginas, data, hora, título e autor 
 `.docx` e voltam ao arquivo como campos do LibreOffice. Outro campo mostra o texto que tinha; se
 você editar o bloco onde está, ele vira texto comum.
 
-O "Salvar como" só oferece `.odt` para um documento que veio de um `.odt`. Um documento novo,
-ou vindo de `.docx`, vai para ODT por **Arquivo → Exportar como**.
+Qualquer documento salva em `.odt` pelo "Salvar como": um documento novo, um `.sdoc` ou um
+`.docx` vão para um pacote ODT novo, inteiro. Depois disso, o `.odt` é o arquivo aberto, e
+`Ctrl+S` grava nele. **Arquivo → Exportar como → ODT** faz uma cópia em `.odt` e deixa o documento
+onde está.
 
 Planilhas `.ods` não abrem. O LibreOffice grava `.xlsx` pelo "Salvar como", e esse arquivo
 abre aqui normalmente.
@@ -509,7 +511,7 @@ fácil se perder. Esta é a lista das pastas que importam e do que cada uma guar
 
 | Pasta | Conteúdo |
 | --- | --- |
-| [`document/`](src/services/document) | modelo do documento, `.sdoc`, estilos, paginação, listas, campos, notas, equações (LaTeX e MathML), exportação HTML, Markdown e ODT, leitura do Markdown das respostas do assistente |
+| [`document/`](src/services/document) | modelo do documento, `.sdoc`, estilos, paginação, listas, campos, notas, equações (LaTeX e MathML), exportação HTML e Markdown, leitura do Markdown das respostas do assistente |
 | [`spreadsheet/`](src/services/spreadsheet) | modelo da planilha, `.ssheet`, edição, preenchimento, formatação, estrutura |
 | [`spreadsheet/formula/`](src/services/spreadsheet/formula) | fórmulas: leitura, avaliação, recálculo, ajuste de referências e as 52 funções |
 | [`file/`](src/services/file) | extensões aceitas, propriedades do documento, dados pessoais e o inventário do que um arquivo pode perder |
@@ -949,7 +951,6 @@ português; commits em inglês, no padrão
 | Limite | Situação |
 | --- | --- |
 | **ODS** | não abre |
-| **ODT** | só salva em `.odt` o documento que veio de um; os outros vão por **Exportar como** |
 | **Macros** | um `.dotm` abre, mas sem as macros |
 | **Mesclar células na planilha** | ainda não existe |
 | **Filtros de planilha** | preservados no arquivo, mas sem tela para criar ou alterar |

@@ -86,8 +86,8 @@ E estes, o Librevia **cria**. O `.pdf` também abre para leitura, como mostra a 
 | `.html`, `.md`, `.odt` | **Arquivo → Exportar como**, só para documentos |
 
 > ℹ️ **Um `.odt` abre e salva como o `.docx`.** Só o bloco que você editou é escrito de novo; o
-> resto volta como estava. O "Salvar como" oferece `.odt` só para um documento que veio de um
-> `.odt`. Para os outros, use **Arquivo → Exportar como**.
+> resto volta como estava. O "Salvar como" oferece `.odt` para qualquer documento: um documento
+> novo, um `.sdoc` ou um `.docx` vão inteiros para um `.odt` novo, que passa a ser o arquivo aberto.
 >
 > **Planilhas `.ods` não abrem.** Peça a quem enviou que salve como `.xlsx`. O LibreOffice faz
 > isso pelo "Salvar como".
@@ -1174,7 +1174,8 @@ O documento passa a ser o `.docx`, e o próximo **Salvar** grava nele.
   Markdown não tem como mesclar.
 - **ODT** abre no LibreOffice e em outros editores que leem OpenDocument, com os estilos, as listas
   numeradas, as tabelas, as imagens, as notas, os marcadores e os links. Cada seção leva o próprio
-  papel, margens, colunas, cabeçalho e rodapé, e os comentários vão como anotações.
+  papel, margens, colunas, cabeçalho e rodapé, e os comentários vão como anotações. Para trabalhar
+  no próprio `.odt`, use **Salvar como**.
 - As **revisões** saem já aceitas. As **equações** vão junto. No HTML e no Markdown os
   **comentários** ficam de fora.
 
@@ -1188,7 +1189,6 @@ O documento passa a ser o `.docx`, e o próximo **Salvar** grava nele.
 | --- | --- |
 | **Arquivos acima de 20 MB** | não abrem |
 | **`.ods`** | não abre |
-| **Salvar em `.odt`** | só para um documento que veio de um `.odt`; os outros vão por **Exportar como** |
 | **Macros** | um `.dotm` abre, mas sem as macros |
 | **Mesclar células na planilha** | ainda não existe |
 | **Filtros de planilha** | são preservados no arquivo, mas não há tela para criar ou alterar |
