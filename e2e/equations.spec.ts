@@ -2,7 +2,7 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
-import { launch, menu, stubDialogs, type Session } from './app.js'
+import { launch, menu, stubDialogs, selectionSettled, type Session } from './app.js'
 import { EQUATION_AFTER, EQUATION_BEFORE, docxWithEquations, entryOf } from './fixtures.js'
 import { hasPdftotext, pdfText } from './external-tools.js'
 
@@ -70,6 +70,7 @@ test.describe('equations', () => {
     await expect(locked).toHaveAttribute('title', /m:borderBox/)
 
     await editor.getByText(EQUATION_AFTER.trim()).click()
+    await selectionSettled(session)
     await session.window.keyboard.press('End')
     await session.window.keyboard.type(' Conferido.')
     await expect(editor).toContainText('para todo raio. Conferido.')

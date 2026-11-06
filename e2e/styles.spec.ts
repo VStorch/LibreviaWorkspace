@@ -3,7 +3,7 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
-import { launch, menu, stubDialogs, type Session } from './app.js'
+import { launch, menu, stubDialogs, selectionSettled, type Session } from './app.js'
 import { docxWithNamedStyles, entryOf } from './fixtures.js'
 
 /**
@@ -121,6 +121,7 @@ test.describe('styles panel', () => {
     await session.window.getByRole('combobox', { name: 'Estilo' }).selectOption({ label: 'Título 1' })
 
     await editor.locator('h1').click()
+    await selectionSettled(session)
     await session.window.keyboard.press('End')
     await session.window.keyboard.press('Enter')
     await session.window.keyboard.type('Texto depois do título.')

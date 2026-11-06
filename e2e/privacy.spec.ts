@@ -2,7 +2,7 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
-import { launch, menu, stubDialogs, type Session } from './app.js'
+import { launch, menu, stubDialogs, selectionSettled, type Session } from './app.js'
 import { PROPERTIES_CORE, docxWithComment, docxWithProperties, entryOf } from './fixtures.js'
 
 /**
@@ -78,6 +78,7 @@ test.describe('personal data inspector', () => {
     await expect(cards.first()).not.toContainText('Revisor')
 
     await session.window.locator('.ProseMirror').getByText('Fim.').click()
+    await selectionSettled(session)
     await session.window.keyboard.press('End')
     await session.window.keyboard.press('Shift+Home')
     await menu(session, 'insert-comment')
@@ -98,6 +99,7 @@ test.describe('personal data inspector', () => {
     await stubDialogs(session.app, { open: sourceFile, messageBox: 1 })
     await menu(session, 'open')
     await session.window.locator('.ProseMirror').getByText('Fim.').click()
+    await selectionSettled(session)
     await session.window.keyboard.press('End')
     await session.window.keyboard.type(' Assinado.')
 

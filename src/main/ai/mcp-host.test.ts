@@ -174,7 +174,7 @@ describe('local MCP server', () => {
     expect(applied[0]!.author).toBe('Editor X (MCP)')
     host.disconnectExternal()
     await external.closed
-    expect(clientsSeen.at(-1)).toEqual([])
+    await vi.waitFor(() => expect(clientsSeen.at(-1)).toEqual([]))
   })
 
   it('the external client has the document and sheet tools, which go to the window', async () => {

@@ -1,12 +1,10 @@
-import { execFile } from 'node:child_process'
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { promisify } from 'node:util'
 import { expect, test } from '@playwright/test'
 import { launch, menu, stubDialogs, type Session } from './app.js'
 import { docxWithLongTable } from './fixtures.js'
-import { hasPdftotext } from './external-tools.js'
+import { hasPdftotext, pdfText } from './external-tools.js'
 
 /**
  * The editor paginates live: the sheet count responds to typing, and the long table's last row
@@ -393,18 +391,9 @@ async function screenCut(session: Session): Promise<{ beforeCut: string; afterCu
   })
 }
 
-/** The words on a PDF page, through the system `pdftotext`. */
 async function wordsOfPage(filePath: string, page: number): Promise<string[]> {
-  const { stdout } = await promisify(execFile)('pdftotext', [
-    '-f',
-    String(page),
-    '-l',
-    String(page),
-    '-layout',
-    filePath,
-    '-',
-  ])
-  return stdout.split(/\s+/).filter((word) => word.length > 0)
+  const text = await pdfText(filePath, { page })
+  return text.split(/\s+/).filter((word) => word.length > 0)
 }
 
 /**

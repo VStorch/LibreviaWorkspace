@@ -1,12 +1,10 @@
-import { execFile } from 'node:child_process'
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { promisify } from 'node:util'
 import { expect, test } from '@playwright/test'
-import { launch, menu, stubDialogs, type Session } from './app.js'
+import { launch, menu, stubDialogs, selectionSettled, type Session } from './app.js'
 import { docxWithColumns, docxWithSections, entryOf } from './fixtures.js'
-import { hasPdfinfo } from './external-tools.js'
+import { hasPdfinfo, pdfInfo, pdfText } from './external-tools.js'
 
 /**
  * Sections: each sheet with its section's paper, band and number.
@@ -89,8 +87,9 @@ test.describe('sections', () => {
     expect(third).toEqual('retrato')
     expect(fourth).toEqual('retrato')
 
-    const { stdout } = await promisify(execFile)('pdftotext', ['-layout', destinationFile, '-'])
-    expect(stdout).toMatch(/Página i[\s\S]*Folha em paisagem[\s\S]*Página 1[\s\S]*Página 2[\s\S]*Página 3/)
+    expect(await pdfText(destinationFile)).toMatch(
+      /Página i[\s\S]*Folha em paisagem[\s\S]*Página 1[\s\S]*Página 2[\s\S]*Página 3/,
+    )
   })
 
   const orientations = (session: Session) =>
@@ -147,6 +146,7 @@ test.describe('sections', () => {
     // The copy is the landscape section's: editing it does not change the first one's footer.
     const piece = session.window.locator('.band--footer .band__text').nth(1)
     await piece.click()
+    await selectionSettled(session)
     await session.window.keyboard.press('Home')
     await session.window.keyboard.type('Anexo — ')
     await session.window.locator('.ProseMirror').click()
@@ -196,8 +196,7 @@ test.describe('sections', () => {
     await stubDialogs(session.app, { save: destinationFile, messageBox: 1 })
     await menu(session, 'export-pdf')
     await expect.poll(() => sizes(destinationFile), { timeout: 30_000 }).toHaveLength(1)
-    const { stdout } = await promisify(execFile)('pdftotext', ['-layout', destinationFile, '-'])
-    expect(stdout).toMatch(/Parágrafo 1 em colunas\.\s+Parágrafo 4 em colunas\./)
+    expect(await pdfText(destinationFile)).toMatch(/Parágrafo 1 em colunas\.\s+Parágrafo 4 em colunas\./)
   })
 
   test('Format → Columns and the column break in a new document', async () => {
@@ -212,6 +211,7 @@ test.describe('sections', () => {
     await dialog.getByRole('button', { name: 'Aplicar' }).click()
 
     await session.window.locator('.ProseMirror p', { hasText: 'Esquerda.' }).click()
+    await selectionSettled(session)
     await session.window.keyboard.press('End')
     await menu(session, 'insert-column-break')
     const left = session.window.locator('.ProseMirror p', { hasText: 'Esquerda.' })
@@ -302,14 +302,12 @@ test.describe('sections', () => {
   })
 })
 
+const LAST_PAGE_TO_MEASURE = 99
+
 /** Each PDF sheet's orientation, by the size `pdfinfo` reports. */
 async function sizes(filePath: string): Promise<string[]> {
-  try {
-    const { stdout } = await promisify(execFile)('pdfinfo', ['-f', '1', '-l', '99', filePath])
-    return [...stdout.matchAll(/Page\s+\d+ size:\s+([\d.]+) x ([\d.]+)/g)].map((measure) =>
-      Number(measure[1]) > Number(measure[2]) ? 'paisagem' : 'retrato',
-    )
-  } catch {
-    return []
-  }
+  const info = await pdfInfo(filePath, { lastPage: LAST_PAGE_TO_MEASURE })
+  return [...info.matchAll(/Page\s+\d+ size:\s+([\d.]+) x ([\d.]+)/g)].map((measure) =>
+    Number(measure[1]) > Number(measure[2]) ? 'paisagem' : 'retrato',
+  )
 }

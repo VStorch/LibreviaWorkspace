@@ -25,6 +25,9 @@ function openBridge(command: string, args: readonly string[], userData: string):
   const waiting = new Map<number, (message: Record<string, unknown>) => void>()
   let rest = ''
   let next = 1
+  let errors = ''
+  child.stderr.setEncoding('utf8')
+  child.stderr.on('data', (chunk: string) => (errors += chunk))
   child.stdout.setEncoding('utf8')
   child.stdout.on('data', (chunk: string) => {
     const lines = (rest + chunk).split('\n')
@@ -40,7 +43,10 @@ function openBridge(command: string, args: readonly string[], userData: string):
     ask: (method, params) => {
       const id = next++
       child.stdin.write(`${JSON.stringify({ jsonrpc: '2.0', id, method, params })}\n`)
-      return new Promise((resolve) => waiting.set(id, resolve))
+      return new Promise((resolve, reject) => {
+        waiting.set(id, resolve)
+        void left.then((code) => reject(new Error(`bridge left with ${code} before answering: ${errors}`)))
+      })
     },
   }
 }

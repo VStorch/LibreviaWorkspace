@@ -2,7 +2,7 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
-import { launch, menu, stubDialogs, type Session } from './app.js'
+import { launch, menu, stubDialogs, selectionSettled, type Session } from './app.js'
 import { docxWithPageNumbering, entryOf } from './fixtures.js'
 import { hasPdftotext, pdfText } from './external-tools.js'
 
@@ -58,6 +58,7 @@ test.describe('page numbering', () => {
     await openDocument()
     const piece = session.window.locator('.band--footer .band__text').first()
     await piece.click()
+    await selectionSettled(session)
     await session.window.keyboard.press('Home')
     await session.window.getByRole('button', { name: 'Inserir total de páginas' }).click()
     await session.window.keyboard.type(' folhas — ')

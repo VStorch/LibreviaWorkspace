@@ -4,9 +4,9 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
 import { expect, test } from '@playwright/test'
-import { launch, menu, stubDialogs, type Session } from './app.js'
+import { launch, menu, stubDialogs, selectionSettled, type Session } from './app.js'
 import { docxWithFootnote, docxWithLongFootnote, docxWithManyFootnotes, entryOf } from './fixtures.js'
-import { hasPdfinfo, hasSoffice, pdfInfo } from './external-tools.js'
+import { hasPdfinfo, hasSoffice, pdfInfo, pdfText } from './external-tools.js'
 
 /**
  * Footnotes and endnotes: read, numbered and preserved.
@@ -42,7 +42,10 @@ test.describe('footnotes', () => {
     await expect(note).toContainText('Fonte: ata anterior.')
     await expect(note.locator('.note-number')).toHaveText('1')
 
-    await editor.getByText('Segundo parágrafo').click()
+    // On the first letters: the line's middle is past its end, beside the reference, and a key pressed
+    // before the selection settles there leaves for the next paragraph.
+    await editor.getByText('Segundo parágrafo').click({ position: { x: 4, y: 4 } })
+    await selectionSettled(session)
     await session.window.keyboard.press('Home')
     await session.window.keyboard.type('Revisto: ')
     await expect(editor).toContainText('Revisto: Segundo parágrafo')
@@ -172,8 +175,7 @@ test.describe('notes at the foot of the page', () => {
     await menu(session, 'export-pdf')
     await expect.poll(() => pdfPages(pdf), { timeout: 30_000 }).toBe(onScreen)
     // Note 1 comes out on paper, on the first sheet.
-    const { stdout } = await promisify(execFile)('pdftotext', ['-f', '1', '-l', '1', pdf, '-'])
-    expect(stdout).toContain('Nota 1.')
+    expect(await pdfText(pdf, { page: 1, layout: false })).toContain('Nota 1.')
 
     // And LibreOffice, with the same file, reaches the same sheet count.
     if (await hasSoffice()) {
@@ -200,6 +202,7 @@ test.describe('notes at the foot of the page', () => {
 
     await menu(session, 'toggle-track-changes')
     await notes(session).click()
+    await selectionSettled(session)
     await session.window.keyboard.press('End')
     await session.window.keyboard.type(' Novo')
     await expect(notes(session).locator('ins')).toHaveText(' Novo')
@@ -312,10 +315,10 @@ test.describe('notes at the foot of the page', () => {
     if (await hasPdfinfo()) {
       await menu(session, 'export-pdf')
       await expect.poll(() => pdfPages(pdf), { timeout: 30_000 }).toBeGreaterThan(1)
-      const { stdout } = await promisify(execFile)('pdftotext', ['-f', '2', '-l', '2', pdf, '-'])
-      expect(stdout).toContain(`Linha ${lineNumber(continuation!.first)} `)
-      expect(stdout).toContain('Linha 69')
-      expect(stdout).not.toContain('Nota longa.')
+      const secondSheet = await pdfText(pdf, { page: 2, layout: false })
+      expect(secondSheet).toContain(`Linha ${lineNumber(continuation!.first)} `)
+      expect(secondSheet).toContain('Linha 69')
+      expect(secondSheet).not.toContain('Nota longa.')
     }
   })
 
@@ -367,6 +370,7 @@ test.describe('notes at the foot of the page', () => {
 
     await menu(session, 'toggle-track-changes')
     await notes(session).click()
+    await selectionSettled(session)
     await session.window.keyboard.press('End')
     await session.window.keyboard.type(' Novo')
     await session.window.keyboard.type(' Outro')
@@ -418,6 +422,7 @@ test.describe('notes at the foot of the page', () => {
 
     // A new note before the cited one: F9 now cites 2.
     await text(session).locator('p').first().click()
+    await selectionSettled(session)
     await session.window.keyboard.press('Home')
     await menu(session, 'insert-footnote')
     await session.window.keyboard.type('Nota nova.')
@@ -435,13 +440,18 @@ test.describe('notes at the foot of the page', () => {
     await expect(notes(session)).toHaveCount(2)
     // Editing an earlier note, and going back to the text.
     await notes(session).first().click()
+    await selectionSettled(session)
     await session.window.keyboard.press('End')
     await session.window.keyboard.type(' Editada.')
     await text(session).click()
-    await session.window.keyboard.press('Control+Home')
-    for (let time = 0; time < '1. '.length; time++) await session.window.keyboard.press('ArrowRight')
-    await session.window.keyboard.press('Shift+ArrowRight')
-    await session.window.keyboard.press('Shift+ArrowRight')
+    // Retried because the selection can still move for a moment after leaving the note editor.
+    await expect(async () => {
+      await session.window.keyboard.press('Control+Home')
+      for (let time = 0; time < '1. '.length; time++) await session.window.keyboard.press('ArrowRight')
+      await session.window.keyboard.press('Shift+ArrowRight')
+      await session.window.keyboard.press('Shift+ArrowRight')
+      expect(await session.window.evaluate(() => getSelection()?.toString())).toBe('Os')
+    }).toPass()
     await menu(session, 'insert-comment')
     await session.window.keyboard.type('Ver isto')
     await session.window.keyboard.press('Control+Enter')

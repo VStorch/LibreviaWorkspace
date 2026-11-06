@@ -3,7 +3,7 @@ import { chmod, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, test, type Locator } from '@playwright/test'
-import { launch, menu, stubDialogs, type Session } from './app.js'
+import { launch, menu, stubDialogs, selectionSettled, type Session } from './app.js'
 import { configureAssistant, TEMPLATE, REPLY, startFakeServer, type FakeServer } from './fake-ai-server.js'
 import { docxWithCellRevision } from './fixtures.js'
 
@@ -140,6 +140,7 @@ test.describe('AI assistant', () => {
     await panel().getByRole('button', { name: 'Gerar' }).click()
     await expect(panel().getByLabel('Resposta')).toHaveText(/^0 /)
     await editor.click()
+    await selectionSettled(session)
     await session.window.keyboard.press('Home')
     await session.window.keyboard.press('ArrowRight')
     await session.window.keyboard.press('ArrowRight')
@@ -262,6 +263,7 @@ test.describe('AI assistant', () => {
     await session.window.keyboard.type('Último parágrafo.')
     await configure()
     await editor.getByText('O gato dorme.').click()
+    await selectionSettled(session)
     await session.window.keyboard.press('Home')
     await session.window.keyboard.press('Shift+End')
     return editor

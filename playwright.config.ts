@@ -18,6 +18,8 @@ export default defineConfig({
   // a loaded machine.
   timeout: 90_000,
   expect: { timeout: 15_000 },
+  // One second chance on CI, whose slower runners fail a different few tests on each run.
+  retries: process.env.CI ? 1 : 0,
   reporter: [['list']],
   // Fails on CI if someone forgets a `.only`: the rest of the suite would not run.
   forbidOnly: Boolean(process.env.CI),

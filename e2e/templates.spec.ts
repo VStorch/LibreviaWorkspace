@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { promisify } from 'node:util'
 import { expect, test } from '@playwright/test'
-import { launch, menu, stubDialogs, type Session } from './app.js'
+import { launch, menu, stubDialogs, selectionSettled, type Session } from './app.js'
 import { entryOf } from './fixtures.js'
 import { hasSoffice } from './external-tools.js'
 
@@ -52,6 +52,7 @@ test.describe('templates', () => {
     await expect(session.window.locator('.band--footer').last()).toContainText('Página')
 
     await text(session).locator('h1').last().click()
+    await selectionSettled(session)
     await session.window.keyboard.press('End')
     await session.window.keyboard.type(' final')
 
@@ -105,8 +106,11 @@ test.describe('templates', () => {
     const derived = join(directory, 'derivado.docx')
     await stubDialogs(session.app, { open: template, save: derived })
     await menu(session, 'open')
+    // The text alone proves nothing, as the same words are on screen before the file opens.
+    await expect(session.window.getByRole('contentinfo')).toContainText('Arquivo ainda não salvo')
     await expect(text(session)).toContainText('Modelo próprio')
     await text(session).click()
+    await selectionSettled(session)
     await session.window.keyboard.press('End')
     await session.window.keyboard.type(' — cópia')
     await menu(session, 'save')

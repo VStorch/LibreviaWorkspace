@@ -1,12 +1,11 @@
 /// <reference lib="dom" />
-import { execFile } from 'node:child_process'
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { promisify } from 'node:util'
 import { expect, test } from '@playwright/test'
-import { launch, menu, stubDialogs, type Session } from './app.js'
+import { launch, menu, stubDialogs, selectionSettled, type Session } from './app.js'
 import { docxWithNamedStyles, docxWithReferences, entryOf } from './fixtures.js'
+import { hasPdftotext, pdfText } from './external-tools.js'
 
 /**
  * References: navigation pane, bookmarks, table of contents, captions and cross-references.
@@ -206,6 +205,7 @@ test.describe('bookmarks', () => {
     // Cursor at the end of the last paragraph, without a selection: the link takes the heading
     // text.
     await editor.locator('p', { hasText: 'e a conclusão' }).click()
+    await selectionSettled(session)
     await session.window.keyboard.press('End')
     await session.window.getByRole('button', { name: 'Link' }).click()
     const dialog = session.window.getByRole('dialog', { name: 'Inserir link' })
@@ -221,24 +221,6 @@ test.describe('bookmarks', () => {
     expect(body).toContain(`w:name="${name ?? ''}"`)
   })
 })
-
-/** The text of a PDF page, through the system `pdftotext`; null without it. */
-async function textOfPage(filePath: string, page: number): Promise<string | null> {
-  try {
-    const { stdout } = await promisify(execFile)('pdftotext', [
-      '-f',
-      String(page),
-      '-l',
-      String(page),
-      '-layout',
-      filePath,
-      '-',
-    ])
-    return stdout
-  } catch {
-    return null
-  }
-}
 
 async function readyPdf(filePath: string): Promise<boolean> {
   try {
@@ -283,6 +265,7 @@ test.describe('table of contents', () => {
 
     // The table of contents goes in before the cursor's block, on the first sheet.
     await editor.locator('p', { hasText: 'Capa.' }).click()
+    await selectionSettled(session)
     await session.window.keyboard.press('Home')
     await menu(session, 'insert-table-of-contents')
     const toc = editor.locator('.toc')
@@ -313,8 +296,8 @@ test.describe('table of contents', () => {
     // Paper: the same first sheet, with the entries and numbers.
     await menu(session, 'export-pdf')
     await expect.poll(() => readyPdf(pdf), { timeout: 30_000 }).toBe(true)
-    const first = await textOfPage(pdf, 1)
-    if (first !== null) {
+    if (await hasPdftotext()) {
+      const first = await pdfText(pdf, { page: 1 })
       expect(first).toMatch(/Introdução[ .]*2/)
       expect(first).toMatch(/Escopo[ .]*3/)
       expect(first).toMatch(/Conclusão[ .]*3/)
@@ -410,6 +393,7 @@ test.describe('captions and cross-references', () => {
     // Cross-references at the end of the last paragraph: the number of the file's figure and the
     // text of a heading.
     await editor.locator('p', { hasText: 'Veja o' }).click()
+    await selectionSettled(session)
     await session.window.keyboard.press('End')
     await session.window.waitForTimeout(100)
     await menu(session, 'insert-cross-reference')
@@ -446,6 +430,7 @@ test.describe('captions and cross-references', () => {
 
     // The natural line selection: from end to start, with the keyboard.
     await editor.locator('p', { hasText: 'Arquitetura' }).click()
+    await selectionSettled(session)
     await session.window.keyboard.press('End')
     await session.window.waitForTimeout(100)
     await session.window.keyboard.press('Shift+Home')
@@ -453,6 +438,7 @@ test.describe('captions and cross-references', () => {
     await session.window.keyboard.press('Control+X')
 
     await editor.locator('p', { hasText: 'Veja o' }).click()
+    await selectionSettled(session)
     await session.window.keyboard.press('End')
     await session.window.waitForTimeout(100)
     await session.window.keyboard.press('Enter')
