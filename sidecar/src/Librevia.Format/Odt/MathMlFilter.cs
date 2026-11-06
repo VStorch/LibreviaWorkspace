@@ -11,8 +11,6 @@ namespace Librevia.Format.Odt;
 /// </summary>
 internal static class MathMlFilter
 {
-    public static readonly XNamespace MathMl = "http://www.w3.org/1998/Math/MathML";
-
     private const string BoxClass = "omml-box";
     private const int MaxDepth = 128;
     private const int MaxNodes = 50_000;
@@ -48,7 +46,7 @@ internal static class MathMlFilter
     {
         if (string.IsNullOrWhiteSpace(source)) return null;
         var parsed = Parse(source);
-        return parsed is null || parsed.Name != MathMl + "math" ? null : Clean(parsed);
+        return parsed is null || parsed.Name != Ns.MathMl + "math" ? null : Clean(parsed);
     }
 
     private static XElement? Parse(string source)
@@ -80,7 +78,7 @@ internal static class MathMlFilter
             {
                 case XmlNodeType.Element:
                     if (!Acceptable(reader) || ++count > MaxNodes) return null;
-                    var element = new XElement(MathMl + reader.LocalName, AttributesOf(reader));
+                    var element = new XElement(Ns.MathMl + reader.LocalName, AttributesOf(reader));
                     if (stack.TryPeek(out var parent)) parent.Add(element);
                     else if (root is null) root = element;
                     else return null;
@@ -104,7 +102,7 @@ internal static class MathMlFilter
     }
 
     private static bool Acceptable(XmlReader reader) =>
-        reader.Prefix.Length == 0 && (reader.NamespaceURI.Length == 0 || reader.NamespaceURI == MathMl.NamespaceName);
+        reader.Prefix.Length == 0 && (reader.NamespaceURI.Length == 0 || reader.NamespaceURI == Ns.MathMl.NamespaceName);
 
     private static List<XAttribute> AttributesOf(XmlReader reader)
     {

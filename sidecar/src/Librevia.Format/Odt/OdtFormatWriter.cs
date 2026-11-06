@@ -17,6 +17,11 @@ internal static class OdtFormatWriter
     private const string AtLeast = "atLeast";
     private const string PointsSuffix = "pt";
 
+    /// <summary>LibreOffice's own: raised or lowered by its automatic amount, at 58% of the size.</summary>
+    private const string SuperscriptPosition = "super 58%";
+    private const string SubscriptPosition = "sub 58%";
+    private const string BaselinePosition = "0% 100%";
+
     public static XElement Paragraph(ParagraphFormat format)
     {
         var properties = new XElement(Ns.Style + "paragraph-properties");
@@ -150,7 +155,7 @@ internal static class OdtFormatWriter
 
         if (css <= 0) return null;
         var natural = LineMetrics.Of(fontStack?.Split(',')[0].Trim()) ?? ParagraphFormat.NaturalFallback;
-        return new LineSpacingDto(Multiple, Factor: Math.Round(css / natural, 4));
+        return new LineSpacingDto(Multiple, Factor: Math.Round(css / natural, ParagraphFormat.LineFactorDecimals));
     }
 
     private static void SetLineSpacing(XElement properties, LineSpacingDto? spacing)
@@ -162,7 +167,7 @@ internal static class OdtFormatWriter
         }
         else if (spacing.Kind == Multiple && spacing.Factor is { } factor)
         {
-            properties.SetAttributeValue(Ns.Fo + "line-height", Number(factor * 100, "0.##") + "%");
+            properties.SetAttributeValue(Ns.Fo + "line-height", Number(factor * OdtLength.PercentPerUnit, "0.##") + "%");
         }
         else if (spacing.Kind == Exact && Pt(spacing.Points) is { } exact)
         {
@@ -196,9 +201,9 @@ internal static class OdtFormatWriter
 
     private static string? PositionOf(string? position) => position switch
     {
-        CharacterFormat.Superscript => "super 58%",
-        CharacterFormat.Subscript => "sub 58%",
-        CharacterFormat.Baseline => "0% 100%",
+        CharacterFormat.Superscript => SuperscriptPosition,
+        CharacterFormat.Subscript => SubscriptPosition,
+        CharacterFormat.Baseline => BaselinePosition,
         _ => null,
     };
 

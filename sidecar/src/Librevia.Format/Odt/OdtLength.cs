@@ -6,7 +6,8 @@ namespace Librevia.Format.Odt;
 internal static class OdtLength
 {
     private const int PicasPerInch = 6;
-    private const int MillimetresDecimals = 2;
+    public const int MillimetresDecimals = 2;
+    public const int PercentPerUnit = 100;
     private const int PointsDecimals = 1;
     private const int ExactPointsDecimals = 2;
 
@@ -53,7 +54,7 @@ internal static class OdtLength
     {
         if (string.IsNullOrWhiteSpace(value) || !value.Trim().EndsWith('%')) return null;
         return double.TryParse(value.Trim().TrimEnd('%'), NumberStyles.Float, CultureInfo.InvariantCulture, out var number)
-            ? number / 100
+            ? number / PercentPerUnit
             : null;
     }
 

@@ -30,7 +30,7 @@ public static class OdtTemplate
     /// <summary>The earliest zip date, so the same request gives the same bytes.</summary>
     private static readonly DateTimeOffset ZipEpoch = new(1980, 1, 1, 0, 0, 0, TimeSpan.Zero);
 
-    private const string OdfVersion = "1.3";
+    public const string OdfVersion = "1.3";
     private const string XmlType = "text/xml";
     private const string DefaultGenerator = "Librevia";
 

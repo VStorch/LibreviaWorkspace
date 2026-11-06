@@ -190,8 +190,7 @@ internal sealed class OdtInlineReader(OdtReadContext context)
         switch (element.Name.LocalName)
         {
             case "s":
-                var count = Math.Clamp(OdtLength.Integer(element.Attr(Ns.Text + "c")) ?? 1, 1, MaxSpaces);
-                AppendRaw(new string(' ', count), run);
+                AppendRaw(new string(' ', SpacesOf(element)), run);
                 _afterSpace = true;
                 return true;
             case "tab":
@@ -247,18 +246,29 @@ internal sealed class OdtInlineReader(OdtReadContext context)
     private static string ResultOf(XElement element)
     {
         var text = new StringBuilder();
+        var afterSpace = false;
         foreach (var node in element.DescendantNodes())
         {
-            if (node is XText piece) text.Append(piece.Value);
-            else if (node is XElement { Name.LocalName: "tab" }) text.Append('\t');
-            else if (node is XElement { Name.LocalName: "s" } space)
+            switch (node)
             {
-                text.Append(' ', Math.Clamp(OdtLength.Integer(space.Attr(Ns.Text + "c")) ?? 1, 1, MaxSpaces));
+                case XText piece:
+                    text.Append(Collapsed(piece.Value, ref afterSpace));
+                    break;
+                case XElement { Name.LocalName: "tab" }:
+                    text.Append('\t');
+                    afterSpace = true;
+                    break;
+                case XElement { Name.LocalName: "s" } space:
+                    text.Append(' ', SpacesOf(space));
+                    afterSpace = true;
+                    break;
             }
         }
 
         return text.ToString();
     }
+
+    private static int SpacesOf(XElement space) => Math.Clamp(OdtLength.Integer(space.Attr(Ns.Text + "c")) ?? 1, 1, MaxSpaces);
 
     private void ReadDrawing(XElement element, Run run)
     {
@@ -297,25 +307,27 @@ internal sealed class OdtInlineReader(OdtReadContext context)
         return new Run(context.Styles.Character(chain, run.Format), run.Href, named ?? run.CharStyle);
     }
 
-    private void AppendCollapsing(string value, Run run)
+    private void AppendCollapsing(string value, Run run) => AppendRaw(Collapsed(value, ref _afterSpace), run);
+
+    private static string Collapsed(string value, ref bool afterSpace)
     {
         var text = new StringBuilder(value.Length);
         foreach (var letter in value)
         {
             if (letter is ' ' or '\t' or '\r' or '\n')
             {
-                if (_afterSpace) continue;
+                if (afterSpace) continue;
                 text.Append(' ');
-                _afterSpace = true;
+                afterSpace = true;
             }
             else
             {
                 text.Append(letter);
-                _afterSpace = false;
+                afterSpace = false;
             }
         }
 
-        AppendRaw(text.ToString(), run);
+        return text.ToString();
     }
 
     /// <summary>Neighbouring text with the same marks is one node, as ProseMirror keeps it.</summary>

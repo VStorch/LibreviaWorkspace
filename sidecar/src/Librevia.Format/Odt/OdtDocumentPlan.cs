@@ -72,7 +72,6 @@ internal sealed class OdtDocumentPlan
 
     public bool BookmarkEnds(string bid) => _bookmarkEnds.Contains(bid);
 
-    /// <summary>Whether exactly one note of the model carries the id.</summary>
     public bool NoteHeldOnce(string nid) => _noteIds.GetValueOrDefault(nid) == 1;
 
     private void Scan(Node node)

@@ -17,7 +17,6 @@ internal static partial class OdtListLevels
     public const string Bullet = "bulletList";
 
     private const int MaxLevels = ListLevels.Count;
-    private const int MillimetresDecimals = 2;
     private const string DefaultBullet = "•";
 
     private static readonly Dictionary<string, string> Formats = new(StringComparer.Ordinal)
@@ -137,7 +136,7 @@ internal static partial class OdtListLevels
     }
 
     private static double? Rounded(double? mm) =>
-        mm is { } value ? Math.Round(Math.Max(0, value), MillimetresDecimals) : null;
+        mm is { } value ? Math.Round(Math.Max(0, value), OdtLength.MillimetresDecimals) : null;
 
     [GeneratedRegex("%([0-9]+)%")]
     private static partial Regex OwnPlaceholder();

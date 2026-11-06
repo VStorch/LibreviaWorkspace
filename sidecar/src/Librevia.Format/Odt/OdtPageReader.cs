@@ -90,12 +90,12 @@ internal static class OdtPageReader
         string? pageMargin, XElement? layout, string bandStyle, string spacing, bool band)
     {
         var edge = OdtLength.Millimetres(pageMargin) ?? DefaultMarginMm;
-        if (!band) return (Math.Round(edge, 2), DefaultBandDistanceMm);
+        if (!band) return (Math.Round(edge, OdtLength.MillimetresDecimals), DefaultBandDistanceMm);
 
         var properties = layout?.Element(Ns.Style + bandStyle)?.Element(Ns.Style + "header-footer-properties");
         var height = OdtLength.Millimetres(properties?.Attr(Ns.Fo + "min-height") ?? properties?.Attr(Ns.Svg + "height")) ?? 0;
         var gap = OdtLength.Millimetres(properties?.Attr(Ns.Fo + spacing)) ?? 0;
-        return (Math.Round(edge + height + gap, 2), Math.Round(edge, 2));
+        return (Math.Round(edge + height + gap, OdtLength.MillimetresDecimals), Math.Round(edge, OdtLength.MillimetresDecimals));
     }
 
     /// <summary>

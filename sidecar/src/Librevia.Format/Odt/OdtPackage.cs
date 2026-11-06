@@ -62,24 +62,22 @@ internal sealed class OdtPackage
         if (manifest is not null) ReadManifest(manifest);
         CheckMimeType();
 
-        Content = ReadXml(ContentPath) ?? throw new OdtException("sidecar.error.odtWithoutContent");
+        Content = ReadXml(ContentPath) ?? throw new OdtException(OdtException.WithoutContent);
         Styles = ReadXml(StylesPath);
         Meta = ReadXml(MetaPath);
     }
 
     public static OdtPackage Open(ZipArchive archive) => new(archive);
 
-    /// <summary>The entries in the zip's order, each name once.</summary>
     public IReadOnlyList<ZipArchiveEntry> Entries => _ordered;
 
     public bool Has(string path) => _entries.ContainsKey(path);
 
-    /// <summary>The entry's bytes, or <c>null</c> when the package does not have it.</summary>
     public byte[]? ReadBytes(string path)
     {
         if (_read.TryGetValue(path, out var known)) return known;
         if (!_entries.TryGetValue(path, out var entry)) return null;
-        if (entry.Length > MaxEntryBytes || entry.Length > _budget) throw new OdtException("sidecar.error.odtTooLarge");
+        if (entry.Length > MaxEntryBytes || entry.Length > _budget) throw new OdtException(OdtException.TooLarge);
 
         try
         {
@@ -90,7 +88,7 @@ internal sealed class OdtPackage
         }
         catch (Exception problem) when (problem is InvalidDataException or IOException or NotSupportedException)
         {
-            throw new OdtException("sidecar.error.odtUnreadable", problem);
+            throw new OdtException(OdtException.Unreadable, problem);
         }
     }
 
@@ -105,7 +103,7 @@ internal sealed class OdtPackage
         {
             if (buffer.Length + read > MaxEntryBytes || buffer.Length + read > _budget)
             {
-                throw new OdtException("sidecar.error.odtTooLarge");
+                throw new OdtException(OdtException.TooLarge);
             }
 
             buffer.Write(chunk, 0, read);
@@ -114,22 +112,19 @@ internal sealed class OdtPackage
         return buffer.ToArray();
     }
 
-    /// <summary>The paths the manifest declares, with their media type.</summary>
     public IReadOnlyDictionary<string, string> MediaTypes => _mediaTypes;
 
-    /// <summary>As the manifest declares it, or <c>null</c>.</summary>
     public string? MediaTypeOf(string path) => _mediaTypes.GetValueOrDefault(path);
 
     /// <summary>An embedded object (<c>Object 1</c>) that is a formula.</summary>
     public bool IsFormula(string objectPath) =>
         string.Equals(MediaTypeOf(objectPath.TrimEnd('/') + "/"), FormulaMimeType, StringComparison.Ordinal);
 
-    /// <summary>The part parsed, or <c>null</c> when the package does not have it.</summary>
     public XDocument? ReadXml(string path)
     {
         var bytes = ReadBytes(path);
         if (bytes is null) return null;
-        return XmlParts.Read(bytes) ?? throw new OdtException("sidecar.error.odtUnreadable");
+        return XmlParts.Read(bytes) ?? throw new OdtException(OdtException.Unreadable);
     }
 
     private void ReadManifest(XDocument manifest)
@@ -139,7 +134,7 @@ internal sealed class OdtPackage
             // The key is per part: the package would need a password we do not ask for.
             if (entry.Element(Ns.Manifest + "encryption-data") is not null)
             {
-                throw new OdtException("sidecar.error.odtEncrypted");
+                throw new OdtException(OdtException.Encrypted);
             }
 
             if (entry.Attr(Ns.Manifest + "full-path") is { } path && entry.Attr(Ns.Manifest + "media-type") is { } type)
@@ -152,17 +147,22 @@ internal sealed class OdtPackage
     /// <summary>The <c>mimetype</c> entry, or the manifest's root entry when it is missing.</summary>
     private void CheckMimeType()
     {
-        var declared = ReadBytes(MimeTypePath) is { } bytes
-            ? Encoding.ASCII.GetString(bytes).Trim()
-            : MediaTypeOf("/");
-        if (declared is not null && declared is not (TextMimeType or TemplateMimeType or WebTextMimeType))
-        {
-            throw new OdtException("sidecar.error.odtNotText");
-        }
-
+        var declared = ReadBytes(MimeTypePath) is { } bytes ? MimeTypeIn(bytes) : MediaTypeOf("/");
+        if (declared is not null && !IsText(declared)) throw new OdtException(OdtException.NotText);
         MimeType = declared;
     }
+
+    public static string MimeTypeIn(byte[] mimeTypeEntry) => Encoding.ASCII.GetString(mimeTypeEntry).Trim();
+
+    public static bool IsText(string mimeType) => mimeType is TextMimeType or TemplateMimeType or WebTextMimeType;
 }
 
 /// <summary>Fails with the catalog key of a sentence ready for the user.</summary>
-public sealed class OdtException(string message, Exception? inner = null) : Exception(message, inner);
+public sealed class OdtException(string key, Exception? inner = null) : Exception(key, inner)
+{
+    public const string Unreadable = "sidecar.error.odtUnreadable";
+    public const string WithoutContent = "sidecar.error.odtWithoutContent";
+    public const string TooLarge = "sidecar.error.odtTooLarge";
+    public const string Encrypted = "sidecar.error.odtEncrypted";
+    public const string NotText = "sidecar.error.odtNotText";
+}

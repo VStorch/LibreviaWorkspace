@@ -35,7 +35,7 @@ public static class OdtReader
         }
         catch (Exception problem) when (problem is InvalidDataException or IOException or NotSupportedException or ArgumentException)
         {
-            throw new OdtException("sidecar.error.odtUnreadable", problem);
+            throw new OdtException(OdtException.Unreadable, problem);
         }
     }
 }
@@ -77,7 +77,7 @@ internal sealed class OdtSource
     public static OdtSource Read(OdtPackage package)
     {
         var text = package.Content.Root?.Element(Ns.Office + "body")?.Element(Ns.Office + "text")
-                   ?? throw new OdtException("sidecar.error.odtWithoutContent");
+                   ?? throw new OdtException(OdtException.WithoutContent);
 
         var notices = new Inventory();
         var styles = OdtStyles.Read(package.Content, package.Styles);

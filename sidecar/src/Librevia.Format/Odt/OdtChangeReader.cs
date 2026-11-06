@@ -15,7 +15,6 @@ internal sealed class OdtChangeReader(OdtTrackedChanges changes)
 
     public OdtTrackedChanges Source => changes;
 
-    /// <summary>The revision marks of what is read now.</summary>
     public List<Mark>? Marks()
     {
         if (_deletion is not null) return [_deletion];

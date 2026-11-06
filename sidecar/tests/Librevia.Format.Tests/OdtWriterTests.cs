@@ -526,4 +526,30 @@ public class OdtWriterTests
         Assert.DoesNotContain("ObjectReplacements/Object 1\"", manifest, StringComparison.Ordinal);
         Assert.Contains("\"Object 2/\"", manifest, StringComparison.Ordinal);
     }
+
+    [Theory]
+    [InlineData(" leading")]
+    [InlineData("tab\t after")]
+    [InlineData("three   spaces")]
+    [InlineData("trailing  ")]
+    public void WhiteSpaceThatOdfWouldCollapseSurvivesARewrite(string text)
+    {
+        var original = Build("""<text:p text:style-name="Standard">a</text:p>""");
+        var model = ModelOf(original);
+        model.Doc.Content![0].Content![0].Text = text;
+
+        var (saved, _) = Save(original, model);
+
+        Assert.Equal([text], Texts(saved));
+    }
+
+    [Fact]
+    public void AFieldResultReadsItsWhiteSpaceAsShown()
+    {
+        var original = Build("""<text:p text:style-name="Standard"><text:page-number text:select-page="current">1 &#10;   <text:s/>de<text:tab/>2</text:page-number></text:p>""");
+
+        var field = Blocks(original)[0].Content!.Single(node => node.Type == "field");
+
+        Assert.Equal("1  de\t2", field.Attrs!["result"]!.GetValue<string>());
+    }
 }

@@ -17,6 +17,8 @@ internal static class Ns
     public static readonly XNamespace Svg = "urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0";
     public static readonly XNamespace Manifest = "urn:oasis:names:tc:opendocument:xmlns:manifest:1.0";
     public static readonly XNamespace Loext = "urn:org:documentfoundation:names:experimental:office:xmlns:loext:1.0";
+    public static readonly XNamespace Config = "urn:oasis:names:tc:opendocument:xmlns:config:1.0";
+    public static readonly XNamespace MathMl = "http://www.w3.org/1998/Math/MathML";
     public static readonly XNamespace Xml = XNamespace.Xml;
 
     private static readonly Dictionary<XNamespace, string> Prefixes = new()
@@ -35,7 +37,7 @@ internal static class Ns
         ["urn:oasis:names:tc:opendocument:xmlns:presentation:1.0"] = "presentation",
         ["urn:oasis:names:tc:opendocument:xmlns:dr3d:1.0"] = "dr3d",
         ["urn:oasis:names:tc:opendocument:xmlns:chart:1.0"] = "chart",
-        ["http://www.w3.org/1998/Math/MathML"] = "math",
+        [MathMl] = "math",
     };
 
     /// <summary>The tag as the file names it, for the inventory: <c>text:ruby</c>.</summary>

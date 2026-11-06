@@ -14,7 +14,7 @@ internal sealed class OdtFormulas(Func<string, bool> taken)
 
     private const string FolderPrefix = "Object ";
     private const string ContentName = "/content.xml";
-    private const string ObjectVersion = "1.3";
+    private const string ObjectVersion = OdtTemplate.OdfVersion;
 
     private readonly List<(string Folder, byte[] Content)> _added = [];
 

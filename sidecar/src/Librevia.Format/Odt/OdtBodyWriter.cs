@@ -33,6 +33,7 @@ internal sealed class OdtBodyWriter
     private readonly HashSet<int> _noted = [];
     private readonly HashSet<int> _named = [];
     private readonly Dictionary<int, string> _leading = [];
+    private readonly Dictionary<int, bool> _sameNodes = [];
     private readonly XmlSpan? _changesSpan;
     private HashSet<int>? _predicted;
     private string _prelude = string.Empty;
@@ -51,7 +52,7 @@ internal sealed class OdtBodyWriter
         _out = xmlOut;
         _xml = xml;
         _text = text;
-        if (text.Children.Count != source.Elements.Count) throw new OdtException("sidecar.error.odtUnreadable");
+        if (text.Children.Count != source.Elements.Count) throw new OdtException(OdtException.Unreadable);
         foreach (var block in source.Blocks)
         {
             for (var part = 0; part < block.Nodes.Count; part++) _byOid[block.OidAt(part)] = (block, part);
@@ -190,15 +191,23 @@ internal sealed class OdtBodyWriter
         if (_predicted?.Contains(block.Number) == false) return null;
         if (index > 0 && OdtBlockWriter.JoinsNext(content[index - 1]) && OdtBlockWriter.IsParagraph(content[index])) return null;
         if (!SectionsHold(content, index, block)) return null;
+        return SameNodes(content, index, block) ? block : null;
+    }
 
-        for (var offset = 0; offset < block.Nodes.Count; offset++)
+    /// <summary>Once per position: <see cref="Predict"/>, the writing and the look-ahead all ask.</summary>
+    private bool SameNodes(List<Node> content, int index, OdtSourceBlock block)
+    {
+        if (_sameNodes.TryGetValue(index, out var known)) return known;
+        var same = true;
+        for (var offset = 0; offset < block.Nodes.Count && same; offset++)
         {
             var node = content[index + offset];
-            if (Attr.String(node, "oid") != block.OidAt(offset)) return null;
-            if (OdtBlockIdentity.Of(node, _context.Plan.Comments) != OdtBlockIdentity.Of(block.Nodes[offset], _source.Comments ?? [])) return null;
+            same = Attr.String(node, "oid") == block.OidAt(offset) &&
+                   OdtBlockIdentity.Of(node, _context.Plan.Comments) == OdtBlockIdentity.Of(block.Nodes[offset], _source.Comments ?? []);
         }
 
-        return block;
+        _sameNodes[index] = same;
+        return same;
     }
 
     /// <summary>
@@ -309,13 +318,15 @@ internal sealed class OdtBodyWriter
     /// <summary>A kept list's style, so a written list with the same key continues it.</summary>
     private void RememberList(OdtSourceBlock block)
     {
-        foreach (var node in block.Nodes.Where(node => node.Type is OdtListLevels.Bullet or OdtListLevels.Ordered))
+        var lists = block.Nodes.Where(node => node.Type is OdtListLevels.Bullet or OdtListLevels.Ordered).ToList();
+        if (lists.Count == 0) return;
+        var element = _source.Elements[block.ElementIndex];
+        var style = element.Attr(Ns.Text + "style-name") ??
+                    _source.Styles.ListStyleOfParagraph(element.Descendants(Ns.Text + "p").FirstOrDefault()?.Attr(Ns.Text + "style-name"));
+        if (style is null) return;
+        foreach (var node in lists)
         {
-            var key = (Attr.Node(node, "numbering") as JsonObject)?["key"]?.GetValue<string>();
-            var element = _source.Elements[block.ElementIndex];
-            var style = element.Attr(Ns.Text + "style-name") ??
-                        _source.Styles.ListStyleOfParagraph(element.Descendants(Ns.Text + "p").FirstOrDefault()?.Attr(Ns.Text + "style-name"));
-            if (key is not null && style is not null) _context.ListStyles.TryAdd(key, style);
+            if ((Attr.Node(node, "numbering") as JsonObject)?["key"]?.GetValue<string>() is { } key) _context.ListStyles.TryAdd(key, style);
         }
     }
 }

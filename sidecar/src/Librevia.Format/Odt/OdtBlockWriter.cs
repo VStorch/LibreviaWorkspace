@@ -118,7 +118,6 @@ internal sealed class OdtBlockWriter
         return element;
     }
 
-    /// <summary>The paragraph with its styles, without content.</summary>
     private XElement Shell(Node node, bool breakBefore, OdtPageStart? page)
     {
         var level = node.Type == "heading" ? Math.Clamp(Attr.Int(node, "level") ?? 1, 1, MaxHeadingLevel) : 0;

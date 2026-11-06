@@ -12,7 +12,6 @@ internal sealed class XmlSpan
 {
     public required int Start { get; init; }
 
-    /// <summary>Right after the start tag's <c>&gt;</c>.</summary>
     public int ContentStart { get; set; }
 
     /// <summary>At the end tag's <c>&lt;</c>; equal to <see cref="End"/> when self-closing.</summary>
@@ -50,14 +49,14 @@ internal static class OdtXmlSpans
             index = OpenTag(text, index, stack, ref root);
         }
 
-        return root ?? throw new OdtException("sidecar.error.odtUnreadable");
+        return root ?? throw new OdtException(OdtException.Unreadable);
     }
 
     /// <summary>The element under <paramref name="span"/> that is <paramref name="element"/>.</summary>
     public static XmlSpan ChildOf(XmlSpan span, XElement parent, XElement element)
     {
         var index = parent.Elements().TakeWhile(child => child != element).Count();
-        return index < span.Children.Count ? span.Children[index] : throw new OdtException("sidecar.error.odtUnreadable");
+        return index < span.Children.Count ? span.Children[index] : throw new OdtException(OdtException.Unreadable);
     }
 
     /// <summary>The spans of a path of elements from the root down.</summary>
@@ -83,7 +82,7 @@ internal static class OdtXmlSpans
     private static int End(string text, int index, string token)
     {
         var end = text.IndexOf(token, index, StringComparison.Ordinal);
-        return end < 0 ? throw new OdtException("sidecar.error.odtUnreadable") : end + token.Length;
+        return end < 0 ? throw new OdtException(OdtException.Unreadable) : end + token.Length;
     }
 
     private static int CloseTag(string text, int index, Stack<XmlSpan?> stack)
@@ -148,6 +147,6 @@ internal static class OdtXmlSpans
             }
         }
 
-        throw new OdtException("sidecar.error.odtUnreadable");
+        throw new OdtException(OdtException.Unreadable);
     }
 }

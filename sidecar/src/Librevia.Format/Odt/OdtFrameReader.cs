@@ -109,7 +109,7 @@ internal sealed class OdtFrameReader(OdtReadContext context)
     {
         var bytes = context.Package.ReadBytes(folder.TrimEnd('/') + "/content.xml");
         var root = bytes is null ? null : XmlParts.Read(bytes)?.Root;
-        if (root is null || root.Name != MathMlFilter.MathMl + "math") return null;
+        if (root is null || root.Name != Ns.MathMl + "math") return null;
 
         var plain = Unprefixed(root);
         var math = MathMlFilter.Sanitize(plain.ToString(SaveOptions.DisableFormatting));
@@ -128,7 +128,7 @@ internal sealed class OdtFrameReader(OdtReadContext context)
 
     private static XNode? MathNodeOf(XNode node) => node switch
     {
-        XElement inner when inner.Name.Namespace == MathMlFilter.MathMl => Unprefixed(inner),
+        XElement inner when inner.Name.Namespace == Ns.MathMl => Unprefixed(inner),
         XText text => new XText(text.Value),
         _ => null,
     };

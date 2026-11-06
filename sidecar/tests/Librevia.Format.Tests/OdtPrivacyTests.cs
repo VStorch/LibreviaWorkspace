@@ -22,7 +22,7 @@ public class OdtPrivacyTests
 
     private const string Body =
         """<text:tracked-changes><text:changed-region text:id="ct1"><text:insertion><office:change-info><dc:creator>Bruno Reis</dc:creator><dc:date>2026-01-01T00:00:00</dc:date></office:change-info></text:insertion></text:changed-region></text:tracked-changes>""" +
-        """<text:p>Texto<office:annotation><dc:creator>Carla Dias</dc:creator><text:p>Nota</text:p></office:annotation></text:p>""";
+        """<text:p>Texto<office:annotation><dc:creator>Carla Dias</dc:creator><meta:creator-initials>CD</meta:creator-initials><text:p>Nota</text:p></office:annotation></text:p>""";
 
     private const string Meta =
         """<meta:initial-creator>Ana Lima</meta:initial-creator><dc:creator>Ana Lima</dc:creator><meta:printed-by>Ana L.</meta:printed-by>""" +
@@ -56,7 +56,7 @@ public class OdtPrivacyTests
     {
         var report = PersonalData.Inspect(Odt(), Inspection);
 
-        Assert.Equal(["Ana Lima", "Ana L.", "Bruno Reis", "Carla Dias"], report.Names);
+        Assert.Equal(["Ana Lima", "Ana L.", "Prefeitura", "Bruno Reis", "Carla Dias"], report.Names);
         Assert.Equal(["file:///home/ana.lima/Modelos/Ofício.ott"], report.Paths);
         Assert.Equal(["Cliente"], report.CustomProperties);
         Assert.True(report.Thumbnail);
@@ -77,6 +77,9 @@ public class OdtPrivacyTests
         Assert.Contains("<dc:creator>Autor</dc:creator>", Part(clean, "content.xml"), StringComparison.Ordinal);
         Assert.DoesNotContain("creator", Part(clean, "meta.xml"), StringComparison.Ordinal);
         Assert.DoesNotContain("printed-by", Part(clean, "meta.xml"), StringComparison.Ordinal);
+        Assert.DoesNotContain("Prefeitura", Part(clean, "meta.xml"), StringComparison.Ordinal);
+        Assert.Contains("ACME", Part(clean, "meta.xml"), StringComparison.Ordinal);
+        Assert.Contains("<meta:creator-initials>A</meta:creator-initials>", Part(clean, "content.xml"), StringComparison.Ordinal);
         Assert.Contains("full-path=\"settings.xml\"", Part(clean, "META-INF/manifest.xml"), StringComparison.Ordinal);
         Assert.Equal(Bytes(original, "styles.xml"), Bytes(clean, "styles.xml"));
         Assert.True(OdtReader.Read(clean).Model.Properties!.RemovePersonalInformation);
@@ -116,7 +119,7 @@ public class OdtPrivacyTests
     }
 
     [Fact]
-    public void RemovingPathsCustomPropertiesAndTheThumbnailLeavesNothingToReport()
+    public void RemovingPathsCustomPropertiesAndTheThumbnailLeavesNothingToReportAndTheCompanyToNames()
     {
         var (clean, _) = PersonalData.Scrub(Odt(), Remove(
             PrivacyCategory.Paths, PrivacyCategory.CustomProperties, PrivacyCategory.Thumbnail));
@@ -139,5 +142,15 @@ public class OdtPrivacyTests
 
         Assert.Equal(0, changes);
         Assert.Same(original, clean);
+    }
+
+    [Fact]
+    public void AZipWithoutTheMimeTypeIsAnOdtOnlyWithTheOdfParts()
+    {
+        var notes = Zip([("notas.txt", Utf8("Ana Lima"))]);
+        var untyped = Build("<text:p>Texto</text:p>", meta: Meta, mimeType: null);
+
+        Assert.IsNotType<OdtException>(Record.Exception(() => PersonalData.Inspect(notes, Inspection)));
+        Assert.Contains("Ana Lima", PersonalData.Inspect(untyped, Inspection).Names);
     }
 }

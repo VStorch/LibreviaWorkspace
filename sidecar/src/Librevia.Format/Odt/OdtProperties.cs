@@ -14,9 +14,9 @@ internal static partial class OdtProperties
     private const int SecondsPerMinute = 60;
 
     /// <summary>The user-defined fields LibreOffice keeps for what OOXML has its own place for.</summary>
-    private const string Category = "Category";
-    private const string Company = "Company";
-    private const string Manager = "Manager";
+    public const string Category = "Category";
+    public const string Company = "Company";
+    public const string Manager = "Manager";
 
     /// <summary>Kept in <c>meta.xml</c> as user-defined fields, but properties of the editor, not custom ones.</summary>
     public static readonly string[] OwnUserDefined = [Category, Company, Manager];

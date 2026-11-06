@@ -27,12 +27,11 @@ internal static class OdtMetaPart
 
     private static readonly (string Name, Func<PropertiesDto, string?> Get)[] UserDefined =
     [
-        ("Category", properties => properties.Category),
-        ("Company", properties => properties.Company),
-        ("Manager", properties => properties.Manager),
+        (OdtProperties.Category, properties => properties.Category),
+        (OdtProperties.Company, properties => properties.Company),
+        (OdtProperties.Manager, properties => properties.Manager),
     ];
 
-    /// <returns>The new part, or <c>null</c> when the file already says it.</returns>
     public static byte[]? Write(XDocument? meta, PropertiesDto? known, PropertiesDto? wanted)
     {
         if (wanted is null) return null;
@@ -87,6 +86,6 @@ internal static class OdtMetaPart
         new XAttribute(XNamespace.Xmlns + "office", Ns.Office.NamespaceName),
         new XAttribute(XNamespace.Xmlns + "dc", Ns.Dc.NamespaceName),
         new XAttribute(XNamespace.Xmlns + "meta", Ns.Meta.NamespaceName),
-        new XAttribute(Ns.Office + "version", "1.3"),
+        new XAttribute(Ns.Office + "version", OdtTemplate.OdfVersion),
         new XElement(Ns.Office + "meta")));
 }

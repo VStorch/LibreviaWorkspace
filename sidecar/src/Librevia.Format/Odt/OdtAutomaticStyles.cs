@@ -49,7 +49,6 @@ internal sealed class OdtAutomaticStyles(IEnumerable<string> taken)
         return name;
     }
 
-    /// <summary>A <c>style:style</c> of the family with a parent and the given properties.</summary>
     public string Style(string prefix, string family, string? parent, params XElement?[] properties) =>
         Style(prefix, family, parent, masterPage: null, properties);
 

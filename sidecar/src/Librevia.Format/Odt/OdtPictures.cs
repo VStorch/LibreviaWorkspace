@@ -28,7 +28,6 @@ internal sealed class OdtPictures(OdtPackage? package)
 
     public static bool IsSupported(string mediaType) => Extensions.ContainsKey(mediaType);
 
-    /// <summary>The path inside the package for these bytes.</summary>
     public string PathOf(byte[] bytes, string mediaType)
     {
         var hash = Convert.ToHexString(SHA256.HashData(bytes));
@@ -60,7 +59,6 @@ internal sealed class OdtPictures(OdtPackage? package)
         return byHash;
     }
 
-    /// <summary>One <c>manifest:file-entry</c> per new image.</summary>
     public IEnumerable<XElement> ManifestEntries() => _added.Select(added => new XElement(
         Ns.Manifest + "file-entry",
         new XAttribute(Ns.Manifest + "full-path", added.Path),

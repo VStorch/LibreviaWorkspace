@@ -26,6 +26,7 @@ internal sealed record ParagraphFormat(
     private const string Multiple = "multiple";
     private const string Exact = "exact";
     private const string AtLeast = "atLeast";
+    public const int LineFactorDecimals = 4;
 
     public static readonly ParagraphFormat Empty = new();
 
@@ -100,7 +101,7 @@ internal sealed record ParagraphFormat(
         }
 
         var height = properties.Attr(Ns.Fo + "line-height");
-        if (OdtLength.Percent(height) is { } factor and > 0) return new LineSpacingDto(Multiple, Factor: Math.Round(factor, 4));
+        if (OdtLength.Percent(height) is { } factor and > 0) return new LineSpacingDto(Multiple, Factor: Math.Round(factor, LineFactorDecimals));
         return OdtLength.Points(height) is { } exact and > 0 ? new LineSpacingDto(Exact, Points: exact) : null;
     }
 
@@ -134,8 +135,8 @@ internal sealed record ParagraphFormat(
 
         var factor = spacing.Factor ?? 1;
         var natural = LineMetrics.Of(fontStack?.Split(',')[0].Trim());
-        if (natural is { } known) return Number(Math.Round(factor * known, 4));
-        return factor == 1 ? "normal" : Number(Math.Round(factor * NaturalFallback, 4));
+        if (natural is { } known) return Number(Math.Round(factor * known, LineFactorDecimals));
+        return factor == 1 ? "normal" : Number(Math.Round(factor * NaturalFallback, LineFactorDecimals));
     }
 
     /// <summary>Liberation Serif's, the 1.15 guess <see cref="BodyReader"/> also uses.</summary>

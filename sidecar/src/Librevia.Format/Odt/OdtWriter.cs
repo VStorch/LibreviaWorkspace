@@ -62,7 +62,7 @@ public static class OdtWriter
     }
 
     internal static string TextOf(OdtPackage package, string path) =>
-        Encoding.UTF8.GetString(package.ReadBytes(path) ?? throw new OdtException("sidecar.error.odtWithoutContent"));
+        Encoding.UTF8.GetString(package.ReadBytes(path) ?? throw new OdtException(OdtException.WithoutContent));
 
     private static (string Text, int Preserved, int Rewritten) Content(
         OdtPackage package, OdtSource source, OdtWriteContext context, DocumentModelDto model, OdtSectionMasters masters)
@@ -140,46 +140,21 @@ public static class OdtWriter
         return edits.Apply();
     }
 
-    /// <summary>
-    /// <c>mimetype</c> first, stored, so a reader finds the type at a fixed offset; the rest in the
-    /// original order, with the original dates.
-    /// </summary>
     private static byte[] Zip(
         OdtPackage package, Dictionary<string, byte[]> replaced, OdtPictures pictures, OdtFormulas formulas, OdtEmbeddedObjects objects)
     {
-        using var output = new MemoryStream();
-        using (var zip = new ZipArchive(output, ZipArchiveMode.Create, leaveOpen: true))
+        var added = pictures.Added.Select(picture => new OdtAddedEntry(picture.Path, picture.Bytes, CompressionLevel.NoCompression))
+            .Concat(formulas.Added.Select(formula => new OdtAddedEntry(OdtFormulas.ContentPathOf(formula.Folder), formula.Content, CompressionLevel.Optimal)))
+            .ToList();
+        if (!package.Has(OdtPackage.MetaPath) && replaced.TryGetValue(OdtPackage.MetaPath, out var meta))
         {
-            var mimeType = package.Entries.FirstOrDefault(entry => entry.FullName == OdtPackage.MimeTypePath);
-            if (mimeType is not null)
-            {
-                var type = replaced.GetValueOrDefault(mimeType.FullName) ?? package.ReadBytes(mimeType.FullName)!;
-                Add(zip, mimeType.FullName, type, CompressionLevel.NoCompression, mimeType.LastWriteTime);
-            }
-
-            foreach (var entry in package.Entries.Where(entry => entry != mimeType && !objects.Drops(entry.FullName)))
-            {
-                var bytes = replaced.GetValueOrDefault(entry.FullName) ?? package.ReadBytes(entry.FullName) ?? [];
-                Add(zip, entry.FullName, bytes, CompressionLevel.Optimal, entry.LastWriteTime);
-            }
-
-            foreach (var (path, _, bytes) in pictures.Added) Add(zip, path, bytes, CompressionLevel.NoCompression, DateTimeOffset.Now);
-            foreach (var (folder, bytes) in formulas.Added) Add(zip, OdtFormulas.ContentPathOf(folder), bytes, CompressionLevel.Optimal, DateTimeOffset.Now);
-            if (!package.Has(OdtPackage.MetaPath) && replaced.TryGetValue(OdtPackage.MetaPath, out var meta))
-            {
-                Add(zip, OdtPackage.MetaPath, meta, CompressionLevel.Optimal, DateTimeOffset.Now);
-            }
+            added.Add(new OdtAddedEntry(OdtPackage.MetaPath, meta, CompressionLevel.Optimal));
         }
 
-        return output.ToArray();
-    }
-
-    private static void Add(ZipArchive zip, string path, byte[] bytes, CompressionLevel level, DateTimeOffset written)
-    {
-        var entry = zip.CreateEntry(path, level);
-        entry.LastWriteTime = written;
-        using var target = entry.Open();
-        target.Write(bytes);
+        return OdtZip.Write(
+            package,
+            path => objects.Drops(path) ? null : replaced.GetValueOrDefault(path) ?? package.ReadBytes(path) ?? [],
+            added);
     }
 }
 
@@ -218,9 +193,12 @@ internal sealed class TextEdits(string text)
     public string Apply()
     {
         var result = new StringBuilder(text);
+        var limit = text.Length;
         foreach (var (start, end, replacement) in _edits.OrderByDescending(edit => edit.Start).ThenByDescending(edit => edit.End))
         {
+            if (end > limit) throw new InvalidOperationException($"The edit at {start}..{end} overlaps the one at {limit}.");
             result.Remove(start, end - start).Insert(start, replacement);
+            limit = start;
         }
 
         return result.ToString();
