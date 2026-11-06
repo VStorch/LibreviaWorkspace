@@ -5,11 +5,14 @@ import {
   ensureSupportedExtension,
   extensionOf,
   fileNameFromPath,
+  isOdtPath,
   isPdfPath,
+  isReadableExtension,
   kindFromPath,
   isSupportedExtension,
   isWordPackagePath,
   isWordTemplatePath,
+  OPENABLE_EXTENSIONS,
 } from './formats.js'
 
 describe('fileNameFromPath', () => {
@@ -66,6 +69,25 @@ describe('PDF', () => {
     // Only viewed: saving text into a `.pdf` would produce a file no reader opens.
     expect(isSupportedExtension('/a/b.pdf')).toBe(false)
     expect(ensureSupportedExtension('/a/b.pdf')).toBe('/a/b.pdf.sdoc')
+  })
+})
+
+describe('ODT', () => {
+  it.each(['/a/b.odt', '/a/b.ODT'])('%s is read into a document', (path) => {
+    expect(isOdtPath(path)).toBe(true)
+    expect(isReadableExtension(path)).toBe(true)
+    expect(kindFromPath(path)).toBe(DocumentKind.Document)
+    expect(OPENABLE_EXTENSIONS).toContain('.odt')
+  })
+
+  it('is a save target, which main grants only to a document opened from an .odt', () => {
+    expect(isSupportedExtension('/a/b.odt')).toBe(true)
+    expect(isWordPackagePath('/a/b.odt')).toBe(false)
+    expect(ensureSupportedExtension('/a/b.odt')).toBe('/a/b.odt')
+  })
+
+  it('a PDF is only viewed, not read into the editor', () => {
+    expect(isReadableExtension('/a/b.pdf')).toBe(false)
   })
 })
 

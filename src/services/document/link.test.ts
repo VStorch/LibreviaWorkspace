@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { normalizeLinkUrl } from './link.js'
+import { normalizeLinkUrl, withoutUnsafeLinks } from './link.js'
 
 describe('normalizeLinkUrl', () => {
   it('completes the scheme when the user types only the domain', () => {
@@ -33,5 +33,47 @@ describe('normalizeLinkUrl', () => {
     expect(normalizeLinkUrl('')).toBeNull()
     expect(normalizeLinkUrl('   ')).toBeNull()
     expect(normalizeLinkUrl('https://')).toBeNull()
+  })
+})
+
+describe('withoutUnsafeLinks', () => {
+  const link = (href: string) => ({ type: 'link', attrs: { href } })
+
+  it('unlinks a disguised script and keeps the text and the other marks', () => {
+    const doc = {
+      type: 'doc',
+      content: [
+        {
+          type: 'paragraph',
+          content: [
+            { type: 'text', text: 'perigo', marks: [link('javascript:alert(1)'), { type: 'bold' }] },
+            { type: 'text', text: 'só link', marks: [link('file:///etc/passwd')] },
+          ],
+        },
+      ],
+    }
+
+    expect(withoutUnsafeLinks(doc)).toEqual({
+      type: 'doc',
+      content: [
+        {
+          type: 'paragraph',
+          content: [
+            { type: 'text', text: 'perigo', marks: [{ type: 'bold' }] },
+            { type: 'text', text: 'só link' },
+          ],
+        },
+      ],
+    })
+  })
+
+  it('keeps web, mail and internal addresses', () => {
+    const marks = [link('https://exemplo.com'), link('mailto:a@b.com'), link('#Intro')]
+    expect(withoutUnsafeLinks({ type: 'text', text: 'x', marks })).toEqual({ type: 'text', text: 'x', marks })
+  })
+
+  it('passes through what is not a node', () => {
+    expect(withoutUnsafeLinks(null)).toBeNull()
+    expect(withoutUnsafeLinks('texto')).toBe('texto')
   })
 })

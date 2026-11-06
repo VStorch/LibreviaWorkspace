@@ -122,6 +122,8 @@ export const SidecarMethod = {
   DocxOpen: 'docx.open',
   DocxSave: 'docx.save',
   DocxCreate: 'docx.create',
+  OdtOpen: 'odt.open',
+  OdtSave: 'odt.save',
   XlsxOpen: 'xlsx.open',
   XlsxSave: 'xlsx.save',
   PdfInspect: 'pdf.inspect',

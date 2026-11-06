@@ -1,3 +1,4 @@
+using System.Globalization;
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
@@ -13,6 +14,11 @@ internal static class PlainBandWriter
 {
     private const string HeaderId = "LibreviaHeader";
     private const string FooterId = "LibreviaFooter";
+
+    /// <summary>The plain band's look, as the editor draws it: 9 pt grey Calibri, centered.</summary>
+    internal const string BandColor = "444444";
+
+    internal const int BandSizePt = 9;
 
     public static void Apply(
         MainDocumentPart part,
@@ -146,8 +152,8 @@ internal static class PlainBandWriter
     private static Run Run(string text) => new(
         new RunProperties(
             new RunFonts { Ascii = TemplateStyles.BandFont, HighAnsi = TemplateStyles.BandFont },
-            new Color { Val = "444444" },
-            new FontSize { Val = "18" }),
+            new Color { Val = BandColor },
+            new FontSize { Val = (BandSizePt * 2).ToString(CultureInfo.InvariantCulture) }),
         new Text(text) { Space = SpaceProcessingModeValues.Preserve });
 
     /// <summary>

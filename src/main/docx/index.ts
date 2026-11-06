@@ -1,9 +1,8 @@
 /**
- * The original bytes live **here**, not in the stateless sidecar: its death does not cost the
- * surgical save.
+ * The original bytes live in `opened-original.ts`, not in the stateless sidecar: its death does not
+ * cost the surgical save.
  */
 
-import { readFile } from 'node:fs/promises'
 import { z } from 'zod'
 import { SDOC_FORMAT, SDOC_VERSION } from '@services/document/serialize.js'
 import { AppError, ErrorCode } from '@shared/errors.js'
@@ -15,7 +14,15 @@ import {
   styleSheetSchema,
 } from '@shared/schemas.js'
 import type { LossInventory } from '@shared/types.js'
-import { normalizePath } from '../fs/paths.js'
+import {
+  adoptOriginal,
+  followOriginal,
+  forgetOpenedOriginal,
+  OriginalFormat,
+  originalFormatOf,
+  originalOf,
+  rememberOriginal,
+} from '../opened-original.js'
 import type { SidecarClient } from '../sidecar/client.js'
 import { sidecarInventorySchema } from '../sidecar/messages.js'
 import { SidecarMethod } from '../sidecar/protocol.js'
@@ -25,9 +32,9 @@ import { MAX_NAME_LENGTH } from '@shared/limits.js'
 
 /**
  * `page` and `doc` are validated in the renderer; the styles here, the only point they pass before
- * reaching the `.sdoc`.
+ * reaching the `.sdoc`. The ODT import answers in the same shape.
  */
-const openResultSchema = z.object({
+export const openResultSchema = z.object({
   model: z.object({
     page: z.unknown(),
     sections: z.unknown().optional(),
@@ -42,31 +49,19 @@ const openResultSchema = z.object({
   inventory: sidecarInventorySchema,
 })
 
-const saveResultSchema = z.object({
+export const saveResultSchema = z.object({
   inventory: sidecarInventorySchema,
   preservedBlocks: z.number().int().nonnegative(),
   rewrittenBlocks: z.number().int().nonnegative(),
 })
 
-/** As they were on disk when opened, not as they are now, which someone else may have changed. */
-let openedOriginal: { path: string; bytes: Buffer } | null = null
-
 export function forgetOpenedDocx(): void {
-  openedOriginal = null
+  forgetOpenedOriginal()
 }
 
-/**
- * After a crash the original bytes died with the process: without rereading them, saving would be
- * refused.
- */
+/** See `adoptOriginal`. */
 export async function adoptDocxOriginal(path: string): Promise<boolean> {
-  try {
-    openedOriginal = { path: normalizePath(path), bytes: await readFile(path) }
-    return true
-  } catch {
-    openedOriginal = null
-    return false
-  }
+  return adoptOriginal(path, OriginalFormat.Docx)
 }
 
 export interface OpenedDocx {
@@ -88,13 +83,14 @@ export async function decodeDocx(client: SidecarClient, path: string, bytes: Buf
 
   // Normalized, as `authorizePath` returns it and `origin` brings it: raw, the opened `.docx` would
   // be written over the minimal package.
-  openedOriginal = { path: normalizePath(path), bytes }
+  rememberOriginal(path, bytes, OriginalFormat.Docx)
 
-  return {
-    // The constants, not a literal: a fixed `1` would push every Word document through migrations.
-    content: JSON.stringify({ format: SDOC_FORMAT, version: SDOC_VERSION, ...parsed.data.model }),
-    inventory: parsed.data.inventory,
-  }
+  return { content: sdocContentOf(parsed.data.model), inventory: parsed.data.inventory }
+}
+
+/** The constants, not a literal: a fixed `1` would push every opened document through migrations. */
+export function sdocContentOf(model: object): string {
+  return JSON.stringify({ format: SDOC_FORMAT, version: SDOC_VERSION, ...model })
 }
 
 export interface SavedDocx {
@@ -123,12 +119,9 @@ export async function saveDocx(
   sdocContent: string,
   target: DocxTarget,
 ): Promise<SavedDocx> {
-  const model = unwrapSdoc(sdocContent)
+  const model = modelForDocx(readSdocModel(sdocContent), target.origin)
 
-  const kept =
-    openedOriginal !== null && target.origin !== null && openedOriginal.path === normalizePath(target.origin)
-      ? openedOriginal.bytes
-      : null
+  const kept = originalOf(target.origin, OriginalFormat.Docx)
   const original = kept ?? Buffer.from(await createDocx(client, model.page, model.styles))
 
   const reply = await client.request(
@@ -155,9 +148,21 @@ export async function saveDocx(
   }
 }
 
-type SdocModel = ReturnType<typeof unwrapSdoc>
+export type SdocModel = ReturnType<typeof readSdocModel>
 
-function saveParamsOf(model: SdocModel, target: DocxTarget): Record<string, unknown> {
+/**
+ * The `oid`s of another format's package mean nothing here: the document goes out whole from the
+ * model, with no false "original package" loss.
+ */
+function modelForDocx(model: SdocModel, origin: string | null): SdocModel {
+  const format = originalFormatOf(origin)
+  return format === null || format === OriginalFormat.Docx ? model : { ...model, doc: withoutOids(model.doc) }
+}
+
+export function saveParamsOf(
+  model: SdocModel,
+  target: Pick<DocxTarget, 'template'>,
+): Record<string, unknown> {
   // `flatten` picks the sidecar's reference reading for the flattened draft. Styles always go, to
   // reach `word/styles.xml`.
   return {
@@ -210,24 +215,33 @@ function lossesOf(declared: readonly string[], model: SdocModel, fromMinimalPack
   return lost
 }
 
-/**
- * Called **after** the save reached the disk, so a failure does not leave the original pointing to
- * a path the document does not have. Applies to any destination: a `.docx` saved as `.sdoc` keeps
- * the same `oid`s.
- */
+/** See `followOriginal`. */
 export function followDocxOriginal(
   origin: string | null,
   destination: string,
   saved: SavedDocx | null,
 ): void {
-  const target = normalizePath(destination)
-  if (saved !== null) {
-    openedOriginal = { path: target, bytes: saved.original }
-    return
+  followOriginal(
+    origin,
+    destination,
+    saved === null ? null : { original: saved.original, format: OriginalFormat.Docx },
+  )
+}
+
+/** At any depth: a DOCX list item carries its own. */
+export function withoutOids(node: unknown): unknown {
+  if (Array.isArray(node)) return node.map(withoutOids)
+  if (typeof node !== 'object' || node === null) return node
+  const record = node as Record<string, unknown>
+  const { attrs, content } = record
+  const copy: Record<string, unknown> = { ...record }
+  if (typeof attrs === 'object' && attrs !== null && 'oid' in attrs) {
+    const rest = Object.entries(attrs).filter(([name]) => name !== 'oid')
+    if (rest.length > 0) copy['attrs'] = Object.fromEntries(rest)
+    else delete copy['attrs']
   }
-  if (openedOriginal !== null && origin !== null && openedOriginal.path === normalizePath(origin)) {
-    openedOriginal = { path: target, bytes: openedOriginal.bytes }
-  }
+  if (Array.isArray(content)) copy['content'] = content.map(withoutOids)
+  return copy
 }
 
 /** The `oid` is the block's fingerprint in the source package: one is enough. */
@@ -272,7 +286,7 @@ async function createDocx(client: SidecarClient, page: unknown, styles: unknown)
   return reply.binary
 }
 
-function unwrapSdoc(content: string): {
+export function readSdocModel(content: string): {
   page: unknown
   doc: unknown
   styles: unknown

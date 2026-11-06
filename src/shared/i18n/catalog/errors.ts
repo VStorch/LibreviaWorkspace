@@ -144,6 +144,26 @@ export const ERRORS = {
     pt: 'docx.open fora do contrato',
     en: 'docx.open out of contract',
   },
+  'errors.odt.cannotRead': {
+    pt: 'Não foi possível ler este documento ODT. O arquivo pode estar danificado.',
+    en: 'Could not read this ODT document. The file may be damaged.',
+  },
+  'errors.odt.openContract': {
+    pt: 'odt.open fora do contrato',
+    en: 'odt.open out of contract',
+  },
+  'errors.odt.cannotSave': {
+    pt: 'Não foi possível gravar o documento ODT. O arquivo original não foi alterado.',
+    en: 'Could not save the ODT document. The original file was not modified.',
+  },
+  'errors.odt.saveContract': {
+    pt: 'odt.save fora do contrato',
+    en: 'odt.save out of contract',
+  },
+  'errors.odt.saveNeedsOriginal': {
+    pt: 'Só é possível salvar em .odt um documento aberto de um arquivo .odt. Para os outros, use Arquivo → Exportar como → Documento do OpenDocument (.odt).',
+    en: 'You can only save to .odt a document opened from an .odt file. For any other, use File → Export as → OpenDocument text (.odt).',
+  },
   'errors.docx.saveOnlyFromDocx': {
     pt: 'Só é possível salvar em .docx um documento que foi aberto a partir de um arquivo .docx. Salve como .sdoc ou abra um documento do Word primeiro.',
     en: 'You can only save to .docx a document that was opened from a .docx file. Save as .sdoc or open a Word document first.',

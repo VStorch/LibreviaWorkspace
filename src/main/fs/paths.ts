@@ -2,7 +2,7 @@ import type { Stats } from 'node:fs'
 import { stat } from 'node:fs/promises'
 import { isAbsolute, resolve } from 'node:path'
 import { AppError, ErrorCode, fromFileSystemError } from '@shared/errors.js'
-import { isPdfPath, isSupportedExtension } from '@services/file/formats.js'
+import { isPdfPath, isReadableExtension } from '@services/file/formats.js'
 import { t } from '../i18n.js'
 import { editorPreferences } from '../preferences.js'
 
@@ -65,7 +65,7 @@ export function resetAuthorizedPaths(): void {
 
 export async function assertReadableFile(path: string): Promise<void> {
   assertAbsolute(path)
-  if (!isSupportedExtension(path)) {
+  if (!isReadableExtension(path)) {
     throw new AppError(ErrorCode.UnsupportedFormat, t('errors.paths.unsupportedType'))
   }
 

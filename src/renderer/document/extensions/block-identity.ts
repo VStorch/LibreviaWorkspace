@@ -55,8 +55,19 @@ export const BlockIdentity = Extension.create<BlockIdentityOptions>({
 
   addOptions() {
     // The nodes where `BodyReader` calls `NewBlock`; a list item is a `w:p`, and the table of
-    // contents a `w:sdt`.
-    return { types: ['paragraph', 'heading', 'pageBreak', 'listItem', 'table', 'tableOfContents'] }
+    // contents a `w:sdt`. In an ODT the whole `text:list` is the block (`OdtSourceBlock`).
+    return {
+      types: [
+        'paragraph',
+        'heading',
+        'pageBreak',
+        'listItem',
+        'table',
+        'tableOfContents',
+        'bulletList',
+        'orderedList',
+      ],
+    }
   },
 
   addGlobalAttributes() {

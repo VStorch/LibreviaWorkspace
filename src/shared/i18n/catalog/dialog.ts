@@ -16,6 +16,7 @@ export const DIALOG = {
   'dialog.filter.document': { pt: 'Documento', en: 'Document' },
   'dialog.filter.wordDoc': { pt: 'Documento do Word', en: 'Word document' },
   'dialog.filter.wordTemplates': { pt: 'Modelos do Word', en: 'Word templates' },
+  'dialog.filter.odtDocs': { pt: 'Documentos ODT', en: 'ODT documents' },
   'dialog.filter.wordTemplate': { pt: 'Modelo do Word (.dotx)', en: 'Word template (.dotx)' },
   'dialog.template.title': { pt: 'Procurar modelo', en: 'Browse for template' },
   'dialog.agent.title': { pt: 'Escolher o programa do agente', en: "Choose the agent's program" },

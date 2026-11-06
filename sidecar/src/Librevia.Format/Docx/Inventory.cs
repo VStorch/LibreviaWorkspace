@@ -32,6 +32,8 @@ public sealed class Inventory
     public const string Endnotes = "sidecar.notice.endnotes";
     public const string Fields = "sidecar.notice.fields";
     public const string HeaderFields = "sidecar.notice.headerFields";
+    /// <summary>A field the model has no node for, kept as its text: lost only where rewritten.</summary>
+    public const string PlainFields = "sidecar.notice.plainFields";
     /// <summary>
     /// A **frame** CSS cannot do: gradient, texture, shadow, 3D, rounded corner, or one inherited
     /// from a theme we do not resolve (see <see cref="ShapeLook"/>).

@@ -1280,3 +1280,41 @@ export async function docxWithLongFootnote(lines = 70): Promise<Buffer> {
     ['Beta', 'Gama', 'Delta'].map((word) => `<w:p><w:r><w:t>${word}</w:t></w:r></w:p>`).join('')
   return footnotesPackage(body, note)
 }
+
+const ODF_NAMESPACES =
+  'xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" ' +
+  'xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0" ' +
+  'xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" ' +
+  'xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0" office:version="1.3"'
+
+/**
+ * A two-paragraph `.odt` as LibreOffice writes it, trimmed: `mimetype` first, stored, and the
+ * manifest listing every part.
+ */
+export async function odtWithParagraphs(first: string, second: string): Promise<Buffer> {
+  const content =
+    `<?xml version="1.0" encoding="UTF-8"?><office:document-content ${ODF_NAMESPACES}>` +
+    '<office:automatic-styles/><office:body><office:text>' +
+    `<text:p text:style-name="Standard">${first}</text:p><text:p text:style-name="Standard">${second}</text:p>` +
+    '</office:text></office:body></office:document-content>'
+  const styles =
+    `<?xml version="1.0" encoding="UTF-8"?><office:document-styles ${ODF_NAMESPACES}><office:styles>` +
+    '<style:style style:name="Standard" style:family="paragraph" style:class="text"/>' +
+    '</office:styles><office:automatic-styles><style:page-layout style:name="pm1">' +
+    '<style:page-layout-properties fo:page-width="21.001cm" fo:page-height="29.7cm" fo:margin-top="2cm" ' +
+    'fo:margin-bottom="2cm" fo:margin-left="2cm" fo:margin-right="2cm"/></style:page-layout></office:automatic-styles>' +
+    '<office:master-styles><style:master-page style:name="Standard" style:page-layout-name="pm1"/></office:master-styles>' +
+    '</office:document-styles>'
+  const manifest =
+    '<?xml version="1.0" encoding="UTF-8"?><manifest:manifest xmlns:manifest="urn:oasis:names:tc:opendocument:xmlns:manifest:1.0" manifest:version="1.3">' +
+    '<manifest:file-entry manifest:full-path="/" manifest:media-type="application/vnd.oasis.opendocument.text"/>' +
+    '<manifest:file-entry manifest:full-path="content.xml" manifest:media-type="text/xml"/>' +
+    '<manifest:file-entry manifest:full-path="styles.xml" manifest:media-type="text/xml"/>' +
+    '</manifest:manifest>'
+  return zip([
+    ['mimetype', 'application/vnd.oasis.opendocument.text'],
+    ['content.xml', content],
+    ['styles.xml', styles],
+    ['META-INF/manifest.xml', manifest],
+  ])
+}

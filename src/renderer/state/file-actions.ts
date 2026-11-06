@@ -228,9 +228,7 @@ function createSaveActions(
       const wordOnly = options?.wordOnly === true
       if (wordOnly && file.kind !== DocumentKind.Document) return refuseWordExport(set)
 
-      const chosen = await ctx.call(() =>
-        window.api.file.chooseSavePath({ suggestedName: file.name, kind: file.kind, wordOnly }),
-      )
+      const chosen = await ctx.call(() => chooseSavePath(file, wordOnly))
       if (chosen === null || chosen.canceled) return false
 
       // Before writing: giving up here writes no byte.
@@ -260,6 +258,19 @@ function createSaveActions(
       await get().refreshRecents()
     },
   }
+}
+
+/** The origin lets main offer `.odt` to a document that came from one. */
+function chooseSavePath(
+  file: OpenFile,
+  wordOnly: boolean,
+): ReturnType<typeof window.api.file.chooseSavePath> {
+  return window.api.file.chooseSavePath({
+    suggestedName: file.name,
+    kind: file.kind,
+    wordOnly,
+    origin: file.origin ?? file.path,
+  })
 }
 
 /**
