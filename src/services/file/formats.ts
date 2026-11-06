@@ -93,6 +93,10 @@ export function isReadableExtension(path: string): boolean {
   return (READABLE_EXTENSIONS as readonly string[]).includes(extensionOf(path))
 }
 
+export function isOpenableExtension(path: string): boolean {
+  return (OPENABLE_EXTENSIONS as readonly string[]).includes(extensionOf(path))
+}
+
 export function kindFromPath(path: string): DocumentKind {
   const extension = extensionOf(path)
   if (extension === PDF_EXTENSION) return DocumentKind.Pdf

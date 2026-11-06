@@ -7,6 +7,7 @@ import {
   fileNameFromPath,
   isOdtPath,
   isPdfPath,
+  isOpenableExtension,
   isReadableExtension,
   kindFromPath,
   isSupportedExtension,
@@ -88,6 +89,14 @@ describe('ODT', () => {
 
   it('a PDF is only viewed, not read into the editor', () => {
     expect(isReadableExtension('/a/b.pdf')).toBe(false)
+  })
+
+  it.each(['/a/b.odt', '/a/b.PDF', '/a/b.xlsx', '/a/b.dotm'])('%s can be opened', (path) => {
+    expect(isOpenableExtension(path)).toBe(true)
+  })
+
+  it.each(['/a/b.exe', '/a/odt', '/a/b.html'])('%s cannot be opened', (path) => {
+    expect(isOpenableExtension(path)).toBe(false)
   })
 })
 
