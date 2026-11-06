@@ -1133,8 +1133,10 @@ continuam no arquivo depois que você corrige uma vírgula.
 (com colunas, número de página e versões para a primeira página e para as páginas pares) abrem
 como no `.docx` e voltam ao arquivo quando você salva. As alterações controladas também: texto
 inserido, texto excluído e parágrafo unido aparecem com autor e data, e o controle de alterações
-continua ligado ou desligado como no arquivo. O que o Librevia não mostra (mudança de formatação
-controlada, indicador, seção, caixa de texto, desenho, formulário) fica no arquivo enquanto você
+continua ligado ou desligado como no arquivo. As seções também: cada estilo de página que o texto
+abre vira uma seção, com papel, margens e numeração próprios, e uma seção do LibreOffice com colunas
+vira uma seção contínua com colunas. O que o Librevia não mostra (mudança de formatação
+controlada, indicador, seção sem colunas ou dentro de outra, caixa de texto, desenho, formulário) fica no arquivo enquanto você
 não edita o bloco onde está. Ao abrir, o aplicativo avisa que existe. Se você editar esse bloco, ele se
 perde ali, e o aviso aparece ao salvar.
 
