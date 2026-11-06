@@ -12,16 +12,15 @@ namespace Librevia.Format.Odt;
 /// </summary>
 internal sealed class OdtTableWriter(OdtWriteContext context, OdtBlockWriter blocks)
 {
-    /// <summary>The thin line the editor draws on a cell that states none; see <c>export-odt.ts</c>.</summary>
-    private const string DefaultBorder = "0.5pt solid #000000";
-
-    private const string CellPadding = "0.97mm";
+    /// <summary>Word's default cell margin, as the editor draws it: 0.19 cm on the sides, nothing above and below.</summary>
+    private const string SidePadding = "1.9mm";
+    private const string NoPadding = "0mm";
 
     private static readonly string[] Sides = ["top", "right", "bottom", "left"];
 
     private sealed record Slot(Node Cell, int Colspan, int Rowspan);
 
-    public XElement Write(Node table, bool breakBefore)
+    public XElement Write(Node table, bool breakBefore, OdtPageStart? page = null)
     {
         var rows = (table.Content ?? []).Where(row => row.Type == "tableRow").ToList();
         var (columns, grid) = Grid(rows);
@@ -30,7 +29,7 @@ internal sealed class OdtTableWriter(OdtWriteContext context, OdtBlockWriter blo
         var element = new XElement(
             Ns.Table + "table",
             new XAttribute(Ns.Table + "name", context.NewTableName()),
-            new XAttribute(Ns.Table + "style-name", TableStyle(widths, breakBefore)));
+            new XAttribute(Ns.Table + "style-name", TableStyle(widths, breakBefore, page)));
         element.Add(Columns(widths, columns));
 
         var header = new XElement(Ns.Table + "table-header-rows");
@@ -115,7 +114,7 @@ internal sealed class OdtTableWriter(OdtWriteContext context, OdtBlockWriter blo
         return widths.Count == columns ? widths : null;
     }
 
-    private string TableStyle(List<double>? widths, bool breakBefore)
+    private string TableStyle(List<double>? widths, bool breakBefore, OdtPageStart? page)
     {
         var properties = new XElement(Ns.Style + "table-properties");
         if (widths is null)
@@ -128,8 +127,9 @@ internal sealed class OdtTableWriter(OdtWriteContext context, OdtBlockWriter blo
             properties.SetAttributeValue(Ns.Table + "align", "left");
         }
 
-        if (breakBefore) properties.SetAttributeValue(Ns.Fo + "break-before", ParagraphFormat.Page);
-        return context.Automatic.Style(OdtAutomaticStyles.Table, "table", null, properties);
+        if (page is not null) properties.SetAttributeValue(Ns.Style + "page-number", page.PageNumber);
+        else if (breakBefore) properties.SetAttributeValue(Ns.Fo + "break-before", ParagraphFormat.Page);
+        return context.Automatic.Style(OdtAutomaticStyles.Table, "table", null, page?.MasterPage, properties);
     }
 
     private IEnumerable<XElement> Columns(List<double>? widths, int columns)
@@ -171,7 +171,19 @@ internal sealed class OdtTableWriter(OdtWriteContext context, OdtBlockWriter blo
 
     private string CellStyle(Node cell)
     {
-        var properties = new XElement(Ns.Style + "table-cell-properties", new XAttribute(Ns.Fo + "padding", context.KeptCellPadding ?? CellPadding));
+        var properties = new XElement(Ns.Style + "table-cell-properties");
+        if (context.KeptCellPadding is { } kept)
+        {
+            properties.SetAttributeValue(Ns.Fo + "padding", kept);
+        }
+        else
+        {
+            properties.SetAttributeValue(Ns.Fo + "padding-left", SidePadding);
+            properties.SetAttributeValue(Ns.Fo + "padding-right", SidePadding);
+            properties.SetAttributeValue(Ns.Fo + "padding-top", NoPadding);
+            properties.SetAttributeValue(Ns.Fo + "padding-bottom", NoPadding);
+        }
+
         if (CharacterFormat.ColorOf(Attr.String(cell, "shading")) is { } shading)
         {
             properties.SetAttributeValue(Ns.Fo + "background-color", shading);
@@ -180,7 +192,7 @@ internal sealed class OdtTableWriter(OdtWriteContext context, OdtBlockWriter blo
         var stated = Borders(Attr.String(cell, "borders"));
         foreach (var side in Sides)
         {
-            properties.SetAttributeValue(Ns.Fo + "border-" + side, stated.GetValueOrDefault(side, DefaultBorder));
+            properties.SetAttributeValue(Ns.Fo + "border-" + side, stated.GetValueOrDefault(side, OdtStyles.DefaultBorder));
         }
 
         return context.Automatic.Style(OdtAutomaticStyles.Cell, "table-cell", null, properties);

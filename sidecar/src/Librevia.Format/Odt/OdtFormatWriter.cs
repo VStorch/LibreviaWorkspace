@@ -76,7 +76,7 @@ internal static class OdtFormatWriter
         TextAlign: Attr.String(node, "textAlign"),
         IndentMm: IndentOf(node),
         IndentRightMm: Attr.Double(node, "indentRightMm"),
-        FirstLineMm: Attr.Double(node, "firstLineMm"),
+        FirstLineMm: Attr.Double(node, "hangingMm") is > 0 and var hanging ? -hanging : Attr.Double(node, "firstLineMm"),
         SpaceBefore: Attr.Double(node, "spaceBefore"),
         SpaceAfter: Attr.Double(node, "spaceAfter"),
         LineSpacing: LineSpacingOf(Attr.Node(node, "lineHeight"), fontStack),

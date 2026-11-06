@@ -15,6 +15,12 @@ internal sealed class OdtAutomaticStyles(IEnumerable<string> taken)
     public const string Cell = "LvCell";
     public const string List = "LvL";
     public const string Band = "LvMP";
+    public const string Graphic = "LvFr";
+    public const string Section = "LvSect";
+    public const string PageLayout = "LvPm";
+
+    public const string GraphicFamily = "graphic";
+    public const string SectionFamily = "section";
 
     private readonly HashSet<string> _taken = new(taken, StringComparer.Ordinal);
     private readonly Dictionary<string, string> _bySignature = new(StringComparer.Ordinal);
@@ -44,13 +50,18 @@ internal sealed class OdtAutomaticStyles(IEnumerable<string> taken)
     }
 
     /// <summary>A <c>style:style</c> of the family with a parent and the given properties.</summary>
-    public string Style(string prefix, string family, string? parent, params XElement?[] properties)
+    public string Style(string prefix, string family, string? parent, params XElement?[] properties) =>
+        Style(prefix, family, parent, masterPage: null, properties);
+
+    /// <param name="masterPage">The master page the paragraph or table opens.</param>
+    public string Style(string prefix, string family, string? parent, string? masterPage, params XElement?[] properties)
     {
         var style = new XElement(
             Ns.Style + "style",
             new XAttribute(Ns.Style + "family", family),
             parent is null ? null : new XAttribute(Ns.Style + "parent-style-name", parent),
-            properties.Where(element => element is not null && element.HasAttributes));
+            masterPage is null ? null : new XAttribute(Ns.Style + "master-page-name", masterPage),
+            properties.Where(element => element is not null && (element.HasAttributes || element.HasElements)));
         return Add(prefix, style);
     }
 }

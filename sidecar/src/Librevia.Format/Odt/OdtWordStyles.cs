@@ -15,7 +15,7 @@ internal static class OdtWordStyles
     [
         new(OdtStyles.ParagraphFamily, OdtStyles.DefaultParagraphStyle, "Normal", "Normal"),
         .. Enumerable.Range(1, HeadingLevels).Select(level =>
-            new Correspondence(OdtStyles.ParagraphFamily, $"Heading_20_{level}", $"Heading{level}", $"heading {level}")),
+            new Correspondence(OdtStyles.ParagraphFamily, HeadingOdfNameOf(level), HeadingIdOf(level), HeadingNameOf(level))),
         new(OdtStyles.ParagraphFamily, "Title", "Title", "Title"),
         new(OdtStyles.ParagraphFamily, "Subtitle", "Subtitle", "Subtitle"),
         new(OdtStyles.ParagraphFamily, "Text_20_body", "BodyText", "Body Text"),
@@ -30,6 +30,12 @@ internal static class OdtWordStyles
 
     private static readonly Dictionary<(string Family, string WordId), Correspondence> ByWordId =
         Correspondences.ToDictionary(entry => (entry.Family, entry.WordId));
+
+    public static string HeadingIdOf(int level) => $"Heading{level}";
+
+    public static string HeadingNameOf(int level) => $"heading {level}";
+
+    public static string HeadingOdfNameOf(int level) => $"Heading_20_{level}";
 
     /// <summary>The inverse of <see cref="IdOf"/>: the file's name for the editor's id.</summary>
     public static string OdfNameOf(string family, string id) =>

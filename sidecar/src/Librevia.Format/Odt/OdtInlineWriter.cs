@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using Librevia.Format.Docx;
 
@@ -9,27 +10,25 @@ namespace Librevia.Format.Odt;
 /// line breaks and images. ODF collapses white space, so a space after another one, or opening the
 /// block, is a <c>text:s</c>.
 /// </summary>
-internal sealed class OdtInlineWriter(OdtWriteContext context)
+internal sealed partial class OdtInlineWriter(OdtWriteContext context, OdtBlockWriter blocks)
 {
-    private const string Mono = "Liberation Mono";
+    private const string DefaultHighlight = "#ffff00";
+    private const string PageToken = "{n}";
+
+    /// <summary>The same as <c>ALLOWED_EXTERNAL_PROTOCOLS</c>.</summary>
+    private static readonly HashSet<string> SafeSchemes = new(StringComparer.OrdinalIgnoreCase) { "http", "https", "mailto" };
+    private const string TotalToken = "{total}";
+
+    public const string Mono = "Liberation Mono";
     private const string DataPrefix = "data:";
     private const string Base64Marker = ";base64,";
-
-    /// <summary>Inline nodes the model has and ODF gets only as text, with the notice they cost.</summary>
-    private static readonly Dictionary<string, string> Dropped = new(StringComparer.Ordinal)
-    {
-        ["commentStart"] = Inventory.Comments,
-        ["commentEnd"] = Inventory.Comments,
-        ["bookmarkStart"] = OdtNotices.Bookmarks,
-        ["bookmarkEnd"] = OdtNotices.Bookmarks,
-        ["math"] = Inventory.Equations,
-    };
 
     private static readonly HashSet<string> RevisionMarks = new(StringComparer.Ordinal)
     {
         "insertion", "deletion", "markInsertion", "markDeletion",
     };
 
+    private readonly OdtInlineObjects _objects = new(context, blocks);
     private bool _afterSpace;
 
     public List<XNode> Write(IEnumerable<Node>? content)
@@ -44,8 +43,11 @@ internal sealed class OdtInlineWriter(OdtWriteContext context)
     {
         switch (node.Type)
         {
+            case "text" when Deleted(node.Marks):
+                context.NoteLoss(OdtNotices.Revisions);
+                return [];
             case "text":
-                return Wrapped(node.Marks, TextNodes(node.Text ?? string.Empty));
+                return Wrapped(node.Marks, context.InBand ? BandText(node.Text ?? string.Empty) : TextNodes(node.Text ?? string.Empty));
             case "hardBreak":
                 _afterSpace = true;
                 return [new XElement(Ns.Text + "line-break")];
@@ -53,14 +55,25 @@ internal sealed class OdtInlineWriter(OdtWriteContext context)
                 return Image(node) is { } frame ? Wrapped(node.Marks, [frame], styled: false) : [];
             case "field":
                 return Field(node);
-            case "noteRef":
-                context.NoteLoss(Attr.String(node, "kind") == "endnote" ? Inventory.Endnotes : Inventory.Footnotes);
-                return [];
+            case var type when OdtInlineObjects.Types.Contains(type):
+                return Objects(node);
             default:
-                context.NoteLoss(Dropped.GetValueOrDefault(node.Type) ?? Inventory.Element, Dropped.ContainsKey(node.Type) ? null : node.Type);
+                context.NoteLoss(Inventory.Element, node.Type);
                 return [.. (node.Content ?? []).SelectMany(Inline)];
         }
     }
+
+    /// <summary>A formula is in the run's span and link, as a character; a note or anchor is not.</summary>
+    private IEnumerable<XNode> Objects(Node node)
+    {
+        var written = _objects.Write(node).ToList();
+        if (node.Type != "math" || written.Count == 0) return written;
+        _afterSpace = false;
+        return Wrapped(node.Marks, written);
+    }
+
+    /// <summary>What "Accept all" removes: the deleted text goes, the revision is declared.</summary>
+    private static bool Deleted(List<Mark>? marks) => marks?.Any(mark => mark.Type == "deletion") == true;
 
     /// <summary>
     /// The ODF field of the instruction, with the attributes of the one the block had (its date
@@ -94,7 +107,7 @@ internal sealed class OdtInlineWriter(OdtWriteContext context)
         }
 
         var link = marks?.FirstOrDefault(mark => mark.Type == "link");
-        if (link is not null && Attr.MarkString(link, "href") is { Length: > 0 } href)
+        if (link is not null && SafeHref(Attr.MarkString(link, "href")) is { } href)
         {
             result = [new XElement(
                 Ns.Text + "a",
@@ -135,7 +148,7 @@ internal sealed class OdtInlineWriter(OdtWriteContext context)
                 "smallCaps" => format with { SmallCaps = on },
                 "superscript" => format with { Position = on ? CharacterFormat.Superscript : CharacterFormat.Baseline },
                 "subscript" => format with { Position = on ? CharacterFormat.Subscript : CharacterFormat.Baseline },
-                "highlight" => format with { Background = Color(Attr.MarkString(mark, "color")) },
+                "highlight" => format with { Background = Color(Attr.MarkString(mark, "color")) ?? DefaultHighlight },
                 "code" => format with { FontFamily = Mono },
                 "textStyle" => TextStyle(format, mark),
                 _ => Other(format, mark),
@@ -163,66 +176,154 @@ internal sealed class OdtInlineWriter(OdtWriteContext context)
         return format;
     }
 
-    private static string? Color(string? value) => CharacterFormat.ColorOf(value);
+    /// <summary>Hex as the editor writes it, or a CSS color by name or <c>rgb()</c>.</summary>
+    private static string? Color(string? value) =>
+        CharacterFormat.ColorOf(value) ?? (ColorValue.Hex(value) is { } hex ? "#" + hex.ToLowerInvariant() : null);
+
+    /// <summary>An internal anchor or a protocol the editor opens; <c>javascript:</c>, <c>file:</c> and <c>data:</c> become text.</summary>
+    public static string? SafeHref(string? href)
+    {
+        var trimmed = href?.Trim();
+        if (string.IsNullOrEmpty(trimmed)) return null;
+        if (trimmed.StartsWith('#')) return trimmed.Length > 1 ? trimmed : null;
+        return Uri.TryCreate(trimmed, UriKind.Absolute, out var uri) && SafeSchemes.Contains(uri.Scheme) ? trimmed : null;
+    }
 
     private List<XNode> TextNodes(string text)
     {
-        var nodes = new List<XNode>();
-        var run = new StringBuilder();
-        var spaces = 0;
+        var builder = new TextBuilder(_afterSpace);
+        builder.Append(text);
+        _afterSpace = builder.AfterSpace;
+        return builder.Nodes();
+    }
 
-        void FlushRun()
+    /// <summary>A text on its own, as a block's first text: a comment's paragraph, a band's piece.</summary>
+    /// <param name="pageFields">Whether <c>{n}</c> and <c>{total}</c> are the page fields.</param>
+    public static List<XNode> PlainText(string text, bool pageFields = false)
+    {
+        var builder = new TextBuilder(afterSpace: true);
+        if (pageFields) builder.AppendWithFields(text);
+        else builder.Append(text);
+        return builder.Nodes();
+    }
+
+    private List<XNode> BandText(string text)
+    {
+        var builder = new TextBuilder(_afterSpace);
+        builder.AppendWithFields(text);
+        _afterSpace = builder.AfterSpace;
+        return builder.Nodes();
+    }
+
+    /// <summary>ODF collapses white space: a space after another, or opening the block, is <c>text:s</c>.</summary>
+    private sealed class TextBuilder(bool afterSpace)
+    {
+        private readonly List<XNode> _nodes = [];
+        private readonly StringBuilder _run = new();
+        private int _spaces;
+
+        public bool AfterSpace { get; private set; } = afterSpace;
+
+        public void Append(string text)
         {
-            if (run.Length == 0) return;
-            nodes.Add(new XText(run.ToString()));
-            run.Clear();
+            foreach (var letter in text) Append(letter);
         }
 
-        void FlushSpaces()
+        public void AppendWithFields(string text)
         {
-            if (spaces == 0) return;
-            nodes.Add(spaces == 1
-                ? new XElement(Ns.Text + "s")
-                : new XElement(Ns.Text + "s", new XAttribute(Ns.Text + "c", spaces)));
-            spaces = 0;
-        }
-
-        foreach (var letter in text)
-        {
-            if (letter == ' ' && !_afterSpace)
+            foreach (var part in BandFields().Split(text))
             {
-                run.Append(' ');
-                _afterSpace = true;
+                if (part is not (PageToken or TotalToken))
+                {
+                    Append(part);
+                    continue;
+                }
+
+                FlushRun();
+                FlushSpaces();
+                _nodes.Add(OdtFields.Create(part == PageToken ? "page-number" : "page-count", "1"));
+                AfterSpace = false;
+            }
+        }
+
+        public List<XNode> Nodes()
+        {
+            FlushRun();
+            FlushSpaces();
+            return _nodes;
+        }
+
+        private void Append(char letter)
+        {
+            if (letter == ' ' && !AfterSpace)
+            {
+                _run.Append(' ');
+                AfterSpace = true;
             }
             else if (letter == ' ')
             {
                 FlushRun();
-                spaces++;
+                _spaces++;
             }
             else if (letter is '\t' or '\n')
             {
                 FlushRun();
                 FlushSpaces();
-                nodes.Add(new XElement(Ns.Text + (letter == '\t' ? "tab" : "line-break")));
-                _afterSpace = true;
+                _nodes.Add(new XElement(Ns.Text + (letter == '\t' ? "tab" : "line-break")));
+                AfterSpace = true;
             }
             else if (letter != '\r')
             {
                 FlushSpaces();
-                run.Append(letter);
-                _afterSpace = false;
+                _run.Append(letter);
+                AfterSpace = false;
             }
         }
 
-        FlushRun();
-        FlushSpaces();
-        return nodes;
+        private void FlushRun()
+        {
+            if (_run.Length == 0) return;
+            _nodes.Add(new XText(_run.ToString()));
+            _run.Clear();
+        }
+
+        private void FlushSpaces()
+        {
+            if (_spaces == 0) return;
+            _nodes.Add(_spaces == 1
+                ? new XElement(Ns.Text + "s")
+                : new XElement(Ns.Text + "s", new XAttribute(Ns.Text + "c", _spaces)));
+            _spaces = 0;
+        }
     }
 
     /// <summary>A frame as a character, as the reader keeps it; the bytes go to <see cref="OdtPictures"/>.</summary>
     private XElement? Image(Node node)
     {
-        var (bytes, mediaType) = Decode(Attr.String(node, "src"));
+        var source = Attr.String(node, "src");
+        if (Picture(context, source) is not { } path) return null;
+
+        var natural = NaturalSize(source);
+        _afterSpace = false;
+        var frame = CharacterFrame(context, path, Attr.Double(node, "width") ?? natural?.Width ?? 1, Attr.Double(node, "height") ?? natural?.Height ?? 1);
+        if (Attr.String(node, "alt") is { Length: > 0 } alt) frame.Add(new XElement(Ns.Svg + "desc", alt));
+        return frame;
+    }
+
+    /// <summary>A picture as a character, in CSS pixels.</summary>
+    public static XElement CharacterFrame(OdtWriteContext context, string path, double width, double height) => new(
+        Ns.Draw + "frame",
+        new XAttribute(Ns.Draw + "name", context.NewImageName()),
+        new XAttribute(Ns.Text + "anchor-type", "as-char"),
+        new XAttribute(Ns.Svg + "width", OdtFormatWriter.PixelsToMm(width)),
+        new XAttribute(Ns.Svg + "height", OdtFormatWriter.PixelsToMm(height)),
+        new XAttribute(Ns.Draw + "z-index", 0),
+        ImageElement(path));
+
+    /// <summary>The package path of a <c>data:</c> image, or <c>null</c>, declared, when it has no place there.</summary>
+    public static string? Picture(OdtWriteContext context, string? source)
+    {
+        var (bytes, mediaType) = Decode(source);
         if (bytes is null || mediaType is null)
         {
             context.NoteLoss(OdtNotices.ImageWithoutContent);
@@ -235,26 +336,19 @@ internal sealed class OdtInlineWriter(OdtWriteContext context)
             return null;
         }
 
-        var natural = ImageSize.Of(bytes);
-        var width = Attr.Double(node, "width") ?? natural?.Width ?? 1;
-        var height = Attr.Double(node, "height") ?? natural?.Height ?? 1;
-        _afterSpace = false;
-        var frame = new XElement(
-            Ns.Draw + "frame",
-            new XAttribute(Ns.Draw + "name", context.NewImageName()),
-            new XAttribute(Ns.Text + "anchor-type", "as-char"),
-            new XAttribute(Ns.Svg + "width", OdtFormatWriter.PixelsToMm(width)),
-            new XAttribute(Ns.Svg + "height", OdtFormatWriter.PixelsToMm(height)),
-            new XAttribute(Ns.Draw + "z-index", 0),
-            new XElement(
-                Ns.Draw + "image",
-                new XAttribute(Ns.XLink + "href", context.Pictures.PathOf(bytes, mediaType)),
-                new XAttribute(Ns.XLink + "type", "simple"),
-                new XAttribute(Ns.XLink + "show", "embed"),
-                new XAttribute(Ns.XLink + "actuate", "onLoad")));
-        if (Attr.String(node, "alt") is { Length: > 0 } alt) frame.Add(new XElement(Ns.Svg + "desc", alt));
-        return frame;
+        return context.Pictures.PathOf(bytes, mediaType);
     }
+
+    /// <summary>The natural size in pixels of a <c>data:</c> image, when its header says it.</summary>
+    public static (int Width, int Height)? NaturalSize(string? source) =>
+        Decode(source).Bytes is { } bytes && ImageSize.Of(bytes) is { } size ? (size.Width, size.Height) : null;
+
+    public static XElement ImageElement(string path) => new(
+        Ns.Draw + "image",
+        new XAttribute(Ns.XLink + "href", path),
+        new XAttribute(Ns.XLink + "type", "simple"),
+        new XAttribute(Ns.XLink + "show", "embed"),
+        new XAttribute(Ns.XLink + "actuate", "onLoad"));
 
     private static (byte[]? Bytes, string? MediaType) Decode(string? source)
     {
@@ -270,4 +364,7 @@ internal sealed class OdtInlineWriter(OdtWriteContext context)
             return (null, null);
         }
     }
+
+    [GeneratedRegex(@"(\{n\}|\{total\})")]
+    private static partial Regex BandFields();
 }

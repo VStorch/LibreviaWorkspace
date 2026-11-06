@@ -40,13 +40,12 @@ function wordDocFilter() {
   return { name: t('dialog.filter.wordDoc'), extensions: [bare(WORD_EXTENSION)] }
 }
 
-/** `.odt` only for a document that came from one: the sidecar writes into that package. */
-function getSaveFilters(kind: DocumentKind, odt: boolean) {
+function getSaveFilters(kind: DocumentKind) {
   return kind === DocumentKind.Document
     ? [
         { name: t('dialog.filter.document'), extensions: [bare(DOCUMENT_EXTENSION)] },
         wordDocFilter(),
-        ...(odt ? [{ name: t('dialog.filter.odt'), extensions: [bare(ODT_EXTENSION)] }] : []),
+        { name: t('dialog.filter.odt'), extensions: [bare(ODT_EXTENSION)] },
         { name: t('dialog.filter.wordTemplate'), extensions: [bare(WORD_TEMPLATE_EXTENSION)] },
         { name: t('dialog.filter.plainText'), extensions: [bare(PLAIN_TEXT_EXTENSION)] },
       ]
@@ -91,19 +90,18 @@ export async function showTemplatePickerDialog(
 
 export interface SaveDialogOptions {
   readonly wordOnly?: boolean
-  readonly odt?: boolean
 }
 
 export async function showSaveFileDialog(
   window: BrowserWindow,
   suggestedName: string,
   kind: DocumentKind,
-  { wordOnly = false, odt = false }: SaveDialogOptions = {},
+  { wordOnly = false }: SaveDialogOptions = {},
 ): Promise<string | null> {
   const result = await dialog.showSaveDialog(window, {
     title: t('dialog.save.title'),
     defaultPath: suggestedName,
-    filters: wordOnly ? [wordDocFilter()] : getSaveFilters(kind, odt),
+    filters: wordOnly ? [wordDocFilter()] : getSaveFilters(kind),
     // The system dialog already warns about overwriting.
     properties: ['createDirectory', 'showOverwriteConfirmation'],
   })

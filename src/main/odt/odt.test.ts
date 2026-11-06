@@ -1,25 +1,32 @@
 /**
- * The ODT the export writes, read back by the published sidecar (skipped when it is not published):
- * the Phase 1 scope comes back as the same model. Text in a list or a cell carries its effective
- * formatting, as the DOCX reader flattens it there, and a paragraph names the style the export made
- * explicit. Then saved back into the same package, and to other formats.
+ * The ODT `odt.create` + `odt.save` write, read back by the published sidecar (skipped when it is
+ * not published): the Phase 1 scope comes back as the same model. Text in a list or a cell carries
+ * its effective formatting, as the DOCX reader flattens it there. `Normal` becomes LibreOffice's
+ * `Standard`, which the reader leaves unsaid, as the DOCX reader leaves `Normal`. Then saved back
+ * into the same package, and to other formats.
  */
 
 import { access, constants, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { exportOdt } from '@services/document/export-odt.js'
 import { DEFAULT_PAGE_SETUP, type DocumentModel, type DocumentNode } from '@services/document/model.js'
 import { BUILTIN_STYLES, StyleType, type StyleSheet } from '@services/document/styles.js'
 import { SidecarClient } from '../sidecar/client.js'
 import { sidecarPathIn } from '../sidecar/locate.js'
-import { saveDocx, withoutOids } from '../docx/index.js'
+import { saveDocx, sdocContentOf, withoutOids } from '../docx/index.js'
 import { t } from '../i18n.js'
-import { forgetOpenedOriginal } from '../opened-original.js'
-import { assertOdtDestination, canSaveAsOdt, decodeOdt, openOdt, saveOdt } from './index.js'
+import {
+  followOriginal,
+  forgetOpenedOriginal,
+  isCreatedOriginal,
+  OriginalFormat,
+} from '../opened-original.js'
+import { decodeOdt, exportOdt, openOdt, saveOdt } from './index.js'
 
 const client = new SidecarClient(() => Promise.resolve(sidecarPathIn(process.cwd())))
+const GENERATOR = 'Librevia/0.0.0'
+
 afterAll(() => client.dispose())
 
 const published = await access(sidecarPathIn(process.cwd()), constants.X_OK).then(
@@ -195,13 +202,17 @@ const MODEL: DocumentModel = {
   },
 }
 
+/** A document without an ODT original, through the minimal package. */
+const created = async (): Promise<Buffer> =>
+  Buffer.from(await exportOdt(client, sdocContentOf(MODEL), GENERATOR))
+
 describe.skipIf(!published)('odt.open', () => {
-  it('reads back what the export writes', async () => {
-    const opened = await decodeOdt(client, '/tmp/export.odt', Buffer.from(exportOdt(MODEL)))
+  it('reads back what odt.create and odt.save write', async () => {
+    const opened = await decodeOdt(client, '/tmp/export.odt', await created())
     const model = JSON.parse(opened.content) as DocumentModel
 
     expect(opened.inventory).toEqual({ invisible: [], lost: [], structural: [] })
-    expect(withoutOids(model.doc)).toEqual(MODEL.doc)
+    expect(withoutOids(model.doc)).toEqual(withoutNormal(MODEL.doc))
     expect(model.properties).toEqual(MODEL.properties)
     expect(model.page).toMatchObject({
       size: 'A4',
@@ -214,7 +225,7 @@ describe.skipIf(!published)('odt.open', () => {
   })
 
   it('reads back the style sheet', async () => {
-    const opened = await decodeOdt(client, '/tmp/export.odt', Buffer.from(exportOdt(MODEL)))
+    const opened = await decodeOdt(client, '/tmp/export.odt', await created())
     const { styles } = JSON.parse(opened.content) as DocumentModel
 
     expect(styles.defaults).toMatchObject({
@@ -236,7 +247,7 @@ describe.skipIf(!published)('odt.save', () => {
   beforeAll(async () => {
     directory = await mkdtemp(join(tmpdir(), 'librevia-odt-'))
     path = join(directory, 'relatório.odt')
-    await writeFile(path, exportOdt(MODEL))
+    await writeFile(path, await created())
   })
 
   afterAll(() => rm(directory, { recursive: true, force: true }))
@@ -255,14 +266,18 @@ describe.skipIf(!published)('odt.save', () => {
 
   it('writes the edit back into the opened .odt and reads it again', async () => {
     const opened = await openOdt(client, path)
-    const saved = await saveOdt(client, editLast(opened.content, 'Fim editado'), { origin: path })
+    const saved = await saveOdt(client, editLast(opened.content, 'Fim editado'), {
+      origin: path,
+      generator: GENERATOR,
+    })
+    expect(saved.created).toBe(false)
     await writeFile(path, saved.bytes)
 
     const reopened = await openOdt(client, path)
     expect(lastText(reopened.content)).toBe('Fim editado')
     expect(saved.inventory.lost).toEqual([])
     expect(withoutOids((JSON.parse(reopened.content) as DocumentModel).doc.content?.[0])).toEqual(
-      MODEL.doc.content?.[0],
+      withoutNormal(MODEL.doc).content?.[0],
     )
   })
 
@@ -277,16 +292,46 @@ describe.skipIf(!published)('odt.save', () => {
     expect(saved.bytes.length).toBeGreaterThan(0)
   })
 
-  it('offers .odt only to a document that came from one', async () => {
+  it('saves a document without an ODT original into the minimal package, rebuilt on each save', async () => {
     forgetOpenedOriginal()
-    expect(canSaveAsOdt(path)).toBe(false)
-    expect(() => assertOdtDestination(null)).toThrow(t('errors.odt.saveNeedsOriginal'))
-    await expect(saveOdt(client, editLast(JSON.stringify(MODEL), 'x'), { origin: path })).rejects.toThrow(
-      t('errors.odt.saveNeedsOriginal'),
-    )
+    const content = editLast(JSON.stringify({ ...MODEL, doc: withOids(MODEL.doc) }), 'Novo')
+    const target = { origin: null, generator: GENERATOR }
 
-    await openOdt(client, path)
-    expect(canSaveAsOdt(path)).toBe(true)
-    expect(canSaveAsOdt(join(directory, 'outro.odt'))).toBe(false)
+    const saved = await saveOdt(client, content, target)
+    expect(saved.created).toBe(true)
+    expect(saved.inventory.lost).toEqual([])
+    const destination = join(directory, 'novo.odt')
+    await writeFile(destination, saved.bytes)
+    followOriginal(null, destination, { original: saved.original, format: OriginalFormat.Odt, created: true })
+    expect(isCreatedOriginal(destination)).toBe(true)
+
+    const again = await saveOdt(client, content, { ...target, origin: destination })
+    expect(again.created).toBe(true)
+    const reopened = await openOdt(client, destination)
+    expect(lastText(reopened.content)).toBe('Novo')
+    expect(isCreatedOriginal(destination)).toBe(false)
   })
 })
+
+/** The default paragraph style, as the reader gives it: unsaid. */
+function withoutNormal(node: DocumentNode): DocumentNode {
+  const { attrs, content, ...rest } = node
+  const { styleId, ...others } = attrs ?? {}
+  const kept = styleId === 'Normal' ? others : attrs
+  return {
+    ...rest,
+    ...(kept === undefined || Object.keys(kept).length === 0 ? {} : { attrs: kept }),
+    ...(content === undefined ? {} : { content: content.map(withoutNormal) }),
+  }
+}
+
+/** As a DOCX gives them: they mean nothing in another package. */
+function withOids(doc: DocumentNode): DocumentNode {
+  return {
+    ...doc,
+    content: (doc.content ?? []).map((block, index) => ({
+      ...block,
+      attrs: { ...block.attrs, oid: `docx-${index}` },
+    })),
+  }
+}

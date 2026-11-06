@@ -32,6 +32,12 @@ public sealed class Server(Stream input, Stream output)
                              ?? throw new Docx.DocxException("sidecar.error.pageMissing");
                 return Task.FromResult(new Reply(null, Docx.DocxTemplate.Create(create.Page, create.Styles)));
             },
+            ["odt.create"] = static (request, _, _) =>
+            {
+                var create = request.Params.Deserialize<Odt.OdtCreateDto>(JsonOptions.Default)
+                             ?? throw new Docx.DocxException("sidecar.error.pageMissing");
+                return Task.FromResult(new Reply(null, Odt.OdtTemplate.Create(create)));
+            },
             ["odt.open"] = static (_, binary, _) =>
                 Task.FromResult(Reply.Of(Odt.OdtReader.Read(binary.ToArray()))),
             // As `docx.save`: the binary is the opened `.odt`, which main kept.

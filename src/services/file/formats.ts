@@ -13,8 +13,8 @@ export const EXCEL_EXTENSION = '.xlsx'
 export const WORD_TEMPLATE_EXTENSION = '.dotx'
 export const WORD_MACRO_TEMPLATE_EXTENSION = '.dotm'
 /**
- * A destination only for a document that came from a `.odt`: the sidecar writes into that package,
- * and main refuses it for any other (`assertOdtDestination`).
+ * A destination for any document: the sidecar writes into the `.odt` it came from, or into a
+ * minimal package for any other.
  */
 export const ODT_EXTENSION = '.odt'
 export const SUPPORTED_EXTENSIONS = [
@@ -29,9 +29,7 @@ export const SUPPORTED_EXTENSIONS = [
 ] as const
 /** Only viewed, never a save destination: that is why it stays out of `SUPPORTED_EXTENSIONS`. */
 export const PDF_EXTENSION = '.pdf'
-/** What main reads into the editor. */
-export const READABLE_EXTENSIONS = SUPPORTED_EXTENSIONS
-export const OPENABLE_EXTENSIONS = [...READABLE_EXTENSIONS, PDF_EXTENSION] as const
+export const OPENABLE_EXTENSIONS = [...SUPPORTED_EXTENSIONS, PDF_EXTENSION] as const
 
 export function isPlainTextPath(path: string): boolean {
   return extensionOf(path) === PLAIN_TEXT_EXTENSION
@@ -85,12 +83,9 @@ export function fileNameFromPath(path: string): string {
   return lastSeparator === -1 ? path : path.slice(lastSeparator + 1)
 }
 
+/** What main reads into the editor, and saves to. */
 export function isSupportedExtension(path: string): boolean {
   return (SUPPORTED_EXTENSIONS as readonly string[]).includes(extensionOf(path))
-}
-
-export function isReadableExtension(path: string): boolean {
-  return (READABLE_EXTENSIONS as readonly string[]).includes(extensionOf(path))
 }
 
 export function isOpenableExtension(path: string): boolean {

@@ -26,20 +26,24 @@ public static class OdtWriter
         var inventory = new Inventory();
         var pictures = new OdtPictures(package);
         var taken = OdtAutomaticStyles.NamesIn(package.Content, package.Styles).ToList();
-        var context = new OdtWriteContext(source.Styles, new OdtAutomaticStyles(taken), pictures, inventory);
+        var context = new OdtWriteContext(source.Styles, new OdtAutomaticStyles(taken), pictures, inventory)
+        {
+            Plan = new OdtDocumentPlan(model.Doc, model.Comments, model.Notes),
+            Formulas = new OdtFormulas(path => package.Has(path) || package.MediaTypes.ContainsKey(path + "/")),
+        };
         context.TakeNames(package.Content.Root!);
 
         var replaced = new Dictionary<string, byte[]>(StringComparer.Ordinal);
-        var (content, preserved, rewritten) = Content(package, source, context, model.Doc);
+        var (content, preserved, rewritten) = Content(package, source, context, model);
         var styles = OdtStylesPart.Write(source, model, taken);
         Replace(replaced, package, OdtPackage.ContentPath, content);
         Replace(replaced, package, OdtPackage.StylesPath, styles);
         if (OdtMetaPart.Write(package.Meta, source.Properties, model.Properties) is { } meta) replaced[OdtPackage.MetaPath] = meta;
         var objects = OdtEmbeddedObjects.Find(package, content, styles is null ? package.Styles : XmlParts.Read(Utf8.GetBytes(styles)));
         var addMeta = package.Meta is null && replaced.ContainsKey(OdtPackage.MetaPath);
-        Replace(replaced, package, OdtPackage.ManifestPath, Manifest(package, pictures, objects, addMeta));
+        Replace(replaced, package, OdtPackage.ManifestPath, Manifest(package, pictures, context.Formulas, objects, addMeta));
 
-        return (Zip(package, replaced, pictures, objects), new SaveResult(inventory, preserved, rewritten));
+        return (Zip(package, replaced, pictures, context.Formulas, objects), new SaveResult(inventory, preserved, rewritten));
     }
 
     /// <summary>Only when the text differs: an unchanged part keeps its bytes.</summary>
@@ -55,21 +59,26 @@ public static class OdtWriter
         Encoding.UTF8.GetString(package.ReadBytes(path) ?? throw new OdtException("sidecar.error.odtWithoutContent"));
 
     private static (string Text, int Preserved, int Rewritten) Content(
-        OdtPackage package, OdtSource source, OdtWriteContext context, Node doc)
+        OdtPackage package, OdtSource source, OdtWriteContext context, DocumentModelDto model)
     {
         var xml = TextOf(package, OdtPackage.ContentPath);
         var root = package.Content.Root!;
         var spans = OdtXmlSpans.Root(xml);
         var xmlOut = new OdtXmlOut(root);
         var textSpan = OdtXmlSpans.Find(spans, source.Text);
-        var body = new OdtBodyWriter(source, context, xmlOut, xml, textSpan);
-        var inner = body.Write(doc);
+        var sections = new OdtSectionPlan(model, MastersOf(package.Styles), source.MasterPage, context, xmlOut);
+        var body = new OdtBodyWriter(source, context, xmlOut, xml, textSpan, sections);
+        var inner = body.Write(model.Doc);
 
         var edits = new TextEdits(xml);
         edits.ReplaceContent(textSpan, inner);
         AppendStyles(edits, spans, root, xmlOut, context.Automatic.Created, root.Element(Ns.Office + "body"));
         return (edits.Apply(), body.Preserved, body.Rewritten);
     }
+
+    private static HashSet<string> MastersOf(XDocument? styles) =>
+        (styles?.Root?.Element(Ns.Office + "master-styles")?.Elements(Ns.Style + "master-page") ?? [])
+        .Select(master => master.Attr(Ns.Style + "name")).OfType<string>().ToHashSet(StringComparer.Ordinal);
 
     /// <summary>At the end of <c>office:automatic-styles</c>, created before <paramref name="before"/> when missing.</summary>
     internal static void AppendStyles(
@@ -87,10 +96,11 @@ public static class OdtWriter
         else edits.AppendContent(spans, created);
     }
 
-    private static string? Manifest(OdtPackage package, OdtPictures pictures, OdtEmbeddedObjects objects, bool addMeta)
+    private static string? Manifest(OdtPackage package, OdtPictures pictures, OdtFormulas formulas, OdtEmbeddedObjects objects, bool addMeta)
     {
-        if ((pictures.Added.Count == 0 && !addMeta && objects.IsEmpty) || package.Manifest?.Root is not { } root) return null;
-        var entries = pictures.ManifestEntries().ToList();
+        var unchanged = pictures.Added.Count == 0 && formulas.Added.Count == 0 && !addMeta && objects.IsEmpty;
+        if (unchanged || package.Manifest?.Root is not { } root) return null;
+        var entries = pictures.ManifestEntries().Concat(formulas.ManifestEntries()).ToList();
         if (addMeta)
         {
             entries.Add(new XElement(
@@ -115,7 +125,8 @@ public static class OdtWriter
     /// <c>mimetype</c> first, stored, so a reader finds the type at a fixed offset; the rest in the
     /// original order, with the original dates.
     /// </summary>
-    private static byte[] Zip(OdtPackage package, Dictionary<string, byte[]> replaced, OdtPictures pictures, OdtEmbeddedObjects objects)
+    private static byte[] Zip(
+        OdtPackage package, Dictionary<string, byte[]> replaced, OdtPictures pictures, OdtFormulas formulas, OdtEmbeddedObjects objects)
     {
         using var output = new MemoryStream();
         using (var zip = new ZipArchive(output, ZipArchiveMode.Create, leaveOpen: true))
@@ -130,6 +141,7 @@ public static class OdtWriter
             }
 
             foreach (var (path, _, bytes) in pictures.Added) Add(zip, path, bytes, CompressionLevel.NoCompression, DateTimeOffset.Now);
+            foreach (var (folder, bytes) in formulas.Added) Add(zip, OdtFormulas.ContentPathOf(folder), bytes, CompressionLevel.Optimal, DateTimeOffset.Now);
             if (!package.Has(OdtPackage.MetaPath) && replaced.TryGetValue(OdtPackage.MetaPath, out var meta))
             {
                 Add(zip, OdtPackage.MetaPath, meta, CompressionLevel.Optimal, DateTimeOffset.Now);

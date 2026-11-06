@@ -198,8 +198,6 @@ export const ipcContracts = {
       suggestedName: z.string().min(1).max(MAX_FILE_NAME_LENGTH),
       kind: documentKindSchema.default('document'),
       wordOnly: z.boolean().default(false),
-      // As in `FileSave`: only compared with the package main opened, to offer `.odt`.
-      origin: z.string().min(1).nullable().default(null),
     }),
     response: saveResultSchema,
   },

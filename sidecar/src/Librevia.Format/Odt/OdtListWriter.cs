@@ -9,7 +9,8 @@ namespace Librevia.Format.Odt;
 /// <summary>
 /// The inverse of <see cref="OdtListReader"/>: a list → <c>text:list</c> with an automatic list
 /// style made from its <c>numbering</c> levels. A list whose key an earlier list already has
-/// continues its count (<c>text:continue-numbering</c>), under the same style.
+/// continues its count (<c>text:continue-numbering</c>), under the same style, as Word counts a
+/// definition across lists. ODF allows no table in a list item: it goes right after the list.
 /// </summary>
 internal sealed partial class OdtListWriter(OdtWriteContext context, OdtBlockWriter blocks)
 {
@@ -26,7 +27,22 @@ internal sealed partial class OdtListWriter(OdtWriteContext context, OdtBlockWri
 
     private const string DefaultBullet = "•";
 
-    public XElement Write(Node list)
+    private List<XElement> _hoisted = [];
+    private OdtPageStart? _page;
+
+    /// <param name="page">The master page the list's first paragraph opens.</param>
+    public List<XElement> Write(Node list, OdtPageStart? page = null)
+    {
+        var outer = _hoisted;
+        _hoisted = [];
+        _page = page;
+        var written = new List<XElement> { List(list) };
+        written.AddRange(_hoisted);
+        _hoisted = outer;
+        return written;
+    }
+
+    private XElement List(Node list)
     {
         var numbering = Attr.Node(list, "numbering") as JsonObject;
         var key = numbering?["key"] is JsonValue value && value.TryGetValue<string>(out var text) ? text : null;
@@ -38,7 +54,7 @@ internal sealed partial class OdtListWriter(OdtWriteContext context, OdtBlockWri
         }
         else
         {
-            var style = context.Automatic.Add(OdtAutomaticStyles.List, ListStyle(list, numbering?["levels"] as JsonArray));
+            var style = context.Automatic.Add(OdtAutomaticStyles.List, ListStyle(list, numbering?["levels"] as JsonArray, numbering?["overrides"] as JsonObject));
             element.Add(new XAttribute(Ns.Text + "style-name", style));
             if (key is not null) context.ListStyles[key] = style;
         }
@@ -60,9 +76,13 @@ internal sealed partial class OdtListWriter(OdtWriteContext context, OdtBlockWri
                     Items(nested, child);
                     listItem.Add(nested);
                 }
+                else if (child.Type == "table")
+                {
+                    _hoisted.AddRange(blocks.Write(child, flat: true));
+                }
                 else
                 {
-                    listItem.Add(blocks.Write(child, flat: true));
+                    listItem.Add(blocks.Write(child, flat: true, page: child.Type is "paragraph" or "heading" ? TakePage() : null));
                 }
             }
 
@@ -71,8 +91,18 @@ internal sealed partial class OdtListWriter(OdtWriteContext context, OdtBlockWri
         }
     }
 
-    /// <summary>One level per depth the list reaches, each of the kind of the list at that depth.</summary>
-    private static XElement ListStyle(Node list, JsonArray? levels)
+    private OdtPageStart? TakePage()
+    {
+        var page = _page;
+        _page = null;
+        return page;
+    }
+
+    /// <summary>
+    /// One level per depth the list reaches, each of the kind of the list at that depth. A restart
+    /// (<c>w:startOverride</c>) is the level's start: the list that opens the count states it.
+    /// </summary>
+    private static XElement ListStyle(Node list, JsonArray? levels, JsonObject? overrides)
     {
         var kinds = new List<string>();
         KindsOf(list, 0, kinds);
@@ -83,7 +113,8 @@ internal sealed partial class OdtListWriter(OdtWriteContext context, OdtBlockWri
             var level = defined.Count > depth ? defined[depth] as JsonObject : null;
             level ??= ListLevels.Defaults(list.Type)[depth] as JsonObject;
             var kind = depth < kinds.Count ? kinds[depth] : KindOfLevel(level);
-            style.Add(kind == OdtListLevels.Bullet ? Bullet(depth, level) : Numbered(depth, level));
+            var restart = Number(overrides, depth.ToString(CultureInfo.InvariantCulture));
+            style.Add(kind == OdtListLevels.Bullet ? Bullet(depth, level) : Numbered(depth, level, restart));
         }
 
         return style;
@@ -115,14 +146,14 @@ internal sealed partial class OdtListWriter(OdtWriteContext context, OdtBlockWri
     /// LibreOffice's own form of the number text (<c>%1%.%2%.</c>), and the prefix, suffix and levels
     /// shown for any other reader.
     /// </summary>
-    private static XElement Numbered(int depth, JsonObject? level)
+    private static XElement Numbered(int depth, JsonObject? level, double? restart)
     {
         var text = Text(level, "text") ?? $"%{depth + 1}.";
         var placeholders = Placeholder().Matches(text);
         var prefix = placeholders.Count == 0 ? text : text[..placeholders[0].Index];
         var suffix = placeholders.Count == 0 ? string.Empty : text[(placeholders[^1].Index + placeholders[^1].Length)..];
         var format = placeholders.Count == 0 ? string.Empty : NumberFormats.GetValueOrDefault(Text(level, "fmt") ?? "decimal", "1");
-        var start = (int)(Number(level, "start") ?? 1);
+        var start = (int)(restart ?? Number(level, "start") ?? 1);
 
         var element = new XElement(
             Ns.Text + "list-level-style-number",
@@ -140,7 +171,7 @@ internal sealed partial class OdtListWriter(OdtWriteContext context, OdtBlockWri
     private static XElement Placement(int depth, JsonObject? level)
     {
         var indent = Millimetres(level, "indentMm") ?? ListLevels.Mm((depth + 1) * ListLevels.IndentStepTwips);
-        var hanging = Millimetres(level, "hangingMm") ?? ListLevels.Mm(ListLevels.HangingTwips);
+        var hanging = Millimetres(level, "hangingMm") ?? 0;
         return new XElement(
             Ns.Style + "list-level-properties",
             new XAttribute(Ns.Text + "list-level-position-and-space-mode", "label-alignment"),

@@ -1,9 +1,13 @@
 /**
  * An ODT opens as a file of its own: main keeps the original bytes, as for a `.docx`, and saving
- * goes back into that package through the sidecar, which rewrites only the edited blocks.
+ * goes back into that package through the sidecar, which rewrites only the edited blocks. A
+ * document without an ODT original goes into the minimal package (`odt.create`), whole.
  */
 
+import { walk } from '@services/document/export-common.js'
 import { withoutUnsafeLinks } from '@services/document/link.js'
+import { withEquationLatex } from '@services/document/mathml-latex.js'
+import type { DocumentNode } from '@services/document/model.js'
 import { AppError, ErrorCode } from '@shared/errors.js'
 import {
   openResultSchema,
@@ -11,11 +15,13 @@ import {
   saveParamsOf,
   saveResultSchema,
   sdocContentOf,
+  withoutOids,
   type OpenedDocx,
   type SavedDocx,
+  type SdocModel,
 } from '../docx/index.js'
 import { readFileBytes } from '../fs/read-bytes.js'
-import { OriginalFormat, originalOf, rememberOriginal } from '../opened-original.js'
+import { isCreatedOriginal, OriginalFormat, originalOf, rememberOriginal } from '../opened-original.js'
 import type { SidecarClient } from '../sidecar/client.js'
 import { SidecarMethod } from '../sidecar/protocol.js'
 import { t } from '../i18n.js'
@@ -36,35 +42,83 @@ export async function decodeOdt(client: SidecarClient, path: string, bytes: Buff
   return { content: sdocContentOf({ ...model, doc: withoutUnsafeLinks(model.doc) }), inventory }
 }
 
-/** Whether `.odt` is a destination for the document that came from `origin`. */
-export function canSaveAsOdt(origin: string | null): boolean {
-  return originalOf(origin, OriginalFormat.Odt) !== null
+export interface OdtTarget {
+  /** `null` for a new document. Only compared with the stored original. */
+  readonly origin: string | null
+  /** `meta:generator` of a new package. */
+  readonly generator: string
+}
+
+export interface SavedOdt extends SavedDocx {
+  /** The starting package is the minimal one: the next save builds it again from the model. */
+  readonly created: boolean
 }
 
 /**
- * Only over the `.odt` the document came from: a document without one is exported, not saved
- * (`export-odt.ts`), until the sidecar can create the package.
+ * Over the `.odt` the document came from, or the minimal package for any other: a new document, a
+ * `.sdoc`, a DOCX. The minimal package is rebuilt on each save, so the page, sections, styles and
+ * note numbering follow the model; another format's `oid`s mean nothing there.
  */
-export function assertOdtDestination(origin: string | null): Buffer {
-  const original = originalOf(origin, OriginalFormat.Odt)
-  if (original === null) throw new AppError(ErrorCode.UnsupportedFormat, t('errors.odt.saveNeedsOriginal'))
-  return original
-}
-
 export async function saveOdt(
   client: SidecarClient,
   sdocContent: string,
-  target: { readonly origin: string | null },
-): Promise<SavedDocx> {
-  const original = assertOdtDestination(target.origin)
-  const model = readSdocModel(sdocContent)
+  target: OdtTarget,
+): Promise<SavedOdt> {
+  const read = readSdocModel(sdocContent)
+  const kept = isCreatedOriginal(target.origin) ? null : originalOf(target.origin, OriginalFormat.Odt)
+  const model = kept === null ? { ...read, doc: withoutOids(read.doc) } : read
+  const original = kept ?? Buffer.from(await createOdt(client, model, target.generator))
+  const saved = await writeOdt(client, model, original)
+  return { ...saved, original, created: kept === null }
+}
 
-  const reply = await client.request(SidecarMethod.OdtSave, saveParamsOf(model, {}), new Uint8Array(original))
+/** "Export as": a new file from the model, without touching the open document's original. */
+export async function exportOdt(
+  client: SidecarClient,
+  sdocContent: string,
+  generator: string,
+): Promise<Uint8Array> {
+  const read = readSdocModel(sdocContent)
+  const model = { ...read, doc: withoutOids(read.doc) }
+  const saved = await writeOdt(client, model, Buffer.from(await createOdt(client, model, generator)))
+  return saved.bytes
+}
+
+/** The equation's LaTeX goes along: ODF keeps it as the formula's description. */
+async function writeOdt(
+  client: SidecarClient,
+  model: SdocModel,
+  original: Buffer,
+): Promise<Omit<SavedDocx, 'original'>> {
+  const params = { ...saveParamsOf(model, {}), doc: withEquationLatex(model.doc as DocumentNode) }
+  const reply = await client.request(SidecarMethod.OdtSave, params, new Uint8Array(original))
   const parsed = saveResultSchema.safeParse(reply.result)
   if (!parsed.success) {
     throw new AppError(ErrorCode.SidecarFailed, t('errors.odt.cannotSave'), t('errors.odt.saveContract'))
   }
 
   console.info(`[odt] preserved ${parsed.data.preservedBlocks}, rewritten ${parsed.data.rewrittenBlocks}`)
-  return { bytes: reply.binary, inventory: parsed.data.inventory, original }
+  return { bytes: reply.binary, inventory: parsed.data.inventory }
+}
+
+/** Created by the sidecar (`OdtTemplate`), with what lives in `styles.xml` and `meta.xml`. */
+async function createOdt(client: SidecarClient, model: SdocModel, generator: string): Promise<Uint8Array> {
+  const { page, sections, styles, notes, properties } = model
+  const headingLevels = headingLevelsOf(model.doc as DocumentNode)
+  const params = { page, sections, styles, notes, properties, headingLevels, generator }
+  const reply = await client.request(SidecarMethod.OdtCreate, params)
+  if (reply.binary.length === 0) {
+    throw new AppError(ErrorCode.SidecarFailed, t('errors.odt.cannotCreate'), t('errors.odt.createContract'))
+  }
+  return reply.binary
+}
+
+/** A level without a style in the sheet gets the built-in heading in `styles.xml`. */
+function headingLevelsOf(doc: DocumentNode): number[] {
+  const levels = new Set<number>()
+  walk(doc, (node) => {
+    const level = Number(node.attrs?.['level'])
+    if (node.type === 'heading' && Number.isInteger(level)) levels.add(level)
+  })
+  return [...levels]
 }

@@ -1,21 +1,38 @@
 import { execFileSync } from 'node:child_process'
-import { describe, expect, it } from 'vitest'
-import { odtEntries } from '@services/document/export-odt.js'
+import { access, constants, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { afterAll, describe, expect, it } from 'vitest'
 import { DEFAULT_PAGE_SETUP, type DocumentModel } from '@services/document/model.js'
 import { BUILTIN_STYLES } from '@services/document/styles.js'
+import { sdocContentOf } from '../docx/index.js'
+import { exportOdt } from '../odt/index.js'
+import { SidecarClient } from '../sidecar/client.js'
+import { sidecarPathIn } from '../sidecar/locate.js'
 
-/** The system `xmllint`, when there is one. */
-const HAS_XMLLINT = (() => {
+/** The system tools, when there are: `xmllint` checks, `unzip` takes the parts out. */
+const hasTool = (tool: string, flag: string): boolean => {
   try {
-    execFileSync('xmllint', ['--version'], { stdio: 'ignore' })
+    execFileSync(tool, [flag], { stdio: 'ignore' })
     return true
   } catch {
     return false
   }
-})()
+}
 
-/** Here, not next to the export, because only main has `xmllint`. */
-describe('the ODT with equations', () => {
+const HAS_TOOLS = hasTool('xmllint', '--version') && hasTool('unzip', '-v')
+
+const executable = sidecarPathIn(process.cwd())
+const published = await access(executable, constants.X_OK).then(
+  () => true,
+  () => false,
+)
+
+const client = new SidecarClient(() => Promise.resolve(executable))
+afterAll(() => client.dispose())
+
+/** Here, not next to the writer, because only main has the published sidecar and `xmllint`. */
+describe.skipIf(!published || !HAS_TOOLS)('the ODT with equations', () => {
   const model: DocumentModel = {
     page: DEFAULT_PAGE_SETUP,
     sections: [{ ...DEFAULT_PAGE_SETUP, id: 's1' }],
@@ -26,6 +43,7 @@ describe('the ODT with equations', () => {
       content: [
         {
           type: 'paragraph',
+          attrs: { sectionBreak: 's1' },
           content: [
             { type: 'text', text: 'Seja <x> & ' },
             {
@@ -54,15 +72,24 @@ describe('the ODT with equations', () => {
     },
   }
 
-  it.skipIf(!HAS_XMLLINT)('every XML part is well formed', () => {
-    const parts = odtEntries(model).filter((entry) => entry.name.endsWith('.xml'))
-    expect(parts.map((entry) => entry.name)).toContain('Object 2/content.xml')
-    for (const entry of parts) {
-      expect(
-        () =>
-          execFileSync('xmllint', ['--noout', '-'], { input: entry.data, stdio: ['pipe', 'ignore', 'pipe'] }),
-        entry.name,
-      ).not.toThrow()
+  it('every XML part is well formed', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'librevia-odt-xml-'))
+    try {
+      const path = join(directory, 'equações.odt')
+      await writeFile(path, await exportOdt(client, sdocContentOf(model), 'Librevia/0.0.0'))
+      const parts = execFileSync('unzip', ['-Z1', path], { encoding: 'utf8' })
+        .split('\n')
+        .filter((name) => name.endsWith('.xml'))
+      expect(parts).toContain('Object 2/content.xml')
+      for (const part of parts) {
+        const data = execFileSync('unzip', ['-p', path, part])
+        expect(
+          () => execFileSync('xmllint', ['--noout', '-'], { input: data, stdio: ['pipe', 'ignore', 'pipe'] }),
+          part,
+        ).not.toThrow()
+      }
+    } finally {
+      await rm(directory, { recursive: true, force: true })
     }
   })
 })

@@ -15,13 +15,13 @@ internal static class OdtStylesPart
     private const string HeaderStyle = "Header";
     private const string FooterStyle = "Footer";
 
-    private static readonly Dictionary<string, (double Short, double Long)> Papers = new(StringComparer.Ordinal)
+    internal static readonly Dictionary<string, (double Short, double Long)> Papers = new(StringComparer.Ordinal)
     {
         ["A4"] = (210, 297),
         ["Letter"] = (215.9, 279.4),
     };
 
-    private static readonly Dictionary<string, string> PageNumberFormats = new(StringComparer.Ordinal)
+    internal static readonly Dictionary<string, string> PageNumberFormats = new(StringComparer.Ordinal)
     {
         ["decimal"] = "1",
         ["lowerRoman"] = "i",
@@ -145,7 +145,7 @@ internal static class OdtStylesPart
     }
 
     /// <summary>A <c>style:name</c> is an XML name: LibreOffice escapes the rest as <c>_20_</c>.</summary>
-    private static string SafeName(string id)
+    internal static string SafeName(string id)
     {
         var name = new StringBuilder();
         foreach (var letter in id)
@@ -162,8 +162,8 @@ internal static class OdtStylesPart
         OdtSource source, PageSetupDto wanted, XElement root, XmlSpan spans, OdtXmlOut xmlOut, TextEdits edits, OdtAutomaticStyles automatic)
     {
         var known = source.Page;
-        var bandsChanged = (known.HeaderText ?? string.Empty) != (wanted.HeaderText ?? string.Empty) ||
-                           (known.FooterText ?? string.Empty) != (wanted.FooterText ?? string.Empty);
+        var bandsChanged = (wanted.Header is null && (known.HeaderText ?? string.Empty) != (wanted.HeaderText ?? string.Empty)) ||
+                           (wanted.Footer is null && (known.FooterText ?? string.Empty) != (wanted.FooterText ?? string.Empty));
         var layoutChanged = known.Size != wanted.Size || known.Orientation != wanted.Orientation ||
                             !SameMargins(known.Margins, wanted.Margins) || known.PageNumberFormat != wanted.PageNumberFormat;
         if (!bandsChanged && !layoutChanged) return false;
@@ -176,8 +176,8 @@ internal static class OdtStylesPart
         var bands = new XElement(master);
         if (bandsChanged)
         {
-            Band(source, bands, "header", known.HeaderText, wanted.HeaderText, HeaderStyle, automatic);
-            Band(source, bands, "footer", known.FooterText, wanted.FooterText, FooterStyle, automatic);
+            if (wanted.Header is null) Band(source, bands, "header", known.HeaderText, wanted.HeaderText, HeaderStyle, automatic);
+            if (wanted.Footer is null) Band(source, bands, "footer", known.FooterText, wanted.FooterText, FooterStyle, automatic);
             edits.Replace(OdtXmlSpans.Find(spans, master), xmlOut.Write(bands));
         }
 
@@ -196,7 +196,22 @@ internal static class OdtStylesPart
         Math.Abs(known.Top - wanted.Top) < MarginToleranceMm && Math.Abs(known.Bottom - wanted.Bottom) < MarginToleranceMm &&
         Math.Abs(known.Left - wanted.Left) < MarginToleranceMm && Math.Abs(known.Right - wanted.Right) < MarginToleranceMm;
 
-    /// <summary>The band as one centered line, <c>{n}</c> and <c>{total}</c> as page fields; empty removes it.</summary>
+    /// <summary>
+    /// The plain band of the model (<c>header</c>, <c>footer</c>), as one centered line in the
+    /// editor's own look, the one <see cref="OdtPageReader"/> reads back as plain; <c>{n}</c> and
+    /// <c>{total}</c> are page fields.
+    /// </summary>
+    internal static XElement PlainBand(string kind, string text, string? parent, OdtAutomaticStyles automatic, OdtFonts fonts)
+    {
+        var centered = new XElement(Ns.Style + "paragraph-properties", new XAttribute(Ns.Fo + "text-align", "center"));
+        var look = OdtFormatWriter.Text(
+            new CharacterFormat(FontFamily: BuiltinStyles.BandFont, FontSizePt: PlainBandWriter.BandSizePt, Color: "#" + PlainBandWriter.BandColor),
+            fonts);
+        var style = automatic.Style(OdtAutomaticStyles.Band, OdtStyles.ParagraphFamily, parent, centered, look);
+        return new XElement(Ns.Style + kind, new XElement(Ns.Text + "p", new XAttribute(Ns.Text + "style-name", style), BandText(text)));
+    }
+
+    /// <summary>The band as <see cref="PlainBand"/> writes it; empty removes it.</summary>
     private static void Band(
         OdtSource source, XElement master, string kind, string? known, string? wanted, string namedStyle, OdtAutomaticStyles automatic)
     {
@@ -208,10 +223,8 @@ internal static class OdtStylesPart
             return;
         }
 
-        var centered = new XElement(Ns.Style + "paragraph-properties", new XAttribute(Ns.Fo + "text-align", "center"));
         var parent = source.Styles.IsNamed(OdtStyles.ParagraphFamily, namedStyle) ? namedStyle : null;
-        var style = automatic.Style(OdtAutomaticStyles.Band, OdtStyles.ParagraphFamily, parent, centered);
-        var band = new XElement(Ns.Style + kind, new XElement(Ns.Text + "p", new XAttribute(Ns.Text + "style-name", style), BandText(wanted)));
+        var band = PlainBand(kind, wanted, parent, automatic, source.Styles.Fonts);
 
         if (existing is not null) existing.ReplaceWith(band);
         else if (kind == "header") master.AddFirst(band);

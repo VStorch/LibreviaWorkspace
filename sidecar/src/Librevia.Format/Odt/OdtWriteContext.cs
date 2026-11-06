@@ -3,18 +3,37 @@ using Librevia.Format.Docx;
 
 namespace Librevia.Format.Odt;
 
-/// <summary>What the writers of one <c>content.xml</c> share.</summary>
+/// <summary>What the writers of one part share.</summary>
 internal sealed class OdtWriteContext(OdtStyles styles, OdtAutomaticStyles automatic, OdtPictures pictures, Inventory inventory)
 {
     private const string TablePrefix = "LvTable";
     private const string ImagePrefix = "LvImage";
+    private const string EquationPrefix = "LvEquation";
+    private const string FramePrefix = "LvFrame";
+    private const string NotePrefix = "LvNote";
+    private const string SectionPrefix = "LvSection";
 
     private readonly HashSet<string> _names = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _bookmarks = new(StringComparer.Ordinal);
 
     public OdtStyles Styles => styles;
     public OdtAutomaticStyles Automatic => automatic;
     public OdtPictures Pictures => pictures;
     public Inventory Inventory => inventory;
+
+    /// <summary>The whole document's comments, notes and bookmarks; empty for a band.</summary>
+    public OdtDocumentPlan Plan { get; init; } = OdtDocumentPlan.Empty;
+
+    public OdtFormulas Formulas { get; init; } = new(_ => false);
+
+    /// <summary>Inside a note, a band or a text box, where ODF allows no note.</summary>
+    public int NotelessDepth { get; set; }
+
+    /// <summary>In a header or footer, where <c>{n}</c> and <c>{total}</c> are page fields.</summary>
+    public bool InBand { get; set; }
+
+    /// <summary>The section of the block being written: notes may restart there.</summary>
+    public int Section { get; set; }
 
     /// <summary>The list style of each numbering key written so far, so a list can continue another.</summary>
     public Dictionary<string, string> ListStyles { get; } = new(StringComparer.Ordinal);
@@ -26,8 +45,17 @@ internal sealed class OdtWriteContext(OdtStyles styles, OdtAutomaticStyles autom
         {
             if (element.Attr(Ns.Table + "name") is { } table) _names.Add(table);
             if (element.Attr(Ns.Draw + "name") is { } frame) _names.Add(frame);
+            if (element.Name.LocalName == "note" && element.Attr(Ns.Text + "id") is { } note) _names.Add(note);
+            if (element.Name.LocalName == "section" && element.Attr(Ns.Text + "name") is { } section) _names.Add(section);
+            if (element.Name.LocalName.StartsWith("bookmark", StringComparison.Ordinal) && element.Attr(Ns.Text + "name") is { } bookmark)
+            {
+                _bookmarks.Add(bookmark);
+            }
         }
     }
+
+    /// <summary>A name the document does not use yet; a repeated one is <c>false</c>, as LibreOffice refuses two.</summary>
+    public bool TakeBookmark(string name) => _bookmarks.Add(name);
 
     /// <summary>The name of the table being rewritten: formulas and links point to it.</summary>
     public string? KeptTableName { get; set; }
@@ -44,6 +72,14 @@ internal sealed class OdtWriteContext(OdtStyles styles, OdtAutomaticStyles autom
 
     public string NewImageName() => NewName(ImagePrefix);
 
+    public string NewEquationName() => NewName(EquationPrefix);
+
+    public string NewFrameName() => NewName(FramePrefix);
+
+    public string NewNoteId() => NewName(NotePrefix);
+
+    public string NewSectionName() => NewName(SectionPrefix);
+
     private string NewName(string prefix)
     {
         var number = 1;
@@ -59,6 +95,15 @@ internal sealed class OdtWriteContext(OdtStyles styles, OdtAutomaticStyles autom
         var name = OdtWordStyles.OdfNameOf(family, id);
         return styles.IsNamed(family, name) ? name : null;
     }
+
+    /// <summary>
+    /// The heading style of the level, as the editor's cascade picks it: Word's id, or else any
+    /// paragraph style named <c>heading N</c>.
+    /// </summary>
+    public string? HeadingStyle(int level) =>
+        NamedStyle(OdtStyles.ParagraphFamily, OdtWordStyles.HeadingIdOf(level))
+        ?? styles.Named.FirstOrDefault(style => style.Family == OdtStyles.ParagraphFamily &&
+                                                string.Equals(style.DisplayName, OdtWordStyles.HeadingNameOf(level), StringComparison.OrdinalIgnoreCase))?.Name;
 
     /// <summary>The fields of the block being rewritten, in order: a written field takes the attributes of its own.</summary>
     public List<XElement> SourceFields { get; } = [];

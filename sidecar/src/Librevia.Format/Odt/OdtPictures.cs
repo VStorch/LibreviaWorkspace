@@ -5,9 +5,10 @@ namespace Librevia.Format.Odt;
 
 /// <summary>
 /// The images of a rewritten block: one the package already has keeps its entry; a new one goes in
-/// <c>Pictures/</c> under a name of its own and into the manifest.
+/// <c>Pictures/</c> under a name of its own and into the manifest. Without a package, as
+/// <see cref="OdtTemplate"/> creates one, every image is new.
 /// </summary>
-internal sealed class OdtPictures(OdtPackage package)
+internal sealed class OdtPictures(OdtPackage? package)
 {
     private const string Folder = "Pictures/";
     private const string NamePrefix = "Librevia";
@@ -32,24 +33,24 @@ internal sealed class OdtPictures(OdtPackage package)
     {
         var hash = Convert.ToHexString(SHA256.HashData(bytes));
         var existing = _existing ??= Existing();
-        if (existing.TryGetValue(hash, out var path)) return path;
+        if (existing.TryGetValue(hash, out var known)) return known;
 
         var number = 1;
-        while (package.Has(path = $"{Folder}{NamePrefix}{number}{Extensions[mediaType]}") ||
-               _added.Any(added => added.Path == path))
-        {
-            number++;
-        }
+        var path = NameOf(number, mediaType);
+        while (package?.Has(path) == true || _added.Any(added => added.Path == path)) path = NameOf(++number, mediaType);
 
         _added.Add((path, mediaType, bytes));
         existing[hash] = path;
         return path;
     }
 
+    private static string NameOf(int number, string mediaType) => $"{Folder}{NamePrefix}{number}{Extensions[mediaType]}";
+
     /// <summary>The package's images by content: an unchanged image in an edited block keeps its file.</summary>
     private Dictionary<string, string> Existing()
     {
         var byHash = new Dictionary<string, string>(StringComparer.Ordinal);
+        if (package is null) return byHash;
         foreach (var (path, type) in package.MediaTypes)
         {
             if (!Extensions.ContainsKey(type) || package.ReadBytes(path) is not { } bytes) continue;

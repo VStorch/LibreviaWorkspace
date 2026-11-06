@@ -260,17 +260,11 @@ function createSaveActions(
   }
 }
 
-/** The origin lets main offer `.odt` to a document that came from one. */
 function chooseSavePath(
   file: OpenFile,
   wordOnly: boolean,
 ): ReturnType<typeof window.api.file.chooseSavePath> {
-  return window.api.file.chooseSavePath({
-    suggestedName: file.name,
-    kind: file.kind,
-    wordOnly,
-    origin: file.origin ?? file.path,
-  })
+  return window.api.file.chooseSavePath({ suggestedName: file.name, kind: file.kind, wordOnly })
 }
 
 /**

@@ -243,10 +243,7 @@ public sealed class ParagraphWriter
     }
 
     private static string PlainTextOf(List<Node> content) =>
-        string.Join("\n", content.Select(TextOfNode));
-
-    private static string TextOfNode(Node node) =>
-        node.Text ?? string.Concat((node.Content ?? []).Select(TextOfNode));
+        string.Join("\n", content.Select(node => node.PlainText()));
 
     /// <summary>
     /// By direct children: a box's text is also <c>w:t</c>, and in depth it would reject exactly

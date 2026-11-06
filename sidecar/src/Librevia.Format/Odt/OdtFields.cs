@@ -49,9 +49,9 @@ internal static class OdtFields
     }
 
     /// <summary>A new page number, as LibreOffice writes one.</summary>
-    public static XElement Create(string element)
+    public static XElement Create(string element, string? text = null)
     {
-        var created = new XElement(Ns.Text + element);
+        var created = new XElement(Ns.Text + element, text);
         if (element == PageNumber) created.Add(new XAttribute(Ns.Text + "select-page", CurrentPage));
         return created;
     }

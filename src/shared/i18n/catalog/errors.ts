@@ -160,10 +160,11 @@ export const ERRORS = {
     pt: 'odt.save fora do contrato',
     en: 'odt.save out of contract',
   },
-  'errors.odt.saveNeedsOriginal': {
-    pt: 'Só é possível salvar em .odt um documento aberto de um arquivo .odt. Para os outros, use Arquivo → Exportar como → Documento do OpenDocument (.odt).',
-    en: 'You can only save to .odt a document opened from an .odt file. For any other, use File → Export as → OpenDocument text (.odt).',
+  'errors.odt.cannotCreate': {
+    pt: 'Não foi possível criar o documento ODT. Nada foi gravado.',
+    en: 'Could not create the ODT document. Nothing was saved.',
   },
+  'errors.odt.createContract': { pt: 'odt.create sem pacote', en: 'odt.create returned no package' },
   'errors.docx.saveOnlyFromDocx': {
     pt: 'Só é possível salvar em .docx um documento que foi aberto a partir de um arquivo .docx. Salve como .sdoc ou abra um documento do Word primeiro.',
     en: 'You can only save to .docx a document that was opened from a .docx file. Save as .sdoc or open a Word document first.',

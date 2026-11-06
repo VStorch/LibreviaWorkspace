@@ -7,7 +7,8 @@ import { entryOf, odtWithParagraphs } from './fixtures.js'
 
 /**
  * An `.odt` opens as a file of its own: Ctrl+S writes into it, and only the edited paragraph is
- * written again. The other goes back as the exact text it had in `content.xml`.
+ * written again. The other goes back as the exact text it had in `content.xml`. Any other document
+ * saves as `.odt` too, whole, into a new package.
  */
 test.describe('ODT', () => {
   let session: Session
@@ -48,5 +49,26 @@ test.describe('ODT', () => {
 
     await menu(session, 'open')
     await expect(editor).toContainText('Revisto: Segundo parágrafo.')
+  })
+
+  test('a new document saved as .odt opens again with its text', async () => {
+    await menu(session, 'new-document')
+    const editor = session.window.locator('.pages__column .ProseMirror')
+    await editor.click()
+    await session.window.keyboard.type('Documento novo em ODT.')
+
+    const file = join(folder, 'novo.odt')
+    await stubDialogs(session.app, { save: file })
+    await menu(session, 'save-as')
+    await expect(session.window).toHaveTitle(/^novo\.odt/)
+    await expect(session.window.locator('.statusbar__state')).toHaveText('Salvo')
+    expect(await entryOf(file, 'content.xml')).toContain('Documento novo em ODT.')
+
+    await menu(session, 'new-document')
+    await expect(editor).not.toContainText('Documento novo em ODT.')
+    await stubDialogs(session.app, { open: file, messageBox: 1 })
+    await menu(session, 'open')
+    await expect(session.window).toHaveTitle(/^novo\.odt/)
+    await expect(editor).toContainText('Documento novo em ODT.')
   })
 })

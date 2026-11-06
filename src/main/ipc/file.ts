@@ -15,7 +15,8 @@ import {
 } from '@services/file/formats.js'
 import { showOpenFileDialog, showSaveFileDialog } from '../dialogs.js'
 import { forgetOpenedDocx, openDocx, saveDocx, type SavedDocx } from '../docx/index.js'
-import { assertOdtDestination, canSaveAsOdt, openOdt, saveOdt } from '../odt/index.js'
+import { openOdt, saveOdt } from '../odt/index.js'
+import { odtGenerator } from '../odt/generator.js'
 import { followOriginal, OriginalFormat, type SavedOriginal } from '../opened-original.js'
 import { forgetOpenedXlsx, openXlsx, saveXlsx } from '../xlsx/index.js'
 import { sidecar } from '../sidecar/index.js'
@@ -136,8 +137,8 @@ async function encodeForDestination(path: string, content: string, origin: strin
     return { saved: word, original: startingPackage(word, OriginalFormat.Docx) }
   }
   if (isOdtPath(path)) {
-    const odt = await saveOdt(sidecar(), content, { origin })
-    return { saved: odt, original: startingPackage(odt, OriginalFormat.Odt) }
+    const odt = await saveOdt(sidecar(), content, { origin, generator: odtGenerator() })
+    return { saved: odt, original: { ...startingPackage(odt, OriginalFormat.Odt), created: odt.created } }
   }
   return { saved: isExcelPath(path) ? await saveXlsx(sidecar(), content) : null, original: null }
 }
@@ -180,18 +181,16 @@ export function registerFileHandlers(): void {
   })
 
   handle(IpcChannel.FileChooseSavePath, async (payload, event) => {
-    const { wordOnly, origin } = payload
-    const odt = !wordOnly && canSaveAsOdt(origin)
+    const { wordOnly } = payload
     const chosen = await showSaveFileDialog(
       windowOf(event),
       wordOnly ? exportName(payload.suggestedName, WORD_EXTENSION.slice(1)) : payload.suggestedName,
       payload.kind,
-      { wordOnly, odt },
+      { wordOnly },
     )
     if (chosen === null) return { canceled: true as const }
 
     const destination = wordOnly ? asWordPath(chosen) : ensureSupportedExtension(chosen, payload.kind)
-    if (isOdtPath(destination)) assertOdtDestination(origin)
     // Only authorizes: writing is another call, so the loss warning comes before writing.
     const path = authorizePath(destination)
     return { canceled: false as const, path, name: fileNameFromPath(path) }

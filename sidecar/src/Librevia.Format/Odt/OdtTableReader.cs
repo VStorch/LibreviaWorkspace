@@ -16,9 +16,6 @@ internal sealed class OdtTableReader(OdtReadContext context, OdtBodyReader body)
     /// <summary>Against <c>number-columns-repeated="1000000"</c>.</summary>
     private const int MaxRepeat = 1024;
 
-    /// <summary>The thin border the editor draws when a cell states none; see <c>export-odt.ts</c>.</summary>
-    private const string DefaultBorder = "0.5pt solid #000000";
-
     private const string NoBorder = "none";
 
     private const double MinBorderPt = 0.25;
@@ -142,7 +139,7 @@ internal sealed class OdtTableReader(OdtReadContext context, OdtBodyReader body)
         foreach (var side in Sides)
         {
             var value = properties?.Attr(Ns.Fo + "border-" + side) ?? properties?.Attr(Ns.Fo + "border") ?? NoBorder;
-            if (value.Trim() == DefaultBorder || Describe(value) is not { } border) continue;
+            if (value.Trim() == OdtStyles.DefaultBorder || Describe(value) is not { } border) continue;
             if (text.Length > 0) text.Append(';');
             text.Append(side).Append(':').Append(border);
         }

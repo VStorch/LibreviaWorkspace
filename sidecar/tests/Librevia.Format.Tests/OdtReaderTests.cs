@@ -168,6 +168,18 @@ public class OdtReaderTests
     }
 
     [Fact]
+    public void ALibreOfficeHangingIndentIsTheMarginOfTheTextAndANegativeFirstLineAsDocxReadsIt()
+    {
+        var paragraph = Only(
+            """<text:p text:style-name="P1">x</text:p>""",
+            """<style:style style:name="P1" style:family="paragraph" style:parent-style-name="Standard"><style:paragraph-properties fo:margin-left="1.27cm" fo:margin-right="0cm" fo:text-indent="-0.635cm" style:auto-text-indent="false"/></style:style>""");
+
+        Assert.Equal(12.7, paragraph.Attrs!["indentMm"]!.GetValue<double>());
+        Assert.Equal(-6.35, paragraph.Attrs["firstLineMm"]!.GetValue<double>());
+        Assert.False(paragraph.Attrs.ContainsKey("hangingMm"));
+    }
+
+    [Fact]
     public void PageBreakBeforeABlockIsAPageBreakNode()
     {
         var blocks = Blocks(Build(

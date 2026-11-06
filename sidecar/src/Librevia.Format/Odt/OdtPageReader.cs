@@ -7,7 +7,7 @@ namespace Librevia.Format.Odt;
 /// <summary>
 /// The first block's master page → the page setup: paper, orientation and margins. ODF measures the
 /// top margin to the header and Word to the text, so the header's height and spacing join the
-/// margin, the inverse of <c>export-odt.ts</c>. Only a plain text header or footer has a place in
+/// margin, the inverse of <see cref="OdtTemplatePage"/>. Only a plain text header or footer has a place in
 /// the model (<c>{n}</c> and <c>{total}</c> for the page fields).
 /// </summary>
 internal static class OdtPageReader
@@ -133,7 +133,7 @@ internal static class OdtPageReader
     }
 
     /// <summary>
-    /// Centered by alignment, or by a center tab stop as the export writes the plain band, and with
+    /// Centered by alignment, or by a center tab stop as older Librevia exports wrote the plain band, and with
     /// no character formatting beyond the plain band's own look.
     /// </summary>
     private static bool HasOwnLook(XElement block, OdtStyles? styles)

@@ -28,6 +28,9 @@ internal sealed class OdtStyles
     public const string TextFamily = "text";
     public const string DefaultParagraphStyle = "Standard";
 
+    /// <summary>The line a border, a rule or a header's rule draws when the model gives no other.</summary>
+    public const string DefaultBorder = "0.5pt solid #000000";
+
     /// <summary>A loop in the parent chain is a broken file, not an infinite walk.</summary>
     private const int MaxChain = 32;
 

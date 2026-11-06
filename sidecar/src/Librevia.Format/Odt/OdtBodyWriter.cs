@@ -22,6 +22,7 @@ internal sealed class OdtBodyWriter
     private readonly OdtXmlOut _out;
     private readonly string _xml;
     private readonly XmlSpan _text;
+    private readonly OdtSectionPlan _sections;
     private readonly Dictionary<string, (OdtSourceBlock Block, int Part)> _byOid = new(StringComparer.Ordinal);
     private readonly HashSet<int> _kept = [];
     private readonly HashSet<int> _placed = [];
@@ -30,12 +31,14 @@ internal sealed class OdtBodyWriter
     private readonly Dictionary<int, string> _leading = [];
     private string _prelude = string.Empty;
     private string _trailing = string.Empty;
+    private OdtPageStart? _pending;
 
     public int Preserved { get; private set; }
     public int Rewritten { get; private set; }
 
-    public OdtBodyWriter(OdtSource source, OdtWriteContext context, OdtXmlOut xmlOut, string xml, XmlSpan text)
+    public OdtBodyWriter(OdtSource source, OdtWriteContext context, OdtXmlOut xmlOut, string xml, XmlSpan text, OdtSectionPlan sections)
     {
+        _sections = sections;
         _source = source;
         _context = context;
         _blocks = new OdtBlockWriter(context);
@@ -62,8 +65,10 @@ internal sealed class OdtBodyWriter
         var body = new StringBuilder(_prelude);
         for (var index = 0; index < content.Count;)
         {
+            _pending = _sections.Enter(body, index) ?? _pending;
             if (Kept(content, index) is { } block)
             {
+                _pending = null;
                 Place(body, block);
                 body.Append(_xml, Span(block).Start, Span(block).End - Span(block).Start);
                 RememberList(block);
@@ -76,6 +81,7 @@ internal sealed class OdtBodyWriter
             index = Generate(body, content, index);
         }
 
+        _sections.Close(body);
         return body.Append(_trailing).ToString();
     }
 
@@ -174,11 +180,20 @@ internal sealed class OdtBodyWriter
             _context.KeptCellPadding = CellPaddingOf(element);
         }
 
-        body.Append(_out.Write(_blocks.Write(written, breakBefore: merged)));
+        body.Append(_out.Write(_blocks.Write(written, breakBefore: merged, page: TakePending(written))));
         _context.KeptTableName = null;
         _context.KeptCellPadding = null;
         Rewritten += merged ? 2 : 1;
         return index + (merged ? 2 : 1);
+    }
+
+    /// <summary>The pending master page goes to the first block that can open one.</summary>
+    private OdtPageStart? TakePending(Node node)
+    {
+        if (_pending is null || OdtBlockWriter.IsSectionMarkOnly(node) || !OdtBlockWriter.OpensPage(node)) return null;
+        var page = _pending;
+        _pending = null;
+        return page;
     }
 
     /// <summary>The model has no padding: a rewritten table keeps its first cell's, which may be none.</summary>

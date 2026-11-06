@@ -8,7 +8,6 @@ import {
   isOdtPath,
   isPdfPath,
   isOpenableExtension,
-  isReadableExtension,
   kindFromPath,
   isSupportedExtension,
   isWordPackagePath,
@@ -76,19 +75,19 @@ describe('PDF', () => {
 describe('ODT', () => {
   it.each(['/a/b.odt', '/a/b.ODT'])('%s is read into a document', (path) => {
     expect(isOdtPath(path)).toBe(true)
-    expect(isReadableExtension(path)).toBe(true)
+    expect(isSupportedExtension(path)).toBe(true)
     expect(kindFromPath(path)).toBe(DocumentKind.Document)
     expect(OPENABLE_EXTENSIONS).toContain('.odt')
   })
 
-  it('is a save target, which main grants only to a document opened from an .odt', () => {
+  it('is a save target for any document', () => {
     expect(isSupportedExtension('/a/b.odt')).toBe(true)
     expect(isWordPackagePath('/a/b.odt')).toBe(false)
     expect(ensureSupportedExtension('/a/b.odt')).toBe('/a/b.odt')
   })
 
   it('a PDF is only viewed, not read into the editor', () => {
-    expect(isReadableExtension('/a/b.pdf')).toBe(false)
+    expect(isSupportedExtension('/a/b.pdf')).toBe(false)
   })
 
   it.each(['/a/b.odt', '/a/b.PDF', '/a/b.xlsx', '/a/b.dotm'])('%s can be opened', (path) => {

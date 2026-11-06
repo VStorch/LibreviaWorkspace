@@ -109,7 +109,7 @@ test.describe('export as Word, HTML, Markdown and ODT', () => {
     }
     const contents = await entryOf(odt, 'content.xml')
     expect(contents).toContain('Ata da reunião de terça.')
-    expect(contents).toMatch(/<text:note text:id="footnote-1" text:note-class="footnote">/)
+    expect(contents).toMatch(/<text:note text:id="[^"]+" text:note-class="footnote">/)
     expect(contents).toContain('Fonte: ata anterior.')
     expect(await entryOf(odt, 'styles.xml')).toContain('<office:master-styles>')
 

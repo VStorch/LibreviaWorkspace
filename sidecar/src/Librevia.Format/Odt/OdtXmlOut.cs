@@ -33,6 +33,20 @@ internal sealed class OdtXmlOut
         return text.ToString();
     }
 
+    /// <summary>The start tag alone, for a wrapper whose content is written piece by piece.</summary>
+    public string Open(XElement element)
+    {
+        var tag = Write(new XElement(element.Name, element.Attributes(), new XText(string.Empty)));
+        return tag[..(tag.LastIndexOf("</", StringComparison.Ordinal))];
+    }
+
+    /// <summary>The end tag of <see cref="Open"/>.</summary>
+    public string Close(XElement element)
+    {
+        var tag = Write(new XElement(element.Name, element.Attributes(), new XText(string.Empty)));
+        return tag[tag.LastIndexOf("</", StringComparison.Ordinal)..];
+    }
+
     /// <summary>
     /// The namespaces of the piece the root does not declare, with a fresh prefix each. An attribute
     /// cannot take the default namespace, so that one counts as missing for attributes.
@@ -101,7 +115,7 @@ internal sealed class OdtXmlOut
         return string.IsNullOrEmpty(prefix) ? name.LocalName : $"{prefix}:{name.LocalName}";
     }
 
-    /// <summary>What XML refuses is dropped, as <c>odt-xml.ts</c> does.</summary>
+    /// <summary>What XML refuses is dropped: a control character has no place in a part.</summary>
     private static string Escape(string value, bool attribute)
     {
         var text = new StringBuilder(value.Length);

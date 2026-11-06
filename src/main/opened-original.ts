@@ -15,13 +15,15 @@ interface OpenedOriginal {
   readonly path: string
   readonly bytes: Buffer
   readonly format: OriginalFormat
+  /** The minimal package of a document that had no original of this format: rebuilt on each save. */
+  readonly created: boolean
 }
 
 let opened: OpenedOriginal | null = null
 
 /** Normalized, as `authorizePath` returns it and `origin` brings it. */
-export function rememberOriginal(path: string, bytes: Buffer, format: OriginalFormat): void {
-  opened = { path: normalizePath(path), bytes, format }
+export function rememberOriginal(path: string, bytes: Buffer, format: OriginalFormat, created = false): void {
+  opened = { path: normalizePath(path), bytes, format, created }
 }
 
 export function forgetOpenedOriginal(): void {
@@ -44,6 +46,11 @@ export function originalOf(origin: string | null, format: OriginalFormat): Buffe
   return kept?.format === format ? kept.bytes : null
 }
 
+/** Whether the original kept for `origin` is a minimal package, not a file the user opened. */
+export function isCreatedOriginal(origin: string | null): boolean {
+  return openedFor(origin)?.created === true
+}
+
 /**
  * After a crash the original bytes died with the process: without rereading them, saving would be
  * refused.
@@ -62,6 +69,7 @@ export interface SavedOriginal {
   /** The starting package of the save, not the saved bytes; see `saveDocx`. */
   readonly original: Buffer
   readonly format: OriginalFormat
+  readonly created?: boolean
 }
 
 /**
@@ -75,9 +83,9 @@ export function followOriginal(
   saved: SavedOriginal | null,
 ): void {
   if (saved !== null) {
-    rememberOriginal(destination, saved.original, saved.format)
+    rememberOriginal(destination, saved.original, saved.format, saved.created)
     return
   }
   const kept = openedFor(origin)
-  if (kept !== null) rememberOriginal(destination, kept.bytes, kept.format)
+  if (kept !== null) rememberOriginal(destination, kept.bytes, kept.format, kept.created)
 }
