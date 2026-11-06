@@ -16,11 +16,12 @@ internal sealed class TableCoverage
     /// <summary>Grid column → the covering cell's <c>colspan</c> and the rows it still covers.</summary>
     private Dictionary<int, (int Span, int Rows)> _above = [];
 
-    public List<TableSlot> Place(List<Node> cells)
+    /// <param name="firstColumn">Where the row's first cell sits: after its <c>w:gridBefore</c>, which the written row keeps.</param>
+    public List<TableSlot> Place(List<Node> cells, int firstColumn)
     {
         var slots = new List<TableSlot>();
         var below = new Dictionary<int, (int Span, int Rows)>();
-        var column = 0;
+        var column = firstColumn;
         var index = 0;
 
         while (index < cells.Count || _above.Keys.Any(start => start >= column))

@@ -1624,10 +1624,7 @@ public sealed class BodyReader(
             var header = repeat is not null
                          && !(repeat.Val is { } declared && declared.Value == OnOffOnlyValues.Off);
 
-            // `w:gridBefore`: a row may start some columns ahead.
-            var column = row.TableRowProperties?.GetFirstChild<GridBefore>()?.Val?.Value is > 0 and var before
-                ? before
-                : 0;
+            var column = VerticalMerges.GridBeforeOf(row);
 
             foreach (var cell in row.Elements<TableCell>())
             {

@@ -51,7 +51,8 @@ internal sealed class TableWriter(
         for (var index = 0; index < rows.Count; index++)
         {
             var row = new RowSource(originalRows.ElementAtOrDefault(index), merges, aligned);
-            table.AppendChild(WriteRow(rows[index], coverage.Place(rows[index].Content ?? []), row));
+            var slots = coverage.Place(rows[index].Content ?? [], VerticalMerges.GridBeforeOf(row.Row));
+            table.AppendChild(WriteRow(rows[index], slots, row));
             foreach (var between in Strays(interleaved, index)) table.AppendChild(between.CloneNode(true));
         }
 

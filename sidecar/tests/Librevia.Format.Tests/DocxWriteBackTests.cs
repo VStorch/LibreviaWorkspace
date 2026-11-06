@@ -535,6 +535,21 @@ public class DocxWriteBackTests
     }
 
     [Fact]
+    public void AContinuationAfterGridBeforeStaysUnderItsMerge()
+    {
+        var original = Fixtures.WithMergeAfterGridBefore();
+        var model = Roundtrip.Clone(Roundtrip.Open(original));
+
+        Assert.True(Roundtrip.EditFirstTextContaining(model, "Dado B", "Dado corrigido"));
+        var xml = Roundtrip.XmlOf(Roundtrip.Save(original, model).Bytes);
+
+        var secondRow = xml[xml.IndexOf("<w:gridBefore", StringComparison.Ordinal)..];
+        Assert.True(
+            secondRow.IndexOf("<w:vMerge", StringComparison.Ordinal) < secondRow.IndexOf("Dado corrigido", StringComparison.Ordinal),
+            secondRow);
+    }
+
+    [Fact]
     public void VerticalMergeOpensAsRowspanWithoutTheContinuation()
     {
         var rows = Roundtrip.Open(Fixtures.WithStyledTable()).Doc.Content![0].Content!;

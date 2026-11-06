@@ -42,6 +42,10 @@ internal sealed class VerticalMerges
     /// <summary>Takes part in a merge, as its first cell or as a continuation.</summary>
     public bool IsMerged(TableCell cell) => RowSpanOf(cell) > 1 || IsAbsorbed(cell);
 
+    /// <summary><c>w:gridBefore</c>: the grid columns the row leaves empty before its first cell.</summary>
+    public static int GridBeforeOf(TableRow? row) =>
+        row?.TableRowProperties?.GetFirstChild<GridBefore>()?.Val?.Value is > 0 and var before ? before : 0;
+
     public static int GridSpanOf(TableCell cell) =>
         cell.TableCellProperties?.GridSpan?.Val?.Value is > 1 and var span ? span : 1;
 
@@ -50,9 +54,7 @@ internal sealed class VerticalMerges
         Dictionary<int, (TableCell Owner, int Span)> open)
     {
         var next = new Dictionary<int, (TableCell Owner, int Span)>();
-        var column = row.TableRowProperties?.GetFirstChild<GridBefore>()?.Val?.Value is > 0 and var before
-            ? before
-            : 0;
+        var column = GridBeforeOf(row);
 
         foreach (var cell in row.Elements<TableCell>())
         {

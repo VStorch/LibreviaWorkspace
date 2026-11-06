@@ -1226,6 +1226,25 @@ public static class Fixtures
         body.AppendChild(table);
     });
 
+    /// <summary>A vertical merge in the middle column, continued in a row that starts one column ahead.</summary>
+    public static byte[] WithMergeAfterGridBefore() => Build((body, _) =>
+    {
+        var table = new Table(
+            new TableProperties(new TableWidth { Width = "9000", Type = TableWidthUnitValues.Dxa }),
+            new TableGrid(new GridColumn { Width = "3000" }, new GridColumn { Width = "3000" }, new GridColumn { Width = "3000" }));
+
+        table.AppendChild(new TableRow(
+            new TableCell(Paragraph("Esquerda")),
+            new TableCell(new TableCellProperties(new VerticalMerge { Val = MergedCellValues.Restart }), Paragraph("Mesclada")),
+            new TableCell(Paragraph("Direita"))));
+        table.AppendChild(new TableRow(
+            new TableRowProperties(new GridBefore { Val = 1 }),
+            new TableCell(new TableCellProperties(new VerticalMerge { Val = MergedCellValues.Continue }), Paragraph("Continuação")),
+            new TableCell(Paragraph("Dado B"))));
+
+        body.AppendChild(table);
+    });
+
     /// <summary>
     /// A shading pattern (<c>pct25</c>) and a <c>thickThinSmallGap</c> border, which the screen
     /// approximates with a flat color and a single line.
