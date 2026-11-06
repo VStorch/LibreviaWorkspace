@@ -86,29 +86,38 @@ internal static class PlainBandWriter
 
         var paragraph = Paragraph(text);
 
-        if (existing is not null)
+        // With sections, the last `w:sectPr` may be a new one that lost the reference to our part.
+        if (part.TryGetPartById(ownId, out var found))
         {
-            if (!part.TryGetPartById(ownId, out var found) || found is not TPart owned ||
-                owned.RootElement is not { } current)
-            {
-                return false;
-            }
-
-            // The read part carries namespace declarations the built one lacks.
-            if (Signature(current) == Signature(paragraph)) return false;
-
-            current.RemoveAllChildren();
-            current.AppendChild(paragraph);
-            current.Save();
-            touched?.Add(owned.Uri.OriginalString.TrimStart('/'));
-            return false;
+            if (found is not TPart owned || owned.RootElement is not { } current) return false;
+            Refresh(owned, current, paragraph, touched);
+        }
+        else
+        {
+            if (existing is not null) return false;
+            var created = part.AddNewPart<TPart>(ownId);
+            using var stream = created.GetStream(FileMode.Create);
+            root(paragraph).Save(stream);
         }
 
-        var created = part.AddNewPart<TPart>(ownId);
-        using (var stream = created.GetStream(FileMode.Create)) root(paragraph).Save(stream);
-
+        if (existing is not null) return false;
         section.PrependChild(new TReference { Type = HeaderFooterValues.Default, Id = ownId });
         return true;
+    }
+
+    private static void Refresh(
+        OpenXmlPart owned,
+        OpenXmlPartRootElement current,
+        Paragraph paragraph,
+        HashSet<string>? touched)
+    {
+        // The read part carries namespace declarations the built one lacks.
+        if (Signature(current) == Signature(paragraph)) return;
+
+        current.RemoveAllChildren();
+        current.AppendChild(paragraph);
+        current.Save();
+        touched?.Add(owned.Uri.OriginalString.TrimStart('/'));
     }
 
     private static string Signature(OpenXmlElement element) => string.Concat(element.Descendants().Select(child =>
