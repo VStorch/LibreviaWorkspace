@@ -18,7 +18,7 @@ export const DIALOG = {
   'dialog.filter.wordTemplates': { pt: 'Modelos do Word', en: 'Word templates' },
   'dialog.filter.odtDocs': { pt: 'Documentos ODT', en: 'ODT documents' },
   'dialog.filter.wordTemplate': { pt: 'Modelo do Word (.dotx)', en: 'Word template (.dotx)' },
-  'dialog.filter.odtTemplate': { pt: 'Modelo ODF (.ott)', en: 'ODF template (.ott)' },
+  'dialog.filter.odtTemplate': { pt: 'Modelo ODT (.ott)', en: 'ODT template (.ott)' },
   'dialog.filter.documentTemplates': { pt: 'Modelos de documento', en: 'Document templates' },
   'dialog.template.title': { pt: 'Procurar modelo', en: 'Browse for template' },
   'dialog.agent.title': { pt: 'Escolher o programa do agente', en: "Choose the agent's program" },
@@ -34,7 +34,7 @@ export const DIALOG = {
   'dialog.filter.html': { pt: 'Página da Web (HTML)', en: 'Web page (HTML)' },
   'dialog.filter.markdown': { pt: 'Markdown', en: 'Markdown' },
   'dialog.export.odtTitle': { pt: 'Exportar como ODT', en: 'Export as ODT' },
-  'dialog.filter.odt': { pt: 'Texto do OpenDocument (ODT)', en: 'OpenDocument Text (ODT)' },
+  'dialog.filter.odt': { pt: 'Documento ODT', en: 'ODT document' },
   // Written inside the exported file, in the UI language.
   'dialog.export.notes': { pt: 'Notas', en: 'Notes' },
   'dialog.export.backToText': { pt: 'Voltar ao texto', en: 'Back to text' },

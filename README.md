@@ -160,10 +160,11 @@ O resto do arquivo também fica onde estava:
 - `meta.xml` só muda se você alterou as propriedades;
 - configurações, miniatura e objetos voltam iguais.
 
-Algumas coisas o Librevia não mostra: nota de rodapé, comentário, marca de revisão, indicador,
-seção, caixa de texto, equação, desenho e formulário. Elas continuam no arquivo enquanto você
-não edita o bloco onde estão, e o app avisa ao abrir. Se você editar esse bloco, elas se perdem
-nele, e o app avisa ao salvar.
+Notas, comentários, alterações controladas, equações, seções, cabeçalho e rodapé abrem e voltam
+ao arquivo. Algumas coisas o Librevia não mostra: mudança de formatação controlada, indicador,
+seção sem colunas ou dentro de outra, caixa de texto, desenho e formulário. Elas continuam no
+arquivo enquanto você não edita o bloco onde estão, e o app avisa ao abrir. Se você editar esse
+bloco, elas se perdem nele, e o app avisa ao salvar.
 
 Os campos de número de página, total de páginas, data, hora, título e autor abrem como os do
 `.docx` e voltam ao arquivo como campos do LibreOffice. Outro campo mostra o texto que tinha; se

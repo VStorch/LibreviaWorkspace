@@ -105,7 +105,7 @@ qualquer `.dotx` ou `.ott` do computador.
 O documento criado é novo e sem título. Estilos, cabeçalho, rodapé e tamanho de página vêm do
 modelo. Ao salvar, o aplicativo pergunta onde gravar, e **o modelo nunca é sobrescrito**.
 
-Para criar um modelo seu, use **Salvar como → Modelo do Word (.dotx)** ou **Modelo ODF (.ott)** e
+Para criar um modelo seu, use **Salvar como → Modelo do Word (.dotx)** ou **Modelo ODT (.ott)** e
 grave na pasta de modelos.
 
 Um documento criado de um `.ott` recebe o nome `.odt`. Salvo em `.odt`, ele grava sobre o pacote
@@ -1136,14 +1136,15 @@ inserido, texto excluído e parágrafo unido aparecem com autor e data, e o cont
 continua ligado ou desligado como no arquivo. As seções também: cada estilo de página que o texto
 abre vira uma seção, com papel, margens e numeração próprios, e uma seção do LibreOffice com colunas
 vira uma seção contínua com colunas. O que o Librevia não mostra (mudança de formatação
-controlada, indicador, seção sem colunas ou dentro de outra, caixa de texto, desenho, formulário) fica no arquivo enquanto você
-não edita o bloco onde está. Ao abrir, o aplicativo avisa que existe. Se você editar esse bloco, ele se
-perde ali, e o aviso aparece ao salvar.
+controlada, indicador, seção sem colunas ou dentro de outra, caixa de texto, desenho, formulário)
+fica no arquivo enquanto você não edita o bloco onde está. Ao abrir, o aplicativo avisa que
+existe. Se você editar esse bloco, ele se perde ali, e o aviso aparece ao salvar.
 
 Número de página, total de páginas, data, hora, título e autor aparecem como campos, iguais aos do
 `.docx`, e voltam ao arquivo como os campos do LibreOffice, com o mesmo formato de data. Outro
-campo mostra o texto que tinha; se você editar o bloco onde está, ele vira texto comum. Estilos, página, cabeçalho e rodapé só mudam no `styles.xml` se
-você os alterou; as propriedades, no `meta.xml`, idem.
+campo mostra o texto que tinha; se você editar o bloco onde está, ele vira texto comum. Estilos,
+página, cabeçalho e rodapé só mudam no `styles.xml` se você os alterou; as propriedades, no
+`meta.xml`, idem.
 
 **Documento novo em `.docx`.** Em "Salvar como", escolha "Documento do Word". Como não há arquivo
 de origem, o aplicativo cria um pacote mínimo, com estilos, página e propriedades, mas sem o seu
@@ -1189,8 +1190,10 @@ O documento passa a ser o `.docx`, e o próximo **Salvar** grava nele.
   numeradas, as tabelas, as imagens, as notas, os marcadores e os links. Cada seção leva o próprio
   papel, margens, colunas, cabeçalho e rodapé, e os comentários vão como anotações. Para trabalhar
   no próprio `.odt`, use **Salvar como**.
-- As **revisões** saem já aceitas. As **equações** vão junto. No HTML e no Markdown os
-  **comentários** ficam de fora.
+- No ODT, as **revisões** vão como alterações controladas: texto inserido, texto excluído e
+  parágrafo unido, com autor e data. O LibreOffice as mostra para você aceitar ou rejeitar. No HTML
+  e no Markdown, as revisões saem já aceitas e os **comentários** ficam de fora.
+- As **equações** vão junto em todos os formatos.
 
 ---
 

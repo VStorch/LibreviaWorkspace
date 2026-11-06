@@ -107,7 +107,7 @@ export const SHELL = {
     en: 'No templates in the folder yet. Save a document as “Word template (.dotx)” there.',
   },
   'shell.template.userTemplate': { pt: 'Modelo do Word', en: 'Word template' },
-  'shell.template.userOdtTemplate': { pt: 'Modelo ODF', en: 'ODF template' },
+  'shell.template.userOdtTemplate': { pt: 'Modelo ODT', en: 'ODT template' },
   'shell.template.create': { pt: 'Criar', en: 'Create' },
   'shell.template.browse': { pt: 'Procurar…', en: 'Browse…' },
   'shell.template.openFolder': { pt: 'Abrir pasta de modelos', en: 'Open templates folder' },
