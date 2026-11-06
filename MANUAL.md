@@ -1131,9 +1131,11 @@ continuam no arquivo depois que você corrige uma vírgula.
 
 **No `.odt`.** Notas de rodapé e de fim, comentários com respostas, equações, cabeçalho e rodapé
 (com colunas, número de página e versões para a primeira página e para as páginas pares) abrem
-como no `.docx` e voltam ao arquivo quando você salva. O que o Librevia não mostra (marca de
-revisão, indicador, seção, caixa de texto, desenho, formulário) fica no arquivo enquanto você não
-edita o bloco onde está. Ao abrir, o aplicativo avisa que existe. Se você editar esse bloco, ele se
+como no `.docx` e voltam ao arquivo quando você salva. As alterações controladas também: texto
+inserido, texto excluído e parágrafo unido aparecem com autor e data, e o controle de alterações
+continua ligado ou desligado como no arquivo. O que o Librevia não mostra (mudança de formatação
+controlada, indicador, seção, caixa de texto, desenho, formulário) fica no arquivo enquanto você
+não edita o bloco onde está. Ao abrir, o aplicativo avisa que existe. Se você editar esse bloco, ele se
 perde ali, e o aviso aparece ao salvar.
 
 Número de página, total de páginas, data, hora, título e autor aparecem como campos, iguais aos do
