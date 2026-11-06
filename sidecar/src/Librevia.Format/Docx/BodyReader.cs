@@ -43,7 +43,8 @@ public sealed record Block(string Oid, OpenXmlElement Source, Node Extracted)
 /// <remarks>
 /// Each switch turned off reproduces the reading from before the feature, the reference reading for
 /// drafts of that time (<see cref="DocumentModelDto.BeforeReferences"/>, <c>BeforeSections</c>,
-/// <c>BeforeComments</c>, <c>BeforeRevisions</c>, <c>BeforeNotes</c>, <c>BeforeMath</c>).
+/// <c>BeforeComments</c>, <c>BeforeRevisions</c>, <c>BeforeNotes</c>, <c>BeforeMath</c>,
+/// <c>BeforeVerticalMerges</c>).
 /// </remarks>
 public sealed class BodyReader(
     MainDocumentPart part,
@@ -54,7 +55,8 @@ public sealed class BodyReader(
     bool comments = true,
     bool revisions = true,
     bool notes = true,
-    bool math = true)
+    bool math = true,
+    bool verticalMerges = true)
 {
     /// <summary>The <c>w:footnote</c>/<c>w:endnote</c> and its blocks.</summary>
     public sealed record NoteRead(OpenXmlElement Source, List<Block> Blocks);
@@ -920,7 +922,8 @@ public sealed class BodyReader(
 
         var owner = endnote ? (OpenXmlPart)part.EndnotesPart! : part.FootnotesPart!;
         var address = NotesWriter.Address(endnote, id!);
-        _noteReader ??= new BodyReader(part, inventory, flatten, references, sections: false, comments, revisions, notes: false, math);
+        _noteReader ??= new BodyReader(
+            part, inventory, flatten, references, sections: false, comments, revisions, notes: false, math, verticalMerges);
         var (content, blocks) = _noteReader.ReadNote(source, address, owner);
         Notes[address] = new NoteRead(source, blocks);
         node.Content = content;
@@ -1609,6 +1612,7 @@ public sealed class BodyReader(
 
         // The table grid, which Word uses and the editor mirrors in `colgroup`.
         var grid = TableLook.GridWidths(table);
+        var merges = verticalMerges ? VerticalMerges.Of(table) : VerticalMerges.None;
 
         foreach (var row in table.Elements<TableRow>())
         {
@@ -1627,6 +1631,12 @@ public sealed class BodyReader(
 
             foreach (var cell in row.Elements<TableCell>())
             {
+                if (merges.IsAbsorbed(cell))
+                {
+                    column += VerticalMerges.GridSpanOf(cell);
+                    continue;
+                }
+
                 // A nested table is a block, and the editor's `tableCell` accepts blocks.
                 var contents = new List<Node>();
                 foreach (var child in cell.ChildElements)
@@ -1647,12 +1657,9 @@ public sealed class BodyReader(
 
                 // **Always** written: the editor returns `colspan` and `rowspan` on every cell, and
                 // omitting them would regenerate every table.
-                var span = cell.TableCellProperties?.GridSpan?.Val?.Value;
-                var spanned = span is > 1 ? span.Value : 1;
+                var spanned = VerticalMerges.GridSpanOf(cell);
                 node.With("colspan", spanned);
-
-                // Vertical merging stays in the file's `w:vMerge`.
-                node.With("rowspan", 1);
+                node.With("rowspan", merges.RowSpanOf(cell));
 
                 // One measure per column, in CSS pixels, as TableKit uses.
                 if (grid.Count >= column + spanned)

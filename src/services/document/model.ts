@@ -157,6 +157,8 @@ export interface DocumentModel {
   readonly beforeNotes?: boolean
   /** `.sdoc` draft < 11: no `math`. Same reason as `flattened`. */
   readonly beforeMath?: boolean
+  /** `.sdoc` draft < 15: a vertical merge is lower cells, not `rowspan`. Same reason as `flattened`. */
+  readonly beforeVerticalMerges?: boolean
   /**
    * `docProps/core.xml` and part of `app.xml`, outside the nodes. When saving each field is a
    * patch: absent means "leave as is", empty means "clear".

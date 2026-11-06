@@ -315,10 +315,6 @@ export const SIDECAR = {
     pt: 'largura, mesclagem ou sombreamento de parte de uma tabela que você editou',
     en: 'width, merge or shading of part of a table you edited',
   },
-  'sidecar.notice.editorVerticalMerge': {
-    pt: 'mesclagem vertical de células feita no editor',
-    en: 'vertical cell merge made in the editor',
-  },
   'sidecar.notice.editedCellSpecialContent': {
     pt: 'conteúdo especial de uma célula que você editou',
     en: 'special content of a cell you edited',

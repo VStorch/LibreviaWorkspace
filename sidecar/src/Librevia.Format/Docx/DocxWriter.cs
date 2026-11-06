@@ -44,7 +44,8 @@ public static class DocxWriter
             !model.BeforeComments,
             !model.BeforeRevisions,
             !model.BeforeNotes,
-            !model.BeforeMath);
+            !model.BeforeMath,
+            !model.BeforeVerticalMerges);
         var (_, blocks) = reader.Read(body);
         var index = blocks.ToDictionary(block => block.Oid, StringComparer.Ordinal);
 
@@ -92,7 +93,8 @@ public static class DocxWriter
                     model.Flatten,
                     !model.BeforeReferences,
                     !model.BeforeRevisions,
-                    owner),
+                    owner,
+                    !model.BeforeVerticalMerges),
                 numbering,
                 inventory,
                 touched,
@@ -411,7 +413,8 @@ public static class DocxWriter
             headings,
             model.Flatten,
             !model.BeforeReferences,
-            !model.BeforeRevisions);
+            !model.BeforeRevisions,
+            verticalMerges: !model.BeforeVerticalMerges);
         var used = new HashSet<string>(StringComparer.Ordinal);
         var elements = new List<OpenXmlElement>();
         var generated = new HashSet<OpenXmlElement>(ReferenceEqualityComparer.Instance);

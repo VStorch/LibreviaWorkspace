@@ -53,7 +53,7 @@ internal sealed class TableGridWriter(Inventory inventory, int usableWidthPx)
         if (grid.SequenceEqual(twips)) return;
 
         WriteGrid(table, twips);
-        WriteCellWidths(table, rows, twips);
+        WriteCellWidths(table, twips);
     }
 
     /// <summary>
@@ -140,19 +140,18 @@ internal sealed class TableGridWriter(Inventory inventory, int usableWidthPx)
     /// <summary>
     /// An old <c>w:tcW</c> would contradict the new grid. Only on rows covering the whole grid.
     /// </summary>
-    private static void WriteCellWidths(Table table, List<Node> rows, List<long> twips)
+    private static void WriteCellWidths(Table table, List<long> twips)
     {
-        var built = table.Elements<TableRow>().ToList();
-        for (var index = 0; index < built.Count && index < rows.Count; index++)
+        foreach (var row in table.Elements<TableRow>())
         {
-            var cells = built[index].Elements<TableCell>().ToList();
-            var modelled = rows[index].Content ?? [];
-            if (cells.Count != modelled.Count || modelled.Sum(SpanOf) != twips.Count) continue;
+            // Continuations of a vertical merge are cells too, absent from the model.
+            var cells = row.Elements<TableCell>().ToList();
+            if (cells.Sum(VerticalMerges.GridSpanOf) != twips.Count) continue;
 
             var column = 0;
             for (var position = 0; position < cells.Count; position++)
             {
-                var span = SpanOf(modelled[position]);
+                var span = VerticalMerges.GridSpanOf(cells[position]);
                 var width = twips.Skip(column).Take(span).Sum();
                 column += span;
 

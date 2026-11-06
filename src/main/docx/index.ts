@@ -173,6 +173,7 @@ function saveParamsOf(model: SdocModel, target: DocxTarget): Record<string, unkn
     ...(model.beforeRevisions ? { beforeRevisions: true } : {}),
     ...(model.beforeNotes ? { beforeNotes: true } : {}),
     ...(model.beforeMath ? { beforeMath: true } : {}),
+    ...(model.beforeVerticalMerges ? { beforeVerticalMerges: true } : {}),
     // The sidecar only writes note numbering and properties when they differ from the target file.
     ...(model.notes === undefined ? {} : { notes: model.notes }),
     ...propertiesParam(model),
@@ -285,6 +286,7 @@ function unwrapSdoc(content: string): {
   beforeRevisions: boolean
   beforeNotes: boolean
   beforeMath: boolean
+  beforeVerticalMerges: boolean
   notes: unknown
   properties: unknown
   statistics: unknown
@@ -312,6 +314,7 @@ function unwrapSdoc(content: string): {
       beforeRevisions: z.boolean().optional(),
       beforeNotes: z.boolean().optional(),
       beforeMath: z.boolean().optional(),
+      beforeVerticalMerges: z.boolean().optional(),
       notes: z.unknown().optional(),
       // Checked here too: they go into the user's file.
       properties: documentPropertiesSchema.optional(),
@@ -336,6 +339,7 @@ function unwrapSdoc(content: string): {
     beforeRevisions: envelope.data.beforeRevisions === true,
     beforeNotes: envelope.data.beforeNotes === true,
     beforeMath: envelope.data.beforeMath === true,
+    beforeVerticalMerges: envelope.data.beforeVerticalMerges === true,
     notes: envelope.data.notes,
     properties: envelope.data.properties,
     statistics: envelope.data.statistics,

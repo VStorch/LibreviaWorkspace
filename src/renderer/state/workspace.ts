@@ -37,6 +37,7 @@ export const useWorkspace = create<WorkspaceState>((set, get, store) => {
     notes: undefined,
     beforeNotes: false,
     beforeMath: false,
+    beforeVerticalMerges: false,
     properties: undefined,
     workbook: null,
     generation: 0,

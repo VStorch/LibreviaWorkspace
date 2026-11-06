@@ -79,6 +79,8 @@ export interface WorkspaceState {
   beforeNotes: boolean
   /** The draft predates equations; see `DocumentModel.beforeMath`. */
   beforeMath: boolean
+  /** The draft predates vertical merges as `rowspan`; see `DocumentModel.beforeVerticalMerges`. */
+  beforeVerticalMerges: boolean
   properties: DocumentProperties | undefined
   workbook: WorkbookModel | null
   /** Changes on every new/open: the editor is remounted, with no leftover state. */

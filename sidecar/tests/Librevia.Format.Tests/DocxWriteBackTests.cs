@@ -1,6 +1,7 @@
 using System.Reflection;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
+using DocumentFormat.OpenXml.Packaging;
 using Librevia.Format.Docx;
 
 namespace Librevia.Format.Tests;
@@ -526,9 +527,20 @@ public class DocxWriteBackTests
         Assert.Contains("w:w=\"4000\"", xml, StringComparison.Ordinal);
         Assert.Contains("w:tblHeader", xml, StringComparison.Ordinal);
         Assert.Contains("w:fill=\"D9D9D9\"", xml, StringComparison.Ordinal);
-        Assert.Contains("w:vMerge", xml, StringComparison.Ordinal);
+        Assert.Contains("<w:vMerge w:val=\"restart\" />", xml, StringComparison.Ordinal);
+        Assert.Contains("<w:vMerge w:val=\"continue\" />", xml, StringComparison.Ordinal);
+        Assert.Contains("Continuação", xml, StringComparison.Ordinal);
         Assert.Contains("w:val=\"double\"", xml, StringComparison.Ordinal);
         Assert.Contains("Dado corrigido", xml, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void VerticalMergeOpensAsRowspanWithoutTheContinuation()
+    {
+        var rows = Roundtrip.Open(Fixtures.WithStyledTable()).Doc.Content![0].Content!;
+
+        Assert.Equal(2, IntAttr(rows[0].Content![0], "rowspan"));
+        Assert.Equal("Dado B", Roundtrip.Walk(Assert.Single(rows[1].Content!)).Single(n => n.Type == "text").Text);
     }
 
     [Fact]
@@ -566,26 +578,81 @@ public class DocxWriteBackTests
         Assert.Contains("</w:tbl><w:p /></w:tc>", xml, StringComparison.Ordinal);
     }
 
-    [Fact]
-    public void RowInsertedInTheMiddleRecordsLossAndDiscardsTheMerge()
+    /// <summary>A `.sdoc` draft < 15: the lower cells of a merge are ordinary cells.</summary>
+    private static DocumentModelDto DraftBeforeVerticalMerges(byte[] original)
     {
-        // An inserted row misaligns positions and would take `w:vMerge` to the wrong row.
+        List<Node> content;
+        using (var stream = new MemoryStream(original))
+        using (var document = WordprocessingDocument.Open(stream, false))
+        {
+            var part = document.MainDocumentPart!;
+            (content, _) = new BodyReader(part, new Inventory(), verticalMerges: false).Read(part.Document!.Body!);
+        }
+
+        var doc = Node.Of("doc");
+        doc.Content = content;
+        return Roundtrip.Clone(Roundtrip.Open(original) with { Doc = doc, BeforeVerticalMerges = true });
+    }
+
+    private static string TableXmlOf(byte[] docx) =>
+        Regex.Match(Roundtrip.XmlOf(docx), "<w:tbl>.*</w:tbl>", RegexOptions.Singleline).Value;
+
+    [Fact]
+    public void DraftFromBeforeVerticalMergesKeepsTheTableUntouched()
+    {
+        var original = Fixtures.WithStyledTable();
+        var model = DraftBeforeVerticalMerges(original);
+        Assert.Equal(2, model.Doc.Content![0].Content![1].Content!.Count);
+
+        var untouched = Roundtrip.Save(original, model);
+        Assert.Equal(0, untouched.Result.RewrittenBlocks);
+        Assert.Equal(TableXmlOf(original), TableXmlOf(untouched.Bytes));
+
+        model.Doc.Content.Add(Node.Of("paragraph", new Node { Type = "text", Text = "Depois" }));
+        var edited = Roundtrip.Save(original, model);
+        Assert.Equal(TableXmlOf(original), TableXmlOf(edited.Bytes));
+        Assert.Contains("Depois", Roundtrip.XmlOf(edited.Bytes), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void DraftFromBeforeVerticalMergesKeepsTheFilesMergeWhenTheTableIsEdited()
+    {
+        var original = Fixtures.WithStyledTable();
+        var model = DraftBeforeVerticalMerges(original);
+
+        Assert.True(Roundtrip.EditFirstTextContaining(model, "Dado B", "Dado corrigido"));
+        var (saved, result) = Roundtrip.Save(original, model);
+        var xml = Roundtrip.XmlOf(saved);
+
+        Assert.Empty(result.Inventory.Lost);
+        Assert.Contains("<w:vMerge w:val=\"restart\" />", xml, StringComparison.Ordinal);
+        Assert.Contains("<w:vMerge w:val=\"continue\" />", xml, StringComparison.Ordinal);
+        Assert.Contains("Continuação", xml, StringComparison.Ordinal);
+        Assert.Contains("Dado corrigido", xml, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void RowInsertedAboveRecordsLossAndMovesTheMergeWithItsCell()
+    {
+        // An inserted row misaligns positions: the file's `w:vMerge` would land on the wrong row,
+        // so the merge follows the model's `rowspan`.
         var original = Fixtures.WithStyledTable();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
 
         var rows = model.Doc.Content![0].Content!;
-        rows.Insert(1, Node.Of(
+        rows.Insert(0, Node.Of(
             "tableRow",
-            Node.Of("tableCell", Node.Of("paragraph")),
-            Node.Of("tableCell", Node.Of("paragraph"))));
+            Node.Of("tableCell", Node.Of("paragraph")).With("colspan", 1).With("rowspan", 1),
+            Node.Of("tableCell", Node.Of("paragraph")).With("colspan", 1).With("rowspan", 1)));
 
         var (saved, result) = Roundtrip.Save(original, model);
-        var xml = Roundtrip.XmlOf(saved);
+        var reopened = Roundtrip.Open(saved).Doc.Content![0].Content!;
 
         Assert.Contains(result.Inventory.Lost, m => m == new Notice("sidecar.notice.shiftedTablePart"));
-        Assert.DoesNotContain("w:vMerge", xml, StringComparison.Ordinal);
-
-        Assert.Equal(3, Roundtrip.Open(saved).Doc.Content![0].Content!.Count);
+        Assert.Equal(3, reopened.Count);
+        Assert.Equal([1, 1], reopened[0].Content!.Select(cell => IntAttr(cell, "rowspan")));
+        Assert.Equal([2, 1], reopened[1].Content!.Select(cell => IntAttr(cell, "rowspan")));
+        Assert.Single(reopened[2].Content!);
     }
 
     [Fact]
@@ -904,20 +971,62 @@ public class DocxWriteBackTests
     }
 
     [Fact]
-    public void VerticalMergeDoneOnScreenEntersTheInventory()
+    public void VerticalMergeDoneOnScreenRoundTrips()
     {
-        // TableKit's `rowspan` does not become `w:vMerge` yet: the least is to say so.
         var original = Fixtures.WithTable();
         var model = Roundtrip.Clone(Roundtrip.Open(original));
 
-        var rows = model.Doc.Content!.First(block => block.Type == "table").Content!;
-        rows[0].Content![0].With("rowspan", 2);
-        rows[1].Content!.RemoveAt(0);
+        var table = model.Doc.Content!.First(block => block.Type == "table");
+        table.Content![0].Content![0].With("rowspan", 2);
+        table.Content[1].Content!.RemoveAt(0);
 
-        var result = Roundtrip.Save(original, model).Result;
+        var (saved, result) = Roundtrip.Save(original, model);
+        var xml = Roundtrip.XmlOf(saved);
+        var reopened = Roundtrip.Open(saved).Doc.Content!.First(block => block.Type == "table");
 
-        Assert.Contains(result.Inventory.Lost, m => m == new Notice("sidecar.notice.editorVerticalMerge"));
+        Assert.Empty(result.Inventory.Lost);
+        Assert.Contains("<w:vMerge w:val=\"restart\" />", xml, StringComparison.Ordinal);
+        Assert.Contains("<w:vMerge /></w:tcPr><w:p /></w:tc>", xml, StringComparison.Ordinal);
+        Assert.Equal(CellShapes(table), CellShapes(reopened));
+        Roundtrip.AssertSchema(saved);
     }
+
+    [Fact]
+    public void NewTableWithWideVerticalMergeRoundTrips()
+    {
+        // A 2 × 2 block in the first columns: the continuation repeats the `w:gridSpan`.
+        var original = Fixtures.Simple();
+        var model = Roundtrip.Clone(Roundtrip.Open(original));
+
+        static Node Cell(string text, int colspan = 1, int rowspan = 1) =>
+            Node.Of("tableCell", Node.Of("paragraph", new Node { Type = "text", Text = text }))
+                .With("colspan", colspan)
+                .With("rowspan", rowspan);
+
+        var table = Node.Of(
+            "table",
+            Node.Of("tableRow", Cell("A", colspan: 2, rowspan: 2), Cell("B")),
+            Node.Of("tableRow", Cell("C")),
+            Node.Of("tableRow", Cell("D"), Cell("E"), Cell("F")));
+        model.Doc.Content!.Add(table);
+
+        var saved = Roundtrip.Save(original, model).Bytes;
+        var xml = Roundtrip.XmlOf(saved);
+        var reopened = Roundtrip.Open(saved).Doc.Content!.First(block => block.Type == "table");
+
+        Assert.Contains("<w:gridSpan w:val=\"2\" /><w:vMerge /></w:tcPr>", xml, StringComparison.Ordinal);
+        Assert.Equal(CellShapes(table), CellShapes(reopened));
+        Roundtrip.AssertSchema(saved);
+    }
+
+    private static int? IntAttr(Node node, string name) => node.Attrs?.GetValueOrDefault(name)?.GetValue<int>();
+
+    /// <summary>Each row's cells as text, <c>colspan</c> and <c>rowspan</c>.</summary>
+    private static List<string> CellShapes(Node table) =>
+    [
+        .. table.Content!.Select(row => string.Join(' ', row.Content!.Select(cell =>
+            $"{string.Concat(Roundtrip.Walk(cell).Select(n => n.Text))}:{IntAttr(cell, "colspan")}x{IntAttr(cell, "rowspan")}"))),
+    ];
 
     [Fact]
     public void ImageAltTextRoundTrips()

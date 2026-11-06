@@ -61,6 +61,10 @@ public sealed record DocumentModelDto(
     [property: JsonPropertyName("beforeMath")]
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     bool BeforeMath = false,
+    // A draft older than vertical merges as `rowspan` (`.sdoc` < 15).
+    [property: JsonPropertyName("beforeVerticalMerges")]
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    bool BeforeVerticalMerges = false,
     // See DocumentProperties; each field is a patch.
     [property: JsonPropertyName("properties")]
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
