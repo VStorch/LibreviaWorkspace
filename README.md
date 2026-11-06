@@ -99,7 +99,7 @@ Ele também:
 | **Notas** | notas de rodapé e de fim, editadas no pé da própria folha |
 | **Revisão** | comentários com resposta e resolução; controle de alterações enquanto você digita; aceitar e rejeitar |
 | **Equações** | mostra as equações do Word e permite escrever novas em LaTeX |
-| **Modelos** | cria documentos a partir de modelos do Word (`.dotx`); quatro vêm com o aplicativo |
+| **Modelos** | cria documentos a partir de modelos do Word (`.dotx`) e do ODF (`.ott`); quatro vêm com o aplicativo |
 | **Ferramentas** | ortografia em português sem internet, localizar e substituir, contar palavras, caracteres especiais, autocorreção tipográfica |
 | **Assistente de IA** | opcional e desligado de fábrica: reescreve, resume, revisa ou traduz o trecho selecionado, com o documento aberto como contexto e com permissão para os que ficam fora do computador; a resposta chega formatada (negrito, títulos, listas) e entra como alteração controlada. Na planilha, explica e cria fórmulas e preenche colunas, com prévia antes de gravar. Funciona com Ollama e LM Studio, neste computador, com o Claude Code, com agentes que falam o protocolo ACP (Gemini CLI, Codex e outros) ou com um serviço na nuvem. Programas externos, como o Claude Code, podem ler o documento aberto e deixar revisões e comentários pelo protocolo MCP, sem usar a rede; na planilha, leem as células e propõem escritas, que você aplica ou descarta |
 
@@ -119,7 +119,7 @@ Ele também:
 | **PDF e impressão** | documentos e planilhas, com cabeçalho, rodapé, numeração, margens e orientação; o PDF exportado leva as propriedades |
 | **Leitor de PDF** | abre PDFs, inclusive protegidos por senha; edita as propriedades e avisa quantas versões anteriores o arquivo guarda |
 | **Propriedades** | resumo, propriedades personalizadas e estatísticas, em documentos e planilhas |
-| **Dados pessoais** | o inspetor acha e remove nomes, pastas, miniatura e metadados das fotos de um `.docx` ou `.xlsx` |
+| **Dados pessoais** | o inspetor acha e remove nomes, pastas, miniatura e metadados das fotos de um `.docx`, `.odt` ou `.xlsx` |
 | **Exportar** | documento para PDF, HTML, Markdown e ODT |
 | **Recuperação** | rascunho a cada oito segundos, oferecido de volta depois de uma queda |
 | **Somente leitura** | só trava o arquivo quando editar pode apagar algo importante dele |
@@ -144,6 +144,7 @@ Ele também:
 | `.pdf` | ✅ | exporta | abre só para ler; título, autor, assunto e palavras-chave se alteram; documentos e planilhas exportam para ele |
 | `.html`, `.md` | — | exporta | documento numa página só, ou em Markdown com as imagens numa pasta ao lado |
 | `.odt` | ✅ | ✅ | documento do LibreOffice; o que você não editou volta intacto |
+| `.ott` | ✅ | ✅ | modelo do LibreOffice; abrir cria um documento novo, sem título |
 
 <details>
 <summary><b>Como funciona o ODT, e por que o ODS não abre</b></summary>
@@ -272,6 +273,10 @@ A limpeza trabalha parte por parte no pacote: um documento sem miniatura nem nom
 comentários; os pixels, o perfil de cor e a orientação ficam. Os autores viram "Autor", como no
 Word, e o arquivo guarda o pedido de não gravar nomes (`w:removePersonalInformation` no Word,
 `filterPrivacy` no Excel), que o Word, o Excel e o Librevia respeitam nas próximas gravações.
+
+Num `.odt`, o inspetor procura os mesmos dados no `meta.xml`, nos comentários, nas alterações, na
+miniatura e nas fotos. O ODF não tem o pedido de não gravar nomes. O Librevia grava o seu no
+`settings.xml` e o respeita; o LibreOffice o ignora.
 
 </details>
 
@@ -528,7 +533,7 @@ fácil se perder. Esta é a lista das pastas que importam e do que cada uma guar
 | [`Docx/`](sidecar/src/Librevia.Format/Docx) | 50 arquivos: leitores (`DocxReader`, `BodyReader`, `StyleReader`, `NotesReader`…), escritores (`DocxWriter`, `ParagraphWriter`, `SectionWriter`…), equações (`OmmlMath`), revisões, modelos, propriedades (`DocumentProperties`, `CustomProperties`) e o `Inventory` |
 | [`Xlsx/`](sidecar/src/Librevia.Format/Xlsx) | leitura e escrita de planilhas e formatos numéricos |
 | [`Pdf/`](sidecar/src/Librevia.Format/Pdf) | leitura da estrutura de um PDF e atualização incremental do título, autor, assunto e palavras-chave |
-| [`Privacy/`](sidecar/src/Librevia.Format/Privacy) | o inspetor de dados pessoais: acha e remove nomes, pastas, propriedades personalizadas, a miniatura e os metadados das imagens de um DOCX ou XLSX |
+| [`Privacy/`](sidecar/src/Librevia.Format/Privacy) | o inspetor de dados pessoais: acha e remove nomes, pastas, propriedades personalizadas, a miniatura e os metadados das imagens de um DOCX, ODT ou XLSX |
 
 ---
 
@@ -868,8 +873,8 @@ instalador leva, além do aplicativo:
 
 O sidecar fica **fora** do asar. Um executável dentro de um arquivo compactado não roda.
 
-No Linux, o aplicativo se registra para `.docx`, `.dotx`, `.xlsx`, `.txt` e `.pdf`; no Windows,
-para `.docx`, `.dotx` e `.xlsx`.
+No Linux, o aplicativo se registra para `.docx`, `.dotx`, `.odt`, `.ott`, `.xlsx`, `.txt` e
+`.pdf`; no Windows, para `.docx`, `.dotx`, `.odt`, `.ott` e `.xlsx`.
 
 `npm run notices` gera o `THIRD-PARTY-NOTICES.md`. Ele cobre **três** conjuntos: as
 dependências npm de produção, o Electron inteiro (com Chromium e Node.js) e os pacotes NuGet

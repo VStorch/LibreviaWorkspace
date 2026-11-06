@@ -57,8 +57,8 @@ sudo apt install ./librevia_0.5.0_amd64.deb
 Execute o instalador. Ele instala **só para o seu usuário** e não pede senha de administrador.
 O instalador ainda não é assinado, então o Windows pode mostrar "O Windows protegeu o computador":
 clique em **Mais informações** e depois em **Executar assim mesmo**.
-Depois disso, um `.docx`, um `.dotx` ou um `.xlsx` pode ser aberto com o Librevia pelo botão
-direito do Explorador de Arquivos.
+Depois disso, um `.docx`, `.dotx`, `.odt`, `.ott` ou `.xlsx` pode ser aberto com o Librevia pelo
+botão direito do Explorador de Arquivos.
 
 ---
 
@@ -73,6 +73,7 @@ direito do Explorador de Arquivos.
 | `.dotm` | modelo do Word com macros | abre como o `.dotx`, mas as macros ficam de fora, e o aplicativo avisa |
 | `.xlsx` | planilha do Excel | abre e grava |
 | `.odt` | documento do LibreOffice | abre e grava; o que você não editou volta intacto |
+| `.ott` | modelo do LibreOffice | abrir cria um documento novo a partir dele; "Salvar como" também grava modelo |
 | `.sdoc` | documento do Librevia | guarda tudo, sem perda nenhuma |
 | `.ssheet` | planilha do Librevia | guarda tudo, sem perda nenhuma |
 | `.txt` | texto puro | abre e grava; salvar nele descarta a formatação, e o aplicativo avisa antes |
@@ -99,13 +100,16 @@ Um modelo é um documento pronto para servir de ponto de partida, como um papel 
 **Arquivo → Novo a partir de modelo…** mostra os modelos que vêm com o aplicativo — documento em
 branco, carta, relatório com capa e sumário, e ata de reunião — e também os seus, que ficam na
 pasta de modelos. O botão **Abrir pasta de modelos** mostra essa pasta, e **Procurar…** aceita
-qualquer `.dotx` do computador.
+qualquer `.dotx` ou `.ott` do computador.
 
 O documento criado é novo e sem título. Estilos, cabeçalho, rodapé e tamanho de página vêm do
 modelo. Ao salvar, o aplicativo pergunta onde gravar, e **o modelo nunca é sobrescrito**.
 
-Para criar um modelo seu, use **Salvar como → Modelo do Word (.dotx)** e grave na pasta de
-modelos.
+Para criar um modelo seu, use **Salvar como → Modelo do Word (.dotx)** ou **Modelo ODF (.ott)** e
+grave na pasta de modelos.
+
+Um documento criado de um `.ott` recebe o nome `.odt`. Salvo em `.odt`, ele grava sobre o pacote
+do modelo: o que você não editou volta como estava no modelo.
 
 ### Propriedades do documento
 
@@ -152,9 +156,12 @@ revela além do conteúdo, e remove o que você marcar:
   às vezes com o local GPS. A imagem e a orientação ficam.
 
 Remover marca o arquivo como alterado: só **Salvar** grava a versão limpa, e fechar sem salvar
-deixa o arquivo como estava. Num `.docx` ou `.xlsx` com alterações não salvas, o inspetor pede
-para salvar antes, porque ele lê o arquivo como está gravado. Num `.sdoc` ou `.ssheet` só há
+deixa o arquivo como estava. Num `.docx`, `.odt` ou `.xlsx` com alterações não salvas, o inspetor
+pede para salvar antes, porque ele lê o arquivo como está gravado. Num `.sdoc` ou `.ssheet` só há
 nomes para remover.
+
+Num `.odt`, o inspetor procura os mesmos dados. O formato não tem um pedido de não gravar nomes;
+o Librevia grava o seu no arquivo e o respeita, mas o LibreOffice o ignora.
 
 Num PDF, o inspetor só mostra: o autor das propriedades e quantas versões anteriores o arquivo
 guarda. Cada alteração de um PDF, feita aqui ou em outro programa, é acrescentada no fim e deixa a
